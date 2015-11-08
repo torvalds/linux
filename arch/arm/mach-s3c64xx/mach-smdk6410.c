@@ -68,9 +68,9 @@
 #include <plat/adc.h>
 #include <linux/platform_data/touchscreen-s3c2410.h>
 #include <plat/keypad.h>
-#include <plat/backlight.h>
 #include <plat/samsung-time.h>
 
+#include "backlight.h"
 #include "common.h"
 #include "regs-modem.h"
 #include "regs-srom.h"
@@ -209,7 +209,7 @@ static struct platform_device smdk6410_smsc911x = {
 };
 
 #ifdef CONFIG_REGULATOR
-static struct regulator_consumer_supply smdk6410_b_pwr_5v_consumers[] __initdata = {
+static struct regulator_consumer_supply smdk6410_b_pwr_5v_consumers[] = {
 	REGULATOR_SUPPLY("PVDD", "0-001b"),
 	REGULATOR_SUPPLY("AVDD", "0-001b"),
 };
@@ -628,7 +628,7 @@ static struct platform_pwm_backlight_data smdk6410_bl_data = {
 	.enable_gpio = -1,
 };
 
-static struct s3c_hsotg_plat smdk6410_hsotg_pdata;
+static struct dwc2_hsotg_plat smdk6410_hsotg_pdata;
 
 static void __init smdk6410_map_io(void)
 {
@@ -659,7 +659,7 @@ static void __init smdk6410_machine_init(void)
 	s3c_i2c0_set_platdata(NULL);
 	s3c_i2c1_set_platdata(NULL);
 	s3c_fb_set_platdata(&smdk6410_lcd_pdata);
-	s3c_hsotg_set_platdata(&smdk6410_hsotg_pdata);
+	dwc2_hsotg_set_platdata(&smdk6410_hsotg_pdata);
 
 	samsung_keypad_set_platdata(&smdk6410_keypad_data);
 

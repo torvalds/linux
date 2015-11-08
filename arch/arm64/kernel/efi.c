@@ -48,17 +48,7 @@ static struct mm_struct efi_mm = {
 	.mmap_sem		= __RWSEM_INITIALIZER(efi_mm.mmap_sem),
 	.page_table_lock	= __SPIN_LOCK_UNLOCKED(efi_mm.page_table_lock),
 	.mmlist			= LIST_HEAD_INIT(efi_mm.mmlist),
-	INIT_MM_CONTEXT(efi_mm)
 };
-
-static int uefi_debug __initdata;
-static int __init uefi_debug_setup(char *str)
-{
-	uefi_debug = 1;
-
-	return 0;
-}
-early_param("uefi_debug", uefi_debug_setup);
 
 static int __init is_normal_ram(efi_memory_desc_t *md)
 {
@@ -122,12 +112,12 @@ static int __init uefi_init(void)
 
 	/* Show what we know for posterity */
 	c16 = early_memremap(efi_to_phys(efi.systab->fw_vendor),
-			     sizeof(vendor));
+			     sizeof(vendor) * sizeof(efi_char16_t));
 	if (c16) {
 		for (i = 0; i < (int) sizeof(vendor) - 1 && *c16; ++i)
 			vendor[i] = c16[i];
 		vendor[i] = '\0';
-		early_memunmap(c16, sizeof(vendor));
+		early_memunmap(c16, sizeof(vendor) * sizeof(efi_char16_t));
 	}
 
 	pr_info("EFI v%u.%.02u by %s\n",
@@ -158,6 +148,7 @@ static __init int is_reserve_region(efi_memory_desc_t *md)
 	case EFI_BOOT_SERVICES_CODE:
 	case EFI_BOOT_SERVICES_DATA:
 	case EFI_CONVENTIONAL_MEMORY:
+	case EFI_PERSISTENT_MEMORY:
 		return 0;
 	default:
 		break;
@@ -170,14 +161,14 @@ static __init void reserve_regions(void)
 	efi_memory_desc_t *md;
 	u64 paddr, npages, size;
 
-	if (uefi_debug)
+	if (efi_enabled(EFI_DBG))
 		pr_info("Processing EFI memory map:\n");
 
 	for_each_efi_memory_desc(&memmap, md) {
 		paddr = md->phys_addr;
 		npages = md->num_pages;
 
-		if (uefi_debug) {
+		if (efi_enabled(EFI_DBG)) {
 			char buf[64];
 
 			pr_info("  0x%012llx-0x%012llx %s",
@@ -193,11 +184,11 @@ static __init void reserve_regions(void)
 
 		if (is_reserve_region(md)) {
 			memblock_reserve(paddr, size);
-			if (uefi_debug)
+			if (efi_enabled(EFI_DBG))
 				pr_cont("*");
 		}
 
-		if (uefi_debug)
+		if (efi_enabled(EFI_DBG))
 			pr_cont("\n");
 	}
 
@@ -209,14 +200,14 @@ void __init efi_init(void)
 	struct efi_fdt_params params;
 
 	/* Grab UEFI information placed in FDT by stub */
-	if (!efi_get_fdt_params(&params, uefi_debug))
+	if (!efi_get_fdt_params(&params))
 		return;
 
 	efi_system_table = params.system_table;
 
 	memblock_reserve(params.mmap & PAGE_MASK,
 			 PAGE_ALIGN(params.mmap_size + (params.mmap & ~PAGE_MASK)));
-	memmap.phys_map = (void *)params.mmap;
+	memmap.phys_map = params.mmap;
 	memmap.map = early_memremap(params.mmap, params.mmap_size);
 	memmap.map_end = memmap.map + params.mmap_size;
 	memmap.desc_size = params.desc_size;
@@ -257,7 +248,8 @@ static bool __init efi_virtmap_init(void)
 		 */
 		if (!is_normal_ram(md))
 			prot = __pgprot(PROT_DEVICE_nGnRE);
-		else if (md->type == EFI_RUNTIME_SERVICES_CODE)
+		else if (md->type == EFI_RUNTIME_SERVICES_CODE ||
+			 !PAGE_ALIGNED(md->phys_addr))
 			prot = PAGE_KERNEL_EXEC;
 		else
 			prot = PAGE_KERNEL;
@@ -289,7 +281,7 @@ static int __init arm64_enable_runtime_services(void)
 	pr_info("Remapping and enabling EFI services.\n");
 
 	mapsize = memmap.map_end - memmap.map;
-	memmap.map = (__force void *)ioremap_cache((phys_addr_t)memmap.phys_map,
+	memmap.map = (__force void *)ioremap_cache(memmap.phys_map,
 						   mapsize);
 	if (!memmap.map) {
 		pr_err("Failed to remap EFI memory map\n");
@@ -342,9 +334,9 @@ static void efi_set_pgd(struct mm_struct *mm)
 	else
 		cpu_switch_mm(mm->pgd, mm);
 
-	flush_tlb_all();
+	local_flush_tlb_all();
 	if (icache_is_aivivt())
-		__flush_icache_all();
+		__local_flush_icache_all();
 }
 
 void efi_virtmap_load(void)

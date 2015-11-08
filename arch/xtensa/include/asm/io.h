@@ -57,8 +57,10 @@ static inline void __iomem *ioremap_cache(unsigned long offset,
 	else
 		BUG();
 }
+#define ioremap_cache ioremap_cache
 
 #define ioremap_wc ioremap_nocache
+#define ioremap_wt ioremap_nocache
 
 static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
 {

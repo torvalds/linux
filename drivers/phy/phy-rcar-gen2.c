@@ -17,13 +17,12 @@
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
-
-#include <asm/cmpxchg.h>
+#include <linux/atomic.h>
 
 #define USBHS_LPSTS			0x02
 #define USBHS_UGCTRL			0x80
 #define USBHS_UGCTRL2			0x84
-#define USBHS_UGSTS			0x88	/* The manuals have 0x90 */
+#define USBHS_UGSTS			0x88	/* From technical update */
 
 /* Low Power Status register (LPSTS) */
 #define USBHS_LPSTS_SUSPM		0x4000
@@ -41,7 +40,7 @@
 #define USBHS_UGCTRL2_USB0SEL_HS_USB	0x00000030
 
 /* USB General status register (UGSTS) */
-#define USBHS_UGSTS_LOCK		0x00000300 /* The manuals have 0x3 */
+#define USBHS_UGSTS_LOCK		0x00000100 /* From technical update */
 
 #define PHYS_PER_CHANNEL	2
 
@@ -184,7 +183,7 @@ static int rcar_gen2_phy_power_off(struct phy *p)
 	return 0;
 }
 
-static struct phy_ops rcar_gen2_phy_ops = {
+static const struct phy_ops rcar_gen2_phy_ops = {
 	.init		= rcar_gen2_phy_init,
 	.exit		= rcar_gen2_phy_exit,
 	.power_on	= rcar_gen2_phy_power_on,
@@ -195,6 +194,7 @@ static struct phy_ops rcar_gen2_phy_ops = {
 static const struct of_device_id rcar_gen2_phy_match_table[] = {
 	{ .compatible = "renesas,usb-phy-r8a7790" },
 	{ .compatible = "renesas,usb-phy-r8a7791" },
+	{ .compatible = "renesas,usb-phy-r8a7794" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rcar_gen2_phy_match_table);
@@ -205,11 +205,6 @@ static struct phy *rcar_gen2_phy_xlate(struct device *dev,
 	struct rcar_gen2_phy_driver *drv;
 	struct device_node *np = args->np;
 	int i;
-
-	if (!of_device_is_available(np)) {
-		dev_warn(dev, "Requested PHY is disabled\n");
-		return ERR_PTR(-ENODEV);
-	}
 
 	drv = dev_get_drvdata(dev);
 	if (!drv)

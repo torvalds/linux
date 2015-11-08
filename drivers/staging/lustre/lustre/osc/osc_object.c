@@ -72,7 +72,7 @@ static struct osc_object *lu2osc(const struct lu_object *obj)
 static int osc_object_init(const struct lu_env *env, struct lu_object *obj,
 			   const struct lu_object_conf *conf)
 {
-	struct osc_object	   *osc   = lu2osc(obj);
+	struct osc_object *osc = lu2osc(obj);
 	const struct cl_object_conf *cconf = lu2cl_conf(conf);
 	int i;
 
@@ -122,7 +122,7 @@ static void osc_object_free(const struct lu_env *env, struct lu_object *obj)
 	LASSERT(atomic_read(&osc->oo_nr_writes) == 0);
 
 	lu_object_fini(obj);
-	OBD_SLAB_FREE_PTR(osc, osc_object_kmem);
+	kmem_cache_free(osc_object_kmem, osc);
 }
 
 int osc_lvb_print(const struct lu_env *env, void *cookie,
@@ -136,9 +136,9 @@ int osc_lvb_print(const struct lu_env *env, void *cookie,
 static int osc_object_print(const struct lu_env *env, void *cookie,
 			    lu_printer_t p, const struct lu_object *obj)
 {
-	struct osc_object   *osc   = lu2osc(obj);
-	struct lov_oinfo    *oinfo = osc->oo_oinfo;
-	struct osc_async_rc *ar    = &oinfo->loi_ar;
+	struct osc_object *osc = lu2osc(obj);
+	struct lov_oinfo *oinfo = osc->oo_oinfo;
+	struct osc_async_rc *ar = &oinfo->loi_ar;
 
 	(*p)(env, cookie, "id: " DOSTID " idx: %d gen: %d kms_valid: %u kms %llu rc: %d force_sync: %d min_xid: %llu ",
 	     POSTID(&oinfo->loi_oi), oinfo->loi_ost_idx,
@@ -147,7 +147,6 @@ static int osc_object_print(const struct lu_env *env, void *cookie,
 	osc_lvb_print(env, cookie, p, &oinfo->loi_lvb);
 	return 0;
 }
-
 
 static int osc_attr_get(const struct lu_env *env, struct cl_object *obj,
 			struct cl_attr *attr)
@@ -163,7 +162,7 @@ int osc_attr_set(const struct lu_env *env, struct cl_object *obj,
 		 const struct cl_attr *attr, unsigned valid)
 {
 	struct lov_oinfo *oinfo = cl2osc(obj)->oo_oinfo;
-	struct ost_lvb   *lvb   = &oinfo->loi_lvb;
+	struct ost_lvb *lvb = &oinfo->loi_lvb;
 
 	if (valid & CAT_SIZE)
 		lvb->lvb_size = attr->cat_size;
@@ -188,11 +187,10 @@ static int osc_object_glimpse(const struct lu_env *env,
 {
 	struct lov_oinfo *oinfo = cl2osc(obj)->oo_oinfo;
 
-	lvb->lvb_size   = oinfo->loi_kms;
+	lvb->lvb_size = oinfo->loi_kms;
 	lvb->lvb_blocks = oinfo->loi_lvb.lvb_blocks;
 	return 0;
 }
-
 
 void osc_object_set_contended(struct osc_object *obj)
 {
@@ -208,9 +206,9 @@ void osc_object_clear_contended(struct osc_object *obj)
 
 int osc_object_is_contended(struct osc_object *obj)
 {
-	struct osc_device *dev  = lu2osc_dev(obj->oo_cl.co_lu.lo_dev);
+	struct osc_device *dev = lu2osc_dev(obj->oo_cl.co_lu.lo_dev);
 	int osc_contention_time = dev->od_contention_time;
-	unsigned long cur_time     = cfs_time_current();
+	unsigned long cur_time = cfs_time_current();
 	unsigned long retry_time;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_OSC_OBJECT_CONTENTION))
@@ -255,9 +253,9 @@ struct lu_object *osc_object_alloc(const struct lu_env *env,
 				   struct lu_device *dev)
 {
 	struct osc_object *osc;
-	struct lu_object  *obj;
+	struct lu_object *obj;
 
-	OBD_SLAB_ALLOC_PTR_GFP(osc, osc_object_kmem, GFP_NOFS);
+	osc = kmem_cache_alloc(osc_object_kmem, GFP_NOFS | __GFP_ZERO);
 	if (osc != NULL) {
 		obj = osc2lu(osc);
 		lu_object_init(obj, NULL, dev);

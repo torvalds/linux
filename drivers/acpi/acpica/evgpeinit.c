@@ -377,7 +377,7 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 
 	/* 4) The last two characters of the name are the hex GPE Number */
 
-	gpe_number = ACPI_STRTOUL(&name[2], NULL, 16);
+	gpe_number = strtoul(&name[2], NULL, 16);
 	if (gpe_number == ACPI_UINT32_MAX) {
 
 		/* Conversion failed; invalid method, just ignore it */

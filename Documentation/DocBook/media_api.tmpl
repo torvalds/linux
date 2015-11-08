@@ -1,12 +1,13 @@
-<?xml version="1.0"?>
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
-	"http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd" [
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+	"http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd" [
 <!ENTITY % media-entities SYSTEM "./media-entities.tmpl"> %media-entities;
 <!ENTITY media-indices SYSTEM "./media-indices.tmpl">
 
 <!ENTITY eg                     "e.&nbsp;g.">
 <!ENTITY ie                     "i.&nbsp;e.">
 <!ENTITY fd                     "File descriptor returned by <link linkend='func-open'><function>open()</function></link>.">
+<!ENTITY fe_fd                  "File descriptor returned by <link linkend='frontend_f_open'><function>open()</function></link>.">
 <!ENTITY i2c                    "I<superscript>2</superscript>C">
 <!ENTITY return-value		"<title>Return Value</title><para>On success <returnvalue>0</returnvalue> is returned, on error <returnvalue>-1</returnvalue> and the <varname>errno</varname> variable is set appropriately. The generic error codes are described at the <link linkend='gen-errors'>Generic Error Codes</link> chapter.</para>">
 <!ENTITY return-value-dvb	"<para>RETURN VALUE</para><para>On success <returnvalue>0</returnvalue> is returned, on error <returnvalue>-1</returnvalue> and the <varname>errno</varname> variable is set appropriately. The generic error codes are described at the <link linkend='gen-errors'>Generic Error Codes</link> chapter.</para>">
@@ -32,12 +33,12 @@
 <!ENTITY dash-ent-24            "<entry>-</entry><entry>-</entry><entry>-</entry><entry>-</entry><entry>-</entry><entry>-</entry><entry>-</entry><entry>-</entry><entry>-</entry><entry>-</entry><entry>-</entry><entry>-</entry><entry>-</entry><entry>-</entry><entry>-</entry><entry>-</entry><entry>-</entry><entry>-</entry><entry>-</entry><entry>-</entry><entry>-</entry><entry>-</entry><entry>-</entry><entry>-</entry>">
 ]>
 
-<book id="media_api">
+<book id="media_api" lang="en">
 <bookinfo>
 	<title>LINUX MEDIA INFRASTRUCTURE API</title>
 
 	<copyright>
-		<year>2009-2014</year>
+		<year>2009-2015</year>
 		<holder>LinuxTV Developers</holder>
 	</copyright>
 
@@ -60,28 +61,56 @@
 		analog and digital TV receiver cards, AM/FM receiver cards,
 		streaming capture and output devices, codec devices and remote
 		controllers.</para>
-	<para>It is divided into four parts.</para>
+	<para>A typical media device hardware is shown at
+	<xref linkend="typical_media_device" />.</para>
+	<figure id="typical_media_device">
+	    <title>Typical Media Device</title>
+	    <mediaobject>
+		<imageobject>
+		    <imagedata fileref="typical_media_device.svg" format="SVG" />
+		</imageobject>
+		<textobject>
+		    <phrase>Typical Media Device Block Diagram</phrase>
+		</textobject>
+	    </mediaobject>
+	</figure>
+	<para>The media infrastructure API was designed to control such
+	    devices. It is divided into four parts.</para>
 	<para>The first part covers radio, video capture and output,
 		cameras, analog TV devices and codecs.</para>
 	<para>The second part covers the
 		API used for digital TV and Internet reception via one of the
 		several digital tv standards. While it is called as DVB API,
 		in fact it covers several different video standards including
-		DVB-T, DVB-S, DVB-C and ATSC. The API is currently being updated
-		to document support also for DVB-S2, ISDB-T and ISDB-S.</para>
+		DVB-T/T2, DVB-S/S2, DVB-C, ATSC, ISDB-T, ISDB-S,etc. The complete
+		list of supported standards can be found at
+		<xref linkend="fe-delivery-system-t" />.</para>
 	<para>The third part covers the Remote Controller API.</para>
 	<para>The fourth part covers the Media Controller API.</para>
+	<para>It should also be noted that a media device may also have audio
+	      components, like mixers, PCM capture, PCM playback, etc, which
+	      are controlled via ALSA API.</para>
 	<para>For additional information and for the latest development code,
 		see: <ulink url="http://linuxtv.org">http://linuxtv.org</ulink>.</para>
 	<para>For discussing improvements, reporting troubles, sending new drivers, etc, please mail to: <ulink url="http://vger.kernel.org/vger-lists.html#linux-media">Linux Media Mailing List (LMML).</ulink>.</para>
 </preface>
 
-<part id="v4l2spec">&sub-v4l2;</part>
-<part id="dvbapi">&sub-dvbapi;</part>
-<part id="remotes">&sub-remote_controllers;</part>
-<part id="media_common">&sub-media-controller;</part>
+<part id="v4l2spec">
+&sub-v4l2;
+</part>
+<part id="dvbapi">
+&sub-dvbapi;
+</part>
+<part id="remotes">
+&sub-remote_controllers;
+</part>
+<part id="media_common">
+&sub-media-controller;
+</part>
 
-<chapter id="gen_errors">&sub-gen-errors;</chapter>
+<chapter id="gen_errors">
+&sub-gen-errors;
+</chapter>
 
 &sub-fdl-appendix;
 

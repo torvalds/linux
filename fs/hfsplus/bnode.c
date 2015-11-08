@@ -454,7 +454,6 @@ static struct hfs_bnode *__hfs_bnode_create(struct hfs_btree *tree, u32 cnid)
 			page_cache_release(page);
 			goto fail;
 		}
-		page_cache_release(page);
 		node->page[i] = page;
 	}
 
@@ -566,13 +565,11 @@ node_error:
 
 void hfs_bnode_free(struct hfs_bnode *node)
 {
-#if 0
 	int i;
 
 	for (i = 0; i < node->tree->pages_per_bnode; i++)
 		if (node->page[i])
 			page_cache_release(node->page[i]);
-#endif
 	kfree(node);
 }
 

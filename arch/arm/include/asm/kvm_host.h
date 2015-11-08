@@ -27,20 +27,19 @@
 #include <asm/fpstate.h>
 #include <kvm/arm_arch_timer.h>
 
-#if defined(CONFIG_KVM_ARM_MAX_VCPUS)
-#define KVM_MAX_VCPUS CONFIG_KVM_ARM_MAX_VCPUS
-#else
-#define KVM_MAX_VCPUS 0
-#endif
+#define __KVM_HAVE_ARCH_INTC_INITIALIZED
 
 #define KVM_USER_MEM_SLOTS 32
 #define KVM_PRIVATE_MEM_SLOTS 4
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 #define KVM_HAVE_ONE_REG
+#define KVM_HALT_POLL_NS_DEFAULT 500000
 
 #define KVM_VCPU_MAX_FEATURES 2
 
 #include <kvm/arm_vgic.h>
+
+#define KVM_MAX_VCPUS VGIC_V2_MAX_CPUS
 
 u32 *kvm_vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num, u32 mode);
 int __attribute_const__ kvm_target_cpu(void);
@@ -127,7 +126,10 @@ struct kvm_vcpu_arch {
 	 * here.
 	 */
 
-	/* Don't run the guest on this vcpu */
+	/* vcpu power-off state */
+	bool power_off;
+
+	 /* Don't run the guest (internal implementation need) */
 	bool pause;
 
 	/* IO related fields */
@@ -146,6 +148,7 @@ struct kvm_vm_stat {
 
 struct kvm_vcpu_stat {
 	u32 halt_successful_poll;
+	u32 halt_attempted_poll;
 	u32 halt_wakeup;
 };
 
@@ -165,19 +168,10 @@ void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte);
 
 unsigned long kvm_arm_num_regs(struct kvm_vcpu *vcpu);
 int kvm_arm_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *indices);
+int kvm_age_hva(struct kvm *kvm, unsigned long start, unsigned long end);
+int kvm_test_age_hva(struct kvm *kvm, unsigned long hva);
 
 /* We do not have shadow page tables, hence the empty hooks */
-static inline int kvm_age_hva(struct kvm *kvm, unsigned long start,
-			      unsigned long end)
-{
-	return 0;
-}
-
-static inline int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)
-{
-	return 0;
-}
-
 static inline void kvm_arch_mmu_notifier_invalidate_page(struct kvm *kvm,
 							 unsigned long address)
 {
@@ -225,11 +219,6 @@ static inline int kvm_arch_dev_ioctl_check_extension(long ext)
 	return 0;
 }
 
-static inline void vgic_arch_setup(const struct vgic_params *vgic)
-{
-	BUG_ON(vgic->type != VGIC_V2);
-}
-
 int kvm_perf_init(void);
 int kvm_perf_teardown(void);
 
@@ -242,5 +231,10 @@ static inline void kvm_arch_hardware_unsetup(void) {}
 static inline void kvm_arch_sync_events(struct kvm *kvm) {}
 static inline void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
+
+static inline void kvm_arm_init_debug(void) {}
+static inline void kvm_arm_setup_debug(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arm_clear_debug(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arm_reset_debug_ptr(struct kvm_vcpu *vcpu) {}
 
 #endif /* __ARM_KVM_HOST_H__ */

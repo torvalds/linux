@@ -758,6 +758,15 @@ void nci_ntf_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	/* strip the nci control header */
 	skb_pull(skb, NCI_CTRL_HDR_SIZE);
 
+	if (nci_opcode_gid(ntf_opcode) == NCI_GID_PROPRIETARY) {
+		if (nci_prop_ntf_packet(ndev, ntf_opcode, skb) == -ENOTSUPP) {
+			pr_err("unsupported ntf opcode 0x%x\n",
+			       ntf_opcode);
+		}
+
+		goto end;
+	}
+
 	switch (ntf_opcode) {
 	case NCI_OP_CORE_CONN_CREDITS_NTF:
 		nci_core_conn_credits_ntf_packet(ndev, skb);
@@ -796,5 +805,7 @@ void nci_ntf_packet(struct nci_dev *ndev, struct sk_buff *skb)
 		break;
 	}
 
+	nci_core_ntf_packet(ndev, ntf_opcode, skb);
+end:
 	kfree_skb(skb);
 }

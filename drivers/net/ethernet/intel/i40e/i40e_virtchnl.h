@@ -59,31 +59,28 @@
  * of the virtchnl_msg structure.
  */
 enum i40e_virtchnl_ops {
-/* VF sends req. to pf for the following
- * ops.
+/* The PF sends status change events to VFs using
+ * the I40E_VIRTCHNL_OP_EVENT opcode.
+ * VFs send requests to the PF using the other ops.
  */
 	I40E_VIRTCHNL_OP_UNKNOWN = 0,
 	I40E_VIRTCHNL_OP_VERSION = 1, /* must ALWAYS be 1 */
-	I40E_VIRTCHNL_OP_RESET_VF,
-	I40E_VIRTCHNL_OP_GET_VF_RESOURCES,
-	I40E_VIRTCHNL_OP_CONFIG_TX_QUEUE,
-	I40E_VIRTCHNL_OP_CONFIG_RX_QUEUE,
-	I40E_VIRTCHNL_OP_CONFIG_VSI_QUEUES,
-	I40E_VIRTCHNL_OP_CONFIG_IRQ_MAP,
-	I40E_VIRTCHNL_OP_ENABLE_QUEUES,
-	I40E_VIRTCHNL_OP_DISABLE_QUEUES,
-	I40E_VIRTCHNL_OP_ADD_ETHER_ADDRESS,
-	I40E_VIRTCHNL_OP_DEL_ETHER_ADDRESS,
-	I40E_VIRTCHNL_OP_ADD_VLAN,
-	I40E_VIRTCHNL_OP_DEL_VLAN,
-	I40E_VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE,
-	I40E_VIRTCHNL_OP_GET_STATS,
-	I40E_VIRTCHNL_OP_FCOE,
-	I40E_VIRTCHNL_OP_CONFIG_RSS,
-/* PF sends status change events to vfs using
- * the following op.
- */
-	I40E_VIRTCHNL_OP_EVENT,
+	I40E_VIRTCHNL_OP_RESET_VF = 2,
+	I40E_VIRTCHNL_OP_GET_VF_RESOURCES = 3,
+	I40E_VIRTCHNL_OP_CONFIG_TX_QUEUE = 4,
+	I40E_VIRTCHNL_OP_CONFIG_RX_QUEUE = 5,
+	I40E_VIRTCHNL_OP_CONFIG_VSI_QUEUES = 6,
+	I40E_VIRTCHNL_OP_CONFIG_IRQ_MAP = 7,
+	I40E_VIRTCHNL_OP_ENABLE_QUEUES = 8,
+	I40E_VIRTCHNL_OP_DISABLE_QUEUES = 9,
+	I40E_VIRTCHNL_OP_ADD_ETHER_ADDRESS = 10,
+	I40E_VIRTCHNL_OP_DEL_ETHER_ADDRESS = 11,
+	I40E_VIRTCHNL_OP_ADD_VLAN = 12,
+	I40E_VIRTCHNL_OP_DEL_VLAN = 13,
+	I40E_VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE = 14,
+	I40E_VIRTCHNL_OP_GET_STATS = 15,
+	I40E_VIRTCHNL_OP_FCOE = 16,
+	I40E_VIRTCHNL_OP_EVENT = 17,
 };
 
 /* Virtual channel message descriptor. This overlays the admin queue
@@ -112,7 +109,9 @@ struct i40e_virtchnl_msg {
  * error regardless of version mismatch.
  */
 #define I40E_VIRTCHNL_VERSION_MAJOR		1
-#define I40E_VIRTCHNL_VERSION_MINOR		0
+#define I40E_VIRTCHNL_VERSION_MINOR		1
+#define I40E_VIRTCHNL_VERSION_MINOR_NO_VF_CAPS	0
+
 struct i40e_virtchnl_version_info {
 	u32 major;
 	u32 minor;
@@ -131,7 +130,8 @@ struct i40e_virtchnl_version_info {
  */
 
 /* I40E_VIRTCHNL_OP_GET_VF_RESOURCES
- * VF sends this request to PF with no parameters
+ * Version 1.0 VF sends this request to PF with no parameters
+ * Version 1.1 VF sends this request to PF with u32 bitmap of its capabilities
  * PF responds with an indirect message containing
  * i40e_virtchnl_vf_resource and one or more
  * i40e_virtchnl_vsi_resource structures.
@@ -145,9 +145,14 @@ struct i40e_virtchnl_vsi_resource {
 	u8 default_mac_addr[ETH_ALEN];
 };
 /* VF offload flags */
-#define I40E_VIRTCHNL_VF_OFFLOAD_L2	0x00000001
-#define I40E_VIRTCHNL_VF_OFFLOAD_FCOE	0x00000004
-#define I40E_VIRTCHNL_VF_OFFLOAD_VLAN	0x00010000
+#define I40E_VIRTCHNL_VF_OFFLOAD_L2		0x00000001
+#define I40E_VIRTCHNL_VF_OFFLOAD_IWARP		0x00000002
+#define I40E_VIRTCHNL_VF_OFFLOAD_FCOE		0x00000004
+#define I40E_VIRTCHNL_VF_OFFLOAD_RSS_AQ		0x00000008
+#define I40E_VIRTCHNL_VF_OFFLOAD_RSS_REG	0x00000010
+#define I40E_VIRTCHNL_VF_OFFLOAD_WB_ON_ITR	0x00000020
+#define I40E_VIRTCHNL_VF_OFFLOAD_VLAN		0x00010000
+#define I40E_VIRTCHNL_VF_OFFLOAD_RX_POLLING	0x00020000
 
 struct i40e_virtchnl_vf_resource {
 	u16 num_vsis;

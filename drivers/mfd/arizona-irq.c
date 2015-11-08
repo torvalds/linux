@@ -169,24 +169,17 @@ static struct irq_chip arizona_irq_chip = {
 static int arizona_irq_map(struct irq_domain *h, unsigned int virq,
 			      irq_hw_number_t hw)
 {
-	struct regmap_irq_chip_data *data = h->host_data;
+	struct arizona *data = h->host_data;
 
 	irq_set_chip_data(virq, data);
 	irq_set_chip_and_handler(virq, &arizona_irq_chip, handle_simple_irq);
 	irq_set_nested_thread(virq, 1);
-
-	/* ARM needs us to explicitly flag the IRQ as valid
-	 * and will set them noprobe when we do so. */
-#ifdef CONFIG_ARM
-	set_irq_flags(virq, IRQF_VALID);
-#else
 	irq_set_noprobe(virq);
-#endif
 
 	return 0;
 }
 
-static struct irq_domain_ops arizona_domain_ops = {
+static const struct irq_domain_ops arizona_domain_ops = {
 	.map	= arizona_irq_map,
 	.xlate	= irq_domain_xlate_twocell,
 };
@@ -211,6 +204,7 @@ int arizona_irq_init(struct arizona *arizona)
 #endif
 #ifdef CONFIG_MFD_WM5110
 	case WM5110:
+	case WM8280:
 		aod = &wm5110_aod;
 
 		switch (arizona->rev) {
@@ -229,6 +223,15 @@ int arizona_irq_init(struct arizona *arizona)
 	case WM8997:
 		aod = &wm8997_aod;
 		irq = &wm8997_irq;
+
+		arizona->ctrlif_error = false;
+		break;
+#endif
+#ifdef CONFIG_MFD_WM8998
+	case WM8998:
+	case WM1814:
+		aod = &wm8998_aod;
+		irq = &wm8998_irq;
 
 		arizona->ctrlif_error = false;
 		break;

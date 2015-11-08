@@ -177,8 +177,8 @@ size_t vme_get_size(struct vme_resource *resource)
 }
 EXPORT_SYMBOL(vme_get_size);
 
-static int vme_check_window(u32 aspace, unsigned long long vme_base,
-	unsigned long long size)
+int vme_check_window(u32 aspace, unsigned long long vme_base,
+		     unsigned long long size)
 {
 	int retval = 0;
 
@@ -199,10 +199,8 @@ static int vme_check_window(u32 aspace, unsigned long long vme_base,
 			retval = -EFAULT;
 		break;
 	case VME_A64:
-		/*
-		 * Any value held in an unsigned long long can be used as the
-		 * base
-		 */
+		if ((size != 0) && (vme_base > U64_MAX + 1 - size))
+			retval = -EFAULT;
 		break;
 	case VME_CRCSR:
 		if (((vme_base + size) > VME_CRCSR_MAX) ||
@@ -222,6 +220,40 @@ static int vme_check_window(u32 aspace, unsigned long long vme_base,
 	}
 
 	return retval;
+}
+EXPORT_SYMBOL(vme_check_window);
+
+static u32 vme_get_aspace(int am)
+{
+	switch (am) {
+	case 0x29:
+	case 0x2D:
+		return VME_A16;
+	case 0x38:
+	case 0x39:
+	case 0x3A:
+	case 0x3B:
+	case 0x3C:
+	case 0x3D:
+	case 0x3E:
+	case 0x3F:
+		return VME_A24;
+	case 0x8:
+	case 0x9:
+	case 0xA:
+	case 0xB:
+	case 0xC:
+	case 0xD:
+	case 0xE:
+	case 0xF:
+		return VME_A32;
+	case 0x0:
+	case 0x1:
+	case 0x3:
+		return VME_A64;
+	}
+
+	return 0;
 }
 
 /*
@@ -609,6 +641,32 @@ unsigned int vme_master_rmw(struct vme_resource *resource, unsigned int mask,
 }
 EXPORT_SYMBOL(vme_master_rmw);
 
+int vme_master_mmap(struct vme_resource *resource, struct vm_area_struct *vma)
+{
+	struct vme_master_resource *image;
+	phys_addr_t phys_addr;
+	unsigned long vma_size;
+
+	if (resource->type != VME_MASTER) {
+		pr_err("Not a master resource\n");
+		return -EINVAL;
+	}
+
+	image = list_entry(resource->entry, struct vme_master_resource, list);
+	phys_addr = image->bus_resource.start + (vma->vm_pgoff << PAGE_SHIFT);
+	vma_size = vma->vm_end - vma->vm_start;
+
+	if (phys_addr + vma_size > image->bus_resource.end + 1) {
+		pr_err("Map size cannot exceed the window size\n");
+		return -EFAULT;
+	}
+
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+
+	return vm_iomap_memory(vma, phys_addr, vma->vm_end - vma->vm_start);
+}
+EXPORT_SYMBOL(vme_master_mmap);
+
 void vme_master_free(struct vme_resource *resource)
 {
 	struct vme_master_resource *master_image;
@@ -964,6 +1022,63 @@ int vme_dma_free(struct vme_resource *resource)
 	return 0;
 }
 EXPORT_SYMBOL(vme_dma_free);
+
+void vme_bus_error_handler(struct vme_bridge *bridge,
+			   unsigned long long address, int am)
+{
+	struct list_head *handler_pos = NULL;
+	struct vme_error_handler *handler;
+	int handler_triggered = 0;
+	u32 aspace = vme_get_aspace(am);
+
+	list_for_each(handler_pos, &bridge->vme_error_handlers) {
+		handler = list_entry(handler_pos, struct vme_error_handler,
+				     list);
+		if ((aspace == handler->aspace) &&
+		    (address >= handler->start) &&
+		    (address < handler->end)) {
+			if (!handler->num_errors)
+				handler->first_error = address;
+			if (handler->num_errors != UINT_MAX)
+				handler->num_errors++;
+			handler_triggered = 1;
+		}
+	}
+
+	if (!handler_triggered)
+		dev_err(bridge->parent,
+			"Unhandled VME access error at address 0x%llx\n",
+			address);
+}
+EXPORT_SYMBOL(vme_bus_error_handler);
+
+struct vme_error_handler *vme_register_error_handler(
+	struct vme_bridge *bridge, u32 aspace,
+	unsigned long long address, size_t len)
+{
+	struct vme_error_handler *handler;
+
+	handler = kmalloc(sizeof(*handler), GFP_KERNEL);
+	if (!handler)
+		return NULL;
+
+	handler->aspace = aspace;
+	handler->start = address;
+	handler->end = address + len;
+	handler->num_errors = 0;
+	handler->first_error = 0;
+	list_add_tail(&handler->list, &bridge->vme_error_handlers);
+
+	return handler;
+}
+EXPORT_SYMBOL(vme_register_error_handler);
+
+void vme_unregister_error_handler(struct vme_error_handler *handler)
+{
+	list_del(&handler->list);
+	kfree(handler);
+}
+EXPORT_SYMBOL(vme_unregister_error_handler);
 
 void vme_irq_handler(struct vme_bridge *bridge, int level, int statid)
 {

@@ -272,7 +272,7 @@ static int chip_cmd(struct CHIPSTATE *chip, char *name, audiocmd *cmd)
 		return -EINVAL;
 	}
 
-	/* FIXME: it seems that the shadow bytes are wrong bellow !*/
+	/* FIXME: it seems that the shadow bytes are wrong below !*/
 
 	/* update our shadow register set; print bytes if (debug > 0) */
 	v4l2_dbg(1, debug, sd, "chip_cmd(%s): reg=%d, data:",
@@ -2051,7 +2051,6 @@ MODULE_DEVICE_TABLE(i2c, tvaudio_id);
 
 static struct i2c_driver tvaudio_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "tvaudio",
 	},
 	.probe		= tvaudio_probe,

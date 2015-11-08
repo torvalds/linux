@@ -27,6 +27,13 @@ static int samsung_usb2_phy_power_on(struct phy *phy)
 
 	dev_dbg(drv->dev, "Request to power_on \"%s\" usb phy\n",
 		inst->cfg->label);
+
+	if (drv->vbus) {
+		ret = regulator_enable(drv->vbus);
+		if (ret)
+			goto err_regulator;
+	}
+
 	ret = clk_prepare_enable(drv->clk);
 	if (ret)
 		goto err_main_clk;
@@ -37,13 +44,20 @@ static int samsung_usb2_phy_power_on(struct phy *phy)
 		spin_lock(&drv->lock);
 		ret = inst->cfg->power_on(inst);
 		spin_unlock(&drv->lock);
+		if (ret)
+			goto err_power_on;
 	}
 
 	return 0;
 
+err_power_on:
+	clk_disable_unprepare(drv->ref_clk);
 err_instance_clk:
 	clk_disable_unprepare(drv->clk);
 err_main_clk:
+	if (drv->vbus)
+		regulator_disable(drv->vbus);
+err_regulator:
 	return ret;
 }
 
@@ -59,13 +73,18 @@ static int samsung_usb2_phy_power_off(struct phy *phy)
 		spin_lock(&drv->lock);
 		ret = inst->cfg->power_off(inst);
 		spin_unlock(&drv->lock);
+		if (ret)
+			return ret;
 	}
 	clk_disable_unprepare(drv->ref_clk);
 	clk_disable_unprepare(drv->clk);
+	if (drv->vbus)
+		ret = regulator_disable(drv->vbus);
+
 	return ret;
 }
 
-static struct phy_ops samsung_usb2_phy_ops = {
+static const struct phy_ops samsung_usb2_phy_ops = {
 	.power_on	= samsung_usb2_phy_power_on,
 	.power_off	= samsung_usb2_phy_power_off,
 	.owner		= THIS_MODULE,
@@ -195,6 +214,14 @@ static int samsung_usb2_phy_probe(struct platform_device *pdev)
 		ret = drv->cfg->rate_to_clk(drv->ref_rate, &drv->ref_reg_val);
 		if (ret)
 			return ret;
+	}
+
+	drv->vbus = devm_regulator_get(dev, "vbus");
+	if (IS_ERR(drv->vbus)) {
+		ret = PTR_ERR(drv->vbus);
+		if (ret == -EPROBE_DEFER)
+			return ret;
+		drv->vbus = NULL;
 	}
 
 	for (i = 0; i < drv->cfg->num_phys; i++) {

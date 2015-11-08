@@ -1343,7 +1343,7 @@ static int init_nic(struct s2io_nic *nic)
 		TX_PA_CFG_IGNORE_L2_ERR;
 	writeq(val64, &bar0->tx_pa_cfg);
 
-	/* Rx DMA intialization. */
+	/* Rx DMA initialization. */
 	val64 = 0;
 	for (i = 0; i < config->rx_ring_num; i++) {
 		struct rx_ring_config *rx_cfg = &config->rx_cfg[i];
@@ -2520,7 +2520,7 @@ static int fill_rx_buffers(struct s2io_nic *nic, struct ring_info *ring,
 			DBG_PRINT(INFO_DBG, "%s: Could not allocate skb\n",
 				  ring->dev->name);
 			if (first_rxdp) {
-				wmb();
+				dma_wmb();
 				first_rxdp->Control_1 |= RXD_OWN_XENA;
 			}
 			swstats->mem_alloc_fail_cnt++;
@@ -2634,7 +2634,7 @@ static int fill_rx_buffers(struct s2io_nic *nic, struct ring_info *ring,
 		rxdp->Control_2 |= SET_RXD_MARKER;
 		if (!(alloc_tab & ((1 << rxsync_frequency) - 1))) {
 			if (first_rxdp) {
-				wmb();
+				dma_wmb();
 				first_rxdp->Control_1 |= RXD_OWN_XENA;
 			}
 			first_rxdp = rxdp;
@@ -2649,7 +2649,7 @@ end:
 	 * and other fields are seen by adapter correctly.
 	 */
 	if (first_rxdp) {
-		wmb();
+		dma_wmb();
 		first_rxdp->Control_1 |= RXD_OWN_XENA;
 	}
 
@@ -5308,7 +5308,8 @@ static int do_s2io_prog_unicast(struct net_device *dev, u8 *addr)
 
 /**
  * s2io_ethtool_sset - Sets different link parameters.
- * @sp : private member of the device structure, which is a pointer to the  * s2io_nic structure.
+ * @sp : private member of the device structure, which is a pointer to the
+ * s2io_nic structure.
  * @info: pointer to the structure with parameters given by ethtool to set
  * link information.
  * Description:
@@ -5388,8 +5389,6 @@ static void s2io_ethtool_gdrvinfo(struct net_device *dev,
 	strlcpy(info->driver, s2io_driver_name, sizeof(info->driver));
 	strlcpy(info->version, s2io_driver_version, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(sp->pdev), sizeof(info->bus_info));
-	info->regdump_len = XENA_REG_SPACE;
-	info->eedump_len = XENA_EEPROM_SPACE;
 }
 
 /**
@@ -5793,7 +5792,8 @@ static void s2io_vpd_read(struct s2io_nic *nic)
 
 /**
  *  s2io_ethtool_geeprom  - reads the value stored in the Eeprom.
- *  @sp : private member of the device structure, which is a pointer to the *       s2io_nic structure.
+ *  @sp : private member of the device structure, which is a pointer to the
+ *  s2io_nic structure.
  *  @eeprom : pointer to the user level structure provided by ethtool,
  *  containing all relevant information.
  *  @data_buf : user defined value to be written into Eeprom.
@@ -6950,7 +6950,7 @@ static  int rxd_owner_bit_reset(struct s2io_nic *sp)
 				}
 
 				set_rxd_buffer_size(sp, rxdp, size);
-				wmb();
+				dma_wmb();
 				/* flip the Ownership bit to Hardware */
 				rxdp->Control_1 |= RXD_OWN_XENA;
 			}
@@ -8224,31 +8224,7 @@ static void s2io_rem_nic(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-/**
- * s2io_starter - Entry point for the driver
- * Description: This function is the entry point for the driver. It verifies
- * the module loadable parameters and initializes PCI configuration space.
- */
-
-static int __init s2io_starter(void)
-{
-	return pci_register_driver(&s2io_driver);
-}
-
-/**
- * s2io_closer - Cleanup routine for the driver
- * Description: This function is the cleanup routine for the driver. It
- * unregisters the driver.
- */
-
-static __exit void s2io_closer(void)
-{
-	pci_unregister_driver(&s2io_driver);
-	DBG_PRINT(INIT_DBG, "cleanup done\n");
-}
-
-module_init(s2io_starter);
-module_exit(s2io_closer);
+module_pci_driver(s2io_driver);
 
 static int check_L2_lro_capable(u8 *buffer, struct iphdr **ip,
 				struct tcphdr **tcp, struct RxD_t *rxdp,

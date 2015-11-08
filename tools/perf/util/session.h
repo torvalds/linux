@@ -15,18 +15,24 @@
 struct ip_callchain;
 struct thread;
 
+struct auxtrace;
+struct itrace_synth_opts;
+
 struct perf_session {
 	struct perf_header	header;
 	struct machines		machines;
 	struct perf_evlist	*evlist;
+	struct auxtrace		*auxtrace;
+	struct itrace_synth_opts *itrace_synth_opts;
+	struct list_head	auxtrace_index;
 	struct trace_event	tevent;
-	struct events_stats	stats;
 	bool			repipe;
 	bool			one_mmap;
 	void			*one_mmap_addr;
 	u64			one_mmap_offset;
 	struct ordered_events	ordered_events;
 	struct perf_data_file	*file;
+	struct perf_tool	*tool;
 };
 
 #define PRINT_IP_OPT_IP		(1<<0)
@@ -49,19 +55,12 @@ int perf_session__peek_event(struct perf_session *session, off_t file_offset,
 			     union perf_event **event_ptr,
 			     struct perf_sample *sample);
 
-int perf_session__process_events(struct perf_session *session,
-				 struct perf_tool *tool);
+int perf_session__process_events(struct perf_session *session);
 
-int perf_session_queue_event(struct perf_session *s, union perf_event *event,
-			     struct perf_tool *tool, struct perf_sample *sample,
-			     u64 file_offset);
+int perf_session__queue_event(struct perf_session *s, union perf_event *event,
+			      struct perf_sample *sample, u64 file_offset);
 
 void perf_tool__fill_defaults(struct perf_tool *tool);
-
-int perf_session__deliver_event(struct perf_session *session,
-				union perf_event *event,
-				struct perf_sample *sample,
-				struct perf_tool *tool, u64 file_offset);
 
 int perf_session__resolve_callchain(struct perf_session *session,
 				    struct perf_evsel *evsel,
@@ -90,6 +89,8 @@ struct machine *perf_session__findnew_machine(struct perf_session *session, pid_
 }
 
 struct thread *perf_session__findnew(struct perf_session *session, pid_t pid);
+struct thread *perf_session__register_idle_thread(struct perf_session *session);
+
 size_t perf_session__fprintf(struct perf_session *session, FILE *fp);
 
 size_t perf_session__fprintf_dsos(struct perf_session *session, FILE *fp);
@@ -126,8 +127,7 @@ extern volatile int session_done;
 
 int perf_session__deliver_synth_event(struct perf_session *session,
 				      union perf_event *event,
-				      struct perf_sample *sample,
-				      struct perf_tool *tool);
+				      struct perf_sample *sample);
 
 int perf_event__process_id_index(struct perf_tool *tool,
 				 union perf_event *event,

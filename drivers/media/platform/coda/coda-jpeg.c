@@ -13,6 +13,7 @@
 #include <linux/swab.h>
 
 #include "coda.h"
+#include "trace.h"
 
 #define SOI_MARKER	0xffd8
 #define EOI_MARKER	0xffd9
@@ -177,12 +178,12 @@ int coda_jpeg_write_tables(struct coda_ctx *ctx)
 	return 0;
 }
 
-bool coda_jpeg_check_buffer(struct coda_ctx *ctx, struct vb2_buffer *vb)
+bool coda_jpeg_check_buffer(struct coda_ctx *ctx, struct vb2_v4l2_buffer *vb)
 {
-	void *vaddr = vb2_plane_vaddr(vb, 0);
+	void *vaddr = vb2_plane_vaddr(&vb->vb2_buf, 0);
 	u16 soi = be16_to_cpup((__be16 *)vaddr);
 	u16 eoi = be16_to_cpup((__be16 *)(vaddr +
-					  vb2_get_plane_payload(vb, 0) - 2));
+			  vb2_get_plane_payload(&vb->vb2_buf, 0) - 2));
 
 	return soi == SOI_MARKER && eoi == EOI_MARKER;
 }

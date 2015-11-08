@@ -216,7 +216,7 @@ static int pm2xxx_charger_ovv_mngt(struct pm2xxx_charger *pm2, int val)
 {
 	dev_err(pm2->dev, "Overvoltage detected\n");
 	pm2->flags.ovv = true;
-	power_supply_changed(&pm2->ac_chg.psy);
+	power_supply_changed(pm2->ac_chg.psy);
 
 	/* Schedule a new HW failure check */
 	queue_delayed_work(pm2->charger_wq, &pm2->check_hw_failure_work, 0);
@@ -229,7 +229,7 @@ static int pm2xxx_charger_wd_exp_mngt(struct pm2xxx_charger *pm2, int val)
 	dev_dbg(pm2->dev , "20 minutes watchdog expired\n");
 
 	pm2->ac.wd_expired = true;
-	power_supply_changed(&pm2->ac_chg.psy);
+	power_supply_changed(pm2->ac_chg.psy);
 
 	return 0;
 }
@@ -573,7 +573,7 @@ static int pm2xxx_charger_update_charger_current(struct ux500_charger *charger,
 	struct pm2xxx_charger *pm2;
 	u8 val;
 
-	if (charger->psy.type == POWER_SUPPLY_TYPE_MAINS)
+	if (charger->psy->desc->type == POWER_SUPPLY_TYPE_MAINS)
 		pm2 = to_pm2xxx_charger_ac_device_info(charger);
 	else
 		return -ENXIO;
@@ -816,7 +816,7 @@ static int pm2xxx_charger_ac_en(struct ux500_charger *charger,
 
 		dev_dbg(pm2->dev, "PM2301: " "Disabled AC charging\n");
 	}
-	power_supply_changed(&pm2->ac_chg.psy);
+	power_supply_changed(pm2->ac_chg.psy);
 
 error_occured:
 	return ret;
@@ -827,7 +827,7 @@ static int pm2xxx_charger_watchdog_kick(struct ux500_charger *charger)
 	int ret;
 	struct pm2xxx_charger *pm2;
 
-	if (charger->psy.type == POWER_SUPPLY_TYPE_MAINS)
+	if (charger->psy->desc->type == POWER_SUPPLY_TYPE_MAINS)
 		pm2 = to_pm2xxx_charger_ac_device_info(charger);
 	else
 		return -ENXIO;
@@ -845,8 +845,8 @@ static void pm2xxx_charger_ac_work(struct work_struct *work)
 		struct pm2xxx_charger, ac_work);
 
 
-	power_supply_changed(&pm2->ac_chg.psy);
-	sysfs_notify(&pm2->ac_chg.psy.dev->kobj, NULL, "present");
+	power_supply_changed(pm2->ac_chg.psy);
+	sysfs_notify(&pm2->ac_chg.psy->dev.kobj, NULL, "present");
 };
 
 static void pm2xxx_charger_check_hw_failure_work(struct work_struct *work)
@@ -862,7 +862,7 @@ static void pm2xxx_charger_check_hw_failure_work(struct work_struct *work)
 		if (!(reg_value & (PM2XXX_INT4_S_ITVPWR1OVV |
 					PM2XXX_INT4_S_ITVPWR2OVV))) {
 			pm2->flags.ovv = false;
-			power_supply_changed(&pm2->ac_chg.psy);
+			power_supply_changed(pm2->ac_chg.psy);
 		}
 	}
 
@@ -895,7 +895,7 @@ static void pm2xxx_charger_check_main_thermal_prot_work(
 				| PM2XXX_INT5_S_ITTHERMALSHUTDOWNFALL))
 		pm2->flags.main_thermal_prot = false;
 
-	power_supply_changed(&pm2->ac_chg.psy);
+	power_supply_changed(pm2->ac_chg.psy);
 }
 
 static struct pm2xxx_interrupts pm2xxx_int = {
@@ -989,6 +989,7 @@ static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 		const struct i2c_device_id *id)
 {
 	struct pm2xxx_platform_data *pl_data = i2c_client->dev.platform_data;
+	struct power_supply_config psy_cfg = {};
 	struct pm2xxx_charger *pm2;
 	int ret = 0;
 	u8 val;
@@ -1042,13 +1043,14 @@ static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 
 	/* AC supply */
 	/* power_supply base class */
-	pm2->ac_chg.psy.name = pm2->pdata->label;
-	pm2->ac_chg.psy.type = POWER_SUPPLY_TYPE_MAINS;
-	pm2->ac_chg.psy.properties = pm2xxx_charger_ac_props;
-	pm2->ac_chg.psy.num_properties = ARRAY_SIZE(pm2xxx_charger_ac_props);
-	pm2->ac_chg.psy.get_property = pm2xxx_charger_ac_get_property;
-	pm2->ac_chg.psy.supplied_to = pm2->pdata->supplied_to;
-	pm2->ac_chg.psy.num_supplicants = pm2->pdata->num_supplicants;
+	pm2->ac_chg_desc.name = pm2->pdata->label;
+	pm2->ac_chg_desc.type = POWER_SUPPLY_TYPE_MAINS;
+	pm2->ac_chg_desc.properties = pm2xxx_charger_ac_props;
+	pm2->ac_chg_desc.num_properties = ARRAY_SIZE(pm2xxx_charger_ac_props);
+	pm2->ac_chg_desc.get_property = pm2xxx_charger_ac_get_property;
+
+	psy_cfg.supplied_to = pm2->pdata->supplied_to;
+	psy_cfg.num_supplicants = pm2->pdata->num_supplicants;
 	/* pm2xxx_charger sub-class */
 	pm2->ac_chg.ops.enable = &pm2xxx_charger_ac_en;
 	pm2->ac_chg.ops.kick_wd = &pm2xxx_charger_watchdog_kick;
@@ -1093,9 +1095,11 @@ static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 	}
 
 	/* Register AC charger class */
-	ret = power_supply_register(pm2->dev, &pm2->ac_chg.psy);
-	if (ret) {
+	pm2->ac_chg.psy = power_supply_register(pm2->dev, &pm2->ac_chg_desc,
+						&psy_cfg);
+	if (IS_ERR(pm2->ac_chg.psy)) {
 		dev_err(pm2->dev, "failed to register AC charger\n");
+		ret = PTR_ERR(pm2->ac_chg.psy);
 		goto free_regulator;
 	}
 
@@ -1167,8 +1171,8 @@ static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 		ab8500_override_turn_on_stat(~AB8500_POW_KEY_1_ON,
 					     AB8500_MAIN_CH_DET);
 		pm2->ac_conn = true;
-		power_supply_changed(&pm2->ac_chg.psy);
-		sysfs_notify(&pm2->ac_chg.psy.dev->kobj, NULL, "present");
+		power_supply_changed(pm2->ac_chg.psy);
+		sysfs_notify(&pm2->ac_chg.psy->dev.kobj, NULL, "present");
 	}
 
 	return 0;
@@ -1183,7 +1187,7 @@ unregister_pm2xxx_interrupt:
 	free_irq(gpio_to_irq(pm2->pdata->gpio_irq_number), pm2);
 unregister_pm2xxx_charger:
 	/* unregister power supply */
-	power_supply_unregister(&pm2->ac_chg.psy);
+	power_supply_unregister(pm2->ac_chg.psy);
 free_regulator:
 	/* disable the regulator */
 	regulator_put(pm2->regu);
@@ -1218,7 +1222,7 @@ static int pm2xxx_wall_charger_remove(struct i2c_client *i2c_client)
 	/* disable the regulator */
 	regulator_put(pm2->regu);
 
-	power_supply_unregister(&pm2->ac_chg.psy);
+	power_supply_unregister(pm2->ac_chg.psy);
 
 	if (gpio_is_valid(pm2->lpn_pin))
 		gpio_free(pm2->lpn_pin);
@@ -1240,7 +1244,6 @@ static struct i2c_driver pm2xxx_charger_driver = {
 	.remove = pm2xxx_wall_charger_remove,
 	.driver = {
 		.name = "pm2xxx-wall_charger",
-		.owner = THIS_MODULE,
 		.pm = PM2XXX_PM_OPS,
 	},
 	.id_table = pm2xxx_id,
@@ -1261,5 +1264,4 @@ module_exit(pm2xxx_charger_exit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Rajkumar kasirajan, Olivier Launay");
-MODULE_ALIAS("i2c:pm2xxx-charger");
 MODULE_DESCRIPTION("PM2xxx charger management driver");

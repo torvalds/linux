@@ -52,7 +52,7 @@ struct video_obj {
 };
 
 struct vpif_cap_buffer {
-	struct vb2_buffer vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head list;
 };
 
@@ -92,7 +92,7 @@ struct common_obj {
 
 struct channel_obj {
 	/* Identifies video device for this channel */
-	struct video_device *video_dev;
+	struct video_device video_dev;
 	/* Indicates id of the field which is being displayed */
 	u32 field_id;
 	/* flag to indicate whether decoder is initialized */

@@ -17,10 +17,11 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "omap_drv.h"
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
 
-#include "drm_crtc.h"
-#include "drm_crtc_helper.h"
+#include "omap_drv.h"
 
 /*
  * connector funcs
@@ -102,7 +103,7 @@ void copy_timings_drm_to_omap(struct omap_video_timings *timings,
 
 	timings->data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
 	timings->de_level = OMAPDSS_SIG_ACTIVE_HIGH;
-	timings->sync_pclk_edge = OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES;
+	timings->sync_pclk_edge = OMAPDSS_DRIVE_SIG_FALLING_EDGE;
 }
 
 static enum drm_connector_status omap_connector_detect(
@@ -259,10 +260,13 @@ struct drm_encoder *omap_connector_attached_encoder(
 }
 
 static const struct drm_connector_funcs omap_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
+	.reset = drm_atomic_helper_connector_reset,
 	.detect = omap_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = omap_connector_destroy,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static const struct drm_connector_helper_funcs omap_connector_helper_funcs = {
@@ -270,18 +274,6 @@ static const struct drm_connector_helper_funcs omap_connector_helper_funcs = {
 	.mode_valid = omap_connector_mode_valid,
 	.best_encoder = omap_connector_attached_encoder,
 };
-
-/* flush an area of the framebuffer (in case of manual update display that
- * is not automatically flushed)
- */
-void omap_connector_flush(struct drm_connector *connector,
-		int x, int y, int w, int h)
-{
-	struct omap_connector *omap_connector = to_omap_connector(connector);
-
-	/* TODO: enable when supported in dss */
-	VERB("%s: %d,%d, %dx%d", omap_connector->dssdev->name, x, y, w, h);
-}
 
 /* initialize connector */
 struct drm_connector *omap_connector_init(struct drm_device *dev,

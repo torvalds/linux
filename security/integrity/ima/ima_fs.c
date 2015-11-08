@@ -190,9 +190,9 @@ static const struct file_operations ima_measurements_ops = {
 	.release = seq_release,
 };
 
-void ima_print_digest(struct seq_file *m, u8 *digest, int size)
+void ima_print_digest(struct seq_file *m, u8 *digest, u32 size)
 {
-	int i;
+	u32 i;
 
 	for (i = 0; i < size; i++)
 		seq_printf(m, "%02x", *(digest + i));

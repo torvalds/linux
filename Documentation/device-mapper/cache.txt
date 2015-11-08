@@ -221,6 +221,7 @@ Status
 <#read hits> <#read misses> <#write hits> <#write misses>
 <#demotions> <#promotions> <#dirty> <#features> <features>*
 <#core args> <core args>* <policy name> <#policy args> <policy args>*
+<cache metadata mode>
 
 metadata block size	 : Fixed block size for each metadata block in
 			     sectors
@@ -251,8 +252,18 @@ core args		 : Key/value pairs for tuning the core
 			     e.g. migration_threshold
 policy name		 : Name of the policy
 #policy args		 : Number of policy arguments to follow (must be even)
-policy args		 : Key/value pairs
-			     e.g. sequential_threshold
+policy args		 : Key/value pairs e.g. sequential_threshold
+cache metadata mode      : ro if read-only, rw if read-write
+	In serious cases where even a read-only mode is deemed unsafe
+	no further I/O will be permitted and the status will just
+	contain the string 'Fail'.  The userspace recovery tools
+	should then be used.
+needs_check		 : 'needs_check' if set, '-' if not set
+	A metadata operation has failed, resulting in the needs_check
+	flag being set in the metadata's superblock.  The metadata
+	device must be deactivated and checked/repaired before the
+	cache can be made fully operational again.  '-' indicates
+	needs_check is not set.
 
 Messages
 --------

@@ -8,6 +8,25 @@ If variable is of Type,		use printk format specifier:
 		unsigned long long	%llu or %llx
 		size_t			%zu or %zx
 		ssize_t			%zd or %zx
+		s32			%d or %x
+		u32			%u or %x
+		s64			%lld or %llx
+		u64			%llu or %llx
+
+If <type> is dependent on a config option for its size (e.g., sector_t,
+blkcnt_t) or is architecture-dependent for its size (e.g., tcflag_t), use a
+format specifier of its largest possible type and explicitly cast to it.
+Example:
+
+	printk("test: sector number/total blocks: %llu/%llu\n",
+		(unsigned long long)sector, (unsigned long long)blockcount);
+
+Reminder: sizeof() result is of type size_t.
+
+The kernel's printf does not support %n. For obvious reasons, floating
+point formats (%e, %f, %g, %a) are also not recognized. Use of any
+unsupported specifier or length qualifier results in a WARN and early
+return from vsnprintf.
 
 Raw pointer value SHOULD be printed with %p. The kernel supports
 the following extended format specifiers for pointer types:
@@ -54,6 +73,7 @@ Struct Resources:
 
 	For printing struct resources. The 'R' and 'r' specifiers result in a
 	printed resource with ('R') or without ('r') a decoded flags member.
+	Passed by reference.
 
 Physical addresses types phys_addr_t:
 
@@ -103,6 +123,7 @@ Raw buffer as an escaped string:
 	If field width is omitted the 1 byte only will be escaped.
 
 Raw buffer as a hex string:
+
 	%*ph	00 01 02  ...  3f
 	%*phC	00:01:02: ... :3f
 	%*phD	00-01-02- ... -3f
@@ -132,6 +153,8 @@ MAC/FDDI addresses:
 	specifier to use reversed byte order suitable for visual interpretation
 	of Bluetooth addresses which are in the little endian order.
 
+	Passed by reference.
+
 IPv4 addresses:
 
 	%pI4	1.2.3.4
@@ -146,6 +169,8 @@ IPv4 addresses:
 	host, network, big or little endian order addresses respectively. Where
 	no specifier is provided the default network/big endian order is used.
 
+	Passed by reference.
+
 IPv6 addresses:
 
 	%pI6	0001:0002:0003:0004:0005:0006:0007:0008
@@ -159,6 +184,8 @@ IPv6 addresses:
 	The additional 'c' specifier can be used with the 'I' specifier to
 	print a compressed IPv6 address as described by
 	http://tools.ietf.org/html/rfc5952
+
+	Passed by reference.
 
 IPv4/IPv6 addresses (generic, with port, flowinfo, scope):
 
@@ -186,6 +213,8 @@ IPv4/IPv6 addresses (generic, with port, flowinfo, scope):
 	specifiers can be used as well and are ignored in case of an IPv6
 	address.
 
+	Passed by reference.
+
 	Further examples:
 
 	%pISfc		1.2.3.4		or [1:2:3:4:5:6:7:8]/123456789
@@ -204,10 +233,13 @@ UUID/GUID addresses:
 	lower ('l') or upper case ('L') hex characters - and big endian order
 	in lower ('b') or upper case ('B') hex characters.
 
-	Where no additional specifiers are used the default little endian
+	Where no additional specifiers are used the default big endian
 	order with lower case hex characters will be printed.
 
+	Passed by reference.
+
 dentry names:
+
 	%pd{,2,3,4}
 	%pD{,2,3,4}
 
@@ -215,6 +247,8 @@ dentry names:
 	a mix of old and new ones, but it won't oops.  %pd dentry is a safer
 	equivalent of %s dentry->d_name.name we used to use, %pd<n> prints
 	n last components.  %pD does the same thing for struct file.
+
+	Passed by reference.
 
 struct va_format:
 
@@ -228,26 +262,56 @@ struct va_format:
 		va_list *va;
 	};
 
+	Implements a "recursive vsnprintf".
+
 	Do not use this feature without some mechanism to verify the
 	correctness of the format string and va_list arguments.
 
-u64 SHOULD be printed with %llu/%llx:
+	Passed by reference.
 
-	printk("%llu", u64_var);
+struct clk:
 
-s64 SHOULD be printed with %lld/%llx:
+	%pC	pll1
+	%pCn	pll1
+	%pCr	1560000000
 
-	printk("%lld", s64_var);
+	For printing struct clk structures. '%pC' and '%pCn' print the name
+	(Common Clock Framework) or address (legacy clock framework) of the
+	structure; '%pCr' prints the current clock rate.
 
-If <type> is dependent on a config option for its size (e.g., sector_t,
-blkcnt_t) or is architecture-dependent for its size (e.g., tcflag_t), use a
-format specifier of its largest possible type and explicitly cast to it.
-Example:
+	Passed by reference.
 
-	printk("test: sector number/total blocks: %llu/%llu\n",
-		(unsigned long long)sector, (unsigned long long)blockcount);
+bitmap and its derivatives such as cpumask and nodemask:
 
-Reminder: sizeof() result is of type size_t.
+	%*pb	0779
+	%*pbl	0,3-6,8-10
+
+	For printing bitmap and its derivatives such as cpumask and nodemask,
+	%*pb output the bitmap with field width as the number of bits and %*pbl
+	output the bitmap as range list with field width as the number of bits.
+
+	Passed by reference.
+
+Network device features:
+
+	%pNF	0x000000000000c000
+
+	For printing netdev_features_t.
+
+	Passed by reference.
+
+Command from struct task_struct
+
+	%pT	ls
+
+	For printing executable name excluding path from struct
+	task_struct.
+
+	Passed by reference.
+
+If you add other %p extensions, please extend lib/test_printf.c with
+one or more test cases, if at all feasible.
+
 
 Thank you for your cooperation and attention.
 

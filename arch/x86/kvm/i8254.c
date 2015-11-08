@@ -35,6 +35,7 @@
 #include <linux/kvm_host.h>
 #include <linux/slab.h>
 
+#include "ioapic.h"
 #include "irq.h"
 #include "i8254.h"
 #include "x86.h"
@@ -305,7 +306,7 @@ static void pit_do_work(struct kthread_work *work)
 		 * LVT0 to NMI delivery. Other PIC interrupts are just sent to
 		 * VCPU0, and only if its LVT0 is in EXTINT mode.
 		 */
-		if (kvm->arch.vapics_in_nmi_mode > 0)
+		if (atomic_read(&kvm->arch.vapics_in_nmi_mode) > 0)
 			kvm_for_each_vcpu(i, vcpu, kvm)
 				kvm_apic_nmi_wd_deliver(vcpu);
 	}
@@ -333,7 +334,8 @@ static void create_pit_timer(struct kvm *kvm, u32 val, int is_period)
 	struct kvm_kpit_state *ps = &kvm->arch.vpit->pit_state;
 	s64 interval;
 
-	if (!irqchip_in_kernel(kvm) || ps->flags & KVM_PIT_FLAGS_HPET_LEGACY)
+	if (!ioapic_in_kernel(kvm) ||
+	    ps->flags & KVM_PIT_FLAGS_HPET_LEGACY)
 		return;
 
 	interval = muldiv64(val, NSEC_PER_SEC, KVM_PIT_FREQ);
@@ -443,7 +445,8 @@ static inline int pit_in_range(gpa_t addr)
 		(addr < KVM_PIT_BASE_ADDRESS + KVM_PIT_MEM_LENGTH));
 }
 
-static int pit_ioport_write(struct kvm_io_device *this,
+static int pit_ioport_write(struct kvm_vcpu *vcpu,
+				struct kvm_io_device *this,
 			    gpa_t addr, int len, const void *data)
 {
 	struct kvm_pit *pit = dev_to_pit(this);
@@ -519,7 +522,8 @@ static int pit_ioport_write(struct kvm_io_device *this,
 	return 0;
 }
 
-static int pit_ioport_read(struct kvm_io_device *this,
+static int pit_ioport_read(struct kvm_vcpu *vcpu,
+			   struct kvm_io_device *this,
 			   gpa_t addr, int len, void *data)
 {
 	struct kvm_pit *pit = dev_to_pit(this);
@@ -589,7 +593,8 @@ static int pit_ioport_read(struct kvm_io_device *this,
 	return 0;
 }
 
-static int speaker_ioport_write(struct kvm_io_device *this,
+static int speaker_ioport_write(struct kvm_vcpu *vcpu,
+				struct kvm_io_device *this,
 				gpa_t addr, int len, const void *data)
 {
 	struct kvm_pit *pit = speaker_to_pit(this);
@@ -606,8 +611,9 @@ static int speaker_ioport_write(struct kvm_io_device *this,
 	return 0;
 }
 
-static int speaker_ioport_read(struct kvm_io_device *this,
-			       gpa_t addr, int len, void *data)
+static int speaker_ioport_read(struct kvm_vcpu *vcpu,
+				   struct kvm_io_device *this,
+				   gpa_t addr, int len, void *data)
 {
 	struct kvm_pit *pit = speaker_to_pit(this);
 	struct kvm_kpit_state *pit_state = &pit->pit_state;

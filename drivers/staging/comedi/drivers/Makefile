@@ -3,6 +3,7 @@
 ccflags-$(CONFIG_COMEDI_DEBUG)		:= -DDEBUG
 
 # Comedi "helper" modules
+obj-$(CONFIG_COMEDI_8254)		+= comedi_8254.o
 obj-$(CONFIG_COMEDI_ISADMA)		+= comedi_isadma.o
 
 # Comedi misc drivers
@@ -89,7 +90,6 @@ obj-$(CONFIG_COMEDI_CONTEC_PCI_DIO)	+= contec_pci_dio.o
 obj-$(CONFIG_COMEDI_DAS08_PCI)		+= das08_pci.o
 obj-$(CONFIG_COMEDI_DT3000)		+= dt3000.o
 obj-$(CONFIG_COMEDI_DYNA_PCI10XX)	+= dyna_pci10xx.o
-obj-$(CONFIG_COMEDI_UNIOXX5)		+= unioxx5.o
 obj-$(CONFIG_COMEDI_GSC_HPDI)		+= gsc_hpdi.o
 obj-$(CONFIG_COMEDI_ICP_MULTI)		+= icp_multi.o
 obj-$(CONFIG_COMEDI_DAQBOARD2000)	+= daqboard2000.o
@@ -138,7 +138,8 @@ obj-$(CONFIG_COMEDI_NI_TIOCMD)		+= ni_tiocmd.o
 obj-$(CONFIG_COMEDI_NI_LABPC)		+= ni_labpc_common.o
 obj-$(CONFIG_COMEDI_NI_LABPC_ISADMA)	+= ni_labpc_isadma.o
 
-obj-$(CONFIG_COMEDI_8255)		+= 8255.o
+obj-$(CONFIG_COMEDI_8255)		+= comedi_8255.o
+obj-$(CONFIG_COMEDI_8255_SA)		+= 8255.o
 obj-$(CONFIG_COMEDI_AMPLC_DIO200)	+= amplc_dio200_common.o
 obj-$(CONFIG_COMEDI_AMPLC_PC236)	+= amplc_pc236_common.o
 obj-$(CONFIG_COMEDI_DAS08)		+= das08.o

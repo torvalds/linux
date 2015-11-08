@@ -5,7 +5,7 @@
 
 struct net;
 
-static inline unsigned int net_hash_mix(struct net *net)
+static inline u32 net_hash_mix(const struct net *net)
 {
 #ifdef CONFIG_NET_NS
 	/*
@@ -13,7 +13,7 @@ static inline unsigned int net_hash_mix(struct net *net)
 	 * always zeroed
 	 */
 
-	return (unsigned)(((unsigned long)net) >> L1_CACHE_SHIFT);
+	return (u32)(((unsigned long)net) >> L1_CACHE_SHIFT);
 #else
 	return 0;
 #endif

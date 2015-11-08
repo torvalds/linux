@@ -437,12 +437,20 @@ static int hidg_setup(struct usb_function *f,
 		  | USB_REQ_GET_DESCRIPTOR):
 		switch (value >> 8) {
 		case HID_DT_HID:
+		{
+			struct hid_descriptor hidg_desc_copy = hidg_desc;
+
 			VDBG(cdev, "USB_REQ_GET_DESCRIPTOR: HID\n");
+			hidg_desc_copy.desc[0].bDescriptorType = HID_DT_REPORT;
+			hidg_desc_copy.desc[0].wDescriptorLength =
+				cpu_to_le16(hidg->report_desc_length);
+
 			length = min_t(unsigned short, length,
-						   hidg_desc.bLength);
-			memcpy(req->buf, &hidg_desc, length);
+						   hidg_desc_copy.bLength);
+			memcpy(req->buf, &hidg_desc_copy, length);
 			goto respond;
 			break;
+		}
 		case HID_DT_REPORT:
 			VDBG(cdev, "USB_REQ_GET_DESCRIPTOR: REPORT\n");
 			length = min_t(unsigned short, length,
@@ -484,10 +492,7 @@ static void hidg_disable(struct usb_function *f)
 	struct f_hidg_req_list *list, *next;
 
 	usb_ep_disable(hidg->in_ep);
-	hidg->in_ep->driver_data = NULL;
-
 	usb_ep_disable(hidg->out_ep);
-	hidg->out_ep->driver_data = NULL;
 
 	list_for_each_entry_safe(list, next, &hidg->completed_out_req, list) {
 		list_del(&list->list);
@@ -505,8 +510,7 @@ static int hidg_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 
 	if (hidg->in_ep != NULL) {
 		/* restart endpoint */
-		if (hidg->in_ep->driver_data != NULL)
-			usb_ep_disable(hidg->in_ep);
+		usb_ep_disable(hidg->in_ep);
 
 		status = config_ep_by_speed(f->config->cdev->gadget, f,
 					    hidg->in_ep);
@@ -525,8 +529,7 @@ static int hidg_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 
 	if (hidg->out_ep != NULL) {
 		/* restart endpoint */
-		if (hidg->out_ep->driver_data != NULL)
-			usb_ep_disable(hidg->out_ep);
+		usb_ep_disable(hidg->out_ep);
 
 		status = config_ep_by_speed(f->config->cdev->gadget, f,
 					    hidg->out_ep);
@@ -558,7 +561,6 @@ static int hidg_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 						hidg->out_ep->name, status);
 			} else {
 				usb_ep_disable(hidg->out_ep);
-				hidg->out_ep->driver_data = NULL;
 				status = -ENOMEM;
 				goto fail;
 			}
@@ -606,13 +608,11 @@ static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
 	ep = usb_ep_autoconfig(c->cdev->gadget, &hidg_fs_in_ep_desc);
 	if (!ep)
 		goto fail;
-	ep->driver_data = c->cdev;	/* claim */
 	hidg->in_ep = ep;
 
 	ep = usb_ep_autoconfig(c->cdev->gadget, &hidg_fs_out_ep_desc);
 	if (!ep)
 		goto fail;
-	ep->driver_data = c->cdev;	/* claim */
 	hidg->out_ep = ep;
 
 	/* preallocate request and buffer */
@@ -632,6 +632,10 @@ static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
 	hidg_fs_in_ep_desc.wMaxPacketSize = cpu_to_le16(hidg->report_length);
 	hidg_hs_out_ep_desc.wMaxPacketSize = cpu_to_le16(hidg->report_length);
 	hidg_fs_out_ep_desc.wMaxPacketSize = cpu_to_le16(hidg->report_length);
+	/*
+	 * We can use hidg_desc struct here but we should not relay
+	 * that its content won't change after returning from this function.
+	 */
 	hidg_desc.desc[0].bDescriptorType = HID_DT_REPORT;
 	hidg_desc.desc[0].wDescriptorLength =
 		cpu_to_le16(hidg->report_desc_length);
@@ -687,6 +691,10 @@ static inline int hidg_get_minor(void)
 	int ret;
 
 	ret = ida_simple_get(&hidg_ida, 0, 0, GFP_KERNEL);
+	if (ret >= HIDG_MINORS) {
+		ida_simple_remove(&hidg_ida, ret);
+		ret = -ENODEV;
+	}
 
 	return ret;
 }
@@ -908,7 +916,6 @@ static void hidg_unbind(struct usb_configuration *c, struct usb_function *f)
 
 	/* disable/free request and end point */
 	usb_ep_disable(hidg->in_ep);
-	usb_ep_dequeue(hidg->in_ep, hidg->req);
 	kfree(hidg->req->buf);
 	usb_ep_free_request(hidg->in_ep, hidg->req);
 

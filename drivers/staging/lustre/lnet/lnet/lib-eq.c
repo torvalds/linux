@@ -70,7 +70,7 @@ int
 LNetEQAlloc(unsigned int count, lnet_eq_handler_t callback,
 	    lnet_handle_eq_t *handle)
 {
-	lnet_eq_t     *eq;
+	lnet_eq_t *eq;
 
 	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);
@@ -79,11 +79,10 @@ LNetEQAlloc(unsigned int count, lnet_eq_handler_t callback,
 	 * overflow, they don't skip entries, so the queue has the same
 	 * apparent capacity at all times */
 
-	count = cfs_power2_roundup(count);
+	count = roundup_pow_of_two(count);
 
-	if (callback != LNET_EQ_HANDLER_NONE && count != 0) {
+	if (callback != LNET_EQ_HANDLER_NONE && count != 0)
 		CWARN("EQ callback is guaranteed to get every event, do you still want to set eqcount %d for polling event which will have locking overhead? Please contact with developer to confirm\n", count);
-	}
 
 	/* count can be 0 if only need callback, we can eliminate
 	 * overhead of enqueue event */
@@ -152,13 +151,13 @@ EXPORT_SYMBOL(LNetEQAlloc);
 int
 LNetEQFree(lnet_handle_eq_t eqh)
 {
-	struct lnet_eq	*eq;
-	lnet_event_t	*events = NULL;
-	int		**refs = NULL;
-	int		*ref;
-	int		rc = 0;
-	int		size = 0;
-	int		i;
+	struct lnet_eq *eq;
+	lnet_event_t *events = NULL;
+	int **refs = NULL;
+	int *ref;
+	int rc = 0;
+	int size = 0;
+	int i;
 
 	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);
@@ -186,13 +185,13 @@ LNetEQFree(lnet_handle_eq_t eqh)
 	}
 
 	/* stash for free after lock dropped */
-	events	= eq->eq_events;
-	size	= eq->eq_size;
-	refs	= eq->eq_refs;
+	events = eq->eq_events;
+	size = eq->eq_size;
+	refs = eq->eq_refs;
 
 	lnet_res_lh_invalidate(&eq->eq_lh);
 	list_del(&eq->eq_list);
-	lnet_eq_free_locked(eq);
+	lnet_eq_free(eq);
  out:
 	lnet_eq_wait_unlock();
 	lnet_res_unlock(LNET_LOCK_EX);
@@ -238,9 +237,9 @@ lnet_eq_enqueue_event(lnet_eq_t *eq, lnet_event_t *ev)
 static int
 lnet_eq_dequeue_event(lnet_eq_t *eq, lnet_event_t *ev)
 {
-	int		new_index = eq->eq_deq_seq & (eq->eq_size - 1);
-	lnet_event_t	*new_event = &eq->eq_events[new_index];
-	int		rc;
+	int new_index = eq->eq_deq_seq & (eq->eq_size - 1);
+	lnet_event_t *new_event = &eq->eq_events[new_index];
+	int rc;
 
 	/* must called with lnet_eq_wait_lock hold */
 	if (LNET_SEQ_GT(eq->eq_deq_seq, new_event->sequence))
@@ -319,15 +318,14 @@ LNetEQWait(lnet_handle_eq_t eventq, lnet_event_t *event)
 }
 EXPORT_SYMBOL(LNetEQWait);
 
-
 static int
 lnet_eq_wait_locked(int *timeout_ms)
 __must_hold(&the_lnet.ln_eq_wait_lock)
 {
-	int		tms = *timeout_ms;
-	int		wait;
-	wait_queue_t  wl;
-	unsigned long      now;
+	int tms = *timeout_ms;
+	int wait;
+	wait_queue_t wl;
+	unsigned long now;
 
 	if (tms == 0)
 		return -1; /* don't want to wait and no new event */
@@ -342,12 +340,9 @@ __must_hold(&the_lnet.ln_eq_wait_lock)
 		schedule();
 
 	} else {
-		struct timeval tv;
-
-		now = cfs_time_current();
-		schedule_timeout(cfs_time_seconds(tms) / 1000);
-		cfs_duration_usec(cfs_time_sub(cfs_time_current(), now), &tv);
-		tms -= (int)(tv.tv_sec * 1000 + tv.tv_usec / 1000);
+		now = jiffies;
+		schedule_timeout(msecs_to_jiffies(tms));
+		tms -= jiffies_to_msecs(jiffies - now);
 		if (tms < 0) /* no more wait but may have new event */
 			tms = 0;
 	}
@@ -360,8 +355,6 @@ __must_hold(&the_lnet.ln_eq_wait_lock)
 
 	return wait;
 }
-
-
 
 /**
  * Block the calling process until there's an event from a set of EQs or
@@ -393,9 +386,9 @@ int
 LNetEQPoll(lnet_handle_eq_t *eventqs, int neq, int timeout_ms,
 	   lnet_event_t *event, int *which)
 {
-	int	wait = 1;
-	int	rc;
-	int	i;
+	int wait = 1;
+	int rc;
+	int i;
 
 	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);

@@ -582,9 +582,17 @@ static int gsc_src_set_transf(struct device *dev,
 		break;
 	case EXYNOS_DRM_DEGREE_180:
 		cfg |= GSC_IN_ROT_180;
+		if (flip & EXYNOS_DRM_FLIP_VERTICAL)
+			cfg &= ~GSC_IN_ROT_XFLIP;
+		if (flip & EXYNOS_DRM_FLIP_HORIZONTAL)
+			cfg &= ~GSC_IN_ROT_YFLIP;
 		break;
 	case EXYNOS_DRM_DEGREE_270:
 		cfg |= GSC_IN_ROT_270;
+		if (flip & EXYNOS_DRM_FLIP_VERTICAL)
+			cfg &= ~GSC_IN_ROT_XFLIP;
+		if (flip & EXYNOS_DRM_FLIP_HORIZONTAL)
+			cfg &= ~GSC_IN_ROT_YFLIP;
 		break;
 	default:
 		dev_err(ippdrv->dev, "inavlid degree value %d.\n", degree);
@@ -593,8 +601,7 @@ static int gsc_src_set_transf(struct device *dev,
 
 	gsc_write(cfg, GSC_IN_CON);
 
-	ctx->rotation = cfg &
-		(GSC_IN_ROT_90 | GSC_IN_ROT_270) ? 1 : 0;
+	ctx->rotation = (cfg & GSC_IN_ROT_90) ? 1 : 0;
 	*swap = ctx->rotation;
 
 	return 0;
@@ -846,9 +853,17 @@ static int gsc_dst_set_transf(struct device *dev,
 		break;
 	case EXYNOS_DRM_DEGREE_180:
 		cfg |= GSC_IN_ROT_180;
+		if (flip & EXYNOS_DRM_FLIP_VERTICAL)
+			cfg &= ~GSC_IN_ROT_XFLIP;
+		if (flip & EXYNOS_DRM_FLIP_HORIZONTAL)
+			cfg &= ~GSC_IN_ROT_YFLIP;
 		break;
 	case EXYNOS_DRM_DEGREE_270:
 		cfg |= GSC_IN_ROT_270;
+		if (flip & EXYNOS_DRM_FLIP_VERTICAL)
+			cfg &= ~GSC_IN_ROT_XFLIP;
+		if (flip & EXYNOS_DRM_FLIP_HORIZONTAL)
+			cfg &= ~GSC_IN_ROT_YFLIP;
 		break;
 	default:
 		dev_err(ippdrv->dev, "inavlid degree value %d.\n", degree);
@@ -857,8 +872,7 @@ static int gsc_dst_set_transf(struct device *dev,
 
 	gsc_write(cfg, GSC_IN_CON);
 
-	ctx->rotation = cfg &
-		(GSC_IN_ROT_90 | GSC_IN_ROT_270) ? 1 : 0;
+	ctx->rotation = (cfg & GSC_IN_ROT_90) ? 1 : 0;
 	*swap = ctx->rotation;
 
 	return 0;

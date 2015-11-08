@@ -25,10 +25,22 @@
 
 #include <linux/types.h>
 #include <linux/random.h>
-#include <asm/byteorder.h>
 
 #define IEEE802154_MTU			127
-#define IEEE802154_MIN_PSDU_LEN		5
+#define IEEE802154_ACK_PSDU_LEN		5
+#define IEEE802154_MIN_PSDU_LEN		9
+#define IEEE802154_FCS_LEN		2
+#define IEEE802154_MAX_AUTH_TAG_LEN	16
+
+/*  General MAC frame format:
+ *  2 bytes: Frame Control
+ *  1 byte:  Sequence Number
+ * 20 bytes: Addressing fields
+ * 14 bytes: Auxiliary Security Header
+ */
+#define IEEE802154_MAX_HEADER_LEN	(2 + 1 + 20 + 14)
+#define IEEE802154_MIN_HEADER_LEN	(IEEE802154_ACK_PSDU_LEN - \
+					 IEEE802154_FCS_LEN)
 
 #define IEEE802154_PAN_ID_BROADCAST	0xffff
 #define IEEE802154_ADDR_SHORT_BROADCAST	0xffff
@@ -38,6 +50,7 @@
 
 #define IEEE802154_LIFS_PERIOD		40
 #define IEEE802154_SIFS_PERIOD		12
+#define IEEE802154_MAX_SIFS_FRAME_SIZE	18
 
 #define IEEE802154_MAX_CHANNEL		26
 #define IEEE802154_MAX_PAGE		31
@@ -202,28 +215,68 @@ enum {
 	IEEE802154_SCAN_IN_PROGRESS = 0xfc,
 };
 
+/* frame control handling */
+#define IEEE802154_FCTL_FTYPE		0x0003
+#define IEEE802154_FCTL_ACKREQ		0x0020
+#define IEEE802154_FCTL_INTRA_PAN	0x0040
+
+#define IEEE802154_FTYPE_DATA		0x0001
+
+/*
+ * ieee802154_is_data - check if type is IEEE802154_FTYPE_DATA
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline int ieee802154_is_data(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE802154_FCTL_FTYPE)) ==
+		cpu_to_le16(IEEE802154_FTYPE_DATA);
+}
+
+/**
+ * ieee802154_is_ackreq - check if acknowledgment request bit is set
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee802154_is_ackreq(__le16 fc)
+{
+	return fc & cpu_to_le16(IEEE802154_FCTL_ACKREQ);
+}
+
+/**
+ * ieee802154_is_intra_pan - check if intra pan id communication
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee802154_is_intra_pan(__le16 fc)
+{
+	return fc & cpu_to_le16(IEEE802154_FCTL_INTRA_PAN);
+}
+
 /**
  * ieee802154_is_valid_psdu_len - check if psdu len is valid
+ * available lengths:
+ *	0-4	Reserved
+ *	5	MPDU (Acknowledgment)
+ *	6-8	Reserved
+ *	9-127	MPDU
+ *
  * @len: psdu len with (MHR + payload + MFR)
  */
 static inline bool ieee802154_is_valid_psdu_len(const u8 len)
 {
-	return (len >= IEEE802154_MIN_PSDU_LEN && len <= IEEE802154_MTU);
+	return (len == IEEE802154_ACK_PSDU_LEN ||
+		(len >= IEEE802154_MIN_PSDU_LEN && len <= IEEE802154_MTU));
 }
 
 /**
  * ieee802154_is_valid_psdu_len - check if extended addr is valid
  * @addr: extended addr to check
  */
-static inline bool ieee802154_is_valid_extended_addr(const __le64 addr)
+static inline bool ieee802154_is_valid_extended_unicast_addr(const __le64 addr)
 {
-	/* These EUI-64 addresses are reserved by IEEE. 0xffffffffffffffff
-	 * is used internally as extended to short address broadcast mapping.
-	 * This is currently a workaround because neighbor discovery can't
-	 * deal with short addresses types right now.
+	/* Bail out if the address is all zero, or if the group
+	 * address bit is set.
 	 */
 	return ((addr != cpu_to_le64(0x0000000000000000ULL)) &&
-		(addr != cpu_to_le64(0xffffffffffffffffULL)));
+		!(addr & cpu_to_le64(0x0100000000000000ULL)));
 }
 
 /**
@@ -234,9 +287,9 @@ static inline void ieee802154_random_extended_addr(__le64 *addr)
 {
 	get_random_bytes(addr, IEEE802154_EXTENDED_ADDR_LEN);
 
-	/* toggle some bit if we hit an invalid extended addr */
-	if (!ieee802154_is_valid_extended_addr(*addr))
-		((u8 *)addr)[IEEE802154_EXTENDED_ADDR_LEN - 1] ^= 0x01;
+	/* clear the group bit, and set the locally administered bit */
+	((u8 *)addr)[IEEE802154_EXTENDED_ADDR_LEN - 1] &= ~0x01;
+	((u8 *)addr)[IEEE802154_EXTENDED_ADDR_LEN - 1] |= 0x02;
 }
 
 #endif /* LINUX_IEEE802154_H */

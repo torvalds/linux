@@ -9,8 +9,8 @@ static DEFINE_SPINLOCK(pin_lock);
 void pin_remove(struct fs_pin *pin)
 {
 	spin_lock(&pin_lock);
-	hlist_del(&pin->m_list);
-	hlist_del(&pin->s_list);
+	hlist_del_init(&pin->m_list);
+	hlist_del_init(&pin->s_list);
 	spin_unlock(&pin_lock);
 	spin_lock_irq(&pin->wait.lock);
 	pin->done = 1;

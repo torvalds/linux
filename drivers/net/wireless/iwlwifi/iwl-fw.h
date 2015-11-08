@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,6 +68,7 @@
 #include <net/mac80211.h>
 
 #include "iwl-fw-file.h"
+#include "iwl-fw-error-dump.h"
 
 /**
  * enum iwl_ucode_type
@@ -104,9 +105,23 @@ struct iwl_ucode_capabilities {
 	u32 n_scan_channels;
 	u32 standard_phy_calibration_size;
 	u32 flags;
-	u32 api[IWL_API_ARRAY_SIZE];
-	u32 capa[IWL_CAPABILITIES_ARRAY_SIZE];
+	unsigned long _api[BITS_TO_LONGS(NUM_IWL_UCODE_TLV_API)];
+	unsigned long _capa[BITS_TO_LONGS(NUM_IWL_UCODE_TLV_CAPA)];
 };
+
+static inline bool
+fw_has_api(const struct iwl_ucode_capabilities *capabilities,
+	   iwl_ucode_tlv_api_t api)
+{
+	return test_bit((__force long)api, capabilities->_api);
+}
+
+static inline bool
+fw_has_capa(const struct iwl_ucode_capabilities *capabilities,
+	    iwl_ucode_tlv_capa_t capa)
+{
+	return test_bit((__force long)capa, capabilities->_capa);
+}
 
 /* one for each uCode image (inst/data, init/runtime/wowlan) */
 struct fw_desc {
@@ -118,11 +133,54 @@ struct fw_desc {
 struct fw_img {
 	struct fw_desc sec[IWL_UCODE_SECTION_MAX];
 	bool is_dual_cpus;
+	u32 paging_mem_size;
 };
 
 struct iwl_sf_region {
 	u32 addr;
 	u32 size;
+};
+
+/*
+ * Block paging calculations
+ */
+#define PAGE_2_EXP_SIZE 12 /* 4K == 2^12 */
+#define FW_PAGING_SIZE BIT(PAGE_2_EXP_SIZE) /* page size is 4KB */
+#define PAGE_PER_GROUP_2_EXP_SIZE 3
+/* 8 pages per group */
+#define NUM_OF_PAGE_PER_GROUP BIT(PAGE_PER_GROUP_2_EXP_SIZE)
+/* don't change, support only 32KB size */
+#define PAGING_BLOCK_SIZE (NUM_OF_PAGE_PER_GROUP * FW_PAGING_SIZE)
+/* 32K == 2^15 */
+#define BLOCK_2_EXP_SIZE (PAGE_2_EXP_SIZE + PAGE_PER_GROUP_2_EXP_SIZE)
+
+/*
+ * Image paging calculations
+ */
+#define BLOCK_PER_IMAGE_2_EXP_SIZE 5
+/* 2^5 == 32 blocks per image */
+#define NUM_OF_BLOCK_PER_IMAGE BIT(BLOCK_PER_IMAGE_2_EXP_SIZE)
+/* maximum image size 1024KB */
+#define MAX_PAGING_IMAGE_SIZE (NUM_OF_BLOCK_PER_IMAGE * PAGING_BLOCK_SIZE)
+
+/* Virtual address signature */
+#define PAGING_ADDR_SIG 0xAA000000
+
+#define PAGING_CMD_IS_SECURED BIT(9)
+#define PAGING_CMD_IS_ENABLED BIT(8)
+#define PAGING_CMD_NUM_OF_PAGES_IN_LAST_GRP_POS	0
+#define PAGING_TLV_SECURE_MASK 1
+
+/**
+ * struct iwl_fw_paging
+ * @fw_paging_phys: page phy pointer
+ * @fw_paging_block: pointer to the allocated block
+ * @fw_paging_size: page size
+ */
+struct iwl_fw_paging {
+	dma_addr_t fw_paging_phys;
+	struct page *fw_paging_block;
+	u32 fw_paging_size;
 };
 
 /**
@@ -134,6 +192,30 @@ struct iwl_fw_cscheme_list {
 	u8 size;
 	struct iwl_fw_cipher_scheme cs[];
 } __packed;
+
+/**
+ * struct iwl_gscan_capabilities - gscan capabilities supported by FW
+ * @max_scan_cache_size: total space allocated for scan results (in bytes).
+ * @max_scan_buckets: maximum number of channel buckets.
+ * @max_ap_cache_per_scan: maximum number of APs that can be stored per scan.
+ * @max_rssi_sample_size: number of RSSI samples used for averaging RSSI.
+ * @max_scan_reporting_threshold: max possible report threshold. in percentage.
+ * @max_hotlist_aps: maximum number of entries for hotlist APs.
+ * @max_significant_change_aps: maximum number of entries for significant
+ *	change APs.
+ * @max_bssid_history_entries: number of BSSID/RSSI entries that the device can
+ *	hold.
+ */
+struct iwl_gscan_capabilities {
+	u32 max_scan_cache_size;
+	u32 max_scan_buckets;
+	u32 max_ap_cache_per_scan;
+	u32 max_rssi_sample_size;
+	u32 max_scan_reporting_threshold;
+	u32 max_hotlist_aps;
+	u32 max_significant_change_aps;
+	u32 max_bssid_history_entries;
+};
 
 /**
  * struct iwl_fw - variables associated with the firmware
@@ -157,6 +239,8 @@ struct iwl_fw_cscheme_list {
  * @dbg_dest_tlv: points to the destination TLV for debug
  * @dbg_conf_tlv: array of pointers to configuration TLVs for debug
  * @dbg_conf_tlv_len: lengths of the @dbg_conf_tlv entries
+ * @dbg_trigger_tlv: array of pointers to triggers TLVs
+ * @dbg_trigger_tlv_len: lengths of the @dbg_trigger_tlv entries
  * @dbg_dest_reg_num: num of reg_ops in %dbg_dest_tlv
  */
 struct iwl_fw {
@@ -186,10 +270,12 @@ struct iwl_fw {
 	u32 sdio_adma_addr;
 
 	struct iwl_fw_dbg_dest_tlv *dbg_dest_tlv;
-	struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_MAX];
-	size_t dbg_conf_tlv_len[FW_DBG_MAX];
-
+	struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_CONF_MAX];
+	size_t dbg_conf_tlv_len[FW_DBG_CONF_MAX];
+	struct iwl_fw_dbg_trigger_tlv *dbg_trigger_tlv[FW_DBG_TRIGGER_MAX];
+	size_t dbg_trigger_tlv_len[FW_DBG_TRIGGER_MAX];
 	u8 dbg_dest_reg_num;
+	struct iwl_gscan_capabilities gscan_capa;
 };
 
 static inline const char *get_fw_dbg_mode_string(int mode)
@@ -201,40 +287,11 @@ static inline const char *get_fw_dbg_mode_string(int mode)
 		return "EXTERNAL_DRAM";
 	case MARBH_MODE:
 		return "MARBH";
+	case MIPI_MODE:
+		return "MIPI";
 	default:
 		return "UNKNOWN";
 	}
-}
-
-static inline const struct iwl_fw_dbg_trigger *
-iwl_fw_dbg_conf_get_trigger(const struct iwl_fw *fw, u8 id)
-{
-	const struct iwl_fw_dbg_conf_tlv *conf_tlv = fw->dbg_conf_tlv[id];
-	u8 *ptr;
-	int i;
-
-	if (!conf_tlv)
-		return NULL;
-
-	ptr = (void *)&conf_tlv->hcmd;
-	for (i = 0; i < conf_tlv->num_of_hcmds; i++) {
-		ptr += sizeof(conf_tlv->hcmd);
-		ptr += le16_to_cpu(conf_tlv->hcmd.len);
-	}
-
-	return (const struct iwl_fw_dbg_trigger *)ptr;
-}
-
-static inline bool
-iwl_fw_dbg_conf_enabled(const struct iwl_fw *fw, u8 id)
-{
-	const struct iwl_fw_dbg_trigger *trigger =
-		iwl_fw_dbg_conf_get_trigger(fw, id);
-
-	if (!trigger)
-		return false;
-
-	return trigger->enabled;
 }
 
 static inline bool
@@ -246,6 +303,20 @@ iwl_fw_dbg_conf_usniffer(const struct iwl_fw *fw, u8 id)
 		return false;
 
 	return conf_tlv->usniffer;
+}
+
+#define iwl_fw_dbg_trigger_enabled(fw, id) ({			\
+	void *__dbg_trigger = (fw)->dbg_trigger_tlv[(id)];	\
+	unlikely(__dbg_trigger);				\
+})
+
+static inline struct iwl_fw_dbg_trigger_tlv*
+iwl_fw_dbg_get_trigger(const struct iwl_fw *fw, u8 id)
+{
+	if (WARN_ON(id >= ARRAY_SIZE(fw->dbg_trigger_tlv)))
+		return NULL;
+
+	return fw->dbg_trigger_tlv[id];
 }
 
 #endif  /* __iwl_fw_h__ */

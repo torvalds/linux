@@ -48,7 +48,6 @@
 #include <linux/stat.h>
 #include <linux/cdrom.h>
 #include <linux/nls.h>
-#include <linux/buffer_head.h>
 #include <linux/vfs.h>
 #include <linux/vmalloc.h>
 #include <linux/errno.h>
@@ -928,17 +927,23 @@ static int udf_load_pvoldesc(struct super_block *sb, sector_t block)
 #endif
 	}
 
-	if (!udf_build_ustr(instr, pvoldesc->volIdent, 32))
-		if (udf_CS0toUTF8(outstr, instr)) {
-			strncpy(UDF_SB(sb)->s_volume_ident, outstr->u_name,
-				outstr->u_len > 31 ? 31 : outstr->u_len);
-			udf_debug("volIdent[] = '%s'\n",
-				  UDF_SB(sb)->s_volume_ident);
-		}
+	if (!udf_build_ustr(instr, pvoldesc->volIdent, 32)) {
+		ret = udf_CS0toUTF8(outstr, instr);
+		if (ret < 0)
+			goto out_bh;
 
-	if (!udf_build_ustr(instr, pvoldesc->volSetIdent, 128))
-		if (udf_CS0toUTF8(outstr, instr))
-			udf_debug("volSetIdent[] = '%s'\n", outstr->u_name);
+		strncpy(UDF_SB(sb)->s_volume_ident, outstr->u_name,
+			outstr->u_len > 31 ? 31 : outstr->u_len);
+		udf_debug("volIdent[] = '%s'\n", UDF_SB(sb)->s_volume_ident);
+	}
+
+	if (!udf_build_ustr(instr, pvoldesc->volSetIdent, 128)) {
+		ret = udf_CS0toUTF8(outstr, instr);
+		if (ret < 0)
+			goto out_bh;
+
+		udf_debug("volSetIdent[] = '%s'\n", outstr->u_name);
+	}
 
 	ret = 0;
 out_bh:
@@ -2065,6 +2070,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	struct udf_options uopt;
 	struct kernel_lb_addr rootdir, fileset;
 	struct udf_sb_info *sbi;
+	bool lvid_open = false;
 
 	uopt.flags = (1 << UDF_FLAG_USE_AD_IN_ICB) | (1 << UDF_FLAG_STRICT);
 	uopt.uid = INVALID_UID;
@@ -2211,8 +2217,10 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 			 le16_to_cpu(ts.year), ts.month, ts.day,
 			 ts.hour, ts.minute, le16_to_cpu(ts.typeAndTimezone));
 	}
-	if (!(sb->s_flags & MS_RDONLY))
+	if (!(sb->s_flags & MS_RDONLY)) {
 		udf_open_lvid(sb);
+		lvid_open = true;
+	}
 
 	/* Assign the root inode */
 	/* assign inodes by physical block number */
@@ -2243,7 +2251,7 @@ parse_options_failure:
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP))
 		unload_nls(sbi->s_nls_map);
 #endif
-	if (!(sb->s_flags & MS_RDONLY))
+	if (lvid_open)
 		udf_close_lvid(sb);
 	brelse(sbi->s_lvid_bh);
 	udf_sb_free_partitions(sb);

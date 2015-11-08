@@ -99,8 +99,8 @@ struct firedtv {
 	s8			isochannel;
 	struct fdtv_ir_context	*ir_context;
 
-	fe_sec_voltage_t	voltage;
-	fe_sec_tone_mode_t	tone;
+	enum fe_sec_voltage	voltage;
+	enum fe_sec_tone_mode	tone;
 
 	struct mutex		demux_mutex;
 	unsigned long		channel_active;

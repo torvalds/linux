@@ -1,14 +1,15 @@
 Maxim MAX77686 multi-function device
 
-MAX77686 is a Mulitifunction device with PMIC, RTC and Charger on chip. It is
+MAX77686 is a Multifunction device with PMIC, RTC and Charger on chip. It is
 interfaced to host controller using i2c interface. PMIC and Charger submodules
 are addressed using same i2c slave address whereas RTC submodule uses
 different i2c slave address,presently for which we are statically creating i2c
 client while probing.This document describes the binding for mfd device and
 PMIC submodule.
 
-Binding for the built-in 32k clock generator block is defined separately
-in bindings/clk/maxim,max77686.txt file.
+Bindings for the built-in 32k clock generator block and
+regulators are defined in ../clk/maxim,max77686.txt and
+../regulator/max77686.txt respectively.
 
 Required properties:
 - compatible : Must be "maxim,max77686";
@@ -16,67 +17,11 @@ Required properties:
 - interrupts : This i2c device has an IRQ line connected to the main SoC.
 - interrupt-parent : The parent interrupt controller.
 
-Optional node:
-- voltage-regulators : The regulators of max77686 have to be instantiated
-  under subnode named "voltage-regulators" using the following format.
-
-	regulator_name {
-		regulator-compatible = LDOn/BUCKn
-		standard regulator constraints....
-	};
-	refer Documentation/devicetree/bindings/regulator/regulator.txt
-
-  The regulator-compatible property of regulator should initialized with string
-to get matched with their hardware counterparts as follow:
-
-	-LDOn 	:	for LDOs, where n can lie in range 1 to 26.
-		 	example: LDO1, LDO2, LDO26.
-	-BUCKn 	:	for BUCKs, where n can lie in range 1 to 9.
-			example: BUCK1, BUCK5, BUCK9.
-
-  Regulators which can be turned off during system suspend:
-	-LDOn	:	2, 6-8, 10-12, 14-16,
-	-BUCKn	:	1-4.
-  Use standard regulator bindings for it ('regulator-off-in-suspend').
-
-  LDO20, LDO21, LDO22, BUCK8 and BUCK9 can be configured to GPIO enable
-  control. To turn this feature on this property must be added to the regulator
-  sub-node:
-	- maxim,ena-gpios :	one GPIO specifier enable control (the gpio
-				flags are actually ignored and always
-				ACTIVE_HIGH is used)
-
 Example:
 
-	max77686@09 {
+	max77686: pmic@09 {
 		compatible = "maxim,max77686";
 		interrupt-parent = <&wakeup_eint>;
 		interrupts = <26 0>;
 		reg = <0x09>;
-
-		voltage-regulators {
-			ldo11_reg {
-				regulator-compatible = "LDO11";
-				regulator-name = "vdd_ldo11";
-				regulator-min-microvolt = <1900000>;
-				regulator-max-microvolt = <1900000>;
-				regulator-always-on;
-			};
-
-			buck1_reg {
-				regulator-compatible = "BUCK1";
-				regulator-name = "vdd_mif";
-				regulator-min-microvolt = <950000>;
-				regulator-max-microvolt = <1300000>;
-				regulator-always-on;
-				regulator-boot-on;
-			};
-
-			buck9_reg {
-				regulator-compatible = "BUCK9";
-				regulator-name = "CAM_ISP_CORE_1.2V";
-				regulator-min-microvolt = <1000000>;
-				regulator-max-microvolt = <1200000>;
-				maxim,ena-gpios = <&gpm0 3 GPIO_ACTIVE_HIGH>;
-			};
-	}
+	};

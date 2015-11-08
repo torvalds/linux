@@ -27,6 +27,13 @@ typedef int (*intercept_handler_t)(struct kvm_vcpu *vcpu);
 #define TDB_FORMAT1		1
 #define IS_ITDB_VALID(vcpu)	((*(char *)vcpu->arch.sie_block->itdba == TDB_FORMAT1))
 
+extern debug_info_t *kvm_s390_dbf;
+#define KVM_EVENT(d_loglevel, d_string, d_args...)\
+do { \
+	debug_sprintf_event(kvm_s390_dbf, d_loglevel, d_string "\n", \
+	  d_args); \
+} while (0)
+
 #define VM_EVENT(d_kvm, d_loglevel, d_string, d_args...)\
 do { \
 	debug_sprintf_event(d_kvm->arch.dbf, d_loglevel, d_string "\n", \
@@ -65,21 +72,29 @@ static inline u32 kvm_s390_get_prefix(struct kvm_vcpu *vcpu)
 
 static inline void kvm_s390_set_prefix(struct kvm_vcpu *vcpu, u32 prefix)
 {
+	VCPU_EVENT(vcpu, 3, "set prefix of cpu %03u to 0x%x", vcpu->vcpu_id,
+		   prefix);
 	vcpu->arch.sie_block->prefix = prefix >> GUEST_PREFIX_SHIFT;
 	kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 	kvm_make_request(KVM_REQ_MMU_RELOAD, vcpu);
 }
 
-static inline u64 kvm_s390_get_base_disp_s(struct kvm_vcpu *vcpu)
+typedef u8 __bitwise ar_t;
+
+static inline u64 kvm_s390_get_base_disp_s(struct kvm_vcpu *vcpu, ar_t *ar)
 {
 	u32 base2 = vcpu->arch.sie_block->ipb >> 28;
 	u32 disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16);
+
+	if (ar)
+		*ar = base2;
 
 	return (base2 ? vcpu->run->s.regs.gprs[base2] : 0) + disp2;
 }
 
 static inline void kvm_s390_get_base_disp_sse(struct kvm_vcpu *vcpu,
-					      u64 *address1, u64 *address2)
+					      u64 *address1, u64 *address2,
+					      ar_t *ar_b1, ar_t *ar_b2)
 {
 	u32 base1 = (vcpu->arch.sie_block->ipb & 0xf0000000) >> 28;
 	u32 disp1 = (vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16;
@@ -88,6 +103,11 @@ static inline void kvm_s390_get_base_disp_sse(struct kvm_vcpu *vcpu,
 
 	*address1 = (base1 ? vcpu->run->s.regs.gprs[base1] : 0) + disp1;
 	*address2 = (base2 ? vcpu->run->s.regs.gprs[base2] : 0) + disp2;
+
+	if (ar_b1)
+		*ar_b1 = base1;
+	if (ar_b2)
+		*ar_b2 = base2;
 }
 
 static inline void kvm_s390_get_regs_rre(struct kvm_vcpu *vcpu, int *r1, int *r2)
@@ -98,7 +118,7 @@ static inline void kvm_s390_get_regs_rre(struct kvm_vcpu *vcpu, int *r1, int *r2
 		*r2 = (vcpu->arch.sie_block->ipb & 0x000f0000) >> 16;
 }
 
-static inline u64 kvm_s390_get_base_disp_rsy(struct kvm_vcpu *vcpu)
+static inline u64 kvm_s390_get_base_disp_rsy(struct kvm_vcpu *vcpu, ar_t *ar)
 {
 	u32 base2 = vcpu->arch.sie_block->ipb >> 28;
 	u32 disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16) +
@@ -107,13 +127,19 @@ static inline u64 kvm_s390_get_base_disp_rsy(struct kvm_vcpu *vcpu)
 	if (disp2 & 0x80000)
 		disp2+=0xfff00000;
 
+	if (ar)
+		*ar = base2;
+
 	return (base2 ? vcpu->run->s.regs.gprs[base2] : 0) + (long)(int)disp2;
 }
 
-static inline u64 kvm_s390_get_base_disp_rs(struct kvm_vcpu *vcpu)
+static inline u64 kvm_s390_get_base_disp_rs(struct kvm_vcpu *vcpu, ar_t *ar)
 {
 	u32 base2 = vcpu->arch.sie_block->ipb >> 28;
 	u32 disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16);
+
+	if (ar)
+		*ar = base2;
 
 	return (base2 ? vcpu->run->s.regs.gprs[base2] : 0) + disp2;
 }
@@ -125,11 +151,22 @@ static inline void kvm_s390_set_psw_cc(struct kvm_vcpu *vcpu, unsigned long cc)
 	vcpu->arch.sie_block->gpsw.mask |= cc << 44;
 }
 
-/* test availability of facility in a kvm intance */
+/* test availability of facility in a kvm instance */
 static inline int test_kvm_facility(struct kvm *kvm, unsigned long nr)
 {
 	return __test_facility(nr, kvm->arch.model.fac->mask) &&
 		__test_facility(nr, kvm->arch.model.fac->list);
+}
+
+static inline int set_kvm_facility(u64 *fac_list, unsigned long nr)
+{
+	unsigned char *ptr;
+
+	if (nr >= MAX_FACILITY_BIT)
+		return -EINVAL;
+	ptr = (unsigned char *) fac_list + (nr >> 3);
+	*ptr |= (0x80UL >> (nr & 7));
+	return 0;
 }
 
 /* are cpu states controlled by user space */
@@ -138,6 +175,7 @@ static inline int kvm_s390_user_cpu_state_ctrl(struct kvm *kvm)
 	return kvm->arch.user_cpu_state_ctrl != 0;
 }
 
+/* implemented in interrupt.c */
 int kvm_s390_handle_wait(struct kvm_vcpu *vcpu);
 void kvm_s390_vcpu_wakeup(struct kvm_vcpu *vcpu);
 enum hrtimer_restart kvm_s390_idle_wakeup(struct hrtimer *timer);
@@ -148,11 +186,29 @@ int __must_check kvm_s390_inject_vm(struct kvm *kvm,
 				    struct kvm_s390_interrupt *s390int);
 int __must_check kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 				      struct kvm_s390_irq *irq);
-int __must_check kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code);
+static inline int kvm_s390_inject_prog_irq(struct kvm_vcpu *vcpu,
+					   struct kvm_s390_pgm_info *pgm_info)
+{
+	struct kvm_s390_irq irq = {
+		.type = KVM_S390_PROGRAM_INT,
+		.u.pgm = *pgm_info,
+	};
+
+	return kvm_s390_inject_vcpu(vcpu, &irq);
+}
+static inline int kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code)
+{
+	struct kvm_s390_irq irq = {
+		.type = KVM_S390_PROGRAM_INT,
+		.u.pgm.code = code,
+	};
+
+	return kvm_s390_inject_vcpu(vcpu, &irq);
+}
 struct kvm_s390_interrupt_info *kvm_s390_get_io_int(struct kvm *kvm,
-						    u64 cr6, u64 schid);
-void kvm_s390_reinject_io_int(struct kvm *kvm,
-			      struct kvm_s390_interrupt_info *inti);
+						    u64 isc_mask, u32 schid);
+int kvm_s390_reinject_io_int(struct kvm *kvm,
+			     struct kvm_s390_interrupt_info *inti);
 int kvm_s390_mask_adapter(struct kvm *kvm, unsigned int id, bool masked);
 
 /* implemented in intercept.c */
@@ -175,27 +231,55 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_sigp_pei(struct kvm_vcpu *vcpu);
 
 /* implemented in kvm-s390.c */
+void kvm_s390_set_tod_clock(struct kvm *kvm, u64 tod);
 long kvm_arch_fault_in_page(struct kvm_vcpu *vcpu, gpa_t gpa, int writable);
 int kvm_s390_store_status_unloaded(struct kvm_vcpu *vcpu, unsigned long addr);
+int kvm_s390_store_adtl_status_unloaded(struct kvm_vcpu *vcpu,
+					unsigned long addr);
 int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr);
+int kvm_s390_vcpu_store_adtl_status(struct kvm_vcpu *vcpu, unsigned long addr);
 void kvm_s390_vcpu_start(struct kvm_vcpu *vcpu);
 void kvm_s390_vcpu_stop(struct kvm_vcpu *vcpu);
-void s390_vcpu_block(struct kvm_vcpu *vcpu);
-void s390_vcpu_unblock(struct kvm_vcpu *vcpu);
+void kvm_s390_vcpu_block(struct kvm_vcpu *vcpu);
+void kvm_s390_vcpu_unblock(struct kvm_vcpu *vcpu);
 void exit_sie(struct kvm_vcpu *vcpu);
-void exit_sie_sync(struct kvm_vcpu *vcpu);
+void kvm_s390_sync_request(int req, struct kvm_vcpu *vcpu);
 int kvm_s390_vcpu_setup_cmma(struct kvm_vcpu *vcpu);
 void kvm_s390_vcpu_unsetup_cmma(struct kvm_vcpu *vcpu);
-/* is cmma enabled */
-bool kvm_s390_cmma_enabled(struct kvm *kvm);
 unsigned long kvm_s390_fac_list_mask_size(void);
 extern unsigned long kvm_s390_fac_list_mask[];
 
 /* implemented in diag.c */
 int kvm_s390_handle_diag(struct kvm_vcpu *vcpu);
-/* implemented in interrupt.c */
-int kvm_s390_inject_prog_irq(struct kvm_vcpu *vcpu,
-			     struct kvm_s390_pgm_info *pgm_info);
+
+static inline void kvm_s390_vcpu_block_all(struct kvm *kvm)
+{
+	int i;
+	struct kvm_vcpu *vcpu;
+
+	WARN_ON(!mutex_is_locked(&kvm->lock));
+	kvm_for_each_vcpu(i, vcpu, kvm)
+		kvm_s390_vcpu_block(vcpu);
+}
+
+static inline void kvm_s390_vcpu_unblock_all(struct kvm *kvm)
+{
+	int i;
+	struct kvm_vcpu *vcpu;
+
+	kvm_for_each_vcpu(i, vcpu, kvm)
+		kvm_s390_vcpu_unblock(vcpu);
+}
+
+static inline u64 kvm_s390_get_tod_clock_fast(struct kvm *kvm)
+{
+	u64 rc;
+
+	preempt_disable();
+	rc = get_tod_clock_fast() + kvm->arch.epoch;
+	preempt_enable();
+	return rc;
+}
 
 /**
  * kvm_s390_inject_prog_cond - conditionally inject a program check
@@ -241,6 +325,10 @@ int kvm_s390_ext_call_pending(struct kvm_vcpu *vcpu);
 extern struct kvm_device_ops kvm_flic_ops;
 int kvm_s390_is_stop_irq_pending(struct kvm_vcpu *vcpu);
 void kvm_s390_clear_stop_irq(struct kvm_vcpu *vcpu);
+int kvm_s390_set_irq_state(struct kvm_vcpu *vcpu,
+			   void __user *buf, int len);
+int kvm_s390_get_irq_state(struct kvm_vcpu *vcpu,
+			   __u8 __user *buf, int len);
 
 /* implemented in guestdbg.c */
 void kvm_s390_backup_guest_per_regs(struct kvm_vcpu *vcpu);

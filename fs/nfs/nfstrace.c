@@ -7,3 +7,6 @@
 
 #define CREATE_TRACE_POINTS
 #include "nfstrace.h"
+
+EXPORT_TRACEPOINT_SYMBOL_GPL(nfs_fsync_enter);
+EXPORT_TRACEPOINT_SYMBOL_GPL(nfs_fsync_exit);

@@ -14,11 +14,13 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/reset-controller.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/log2.h>
 
@@ -118,42 +120,42 @@ static long sun6i_ahb1_clk_round(unsigned long rate, u8 *divp, u8 *pre_divp,
 	return (parent_rate / calcm) >> calcp;
 }
 
-static long sun6i_ahb1_clk_determine_rate(struct clk_hw *hw, unsigned long rate,
-					  unsigned long min_rate,
-					  unsigned long max_rate,
-					  unsigned long *best_parent_rate,
-					  struct clk_hw **best_parent_clk)
+static int sun6i_ahb1_clk_determine_rate(struct clk_hw *hw,
+					 struct clk_rate_request *req)
 {
-	struct clk *clk = hw->clk, *parent, *best_parent = NULL;
+	struct clk_hw *parent, *best_parent = NULL;
 	int i, num_parents;
 	unsigned long parent_rate, best = 0, child_rate, best_child_rate = 0;
 
 	/* find the parent that can help provide the fastest rate <= rate */
-	num_parents = __clk_get_num_parents(clk);
+	num_parents = clk_hw_get_num_parents(hw);
 	for (i = 0; i < num_parents; i++) {
-		parent = clk_get_parent_by_index(clk, i);
+		parent = clk_hw_get_parent_by_index(hw, i);
 		if (!parent)
 			continue;
-		if (__clk_get_flags(clk) & CLK_SET_RATE_PARENT)
-			parent_rate = __clk_round_rate(parent, rate);
+		if (clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT)
+			parent_rate = clk_hw_round_rate(parent, req->rate);
 		else
-			parent_rate = __clk_get_rate(parent);
+			parent_rate = clk_hw_get_rate(parent);
 
-		child_rate = sun6i_ahb1_clk_round(rate, NULL, NULL, i,
+		child_rate = sun6i_ahb1_clk_round(req->rate, NULL, NULL, i,
 						  parent_rate);
 
-		if (child_rate <= rate && child_rate > best_child_rate) {
+		if (child_rate <= req->rate && child_rate > best_child_rate) {
 			best_parent = parent;
 			best = parent_rate;
 			best_child_rate = child_rate;
 		}
 	}
 
-	if (best_parent)
-		*best_parent_clk = __clk_get_hw(best_parent);
-	*best_parent_rate = best;
+	if (!best_parent)
+		return -EINVAL;
 
-	return best_child_rate;
+	req->best_parent_hw = best_parent;
+	req->best_parent_rate = best;
+	req->rate = best_child_rate;
+
+	return 0;
 }
 
 static int sun6i_ahb1_clk_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -195,15 +197,14 @@ static void __init sun6i_ahb1_clk_setup(struct device_node *node)
 	const char *clk_name = node->name;
 	const char *parents[SUN6I_AHB1_MAX_PARENTS];
 	void __iomem *reg;
-	int i = 0;
+	int i;
 
 	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	if (IS_ERR(reg))
+		return;
 
 	/* we have a mux, we will have >1 parents */
-	while (i < SUN6I_AHB1_MAX_PARENTS &&
-	       (parents[i] = of_clk_get_parent_name(node, i)) != NULL)
-		i++;
-
+	i = of_clk_parent_fill(node, parents, SUN6I_AHB1_MAX_PARENTS);
 	of_property_read_string(node, "clock-output-names", &clk_name);
 
 	ahb1 = kzalloc(sizeof(struct sun6i_ahb1_clk), GFP_KERNEL);
@@ -482,6 +483,45 @@ static void sun6i_a31_get_pll6_factors(u32 *freq, u32 parent_rate,
 }
 
 /**
+ * sun5i_a13_get_ahb_factors() - calculates m, p factors for AHB
+ * AHB rate is calculated as follows
+ * rate = parent_rate >> p
+ */
+
+static void sun5i_a13_get_ahb_factors(u32 *freq, u32 parent_rate,
+				       u8 *n, u8 *k, u8 *m, u8 *p)
+{
+	u32 div;
+
+	/* divide only */
+	if (parent_rate < *freq)
+		*freq = parent_rate;
+
+	/*
+	 * user manual says valid speed is 8k ~ 276M, but tests show it
+	 * can work at speeds up to 300M, just after reparenting to pll6
+	 */
+	if (*freq < 8000)
+		*freq = 8000;
+	if (*freq > 300000000)
+		*freq = 300000000;
+
+	div = order_base_2(DIV_ROUND_UP(parent_rate, *freq));
+
+	/* p = 0 ~ 3 */
+	if (div > 3)
+		div = 3;
+
+	*freq = parent_rate >> div;
+
+	/* we were called to round the frequency, we can now return */
+	if (p == NULL)
+		return;
+
+	*p = div;
+}
+
+/**
  * sun4i_get_apb1_factors() - calculates m, p factors for APB1
  * APB1 rate is calculated as follows
  * rate = (parent_rate >> p) / (m + 1);
@@ -616,6 +656,11 @@ static struct clk_factors_config sun6i_a31_pll6_config = {
 	.n_start = 1,
 };
 
+static struct clk_factors_config sun5i_a13_ahb_config = {
+	.pshift = 4,
+	.pwidth = 2,
+};
+
 static struct clk_factors_config sun4i_apb1_config = {
 	.mshift = 0,
 	.mwidth = 5,
@@ -676,6 +721,13 @@ static const struct factors_data sun6i_a31_pll6_data __initconst = {
 	.name = "pll6x2",
 };
 
+static const struct factors_data sun5i_a13_ahb_data __initconst = {
+	.mux = 6,
+	.muxmask = BIT(1) | BIT(0),
+	.table = &sun5i_a13_ahb_config,
+	.getter = sun5i_a13_get_ahb_factors,
+};
+
 static const struct factors_data sun4i_apb1_data __initconst = {
 	.mux = 24,
 	.muxmask = BIT(1) | BIT(0),
@@ -733,14 +785,11 @@ static void __init sunxi_mux_clk_setup(struct device_node *node,
 	const char *clk_name = node->name;
 	const char *parents[SUNXI_MAX_PARENTS];
 	void __iomem *reg;
-	int i = 0;
+	int i;
 
 	reg = of_iomap(node, 0);
 
-	while (i < SUNXI_MAX_PARENTS &&
-	       (parents[i] = of_clk_get_parent_name(node, i)) != NULL)
-		i++;
-
+	i = of_clk_parent_fill(node, parents, SUNXI_MAX_PARENTS);
 	of_property_read_string(node, "clock-output-names", &clk_name);
 
 	clk = clk_register_mux(NULL, clk_name, parents, i,
@@ -838,59 +887,6 @@ static void __init sunxi_divider_clk_setup(struct device_node *node,
 
 
 /**
- * sunxi_gates_reset... - reset bits in leaf gate clk registers handling
- */
-
-struct gates_reset_data {
-	void __iomem			*reg;
-	spinlock_t			*lock;
-	struct reset_controller_dev	rcdev;
-};
-
-static int sunxi_gates_reset_assert(struct reset_controller_dev *rcdev,
-			      unsigned long id)
-{
-	struct gates_reset_data *data = container_of(rcdev,
-						     struct gates_reset_data,
-						     rcdev);
-	unsigned long flags;
-	u32 reg;
-
-	spin_lock_irqsave(data->lock, flags);
-
-	reg = readl(data->reg);
-	writel(reg & ~BIT(id), data->reg);
-
-	spin_unlock_irqrestore(data->lock, flags);
-
-	return 0;
-}
-
-static int sunxi_gates_reset_deassert(struct reset_controller_dev *rcdev,
-				unsigned long id)
-{
-	struct gates_reset_data *data = container_of(rcdev,
-						     struct gates_reset_data,
-						     rcdev);
-	unsigned long flags;
-	u32 reg;
-
-	spin_lock_irqsave(data->lock, flags);
-
-	reg = readl(data->reg);
-	writel(reg | BIT(id), data->reg);
-
-	spin_unlock_irqrestore(data->lock, flags);
-
-	return 0;
-}
-
-static struct reset_control_ops sunxi_gates_reset_ops = {
-	.assert		= sunxi_gates_reset_assert,
-	.deassert	= sunxi_gates_reset_deassert,
-};
-
-/**
  * sunxi_gates_clk_setup() - Setup function for leaf gates on clocks
  */
 
@@ -898,195 +894,26 @@ static struct reset_control_ops sunxi_gates_reset_ops = {
 
 struct gates_data {
 	DECLARE_BITMAP(mask, SUNXI_GATES_MAX_SIZE);
-	u32 reset_mask;
 };
-
-static const struct gates_data sun4i_axi_gates_data __initconst = {
-	.mask = {1},
-};
-
-static const struct gates_data sun4i_ahb_gates_data __initconst = {
-	.mask = {0x7F77FFF, 0x14FB3F},
-};
-
-static const struct gates_data sun5i_a10s_ahb_gates_data __initconst = {
-	.mask = {0x147667e7, 0x185915},
-};
-
-static const struct gates_data sun5i_a13_ahb_gates_data __initconst = {
-	.mask = {0x107067e7, 0x185111},
-};
-
-static const struct gates_data sun6i_a31_ahb1_gates_data __initconst = {
-	.mask = {0xEDFE7F62, 0x794F931},
-};
-
-static const struct gates_data sun7i_a20_ahb_gates_data __initconst = {
-	.mask = { 0x12f77fff, 0x16ff3f },
-};
-
-static const struct gates_data sun8i_a23_ahb1_gates_data __initconst = {
-	.mask = {0x25386742, 0x2505111},
-};
-
-static const struct gates_data sun9i_a80_ahb0_gates_data __initconst = {
-	.mask = {0xF5F12B},
-};
-
-static const struct gates_data sun9i_a80_ahb1_gates_data __initconst = {
-	.mask = {0x1E20003},
-};
-
-static const struct gates_data sun9i_a80_ahb2_gates_data __initconst = {
-	.mask = {0x9B7},
-};
-
-static const struct gates_data sun4i_apb0_gates_data __initconst = {
-	.mask = {0x4EF},
-};
-
-static const struct gates_data sun5i_a10s_apb0_gates_data __initconst = {
-	.mask = {0x469},
-};
-
-static const struct gates_data sun5i_a13_apb0_gates_data __initconst = {
-	.mask = {0x61},
-};
-
-static const struct gates_data sun7i_a20_apb0_gates_data __initconst = {
-	.mask = { 0x4ff },
-};
-
-static const struct gates_data sun9i_a80_apb0_gates_data __initconst = {
-	.mask = {0xEB822},
-};
-
-static const struct gates_data sun4i_apb1_gates_data __initconst = {
-	.mask = {0xFF00F7},
-};
-
-static const struct gates_data sun5i_a10s_apb1_gates_data __initconst = {
-	.mask = {0xf0007},
-};
-
-static const struct gates_data sun5i_a13_apb1_gates_data __initconst = {
-	.mask = {0xa0007},
-};
-
-static const struct gates_data sun6i_a31_apb1_gates_data __initconst = {
-	.mask = {0x3031},
-};
-
-static const struct gates_data sun8i_a23_apb1_gates_data __initconst = {
-	.mask = {0x3021},
-};
-
-static const struct gates_data sun6i_a31_apb2_gates_data __initconst = {
-	.mask = {0x3F000F},
-};
-
-static const struct gates_data sun7i_a20_apb1_gates_data __initconst = {
-	.mask = { 0xff80ff },
-};
-
-static const struct gates_data sun9i_a80_apb1_gates_data __initconst = {
-	.mask = {0x3F001F},
-};
-
-static const struct gates_data sun8i_a23_apb2_gates_data __initconst = {
-	.mask = {0x1F0007},
-};
-
-static const struct gates_data sun4i_a10_usb_gates_data __initconst = {
-	.mask = {0x1C0},
-	.reset_mask = 0x07,
-};
-
-static const struct gates_data sun5i_a13_usb_gates_data __initconst = {
-	.mask = {0x140},
-	.reset_mask = 0x03,
-};
-
-static const struct gates_data sun6i_a31_usb_gates_data __initconst = {
-	.mask = { BIT(18) | BIT(17) | BIT(16) | BIT(10) | BIT(9) | BIT(8) },
-	.reset_mask = BIT(2) | BIT(1) | BIT(0),
-};
-
-static void __init sunxi_gates_clk_setup(struct device_node *node,
-					 struct gates_data *data)
-{
-	struct clk_onecell_data *clk_data;
-	struct gates_reset_data *reset_data;
-	const char *clk_parent;
-	const char *clk_name;
-	void __iomem *reg;
-	int qty;
-	int i = 0;
-	int j = 0;
-
-	reg = of_iomap(node, 0);
-
-	clk_parent = of_clk_get_parent_name(node, 0);
-
-	/* Worst-case size approximation and memory allocation */
-	qty = find_last_bit(data->mask, SUNXI_GATES_MAX_SIZE);
-	clk_data = kmalloc(sizeof(struct clk_onecell_data), GFP_KERNEL);
-	if (!clk_data)
-		return;
-	clk_data->clks = kzalloc((qty+1) * sizeof(struct clk *), GFP_KERNEL);
-	if (!clk_data->clks) {
-		kfree(clk_data);
-		return;
-	}
-
-	for_each_set_bit(i, data->mask, SUNXI_GATES_MAX_SIZE) {
-		of_property_read_string_index(node, "clock-output-names",
-					      j, &clk_name);
-
-		clk_data->clks[i] = clk_register_gate(NULL, clk_name,
-						      clk_parent, 0,
-						      reg + 4 * (i/32), i % 32,
-						      0, &clk_lock);
-		WARN_ON(IS_ERR(clk_data->clks[i]));
-		clk_register_clkdev(clk_data->clks[i], clk_name, NULL);
-
-		j++;
-	}
-
-	/* Adjust to the real max */
-	clk_data->clk_num = i;
-
-	of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
-
-	/* Register a reset controler for gates with reset bits */
-	if (data->reset_mask == 0)
-		return;
-
-	reset_data = kzalloc(sizeof(*reset_data), GFP_KERNEL);
-	if (!reset_data)
-		return;
-
-	reset_data->reg = reg;
-	reset_data->lock = &clk_lock;
-	reset_data->rcdev.nr_resets = __fls(data->reset_mask) + 1;
-	reset_data->rcdev.ops = &sunxi_gates_reset_ops;
-	reset_data->rcdev.of_node = node;
-	reset_controller_register(&reset_data->rcdev);
-}
-
-
 
 /**
  * sunxi_divs_clk_setup() helper data
  */
 
-#define SUNXI_DIVS_MAX_QTY	2
+#define SUNXI_DIVS_MAX_QTY	4
 #define SUNXI_DIVISOR_WIDTH	2
 
 struct divs_data {
 	const struct factors_data *factors; /* data for the factor clock */
-	int ndivs; /* number of children */
+	int ndivs; /* number of outputs */
+	/*
+	 * List of outputs. Refer to the diagram for sunxi_divs_clk_setup():
+	 * self or base factor clock refers to the output from the pll
+	 * itself. The remaining refer to fixed or configurable divider
+	 * outputs.
+	 */
 	struct {
+		u8 self; /* is it the base factor clock? (only one) */
 		u8 fixed; /* is it a fixed divisor? if not... */
 		struct clk_div_table *table; /* is it a table based divisor? */
 		u8 shift; /* otherwise it's a normal divisor with this shift */
@@ -1109,23 +936,27 @@ static const struct divs_data pll5_divs_data __initconst = {
 	.div = {
 		{ .shift = 0, .pow = 0, }, /* M, DDR */
 		{ .shift = 16, .pow = 1, }, /* P, other */
+		/* No output for the base factor clock */
 	}
 };
 
 static const struct divs_data pll6_divs_data __initconst = {
 	.factors = &sun4i_pll6_data,
-	.ndivs = 2,
+	.ndivs = 4,
 	.div = {
 		{ .shift = 0, .table = pll6_sata_tbl, .gate = 14 }, /* M, SATA */
 		{ .fixed = 2 }, /* P, other */
+		{ .self = 1 }, /* base factor clock, 2x */
+		{ .fixed = 4 }, /* pll6 / 4, used as ahb input */
 	}
 };
 
 static const struct divs_data sun6i_a31_pll6_divs_data __initconst = {
 	.factors = &sun6i_a31_pll6_data,
-	.ndivs = 1,
+	.ndivs = 2,
 	.div = {
 		{ .fixed = 2 }, /* normal output */
+		{ .self = 1 }, /* base factor clock, 2x */
 	}
 };
 
@@ -1156,6 +987,10 @@ static void __init sunxi_divs_clk_setup(struct device_node *node,
 	int ndivs = SUNXI_DIVS_MAX_QTY, i = 0;
 	int flags, clkflags;
 
+	/* if number of children known, use it */
+	if (data->ndivs)
+		ndivs = data->ndivs;
+
 	/* Set up factor clock that we will be dividing */
 	pclk = sunxi_factors_clk_setup(node, data->factors);
 	parent = __clk_get_name(pclk);
@@ -1166,7 +1001,7 @@ static void __init sunxi_divs_clk_setup(struct device_node *node,
 	if (!clk_data)
 		return;
 
-	clks = kzalloc((SUNXI_DIVS_MAX_QTY+1) * sizeof(*clks), GFP_KERNEL);
+	clks = kcalloc(ndivs, sizeof(*clks), GFP_KERNEL);
 	if (!clks)
 		goto free_clkdata;
 
@@ -1176,14 +1011,16 @@ static void __init sunxi_divs_clk_setup(struct device_node *node,
 	 * our RAM clock! */
 	clkflags = !strcmp("pll5", parent) ? 0 : CLK_SET_RATE_PARENT;
 
-	/* if number of children known, use it */
-	if (data->ndivs)
-		ndivs = data->ndivs;
-
 	for (i = 0; i < ndivs; i++) {
 		if (of_property_read_string_index(node, "clock-output-names",
 						  i, &clk_name) != 0)
 			break;
+
+		/* If this is the base factor clock, only update clks */
+		if (data->div[i].self) {
+			clk_data->clks[i] = pclk;
+			continue;
+		}
 
 		gate_hw = NULL;
 		rate_hw = NULL;
@@ -1243,9 +1080,6 @@ static void __init sunxi_divs_clk_setup(struct device_node *node,
 		clk_register_clkdev(clks[i], clk_name, NULL);
 	}
 
-	/* The last clock available on the getter is the parent */
-	clks[i++] = pclk;
-
 	/* Adjust to the real max */
 	clk_data->clk_num = i;
 
@@ -1269,6 +1103,7 @@ static const struct of_device_id clk_factors_match[] __initconst = {
 	{.compatible = "allwinner,sun6i-a31-pll1-clk", .data = &sun6i_a31_pll1_data,},
 	{.compatible = "allwinner,sun8i-a23-pll1-clk", .data = &sun8i_a23_pll1_data,},
 	{.compatible = "allwinner,sun7i-a20-pll4-clk", .data = &sun7i_a20_pll4_data,},
+	{.compatible = "allwinner,sun5i-a13-ahb-clk", .data = &sun5i_a13_ahb_data,},
 	{.compatible = "allwinner,sun4i-a10-apb1-clk", .data = &sun4i_apb1_data,},
 	{.compatible = "allwinner,sun7i-a20-out-clk", .data = &sun7i_a20_out_data,},
 	{}
@@ -1298,37 +1133,6 @@ static const struct of_device_id clk_mux_match[] __initconst = {
 	{}
 };
 
-/* Matches for gate clocks */
-static const struct of_device_id clk_gates_match[] __initconst = {
-	{.compatible = "allwinner,sun4i-a10-axi-gates-clk", .data = &sun4i_axi_gates_data,},
-	{.compatible = "allwinner,sun4i-a10-ahb-gates-clk", .data = &sun4i_ahb_gates_data,},
-	{.compatible = "allwinner,sun5i-a10s-ahb-gates-clk", .data = &sun5i_a10s_ahb_gates_data,},
-	{.compatible = "allwinner,sun5i-a13-ahb-gates-clk", .data = &sun5i_a13_ahb_gates_data,},
-	{.compatible = "allwinner,sun6i-a31-ahb1-gates-clk", .data = &sun6i_a31_ahb1_gates_data,},
-	{.compatible = "allwinner,sun7i-a20-ahb-gates-clk", .data = &sun7i_a20_ahb_gates_data,},
-	{.compatible = "allwinner,sun8i-a23-ahb1-gates-clk", .data = &sun8i_a23_ahb1_gates_data,},
-	{.compatible = "allwinner,sun9i-a80-ahb0-gates-clk", .data = &sun9i_a80_ahb0_gates_data,},
-	{.compatible = "allwinner,sun9i-a80-ahb1-gates-clk", .data = &sun9i_a80_ahb1_gates_data,},
-	{.compatible = "allwinner,sun9i-a80-ahb2-gates-clk", .data = &sun9i_a80_ahb2_gates_data,},
-	{.compatible = "allwinner,sun4i-a10-apb0-gates-clk", .data = &sun4i_apb0_gates_data,},
-	{.compatible = "allwinner,sun5i-a10s-apb0-gates-clk", .data = &sun5i_a10s_apb0_gates_data,},
-	{.compatible = "allwinner,sun5i-a13-apb0-gates-clk", .data = &sun5i_a13_apb0_gates_data,},
-	{.compatible = "allwinner,sun7i-a20-apb0-gates-clk", .data = &sun7i_a20_apb0_gates_data,},
-	{.compatible = "allwinner,sun9i-a80-apb0-gates-clk", .data = &sun9i_a80_apb0_gates_data,},
-	{.compatible = "allwinner,sun4i-a10-apb1-gates-clk", .data = &sun4i_apb1_gates_data,},
-	{.compatible = "allwinner,sun5i-a10s-apb1-gates-clk", .data = &sun5i_a10s_apb1_gates_data,},
-	{.compatible = "allwinner,sun5i-a13-apb1-gates-clk", .data = &sun5i_a13_apb1_gates_data,},
-	{.compatible = "allwinner,sun6i-a31-apb1-gates-clk", .data = &sun6i_a31_apb1_gates_data,},
-	{.compatible = "allwinner,sun7i-a20-apb1-gates-clk", .data = &sun7i_a20_apb1_gates_data,},
-	{.compatible = "allwinner,sun8i-a23-apb1-gates-clk", .data = &sun8i_a23_apb1_gates_data,},
-	{.compatible = "allwinner,sun9i-a80-apb1-gates-clk", .data = &sun9i_a80_apb1_gates_data,},
-	{.compatible = "allwinner,sun6i-a31-apb2-gates-clk", .data = &sun6i_a31_apb2_gates_data,},
-	{.compatible = "allwinner,sun8i-a23-apb2-gates-clk", .data = &sun8i_a23_apb2_gates_data,},
-	{.compatible = "allwinner,sun4i-a10-usb-clk", .data = &sun4i_a10_usb_gates_data,},
-	{.compatible = "allwinner,sun5i-a13-usb-clk", .data = &sun5i_a13_usb_gates_data,},
-	{.compatible = "allwinner,sun6i-a31-usb-clk", .data = &sun6i_a31_usb_gates_data,},
-	{}
-};
 
 static void __init of_sunxi_table_clock_setup(const struct of_device_id *clk_match,
 					      void *function)
@@ -1348,20 +1152,17 @@ static void __init sunxi_init_clocks(const char *clocks[], int nclocks)
 {
 	unsigned int i;
 
+	/* Register divided output clocks */
+	of_sunxi_table_clock_setup(clk_divs_match, sunxi_divs_clk_setup);
+
 	/* Register factor clocks */
 	of_sunxi_table_clock_setup(clk_factors_match, sunxi_factors_clk_setup);
 
 	/* Register divider clocks */
 	of_sunxi_table_clock_setup(clk_div_match, sunxi_divider_clk_setup);
 
-	/* Register divided output clocks */
-	of_sunxi_table_clock_setup(clk_divs_match, sunxi_divs_clk_setup);
-
 	/* Register mux clocks */
 	of_sunxi_table_clock_setup(clk_mux_match, sunxi_mux_clk_setup);
-
-	/* Register gate clocks */
-	of_sunxi_table_clock_setup(clk_gates_match, sunxi_gates_clk_setup);
 
 	/* Protect the clocks that needs to stay on */
 	for (i = 0; i < nclocks; i++) {
@@ -1374,7 +1175,6 @@ static void __init sunxi_init_clocks(const char *clocks[], int nclocks)
 
 static const char *sun4i_a10_critical_clocks[] __initdata = {
 	"pll5_ddr",
-	"ahb_sdram",
 };
 
 static void __init sun4i_a10_init_clocks(struct device_node *node)
@@ -1385,8 +1185,8 @@ static void __init sun4i_a10_init_clocks(struct device_node *node)
 CLK_OF_DECLARE(sun4i_a10_clk_init, "allwinner,sun4i-a10", sun4i_a10_init_clocks);
 
 static const char *sun5i_critical_clocks[] __initdata = {
+	"cpu",
 	"pll5_ddr",
-	"ahb_sdram",
 };
 
 static void __init sun5i_init_clocks(struct device_node *node)
@@ -1410,6 +1210,7 @@ static void __init sun6i_init_clocks(struct device_node *node)
 CLK_OF_DECLARE(sun6i_a31_clk_init, "allwinner,sun6i-a31", sun6i_init_clocks);
 CLK_OF_DECLARE(sun6i_a31s_clk_init, "allwinner,sun6i-a31s", sun6i_init_clocks);
 CLK_OF_DECLARE(sun8i_a23_clk_init, "allwinner,sun8i-a23", sun6i_init_clocks);
+CLK_OF_DECLARE(sun8i_a33_clk_init, "allwinner,sun8i-a33", sun6i_init_clocks);
 
 static void __init sun9i_init_clocks(struct device_node *node)
 {

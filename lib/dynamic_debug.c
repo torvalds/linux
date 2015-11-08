@@ -42,7 +42,7 @@ extern struct _ddebug __stop___verbose[];
 
 struct ddebug_table {
 	struct list_head link;
-	char *mod_name;
+	const char *mod_name;
 	unsigned int num_ddebugs;
 	struct _ddebug *ddebugs;
 };
@@ -841,12 +841,12 @@ int ddebug_add_module(struct _ddebug *tab, unsigned int n,
 			     const char *name)
 {
 	struct ddebug_table *dt;
-	char *new_name;
+	const char *new_name;
 
 	dt = kzalloc(sizeof(*dt), GFP_KERNEL);
 	if (dt == NULL)
 		return -ENOMEM;
-	new_name = kstrdup(name, GFP_KERNEL);
+	new_name = kstrdup_const(name, GFP_KERNEL);
 	if (new_name == NULL) {
 		kfree(dt);
 		return -ENOMEM;
@@ -887,7 +887,7 @@ static int ddebug_dyndbg_param_cb(char *param, char *val,
 
 /* handle both dyndbg and $module.dyndbg params at boot */
 static int ddebug_dyndbg_boot_param_cb(char *param, char *val,
-				const char *unused)
+				const char *unused, void *arg)
 {
 	vpr_info("%s=\"%s\"\n", param, val);
 	return ddebug_dyndbg_param_cb(param, val, NULL, 0);
@@ -907,7 +907,7 @@ int ddebug_dyndbg_module_param_cb(char *param, char *val, const char *module)
 static void ddebug_table_free(struct ddebug_table *dt)
 {
 	list_del_init(&dt->link);
-	kfree(dt->mod_name);
+	kfree_const(dt->mod_name);
 	kfree(dt);
 }
 
@@ -1028,7 +1028,7 @@ static int __init dynamic_debug_init(void)
 	 */
 	cmdline = kstrdup(saved_command_line, GFP_KERNEL);
 	parse_args("dyndbg params", cmdline, NULL,
-		   0, 0, 0, &ddebug_dyndbg_boot_param_cb);
+		   0, 0, 0, NULL, &ddebug_dyndbg_boot_param_cb);
 	kfree(cmdline);
 	return 0;
 

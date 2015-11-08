@@ -19,7 +19,7 @@ static const struct regmap_range hmc5843_readable_ranges[] = {
 		regmap_reg_range(0, HMC5843_ID_END),
 };
 
-static struct regmap_access_table hmc5843_readable_table = {
+static const struct regmap_access_table hmc5843_readable_table = {
 		.yes_ranges = hmc5843_readable_ranges,
 		.n_yes_ranges = ARRAY_SIZE(hmc5843_readable_ranges),
 };
@@ -28,7 +28,7 @@ static const struct regmap_range hmc5843_writable_ranges[] = {
 		regmap_reg_range(0, HMC5843_MODE_REG),
 };
 
-static struct regmap_access_table hmc5843_writable_table = {
+static const struct regmap_access_table hmc5843_writable_table = {
 		.yes_ranges = hmc5843_writable_ranges,
 		.n_yes_ranges = ARRAY_SIZE(hmc5843_writable_ranges),
 };
@@ -37,12 +37,12 @@ static const struct regmap_range hmc5843_volatile_ranges[] = {
 		regmap_reg_range(HMC5843_DATA_OUT_MSB_REGS, HMC5843_STATUS_REG),
 };
 
-static struct regmap_access_table hmc5843_volatile_table = {
+static const struct regmap_access_table hmc5843_volatile_table = {
 		.yes_ranges = hmc5843_volatile_ranges,
 		.n_yes_ranges = ARRAY_SIZE(hmc5843_volatile_ranges),
 };
 
-static struct regmap_config hmc5843_spi_regmap_config = {
+static const struct regmap_config hmc5843_spi_regmap_config = {
 		.reg_bits = 8,
 		.val_bits = 8,
 
@@ -59,6 +59,7 @@ static struct regmap_config hmc5843_spi_regmap_config = {
 static int hmc5843_spi_probe(struct spi_device *spi)
 {
 	int ret;
+	const struct spi_device_id *id = spi_get_device_id(spi);
 
 	spi->mode = SPI_MODE_3;
 	spi->max_speed_hz = 8000000;
@@ -69,7 +70,7 @@ static int hmc5843_spi_probe(struct spi_device *spi)
 
 	return hmc5843_common_probe(&spi->dev,
 			devm_regmap_init_spi(spi, &hmc5843_spi_regmap_config),
-			HMC5983_ID);
+			id->driver_data, id->name);
 }
 
 static int hmc5843_spi_remove(struct spi_device *spi)
@@ -81,12 +82,12 @@ static const struct spi_device_id hmc5843_id[] = {
 	{ "hmc5983", HMC5983_ID },
 	{ }
 };
+MODULE_DEVICE_TABLE(spi, hmc5843_id);
 
 static struct spi_driver hmc5843_driver = {
 		.driver = {
 				.name = "hmc5843",
 				.pm = HMC5843_PM_OPS,
-				.owner = THIS_MODULE,
 		},
 		.id_table = hmc5843_id,
 		.probe = hmc5843_spi_probe,

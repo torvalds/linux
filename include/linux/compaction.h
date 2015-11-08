@@ -15,7 +15,8 @@
 /* For more detailed tracepoint output */
 #define COMPACT_NO_SUITABLE_PAGE	5
 #define COMPACT_NOT_SUITABLE_ZONE	6
-/* When adding new state, please change compaction_status_string, too */
+#define COMPACT_CONTENDED		7
+/* When adding new states, please adjust include/trace/events/compaction.h */
 
 /* Used to signal whether compaction detected need_sched() or lock contention */
 /* No contention detected */
@@ -34,6 +35,7 @@ extern int sysctl_compaction_handler(struct ctl_table *table, int write,
 extern int sysctl_extfrag_threshold;
 extern int sysctl_extfrag_handler(struct ctl_table *table, int write,
 			void __user *buffer, size_t *length, loff_t *ppos);
+extern int sysctl_compact_unevictable_allowed;
 
 extern int fragmentation_index(struct zone *zone, unsigned int order);
 extern unsigned long try_to_compact_pages(gfp_t gfp_mask, unsigned int order,

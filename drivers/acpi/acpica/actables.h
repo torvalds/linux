@@ -58,7 +58,9 @@ u8 *acpi_tb_scan_memory_for_rsdp(u8 *start_address, u32 length);
 /*
  * tbdata - table data structure management
  */
-acpi_status acpi_tb_get_next_root_index(u32 *table_index);
+acpi_status
+acpi_tb_get_next_table_descriptor(u32 *table_index,
+				  struct acpi_table_desc **table_desc);
 
 void
 acpi_tb_init_table_descriptor(struct acpi_table_desc *table_desc,
@@ -83,7 +85,7 @@ void acpi_tb_set_table_loaded_flag(u32 table_index, u8 is_loaded);
 /*
  * tbfadt - FADT parse/convert/validate
  */
-void acpi_tb_parse_fadt(u32 table_index);
+void acpi_tb_parse_fadt(void);
 
 void acpi_tb_create_local_fadt(struct acpi_table_header *table, u32 length);
 
@@ -119,11 +121,6 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 			       u8 flags,
 			       u8 reload, u8 override, u32 *table_index);
 
-acpi_status
-acpi_tb_store_table(acpi_physical_address address,
-		    struct acpi_table_header *table,
-		    u32 length, u8 flags, u32 *table_index);
-
 void acpi_tb_uninstall_table(struct acpi_table_desc *table_desc);
 
 void acpi_tb_terminate(void);
@@ -141,8 +138,6 @@ acpi_status acpi_tb_get_owner_id(u32 table_index, acpi_owner_id *owner_id);
  */
 acpi_status acpi_tb_initialize_facs(void);
 
-u8 acpi_tb_tables_loaded(void);
-
 void
 acpi_tb_print_table_header(acpi_physical_address address,
 			   struct acpi_table_header *header);
@@ -157,14 +152,20 @@ void acpi_tb_check_dsdt_header(void);
 struct acpi_table_header *acpi_tb_copy_dsdt(u32 table_index);
 
 void
-acpi_tb_install_table_with_override(u32 table_index,
-				    struct acpi_table_desc *new_table_desc,
-				    u8 override);
+acpi_tb_install_table_with_override(struct acpi_table_desc *new_table_desc,
+				    u8 override, u32 *table_index);
 
 acpi_status
 acpi_tb_install_fixed_table(acpi_physical_address address,
-			    char *signature, u32 table_index);
+			    char *signature, u32 *table_index);
 
 acpi_status acpi_tb_parse_root_table(acpi_physical_address rsdp_address);
+
+u8 acpi_is_valid_signature(char *signature);
+
+/*
+ * tbxfload
+ */
+acpi_status acpi_tb_load_namespace(void);
 
 #endif				/* __ACTABLES_H__ */

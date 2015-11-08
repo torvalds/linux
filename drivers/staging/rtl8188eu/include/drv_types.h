@@ -131,6 +131,7 @@ struct registry_priv {
 	u8	if2name[16];
 
 	u8	notch_filter;
+	bool	monitor_enable;
 };
 
 /* For registry parameters */
@@ -175,7 +176,6 @@ static inline struct device *dvobj_to_dev(struct dvobj_priv *dvobj)
 };
 
 struct adapter {
-	int	pid[3];/* process id from UI, 0:wps, 1:hostapd, 2:dhcpcd */
 	u16	chip_type;
 
 	struct dvobj_priv *dvobj;
@@ -210,6 +210,7 @@ struct adapter {
 	void (*intf_start)(struct adapter *adapter);
 	void (*intf_stop)(struct adapter *adapter);
 	struct  net_device *pnetdev;
+	struct  net_device *pmondev;
 
 	/*  used by rtw_rereg_nd_name related function */
 	struct rereg_nd_name_data {

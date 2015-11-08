@@ -356,6 +356,9 @@ struct fm10k_hw;
 #define FM10K_QUEUE_DISABLE_TIMEOUT		100
 #define FM10K_RESET_TIMEOUT			150
 
+/* Maximum supported combined inner and outer header length for encapsulation */
+#define FM10K_TUNNEL_HEADER_LENGTH	184
+
 /* VF registers */
 #define FM10K_VFCTRL		0x00000
 #define FM10K_VFCTRL_RST			0x00000008
@@ -366,7 +369,7 @@ struct fm10k_hw;
 /* Registers contained in BAR 4 for Switch management */
 #define FM10K_SW_SYSTIME_ADJUST	0x0224D
 #define FM10K_SW_SYSTIME_ADJUST_MASK		0x3FFFFFFF
-#define FM10K_SW_SYSTIME_ADJUST_DIR_NEGATIVE	0x80000000
+#define FM10K_SW_SYSTIME_ADJUST_DIR_POSITIVE	0x80000000
 #define FM10K_SW_SYSTIME_PULSE(_n)	((_n) + 0x02252)
 
 enum fm10k_int_source {
@@ -518,7 +521,6 @@ struct fm10k_mac_ops {
 	s32 (*stop_hw)(struct fm10k_hw *);
 	s32 (*get_bus_info)(struct fm10k_hw *);
 	s32 (*get_host_state)(struct fm10k_hw *, bool *);
-	bool (*is_slot_appropriate)(struct fm10k_hw *);
 	s32 (*update_vlan)(struct fm10k_hw *, u32, u8, bool);
 	s32 (*read_mac_addr)(struct fm10k_hw *);
 	s32 (*update_uc_addr)(struct fm10k_hw *, u16, const u8 *,
@@ -593,7 +595,7 @@ struct fm10k_vf_info {
 	u16			sw_vid;		/* Switch API assigned VLAN */
 	u16			pf_vid;		/* PF assigned Default VLAN */
 	u8			mac[ETH_ALEN];	/* PF Default MAC address */
-	u8			vsi;		/* VSI idenfifier */
+	u8			vsi;		/* VSI identifier */
 	u8			vf_idx;		/* which VF this is */
 	u8			vf_flags;	/* flags indicating what modes
 						 * are supported for the port
@@ -759,6 +761,12 @@ enum fm10k_rxdesc_xc {
 #define FM10K_RXD_STATUS_RXE		0x2000 /* Generic Rx error */
 #define FM10K_RXD_STATUS_L4E		0x4000 /* L4 csum error */
 #define FM10K_RXD_STATUS_IPE		0x8000 /* IPv4 csum error */
+
+#define FM10K_RXD_ERR_SWITCH_ERROR	0x0001 /* Switch found bad packet */
+#define FM10K_RXD_ERR_NO_DESCRIPTOR	0x0002 /* No descriptor available */
+#define FM10K_RXD_ERR_PP_ERROR		0x0004 /* RAM error during processing */
+#define FM10K_RXD_ERR_SWITCH_READY	0x0008 /* Link transition mid-packet */
+#define FM10K_RXD_ERR_TOO_BIG		0x0010 /* Pkt too big for single buf */
 
 struct fm10k_ftag {
 	__be16 swpri_type_user;

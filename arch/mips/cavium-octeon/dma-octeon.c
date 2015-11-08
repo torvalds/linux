@@ -161,9 +161,6 @@ static void *octeon_dma_alloc_coherent(struct device *dev, size_t size,
 {
 	void *ret;
 
-	if (dma_alloc_from_coherent(dev, size, dma_handle, &ret))
-		return ret;
-
 	/* ignore region specifiers */
 	gfp &= ~(__GFP_DMA | __GFP_DMA32 | __GFP_HIGHMEM);
 
@@ -194,11 +191,6 @@ static void *octeon_dma_alloc_coherent(struct device *dev, size_t size,
 static void octeon_dma_free_coherent(struct device *dev, size_t size,
 	void *vaddr, dma_addr_t dma_handle, struct dma_attrs *attrs)
 {
-	int order = get_order(size);
-
-	if (dma_release_from_coherent(dev, order, vaddr))
-		return;
-
 	swiotlb_free_coherent(dev, size, vaddr, dma_handle);
 }
 
@@ -306,7 +298,7 @@ void __init plat_swiotlb_setup(void)
 		swiotlbsize = 64 * (1<<20);
 	}
 #endif
-#ifdef CONFIG_USB_OCTEON_OHCI
+#ifdef CONFIG_USB_OHCI_HCD_PLATFORM
 	/* OCTEON II ohci is only 32-bit. */
 	if (OCTEON_IS_OCTEON2() && max_addr >= 0x100000000ul)
 		swiotlbsize = 64 * (1<<20);

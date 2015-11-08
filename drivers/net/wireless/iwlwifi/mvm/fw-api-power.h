@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2015 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2015 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -190,16 +192,10 @@ struct iwl_powertable_cmd {
 /**
  * enum iwl_device_power_flags - masks for device power command flags
  * @DEVIC_POWER_FLAGS_POWER_SAVE_ENA_MSK: '1' Allow to save power by turning off
- *	receiver and transmitter. '0' - does not allow. This flag should be
- *	always set to '1' unless one need to disable actual power down for debug
- *	purposes.
- * @DEVICE_POWER_FLAGS_CAM_MSK: '1' CAM (Continuous Active Mode) is set, meaning
- *	that power management is disabled. '0' Power management is enabled, one
- *	of power schemes is applied.
+ *	receiver and transmitter. '0' - does not allow.
 */
 enum iwl_device_power_flags {
 	DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK	= BIT(0),
-	DEVICE_POWER_FLAGS_CAM_MSK		= BIT(13),
 };
 
 /**
@@ -298,6 +294,59 @@ struct iwl_uapsd_misbehaving_ap_notif {
 } __packed;
 
 /**
+ * struct iwl_reduce_tx_power_cmd - TX power reduction command
+ * REDUCE_TX_POWER_CMD = 0x9f
+ * @flags: (reserved for future implementation)
+ * @mac_context_id: id of the mac ctx for which we are reducing TX power.
+ * @pwr_restriction: TX power restriction in dBms.
+ */
+struct iwl_reduce_tx_power_cmd {
+	u8 flags;
+	u8 mac_context_id;
+	__le16 pwr_restriction;
+} __packed; /* TX_REDUCED_POWER_API_S_VER_1 */
+
+enum iwl_dev_tx_power_cmd_mode {
+	IWL_TX_POWER_MODE_SET_MAC = 0,
+	IWL_TX_POWER_MODE_SET_DEVICE = 1,
+	IWL_TX_POWER_MODE_SET_CHAINS = 2,
+}; /* TX_POWER_REDUCED_FLAGS_TYPE_API_E_VER_2 */;
+
+/**
+ * struct iwl_dev_tx_power_cmd_v2 - TX power reduction command
+ * @set_mode: see &enum iwl_dev_tx_power_cmd_mode
+ * @mac_context_id: id of the mac ctx for which we are reducing TX power.
+ * @pwr_restriction: TX power restriction in 1/8 dBms.
+ * @dev_24: device TX power restriction in 1/8 dBms
+ * @dev_52_low: device TX power restriction upper band - low
+ * @dev_52_high: device TX power restriction upper band - high
+ */
+struct iwl_dev_tx_power_cmd_v2 {
+	__le32 set_mode;
+	__le32 mac_context_id;
+	__le16 pwr_restriction;
+	__le16 dev_24;
+	__le16 dev_52_low;
+	__le16 dev_52_high;
+} __packed; /* TX_REDUCED_POWER_API_S_VER_2 */
+
+#define IWL_NUM_CHAIN_LIMITS	2
+#define IWL_NUM_SUB_BANDS	5
+
+/**
+ * struct iwl_dev_tx_power_cmd - TX power reduction command
+ * @v2: version 2 of the command, embedded here for easier software handling
+ * @per_chain_restriction: per chain restrictions
+ */
+struct iwl_dev_tx_power_cmd {
+	/* v3 is just an extension of v2 - keep this here */
+	struct iwl_dev_tx_power_cmd_v2 v2;
+	__le16 per_chain_restriction[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
+} __packed; /* TX_REDUCED_POWER_API_S_VER_3 */
+
+#define IWL_DEV_MAX_TX_POWER 0x7FFF
+
+/**
  * struct iwl_beacon_filter_cmd
  * REPLY_BEACON_FILTERING_CMD = 0xd2 (command)
  * @id_and_color: MAC contex identifier
@@ -379,7 +428,7 @@ struct iwl_beacon_filter_cmd {
 #define IWL_BF_TEMP_FAST_FILTER_MIN 0
 
 #define IWL_BF_TEMP_SLOW_FILTER_DEFAULT 5
-#define IWL_BF_TEMP_SLOW_FILTER_D0I3 5
+#define IWL_BF_TEMP_SLOW_FILTER_D0I3 20
 #define IWL_BF_TEMP_SLOW_FILTER_MAX 255
 #define IWL_BF_TEMP_SLOW_FILTER_MIN 0
 

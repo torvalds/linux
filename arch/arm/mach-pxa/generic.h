@@ -26,17 +26,20 @@ extern void pxa_timer_init(void);
 #define ARRAY_AND_SIZE(x)	(x), ARRAY_SIZE(x)
 
 #define pxa25x_handle_irq icip_handle_irq
+extern int __init pxa25x_clocks_init(void);
 extern void __init pxa25x_init_irq(void);
 extern void __init pxa25x_map_io(void);
 extern void __init pxa26x_init_irq(void);
 
 #define pxa27x_handle_irq ichp_handle_irq
+extern int __init pxa27x_clocks_init(void);
 extern void __init pxa27x_dt_init_irq(void);
 extern unsigned	pxa27x_get_clk_frequency_khz(int);
 extern void __init pxa27x_init_irq(void);
 extern void __init pxa27x_map_io(void);
 
 #define pxa3xx_handle_irq ichp_handle_irq
+extern int __init pxa3xx_clocks_init(void);
 extern void __init pxa3xx_dt_init_irq(void);
 extern void __init pxa3xx_init_irq(void);
 extern void __init pxa3xx_map_io(void);

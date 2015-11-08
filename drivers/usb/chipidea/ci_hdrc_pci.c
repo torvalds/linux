@@ -16,9 +16,15 @@
 #include <linux/interrupt.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/chipidea.h>
+#include <linux/usb/usb_phy_generic.h>
 
 /* driver name */
 #define UDC_DRIVER_NAME   "ci_hdrc_pci"
+
+struct ci_hdrc_pci {
+	struct platform_device	*ci;
+	struct platform_device	*phy;
+};
 
 /******************************************************************************
  * PCI block
@@ -52,7 +58,7 @@ static int ci_hdrc_pci_probe(struct pci_dev *pdev,
 				       const struct pci_device_id *id)
 {
 	struct ci_hdrc_platform_data *platdata = (void *)id->driver_data;
-	struct platform_device *plat_ci;
+	struct ci_hdrc_pci *ci;
 	struct resource res[3];
 	int retval = 0, nres = 2;
 
@@ -60,6 +66,10 @@ static int ci_hdrc_pci_probe(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "device doesn't provide driver data\n");
 		return -ENODEV;
 	}
+
+	ci = devm_kzalloc(&pdev->dev, sizeof(*ci), GFP_KERNEL);
+	if (!ci)
+		return -ENOMEM;
 
 	retval = pcim_enable_device(pdev);
 	if (retval)
@@ -73,6 +83,11 @@ static int ci_hdrc_pci_probe(struct pci_dev *pdev,
 	pci_set_master(pdev);
 	pci_try_set_mwi(pdev);
 
+	/* register a nop PHY */
+	ci->phy = usb_phy_generic_register();
+	if (!ci->phy)
+		return -ENOMEM;
+
 	memset(res, 0, sizeof(res));
 	res[0].start	= pci_resource_start(pdev, 0);
 	res[0].end	= pci_resource_end(pdev, 0);
@@ -80,13 +95,14 @@ static int ci_hdrc_pci_probe(struct pci_dev *pdev,
 	res[1].start	= pdev->irq;
 	res[1].flags	= IORESOURCE_IRQ;
 
-	plat_ci = ci_hdrc_add_device(&pdev->dev, res, nres, platdata);
-	if (IS_ERR(plat_ci)) {
+	ci->ci = ci_hdrc_add_device(&pdev->dev, res, nres, platdata);
+	if (IS_ERR(ci->ci)) {
 		dev_err(&pdev->dev, "ci_hdrc_add_device failed!\n");
-		return PTR_ERR(plat_ci);
+		usb_phy_generic_unregister(ci->phy);
+		return PTR_ERR(ci->ci);
 	}
 
-	pci_set_drvdata(pdev, plat_ci);
+	pci_set_drvdata(pdev, ci);
 
 	return 0;
 }
@@ -101,9 +117,10 @@ static int ci_hdrc_pci_probe(struct pci_dev *pdev,
  */
 static void ci_hdrc_pci_remove(struct pci_dev *pdev)
 {
-	struct platform_device *plat_ci = pci_get_drvdata(pdev);
+	struct ci_hdrc_pci *ci = pci_get_drvdata(pdev);
 
-	ci_hdrc_remove_device(plat_ci);
+	ci_hdrc_remove_device(ci->ci);
+	usb_phy_generic_unregister(ci->phy);
 }
 
 /**
@@ -125,16 +142,16 @@ static const struct pci_device_id ci_hdrc_pci_id_table[] = {
 		.driver_data = (kernel_ulong_t)&pci_platdata,
 	},
 	{
-		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0811),
+		PCI_VDEVICE(INTEL, 0x0811),
 		.driver_data = (kernel_ulong_t)&langwell_pci_platdata,
 	},
 	{
-		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0829),
+		PCI_VDEVICE(INTEL, 0x0829),
 		.driver_data = (kernel_ulong_t)&penwell_pci_platdata,
 	},
 	{
 		/* Intel Clovertrail */
-		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0xe006),
+		PCI_VDEVICE(INTEL, 0xe006),
 		.driver_data = (kernel_ulong_t)&penwell_pci_platdata,
 	},
 	{ 0 } /* end: all zeroes */

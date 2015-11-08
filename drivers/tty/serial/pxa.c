@@ -824,7 +824,7 @@ static const struct dev_pm_ops serial_pxa_pm_ops = {
 };
 #endif
 
-static struct of_device_id serial_pxa_dt_ids[] = {
+static const struct of_device_id serial_pxa_dt_ids[] = {
 	{ .compatible = "mrvl,pxa-uart", },
 	{ .compatible = "mrvl,mmp-uart", },
 	{}

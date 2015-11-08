@@ -34,12 +34,6 @@ enum crb_defaults {
 	CRB_ACPI_START_INDEX = 1,
 };
 
-enum crb_start_method {
-	CRB_SM_ACPI_START = 2,
-	CRB_SM_CRB = 7,
-	CRB_SM_CRB_WITH_ACPI_START = 8,
-};
-
 struct acpi_tpm2 {
 	struct acpi_table_header hdr;
 	u16 platform_class;
@@ -74,7 +68,8 @@ struct crb_control_area {
 	u32 int_enable;
 	u32 int_sts;
 	u32 cmd_size;
-	u64 cmd_pa;
+	u32 cmd_pa_low;
+	u32 cmd_pa_high;
 	u32 rsp_size;
 	u64 rsp_pa;
 } __packed;
@@ -220,18 +215,22 @@ static int crb_acpi_add(struct acpi_device *device)
 	u64 pa;
 	int rc;
 
-	chip = tpmm_chip_alloc(dev, &tpm_crb);
-	if (IS_ERR(chip))
-		return PTR_ERR(chip);
-
-	chip->flags = TPM_CHIP_FLAG_TPM2;
-
 	status = acpi_get_table(ACPI_SIG_TPM2, 1,
 				(struct acpi_table_header **) &buf);
 	if (ACPI_FAILURE(status)) {
 		dev_err(dev, "failed to get TPM2 ACPI table\n");
 		return -ENODEV;
 	}
+
+	/* Should the FIFO driver handle this? */
+	if (buf->start_method == TPM2_START_FIFO)
+		return -ENODEV;
+
+	chip = tpmm_chip_alloc(dev, &tpm_crb);
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
+
+	chip->flags = TPM_CHIP_FLAG_TPM2;
 
 	if (buf->hdr.length < sizeof(struct acpi_tpm2)) {
 		dev_err(dev, "TPM2 ACPI table has wrong size");
@@ -251,11 +250,11 @@ static int crb_acpi_add(struct acpi_device *device)
 	 * report only ACPI start but in practice seems to require both
 	 * ACPI start and CRB start.
 	 */
-	if (sm == CRB_SM_CRB || sm == CRB_SM_CRB_WITH_ACPI_START ||
+	if (sm == TPM2_START_CRB || sm == TPM2_START_FIFO ||
 	    !strcmp(acpi_device_hid(device), "MSFT0101"))
 		priv->flags |= CRB_FL_CRB_START;
 
-	if (sm == CRB_SM_ACPI_START || sm == CRB_SM_CRB_WITH_ACPI_START)
+	if (sm == TPM2_START_ACPI || sm == TPM2_START_CRB_WITH_ACPI)
 		priv->flags |= CRB_FL_ACPI_START;
 
 	priv->cca = (struct crb_control_area __iomem *)
@@ -265,9 +264,9 @@ static int crb_acpi_add(struct acpi_device *device)
 		return -ENOMEM;
 	}
 
-	memcpy_fromio(&pa, &priv->cca->cmd_pa, 8);
-	pa = le64_to_cpu(pa);
-	priv->cmd = devm_ioremap_nocache(dev, le64_to_cpu(pa),
+	pa = ((u64) le32_to_cpu(ioread32(&priv->cca->cmd_pa_high)) << 32) |
+		(u64) le32_to_cpu(ioread32(&priv->cca->cmd_pa_low));
+	priv->cmd = devm_ioremap_nocache(dev, pa,
 					 ioread32(&priv->cca->cmd_size));
 	if (!priv->cmd) {
 		dev_err(dev, "ioremap of the command buffer failed\n");
@@ -276,7 +275,7 @@ static int crb_acpi_add(struct acpi_device *device)
 
 	memcpy_fromio(&pa, &priv->cca->rsp_pa, 8);
 	pa = le64_to_cpu(pa);
-	priv->rsp = devm_ioremap_nocache(dev, le64_to_cpu(pa),
+	priv->rsp = devm_ioremap_nocache(dev, pa,
 					 ioread32(&priv->cca->rsp_size));
 	if (!priv->rsp) {
 		dev_err(dev, "ioremap of the response buffer failed\n");

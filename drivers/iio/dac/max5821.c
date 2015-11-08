@@ -387,12 +387,12 @@ static const struct of_device_id max5821_of_match[] = {
 	{ .compatible = "maxim,max5821" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, max5821_of_match);
 
 static struct i2c_driver max5821_driver = {
 	.driver = {
 		.name	= "max5821",
 		.pm     = MAX5821_PM_OPS,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= max5821_probe,
 	.remove		= max5821_remove,

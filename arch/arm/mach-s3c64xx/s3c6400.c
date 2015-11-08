@@ -41,9 +41,9 @@
 #include <plat/devs.h>
 #include <plat/sdhci.h>
 #include <plat/iic-core.h>
-#include <plat/onenand-core.h>
 
 #include "common.h"
+#include "onenand-core.h"
 
 void __init s3c6400_map_io(void)
 {

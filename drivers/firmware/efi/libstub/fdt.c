@@ -147,15 +147,6 @@ efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
 	if (status)
 		goto fdt_set_fail;
 
-	/*
-	 * Add kernel version banner so stub/kernel match can be
-	 * verified.
-	 */
-	status = fdt_setprop_string(fdt, node, "linux,uefi-stub-kern-ver",
-			     linux_banner);
-	if (status)
-		goto fdt_set_fail;
-
 	return EFI_SUCCESS;
 
 fdt_set_fail:
@@ -323,7 +314,7 @@ fail:
 	return EFI_LOAD_ERROR;
 }
 
-void *get_fdt(efi_system_table_t *sys_table)
+void *get_fdt(efi_system_table_t *sys_table, unsigned long *fdt_size)
 {
 	efi_guid_t fdt_guid = DEVICE_TREE_GUID;
 	efi_config_table_t *tables;
@@ -336,6 +327,11 @@ void *get_fdt(efi_system_table_t *sys_table)
 	for (i = 0; i < sys_table->nr_tables; i++)
 		if (efi_guidcmp(tables[i].guid, fdt_guid) == 0) {
 			fdt = (void *) tables[i].table;
+			if (fdt_check_header(fdt) != 0) {
+				pr_efi_err(sys_table, "Invalid header detected on UEFI supplied FDT, ignoring ...\n");
+				return NULL;
+			}
+			*fdt_size = fdt_totalsize(fdt);
 			break;
 	 }
 

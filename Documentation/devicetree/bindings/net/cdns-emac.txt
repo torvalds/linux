@@ -3,7 +3,8 @@
 Required properties:
 - compatible: Should be "cdns,[<chip>-]{emac}"
   Use "cdns,at91rm9200-emac" Atmel at91rm9200 SoC.
-  or the generic form: "cdns,emac".
+  Use "cdns,zynq-gem" Xilinx Zynq-7xxx SoC.
+  Or the generic form: "cdns,emac".
 - reg: Address and length of the register set for the device
 - interrupts: Should contain macb interrupt
 - phy-mode: see ethernet.txt file in the same directory.

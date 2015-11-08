@@ -166,13 +166,17 @@ struct arm_ccn_dt {
 
 	struct hrtimer hrtimer;
 
+	cpumask_t cpu;
+	struct notifier_block cpu_nb;
+
 	struct pmu pmu;
 };
 
 struct arm_ccn {
 	struct device *dev;
 	void __iomem *base;
-	unsigned irq_used:1;
+	unsigned int irq;
+
 	unsigned sbas_present:1;
 	unsigned sbsx_present:1;
 
@@ -212,7 +216,7 @@ static int arm_ccn_node_to_xp_port(int node)
 
 static void arm_ccn_pmu_config_set(u64 *config, u32 node_xp, u32 type, u32 port)
 {
-	*config &= ~((0xff << 0) | (0xff << 8) | (0xff << 24));
+	*config &= ~((0xff << 0) | (0xff << 8) | (0x3 << 24));
 	*config |= (node_xp << 0) | (type << 8) | (port << 24);
 }
 
@@ -336,6 +340,23 @@ static ssize_t arm_ccn_pmu_event_show(struct device *dev,
 	if (event->mask)
 		res += snprintf(buf + res, PAGE_SIZE - res, ",mask=0x%x",
 				event->mask);
+
+	/* Arguments required by an event */
+	switch (event->type) {
+	case CCN_TYPE_CYCLES:
+		break;
+	case CCN_TYPE_XP:
+		res += snprintf(buf + res, PAGE_SIZE - res,
+				",xp=?,port=?,vc=?,dir=?");
+		if (event->event == CCN_EVENT_WATCHPOINT)
+			res += snprintf(buf + res, PAGE_SIZE - res,
+					",cmp_l=?,cmp_h=?,mask=?");
+		break;
+	default:
+		res += snprintf(buf + res, PAGE_SIZE - res, ",node=?");
+		break;
+	}
+
 	res += snprintf(buf + res, PAGE_SIZE - res, "\n");
 
 	return res;
@@ -521,6 +542,25 @@ static struct attribute_group arm_ccn_pmu_cmp_mask_attr_group = {
 	.attrs = arm_ccn_pmu_cmp_mask_attrs,
 };
 
+static ssize_t arm_ccn_pmu_cpumask_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct arm_ccn *ccn = pmu_to_arm_ccn(dev_get_drvdata(dev));
+
+	return cpumap_print_to_pagebuf(true, buf, &ccn->dt.cpu);
+}
+
+static struct device_attribute arm_ccn_pmu_cpumask_attr =
+		__ATTR(cpumask, S_IRUGO, arm_ccn_pmu_cpumask_show, NULL);
+
+static struct attribute *arm_ccn_pmu_cpumask_attrs[] = {
+	&arm_ccn_pmu_cpumask_attr.attr,
+	NULL,
+};
+
+static struct attribute_group arm_ccn_pmu_cpumask_attr_group = {
+	.attrs = arm_ccn_pmu_cpumask_attrs,
+};
 
 /*
  * Default poll period is 10ms, which is way over the top anyway,
@@ -542,6 +582,7 @@ static const struct attribute_group *arm_ccn_pmu_attr_groups[] = {
 	&arm_ccn_pmu_events_attr_group,
 	&arm_ccn_pmu_format_attr_group,
 	&arm_ccn_pmu_cmp_mask_attr_group,
+	&arm_ccn_pmu_cpumask_attr_group,
 	NULL
 };
 
@@ -587,7 +628,65 @@ static int arm_ccn_pmu_type_eq(u32 a, u32 b)
 	return 0;
 }
 
-static void arm_ccn_pmu_event_destroy(struct perf_event *event)
+static int arm_ccn_pmu_event_alloc(struct perf_event *event)
+{
+	struct arm_ccn *ccn = pmu_to_arm_ccn(event->pmu);
+	struct hw_perf_event *hw = &event->hw;
+	u32 node_xp, type, event_id;
+	struct arm_ccn_component *source;
+	int bit;
+
+	node_xp = CCN_CONFIG_NODE(event->attr.config);
+	type = CCN_CONFIG_TYPE(event->attr.config);
+	event_id = CCN_CONFIG_EVENT(event->attr.config);
+
+	/* Allocate the cycle counter */
+	if (type == CCN_TYPE_CYCLES) {
+		if (test_and_set_bit(CCN_IDX_PMU_CYCLE_COUNTER,
+				ccn->dt.pmu_counters_mask))
+			return -EAGAIN;
+
+		hw->idx = CCN_IDX_PMU_CYCLE_COUNTER;
+		ccn->dt.pmu_counters[CCN_IDX_PMU_CYCLE_COUNTER].event = event;
+
+		return 0;
+	}
+
+	/* Allocate an event counter */
+	hw->idx = arm_ccn_pmu_alloc_bit(ccn->dt.pmu_counters_mask,
+			CCN_NUM_PMU_EVENT_COUNTERS);
+	if (hw->idx < 0) {
+		dev_dbg(ccn->dev, "No more counters available!\n");
+		return -EAGAIN;
+	}
+
+	if (type == CCN_TYPE_XP)
+		source = &ccn->xp[node_xp];
+	else
+		source = &ccn->node[node_xp];
+	ccn->dt.pmu_counters[hw->idx].source = source;
+
+	/* Allocate an event source or a watchpoint */
+	if (type == CCN_TYPE_XP && event_id == CCN_EVENT_WATCHPOINT)
+		bit = arm_ccn_pmu_alloc_bit(source->xp.dt_cmp_mask,
+				CCN_NUM_XP_WATCHPOINTS);
+	else
+		bit = arm_ccn_pmu_alloc_bit(source->pmu_events_mask,
+				CCN_NUM_PMU_EVENTS);
+	if (bit < 0) {
+		dev_dbg(ccn->dev, "No more event sources/watchpoints on node/XP %d!\n",
+				node_xp);
+		clear_bit(hw->idx, ccn->dt.pmu_counters_mask);
+		return -EAGAIN;
+	}
+	hw->config_base = bit;
+
+	ccn->dt.pmu_counters[hw->idx].event = event;
+
+	return 0;
+}
+
+static void arm_ccn_pmu_event_release(struct perf_event *event)
 {
 	struct arm_ccn *ccn = pmu_to_arm_ccn(event->pmu);
 	struct hw_perf_event *hw = &event->hw;
@@ -616,15 +715,14 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 	struct arm_ccn *ccn;
 	struct hw_perf_event *hw = &event->hw;
 	u32 node_xp, type, event_id;
-	int valid, bit;
-	struct arm_ccn_component *source;
+	int valid;
 	int i;
+	struct perf_event *sibling;
 
 	if (event->attr.type != event->pmu->type)
 		return -ENOENT;
 
 	ccn = pmu_to_arm_ccn(event->pmu);
-	event->destroy = arm_ccn_pmu_event_destroy;
 
 	if (hw->sample_period) {
 		dev_warn(ccn->dev, "Sampling not supported!\n");
@@ -642,6 +740,16 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 		dev_warn(ccn->dev, "Can't provide per-task data!\n");
 		return -EOPNOTSUPP;
 	}
+	/*
+	 * Many perf core operations (eg. events rotation) operate on a
+	 * single CPU context. This is obvious for CPU PMUs, where one
+	 * expects the same sets of events being observed on all CPUs,
+	 * but can lead to issues for off-core PMUs, like CCN, where each
+	 * event could be theoretically assigned to a different CPU. To
+	 * mitigate this, we enforce CPU assignment to one, selected
+	 * processor (the one described in the "cpumask" attribute).
+	 */
+	event->cpu = cpumask_first(&ccn->dt.cpu);
 
 	node_xp = CCN_CONFIG_NODE(event->attr.config);
 	type = CCN_CONFIG_TYPE(event->attr.config);
@@ -711,48 +819,20 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 				node_xp, type, port);
 	}
 
-	/* Allocate the cycle counter */
-	if (type == CCN_TYPE_CYCLES) {
-		if (test_and_set_bit(CCN_IDX_PMU_CYCLE_COUNTER,
-				ccn->dt.pmu_counters_mask))
-			return -EAGAIN;
+	/*
+	 * We must NOT create groups containing mixed PMUs, although software
+	 * events are acceptable (for example to create a CCN group
+	 * periodically read when a hrtimer aka cpu-clock leader triggers).
+	 */
+	if (event->group_leader->pmu != event->pmu &&
+			!is_software_event(event->group_leader))
+		return -EINVAL;
 
-		hw->idx = CCN_IDX_PMU_CYCLE_COUNTER;
-		ccn->dt.pmu_counters[CCN_IDX_PMU_CYCLE_COUNTER].event = event;
-
-		return 0;
-	}
-
-	/* Allocate an event counter */
-	hw->idx = arm_ccn_pmu_alloc_bit(ccn->dt.pmu_counters_mask,
-			CCN_NUM_PMU_EVENT_COUNTERS);
-	if (hw->idx < 0) {
-		dev_warn(ccn->dev, "No more counters available!\n");
-		return -EAGAIN;
-	}
-
-	if (type == CCN_TYPE_XP)
-		source = &ccn->xp[node_xp];
-	else
-		source = &ccn->node[node_xp];
-	ccn->dt.pmu_counters[hw->idx].source = source;
-
-	/* Allocate an event source or a watchpoint */
-	if (type == CCN_TYPE_XP && event_id == CCN_EVENT_WATCHPOINT)
-		bit = arm_ccn_pmu_alloc_bit(source->xp.dt_cmp_mask,
-				CCN_NUM_XP_WATCHPOINTS);
-	else
-		bit = arm_ccn_pmu_alloc_bit(source->pmu_events_mask,
-				CCN_NUM_PMU_EVENTS);
-	if (bit < 0) {
-		dev_warn(ccn->dev, "No more event sources/watchpoints on node/XP %d!\n",
-				node_xp);
-		clear_bit(hw->idx, ccn->dt.pmu_counters_mask);
-		return -EAGAIN;
-	}
-	hw->config_base = bit;
-
-	ccn->dt.pmu_counters[hw->idx].event = event;
+	list_for_each_entry(sibling, &event->group_leader->sibling_list,
+			group_entry)
+		if (sibling->pmu != event->pmu &&
+				!is_software_event(sibling))
+			return -EINVAL;
 
 	return 0;
 }
@@ -835,9 +915,14 @@ static void arm_ccn_pmu_event_start(struct perf_event *event, int flags)
 			arm_ccn_pmu_read_counter(ccn, hw->idx));
 	hw->state = 0;
 
-	if (!ccn->irq_used)
+	/*
+	 * Pin the timer, so that the overflows are handled by the chosen
+	 * event->cpu (this is the same one as presented in "cpumask"
+	 * attribute).
+	 */
+	if (!ccn->irq)
 		hrtimer_start(&ccn->dt.hrtimer, arm_ccn_pmu_timer_period(),
-				HRTIMER_MODE_REL);
+				HRTIMER_MODE_REL_PINNED);
 
 	/* Set the DT bus input, engaging the counter */
 	arm_ccn_pmu_xp_dt_config(event, 1);
@@ -852,7 +937,7 @@ static void arm_ccn_pmu_event_stop(struct perf_event *event, int flags)
 	/* Disable counting, setting the DT bus to pass-through mode */
 	arm_ccn_pmu_xp_dt_config(event, 0);
 
-	if (!ccn->irq_used)
+	if (!ccn->irq)
 		hrtimer_cancel(&ccn->dt.hrtimer);
 
 	/* Let the DT bus drain */
@@ -1014,7 +1099,12 @@ static void arm_ccn_pmu_event_config(struct perf_event *event)
 
 static int arm_ccn_pmu_event_add(struct perf_event *event, int flags)
 {
+	int err;
 	struct hw_perf_event *hw = &event->hw;
+
+	err = arm_ccn_pmu_event_alloc(event);
+	if (err)
+		return err;
 
 	arm_ccn_pmu_event_config(event);
 
@@ -1029,6 +1119,8 @@ static int arm_ccn_pmu_event_add(struct perf_event *event, int flags)
 static void arm_ccn_pmu_event_del(struct perf_event *event, int flags)
 {
 	arm_ccn_pmu_event_stop(event, PERF_EF_UPDATE);
+
+	arm_ccn_pmu_event_release(event);
 }
 
 static void arm_ccn_pmu_event_read(struct perf_event *event)
@@ -1079,12 +1171,40 @@ static enum hrtimer_restart arm_ccn_pmu_timer_handler(struct hrtimer *hrtimer)
 }
 
 
+static int arm_ccn_pmu_cpu_notifier(struct notifier_block *nb,
+		unsigned long action, void *hcpu)
+{
+	struct arm_ccn_dt *dt = container_of(nb, struct arm_ccn_dt, cpu_nb);
+	struct arm_ccn *ccn = container_of(dt, struct arm_ccn, dt);
+	unsigned int cpu = (long)hcpu; /* for (long) see kernel/cpu.c */
+	unsigned int target;
+
+	switch (action & ~CPU_TASKS_FROZEN) {
+	case CPU_DOWN_PREPARE:
+		if (!cpumask_test_and_clear_cpu(cpu, &dt->cpu))
+			break;
+		target = cpumask_any_but(cpu_online_mask, cpu);
+		if (target >= nr_cpu_ids)
+			break;
+		perf_pmu_migrate_context(&dt->pmu, cpu, target);
+		cpumask_set_cpu(target, &dt->cpu);
+		if (ccn->irq)
+			WARN_ON(irq_set_affinity(ccn->irq, &dt->cpu) != 0);
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+
 static DEFINE_IDA(arm_ccn_pmu_ida);
 
 static int arm_ccn_pmu_init(struct arm_ccn *ccn)
 {
 	int i;
 	char *name;
+	int err;
 
 	/* Initialize DT subsystem */
 	ccn->dt.base = ccn->base + CCN_REGION_SIZE;
@@ -1136,20 +1256,58 @@ static int arm_ccn_pmu_init(struct arm_ccn *ccn)
 	};
 
 	/* No overflow interrupt? Have to use a timer instead. */
-	if (!ccn->irq_used) {
+	if (!ccn->irq) {
 		dev_info(ccn->dev, "No access to interrupts, using timer.\n");
 		hrtimer_init(&ccn->dt.hrtimer, CLOCK_MONOTONIC,
 				HRTIMER_MODE_REL);
 		ccn->dt.hrtimer.function = arm_ccn_pmu_timer_handler;
 	}
 
-	return perf_pmu_register(&ccn->dt.pmu, name, -1);
+	/* Pick one CPU which we will use to collect data from CCN... */
+	cpumask_set_cpu(smp_processor_id(), &ccn->dt.cpu);
+
+	/*
+	 * ... and change the selection when it goes offline. Priority is
+	 * picked to have a chance to migrate events before perf is notified.
+	 */
+	ccn->dt.cpu_nb.notifier_call = arm_ccn_pmu_cpu_notifier;
+	ccn->dt.cpu_nb.priority = CPU_PRI_PERF + 1,
+	err = register_cpu_notifier(&ccn->dt.cpu_nb);
+	if (err)
+		goto error_cpu_notifier;
+
+	/* Also make sure that the overflow interrupt is handled by this CPU */
+	if (ccn->irq) {
+		err = irq_set_affinity(ccn->irq, &ccn->dt.cpu);
+		if (err) {
+			dev_err(ccn->dev, "Failed to set interrupt affinity!\n");
+			goto error_set_affinity;
+		}
+	}
+
+	err = perf_pmu_register(&ccn->dt.pmu, name, -1);
+	if (err)
+		goto error_pmu_register;
+
+	return 0;
+
+error_pmu_register:
+error_set_affinity:
+	unregister_cpu_notifier(&ccn->dt.cpu_nb);
+error_cpu_notifier:
+	ida_simple_remove(&arm_ccn_pmu_ida, ccn->dt.id);
+	for (i = 0; i < ccn->num_xps; i++)
+		writel(0, ccn->xp[i].base + CCN_XP_DT_CONTROL);
+	writel(0, ccn->dt.base + CCN_DT_PMCR);
+	return err;
 }
 
 static void arm_ccn_pmu_cleanup(struct arm_ccn *ccn)
 {
 	int i;
 
+	irq_set_affinity(ccn->irq, cpu_possible_mask);
+	unregister_cpu_notifier(&ccn->dt.cpu_nb);
 	for (i = 0; i < ccn->num_xps; i++)
 		writel(0, ccn->xp[i].base + CCN_XP_DT_CONTROL);
 	writel(0, ccn->dt.base + CCN_DT_PMCR);
@@ -1285,6 +1443,7 @@ static int arm_ccn_probe(struct platform_device *pdev)
 {
 	struct arm_ccn *ccn;
 	struct resource *res;
+	unsigned int irq;
 	int err;
 
 	ccn = devm_kzalloc(&pdev->dev, sizeof(*ccn), GFP_KERNEL);
@@ -1309,6 +1468,7 @@ static int arm_ccn_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res)
 		return -EINVAL;
+	irq = res->start;
 
 	/* Check if we can use the interrupt */
 	writel(CCN_MN_ERRINT_STATUS__PMU_EVENTS__DISABLE,
@@ -1318,13 +1478,12 @@ static int arm_ccn_probe(struct platform_device *pdev)
 		/* Can set 'disable' bits, so can acknowledge interrupts */
 		writel(CCN_MN_ERRINT_STATUS__PMU_EVENTS__ENABLE,
 				ccn->base + CCN_MN_ERRINT_STATUS);
-		err = devm_request_irq(ccn->dev, res->start,
-				arm_ccn_irq_handler, 0, dev_name(ccn->dev),
-				ccn);
+		err = devm_request_irq(ccn->dev, irq, arm_ccn_irq_handler, 0,
+				dev_name(ccn->dev), ccn);
 		if (err)
 			return err;
 
-		ccn->irq_used = 1;
+		ccn->irq = irq;
 	}
 
 

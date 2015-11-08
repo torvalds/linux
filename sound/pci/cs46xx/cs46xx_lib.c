@@ -1864,7 +1864,7 @@ int snd_cs46xx_pcm_iec958(struct snd_cs46xx *chip, int device)
 	/* global setup */
 	pcm->info_flags = 0;
 	strcpy(pcm->name, "CS46xx - IEC958");
-	chip->pcm_rear = pcm;
+	chip->pcm_iec958 = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_pci_data(chip->pci), 64*1024, 256*1024);
@@ -2528,7 +2528,7 @@ int snd_cs46xx_mixer(struct snd_cs46xx *chip, int spdif_device)
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
 	if (chip->nr_ac97_codecs == 1) {
 		unsigned int id2 = chip->ac97[CS46XX_PRIMARY_CODEC_INDEX]->id & 0xffff;
-		if (id2 == 0x592b || id2 == 0x592d) {
+		if ((id2 & 0xfff0) == 0x5920) {	/* CS4294 and CS4298 */
 			err = snd_ctl_add(card, snd_ctl_new1(&snd_cs46xx_front_dup_ctl, chip));
 			if (err < 0)
 				return err;
@@ -2816,7 +2816,7 @@ int snd_cs46xx_gameport(struct snd_cs46xx *chip) { return -ENOSYS; }
 static inline void snd_cs46xx_remove_gameport(struct snd_cs46xx *chip) { }
 #endif /* CONFIG_GAMEPORT */
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 /*
  *  proc interface
  */
@@ -2865,7 +2865,7 @@ static int snd_cs46xx_proc_done(struct snd_cs46xx *chip)
 #endif
 	return 0;
 }
-#else /* !CONFIG_PROC_FS */
+#else /* !CONFIG_SND_PROC_FS */
 #define snd_cs46xx_proc_init(card, chip)
 #define snd_cs46xx_proc_done(chip)
 #endif
@@ -3780,6 +3780,11 @@ static int snd_cs46xx_suspend(struct device *dev)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	chip->in_suspend = 1;
 	snd_pcm_suspend_all(chip->pcm);
+#ifdef CONFIG_SND_CS46XX_NEW_DSP
+	snd_pcm_suspend_all(chip->pcm_rear);
+	snd_pcm_suspend_all(chip->pcm_center_lfe);
+	snd_pcm_suspend_all(chip->pcm_iec958);
+#endif
 	// chip->ac97_powerdown = snd_cs46xx_codec_read(chip, AC97_POWER_CONTROL);
 	// chip->ac97_general_purpose = snd_cs46xx_codec_read(chip, BA0_AC97_GENERAL_PURPOSE);
 

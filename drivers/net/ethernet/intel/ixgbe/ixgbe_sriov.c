@@ -36,6 +36,7 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/ipv6.h>
+#include <linux/if_bridge.h>
 #ifdef NETIF_F_HW_VLAN_CTAG_TX
 #include <linux/if_vlan.h>
 #endif
@@ -79,7 +80,7 @@ static int __ixgbe_enable_sriov(struct ixgbe_adapter *adapter)
 
 	/* Initialize default switching mode VEB */
 	IXGBE_WRITE_REG(hw, IXGBE_PFDTXGSWC, IXGBE_PFDTXGSWC_VT_LBEN);
-	adapter->flags2 |= IXGBE_FLAG2_BRIDGE_MODE_VEB;
+	adapter->bridge_mode = BRIDGE_MODE_VEB;
 
 	/* If call to enable VFs succeeded then allocate memory
 	 * for per VF control structures.
@@ -105,9 +106,24 @@ static int __ixgbe_enable_sriov(struct ixgbe_adapter *adapter)
 		adapter->flags2 &= ~(IXGBE_FLAG2_RSC_CAPABLE |
 				     IXGBE_FLAG2_RSC_ENABLED);
 
-		/* enable spoof checking for all VFs */
-		for (i = 0; i < adapter->num_vfs; i++)
+		for (i = 0; i < adapter->num_vfs; i++) {
+			/* enable spoof checking for all VFs */
 			adapter->vfinfo[i].spoofchk_enabled = true;
+
+			/* We support VF RSS querying only for 82599 and x540
+			 * devices at the moment. These devices share RSS
+			 * indirection table and RSS hash key with PF therefore
+			 * we want to disable the querying by default.
+			 */
+			adapter->vfinfo[i].rss_query_enabled = 0;
+
+			/* Untrust all VFs */
+			adapter->vfinfo[i].trusted = false;
+
+			/* set the default xcast mode */
+			adapter->vfinfo[i].xcast_mode = IXGBEVF_XCAST_MODE_NONE;
+		}
+
 		return 0;
 	}
 
@@ -141,7 +157,7 @@ void ixgbe_enable_sriov(struct ixgbe_adapter *adapter)
 		 * The 82599 supports up to 64 VFs per physical function
 		 * but this implementation limits allocation to 63 so that
 		 * basic networking resources are still available to the
-		 * physical function.  If the user requests greater thn
+		 * physical function.  If the user requests greater than
 		 * 63 VFs then it is an error - reset to default of zero.
 		 */
 		adapter->num_vfs = min_t(unsigned int, adapter->num_vfs, IXGBE_MAX_VFS_DRV_LIMIT);
@@ -424,6 +440,7 @@ static s32 ixgbe_set_vf_lpe(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 #endif /* CONFIG_FCOE */
 		switch (adapter->vfinfo[vf].vf_api) {
 		case ixgbe_mbox_api_11:
+		case ixgbe_mbox_api_12:
 			/*
 			 * Version 1.1 supports jumbo frames on VFs if PF has
 			 * jumbo frames enabled which means legacy VFs are
@@ -891,6 +908,7 @@ static int ixgbe_negotiate_vf_api(struct ixgbe_adapter *adapter,
 	switch (api) {
 	case ixgbe_mbox_api_10:
 	case ixgbe_mbox_api_11:
+	case ixgbe_mbox_api_12:
 		adapter->vfinfo[vf].vf_api = api;
 		return 0;
 	default:
@@ -914,6 +932,7 @@ static int ixgbe_get_vf_queues(struct ixgbe_adapter *adapter,
 	switch (adapter->vfinfo[vf].vf_api) {
 	case ixgbe_mbox_api_20:
 	case ixgbe_mbox_api_11:
+	case ixgbe_mbox_api_12:
 		break;
 	default:
 		return -1;
@@ -937,6 +956,106 @@ static int ixgbe_get_vf_queues(struct ixgbe_adapter *adapter,
 
 	/* notify VF of default queue */
 	msgbuf[IXGBE_VF_DEF_QUEUE] = default_tc;
+
+	return 0;
+}
+
+static int ixgbe_get_vf_reta(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
+{
+	u32 i, j;
+	u32 *out_buf = &msgbuf[1];
+	const u8 *reta = adapter->rss_indir_tbl;
+	u32 reta_size = ixgbe_rss_indir_tbl_entries(adapter);
+
+	/* Check if operation is permitted */
+	if (!adapter->vfinfo[vf].rss_query_enabled)
+		return -EPERM;
+
+	/* verify the PF is supporting the correct API */
+	if (adapter->vfinfo[vf].vf_api != ixgbe_mbox_api_12)
+		return -EOPNOTSUPP;
+
+	/* This mailbox command is supported (required) only for 82599 and x540
+	 * VFs which support up to 4 RSS queues. Therefore we will compress the
+	 * RETA by saving only 2 bits from each entry. This way we will be able
+	 * to transfer the whole RETA in a single mailbox operation.
+	 */
+	for (i = 0; i < reta_size / 16; i++) {
+		out_buf[i] = 0;
+		for (j = 0; j < 16; j++)
+			out_buf[i] |= (u32)(reta[16 * i + j] & 0x3) << (2 * j);
+	}
+
+	return 0;
+}
+
+static int ixgbe_get_vf_rss_key(struct ixgbe_adapter *adapter,
+				u32 *msgbuf, u32 vf)
+{
+	u32 *rss_key = &msgbuf[1];
+
+	/* Check if the operation is permitted */
+	if (!adapter->vfinfo[vf].rss_query_enabled)
+		return -EPERM;
+
+	/* verify the PF is supporting the correct API */
+	if (adapter->vfinfo[vf].vf_api != ixgbe_mbox_api_12)
+		return -EOPNOTSUPP;
+
+	memcpy(rss_key, adapter->rss_key, sizeof(adapter->rss_key));
+
+	return 0;
+}
+
+static int ixgbe_update_vf_xcast_mode(struct ixgbe_adapter *adapter,
+				      u32 *msgbuf, u32 vf)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	int xcast_mode = msgbuf[1];
+	u32 vmolr, disable, enable;
+
+	/* verify the PF is supporting the correct APIs */
+	switch (adapter->vfinfo[vf].vf_api) {
+	case ixgbe_mbox_api_12:
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	if (xcast_mode > IXGBEVF_XCAST_MODE_MULTI &&
+	    !adapter->vfinfo[vf].trusted) {
+		xcast_mode = IXGBEVF_XCAST_MODE_MULTI;
+	}
+
+	if (adapter->vfinfo[vf].xcast_mode == xcast_mode)
+		goto out;
+
+	switch (xcast_mode) {
+	case IXGBEVF_XCAST_MODE_NONE:
+		disable = IXGBE_VMOLR_BAM | IXGBE_VMOLR_ROMPE | IXGBE_VMOLR_MPE;
+		enable = 0;
+		break;
+	case IXGBEVF_XCAST_MODE_MULTI:
+		disable = IXGBE_VMOLR_MPE;
+		enable = IXGBE_VMOLR_BAM | IXGBE_VMOLR_ROMPE;
+		break;
+	case IXGBEVF_XCAST_MODE_ALLMULTI:
+		disable = 0;
+		enable = IXGBE_VMOLR_BAM | IXGBE_VMOLR_ROMPE | IXGBE_VMOLR_MPE;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	vmolr = IXGBE_READ_REG(hw, IXGBE_VMOLR(vf));
+	vmolr &= ~disable;
+	vmolr |= enable;
+	IXGBE_WRITE_REG(hw, IXGBE_VMOLR(vf), vmolr);
+
+	adapter->vfinfo[vf].xcast_mode = xcast_mode;
+
+out:
+	msgbuf[1] = xcast_mode;
 
 	return 0;
 }
@@ -997,6 +1116,15 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 	case IXGBE_VF_GET_QUEUES:
 		retval = ixgbe_get_vf_queues(adapter, msgbuf, vf);
 		break;
+	case IXGBE_VF_GET_RETA:
+		retval = ixgbe_get_vf_reta(adapter, msgbuf, vf);
+		break;
+	case IXGBE_VF_GET_RSS_KEY:
+		retval = ixgbe_get_vf_rss_key(adapter, msgbuf, vf);
+		break;
+	case IXGBE_VF_UPDATE_XCAST_MODE:
+		retval = ixgbe_update_vf_xcast_mode(adapter, msgbuf, vf);
+		break;
 	default:
 		e_err(drv, "Unhandled Msg %8.8x\n", msgbuf[0]);
 		retval = IXGBE_ERR_MBX;
@@ -1056,6 +1184,17 @@ void ixgbe_disable_tx_rx(struct ixgbe_adapter *adapter)
 
 	IXGBE_WRITE_REG(hw, IXGBE_VFRE(0), 0);
 	IXGBE_WRITE_REG(hw, IXGBE_VFRE(1), 0);
+}
+
+static inline void ixgbe_ping_vf(struct ixgbe_adapter *adapter, int vf)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 ping;
+
+	ping = IXGBE_PF_CONTROL_MSG;
+	if (adapter->vfinfo[vf].clear_to_send)
+		ping |= IXGBE_VT_MSGTYPE_CTS;
+	ixgbe_write_mbx(hw, &ping, 1, vf);
 }
 
 void ixgbe_ping_all_vfs(struct ixgbe_adapter *adapter)
@@ -1330,6 +1469,48 @@ int ixgbe_ndo_set_vf_spoofchk(struct net_device *netdev, int vf, bool setting)
 	return 0;
 }
 
+int ixgbe_ndo_set_vf_rss_query_en(struct net_device *netdev, int vf,
+				  bool setting)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+
+	/* This operation is currently supported only for 82599 and x540
+	 * devices.
+	 */
+	if (adapter->hw.mac.type < ixgbe_mac_82599EB ||
+	    adapter->hw.mac.type >= ixgbe_mac_X550)
+		return -EOPNOTSUPP;
+
+	if (vf >= adapter->num_vfs)
+		return -EINVAL;
+
+	adapter->vfinfo[vf].rss_query_enabled = setting;
+
+	return 0;
+}
+
+int ixgbe_ndo_set_vf_trust(struct net_device *netdev, int vf, bool setting)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+
+	if (vf >= adapter->num_vfs)
+		return -EINVAL;
+
+	/* nothing to do */
+	if (adapter->vfinfo[vf].trusted == setting)
+		return 0;
+
+	adapter->vfinfo[vf].trusted = setting;
+
+	/* reset VF to reconfigure features */
+	adapter->vfinfo[vf].clear_to_send = false;
+	ixgbe_ping_vf(adapter, vf);
+
+	e_info(drv, "VF %u is %strusted\n", vf, setting ? "" : "not ");
+
+	return 0;
+}
+
 int ixgbe_ndo_get_vf_config(struct net_device *netdev,
 			    int vf, struct ifla_vf_info *ivi)
 {
@@ -1343,5 +1524,7 @@ int ixgbe_ndo_get_vf_config(struct net_device *netdev,
 	ivi->vlan = adapter->vfinfo[vf].pf_vlan;
 	ivi->qos = adapter->vfinfo[vf].pf_qos;
 	ivi->spoofchk = adapter->vfinfo[vf].spoofchk_enabled;
+	ivi->rss_query_en = adapter->vfinfo[vf].rss_query_enabled;
+	ivi->trusted = adapter->vfinfo[vf].trusted;
 	return 0;
 }

@@ -20,7 +20,7 @@
 
 #include "dvb_usb.h"
 #include "m88ds3103.h"
-#include "m88ts2022.h"
+#include "ts2020.h"
 #include "sp2.h"
 #include "si2168.h"
 #include "si2157.h"
@@ -45,9 +45,9 @@ struct dvbsky_state {
 
 	/* fe hook functions*/
 	int (*fe_set_voltage)(struct dvb_frontend *fe,
-		fe_sec_voltage_t voltage);
+		enum fe_sec_voltage voltage);
 	int (*fe_read_status)(struct dvb_frontend *fe,
-		fe_status_t *status);
+		enum fe_status *status);
 };
 
 static int dvbsky_usb_generic_rw(struct dvb_usb_device *d,
@@ -237,7 +237,7 @@ static int dvbsky_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
 #endif
 
 static int dvbsky_usb_set_voltage(struct dvb_frontend *fe,
-	fe_sec_voltage_t voltage)
+	enum fe_sec_voltage voltage)
 {
 	struct dvb_usb_device *d = fe_to_d(fe);
 	struct dvbsky_state *state = d_to_priv(d);
@@ -277,7 +277,8 @@ static int dvbsky_read_mac_addr(struct dvb_usb_adapter *adap, u8 mac[6])
 	return 0;
 }
 
-static int dvbsky_usb_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int dvbsky_usb_read_status(struct dvb_frontend *fe,
+				  enum fe_status *status)
 {
 	struct dvb_usb_device *d = fe_to_d(fe);
 	struct dvbsky_state *state = d_to_priv(d);
@@ -315,9 +316,7 @@ static int dvbsky_s960_attach(struct dvb_usb_adapter *adap)
 	struct i2c_adapter *i2c_adapter;
 	struct i2c_client *client;
 	struct i2c_board_info info;
-	struct m88ts2022_config m88ts2022_config = {
-			.clock = 27000000,
-		};
+	struct ts2020_config ts2020_config = {};
 	memset(&info, 0, sizeof(struct i2c_board_info));
 
 	/* attach demod */
@@ -332,11 +331,12 @@ static int dvbsky_s960_attach(struct dvb_usb_adapter *adap)
 	}
 
 	/* attach tuner */
-	m88ts2022_config.fe = adap->fe[0];
-	strlcpy(info.type, "m88ts2022", I2C_NAME_SIZE);
+	ts2020_config.fe = adap->fe[0];
+	ts2020_config.get_agc_pwm = m88ds3103_get_agc_pwm;
+	strlcpy(info.type, "ts2020", I2C_NAME_SIZE);
 	info.addr = 0x60;
-	info.platform_data = &m88ts2022_config;
-	request_module("m88ts2022");
+	info.platform_data = &ts2020_config;
+	request_module("ts2020");
 	client = i2c_new_device(i2c_adapter, &info);
 	if (client == NULL || client->dev.driver == NULL) {
 		dvb_frontend_detach(adap->fe[0]);
@@ -370,7 +370,7 @@ fail_attach:
 }
 
 static int dvbsky_usb_ci_set_voltage(struct dvb_frontend *fe,
-	fe_sec_voltage_t voltage)
+	enum fe_sec_voltage voltage)
 {
 	struct dvb_usb_device *d = fe_to_d(fe);
 	struct dvbsky_state *state = d_to_priv(d);
@@ -439,9 +439,7 @@ static int dvbsky_s960c_attach(struct dvb_usb_adapter *adap)
 	struct i2c_client *client_tuner, *client_ci;
 	struct i2c_board_info info;
 	struct sp2_config sp2_config;
-	struct m88ts2022_config m88ts2022_config = {
-			.clock = 27000000,
-		};
+	struct ts2020_config ts2020_config = {};
 	memset(&info, 0, sizeof(struct i2c_board_info));
 
 	/* attach demod */
@@ -456,11 +454,12 @@ static int dvbsky_s960c_attach(struct dvb_usb_adapter *adap)
 	}
 
 	/* attach tuner */
-	m88ts2022_config.fe = adap->fe[0];
-	strlcpy(info.type, "m88ts2022", I2C_NAME_SIZE);
+	ts2020_config.fe = adap->fe[0];
+	ts2020_config.get_agc_pwm = m88ds3103_get_agc_pwm;
+	strlcpy(info.type, "ts2020", I2C_NAME_SIZE);
 	info.addr = 0x60;
-	info.platform_data = &m88ts2022_config;
-	request_module("m88ts2022");
+	info.platform_data = &ts2020_config;
+	request_module("ts2020");
 	client_tuner = i2c_new_device(i2c_adapter, &info);
 	if (client_tuner == NULL || client_tuner->dev.driver == NULL) {
 		ret = -ENODEV;
@@ -553,6 +552,7 @@ static int dvbsky_t680c_attach(struct dvb_usb_adapter *adap)
 	/* attach tuner */
 	memset(&si2157_config, 0, sizeof(si2157_config));
 	si2157_config.fe = adap->fe[0];
+	si2157_config.if_port = 1;
 	memset(&info, 0, sizeof(struct i2c_board_info));
 	strlcpy(info.type, "si2157", I2C_NAME_SIZE);
 	info.addr = 0x60;
@@ -619,7 +619,8 @@ static int dvbsky_t330_attach(struct dvb_usb_adapter *adap)
 	memset(&si2168_config, 0, sizeof(si2168_config));
 	si2168_config.i2c_adapter = &i2c_adapter;
 	si2168_config.fe = &adap->fe[0];
-	si2168_config.ts_mode = SI2168_TS_PARALLEL | 0x40;
+	si2168_config.ts_mode = SI2168_TS_PARALLEL;
+	si2168_config.ts_clock_gapped = true;
 	memset(&info, 0, sizeof(struct i2c_board_info));
 	strlcpy(info.type, "si2168", I2C_NAME_SIZE);
 	info.addr = 0x64;
@@ -636,6 +637,7 @@ static int dvbsky_t330_attach(struct dvb_usb_adapter *adap)
 	/* attach tuner */
 	memset(&si2157_config, 0, sizeof(si2157_config));
 	si2157_config.fe = adap->fe[0];
+	si2157_config.if_port = 1;
 	memset(&info, 0, sizeof(struct i2c_board_info));
 	strlcpy(info.type, "si2157", I2C_NAME_SIZE);
 	info.addr = 0x60;
@@ -844,6 +846,10 @@ static const struct usb_device_id dvbsky_id_table[] = {
 	{ DVB_USB_DEVICE(USB_VID_TECHNOTREND,
 		USB_PID_TECHNOTREND_CONNECT_CT2_4650_CI,
 		&dvbsky_t680c_props, "TechnoTrend TT-connect CT2-4650 CI",
+		RC_MAP_TT_1500) },
+	{ DVB_USB_DEVICE(USB_VID_TERRATEC,
+		USB_PID_TERRATEC_H7_3,
+		&dvbsky_t680c_props, "Terratec H7 Rev.4",
 		RC_MAP_TT_1500) },
 	{ }
 };

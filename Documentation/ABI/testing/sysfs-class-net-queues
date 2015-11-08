@@ -24,6 +24,14 @@ Description:
 		Indicates the number of transmit timeout events seen by this
 		network interface transmit queue.
 
+What:		/sys/class/<iface>/queues/tx-<queue>/tx_maxrate
+Date:		March 2015
+KernelVersion:	4.1
+Contact:	netdev@vger.kernel.org
+Description:
+		A Mbps max-rate set for the queue, a value of zero means disabled,
+		default is disabled.
+
 What:		/sys/class/<iface>/queues/tx-<queue>/xps_cpus
 Date:		November 2010
 KernelVersion:	2.6.38

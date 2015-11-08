@@ -4,6 +4,7 @@
 #include <linux/proc_ns.h>
 #include <linux/magic.h>
 #include <linux/ktime.h>
+#include <linux/seq_file.h>
 
 static struct vfsmount *nsfs_mnt;
 
@@ -13,7 +14,7 @@ static const struct file_operations ns_file_operations = {
 
 static char *ns_dname(struct dentry *dentry, char *buffer, int buflen)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	const struct proc_ns_operations *ns_ops = dentry->d_fsdata;
 
 	return dynamic_dname(dentry, buffer, buflen, "%s:[%lu]",
@@ -22,7 +23,7 @@ static char *ns_dname(struct dentry *dentry, char *buffer, int buflen)
 
 static void ns_prune_dentry(struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	if (inode) {
 		struct ns_common *ns = inode->i_private;
 		atomic_long_set(&ns->stashed, 0);
@@ -136,9 +137,19 @@ out_invalid:
 	return ERR_PTR(-EINVAL);
 }
 
+static int nsfs_show_path(struct seq_file *seq, struct dentry *dentry)
+{
+	struct inode *inode = d_inode(dentry);
+	const struct proc_ns_operations *ns_ops = dentry->d_fsdata;
+
+	seq_printf(seq, "%s:[%lu]", ns_ops->name, inode->i_ino);
+	return 0;
+}
+
 static const struct super_operations nsfs_ops = {
 	.statfs = simple_statfs,
 	.evict_inode = nsfs_evict,
+	.show_path = nsfs_show_path,
 };
 static struct dentry *nsfs_mount(struct file_system_type *fs_type,
 			int flags, const char *dev_name, void *data)

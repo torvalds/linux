@@ -63,7 +63,7 @@
 
 struct mx3_camera_buffer {
 	/* common v4l buffer stuff -- must be first */
-	struct vb2_buffer			vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head			queue;
 
 	/* One descriptot per scatterlist (per frame) */
@@ -133,7 +133,7 @@ static void csi_reg_write(struct mx3_camera_dev *mx3, u32 value, off_t reg)
 	__raw_writel(value, mx3->base + reg);
 }
 
-static struct mx3_camera_buffer *to_mx3_vb(struct vb2_buffer *vb)
+static struct mx3_camera_buffer *to_mx3_vb(struct vb2_v4l2_buffer *vb)
 {
 	return container_of(vb, struct mx3_camera_buffer, vb);
 }
@@ -151,14 +151,14 @@ static void mx3_cam_dma_done(void *arg)
 
 	spin_lock(&mx3_cam->lock);
 	if (mx3_cam->active) {
-		struct vb2_buffer *vb = &mx3_cam->active->vb;
+		struct vb2_v4l2_buffer *vb = &mx3_cam->active->vb;
 		struct mx3_camera_buffer *buf = to_mx3_vb(vb);
 
 		list_del_init(&buf->queue);
-		v4l2_get_timestamp(&vb->v4l2_buf.timestamp);
-		vb->v4l2_buf.field = mx3_cam->field;
-		vb->v4l2_buf.sequence = mx3_cam->sequence++;
-		vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
+		v4l2_get_timestamp(&vb->timestamp);
+		vb->field = mx3_cam->field;
+		vb->sequence = mx3_cam->sequence++;
+		vb2_buffer_done(&vb->vb2_buf, VB2_BUF_STATE_DONE);
 	}
 
 	if (list_empty(&mx3_cam->capture)) {
@@ -185,10 +185,11 @@ static void mx3_cam_dma_done(void *arg)
  * Calculate the __buffer__ (not data) size and number of buffers.
  */
 static int mx3_videobuf_setup(struct vb2_queue *vq,
-			const struct v4l2_format *fmt,
+			const void *parg,
 			unsigned int *count, unsigned int *num_planes,
 			unsigned int sizes[], void *alloc_ctxs[])
 {
+	const struct v4l2_format *fmt = parg;
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
@@ -257,10 +258,11 @@ static enum pixel_fmt fourcc_to_ipu_pix(__u32 fourcc)
 
 static void mx3_videobuf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vb->vb2_queue);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
-	struct mx3_camera_buffer *buf = to_mx3_vb(vb);
+	struct mx3_camera_buffer *buf = to_mx3_vb(vbuf);
 	struct scatterlist *sg = &buf->sg;
 	struct dma_async_tx_descriptor *txd;
 	struct idmac_channel *ichan = mx3_cam->idmac_channel[0];
@@ -273,7 +275,7 @@ static void mx3_videobuf_queue(struct vb2_buffer *vb)
 
 	if (vb2_plane_size(vb, 0) < new_size) {
 		dev_err(icd->parent, "Buffer #%d too small (%lu < %zu)\n",
-			vb->v4l2_buf.index, vb2_plane_size(vb, 0), new_size);
+			vbuf->vb2_buf.index, vb2_plane_size(vb, 0), new_size);
 		goto error;
 	}
 
@@ -357,10 +359,11 @@ error:
 
 static void mx3_videobuf_release(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vb->vb2_queue);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
-	struct mx3_camera_buffer *buf = to_mx3_vb(vb);
+	struct mx3_camera_buffer *buf = to_mx3_vb(vbuf);
 	struct dma_async_tx_descriptor *txd = buf->txd;
 	unsigned long flags;
 
@@ -390,10 +393,11 @@ static void mx3_videobuf_release(struct vb2_buffer *vb)
 
 static int mx3_videobuf_init(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vb->vb2_queue);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
-	struct mx3_camera_buffer *buf = to_mx3_vb(vb);
+	struct mx3_camera_buffer *buf = to_mx3_vb(vbuf);
 
 	if (!buf->txd) {
 		/* This is for locking debugging only */
@@ -424,7 +428,7 @@ static void mx3_stop_streaming(struct vb2_queue *q)
 
 	list_for_each_entry_safe(buf, tmp, &mx3_cam->capture, queue) {
 		list_del_init(&buf->queue);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 
 	spin_unlock_irqrestore(&mx3_cam->lock, flags);
@@ -659,18 +663,21 @@ static int mx3_camera_get_formats(struct soc_camera_device *icd, unsigned int id
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct device *dev = icd->parent;
 	int formats = 0, ret;
-	u32 code;
+	struct v4l2_subdev_mbus_code_enum code = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		.index = idx,
+	};
 	const struct soc_mbus_pixelfmt *fmt;
 
-	ret = v4l2_subdev_call(sd, video, enum_mbus_fmt, idx, &code);
+	ret = v4l2_subdev_call(sd, pad, enum_mbus_code, NULL, &code);
 	if (ret < 0)
 		/* No more formats */
 		return 0;
 
-	fmt = soc_mbus_get_fmtdesc(code);
+	fmt = soc_mbus_get_fmtdesc(code.code);
 	if (!fmt) {
 		dev_warn(icd->parent,
-			 "Unsupported format code #%u: 0x%x\n", idx, code);
+			 "Unsupported format code #%u: 0x%x\n", idx, code.code);
 		return 0;
 	}
 
@@ -679,25 +686,25 @@ static int mx3_camera_get_formats(struct soc_camera_device *icd, unsigned int id
 	if (ret < 0)
 		return 0;
 
-	switch (code) {
+	switch (code.code) {
 	case MEDIA_BUS_FMT_SBGGR10_1X10:
 		formats++;
 		if (xlate) {
 			xlate->host_fmt	= &mx3_camera_formats[0];
-			xlate->code	= code;
+			xlate->code	= code.code;
 			xlate++;
 			dev_dbg(dev, "Providing format %s using code 0x%x\n",
-				mx3_camera_formats[0].name, code);
+				mx3_camera_formats[0].name, code.code);
 		}
 		break;
 	case MEDIA_BUS_FMT_Y10_1X10:
 		formats++;
 		if (xlate) {
 			xlate->host_fmt	= &mx3_camera_formats[1];
-			xlate->code	= code;
+			xlate->code	= code.code;
 			xlate++;
 			dev_dbg(dev, "Providing format %s using code 0x%x\n",
-				mx3_camera_formats[1].name, code);
+				mx3_camera_formats[1].name, code.code);
 		}
 		break;
 	default:
@@ -709,7 +716,7 @@ static int mx3_camera_get_formats(struct soc_camera_device *icd, unsigned int id
 	formats++;
 	if (xlate) {
 		xlate->host_fmt	= fmt;
-		xlate->code	= code;
+		xlate->code	= code.code;
 		dev_dbg(dev, "Providing format %c%c%c%c in pass-through mode\n",
 			(fmt->fourcc >> (0*8)) & 0xFF,
 			(fmt->fourcc >> (1*8)) & 0xFF,
@@ -801,7 +808,10 @@ static int mx3_camera_set_crop(struct soc_camera_device *icd,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-	struct v4l2_mbus_framefmt mf;
+	struct v4l2_subdev_format fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	struct v4l2_mbus_framefmt *mf = &fmt.format;
 	int ret;
 
 	soc_camera_limit_side(&rect->left, &rect->width, 0, 2, 4096);
@@ -812,30 +822,30 @@ static int mx3_camera_set_crop(struct soc_camera_device *icd,
 		return ret;
 
 	/* The capture device might have changed its output sizes */
-	ret = v4l2_subdev_call(sd, video, g_mbus_fmt, &mf);
+	ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &fmt);
 	if (ret < 0)
 		return ret;
 
-	if (mf.code != icd->current_fmt->code)
+	if (mf->code != icd->current_fmt->code)
 		return -EINVAL;
 
-	if (mf.width & 7) {
+	if (mf->width & 7) {
 		/* Ouch! We can only handle 8-byte aligned width... */
-		stride_align(&mf.width);
-		ret = v4l2_subdev_call(sd, video, s_mbus_fmt, &mf);
+		stride_align(&mf->width);
+		ret = v4l2_subdev_call(sd, pad, set_fmt, NULL, &fmt);
 		if (ret < 0)
 			return ret;
 	}
 
-	if (mf.width != icd->user_width || mf.height != icd->user_height)
-		configure_geometry(mx3_cam, mf.width, mf.height,
+	if (mf->width != icd->user_width || mf->height != icd->user_height)
+		configure_geometry(mx3_cam, mf->width, mf->height,
 				   icd->current_fmt->host_fmt);
 
 	dev_dbg(icd->parent, "Sensor cropped %dx%d\n",
-		mf.width, mf.height);
+		mf->width, mf->height);
 
-	icd->user_width		= mf.width;
-	icd->user_height	= mf.height;
+	icd->user_width		= mf->width;
+	icd->user_height	= mf->height;
 
 	return ret;
 }
@@ -848,7 +858,10 @@ static int mx3_camera_set_fmt(struct soc_camera_device *icd,
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	const struct soc_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
-	struct v4l2_mbus_framefmt mf;
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	struct v4l2_mbus_framefmt *mf = &format.format;
 	int ret;
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
@@ -869,17 +882,17 @@ static int mx3_camera_set_fmt(struct soc_camera_device *icd,
 
 	configure_geometry(mx3_cam, pix->width, pix->height, xlate->host_fmt);
 
-	mf.width	= pix->width;
-	mf.height	= pix->height;
-	mf.field	= pix->field;
-	mf.colorspace	= pix->colorspace;
-	mf.code		= xlate->code;
+	mf->width	= pix->width;
+	mf->height	= pix->height;
+	mf->field	= pix->field;
+	mf->colorspace	= pix->colorspace;
+	mf->code	= xlate->code;
 
-	ret = v4l2_subdev_call(sd, video, s_mbus_fmt, &mf);
+	ret = v4l2_subdev_call(sd, pad, set_fmt, NULL, &format);
 	if (ret < 0)
 		return ret;
 
-	if (mf.code != xlate->code)
+	if (mf->code != xlate->code)
 		return -EINVAL;
 
 	if (!mx3_cam->idmac_channel[0]) {
@@ -888,11 +901,11 @@ static int mx3_camera_set_fmt(struct soc_camera_device *icd,
 			return ret;
 	}
 
-	pix->width		= mf.width;
-	pix->height		= mf.height;
-	pix->field		= mf.field;
-	mx3_cam->field		= mf.field;
-	pix->colorspace		= mf.colorspace;
+	pix->width		= mf->width;
+	pix->height		= mf->height;
+	pix->field		= mf->field;
+	mx3_cam->field		= mf->field;
+	pix->colorspace		= mf->colorspace;
 	icd->current_fmt	= xlate;
 
 	dev_dbg(icd->parent, "Sensor set %dx%d\n", pix->width, pix->height);
@@ -906,7 +919,11 @@ static int mx3_camera_try_fmt(struct soc_camera_device *icd,
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	const struct soc_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
-	struct v4l2_mbus_framefmt mf;
+	struct v4l2_subdev_pad_config pad_cfg;
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_TRY,
+	};
+	struct v4l2_mbus_framefmt *mf = &format.format;
 	__u32 pixfmt = pix->pixelformat;
 	int ret;
 
@@ -923,21 +940,21 @@ static int mx3_camera_try_fmt(struct soc_camera_device *icd,
 		pix->width = 4096;
 
 	/* limit to sensor capabilities */
-	mf.width	= pix->width;
-	mf.height	= pix->height;
-	mf.field	= pix->field;
-	mf.colorspace	= pix->colorspace;
-	mf.code		= xlate->code;
+	mf->width	= pix->width;
+	mf->height	= pix->height;
+	mf->field	= pix->field;
+	mf->colorspace	= pix->colorspace;
+	mf->code	= xlate->code;
 
-	ret = v4l2_subdev_call(sd, video, try_mbus_fmt, &mf);
+	ret = v4l2_subdev_call(sd, pad, set_fmt, &pad_cfg, &format);
 	if (ret < 0)
 		return ret;
 
-	pix->width	= mf.width;
-	pix->height	= mf.height;
-	pix->colorspace	= mf.colorspace;
+	pix->width	= mf->width;
+	pix->height	= mf->height;
+	pix->colorspace	= mf->colorspace;
 
-	switch (mf.field) {
+	switch (mf->field) {
 	case V4L2_FIELD_ANY:
 		pix->field = V4L2_FIELD_NONE;
 		break;
@@ -945,7 +962,7 @@ static int mx3_camera_try_fmt(struct soc_camera_device *icd,
 		break;
 	default:
 		dev_err(icd->parent, "Field type %d unsupported.\n",
-			mf.field);
+			mf->field);
 		ret = -EINVAL;
 	}
 

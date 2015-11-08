@@ -104,17 +104,12 @@ static void grgpio_set_imask(struct grgpio_priv *priv, unsigned int offset,
 {
 	struct bgpio_chip *bgc = &priv->bgc;
 	unsigned long mask = bgc->pin2mask(bgc, offset);
-	unsigned long flags;
-
-	spin_lock_irqsave(&bgc->lock, flags);
 
 	if (val)
 		priv->imask |= mask;
 	else
 		priv->imask &= ~mask;
 	bgc->write_reg(priv->regs + GRGPIO_IMASK, priv->imask);
-
-	spin_unlock_irqrestore(&bgc->lock, flags);
 }
 
 static int grgpio_to_irq(struct gpio_chip *gc, unsigned offset)
@@ -180,16 +175,26 @@ static void grgpio_irq_mask(struct irq_data *d)
 {
 	struct grgpio_priv *priv = irq_data_get_irq_chip_data(d);
 	int offset = d->hwirq;
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->bgc.lock, flags);
 
 	grgpio_set_imask(priv, offset, 0);
+
+	spin_unlock_irqrestore(&priv->bgc.lock, flags);
 }
 
 static void grgpio_irq_unmask(struct irq_data *d)
 {
 	struct grgpio_priv *priv = irq_data_get_irq_chip_data(d);
 	int offset = d->hwirq;
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->bgc.lock, flags);
 
 	grgpio_set_imask(priv, offset, 1);
+
+	spin_unlock_irqrestore(&priv->bgc.lock, flags);
 }
 
 static struct irq_chip grgpio_irq_chip = {
@@ -281,12 +286,7 @@ static int grgpio_irq_map(struct irq_domain *d, unsigned int irq,
 	irq_set_chip_data(irq, priv);
 	irq_set_chip_and_handler(irq, &grgpio_irq_chip,
 				 handle_simple_irq);
-	irq_clear_status_flags(irq, IRQ_NOREQUEST);
-#ifdef CONFIG_ARM
-	set_irq_flags(irq, IRQF_VALID);
-#else
 	irq_set_noprobe(irq);
-#endif
 
 	return ret;
 }
@@ -301,9 +301,6 @@ static void grgpio_irq_unmap(struct irq_domain *d, unsigned int irq)
 	int ngpio = priv->bgc.gc.ngpio;
 	int i;
 
-#ifdef CONFIG_ARM
-	set_irq_flags(irq, 0);
-#endif
 	irq_set_chip_and_handler(irq, NULL, NULL);
 	irq_set_chip_data(irq, NULL);
 
@@ -332,7 +329,7 @@ static void grgpio_irq_unmap(struct irq_domain *d, unsigned int irq)
 	spin_unlock_irqrestore(&priv->bgc.lock, flags);
 }
 
-static struct irq_domain_ops grgpio_irq_domain_ops = {
+static const struct irq_domain_ops grgpio_irq_domain_ops = {
 	.map	= grgpio_irq_map,
 	.unmap	= grgpio_irq_unmap,
 };

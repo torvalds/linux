@@ -3571,7 +3571,7 @@ void brcms_c_mac_promisc(struct brcms_c_info *wlc, uint filter_flags)
 
 	wlc->filter_flags = filter_flags;
 
-	if (filter_flags & (FIF_PROMISC_IN_BSS | FIF_OTHER_BSS))
+	if (filter_flags & FIF_OTHER_BSS)
 		promisc_bits |= MCTL_PROMISC;
 
 	if (filter_flags & FIF_BCN_PRBRESP_PROMISC)
@@ -4585,7 +4585,7 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 		wlc_hw->machwcap_backup = wlc_hw->machwcap;
 
 		/* init tx fifo size */
-		WARN_ON((wlc_hw->corerev - XMTFIFOTBL_STARTREV) < 0 ||
+		WARN_ON(wlc_hw->corerev < XMTFIFOTBL_STARTREV ||
 			(wlc_hw->corerev - XMTFIFOTBL_STARTREV) >
 				ARRAY_SIZE(xmtfifo_sz));
 		wlc_hw->xmtfifo_sz =
@@ -4668,7 +4668,7 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 	brcms_c_coredisable(wlc_hw);
 
 	/* Match driver "down" state */
-	bcma_core_pci_down(wlc_hw->d11core->bus);
+	bcma_host_pci_down(wlc_hw->d11core->bus);
 
 	/* turn off pll and xtal to match driver "down" state */
 	brcms_b_xtal(wlc_hw, OFF);
@@ -4959,7 +4959,7 @@ static int brcms_b_up_prep(struct brcms_hardware *wlc_hw)
 	 * Configure pci/pcmcia here instead of in brcms_c_attach()
 	 * to allow mfg hotswap:  down, hotswap (chip power cycle), up.
 	 */
-	bcma_core_pci_irq_ctl(&wlc_hw->d11core->bus->drv_pci[0], wlc_hw->d11core,
+	bcma_host_pci_irq_ctl(wlc_hw->d11core->bus, wlc_hw->d11core,
 			      true);
 
 	/*
@@ -4969,12 +4969,12 @@ static int brcms_b_up_prep(struct brcms_hardware *wlc_hw)
 	 */
 	if (brcms_b_radio_read_hwdisabled(wlc_hw)) {
 		/* put SB PCI in down state again */
-		bcma_core_pci_down(wlc_hw->d11core->bus);
+		bcma_host_pci_down(wlc_hw->d11core->bus);
 		brcms_b_xtal(wlc_hw, OFF);
 		return -ENOMEDIUM;
 	}
 
-	bcma_core_pci_up(wlc_hw->d11core->bus);
+	bcma_host_pci_up(wlc_hw->d11core->bus);
 
 	/* reset the d11 core */
 	brcms_b_corereset(wlc_hw, BRCMS_USE_COREFLAGS);
@@ -5171,7 +5171,7 @@ static int brcms_b_down_finish(struct brcms_hardware *wlc_hw)
 
 		/* turn off primary xtal and pll */
 		if (!wlc_hw->noreset) {
-			bcma_core_pci_down(wlc_hw->d11core->bus);
+			bcma_host_pci_down(wlc_hw->d11core->bus);
 			brcms_b_xtal(wlc_hw, OFF);
 		}
 	}

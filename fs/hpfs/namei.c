@@ -8,6 +8,17 @@
 #include <linux/sched.h>
 #include "hpfs_fn.h"
 
+static void hpfs_update_directory_times(struct inode *dir)
+{
+	time_t t = get_seconds();
+	if (t == dir->i_mtime.tv_sec &&
+	    t == dir->i_ctime.tv_sec)
+		return;
+	dir->i_mtime.tv_sec = dir->i_ctime.tv_sec = t;
+	dir->i_mtime.tv_nsec = dir->i_ctime.tv_nsec = 0;
+	hpfs_write_inode_nolock(dir);
+}
+
 static int hpfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	const unsigned char *name = dentry->d_name.name;
@@ -99,6 +110,7 @@ static int hpfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 		result->i_mode = mode | S_IFDIR;
 		hpfs_write_inode_nolock(result);
 	}
+	hpfs_update_directory_times(dir);
 	d_instantiate(dentry, result);
 	hpfs_unlock(dir->i_sb);
 	return 0;
@@ -187,6 +199,7 @@ static int hpfs_create(struct inode *dir, struct dentry *dentry, umode_t mode, b
 		result->i_mode = mode | S_IFREG;
 		hpfs_write_inode_nolock(result);
 	}
+	hpfs_update_directory_times(dir);
 	d_instantiate(dentry, result);
 	hpfs_unlock(dir->i_sb);
 	return 0;
@@ -262,6 +275,7 @@ static int hpfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, de
 	insert_inode_hash(result);
 
 	hpfs_write_inode_nolock(result);
+	hpfs_update_directory_times(dir);
 	d_instantiate(dentry, result);
 	brelse(bh);
 	hpfs_unlock(dir->i_sb);
@@ -340,6 +354,7 @@ static int hpfs_symlink(struct inode *dir, struct dentry *dentry, const char *sy
 	insert_inode_hash(result);
 
 	hpfs_write_inode_nolock(result);
+	hpfs_update_directory_times(dir);
 	d_instantiate(dentry, result);
 	hpfs_unlock(dir->i_sb);
 	return 0;
@@ -359,7 +374,7 @@ static int hpfs_unlink(struct inode *dir, struct dentry *dentry)
 	unsigned len = dentry->d_name.len;
 	struct quad_buffer_head qbh;
 	struct hpfs_dirent *de;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	dnode_secno dno;
 	int r;
 	int rep = 0;
@@ -423,6 +438,8 @@ again:
 out1:
 	hpfs_brelse4(&qbh);
 out:
+	if (!err)
+		hpfs_update_directory_times(dir);
 	hpfs_unlock(dir->i_sb);
 	return err;
 }
@@ -433,7 +450,7 @@ static int hpfs_rmdir(struct inode *dir, struct dentry *dentry)
 	unsigned len = dentry->d_name.len;
 	struct quad_buffer_head qbh;
 	struct hpfs_dirent *de;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	dnode_secno dno;
 	int n_items = 0;
 	int err;
@@ -477,6 +494,8 @@ static int hpfs_rmdir(struct inode *dir, struct dentry *dentry)
 out1:
 	hpfs_brelse4(&qbh);
 out:
+	if (!err)
+		hpfs_update_directory_times(dir);
 	hpfs_unlock(dir->i_sb);
 	return err;
 }
@@ -522,8 +541,8 @@ static int hpfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	unsigned old_len = old_dentry->d_name.len;
 	const unsigned char *new_name = new_dentry->d_name.name;
 	unsigned new_len = new_dentry->d_name.len;
-	struct inode *i = old_dentry->d_inode;
-	struct inode *new_inode = new_dentry->d_inode;
+	struct inode *i = d_inode(old_dentry);
+	struct inode *new_inode = d_inode(new_dentry);
 	struct quad_buffer_head qbh, qbh1;
 	struct hpfs_dirent *dep, *nde;
 	struct hpfs_dirent de;
@@ -595,7 +614,7 @@ static int hpfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		goto end1;
 	}
 
-	end:
+end:
 	hpfs_i(i)->i_parent_dir = new_dir->i_ino;
 	if (S_ISDIR(i->i_mode)) {
 		inc_nlink(new_dir);
@@ -610,6 +629,10 @@ static int hpfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		brelse(bh);
 	}
 end1:
+	if (!err) {
+		hpfs_update_directory_times(old_dir);
+		hpfs_update_directory_times(new_dir);
+	}
 	hpfs_unlock(i->i_sb);
 	return err;
 }

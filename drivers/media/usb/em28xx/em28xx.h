@@ -35,6 +35,7 @@
 #include <linux/kref.h>
 #include <linux/videodev2.h>
 
+#include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-vmalloc.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
@@ -143,6 +144,7 @@
 #define EM28178_BOARD_PCTV_292E                   94
 #define EM2861_BOARD_LEADTEK_VC100                95
 #define EM28178_BOARD_TERRATEC_T2_STICK_HD        96
+#define EM2884_BOARD_ELGATO_EYETV_HYBRID_2008     97
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
@@ -263,7 +265,7 @@ struct em28xx_fmt {
 /* buffer for one video frame */
 struct em28xx_buffer {
 	/* common v4l buffer stuff -- must be first */
-	struct vb2_buffer vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head list;
 
 	void *mem;
@@ -512,9 +514,9 @@ struct em28xx_v4l2 {
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_clk *clk;
 
-	struct video_device *vdev;
-	struct video_device *vbi_dev;
-	struct video_device *radio_dev;
+	struct video_device vdev;
+	struct video_device vbi_dev;
+	struct video_device radio_dev;
 
 	/* Videobuf2 */
 	struct vb2_queue vb_vidq;

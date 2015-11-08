@@ -36,9 +36,9 @@
 		clock-output-names = "apb_pclk";
 	};
 
-	soc_faxiclk: refclk533mhz {
+	soc_faxiclk: refclk400mhz {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency = <533000000>;
+		clock-frequency = <400000000>;
 		clock-output-names = "faxi_clk";
 	};

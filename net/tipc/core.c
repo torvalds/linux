@@ -42,6 +42,7 @@
 #include "bearer.h"
 #include "net.h"
 #include "socket.h"
+#include "bcast.h"
 
 #include <linux/module.h>
 
@@ -68,11 +69,18 @@ static int __net_init tipc_init_net(struct net *net)
 	if (err)
 		goto out_nametbl;
 
-	err = tipc_subscr_start(net);
+	err = tipc_topsrv_start(net);
 	if (err)
 		goto out_subscr;
+
+	err = tipc_bcast_init(net);
+	if (err)
+		goto out_bclink;
+
 	return 0;
 
+out_bclink:
+	tipc_bcast_stop(net);
 out_subscr:
 	tipc_nametbl_stop(net);
 out_nametbl:
@@ -83,8 +91,9 @@ out_sk_rht:
 
 static void __net_exit tipc_exit_net(struct net *net)
 {
-	tipc_subscr_stop(net);
+	tipc_topsrv_stop(net);
 	tipc_net_stop(net);
+	tipc_bcast_stop(net);
 	tipc_nametbl_stop(net);
 	tipc_sk_rht_destroy(net);
 }
@@ -152,11 +161,11 @@ out_netlink:
 static void __exit tipc_exit(void)
 {
 	tipc_bearer_cleanup();
+	unregister_pernet_subsys(&tipc_net_ops);
 	tipc_netlink_stop();
 	tipc_netlink_compat_stop();
 	tipc_socket_stop();
 	tipc_unregister_sysctl();
-	unregister_pernet_subsys(&tipc_net_ops);
 
 	pr_info("Deactivated\n");
 }

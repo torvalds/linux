@@ -63,13 +63,12 @@
 #define dP_ACC_100	0x1900
 #define dP_ACC_200	0x3200
 
-#define MAX17042_IC_VERSION	0x0092
-#define MAX17047_IC_VERSION	0x00AC	/* same for max17050 */
+#define MAX17042_VMAX_TOLERANCE		50 /* 50 mV */
 
 struct max17042_chip {
 	struct i2c_client *client;
 	struct regmap *regmap;
-	struct power_supply battery;
+	struct power_supply *battery;
 	enum max170xx_chip_type chip_type;
 	struct max17042_platform_data *pdata;
 	struct work_struct work;
@@ -88,16 +87,99 @@ static enum power_supply_property max17042_battery_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CHARGE_COUNTER,
 	POWER_SUPPLY_PROP_TEMP,
+	POWER_SUPPLY_PROP_TEMP_ALERT_MIN,
+	POWER_SUPPLY_PROP_TEMP_ALERT_MAX,
+	POWER_SUPPLY_PROP_TEMP_MIN,
+	POWER_SUPPLY_PROP_TEMP_MAX,
+	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
 };
+
+static int max17042_get_temperature(struct max17042_chip *chip, int *temp)
+{
+	int ret;
+	u32 data;
+	struct regmap *map = chip->regmap;
+
+	ret = regmap_read(map, MAX17042_TEMP, &data);
+	if (ret < 0)
+		return ret;
+
+	*temp = data;
+	/* The value is signed. */
+	if (*temp & 0x8000) {
+		*temp = (0x7fff & ~*temp) + 1;
+		*temp *= -1;
+	}
+
+	/* The value is converted into deci-centigrade scale */
+	/* Units of LSB = 1 / 256 degree Celsius */
+	*temp = *temp * 10 / 256;
+	return 0;
+}
+
+static int max17042_get_battery_health(struct max17042_chip *chip, int *health)
+{
+	int temp, vavg, vbatt, ret;
+	u32 val;
+
+	ret = regmap_read(chip->regmap, MAX17042_AvgVCELL, &val);
+	if (ret < 0)
+		goto health_error;
+
+	/* bits [0-3] unused */
+	vavg = val * 625 / 8;
+	/* Convert to millivolts */
+	vavg /= 1000;
+
+	ret = regmap_read(chip->regmap, MAX17042_VCELL, &val);
+	if (ret < 0)
+		goto health_error;
+
+	/* bits [0-3] unused */
+	vbatt = val * 625 / 8;
+	/* Convert to millivolts */
+	vbatt /= 1000;
+
+	if (vavg < chip->pdata->vmin) {
+		*health = POWER_SUPPLY_HEALTH_DEAD;
+		goto out;
+	}
+
+	if (vbatt > chip->pdata->vmax + MAX17042_VMAX_TOLERANCE) {
+		*health = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
+		goto out;
+	}
+
+	ret = max17042_get_temperature(chip, &temp);
+	if (ret < 0)
+		goto health_error;
+
+	if (temp <= chip->pdata->temp_min) {
+		*health = POWER_SUPPLY_HEALTH_COLD;
+		goto out;
+	}
+
+	if (temp >= chip->pdata->temp_max) {
+		*health = POWER_SUPPLY_HEALTH_OVERHEAT;
+		goto out;
+	}
+
+	*health = POWER_SUPPLY_HEALTH_GOOD;
+
+out:
+	return 0;
+
+health_error:
+	return ret;
+}
 
 static int max17042_get_property(struct power_supply *psy,
 			    enum power_supply_property psp,
 			    union power_supply_propval *val)
 {
-	struct max17042_chip *chip = container_of(psy,
-				struct max17042_chip, battery);
+	struct max17042_chip *chip = power_supply_get_drvdata(psy);
 	struct regmap *map = chip->regmap;
 	int ret;
 	u32 data;
@@ -132,7 +214,7 @@ static int max17042_get_property(struct power_supply *psy,
 		val->intval *= 20000; /* Units of LSB = 20mV */
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
-		if (chip->chip_type == MAX17042)
+		if (chip->chip_type == MAXIM_DEVICE_TYPE_MAX17042)
 			ret = regmap_read(map, MAX17042_V_empty, &data);
 		else
 			ret = regmap_read(map, MAX17047_V_empty, &data);
@@ -185,19 +267,34 @@ static int max17042_get_property(struct power_supply *psy,
 		val->intval = data * 1000 / 2;
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
-		ret = regmap_read(map, MAX17042_TEMP, &data);
+		ret = max17042_get_temperature(chip, &val->intval);
 		if (ret < 0)
 			return ret;
-
-		val->intval = data;
-		/* The value is signed. */
-		if (val->intval & 0x8000) {
-			val->intval = (0x7fff & ~val->intval) + 1;
-			val->intval *= -1;
-		}
-		/* The value is converted into deci-centigrade scale */
-		/* Units of LSB = 1 / 256 degree Celsius */
-		val->intval = val->intval * 10 / 256;
+		break;
+	case POWER_SUPPLY_PROP_TEMP_ALERT_MIN:
+		ret = regmap_read(map, MAX17042_TALRT_Th, &data);
+		if (ret < 0)
+			return ret;
+		/* LSB is Alert Minimum. In deci-centigrade */
+		val->intval = (data & 0xff) * 10;
+		break;
+	case POWER_SUPPLY_PROP_TEMP_ALERT_MAX:
+		ret = regmap_read(map, MAX17042_TALRT_Th, &data);
+		if (ret < 0)
+			return ret;
+		/* MSB is Alert Maximum. In deci-centigrade */
+		val->intval = (data >> 8) * 10;
+		break;
+	case POWER_SUPPLY_PROP_TEMP_MIN:
+		val->intval = chip->pdata->temp_min;
+		break;
+	case POWER_SUPPLY_PROP_TEMP_MAX:
+		val->intval = chip->pdata->temp_max;
+		break;
+	case POWER_SUPPLY_PROP_HEALTH:
+		ret = max17042_get_battery_health(chip, &val->intval);
+		if (ret < 0)
+			return ret;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		if (chip->pdata->enable_current_sense) {
@@ -241,6 +338,69 @@ static int max17042_get_property(struct power_supply *psy,
 	return 0;
 }
 
+static int max17042_set_property(struct power_supply *psy,
+			    enum power_supply_property psp,
+			    const union power_supply_propval *val)
+{
+	struct max17042_chip *chip = power_supply_get_drvdata(psy);
+	struct regmap *map = chip->regmap;
+	int ret = 0;
+	u32 data;
+	int8_t temp;
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_TEMP_ALERT_MIN:
+		ret = regmap_read(map, MAX17042_TALRT_Th, &data);
+		if (ret < 0)
+			return ret;
+
+		/* Input in deci-centigrade, convert to centigrade */
+		temp = val->intval / 10;
+		/* force min < max */
+		if (temp >= (int8_t)(data >> 8))
+			temp = (int8_t)(data >> 8) - 1;
+		/* Write both MAX and MIN ALERT */
+		data = (data & 0xff00) + temp;
+		ret = regmap_write(map, MAX17042_TALRT_Th, data);
+		break;
+	case POWER_SUPPLY_PROP_TEMP_ALERT_MAX:
+		ret = regmap_read(map, MAX17042_TALRT_Th, &data);
+		if (ret < 0)
+			return ret;
+
+		/* Input in Deci-Centigrade, convert to centigrade */
+		temp = val->intval / 10;
+		/* force max > min */
+		if (temp <= (int8_t)(data & 0xff))
+			temp = (int8_t)(data & 0xff) + 1;
+		/* Write both MAX and MIN ALERT */
+		data = (data & 0xff) + (temp << 8);
+		ret = regmap_write(map, MAX17042_TALRT_Th, data);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+static int max17042_property_is_writeable(struct power_supply *psy,
+		enum power_supply_property psp)
+{
+	int ret;
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_TEMP_ALERT_MIN:
+	case POWER_SUPPLY_PROP_TEMP_ALERT_MAX:
+		ret = 1;
+		break;
+	default:
+		ret = 0;
+	}
+
+	return ret;
+}
+
 static int max17042_write_verify_reg(struct regmap *map, u8 reg, u32 value)
 {
 	int retries = 8;
@@ -272,6 +432,7 @@ static inline void max17042_override_por(struct regmap *map,
 static inline void max10742_unlock_model(struct max17042_chip *chip)
 {
 	struct regmap *map = chip->regmap;
+
 	regmap_write(map, MAX17042_MLOCKReg1, MODEL_UNLOCK1);
 	regmap_write(map, MAX17042_MLOCKReg2, MODEL_UNLOCK2);
 }
@@ -289,6 +450,7 @@ static inline void max17042_write_model_data(struct max17042_chip *chip,
 {
 	struct regmap *map = chip->regmap;
 	int i;
+
 	for (i = 0; i < size; i++)
 		regmap_write(map, addr + i,
 			chip->pdata->config_data->cell_char_tbl[i]);
@@ -379,7 +541,8 @@ static void max17042_write_config_regs(struct max17042_chip *chip)
 	regmap_write(map, MAX17042_FilterCFG,
 			config->filter_cfg);
 	regmap_write(map, MAX17042_RelaxCFG, config->relax_cfg);
-	if (chip->chip_type == MAX17047)
+	if (chip->chip_type == MAXIM_DEVICE_TYPE_MAX17047 ||
+			chip->chip_type == MAXIM_DEVICE_TYPE_MAX17050)
 		regmap_write(map, MAX17047_FullSOCThr,
 						config->full_soc_thresh);
 }
@@ -392,7 +555,7 @@ static void  max17042_write_custom_regs(struct max17042_chip *chip)
 	max17042_write_verify_reg(map, MAX17042_RCOMP0, config->rcomp0);
 	max17042_write_verify_reg(map, MAX17042_TempCo,	config->tcompc0);
 	max17042_write_verify_reg(map, MAX17042_ICHGTerm, config->ichgt_term);
-	if (chip->chip_type == MAX17042) {
+	if (chip->chip_type == MAXIM_DEVICE_TYPE_MAX17042) {
 		regmap_write(map, MAX17042_EmptyTempCo,	config->empty_tempco);
 		max17042_write_verify_reg(map, MAX17042_K_empty0,
 					config->kempty0);
@@ -501,14 +664,14 @@ static inline void max17042_override_por_values(struct max17042_chip *chip)
 
 	max17042_override_por(map, MAX17042_FullCAP, config->fullcap);
 	max17042_override_por(map, MAX17042_FullCAPNom, config->fullcapnom);
-	if (chip->chip_type == MAX17042)
+	if (chip->chip_type == MAXIM_DEVICE_TYPE_MAX17042)
 		max17042_override_por(map, MAX17042_SOC_empty,
 						config->socempty);
 	max17042_override_por(map, MAX17042_LAvg_empty, config->lavg_empty);
 	max17042_override_por(map, MAX17042_dQacc, config->dqacc);
 	max17042_override_por(map, MAX17042_dPacc, config->dpacc);
 
-	if (chip->chip_type == MAX17042)
+	if (chip->chip_type == MAXIM_DEVICE_TYPE_MAX17042)
 		max17042_override_por(map, MAX17042_V_empty, config->vempty);
 	else
 		max17042_override_por(map, MAX17047_V_empty, config->vempty);
@@ -529,7 +692,6 @@ static int max17042_init_chip(struct max17042_chip *chip)
 {
 	struct regmap *map = chip->regmap;
 	int ret;
-	int val;
 
 	max17042_override_por_values(chip);
 	/* After Power up, the MAX17042 requires 500mS in order
@@ -572,8 +734,7 @@ static int max17042_init_chip(struct max17042_chip *chip)
 	max17042_load_new_capacity_params(chip);
 
 	/* Init complete, Clear the POR bit */
-	regmap_read(map, MAX17042_STATUS, &val);
-	regmap_write(map, MAX17042_STATUS, val & (~STATUS_POR_BIT));
+	regmap_update_bits(map, MAX17042_STATUS, STATUS_POR_BIT, 0x0);
 	return 0;
 }
 
@@ -604,7 +765,7 @@ static irqreturn_t max17042_thread_handler(int id, void *dev)
 		max17042_set_soc_threshold(chip, 1);
 	}
 
-	power_supply_changed(&chip->battery);
+	power_supply_changed(chip->battery);
 	return IRQ_HANDLED;
 }
 
@@ -648,6 +809,15 @@ max17042_get_pdata(struct device *dev)
 		pdata->enable_current_sense = true;
 	}
 
+	if (of_property_read_s32(np, "maxim,cold-temp", &pdata->temp_min))
+		pdata->temp_min = INT_MIN;
+	if (of_property_read_s32(np, "maxim,over-heat-temp", &pdata->temp_max))
+		pdata->temp_max = INT_MAX;
+	if (of_property_read_s32(np, "maxim,dead-volt", &pdata->vmin))
+		pdata->vmin = INT_MIN;
+	if (of_property_read_s32(np, "maxim,over-volt", &pdata->vmax))
+		pdata->vmax = INT_MAX;
+
 	return pdata;
 }
 #else
@@ -664,10 +834,32 @@ static const struct regmap_config max17042_regmap_config = {
 	.val_format_endian = REGMAP_ENDIAN_NATIVE,
 };
 
+static const struct power_supply_desc max17042_psy_desc = {
+	.name		= "max170xx_battery",
+	.type		= POWER_SUPPLY_TYPE_BATTERY,
+	.get_property	= max17042_get_property,
+	.set_property	= max17042_set_property,
+	.property_is_writeable	= max17042_property_is_writeable,
+	.properties	= max17042_battery_props,
+	.num_properties	= ARRAY_SIZE(max17042_battery_props),
+};
+
+static const struct power_supply_desc max17042_no_current_sense_psy_desc = {
+	.name		= "max170xx_battery",
+	.type		= POWER_SUPPLY_TYPE_BATTERY,
+	.get_property	= max17042_get_property,
+	.set_property	= max17042_set_property,
+	.property_is_writeable	= max17042_property_is_writeable,
+	.properties	= max17042_battery_props,
+	.num_properties	= ARRAY_SIZE(max17042_battery_props) - 2,
+};
+
 static int max17042_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	const struct power_supply_desc *max17042_desc = &max17042_psy_desc;
+	struct power_supply_config psy_cfg = {};
 	struct max17042_chip *chip;
 	int ret;
 	int i;
@@ -694,29 +886,13 @@ static int max17042_probe(struct i2c_client *client,
 	}
 
 	i2c_set_clientdata(client, chip);
-
-	regmap_read(chip->regmap, MAX17042_DevName, &val);
-	if (val == MAX17042_IC_VERSION) {
-		dev_dbg(&client->dev, "chip type max17042 detected\n");
-		chip->chip_type = MAX17042;
-	} else if (val == MAX17047_IC_VERSION) {
-		dev_dbg(&client->dev, "chip type max17047/50 detected\n");
-		chip->chip_type = MAX17047;
-	} else {
-		dev_err(&client->dev, "device version mismatch: %x\n", val);
-		return -EIO;
-	}
-
-	chip->battery.name		= "max170xx_battery";
-	chip->battery.type		= POWER_SUPPLY_TYPE_BATTERY;
-	chip->battery.get_property	= max17042_get_property;
-	chip->battery.properties	= max17042_battery_props;
-	chip->battery.num_properties	= ARRAY_SIZE(max17042_battery_props);
+	chip->chip_type = id->driver_data;
+	psy_cfg.drv_data = chip;
 
 	/* When current is not measured,
 	 * CURRENT_NOW and CURRENT_AVG properties should be invisible. */
 	if (!chip->pdata->enable_current_sense)
-		chip->battery.num_properties -= 2;
+		max17042_desc = &max17042_no_current_sense_psy_desc;
 
 	if (chip->pdata->r_sns == 0)
 		chip->pdata->r_sns = MAX17042_DEFAULT_SNS_RESISTOR;
@@ -733,21 +909,25 @@ static int max17042_probe(struct i2c_client *client,
 		regmap_write(chip->regmap, MAX17042_LearnCFG, 0x0007);
 	}
 
-	ret = power_supply_register(&client->dev, &chip->battery);
-	if (ret) {
+	chip->battery = devm_power_supply_register(&client->dev, max17042_desc,
+						   &psy_cfg);
+	if (IS_ERR(chip->battery)) {
 		dev_err(&client->dev, "failed: power supply register\n");
-		return ret;
+		return PTR_ERR(chip->battery);
 	}
 
 	if (client->irq) {
-		ret = request_threaded_irq(client->irq, NULL,
-					max17042_thread_handler,
-					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-					chip->battery.name, chip);
+		ret = devm_request_threaded_irq(&client->dev, client->irq,
+						NULL,
+						max17042_thread_handler,
+						IRQF_TRIGGER_FALLING |
+						IRQF_ONESHOT,
+						chip->battery->desc->name,
+						chip);
 		if (!ret) {
-			regmap_read(chip->regmap, MAX17042_CONFIG, &val);
-			val |= CONFIG_ALRT_BIT_ENBL;
-			regmap_write(chip->regmap, MAX17042_CONFIG, val);
+			regmap_update_bits(chip->regmap, MAX17042_CONFIG,
+					CONFIG_ALRT_BIT_ENBL,
+					CONFIG_ALRT_BIT_ENBL);
 			max17042_set_soc_threshold(chip, 1);
 		} else {
 			client->irq = 0;
@@ -764,16 +944,6 @@ static int max17042_probe(struct i2c_client *client,
 		chip->init_complete = 1;
 	}
 
-	return 0;
-}
-
-static int max17042_remove(struct i2c_client *client)
-{
-	struct max17042_chip *chip = i2c_get_clientdata(client);
-
-	if (client->irq)
-		free_irq(client->irq, chip);
-	power_supply_unregister(&chip->battery);
 	return 0;
 }
 
@@ -823,9 +993,9 @@ MODULE_DEVICE_TABLE(of, max17042_dt_match);
 #endif
 
 static const struct i2c_device_id max17042_id[] = {
-	{ "max17042", 0 },
-	{ "max17047", 1 },
-	{ "max17050", 2 },
+	{ "max17042", MAXIM_DEVICE_TYPE_MAX17042 },
+	{ "max17047", MAXIM_DEVICE_TYPE_MAX17047 },
+	{ "max17050", MAXIM_DEVICE_TYPE_MAX17050 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max17042_id);
@@ -837,7 +1007,6 @@ static struct i2c_driver max17042_i2c_driver = {
 		.pm	= &max17042_pm_ops,
 	},
 	.probe		= max17042_probe,
-	.remove		= max17042_remove,
 	.id_table	= max17042_id,
 };
 module_i2c_driver(max17042_i2c_driver);

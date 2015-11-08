@@ -13,7 +13,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -24,7 +23,6 @@
 #include <linux/vme.h>
 
 #include "vme_pio2.h"
-
 
 static const char driver_name[] = "pio2";
 
@@ -119,7 +117,6 @@ static void pio2_int(int level, int vector, void *ptr)
 	}
 }
 
-
 /*
  * We return whether this has been successful - this is used in the probe to
  * ensure we have a valid card.
@@ -159,7 +156,6 @@ static struct vme_driver pio2_driver = {
 	.remove = pio2_remove,
 };
 
-
 static int __init pio2_init(void)
 {
 	if (bus_num == 0) {
@@ -179,7 +175,6 @@ static int __init pio2_init(void)
 
 static int pio2_match(struct vme_dev *vdev)
 {
-
 	if (vdev->num >= bus_num) {
 		dev_err(&vdev->dev,
 			"The enumeration of the VMEbus to which the board is connected must be specified\n");
@@ -221,7 +216,7 @@ static int pio2_probe(struct vme_dev *vdev)
 	int vec;
 
 	card = kzalloc(sizeof(struct pio2_card), GFP_KERNEL);
-	if (card == NULL) {
+	if (!card) {
 		retval = -ENOMEM;
 		goto err_struct;
 	}
@@ -235,7 +230,6 @@ static int pio2_probe(struct vme_dev *vdev)
 	card->vdev = vdev;
 
 	for (i = 0; i < PIO2_VARIANT_LENGTH; i++) {
-
 		if (isdigit(card->variant[i]) == 0) {
 			dev_err(&card->vdev->dev, "Variant invalid\n");
 			retval = -EINVAL;
@@ -265,29 +259,29 @@ static int pio2_probe(struct vme_dev *vdev)
 	for (i = 1; i < PIO2_VARIANT_LENGTH; i++) {
 		switch (card->variant[i]) {
 		case '0':
-			card->bank[i-1].config = NOFIT;
+			card->bank[i - 1].config = NOFIT;
 			break;
 		case '1':
 		case '2':
 		case '3':
 		case '4':
-			card->bank[i-1].config = INPUT;
+			card->bank[i - 1].config = INPUT;
 			break;
 		case '5':
-			card->bank[i-1].config = OUTPUT;
+			card->bank[i - 1].config = OUTPUT;
 			break;
 		case '6':
 		case '7':
 		case '8':
 		case '9':
-			card->bank[i-1].config = BOTH;
+			card->bank[i - 1].config = BOTH;
 			break;
 		}
 	}
 
 	/* Get a master window and position over regs */
 	card->window = vme_master_request(vdev, VME_A24, VME_SCT, VME_D16);
-	if (card->window == NULL) {
+	if (!card->window) {
 		dev_err(&card->vdev->dev,
 			"Unable to assign VME master resource\n");
 		retval = -EIO;
@@ -481,7 +475,6 @@ static void __exit pio2_exit(void)
 {
 	vme_unregister_driver(&pio2_driver);
 }
-
 
 /* These are required for each board */
 MODULE_PARM_DESC(bus, "Enumeration of VMEbus to which the board is connected");

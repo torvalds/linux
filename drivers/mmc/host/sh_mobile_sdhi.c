@@ -201,7 +201,7 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		of_match_device(sh_mobile_sdhi_of_match, &pdev->dev);
 	struct sh_mobile_sdhi *priv;
 	struct tmio_mmc_data *mmc_data;
-	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
+	struct tmio_mmc_data *mmd = pdev->dev.platform_data;
 	struct tmio_mmc_host *host;
 	struct resource *res;
 	int irq, ret, i = 0;
@@ -245,30 +245,14 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	else
 		host->bus_shift = 0;
 
-	mmc_data->capabilities = MMC_CAP_MMC_HIGHSPEED;
-	if (p) {
-		mmc_data->flags = p->tmio_flags;
-		mmc_data->ocr_mask = p->tmio_ocr_mask;
-		mmc_data->capabilities |= p->tmio_caps;
-		mmc_data->capabilities2 |= p->tmio_caps2;
-		mmc_data->cd_gpio = p->cd_gpio;
+	if (mmd)
+		*mmc_data = *mmd;
 
-		if (p->dma_slave_tx > 0 && p->dma_slave_rx > 0) {
-			/*
-			 * Yes, we have to provide slave IDs twice to TMIO:
-			 * once as a filter parameter and once for channel
-			 * configuration as an explicit slave ID
-			 */
-			dma_priv->chan_priv_tx = (void *)p->dma_slave_tx;
-			dma_priv->chan_priv_rx = (void *)p->dma_slave_rx;
-			dma_priv->slave_id_tx = p->dma_slave_tx;
-			dma_priv->slave_id_rx = p->dma_slave_rx;
-		}
-	}
 	dma_priv->filter = shdma_chan_filter;
 	dma_priv->enable = sh_mobile_sdhi_enable_dma;
 
 	mmc_data->alignment_shift = 1; /* 2-byte alignment */
+	mmc_data->capabilities |= MMC_CAP_MMC_HIGHSPEED;
 
 	/*
 	 * All SDHI blocks support 2-byte and larger block sizes in 4-bit

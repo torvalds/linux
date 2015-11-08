@@ -31,6 +31,7 @@ static const struct i2c_device_id isp1301_id[] = {
 	{ "isp1301", 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, isp1301_id);
 
 static struct i2c_client *isp1301_i2c_client;
 

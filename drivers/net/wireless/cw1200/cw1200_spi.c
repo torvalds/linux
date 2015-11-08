@@ -447,7 +447,7 @@ static int cw1200_spi_disconnect(struct spi_device *func)
 }
 
 #ifdef CONFIG_PM
-static int cw1200_spi_suspend(struct device *dev, pm_message_t state)
+static int cw1200_spi_suspend(struct device *dev)
 {
 	struct hwbus_priv *self = spi_get_drvdata(to_spi_device(dev));
 
@@ -458,10 +458,8 @@ static int cw1200_spi_suspend(struct device *dev, pm_message_t state)
 	return 0;
 }
 
-static int cw1200_spi_resume(struct device *dev)
-{
-	return 0;
-}
+static SIMPLE_DEV_PM_OPS(cw1200_pm_ops, cw1200_spi_suspend, NULL);
+
 #endif
 
 static struct spi_driver spi_driver = {
@@ -469,11 +467,8 @@ static struct spi_driver spi_driver = {
 	.remove		= cw1200_spi_disconnect,
 	.driver = {
 		.name		= "cw1200_wlan_spi",
-		.bus            = &spi_bus_type,
-		.owner          = THIS_MODULE,
 #ifdef CONFIG_PM
-		.suspend        = cw1200_spi_suspend,
-		.resume         = cw1200_spi_resume,
+		.pm		= &cw1200_pm_ops,
 #endif
 	},
 };

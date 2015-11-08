@@ -474,6 +474,23 @@ struct xenpf_core_parking {
 };
 DEFINE_GUEST_HANDLE_STRUCT(xenpf_core_parking);
 
+#define XENPF_get_symbol      63
+struct xenpf_symdata {
+	/* IN/OUT variables */
+	uint32_t	namelen; /* size of 'name' buffer */
+
+	/* IN/OUT variables */
+	uint32_t	symnum; /* IN:  Symbol to read                       */
+				/* OUT: Next available symbol. If same as IN */
+				/* then  we reached the end                  */
+
+	/* OUT variables */
+	GUEST_HANDLE(char) name;
+	uint64_t	address;
+	char            type;
+};
+DEFINE_GUEST_HANDLE_STRUCT(xenpf_symdata);
+
 struct xen_platform_op {
 	uint32_t cmd;
 	uint32_t interface_version; /* XENPF_INTERFACE_VERSION */
@@ -495,6 +512,7 @@ struct xen_platform_op {
 		struct xenpf_cpu_hotadd        cpu_add;
 		struct xenpf_mem_hotadd        mem_add;
 		struct xenpf_core_parking      core_parking;
+		struct xenpf_symdata           symdata;
 		uint8_t                        pad[128];
 	} u;
 };

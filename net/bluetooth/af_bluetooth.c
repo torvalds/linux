@@ -33,7 +33,7 @@
 
 #include "selftest.h"
 
-#define VERSION "2.20"
+#define VERSION "2.21"
 
 /* Bluetooth sockets */
 #define BT_MAX_PROTO	8
@@ -210,8 +210,8 @@ struct sock *bt_accept_dequeue(struct sock *parent, struct socket *newsock)
 }
 EXPORT_SYMBOL(bt_accept_dequeue);
 
-int bt_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
-				struct msghdr *msg, size_t len, int flags)
+int bt_sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
+		    int flags)
 {
 	int noblock = flags & MSG_DONTWAIT;
 	struct sock *sk = sock->sk;
@@ -221,7 +221,7 @@ int bt_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	BT_DBG("sock %p sk %p len %zu", sock, sk, len);
 
-	if (flags & (MSG_OOB))
+	if (flags & MSG_OOB)
 		return -EOPNOTSUPP;
 
 	skb = skb_recv_datagram(sk, flags, noblock, &err);
@@ -283,8 +283,8 @@ static long bt_sock_data_wait(struct sock *sk, long timeo)
 	return timeo;
 }
 
-int bt_sock_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
-			       struct msghdr *msg, size_t size, int flags)
+int bt_sock_stream_recvmsg(struct socket *sock, struct msghdr *msg,
+			   size_t size, int flags)
 {
 	struct sock *sk = sock->sk;
 	int err = 0;
@@ -711,10 +711,9 @@ EXPORT_SYMBOL_GPL(bt_debugfs);
 
 static int __init bt_init(void)
 {
-	struct sk_buff *skb;
 	int err;
 
-	BUILD_BUG_ON(sizeof(struct bt_skb_cb) > sizeof(skb->cb));
+	sock_skb_cb_check_size(sizeof(struct bt_skb_cb));
 
 	BT_INFO("Core ver %s", VERSION);
 
@@ -750,6 +749,13 @@ static int __init bt_init(void)
 		goto sock_err;
 	}
 
+	err = mgmt_init();
+	if (err < 0) {
+		sco_exit();
+		l2cap_exit();
+		goto sock_err;
+	}
+
 	return 0;
 
 sock_err:
@@ -764,6 +770,8 @@ error:
 
 static void __exit bt_exit(void)
 {
+	mgmt_exit();
+
 	sco_exit();
 
 	l2cap_exit();

@@ -32,6 +32,7 @@
 #include <linux/hugetlb.h>
 #include <linux/start_kernel.h>
 #include <linux/screen_info.h>
+#include <linux/tick.h>
 #include <asm/setup.h>
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
@@ -70,7 +71,7 @@ static unsigned long __initdata node_percpu[MAX_NUMNODES];
  * per-CPU stack and boot info.
  */
 DEFINE_PER_CPU(unsigned long, boot_sp) =
-	(unsigned long)init_stack + THREAD_SIZE;
+	(unsigned long)init_stack + THREAD_SIZE - STACK_TOP_DELTA;
 
 #ifdef CONFIG_SMP
 DEFINE_PER_CPU(unsigned long, boot_pc) = (unsigned long)start_kernel;
@@ -773,7 +774,7 @@ static void __init zone_sizes_init(void)
 		 * though, there'll be no lowmem, so we just alloc_bootmem
 		 * the memmap.  There will be no percpu memory either.
 		 */
-		if (i != 0 && cpu_isset(i, isolnodes)) {
+		if (i != 0 && node_isset(i, isolnodes)) {
 			node_memmap_pfn[i] =
 				alloc_bootmem_pfn(0, memmap_size, 0);
 			BUG_ON(node_percpu[i] != 0);
@@ -1138,7 +1139,7 @@ static void __init load_hv_initrd(void)
 
 void __init free_initrd_mem(unsigned long begin, unsigned long end)
 {
-	free_bootmem(__pa(begin), end - begin);
+	free_bootmem_late(__pa(begin), end - begin);
 }
 
 static int __init setup_initrd(char *str)
@@ -1389,6 +1390,28 @@ static int __init dataplane(char *str)
 }
 
 early_param("dataplane", dataplane);
+
+#ifdef CONFIG_NO_HZ_FULL
+/* Warn if hypervisor shared cpus are marked as nohz_full. */
+static int __init check_nohz_full_cpus(void)
+{
+	struct cpumask shared;
+	int cpu;
+
+	if (hv_inquire_tiles(HV_INQ_TILES_SHARED,
+			     (HV_VirtAddr) shared.bits, sizeof(shared)) < 0) {
+		pr_warn("WARNING: No support for inquiring hv shared tiles\n");
+		return 0;
+	}
+	for_each_cpu(cpu, &shared) {
+		if (tick_nohz_full_cpu(cpu))
+			pr_warn("WARNING: nohz_full cpu %d receives hypervisor interrupts!\n",
+			       cpu);
+	}
+	return 0;
+}
+arch_initcall(check_nohz_full_cpus);
+#endif
 
 #ifdef CONFIG_CMDLINE_BOOL
 static char __initdata builtin_cmdline[COMMAND_LINE_SIZE] = CONFIG_CMDLINE;

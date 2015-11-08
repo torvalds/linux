@@ -162,12 +162,6 @@ static ssize_t ds1343_nvram_write(struct file *filp, struct kobject *kobj,
 	struct device *dev = kobj_to_dev(kobj);
 	struct ds1343_priv *priv = dev_get_drvdata(dev);
 
-	if (unlikely(!count))
-		return count;
-
-	if ((count + off) > DS1343_NVRAM_LEN)
-		count = DS1343_NVRAM_LEN - off;
-
 	address = DS1343_NVRAM + off;
 
 	ret = regmap_bulk_write(priv->map, address, buf, count);
@@ -186,12 +180,6 @@ static ssize_t ds1343_nvram_read(struct file *filp, struct kobject *kobj,
 	unsigned char address;
 	struct device *dev = kobj_to_dev(kobj);
 	struct ds1343_priv *priv = dev_get_drvdata(dev);
-
-	if (unlikely(!count))
-		return count;
-
-	if ((count + off) > DS1343_NVRAM_LEN)
-		count = DS1343_NVRAM_LEN - off;
 
 	address = DS1343_NVRAM + off;
 
@@ -743,7 +731,6 @@ static SIMPLE_DEV_PM_OPS(ds1343_pm, ds1343_suspend, ds1343_resume);
 static struct spi_driver ds1343_driver = {
 	.driver = {
 		.name = "ds1343",
-		.owner = THIS_MODULE,
 		.pm = &ds1343_pm,
 	},
 	.probe = ds1343_probe,

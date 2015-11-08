@@ -135,12 +135,8 @@ struct plat_stmmacenet_data {
 	int maxmtu;
 	void (*fix_mac_speed)(void *priv, unsigned int speed);
 	void (*bus_setup)(void __iomem *ioaddr);
-	void *(*setup)(struct platform_device *pdev);
-	void (*free)(struct platform_device *pdev, void *priv);
 	int (*init)(struct platform_device *pdev, void *priv);
 	void (*exit)(struct platform_device *pdev, void *priv);
-	void *custom_cfg;
-	void *custom_data;
 	void *bsp_priv;
 };
 
@@ -179,15 +175,11 @@ Where:
  o bus_setup: perform HW setup of the bus. For example, on some ST platforms
 	     this field is used to configure the AMBA  bridge to generate more
 	     efficient STBus traffic.
- o setup/init/exit: callbacks used for calling a custom initialization;
+ o init/exit: callbacks used for calling a custom initialization;
 	     this is sometime necessary on some platforms (e.g. ST boxes)
 	     where the HW needs to have set some PIO lines or system cfg
-	     registers. setup should return a pointer to private data,
-	     which will be stored in bsp_priv, and then passed to init and
-	     exit callbacks. init/exit callbacks should not use or modify
+	     registers.  init/exit callbacks should not use or modify
 	     platform data.
- o custom_cfg/custom_data: this is a custom configuration that can be passed
-			   while initializing the resources.
  o bsp_priv: another private pointer.
 
 For MDIO bus The we have:
@@ -262,7 +254,7 @@ static struct fixed_phy_status stmmac0_fixed_phy_status = {
 
 During the board's device_init we can configure the first
 MAC for fixed_link by calling:
-  fixed_phy_add(PHY_POLL, 1, &stmmac0_fixed_phy_status));)
+  fixed_phy_add(PHY_POLL, 1, &stmmac0_fixed_phy_status, -1);
 and the second one, with a real PHY device attached to the bus,
 by using the stmmac_mdio_bus_data structure (to provide the id, the
 reset procedure etc).
@@ -277,8 +269,6 @@ capability register can replace what has been passed from the platform.
 
 Please see the following document:
 	Documentation/devicetree/bindings/net/stmmac.txt
-
-and the stmmac_of_data structure inside the include/linux/stmmac.h header file.
 
 4.11) This is a summary of the content of some relevant files:
  o stmmac_main.c: to implement the main network device driver;

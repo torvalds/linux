@@ -38,10 +38,10 @@ columns and rows.</para>
 		    </row>
 		    <row>
 		      <entry>start&nbsp;+&nbsp;4:</entry>
-		      <entry>R<subscript>10</subscript></entry>
-		      <entry>B<subscript>11</subscript></entry>
-		      <entry>R<subscript>12</subscript></entry>
-		      <entry>B<subscript>13</subscript></entry>
+		      <entry>B<subscript>10</subscript></entry>
+		      <entry>G<subscript>11</subscript></entry>
+		      <entry>B<subscript>12</subscript></entry>
+		      <entry>G<subscript>13</subscript></entry>
 		    </row>
 		    <row>
 		      <entry>start&nbsp;+&nbsp;8:</entry>
@@ -52,10 +52,10 @@ columns and rows.</para>
 		    </row>
 		    <row>
 		      <entry>start&nbsp;+&nbsp;12:</entry>
-		      <entry>R<subscript>30</subscript></entry>
-		      <entry>B<subscript>31</subscript></entry>
-		      <entry>R<subscript>32</subscript></entry>
-		      <entry>B<subscript>33</subscript></entry>
+		      <entry>B<subscript>30</subscript></entry>
+		      <entry>G<subscript>31</subscript></entry>
+		      <entry>B<subscript>32</subscript></entry>
+		      <entry>G<subscript>33</subscript></entry>
 		    </row>
 		  </tbody>
 		</tgroup>

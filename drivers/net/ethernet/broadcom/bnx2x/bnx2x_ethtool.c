@@ -1,6 +1,8 @@
-/* bnx2x_ethtool.c: Broadcom Everest network driver.
+/* bnx2x_ethtool.c: QLogic Everest network driver.
  *
  * Copyright (c) 2007-2013 Broadcom Corporation
+ * Copyright (c) 2014 QLogic Corporation
+ * All rights reserved
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -257,14 +259,15 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	int cfg_idx = bnx2x_get_link_cfg_idx(bp);
+	u32 media_type;
 
 	/* Dual Media boards present all available port types */
 	cmd->supported = bp->port.supported[cfg_idx] |
 		(bp->port.supported[cfg_idx ^ 1] &
 		 (SUPPORTED_TP | SUPPORTED_FIBRE));
 	cmd->advertising = bp->port.advertising[cfg_idx];
-	if (bp->link_params.phy[bnx2x_get_cur_phy_idx(bp)].media_type ==
-	    ETH_PHY_SFP_1G_FIBER) {
+	media_type = bp->link_params.phy[bnx2x_get_cur_phy_idx(bp)].media_type;
+	if (media_type == ETH_PHY_SFP_1G_FIBER) {
 		cmd->supported &= ~(SUPPORTED_10000baseT_Full);
 		cmd->advertising &= ~(ADVERTISED_10000baseT_Full);
 	}
@@ -312,12 +315,26 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			cmd->lp_advertising |= ADVERTISED_100baseT_Full;
 		if (status & LINK_STATUS_LINK_PARTNER_1000THD_CAPABLE)
 			cmd->lp_advertising |= ADVERTISED_1000baseT_Half;
-		if (status & LINK_STATUS_LINK_PARTNER_1000TFD_CAPABLE)
-			cmd->lp_advertising |= ADVERTISED_1000baseT_Full;
+		if (status & LINK_STATUS_LINK_PARTNER_1000TFD_CAPABLE) {
+			if (media_type == ETH_PHY_KR) {
+				cmd->lp_advertising |=
+					ADVERTISED_1000baseKX_Full;
+			} else {
+				cmd->lp_advertising |=
+					ADVERTISED_1000baseT_Full;
+			}
+		}
 		if (status & LINK_STATUS_LINK_PARTNER_2500XFD_CAPABLE)
 			cmd->lp_advertising |= ADVERTISED_2500baseX_Full;
-		if (status & LINK_STATUS_LINK_PARTNER_10GXFD_CAPABLE)
-			cmd->lp_advertising |= ADVERTISED_10000baseT_Full;
+		if (status & LINK_STATUS_LINK_PARTNER_10GXFD_CAPABLE) {
+			if (media_type == ETH_PHY_KR) {
+				cmd->lp_advertising |=
+					ADVERTISED_10000baseKR_Full;
+			} else {
+				cmd->lp_advertising |=
+					ADVERTISED_10000baseT_Full;
+			}
+		}
 		if (status & LINK_STATUS_LINK_PARTNER_20GXFD_CAPABLE)
 			cmd->lp_advertising |= ADVERTISED_20000baseKR2_Full;
 	}
@@ -564,15 +581,20 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 				return -EINVAL;
 			}
 
-			if (!(bp->port.supported[cfg_idx] &
-			      SUPPORTED_1000baseT_Full)) {
+			if (bp->port.supported[cfg_idx] &
+			     SUPPORTED_1000baseT_Full) {
+				advertising = (ADVERTISED_1000baseT_Full |
+					       ADVERTISED_TP);
+
+			} else if (bp->port.supported[cfg_idx] &
+				   SUPPORTED_1000baseKX_Full) {
+				advertising = ADVERTISED_1000baseKX_Full;
+			} else {
 				DP(BNX2X_MSG_ETHTOOL,
 				   "1G full not supported\n");
 				return -EINVAL;
 			}
 
-			advertising = (ADVERTISED_1000baseT_Full |
-				       ADVERTISED_TP);
 			break;
 
 		case SPEED_2500:
@@ -600,17 +622,22 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 				return -EINVAL;
 			}
 			phy_idx = bnx2x_get_cur_phy_idx(bp);
-			if (!(bp->port.supported[cfg_idx]
-			      & SUPPORTED_10000baseT_Full) ||
-			    (bp->link_params.phy[phy_idx].media_type ==
+			if ((bp->port.supported[cfg_idx] &
+			     SUPPORTED_10000baseT_Full) &&
+			    (bp->link_params.phy[phy_idx].media_type !=
 			     ETH_PHY_SFP_1G_FIBER)) {
+				advertising = (ADVERTISED_10000baseT_Full |
+					       ADVERTISED_FIBRE);
+			} else if (bp->port.supported[cfg_idx] &
+			       SUPPORTED_10000baseKR_Full) {
+				advertising = (ADVERTISED_10000baseKR_Full |
+					       ADVERTISED_FIBRE);
+			} else {
 				DP(BNX2X_MSG_ETHTOOL,
 				   "10G full not supported\n");
 				return -EINVAL;
 			}
 
-			advertising = (ADVERTISED_10000baseT_Full |
-				       ADVERTISED_FIBRE);
 			break;
 
 		default:
@@ -633,6 +660,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	bp->link_params.multi_phy_config = new_multi_phy_config;
 	if (netif_running(dev)) {
 		bnx2x_stats_handle(bp, STATS_EVENT_STOP);
+		bnx2x_force_link_reset(bp);
 		bnx2x_link_set(bp);
 	}
 
@@ -1062,10 +1090,6 @@ static void bnx2x_get_drvinfo(struct net_device *dev,
 	bnx2x_fill_fw_str(bp, info->fw_version, sizeof(info->fw_version));
 
 	strlcpy(info->bus_info, pci_name(bp->pdev), sizeof(info->bus_info));
-	info->n_stats = BNX2X_NUM_STATS;
-	info->testinfo_len = BNX2X_NUM_TESTS(bp);
-	info->eedump_len = bp->common.flash_size;
-	info->regdump_len = bnx2x_get_regs_len(dev);
 }
 
 static void bnx2x_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
@@ -1102,6 +1126,9 @@ static int bnx2x_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 		bp->wol = 1;
 	} else
 		bp->wol = 0;
+
+	if (SHMEM2_HAS(bp, curr_cfg))
+		SHMEM2_WR(bp, curr_cfg, CURR_CFG_MET_OS);
 
 	return 0;
 }
@@ -1204,6 +1231,7 @@ static int bnx2x_acquire_nvram_lock(struct bnx2x *bp)
 	if (!(val & (MCPR_NVM_SW_ARB_ARB_ARB1 << port))) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
 		   "cannot get access to nvram interface\n");
+		bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_NVRAM);
 		return -EBUSY;
 	}
 
@@ -1316,8 +1344,8 @@ static int bnx2x_nvram_read_dword(struct bnx2x *bp, u32 offset, __be32 *ret_val,
 	return rc;
 }
 
-static int bnx2x_nvram_read(struct bnx2x *bp, u32 offset, u8 *ret_buf,
-			    int buf_size)
+int bnx2x_nvram_read(struct bnx2x *bp, u32 offset, u8 *ret_buf,
+		     int buf_size)
 {
 	int rc;
 	u32 cmd_flags;
@@ -1691,6 +1719,22 @@ static int bnx2x_nvram_write(struct bnx2x *bp, u32 offset, u8 *data_buf,
 		offset += sizeof(u32);
 		data_buf += sizeof(u32);
 		written_so_far += sizeof(u32);
+
+		/* At end of each 4Kb page, release nvram lock to allow MFW
+		 * chance to take it for its own use.
+		 */
+		if ((cmd_flags & MCPR_NVM_COMMAND_LAST) &&
+		    (written_so_far < buf_size)) {
+			DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
+			   "Releasing NVM lock after offset 0x%x\n",
+			   (u32)(offset - sizeof(u32)));
+			bnx2x_release_nvram_lock(bp);
+			usleep_range(1000, 2000);
+			rc = bnx2x_acquire_nvram_lock(bp);
+			if (rc)
+				return rc;
+		}
+
 		cmd_flags = 0;
 	}
 
@@ -1843,6 +1887,12 @@ static int bnx2x_set_ringparam(struct net_device *dev,
 	   "set ring params command parameters: rx_pending = %d, tx_pending = %d\n",
 	   ering->rx_pending, ering->tx_pending);
 
+	if (pci_num_vf(bp->pdev)) {
+		DP(BNX2X_MSG_IOV,
+		   "VFs are enabled, can not change ring parameters\n");
+		return -EPERM;
+	}
+
 	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
 		DP(BNX2X_MSG_ETHTOOL,
 		   "Handling parity error recovery. Try again later\n");
@@ -1938,6 +1988,7 @@ static int bnx2x_set_pauseparam(struct net_device *dev,
 
 	if (netif_running(dev)) {
 		bnx2x_stats_handle(bp, STATS_EVENT_STOP);
+		bnx2x_force_link_reset(bp);
 		bnx2x_link_set(bp);
 	}
 
@@ -2446,7 +2497,7 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 	}
 	packet = skb_put(skb, pkt_size);
 	memcpy(packet, bp->dev->dev_addr, ETH_ALEN);
-	memset(packet + ETH_ALEN, 0, ETH_ALEN);
+	eth_zero_addr(packet + ETH_ALEN);
 	memset(packet + 2*ETH_ALEN, 0x77, (ETH_HLEN - 2*ETH_ALEN));
 	for (i = ETH_HLEN; i < pkt_size; i++)
 		packet[i] = (unsigned char) (i & 0xff);
@@ -2899,6 +2950,12 @@ static void bnx2x_self_test(struct net_device *dev,
 	u8 is_serdes, link_up;
 	int rc, cnt = 0;
 
+	if (pci_num_vf(bp->pdev)) {
+		DP(BNX2X_MSG_IOV,
+		   "VFs are enabled, can not perform self test\n");
+		return;
+	}
+
 	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
 		netdev_err(bp->dev,
 			   "Handling parity error recovery. Try again later\n");
@@ -3290,6 +3347,13 @@ static int bnx2x_set_rss_flags(struct bnx2x *bp, struct ethtool_rxnfc *info)
 			udp_rss_requested = 0;
 		else
 			return -EINVAL;
+
+		if (CHIP_IS_E1x(bp) && udp_rss_requested) {
+			DP(BNX2X_MSG_ETHTOOL,
+			   "57710, 57711 boards don't support RSS according to UDP 4-tuple\n");
+			return -EINVAL;
+		}
+
 		if ((info->flow_type == UDP_V4_FLOW) &&
 		    (bp->rss_conf_obj.udp_rss_v4 != udp_rss_requested)) {
 			bp->rss_conf_obj.udp_rss_v4 = udp_rss_requested;
@@ -3468,6 +3532,11 @@ static int bnx2x_set_channels(struct net_device *dev,
 	   channels->rx_count, channels->tx_count, channels->other_count,
 	   channels->combined_count);
 
+	if (pci_num_vf(bp->pdev)) {
+		DP(BNX2X_MSG_IOV, "VFs are enabled, can not set channels\n");
+		return -EPERM;
+	}
+
 	/* We don't support separate rx / tx channels.
 	 * We don't allow setting 'other' channels.
 	 */
@@ -3517,17 +3586,8 @@ static int bnx2x_get_ts_info(struct net_device *dev,
 
 		info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
 				   (1 << HWTSTAMP_FILTER_PTP_V1_L4_EVENT) |
-				   (1 << HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
-				   (1 << HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
 				   (1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT) |
-				   (1 << HWTSTAMP_FILTER_PTP_V2_L4_SYNC) |
-				   (1 << HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ) |
-				   (1 << HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
-				   (1 << HWTSTAMP_FILTER_PTP_V2_L2_SYNC) |
-				   (1 << HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ) |
-				   (1 << HWTSTAMP_FILTER_PTP_V2_EVENT) |
-				   (1 << HWTSTAMP_FILTER_PTP_V2_SYNC) |
-				   (1 << HWTSTAMP_FILTER_PTP_V2_DELAY_REQ);
+				   (1 << HWTSTAMP_FILTER_PTP_V2_EVENT);
 
 		info->tx_types = (1 << HWTSTAMP_TX_OFF)|(1 << HWTSTAMP_TX_ON);
 

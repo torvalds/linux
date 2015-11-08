@@ -44,6 +44,7 @@
 
 / {
 	memory {
+		device_type = "memory";
 		reg = <0 0x80000000>;
 	};
 
@@ -179,6 +180,22 @@
 	status = "okay";
 };
 
+&gmac {
+	assigned-clocks = <&cru SCLK_MAC>;
+	assigned-clock-parents = <&ext_gmac>;
+	clock_in_out = "input";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rgmii_pins>, <&phy_rst>, <&phy_pmeb>, <&phy_int>;
+	phy-supply = <&vcc_lan>;
+	phy-mode = "rgmii";
+	snps,reset-active-low;
+	snps,reset-delays-us = <0 10000 1000000>;
+	snps,reset-gpio = <&gpio4 8 GPIO_ACTIVE_LOW>;
+	tx_delay = <0x30>;
+	rx_delay = <0x10>;
+	status = "ok";
+};
+
 &hdmi {
 	ddc-i2c-bus = <&i2c5>;
 	status = "okay";
@@ -197,6 +214,8 @@
 		regulator-max-microvolt = <1350000>;
 		regulator-always-on;
 		regulator-boot-on;
+		regulator-enable-ramp-delay = <300>;
+		regulator-ramp-delay = <8000>;
 		vin-supply = <&vcc_sys>;
 	};
 
@@ -229,6 +248,14 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_vsel>, <&pwr_hold>;
 		system-power-controller;
+
+		vp1-supply = <&vcc_sys>;
+		vp2-supply = <&vcc_sys>;
+		vp3-supply = <&vcc_sys>;
+		vp4-supply = <&vcc_sys>;
+		inl1-supply = <&vcc_sys>;
+		inl2-supply = <&vcc_sys>;
+		inl3-supply = <&vcc_20>;
 
 		regulators {
 			vcc_ddr: REG1 {
@@ -441,6 +468,12 @@
 	status = "okay";
 };
 
+&tsadc {
+	rockchip,hw-tshut-mode = <0>;
+	rockchip,hw-tshut-polarity = <0>;
+	status = "okay";
+};
+
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_xfer>, <&uart0_cts>, <&uart0_rts>;
@@ -456,6 +489,10 @@
 };
 
 &uart3 {
+	status = "okay";
+};
+
+&usbphy {
 	status = "okay";
 };
 

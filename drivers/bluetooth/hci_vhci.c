@@ -55,17 +55,12 @@ struct vhci_data {
 
 static int vhci_open_dev(struct hci_dev *hdev)
 {
-	set_bit(HCI_RUNNING, &hdev->flags);
-
 	return 0;
 }
 
 static int vhci_close_dev(struct hci_dev *hdev)
 {
 	struct vhci_data *data = hci_get_drvdata(hdev);
-
-	if (!test_and_clear_bit(HCI_RUNNING, &hdev->flags))
-		return 0;
 
 	skb_queue_purge(&data->readq);
 
@@ -84,9 +79,6 @@ static int vhci_flush(struct hci_dev *hdev)
 static int vhci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct vhci_data *data = hci_get_drvdata(hdev);
-
-	if (!test_bit(HCI_RUNNING, &hdev->flags))
-		return -EBUSY;
 
 	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
 	skb_queue_tail(&data->readq, skb);
@@ -366,7 +358,7 @@ static const struct file_operations vhci_fops = {
 	.llseek		= no_llseek,
 };
 
-static struct miscdevice vhci_miscdev= {
+static struct miscdevice vhci_miscdev = {
 	.name	= "vhci",
 	.fops	= &vhci_fops,
 	.minor	= VHCI_MINOR,

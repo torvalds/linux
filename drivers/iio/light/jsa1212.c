@@ -308,7 +308,7 @@ static bool jsa1212_is_volatile_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-static struct regmap_config jsa1212_regmap_config = {
+static const struct regmap_config jsa1212_regmap_config = {
 	.name =  JSA1212_REGMAP_NAME,
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -457,7 +457,6 @@ static struct i2c_driver jsa1212_driver = {
 	.driver = {
 		.name	= JSA1212_DRIVER_NAME,
 		.pm	= JSA1212_PM_OPS,
-		.owner	= THIS_MODULE,
 		.acpi_match_table = ACPI_PTR(jsa1212_acpi_match),
 	},
 	.probe		= jsa1212_probe,

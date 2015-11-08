@@ -168,7 +168,7 @@ befs_count_blocks(struct super_block * sb, befs_data_stream * ds)
 	befs_blocknr_t blocks;
 	befs_blocknr_t datablocks;	/* File data blocks */
 	befs_blocknr_t metablocks;	/* FS metadata blocks */
-	befs_sb_info *befs_sb = BEFS_SB(sb);
+	struct befs_sb_info *befs_sb = BEFS_SB(sb);
 
 	befs_debug(sb, "---> %s", __func__);
 
@@ -428,7 +428,7 @@ befs_find_brun_dblindirect(struct super_block *sb,
 	struct buffer_head *indir_block;
 	befs_block_run indir_run;
 	befs_disk_inode_addr *iaddr_array = NULL;
-	befs_sb_info *befs_sb = BEFS_SB(sb);
+	struct befs_sb_info *befs_sb = BEFS_SB(sb);
 
 	befs_blocknr_t indir_start_blk =
 	    data->max_indirect_range >> befs_sb->block_shift;

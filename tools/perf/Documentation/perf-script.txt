@@ -112,10 +112,11 @@ OPTIONS
 --debug-mode::
         Do various checks like samples ordering and lost events.
 
--f::
+-F::
 --fields::
         Comma separated list of fields to print. Options are:
-        comm, tid, pid, time, cpu, event, trace, ip, sym, dso, addr, symoff, srcline, period.
+        comm, tid, pid, time, cpu, event, trace, ip, sym, dso, addr, symoff,
+	srcline, period, iregs, brstack, brstacksym, flags.
         Field list can be prepended with the type, trace, sw or hw,
         to indicate to which event type the field list applies.
         e.g., -f sw:comm,tid,time,ip,sym  and -f trace:time,cpu,trace
@@ -165,8 +166,24 @@ OPTIONS
 
 	At this point usage is displayed, and perf-script exits.
 
+	The flags field is synthesized and may have a value when Instruction
+	Trace decoding. The flags are "bcrosyiABEx" which stand for branch,
+	call, return, conditional, system, asynchronous, interrupt,
+	transaction abort, trace begin, trace end, and in transaction,
+	respectively.
+
 	Finally, a user may not set fields to none for all event types.
 	i.e., -f "" is not allowed.
+
+	The brstack output includes branch related information with raw addresses using the
+	/v/v/v/v/ syntax in the following order:
+	FROM: branch source instruction
+	TO  : branch target instruction
+        M/P/-: M=branch target mispredicted or branch direction was mispredicted, P=target predicted or direction predicted, -=not supported
+	X/- : X=branch inside a transactional region, -=not in transaction region or not supported
+	A/- : A=TSX abort entry, -=not aborted region or not supported
+
+	The brstacksym is identical to brstack, except that the FROM and TO addresses are printed in a symbolic form if possible.
 
 -k::
 --vmlinux=<file>::
@@ -193,6 +210,12 @@ OPTIONS
 	Only display events for these comms. CSV that understands
 	file://filename entries.
 
+--pid=::
+	Only show events for given process ID (comma separated list).
+
+--tid=::
+	Only show events for given thread ID (comma separated list).
+
 -I::
 --show-info::
 	Display extended information about the perf.data file. This adds
@@ -209,11 +232,35 @@ OPTIONS
 --show-mmap-events
 	Display mmap related events (e.g. MMAP, MMAP2).
 
+--show-switch-events
+	Display context switch events i.e. events of type PERF_RECORD_SWITCH or
+	PERF_RECORD_SWITCH_CPU_WIDE.
+
+--demangle::
+	Demangle symbol names to human readable form. It's enabled by default,
+	disable with --no-demangle.
+
+--demangle-kernel::
+	Demangle kernel symbol names to human readable form (for C++ kernels).
+
 --header
 	Show perf.data header.
 
 --header-only
 	Show only perf.data header.
+
+--itrace::
+	Options for decoding instruction tracing data. The options are:
+
+include::itrace.txt[]
+
+	To disable decoding entirely, use --no-itrace.
+
+--full-source-path::
+	Show the full path for source files for srcline output.
+
+--ns::
+	Use 9 decimal places when displaying time (i.e. show the nanoseconds)
 
 SEE ALSO
 --------

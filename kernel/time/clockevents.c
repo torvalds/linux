@@ -94,25 +94,76 @@ u64 clockevent_delta2ns(unsigned long latch, struct clock_event_device *evt)
 }
 EXPORT_SYMBOL_GPL(clockevent_delta2ns);
 
+static int __clockevents_switch_state(struct clock_event_device *dev,
+				      enum clock_event_state state)
+{
+	if (dev->features & CLOCK_EVT_FEAT_DUMMY)
+		return 0;
+
+	/* Transition with new state-specific callbacks */
+	switch (state) {
+	case CLOCK_EVT_STATE_DETACHED:
+		/* The clockevent device is getting replaced. Shut it down. */
+
+	case CLOCK_EVT_STATE_SHUTDOWN:
+		if (dev->set_state_shutdown)
+			return dev->set_state_shutdown(dev);
+		return 0;
+
+	case CLOCK_EVT_STATE_PERIODIC:
+		/* Core internal bug */
+		if (!(dev->features & CLOCK_EVT_FEAT_PERIODIC))
+			return -ENOSYS;
+		if (dev->set_state_periodic)
+			return dev->set_state_periodic(dev);
+		return 0;
+
+	case CLOCK_EVT_STATE_ONESHOT:
+		/* Core internal bug */
+		if (!(dev->features & CLOCK_EVT_FEAT_ONESHOT))
+			return -ENOSYS;
+		if (dev->set_state_oneshot)
+			return dev->set_state_oneshot(dev);
+		return 0;
+
+	case CLOCK_EVT_STATE_ONESHOT_STOPPED:
+		/* Core internal bug */
+		if (WARN_ONCE(!clockevent_state_oneshot(dev),
+			      "Current state: %d\n",
+			      clockevent_get_state(dev)))
+			return -EINVAL;
+
+		if (dev->set_state_oneshot_stopped)
+			return dev->set_state_oneshot_stopped(dev);
+		else
+			return -ENOSYS;
+
+	default:
+		return -ENOSYS;
+	}
+}
+
 /**
- * clockevents_set_mode - set the operating mode of a clock event device
+ * clockevents_switch_state - set the operating state of a clock event device
  * @dev:	device to modify
- * @mode:	new mode
+ * @state:	new state
  *
  * Must be called with interrupts disabled !
  */
-void clockevents_set_mode(struct clock_event_device *dev,
-				 enum clock_event_mode mode)
+void clockevents_switch_state(struct clock_event_device *dev,
+			      enum clock_event_state state)
 {
-	if (dev->mode != mode) {
-		dev->set_mode(mode, dev);
-		dev->mode = mode;
+	if (clockevent_get_state(dev) != state) {
+		if (__clockevents_switch_state(dev, state))
+			return;
+
+		clockevent_set_state(dev, state);
 
 		/*
 		 * A nsec2cyc multiplicator of 0 is invalid and we'd crash
 		 * on it, so fix it up and emit a warning:
 		 */
-		if (mode == CLOCK_EVT_MODE_ONESHOT) {
+		if (clockevent_state_oneshot(dev)) {
 			if (unlikely(!dev->mult)) {
 				dev->mult = 1;
 				WARN_ON(1);
@@ -127,8 +178,22 @@ void clockevents_set_mode(struct clock_event_device *dev,
  */
 void clockevents_shutdown(struct clock_event_device *dev)
 {
-	clockevents_set_mode(dev, CLOCK_EVT_MODE_SHUTDOWN);
+	clockevents_switch_state(dev, CLOCK_EVT_STATE_SHUTDOWN);
 	dev->next_event.tv64 = KTIME_MAX;
+}
+
+/**
+ * clockevents_tick_resume -	Resume the tick device before using it again
+ * @dev:			device to resume
+ */
+int clockevents_tick_resume(struct clock_event_device *dev)
+{
+	int ret = 0;
+
+	if (dev->tick_resume)
+		ret = dev->tick_resume(dev);
+
+	return ret;
 }
 
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_MIN_ADJUST
@@ -183,7 +248,7 @@ static int clockevents_program_min_delta(struct clock_event_device *dev)
 		delta = dev->min_delta_ns;
 		dev->next_event = ktime_add_ns(ktime_get(), delta);
 
-		if (dev->mode == CLOCK_EVT_MODE_SHUTDOWN)
+		if (clockevent_state_shutdown(dev))
 			return 0;
 
 		dev->retries++;
@@ -220,7 +285,7 @@ static int clockevents_program_min_delta(struct clock_event_device *dev)
 	delta = dev->min_delta_ns;
 	dev->next_event = ktime_add_ns(ktime_get(), delta);
 
-	if (dev->mode == CLOCK_EVT_MODE_SHUTDOWN)
+	if (clockevent_state_shutdown(dev))
 		return 0;
 
 	dev->retries++;
@@ -252,8 +317,12 @@ int clockevents_program_event(struct clock_event_device *dev, ktime_t expires,
 
 	dev->next_event = expires;
 
-	if (dev->mode == CLOCK_EVT_MODE_SHUTDOWN)
+	if (clockevent_state_shutdown(dev))
 		return 0;
+
+	/* We must be in ONESHOT state here */
+	WARN_ONCE(!clockevent_state_oneshot(dev), "Current state: %d\n",
+		  clockevent_get_state(dev));
 
 	/* Shortcut for clockevent devices that can deal with ktime. */
 	if (dev->features & CLOCK_EVT_FEAT_KTIME)
@@ -297,7 +366,7 @@ static int clockevents_replace(struct clock_event_device *ced)
 	struct clock_event_device *dev, *newdev = NULL;
 
 	list_for_each_entry(dev, &clockevent_devices, list) {
-		if (dev == ced || dev->mode != CLOCK_EVT_MODE_UNUSED)
+		if (dev == ced || !clockevent_state_detached(dev))
 			continue;
 
 		if (!tick_check_replacement(newdev, dev))
@@ -323,7 +392,7 @@ static int clockevents_replace(struct clock_event_device *ced)
 static int __clockevents_try_unbind(struct clock_event_device *ced, int cpu)
 {
 	/* Fast track. Device is unused */
-	if (ced->mode == CLOCK_EVT_MODE_UNUSED) {
+	if (clockevent_state_detached(ced)) {
 		list_del_init(&ced->list);
 		return 0;
 	}
@@ -371,7 +440,7 @@ int clockevents_unbind_device(struct clock_event_device *ced, int cpu)
 	mutex_unlock(&clockevents_mutex);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(clockevents_unbind);
+EXPORT_SYMBOL_GPL(clockevents_unbind_device);
 
 /**
  * clockevents_register_device - register a clock event device
@@ -381,7 +450,9 @@ void clockevents_register_device(struct clock_event_device *dev)
 {
 	unsigned long flags;
 
-	BUG_ON(dev->mode != CLOCK_EVT_MODE_UNUSED);
+	/* Initialize state to DETACHED */
+	clockevent_set_state(dev, CLOCK_EVT_STATE_DETACHED);
+
 	if (!dev->cpumask) {
 		WARN_ON(num_possible_cpus() > 1);
 		dev->cpumask = cpumask_of(smp_processor_id());
@@ -445,11 +516,11 @@ int __clockevents_update_freq(struct clock_event_device *dev, u32 freq)
 {
 	clockevents_config(dev, freq);
 
-	if (dev->mode == CLOCK_EVT_MODE_ONESHOT)
+	if (clockevent_state_oneshot(dev))
 		return clockevents_program_event(dev, dev->next_event, false);
 
-	if (dev->mode == CLOCK_EVT_MODE_PERIODIC)
-		dev->set_mode(CLOCK_EVT_MODE_PERIODIC, dev);
+	if (clockevent_state_periodic(dev))
+		return __clockevents_switch_state(dev, CLOCK_EVT_STATE_PERIODIC);
 
 	return 0;
 }
@@ -491,30 +562,27 @@ void clockevents_handle_noop(struct clock_event_device *dev)
  * @old:	device to release (can be NULL)
  * @new:	device to request (can be NULL)
  *
- * Called from the notifier chain. clockevents_lock is held already
+ * Called from various tick functions with clockevents_lock held and
+ * interrupts disabled.
  */
 void clockevents_exchange_device(struct clock_event_device *old,
 				 struct clock_event_device *new)
 {
-	unsigned long flags;
-
-	local_irq_save(flags);
 	/*
 	 * Caller releases a clock event device. We queue it into the
 	 * released list and do a notify add later.
 	 */
 	if (old) {
 		module_put(old->owner);
-		clockevents_set_mode(old, CLOCK_EVT_MODE_UNUSED);
+		clockevents_switch_state(old, CLOCK_EVT_STATE_DETACHED);
 		list_del(&old->list);
 		list_add(&old->list, &clockevents_released);
 	}
 
 	if (new) {
-		BUG_ON(new->mode != CLOCK_EVT_MODE_UNUSED);
+		BUG_ON(!clockevent_state_detached(new));
 		clockevents_shutdown(new);
 	}
-	local_irq_restore(flags);
 }
 
 /**
@@ -525,7 +593,7 @@ void clockevents_suspend(void)
 	struct clock_event_device *dev;
 
 	list_for_each_entry_reverse(dev, &clockevent_devices, list)
-		if (dev->suspend)
+		if (dev->suspend && !clockevent_state_detached(dev))
 			dev->suspend(dev);
 }
 
@@ -537,78 +605,44 @@ void clockevents_resume(void)
 	struct clock_event_device *dev;
 
 	list_for_each_entry(dev, &clockevent_devices, list)
-		if (dev->resume)
+		if (dev->resume && !clockevent_state_detached(dev))
 			dev->resume(dev);
 }
 
-#ifdef CONFIG_GENERIC_CLOCKEVENTS
+#ifdef CONFIG_HOTPLUG_CPU
 /**
- * clockevents_notify - notification about relevant events
- * Returns 0 on success, any other value on error
+ * tick_cleanup_dead_cpu - Cleanup the tick and clockevents of a dead cpu
  */
-int clockevents_notify(unsigned long reason, void *arg)
+void tick_cleanup_dead_cpu(int cpu)
 {
 	struct clock_event_device *dev, *tmp;
 	unsigned long flags;
-	int cpu, ret = 0;
 
 	raw_spin_lock_irqsave(&clockevents_lock, flags);
 
-	switch (reason) {
-	case CLOCK_EVT_NOTIFY_BROADCAST_ON:
-	case CLOCK_EVT_NOTIFY_BROADCAST_OFF:
-	case CLOCK_EVT_NOTIFY_BROADCAST_FORCE:
-		tick_broadcast_on_off(reason, arg);
-		break;
-
-	case CLOCK_EVT_NOTIFY_BROADCAST_ENTER:
-	case CLOCK_EVT_NOTIFY_BROADCAST_EXIT:
-		ret = tick_broadcast_oneshot_control(reason);
-		break;
-
-	case CLOCK_EVT_NOTIFY_CPU_DYING:
-		tick_handover_do_timer(arg);
-		break;
-
-	case CLOCK_EVT_NOTIFY_SUSPEND:
-		tick_suspend();
-		tick_suspend_broadcast();
-		break;
-
-	case CLOCK_EVT_NOTIFY_RESUME:
-		tick_resume();
-		break;
-
-	case CLOCK_EVT_NOTIFY_CPU_DEAD:
-		tick_shutdown_broadcast_oneshot(arg);
-		tick_shutdown_broadcast(arg);
-		tick_shutdown(arg);
-		/*
-		 * Unregister the clock event devices which were
-		 * released from the users in the notify chain.
-		 */
-		list_for_each_entry_safe(dev, tmp, &clockevents_released, list)
+	tick_shutdown_broadcast_oneshot(cpu);
+	tick_shutdown_broadcast(cpu);
+	tick_shutdown(cpu);
+	/*
+	 * Unregister the clock event devices which were
+	 * released from the users in the notify chain.
+	 */
+	list_for_each_entry_safe(dev, tmp, &clockevents_released, list)
+		list_del(&dev->list);
+	/*
+	 * Now check whether the CPU has left unused per cpu devices
+	 */
+	list_for_each_entry_safe(dev, tmp, &clockevent_devices, list) {
+		if (cpumask_test_cpu(cpu, dev->cpumask) &&
+		    cpumask_weight(dev->cpumask) == 1 &&
+		    !tick_is_broadcast_device(dev)) {
+			BUG_ON(!clockevent_state_detached(dev));
 			list_del(&dev->list);
-		/*
-		 * Now check whether the CPU has left unused per cpu devices
-		 */
-		cpu = *((int *)arg);
-		list_for_each_entry_safe(dev, tmp, &clockevent_devices, list) {
-			if (cpumask_test_cpu(cpu, dev->cpumask) &&
-			    cpumask_weight(dev->cpumask) == 1 &&
-			    !tick_is_broadcast_device(dev)) {
-				BUG_ON(dev->mode != CLOCK_EVT_MODE_UNUSED);
-				list_del(&dev->list);
-			}
 		}
-		break;
-	default:
-		break;
 	}
 	raw_spin_unlock_irqrestore(&clockevents_lock, flags);
-	return ret;
 }
-EXPORT_SYMBOL_GPL(clockevents_notify);
+#endif
 
 #ifdef CONFIG_SYSFS
 struct bus_type clockevents_subsys = {
@@ -727,5 +761,3 @@ static int __init clockevents_init_sysfs(void)
 }
 device_initcall(clockevents_init_sysfs);
 #endif /* SYSFS */
-
-#endif /* GENERIC_CLOCK_EVENTS */

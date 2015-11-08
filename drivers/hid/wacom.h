@@ -113,14 +113,18 @@ struct wacom {
 	struct mutex lock;
 	struct work_struct work;
 	struct wacom_led {
-		u8 select[2]; /* status led selector (0..3) */
+		u8 select[5]; /* status led selector (0..3) */
 		u8 llv;       /* status led brightness no button (1..127) */
 		u8 hlv;       /* status led brightness button pressed (1..127) */
 		u8 img_lum;   /* OLED matrix display brightness */
 	} led;
 	bool led_initialized;
-	struct power_supply battery;
-	struct power_supply ac;
+	struct power_supply *battery;
+	struct power_supply *ac;
+	struct power_supply_desc battery_desc;
+	struct power_supply_desc ac_desc;
+	struct kobject *remote_dir;
+	struct attribute_group remote_group[5];
 };
 
 static inline void wacom_schedule_work(struct wacom_wac *wacom_wac)
@@ -129,18 +133,13 @@ static inline void wacom_schedule_work(struct wacom_wac *wacom_wac)
 	schedule_work(&wacom->work);
 }
 
-static inline void wacom_notify_battery(struct wacom_wac *wacom_wac)
-{
-	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
-
-	power_supply_changed(&wacom->battery);
-}
-
 extern const struct hid_device_id wacom_ids[];
 
 void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len);
-void wacom_setup_device_quirks(struct wacom_features *features);
-int wacom_setup_pentouch_input_capabilities(struct input_dev *input_dev,
+void wacom_setup_device_quirks(struct wacom *wacom);
+int wacom_setup_pen_input_capabilities(struct input_dev *input_dev,
+				   struct wacom_wac *wacom_wac);
+int wacom_setup_touch_input_capabilities(struct input_dev *input_dev,
 				   struct wacom_wac *wacom_wac);
 int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 				       struct wacom_wac *wacom_wac);
@@ -149,4 +148,8 @@ void wacom_wac_usage_mapping(struct hid_device *hdev,
 int wacom_wac_event(struct hid_device *hdev, struct hid_field *field,
 		struct hid_usage *usage, __s32 value);
 void wacom_wac_report(struct hid_device *hdev, struct hid_report *report);
+void wacom_battery_work(struct work_struct *work);
+int wacom_remote_create_attr_group(struct wacom *wacom, __u32 serial,
+				   int index);
+void wacom_remote_destroy_attr_group(struct wacom *wacom, __u32 serial);
 #endif

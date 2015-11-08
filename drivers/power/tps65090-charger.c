@@ -43,7 +43,7 @@ struct tps65090_charger {
 	int	irq;
 	struct task_struct	*poll_task;
 	bool			passive_mode;
-	struct power_supply	ac;
+	struct power_supply	*ac;
 	struct tps65090_platform_data *pdata;
 };
 
@@ -135,8 +135,7 @@ static int tps65090_ac_get_property(struct power_supply *psy,
 			enum power_supply_property psp,
 			union power_supply_propval *val)
 {
-	struct tps65090_charger *charger = container_of(psy,
-					struct tps65090_charger, ac);
+	struct tps65090_charger *charger = power_supply_get_drvdata(psy);
 
 	if (psp == POWER_SUPPLY_PROP_ONLINE) {
 		val->intval = charger->ac_online;
@@ -190,7 +189,7 @@ static irqreturn_t tps65090_charger_isr(int irq, void *dev_id)
 	}
 
 	if (charger->prev_ac_online != charger->ac_online)
-		power_supply_changed(&charger->ac);
+		power_supply_changed(charger->ac);
 
 	return IRQ_HANDLED;
 }
@@ -229,10 +228,19 @@ static int tps65090_charger_poll_task(void *data)
 	return 0;
 }
 
+static const struct power_supply_desc tps65090_charger_desc = {
+	.name			= "tps65090-ac",
+	.type			= POWER_SUPPLY_TYPE_MAINS,
+	.get_property		= tps65090_ac_get_property,
+	.properties		= tps65090_ac_props,
+	.num_properties		= ARRAY_SIZE(tps65090_ac_props),
+};
+
 static int tps65090_charger_probe(struct platform_device *pdev)
 {
 	struct tps65090_charger *cdata;
 	struct tps65090_platform_data *pdata;
+	struct power_supply_config psy_cfg = {};
 	uint8_t status1 = 0;
 	int ret;
 	int irq;
@@ -259,19 +267,16 @@ static int tps65090_charger_probe(struct platform_device *pdev)
 	cdata->dev			= &pdev->dev;
 	cdata->pdata			= pdata;
 
-	cdata->ac.name			= "tps65090-ac";
-	cdata->ac.type			= POWER_SUPPLY_TYPE_MAINS;
-	cdata->ac.get_property		= tps65090_ac_get_property;
-	cdata->ac.properties		= tps65090_ac_props;
-	cdata->ac.num_properties	= ARRAY_SIZE(tps65090_ac_props);
-	cdata->ac.supplied_to		= pdata->supplied_to;
-	cdata->ac.num_supplicants	= pdata->num_supplicants;
-	cdata->ac.of_node		= pdev->dev.of_node;
+	psy_cfg.supplied_to		= pdata->supplied_to;
+	psy_cfg.num_supplicants		= pdata->num_supplicants;
+	psy_cfg.of_node			= pdev->dev.of_node;
+	psy_cfg.drv_data		= cdata;
 
-	ret = power_supply_register(&pdev->dev, &cdata->ac);
-	if (ret) {
+	cdata->ac = power_supply_register(&pdev->dev, &tps65090_charger_desc,
+			&psy_cfg);
+	if (IS_ERR(cdata->ac)) {
 		dev_err(&pdev->dev, "failed: power supply register\n");
-		return ret;
+		return PTR_ERR(cdata->ac);
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -301,7 +306,7 @@ static int tps65090_charger_probe(struct platform_device *pdev)
 			goto fail_unregister_supply;
 		}
 		cdata->ac_online = 1;
-		power_supply_changed(&cdata->ac);
+		power_supply_changed(cdata->ac);
 	}
 
 	if (irq != -ENXIO) {
@@ -328,7 +333,7 @@ static int tps65090_charger_probe(struct platform_device *pdev)
 	return 0;
 
 fail_unregister_supply:
-	power_supply_unregister(&cdata->ac);
+	power_supply_unregister(cdata->ac);
 
 	return ret;
 }
@@ -339,15 +344,16 @@ static int tps65090_charger_remove(struct platform_device *pdev)
 
 	if (cdata->irq == -ENXIO)
 		kthread_stop(cdata->poll_task);
-	power_supply_unregister(&cdata->ac);
+	power_supply_unregister(cdata->ac);
 
 	return 0;
 }
 
-static struct of_device_id of_tps65090_charger_match[] = {
+static const struct of_device_id of_tps65090_charger_match[] = {
 	{ .compatible = "ti,tps65090-charger", },
 	{ /* end */ }
 };
+MODULE_DEVICE_TABLE(of, of_tps65090_charger_match);
 
 static struct platform_driver tps65090_charger_driver = {
 	.driver	= {

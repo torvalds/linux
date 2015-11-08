@@ -1,5 +1,4 @@
 obj-y := core.o
-obj-$(CONFIG_BPF_SYSCALL) += syscall.o verifier.o hashtab.o arraymap.o helpers.o
-ifdef CONFIG_TEST_BPF
-obj-$(CONFIG_BPF_SYSCALL) += test_stub.o
-endif
+
+obj-$(CONFIG_BPF_SYSCALL) += syscall.o verifier.o inode.o helpers.o
+obj-$(CONFIG_BPF_SYSCALL) += hashtab.o arraymap.o

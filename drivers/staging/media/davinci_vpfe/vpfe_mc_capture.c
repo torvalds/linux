@@ -226,8 +226,8 @@ static int vpfe_enable_clock(struct vpfe_device *vpfe_dev)
 	if (!vpfe_cfg->num_clocks)
 		return 0;
 
-	vpfe_dev->clks = kzalloc(vpfe_cfg->num_clocks *
-				   sizeof(struct clock *), GFP_KERNEL);
+	vpfe_dev->clks = kcalloc(vpfe_cfg->num_clocks,
+				 sizeof(struct clock *), GFP_KERNEL);
 	if (vpfe_dev->clks == NULL)
 		return -ENOMEM;
 
@@ -294,7 +294,7 @@ static void vpfe_detach_irq(struct vpfe_device *vpfe_dev)
  */
 static int vpfe_attach_irq(struct vpfe_device *vpfe_dev)
 {
-	int ret = 0;
+	int ret;
 
 	ret = request_irq(vpfe_dev->ccdc_irq0, vpfe_isr, 0,
 			  "vpfe_capture0", vpfe_dev);
@@ -346,7 +346,8 @@ static int register_i2c_devices(struct vpfe_device *vpfe_dev)
 	i2c_adap = i2c_get_adapter(1);
 	num_subdevs = vpfe_cfg->num_subdevs;
 	vpfe_dev->sd =
-		  kzalloc(sizeof(struct v4l2_subdev *)*num_subdevs, GFP_KERNEL);
+		  kcalloc(num_subdevs, sizeof(struct v4l2_subdev *),
+			  GFP_KERNEL);
 	if (vpfe_dev->sd == NULL)
 		return -ENOMEM;
 

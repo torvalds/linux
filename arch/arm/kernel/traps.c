@@ -505,12 +505,10 @@ asmlinkage void bad_mode(struct pt_regs *regs, int reason)
 
 static int bad_syscall(int n, struct pt_regs *regs)
 {
-	struct thread_info *thread = current_thread_info();
 	siginfo_t info;
 
-	if ((current->personality & PER_MASK) != PER_LINUX &&
-	    thread->exec_domain->handler) {
-		thread->exec_domain->handler(n, regs);
+	if ((current->personality & PER_MASK) != PER_LINUX) {
+		send_sig(SIGSEGV, current, 1);
 		return regs->ARM_r0;
 	}
 
@@ -627,58 +625,6 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 		set_tls(regs->ARM_r0);
 		return 0;
 
-#ifdef CONFIG_NEEDS_SYSCALL_FOR_CMPXCHG
-	/*
-	 * Atomically store r1 in *r2 if *r2 is equal to r0 for user space.
-	 * Return zero in r0 if *MEM was changed or non-zero if no exchange
-	 * happened.  Also set the user C flag accordingly.
-	 * If access permissions have to be fixed up then non-zero is
-	 * returned and the operation has to be re-attempted.
-	 *
-	 * *NOTE*: This is a ghost syscall private to the kernel.  Only the
-	 * __kuser_cmpxchg code in entry-armv.S should be aware of its
-	 * existence.  Don't ever use this from user code.
-	 */
-	case NR(cmpxchg):
-	for (;;) {
-		extern void do_DataAbort(unsigned long addr, unsigned int fsr,
-					 struct pt_regs *regs);
-		unsigned long val;
-		unsigned long addr = regs->ARM_r2;
-		struct mm_struct *mm = current->mm;
-		pgd_t *pgd; pmd_t *pmd; pte_t *pte;
-		spinlock_t *ptl;
-
-		regs->ARM_cpsr &= ~PSR_C_BIT;
-		down_read(&mm->mmap_sem);
-		pgd = pgd_offset(mm, addr);
-		if (!pgd_present(*pgd))
-			goto bad_access;
-		pmd = pmd_offset(pgd, addr);
-		if (!pmd_present(*pmd))
-			goto bad_access;
-		pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
-		if (!pte_present(*pte) || !pte_write(*pte) || !pte_dirty(*pte)) {
-			pte_unmap_unlock(pte, ptl);
-			goto bad_access;
-		}
-		val = *(unsigned long *)addr;
-		val -= regs->ARM_r0;
-		if (val == 0) {
-			*(unsigned long *)addr = regs->ARM_r1;
-			regs->ARM_cpsr |= PSR_C_BIT;
-		}
-		pte_unmap_unlock(pte, ptl);
-		up_read(&mm->mmap_sem);
-		return val;
-
-		bad_access:
-		up_read(&mm->mmap_sem);
-		/* simulate a write access fault */
-		do_DataAbort(addr, 15 + (1 << 11), regs);
-	}
-#endif
-
 	default:
 		/* Calls 9f00xx..9f07ff are defined to return -ENOSYS
 		   if not implemented, rather than raising SIGILL.  This
@@ -750,14 +696,6 @@ static int __init arm_mrc_hook_init(void)
 late_initcall(arm_mrc_hook_init);
 
 #endif
-
-void __bad_xchg(volatile void *ptr, int size)
-{
-	pr_err("xchg: bad data size: pc 0x%p, ptr 0x%p, size %d\n",
-	       __builtin_return_address(0), ptr, size);
-	BUG();
-}
-EXPORT_SYMBOL(__bad_xchg);
 
 /*
  * A data abort trap was taken, but we did not handle the instruction.
@@ -880,7 +818,6 @@ void __init early_trap_init(void *vectors_base)
 	kuser_init(vectors_base);
 
 	flush_icache_range(vectors, vectors + PAGE_SIZE * 2);
-	modify_domain(DOMAIN_USER, DOMAIN_CLIENT);
 #else /* ifndef CONFIG_CPU_V7M */
 	/*
 	 * on V7-M there is no need to copy the vector table to a dedicated

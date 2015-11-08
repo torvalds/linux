@@ -179,25 +179,28 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 {
 	struct brcmf_if_event *ifevent = data;
 	struct brcmf_if *ifp;
+	bool is_p2pdev;
 	int err = 0;
 
 	brcmf_dbg(EVENT, "action: %u idx: %u bsscfg: %u flags: %u role: %u\n",
 		  ifevent->action, ifevent->ifidx, ifevent->bssidx,
 		  ifevent->flags, ifevent->role);
 
-	/* The P2P Device interface event must not be ignored
-	 * contrary to what firmware tells us. The only way to
-	 * distinguish the P2P Device is by looking at the ifidx
-	 * and bssidx received.
+	/* The P2P Device interface event must not be ignored contrary to what
+	 * firmware tells us. Older firmware uses p2p noif, with sta role.
+	 * This should be accepted when p2pdev_setup is ongoing. TDLS setup will
+	 * use the same ifevent and should be ignored.
 	 */
-	if (!(ifevent->ifidx == 0 && ifevent->bssidx == 1) &&
-	    (ifevent->flags & BRCMF_E_IF_FLAG_NOIF)) {
+	is_p2pdev = ((ifevent->flags & BRCMF_E_IF_FLAG_NOIF) &&
+		     (ifevent->role == BRCMF_E_IF_ROLE_P2P_CLIENT ||
+		      ((ifevent->role == BRCMF_E_IF_ROLE_STA) &&
+		       (drvr->fweh.p2pdev_setup_ongoing))));
+	if (!is_p2pdev && (ifevent->flags & BRCMF_E_IF_FLAG_NOIF)) {
 		brcmf_dbg(EVENT, "event can be ignored\n");
 		return;
 	}
 	if (ifevent->ifidx >= BRCMF_MAX_IFS) {
-		brcmf_err("invalid interface index: %u\n",
-			  ifevent->ifidx);
+		brcmf_err("invalid interface index: %u\n", ifevent->ifidx);
 		return;
 	}
 
@@ -207,10 +210,11 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 		brcmf_dbg(EVENT, "adding %s (%pM)\n", emsg->ifname,
 			  emsg->addr);
 		ifp = brcmf_add_if(drvr, ifevent->bssidx, ifevent->ifidx,
-				   emsg->ifname, emsg->addr);
+				   is_p2pdev, emsg->ifname, emsg->addr);
 		if (IS_ERR(ifp))
 			return;
-		brcmf_fws_add_interface(ifp);
+		if (!is_p2pdev)
+			brcmf_fws_add_interface(ifp);
 		if (!drvr->fweh.evt_handler[BRCMF_E_IF])
 			if (brcmf_net_attach(ifp, false) < 0)
 				return;
@@ -222,7 +226,7 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 	err = brcmf_fweh_call_event_handler(ifp, emsg->event_code, emsg, data);
 
 	if (ifp && ifevent->action == BRCMF_E_IF_DEL)
-		brcmf_remove_interface(drvr, ifevent->bssidx);
+		brcmf_remove_interface(ifp);
 }
 
 /**
@@ -297,8 +301,7 @@ static void brcmf_fweh_event_worker(struct work_struct *work)
 			goto event_free;
 		}
 
-		if ((event->code == BRCMF_E_TDLS_PEER_EVENT) &&
-		    (emsg.bsscfgidx == 1))
+		if (event->code == BRCMF_E_TDLS_PEER_EVENT)
 			ifp = drvr->iflist[0];
 		else
 			ifp = drvr->iflist[emsg.bsscfgidx];
@@ -312,6 +315,17 @@ static void brcmf_fweh_event_worker(struct work_struct *work)
 event_free:
 		kfree(event);
 	}
+}
+
+/**
+ * brcmf_fweh_p2pdev_setup() - P2P device setup ongoing (or not).
+ *
+ * @ifp: ifp on which setup is taking place or finished.
+ * @ongoing: p2p device setup in progress (or not).
+ */
+void brcmf_fweh_p2pdev_setup(struct brcmf_if *ifp, bool ongoing)
+{
+	ifp->drvr->fweh.p2pdev_setup_ongoing = ongoing;
 }
 
 /**
@@ -335,7 +349,7 @@ void brcmf_fweh_attach(struct brcmf_pub *drvr)
 void brcmf_fweh_detach(struct brcmf_pub *drvr)
 {
 	struct brcmf_fweh_info *fweh = &drvr->fweh;
-	struct brcmf_if *ifp = drvr->iflist[0];
+	struct brcmf_if *ifp = brcmf_get_ifp(drvr, 0);
 	s8 eventmask[BRCMF_EVENTING_MASK_LEN];
 
 	if (ifp) {

@@ -226,7 +226,7 @@ static void blade_image_blit(struct tridentfb_par *par, const char *data,
 	writemmr(par, DST1, point(x, y));
 	writemmr(par, DST2, point(x + w - 1, y + h - 1));
 
-	memcpy(par->io_virt + 0x10000, data, 4 * size);
+	iowrite32_rep(par->io_virt + 0x10000, data, size);
 }
 
 static void blade_copy_rect(struct tridentfb_par *par,
@@ -673,8 +673,14 @@ static int get_nativex(struct tridentfb_par *par)
 static inline void set_lwidth(struct tridentfb_par *par, int width)
 {
 	write3X4(par, VGA_CRTC_OFFSET, width & 0xFF);
-	write3X4(par, AddColReg,
-		 (read3X4(par, AddColReg) & 0xCF) | ((width & 0x300) >> 4));
+	/* chips older than TGUI9660 have only 1 width bit in AddColReg */
+	/* touching the other one breaks I2C/DDC */
+	if (par->chip_id == TGUI9440 || par->chip_id == CYBER9320)
+		write3X4(par, AddColReg,
+		     (read3X4(par, AddColReg) & 0xEF) | ((width & 0x100) >> 4));
+	else
+		write3X4(par, AddColReg,
+		     (read3X4(par, AddColReg) & 0xCF) | ((width & 0x300) >> 4));
 }
 
 /* For resolutions smaller than FP resolution stretch */

@@ -117,7 +117,6 @@ static int sa1100_probe_subdev(struct sa_subdev_info *subdev, struct resource *r
 		ret = -ENXIO;
 		goto err;
 	}
-	subdev->mtd->owner = THIS_MODULE;
 
 	printk(KERN_INFO "SA1100 flash: CFI device at 0x%08lx, %uMiB, %d-bit\n",
 		phys, (unsigned)(subdev->mtd->size >> 20),
@@ -234,6 +233,7 @@ static struct sa_info *sa1100_setup_mtd(struct platform_device *pdev,
 		if (info->mtd == NULL)
 			ret = -ENXIO;
 	}
+	info->mtd->dev.parent = &pdev->dev;
 
 	if (ret == 0)
 		return info;
@@ -274,7 +274,7 @@ static int sa1100_mtd_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int __exit sa1100_mtd_remove(struct platform_device *pdev)
+static int sa1100_mtd_remove(struct platform_device *pdev)
 {
 	struct sa_info *info = platform_get_drvdata(pdev);
 	struct flash_platform_data *plat = dev_get_platdata(&pdev->dev);
@@ -286,7 +286,7 @@ static int __exit sa1100_mtd_remove(struct platform_device *pdev)
 
 static struct platform_driver sa1100_mtd_driver = {
 	.probe		= sa1100_mtd_probe,
-	.remove		= __exit_p(sa1100_mtd_remove),
+	.remove		= sa1100_mtd_remove,
 	.driver		= {
 		.name	= "sa1100-mtd",
 	},

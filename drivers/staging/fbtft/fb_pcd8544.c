@@ -15,10 +15,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -33,8 +29,8 @@
 #define DRVNAME	       "fb_pcd8544"
 #define WIDTH          84
 #define HEIGHT         48
-#define TXBUFLEN       (84*6)
-#define DEFAULT_GAMMA  "40" /* gamma is used to control contrast in this driver */
+#define TXBUFLEN       (84 * 6)
+#define DEFAULT_GAMMA  "40" /* gamma controls the contrast in this driver */
 
 static unsigned tc;
 module_param(tc, uint, 0);
@@ -44,102 +40,105 @@ static unsigned bs = 4;
 module_param(bs, uint, 0);
 MODULE_PARM_DESC(bs, "BS[2:0] Bias voltage level: 0-7 (default: 4)");
 
-
 static int init_display(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	par->fbtftops.reset(par);
 
-	/* Function set */
-	write_reg(par, 0x21); /* 5:1  1
-	                         2:0  PD - Powerdown control: chip is active
-							 1:0  V  - Entry mode: horizontal addressing
-							 0:1  H  - Extended instruction set control: extended
-						  */
+	/* Function set
+	 *
+	 * 5:1  1
+	 * 2:0  PD - Powerdown control: chip is active
+	 * 1:0  V  - Entry mode: horizontal addressing
+	 * 0:1  H  - Extended instruction set control: extended
+	 */
+	write_reg(par, 0x21);
 
-	/* H=1 Temperature control */
-	write_reg(par, 0x04 | (tc & 0x3)); /*
-	                         2:1  1
-	                         1:x  TC1 - Temperature Coefficient: 0x10
-							 0:x  TC0
-						  */
+	/* H=1 Temperature control
+	 *
+	 * 2:1  1
+	 * 1:x  TC1 - Temperature Coefficient: 0x10
+	 * 0:x  TC0
+	 */
+	write_reg(par, 0x04 | (tc & 0x3));
 
-	/* H=1 Bias system */
-	write_reg(par, 0x10 | (bs & 0x7)); /*
-	                         4:1  1
-	                         3:0  0
-							 2:x  BS2 - Bias System
-							 1:x  BS1
-							 0:x  BS0
-	                      */
+	/* H=1 Bias system
+	 *
+	 * 4:1  1
+	 * 3:0  0
+	 * 2:x  BS2 - Bias System
+	 * 1:x  BS1
+	 * 0:x  BS0
+	 */
+	write_reg(par, 0x10 | (bs & 0x7));
 
-	/* Function set */
-	write_reg(par, 0x22); /* 5:1  1
-	                         2:0  PD - Powerdown control: chip is active
-							 1:1  V  - Entry mode: vertical addressing
-							 0:0  H  - Extended instruction set control: basic
-						  */
+	/* Function set
+	 *
+	 * 5:1  1
+	 * 2:0  PD - Powerdown control: chip is active
+	 * 1:1  V  - Entry mode: vertical addressing
+	 * 0:0  H  - Extended instruction set control: basic
+	 */
+	write_reg(par, 0x22);
 
-	/* H=0 Display control */
-	write_reg(par, 0x08 | 4); /*
-	                         3:1  1
-	                         2:1  D  - DE: 10=normal mode
-							 1:0  0
-							 0:0  E
-						  */
+	/* H=0 Display control
+	 *
+	 * 3:1  1
+	 * 2:1  D  - DE: 10=normal mode
+	 * 1:0  0
+	 * 0:0  E
+	 */
+	write_reg(par, 0x08 | 4);
 
 	return 0;
 }
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par, "%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__, xs, ys, xe, ye);
+	/* H=0 Set X address of RAM
+	 *
+	 * 7:1  1
+	 * 6-0: X[6:0] - 0x00
+	 */
+	write_reg(par, 0x80);
 
-	/* H=0 Set X address of RAM */
-	write_reg(par, 0x80); /* 7:1  1
-	                         6-0: X[6:0] - 0x00
-	                      */
-
-	/* H=0 Set Y address of RAM */
-	write_reg(par, 0x40); /* 7:0  0
-	                         6:1  1
-	                         2-0: Y[2:0] - 0x0
-	                      */
+	/* H=0 Set Y address of RAM
+	 *
+	 * 7:0  0
+	 * 6:1  1
+	 * 2-0: Y[2:0] - 0x0
+	 */
+	write_reg(par, 0x40);
 }
 
 static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 {
-	u16 *vmem16 = (u16 *)par->info->screen_base;
+	u16 *vmem16 = (u16 *)par->info->screen_buffer;
 	u8 *buf = par->txbuf.buf;
 	int x, y, i;
 	int ret = 0;
 
-	fbtft_par_dbg(DEBUG_WRITE_VMEM, par, "%s()\n", __func__);
-
 	for (x = 0; x < 84; x++) {
 		for (y = 0; y < 6; y++) {
 			*buf = 0x00;
-			for (i = 0; i < 8; i++) {
-				*buf |= (vmem16[(y*8+i)*84+x] ? 1 : 0) << i;
-			}
+			for (i = 0; i < 8; i++)
+				*buf |= (vmem16[(y * 8 + i) * 84 + x] ?
+					 1 : 0) << i;
 			buf++;
 		}
 	}
 
 	/* Write data */
 	gpio_set_value(par->gpio.dc, 1);
-	ret = par->fbtftops.write(par, par->txbuf.buf, 6*84);
+	ret = par->fbtftops.write(par, par->txbuf.buf, 6 * 84);
 	if (ret < 0)
-		dev_err(par->info->device, "%s: write failed and returned: %d\n", __func__, ret);
+		dev_err(par->info->device, "write failed and returned: %d\n",
+			ret);
 
 	return ret;
 }
 
 static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	/* apply mask */
 	curves[0] &= 0x7F;
 
@@ -149,7 +148,6 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 
 	return 0;
 }
-
 
 static struct fbtft_display display = {
 	.regwidth = 8,
@@ -167,6 +165,7 @@ static struct fbtft_display display = {
 	},
 	.backlight = 1,
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "philips,pdc8544", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

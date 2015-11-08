@@ -6,13 +6,14 @@
 #ifndef _S390_PTRACE_H
 #define _S390_PTRACE_H
 
+#include <linux/const.h>
 #include <uapi/asm/ptrace.h>
 
 #define PIF_SYSCALL		0	/* inside a system call */
 #define PIF_PER_TRAP		1	/* deliver sigtrap on return to user */
 
-#define _PIF_SYSCALL		(1<<PIF_SYSCALL)
-#define _PIF_PER_TRAP		(1<<PIF_PER_TRAP)
+#define _PIF_SYSCALL		_BITUL(PIF_SYSCALL)
+#define _PIF_PER_TRAP		_BITUL(PIF_PER_TRAP)
 
 #ifndef __ASSEMBLY__
 
@@ -40,12 +41,8 @@ struct psw_bits {
 	unsigned long long ri	: 1; /* Runtime Instrumentation */
 	unsigned long long	: 6;
 	unsigned long long eaba : 2; /* Addressing Mode */
-#ifdef CONFIG_64BIT
 	unsigned long long	: 31;
 	unsigned long long ia	: 64;/* Instruction Address */
-#else
-	unsigned long long ia	: 31;/* Instruction Address */
-#endif
 };
 
 enum {
@@ -132,17 +129,17 @@ struct per_struct_kernel {
 
 static inline void set_pt_regs_flag(struct pt_regs *regs, int flag)
 {
-	regs->flags |= (1U << flag);
+	regs->flags |= (1UL << flag);
 }
 
 static inline void clear_pt_regs_flag(struct pt_regs *regs, int flag)
 {
-	regs->flags &= ~(1U << flag);
+	regs->flags &= ~(1UL << flag);
 }
 
 static inline int test_pt_regs_flag(struct pt_regs *regs, int flag)
 {
-	return !!(regs->flags & (1U << flag));
+	return !!(regs->flags & (1UL << flag));
 }
 
 /*

@@ -10,6 +10,7 @@
  * Copyright 2008, 2009 Luis R. Rodriguez <lrodriguez@atheros.com>
  * Copyright 2008 Jouni Malinen <jouni.malinen@atheros.com>
  * Copyright 2008 Colin McCabe <colin@cozybit.com>
+ * Copyright 2015	Intel Deutschland GmbH
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -23,6 +24,19 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
+ */
+
+/*
+ * This header file defines the userspace API to the wireless stack. Please
+ * be careful not to break things - i.e. don't move anything around or so
+ * unless you can demonstrate that it breaks neither API nor ABI.
+ *
+ * Additions to the API should be accompanied by actual implementations in
+ * an upstream driver, so that example implementations exist in case there
+ * are ever concerns about the precise semantics of the API or changes are
+ * needed, and to ensure that code for dead (no longer implemented) API
+ * can actually be identified and removed.
+ * Nonetheless, semantics should also be documented carefully in this file.
  */
 
 #include <linux/types.h>
@@ -315,7 +329,15 @@
  *	partial scan results may be available
  *
  * @NL80211_CMD_START_SCHED_SCAN: start a scheduled scan at certain
- *	intervals, as specified by %NL80211_ATTR_SCHED_SCAN_INTERVAL.
+ *	intervals and certain number of cycles, as specified by
+ *	%NL80211_ATTR_SCHED_SCAN_PLANS. If %NL80211_ATTR_SCHED_SCAN_PLANS is
+ *	not specified and only %NL80211_ATTR_SCHED_SCAN_INTERVAL is specified,
+ *	scheduled scan will run in an infinite loop with the specified interval.
+ *	These attributes are mutually exculsive,
+ *	i.e. NL80211_ATTR_SCHED_SCAN_INTERVAL must not be passed if
+ *	NL80211_ATTR_SCHED_SCAN_PLANS is defined.
+ *	If for some reason scheduled scan is aborted by the driver, all scan
+ *	plans are canceled (including scan plans that did not start yet).
  *	Like with normal scans, if SSIDs (%NL80211_ATTR_SCAN_SSIDS)
  *	are passed, they are used in the probe requests.  For
  *	broadcast, a broadcast SSID must be passed (ie. an empty
@@ -1684,6 +1706,10 @@ enum nl80211_commands {
  *	If set during scheduled scan start then the new scan req will be
  *	owned by the netlink socket that created it and the scheduled scan will
  *	be stopped when the socket is closed.
+ *	If set during configuration of regulatory indoor operation then the
+ *	regulatory indoor configuration would be owned by the netlink socket
+ *	that configured the indoor setting, and the indoor operation would be
+ *	cleared when the socket is closed.
  *
  * @NL80211_ATTR_TDLS_INITIATOR: flag attribute indicating the current end is
  *	the TDLS link initiator.
@@ -1737,8 +1763,25 @@ enum nl80211_commands {
  *	should be contained in the result as the sum of the respective counters
  *	over all channels.
  *
- * @NL80211_ATTR_SCHED_SCAN_DELAY: delay before a scheduled scan (or a
- *	WoWLAN net-detect scan) is started, u32 in seconds.
+ * @NL80211_ATTR_SCHED_SCAN_DELAY: delay before the first cycle of a
+ *	scheduled scan (or a WoWLAN net-detect scan) is started, u32
+ *	in seconds.
+
+ * @NL80211_ATTR_REG_INDOOR: flag attribute, if set indicates that the device
+ *      is operating in an indoor environment.
+ *
+ * @NL80211_ATTR_MAX_NUM_SCHED_SCAN_PLANS: maximum number of scan plans for
+ *	scheduled scan supported by the device (u32), a wiphy attribute.
+ * @NL80211_ATTR_MAX_SCAN_PLAN_INTERVAL: maximum interval (in seconds) for
+ *	a scan plan (u32), a wiphy attribute.
+ * @NL80211_ATTR_MAX_SCAN_PLAN_ITERATIONS: maximum number of iterations in
+ *	a scan plan (u32), a wiphy attribute.
+ * @NL80211_ATTR_SCHED_SCAN_PLANS: a list of scan plans for scheduled scan.
+ *	Each scan plan defines the number of scan iterations and the interval
+ *	between scans. The last scan plan will always run infinitely,
+ *	thus it must not specify the number of iterations, only the interval
+ *	between scans. The scan plans are executed sequentially.
+ *	Each scan plan is a nested attribute of &enum nl80211_sched_scan_plan.
  *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
@@ -2106,6 +2149,13 @@ enum nl80211_attrs {
 	NL80211_ATTR_NETNS_FD,
 
 	NL80211_ATTR_SCHED_SCAN_DELAY,
+
+	NL80211_ATTR_REG_INDOOR,
+
+	NL80211_ATTR_MAX_NUM_SCHED_SCAN_PLANS,
+	NL80211_ATTR_MAX_SCAN_PLAN_INTERVAL,
+	NL80211_ATTR_MAX_SCAN_PLAN_ITERATIONS,
+	NL80211_ATTR_SCHED_SCAN_PLANS,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -2597,16 +2647,17 @@ enum nl80211_band_attr {
  *	an indoor surroundings, i.e., it is connected to AC power (and not
  *	through portable DC inverters) or is under the control of a master
  *	that is acting as an AP and is connected to AC power.
- * @NL80211_FREQUENCY_ATTR_GO_CONCURRENT: GO operation is allowed on this
+ * @NL80211_FREQUENCY_ATTR_IR_CONCURRENT: IR operation is allowed on this
  *	channel if it's connected concurrently to a BSS on the same channel on
  *	the 2 GHz band or to a channel in the same UNII band (on the 5 GHz
- *	band), and IEEE80211_CHAN_RADAR is not set. Instantiating a GO on a
- *	channel that has the GO_CONCURRENT attribute set can be done when there
- *	is a clear assessment that the device is operating under the guidance of
- *	an authorized master, i.e., setting up a GO while the device is also
- *	connected to an AP with DFS and radar detection on the UNII band (it is
- *	up to user-space, i.e., wpa_supplicant to perform the required
- *	verifications)
+ *	band), and IEEE80211_CHAN_RADAR is not set. Instantiating a GO or TDLS
+ *	off-channel on a channel that has the IR_CONCURRENT attribute set can be
+ *	done when there is a clear assessment that the device is operating under
+ *	the guidance of an authorized master, i.e., setting up a GO or TDLS
+ *	off-channel while the device is also connected to an AP with DFS and
+ *	radar detection on the UNII band (it is up to user-space, i.e.,
+ *	wpa_supplicant to perform the required verifications). Using this
+ *	attribute for IR is disallowed for master interfaces (IBSS, AP).
  * @NL80211_FREQUENCY_ATTR_NO_20MHZ: 20 MHz operation is not allowed
  *	on this channel in current regulatory domain.
  * @NL80211_FREQUENCY_ATTR_NO_10MHZ: 10 MHz operation is not allowed
@@ -2618,7 +2669,7 @@ enum nl80211_band_attr {
  * See https://apps.fcc.gov/eas/comments/GetPublishedDocument.html?id=327&tn=528122
  * for more information on the FCC description of the relaxations allowed
  * by NL80211_FREQUENCY_ATTR_INDOOR_ONLY and
- * NL80211_FREQUENCY_ATTR_GO_CONCURRENT.
+ * NL80211_FREQUENCY_ATTR_IR_CONCURRENT.
  */
 enum nl80211_frequency_attr {
 	__NL80211_FREQUENCY_ATTR_INVALID,
@@ -2636,7 +2687,7 @@ enum nl80211_frequency_attr {
 	NL80211_FREQUENCY_ATTR_NO_160MHZ,
 	NL80211_FREQUENCY_ATTR_DFS_CAC_TIME,
 	NL80211_FREQUENCY_ATTR_INDOOR_ONLY,
-	NL80211_FREQUENCY_ATTR_GO_CONCURRENT,
+	NL80211_FREQUENCY_ATTR_IR_CONCURRENT,
 	NL80211_FREQUENCY_ATTR_NO_20MHZ,
 	NL80211_FREQUENCY_ATTR_NO_10MHZ,
 
@@ -2649,6 +2700,8 @@ enum nl80211_frequency_attr {
 #define NL80211_FREQUENCY_ATTR_PASSIVE_SCAN	NL80211_FREQUENCY_ATTR_NO_IR
 #define NL80211_FREQUENCY_ATTR_NO_IBSS		NL80211_FREQUENCY_ATTR_NO_IR
 #define NL80211_FREQUENCY_ATTR_NO_IR		NL80211_FREQUENCY_ATTR_NO_IR
+#define NL80211_FREQUENCY_ATTR_GO_CONCURRENT \
+					NL80211_FREQUENCY_ATTR_IR_CONCURRENT
 
 /**
  * enum nl80211_bitrate_attr - bitrate attributes
@@ -2807,7 +2860,7 @@ enum nl80211_sched_scan_match_attr {
  * @NL80211_RRF_AUTO_BW: maximum available bandwidth should be calculated
  *	base on contiguous rules and wider channels will be allowed to cross
  *	multiple contiguous/overlapping frequency ranges.
- * @NL80211_RRF_GO_CONCURRENT: See &NL80211_FREQUENCY_ATTR_GO_CONCURRENT
+ * @NL80211_RRF_IR_CONCURRENT: See &NL80211_FREQUENCY_ATTR_IR_CONCURRENT
  * @NL80211_RRF_NO_HT40MINUS: channels can't be used in HT40- operation
  * @NL80211_RRF_NO_HT40PLUS: channels can't be used in HT40+ operation
  * @NL80211_RRF_NO_80MHZ: 80MHz operation not allowed
@@ -2824,7 +2877,7 @@ enum nl80211_reg_rule_flags {
 	NL80211_RRF_NO_IR		= 1<<7,
 	__NL80211_RRF_NO_IBSS		= 1<<8,
 	NL80211_RRF_AUTO_BW		= 1<<11,
-	NL80211_RRF_GO_CONCURRENT	= 1<<12,
+	NL80211_RRF_IR_CONCURRENT	= 1<<12,
 	NL80211_RRF_NO_HT40MINUS	= 1<<13,
 	NL80211_RRF_NO_HT40PLUS		= 1<<14,
 	NL80211_RRF_NO_80MHZ		= 1<<15,
@@ -2836,6 +2889,7 @@ enum nl80211_reg_rule_flags {
 #define NL80211_RRF_NO_IR		NL80211_RRF_NO_IR
 #define NL80211_RRF_NO_HT40		(NL80211_RRF_NO_HT40MINUS |\
 					 NL80211_RRF_NO_HT40PLUS)
+#define NL80211_RRF_GO_CONCURRENT	NL80211_RRF_IR_CONCURRENT
 
 /* For backport compatibility with older userspace */
 #define NL80211_RRF_NO_IR_ALL		(NL80211_RRF_NO_IR | __NL80211_RRF_NO_IBSS)
@@ -3092,7 +3146,8 @@ enum nl80211_mesh_power_mode {
  *
  * @NL80211_MESHCONF_PLINK_TIMEOUT: If no tx activity is seen from a STA we've
  *	established peering with for longer than this time (in seconds), then
- *	remove it from the STA's list of peers.  Default is 30 minutes.
+ *	remove it from the STA's list of peers. You may set this to 0 to disable
+ *	the removal of the STA. Default is 30 minutes.
  *
  * @__NL80211_MESHCONF_ATTR_AFTER_LAST: internal use
  */
@@ -3336,6 +3391,9 @@ enum nl80211_bss_scan_width {
  *	(not present if no beacon frame has been received yet)
  * @NL80211_BSS_PRESP_DATA: the data in @NL80211_BSS_INFORMATION_ELEMENTS and
  *	@NL80211_BSS_TSF is known to be from a probe response (flag attribute)
+ * @NL80211_BSS_LAST_SEEN_BOOTTIME: CLOCK_BOOTTIME timestamp when this entry
+ *	was last updated by a received frame. The value is expected to be
+ *	accurate to about 10ms. (u64, nanoseconds)
  * @__NL80211_BSS_AFTER_LAST: internal
  * @NL80211_BSS_MAX: highest BSS attribute
  */
@@ -3355,6 +3413,7 @@ enum nl80211_bss {
 	NL80211_BSS_CHAN_WIDTH,
 	NL80211_BSS_BEACON_TSF,
 	NL80211_BSS_PRESP_DATA,
+	NL80211_BSS_LAST_SEEN_BOOTTIME,
 
 	/* keep last */
 	__NL80211_BSS_AFTER_LAST,
@@ -3694,6 +3753,8 @@ struct nl80211_pattern_support {
  * @NL80211_WOWLAN_TRIG_ANY: wake up on any activity, do not really put
  *	the chip into a special state -- works best with chips that have
  *	support for low-power operation already (flag)
+ *	Note that this mode is incompatible with all of the others, if
+ *	any others are even supported by the device.
  * @NL80211_WOWLAN_TRIG_DISCONNECT: wake up on disconnect, the way disconnect
  *	is detected is implementation-specific (flag)
  * @NL80211_WOWLAN_TRIG_MAGIC_PKT: wake up on magic packet (6x 0xff, followed
@@ -4327,11 +4388,13 @@ enum nl80211_feature_flags {
 
 /**
  * enum nl80211_ext_feature_index - bit index of extended features.
+ * @NL80211_EXT_FEATURE_VHT_IBSS: This driver supports IBSS with VHT datarates.
  *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
  */
 enum nl80211_ext_feature_index {
+	NL80211_EXT_FEATURE_VHT_IBSS,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,
@@ -4555,6 +4618,30 @@ enum nl80211_tdls_peer_capability {
 	NL80211_TDLS_PEER_HT = 1<<0,
 	NL80211_TDLS_PEER_VHT = 1<<1,
 	NL80211_TDLS_PEER_WMM = 1<<2,
+};
+
+/**
+ * enum nl80211_sched_scan_plan - scanning plan for scheduled scan
+ * @__NL80211_SCHED_SCAN_PLAN_INVALID: attribute number 0 is reserved
+ * @NL80211_SCHED_SCAN_PLAN_INTERVAL: interval between scan iterations. In
+ *	seconds (u32).
+ * @NL80211_SCHED_SCAN_PLAN_ITERATIONS: number of scan iterations in this
+ *	scan plan (u32). The last scan plan must not specify this attribute
+ *	because it will run infinitely. A value of zero is invalid as it will
+ *	make the scan plan meaningless.
+ * @NL80211_SCHED_SCAN_PLAN_MAX: highest scheduled scan plan attribute number
+ *	currently defined
+ * @__NL80211_SCHED_SCAN_PLAN_AFTER_LAST: internal use
+ */
+enum nl80211_sched_scan_plan {
+	__NL80211_SCHED_SCAN_PLAN_INVALID,
+	NL80211_SCHED_SCAN_PLAN_INTERVAL,
+	NL80211_SCHED_SCAN_PLAN_ITERATIONS,
+
+	/* keep last */
+	__NL80211_SCHED_SCAN_PLAN_AFTER_LAST,
+	NL80211_SCHED_SCAN_PLAN_MAX =
+		__NL80211_SCHED_SCAN_PLAN_AFTER_LAST - 1
 };
 
 #endif /* __LINUX_NL80211_H */

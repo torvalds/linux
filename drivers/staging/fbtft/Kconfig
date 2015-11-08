@@ -1,6 +1,7 @@
 menuconfig FB_TFT
 	tristate "Support for small TFT LCD display modules"
-	depends on FB && SPI && GPIOLIB
+	depends on FB && SPI
+	depends on GPIOLIB || COMPILE_TEST
 	select FB_SYS_FILLRECT
 	select FB_SYS_COPYAREA
 	select FB_SYS_IMAGEBLIT
@@ -12,7 +13,7 @@ config FB_TFT_AGM1264K_FL
 	tristate "FB driver for the AGM1264K-FL LCD display"
 	depends on FB_TFT
 	help
-	  Framebuffer support for the AGM1264K-FL LCD display (two Samsung KS0108 compatable chips)
+	  Framebuffer support for the AGM1264K-FL LCD display (two Samsung KS0108 compatible chips)
 
 config FB_TFT_BD663474
 	tristate "FB driver for the BD663474 LCD Controller"
@@ -37,6 +38,18 @@ config FB_TFT_HX8353D
 	depends on FB_TFT
 	help
 	  Generic Framebuffer support for HX8353D
+
+config FB_TFT_HX8357D
+	tristate "FB driver for the HX8357D LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for HX8357D
+
+config FB_TFT_ILI9163
+	tristate "FB driver for the ILI9163 LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for ILI9163
 
 config FB_TFT_ILI9320
 	tristate "FB driver for the ILI9320 LCD Controller"
@@ -128,6 +141,16 @@ config FB_TFT_ST7735R
 	help
 	  Generic Framebuffer support for ST7735R
 
+config FB_TFT_ST7789V
+	tristate "FB driver for the ST7789V LCD Controller"
+	depends on FB_TFT
+	help
+	  This enables generic framebuffer support for the Sitronix ST7789V
+	  display controller. The controller is intended for small color
+	  displays with a resolution of up to 320x240 pixels.
+
+	  Say Y if you have such a display that utilizes this controller.
+
 config FB_TFT_TINYLCD
 	tristate "FB driver for tinylcd.com display"
 	depends on FB_TFT
@@ -139,6 +162,12 @@ config FB_TFT_TLS8204
 	depends on FB_TFT
 	help
 	  Generic Framebuffer support for TLS8204
+
+config FB_TFT_UC1611
+	tristate "FB driver for the UC1611 LCD controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for UC1611
 
 config FB_TFT_UC1701
 	tristate "FB driver for the UC1701 LCD Controller"

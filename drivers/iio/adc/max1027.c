@@ -436,7 +436,7 @@ static int max1027_probe(struct spi_device *spi)
 				  indio_dev->num_channels * 2,
 				  GFP_KERNEL);
 	if (st->buffer == NULL) {
-		dev_err(&indio_dev->dev, "Can't allocate bufffer\n");
+		dev_err(&indio_dev->dev, "Can't allocate buffer\n");
 		return -ENOMEM;
 	}
 
@@ -508,7 +508,7 @@ static int max1027_remove(struct spi_device *spi)
 static struct spi_driver max1027_driver = {
 	.driver = {
 		.name	= "max1027",
-		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(max1027_adc_dt_ids),
 	},
 	.probe		= max1027_probe,
 	.remove		= max1027_remove,

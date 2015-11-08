@@ -419,4 +419,51 @@ config DA_CONSOLE
 	help
 	  This enables a console on a Dash channel.
 
+config MIPS_EJTAG_FDC_TTY
+	bool "MIPS EJTAG Fast Debug Channel TTY"
+	depends on MIPS_CDMM
+	help
+	  This enables a TTY and console on the MIPS EJTAG Fast Debug Channels,
+	  if they are present. This can be useful when working with an EJTAG
+	  probe which supports it, to get console output and a login prompt via
+	  EJTAG without needing to connect a serial cable.
+
+	  TTY devices are named e.g. ttyFDC3c2 (for FDC channel 2 of the FDC on
+	  CPU3).
+
+	  The console can be enabled with console=fdc1 (for FDC channel 1 on all
+	  CPUs). Do not use the console unless there is a debug probe attached
+	  to drain the FDC TX FIFO.
+
+	  If unsure, say N.
+
+config MIPS_EJTAG_FDC_EARLYCON
+	bool "Early FDC console"
+	depends on MIPS_EJTAG_FDC_TTY
+	help
+	  This registers a console on FDC channel 1 very early during boot (from
+	  MIPS arch code). This is useful for bring-up and debugging early boot
+	  issues.
+
+	  Do not enable unless there is a debug probe attached to drain the FDC
+	  TX FIFO.
+
+	  If unsure, say N.
+
+config MIPS_EJTAG_FDC_KGDB
+	bool "Use KGDB over an FDC channel"
+	depends on MIPS_EJTAG_FDC_TTY && KGDB
+	default y
+	help
+          This enables the use of KGDB over an FDC channel, allowing KGDB to be
+          used remotely or when a serial port isn't available.
+
+config MIPS_EJTAG_FDC_KGDB_CHAN
+	int "KGDB FDC channel"
+	depends on MIPS_EJTAG_FDC_KGDB
+	range 2 15
+	default 3
+	help
+	  FDC channel number to use for KGDB.
+
 endif # TTY

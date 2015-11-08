@@ -687,7 +687,7 @@ static int newport_scroll(struct vc_data *vc, int t, int b, int dir,
 static void newport_bmove(struct vc_data *vc, int sy, int sx, int dy,
 			  int dx, int h, int w)
 {
-	short xs, ys, xe, ye, xoffs, yoffs, tmp;
+	short xs, ys, xe, ye, xoffs, yoffs;
 
 	xs = sx << 3;
 	xe = ((sx + w) << 3) - 1;
@@ -701,9 +701,7 @@ static void newport_bmove(struct vc_data *vc, int sy, int sx, int dy,
 	yoffs = (dy - sy) << 4;
 	if (xoffs > 0) {
 		/* move to the right, exchange starting points */
-		tmp = xe;
-		xe = xs;
-		xs = tmp;
+		swap(xe, xs);
 	}
 	newport_wait(npregs);
 	npregs->set.drawmode0 = (NPORT_DMODE0_S2S | NPORT_DMODE0_BLOCK |

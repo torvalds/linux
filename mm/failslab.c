@@ -3,12 +3,12 @@
 
 static struct {
 	struct fault_attr attr;
-	u32 ignore_gfp_wait;
-	int cache_filter;
+	bool ignore_gfp_reclaim;
+	bool cache_filter;
 } failslab = {
 	.attr = FAULT_ATTR_INITIALIZER,
-	.ignore_gfp_wait = 1,
-	.cache_filter = 0,
+	.ignore_gfp_reclaim = true,
+	.cache_filter = false,
 };
 
 bool should_failslab(size_t size, gfp_t gfpflags, unsigned long cache_flags)
@@ -16,7 +16,7 @@ bool should_failslab(size_t size, gfp_t gfpflags, unsigned long cache_flags)
 	if (gfpflags & __GFP_NOFAIL)
 		return false;
 
-        if (failslab.ignore_gfp_wait && (gfpflags & __GFP_WAIT))
+	if (failslab.ignore_gfp_reclaim && (gfpflags & __GFP_RECLAIM))
 		return false;
 
 	if (failslab.cache_filter && !(cache_flags & SLAB_FAILSLAB))
@@ -42,7 +42,7 @@ static int __init failslab_debugfs_init(void)
 		return PTR_ERR(dir);
 
 	if (!debugfs_create_bool("ignore-gfp-wait", mode, dir,
-				&failslab.ignore_gfp_wait))
+				&failslab.ignore_gfp_reclaim))
 		goto fail;
 	if (!debugfs_create_bool("cache-filter", mode, dir,
 				&failslab.cache_filter))

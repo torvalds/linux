@@ -19,8 +19,8 @@
 #include <linux/module.h>
 #include <linux/smp.h>
 #include <linux/pci.h>
-#include <linux/irqdomain.h>
 
+#include <asm/irqdomain.h>
 #include <asm/mtrr.h>
 #include <asm/mpspec.h>
 #include <asm/pgalloc.h>
@@ -112,11 +112,6 @@ static void __init MP_bus_info(struct mpc_bus *m)
 	} else
 		pr_warn("Unknown bustype %s - ignoring\n", str);
 }
-
-static struct irq_domain_ops mp_ioapic_irqdomain_ops = {
-	.map = mp_irqdomain_map,
-	.unmap = mp_irqdomain_unmap,
-};
 
 static void __init MP_ioapic_info(struct mpc_ioapic *m)
 {

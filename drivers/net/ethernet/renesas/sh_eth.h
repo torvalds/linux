@@ -32,6 +32,10 @@
 #define SH_ETH_TSU_CAM_ENTRIES	32
 
 enum {
+	/* IMPORTANT: To keep ethtool register dump working, add new
+	 * register names immediately before SH_ETH_MAX_REGISTER_OFFSET.
+	 */
+
 	/* E-DMAC registers */
 	EDSR = 0,
 	EDMR,
@@ -131,9 +135,7 @@ enum {
 	TSU_POST3,
 	TSU_POST4,
 	TSU_ADRH0,
-	TSU_ADRL0,
-	TSU_ADRH31,
-	TSU_ADRL31,
+	/* TSU_ADR{H,L}{0..31} are assumed to be contiguous */
 
 	TXNLCR0,
 	TXALCR0,
@@ -283,7 +285,7 @@ enum DMAC_IM_BIT {
 
 /* Receive descriptor bit */
 enum RD_STS_BIT {
-	RD_RACT = 0x80000000, RD_RDEL = 0x40000000,
+	RD_RACT = 0x80000000, RD_RDLE = 0x40000000,
 	RD_RFP1 = 0x20000000, RD_RFP0 = 0x10000000,
 	RD_RFE = 0x08000000, RD_RFS10 = 0x00000200,
 	RD_RFS9 = 0x00000100, RD_RFS8 = 0x00000080,
@@ -491,6 +493,7 @@ struct sh_eth_cpu_data {
 	unsigned select_mii:1;	/* EtherC have RMII_MII (MII select register) */
 	unsigned shift_rd0:1;	/* shift Rx descriptor word 0 right by 16 */
 	unsigned rmiimode:1;	/* EtherC has RMIIMODE register */
+	unsigned rtrate:1;	/* EtherC has RTRATE register */
 };
 
 struct sh_eth_private {
@@ -543,19 +546,29 @@ static inline void sh_eth_soft_swap(char *src, int len)
 #endif
 }
 
+#define SH_ETH_OFFSET_INVALID	((u16) ~0)
+
 static inline void sh_eth_write(struct net_device *ndev, u32 data,
 				int enum_index)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
+	u16 offset = mdp->reg_offset[enum_index];
 
-	iowrite32(data, mdp->addr + mdp->reg_offset[enum_index]);
+	if (WARN_ON(offset == SH_ETH_OFFSET_INVALID))
+		return;
+
+	iowrite32(data, mdp->addr + offset);
 }
 
 static inline u32 sh_eth_read(struct net_device *ndev, int enum_index)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
+	u16 offset = mdp->reg_offset[enum_index];
 
-	return ioread32(mdp->addr + mdp->reg_offset[enum_index]);
+	if (WARN_ON(offset == SH_ETH_OFFSET_INVALID))
+		return ~0U;
+
+	return ioread32(mdp->addr + offset);
 }
 
 static inline void *sh_eth_tsu_get_offset(struct sh_eth_private *mdp,

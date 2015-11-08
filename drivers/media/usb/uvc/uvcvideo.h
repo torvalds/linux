@@ -15,7 +15,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-fh.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 
 /* --------------------------------------------------------------------------
  * UVC constants
@@ -354,7 +354,7 @@ enum uvc_buffer_state {
 };
 
 struct uvc_buffer {
-	struct vb2_buffer buf;
+	struct vb2_v4l2_buffer buf;
 	struct list_head queue;
 
 	enum uvc_buffer_state state;
@@ -443,7 +443,7 @@ struct uvc_stats_stream {
 struct uvc_streaming {
 	struct list_head list;
 	struct uvc_device *dev;
-	struct video_device *vdev;
+	struct video_device vdev;
 	struct uvc_video_chain *chain;
 	atomic_t active;
 
@@ -517,10 +517,6 @@ struct uvc_streaming {
 	} clock;
 };
 
-enum uvc_device_state {
-	UVC_DEV_DISCONNECTED = 1,
-};
-
 struct uvc_device {
 	struct usb_device *udev;
 	struct usb_interface *intf;
@@ -529,7 +525,6 @@ struct uvc_device {
 	int intfnum;
 	char name[32];
 
-	enum uvc_device_state state;
 	struct mutex lock;		/* Protects users */
 	unsigned int users;
 	atomic_t nmappings;
@@ -598,6 +593,7 @@ extern unsigned int uvc_clock_param;
 extern unsigned int uvc_no_drop_param;
 extern unsigned int uvc_trace_param;
 extern unsigned int uvc_timeout_param;
+extern unsigned int uvc_hw_timestamps_param;
 
 #define uvc_trace(flag, msg...) \
 	do { \
@@ -635,6 +631,8 @@ extern int uvc_create_buffers(struct uvc_video_queue *queue,
 		struct v4l2_create_buffers *v4l2_cb);
 extern int uvc_queue_buffer(struct uvc_video_queue *queue,
 		struct v4l2_buffer *v4l2_buf);
+extern int uvc_export_buffer(struct uvc_video_queue *queue,
+		struct v4l2_exportbuffer *exp);
 extern int uvc_dequeue_buffer(struct uvc_video_queue *queue,
 		struct v4l2_buffer *v4l2_buf, int nonblocking);
 extern int uvc_queue_streamon(struct uvc_video_queue *queue,
@@ -676,7 +674,7 @@ extern int uvc_probe_video(struct uvc_streaming *stream,
 extern int uvc_query_ctrl(struct uvc_device *dev, __u8 query, __u8 unit,
 		__u8 intfnum, __u8 cs, void *data, __u16 size);
 void uvc_video_clock_update(struct uvc_streaming *stream,
-			    struct v4l2_buffer *v4l2_buf,
+			    struct vb2_v4l2_buffer *vbuf,
 			    struct uvc_buffer *buf);
 
 /* Status */

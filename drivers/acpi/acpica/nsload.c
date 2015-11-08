@@ -111,7 +111,21 @@ acpi_ns_load_table(u32 table_index, struct acpi_namespace_node *node)
 	if (ACPI_SUCCESS(status)) {
 		acpi_tb_set_table_loaded_flag(table_index, TRUE);
 	} else {
-		(void)acpi_tb_release_owner_id(table_index);
+		/*
+		 * On error, delete any namespace objects created by this table.
+		 * We cannot initialize these objects, so delete them. There are
+		 * a couple of expecially bad cases:
+		 * AE_ALREADY_EXISTS - namespace collision.
+		 * AE_NOT_FOUND - the target of a Scope operator does not
+		 * exist. This target of Scope must already exist in the
+		 * namespace, as per the ACPI specification.
+		 */
+		(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
+		acpi_ns_delete_namespace_by_owner(acpi_gbl_root_table_list.
+						  tables[table_index].owner_id);
+		acpi_tb_release_owner_id(table_index);
+
+		return_ACPI_STATUS(status);
 	}
 
 unlock:

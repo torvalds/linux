@@ -154,10 +154,10 @@ static void mxs_flip_edge(struct mxs_gpio_port *port, u32 gpio)
 }
 
 /* MXS has one interrupt *per* gpio port */
-static void mxs_gpio_irq_handler(u32 irq, struct irq_desc *desc)
+static void mxs_gpio_irq_handler(struct irq_desc *desc)
 {
 	u32 irq_stat;
-	struct mxs_gpio_port *port = irq_get_handler_data(irq);
+	struct mxs_gpio_port *port = irq_desc_get_handler_data(desc);
 
 	desc->irq_data.chip->irq_ack(&desc->irq_data);
 
@@ -196,13 +196,16 @@ static int mxs_gpio_set_wake_irq(struct irq_data *d, unsigned int enable)
 	return 0;
 }
 
-static void __init mxs_gpio_init_gc(struct mxs_gpio_port *port, int irq_base)
+static int __init mxs_gpio_init_gc(struct mxs_gpio_port *port, int irq_base)
 {
 	struct irq_chip_generic *gc;
 	struct irq_chip_type *ct;
 
 	gc = irq_alloc_generic_chip("gpio-mxs", 1, irq_base,
 				    port->base, handle_level_irq);
+	if (!gc)
+		return -ENOMEM;
+
 	gc->private = port;
 
 	ct = gc->chip_types;
@@ -216,6 +219,8 @@ static void __init mxs_gpio_init_gc(struct mxs_gpio_port *port, int irq_base)
 
 	irq_setup_generic_chip(gc, IRQ_MSK(32), IRQ_GC_INIT_NESTED_LOCK,
 			       IRQ_NOREQUEST, 0);
+
+	return 0;
 }
 
 static int mxs_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
@@ -239,7 +244,7 @@ static int mxs_gpio_get_direction(struct gpio_chip *gc, unsigned offset)
 	return !(dir & mask);
 }
 
-static struct platform_device_id mxs_gpio_ids[] = {
+static const struct platform_device_id mxs_gpio_ids[] = {
 	{
 		.name = "imx23-gpio",
 		.driver_data = IMX23_GPIO,
@@ -317,11 +322,13 @@ static int mxs_gpio_probe(struct platform_device *pdev)
 	}
 
 	/* gpio-mxs can be a generic irq chip */
-	mxs_gpio_init_gc(port, irq_base);
+	err = mxs_gpio_init_gc(port, irq_base);
+	if (err < 0)
+		goto out_irqdomain_remove;
 
 	/* setup one handler for each entry */
-	irq_set_chained_handler(port->irq, mxs_gpio_irq_handler);
-	irq_set_handler_data(port->irq, port);
+	irq_set_chained_handler_and_data(port->irq, mxs_gpio_irq_handler,
+					 port);
 
 	err = bgpio_init(&port->bgc, &pdev->dev, 4,
 			 port->base + PINCTRL_DIN(port),
@@ -343,6 +350,8 @@ static int mxs_gpio_probe(struct platform_device *pdev)
 
 out_bgpio_remove:
 	bgpio_remove(&port->bgc);
+out_irqdomain_remove:
+	irq_domain_remove(port->domain);
 out_irqdesc_free:
 	irq_free_descs(irq_base, 32);
 	return err;

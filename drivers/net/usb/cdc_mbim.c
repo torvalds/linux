@@ -158,7 +158,7 @@ static int cdc_mbim_bind(struct usbnet *dev, struct usb_interface *intf)
 	if (!cdc_ncm_comm_intf_is_mbim(intf->cur_altsetting))
 		goto err;
 
-	ret = cdc_ncm_bind_common(dev, intf, data_altsetting);
+	ret = cdc_ncm_bind_common(dev, intf, data_altsetting, 0);
 	if (ret)
 		goto err;
 
@@ -342,7 +342,7 @@ static void do_neigh_solicit(struct usbnet *dev, u8 *buf, u16 tci)
 	in6_dev_put(in6_dev);
 
 	/* ipv6_stub != NULL if in6_dev_get returned an inet6_dev */
-	ipv6_stub->ndisc_send_na(netdev, NULL, &iph->saddr, &msg->target,
+	ipv6_stub->ndisc_send_na(netdev, &iph->saddr, &msg->target,
 				 is_router /* router */,
 				 true /* solicited */,
 				 false /* override */,
@@ -394,7 +394,7 @@ static struct sk_buff *cdc_mbim_process_dgram(struct usbnet *dev, u8 *buf, size_
 	skb_put(skb, ETH_HLEN);
 	skb_reset_mac_header(skb);
 	eth_hdr(skb)->h_proto = proto;
-	memset(eth_hdr(skb)->h_source, 0, ETH_ALEN);
+	eth_zero_addr(eth_hdr(skb)->h_source);
 	memcpy(eth_hdr(skb)->h_dest, dev->net->dev_addr, ETH_ALEN);
 
 	/* add datagram */

@@ -182,7 +182,7 @@ struct at91_adc_caps {
 	u8	ts_pen_detect_sensitivity;
 
 	/* startup time calculate function */
-	u32 (*calc_startup_ticks)(u8 startup_time, u32 adc_clk_khz);
+	u32 (*calc_startup_ticks)(u32 startup_time, u32 adc_clk_khz);
 
 	u8	num_channels;
 	struct at91_adc_reg_desc registers;
@@ -201,7 +201,7 @@ struct at91_adc_state {
 	u8			num_channels;
 	void __iomem		*reg_base;
 	struct at91_adc_reg_desc *registers;
-	u8			startup_time;
+	u32			startup_time;
 	u8			sample_hold_time;
 	bool			sleep_mode;
 	struct iio_trigger	**trig;
@@ -544,7 +544,6 @@ static int at91_adc_configure_trigger(struct iio_trigger *trig, bool state)
 {
 	struct iio_dev *idev = iio_trigger_get_drvdata(trig);
 	struct at91_adc_state *st = iio_priv(idev);
-	struct iio_buffer *buffer = idev->buffer;
 	struct at91_adc_reg_desc *reg = st->registers;
 	u32 status = at91_adc_readl(st, reg->trigger_register);
 	int value;
@@ -564,7 +563,7 @@ static int at91_adc_configure_trigger(struct iio_trigger *trig, bool state)
 		at91_adc_writel(st, reg->trigger_register,
 				status | value);
 
-		for_each_set_bit(bit, buffer->scan_mask,
+		for_each_set_bit(bit, idev->active_scan_mask,
 				 st->num_channels) {
 			struct iio_chan_spec const *chan = idev->channels + bit;
 			at91_adc_writel(st, AT91_ADC_CHER,
@@ -579,7 +578,7 @@ static int at91_adc_configure_trigger(struct iio_trigger *trig, bool state)
 		at91_adc_writel(st, reg->trigger_register,
 				status & ~value);
 
-		for_each_set_bit(bit, buffer->scan_mask,
+		for_each_set_bit(bit, idev->active_scan_mask,
 				 st->num_channels) {
 			struct iio_chan_spec const *chan = idev->channels + bit;
 			at91_adc_writel(st, AT91_ADC_CHDR,
@@ -780,7 +779,7 @@ ret:
 	return ret;
 }
 
-static u32 calc_startup_ticks_9260(u8 startup_time, u32 adc_clk_khz)
+static u32 calc_startup_ticks_9260(u32 startup_time, u32 adc_clk_khz)
 {
 	/*
 	 * Number of ticks needed to cover the startup time of the ADC
@@ -791,7 +790,7 @@ static u32 calc_startup_ticks_9260(u8 startup_time, u32 adc_clk_khz)
 	return round_up((startup_time * adc_clk_khz / 1000) - 1, 8) / 8;
 }
 
-static u32 calc_startup_ticks_9x5(u8 startup_time, u32 adc_clk_khz)
+static u32 calc_startup_ticks_9x5(u32 startup_time, u32 adc_clk_khz)
 {
 	/*
 	 * For sama5d3x and at91sam9x5, the formula changes to:

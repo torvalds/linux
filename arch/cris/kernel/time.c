@@ -39,31 +39,6 @@
 extern unsigned long loops_per_jiffy; /* init/main.c */
 unsigned long loops_per_usec;
 
-int set_rtc_mmss(unsigned long nowtime)
-{
-	D(printk(KERN_DEBUG "set_rtc_mmss(%lu)\n", nowtime));
-	return 0;
-}
-
-/* grab the time from the RTC chip */
-unsigned long get_cmos_time(void)
-{
-	return 0;
-}
-
-
-int update_persistent_clock(struct timespec now)
-{
-	return set_rtc_mmss(now.tv_sec);
-}
-
-void read_persistent_clock(struct timespec *ts)
-{
-	ts->tv_sec = 0;
-	ts->tv_nsec = 0;
-}
-
-
 extern void cris_profile_sample(struct pt_regs* regs);
 
 void
@@ -79,11 +54,13 @@ cris_do_profile(struct pt_regs* regs)
 #endif
 }
 
+#ifndef CONFIG_GENERIC_SCHED_CLOCK
 unsigned long long sched_clock(void)
 {
 	return (unsigned long long)jiffies * (NSEC_PER_SEC / HZ) +
 		get_ns_in_jiffie();
 }
+#endif
 
 static int
 __init init_udelay(void)

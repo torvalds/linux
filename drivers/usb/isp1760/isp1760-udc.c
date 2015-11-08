@@ -812,6 +812,8 @@ static struct usb_request *isp1760_ep_alloc_request(struct usb_ep *ep,
 	struct isp1760_request *req;
 
 	req = kzalloc(sizeof(*req), gfp_flags);
+	if (!req)
+		return NULL;
 
 	return &req->req;
 }
@@ -1203,7 +1205,7 @@ static int isp1760_udc_start(struct usb_gadget *gadget,
 
 	if (udc->driver) {
 		dev_err(udc->isp->dev, "UDC already has a gadget driver\n");
-		spin_unlock(&udc->lock);
+		spin_unlock_irqrestore(&udc->lock, flags);
 		return -EBUSY;
 	}
 
@@ -1380,14 +1382,25 @@ static void isp1760_udc_init_eps(struct isp1760_udc *udc)
 		 * This fits in the 8kB FIFO without double-buffering.
 		 */
 		if (ep_num == 0) {
-			ep->ep.maxpacket = 64;
+			usb_ep_set_maxpacket_limit(&ep->ep, 64);
+			ep->ep.caps.type_control = true;
+			ep->ep.caps.dir_in = true;
+			ep->ep.caps.dir_out = true;
 			ep->maxpacket = 64;
 			udc->gadget.ep0 = &ep->ep;
 		} else {
-			ep->ep.maxpacket = 512;
+			usb_ep_set_maxpacket_limit(&ep->ep, 512);
+			ep->ep.caps.type_iso = true;
+			ep->ep.caps.type_bulk = true;
+			ep->ep.caps.type_int = true;
 			ep->maxpacket = 0;
 			list_add_tail(&ep->ep.ep_list, &udc->gadget.ep_list);
 		}
+
+		if (is_in)
+			ep->ep.caps.dir_in = true;
+		else
+			ep->ep.caps.dir_out = true;
 	}
 }
 

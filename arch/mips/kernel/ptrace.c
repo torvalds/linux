@@ -25,6 +25,7 @@
 #include <linux/regset.h>
 #include <linux/smp.h>
 #include <linux/security.h>
+#include <linux/stddef.h>
 #include <linux/tracehook.h>
 #include <linux/audit.h>
 #include <linux/seccomp.h>
@@ -32,6 +33,7 @@
 
 #include <asm/byteorder.h>
 #include <asm/cpu.h>
+#include <asm/cpu-info.h>
 #include <asm/dsp.h>
 #include <asm/fpu.h>
 #include <asm/mipsregs.h>
@@ -45,6 +47,26 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
+
+static void init_fp_ctx(struct task_struct *target)
+{
+	/* If FP has been used then the target already has context */
+	if (tsk_used_math(target))
+		return;
+
+	/* Begin with data registers set to all 1s... */
+	memset(&target->thread.fpu.fpr, ~0, sizeof(target->thread.fpu.fpr));
+
+	/* ...and FCSR zeroed */
+	target->thread.fpu.fcr31 = 0;
+
+	/*
+	 * Record that the target has "used" math, such that the context
+	 * just initialised, and any modifications made by the caller,
+	 * aren't discarded.
+	 */
+	set_stopped_child_used_math(target);
+}
 
 /*
  * Called by kernel/ptrace.c when detaching..
@@ -137,11 +159,15 @@ int ptrace_setfpregs(struct task_struct *child, __u32 __user *data)
 {
 	union fpureg *fregs;
 	u64 fpr_val;
+	u32 fcr31;
+	u32 value;
+	u32 mask;
 	int i;
 
 	if (!access_ok(VERIFY_READ, data, 33 * 8))
 		return -EIO;
 
+	init_fp_ctx(child);
 	fregs = get_fpu_regs(child);
 
 	for (i = 0; i < 32; i++) {
@@ -149,8 +175,10 @@ int ptrace_setfpregs(struct task_struct *child, __u32 __user *data)
 		set_fpr64(&fregs[i], 0, fpr_val);
 	}
 
-	__get_user(child->thread.fpu.fcr31, data + 64);
-	child->thread.fpu.fcr31 &= ~FPU_CSR_ALL_X;
+	__get_user(value, data + 64);
+	fcr31 = child->thread.fpu.fcr31;
+	mask = boot_cpu_data.fpu_msk31;
+	child->thread.fpu.fcr31 = (value & ~mask) | (fcr31 & mask);
 
 	/* FIR may not be written.  */
 
@@ -439,6 +467,8 @@ static int fpr_set(struct task_struct *target,
 
 	/* XXX fcr31  */
 
+	init_fp_ctx(target);
+
 	if (sizeof(target->thread.fpu.fpr[i]) == sizeof(elf_fpreg_t))
 		return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 					  &target->thread.fpu,
@@ -460,6 +490,93 @@ enum mips_regset {
 	REGSET_GPR,
 	REGSET_FPR,
 };
+
+struct pt_regs_offset {
+	const char *name;
+	int offset;
+};
+
+#define REG_OFFSET_NAME(reg, r) {					\
+	.name = #reg,							\
+	.offset = offsetof(struct pt_regs, r)				\
+}
+
+#define REG_OFFSET_END {						\
+	.name = NULL,							\
+	.offset = 0							\
+}
+
+static const struct pt_regs_offset regoffset_table[] = {
+	REG_OFFSET_NAME(r0, regs[0]),
+	REG_OFFSET_NAME(r1, regs[1]),
+	REG_OFFSET_NAME(r2, regs[2]),
+	REG_OFFSET_NAME(r3, regs[3]),
+	REG_OFFSET_NAME(r4, regs[4]),
+	REG_OFFSET_NAME(r5, regs[5]),
+	REG_OFFSET_NAME(r6, regs[6]),
+	REG_OFFSET_NAME(r7, regs[7]),
+	REG_OFFSET_NAME(r8, regs[8]),
+	REG_OFFSET_NAME(r9, regs[9]),
+	REG_OFFSET_NAME(r10, regs[10]),
+	REG_OFFSET_NAME(r11, regs[11]),
+	REG_OFFSET_NAME(r12, regs[12]),
+	REG_OFFSET_NAME(r13, regs[13]),
+	REG_OFFSET_NAME(r14, regs[14]),
+	REG_OFFSET_NAME(r15, regs[15]),
+	REG_OFFSET_NAME(r16, regs[16]),
+	REG_OFFSET_NAME(r17, regs[17]),
+	REG_OFFSET_NAME(r18, regs[18]),
+	REG_OFFSET_NAME(r19, regs[19]),
+	REG_OFFSET_NAME(r20, regs[20]),
+	REG_OFFSET_NAME(r21, regs[21]),
+	REG_OFFSET_NAME(r22, regs[22]),
+	REG_OFFSET_NAME(r23, regs[23]),
+	REG_OFFSET_NAME(r24, regs[24]),
+	REG_OFFSET_NAME(r25, regs[25]),
+	REG_OFFSET_NAME(r26, regs[26]),
+	REG_OFFSET_NAME(r27, regs[27]),
+	REG_OFFSET_NAME(r28, regs[28]),
+	REG_OFFSET_NAME(r29, regs[29]),
+	REG_OFFSET_NAME(r30, regs[30]),
+	REG_OFFSET_NAME(r31, regs[31]),
+	REG_OFFSET_NAME(c0_status, cp0_status),
+	REG_OFFSET_NAME(hi, hi),
+	REG_OFFSET_NAME(lo, lo),
+#ifdef CONFIG_CPU_HAS_SMARTMIPS
+	REG_OFFSET_NAME(acx, acx),
+#endif
+	REG_OFFSET_NAME(c0_badvaddr, cp0_badvaddr),
+	REG_OFFSET_NAME(c0_cause, cp0_cause),
+	REG_OFFSET_NAME(c0_epc, cp0_epc),
+#ifdef CONFIG_MIPS_MT_SMTC
+	REG_OFFSET_NAME(c0_tcstatus, cp0_tcstatus),
+#endif
+#ifdef CONFIG_CPU_CAVIUM_OCTEON
+	REG_OFFSET_NAME(mpl0, mpl[0]),
+	REG_OFFSET_NAME(mpl1, mpl[1]),
+	REG_OFFSET_NAME(mpl2, mpl[2]),
+	REG_OFFSET_NAME(mtp0, mtp[0]),
+	REG_OFFSET_NAME(mtp1, mtp[1]),
+	REG_OFFSET_NAME(mtp2, mtp[2]),
+#endif
+	REG_OFFSET_END,
+};
+
+/**
+ * regs_query_register_offset() - query register offset from its name
+ * @name:       the name of a register
+ *
+ * regs_query_register_offset() returns the offset of a register in struct
+ * pt_regs from its name. If the name is invalid, this returns -EINVAL;
+ */
+int regs_query_register_offset(const char *name)
+{
+        const struct pt_regs_offset *roff;
+        for (roff = regoffset_table; roff->name != NULL; roff++)
+                if (!strcmp(roff->name, name))
+                        return roff->offset;
+        return -EINVAL;
+}
 
 #if defined(CONFIG_32BIT) || defined(CONFIG_MIPS32_O32)
 
@@ -660,12 +777,7 @@ long arch_ptrace(struct task_struct *child, long request,
 		case FPR_BASE ... FPR_BASE + 31: {
 			union fpureg *fregs = get_fpu_regs(child);
 
-			if (!tsk_used_math(child)) {
-				/* FP not yet used  */
-				memset(&child->thread.fpu, ~0,
-				       sizeof(child->thread.fpu));
-				child->thread.fpu.fcr31 = 0;
-			}
+			init_fp_ctx(child);
 #ifdef CONFIG_32BIT
 			if (test_thread_flag(TIF_32BIT_FPREGS)) {
 				/*

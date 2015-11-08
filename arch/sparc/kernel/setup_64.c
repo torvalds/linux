@@ -255,6 +255,24 @@ void sun4v_patch_2insn_range(struct sun4v_2insn_patch_entry *start,
 	}
 }
 
+void sun_m7_patch_2insn_range(struct sun4v_2insn_patch_entry *start,
+			     struct sun4v_2insn_patch_entry *end)
+{
+	while (start < end) {
+		unsigned long addr = start->addr;
+
+		*(unsigned int *) (addr +  0) = start->insns[0];
+		wmb();
+		__asm__ __volatile__("flush	%0" : : "r" (addr +  0));
+
+		*(unsigned int *) (addr +  4) = start->insns[1];
+		wmb();
+		__asm__ __volatile__("flush	%0" : : "r" (addr +  4));
+
+		start++;
+	}
+}
+
 static void __init sun4v_patch(void)
 {
 	extern void sun4v_hvapi_init(void);
@@ -267,6 +285,9 @@ static void __init sun4v_patch(void)
 
 	sun4v_patch_2insn_range(&__sun4v_2insn_patch,
 				&__sun4v_2insn_patch_end);
+	if (sun4v_chip_type == SUN4V_CHIP_SPARC_M7)
+		sun_m7_patch_2insn_range(&__sun_m7_2insn_patch,
+					 &__sun_m7_2insn_patch_end);
 
 	sun4v_hvapi_init();
 }

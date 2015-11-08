@@ -350,8 +350,8 @@ struct inode_operations {
 	int (*rename2) (struct inode *, struct dentry *,
 			struct inode *, struct dentry *, unsigned int);
 	int (*readlink) (struct dentry *, char __user *,int);
-        void * (*follow_link) (struct dentry *, struct nameidata *);
-        void (*put_link) (struct dentry *, struct nameidata *, void *);
+	const char *(*follow_link) (struct dentry *, void **);
+	void (*put_link) (struct inode *, void *);
 	int (*permission) (struct inode *, int);
 	int (*get_acl)(struct inode *, int);
 	int (*setattr) (struct dentry *, struct iattr *);
@@ -436,16 +436,18 @@ otherwise noted.
 
   follow_link: called by the VFS to follow a symbolic link to the
 	inode it points to.  Only required if you want to support
-	symbolic links.  This method returns a void pointer cookie
-	that is passed to put_link().
+	symbolic links.  This method returns the symlink body
+	to traverse (and possibly resets the current position with
+	nd_jump_link()).  If the body won't go away until the inode
+	is gone, nothing else is needed; if it needs to be otherwise
+	pinned, the data needed to release whatever we'd grabbed
+	is to be stored in void * variable passed by address to
+	follow_link() instance.
 
   put_link: called by the VFS to release resources allocated by
-  	follow_link().  The cookie returned by follow_link() is passed
-  	to this method as the last parameter.  It is used by
-  	filesystems such as NFS where page cache is not stable
-  	(i.e. page that was installed when the symbolic link walk
-  	started might not be in the page cache at the end of the
-  	walk).
+	follow_link().  The cookie stored by follow_link() is passed
+	to this method as the last parameter; only called when
+	cookie isn't NULL.
 
   permission: called by the VFS to check for access rights on a POSIX-like
   	filesystem.
@@ -590,7 +592,7 @@ struct address_space_operations {
 	void (*invalidatepage) (struct page *, unsigned int, unsigned int);
 	int (*releasepage) (struct page *, int);
 	void (*freepage)(struct page *);
-	ssize_t (*direct_IO)(int, struct kiocb *, struct iov_iter *iter, loff_t offset);
+	ssize_t (*direct_IO)(struct kiocb *, struct iov_iter *iter, loff_t offset);
 	/* migrate the contents of a page to the specified target */
 	int (*migratepage) (struct page *, struct page *);
 	int (*launder_page) (struct page *);
@@ -767,7 +769,7 @@ struct address_space_operations {
 	to stall to allow flushers a chance to complete some IO. Ordinarily
 	it can use PageDirty and PageWriteback but some filesystems have
 	more complex state (unstable pages in NFS prevent reclaim) or
-	do not set those flags due to locking problems (jbd). This callback
+	do not set those flags due to locking problems. This callback
 	allows a filesystem to indicate to the VM if a page should be
 	treated as dirty or writeback for the purposes of stalling.
 
@@ -797,15 +799,13 @@ struct file_operations
 ----------------------
 
 This describes how the VFS can manipulate an open file. As of kernel
-3.12, the following members are defined:
+4.1, the following members are defined:
 
 struct file_operations {
 	struct module *owner;
 	loff_t (*llseek) (struct file *, loff_t, int);
 	ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
 	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
-	ssize_t (*aio_read) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
-	ssize_t (*aio_write) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
 	ssize_t (*read_iter) (struct kiocb *, struct iov_iter *);
 	ssize_t (*write_iter) (struct kiocb *, struct iov_iter *);
 	int (*iterate) (struct file *, struct dir_context *);
@@ -813,8 +813,9 @@ struct file_operations {
 	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
 	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
 	int (*mmap) (struct file *, struct vm_area_struct *);
+	int (*mremap)(struct file *, struct vm_area_struct *);
 	int (*open) (struct inode *, struct file *);
-	int (*flush) (struct file *);
+	int (*flush) (struct file *, fl_owner_t id);
 	int (*release) (struct inode *, struct file *);
 	int (*fsync) (struct file *, loff_t, loff_t, int datasync);
 	int (*aio_fsync) (struct kiocb *, int datasync);
@@ -824,11 +825,15 @@ struct file_operations {
 	unsigned long (*get_unmapped_area)(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
 	int (*check_flags)(int);
 	int (*flock) (struct file *, int, struct file_lock *);
-	ssize_t (*splice_write)(struct pipe_inode_info *, struct file *, size_t, unsigned int);
-	ssize_t (*splice_read)(struct file *, struct pipe_inode_info *, size_t, unsigned int);
-	int (*setlease)(struct file *, long arg, struct file_lock **, void **);
-	long (*fallocate)(struct file *, int mode, loff_t offset, loff_t len);
+	ssize_t (*splice_write)(struct pipe_inode_info *, struct file *, loff_t *, size_t, unsigned int);
+	ssize_t (*splice_read)(struct file *, loff_t *, struct pipe_inode_info *, size_t, unsigned int);
+	int (*setlease)(struct file *, long, struct file_lock **, void **);
+	long (*fallocate)(struct file *file, int mode, loff_t offset,
+			  loff_t len);
 	void (*show_fdinfo)(struct seq_file *m, struct file *f);
+#ifndef CONFIG_MMU
+	unsigned (*mmap_capabilities)(struct file *);
+#endif
 };
 
 Again, all methods are called without any locks being held, unless
@@ -838,13 +843,9 @@ otherwise noted.
 
   read: called by read(2) and related system calls
 
-  aio_read: vectored, possibly asynchronous read
-
   read_iter: possibly asynchronous read with iov_iter as destination
 
   write: called by write(2) and related system calls
-
-  aio_write: vectored, possibly asynchronous write
 
   write_iter: possibly asynchronous write with iov_iter as source
 

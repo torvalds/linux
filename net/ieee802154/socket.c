@@ -64,10 +64,8 @@ ieee802154_get_dev(struct net *net, const struct ieee802154_addr *addr)
 			if (tmp->type != ARPHRD_IEEE802154)
 				continue;
 
-			pan_id = ieee802154_mlme_ops(tmp)->get_pan_id(tmp);
-			short_addr =
-				ieee802154_mlme_ops(tmp)->get_short_addr(tmp);
-
+			pan_id = tmp->ieee802154_ptr->pan_id;
+			short_addr = tmp->ieee802154_ptr->short_addr;
 			if (pan_id == addr->pan_id &&
 			    short_addr == addr->short_addr) {
 				dev = tmp;
@@ -98,12 +96,12 @@ static int ieee802154_sock_release(struct socket *sock)
 	return 0;
 }
 
-static int ieee802154_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
-				   struct msghdr *msg, size_t len)
+static int ieee802154_sock_sendmsg(struct socket *sock, struct msghdr *msg,
+				   size_t len)
 {
 	struct sock *sk = sock->sk;
 
-	return sk->sk_prot->sendmsg(iocb, sk, msg, len);
+	return sk->sk_prot->sendmsg(sk, msg, len);
 }
 
 static int ieee802154_sock_bind(struct socket *sock, struct sockaddr *uaddr,
@@ -228,15 +226,9 @@ static int raw_bind(struct sock *sk, struct sockaddr *_uaddr, int len)
 		goto out;
 	}
 
-	if (dev->type != ARPHRD_IEEE802154) {
-		err = -ENODEV;
-		goto out_put;
-	}
-
 	sk->sk_bound_dev_if = dev->ifindex;
 	sk_dst_reset(sk);
 
-out_put:
 	dev_put(dev);
 out:
 	release_sock(sk);
@@ -255,8 +247,7 @@ static int raw_disconnect(struct sock *sk, int flags)
 	return 0;
 }
 
-static int raw_sendmsg(struct kiocb *iocb, struct sock *sk,
-		       struct msghdr *msg, size_t size)
+static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 {
 	struct net_device *dev;
 	unsigned int mtu;
@@ -282,12 +273,12 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk,
 		goto out;
 	}
 
-	mtu = dev->mtu;
+	mtu = IEEE802154_MTU;
 	pr_debug("name = %s, mtu = %u\n", dev->name, mtu);
 
 	if (size > mtu) {
 		pr_debug("size = %Zu, mtu = %u\n", size, mtu);
-		err = -EINVAL;
+		err = -EMSGSIZE;
 		goto out_dev;
 	}
 
@@ -327,8 +318,8 @@ out:
 	return err;
 }
 
-static int raw_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
-		       size_t len, int noblock, int flags, int *addr_len)
+static int raw_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
+		       int noblock, int flags, int *addr_len)
 {
 	size_t copied = 0;
 	int err = -EOPNOTSUPP;
@@ -615,8 +606,7 @@ static int dgram_disconnect(struct sock *sk, int flags)
 	return 0;
 }
 
-static int dgram_sendmsg(struct kiocb *iocb, struct sock *sk,
-			 struct msghdr *msg, size_t size)
+static int dgram_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 {
 	struct net_device *dev;
 	unsigned int mtu;
@@ -647,7 +637,7 @@ static int dgram_sendmsg(struct kiocb *iocb, struct sock *sk,
 		err = -ENXIO;
 		goto out;
 	}
-	mtu = dev->mtu;
+	mtu = IEEE802154_MTU;
 	pr_debug("name = %s, mtu = %u\n", dev->name, mtu);
 
 	if (size > mtu) {
@@ -686,8 +676,8 @@ static int dgram_sendmsg(struct kiocb *iocb, struct sock *sk,
 	cb->seclevel = ro->seclevel;
 	cb->seclevel_override = ro->seclevel_override;
 
-	err = dev_hard_header(skb, dev, ETH_P_IEEE802154, &dst_addr,
-			      ro->bound ? &ro->src_addr : NULL, size);
+	err = wpan_dev_hard_header(skb, dev, &dst_addr,
+				   ro->bound ? &ro->src_addr : NULL, size);
 	if (err < 0)
 		goto out_skb;
 
@@ -715,9 +705,8 @@ out:
 	return err;
 }
 
-static int dgram_recvmsg(struct kiocb *iocb, struct sock *sk,
-			 struct msghdr *msg, size_t len, int noblock,
-			 int flags, int *addr_len)
+static int dgram_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
+			 int noblock, int flags, int *addr_len)
 {
 	size_t copied = 0;
 	int err = -EOPNOTSUPP;
@@ -742,6 +731,12 @@ static int dgram_recvmsg(struct kiocb *iocb, struct sock *sk,
 	sock_recv_ts_and_drops(msg, sk, skb);
 
 	if (saddr) {
+		/* Clear the implicit padding in struct sockaddr_ieee802154
+		 * (16 bits between 'family' and 'addr') and in struct
+		 * ieee802154_addr_sa (16 bits at the end of the structure).
+		 */
+		memset(saddr, 0, sizeof(*saddr));
+
 		saddr->family = AF_IEEE802154;
 		ieee802154_addr_to_sa(&saddr->addr, &mac_cb(skb)->source);
 		*addr_len = sizeof(*saddr);
@@ -800,9 +795,9 @@ static int ieee802154_dgram_deliver(struct net_device *dev, struct sk_buff *skb)
 	/* Data frame processing */
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
-	pan_id = ieee802154_mlme_ops(dev)->get_pan_id(dev);
-	short_addr = ieee802154_mlme_ops(dev)->get_short_addr(dev);
-	hw_addr = ieee802154_devaddr_from_raw(dev->dev_addr);
+	pan_id = dev->ieee802154_ptr->pan_id;
+	short_addr = dev->ieee802154_ptr->short_addr;
+	hw_addr = dev->ieee802154_ptr->extended_addr;
 
 	read_lock(&dgram_lock);
 	sk_for_each(sk, &dgram_head) {
@@ -1017,7 +1012,7 @@ static int ieee802154_create(struct net *net, struct socket *sock,
 	}
 
 	rc = -ENOMEM;
-	sk = sk_alloc(net, PF_IEEE802154, GFP_KERNEL, proto);
+	sk = sk_alloc(net, PF_IEEE802154, GFP_KERNEL, proto, kern);
 	if (!sk)
 		goto out;
 	rc = 0;

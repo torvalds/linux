@@ -108,6 +108,14 @@ static inline void ath9k_hw_set_bt_ant_diversity(struct ath_hw *ah, bool enable)
 		ath9k_hw_ops(ah)->set_bt_ant_diversity(ah, enable);
 }
 
+static inline bool ath9k_hw_is_aic_enabled(struct ath_hw *ah)
+{
+	if (ath9k_hw_private_ops(ah)->is_aic_enabled)
+		return ath9k_hw_private_ops(ah)->is_aic_enabled(ah);
+
+	return false;
+}
+
 #endif
 
 /* Private hardware call ops */

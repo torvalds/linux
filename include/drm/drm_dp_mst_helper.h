@@ -253,6 +253,7 @@ struct drm_dp_remote_dpcd_write {
 	u8 *bytes;
 };
 
+#define DP_REMOTE_I2C_READ_MAX_TRANSACTIONS 4
 struct drm_dp_remote_i2c_read {
 	u8 num_transactions;
 	u8 port_number;
@@ -262,7 +263,7 @@ struct drm_dp_remote_i2c_read {
 		u8 *bytes;
 		u8 no_stop_bit;
 		u8 i2c_transaction_delay;
-	} transactions[4];
+	} transactions[DP_REMOTE_I2C_READ_MAX_TRANSACTIONS];
 	u8 read_i2c_device_id;
 	u8 num_bytes_read;
 };
@@ -374,6 +375,7 @@ struct drm_dp_mst_topology_mgr;
 struct drm_dp_mst_topology_cbs {
 	/* create a connector for a port */
 	struct drm_connector *(*add_connector)(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port, const char *path);
+	void (*register_connector)(struct drm_connector *connector);
 	void (*destroy_connector)(struct drm_dp_mst_topology_mgr *mgr,
 				  struct drm_connector *connector);
 	void (*hotplug)(struct drm_dp_mst_topology_mgr *mgr);
@@ -463,6 +465,10 @@ struct drm_dp_mst_topology_mgr {
 	struct work_struct work;
 
 	struct work_struct tx_work;
+
+	struct list_head destroy_connector_list;
+	struct mutex destroy_connector_lock;
+	struct work_struct destroy_connector_work;
 };
 
 int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr, struct device *dev, struct drm_dp_aux *aux, int max_dpcd_transaction_bytes, int max_payloads, int conn_base_id);
@@ -485,6 +491,8 @@ int drm_dp_calc_pbn_mode(int clock, int bpp);
 
 
 bool drm_dp_mst_allocate_vcpi(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port, int pbn, int *slots);
+
+int drm_dp_mst_get_vcpi_slots(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port);
 
 
 void drm_dp_mst_reset_vcpi_slots(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port);

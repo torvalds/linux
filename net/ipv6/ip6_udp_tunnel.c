@@ -19,11 +19,18 @@ int udp_sock_create6(struct net *net, struct udp_port_cfg *cfg,
 	int err;
 	struct socket *sock = NULL;
 
-	err = sock_create_kern(AF_INET6, SOCK_DGRAM, 0, &sock);
+	err = sock_create_kern(net, AF_INET6, SOCK_DGRAM, 0, &sock);
 	if (err < 0)
 		goto error;
 
-	sk_change_net(sock->sk, net);
+	if (cfg->ipv6_v6only) {
+		int val = 1;
+
+		err = kernel_setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY,
+					(char *) &val, sizeof(val));
+		if (err < 0)
+			goto error;
+	}
 
 	udp6_addr.sin6_family = AF_INET6;
 	memcpy(&udp6_addr.sin6_addr, &cfg->local_ip6,
@@ -55,14 +62,15 @@ int udp_sock_create6(struct net *net, struct udp_port_cfg *cfg,
 error:
 	if (sock) {
 		kernel_sock_shutdown(sock, SHUT_RDWR);
-		sk_release_kernel(sock->sk);
+		sock_release(sock);
 	}
 	*sockp = NULL;
 	return err;
 }
 EXPORT_SYMBOL_GPL(udp_sock_create6);
 
-int udp_tunnel6_xmit_skb(struct dst_entry *dst, struct sk_buff *skb,
+int udp_tunnel6_xmit_skb(struct dst_entry *dst, struct sock *sk,
+			 struct sk_buff *skb,
 			 struct net_device *dev, struct in6_addr *saddr,
 			 struct in6_addr *daddr,
 			 __u8 prio, __u8 ttl, __be16 src_port,
@@ -97,7 +105,7 @@ int udp_tunnel6_xmit_skb(struct dst_entry *dst, struct sk_buff *skb,
 	ip6h->daddr	  = *daddr;
 	ip6h->saddr	  = *saddr;
 
-	ip6tunnel_xmit(skb, dev);
+	ip6tunnel_xmit(sk, skb, dev);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(udp_tunnel6_xmit_skb);

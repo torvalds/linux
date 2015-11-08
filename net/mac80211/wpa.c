@@ -174,9 +174,12 @@ mic_fail_no_key:
 	 * a driver that supports HW encryption. Send up the key idx only if
 	 * the key is set.
 	 */
-	mac80211_ev_michael_mic_failure(rx->sdata,
-					rx->key ? rx->key->conf.keyidx : -1,
-					(void *) skb->data, NULL, GFP_ATOMIC);
+	cfg80211_michael_mic_failure(rx->sdata->dev, hdr->addr2,
+				     is_multicast_ether_addr(hdr->addr1) ?
+				     NL80211_KEYTYPE_GROUP :
+				     NL80211_KEYTYPE_PAIRWISE,
+				     rx->key ? rx->key->conf.keyidx : -1,
+				     NULL, GFP_ATOMIC);
 	return RX_DROP_UNUSABLE;
 }
 
@@ -444,7 +447,7 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb,
 	hdr = (struct ieee80211_hdr *) pos;
 	pos += hdrlen;
 
-	pn64 = atomic64_inc_return(&key->u.ccmp.tx_pn);
+	pn64 = atomic64_inc_return(&key->conf.tx_pn);
 
 	pn[5] = pn64;
 	pn[4] = pn64 >> 8;
@@ -516,30 +519,33 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx,
 			return RX_DROP_UNUSABLE;
 	}
 
-	ccmp_hdr2pn(pn, skb->data + hdrlen);
+	if (!(status->flag & RX_FLAG_PN_VALIDATED)) {
+		ccmp_hdr2pn(pn, skb->data + hdrlen);
 
-	queue = rx->security_idx;
+		queue = rx->security_idx;
 
-	if (memcmp(pn, key->u.ccmp.rx_pn[queue], IEEE80211_CCMP_PN_LEN) <= 0) {
-		key->u.ccmp.replays++;
-		return RX_DROP_UNUSABLE;
-	}
-
-	if (!(status->flag & RX_FLAG_DECRYPTED)) {
-		u8 aad[2 * AES_BLOCK_SIZE];
-		u8 b_0[AES_BLOCK_SIZE];
-		/* hardware didn't decrypt/verify MIC */
-		ccmp_special_blocks(skb, pn, b_0, aad);
-
-		if (ieee80211_aes_ccm_decrypt(
-			    key->u.ccmp.tfm, b_0, aad,
-			    skb->data + hdrlen + IEEE80211_CCMP_HDR_LEN,
-			    data_len,
-			    skb->data + skb->len - mic_len, mic_len))
+		if (memcmp(pn, key->u.ccmp.rx_pn[queue],
+			   IEEE80211_CCMP_PN_LEN) <= 0) {
+			key->u.ccmp.replays++;
 			return RX_DROP_UNUSABLE;
-	}
+		}
 
-	memcpy(key->u.ccmp.rx_pn[queue], pn, IEEE80211_CCMP_PN_LEN);
+		if (!(status->flag & RX_FLAG_DECRYPTED)) {
+			u8 aad[2 * AES_BLOCK_SIZE];
+			u8 b_0[AES_BLOCK_SIZE];
+			/* hardware didn't decrypt/verify MIC */
+			ccmp_special_blocks(skb, pn, b_0, aad);
+
+			if (ieee80211_aes_ccm_decrypt(
+				    key->u.ccmp.tfm, b_0, aad,
+				    skb->data + hdrlen + IEEE80211_CCMP_HDR_LEN,
+				    data_len,
+				    skb->data + skb->len - mic_len, mic_len))
+				return RX_DROP_UNUSABLE;
+		}
+
+		memcpy(key->u.ccmp.rx_pn[queue], pn, IEEE80211_CCMP_PN_LEN);
+	}
 
 	/* Remove CCMP header and MIC */
 	if (pskb_trim(skb, skb->len - mic_len))
@@ -670,7 +676,7 @@ static int gcmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	hdr = (struct ieee80211_hdr *)pos;
 	pos += hdrlen;
 
-	pn64 = atomic64_inc_return(&key->u.gcmp.tx_pn);
+	pn64 = atomic64_inc_return(&key->conf.tx_pn);
 
 	pn[5] = pn64;
 	pn[4] = pn64 >> 8;
@@ -739,30 +745,34 @@ ieee80211_crypto_gcmp_decrypt(struct ieee80211_rx_data *rx)
 			return RX_DROP_UNUSABLE;
 	}
 
-	gcmp_hdr2pn(pn, skb->data + hdrlen);
+	if (!(status->flag & RX_FLAG_PN_VALIDATED)) {
+		gcmp_hdr2pn(pn, skb->data + hdrlen);
 
-	queue = rx->security_idx;
+		queue = rx->security_idx;
 
-	if (memcmp(pn, key->u.gcmp.rx_pn[queue], IEEE80211_GCMP_PN_LEN) <= 0) {
-		key->u.gcmp.replays++;
-		return RX_DROP_UNUSABLE;
-	}
-
-	if (!(status->flag & RX_FLAG_DECRYPTED)) {
-		u8 aad[2 * AES_BLOCK_SIZE];
-		u8 j_0[AES_BLOCK_SIZE];
-		/* hardware didn't decrypt/verify MIC */
-		gcmp_special_blocks(skb, pn, j_0, aad);
-
-		if (ieee80211_aes_gcm_decrypt(
-			    key->u.gcmp.tfm, j_0, aad,
-			    skb->data + hdrlen + IEEE80211_GCMP_HDR_LEN,
-			    data_len,
-			    skb->data + skb->len - IEEE80211_GCMP_MIC_LEN))
+		if (memcmp(pn, key->u.gcmp.rx_pn[queue],
+			   IEEE80211_GCMP_PN_LEN) <= 0) {
+			key->u.gcmp.replays++;
 			return RX_DROP_UNUSABLE;
-	}
+		}
 
-	memcpy(key->u.gcmp.rx_pn[queue], pn, IEEE80211_GCMP_PN_LEN);
+		if (!(status->flag & RX_FLAG_DECRYPTED)) {
+			u8 aad[2 * AES_BLOCK_SIZE];
+			u8 j_0[AES_BLOCK_SIZE];
+			/* hardware didn't decrypt/verify MIC */
+			gcmp_special_blocks(skb, pn, j_0, aad);
+
+			if (ieee80211_aes_gcm_decrypt(
+				    key->u.gcmp.tfm, j_0, aad,
+				    skb->data + hdrlen + IEEE80211_GCMP_HDR_LEN,
+				    data_len,
+				    skb->data + skb->len -
+				    IEEE80211_GCMP_MIC_LEN))
+				return RX_DROP_UNUSABLE;
+		}
+
+		memcpy(key->u.gcmp.rx_pn[queue], pn, IEEE80211_GCMP_PN_LEN);
+	}
 
 	/* Remove GCMP header and MIC */
 	if (pskb_trim(skb, skb->len - IEEE80211_GCMP_MIC_LEN))
@@ -780,9 +790,8 @@ ieee80211_crypto_cs_encrypt(struct ieee80211_tx_data *tx,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_key *key = tx->key;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	const struct ieee80211_cipher_scheme *cs = key->sta->cipher_scheme;
 	int hdrlen;
-	u8 *pos;
+	u8 *pos, iv_len = key->conf.iv_len;
 
 	if (info->control.hw_key &&
 	    !(info->control.hw_key->flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE)) {
@@ -790,14 +799,14 @@ ieee80211_crypto_cs_encrypt(struct ieee80211_tx_data *tx,
 		return TX_CONTINUE;
 	}
 
-	if (unlikely(skb_headroom(skb) < cs->hdr_len &&
-		     pskb_expand_head(skb, cs->hdr_len, 0, GFP_ATOMIC)))
+	if (unlikely(skb_headroom(skb) < iv_len &&
+		     pskb_expand_head(skb, iv_len, 0, GFP_ATOMIC)))
 		return TX_DROP;
 
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
 
-	pos = skb_push(skb, cs->hdr_len);
-	memmove(pos, pos + cs->hdr_len, hdrlen);
+	pos = skb_push(skb, iv_len);
+	memmove(pos, pos + iv_len, hdrlen);
 
 	return TX_CONTINUE;
 }
@@ -941,7 +950,7 @@ ieee80211_crypto_aes_cmac_encrypt(struct ieee80211_tx_data *tx)
 	mmie->key_id = cpu_to_le16(key->conf.keyidx);
 
 	/* PN = PN + 1 */
-	pn64 = atomic64_inc_return(&key->u.aes_cmac.tx_pn);
+	pn64 = atomic64_inc_return(&key->conf.tx_pn);
 
 	bip_ipn_set64(mmie->sequence_number, pn64);
 
@@ -985,7 +994,7 @@ ieee80211_crypto_aes_cmac_256_encrypt(struct ieee80211_tx_data *tx)
 	mmie->key_id = cpu_to_le16(key->conf.keyidx);
 
 	/* PN = PN + 1 */
-	pn64 = atomic64_inc_return(&key->u.aes_cmac.tx_pn);
+	pn64 = atomic64_inc_return(&key->conf.tx_pn);
 
 	bip_ipn_set64(mmie->sequence_number, pn64);
 
@@ -1130,7 +1139,7 @@ ieee80211_crypto_aes_gmac_encrypt(struct ieee80211_tx_data *tx)
 	mmie->key_id = cpu_to_le16(key->conf.keyidx);
 
 	/* PN = PN + 1 */
-	pn64 = atomic64_inc_return(&key->u.aes_gmac.tx_pn);
+	pn64 = atomic64_inc_return(&key->conf.tx_pn);
 
 	bip_ipn_set64(mmie->sequence_number, pn64);
 
@@ -1217,7 +1226,7 @@ ieee80211_crypto_hw_encrypt(struct ieee80211_tx_data *tx)
 		if (!info->control.hw_key)
 			return TX_DROP;
 
-		if (tx->key->sta->cipher_scheme) {
+		if (tx->key->flags & KEY_FLAG_CIPHER_SCHEME) {
 			res = ieee80211_crypto_cs_encrypt(tx, skb);
 			if (res != TX_CONTINUE)
 				return res;

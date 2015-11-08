@@ -58,7 +58,7 @@ MODULE_PARM_DESC(show, " Show attached FCoE transports");
 module_param_call(create, fcoe_transport_create, NULL,
 		  (void *)FIP_MODE_FABRIC, S_IWUSR);
 __MODULE_PARM_TYPE(create, "string");
-MODULE_PARM_DESC(create, " Creates fcoe instance on a ethernet interface");
+MODULE_PARM_DESC(create, " Creates fcoe instance on an ethernet interface");
 
 module_param_call(create_vn2vn, fcoe_transport_create, NULL,
 		  (void *)FIP_MODE_VN2VN, S_IWUSR);
@@ -68,15 +68,15 @@ MODULE_PARM_DESC(create_vn2vn, " Creates a VN_node to VN_node FCoE instance "
 
 module_param_call(destroy, fcoe_transport_destroy, NULL, NULL, S_IWUSR);
 __MODULE_PARM_TYPE(destroy, "string");
-MODULE_PARM_DESC(destroy, " Destroys fcoe instance on a ethernet interface");
+MODULE_PARM_DESC(destroy, " Destroys fcoe instance on an ethernet interface");
 
 module_param_call(enable, fcoe_transport_enable, NULL, NULL, S_IWUSR);
 __MODULE_PARM_TYPE(enable, "string");
-MODULE_PARM_DESC(enable, " Enables fcoe on a ethernet interface.");
+MODULE_PARM_DESC(enable, " Enables fcoe on an ethernet interface.");
 
 module_param_call(disable, fcoe_transport_disable, NULL, NULL, S_IWUSR);
 __MODULE_PARM_TYPE(disable, "string");
-MODULE_PARM_DESC(disable, " Disables fcoe on a ethernet interface.");
+MODULE_PARM_DESC(disable, " Disables fcoe on an ethernet interface.");
 
 /* notification function for packets from net device */
 static struct notifier_block libfcoe_notifier = {

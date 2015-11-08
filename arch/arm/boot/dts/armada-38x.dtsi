@@ -59,9 +59,13 @@
 	aliases {
 		gpio0 = &gpio0;
 		gpio1 = &gpio1;
-		ethernet0 = &eth0;
-		ethernet1 = &eth1;
-		ethernet2 = &eth2;
+		serial0 = &uart0;
+		serial1 = &uart1;
+	};
+
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts-extended = <&mpic 3>;
 	};
 
 	soc {
@@ -139,6 +143,10 @@
 				reg = <0x8000 0x1000>;
 				cache-unified;
 				cache-level = <2>;
+				arm,double-linefill-incr = <1>;
+				arm,double-linefill-wrap = <0>;
+				arm,double-linefill = <1>;
+				prefetch-data = <1>;
 			};
 
 			scu@c000 {
@@ -163,7 +171,8 @@
 			};
 
 			spi0: spi@10600 {
-				compatible = "marvell,orion-spi";
+				compatible = "marvell,armada-380-spi",
+						"marvell,orion-spi";
 				reg = <0x10600 0x50>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -174,7 +183,8 @@
 			};
 
 			spi1: spi@10680 {
-				compatible = "marvell,orion-spi";
+				compatible = "marvell,armada-380-spi",
+						"marvell,orion-spi";
 				reg = <0x10680 0x50>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -216,7 +226,7 @@
 				status = "disabled";
 			};
 
-			serial@12100 {
+			uart1: serial@12100 {
 				compatible = "snps,dw-apb-uart";
 				reg = <0x12100 0x100>;
 				reg-shift = <2>;
@@ -368,7 +378,7 @@
 				reg = <0x20000 0x100>, <0x20180 0x20>;
 			};
 
-			mpic: interrupt-controller@20000 {
+			mpic: interrupt-controller@20a00 {
 				compatible = "marvell,mpic";
 				reg = <0x20a00 0x2d0>, <0x21070 0x58>;
 				#interrupt-cells = <1>;
@@ -435,7 +445,7 @@
 				status = "disabled";
 			};
 
-			usb@50000 {
+			usb@58000 {
 				compatible = "marvell,orion-ehci";
 				reg = <0x58000 0x500>;
 				interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
@@ -444,7 +454,7 @@
 			};
 
 			xor@60800 {
-				compatible = "marvell,orion-xor";
+				compatible = "marvell,armada-380-xor", "marvell,orion-xor";
 				reg = <0x60800 0x100
 				       0x60a00 0x100>;
 				clocks = <&gateclk 22>;
@@ -464,7 +474,7 @@
 			};
 
 			xor@60900 {
-				compatible = "marvell,orion-xor";
+				compatible = "marvell,armada-380-xor", "marvell,orion-xor";
 				reg = <0x60900 0x100
 				       0x60b00 0x100>;
 				clocks = <&gateclk 28>;
@@ -491,7 +501,7 @@
 				status = "disabled";
 			};
 
-			mdio@72004 {
+			mdio: mdio@72004 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "marvell,orion-mdio";
@@ -548,8 +558,11 @@
 
 			sdhci@d8000 {
 				compatible = "marvell,armada-380-sdhci";
-				reg = <0xd8000 0x1000>, <0xdc000 0x100>;
-				interrupts = <0 25 0x4>;
+				reg-names = "sdhci", "mbus", "conf-sdio3";
+				reg = <0xd8000 0x1000>,
+					<0xdc000 0x100>,
+					<0x18454 0x4>;
+				interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gateclk 17>;
 				mrvl,clk-delay-cycles = <0x1F>;
 				status = "disabled";
@@ -578,7 +591,7 @@
 		mainpll: mainpll {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-frequency = <2000000000>;
+			clock-frequency = <1000000000>;
 		};
 
 		/* 25 MHz reference crystal */

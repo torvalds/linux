@@ -205,9 +205,9 @@ static int l2tp_nl_cmd_tunnel_create(struct sk_buff *skb, struct genl_info *info
 #endif
 		if (info->attrs[L2TP_ATTR_IP_SADDR] &&
 		    info->attrs[L2TP_ATTR_IP_DADDR]) {
-			cfg.local_ip.s_addr = nla_get_be32(
+			cfg.local_ip.s_addr = nla_get_in_addr(
 				info->attrs[L2TP_ATTR_IP_SADDR]);
-			cfg.peer_ip.s_addr = nla_get_be32(
+			cfg.peer_ip.s_addr = nla_get_in_addr(
 				info->attrs[L2TP_ATTR_IP_DADDR]);
 		} else {
 			ret = -EINVAL;
@@ -376,15 +376,17 @@ static int l2tp_nl_tunnel_send(struct sk_buff *skb, u32 portid, u32 seq, int fla
 	case L2TP_ENCAPTYPE_IP:
 #if IS_ENABLED(CONFIG_IPV6)
 		if (np) {
-			if (nla_put(skb, L2TP_ATTR_IP6_SADDR, sizeof(np->saddr),
-				    &np->saddr) ||
-			    nla_put(skb, L2TP_ATTR_IP6_DADDR, sizeof(sk->sk_v6_daddr),
-				    &sk->sk_v6_daddr))
+			if (nla_put_in6_addr(skb, L2TP_ATTR_IP6_SADDR,
+					     &np->saddr) ||
+			    nla_put_in6_addr(skb, L2TP_ATTR_IP6_DADDR,
+					     &sk->sk_v6_daddr))
 				goto nla_put_failure;
 		} else
 #endif
-		if (nla_put_be32(skb, L2TP_ATTR_IP_SADDR, inet->inet_saddr) ||
-		    nla_put_be32(skb, L2TP_ATTR_IP_DADDR, inet->inet_daddr))
+		if (nla_put_in_addr(skb, L2TP_ATTR_IP_SADDR,
+				    inet->inet_saddr) ||
+		    nla_put_in_addr(skb, L2TP_ATTR_IP_DADDR,
+				    inet->inet_daddr))
 			goto nla_put_failure;
 		break;
 	}
@@ -574,6 +576,13 @@ static int l2tp_nl_cmd_session_create(struct sk_buff *skb, struct genl_info *inf
 	if (info->attrs[L2TP_ATTR_MRU])
 		cfg.mru = nla_get_u16(info->attrs[L2TP_ATTR_MRU]);
 
+#ifdef CONFIG_MODULES
+	if (l2tp_nl_cmd_ops[cfg.pw_type] == NULL) {
+		genl_unlock();
+		request_module("net-l2tp-type-%u", cfg.pw_type);
+		genl_lock();
+	}
+#endif
 	if ((l2tp_nl_cmd_ops[cfg.pw_type] == NULL) ||
 	    (l2tp_nl_cmd_ops[cfg.pw_type]->session_create == NULL)) {
 		ret = -EPROTONOSUPPORT;

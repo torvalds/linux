@@ -129,7 +129,7 @@ static int es8328_put_deemph(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct es8328_priv *es8328 = snd_soc_codec_get_drvdata(codec);
-	int deemph = ucontrol->value.integer.value[0];
+	unsigned int deemph = ucontrol->value.integer.value[0];
 	int ret;
 
 	if (deemph > 1)
@@ -536,7 +536,7 @@ static int es8328_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			snd_soc_update_bits(codec, ES8328_CONTROL1,
 					ES8328_CONTROL1_VMIDSEL_MASK |
 					ES8328_CONTROL1_ENREF,
@@ -566,7 +566,6 @@ static int es8328_set_bias_level(struct snd_soc_codec *codec,
 				0);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

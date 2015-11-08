@@ -44,6 +44,9 @@ Required properties:
 	- the "ref" clock is used to get the rate of the clock provided to the
 	  PHY module
 
+Optional properties:
+- vbus-supply: power-supply phandle for vbus power source
+
 The first phandle argument in the PHY specifier identifies the PHY, its
 meaning is compatible dependent. For the currently supported SoCs (Exynos 4210
 and Exynos 4212) it is as follows:
@@ -128,6 +131,7 @@ Required properties:
 - compatible : Should be set to one of the following supported values:
 	- "samsung,exynos5250-usbdrd-phy" - for exynos5250 SoC,
 	- "samsung,exynos5420-usbdrd-phy" - for exynos5420 SoC.
+	- "samsung,exynos5433-usbdrd-phy" - for exynos5433 SoC.
 	- "samsung,exynos7-usbdrd-phy" - for exynos7 SoC.
 - reg : Register offset and length of USB DRD PHY register set;
 - clocks: Clock IDs array as required by the controller
@@ -139,7 +143,7 @@ Required properties:
 	       PHY operations, associated by phy name. It is used to
 	       determine bit values for clock settings register.
 	       For Exynos5420 this is given as 'sclk_usbphy30' in CMU.
-	- optional clocks: Exynos7 SoC has now following additional
+	- optional clocks: Exynos5433 & Exynos7 SoC has now following additional
 			   gate clocks available:
 			   - phy_pipe: for PIPE3 phy
 			   - phy_utmi: for UTMI+ phy

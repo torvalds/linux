@@ -95,18 +95,16 @@ int __init sfi_parse_mtmr(struct sfi_table_header *table)
 		pr_debug("timer[%d]: paddr = 0x%08x, freq = %dHz, irq = %d\n",
 			totallen, (u32)pentry->phys_addr,
 			pentry->freq_hz, pentry->irq);
-			if (!pentry->irq)
-				continue;
-			mp_irq.type = MP_INTSRC;
-			mp_irq.irqtype = mp_INT;
-/* triggering mode edge bit 2-3, active high polarity bit 0-1 */
-			mp_irq.irqflag = 5;
-			mp_irq.srcbus = MP_BUS_ISA;
-			mp_irq.srcbusirq = pentry->irq;	/* IRQ */
-			mp_irq.dstapic = MP_APIC_ALL;
-			mp_irq.dstirq = pentry->irq;
-			mp_save_irq(&mp_irq);
-			mp_map_gsi_to_irq(pentry->irq, IOAPIC_MAP_ALLOC);
+		mp_irq.type = MP_INTSRC;
+		mp_irq.irqtype = mp_INT;
+		/* triggering mode edge bit 2-3, active high polarity bit 0-1 */
+		mp_irq.irqflag = 5;
+		mp_irq.srcbus = MP_BUS_ISA;
+		mp_irq.srcbusirq = pentry->irq;	/* IRQ */
+		mp_irq.dstapic = MP_APIC_ALL;
+		mp_irq.dstirq = pentry->irq;
+		mp_save_irq(&mp_irq);
+		mp_map_gsi_to_irq(pentry->irq, IOAPIC_MAP_ALLOC, NULL);
 	}
 
 	return 0;
@@ -177,7 +175,7 @@ int __init sfi_parse_mrtc(struct sfi_table_header *table)
 		mp_irq.dstapic = MP_APIC_ALL;
 		mp_irq.dstirq = pentry->irq;
 		mp_save_irq(&mp_irq);
-		mp_map_gsi_to_irq(pentry->irq, IOAPIC_MAP_ALLOC);
+		mp_map_gsi_to_irq(pentry->irq, IOAPIC_MAP_ALLOC, NULL);
 	}
 	return 0;
 }
@@ -199,10 +197,9 @@ static int __init sfi_parse_gpio(struct sfi_table_header *table)
 	num = SFI_GET_NUM_ENTRIES(sb, struct sfi_gpio_table_entry);
 	pentry = (struct sfi_gpio_table_entry *)sb->pentry;
 
-	gpio_table = kmalloc(num * sizeof(*pentry), GFP_KERNEL);
+	gpio_table = kmemdup(pentry, num * sizeof(*pentry), GFP_KERNEL);
 	if (!gpio_table)
 		return -1;
-	memcpy(gpio_table, pentry, num * sizeof(*pentry));
 	gpio_num_entry = num;
 
 	pr_debug("GPIO pin info:\n");
@@ -436,6 +433,7 @@ static int __init sfi_parse_devs(struct sfi_table_header *table)
 	struct devs_id *dev = NULL;
 	int num, i, ret;
 	int polarity;
+	struct irq_alloc_info info;
 
 	sb = (struct sfi_table_simple *)table;
 	num = SFI_GET_NUM_ENTRIES(sb, struct sfi_device_table_entry);
@@ -469,9 +467,8 @@ static int __init sfi_parse_devs(struct sfi_table_header *table)
 				polarity = 1;
 			}
 
-			ret = mp_set_gsi_attr(irq, 1, polarity, NUMA_NO_NODE);
-			if (ret == 0)
-				ret = mp_map_gsi_to_irq(irq, IOAPIC_MAP_ALLOC);
+			ioapic_set_alloc_attr(&info, NUMA_NO_NODE, 1, polarity);
+			ret = mp_map_gsi_to_irq(irq, IOAPIC_MAP_ALLOC, &info);
 			WARN_ON(ret < 0);
 		}
 

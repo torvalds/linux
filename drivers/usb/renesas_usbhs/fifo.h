@@ -44,10 +44,11 @@ struct usbhs_fifo_info {
 	struct usbhs_fifo dfifo[USBHS_MAX_NUM_DFIFO];
 };
 #define usbhsf_get_dnfifo(p, n)	(&((p)->fifo_info.dfifo[n]))
-#define usbhs_for_each_dfifo(priv, dfifo, i)				\
-	for ((i) = 0, dfifo = usbhsf_get_dnfifo(priv, (i));		\
-	     ((i) < USBHS_MAX_NUM_DFIFO);				\
-	     (i)++, dfifo = usbhsf_get_dnfifo(priv, (i)))
+#define usbhs_for_each_dfifo(priv, dfifo, i)			\
+	for ((i) = 0;						\
+	     ((i) < USBHS_MAX_NUM_DFIFO) &&			\
+		     ((dfifo) = usbhsf_get_dnfifo(priv, (i)));	\
+	     (i)++)
 
 struct usbhs_pkt_handle;
 struct usbhs_pkt {
@@ -58,6 +59,7 @@ struct usbhs_pkt {
 		     struct usbhs_pkt *pkt);
 	struct work_struct work;
 	dma_addr_t dma;
+	dma_cookie_t cookie;
 	void *buf;
 	int length;
 	int trans;

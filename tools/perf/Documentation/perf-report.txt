@@ -29,17 +29,23 @@ OPTIONS
 --show-nr-samples::
 	Show the number of samples for each symbol
 
---showcpuutilization::
+--show-cpu-utilization::
         Show sample percentage for different cpu modes.
 
 -T::
 --threads::
-	Show per-thread event counters
+	Show per-thread event counters.  The input data file should be recorded
+	with -s option.
 -c::
 --comms=::
 	Only consider symbols in these comms. CSV that understands
 	file://filename entries.  This option will affect the percentage of
 	the overhead column.  See --percentage for more info.
+--pid=::
+        Only show events for given process ID (comma separated list).
+
+--tid=::
+        Only show events for given thread ID (comma separated list).
 -d::
 --dsos=::
 	Only consider symbols in these dsos. CSV that understands
@@ -62,7 +68,7 @@ OPTIONS
 --sort=::
 	Sort histogram entries by given key(s) - multiple keys can be specified
 	in CSV format.  Following sort keys are available:
-	pid, comm, dso, symbol, parent, cpu, srcline, weight, local_weight.
+	pid, comm, dso, symbol, parent, cpu, socket, srcline, weight, local_weight.
 
 	Each key has following meaning:
 
@@ -73,8 +79,11 @@ OPTIONS
 	- parent: name of function matched to the parent regex filter. Unmatched
 	entries are displayed as "[other]".
 	- cpu: cpu number the task ran at the time of sample
+	- socket: processor socket number the task ran at the time of sample
 	- srcline: filename and line number executed at the time of sample.  The
 	DWARF debugging info must be provided.
+	- srcfile: file name of the source file of the same. Requires dwarf
+	information.
 	- weight: Event specific weight, e.g. memory latency or transaction
 	abort cost. This is the global weight.
 	- local_weight: Local weight version of the weight above.
@@ -103,6 +112,7 @@ OPTIONS
 	- mispredict: "N" for predicted branch, "Y" for mispredicted branch
 	- in_tx: branch in TSX transaction
 	- abort: TSX transaction abort.
+	- cycles: Cycles in basic block
 
 	And default sort keys are changed to comm, dso_from, symbol_from, dso_to
 	and symbol_to, see '--branch-stack'.
@@ -159,41 +169,54 @@ OPTIONS
 --dump-raw-trace::
         Dump raw trace in ASCII.
 
--g [type,min[,limit],order[,key][,branch]]::
---call-graph::
-        Display call chains using type, min percent threshold, optional print
-	limit and order.
-	type can be either:
+-g::
+--call-graph=<print_type,threshold[,print_limit],order,sort_key,branch>::
+        Display call chains using type, min percent threshold, print limit,
+	call order, sort key and branch.  Note that ordering of parameters is not
+	fixed so any parement can be given in an arbitraty order.  One exception
+	is the print_limit which should be preceded by threshold.
+
+	print_type can be either:
 	- flat: single column, linear exposure of call chains.
-	- graph: use a graph tree, displaying absolute overhead rates.
+	- graph: use a graph tree, displaying absolute overhead rates. (default)
 	- fractal: like graph, but displays relative rates. Each branch of
-		 the tree is considered as a new profiled object. +
+		 the tree is considered as a new profiled object.
+	- none: disable call chain display.
+
+	threshold is a percentage value which specifies a minimum percent to be
+	included in the output call graph.  Default is 0.5 (%).
+
+	print_limit is only applied when stdio interface is used.  It's to limit
+	number of call graph entries in a single hist entry.  Note that it needs
+	to be given after threshold (but not necessarily consecutive).
+	Default is 0 (unlimited).
 
 	order can be either:
 	- callee: callee based call graph.
 	- caller: inverted caller based call graph.
+	Default is 'caller' when --children is used, otherwise 'callee'.
 
-	key can be:
-	- function: compare on functions
+	sort_key can be:
+	- function: compare on functions (default)
 	- address: compare on individual code addresses
 
 	branch can be:
-	- branch: include last branch information in callgraph
-	when available. Usually more convenient to use --branch-history
-	for this.
-
-	Default: fractal,0.5,callee,function.
+	- branch: include last branch information in callgraph when available.
+	          Usually more convenient to use --branch-history for this.
 
 --children::
 	Accumulate callchain of children to parent entry so that then can
 	show up in the output.  The output will have a new "Children" column
 	and will be sorted on the data.  It requires callchains are recorded.
+	See the `overhead calculation' section for more details.
 
 --max-stack::
 	Set the stack depth limit when parsing the callchain, anything
 	beyond the specified depth will be ignored. This is a trade-off
 	between information loss and faster processing especially for
 	workloads that can have a very long callchain stack.
+	Note that when using the --itrace option the synthesized callchain size
+	will override this value if the synthesized callchain size is bigger.
 
 	Default: 127
 
@@ -317,6 +340,32 @@ OPTIONS
 
 --header-only::
 	Show only perf.data header (forces --stdio).
+
+--itrace::
+	Options for decoding instruction tracing data. The options are:
+
+include::itrace.txt[]
+
+	To disable decoding entirely, use --no-itrace.
+
+--full-source-path::
+	Show the full path for source files for srcline output.
+
+--show-ref-call-graph::
+	When multiple events are sampled, it may not be needed to collect
+	callgraphs for all of them. The sample sites are usually nearby,
+	and it's enough to collect the callgraphs on a reference event.
+	So user can use "call-graph=no" event modifier to disable callgraph
+	for other events to reduce the overhead.
+	However, perf report cannot show callgraphs for the event which
+	disable the callgraph.
+	This option extends the perf report to show reference callgraphs,
+	which collected by reference event, in no callgraph event.
+
+--socket-filter::
+	Only report the samples on the processor socket that match with this filter
+
+include::callchain-overhead-calculation.txt[]
 
 SEE ALSO
 --------

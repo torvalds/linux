@@ -63,10 +63,23 @@ struct ptlrpc_connect_async_args {
 static void __import_set_state(struct obd_import *imp,
 			       enum lustre_imp_state state)
 {
+	switch (state) {
+	case LUSTRE_IMP_CLOSED:
+	case LUSTRE_IMP_NEW:
+	case LUSTRE_IMP_DISCON:
+	case LUSTRE_IMP_CONNECTING:
+		break;
+	case LUSTRE_IMP_REPLAY_WAIT:
+		imp->imp_replay_state = LUSTRE_IMP_REPLAY_LOCKS;
+		break;
+	default:
+		imp->imp_replay_state = LUSTRE_IMP_REPLAY;
+	}
+
 	imp->imp_state = state;
 	imp->imp_state_hist[imp->imp_state_hist_idx].ish_state = state;
 	imp->imp_state_hist[imp->imp_state_hist_idx].ish_time =
-		get_seconds();
+		ktime_get_real_seconds();
 	imp->imp_state_hist_idx = (imp->imp_state_hist_idx + 1) %
 		IMP_STATE_HIST_LEN;
 }
@@ -90,7 +103,6 @@ do {									\
 	spin_unlock(&imp->imp_lock);					\
 } while (0)
 
-
 static int ptlrpc_connect_interpret(const struct lu_env *env,
 				    struct ptlrpc_request *request,
 				    void *data, int rc);
@@ -106,7 +118,7 @@ int ptlrpc_init_import(struct obd_import *imp)
 	spin_lock(&imp->imp_lock);
 
 	imp->imp_generation++;
-	imp->imp_state =  LUSTRE_IMP_NEW;
+	imp->imp_state = LUSTRE_IMP_NEW;
 
 	spin_unlock(&imp->imp_lock);
 
@@ -115,7 +127,8 @@ int ptlrpc_init_import(struct obd_import *imp)
 EXPORT_SYMBOL(ptlrpc_init_import);
 
 #define UUID_STR "_UUID"
-void deuuidify(char *uuid, const char *prefix, char **uuid_start, int *uuid_len)
+static void deuuidify(char *uuid, const char *prefix, char **uuid_start,
+		      int *uuid_len)
 {
 	*uuid_start = !prefix || strncmp(uuid, prefix, strlen(prefix))
 		? uuid : uuid + strlen(prefix);
@@ -129,7 +142,6 @@ void deuuidify(char *uuid, const char *prefix, char **uuid_start, int *uuid_len)
 		    UUID_STR, strlen(UUID_STR)))
 		*uuid_len -= strlen(UUID_STR);
 }
-EXPORT_SYMBOL(deuuidify);
 
 /**
  * Returns true if import was FULL, false if import was already not
@@ -187,12 +199,15 @@ int ptlrpc_set_import_discon(struct obd_import *imp, __u32 conn_cnt)
 	return rc;
 }
 
-/* Must be called with imp_lock held! */
-static void ptlrpc_deactivate_and_unlock_import(struct obd_import *imp)
+/*
+ * This acts as a barrier; all existing requests are rejected, and
+ * no new requests will be accepted until the import is valid again.
+ */
+void ptlrpc_deactivate_import(struct obd_import *imp)
 {
-	assert_spin_locked(&imp->imp_lock);
-
 	CDEBUG(D_HA, "setting import %s INVALID\n", obd2cli_tgt(imp->imp_obd));
+
+	spin_lock(&imp->imp_lock);
 	imp->imp_invalid = 1;
 	imp->imp_generation++;
 	spin_unlock(&imp->imp_lock);
@@ -200,20 +215,10 @@ static void ptlrpc_deactivate_and_unlock_import(struct obd_import *imp)
 	ptlrpc_abort_inflight(imp);
 	obd_import_event(imp->imp_obd, imp, IMP_EVENT_INACTIVE);
 }
-
-/*
- * This acts as a barrier; all existing requests are rejected, and
- * no new requests will be accepted until the import is valid again.
- */
-void ptlrpc_deactivate_import(struct obd_import *imp)
-{
-	spin_lock(&imp->imp_lock);
-	ptlrpc_deactivate_and_unlock_import(imp);
-}
 EXPORT_SYMBOL(ptlrpc_deactivate_import);
 
 static unsigned int
-ptlrpc_inflight_deadline(struct ptlrpc_request *req, time_t now)
+ptlrpc_inflight_deadline(struct ptlrpc_request *req, time64_t now)
 {
 	long dl;
 
@@ -238,7 +243,7 @@ ptlrpc_inflight_deadline(struct ptlrpc_request *req, time_t now)
 
 static unsigned int ptlrpc_inflight_timeout(struct obd_import *imp)
 {
-	time_t now = get_seconds();
+	time64_t now = ktime_get_real_seconds();
 	struct list_head *tmp, *n;
 	struct ptlrpc_request *req;
 	unsigned int timeout = 0;
@@ -356,7 +361,7 @@ void ptlrpc_invalidate_import(struct obd_import *imp)
 						   imp_unregistering));
 			}
 			spin_unlock(&imp->imp_lock);
-		  }
+		}
 	} while (rc != 0);
 
 	/*
@@ -448,6 +453,7 @@ int ptlrpc_reconnect_import(struct obd_import *imp)
 	if (atomic_read(&imp->imp_inval_count) > 0) {
 		int rc;
 		struct l_wait_info lwi = LWI_INTR(LWI_ON_SIGNAL_NOOP, NULL);
+
 		rc = l_wait_event(imp->imp_recovery_waitq,
 				  (atomic_read(&imp->imp_inval_count) == 0),
 				  &lwi);
@@ -529,6 +535,7 @@ static int import_select_connection(struct obd_import *imp)
 	   trying to reconnect on it.) */
 	if (tried_all && (imp->imp_conn_list.next == &imp_conn->oic_item)) {
 		struct adaptive_timeout *at = &imp->imp_at.iat_net_latency;
+
 		if (at_get(at) < CONNECTION_SWITCH_MAX) {
 			at_measured(at, at_get(at) + CONNECTION_SWITCH_INC);
 			if (at_get(at) > CONNECTION_SWITCH_MAX)
@@ -542,14 +549,12 @@ static int import_select_connection(struct obd_import *imp)
 	imp_conn->oic_last_attempt = cfs_time_current_64();
 
 	/* switch connection, don't mind if it's same as the current one */
-	if (imp->imp_connection)
-		ptlrpc_connection_put(imp->imp_connection);
+	ptlrpc_connection_put(imp->imp_connection);
 	imp->imp_connection = ptlrpc_connection_addref(imp_conn->oic_conn);
 
-	dlmexp =  class_conn2export(&imp->imp_dlm_handle);
+	dlmexp = class_conn2export(&imp->imp_dlm_handle);
 	LASSERT(dlmexp != NULL);
-	if (dlmexp->exp_connection)
-		ptlrpc_connection_put(dlmexp->exp_connection);
+	ptlrpc_connection_put(dlmexp->exp_connection);
 	dlmexp->exp_connection = ptlrpc_connection_addref(imp_conn->oic_conn);
 	class_export_put(dlmexp);
 
@@ -738,12 +743,11 @@ int ptlrpc_connect_import(struct obd_import *imp)
 
 	DEBUG_REQ(D_RPCTRACE, request, "(re)connect request (timeout %d)",
 		  request->rq_timeout);
-	ptlrpcd_add_req(request, PDL_POLICY_ROUND, -1);
+	ptlrpcd_add_req(request);
 	rc = 0;
 out:
-	if (rc != 0) {
+	if (rc != 0)
 		IMPORT_SET_STATE(imp, LUSTRE_IMP_DISCON);
-	}
 
 	return rc;
 }
@@ -895,7 +899,7 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 	}
 
 	/* Determine what recovery state to move the import to. */
-	if (MSG_CONNECT_RECONNECT & msg_flags) {
+	if (msg_flags & MSG_CONNECT_RECONNECT) {
 		memset(&old_hdl, 0, sizeof(old_hdl));
 		if (!memcmp(&old_hdl, lustre_msg_get_handle(request->rq_repmsg),
 			    sizeof(old_hdl))) {
@@ -920,7 +924,7 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 			 * eviction. If it is in recovery - we are safe to
 			 * participate since we can reestablish all of our state
 			 * with server again */
-			if ((MSG_CONNECT_RECOVERING & msg_flags)) {
+			if ((msg_flags & MSG_CONNECT_RECOVERING)) {
 				CDEBUG(level, "%s@%s changed server handle from %#llx to %#llx but is still in recovery\n",
 				       obd2cli_tgt(imp->imp_obd),
 				       imp->imp_connection->c_remote_uuid.uuid,
@@ -937,11 +941,10 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 						      request->rq_repmsg)->cookie);
 			}
 
-
 			imp->imp_remote_handle =
 				     *lustre_msg_get_handle(request->rq_repmsg);
 
-			if (!(MSG_CONNECT_RECOVERING & msg_flags)) {
+			if (!(msg_flags & MSG_CONNECT_RECOVERING)) {
 				IMPORT_SET_STATE(imp, LUSTRE_IMP_EVICTED);
 				rc = 0;
 				goto finish;
@@ -957,7 +960,7 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 			CDEBUG(D_HA, "%s: reconnected but import is invalid; marking evicted\n",
 			       imp->imp_obd->obd_name);
 			IMPORT_SET_STATE(imp, LUSTRE_IMP_EVICTED);
-		} else if (MSG_CONNECT_RECOVERING & msg_flags) {
+		} else if (msg_flags & MSG_CONNECT_RECOVERING) {
 			CDEBUG(D_HA, "%s: reconnected to %s during replay\n",
 			       imp->imp_obd->obd_name,
 			       obd2cli_tgt(imp->imp_obd));
@@ -966,11 +969,11 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 			imp->imp_resend_replay = 1;
 			spin_unlock(&imp->imp_lock);
 
-			IMPORT_SET_STATE(imp, LUSTRE_IMP_REPLAY);
+			IMPORT_SET_STATE(imp, imp->imp_replay_state);
 		} else {
 			IMPORT_SET_STATE(imp, LUSTRE_IMP_RECOVER);
 		}
-	} else if ((MSG_CONNECT_RECOVERING & msg_flags) && !imp->imp_invalid) {
+	} else if ((msg_flags & MSG_CONNECT_RECOVERING) && !imp->imp_invalid) {
 		LASSERT(imp->imp_replayable);
 		imp->imp_remote_handle =
 				*lustre_msg_get_handle(request->rq_repmsg);
@@ -1253,7 +1256,7 @@ static int signal_completed_replay(struct obd_import *imp)
 		req->rq_timeout *= 3;
 	req->rq_interpret_reply = completed_replay_interpret;
 
-	ptlrpcd_add_req(req, PDL_POLICY_ROUND, -1);
+	ptlrpcd_add_req(req);
 	return 0;
 }
 
@@ -1477,7 +1480,7 @@ int ptlrpc_disconnect_import(struct obd_import *imp, int noclose)
 					INITIAL_CONNECT_TIMEOUT);
 
 		IMPORT_SET_STATE(imp, LUSTRE_IMP_CONNECTING);
-		req->rq_send_state =  LUSTRE_IMP_CONNECTING;
+		req->rq_send_state = LUSTRE_IMP_CONNECTING;
 		ptlrpc_request_set_replen(req);
 		rc = ptlrpc_queue_wait(req);
 		ptlrpc_req_finished(req);
@@ -1500,16 +1503,6 @@ out:
 }
 EXPORT_SYMBOL(ptlrpc_disconnect_import);
 
-void ptlrpc_cleanup_imp(struct obd_import *imp)
-{
-	spin_lock(&imp->imp_lock);
-	IMPORT_SET_STATE_NOLOCK(imp, LUSTRE_IMP_CLOSED);
-	imp->imp_generation++;
-	spin_unlock(&imp->imp_lock);
-	ptlrpc_abort_inflight(imp);
-}
-EXPORT_SYMBOL(ptlrpc_cleanup_imp);
-
 /* Adaptive Timeout utils */
 extern unsigned int at_min, at_max, at_history;
 
@@ -1520,12 +1513,12 @@ extern unsigned int at_min, at_max, at_history;
 int at_measured(struct adaptive_timeout *at, unsigned int val)
 {
 	unsigned int old = at->at_current;
-	time_t now = get_seconds();
-	time_t binlimit = max_t(time_t, at_history / AT_BINS, 1);
+	time64_t now = ktime_get_real_seconds();
+	long binlimit = max_t(long, at_history / AT_BINS, 1);
 
 	LASSERT(at);
 	CDEBUG(D_OTHER, "add %u to %p time=%lu v=%u (%u %u %u %u)\n",
-	       val, at, now - at->at_binstart, at->at_current,
+	       val, at, (long)(now - at->at_binstart), at->at_current,
 	       at->at_hist[0], at->at_hist[1], at->at_hist[2], at->at_hist[3]);
 
 	if (val == 0)
@@ -1550,7 +1543,7 @@ int at_measured(struct adaptive_timeout *at, unsigned int val)
 		int i, shift;
 		unsigned int maxv = val;
 		/* move bins over */
-		shift = (now - at->at_binstart) / binlimit;
+		shift = (u32)(now - at->at_binstart) / binlimit;
 		LASSERT(shift > 0);
 		for (i = AT_BINS - 1; i >= 0; i--) {
 			if (i >= shift) {

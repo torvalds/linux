@@ -244,12 +244,6 @@ error:
 	return ret;
 }
 
-/* 64 bit div with round closest, like DIV_ROUND_CLOSEST but 64 bit */
-u32 cxd2820r_div_u64_round_closest(u64 dividend, u32 divisor)
-{
-	return div_u64(dividend + (divisor / 2), divisor);
-}
-
 static int cxd2820r_set_frontend(struct dvb_frontend *fe)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
@@ -293,7 +287,8 @@ static int cxd2820r_set_frontend(struct dvb_frontend *fe)
 err:
 	return ret;
 }
-static int cxd2820r_read_status(struct dvb_frontend *fe, fe_status_t *status)
+
+static int cxd2820r_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
 	int ret;
@@ -507,7 +502,7 @@ static enum dvbfe_search cxd2820r_search(struct dvb_frontend *fe)
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret, i;
-	fe_status_t status = 0;
+	enum fe_status status = 0;
 
 	dev_dbg(&priv->i2c->dev, "%s: delsys=%d\n", __func__,
 			fe->dtv_property_cache.delivery_system);

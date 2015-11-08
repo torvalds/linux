@@ -36,6 +36,12 @@ struct private_data {
 	unsigned int voltage_tolerance; /* in percentage */
 };
 
+static struct freq_attr *cpufreq_dt_attr[] = {
+	&cpufreq_freq_attr_scaling_available_freqs,
+	NULL,   /* Extra space for boost-attr if required */
+	NULL,
+};
+
 static int set_target(struct cpufreq_policy *policy, unsigned int index)
 {
 	struct dev_pm_opp *opp;
@@ -184,15 +190,16 @@ try_again:
 
 static int cpufreq_init(struct cpufreq_policy *policy)
 {
-	struct cpufreq_dt_platform_data *pd;
 	struct cpufreq_frequency_table *freq_table;
 	struct device_node *np;
 	struct private_data *priv;
 	struct device *cpu_dev;
 	struct regulator *cpu_reg;
 	struct clk *cpu_clk;
+	struct dev_pm_opp *suspend_opp;
 	unsigned long min_uV = ~0, max_uV = 0;
 	unsigned int transition_latency;
+	bool need_update = false;
 	int ret;
 
 	ret = allocate_resources(policy->cpu, &cpu_dev, &cpu_reg, &cpu_clk);
@@ -208,8 +215,30 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 		goto out_put_reg_clk;
 	}
 
-	/* OPPs might be populated at runtime, don't check for error here */
-	of_init_opp_table(cpu_dev);
+	/* Get OPP-sharing information from "operating-points-v2" bindings */
+	ret = dev_pm_opp_of_get_sharing_cpus(cpu_dev, policy->cpus);
+	if (ret) {
+		/*
+		 * operating-points-v2 not supported, fallback to old method of
+		 * finding shared-OPPs for backward compatibility.
+		 */
+		if (ret == -ENOENT)
+			need_update = true;
+		else
+			goto out_node_put;
+	}
+
+	/*
+	 * Initialize OPP tables for all policy->cpus. They will be shared by
+	 * all CPUs which have marked their CPUs shared with OPP bindings.
+	 *
+	 * For platforms not using operating-points-v2 bindings, we do this
+	 * before updating policy->cpus. Otherwise, we will end up creating
+	 * duplicate OPPs for policy->cpus.
+	 *
+	 * OPPs might be populated at runtime, don't check for error here
+	 */
+	dev_pm_opp_of_cpumask_add_table(policy->cpus);
 
 	/*
 	 * But we need OPP table to function so if it is not there let's
@@ -222,6 +251,26 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 		goto out_free_opp;
 	}
 
+	if (need_update) {
+		struct cpufreq_dt_platform_data *pd = cpufreq_get_driver_data();
+
+		if (!pd || !pd->independent_clocks)
+			cpumask_setall(policy->cpus);
+
+		/*
+		 * OPP tables are initialized only for policy->cpu, do it for
+		 * others as well.
+		 */
+		ret = dev_pm_opp_set_sharing_cpus(cpu_dev, policy->cpus);
+		if (ret)
+			dev_err(cpu_dev, "%s: failed to mark OPPs as shared: %d\n",
+				__func__, ret);
+
+		of_property_read_u32(np, "clock-latency", &transition_latency);
+	} else {
+		transition_latency = dev_pm_opp_get_max_clock_latency(cpu_dev);
+	}
+
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		ret = -ENOMEM;
@@ -230,7 +279,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 
 	of_property_read_u32(np, "voltage-tolerance", &priv->voltage_tolerance);
 
-	if (of_property_read_u32(np, "clock-latency", &transition_latency))
+	if (!transition_latency)
 		transition_latency = CPUFREQ_ETERNAL;
 
 	if (!IS_ERR(cpu_reg)) {
@@ -255,7 +304,8 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 			rcu_read_unlock();
 
 			tol_uV = opp_uV * priv->voltage_tolerance / 100;
-			if (regulator_is_supported_voltage(cpu_reg, opp_uV,
+			if (regulator_is_supported_voltage(cpu_reg,
+							   opp_uV - tol_uV,
 							   opp_uV + tol_uV)) {
 				if (opp_uV < min_uV)
 					min_uV = opp_uV;
@@ -284,6 +334,13 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	policy->driver_data = priv;
 
 	policy->clk = cpu_clk;
+
+	rcu_read_lock();
+	suspend_opp = dev_pm_opp_get_suspend_opp(cpu_dev);
+	if (suspend_opp)
+		policy->suspend_freq = dev_pm_opp_get_freq(suspend_opp) / 1000;
+	rcu_read_unlock();
+
 	ret = cpufreq_table_validate_and_show(policy, freq_table);
 	if (ret) {
 		dev_err(cpu_dev, "%s: invalid frequency table: %d\n", __func__,
@@ -291,11 +348,16 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 		goto out_free_cpufreq_table;
 	}
 
-	policy->cpuinfo.transition_latency = transition_latency;
+	/* Support turbo/boost mode */
+	if (policy_has_boost_freq(policy)) {
+		/* This gets disabled by core on driver unregister */
+		ret = cpufreq_enable_boost_support();
+		if (ret)
+			goto out_free_cpufreq_table;
+		cpufreq_dt_attr[1] = &cpufreq_freq_attr_scaling_boost_freqs;
+	}
 
-	pd = cpufreq_get_driver_data();
-	if (!pd || !pd->independent_clocks)
-		cpumask_setall(policy->cpus);
+	policy->cpuinfo.transition_latency = transition_latency;
 
 	of_node_put(np);
 
@@ -306,7 +368,8 @@ out_free_cpufreq_table:
 out_free_priv:
 	kfree(priv);
 out_free_opp:
-	of_free_opp_table(cpu_dev);
+	dev_pm_opp_of_cpumask_remove_table(policy->cpus);
+out_node_put:
 	of_node_put(np);
 out_put_reg_clk:
 	clk_put(cpu_clk);
@@ -322,7 +385,7 @@ static int cpufreq_exit(struct cpufreq_policy *policy)
 
 	cpufreq_cooling_unregister(priv->cdev);
 	dev_pm_opp_free_cpufreq_table(priv->cpu_dev, &policy->freq_table);
-	of_free_opp_table(priv->cpu_dev);
+	dev_pm_opp_of_cpumask_remove_table(policy->related_cpus);
 	clk_put(policy->clk);
 	if (!IS_ERR(priv->cpu_reg))
 		regulator_put(priv->cpu_reg);
@@ -367,7 +430,8 @@ static struct cpufreq_driver dt_cpufreq_driver = {
 	.exit = cpufreq_exit,
 	.ready = cpufreq_ready,
 	.name = "cpufreq-dt",
-	.attr = cpufreq_generic_attr,
+	.attr = cpufreq_dt_attr,
+	.suspend = cpufreq_generic_suspend,
 };
 
 static int dt_cpufreq_probe(struct platform_device *pdev)
@@ -416,6 +480,7 @@ static struct platform_driver dt_cpufreq_platdrv = {
 };
 module_platform_driver(dt_cpufreq_platdrv);
 
+MODULE_ALIAS("platform:cpufreq-dt");
 MODULE_AUTHOR("Viresh Kumar <viresh.kumar@linaro.org>");
 MODULE_AUTHOR("Shawn Guo <shawn.guo@linaro.org>");
 MODULE_DESCRIPTION("Generic cpufreq driver");

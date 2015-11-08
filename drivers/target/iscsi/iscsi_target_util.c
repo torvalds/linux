@@ -22,7 +22,6 @@
 #include <scsi/iscsi_proto.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
-#include <target/target_core_configfs.h>
 #include <target/iscsi/iscsi_transport.h>
 
 #include <target/iscsi/iscsi_target_core.h>
@@ -33,7 +32,6 @@
 #include "iscsi_target_erl1.h"
 #include "iscsi_target_erl2.h"
 #include "iscsi_target_tpg.h"
-#include "iscsi_target_tq.h"
 #include "iscsi_target_util.h"
 #include "iscsi_target.h"
 
@@ -235,6 +233,7 @@ struct iscsi_r2t *iscsit_get_holder_for_r2tsn(
 
 static inline int iscsit_check_received_cmdsn(struct iscsi_session *sess, u32 cmdsn)
 {
+	u32 max_cmdsn;
 	int ret;
 
 	/*
@@ -243,10 +242,10 @@ static inline int iscsit_check_received_cmdsn(struct iscsi_session *sess, u32 cm
 	 * or order CmdSNs due to multiple connection sessions and/or
 	 * CRC failures.
 	 */
-	if (iscsi_sna_gt(cmdsn, sess->max_cmd_sn)) {
+	max_cmdsn = atomic_read(&sess->max_cmd_sn);
+	if (iscsi_sna_gt(cmdsn, max_cmdsn)) {
 		pr_err("Received CmdSN: 0x%08x is greater than"
-		       " MaxCmdSN: 0x%08x, ignoring.\n", cmdsn,
-		       sess->max_cmd_sn);
+		       " MaxCmdSN: 0x%08x, ignoring.\n", cmdsn, max_cmdsn);
 		ret = CMDSN_MAXCMDSN_OVERRUN;
 
 	} else if (cmdsn == sess->exp_cmd_sn) {
@@ -747,7 +746,7 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
 		rc = transport_generic_free_cmd(&cmd->se_cmd, shutdown);
 		if (!rc && shutdown && se_cmd && se_cmd->se_sess) {
 			__iscsit_free_cmd(cmd, true, shutdown);
-			target_put_sess_cmd(se_cmd->se_sess, se_cmd);
+			target_put_sess_cmd(se_cmd);
 		}
 		break;
 	case ISCSI_OP_REJECT:
@@ -763,7 +762,7 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
 			rc = transport_generic_free_cmd(&cmd->se_cmd, shutdown);
 			if (!rc && shutdown && se_cmd->se_sess) {
 				__iscsit_free_cmd(cmd, true, shutdown);
-				target_put_sess_cmd(se_cmd->se_sess, se_cmd);
+				target_put_sess_cmd(se_cmd);
 			}
 			break;
 		}
@@ -808,54 +807,6 @@ void iscsit_inc_session_usage_count(struct iscsi_session *sess)
 	spin_lock_bh(&sess->session_usage_lock);
 	sess->session_usage_count++;
 	spin_unlock_bh(&sess->session_usage_lock);
-}
-
-/*
- *	Setup conn->if_marker and conn->of_marker values based upon
- *	the initial marker-less interval. (see iSCSI v19 A.2)
- */
-int iscsit_set_sync_and_steering_values(struct iscsi_conn *conn)
-{
-	int login_ifmarker_count = 0, login_ofmarker_count = 0, next_marker = 0;
-	/*
-	 * IFMarkInt and OFMarkInt are negotiated as 32-bit words.
-	 */
-	u32 IFMarkInt = (conn->conn_ops->IFMarkInt * 4);
-	u32 OFMarkInt = (conn->conn_ops->OFMarkInt * 4);
-
-	if (conn->conn_ops->OFMarker) {
-		/*
-		 * Account for the first Login Command received not
-		 * via iscsi_recv_msg().
-		 */
-		conn->of_marker += ISCSI_HDR_LEN;
-		if (conn->of_marker <= OFMarkInt) {
-			conn->of_marker = (OFMarkInt - conn->of_marker);
-		} else {
-			login_ofmarker_count = (conn->of_marker / OFMarkInt);
-			next_marker = (OFMarkInt * (login_ofmarker_count + 1)) +
-					(login_ofmarker_count * MARKER_SIZE);
-			conn->of_marker = (next_marker - conn->of_marker);
-		}
-		conn->of_marker_offset = 0;
-		pr_debug("Setting OFMarker value to %u based on Initial"
-			" Markerless Interval.\n", conn->of_marker);
-	}
-
-	if (conn->conn_ops->IFMarker) {
-		if (conn->if_marker <= IFMarkInt) {
-			conn->if_marker = (IFMarkInt - conn->if_marker);
-		} else {
-			login_ifmarker_count = (conn->if_marker / IFMarkInt);
-			next_marker = (IFMarkInt * (login_ifmarker_count + 1)) +
-					(login_ifmarker_count * MARKER_SIZE);
-			conn->if_marker = (next_marker - conn->if_marker);
-		}
-		pr_debug("Setting IFMarker value to %u based on Initial"
-			" Markerless Interval.\n", conn->if_marker);
-	}
-
-	return 0;
 }
 
 struct iscsi_conn *iscsit_get_conn_from_cid(struct iscsi_session *sess, u16 cid)
@@ -1421,6 +1372,33 @@ int tx_data(
 	return iscsit_do_tx_data(conn, &c);
 }
 
+static bool sockaddr_equal(struct sockaddr_storage *x, struct sockaddr_storage *y)
+{
+	switch (x->ss_family) {
+	case AF_INET: {
+		struct sockaddr_in *sinx = (struct sockaddr_in *)x;
+		struct sockaddr_in *siny = (struct sockaddr_in *)y;
+		if (sinx->sin_addr.s_addr != siny->sin_addr.s_addr)
+			return false;
+		if (sinx->sin_port != siny->sin_port)
+			return false;
+		break;
+	}
+	case AF_INET6: {
+		struct sockaddr_in6 *sinx = (struct sockaddr_in6 *)x;
+		struct sockaddr_in6 *siny = (struct sockaddr_in6 *)y;
+		if (!ipv6_addr_equal(&sinx->sin6_addr, &siny->sin6_addr))
+			return false;
+		if (sinx->sin6_port != siny->sin6_port)
+			return false;
+		break;
+	}
+	default:
+		return false;
+	}
+	return true;
+}
+
 void iscsit_collect_login_stats(
 	struct iscsi_conn *conn,
 	u8 status_class,
@@ -1437,7 +1415,7 @@ void iscsit_collect_login_stats(
 	ls = &tiqn->login_stats;
 
 	spin_lock(&ls->lock);
-	if (!strcmp(conn->login_ip, ls->last_intr_fail_ip_addr) &&
+	if (sockaddr_equal(&conn->login_sockaddr, &ls->last_intr_fail_sockaddr) &&
 	    ((get_jiffies_64() - ls->last_fail_time) < 10)) {
 		/* We already have the failure info for this login */
 		spin_unlock(&ls->lock);
@@ -1477,8 +1455,7 @@ void iscsit_collect_login_stats(
 
 		ls->last_intr_fail_ip_family = conn->login_family;
 
-		snprintf(ls->last_intr_fail_ip_addr, IPV6_ADDRESS_SPACE,
-				"%s", conn->login_ip);
+		ls->last_intr_fail_sockaddr = conn->login_sockaddr;
 		ls->last_fail_time = get_jiffies_64();
 	}
 

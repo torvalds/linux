@@ -102,32 +102,30 @@ static int ocfs2_validate_refcount_block(struct super_block *sb,
 
 
 	if (!OCFS2_IS_VALID_REFCOUNT_BLOCK(rb)) {
-		ocfs2_error(sb,
-			    "Refcount block #%llu has bad signature %.*s",
-			    (unsigned long long)bh->b_blocknr, 7,
-			    rb->rf_signature);
-		return -EINVAL;
+		rc = ocfs2_error(sb,
+				 "Refcount block #%llu has bad signature %.*s\n",
+				 (unsigned long long)bh->b_blocknr, 7,
+				 rb->rf_signature);
+		goto out;
 	}
 
 	if (le64_to_cpu(rb->rf_blkno) != bh->b_blocknr) {
-		ocfs2_error(sb,
-			    "Refcount block #%llu has an invalid rf_blkno "
-			    "of %llu",
-			    (unsigned long long)bh->b_blocknr,
-			    (unsigned long long)le64_to_cpu(rb->rf_blkno));
-		return -EINVAL;
+		rc = ocfs2_error(sb,
+				 "Refcount block #%llu has an invalid rf_blkno of %llu\n",
+				 (unsigned long long)bh->b_blocknr,
+				 (unsigned long long)le64_to_cpu(rb->rf_blkno));
+		goto out;
 	}
 
 	if (le32_to_cpu(rb->rf_fs_generation) != OCFS2_SB(sb)->fs_generation) {
-		ocfs2_error(sb,
-			    "Refcount block #%llu has an invalid "
-			    "rf_fs_generation of #%u",
-			    (unsigned long long)bh->b_blocknr,
-			    le32_to_cpu(rb->rf_fs_generation));
-		return -EINVAL;
+		rc = ocfs2_error(sb,
+				 "Refcount block #%llu has an invalid rf_fs_generation of #%u\n",
+				 (unsigned long long)bh->b_blocknr,
+				 le32_to_cpu(rb->rf_fs_generation));
+		goto out;
 	}
-
-	return 0;
+out:
+	return rc;
 }
 
 static int ocfs2_read_refcount_block(struct ocfs2_caching_info *ci,
@@ -1102,12 +1100,10 @@ static int ocfs2_get_refcount_rec(struct ocfs2_caching_info *ci,
 		el = &eb->h_list;
 
 		if (el->l_tree_depth) {
-			ocfs2_error(sb,
-			"refcount tree %llu has non zero tree "
-			"depth in leaf btree tree block %llu\n",
-			(unsigned long long)ocfs2_metadata_cache_owner(ci),
-			(unsigned long long)eb_bh->b_blocknr);
-			ret = -EROFS;
+			ret = ocfs2_error(sb,
+					  "refcount tree %llu has non zero tree depth in leaf btree tree block %llu\n",
+					  (unsigned long long)ocfs2_metadata_cache_owner(ci),
+					  (unsigned long long)eb_bh->b_blocknr);
 			goto out;
 		}
 	}
@@ -1406,11 +1402,9 @@ static int cmp_refcount_rec_by_cpos(const void *a, const void *b)
 
 static void swap_refcount_rec(void *a, void *b, int size)
 {
-	struct ocfs2_refcount_rec *l = a, *r = b, tmp;
+	struct ocfs2_refcount_rec *l = a, *r = b;
 
-	tmp = *l;
-	*l = *r;
-	*r = tmp;
+	swap(*l, *r);
 }
 
 /*
@@ -2361,10 +2355,8 @@ static int ocfs2_mark_extent_refcounted(struct inode *inode,
 					   cpos, len, phys);
 
 	if (!ocfs2_refcount_tree(OCFS2_SB(inode->i_sb))) {
-		ocfs2_error(inode->i_sb, "Inode %lu want to use refcount "
-			    "tree, but the feature bit is not set in the "
-			    "super block.", inode->i_ino);
-		ret = -EROFS;
+		ret = ocfs2_error(inode->i_sb, "Inode %lu want to use refcount tree, but the feature bit is not set in the super block\n",
+				  inode->i_ino);
 		goto out;
 	}
 
@@ -2547,10 +2539,8 @@ int ocfs2_prepare_refcount_change_for_del(struct inode *inode,
 	u64 start_cpos = ocfs2_blocks_to_clusters(inode->i_sb, phys_blkno);
 
 	if (!ocfs2_refcount_tree(OCFS2_SB(inode->i_sb))) {
-		ocfs2_error(inode->i_sb, "Inode %lu want to use refcount "
-			    "tree, but the feature bit is not set in the "
-			    "super block.", inode->i_ino);
-		ret = -EROFS;
+		ret = ocfs2_error(inode->i_sb, "Inode %lu want to use refcount tree, but the feature bit is not set in the super block\n",
+				  inode->i_ino);
 		goto out;
 	}
 
@@ -2674,11 +2664,10 @@ static int ocfs2_refcount_cal_cow_clusters(struct inode *inode,
 		el = &eb->h_list;
 
 		if (el->l_tree_depth) {
-			ocfs2_error(inode->i_sb,
-				    "Inode %lu has non zero tree depth in "
-				    "leaf block %llu\n", inode->i_ino,
-				    (unsigned long long)eb_bh->b_blocknr);
-			ret = -EROFS;
+			ret = ocfs2_error(inode->i_sb,
+					  "Inode %lu has non zero tree depth in leaf block %llu\n",
+					  inode->i_ino,
+					  (unsigned long long)eb_bh->b_blocknr);
 			goto out;
 		}
 	}
@@ -2931,16 +2920,13 @@ int ocfs2_duplicate_clusters_by_page(handle_t *handle,
 	u64 new_block = ocfs2_clusters_to_blocks(sb, new_cluster);
 	struct page *page;
 	pgoff_t page_index;
-	unsigned int from, to, readahead_pages;
+	unsigned int from, to;
 	loff_t offset, end, map_end;
 	struct address_space *mapping = inode->i_mapping;
 
 	trace_ocfs2_duplicate_clusters_by_page(cpos, old_cluster,
 					       new_cluster, new_len);
 
-	readahead_pages =
-		(ocfs2_cow_contig_clusters(sb) <<
-		 OCFS2_SB(sb)->s_clustersize_bits) >> PAGE_CACHE_SHIFT;
 	offset = ((loff_t)cpos) << OCFS2_SB(sb)->s_clustersize_bits;
 	end = offset + (new_len << OCFS2_SB(sb)->s_clustersize_bits);
 	/*
@@ -3108,11 +3094,9 @@ static int ocfs2_clear_ext_refcount(handle_t *handle,
 
 	index = ocfs2_search_extent_list(el, cpos);
 	if (index == -1) {
-		ocfs2_error(sb,
-			    "Inode %llu has an extent at cpos %u which can no "
-			    "longer be found.\n",
-			    (unsigned long long)ino, cpos);
-		ret = -EROFS;
+		ret = ocfs2_error(sb,
+				  "Inode %llu has an extent at cpos %u which can no longer be found\n",
+				  (unsigned long long)ino, cpos);
 		goto out;
 	}
 
@@ -3378,10 +3362,8 @@ static int ocfs2_replace_cow(struct ocfs2_cow_context *context)
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
 	if (!ocfs2_refcount_tree(OCFS2_SB(inode->i_sb))) {
-		ocfs2_error(inode->i_sb, "Inode %lu want to use refcount "
-			    "tree, but the feature bit is not set in the "
-			    "super block.", inode->i_ino);
-		return -EROFS;
+		return ocfs2_error(inode->i_sb, "Inode %lu want to use refcount tree, but the feature bit is not set in the super block\n",
+				   inode->i_ino);
 	}
 
 	ocfs2_init_dealloc_ctxt(&context->dealloc);
@@ -4194,7 +4176,7 @@ static int __ocfs2_reflink(struct dentry *old_dentry,
 			   bool preserve)
 {
 	int ret;
-	struct inode *inode = old_dentry->d_inode;
+	struct inode *inode = d_inode(old_dentry);
 	struct buffer_head *new_bh = NULL;
 
 	if (OCFS2_I(inode)->ip_flags & OCFS2_INODE_SYSTEM_FILE) {
@@ -4263,7 +4245,7 @@ static int ocfs2_reflink(struct dentry *old_dentry, struct inode *dir,
 			 struct dentry *new_dentry, bool preserve)
 {
 	int error;
-	struct inode *inode = old_dentry->d_inode;
+	struct inode *inode = d_inode(old_dentry);
 	struct buffer_head *old_bh = NULL;
 	struct inode *new_orphan_inode = NULL;
 	struct posix_acl *default_acl, *acl;
@@ -4276,7 +4258,7 @@ static int ocfs2_reflink(struct dentry *old_dentry, struct inode *dir,
 	error = posix_acl_create(dir, &mode, &default_acl, &acl);
 	if (error) {
 		mlog_errno(error);
-		goto out;
+		return error;
 	}
 
 	error = ocfs2_create_inode_in_orphan(dir, mode,
@@ -4357,7 +4339,7 @@ out:
 /* copied from may_create in VFS. */
 static inline int ocfs2_may_create(struct inode *dir, struct dentry *child)
 {
-	if (child->d_inode)
+	if (d_really_is_positive(child))
 		return -EEXIST;
 	if (IS_DEADDIR(dir))
 		return -ENOENT;
@@ -4375,7 +4357,7 @@ static inline int ocfs2_may_create(struct inode *dir, struct dentry *child)
 static int ocfs2_vfs_reflink(struct dentry *old_dentry, struct inode *dir,
 			     struct dentry *new_dentry, bool preserve)
 {
-	struct inode *inode = old_dentry->d_inode;
+	struct inode *inode = d_inode(old_dentry);
 	int error;
 
 	if (!inode)
@@ -4421,8 +4403,9 @@ static int ocfs2_vfs_reflink(struct dentry *old_dentry, struct inode *dir,
 	}
 
 	mutex_lock(&inode->i_mutex);
-	dquot_initialize(dir);
-	error = ocfs2_reflink(old_dentry, dir, new_dentry, preserve);
+	error = dquot_initialize(dir);
+	if (!error)
+		error = ocfs2_reflink(old_dentry, dir, new_dentry, preserve);
 	mutex_unlock(&inode->i_mutex);
 	if (!error)
 		fsnotify_create(dir, new_dentry);
@@ -4463,7 +4446,7 @@ int ocfs2_reflink_ioctl(struct inode *inode,
 	}
 
 	error = ocfs2_vfs_reflink(old_path.dentry,
-				  new_path.dentry->d_inode,
+				  d_inode(new_path.dentry),
 				  new_dentry, preserve);
 out_dput:
 	done_path_create(&new_path, new_dentry);

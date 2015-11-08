@@ -26,7 +26,6 @@
 
 #define MMA9553_DRV_NAME			"mma9553"
 #define MMA9553_IRQ_NAME			"mma9553_event"
-#define MMA9553_GPIO_NAME			"mma9553_int"
 
 /* Pedometer configuration registers (R/W) */
 #define MMA9553_REG_CONF_SLEEPMIN		0x00
@@ -54,6 +53,7 @@
 #define MMA9553_MASK_CONF_STEPCOALESCE		GENMASK(7, 0)
 
 #define MMA9553_REG_CONF_ACTTHD			0x0E
+#define MMA9553_MAX_ACTTHD			GENMASK(15, 0)
 
 /* Pedometer status registers (R-only) */
 #define MMA9553_REG_STATUS			0x00
@@ -62,8 +62,8 @@
 #define MMA9553_MASK_STATUS_STEPCHG		BIT(13)
 #define MMA9553_MASK_STATUS_ACTCHG		BIT(12)
 #define MMA9553_MASK_STATUS_SUSP		BIT(11)
-#define MMA9553_MASK_STATUS_ACTIVITY		(BIT(10) | BIT(9) | BIT(8))
-#define MMA9553_MASK_STATUS_VERSION		0x00FF
+#define MMA9553_MASK_STATUS_ACTIVITY		GENMASK(10, 8)
+#define MMA9553_MASK_STATUS_VERSION		GENMASK(7, 0)
 
 #define MMA9553_REG_STEPCNT			0x02
 #define MMA9553_REG_DISTANCE			0x04
@@ -75,14 +75,15 @@
 #define MMA9553_DEFAULT_GPIO_PIN	mma9551_gpio6
 #define MMA9553_DEFAULT_GPIO_POLARITY	0
 
-/* Bitnum used for gpio configuration = bit number in high status byte */
-#define STATUS_TO_BITNUM(bit)		(ffs(bit) - 9)
+/* Bitnum used for GPIO configuration = bit number in high status byte */
+#define MMA9553_STATUS_TO_BITNUM(bit)	(ffs(bit) - 9)
+#define MMA9553_MAX_BITNUM		MMA9553_STATUS_TO_BITNUM(BIT(16))
 
 #define MMA9553_DEFAULT_SAMPLE_RATE	30	/* Hz */
 
 /*
  * The internal activity level must be stable for ACTTHD samples before
- * ACTIVITY is updated.The ACTIVITY variable contains the current activity
+ * ACTIVITY is updated. The ACTIVITY variable contains the current activity
  * level and is updated every time a step is detected or once a second
  * if there are no steps.
  */
@@ -180,6 +181,10 @@ struct mma9553_conf_regs {
 
 struct mma9553_data {
 	struct i2c_client *client;
+	/*
+	 * 1. Serialize access to HW (requested by mma9551_core API).
+	 * 2. Serialize sequences that power on/off the device and access HW.
+	 */
 	struct mutex mutex;
 	struct mma9553_conf_regs conf;
 	struct mma9553_event events[MMA9553_EVENTS_INFO_SIZE];
@@ -316,22 +321,20 @@ static int mma9553_set_config(struct mma9553_data *data, u16 reg,
 static int mma9553_read_activity_stepcnt(struct mma9553_data *data,
 					 u8 *activity, u16 *stepcnt)
 {
-	u32 status_stepcnt;
-	u16 status;
+	u16 buf[2];
 	int ret;
 
 	ret = mma9551_read_status_words(data->client, MMA9551_APPID_PEDOMETER,
-					MMA9553_REG_STATUS, sizeof(u32),
-					(u16 *) &status_stepcnt);
+					MMA9553_REG_STATUS, ARRAY_SIZE(buf),
+					buf);
 	if (ret < 0) {
 		dev_err(&data->client->dev,
 			"error reading status and stepcnt\n");
 		return ret;
 	}
 
-	status = status_stepcnt & MMA9553_MASK_CONF_WORD;
-	*activity = mma9553_get_bits(status, MMA9553_MASK_STATUS_ACTIVITY);
-	*stepcnt = status_stepcnt >> 16;
+	*activity = mma9553_get_bits(buf[0], MMA9553_MASK_STATUS_ACTIVITY);
+	*stepcnt = buf[1];
 
 	return 0;
 }
@@ -343,21 +346,21 @@ static int mma9553_conf_gpio(struct mma9553_data *data)
 	struct mma9553_event *ev_step_detect;
 	bool activity_enabled;
 
-	activity_enabled =
-	    mma9553_is_any_event_enabled(data, true, IIO_ACTIVITY);
-	ev_step_detect =
-	    mma9553_get_event(data, IIO_STEPS, IIO_NO_MOD, IIO_EV_DIR_NONE);
+	activity_enabled = mma9553_is_any_event_enabled(data, true,
+							IIO_ACTIVITY);
+	ev_step_detect = mma9553_get_event(data, IIO_STEPS, IIO_NO_MOD,
+					   IIO_EV_DIR_NONE);
 
 	/*
 	 * If both step detector and activity are enabled, use the MRGFL bit.
 	 * This bit is the logical OR of the SUSPCHG, STEPCHG, and ACTCHG flags.
 	 */
 	if (activity_enabled && ev_step_detect->enabled)
-		bitnum = STATUS_TO_BITNUM(MMA9553_MASK_STATUS_MRGFL);
+		bitnum = MMA9553_STATUS_TO_BITNUM(MMA9553_MASK_STATUS_MRGFL);
 	else if (ev_step_detect->enabled)
-		bitnum = STATUS_TO_BITNUM(MMA9553_MASK_STATUS_STEPCHG);
+		bitnum = MMA9553_STATUS_TO_BITNUM(MMA9553_MASK_STATUS_STEPCHG);
 	else if (activity_enabled)
-		bitnum = STATUS_TO_BITNUM(MMA9553_MASK_STATUS_ACTCHG);
+		bitnum = MMA9553_STATUS_TO_BITNUM(MMA9553_MASK_STATUS_ACTCHG);
 	else			/* Reset */
 		appid = MMA9551_APPID_NONE;
 
@@ -365,13 +368,15 @@ static int mma9553_conf_gpio(struct mma9553_data *data)
 		return 0;
 
 	/* Save initial values for activity and stepcnt */
-	if (activity_enabled || ev_step_detect->enabled)
-		mma9553_read_activity_stepcnt(data, &data->activity,
-					      &data->stepcnt);
+	if (activity_enabled || ev_step_detect->enabled) {
+		ret = mma9553_read_activity_stepcnt(data, &data->activity,
+						    &data->stepcnt);
+		if (ret < 0)
+			return ret;
+	}
 
-	ret = mma9551_gpio_config(data->client,
-				  MMA9553_DEFAULT_GPIO_PIN,
-				  appid, bitnum, MMA9553_DEFAULT_GPIO_POLARITY);
+	ret = mma9551_gpio_config(data->client, MMA9553_DEFAULT_GPIO_PIN, appid,
+				  bitnum, MMA9553_DEFAULT_GPIO_POLARITY);
 	if (ret < 0)
 		return ret;
 	data->gpio_bitnum = bitnum;
@@ -392,19 +397,18 @@ static int mma9553_init(struct mma9553_data *data)
 	 * a device identification command to differentiate the MMA9553L
 	 * from the MMA9550L.
 	 */
-	ret =
-	    mma9551_read_config_words(data->client, MMA9551_APPID_PEDOMETER,
-				      MMA9553_REG_CONF_SLEEPMIN,
-				      sizeof(data->conf), (u16 *) &data->conf);
+	ret = mma9551_read_config_words(data->client, MMA9551_APPID_PEDOMETER,
+					MMA9553_REG_CONF_SLEEPMIN,
+					sizeof(data->conf) / sizeof(u16),
+					(u16 *)&data->conf);
 	if (ret < 0) {
 		dev_err(&data->client->dev,
-			"device is not MMA9553L: failed to read cfg regs\n");
+			"failed to read configuration registers\n");
 		return ret;
 	}
 
-
-	/* Reset gpio */
-	data->gpio_bitnum = -1;
+	/* Reset GPIO */
+	data->gpio_bitnum = MMA9553_MAX_BITNUM;
 	ret = mma9553_conf_gpio(data);
 	if (ret < 0)
 		return ret;
@@ -417,18 +421,18 @@ static int mma9553_init(struct mma9553_data *data)
 	data->conf.sleepmin = MMA9553_DEFAULT_SLEEPMIN;
 	data->conf.sleepmax = MMA9553_DEFAULT_SLEEPMAX;
 	data->conf.sleepthd = MMA9553_DEFAULT_SLEEPTHD;
-	data->conf.config =
-	    mma9553_set_bits(data->conf.config, 1, MMA9553_MASK_CONF_CONFIG);
+	data->conf.config = mma9553_set_bits(data->conf.config, 1,
+					     MMA9553_MASK_CONF_CONFIG);
 	/*
 	 * Clear the activity debounce counter when the activity level changes,
 	 * so that the confidence level applies for any activity level.
 	 */
 	data->conf.config = mma9553_set_bits(data->conf.config, 1,
 					     MMA9553_MASK_CONF_ACT_DBCNTM);
-	ret =
-	    mma9551_write_config_words(data->client, MMA9551_APPID_PEDOMETER,
-				       MMA9553_REG_CONF_SLEEPMIN,
-				       sizeof(data->conf), (u16 *) &data->conf);
+	ret = mma9551_write_config_words(data->client, MMA9551_APPID_PEDOMETER,
+					 MMA9553_REG_CONF_SLEEPMIN,
+					 sizeof(data->conf) / sizeof(u16),
+					 (u16 *)&data->conf);
 	if (ret < 0) {
 		dev_err(&data->client->dev,
 			"failed to write configuration registers\n");
@@ -436,6 +440,32 @@ static int mma9553_init(struct mma9553_data *data)
 	}
 
 	return mma9551_set_device_state(data->client, true);
+}
+
+static int mma9553_read_status_word(struct mma9553_data *data, u16 reg,
+				    u16 *tmp)
+{
+	bool powered_on;
+	int ret;
+
+	/*
+	 * The HW only counts steps and other dependent
+	 * parameters (speed, distance, calories, activity)
+	 * if power is on (from enabling an event or the
+	 * step counter).
+	 */
+	powered_on = mma9553_is_any_event_enabled(data, false, 0) ||
+		     data->stepcnt_enabled;
+	if (!powered_on) {
+		dev_err(&data->client->dev, "No channels enabled\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&data->mutex);
+	ret = mma9551_read_status_word(data->client, MMA9551_APPID_PEDOMETER,
+				       reg, tmp);
+	mutex_unlock(&data->mutex);
+	return ret;
 }
 
 static int mma9553_read_raw(struct iio_dev *indio_dev,
@@ -446,69 +476,30 @@ static int mma9553_read_raw(struct iio_dev *indio_dev,
 	int ret;
 	u16 tmp;
 	u8 activity;
-	bool powered_on;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_PROCESSED:
 		switch (chan->type) {
 		case IIO_STEPS:
-			/*
-			 * The HW only counts steps and other dependent
-			 * parameters (speed, distance, calories, activity)
-			 * if power is on (from enabling an event or the
-			 * step counter */
-			powered_on =
-			    mma9553_is_any_event_enabled(data, false, 0) ||
-			    data->stepcnt_enabled;
-			if (!powered_on) {
-				dev_err(&data->client->dev,
-					"No channels enabled\n");
-				return -EINVAL;
-			}
-			mutex_lock(&data->mutex);
-			ret = mma9551_read_status_word(data->client,
-						       MMA9551_APPID_PEDOMETER,
+			ret = mma9553_read_status_word(data,
 						       MMA9553_REG_STEPCNT,
 						       &tmp);
-			mutex_unlock(&data->mutex);
 			if (ret < 0)
 				return ret;
 			*val = tmp;
 			return IIO_VAL_INT;
 		case IIO_DISTANCE:
-			powered_on =
-			    mma9553_is_any_event_enabled(data, false, 0) ||
-			    data->stepcnt_enabled;
-			if (!powered_on) {
-				dev_err(&data->client->dev,
-					"No channels enabled\n");
-				return -EINVAL;
-			}
-			mutex_lock(&data->mutex);
-			ret = mma9551_read_status_word(data->client,
-						       MMA9551_APPID_PEDOMETER,
+			ret = mma9553_read_status_word(data,
 						       MMA9553_REG_DISTANCE,
 						       &tmp);
-			mutex_unlock(&data->mutex);
 			if (ret < 0)
 				return ret;
 			*val = tmp;
 			return IIO_VAL_INT;
 		case IIO_ACTIVITY:
-			powered_on =
-			    mma9553_is_any_event_enabled(data, false, 0) ||
-			    data->stepcnt_enabled;
-			if (!powered_on) {
-				dev_err(&data->client->dev,
-					"No channels enabled\n");
-				return -EINVAL;
-			}
-			mutex_lock(&data->mutex);
-			ret = mma9551_read_status_word(data->client,
-						       MMA9551_APPID_PEDOMETER,
+			ret = mma9553_read_status_word(data,
 						       MMA9553_REG_STATUS,
 						       &tmp);
-			mutex_unlock(&data->mutex);
 			if (ret < 0)
 				return ret;
 
@@ -533,38 +524,17 @@ static int mma9553_read_raw(struct iio_dev *indio_dev,
 		case IIO_VELOCITY:	/* m/h */
 			if (chan->channel2 != IIO_MOD_ROOT_SUM_SQUARED_X_Y_Z)
 				return -EINVAL;
-			powered_on =
-			    mma9553_is_any_event_enabled(data, false, 0) ||
-			    data->stepcnt_enabled;
-			if (!powered_on) {
-				dev_err(&data->client->dev,
-					"No channels enabled\n");
-				return -EINVAL;
-			}
-			mutex_lock(&data->mutex);
-			ret = mma9551_read_status_word(data->client,
-						       MMA9551_APPID_PEDOMETER,
-						       MMA9553_REG_SPEED, &tmp);
-			mutex_unlock(&data->mutex);
+			ret = mma9553_read_status_word(data,
+						       MMA9553_REG_SPEED,
+						       &tmp);
 			if (ret < 0)
 				return ret;
 			*val = tmp;
 			return IIO_VAL_INT;
 		case IIO_ENERGY:	/* Cal or kcal */
-			powered_on =
-			    mma9553_is_any_event_enabled(data, false, 0) ||
-			    data->stepcnt_enabled;
-			if (!powered_on) {
-				dev_err(&data->client->dev,
-					"No channels enabled\n");
-				return -EINVAL;
-			}
-			mutex_lock(&data->mutex);
-			ret = mma9551_read_status_word(data->client,
-						       MMA9551_APPID_PEDOMETER,
+			ret = mma9553_read_status_word(data,
 						       MMA9553_REG_CALORIES,
 						       &tmp);
-			mutex_unlock(&data->mutex);
 			if (ret < 0)
 				return ret;
 			*val = tmp;
@@ -599,7 +569,7 @@ static int mma9553_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_CALIBHEIGHT:
 		tmp = mma9553_get_bits(data->conf.height_weight,
-					MMA9553_MASK_CONF_HEIGHT);
+				       MMA9553_MASK_CONF_HEIGHT);
 		*val = tmp / 100;	/* cm to m */
 		*val2 = (tmp % 100) * 10000;
 		return IIO_VAL_INT_PLUS_MICRO;
@@ -751,7 +721,6 @@ static int mma9553_read_event_config(struct iio_dev *indio_dev,
 				     enum iio_event_type type,
 				     enum iio_event_direction dir)
 {
-
 	struct mma9553_data *data = iio_priv(indio_dev);
 	struct mma9553_event *event;
 
@@ -791,7 +760,7 @@ static int mma9553_write_event_config(struct iio_dev *indio_dev,
 
 	mutex_unlock(&data->mutex);
 
-	return ret;
+	return 0;
 
 err_conf_gpio:
 	if (state) {
@@ -872,6 +841,9 @@ static int mma9553_write_event_value(struct iio_dev *indio_dev,
 	case IIO_EV_INFO_PERIOD:
 		switch (chan->type) {
 		case IIO_ACTIVITY:
+			if (val < 0 || val > MMA9553_ACTIVITY_THD_TO_SEC(
+			    MMA9553_MAX_ACTTHD))
+				return -EINVAL;
 			mutex_lock(&data->mutex);
 			ret = mma9553_set_config(data, MMA9553_REG_CONF_ACTTHD,
 						 &data->conf.actthd,
@@ -896,7 +868,7 @@ static int mma9553_get_calibgender_mode(struct iio_dev *indio_dev,
 	gender = mma9553_get_bits(data->conf.filter, MMA9553_MASK_CONF_MALE);
 	/*
 	 * HW expects 0 for female and 1 for male,
-	 * while iio index is 0 for male and 1 for female
+	 * while iio index is 0 for male and 1 for female.
 	 */
 	return !gender;
 }
@@ -943,11 +915,11 @@ static const struct iio_event_spec mma9553_activity_events[] = {
 	},
 };
 
-static const char * const calibgender_modes[] = { "male", "female" };
+static const char * const mma9553_calibgender_modes[] = { "male", "female" };
 
 static const struct iio_enum mma9553_calibgender_enum = {
-	.items = calibgender_modes,
-	.num_items = ARRAY_SIZE(calibgender_modes),
+	.items = mma9553_calibgender_modes,
+	.num_items = ARRAY_SIZE(mma9553_calibgender_modes),
 	.get = mma9553_get_calibgender_mode,
 	.set = mma9553_set_calibgender_mode,
 };
@@ -971,7 +943,8 @@ static const struct iio_chan_spec_ext_info mma9553_ext_info[] = {
 	.modified = 1,							\
 	.channel2 = _chan2,						\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),		\
-	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_CALIBHEIGHT),	\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_CALIBHEIGHT) |	\
+				    BIT(IIO_CHAN_INFO_ENABLE),		\
 	.event_spec = mma9553_activity_events,				\
 	.num_event_specs = ARRAY_SIZE(mma9553_activity_events),		\
 	.ext_info = mma9553_ext_info,					\
@@ -1054,22 +1027,22 @@ static irqreturn_t mma9553_event_handler(int irq, void *private)
 		return IRQ_HANDLED;
 	}
 
-	ev_prev_activity =
-	    mma9553_get_event(data, IIO_ACTIVITY,
-			      mma9553_activity_to_mod(data->activity),
-			      IIO_EV_DIR_FALLING);
-	ev_activity =
-	    mma9553_get_event(data, IIO_ACTIVITY,
-			      mma9553_activity_to_mod(activity),
-			      IIO_EV_DIR_RISING);
-	ev_step_detect =
-	    mma9553_get_event(data, IIO_STEPS, IIO_NO_MOD, IIO_EV_DIR_NONE);
+	ev_prev_activity = mma9553_get_event(data, IIO_ACTIVITY,
+					     mma9553_activity_to_mod(
+					     data->activity),
+					     IIO_EV_DIR_FALLING);
+	ev_activity = mma9553_get_event(data, IIO_ACTIVITY,
+					mma9553_activity_to_mod(activity),
+					IIO_EV_DIR_RISING);
+	ev_step_detect = mma9553_get_event(data, IIO_STEPS, IIO_NO_MOD,
+					   IIO_EV_DIR_NONE);
 
 	if (ev_step_detect->enabled && (stepcnt != data->stepcnt)) {
 		data->stepcnt = stepcnt;
 		iio_push_event(indio_dev,
 			       IIO_EVENT_CODE(IIO_STEPS, 0, IIO_NO_MOD,
-			       IIO_EV_DIR_NONE, IIO_EV_TYPE_CHANGE, 0, 0, 0),
+					      IIO_EV_DIR_NONE,
+					      IIO_EV_TYPE_CHANGE, 0, 0, 0),
 			       data->timestamp);
 	}
 
@@ -1079,51 +1052,24 @@ static irqreturn_t mma9553_event_handler(int irq, void *private)
 		if (ev_prev_activity && ev_prev_activity->enabled)
 			iio_push_event(indio_dev,
 				       IIO_EVENT_CODE(IIO_ACTIVITY, 0,
-				       ev_prev_activity->info->mod,
-				       IIO_EV_DIR_FALLING,
-				       IIO_EV_TYPE_THRESH, 0, 0, 0),
+						    ev_prev_activity->info->mod,
+						    IIO_EV_DIR_FALLING,
+						    IIO_EV_TYPE_THRESH, 0, 0,
+						    0),
 				       data->timestamp);
 
 		if (ev_activity && ev_activity->enabled)
 			iio_push_event(indio_dev,
 				       IIO_EVENT_CODE(IIO_ACTIVITY, 0,
-				       ev_activity->info->mod,
-				       IIO_EV_DIR_RISING,
-				       IIO_EV_TYPE_THRESH, 0, 0, 0),
+						      ev_activity->info->mod,
+						      IIO_EV_DIR_RISING,
+						      IIO_EV_TYPE_THRESH, 0, 0,
+						      0),
 				       data->timestamp);
 	}
 	mutex_unlock(&data->mutex);
 
 	return IRQ_HANDLED;
-}
-
-static int mma9553_gpio_probe(struct i2c_client *client)
-{
-	struct device *dev;
-	struct gpio_desc *gpio;
-	int ret;
-
-	if (!client)
-		return -EINVAL;
-
-	dev = &client->dev;
-
-	/* data ready gpio interrupt pin */
-	gpio = devm_gpiod_get_index(dev, MMA9553_GPIO_NAME, 0);
-	if (IS_ERR(gpio)) {
-		dev_err(dev, "acpi gpio get index failed\n");
-		return PTR_ERR(gpio);
-	}
-
-	ret = gpiod_direction_input(gpio);
-	if (ret)
-		return ret;
-
-	ret = gpiod_to_irq(gpio);
-
-	dev_dbg(dev, "gpio resource, no:%d irq:%d\n", desc_to_gpio(gpio), ret);
-
-	return ret;
 }
 
 static const char *mma9553_match_acpi_device(struct device *dev)
@@ -1174,10 +1120,7 @@ static int mma9553_probe(struct i2c_client *client,
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &mma9553_info;
 
-	if (client->irq < 0)
-		client->irq = mma9553_gpio_probe(client);
-
-	if (client->irq >= 0) {
+	if (client->irq > 0) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 						mma9553_irq_handler,
 						mma9553_event_handler,
@@ -1188,7 +1131,6 @@ static int mma9553_probe(struct i2c_client *client,
 				client->irq);
 			goto out_poweroff;
 		}
-
 	}
 
 	ret = iio_device_register(indio_dev);

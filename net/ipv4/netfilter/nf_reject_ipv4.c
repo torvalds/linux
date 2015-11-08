@@ -13,6 +13,7 @@
 #include <net/dst.h>
 #include <net/netfilter/ipv4/nf_reject.h>
 #include <linux/netfilter_ipv4.h>
+#include <linux/netfilter_bridge.h>
 #include <net/netfilter/ipv4/nf_reject.h>
 
 const struct tcphdr *nf_reject_ip_tcphdr_get(struct sk_buff *oldskb,
@@ -43,7 +44,7 @@ EXPORT_SYMBOL_GPL(nf_reject_ip_tcphdr_get);
 
 struct iphdr *nf_reject_iphdr_put(struct sk_buff *nskb,
 				  const struct sk_buff *oldskb,
-				  __be16 protocol, int ttl)
+				  __u8 protocol, int ttl)
 {
 	struct iphdr *niph, *oiph = ip_hdr(oldskb);
 
@@ -98,7 +99,7 @@ void nf_reject_ip_tcphdr_put(struct sk_buff *nskb, const struct sk_buff *oldskb,
 EXPORT_SYMBOL_GPL(nf_reject_ip_tcphdr_put);
 
 /* Send RST reply */
-void nf_send_reset(struct sk_buff *oldskb, int hook)
+void nf_send_reset(struct net *net, struct sk_buff *oldskb, int hook)
 {
 	struct sk_buff *nskb;
 	const struct iphdr *oiph;
@@ -128,7 +129,7 @@ void nf_send_reset(struct sk_buff *oldskb, int hook)
 				   ip4_dst_hoplimit(skb_dst(nskb)));
 	nf_reject_ip_tcphdr_put(nskb, oldskb, oth);
 
-	if (ip_route_me_harder(nskb, RTN_UNSPEC))
+	if (ip_route_me_harder(net, nskb, RTN_UNSPEC))
 		goto free_nskb;
 
 	/* "Never happens" */
@@ -146,7 +147,8 @@ void nf_send_reset(struct sk_buff *oldskb, int hook)
 	 */
 	if (oldskb->nf_bridge) {
 		struct ethhdr *oeth = eth_hdr(oldskb);
-		nskb->dev = oldskb->nf_bridge->physindev;
+
+		nskb->dev = nf_bridge_get_physindev(oldskb);
 		niph->tot_len = htons(nskb->len);
 		ip_send_check(niph);
 		if (dev_hard_header(nskb, nskb->dev, ntohs(nskb->protocol),
@@ -155,7 +157,7 @@ void nf_send_reset(struct sk_buff *oldskb, int hook)
 		dev_queue_xmit(nskb);
 	} else
 #endif
-		ip_local_out(nskb);
+		ip_local_out(net, nskb->sk, nskb);
 
 	return;
 
@@ -163,5 +165,28 @@ void nf_send_reset(struct sk_buff *oldskb, int hook)
 	kfree_skb(nskb);
 }
 EXPORT_SYMBOL_GPL(nf_send_reset);
+
+void nf_send_unreach(struct sk_buff *skb_in, int code, int hook)
+{
+	struct iphdr *iph = ip_hdr(skb_in);
+	u8 proto;
+
+	if (skb_in->csum_bad || iph->frag_off & htons(IP_OFFSET))
+		return;
+
+	if (skb_csum_unnecessary(skb_in)) {
+		icmp_send(skb_in, ICMP_DEST_UNREACH, code, 0);
+		return;
+	}
+
+	if (iph->protocol == IPPROTO_TCP || iph->protocol == IPPROTO_UDP)
+		proto = iph->protocol;
+	else
+		proto = 0;
+
+	if (nf_ip_checksum(skb_in, hook, ip_hdrlen(skb_in), proto) == 0)
+		icmp_send(skb_in, ICMP_DEST_UNREACH, code, 0);
+}
+EXPORT_SYMBOL_GPL(nf_send_unreach);
 
 MODULE_LICENSE("GPL");

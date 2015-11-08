@@ -64,6 +64,20 @@ config MACH_ARMADA_38X
 	  Say 'Y' here if you want your kernel to support boards based
 	  on the Marvell Armada 380/385 SoC with device tree.
 
+config MACH_ARMADA_39X
+	bool "Marvell Armada 39x boards" if ARCH_MULTI_V7
+	select ARM_GIC
+	select ARMADA_39X_CLK
+	select CACHE_L2X0
+	select HAVE_ARM_SCU
+	select HAVE_ARM_TWD if SMP
+	select HAVE_SMP
+	select MACH_MVEBU_V7
+	select PINCTRL_ARMADA_39X
+	help
+	  Say 'Y' here if you want your kernel to support boards based
+	  on the Marvell Armada 39x SoC with device tree.
+
 config MACH_ARMADA_XP
 	bool "Marvell Armada XP boards" if ARCH_MULTI_V7
 	select ARMADA_XP_CLK
@@ -82,6 +96,7 @@ config MACH_DOVE
 	select MACH_MVEBU_ANY
 	select ORION_IRQCHIP
 	select ORION_TIMER
+	select PM_GENERIC_DOMAINS if PM
 	select PINCTRL_DOVE
 	help
 	  Say 'Y' here if you want your kernel to support the
@@ -101,12 +116,5 @@ config MACH_KIRKWOOD
 	help
 	  Say 'Y' here if you want your kernel to support boards based
 	  on the Marvell Kirkwood device tree.
-
-config MACH_NETXBIG
-	bool "LaCie 2Big and 5Big Network v2"
-	depends on MACH_KIRKWOOD
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  LaCie 2Big and 5Big Network v2
 
 endif

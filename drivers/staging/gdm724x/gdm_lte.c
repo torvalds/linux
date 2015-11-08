@@ -162,11 +162,11 @@ static int gdm_lte_emulate_arp(struct sk_buff *skb_in, u32 nic_type)
 	skb_reserve(skb_out, NET_IP_ALIGN);
 
 	memcpy(skb_put(skb_out, mac_header_len), mac_header_data,
-		mac_header_len);
+	       mac_header_len);
 	memcpy(skb_put(skb_out, sizeof(struct arphdr)), arp_out,
-		sizeof(struct arphdr));
+	       sizeof(struct arphdr));
 	memcpy(skb_put(skb_out, sizeof(struct arpdata)), arp_data_out,
-		sizeof(struct arpdata));
+	       sizeof(struct arpdata));
 
 	skb_out->protocol = ((struct ethhdr *)mac_header_data)->h_proto;
 	skb_out->dev = skb_in->dev;
@@ -300,13 +300,13 @@ static int gdm_lte_emulate_ndp(struct sk_buff *skb_in, u32 nic_type)
 		memcpy(&ipv6_out, ipv6_in, sizeof(struct ipv6hdr));
 		memcpy(ipv6_out.saddr.in6_u.u6_addr8, &na.target_address, 16);
 		memcpy(ipv6_out.daddr.in6_u.u6_addr8,
-			ipv6_in->saddr.in6_u.u6_addr8, 16);
+		       ipv6_in->saddr.in6_u.u6_addr8, 16);
 		ipv6_out.payload_len = htons(sizeof(struct icmp6hdr) +
 				sizeof(struct neighbour_advertisement));
 
 		memcpy(icmp_na, &icmp6_out, sizeof(struct icmp6hdr));
 		memcpy(icmp_na + sizeof(struct icmp6hdr), &na,
-			sizeof(struct neighbour_advertisement));
+		       sizeof(struct neighbour_advertisement));
 
 		icmp6_out.icmp6_cksum = icmp6_checksum(&ipv6_out,
 					(u16 *)icmp_na, sizeof(icmp_na));
@@ -326,13 +326,13 @@ static int gdm_lte_emulate_ndp(struct sk_buff *skb_in, u32 nic_type)
 	skb_reserve(skb_out, NET_IP_ALIGN);
 
 	memcpy(skb_put(skb_out, mac_header_len), mac_header_data,
-		mac_header_len);
+	       mac_header_len);
 	memcpy(skb_put(skb_out, sizeof(struct ipv6hdr)), &ipv6_out,
-		sizeof(struct ipv6hdr));
+	       sizeof(struct ipv6hdr));
 	memcpy(skb_put(skb_out, sizeof(struct icmp6hdr)), &icmp6_out,
-		sizeof(struct icmp6hdr));
+	       sizeof(struct icmp6hdr));
 	memcpy(skb_put(skb_out, sizeof(struct neighbour_advertisement)), &na,
-		sizeof(struct neighbour_advertisement));
+	       sizeof(struct neighbour_advertisement));
 
 	skb_out->protocol = ((struct ethhdr *)mac_header_data)->h_proto;
 	skb_out->dev = skb_in->dev;
@@ -377,11 +377,11 @@ static s32 gdm_lte_tx_nic_type(struct net_device *dev, struct sk_buff *skb)
 		break;
 	case ETH_P_IP:
 		nic_type |= NIC_TYPE_F_IPV4;
-		ip = (struct iphdr *)network_data;
+		ip = network_data;
 
 		/* Check DHCPv4 */
 		if (ip->protocol == IPPROTO_UDP) {
-			struct udphdr *udp = (struct udphdr *)
+			struct udphdr *udp =
 					(network_data + sizeof(struct iphdr));
 			if (ntohs(udp->dest) == 67 || ntohs(udp->dest) == 68)
 				nic_type |= NIC_TYPE_F_DHCP;
@@ -389,15 +389,15 @@ static s32 gdm_lte_tx_nic_type(struct net_device *dev, struct sk_buff *skb)
 		break;
 	case ETH_P_IPV6:
 		nic_type |= NIC_TYPE_F_IPV6;
-		ipv6 = (struct ipv6hdr *)network_data;
+		ipv6 = network_data;
 
 		if (ipv6->nexthdr == IPPROTO_ICMPV6) /* Check NDP request */ {
-			struct icmp6hdr *icmp6 = (struct icmp6hdr *)
+			struct icmp6hdr *icmp6 =
 					(network_data + sizeof(struct ipv6hdr));
 			if (icmp6->icmp6_type == NDISC_NEIGHBOUR_SOLICITATION)
 				nic_type |= NIC_TYPE_ICMPV6;
 		} else if (ipv6->nexthdr == IPPROTO_UDP) /* Check DHCPv6 */ {
-			struct udphdr *udp = (struct udphdr *)
+			struct udphdr *udp =
 					(network_data + sizeof(struct ipv6hdr));
 			if (ntohs(udp->dest) == 546 || ntohs(udp->dest) == 547)
 				nic_type |= NIC_TYPE_F_DHCP;
@@ -530,7 +530,7 @@ static int gdm_lte_event_send(struct net_device *dev, char *buf, int len)
 }
 
 static void gdm_lte_event_rcv(struct net_device *dev, u16 type,
-				void *msg, int len)
+			      void *msg, int len)
 {
 	struct nic *nic = netdev_priv(dev);
 
@@ -572,7 +572,7 @@ static u8 find_dev_index(u32 nic_type)
 }
 
 static void gdm_lte_netif_rx(struct net_device *dev, char *buf,
-			int len, int flagged_nic_type)
+			     int len, int flagged_nic_type)
 {
 	u32 nic_type;
 	struct nic *nic;
@@ -697,9 +697,9 @@ static void gdm_lte_multi_sdu_pkt(struct phy_dev *phy_dev, char *buf, int len)
 	u8 index;
 
 	hci_len = gdm_dev16_to_cpu(phy_dev->get_endian(phy_dev->priv_dev),
-				multi_sdu->len);
+				   multi_sdu->len);
 	num_packet = gdm_dev16_to_cpu(phy_dev->get_endian(phy_dev->priv_dev),
-				multi_sdu->num_packet);
+				      multi_sdu->num_packet);
 
 	for (i = 0; i < num_packet; i++) {
 		sdu = (struct sdu *)data;
@@ -724,12 +724,12 @@ static void gdm_lte_multi_sdu_pkt(struct phy_dev *phy_dev, char *buf, int len)
 		if (index < MAX_NIC_TYPE) {
 			dev = phy_dev->dev[index];
 			gdm_lte_netif_rx(dev, (char *)sdu->data,
-					(int)(hci_len-12), nic_type);
+					 (int)(hci_len - 12), nic_type);
 		} else {
 			pr_err("rx sdu invalid nic_type :%x\n", nic_type);
 		}
 
-		data += ((hci_len+3) & 0xfffc) + HCI_HEADER_SIZE;
+		data += ((hci_len + 3) & 0xfffc) + HCI_HEADER_SIZE;
 	}
 }
 
@@ -772,10 +772,10 @@ static int gdm_lte_receive_pkt(struct phy_dev *phy_dev, char *buf, int len)
 		return ret;
 
 	cmd_evt = gdm_dev16_to_cpu(phy_dev->get_endian(phy_dev->priv_dev),
-				hci->cmd_evt);
+				   hci->cmd_evt);
 
 	dev = phy_dev->dev[0];
-	if (dev == NULL)
+	if (!dev)
 		return 0;
 
 	switch (cmd_evt) {
@@ -814,9 +814,9 @@ static int gdm_lte_receive_pkt(struct phy_dev *phy_dev, char *buf, int len)
 
 static int rx_complete(void *arg, void *data, int len, int context)
 {
-	struct phy_dev *phy_dev = (struct phy_dev *)arg;
+	struct phy_dev *phy_dev = arg;
 
-	return gdm_lte_receive_pkt(phy_dev, (char *)data, len);
+	return gdm_lte_receive_pkt(phy_dev, data, len);
 }
 
 void start_rx_proc(struct phy_dev *phy_dev)
@@ -839,7 +839,7 @@ static struct net_device_ops gdm_netdev_ops = {
 static u8 gdm_lte_macaddr[ETH_ALEN] = {0x00, 0x0a, 0x3b, 0x00, 0x00, 0x00};
 
 static void form_mac_address(u8 *dev_addr, u8 *nic_src, u8 *nic_dest,
-			u8 *mac_address, u8 index)
+			     u8 *mac_address, u8 index)
 {
 	/* Form the dev_addr */
 	if (!mac_address)
@@ -850,7 +850,7 @@ static void form_mac_address(u8 *dev_addr, u8 *nic_src, u8 *nic_dest,
 	/* The last byte of the mac address
 	 * should be less than or equal to 0xFC
 	 */
-	dev_addr[ETH_ALEN-1] += index;
+	dev_addr[ETH_ALEN - 1] += index;
 
 	/* Create random nic src and copy the first
 	 * 3 bytes to be the same as dev_addr
@@ -889,7 +889,7 @@ int register_lte_device(struct phy_dev *phy_dev,
 		/* Allocate netdev */
 		net = alloc_netdev(sizeof(struct nic), pdn_dev_name,
 				   NET_NAME_UNKNOWN, ether_setup);
-		if (net == NULL) {
+		if (!net) {
 			pr_err("alloc_netdev failed\n");
 			ret = -ENOMEM;
 			goto err;
@@ -938,7 +938,7 @@ void unregister_lte_device(struct phy_dev *phy_dev)
 
 	for (index = 0; index < MAX_NIC_TYPE; index++) {
 		net = phy_dev->dev[index];
-		if (net == NULL)
+		if (!net)
 			continue;
 
 		unregister_netdev(net);

@@ -26,11 +26,11 @@ int nft_meta_set_dump(struct sk_buff *skb,
 		      const struct nft_expr *expr);
 
 void nft_meta_get_eval(const struct nft_expr *expr,
-		       struct nft_data data[NFT_REG_MAX + 1],
+		       struct nft_regs *regs,
 		       const struct nft_pktinfo *pkt);
 
 void nft_meta_set_eval(const struct nft_expr *expr,
-		       struct nft_data data[NFT_REG_MAX + 1],
+		       struct nft_regs *regs,
 		       const struct nft_pktinfo *pkt);
 
 #endif

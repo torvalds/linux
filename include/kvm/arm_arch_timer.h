@@ -24,17 +24,14 @@
 #include <linux/workqueue.h>
 
 struct arch_timer_kvm {
-#ifdef CONFIG_KVM_ARM_TIMER
 	/* Is the timer enabled */
 	bool			enabled;
 
 	/* Virtual offset */
 	cycle_t			cntvoff;
-#endif
 };
 
 struct arch_timer_cpu {
-#ifdef CONFIG_KVM_ARM_TIMER
 	/* Registers: control register, timer value */
 	u32				cntv_ctl;	/* Saved/restored */
 	cycle_t				cntv_cval;	/* Saved/restored */
@@ -54,16 +51,17 @@ struct arch_timer_cpu {
 	bool				armed;
 
 	/* Timer IRQ */
-	const struct kvm_irq_level	*irq;
-#endif
+	struct kvm_irq_level		irq;
+
+	/* VGIC mapping */
+	struct irq_phys_map		*map;
 };
 
-#ifdef CONFIG_KVM_ARM_TIMER
 int kvm_timer_hyp_init(void);
 void kvm_timer_enable(struct kvm *kvm);
 void kvm_timer_init(struct kvm *kvm);
-void kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu,
-			  const struct kvm_irq_level *irq);
+int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu,
+			 const struct kvm_irq_level *irq);
 void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu);
 void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu);
 void kvm_timer_sync_hwstate(struct kvm_vcpu *vcpu);
@@ -72,30 +70,8 @@ void kvm_timer_vcpu_terminate(struct kvm_vcpu *vcpu);
 u64 kvm_arm_timer_get_reg(struct kvm_vcpu *, u64 regid);
 int kvm_arm_timer_set_reg(struct kvm_vcpu *, u64 regid, u64 value);
 
-#else
-static inline int kvm_timer_hyp_init(void)
-{
-	return 0;
-};
-
-static inline void kvm_timer_enable(struct kvm *kvm) {}
-static inline void kvm_timer_init(struct kvm *kvm) {}
-static inline void kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu,
-					const struct kvm_irq_level *irq) {}
-static inline void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu) {}
-static inline void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu) {}
-static inline void kvm_timer_sync_hwstate(struct kvm_vcpu *vcpu) {}
-static inline void kvm_timer_vcpu_terminate(struct kvm_vcpu *vcpu) {}
-
-static inline int kvm_arm_timer_set_reg(struct kvm_vcpu *vcpu, u64 regid, u64 value)
-{
-	return 0;
-}
-
-static inline u64 kvm_arm_timer_get_reg(struct kvm_vcpu *vcpu, u64 regid)
-{
-	return 0;
-}
-#endif
+bool kvm_timer_should_fire(struct kvm_vcpu *vcpu);
+void kvm_timer_schedule(struct kvm_vcpu *vcpu);
+void kvm_timer_unschedule(struct kvm_vcpu *vcpu);
 
 #endif

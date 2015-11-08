@@ -16,10 +16,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  *  General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
- *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
@@ -95,13 +91,14 @@ static struct acpi_driver acpi_ac_driver = {
 };
 
 struct acpi_ac {
-	struct power_supply charger;
+	struct power_supply *charger;
+	struct power_supply_desc charger_desc;
 	struct acpi_device * device;
 	unsigned long long state;
 	struct notifier_block battery_nb;
 };
 
-#define to_acpi_ac(x) container_of(x, struct acpi_ac, charger)
+#define to_acpi_ac(x) power_supply_get_drvdata(x)
 
 #ifdef CONFIG_ACPI_PROCFS_POWER
 static const struct file_operations acpi_ac_fops = {
@@ -275,7 +272,7 @@ static void acpi_ac_notify(struct acpi_device *device, u32 event)
 						  dev_name(&device->dev), event,
 						  (u32) ac->state);
 		acpi_notifier_call_chain(device, event, (u32) ac->state);
-		kobject_uevent(&ac->charger.dev->kobj, KOBJ_CHANGE);
+		kobject_uevent(&ac->charger->dev.kobj, KOBJ_CHANGE);
 	}
 
 	return;
@@ -307,7 +304,7 @@ static int thinkpad_e530_quirk(const struct dmi_system_id *d)
 	return 0;
 }
 
-static struct dmi_system_id ac_dmi_table[] = {
+static const struct dmi_system_id ac_dmi_table[] = {
 	{
 	.callback = thinkpad_e530_quirk,
 	.ident = "thinkpad e530",
@@ -321,6 +318,7 @@ static struct dmi_system_id ac_dmi_table[] = {
 
 static int acpi_ac_add(struct acpi_device *device)
 {
+	struct power_supply_config psy_cfg = {};
 	int result = 0;
 	struct acpi_ac *ac = NULL;
 
@@ -341,19 +339,24 @@ static int acpi_ac_add(struct acpi_device *device)
 	if (result)
 		goto end;
 
-	ac->charger.name = acpi_device_bid(device);
+	psy_cfg.drv_data = ac;
+
+	ac->charger_desc.name = acpi_device_bid(device);
 #ifdef CONFIG_ACPI_PROCFS_POWER
 	result = acpi_ac_add_fs(ac);
 	if (result)
 		goto end;
 #endif
-	ac->charger.type = POWER_SUPPLY_TYPE_MAINS;
-	ac->charger.properties = ac_props;
-	ac->charger.num_properties = ARRAY_SIZE(ac_props);
-	ac->charger.get_property = get_ac_property;
-	result = power_supply_register(&ac->device->dev, &ac->charger);
-	if (result)
+	ac->charger_desc.type = POWER_SUPPLY_TYPE_MAINS;
+	ac->charger_desc.properties = ac_props;
+	ac->charger_desc.num_properties = ARRAY_SIZE(ac_props);
+	ac->charger_desc.get_property = get_ac_property;
+	ac->charger = power_supply_register(&ac->device->dev,
+					    &ac->charger_desc, &psy_cfg);
+	if (IS_ERR(ac->charger)) {
+		result = PTR_ERR(ac->charger);
 		goto end;
+	}
 
 	printk(KERN_INFO PREFIX "%s [%s] (%s)\n",
 	       acpi_device_name(device), acpi_device_bid(device),
@@ -390,7 +393,7 @@ static int acpi_ac_resume(struct device *dev)
 	if (acpi_ac_get_state(ac))
 		return 0;
 	if (old_state != ac->state)
-		kobject_uevent(&ac->charger.dev->kobj, KOBJ_CHANGE);
+		kobject_uevent(&ac->charger->dev.kobj, KOBJ_CHANGE);
 	return 0;
 }
 #else
@@ -407,8 +410,7 @@ static int acpi_ac_remove(struct acpi_device *device)
 
 	ac = acpi_driver_data(device);
 
-	if (ac->charger.dev)
-		power_supply_unregister(&ac->charger);
+	power_supply_unregister(ac->charger);
 	unregister_acpi_notifier(&ac->battery_nb);
 
 #ifdef CONFIG_ACPI_PROCFS_POWER

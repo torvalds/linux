@@ -29,6 +29,35 @@
 #include <linux/regmap.h>
 
 /*
+ * ACT8600 Global Register Map.
+ */
+#define ACT8600_SYS_MODE	0x00
+#define ACT8600_SYS_CTRL	0x01
+#define ACT8600_DCDC1_VSET	0x10
+#define ACT8600_DCDC1_CTRL	0x12
+#define ACT8600_DCDC2_VSET	0x20
+#define ACT8600_DCDC2_CTRL	0x22
+#define ACT8600_DCDC3_VSET	0x30
+#define ACT8600_DCDC3_CTRL	0x32
+#define ACT8600_SUDCDC4_VSET	0x40
+#define ACT8600_SUDCDC4_CTRL	0x41
+#define ACT8600_LDO5_VSET	0x50
+#define ACT8600_LDO5_CTRL	0x51
+#define ACT8600_LDO6_VSET	0x60
+#define ACT8600_LDO6_CTRL	0x61
+#define ACT8600_LDO7_VSET	0x70
+#define ACT8600_LDO7_CTRL	0x71
+#define ACT8600_LDO8_VSET	0x80
+#define ACT8600_LDO8_CTRL	0x81
+#define ACT8600_LDO910_CTRL	0x91
+#define ACT8600_APCH0		0xA1
+#define ACT8600_APCH1		0xA8
+#define ACT8600_APCH2		0xA9
+#define ACT8600_APCH_STAT	0xAA
+#define ACT8600_OTG0		0xB0
+#define ACT8600_OTG1		0xB2
+
+/*
  * ACT8846 Global Register Map.
  */
 #define	ACT8846_SYS0		0x00
@@ -94,10 +123,15 @@
 #define	ACT8865_ENA		0x80	/* ON - [7] */
 #define	ACT8865_VSEL_MASK	0x3F	/* VSET - [5:0] */
 
+
+#define ACT8600_LDO10_ENA		0x40	/* ON - [6] */
+#define ACT8600_SUDCDC_VSEL_MASK	0xFF	/* SUDCDC VSET - [7:0] */
+
 /*
  * ACT8865 voltage number
  */
 #define	ACT8865_VOLTAGE_NUM	64
+#define ACT8600_SUDCDC_VOLTAGE_NUM	255
 
 struct act8865 {
 	struct regmap *regmap;
@@ -116,6 +150,13 @@ static const struct regulator_linear_range act8865_voltage_ranges[] = {
 	REGULATOR_LINEAR_RANGE(2400000, 48, 63, 100000),
 };
 
+static const struct regulator_linear_range act8600_sudcdc_voltage_ranges[] = {
+	REGULATOR_LINEAR_RANGE(3000000, 0, 63, 0),
+	REGULATOR_LINEAR_RANGE(3000000, 64, 159, 100000),
+	REGULATOR_LINEAR_RANGE(12600000, 160, 191, 200000),
+	REGULATOR_LINEAR_RANGE(19000000, 191, 255, 400000),
+};
+
 static struct regulator_ops act8865_ops = {
 	.list_voltage		= regulator_list_voltage_linear_range,
 	.map_voltage		= regulator_map_voltage_linear_range,
@@ -126,9 +167,16 @@ static struct regulator_ops act8865_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 };
 
-#define ACT88xx_REG(_name, _family, _id, _vsel_reg)			\
+static struct regulator_ops act8865_ldo_ops = {
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.is_enabled		= regulator_is_enabled_regmap,
+};
+
+#define ACT88xx_REG(_name, _family, _id, _vsel_reg, _supply)		\
 	[_family##_ID_##_id] = {					\
 		.name			= _name,			\
+		.supply_name		= _supply,			\
 		.id			= _family##_ID_##_id,		\
 		.type			= REGULATOR_VOLTAGE,		\
 		.ops			= &act8865_ops,			\
@@ -142,33 +190,90 @@ static struct regulator_ops act8865_ops = {
 		.owner			= THIS_MODULE,			\
 	}
 
+static const struct regulator_desc act8600_regulators[] = {
+	ACT88xx_REG("DCDC1", ACT8600, DCDC1, VSET, "vp1"),
+	ACT88xx_REG("DCDC2", ACT8600, DCDC2, VSET, "vp2"),
+	ACT88xx_REG("DCDC3", ACT8600, DCDC3, VSET, "vp3"),
+	{
+		.name = "SUDCDC_REG4",
+		.id = ACT8600_ID_SUDCDC4,
+		.ops = &act8865_ops,
+		.type = REGULATOR_VOLTAGE,
+		.n_voltages = ACT8600_SUDCDC_VOLTAGE_NUM,
+		.linear_ranges = act8600_sudcdc_voltage_ranges,
+		.n_linear_ranges = ARRAY_SIZE(act8600_sudcdc_voltage_ranges),
+		.vsel_reg = ACT8600_SUDCDC4_VSET,
+		.vsel_mask = ACT8600_SUDCDC_VSEL_MASK,
+		.enable_reg = ACT8600_SUDCDC4_CTRL,
+		.enable_mask = ACT8865_ENA,
+		.owner = THIS_MODULE,
+	},
+	ACT88xx_REG("LDO5", ACT8600, LDO5, VSET, "inl"),
+	ACT88xx_REG("LDO6", ACT8600, LDO6, VSET, "inl"),
+	ACT88xx_REG("LDO7", ACT8600, LDO7, VSET, "inl"),
+	ACT88xx_REG("LDO8", ACT8600, LDO8, VSET, "inl"),
+	{
+		.name = "LDO_REG9",
+		.id = ACT8600_ID_LDO9,
+		.ops = &act8865_ldo_ops,
+		.type = REGULATOR_VOLTAGE,
+		.n_voltages = 1,
+		.fixed_uV = 1800000,
+		.enable_reg = ACT8600_LDO910_CTRL,
+		.enable_mask = ACT8865_ENA,
+		.owner = THIS_MODULE,
+	},
+	{
+		.name = "LDO_REG10",
+		.id = ACT8600_ID_LDO10,
+		.ops = &act8865_ldo_ops,
+		.type = REGULATOR_VOLTAGE,
+		.n_voltages = 1,
+		.fixed_uV = 1200000,
+		.enable_reg = ACT8600_LDO910_CTRL,
+		.enable_mask = ACT8600_LDO10_ENA,
+		.owner = THIS_MODULE,
+	},
+};
+
 static const struct regulator_desc act8846_regulators[] = {
-	ACT88xx_REG("REG1", ACT8846, REG1, VSET),
-	ACT88xx_REG("REG2", ACT8846, REG2, VSET0),
-	ACT88xx_REG("REG3", ACT8846, REG3, VSET0),
-	ACT88xx_REG("REG4", ACT8846, REG4, VSET0),
-	ACT88xx_REG("REG5", ACT8846, REG5, VSET),
-	ACT88xx_REG("REG6", ACT8846, REG6, VSET),
-	ACT88xx_REG("REG7", ACT8846, REG7, VSET),
-	ACT88xx_REG("REG8", ACT8846, REG8, VSET),
-	ACT88xx_REG("REG9", ACT8846, REG9, VSET),
-	ACT88xx_REG("REG10", ACT8846, REG10, VSET),
-	ACT88xx_REG("REG11", ACT8846, REG11, VSET),
-	ACT88xx_REG("REG12", ACT8846, REG12, VSET),
+	ACT88xx_REG("REG1", ACT8846, REG1, VSET, "vp1"),
+	ACT88xx_REG("REG2", ACT8846, REG2, VSET0, "vp2"),
+	ACT88xx_REG("REG3", ACT8846, REG3, VSET0, "vp3"),
+	ACT88xx_REG("REG4", ACT8846, REG4, VSET0, "vp4"),
+	ACT88xx_REG("REG5", ACT8846, REG5, VSET, "inl1"),
+	ACT88xx_REG("REG6", ACT8846, REG6, VSET, "inl1"),
+	ACT88xx_REG("REG7", ACT8846, REG7, VSET, "inl1"),
+	ACT88xx_REG("REG8", ACT8846, REG8, VSET, "inl2"),
+	ACT88xx_REG("REG9", ACT8846, REG9, VSET, "inl2"),
+	ACT88xx_REG("REG10", ACT8846, REG10, VSET, "inl3"),
+	ACT88xx_REG("REG11", ACT8846, REG11, VSET, "inl3"),
+	ACT88xx_REG("REG12", ACT8846, REG12, VSET, "inl3"),
 };
 
 static const struct regulator_desc act8865_regulators[] = {
-	ACT88xx_REG("DCDC_REG1", ACT8865, DCDC1, VSET1),
-	ACT88xx_REG("DCDC_REG2", ACT8865, DCDC2, VSET1),
-	ACT88xx_REG("DCDC_REG3", ACT8865, DCDC3, VSET1),
-	ACT88xx_REG("LDO_REG1", ACT8865, LDO1, VSET),
-	ACT88xx_REG("LDO_REG2", ACT8865, LDO2, VSET),
-	ACT88xx_REG("LDO_REG3", ACT8865, LDO3, VSET),
-	ACT88xx_REG("LDO_REG4", ACT8865, LDO4, VSET),
+	ACT88xx_REG("DCDC_REG1", ACT8865, DCDC1, VSET1, "vp1"),
+	ACT88xx_REG("DCDC_REG2", ACT8865, DCDC2, VSET1, "vp2"),
+	ACT88xx_REG("DCDC_REG3", ACT8865, DCDC3, VSET1, "vp3"),
+	ACT88xx_REG("LDO_REG1", ACT8865, LDO1, VSET, "inl45"),
+	ACT88xx_REG("LDO_REG2", ACT8865, LDO2, VSET, "inl45"),
+	ACT88xx_REG("LDO_REG3", ACT8865, LDO3, VSET, "inl67"),
+	ACT88xx_REG("LDO_REG4", ACT8865, LDO4, VSET, "inl67"),
+};
+
+static const struct regulator_desc act8865_alt_regulators[] = {
+	ACT88xx_REG("DCDC_REG1", ACT8865, DCDC1, VSET2, "vp1"),
+	ACT88xx_REG("DCDC_REG2", ACT8865, DCDC2, VSET2, "vp2"),
+	ACT88xx_REG("DCDC_REG3", ACT8865, DCDC3, VSET2, "vp3"),
+	ACT88xx_REG("LDO_REG1", ACT8865, LDO1, VSET, "inl45"),
+	ACT88xx_REG("LDO_REG2", ACT8865, LDO2, VSET, "inl45"),
+	ACT88xx_REG("LDO_REG3", ACT8865, LDO3, VSET, "inl67"),
+	ACT88xx_REG("LDO_REG4", ACT8865, LDO4, VSET, "inl67"),
 };
 
 #ifdef CONFIG_OF
 static const struct of_device_id act8865_dt_ids[] = {
+	{ .compatible = "active-semi,act8600", .data = (void *)ACT8600 },
 	{ .compatible = "active-semi,act8846", .data = (void *)ACT8846 },
 	{ .compatible = "active-semi,act8865", .data = (void *)ACT8865 },
 	{ }
@@ -200,6 +305,19 @@ static struct of_regulator_match act8865_matches[] = {
 	[ACT8865_ID_LDO4]	= { .name = "LDO_REG4"},
 };
 
+static struct of_regulator_match act8600_matches[] = {
+	[ACT8600_ID_DCDC1]	= { .name = "DCDC_REG1"},
+	[ACT8600_ID_DCDC2]	= { .name = "DCDC_REG2"},
+	[ACT8600_ID_DCDC3]	= { .name = "DCDC_REG3"},
+	[ACT8600_ID_SUDCDC4]	= { .name = "SUDCDC_REG4"},
+	[ACT8600_ID_LDO5]	= { .name = "LDO_REG5"},
+	[ACT8600_ID_LDO6]	= { .name = "LDO_REG6"},
+	[ACT8600_ID_LDO7]	= { .name = "LDO_REG7"},
+	[ACT8600_ID_LDO8]	= { .name = "LDO_REG8"},
+	[ACT8600_ID_LDO9]	= { .name = "LDO_REG9"},
+	[ACT8600_ID_LDO10]	= { .name = "LDO_REG10"},
+};
+
 static int act8865_pdata_from_dt(struct device *dev,
 				 struct device_node **of_node,
 				 struct act8865_platform_data *pdata,
@@ -217,6 +335,10 @@ static int act8865_pdata_from_dt(struct device *dev,
 	}
 
 	switch (type) {
+	case ACT8600:
+		matches = act8600_matches;
+		num_matches = ARRAY_SIZE(act8600_matches);
+		break;
 	case ACT8846:
 		matches = act8846_matches;
 		num_matches = ARRAY_SIZE(act8846_matches);
@@ -301,6 +423,7 @@ static int act8865_pmic_probe(struct i2c_client *client,
 	struct act8865 *act8865;
 	unsigned long type;
 	int off_reg, off_mask;
+	int voltage_select = 0;
 
 	pdata = dev_get_platdata(dev);
 
@@ -312,11 +435,21 @@ static int act8865_pmic_probe(struct i2c_client *client,
 			return -ENODEV;
 
 		type = (unsigned long) id->data;
+
+		voltage_select = !!of_get_property(dev->of_node,
+						   "active-semi,vsel-high",
+						   NULL);
 	} else {
 		type = i2c_id->driver_data;
 	}
 
 	switch (type) {
+	case ACT8600:
+		regulators = act8600_regulators;
+		num_regulators = ARRAY_SIZE(act8600_regulators);
+		off_reg = -1;
+		off_mask = -1;
+		break;
 	case ACT8846:
 		regulators = act8846_regulators;
 		num_regulators = ARRAY_SIZE(act8846_regulators);
@@ -324,8 +457,13 @@ static int act8865_pmic_probe(struct i2c_client *client,
 		off_mask = ACT8846_OFF_SYSMASK;
 		break;
 	case ACT8865:
-		regulators = act8865_regulators;
-		num_regulators = ARRAY_SIZE(act8865_regulators);
+		if (voltage_select) {
+			regulators = act8865_alt_regulators;
+			num_regulators = ARRAY_SIZE(act8865_alt_regulators);
+		} else {
+			regulators = act8865_regulators;
+			num_regulators = ARRAY_SIZE(act8865_regulators);
+		}
 		off_reg = ACT8865_SYS_CTRL;
 		off_mask = ACT8865_MSTROFF;
 		break;
@@ -366,7 +504,7 @@ static int act8865_pmic_probe(struct i2c_client *client,
 	}
 
 	if (of_device_is_system_power_controller(dev->of_node)) {
-		if (!pm_power_off) {
+		if (!pm_power_off && (off_reg > 0)) {
 			act8865_i2c_client = client;
 			act8865->off_reg = off_reg;
 			act8865->off_mask = off_mask;
@@ -402,6 +540,7 @@ static int act8865_pmic_probe(struct i2c_client *client,
 }
 
 static const struct i2c_device_id act8865_ids[] = {
+	{ .name = "act8600", .driver_data = ACT8600 },
 	{ .name = "act8846", .driver_data = ACT8846 },
 	{ .name = "act8865", .driver_data = ACT8865 },
 	{ },
@@ -411,7 +550,6 @@ MODULE_DEVICE_TABLE(i2c, act8865_ids);
 static struct i2c_driver act8865_pmic_driver = {
 	.driver	= {
 		.name	= "act8865",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= act8865_pmic_probe,
 	.id_table	= act8865_ids,

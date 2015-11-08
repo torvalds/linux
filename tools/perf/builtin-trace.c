@@ -1,8 +1,28 @@
+/*
+ * builtin-trace.c
+ *
+ * Builtin 'trace' command:
+ *
+ * Display a continuously updated trace of any workload, CPU, specific PID,
+ * system wide, etc.  Default format is loosely strace like, but any other
+ * event may be specified using --event.
+ *
+ * Copyright (C) 2012, 2013, 2014, 2015 Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
+ *
+ * Initially based on the 'trace' prototype by Thomas Gleixner:
+ *
+ * http://lwn.net/Articles/415728/ ("Announcing a new utility: 'trace'")
+ *
+ * Released under the GPL v2. (and only v2, not any later version)
+ */
+
 #include <traceevent/event-parse.h>
+#include <api/fs/tracing_path.h>
 #include "builtin.h"
 #include "util/color.h"
 #include "util/debug.h"
 #include "util/evlist.h"
+#include "util/exec_cmd.h"
 #include "util/machine.h"
 #include "util/session.h"
 #include "util/thread.h"
@@ -16,9 +36,9 @@
 
 #include <libaudit.h>
 #include <stdlib.h>
-#include <sys/eventfd.h>
 #include <sys/mman.h>
 #include <linux/futex.h>
+#include <linux/err.h>
 
 /* For older distros: */
 #ifndef MAP_STACK
@@ -27,6 +47,7 @@
 
 #ifndef MADV_HWPOISON
 # define MADV_HWPOISON		100
+
 #endif
 
 #ifndef MADV_MERGEABLE
@@ -41,6 +62,51 @@
 # define EFD_SEMAPHORE		1
 #endif
 
+#ifndef EFD_NONBLOCK
+# define EFD_NONBLOCK		00004000
+#endif
+
+#ifndef EFD_CLOEXEC
+# define EFD_CLOEXEC		02000000
+#endif
+
+#ifndef O_CLOEXEC
+# define O_CLOEXEC		02000000
+#endif
+
+#ifndef SOCK_DCCP
+# define SOCK_DCCP		6
+#endif
+
+#ifndef SOCK_CLOEXEC
+# define SOCK_CLOEXEC		02000000
+#endif
+
+#ifndef SOCK_NONBLOCK
+# define SOCK_NONBLOCK		00004000
+#endif
+
+#ifndef MSG_CMSG_CLOEXEC
+# define MSG_CMSG_CLOEXEC	0x40000000
+#endif
+
+#ifndef PERF_FLAG_FD_NO_GROUP
+# define PERF_FLAG_FD_NO_GROUP		(1UL << 0)
+#endif
+
+#ifndef PERF_FLAG_FD_OUTPUT
+# define PERF_FLAG_FD_OUTPUT		(1UL << 1)
+#endif
+
+#ifndef PERF_FLAG_PID_CGROUP
+# define PERF_FLAG_PID_CGROUP		(1UL << 2) /* pid=cgroup id, per-cpu mode only */
+#endif
+
+#ifndef PERF_FLAG_FD_CLOEXEC
+# define PERF_FLAG_FD_CLOEXEC		(1UL << 3) /* O_CLOEXEC */
+#endif
+
+
 struct tp_field {
 	int offset;
 	union {
@@ -52,7 +118,9 @@ struct tp_field {
 #define TP_UINT_FIELD(bits) \
 static u64 tp_field__u##bits(struct tp_field *field, struct perf_sample *sample) \
 { \
-	return *(u##bits *)(sample->raw_data + field->offset); \
+	u##bits value; \
+	memcpy(&value, sample->raw_data + field->offset, sizeof(value)); \
+	return value;  \
 }
 
 TP_UINT_FIELD(8);
@@ -63,7 +131,8 @@ TP_UINT_FIELD(64);
 #define TP_UINT_FIELD__SWAPPED(bits) \
 static u64 tp_field__swapped_u##bits(struct tp_field *field, struct perf_sample *sample) \
 { \
-	u##bits value = *(u##bits *)(sample->raw_data + field->offset); \
+	u##bits value; \
+	memcpy(&value, sample->raw_data + field->offset, sizeof(value)); \
 	return bswap_##bits(value);\
 }
 
@@ -177,13 +246,14 @@ static struct perf_evsel *perf_evsel__syscall_newtp(const char *direction, void 
 	struct perf_evsel *evsel = perf_evsel__newtp("raw_syscalls", direction);
 
 	/* older kernel (e.g., RHEL6) use syscalls:{enter,exit} */
-	if (evsel == NULL)
+	if (IS_ERR(evsel))
 		evsel = perf_evsel__newtp("syscalls", direction);
 
-	if (evsel) {
-		if (perf_evsel__init_syscall_tp(evsel, handler))
-			goto out_delete;
-	}
+	if (IS_ERR(evsel))
+		return NULL;
+
+	if (perf_evsel__init_syscall_tp(evsel, handler))
+		goto out_delete;
 
 	return evsel;
 
@@ -199,42 +269,6 @@ out_delete:
 #define perf_evsel__sc_tp_ptr(evsel, name, sample) \
 	({ struct syscall_tp *fields = evsel->priv; \
 	   fields->name.pointer(&fields->name, sample); })
-
-static int perf_evlist__add_syscall_newtp(struct perf_evlist *evlist,
-					  void *sys_enter_handler,
-					  void *sys_exit_handler)
-{
-	int ret = -1;
-	struct perf_evsel *sys_enter, *sys_exit;
-
-	sys_enter = perf_evsel__syscall_newtp("sys_enter", sys_enter_handler);
-	if (sys_enter == NULL)
-		goto out;
-
-	if (perf_evsel__init_sc_tp_ptr_field(sys_enter, args))
-		goto out_delete_sys_enter;
-
-	sys_exit = perf_evsel__syscall_newtp("sys_exit", sys_exit_handler);
-	if (sys_exit == NULL)
-		goto out_delete_sys_enter;
-
-	if (perf_evsel__init_sc_tp_uint_field(sys_exit, ret))
-		goto out_delete_sys_exit;
-
-	perf_evlist__add(evlist, sys_enter);
-	perf_evlist__add(evlist, sys_exit);
-
-	ret = 0;
-out:
-	return ret;
-
-out_delete_sys_exit:
-	perf_evsel__delete_priv(sys_exit);
-out_delete_sys_enter:
-	perf_evsel__delete_priv(sys_enter);
-	goto out;
-}
-
 
 struct syscall_arg {
 	unsigned long val;
@@ -327,6 +361,14 @@ static size_t syscall_arg__scnprintf_hex(char *bf, size_t size,
 }
 
 #define SCA_HEX syscall_arg__scnprintf_hex
+
+static size_t syscall_arg__scnprintf_int(char *bf, size_t size,
+					 struct syscall_arg *arg)
+{
+	return scnprintf(bf, size, "%d", arg->val);
+}
+
+#define SCA_INT syscall_arg__scnprintf_int
 
 static size_t syscall_arg__scnprintf_mmap_prot(char *bf, size_t size,
 					       struct syscall_arg *arg)
@@ -543,11 +585,26 @@ static size_t syscall_arg__scnprintf_futex_op(char *bf, size_t size, struct sysc
 
 #define SCA_FUTEX_OP  syscall_arg__scnprintf_futex_op
 
+static const char *bpf_cmd[] = {
+	"MAP_CREATE", "MAP_LOOKUP_ELEM", "MAP_UPDATE_ELEM", "MAP_DELETE_ELEM",
+	"MAP_GET_NEXT_KEY", "PROG_LOAD",
+};
+static DEFINE_STRARRAY(bpf_cmd);
+
 static const char *epoll_ctl_ops[] = { "ADD", "DEL", "MOD", };
 static DEFINE_STRARRAY_OFFSET(epoll_ctl_ops, 1);
 
 static const char *itimers[] = { "REAL", "VIRTUAL", "PROF", };
 static DEFINE_STRARRAY(itimers);
+
+static const char *keyctl_options[] = {
+	"GET_KEYRING_ID", "JOIN_SESSION_KEYRING", "UPDATE", "REVOKE", "CHOWN",
+	"SETPERM", "DESCRIBE", "CLEAR", "LINK", "UNLINK", "SEARCH", "READ",
+	"INSTANTIATE", "NEGATE", "SET_REQKEY_KEYRING", "SET_TIMEOUT",
+	"ASSUME_AUTHORITY", "GET_SECURITY", "SESSION_TO_PARENT", "REJECT",
+	"INSTANTIATE_IOV", "INVALIDATE", "GET_PERSISTENT",
+};
+static DEFINE_STRARRAY(keyctl_options);
 
 static const char *whences[] = { "SET", "CUR", "END",
 #ifdef SEEK_DATA
@@ -579,7 +636,8 @@ static DEFINE_STRARRAY(sighow);
 
 static const char *clockid[] = {
 	"REALTIME", "MONOTONIC", "PROCESS_CPUTIME_ID", "THREAD_CPUTIME_ID",
-	"MONOTONIC_RAW", "REALTIME_COARSE", "MONOTONIC_COARSE",
+	"MONOTONIC_RAW", "REALTIME_COARSE", "MONOTONIC_COARSE", "BOOTTIME",
+	"REALTIME_ALARM", "BOOTTIME_ALARM", "SGI_CYCLE", "TAI"
 };
 static DEFINE_STRARRAY(clockid);
 
@@ -724,6 +782,11 @@ static size_t syscall_arg__scnprintf_access_mode(char *bf, size_t size,
 
 #define SCA_ACCMODE syscall_arg__scnprintf_access_mode
 
+static size_t syscall_arg__scnprintf_filename(char *bf, size_t size,
+					      struct syscall_arg *arg);
+
+#define SCA_FILENAME syscall_arg__scnprintf_filename
+
 static size_t syscall_arg__scnprintf_open_flags(char *bf, size_t size,
 					       struct syscall_arg *arg)
 {
@@ -779,6 +842,34 @@ static size_t syscall_arg__scnprintf_open_flags(char *bf, size_t size,
 }
 
 #define SCA_OPEN_FLAGS syscall_arg__scnprintf_open_flags
+
+static size_t syscall_arg__scnprintf_perf_flags(char *bf, size_t size,
+						struct syscall_arg *arg)
+{
+	int printed = 0, flags = arg->val;
+
+	if (flags == 0)
+		return 0;
+
+#define	P_FLAG(n) \
+	if (flags & PERF_FLAG_##n) { \
+		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", #n); \
+		flags &= ~PERF_FLAG_##n; \
+	}
+
+	P_FLAG(FD_NO_GROUP);
+	P_FLAG(FD_OUTPUT);
+	P_FLAG(PID_CGROUP);
+	P_FLAG(FD_CLOEXEC);
+#undef P_FLAG
+
+	if (flags)
+		printed += scnprintf(bf + printed, size - printed, "%s%#x", printed ? "|" : "", flags);
+
+	return printed;
+}
+
+#define SCA_PERF_FLAGS syscall_arg__scnprintf_perf_flags
 
 static size_t syscall_arg__scnprintf_eventfd_flags(char *bf, size_t size,
 						   struct syscall_arg *arg)
@@ -923,14 +1014,24 @@ static struct syscall_fmt {
 	bool	   hexret;
 } syscall_fmts[] = {
 	{ .name	    = "access",	    .errmsg = true,
-	  .arg_scnprintf = { [1] = SCA_ACCMODE, /* mode */ }, },
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* filename */
+			     [1] = SCA_ACCMODE,  /* mode */ }, },
 	{ .name	    = "arch_prctl", .errmsg = true, .alias = "prctl", },
+	{ .name	    = "bpf",	    .errmsg = true, STRARRAY(0, cmd, bpf_cmd), },
 	{ .name	    = "brk",	    .hexret = true,
 	  .arg_scnprintf = { [0] = SCA_HEX, /* brk */ }, },
+	{ .name	    = "chdir",	    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* filename */ }, },
+	{ .name	    = "chmod",	    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* filename */ }, },
+	{ .name	    = "chroot",	    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* filename */ }, },
 	{ .name     = "clock_gettime",  .errmsg = true, STRARRAY(0, clk_id, clockid), },
 	{ .name	    = "close",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_CLOSE_FD, /* fd */ }, },
 	{ .name	    = "connect",    .errmsg = true, },
+	{ .name	    = "creat",	    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
 	{ .name	    = "dup",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "dup2",	    .errmsg = true,
@@ -941,7 +1042,8 @@ static struct syscall_fmt {
 	{ .name	    = "eventfd2",   .errmsg = true,
 	  .arg_scnprintf = { [1] = SCA_EFD_FLAGS, /* flags */ }, },
 	{ .name	    = "faccessat",  .errmsg = true,
-	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */ }, },
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */
+			     [1] = SCA_FILENAME, /* filename */ }, },
 	{ .name	    = "fadvise64",  .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "fallocate",  .errmsg = true,
@@ -951,11 +1053,13 @@ static struct syscall_fmt {
 	{ .name	    = "fchmod",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "fchmodat",   .errmsg = true,
-	  .arg_scnprintf = { [0] = SCA_FDAT, /* fd */ }, },
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* fd */
+			     [1] = SCA_FILENAME, /* filename */ }, },
 	{ .name	    = "fchown",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "fchownat",   .errmsg = true,
-	  .arg_scnprintf = { [0] = SCA_FDAT, /* fd */ }, },
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* fd */
+			     [1] = SCA_FILENAME, /* filename */ }, },
 	{ .name	    = "fcntl",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */
 			     [1] = SCA_STRARRAY, /* cmd */ },
@@ -970,7 +1074,8 @@ static struct syscall_fmt {
 	{ .name	    = "fstat",	    .errmsg = true, .alias = "newfstat",
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "fstatat",    .errmsg = true, .alias = "newfstatat",
-	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */ }, },
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */
+			     [1] = SCA_FILENAME, /* filename */ }, },
 	{ .name	    = "fstatfs",    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "fsync",    .errmsg = true,
@@ -980,13 +1085,18 @@ static struct syscall_fmt {
 	{ .name	    = "futex",	    .errmsg = true,
 	  .arg_scnprintf = { [1] = SCA_FUTEX_OP, /* op */ }, },
 	{ .name	    = "futimesat", .errmsg = true,
-	  .arg_scnprintf = { [0] = SCA_FDAT, /* fd */ }, },
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* fd */
+			     [1] = SCA_FILENAME, /* filename */ }, },
 	{ .name	    = "getdents",   .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "getdents64", .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "getitimer",  .errmsg = true, STRARRAY(0, which, itimers), },
 	{ .name	    = "getrlimit",  .errmsg = true, STRARRAY(0, resource, rlimit_resources), },
+	{ .name	    = "getxattr",    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
+	{ .name	    = "inotify_add_watch",	    .errmsg = true,
+	  .arg_scnprintf = { [1] = SCA_FILENAME, /* pathname */ }, },
 	{ .name	    = "ioctl",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */
 #if defined(__i386__) || defined(__x86_64__)
@@ -999,22 +1109,44 @@ static struct syscall_fmt {
 #else
 			     [2] = SCA_HEX, /* arg */ }, },
 #endif
+	{ .name	    = "keyctl",	    .errmsg = true, STRARRAY(0, option, keyctl_options), },
 	{ .name	    = "kill",	    .errmsg = true,
 	  .arg_scnprintf = { [1] = SCA_SIGNUM, /* sig */ }, },
+	{ .name	    = "lchown",    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* filename */ }, },
+	{ .name	    = "lgetxattr",  .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
 	{ .name	    = "linkat",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FDAT, /* fd */ }, },
+	{ .name	    = "listxattr",  .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
+	{ .name	    = "llistxattr", .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
+	{ .name	    = "lremovexattr",  .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
 	{ .name	    = "lseek",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */
 			     [2] = SCA_STRARRAY, /* whence */ },
 	  .arg_parm	 = { [2] = &strarray__whences, /* whence */ }, },
-	{ .name	    = "lstat",	    .errmsg = true, .alias = "newlstat", },
+	{ .name	    = "lsetxattr",  .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
+	{ .name	    = "lstat",	    .errmsg = true, .alias = "newlstat",
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* filename */ }, },
+	{ .name	    = "lsxattr",    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
 	{ .name     = "madvise",    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_HEX,	 /* start */
 			     [2] = SCA_MADV_BHV, /* behavior */ }, },
+	{ .name	    = "mkdir",    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
 	{ .name	    = "mkdirat",    .errmsg = true,
-	  .arg_scnprintf = { [0] = SCA_FDAT, /* fd */ }, },
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* fd */
+			     [1] = SCA_FILENAME, /* pathname */ }, },
+	{ .name	    = "mknod",      .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* filename */ }, },
 	{ .name	    = "mknodat",    .errmsg = true,
-	  .arg_scnprintf = { [0] = SCA_FDAT, /* fd */ }, },
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* fd */
+			     [1] = SCA_FILENAME, /* filename */ }, },
 	{ .name	    = "mlock",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_HEX, /* addr */ }, },
 	{ .name	    = "mlockall",   .errmsg = true,
@@ -1027,6 +1159,8 @@ static struct syscall_fmt {
 	{ .name	    = "mprotect",   .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_HEX, /* start */
 			     [2] = SCA_MMAP_PROT, /* prot */ }, },
+	{ .name	    = "mq_unlink", .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* u_name */ }, },
 	{ .name	    = "mremap",	    .hexret = true,
 	  .arg_scnprintf = { [0] = SCA_HEX, /* addr */
 			     [3] = SCA_MREMAP_FLAGS, /* flags */
@@ -1038,15 +1172,23 @@ static struct syscall_fmt {
 	{ .name	    = "name_to_handle_at", .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */ }, },
 	{ .name	    = "newfstatat", .errmsg = true,
-	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */ }, },
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */
+			     [1] = SCA_FILENAME, /* filename */ }, },
 	{ .name	    = "open",	    .errmsg = true,
-	  .arg_scnprintf = { [1] = SCA_OPEN_FLAGS, /* flags */ }, },
+	  .arg_scnprintf = { [0] = SCA_FILENAME,   /* filename */
+			     [1] = SCA_OPEN_FLAGS, /* flags */ }, },
 	{ .name	    = "open_by_handle_at", .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */
 			     [2] = SCA_OPEN_FLAGS, /* flags */ }, },
 	{ .name	    = "openat",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */
+			     [1] = SCA_FILENAME, /* filename */
 			     [2] = SCA_OPEN_FLAGS, /* flags */ }, },
+	{ .name	    = "perf_event_open", .errmsg = true,
+	  .arg_scnprintf = { [1] = SCA_INT, /* pid */
+			     [2] = SCA_INT, /* cpu */
+			     [3] = SCA_FD,  /* group_fd */
+			     [4] = SCA_PERF_FLAGS,  /* flags */ }, },
 	{ .name	    = "pipe2",	    .errmsg = true,
 	  .arg_scnprintf = { [1] = SCA_PIPE_FLAGS, /* flags */ }, },
 	{ .name	    = "poll",	    .errmsg = true, .timeout = true, },
@@ -1062,18 +1204,28 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "read",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
+	{ .name	    = "readlink",   .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* path */ }, },
 	{ .name	    = "readlinkat", .errmsg = true,
-	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */ }, },
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */
+			     [1] = SCA_FILENAME, /* pathname */ }, },
 	{ .name	    = "readv",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "recvfrom",   .errmsg = true,
-	  .arg_scnprintf = { [3] = SCA_MSG_FLAGS, /* flags */ }, },
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */
+			     [3] = SCA_MSG_FLAGS, /* flags */ }, },
 	{ .name	    = "recvmmsg",   .errmsg = true,
-	  .arg_scnprintf = { [3] = SCA_MSG_FLAGS, /* flags */ }, },
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */
+			     [3] = SCA_MSG_FLAGS, /* flags */ }, },
 	{ .name	    = "recvmsg",    .errmsg = true,
-	  .arg_scnprintf = { [2] = SCA_MSG_FLAGS, /* flags */ }, },
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */
+			     [2] = SCA_MSG_FLAGS, /* flags */ }, },
+	{ .name	    = "removexattr", .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
 	{ .name	    = "renameat",   .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */ }, },
+	{ .name	    = "rmdir",    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
 	{ .name	    = "rt_sigaction", .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_SIGNUM, /* sig */ }, },
 	{ .name	    = "rt_sigprocmask",  .errmsg = true, STRARRAY(0, how, sighow), },
@@ -1083,13 +1235,18 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [2] = SCA_SIGNUM, /* sig */ }, },
 	{ .name	    = "select",	    .errmsg = true, .timeout = true, },
 	{ .name	    = "sendmmsg",    .errmsg = true,
-	  .arg_scnprintf = { [3] = SCA_MSG_FLAGS, /* flags */ }, },
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */
+			     [3] = SCA_MSG_FLAGS, /* flags */ }, },
 	{ .name	    = "sendmsg",    .errmsg = true,
-	  .arg_scnprintf = { [2] = SCA_MSG_FLAGS, /* flags */ }, },
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */
+			     [2] = SCA_MSG_FLAGS, /* flags */ }, },
 	{ .name	    = "sendto",	    .errmsg = true,
-	  .arg_scnprintf = { [3] = SCA_MSG_FLAGS, /* flags */ }, },
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */
+			     [3] = SCA_MSG_FLAGS, /* flags */ }, },
 	{ .name	    = "setitimer",  .errmsg = true, STRARRAY(0, which, itimers), },
 	{ .name	    = "setrlimit",  .errmsg = true, STRARRAY(0, resource, rlimit_resources), },
+	{ .name	    = "setxattr",   .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
 	{ .name	    = "shutdown",   .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "socket",	    .errmsg = true,
@@ -1100,18 +1257,35 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [0] = SCA_STRARRAY, /* family */
 			     [1] = SCA_SK_TYPE, /* type */ },
 	  .arg_parm	 = { [0] = &strarray__socket_families, /* family */ }, },
-	{ .name	    = "stat",	    .errmsg = true, .alias = "newstat", },
+	{ .name	    = "stat",	    .errmsg = true, .alias = "newstat",
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
+	{ .name	    = "statfs",	    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
+	{ .name	    = "swapoff",    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* specialfile */ }, },
+	{ .name	    = "swapon",	    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* specialfile */ }, },
 	{ .name	    = "symlinkat",  .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */ }, },
 	{ .name	    = "tgkill",	    .errmsg = true,
 	  .arg_scnprintf = { [2] = SCA_SIGNUM, /* sig */ }, },
 	{ .name	    = "tkill",	    .errmsg = true,
 	  .arg_scnprintf = { [1] = SCA_SIGNUM, /* sig */ }, },
+	{ .name	    = "truncate",   .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* path */ }, },
 	{ .name	    = "uname",	    .errmsg = true, .alias = "newuname", },
 	{ .name	    = "unlinkat",   .errmsg = true,
-	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */ }, },
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */
+			     [1] = SCA_FILENAME, /* pathname */ }, },
+	{ .name	    = "utime",  .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* filename */ }, },
 	{ .name	    = "utimensat",  .errmsg = true,
-	  .arg_scnprintf = { [0] = SCA_FDAT, /* dirfd */ }, },
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* dirfd */
+			     [1] = SCA_FILENAME, /* filename */ }, },
+	{ .name	    = "utimes",  .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* filename */ }, },
+	{ .name	    = "vmsplice",  .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "write",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "writev",	    .errmsg = true,
@@ -1132,8 +1306,9 @@ static struct syscall_fmt *syscall_fmt__find(const char *name)
 
 struct syscall {
 	struct event_format *tp_format;
+	int		    nr_args;
+	struct format_field *args;
 	const char	    *name;
-	bool		    filtered;
 	bool		    is_exit;
 	struct syscall_fmt  *fmt;
 	size_t		    (**arg_scnprintf)(char *bf, size_t size, struct syscall_arg *arg);
@@ -1154,6 +1329,11 @@ static size_t fprintf_duration(unsigned long t, FILE *fp)
 	return printed + fprintf(fp, "): ");
 }
 
+/**
+ * filename.ptr: The filename char pointer that will be vfs_getname'd
+ * filename.entry_str_pos: Where to insert the string translated from
+ *                         filename.ptr by the vfs_getname tracepoint/kprobe.
+ */
 struct thread_trace {
 	u64		  entry_time;
 	u64		  exit_time;
@@ -1162,6 +1342,13 @@ struct thread_trace {
 	unsigned long	  pfmaj, pfmin;
 	char		  *entry_str;
 	double		  runtime_ms;
+        struct {
+		unsigned long ptr;
+		short int     entry_str_pos;
+		bool	      pending_open;
+		unsigned int  namelen;
+		char	      *name;
+	} filename;
 	struct {
 		int	  max;
 		char	  **table;
@@ -1208,6 +1395,8 @@ fail:
 #define TRACE_PFMAJ		(1 << 0)
 #define TRACE_PFMIN		(1 << 1)
 
+static const size_t trace__entry_str_size = 2048;
+
 struct trace {
 	struct perf_tool	tool;
 	struct {
@@ -1217,16 +1406,29 @@ struct trace {
 	struct {
 		int		max;
 		struct syscall  *table;
+		struct {
+			struct perf_evsel *sys_enter,
+					  *sys_exit;
+		}		events;
 	} syscalls;
 	struct record_opts	opts;
+	struct perf_evlist	*evlist;
 	struct machine		*host;
+	struct thread		*current;
 	u64			base_time;
 	FILE			*output;
 	unsigned long		nr_events;
 	struct strlist		*ev_qualifier;
-	const char 		*last_vfs_getname;
+	struct {
+		size_t		nr;
+		int		*entries;
+	}			ev_qualifier_ids;
 	struct intlist		*tid_list;
 	struct intlist		*pid_list;
+	struct {
+		size_t		nr;
+		pid_t		*entries;
+	}			filter_pids;
 	double			duration_filter;
 	double			runtime_ms;
 	struct {
@@ -1243,6 +1445,8 @@ struct trace {
 	bool			show_comm;
 	bool			show_tool_stats;
 	bool			trace_syscalls;
+	bool			force;
+	bool			vfs_getname;
 	int			trace_pgfaults;
 };
 
@@ -1346,6 +1550,27 @@ static size_t syscall_arg__scnprintf_close_fd(char *bf, size_t size,
 	return printed;
 }
 
+static void thread__set_filename_pos(struct thread *thread, const char *bf,
+				     unsigned long ptr)
+{
+	struct thread_trace *ttrace = thread__priv(thread);
+
+	ttrace->filename.ptr = ptr;
+	ttrace->filename.entry_str_pos = bf - ttrace->entry_str;
+}
+
+static size_t syscall_arg__scnprintf_filename(char *bf, size_t size,
+					      struct syscall_arg *arg)
+{
+	unsigned long ptr = arg->val;
+
+	if (!arg->trace->vfs_getname)
+		return scnprintf(bf, size, "%#x", ptr);
+
+	thread__set_filename_pos(arg->thread, bf, ptr);
+	return 0;
+}
+
 static bool trace__filter_duration(struct trace *trace, double t)
 {
 	return t < (trace->duration_filter * NSEC_PER_MSEC);
@@ -1420,8 +1645,12 @@ static int trace__symbols_init(struct trace *trace, struct perf_evlist *evlist)
 	if (trace->host == NULL)
 		return -ENOMEM;
 
+	if (trace_event__register_resolver(trace->host, machine__resolve_kernel_addr) < 0)
+		return -errno;
+
 	err = __machine__synthesize_threads(trace->host, &trace->tool, &trace->opts.target,
-					    evlist->threads, trace__tool_process, false);
+					    evlist->threads, trace__tool_process, false,
+					    trace->opts.proc_map_timeout);
 	if (err)
 		symbol__exit();
 
@@ -1433,14 +1662,14 @@ static int syscall__set_arg_fmts(struct syscall *sc)
 	struct format_field *field;
 	int idx = 0;
 
-	sc->arg_scnprintf = calloc(sc->tp_format->format.nr_fields - 1, sizeof(void *));
+	sc->arg_scnprintf = calloc(sc->nr_args, sizeof(void *));
 	if (sc->arg_scnprintf == NULL)
 		return -1;
 
 	if (sc->fmt)
 		sc->arg_parm = sc->fmt->arg_parm;
 
-	for (field = sc->tp_format->format.fields->next; field; field = field->next) {
+	for (field = sc->args; field; field = field->next) {
 		if (sc->fmt && sc->fmt->arg_scnprintf[idx])
 			sc->arg_scnprintf[idx] = sc->fmt->arg_scnprintf[idx];
 		else if (field->flags & FIELD_IS_POINTER)
@@ -1480,44 +1709,96 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	sc = trace->syscalls.table + id;
 	sc->name = name;
 
-	if (trace->ev_qualifier) {
-		bool in = strlist__find(trace->ev_qualifier, name) != NULL;
-
-		if (!(in ^ trace->not_ev_qualifier)) {
-			sc->filtered = true;
-			/*
-			 * No need to do read tracepoint information since this will be
-			 * filtered out.
-			 */
-			return 0;
-		}
-	}
-
 	sc->fmt  = syscall_fmt__find(sc->name);
 
 	snprintf(tp_name, sizeof(tp_name), "sys_enter_%s", sc->name);
 	sc->tp_format = trace_event__tp_format("syscalls", tp_name);
 
-	if (sc->tp_format == NULL && sc->fmt && sc->fmt->alias) {
+	if (IS_ERR(sc->tp_format) && sc->fmt && sc->fmt->alias) {
 		snprintf(tp_name, sizeof(tp_name), "sys_enter_%s", sc->fmt->alias);
 		sc->tp_format = trace_event__tp_format("syscalls", tp_name);
 	}
 
-	if (sc->tp_format == NULL)
+	if (IS_ERR(sc->tp_format))
 		return -1;
+
+	sc->args = sc->tp_format->format.fields;
+	sc->nr_args = sc->tp_format->format.nr_fields;
+	/* drop nr field - not relevant here; does not exist on older kernels */
+	if (sc->args && strcmp(sc->args->name, "nr") == 0) {
+		sc->args = sc->args->next;
+		--sc->nr_args;
+	}
 
 	sc->is_exit = !strcmp(name, "exit_group") || !strcmp(name, "exit");
 
 	return syscall__set_arg_fmts(sc);
 }
 
+static int trace__validate_ev_qualifier(struct trace *trace)
+{
+	int err = 0, i;
+	struct str_node *pos;
+
+	trace->ev_qualifier_ids.nr = strlist__nr_entries(trace->ev_qualifier);
+	trace->ev_qualifier_ids.entries = malloc(trace->ev_qualifier_ids.nr *
+						 sizeof(trace->ev_qualifier_ids.entries[0]));
+
+	if (trace->ev_qualifier_ids.entries == NULL) {
+		fputs("Error:\tNot enough memory for allocating events qualifier ids\n",
+		       trace->output);
+		err = -EINVAL;
+		goto out;
+	}
+
+	i = 0;
+
+	strlist__for_each(pos, trace->ev_qualifier) {
+		const char *sc = pos->s;
+		int id = audit_name_to_syscall(sc, trace->audit.machine);
+
+		if (id < 0) {
+			if (err == 0) {
+				fputs("Error:\tInvalid syscall ", trace->output);
+				err = -EINVAL;
+			} else {
+				fputs(", ", trace->output);
+			}
+
+			fputs(sc, trace->output);
+		}
+
+		trace->ev_qualifier_ids.entries[i++] = id;
+	}
+
+	if (err < 0) {
+		fputs("\nHint:\ttry 'perf list syscalls:sys_enter_*'"
+		      "\nHint:\tand: 'man syscalls'\n", trace->output);
+		zfree(&trace->ev_qualifier_ids.entries);
+		trace->ev_qualifier_ids.nr = 0;
+	}
+out:
+	return err;
+}
+
+/*
+ * args is to be interpreted as a series of longs but we need to handle
+ * 8-byte unaligned accesses. args points to raw_data within the event
+ * and raw_data is guaranteed to be 8-byte unaligned because it is
+ * preceded by raw_size which is a u32. So we need to copy args to a temp
+ * variable to read it. Most notably this avoids extended load instructions
+ * on unaligned addresses
+ */
+
 static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
-				      unsigned long *args, struct trace *trace,
+				      unsigned char *args, struct trace *trace,
 				      struct thread *thread)
 {
 	size_t printed = 0;
+	unsigned char *p;
+	unsigned long val;
 
-	if (sc->tp_format != NULL) {
+	if (sc->args != NULL) {
 		struct format_field *field;
 		u8 bit = 1;
 		struct syscall_arg arg = {
@@ -1527,16 +1808,21 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 			.thread = thread,
 		};
 
-		for (field = sc->tp_format->format.fields->next; field;
+		for (field = sc->args; field;
 		     field = field->next, ++arg.idx, bit <<= 1) {
 			if (arg.mask & bit)
 				continue;
+
+			/* special care for unaligned accesses */
+			p = args + sizeof(unsigned long) * arg.idx;
+			memcpy(&val, p, sizeof(val));
+
 			/*
  			 * Suppress this argument if its value is zero and
  			 * and we don't have a string associated in an
  			 * strarray for it.
  			 */
-			if (args[arg.idx] == 0 &&
+			if (val == 0 &&
 			    !(sc->arg_scnprintf &&
 			      sc->arg_scnprintf[arg.idx] == SCA_STRARRAY &&
 			      sc->arg_parm[arg.idx]))
@@ -1545,23 +1831,26 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 			printed += scnprintf(bf + printed, size - printed,
 					     "%s%s: ", printed ? ", " : "", field->name);
 			if (sc->arg_scnprintf && sc->arg_scnprintf[arg.idx]) {
-				arg.val = args[arg.idx];
+				arg.val = val;
 				if (sc->arg_parm)
 					arg.parm = sc->arg_parm[arg.idx];
 				printed += sc->arg_scnprintf[arg.idx](bf + printed,
 								      size - printed, &arg);
 			} else {
 				printed += scnprintf(bf + printed, size - printed,
-						     "%ld", args[arg.idx]);
+						     "%ld", val);
 			}
 		}
 	} else {
 		int i = 0;
 
 		while (i < 6) {
+			/* special care for unaligned accesses */
+			p = args + sizeof(unsigned long) * i;
+			memcpy(&val, p, sizeof(val));
 			printed += scnprintf(bf + printed, size - printed,
 					     "%sarg%d: %ld",
-					     printed ? ", " : "", i, args[i]);
+					     printed ? ", " : "", i, val);
 			++i;
 		}
 	}
@@ -1642,6 +1931,29 @@ static void thread__update_stats(struct thread_trace *ttrace,
 	update_stats(stats, duration);
 }
 
+static int trace__printf_interrupted_entry(struct trace *trace, struct perf_sample *sample)
+{
+	struct thread_trace *ttrace;
+	u64 duration;
+	size_t printed;
+
+	if (trace->current == NULL)
+		return 0;
+
+	ttrace = thread__priv(trace->current);
+
+	if (!ttrace->entry_pending)
+		return 0;
+
+	duration = sample->time - ttrace->entry_time;
+
+	printed  = trace__fprintf_entry_head(trace, trace->current, duration, sample->time, trace->output);
+	printed += fprintf(trace->output, "%-70s) ...\n", ttrace->entry_str);
+	ttrace->entry_pending = false;
+
+	return printed;
+}
+
 static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 			    union perf_event *event __maybe_unused,
 			    struct perf_sample *sample)
@@ -1650,34 +1962,34 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	void *args;
 	size_t printed = 0;
 	struct thread *thread;
-	int id = perf_evsel__sc_tp_uint(evsel, id, sample);
+	int id = perf_evsel__sc_tp_uint(evsel, id, sample), err = -1;
 	struct syscall *sc = trace__syscall_info(trace, evsel, id);
 	struct thread_trace *ttrace;
 
 	if (sc == NULL)
 		return -1;
 
-	if (sc->filtered)
-		return 0;
-
 	thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
 	ttrace = thread__trace(thread, trace->output);
 	if (ttrace == NULL)
-		return -1;
+		goto out_put;
 
 	args = perf_evsel__sc_tp_ptr(evsel, args, sample);
 
 	if (ttrace->entry_str == NULL) {
-		ttrace->entry_str = malloc(1024);
+		ttrace->entry_str = malloc(trace__entry_str_size);
 		if (!ttrace->entry_str)
-			return -1;
+			goto out_put;
 	}
+
+	if (!trace->summary_only)
+		trace__printf_interrupted_entry(trace, sample);
 
 	ttrace->entry_time = sample->time;
 	msg = ttrace->entry_str;
-	printed += scnprintf(msg + printed, 1024 - printed, "%s(", sc->name);
+	printed += scnprintf(msg + printed, trace__entry_str_size - printed, "%s(", sc->name);
 
-	printed += syscall__scnprintf_args(sc, msg + printed, 1024 - printed,
+	printed += syscall__scnprintf_args(sc, msg + printed, trace__entry_str_size - printed,
 					   args, trace, thread);
 
 	if (sc->is_exit) {
@@ -1685,10 +1997,20 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 			trace__fprintf_entry_head(trace, thread, 1, sample->time, trace->output);
 			fprintf(trace->output, "%-70s\n", ttrace->entry_str);
 		}
-	} else
+	} else {
 		ttrace->entry_pending = true;
+		/* See trace__vfs_getname & trace__sys_exit */
+		ttrace->filename.pending_open = false;
+	}
 
-	return 0;
+	if (trace->current != thread) {
+		thread__put(trace->current);
+		trace->current = thread__get(thread);
+	}
+	err = 0;
+out_put:
+	thread__put(thread);
+	return err;
 }
 
 static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
@@ -1698,29 +2020,26 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 	long ret;
 	u64 duration = 0;
 	struct thread *thread;
-	int id = perf_evsel__sc_tp_uint(evsel, id, sample);
+	int id = perf_evsel__sc_tp_uint(evsel, id, sample), err = -1;
 	struct syscall *sc = trace__syscall_info(trace, evsel, id);
 	struct thread_trace *ttrace;
 
 	if (sc == NULL)
 		return -1;
 
-	if (sc->filtered)
-		return 0;
-
 	thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
 	ttrace = thread__trace(thread, trace->output);
 	if (ttrace == NULL)
-		return -1;
+		goto out_put;
 
 	if (trace->summary)
 		thread__update_stats(ttrace, id, sample);
 
 	ret = perf_evsel__sc_tp_uint(evsel, ret, sample);
 
-	if (id == trace->audit.open_id && ret >= 0 && trace->last_vfs_getname) {
-		trace__set_fd_pathname(thread, ret, trace->last_vfs_getname);
-		trace->last_vfs_getname = NULL;
+	if (id == trace->audit.open_id && ret >= 0 && ttrace->filename.pending_open) {
+		trace__set_fd_pathname(thread, ret, ttrace->filename.name);
+		ttrace->filename.pending_open = false;
 		++trace->stats.vfs_getname;
 	}
 
@@ -1765,15 +2084,66 @@ signed_print:
 	fputc('\n', trace->output);
 out:
 	ttrace->entry_pending = false;
-
-	return 0;
+	err = 0;
+out_put:
+	thread__put(thread);
+	return err;
 }
 
 static int trace__vfs_getname(struct trace *trace, struct perf_evsel *evsel,
 			      union perf_event *event __maybe_unused,
 			      struct perf_sample *sample)
 {
-	trace->last_vfs_getname = perf_evsel__rawptr(evsel, sample, "pathname");
+	struct thread *thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
+	struct thread_trace *ttrace;
+	size_t filename_len, entry_str_len, to_move;
+	ssize_t remaining_space;
+	char *pos;
+	const char *filename = perf_evsel__rawptr(evsel, sample, "pathname");
+
+	if (!thread)
+		goto out;
+
+	ttrace = thread__priv(thread);
+	if (!ttrace)
+		goto out;
+
+	filename_len = strlen(filename);
+
+	if (ttrace->filename.namelen < filename_len) {
+		char *f = realloc(ttrace->filename.name, filename_len + 1);
+
+		if (f == NULL)
+				goto out;
+
+		ttrace->filename.namelen = filename_len;
+		ttrace->filename.name = f;
+	}
+
+	strcpy(ttrace->filename.name, filename);
+	ttrace->filename.pending_open = true;
+
+	if (!ttrace->filename.ptr)
+		goto out;
+
+	entry_str_len = strlen(ttrace->entry_str);
+	remaining_space = trace__entry_str_size - entry_str_len - 1; /* \0 */
+	if (remaining_space <= 0)
+		goto out;
+
+	if (filename_len > (size_t)remaining_space) {
+		filename += filename_len - remaining_space;
+		filename_len = remaining_space;
+	}
+
+	to_move = entry_str_len - ttrace->filename.entry_str_pos + 1; /* \0 */
+	pos = ttrace->entry_str + ttrace->filename.entry_str_pos;
+	memmove(pos + filename_len, pos, to_move);
+	memcpy(pos, filename, filename_len);
+
+	ttrace->filename.ptr = 0;
+	ttrace->filename.entry_str_pos = 0;
+out:
 	return 0;
 }
 
@@ -1793,6 +2163,7 @@ static int trace__sched_stat_runtime(struct trace *trace, struct perf_evsel *evs
 
 	ttrace->runtime_ms += runtime_ms;
 	trace->runtime_ms += runtime_ms;
+	thread__put(thread);
 	return 0;
 
 out_dump:
@@ -1802,6 +2173,29 @@ out_dump:
 	       (pid_t)perf_evsel__intval(evsel, sample, "pid"),
 	       runtime,
 	       perf_evsel__intval(evsel, sample, "vruntime"));
+	thread__put(thread);
+	return 0;
+}
+
+static int trace__event_handler(struct trace *trace, struct perf_evsel *evsel,
+				union perf_event *event __maybe_unused,
+				struct perf_sample *sample)
+{
+	trace__printf_interrupted_entry(trace, sample);
+	trace__fprintf_tstamp(trace, sample->time, trace->output);
+
+	if (trace->trace_syscalls)
+		fprintf(trace->output, "(         ): ");
+
+	fprintf(trace->output, "%s:", evsel->name);
+
+	if (evsel->tp_format) {
+		event_format__fprintf(evsel->tp_format, sample->cpu,
+				      sample->raw_data, sample->raw_size,
+				      trace->output);
+	}
+
+	fprintf(trace->output, ")\n");
 	return 0;
 }
 
@@ -1832,11 +2226,12 @@ static int trace__pgfault(struct trace *trace,
 	struct addr_location al;
 	char map_type = 'd';
 	struct thread_trace *ttrace;
+	int err = -1;
 
 	thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
 	ttrace = thread__trace(thread, trace->output);
 	if (ttrace == NULL)
-		return -1;
+		goto out_put;
 
 	if (evsel->attr.config == PERF_COUNT_SW_PAGE_FAULTS_MAJ)
 		ttrace->pfmaj++;
@@ -1844,7 +2239,7 @@ static int trace__pgfault(struct trace *trace,
 		ttrace->pfmin++;
 
 	if (trace->summary_only)
-		return 0;
+		goto out;
 
 	thread__find_addr_location(thread, cpumode, MAP__FUNCTION,
 			      sample->ip, &al);
@@ -1875,8 +2270,11 @@ static int trace__pgfault(struct trace *trace,
 	print_location(trace->output, sample, &al, true, false);
 
 	fprintf(trace->output, " (%c%c)\n", map_type, al.level);
-
-	return 0;
+out:
+	err = 0;
+out_put:
+	thread__put(thread);
+	return err;
 }
 
 static bool skip_sample(struct trace *trace, struct perf_sample *sample)
@@ -1998,19 +2396,21 @@ static int trace__record(struct trace *trace, int argc, const char **argv)
 
 static size_t trace__fprintf_thread_summary(struct trace *trace, FILE *fp);
 
-static void perf_evlist__add_vfs_getname(struct perf_evlist *evlist)
+static bool perf_evlist__add_vfs_getname(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel = perf_evsel__newtp("probe", "vfs_getname");
-	if (evsel == NULL)
-		return;
+
+	if (IS_ERR(evsel))
+		return false;
 
 	if (perf_evsel__field(evsel, "pathname") == NULL) {
 		perf_evsel__delete(evsel);
-		return;
+		return false;
 	}
 
 	evsel->handler = trace__vfs_getname;
 	perf_evlist__add(evlist, evsel);
+	return true;
 }
 
 static int perf_evlist__add_pgfault(struct perf_evlist *evlist,
@@ -2037,9 +2437,97 @@ static int perf_evlist__add_pgfault(struct perf_evlist *evlist,
 	return 0;
 }
 
+static void trace__handle_event(struct trace *trace, union perf_event *event, struct perf_sample *sample)
+{
+	const u32 type = event->header.type;
+	struct perf_evsel *evsel;
+
+	if (!trace->full_time && trace->base_time == 0)
+		trace->base_time = sample->time;
+
+	if (type != PERF_RECORD_SAMPLE) {
+		trace__process_event(trace, trace->host, event, sample);
+		return;
+	}
+
+	evsel = perf_evlist__id2evsel(trace->evlist, sample->id);
+	if (evsel == NULL) {
+		fprintf(trace->output, "Unknown tp ID %" PRIu64 ", skipping...\n", sample->id);
+		return;
+	}
+
+	if (evsel->attr.type == PERF_TYPE_TRACEPOINT &&
+	    sample->raw_data == NULL) {
+		fprintf(trace->output, "%s sample with no payload for tid: %d, cpu %d, raw_size=%d, skipping...\n",
+		       perf_evsel__name(evsel), sample->tid,
+		       sample->cpu, sample->raw_size);
+	} else {
+		tracepoint_handler handler = evsel->handler;
+		handler(trace, evsel, event, sample);
+	}
+}
+
+static int trace__add_syscall_newtp(struct trace *trace)
+{
+	int ret = -1;
+	struct perf_evlist *evlist = trace->evlist;
+	struct perf_evsel *sys_enter, *sys_exit;
+
+	sys_enter = perf_evsel__syscall_newtp("sys_enter", trace__sys_enter);
+	if (sys_enter == NULL)
+		goto out;
+
+	if (perf_evsel__init_sc_tp_ptr_field(sys_enter, args))
+		goto out_delete_sys_enter;
+
+	sys_exit = perf_evsel__syscall_newtp("sys_exit", trace__sys_exit);
+	if (sys_exit == NULL)
+		goto out_delete_sys_enter;
+
+	if (perf_evsel__init_sc_tp_uint_field(sys_exit, ret))
+		goto out_delete_sys_exit;
+
+	perf_evlist__add(evlist, sys_enter);
+	perf_evlist__add(evlist, sys_exit);
+
+	trace->syscalls.events.sys_enter = sys_enter;
+	trace->syscalls.events.sys_exit  = sys_exit;
+
+	ret = 0;
+out:
+	return ret;
+
+out_delete_sys_exit:
+	perf_evsel__delete_priv(sys_exit);
+out_delete_sys_enter:
+	perf_evsel__delete_priv(sys_enter);
+	goto out;
+}
+
+static int trace__set_ev_qualifier_filter(struct trace *trace)
+{
+	int err = -1;
+	char *filter = asprintf_expr_inout_ints("id", !trace->not_ev_qualifier,
+						trace->ev_qualifier_ids.nr,
+						trace->ev_qualifier_ids.entries);
+
+	if (filter == NULL)
+		goto out_enomem;
+
+	if (!perf_evsel__append_filter(trace->syscalls.events.sys_enter, "&&", filter))
+		err = perf_evsel__append_filter(trace->syscalls.events.sys_exit, "&&", filter);
+
+	free(filter);
+out:
+	return err;
+out_enomem:
+	errno = ENOMEM;
+	goto out;
+}
+
 static int trace__run(struct trace *trace, int argc, const char **argv)
 {
-	struct perf_evlist *evlist = perf_evlist__new();
+	struct perf_evlist *evlist = trace->evlist;
 	struct perf_evsel *evsel;
 	int err = -1, i;
 	unsigned long before;
@@ -2048,18 +2536,11 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 
 	trace->live = true;
 
-	if (evlist == NULL) {
-		fprintf(trace->output, "Not enough memory to run!\n");
-		goto out;
-	}
-
-	if (trace->trace_syscalls &&
-	    perf_evlist__add_syscall_newtp(evlist, trace__sys_enter,
-					   trace__sys_exit))
+	if (trace->trace_syscalls && trace__add_syscall_newtp(trace))
 		goto out_error_raw_syscalls;
 
 	if (trace->trace_syscalls)
-		perf_evlist__add_vfs_getname(evlist);
+		trace->vfs_getname = perf_evlist__add_vfs_getname(evlist);
 
 	if ((trace->trace_pgfaults & TRACE_PFMAJ) &&
 	    perf_evlist__add_pgfault(evlist, PERF_COUNT_SW_PAGE_FAULTS_MAJ)) {
@@ -2105,16 +2586,46 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (err < 0)
 		goto out_error_open;
 
+	/*
+	 * Better not use !target__has_task() here because we need to cover the
+	 * case where no threads were specified in the command line, but a
+	 * workload was, and in that case we will fill in the thread_map when
+	 * we fork the workload in perf_evlist__prepare_workload.
+	 */
+	if (trace->filter_pids.nr > 0)
+		err = perf_evlist__set_filter_pids(evlist, trace->filter_pids.nr, trace->filter_pids.entries);
+	else if (thread_map__pid(evlist->threads, 0) == -1)
+		err = perf_evlist__set_filter_pid(evlist, getpid());
+
+	if (err < 0)
+		goto out_error_mem;
+
+	if (trace->ev_qualifier_ids.nr > 0) {
+		err = trace__set_ev_qualifier_filter(trace);
+		if (err < 0)
+			goto out_errno;
+
+		pr_debug("event qualifier tracepoint filter: %s\n",
+			 trace->syscalls.events.sys_exit->filter);
+	}
+
+	err = perf_evlist__apply_filters(evlist, &evsel);
+	if (err < 0)
+		goto out_error_apply_filters;
+
 	err = perf_evlist__mmap(evlist, trace->opts.mmap_pages, false);
 	if (err < 0)
 		goto out_error_mmap;
 
-	perf_evlist__enable(evlist);
+	if (!target__none(&trace->opts.target))
+		perf_evlist__enable(evlist);
 
 	if (forks)
 		perf_evlist__start_workload(evlist);
 
-	trace->multiple_threads = evlist->threads->map[0] == -1 || evlist->threads->nr > 1;
+	trace->multiple_threads = thread_map__pid(evlist->threads, 0) == -1 ||
+				  evlist->threads->nr > 1 ||
+				  perf_evlist__first(evlist)->attr.inherit;
 again:
 	before = trace->nr_events;
 
@@ -2122,8 +2633,6 @@ again:
 		union perf_event *event;
 
 		while ((event = perf_evlist__mmap_read(evlist, i)) != NULL) {
-			const u32 type = event->header.type;
-			tracepoint_handler handler;
 			struct perf_sample sample;
 
 			++trace->nr_events;
@@ -2134,35 +2643,17 @@ again:
 				goto next_event;
 			}
 
-			if (!trace->full_time && trace->base_time == 0)
-				trace->base_time = sample.time;
-
-			if (type != PERF_RECORD_SAMPLE) {
-				trace__process_event(trace, trace->host, event, &sample);
-				continue;
-			}
-
-			evsel = perf_evlist__id2evsel(evlist, sample.id);
-			if (evsel == NULL) {
-				fprintf(trace->output, "Unknown tp ID %" PRIu64 ", skipping...\n", sample.id);
-				goto next_event;
-			}
-
-			if (evsel->attr.type == PERF_TYPE_TRACEPOINT &&
-			    sample.raw_data == NULL) {
-				fprintf(trace->output, "%s sample with no payload for tid: %d, cpu %d, raw_size=%d, skipping...\n",
-				       perf_evsel__name(evsel), sample.tid,
-				       sample.cpu, sample.raw_size);
-				goto next_event;
-			}
-
-			handler = evsel->handler;
-			handler(trace, evsel, event, &sample);
+			trace__handle_event(trace, event, &sample);
 next_event:
 			perf_evlist__mmap_consume(evlist, i);
 
 			if (interrupted)
 				goto out_disable;
+
+			if (done && !draining) {
+				perf_evlist__disable(evlist);
+				draining = true;
+			}
 		}
 	}
 
@@ -2180,6 +2671,8 @@ next_event:
 	}
 
 out_disable:
+	thread__zput(trace->current);
+
 	perf_evlist__disable(evlist);
 
 	if (!err) {
@@ -2197,18 +2690,18 @@ out_disable:
 
 out_delete_evlist:
 	perf_evlist__delete(evlist);
-out:
+	trace->evlist = NULL;
 	trace->live = false;
 	return err;
 {
 	char errbuf[BUFSIZ];
 
 out_error_sched_stat_runtime:
-	debugfs__strerror_open_tp(errno, errbuf, sizeof(errbuf), "sched", "sched_stat_runtime");
+	tracing_path__strerror_open_tp(errno, errbuf, sizeof(errbuf), "sched", "sched_stat_runtime");
 	goto out_error;
 
 out_error_raw_syscalls:
-	debugfs__strerror_open_tp(errno, errbuf, sizeof(errbuf), "raw_syscalls", "sys_(enter|exit)");
+	tracing_path__strerror_open_tp(errno, errbuf, sizeof(errbuf), "raw_syscalls", "sys_(enter|exit)");
 	goto out_error;
 
 out_error_mmap:
@@ -2221,9 +2714,20 @@ out_error_open:
 out_error:
 	fprintf(trace->output, "%s\n", errbuf);
 	goto out_delete_evlist;
+
+out_error_apply_filters:
+	fprintf(trace->output,
+		"Failed to set filter \"%s\" on event %s with %d (%s)\n",
+		evsel->filter, perf_evsel__name(evsel), errno,
+		strerror_r(errno, errbuf, sizeof(errbuf)));
+	goto out_delete_evlist;
 }
 out_error_mem:
 	fprintf(trace->output, "Not enough memory to run!\n");
+	goto out_delete_evlist;
+
+out_errno:
+	fprintf(trace->output, "errno=%d,%s\n", errno, strerror(errno));
 	goto out_delete_evlist;
 }
 
@@ -2235,6 +2739,7 @@ static int trace__replay(struct trace *trace)
 	struct perf_data_file file = {
 		.path  = input_name,
 		.mode  = PERF_DATA_MODE_READ,
+		.force = trace->force,
 	};
 	struct perf_session *session;
 	struct perf_evsel *evsel;
@@ -2309,7 +2814,7 @@ static int trace__replay(struct trace *trace)
 
 	setup_pager();
 
-	err = perf_session__process_events(session, &trace->tool);
+	err = perf_session__process_events(session);
 	if (err)
 		pr_err("Failed to process events, error %d", err);
 
@@ -2344,9 +2849,9 @@ static size_t thread__dump_stats(struct thread_trace *ttrace,
 
 	printed += fprintf(fp, "\n");
 
-	printed += fprintf(fp, "   syscall            calls      min       avg       max      stddev\n");
-	printed += fprintf(fp, "                               (msec)    (msec)    (msec)        (%%)\n");
-	printed += fprintf(fp, "   --------------- -------- --------- --------- ---------     ------\n");
+	printed += fprintf(fp, "   syscall            calls    total       min       avg       max      stddev\n");
+	printed += fprintf(fp, "                               (msec)    (msec)    (msec)    (msec)        (%%)\n");
+	printed += fprintf(fp, "   --------------- -------- --------- --------- --------- ---------     ------\n");
 
 	/* each int_node is a syscall */
 	while (inode) {
@@ -2363,8 +2868,8 @@ static size_t thread__dump_stats(struct thread_trace *ttrace,
 
 			sc = &trace->syscalls.table[inode->i];
 			printed += fprintf(fp, "   %-15s", sc->name);
-			printed += fprintf(fp, " %8" PRIu64 " %9.3f %9.3f",
-					   n, min, avg);
+			printed += fprintf(fp, " %8" PRIu64 " %9.3f %9.3f %9.3f",
+					   n, avg * n, min, avg);
 			printed += fprintf(fp, " %9.3f %9.2f%%\n", max, pct);
 		}
 
@@ -2434,6 +2939,38 @@ static int trace__set_duration(const struct option *opt, const char *str,
 	return 0;
 }
 
+static int trace__set_filter_pids(const struct option *opt, const char *str,
+				  int unset __maybe_unused)
+{
+	int ret = -1;
+	size_t i;
+	struct trace *trace = opt->value;
+	/*
+	 * FIXME: introduce a intarray class, plain parse csv and create a
+	 * { int nr, int entries[] } struct...
+	 */
+	struct intlist *list = intlist__new(str);
+
+	if (list == NULL)
+		return -1;
+
+	i = trace->filter_pids.nr = intlist__nr_entries(list) + 1;
+	trace->filter_pids.entries = calloc(i, sizeof(pid_t));
+
+	if (trace->filter_pids.entries == NULL)
+		goto out;
+
+	trace->filter_pids.entries[0] = getpid();
+
+	for (i = 1; i < trace->filter_pids.nr; ++i)
+		trace->filter_pids.entries[i] = intlist__entry(list, i - 1)->i;
+
+	intlist__delete(list);
+	ret = 0;
+out:
+	return ret;
+}
+
 static int trace__open_output(struct trace *trace, const char *filename)
 {
 	struct stat st;
@@ -2468,9 +3005,17 @@ static int parse_pagefaults(const struct option *opt, const char *str,
 	return 0;
 }
 
+static void evlist__set_evsel_handler(struct perf_evlist *evlist, void *handler)
+{
+	struct perf_evsel *evsel;
+
+	evlist__for_each(evlist, evsel)
+		evsel->handler = handler;
+}
+
 int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 {
-	const char * const trace_usage[] = {
+	const char *trace_usage[] = {
 		"perf trace [<options>] [<command>]",
 		"perf trace [<options>] -- <command> [<options>]",
 		"perf trace record [<options>] [<command>]",
@@ -2494,25 +3039,30 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 			.user_interval = ULLONG_MAX,
 			.no_buffering  = true,
 			.mmap_pages    = UINT_MAX,
+			.proc_map_timeout  = 500,
 		},
-		.output = stdout,
+		.output = stderr,
 		.show_comm = true,
 		.trace_syscalls = true,
 	};
 	const char *output_name = NULL;
 	const char *ev_qualifier_str = NULL;
 	const struct option trace_options[] = {
+	OPT_CALLBACK(0, "event", &trace.evlist, "event",
+		     "event selector. use 'perf list' to list available events",
+		     parse_events_option),
 	OPT_BOOLEAN(0, "comm", &trace.show_comm,
 		    "show the thread COMM next to its id"),
 	OPT_BOOLEAN(0, "tool_stats", &trace.show_tool_stats, "show tool stats"),
-	OPT_STRING('e', "expr", &ev_qualifier_str, "expr",
-		    "list of events to trace"),
+	OPT_STRING('e', "expr", &ev_qualifier_str, "expr", "list of syscalls to trace"),
 	OPT_STRING('o', "output", &output_name, "file", "output file name"),
 	OPT_STRING('i', "input", &input_name, "file", "Analyze events in file"),
 	OPT_STRING('p', "pid", &trace.opts.target.pid, "pid",
 		    "trace events on existing process id"),
 	OPT_STRING('t', "tid", &trace.opts.target.tid, "tid",
 		    "trace events on existing thread id"),
+	OPT_CALLBACK(0, "filter-pids", &trace, "CSV list of pids",
+		     "pids to filter (by the kernel)", trace__set_filter_pids),
 	OPT_BOOLEAN('a', "all-cpus", &trace.opts.target.system_wide,
 		    "system-wide collection from all CPUs"),
 	OPT_STRING('C', "cpu", &trace.opts.target.cpu_list, "cpu",
@@ -2538,18 +3088,36 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_CALLBACK_DEFAULT('F', "pf", &trace.trace_pgfaults, "all|maj|min",
 		     "Trace pagefaults", parse_pagefaults, "maj"),
 	OPT_BOOLEAN(0, "syscalls", &trace.trace_syscalls, "Trace syscalls"),
+	OPT_BOOLEAN('f', "force", &trace.force, "don't complain, do it"),
+	OPT_UINTEGER(0, "proc-map-timeout", &trace.opts.proc_map_timeout,
+			"per thread proc mmap processing timeout in ms"),
 	OPT_END()
 	};
+	const char * const trace_subcommands[] = { "record", NULL };
 	int err;
 	char bf[BUFSIZ];
 
-	argc = parse_options(argc, argv, trace_options, trace_usage,
-			     PARSE_OPT_STOP_AT_NON_OPTION);
+	signal(SIGSEGV, sighandler_dump_stack);
+	signal(SIGFPE, sighandler_dump_stack);
+
+	trace.evlist = perf_evlist__new();
+
+	if (trace.evlist == NULL) {
+		pr_err("Not enough memory to run!\n");
+		err = -ENOMEM;
+		goto out;
+	}
+
+	argc = parse_options_subcommand(argc, argv, trace_options, trace_subcommands,
+				 trace_usage, PARSE_OPT_STOP_AT_NON_OPTION);
 
 	if (trace.trace_pgfaults) {
 		trace.opts.sample_address = true;
 		trace.opts.sample_time = true;
 	}
+
+	if (trace.evlist->nr_entries > 0)
+		evlist__set_evsel_handler(trace.evlist, trace__event_handler);
 
 	if ((argc >= 1) && (strcmp(argv[0], "record") == 0))
 		return trace__record(&trace, argc-1, &argv[1]);
@@ -2558,7 +3126,8 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (trace.summary_only)
 		trace.summary = trace.summary_only;
 
-	if (!trace.trace_syscalls && !trace.trace_pgfaults) {
+	if (!trace.trace_syscalls && !trace.trace_pgfaults &&
+	    trace.evlist->nr_entries == 0 /* Was --events used? */) {
 		pr_err("Please specify something to trace.\n");
 		return -1;
 	}
@@ -2573,17 +3142,24 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	if (ev_qualifier_str != NULL) {
 		const char *s = ev_qualifier_str;
+		struct strlist_config slist_config = {
+			.dirname = system_path(STRACE_GROUPS_DIR),
+		};
 
 		trace.not_ev_qualifier = *s == '!';
 		if (trace.not_ev_qualifier)
 			++s;
-		trace.ev_qualifier = strlist__new(true, s);
+		trace.ev_qualifier = strlist__new(s, &slist_config);
 		if (trace.ev_qualifier == NULL) {
 			fputs("Not enough memory to parse event qualifier",
 			      trace.output);
 			err = -ENOMEM;
 			goto out_close;
 		}
+
+		err = trace__validate_ev_qualifier(&trace);
+		if (err)
+			goto out_close;
 	}
 
 	err = target__validate(&trace.opts.target);

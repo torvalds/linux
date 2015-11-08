@@ -62,6 +62,7 @@
 #ifndef __iwl_nvm_parse_h__
 #define __iwl_nvm_parse_h__
 
+#include <net/cfg80211.h>
 #include "iwl-eeprom-parse.h"
 
 /**
@@ -76,6 +77,21 @@ struct iwl_nvm_data *
 iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 		   const __le16 *nvm_hw, const __le16 *nvm_sw,
 		   const __le16 *nvm_calib, const __le16 *regulatory,
-		   const __le16 *mac_override, u8 tx_chains, u8 rx_chains);
+		   const __le16 *mac_override, const __le16 *phy_sku,
+		   u8 tx_chains, u8 rx_chains, bool lar_fw_supported,
+		   u32 mac_addr0, u32 mac_addr1, u32 hw_id);
+
+/**
+ * iwl_parse_mcc_info - parse MCC (mobile country code) info coming from FW
+ *
+ * This function parses the regulatory channel data received as a
+ * MCC_UPDATE_CMD command. It returns a newly allocation regulatory domain,
+ * to be fed into the regulatory core. An ERR_PTR is returned on error.
+ * If not given to the regulatory core, the user is responsible for freeing
+ * the regdomain returned here with kfree.
+ */
+struct ieee80211_regdomain *
+iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
+		       int num_of_ch, __le32 *channels, u16 fw_mcc);
 
 #endif /* __iwl_nvm_parse_h__ */

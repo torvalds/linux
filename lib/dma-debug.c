@@ -100,7 +100,7 @@ static LIST_HEAD(free_entries);
 static DEFINE_SPINLOCK(free_entries_lock);
 
 /* Global disable flag - will be set in case of an error */
-static u32 global_disable __read_mostly;
+static bool global_disable __read_mostly;
 
 /* Early initialization disable flag, set at the end of dma_debug_init */
 static bool dma_debug_initialized __read_mostly;
@@ -361,7 +361,7 @@ static struct dma_debug_entry *bucket_find_contain(struct hash_bucket **bucket,
 	unsigned int range = 0;
 
 	while (range <= max_range) {
-		entry = __hash_bucket_find(*bucket, &index, containing_match);
+		entry = __hash_bucket_find(*bucket, ref, containing_match);
 
 		if (entry)
 			return entry;
@@ -573,6 +573,9 @@ void debug_dma_assert_idle(struct page *page)
 	unsigned int nents, i;
 	unsigned long flags;
 	phys_addr_t cln;
+
+	if (dma_debug_disabled())
+		return;
 
 	if (!page)
 		return;
@@ -1245,6 +1248,14 @@ static void check_sync(struct device *dev,
 				(unsigned long long)ref->dev_addr, entry->size,
 				dir2name[entry->direction],
 				dir2name[ref->direction]);
+
+	if (ref->sg_call_ents && ref->type == dma_debug_sg &&
+	    ref->sg_call_ents != entry->sg_call_ents) {
+		err_printk(ref->dev, entry, "DMA-API: device driver syncs "
+			   "DMA sg list with different entry count "
+			   "[map count=%d] [sync count=%d]\n",
+			   entry->sg_call_ents, ref->sg_call_ents);
+	}
 
 out:
 	put_hash_bucket(bucket, &flags);

@@ -30,7 +30,7 @@
  *
  * Neither the 82576 nor the 82580 offer registers wide enough to hold
  * nanoseconds time values for very long. For the 82580, SYSTIM always
- * counts nanoseconds, but the upper 24 bits are not availible. The
+ * counts nanoseconds, but the upper 24 bits are not available. The
  * frequency is adjusted by changing the 32 bit fractional nanoseconds
  * register, TIMINCA.
  *
@@ -116,7 +116,8 @@ static cycle_t igb_ptp_read_82580(const struct cyclecounter *cc)
 }
 
 /* SYSTIM read access for I210/I211 */
-static void igb_ptp_read_i210(struct igb_adapter *adapter, struct timespec *ts)
+static void igb_ptp_read_i210(struct igb_adapter *adapter,
+			      struct timespec64 *ts)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 sec, nsec;
@@ -134,7 +135,7 @@ static void igb_ptp_read_i210(struct igb_adapter *adapter, struct timespec *ts)
 }
 
 static void igb_ptp_write_i210(struct igb_adapter *adapter,
-			       const struct timespec *ts)
+			       const struct timespec64 *ts)
 {
 	struct e1000_hw *hw = &adapter->hw;
 
@@ -142,7 +143,7 @@ static void igb_ptp_write_i210(struct igb_adapter *adapter,
 	 * sub-nanosecond resolution.
 	 */
 	wr32(E1000_SYSTIML, ts->tv_nsec);
-	wr32(E1000_SYSTIMH, ts->tv_sec);
+	wr32(E1000_SYSTIMH, (u32)ts->tv_sec);
 }
 
 /**
@@ -269,13 +270,13 @@ static int igb_ptp_adjtime_i210(struct ptp_clock_info *ptp, s64 delta)
 	struct igb_adapter *igb = container_of(ptp, struct igb_adapter,
 					       ptp_caps);
 	unsigned long flags;
-	struct timespec now, then = ns_to_timespec(delta);
+	struct timespec64 now, then = ns_to_timespec64(delta);
 
 	spin_lock_irqsave(&igb->tmreg_lock, flags);
 
 	igb_ptp_read_i210(igb, &now);
-	now = timespec_add(now, then);
-	igb_ptp_write_i210(igb, (const struct timespec *)&now);
+	now = timespec64_add(now, then);
+	igb_ptp_write_i210(igb, (const struct timespec64 *)&now);
 
 	spin_unlock_irqrestore(&igb->tmreg_lock, flags);
 
@@ -283,13 +284,12 @@ static int igb_ptp_adjtime_i210(struct ptp_clock_info *ptp, s64 delta)
 }
 
 static int igb_ptp_gettime_82576(struct ptp_clock_info *ptp,
-				 struct timespec *ts)
+				 struct timespec64 *ts)
 {
 	struct igb_adapter *igb = container_of(ptp, struct igb_adapter,
 					       ptp_caps);
 	unsigned long flags;
 	u64 ns;
-	u32 remainder;
 
 	spin_lock_irqsave(&igb->tmreg_lock, flags);
 
@@ -297,14 +297,13 @@ static int igb_ptp_gettime_82576(struct ptp_clock_info *ptp,
 
 	spin_unlock_irqrestore(&igb->tmreg_lock, flags);
 
-	ts->tv_sec = div_u64_rem(ns, 1000000000, &remainder);
-	ts->tv_nsec = remainder;
+	*ts = ns_to_timespec64(ns);
 
 	return 0;
 }
 
 static int igb_ptp_gettime_i210(struct ptp_clock_info *ptp,
-				struct timespec *ts)
+				struct timespec64 *ts)
 {
 	struct igb_adapter *igb = container_of(ptp, struct igb_adapter,
 					       ptp_caps);
@@ -320,15 +319,14 @@ static int igb_ptp_gettime_i210(struct ptp_clock_info *ptp,
 }
 
 static int igb_ptp_settime_82576(struct ptp_clock_info *ptp,
-				 const struct timespec *ts)
+				 const struct timespec64 *ts)
 {
 	struct igb_adapter *igb = container_of(ptp, struct igb_adapter,
 					       ptp_caps);
 	unsigned long flags;
 	u64 ns;
 
-	ns = ts->tv_sec * 1000000000ULL;
-	ns += ts->tv_nsec;
+	ns = timespec64_to_ns(ts);
 
 	spin_lock_irqsave(&igb->tmreg_lock, flags);
 
@@ -340,7 +338,7 @@ static int igb_ptp_settime_82576(struct ptp_clock_info *ptp,
 }
 
 static int igb_ptp_settime_i210(struct ptp_clock_info *ptp,
-				const struct timespec *ts)
+				const struct timespec64 *ts)
 {
 	struct igb_adapter *igb = container_of(ptp, struct igb_adapter,
 					       ptp_caps);
@@ -358,7 +356,7 @@ static int igb_ptp_settime_i210(struct ptp_clock_info *ptp,
 static void igb_pin_direction(int pin, int input, u32 *ctrl, u32 *ctrl_ext)
 {
 	u32 *ptr = pin < 2 ? ctrl : ctrl_ext;
-	u32 mask[IGB_N_SDP] = {
+	static const u32 mask[IGB_N_SDP] = {
 		E1000_CTRL_SDP0_DIR,
 		E1000_CTRL_SDP1_DIR,
 		E1000_CTRL_EXT_SDP2_DIR,
@@ -373,16 +371,16 @@ static void igb_pin_direction(int pin, int input, u32 *ctrl, u32 *ctrl_ext)
 
 static void igb_pin_extts(struct igb_adapter *igb, int chan, int pin)
 {
-	struct e1000_hw *hw = &igb->hw;
-	u32 aux0_sel_sdp[IGB_N_SDP] = {
+	static const u32 aux0_sel_sdp[IGB_N_SDP] = {
 		AUX0_SEL_SDP0, AUX0_SEL_SDP1, AUX0_SEL_SDP2, AUX0_SEL_SDP3,
 	};
-	u32 aux1_sel_sdp[IGB_N_SDP] = {
+	static const u32 aux1_sel_sdp[IGB_N_SDP] = {
 		AUX1_SEL_SDP0, AUX1_SEL_SDP1, AUX1_SEL_SDP2, AUX1_SEL_SDP3,
 	};
-	u32 ts_sdp_en[IGB_N_SDP] = {
+	static const u32 ts_sdp_en[IGB_N_SDP] = {
 		TS_SDP0_EN, TS_SDP1_EN, TS_SDP2_EN, TS_SDP3_EN,
 	};
+	struct e1000_hw *hw = &igb->hw;
 	u32 ctrl, ctrl_ext, tssdp = 0;
 
 	ctrl = rd32(E1000_CTRL);
@@ -407,30 +405,38 @@ static void igb_pin_extts(struct igb_adapter *igb, int chan, int pin)
 	wr32(E1000_CTRL_EXT, ctrl_ext);
 }
 
-static void igb_pin_perout(struct igb_adapter *igb, int chan, int pin)
+static void igb_pin_perout(struct igb_adapter *igb, int chan, int pin, int freq)
 {
-	struct e1000_hw *hw = &igb->hw;
-	u32 aux0_sel_sdp[IGB_N_SDP] = {
+	static const u32 aux0_sel_sdp[IGB_N_SDP] = {
 		AUX0_SEL_SDP0, AUX0_SEL_SDP1, AUX0_SEL_SDP2, AUX0_SEL_SDP3,
 	};
-	u32 aux1_sel_sdp[IGB_N_SDP] = {
+	static const u32 aux1_sel_sdp[IGB_N_SDP] = {
 		AUX1_SEL_SDP0, AUX1_SEL_SDP1, AUX1_SEL_SDP2, AUX1_SEL_SDP3,
 	};
-	u32 ts_sdp_en[IGB_N_SDP] = {
+	static const u32 ts_sdp_en[IGB_N_SDP] = {
 		TS_SDP0_EN, TS_SDP1_EN, TS_SDP2_EN, TS_SDP3_EN,
 	};
-	u32 ts_sdp_sel_tt0[IGB_N_SDP] = {
+	static const u32 ts_sdp_sel_tt0[IGB_N_SDP] = {
 		TS_SDP0_SEL_TT0, TS_SDP1_SEL_TT0,
 		TS_SDP2_SEL_TT0, TS_SDP3_SEL_TT0,
 	};
-	u32 ts_sdp_sel_tt1[IGB_N_SDP] = {
+	static const u32 ts_sdp_sel_tt1[IGB_N_SDP] = {
 		TS_SDP0_SEL_TT1, TS_SDP1_SEL_TT1,
 		TS_SDP2_SEL_TT1, TS_SDP3_SEL_TT1,
 	};
-	u32 ts_sdp_sel_clr[IGB_N_SDP] = {
+	static const u32 ts_sdp_sel_fc0[IGB_N_SDP] = {
+		TS_SDP0_SEL_FC0, TS_SDP1_SEL_FC0,
+		TS_SDP2_SEL_FC0, TS_SDP3_SEL_FC0,
+	};
+	static const u32 ts_sdp_sel_fc1[IGB_N_SDP] = {
 		TS_SDP0_SEL_FC1, TS_SDP1_SEL_FC1,
 		TS_SDP2_SEL_FC1, TS_SDP3_SEL_FC1,
 	};
+	static const u32 ts_sdp_sel_clr[IGB_N_SDP] = {
+		TS_SDP0_SEL_FC1, TS_SDP1_SEL_FC1,
+		TS_SDP2_SEL_FC1, TS_SDP3_SEL_FC1,
+	};
+	struct e1000_hw *hw = &igb->hw;
 	u32 ctrl, ctrl_ext, tssdp = 0;
 
 	ctrl = rd32(E1000_CTRL);
@@ -447,11 +453,17 @@ static void igb_pin_perout(struct igb_adapter *igb, int chan, int pin)
 		tssdp &= ~AUX1_TS_SDP_EN;
 
 	tssdp &= ~ts_sdp_sel_clr[pin];
-	if (chan == 1)
-		tssdp |= ts_sdp_sel_tt1[pin];
-	else
-		tssdp |= ts_sdp_sel_tt0[pin];
-
+	if (freq) {
+		if (chan == 1)
+			tssdp |= ts_sdp_sel_fc1[pin];
+		else
+			tssdp |= ts_sdp_sel_fc0[pin];
+	} else {
+		if (chan == 1)
+			tssdp |= ts_sdp_sel_tt1[pin];
+		else
+			tssdp |= ts_sdp_sel_tt0[pin];
+	}
 	tssdp |= ts_sdp_en[pin];
 
 	wr32(E1000_TSSDP, tssdp);
@@ -465,10 +477,10 @@ static int igb_ptp_feature_enable_i210(struct ptp_clock_info *ptp,
 	struct igb_adapter *igb =
 		container_of(ptp, struct igb_adapter, ptp_caps);
 	struct e1000_hw *hw = &igb->hw;
-	u32 tsauxc, tsim, tsauxc_mask, tsim_mask, trgttiml, trgttimh;
+	u32 tsauxc, tsim, tsauxc_mask, tsim_mask, trgttiml, trgttimh, freqout;
 	unsigned long flags;
-	struct timespec ts;
-	int pin;
+	struct timespec64 ts;
+	int use_freq = 0, pin = -1;
 	s64 ns;
 
 	switch (rq->type) {
@@ -511,42 +523,60 @@ static int igb_ptp_feature_enable_i210(struct ptp_clock_info *ptp,
 		}
 		ts.tv_sec = rq->perout.period.sec;
 		ts.tv_nsec = rq->perout.period.nsec;
-		ns = timespec_to_ns(&ts);
+		ns = timespec64_to_ns(&ts);
 		ns = ns >> 1;
-		if (on && ns < 500000LL) {
-			/* 2k interrupts per second is an awful lot. */
-			return -EINVAL;
+		if (on && ns <= 70000000LL) {
+			if (ns < 8LL)
+				return -EINVAL;
+			use_freq = 1;
 		}
-		ts = ns_to_timespec(ns);
+		ts = ns_to_timespec64(ns);
 		if (rq->perout.index == 1) {
-			tsauxc_mask = TSAUXC_EN_TT1;
-			tsim_mask = TSINTR_TT1;
+			if (use_freq) {
+				tsauxc_mask = TSAUXC_EN_CLK1 | TSAUXC_ST1;
+				tsim_mask = 0;
+			} else {
+				tsauxc_mask = TSAUXC_EN_TT1;
+				tsim_mask = TSINTR_TT1;
+			}
 			trgttiml = E1000_TRGTTIML1;
 			trgttimh = E1000_TRGTTIMH1;
+			freqout = E1000_FREQOUT1;
 		} else {
-			tsauxc_mask = TSAUXC_EN_TT0;
-			tsim_mask = TSINTR_TT0;
+			if (use_freq) {
+				tsauxc_mask = TSAUXC_EN_CLK0 | TSAUXC_ST0;
+				tsim_mask = 0;
+			} else {
+				tsauxc_mask = TSAUXC_EN_TT0;
+				tsim_mask = TSINTR_TT0;
+			}
 			trgttiml = E1000_TRGTTIML0;
 			trgttimh = E1000_TRGTTIMH0;
+			freqout = E1000_FREQOUT0;
 		}
 		spin_lock_irqsave(&igb->tmreg_lock, flags);
 		tsauxc = rd32(E1000_TSAUXC);
 		tsim = rd32(E1000_TSIM);
+		if (rq->perout.index == 1) {
+			tsauxc &= ~(TSAUXC_EN_TT1 | TSAUXC_EN_CLK1 | TSAUXC_ST1);
+			tsim &= ~TSINTR_TT1;
+		} else {
+			tsauxc &= ~(TSAUXC_EN_TT0 | TSAUXC_EN_CLK0 | TSAUXC_ST0);
+			tsim &= ~TSINTR_TT0;
+		}
 		if (on) {
 			int i = rq->perout.index;
-
-			igb_pin_perout(igb, i, pin);
+			igb_pin_perout(igb, i, pin, use_freq);
 			igb->perout[i].start.tv_sec = rq->perout.start.sec;
 			igb->perout[i].start.tv_nsec = rq->perout.start.nsec;
 			igb->perout[i].period.tv_sec = ts.tv_sec;
 			igb->perout[i].period.tv_nsec = ts.tv_nsec;
-			wr32(trgttiml, rq->perout.start.sec);
-			wr32(trgttimh, rq->perout.start.nsec);
+			wr32(trgttimh, rq->perout.start.sec);
+			wr32(trgttiml, rq->perout.start.nsec);
+			if (use_freq)
+				wr32(freqout, ns);
 			tsauxc |= tsauxc_mask;
 			tsim |= tsim_mask;
-		} else {
-			tsauxc &= ~tsauxc_mask;
-			tsim &= ~tsim_mask;
 		}
 		wr32(E1000_TSAUXC, tsauxc);
 		wr32(E1000_TSIM, tsim);
@@ -627,11 +657,12 @@ static void igb_ptp_overflow_check(struct work_struct *work)
 {
 	struct igb_adapter *igb =
 		container_of(work, struct igb_adapter, ptp_overflow_work.work);
-	struct timespec ts;
+	struct timespec64 ts;
 
-	igb->ptp_caps.gettime(&igb->ptp_caps, &ts);
+	igb->ptp_caps.gettime64(&igb->ptp_caps, &ts);
 
-	pr_debug("igb overflow check at %ld.%09lu\n", ts.tv_sec, ts.tv_nsec);
+	pr_debug("igb overflow check at %lld.%09lu\n",
+		 (long long) ts.tv_sec, ts.tv_nsec);
 
 	schedule_delayed_work(&igb->ptp_overflow_work,
 			      IGB_SYSTIM_OVERFLOW_PERIOD);
@@ -989,8 +1020,8 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		adapter->ptp_caps.pps = 0;
 		adapter->ptp_caps.adjfreq = igb_ptp_adjfreq_82576;
 		adapter->ptp_caps.adjtime = igb_ptp_adjtime_82576;
-		adapter->ptp_caps.gettime = igb_ptp_gettime_82576;
-		adapter->ptp_caps.settime = igb_ptp_settime_82576;
+		adapter->ptp_caps.gettime64 = igb_ptp_gettime_82576;
+		adapter->ptp_caps.settime64 = igb_ptp_settime_82576;
 		adapter->ptp_caps.enable = igb_ptp_feature_enable;
 		adapter->cc.read = igb_ptp_read_82576;
 		adapter->cc.mask = CYCLECOUNTER_MASK(64);
@@ -1009,8 +1040,8 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		adapter->ptp_caps.pps = 0;
 		adapter->ptp_caps.adjfreq = igb_ptp_adjfreq_82580;
 		adapter->ptp_caps.adjtime = igb_ptp_adjtime_82576;
-		adapter->ptp_caps.gettime = igb_ptp_gettime_82576;
-		adapter->ptp_caps.settime = igb_ptp_settime_82576;
+		adapter->ptp_caps.gettime64 = igb_ptp_gettime_82576;
+		adapter->ptp_caps.settime64 = igb_ptp_settime_82576;
 		adapter->ptp_caps.enable = igb_ptp_feature_enable;
 		adapter->cc.read = igb_ptp_read_82580;
 		adapter->cc.mask = CYCLECOUNTER_MASK(IGB_NBITS_82580);
@@ -1038,8 +1069,8 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		adapter->ptp_caps.pin_config = adapter->sdp_config;
 		adapter->ptp_caps.adjfreq = igb_ptp_adjfreq_82580;
 		adapter->ptp_caps.adjtime = igb_ptp_adjtime_i210;
-		adapter->ptp_caps.gettime = igb_ptp_gettime_i210;
-		adapter->ptp_caps.settime = igb_ptp_settime_i210;
+		adapter->ptp_caps.gettime64 = igb_ptp_gettime_i210;
+		adapter->ptp_caps.settime64 = igb_ptp_settime_i210;
 		adapter->ptp_caps.enable = igb_ptp_feature_enable_i210;
 		adapter->ptp_caps.verify = igb_ptp_verify_pin;
 		/* Enable the timer functions by clearing bit 31. */
@@ -1057,7 +1088,7 @@ void igb_ptp_init(struct igb_adapter *adapter)
 
 	/* Initialize the clock and overflow work for devices that need it. */
 	if ((hw->mac.type == e1000_i210) || (hw->mac.type == e1000_i211)) {
-		struct timespec ts = ktime_to_timespec(ktime_get_real());
+		struct timespec64 ts = ktime_to_timespec64(ktime_get_real());
 
 		igb_ptp_settime_i210(&adapter->ptp_caps, &ts);
 	} else {
@@ -1171,7 +1202,7 @@ void igb_ptp_reset(struct igb_adapter *adapter)
 
 	/* Re-initialize the timer. */
 	if ((hw->mac.type == e1000_i210) || (hw->mac.type == e1000_i211)) {
-		struct timespec ts = ktime_to_timespec(ktime_get_real());
+		struct timespec64 ts = ktime_to_timespec64(ktime_get_real());
 
 		igb_ptp_write_i210(adapter, &ts);
 	} else {

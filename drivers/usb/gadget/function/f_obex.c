@@ -20,7 +20,6 @@
 #include <linux/module.h>
 
 #include "u_serial.h"
-#include "gadget_chips.h"
 
 
 /*
@@ -37,7 +36,6 @@ struct f_obex {
 	u8				data_id;
 	u8				cur_alt;
 	u8				port_num;
-	u8				can_activate;
 };
 
 static inline struct f_obex *func_to_obex(struct usb_function *f)
@@ -208,7 +206,7 @@ static int obex_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 		if (alt > 1)
 			goto fail;
 
-		if (obex->port.in->driver_data) {
+		if (obex->port.in->enabled) {
 			dev_dbg(&cdev->gadget->dev,
 				"reset obex ttyGS%d\n", obex->port_num);
 			gserial_disconnect(&obex->port);
@@ -268,9 +266,6 @@ static void obex_connect(struct gserial *g)
 	struct usb_composite_dev *cdev = g->func.config->cdev;
 	int			status;
 
-	if (!obex->can_activate)
-		return;
-
 	status = usb_function_activate(&g->func);
 	if (status)
 		dev_dbg(&cdev->gadget->dev,
@@ -283,9 +278,6 @@ static void obex_disconnect(struct gserial *g)
 	struct f_obex		*obex = port_to_obex(g);
 	struct usb_composite_dev *cdev = g->func.config->cdev;
 	int			status;
-
-	if (!obex->can_activate)
-		return;
 
 	status = usb_function_deactivate(&g->func);
 	if (status)
@@ -304,7 +296,7 @@ static inline bool can_support_obex(struct usb_configuration *c)
 	 *
 	 * Altsettings are mandatory, however...
 	 */
-	if (!gadget_supports_altsettings(c->cdev->gadget))
+	if (!gadget_is_altset_supported(c->cdev->gadget))
 		return false;
 
 	/* everything else is *probably* fine ... */
@@ -356,13 +348,11 @@ static int obex_bind(struct usb_configuration *c, struct usb_function *f)
 	if (!ep)
 		goto fail;
 	obex->port.in = ep;
-	ep->driver_data = cdev;	/* claim */
 
 	ep = usb_ep_autoconfig(cdev->gadget, &obex_fs_ep_out_desc);
 	if (!ep)
 		goto fail;
 	obex->port.out = ep;
-	ep->driver_data = cdev;	/* claim */
 
 	/* support all relevant hardware speeds... we expect that when
 	 * hardware is dual speed, all bulk-capable endpoints work at
@@ -378,17 +368,6 @@ static int obex_bind(struct usb_configuration *c, struct usb_function *f)
 	if (status)
 		goto fail;
 
-	/* Avoid letting this gadget enumerate until the userspace
-	 * OBEX server is active.
-	 */
-	status = usb_function_deactivate(f);
-	if (status < 0)
-		WARNING(cdev, "obex ttyGS%d: can't prevent enumeration, %d\n",
-			obex->port_num, status);
-	else
-		obex->can_activate = true;
-
-
 	dev_dbg(&cdev->gadget->dev, "obex ttyGS%d: %s speed IN/%s OUT/%s\n",
 		obex->port_num,
 		gadget_is_dualspeed(c->cdev->gadget) ? "dual" : "full",
@@ -397,12 +376,6 @@ static int obex_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 
 fail:
-	/* we might as well release our claims on endpoints */
-	if (obex->port.out)
-		obex->port.out->driver_data = NULL;
-	if (obex->port.in)
-		obex->port.in->driver_data = NULL;
-
 	ERROR(cdev, "%s/%p: can't bind, err %d\n", f->name, f, status);
 
 	return status;
@@ -529,6 +502,7 @@ static struct usb_function *obex_alloc(struct usb_function_instance *fi)
 	obex->port.func.get_alt = obex_get_alt;
 	obex->port.func.disable = obex_disable;
 	obex->port.func.free_func = obex_free;
+	obex->port.func.bind_deactivated = true;
 
 	return &obex->port.func;
 }

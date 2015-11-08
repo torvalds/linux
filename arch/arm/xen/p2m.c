@@ -10,10 +10,10 @@
 
 #include <xen/xen.h>
 #include <xen/interface/memory.h>
+#include <xen/page.h>
 #include <xen/swiotlb-xen.h>
 
 #include <asm/cacheflush.h>
-#include <asm/xen/page.h>
 #include <asm/xen/hypercall.h>
 #include <asm/xen/interface.h>
 
@@ -93,8 +93,8 @@ int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
 	for (i = 0; i < count; i++) {
 		if (map_ops[i].status)
 			continue;
-		set_phys_to_machine(map_ops[i].host_addr >> PAGE_SHIFT,
-				    map_ops[i].dev_bus_addr >> PAGE_SHIFT);
+		set_phys_to_machine(map_ops[i].host_addr >> XEN_PAGE_SHIFT,
+				    map_ops[i].dev_bus_addr >> XEN_PAGE_SHIFT);
 	}
 
 	return 0;
@@ -108,7 +108,7 @@ int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
 	int i;
 
 	for (i = 0; i < count; i++) {
-		set_phys_to_machine(unmap_ops[i].host_addr >> PAGE_SHIFT,
+		set_phys_to_machine(unmap_ops[i].host_addr >> XEN_PAGE_SHIFT,
 				    INVALID_P2M_ENTRY);
 	}
 

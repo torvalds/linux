@@ -21,7 +21,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 #include "regs-mfc.h"
 #include "regs-mfc-v8.h"
 
@@ -29,7 +29,7 @@
 
 /* Offset base used to differentiate between CAPTURE and OUTPUT
 *  while mmaping */
-#define DST_QUEUE_OFF_BASE      (TASK_SIZE / 2)
+#define DST_QUEUE_OFF_BASE	(1 << 30)
 
 #define MFC_BANK1_ALLOC_CTX	0
 #define MFC_BANK2_ALLOC_CTX	1
@@ -179,8 +179,8 @@ struct s5p_mfc_ctx;
  * struct s5p_mfc_buf - MFC buffer
  */
 struct s5p_mfc_buf {
+	struct vb2_v4l2_buffer *b;
 	struct list_head list;
-	struct vb2_buffer *b;
 	union {
 		struct {
 			size_t luma;

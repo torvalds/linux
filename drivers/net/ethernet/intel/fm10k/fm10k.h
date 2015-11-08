@@ -1,5 +1,5 @@
 /* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -101,12 +101,19 @@ struct fm10k_tx_queue_stats {
 	u64 csum_err;
 	u64 tx_busy;
 	u64 tx_done_old;
+	u64 csum_good;
 };
 
 struct fm10k_rx_queue_stats {
 	u64 alloc_failed;
 	u64 csum_err;
 	u64 errors;
+	u64 csum_good;
+	u64 switch_errors;
+	u64 drops;
+	u64 pp_errors;
+	u64 link_errors;
+	u64 length_errors;
 };
 
 struct fm10k_ring {
@@ -235,6 +242,9 @@ struct fm10k_vxlan_port {
 	__be16			port;
 };
 
+/* one work queue for entire driver */
+extern struct workqueue_struct *fm10k_workqueue;
+
 struct fm10k_intfc {
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	struct net_device *netdev;
@@ -248,6 +258,7 @@ struct fm10k_intfc {
 #define FM10K_FLAG_RSS_FIELD_IPV6_UDP		(u32)(1 << 2)
 #define FM10K_FLAG_RX_TS_ENABLED		(u32)(1 << 3)
 #define FM10K_FLAG_SWPRI_CONFIG			(u32)(1 << 4)
+#define FM10K_FLAG_DEBUG_STATS			(u32)(1 << 5)
 	int xcast_mode;
 
 	/* Tx fast path data */
@@ -266,7 +277,6 @@ struct fm10k_intfc {
 	u64 tx_csum_errors;
 	u64 alloc_failed;
 	u64 rx_csum_errors;
-	u64 rx_errors;
 
 	u64 tx_bytes_nic;
 	u64 tx_packets_nic;
@@ -275,6 +285,17 @@ struct fm10k_intfc {
 	u64 rx_drops_nic;
 	u64 rx_overrun_pf;
 	u64 rx_overrun_vf;
+
+	/* Debug Statistics */
+	u64 hw_sm_mbx_full;
+	u64 hw_csum_tx_good;
+	u64 hw_csum_rx_good;
+	u64 rx_switch_errors;
+	u64 rx_drops;
+	u64 rx_pp_errors;
+	u64 rx_link_errors;
+	u64 rx_length_errors;
+
 	u32 tx_timeout_count;
 
 	/* RX */
@@ -439,6 +460,7 @@ extern char fm10k_driver_name[];
 extern const char fm10k_driver_version[];
 int fm10k_init_queueing_scheme(struct fm10k_intfc *interface);
 void fm10k_clear_queueing_scheme(struct fm10k_intfc *interface);
+__be16 fm10k_tx_encap_offload(struct sk_buff *skb);
 netdev_tx_t fm10k_xmit_frame_ring(struct sk_buff *skb,
 				  struct fm10k_ring *tx_ring);
 void fm10k_tx_timeout_reset(struct fm10k_intfc *interface);
@@ -457,6 +479,9 @@ void fm10k_down(struct fm10k_intfc *interface);
 void fm10k_update_stats(struct fm10k_intfc *interface);
 void fm10k_service_event_schedule(struct fm10k_intfc *interface);
 void fm10k_update_rx_drop_en(struct fm10k_intfc *interface);
+#ifdef CONFIG_NET_POLL_CONTROLLER
+void fm10k_netpoll(struct net_device *netdev);
+#endif
 
 /* Netdev */
 struct net_device *fm10k_alloc_netdev(void);

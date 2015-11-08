@@ -20,12 +20,12 @@
 
 #include <linux/time.h>
 #include <linux/fs.h>
-#include <linux/jbd2.h>
 #include <linux/mount.h>
 #include <linux/path.h>
-#include <linux/aio.h>
+#include <linux/dax.h>
 #include <linux/quotaops.h>
 #include <linux/pagevec.h>
+#include <linux/uio.h>
 #include "ext4.h"
 #include "ext4_jbd2.h"
 #include "xattr.h"
@@ -95,11 +95,9 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct inode *inode = file_inode(iocb->ki_filp);
 	struct mutex *aio_mutex = NULL;
 	struct blk_plug plug;
-	int o_direct = io_is_direct(file);
+	int o_direct = iocb->ki_flags & IOCB_DIRECT;
 	int overwrite = 0;
-	size_t length = iov_iter_count(from);
 	ssize_t ret;
-	loff_t pos = iocb->ki_pos;
 
 	/*
 	 * Unaligned direct AIO must be serialized; see comment above
@@ -108,16 +106,17 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (o_direct &&
 	    ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS) &&
 	    !is_sync_kiocb(iocb) &&
-	    (file->f_flags & O_APPEND ||
-	     ext4_unaligned_aio(inode, from, pos))) {
+	    (iocb->ki_flags & IOCB_APPEND ||
+	     ext4_unaligned_aio(inode, from, iocb->ki_pos))) {
 		aio_mutex = ext4_aio_mutex(inode);
 		mutex_lock(aio_mutex);
 		ext4_unwritten_wait(inode);
 	}
 
 	mutex_lock(&inode->i_mutex);
-	if (file->f_flags & O_APPEND)
-		iocb->ki_pos = pos = i_size_read(inode);
+	ret = generic_write_checks(iocb, from);
+	if (ret <= 0)
+		goto out;
 
 	/*
 	 * If we have encountered a bitmap-format file, the size limit
@@ -126,21 +125,18 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))) {
 		struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 
-		if ((pos > sbi->s_bitmap_maxbytes) ||
-		    (pos == sbi->s_bitmap_maxbytes && length > 0)) {
-			mutex_unlock(&inode->i_mutex);
+		if (iocb->ki_pos >= sbi->s_bitmap_maxbytes) {
 			ret = -EFBIG;
-			goto errout;
+			goto out;
 		}
-
-		if (pos + length > sbi->s_bitmap_maxbytes)
-			iov_iter_truncate(from, sbi->s_bitmap_maxbytes - pos);
+		iov_iter_truncate(from, sbi->s_bitmap_maxbytes - iocb->ki_pos);
 	}
 
 	iocb->private = &overwrite;
 	if (o_direct) {
+		size_t length = iov_iter_count(from);
+		loff_t pos = iocb->ki_pos;
 		blk_start_plug(&plug);
-
 
 		/* check whether we do a DIO overwrite or not */
 		if (ext4_should_dioread_nolock(inode) && !aio_mutex &&
@@ -185,27 +181,102 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (o_direct)
 		blk_finish_plug(&plug);
 
-errout:
+	if (aio_mutex)
+		mutex_unlock(aio_mutex);
+	return ret;
+
+out:
+	mutex_unlock(&inode->i_mutex);
 	if (aio_mutex)
 		mutex_unlock(aio_mutex);
 	return ret;
 }
 
 #ifdef CONFIG_FS_DAX
+static void ext4_end_io_unwritten(struct buffer_head *bh, int uptodate)
+{
+	struct inode *inode = bh->b_assoc_map->host;
+	/* XXX: breaks on 32-bit > 16TB. Is that even supported? */
+	loff_t offset = (loff_t)(uintptr_t)bh->b_private << inode->i_blkbits;
+	int err;
+	if (!uptodate)
+		return;
+	WARN_ON(!buffer_unwritten(bh));
+	err = ext4_convert_unwritten_extents(NULL, inode, offset, bh->b_size);
+}
+
 static int ext4_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	return dax_fault(vma, vmf, ext4_get_block);
-					/* Is this the right get_block? */
+	int result;
+	handle_t *handle = NULL;
+	struct super_block *sb = file_inode(vma->vm_file)->i_sb;
+	bool write = vmf->flags & FAULT_FLAG_WRITE;
+
+	if (write) {
+		sb_start_pagefault(sb);
+		file_update_time(vma->vm_file);
+		handle = ext4_journal_start_sb(sb, EXT4_HT_WRITE_PAGE,
+						EXT4_DATA_TRANS_BLOCKS(sb));
+	}
+
+	if (IS_ERR(handle))
+		result = VM_FAULT_SIGBUS;
+	else
+		result = __dax_fault(vma, vmf, ext4_get_block_dax,
+						ext4_end_io_unwritten);
+
+	if (write) {
+		if (!IS_ERR(handle))
+			ext4_journal_stop(handle);
+		sb_end_pagefault(sb);
+	}
+
+	return result;
+}
+
+static int ext4_dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
+						pmd_t *pmd, unsigned int flags)
+{
+	int result;
+	handle_t *handle = NULL;
+	struct inode *inode = file_inode(vma->vm_file);
+	struct super_block *sb = inode->i_sb;
+	bool write = flags & FAULT_FLAG_WRITE;
+
+	if (write) {
+		sb_start_pagefault(sb);
+		file_update_time(vma->vm_file);
+		handle = ext4_journal_start_sb(sb, EXT4_HT_WRITE_PAGE,
+				ext4_chunk_trans_blocks(inode,
+							PMD_SIZE / PAGE_SIZE));
+	}
+
+	if (IS_ERR(handle))
+		result = VM_FAULT_SIGBUS;
+	else
+		result = __dax_pmd_fault(vma, addr, pmd, flags,
+				ext4_get_block_dax, ext4_end_io_unwritten);
+
+	if (write) {
+		if (!IS_ERR(handle))
+			ext4_journal_stop(handle);
+		sb_end_pagefault(sb);
+	}
+
+	return result;
 }
 
 static int ext4_dax_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	return dax_mkwrite(vma, vmf, ext4_get_block);
+	return dax_mkwrite(vma, vmf, ext4_get_block_dax,
+				ext4_end_io_unwritten);
 }
 
 static const struct vm_operations_struct ext4_dax_vm_ops = {
 	.fault		= ext4_dax_fault,
+	.pmd_fault	= ext4_dax_pmd_fault,
 	.page_mkwrite	= ext4_dax_mkwrite,
+	.pfn_mkwrite	= dax_pfn_mkwrite,
 };
 #else
 #define ext4_dax_vm_ops	ext4_file_vm_ops
@@ -219,10 +290,19 @@ static const struct vm_operations_struct ext4_file_vm_ops = {
 
 static int ext4_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
+	struct inode *inode = file->f_mapping->host;
+
+	if (ext4_encrypted_inode(inode)) {
+		int err = ext4_get_encryption_info(inode);
+		if (err)
+			return 0;
+		if (ext4_encryption_info(inode) == NULL)
+			return -ENOKEY;
+	}
 	file_accessed(file);
 	if (IS_DAX(file_inode(file))) {
 		vma->vm_ops = &ext4_dax_vm_ops;
-		vma->vm_flags |= VM_MIXEDMAP;
+		vma->vm_flags |= VM_MIXEDMAP | VM_HUGEPAGE;
 	} else {
 		vma->vm_ops = &ext4_file_vm_ops;
 	}
@@ -236,6 +316,7 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 	struct vfsmount *mnt = filp->f_path.mnt;
 	struct path path;
 	char buf[64], *cp;
+	int ret;
 
 	if (unlikely(!(sbi->s_mount_flags & EXT4_MF_MNTDIR_SAMPLED) &&
 		     !(sb->s_flags & MS_RDONLY))) {
@@ -269,12 +350,19 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 			ext4_journal_stop(handle);
 		}
 	}
+	if (ext4_encrypted_inode(inode)) {
+		ret = ext4_get_encryption_info(inode);
+		if (ret)
+			return -EACCES;
+		if (ext4_encryption_info(inode) == NULL)
+			return -ENOKEY;
+	}
 	/*
 	 * Set up the jbd2_inode if we are opening the inode for
 	 * writing and the journal is present
 	 */
 	if (filp->f_mode & FMODE_WRITE) {
-		int ret = ext4_inode_attach_jinode(inode);
+		ret = ext4_inode_attach_jinode(inode);
 		if (ret < 0)
 			return ret;
 	}
@@ -607,8 +695,6 @@ loff_t ext4_llseek(struct file *file, loff_t offset, int whence)
 
 const struct file_operations ext4_file_operations = {
 	.llseek		= ext4_llseek,
-	.read		= new_sync_read,
-	.write		= new_sync_write,
 	.read_iter	= generic_file_read_iter,
 	.write_iter	= ext4_file_write_iter,
 	.unlocked_ioctl = ext4_ioctl,
@@ -623,26 +709,6 @@ const struct file_operations ext4_file_operations = {
 	.splice_write	= iter_file_splice_write,
 	.fallocate	= ext4_fallocate,
 };
-
-#ifdef CONFIG_FS_DAX
-const struct file_operations ext4_dax_file_operations = {
-	.llseek		= ext4_llseek,
-	.read		= new_sync_read,
-	.write		= new_sync_write,
-	.read_iter	= generic_file_read_iter,
-	.write_iter	= ext4_file_write_iter,
-	.unlocked_ioctl = ext4_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= ext4_compat_ioctl,
-#endif
-	.mmap		= ext4_file_mmap,
-	.open		= ext4_file_open,
-	.release	= ext4_release_file,
-	.fsync		= ext4_sync_file,
-	/* Splice not yet supported with DAX */
-	.fallocate	= ext4_fallocate,
-};
-#endif
 
 const struct inode_operations ext4_file_inode_operations = {
 	.setattr	= ext4_setattr,

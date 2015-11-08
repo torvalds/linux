@@ -27,7 +27,6 @@
 
 #include "ccp-dev.h"
 
-
 enum ccp_memtype {
 	CCP_MEMTYPE_SYSTEM = 0,
 	CCP_MEMTYPE_KSB,
@@ -53,8 +52,7 @@ struct ccp_dm_workarea {
 
 struct ccp_sg_workarea {
 	struct scatterlist *sg;
-	unsigned int nents;
-	unsigned int length;
+	int nents;
 
 	struct scatterlist *dma_sg;
 	struct device *dma_dev;
@@ -497,8 +495,10 @@ static int ccp_init_sg_workarea(struct ccp_sg_workarea *wa, struct device *dev,
 	if (!sg)
 		return 0;
 
-	wa->nents = sg_nents(sg);
-	wa->length = sg->length;
+	wa->nents = sg_nents_for_len(sg, len);
+	if (wa->nents < 0)
+		return wa->nents;
+
 	wa->bytes_left = len;
 	wa->sg_used = 0;
 
@@ -514,7 +514,6 @@ static int ccp_init_sg_workarea(struct ccp_sg_workarea *wa, struct device *dev,
 	wa->dma_count = dma_map_sg(dev, sg, wa->nents, dma_dir);
 	if (!wa->dma_count)
 		return -ENOMEM;
-
 
 	return 0;
 }
@@ -612,15 +611,16 @@ static void ccp_get_dm_area(struct ccp_dm_workarea *wa, unsigned int wa_offset,
 				 1);
 }
 
-static void ccp_reverse_set_dm_area(struct ccp_dm_workarea *wa,
-				    struct scatterlist *sg,
-				    unsigned int len, unsigned int se_len,
-				    bool sign_extend)
+static int ccp_reverse_set_dm_area(struct ccp_dm_workarea *wa,
+				   struct scatterlist *sg,
+				   unsigned int len, unsigned int se_len,
+				   bool sign_extend)
 {
 	unsigned int nbytes, sg_offset, dm_offset, ksb_len, i;
 	u8 buffer[CCP_REVERSE_BUF_SIZE];
 
-	BUG_ON(se_len > sizeof(buffer));
+	if (WARN_ON(se_len > sizeof(buffer)))
+		return -EINVAL;
 
 	sg_offset = len;
 	dm_offset = 0;
@@ -643,6 +643,8 @@ static void ccp_reverse_set_dm_area(struct ccp_dm_workarea *wa,
 				       se_len - ksb_len);
 		}
 	}
+
+	return 0;
 }
 
 static void ccp_reverse_get_dm_area(struct ccp_dm_workarea *wa,
@@ -763,8 +765,9 @@ static void ccp_prepare_data(struct ccp_data *src, struct ccp_data *dst,
 		sg_dst_len = sg_dma_len(dst->sg_wa.sg) - dst->sg_wa.sg_used;
 		sg_dst_len = min_t(u64, src->sg_wa.bytes_left, sg_dst_len);
 		op_len = min(sg_src_len, sg_dst_len);
-	} else
+	} else {
 		op_len = sg_src_len;
+	}
 
 	/* The data operation length will be at least block_size in length
 	 * or the smaller of available sg room remaining for the source or
@@ -1131,9 +1134,9 @@ static int ccp_run_aes_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	if (ret)
 		goto e_ctx;
 
-	if (in_place)
+	if (in_place) {
 		dst = src;
-	else {
+	} else {
 		ret = ccp_init_data(&dst, cmd_q, aes->dst, aes->src_len,
 				    AES_BLOCK_SIZE, DMA_FROM_DEVICE);
 		if (ret)
@@ -1304,9 +1307,9 @@ static int ccp_run_xts_aes_cmd(struct ccp_cmd_queue *cmd_q,
 	if (ret)
 		goto e_ctx;
 
-	if (in_place)
+	if (in_place) {
 		dst = src;
-	else {
+	} else {
 		ret = ccp_init_data(&dst, cmd_q, xts->dst, xts->src_len,
 				    unit_size, DMA_FROM_DEVICE);
 		if (ret)
@@ -1451,8 +1454,9 @@ static int ccp_run_sha_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 			goto e_ctx;
 		}
 		memcpy(ctx.address, init, CCP_SHA_CTXSIZE);
-	} else
+	} else {
 		ccp_set_dm_area(&ctx, 0, sha->ctx, 0, sha->ctx_len);
+	}
 
 	ret = ccp_copy_to_ksb(cmd_q, &ctx, op.jobid, op.ksb_ctx,
 			      CCP_PASSTHRU_BYTESWAP_256BIT);
@@ -1605,8 +1609,10 @@ static int ccp_run_rsa_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	if (ret)
 		goto e_ksb;
 
-	ccp_reverse_set_dm_area(&exp, rsa->exp, rsa->exp_len, CCP_KSB_BYTES,
-				false);
+	ret = ccp_reverse_set_dm_area(&exp, rsa->exp, rsa->exp_len,
+				      CCP_KSB_BYTES, false);
+	if (ret)
+		goto e_exp;
 	ret = ccp_copy_to_ksb(cmd_q, &exp, op.jobid, op.ksb_key,
 			      CCP_PASSTHRU_BYTESWAP_NOOP);
 	if (ret) {
@@ -1622,11 +1628,15 @@ static int ccp_run_rsa_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	if (ret)
 		goto e_exp;
 
-	ccp_reverse_set_dm_area(&src, rsa->mod, rsa->mod_len, CCP_KSB_BYTES,
-				false);
+	ret = ccp_reverse_set_dm_area(&src, rsa->mod, rsa->mod_len,
+				      CCP_KSB_BYTES, false);
+	if (ret)
+		goto e_src;
 	src.address += o_len;	/* Adjust the address for the copy operation */
-	ccp_reverse_set_dm_area(&src, rsa->src, rsa->src_len, CCP_KSB_BYTES,
-				false);
+	ret = ccp_reverse_set_dm_area(&src, rsa->src, rsa->src_len,
+				      CCP_KSB_BYTES, false);
+	if (ret)
+		goto e_src;
 	src.address -= o_len;	/* Reset the address to original value */
 
 	/* Prepare the output area for the operation */
@@ -1732,9 +1742,9 @@ static int ccp_run_passthru_cmd(struct ccp_cmd_queue *cmd_q,
 	if (ret)
 		goto e_mask;
 
-	if (in_place)
+	if (in_place) {
 		dst = src;
-	else {
+	} else {
 		ret = ccp_init_data(&dst, cmd_q, pt->dst, pt->src_len,
 				    CCP_PASSTHRU_MASKSIZE, DMA_FROM_DEVICE);
 		if (ret)
@@ -1840,21 +1850,27 @@ static int ccp_run_ecc_mm_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	save = src.address;
 
 	/* Copy the ECC modulus */
-	ccp_reverse_set_dm_area(&src, ecc->mod, ecc->mod_len,
-				CCP_ECC_OPERAND_SIZE, false);
+	ret = ccp_reverse_set_dm_area(&src, ecc->mod, ecc->mod_len,
+				      CCP_ECC_OPERAND_SIZE, false);
+	if (ret)
+		goto e_src;
 	src.address += CCP_ECC_OPERAND_SIZE;
 
 	/* Copy the first operand */
-	ccp_reverse_set_dm_area(&src, ecc->u.mm.operand_1,
-				ecc->u.mm.operand_1_len,
-				CCP_ECC_OPERAND_SIZE, false);
+	ret = ccp_reverse_set_dm_area(&src, ecc->u.mm.operand_1,
+				      ecc->u.mm.operand_1_len,
+				      CCP_ECC_OPERAND_SIZE, false);
+	if (ret)
+		goto e_src;
 	src.address += CCP_ECC_OPERAND_SIZE;
 
 	if (ecc->function != CCP_ECC_FUNCTION_MINV_384BIT) {
 		/* Copy the second operand */
-		ccp_reverse_set_dm_area(&src, ecc->u.mm.operand_2,
-					ecc->u.mm.operand_2_len,
-					CCP_ECC_OPERAND_SIZE, false);
+		ret = ccp_reverse_set_dm_area(&src, ecc->u.mm.operand_2,
+					      ecc->u.mm.operand_2_len,
+					      CCP_ECC_OPERAND_SIZE, false);
+		if (ret)
+			goto e_src;
 		src.address += CCP_ECC_OPERAND_SIZE;
 	}
 
@@ -1959,50 +1975,65 @@ static int ccp_run_ecc_pm_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	save = src.address;
 
 	/* Copy the ECC modulus */
-	ccp_reverse_set_dm_area(&src, ecc->mod, ecc->mod_len,
-				CCP_ECC_OPERAND_SIZE, false);
+	ret = ccp_reverse_set_dm_area(&src, ecc->mod, ecc->mod_len,
+				      CCP_ECC_OPERAND_SIZE, false);
+	if (ret)
+		goto e_src;
 	src.address += CCP_ECC_OPERAND_SIZE;
 
 	/* Copy the first point X and Y coordinate */
-	ccp_reverse_set_dm_area(&src, ecc->u.pm.point_1.x,
-				ecc->u.pm.point_1.x_len,
-				CCP_ECC_OPERAND_SIZE, false);
+	ret = ccp_reverse_set_dm_area(&src, ecc->u.pm.point_1.x,
+				      ecc->u.pm.point_1.x_len,
+				      CCP_ECC_OPERAND_SIZE, false);
+	if (ret)
+		goto e_src;
 	src.address += CCP_ECC_OPERAND_SIZE;
-	ccp_reverse_set_dm_area(&src, ecc->u.pm.point_1.y,
-				ecc->u.pm.point_1.y_len,
-				CCP_ECC_OPERAND_SIZE, false);
+	ret = ccp_reverse_set_dm_area(&src, ecc->u.pm.point_1.y,
+				      ecc->u.pm.point_1.y_len,
+				      CCP_ECC_OPERAND_SIZE, false);
+	if (ret)
+		goto e_src;
 	src.address += CCP_ECC_OPERAND_SIZE;
 
 	/* Set the first point Z coordianate to 1 */
-	*(src.address) = 0x01;
+	*src.address = 0x01;
 	src.address += CCP_ECC_OPERAND_SIZE;
 
 	if (ecc->function == CCP_ECC_FUNCTION_PADD_384BIT) {
 		/* Copy the second point X and Y coordinate */
-		ccp_reverse_set_dm_area(&src, ecc->u.pm.point_2.x,
-					ecc->u.pm.point_2.x_len,
-					CCP_ECC_OPERAND_SIZE, false);
+		ret = ccp_reverse_set_dm_area(&src, ecc->u.pm.point_2.x,
+					      ecc->u.pm.point_2.x_len,
+					      CCP_ECC_OPERAND_SIZE, false);
+		if (ret)
+			goto e_src;
 		src.address += CCP_ECC_OPERAND_SIZE;
-		ccp_reverse_set_dm_area(&src, ecc->u.pm.point_2.y,
-					ecc->u.pm.point_2.y_len,
-					CCP_ECC_OPERAND_SIZE, false);
+		ret = ccp_reverse_set_dm_area(&src, ecc->u.pm.point_2.y,
+					      ecc->u.pm.point_2.y_len,
+					      CCP_ECC_OPERAND_SIZE, false);
+		if (ret)
+			goto e_src;
 		src.address += CCP_ECC_OPERAND_SIZE;
 
 		/* Set the second point Z coordianate to 1 */
-		*(src.address) = 0x01;
+		*src.address = 0x01;
 		src.address += CCP_ECC_OPERAND_SIZE;
 	} else {
 		/* Copy the Domain "a" parameter */
-		ccp_reverse_set_dm_area(&src, ecc->u.pm.domain_a,
-					ecc->u.pm.domain_a_len,
-					CCP_ECC_OPERAND_SIZE, false);
+		ret = ccp_reverse_set_dm_area(&src, ecc->u.pm.domain_a,
+					      ecc->u.pm.domain_a_len,
+					      CCP_ECC_OPERAND_SIZE, false);
+		if (ret)
+			goto e_src;
 		src.address += CCP_ECC_OPERAND_SIZE;
 
 		if (ecc->function == CCP_ECC_FUNCTION_PMUL_384BIT) {
 			/* Copy the scalar value */
-			ccp_reverse_set_dm_area(&src, ecc->u.pm.scalar,
-						ecc->u.pm.scalar_len,
-						CCP_ECC_OPERAND_SIZE, false);
+			ret = ccp_reverse_set_dm_area(&src, ecc->u.pm.scalar,
+						      ecc->u.pm.scalar_len,
+						      CCP_ECC_OPERAND_SIZE,
+						      false);
+			if (ret)
+				goto e_src;
 			src.address += CCP_ECC_OPERAND_SIZE;
 		}
 	}

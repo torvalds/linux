@@ -3,7 +3,7 @@
 #include "gf100.h"
 
 struct gf100_grctx {
-	struct gf100_gr_priv *priv;
+	struct gf100_gr *gr;
 	struct gf100_gr_data *data;
 	struct gf100_gr_mmio *mmio;
 	int buffer_nr;
@@ -19,12 +19,11 @@ void gf100_grctx_mmio_item(struct gf100_grctx *, u32 addr, u32 data, int s, int)
 #define mmio_skip(a,b,c) mmio_refn((a), (b), (c), -1, -1)
 #define mmio_wr32(a,b,c) mmio_refn((a), (b), (c),  0, -1)
 
-struct gf100_grctx_oclass {
-	struct nvkm_oclass base;
+struct gf100_grctx_func {
 	/* main context generation function */
-	void  (*main)(struct gf100_gr_priv *, struct gf100_grctx *);
+	void  (*main)(struct gf100_gr *, struct gf100_grctx *);
 	/* context-specific modify-on-first-load list generation function */
-	void  (*unkn)(struct gf100_gr_priv *);
+	void  (*unkn)(struct gf100_gr *);
 	/* mmio context data */
 	const struct gf100_gr_pack *hub;
 	const struct gf100_gr_pack *gpc;
@@ -50,49 +49,61 @@ struct gf100_grctx_oclass {
 	u32 alpha_nr;
 };
 
-static inline const struct gf100_grctx_oclass *
-gf100_grctx_impl(struct gf100_gr_priv *priv)
-{
-	return (void *)nv_engine(priv)->cclass;
-}
-
-extern struct nvkm_oclass *gf100_grctx_oclass;
-int  gf100_grctx_generate(struct gf100_gr_priv *);
-void gf100_grctx_generate_main(struct gf100_gr_priv *, struct gf100_grctx *);
+extern const struct gf100_grctx_func gf100_grctx;
+int  gf100_grctx_generate(struct gf100_gr *);
+void gf100_grctx_generate_main(struct gf100_gr *, struct gf100_grctx *);
 void gf100_grctx_generate_bundle(struct gf100_grctx *);
 void gf100_grctx_generate_pagepool(struct gf100_grctx *);
 void gf100_grctx_generate_attrib(struct gf100_grctx *);
-void gf100_grctx_generate_unkn(struct gf100_gr_priv *);
-void gf100_grctx_generate_tpcid(struct gf100_gr_priv *);
-void gf100_grctx_generate_r406028(struct gf100_gr_priv *);
-void gf100_grctx_generate_r4060a8(struct gf100_gr_priv *);
-void gf100_grctx_generate_r418bb8(struct gf100_gr_priv *);
-void gf100_grctx_generate_r406800(struct gf100_gr_priv *);
+void gf100_grctx_generate_unkn(struct gf100_gr *);
+void gf100_grctx_generate_tpcid(struct gf100_gr *);
+void gf100_grctx_generate_r406028(struct gf100_gr *);
+void gf100_grctx_generate_r4060a8(struct gf100_gr *);
+void gf100_grctx_generate_r418bb8(struct gf100_gr *);
+void gf100_grctx_generate_r406800(struct gf100_gr *);
 
-extern struct nvkm_oclass *gf108_grctx_oclass;
+extern const struct gf100_grctx_func gf108_grctx;
 void gf108_grctx_generate_attrib(struct gf100_grctx *);
-void gf108_grctx_generate_unkn(struct gf100_gr_priv *);
+void gf108_grctx_generate_unkn(struct gf100_gr *);
 
-extern struct nvkm_oclass *gf104_grctx_oclass;
-extern struct nvkm_oclass *gf110_grctx_oclass;
+extern const struct gf100_grctx_func gf104_grctx;
+extern const struct gf100_grctx_func gf110_grctx;
 
-extern struct nvkm_oclass *gf117_grctx_oclass;
+extern const struct gf100_grctx_func gf117_grctx;
 void gf117_grctx_generate_attrib(struct gf100_grctx *);
 
-extern struct nvkm_oclass *gf119_grctx_oclass;
+extern const struct gf100_grctx_func gf119_grctx;
 
-extern struct nvkm_oclass *gk104_grctx_oclass;
-extern struct nvkm_oclass *gk20a_grctx_oclass;
-void gk104_grctx_generate_main(struct gf100_gr_priv *, struct gf100_grctx *);
+extern const struct gf100_grctx_func gk104_grctx;
+extern const struct gf100_grctx_func gk20a_grctx;
+void gk104_grctx_generate_main(struct gf100_gr *, struct gf100_grctx *);
 void gk104_grctx_generate_bundle(struct gf100_grctx *);
 void gk104_grctx_generate_pagepool(struct gf100_grctx *);
-void gk104_grctx_generate_unkn(struct gf100_gr_priv *);
-void gk104_grctx_generate_r418bb8(struct gf100_gr_priv *);
+void gk104_grctx_generate_unkn(struct gf100_gr *);
+void gk104_grctx_generate_r418bb8(struct gf100_gr *);
+void gk104_grctx_generate_rop_active_fbps(struct gf100_gr *);
 
-extern struct nvkm_oclass *gk110_grctx_oclass;
-extern struct nvkm_oclass *gk110b_grctx_oclass;
-extern struct nvkm_oclass *gk208_grctx_oclass;
-extern struct nvkm_oclass *gm107_grctx_oclass;
+
+void gm107_grctx_generate_bundle(struct gf100_grctx *);
+void gm107_grctx_generate_pagepool(struct gf100_grctx *);
+void gm107_grctx_generate_attrib(struct gf100_grctx *);
+
+extern const struct gf100_grctx_func gk110_grctx;
+extern const struct gf100_grctx_func gk110b_grctx;
+extern const struct gf100_grctx_func gk208_grctx;
+
+extern const struct gf100_grctx_func gm107_grctx;
+void gm107_grctx_generate_bundle(struct gf100_grctx *);
+void gm107_grctx_generate_pagepool(struct gf100_grctx *);
+void gm107_grctx_generate_attrib(struct gf100_grctx *);
+
+extern const struct gf100_grctx_func gm204_grctx;
+void gm204_grctx_generate_main(struct gf100_gr *, struct gf100_grctx *);
+void gm204_grctx_generate_tpcid(struct gf100_gr *);
+void gm204_grctx_generate_405b60(struct gf100_gr *);
+
+extern const struct gf100_grctx_func gm206_grctx;
+extern const struct gf100_grctx_func gm20b_grctx;
 
 /* context init value lists */
 
@@ -196,4 +207,22 @@ extern const struct gf100_gr_init gk208_grctx_init_rstr2d_0[];
 
 extern const struct gf100_gr_init gk208_grctx_init_prop_0[];
 extern const struct gf100_gr_init gk208_grctx_init_crstr_0[];
+
+extern const struct gf100_gr_init gm107_grctx_init_gpc_unk_0[];
+extern const struct gf100_gr_init gm107_grctx_init_wwdx_0[];
+
+extern const struct gf100_gr_pack gm204_grctx_pack_icmd[];
+
+extern const struct gf100_gr_pack gm204_grctx_pack_mthd[];
+
+extern const struct gf100_gr_pack gm204_grctx_pack_hub[];
+
+extern const struct gf100_gr_init gm204_grctx_init_prop_0[];
+extern const struct gf100_gr_init gm204_grctx_init_setup_0[];
+extern const struct gf100_gr_init gm204_grctx_init_gpm_0[];
+extern const struct gf100_gr_init gm204_grctx_init_gpc_unk_2[];
+
+extern const struct gf100_gr_pack gm204_grctx_pack_tpc[];
+
+extern const struct gf100_gr_pack gm204_grctx_pack_ppc[];
 #endif

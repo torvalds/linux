@@ -33,8 +33,10 @@
 
 #include "iwpm_util.h"
 
-#define IWPM_HASH_BUCKET_SIZE	512
-#define IWPM_HASH_BUCKET_MASK	(IWPM_HASH_BUCKET_SIZE - 1)
+#define IWPM_MAPINFO_HASH_SIZE	512
+#define IWPM_MAPINFO_HASH_MASK	(IWPM_MAPINFO_HASH_SIZE - 1)
+#define IWPM_REMINFO_HASH_SIZE	64
+#define IWPM_REMINFO_HASH_MASK	(IWPM_REMINFO_HASH_SIZE - 1)
 
 static LIST_HEAD(iwpm_nlmsg_req_list);
 static DEFINE_SPINLOCK(iwpm_nlmsg_req_lock);
@@ -42,31 +44,50 @@ static DEFINE_SPINLOCK(iwpm_nlmsg_req_lock);
 static struct hlist_head *iwpm_hash_bucket;
 static DEFINE_SPINLOCK(iwpm_mapinfo_lock);
 
+static struct hlist_head *iwpm_reminfo_bucket;
+static DEFINE_SPINLOCK(iwpm_reminfo_lock);
+
 static DEFINE_MUTEX(iwpm_admin_lock);
 static struct iwpm_admin_data iwpm_admin;
 
 int iwpm_init(u8 nl_client)
 {
+	int ret = 0;
 	if (iwpm_valid_client(nl_client))
 		return -EINVAL;
 	mutex_lock(&iwpm_admin_lock);
 	if (atomic_read(&iwpm_admin.refcount) == 0) {
-		iwpm_hash_bucket = kzalloc(IWPM_HASH_BUCKET_SIZE *
+		iwpm_hash_bucket = kzalloc(IWPM_MAPINFO_HASH_SIZE *
 					sizeof(struct hlist_head), GFP_KERNEL);
 		if (!iwpm_hash_bucket) {
-			mutex_unlock(&iwpm_admin_lock);
+			ret = -ENOMEM;
 			pr_err("%s Unable to create mapinfo hash table\n", __func__);
-			return -ENOMEM;
+			goto init_exit;
+		}
+		iwpm_reminfo_bucket = kzalloc(IWPM_REMINFO_HASH_SIZE *
+					sizeof(struct hlist_head), GFP_KERNEL);
+		if (!iwpm_reminfo_bucket) {
+			kfree(iwpm_hash_bucket);
+			ret = -ENOMEM;
+			pr_err("%s Unable to create reminfo hash table\n", __func__);
+			goto init_exit;
 		}
 	}
 	atomic_inc(&iwpm_admin.refcount);
+init_exit:
 	mutex_unlock(&iwpm_admin_lock);
-	iwpm_set_valid(nl_client, 1);
-	return 0;
+	if (!ret) {
+		iwpm_set_valid(nl_client, 1);
+		iwpm_set_registration(nl_client, IWPM_REG_UNDEF);
+		pr_debug("%s: Mapinfo and reminfo tables are created\n",
+				__func__);
+	}
+	return ret;
 }
 EXPORT_SYMBOL(iwpm_init);
 
 static void free_hash_bucket(void);
+static void free_reminfo_bucket(void);
 
 int iwpm_exit(u8 nl_client)
 {
@@ -81,15 +102,17 @@ int iwpm_exit(u8 nl_client)
 	}
 	if (atomic_dec_and_test(&iwpm_admin.refcount)) {
 		free_hash_bucket();
-		pr_debug("%s: Mapinfo hash table is destroyed\n", __func__);
+		free_reminfo_bucket();
+		pr_debug("%s: Resources are destroyed\n", __func__);
 	}
 	mutex_unlock(&iwpm_admin_lock);
 	iwpm_set_valid(nl_client, 0);
+	iwpm_set_registration(nl_client, IWPM_REG_UNDEF);
 	return 0;
 }
 EXPORT_SYMBOL(iwpm_exit);
 
-static struct hlist_head *get_hash_bucket_head(struct sockaddr_storage *,
+static struct hlist_head *get_mapinfo_hash_bucket(struct sockaddr_storage *,
 					       struct sockaddr_storage *);
 
 int iwpm_create_mapinfo(struct sockaddr_storage *local_sockaddr,
@@ -99,9 +122,10 @@ int iwpm_create_mapinfo(struct sockaddr_storage *local_sockaddr,
 	struct hlist_head *hash_bucket_head;
 	struct iwpm_mapping_info *map_info;
 	unsigned long flags;
+	int ret = -EINVAL;
 
 	if (!iwpm_valid_client(nl_client))
-		return -EINVAL;
+		return ret;
 	map_info = kzalloc(sizeof(struct iwpm_mapping_info), GFP_KERNEL);
 	if (!map_info) {
 		pr_err("%s: Unable to allocate a mapping info\n", __func__);
@@ -115,13 +139,16 @@ int iwpm_create_mapinfo(struct sockaddr_storage *local_sockaddr,
 
 	spin_lock_irqsave(&iwpm_mapinfo_lock, flags);
 	if (iwpm_hash_bucket) {
-		hash_bucket_head = get_hash_bucket_head(
+		hash_bucket_head = get_mapinfo_hash_bucket(
 					&map_info->local_sockaddr,
 					&map_info->mapped_sockaddr);
-		hlist_add_head(&map_info->hlist_node, hash_bucket_head);
+		if (hash_bucket_head) {
+			hlist_add_head(&map_info->hlist_node, hash_bucket_head);
+			ret = 0;
+		}
 	}
 	spin_unlock_irqrestore(&iwpm_mapinfo_lock, flags);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(iwpm_create_mapinfo);
 
@@ -136,9 +163,12 @@ int iwpm_remove_mapinfo(struct sockaddr_storage *local_sockaddr,
 
 	spin_lock_irqsave(&iwpm_mapinfo_lock, flags);
 	if (iwpm_hash_bucket) {
-		hash_bucket_head = get_hash_bucket_head(
+		hash_bucket_head = get_mapinfo_hash_bucket(
 					local_sockaddr,
 					mapped_local_addr);
+		if (!hash_bucket_head)
+			goto remove_mapinfo_exit;
+
 		hlist_for_each_entry_safe(map_info, tmp_hlist_node,
 					hash_bucket_head, hlist_node) {
 
@@ -152,6 +182,7 @@ int iwpm_remove_mapinfo(struct sockaddr_storage *local_sockaddr,
 			}
 		}
 	}
+remove_mapinfo_exit:
 	spin_unlock_irqrestore(&iwpm_mapinfo_lock, flags);
 	return ret;
 }
@@ -166,7 +197,7 @@ static void free_hash_bucket(void)
 
 	/* remove all the mapinfo data from the list */
 	spin_lock_irqsave(&iwpm_mapinfo_lock, flags);
-	for (i = 0; i < IWPM_HASH_BUCKET_SIZE; i++) {
+	for (i = 0; i < IWPM_MAPINFO_HASH_SIZE; i++) {
 		hlist_for_each_entry_safe(map_info, tmp_hlist_node,
 			&iwpm_hash_bucket[i], hlist_node) {
 
@@ -179,6 +210,96 @@ static void free_hash_bucket(void)
 	iwpm_hash_bucket = NULL;
 	spin_unlock_irqrestore(&iwpm_mapinfo_lock, flags);
 }
+
+static void free_reminfo_bucket(void)
+{
+	struct hlist_node *tmp_hlist_node;
+	struct iwpm_remote_info *rem_info;
+	unsigned long flags;
+	int i;
+
+	/* remove all the remote info from the list */
+	spin_lock_irqsave(&iwpm_reminfo_lock, flags);
+	for (i = 0; i < IWPM_REMINFO_HASH_SIZE; i++) {
+		hlist_for_each_entry_safe(rem_info, tmp_hlist_node,
+			&iwpm_reminfo_bucket[i], hlist_node) {
+
+				hlist_del_init(&rem_info->hlist_node);
+				kfree(rem_info);
+			}
+	}
+	/* free the hash list */
+	kfree(iwpm_reminfo_bucket);
+	iwpm_reminfo_bucket = NULL;
+	spin_unlock_irqrestore(&iwpm_reminfo_lock, flags);
+}
+
+static struct hlist_head *get_reminfo_hash_bucket(struct sockaddr_storage *,
+						struct sockaddr_storage *);
+
+void iwpm_add_remote_info(struct iwpm_remote_info *rem_info)
+{
+	struct hlist_head *hash_bucket_head;
+	unsigned long flags;
+
+	spin_lock_irqsave(&iwpm_reminfo_lock, flags);
+	if (iwpm_reminfo_bucket) {
+		hash_bucket_head = get_reminfo_hash_bucket(
+					&rem_info->mapped_loc_sockaddr,
+					&rem_info->mapped_rem_sockaddr);
+		if (hash_bucket_head)
+			hlist_add_head(&rem_info->hlist_node, hash_bucket_head);
+	}
+	spin_unlock_irqrestore(&iwpm_reminfo_lock, flags);
+}
+
+int iwpm_get_remote_info(struct sockaddr_storage *mapped_loc_addr,
+				struct sockaddr_storage *mapped_rem_addr,
+				struct sockaddr_storage *remote_addr,
+				u8 nl_client)
+{
+	struct hlist_node *tmp_hlist_node;
+	struct hlist_head *hash_bucket_head;
+	struct iwpm_remote_info *rem_info = NULL;
+	unsigned long flags;
+	int ret = -EINVAL;
+
+	if (!iwpm_valid_client(nl_client)) {
+		pr_info("%s: Invalid client = %d\n", __func__, nl_client);
+		return ret;
+	}
+	spin_lock_irqsave(&iwpm_reminfo_lock, flags);
+	if (iwpm_reminfo_bucket) {
+		hash_bucket_head = get_reminfo_hash_bucket(
+					mapped_loc_addr,
+					mapped_rem_addr);
+		if (!hash_bucket_head)
+			goto get_remote_info_exit;
+		hlist_for_each_entry_safe(rem_info, tmp_hlist_node,
+					hash_bucket_head, hlist_node) {
+
+			if (!iwpm_compare_sockaddr(&rem_info->mapped_loc_sockaddr,
+				mapped_loc_addr) &&
+				!iwpm_compare_sockaddr(&rem_info->mapped_rem_sockaddr,
+				mapped_rem_addr)) {
+
+				memcpy(remote_addr, &rem_info->remote_sockaddr,
+					sizeof(struct sockaddr_storage));
+				iwpm_print_sockaddr(remote_addr,
+						"get_remote_info: Remote sockaddr:");
+
+				hlist_del_init(&rem_info->hlist_node);
+				kfree(rem_info);
+				ret = 0;
+				break;
+			}
+		}
+	}
+get_remote_info_exit:
+	spin_unlock_irqrestore(&iwpm_reminfo_lock, flags);
+	return ret;
+}
+EXPORT_SYMBOL(iwpm_get_remote_info);
 
 struct iwpm_nlmsg_request *iwpm_get_nlmsg_request(__u32 nlmsg_seq,
 					u8 nl_client, gfp_t gfp)
@@ -278,15 +399,21 @@ void iwpm_set_valid(u8 nl_client, int valid)
 }
 
 /* valid client */
-int iwpm_registered_client(u8 nl_client)
+u32 iwpm_get_registration(u8 nl_client)
 {
 	return iwpm_admin.reg_list[nl_client];
 }
 
 /* valid client */
-void iwpm_set_registered(u8 nl_client, int reg)
+void iwpm_set_registration(u8 nl_client, u32 reg)
 {
 	iwpm_admin.reg_list[nl_client] = reg;
+}
+
+/* valid client */
+u32 iwpm_check_registration(u8 nl_client, u32 reg)
+{
+	return (iwpm_get_registration(nl_client) & reg);
 }
 
 int iwpm_compare_sockaddr(struct sockaddr_storage *a_sockaddr,
@@ -409,31 +536,54 @@ static u32 iwpm_ipv4_jhash(struct sockaddr_in *ipv4_sockaddr)
 	return hash;
 }
 
-static struct hlist_head *get_hash_bucket_head(struct sockaddr_storage
-					       *local_sockaddr,
-					       struct sockaddr_storage
-					       *mapped_sockaddr)
+static int get_hash_bucket(struct sockaddr_storage *a_sockaddr,
+				struct sockaddr_storage *b_sockaddr, u32 *hash)
 {
-	u32 local_hash, mapped_hash, hash;
+	u32 a_hash, b_hash;
 
-	if (local_sockaddr->ss_family == AF_INET) {
-		local_hash = iwpm_ipv4_jhash((struct sockaddr_in *) local_sockaddr);
-		mapped_hash = iwpm_ipv4_jhash((struct sockaddr_in *) mapped_sockaddr);
+	if (a_sockaddr->ss_family == AF_INET) {
+		a_hash = iwpm_ipv4_jhash((struct sockaddr_in *) a_sockaddr);
+		b_hash = iwpm_ipv4_jhash((struct sockaddr_in *) b_sockaddr);
 
-	} else if (local_sockaddr->ss_family == AF_INET6) {
-		local_hash = iwpm_ipv6_jhash((struct sockaddr_in6 *) local_sockaddr);
-		mapped_hash = iwpm_ipv6_jhash((struct sockaddr_in6 *) mapped_sockaddr);
+	} else if (a_sockaddr->ss_family == AF_INET6) {
+		a_hash = iwpm_ipv6_jhash((struct sockaddr_in6 *) a_sockaddr);
+		b_hash = iwpm_ipv6_jhash((struct sockaddr_in6 *) b_sockaddr);
 	} else {
 		pr_err("%s: Invalid sockaddr family\n", __func__);
-		return NULL;
+		return -EINVAL;
 	}
 
-	if (local_hash == mapped_hash) /* if port mapper isn't available */
-		hash = local_hash;
+	if (a_hash == b_hash) /* if port mapper isn't available */
+		*hash = a_hash;
 	else
-		hash = jhash_2words(local_hash, mapped_hash, 0);
+		*hash = jhash_2words(a_hash, b_hash, 0);
+	return 0;
+}
 
-	return &iwpm_hash_bucket[hash & IWPM_HASH_BUCKET_MASK];
+static struct hlist_head *get_mapinfo_hash_bucket(struct sockaddr_storage
+				*local_sockaddr, struct sockaddr_storage
+				*mapped_sockaddr)
+{
+	u32 hash;
+	int ret;
+
+	ret = get_hash_bucket(local_sockaddr, mapped_sockaddr, &hash);
+	if (ret)
+		return NULL;
+	return &iwpm_hash_bucket[hash & IWPM_MAPINFO_HASH_MASK];
+}
+
+static struct hlist_head *get_reminfo_hash_bucket(struct sockaddr_storage
+				*mapped_loc_sockaddr, struct sockaddr_storage
+				*mapped_rem_sockaddr)
+{
+	u32 hash;
+	int ret;
+
+	ret = get_hash_bucket(mapped_loc_sockaddr, mapped_rem_sockaddr, &hash);
+	if (ret)
+		return NULL;
+	return &iwpm_reminfo_bucket[hash & IWPM_REMINFO_HASH_MASK];
 }
 
 static int send_mapinfo_num(u32 mapping_num, u8 nl_client, int iwpm_pid)
@@ -512,7 +662,7 @@ int iwpm_send_mapinfo(u8 nl_client, int iwpm_pid)
 	}
 	skb_num++;
 	spin_lock_irqsave(&iwpm_mapinfo_lock, flags);
-	for (i = 0; i < IWPM_HASH_BUCKET_SIZE; i++) {
+	for (i = 0; i < IWPM_MAPINFO_HASH_SIZE; i++) {
 		hlist_for_each_entry(map_info, &iwpm_hash_bucket[i],
 				     hlist_node) {
 			if (map_info->nl_client != nl_client)
@@ -595,7 +745,7 @@ int iwpm_mapinfo_available(void)
 
 	spin_lock_irqsave(&iwpm_mapinfo_lock, flags);
 	if (iwpm_hash_bucket) {
-		for (i = 0; i < IWPM_HASH_BUCKET_SIZE; i++) {
+		for (i = 0; i < IWPM_MAPINFO_HASH_SIZE; i++) {
 			if (!hlist_empty(&iwpm_hash_bucket[i])) {
 				full_bucket = 1;
 				break;

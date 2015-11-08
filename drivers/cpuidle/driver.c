@@ -13,7 +13,7 @@
 #include <linux/sched.h>
 #include <linux/cpuidle.h>
 #include <linux/cpumask.h>
-#include <linux/clockchips.h>
+#include <linux/tick.h>
 
 #include "cpuidle.h"
 
@@ -130,21 +130,20 @@ static inline void __cpuidle_unset_driver(struct cpuidle_driver *drv)
 #endif
 
 /**
- * cpuidle_setup_broadcast_timer - enable/disable the broadcast timer
+ * cpuidle_setup_broadcast_timer - enable/disable the broadcast timer on a cpu
  * @arg: a void pointer used to match the SMP cross call API
  *
- * @arg is used as a value of type 'long' with one of the two values:
- * - CLOCK_EVT_NOTIFY_BROADCAST_ON
- * - CLOCK_EVT_NOTIFY_BROADCAST_OFF
+ * If @arg is NULL broadcast is disabled otherwise enabled
  *
- * Set the broadcast timer notification for the current CPU.  This function
- * is executed per CPU by an SMP cross call.  It not supposed to be called
- * directly.
+ * This function is executed per CPU by an SMP cross call.  It's not
+ * supposed to be called directly.
  */
 static void cpuidle_setup_broadcast_timer(void *arg)
 {
-	int cpu = smp_processor_id();
-	clockevents_notify((long)(arg), &cpu);
+	if (arg)
+		tick_broadcast_enable();
+	else
+		tick_broadcast_disable();
 }
 
 /**
@@ -228,6 +227,10 @@ static int __cpuidle_register_driver(struct cpuidle_driver *drv)
 	if (!drv || !drv->state_count)
 		return -EINVAL;
 
+	ret = cpuidle_coupled_state_verify(drv);
+	if (ret)
+		return ret;
+
 	if (cpuidle_disabled())
 		return -ENODEV;
 
@@ -239,7 +242,7 @@ static int __cpuidle_register_driver(struct cpuidle_driver *drv)
 
 	if (drv->bctimer)
 		on_each_cpu_mask(drv->cpumask, cpuidle_setup_broadcast_timer,
-				 (void *)CLOCK_EVT_NOTIFY_BROADCAST_ON, 1);
+				 (void *)1, 1);
 
 	poll_idle_init(drv);
 
@@ -263,7 +266,7 @@ static void __cpuidle_unregister_driver(struct cpuidle_driver *drv)
 	if (drv->bctimer) {
 		drv->bctimer = 0;
 		on_each_cpu_mask(drv->cpumask, cpuidle_setup_broadcast_timer,
-				 (void *)CLOCK_EVT_NOTIFY_BROADCAST_OFF, 1);
+				 NULL, 1);
 	}
 
 	__cpuidle_unset_driver(drv);

@@ -1,7 +1,7 @@
 /*
  * OMAP L3 Interconnect error handling driver
  *
- * Copyright (C) 2011-2014 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011-2015 Texas Instruments Incorporated - http://www.ti.com/
  *	Santosh Shilimkar <santosh.shilimkar@ti.com>
  *	Sricharan <r.sricharan@ti.com>
  *
@@ -233,7 +233,8 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 }
 
 static const struct of_device_id l3_noc_match[] = {
-	{.compatible = "ti,omap4-l3-noc", .data = &omap_l3_data},
+	{.compatible = "ti,omap4-l3-noc", .data = &omap4_l3_data},
+	{.compatible = "ti,omap5-l3-noc", .data = &omap5_l3_data},
 	{.compatible = "ti,dra7-l3-noc", .data = &dra_l3_data},
 	{.compatible = "ti,am4372-l3-noc", .data = &am4372_l3_data},
 	{},
@@ -284,7 +285,7 @@ static int omap_l3_probe(struct platform_device *pdev)
 	 */
 	l3->debug_irq = platform_get_irq(pdev, 0);
 	ret = devm_request_irq(l3->dev, l3->debug_irq, l3_interrupt_handler,
-			       IRQF_DISABLED, "l3-dbg-irq", l3);
+			       0x0, "l3-dbg-irq", l3);
 	if (ret) {
 		dev_err(l3->dev, "request_irq failed for %d\n",
 			l3->debug_irq);
@@ -293,14 +294,14 @@ static int omap_l3_probe(struct platform_device *pdev)
 
 	l3->app_irq = platform_get_irq(pdev, 1);
 	ret = devm_request_irq(l3->dev, l3->app_irq, l3_interrupt_handler,
-			       IRQF_DISABLED, "l3-app-irq", l3);
+			       0x0, "l3-app-irq", l3);
 	if (ret)
 		dev_err(l3->dev, "request_irq failed for %d\n", l3->app_irq);
 
 	return ret;
 }
 
-#ifdef	CONFIG_PM
+#ifdef	CONFIG_PM_SLEEP
 
 /**
  * l3_resume_noirq() - resume function for l3_noc
@@ -346,7 +347,7 @@ static int l3_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops l3_dev_pm_ops = {
-	.resume_noirq		= l3_resume_noirq,
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(NULL, l3_resume_noirq)
 };
 
 #define L3_DEV_PM_OPS (&l3_dev_pm_ops)

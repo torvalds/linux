@@ -65,6 +65,7 @@
 
 #ifndef __fw_api_stats_h__
 #define __fw_api_stats_h__
+#include "fw-api-mac.h"
 
 struct mvm_statistics_dbg {
 	__le32 burst_check;
@@ -218,7 +219,7 @@ struct mvm_statistics_bt_activity {
 	__le32 lo_priority_rx_denied_cnt;
 } __packed;  /* STATISTICS_BT_ACTIVITY_API_S_VER_1 */
 
-struct mvm_statistics_general {
+struct mvm_statistics_general_v8 {
 	__le32 radio_temperature;
 	__le32 radio_voltage;
 	struct mvm_statistics_dbg dbg;
@@ -236,13 +237,20 @@ struct mvm_statistics_general {
 	__le32 num_of_sos_states;
 	__le32 beacon_filtered;
 	__le32 missed_beacons;
-	__s8 beacon_filter_average_energy;
-	__s8 beacon_filter_reason;
-	__s8 beacon_filter_current_energy;
-	__s8 beacon_filter_reserved;
+	u8 beacon_filter_average_energy;
+	u8 beacon_filter_reason;
+	u8 beacon_filter_current_energy;
+	u8 beacon_filter_reserved;
 	__le32 beacon_filter_delta_time;
 	struct mvm_statistics_bt_activity bt_activity;
-} __packed; /* STATISTICS_GENERAL_API_S_VER_5 */
+	__le64 rx_time;
+	__le64 on_time_rf;
+	__le64 on_time_scan;
+	__le64 tx_time;
+	__le32 beacon_counter[NUM_MAC_INDEX];
+	u8 beacon_average_energy[NUM_MAC_INDEX];
+	u8 reserved[4 - (NUM_MAC_INDEX % 4)];
+} __packed; /* STATISTICS_GENERAL_API_S_VER_8 */
 
 struct mvm_statistics_rx {
 	struct mvm_statistics_rx_phy ofdm;
@@ -256,22 +264,21 @@ struct mvm_statistics_rx {
  *
  * By default, uCode issues this notification after receiving a beacon
  * while associated.  To disable this behavior, set DISABLE_NOTIF flag in the
- * REPLY_STATISTICS_CMD 0x9c, above.
- *
- * Statistics counters continue to increment beacon after beacon, but are
- * cleared when changing channels or when driver issues REPLY_STATISTICS_CMD
- * 0x9c with CLEAR_STATS bit set (see above).
- *
- * uCode also issues this notification during scans.  uCode clears statistics
- * appropriately so that each notification contains statistics for only the
- * one channel that has just been scanned.
+ * STATISTICS_CMD (0x9c), below.
  */
 
-struct iwl_notif_statistics {
+struct iwl_notif_statistics_v10 {
 	__le32 flag;
 	struct mvm_statistics_rx rx;
 	struct mvm_statistics_tx tx;
-	struct mvm_statistics_general general;
-} __packed; /* STATISTICS_NTFY_API_S_VER_8 */
+	struct mvm_statistics_general_v8 general;
+} __packed; /* STATISTICS_NTFY_API_S_VER_10 */
+
+#define IWL_STATISTICS_FLG_CLEAR		0x1
+#define IWL_STATISTICS_FLG_DISABLE_NOTIF	0x2
+
+struct iwl_statistics_cmd {
+	__le32 flags;
+} __packed; /* STATISTICS_CMD_API_S_VER_1 */
 
 #endif /* __fw_api_stats_h__ */

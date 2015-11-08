@@ -256,7 +256,9 @@ rcu_dereference()
 	If you are going to be fetching multiple fields from the
 	RCU-protected structure, using the local variable is of
 	course preferred.  Repeated rcu_dereference() calls look
-	ugly and incur unnecessary overhead on Alpha CPUs.
+	ugly, do not guarantee that the same pointer will be returned
+	if an update happened while in the critical section, and incur
+	unnecessary overhead on Alpha CPUs.
 
 	Note that the value returned by rcu_dereference() is valid
 	only within the enclosing RCU read-side critical section.
@@ -362,7 +364,7 @@ uses of RCU may be found in listRCU.txt, arrayRCU.txt, and NMI-RCU.txt.
 	};
 	DEFINE_SPINLOCK(foo_mutex);
 
-	struct foo *gbl_foo;
+	struct foo __rcu *gbl_foo;
 
 	/*
 	 * Create a new struct foo that is the same as the one currently
@@ -384,7 +386,7 @@ uses of RCU may be found in listRCU.txt, arrayRCU.txt, and NMI-RCU.txt.
 
 		new_fp = kmalloc(sizeof(*new_fp), GFP_KERNEL);
 		spin_lock(&foo_mutex);
-		old_fp = gbl_foo;
+		old_fp = rcu_dereference_protected(gbl_foo, lockdep_is_held(&foo_mutex));
 		*new_fp = *old_fp;
 		new_fp->a = new_a;
 		rcu_assign_pointer(gbl_foo, new_fp);
@@ -485,7 +487,7 @@ The foo_update_a() function might then be written as follows:
 
 		new_fp = kmalloc(sizeof(*new_fp), GFP_KERNEL);
 		spin_lock(&foo_mutex);
-		old_fp = gbl_foo;
+		old_fp = rcu_dereference_protected(gbl_foo, lockdep_is_held(&foo_mutex));
 		*new_fp = *old_fp;
 		new_fp->a = new_a;
 		rcu_assign_pointer(gbl_foo, new_fp);
@@ -879,11 +881,9 @@ SRCU:	Initialization/cleanup
 
 All:  lockdep-checked RCU-protected pointer access
 
-	rcu_access_index
 	rcu_access_pointer
-	rcu_dereference_index_check
 	rcu_dereference_raw
-	rcu_lockdep_assert
+	RCU_LOCKDEP_WARN
 	rcu_sleep_check
 	RCU_NONIDLE
 

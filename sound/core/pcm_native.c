@@ -25,7 +25,6 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/pm_qos.h>
-#include <linux/aio.h>
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
 #include <sound/core.h>
@@ -35,6 +34,7 @@
 #include <sound/pcm_params.h>
 #include <sound/timer.h>
 #include <sound/minors.h>
+#include <linux/uio.h>
 
 /*
  *  Compatibility
@@ -85,7 +85,7 @@ static DECLARE_RWSEM(snd_pcm_link_rwsem);
 void snd_pcm_stream_lock(struct snd_pcm_substream *substream)
 {
 	if (substream->pcm->nonatomic) {
-		down_read(&snd_pcm_link_rwsem);
+		down_read_nested(&snd_pcm_link_rwsem, SINGLE_DEPTH_NESTING);
 		mutex_lock(&substream->self_group.mutex);
 	} else {
 		read_lock(&snd_pcm_link_rwlock);
@@ -486,6 +486,16 @@ static void snd_pcm_set_state(struct snd_pcm_substream *substream, int state)
 	snd_pcm_stream_unlock_irq(substream);
 }
 
+static inline void snd_pcm_timer_notify(struct snd_pcm_substream *substream,
+					int event)
+{
+#ifdef CONFIG_SND_PCM_TIMER
+	if (substream->timer)
+		snd_timer_notify(substream->timer, event,
+					&substream->runtime->trigger_tstamp);
+#endif
+}
+
 static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params)
 {
@@ -650,7 +660,8 @@ static int snd_pcm_sw_params(struct snd_pcm_substream *substream,
 	}
 	snd_pcm_stream_unlock_irq(substream);
 
-	if (params->tstamp_mode > SNDRV_PCM_TSTAMP_LAST)
+	if (params->tstamp_mode < 0 ||
+	    params->tstamp_mode > SNDRV_PCM_TSTAMP_LAST)
 		return -EINVAL;
 	if (params->proto >= SNDRV_PROTOCOL_VERSION(2, 0, 12) &&
 	    params->tstamp_type > SNDRV_PCM_TSTAMP_TYPE_LAST)
@@ -707,6 +718,23 @@ int snd_pcm_status(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	snd_pcm_stream_lock_irq(substream);
+
+	snd_pcm_unpack_audio_tstamp_config(status->audio_tstamp_data,
+					&runtime->audio_tstamp_config);
+
+	/* backwards compatible behavior */
+	if (runtime->audio_tstamp_config.type_requested ==
+		SNDRV_PCM_AUDIO_TSTAMP_TYPE_COMPAT) {
+		if (runtime->hw.info & SNDRV_PCM_INFO_HAS_WALL_CLOCK)
+			runtime->audio_tstamp_config.type_requested =
+				SNDRV_PCM_AUDIO_TSTAMP_TYPE_LINK;
+		else
+			runtime->audio_tstamp_config.type_requested =
+				SNDRV_PCM_AUDIO_TSTAMP_TYPE_DEFAULT;
+		runtime->audio_tstamp_report.valid = 0;
+	} else
+		runtime->audio_tstamp_report.valid = 1;
+
 	status->state = runtime->status->state;
 	status->suspended_state = runtime->status->suspended_state;
 	if (status->state == SNDRV_PCM_STATE_OPEN)
@@ -716,8 +744,15 @@ int snd_pcm_status(struct snd_pcm_substream *substream,
 		snd_pcm_update_hw_ptr(substream);
 		if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE) {
 			status->tstamp = runtime->status->tstamp;
+			status->driver_tstamp = runtime->driver_tstamp;
 			status->audio_tstamp =
 				runtime->status->audio_tstamp;
+			if (runtime->audio_tstamp_report.valid == 1)
+				/* backwards compatibility, no report provided in COMPAT mode */
+				snd_pcm_pack_audio_tstamp_report(&status->audio_tstamp_data,
+								&status->audio_tstamp_accuracy,
+								&runtime->audio_tstamp_report);
+
 			goto _tstamp_end;
 		}
 	} else {
@@ -753,12 +788,21 @@ int snd_pcm_status(struct snd_pcm_substream *substream,
 }
 
 static int snd_pcm_status_user(struct snd_pcm_substream *substream,
-			       struct snd_pcm_status __user * _status)
+			       struct snd_pcm_status __user * _status,
+			       bool ext)
 {
 	struct snd_pcm_status status;
 	int res;
-	
+
 	memset(&status, 0, sizeof(status));
+	/*
+	 * with extension, parameters are read/write,
+	 * get audio_tstamp_data from user,
+	 * ignore rest of status structure
+	 */
+	if (ext && get_user(status.audio_tstamp_data,
+				(u32 __user *)(&_status->audio_tstamp_data)))
+		return -EFAULT;
 	res = snd_pcm_status(substream, &status);
 	if (res < 0)
 		return res;
@@ -1009,9 +1053,7 @@ static void snd_pcm_post_start(struct snd_pcm_substream *substream, int state)
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
 	    runtime->silence_size > 0)
 		snd_pcm_playback_silence(substream, ULONG_MAX);
-	if (substream->timer)
-		snd_timer_notify(substream->timer, SNDRV_TIMER_EVENT_MSTART,
-				 &runtime->trigger_tstamp);
+	snd_pcm_timer_notify(substream, SNDRV_TIMER_EVENT_MSTART);
 }
 
 static struct action_ops snd_pcm_action_start = {
@@ -1059,9 +1101,7 @@ static void snd_pcm_post_stop(struct snd_pcm_substream *substream, int state)
 	if (runtime->status->state != state) {
 		snd_pcm_trigger_tstamp(substream);
 		runtime->status->state = state;
-		if (substream->timer)
-			snd_timer_notify(substream->timer, SNDRV_TIMER_EVENT_MSTOP,
-					 &runtime->trigger_tstamp);
+		snd_pcm_timer_notify(substream, SNDRV_TIMER_EVENT_MSTOP);
 	}
 	wake_up(&runtime->sleep);
 	wake_up(&runtime->tsleep);
@@ -1175,18 +1215,12 @@ static void snd_pcm_post_pause(struct snd_pcm_substream *substream, int push)
 	snd_pcm_trigger_tstamp(substream);
 	if (push) {
 		runtime->status->state = SNDRV_PCM_STATE_PAUSED;
-		if (substream->timer)
-			snd_timer_notify(substream->timer,
-					 SNDRV_TIMER_EVENT_MPAUSE,
-					 &runtime->trigger_tstamp);
+		snd_pcm_timer_notify(substream, SNDRV_TIMER_EVENT_MPAUSE);
 		wake_up(&runtime->sleep);
 		wake_up(&runtime->tsleep);
 	} else {
 		runtime->status->state = SNDRV_PCM_STATE_RUNNING;
-		if (substream->timer)
-			snd_timer_notify(substream->timer,
-					 SNDRV_TIMER_EVENT_MCONTINUE,
-					 &runtime->trigger_tstamp);
+		snd_pcm_timer_notify(substream, SNDRV_TIMER_EVENT_MCONTINUE);
 	}
 }
 
@@ -1234,9 +1268,7 @@ static void snd_pcm_post_suspend(struct snd_pcm_substream *substream, int state)
 	snd_pcm_trigger_tstamp(substream);
 	runtime->status->suspended_state = runtime->status->state;
 	runtime->status->state = SNDRV_PCM_STATE_SUSPENDED;
-	if (substream->timer)
-		snd_timer_notify(substream->timer, SNDRV_TIMER_EVENT_MSUSPEND,
-				 &runtime->trigger_tstamp);
+	snd_pcm_timer_notify(substream, SNDRV_TIMER_EVENT_MSUSPEND);
 	wake_up(&runtime->sleep);
 	wake_up(&runtime->tsleep);
 }
@@ -1340,9 +1372,7 @@ static void snd_pcm_post_resume(struct snd_pcm_substream *substream, int state)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_pcm_trigger_tstamp(substream);
 	runtime->status->state = runtime->status->suspended_state;
-	if (substream->timer)
-		snd_timer_notify(substream->timer, SNDRV_TIMER_EVENT_MRESUME,
-				 &runtime->trigger_tstamp);
+	snd_pcm_timer_notify(substream, SNDRV_TIMER_EVENT_MRESUME);
 }
 
 static struct action_ops snd_pcm_action_resume = {
@@ -2193,7 +2223,8 @@ void snd_pcm_release_substream(struct snd_pcm_substream *substream)
 
 	snd_pcm_drop(substream);
 	if (substream->hw_opened) {
-		if (substream->ops->hw_free != NULL)
+		if (substream->ops->hw_free &&
+		    substream->runtime->status->state != SNDRV_PCM_STATE_OPEN)
 			substream->ops->hw_free(substream);
 		substream->ops->close(substream);
 		substream->hw_opened = 0;
@@ -2725,7 +2756,9 @@ static int snd_pcm_common_ioctl1(struct file *file,
 	case SNDRV_PCM_IOCTL_SW_PARAMS:
 		return snd_pcm_sw_params_user(substream, arg);
 	case SNDRV_PCM_IOCTL_STATUS:
-		return snd_pcm_status_user(substream, arg);
+		return snd_pcm_status_user(substream, arg, false);
+	case SNDRV_PCM_IOCTL_STATUS_EXT:
+		return snd_pcm_status_user(substream, arg, true);
 	case SNDRV_PCM_IOCTL_CHANNEL_INFO:
 		return snd_pcm_channel_info_user(substream, arg);
 	case SNDRV_PCM_IOCTL_PREPARE:
@@ -3033,9 +3066,7 @@ static ssize_t snd_pcm_write(struct file *file, const char __user *buf,
 	return result;
 }
 
-static ssize_t snd_pcm_aio_read(struct kiocb *iocb, const struct iovec *iov,
-			     unsigned long nr_segs, loff_t pos)
-
+static ssize_t snd_pcm_readv(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct snd_pcm_file *pcm_file;
 	struct snd_pcm_substream *substream;
@@ -3052,16 +3083,18 @@ static ssize_t snd_pcm_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	runtime = substream->runtime;
 	if (runtime->status->state == SNDRV_PCM_STATE_OPEN)
 		return -EBADFD;
-	if (nr_segs > 1024 || nr_segs != runtime->channels)
+	if (!iter_is_iovec(to))
 		return -EINVAL;
-	if (!frame_aligned(runtime, iov->iov_len))
+	if (to->nr_segs > 1024 || to->nr_segs != runtime->channels)
 		return -EINVAL;
-	frames = bytes_to_samples(runtime, iov->iov_len);
-	bufs = kmalloc(sizeof(void *) * nr_segs, GFP_KERNEL);
+	if (!frame_aligned(runtime, to->iov->iov_len))
+		return -EINVAL;
+	frames = bytes_to_samples(runtime, to->iov->iov_len);
+	bufs = kmalloc(sizeof(void *) * to->nr_segs, GFP_KERNEL);
 	if (bufs == NULL)
 		return -ENOMEM;
-	for (i = 0; i < nr_segs; ++i)
-		bufs[i] = iov[i].iov_base;
+	for (i = 0; i < to->nr_segs; ++i)
+		bufs[i] = to->iov[i].iov_base;
 	result = snd_pcm_lib_readv(substream, bufs, frames);
 	if (result > 0)
 		result = frames_to_bytes(runtime, result);
@@ -3069,8 +3102,7 @@ static ssize_t snd_pcm_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	return result;
 }
 
-static ssize_t snd_pcm_aio_write(struct kiocb *iocb, const struct iovec *iov,
-			      unsigned long nr_segs, loff_t pos)
+static ssize_t snd_pcm_writev(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct snd_pcm_file *pcm_file;
 	struct snd_pcm_substream *substream;
@@ -3087,15 +3119,17 @@ static ssize_t snd_pcm_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	runtime = substream->runtime;
 	if (runtime->status->state == SNDRV_PCM_STATE_OPEN)
 		return -EBADFD;
-	if (nr_segs > 128 || nr_segs != runtime->channels ||
-	    !frame_aligned(runtime, iov->iov_len))
+	if (!iter_is_iovec(from))
 		return -EINVAL;
-	frames = bytes_to_samples(runtime, iov->iov_len);
-	bufs = kmalloc(sizeof(void *) * nr_segs, GFP_KERNEL);
+	if (from->nr_segs > 128 || from->nr_segs != runtime->channels ||
+	    !frame_aligned(runtime, from->iov->iov_len))
+		return -EINVAL;
+	frames = bytes_to_samples(runtime, from->iov->iov_len);
+	bufs = kmalloc(sizeof(void *) * from->nr_segs, GFP_KERNEL);
 	if (bufs == NULL)
 		return -ENOMEM;
-	for (i = 0; i < nr_segs; ++i)
-		bufs[i] = iov[i].iov_base;
+	for (i = 0; i < from->nr_segs; ++i)
+		bufs[i] = from->iov[i].iov_base;
 	result = snd_pcm_lib_writev(substream, bufs, frames);
 	if (result > 0)
 		result = frames_to_bytes(runtime, result);
@@ -3633,7 +3667,7 @@ const struct file_operations snd_pcm_f_ops[2] = {
 	{
 		.owner =		THIS_MODULE,
 		.write =		snd_pcm_write,
-		.aio_write =		snd_pcm_aio_write,
+		.write_iter =		snd_pcm_writev,
 		.open =			snd_pcm_playback_open,
 		.release =		snd_pcm_release,
 		.llseek =		no_llseek,
@@ -3647,7 +3681,7 @@ const struct file_operations snd_pcm_f_ops[2] = {
 	{
 		.owner =		THIS_MODULE,
 		.read =			snd_pcm_read,
-		.aio_read =		snd_pcm_aio_read,
+		.read_iter =		snd_pcm_readv,
 		.open =			snd_pcm_capture_open,
 		.release =		snd_pcm_release,
 		.llseek =		no_llseek,

@@ -45,7 +45,7 @@ struct lnbp21 {
 };
 
 static int lnbp21_set_voltage(struct dvb_frontend *fe,
-					fe_sec_voltage_t voltage)
+			      enum fe_sec_voltage voltage)
 {
 	struct lnbp21 *lnbp21 = (struct lnbp21 *) fe->sec_priv;
 	struct i2c_msg msg = {	.addr = lnbp21->i2c_addr, .flags = 0,
@@ -92,7 +92,7 @@ static int lnbp21_enable_high_lnb_voltage(struct dvb_frontend *fe, long arg)
 }
 
 static int lnbp21_set_tone(struct dvb_frontend *fe,
-				fe_sec_tone_mode_t tone)
+			   enum fe_sec_tone_mode tone)
 {
 	struct lnbp21 *lnbp21 = (struct lnbp21 *) fe->sec_priv;
 	struct i2c_msg msg = {	.addr = lnbp21->i2c_addr, .flags = 0,

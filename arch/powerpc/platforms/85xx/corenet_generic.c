@@ -88,6 +88,15 @@ static const struct of_device_id of_device_ids[] = {
 		.compatible	= "simple-bus"
 	},
 	{
+		.compatible	= "mdio-mux-gpio"
+	},
+	{
+		.compatible	= "fsl,fpga-ngpixis"
+	},
+	{
+		.compatible	= "fsl,fpga-qixis"
+	},
+	{
 		.compatible	= "fsl,srio",
 	},
 	{
@@ -107,6 +116,9 @@ static const struct of_device_id of_device_ids[] = {
 	},
 	{
 		.compatible	= "fsl,qe",
+	},
+	{
+		.compatible    = "fsl,fman",
 	},
 	/* The following two are for the Freescale hypervisor */
 	{
@@ -138,12 +150,18 @@ static const char * const boards[] __initconst = {
 	"fsl,B4860QDS",
 	"fsl,B4420QDS",
 	"fsl,B4220QDS",
+	"fsl,T1023RDB",
+	"fsl,T1024QDS",
+	"fsl,T1024RDB",
+	"fsl,T1040D4RDB",
+	"fsl,T1042D4RDB",
 	"fsl,T1040QDS",
 	"fsl,T1042QDS",
 	"fsl,T1040RDB",
 	"fsl,T1042RDB",
 	"fsl,T1042RDB_PI",
 	"keymile,kmcoge4",
+	"varisys,CYRUS",
 	NULL
 };
 
@@ -197,7 +215,17 @@ define_machine(corenet_generic) {
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
 	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
 #endif
+/*
+ * Core reset may cause issues if using the proxy mode of MPIC.
+ * So, use the mixed mode of MPIC if enabling CPU hotplug.
+ *
+ * Likewise, problems have been seen with kexec when coreint is enabled.
+ */
+#if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_KEXEC)
+	.get_irq		= mpic_get_irq,
+#else
 	.get_irq		= mpic_get_coreint_irq,
+#endif
 	.restart		= fsl_rstcr_restart,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,

@@ -103,26 +103,22 @@
 #define MODE_TEST_EN		BIT(11)
 #define ANA_TEST_DC_CTRL(x)	((x) << 12)
 
-#define to_phy_berlin_usb_priv(p)	\
-	container_of((p), struct phy_berlin_usb_priv, phy)
-
 static const u32 phy_berlin_pll_dividers[] = {
 	/* Berlin 2 */
-	CLK_REF_DIV(0xc) | FEEDBACK_CLK_DIV(0x54),
-	/* Berlin 2CD */
 	CLK_REF_DIV(0x6) | FEEDBACK_CLK_DIV(0x55),
+	/* Berlin 2CD/Q */
+	CLK_REF_DIV(0xc) | FEEDBACK_CLK_DIV(0x54),
 };
 
 struct phy_berlin_usb_priv {
 	void __iomem		*base;
-	struct phy		*phy;
 	struct reset_control	*rst_ctrl;
 	u32			pll_divider;
 };
 
 static int phy_berlin_usb_power_on(struct phy *phy)
 {
-	struct phy_berlin_usb_priv *priv = dev_get_drvdata(phy->dev.parent);
+	struct phy_berlin_usb_priv *priv = phy_get_drvdata(phy);
 
 	reset_control_reset(priv->rst_ctrl);
 
@@ -151,12 +147,12 @@ static int phy_berlin_usb_power_on(struct phy *phy)
 	return 0;
 }
 
-static struct phy_ops phy_berlin_usb_ops = {
+static const struct phy_ops phy_berlin_usb_ops = {
 	.power_on	= phy_berlin_usb_power_on,
 	.owner		= THIS_MODULE,
 };
 
-static const struct of_device_id phy_berlin_sata_of_match[] = {
+static const struct of_device_id phy_berlin_usb_of_match[] = {
 	{
 		.compatible = "marvell,berlin2-usb-phy",
 		.data = &phy_berlin_pll_dividers[0],
@@ -167,14 +163,15 @@ static const struct of_device_id phy_berlin_sata_of_match[] = {
 	},
 	{ },
 };
-MODULE_DEVICE_TABLE(of, phy_berlin_sata_of_match);
+MODULE_DEVICE_TABLE(of, phy_berlin_usb_of_match);
 
 static int phy_berlin_usb_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match =
-		of_match_device(phy_berlin_sata_of_match, &pdev->dev);
+		of_match_device(phy_berlin_usb_of_match, &pdev->dev);
 	struct phy_berlin_usb_priv *priv;
 	struct resource *res;
+	struct phy *phy;
 	struct phy_provider *phy_provider;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
@@ -192,29 +189,26 @@ static int phy_berlin_usb_probe(struct platform_device *pdev)
 
 	priv->pll_divider = *((u32 *)match->data);
 
-	priv->phy = devm_phy_create(&pdev->dev, NULL, &phy_berlin_usb_ops);
-	if (IS_ERR(priv->phy)) {
+	phy = devm_phy_create(&pdev->dev, NULL, &phy_berlin_usb_ops);
+	if (IS_ERR(phy)) {
 		dev_err(&pdev->dev, "failed to create PHY\n");
-		return PTR_ERR(priv->phy);
+		return PTR_ERR(phy);
 	}
 
 	platform_set_drvdata(pdev, priv);
+	phy_set_drvdata(phy, priv);
 
 	phy_provider =
 		devm_of_phy_provider_register(&pdev->dev, of_phy_simple_xlate);
-	if (IS_ERR(phy_provider))
-		return PTR_ERR(phy_provider);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(phy_provider);
 }
 
 static struct platform_driver phy_berlin_usb_driver = {
 	.probe	= phy_berlin_usb_probe,
 	.driver	= {
 		.name		= "phy-berlin-usb",
-		.owner		= THIS_MODULE,
-		.of_match_table	= phy_berlin_sata_of_match,
-	 },
+		.of_match_table	= phy_berlin_usb_of_match,
+	},
 };
 module_platform_driver(phy_berlin_usb_driver);
 

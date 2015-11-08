@@ -620,8 +620,7 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, umode_t mode,
 		}
 		rc = CIFSSMBUnixSetPathInfo(xid, tcon, full_path, &args,
 					    cifs_sb->local_nls,
-					    cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
+					    cifs_remap(cifs_sb));
 		if (rc)
 			goto mknod_out;
 
@@ -745,13 +744,13 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 		goto lookup_out;
 	}
 
-	if (direntry->d_inode != NULL) {
+	if (d_really_is_positive(direntry)) {
 		cifs_dbg(FYI, "non-NULL inode in lookup\n");
 	} else {
 		cifs_dbg(FYI, "NULL inode in lookup\n");
 	}
 	cifs_dbg(FYI, "Full path: %s inode = 0x%p\n",
-		 full_path, direntry->d_inode);
+		 full_path, d_inode(direntry));
 
 	if (pTcon->unix_ext) {
 		rc = cifs_get_inode_info_unix(&newInode, full_path,
@@ -792,7 +791,7 @@ cifs_d_revalidate(struct dentry *direntry, unsigned int flags)
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
-	if (direntry->d_inode) {
+	if (d_really_is_positive(direntry)) {
 		if (cifs_revalidate_dentry(direntry))
 			return 0;
 		else {
@@ -803,7 +802,7 @@ cifs_d_revalidate(struct dentry *direntry, unsigned int flags)
 			 * attributes will have been updated by
 			 * cifs_revalidate_dentry().
 			 */
-			if (IS_AUTOMOUNT(direntry->d_inode) &&
+			if (IS_AUTOMOUNT(d_inode(direntry)) &&
 			   !(direntry->d_flags & DCACHE_NEED_AUTOMOUNT)) {
 				spin_lock(&direntry->d_lock);
 				direntry->d_flags |= DCACHE_NEED_AUTOMOUNT;

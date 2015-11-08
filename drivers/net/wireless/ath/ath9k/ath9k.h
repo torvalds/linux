@@ -172,24 +172,16 @@ struct ath_txq {
 	struct sk_buff_head complete_q;
 };
 
-struct ath_atx_ac {
-	struct ath_txq *txq;
-	struct list_head list;
-	struct list_head tid_q;
-	bool clear_ps_filter;
-	bool sched;
-};
-
 struct ath_frame_info {
 	struct ath_buf *bf;
 	u16 framelen;
 	s8 txq;
-	enum ath9k_key_type keytype;
 	u8 keyix;
 	u8 rtscts_rate;
 	u8 retries : 7;
 	u8 baw_tracked : 1;
 	u8 tx_power;
+	enum ath9k_key_type keytype:2;
 };
 
 struct ath_rxbuf {
@@ -242,7 +234,7 @@ struct ath_atx_tid {
 	struct sk_buff_head buf_q;
 	struct sk_buff_head retry_q;
 	struct ath_node *an;
-	struct ath_atx_ac *ac;
+	struct ath_txq *txq;
 	unsigned long tx_buf[BITS_TO_LONGS(ATH_TID_MAX_BUFS)];
 	u16 seq_start;
 	u16 seq_next;
@@ -252,8 +244,8 @@ struct ath_atx_tid {
 	int baw_tail;   /* next unused tx buffer slot */
 
 	s8 bar_index;
-	bool sched;
 	bool active;
+	bool clear_ps_filter;
 };
 
 struct ath_node {
@@ -261,7 +253,6 @@ struct ath_node {
 	struct ieee80211_sta *sta; /* station struct we're part of */
 	struct ieee80211_vif *vif; /* interface with which we're associated */
 	struct ath_atx_tid tid[IEEE80211_NUM_TIDS];
-	struct ath_atx_ac ac[IEEE80211_NUM_ACS];
 
 	u16 maxampdu;
 	u8 mpdudensity;
@@ -410,6 +401,12 @@ enum ath_offchannel_state {
 	ATH_OFFCHANNEL_ROC_DONE,
 };
 
+enum ath_roc_complete_reason {
+	ATH_ROC_COMPLETE_EXPIRE,
+	ATH_ROC_COMPLETE_ABORT,
+	ATH_ROC_COMPLETE_CANCEL,
+};
+
 struct ath_offchannel {
 	struct ath_chanctx chan;
 	struct timer_list timer;
@@ -471,7 +468,8 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 void ath_chanctx_set_next(struct ath_softc *sc, bool force);
 void ath_offchannel_next(struct ath_softc *sc);
 void ath_scan_complete(struct ath_softc *sc, bool abort);
-void ath_roc_complete(struct ath_softc *sc, bool abort);
+void ath_roc_complete(struct ath_softc *sc,
+		      enum ath_roc_complete_reason reason);
 struct ath_chanctx* ath_is_go_chanctx_present(struct ath_softc *sc);
 
 #else
@@ -637,6 +635,7 @@ struct ath9k_vif_iter_data {
 	int nstations; /* number of station vifs */
 	int nwds;      /* number of WDS vifs */
 	int nadhocs;   /* number of adhoc vifs */
+	int nocbs;     /* number of OCB vifs */
 	struct ieee80211_vif *primary_sta;
 };
 
@@ -645,6 +644,7 @@ void ath9k_calculate_iter_data(struct ath_softc *sc,
 			       struct ath9k_vif_iter_data *iter_data);
 void ath9k_calculate_summary_state(struct ath_softc *sc,
 				   struct ath_chanctx *ctx);
+void ath9k_set_txpower(struct ath_softc *sc, struct ieee80211_vif *vif);
 
 /*******************/
 /* Beacon Handling */

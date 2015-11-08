@@ -174,13 +174,31 @@ config CFG80211_INTERNAL_REGDB
 
 	  Most distributions have a CRDA package.  So if unsure, say N.
 
+config CFG80211_CRDA_SUPPORT
+	bool "support CRDA" if CFG80211_INTERNAL_REGDB
+	default y
+	depends on CFG80211
+	help
+	  You should enable this option unless you know for sure you have no
+	  need for it, for example when using internal regdb (above.)
+
+	  If unsure, say Y.
+
 config CFG80211_WEXT
-	bool "cfg80211 wireless extensions compatibility"
+	bool "cfg80211 wireless extensions compatibility" if !CFG80211_WEXT_EXPORT
 	depends on CFG80211
 	select WEXT_CORE
+	default y if CFG80211_WEXT_EXPORT
 	help
 	  Enable this option if you need old userspace for wireless
 	  extensions with cfg80211-based drivers.
+
+config CFG80211_WEXT_EXPORT
+	bool
+	depends on CFG80211
+	help
+	  Drivers should select this option if they require cfg80211's
+	  wext compatibility symbols to be exported.
 
 config LIB80211
 	tristate

@@ -120,7 +120,7 @@ static int
 nfs3_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 			struct iattr *sattr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct nfs3_sattrargs	arg = {
 		.fh		= NFS_FH(inode),
 		.sattr		= sattr,
@@ -386,13 +386,13 @@ nfs3_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		 * not sure this buys us anything (and I'd have
 		 * to revamp the NFSv3 XDR code) */
 		status = nfs3_proc_setattr(dentry, data->res.fattr, sattr);
-		nfs_post_op_update_inode(dentry->d_inode, data->res.fattr);
+		nfs_post_op_update_inode(d_inode(dentry), data->res.fattr);
 		dprintk("NFS reply setattr (post-create): %d\n", status);
 		if (status != 0)
 			goto out_release_acls;
 	}
 
-	status = nfs3_proc_setacls(dentry->d_inode, acl, default_acl);
+	status = nfs3_proc_setacls(d_inode(dentry), acl, default_acl);
 
 out_release_acls:
 	posix_acl_release(acl);
@@ -570,7 +570,7 @@ nfs3_proc_mkdir(struct inode *dir, struct dentry *dentry, struct iattr *sattr)
 	if (status != 0)
 		goto out_release_acls;
 
-	status = nfs3_proc_setacls(dentry->d_inode, acl, default_acl);
+	status = nfs3_proc_setacls(d_inode(dentry), acl, default_acl);
 
 out_release_acls:
 	posix_acl_release(acl);
@@ -623,7 +623,7 @@ static int
 nfs3_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 		  u64 cookie, struct page **pages, unsigned int count, int plus)
 {
-	struct inode		*dir = dentry->d_inode;
+	struct inode		*dir = d_inode(dentry);
 	__be32			*verf = NFS_I(dir)->cookieverf;
 	struct nfs3_readdirargs	arg = {
 		.fh		= NFS_FH(dir),
@@ -715,7 +715,7 @@ nfs3_proc_mknod(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 	if (status != 0)
 		goto out_release_acls;
 
-	status = nfs3_proc_setacls(dentry->d_inode, acl, default_acl);
+	status = nfs3_proc_setacls(d_inode(dentry), acl, default_acl);
 
 out_release_acls:
 	posix_acl_release(acl);

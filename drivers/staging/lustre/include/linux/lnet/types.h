@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -27,20 +23,20 @@
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2012, Intel Corporation.
+ * Copyright (c) 2012 - 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
- * Lustre is a trademark of Sun Microsystems, Inc.
+ * Lustre is a trademark of Seagate, Inc.
  */
 
 #ifndef __LNET_TYPES_H__
 #define __LNET_TYPES_H__
 
+#include <linux/types.h>
+
 /** \addtogroup lnet
  * @{ */
-
-#include "../libcfs/libcfs.h"
 
 /** \addtogroup lnet_addr
  * @{ */
@@ -48,7 +44,7 @@
 /** Portal reserved for LNet's own use.
  * \see lustre/include/lustre/lustre_idl.h for Lustre portal assignments.
  */
-#define LNET_RESERVED_PORTAL      0
+#define LNET_RESERVED_PORTAL	0
 
 /**
  * Address of an end-point in an LNet network.
@@ -68,16 +64,201 @@ typedef __u64 lnet_nid_t;
 typedef __u32 lnet_pid_t;
 
 /** wildcard NID that matches any end-point address */
-#define LNET_NID_ANY      ((lnet_nid_t) -1)
+#define LNET_NID_ANY	((lnet_nid_t) -1)
 /** wildcard PID that matches any lnet_pid_t */
-#define LNET_PID_ANY      ((lnet_pid_t) -1)
+#define LNET_PID_ANY	((lnet_pid_t) -1)
 
 #define LNET_PID_RESERVED 0xf0000000 /* reserved bits in PID */
 #define LNET_PID_USERFLAG 0x80000000 /* set in userspace peers */
+#define LNET_PID_LUSTRE	  12345
 
-#define LNET_TIME_FOREVER    (-1)
+#define LNET_TIME_FOREVER (-1)
 
-/**
+/* how an LNET NID encodes net:address */
+/** extract the address part of an lnet_nid_t */
+
+static inline __u32 LNET_NIDADDR(lnet_nid_t nid)
+{
+	return nid & 0xffffffff;
+}
+
+static inline __u32 LNET_NIDNET(lnet_nid_t nid)
+{
+	return (nid >> 32) & 0xffffffff;
+}
+
+static inline lnet_nid_t LNET_MKNID(__u32 net, __u32 addr)
+{
+	return (((__u64)net) << 32) | addr;
+}
+
+static inline __u32 LNET_NETNUM(__u32 net)
+{
+	return net & 0xffff;
+}
+
+static inline __u32 LNET_NETTYP(__u32 net)
+{
+	return (net >> 16) & 0xffff;
+}
+
+static inline __u32 LNET_MKNET(__u32 type, __u32 num)
+{
+	return (type << 16) | num;
+}
+
+#define WIRE_ATTR	__packed
+
+/* Packed version of lnet_process_id_t to transfer via network */
+typedef struct {
+	/* node id / process id */
+	lnet_nid_t	nid;
+	lnet_pid_t	pid;
+} WIRE_ATTR lnet_process_id_packed_t;
+
+/* The wire handle's interface cookie only matches one network interface in
+ * one epoch (i.e. new cookie when the interface restarts or the node
+ * reboots).  The object cookie only matches one object on that interface
+ * during that object's lifetime (i.e. no cookie re-use). */
+typedef struct {
+	__u64	wh_interface_cookie;
+	__u64	wh_object_cookie;
+} WIRE_ATTR lnet_handle_wire_t;
+
+typedef enum {
+	LNET_MSG_ACK = 0,
+	LNET_MSG_PUT,
+	LNET_MSG_GET,
+	LNET_MSG_REPLY,
+	LNET_MSG_HELLO,
+} lnet_msg_type_t;
+
+/* The variant fields of the portals message header are aligned on an 8
+ * byte boundary in the message header.  Note that all types used in these
+ * wire structs MUST be fixed size and the smaller types are placed at the
+ * end. */
+typedef struct lnet_ack {
+	lnet_handle_wire_t	dst_wmd;
+	__u64			match_bits;
+	__u32			mlength;
+} WIRE_ATTR lnet_ack_t;
+
+typedef struct lnet_put {
+	lnet_handle_wire_t	ack_wmd;
+	__u64			match_bits;
+	__u64			hdr_data;
+	__u32			ptl_index;
+	__u32			offset;
+} WIRE_ATTR lnet_put_t;
+
+typedef struct lnet_get {
+	lnet_handle_wire_t	return_wmd;
+	__u64			match_bits;
+	__u32			ptl_index;
+	__u32			src_offset;
+	__u32			sink_length;
+} WIRE_ATTR lnet_get_t;
+
+typedef struct lnet_reply {
+	lnet_handle_wire_t	dst_wmd;
+} WIRE_ATTR lnet_reply_t;
+
+typedef struct lnet_hello {
+	__u64			incarnation;
+	__u32			type;
+} WIRE_ATTR lnet_hello_t;
+
+typedef struct {
+	lnet_nid_t	dest_nid;
+	lnet_nid_t	src_nid;
+	lnet_pid_t	dest_pid;
+	lnet_pid_t	src_pid;
+	__u32		type;		/* lnet_msg_type_t */
+	__u32		payload_length;	/* payload data to follow */
+	/*<------__u64 aligned------->*/
+	union {
+		lnet_ack_t	ack;
+		lnet_put_t	put;
+		lnet_get_t	get;
+		lnet_reply_t	reply;
+		lnet_hello_t	hello;
+	} msg;
+} WIRE_ATTR lnet_hdr_t;
+
+/* A HELLO message contains a magic number and protocol version
+ * code in the header's dest_nid, the peer's NID in the src_nid, and
+ * LNET_MSG_HELLO in the type field.  All other common fields are zero
+ * (including payload_size; i.e. no payload).
+ * This is for use by byte-stream LNDs (e.g. TCP/IP) to check the peer is
+ * running the same protocol and to find out its NID. These LNDs should
+ * exchange HELLO messages when a connection is first established.  Individual
+ * LNDs can put whatever else they fancy in lnet_hdr_t::msg.
+ */
+typedef struct {
+	__u32	magic;		/* LNET_PROTO_TCP_MAGIC */
+	__u16	version_major;	/* increment on incompatible change */
+	__u16	version_minor;	/* increment on compatible change */
+} WIRE_ATTR lnet_magicversion_t;
+
+/* PROTO MAGIC for LNDs */
+#define LNET_PROTO_IB_MAGIC		0x0be91b91
+#define LNET_PROTO_GNI_MAGIC		0xb00fbabe /* ask Kim */
+#define LNET_PROTO_TCP_MAGIC		0xeebc0ded
+#define LNET_PROTO_ACCEPTOR_MAGIC	0xacce7100
+#define LNET_PROTO_PING_MAGIC		0x70696E67 /* 'ping' */
+
+/* Placeholder for a future "unified" protocol across all LNDs */
+/* Current LNDs that receive a request with this magic will respond with a
+ * "stub" reply using their current protocol */
+#define LNET_PROTO_MAGIC		0x45726963 /* ! */
+
+#define LNET_PROTO_TCP_VERSION_MAJOR	1
+#define LNET_PROTO_TCP_VERSION_MINOR	0
+
+/* Acceptor connection request */
+typedef struct {
+	__u32	acr_magic;		/* PTL_ACCEPTOR_PROTO_MAGIC */
+	__u32	acr_version;		/* protocol version */
+	__u64	acr_nid;		/* target NID */
+} WIRE_ATTR lnet_acceptor_connreq_t;
+
+#define LNET_PROTO_ACCEPTOR_VERSION	1
+
+typedef struct {
+	lnet_nid_t	ns_nid;
+	__u32		ns_status;
+	__u32		ns_unused;
+} WIRE_ATTR lnet_ni_status_t;
+
+typedef struct {
+	__u32			pi_magic;
+	__u32			pi_features;
+	lnet_pid_t		pi_pid;
+	__u32			pi_nnis;
+	lnet_ni_status_t	pi_ni[0];
+} WIRE_ATTR lnet_ping_info_t;
+
+typedef struct lnet_counters {
+	__u32	msgs_alloc;
+	__u32	msgs_max;
+	__u32	errors;
+	__u32	send_count;
+	__u32	recv_count;
+	__u32	route_count;
+	__u32	drop_count;
+	__u64	send_length;
+	__u64	recv_length;
+	__u64	route_length;
+	__u64	drop_length;
+} WIRE_ATTR lnet_counters_t;
+
+#define LNET_NI_STATUS_UP      0x15aac0de
+#define LNET_NI_STATUS_DOWN    0xdeadface
+#define LNET_NI_STATUS_INVALID 0x00000000
+
+#define LNET_MAX_INTERFACES    16
+
+/*
  * Objects maintained by the LNet are accessed through handles. Handle types
  * have names of the form lnet_handle_xx_t, where xx is one of the two letter
  * object type codes ('eq' for event queue, 'md' for memory descriptor, and
@@ -122,7 +303,7 @@ static inline int LNetHandleIsEqual(lnet_handle_any_t h1, lnet_handle_any_t h2)
  */
 static inline int LNetHandleIsInvalid(lnet_handle_any_t h)
 {
-	return LNET_WIRE_HANDLE_COOKIE_NONE == h.cookie;
+	return h.cookie == LNET_WIRE_HANDLE_COOKIE_NONE;
 }
 
 /**
@@ -195,8 +376,8 @@ typedef struct {
 	 * one must start on page boundary, and all but the last must end on
 	 * page boundary.
 	 */
-	void	    *start;
-	unsigned int     length;
+	void		*start;
+	unsigned int	 length;
 	/**
 	 * Specifies the maximum number of operations that can be performed
 	 * on the memory descriptor. An operation is any action that could
@@ -207,7 +388,7 @@ typedef struct {
 	 * there is no bound on the number of operations that may be applied
 	 * to a MD.
 	 */
-	int	      threshold;
+	int		 threshold;
 	/**
 	 * Specifies the largest incoming request that the memory descriptor
 	 * should respond to. When the unused portion of a MD (length -
@@ -215,7 +396,7 @@ typedef struct {
 	 * does not respond to further operations. This value is only used
 	 * if the LNET_MD_MAX_SIZE option is set.
 	 */
-	int	      max_size;
+	int		 max_size;
 	/**
 	 * Specifies the behavior of the memory descriptor. A bitwise OR
 	 * of the following values can be used:
@@ -252,14 +433,14 @@ typedef struct {
 	 *   region (i.e. sum of all fragment lengths) must not be less than
 	 *   \a max_size.
 	 */
-	unsigned int     options;
+	unsigned int	 options;
 	/**
 	 * A user-specified value that is associated with the memory
 	 * descriptor. The value does not need to be a pointer, but must fit
 	 * in the space used by a pointer. This value is recorded in events
 	 * associated with operations on this MD.
 	 */
-	void	    *user_ptr;
+	void		*user_ptr;
 	/**
 	 * A handle for the event queue used to log the operations performed on
 	 * the memory region. If this argument is a NULL handle (i.e. nullified
@@ -276,44 +457,33 @@ typedef struct {
 #define LNET_MTU	(1 << LNET_MTU_BITS)
 
 /** limit on the number of fragments in discontiguous MDs */
-#define LNET_MAX_IOV    256
-
-/* Max payload size */
-# define LNET_MAX_PAYLOAD	CONFIG_LNET_MAX_PAYLOAD
-# if (LNET_MAX_PAYLOAD < LNET_MTU)
-#  error "LNET_MAX_PAYLOAD too small - error in configure --with-max-payload-mb"
-# else
-#  if (LNET_MAX_PAYLOAD > (PAGE_SIZE * LNET_MAX_IOV))
-/*  PAGE_SIZE is a constant: check with cpp! */
-#   error "LNET_MAX_PAYLOAD too large - error in configure --with-max-payload-mb"
-#  endif
-# endif
+#define LNET_MAX_IOV	256
 
 /**
  * Options for the MD structure. See lnet_md_t::options.
  */
-#define LNET_MD_OP_PUT	       (1 << 0)
+#define LNET_MD_OP_PUT		(1 << 0)
 /** See lnet_md_t::options. */
-#define LNET_MD_OP_GET	       (1 << 1)
+#define LNET_MD_OP_GET		(1 << 1)
 /** See lnet_md_t::options. */
 #define LNET_MD_MANAGE_REMOTE	(1 << 2)
-/* unused			    (1 << 3) */
+/* unused			(1 << 3) */
 /** See lnet_md_t::options. */
-#define LNET_MD_TRUNCATE	     (1 << 4)
+#define LNET_MD_TRUNCATE	(1 << 4)
 /** See lnet_md_t::options. */
-#define LNET_MD_ACK_DISABLE	  (1 << 5)
+#define LNET_MD_ACK_DISABLE	(1 << 5)
 /** See lnet_md_t::options. */
 #define LNET_MD_IOVEC		(1 << 6)
 /** See lnet_md_t::options. */
-#define LNET_MD_MAX_SIZE	     (1 << 7)
+#define LNET_MD_MAX_SIZE	(1 << 7)
 /** See lnet_md_t::options. */
-#define LNET_MD_KIOV		 (1 << 8)
+#define LNET_MD_KIOV		(1 << 8)
 
 /* For compatibility with Cray Portals */
-#define LNET_MD_PHYS			 0
+#define LNET_MD_PHYS		0
 
 /** Infinite threshold on MD operations. See lnet_md_t::threshold */
-#define LNET_MD_THRESH_INF       (-1)
+#define LNET_MD_THRESH_INF	(-1)
 
 /* NB lustre portals uses struct iovec internally! */
 typedef struct iovec lnet_md_iovec_t;
@@ -323,15 +493,15 @@ typedef struct iovec lnet_md_iovec_t;
  */
 typedef struct {
 	/** Pointer to the page where the fragment resides */
-	struct page      *kiov_page;
+	struct page	*kiov_page;
 	/** Length in bytes of the fragment */
-	unsigned int     kiov_len;
+	unsigned int	 kiov_len;
 	/**
 	 * Starting offset of the fragment within the page. Note that the
 	 * end of the fragment must not pass the end of the page; i.e.,
 	 * kiov_len + kiov_offset <= PAGE_CACHE_SIZE.
 	 */
-	unsigned int     kiov_offset;
+	unsigned int	 kiov_offset;
 } lnet_kiov_t;
 /** @} lnet_md */
 
@@ -379,7 +549,7 @@ typedef enum {
 	LNET_EVENT_UNLINK,
 } lnet_event_kind_t;
 
-#define LNET_SEQ_BASETYPE       long
+#define LNET_SEQ_BASETYPE	long
 typedef unsigned LNET_SEQ_BASETYPE lnet_seq_t;
 #define LNET_SEQ_GT(a, b)	(((signed LNET_SEQ_BASETYPE)((a) - (b))) > 0)
 
@@ -388,23 +558,23 @@ typedef unsigned LNET_SEQ_BASETYPE lnet_seq_t;
  */
 typedef struct {
 	/** The identifier (nid, pid) of the target. */
-	lnet_process_id_t   target;
+	lnet_process_id_t	target;
 	/** The identifier (nid, pid) of the initiator. */
-	lnet_process_id_t   initiator;
+	lnet_process_id_t	initiator;
 	/**
 	 * The NID of the immediate sender. If the request has been forwarded
 	 * by routers, this is the NID of the last hop; otherwise it's the
 	 * same as the initiator.
 	 */
-	lnet_nid_t	  sender;
+	lnet_nid_t		sender;
 	/** Indicates the type of the event. */
-	lnet_event_kind_t   type;
+	lnet_event_kind_t	type;
 	/** The portal table index specified in the request */
-	unsigned int	pt_index;
+	unsigned int		pt_index;
 	/** A copy of the match bits specified in the request. */
-	__u64	       match_bits;
+	__u64			match_bits;
 	/** The length (in bytes) specified in the request. */
-	unsigned int	rlength;
+	unsigned int		rlength;
 	/**
 	 * The length (in bytes) of the data that was manipulated by the
 	 * operation. For truncated operations, the manipulated length will be
@@ -412,47 +582,47 @@ typedef struct {
 	 * see lnet_md_t). For all other operations, the manipulated length
 	 * will be the length of the requested operation, i.e. rlength.
 	 */
-	unsigned int	mlength;
+	unsigned int		mlength;
 	/**
 	 * The handle to the MD associated with the event. The handle may be
 	 * invalid if the MD has been unlinked.
 	 */
-	lnet_handle_md_t    md_handle;
+	lnet_handle_md_t	md_handle;
 	/**
 	 * A snapshot of the state of the MD immediately after the event has
 	 * been processed. In particular, the threshold field in md will
 	 * reflect the value of the threshold after the operation occurred.
 	 */
-	lnet_md_t	   md;
+	lnet_md_t		md;
 	/**
 	 * 64 bits of out-of-band user data. Only valid for LNET_EVENT_PUT.
 	 * \see LNetPut
 	 */
-	__u64	       hdr_data;
+	__u64			hdr_data;
 	/**
 	 * Indicates the completion status of the operation. It's 0 for
 	 * successful operations, otherwise it's an error code.
 	 */
-	int		 status;
+	int			status;
 	/**
 	 * Indicates whether the MD has been unlinked. Note that:
 	 * - An event with unlinked set is the last event on the MD.
 	 * - This field is also set for an explicit LNET_EVENT_UNLINK event.
 	 * \see LNetMDUnlink
 	 */
-	int		 unlinked;
+	int			unlinked;
 	/**
 	 * The displacement (in bytes) into the memory region that the
 	 * operation used. The offset can be determined by the operation for
 	 * a remote managed MD or by the local MD.
 	 * \see lnet_md_t::options
 	 */
-	unsigned int	offset;
+	unsigned int		offset;
 	/**
 	 * The sequence number for this event. Sequence numbers are unique
 	 * to each event.
 	 */
-	volatile lnet_seq_t sequence;
+	volatile lnet_seq_t	sequence;
 } lnet_event_t;
 
 /**

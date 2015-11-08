@@ -339,7 +339,7 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 					 enum power_supply_property prop,
 					 union power_supply_propval *val)
 {
-	struct hid_device *dev = container_of(psy, struct hid_device, battery);
+	struct hid_device *dev = power_supply_get_drvdata(psy);
 	int ret = 0;
 	__u8 *buf;
 
@@ -397,26 +397,32 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 
 static bool hidinput_setup_battery(struct hid_device *dev, unsigned report_type, struct hid_field *field)
 {
-	struct power_supply *battery = &dev->battery;
-	int ret;
+	struct power_supply_desc *psy_desc = NULL;
+	struct power_supply_config psy_cfg = { .drv_data = dev, };
 	unsigned quirks;
 	s32 min, max;
 
 	if (field->usage->hid != HID_DC_BATTERYSTRENGTH)
 		return false;	/* no match */
 
-	if (battery->name != NULL)
+	if (dev->battery != NULL)
 		goto out;	/* already initialized? */
 
-	battery->name = kasprintf(GFP_KERNEL, "hid-%s-battery", dev->uniq);
-	if (battery->name == NULL)
+	psy_desc = kzalloc(sizeof(*psy_desc), GFP_KERNEL);
+	if (psy_desc == NULL)
 		goto out;
 
-	battery->type = POWER_SUPPLY_TYPE_BATTERY;
-	battery->properties = hidinput_battery_props;
-	battery->num_properties = ARRAY_SIZE(hidinput_battery_props);
-	battery->use_for_apm = 0;
-	battery->get_property = hidinput_get_battery_property;
+	psy_desc->name = kasprintf(GFP_KERNEL, "hid-%s-battery", dev->uniq);
+	if (psy_desc->name == NULL) {
+		kfree(psy_desc);
+		goto out;
+	}
+
+	psy_desc->type = POWER_SUPPLY_TYPE_BATTERY;
+	psy_desc->properties = hidinput_battery_props;
+	psy_desc->num_properties = ARRAY_SIZE(hidinput_battery_props);
+	psy_desc->use_for_apm = 0;
+	psy_desc->get_property = hidinput_get_battery_property;
 
 	quirks = find_battery_quirk(dev);
 
@@ -439,14 +445,16 @@ static bool hidinput_setup_battery(struct hid_device *dev, unsigned report_type,
 	dev->battery_report_type = report_type;
 	dev->battery_report_id = field->report->id;
 
-	ret = power_supply_register(&dev->dev, battery);
-	if (ret != 0) {
-		hid_warn(dev, "can't register power supply: %d\n", ret);
-		kfree(battery->name);
-		battery->name = NULL;
+	dev->battery = power_supply_register(&dev->dev, psy_desc, &psy_cfg);
+	if (IS_ERR(dev->battery)) {
+		hid_warn(dev, "can't register power supply: %ld\n",
+				PTR_ERR(dev->battery));
+		kfree(psy_desc->name);
+		kfree(psy_desc);
+		dev->battery = NULL;
+	} else {
+		power_supply_powers(dev->battery, &dev->dev);
 	}
-
-	power_supply_powers(battery, &dev->dev);
 
 out:
 	return true;
@@ -454,12 +462,16 @@ out:
 
 static void hidinput_cleanup_battery(struct hid_device *dev)
 {
-	if (!dev->battery.name)
+	const struct power_supply_desc *psy_desc;
+
+	if (!dev->battery)
 		return;
 
-	power_supply_unregister(&dev->battery);
-	kfree(dev->battery.name);
-	dev->battery.name = NULL;
+	psy_desc = dev->battery->desc;
+	power_supply_unregister(dev->battery);
+	kfree(psy_desc->name);
+	kfree(psy_desc);
+	dev->battery = NULL;
 }
 #else  /* !CONFIG_HID_BATTERY_STRENGTH */
 static bool hidinput_setup_battery(struct hid_device *dev, unsigned report_type,
@@ -708,6 +720,29 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			break;
 
 		default:  goto unknown;
+		}
+		break;
+
+	case HID_UP_TELEPHONY:
+		switch (usage->hid & HID_USAGE) {
+		case 0x2f: map_key_clear(KEY_MICMUTE);		break;
+		case 0xb0: map_key_clear(KEY_NUMERIC_0);	break;
+		case 0xb1: map_key_clear(KEY_NUMERIC_1);	break;
+		case 0xb2: map_key_clear(KEY_NUMERIC_2);	break;
+		case 0xb3: map_key_clear(KEY_NUMERIC_3);	break;
+		case 0xb4: map_key_clear(KEY_NUMERIC_4);	break;
+		case 0xb5: map_key_clear(KEY_NUMERIC_5);	break;
+		case 0xb6: map_key_clear(KEY_NUMERIC_6);	break;
+		case 0xb7: map_key_clear(KEY_NUMERIC_7);	break;
+		case 0xb8: map_key_clear(KEY_NUMERIC_8);	break;
+		case 0xb9: map_key_clear(KEY_NUMERIC_9);	break;
+		case 0xba: map_key_clear(KEY_NUMERIC_STAR);	break;
+		case 0xbb: map_key_clear(KEY_NUMERIC_POUND);	break;
+		case 0xbc: map_key_clear(KEY_NUMERIC_A);	break;
+		case 0xbd: map_key_clear(KEY_NUMERIC_B);	break;
+		case 0xbe: map_key_clear(KEY_NUMERIC_C);	break;
+		case 0xbf: map_key_clear(KEY_NUMERIC_D);	break;
+		default: goto ignore;
 		}
 		break;
 
@@ -1125,13 +1160,17 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 		return;
 
 	/* report the usage code as scancode if the key status has changed */
-	if (usage->type == EV_KEY && !!test_bit(usage->code, input->key) != value)
+	if (usage->type == EV_KEY &&
+	    (!test_bit(usage->code, input->key)) == value)
 		input_event(input, EV_MSC, MSC_SCAN, usage->hid);
 
 	input_event(input, usage->type, usage->code, value);
 
-	if ((field->flags & HID_MAIN_ITEM_RELATIVE) && (usage->type == EV_KEY))
+	if ((field->flags & HID_MAIN_ITEM_RELATIVE) &&
+	    usage->type == EV_KEY && value) {
+		input_sync(input);
 		input_event(input, usage->type, usage->code, 0);
+	}
 }
 
 void hidinput_report_event(struct hid_device *hid, struct hid_report *report)
@@ -1471,8 +1510,9 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 				 * UGCI) cram a lot of unrelated inputs into the
 				 * same interface. */
 				hidinput->report = report;
-				if (drv->input_configured)
-					drv->input_configured(hid, hidinput);
+				if (drv->input_configured &&
+				    drv->input_configured(hid, hidinput))
+					goto out_cleanup;
 				if (input_register_device(hidinput->input))
 					goto out_cleanup;
 				hidinput = NULL;
@@ -1493,8 +1533,9 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 	}
 
 	if (hidinput) {
-		if (drv->input_configured)
-			drv->input_configured(hid, hidinput);
+		if (drv->input_configured &&
+		    drv->input_configured(hid, hidinput))
+			goto out_cleanup;
 		if (input_register_device(hidinput->input))
 			goto out_cleanup;
 	}

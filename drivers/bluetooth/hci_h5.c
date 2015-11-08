@@ -75,7 +75,7 @@ struct h5 {
 	size_t			rx_pending;	/* Expecting more bytes */
 	u8			rx_ack;		/* Last ack number received */
 
-	int			(*rx_func) (struct hci_uart *hu, u8 c);
+	int			(*rx_func)(struct hci_uart *hu, u8 c);
 
 	struct timer_list	timer;		/* Retransmission timer */
 
@@ -128,7 +128,7 @@ static void h5_timed_event(unsigned long arg)
 {
 	const unsigned char sync_req[] = { 0x01, 0x7e };
 	unsigned char conf_req[] = { 0x03, 0xfc, 0x01 };
-	struct hci_uart *hu = (struct hci_uart *) arg;
+	struct hci_uart *hu = (struct hci_uart *)arg;
 	struct h5 *h5 = hu->priv;
 	struct sk_buff *skb;
 	unsigned long flags;
@@ -210,7 +210,7 @@ static int h5_open(struct hci_uart *hu)
 
 	init_timer(&h5->timer);
 	h5->timer.function = h5_timed_event;
-	h5->timer.data = (unsigned long) hu;
+	h5->timer.data = (unsigned long)hu;
 
 	h5->tx_win = H5_TX_WIN_MAX;
 
@@ -453,7 +453,7 @@ static int h5_rx_pkt_start(struct hci_uart *hu, unsigned char c)
 		return -ENOMEM;
 	}
 
-	h5->rx_skb->dev = (void *) hu->hdev;
+	h5->rx_skb->dev = (void *)hu->hdev;
 
 	return 0;
 }
@@ -511,10 +511,10 @@ static void h5_reset_rx(struct h5 *h5)
 	clear_bit(H5_RX_ESC, &h5->flags);
 }
 
-static int h5_recv(struct hci_uart *hu, void *data, int count)
+static int h5_recv(struct hci_uart *hu, const void *data, int count)
 {
 	struct h5 *h5 = hu->priv;
-	unsigned char *ptr = data;
+	const unsigned char *ptr = data;
 
 	BT_DBG("%s pending %zu count %d", hu->hdev->name, h5->rx_pending,
 	       count);
@@ -696,7 +696,7 @@ static struct sk_buff *h5_dequeue(struct hci_uart *hu)
 	}
 
 	skb = skb_dequeue(&h5->unrel);
-	if (skb != NULL) {
+	if (skb) {
 		nskb = h5_prepare_pkt(hu, bt_cb(skb)->pkt_type,
 				      skb->data, skb->len);
 		if (nskb) {
@@ -714,7 +714,7 @@ static struct sk_buff *h5_dequeue(struct hci_uart *hu)
 		goto unlock;
 
 	skb = skb_dequeue(&h5->rel);
-	if (skb != NULL) {
+	if (skb) {
 		nskb = h5_prepare_pkt(hu, bt_cb(skb)->pkt_type,
 				      skb->data, skb->len);
 		if (nskb) {
@@ -743,8 +743,9 @@ static int h5_flush(struct hci_uart *hu)
 	return 0;
 }
 
-static struct hci_uart_proto h5p = {
+static const struct hci_uart_proto h5p = {
 	.id		= HCI_UART_3WIRE,
+	.name		= "Three-wire (H5)",
 	.open		= h5_open,
 	.close		= h5_close,
 	.recv		= h5_recv,
@@ -755,14 +756,7 @@ static struct hci_uart_proto h5p = {
 
 int __init h5_init(void)
 {
-	int err = hci_uart_register_proto(&h5p);
-
-	if (!err)
-		BT_INFO("HCI Three-wire UART (H5) protocol initialized");
-	else
-		BT_ERR("HCI Three-wire UART (H5) protocol init failed");
-
-	return err;
+	return hci_uart_register_proto(&h5p);
 }
 
 int __exit h5_deinit(void)

@@ -36,6 +36,29 @@
 #include "iwl-prph.h"
 #include "iwl-fh.h"
 
+void iwl_write8(struct iwl_trans *trans, u32 ofs, u8 val)
+{
+	trace_iwlwifi_dev_iowrite8(trans->dev, ofs, val);
+	iwl_trans_write8(trans, ofs, val);
+}
+IWL_EXPORT_SYMBOL(iwl_write8);
+
+void iwl_write32(struct iwl_trans *trans, u32 ofs, u32 val)
+{
+	trace_iwlwifi_dev_iowrite32(trans->dev, ofs, val);
+	iwl_trans_write32(trans, ofs, val);
+}
+IWL_EXPORT_SYMBOL(iwl_write32);
+
+u32 iwl_read32(struct iwl_trans *trans, u32 ofs)
+{
+	u32 val = iwl_trans_read32(trans, ofs);
+
+	trace_iwlwifi_dev_ioread32(trans->dev, ofs, val);
+	return val;
+}
+IWL_EXPORT_SYMBOL(iwl_read32);
+
 #define IWL_POLL_INTERVAL 10	/* microseconds */
 
 int iwl_poll_bit(struct iwl_trans *trans, u32 addr,
@@ -186,21 +209,16 @@ IWL_EXPORT_SYMBOL(iwl_clear_bits_prph);
 
 void iwl_force_nmi(struct iwl_trans *trans)
 {
-	/*
-	 * In HW previous to the 8000 HW family, and in the 8000 HW family
-	 * itself when the revision step==0, the DEVICE_SET_NMI_REG is used
-	 * to force an NMI. Otherwise, a different register -
-	 * DEVICE_SET_NMI_8000B_REG - is used.
-	 */
-	if ((trans->cfg->device_family != IWL_DEVICE_FAMILY_8000) ||
-	    (CSR_HW_REV_STEP(trans->hw_rev) == SILICON_A_STEP)) {
+	if (trans->cfg->device_family != IWL_DEVICE_FAMILY_8000) {
 		iwl_write_prph(trans, DEVICE_SET_NMI_REG,
 			       DEVICE_SET_NMI_VAL_DRV);
 		iwl_write_prph(trans, DEVICE_SET_NMI_REG,
 			       DEVICE_SET_NMI_VAL_HW);
 	} else {
-		iwl_write_prph(trans, DEVICE_SET_NMI_8000B_REG,
-			       DEVICE_SET_NMI_8000B_VAL);
+		iwl_write_prph(trans, DEVICE_SET_NMI_8000_REG,
+			       DEVICE_SET_NMI_8000_VAL);
+		iwl_write_prph(trans, DEVICE_SET_NMI_REG,
+			       DEVICE_SET_NMI_VAL_DRV);
 	}
 }
 IWL_EXPORT_SYMBOL(iwl_force_nmi);

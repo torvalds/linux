@@ -7,9 +7,7 @@ config NET_VENDOR_3COM
 	default y
 	depends on ISA || EISA || PCI || PCMCIA
 	---help---
-	  If you have a network (Ethernet) card belonging to this class, say Y
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
@@ -23,8 +21,7 @@ config EL3
 	depends on (ISA || EISA)
 	---help---
 	  If you have a network (Ethernet) card belonging to the 3Com
-	  EtherLinkIII series, say Y and read the Ethernet-HOWTO, available
-	  from <http://www.tldp.org/docs.html#howto>.
+	  EtherLinkIII series, say Y here.
 
 	  If your card is not working you may need to use the DOS
 	  setup disk to disable Plug & Play mode, and to select the default
@@ -38,8 +35,7 @@ config 3C515
 	depends on ISA && ISA_DMA_API
 	---help---
 	  If you have a 3Com ISA EtherLink XL "Corkscrew" 3c515 Fast Ethernet
-	  network card, say Y and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  network card, say Y here.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called 3c515.
@@ -78,9 +74,7 @@ config VORTEX
 	  "Tornado"   (3c905)                                  PCI
 	  "Hurricane" (3c555/3cSOHO)                           PCI
 
-	  If you have such a card, say Y and read the Ethernet-HOWTO,
-	  available from <http://www.tldp.org/docs.html#howto>. More
-	  specific information is in
+	  If you have such a card, say Y here.  More specific information is in
 	  <file:Documentation/networking/vortex.txt> and in the comments at
 	  the beginning of <file:drivers/net/ethernet/3com/3c59x.c>.
 
@@ -97,9 +91,7 @@ config TYPHOON
 	  3CR990SVR, 3CR990SVR95, 3CR990SVR97, 3CR990-FX-95 Server,
 	  3CR990-FX-97 Server, 3C990B-TX-M, 3C990BSVR
 
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  If you have a network (Ethernet) card of this type, say Y here.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called typhoon.

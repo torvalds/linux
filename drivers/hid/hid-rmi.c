@@ -29,13 +29,24 @@
 #define RMI_SET_RMI_MODE_REPORT_ID	0x0f /* Feature Report */
 
 /* flags */
-#define RMI_READ_REQUEST_PENDING	BIT(0)
-#define RMI_READ_DATA_PENDING		BIT(1)
-#define RMI_STARTED			BIT(2)
+#define RMI_READ_REQUEST_PENDING	0
+#define RMI_READ_DATA_PENDING		1
+#define RMI_STARTED			2
+
+#define RMI_SLEEP_NORMAL		0x0
+#define RMI_SLEEP_DEEP_SLEEP		0x1
 
 /* device flags */
 #define RMI_DEVICE			BIT(0)
 #define RMI_DEVICE_HAS_PHYS_BUTTONS	BIT(1)
+
+/*
+ * retrieve the ctrl registers
+ * the ctrl register has a size of 20 but a fw bug split it into 16 + 4,
+ * and there is no way to know if the first 20 bytes are here or not.
+ * We use only the first 12 bytes, so get only them.
+ */
+#define RMI_F11_CTRL_REG_COUNT		12
 
 enum rmi_mode_type {
 	RMI_MODE_OFF			= 0,
@@ -104,6 +115,7 @@ struct rmi_data {
 
 	unsigned long flags;
 
+	struct rmi_function f01;
 	struct rmi_function f11;
 	struct rmi_function f30;
 
@@ -112,6 +124,8 @@ struct rmi_data {
 	unsigned int max_y;
 	unsigned int x_size_mm;
 	unsigned int y_size_mm;
+	bool read_f11_ctrl_regs;
+	u8 f11_ctrl_regs[RMI_F11_CTRL_REG_COUNT];
 
 	unsigned int gpio_led_count;
 	unsigned int button_count;
@@ -124,6 +138,11 @@ struct rmi_data {
 	struct hid_device *hdev;
 
 	unsigned long device_flags;
+	unsigned long firmware_id;
+
+	u8 f01_ctrl0;
+	u8 interrupt_enable_mask;
+	bool restore_interrupt_mask;
 };
 
 #define RMI_PAGE(addr) (((addr) >> 8) & 0xff)
@@ -272,6 +291,46 @@ static inline int rmi_read(struct hid_device *hdev, u16 addr, void *buf)
 	return rmi_read_block(hdev, addr, buf, 1);
 }
 
+static int rmi_write_block(struct hid_device *hdev, u16 addr, void *buf,
+		const int len)
+{
+	struct rmi_data *data = hid_get_drvdata(hdev);
+	int ret;
+
+	mutex_lock(&data->page_mutex);
+
+	if (RMI_PAGE(addr) != data->page) {
+		ret = rmi_set_page(hdev, RMI_PAGE(addr));
+		if (ret < 0)
+			goto exit;
+	}
+
+	data->writeReport[0] = RMI_WRITE_REPORT_ID;
+	data->writeReport[1] = len;
+	data->writeReport[2] = addr & 0xFF;
+	data->writeReport[3] = (addr >> 8) & 0xFF;
+	memcpy(&data->writeReport[4], buf, len);
+
+	ret = rmi_write_report(hdev, data->writeReport,
+					data->output_report_size);
+	if (ret < 0) {
+		dev_err(&hdev->dev,
+			"failed to write request output report (%d)\n",
+			ret);
+		goto exit;
+	}
+	ret = 0;
+
+exit:
+	mutex_unlock(&data->page_mutex);
+	return ret;
+}
+
+static inline int rmi_write(struct hid_device *hdev, u16 addr, void *buf)
+{
+	return rmi_write_block(hdev, addr, buf, 1);
+}
+
 static void rmi_f11_process_touch(struct rmi_data *hdata, int slot,
 		u8 finger_state, u8 *touch_data)
 {
@@ -304,13 +363,34 @@ static void rmi_f11_process_touch(struct rmi_data *hdata, int slot,
 	}
 }
 
+static int rmi_reset_attn_mode(struct hid_device *hdev)
+{
+	struct rmi_data *data = hid_get_drvdata(hdev);
+	int ret;
+
+	ret = rmi_set_mode(hdev, RMI_MODE_ATTN_REPORTS);
+	if (ret)
+		return ret;
+
+	if (data->restore_interrupt_mask) {
+		ret = rmi_write(hdev, data->f01.control_base_addr + 1,
+				&data->interrupt_enable_mask);
+		if (ret) {
+			hid_err(hdev, "can not write F01 control register\n");
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static void rmi_reset_work(struct work_struct *work)
 {
 	struct rmi_data *hdata = container_of(work, struct rmi_data,
 						reset_work);
 
 	/* switch the device to RMI if we receive a generic mouse report */
-	rmi_set_mode(hdata->hdev, RMI_MODE_ATTN_REPORTS);
+	rmi_reset_attn_mode(hdata->hdev);
 }
 
 static inline int rmi_schedule_reset(struct hid_device *hdev)
@@ -490,14 +570,77 @@ static int rmi_event(struct hid_device *hdev, struct hid_field *field,
 }
 
 #ifdef CONFIG_PM
+static int rmi_set_sleep_mode(struct hid_device *hdev, int sleep_mode)
+{
+	struct rmi_data *data = hid_get_drvdata(hdev);
+	int ret;
+	u8 f01_ctrl0;
+
+	f01_ctrl0 = (data->f01_ctrl0 & ~0x3) | sleep_mode;
+
+	ret = rmi_write(hdev, data->f01.control_base_addr,
+			&f01_ctrl0);
+	if (ret) {
+		hid_err(hdev, "can not write sleep mode\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int rmi_suspend(struct hid_device *hdev, pm_message_t message)
+{
+	struct rmi_data *data = hid_get_drvdata(hdev);
+	int ret;
+	u8 buf[RMI_F11_CTRL_REG_COUNT];
+
+	ret = rmi_read_block(hdev, data->f11.control_base_addr, buf,
+				RMI_F11_CTRL_REG_COUNT);
+	if (ret)
+		hid_warn(hdev, "can not read F11 control registers\n");
+	else
+		memcpy(data->f11_ctrl_regs, buf, RMI_F11_CTRL_REG_COUNT);
+
+
+	if (!device_may_wakeup(hdev->dev.parent))
+		return rmi_set_sleep_mode(hdev, RMI_SLEEP_DEEP_SLEEP);
+
+	return 0;
+}
+
 static int rmi_post_reset(struct hid_device *hdev)
 {
-	return rmi_set_mode(hdev, RMI_MODE_ATTN_REPORTS);
+	struct rmi_data *data = hid_get_drvdata(hdev);
+	int ret;
+
+	ret = rmi_reset_attn_mode(hdev);
+	if (ret) {
+		hid_err(hdev, "can not set rmi mode\n");
+		return ret;
+	}
+
+	if (data->read_f11_ctrl_regs) {
+		ret = rmi_write_block(hdev, data->f11.control_base_addr,
+				data->f11_ctrl_regs, RMI_F11_CTRL_REG_COUNT);
+		if (ret)
+			hid_warn(hdev,
+				"can not write F11 control registers after reset\n");
+	}
+
+	if (!device_may_wakeup(hdev->dev.parent)) {
+		ret = rmi_set_sleep_mode(hdev, RMI_SLEEP_NORMAL);
+		if (ret) {
+			hid_err(hdev, "can not write sleep mode\n");
+			return ret;
+		}
+	}
+
+	return ret;
 }
 
 static int rmi_post_resume(struct hid_device *hdev)
 {
-	return rmi_set_mode(hdev, RMI_MODE_ATTN_REPORTS);
+	return rmi_reset_attn_mode(hdev);
 }
 #endif /* CONFIG_PM */
 
@@ -532,6 +675,9 @@ static void rmi_register_function(struct rmi_data *data,
 	u16 page_base = page << 8;
 
 	switch (pdt_entry->function_number) {
+	case 0x01:
+		f = &data->f01;
+		break;
 	case 0x11:
 		f = &data->f11;
 		break;
@@ -550,6 +696,7 @@ static void rmi_register_function(struct rmi_data *data,
 		f->interrupt_count = pdt_entry->interrupt_source_count;
 		f->irq_mask = rmi_gen_mask(f->interrupt_base,
 						f->interrupt_count);
+		data->interrupt_enable_mask |= f->irq_mask;
 	}
 }
 
@@ -604,6 +751,121 @@ error_exit:
 	return retval;
 }
 
+#define RMI_DEVICE_F01_BASIC_QUERY_LEN	11
+
+static int rmi_populate_f01(struct hid_device *hdev)
+{
+	struct rmi_data *data = hid_get_drvdata(hdev);
+	u8 basic_queries[RMI_DEVICE_F01_BASIC_QUERY_LEN];
+	u8 info[3];
+	int ret;
+	bool has_query42;
+	bool has_lts;
+	bool has_sensor_id;
+	bool has_ds4_queries = false;
+	bool has_build_id_query = false;
+	bool has_package_id_query = false;
+	u16 query_offset = data->f01.query_base_addr;
+	u16 prod_info_addr;
+	u8 ds4_query_len;
+
+	ret = rmi_read_block(hdev, query_offset, basic_queries,
+				RMI_DEVICE_F01_BASIC_QUERY_LEN);
+	if (ret) {
+		hid_err(hdev, "Can not read basic queries from Function 0x1.\n");
+		return ret;
+	}
+
+	has_lts = !!(basic_queries[0] & BIT(2));
+	has_sensor_id = !!(basic_queries[1] & BIT(3));
+	has_query42 = !!(basic_queries[1] & BIT(7));
+
+	query_offset += 11;
+	prod_info_addr = query_offset + 6;
+	query_offset += 10;
+
+	if (has_lts)
+		query_offset += 20;
+
+	if (has_sensor_id)
+		query_offset++;
+
+	if (has_query42) {
+		ret = rmi_read(hdev, query_offset, info);
+		if (ret) {
+			hid_err(hdev, "Can not read query42.\n");
+			return ret;
+		}
+		has_ds4_queries = !!(info[0] & BIT(0));
+		query_offset++;
+	}
+
+	if (has_ds4_queries) {
+		ret = rmi_read(hdev, query_offset, &ds4_query_len);
+		if (ret) {
+			hid_err(hdev, "Can not read DS4 Query length.\n");
+			return ret;
+		}
+		query_offset++;
+
+		if (ds4_query_len > 0) {
+			ret = rmi_read(hdev, query_offset, info);
+			if (ret) {
+				hid_err(hdev, "Can not read DS4 query.\n");
+				return ret;
+			}
+
+			has_package_id_query = !!(info[0] & BIT(0));
+			has_build_id_query = !!(info[0] & BIT(1));
+		}
+	}
+
+	if (has_package_id_query)
+		prod_info_addr++;
+
+	if (has_build_id_query) {
+		ret = rmi_read_block(hdev, prod_info_addr, info, 3);
+		if (ret) {
+			hid_err(hdev, "Can not read product info.\n");
+			return ret;
+		}
+
+		data->firmware_id = info[1] << 8 | info[0];
+		data->firmware_id += info[2] * 65536;
+	}
+
+	ret = rmi_read_block(hdev, data->f01.control_base_addr, info,
+				2);
+
+	if (ret) {
+		hid_err(hdev, "can not read f01 ctrl registers\n");
+		return ret;
+	}
+
+	data->f01_ctrl0 = info[0];
+
+	if (!info[1]) {
+		/*
+		 * Do to a firmware bug in some touchpads the F01 interrupt
+		 * enable control register will be cleared on reset.
+		 * This will stop the touchpad from reporting data, so
+		 * if F01 CTRL1 is 0 then we need to explicitly enable
+		 * interrupts for the functions we want data for.
+		 */
+		data->restore_interrupt_mask = true;
+
+		ret = rmi_write(hdev, data->f01.control_base_addr + 1,
+				&data->interrupt_enable_mask);
+		if (ret) {
+			hid_err(hdev, "can not write to control reg 1: %d.\n",
+				ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static int rmi_populate_f11(struct hid_device *hdev)
 {
 	struct rmi_data *data = hid_get_drvdata(hdev);
@@ -620,6 +882,8 @@ static int rmi_populate_f11(struct hid_device *hdev)
 	bool has_gestures;
 	bool has_rel;
 	bool has_data40 = false;
+	bool has_dribble = false;
+	bool has_palm_detect = false;
 	unsigned x_size, y_size;
 	u16 query_offset;
 
@@ -661,6 +925,14 @@ static int rmi_populate_f11(struct hid_device *hdev)
 	has_rel = !!(buf[0] & BIT(3));
 	has_gestures = !!(buf[0] & BIT(5));
 
+	ret = rmi_read(hdev, data->f11.query_base_addr + 5, buf);
+	if (ret) {
+		hid_err(hdev, "can not get absolute data sources: %d.\n", ret);
+		return ret;
+	}
+
+	has_dribble = !!(buf[0] & BIT(4));
+
 	/*
 	 * At least 4 queries are guaranteed to be present in F11
 	 * +1 for query 5 which is present since absolute events are
@@ -680,6 +952,7 @@ static int rmi_populate_f11(struct hid_device *hdev)
 				ret);
 			return ret;
 		}
+		has_palm_detect = !!(buf[0] & BIT(0));
 		has_query10 = !!(buf[0] & BIT(2));
 
 		query_offset += 2; /* query 7 and 8 are present */
@@ -762,20 +1035,40 @@ static int rmi_populate_f11(struct hid_device *hdev)
 	if (has_data40)
 		data->f11.report_size += data->max_fingers * 2;
 
-	/*
-	 * retrieve the ctrl registers
-	 * the ctrl register has a size of 20 but a fw bug split it into 16 + 4,
-	 * and there is no way to know if the first 20 bytes are here or not.
-	 * We use only the first 10 bytes, so get only them.
-	 */
-	ret = rmi_read_block(hdev, data->f11.control_base_addr, buf, 10);
+	ret = rmi_read_block(hdev, data->f11.control_base_addr,
+			data->f11_ctrl_regs, RMI_F11_CTRL_REG_COUNT);
 	if (ret) {
-		hid_err(hdev, "can not read ctrl block of size 10: %d.\n", ret);
+		hid_err(hdev, "can not read ctrl block of size 11: %d.\n", ret);
 		return ret;
 	}
 
-	data->max_x = buf[6] | (buf[7] << 8);
-	data->max_y = buf[8] | (buf[9] << 8);
+	/* data->f11_ctrl_regs now contains valid register data */
+	data->read_f11_ctrl_regs = true;
+
+	data->max_x = data->f11_ctrl_regs[6] | (data->f11_ctrl_regs[7] << 8);
+	data->max_y = data->f11_ctrl_regs[8] | (data->f11_ctrl_regs[9] << 8);
+
+	if (has_dribble) {
+		data->f11_ctrl_regs[0] = data->f11_ctrl_regs[0] & ~BIT(6);
+		ret = rmi_write(hdev, data->f11.control_base_addr,
+				data->f11_ctrl_regs);
+		if (ret) {
+			hid_err(hdev, "can not write to control reg 0: %d.\n",
+				ret);
+			return ret;
+		}
+	}
+
+	if (has_palm_detect) {
+		data->f11_ctrl_regs[11] = data->f11_ctrl_regs[11] & ~BIT(0);
+		ret = rmi_write(hdev, data->f11.control_base_addr + 11,
+				&data->f11_ctrl_regs[11]);
+		if (ret) {
+			hid_err(hdev, "can not write to control reg 11: %d.\n",
+				ret);
+			return ret;
+		}
+	}
 
 	return 0;
 }
@@ -850,11 +1143,18 @@ static int rmi_populate_f30(struct hid_device *hdev)
 
 static int rmi_populate(struct hid_device *hdev)
 {
+	struct rmi_data *data = hid_get_drvdata(hdev);
 	int ret;
 
 	ret = rmi_scan_pdt(hdev);
 	if (ret) {
 		hid_err(hdev, "PDT scan failed with code %d.\n", ret);
+		return ret;
+	}
+
+	ret = rmi_populate_f01(hdev);
+	if (ret) {
+		hid_err(hdev, "Error while initializing F01 (%d).\n", ret);
 		return ret;
 	}
 
@@ -864,14 +1164,16 @@ static int rmi_populate(struct hid_device *hdev)
 		return ret;
 	}
 
-	ret = rmi_populate_f30(hdev);
-	if (ret)
-		hid_warn(hdev, "Error while initializing F30 (%d).\n", ret);
+	if (!(data->device_flags & RMI_DEVICE_HAS_PHYS_BUTTONS)) {
+		ret = rmi_populate_f30(hdev);
+		if (ret)
+			hid_warn(hdev, "Error while initializing F30 (%d).\n", ret);
+	}
 
 	return 0;
 }
 
-static void rmi_input_configured(struct hid_device *hdev, struct hid_input *hi)
+static int rmi_input_configured(struct hid_device *hdev, struct hid_input *hi)
 {
 	struct rmi_data *data = hid_get_drvdata(hdev);
 	struct input_dev *input = hi->input;
@@ -883,10 +1185,10 @@ static void rmi_input_configured(struct hid_device *hdev, struct hid_input *hi)
 	hid_dbg(hdev, "Opening low level driver\n");
 	ret = hid_hw_open(hdev);
 	if (ret)
-		return;
+		return ret;
 
 	if (!(data->device_flags & RMI_DEVICE))
-		return;
+		return 0;
 
 	/* Allow incoming hid reports */
 	hid_device_io_start(hdev);
@@ -907,6 +1209,8 @@ static void rmi_input_configured(struct hid_device *hdev, struct hid_input *hi)
 	if (ret)
 		goto exit;
 
+	hid_info(hdev, "firmware id: %ld\n", data->firmware_id);
+
 	__set_bit(EV_ABS, input->evbit);
 	input_set_abs_params(input, ABS_MT_POSITION_X, 1, data->max_x, 0, 0);
 	input_set_abs_params(input, ABS_MT_POSITION_Y, 1, data->max_y, 0, 0);
@@ -924,7 +1228,9 @@ static void rmi_input_configured(struct hid_device *hdev, struct hid_input *hi)
 	input_set_abs_params(input, ABS_MT_TOUCH_MAJOR, 0, 0x0f, 0, 0);
 	input_set_abs_params(input, ABS_MT_TOUCH_MINOR, 0, 0x0f, 0, 0);
 
-	input_mt_init_slots(input, data->max_fingers, INPUT_MT_POINTER);
+	ret = input_mt_init_slots(input, data->max_fingers, INPUT_MT_POINTER);
+	if (ret < 0)
+		goto exit;
 
 	if (data->button_count) {
 		__set_bit(EV_KEY, input->evbit);
@@ -940,6 +1246,7 @@ static void rmi_input_configured(struct hid_device *hdev, struct hid_input *hi)
 exit:
 	hid_device_io_stop(hdev);
 	hid_hw_close(hdev);
+	return ret;
 }
 
 static int rmi_input_mapping(struct hid_device *hdev,
@@ -1099,6 +1406,7 @@ static struct hid_driver rmi_driver = {
 	.input_mapping		= rmi_input_mapping,
 	.input_configured	= rmi_input_configured,
 #ifdef CONFIG_PM
+	.suspend		= rmi_suspend,
 	.resume			= rmi_post_resume,
 	.reset_resume		= rmi_post_reset,
 #endif

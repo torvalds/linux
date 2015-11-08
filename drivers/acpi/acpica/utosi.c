@@ -100,6 +100,7 @@ static struct acpi_interface_info acpi_default_supported_interfaces[] = {
 	{"Windows 2009", NULL, 0, ACPI_OSI_WIN_7},	/* Windows 7 and Server 2008 R2 - Added 09/2009 */
 	{"Windows 2012", NULL, 0, ACPI_OSI_WIN_8},	/* Windows 8 and Server 2012 - Added 08/2012 */
 	{"Windows 2013", NULL, 0, ACPI_OSI_WIN_8},	/* Windows 8.1 and Server 2012 R2 - Added 01/2014 */
+	{"Windows 2015", NULL, 0, ACPI_OSI_WIN_10},	/* Windows 10 - Added 03/2015 */
 
 	/* Feature Group Strings */
 
@@ -231,8 +232,7 @@ acpi_status acpi_ut_install_interface(acpi_string interface_name)
 		return (AE_NO_MEMORY);
 	}
 
-	interface_info->name =
-	    ACPI_ALLOCATE_ZEROED(ACPI_STRLEN(interface_name) + 1);
+	interface_info->name = ACPI_ALLOCATE_ZEROED(strlen(interface_name) + 1);
 	if (!interface_info->name) {
 		ACPI_FREE(interface_info);
 		return (AE_NO_MEMORY);
@@ -240,7 +240,7 @@ acpi_status acpi_ut_install_interface(acpi_string interface_name)
 
 	/* Initialize new info and insert at the head of the global list */
 
-	ACPI_STRCPY(interface_info->name, interface_name);
+	strcpy(interface_info->name, interface_name);
 	interface_info->flags = ACPI_OSI_DYNAMIC;
 	interface_info->next = acpi_gbl_supported_interfaces;
 
@@ -268,7 +268,7 @@ acpi_status acpi_ut_remove_interface(acpi_string interface_name)
 
 	previous_interface = next_interface = acpi_gbl_supported_interfaces;
 	while (next_interface) {
-		if (!ACPI_STRCMP(interface_name, next_interface->name)) {
+		if (!strcmp(interface_name, next_interface->name)) {
 
 			/* Found: name is in either the static list or was added at runtime */
 
@@ -372,7 +372,7 @@ struct acpi_interface_info *acpi_ut_get_interface(acpi_string interface_name)
 
 	next_interface = acpi_gbl_supported_interfaces;
 	while (next_interface) {
-		if (!ACPI_STRCMP(interface_name, next_interface->name)) {
+		if (!strcmp(interface_name, next_interface->name)) {
 			return (next_interface);
 		}
 

@@ -100,13 +100,11 @@ struct init_sccb {
 	sccb_mask_t sclp_send_mask;
 } __attribute__((packed));
 
-extern u64 sclp_facilities;
-
-#define SCLP_HAS_CHP_INFO	(sclp_facilities & 0x8000000000000000ULL)
-#define SCLP_HAS_CHP_RECONFIG	(sclp_facilities & 0x2000000000000000ULL)
-#define SCLP_HAS_CPU_INFO	(sclp_facilities & 0x0800000000000000ULL)
-#define SCLP_HAS_CPU_RECONFIG	(sclp_facilities & 0x0400000000000000ULL)
-#define SCLP_HAS_PCI_RECONFIG	(sclp_facilities & 0x0000000040000000ULL)
+#define SCLP_HAS_CHP_INFO	(sclp.facilities & 0x8000000000000000ULL)
+#define SCLP_HAS_CHP_RECONFIG	(sclp.facilities & 0x2000000000000000ULL)
+#define SCLP_HAS_CPU_INFO	(sclp.facilities & 0x0800000000000000ULL)
+#define SCLP_HAS_CPU_RECONFIG	(sclp.facilities & 0x0400000000000000ULL)
+#define SCLP_HAS_PCI_RECONFIG	(sclp.facilities & 0x0000000040000000ULL)
 
 
 struct gds_subvector {
@@ -191,9 +189,6 @@ void sclp_sdias_exit(void);
 extern int sclp_console_pages;
 extern int sclp_console_drop;
 extern unsigned long sclp_console_full;
-extern u8 sclp_fac84;
-extern unsigned long long sclp_rzm;
-extern unsigned long long sclp_rnmax;
 
 /* useful inlines */
 

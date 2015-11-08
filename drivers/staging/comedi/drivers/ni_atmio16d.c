@@ -34,7 +34,6 @@ Devices: [National Instruments] AT-MIO-16 (atmio16), AT-MIO-16D (atmio16d)
 #include <linux/interrupt.h>
 #include "../comedidev.h"
 
-#include "comedi_fc.h"
 #include "8255.h"
 
 /* Configuration and Status Registers */
@@ -96,7 +95,6 @@ Devices: [National Instruments] AT-MIO-16 (atmio16), AT-MIO-16D (atmio16d)
 #define CLOCK_100_HZ	0x8F25
 
 struct atmio16_board_t {
-
 	const char *name;
 	int has_8255;
 };
@@ -234,20 +232,20 @@ static int atmio16d_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src,
 					TRIG_FOLLOW | TRIG_TIMER);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= comedi_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
@@ -256,30 +254,31 @@ static int atmio16d_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_FOLLOW) {
 		/* internal trigger */
-		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 	} else {
 #if 0
 		/* external trigger */
 		/* should be level/edge, hi/lo specification here */
-		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 #endif
 	}
 
-	err |= cfc_check_trigger_arg_min(&cmd->convert_arg, 10000);
+	err |= comedi_check_trigger_arg_min(&cmd->convert_arg, 10000);
 #if 0
-	err |= cfc_check_trigger_arg_max(&cmd->convert_arg, SLOWEST_TIMER);
+	err |= comedi_check_trigger_arg_max(&cmd->convert_arg, SLOWEST_TIMER);
 #endif
 
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
 	else	/* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;

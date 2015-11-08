@@ -44,7 +44,7 @@ static int service = 987;
 module_param(service, int, 0444);
 MODULE_PARM_DESC(service, "service number (within RDMA_PS_TCP)");
 
-static int cksum = 0;
+static int cksum;
 module_param(cksum, int, 0644);
 MODULE_PARM_DESC(cksum, "set non-zero to enable message (not RDMA) checksums");
 
@@ -72,11 +72,11 @@ static int peer_credits = 8;
 module_param(peer_credits, int, 0444);
 MODULE_PARM_DESC(peer_credits, "# concurrent sends to 1 peer");
 
-static int peer_credits_hiw = 0;
+static int peer_credits_hiw;
 module_param(peer_credits_hiw, int, 0444);
 MODULE_PARM_DESC(peer_credits_hiw, "when eagerly to return credits");
 
-static int peer_buffer_credits = 0;
+static int peer_buffer_credits;
 module_param(peer_buffer_credits, int, 0444);
 MODULE_PARM_DESC(peer_buffer_credits, "# per-peer router buffer credits");
 
@@ -100,15 +100,15 @@ static int keepalive = 100;
 module_param(keepalive, int, 0644);
 MODULE_PARM_DESC(keepalive, "Idle time in seconds before sending a keepalive");
 
-static int ib_mtu = 0;
+static int ib_mtu;
 module_param(ib_mtu, int, 0444);
 MODULE_PARM_DESC(ib_mtu, "IB MTU 256/512/1024/2048/4096");
 
-static int concurrent_sends = 0;
+static int concurrent_sends;
 module_param(concurrent_sends, int, 0444);
 MODULE_PARM_DESC(concurrent_sends, "send work-queue sizing");
 
-static int map_on_demand = 0;
+static int map_on_demand;
 module_param(map_on_demand, int, 0444);
 MODULE_PARM_DESC(map_on_demand, "map on demand");
 
@@ -126,22 +126,16 @@ static int fmr_cache = 1;
 module_param(fmr_cache, int, 0444);
 MODULE_PARM_DESC(fmr_cache, "non-zero to enable FMR caching");
 
-/* NB: this value is shared by all CPTs, it can grow at runtime */
-static int pmr_pool_size = 512;
-module_param(pmr_pool_size, int, 0444);
-MODULE_PARM_DESC(pmr_pool_size, "size of MR cache pmr pool on each CPT");
-
 /*
  * 0: disable failover
  * 1: enable failover if necessary
  * 2: force to failover (for debug)
  */
-static int dev_failover = 0;
+static int dev_failover;
 module_param(dev_failover, int, 0444);
 MODULE_PARM_DESC(dev_failover, "HCA failover for bonding (0 off, 1 on, other values reserved)");
 
-
-static int require_privileged_port = 0;
+static int require_privileged_port;
 module_param(require_privileged_port, int, 0644);
 MODULE_PARM_DESC(require_privileged_port, "require privileged port when accepting connection");
 
@@ -150,34 +144,33 @@ module_param(use_privileged_port, int, 0644);
 MODULE_PARM_DESC(use_privileged_port, "use privileged port when initiating connection");
 
 kib_tunables_t kiblnd_tunables = {
-	.kib_dev_failover	   = &dev_failover,
-	.kib_service		= &service,
-	.kib_cksum		  = &cksum,
-	.kib_timeout		= &timeout,
-	.kib_keepalive	      = &keepalive,
-	.kib_ntx		    = &ntx,
-	.kib_credits		= &credits,
-	.kib_peertxcredits	  = &peer_credits,
-	.kib_peercredits_hiw	= &peer_credits_hiw,
-	.kib_peerrtrcredits	 = &peer_buffer_credits,
-	.kib_peertimeout	    = &peer_timeout,
-	.kib_default_ipif	   = &ipif_name,
-	.kib_retry_count	    = &retry_count,
-	.kib_rnr_retry_count	= &rnr_retry_count,
-	.kib_concurrent_sends       = &concurrent_sends,
-	.kib_ib_mtu		 = &ib_mtu,
-	.kib_map_on_demand	  = &map_on_demand,
-	.kib_fmr_pool_size	  = &fmr_pool_size,
-	.kib_fmr_flush_trigger      = &fmr_flush_trigger,
-	.kib_fmr_cache	      = &fmr_cache,
-	.kib_pmr_pool_size	  = &pmr_pool_size,
-	.kib_require_priv_port      = &require_privileged_port,
-	.kib_use_priv_port	    = &use_privileged_port,
-	.kib_nscheds		    = &nscheds
+	.kib_dev_failover      = &dev_failover,
+	.kib_service           = &service,
+	.kib_cksum             = &cksum,
+	.kib_timeout           = &timeout,
+	.kib_keepalive         = &keepalive,
+	.kib_ntx               = &ntx,
+	.kib_credits           = &credits,
+	.kib_peertxcredits     = &peer_credits,
+	.kib_peercredits_hiw   = &peer_credits_hiw,
+	.kib_peerrtrcredits    = &peer_buffer_credits,
+	.kib_peertimeout       = &peer_timeout,
+	.kib_default_ipif      = &ipif_name,
+	.kib_retry_count       = &retry_count,
+	.kib_rnr_retry_count   = &rnr_retry_count,
+	.kib_concurrent_sends  = &concurrent_sends,
+	.kib_ib_mtu            = &ib_mtu,
+	.kib_map_on_demand     = &map_on_demand,
+	.kib_fmr_pool_size     = &fmr_pool_size,
+	.kib_fmr_flush_trigger = &fmr_flush_trigger,
+	.kib_fmr_cache         = &fmr_cache,
+	.kib_require_priv_port = &require_privileged_port,
+	.kib_use_priv_port     = &use_privileged_port,
+	.kib_nscheds           = &nscheds
 };
 
 int
-kiblnd_tunables_init (void)
+kiblnd_tunables_init(void)
 {
 	if (kiblnd_translate_mtu(*kiblnd_tunables.kib_ib_mtu) < 0) {
 		CERROR("Invalid ib_mtu %d, expected 256/512/1024/2048/4096\n",

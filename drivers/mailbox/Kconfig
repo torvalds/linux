@@ -6,6 +6,15 @@ menuconfig MAILBOX
 	  signals. Say Y if your platform supports hardware mailboxes.
 
 if MAILBOX
+
+config ARM_MHU
+	tristate "ARM MHU Mailbox"
+	depends on ARM_AMBA
+	help
+	  Say Y here if you want to build the ARM MHU controller driver.
+	  The controller has 3 mailbox channels, the last of which can be
+	  used in Secure mode only.
+
 config PL320_MBOX
 	bool "ARM PL320 Mailbox"
 	depends on ARM_AMBA
@@ -37,6 +46,7 @@ config OMAP_MBOX_KFIFO_SIZE
 config PCC
 	bool "Platform Communication Channel Driver"
 	depends on ACPI
+	default n
 	help
 	  ACPI 5.0+ spec defines a generic mode of communication
 	  between the OS and a platform such as the BMC. This medium
@@ -47,8 +57,32 @@ config PCC
 
 config ALTERA_MBOX
 	tristate "Altera Mailbox"
+	depends on HAS_IOMEM
 	help
 	  An implementation of the Altera Mailbox soft core. It is used
 	  to send message between processors. Say Y here if you want to use the
 	  Altera mailbox support.
+
+config BCM2835_MBOX
+	tristate "BCM2835 Mailbox"
+	depends on ARCH_BCM2835
+	help
+	  An implementation of the BCM2385 Mailbox.  It is used to invoke
+	  the services of the Videocore. Say Y here if you want to use the
+	  BCM2835 Mailbox.
+
+config STI_MBOX
+	tristate "STI Mailbox framework support"
+	depends on ARCH_STI && OF
+	help
+	  Mailbox implementation for STMicroelectonics family chips with
+	  hardware for interprocessor communication.
+
+config MAILBOX_TEST
+	tristate "Mailbox Test Client"
+	depends on OF
+	help
+	  Test client to help with testing new Controller driver
+	  implementations.
+
 endif

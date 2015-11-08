@@ -30,7 +30,7 @@ void	xfs_trans_init(struct xfs_mount *);
 void	xfs_trans_add_item(struct xfs_trans *, struct xfs_log_item *);
 void	xfs_trans_del_item(struct xfs_log_item *);
 void	xfs_trans_free_items(struct xfs_trans *tp, xfs_lsn_t commit_lsn,
-				int flags);
+				bool abort);
 void	xfs_trans_unreserve_and_mod_sb(struct xfs_trans *tp);
 
 void	xfs_trans_committed_bulk(struct xfs_ail *ailp, struct xfs_log_vec *lv,
@@ -117,6 +117,21 @@ xfs_trans_ail_delete(
 	int		shutdown_type) __releases(ailp->xa_lock)
 {
 	xfs_trans_ail_delete_bulk(ailp, &lip, 1, shutdown_type);
+}
+
+static inline void
+xfs_trans_ail_remove(
+	struct xfs_log_item	*lip,
+	int			shutdown_type)
+{
+	struct xfs_ail		*ailp = lip->li_ailp;
+
+	spin_lock(&ailp->xa_lock);
+	/* xfs_trans_ail_delete() drops the AIL lock */
+	if (lip->li_flags & XFS_LI_IN_AIL)
+		xfs_trans_ail_delete(ailp, lip, shutdown_type);
+	else
+		spin_unlock(&ailp->xa_lock);
 }
 
 void			xfs_ail_push(struct xfs_ail *, xfs_lsn_t);

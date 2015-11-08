@@ -99,12 +99,16 @@ mwifiex_wmm_is_ra_list_empty(struct list_head *ra_list_hhead)
 
 void mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 				 struct sk_buff *skb);
+void mwifiex_wmm_add_buf_bypass_txqueue(struct mwifiex_private *priv,
+					struct sk_buff *skb);
 void mwifiex_ralist_add(struct mwifiex_private *priv, const u8 *ra);
 void mwifiex_rotate_priolists(struct mwifiex_private *priv,
 			      struct mwifiex_ra_list_tbl *ra, int tid);
 
 int mwifiex_wmm_lists_empty(struct mwifiex_adapter *adapter);
+int mwifiex_bypass_txlist_empty(struct mwifiex_adapter *adapter);
 void mwifiex_wmm_process_tx(struct mwifiex_adapter *adapter);
+void mwifiex_process_bypass_tx(struct mwifiex_adapter *adapter);
 int mwifiex_is_ralist_valid(struct mwifiex_private *priv,
 			    struct mwifiex_ra_list_tbl *ra_list, int tid);
 
@@ -126,5 +130,11 @@ struct mwifiex_ra_list_tbl *
 mwifiex_wmm_get_queue_raptr(struct mwifiex_private *priv, u8 tid,
 			    const u8 *ra_addr);
 u8 mwifiex_wmm_downgrade_tid(struct mwifiex_private *priv, u32 tid);
+void mwifiex_update_ralist_tx_pause(struct mwifiex_private *priv, u8 *mac,
+				    u8 tx_pause);
+void mwifiex_update_ralist_tx_pause_in_tdls_cs(struct mwifiex_private *priv,
+					       u8 *mac, u8 tx_pause);
 
+struct mwifiex_ra_list_tbl *mwifiex_wmm_get_ralist_node(struct mwifiex_private
+					*priv, u8 tid, const u8 *ra_addr);
 #endif /* !_MWIFIEX_WMM_H_ */

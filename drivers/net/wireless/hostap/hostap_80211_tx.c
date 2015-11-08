@@ -174,8 +174,8 @@ netdev_tx_t hostap_data_start_xmit(struct sk_buff *skb,
 		/* send broadcast and multicast frames to broadcast RA, if
 		 * configured; otherwise, use unicast RA of the WDS link */
 		if ((local->wds_type & HOSTAP_WDS_BROADCAST_RA) &&
-		    skb->data[0] & 0x01)
-			memset(&hdr.addr1, 0xff, ETH_ALEN);
+		    is_multicast_ether_addr(skb->data))
+			eth_broadcast_addr(hdr.addr1);
 		else if (iface->type == HOSTAP_INTERFACE_WDS)
 			memcpy(&hdr.addr1, iface->u.wds.remote_addr,
 			       ETH_ALEN);

@@ -16,6 +16,13 @@
 	model = "ST-Ericsson CCU9540 platform with Device Tree";
 	compatible = "st-ericsson,ccu9540", "st-ericsson,u9540";
 
+	/* This stablilizes the serial port enumeration */
+	aliases {
+		serial0 = &ux500_serial0;
+		serial1 = &ux500_serial1;
+		serial2 = &ux500_serial2;
+	};
+
 	memory {
 		reg = <0x00000000 0x20000000>;
 	};

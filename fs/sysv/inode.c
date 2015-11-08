@@ -166,8 +166,9 @@ void sysv_set_inode(struct inode *inode, dev_t rdev)
 			inode->i_op = &sysv_symlink_inode_operations;
 			inode->i_mapping->a_ops = &sysv_aops;
 		} else {
-			inode->i_op = &sysv_fast_symlink_inode_operations;
-			nd_terminate_link(SYSV_I(inode)->i_data, inode->i_size,
+			inode->i_op = &simple_symlink_inode_operations;
+			inode->i_link = (char *)SYSV_I(inode)->i_data;
+			nd_terminate_link(inode->i_link, inode->i_size,
 				sizeof(SYSV_I(inode)->i_data) - 1);
 		}
 	} else

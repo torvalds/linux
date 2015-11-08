@@ -50,7 +50,9 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/prefetch.h>
+#include <linux/sunrpc/addr.h>
 #include <asm/bitops.h>
+#include <linux/module.h> /* try_module_get()/module_put() */
 
 #include "xprt_rdma.h"
 
@@ -61,9 +63,6 @@
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY	RPCDBG_TRANS
 #endif
-
-static void rpcrdma_reset_frmrs(struct rpcrdma_ia *);
-static void rpcrdma_reset_fmrs(struct rpcrdma_ia *);
 
 /*
  * internal functions
@@ -82,7 +81,6 @@ static void
 rpcrdma_run_tasklet(unsigned long data)
 {
 	struct rpcrdma_rep *rep;
-	void (*func)(struct rpcrdma_rep *);
 	unsigned long flags;
 
 	data = data;
@@ -91,14 +89,9 @@ rpcrdma_run_tasklet(unsigned long data)
 		rep = list_entry(rpcrdma_tasklets_g.next,
 				 struct rpcrdma_rep, rr_list);
 		list_del(&rep->rr_list);
-		func = rep->rr_func;
-		rep->rr_func = NULL;
 		spin_unlock_irqrestore(&rpcrdma_tk_lock_g, flags);
 
-		if (func)
-			func(rep);
-		else
-			rpcrdma_recv_buffer_put(rep);
+		rpcrdma_reply_handler(rep);
 
 		spin_lock_irqsave(&rpcrdma_tk_lock_g, flags);
 	}
@@ -106,32 +99,6 @@ rpcrdma_run_tasklet(unsigned long data)
 }
 
 static DECLARE_TASKLET(rpcrdma_tasklet_g, rpcrdma_run_tasklet, 0UL);
-
-static const char * const async_event[] = {
-	"CQ error",
-	"QP fatal error",
-	"QP request error",
-	"QP access error",
-	"communication established",
-	"send queue drained",
-	"path migration successful",
-	"path mig error",
-	"device fatal error",
-	"port active",
-	"port error",
-	"LID change",
-	"P_key change",
-	"SM change",
-	"SRQ error",
-	"SRQ limit reached",
-	"last WQE reached",
-	"client reregister",
-	"GID change",
-};
-
-#define ASYNC_MSG(status)					\
-	((status) < ARRAY_SIZE(async_event) ?			\
-		async_event[(status)] : "unknown async error")
 
 static void
 rpcrdma_schedule_tasklet(struct list_head *sched_list)
@@ -150,7 +117,7 @@ rpcrdma_qp_async_error_upcall(struct ib_event *event, void *context)
 	struct rpcrdma_ep *ep = context;
 
 	pr_err("RPC:       %s: %s on device %s ep %p\n",
-	       __func__, ASYNC_MSG(event->event),
+	       __func__, ib_event_msg(event->event),
 		event->device->name, context);
 	if (ep->rep_connected == 1) {
 		ep->rep_connected = -EIO;
@@ -165,7 +132,7 @@ rpcrdma_cq_async_error_upcall(struct ib_event *event, void *context)
 	struct rpcrdma_ep *ep = context;
 
 	pr_err("RPC:       %s: %s on device %s ep %p\n",
-	       __func__, ASYNC_MSG(event->event),
+	       __func__, ib_event_msg(event->event),
 		event->device->name, context);
 	if (ep->rep_connected == 1) {
 		ep->rep_connected = -EIO;
@@ -174,53 +141,20 @@ rpcrdma_cq_async_error_upcall(struct ib_event *event, void *context)
 	}
 }
 
-static const char * const wc_status[] = {
-	"success",
-	"local length error",
-	"local QP operation error",
-	"local EE context operation error",
-	"local protection error",
-	"WR flushed",
-	"memory management operation error",
-	"bad response error",
-	"local access error",
-	"remote invalid request error",
-	"remote access error",
-	"remote operation error",
-	"transport retry counter exceeded",
-	"RNR retrycounter exceeded",
-	"local RDD violation error",
-	"remove invalid RD request",
-	"operation aborted",
-	"invalid EE context number",
-	"invalid EE context state",
-	"fatal error",
-	"response timeout error",
-	"general error",
-};
-
-#define COMPLETION_MSG(status)					\
-	((status) < ARRAY_SIZE(wc_status) ?			\
-		wc_status[(status)] : "unexpected completion error")
-
 static void
 rpcrdma_sendcq_process_wc(struct ib_wc *wc)
 {
-	if (likely(wc->status == IB_WC_SUCCESS))
-		return;
-
 	/* WARNING: Only wr_id and status are reliable at this point */
-	if (wc->wr_id == 0ULL) {
-		if (wc->status != IB_WC_WR_FLUSH_ERR)
+	if (wc->wr_id == RPCRDMA_IGNORE_COMPLETION) {
+		if (wc->status != IB_WC_SUCCESS &&
+		    wc->status != IB_WC_WR_FLUSH_ERR)
 			pr_err("RPC:       %s: SEND: %s\n",
-			       __func__, COMPLETION_MSG(wc->status));
+			       __func__, ib_wc_status_msg(wc->status));
 	} else {
 		struct rpcrdma_mw *r;
 
 		r = (struct rpcrdma_mw *)(unsigned long)wc->wr_id;
-		r->r.frmr.fr_state = FRMR_IS_STALE;
-		pr_err("RPC:       %s: frmr %p (stale): %s\n",
-		       __func__, r, COMPLETION_MSG(wc->status));
+		r->mw_sendcompletion(wc);
 	}
 }
 
@@ -297,7 +231,7 @@ rpcrdma_recvcq_process_wc(struct ib_wc *wc, struct list_head *sched_list)
 		__func__, rep, wc->byte_len);
 
 	rep->rr_len = wc->byte_len;
-	ib_dma_sync_single_for_cpu(rdmab_to_ia(rep->rr_buffer)->ri_id->device,
+	ib_dma_sync_single_for_cpu(rep->rr_device,
 				   rdmab_addr(rep->rr_rdmabuf),
 				   rep->rr_len, DMA_FROM_DEVICE);
 	prefetch(rdmab_to_msg(rep->rr_rdmabuf));
@@ -308,7 +242,7 @@ out_schedule:
 out_fail:
 	if (wc->status != IB_WC_WR_FLUSH_ERR)
 		pr_err("RPC:       %s: rep %p: %s\n",
-		       __func__, rep, COMPLETION_MSG(wc->status));
+		       __func__, rep, ib_wc_status_msg(wc->status));
 	rep->rr_len = ~0U;
 	goto out_schedule;
 }
@@ -392,31 +326,6 @@ rpcrdma_flush_cqs(struct rpcrdma_ep *ep)
 		rpcrdma_sendcq_process_wc(&wc);
 }
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-static const char * const conn[] = {
-	"address resolved",
-	"address error",
-	"route resolved",
-	"route error",
-	"connect request",
-	"connect response",
-	"connect error",
-	"unreachable",
-	"rejected",
-	"established",
-	"disconnected",
-	"device removal",
-	"multicast join",
-	"multicast error",
-	"address change",
-	"timewait exit",
-};
-
-#define CONNECTION_MSG(status)						\
-	((status) < ARRAY_SIZE(conn) ?					\
-		conn[(status)] : "unrecognized connection error")
-#endif
-
 static int
 rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 {
@@ -424,7 +333,7 @@ rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 	struct rpcrdma_ia *ia = &xprt->rx_ia;
 	struct rpcrdma_ep *ep = &xprt->rx_ep;
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-	struct sockaddr_in *addr = (struct sockaddr_in *) &ep->rep_remote_addr;
+	struct sockaddr *sap = (struct sockaddr *)&ep->rep_remote_addr;
 #endif
 	struct ib_qp_attr *attr = &ia->ri_qp_attr;
 	struct ib_qp_init_attr *iattr = &ia->ri_qp_init_attr;
@@ -480,10 +389,9 @@ connected:
 		wake_up_all(&ep->rep_connect_wait);
 		/*FALLTHROUGH*/
 	default:
-		dprintk("RPC:       %s: %pI4:%u (ep 0x%p): %s\n",
-			__func__, &addr->sin_addr.s_addr,
-			ntohs(addr->sin_port), ep,
-			CONNECTION_MSG(event->event));
+		dprintk("RPC:       %s: %pIS:%u (ep 0x%p): %s\n",
+			__func__, sap, rpc_get_port(sap), ep,
+			rdma_event_msg(event->event));
 		break;
 	}
 
@@ -491,23 +399,28 @@ connected:
 	if (connstate == 1) {
 		int ird = attr->max_dest_rd_atomic;
 		int tird = ep->rep_remote_cma.responder_resources;
-		printk(KERN_INFO "rpcrdma: connection to %pI4:%u "
-			"on %s, memreg %d slots %d ird %d%s\n",
-			&addr->sin_addr.s_addr,
-			ntohs(addr->sin_port),
-			ia->ri_id->device->name,
-			ia->ri_memreg_strategy,
+
+		pr_info("rpcrdma: connection to %pIS:%u on %s, memreg '%s', %d credits, %d responders%s\n",
+			sap, rpc_get_port(sap),
+			ia->ri_device->name,
+			ia->ri_ops->ro_displayname,
 			xprt->rx_buf.rb_max_requests,
 			ird, ird < 4 && ird < tird / 2 ? " (low!)" : "");
 	} else if (connstate < 0) {
-		printk(KERN_INFO "rpcrdma: connection to %pI4:%u closed (%d)\n",
-			&addr->sin_addr.s_addr,
-			ntohs(addr->sin_port),
-			connstate);
+		pr_info("rpcrdma: connection to %pIS:%u closed (%d)\n",
+			sap, rpc_get_port(sap), connstate);
 	}
 #endif
 
 	return 0;
+}
+
+static void rpcrdma_destroy_id(struct rdma_cm_id *id)
+{
+	if (id) {
+		module_put(id->device->owner);
+		rdma_destroy_id(id);
+	}
 }
 
 static struct rdma_cm_id *
@@ -519,7 +432,8 @@ rpcrdma_create_id(struct rpcrdma_xprt *xprt,
 
 	init_completion(&ia->ri_done);
 
-	id = rdma_create_id(rpcrdma_conn_upcall, xprt, RDMA_PS_TCP, IB_QPT_RC);
+	id = rdma_create_id(&init_net, rpcrdma_conn_upcall, xprt, RDMA_PS_TCP,
+			    IB_QPT_RC);
 	if (IS_ERR(id)) {
 		rc = PTR_ERR(id);
 		dprintk("RPC:       %s: rdma_create_id() failed %i\n",
@@ -536,6 +450,17 @@ rpcrdma_create_id(struct rpcrdma_xprt *xprt,
 	}
 	wait_for_completion_interruptible_timeout(&ia->ri_done,
 				msecs_to_jiffies(RDMA_RESOLVE_TIMEOUT) + 1);
+
+	/* FIXME:
+	 * Until xprtrdma supports DEVICE_REMOVAL, the provider must
+	 * be pinned while there are active NFS/RDMA mounts to prevent
+	 * hangs and crashes at umount time.
+	 */
+	if (!ia->ri_async_rc && !try_module_get(id->device->owner)) {
+		dprintk("RPC:       %s: Failed to get device module\n",
+			__func__);
+		ia->ri_async_rc = -ENODEV;
+	}
 	rc = ia->ri_async_rc;
 	if (rc)
 		goto out;
@@ -545,16 +470,17 @@ rpcrdma_create_id(struct rpcrdma_xprt *xprt,
 	if (rc) {
 		dprintk("RPC:       %s: rdma_resolve_route() failed %i\n",
 			__func__, rc);
-		goto out;
+		goto put;
 	}
 	wait_for_completion_interruptible_timeout(&ia->ri_done,
 				msecs_to_jiffies(RDMA_RESOLVE_TIMEOUT) + 1);
 	rc = ia->ri_async_rc;
 	if (rc)
-		goto out;
+		goto put;
 
 	return id;
-
+put:
+	module_put(id->device->owner);
 out:
 	rdma_destroy_id(id);
 	return ERR_PTR(rc);
@@ -589,17 +515,20 @@ rpcrdma_clean_cq(struct ib_cq *cq)
 int
 rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 {
-	int rc, mem_priv;
 	struct rpcrdma_ia *ia = &xprt->rx_ia;
 	struct ib_device_attr *devattr = &ia->ri_devattr;
+	int rc;
+
+	ia->ri_dma_mr = NULL;
 
 	ia->ri_id = rpcrdma_create_id(xprt, ia, addr);
 	if (IS_ERR(ia->ri_id)) {
 		rc = PTR_ERR(ia->ri_id);
 		goto out1;
 	}
+	ia->ri_device = ia->ri_id->device;
 
-	ia->ri_pd = ib_alloc_pd(ia->ri_id->device);
+	ia->ri_pd = ib_alloc_pd(ia->ri_device);
 	if (IS_ERR(ia->ri_pd)) {
 		rc = PTR_ERR(ia->ri_pd);
 		dprintk("RPC:       %s: ib_alloc_pd() failed %i\n",
@@ -607,70 +536,39 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 		goto out2;
 	}
 
-	rc = ib_query_device(ia->ri_id->device, devattr);
+	rc = ib_query_device(ia->ri_device, devattr);
 	if (rc) {
 		dprintk("RPC:       %s: ib_query_device failed %d\n",
 			__func__, rc);
 		goto out3;
 	}
 
-	if (devattr->device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY) {
-		ia->ri_have_dma_lkey = 1;
-		ia->ri_dma_lkey = ia->ri_id->device->local_dma_lkey;
-	}
-
 	if (memreg == RPCRDMA_FRMR) {
-		/* Requires both frmr reg and local dma lkey */
-		if ((devattr->device_cap_flags &
-		     (IB_DEVICE_MEM_MGT_EXTENSIONS|IB_DEVICE_LOCAL_DMA_LKEY)) !=
-		    (IB_DEVICE_MEM_MGT_EXTENSIONS|IB_DEVICE_LOCAL_DMA_LKEY)) {
+		if (!(devattr->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS) ||
+		    (devattr->max_fast_reg_page_list_len == 0)) {
 			dprintk("RPC:       %s: FRMR registration "
 				"not supported by HCA\n", __func__);
 			memreg = RPCRDMA_MTHCAFMR;
-		} else {
-			/* Mind the ia limit on FRMR page list depth */
-			ia->ri_max_frmr_depth = min_t(unsigned int,
-				RPCRDMA_MAX_DATA_SEGS,
-				devattr->max_fast_reg_page_list_len);
 		}
 	}
 	if (memreg == RPCRDMA_MTHCAFMR) {
-		if (!ia->ri_id->device->alloc_fmr) {
+		if (!ia->ri_device->alloc_fmr) {
 			dprintk("RPC:       %s: MTHCAFMR registration "
 				"not supported by HCA\n", __func__);
-			memreg = RPCRDMA_ALLPHYSICAL;
+			rc = -EINVAL;
+			goto out3;
 		}
 	}
 
-	/*
-	 * Optionally obtain an underlying physical identity mapping in
-	 * order to do a memory window-based bind. This base registration
-	 * is protected from remote access - that is enabled only by binding
-	 * for the specific bytes targeted during each RPC operation, and
-	 * revoked after the corresponding completion similar to a storage
-	 * adapter.
-	 */
 	switch (memreg) {
 	case RPCRDMA_FRMR:
+		ia->ri_ops = &rpcrdma_frwr_memreg_ops;
 		break;
 	case RPCRDMA_ALLPHYSICAL:
-		mem_priv = IB_ACCESS_LOCAL_WRITE |
-				IB_ACCESS_REMOTE_WRITE |
-				IB_ACCESS_REMOTE_READ;
-		goto register_setup;
+		ia->ri_ops = &rpcrdma_physical_memreg_ops;
+		break;
 	case RPCRDMA_MTHCAFMR:
-		if (ia->ri_have_dma_lkey)
-			break;
-		mem_priv = IB_ACCESS_LOCAL_WRITE;
-	register_setup:
-		ia->ri_bind_mem = ib_get_dma_mr(ia->ri_pd, mem_priv);
-		if (IS_ERR(ia->ri_bind_mem)) {
-			printk(KERN_ALERT "%s: ib_get_dma_mr for "
-				"phys register failed with %lX\n",
-				__func__, PTR_ERR(ia->ri_bind_mem));
-			rc = -ENOMEM;
-			goto out3;
-		}
+		ia->ri_ops = &rpcrdma_fmr_memreg_ops;
 		break;
 	default:
 		printk(KERN_ERR "RPC: Unsupported memory "
@@ -678,11 +576,8 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 		rc = -ENOMEM;
 		goto out3;
 	}
-	dprintk("RPC:       %s: memory registration strategy is %d\n",
-		__func__, memreg);
-
-	/* Else will do memory reg/dereg for each chunk */
-	ia->ri_memreg_strategy = memreg;
+	dprintk("RPC:       %s: memory registration strategy is '%s'\n",
+		__func__, ia->ri_ops->ro_displayname);
 
 	rwlock_init(&ia->ri_qplock);
 	return 0;
@@ -691,7 +586,7 @@ out3:
 	ib_dealloc_pd(ia->ri_pd);
 	ia->ri_pd = NULL;
 out2:
-	rdma_destroy_id(ia->ri_id);
+	rpcrdma_destroy_id(ia->ri_id);
 	ia->ri_id = NULL;
 out1:
 	return rc;
@@ -705,25 +600,17 @@ out1:
 void
 rpcrdma_ia_close(struct rpcrdma_ia *ia)
 {
-	int rc;
-
 	dprintk("RPC:       %s: entering\n", __func__);
-	if (ia->ri_bind_mem != NULL) {
-		rc = ib_dereg_mr(ia->ri_bind_mem);
-		dprintk("RPC:       %s: ib_dereg_mr returned %i\n",
-			__func__, rc);
-	}
 	if (ia->ri_id != NULL && !IS_ERR(ia->ri_id)) {
 		if (ia->ri_id->qp)
 			rdma_destroy_qp(ia->ri_id);
-		rdma_destroy_id(ia->ri_id);
+		rpcrdma_destroy_id(ia->ri_id);
 		ia->ri_id = NULL;
 	}
-	if (ia->ri_pd != NULL && !IS_ERR(ia->ri_pd)) {
-		rc = ib_dealloc_pd(ia->ri_pd);
-		dprintk("RPC:       %s: ib_dealloc_pd returned %i\n",
-			__func__, rc);
-	}
+
+	/* If the pd is still busy, xprtrdma missed freeing a resource */
+	if (ia->ri_pd && !IS_ERR(ia->ri_pd))
+		ib_dealloc_pd(ia->ri_pd);
 }
 
 /*
@@ -735,7 +622,14 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 {
 	struct ib_device_attr *devattr = &ia->ri_devattr;
 	struct ib_cq *sendcq, *recvcq;
+	struct ib_cq_init_attr cq_attr = {};
 	int rc, err;
+
+	if (devattr->max_sge < RPCRDMA_MAX_IOVS) {
+		dprintk("RPC:       %s: insufficient sge's available\n",
+			__func__);
+		return -ENOMEM;
+	}
 
 	/* check provider's send/recv wr limits */
 	if (cdata->max_requests > devattr->max_qp_wr)
@@ -743,64 +637,18 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 
 	ep->rep_attr.event_handler = rpcrdma_qp_async_error_upcall;
 	ep->rep_attr.qp_context = ep;
-	/* send_cq and recv_cq initialized below */
 	ep->rep_attr.srq = NULL;
 	ep->rep_attr.cap.max_send_wr = cdata->max_requests;
-	switch (ia->ri_memreg_strategy) {
-	case RPCRDMA_FRMR: {
-		int depth = 7;
-
-		/* Add room for frmr register and invalidate WRs.
-		 * 1. FRMR reg WR for head
-		 * 2. FRMR invalidate WR for head
-		 * 3. N FRMR reg WRs for pagelist
-		 * 4. N FRMR invalidate WRs for pagelist
-		 * 5. FRMR reg WR for tail
-		 * 6. FRMR invalidate WR for tail
-		 * 7. The RDMA_SEND WR
-		 */
-
-		/* Calculate N if the device max FRMR depth is smaller than
-		 * RPCRDMA_MAX_DATA_SEGS.
-		 */
-		if (ia->ri_max_frmr_depth < RPCRDMA_MAX_DATA_SEGS) {
-			int delta = RPCRDMA_MAX_DATA_SEGS -
-				    ia->ri_max_frmr_depth;
-
-			do {
-				depth += 2; /* FRMR reg + invalidate */
-				delta -= ia->ri_max_frmr_depth;
-			} while (delta > 0);
-
-		}
-		ep->rep_attr.cap.max_send_wr *= depth;
-		if (ep->rep_attr.cap.max_send_wr > devattr->max_qp_wr) {
-			cdata->max_requests = devattr->max_qp_wr / depth;
-			if (!cdata->max_requests)
-				return -EINVAL;
-			ep->rep_attr.cap.max_send_wr = cdata->max_requests *
-						       depth;
-		}
-		break;
-	}
-	default:
-		break;
-	}
+	rc = ia->ri_ops->ro_open(ia, ep, cdata);
+	if (rc)
+		return rc;
 	ep->rep_attr.cap.max_recv_wr = cdata->max_requests;
-	ep->rep_attr.cap.max_send_sge = (cdata->padding ? 4 : 2);
+	ep->rep_attr.cap.max_send_sge = RPCRDMA_MAX_IOVS;
 	ep->rep_attr.cap.max_recv_sge = 1;
 	ep->rep_attr.cap.max_inline_data = 0;
 	ep->rep_attr.sq_sig_type = IB_SIGNAL_REQ_WR;
 	ep->rep_attr.qp_type = IB_QPT_RC;
 	ep->rep_attr.port_num = ~0;
-
-	if (cdata->padding) {
-		ep->rep_padbuf = rpcrdma_alloc_regbuf(ia, cdata->padding,
-						      GFP_KERNEL);
-		if (IS_ERR(ep->rep_padbuf))
-			return PTR_ERR(ep->rep_padbuf);
-	} else
-		ep->rep_padbuf = NULL;
 
 	dprintk("RPC:       %s: requested max: dtos: send %d recv %d; "
 		"iovs: send %d recv %d\n",
@@ -820,9 +668,9 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	init_waitqueue_head(&ep->rep_connect_wait);
 	INIT_DELAYED_WORK(&ep->rep_connect_worker, rpcrdma_connect_worker);
 
-	sendcq = ib_create_cq(ia->ri_id->device, rpcrdma_sendcq_upcall,
-				  rpcrdma_cq_async_error_upcall, ep,
-				  ep->rep_attr.cap.max_send_wr + 1, 0);
+	cq_attr.cqe = ep->rep_attr.cap.max_send_wr + 1;
+	sendcq = ib_create_cq(ia->ri_device, rpcrdma_sendcq_upcall,
+			      rpcrdma_cq_async_error_upcall, ep, &cq_attr);
 	if (IS_ERR(sendcq)) {
 		rc = PTR_ERR(sendcq);
 		dprintk("RPC:       %s: failed to create send CQ: %i\n",
@@ -837,9 +685,9 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 		goto out2;
 	}
 
-	recvcq = ib_create_cq(ia->ri_id->device, rpcrdma_recvcq_upcall,
-				  rpcrdma_cq_async_error_upcall, ep,
-				  ep->rep_attr.cap.max_recv_wr + 1, 0);
+	cq_attr.cqe = ep->rep_attr.cap.max_recv_wr + 1;
+	recvcq = ib_create_cq(ia->ri_device, rpcrdma_recvcq_upcall,
+			      rpcrdma_cq_async_error_upcall, ep, &cq_attr);
 	if (IS_ERR(recvcq)) {
 		rc = PTR_ERR(recvcq);
 		dprintk("RPC:       %s: failed to create recv CQ: %i\n",
@@ -884,7 +732,8 @@ out2:
 		dprintk("RPC:       %s: ib_destroy_cq returned %i\n",
 			__func__, err);
 out1:
-	rpcrdma_free_regbuf(ia, ep->rep_padbuf);
+	if (ia->ri_dma_mr)
+		ib_dereg_mr(ia->ri_dma_mr);
 	return rc;
 }
 
@@ -905,25 +754,32 @@ rpcrdma_ep_destroy(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 
 	cancel_delayed_work_sync(&ep->rep_connect_worker);
 
-	if (ia->ri_id->qp) {
+	if (ia->ri_id->qp)
 		rpcrdma_ep_disconnect(ep, ia);
+
+	rpcrdma_clean_cq(ep->rep_attr.recv_cq);
+	rpcrdma_clean_cq(ep->rep_attr.send_cq);
+
+	if (ia->ri_id->qp) {
 		rdma_destroy_qp(ia->ri_id);
 		ia->ri_id->qp = NULL;
 	}
 
-	rpcrdma_free_regbuf(ia, ep->rep_padbuf);
-
-	rpcrdma_clean_cq(ep->rep_attr.recv_cq);
 	rc = ib_destroy_cq(ep->rep_attr.recv_cq);
 	if (rc)
 		dprintk("RPC:       %s: ib_destroy_cq returned %i\n",
 			__func__, rc);
 
-	rpcrdma_clean_cq(ep->rep_attr.send_cq);
 	rc = ib_destroy_cq(ep->rep_attr.send_cq);
 	if (rc)
 		dprintk("RPC:       %s: ib_destroy_cq returned %i\n",
 			__func__, rc);
+
+	if (ia->ri_dma_mr) {
+		rc = ib_dereg_mr(ia->ri_dma_mr);
+		dprintk("RPC:       %s: ib_dereg_mr returned %i\n",
+			__func__, rc);
+	}
 }
 
 /*
@@ -944,20 +800,6 @@ retry:
 		rpcrdma_ep_disconnect(ep, ia);
 		rpcrdma_flush_cqs(ep);
 
-		switch (ia->ri_memreg_strategy) {
-		case RPCRDMA_FRMR:
-			rpcrdma_reset_frmrs(ia);
-			break;
-		case RPCRDMA_MTHCAFMR:
-			rpcrdma_reset_fmrs(ia);
-			break;
-		case RPCRDMA_ALLPHYSICAL:
-			break;
-		default:
-			rc = -EIO;
-			goto out;
-		}
-
 		xprt = container_of(ia, struct rpcrdma_xprt, rx_ia);
 		id = rpcrdma_create_id(xprt, ia,
 				(struct sockaddr *)&xprt->rx_data.addr);
@@ -972,10 +814,10 @@ retry:
 		 * More stuff I haven't thought of!
 		 * Rrrgh!
 		 */
-		if (ia->ri_id->device != id->device) {
+		if (ia->ri_device != id->device) {
 			printk("RPC:       %s: can't reconnect on "
 				"different device!\n", __func__);
-			rdma_destroy_id(id);
+			rpcrdma_destroy_id(id);
 			rc = -ENETUNREACH;
 			goto out;
 		}
@@ -984,7 +826,7 @@ retry:
 		if (rc) {
 			dprintk("RPC:       %s: rdma_create_qp failed %i\n",
 				__func__, rc);
-			rdma_destroy_id(id);
+			rpcrdma_destroy_id(id);
 			rc = -ENETUNREACH;
 			goto out;
 		}
@@ -995,7 +837,7 @@ retry:
 		write_unlock(&ia->ri_qplock);
 
 		rdma_destroy_qp(old);
-		rdma_destroy_id(old);
+		rpcrdma_destroy_id(old);
 	} else {
 		dprintk("RPC:       %s: connecting...\n", __func__);
 		rc = rdma_create_qp(ia->ri_id, ia->ri_pd, &ep->rep_attr);
@@ -1114,98 +956,14 @@ rpcrdma_create_rep(struct rpcrdma_xprt *r_xprt)
 		goto out_free;
 	}
 
-	rep->rr_buffer = &r_xprt->rx_buf;
+	rep->rr_device = ia->ri_device;
+	rep->rr_rxprt = r_xprt;
 	return rep;
 
 out_free:
 	kfree(rep);
 out:
 	return ERR_PTR(rc);
-}
-
-static int
-rpcrdma_init_fmrs(struct rpcrdma_ia *ia, struct rpcrdma_buffer *buf)
-{
-	int mr_access_flags = IB_ACCESS_REMOTE_WRITE | IB_ACCESS_REMOTE_READ;
-	struct ib_fmr_attr fmr_attr = {
-		.max_pages	= RPCRDMA_MAX_DATA_SEGS,
-		.max_maps	= 1,
-		.page_shift	= PAGE_SHIFT
-	};
-	struct rpcrdma_mw *r;
-	int i, rc;
-
-	i = (buf->rb_max_requests + 1) * RPCRDMA_MAX_SEGS;
-	dprintk("RPC:       %s: initalizing %d FMRs\n", __func__, i);
-
-	while (i--) {
-		r = kzalloc(sizeof(*r), GFP_KERNEL);
-		if (r == NULL)
-			return -ENOMEM;
-
-		r->r.fmr = ib_alloc_fmr(ia->ri_pd, mr_access_flags, &fmr_attr);
-		if (IS_ERR(r->r.fmr)) {
-			rc = PTR_ERR(r->r.fmr);
-			dprintk("RPC:       %s: ib_alloc_fmr failed %i\n",
-				__func__, rc);
-			goto out_free;
-		}
-
-		list_add(&r->mw_list, &buf->rb_mws);
-		list_add(&r->mw_all, &buf->rb_all);
-	}
-	return 0;
-
-out_free:
-	kfree(r);
-	return rc;
-}
-
-static int
-rpcrdma_init_frmrs(struct rpcrdma_ia *ia, struct rpcrdma_buffer *buf)
-{
-	struct rpcrdma_frmr *f;
-	struct rpcrdma_mw *r;
-	int i, rc;
-
-	i = (buf->rb_max_requests + 1) * RPCRDMA_MAX_SEGS;
-	dprintk("RPC:       %s: initalizing %d FRMRs\n", __func__, i);
-
-	while (i--) {
-		r = kzalloc(sizeof(*r), GFP_KERNEL);
-		if (r == NULL)
-			return -ENOMEM;
-		f = &r->r.frmr;
-
-		f->fr_mr = ib_alloc_fast_reg_mr(ia->ri_pd,
-						ia->ri_max_frmr_depth);
-		if (IS_ERR(f->fr_mr)) {
-			rc = PTR_ERR(f->fr_mr);
-			dprintk("RPC:       %s: ib_alloc_fast_reg_mr "
-				"failed %i\n", __func__, rc);
-			goto out_free;
-		}
-
-		f->fr_pgl = ib_alloc_fast_reg_page_list(ia->ri_id->device,
-							ia->ri_max_frmr_depth);
-		if (IS_ERR(f->fr_pgl)) {
-			rc = PTR_ERR(f->fr_pgl);
-			dprintk("RPC:       %s: ib_alloc_fast_reg_page_list "
-				"failed %i\n", __func__, rc);
-
-			ib_dereg_mr(f->fr_mr);
-			goto out_free;
-		}
-
-		list_add(&r->mw_list, &buf->rb_mws);
-		list_add(&r->mw_all, &buf->rb_all);
-	}
-
-	return 0;
-
-out_free:
-	kfree(r);
-	return rc;
 }
 
 int
@@ -1244,22 +1002,9 @@ rpcrdma_buffer_create(struct rpcrdma_xprt *r_xprt)
 	buf->rb_recv_bufs = (struct rpcrdma_rep **) p;
 	p = (char *) &buf->rb_recv_bufs[buf->rb_max_requests];
 
-	INIT_LIST_HEAD(&buf->rb_mws);
-	INIT_LIST_HEAD(&buf->rb_all);
-	switch (ia->ri_memreg_strategy) {
-	case RPCRDMA_FRMR:
-		rc = rpcrdma_init_frmrs(ia, buf);
-		if (rc)
-			goto out;
-		break;
-	case RPCRDMA_MTHCAFMR:
-		rc = rpcrdma_init_fmrs(ia, buf);
-		if (rc)
-			goto out;
-		break;
-	default:
-		break;
-	}
+	rc = ia->ri_ops->ro_init(r_xprt);
+	if (rc)
+		goto out;
 
 	for (i = 0; i < buf->rb_max_requests; i++) {
 		struct rpcrdma_req *req;
@@ -1311,47 +1056,6 @@ rpcrdma_destroy_req(struct rpcrdma_ia *ia, struct rpcrdma_req *req)
 	kfree(req);
 }
 
-static void
-rpcrdma_destroy_fmrs(struct rpcrdma_buffer *buf)
-{
-	struct rpcrdma_mw *r;
-	int rc;
-
-	while (!list_empty(&buf->rb_all)) {
-		r = list_entry(buf->rb_all.next, struct rpcrdma_mw, mw_all);
-		list_del(&r->mw_all);
-		list_del(&r->mw_list);
-
-		rc = ib_dealloc_fmr(r->r.fmr);
-		if (rc)
-			dprintk("RPC:       %s: ib_dealloc_fmr failed %i\n",
-				__func__, rc);
-
-		kfree(r);
-	}
-}
-
-static void
-rpcrdma_destroy_frmrs(struct rpcrdma_buffer *buf)
-{
-	struct rpcrdma_mw *r;
-	int rc;
-
-	while (!list_empty(&buf->rb_all)) {
-		r = list_entry(buf->rb_all.next, struct rpcrdma_mw, mw_all);
-		list_del(&r->mw_all);
-		list_del(&r->mw_list);
-
-		rc = ib_dereg_mr(r->r.frmr.fr_mr);
-		if (rc)
-			dprintk("RPC:       %s: ib_dereg_mr failed %i\n",
-				__func__, rc);
-		ib_free_fast_reg_page_list(r->r.frmr.fr_pgl);
-
-		kfree(r);
-	}
-}
-
 void
 rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 {
@@ -1372,129 +1076,38 @@ rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 			rpcrdma_destroy_req(ia, buf->rb_send_bufs[i]);
 	}
 
-	switch (ia->ri_memreg_strategy) {
-	case RPCRDMA_FRMR:
-		rpcrdma_destroy_frmrs(buf);
-		break;
-	case RPCRDMA_MTHCAFMR:
-		rpcrdma_destroy_fmrs(buf);
-		break;
-	default:
-		break;
-	}
+	ia->ri_ops->ro_destroy(buf);
 
 	kfree(buf->rb_pool);
 }
 
-/* After a disconnect, unmap all FMRs.
- *
- * This is invoked only in the transport connect worker in order
- * to serialize with rpcrdma_register_fmr_external().
- */
-static void
-rpcrdma_reset_fmrs(struct rpcrdma_ia *ia)
+struct rpcrdma_mw *
+rpcrdma_get_mw(struct rpcrdma_xprt *r_xprt)
 {
-	struct rpcrdma_xprt *r_xprt =
-				container_of(ia, struct rpcrdma_xprt, rx_ia);
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
-	struct list_head *pos;
-	struct rpcrdma_mw *r;
-	LIST_HEAD(l);
-	int rc;
+	struct rpcrdma_mw *mw = NULL;
 
-	list_for_each(pos, &buf->rb_all) {
-		r = list_entry(pos, struct rpcrdma_mw, mw_all);
-
-		INIT_LIST_HEAD(&l);
-		list_add(&r->r.fmr->list, &l);
-		rc = ib_unmap_fmr(&l);
-		if (rc)
-			dprintk("RPC:       %s: ib_unmap_fmr failed %i\n",
-				__func__, rc);
+	spin_lock(&buf->rb_mwlock);
+	if (!list_empty(&buf->rb_mws)) {
+		mw = list_first_entry(&buf->rb_mws,
+				      struct rpcrdma_mw, mw_list);
+		list_del_init(&mw->mw_list);
 	}
+	spin_unlock(&buf->rb_mwlock);
+
+	if (!mw)
+		pr_err("RPC:       %s: no MWs available\n", __func__);
+	return mw;
 }
 
-/* After a disconnect, a flushed FAST_REG_MR can leave an FRMR in
- * an unusable state. Find FRMRs in this state and dereg / reg
- * each.  FRMRs that are VALID and attached to an rpcrdma_req are
- * also torn down.
- *
- * This gives all in-use FRMRs a fresh rkey and leaves them INVALID.
- *
- * This is invoked only in the transport connect worker in order
- * to serialize with rpcrdma_register_frmr_external().
- */
-static void
-rpcrdma_reset_frmrs(struct rpcrdma_ia *ia)
+void
+rpcrdma_put_mw(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mw *mw)
 {
-	struct rpcrdma_xprt *r_xprt =
-				container_of(ia, struct rpcrdma_xprt, rx_ia);
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
-	struct list_head *pos;
-	struct rpcrdma_mw *r;
-	int rc;
 
-	list_for_each(pos, &buf->rb_all) {
-		r = list_entry(pos, struct rpcrdma_mw, mw_all);
-
-		if (r->r.frmr.fr_state == FRMR_IS_INVALID)
-			continue;
-
-		rc = ib_dereg_mr(r->r.frmr.fr_mr);
-		if (rc)
-			dprintk("RPC:       %s: ib_dereg_mr failed %i\n",
-				__func__, rc);
-		ib_free_fast_reg_page_list(r->r.frmr.fr_pgl);
-
-		r->r.frmr.fr_mr = ib_alloc_fast_reg_mr(ia->ri_pd,
-					ia->ri_max_frmr_depth);
-		if (IS_ERR(r->r.frmr.fr_mr)) {
-			rc = PTR_ERR(r->r.frmr.fr_mr);
-			dprintk("RPC:       %s: ib_alloc_fast_reg_mr"
-				" failed %i\n", __func__, rc);
-			continue;
-		}
-		r->r.frmr.fr_pgl = ib_alloc_fast_reg_page_list(
-					ia->ri_id->device,
-					ia->ri_max_frmr_depth);
-		if (IS_ERR(r->r.frmr.fr_pgl)) {
-			rc = PTR_ERR(r->r.frmr.fr_pgl);
-			dprintk("RPC:       %s: "
-				"ib_alloc_fast_reg_page_list "
-				"failed %i\n", __func__, rc);
-
-			ib_dereg_mr(r->r.frmr.fr_mr);
-			continue;
-		}
-		r->r.frmr.fr_state = FRMR_IS_INVALID;
-	}
-}
-
-/* "*mw" can be NULL when rpcrdma_buffer_get_mrs() fails, leaving
- * some req segments uninitialized.
- */
-static void
-rpcrdma_buffer_put_mr(struct rpcrdma_mw **mw, struct rpcrdma_buffer *buf)
-{
-	if (*mw) {
-		list_add_tail(&(*mw)->mw_list, &buf->rb_mws);
-		*mw = NULL;
-	}
-}
-
-/* Cycle mw's back in reverse order, and "spin" them.
- * This delays and scrambles reuse as much as possible.
- */
-static void
-rpcrdma_buffer_put_mrs(struct rpcrdma_req *req, struct rpcrdma_buffer *buf)
-{
-	struct rpcrdma_mr_seg *seg = req->rl_segments;
-	struct rpcrdma_mr_seg *seg1 = seg;
-	int i;
-
-	for (i = 1, seg++; i < RPCRDMA_MAX_SEGS; seg++, i++)
-		rpcrdma_buffer_put_mr(&seg->rl_mw, buf);
-	rpcrdma_buffer_put_mr(&seg1->rl_mw, buf);
+	spin_lock(&buf->rb_mwlock);
+	list_add_tail(&mw->mw_list, &buf->rb_mws);
+	spin_unlock(&buf->rb_mwlock);
 }
 
 static void
@@ -1504,113 +1117,8 @@ rpcrdma_buffer_put_sendbuf(struct rpcrdma_req *req, struct rpcrdma_buffer *buf)
 	req->rl_niovs = 0;
 	if (req->rl_reply) {
 		buf->rb_recv_bufs[--buf->rb_recv_index] = req->rl_reply;
-		req->rl_reply->rr_func = NULL;
 		req->rl_reply = NULL;
 	}
-}
-
-/* rpcrdma_unmap_one() was already done by rpcrdma_deregister_frmr_external().
- * Redo only the ib_post_send().
- */
-static void
-rpcrdma_retry_local_inv(struct rpcrdma_mw *r, struct rpcrdma_ia *ia)
-{
-	struct rpcrdma_xprt *r_xprt =
-				container_of(ia, struct rpcrdma_xprt, rx_ia);
-	struct ib_send_wr invalidate_wr, *bad_wr;
-	int rc;
-
-	dprintk("RPC:       %s: FRMR %p is stale\n", __func__, r);
-
-	/* When this FRMR is re-inserted into rb_mws, it is no longer stale */
-	r->r.frmr.fr_state = FRMR_IS_INVALID;
-
-	memset(&invalidate_wr, 0, sizeof(invalidate_wr));
-	invalidate_wr.wr_id = (unsigned long)(void *)r;
-	invalidate_wr.opcode = IB_WR_LOCAL_INV;
-	invalidate_wr.ex.invalidate_rkey = r->r.frmr.fr_mr->rkey;
-	DECR_CQCOUNT(&r_xprt->rx_ep);
-
-	dprintk("RPC:       %s: frmr %p invalidating rkey %08x\n",
-		__func__, r, r->r.frmr.fr_mr->rkey);
-
-	read_lock(&ia->ri_qplock);
-	rc = ib_post_send(ia->ri_id->qp, &invalidate_wr, &bad_wr);
-	read_unlock(&ia->ri_qplock);
-	if (rc) {
-		/* Force rpcrdma_buffer_get() to retry */
-		r->r.frmr.fr_state = FRMR_IS_STALE;
-		dprintk("RPC:       %s: ib_post_send failed, %i\n",
-			__func__, rc);
-	}
-}
-
-static void
-rpcrdma_retry_flushed_linv(struct list_head *stale,
-			   struct rpcrdma_buffer *buf)
-{
-	struct rpcrdma_ia *ia = rdmab_to_ia(buf);
-	struct list_head *pos;
-	struct rpcrdma_mw *r;
-	unsigned long flags;
-
-	list_for_each(pos, stale) {
-		r = list_entry(pos, struct rpcrdma_mw, mw_list);
-		rpcrdma_retry_local_inv(r, ia);
-	}
-
-	spin_lock_irqsave(&buf->rb_lock, flags);
-	list_splice_tail(stale, &buf->rb_mws);
-	spin_unlock_irqrestore(&buf->rb_lock, flags);
-}
-
-static struct rpcrdma_req *
-rpcrdma_buffer_get_frmrs(struct rpcrdma_req *req, struct rpcrdma_buffer *buf,
-			 struct list_head *stale)
-{
-	struct rpcrdma_mw *r;
-	int i;
-
-	i = RPCRDMA_MAX_SEGS - 1;
-	while (!list_empty(&buf->rb_mws)) {
-		r = list_entry(buf->rb_mws.next,
-			       struct rpcrdma_mw, mw_list);
-		list_del(&r->mw_list);
-		if (r->r.frmr.fr_state == FRMR_IS_STALE) {
-			list_add(&r->mw_list, stale);
-			continue;
-		}
-		req->rl_segments[i].rl_mw = r;
-		if (unlikely(i-- == 0))
-			return req;	/* Success */
-	}
-
-	/* Not enough entries on rb_mws for this req */
-	rpcrdma_buffer_put_sendbuf(req, buf);
-	rpcrdma_buffer_put_mrs(req, buf);
-	return NULL;
-}
-
-static struct rpcrdma_req *
-rpcrdma_buffer_get_fmrs(struct rpcrdma_req *req, struct rpcrdma_buffer *buf)
-{
-	struct rpcrdma_mw *r;
-	int i;
-
-	i = RPCRDMA_MAX_SEGS - 1;
-	while (!list_empty(&buf->rb_mws)) {
-		r = list_entry(buf->rb_mws.next,
-			       struct rpcrdma_mw, mw_list);
-		list_del(&r->mw_list);
-		req->rl_segments[i].rl_mw = r;
-		if (unlikely(i-- == 0))
-			return req;	/* Success */
-	}
-
-	/* Not enough entries on rb_mws for this req */
-	rpcrdma_buffer_put_sendbuf(req, buf);
-	rpcrdma_buffer_put_mrs(req, buf);
-	return NULL;
 }
 
 /*
@@ -1625,12 +1133,11 @@ rpcrdma_buffer_get_fmrs(struct rpcrdma_req *req, struct rpcrdma_buffer *buf)
 struct rpcrdma_req *
 rpcrdma_buffer_get(struct rpcrdma_buffer *buffers)
 {
-	struct rpcrdma_ia *ia = rdmab_to_ia(buffers);
-	struct list_head stale;
 	struct rpcrdma_req *req;
 	unsigned long flags;
 
 	spin_lock_irqsave(&buffers->rb_lock, flags);
+
 	if (buffers->rb_send_index == buffers->rb_max_requests) {
 		spin_unlock_irqrestore(&buffers->rb_lock, flags);
 		dprintk("RPC:       %s: out of request buffers\n", __func__);
@@ -1649,20 +1156,7 @@ rpcrdma_buffer_get(struct rpcrdma_buffer *buffers)
 	}
 	buffers->rb_send_bufs[buffers->rb_send_index++] = NULL;
 
-	INIT_LIST_HEAD(&stale);
-	switch (ia->ri_memreg_strategy) {
-	case RPCRDMA_FRMR:
-		req = rpcrdma_buffer_get_frmrs(req, buffers, &stale);
-		break;
-	case RPCRDMA_MTHCAFMR:
-		req = rpcrdma_buffer_get_fmrs(req, buffers);
-		break;
-	default:
-		break;
-	}
 	spin_unlock_irqrestore(&buffers->rb_lock, flags);
-	if (!list_empty(&stale))
-		rpcrdma_retry_flushed_linv(&stale, buffers);
 	return req;
 }
 
@@ -1674,19 +1168,10 @@ void
 rpcrdma_buffer_put(struct rpcrdma_req *req)
 {
 	struct rpcrdma_buffer *buffers = req->rl_buffer;
-	struct rpcrdma_ia *ia = rdmab_to_ia(buffers);
 	unsigned long flags;
 
 	spin_lock_irqsave(&buffers->rb_lock, flags);
 	rpcrdma_buffer_put_sendbuf(req, buffers);
-	switch (ia->ri_memreg_strategy) {
-	case RPCRDMA_FRMR:
-	case RPCRDMA_MTHCAFMR:
-		rpcrdma_buffer_put_mrs(req, buffers);
-		break;
-	default:
-		break;
-	}
 	spin_unlock_irqrestore(&buffers->rb_lock, flags);
 }
 
@@ -1716,10 +1201,9 @@ rpcrdma_recv_buffer_get(struct rpcrdma_req *req)
 void
 rpcrdma_recv_buffer_put(struct rpcrdma_rep *rep)
 {
-	struct rpcrdma_buffer *buffers = rep->rr_buffer;
+	struct rpcrdma_buffer *buffers = &rep->rr_rxprt->rx_buf;
 	unsigned long flags;
 
-	rep->rr_func = NULL;
 	spin_lock_irqsave(&buffers->rb_lock, flags);
 	buffers->rb_recv_bufs[--buffers->rb_recv_index] = rep;
 	spin_unlock_irqrestore(&buffers->rb_lock, flags);
@@ -1729,73 +1213,12 @@ rpcrdma_recv_buffer_put(struct rpcrdma_rep *rep)
  * Wrappers for internal-use kmalloc memory registration, used by buffer code.
  */
 
-static int
-rpcrdma_register_internal(struct rpcrdma_ia *ia, void *va, int len,
-				struct ib_mr **mrp, struct ib_sge *iov)
+void
+rpcrdma_mapping_error(struct rpcrdma_mr_seg *seg)
 {
-	struct ib_phys_buf ipb;
-	struct ib_mr *mr;
-	int rc;
-
-	/*
-	 * All memory passed here was kmalloc'ed, therefore phys-contiguous.
-	 */
-	iov->addr = ib_dma_map_single(ia->ri_id->device,
-			va, len, DMA_BIDIRECTIONAL);
-	if (ib_dma_mapping_error(ia->ri_id->device, iov->addr))
-		return -ENOMEM;
-
-	iov->length = len;
-
-	if (ia->ri_have_dma_lkey) {
-		*mrp = NULL;
-		iov->lkey = ia->ri_dma_lkey;
-		return 0;
-	} else if (ia->ri_bind_mem != NULL) {
-		*mrp = NULL;
-		iov->lkey = ia->ri_bind_mem->lkey;
-		return 0;
-	}
-
-	ipb.addr = iov->addr;
-	ipb.size = iov->length;
-	mr = ib_reg_phys_mr(ia->ri_pd, &ipb, 1,
-			IB_ACCESS_LOCAL_WRITE, &iov->addr);
-
-	dprintk("RPC:       %s: phys convert: 0x%llx "
-			"registered 0x%llx length %d\n",
-			__func__, (unsigned long long)ipb.addr,
-			(unsigned long long)iov->addr, len);
-
-	if (IS_ERR(mr)) {
-		*mrp = NULL;
-		rc = PTR_ERR(mr);
-		dprintk("RPC:       %s: failed with %i\n", __func__, rc);
-	} else {
-		*mrp = mr;
-		iov->lkey = mr->lkey;
-		rc = 0;
-	}
-
-	return rc;
-}
-
-static int
-rpcrdma_deregister_internal(struct rpcrdma_ia *ia,
-				struct ib_mr *mr, struct ib_sge *iov)
-{
-	int rc;
-
-	ib_dma_unmap_single(ia->ri_id->device,
-			iov->addr, iov->length, DMA_BIDIRECTIONAL);
-
-	if (NULL == mr)
-		return 0;
-
-	rc = ib_dereg_mr(mr);
-	if (rc)
-		dprintk("RPC:       %s: ib_dereg_mr failed %i\n", __func__, rc);
-	return rc;
+	dprintk("RPC:       map_one: offset %p iova %llx len %zu\n",
+		seg->mr_offset,
+		(unsigned long long)seg->mr_dma, seg->mr_dmalen);
 }
 
 /**
@@ -1817,26 +1240,29 @@ struct rpcrdma_regbuf *
 rpcrdma_alloc_regbuf(struct rpcrdma_ia *ia, size_t size, gfp_t flags)
 {
 	struct rpcrdma_regbuf *rb;
-	int rc;
+	struct ib_sge *iov;
 
-	rc = -ENOMEM;
 	rb = kmalloc(sizeof(*rb) + size, flags);
 	if (rb == NULL)
 		goto out;
 
-	rb->rg_size = size;
-	rb->rg_owner = NULL;
-	rc = rpcrdma_register_internal(ia, rb->rg_base, size,
-				       &rb->rg_mr, &rb->rg_iov);
-	if (rc)
+	iov = &rb->rg_iov;
+	iov->addr = ib_dma_map_single(ia->ri_device,
+				      (void *)rb->rg_base, size,
+				      DMA_BIDIRECTIONAL);
+	if (ib_dma_mapping_error(ia->ri_device, iov->addr))
 		goto out_free;
 
+	iov->length = size;
+	iov->lkey = ia->ri_pd->local_dma_lkey;
+	rb->rg_size = size;
+	rb->rg_owner = NULL;
 	return rb;
 
 out_free:
 	kfree(rb);
 out:
-	return ERR_PTR(rc);
+	return ERR_PTR(-ENOMEM);
 }
 
 /**
@@ -1847,291 +1273,15 @@ out:
 void
 rpcrdma_free_regbuf(struct rpcrdma_ia *ia, struct rpcrdma_regbuf *rb)
 {
-	if (rb) {
-		rpcrdma_deregister_internal(ia, rb->rg_mr, &rb->rg_iov);
-		kfree(rb);
-	}
-}
+	struct ib_sge *iov;
 
-/*
- * Wrappers for chunk registration, shared by read/write chunk code.
- */
+	if (!rb)
+		return;
 
-static void
-rpcrdma_map_one(struct rpcrdma_ia *ia, struct rpcrdma_mr_seg *seg, int writing)
-{
-	seg->mr_dir = writing ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
-	seg->mr_dmalen = seg->mr_len;
-	if (seg->mr_page)
-		seg->mr_dma = ib_dma_map_page(ia->ri_id->device,
-				seg->mr_page, offset_in_page(seg->mr_offset),
-				seg->mr_dmalen, seg->mr_dir);
-	else
-		seg->mr_dma = ib_dma_map_single(ia->ri_id->device,
-				seg->mr_offset,
-				seg->mr_dmalen, seg->mr_dir);
-	if (ib_dma_mapping_error(ia->ri_id->device, seg->mr_dma)) {
-		dprintk("RPC:       %s: mr_dma %llx mr_offset %p mr_dma_len %zu\n",
-			__func__,
-			(unsigned long long)seg->mr_dma,
-			seg->mr_offset, seg->mr_dmalen);
-	}
-}
-
-static void
-rpcrdma_unmap_one(struct rpcrdma_ia *ia, struct rpcrdma_mr_seg *seg)
-{
-	if (seg->mr_page)
-		ib_dma_unmap_page(ia->ri_id->device,
-				seg->mr_dma, seg->mr_dmalen, seg->mr_dir);
-	else
-		ib_dma_unmap_single(ia->ri_id->device,
-				seg->mr_dma, seg->mr_dmalen, seg->mr_dir);
-}
-
-static int
-rpcrdma_register_frmr_external(struct rpcrdma_mr_seg *seg,
-			int *nsegs, int writing, struct rpcrdma_ia *ia,
-			struct rpcrdma_xprt *r_xprt)
-{
-	struct rpcrdma_mr_seg *seg1 = seg;
-	struct rpcrdma_mw *mw = seg1->rl_mw;
-	struct rpcrdma_frmr *frmr = &mw->r.frmr;
-	struct ib_mr *mr = frmr->fr_mr;
-	struct ib_send_wr fastreg_wr, *bad_wr;
-	u8 key;
-	int len, pageoff;
-	int i, rc;
-	int seg_len;
-	u64 pa;
-	int page_no;
-
-	pageoff = offset_in_page(seg1->mr_offset);
-	seg1->mr_offset -= pageoff;	/* start of page */
-	seg1->mr_len += pageoff;
-	len = -pageoff;
-	if (*nsegs > ia->ri_max_frmr_depth)
-		*nsegs = ia->ri_max_frmr_depth;
-	for (page_no = i = 0; i < *nsegs;) {
-		rpcrdma_map_one(ia, seg, writing);
-		pa = seg->mr_dma;
-		for (seg_len = seg->mr_len; seg_len > 0; seg_len -= PAGE_SIZE) {
-			frmr->fr_pgl->page_list[page_no++] = pa;
-			pa += PAGE_SIZE;
-		}
-		len += seg->mr_len;
-		++seg;
-		++i;
-		/* Check for holes */
-		if ((i < *nsegs && offset_in_page(seg->mr_offset)) ||
-		    offset_in_page((seg-1)->mr_offset + (seg-1)->mr_len))
-			break;
-	}
-	dprintk("RPC:       %s: Using frmr %p to map %d segments\n",
-		__func__, mw, i);
-
-	frmr->fr_state = FRMR_IS_VALID;
-
-	memset(&fastreg_wr, 0, sizeof(fastreg_wr));
-	fastreg_wr.wr_id = (unsigned long)(void *)mw;
-	fastreg_wr.opcode = IB_WR_FAST_REG_MR;
-	fastreg_wr.wr.fast_reg.iova_start = seg1->mr_dma;
-	fastreg_wr.wr.fast_reg.page_list = frmr->fr_pgl;
-	fastreg_wr.wr.fast_reg.page_list_len = page_no;
-	fastreg_wr.wr.fast_reg.page_shift = PAGE_SHIFT;
-	fastreg_wr.wr.fast_reg.length = page_no << PAGE_SHIFT;
-	if (fastreg_wr.wr.fast_reg.length < len) {
-		rc = -EIO;
-		goto out_err;
-	}
-
-	/* Bump the key */
-	key = (u8)(mr->rkey & 0x000000FF);
-	ib_update_fast_reg_key(mr, ++key);
-
-	fastreg_wr.wr.fast_reg.access_flags = (writing ?
-				IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE :
-				IB_ACCESS_REMOTE_READ);
-	fastreg_wr.wr.fast_reg.rkey = mr->rkey;
-	DECR_CQCOUNT(&r_xprt->rx_ep);
-
-	rc = ib_post_send(ia->ri_id->qp, &fastreg_wr, &bad_wr);
-	if (rc) {
-		dprintk("RPC:       %s: failed ib_post_send for register,"
-			" status %i\n", __func__, rc);
-		ib_update_fast_reg_key(mr, --key);
-		goto out_err;
-	} else {
-		seg1->mr_rkey = mr->rkey;
-		seg1->mr_base = seg1->mr_dma + pageoff;
-		seg1->mr_nsegs = i;
-		seg1->mr_len = len;
-	}
-	*nsegs = i;
-	return 0;
-out_err:
-	frmr->fr_state = FRMR_IS_INVALID;
-	while (i--)
-		rpcrdma_unmap_one(ia, --seg);
-	return rc;
-}
-
-static int
-rpcrdma_deregister_frmr_external(struct rpcrdma_mr_seg *seg,
-			struct rpcrdma_ia *ia, struct rpcrdma_xprt *r_xprt)
-{
-	struct rpcrdma_mr_seg *seg1 = seg;
-	struct ib_send_wr invalidate_wr, *bad_wr;
-	int rc;
-
-	seg1->rl_mw->r.frmr.fr_state = FRMR_IS_INVALID;
-
-	memset(&invalidate_wr, 0, sizeof invalidate_wr);
-	invalidate_wr.wr_id = (unsigned long)(void *)seg1->rl_mw;
-	invalidate_wr.opcode = IB_WR_LOCAL_INV;
-	invalidate_wr.ex.invalidate_rkey = seg1->rl_mw->r.frmr.fr_mr->rkey;
-	DECR_CQCOUNT(&r_xprt->rx_ep);
-
-	read_lock(&ia->ri_qplock);
-	while (seg1->mr_nsegs--)
-		rpcrdma_unmap_one(ia, seg++);
-	rc = ib_post_send(ia->ri_id->qp, &invalidate_wr, &bad_wr);
-	read_unlock(&ia->ri_qplock);
-	if (rc) {
-		/* Force rpcrdma_buffer_get() to retry */
-		seg1->rl_mw->r.frmr.fr_state = FRMR_IS_STALE;
-		dprintk("RPC:       %s: failed ib_post_send for invalidate,"
-			" status %i\n", __func__, rc);
-	}
-	return rc;
-}
-
-static int
-rpcrdma_register_fmr_external(struct rpcrdma_mr_seg *seg,
-			int *nsegs, int writing, struct rpcrdma_ia *ia)
-{
-	struct rpcrdma_mr_seg *seg1 = seg;
-	u64 physaddrs[RPCRDMA_MAX_DATA_SEGS];
-	int len, pageoff, i, rc;
-
-	pageoff = offset_in_page(seg1->mr_offset);
-	seg1->mr_offset -= pageoff;	/* start of page */
-	seg1->mr_len += pageoff;
-	len = -pageoff;
-	if (*nsegs > RPCRDMA_MAX_DATA_SEGS)
-		*nsegs = RPCRDMA_MAX_DATA_SEGS;
-	for (i = 0; i < *nsegs;) {
-		rpcrdma_map_one(ia, seg, writing);
-		physaddrs[i] = seg->mr_dma;
-		len += seg->mr_len;
-		++seg;
-		++i;
-		/* Check for holes */
-		if ((i < *nsegs && offset_in_page(seg->mr_offset)) ||
-		    offset_in_page((seg-1)->mr_offset + (seg-1)->mr_len))
-			break;
-	}
-	rc = ib_map_phys_fmr(seg1->rl_mw->r.fmr, physaddrs, i, seg1->mr_dma);
-	if (rc) {
-		dprintk("RPC:       %s: failed ib_map_phys_fmr "
-			"%u@0x%llx+%i (%d)... status %i\n", __func__,
-			len, (unsigned long long)seg1->mr_dma,
-			pageoff, i, rc);
-		while (i--)
-			rpcrdma_unmap_one(ia, --seg);
-	} else {
-		seg1->mr_rkey = seg1->rl_mw->r.fmr->rkey;
-		seg1->mr_base = seg1->mr_dma + pageoff;
-		seg1->mr_nsegs = i;
-		seg1->mr_len = len;
-	}
-	*nsegs = i;
-	return rc;
-}
-
-static int
-rpcrdma_deregister_fmr_external(struct rpcrdma_mr_seg *seg,
-			struct rpcrdma_ia *ia)
-{
-	struct rpcrdma_mr_seg *seg1 = seg;
-	LIST_HEAD(l);
-	int rc;
-
-	list_add(&seg1->rl_mw->r.fmr->list, &l);
-	rc = ib_unmap_fmr(&l);
-	read_lock(&ia->ri_qplock);
-	while (seg1->mr_nsegs--)
-		rpcrdma_unmap_one(ia, seg++);
-	read_unlock(&ia->ri_qplock);
-	if (rc)
-		dprintk("RPC:       %s: failed ib_unmap_fmr,"
-			" status %i\n", __func__, rc);
-	return rc;
-}
-
-int
-rpcrdma_register_external(struct rpcrdma_mr_seg *seg,
-			int nsegs, int writing, struct rpcrdma_xprt *r_xprt)
-{
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-	int rc = 0;
-
-	switch (ia->ri_memreg_strategy) {
-
-	case RPCRDMA_ALLPHYSICAL:
-		rpcrdma_map_one(ia, seg, writing);
-		seg->mr_rkey = ia->ri_bind_mem->rkey;
-		seg->mr_base = seg->mr_dma;
-		seg->mr_nsegs = 1;
-		nsegs = 1;
-		break;
-
-	/* Registration using frmr registration */
-	case RPCRDMA_FRMR:
-		rc = rpcrdma_register_frmr_external(seg, &nsegs, writing, ia, r_xprt);
-		break;
-
-	/* Registration using fmr memory registration */
-	case RPCRDMA_MTHCAFMR:
-		rc = rpcrdma_register_fmr_external(seg, &nsegs, writing, ia);
-		break;
-
-	default:
-		return -EIO;
-	}
-	if (rc)
-		return rc;
-
-	return nsegs;
-}
-
-int
-rpcrdma_deregister_external(struct rpcrdma_mr_seg *seg,
-		struct rpcrdma_xprt *r_xprt)
-{
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-	int nsegs = seg->mr_nsegs, rc;
-
-	switch (ia->ri_memreg_strategy) {
-
-	case RPCRDMA_ALLPHYSICAL:
-		read_lock(&ia->ri_qplock);
-		rpcrdma_unmap_one(ia, seg);
-		read_unlock(&ia->ri_qplock);
-		break;
-
-	case RPCRDMA_FRMR:
-		rc = rpcrdma_deregister_frmr_external(seg, ia, r_xprt);
-		break;
-
-	case RPCRDMA_MTHCAFMR:
-		rc = rpcrdma_deregister_fmr_external(seg, ia);
-		break;
-
-	default:
-		break;
-	}
-	return nsegs;
+	iov = &rb->rg_iov;
+	ib_dma_unmap_single(ia->ri_device,
+			    iov->addr, iov->length, DMA_BIDIRECTIONAL);
+	kfree(rb);
 }
 
 /*
@@ -2144,9 +1294,11 @@ rpcrdma_ep_post(struct rpcrdma_ia *ia,
 		struct rpcrdma_ep *ep,
 		struct rpcrdma_req *req)
 {
+	struct ib_device *device = ia->ri_device;
 	struct ib_send_wr send_wr, *send_wr_fail;
 	struct rpcrdma_rep *rep = req->rl_reply;
-	int rc;
+	struct ib_sge *iov = req->rl_send_iov;
+	int i, rc;
 
 	if (rep) {
 		rc = rpcrdma_ep_post_recv(ia, ep, rep);
@@ -2156,20 +1308,16 @@ rpcrdma_ep_post(struct rpcrdma_ia *ia,
 	}
 
 	send_wr.next = NULL;
-	send_wr.wr_id = 0ULL;	/* no send cookie */
-	send_wr.sg_list = req->rl_send_iov;
+	send_wr.wr_id = RPCRDMA_IGNORE_COMPLETION;
+	send_wr.sg_list = iov;
 	send_wr.num_sge = req->rl_niovs;
 	send_wr.opcode = IB_WR_SEND;
-	if (send_wr.num_sge == 4)	/* no need to sync any pad (constant) */
-		ib_dma_sync_single_for_device(ia->ri_id->device,
-			req->rl_send_iov[3].addr, req->rl_send_iov[3].length,
-			DMA_TO_DEVICE);
-	ib_dma_sync_single_for_device(ia->ri_id->device,
-		req->rl_send_iov[1].addr, req->rl_send_iov[1].length,
-		DMA_TO_DEVICE);
-	ib_dma_sync_single_for_device(ia->ri_id->device,
-		req->rl_send_iov[0].addr, req->rl_send_iov[0].length,
-		DMA_TO_DEVICE);
+
+	for (i = 0; i < send_wr.num_sge; i++)
+		ib_dma_sync_single_for_device(device, iov[i].addr,
+					      iov[i].length, DMA_TO_DEVICE);
+	dprintk("RPC:       %s: posting %d s/g entries\n",
+		__func__, send_wr.num_sge);
 
 	if (DECR_CQCOUNT(ep) > 0)
 		send_wr.send_flags = 0;
@@ -2202,7 +1350,7 @@ rpcrdma_ep_post_recv(struct rpcrdma_ia *ia,
 	recv_wr.sg_list = &rep->rr_rdmabuf->rg_iov;
 	recv_wr.num_sge = 1;
 
-	ib_dma_sync_single_for_cpu(ia->ri_id->device,
+	ib_dma_sync_single_for_cpu(ia->ri_device,
 				   rdmab_addr(rep->rr_rdmabuf),
 				   rdmab_length(rep->rr_rdmabuf),
 				   DMA_BIDIRECTIONAL);
@@ -2215,43 +1363,24 @@ rpcrdma_ep_post_recv(struct rpcrdma_ia *ia,
 	return rc;
 }
 
-/* Physical mapping means one Read/Write list entry per-page.
- * All list entries must fit within an inline buffer
- *
- * NB: The server must return a Write list for NFS READ,
- *     which has the same constraint. Factor in the inline
- *     rsize as well.
+/* How many chunk list items fit within our inline buffers?
  */
-static size_t
-rpcrdma_physical_max_payload(struct rpcrdma_xprt *r_xprt)
+unsigned int
+rpcrdma_max_segments(struct rpcrdma_xprt *r_xprt)
 {
 	struct rpcrdma_create_data_internal *cdata = &r_xprt->rx_data;
-	unsigned int inline_size, pages;
+	int bytes, segments;
 
-	inline_size = min_t(unsigned int,
-			    cdata->inline_wsize, cdata->inline_rsize);
-	inline_size -= RPCRDMA_HDRLEN_MIN;
-	pages = inline_size / sizeof(struct rpcrdma_segment);
-	return pages << PAGE_SHIFT;
-}
-
-static size_t
-rpcrdma_mr_max_payload(struct rpcrdma_xprt *r_xprt)
-{
-	return RPCRDMA_MAX_DATA_SEGS << PAGE_SHIFT;
-}
-
-size_t
-rpcrdma_max_payload(struct rpcrdma_xprt *r_xprt)
-{
-	size_t result;
-
-	switch (r_xprt->rx_ia.ri_memreg_strategy) {
-	case RPCRDMA_ALLPHYSICAL:
-		result = rpcrdma_physical_max_payload(r_xprt);
-		break;
-	default:
-		result = rpcrdma_mr_max_payload(r_xprt);
+	bytes = min_t(unsigned int, cdata->inline_wsize, cdata->inline_rsize);
+	bytes -= RPCRDMA_HDRLEN_MIN;
+	if (bytes < sizeof(struct rpcrdma_segment) * 2) {
+		pr_warn("RPC:       %s: inline threshold too small\n",
+			__func__);
+		return 0;
 	}
-	return result;
+
+	segments = 1 << (fls(bytes / sizeof(struct rpcrdma_segment)) - 1);
+	dprintk("RPC:       %s: max chunk list size = %d segments\n",
+		__func__, segments);
+	return segments;
 }

@@ -29,6 +29,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
+#include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-vmalloc.h>
 
 #include <linux/platform_device.h>
@@ -38,6 +39,10 @@
 static bool rtl2832_sdr_emulated_fmt;
 module_param_named(emulated_formats, rtl2832_sdr_emulated_fmt, bool, 0644);
 MODULE_PARM_DESC(emulated_formats, "enable emulated formats (disappears in future)");
+
+/* Original macro does not contain enough null pointer checks for our need */
+#define V4L2_SUBDEV_HAS_OP(sd, o, f) \
+	((sd) && (sd)->ops && (sd)->ops->o && (sd)->ops->o->f)
 
 #define MAX_BULK_BUFS            (10)
 #define BULK_BUFFER_SIZE         (128 * 512)
@@ -103,19 +108,21 @@ static const unsigned int NUM_FORMATS = ARRAY_SIZE(formats);
 
 /* intermediate buffers with raw data from the USB device */
 struct rtl2832_sdr_frame_buf {
-	struct vb2_buffer vb;   /* common v4l buffer stuff -- must be first */
+	/* common v4l buffer stuff -- must be first */
+	struct vb2_v4l2_buffer vb;
 	struct list_head list;
 };
 
 struct rtl2832_sdr_dev {
-#define POWER_ON           (1 << 1)
-#define URB_BUF            (1 << 2)
+#define POWER_ON           0  /* BIT(0) */
+#define URB_BUF            1  /* BIT(1) */
 	unsigned long flags;
 
 	struct platform_device *pdev;
 
 	struct video_device vdev;
 	struct v4l2_device v4l2_dev;
+	struct v4l2_subdev *v4l2_subdev;
 
 	/* videobuf2 queue and queued buffers list */
 	struct vb2_queue vb_queue;
@@ -299,13 +306,13 @@ static void rtl2832_sdr_urb_complete(struct urb *urb)
 		}
 
 		/* fill framebuffer */
-		ptr = vb2_plane_vaddr(&fbuf->vb, 0);
+		ptr = vb2_plane_vaddr(&fbuf->vb.vb2_buf, 0);
 		len = rtl2832_sdr_convert_stream(dev, ptr, urb->transfer_buffer,
 				urb->actual_length);
-		vb2_set_plane_payload(&fbuf->vb, 0, len);
-		v4l2_get_timestamp(&fbuf->vb.v4l2_buf.timestamp);
-		fbuf->vb.v4l2_buf.sequence = dev->sequence++;
-		vb2_buffer_done(&fbuf->vb, VB2_BUF_STATE_DONE);
+		vb2_set_plane_payload(&fbuf->vb.vb2_buf, 0, len);
+		v4l2_get_timestamp(&fbuf->vb.timestamp);
+		fbuf->vb.sequence = dev->sequence++;
+		vb2_buffer_done(&fbuf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 	}
 skip:
 	usb_submit_urb(urb, GFP_ATOMIC);
@@ -351,7 +358,7 @@ static int rtl2832_sdr_free_stream_bufs(struct rtl2832_sdr_dev *dev)
 {
 	struct platform_device *pdev = dev->pdev;
 
-	if (dev->flags & USB_STATE_URB_BUF) {
+	if (test_bit(URB_BUF, &dev->flags)) {
 		while (dev->buf_num) {
 			dev->buf_num--;
 			dev_dbg(&pdev->dev, "free buf=%d\n", dev->buf_num);
@@ -360,7 +367,7 @@ static int rtl2832_sdr_free_stream_bufs(struct rtl2832_sdr_dev *dev)
 					  dev->dma_addr[dev->buf_num]);
 		}
 	}
-	dev->flags &= ~USB_STATE_URB_BUF;
+	clear_bit(URB_BUF, &dev->flags);
 
 	return 0;
 }
@@ -389,7 +396,7 @@ static int rtl2832_sdr_alloc_stream_bufs(struct rtl2832_sdr_dev *dev)
 		dev_dbg(&pdev->dev, "alloc buf=%d %p (dma %llu)\n",
 			dev->buf_num, dev->buf_list[dev->buf_num],
 			(long long)dev->dma_addr[dev->buf_num]);
-		dev->flags |= USB_STATE_URB_BUF;
+		set_bit(URB_BUF, &dev->flags);
 	}
 
 	return 0;
@@ -459,7 +466,7 @@ static void rtl2832_sdr_cleanup_queued_bufs(struct rtl2832_sdr_dev *dev)
 		buf = list_entry(dev->queued_bufs.next,
 				struct rtl2832_sdr_frame_buf, list);
 		list_del(&buf->list);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 	spin_unlock_irqrestore(&dev->queued_bufs_lock, flags);
 }
@@ -483,7 +490,7 @@ static int rtl2832_sdr_querycap(struct file *file, void *fh,
 
 /* Videobuf2 operations */
 static int rtl2832_sdr_queue_setup(struct vb2_queue *vq,
-		const struct v4l2_format *fmt, unsigned int *nbuffers,
+		const void *parg, unsigned int *nbuffers,
 		unsigned int *nplanes, unsigned int sizes[], void *alloc_ctxs[])
 {
 	struct rtl2832_sdr_dev *dev = vb2_get_drv_priv(vq);
@@ -513,14 +520,15 @@ static int rtl2832_sdr_buf_prepare(struct vb2_buffer *vb)
 
 static void rtl2832_sdr_buf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct rtl2832_sdr_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
 	struct rtl2832_sdr_frame_buf *buf =
-			container_of(vb, struct rtl2832_sdr_frame_buf, vb);
+			container_of(vbuf, struct rtl2832_sdr_frame_buf, vb);
 	unsigned long flags;
 
 	/* Check the device has not disconnected between prep and queuing */
 	if (!dev->udev) {
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 		return;
 	}
 
@@ -742,6 +750,29 @@ static int rtl2832_sdr_set_adc(struct rtl2832_sdr_dev *dev)
 		ret = rtl2832_sdr_wr_regs(dev, 0x00e, "\xfc", 1);
 		ret = rtl2832_sdr_wr_regs(dev, 0x011, "\xf4", 1);
 		break;
+	case RTL2832_SDR_TUNER_FC2580:
+		ret = rtl2832_sdr_wr_regs(dev, 0x112, "\x39", 1);
+		ret = rtl2832_sdr_wr_regs(dev, 0x102, "\x40", 1);
+		ret = rtl2832_sdr_wr_regs(dev, 0x103, "\x5a", 1);
+		ret = rtl2832_sdr_wr_regs(dev, 0x1c7, "\x2c", 1);
+		ret = rtl2832_sdr_wr_regs(dev, 0x104, "\xcc", 1);
+		ret = rtl2832_sdr_wr_regs(dev, 0x105, "\xbe", 1);
+		ret = rtl2832_sdr_wr_regs(dev, 0x1c8, "\x16", 1);
+		ret = rtl2832_sdr_wr_regs(dev, 0x106, "\x35", 1);
+		ret = rtl2832_sdr_wr_regs(dev, 0x1c9, "\x21", 1);
+		ret = rtl2832_sdr_wr_regs(dev, 0x1ca, "\x21", 1);
+		ret = rtl2832_sdr_wr_regs(dev, 0x1cb, "\x00", 1);
+		ret = rtl2832_sdr_wr_regs(dev, 0x107, "\x40", 1);
+		ret = rtl2832_sdr_wr_regs(dev, 0x1cd, "\x10", 1);
+		ret = rtl2832_sdr_wr_regs(dev, 0x1ce, "\x10", 1);
+		ret = rtl2832_sdr_wr_regs(dev, 0x108, "\x80", 1);
+		ret = rtl2832_sdr_wr_regs(dev, 0x109, "\x7f", 1);
+		ret = rtl2832_sdr_wr_regs(dev, 0x10a, "\x9c", 1);
+		ret = rtl2832_sdr_wr_regs(dev, 0x10b, "\x7f", 1);
+		ret = rtl2832_sdr_wr_regs(dev, 0x00e, "\xfc", 1);
+		ret = rtl2832_sdr_wr_regs(dev, 0x00e, "\xfc", 1);
+		ret = rtl2832_sdr_wr_regs(dev, 0x011, "\xe9\xf4", 2);
+		break;
 	default:
 		dev_notice(&pdev->dev, "Unsupported tuner\n");
 	}
@@ -832,8 +863,10 @@ static int rtl2832_sdr_set_tuner_freq(struct rtl2832_sdr_dev *dev)
 	if (!test_bit(POWER_ON, &dev->flags))
 		return 0;
 
-	if (fe->ops.tuner_ops.set_params)
-		fe->ops.tuner_ops.set_params(fe);
+	if (!V4L2_SUBDEV_HAS_OP(dev->v4l2_subdev, tuner, s_frequency)) {
+		if (fe->ops.tuner_ops.set_params)
+			fe->ops.tuner_ops.set_params(fe);
+	}
 
 	return 0;
 };
@@ -891,7 +924,11 @@ static int rtl2832_sdr_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	set_bit(POWER_ON, &dev->flags);
 
-	ret = rtl2832_sdr_set_tuner(dev);
+	/* wake-up tuner */
+	if (V4L2_SUBDEV_HAS_OP(dev->v4l2_subdev, core, s_power))
+		ret = v4l2_subdev_call(dev->v4l2_subdev, core, s_power, 1);
+	else
+		ret = rtl2832_sdr_set_tuner(dev);
 	if (ret)
 		goto err;
 
@@ -939,7 +976,12 @@ static void rtl2832_sdr_stop_streaming(struct vb2_queue *vq)
 	rtl2832_sdr_free_stream_bufs(dev);
 	rtl2832_sdr_cleanup_queued_bufs(dev);
 	rtl2832_sdr_unset_adc(dev);
-	rtl2832_sdr_unset_tuner(dev);
+
+	/* sleep tuner */
+	if (V4L2_SUBDEV_HAS_OP(dev->v4l2_subdev, core, s_power))
+		v4l2_subdev_call(dev->v4l2_subdev, core, s_power, 0);
+	else
+		rtl2832_sdr_unset_tuner(dev);
 
 	clear_bit(POWER_ON, &dev->flags);
 
@@ -968,6 +1010,7 @@ static int rtl2832_sdr_g_tuner(struct file *file, void *priv,
 {
 	struct rtl2832_sdr_dev *dev = video_drvdata(file);
 	struct platform_device *pdev = dev->pdev;
+	int ret;
 
 	dev_dbg(&pdev->dev, "index=%d type=%d\n", v->index, v->type);
 
@@ -977,17 +1020,21 @@ static int rtl2832_sdr_g_tuner(struct file *file, void *priv,
 		v->capability = V4L2_TUNER_CAP_1HZ | V4L2_TUNER_CAP_FREQ_BANDS;
 		v->rangelow =   300000;
 		v->rangehigh = 3200000;
+		ret = 0;
+	} else if (v->index == 1 &&
+		   V4L2_SUBDEV_HAS_OP(dev->v4l2_subdev, tuner, g_tuner)) {
+		ret = v4l2_subdev_call(dev->v4l2_subdev, tuner, g_tuner, v);
 	} else if (v->index == 1) {
 		strlcpy(v->name, "RF: <unknown>", sizeof(v->name));
 		v->type = V4L2_TUNER_RF;
 		v->capability = V4L2_TUNER_CAP_1HZ | V4L2_TUNER_CAP_FREQ_BANDS;
 		v->rangelow =    50000000;
 		v->rangehigh = 2000000000;
+		ret = 0;
 	} else {
-		return -EINVAL;
+		ret = -EINVAL;
 	}
-
-	return 0;
+	return ret;
 }
 
 static int rtl2832_sdr_s_tuner(struct file *file, void *priv,
@@ -995,12 +1042,21 @@ static int rtl2832_sdr_s_tuner(struct file *file, void *priv,
 {
 	struct rtl2832_sdr_dev *dev = video_drvdata(file);
 	struct platform_device *pdev = dev->pdev;
+	int ret;
 
 	dev_dbg(&pdev->dev, "\n");
 
-	if (v->index > 1)
-		return -EINVAL;
-	return 0;
+	if (v->index == 0) {
+		ret = 0;
+	} else if (v->index == 1 &&
+		   V4L2_SUBDEV_HAS_OP(dev->v4l2_subdev, tuner, s_tuner)) {
+		ret = v4l2_subdev_call(dev->v4l2_subdev, tuner, s_tuner, v);
+	} else if (v->index == 1) {
+		ret = 0;
+	} else {
+		ret = -EINVAL;
+	}
+	return ret;
 }
 
 static int rtl2832_sdr_enum_freq_bands(struct file *file, void *priv,
@@ -1008,6 +1064,7 @@ static int rtl2832_sdr_enum_freq_bands(struct file *file, void *priv,
 {
 	struct rtl2832_sdr_dev *dev = video_drvdata(file);
 	struct platform_device *pdev = dev->pdev;
+	int ret;
 
 	dev_dbg(&pdev->dev, "tuner=%d type=%d index=%d\n",
 		band->tuner, band->type, band->index);
@@ -1017,16 +1074,20 @@ static int rtl2832_sdr_enum_freq_bands(struct file *file, void *priv,
 			return -EINVAL;
 
 		*band = bands_adc[band->index];
+		ret = 0;
+	} else if (band->tuner == 1 &&
+		   V4L2_SUBDEV_HAS_OP(dev->v4l2_subdev, tuner, enum_freq_bands)) {
+		ret = v4l2_subdev_call(dev->v4l2_subdev, tuner, enum_freq_bands, band);
 	} else if (band->tuner == 1) {
 		if (band->index >= ARRAY_SIZE(bands_fm))
 			return -EINVAL;
 
 		*band = bands_fm[band->index];
+		ret = 0;
 	} else {
-		return -EINVAL;
+		ret = -EINVAL;
 	}
-
-	return 0;
+	return ret;
 }
 
 static int rtl2832_sdr_g_frequency(struct file *file, void *priv,
@@ -1034,20 +1095,25 @@ static int rtl2832_sdr_g_frequency(struct file *file, void *priv,
 {
 	struct rtl2832_sdr_dev *dev = video_drvdata(file);
 	struct platform_device *pdev = dev->pdev;
-	int ret  = 0;
+	int ret;
 
 	dev_dbg(&pdev->dev, "tuner=%d type=%d\n", f->tuner, f->type);
 
 	if (f->tuner == 0) {
 		f->frequency = dev->f_adc;
 		f->type = V4L2_TUNER_ADC;
+		ret = 0;
+	} else if (f->tuner == 1 &&
+		   V4L2_SUBDEV_HAS_OP(dev->v4l2_subdev, tuner, g_frequency)) {
+		f->type = V4L2_TUNER_RF;
+		ret = v4l2_subdev_call(dev->v4l2_subdev, tuner, g_frequency, f);
 	} else if (f->tuner == 1) {
 		f->frequency = dev->f_tuner;
 		f->type = V4L2_TUNER_RF;
+		ret = 0;
 	} else {
-		return -EINVAL;
+		ret = -EINVAL;
 	}
-
 	return ret;
 }
 
@@ -1074,11 +1140,14 @@ static int rtl2832_sdr_s_frequency(struct file *file, void *priv,
 			band = 2;
 
 		dev->f_adc = clamp_t(unsigned int, f->frequency,
-				bands_adc[band].rangelow,
-				bands_adc[band].rangehigh);
+				     bands_adc[band].rangelow,
+				     bands_adc[band].rangehigh);
 
 		dev_dbg(&pdev->dev, "ADC frequency=%u Hz\n", dev->f_adc);
 		ret = rtl2832_sdr_set_adc(dev);
+	} else if (f->tuner == 1 &&
+		   V4L2_SUBDEV_HAS_OP(dev->v4l2_subdev, tuner, s_frequency)) {
+		ret = v4l2_subdev_call(dev->v4l2_subdev, tuner, s_frequency, f);
 	} else if (f->tuner == 1) {
 		dev->f_tuner = clamp_t(unsigned int, f->frequency,
 				bands_fm[0].rangelow,
@@ -1089,7 +1158,6 @@ static int rtl2832_sdr_s_frequency(struct file *file, void *priv,
 	} else {
 		ret = -EINVAL;
 	}
-
 	return ret;
 }
 
@@ -1329,6 +1397,7 @@ static int rtl2832_sdr_probe(struct platform_device *pdev)
 
 	/* setup the state */
 	subdev = pdata->v4l2_subdev;
+	dev->v4l2_subdev = pdata->v4l2_subdev;
 	dev->pdev = pdev;
 	dev->udev = pdata->dvb_usb_device->udev;
 	dev->f_adc = bands_adc[0].rangelow;
@@ -1387,6 +1456,12 @@ static int rtl2832_sdr_probe(struct platform_device *pdev)
 						   6000000, 8000000, 1000000,
 						   6000000);
 		v4l2_ctrl_auto_cluster(2, &dev->bandwidth_auto, 0, false);
+		break;
+	case RTL2832_SDR_TUNER_FC2580:
+		v4l2_ctrl_handler_init(&dev->hdl, 2);
+		if (subdev)
+			v4l2_ctrl_add_handler(&dev->hdl, subdev->ctrl_handler,
+					      NULL);
 		break;
 	default:
 		v4l2_ctrl_handler_init(&dev->hdl, 0);
@@ -1466,7 +1541,6 @@ static int rtl2832_sdr_remove(struct platform_device *pdev)
 static struct platform_driver rtl2832_sdr_driver = {
 	.driver = {
 		.name   = "rtl2832_sdr",
-		.owner  = THIS_MODULE,
 	},
 	.probe          = rtl2832_sdr_probe,
 	.remove         = rtl2832_sdr_remove,

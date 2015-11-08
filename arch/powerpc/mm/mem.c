@@ -61,7 +61,6 @@
 #define CPU_FTR_NOEXECUTE	0
 #endif
 
-int mem_init_done;
 unsigned long long memory_limit;
 
 #ifdef CONFIG_HIGHMEM
@@ -114,7 +113,7 @@ int memory_add_physaddr_to_nid(u64 start)
 }
 #endif
 
-int arch_add_memory(int nid, u64 start, u64 size)
+int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
 {
 	struct pglist_data *pgdata;
 	struct zone *zone;
@@ -129,7 +128,7 @@ int arch_add_memory(int nid, u64 start, u64 size)
 
 	/* this should work for most non-highmem platforms */
 	zone = pgdata->node_zones +
-		zone_for_memory(nid, start, size, 0);
+		zone_for_memory(nid, start, size, 0, for_device);
 
 	return __add_pages(nid, zone, start_pfn, nr_pages);
 }
@@ -377,8 +376,6 @@ void __init mem_init(void)
 	pr_info("  * 0x%08lx..0x%08lx  : vmalloc & ioremap\n",
 		VMALLOC_START, VMALLOC_END);
 #endif /* CONFIG_PPC32 */
-
-	mem_init_done = 1;
 }
 
 void free_initmem(void)
@@ -417,17 +414,17 @@ void flush_dcache_icache_page(struct page *page)
 		return;
 	}
 #endif
-#ifdef CONFIG_BOOKE
-	{
+#if defined(CONFIG_8xx) || defined(CONFIG_PPC64)
+	/* On 8xx there is no need to kmap since highmem is not supported */
+	__flush_dcache_icache(page_address(page));
+#else
+	if (IS_ENABLED(CONFIG_BOOKE) || sizeof(phys_addr_t) > sizeof(void *)) {
 		void *start = kmap_atomic(page);
 		__flush_dcache_icache(start);
 		kunmap_atomic(start);
+	} else {
+		__flush_dcache_icache_phys(page_to_pfn(page) << PAGE_SHIFT);
 	}
-#elif defined(CONFIG_8xx) || defined(CONFIG_PPC64)
-	/* On 8xx there is no need to kmap since highmem is not supported */
-	__flush_dcache_icache(page_address(page)); 
-#else
-	__flush_dcache_icache_phys(page_to_pfn(page) << PAGE_SHIFT);
 #endif
 }
 EXPORT_SYMBOL(flush_dcache_icache_page);
@@ -563,7 +560,7 @@ subsys_initcall(add_system_ram_resources);
  */
 int devmem_is_allowed(unsigned long pfn)
 {
-	if (iomem_is_exclusive(pfn << PAGE_SHIFT))
+	if (iomem_is_exclusive(PFN_PHYS(pfn)))
 		return 0;
 	if (!page_is_ram(pfn))
 		return 1;

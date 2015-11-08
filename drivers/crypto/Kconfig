@@ -162,10 +162,10 @@ config CRYPTO_GHASH_S390
 config CRYPTO_DEV_MV_CESA
 	tristate "Marvell's Cryptographic Engine"
 	depends on PLAT_ORION
-	select CRYPTO_ALGAPI
 	select CRYPTO_AES
-	select CRYPTO_BLKCIPHER2
+	select CRYPTO_BLKCIPHER
 	select CRYPTO_HASH
+	select SRAM
 	help
 	  This driver allows you to utilize the Cryptographic Engines and
 	  Security Accelerator (CESA) which can be found on the Marvell Orion
@@ -173,10 +173,27 @@ config CRYPTO_DEV_MV_CESA
 
 	  Currently the driver supports AES in ECB and CBC mode without DMA.
 
+config CRYPTO_DEV_MARVELL_CESA
+	tristate "New Marvell's Cryptographic Engine driver"
+	depends on PLAT_ORION || ARCH_MVEBU
+	select CRYPTO_AES
+	select CRYPTO_DES
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_HASH
+	select SRAM
+	help
+	  This driver allows you to utilize the Cryptographic Engines and
+	  Security Accelerator (CESA) which can be found on the Armada 370.
+	  This driver supports CPU offload through DMA transfers.
+
+	  This driver is aimed at replacing the mv_cesa driver. This will only
+	  happen once it has received proper testing.
+
 config CRYPTO_DEV_NIAGARA2
        tristate "Niagara2 Stream Processing Unit driver"
        select CRYPTO_DES
-       select CRYPTO_ALGAPI
+       select CRYPTO_BLKCIPHER
+       select CRYPTO_HASH
        depends on SPARC64
        help
 	  Each core of a Niagara2 processor contains a Stream
@@ -189,7 +206,6 @@ config CRYPTO_DEV_NIAGARA2
 config CRYPTO_DEV_HIFN_795X
 	tristate "Driver HIFN 795x crypto accelerator chips"
 	select CRYPTO_DES
-	select CRYPTO_ALGAPI
 	select CRYPTO_BLKCIPHER
 	select HW_RANDOM if CRYPTO_DEV_HIFN_795X_RNG
 	depends on PCI
@@ -208,8 +224,10 @@ source drivers/crypto/caam/Kconfig
 
 config CRYPTO_DEV_TALITOS
 	tristate "Talitos Freescale Security Engine (SEC)"
-	select CRYPTO_ALGAPI
+	select CRYPTO_AEAD
 	select CRYPTO_AUTHENC
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_HASH
 	select HW_RANDOM
 	depends on FSL_SOC
 	help
@@ -222,11 +240,29 @@ config CRYPTO_DEV_TALITOS
 	  To compile this driver as a module, choose M here: the module
 	  will be called talitos.
 
+config CRYPTO_DEV_TALITOS1
+	bool "SEC1 (SEC 1.0 and SEC Lite 1.2)"
+	depends on CRYPTO_DEV_TALITOS
+	depends on PPC_8xx || PPC_82xx
+	default y
+	help
+	  Say 'Y' here to use the Freescale Security Engine (SEC) version 1.0
+	  found on MPC82xx or the Freescale Security Engine (SEC Lite)
+	  version 1.2 found on MPC8xx
+
+config CRYPTO_DEV_TALITOS2
+	bool "SEC2+ (SEC version 2.0 or upper)"
+	depends on CRYPTO_DEV_TALITOS
+	default y if !PPC_8xx
+	help
+	  Say 'Y' here to use the Freescale Security Engine (SEC)
+	  version 2 and following as found on MPC83xx, MPC85xx, etc ...
+
 config CRYPTO_DEV_IXP4XX
 	tristate "Driver for IXP4xx crypto hardware acceleration"
 	depends on ARCH_IXP4XX && IXP4XX_QMGR && IXP4XX_NPE
 	select CRYPTO_DES
-	select CRYPTO_ALGAPI
+	select CRYPTO_AEAD
 	select CRYPTO_AUTHENC
 	select CRYPTO_BLKCIPHER
 	help
@@ -236,7 +272,6 @@ config CRYPTO_DEV_PPC4XX
 	tristate "Driver AMCC PPC4xx crypto accelerator"
 	depends on PPC && 4xx
 	select CRYPTO_HASH
-	select CRYPTO_ALGAPI
 	select CRYPTO_BLKCIPHER
 	help
 	  This option allows you to have support for AMCC crypto acceleration.
@@ -257,7 +292,7 @@ config CRYPTO_DEV_OMAP_AES
 	tristate "Support for OMAP AES hw engine"
 	depends on ARCH_OMAP2 || ARCH_OMAP3 || ARCH_OMAP2PLUS
 	select CRYPTO_AES
-	select CRYPTO_BLKCIPHER2
+	select CRYPTO_BLKCIPHER
 	help
 	  OMAP processors have AES module accelerator. Select this if you
 	  want to use the OMAP module for AES algorithms.
@@ -266,7 +301,7 @@ config CRYPTO_DEV_OMAP_DES
 	tristate "Support for OMAP DES3DES hw engine"
 	depends on ARCH_OMAP2PLUS
 	select CRYPTO_DES
-	select CRYPTO_BLKCIPHER2
+	select CRYPTO_BLKCIPHER
 	help
 	  OMAP processors have DES/3DES module accelerator. Select this if you
 	  want to use the OMAP module for DES and 3DES algorithms. Currently
@@ -276,9 +311,10 @@ config CRYPTO_DEV_OMAP_DES
 config CRYPTO_DEV_PICOXCELL
 	tristate "Support for picoXcell IPSEC and Layer2 crypto engines"
 	depends on ARCH_PICOXCELL && HAVE_CLK
+	select CRYPTO_AEAD
 	select CRYPTO_AES
 	select CRYPTO_AUTHENC
-	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
 	select CRYPTO_DES
 	select CRYPTO_CBC
 	select CRYPTO_ECB
@@ -304,7 +340,6 @@ config CRYPTO_DEV_S5P
 	tristate "Support for Samsung S5PV210/Exynos crypto accelerator"
 	depends on ARCH_S5PV210 || ARCH_EXYNOS
 	select CRYPTO_AES
-	select CRYPTO_ALGAPI
 	select CRYPTO_BLKCIPHER
 	help
 	  This option allows you to have support for S5P crypto acceleration.
@@ -312,11 +347,13 @@ config CRYPTO_DEV_S5P
 	  algorithms execution.
 
 config CRYPTO_DEV_NX
-	bool "Support for IBM Power7+ in-Nest cryptographic acceleration"
-	depends on PPC64 && IBMVIO && !CPU_LITTLE_ENDIAN
-	default n
+	bool "Support for IBM PowerPC Nest (NX) cryptographic acceleration"
+	depends on PPC64
 	help
-	  Support for Power7+ in-Nest cryptographic acceleration.
+	  This enables support for the NX hardware cryptographic accelerator
+	  coprocessor that is in IBM PowerPC P7+ or later processors.  This
+	  does not actually enable any drivers, it only allows you to select
+	  which acceleration type (encryption and/or compression) to enable.
 
 if CRYPTO_DEV_NX
 	source "drivers/crypto/nx/Kconfig"
@@ -325,7 +362,6 @@ endif
 config CRYPTO_DEV_UX500
 	tristate "Driver for ST-Ericsson UX500 crypto hardware acceleration"
 	depends on ARCH_U8500
-	select CRYPTO_ALGAPI
 	help
 	  Driver for ST-Ericsson UX500 crypto engine.
 
@@ -343,10 +379,7 @@ config CRYPTO_DEV_BFIN_CRC
 config CRYPTO_DEV_ATMEL_AES
 	tristate "Support for Atmel AES hw accelerator"
 	depends on ARCH_AT91
-	select CRYPTO_CBC
-	select CRYPTO_ECB
 	select CRYPTO_AES
-	select CRYPTO_ALGAPI
 	select CRYPTO_BLKCIPHER
 	select AT_HDMAC
 	help
@@ -361,9 +394,6 @@ config CRYPTO_DEV_ATMEL_TDES
 	tristate "Support for Atmel DES/TDES hw accelerator"
 	depends on ARCH_AT91
 	select CRYPTO_DES
-	select CRYPTO_CBC
-	select CRYPTO_ECB
-	select CRYPTO_ALGAPI
 	select CRYPTO_BLKCIPHER
 	help
 	  Some Atmel processors have DES/TDES hw accelerator.
@@ -376,10 +406,7 @@ config CRYPTO_DEV_ATMEL_TDES
 config CRYPTO_DEV_ATMEL_SHA
 	tristate "Support for Atmel SHA hw accelerator"
 	depends on ARCH_AT91
-	select CRYPTO_SHA1
-	select CRYPTO_SHA256
-	select CRYPTO_SHA512
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  Some Atmel processors have SHA1/SHA224/SHA256/SHA384/SHA512
 	  hw accelerator.
@@ -391,10 +418,9 @@ config CRYPTO_DEV_ATMEL_SHA
 
 config CRYPTO_DEV_CCP
 	bool "Support for AMD Cryptographic Coprocessor"
-	depends on (X86 && PCI) || ARM64
-	default n
+	depends on ((X86 && PCI) || (ARM64 && (OF_ADDRESS || ACPI))) && HAS_IOMEM
 	help
-	  The AMD Cryptographic Coprocessor provides hardware support
+	  The AMD Cryptographic Coprocessor provides hardware offload support
 	  for encryption, hashing and related operations.
 
 if CRYPTO_DEV_CCP
@@ -403,14 +429,13 @@ endif
 
 config CRYPTO_DEV_MXS_DCP
 	tristate "Support for Freescale MXS DCP"
-	depends on ARCH_MXS
-	select CRYPTO_SHA1
-	select CRYPTO_SHA256
+	depends on (ARCH_MXS || ARCH_MXC)
+	select STMP_DEVICE
 	select CRYPTO_CBC
 	select CRYPTO_ECB
 	select CRYPTO_AES
 	select CRYPTO_BLKCIPHER
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  The Freescale i.MX23/i.MX28 has SHA1/SHA256 and AES128 CBC/ECB
 	  co-processor on the die.
@@ -429,11 +454,48 @@ config CRYPTO_DEV_QCE
 	select CRYPTO_CBC
 	select CRYPTO_XTS
 	select CRYPTO_CTR
-	select CRYPTO_ALGAPI
 	select CRYPTO_BLKCIPHER
 	help
 	  This driver supports Qualcomm crypto engine accelerator
 	  hardware. To compile this driver as a module, choose M here. The
 	  module will be called qcrypto.
+
+config CRYPTO_DEV_VMX
+	bool "Support for VMX cryptographic acceleration instructions"
+	depends on PPC64 && VSX
+	help
+	  Support for VMX cryptographic acceleration instructions.
+
+source "drivers/crypto/vmx/Kconfig"
+
+config CRYPTO_DEV_IMGTEC_HASH
+	tristate "Imagination Technologies hardware hash accelerator"
+	depends on MIPS || COMPILE_TEST
+	depends on HAS_DMA
+	select CRYPTO_MD5
+	select CRYPTO_SHA1
+	select CRYPTO_SHA256
+	select CRYPTO_HASH
+	help
+	  This driver interfaces with the Imagination Technologies
+	  hardware hash accelerator. Supporting MD5/SHA1/SHA224/SHA256
+	  hashing algorithms.
+
+config CRYPTO_DEV_SUN4I_SS
+	tristate "Support for Allwinner Security System cryptographic accelerator"
+	depends on ARCH_SUNXI
+	select CRYPTO_MD5
+	select CRYPTO_SHA1
+	select CRYPTO_AES
+	select CRYPTO_DES
+	select CRYPTO_BLKCIPHER
+	help
+	  Some Allwinner SoC have a crypto accelerator named
+	  Security System. Select this if you want to use it.
+	  The Security System handle AES/DES/3DES ciphers in CBC mode
+	  and SHA1 and MD5 hash algorithms.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sun4i-ss.
 
 endif # CRYPTO_HW

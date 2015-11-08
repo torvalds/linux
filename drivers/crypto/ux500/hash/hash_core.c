@@ -184,7 +184,7 @@ static int hash_set_dma_transfer(struct hash_ctx *ctx, struct scatterlist *sg,
 			direction, DMA_CTRL_ACK | DMA_PREP_INTERRUPT);
 	if (!desc) {
 		dev_err(ctx->device->dev,
-			"%s: device_prep_slave_sg() failed!\n", __func__);
+			"%s: dmaengine_prep_slave_sg() failed!\n", __func__);
 		return -EFAULT;
 	}
 
@@ -1657,7 +1657,7 @@ static int ux500_hash_probe(struct platform_device *pdev)
 	struct hash_device_data *device_data;
 	struct device		*dev = &pdev->dev;
 
-	device_data = kzalloc(sizeof(*device_data), GFP_ATOMIC);
+	device_data = devm_kzalloc(dev, sizeof(*device_data), GFP_ATOMIC);
 	if (!device_data) {
 		ret = -ENOMEM;
 		goto out;
@@ -1670,22 +1670,15 @@ static int ux500_hash_probe(struct platform_device *pdev)
 	if (!res) {
 		dev_dbg(dev, "%s: platform_get_resource() failed!\n", __func__);
 		ret = -ENODEV;
-		goto out_kfree;
-	}
-
-	res = request_mem_region(res->start, resource_size(res), pdev->name);
-	if (res == NULL) {
-		dev_dbg(dev, "%s: request_mem_region() failed!\n", __func__);
-		ret = -EBUSY;
-		goto out_kfree;
+		goto out;
 	}
 
 	device_data->phybase = res->start;
-	device_data->base = ioremap(res->start, resource_size(res));
+	device_data->base = devm_ioremap_resource(dev, res);
 	if (!device_data->base) {
 		dev_err(dev, "%s: ioremap() failed!\n", __func__);
 		ret = -ENOMEM;
-		goto out_free_mem;
+		goto out;
 	}
 	spin_lock_init(&device_data->ctx_lock);
 	spin_lock_init(&device_data->power_state_lock);
@@ -1696,11 +1689,11 @@ static int ux500_hash_probe(struct platform_device *pdev)
 		dev_err(dev, "%s: regulator_get() failed!\n", __func__);
 		ret = PTR_ERR(device_data->regulator);
 		device_data->regulator = NULL;
-		goto out_unmap;
+		goto out;
 	}
 
 	/* Enable the clock for HASH1 hardware block */
-	device_data->clk = clk_get(dev, NULL);
+	device_data->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(device_data->clk)) {
 		dev_err(dev, "%s: clk_get() failed!\n", __func__);
 		ret = PTR_ERR(device_data->clk);
@@ -1710,7 +1703,7 @@ static int ux500_hash_probe(struct platform_device *pdev)
 	ret = clk_prepare(device_data->clk);
 	if (ret) {
 		dev_err(dev, "%s: clk_prepare() failed!\n", __func__);
-		goto out_clk;
+		goto out_regulator;
 	}
 
 	/* Enable device power (and clock) */
@@ -1752,20 +1745,9 @@ out_power:
 out_clk_unprepare:
 	clk_unprepare(device_data->clk);
 
-out_clk:
-	clk_put(device_data->clk);
-
 out_regulator:
 	regulator_put(device_data->regulator);
 
-out_unmap:
-	iounmap(device_data->base);
-
-out_free_mem:
-	release_mem_region(res->start, resource_size(res));
-
-out_kfree:
-	kfree(device_data);
 out:
 	return ret;
 }
@@ -1776,7 +1758,6 @@ out:
  */
 static int ux500_hash_remove(struct platform_device *pdev)
 {
-	struct resource		*res;
 	struct hash_device_data *device_data;
 	struct device		*dev = &pdev->dev;
 
@@ -1816,16 +1797,7 @@ static int ux500_hash_remove(struct platform_device *pdev)
 			__func__);
 
 	clk_unprepare(device_data->clk);
-	clk_put(device_data->clk);
 	regulator_put(device_data->regulator);
-
-	iounmap(device_data->base);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res)
-		release_mem_region(res->start, resource_size(res));
-
-	kfree(device_data);
 
 	return 0;
 }
@@ -1836,7 +1808,6 @@ static int ux500_hash_remove(struct platform_device *pdev)
  */
 static void ux500_hash_shutdown(struct platform_device *pdev)
 {
-	struct resource *res = NULL;
 	struct hash_device_data *device_data;
 
 	device_data = platform_get_drvdata(pdev);
@@ -1869,12 +1840,6 @@ static void ux500_hash_shutdown(struct platform_device *pdev)
 	/* If this was the last device, remove the services */
 	if (list_empty(&driver_data.device_list.k_list))
 		ahash_algs_unregister_all(device_data);
-
-	iounmap(device_data->base);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res)
-		release_mem_region(res->start, resource_size(res));
 
 	if (hash_disable_power(device_data, false))
 		dev_err(&pdev->dev, "%s: hash_disable_power() failed\n",
@@ -1958,6 +1923,7 @@ static const struct of_device_id ux500_hash_match[] = {
 	{ .compatible = "stericsson,ux500-hash" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, ux500_hash_match);
 
 static struct platform_driver hash_driver = {
 	.probe  = ux500_hash_probe,

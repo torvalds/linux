@@ -4,14 +4,14 @@
  *
  * The define_trace.h below will also look for a file name of
  * TRACE_SYSTEM.h where TRACE_SYSTEM is what is defined here.
- * In this case, it would look for sample.h
+ * In this case, it would look for sample-trace.h
  *
  * If the header name will be different than the system name
  * (as in this case), then you can override the header name that
  * define_trace.h will look up by defining TRACE_INCLUDE_FILE
  *
  * This file is called trace-events-sample.h but we want the system
- * to be called "sample". Therefore we must define the name of this
+ * to be called "sample-trace". Therefore we must define the name of this
  * file:
  *
  * #define TRACE_INCLUDE_FILE trace-events-sample
@@ -22,7 +22,25 @@
  * protection, just like TRACE_INCLUDE_FILE.
  */
 #undef TRACE_SYSTEM
-#define TRACE_SYSTEM sample
+#define TRACE_SYSTEM sample-trace
+
+/*
+ * TRACE_SYSTEM is expected to be a C valid variable (alpha-numeric
+ * and underscore), although it may start with numbers. If for some
+ * reason it is not, you need to add the following lines:
+ */
+#undef TRACE_SYSTEM_VAR
+#define TRACE_SYSTEM_VAR sample_trace
+/*
+ * But the above is only needed if TRACE_SYSTEM is not alpha-numeric
+ * and underscored. By default, TRACE_SYSTEM_VAR will be equal to
+ * TRACE_SYSTEM. As TRACE_SYSTEM_VAR must be alpha-numeric, if
+ * TRACE_SYSTEM is not, then TRACE_SYSTEM_VAR must be defined with
+ * only alpha-numeric and underscores.
+ *
+ * The TRACE_SYSTEM_VAR is only used internally and not visible to
+ * user space.
+ */
 
 /*
  * Notice that this file is not protected like a normal header.
@@ -88,7 +106,7 @@
  *
  *         memcpy(__entry->foo, bar, 10);
  *
- *   __dynamic_array: This is similar to array, but can vary is size from
+ *   __dynamic_array: This is similar to array, but can vary its size from
  *         instance to instance of the tracepoint being called.
  *         Like __array, this too has three elements (type, name, size);
  *         type is the type of the element, name is the name of the array.
@@ -150,7 +168,10 @@
  *
  *      For __dynamic_array(int, foo, bar) use __get_dynamic_array(foo)
  *            Use __get_dynamic_array_len(foo) to get the length of the array
- *            saved.
+ *            saved. Note, __get_dynamic_array_len() returns the total allocated
+ *            length of the dynamic array; __print_array() expects the second
+ *            parameter to be the number of elements. To get that, the array length
+ *            needs to be divided by the element size.
  *
  *      For __string(foo, bar) use __get_str(foo)
  *
@@ -180,7 +201,29 @@ static inline int __length_of(const int *list)
 		;
 	return i;
 }
+
+enum {
+	TRACE_SAMPLE_FOO = 2,
+	TRACE_SAMPLE_BAR = 4,
+	TRACE_SAMPLE_ZOO = 8,
+};
 #endif
+
+/*
+ * If enums are used in the TP_printk(), their names will be shown in
+ * format files and not their values. This can cause problems with user
+ * space programs that parse the format files to know how to translate
+ * the raw binary trace output into human readable text.
+ *
+ * To help out user space programs, any enum that is used in the TP_printk()
+ * should be defined by TRACE_DEFINE_ENUM() macro. All that is needed to
+ * be done is to add this macro with the enum within it in the trace
+ * header file, and it will be converted in the output.
+ */
+
+TRACE_DEFINE_ENUM(TRACE_SAMPLE_FOO);
+TRACE_DEFINE_ENUM(TRACE_SAMPLE_BAR);
+TRACE_DEFINE_ENUM(TRACE_SAMPLE_ZOO);
 
 TRACE_EVENT(foo_bar,
 
@@ -206,9 +249,49 @@ TRACE_EVENT(foo_bar,
 		__assign_bitmask(cpus, cpumask_bits(mask), num_possible_cpus());
 	),
 
-	TP_printk("foo %s %d %s %s (%s)", __entry->foo, __entry->bar,
+	TP_printk("foo %s %d %s %s %s %s (%s)", __entry->foo, __entry->bar,
+
+/*
+ * Notice here the use of some helper functions. This includes:
+ *
+ *  __print_symbolic( variable, { value, "string" }, ... ),
+ *
+ *    The variable is tested against each value of the { } pair. If
+ *    the variable matches one of the values, then it will print the
+ *    string in that pair. If non are matched, it returns a string
+ *    version of the number (if __entry->bar == 7 then "7" is returned).
+ */
+		  __print_symbolic(__entry->bar,
+				   { 0, "zero" },
+				   { TRACE_SAMPLE_FOO, "TWO" },
+				   { TRACE_SAMPLE_BAR, "FOUR" },
+				   { TRACE_SAMPLE_ZOO, "EIGHT" },
+				   { 10, "TEN" }
+			  ),
+
+/*
+ *  __print_flags( variable, "delim", { value, "flag" }, ... ),
+ *
+ *    This is similar to __print_symbolic, except that it tests the bits
+ *    of the value. If ((FLAG & variable) == FLAG) then the string is
+ *    printed. If more than one flag matches, then each one that does is
+ *    also printed with delim in between them.
+ *    If not all bits are accounted for, then the not found bits will be
+ *    added in hex format: 0x506 will show BIT2|BIT4|0x500
+ */
+		  __print_flags(__entry->bar, "|",
+				{ 1, "BIT1" },
+				{ 2, "BIT2" },
+				{ 4, "BIT3" },
+				{ 8, "BIT4" }
+			  ),
+/*
+ *  __print_array( array, len, element_size )
+ *
+ *    This prints out the array that is defined by __array in a nice format.
+ */
 		  __print_array(__get_dynamic_array(list),
-				__get_dynamic_array_len(list),
+				__get_dynamic_array_len(list) / sizeof(int),
 				sizeof(int)),
 		  __get_str(str), __get_bitmask(cpus))
 );

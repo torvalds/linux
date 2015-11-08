@@ -1,5 +1,5 @@
 #include "fbtft.h"
-
+#include "internal.h"
 
 static int get_next_ulong(char **str_p, unsigned long *val, char *sep, int base)
 {
@@ -37,10 +37,9 @@ int fbtft_gamma_parse_str(struct fbtft_par *par, unsigned long *curves,
 
 	fbtft_par_dbg(DEBUG_SYSFS, par, "%s\n", str);
 
-	tmp = kmalloc(size+1, GFP_KERNEL);
+	tmp = kmemdup(str, size + 1, GFP_KERNEL);
 	if (!tmp)
 		return -ENOMEM;
-	memcpy(tmp, str, size+1);
 
 	/* replace optional separators */
 	str_p = tmp;
@@ -104,8 +103,8 @@ sprintf_gamma(struct fbtft_par *par, unsigned long *curves, char *buf)
 	for (i = 0; i < par->gamma.num_curves; i++) {
 		for (j = 0; j < par->gamma.num_values; j++)
 			len += scnprintf(&buf[len], PAGE_SIZE,
-				"%04lx ", curves[i*par->gamma.num_values + j]);
-		buf[len-1] = '\n';
+			     "%04lx ", curves[i * par->gamma.num_values + j]);
+		buf[len - 1] = '\n';
 	}
 	mutex_unlock(&par->gamma.lock);
 
@@ -150,10 +149,9 @@ static struct device_attribute gamma_device_attrs[] = {
 	__ATTR(gamma, 0660, show_gamma_curve, store_gamma_curve),
 };
 
-
 void fbtft_expand_debug_value(unsigned long *debug)
 {
-	switch (*debug & 0b111) {
+	switch (*debug & 0x7) {
 	case 1:
 		*debug |= DEBUG_LEVEL_1;
 		break;
@@ -205,7 +203,6 @@ static ssize_t show_debug(struct device *device,
 
 static struct device_attribute debug_device_attr = \
 	__ATTR(debug, 0660, show_debug, store_debug);
-
 
 void fbtft_sysfs_init(struct fbtft_par *par)
 {

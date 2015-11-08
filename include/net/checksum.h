@@ -122,7 +122,9 @@ static inline __wsum csum_partial_ext(const void *buff, int len, __wsum sum)
 
 static inline void csum_replace4(__sum16 *sum, __be32 from, __be32 to)
 {
-	*sum = csum_fold(csum_add(csum_sub(~csum_unfold(*sum), from), to));
+	__wsum tmp = csum_sub(~csum_unfold(*sum), (__force __wsum)from);
+
+	*sum = csum_fold(csum_add(tmp, (__force __wsum)to));
 }
 
 /* Implements RFC 1624 (Incremental Internet Checksum)
@@ -138,14 +140,16 @@ static inline void csum_replace2(__sum16 *sum, __be16 old, __be16 new)
 
 struct sk_buff;
 void inet_proto_csum_replace4(__sum16 *sum, struct sk_buff *skb,
-			      __be32 from, __be32 to, int pseudohdr);
+			      __be32 from, __be32 to, bool pseudohdr);
 void inet_proto_csum_replace16(__sum16 *sum, struct sk_buff *skb,
 			       const __be32 *from, const __be32 *to,
-			       int pseudohdr);
+			       bool pseudohdr);
+void inet_proto_csum_replace_by_diff(__sum16 *sum, struct sk_buff *skb,
+				     __wsum diff, bool pseudohdr);
 
 static inline void inet_proto_csum_replace2(__sum16 *sum, struct sk_buff *skb,
 					    __be16 from, __be16 to,
-					    int pseudohdr)
+					    bool pseudohdr)
 {
 	inet_proto_csum_replace4(sum, skb, (__force __be32)from,
 				 (__force __be32)to, pseudohdr);

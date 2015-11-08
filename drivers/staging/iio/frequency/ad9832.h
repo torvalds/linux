@@ -42,13 +42,13 @@
 #define AD9832_CMD_SYNCSELSRC	0x8
 #define AD9832_CMD_SLEEPRESCLR	0xC
 
-#define AD9832_FREQ		(1 << 11)
+#define AD9832_FREQ		BIT(11)
 #define AD9832_PHASE(x)		(((x) & 3) << 9)
-#define AD9832_SYNC		(1 << 13)
-#define AD9832_SELSRC		(1 << 12)
-#define AD9832_SLEEP		(1 << 13)
-#define AD9832_RESET		(1 << 12)
-#define AD9832_CLR		(1 << 11)
+#define AD9832_SYNC		BIT(13)
+#define AD9832_SELSRC		BIT(12)
+#define AD9832_SLEEP		BIT(13)
+#define AD9832_RESET		BIT(12)
+#define AD9832_CLR		BIT(11)
 #define CMD_SHIFT		12
 #define ADD_SHIFT		8
 #define AD9832_FREQ_BITS	32

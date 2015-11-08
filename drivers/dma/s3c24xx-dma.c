@@ -749,11 +749,6 @@ unlock:
 	return ret;
 }
 
-static int s3c24xx_dma_alloc_chan_resources(struct dma_chan *chan)
-{
-	return 0;
-}
-
 static void s3c24xx_dma_free_chan_resources(struct dma_chan *chan)
 {
 	/* Ensure all queued descriptors are freed */
@@ -1173,7 +1168,7 @@ static struct soc_data soc_s3c2443 = {
 	.has_clocks = true,
 };
 
-static struct platform_device_id s3c24xx_dma_driver_ids[] = {
+static const struct platform_device_id s3c24xx_dma_driver_ids[] = {
 	{
 		.name		= "s3c2410-dma",
 		.driver_data	= (kernel_ulong_t)&soc_s3c2410,
@@ -1238,7 +1233,7 @@ static int s3c24xx_dma_probe(struct platform_device *pdev)
 	if (!s3cdma->phy_chans)
 		return -ENOMEM;
 
-	/* aquire irqs and clocks for all physical channels */
+	/* acquire irqs and clocks for all physical channels */
 	for (i = 0; i < pdata->num_phy_channels; i++) {
 		struct s3c24xx_dma_phy *phy = &s3cdma->phy_chans[i];
 		char clk_name[6];
@@ -1266,7 +1261,7 @@ static int s3c24xx_dma_probe(struct platform_device *pdev)
 			sprintf(clk_name, "dma.%d", i);
 			phy->clk = devm_clk_get(&pdev->dev, clk_name);
 			if (IS_ERR(phy->clk) && sdata->has_clocks) {
-				dev_err(&pdev->dev, "unable to aquire clock for channel %d, error %lu",
+				dev_err(&pdev->dev, "unable to acquire clock for channel %d, error %lu\n",
 					i, PTR_ERR(phy->clk));
 				continue;
 			}
@@ -1290,8 +1285,6 @@ static int s3c24xx_dma_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_MEMCPY, s3cdma->memcpy.cap_mask);
 	dma_cap_set(DMA_PRIVATE, s3cdma->memcpy.cap_mask);
 	s3cdma->memcpy.dev = &pdev->dev;
-	s3cdma->memcpy.device_alloc_chan_resources =
-					s3c24xx_dma_alloc_chan_resources;
 	s3cdma->memcpy.device_free_chan_resources =
 					s3c24xx_dma_free_chan_resources;
 	s3cdma->memcpy.device_prep_dma_memcpy = s3c24xx_dma_prep_memcpy;
@@ -1305,8 +1298,6 @@ static int s3c24xx_dma_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_CYCLIC, s3cdma->slave.cap_mask);
 	dma_cap_set(DMA_PRIVATE, s3cdma->slave.cap_mask);
 	s3cdma->slave.dev = &pdev->dev;
-	s3cdma->slave.device_alloc_chan_resources =
-					s3c24xx_dma_alloc_chan_resources;
 	s3cdma->slave.device_free_chan_resources =
 					s3c24xx_dma_free_chan_resources;
 	s3cdma->slave.device_tx_status = s3c24xx_dma_tx_status;

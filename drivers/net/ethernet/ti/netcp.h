@@ -41,7 +41,10 @@ struct netcp_tx_pipe {
 	struct netcp_device	*netcp_device;
 	void			*dma_queue;
 	unsigned int		dma_queue_id;
-	u8			dma_psflags;
+	/* To port for packet forwarded to switch. Used only by ethss */
+	u8			switch_to_port;
+#define	SWITCH_TO_PORT_IN_TAGINFO	BIT(0)
+	u8			flags;
 	void			*dma_channel;
 	const char		*dma_chan_name;
 };
@@ -82,7 +85,6 @@ struct netcp_intf {
 	struct list_head	rxhook_list_head;
 	unsigned int		rx_queue_id;
 	void			*rx_fdq[KNAV_DMA_FDQ_PER_CHAN];
-	u32			rx_buffer_sizes[KNAV_DMA_FDQ_PER_CHAN];
 	struct napi_struct	rx_napi;
 	struct napi_struct	tx_napi;
 
@@ -220,6 +222,7 @@ void *netcp_device_find_module(struct netcp_device *netcp_device,
 
 /* SGMII functions */
 int netcp_sgmii_reset(void __iomem *sgmii_ofs, int port);
+bool netcp_sgmii_rtreset(void __iomem *sgmii_ofs, int port, bool set);
 int netcp_sgmii_get_port_link(void __iomem *sgmii_ofs, int port);
 int netcp_sgmii_config(void __iomem *sgmii_ofs, int port, u32 interface);
 

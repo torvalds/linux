@@ -21,7 +21,7 @@
 #include "hif.h"
 
 /* Maximum number of Copy Engine's supported */
-#define CE_COUNT_MAX 8
+#define CE_COUNT_MAX 12
 #define CE_HTT_H2T_MSG_SRC_NENTRIES 4096
 
 /* Descriptor rings must be aligned to this boundary */
@@ -38,8 +38,13 @@ struct ath10k_ce_pipe;
 
 #define CE_DESC_FLAGS_GATHER         (1 << 0)
 #define CE_DESC_FLAGS_BYTE_SWAP      (1 << 1)
-#define CE_DESC_FLAGS_META_DATA_MASK 0xFFFC
-#define CE_DESC_FLAGS_META_DATA_LSB  3
+
+/* Following desc flags are used in QCA99X0 */
+#define CE_DESC_FLAGS_HOST_INT_DIS	(1 << 2)
+#define CE_DESC_FLAGS_TGT_INT_DIS	(1 << 3)
+
+#define CE_DESC_FLAGS_META_DATA_MASK ar->hw_values->ce_desc_meta_data_mask
+#define CE_DESC_FLAGS_META_DATA_LSB  ar->hw_values->ce_desc_meta_data_lsb
 
 struct ce_desc {
 	__le32 addr;
@@ -95,12 +100,6 @@ struct ath10k_ce_ring {
 
 	/* CE address space */
 	u32 base_addr_ce_space;
-	/*
-	 * Start of shadow copy of descriptors, within regular memory.
-	 * Aligned to descriptor-size boundary.
-	 */
-	void *shadow_base_unaligned;
-	struct ce_desc *shadow_base;
 
 	/* keep last */
 	void *per_transfer_context[0];
@@ -187,16 +186,10 @@ int ath10k_ce_completed_recv_next(struct ath10k_ce_pipe *ce_state,
  * Pops 1 completed send buffer from Source ring.
  */
 int ath10k_ce_completed_send_next(struct ath10k_ce_pipe *ce_state,
-				  void **per_transfer_contextp,
-				  u32 *bufferp,
-				  unsigned int *nbytesp,
-				  unsigned int *transfer_idp);
+				  void **per_transfer_contextp);
 
 int ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state,
-					 void **per_transfer_contextp,
-					 u32 *bufferp,
-					 unsigned int *nbytesp,
-					 unsigned int *transfer_idp);
+					 void **per_transfer_contextp);
 
 /*==================CE Engine Initialization=======================*/
 
@@ -204,9 +197,7 @@ int ath10k_ce_init_pipe(struct ath10k *ar, unsigned int ce_id,
 			const struct ce_attr *attr);
 void ath10k_ce_deinit_pipe(struct ath10k *ar, unsigned int ce_id);
 int ath10k_ce_alloc_pipe(struct ath10k *ar, int ce_id,
-			 const struct ce_attr *attr,
-			 void (*send_cb)(struct ath10k_ce_pipe *),
-			 void (*recv_cb)(struct ath10k_ce_pipe *));
+			 const struct ce_attr *attr);
 void ath10k_ce_free_pipe(struct ath10k *ar, int ce_id);
 
 /*==================CE Engine Shutdown=======================*/
@@ -272,6 +263,9 @@ struct ce_attr {
 
 	/* #entries in destination ring - Must be a power of 2 */
 	unsigned int dest_nentries;
+
+	void (*send_cb)(struct ath10k_ce_pipe *);
+	void (*recv_cb)(struct ath10k_ce_pipe *);
 };
 
 #define SR_BA_ADDRESS		0x0000
@@ -423,8 +417,10 @@ static inline u32 ath10k_ce_base_address(struct ath10k *ar, unsigned int ce_id)
 
 #define CE_RING_IDX_INCR(nentries_mask, idx) (((idx) + 1) & (nentries_mask))
 
-#define CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_LSB		8
-#define CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_MASK		0x0000ff00
+#define CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_LSB \
+				ar->regs->ce_wrap_intr_sum_host_msi_lsb
+#define CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_MASK \
+				ar->regs->ce_wrap_intr_sum_host_msi_mask
 #define CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_GET(x) \
 	(((x) & CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_MASK) >> \
 		CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_LSB)

@@ -357,34 +357,6 @@ static long v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			ret = vdev->fops->unlocked_ioctl(filp, cmd, arg);
 		if (lock)
 			mutex_unlock(lock);
-	} else if (vdev->fops->ioctl) {
-		/* This code path is a replacement for the BKL. It is a major
-		 * hack but it will have to do for those drivers that are not
-		 * yet converted to use unlocked_ioctl.
-		 *
-		 * All drivers implement struct v4l2_device, so we use the
-		 * lock defined there to serialize the ioctls.
-		 *
-		 * However, if the driver sleeps, then it blocks all ioctls
-		 * since the lock is still held. This is very common for
-		 * VIDIOC_DQBUF since that normally waits for a frame to arrive.
-		 * As a result any other ioctl calls will proceed very, very
-		 * slowly since each call will have to wait for the VIDIOC_QBUF
-		 * to finish. Things that should take 0.01s may now take 10-20
-		 * seconds.
-		 *
-		 * The workaround is to *not* take the lock for VIDIOC_DQBUF.
-		 * This actually works OK for videobuf-based drivers, since
-		 * videobuf will take its own internal lock.
-		 */
-		struct mutex *m = &vdev->v4l2_dev->ioctl_lock;
-
-		if (cmd != VIDIOC_DQBUF && mutex_lock_interruptible(m))
-			return -ERESTARTSYS;
-		if (video_is_registered(vdev))
-			ret = vdev->fops->ioctl(filp, cmd, arg);
-		if (cmd != VIDIOC_DQBUF)
-			mutex_unlock(m);
 	} else
 		ret = -ENOTTY;
 
@@ -560,10 +532,9 @@ static void determine_valid_ioctls(struct video_device *vdev)
 	/* vfl_type and vfl_dir independent ioctls */
 
 	SET_VALID_IOCTL(ops, VIDIOC_QUERYCAP, vidioc_querycap);
-	if (ops->vidioc_g_priority)
-		set_bit(_IOC_NR(VIDIOC_G_PRIORITY), valid_ioctls);
-	if (ops->vidioc_s_priority)
-		set_bit(_IOC_NR(VIDIOC_S_PRIORITY), valid_ioctls);
+	set_bit(_IOC_NR(VIDIOC_G_PRIORITY), valid_ioctls);
+	set_bit(_IOC_NR(VIDIOC_S_PRIORITY), valid_ioctls);
+
 	/* Note: the control handler can also be passed through the filehandle,
 	   and that can't be tested here. If the bit for these control ioctls
 	   is set, then the ioctl is valid. But if it is 0, then it can still
@@ -640,6 +611,14 @@ static void determine_valid_ioctls(struct video_device *vdev)
 		SET_VALID_IOCTL(ops, VIDIOC_TRY_DECODER_CMD, vidioc_try_decoder_cmd);
 		SET_VALID_IOCTL(ops, VIDIOC_ENUM_FRAMESIZES, vidioc_enum_framesizes);
 		SET_VALID_IOCTL(ops, VIDIOC_ENUM_FRAMEINTERVALS, vidioc_enum_frameintervals);
+		if (ops->vidioc_g_crop || ops->vidioc_g_selection)
+			set_bit(_IOC_NR(VIDIOC_G_CROP), valid_ioctls);
+		if (ops->vidioc_s_crop || ops->vidioc_s_selection)
+			set_bit(_IOC_NR(VIDIOC_S_CROP), valid_ioctls);
+		SET_VALID_IOCTL(ops, VIDIOC_G_SELECTION, vidioc_g_selection);
+		SET_VALID_IOCTL(ops, VIDIOC_S_SELECTION, vidioc_s_selection);
+		if (ops->vidioc_cropcap || ops->vidioc_g_selection)
+			set_bit(_IOC_NR(VIDIOC_CROPCAP), valid_ioctls);
 	} else if (is_vbi) {
 		/* vbi specific ioctls */
 		if ((is_rx && (ops->vidioc_g_fmt_vbi_cap ||
@@ -658,8 +637,8 @@ static void determine_valid_ioctls(struct video_device *vdev)
 			       ops->vidioc_try_fmt_sliced_vbi_out)))
 			set_bit(_IOC_NR(VIDIOC_TRY_FMT), valid_ioctls);
 		SET_VALID_IOCTL(ops, VIDIOC_G_SLICED_VBI_CAP, vidioc_g_sliced_vbi_cap);
-	} else if (is_sdr) {
-		/* SDR specific ioctls */
+	} else if (is_sdr && is_rx) {
+		/* SDR receiver specific ioctls */
 		if (ops->vidioc_enum_fmt_sdr_cap)
 			set_bit(_IOC_NR(VIDIOC_ENUM_FMT), valid_ioctls);
 		if (ops->vidioc_g_fmt_sdr_cap)
@@ -667,6 +646,16 @@ static void determine_valid_ioctls(struct video_device *vdev)
 		if (ops->vidioc_s_fmt_sdr_cap)
 			set_bit(_IOC_NR(VIDIOC_S_FMT), valid_ioctls);
 		if (ops->vidioc_try_fmt_sdr_cap)
+			set_bit(_IOC_NR(VIDIOC_TRY_FMT), valid_ioctls);
+	} else if (is_sdr && is_tx) {
+		/* SDR transmitter specific ioctls */
+		if (ops->vidioc_enum_fmt_sdr_out)
+			set_bit(_IOC_NR(VIDIOC_ENUM_FMT), valid_ioctls);
+		if (ops->vidioc_g_fmt_sdr_out)
+			set_bit(_IOC_NR(VIDIOC_G_FMT), valid_ioctls);
+		if (ops->vidioc_s_fmt_sdr_out)
+			set_bit(_IOC_NR(VIDIOC_S_FMT), valid_ioctls);
+		if (ops->vidioc_try_fmt_sdr_out)
 			set_bit(_IOC_NR(VIDIOC_TRY_FMT), valid_ioctls);
 	}
 
@@ -708,14 +697,6 @@ static void determine_valid_ioctls(struct video_device *vdev)
 			SET_VALID_IOCTL(ops, VIDIOC_G_AUDOUT, vidioc_g_audout);
 			SET_VALID_IOCTL(ops, VIDIOC_S_AUDOUT, vidioc_s_audout);
 		}
-		if (ops->vidioc_g_crop || ops->vidioc_g_selection)
-			set_bit(_IOC_NR(VIDIOC_G_CROP), valid_ioctls);
-		if (ops->vidioc_s_crop || ops->vidioc_s_selection)
-			set_bit(_IOC_NR(VIDIOC_S_CROP), valid_ioctls);
-		SET_VALID_IOCTL(ops, VIDIOC_G_SELECTION, vidioc_g_selection);
-		SET_VALID_IOCTL(ops, VIDIOC_S_SELECTION, vidioc_s_selection);
-		if (ops->vidioc_cropcap || ops->vidioc_g_selection)
-			set_bit(_IOC_NR(VIDIOC_CROPCAP), valid_ioctls);
 		if (ops->vidioc_g_parm || (vdev->vfl_type == VFL_TYPE_GRABBER &&
 					ops->vidioc_g_std))
 			set_bit(_IOC_NR(VIDIOC_G_PARM), valid_ioctls);
@@ -943,8 +924,8 @@ int __video_register_device(struct video_device *vdev, int type, int nr,
 	    vdev->vfl_type != VFL_TYPE_SUBDEV) {
 		vdev->entity.type = MEDIA_ENT_T_DEVNODE_V4L;
 		vdev->entity.name = vdev->name;
-		vdev->entity.info.v4l.major = VIDEO_MAJOR;
-		vdev->entity.info.v4l.minor = vdev->minor;
+		vdev->entity.info.dev.major = VIDEO_MAJOR;
+		vdev->entity.info.dev.minor = vdev->minor;
 		ret = media_device_register_entity(vdev->v4l2_dev->mdev,
 			&vdev->entity);
 		if (ret < 0)

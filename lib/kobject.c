@@ -257,23 +257,34 @@ static int kobject_add_internal(struct kobject *kobj)
 int kobject_set_name_vargs(struct kobject *kobj, const char *fmt,
 				  va_list vargs)
 {
-	const char *old_name = kobj->name;
-	char *s;
+	const char *s;
 
 	if (kobj->name && !fmt)
 		return 0;
 
-	kobj->name = kvasprintf(GFP_KERNEL, fmt, vargs);
-	if (!kobj->name) {
-		kobj->name = old_name;
+	s = kvasprintf_const(GFP_KERNEL, fmt, vargs);
+	if (!s)
 		return -ENOMEM;
+
+	/*
+	 * ewww... some of these buggers have '/' in the name ... If
+	 * that's the case, we need to make sure we have an actual
+	 * allocated copy to modify, since kvasprintf_const may have
+	 * returned something from .rodata.
+	 */
+	if (strchr(s, '/')) {
+		char *t;
+
+		t = kstrdup(s, GFP_KERNEL);
+		kfree_const(s);
+		if (!t)
+			return -ENOMEM;
+		strreplace(t, '/', '!');
+		s = t;
 	}
+	kfree_const(kobj->name);
+	kobj->name = s;
 
-	/* ewww... some of these buggers have '/' in the name ... */
-	while ((s = strchr(kobj->name, '/')))
-		s[0] = '!';
-
-	kfree(old_name);
 	return 0;
 }
 
@@ -340,8 +351,9 @@ error:
 }
 EXPORT_SYMBOL(kobject_init);
 
-static int kobject_add_varg(struct kobject *kobj, struct kobject *parent,
-			    const char *fmt, va_list vargs)
+static __printf(3, 0) int kobject_add_varg(struct kobject *kobj,
+					   struct kobject *parent,
+					   const char *fmt, va_list vargs)
 {
 	int retval;
 
@@ -468,7 +480,7 @@ int kobject_rename(struct kobject *kobj, const char *new_name)
 	envp[0] = devpath_string;
 	envp[1] = NULL;
 
-	name = dup_name = kstrdup(new_name, GFP_KERNEL);
+	name = dup_name = kstrdup_const(new_name, GFP_KERNEL);
 	if (!name) {
 		error = -ENOMEM;
 		goto out;
@@ -488,7 +500,7 @@ int kobject_rename(struct kobject *kobj, const char *new_name)
 	kobject_uevent_env(kobj, KOBJ_MOVE, envp);
 
 out:
-	kfree(dup_name);
+	kfree_const(dup_name);
 	kfree(devpath_string);
 	kfree(devpath);
 	kobject_put(kobj);
@@ -548,6 +560,7 @@ out:
 	kfree(devpath);
 	return error;
 }
+EXPORT_SYMBOL_GPL(kobject_move);
 
 /**
  * kobject_del - unlink kobject from hierarchy.
@@ -569,6 +582,7 @@ void kobject_del(struct kobject *kobj)
 	kobject_put(kobj->parent);
 	kobj->parent = NULL;
 }
+EXPORT_SYMBOL(kobject_del);
 
 /**
  * kobject_get - increment refcount for object.
@@ -576,10 +590,16 @@ void kobject_del(struct kobject *kobj)
  */
 struct kobject *kobject_get(struct kobject *kobj)
 {
-	if (kobj)
+	if (kobj) {
+		if (!kobj->state_initialized)
+			WARN(1, KERN_WARNING "kobject: '%s' (%p): is not "
+			       "initialized, yet kobject_get() is being "
+			       "called.\n", kobject_name(kobj), kobj);
 		kref_get(&kobj->kref);
+	}
 	return kobj;
 }
+EXPORT_SYMBOL(kobject_get);
 
 static struct kobject * __must_check kobject_get_unless_zero(struct kobject *kobj)
 {
@@ -628,7 +648,7 @@ static void kobject_cleanup(struct kobject *kobj)
 	/* free name if we allocated it */
 	if (name) {
 		pr_debug("kobject: '%s': free name\n", name);
-		kfree(name);
+		kfree_const(name);
 	}
 }
 
@@ -671,6 +691,7 @@ void kobject_put(struct kobject *kobj)
 		kref_put(&kobj->kref, kobject_release);
 	}
 }
+EXPORT_SYMBOL(kobject_put);
 
 static void dynamic_kobj_release(struct kobject *kobj)
 {
@@ -799,6 +820,7 @@ int kset_register(struct kset *k)
 	kobject_uevent(&k->kobj, KOBJ_ADD);
 	return 0;
 }
+EXPORT_SYMBOL(kset_register);
 
 /**
  * kset_unregister - remove a kset.
@@ -811,6 +833,7 @@ void kset_unregister(struct kset *k)
 	kobject_del(&k->kobj);
 	kobject_put(&k->kobj);
 }
+EXPORT_SYMBOL(kset_unregister);
 
 /**
  * kset_find_obj - search for object in kset.
@@ -1047,10 +1070,3 @@ void kobj_ns_drop(enum kobj_ns_type type, void *ns)
 		kobj_ns_ops_tbl[type]->drop_ns(ns);
 	spin_unlock(&kobj_ns_type_lock);
 }
-
-EXPORT_SYMBOL(kobject_get);
-EXPORT_SYMBOL(kobject_put);
-EXPORT_SYMBOL(kobject_del);
-
-EXPORT_SYMBOL(kset_register);
-EXPORT_SYMBOL(kset_unregister);

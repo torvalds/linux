@@ -23,6 +23,7 @@
 
 struct mdp5_client_smp_state {
 	mdp5_smp_state_t inuse;
+	mdp5_smp_state_t configured;
 	mdp5_smp_state_t pending;
 };
 
@@ -38,7 +39,8 @@ struct mdp5_smp;
 struct mdp5_smp *mdp5_smp_init(struct drm_device *dev, const struct mdp5_smp_block *cfg);
 void  mdp5_smp_destroy(struct mdp5_smp *smp);
 
-int  mdp5_smp_request(struct mdp5_smp *smp, enum mdp5_pipe pipe, u32 fmt, u32 width);
+int  mdp5_smp_request(struct mdp5_smp *smp, enum mdp5_pipe pipe,
+		const struct mdp_format *format, u32 width, bool hdecim);
 void mdp5_smp_configure(struct mdp5_smp *smp, enum mdp5_pipe pipe);
 void mdp5_smp_commit(struct mdp5_smp *smp, enum mdp5_pipe pipe);
 void mdp5_smp_release(struct mdp5_smp *smp, enum mdp5_pipe pipe);

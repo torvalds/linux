@@ -75,7 +75,7 @@ struct snd_compr_tstamp {
 /**
  * struct snd_compr_avail - avail descriptor
  * @avail: Number of bytes available in ring buffer for writing/reading
- * @tstamp: timestamp infomation
+ * @tstamp: timestamp information
  */
 struct snd_compr_avail {
 	__u64 avail;

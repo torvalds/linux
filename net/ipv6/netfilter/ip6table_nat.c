@@ -30,58 +30,46 @@ static const struct xt_table nf_nat_ipv6_table = {
 	.af		= NFPROTO_IPV6,
 };
 
-static unsigned int ip6table_nat_do_chain(const struct nf_hook_ops *ops,
+static unsigned int ip6table_nat_do_chain(void *priv,
 					  struct sk_buff *skb,
-					  const struct net_device *in,
-					  const struct net_device *out,
+					  const struct nf_hook_state *state,
 					  struct nf_conn *ct)
 {
-	struct net *net = nf_ct_net(ct);
-
-	return ip6t_do_table(skb, ops->hooknum, in, out, net->ipv6.ip6table_nat);
+	return ip6t_do_table(skb, state, state->net->ipv6.ip6table_nat);
 }
 
-static unsigned int ip6table_nat_fn(const struct nf_hook_ops *ops,
+static unsigned int ip6table_nat_fn(void *priv,
 				    struct sk_buff *skb,
-				    const struct net_device *in,
-				    const struct net_device *out,
-				    int (*okfn)(struct sk_buff *))
+				    const struct nf_hook_state *state)
 {
-	return nf_nat_ipv6_fn(ops, skb, in, out, ip6table_nat_do_chain);
+	return nf_nat_ipv6_fn(priv, skb, state, ip6table_nat_do_chain);
 }
 
-static unsigned int ip6table_nat_in(const struct nf_hook_ops *ops,
+static unsigned int ip6table_nat_in(void *priv,
 				    struct sk_buff *skb,
-				    const struct net_device *in,
-				    const struct net_device *out,
-				    int (*okfn)(struct sk_buff *))
+				    const struct nf_hook_state *state)
 {
-	return nf_nat_ipv6_in(ops, skb, in, out, ip6table_nat_do_chain);
+	return nf_nat_ipv6_in(priv, skb, state, ip6table_nat_do_chain);
 }
 
-static unsigned int ip6table_nat_out(const struct nf_hook_ops *ops,
+static unsigned int ip6table_nat_out(void *priv,
 				     struct sk_buff *skb,
-				     const struct net_device *in,
-				     const struct net_device *out,
-				     int (*okfn)(struct sk_buff *))
+				     const struct nf_hook_state *state)
 {
-	return nf_nat_ipv6_out(ops, skb, in, out, ip6table_nat_do_chain);
+	return nf_nat_ipv6_out(priv, skb, state, ip6table_nat_do_chain);
 }
 
-static unsigned int ip6table_nat_local_fn(const struct nf_hook_ops *ops,
+static unsigned int ip6table_nat_local_fn(void *priv,
 					  struct sk_buff *skb,
-					  const struct net_device *in,
-					  const struct net_device *out,
-					  int (*okfn)(struct sk_buff *))
+					  const struct nf_hook_state *state)
 {
-	return nf_nat_ipv6_local_fn(ops, skb, in, out, ip6table_nat_do_chain);
+	return nf_nat_ipv6_local_fn(priv, skb, state, ip6table_nat_do_chain);
 }
 
 static struct nf_hook_ops nf_nat_ipv6_ops[] __read_mostly = {
 	/* Before packet filtering, change destination */
 	{
 		.hook		= ip6table_nat_in,
-		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_IPV6,
 		.hooknum	= NF_INET_PRE_ROUTING,
 		.priority	= NF_IP6_PRI_NAT_DST,
@@ -89,7 +77,6 @@ static struct nf_hook_ops nf_nat_ipv6_ops[] __read_mostly = {
 	/* After packet filtering, change source */
 	{
 		.hook		= ip6table_nat_out,
-		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_IPV6,
 		.hooknum	= NF_INET_POST_ROUTING,
 		.priority	= NF_IP6_PRI_NAT_SRC,
@@ -97,7 +84,6 @@ static struct nf_hook_ops nf_nat_ipv6_ops[] __read_mostly = {
 	/* Before packet filtering, change destination */
 	{
 		.hook		= ip6table_nat_local_fn,
-		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_IPV6,
 		.hooknum	= NF_INET_LOCAL_OUT,
 		.priority	= NF_IP6_PRI_NAT_DST,
@@ -105,7 +91,6 @@ static struct nf_hook_ops nf_nat_ipv6_ops[] __read_mostly = {
 	/* After packet filtering, change source */
 	{
 		.hook		= ip6table_nat_fn,
-		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_IPV6,
 		.hooknum	= NF_INET_LOCAL_IN,
 		.priority	= NF_IP6_PRI_NAT_SRC,

@@ -60,6 +60,8 @@
 #include "debug.h"
 #include "scsiglue.h"
 
+#define DRV_NAME "ums-isd200"
+
 MODULE_DESCRIPTION("Driver for In-System Design, Inc. ISD200 ASIC");
 MODULE_AUTHOR("Björn Stenberg <bjorn@haxx.se>");
 MODULE_LICENSE("GPL");
@@ -737,7 +739,7 @@ static void isd200_log_config(struct us_data *us, struct isd200_info *info)
 		     info->ConfigData.ATAExtraConfig & ATACFGE_CONF_DESC2);
 	usb_stor_dbg(us, "      Skip Device Boot: 0x%x\n",
 		     info->ConfigData.ATAExtraConfig & ATACFGE_SKIP_BOOT);
-	usb_stor_dbg(us, "      ATA 3 State Supsend: 0x%x\n",
+	usb_stor_dbg(us, "      ATA 3 State Suspend: 0x%x\n",
 		     info->ConfigData.ATAExtraConfig & ATACFGE_STATE_SUSPEND);
 	usb_stor_dbg(us, "      Descriptor Override: 0x%x\n",
 		     info->ConfigData.ATAExtraConfig & ATACFGE_DESC_OVERRIDE);
@@ -1454,30 +1456,26 @@ static void isd200_free_info_ptrs(void *info_)
  */
 static int isd200_init_info(struct us_data *us)
 {
-	int retStatus = ISD200_GOOD;
 	struct isd200_info *info;
 
 	info = kzalloc(sizeof(struct isd200_info), GFP_KERNEL);
 	if (!info)
-		retStatus = ISD200_ERROR;
-	else {
-		info->id = kzalloc(ATA_ID_WORDS * 2, GFP_KERNEL);
-		info->RegsBuf = kmalloc(sizeof(info->ATARegs), GFP_KERNEL);
-		info->srb.sense_buffer =
-				kmalloc(SCSI_SENSE_BUFFERSIZE, GFP_KERNEL);
-		if (!info->id || !info->RegsBuf || !info->srb.sense_buffer) {
-			isd200_free_info_ptrs(info);
-			kfree(info);
-			retStatus = ISD200_ERROR;
-		}
+		return ISD200_ERROR;
+
+	info->id = kzalloc(ATA_ID_WORDS * 2, GFP_KERNEL);
+	info->RegsBuf = kmalloc(sizeof(info->ATARegs), GFP_KERNEL);
+	info->srb.sense_buffer = kmalloc(SCSI_SENSE_BUFFERSIZE, GFP_KERNEL);
+
+	if (!info->id || !info->RegsBuf || !info->srb.sense_buffer) {
+		isd200_free_info_ptrs(info);
+		kfree(info);
+		return ISD200_ERROR;
 	}
 
-	if (retStatus == ISD200_GOOD) {
-		us->extra = info;
-		us->extra_destructor = isd200_free_info_ptrs;
-	}
+	us->extra = info;
+	us->extra_destructor = isd200_free_info_ptrs;
 
-	return retStatus;
+	return ISD200_GOOD;
 }
 
 /**************************************************************************
@@ -1537,6 +1535,8 @@ static void isd200_ata_command(struct scsi_cmnd *srb, struct us_data *us)
 	isd200_srb_set_bufflen(srb, orig_bufflen);
 }
 
+static struct scsi_host_template isd200_host_template;
+
 static int isd200_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
@@ -1544,7 +1544,8 @@ static int isd200_probe(struct usb_interface *intf,
 	int result;
 
 	result = usb_stor_probe1(&us, intf, id,
-			(id - isd200_usb_ids) + isd200_unusual_dev_list);
+			(id - isd200_usb_ids) + isd200_unusual_dev_list,
+			&isd200_host_template);
 	if (result)
 		return result;
 
@@ -1556,7 +1557,7 @@ static int isd200_probe(struct usb_interface *intf,
 }
 
 static struct usb_driver isd200_driver = {
-	.name =		"ums-isd200",
+	.name =		DRV_NAME,
 	.probe =	isd200_probe,
 	.disconnect =	usb_stor_disconnect,
 	.suspend =	usb_stor_suspend,
@@ -1569,4 +1570,4 @@ static struct usb_driver isd200_driver = {
 	.no_dynamic_id = 1,
 };
 
-module_usb_driver(isd200_driver);
+module_usb_stor_driver(isd200_driver, isd200_host_template, DRV_NAME);

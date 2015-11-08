@@ -1,7 +1,8 @@
 * CSR SiRFprimaII Serial Peripheral Interface
 
 Required properties:
-- compatible : Should be "sirf,prima2-spi"
+- compatible : Should be "sirf,prima2-spi", "sirf,prima2-usp"
+               or "sirf,atlas7-usp"
 - reg : Offset and length of the register set for the device
 - interrupts : Should contain SPI interrupt
 - resets: phandle to the reset controller asserting this device in

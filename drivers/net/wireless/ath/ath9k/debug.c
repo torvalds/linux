@@ -741,8 +741,8 @@ static int read_file_misc(struct seq_file *file, void *data)
 			   i++, (int)(ctx->assigned), iter_data.naps,
 			   iter_data.nstations,
 			   iter_data.nmeshes, iter_data.nwds);
-		seq_printf(file, " ADHOC: %i TOTAL: %hi BEACON-VIF: %hi\n",
-			   iter_data.nadhocs, sc->cur_chan->nvifs,
+		seq_printf(file, " ADHOC: %i OCB: %i TOTAL: %hi BEACON-VIF: %hi\n",
+			   iter_data.nadhocs, iter_data.nocbs, sc->cur_chan->nvifs,
 			   sc->nbcnvifs);
 	}
 
@@ -765,6 +765,8 @@ static int read_file_reset(struct seq_file *file, void *data)
 		[RESET_TYPE_BEACON_STUCK] = "Stuck Beacon",
 		[RESET_TYPE_MCI] = "MCI Reset",
 		[RESET_TYPE_CALIBRATION] = "Calibration error",
+		[RESET_TX_DMA_ERROR] = "Tx DMA stop error",
+		[RESET_RX_DMA_ERROR] = "Rx DMA stop error",
 	};
 	int i;
 
@@ -1156,7 +1158,10 @@ static ssize_t write_file_tpc(struct file *file, const char __user *user_buf,
 
 	if (tpc_enabled != ah->tpc_enabled) {
 		ah->tpc_enabled = tpc_enabled;
-		ath9k_hw_set_txpowerlimit(ah, sc->cur_chan->txpower, false);
+
+		mutex_lock(&sc->mutex);
+		ath9k_set_txpower(sc, NULL);
+		mutex_unlock(&sc->mutex);
 	}
 
 	return count;

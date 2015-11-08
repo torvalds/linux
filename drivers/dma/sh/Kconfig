@@ -39,24 +39,6 @@ config SH_DMAE_R8A73A4
 
 endif
 
-config SUDMAC
-	tristate "Renesas SUDMAC support"
-	depends on SH_DMAE_BASE
-	help
-	  Enable support for the Renesas SUDMAC controllers.
-
-config RCAR_HPB_DMAE
-	tristate "Renesas R-Car HPB DMAC support"
-	depends on SH_DMAE_BASE
-	help
-	  Enable support for the Renesas R-Car series DMA controllers.
-
-config RCAR_AUDMAC_PP
-	tristate "Renesas R-Car Audio DMAC Peripheral Peripheral support"
-	depends on SH_DMAE_BASE
-	help
-	  Enable support for the Renesas R-Car Audio DMAC Peripheral Peripheral controllers.
-
 config RCAR_DMAC
 	tristate "Renesas R-Car Gen2 DMA Controller"
 	depends on ARCH_SHMOBILE || COMPILE_TEST
@@ -64,3 +46,24 @@ config RCAR_DMAC
 	help
 	  This driver supports the general purpose DMA controller found in the
 	  Renesas R-Car second generation SoCs.
+
+config RCAR_HPB_DMAE
+	tristate "Renesas R-Car HPB DMAC support"
+	depends on SH_DMAE_BASE
+	help
+	  Enable support for the Renesas R-Car series DMA controllers.
+
+config RENESAS_USB_DMAC
+	tristate "Renesas USB-DMA Controller"
+	depends on ARCH_SHMOBILE || COMPILE_TEST
+	select RENESAS_DMA
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  This driver supports the USB-DMA controller found in the Renesas
+	  SoCs.
+
+config SUDMAC
+	tristate "Renesas SUDMAC support"
+	depends on SH_DMAE_BASE
+	help
+	  Enable support for the Renesas SUDMAC controllers.

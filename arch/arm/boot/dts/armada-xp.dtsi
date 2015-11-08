@@ -57,7 +57,8 @@
 	compatible = "marvell,armadaxp", "marvell,armada-370-xp";
 
 	aliases {
-		eth2 = &eth2;
+		serial2 = &uart2;
+		serial3 = &uart3;
 	};
 
 	soc {
@@ -78,14 +79,23 @@
 				compatible = "marvell,aurora-system-cache";
 				reg = <0x08000 0x1000>;
 				cache-id-part = <0x100>;
+				cache-level = <2>;
 				cache-unified;
 				wt-override;
 			};
 
 			spi0: spi@10600 {
+				compatible = "marvell,armada-xp-spi",
+						"marvell,orion-spi";
 				pinctrl-0 = <&spi0_pins>;
 				pinctrl-names = "default";
 			};
+
+			spi1: spi@10680 {
+				compatible = "marvell,armada-xp-spi",
+						"marvell,orion-spi";
+			};
+
 
 			i2c0: i2c@11000 {
 				compatible = "marvell,mv78230-i2c", "marvell,mv64xxx-i2c";
@@ -149,11 +159,11 @@
 			cpuclk: clock-complex@18700 {
 				#clock-cells = <1>;
 				compatible = "marvell,armada-xp-cpu-clock";
-				reg = <0x18700 0xA0>, <0x1c054 0x10>;
+				reg = <0x18700 0x24>, <0x1c054 0x10>;
 				clocks = <&coreclk 1>;
 			};
 
-			interrupt-controller@20000 {
+			interrupt-controller@20a00 {
 			      reg = <0x20a00 0x2d0>, <0x21070 0x58>;
 			};
 
@@ -175,7 +185,7 @@
 			};
 
 			eth2: ethernet@30000 {
-				compatible = "marvell,armada-370-neta";
+				compatible = "marvell,armada-xp-neta";
 				reg = <0x30000 0x4000>;
 				interrupts = <12>;
 				clocks = <&gateclk 2>;
@@ -216,6 +226,14 @@
 					dmacap,xor;
 					dmacap,memset;
 				};
+			};
+
+			ethernet@70000 {
+				compatible = "marvell,armada-xp-neta";
+			};
+
+			ethernet@74000 {
+				compatible = "marvell,armada-xp-neta";
 			};
 
 			xor@f0900 {
@@ -287,7 +305,7 @@
 	spi0_pins: spi0-pins {
 		marvell,pins = "mpp36", "mpp37",
 			       "mpp38", "mpp39";
-		marvell,function = "spi";
+		marvell,function = "spi0";
 	};
 
 	uart2_pins: uart2-pins {

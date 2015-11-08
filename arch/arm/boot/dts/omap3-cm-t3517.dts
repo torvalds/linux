@@ -66,7 +66,7 @@
 
 	otg_drv_vbus: pinmux_otg_drv_vbus {
 		pinctrl-single,pins = <
-			OMAP3_CORE1_IOPAD(0x2210, PIN_INPUT_PULLDOWN | MUX_MODE0) /* rmii_50Mhz_clk.usb0_drvvbus */
+			OMAP3_CORE1_IOPAD(0x2210, PIN_INPUT_PULLDOWN | MUX_MODE0) /* rmii_50MHz_clk.usb0_drvvbus */
 		>;
 	};
 
@@ -133,6 +133,16 @@
 	non-removable;
 	bus-width = <4>;
 	cap-power-off-card;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	wlcore: wlcore@2 {
+		compatible = "ti,wl1271";
+		reg = <2>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <17 IRQ_TYPE_LEVEL_HIGH>; /* gpio 145 */
+		ref-clock-frequency = <38400000>;
+	};
 };
 
 &dss {

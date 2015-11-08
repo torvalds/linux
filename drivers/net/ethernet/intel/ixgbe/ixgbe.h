@@ -151,7 +151,16 @@ struct vf_data_storage {
 	u16 tx_rate;
 	u16 vlan_count;
 	u8 spoofchk_enabled;
+	bool rss_query_enabled;
+	u8 trusted;
+	int xcast_mode;
 	unsigned int vf_api;
+};
+
+enum ixgbevf_xcast_modes {
+	IXGBEVF_XCAST_MODE_NONE = 0,
+	IXGBEVF_XCAST_MODE_MULTI,
+	IXGBEVF_XCAST_MODE_ALLMULTI,
 };
 
 struct vf_macvlans {
@@ -538,8 +547,7 @@ struct hwmon_buff {
 #define IXGBE_MIN_RSC_ITR	24
 #define IXGBE_100K_ITR		40
 #define IXGBE_20K_ITR		200
-#define IXGBE_10K_ITR		400
-#define IXGBE_8K_ITR		500
+#define IXGBE_12K_ITR		336
 
 /* ixgbe_test_staterr - tests bits in Rx descriptor status and error fields */
 static inline __le32 ixgbe_test_staterr(union ixgbe_adv_rx_desc *rx_desc,
@@ -594,6 +602,7 @@ struct ixgbe_mac_addr {
 
 /* default to trying for four seconds */
 #define IXGBE_TRY_LINK_TIMEOUT (4 * HZ)
+#define IXGBE_SFP_POLL_JIFFIES (2 * HZ)	/* SFP poll every 2 seconds */
 
 /* board specific private data structure */
 struct ixgbe_adapter {
@@ -613,7 +622,6 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG_RX_1BUF_CAPABLE              (u32)(1 << 4)
 #define IXGBE_FLAG_RX_PS_CAPABLE                (u32)(1 << 5)
 #define IXGBE_FLAG_RX_PS_ENABLED                (u32)(1 << 6)
-#define IXGBE_FLAG_IN_NETPOLL                   (u32)(1 << 7)
 #define IXGBE_FLAG_DCA_ENABLED                  (u32)(1 << 8)
 #define IXGBE_FLAG_DCA_CAPABLE                  (u32)(1 << 9)
 #define IXGBE_FLAG_IMIR_ENABLED                 (u32)(1 << 10)
@@ -630,6 +638,7 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG_FCOE_ENABLED                 (u32)(1 << 21)
 #define IXGBE_FLAG_SRIOV_CAPABLE                (u32)(1 << 22)
 #define IXGBE_FLAG_SRIOV_ENABLED                (u32)(1 << 23)
+#define IXGBE_FLAG_VXLAN_OFFLOAD_CAPABLE	BIT(24)
 
 	u32 flags2;
 #define IXGBE_FLAG2_RSC_CAPABLE                 (u32)(1 << 0)
@@ -643,7 +652,10 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG2_RSS_FIELD_IPV4_UDP		(u32)(1 << 8)
 #define IXGBE_FLAG2_RSS_FIELD_IPV6_UDP		(u32)(1 << 9)
 #define IXGBE_FLAG2_PTP_PPS_ENABLED		(u32)(1 << 10)
-#define IXGBE_FLAG2_BRIDGE_MODE_VEB		(u32)(1 << 11)
+#define IXGBE_FLAG2_PHY_INTERRUPT		(u32)(1 << 11)
+#ifdef CONFIG_IXGBE_VXLAN
+#define IXGBE_FLAG2_VXLAN_REREG_NEEDED		BIT(12)
+#endif
 
 	/* Tx fast path data */
 	int num_tx_queues;
@@ -704,6 +716,7 @@ struct ixgbe_adapter {
 
 	u32 link_speed;
 	bool link_up;
+	unsigned long sfp_poll_time;
 	unsigned long link_check_timeout;
 
 	struct timer_list service_timer;
@@ -722,6 +735,8 @@ struct ixgbe_adapter {
 #endif /* IXGBE_FCOE */
 	u8 __iomem *io_addr; /* Mainly for iounmap use */
 	u32 wol;
+
+	u16 bridge_mode;
 
 	u16 eeprom_verh;
 	u16 eeprom_verl;
@@ -755,7 +770,9 @@ struct ixgbe_adapter {
 	u32 timer_event_accumulator;
 	u32 vferr_refcount;
 	struct ixgbe_mac_addr *mac_table;
+#ifdef CONFIG_IXGBE_VXLAN
 	u16 vxlan_port;
+#endif
 	struct kobject *info_kobj;
 #ifdef CONFIG_IXGBE_HWMON
 	struct hwmon_buff *ixgbe_hwmon_buff;
@@ -766,6 +783,15 @@ struct ixgbe_adapter {
 
 	u8 default_up;
 	unsigned long fwd_bitmask; /* Bitmask indicating in use pools */
+
+/* maximum number of RETA entries among all devices supported by ixgbe
+ * driver: currently it's x550 device in non-SRIOV mode
+ */
+#define IXGBE_MAX_RETA_ENTRIES 512
+	u8 rss_indir_tbl[IXGBE_MAX_RETA_ENTRIES];
+
+#define IXGBE_RSS_KEY_SIZE     40  /* size of RSS Hash Key in bytes */
+	u32 rss_key[IXGBE_RSS_KEY_SIZE / sizeof(u32)];
 };
 
 static inline u8 ixgbe_max_rss_indices(struct ixgbe_adapter *adapter)
@@ -955,4 +981,6 @@ void ixgbe_sriov_reinit(struct ixgbe_adapter *adapter);
 netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 				  struct ixgbe_adapter *adapter,
 				  struct ixgbe_ring *tx_ring);
+u32 ixgbe_rss_indir_tbl_entries(struct ixgbe_adapter *adapter);
+void ixgbe_store_reta(struct ixgbe_adapter *adapter);
 #endif /* _IXGBE_H_ */

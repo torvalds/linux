@@ -57,13 +57,13 @@ static const struct spi_device_id st_accel_id_table[] = {
 	{ LSM303DL_ACCEL_DEV_NAME },
 	{ LSM303DLM_ACCEL_DEV_NAME },
 	{ LSM330_ACCEL_DEV_NAME },
+	{ LSM303AGR_ACCEL_DEV_NAME },
 	{},
 };
 MODULE_DEVICE_TABLE(spi, st_accel_id_table);
 
 static struct spi_driver st_accel_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "st-accel-spi",
 	},
 	.probe = st_accel_spi_probe,

@@ -53,6 +53,11 @@ source "net/bluetooth/cmtp/Kconfig"
 
 source "net/bluetooth/hidp/Kconfig"
 
+config BT_HS
+	bool "Bluetooth High Speed (HS) features"
+	depends on BT_BREDR
+	default y
+
 config BT_LE
 	bool "Bluetooth Low Energy (LE) features"
 	depends on BT
@@ -90,5 +95,13 @@ config BT_SELFTEST_SMP
 	help
 	  Run test cases for SMP cryptographic functionality, including both
 	  legacy SMP as well as the Secure Connections features.
+
+config BT_DEBUGFS
+	bool "Export Bluetooth internals in debugfs"
+	depends on BT && DEBUG_FS
+	default y
+	help
+	  Provide extensive information about internal Bluetooth states
+	  in debugfs.
 
 source "drivers/bluetooth/Kconfig"

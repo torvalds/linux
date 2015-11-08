@@ -24,7 +24,6 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/wait.h>
-#include <linux/vmalloc.h>
 
 #include <net/inet_connection_sock.h>
 #include <net/inet_sock.h>
@@ -76,9 +75,7 @@ struct inet_ehash_bucket {
  * ports are created in O(1) time?  I thought so. ;-)	-DaveM
  */
 struct inet_bind_bucket {
-#ifdef CONFIG_NET_NS
-	struct net		*ib_net;
-#endif
+	possible_net_t		ib_net;
 	unsigned short		port;
 	signed char		fastreuse;
 	signed char		fastreuseport;
@@ -150,8 +147,6 @@ struct inet_hashinfo {
 	 */
 	struct inet_listen_hashbucket	listening_hash[INET_LHTABLE_SIZE]
 					____cacheline_aligned_in_smp;
-
-	atomic_t			bsockets;
 };
 
 static inline struct inet_ehash_bucket *inet_ehash_bucket(
@@ -168,52 +163,12 @@ static inline spinlock_t *inet_ehash_lockp(
 	return &hashinfo->ehash_locks[hash & hashinfo->ehash_locks_mask];
 }
 
-static inline int inet_ehash_locks_alloc(struct inet_hashinfo *hashinfo)
-{
-	unsigned int i, size = 256;
-#if defined(CONFIG_PROVE_LOCKING)
-	unsigned int nr_pcpus = 2;
-#else
-	unsigned int nr_pcpus = num_possible_cpus();
-#endif
-	if (nr_pcpus >= 4)
-		size = 512;
-	if (nr_pcpus >= 8)
-		size = 1024;
-	if (nr_pcpus >= 16)
-		size = 2048;
-	if (nr_pcpus >= 32)
-		size = 4096;
-	if (sizeof(spinlock_t) != 0) {
-#ifdef CONFIG_NUMA
-		if (size * sizeof(spinlock_t) > PAGE_SIZE)
-			hashinfo->ehash_locks = vmalloc(size * sizeof(spinlock_t));
-		else
-#endif
-		hashinfo->ehash_locks =	kmalloc(size * sizeof(spinlock_t),
-						GFP_KERNEL);
-		if (!hashinfo->ehash_locks)
-			return ENOMEM;
-		for (i = 0; i < size; i++)
-			spin_lock_init(&hashinfo->ehash_locks[i]);
-	}
-	hashinfo->ehash_locks_mask = size - 1;
-	return 0;
-}
+int inet_ehash_locks_alloc(struct inet_hashinfo *hashinfo);
 
 static inline void inet_ehash_locks_free(struct inet_hashinfo *hashinfo)
 {
-	if (hashinfo->ehash_locks) {
-#ifdef CONFIG_NUMA
-		unsigned int size = (hashinfo->ehash_locks_mask + 1) *
-							sizeof(spinlock_t);
-		if (size > PAGE_SIZE)
-			vfree(hashinfo->ehash_locks);
-		else
-#endif
-		kfree(hashinfo->ehash_locks);
-		hashinfo->ehash_locks = NULL;
-	}
+	kvfree(hashinfo->ehash_locks);
+	hashinfo->ehash_locks = NULL;
 }
 
 struct inet_bind_bucket *
@@ -223,8 +178,8 @@ inet_bind_bucket_create(struct kmem_cache *cachep, struct net *net,
 void inet_bind_bucket_destroy(struct kmem_cache *cachep,
 			      struct inet_bind_bucket *tb);
 
-static inline int inet_bhashfn(struct net *net, const __u16 lport,
-			       const int bhash_size)
+static inline u32 inet_bhashfn(const struct net *net, const __u16 lport,
+			       const u32 bhash_size)
 {
 	return (lport + net_hash_mix(net)) & (bhash_size - 1);
 }
@@ -233,7 +188,7 @@ void inet_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
 		    const unsigned short snum);
 
 /* These can have wildcards, don't try too hard. */
-static inline int inet_lhashfn(struct net *net, const unsigned short num)
+static inline u32 inet_lhashfn(const struct net *net, const unsigned short num)
 {
 	return (num + net_hash_mix(net)) & (INET_LHTABLE_SIZE - 1);
 }
@@ -244,13 +199,15 @@ static inline int inet_sk_listen_hashfn(const struct sock *sk)
 }
 
 /* Caller must disable local BH processing. */
-int __inet_inherit_port(struct sock *sk, struct sock *child);
+int __inet_inherit_port(const struct sock *sk, struct sock *child);
 
 void inet_put_port(struct sock *sk);
 
 void inet_hashinfo_init(struct inet_hashinfo *h);
 
-int __inet_hash_nolisten(struct sock *sk, struct inet_timewait_sock *tw);
+bool inet_ehash_insert(struct sock *sk, struct sock *osk);
+bool inet_ehash_nolisten(struct sock *sk, struct sock *osk);
+void __inet_hash(struct sock *sk, struct sock *osk);
 void inet_hash(struct sock *sk);
 void inet_unhash(struct sock *sk);
 
@@ -385,13 +342,32 @@ static inline struct sock *__inet_lookup_skb(struct inet_hashinfo *hashinfo,
 				     iph->daddr, dport, inet_iif(skb));
 }
 
+u32 sk_ehashfn(const struct sock *sk);
+u32 inet6_ehashfn(const struct net *net,
+		  const struct in6_addr *laddr, const u16 lport,
+		  const struct in6_addr *faddr, const __be16 fport);
+
+static inline void sk_daddr_set(struct sock *sk, __be32 addr)
+{
+	sk->sk_daddr = addr; /* alias of inet_daddr */
+#if IS_ENABLED(CONFIG_IPV6)
+	ipv6_addr_set_v4mapped(addr, &sk->sk_v6_daddr);
+#endif
+}
+
+static inline void sk_rcv_saddr_set(struct sock *sk, __be32 addr)
+{
+	sk->sk_rcv_saddr = addr; /* alias of inet_rcv_saddr */
+#if IS_ENABLED(CONFIG_IPV6)
+	ipv6_addr_set_v4mapped(addr, &sk->sk_v6_rcv_saddr);
+#endif
+}
+
 int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 			struct sock *sk, u32 port_offset,
 			int (*check_established)(struct inet_timewait_death_row *,
 						 struct sock *, __u16,
-						 struct inet_timewait_sock **),
-			int (*hash)(struct sock *sk,
-				    struct inet_timewait_sock *twp));
+						 struct inet_timewait_sock **));
 
 int inet_hash_connect(struct inet_timewait_death_row *death_row,
 		      struct sock *sk);

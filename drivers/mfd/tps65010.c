@@ -515,7 +515,7 @@ static int tps65010_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 static struct tps65010 *the_tps;
 
-static int __exit tps65010_remove(struct i2c_client *client)
+static int tps65010_remove(struct i2c_client *client)
 {
 	struct tps65010		*tps = i2c_get_clientdata(client);
 	struct tps65010_board	*board = dev_get_platdata(&client->dev);
@@ -684,7 +684,7 @@ static struct i2c_driver tps65010_driver = {
 		.name	= "tps65010",
 	},
 	.probe	= tps65010_probe,
-	.remove	= __exit_p(tps65010_remove),
+	.remove	= tps65010_remove,
 	.id_table = tps65010_id,
 };
 

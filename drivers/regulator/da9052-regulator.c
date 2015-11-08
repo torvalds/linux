@@ -381,6 +381,7 @@ static inline struct da9052_regulator_info *find_regulator_info(u8 chip_id,
 	case DA9053_AA:
 	case DA9053_BA:
 	case DA9053_BB:
+	case DA9053_BC:
 		for (i = 0; i < ARRAY_SIZE(da9053_regulator_info); i++) {
 			info = &da9053_regulator_info[i];
 			if (info->reg_desc.id == id)
@@ -394,6 +395,7 @@ static inline struct da9052_regulator_info *find_regulator_info(u8 chip_id,
 
 static int da9052_regulator_probe(struct platform_device *pdev)
 {
+	const struct mfd_cell *cell = mfd_get_cell(pdev);
 	struct regulator_config config = { };
 	struct da9052_regulator *regulator;
 	struct da9052 *da9052;
@@ -409,7 +411,7 @@ static int da9052_regulator_probe(struct platform_device *pdev)
 	regulator->da9052 = da9052;
 
 	regulator->info = find_regulator_info(regulator->da9052->chip_id,
-					      pdev->id);
+					      cell->id);
 	if (regulator->info == NULL) {
 		dev_err(&pdev->dev, "invalid regulator ID specified\n");
 		return -EINVAL;
@@ -419,7 +421,7 @@ static int da9052_regulator_probe(struct platform_device *pdev)
 	config.driver_data = regulator;
 	config.regmap = da9052->regmap;
 	if (pdata && pdata->regulators) {
-		config.init_data = pdata->regulators[pdev->id];
+		config.init_data = pdata->regulators[cell->id];
 	} else {
 #ifdef CONFIG_OF
 		struct device_node *nproot = da9052->dev->of_node;

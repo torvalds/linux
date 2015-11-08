@@ -266,7 +266,7 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 
 	error = omap4_keypad_parse_dt(&pdev->dev, keypad_data);
 	if (error)
-		return error;
+		goto err_free_keypad;
 
 	res = request_mem_region(res->start, resource_size(res), pdev->name);
 	if (!res) {

@@ -45,8 +45,11 @@
 #include "usbpipe.h"
 
 static const u16 vnt_time_stampoff[2][MAX_RATE] = {
-	{384, 288, 226, 209, 54, 43, 37, 31, 28, 25, 24, 23},/* Long Preamble */
-	{384, 192, 130, 113, 54, 43, 37, 31, 28, 25, 24, 23},/* Short Preamble */
+	/* Long Preamble */
+	{384, 288, 226, 209, 54, 43, 37, 31, 28, 25, 24, 23},
+
+	/* Short Preamble */
+	{384, 192, 130, 113, 54, 43, 37, 31, 28, 25, 24, 23},
 };
 
 static const u16 vnt_fb_opt0[2][5] = {
@@ -87,7 +90,7 @@ static struct vnt_usb_send_context
 			return NULL;
 
 		context = priv->tx_context[ii];
-		if (context->in_use == false) {
+		if (!context->in_use) {
 			context->in_use = true;
 			memset(context->data, 0,
 					MAX_TOTAL_SIZE_WITH_ALL_HEADERS);
@@ -98,8 +101,11 @@ static struct vnt_usb_send_context
 		}
 	}
 
-	if (ii == priv->num_tx_context)
+	if (ii == priv->num_tx_context) {
 		dev_dbg(&priv->usb->dev, "%s No Free Tx Context\n", __func__);
+
+		ieee80211_stop_queues(priv->hw);
+	}
 
 	return NULL;
 }
@@ -755,9 +761,9 @@ static void vnt_fill_txkey(struct vnt_usb_send_context *tx_context,
 		else
 			mic_hdr->hlen = cpu_to_be16(22);
 
-		memcpy(mic_hdr->addr1, hdr->addr1, ETH_ALEN);
-		memcpy(mic_hdr->addr2, hdr->addr2, ETH_ALEN);
-		memcpy(mic_hdr->addr3, hdr->addr3, ETH_ALEN);
+		ether_addr_copy(mic_hdr->addr1, hdr->addr1);
+		ether_addr_copy(mic_hdr->addr2, hdr->addr2);
+		ether_addr_copy(mic_hdr->addr3, hdr->addr3);
 
 		mic_hdr->frame_control = cpu_to_le16(
 			le16_to_cpu(hdr->frame_control) & 0xc78f);
@@ -765,7 +771,7 @@ static void vnt_fill_txkey(struct vnt_usb_send_context *tx_context,
 				le16_to_cpu(hdr->seq_ctrl) & 0xf);
 
 		if (ieee80211_has_a4(hdr->frame_control))
-			memcpy(mic_hdr->addr4, hdr->addr4, ETH_ALEN);
+			ether_addr_copy(mic_hdr->addr4, hdr->addr4);
 
 
 		memcpy(key_buffer, tx_key->key, WLAN_KEY_LEN_CCMP);
@@ -805,10 +811,18 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 		vnt_schedule_command(priv, WLAN_CMD_SETPOWER);
 	}
 
-	if (current_rate > RATE_11M)
-		pkt_type = priv->packet_type;
-	else
+	if (current_rate > RATE_11M) {
+		if (info->band == IEEE80211_BAND_5GHZ) {
+			pkt_type = PK_TYPE_11A;
+		} else {
+			if (tx_rate->flags & IEEE80211_TX_RC_USE_CTS_PROTECT)
+				pkt_type = PK_TYPE_11GB;
+			else
+				pkt_type = PK_TYPE_11GA;
+		}
+	} else {
 		pkt_type = PK_TYPE_11B;
+	}
 
 	spin_lock_irqsave(&priv->lock, flags);
 

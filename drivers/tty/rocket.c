@@ -895,14 +895,6 @@ static int rp_open(struct tty_struct *tty, struct file *filp)
 	if (!page)
 		return -ENOMEM;
 
-	if (port->flags & ASYNC_CLOSING) {
-		retval = wait_for_completion_interruptible(&info->close_wait);
-		free_page(page);
-		if (retval)
-			return retval;
-		return ((port->flags & ASYNC_HUP_NOTIFY) ? -EAGAIN : -ERESTARTSYS);
-	}
-
 	/*
 	 * We must not sleep from here until the port is marked fully in use.
 	 */
@@ -1057,7 +1049,6 @@ static void rp_close(struct tty_struct *tty, struct file *filp)
 	mutex_unlock(&port->mutex);
 	tty_port_tty_set(port, NULL);
 
-	wake_up_interruptible(&port->close_wait);
 	complete_all(&info->close_wait);
 	atomic_dec(&rp_num_ports_open);
 
@@ -1511,10 +1502,6 @@ static void rp_hangup(struct tty_struct *tty)
 #endif
 	rp_flush_buffer(tty);
 	spin_lock_irqsave(&info->port.lock, flags);
-	if (info->port.flags & ASYNC_CLOSING) {
-		spin_unlock_irqrestore(&info->port.lock, flags);
-		return;
-	}
 	if (info->port.count)
 		atomic_dec(&rp_num_ports_open);
 	clear_bit((info->aiop * 8) + info->chan, (void *) &xmit_flags[info->board]);

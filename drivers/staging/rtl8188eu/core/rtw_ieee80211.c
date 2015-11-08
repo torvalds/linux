@@ -19,6 +19,8 @@
  ******************************************************************************/
 #define _IEEE80211_C
 
+#include <linux/ieee80211.h>
+
 #include <drv_types.h>
 #include <osdep_intf.h>
 #include <ieee80211.h>
@@ -27,7 +29,6 @@
 #include <wlan_bssdef.h>
 
 u8 RTW_WPA_OUI_TYPE[] = { 0x00, 0x50, 0xf2, 1 };
-u16 RTW_WPA_VERSION = 1;
 u8 WPA_AUTH_KEY_MGMT_NONE[] = { 0x00, 0x50, 0xf2, 0 };
 u8 WPA_AUTH_KEY_MGMT_UNSPEC_802_1X[] = { 0x00, 0x50, 0xf2, 1 };
 u8 WPA_AUTH_KEY_MGMT_PSK_OVER_802_1X[] = { 0x00, 0x50, 0xf2, 2 };
@@ -129,12 +130,12 @@ int rtw_check_network_type(unsigned char *rate, int ratelen, int channel)
 	}
 }
 
-u8 *rtw_set_fixed_ie(unsigned char *pbuf, unsigned int len, unsigned char *source,
-				unsigned int *frlen)
+u8 *rtw_set_fixed_ie(void *pbuf, unsigned int len, void *source,
+		     unsigned int *frlen)
 {
-	memcpy((void *)pbuf, (void *)source, len);
+	memcpy(pbuf, source, len);
 	*frlen = *frlen + len;
-	return pbuf + len;
+	return ((u8 *)pbuf) + len;
 }
 
 /*  rtw_set_ie will update frame length */
@@ -663,7 +664,7 @@ int rtw_get_sec_ie(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len, u8 *wpa_ie,
 
 	/* Search required WPA or WPA2 IE and copy to sec_ie[] */
 
-	cnt = (_TIMESTAMP_ + _BEACON_ITERVAL_ + _CAPABILITY_);
+	cnt = _TIMESTAMP_ + _BEACON_ITERVAL_ + _CAPABILITY_;
 
 	sec_idx = 0;
 
@@ -789,7 +790,7 @@ u8 *rtw_get_wps_ie(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps_ielen)
  *
  * Returns: the address of the specific WPS attribute found, or NULL
  */
-u8 *rtw_get_wps_attr(u8 *wps_ie, uint wps_ielen, u16 target_attr_id , u8 *buf_attr, u32 *len_attr)
+u8 *rtw_get_wps_attr(u8 *wps_ie, uint wps_ielen, u16 target_attr_id, u8 *buf_attr, u32 *len_attr)
 {
 	u8 *attr_ptr = NULL;
 	u8 *target_attr_ptr = NULL;
@@ -799,7 +800,7 @@ u8 *rtw_get_wps_attr(u8 *wps_ie, uint wps_ielen, u16 target_attr_id , u8 *buf_at
 		*len_attr = 0;
 
 	if ((wps_ie[0] != _VENDOR_SPECIFIC_IE_) ||
-	    (memcmp(wps_ie + 2, wps_oui , 4)))
+	    (memcmp(wps_ie + 2, wps_oui, 4)))
 		return attr_ptr;
 
 	/*  6 = 1(Element ID) + 1(Length) + 4(WPS OUI) */
@@ -835,7 +836,7 @@ u8 *rtw_get_wps_attr(u8 *wps_ie, uint wps_ielen, u16 target_attr_id , u8 *buf_at
  *
  * Returns: the address of the specific WPS attribute content found, or NULL
  */
-u8 *rtw_get_wps_attr_content(u8 *wps_ie, uint wps_ielen, u16 target_attr_id , u8 *buf_content, uint *len_content)
+u8 *rtw_get_wps_attr_content(u8 *wps_ie, uint wps_ielen, u16 target_attr_id, u8 *buf_content, uint *len_content)
 {
 	u8 *attr_ptr;
 	u32 attr_len;
@@ -1043,7 +1044,7 @@ enum parse_res rtw_ieee802_11_parse_elems(u8 *start, uint len,
 			elems->timeout_int = pos;
 			elems->timeout_int_len = elen;
 			break;
-		case WLAN_EID_HT_CAP:
+		case WLAN_EID_HT_CAPABILITY:
 			elems->ht_capabilities = pos;
 			elems->ht_capabilities_len = elen;
 			break;
@@ -1102,7 +1103,7 @@ void rtw_macaddr_cfg(u8 *mac_addr)
 
 void dump_ies(u8 *buf, u32 buf_len)
 {
-	u8 *pos = (u8 *)buf;
+	u8 *pos = buf;
 	u8 id, len;
 
 	while (pos-buf <= buf_len) {
@@ -1118,7 +1119,7 @@ void dump_ies(u8 *buf, u32 buf_len)
 
 void dump_wps_ie(u8 *ie, u32 ie_len)
 {
-	u8 *pos = (u8 *)ie;
+	u8 *pos = ie;
 	u16 id;
 	u16 len;
 	u8 *wps_ie;
@@ -1239,7 +1240,7 @@ void rtw_get_bcn_info(struct wlan_network *pnetwork)
 	} else {
 		pnetwork->BcnInfo.encryp_protocol = ENCRYP_PROTOCOL_OPENSYS;
 	}
-	rtw_get_sec_ie(pnetwork->network.IEs , pnetwork->network.IELength, NULL, &rsn_len, NULL, &wpa_len);
+	rtw_get_sec_ie(pnetwork->network.IEs, pnetwork->network.IELength, NULL, &rsn_len, NULL, &wpa_len);
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("rtw_get_bcn_info: ssid =%s\n", pnetwork->network.Ssid.Ssid));
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("rtw_get_bcn_info: wpa_len =%d rsn_len =%d\n", wpa_len, rsn_len));
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("rtw_get_bcn_info: ssid =%s\n", pnetwork->network.Ssid.Ssid));
@@ -1391,6 +1392,6 @@ static const char *_action_public_str[] = {
 
 const char *action_public_str(u8 action)
 {
-	action = (action >= ACT_PUBLIC_MAX) ? ACT_PUBLIC_MAX : action;
+	action = min_t(u8, action, ACT_PUBLIC_MAX);
 	return _action_public_str[action];
 }

@@ -748,7 +748,7 @@ static int str_to_bitmap(char *s, cpumask_t *b)
 		set_bit(c, cpumask_bits(b));
 	}
 
-	cpu_map__delete(m);
+	cpu_map__put(m);
 
 	return ret;
 }

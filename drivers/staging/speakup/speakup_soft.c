@@ -19,7 +19,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * this code is specificly written as a driver for the speakup screenreview
- * package and is not a general device driver.  */
+ * package and is not a general device driver.
+ */
 
 #include <linux/unistd.h>
 #include <linux/miscdevice.h> /* for misc_register, and SYNTH_MINOR */
@@ -350,21 +351,9 @@ module_param_named(start, synth_soft.startup, short, S_IRUGO);
 
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
 
+module_spk_synth(synth_soft);
 
-static int __init soft_init(void)
-{
-	return synth_add(&synth_soft);
-}
-
-static void __exit soft_exit(void)
-{
-	synth_remove(&synth_soft);
-}
-
-module_init(soft_init);
-module_exit(soft_exit);
 MODULE_AUTHOR("Kirk Reiser <kirk@braille.uwo.ca>");
 MODULE_DESCRIPTION("Speakup userspace software synthesizer support");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
-

@@ -83,7 +83,7 @@ static void mfree_all_stainfo(struct sta_priv *pstapriv)
 	spin_lock_irqsave(&pstapriv->sta_hash_lock, irqL);
 	phead = &pstapriv->free_sta_queue.queue;
 	plist = phead->next;
-	while ((end_of_queue_search(phead, plist)) == false)
+	while (!end_of_queue_search(phead, plist))
 		plist = plist->next;
 
 	spin_unlock_irqrestore(&pstapriv->sta_hash_lock, irqL);
@@ -117,9 +117,9 @@ struct sta_info *r8712_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 
 	pfree_sta_queue = &pstapriv->free_sta_queue;
 	spin_lock_irqsave(&(pfree_sta_queue->lock), flags);
-	if (list_empty(&pfree_sta_queue->queue))
+	if (list_empty(&pfree_sta_queue->queue)) {
 		psta = NULL;
-	else {
+	} else {
 		psta = LIST_CONTAINOR(pfree_sta_queue->queue.next,
 				      struct sta_info, list);
 		list_del_init(&(psta->list));
@@ -198,7 +198,7 @@ void r8712_free_stainfo(struct _adapter *padapter, struct sta_info *psta)
 	 * cancel reordering_ctrl_timer */
 	for (i = 0; i < 16; i++) {
 		preorder_ctrl = &psta->recvreorder_ctrl[i];
-		_cancel_timer_ex(&preorder_ctrl->reordering_ctrl_timer);
+		del_timer(&preorder_ctrl->reordering_ctrl_timer);
 	}
 	spin_lock(&(pfree_sta_queue->lock));
 	/* insert into free_sta_queue; 20061114 */
@@ -222,7 +222,7 @@ void r8712_free_all_stainfo(struct _adapter *padapter)
 	for (index = 0; index < NUM_STA; index++) {
 		phead = &(pstapriv->sta_hash[index]);
 		plist = phead->next;
-		while ((end_of_queue_search(phead, plist)) == false) {
+		while (!end_of_queue_search(phead, plist)) {
 			psta = LIST_CONTAINOR(plist,
 					      struct sta_info, hash_list);
 			plist = plist->next;
@@ -247,7 +247,7 @@ struct sta_info *r8712_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 	spin_lock_irqsave(&pstapriv->sta_hash_lock, irqL);
 	phead = &(pstapriv->sta_hash[index]);
 	plist = phead->next;
-	while ((end_of_queue_search(phead, plist)) == false) {
+	while (!end_of_queue_search(phead, plist)) {
 		psta = LIST_CONTAINOR(plist, struct sta_info, hash_list);
 		if ((!memcmp(psta->hwaddr, hwaddr, ETH_ALEN))) {
 			/* if found the matched address */
@@ -270,12 +270,10 @@ void r8712_init_bcmc_stainfo(struct _adapter *padapter)
 
 struct sta_info *r8712_get_bcmc_stainfo(struct _adapter *padapter)
 {
-	struct sta_info *psta;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-	psta = r8712_get_stainfo(pstapriv, bc_addr);
-	return psta;
+	return r8712_get_stainfo(pstapriv, bc_addr);
 }
 
 

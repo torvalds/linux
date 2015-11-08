@@ -109,16 +109,8 @@ static bool iommap;
 static int ioshift;
 static bool softcarrier = true;
 static bool share_irq;
-static bool debug;
 static int sense = -1;	/* -1 = auto, 0 = active high, 1 = active low */
 static bool txsense;	/* 0 = active high, 1 = active low */
-
-#define dprintk(fmt, args...)					\
-	do {							\
-		if (debug)					\
-			printk(KERN_DEBUG LIRC_DRIVER_NAME ": "	\
-			       fmt, ## args);			\
-	} while (0)
 
 /* forward declarations */
 static long send_pulse_irdeo(unsigned long length);
@@ -327,9 +319,6 @@ static void safe_udelay(unsigned long usecs)
  * time
  */
 
-/* So send_pulse can quickly convert microseconds to clocks */
-static unsigned long conv_us_to_clocks;
-
 static int init_timing_params(unsigned int new_duty_cycle,
 		unsigned int new_freq)
 {
@@ -344,7 +333,6 @@ static int init_timing_params(unsigned int new_duty_cycle,
 	/* How many clocks in a microsecond?, avoiding long long divide */
 	work = loops_per_sec;
 	work *= 4295;  /* 4295 = 2^32 / 1e6 */
-	conv_us_to_clocks = (work >> 32);
 
 	/*
 	 * Carrier period in clocks, approach good up to 32GHz clock,
@@ -356,11 +344,9 @@ static int init_timing_params(unsigned int new_duty_cycle,
 	/* Derive pulse and space from the period */
 	pulse_width = period * duty_cycle / 100;
 	space_width = period - pulse_width;
-	dprintk("in init_timing_params, freq=%d, duty_cycle=%d, "
-		"clk/jiffy=%ld, pulse=%ld, space=%ld, "
-		"conv_us_to_clocks=%ld\n",
-		freq, duty_cycle, __this_cpu_read(cpu_info.loops_per_jiffy),
-		pulse_width, space_width, conv_us_to_clocks);
+	pr_debug("in init_timing_params, freq=%d, duty_cycle=%d, clk/jiffy=%ld, pulse=%ld, space=%ld, conv_us_to_clocks=%ld\n",
+		 freq, duty_cycle, __this_cpu_read(cpu_info.loops_per_jiffy),
+		 pulse_width, space_width, conv_us_to_clocks);
 	return 0;
 }
 #else /* ! USE_RDTSC */
@@ -382,8 +368,8 @@ static int init_timing_params(unsigned int new_duty_cycle,
 	period = 256 * 1000000L / freq;
 	pulse_width = period * duty_cycle / 100;
 	space_width = period - pulse_width;
-	dprintk("in init_timing_params, freq=%d pulse=%ld, space=%ld\n",
-		freq, pulse_width, space_width);
+	pr_debug("in init_timing_params, freq=%d pulse=%ld, space=%ld\n",
+		 freq, pulse_width, space_width);
 	return 0;
 }
 #endif /* USE_RDTSC */
@@ -431,63 +417,14 @@ static long send_pulse_irdeo(unsigned long length)
 	return ret;
 }
 
-#ifdef USE_RDTSC
-/* Version that uses Pentium rdtsc instruction to measure clocks */
-
-/*
- * This version does sub-microsecond timing using rdtsc instruction,
- * and does away with the fudged LIRC_SERIAL_TRANSMITTER_LATENCY
- * Implicitly i586 architecture...  - Steve
- */
-
-static long send_pulse_homebrew_softcarrier(unsigned long length)
-{
-	int flag;
-	unsigned long target, start, now;
-
-	/* Get going quick as we can */
-	rdtscl(start);
-	on();
-	/* Convert length from microseconds to clocks */
-	length *= conv_us_to_clocks;
-	/* And loop till time is up - flipping at right intervals */
-	now = start;
-	target = pulse_width;
-	flag = 1;
-	/*
-	 * FIXME: This looks like a hard busy wait, without even an occasional,
-	 * polite, cpu_relax() call.  There's got to be a better way?
-	 *
-	 * The i2c code has the result of a lot of bit-banging work, I wonder if
-	 * there's something there which could be helpful here.
-	 */
-	while ((now - start) < length) {
-		/* Delay till flip time */
-		do {
-			rdtscl(now);
-		} while ((now - start) < target);
-
-		/* flip */
-		if (flag) {
-			rdtscl(now);
-			off();
-			target += space_width;
-		} else {
-			rdtscl(now); on();
-			target += pulse_width;
-		}
-		flag = !flag;
-	}
-	rdtscl(now);
-	return ((now - start) - length) / conv_us_to_clocks;
-}
-#else /* ! USE_RDTSC */
 /* Version using udelay() */
 
 /*
  * here we use fixed point arithmetic, with 8
  * fractional bits.  that gets us within 0.1% or so of the right average
  * frequency, albeit with some jitter in pulse length - Steve
+ *
+ * This should use ndelay instead.
  */
 
 /* To match 8 fractional bits used for pulse/space length */
@@ -520,7 +457,6 @@ static long send_pulse_homebrew_softcarrier(unsigned long length)
 	}
 	return (actual-length) >> 8;
 }
-#endif /* USE_RDTSC */
 
 static long send_pulse_homebrew(unsigned long length)
 {
@@ -555,7 +491,7 @@ static void rbwrite(int l)
 {
 	if (lirc_buffer_full(&rbuf)) {
 		/* no new signals will be accepted */
-		dprintk("Buffer overrun\n");
+		pr_debug("Buffer overrun\n");
 		return;
 	}
 	lirc_buffer_write(&rbuf, (void *)&l);
@@ -784,7 +720,7 @@ static int lirc_serial_probe(struct platform_device *dev)
 
 	result = devm_request_irq(&dev->dev, irq, lirc_irq_handler,
 			     (share_irq ? IRQF_SHARED : 0),
-			     LIRC_DRIVER_NAME, (void *)&hardware);
+			     LIRC_DRIVER_NAME, &hardware);
 	if (result < 0) {
 		if (result == -EBUSY)
 			dev_err(&dev->dev, "IRQ %d busy\n", irq);
@@ -838,14 +774,14 @@ static int lirc_serial_probe(struct platform_device *dev)
 				nhigh++;
 			msleep(40);
 		}
-		sense = (nlow >= nhigh ? 1 : 0);
+		sense = nlow >= nhigh ? 1 : 0;
 		dev_info(&dev->dev, "auto-detected active %s receiver\n",
 			 sense ? "low" : "high");
 	} else
 		dev_info(&dev->dev, "Manually using active %s receiver\n",
 			 sense ? "low" : "high");
 
-	dprintk("Interrupt %d, port %04x obtained\n", irq, io);
+	dev_dbg(&dev->dev, "Interrupt %d, port %04x obtained\n", irq, io);
 	return 0;
 }
 
@@ -950,7 +886,7 @@ static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		return -ENOIOCTLCMD;
 
 	case LIRC_SET_SEND_DUTY_CYCLE:
-		dprintk("SET_SEND_DUTY_CYCLE\n");
+		pr_debug("SET_SEND_DUTY_CYCLE\n");
 		if (!(hardware[type].features&LIRC_CAN_SET_SEND_DUTY_CYCLE))
 			return -ENOIOCTLCMD;
 
@@ -962,7 +898,7 @@ static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		return init_timing_params(value, freq);
 
 	case LIRC_SET_SEND_CARRIER:
-		dprintk("SET_SEND_CARRIER\n");
+		pr_debug("SET_SEND_CARRIER\n");
 		if (!(hardware[type].features&LIRC_CAN_SET_SEND_CARRIER))
 			return -ENOIOCTLCMD;
 
@@ -1157,7 +1093,7 @@ static void __exit lirc_serial_exit_module(void)
 {
 	lirc_unregister_driver(driver.minor);
 	lirc_serial_exit();
-	dprintk("cleaned up module\n");
+	pr_debug("cleaned up module\n");
 }
 
 
@@ -1208,6 +1144,3 @@ MODULE_PARM_DESC(txsense, "Sense of transmitter circuit"
 
 module_param(softcarrier, bool, S_IRUGO);
 MODULE_PARM_DESC(softcarrier, "Software carrier (0 = off, 1 = on, default on)");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Enable debugging messages");

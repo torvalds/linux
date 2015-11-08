@@ -48,11 +48,13 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code)
 	if (!priv->media_connected)
 		return;
 
-	dev_dbg(adapter->dev, "info: handles disconnect event\n");
+	mwifiex_dbg(adapter, INFO,
+		    "info: handles disconnect event\n");
 
 	priv->media_connected = false;
 
 	priv->scan_block = false;
+	priv->port_open = false;
 
 	if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) &&
 	    ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info)) {
@@ -104,12 +106,14 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code)
 	 * it could be used for re-assoc
 	 */
 
-	dev_dbg(adapter->dev, "info: previous SSID=%s, SSID len=%u\n",
-		priv->prev_ssid.ssid, priv->prev_ssid.ssid_len);
+	mwifiex_dbg(adapter, INFO,
+		    "info: previous SSID=%s, SSID len=%u\n",
+		    priv->prev_ssid.ssid, priv->prev_ssid.ssid_len);
 
-	dev_dbg(adapter->dev, "info: current SSID=%s, SSID len=%u\n",
-		priv->curr_bss_params.bss_descriptor.ssid.ssid,
-		priv->curr_bss_params.bss_descriptor.ssid.ssid_len);
+	mwifiex_dbg(adapter, INFO,
+		    "info: current SSID=%s, SSID len=%u\n",
+		    priv->curr_bss_params.bss_descriptor.ssid.ssid,
+		    priv->curr_bss_params.bss_descriptor.ssid.ssid_len);
 
 	memcpy(&priv->prev_ssid,
 	       &priv->curr_bss_params.bss_descriptor.ssid,
@@ -127,15 +131,15 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code)
 	if (adapter->is_cmd_timedout && adapter->curr_cmd)
 		return;
 	priv->media_connected = false;
-	dev_dbg(adapter->dev,
-		"info: successfully disconnected from %pM: reason code %d\n",
-		priv->cfg_bssid, reason_code);
+	mwifiex_dbg(adapter, MSG,
+		    "info: successfully disconnected from %pM: reason code %d\n",
+		    priv->cfg_bssid, reason_code);
 	if (priv->bss_mode == NL80211_IFTYPE_STATION ||
 	    priv->bss_mode == NL80211_IFTYPE_P2P_CLIENT) {
 		cfg80211_disconnected(priv->netdev, reason_code, NULL, 0,
-				      GFP_KERNEL);
+				      false, GFP_KERNEL);
 	}
-	memset(priv->cfg_bssid, 0, ETH_ALEN);
+	eth_zero_addr(priv->cfg_bssid);
 
 	mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 	if (netif_carrier_ok(priv->netdev))
@@ -150,17 +154,18 @@ static int mwifiex_parse_tdls_event(struct mwifiex_private *priv,
 	struct mwifiex_sta_node *sta_ptr;
 	struct mwifiex_tdls_generic_event *tdls_evt =
 			(void *)event_skb->data + sizeof(adapter->event_cause);
+	u8 *mac = tdls_evt->peer_mac;
 
 	/* reserved 2 bytes are not mandatory in tdls event */
 	if (event_skb->len < (sizeof(struct mwifiex_tdls_generic_event) -
 			      sizeof(u16) - sizeof(adapter->event_cause))) {
-		dev_err(adapter->dev, "Invalid event length!\n");
+		mwifiex_dbg(adapter, ERROR, "Invalid event length!\n");
 		return -1;
 	}
 
 	sta_ptr = mwifiex_get_sta_entry(priv, tdls_evt->peer_mac);
 	if (!sta_ptr) {
-		dev_err(adapter->dev, "cannot get sta entry!\n");
+		mwifiex_dbg(adapter, ERROR, "cannot get sta entry!\n");
 		return -1;
 	}
 
@@ -172,11 +177,314 @@ static int mwifiex_parse_tdls_event(struct mwifiex_private *priv,
 					   le16_to_cpu(tdls_evt->u.reason_code),
 					   GFP_KERNEL);
 		break;
+	case TDLS_EVENT_CHAN_SWITCH_RESULT:
+		mwifiex_dbg(adapter, EVENT, "tdls channel switch result :\n");
+		mwifiex_dbg(adapter, EVENT,
+			    "status=0x%x, reason=0x%x cur_chan=%d\n",
+			    tdls_evt->u.switch_result.status,
+			    tdls_evt->u.switch_result.reason,
+			    tdls_evt->u.switch_result.cur_chan);
+
+		/* tdls channel switch failed */
+		if (tdls_evt->u.switch_result.status != 0) {
+			switch (tdls_evt->u.switch_result.cur_chan) {
+			case TDLS_BASE_CHANNEL:
+				sta_ptr->tdls_status = TDLS_IN_BASE_CHAN;
+				break;
+			case TDLS_OFF_CHANNEL:
+				sta_ptr->tdls_status = TDLS_IN_OFF_CHAN;
+				break;
+			default:
+				break;
+			}
+			return ret;
+		}
+
+		/* tdls channel switch success */
+		switch (tdls_evt->u.switch_result.cur_chan) {
+		case TDLS_BASE_CHANNEL:
+			if (sta_ptr->tdls_status == TDLS_IN_BASE_CHAN)
+				break;
+			mwifiex_update_ralist_tx_pause_in_tdls_cs(priv, mac,
+								  false);
+			sta_ptr->tdls_status = TDLS_IN_BASE_CHAN;
+			break;
+		case TDLS_OFF_CHANNEL:
+			if (sta_ptr->tdls_status == TDLS_IN_OFF_CHAN)
+				break;
+			mwifiex_update_ralist_tx_pause_in_tdls_cs(priv, mac,
+								  true);
+			sta_ptr->tdls_status = TDLS_IN_OFF_CHAN;
+			break;
+		default:
+			break;
+		}
+
+		break;
+	case TDLS_EVENT_START_CHAN_SWITCH:
+		mwifiex_dbg(adapter, EVENT, "tdls start channel switch...\n");
+		sta_ptr->tdls_status = TDLS_CHAN_SWITCHING;
+		break;
+	case TDLS_EVENT_CHAN_SWITCH_STOPPED:
+		mwifiex_dbg(adapter, EVENT,
+			    "tdls chan switch stopped, reason=%d\n",
+			    tdls_evt->u.cs_stop_reason);
+		break;
 	default:
 		break;
 	}
 
 	return ret;
+}
+
+static void mwifiex_process_uap_tx_pause(struct mwifiex_private *priv,
+					 struct mwifiex_ie_types_header *tlv)
+{
+	struct mwifiex_tx_pause_tlv *tp;
+	struct mwifiex_sta_node *sta_ptr;
+	unsigned long flags;
+
+	tp = (void *)tlv;
+	mwifiex_dbg(priv->adapter, EVENT,
+		    "uap tx_pause: %pM pause=%d, pkts=%d\n",
+		    tp->peermac, tp->tx_pause,
+		    tp->pkt_cnt);
+
+	if (ether_addr_equal(tp->peermac, priv->netdev->dev_addr)) {
+		if (tp->tx_pause)
+			priv->port_open = false;
+		else
+			priv->port_open = true;
+	} else if (is_multicast_ether_addr(tp->peermac)) {
+		mwifiex_update_ralist_tx_pause(priv, tp->peermac, tp->tx_pause);
+	} else {
+		spin_lock_irqsave(&priv->sta_list_spinlock, flags);
+		sta_ptr = mwifiex_get_sta_entry(priv, tp->peermac);
+		spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
+
+		if (sta_ptr && sta_ptr->tx_pause != tp->tx_pause) {
+			sta_ptr->tx_pause = tp->tx_pause;
+			mwifiex_update_ralist_tx_pause(priv, tp->peermac,
+						       tp->tx_pause);
+		}
+	}
+}
+
+static void mwifiex_process_sta_tx_pause(struct mwifiex_private *priv,
+					 struct mwifiex_ie_types_header *tlv)
+{
+	struct mwifiex_tx_pause_tlv *tp;
+	struct mwifiex_sta_node *sta_ptr;
+	int status;
+	unsigned long flags;
+
+	tp = (void *)tlv;
+	mwifiex_dbg(priv->adapter, EVENT,
+		    "sta tx_pause: %pM pause=%d, pkts=%d\n",
+		    tp->peermac, tp->tx_pause,
+		    tp->pkt_cnt);
+
+	if (ether_addr_equal(tp->peermac, priv->cfg_bssid)) {
+		if (tp->tx_pause)
+			priv->port_open = false;
+		else
+			priv->port_open = true;
+	} else {
+		if (!ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info))
+			return;
+
+		status = mwifiex_get_tdls_link_status(priv, tp->peermac);
+		if (mwifiex_is_tdls_link_setup(status)) {
+			spin_lock_irqsave(&priv->sta_list_spinlock, flags);
+			sta_ptr = mwifiex_get_sta_entry(priv, tp->peermac);
+			spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
+
+			if (sta_ptr && sta_ptr->tx_pause != tp->tx_pause) {
+				sta_ptr->tx_pause = tp->tx_pause;
+				mwifiex_update_ralist_tx_pause(priv,
+							       tp->peermac,
+							       tp->tx_pause);
+			}
+		}
+	}
+}
+
+void mwifiex_process_multi_chan_event(struct mwifiex_private *priv,
+				      struct sk_buff *event_skb)
+{
+	struct mwifiex_ie_types_multi_chan_info *chan_info;
+	struct mwifiex_ie_types_mc_group_info *grp_info;
+	struct mwifiex_adapter *adapter = priv->adapter;
+	struct mwifiex_ie_types_header *tlv;
+	u16 tlv_buf_left, tlv_type, tlv_len;
+	int intf_num, bss_type, bss_num, i;
+	struct mwifiex_private *intf_priv;
+
+	tlv_buf_left = event_skb->len - sizeof(u32);
+	chan_info = (void *)event_skb->data + sizeof(u32);
+
+	if (le16_to_cpu(chan_info->header.type) != TLV_TYPE_MULTI_CHAN_INFO ||
+	    tlv_buf_left < sizeof(struct mwifiex_ie_types_multi_chan_info)) {
+		mwifiex_dbg(adapter, ERROR,
+			    "unknown TLV in chan_info event\n");
+		return;
+	}
+
+	adapter->usb_mc_status = le16_to_cpu(chan_info->status);
+	mwifiex_dbg(adapter, EVENT, "multi chan operation %s\n",
+		    adapter->usb_mc_status ? "started" : "over");
+
+	tlv_buf_left -= sizeof(struct mwifiex_ie_types_multi_chan_info);
+	tlv = (struct mwifiex_ie_types_header *)chan_info->tlv_buffer;
+
+	while (tlv_buf_left >= (int)sizeof(struct mwifiex_ie_types_header)) {
+		tlv_type = le16_to_cpu(tlv->type);
+		tlv_len  = le16_to_cpu(tlv->len);
+		if ((sizeof(struct mwifiex_ie_types_header) + tlv_len) >
+		    tlv_buf_left) {
+			mwifiex_dbg(adapter, ERROR, "wrong tlv: tlvLen=%d,\t"
+				    "tlvBufLeft=%d\n", tlv_len, tlv_buf_left);
+			break;
+		}
+		if (tlv_type != TLV_TYPE_MC_GROUP_INFO) {
+			mwifiex_dbg(adapter, ERROR, "wrong tlv type: 0x%x\n",
+				    tlv_type);
+			break;
+		}
+
+		grp_info = (struct mwifiex_ie_types_mc_group_info *)tlv;
+		intf_num = grp_info->intf_num;
+		for (i = 0; i < intf_num; i++) {
+			bss_type = grp_info->bss_type_numlist[i] >> 4;
+			bss_num = grp_info->bss_type_numlist[i] & BSS_NUM_MASK;
+			intf_priv = mwifiex_get_priv_by_id(adapter, bss_num,
+							   bss_type);
+			if (!intf_priv) {
+				mwifiex_dbg(adapter, ERROR,
+					    "Invalid bss_type bss_num\t"
+					    "in multi channel event\n");
+				continue;
+			}
+			if (adapter->iface_type == MWIFIEX_USB) {
+				u8 ep;
+
+				ep = grp_info->hid_num.usb_ep_num;
+				if (ep == MWIFIEX_USB_EP_DATA ||
+				    ep == MWIFIEX_USB_EP_DATA_CH2)
+					intf_priv->usb_port = ep;
+			}
+		}
+
+		tlv_buf_left -= sizeof(struct mwifiex_ie_types_header) +
+				tlv_len;
+		tlv = (void *)((u8 *)tlv + tlv_len +
+			       sizeof(struct mwifiex_ie_types_header));
+	}
+
+	if (adapter->iface_type == MWIFIEX_USB) {
+		adapter->tx_lock_flag = true;
+		adapter->usb_mc_setup = true;
+		mwifiex_multi_chan_resync(adapter);
+	}
+}
+
+void mwifiex_process_tx_pause_event(struct mwifiex_private *priv,
+				    struct sk_buff *event_skb)
+{
+	struct mwifiex_ie_types_header *tlv;
+	u16 tlv_type, tlv_len;
+	int tlv_buf_left;
+
+	if (!priv->media_connected) {
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "tx_pause event while disconnected; bss_role=%d\n",
+			    priv->bss_role);
+		return;
+	}
+
+	tlv_buf_left = event_skb->len - sizeof(u32);
+	tlv = (void *)event_skb->data + sizeof(u32);
+
+	while (tlv_buf_left >= (int)sizeof(struct mwifiex_ie_types_header)) {
+		tlv_type = le16_to_cpu(tlv->type);
+		tlv_len  = le16_to_cpu(tlv->len);
+		if ((sizeof(struct mwifiex_ie_types_header) + tlv_len) >
+		    tlv_buf_left) {
+			mwifiex_dbg(priv->adapter, ERROR,
+				    "wrong tlv: tlvLen=%d, tlvBufLeft=%d\n",
+				    tlv_len, tlv_buf_left);
+			break;
+		}
+		if (tlv_type == TLV_TYPE_TX_PAUSE) {
+			if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA)
+				mwifiex_process_sta_tx_pause(priv, tlv);
+			else
+				mwifiex_process_uap_tx_pause(priv, tlv);
+		}
+
+		tlv_buf_left -= sizeof(struct mwifiex_ie_types_header) +
+				tlv_len;
+		tlv = (void *)((u8 *)tlv + tlv_len +
+			       sizeof(struct mwifiex_ie_types_header));
+	}
+
+}
+
+/*
+* This function handles coex events generated by firmware
+*/
+void mwifiex_bt_coex_wlan_param_update_event(struct mwifiex_private *priv,
+					     struct sk_buff *event_skb)
+{
+	struct mwifiex_adapter *adapter = priv->adapter;
+	struct mwifiex_ie_types_header *tlv;
+	struct mwifiex_ie_types_btcoex_aggr_win_size *winsizetlv;
+	struct mwifiex_ie_types_btcoex_scan_time *scantlv;
+	s32 len = event_skb->len - sizeof(u32);
+	u8 *cur_ptr = event_skb->data + sizeof(u32);
+	u16 tlv_type, tlv_len;
+
+	while (len >= sizeof(struct mwifiex_ie_types_header)) {
+		tlv = (struct mwifiex_ie_types_header *)cur_ptr;
+		tlv_len = le16_to_cpu(tlv->len);
+		tlv_type = le16_to_cpu(tlv->type);
+
+		if ((tlv_len + sizeof(struct mwifiex_ie_types_header)) > len)
+			break;
+		switch (tlv_type) {
+		case TLV_BTCOEX_WL_AGGR_WINSIZE:
+			winsizetlv =
+			    (struct mwifiex_ie_types_btcoex_aggr_win_size *)tlv;
+			adapter->coex_win_size = winsizetlv->coex_win_size;
+			adapter->coex_tx_win_size =
+				winsizetlv->tx_win_size;
+			adapter->coex_rx_win_size =
+				winsizetlv->rx_win_size;
+			mwifiex_coex_ampdu_rxwinsize(adapter);
+			mwifiex_update_ampdu_txwinsize(adapter);
+			break;
+
+		case TLV_BTCOEX_WL_SCANTIME:
+			scantlv =
+			    (struct mwifiex_ie_types_btcoex_scan_time *)tlv;
+			adapter->coex_scan = scantlv->coex_scan;
+			adapter->coex_min_scan_time = scantlv->min_scan_time;
+			adapter->coex_max_scan_time = scantlv->max_scan_time;
+			break;
+
+		default:
+			break;
+		}
+
+		len -= tlv_len + sizeof(struct mwifiex_ie_types_header);
+		cur_ptr += tlv_len +
+			sizeof(struct mwifiex_ie_types_header);
+	}
+
+	dev_dbg(adapter->dev, "coex_scan=%d min_scan=%d coex_win=%d, tx_win=%d rx_win=%d\n",
+		adapter->coex_scan, adapter->coex_min_scan_time,
+		adapter->coex_win_size, adapter->coex_tx_win_size,
+		adapter->coex_rx_win_size);
 }
 
 /*
@@ -239,21 +547,21 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	switch (eventcause) {
 	case EVENT_DUMMY_HOST_WAKEUP_SIGNAL:
-		dev_err(adapter->dev,
-			"invalid EVENT: DUMMY_HOST_WAKEUP_SIGNAL, ignore it\n");
+		mwifiex_dbg(adapter, ERROR,
+			    "invalid EVENT: DUMMY_HOST_WAKEUP_SIGNAL, ignore it\n");
 		break;
 	case EVENT_LINK_SENSED:
-		dev_dbg(adapter->dev, "event: LINK_SENSED\n");
+		mwifiex_dbg(adapter, EVENT, "event: LINK_SENSED\n");
 		if (!netif_carrier_ok(priv->netdev))
 			netif_carrier_on(priv->netdev);
 		mwifiex_wake_up_net_dev_queue(priv->netdev, adapter);
 		break;
 
 	case EVENT_DEAUTHENTICATED:
-		dev_dbg(adapter->dev, "event: Deauthenticated\n");
+		mwifiex_dbg(adapter, EVENT, "event: Deauthenticated\n");
 		if (priv->wps.session_enable) {
-			dev_dbg(adapter->dev,
-				"info: receive deauth event in wps session\n");
+			mwifiex_dbg(adapter, INFO,
+				    "info: receive deauth event in wps session\n");
 			break;
 		}
 		adapter->dbg.num_event_deauth++;
@@ -265,10 +573,10 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		break;
 
 	case EVENT_DISASSOCIATED:
-		dev_dbg(adapter->dev, "event: Disassociated\n");
+		mwifiex_dbg(adapter, EVENT, "event: Disassociated\n");
 		if (priv->wps.session_enable) {
-			dev_dbg(adapter->dev,
-				"info: receive disassoc event in wps session\n");
+			mwifiex_dbg(adapter, INFO,
+				    "info: receive disassoc event in wps session\n");
 			break;
 		}
 		adapter->dbg.num_event_disassoc++;
@@ -280,7 +588,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		break;
 
 	case EVENT_LINK_LOST:
-		dev_dbg(adapter->dev, "event: Link lost\n");
+		mwifiex_dbg(adapter, EVENT, "event: Link lost\n");
 		adapter->dbg.num_event_link_lost++;
 		if (priv->media_connected) {
 			reason_code =
@@ -290,7 +598,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		break;
 
 	case EVENT_PS_SLEEP:
-		dev_dbg(adapter->dev, "info: EVENT: SLEEP\n");
+		mwifiex_dbg(adapter, EVENT, "info: EVENT: SLEEP\n");
 
 		adapter->ps_state = PS_STATE_PRE_SLEEP;
 
@@ -298,21 +606,23 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		break;
 
 	case EVENT_PS_AWAKE:
-		dev_dbg(adapter->dev, "info: EVENT: AWAKE\n");
-		if (!adapter->pps_uapsd_mode &&
+		mwifiex_dbg(adapter, EVENT, "info: EVENT: AWAKE\n");
+		if (!adapter->pps_uapsd_mode && priv->port_open &&
 		    priv->media_connected && adapter->sleep_period.period) {
 				adapter->pps_uapsd_mode = true;
-				dev_dbg(adapter->dev,
-					"event: PPS/UAPSD mode activated\n");
+				mwifiex_dbg(adapter, EVENT,
+					    "event: PPS/UAPSD mode activated\n");
 		}
 		adapter->tx_lock_flag = false;
 		if (adapter->pps_uapsd_mode && adapter->gen_null_pkt) {
 			if (mwifiex_check_last_packet_indication(priv)) {
-				if (adapter->data_sent) {
+				if (adapter->data_sent ||
+				    (adapter->if_ops.is_port_ready &&
+				     !adapter->if_ops.is_port_ready(priv))) {
 					adapter->ps_state = PS_STATE_AWAKE;
 					adapter->pm_wakeup_card_req = false;
 					adapter->pm_wakeup_fw_try = false;
-					del_timer_sync(&adapter->wakeup_timer);
+					del_timer(&adapter->wakeup_timer);
 					break;
 				}
 				if (!mwifiex_send_null_packet
@@ -327,32 +637,32 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		adapter->ps_state = PS_STATE_AWAKE;
 		adapter->pm_wakeup_card_req = false;
 		adapter->pm_wakeup_fw_try = false;
-		del_timer_sync(&adapter->wakeup_timer);
+		del_timer(&adapter->wakeup_timer);
 
 		break;
 
 	case EVENT_DEEP_SLEEP_AWAKE:
 		adapter->if_ops.wakeup_complete(adapter);
-		dev_dbg(adapter->dev, "event: DS_AWAKE\n");
+		mwifiex_dbg(adapter, EVENT, "event: DS_AWAKE\n");
 		if (adapter->is_deep_sleep)
 			adapter->is_deep_sleep = false;
 		break;
 
 	case EVENT_HS_ACT_REQ:
-		dev_dbg(adapter->dev, "event: HS_ACT_REQ\n");
+		mwifiex_dbg(adapter, EVENT, "event: HS_ACT_REQ\n");
 		ret = mwifiex_send_cmd(priv, HostCmd_CMD_802_11_HS_CFG_ENH,
 				       0, 0, NULL, false);
 		break;
 
 	case EVENT_MIC_ERR_UNICAST:
-		dev_dbg(adapter->dev, "event: UNICAST MIC ERROR\n");
+		mwifiex_dbg(adapter, EVENT, "event: UNICAST MIC ERROR\n");
 		cfg80211_michael_mic_failure(priv->netdev, priv->cfg_bssid,
 					     NL80211_KEYTYPE_PAIRWISE,
 					     -1, NULL, GFP_KERNEL);
 		break;
 
 	case EVENT_MIC_ERR_MULTICAST:
-		dev_dbg(adapter->dev, "event: MULTICAST MIC ERROR\n");
+		mwifiex_dbg(adapter, EVENT, "event: MULTICAST MIC ERROR\n");
 		cfg80211_michael_mic_failure(priv->netdev, priv->cfg_bssid,
 					     NL80211_KEYTYPE_GROUP,
 					     -1, NULL, GFP_KERNEL);
@@ -362,7 +672,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		break;
 
 	case EVENT_ADHOC_BCN_LOST:
-		dev_dbg(adapter->dev, "event: ADHOC_BCN_LOST\n");
+		mwifiex_dbg(adapter, EVENT, "event: ADHOC_BCN_LOST\n");
 		priv->adhoc_is_link_sensed = false;
 		mwifiex_clean_txrx(priv);
 		mwifiex_stop_net_dev_queue(priv->netdev, adapter);
@@ -371,17 +681,18 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		break;
 
 	case EVENT_BG_SCAN_REPORT:
-		dev_dbg(adapter->dev, "event: BGS_REPORT\n");
+		mwifiex_dbg(adapter, EVENT, "event: BGS_REPORT\n");
 		ret = mwifiex_send_cmd(priv, HostCmd_CMD_802_11_BG_SCAN_QUERY,
 				       HostCmd_ACT_GEN_GET, 0, NULL, false);
 		break;
 
 	case EVENT_PORT_RELEASE:
-		dev_dbg(adapter->dev, "event: PORT RELEASE\n");
+		mwifiex_dbg(adapter, EVENT, "event: PORT RELEASE\n");
+		priv->port_open = true;
 		break;
 
 	case EVENT_EXT_SCAN_REPORT:
-		dev_dbg(adapter->dev, "event: EXT_SCAN Report\n");
+		mwifiex_dbg(adapter, EVENT, "event: EXT_SCAN Report\n");
 		if (adapter->ext_scan)
 			ret = mwifiex_handle_event_ext_scan_report(priv,
 						adapter->event_skb->data);
@@ -389,7 +700,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		break;
 
 	case EVENT_WMM_STATUS_CHANGE:
-		dev_dbg(adapter->dev, "event: WMM status changed\n");
+		mwifiex_dbg(adapter, EVENT, "event: WMM status changed\n");
 		ret = mwifiex_send_cmd(priv, HostCmd_CMD_WMM_GET_STATUS,
 				       0, 0, NULL, false);
 		break;
@@ -401,13 +712,13 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		mwifiex_send_cmd(priv, HostCmd_CMD_RSSI_INFO,
 				 HostCmd_ACT_GEN_GET, 0, NULL, false);
 		priv->subsc_evt_rssi_state = RSSI_LOW_RECVD;
-		dev_dbg(adapter->dev, "event: Beacon RSSI_LOW\n");
+		mwifiex_dbg(adapter, EVENT, "event: Beacon RSSI_LOW\n");
 		break;
 	case EVENT_SNR_LOW:
-		dev_dbg(adapter->dev, "event: Beacon SNR_LOW\n");
+		mwifiex_dbg(adapter, EVENT, "event: Beacon SNR_LOW\n");
 		break;
 	case EVENT_MAX_FAIL:
-		dev_dbg(adapter->dev, "event: MAX_FAIL\n");
+		mwifiex_dbg(adapter, EVENT, "event: MAX_FAIL\n");
 		break;
 	case EVENT_RSSI_HIGH:
 		cfg80211_cqm_rssi_notify(priv->netdev,
@@ -416,47 +727,47 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		mwifiex_send_cmd(priv, HostCmd_CMD_RSSI_INFO,
 				 HostCmd_ACT_GEN_GET, 0, NULL, false);
 		priv->subsc_evt_rssi_state = RSSI_HIGH_RECVD;
-		dev_dbg(adapter->dev, "event: Beacon RSSI_HIGH\n");
+		mwifiex_dbg(adapter, EVENT, "event: Beacon RSSI_HIGH\n");
 		break;
 	case EVENT_SNR_HIGH:
-		dev_dbg(adapter->dev, "event: Beacon SNR_HIGH\n");
+		mwifiex_dbg(adapter, EVENT, "event: Beacon SNR_HIGH\n");
 		break;
 	case EVENT_DATA_RSSI_LOW:
-		dev_dbg(adapter->dev, "event: Data RSSI_LOW\n");
+		mwifiex_dbg(adapter, EVENT, "event: Data RSSI_LOW\n");
 		break;
 	case EVENT_DATA_SNR_LOW:
-		dev_dbg(adapter->dev, "event: Data SNR_LOW\n");
+		mwifiex_dbg(adapter, EVENT, "event: Data SNR_LOW\n");
 		break;
 	case EVENT_DATA_RSSI_HIGH:
-		dev_dbg(adapter->dev, "event: Data RSSI_HIGH\n");
+		mwifiex_dbg(adapter, EVENT, "event: Data RSSI_HIGH\n");
 		break;
 	case EVENT_DATA_SNR_HIGH:
-		dev_dbg(adapter->dev, "event: Data SNR_HIGH\n");
+		mwifiex_dbg(adapter, EVENT, "event: Data SNR_HIGH\n");
 		break;
 	case EVENT_LINK_QUALITY:
-		dev_dbg(adapter->dev, "event: Link Quality\n");
+		mwifiex_dbg(adapter, EVENT, "event: Link Quality\n");
 		break;
 	case EVENT_PRE_BEACON_LOST:
-		dev_dbg(adapter->dev, "event: Pre-Beacon Lost\n");
+		mwifiex_dbg(adapter, EVENT, "event: Pre-Beacon Lost\n");
 		break;
 	case EVENT_IBSS_COALESCED:
-		dev_dbg(adapter->dev, "event: IBSS_COALESCED\n");
+		mwifiex_dbg(adapter, EVENT, "event: IBSS_COALESCED\n");
 		ret = mwifiex_send_cmd(priv,
 				HostCmd_CMD_802_11_IBSS_COALESCING_STATUS,
 				HostCmd_ACT_GEN_GET, 0, NULL, false);
 		break;
 	case EVENT_ADDBA:
-		dev_dbg(adapter->dev, "event: ADDBA Request\n");
+		mwifiex_dbg(adapter, EVENT, "event: ADDBA Request\n");
 		mwifiex_send_cmd(priv, HostCmd_CMD_11N_ADDBA_RSP,
 				 HostCmd_ACT_GEN_SET, 0,
 				 adapter->event_body, false);
 		break;
 	case EVENT_DELBA:
-		dev_dbg(adapter->dev, "event: DELBA Request\n");
+		mwifiex_dbg(adapter, EVENT, "event: DELBA Request\n");
 		mwifiex_11n_delete_ba_stream(priv, adapter->event_body);
 		break;
 	case EVENT_BA_STREAM_TIEMOUT:
-		dev_dbg(adapter->dev, "event:  BA Stream timeout\n");
+		mwifiex_dbg(adapter, EVENT, "event:  BA Stream timeout\n");
 		mwifiex_11n_ba_stream_timeout(priv,
 					      (struct host_cmd_ds_11n_batimeout
 					       *)
@@ -464,28 +775,31 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		break;
 	case EVENT_AMSDU_AGGR_CTRL:
 		ctrl = le16_to_cpu(*(__le16 *)adapter->event_body);
-		dev_dbg(adapter->dev, "event: AMSDU_AGGR_CTRL %d\n", ctrl);
+		mwifiex_dbg(adapter, EVENT,
+			    "event: AMSDU_AGGR_CTRL %d\n", ctrl);
 
 		adapter->tx_buf_size =
 				min_t(u16, adapter->curr_tx_buf_size, ctrl);
-		dev_dbg(adapter->dev, "event: tx_buf_size %d\n",
-			adapter->tx_buf_size);
+		mwifiex_dbg(adapter, EVENT, "event: tx_buf_size %d\n",
+			    adapter->tx_buf_size);
 		break;
 
 	case EVENT_WEP_ICV_ERR:
-		dev_dbg(adapter->dev, "event: WEP ICV error\n");
+		mwifiex_dbg(adapter, EVENT, "event: WEP ICV error\n");
 		break;
 
 	case EVENT_BW_CHANGE:
-		dev_dbg(adapter->dev, "event: BW Change\n");
+		mwifiex_dbg(adapter, EVENT, "event: BW Change\n");
 		break;
 
 	case EVENT_HOSTWAKE_STAIE:
-		dev_dbg(adapter->dev, "event: HOSTWAKE_STAIE %d\n", eventcause);
+		mwifiex_dbg(adapter, EVENT,
+			    "event: HOSTWAKE_STAIE %d\n", eventcause);
 		break;
 
 	case EVENT_REMAIN_ON_CHAN_EXPIRED:
-		dev_dbg(adapter->dev, "event: Remain on channel expired\n");
+		mwifiex_dbg(adapter, EVENT,
+			    "event: Remain on channel expired\n");
 		cfg80211_remain_on_channel_expired(&priv->wdev,
 						   priv->roc_cfg.cookie,
 						   &priv->roc_cfg.chan,
@@ -496,7 +810,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		break;
 
 	case EVENT_CHANNEL_SWITCH_ANN:
-		dev_dbg(adapter->dev, "event: Channel Switch Announcement\n");
+		mwifiex_dbg(adapter, EVENT, "event: Channel Switch Announcement\n");
 		priv->csa_expire_time =
 				jiffies + msecs_to_jiffies(DFS_CHAN_MOVE_TIME);
 		priv->csa_chan = priv->curr_bss_params.bss_descriptor.channel;
@@ -510,24 +824,39 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		ret = mwifiex_parse_tdls_event(priv, adapter->event_skb);
 		break;
 
+	case EVENT_TX_DATA_PAUSE:
+		mwifiex_dbg(adapter, EVENT, "event: TX DATA PAUSE\n");
+		mwifiex_process_tx_pause_event(priv, adapter->event_skb);
+		break;
+
+	case EVENT_MULTI_CHAN_INFO:
+		mwifiex_dbg(adapter, EVENT, "event: multi-chan info\n");
+		mwifiex_process_multi_chan_event(priv, adapter->event_skb);
+		break;
+
 	case EVENT_TX_STATUS_REPORT:
-		dev_dbg(adapter->dev, "event: TX_STATUS Report\n");
+		mwifiex_dbg(adapter, EVENT, "event: TX_STATUS Report\n");
 		mwifiex_parse_tx_status_event(priv, adapter->event_body);
 		break;
 
 	case EVENT_CHANNEL_REPORT_RDY:
-		dev_dbg(adapter->dev, "event: Channel Report\n");
+		mwifiex_dbg(adapter, EVENT, "event: Channel Report\n");
 		ret = mwifiex_11h_handle_chanrpt_ready(priv,
 						       adapter->event_skb);
 		break;
 	case EVENT_RADAR_DETECTED:
-		dev_dbg(adapter->dev, "event: Radar detected\n");
+		mwifiex_dbg(adapter, EVENT, "event: Radar detected\n");
 		ret = mwifiex_11h_handle_radar_detected(priv,
 							adapter->event_skb);
 		break;
+	case EVENT_BT_COEX_WLAN_PARA_CHANGE:
+		dev_dbg(adapter->dev, "EVENT: BT coex wlan param update\n");
+		mwifiex_bt_coex_wlan_param_update_event(priv,
+							adapter->event_skb);
+		break;
 	default:
-		dev_dbg(adapter->dev, "event: unknown event id: %#x\n",
-			eventcause);
+		mwifiex_dbg(adapter, ERROR, "event: unknown event id: %#x\n",
+			    eventcause);
 		break;
 	}
 

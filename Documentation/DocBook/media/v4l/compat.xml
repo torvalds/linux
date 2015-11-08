@@ -2491,7 +2491,7 @@ that used it. It was originally scheduled for removal in 2.6.35.
         </listitem>
         <listitem>
 	  <para>Added <constant>V4L2_EVENT_CTRL_CH_RANGE</constant> control event
-	  changes flag. See <xref linkend="changes-flags"/>.</para>
+	  changes flag. See <xref linkend="ctrl-changes-flags"/>.</para>
         </listitem>
       </orderedlist>
     </section>
@@ -2587,6 +2587,26 @@ fields changed from _s32 to _u32.
 and &v4l2-quantization; fields to &v4l2-pix-format;, &v4l2-pix-format-mplane;
 and &v4l2-mbus-framefmt;.
 	  </para>
+	</listitem>
+      </orderedlist>
+    </section>
+
+    <section>
+      <title>V4L2 in Linux 4.4</title>
+      <orderedlist>
+	<listitem>
+	  <para>Renamed <constant>V4L2_TUNER_ADC</constant> to
+<constant>V4L2_TUNER_SDR</constant>. The use of
+<constant>V4L2_TUNER_ADC</constant> is deprecated now.
+	  </para>
+	</listitem>
+	<listitem>
+	  <para>Added <constant>V4L2_CID_RF_TUNER_RF_GAIN</constant>
+RF Tuner control.</para>
+	</listitem>
+	<listitem>
+	  <para>Added transmitter support for Software Defined Radio (SDR)
+Interface.</para>
 	</listitem>
       </orderedlist>
     </section>

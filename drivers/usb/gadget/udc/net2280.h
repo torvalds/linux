@@ -96,7 +96,6 @@ struct net2280_ep {
 	struct net2280_ep_regs			__iomem *regs;
 	struct net2280_dma_regs			__iomem *dma;
 	struct net2280_dma			*dummy;
-	struct usb338x_fifo_regs __iomem *fiforegs;
 	dma_addr_t				td_dma;	/* of dummy */
 	struct net2280				*dev;
 	unsigned long				irqs;
@@ -181,7 +180,6 @@ struct net2280 {
 	struct net2280_dma_regs		__iomem *dma;
 	struct net2280_dep_regs		__iomem *dep;
 	struct net2280_ep_regs		__iomem *epregs;
-	struct usb338x_fifo_regs	__iomem *fiforegs;
 	struct usb338x_ll_regs		__iomem *llregs;
 	struct usb338x_ll_lfps_regs	__iomem *ll_lfps_regs;
 	struct usb338x_ll_tsn_regs	__iomem *ll_tsn_regs;

@@ -202,7 +202,7 @@ extern int lp55xx_register_sysfs(struct lp55xx_chip *chip);
 extern void lp55xx_unregister_sysfs(struct lp55xx_chip *chip);
 
 /* common device tree population function */
-extern int lp55xx_of_populate_pdata(struct device *dev,
-				    struct device_node *np);
+extern struct lp55xx_platform_data
+*lp55xx_of_populate_pdata(struct device *dev, struct device_node *np);
 
 #endif /* _LEDS_LP55XX_COMMON_H */

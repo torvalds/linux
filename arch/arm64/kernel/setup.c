@@ -17,6 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/acpi.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/stddef.h>
@@ -27,13 +28,11 @@
 #include <linux/console.h>
 #include <linux/cache.h>
 #include <linux/bootmem.h>
-#include <linux/seq_file.h>
 #include <linux/screen_info.h>
 #include <linux/init.h>
 #include <linux/kexec.h>
 #include <linux/crash_dump.h>
 #include <linux/root_dev.h>
-#include <linux/clk-provider.h>
 #include <linux/cpu.h>
 #include <linux/interrupt.h>
 #include <linux/smp.h>
@@ -44,15 +43,16 @@
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 #include <linux/efi.h>
-#include <linux/personality.h>
+#include <linux/psci.h>
 
+#include <asm/acpi.h>
 #include <asm/fixmap.h>
 #include <asm/cpu.h>
 #include <asm/cputype.h>
 #include <asm/elf.h>
-#include <asm/cputable.h>
 #include <asm/cpufeature.h>
 #include <asm/cpu_ops.h>
+#include <asm/kasan.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/smp_plat.h>
@@ -60,30 +60,9 @@
 #include <asm/tlbflush.h>
 #include <asm/traps.h>
 #include <asm/memblock.h>
-#include <asm/psci.h>
 #include <asm/efi.h>
+#include <asm/xen/hypervisor.h>
 
-unsigned int processor_id;
-EXPORT_SYMBOL(processor_id);
-
-unsigned long elf_hwcap __read_mostly;
-EXPORT_SYMBOL_GPL(elf_hwcap);
-
-#ifdef CONFIG_COMPAT
-#define COMPAT_ELF_HWCAP_DEFAULT	\
-				(COMPAT_HWCAP_HALF|COMPAT_HWCAP_THUMB|\
-				 COMPAT_HWCAP_FAST_MULT|COMPAT_HWCAP_EDSP|\
-				 COMPAT_HWCAP_TLS|COMPAT_HWCAP_VFP|\
-				 COMPAT_HWCAP_VFPv3|COMPAT_HWCAP_VFPv4|\
-				 COMPAT_HWCAP_NEON|COMPAT_HWCAP_IDIV|\
-				 COMPAT_HWCAP_LPAE)
-unsigned int compat_elf_hwcap __read_mostly = COMPAT_ELF_HWCAP_DEFAULT;
-unsigned int compat_elf_hwcap2 __read_mostly;
-#endif
-
-DECLARE_BITMAP(cpu_hwcaps, ARM64_NCAPS);
-
-static const char *cpu_name;
 phys_addr_t __fdt_pointer __initdata;
 
 /*
@@ -107,17 +86,10 @@ static struct resource mem_res[] = {
 #define kernel_code mem_res[0]
 #define kernel_data mem_res[1]
 
-void __init early_print(const char *str, ...)
-{
-	char buf[256];
-	va_list ap;
-
-	va_start(ap, str);
-	vsnprintf(buf, sizeof(buf), str, ap);
-	va_end(ap);
-
-	printk("%s", buf);
-}
+/*
+ * The recorded values of x0 .. x3 upon kernel entry.
+ */
+u64 __cacheline_aligned boot_args[4];
 
 void __init smp_setup_processor_id(void)
 {
@@ -139,7 +111,6 @@ bool arch_match_cpu_phys_id(int cpu, u64 phys_id)
 }
 
 struct mpidr_hash mpidr_hash;
-#ifdef CONFIG_SMP
 /**
  * smp_build_mpidr_hash - Pre-compute shifts required at each affinity
  *			  level in order to build a linear index from an
@@ -205,116 +176,17 @@ static void __init smp_build_mpidr_hash(void)
 		pr_warn("Large number of MPIDR hash buckets detected\n");
 	__flush_dcache_area(&mpidr_hash, sizeof(struct mpidr_hash));
 }
-#endif
-
-static void __init setup_processor(void)
-{
-	struct cpu_info *cpu_info;
-	u64 features, block;
-	u32 cwg;
-	int cls;
-
-	cpu_info = lookup_processor_type(read_cpuid_id());
-	if (!cpu_info) {
-		printk("CPU configuration botched (ID %08x), unable to continue.\n",
-		       read_cpuid_id());
-		while (1);
-	}
-
-	cpu_name = cpu_info->cpu_name;
-
-	printk("CPU: %s [%08x] revision %d\n",
-	       cpu_name, read_cpuid_id(), read_cpuid_id() & 15);
-
-	sprintf(init_utsname()->machine, ELF_PLATFORM);
-	elf_hwcap = 0;
-
-	cpuinfo_store_boot_cpu();
-
-	/*
-	 * Check for sane CTR_EL0.CWG value.
-	 */
-	cwg = cache_type_cwg();
-	cls = cache_line_size();
-	if (!cwg)
-		pr_warn("No Cache Writeback Granule information, assuming cache line size %d\n",
-			cls);
-	if (L1_CACHE_BYTES < cls)
-		pr_warn("L1_CACHE_BYTES smaller than the Cache Writeback Granule (%d < %d)\n",
-			L1_CACHE_BYTES, cls);
-
-	/*
-	 * ID_AA64ISAR0_EL1 contains 4-bit wide signed feature blocks.
-	 * The blocks we test below represent incremental functionality
-	 * for non-negative values. Negative values are reserved.
-	 */
-	features = read_cpuid(ID_AA64ISAR0_EL1);
-	block = (features >> 4) & 0xf;
-	if (!(block & 0x8)) {
-		switch (block) {
-		default:
-		case 2:
-			elf_hwcap |= HWCAP_PMULL;
-		case 1:
-			elf_hwcap |= HWCAP_AES;
-		case 0:
-			break;
-		}
-	}
-
-	block = (features >> 8) & 0xf;
-	if (block && !(block & 0x8))
-		elf_hwcap |= HWCAP_SHA1;
-
-	block = (features >> 12) & 0xf;
-	if (block && !(block & 0x8))
-		elf_hwcap |= HWCAP_SHA2;
-
-	block = (features >> 16) & 0xf;
-	if (block && !(block & 0x8))
-		elf_hwcap |= HWCAP_CRC32;
-
-#ifdef CONFIG_COMPAT
-	/*
-	 * ID_ISAR5_EL1 carries similar information as above, but pertaining to
-	 * the Aarch32 32-bit execution state.
-	 */
-	features = read_cpuid(ID_ISAR5_EL1);
-	block = (features >> 4) & 0xf;
-	if (!(block & 0x8)) {
-		switch (block) {
-		default:
-		case 2:
-			compat_elf_hwcap2 |= COMPAT_HWCAP2_PMULL;
-		case 1:
-			compat_elf_hwcap2 |= COMPAT_HWCAP2_AES;
-		case 0:
-			break;
-		}
-	}
-
-	block = (features >> 8) & 0xf;
-	if (block && !(block & 0x8))
-		compat_elf_hwcap2 |= COMPAT_HWCAP2_SHA1;
-
-	block = (features >> 12) & 0xf;
-	if (block && !(block & 0x8))
-		compat_elf_hwcap2 |= COMPAT_HWCAP2_SHA2;
-
-	block = (features >> 16) & 0xf;
-	if (block && !(block & 0x8))
-		compat_elf_hwcap2 |= COMPAT_HWCAP2_CRC32;
-#endif
-}
 
 static void __init setup_machine_fdt(phys_addr_t dt_phys)
 {
-	if (!dt_phys || !early_init_dt_scan(phys_to_virt(dt_phys))) {
-		early_print("\n"
-			"Error: invalid device tree blob at physical address 0x%p (virtual address 0x%p)\n"
-			"The dtb must be 8-byte aligned and passed in the first 512MB of memory\n"
-			"\nPlease check your bootloader.\n",
-			dt_phys, phys_to_virt(dt_phys));
+	void *dt_virt = fixmap_remap_fdt(dt_phys);
+
+	if (!dt_virt || !early_init_dt_scan(dt_virt)) {
+		pr_crit("\n"
+			"Error: invalid device tree blob at physical address %pa (virtual address 0x%p)\n"
+			"The dtb must be 8-byte aligned and must not exceed 2 MB in size\n"
+			"\nPlease check your bootloader.",
+			&dt_phys, dt_virt);
 
 		while (true)
 			cpu_relax();
@@ -351,14 +223,76 @@ static void __init request_standard_resources(void)
 	}
 }
 
+#ifdef CONFIG_BLK_DEV_INITRD
+/*
+ * Relocate initrd if it is not completely within the linear mapping.
+ * This would be the case if mem= cuts out all or part of it.
+ */
+static void __init relocate_initrd(void)
+{
+	phys_addr_t orig_start = __virt_to_phys(initrd_start);
+	phys_addr_t orig_end = __virt_to_phys(initrd_end);
+	phys_addr_t ram_end = memblock_end_of_DRAM();
+	phys_addr_t new_start;
+	unsigned long size, to_free = 0;
+	void *dest;
+
+	if (orig_end <= ram_end)
+		return;
+
+	/*
+	 * Any of the original initrd which overlaps the linear map should
+	 * be freed after relocating.
+	 */
+	if (orig_start < ram_end)
+		to_free = ram_end - orig_start;
+
+	size = orig_end - orig_start;
+	if (!size)
+		return;
+
+	/* initrd needs to be relocated completely inside linear mapping */
+	new_start = memblock_find_in_range(0, PFN_PHYS(max_pfn),
+					   size, PAGE_SIZE);
+	if (!new_start)
+		panic("Cannot relocate initrd of size %ld\n", size);
+	memblock_reserve(new_start, size);
+
+	initrd_start = __phys_to_virt(new_start);
+	initrd_end   = initrd_start + size;
+
+	pr_info("Moving initrd from [%llx-%llx] to [%llx-%llx]\n",
+		orig_start, orig_start + size - 1,
+		new_start, new_start + size - 1);
+
+	dest = (void *)initrd_start;
+
+	if (to_free) {
+		memcpy(dest, (void *)__phys_to_virt(orig_start), to_free);
+		dest += to_free;
+	}
+
+	copy_from_early_mem(dest, orig_start + to_free, size - to_free);
+
+	if (to_free) {
+		pr_info("Freeing original RAMDISK from [%llx-%llx]\n",
+			orig_start, orig_start + to_free - 1);
+		memblock_free(orig_start, to_free);
+	}
+}
+#else
+static inline void __init relocate_initrd(void)
+{
+}
+#endif
+
 u64 __cpu_logical_map[NR_CPUS] = { [0 ... NR_CPUS-1] = INVALID_HWID };
 
 void __init setup_arch(char **cmdline_p)
 {
-	setup_processor();
+	pr_info("Boot CPU: AArch64 Processor [%08x]\n", read_cpuid_id());
 
-	setup_machine_fdt(__fdt_pointer);
-
+	sprintf(init_utsname()->machine, ELF_PLATFORM);
 	init_mm.start_code = (unsigned long) _text;
 	init_mm.end_code   = (unsigned long) _etext;
 	init_mm.end_data   = (unsigned long) _edata;
@@ -368,6 +302,8 @@ void __init setup_arch(char **cmdline_p)
 
 	early_fixmap_init();
 	early_ioremap_init();
+
+	setup_machine_fdt(__fdt_pointer);
 
 	parse_early_param();
 
@@ -380,20 +316,29 @@ void __init setup_arch(char **cmdline_p)
 	efi_init();
 	arm64_memblock_init();
 
+	/* Parse the ACPI tables for possible boot-time configuration */
+	acpi_boot_table_init();
+
 	paging_init();
+	relocate_initrd();
+
+	kasan_init();
+
 	request_standard_resources();
 
 	early_ioremap_reset();
 
-	unflatten_device_tree();
-
-	psci_init();
+	if (acpi_disabled) {
+		unflatten_device_tree();
+		psci_dt_init();
+	} else {
+		psci_acpi_init();
+	}
+	xen_early_init();
 
 	cpu_read_bootcpu_ops();
-#ifdef CONFIG_SMP
 	smp_init_cpus();
 	smp_build_mpidr_hash();
-#endif
 
 #ifdef CONFIG_VT
 #if defined(CONFIG_VGA_CONSOLE)
@@ -402,12 +347,23 @@ void __init setup_arch(char **cmdline_p)
 	conswitchp = &dummy_con;
 #endif
 #endif
+	if (boot_args[1] || boot_args[2] || boot_args[3]) {
+		pr_err("WARNING: x1-x3 nonzero in violation of boot protocol:\n"
+			"\tx1: %016llx\n\tx2: %016llx\n\tx3: %016llx\n"
+			"This indicates a broken bootloader or old kernel\n",
+			boot_args[1], boot_args[2], boot_args[3]);
+	}
 }
 
 static int __init arm64_device_init(void)
 {
-	of_iommu_init();
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+	if (of_have_populated_dt()) {
+		of_iommu_init();
+		of_platform_populate(NULL, of_default_bus_match_table,
+				     NULL, NULL);
+	} else if (acpi_disabled) {
+		pr_crit("Device tree not populated\n");
+	}
 	return 0;
 }
 arch_initcall_sync(arm64_device_init);
@@ -425,125 +381,3 @@ static int __init topology_init(void)
 	return 0;
 }
 subsys_initcall(topology_init);
-
-static const char *hwcap_str[] = {
-	"fp",
-	"asimd",
-	"evtstrm",
-	"aes",
-	"pmull",
-	"sha1",
-	"sha2",
-	"crc32",
-	NULL
-};
-
-#ifdef CONFIG_COMPAT
-static const char *compat_hwcap_str[] = {
-	"swp",
-	"half",
-	"thumb",
-	"26bit",
-	"fastmult",
-	"fpa",
-	"vfp",
-	"edsp",
-	"java",
-	"iwmmxt",
-	"crunch",
-	"thumbee",
-	"neon",
-	"vfpv3",
-	"vfpv3d16",
-	"tls",
-	"vfpv4",
-	"idiva",
-	"idivt",
-	"vfpd32",
-	"lpae",
-	"evtstrm"
-};
-
-static const char *compat_hwcap2_str[] = {
-	"aes",
-	"pmull",
-	"sha1",
-	"sha2",
-	"crc32",
-	NULL
-};
-#endif /* CONFIG_COMPAT */
-
-static int c_show(struct seq_file *m, void *v)
-{
-	int i, j;
-
-	for_each_online_cpu(i) {
-		struct cpuinfo_arm64 *cpuinfo = &per_cpu(cpu_data, i);
-		u32 midr = cpuinfo->reg_midr;
-
-		/*
-		 * glibc reads /proc/cpuinfo to determine the number of
-		 * online processors, looking for lines beginning with
-		 * "processor".  Give glibc what it expects.
-		 */
-#ifdef CONFIG_SMP
-		seq_printf(m, "processor\t: %d\n", i);
-#endif
-
-		/*
-		 * Dump out the common processor features in a single line.
-		 * Userspace should read the hwcaps with getauxval(AT_HWCAP)
-		 * rather than attempting to parse this, but there's a body of
-		 * software which does already (at least for 32-bit).
-		 */
-		seq_puts(m, "Features\t:");
-		if (personality(current->personality) == PER_LINUX32) {
-#ifdef CONFIG_COMPAT
-			for (j = 0; compat_hwcap_str[j]; j++)
-				if (compat_elf_hwcap & (1 << j))
-					seq_printf(m, " %s", compat_hwcap_str[j]);
-
-			for (j = 0; compat_hwcap2_str[j]; j++)
-				if (compat_elf_hwcap2 & (1 << j))
-					seq_printf(m, " %s", compat_hwcap2_str[j]);
-#endif /* CONFIG_COMPAT */
-		} else {
-			for (j = 0; hwcap_str[j]; j++)
-				if (elf_hwcap & (1 << j))
-					seq_printf(m, " %s", hwcap_str[j]);
-		}
-		seq_puts(m, "\n");
-
-		seq_printf(m, "CPU implementer\t: 0x%02x\n",
-			   MIDR_IMPLEMENTOR(midr));
-		seq_printf(m, "CPU architecture: 8\n");
-		seq_printf(m, "CPU variant\t: 0x%x\n", MIDR_VARIANT(midr));
-		seq_printf(m, "CPU part\t: 0x%03x\n", MIDR_PARTNUM(midr));
-		seq_printf(m, "CPU revision\t: %d\n\n", MIDR_REVISION(midr));
-	}
-
-	return 0;
-}
-
-static void *c_start(struct seq_file *m, loff_t *pos)
-{
-	return *pos < 1 ? (void *)1 : NULL;
-}
-
-static void *c_next(struct seq_file *m, void *v, loff_t *pos)
-{
-	++*pos;
-	return NULL;
-}
-
-static void c_stop(struct seq_file *m, void *v)
-{
-}
-
-const struct seq_operations cpuinfo_op = {
-	.start	= c_start,
-	.next	= c_next,
-	.stop	= c_stop,
-	.show	= c_show
-};

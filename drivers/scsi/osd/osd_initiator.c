@@ -186,7 +186,7 @@ static int _osd_get_print_system_info(struct osd_dev *od,
 
 		if (unlikely(len > sizeof(odi->systemid))) {
 			OSD_ERR("OSD Target error: OSD_SYSTEM_ID too long(%d). "
-				"device idetification might not work\n", len);
+				"device identification might not work\n", len);
 			len = sizeof(odi->systemid);
 		}
 		odi->systemid_len = len;

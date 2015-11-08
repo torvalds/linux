@@ -181,7 +181,7 @@ struct emac_instance {
 	struct mal_commac		commac;
 
 	/* PHY infos */
-	u32				phy_mode;
+	int				phy_mode;
 	u32				phy_map;
 	u32				phy_address;
 	u32				phy_feat_exc;
@@ -460,11 +460,8 @@ struct emac_ethtool_regs_subhdr {
 	u32 index;
 };
 
-#define EMAC_ETHTOOL_REGS_VER		0
-#define EMAC_ETHTOOL_REGS_SIZE(dev) 	((dev)->rsrc_regs.end - \
-					 (dev)->rsrc_regs.start + 1)
-#define EMAC4_ETHTOOL_REGS_VER      	1
-#define EMAC4_ETHTOOL_REGS_SIZE(dev)	((dev)->rsrc_regs.end -	\
-					 (dev)->rsrc_regs.start + 1)
+#define EMAC_ETHTOOL_REGS_VER		3
+#define EMAC4_ETHTOOL_REGS_VER		4
+#define EMAC4SYNC_ETHTOOL_REGS_VER	5
 
 #endif /* __IBM_NEWEMAC_CORE_H */

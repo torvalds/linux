@@ -32,7 +32,7 @@
 #include <media/media-device.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-ioctl.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
 
 #include "camif-core.h"
@@ -628,7 +628,7 @@ static struct s3c_camif_drvdata s3c6410_camif_drvdata = {
 	.bus_clk_freq	= 133000000UL,
 };
 
-static struct platform_device_id s3c_camif_driver_ids[] = {
+static const struct platform_device_id s3c_camif_driver_ids[] = {
 	{
 		.name		= "s3c2440-camif",
 		.driver_data	= (unsigned long)&s3c244x_camif_drvdata,

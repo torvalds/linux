@@ -750,8 +750,8 @@ error:
 	return ret;
 }
 
-static int llcp_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
-			     struct msghdr *msg, size_t len)
+static int llcp_sock_sendmsg(struct socket *sock, struct msghdr *msg,
+			     size_t len)
 {
 	struct sock *sk = sock->sk;
 	struct nfc_llcp_sock *llcp_sock = nfc_llcp_sock(sk);
@@ -793,8 +793,8 @@ static int llcp_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	return nfc_llcp_send_i_frame(llcp_sock, msg, len);
 }
 
-static int llcp_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
-			     struct msghdr *msg, size_t len, int flags)
+static int llcp_sock_recvmsg(struct socket *sock, struct msghdr *msg,
+			     size_t len, int flags)
 {
 	int noblock = flags & MSG_DONTWAIT;
 	struct sock *sk = sock->sk;
@@ -942,12 +942,12 @@ static void llcp_sock_destruct(struct sock *sk)
 	}
 }
 
-struct sock *nfc_llcp_sock_alloc(struct socket *sock, int type, gfp_t gfp)
+struct sock *nfc_llcp_sock_alloc(struct socket *sock, int type, gfp_t gfp, int kern)
 {
 	struct sock *sk;
 	struct nfc_llcp_sock *llcp_sock;
 
-	sk = sk_alloc(&init_net, PF_NFC, gfp, &llcp_sock_proto);
+	sk = sk_alloc(&init_net, PF_NFC, gfp, &llcp_sock_proto, kern);
 	if (!sk)
 		return NULL;
 
@@ -993,7 +993,7 @@ void nfc_llcp_sock_free(struct nfc_llcp_sock *sock)
 }
 
 static int llcp_sock_create(struct net *net, struct socket *sock,
-			    const struct nfc_protocol *nfc_proto)
+			    const struct nfc_protocol *nfc_proto, int kern)
 {
 	struct sock *sk;
 
@@ -1009,7 +1009,7 @@ static int llcp_sock_create(struct net *net, struct socket *sock,
 	else
 		sock->ops = &llcp_sock_ops;
 
-	sk = nfc_llcp_sock_alloc(sock, sock->type, GFP_ATOMIC);
+	sk = nfc_llcp_sock_alloc(sock, sock->type, GFP_ATOMIC, kern);
 	if (sk == NULL)
 		return -ENOMEM;
 

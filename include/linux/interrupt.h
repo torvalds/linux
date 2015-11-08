@@ -39,8 +39,6 @@
  * These flags used only by the kernel as part of the
  * irq handling routines.
  *
- * IRQF_DISABLED - keep irqs disabled when calling the action handler.
- *                 DEPRECATED. This flag is a NOOP and scheduled to be removed
  * IRQF_SHARED - allow sharing the irq among several devices
  * IRQF_PROBE_SHARED - set by callers when they expect sharing mismatches to occur
  * IRQF_TIMER - Flag to mark this interrupt as timer interrupt
@@ -64,7 +62,6 @@
  *                wakeup devices users need to implement wakeup detection in
  *                their interrupt handlers.
  */
-#define IRQF_DISABLED		0x00000020
 #define IRQF_SHARED		0x00000080
 #define IRQF_PROBE_SHARED	0x00000100
 #define __IRQF_TIMER		0x00000200
@@ -105,6 +102,7 @@ typedef irqreturn_t (*irq_handler_t)(int, void *);
  * @flags:	flags (see IRQF_* above)
  * @thread_fn:	interrupt handler function for threaded interrupts
  * @thread:	thread pointer for threaded interrupts
+ * @secondary:	pointer to secondary irqaction (force threading)
  * @thread_flags:	flags related to @thread
  * @thread_mask:	bitmask for keeping track of @thread activity
  * @dir:	pointer to the proc/irq/NN/name entry
@@ -116,6 +114,7 @@ struct irqaction {
 	struct irqaction	*next;
 	irq_handler_t		thread_fn;
 	struct task_struct	*thread;
+	struct irqaction	*secondary;
 	unsigned int		irq;
 	unsigned int		flags;
 	unsigned long		thread_flags;
@@ -191,6 +190,7 @@ extern void devm_free_irq(struct device *dev, unsigned int irq, void *dev_id);
 #endif
 
 extern void disable_irq_nosync(unsigned int irq);
+extern bool disable_hardirq(unsigned int irq);
 extern void disable_irq(unsigned int irq);
 extern void disable_percpu_irq(unsigned int irq);
 extern void enable_irq(unsigned int irq);
@@ -363,6 +363,20 @@ static inline int disable_irq_wake(unsigned int irq)
 	return irq_set_irq_wake(irq, 0);
 }
 
+/*
+ * irq_get_irqchip_state/irq_set_irqchip_state specific flags
+ */
+enum irqchip_irq_state {
+	IRQCHIP_STATE_PENDING,		/* Is interrupt pending? */
+	IRQCHIP_STATE_ACTIVE,		/* Is interrupt in progress? */
+	IRQCHIP_STATE_MASKED,		/* Is interrupt masked? */
+	IRQCHIP_STATE_LINE_LEVEL,	/* Is IRQ line high? */
+};
+
+extern int irq_get_irqchip_state(unsigned int irq, enum irqchip_irq_state which,
+				 bool *state);
+extern int irq_set_irqchip_state(unsigned int irq, enum irqchip_irq_state which,
+				 bool state);
 
 #ifdef CONFIG_IRQ_FORCED_THREADING
 extern bool force_irqthreads;
@@ -401,7 +415,8 @@ enum
 	BLOCK_IOPOLL_SOFTIRQ,
 	TASKLET_SOFTIRQ,
 	SCHED_SOFTIRQ,
-	HRTIMER_SOFTIRQ,
+	HRTIMER_SOFTIRQ, /* Unused, but kept as tools rely on the
+			    numbering. Sigh! */
 	RCU_SOFTIRQ,    /* Preferable RCU should always be the last softirq */
 
 	NR_SOFTIRQS
@@ -580,10 +595,10 @@ tasklet_hrtimer_init(struct tasklet_hrtimer *ttimer,
 		     clockid_t which_clock, enum hrtimer_mode mode);
 
 static inline
-int tasklet_hrtimer_start(struct tasklet_hrtimer *ttimer, ktime_t time,
-			  const enum hrtimer_mode mode)
+void tasklet_hrtimer_start(struct tasklet_hrtimer *ttimer, ktime_t time,
+			   const enum hrtimer_mode mode)
 {
-	return hrtimer_start(&ttimer->timer, time, mode);
+	hrtimer_start(&ttimer->timer, time, mode);
 }
 
 static inline

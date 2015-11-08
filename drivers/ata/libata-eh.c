@@ -46,6 +46,7 @@
 
 #include <linux/libata.h>
 
+#include <trace/events/libata.h>
 #include "libata.h"
 
 enum {
@@ -1506,20 +1507,36 @@ unsigned int ata_read_log_page(struct ata_device *dev, u8 log,
 {
 	struct ata_taskfile tf;
 	unsigned int err_mask;
+	bool dma = false;
 
 	DPRINTK("read log page - log 0x%x, page 0x%x\n", log, page);
 
+retry:
 	ata_tf_init(dev, &tf);
-	tf.command = ATA_CMD_READ_LOG_EXT;
+	if (dev->dma_mode && ata_id_has_read_log_dma_ext(dev->id) &&
+	    !(dev->horkage & ATA_HORKAGE_NO_NCQ_LOG)) {
+		tf.command = ATA_CMD_READ_LOG_DMA_EXT;
+		tf.protocol = ATA_PROT_DMA;
+		dma = true;
+	} else {
+		tf.command = ATA_CMD_READ_LOG_EXT;
+		tf.protocol = ATA_PROT_PIO;
+		dma = false;
+	}
 	tf.lbal = log;
 	tf.lbam = page;
 	tf.nsect = sectors;
 	tf.hob_nsect = sectors >> 8;
 	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_LBA48 | ATA_TFLAG_DEVICE;
-	tf.protocol = ATA_PROT_PIO;
 
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_FROM_DEVICE,
 				     buf, sectors * ATA_SECT_SIZE, 0);
+
+	if (err_mask && dma) {
+		dev->horkage |= ATA_HORKAGE_NO_NCQ_LOG;
+		ata_dev_warn(dev, "READ LOG DMA EXT failed, trying unqueued\n");
+		goto retry;
+	}
 
 	DPRINTK("EXIT, err_mask=%x\n", err_mask);
 	return err_mask;
@@ -2186,6 +2203,7 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 		all_err_mask |= qc->err_mask;
 		if (qc->flags & ATA_QCFLAG_IO)
 			eflags |= ATA_EFLAG_IS_IO;
+		trace_ata_eh_link_autopsy_qc(qc);
 	}
 
 	/* enforce default EH actions */
@@ -2220,7 +2238,7 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 			eflags |= ATA_EFLAG_DUBIOUS_XFER;
 		ehc->i.action |= ata_eh_speed_down(dev, eflags, all_err_mask);
 	}
-
+	trace_ata_eh_link_autopsy(dev, ehc->i.action, all_err_mask);
 	DPRINTK("EXIT\n");
 }
 
@@ -2289,27 +2307,27 @@ const char *ata_get_cmd_descript(u8 command)
 		const char *text;
 	} cmd_descr[] = {
 		{ ATA_CMD_DEV_RESET,		"DEVICE RESET" },
-		{ ATA_CMD_CHK_POWER, 		"CHECK POWER MODE" },
-		{ ATA_CMD_STANDBY, 		"STANDBY" },
-		{ ATA_CMD_IDLE, 		"IDLE" },
-		{ ATA_CMD_EDD, 			"EXECUTE DEVICE DIAGNOSTIC" },
-		{ ATA_CMD_DOWNLOAD_MICRO,   	"DOWNLOAD MICROCODE" },
+		{ ATA_CMD_CHK_POWER,		"CHECK POWER MODE" },
+		{ ATA_CMD_STANDBY,		"STANDBY" },
+		{ ATA_CMD_IDLE,			"IDLE" },
+		{ ATA_CMD_EDD,			"EXECUTE DEVICE DIAGNOSTIC" },
+		{ ATA_CMD_DOWNLOAD_MICRO,	"DOWNLOAD MICROCODE" },
 		{ ATA_CMD_DOWNLOAD_MICRO_DMA,	"DOWNLOAD MICROCODE DMA" },
 		{ ATA_CMD_NOP,			"NOP" },
-		{ ATA_CMD_FLUSH, 		"FLUSH CACHE" },
-		{ ATA_CMD_FLUSH_EXT, 		"FLUSH CACHE EXT" },
-		{ ATA_CMD_ID_ATA,  		"IDENTIFY DEVICE" },
-		{ ATA_CMD_ID_ATAPI, 		"IDENTIFY PACKET DEVICE" },
-		{ ATA_CMD_SERVICE, 		"SERVICE" },
-		{ ATA_CMD_READ, 		"READ DMA" },
-		{ ATA_CMD_READ_EXT, 		"READ DMA EXT" },
-		{ ATA_CMD_READ_QUEUED, 		"READ DMA QUEUED" },
-		{ ATA_CMD_READ_STREAM_EXT, 	"READ STREAM EXT" },
+		{ ATA_CMD_FLUSH,		"FLUSH CACHE" },
+		{ ATA_CMD_FLUSH_EXT,		"FLUSH CACHE EXT" },
+		{ ATA_CMD_ID_ATA,		"IDENTIFY DEVICE" },
+		{ ATA_CMD_ID_ATAPI,		"IDENTIFY PACKET DEVICE" },
+		{ ATA_CMD_SERVICE,		"SERVICE" },
+		{ ATA_CMD_READ,			"READ DMA" },
+		{ ATA_CMD_READ_EXT,		"READ DMA EXT" },
+		{ ATA_CMD_READ_QUEUED,		"READ DMA QUEUED" },
+		{ ATA_CMD_READ_STREAM_EXT,	"READ STREAM EXT" },
 		{ ATA_CMD_READ_STREAM_DMA_EXT,  "READ STREAM DMA EXT" },
-		{ ATA_CMD_WRITE, 		"WRITE DMA" },
-		{ ATA_CMD_WRITE_EXT, 		"WRITE DMA EXT" },
-		{ ATA_CMD_WRITE_QUEUED, 	"WRITE DMA QUEUED EXT" },
-		{ ATA_CMD_WRITE_STREAM_EXT, 	"WRITE STREAM EXT" },
+		{ ATA_CMD_WRITE,		"WRITE DMA" },
+		{ ATA_CMD_WRITE_EXT,		"WRITE DMA EXT" },
+		{ ATA_CMD_WRITE_QUEUED,		"WRITE DMA QUEUED EXT" },
+		{ ATA_CMD_WRITE_STREAM_EXT,	"WRITE STREAM EXT" },
 		{ ATA_CMD_WRITE_STREAM_DMA_EXT, "WRITE STREAM DMA EXT" },
 		{ ATA_CMD_WRITE_FUA_EXT,	"WRITE DMA FUA EXT" },
 		{ ATA_CMD_WRITE_QUEUED_FUA_EXT, "WRITE DMA QUEUED FUA EXT" },
@@ -2325,7 +2343,7 @@ const char *ata_get_cmd_descript(u8 command)
 		{ ATA_CMD_READ_MULTI_EXT,	"READ MULTIPLE EXT" },
 		{ ATA_CMD_WRITE_MULTI,		"WRITE MULTIPLE" },
 		{ ATA_CMD_WRITE_MULTI_EXT,	"WRITE MULTIPLE EXT" },
-		{ ATA_CMD_WRITE_MULTI_FUA_EXT, 	"WRITE MULTIPLE FUA EXT" },
+		{ ATA_CMD_WRITE_MULTI_FUA_EXT,	"WRITE MULTIPLE FUA EXT" },
 		{ ATA_CMD_SET_FEATURES,		"SET FEATURES" },
 		{ ATA_CMD_SET_MULTI,		"SET MULTIPLE MODE" },
 		{ ATA_CMD_VERIFY,		"READ VERIFY SECTOR(S)" },
@@ -2342,12 +2360,12 @@ const char *ata_get_cmd_descript(u8 command)
 		{ ATA_CMD_READ_LOG_EXT,		"READ LOG EXT" },
 		{ ATA_CMD_WRITE_LOG_EXT,	"WRITE LOG EXT" },
 		{ ATA_CMD_READ_LOG_DMA_EXT,	"READ LOG DMA EXT" },
-		{ ATA_CMD_WRITE_LOG_DMA_EXT, 	"WRITE LOG DMA EXT" },
+		{ ATA_CMD_WRITE_LOG_DMA_EXT,	"WRITE LOG DMA EXT" },
 		{ ATA_CMD_TRUSTED_NONDATA,	"TRUSTED NON-DATA" },
 		{ ATA_CMD_TRUSTED_RCV,		"TRUSTED RECEIVE" },
-		{ ATA_CMD_TRUSTED_RCV_DMA, 	"TRUSTED RECEIVE DMA" },
+		{ ATA_CMD_TRUSTED_RCV_DMA,	"TRUSTED RECEIVE DMA" },
 		{ ATA_CMD_TRUSTED_SND,		"TRUSTED SEND" },
-		{ ATA_CMD_TRUSTED_SND_DMA, 	"TRUSTED SEND DMA" },
+		{ ATA_CMD_TRUSTED_SND_DMA,	"TRUSTED SEND DMA" },
 		{ ATA_CMD_PMP_READ,		"READ BUFFER" },
 		{ ATA_CMD_PMP_READ_DMA,		"READ BUFFER DMA" },
 		{ ATA_CMD_PMP_WRITE,		"WRITE BUFFER" },
@@ -2364,12 +2382,12 @@ const char *ata_get_cmd_descript(u8 command)
 		{ ATA_CMD_MEDIA_LOCK,		"DOOR LOCK" },
 		{ ATA_CMD_MEDIA_UNLOCK,		"DOOR UNLOCK" },
 		{ ATA_CMD_DSM,			"DATA SET MANAGEMENT" },
-		{ ATA_CMD_CHK_MED_CRD_TYP, 	"CHECK MEDIA CARD TYPE" },
-		{ ATA_CMD_CFA_REQ_EXT_ERR, 	"CFA REQUEST EXTENDED ERROR" },
+		{ ATA_CMD_CHK_MED_CRD_TYP,	"CHECK MEDIA CARD TYPE" },
+		{ ATA_CMD_CFA_REQ_EXT_ERR,	"CFA REQUEST EXTENDED ERROR" },
 		{ ATA_CMD_CFA_WRITE_NE,		"CFA WRITE SECTORS WITHOUT ERASE" },
 		{ ATA_CMD_CFA_TRANS_SECT,	"CFA TRANSLATE SECTOR" },
 		{ ATA_CMD_CFA_ERASE,		"CFA ERASE SECTORS" },
-		{ ATA_CMD_CFA_WRITE_MULT_NE, 	"CFA WRITE MULTIPLE WITHOUT ERASE" },
+		{ ATA_CMD_CFA_WRITE_MULT_NE,	"CFA WRITE MULTIPLE WITHOUT ERASE" },
 		{ ATA_CMD_REQ_SENSE_DATA,	"REQUEST SENSE DATA EXT" },
 		{ ATA_CMD_SANITIZE_DEVICE,	"SANITIZE DEVICE" },
 		{ ATA_CMD_READ_LONG,		"READ LONG (with retries)" },
@@ -3488,6 +3506,9 @@ static int ata_eh_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 			}
 		}
 	}
+
+	link->last_lpm_change = jiffies;
+	link->flags |= ATA_LFLAG_CHANGED;
 
 	return 0;
 

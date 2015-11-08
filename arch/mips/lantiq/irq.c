@@ -293,7 +293,7 @@ static irqreturn_t ipi_resched_interrupt(int irq, void *dev_id)
 
 static irqreturn_t ipi_call_interrupt(int irq, void *dev_id)
 {
-	smp_call_function_interrupt();
+	generic_smp_call_function_interrupt();
 	return IRQ_HANDLED;
 }
 
@@ -466,6 +466,7 @@ int get_c0_perfcount_int(void)
 {
 	return ltq_perfcount_irq;
 }
+EXPORT_SYMBOL_GPL(get_c0_perfcount_int);
 
 unsigned int get_c0_compare_int(void)
 {

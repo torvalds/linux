@@ -916,7 +916,6 @@ static struct ac97c_platform_data *atmel_ac97c_probe_dt(struct device *dev)
 {
 	struct ac97c_platform_data *pdata;
 	struct device_node *node = dev->of_node;
-	const struct of_device_id *match;
 
 	if (!node) {
 		dev_err(dev, "Device does not have associated DT data\n");

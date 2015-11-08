@@ -634,7 +634,7 @@ static int wm8750_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			snd_soc_cache_sync(codec);
 
 			/* Set VMID to 5k */
@@ -651,7 +651,6 @@ static int wm8750_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_write(codec, WM8750_PWR1, 0x0001);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -778,7 +777,6 @@ MODULE_DEVICE_TABLE(spi, wm8750_spi_ids);
 static struct spi_driver wm8750_spi_driver = {
 	.driver = {
 		.name	= "wm8750",
-		.owner	= THIS_MODULE,
 		.of_match_table = wm8750_of_match,
 	},
 	.id_table	= wm8750_spi_ids,
@@ -827,7 +825,6 @@ MODULE_DEVICE_TABLE(i2c, wm8750_i2c_id);
 static struct i2c_driver wm8750_i2c_driver = {
 	.driver = {
 		.name = "wm8750",
-		.owner = THIS_MODULE,
 		.of_match_table = wm8750_of_match,
 	},
 	.probe =    wm8750_i2c_probe,

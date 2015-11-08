@@ -24,14 +24,14 @@
 
 #include "ad7780.h"
 
-#define AD7780_RDY	(1 << 7)
-#define AD7780_FILTER	(1 << 6)
-#define AD7780_ERR	(1 << 5)
-#define AD7780_ID1	(1 << 4)
-#define AD7780_ID0	(1 << 3)
-#define AD7780_GAIN	(1 << 2)
-#define AD7780_PAT1	(1 << 1)
-#define AD7780_PAT0	(1 << 0)
+#define AD7780_RDY	BIT(7)
+#define AD7780_FILTER	BIT(6)
+#define AD7780_ERR	BIT(5)
+#define AD7780_ID1	BIT(4)
+#define AD7780_ID0	BIT(3)
+#define AD7780_GAIN	BIT(2)
+#define AD7780_PAT1	BIT(1)
+#define AD7780_PAT0	BIT(0)
 
 struct ad7780_chip_info {
 	struct iio_chan_spec	channel;
@@ -62,7 +62,7 @@ static struct ad7780_state *ad_sigma_delta_to_ad7780(struct ad_sigma_delta *sd)
 }
 
 static int ad7780_set_mode(struct ad_sigma_delta *sigma_delta,
-	enum ad_sigma_delta_mode mode)
+			   enum ad_sigma_delta_mode mode)
 {
 	struct ad7780_state *st = ad_sigma_delta_to_ad7780(sigma_delta);
 	unsigned val;
@@ -107,13 +107,13 @@ static int ad7780_read_raw(struct iio_dev *indio_dev,
 }
 
 static int ad7780_postprocess_sample(struct ad_sigma_delta *sigma_delta,
-	unsigned int raw_sample)
+				     unsigned int raw_sample)
 {
 	struct ad7780_state *st = ad_sigma_delta_to_ad7780(sigma_delta);
 	const struct ad7780_chip_info *chip_info = st->chip_info;
 
 	if ((raw_sample & AD7780_ERR) ||
-		((raw_sample & chip_info->pattern_mask) != chip_info->pattern))
+	    ((raw_sample & chip_info->pattern_mask) != chip_info->pattern))
 		return -EIO;
 
 	if (raw_sample & AD7780_GAIN)
@@ -169,7 +169,7 @@ static int ad7780_probe(struct spi_device *spi)
 	int ret, voltage_uv = 0;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
-	if (indio_dev == NULL)
+	if (!indio_dev)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
@@ -206,9 +206,10 @@ static int ad7780_probe(struct spi_device *spi)
 	indio_dev->info = &ad7780_info;
 
 	if (pdata && gpio_is_valid(pdata->gpio_pdrst)) {
-
-		ret = devm_gpio_request_one(&spi->dev, pdata->gpio_pdrst,
-					GPIOF_OUT_INIT_LOW, "AD7780 /PDRST");
+		ret = devm_gpio_request_one(&spi->dev,
+					    pdata->gpio_pdrst,
+					    GPIOF_OUT_INIT_LOW,
+					    "AD7780 /PDRST");
 		if (ret) {
 			dev_err(&spi->dev, "failed to request GPIO PDRST\n");
 			goto error_disable_reg;
@@ -263,7 +264,6 @@ MODULE_DEVICE_TABLE(spi, ad7780_id);
 static struct spi_driver ad7780_driver = {
 	.driver = {
 		.name	= "ad7780",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ad7780_probe,
 	.remove		= ad7780_remove,

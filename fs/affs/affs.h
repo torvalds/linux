@@ -64,7 +64,7 @@ struct affs_inode_info {
 /* short cut to get to the affs specific inode data */
 static inline struct affs_inode_info *AFFS_I(struct inode *inode)
 {
-	return list_entry(inode, struct affs_inode_info, vfs_inode);
+	return container_of(inode, struct affs_inode_info, vfs_inode);
 }
 
 /*
@@ -106,18 +106,22 @@ struct affs_sb_info {
 	spinlock_t work_lock;		/* protects sb_work and work_queued */
 };
 
-#define SF_INTL		0x0001		/* International filesystem. */
-#define SF_BM_VALID	0x0002		/* Bitmap is valid. */
-#define SF_IMMUTABLE	0x0004		/* Protection bits cannot be changed */
-#define SF_QUIET	0x0008		/* chmod errors will be not reported */
-#define SF_SETUID	0x0010		/* Ignore Amiga uid */
-#define SF_SETGID	0x0020		/* Ignore Amiga gid */
-#define SF_SETMODE	0x0040		/* Ignore Amiga protection bits */
-#define SF_MUFS		0x0100		/* Use MUFS uid/gid mapping */
-#define SF_OFS		0x0200		/* Old filesystem */
-#define SF_PREFIX	0x0400		/* Buffer for prefix is allocated */
-#define SF_VERBOSE	0x0800		/* Talk about fs when mounting */
-#define SF_NO_TRUNCATE	0x1000		/* Don't truncate filenames */
+#define AFFS_MOUNT_SF_INTL		0x0001 /* International filesystem. */
+#define AFFS_MOUNT_SF_BM_VALID		0x0002 /* Bitmap is valid. */
+#define AFFS_MOUNT_SF_IMMUTABLE		0x0004 /* Protection bits cannot be changed */
+#define AFFS_MOUNT_SF_QUIET		0x0008 /* chmod errors will be not reported */
+#define AFFS_MOUNT_SF_SETUID		0x0010 /* Ignore Amiga uid */
+#define AFFS_MOUNT_SF_SETGID		0x0020 /* Ignore Amiga gid */
+#define AFFS_MOUNT_SF_SETMODE		0x0040 /* Ignore Amiga protection bits */
+#define AFFS_MOUNT_SF_MUFS		0x0100 /* Use MUFS uid/gid mapping */
+#define AFFS_MOUNT_SF_OFS		0x0200 /* Old filesystem */
+#define AFFS_MOUNT_SF_PREFIX		0x0400 /* Buffer for prefix is allocated */
+#define AFFS_MOUNT_SF_VERBOSE		0x0800 /* Talk about fs when mounting */
+#define AFFS_MOUNT_SF_NO_TRUNCATE	0x1000 /* Don't truncate filenames */
+
+#define affs_clear_opt(o, opt)    (o &= ~AFFS_MOUNT_##opt)
+#define affs_set_opt(o, opt)      (o |= AFFS_MOUNT_##opt)
+#define affs_test_opt(o, opt)     ((o) & AFFS_MOUNT_##opt)
 
 /* short cut to get to the affs specific sb data */
 static inline struct affs_sb_info *AFFS_SB(struct super_block *sb)

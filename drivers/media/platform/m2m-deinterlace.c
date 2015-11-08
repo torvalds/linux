@@ -127,7 +127,7 @@ static struct deinterlace_fmt *find_format(struct v4l2_format *f)
 
 struct deinterlace_dev {
 	struct v4l2_device	v4l2_dev;
-	struct video_device	*vfd;
+	struct video_device	vfd;
 
 	atomic_t		busy;
 	struct mutex		dev_mutex;
@@ -200,18 +200,18 @@ static void dma_callback(void *data)
 {
 	struct deinterlace_ctx *curr_ctx = data;
 	struct deinterlace_dev *pcdev = curr_ctx->dev;
-	struct vb2_buffer *src_vb, *dst_vb;
+	struct vb2_v4l2_buffer *src_vb, *dst_vb;
 
 	atomic_set(&pcdev->busy, 0);
 
 	src_vb = v4l2_m2m_src_buf_remove(curr_ctx->m2m_ctx);
 	dst_vb = v4l2_m2m_dst_buf_remove(curr_ctx->m2m_ctx);
 
-	dst_vb->v4l2_buf.timestamp = src_vb->v4l2_buf.timestamp;
-	dst_vb->v4l2_buf.flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
-	dst_vb->v4l2_buf.flags |=
-		src_vb->v4l2_buf.flags & V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
-	dst_vb->v4l2_buf.timecode = src_vb->v4l2_buf.timecode;
+	dst_vb->timestamp = src_vb->timestamp;
+	dst_vb->flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
+	dst_vb->flags |=
+		src_vb->flags & V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
+	dst_vb->timecode = src_vb->timecode;
 
 	v4l2_m2m_buf_done(src_vb, VB2_BUF_STATE_DONE);
 	v4l2_m2m_buf_done(dst_vb, VB2_BUF_STATE_DONE);
@@ -225,7 +225,7 @@ static void deinterlace_issue_dma(struct deinterlace_ctx *ctx, int op,
 				  int do_callback)
 {
 	struct deinterlace_q_data *s_q_data;
-	struct vb2_buffer *src_buf, *dst_buf;
+	struct vb2_v4l2_buffer *src_buf, *dst_buf;
 	struct deinterlace_dev *pcdev = ctx->dev;
 	struct dma_chan *chan = pcdev->dma_chan;
 	struct dma_device *dmadev = chan->device;
@@ -243,8 +243,9 @@ static void deinterlace_issue_dma(struct deinterlace_ctx *ctx, int op,
 	s_height = s_q_data->height;
 	s_size = s_width * s_height;
 
-	p_in = (dma_addr_t)vb2_dma_contig_plane_dma_addr(src_buf, 0);
-	p_out = (dma_addr_t)vb2_dma_contig_plane_dma_addr(dst_buf, 0);
+	p_in = (dma_addr_t)vb2_dma_contig_plane_dma_addr(&src_buf->vb2_buf, 0);
+	p_out = (dma_addr_t)vb2_dma_contig_plane_dma_addr(&dst_buf->vb2_buf,
+							  0);
 	if (!p_in || !p_out) {
 		v4l2_err(&pcdev->v4l2_dev,
 			 "Acquiring kernel pointers to buffers failed\n");
@@ -797,7 +798,7 @@ struct vb2_dc_conf {
 };
 
 static int deinterlace_queue_setup(struct vb2_queue *vq,
-				const struct v4l2_format *fmt,
+				const void *parg,
 				unsigned int *nbuffers, unsigned int *nplanes,
 				unsigned int sizes[], void *alloc_ctxs[])
 {
@@ -849,8 +850,10 @@ static int deinterlace_buf_prepare(struct vb2_buffer *vb)
 
 static void deinterlace_buf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct deinterlace_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
-	v4l2_m2m_buf_queue(ctx->m2m_ctx, vb);
+
+	v4l2_m2m_buf_queue(ctx->m2m_ctx, vbuf);
 }
 
 static struct vb2_ops deinterlace_qops = {
@@ -983,7 +986,7 @@ static struct video_device deinterlace_videodev = {
 	.fops		= &deinterlace_fops,
 	.ioctl_ops	= &deinterlace_ioctl_ops,
 	.minor		= -1,
-	.release	= video_device_release,
+	.release	= video_device_release_empty,
 	.vfl_dir	= VFL_DIR_M2M,
 };
 
@@ -1026,13 +1029,7 @@ static int deinterlace_probe(struct platform_device *pdev)
 	atomic_set(&pcdev->busy, 0);
 	mutex_init(&pcdev->dev_mutex);
 
-	vfd = video_device_alloc();
-	if (!vfd) {
-		v4l2_err(&pcdev->v4l2_dev, "Failed to allocate video device\n");
-		ret = -ENOMEM;
-		goto unreg_dev;
-	}
-
+	vfd = &pcdev->vfd;
 	*vfd = deinterlace_videodev;
 	vfd->lock = &pcdev->dev_mutex;
 	vfd->v4l2_dev = &pcdev->v4l2_dev;
@@ -1040,12 +1037,11 @@ static int deinterlace_probe(struct platform_device *pdev)
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
 	if (ret) {
 		v4l2_err(&pcdev->v4l2_dev, "Failed to register video device\n");
-		goto rel_vdev;
+		goto unreg_dev;
 	}
 
 	video_set_drvdata(vfd, pcdev);
 	snprintf(vfd->name, sizeof(vfd->name), "%s", deinterlace_videodev.name);
-	pcdev->vfd = vfd;
 	v4l2_info(&pcdev->v4l2_dev, MEM2MEM_TEST_MODULE_NAME
 			" Device registered as /dev/video%d\n", vfd->num);
 
@@ -1067,13 +1063,10 @@ static int deinterlace_probe(struct platform_device *pdev)
 
 	return 0;
 
-	v4l2_m2m_release(pcdev->m2m_dev);
 err_m2m:
-	video_unregister_device(pcdev->vfd);
+	video_unregister_device(&pcdev->vfd);
 err_ctx:
 	vb2_dma_contig_cleanup_ctx(pcdev->alloc_ctx);
-rel_vdev:
-	video_device_release(vfd);
 unreg_dev:
 	v4l2_device_unregister(&pcdev->v4l2_dev);
 rel_dma:
@@ -1088,7 +1081,7 @@ static int deinterlace_remove(struct platform_device *pdev)
 
 	v4l2_info(&pcdev->v4l2_dev, "Removing " MEM2MEM_TEST_MODULE_NAME);
 	v4l2_m2m_release(pcdev->m2m_dev);
-	video_unregister_device(pcdev->vfd);
+	video_unregister_device(&pcdev->vfd);
 	v4l2_device_unregister(&pcdev->v4l2_dev);
 	vb2_dma_contig_cleanup_ctx(pcdev->alloc_ctx);
 	dma_release_channel(pcdev->dma_chan);

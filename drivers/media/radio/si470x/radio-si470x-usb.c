@@ -686,14 +686,14 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 		goto err_ctrl;
 	}
 	dev_info(&intf->dev, "DeviceID=0x%4.4hx ChipID=0x%4.4hx\n",
-			radio->registers[DEVICEID], radio->registers[CHIPID]);
-	if ((radio->registers[CHIPID] & CHIPID_FIRMWARE) < RADIO_FW_VERSION) {
+			radio->registers[DEVICEID], radio->registers[SI_CHIPID]);
+	if ((radio->registers[SI_CHIPID] & SI_CHIPID_FIRMWARE) < RADIO_FW_VERSION) {
 		dev_warn(&intf->dev,
 			"This driver is known to work with "
 			"firmware version %hu,\n", RADIO_FW_VERSION);
 		dev_warn(&intf->dev,
 			"but the device has firmware version %hu.\n",
-			radio->registers[CHIPID] & CHIPID_FIRMWARE);
+			radio->registers[SI_CHIPID] & SI_CHIPID_FIRMWARE);
 		version_warning = 1;
 	}
 

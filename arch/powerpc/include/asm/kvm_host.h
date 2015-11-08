@@ -44,6 +44,7 @@
 #ifdef CONFIG_KVM_MMIO
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 #endif
+#define KVM_HALT_POLL_NS_DEFAULT 500000
 
 /* These values are internal and can be increased later */
 #define KVM_NR_IRQCHIPS          1
@@ -108,6 +109,7 @@ struct kvm_vcpu_stat {
 	u32 dec_exits;
 	u32 ext_intr_exits;
 	u32 halt_successful_poll;
+	u32 halt_attempted_poll;
 	u32 halt_wakeup;
 	u32 dbell_exits;
 	u32 gdbell_exits;
@@ -205,8 +207,10 @@ struct revmap_entry {
  */
 #define KVMPPC_RMAP_LOCK_BIT	63
 #define KVMPPC_RMAP_RC_SHIFT	32
+#define KVMPPC_RMAP_CHG_SHIFT	48
 #define KVMPPC_RMAP_REFERENCED	(HPTE_R_R << KVMPPC_RMAP_RC_SHIFT)
 #define KVMPPC_RMAP_CHANGED	(HPTE_R_C << KVMPPC_RMAP_RC_SHIFT)
+#define KVMPPC_RMAP_CHG_ORDER	(0x3ful << KVMPPC_RMAP_CHG_SHIFT)
 #define KVMPPC_RMAP_PRESENT	0x100000000ul
 #define KVMPPC_RMAP_INDEX	0xfffffffful
 
@@ -227,10 +231,8 @@ struct kvm_arch {
 	unsigned long host_sdr1;
 	int tlbie_lock;
 	unsigned long lpcr;
-	unsigned long rmor;
-	struct kvm_rma_info *rma;
 	unsigned long vrma_slb_v;
-	int rma_setup_done;
+	int hpte_setup_done;
 	u32 hpt_order;
 	atomic_t vcpus_running;
 	u32 online_vcores;
@@ -239,6 +241,8 @@ struct kvm_arch {
 	atomic_t hpte_mod_interest;
 	cpumask_t need_tlb_flush;
 	int hpt_cma_alloc;
+	struct dentry *debugfs_dir;
+	struct dentry *htab_dentry;
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 #ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 	struct mutex hpt_mutex;
@@ -263,25 +267,24 @@ struct kvm_arch {
 
 /*
  * Struct for a virtual core.
- * Note: entry_exit_count combines an entry count in the bottom 8 bits
- * and an exit count in the next 8 bits.  This is so that we can
- * atomically increment the entry count iff the exit count is 0
- * without taking the lock.
+ * Note: entry_exit_map combines a bitmap of threads that have entered
+ * in the bottom 8 bits and a bitmap of threads that have exited in the
+ * next 8 bits.  This is so that we can atomically set the entry bit
+ * iff the exit map is 0 without taking a lock.
  */
 struct kvmppc_vcore {
 	int n_runnable;
-	int n_busy;
 	int num_threads;
-	int entry_exit_count;
-	int n_woken;
-	int nap_count;
+	int entry_exit_map;
 	int napping_threads;
 	int first_vcpuid;
 	u16 pcpu;
 	u16 last_cpu;
 	u8 vcore_state;
 	u8 in_guest;
+	struct kvmppc_vcore *master_vcore;
 	struct list_head runnable_threads;
+	struct list_head preempt_list;
 	spinlock_t lock;
 	wait_queue_head_t wq;
 	spinlock_t stoltb_lock;	/* protects stolen_tb and preempt_tb */
@@ -294,20 +297,28 @@ struct kvmppc_vcore {
 	u32 arch_compat;
 	ulong pcr;
 	ulong dpdes;		/* doorbell state (POWER8) */
-	void *mpp_buffer; /* Micro Partition Prefetch buffer */
-	bool mpp_buffer_is_valid;
 	ulong conferring_threads;
 };
 
-#define VCORE_ENTRY_COUNT(vc)	((vc)->entry_exit_count & 0xff)
-#define VCORE_EXIT_COUNT(vc)	((vc)->entry_exit_count >> 8)
+#define VCORE_ENTRY_MAP(vc)	((vc)->entry_exit_map & 0xff)
+#define VCORE_EXIT_MAP(vc)	((vc)->entry_exit_map >> 8)
+#define VCORE_IS_EXITING(vc)	(VCORE_EXIT_MAP(vc) != 0)
 
-/* Values for vcore_state */
+/* This bit is used when a vcore exit is triggered from outside the vcore */
+#define VCORE_EXIT_REQ		0x10000
+
+/*
+ * Values for vcore_state.
+ * Note that these are arranged such that lower values
+ * (< VCORE_SLEEPING) don't require stolen time accounting
+ * on load/unload, and higher values do.
+ */
 #define VCORE_INACTIVE	0
-#define VCORE_SLEEPING	1
-#define VCORE_STARTING	2
-#define VCORE_RUNNING	3
-#define VCORE_EXITING	4
+#define VCORE_PREEMPT	1
+#define VCORE_PIGGYBACK	2
+#define VCORE_SLEEPING	3
+#define VCORE_RUNNING	4
+#define VCORE_EXITING	5
 
 /*
  * Struct used to manage memory for a virtual processor area
@@ -366,6 +377,14 @@ struct kvmppc_slb {
 	bool tb		: 1;	/* 1TB segment */
 	bool class	: 1;
 	u8 base_page_size;	/* MMU_PAGE_xxx */
+};
+
+/* Struct used to accumulate timing information in HV real mode code */
+struct kvmhv_tb_accumulator {
+	u64	seqcount;	/* used to synchronize access, also count * 2 */
+	u64	tb_total;	/* total time in timebase ticks */
+	u64	tb_min;		/* min time */
+	u64	tb_max;		/* max time */
 };
 
 # ifdef CONFIG_PPC_FSL_BOOK3E
@@ -467,7 +486,7 @@ struct kvm_vcpu_arch {
 	ulong ciabr;
 	ulong cfar;
 	ulong ppr;
-	ulong pspb;
+	u32 pspb;
 	ulong fscr;
 	ulong shadow_fscr;
 	ulong ebbhr;
@@ -585,7 +604,7 @@ struct kvm_vcpu_arch {
 	pgd_t *pgdir;
 
 	u8 io_gpr; /* GPR used as IO source/target */
-	u8 mmio_is_bigendian;
+	u8 mmio_host_swabbed;
 	u8 mmio_sign_extend;
 	u8 osi_needed;
 	u8 osi_enabled;
@@ -613,6 +632,7 @@ struct kvm_vcpu_arch {
 	int trap;
 	int state;
 	int ptid;
+	int thread_cpu;
 	bool timer_running;
 	wait_queue_head_t cpu_run;
 
@@ -656,6 +676,19 @@ struct kvm_vcpu_arch {
 
 	u32 emul_inst;
 #endif
+
+#ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
+	struct kvmhv_tb_accumulator *cur_activity;	/* What we're timing */
+	u64	cur_tb_start;			/* when it started */
+	struct kvmhv_tb_accumulator rm_entry;	/* real-mode entry code */
+	struct kvmhv_tb_accumulator rm_intr;	/* real-mode intr handling */
+	struct kvmhv_tb_accumulator rm_exit;	/* real-mode exit code */
+	struct kvmhv_tb_accumulator guest_time;	/* guest execution */
+	struct kvmhv_tb_accumulator cede_time;	/* time napping inside guest */
+
+	struct dentry *debugfs_dir;
+	struct dentry *debugfs_timings;
+#endif /* CONFIG_KVM_BOOK3S_HV_EXIT_TIMING */
 };
 
 #define VCPU_FPR(vcpu, i)	(vcpu)->arch.fp.fpr[i][TS_FPROFFSET]
@@ -679,9 +712,11 @@ struct kvm_vcpu_arch {
 static inline void kvm_arch_hardware_disable(void) {}
 static inline void kvm_arch_hardware_unsetup(void) {}
 static inline void kvm_arch_sync_events(struct kvm *kvm) {}
-static inline void kvm_arch_memslots_updated(struct kvm *kvm) {}
+static inline void kvm_arch_memslots_updated(struct kvm *kvm, struct kvm_memslots *slots) {}
 static inline void kvm_arch_flush_shadow_all(struct kvm *kvm) {}
 static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
 static inline void kvm_arch_exit(void) {}
+static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu) {}
 
 #endif /* __POWERPC_KVM_HOST_H__ */

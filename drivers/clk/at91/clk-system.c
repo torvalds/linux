@@ -130,13 +130,18 @@ at91_clk_register_system(struct at91_pmc *pmc, const char *name,
 		irq_set_status_flags(sys->irq, IRQ_NOAUTOEN);
 		ret = request_irq(sys->irq, clk_system_irq_handler,
 				IRQF_TRIGGER_HIGH, name, sys);
-		if (ret)
+		if (ret) {
+			kfree(sys);
 			return ERR_PTR(ret);
+		}
 	}
 
 	clk = clk_register(NULL, &sys->hw);
-	if (IS_ERR(clk))
+	if (IS_ERR(clk)) {
+		if (irq)
+			free_irq(sys->irq, sys);
 		kfree(sys);
+	}
 
 	return clk;
 }

@@ -1117,34 +1117,30 @@ static int netlbl_unlabel_staticlist_gen(u32 cmd,
 		struct in_addr addr_struct;
 
 		addr_struct.s_addr = addr4->list.addr;
-		ret_val = nla_put(cb_arg->skb,
-				  NLBL_UNLABEL_A_IPV4ADDR,
-				  sizeof(struct in_addr),
-				  &addr_struct);
+		ret_val = nla_put_in_addr(cb_arg->skb,
+					  NLBL_UNLABEL_A_IPV4ADDR,
+					  addr_struct.s_addr);
 		if (ret_val != 0)
 			goto list_cb_failure;
 
 		addr_struct.s_addr = addr4->list.mask;
-		ret_val = nla_put(cb_arg->skb,
-				  NLBL_UNLABEL_A_IPV4MASK,
-				  sizeof(struct in_addr),
-				  &addr_struct);
+		ret_val = nla_put_in_addr(cb_arg->skb,
+					  NLBL_UNLABEL_A_IPV4MASK,
+					  addr_struct.s_addr);
 		if (ret_val != 0)
 			goto list_cb_failure;
 
 		secid = addr4->secid;
 	} else {
-		ret_val = nla_put(cb_arg->skb,
-				  NLBL_UNLABEL_A_IPV6ADDR,
-				  sizeof(struct in6_addr),
-				  &addr6->list.addr);
+		ret_val = nla_put_in6_addr(cb_arg->skb,
+					   NLBL_UNLABEL_A_IPV6ADDR,
+					   &addr6->list.addr);
 		if (ret_val != 0)
 			goto list_cb_failure;
 
-		ret_val = nla_put(cb_arg->skb,
-				  NLBL_UNLABEL_A_IPV6MASK,
-				  sizeof(struct in6_addr),
-				  &addr6->list.mask);
+		ret_val = nla_put_in6_addr(cb_arg->skb,
+					   NLBL_UNLABEL_A_IPV6MASK,
+					   &addr6->list.mask);
 		if (ret_val != 0)
 			goto list_cb_failure;
 

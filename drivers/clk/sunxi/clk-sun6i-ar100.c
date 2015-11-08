@@ -44,28 +44,25 @@ static unsigned long ar100_recalc_rate(struct clk_hw *hw,
 	return (parent_rate >> shift) / (div + 1);
 }
 
-static long ar100_determine_rate(struct clk_hw *hw, unsigned long rate,
-				 unsigned long min_rate,
-				 unsigned long max_rate,
-				 unsigned long *best_parent_rate,
-				 struct clk_hw **best_parent_clk)
+static int ar100_determine_rate(struct clk_hw *hw,
+				struct clk_rate_request *req)
 {
-	int nparents = __clk_get_num_parents(hw->clk);
+	int nparents = clk_hw_get_num_parents(hw);
 	long best_rate = -EINVAL;
 	int i;
 
-	*best_parent_clk = NULL;
+	req->best_parent_hw = NULL;
 
 	for (i = 0; i < nparents; i++) {
 		unsigned long parent_rate;
 		unsigned long tmp_rate;
-		struct clk *parent;
+		struct clk_hw *parent;
 		unsigned long div;
 		int shift;
 
-		parent = clk_get_parent_by_index(hw->clk, i);
-		parent_rate = __clk_get_rate(parent);
-		div = DIV_ROUND_UP(parent_rate, rate);
+		parent = clk_hw_get_parent_by_index(hw, i);
+		parent_rate = clk_hw_get_rate(parent);
+		div = DIV_ROUND_UP(parent_rate, req->rate);
 
 		/*
 		 * The AR100 clk contains 2 divisors:
@@ -101,14 +98,19 @@ static long ar100_determine_rate(struct clk_hw *hw, unsigned long rate,
 			continue;
 
 		tmp_rate = (parent_rate >> shift) / div;
-		if (!*best_parent_clk || tmp_rate > best_rate) {
-			*best_parent_clk = __clk_get_hw(parent);
-			*best_parent_rate = parent_rate;
+		if (!req->best_parent_hw || tmp_rate > best_rate) {
+			req->best_parent_hw = parent;
+			req->best_parent_rate = parent_rate;
 			best_rate = tmp_rate;
 		}
 	}
 
-	return best_rate;
+	if (best_rate < 0)
+		return best_rate;
+
+	req->rate = best_rate;
+
+	return 0;
 }
 
 static int ar100_set_parent(struct clk_hw *hw, u8 index)
@@ -180,7 +182,6 @@ static int sun6i_a31_ar100_clk_probe(struct platform_device *pdev)
 	struct resource *r;
 	struct clk *clk;
 	int nparents;
-	int i;
 
 	ar100 = devm_kzalloc(&pdev->dev, sizeof(*ar100), GFP_KERNEL);
 	if (!ar100)
@@ -195,8 +196,7 @@ static int sun6i_a31_ar100_clk_probe(struct platform_device *pdev)
 	if (nparents > SUN6I_AR100_MAX_PARENTS)
 		nparents = SUN6I_AR100_MAX_PARENTS;
 
-	for (i = 0; i < nparents; i++)
-		parents[i] = of_clk_get_parent_name(np, i);
+	of_clk_parent_fill(np, parents, nparents);
 
 	of_property_read_string(np, "clock-output-names", &clk_name);
 
@@ -219,6 +219,7 @@ static const struct of_device_id sun6i_a31_ar100_clk_dt_ids[] = {
 	{ .compatible = "allwinner,sun6i-a31-ar100-clk" },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, sun6i_a31_ar100_clk_dt_ids);
 
 static struct platform_driver sun6i_a31_ar100_clk_driver = {
 	.driver = {

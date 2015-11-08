@@ -44,6 +44,7 @@
 #include <xen/interface/grant_table.h>
 #include <xen/grant_table.h>
 #include <xen/xenbus.h>
+#include <xen/page.h>
 #include <linux/debugfs.h>
 
 typedef unsigned int pending_ring_idx_t;
@@ -64,8 +65,8 @@ struct pending_tx_info {
 	struct ubuf_info callback_struct;
 };
 
-#define XEN_NETIF_TX_RING_SIZE __CONST_RING_SIZE(xen_netif_tx, PAGE_SIZE)
-#define XEN_NETIF_RX_RING_SIZE __CONST_RING_SIZE(xen_netif_rx, PAGE_SIZE)
+#define XEN_NETIF_TX_RING_SIZE __CONST_RING_SIZE(xen_netif_tx, XEN_PAGE_SIZE)
+#define XEN_NETIF_RX_RING_SIZE __CONST_RING_SIZE(xen_netif_rx, XEN_PAGE_SIZE)
 
 struct xenvif_rx_meta {
 	int id;
@@ -80,16 +81,21 @@ struct xenvif_rx_meta {
 /* Discriminate from any valid pending_idx value. */
 #define INVALID_PENDING_IDX 0xFFFF
 
-#define MAX_BUFFER_OFFSET PAGE_SIZE
+#define MAX_BUFFER_OFFSET XEN_PAGE_SIZE
 
 #define MAX_PENDING_REQS XEN_NETIF_TX_RING_SIZE
 
+/* The maximum number of frags is derived from the size of a grant (same
+ * as a Xen page size for now).
+ */
+#define MAX_XEN_SKB_FRAGS (65536 / XEN_PAGE_SIZE + 1)
+
 /* It's possible for an skb to have a maximal number of frags
  * but still be less than MAX_BUFFER_OFFSET in size. Thus the
- * worst-case number of copy operations is MAX_SKB_FRAGS per
+ * worst-case number of copy operations is MAX_XEN_SKB_FRAGS per
  * ring slot.
  */
-#define MAX_GRANT_COPY_OPS (MAX_SKB_FRAGS * XEN_NETIF_RX_RING_SIZE)
+#define MAX_GRANT_COPY_OPS (MAX_XEN_SKB_FRAGS * XEN_NETIF_RX_RING_SIZE)
 
 #define NETBACK_INVALID_HANDLE -1
 
@@ -200,15 +206,18 @@ struct xenvif_queue { /* Per-queue data for xenvif */
 	struct xenvif_stats stats;
 };
 
-/* Maximum number of Rx slots a to-guest packet may use, including the
- * slot needed for GSO meta-data.
- */
-#define XEN_NETBK_RX_SLOTS_MAX (MAX_SKB_FRAGS + 1)
-
 enum state_bit_shift {
 	/* This bit marks that the vif is connected */
 	VIF_STATUS_CONNECTED,
 };
+
+struct xenvif_mcast_addr {
+	struct list_head entry;
+	struct rcu_head rcu;
+	u8 addr[6];
+};
+
+#define XEN_NETBK_MCAST_MAX 64
 
 struct xenvif {
 	/* Unique identifier for this interface. */
@@ -216,6 +225,8 @@ struct xenvif {
 	unsigned int     handle;
 
 	u8               fe_dev_addr[6];
+	struct list_head fe_mcast_addr;
+	unsigned int     fe_mcast_count;
 
 	/* Frontend feature information. */
 	int gso_mask;
@@ -224,6 +235,7 @@ struct xenvif {
 	u8 can_sg:1;
 	u8 ip_csum:1;
 	u8 ipv6_csum:1;
+	u8 multicast_control:1;
 
 	/* Is this interface disabled? True when backend discovers
 	 * frontend is rogue.
@@ -237,6 +249,8 @@ struct xenvif {
 	struct xenvif_queue *queues;
 	unsigned int num_queues; /* active queues, resource allocated */
 	unsigned int stalled_queues;
+
+	struct xenbus_watch credit_watch;
 
 	spinlock_t lock;
 
@@ -259,6 +273,8 @@ static inline struct xenbus_device *xenvif_to_xenbus_device(struct xenvif *vif)
 {
 	return to_xenbus_device(vif->dev->dev.parent);
 }
+
+void xenvif_tx_credit_callback(unsigned long data);
 
 struct xenvif *xenvif_alloc(struct device *parent,
 			    domid_t domid,
@@ -302,11 +318,6 @@ int xenvif_dealloc_kthread(void *data);
 
 void xenvif_rx_queue_tail(struct xenvif_queue *queue, struct sk_buff *skb);
 
-/* Determine whether the needed number of slots (req) are available,
- * and set req_event if not.
- */
-bool xenvif_rx_ring_slots_available(struct xenvif_queue *queue, int needed);
-
 void xenvif_carrier_on(struct xenvif *vif);
 
 /* Callback from stack when TX packet can be released */
@@ -320,9 +331,6 @@ static inline pending_ring_idx_t nr_pending_reqs(struct xenvif_queue *queue)
 	return MAX_PENDING_REQS -
 		queue->pending_prod + queue->pending_cons;
 }
-
-/* Callback from stack when TX packet can be released */
-void xenvif_zerocopy_callback(struct ubuf_info *ubuf, bool zerocopy_success);
 
 irqreturn_t xenvif_interrupt(int irq, void *dev_id);
 
@@ -339,5 +347,9 @@ extern struct dentry *xen_netback_dbg_root;
 void xenvif_skb_zerocopy_prepare(struct xenvif_queue *queue,
 				 struct sk_buff *skb);
 void xenvif_skb_zerocopy_complete(struct xenvif_queue *queue);
+
+/* Multicast control */
+bool xenvif_mcast_match(struct xenvif *vif, const u8 *addr);
+void xenvif_mcast_addr_list_free(struct xenvif *vif);
 
 #endif /* __XEN_NETBACK__COMMON_H__ */

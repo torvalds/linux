@@ -30,7 +30,7 @@
  * This driver is for the Diamond Systems MM-32-AT board
  *	http://www.diamondsystems.com/products/diamondmm32at
  *
- * It is being used on serveral projects inside NASA, without
+ * It is being used on several projects inside NASA, without
  * problems so far. For analog input commands, TRIG_EXT is not
  * yet supported.
  */
@@ -41,7 +41,6 @@
 #include "../comedidev.h"
 
 #include "8255.h"
-#include "comedi_fc.h"
 
 /* Board register addresses */
 #define DMM32AT_AI_START_CONV_REG	0x00
@@ -274,18 +273,18 @@ static int dmm32at_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
@@ -294,10 +293,10 @@ static int dmm32at_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
-	err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg, 1000000);
-	err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg, 1000000000);
+	err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg, 1000000);
+	err |= comedi_check_trigger_arg_max(&cmd->scan_begin_arg, 1000000000);
 
 	if (cmd->convert_arg >= 17500)
 		cmd->convert_arg = 20000;
@@ -308,12 +307,13 @@ static int dmm32at_ai_cmdtest(struct comedi_device *dev,
 	else
 		cmd->convert_arg = 5000;
 
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
 	else /* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -321,7 +321,7 @@ static int dmm32at_ai_cmdtest(struct comedi_device *dev,
 	/* Step 4: fix up any arguments */
 
 	arg = cmd->convert_arg * cmd->scan_end_arg;
-	err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg, arg);
+	err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg, arg);
 
 	if (err)
 		return 4;
@@ -391,13 +391,12 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/* start the clock and enable the interrupts */
 		dmm32at_setaitimer(dev, cmd->scan_begin_arg);
 	} else {
-		/* start the interrups and initiate a single scan */
+		/* start the interrupts and initiate a single scan */
 		outb(DMM32AT_INTCLK_ADINT, dev->iobase + DMM32AT_INTCLK_REG);
 		outb(0xff, dev->iobase + DMM32AT_AI_START_CONV_REG);
 	}
 
 	return 0;
-
 }
 
 static int dmm32at_ai_cancel(struct comedi_device *dev,
@@ -608,11 +607,7 @@ static int dmm32at_attach(struct comedi_device *dev,
 
 	/* Digital I/O subdevice */
 	s = &dev->subdevices[2];
-	ret = subdev_8255_init(dev, s, dmm32at_8255_io, DMM32AT_8255_IOBASE);
-	if (ret)
-		return ret;
-
-	return 0;
+	return subdev_8255_init(dev, s, dmm32at_8255_io, DMM32AT_8255_IOBASE);
 }
 
 static struct comedi_driver dmm32at_driver = {

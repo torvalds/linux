@@ -7,16 +7,32 @@ This file documents differences between the core properties described
 by mmc.txt and the properties used by the sdhci-esdhc-imx driver.
 
 Required properties:
-- compatible : Should be "fsl,<chip>-esdhc"
+- compatible : Should be "fsl,<chip>-esdhc", the supported chips include
+	       "fsl,imx25-esdhc"
+	       "fsl,imx35-esdhc"
+	       "fsl,imx51-esdhc"
+	       "fsl,imx53-esdhc"
+	       "fsl,imx6q-usdhc"
+	       "fsl,imx6sl-usdhc"
+	       "fsl,imx6sx-usdhc"
+	       "fsl,imx7d-usdhc"
 
 Optional properties:
-- fsl,cd-controller : Indicate to use controller internal card detection
 - fsl,wp-controller : Indicate to use controller internal write protection
 - fsl,delay-line : Specify the number of delay cells for override mode.
   This is used to set the clock delay for DLL(Delay Line) on override mode
   to select a proper data sampling window in case the clock quality is not good
   due to signal path is too long on the board. Please refer to eSDHC/uSDHC
   chapter, DLL (Delay Line) section in RM for details.
+- voltage-ranges : Specify the voltage range in case there are software
+  transparent level shifters on the outputs of the controller. Two cells are
+  required, first cell specifies minimum slot voltage (mV), second cell
+  specifies maximum slot voltage (mV). Several ranges could be specified.
+- fsl,tuning-step: Specify the increasing delay cell steps in tuning procedure.
+  The uSDHC use one delay cell as default increasing step to do tuning process.
+  This property allows user to change the tuning step to more than one delay
+  cells which is useful for some special boards or cards when the default
+  tuning step can't find the proper delay window within limited tuning retries.
 
 Examples:
 
@@ -24,7 +40,6 @@ esdhc@70004000 {
 	compatible = "fsl,imx51-esdhc";
 	reg = <0x70004000 0x4000>;
 	interrupts = <1>;
-	fsl,cd-controller;
 	fsl,wp-controller;
 };
 

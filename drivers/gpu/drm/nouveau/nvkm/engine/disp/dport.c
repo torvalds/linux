@@ -48,12 +48,12 @@ struct dp_state {
 static int
 dp_set_link_config(struct dp_state *dp)
 {
-	struct nvkm_output_dp_impl *impl = (void *)nv_oclass(dp->outp);
 	struct nvkm_output_dp *outp = dp->outp;
-	struct nvkm_disp *disp = nvkm_disp(outp);
-	struct nvkm_bios *bios = nvkm_bios(disp);
+	struct nvkm_disp *disp = outp->base.disp;
+	struct nvkm_subdev *subdev = &disp->engine.subdev;
+	struct nvkm_bios *bios = subdev->device->bios;
 	struct nvbios_init init = {
-		.subdev = nv_subdev(disp),
+		.subdev = subdev,
 		.bios = bios,
 		.offset = 0x0000,
 		.outp = &outp->base.info,
@@ -64,33 +64,33 @@ dp_set_link_config(struct dp_state *dp)
 	u8 sink[2];
 	int ret;
 
-	DBG("%d lanes at %d KB/s\n", dp->link_nr, dp->link_bw);
+	OUTP_DBG(&outp->base, "%d lanes at %d KB/s", dp->link_nr, dp->link_bw);
 
 	/* set desired link configuration on the source */
 	if ((lnkcmp = dp->outp->info.lnkcmp)) {
 		if (outp->version < 0x30) {
-			while ((dp->link_bw / 10) < nv_ro16(bios, lnkcmp))
+			while ((dp->link_bw / 10) < nvbios_rd16(bios, lnkcmp))
 				lnkcmp += 4;
-			init.offset = nv_ro16(bios, lnkcmp + 2);
+			init.offset = nvbios_rd16(bios, lnkcmp + 2);
 		} else {
-			while ((dp->link_bw / 27000) < nv_ro08(bios, lnkcmp))
+			while ((dp->link_bw / 27000) < nvbios_rd08(bios, lnkcmp))
 				lnkcmp += 3;
-			init.offset = nv_ro16(bios, lnkcmp + 1);
+			init.offset = nvbios_rd16(bios, lnkcmp + 1);
 		}
 
 		nvbios_exec(&init);
 	}
 
-	ret = impl->lnk_ctl(outp, dp->link_nr, dp->link_bw / 27000,
-			    outp->dpcd[DPCD_RC02] &
-				       DPCD_RC02_ENHANCED_FRAME_CAP);
+	ret = outp->func->lnk_ctl(outp, dp->link_nr, dp->link_bw / 27000,
+				  outp->dpcd[DPCD_RC02] &
+					     DPCD_RC02_ENHANCED_FRAME_CAP);
 	if (ret) {
 		if (ret < 0)
-			ERR("lnk_ctl failed with %d\n", ret);
+			OUTP_ERR(&outp->base, "lnk_ctl failed with %d", ret);
 		return ret;
 	}
 
-	impl->lnk_pwr(outp, dp->link_nr);
+	outp->func->lnk_pwr(outp, dp->link_nr);
 
 	/* set desired link configuration on the sink */
 	sink[0] = dp->link_bw / 27000;
@@ -98,29 +98,27 @@ dp_set_link_config(struct dp_state *dp)
 	if (outp->dpcd[DPCD_RC02] & DPCD_RC02_ENHANCED_FRAME_CAP)
 		sink[1] |= DPCD_LC01_ENHANCED_FRAME_EN;
 
-	return nv_wraux(outp->base.edid, DPCD_LC00_LINK_BW_SET, sink, 2);
+	return nvkm_wraux(outp->aux, DPCD_LC00_LINK_BW_SET, sink, 2);
 }
 
 static void
 dp_set_training_pattern(struct dp_state *dp, u8 pattern)
 {
-	struct nvkm_output_dp_impl *impl = (void *)nv_oclass(dp->outp);
 	struct nvkm_output_dp *outp = dp->outp;
 	u8 sink_tp;
 
-	DBG("training pattern %d\n", pattern);
-	impl->pattern(outp, pattern);
+	OUTP_DBG(&outp->base, "training pattern %d", pattern);
+	outp->func->pattern(outp, pattern);
 
-	nv_rdaux(outp->base.edid, DPCD_LC02, &sink_tp, 1);
+	nvkm_rdaux(outp->aux, DPCD_LC02, &sink_tp, 1);
 	sink_tp &= ~DPCD_LC02_TRAINING_PATTERN_SET;
 	sink_tp |= pattern;
-	nv_wraux(outp->base.edid, DPCD_LC02, &sink_tp, 1);
+	nvkm_wraux(outp->aux, DPCD_LC02, &sink_tp, 1);
 }
 
 static int
 dp_link_train_commit(struct dp_state *dp, bool pc)
 {
-	struct nvkm_output_dp_impl *impl = (void *)nv_oclass(dp->outp);
 	struct nvkm_output_dp *outp = dp->outp;
 	int ret, i;
 
@@ -146,16 +144,17 @@ dp_link_train_commit(struct dp_state *dp, bool pc)
 		dp->conf[i] = (lpre << 3) | lvsw;
 		dp->pc2conf[i >> 1] |= lpc2 << ((i & 1) * 4);
 
-		DBG("config lane %d %02x %02x\n", i, dp->conf[i], lpc2);
-		impl->drv_ctl(outp, i, lvsw & 3, lpre & 3, lpc2 & 3);
+		OUTP_DBG(&outp->base, "config lane %d %02x %02x",
+			 i, dp->conf[i], lpc2);
+		outp->func->drv_ctl(outp, i, lvsw & 3, lpre & 3, lpc2 & 3);
 	}
 
-	ret = nv_wraux(outp->base.edid, DPCD_LC03(0), dp->conf, 4);
+	ret = nvkm_wraux(outp->aux, DPCD_LC03(0), dp->conf, 4);
 	if (ret)
 		return ret;
 
 	if (pc) {
-		ret = nv_wraux(outp->base.edid, DPCD_LC0F, dp->pc2conf, 2);
+		ret = nvkm_wraux(outp->aux, DPCD_LC0F, dp->pc2conf, 2);
 		if (ret)
 			return ret;
 	}
@@ -174,17 +173,18 @@ dp_link_train_update(struct dp_state *dp, bool pc, u32 delay)
 	else
 		udelay(delay);
 
-	ret = nv_rdaux(outp->base.edid, DPCD_LS02, dp->stat, 6);
+	ret = nvkm_rdaux(outp->aux, DPCD_LS02, dp->stat, 6);
 	if (ret)
 		return ret;
 
 	if (pc) {
-		ret = nv_rdaux(outp->base.edid, DPCD_LS0C, &dp->pc2stat, 1);
+		ret = nvkm_rdaux(outp->aux, DPCD_LS0C, &dp->pc2stat, 1);
 		if (ret)
 			dp->pc2stat = 0x00;
-		DBG("status %6ph pc2 %02x\n", dp->stat, dp->pc2stat);
+		OUTP_DBG(&outp->base, "status %6ph pc2 %02x",
+			 dp->stat, dp->pc2stat);
 	} else {
-		DBG("status %6ph\n", dp->stat);
+		OUTP_DBG(&outp->base, "status %6ph", dp->stat);
 	}
 
 	return 0;
@@ -260,11 +260,11 @@ static void
 dp_link_train_init(struct dp_state *dp, bool spread)
 {
 	struct nvkm_output_dp *outp = dp->outp;
-	struct nvkm_disp *disp = nvkm_disp(outp);
-	struct nvkm_bios *bios = nvkm_bios(disp);
+	struct nvkm_disp *disp = outp->base.disp;
+	struct nvkm_subdev *subdev = &disp->engine.subdev;
 	struct nvbios_init init = {
-		.subdev = nv_subdev(disp),
-		.bios = bios,
+		.subdev = subdev,
+		.bios = subdev->device->bios,
 		.outp = &outp->base.info,
 		.crtc = -1,
 		.execute = 1,
@@ -286,11 +286,11 @@ static void
 dp_link_train_fini(struct dp_state *dp)
 {
 	struct nvkm_output_dp *outp = dp->outp;
-	struct nvkm_disp *disp = nvkm_disp(outp);
-	struct nvkm_bios *bios = nvkm_bios(disp);
+	struct nvkm_disp *disp = outp->base.disp;
+	struct nvkm_subdev *subdev = &disp->engine.subdev;
 	struct nvbios_init init = {
-		.subdev = nv_subdev(disp),
-		.bios = bios,
+		.subdev = subdev,
+		.bios = subdev->device->bios,
 		.outp = &outp->base.info,
 		.crtc = -1,
 		.execute = 1,
@@ -322,7 +322,7 @@ void
 nvkm_dp_train(struct work_struct *w)
 {
 	struct nvkm_output_dp *outp = container_of(w, typeof(*outp), lt.work);
-	struct nv50_disp_priv *priv = (void *)nvkm_disp(outp);
+	struct nv50_disp *disp = nv50_disp(outp->base.disp);
 	const struct dp_rates *cfg = nvkm_dp_rates;
 	struct dp_state _dp = {
 		.outp = outp,
@@ -330,11 +330,11 @@ nvkm_dp_train(struct work_struct *w)
 	u32 datarate = 0;
 	int ret;
 
-	if (!outp->base.info.location && priv->sor.magic)
-		priv->sor.magic(&outp->base);
+	if (!outp->base.info.location && disp->func->sor.magic)
+		disp->func->sor.magic(&outp->base);
 
 	/* bring capabilities within encoder limits */
-	if (nv_mclass(priv) < GF110_DISP)
+	if (disp->base.engine.subdev.device->chipset < 0xd0)
 		outp->dpcd[2] &= ~DPCD_RC02_TPS3_SUPPORTED;
 	if ((outp->dpcd[2] & 0x1f) > outp->base.info.dpconf.link_nr) {
 		outp->dpcd[2] &= ~DPCD_RC02_MAX_LANE_COUNT;
@@ -386,12 +386,12 @@ nvkm_dp_train(struct work_struct *w)
 	/* finish link training and execute post-train script from vbios */
 	dp_set_training_pattern(dp, 0);
 	if (ret < 0)
-		ERR("link training failed\n");
+		OUTP_ERR(&outp->base, "link training failed");
 
 	dp_link_train_fini(dp);
 
 	/* signal completion and enable link interrupt handling */
-	DBG("training complete\n");
+	OUTP_DBG(&outp->base, "training complete");
 	atomic_set(&outp->lt.done, 1);
 	wake_up(&outp->lt.wait);
 	nvkm_notify_get(&outp->irq);

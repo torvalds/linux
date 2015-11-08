@@ -1,5 +1,5 @@
 /* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -47,7 +47,7 @@ s32 fm10k_iov_event(struct fm10k_intfc *interface)
 {
 	struct fm10k_hw *hw = &interface->hw;
 	struct fm10k_iov_data *iov_data;
-	s64 mbicr, vflre;
+	s64 vflre;
 	int i;
 
 	/* if there is no iov_data then there is no mailboxes to process */
@@ -63,7 +63,7 @@ s32 fm10k_iov_event(struct fm10k_intfc *interface)
 		goto read_unlock;
 
 	if (!(fm10k_read_reg(hw, FM10K_EICR) & FM10K_EICR_VFLR))
-		goto process_mbx;
+		goto read_unlock;
 
 	/* read VFLRE to determine if any VFs have been reset */
 	do {
@@ -86,32 +86,6 @@ s32 fm10k_iov_event(struct fm10k_intfc *interface)
 		}
 	} while (i != iov_data->num_vfs);
 
-process_mbx:
-	/* read MBICR to determine which VFs require attention */
-	mbicr = fm10k_read_reg(hw, FM10K_MBICR(1));
-	mbicr <<= 32;
-	mbicr |= fm10k_read_reg(hw, FM10K_MBICR(0));
-
-	i = iov_data->next_vf_mbx ? : iov_data->num_vfs;
-
-	for (mbicr <<= 64 - i; i--; mbicr += mbicr) {
-		struct fm10k_mbx_info *mbx = &iov_data->vf_info[i].mbx;
-
-		if (mbicr >= 0)
-			continue;
-
-		if (!hw->mbx.ops.tx_ready(&hw->mbx, FM10K_VFMBX_MSG_MTU))
-			break;
-
-		mbx->ops.process(hw, mbx);
-	}
-
-	if (i >= 0) {
-		iov_data->next_vf_mbx = i + 1;
-	} else if (iov_data->next_vf_mbx) {
-		iov_data->next_vf_mbx = 0;
-		goto process_mbx;
-	}
 read_unlock:
 	rcu_read_unlock();
 
@@ -139,6 +113,13 @@ s32 fm10k_iov_mbx(struct fm10k_intfc *interface)
 	/* lock the mailbox for transmit and receive */
 	fm10k_mbx_lock(interface);
 
+	/* Most VF messages sent to the PF cause the PF to respond by
+	 * requesting from the SM mailbox. This means that too many VF
+	 * messages processed at once could cause a mailbox timeout on the PF.
+	 * To prevent this, store a pointer to the next VF mbx to process. Use
+	 * that as the start of the loop so that we don't starve whichever VF
+	 * got ignored on the previous run.
+	 */
 process_mbx:
 	for (i = iov_data->next_vf_mbx ? : iov_data->num_vfs; i--;) {
 		struct fm10k_vf_info *vf_info = &iov_data->vf_info[i];
@@ -155,18 +136,21 @@ process_mbx:
 			mbx->ops.connect(hw, mbx);
 		}
 
-		/* no work pending, then just continue */
-		if (mbx->ops.tx_complete(mbx) && !mbx->ops.rx_ready(mbx))
-			continue;
-
 		/* guarantee we have free space in the SM mailbox */
-		if (!hw->mbx.ops.tx_ready(&hw->mbx, FM10K_VFMBX_MSG_MTU))
+		if (!hw->mbx.ops.tx_ready(&hw->mbx, FM10K_VFMBX_MSG_MTU)) {
+			/* keep track of how many times this occurs */
+			interface->hw_sm_mbx_full++;
 			break;
+		}
 
 		/* cleanup mailbox and process received messages */
 		mbx->ops.process(hw, mbx);
 	}
 
+	/* if we stopped processing mailboxes early, update next_vf_mbx.
+	 * Otherwise, reset next_vf_mbx, and restart loop so that we process
+	 * the remaining mailboxes we skipped at the start.
+	 */
 	if (i >= 0) {
 		iov_data->next_vf_mbx = i + 1;
 	} else if (iov_data->next_vf_mbx) {
@@ -247,9 +231,6 @@ int fm10k_iov_resume(struct pci_dev *pdev)
 		hw->iov.ops.set_lport(hw, vf_info, i,
 				      FM10K_VF_FLAG_MULTI_CAPABLE);
 
-		/* assign our default vid to the VF following reset */
-		vf_info->sw_vid = hw->mac.default_vid;
-
 		/* mailbox is disconnected so we don't send a message */
 		hw->iov.ops.assign_default_mac_vlan(hw, vf_info);
 
@@ -275,7 +256,7 @@ s32 fm10k_iov_update_pvid(struct fm10k_intfc *interface, u16 glort, u16 pvid)
 	if (vf_idx >= iov_data->num_vfs)
 		return FM10K_ERR_PARAM;
 
-	/* determine if an update has occured and if so notify the VF */
+	/* determine if an update has occurred and if so notify the VF */
 	vf_info = &iov_data->vf_info[vf_idx];
 	if (vf_info->sw_vid != pvid) {
 		vf_info->sw_vid = pvid;
@@ -419,11 +400,31 @@ int fm10k_iov_configure(struct pci_dev *pdev, int num_vfs)
 	return num_vfs;
 }
 
+static inline void fm10k_reset_vf_info(struct fm10k_intfc *interface,
+				       struct fm10k_vf_info *vf_info)
+{
+	struct fm10k_hw *hw = &interface->hw;
+
+	/* assigning the MAC address will send a mailbox message */
+	fm10k_mbx_lock(interface);
+
+	/* disable LPORT for this VF which clears switch rules */
+	hw->iov.ops.reset_lport(hw, vf_info);
+
+	/* assign new MAC+VLAN for this VF */
+	hw->iov.ops.assign_default_mac_vlan(hw, vf_info);
+
+	/* re-enable the LPORT for this VF */
+	hw->iov.ops.set_lport(hw, vf_info, vf_info->vf_idx,
+			      FM10K_VF_FLAG_MULTI_CAPABLE);
+
+	fm10k_mbx_unlock(interface);
+}
+
 int fm10k_ndo_set_vf_mac(struct net_device *netdev, int vf_idx, u8 *mac)
 {
 	struct fm10k_intfc *interface = netdev_priv(netdev);
 	struct fm10k_iov_data *iov_data = interface->iov_data;
-	struct fm10k_hw *hw = &interface->hw;
 	struct fm10k_vf_info *vf_info;
 
 	/* verify SR-IOV is active and that vf idx is valid */
@@ -438,13 +439,7 @@ int fm10k_ndo_set_vf_mac(struct net_device *netdev, int vf_idx, u8 *mac)
 	vf_info = &iov_data->vf_info[vf_idx];
 	ether_addr_copy(vf_info->mac, mac);
 
-	/* assigning the MAC will send a mailbox message so lock is needed */
-	fm10k_mbx_lock(interface);
-
-	/* assign MAC address to VF */
-	hw->iov.ops.assign_default_mac_vlan(hw, vf_info);
-
-	fm10k_mbx_unlock(interface);
+	fm10k_reset_vf_info(interface, vf_info);
 
 	return 0;
 }
@@ -474,22 +469,16 @@ int fm10k_ndo_set_vf_vlan(struct net_device *netdev, int vf_idx, u16 vid,
 	/* record default VLAN ID for VF */
 	vf_info->pf_vid = vid;
 
-	/* assigning the VLAN will send a mailbox message so lock is needed */
-	fm10k_mbx_lock(interface);
-
 	/* Clear the VLAN table for the VF */
 	hw->mac.ops.update_vlan(hw, FM10K_VLAN_ALL, vf_info->vsi, false);
 
-	/* Update VF assignment and trigger reset */
-	hw->iov.ops.assign_default_mac_vlan(hw, vf_info);
-
-	fm10k_mbx_unlock(interface);
+	fm10k_reset_vf_info(interface, vf_info);
 
 	return 0;
 }
 
-int fm10k_ndo_set_vf_bw(struct net_device *netdev, int vf_idx, int unused,
-			int rate)
+int fm10k_ndo_set_vf_bw(struct net_device *netdev, int vf_idx,
+			int __always_unused unused, int rate)
 {
 	struct fm10k_intfc *interface = netdev_priv(netdev);
 	struct fm10k_iov_data *iov_data = interface->iov_data;

@@ -15,12 +15,167 @@
 #include "skeleton.dtsi"
 
 / {
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		enable-method = "ste,dbx500-smp";
+
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&CPU0>;
+				};
+				core1 {
+					cpu = <&CPU1>;
+				};
+			};
+		};
+		CPU0: cpu@300 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <0x300>;
+		};
+		CPU1: cpu@301 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <0x301>;
+		};
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "stericsson,db8500";
 		interrupt-parent = <&intc>;
 		ranges;
+
+		ptm@801ae000 {
+			compatible = "arm,coresight-etm3x", "arm,primecell";
+			reg = <0x801ae000 0x1000>;
+
+			clocks = <&prcmu_clk PRCMU_APETRACECLK>, <&prcmu_clk PRCMU_APEATCLK>;
+			clock-names = "apb_pclk", "atclk";
+			cpu = <&CPU0>;
+			port {
+				ptm0_out_port: endpoint {
+					remote-endpoint = <&funnel_in_port0>;
+				};
+			};
+		};
+
+		ptm@801af000 {
+			compatible = "arm,coresight-etm3x", "arm,primecell";
+			reg = <0x801af000 0x1000>;
+
+			clocks = <&prcmu_clk PRCMU_APETRACECLK>, <&prcmu_clk PRCMU_APEATCLK>;
+			clock-names = "apb_pclk", "atclk";
+			cpu = <&CPU1>;
+			port {
+				ptm1_out_port: endpoint {
+					remote-endpoint = <&funnel_in_port1>;
+				};
+			};
+		};
+
+		funnel@801a6000 {
+			compatible = "arm,coresight-funnel", "arm,primecell";
+			reg = <0x801a6000 0x1000>;
+
+			clocks = <&prcmu_clk PRCMU_APETRACECLK>, <&prcmu_clk PRCMU_APEATCLK>;
+			clock-names = "apb_pclk", "atclk";
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				/* funnel output ports */
+				port@0 {
+					reg = <0>;
+					funnel_out_port: endpoint {
+						remote-endpoint =
+							<&replicator_in_port0>;
+					};
+				};
+
+				/* funnel input ports */
+				port@1 {
+					reg = <0>;
+					funnel_in_port0: endpoint {
+						slave-mode;
+						remote-endpoint = <&ptm0_out_port>;
+					};
+				};
+
+				port@2 {
+					reg = <1>;
+					funnel_in_port1: endpoint {
+						slave-mode;
+						remote-endpoint = <&ptm1_out_port>;
+					};
+				};
+			};
+		};
+
+		replicator {
+			compatible = "arm,coresight-replicator";
+			clocks = <&prcmu_clk PRCMU_APEATCLK>;
+			clock-names = "atclk";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				/* replicator output ports */
+				port@0 {
+					reg = <0>;
+					replicator_out_port0: endpoint {
+						remote-endpoint = <&tpiu_in_port>;
+					};
+				};
+				port@1 {
+					reg = <1>;
+					replicator_out_port1: endpoint {
+						remote-endpoint = <&etb_in_port>;
+					};
+				};
+
+				/* replicator input port */
+				port@2 {
+					reg = <0>;
+					replicator_in_port0: endpoint {
+						slave-mode;
+						remote-endpoint = <&funnel_out_port>;
+					};
+				};
+			};
+		};
+
+		tpiu@80190000 {
+			compatible = "arm,coresight-tpiu", "arm,primecell";
+			reg = <0x80190000 0x1000>;
+
+			clocks = <&prcmu_clk PRCMU_APETRACECLK>, <&prcmu_clk PRCMU_APEATCLK>;
+			clock-names = "apb_pclk", "atclk";
+			port {
+				tpiu_in_port: endpoint {
+					slave-mode;
+					remote-endpoint = <&replicator_out_port0>;
+				};
+			};
+		};
+
+		etb@801a4000 {
+			compatible = "arm,coresight-etb10", "arm,primecell";
+			reg = <0x801a4000 0x1000>;
+
+			clocks = <&prcmu_clk PRCMU_APETRACECLK>, <&prcmu_clk PRCMU_APEATCLK>;
+			clock-names = "apb_pclk", "atclk";
+			port {
+				etb_in_port: endpoint {
+					slave-mode;
+					remote-endpoint = <&replicator_out_port1>;
+				};
+			};
+		};
 
 		intc: interrupt-controller@a0411000 {
 			compatible = "arm,cortex-a9-gic";
@@ -29,6 +184,20 @@
 			interrupt-controller;
 			reg = <0xa0411000 0x1000>,
 			      <0xa0410100 0x100>;
+		};
+
+		scu@a04100000 {
+			compatible = "arm,cortex-a9-scu";
+			reg = <0xa0410000 0x100>;
+		};
+
+		/*
+		 * The backup RAM is used for retention during sleep
+		 * and various things like spin tables
+		 */
+		backupram@80150000 {
+			compatible = "ste,dbx500-backupram";
+			reg = <0x80150000 0x2000>;
 		};
 
 		L2: l2-cache {
@@ -51,6 +220,13 @@
 
 		clocks {
 			compatible = "stericsson,u8500-clks";
+			/*
+			 * Registers for the CLKRST block on peripheral
+			 * groups 1, 2, 3, 5, 6,
+			 */
+			reg = <0x8012f000 0x1000>, <0x8011f000 0x1000>,
+			    <0x8000f000 0x1000>, <0xa03ff000 0x1000>,
+			    <0xa03cf000 0x1000>;
 
 			prcmu_clk: prcmu-clock {
 				#clock-cells = <1>;
@@ -91,6 +267,13 @@
 			clocks = <&smp_twd_clk>;
 		};
 
+		watchdog@a0410620 {
+			compatible = "arm,cortex-a9-twd-wdt";
+			reg = <0xa0410620 0x20>;
+			interrupts = <1 14 0x304>;
+			clocks = <&smp_twd_clk>;
+		};
+
 		rtc@80154000 {
 			compatible = "arm,rtc-pl031", "arm,primecell";
 			reg = <0x80154000 0x1000>;
@@ -111,7 +294,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <0>;
-
+			gpio-ranges = <&pinctrl 0 0 32>;
 			clocks = <&prcc_pclk 1 9>;
 		};
 
@@ -126,7 +309,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <1>;
-
+			gpio-ranges = <&pinctrl 0 32 5>;
 			clocks = <&prcc_pclk 1 9>;
 		};
 
@@ -141,7 +324,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <2>;
-
+			gpio-ranges = <&pinctrl 0 64 32>;
 			clocks = <&prcc_pclk 3 8>;
 		};
 
@@ -156,7 +339,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <3>;
-
+			gpio-ranges = <&pinctrl 0 96 2>;
 			clocks = <&prcc_pclk 3 8>;
 		};
 
@@ -171,7 +354,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <4>;
-
+			gpio-ranges = <&pinctrl 0 128 32>;
 			clocks = <&prcc_pclk 3 8>;
 		};
 
@@ -186,7 +369,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <5>;
-
+			gpio-ranges = <&pinctrl 0 160 12>;
 			clocks = <&prcc_pclk 3 8>;
 		};
 
@@ -201,7 +384,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <6>;
-
+			gpio-ranges = <&pinctrl 0 192 32>;
 			clocks = <&prcc_pclk 2 11>;
 		};
 
@@ -216,7 +399,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <7>;
-
+			gpio-ranges = <&pinctrl 0 224 7>;
 			clocks = <&prcc_pclk 2 11>;
 		};
 
@@ -231,12 +414,15 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <8>;
-
+			gpio-ranges = <&pinctrl 0 256 12>;
 			clocks = <&prcc_pclk 5 1>;
 		};
 
-		pinctrl {
+		pinctrl: pinctrl {
 			compatible = "stericsson,db8500-pinctrl";
+			nomadik-gpio-chips = <&gpio0>, <&gpio1>, <&gpio2>, <&gpio3>,
+						<&gpio4>, <&gpio5>, <&gpio6>, <&gpio7>,
+						<&gpio8>;
 			prcm = <&prcmu>;
 		};
 
@@ -796,7 +982,7 @@
 			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
-		uart@80120000 {
+		ux500_serial0: uart@80120000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x80120000 0x1000>;
 			interrupts = <0 11 IRQ_TYPE_LEVEL_HIGH>;
@@ -811,7 +997,7 @@
 			status = "disabled";
 		};
 
-		uart@80121000 {
+		ux500_serial1: uart@80121000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x80121000 0x1000>;
 			interrupts = <0 19 IRQ_TYPE_LEVEL_HIGH>;
@@ -826,7 +1012,7 @@
 			status = "disabled";
 		};
 
-		uart@80007000 {
+		ux500_serial2: uart@80007000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x80007000 0x1000>;
 			interrupts = <0 26 IRQ_TYPE_LEVEL_HIGH>;
@@ -1014,23 +1200,6 @@
 
 		cpufreq-cooling {
 			compatible = "stericsson,db8500-cpufreq-cooling";
-			status = "disabled";
-		};
-
-		vmmci: regulator-gpio {
-			compatible = "regulator-gpio";
-
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <2900000>;
-			regulator-name = "mmci-reg";
-			regulator-type = "voltage";
-
-			startup-delay-us = <100>;
-			enable-active-high;
-
-			states = <1800000 0x1
-				  2900000 0x0>;
-
 			status = "disabled";
 		};
 

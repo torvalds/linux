@@ -37,6 +37,7 @@ static inline struct igmpv3_query *
 	return (struct igmpv3_query *)skb_transport_header(skb);
 }
 
+extern int sysctl_igmp_llm_reports;
 extern int sysctl_igmp_max_memberships;
 extern int sysctl_igmp_max_msf;
 extern int sysctl_igmp_qrv;
@@ -109,7 +110,7 @@ struct ip_mc_list {
 #define IGMPV3_QQIC(value) IGMPV3_EXP(0x80, 4, 3, value)
 #define IGMPV3_MRC(value) IGMPV3_EXP(0x80, 4, 3, value)
 
-extern int ip_check_mc_rcu(struct in_device *dev, __be32 mc_addr, __be32 src_addr, u16 proto);
+extern int ip_check_mc_rcu(struct in_device *dev, __be32 mc_addr, __be32 src_addr, u8 proto);
 extern int igmp_rcv(struct sk_buff *);
 extern int ip_mc_join_group(struct sock *sk, struct ip_mreqn *imr);
 extern int ip_mc_leave_group(struct sock *sk, struct ip_mreqn *imr);
@@ -130,5 +131,6 @@ extern void ip_mc_unmap(struct in_device *);
 extern void ip_mc_remap(struct in_device *);
 extern void ip_mc_dec_group(struct in_device *in_dev, __be32 addr);
 extern void ip_mc_inc_group(struct in_device *in_dev, __be32 addr);
+int ip_mc_check_igmp(struct sk_buff *skb, struct sk_buff **skb_trimmed);
 
 #endif

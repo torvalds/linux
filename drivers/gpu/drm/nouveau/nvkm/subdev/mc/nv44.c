@@ -21,33 +21,33 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv04.h"
+#include "priv.h"
 
-int
-nv44_mc_init(struct nvkm_object *object)
+void
+nv44_mc_init(struct nvkm_mc *mc)
 {
-	struct nv04_mc_priv *priv = (void *)object;
-	u32 tmp = nv_rd32(priv, 0x10020c);
+	struct nvkm_device *device = mc->subdev.device;
+	u32 tmp = nvkm_rd32(device, 0x10020c);
 
-	nv_wr32(priv, 0x000200, 0xffffffff); /* everything enabled */
+	nvkm_wr32(device, 0x000200, 0xffffffff); /* everything enabled */
 
-	nv_wr32(priv, 0x001700, tmp);
-	nv_wr32(priv, 0x001704, 0);
-	nv_wr32(priv, 0x001708, 0);
-	nv_wr32(priv, 0x00170c, tmp);
-
-	return nvkm_mc_init(&priv->base);
+	nvkm_wr32(device, 0x001700, tmp);
+	nvkm_wr32(device, 0x001704, 0);
+	nvkm_wr32(device, 0x001708, 0);
+	nvkm_wr32(device, 0x00170c, tmp);
 }
 
-struct nvkm_oclass *
-nv44_mc_oclass = &(struct nvkm_mc_oclass) {
-	.base.handle = NV_SUBDEV(MC, 0x44),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_mc_ctor,
-		.dtor = _nvkm_mc_dtor,
-		.init = nv44_mc_init,
-		.fini = _nvkm_mc_fini,
-	},
+static const struct nvkm_mc_func
+nv44_mc = {
+	.init = nv44_mc_init,
 	.intr = nv04_mc_intr,
-	.msi_rearm = nv40_mc_msi_rearm,
-}.base;
+	.intr_unarm = nv04_mc_intr_unarm,
+	.intr_rearm = nv04_mc_intr_rearm,
+	.intr_mask = nv04_mc_intr_mask,
+};
+
+int
+nv44_mc_new(struct nvkm_device *device, int index, struct nvkm_mc **pmc)
+{
+	return nvkm_mc_new_(&nv44_mc, device, index, pmc);
+}

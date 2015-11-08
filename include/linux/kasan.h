@@ -10,10 +10,18 @@ struct vm_struct;
 #ifdef CONFIG_KASAN
 
 #define KASAN_SHADOW_SCALE_SHIFT 3
-#define KASAN_SHADOW_OFFSET _AC(CONFIG_KASAN_SHADOW_OFFSET, UL)
 
 #include <asm/kasan.h>
+#include <asm/pgtable.h>
 #include <linux/sched.h>
+
+extern unsigned char kasan_zero_page[PAGE_SIZE];
+extern pte_t kasan_zero_pte[PTRS_PER_PTE];
+extern pmd_t kasan_zero_pmd[PTRS_PER_PMD];
+extern pud_t kasan_zero_pud[PTRS_PER_PUD];
+
+void kasan_populate_zero_shadow(const void *shadow_start,
+				const void *shadow_end);
 
 static inline void *kasan_mem_to_shadow(const void *addr)
 {
@@ -44,6 +52,7 @@ void kasan_poison_object_data(struct kmem_cache *cache, void *object);
 
 void kasan_kmalloc_large(const void *ptr, size_t size);
 void kasan_kfree_large(const void *ptr);
+void kasan_kfree(void *ptr);
 void kasan_kmalloc(struct kmem_cache *s, const void *object, size_t size);
 void kasan_krealloc(const void *object, size_t new_size);
 
@@ -71,6 +80,7 @@ static inline void kasan_poison_object_data(struct kmem_cache *cache,
 
 static inline void kasan_kmalloc_large(void *ptr, size_t size) {}
 static inline void kasan_kfree_large(const void *ptr) {}
+static inline void kasan_kfree(void *ptr) {}
 static inline void kasan_kmalloc(struct kmem_cache *s, const void *object,
 				size_t size) {}
 static inline void kasan_krealloc(const void *object, size_t new_size) {}

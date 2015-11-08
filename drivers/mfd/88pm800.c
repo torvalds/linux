@@ -609,7 +609,6 @@ static int pm800_remove(struct i2c_client *client)
 static struct i2c_driver pm800_driver = {
 	.driver = {
 		.name = "88PM800",
-		.owner = THIS_MODULE,
 		.pm = &pm80x_pm_ops,
 		},
 	.probe = pm800_probe,

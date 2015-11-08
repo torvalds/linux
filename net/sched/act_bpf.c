@@ -13,26 +13,50 @@
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/filter.h>
+#include <linux/bpf.h>
+
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 
 #include <linux/tc_act/tc_bpf.h>
 #include <net/tc_act/tc_bpf.h>
 
-#define BPF_TAB_MASK     15
+#define BPF_TAB_MASK		15
+#define ACT_BPF_NAME_LEN	256
 
-static int tcf_bpf(struct sk_buff *skb, const struct tc_action *a,
+struct tcf_bpf_cfg {
+	struct bpf_prog *filter;
+	struct sock_filter *bpf_ops;
+	const char *bpf_name;
+	u32 bpf_fd;
+	u16 bpf_num_ops;
+	bool is_ebpf;
+};
+
+static int tcf_bpf(struct sk_buff *skb, const struct tc_action *act,
 		   struct tcf_result *res)
 {
-	struct tcf_bpf *b = a->priv;
+	struct tcf_bpf *prog = act->priv;
+	struct bpf_prog *filter;
 	int action, filter_res;
+	bool at_ingress = G_TC_AT(skb->tc_verd) & AT_INGRESS;
 
-	spin_lock(&b->tcf_lock);
+	if (unlikely(!skb_mac_header_was_set(skb)))
+		return TC_ACT_UNSPEC;
 
-	b->tcf_tm.lastuse = jiffies;
-	bstats_update(&b->tcf_bstats, skb);
+	tcf_lastuse_update(&prog->tcf_tm);
+	bstats_cpu_update(this_cpu_ptr(prog->common.cpu_bstats), skb);
 
-	filter_res = BPF_PROG_RUN(b->filter, skb);
+	rcu_read_lock();
+	filter = rcu_dereference(prog->filter);
+	if (at_ingress) {
+		__skb_push(skb, skb->mac_len);
+		filter_res = BPF_PROG_RUN(filter, skb);
+		__skb_pull(skb, skb->mac_len);
+	} else {
+		filter_res = BPF_PROG_RUN(filter, skb);
+	}
+	rcu_read_unlock();
 
 	/* A BPF program may overwrite the default action opcode.
 	 * Similarly as in cls_bpf, if filter_res == -1 we use the
@@ -48,56 +72,91 @@ static int tcf_bpf(struct sk_buff *skb, const struct tc_action *a,
 	case TC_ACT_PIPE:
 	case TC_ACT_RECLASSIFY:
 	case TC_ACT_OK:
+	case TC_ACT_REDIRECT:
 		action = filter_res;
 		break;
 	case TC_ACT_SHOT:
 		action = filter_res;
-		b->tcf_qstats.drops++;
+		qstats_drop_inc(this_cpu_ptr(prog->common.cpu_qstats));
 		break;
 	case TC_ACT_UNSPEC:
-		action = b->tcf_action;
+		action = prog->tcf_action;
 		break;
 	default:
 		action = TC_ACT_UNSPEC;
 		break;
 	}
 
-	spin_unlock(&b->tcf_lock);
 	return action;
 }
 
-static int tcf_bpf_dump(struct sk_buff *skb, struct tc_action *a,
+static bool tcf_bpf_is_ebpf(const struct tcf_bpf *prog)
+{
+	return !prog->bpf_ops;
+}
+
+static int tcf_bpf_dump_bpf_info(const struct tcf_bpf *prog,
+				 struct sk_buff *skb)
+{
+	struct nlattr *nla;
+
+	if (nla_put_u16(skb, TCA_ACT_BPF_OPS_LEN, prog->bpf_num_ops))
+		return -EMSGSIZE;
+
+	nla = nla_reserve(skb, TCA_ACT_BPF_OPS, prog->bpf_num_ops *
+			  sizeof(struct sock_filter));
+	if (nla == NULL)
+		return -EMSGSIZE;
+
+	memcpy(nla_data(nla), prog->bpf_ops, nla_len(nla));
+
+	return 0;
+}
+
+static int tcf_bpf_dump_ebpf_info(const struct tcf_bpf *prog,
+				  struct sk_buff *skb)
+{
+	if (nla_put_u32(skb, TCA_ACT_BPF_FD, prog->bpf_fd))
+		return -EMSGSIZE;
+
+	if (prog->bpf_name &&
+	    nla_put_string(skb, TCA_ACT_BPF_NAME, prog->bpf_name))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
+static int tcf_bpf_dump(struct sk_buff *skb, struct tc_action *act,
 			int bind, int ref)
 {
 	unsigned char *tp = skb_tail_pointer(skb);
-	struct tcf_bpf *b = a->priv;
+	struct tcf_bpf *prog = act->priv;
 	struct tc_act_bpf opt = {
-		.index    = b->tcf_index,
-		.refcnt   = b->tcf_refcnt - ref,
-		.bindcnt  = b->tcf_bindcnt - bind,
-		.action   = b->tcf_action,
+		.index   = prog->tcf_index,
+		.refcnt  = prog->tcf_refcnt - ref,
+		.bindcnt = prog->tcf_bindcnt - bind,
+		.action  = prog->tcf_action,
 	};
-	struct tcf_t t;
-	struct nlattr *nla;
+	struct tcf_t tm;
+	int ret;
 
 	if (nla_put(skb, TCA_ACT_BPF_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
 
-	if (nla_put_u16(skb, TCA_ACT_BPF_OPS_LEN, b->bpf_num_ops))
+	if (tcf_bpf_is_ebpf(prog))
+		ret = tcf_bpf_dump_ebpf_info(prog, skb);
+	else
+		ret = tcf_bpf_dump_bpf_info(prog, skb);
+	if (ret)
 		goto nla_put_failure;
 
-	nla = nla_reserve(skb, TCA_ACT_BPF_OPS, b->bpf_num_ops *
-			  sizeof(struct sock_filter));
-	if (!nla)
+	tm.install = jiffies_to_clock_t(jiffies - prog->tcf_tm.install);
+	tm.lastuse = jiffies_to_clock_t(jiffies - prog->tcf_tm.lastuse);
+	tm.expires = jiffies_to_clock_t(prog->tcf_tm.expires);
+
+	if (nla_put(skb, TCA_ACT_BPF_TM, sizeof(tm), &tm))
 		goto nla_put_failure;
 
-	memcpy(nla_data(nla), b->bpf_ops, nla_len(nla));
-
-	t.install = jiffies_to_clock_t(jiffies - b->tcf_tm.install);
-	t.lastuse = jiffies_to_clock_t(jiffies - b->tcf_tm.lastuse);
-	t.expires = jiffies_to_clock_t(b->tcf_tm.expires);
-	if (nla_put(skb, TCA_ACT_BPF_TM, sizeof(t), &t))
-		goto nla_put_failure;
 	return skb->len;
 
 nla_put_failure:
@@ -107,35 +166,20 @@ nla_put_failure:
 
 static const struct nla_policy act_bpf_policy[TCA_ACT_BPF_MAX + 1] = {
 	[TCA_ACT_BPF_PARMS]	= { .len = sizeof(struct tc_act_bpf) },
+	[TCA_ACT_BPF_FD]	= { .type = NLA_U32 },
+	[TCA_ACT_BPF_NAME]	= { .type = NLA_NUL_STRING, .len = ACT_BPF_NAME_LEN },
 	[TCA_ACT_BPF_OPS_LEN]	= { .type = NLA_U16 },
 	[TCA_ACT_BPF_OPS]	= { .type = NLA_BINARY,
 				    .len = sizeof(struct sock_filter) * BPF_MAXINSNS },
 };
 
-static int tcf_bpf_init(struct net *net, struct nlattr *nla,
-			struct nlattr *est, struct tc_action *a,
-			int ovr, int bind)
+static int tcf_bpf_init_from_ops(struct nlattr **tb, struct tcf_bpf_cfg *cfg)
 {
-	struct nlattr *tb[TCA_ACT_BPF_MAX + 1];
-	struct tc_act_bpf *parm;
-	struct tcf_bpf *b;
-	u16 bpf_size, bpf_num_ops;
 	struct sock_filter *bpf_ops;
-	struct sock_fprog_kern tmp;
+	struct sock_fprog_kern fprog_tmp;
 	struct bpf_prog *fp;
+	u16 bpf_size, bpf_num_ops;
 	int ret;
-
-	if (!nla)
-		return -EINVAL;
-
-	ret = nla_parse_nested(tb, TCA_ACT_BPF_MAX, nla, act_bpf_policy);
-	if (ret < 0)
-		return ret;
-
-	if (!tb[TCA_ACT_BPF_PARMS] ||
-	    !tb[TCA_ACT_BPF_OPS_LEN] || !tb[TCA_ACT_BPF_OPS])
-		return -EINVAL;
-	parm = nla_data(tb[TCA_ACT_BPF_PARMS]);
 
 	bpf_num_ops = nla_get_u16(tb[TCA_ACT_BPF_OPS_LEN]);
 	if (bpf_num_ops	> BPF_MAXINSNS || bpf_num_ops == 0)
@@ -146,68 +190,191 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 		return -EINVAL;
 
 	bpf_ops = kzalloc(bpf_size, GFP_KERNEL);
-	if (!bpf_ops)
+	if (bpf_ops == NULL)
 		return -ENOMEM;
 
 	memcpy(bpf_ops, nla_data(tb[TCA_ACT_BPF_OPS]), bpf_size);
 
-	tmp.len = bpf_num_ops;
-	tmp.filter = bpf_ops;
+	fprog_tmp.len = bpf_num_ops;
+	fprog_tmp.filter = bpf_ops;
 
-	ret = bpf_prog_create(&fp, &tmp);
-	if (ret)
-		goto free_bpf_ops;
+	ret = bpf_prog_create(&fp, &fprog_tmp);
+	if (ret < 0) {
+		kfree(bpf_ops);
+		return ret;
+	}
 
-	if (!tcf_hash_check(parm->index, a, bind)) {
-		ret = tcf_hash_create(parm->index, est, a, sizeof(*b), bind);
-		if (ret)
-			goto destroy_fp;
+	cfg->bpf_ops = bpf_ops;
+	cfg->bpf_num_ops = bpf_num_ops;
+	cfg->filter = fp;
+	cfg->is_ebpf = false;
 
-		ret = ACT_P_CREATED;
-	} else {
-		if (bind)
-			goto destroy_fp;
-		tcf_hash_release(a, bind);
-		if (!ovr) {
-			ret = -EEXIST;
-			goto destroy_fp;
+	return 0;
+}
+
+static int tcf_bpf_init_from_efd(struct nlattr **tb, struct tcf_bpf_cfg *cfg)
+{
+	struct bpf_prog *fp;
+	char *name = NULL;
+	u32 bpf_fd;
+
+	bpf_fd = nla_get_u32(tb[TCA_ACT_BPF_FD]);
+
+	fp = bpf_prog_get(bpf_fd);
+	if (IS_ERR(fp))
+		return PTR_ERR(fp);
+
+	if (fp->type != BPF_PROG_TYPE_SCHED_ACT) {
+		bpf_prog_put(fp);
+		return -EINVAL;
+	}
+
+	if (tb[TCA_ACT_BPF_NAME]) {
+		name = kmemdup(nla_data(tb[TCA_ACT_BPF_NAME]),
+			       nla_len(tb[TCA_ACT_BPF_NAME]),
+			       GFP_KERNEL);
+		if (!name) {
+			bpf_prog_put(fp);
+			return -ENOMEM;
 		}
 	}
 
-	b = to_bpf(a);
-	spin_lock_bh(&b->tcf_lock);
-	b->tcf_action = parm->action;
-	b->bpf_num_ops = bpf_num_ops;
-	b->bpf_ops = bpf_ops;
-	b->filter = fp;
-	spin_unlock_bh(&b->tcf_lock);
+	cfg->bpf_fd = bpf_fd;
+	cfg->bpf_name = name;
+	cfg->filter = fp;
+	cfg->is_ebpf = true;
 
-	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(a);
-	return ret;
-
-destroy_fp:
-	bpf_prog_destroy(fp);
-free_bpf_ops:
-	kfree(bpf_ops);
-	return ret;
+	return 0;
 }
 
-static void tcf_bpf_cleanup(struct tc_action *a, int bind)
+static void tcf_bpf_cfg_cleanup(const struct tcf_bpf_cfg *cfg)
 {
-	struct tcf_bpf *b = a->priv;
+	if (cfg->is_ebpf)
+		bpf_prog_put(cfg->filter);
+	else
+		bpf_prog_destroy(cfg->filter);
 
-	bpf_prog_destroy(b->filter);
+	kfree(cfg->bpf_ops);
+	kfree(cfg->bpf_name);
 }
 
-static struct tc_action_ops act_bpf_ops = {
-	.kind =		"bpf",
-	.type =		TCA_ACT_BPF,
-	.owner =	THIS_MODULE,
-	.act =		tcf_bpf,
-	.dump =		tcf_bpf_dump,
-	.cleanup =	tcf_bpf_cleanup,
-	.init =		tcf_bpf_init,
+static void tcf_bpf_prog_fill_cfg(const struct tcf_bpf *prog,
+				  struct tcf_bpf_cfg *cfg)
+{
+	cfg->is_ebpf = tcf_bpf_is_ebpf(prog);
+	/* updates to prog->filter are prevented, since it's called either
+	 * with rtnl lock or during final cleanup in rcu callback
+	 */
+	cfg->filter = rcu_dereference_protected(prog->filter, 1);
+
+	cfg->bpf_ops = prog->bpf_ops;
+	cfg->bpf_name = prog->bpf_name;
+}
+
+static int tcf_bpf_init(struct net *net, struct nlattr *nla,
+			struct nlattr *est, struct tc_action *act,
+			int replace, int bind)
+{
+	struct nlattr *tb[TCA_ACT_BPF_MAX + 1];
+	struct tcf_bpf_cfg cfg, old;
+	struct tc_act_bpf *parm;
+	struct tcf_bpf *prog;
+	bool is_bpf, is_ebpf;
+	int ret, res = 0;
+
+	if (!nla)
+		return -EINVAL;
+
+	ret = nla_parse_nested(tb, TCA_ACT_BPF_MAX, nla, act_bpf_policy);
+	if (ret < 0)
+		return ret;
+
+	if (!tb[TCA_ACT_BPF_PARMS])
+		return -EINVAL;
+
+	parm = nla_data(tb[TCA_ACT_BPF_PARMS]);
+
+	if (!tcf_hash_check(parm->index, act, bind)) {
+		ret = tcf_hash_create(parm->index, est, act,
+				      sizeof(*prog), bind, true);
+		if (ret < 0)
+			return ret;
+
+		res = ACT_P_CREATED;
+	} else {
+		/* Don't override defaults. */
+		if (bind)
+			return 0;
+
+		tcf_hash_release(act, bind);
+		if (!replace)
+			return -EEXIST;
+	}
+
+	is_bpf = tb[TCA_ACT_BPF_OPS_LEN] && tb[TCA_ACT_BPF_OPS];
+	is_ebpf = tb[TCA_ACT_BPF_FD];
+
+	if ((!is_bpf && !is_ebpf) || (is_bpf && is_ebpf)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	memset(&cfg, 0, sizeof(cfg));
+
+	ret = is_bpf ? tcf_bpf_init_from_ops(tb, &cfg) :
+		       tcf_bpf_init_from_efd(tb, &cfg);
+	if (ret < 0)
+		goto out;
+
+	prog = to_bpf(act);
+	ASSERT_RTNL();
+
+	if (res != ACT_P_CREATED)
+		tcf_bpf_prog_fill_cfg(prog, &old);
+
+	prog->bpf_ops = cfg.bpf_ops;
+	prog->bpf_name = cfg.bpf_name;
+
+	if (cfg.bpf_num_ops)
+		prog->bpf_num_ops = cfg.bpf_num_ops;
+	if (cfg.bpf_fd)
+		prog->bpf_fd = cfg.bpf_fd;
+
+	prog->tcf_action = parm->action;
+	rcu_assign_pointer(prog->filter, cfg.filter);
+
+	if (res == ACT_P_CREATED) {
+		tcf_hash_insert(act);
+	} else {
+		/* make sure the program being replaced is no longer executing */
+		synchronize_rcu();
+		tcf_bpf_cfg_cleanup(&old);
+	}
+
+	return res;
+out:
+	if (res == ACT_P_CREATED)
+		tcf_hash_cleanup(act, est);
+
+	return ret;
+}
+
+static void tcf_bpf_cleanup(struct tc_action *act, int bind)
+{
+	struct tcf_bpf_cfg tmp;
+
+	tcf_bpf_prog_fill_cfg(act->priv, &tmp);
+	tcf_bpf_cfg_cleanup(&tmp);
+}
+
+static struct tc_action_ops act_bpf_ops __read_mostly = {
+	.kind		=	"bpf",
+	.type		=	TCA_ACT_BPF,
+	.owner		=	THIS_MODULE,
+	.act		=	tcf_bpf,
+	.dump		=	tcf_bpf_dump,
+	.cleanup	=	tcf_bpf_cleanup,
+	.init		=	tcf_bpf_init,
 };
 
 static int __init bpf_init_module(void)

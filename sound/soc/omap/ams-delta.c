@@ -479,8 +479,8 @@ static int ams_delta_cx20442_init(struct snd_soc_pcm_runtime *rtd)
 
 	/* Add hook switch - can be used to control the codec from userspace
 	 * even if line discipline fails */
-	ret = snd_soc_jack_new(rtd->codec, "hook_switch",
-				SND_JACK_HEADSET, &ams_delta_hook_switch);
+	ret = snd_soc_card_jack_new(card, "hook_switch", SND_JACK_HEADSET,
+				    &ams_delta_hook_switch, NULL, 0);
 	if (ret)
 		dev_warn(card->dev,
 				"Failed to allocate resources for hook switch, "

@@ -76,6 +76,7 @@ size_t iov_iter_copy_from_user_atomic(struct page *page,
 		struct iov_iter *i, unsigned long offset, size_t bytes);
 void iov_iter_advance(struct iov_iter *i, size_t bytes);
 int iov_iter_fault_in_readable(struct iov_iter *i, size_t bytes);
+int iov_iter_fault_in_multipages_readable(struct iov_iter *i, size_t bytes);
 size_t iov_iter_single_seg_count(const struct iov_iter *i);
 size_t copy_page_to_iter(struct page *page, size_t offset, size_t bytes,
 			 struct iov_iter *i);
@@ -111,6 +112,14 @@ static inline bool iter_is_iovec(struct iov_iter *i)
 }
 
 /*
+ * Get one of READ or WRITE out of iter->type without any other flags OR'd in
+ * with it.
+ *
+ * The ?: is just for type safety.
+ */
+#define iov_iter_rw(i) ((0 ? (struct iov_iter *)0 : (i))->type & RW_MASK)
+
+/*
  * Cap the iov_iter by given limit; note that the second argument is
  * *not* the new size - it's upper limit for such.  Passing it a value
  * greater than the amount of data in iov_iter is fine - it'll just do
@@ -138,5 +147,19 @@ static inline void iov_iter_reexpand(struct iov_iter *i, size_t count)
 }
 size_t csum_and_copy_to_iter(void *addr, size_t bytes, __wsum *csum, struct iov_iter *i);
 size_t csum_and_copy_from_iter(void *addr, size_t bytes, __wsum *csum, struct iov_iter *i);
+
+int import_iovec(int type, const struct iovec __user * uvector,
+		 unsigned nr_segs, unsigned fast_segs,
+		 struct iovec **iov, struct iov_iter *i);
+
+#ifdef CONFIG_COMPAT
+struct compat_iovec;
+int compat_import_iovec(int type, const struct compat_iovec __user * uvector,
+		 unsigned nr_segs, unsigned fast_segs,
+		 struct iovec **iov, struct iov_iter *i);
+#endif
+
+int import_single_range(int type, void __user *buf, size_t len,
+		 struct iovec *iov, struct iov_iter *i);
 
 #endif

@@ -510,7 +510,7 @@ static int wm8770_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			ret = regulator_bulk_enable(ARRAY_SIZE(wm8770->supplies),
 						    wm8770->supplies);
 			if (ret) {
@@ -534,7 +534,6 @@ static int wm8770_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -704,7 +703,6 @@ static int wm8770_spi_remove(struct spi_device *spi)
 static struct spi_driver wm8770_spi_driver = {
 	.driver = {
 		.name = "wm8770",
-		.owner = THIS_MODULE,
 		.of_match_table = wm8770_of_match,
 	},
 	.probe = wm8770_spi_probe,

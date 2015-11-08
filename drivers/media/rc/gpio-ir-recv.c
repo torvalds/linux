@@ -59,7 +59,7 @@ static int gpio_ir_recv_get_devtree_pdata(struct device *dev,
 	return 0;
 }
 
-static struct of_device_id gpio_ir_recv_of_match[] = {
+static const struct of_device_id gpio_ir_recv_of_match[] = {
 	{ .compatible = "gpio-ir-receiver", },
 	{ },
 };
@@ -78,7 +78,7 @@ static irqreturn_t gpio_ir_recv_irq(int irq, void *dev_id)
 	int rc = 0;
 	enum raw_event_type type = IR_SPACE;
 
-	gval = gpio_get_value_cansleep(gpio_dev->gpio_nr);
+	gval = gpio_get_value(gpio_dev->gpio_nr);
 
 	if (gval < 0)
 		goto err_get_value;

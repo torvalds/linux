@@ -189,6 +189,8 @@ struct css_device_id {
 struct acpi_device_id {
 	__u8 id[ACPI_ID_LEN];
 	kernel_ulong_t driver_data;
+	__u32 cls;
+	__u32 cls_msk;
 };
 
 #define PNP_ID_LEN	8
@@ -215,6 +217,14 @@ struct serio_device_id {
 	__u8 extra;
 	__u8 id;
 	__u8 proto;
+};
+
+struct hda_device_id {
+	__u32 vendor_id;
+	__u32 rev_id;
+	__u8 api_version;
+	const char *name;
+	unsigned long driver_data;
 };
 
 /*
@@ -251,7 +261,7 @@ struct pcmcia_device_id {
 
 	__u32 		prod_id_hash[4];
 
-	/* not matched against in kernelspace*/
+	/* not matched against in kernelspace */
 	const char *	prod_id[4];
 
 	/* not matched against */
@@ -546,6 +556,14 @@ struct amba_id {
 	void			*data;
 };
 
+/**
+ * struct mips_cdmm_device_id - identifies devices in MIPS CDMM bus
+ * @type:	Device type identifier.
+ */
+struct mips_cdmm_device_id {
+	__u8	type;
+};
+
 /*
  * Match x86 CPUs for CPU specific drivers.
  * See documentation of "x86_match_cpu" for details.
@@ -591,9 +609,21 @@ struct ipack_device_id {
 
 #define MEI_CL_MODULE_PREFIX "mei:"
 #define MEI_CL_NAME_SIZE 32
+#define MEI_CL_VERSION_ANY 0xff
 
+/**
+ * struct mei_cl_device_id - MEI client device identifier
+ * @name: helper name
+ * @uuid: client uuid
+ * @version: client protocol version
+ * @driver_info: information used by the driver.
+ *
+ * identifies mei client device by uuid and name
+ */
 struct mei_cl_device_id {
 	char name[MEI_CL_NAME_SIZE];
+	uuid_le uuid;
+	__u8    version;
 	kernel_ulong_t driver_info;
 };
 
@@ -618,6 +648,12 @@ struct rio_device_id {
 
 struct mcb_device_id {
 	__u16 device;
+	kernel_ulong_t driver_data;
+};
+
+struct ulpi_device_id {
+	__u16 vendor;
+	__u16 product;
 	kernel_ulong_t driver_data;
 };
 

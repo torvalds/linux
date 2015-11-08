@@ -17,6 +17,8 @@
 
 enum of_gpio_flags;
 
+struct acpi_device;
+
 /**
  * struct acpi_gpio_info - ACPI GPIO specific information
  * @gpioint: if %true this GPIO is of type GpioInt otherwise type is GpioIo
@@ -26,6 +28,9 @@ struct acpi_gpio_info {
 	bool gpioint;
 	bool active_low;
 };
+
+/* gpio suffixes used for ACPI and device tree lookup */
+static const char * const gpio_suffixes[] = { "gpios", "gpio" };
 
 #ifdef CONFIG_ACPI
 void acpi_gpiochip_add(struct gpio_chip *chip);
@@ -37,6 +42,11 @@ void acpi_gpiochip_free_interrupts(struct gpio_chip *chip);
 struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
 					  const char *propname, int index,
 					  struct acpi_gpio_info *info);
+struct gpio_desc *acpi_node_get_gpiod(struct fwnode_handle *fwnode,
+				      const char *propname, int index,
+				      struct acpi_gpio_info *info);
+
+int acpi_gpio_count(struct device *dev, const char *con_id);
 #else
 static inline void acpi_gpiochip_add(struct gpio_chip *chip) { }
 static inline void acpi_gpiochip_remove(struct gpio_chip *chip) { }
@@ -52,6 +62,16 @@ acpi_get_gpiod_by_index(struct acpi_device *adev, const char *propname,
 			int index, struct acpi_gpio_info *info)
 {
 	return ERR_PTR(-ENOSYS);
+}
+static inline struct gpio_desc *
+acpi_node_get_gpiod(struct fwnode_handle *fwnode, const char *propname,
+		    int index, struct acpi_gpio_info *info)
+{
+	return ERR_PTR(-ENXIO);
+}
+static inline int acpi_gpio_count(struct device *dev, const char *con_id)
+{
+	return -ENODEV;
 }
 #endif
 
@@ -71,24 +91,22 @@ struct gpio_desc {
 #define FLAG_IS_OUT	1
 #define FLAG_EXPORT	2	/* protected by sysfs_lock */
 #define FLAG_SYSFS	3	/* exported via /sys/class/gpio/control */
-#define FLAG_TRIG_FALL	4	/* trigger on falling edge */
-#define FLAG_TRIG_RISE	5	/* trigger on rising edge */
 #define FLAG_ACTIVE_LOW	6	/* value has active low */
 #define FLAG_OPEN_DRAIN	7	/* Gpio is open drain type */
 #define FLAG_OPEN_SOURCE 8	/* Gpio is open source type */
 #define FLAG_USED_AS_IRQ 9	/* GPIO is connected to an IRQ */
-#define FLAG_SYSFS_DIR	10	/* show sysfs direction attribute */
+#define FLAG_IS_HOGGED	11	/* GPIO is hogged */
 
-#define ID_SHIFT	16	/* add new flags before this one */
-
-#define GPIO_FLAGS_MASK		((1 << ID_SHIFT) - 1)
-#define GPIO_TRIGGER_MASK	(BIT(FLAG_TRIG_FALL) | BIT(FLAG_TRIG_RISE))
-
+	/* Connection label */
 	const char		*label;
+	/* Name of the GPIO */
+	const char		*name;
 };
 
 int gpiod_request(struct gpio_desc *desc, const char *label);
 void gpiod_free(struct gpio_desc *desc);
+int gpiod_hog(struct gpio_desc *desc, const char *name,
+		unsigned long lflags, enum gpiod_flags dflags);
 
 /*
  * Return the GPIO number of the passed descriptor relative to its chip
@@ -136,17 +154,17 @@ static int __maybe_unused gpio_chip_hwgpio(const struct gpio_desc *desc)
 
 #ifdef CONFIG_GPIO_SYSFS
 
-int gpiochip_export(struct gpio_chip *chip);
-void gpiochip_unexport(struct gpio_chip *chip);
+int gpiochip_sysfs_register(struct gpio_chip *chip);
+void gpiochip_sysfs_unregister(struct gpio_chip *chip);
 
 #else
 
-static inline int gpiochip_export(struct gpio_chip *chip)
+static inline int gpiochip_sysfs_register(struct gpio_chip *chip)
 {
 	return 0;
 }
 
-static inline void gpiochip_unexport(struct gpio_chip *chip)
+static inline void gpiochip_sysfs_unregister(struct gpio_chip *chip)
 {
 }
 

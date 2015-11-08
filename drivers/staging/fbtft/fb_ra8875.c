@@ -1,19 +1,7 @@
-/******************************************************************************
-
-  ProjectName: FBTFT driver                       ***** *****
-	       for the RA8875 LCD Controller     *     *      ************
-						*   **   **   *           *
-  Copyright © by Pf@nne & NOTRO                *   *   *   *   *   ****	   *
-						*   *       *   *   *   *   *
-  Last modification by:                        *   *       *   *   ****    *
-  - Pf@nne (pf@nne-mail.de)                     *   *     *****           *
-						 *   *        *   *******
-						  *****      *   *
-  Date    : 10.06.2014                                      *   *
-  Version : V1.13                                          *****
-  Revison : 5
-
-*******************************************************************************
+/*
+ * FBTFT driver for the RA8875 LCD Controller
+ * Copyright by Pf@nne & NOTRO
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -23,10 +11,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -73,118 +57,123 @@ static int init_display(struct fbtft_par *par)
 	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
 		"%s()\n", __func__);
 	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
-		"display size %dx%d\n", par->info->var.xres, par->info->var.yres);
+		"display size %dx%d\n",
+		par->info->var.xres,
+		par->info->var.yres);
 
 	par->fbtftops.reset(par);
 
 	if ((par->info->var.xres == 320) && (par->info->var.yres == 240)) {
 		/* PLL clock frequency */
-		write_reg(par, 0x88 , 0x0A);
-		write_reg(par, 0x89 , 0x02);
+		write_reg(par, 0x88, 0x0A);
+		write_reg(par, 0x89, 0x02);
 		mdelay(10);
 		/* color deep / MCU Interface */
-		write_reg(par, 0x10 , 0x0C);
+		write_reg(par, 0x10, 0x0C);
 		/* pixel clock period  */
-		write_reg(par, 0x04 , 0x03);
+		write_reg(par, 0x04, 0x03);
 		mdelay(1);
 		/* horizontal settings */
-		write_reg(par, 0x14 , 0x27);
-		write_reg(par, 0x15 , 0x00);
-		write_reg(par, 0x16 , 0x05);
-		write_reg(par, 0x17 , 0x04);
-		write_reg(par, 0x18 , 0x03);
+		write_reg(par, 0x14, 0x27);
+		write_reg(par, 0x15, 0x00);
+		write_reg(par, 0x16, 0x05);
+		write_reg(par, 0x17, 0x04);
+		write_reg(par, 0x18, 0x03);
 		/* vertical settings */
-		write_reg(par, 0x19 , 0xEF);
-		write_reg(par, 0x1A , 0x00);
-		write_reg(par, 0x1B , 0x05);
-		write_reg(par, 0x1C , 0x00);
-		write_reg(par, 0x1D , 0x0E);
-		write_reg(par, 0x1E , 0x00);
-		write_reg(par, 0x1F , 0x02);
-	} else if ((par->info->var.xres == 480) && (par->info->var.yres == 272)) {
+		write_reg(par, 0x19, 0xEF);
+		write_reg(par, 0x1A, 0x00);
+		write_reg(par, 0x1B, 0x05);
+		write_reg(par, 0x1C, 0x00);
+		write_reg(par, 0x1D, 0x0E);
+		write_reg(par, 0x1E, 0x00);
+		write_reg(par, 0x1F, 0x02);
+	} else if ((par->info->var.xres == 480) &&
+		   (par->info->var.yres == 272)) {
 		/* PLL clock frequency  */
-		write_reg(par, 0x88 , 0x0A);
-		write_reg(par, 0x89 , 0x02);
+		write_reg(par, 0x88, 0x0A);
+		write_reg(par, 0x89, 0x02);
 		mdelay(10);
 		/* color deep / MCU Interface */
-		write_reg(par, 0x10 , 0x0C);
+		write_reg(par, 0x10, 0x0C);
 		/* pixel clock period  */
-		write_reg(par, 0x04 , 0x82);
+		write_reg(par, 0x04, 0x82);
 		mdelay(1);
 		/* horizontal settings */
-		write_reg(par, 0x14 , 0x3B);
-		write_reg(par, 0x15 , 0x00);
-		write_reg(par, 0x16 , 0x01);
-		write_reg(par, 0x17 , 0x00);
-		write_reg(par, 0x18 , 0x05);
+		write_reg(par, 0x14, 0x3B);
+		write_reg(par, 0x15, 0x00);
+		write_reg(par, 0x16, 0x01);
+		write_reg(par, 0x17, 0x00);
+		write_reg(par, 0x18, 0x05);
 		/* vertical settings */
-		write_reg(par, 0x19 , 0x0F);
-		write_reg(par, 0x1A , 0x01);
-		write_reg(par, 0x1B , 0x02);
-		write_reg(par, 0x1C , 0x00);
-		write_reg(par, 0x1D , 0x07);
-		write_reg(par, 0x1E , 0x00);
-		write_reg(par, 0x1F , 0x09);
-	} else if ((par->info->var.xres == 640) && (par->info->var.yres == 480)) {
+		write_reg(par, 0x19, 0x0F);
+		write_reg(par, 0x1A, 0x01);
+		write_reg(par, 0x1B, 0x02);
+		write_reg(par, 0x1C, 0x00);
+		write_reg(par, 0x1D, 0x07);
+		write_reg(par, 0x1E, 0x00);
+		write_reg(par, 0x1F, 0x09);
+	} else if ((par->info->var.xres == 640) &&
+		   (par->info->var.yres == 480)) {
 		/* PLL clock frequency */
-		write_reg(par, 0x88 , 0x0B);
-		write_reg(par, 0x89 , 0x02);
+		write_reg(par, 0x88, 0x0B);
+		write_reg(par, 0x89, 0x02);
 		mdelay(10);
 		/* color deep / MCU Interface */
-		write_reg(par, 0x10 , 0x0C);
+		write_reg(par, 0x10, 0x0C);
 		/* pixel clock period */
-		write_reg(par, 0x04 , 0x01);
+		write_reg(par, 0x04, 0x01);
 		mdelay(1);
 		/* horizontal settings */
-		write_reg(par, 0x14 , 0x4F);
-		write_reg(par, 0x15 , 0x05);
-		write_reg(par, 0x16 , 0x0F);
-		write_reg(par, 0x17 , 0x01);
-		write_reg(par, 0x18 , 0x00);
+		write_reg(par, 0x14, 0x4F);
+		write_reg(par, 0x15, 0x05);
+		write_reg(par, 0x16, 0x0F);
+		write_reg(par, 0x17, 0x01);
+		write_reg(par, 0x18, 0x00);
 		/* vertical settings */
-		write_reg(par, 0x19 , 0xDF);
-		write_reg(par, 0x1A , 0x01);
-		write_reg(par, 0x1B , 0x0A);
-		write_reg(par, 0x1C , 0x00);
-		write_reg(par, 0x1D , 0x0E);
-		write_reg(par, 0x1E , 0x00);
-		write_reg(par, 0x1F , 0x01);
-	} else if ((par->info->var.xres == 800) && (par->info->var.yres == 480)) {
+		write_reg(par, 0x19, 0xDF);
+		write_reg(par, 0x1A, 0x01);
+		write_reg(par, 0x1B, 0x0A);
+		write_reg(par, 0x1C, 0x00);
+		write_reg(par, 0x1D, 0x0E);
+		write_reg(par, 0x1E, 0x00);
+		write_reg(par, 0x1F, 0x01);
+	} else if ((par->info->var.xres == 800) &&
+		   (par->info->var.yres == 480)) {
 		/* PLL clock frequency */
-		write_reg(par, 0x88 , 0x0B);
-		write_reg(par, 0x89 , 0x02);
+		write_reg(par, 0x88, 0x0B);
+		write_reg(par, 0x89, 0x02);
 		mdelay(10);
 		/* color deep / MCU Interface */
-		write_reg(par, 0x10 , 0x0C);
+		write_reg(par, 0x10, 0x0C);
 		/* pixel clock period */
-		write_reg(par, 0x04 , 0x81);
+		write_reg(par, 0x04, 0x81);
 		mdelay(1);
 		/* horizontal settings */
-		write_reg(par, 0x14 , 0x63);
-		write_reg(par, 0x15 , 0x03);
-		write_reg(par, 0x16 , 0x03);
-		write_reg(par, 0x17 , 0x02);
-		write_reg(par, 0x18 , 0x00);
+		write_reg(par, 0x14, 0x63);
+		write_reg(par, 0x15, 0x03);
+		write_reg(par, 0x16, 0x03);
+		write_reg(par, 0x17, 0x02);
+		write_reg(par, 0x18, 0x00);
 		/* vertical settings */
-		write_reg(par, 0x19 , 0xDF);
-		write_reg(par, 0x1A , 0x01);
-		write_reg(par, 0x1B , 0x14);
-		write_reg(par, 0x1C , 0x00);
-		write_reg(par, 0x1D , 0x06);
-		write_reg(par, 0x1E , 0x00);
-		write_reg(par, 0x1F , 0x01);
+		write_reg(par, 0x19, 0xDF);
+		write_reg(par, 0x1A, 0x01);
+		write_reg(par, 0x1B, 0x14);
+		write_reg(par, 0x1C, 0x00);
+		write_reg(par, 0x1D, 0x06);
+		write_reg(par, 0x1E, 0x00);
+		write_reg(par, 0x1F, 0x01);
 	} else {
 		dev_err(par->info->device, "display size is not supported!!");
 		return -1;
 	}
 
 	/* PWM clock */
-	write_reg(par, 0x8a , 0x81);
-	write_reg(par, 0x8b , 0xFF);
+	write_reg(par, 0x8a, 0x81);
+	write_reg(par, 0x8b, 0xFF);
 	mdelay(10);
 
 	/* Display ON */
-	write_reg(par, 0x01 , 0x80);
+	write_reg(par, 0x01, 0x80);
 	mdelay(10);
 
 	return 0;
@@ -192,18 +181,15 @@ static int init_display(struct fbtft_par *par)
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
-		"%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__, xs, ys, xe, ye);
-
 	/* Set_Active_Window */
-	write_reg(par, 0x30 , xs & 0x00FF);
-	write_reg(par, 0x31 , (xs & 0xFF00) >> 8);
-	write_reg(par, 0x32 , ys & 0x00FF);
-	write_reg(par, 0x33 , (ys & 0xFF00) >> 8);
-	write_reg(par, 0x34 , (xs+xe) & 0x00FF);
-	write_reg(par, 0x35 , ((xs+xe) & 0xFF00) >> 8);
-	write_reg(par, 0x36 , (ys+ye) & 0x00FF);
-	write_reg(par, 0x37 , ((ys+ye) & 0xFF00) >> 8);
+	write_reg(par, 0x30, xs & 0x00FF);
+	write_reg(par, 0x31, (xs & 0xFF00) >> 8);
+	write_reg(par, 0x32, ys & 0x00FF);
+	write_reg(par, 0x33, (ys & 0xFF00) >> 8);
+	write_reg(par, 0x34, (xs + xe) & 0x00FF);
+	write_reg(par, 0x35, ((xs + xe) & 0xFF00) >> 8);
+	write_reg(par, 0x36, (ys + ye) & 0x00FF);
+	write_reg(par, 0x37, ((ys + ye) & 0xFF00) >> 8);
 
 	/* Set_Memory_Write_Cursor */
 	write_reg(par, 0x46,  xs & 0xff);
@@ -218,7 +204,7 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 {
 	va_list args;
 	int i, ret;
-	u8 *buf = (u8 *)par->buf;
+	u8 *buf = par->buf;
 
 	/* slow down spi-speed for writing registers */
 	par->fbtftops.write = write_spi;
@@ -238,8 +224,8 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 	ret = par->fbtftops.write(par, par->buf, 2);
 	if (ret < 0) {
 		va_end(args);
-		dev_err(par->info->device, "%s: write() failed and returned %dn",
-			__func__, ret);
+		dev_err(par->info->device, "write() failed and returned %dn",
+			ret);
 		return;
 	}
 	len--;
@@ -256,8 +242,8 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 		ret = par->fbtftops.write(par, par->buf, len + 1);
 		if (ret < 0) {
 			va_end(args);
-			dev_err(par->info->device, "%s: write() failed and returned %dn",
-				__func__, ret);
+			dev_err(par->info->device,
+				"write() failed and returned %dn", ret);
 			return;
 		}
 	}
@@ -283,7 +269,7 @@ static int write_vmem16_bus8(struct fbtft_par *par, size_t offset, size_t len)
 		__func__, offset, len);
 
 	remain = len / 2;
-	vmem16 = (u16 *)(par->info->screen_base + offset);
+	vmem16 = (u16 *)(par->info->screen_buffer + offset);
 	tx_array_size = par->txbuf.len / 2;
 		txbuf16 = (u16 *)(par->txbuf.buf + 1);
 		tx_array_size -= 2;
@@ -319,6 +305,7 @@ static struct fbtft_display display = {
 		.write = write_spi,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "raio,ra8875", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

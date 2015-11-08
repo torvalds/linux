@@ -59,6 +59,11 @@ constant except when switching the video standard. Remember this
 switch can occur implicit when switching the video input or
 output.</para>
 
+<para>Do not use the multiplanar buffer types.  Use <constant>V4L2_BUF_TYPE_VIDEO_CAPTURE</constant>
+instead of <constant>V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE</constant>
+and use <constant>V4L2_BUF_TYPE_VIDEO_OUTPUT</constant> instead of
+<constant>V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE</constant>.</para>
+
     <para>This ioctl must be implemented for video capture or output devices that
 support cropping and/or scaling and/or have non-square pixels, and for overlay devices.</para>
 
@@ -73,9 +78,7 @@ support cropping and/or scaling and/or have non-square pixels, and for overlay d
 	    <entry>Type of the data stream, set by the application.
 Only these types are valid here:
 <constant>V4L2_BUF_TYPE_VIDEO_CAPTURE</constant>,
-<constant>V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE</constant>,
-<constant>V4L2_BUF_TYPE_VIDEO_OUTPUT</constant>,
-<constant>V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE</constant> and
+<constant>V4L2_BUF_TYPE_VIDEO_OUTPUT</constant> and
 <constant>V4L2_BUF_TYPE_VIDEO_OVERLAY</constant>. See <xref linkend="v4l2-buf-type" />.</entry>
 	  </row>
 	  <row>

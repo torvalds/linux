@@ -15,6 +15,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/dmi.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/input/mt.h>
@@ -23,6 +24,8 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/acpi.h>
+#include <linux/of.h>
 #include <asm/unaligned.h>
 
 struct goodix_ts_data {
@@ -32,6 +35,7 @@ struct goodix_ts_data {
 	int abs_y_max;
 	unsigned int max_touch_num;
 	unsigned int int_trigger_type;
+	bool rotated_screen;
 };
 
 #define GOODIX_MAX_HEIGHT		4096
@@ -45,9 +49,10 @@ struct goodix_ts_data {
 /* Register defines */
 #define GOODIX_READ_COOR_ADDR		0x814E
 #define GOODIX_REG_CONFIG_DATA		0x8047
-#define GOODIX_REG_VERSION		0x8140
+#define GOODIX_REG_ID			0x8140
 
 #define RESOLUTION_LOC		1
+#define MAX_CONTACTS_LOC	5
 #define TRIGGER_LOC		6
 
 static const unsigned long goodix_irq_flags[] = {
@@ -55,6 +60,30 @@ static const unsigned long goodix_irq_flags[] = {
 	IRQ_TYPE_EDGE_FALLING,
 	IRQ_TYPE_LEVEL_LOW,
 	IRQ_TYPE_LEVEL_HIGH,
+};
+
+/*
+ * Those tablets have their coordinates origin at the bottom right
+ * of the tablet, as if rotated 180 degrees
+ */
+static const struct dmi_system_id rotated_screen[] = {
+#if defined(CONFIG_DMI) && defined(CONFIG_X86)
+	{
+		.ident = "WinBook TW100",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "WinBook"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TW100")
+		}
+	},
+	{
+		.ident = "WinBook TW700",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "WinBook"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TW700")
+		},
+	},
+#endif
+	{}
 };
 
 /**
@@ -66,7 +95,7 @@ static const unsigned long goodix_irq_flags[] = {
  * @len: length of the buffer to write
  */
 static int goodix_i2c_read(struct i2c_client *client,
-				u16 reg, u8 *buf, int len)
+			   u16 reg, u8 *buf, int len)
 {
 	struct i2c_msg msgs[2];
 	u16 wbuf = cpu_to_be16(reg);
@@ -75,7 +104,7 @@ static int goodix_i2c_read(struct i2c_client *client,
 	msgs[0].flags = 0;
 	msgs[0].addr  = client->addr;
 	msgs[0].len   = 2;
-	msgs[0].buf   = (u8 *) &wbuf;
+	msgs[0].buf   = (u8 *)&wbuf;
 
 	msgs[1].flags = I2C_M_RD;
 	msgs[1].addr  = client->addr;
@@ -98,8 +127,11 @@ static int goodix_ts_read_input_report(struct goodix_ts_data *ts, u8 *data)
 		return error;
 	}
 
+	if (!(data[0] & 0x80))
+		return -EAGAIN;
+
 	touch_num = data[0] & 0x0f;
-	if (touch_num > GOODIX_MAX_CONTACTS)
+	if (touch_num > ts->max_touch_num)
 		return -EPROTO;
 
 	if (touch_num > 1) {
@@ -122,6 +154,11 @@ static void goodix_ts_report_touch(struct goodix_ts_data *ts, u8 *coor_data)
 	int input_x = get_unaligned_le16(&coor_data[1]);
 	int input_y = get_unaligned_le16(&coor_data[3]);
 	int input_w = get_unaligned_le16(&coor_data[5]);
+
+	if (ts->rotated_screen) {
+		input_x = ts->abs_x_max - input_x;
+		input_y = ts->abs_y_max - input_y;
+	}
 
 	input_mt_slot(ts->input_dev, id);
 	input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
@@ -193,8 +230,8 @@ static void goodix_read_config(struct goodix_ts_data *ts)
 	int error;
 
 	error = goodix_i2c_read(ts->client, GOODIX_REG_CONFIG_DATA,
-			      config,
-			   GOODIX_CONFIG_MAX_LENGTH);
+				config,
+				GOODIX_CONFIG_MAX_LENGTH);
 	if (error) {
 		dev_warn(&ts->client->dev,
 			 "Error reading config (%d), using defaults\n",
@@ -202,42 +239,55 @@ static void goodix_read_config(struct goodix_ts_data *ts)
 		ts->abs_x_max = GOODIX_MAX_WIDTH;
 		ts->abs_y_max = GOODIX_MAX_HEIGHT;
 		ts->int_trigger_type = GOODIX_INT_TRIGGER;
+		ts->max_touch_num = GOODIX_MAX_CONTACTS;
 		return;
 	}
 
 	ts->abs_x_max = get_unaligned_le16(&config[RESOLUTION_LOC]);
 	ts->abs_y_max = get_unaligned_le16(&config[RESOLUTION_LOC + 2]);
-	ts->int_trigger_type = (config[TRIGGER_LOC]) & 0x03;
-	if (!ts->abs_x_max || !ts->abs_y_max) {
+	ts->int_trigger_type = config[TRIGGER_LOC] & 0x03;
+	ts->max_touch_num = config[MAX_CONTACTS_LOC] & 0x0f;
+	if (!ts->abs_x_max || !ts->abs_y_max || !ts->max_touch_num) {
 		dev_err(&ts->client->dev,
 			"Invalid config, using defaults\n");
 		ts->abs_x_max = GOODIX_MAX_WIDTH;
 		ts->abs_y_max = GOODIX_MAX_HEIGHT;
+		ts->max_touch_num = GOODIX_MAX_CONTACTS;
 	}
-}
 
+	ts->rotated_screen = dmi_check_system(rotated_screen);
+	if (ts->rotated_screen)
+		dev_dbg(&ts->client->dev,
+			 "Applying '180 degrees rotated screen' quirk\n");
+}
 
 /**
  * goodix_read_version - Read goodix touchscreen version
  *
  * @client: the i2c client
  * @version: output buffer containing the version on success
+ * @id: output buffer containing the id on success
  */
-static int goodix_read_version(struct i2c_client *client, u16 *version)
+static int goodix_read_version(struct i2c_client *client, u16 *version, u16 *id)
 {
 	int error;
 	u8 buf[6];
+	char id_str[5];
 
-	error = goodix_i2c_read(client, GOODIX_REG_VERSION, buf, sizeof(buf));
+	error = goodix_i2c_read(client, GOODIX_REG_ID, buf, sizeof(buf));
 	if (error) {
 		dev_err(&client->dev, "read version failed: %d\n", error);
 		return error;
 	}
 
-	if (version)
-		*version = get_unaligned_le16(&buf[4]);
+	memcpy(id_str, buf, 4);
+	id_str[4] = 0;
+	if (kstrtou16(id_str, 10, id))
+		*id = 0x1001;
 
-	dev_info(&client->dev, "IC VERSION: %6ph\n", buf);
+	*version = get_unaligned_le16(&buf[4]);
+
+	dev_info(&client->dev, "ID %d, version: %04x\n", *id, *version);
 
 	return 0;
 }
@@ -271,10 +321,13 @@ static int goodix_i2c_test(struct i2c_client *client)
  * goodix_request_input_dev - Allocate, populate and register the input device
  *
  * @ts: our goodix_ts_data pointer
+ * @version: device firmware version
+ * @id: device ID
  *
  * Must be called during probe
  */
-static int goodix_request_input_dev(struct goodix_ts_data *ts)
+static int goodix_request_input_dev(struct goodix_ts_data *ts, u16 version,
+				    u16 id)
 {
 	int error;
 
@@ -284,26 +337,22 @@ static int goodix_request_input_dev(struct goodix_ts_data *ts)
 		return -ENOMEM;
 	}
 
-	ts->input_dev->evbit[0] = BIT_MASK(EV_SYN) |
-				  BIT_MASK(EV_KEY) |
-				  BIT_MASK(EV_ABS);
-
-	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, 0,
-				ts->abs_x_max, 0, 0);
-	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, 0,
-				ts->abs_y_max, 0, 0);
+	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X,
+			     0, ts->abs_x_max, 0, 0);
+	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y,
+			     0, ts->abs_y_max, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
 
-	input_mt_init_slots(ts->input_dev, GOODIX_MAX_CONTACTS,
+	input_mt_init_slots(ts->input_dev, ts->max_touch_num,
 			    INPUT_MT_DIRECT | INPUT_MT_DROP_UNUSED);
 
 	ts->input_dev->name = "Goodix Capacitive TouchScreen";
 	ts->input_dev->phys = "input/ts";
 	ts->input_dev->id.bustype = BUS_I2C;
 	ts->input_dev->id.vendor = 0x0416;
-	ts->input_dev->id.product = 0x1001;
-	ts->input_dev->id.version = 10427;
+	ts->input_dev->id.product = id;
+	ts->input_dev->id.version = version;
 
 	error = input_register_device(ts->input_dev);
 	if (error) {
@@ -321,7 +370,7 @@ static int goodix_ts_probe(struct i2c_client *client,
 	struct goodix_ts_data *ts;
 	unsigned long irq_flags;
 	int error;
-	u16 version_info;
+	u16 version_info, id_info;
 
 	dev_dbg(&client->dev, "I2C Address: 0x%02x\n", client->addr);
 
@@ -343,7 +392,7 @@ static int goodix_ts_probe(struct i2c_client *client,
 		return error;
 	}
 
-	error = goodix_read_version(client, &version_info);
+	error = goodix_read_version(client, &version_info, &id_info);
 	if (error) {
 		dev_err(&client->dev, "Read version failed.\n");
 		return error;
@@ -351,7 +400,7 @@ static int goodix_ts_probe(struct i2c_client *client,
 
 	goodix_read_config(ts);
 
-	error = goodix_request_input_dev(ts);
+	error = goodix_request_input_dev(ts, version_info, id_info);
 	if (error)
 		return error;
 
@@ -371,20 +420,37 @@ static const struct i2c_device_id goodix_ts_id[] = {
 	{ "GDIX1001:00", 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, goodix_ts_id);
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id goodix_acpi_match[] = {
 	{ "GDIX1001", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, goodix_acpi_match);
+#endif
+
+#ifdef CONFIG_OF
+static const struct of_device_id goodix_of_match[] = {
+	{ .compatible = "goodix,gt911" },
+	{ .compatible = "goodix,gt9110" },
+	{ .compatible = "goodix,gt912" },
+	{ .compatible = "goodix,gt927" },
+	{ .compatible = "goodix,gt9271" },
+	{ .compatible = "goodix,gt928" },
+	{ .compatible = "goodix,gt967" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, goodix_of_match);
+#endif
 
 static struct i2c_driver goodix_ts_driver = {
 	.probe = goodix_ts_probe,
 	.id_table = goodix_ts_id,
 	.driver = {
 		.name = "Goodix-TS",
-		.owner = THIS_MODULE,
-		.acpi_match_table = goodix_acpi_match,
+		.acpi_match_table = ACPI_PTR(goodix_acpi_match),
+		.of_match_table = of_match_ptr(goodix_of_match),
 	},
 };
 module_i2c_driver(goodix_ts_driver);

@@ -82,6 +82,13 @@ typedef enum {
 	AD_TRANSMIT		/* tx Machine */
 } tx_states_t;
 
+/* churn machine states(43.4.17 in the 802.3ad standard) */
+typedef enum {
+	 AD_CHURN_MONITOR, /* monitoring for churn */
+	 AD_CHURN,         /* churn detected (error) */
+	 AD_NO_CHURN       /* no churn (no error) */
+} churn_state_t;
+
 /* rx indication types */
 typedef enum {
 	AD_TYPE_LACPDU = 1,	/* type lacpdu */
@@ -229,6 +236,12 @@ typedef struct port {
 	u16 sm_mux_timer_counter;	/* state machine mux timer counter */
 	tx_states_t sm_tx_state;	/* state machine tx state */
 	u16 sm_tx_timer_counter;	/* state machine tx timer counter(allways on - enter to transmit state 3 time per second) */
+	u16 sm_churn_actor_timer_counter;
+	u16 sm_churn_partner_timer_counter;
+	u32 churn_actor_count;
+	u32 churn_partner_count;
+	churn_state_t sm_churn_actor_state;
+	churn_state_t sm_churn_partner_state;
 	struct slave *slave;		/* pointer to the bond slave that this port belongs to */
 	struct aggregator *aggregator;	/* pointer to an aggregator that this port related to */
 	struct port *next_port_in_aggregator;	/* Next port on the linked list of the parent aggregator */
@@ -262,14 +275,29 @@ struct ad_slave_info {
 	u16 id;
 };
 
+static inline const char *bond_3ad_churn_desc(churn_state_t state)
+{
+	static const char *const churn_description[] = {
+		"monitoring",
+		"churned",
+		"none",
+		"unknown"
+	};
+	int max_size = sizeof(churn_description) / sizeof(churn_description[0]);
+
+	if (state >= max_size)
+		state = max_size - 1;
+
+	return churn_description[state];
+}
+
 /* ========== AD Exported functions to the main bonding code ========== */
 void bond_3ad_initialize(struct bonding *bond, u16 tick_resolution);
 void bond_3ad_bind_slave(struct slave *slave);
 void bond_3ad_unbind_slave(struct slave *slave);
 void bond_3ad_state_machine_handler(struct work_struct *);
 void bond_3ad_initiate_agg_selection(struct bonding *bond, int timeout);
-void bond_3ad_adapter_speed_changed(struct slave *slave);
-void bond_3ad_adapter_duplex_changed(struct slave *slave);
+void bond_3ad_adapter_speed_duplex_changed(struct slave *slave);
 void bond_3ad_handle_link_change(struct slave *slave, char link);
 int  bond_3ad_get_active_agg_info(struct bonding *bond, struct ad_info *ad_info);
 int  __bond_3ad_get_active_agg_info(struct bonding *bond,

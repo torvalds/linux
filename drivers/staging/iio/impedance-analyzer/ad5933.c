@@ -644,7 +644,8 @@ static void ad5933_work(struct work_struct *work)
 	struct ad5933_state *st = container_of(work,
 		struct ad5933_state, work.work);
 	struct iio_dev *indio_dev = i2c_get_clientdata(st->client);
-	signed short buf[2];
+	__be16 buf[2];
+	int val[2];
 	unsigned char status;
 
 	mutex_lock(&indio_dev->mlock);
@@ -668,12 +669,12 @@ static void ad5933_work(struct work_struct *work)
 				scan_count * 2, (u8 *)buf);
 
 		if (scan_count == 2) {
-			buf[0] = be16_to_cpu(buf[0]);
-			buf[1] = be16_to_cpu(buf[1]);
+			val[0] = be16_to_cpu(buf[0]);
+			val[1] = be16_to_cpu(buf[1]);
 		} else {
-			buf[0] = be16_to_cpu(buf[0]);
+			val[0] = be16_to_cpu(buf[0]);
 		}
-		iio_push_to_buffers(indio_dev, buf);
+		iio_push_to_buffers(indio_dev, val);
 	} else {
 		/* no data available - try again later */
 		schedule_delayed_work(&st->work, st->poll_time_jiffies);
@@ -703,7 +704,7 @@ static int ad5933_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*st));
-	if (indio_dev == NULL)
+	if (!indio_dev)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);

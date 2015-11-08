@@ -105,36 +105,13 @@ struct rt_sigframe
 static void store_sigregs(void)
 {
 	save_access_regs(current->thread.acrs);
-	save_fp_ctl(&current->thread.fp_regs.fpc);
-#ifdef CONFIG_64BIT
-	if (current->thread.vxrs) {
-		int i;
-
-		save_vx_regs(current->thread.vxrs);
-		for (i = 0; i < __NUM_FPRS; i++)
-			current->thread.fp_regs.fprs[i] =
-				*(freg_t *)(current->thread.vxrs + i);
-	} else
-#endif
-		save_fp_regs(current->thread.fp_regs.fprs);
+	save_fpu_regs();
 }
 
 /* Load registers after signal return */
 static void load_sigregs(void)
 {
 	restore_access_regs(current->thread.acrs);
-	/* restore_fp_ctl is done in restore_sigregs */
-#ifdef CONFIG_64BIT
-	if (current->thread.vxrs) {
-		int i;
-
-		for (i = 0; i < __NUM_FPRS; i++)
-			*(freg_t *)(current->thread.vxrs + i) =
-				current->thread.fp_regs.fprs[i];
-		restore_vx_regs(current->thread.vxrs);
-	} else
-#endif
-		restore_fp_regs(current->thread.fp_regs.fprs);
 }
 
 /* Returns non-zero on fault. */
@@ -150,8 +127,7 @@ static int save_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 	memcpy(&user_sregs.regs.gprs, &regs->gprs, sizeof(sregs->regs.gprs));
 	memcpy(&user_sregs.regs.acrs, current->thread.acrs,
 	       sizeof(user_sregs.regs.acrs));
-	memcpy(&user_sregs.fpregs, &current->thread.fp_regs,
-	       sizeof(user_sregs.fpregs));
+	fpregs_store(&user_sregs.fpregs, &current->thread.fpu);
 	if (__copy_to_user(sregs, &user_sregs, sizeof(_sigregs)))
 		return -EFAULT;
 	return 0;
@@ -170,8 +146,8 @@ static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 	if (!is_ri_task(current) && (user_sregs.regs.psw.mask & PSW_MASK_RI))
 		return -EINVAL;
 
-	/* Loading the floating-point-control word can fail. Do that first. */
-	if (restore_fp_ctl(&user_sregs.fpregs.fpc))
+	/* Test the floating-point-control word. */
+	if (test_fp_ctl(user_sregs.fpregs.fpc))
 		return -EINVAL;
 
 	/* Use regs->psw.mask instead of PSW_USER_BITS to preserve PER bit. */
@@ -189,8 +165,7 @@ static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 	memcpy(&current->thread.acrs, &user_sregs.regs.acrs,
 	       sizeof(current->thread.acrs));
 
-	memcpy(&current->thread.fp_regs, &user_sregs.fpregs,
-	       sizeof(current->thread.fp_regs));
+	fpregs_load(&user_sregs.fpregs, &current->thread.fpu);
 
 	clear_pt_regs_flag(regs, PIF_SYSCALL); /* No longer in a system call */
 	return 0;
@@ -200,44 +175,40 @@ static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 static int save_sigregs_ext(struct pt_regs *regs,
 			    _sigregs_ext __user *sregs_ext)
 {
-#ifdef CONFIG_64BIT
 	__u64 vxrs[__NUM_VXRS_LOW];
 	int i;
 
 	/* Save vector registers to signal stack */
-	if (current->thread.vxrs) {
+	if (MACHINE_HAS_VX) {
 		for (i = 0; i < __NUM_VXRS_LOW; i++)
-			vxrs[i] = *((__u64 *)(current->thread.vxrs + i) + 1);
+			vxrs[i] = *((__u64 *)(current->thread.fpu.vxrs + i) + 1);
 		if (__copy_to_user(&sregs_ext->vxrs_low, vxrs,
 				   sizeof(sregs_ext->vxrs_low)) ||
 		    __copy_to_user(&sregs_ext->vxrs_high,
-				   current->thread.vxrs + __NUM_VXRS_LOW,
+				   current->thread.fpu.vxrs + __NUM_VXRS_LOW,
 				   sizeof(sregs_ext->vxrs_high)))
 			return -EFAULT;
 	}
-#endif
 	return 0;
 }
 
 static int restore_sigregs_ext(struct pt_regs *regs,
 			       _sigregs_ext __user *sregs_ext)
 {
-#ifdef CONFIG_64BIT
 	__u64 vxrs[__NUM_VXRS_LOW];
 	int i;
 
 	/* Restore vector registers from signal stack */
-	if (current->thread.vxrs) {
+	if (MACHINE_HAS_VX) {
 		if (__copy_from_user(vxrs, &sregs_ext->vxrs_low,
 				     sizeof(sregs_ext->vxrs_low)) ||
-		    __copy_from_user(current->thread.vxrs + __NUM_VXRS_LOW,
+		    __copy_from_user(current->thread.fpu.vxrs + __NUM_VXRS_LOW,
 				     &sregs_ext->vxrs_high,
 				     sizeof(sregs_ext->vxrs_high)))
 			return -EFAULT;
 		for (i = 0; i < __NUM_VXRS_LOW; i++)
-			*((__u64 *)(current->thread.vxrs + i) + 1) = vxrs[i];
+			*((__u64 *)(current->thread.fpu.vxrs + i) + 1) = vxrs[i];
 	}
-#endif
 	return 0;
 }
 
@@ -251,6 +222,7 @@ SYSCALL_DEFINE0(sigreturn)
 	if (__copy_from_user(&set.sig, &frame->sc.oldmask, _SIGMASK_COPY_SIZE))
 		goto badframe;
 	set_current_blocked(&set);
+	save_fpu_regs();
 	if (restore_sigregs(regs, &frame->sregs))
 		goto badframe;
 	if (restore_sigregs_ext(regs, &frame->sregs_ext))
@@ -274,6 +246,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	set_current_blocked(&set);
 	if (restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
+	save_fpu_regs();
 	if (restore_sigregs(regs, &frame->uc.uc_mcontext))
 		goto badframe;
 	if (restore_sigregs_ext(regs, &frame->uc.uc_mcontext_ext))
@@ -307,16 +280,6 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs * regs, size_t frame_size)
 	}
 
 	return (void __user *)((sp - frame_size) & -8ul);
-}
-
-static inline int map_signal(int sig)
-{
-	if (current_thread_info()->exec_domain
-	    && current_thread_info()->exec_domain->signal_invmap
-	    && sig < 32)
-		return current_thread_info()->exec_domain->signal_invmap[sig];
-	else
-		return sig;
 }
 
 static int setup_frame(int sig, struct k_sigaction *ka,
@@ -386,7 +349,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 		(regs->psw.mask & ~PSW_MASK_ASC);
 	regs->psw.addr = (unsigned long) ka->sa.sa_handler | PSW_ADDR_AMODE;
 
-	regs->gprs[2] = map_signal(sig);
+	regs->gprs[2] = sig;
 	regs->gprs[3] = (unsigned long) &frame->sc;
 
 	/* We forgot to include these in the sigcontext.
@@ -416,13 +379,10 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	 * included in the signal frame on a 31-bit system.
 	 */
 	uc_flags = 0;
-#ifdef CONFIG_64BIT
 	if (MACHINE_HAS_VX) {
 		frame_size += sizeof(_sigregs_ext);
-		if (current->thread.vxrs)
-			uc_flags |= UC_VXRS;
+		uc_flags |= UC_VXRS;
 	}
-#endif
 	frame = get_sigframe(&ksig->ka, regs, frame_size);
 	if (frame == (void __user *) -1UL)
 		return -EFAULT;
@@ -468,7 +428,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 		(regs->psw.mask & ~PSW_MASK_ASC);
 	regs->psw.addr = (unsigned long) ksig->ka.sa.sa_handler | PSW_ADDR_AMODE;
 
-	regs->gprs[2] = map_signal(ksig->sig);
+	regs->gprs[2] = ksig->sig;
 	regs->gprs[3] = (unsigned long) &frame->info;
 	regs->gprs[4] = (unsigned long) &frame->uc;
 	regs->gprs[5] = task_thread_info(current)->last_break;

@@ -1,15 +1,14 @@
 #ifndef _LINUX_NAMEI_H
 #define _LINUX_NAMEI_H
 
-#include <linux/dcache.h>
-#include <linux/errno.h>
-#include <linux/linkage.h>
+#include <linux/kernel.h>
 #include <linux/path.h>
-
-struct vfsmount;
-struct nameidata;
+#include <linux/fcntl.h>
+#include <linux/errno.h>
 
 enum { MAX_NESTED_LINKS = 8 };
+
+#define MAXSYMLINKS 40
 
 /*
  * Type of the last component on LOOKUP_PARENT
@@ -45,13 +44,29 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
 #define LOOKUP_ROOT		0x2000
 #define LOOKUP_EMPTY		0x4000
 
-extern int user_path_at(int, const char __user *, unsigned, struct path *);
 extern int user_path_at_empty(int, const char __user *, unsigned, struct path *, int *empty);
 
-#define user_path(name, path) user_path_at(AT_FDCWD, name, LOOKUP_FOLLOW, path)
-#define user_lpath(name, path) user_path_at(AT_FDCWD, name, 0, path)
-#define user_path_dir(name, path) \
-	user_path_at(AT_FDCWD, name, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, path)
+static inline int user_path_at(int dfd, const char __user *name, unsigned flags,
+		 struct path *path)
+{
+	return user_path_at_empty(dfd, name, flags, path, NULL);
+}
+
+static inline int user_path(const char __user *name, struct path *path)
+{
+	return user_path_at_empty(AT_FDCWD, name, LOOKUP_FOLLOW, path, NULL);
+}
+
+static inline int user_lpath(const char __user *name, struct path *path)
+{
+	return user_path_at_empty(AT_FDCWD, name, 0, path, NULL);
+}
+
+static inline int user_path_dir(const char __user *name, struct path *path)
+{
+	return user_path_at_empty(AT_FDCWD, name,
+				  LOOKUP_FOLLOW | LOOKUP_DIRECTORY, path, NULL);
+}
 
 extern int kern_path(const char *, unsigned, struct path *);
 
@@ -70,9 +85,7 @@ extern int follow_up(struct path *);
 extern struct dentry *lock_rename(struct dentry *, struct dentry *);
 extern void unlock_rename(struct dentry *, struct dentry *);
 
-extern void nd_jump_link(struct nameidata *nd, struct path *path);
-extern void nd_set_link(struct nameidata *nd, char *path);
-extern char *nd_get_link(struct nameidata *nd);
+extern void nd_jump_link(struct path *path);
 
 static inline void nd_terminate_link(void *name, size_t len, size_t maxlen)
 {

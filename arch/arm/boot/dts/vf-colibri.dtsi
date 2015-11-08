@@ -23,6 +23,12 @@
 	status = "okay";
 };
 
+&dspi1 {
+	bus-num = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_dspi1>;
+};
+
 &edma0 {
 	status = "okay";
 };
@@ -107,6 +113,15 @@
 			>;
 		};
 
+		pinctrl_dspi1: dspi1grp {
+			fsl,pins = <
+				VF610_PAD_PTD5__DSPI1_CS0		0x33e2
+				VF610_PAD_PTD6__DSPI1_SIN		0x33e1
+				VF610_PAD_PTD7__DSPI1_SOUT		0x33e2
+				VF610_PAD_PTD8__DSPI1_SCK		0x33e2
+			>;
+		};
+
 		pinctrl_esdhc1: esdhc1grp {
 			fsl,pins = <
 				VF610_PAD_PTA24__ESDHC1_CLK	0x31ef
@@ -125,7 +140,7 @@
 				VF610_PAD_PTC9__ENET_RMII1_MDC		0x30d2
 				VF610_PAD_PTC10__ENET_RMII1_MDIO	0x30d3
 				VF610_PAD_PTC11__ENET_RMII1_CRS		0x30d1
-				VF610_PAD_PTC12__ENET_RMII_RXD1		0x30d1
+				VF610_PAD_PTC12__ENET_RMII1_RXD1	0x30d1
 				VF610_PAD_PTC13__ENET_RMII1_RXD0	0x30d1
 				VF610_PAD_PTC14__ENET_RMII1_RXER	0x30d1
 				VF610_PAD_PTC15__ENET_RMII1_TXD1	0x30d2

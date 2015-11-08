@@ -19,6 +19,7 @@
 #include <linux/utsname.h>
 
 #include <linux/usb/composite.h>
+#include <linux/usb/otg.h>
 #include <asm/unaligned.h>
 
 #include "u_os_desc.h"
@@ -209,6 +210,12 @@ int usb_add_function(struct usb_configuration *config,
 	function->config = config;
 	list_add_tail(&function->list, &config->functions);
 
+	if (function->bind_deactivated) {
+		value = usb_function_deactivate(function);
+		if (value)
+			goto done;
+	}
+
 	/* REVISIT *require* function->bind? */
 	if (function->bind) {
 		value = function->bind(config, function);
@@ -279,7 +286,7 @@ int usb_function_deactivate(struct usb_function *function)
 	spin_lock_irqsave(&cdev->lock, flags);
 
 	if (cdev->deactivations == 0)
-		status = usb_gadget_disconnect(cdev->gadget);
+		status = usb_gadget_deactivate(cdev->gadget);
 	if (status == 0)
 		cdev->deactivations++;
 
@@ -311,7 +318,7 @@ int usb_function_activate(struct usb_function *function)
 	else {
 		cdev->deactivations--;
 		if (cdev->deactivations == 0)
-			status = usb_gadget_connect(cdev->gadget);
+			status = usb_gadget_activate(cdev->gadget);
 	}
 
 	spin_unlock_irqrestore(&cdev->lock, flags);
@@ -832,9 +839,7 @@ int usb_add_config(struct usb_composite_dev *cdev,
 		}
 	}
 
-	/* set_alt(), or next bind(), sets up
-	 * ep->driver_data as needed.
-	 */
+	/* set_alt(), or next bind(), sets up ep->claimed as needed */
 	usb_ep_autoconfig_reset(cdev->gadget);
 
 done:
@@ -896,7 +901,7 @@ void usb_remove_config(struct usb_composite_dev *cdev,
 
 /* We support strings in multiple languages ... string descriptor zero
  * says which languages are supported.  The typical case will be that
- * only one language (probably English) is used, with I18N handled on
+ * only one language (probably English) is used, with i18n handled on
  * the host side.
  */
 
@@ -949,7 +954,7 @@ static int get_string(struct usb_composite_dev *cdev,
 	struct usb_function		*f;
 	int				len;
 
-	/* Yes, not only is USB's I18N support probably more than most
+	/* Yes, not only is USB's i18n support probably more than most
 	 * folk will ever care about ... also, it's all supported here.
 	 * (Except for UTF8 support for Unicode's "Astral Planes".)
 	 */
@@ -1161,11 +1166,11 @@ static struct usb_gadget_string_container *copy_gadget_strings(
  * This function will create a deep copy of usb_gadget_strings and usb_string
  * and attach it to the cdev. The actual string (usb_string.s) will not be
  * copied but only a referenced will be made. The struct usb_gadget_strings
- * array may contain multiple languges and should be NULL terminated.
+ * array may contain multiple languages and should be NULL terminated.
  * The ->language pointer of each struct usb_gadget_strings has to contain the
  * same amount of entries.
  * For instance: sp[0] is en-US, sp[1] is es-ES. It is expected that the first
- * usb_string entry of es-ES containts the translation of the first usb_string
+ * usb_string entry of es-ES contains the translation of the first usb_string
  * entry of en-US. Therefore both entries become the same id assign.
  */
 struct usb_string *usb_gstrings_attach(struct usb_composite_dev *cdev,
@@ -1472,6 +1477,13 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	req->length = 0;
 	gadget->ep0->driver_data = cdev;
 
+	/*
+	 * Don't let non-standard requests match any of the cases below
+	 * by accident.
+	 */
+	if ((ctrl->bRequestType & USB_TYPE_MASK) != USB_TYPE_STANDARD)
+		goto unknown;
+
 	switch (ctrl->bRequest) {
 
 	/* we handle all standard USB descriptors */
@@ -1492,6 +1504,8 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 				} else {
 					cdev->desc.bcdUSB = cpu_to_le16(0x0210);
 				}
+			} else {
+				cdev->desc.bcdUSB = cpu_to_le16(0x0200);
 			}
 
 			value = min(w_length, (u16) sizeof cdev->desc);
@@ -1525,6 +1539,32 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 			if (gadget_is_superspeed(gadget)) {
 				value = bos_desc(cdev);
 				value = min(w_length, (u16) value);
+			}
+			break;
+		case USB_DT_OTG:
+			if (gadget_is_otg(gadget)) {
+				struct usb_configuration *config;
+				int otg_desc_len = 0;
+
+				if (cdev->config)
+					config = cdev->config;
+				else
+					config = list_first_entry(
+							&cdev->configs,
+						struct usb_configuration, list);
+				if (!config)
+					goto done;
+
+				if (gadget->otg_caps &&
+					(gadget->otg_caps->otg_rev >= 0x0200))
+					otg_desc_len += sizeof(
+						struct usb_otg20_descriptor);
+				else
+					otg_desc_len += sizeof(
+						struct usb_otg_descriptor);
+
+				value = min_t(int, w_length, otg_desc_len);
+				memcpy(req->buf, config->descriptors[0], value);
 			}
 			break;
 		}
@@ -1751,6 +1791,13 @@ unknown:
 		 * take such requests too, if that's ever needed:  to work
 		 * in config 0, etc.
 		 */
+		if (cdev->config) {
+			list_for_each_entry(f, &cdev->config->functions, list)
+				if (f->req_match && f->req_match(f, ctrl))
+					goto try_fun_setup;
+			f = NULL;
+		}
+
 		switch (ctrl->bRequestType & USB_RECIP_MASK) {
 		case USB_RECIP_INTERFACE:
 			if (!cdev->config || intf >= MAX_CONFIG_INTERFACES)
@@ -1768,7 +1815,7 @@ unknown:
 				f = NULL;
 			break;
 		}
-
+try_fun_setup:
 		if (f && f->setup)
 			value = f->setup(f, ctrl);
 		else {

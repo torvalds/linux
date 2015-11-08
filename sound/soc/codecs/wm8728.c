@@ -170,7 +170,7 @@ static int wm8728_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_ON:
 	case SND_SOC_BIAS_PREPARE:
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			/* Power everything up... */
 			reg = snd_soc_read(codec, WM8728_DACCTL);
 			snd_soc_write(codec, WM8728_DACCTL, reg & ~0x4);
@@ -185,7 +185,6 @@ static int wm8728_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_write(codec, WM8728_DACCTL, reg | 0x4);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -273,7 +272,6 @@ static int wm8728_spi_remove(struct spi_device *spi)
 static struct spi_driver wm8728_spi_driver = {
 	.driver = {
 		.name	= "wm8728",
-		.owner	= THIS_MODULE,
 		.of_match_table = wm8728_of_match,
 	},
 	.probe		= wm8728_spi_probe,
@@ -320,7 +318,6 @@ MODULE_DEVICE_TABLE(i2c, wm8728_i2c_id);
 static struct i2c_driver wm8728_i2c_driver = {
 	.driver = {
 		.name = "wm8728",
-		.owner = THIS_MODULE,
 		.of_match_table = wm8728_of_match,
 	},
 	.probe =    wm8728_i2c_probe,

@@ -150,7 +150,7 @@ static void moxart_mac_setup_desc_ring(struct net_device *ndev)
 
 	priv->rx_head = 0;
 
-	/* reset the MAC controler TX/RX desciptor base address */
+	/* reset the MAC controller TX/RX desciptor base address */
 	writel(priv->tx_base, priv->base + REG_TXR_BASE_ADDRESS);
 	writel(priv->rx_base, priv->base + REG_RXR_BASE_ADDRESS);
 }
@@ -244,7 +244,6 @@ static int moxart_rx_poll(struct napi_struct *napi, int budget)
 		napi_gro_receive(&priv->napi, skb);
 		rx++;
 
-		ndev->last_rx = jiffies;
 		priv->stats.rx_packets++;
 		priv->stats.rx_bytes += len;
 		if (desc0 & RX_DESC0_MULTICAST)
@@ -553,6 +552,7 @@ static const struct of_device_id moxart_mac_match[] = {
 	{ .compatible = "moxa,moxart-mac" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, moxart_mac_match);
 
 static struct platform_driver moxart_mac_driver = {
 	.probe	= moxart_mac_probe,

@@ -40,7 +40,7 @@ static u32 EDCAParam[HT_IOT_PEER_MAX][3] = {          /*  UL			DL */
 	{0x5ea42b, 0xa630, 0x5e431c}, /*  11:airgocap AP */
 };
 
-/*  EDCA Paramter for AP/ADSL   by Mingzhi 2011-11-22 */
+/*  EDCA Parameter for AP/ADSL   by Mingzhi 2011-11-22 */
 
 /*  Global var */
 u32 OFDMSwingTable23A[OFDM_TABLE_SIZE_92D] = {
@@ -189,25 +189,16 @@ void odm_DynamicBBPowerSaving23a(struct dm_odm_t *pDM_Odm);
 
 /* END---------BB POWER SAVE----------------------- */
 
-void odm_RefreshRateAdaptiveMask23aCE23a(struct dm_odm_t *pDM_Odm);
-
 void odm_DynamicTxPower23aInit(struct dm_odm_t *pDM_Odm);
 
-void odm_RSSIMonitorCheck23aCE(struct dm_odm_t *pDM_Odm);
-void odm_RSSIMonitorCheck23a(struct dm_odm_t *pDM_Odm);
+static void odm_RSSIMonitorCheck(struct dm_odm_t *pDM_Odm);
 void odm_DynamicTxPower23a(struct dm_odm_t *pDM_Odm);
 
-void odm_RefreshRateAdaptiveMask23a(struct dm_odm_t *pDM_Odm);
-
-void ODM_TXPowerTrackingCheck23a(struct dm_odm_t *pDM_Odm);
+static void odm_RefreshRateAdaptiveMask(struct dm_odm_t *pDM_Odm);
 
 void odm_RateAdaptiveMaskInit23a(struct dm_odm_t *pDM_Odm);
 
-void odm_TXPowerTrackingThermalMeterInit23a(struct dm_odm_t *pDM_Odm);
-
-void odm_TXPowerTrackingInit23a(struct dm_odm_t *pDM_Odm);
-
-void odm_TXPowerTrackingCheckCE23a(struct dm_odm_t *pDM_Odm);
+static void odm_TXPowerTrackingInit(struct dm_odm_t *pDM_Odm);
 
 static void odm_EdcaTurboCheck23a(struct dm_odm_t *pDM_Odm);
 static void ODM_EdcaTurboInit23a(struct dm_odm_t *pDM_Odm);
@@ -216,16 +207,16 @@ static void ODM_EdcaTurboInit23a(struct dm_odm_t *pDM_Odm);
 #define	RxDefaultAnt2		0x569a
 
 bool odm_StaDefAntSel(struct dm_odm_t *pDM_Odm,
- u32 OFDM_Ant1_Cnt,
- u32 OFDM_Ant2_Cnt,
- u32 CCK_Ant1_Cnt,
- u32 CCK_Ant2_Cnt,
- u8 *pDefAnt
+	u32 OFDM_Ant1_Cnt,
+	u32 OFDM_Ant2_Cnt,
+	u32 CCK_Ant1_Cnt,
+	u32 CCK_Ant2_Cnt,
+	u8 *pDefAnt
 	);
 
 void odm_SetRxIdleAnt(struct dm_odm_t *pDM_Odm,
 	u8 Ant,
-   bool   bDualPath
+	bool   bDualPath
 );
 
 /* 3 Export Interface */
@@ -241,7 +232,7 @@ void ODM23a_DMInit(struct dm_odm_t *pDM_Odm)
 
 	odm23a_DynBBPSInit(pDM_Odm);
 	odm_DynamicTxPower23aInit(pDM_Odm);
-	odm_TXPowerTrackingInit23a(pDM_Odm);
+	odm_TXPowerTrackingInit(pDM_Odm);
 	ODM_EdcaTurboInit23a(pDM_Odm);
 }
 
@@ -258,7 +249,7 @@ void ODM_DMWatchdog23a(struct rtw_adapter *adapter)
 	odm_CmnInfoUpdate_Debug23a(pDM_Odm);
 	odm_CommonInfoSelfUpdate(pHalData);
 	odm_FalseAlarmCounterStatistics23a(pDM_Odm);
-	odm_RSSIMonitorCheck23a(pDM_Odm);
+	odm_RSSIMonitorCheck(pDM_Odm);
 
 	/* 8723A or 8189ES platform */
 	/* NeilChen--2012--08--24-- */
@@ -277,14 +268,11 @@ void ODM_DMWatchdog23a(struct rtw_adapter *adapter)
 	if (pwrctrlpriv->bpower_saving)
 		return;
 
-	odm_RefreshRateAdaptiveMask23a(pDM_Odm);
+	odm_RefreshRateAdaptiveMask(pDM_Odm);
 
 	odm_DynamicBBPowerSaving23a(pDM_Odm);
 
-	ODM_TXPowerTrackingCheck23a(pDM_Odm);
 	odm_EdcaTurboCheck23a(pDM_Odm);
-
-	odm_dtc(pDM_Odm);
 }
 
 /*  */
@@ -302,11 +290,6 @@ void ODM_CmnInfoInit23a(struct dm_odm_t *pDM_Odm,
 	/*  */
 	switch	(CmnInfo) {
 	/*  Fixed ODM value. */
-	case	ODM_CMNINFO_PLATFORM:
-		break;
-	case	ODM_CMNINFO_INTERFACE:
-		pDM_Odm->SupportInterface = (u8)Value;
-		break;
 	case	ODM_CMNINFO_MP_TEST_CHIP:
 		pDM_Odm->bIsMPChip = (u8)Value;
 		break;
@@ -319,9 +302,6 @@ void ODM_CmnInfoInit23a(struct dm_odm_t *pDM_Odm,
 	case	ODM_CMNINFO_FAB_VER:
 		pDM_Odm->FabVersion = (u8)Value;
 		break;
-	case	ODM_CMNINFO_RF_TYPE:
-		pDM_Odm->RFType = (u8)Value;
-		break;
 	case	ODM_CMNINFO_BOARD_TYPE:
 		pDM_Odm->BoardType = (u8)Value;
 		break;
@@ -333,9 +313,6 @@ void ODM_CmnInfoInit23a(struct dm_odm_t *pDM_Odm,
 		break;
 	case	ODM_CMNINFO_EXT_TRSW:
 		pDM_Odm->ExtTRSW = (u8)Value;
-		break;
-	case	ODM_CMNINFO_PATCH_ID:
-		pDM_Odm->PatchID = (u8)Value;
 		break;
 	case	ODM_CMNINFO_BINHCT_TEST:
 		pDM_Odm->bInHctTest = (bool)Value;
@@ -351,15 +328,6 @@ void ODM_CmnInfoInit23a(struct dm_odm_t *pDM_Odm,
 		/* do nothing */
 		break;
 	}
-
-	/*  */
-	/*  Tx power tracking BB swing table. */
-	/*  The base index = 12. +((12-n)/2)dB 13~?? = decrease tx pwr by -((n-12)/2)dB */
-	/*  */
-	pDM_Odm->BbSwingIdxOfdm			= 12; /*  Set defalut value as index 12. */
-	pDM_Odm->BbSwingIdxOfdmCurrent	= 12;
-	pDM_Odm->BbSwingFlagOfdm		= false;
-
 }
 
 void ODM_CmnInfoPtrArrayHook23a(struct dm_odm_t *pDM_Odm, enum odm_cmninfo CmnInfo,
@@ -383,9 +351,6 @@ void ODM_CmnInfoUpdate23a(struct dm_odm_t *pDM_Odm, u32 CmnInfo, u64 Value)
 {
 	/*  This init variable may be changed in run time. */
 	switch	(CmnInfo) {
-	case	ODM_CMNINFO_RF_TYPE:
-		pDM_Odm->RFType = (u8)Value;
-		break;
 	case	ODM_CMNINFO_WIFI_DIRECT:
 		pDM_Odm->bWIFI_Direct = (bool)Value;
 		break;
@@ -414,13 +379,18 @@ void ODM_CmnInfoUpdate23a(struct dm_odm_t *pDM_Odm, u32 CmnInfo, u64 Value)
 
 }
 
-void odm_CommonInfoSelfInit23a(struct dm_odm_t *pDM_Odm
-	)
+void odm_CommonInfoSelfInit23a(struct dm_odm_t *pDM_Odm)
 {
-	pDM_Odm->bCckHighPower =
-		(bool) ODM_GetBBReg(pDM_Odm, rFPGA0_XA_HSSIParameter2, BIT(9));
+	u32 val32;
+
+	val32 = rtl8723au_read32(pDM_Odm->Adapter, rFPGA0_XA_HSSIParameter2);
+	if (val32 & BIT(9))
+		pDM_Odm->bCckHighPower = true;
+	else
+		pDM_Odm->bCckHighPower = false;
+
 	pDM_Odm->RFPathRxEnable =
-		(u8) ODM_GetBBReg(pDM_Odm, rOFDM0_TRxPathEnable, 0x0F);
+		rtl8723au_read32(pDM_Odm->Adapter, rOFDM0_TRxPathEnable) & 0x0F;
 
 	ODM_InitDebugSetting23a(pDM_Odm);
 }
@@ -431,15 +401,6 @@ static void odm_CommonInfoSelfUpdate(struct hal_data_8723a *pHalData)
 	struct sta_info *pEntry;
 	u8 EntryCnt = 0;
 	u8 i;
-
-	if (pHalData->CurrentChannelBW == HT_CHANNEL_WIDTH_40) {
-		if (pHalData->nCur40MhzPrimeSC == 1)
-			pDM_Odm->ControlChannel = pHalData->CurrentChannel - 2;
-		else if (pHalData->nCur40MhzPrimeSC == 2)
-			pDM_Odm->ControlChannel = pHalData->CurrentChannel + 2;
-	} else {
-		pDM_Odm->ControlChannel = pHalData->CurrentChannel;
-	}
 
 	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
 		pEntry = pDM_Odm->pODM_StaInfo[i];
@@ -456,16 +417,13 @@ void odm_CmnInfoInit_Debug23a(struct dm_odm_t *pDM_Odm)
 {
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_CmnInfoInit_Debug23a ==>\n"));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("SupportAbility = 0x%x\n", pDM_Odm->SupportAbility));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("SupportInterface =%d\n", pDM_Odm->SupportInterface));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("SupportICType = 0x%x\n", pDM_Odm->SupportICType));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("CutVersion =%d\n", pDM_Odm->CutVersion));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("FabVersion =%d\n", pDM_Odm->FabVersion));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("RFType =%d\n", pDM_Odm->RFType));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("BoardType =%d\n", pDM_Odm->BoardType));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("ExtLNA =%d\n", pDM_Odm->ExtLNA));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("ExtPA =%d\n", pDM_Odm->ExtPA));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("ExtTRSW =%d\n", pDM_Odm->ExtTRSW));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("PatchID =%d\n", pDM_Odm->PatchID));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("bInHctTest =%d\n", pDM_Odm->bInHctTest));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("bWIFITest =%d\n", pDM_Odm->bWIFITest));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("bDualMacSmartConcurrent =%d\n", pDM_Odm->bDualMacSmartConcurrent));
@@ -481,18 +439,19 @@ void odm_CmnInfoUpdate_Debug23a(struct dm_odm_t *pDM_Odm)
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("RSSI_Min =%d\n", pDM_Odm->RSSI_Min));
 }
 
-void ODM_Write_DIG23a(struct dm_odm_t *pDM_Odm,
-	u8 CurrentIGI
-	)
+void ODM_Write_DIG23a(struct dm_odm_t *pDM_Odm,	u8 CurrentIGI)
 {
+	struct rtw_adapter *adapter = pDM_Odm->Adapter;
 	struct dig_t *pDM_DigTable = &pDM_Odm->DM_DigTable;
-
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("ODM_REG(IGI_A, pDM_Odm) = 0x%x, ODM_BIT(IGI, pDM_Odm) = 0x%x \n",
-		ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm)));
+	u32 val32;
 
 	if (pDM_DigTable->CurIGValue != CurrentIGI) {
-		ODM_SetBBReg(pDM_Odm, ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("CurrentIGI(0x%02x). \n", CurrentIGI));
+		val32 = rtl8723au_read32(adapter, ODM_REG_IGI_A_11N);
+		val32 &= ~ODM_BIT_IGI_11N;
+		val32 |= CurrentIGI;
+		rtl8723au_write32(adapter, ODM_REG_IGI_A_11N, val32);
+		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD,
+			     ("CurrentIGI(0x%02x). \n", CurrentIGI));
 		pDM_DigTable->CurIGValue = CurrentIGI;
 	}
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD,
@@ -515,11 +474,10 @@ void odm_DIG23abyRSSI_LPS(struct dm_odm_t *pDM_Odm)
 	CurrentIGI = CurrentIGI+RSSI_OFFSET_DIG;
 	bFwCurrentInPSMode = pAdapter->pwrctrlpriv.bFwCurrentInPSMode;
 
-	/* ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG_LPS, ODM_DBG_LOUD, ("odm_DIG23a() ==>\n")); */
-
 	/*  Using FW PS mode to make IGI */
 	if (bFwCurrentInPSMode) {
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("---Neil---odm_DIG23a is in LPS mode\n"));
+		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD,
+			     ("---Neil---odm_DIG23a is in LPS mode\n"));
 		/* Adjust by  FA in LPS MODE */
 		if (pFalseAlmCnt->Cnt_all > DM_DIG_FA_TH2_LPS)
 			CurrentIGI = CurrentIGI+2;
@@ -545,15 +503,17 @@ void odm_DIG23abyRSSI_LPS(struct dm_odm_t *pDM_Odm)
 	 else if (CurrentIGI < RSSI_Lower)
 		CurrentIGI = RSSI_Lower;
 
-	ODM_Write_DIG23a(pDM_Odm, CurrentIGI);/* ODM_Write_DIG23a(pDM_Odm, pDM_DigTable->CurIGValue); */
-
+	ODM_Write_DIG23a(pDM_Odm, CurrentIGI);
 }
 
 void odm_DIG23aInit(struct dm_odm_t *pDM_Odm)
 {
 	struct dig_t *pDM_DigTable = &pDM_Odm->DM_DigTable;
+	u32 val32;
 
-	pDM_DigTable->CurIGValue = (u8) ODM_GetBBReg(pDM_Odm, ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm));
+	val32 = rtl8723au_read32(pDM_Odm->Adapter, ODM_REG_IGI_A_11N);
+	pDM_DigTable->CurIGValue = val32 & ODM_BIT_IGI_11N;
+
 	pDM_DigTable->RssiLowThresh	= DM_DIG_THRESH_LOW;
 	pDM_DigTable->RssiHighThresh	= DM_DIG_THRESH_HIGH;
 	pDM_DigTable->FALowThresh	= DM_FALSEALARM_THRESH_LOW;
@@ -591,26 +551,22 @@ void odm_DIG23a(struct rtw_adapter *adapter)
 	u8 dm_dig_max, dm_dig_min;
 	u8 CurrentIGI = pDM_DigTable->CurIGValue;
 
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG23a() ==>\n"));
-	/* if (!(pDM_Odm->SupportAbility & (ODM_BB_DIG|ODM_BB_FA_CNT))) */
-	if ((!(pDM_Odm->SupportAbility&ODM_BB_DIG)) || (!(pDM_Odm->SupportAbility&ODM_BB_FA_CNT))) {
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD,
-			     ("odm_DIG23a() Return: SupportAbility ODM_BB_DIG or ODM_BB_FA_CNT is disabled\n"));
-		return;
-	}
-
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD,
+		     ("odm_DIG23a() ==>\n"));
 	if (adapter->mlmepriv.bScanInProcess) {
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG23a() Return: In Scan Progress \n"));
+		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD,
+			     ("odm_DIG23a() Return: In Scan Progress \n"));
 		return;
 	}
 
 	DIG_Dynamic_MIN = pDM_DigTable->DIG_Dynamic_MIN_0;
 	FirstConnect = (pDM_Odm->bLinked) && (!pDM_DigTable->bMediaConnect_0);
-	FirstDisConnect = (!pDM_Odm->bLinked) && (pDM_DigTable->bMediaConnect_0);
+	FirstDisConnect = (!pDM_Odm->bLinked) &&
+		(pDM_DigTable->bMediaConnect_0);
 
 	/* 1 Boundary Decision */
 	if ((pDM_Odm->SupportICType & ODM_RTL8723A) &&
-	    ((pDM_Odm->BoardType == ODM_BOARD_HIGHPWR) || pDM_Odm->ExtLNA)) {
+	    (pDM_Odm->BoardType == ODM_BOARD_HIGHPWR || pDM_Odm->ExtLNA)) {
 		dm_dig_max = DM_DIG_MAX_NIC_HP;
 		dm_dig_min = DM_DIG_MIN_NIC_HP;
 		DIG_MaxOfMin = DM_DIG_MAX_AP_HP;
@@ -764,31 +720,29 @@ void odm_DIG23a(struct rtw_adapter *adapter)
 
 void odm_FalseAlarmCounterStatistics23a(struct dm_odm_t *pDM_Odm)
 {
-	u32 ret_value;
+	struct rtw_adapter *adapter = pDM_Odm->Adapter;
 	struct false_alarm_stats *FalseAlmCnt = &pDM_Odm->FalseAlmCnt;
-
-	if (!(pDM_Odm->SupportAbility & ODM_BB_FA_CNT))
-		return;
+	u32 ret_value, val32;
 
 	/* hold ofdm counter */
-	 /* hold page C counter */
-	ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_HOLDC_11N, BIT(31), 1);
+	/* hold page C counter */
+	val32 = rtl8723au_read32(adapter, ODM_REG_OFDM_FA_HOLDC_11N);
+	val32 |= BIT(31);
+	rtl8723au_write32(adapter, ODM_REG_OFDM_FA_HOLDC_11N, val32);
 	/* hold page D counter */
-	ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RSTD_11N, BIT(31), 1);
-	ret_value =
-		ODM_GetBBReg(pDM_Odm, ODM_REG_OFDM_FA_TYPE1_11N, bMaskDWord);
+	val32 = rtl8723au_read32(adapter, ODM_REG_OFDM_FA_RSTD_11N);
+	val32 |= BIT(31);
+	rtl8723au_write32(adapter, ODM_REG_OFDM_FA_RSTD_11N, val32);
+	ret_value = rtl8723au_read32(adapter, ODM_REG_OFDM_FA_TYPE1_11N);
 	FalseAlmCnt->Cnt_Fast_Fsync = (ret_value&0xffff);
-	FalseAlmCnt->Cnt_SB_Search_fail = ((ret_value&0xffff0000)>>16);
-	ret_value =
-		ODM_GetBBReg(pDM_Odm, ODM_REG_OFDM_FA_TYPE2_11N, bMaskDWord);
+	FalseAlmCnt->Cnt_SB_Search_fail = (ret_value & 0xffff0000)>>16;
+	ret_value = rtl8723au_read32(adapter, ODM_REG_OFDM_FA_TYPE2_11N);
 	FalseAlmCnt->Cnt_OFDM_CCA = (ret_value&0xffff);
-	FalseAlmCnt->Cnt_Parity_Fail = ((ret_value&0xffff0000)>>16);
-	ret_value =
-		ODM_GetBBReg(pDM_Odm, ODM_REG_OFDM_FA_TYPE3_11N, bMaskDWord);
+	FalseAlmCnt->Cnt_Parity_Fail = (ret_value & 0xffff0000)>>16;
+	ret_value = rtl8723au_read32(adapter, ODM_REG_OFDM_FA_TYPE3_11N);
 	FalseAlmCnt->Cnt_Rate_Illegal = (ret_value&0xffff);
-	FalseAlmCnt->Cnt_Crc8_fail = ((ret_value&0xffff0000)>>16);
-	ret_value =
-		ODM_GetBBReg(pDM_Odm, ODM_REG_OFDM_FA_TYPE4_11N, bMaskDWord);
+	FalseAlmCnt->Cnt_Crc8_fail = (ret_value & 0xffff0000)>>16;
+	ret_value = rtl8723au_read32(adapter, ODM_REG_OFDM_FA_TYPE4_11N);
 	FalseAlmCnt->Cnt_Mcs_fail = (ret_value&0xffff);
 
 	FalseAlmCnt->Cnt_Ofdm_fail = FalseAlmCnt->Cnt_Parity_Fail +
@@ -798,15 +752,16 @@ void odm_FalseAlarmCounterStatistics23a(struct dm_odm_t *pDM_Odm)
 		FalseAlmCnt->Cnt_Fast_Fsync +
 		FalseAlmCnt->Cnt_SB_Search_fail;
 	/* hold cck counter */
-	ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N, BIT(12), 1);
-	ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N, BIT(14), 1);
+	val32 = rtl8723au_read32(adapter, ODM_REG_CCK_FA_RST_11N);
+	val32 |= (BIT(12) | BIT(14));
+	rtl8723au_write32(adapter, ODM_REG_CCK_FA_RST_11N, val32);
 
-	ret_value = ODM_GetBBReg(pDM_Odm, ODM_REG_CCK_FA_LSB_11N, bMaskByte0);
+	ret_value = rtl8723au_read32(adapter, ODM_REG_CCK_FA_LSB_11N) & 0xff;
 	FalseAlmCnt->Cnt_Cck_fail = ret_value;
-	ret_value = ODM_GetBBReg(pDM_Odm, ODM_REG_CCK_FA_MSB_11N, bMaskByte3);
-	FalseAlmCnt->Cnt_Cck_fail +=  (ret_value & 0xff) << 8;
+	ret_value = rtl8723au_read32(adapter, ODM_REG_CCK_FA_MSB_11N) >> 16;
+	FalseAlmCnt->Cnt_Cck_fail += (ret_value & 0xff00);
 
-	ret_value = ODM_GetBBReg(pDM_Odm, ODM_REG_CCK_CCA_CNT_11N, bMaskDWord);
+	ret_value = rtl8723au_read32(adapter, ODM_REG_CCK_CCA_CNT_11N);
 	FalseAlmCnt->Cnt_CCK_CCA =
 		((ret_value&0xFF)<<8) | ((ret_value&0xFF00)>>8);
 
@@ -823,26 +778,39 @@ void odm_FalseAlarmCounterStatistics23a(struct dm_odm_t *pDM_Odm)
 
 	if (pDM_Odm->SupportICType >= ODM_RTL8723A) {
 		/* reset false alarm counter registers */
-		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RSTC_11N, BIT(31), 1);
-		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RSTC_11N, BIT(31), 0);
-		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RSTD_11N, BIT(27), 1);
-		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RSTD_11N, BIT(27), 0);
+		val32 = rtl8723au_read32(adapter, ODM_REG_OFDM_FA_RSTC_11N);
+		val32 |= BIT(31);
+		rtl8723au_write32(adapter, ODM_REG_OFDM_FA_RSTC_11N, val32);
+		val32 = rtl8723au_read32(adapter, ODM_REG_OFDM_FA_RSTC_11N);
+		val32 &= ~BIT(31);
+		rtl8723au_write32(adapter, ODM_REG_OFDM_FA_RSTC_11N, val32);
+
+		val32 = rtl8723au_read32(adapter, ODM_REG_OFDM_FA_RSTD_11N);
+		val32 |= BIT(27);
+		rtl8723au_write32(adapter, ODM_REG_OFDM_FA_RSTD_11N, val32);
+		val32 = rtl8723au_read32(adapter, ODM_REG_OFDM_FA_RSTD_11N);
+		val32 &= ~BIT(27);
+		rtl8723au_write32(adapter, ODM_REG_OFDM_FA_RSTD_11N, val32);
+
 		/* update ofdm counter */
 		 /* update page C counter */
-		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_HOLDC_11N, BIT(31), 0);
+		val32 = rtl8723au_read32(adapter, ODM_REG_OFDM_FA_HOLDC_11N);
+		val32 &= ~BIT(31);
+		rtl8723au_write32(adapter, ODM_REG_OFDM_FA_HOLDC_11N, val32);
+
 		 /* update page D counter */
-		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RSTD_11N, BIT(31), 0);
+		val32 = rtl8723au_read32(adapter, ODM_REG_OFDM_FA_RSTD_11N);
+		val32 &= ~BIT(31);
+		rtl8723au_write32(adapter, ODM_REG_OFDM_FA_RSTD_11N, val32);
 
 		/* reset CCK CCA counter */
-		ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N,
-			     BIT(13) | BIT(12), 0);
-		ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N,
-			     BIT(13) | BIT(12), 2);
-		/* reset CCK FA counter */
-		ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N,
-			     BIT(15) | BIT(14), 0);
-		ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N,
-			     BIT(15) | BIT(14), 2);
+		val32 = rtl8723au_read32(adapter, ODM_REG_CCK_FA_RST_11N);
+		val32 &= ~(BIT(12) | BIT(13) | BIT(14) | BIT(15));
+		rtl8723au_write32(adapter, ODM_REG_CCK_FA_RST_11N, val32);
+
+		val32 = rtl8723au_read32(adapter, ODM_REG_CCK_FA_RST_11N);
+		val32 |= (BIT(13) | BIT(15));
+		rtl8723au_write32(adapter, ODM_REG_CCK_FA_RST_11N, val32);
 	}
 
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD,
@@ -859,9 +827,12 @@ void odm_FalseAlarmCounterStatistics23a(struct dm_odm_t *pDM_Odm)
 		     ("Cnt_Crc8_fail =%d, Cnt_Mcs_fail =%d\n",
 		      FalseAlmCnt->Cnt_Crc8_fail, FalseAlmCnt->Cnt_Mcs_fail));
 
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD, ("Cnt_Cck_fail =%d\n", FalseAlmCnt->Cnt_Cck_fail));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD, ("Cnt_Ofdm_fail =%d\n", FalseAlmCnt->Cnt_Ofdm_fail));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD, ("Total False Alarm =%d\n", FalseAlmCnt->Cnt_all));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD,
+		     ("Cnt_Cck_fail =%d\n", FalseAlmCnt->Cnt_Cck_fail));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD,
+		     ("Cnt_Ofdm_fail =%d\n", FalseAlmCnt->Cnt_Ofdm_fail));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD,
+		     ("Total False Alarm =%d\n", FalseAlmCnt->Cnt_all));
 }
 
 /* 3 ============================================================ */
@@ -873,16 +844,13 @@ void odm_CCKPacketDetectionThresh23a(struct dm_odm_t *pDM_Odm)
 	struct false_alarm_stats *FalseAlmCnt = &pDM_Odm->FalseAlmCnt;
 	u8 CurCCK_CCAThres;
 
-	if (!(pDM_Odm->SupportAbility & (ODM_BB_CCK_PD|ODM_BB_FA_CNT)))
-		return;
-
 	if (pDM_Odm->ExtLNA)
 		return;
 
 	if (pDM_Odm->bLinked) {
 		if (pDM_Odm->RSSI_Min > 25) {
 			CurCCK_CCAThres = 0xcd;
-		} else if ((pDM_Odm->RSSI_Min <= 25) && (pDM_Odm->RSSI_Min > 10)) {
+		} else if (pDM_Odm->RSSI_Min <= 25 && pDM_Odm->RSSI_Min > 10) {
 			CurCCK_CCAThres = 0x83;
 		} else {
 			if (FalseAlmCnt->Cnt_Cck_fail > 1000)
@@ -905,10 +873,10 @@ void ODM_Write_CCK_CCA_Thres23a(struct dm_odm_t *pDM_Odm, u8 CurCCK_CCAThres)
 	struct dig_t *pDM_DigTable = &pDM_Odm->DM_DigTable;
 
 	if (pDM_DigTable->CurCCK_CCAThres != CurCCK_CCAThres)
-		ODM_Write1Byte(pDM_Odm, ODM_REG(CCK_CCA, pDM_Odm), CurCCK_CCAThres);
+		rtl8723au_write8(pDM_Odm->Adapter, ODM_REG(CCK_CCA, pDM_Odm),
+				 CurCCK_CCAThres);
 	pDM_DigTable->PreCCK_CCAThres = pDM_DigTable->CurCCK_CCAThres;
 	pDM_DigTable->CurCCK_CCAThres = CurCCK_CCAThres;
-
 }
 
 /* 3 ============================================================ */
@@ -934,20 +902,19 @@ void odm_DynamicBBPowerSaving23a(struct dm_odm_t *pDM_Odm)
 void ODM_RF_Saving23a(struct dm_odm_t *pDM_Odm, u8 bForceInNormal)
 {
 	struct dynamic_pwr_sav *pDM_PSTable = &pDM_Odm->DM_PSTable;
+	struct rtw_adapter *adapter = pDM_Odm->Adapter;
+	u32 val32;
 	u8 Rssi_Up_bound = 30;
 	u8 Rssi_Low_bound = 25;
-	if (pDM_Odm->PatchID == 40) { /* RT_CID_819x_FUNAI_TV */
-		Rssi_Up_bound = 50;
-		Rssi_Low_bound = 45;
-	}
 	if (pDM_PSTable->initialize == 0) {
 
-		pDM_PSTable->Reg874 = (ODM_GetBBReg(pDM_Odm, 0x874, bMaskDWord)&0x1CC000)>>14;
+		pDM_PSTable->Reg874 =
+			rtl8723au_read32(adapter, 0x874) & 0x1CC000;
 		pDM_PSTable->RegC70 =
-			(ODM_GetBBReg(pDM_Odm, 0xc70, bMaskDWord) & BIT(3)) >>3;
-		pDM_PSTable->Reg85C = (ODM_GetBBReg(pDM_Odm, 0x85c, bMaskDWord)&0xFF000000)>>24;
-		pDM_PSTable->RegA74 = (ODM_GetBBReg(pDM_Odm, 0xa74, bMaskDWord)&0xF000)>>12;
-		/* Reg818 = PHY_QueryBBReg(pAdapter, 0x818, bMaskDWord); */
+			rtl8723au_read32(adapter, 0xc70) & BIT(3);
+		pDM_PSTable->Reg85C =
+			rtl8723au_read32(adapter, 0x85c) & 0xFF000000;
+		pDM_PSTable->RegA74 = rtl8723au_read32(adapter, 0xa74) & 0xF000;
 		pDM_PSTable->initialize = 1;
 	}
 
@@ -973,26 +940,74 @@ void ODM_RF_Saving23a(struct dm_odm_t *pDM_Odm, u8 bForceInNormal)
 
 	if (pDM_PSTable->PreRFState != pDM_PSTable->CurRFState) {
 		if (pDM_PSTable->CurRFState == RF_Save) {
-			/*  <tynli_note> 8723 RSSI report will be wrong. Set 0x874[5]= 1 when enter BB power saving mode. */
+			/*  <tynli_note> 8723 RSSI report will be wrong.
+			 * Set 0x874[5]= 1 when enter BB power saving mode. */
 			/*  Suggested by SD3 Yu-Nan. 2011.01.20. */
-			if (pDM_Odm->SupportICType == ODM_RTL8723A)
-				ODM_SetBBReg(pDM_Odm, 0x874, BIT(5), 0x1); /* Reg874[5]= 1b'1 */
-			ODM_SetBBReg(pDM_Odm, 0x874, 0x1C0000, 0x2); /* Reg874[20:18]= 3'b010 */
-			ODM_SetBBReg(pDM_Odm, 0xc70, BIT(3), 0); /* RegC70[3]= 1'b0 */
-			ODM_SetBBReg(pDM_Odm, 0x85c, 0xFF000000, 0x63); /* Reg85C[31:24]= 0x63 */
-			ODM_SetBBReg(pDM_Odm, 0x874, 0xC000, 0x2); /* Reg874[15:14]= 2'b10 */
-			ODM_SetBBReg(pDM_Odm, 0xa74, 0xF000, 0x3); /* RegA75[7:4]= 0x3 */
-			ODM_SetBBReg(pDM_Odm, 0x818, BIT(28), 0x0); /* Reg818[28]= 1'b0 */
-			ODM_SetBBReg(pDM_Odm, 0x818, BIT(28), 0x1); /* Reg818[28]= 1'b1 */
+			/* Reg874[5]= 1b'1 */
+			if (pDM_Odm->SupportICType == ODM_RTL8723A) {
+				val32 = rtl8723au_read32(adapter, 0x874);
+				val32 |= BIT(5);
+				rtl8723au_write32(adapter, 0x874, val32);
+			}
+			/* Reg874[20:18]= 3'b010 */
+			val32 = rtl8723au_read32(adapter, 0x874);
+			val32 &= ~(BIT(18) | BIT(20));
+			val32 |= BIT(19);
+			rtl8723au_write32(adapter, 0x874, val32);
+			/* RegC70[3]= 1'b0 */
+			val32 = rtl8723au_read32(adapter, 0xc70);
+			val32 &= ~BIT(3);
+			rtl8723au_write32(adapter, 0xc70, val32);
+			/* Reg85C[31:24]= 0x63 */
+			val32 = rtl8723au_read32(adapter, 0x85c);
+			val32 &= 0x00ffffff;
+			val32 |= 0x63000000;
+			rtl8723au_write32(adapter, 0x85c, val32);
+			/* Reg874[15:14]= 2'b10 */
+			val32 = rtl8723au_read32(adapter, 0x874);
+			val32 &= ~BIT(14);
+			val32 |= BIT(15);
+			rtl8723au_write32(adapter, 0x874, val32);
+			/* RegA75[7:4]= 0x3 */
+			val32 = rtl8723au_read32(adapter, 0xa74);
+			val32 &= ~(BIT(14) | BIT(15));
+			val32 |= (BIT(12) | BIT(13));
+			rtl8723au_write32(adapter, 0xa74, val32);
+			/* Reg818[28]= 1'b0 */
+			val32 = rtl8723au_read32(adapter, 0x818);
+			val32 &= ~BIT(28);
+			rtl8723au_write32(adapter, 0x818, val32);
+			/* Reg818[28]= 1'b1 */
+			val32 = rtl8723au_read32(adapter, 0x818);
+			val32 |= BIT(28);
+			rtl8723au_write32(adapter, 0x818, val32);
 		} else {
-			ODM_SetBBReg(pDM_Odm, 0x874, 0x1CC000, pDM_PSTable->Reg874);
-			ODM_SetBBReg(pDM_Odm, 0xc70, BIT(3), pDM_PSTable->RegC70);
-			ODM_SetBBReg(pDM_Odm, 0x85c, 0xFF000000, pDM_PSTable->Reg85C);
-			ODM_SetBBReg(pDM_Odm, 0xa74, 0xF000, pDM_PSTable->RegA74);
-			ODM_SetBBReg(pDM_Odm, 0x818, BIT(28), 0x0);
+			val32 = rtl8723au_read32(adapter, 0x874);
+			val32 |= pDM_PSTable->Reg874;
+			rtl8723au_write32(adapter, 0x874, val32);
 
-			if (pDM_Odm->SupportICType == ODM_RTL8723A)
-				ODM_SetBBReg(pDM_Odm, 0x874, BIT(5), 0x0); /* Reg874[5]= 1b'0 */
+			val32 = rtl8723au_read32(adapter, 0xc70);
+			val32 |= pDM_PSTable->RegC70;
+			rtl8723au_write32(adapter, 0xc70, val32);
+
+			val32 = rtl8723au_read32(adapter, 0x85c);
+			val32 |= pDM_PSTable->Reg85C;
+			rtl8723au_write32(adapter, 0x85c, val32);
+
+			val32 = rtl8723au_read32(adapter, 0xa74);
+			val32 |= pDM_PSTable->RegA74;
+			rtl8723au_write32(adapter, 0xa74, val32);
+
+			val32 = rtl8723au_read32(adapter, 0x818);
+			val32 &= ~BIT(28);
+			rtl8723au_write32(adapter, 0x818, val32);
+
+			/* Reg874[5]= 1b'0 */
+			if (pDM_Odm->SupportICType == ODM_RTL8723A) {
+				val32 = rtl8723au_read32(adapter, 0x874);
+				val32 &= ~BIT(5);
+				rtl8723au_write32(adapter, 0x874, val32);
+			}
 		}
 		pDM_PSTable->PreRFState = pDM_PSTable->CurRFState;
 	}
@@ -1010,10 +1025,6 @@ void odm_RateAdaptiveMaskInit23a(struct dm_odm_t *pDM_Odm)
 	struct odm_rate_adapt *pOdmRA = &pDM_Odm->RateAdaptive;
 
 	pOdmRA->Type = DM_Type_ByDriver;
-	if (pOdmRA->Type == DM_Type_ByDriver)
-		pDM_Odm->bUseRAMask = true;
-	else
-		pDM_Odm->bUseRAMask = false;
 
 	pOdmRA->RATRState = DM_RATR_STA_INIT;
 	pOdmRA->HighRSSIThresh = 50;
@@ -1057,7 +1068,8 @@ u32 ODM_Get_Rate_Bitmap23a(struct hal_data_8723a *pHalData, u32 macid,
 		break;
 	case (ODM_WM_B|ODM_WM_G|ODM_WM_N24G):
 	case (ODM_WM_A|ODM_WM_B|ODM_WM_G|ODM_WM_N24G):
-		if (pDM_Odm->RFType == ODM_1T2R || pDM_Odm->RFType == ODM_1T1R) {
+		if (pHalData->rf_type == RF_1T2R ||
+		    pHalData->rf_type == RF_1T1R) {
 			if (rssi_level == DM_RATR_STA_HIGH) {
 				rate_bitmap = 0x000f0000;
 			} else if (rssi_level == DM_RATR_STA_MIDDLE) {
@@ -1086,22 +1098,22 @@ u32 ODM_Get_Rate_Bitmap23a(struct hal_data_8723a *pHalData, u32 macid,
 	default:
 		/* case WIRELESS_11_24N: */
 		/* case WIRELESS_11_5N: */
-		if (pDM_Odm->RFType == RF_1T2R)
+		if (pHalData->rf_type == RF_1T2R)
 			rate_bitmap = 0x000fffff;
 		else
 			rate_bitmap = 0x0fffffff;
 		break;
 	}
 
-	/* printk("%s ==> rssi_level:0x%02x, WirelessMode:0x%02x, rate_bitmap:0x%08x \n", __func__, rssi_level, WirelessMode, rate_bitmap); */
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK, ODM_DBG_LOUD, (" ==> rssi_level:0x%02x, WirelessMode:0x%02x, rate_bitmap:0x%08x \n", rssi_level, WirelessMode, rate_bitmap));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK, ODM_DBG_LOUD,
+	(" ==> rssi_level:0x%02x, WirelessMode:0x%02x, rate_bitmap:0x%08x \n",
+	 rssi_level, WirelessMode, rate_bitmap));
 
 	return rate_bitmap;
-
 }
 
 /*-----------------------------------------------------------------------------
- * Function:	odm_RefreshRateAdaptiveMask23a()
+ * Function:	odm_RefreshRateAdaptiveMask()
  *
  * Overview:	Update rate table mask according to rssi
  *
@@ -1116,51 +1128,35 @@ u32 ODM_Get_Rate_Bitmap23a(struct hal_data_8723a *pHalData, u32 macid,
  *05/27/2009	hpfan	Create Version 0.
  *
  *---------------------------------------------------------------------------*/
-void odm_RefreshRateAdaptiveMask23a(struct dm_odm_t *pDM_Odm)
+static void odm_RefreshRateAdaptiveMask(struct dm_odm_t *pDM_Odm)
 {
-	if (!(pDM_Odm->SupportAbility & ODM_BB_RA_MASK))
-		return;
-	/*  */
-	/*  2011/09/29 MH In HW integration first stage, we provide 4 different handle to operate */
-	/*  at the same time. In the stage2/3, we need to prive universal interface and merge all */
-	/*  HW dynamic mechanism. */
-	/*  */
-	odm_RefreshRateAdaptiveMask23aCE23a(pDM_Odm);
-}
-
-void odm_RefreshRateAdaptiveMask23aCE23a(struct dm_odm_t *pDM_Odm)
-{
+	struct rtw_adapter *pAdapter = pDM_Odm->Adapter;
+	u32 smoothed;
 	u8 i;
-	struct rtw_adapter *pAdapter	 =  pDM_Odm->Adapter;
 
 	if (pAdapter->bDriverStopped) {
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK, ODM_DBG_TRACE,
-			     ("<---- odm_RefreshRateAdaptiveMask23a(): driver is going to unload\n"));
+			     ("<---- %s: driver is going to unload\n",
+			      __func__));
 		return;
 	}
-
-	if (!pDM_Odm->bUseRAMask) {
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK, ODM_DBG_LOUD,
-			     ("<---- odm_RefreshRateAdaptiveMask23a(): driver does not control rate adaptive mask\n"));
-		return;
-	}
-
-	/* printk("==> %s \n", __func__); */
 
 	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
 		struct sta_info *pstat = pDM_Odm->pODM_StaInfo[i];
 		if (pstat) {
-			if (ODM_RAStateCheck23a(pDM_Odm, pstat->rssi_stat.UndecoratedSmoothedPWDB, false, &pstat->rssi_level)) {
-				ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK, ODM_DBG_LOUD,
+			smoothed = pstat->rssi_stat.UndecoratedSmoothedPWDB;
+			if (ODM_RAStateCheck23a(pDM_Odm, smoothed, false,
+						&pstat->rssi_level)) {
+				ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK,
+					     ODM_DBG_LOUD,
 					     ("RSSI:%d, RSSI_LEVEL:%d\n",
-					     pstat->rssi_stat.UndecoratedSmoothedPWDB,
-					     pstat->rssi_level));
-				rtw_hal_update_ra_mask23a(pstat, pstat->rssi_level);
+					      smoothed,
+					      pstat->rssi_level));
+				rtw_hal_update_ra_mask23a(pstat,
+							  pstat->rssi_level);
 			}
-
 		}
 	}
-
 }
 
 /*  Return Value: bool */
@@ -1189,7 +1185,8 @@ bool ODM_RAStateCheck23a(struct dm_odm_t *pDM_Odm, s32 RSSI, bool bForceUpdate,
 		LowRSSIThreshForRA += GoUpGap;
 		break;
 	default:
-		ODM_RT_ASSERT(pDM_Odm, false, ("wrong rssi level setting %d !", *pRATRState));
+		ODM_RT_ASSERT(pDM_Odm, false, ("wrong rssi level setting %d !",
+					       *pRATRState));
 		break;
 	}
 
@@ -1227,24 +1224,8 @@ void odm_DynamicTxPower23aInit(struct dm_odm_t *pDM_Odm)
 	pdmpriv->DynamicTxHighPowerLvl = TxHighPwrLevel_Normal;
 }
 
-void odm_RSSIMonitorCheck23a(struct dm_odm_t *pDM_Odm)
-{
-	/*  For AP/ADSL use struct rtl8723a_priv * */
-	/*  For CE/NIC use struct rtw_adapter * */
-
-	if (!(pDM_Odm->SupportAbility & ODM_BB_RSSI_MONITOR))
-		return;
-
-	/*  2011/09/29 MH In HW integration first stage, we provide 4 different handle to operate */
-	/*  at the same time. In the stage2/3, we need to prive universal interface and merge all */
-	/*  HW dynamic mechanism. */
-	odm_RSSIMonitorCheck23aCE(pDM_Odm);
-}	/*  odm_RSSIMonitorCheck23a */
-
 static void
-FindMinimumRSSI(
-	struct rtw_adapter *pAdapter
-	)
+FindMinimumRSSI(struct rtw_adapter *pAdapter)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(pAdapter);
 	struct dm_priv *pdmpriv = &pHalData->dmpriv;
@@ -1252,21 +1233,22 @@ FindMinimumRSSI(
 
 	/* 1 1.Determine the minimum RSSI */
 
-	if ((!pDM_Odm->bLinked) &&
-	    (pdmpriv->EntryMinUndecoratedSmoothedPWDB == 0))
+	if (!pDM_Odm->bLinked && !pdmpriv->EntryMinUndecoratedSmoothedPWDB)
 		pdmpriv->MinUndecoratedPWDBForDM = 0;
 	else
-		pdmpriv->MinUndecoratedPWDBForDM = pdmpriv->EntryMinUndecoratedSmoothedPWDB;
+		pdmpriv->MinUndecoratedPWDBForDM =
+			pdmpriv->EntryMinUndecoratedSmoothedPWDB;
 }
 
-void odm_RSSIMonitorCheck23aCE(struct dm_odm_t *pDM_Odm)
+static void odm_RSSIMonitorCheck(struct dm_odm_t *pDM_Odm)
 {
 	struct rtw_adapter *Adapter = pDM_Odm->Adapter;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 	struct dm_priv *pdmpriv = &pHalData->dmpriv;
-	int	i;
-	int	tmpEntryMaxPWDB = 0, tmpEntryMinPWDB = 0xff;
+	int i;
+	int MaxDB = 0, MinDB = 0xff;
 	u8 sta_cnt = 0;
+	u32 tmpdb;
 	u32 PWDB_rssi[NUM_STA] = {0};/* 0~15]:MACID, [16~31]:PWDB_rssi */
 	struct sta_info *psta;
 
@@ -1276,37 +1258,36 @@ void odm_RSSIMonitorCheck23aCE(struct dm_odm_t *pDM_Odm)
 	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
 		psta = pDM_Odm->pODM_StaInfo[i];
 		if (psta) {
-			if (psta->rssi_stat.UndecoratedSmoothedPWDB < tmpEntryMinPWDB)
-				tmpEntryMinPWDB = psta->rssi_stat.UndecoratedSmoothedPWDB;
+			if (psta->rssi_stat.UndecoratedSmoothedPWDB < MinDB)
+				MinDB = psta->rssi_stat.UndecoratedSmoothedPWDB;
 
-			if (psta->rssi_stat.UndecoratedSmoothedPWDB > tmpEntryMaxPWDB)
-				tmpEntryMaxPWDB = psta->rssi_stat.UndecoratedSmoothedPWDB;
+			if (psta->rssi_stat.UndecoratedSmoothedPWDB > MaxDB)
+				MaxDB = psta->rssi_stat.UndecoratedSmoothedPWDB;
 
-			if (psta->rssi_stat.UndecoratedSmoothedPWDB != (-1))
-				PWDB_rssi[sta_cnt++] = (psta->mac_id | (psta->rssi_stat.UndecoratedSmoothedPWDB<<16));
+			if (psta->rssi_stat.UndecoratedSmoothedPWDB != -1) {
+				tmpdb = psta->rssi_stat.UndecoratedSmoothedPWDB;
+				PWDB_rssi[sta_cnt++] = psta->mac_id |
+					(tmpdb << 16);
+			}
 		}
 	}
 
 	for (i = 0; i < sta_cnt; i++) {
-		if (PWDB_rssi[i] != (0)) {
-			if (pHalData->fw_ractrl) /*  Report every sta's RSSI to FW */
-				rtl8723a_set_rssi_cmd(Adapter, (u8 *)&PWDB_rssi[i]);
-		}
+		if (PWDB_rssi[i] != (0))
+			rtl8723a_set_rssi_cmd(Adapter, (u8 *)&PWDB_rssi[i]);
 	}
 
-	if (tmpEntryMaxPWDB != 0)	/*  If associated entry is found */
-		pdmpriv->EntryMaxUndecoratedSmoothedPWDB = tmpEntryMaxPWDB;
-	else
-		pdmpriv->EntryMaxUndecoratedSmoothedPWDB = 0;
+	pdmpriv->EntryMaxUndecoratedSmoothedPWDB = MaxDB;
 
-	if (tmpEntryMinPWDB != 0xff) /*  If associated entry is found */
-		pdmpriv->EntryMinUndecoratedSmoothedPWDB = tmpEntryMinPWDB;
+	if (MinDB != 0xff) /*  If associated entry is found */
+		pdmpriv->EntryMinUndecoratedSmoothedPWDB = MinDB;
 	else
 		pdmpriv->EntryMinUndecoratedSmoothedPWDB = 0;
 
 	FindMinimumRSSI(Adapter);/* get pdmpriv->MinUndecoratedPWDBForDM */
 
-	ODM_CmnInfoUpdate23a(&pHalData->odmpriv, ODM_CMNINFO_RSSI_MIN, pdmpriv->MinUndecoratedPWDBForDM);
+	ODM_CmnInfoUpdate23a(&pHalData->odmpriv, ODM_CMNINFO_RSSI_MIN,
+			     pdmpriv->MinUndecoratedPWDBForDM);
 }
 
 /* endif */
@@ -1314,12 +1295,7 @@ void odm_RSSIMonitorCheck23aCE(struct dm_odm_t *pDM_Odm)
 /* 3 Tx Power Tracking */
 /* 3 ============================================================ */
 
-void odm_TXPowerTrackingInit23a(struct dm_odm_t *pDM_Odm)
-{
-	odm_TXPowerTrackingThermalMeterInit23a(pDM_Odm);
-}
-
-void odm_TXPowerTrackingThermalMeterInit23a(struct dm_odm_t *pDM_Odm)
+static void odm_TXPowerTrackingInit(struct dm_odm_t *pDM_Odm)
 {
 	struct rtw_adapter *Adapter = pDM_Odm->Adapter;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
@@ -1329,42 +1305,33 @@ void odm_TXPowerTrackingThermalMeterInit23a(struct dm_odm_t *pDM_Odm)
 	pdmpriv->TXPowercount = 0;
 	pdmpriv->bTXPowerTrackingInit = false;
 	pdmpriv->TxPowerTrackControl = true;
-	MSG_8723A("pdmpriv->TxPowerTrackControl = %d\n", pdmpriv->TxPowerTrackControl);
+	MSG_8723A("pdmpriv->TxPowerTrackControl = %d\n",
+		  pdmpriv->TxPowerTrackControl);
 
 	pDM_Odm->RFCalibrateInfo.TxPowerTrackControl = true;
-}
-
-void ODM_TXPowerTrackingCheck23a(struct dm_odm_t *pDM_Odm)
-{
-	/*  For AP/ADSL use struct rtl8723a_priv * */
-	/*  For CE/NIC use struct rtw_adapter * */
-
-	/*  2011/09/29 MH In HW integration first stage, we provide 4 different handle to operate */
-	/*  at the same time. In the stage2/3, we need to prive universal interface and merge all */
-	/*  HW dynamic mechanism. */
-	odm_TXPowerTrackingCheckCE23a(pDM_Odm);
-}
-
-void odm_TXPowerTrackingCheckCE23a(struct dm_odm_t *pDM_Odm)
-{
 }
 
 /* EDCA Turbo */
 static void ODM_EdcaTurboInit23a(struct dm_odm_t *pDM_Odm)
 {
-
 	struct rtw_adapter *Adapter = pDM_Odm->Adapter;
 
 	pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA = false;
-	pDM_Odm->DM_EDCA_Table.bIsCurRDLState = false;
 	Adapter->recvpriv.bIsAnyNonBEPkts = false;
 
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD, ("Orginial VO PARAM: 0x%x\n", ODM_Read4Byte(pDM_Odm, ODM_EDCA_VO_PARAM)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD, ("Orginial VI PARAM: 0x%x\n", ODM_Read4Byte(pDM_Odm, ODM_EDCA_VI_PARAM)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD, ("Orginial BE PARAM: 0x%x\n", ODM_Read4Byte(pDM_Odm, ODM_EDCA_BE_PARAM)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD, ("Orginial BK PARAM: 0x%x\n", ODM_Read4Byte(pDM_Odm, ODM_EDCA_BK_PARAM)));
-
-}	/*  ODM_InitEdcaTurbo */
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD,
+		     ("Orginial VO PARAM: 0x%x\n",
+		      rtl8723au_read32(Adapter, ODM_EDCA_VO_PARAM)));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD,
+		     ("Orginial VI PARAM: 0x%x\n",
+		      rtl8723au_read32(Adapter, ODM_EDCA_VI_PARAM)));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD,
+		     ("Orginial BE PARAM: 0x%x\n",
+		      rtl8723au_read32(Adapter, ODM_EDCA_BE_PARAM)));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD,
+		     ("Orginial BK PARAM: 0x%x\n",
+		      rtl8723au_read32(Adapter, ODM_EDCA_BK_PARAM)));
+}
 
 static void odm_EdcaTurboCheck23a(struct dm_odm_t *pDM_Odm)
 {
@@ -1377,19 +1344,18 @@ static void odm_EdcaTurboCheck23a(struct dm_odm_t *pDM_Odm)
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	u32 trafficIndex;
 	u32 edca_param;
-	u64 cur_tx_bytes = 0;
-	u64 cur_rx_bytes = 0;
-	u8 bbtchange = false;
+	u64 cur_tx_bytes;
+	u64 cur_rx_bytes;
 
 	/*  For AP/ADSL use struct rtl8723a_priv * */
 	/*  For CE/NIC use struct rtw_adapter * */
 
-	/*  2011/09/29 MH In HW integration first stage, we provide 4 different handle to operate */
-	/*  at the same time. In the stage2/3, we need to prive universal interface and merge all */
-	/*  HW dynamic mechanism. */
-
-	if (!(pDM_Odm->SupportAbility & ODM_MAC_EDCA_TURBO))
-		return;
+	/*
+	 * 2011/09/29 MH In HW integration first stage, we provide 4
+	 * different handle to operate at the same time. In the stage2/3,
+	 * we need to prive universal interface and merge all HW dynamic
+	 * mechanism.
+	 */
 
 	if ((pregpriv->wifi_spec == 1))/*  (pmlmeinfo->HT_enable == 0)) */
 		goto dm_CheckEdcaTurbo_EXIT;
@@ -1401,7 +1367,7 @@ static void odm_EdcaTurboCheck23a(struct dm_odm_t *pDM_Odm)
 		goto dm_CheckEdcaTurbo_EXIT;
 
 	/*  Check if the status needs to be changed. */
-	if ((bbtchange) || (!precvpriv->bIsAnyNonBEPkts)) {
+	if (!precvpriv->bIsAnyNonBEPkts) {
 		cur_tx_bytes = pxmitpriv->tx_bytes - pxmitpriv->last_tx_bytes;
 		cur_rx_bytes = precvpriv->rx_bytes - precvpriv->last_rx_bytes;
 
@@ -1454,29 +1420,37 @@ dm_CheckEdcaTurbo_EXIT:
 	precvpriv->last_rx_bytes = precvpriv->rx_bytes;
 }
 
-u32 GetPSDData(struct dm_odm_t *pDM_Odm, unsigned int point, u8 initial_gain_psd)
+u32 GetPSDData(struct dm_odm_t *pDM_Odm, unsigned int point,
+	       u8 initial_gain_psd)
 {
-	u32 psd_report;
+	struct rtw_adapter *adapter = pDM_Odm->Adapter;
+	u32 psd_report, val32;
 
 	/* Set DCO frequency index, offset = (40MHz/SamplePts)*point */
-	ODM_SetBBReg(pDM_Odm, 0x808, 0x3FF, point);
+	val32 = rtl8723au_read32(adapter, 0x808);
+	val32 &= ~0x3ff;
+	val32 |= (point & 0x3ff);
+	rtl8723au_write32(adapter, 0x808, val32);
 
 	/* Start PSD calculation, Reg808[22]= 0->1 */
-	ODM_SetBBReg(pDM_Odm, 0x808, BIT(22), 1);
+	val32 = rtl8723au_read32(adapter, 0x808);
+	val32 |= BIT(22);
+	rtl8723au_write32(adapter, 0x808, val32);
 	/* Need to wait for HW PSD report */
 	udelay(30);
-	ODM_SetBBReg(pDM_Odm, 0x808, BIT(22), 0);
+	val32 = rtl8723au_read32(adapter, 0x808);
+	val32 &= ~BIT(22);
+	rtl8723au_write32(adapter, 0x808, val32);
 	/* Read PSD report, Reg8B4[15:0] */
-	psd_report = ODM_GetBBReg(pDM_Odm, 0x8B4, bMaskDWord) & 0x0000FFFF;
+	psd_report = rtl8723au_read32(adapter, 0x8B4) & 0x0000FFFF;
 
-	psd_report = (u32)(ConvertTo_dB23a(psd_report))+(u32)(initial_gain_psd-0x1c);
+	psd_report = (u32)(ConvertTo_dB23a(psd_report)) +
+		(u32)(initial_gain_psd-0x1c);
 
 	return psd_report;
 }
 
-u32
-ConvertTo_dB23a(
-	u32 Value)
+u32 ConvertTo_dB23a(u32 Value)
 {
 	u8 i;
 	u8 j;
@@ -1504,7 +1478,8 @@ ConvertTo_dB23a(
 
 /*  */
 /*  Description: */
-/*Set Single/Dual Antenna default setting for products that do not do detection in advance. */
+/* Set Single/Dual Antenna default setting for products that do not
+ * do detection in advance. */
 /*  */
 /*  Added by Joseph, 2012.03.22 */
 /*  */
@@ -1518,18 +1493,13 @@ void ODM_SingleDualAntennaDefaultSetting(struct dm_odm_t *pDM_Odm)
 
 /* 2 8723A ANT DETECT */
 
-static void odm_PHY_SaveAFERegisters(
-	struct dm_odm_t *pDM_Odm,
-	u32 *AFEReg,
-	u32 *AFEBackup,
-	u32 RegisterNum
-	)
+static void odm_PHY_SaveAFERegisters(struct dm_odm_t *pDM_Odm, u32 *AFEReg,
+				     u32 *AFEBackup, u32 RegisterNum)
 {
 	u32 i;
 
-	/* RTPRINT(FINIT, INIT_IQK, ("Save ADDA parameters.\n")); */
 	for (i = 0 ; i < RegisterNum ; i++)
-		AFEBackup[i] = ODM_GetBBReg(pDM_Odm, AFEReg[i], bMaskDWord);
+		AFEBackup[i] = rtl8723au_read32(pDM_Odm->Adapter, AFEReg[i]);
 }
 
 static void odm_PHY_ReloadAFERegisters(struct dm_odm_t *pDM_Odm, u32 *AFEReg,
@@ -1538,7 +1508,7 @@ static void odm_PHY_ReloadAFERegisters(struct dm_odm_t *pDM_Odm, u32 *AFEReg,
 	u32 i;
 
 	for (i = 0 ; i < RegiesterNum; i++)
-		ODM_SetBBReg(pDM_Odm, AFEReg[i], bMaskDWord, AFEBackup[i]);
+		rtl8723au_write32(pDM_Odm->Adapter, AFEReg[i], AFEBackup[i]);
 }
 
 /* 2 8723A ANT DETECT */
@@ -1548,9 +1518,10 @@ static void odm_PHY_ReloadAFERegisters(struct dm_odm_t *pDM_Odm, u32 *AFEReg,
 bool ODM_SingleDualAntennaDetection(struct dm_odm_t *pDM_Odm, u8 mode)
 {
 	struct sw_ant_sw *pDM_SWAT_Table = &pDM_Odm->DM_SWAT_Table;
+	struct rtw_adapter *adapter = pDM_Odm->Adapter;
 	u32 CurrentChannel, RfLoopReg;
 	u8 n;
-	u32 Reg88c, Regc08, Reg874, Regc50;
+	u32 Reg88c, Regc08, Reg874, Regc50, val32;
 	u8 initial_gain = 0x5a;
 	u32 PSD_report_tmp;
 	u32 AntA_report = 0x0, AntB_report = 0x0, AntO_report = 0x0;
@@ -1573,72 +1544,80 @@ bool ODM_SingleDualAntennaDetection(struct dm_odm_t *pDM_Odm, u8 mode)
 		return bResult;
 	/* 1 Backup Current RF/BB Settings */
 
-	CurrentChannel = ODM_GetRFReg(pDM_Odm, RF_PATH_A, ODM_CHANNEL, bRFRegOffsetMask);
+	CurrentChannel = ODM_GetRFReg(pDM_Odm, RF_PATH_A, ODM_CHANNEL,
+				      bRFRegOffsetMask);
 	RfLoopReg = ODM_GetRFReg(pDM_Odm, RF_PATH_A, 0x00, bRFRegOffsetMask);
-	ODM_SetBBReg(pDM_Odm, rFPGA0_XA_RFInterfaceOE, ODM_DPDT, Antenna_A);  /*  change to Antenna A */
+	/*  change to Antenna A */
+	val32 = rtl8723au_read32(adapter, rFPGA0_XA_RFInterfaceOE);
+	val32 &= ~0x300;
+	val32 |= 0x100;		/* Enable antenna A */
+	rtl8723au_write32(adapter, rFPGA0_XA_RFInterfaceOE, val32);
+
 	/*  Step 1: USE IQK to transmitter single tone */
 
 	udelay(10);
 
 	/* Store A Path Register 88c, c08, 874, c50 */
-	Reg88c = ODM_GetBBReg(pDM_Odm, rFPGA0_AnalogParameter4, bMaskDWord);
-	Regc08 = ODM_GetBBReg(pDM_Odm, rOFDM0_TRMuxPar, bMaskDWord);
-	Reg874 = ODM_GetBBReg(pDM_Odm, rFPGA0_XCD_RFInterfaceSW, bMaskDWord);
-	Regc50 = ODM_GetBBReg(pDM_Odm, rOFDM0_XAAGCCore1, bMaskDWord);
+	Reg88c = rtl8723au_read32(adapter, rFPGA0_AnalogParameter4);
+	Regc08 = rtl8723au_read32(adapter, rOFDM0_TRMuxPar);
+	Reg874 = rtl8723au_read32(adapter, rFPGA0_XCD_RFInterfaceSW);
+	Regc50 = rtl8723au_read32(adapter, rOFDM0_XAAGCCore1);
 
 	/*  Store AFE Registers */
 	odm_PHY_SaveAFERegisters(pDM_Odm, AFE_REG_8723A, AFE_Backup, 16);
 
 	/* Set PSD 128 pts */
-	ODM_SetBBReg(pDM_Odm, rFPGA0_PSDFunction, BIT(14) | BIT(15), 0x0);
+	val32 = rtl8723au_read32(adapter, rFPGA0_PSDFunction);
+	val32 &= ~(BIT(14) | BIT(15));
+	rtl8723au_write32(adapter, rFPGA0_PSDFunction, val32);
 
 	/*  To SET CH1 to do */
-	ODM_SetRFReg(pDM_Odm, RF_PATH_A, ODM_CHANNEL, bRFRegOffsetMask, 0x01);     /* Channel 1 */
+	ODM_SetRFReg(pDM_Odm, RF_PATH_A, ODM_CHANNEL, bRFRegOffsetMask, 0x01);
 
 	/*  AFE all on step */
-	ODM_SetBBReg(pDM_Odm, rRx_Wait_CCA, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rTx_CCK_RFON, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rTx_CCK_BBON, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rTx_OFDM_RFON, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rTx_OFDM_BBON, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rTx_To_Rx, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rTx_To_Tx, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rRx_CCK, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rRx_OFDM, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rRx_Wait_RIFS, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rRx_TO_Rx, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rStandby, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rSleep, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rPMPD_ANAEN, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rFPGA0_XCD_SwitchControl, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rBlue_Tooth, bMaskDWord, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rRx_Wait_CCA, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rTx_CCK_RFON, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rTx_CCK_BBON, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rTx_OFDM_RFON, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rTx_OFDM_BBON, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rTx_To_Rx, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rTx_To_Tx, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rRx_CCK, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rRx_OFDM, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rRx_Wait_RIFS, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rRx_TO_Rx, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rStandby, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rSleep, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rPMPD_ANAEN, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rFPGA0_XCD_SwitchControl, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rBlue_Tooth, 0x6FDB25A4);
 
 	/*  3 wire Disable */
-	ODM_SetBBReg(pDM_Odm, rFPGA0_AnalogParameter4, bMaskDWord, 0xCCF000C0);
+	rtl8723au_write32(adapter, rFPGA0_AnalogParameter4, 0xCCF000C0);
 
 	/* BB IQK Setting */
-	ODM_SetBBReg(pDM_Odm, rOFDM0_TRMuxPar, bMaskDWord, 0x000800E4);
-	ODM_SetBBReg(pDM_Odm, rFPGA0_XCD_RFInterfaceSW, bMaskDWord, 0x22208000);
+	rtl8723au_write32(adapter, rOFDM0_TRMuxPar, 0x000800E4);
+	rtl8723au_write32(adapter, rFPGA0_XCD_RFInterfaceSW, 0x22208000);
 
 	/* IQK setting tone@ 4.34Mhz */
-	ODM_SetBBReg(pDM_Odm, rTx_IQK_Tone_A, bMaskDWord, 0x10008C1C);
-	ODM_SetBBReg(pDM_Odm, rTx_IQK, bMaskDWord, 0x01007c00);
+	rtl8723au_write32(adapter, rTx_IQK_Tone_A, 0x10008C1C);
+	rtl8723au_write32(adapter, rTx_IQK, 0x01007c00);
 
 	/* Page B init */
-	ODM_SetBBReg(pDM_Odm, rConfig_AntA, bMaskDWord, 0x00080000);
-	ODM_SetBBReg(pDM_Odm, rConfig_AntA, bMaskDWord, 0x0f600000);
-	ODM_SetBBReg(pDM_Odm, rRx_IQK, bMaskDWord, 0x01004800);
-	ODM_SetBBReg(pDM_Odm, rRx_IQK_Tone_A, bMaskDWord, 0x10008c1f);
-	ODM_SetBBReg(pDM_Odm, rTx_IQK_PI_A, bMaskDWord, 0x82150008);
-	ODM_SetBBReg(pDM_Odm, rRx_IQK_PI_A, bMaskDWord, 0x28150008);
-	ODM_SetBBReg(pDM_Odm, rIQK_AGC_Rsp, bMaskDWord, 0x001028d0);
+	rtl8723au_write32(adapter, rConfig_AntA, 0x00080000);
+	rtl8723au_write32(adapter, rConfig_AntA, 0x0f600000);
+	rtl8723au_write32(adapter, rRx_IQK, 0x01004800);
+	rtl8723au_write32(adapter, rRx_IQK_Tone_A, 0x10008c1f);
+	rtl8723au_write32(adapter, rTx_IQK_PI_A, 0x82150008);
+	rtl8723au_write32(adapter, rRx_IQK_PI_A, 0x28150008);
+	rtl8723au_write32(adapter, rIQK_AGC_Rsp, 0x001028d0);
 
 	/* RF loop Setting */
 	ODM_SetRFReg(pDM_Odm, RF_PATH_A, 0x0, 0xFFFFF, 0x50008);
 
 	/* IQK Single tone start */
-	ODM_SetBBReg(pDM_Odm, rFPGA0_IQK, bMaskDWord, 0x80800000);
-	ODM_SetBBReg(pDM_Odm, rIQK_AGC_Pts, bMaskDWord, 0xf8000000);
+	rtl8723au_write32(adapter, rFPGA0_IQK, 0x80800000);
+	rtl8723au_write32(adapter, rIQK_AGC_Pts, 0xf8000000);
 	udelay(1000);
 	PSD_report_tmp = 0x0;
 
@@ -1650,7 +1629,10 @@ bool ODM_SingleDualAntennaDetection(struct dm_odm_t *pDM_Odm, u8 mode)
 
 	PSD_report_tmp = 0x0;
 
-	ODM_SetBBReg(pDM_Odm, rFPGA0_XA_RFInterfaceOE, 0x300, Antenna_B);  /*  change to Antenna B */
+	val32 = rtl8723au_read32(adapter, rFPGA0_XA_RFInterfaceOE);
+	val32 &= ~0x300;
+	val32 |= 0x200;		/* Enable antenna B */
+	rtl8723au_write32(adapter, rFPGA0_XA_RFInterfaceOE, val32);
 	udelay(10);
 
 	for (n = 0; n < 2; n++) {
@@ -1660,7 +1642,10 @@ bool ODM_SingleDualAntennaDetection(struct dm_odm_t *pDM_Odm, u8 mode)
 	}
 
 	/*  change to open case */
-	ODM_SetBBReg(pDM_Odm, rFPGA0_XA_RFInterfaceOE, 0x300, 0);  /*  change to Ant A and B all open case */
+	/*  change to Ant A and B all open case */
+	val32 = rtl8723au_read32(adapter, rFPGA0_XA_RFInterfaceOE);
+	val32 &= ~0x300;
+	rtl8723au_write32(adapter, rFPGA0_XA_RFInterfaceOE, val32);
 	udelay(10);
 
 	for (n = 0; n < 2; n++) {
@@ -1670,25 +1655,36 @@ bool ODM_SingleDualAntennaDetection(struct dm_odm_t *pDM_Odm, u8 mode)
 	}
 
 	/* Close IQK Single Tone function */
-	ODM_SetBBReg(pDM_Odm, rFPGA0_IQK, bMaskDWord, 0x00000000);
+	rtl8723au_write32(adapter, rFPGA0_IQK, 0x00000000);
 	PSD_report_tmp = 0x0;
 
 	/* 1 Return to antanna A */
-	ODM_SetBBReg(pDM_Odm, rFPGA0_XA_RFInterfaceOE, 0x300, Antenna_A);
-	ODM_SetBBReg(pDM_Odm, rFPGA0_AnalogParameter4, bMaskDWord, Reg88c);
-	ODM_SetBBReg(pDM_Odm, rOFDM0_TRMuxPar, bMaskDWord, Regc08);
-	ODM_SetBBReg(pDM_Odm, rFPGA0_XCD_RFInterfaceSW, bMaskDWord, Reg874);
-	ODM_SetBBReg(pDM_Odm, rOFDM0_XAAGCCore1, 0x7F, 0x40);
-	ODM_SetBBReg(pDM_Odm, rOFDM0_XAAGCCore1, bMaskDWord, Regc50);
-	ODM_SetRFReg(pDM_Odm, RF_PATH_A, RF_CHNLBW, bRFRegOffsetMask, CurrentChannel);
+	val32 = rtl8723au_read32(adapter, rFPGA0_XA_RFInterfaceOE);
+	val32 &= ~0x300;
+	val32 |= 0x100;		/* Enable antenna A */
+	rtl8723au_write32(adapter, rFPGA0_XA_RFInterfaceOE, val32);
+	rtl8723au_write32(adapter, rFPGA0_AnalogParameter4, Reg88c);
+	rtl8723au_write32(adapter, rOFDM0_TRMuxPar, Regc08);
+	rtl8723au_write32(adapter, rFPGA0_XCD_RFInterfaceSW, Reg874);
+	val32 = rtl8723au_read32(adapter, rOFDM0_XAAGCCore1);
+	val32 &= ~0x7f;
+	val32 |= 0x40;
+	rtl8723au_write32(adapter, rOFDM0_XAAGCCore1, val32);
+
+	rtl8723au_write32(adapter, rOFDM0_XAAGCCore1, Regc50);
+	ODM_SetRFReg(pDM_Odm, RF_PATH_A, RF_CHNLBW, bRFRegOffsetMask,
+		     CurrentChannel);
 	ODM_SetRFReg(pDM_Odm, RF_PATH_A, 0x00, bRFRegOffsetMask, RfLoopReg);
 
 	/* Reload AFE Registers */
 	odm_PHY_ReloadAFERegisters(pDM_Odm, AFE_REG_8723A, AFE_Backup, 16);
 
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("psd_report_A[%d]= %d \n", 2416, AntA_report));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("psd_report_B[%d]= %d \n", 2416, AntB_report));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("psd_report_O[%d]= %d \n", 2416, AntO_report));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD,
+		     ("psd_report_A[%d]= %d \n", 2416, AntA_report));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD,
+		     ("psd_report_B[%d]= %d \n", 2416, AntB_report));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD,
+		     ("psd_report_O[%d]= %d \n", 2416, AntO_report));
 
 	/* 2 Test Ant B based on Ant A is ON */
 	if (mode == ANTTESTB) {
@@ -1710,30 +1706,33 @@ bool ODM_SingleDualAntennaDetection(struct dm_odm_t *pDM_Odm, u8 mode)
 		if ((AntO_report >= 100) & (AntO_report < 118)) {
 			if (AntA_report > (AntO_report+1)) {
 				pDM_SWAT_Table->ANTA_ON = false;
-				ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("Ant A is OFF"));
+				ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV,
+					     ODM_DBG_LOUD, ("Ant A is OFF"));
 			} else {
 				pDM_SWAT_Table->ANTA_ON = true;
-				ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("Ant A is ON"));
+				ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV,
+					     ODM_DBG_LOUD, ("Ant A is ON"));
 			}
 
 			if (AntB_report > (AntO_report+2)) {
 				pDM_SWAT_Table->ANTB_ON = false;
-				ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("Ant B is OFF"));
+				ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV,
+					     ODM_DBG_LOUD, ("Ant B is OFF"));
 			} else {
 				pDM_SWAT_Table->ANTB_ON = true;
-				ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("Ant B is ON"));
+				ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV,
+					     ODM_DBG_LOUD, ("Ant B is ON"));
 			}
 		}
 	} else {
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("ODM_SingleDualAntennaDetection(): Need to check again\n"));
-		pDM_SWAT_Table->ANTA_ON = true; /*  Set Antenna A on as default */
-		pDM_SWAT_Table->ANTB_ON = false; /*  Set Antenna B off as default */
+		ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD,
+		("ODM_SingleDualAntennaDetection(): Need to check again\n"));
+		/*  Set Antenna A on as default */
+		pDM_SWAT_Table->ANTA_ON = true;
+		/*  Set Antenna B off as default */
+		pDM_SWAT_Table->ANTB_ON = false;
 		bResult = false;
 	}
-	return bResult;
-}
 
-/* Justin: According to the current RRSI to adjust Response Frame TX power, 2012/11/05 */
-void odm_dtc(struct dm_odm_t *pDM_Odm)
-{
+	return bResult;
 }

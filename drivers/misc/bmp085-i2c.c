@@ -66,7 +66,6 @@ MODULE_DEVICE_TABLE(i2c, bmp085_id);
 
 static struct i2c_driver bmp085_i2c_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= BMP085_NAME,
 	},
 	.id_table	= bmp085_id,

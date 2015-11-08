@@ -63,7 +63,7 @@ static void mei_txe_pci_iounmap(struct pci_dev *pdev, struct mei_txe_hw *hw)
 	}
 }
 /**
- * mei_probe - Device Initialization Routine
+ * mei_txe_probe - Device Initialization Routine
  *
  * @pdev: PCI device structure
  * @ent: entry in mei_txe_pci_tbl
@@ -193,7 +193,7 @@ end:
 }
 
 /**
- * mei_remove - Device Removal Routine
+ * mei_txe_remove - Device Removal Routine
  *
  * @pdev: PCI device structure
  *
@@ -338,7 +338,7 @@ static int mei_txe_pm_runtime_suspend(struct device *device)
 	 * However if device is not wakeable we do not enter
 	 * D-low state and we need to keep the interrupt kicking
 	 */
-	 if (!ret && pci_dev_run_wake(pdev))
+	if (!ret && pci_dev_run_wake(pdev))
 		mei_disable_interrupts(dev);
 
 	dev_dbg(&pdev->dev, "rpm: txe: runtime suspend ret=%d\n", ret);

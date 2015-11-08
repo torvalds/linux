@@ -13,7 +13,8 @@
 	compatible = "atmel,at91sam9rlek", "atmel,at91sam9rl", "atmel,at91sam9";
 
 	chosen {
-		bootargs = "console=ttyS0,115200 rootfstype=ubifs root=ubi0:rootfs ubi.mtd=5 rw";
+		bootargs = "rootfstype=ubifs root=ubi0:rootfs ubi.mtd=5 rw";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
@@ -181,13 +182,11 @@
 				};
 			};
 
-			pmc: pmc@fffffc00 {
-				main: mainck {
-					clock-frequency = <12000000>;
-				};
+			watchdog@fffffd40 {
+				status = "okay";
 			};
 
-			watchdog@fffffd40 {
+			rtc@fffffe00 {
 				status = "okay";
 			};
 		};

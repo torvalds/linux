@@ -407,10 +407,10 @@ TRACE_EVENT(btrfs_sync_file,
 
 	TP_fast_assign(
 		struct dentry *dentry = file->f_path.dentry;
-		struct inode *inode = dentry->d_inode;
+		struct inode *inode = d_inode(dentry);
 
 		__entry->ino		= inode->i_ino;
-		__entry->parent		= dentry->d_parent->d_inode->i_ino;
+		__entry->parent		= d_inode(dentry->d_parent)->i_ino;
 		__entry->datasync	= datasync;
 		__entry->root_objectid	=
 				 BTRFS_I(inode)->root->root_key.objectid;
@@ -962,7 +962,7 @@ TRACE_EVENT(alloc_extent_state,
 		__entry->ip	= IP
 	),
 
-	TP_printk("state=%p; mask = %s; caller = %pF", __entry->state,
+	TP_printk("state=%p; mask = %s; caller = %pS", __entry->state,
 		  show_gfp_flags(__entry->mask), (void *)__entry->ip)
 );
 
@@ -982,7 +982,7 @@ TRACE_EVENT(free_extent_state,
 		__entry->ip = IP
 	),
 
-	TP_printk(" state=%p; caller = %pF", __entry->state,
+	TP_printk(" state=%p; caller = %pS", __entry->state,
 		  (void *)__entry->ip)
 );
 
@@ -1117,61 +1117,119 @@ DEFINE_EVENT(btrfs__workqueue_done, btrfs_workqueue_destroy,
 	TP_ARGS(wq)
 );
 
-#define show_oper_type(type)						\
-	__print_symbolic(type,						\
-		{ BTRFS_QGROUP_OPER_ADD_EXCL, 	"OPER_ADD_EXCL" },	\
-		{ BTRFS_QGROUP_OPER_ADD_SHARED, "OPER_ADD_SHARED" },	\
-		{ BTRFS_QGROUP_OPER_SUB_EXCL, 	"OPER_SUB_EXCL" },	\
-		{ BTRFS_QGROUP_OPER_SUB_SHARED,	"OPER_SUB_SHARED" })
+DECLARE_EVENT_CLASS(btrfs__qgroup_data_map,
 
-DECLARE_EVENT_CLASS(btrfs_qgroup_oper,
+	TP_PROTO(struct inode *inode, u64 free_reserved),
 
-	TP_PROTO(struct btrfs_qgroup_operation *oper),
-
-	TP_ARGS(oper),
+	TP_ARGS(inode, free_reserved),
 
 	TP_STRUCT__entry(
-		__field(	u64,  ref_root		)
-		__field(	u64,  bytenr		)
-		__field(	u64,  num_bytes		)
-		__field(	u64,  seq		)
-		__field(	int,  type		)
-		__field(	u64,  elem_seq		)
+		__field(	u64,		rootid		)
+		__field(	unsigned long,	ino		)
+		__field(	u64,		free_reserved	)
 	),
 
 	TP_fast_assign(
-		__entry->ref_root	= oper->ref_root;
-		__entry->bytenr		= oper->bytenr,
-		__entry->num_bytes	= oper->num_bytes;
-		__entry->seq 		= oper->seq;
-		__entry->type		= oper->type;
-		__entry->elem_seq	= oper->elem.seq;
+		__entry->rootid		=	BTRFS_I(inode)->root->objectid;
+		__entry->ino		=	inode->i_ino;
+		__entry->free_reserved	=	free_reserved;
 	),
 
-	TP_printk("ref_root = %llu, bytenr = %llu, num_bytes = %llu, "
-		  "seq = %llu, elem.seq = %llu, type = %s",
-		  (unsigned long long)__entry->ref_root,
-		  (unsigned long long)__entry->bytenr,
-		  (unsigned long long)__entry->num_bytes,
-		  (unsigned long long)__entry->seq,
-		  (unsigned long long)__entry->elem_seq,
-		  show_oper_type(__entry->type))
+	TP_printk("rootid=%llu, ino=%lu, free_reserved=%llu",
+		  __entry->rootid, __entry->ino, __entry->free_reserved)
 );
 
-DEFINE_EVENT(btrfs_qgroup_oper, btrfs_qgroup_account,
+DEFINE_EVENT(btrfs__qgroup_data_map, btrfs_qgroup_init_data_rsv_map,
 
-	TP_PROTO(struct btrfs_qgroup_operation *oper),
+	TP_PROTO(struct inode *inode, u64 free_reserved),
 
-	TP_ARGS(oper)
+	TP_ARGS(inode, free_reserved)
 );
 
-DEFINE_EVENT(btrfs_qgroup_oper, btrfs_qgroup_record_ref,
+DEFINE_EVENT(btrfs__qgroup_data_map, btrfs_qgroup_free_data_rsv_map,
 
-	TP_PROTO(struct btrfs_qgroup_operation *oper),
+	TP_PROTO(struct inode *inode, u64 free_reserved),
 
-	TP_ARGS(oper)
+	TP_ARGS(inode, free_reserved)
 );
 
+#define BTRFS_QGROUP_OPERATIONS				\
+	{ QGROUP_RESERVE,	"reserve"	},	\
+	{ QGROUP_RELEASE,	"release"	},	\
+	{ QGROUP_FREE,		"free"		}
+
+DECLARE_EVENT_CLASS(btrfs__qgroup_rsv_data,
+
+	TP_PROTO(struct inode *inode, u64 start, u64 len, u64 reserved, int op),
+
+	TP_ARGS(inode, start, len, reserved, op),
+
+	TP_STRUCT__entry(
+		__field(	u64,		rootid		)
+		__field(	unsigned long,	ino		)
+		__field(	u64,		start		)
+		__field(	u64,		len		)
+		__field(	u64,		reserved	)
+		__field(	int,		op		)
+	),
+
+	TP_fast_assign(
+		__entry->rootid		= BTRFS_I(inode)->root->objectid;
+		__entry->ino		= inode->i_ino;
+		__entry->start		= start;
+		__entry->len		= len;
+		__entry->reserved	= reserved;
+		__entry->op		= op;
+	),
+
+	TP_printk("root=%llu, ino=%lu, start=%llu, len=%llu, reserved=%llu, op=%s",
+		  __entry->rootid, __entry->ino, __entry->start, __entry->len,
+		  __entry->reserved,
+		  __print_flags((unsigned long)__entry->op, "",
+				BTRFS_QGROUP_OPERATIONS)
+	)
+);
+
+DEFINE_EVENT(btrfs__qgroup_rsv_data, btrfs_qgroup_reserve_data,
+
+	TP_PROTO(struct inode *inode, u64 start, u64 len, u64 reserved, int op),
+
+	TP_ARGS(inode, start, len, reserved, op)
+);
+
+DEFINE_EVENT(btrfs__qgroup_rsv_data, btrfs_qgroup_release_data,
+
+	TP_PROTO(struct inode *inode, u64 start, u64 len, u64 reserved, int op),
+
+	TP_ARGS(inode, start, len, reserved, op)
+);
+
+DECLARE_EVENT_CLASS(btrfs__qgroup_delayed_ref,
+
+	TP_PROTO(u64 ref_root, u64 reserved),
+
+	TP_ARGS(ref_root, reserved),
+
+	TP_STRUCT__entry(
+		__field(	u64,		ref_root	)
+		__field(	u64,		reserved	)
+	),
+
+	TP_fast_assign(
+		__entry->ref_root	= ref_root;
+		__entry->reserved	= reserved;
+	),
+
+	TP_printk("root=%llu, reserved=%llu, op=free",
+		  __entry->ref_root, __entry->reserved)
+);
+
+DEFINE_EVENT(btrfs__qgroup_delayed_ref, btrfs_qgroup_free_delayed_ref,
+
+	TP_PROTO(u64 ref_root, u64 reserved),
+
+	TP_ARGS(ref_root, reserved)
+);
 #endif /* _TRACE_BTRFS_H */
 
 /* This part must be outside protection */

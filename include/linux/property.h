@@ -13,6 +13,7 @@
 #ifndef _LINUX_PROPERTY_H_
 #define _LINUX_PROPERTY_H_
 
+#include <linux/fwnode.h>
 #include <linux/types.h>
 
 struct device;
@@ -39,16 +40,8 @@ int device_property_read_string_array(struct device *dev, const char *propname,
 				      const char **val, size_t nval);
 int device_property_read_string(struct device *dev, const char *propname,
 				const char **val);
-
-enum fwnode_type {
-	FWNODE_INVALID = 0,
-	FWNODE_OF,
-	FWNODE_ACPI,
-};
-
-struct fwnode_handle {
-	enum fwnode_type type;
-};
+int device_property_match_string(struct device *dev,
+				 const char *propname, const char *string);
 
 bool fwnode_property_present(struct fwnode_handle *fwnode, const char *propname);
 int fwnode_property_read_u8_array(struct fwnode_handle *fwnode,
@@ -68,6 +61,8 @@ int fwnode_property_read_string_array(struct fwnode_handle *fwnode,
 				      size_t nval);
 int fwnode_property_read_string(struct fwnode_handle *fwnode,
 				const char *propname, const char **val);
+int fwnode_property_match_string(struct fwnode_handle *fwnode,
+				 const char *propname, const char *string);
 
 struct fwnode_handle *device_get_next_child_node(struct device *dev,
 						 struct fwnode_handle *child);
@@ -139,5 +134,44 @@ static inline int fwnode_property_read_u64(struct fwnode_handle *fwnode,
 {
 	return fwnode_property_read_u64_array(fwnode, propname, val, 1);
 }
+
+/**
+ * struct property_entry - "Built-in" device property representation.
+ * @name: Name of the property.
+ * @type: Type of the property.
+ * @nval: Number of items of type @type making up the value.
+ * @value: Value of the property (an array of @nval items of type @type).
+ */
+struct property_entry {
+	const char *name;
+	enum dev_prop_type type;
+	size_t nval;
+	union {
+		void *raw_data;
+		u8 *u8_data;
+		u16 *u16_data;
+		u32 *u32_data;
+		u64 *u64_data;
+		const char **str;
+	} value;
+};
+
+/**
+ * struct property_set - Collection of "built-in" device properties.
+ * @fwnode: Handle to be pointed to by the fwnode field of struct device.
+ * @properties: Array of properties terminated with a null entry.
+ */
+struct property_set {
+	struct fwnode_handle fwnode;
+	struct property_entry *properties;
+};
+
+void device_add_property_set(struct device *dev, struct property_set *pset);
+
+bool device_dma_is_coherent(struct device *dev);
+
+int device_get_phy_mode(struct device *dev);
+
+void *device_get_mac_address(struct device *dev, char *addr, int alen);
 
 #endif /* _LINUX_PROPERTY_H_ */

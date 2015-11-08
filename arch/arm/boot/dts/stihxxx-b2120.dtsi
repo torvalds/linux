@@ -47,6 +47,14 @@
 			status = "okay";
 		};
 
+		mmc0: sdhci@09060000 {
+			status = "okay";
+		};
+
+		mmc1: sdhci@09080000 {
+			status = "okay";
+		};
+
 		/* SSC11 to HDMI */
 		hdmiddc: i2c@9541000 {
 			status = "okay";
@@ -66,5 +74,10 @@
 				st,osc-force-ext;
 			};
 		};
+
+		st_dwc3: dwc3@8f94000 {
+			status = "okay";
+		};
+
 	};
 };

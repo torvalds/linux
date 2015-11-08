@@ -98,11 +98,10 @@ static int integrator_set_target(struct cpufreq_policy *policy,
 	/* get current setting */
 	cm_osc = __raw_readl(cm_base + INTEGRATOR_HDR_OSC_OFFSET);
 
-	if (machine_is_integrator()) {
+	if (machine_is_integrator())
 		vco.s = (cm_osc >> 8) & 7;
-	} else if (machine_is_cintegrator()) {
+	else if (machine_is_cintegrator())
 		vco.s = 1;
-	}
 	vco.v = cm_osc & 255;
 	vco.r = 22;
 	freqs.old = icst_hz(&cclk_params, vco) / 1000;
@@ -163,11 +162,10 @@ static unsigned int integrator_get(unsigned int cpu)
 	/* detect memory etc. */
 	cm_osc = __raw_readl(cm_base + INTEGRATOR_HDR_OSC_OFFSET);
 
-	if (machine_is_integrator()) {
+	if (machine_is_integrator())
 		vco.s = (cm_osc >> 8) & 7;
-	} else {
+	else
 		vco.s = 1;
-	}
 	vco.v = cm_osc & 255;
 	vco.r = 22;
 
@@ -203,7 +201,7 @@ static int __init integrator_cpufreq_probe(struct platform_device *pdev)
 	struct resource *res;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-        if (!res)
+	if (!res)
 		return -ENODEV;
 
 	cm_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
@@ -223,6 +221,8 @@ static const struct of_device_id integrator_cpufreq_match[] = {
 	{ },
 };
 
+MODULE_DEVICE_TABLE(of, integrator_cpufreq_match);
+
 static struct platform_driver integrator_cpufreq_driver = {
 	.driver = {
 		.name = "integrator-cpufreq",
@@ -234,6 +234,6 @@ static struct platform_driver integrator_cpufreq_driver = {
 module_platform_driver_probe(integrator_cpufreq_driver,
 			     integrator_cpufreq_probe);
 
-MODULE_AUTHOR ("Russell M. King");
-MODULE_DESCRIPTION ("cpufreq driver for ARM Integrator CPUs");
-MODULE_LICENSE ("GPL");
+MODULE_AUTHOR("Russell M. King");
+MODULE_DESCRIPTION("cpufreq driver for ARM Integrator CPUs");
+MODULE_LICENSE("GPL");

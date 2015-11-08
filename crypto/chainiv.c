@@ -80,44 +80,37 @@ unlock:
 	return err;
 }
 
-static int chainiv_givencrypt_first(struct skcipher_givcrypt_request *req)
+static int chainiv_init_common(struct crypto_tfm *tfm, char iv[])
 {
-	struct crypto_ablkcipher *geniv = skcipher_givcrypt_reqtfm(req);
-	struct chainiv_ctx *ctx = crypto_ablkcipher_ctx(geniv);
+	struct crypto_ablkcipher *geniv = __crypto_ablkcipher_cast(tfm);
 	int err = 0;
 
-	spin_lock_bh(&ctx->lock);
-	if (crypto_ablkcipher_crt(geniv)->givencrypt !=
-	    chainiv_givencrypt_first)
-		goto unlock;
-
-	crypto_ablkcipher_crt(geniv)->givencrypt = chainiv_givencrypt;
-	err = crypto_rng_get_bytes(crypto_default_rng, ctx->iv,
-				   crypto_ablkcipher_ivsize(geniv));
-
-unlock:
-	spin_unlock_bh(&ctx->lock);
-
-	if (err)
-		return err;
-
-	return chainiv_givencrypt(req);
-}
-
-static int chainiv_init_common(struct crypto_tfm *tfm)
-{
 	tfm->crt_ablkcipher.reqsize = sizeof(struct ablkcipher_request);
 
-	return skcipher_geniv_init(tfm);
+	if (iv) {
+		err = crypto_rng_get_bytes(crypto_default_rng, iv,
+					   crypto_ablkcipher_ivsize(geniv));
+		crypto_put_default_rng();
+	}
+
+	return err ?: skcipher_geniv_init(tfm);
 }
 
 static int chainiv_init(struct crypto_tfm *tfm)
 {
+	struct crypto_ablkcipher *geniv = __crypto_ablkcipher_cast(tfm);
 	struct chainiv_ctx *ctx = crypto_tfm_ctx(tfm);
+	char *iv;
 
 	spin_lock_init(&ctx->lock);
 
-	return chainiv_init_common(tfm);
+	iv = NULL;
+	if (!crypto_get_default_rng()) {
+		crypto_ablkcipher_crt(geniv)->givencrypt = chainiv_givencrypt;
+		iv = ctx->iv;
+	}
+
+	return chainiv_init_common(tfm, iv);
 }
 
 static int async_chainiv_schedule_work(struct async_chainiv_ctx *ctx)
@@ -205,33 +198,6 @@ postpone:
 	return async_chainiv_postpone_request(req);
 }
 
-static int async_chainiv_givencrypt_first(struct skcipher_givcrypt_request *req)
-{
-	struct crypto_ablkcipher *geniv = skcipher_givcrypt_reqtfm(req);
-	struct async_chainiv_ctx *ctx = crypto_ablkcipher_ctx(geniv);
-	int err = 0;
-
-	if (test_and_set_bit(CHAINIV_STATE_INUSE, &ctx->state))
-		goto out;
-
-	if (crypto_ablkcipher_crt(geniv)->givencrypt !=
-	    async_chainiv_givencrypt_first)
-		goto unlock;
-
-	crypto_ablkcipher_crt(geniv)->givencrypt = async_chainiv_givencrypt;
-	err = crypto_rng_get_bytes(crypto_default_rng, ctx->iv,
-				   crypto_ablkcipher_ivsize(geniv));
-
-unlock:
-	clear_bit(CHAINIV_STATE_INUSE, &ctx->state);
-
-	if (err)
-		return err;
-
-out:
-	return async_chainiv_givencrypt(req);
-}
-
 static void async_chainiv_do_postponed(struct work_struct *work)
 {
 	struct async_chainiv_ctx *ctx = container_of(work,
@@ -263,14 +229,23 @@ static void async_chainiv_do_postponed(struct work_struct *work)
 
 static int async_chainiv_init(struct crypto_tfm *tfm)
 {
+	struct crypto_ablkcipher *geniv = __crypto_ablkcipher_cast(tfm);
 	struct async_chainiv_ctx *ctx = crypto_tfm_ctx(tfm);
+	char *iv;
 
 	spin_lock_init(&ctx->lock);
 
 	crypto_init_queue(&ctx->queue, 100);
 	INIT_WORK(&ctx->postponed, async_chainiv_do_postponed);
 
-	return chainiv_init_common(tfm);
+	iv = NULL;
+	if (!crypto_get_default_rng()) {
+		crypto_ablkcipher_crt(geniv)->givencrypt =
+			async_chainiv_givencrypt;
+		iv = ctx->iv;
+	}
+
+	return chainiv_init_common(tfm, iv);
 }
 
 static void async_chainiv_exit(struct crypto_tfm *tfm)
@@ -288,21 +263,14 @@ static struct crypto_instance *chainiv_alloc(struct rtattr **tb)
 {
 	struct crypto_attr_type *algt;
 	struct crypto_instance *inst;
-	int err;
 
 	algt = crypto_get_attr_type(tb);
 	if (IS_ERR(algt))
 		return ERR_CAST(algt);
 
-	err = crypto_get_default_rng();
-	if (err)
-		return ERR_PTR(err);
-
 	inst = skcipher_geniv_alloc(&chainiv_tmpl, tb, 0, 0);
 	if (IS_ERR(inst))
-		goto put_rng;
-
-	inst->alg.cra_ablkcipher.givencrypt = chainiv_givencrypt_first;
+		goto out;
 
 	inst->alg.cra_init = chainiv_init;
 	inst->alg.cra_exit = skcipher_geniv_exit;
@@ -311,9 +279,6 @@ static struct crypto_instance *chainiv_alloc(struct rtattr **tb)
 
 	if (!crypto_requires_sync(algt->type, algt->mask)) {
 		inst->alg.cra_flags |= CRYPTO_ALG_ASYNC;
-
-		inst->alg.cra_ablkcipher.givencrypt =
-			async_chainiv_givencrypt_first;
 
 		inst->alg.cra_init = async_chainiv_init;
 		inst->alg.cra_exit = async_chainiv_exit;
@@ -325,22 +290,12 @@ static struct crypto_instance *chainiv_alloc(struct rtattr **tb)
 
 out:
 	return inst;
-
-put_rng:
-	crypto_put_default_rng();
-	goto out;
-}
-
-static void chainiv_free(struct crypto_instance *inst)
-{
-	skcipher_geniv_free(inst);
-	crypto_put_default_rng();
 }
 
 static struct crypto_template chainiv_tmpl = {
 	.name = "chainiv",
 	.alloc = chainiv_alloc,
-	.free = chainiv_free,
+	.free = skcipher_geniv_free,
 	.module = THIS_MODULE,
 };
 

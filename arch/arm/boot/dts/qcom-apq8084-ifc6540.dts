@@ -1,8 +1,17 @@
 #include "qcom-apq8084.dtsi"
+#include "qcom-pma8084.dtsi"
 
 / {
 	model = "Qualcomm APQ8084/IFC6540";
 	compatible = "qcom,apq8084-ifc6540", "qcom,apq8084";
+
+	aliases {
+		serial0 = &blsp2_uart2;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
 
 	soc {
 		serial@f995e000 {

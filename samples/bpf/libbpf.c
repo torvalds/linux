@@ -81,7 +81,7 @@ char bpf_log_buf[LOG_BUF_SIZE];
 
 int bpf_prog_load(enum bpf_prog_type prog_type,
 		  const struct bpf_insn *insns, int prog_len,
-		  const char *license)
+		  const char *license, int kern_version)
 {
 	union bpf_attr attr = {
 		.prog_type = prog_type,
@@ -93,9 +93,33 @@ int bpf_prog_load(enum bpf_prog_type prog_type,
 		.log_level = 1,
 	};
 
+	/* assign one field outside of struct init to make sure any
+	 * padding is zero initialized
+	 */
+	attr.kern_version = kern_version;
+
 	bpf_log_buf[0] = 0;
 
 	return syscall(__NR_bpf, BPF_PROG_LOAD, &attr, sizeof(attr));
+}
+
+int bpf_obj_pin(int fd, const char *pathname)
+{
+	union bpf_attr attr = {
+		.pathname	= ptr_to_u64((void *)pathname),
+		.bpf_fd		= fd,
+	};
+
+	return syscall(__NR_bpf, BPF_OBJ_PIN, &attr, sizeof(attr));
+}
+
+int bpf_obj_get(const char *pathname)
+{
+	union bpf_attr attr = {
+		.pathname	= ptr_to_u64((void *)pathname),
+	};
+
+	return syscall(__NR_bpf, BPF_OBJ_GET, &attr, sizeof(attr));
 }
 
 int open_raw_sock(const char *name)
@@ -120,4 +144,11 @@ int open_raw_sock(const char *name)
 	}
 
 	return sock;
+}
+
+int perf_event_open(struct perf_event_attr *attr, int pid, int cpu,
+		    int group_fd, unsigned long flags)
+{
+	return syscall(__NR_perf_event_open, attr, pid, cpu,
+		       group_fd, flags);
 }

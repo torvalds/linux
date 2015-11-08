@@ -491,7 +491,7 @@ static void ibmvtpm_crq_process(struct ibmvtpm_crq *crq,
 			}
 			ibmvtpm->rtce_size = be16_to_cpu(crq->len);
 			ibmvtpm->rtce_buf = kmalloc(ibmvtpm->rtce_size,
-						    GFP_KERNEL);
+						    GFP_ATOMIC);
 			if (!ibmvtpm->rtce_buf) {
 				dev_err(ibmvtpm->dev, "Failed to allocate memory for rtce buffer\n");
 				return;
@@ -578,6 +578,9 @@ static int tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
 		goto cleanup;
 	}
 
+	ibmvtpm->dev = dev;
+	ibmvtpm->vdev = vio_dev;
+
 	crq_q = &ibmvtpm->crq_queue;
 	crq_q->crq_addr = (struct ibmvtpm_crq *)get_zeroed_page(GFP_KERNEL);
 	if (!crq_q->crq_addr) {
@@ -622,8 +625,6 @@ static int tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
 
 	crq_q->index = 0;
 
-	ibmvtpm->dev = dev;
-	ibmvtpm->vdev = vio_dev;
 	TPM_VPRIV(chip) = (void *)ibmvtpm;
 
 	spin_lock_init(&ibmvtpm->rtce_lock);

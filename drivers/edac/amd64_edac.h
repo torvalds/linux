@@ -2,64 +2,10 @@
  * AMD64 class Memory Controller kernel module
  *
  * Copyright (c) 2009 SoftwareBitMaker.
- * Copyright (c) 2009 Advanced Micro Devices, Inc.
+ * Copyright (c) 2009-15 Advanced Micro Devices, Inc.
  *
  * This file may be distributed under the terms of the
  * GNU General Public License.
- *
- *	Originally Written by Thayne Harbaugh
- *
- *      Changes by Douglas "norsk" Thompson  <dougthompson@xmission.com>:
- *		- K8 CPU Revision D and greater support
- *
- *      Changes by Dave Peterson <dsp@llnl.gov> <dave_peterson@pobox.com>:
- *		- Module largely rewritten, with new (and hopefully correct)
- *		code for dealing with node and chip select interleaving,
- *		various code cleanup, and bug fixes
- *		- Added support for memory hoisting using DRAM hole address
- *		register
- *
- *	Changes by Douglas "norsk" Thompson <dougthompson@xmission.com>:
- *		-K8 Rev (1207) revision support added, required Revision
- *		specific mini-driver code to support Rev F as well as
- *		prior revisions
- *
- *	Changes by Douglas "norsk" Thompson <dougthompson@xmission.com>:
- *		-Family 10h revision support added. New PCI Device IDs,
- *		indicating new changes. Actual registers modified
- *		were slight, less than the Rev E to Rev F transition
- *		but changing the PCI Device ID was the proper thing to
- *		do, as it provides for almost automactic family
- *		detection. The mods to Rev F required more family
- *		information detection.
- *
- *	Changes/Fixes by Borislav Petkov <bp@alien8.de>:
- *		- misc fixes and code cleanups
- *
- * This module is based on the following documents
- * (available from http://www.amd.com/):
- *
- *	Title:	BIOS and Kernel Developer's Guide for AMD Athlon 64 and AMD
- *		Opteron Processors
- *	AMD publication #: 26094
- *`	Revision: 3.26
- *
- *	Title:	BIOS and Kernel Developer's Guide for AMD NPT Family 0Fh
- *		Processors
- *	AMD publication #: 32559
- *	Revision: 3.00
- *	Issue Date: May 2006
- *
- *	Title:	BIOS and Kernel Developer's Guide (BKDG) For AMD Family 10h
- *		Processors
- *	AMD publication #: 31116
- *	Revision: 3.00
- *	Issue Date: September 07, 2007
- *
- * Sections in the first 2 documents are no longer in sync with each other.
- * The Family 10h BKDG was totally re-written from scratch with a new
- * presentation model.
- * Therefore, comments that refer to a Document section might be off.
  */
 
 #include <linux/module.h>
@@ -254,6 +200,8 @@
 #define SWAP_INTLV_REG			0x10c
 
 #define DCT_SEL_HI			0x114
+
+#define F15H_M60H_SCRCTRL		0x1C8
 
 /*
  * Function 3 - Misc Control
@@ -453,31 +401,11 @@ struct ecc_settings {
 };
 
 #ifdef CONFIG_EDAC_DEBUG
-int amd64_create_sysfs_dbg_files(struct mem_ctl_info *mci);
-void amd64_remove_sysfs_dbg_files(struct mem_ctl_info *mci);
-
-#else
-static inline int amd64_create_sysfs_dbg_files(struct mem_ctl_info *mci)
-{
-	return 0;
-}
-static void inline amd64_remove_sysfs_dbg_files(struct mem_ctl_info *mci)
-{
-}
+extern const struct attribute_group amd64_edac_dbg_group;
 #endif
 
 #ifdef CONFIG_EDAC_AMD64_ERROR_INJECTION
-int amd64_create_sysfs_inject_files(struct mem_ctl_info *mci);
-void amd64_remove_sysfs_inject_files(struct mem_ctl_info *mci);
-
-#else
-static inline int amd64_create_sysfs_inject_files(struct mem_ctl_info *mci)
-{
-	return 0;
-}
-static inline void amd64_remove_sysfs_inject_files(struct mem_ctl_info *mci)
-{
-}
+extern const struct attribute_group amd64_edac_inj_group;
 #endif
 
 /*

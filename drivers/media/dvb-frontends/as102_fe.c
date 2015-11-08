@@ -32,7 +32,7 @@ struct as102_state {
 	uint32_t ber;
 };
 
-static uint8_t as102_fe_get_code_rate(fe_code_rate_t arg)
+static uint8_t as102_fe_get_code_rate(enum fe_code_rate arg)
 {
 	uint8_t c;
 
@@ -306,7 +306,7 @@ static int as102_fe_get_tune_settings(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int as102_fe_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int as102_fe_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	int ret = 0;
 	struct as102_state *state = fe->demodulator_priv;

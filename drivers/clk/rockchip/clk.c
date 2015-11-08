@@ -39,7 +39,7 @@
  * sometimes without one of those components.
  */
 static struct clk *rockchip_clk_register_branch(const char *name,
-		const char **parent_names, u8 num_parents, void __iomem *base,
+		const char *const *parent_names, u8 num_parents, void __iomem *base,
 		int muxdiv_offset, u8 mux_shift, u8 mux_width, u8 mux_flags,
 		u8 div_shift, u8 div_width, u8 div_flags,
 		struct clk_div_table *div_table, int gate_offset,
@@ -103,8 +103,8 @@ static struct clk *rockchip_clk_register_branch(const char *name,
 }
 
 static struct clk *rockchip_clk_register_frac_branch(const char *name,
-		const char **parent_names, u8 num_parents, void __iomem *base,
-		int muxdiv_offset, u8 div_flags,
+		const char *const *parent_names, u8 num_parents,
+		void __iomem *base, int muxdiv_offset, u8 div_flags,
 		int gate_offset, u8 gate_shift, u8 gate_flags,
 		unsigned long flags, spinlock_t *lock)
 {
@@ -135,9 +135,11 @@ static struct clk *rockchip_clk_register_frac_branch(const char *name,
 	div->flags = div_flags;
 	div->reg = base + muxdiv_offset;
 	div->mshift = 16;
-	div->mmask = 0xffff0000;
+	div->mwidth = 16;
+	div->mmask = GENMASK(div->mwidth - 1, 0) << div->mshift;
 	div->nshift = 0;
-	div->nmask = 0xffff;
+	div->nwidth = 16;
+	div->nmask = GENMASK(div->nwidth - 1, 0) << div->nshift;
 	div->lock = lock;
 	div_ops = &clk_fractional_divider_ops;
 
@@ -277,6 +279,13 @@ void __init rockchip_clk_register_branches(
 				list->div_shift
 			);
 			break;
+		case branch_inverter:
+			clk = rockchip_clk_register_inverter(
+				list->name, list->parent_names,
+				list->num_parents,
+				reg_base + list->muxdiv_offset,
+				list->div_shift, list->div_flags, &clk_lock);
+			break;
 		}
 
 		/* none of the cases above matched */
@@ -297,7 +306,7 @@ void __init rockchip_clk_register_branches(
 }
 
 void __init rockchip_clk_register_armclk(unsigned int lookup_id,
-			const char *name, const char **parent_names,
+			const char *name, const char *const *parent_names,
 			u8 num_parents,
 			const struct rockchip_cpuclk_reg_data *reg_data,
 			const struct rockchip_cpuclk_rate_table *rates,
@@ -317,7 +326,8 @@ void __init rockchip_clk_register_armclk(unsigned int lookup_id,
 	rockchip_clk_add_lookup(clk, lookup_id);
 }
 
-void __init rockchip_clk_protect_critical(const char *clocks[], int nclocks)
+void __init rockchip_clk_protect_critical(const char *const clocks[],
+					  int nclocks)
 {
 	int i;
 

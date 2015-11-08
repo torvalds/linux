@@ -103,7 +103,7 @@ record_it:
 		memcpy((void *) t + sizeof(*t), data, len);
 
 		if (blk_tracer)
-			trace_buffer_unlock_commit(buffer, event, 0, pc);
+			trace_buffer_unlock_commit(blk_tr, buffer, event, 0, pc);
 	}
 }
 
@@ -278,7 +278,7 @@ record_it:
 			memcpy((void *) t + sizeof(*t), pdu_data, pdu_len);
 
 		if (blk_tracer) {
-			trace_buffer_unlock_commit(buffer, event, 0, pc);
+			trace_buffer_unlock_commit(blk_tr, buffer, event, 0, pc);
 			return;
 		}
 	}
@@ -437,9 +437,9 @@ int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 		       struct block_device *bdev,
 		       struct blk_user_trace_setup *buts)
 {
-	struct blk_trace *old_bt, *bt = NULL;
+	struct blk_trace *bt = NULL;
 	struct dentry *dir = NULL;
-	int ret, i;
+	int ret;
 
 	if (!buts->buf_size || !buts->buf_nr)
 		return -EINVAL;
@@ -451,9 +451,7 @@ int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	 * some device names have larger paths - convert the slashes
 	 * to underscores for this to work as expected
 	 */
-	for (i = 0; i < strlen(buts->name); i++)
-		if (buts->name[i] == '/')
-			buts->name[i] = '_';
+	strreplace(buts->name, '/', '_');
 
 	bt = kzalloc(sizeof(*bt), GFP_KERNEL);
 	if (!bt)
@@ -521,11 +519,8 @@ int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	bt->trace_state = Blktrace_setup;
 
 	ret = -EBUSY;
-	old_bt = xchg(&q->blk_trace, bt);
-	if (old_bt) {
-		(void) xchg(&q->blk_trace, old_bt);
+	if (cmpxchg(&q->blk_trace, NULL, bt))
 		goto err;
-	}
 
 	if (atomic_inc_return(&blk_probes_ref) == 1)
 		blk_register_tracepoints();
@@ -780,9 +775,6 @@ static void blk_add_trace_bio(struct request_queue *q, struct bio *bio,
 	if (likely(!bt))
 		return;
 
-	if (!error && !bio_flagged(bio, BIO_UPTODATE))
-		error = EIO;
-
 	__blk_add_trace(bt, bio->bi_iter.bi_sector, bio->bi_iter.bi_size,
 			bio->bi_rw, what, error, 0, NULL);
 }
@@ -889,8 +881,7 @@ static void blk_add_trace_split(void *ignore,
 
 		__blk_add_trace(bt, bio->bi_iter.bi_sector,
 				bio->bi_iter.bi_size, bio->bi_rw, BLK_TA_SPLIT,
-				!bio_flagged(bio, BIO_UPTODATE),
-				sizeof(rpdu), &rpdu);
+				bio->bi_error, sizeof(rpdu), &rpdu);
 	}
 }
 
@@ -922,8 +913,8 @@ static void blk_add_trace_bio_remap(void *ignore,
 	r.sector_from = cpu_to_be64(from);
 
 	__blk_add_trace(bt, bio->bi_iter.bi_sector, bio->bi_iter.bi_size,
-			bio->bi_rw, BLK_TA_REMAP,
-			!bio_flagged(bio, BIO_UPTODATE), sizeof(r), &r);
+			bio->bi_rw, BLK_TA_REMAP, bio->bi_error,
+			sizeof(r), &r);
 }
 
 /**
@@ -1349,6 +1340,7 @@ static const struct {
 static enum print_line_t print_one_line(struct trace_iterator *iter,
 					bool classic)
 {
+	struct trace_array *tr = iter->tr;
 	struct trace_seq *s = &iter->seq;
 	const struct blk_io_trace *t;
 	u16 what;
@@ -1357,7 +1349,7 @@ static enum print_line_t print_one_line(struct trace_iterator *iter,
 
 	t	   = te_blk_io_trace(iter->ent);
 	what	   = t->action & ((1 << BLK_TC_SHIFT) - 1);
-	long_act   = !!(trace_flags & TRACE_ITER_VERBOSE);
+	long_act   = !!(tr->trace_flags & TRACE_ITER_VERBOSE);
 	log_action = classic ? &blk_log_action_classic : &blk_log_action;
 
 	if (t->action == BLK_TN_MESSAGE) {
@@ -1419,9 +1411,9 @@ blk_tracer_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 	/* don't output context-info for blk_classic output */
 	if (bit == TRACE_BLK_OPT_CLASSIC) {
 		if (set)
-			trace_flags &= ~TRACE_ITER_CONTEXT_INFO;
+			tr->trace_flags &= ~TRACE_ITER_CONTEXT_INFO;
 		else
-			trace_flags |= TRACE_ITER_CONTEXT_INFO;
+			tr->trace_flags |= TRACE_ITER_CONTEXT_INFO;
 	}
 	return 0;
 }
@@ -1450,14 +1442,14 @@ static struct trace_event trace_blk_event = {
 
 static int __init init_blk_tracer(void)
 {
-	if (!register_ftrace_event(&trace_blk_event)) {
+	if (!register_trace_event(&trace_blk_event)) {
 		pr_warning("Warning: could not register block events\n");
 		return 1;
 	}
 
 	if (register_tracer(&blk_tracer) != 0) {
 		pr_warning("Warning: could not register the block tracer\n");
-		unregister_ftrace_event(&trace_blk_event);
+		unregister_trace_event(&trace_blk_event);
 		return 1;
 	}
 
@@ -1487,7 +1479,7 @@ static int blk_trace_remove_queue(struct request_queue *q)
 static int blk_trace_setup_queue(struct request_queue *q,
 				 struct block_device *bdev)
 {
-	struct blk_trace *old_bt, *bt = NULL;
+	struct blk_trace *bt = NULL;
 	int ret = -ENOMEM;
 
 	bt = kzalloc(sizeof(*bt), GFP_KERNEL);
@@ -1503,12 +1495,9 @@ static int blk_trace_setup_queue(struct request_queue *q,
 
 	blk_trace_setup_lba(bt, bdev);
 
-	old_bt = xchg(&q->blk_trace, bt);
-	if (old_bt != NULL) {
-		(void)xchg(&q->blk_trace, old_bt);
-		ret = -EBUSY;
+	ret = -EBUSY;
+	if (cmpxchg(&q->blk_trace, NULL, bt))
 		goto free_bt;
-	}
 
 	if (atomic_inc_return(&blk_probes_ref) == 1)
 		blk_register_tracepoints();

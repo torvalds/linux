@@ -246,7 +246,7 @@ static int mipsxx_perfcount_handler(void)
 	unsigned int counter;
 	int handled = IRQ_NONE;
 
-	if (cpu_has_mips_r2 && !(read_c0_cause() & (1 << 26)))
+	if (cpu_has_mips_r2 && !(read_c0_cause() & CAUSEF_PCI))
 		return handled;
 
 	switch (counters) {
@@ -296,6 +296,7 @@ static inline int n_counters(void)
 
 	case CPU_R12000:
 	case CPU_R14000:
+	case CPU_R16000:
 		counters = 4;
 		break;
 
@@ -391,6 +392,10 @@ static int __init mipsxx_init(void)
 		op_model_mipsxx_ops.cpu_type = "mips/P5600";
 		break;
 
+	case CPU_I6400:
+		op_model_mipsxx_ops.cpu_type = "mips/I6400";
+		break;
+
 	case CPU_M5150:
 		op_model_mipsxx_ops.cpu_type = "mips/M5150";
 		break;
@@ -409,6 +414,10 @@ static int __init mipsxx_init(void)
 	case CPU_R12000:
 	case CPU_R14000:
 		op_model_mipsxx_ops.cpu_type = "mips/r12000";
+		break;
+
+	case CPU_R16000:
+		op_model_mipsxx_ops.cpu_type = "mips/r16000";
 		break;
 
 	case CPU_SB1:
@@ -435,15 +444,17 @@ static int __init mipsxx_init(void)
 
 	if (get_c0_perfcount_int)
 		perfcount_irq = get_c0_perfcount_int();
-	else if ((cp0_perfcount_irq >= 0) &&
-		 (cp0_compare_irq != cp0_perfcount_irq))
+	else if (cp0_perfcount_irq >= 0)
 		perfcount_irq = MIPS_CPU_IRQ_BASE + cp0_perfcount_irq;
 	else
 		perfcount_irq = -1;
 
 	if (perfcount_irq >= 0)
 		return request_irq(perfcount_irq, mipsxx_perfcount_int,
-			0, "Perfcounter", save_perf_irq);
+				   IRQF_PERCPU | IRQF_NOBALANCING |
+				   IRQF_NO_THREAD | IRQF_NO_SUSPEND |
+				   IRQF_SHARED,
+				   "Perfcounter", save_perf_irq);
 
 	return 0;
 }

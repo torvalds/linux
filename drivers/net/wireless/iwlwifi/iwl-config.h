@@ -92,9 +92,9 @@ static inline bool iwl_has_secure_boot(u32 hw_rev,
 {
 	/* return 1 only for family 8000 B0 */
 	if ((family == IWL_DEVICE_FAMILY_8000) && (hw_rev & 0xC))
-		return 1;
+		return true;
 
-	return 0;
+	return false;
 }
 
 /*
@@ -195,6 +195,49 @@ struct iwl_ht_params {
 };
 
 /*
+ * Tx-backoff threshold
+ * @temperature: The threshold in Celsius
+ * @backoff: The tx-backoff in uSec
+ */
+struct iwl_tt_tx_backoff {
+	s32 temperature;
+	u32 backoff;
+};
+
+#define TT_TX_BACKOFF_SIZE 6
+
+/**
+ * struct iwl_tt_params - thermal throttling parameters
+ * @ct_kill_entry: CT Kill entry threshold
+ * @ct_kill_exit: CT Kill exit threshold
+ * @ct_kill_duration: The time  intervals (in uSec) in which the driver needs
+ *	to checks whether to exit CT Kill.
+ * @dynamic_smps_entry: Dynamic SMPS entry threshold
+ * @dynamic_smps_exit: Dynamic SMPS exit threshold
+ * @tx_protection_entry: TX protection entry threshold
+ * @tx_protection_exit: TX protection exit threshold
+ * @tx_backoff: Array of thresholds for tx-backoff , in ascending order.
+ * @support_ct_kill: Support CT Kill?
+ * @support_dynamic_smps: Support dynamic SMPS?
+ * @support_tx_protection: Support tx protection?
+ * @support_tx_backoff: Support tx-backoff?
+ */
+struct iwl_tt_params {
+	u32 ct_kill_entry;
+	u32 ct_kill_exit;
+	u32 ct_kill_duration;
+	u32 dynamic_smps_entry;
+	u32 dynamic_smps_exit;
+	u32 tx_protection_entry;
+	u32 tx_protection_exit;
+	struct iwl_tt_tx_backoff tx_backoff[TT_TX_BACKOFF_SIZE];
+	bool support_ct_kill;
+	bool support_dynamic_smps;
+	bool support_tx_protection;
+	bool support_tx_backoff;
+};
+
+/*
  * information on how to parse the EEPROM
  */
 #define EEPROM_REG_BAND_1_CHANNELS		0x08
@@ -228,7 +271,7 @@ struct iwl_pwr_tx_backoff {
 
 /**
  * struct iwl_cfg
- * @name: Offical name of the device
+ * @name: Official name of the device
  * @fw_name_pre: Firmware filename prefix. The api version and extension
  *	(.ucode) will be added to filename before loading from disk. The
  *	filename is constructed as fw_name_pre<api>.ucode.
@@ -254,6 +297,7 @@ struct iwl_pwr_tx_backoff {
  *	mode set
  * @d0i3: device uses d0i3 instead of d3
  * @nvm_hw_section_num: the ID of the HW NVM section
+ * @features: hw features, any combination of feature_whitelist
  * @pwr_tx_backoffs: translation table between power limits and backoffs
  * @max_rx_agg_size: max RX aggregation size of the ADDBA request/response
  * @max_tx_agg_size: max TX aggregation size of the ADDBA request/response
@@ -303,8 +347,9 @@ struct iwl_cfg {
 	bool lp_xtal_workaround;
 	const struct iwl_pwr_tx_backoff *pwr_tx_backoffs;
 	bool no_power_up_nic_in_init;
-	const char *default_nvm_file;
-	const char *default_nvm_file_8000A;
+	const char *default_nvm_file_B_step;
+	const char *default_nvm_file_C_step;
+	netdev_features_t features;
 	unsigned int max_rx_agg_size;
 	bool disable_dummy_notification;
 	unsigned int max_tx_agg_size;
@@ -316,6 +361,8 @@ struct iwl_cfg {
 	const u32 dccm2_len;
 	const u32 smem_offset;
 	const u32 smem_len;
+	const struct iwl_tt_params *thermal_params;
+	bool apmg_not_supported;
 };
 
 /*

@@ -1,20 +1,35 @@
 config DTC
 	bool
 
-config OF
-	bool
+menuconfig OF
+	bool "Device Tree and Open Firmware support"
+	help
+	  This option enables the device tree infrastructure.
+	  It is automatically selected by platforms that need it or can
+	  be enabled manually for unittests, overlays or
+	  compile-coverage.
 
-menu "Device Tree and Open Firmware support"
-	depends on OF
+if OF
 
 config OF_UNITTEST
 	bool "Device Tree runtime unit tests"
-	depends on OF_IRQ && OF_EARLY_FLATTREE
+	depends on OF_IRQ
+	select OF_EARLY_FLATTREE
 	select OF_RESOLVE
 	help
 	  This option builds in test cases for the device tree infrastructure
 	  that are executed once at boot time, and the results dumped to the
 	  console.
+
+	  If unsure, say N here, but this option is safe to enable.
+
+config OF_ALL_DTBS
+	bool "Build all Device Tree Blobs"
+	depends on COMPILE_TEST
+	select DTC
+	help
+	  This option builds all possible Device Tree Blobs (DTBs) for the
+	  current architecture.
 
 	  If unsure, say N here, but this option is safe to enable.
 
@@ -34,11 +49,15 @@ config OF_PROMTREE
 # Hardly any platforms need this.  It is safe to select, but only do so if you
 # need it.
 config OF_DYNAMIC
-	bool
+	bool "Support for dynamic device trees" if OF_UNITTEST
+	help
+	  On some platforms, the device tree can be manipulated at runtime.
+	  While this option is selected automatically on such platforms, you
+	  can enable it manually to improve device tree unit test coverage.
 
 config OF_ADDRESS
 	def_bool y
-	depends on !SPARC
+	depends on !SPARC && HAS_IOMEM
 	select OF_ADDRESS_PCI if PCI
 
 config OF_ADDRESS_PCI
@@ -46,7 +65,7 @@ config OF_ADDRESS_PCI
 
 config OF_IRQ
 	def_bool y
-	depends on !SPARC
+	depends on !SPARC && IRQ_DOMAIN
 
 config OF_NET
 	depends on NETDEVICES
@@ -87,5 +106,10 @@ config OF_OVERLAY
 	bool "Device Tree overlays"
 	select OF_DYNAMIC
 	select OF_RESOLVE
+	help
+	  Overlays are a method to dynamically modify part of the kernel's
+	  device tree with dynamically loaded data.
+	  While this option is selected automatically when needed, you can
+	  enable it manually to improve device tree unit test coverage.
 
-endmenu # OF
+endif # OF

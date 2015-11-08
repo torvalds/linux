@@ -33,11 +33,11 @@ extern wait_queue_head_t netdev_unregistering_wq;
 extern struct mutex net_mutex;
 
 #ifdef CONFIG_PROVE_LOCKING
-extern int lockdep_rtnl_is_held(void);
+extern bool lockdep_rtnl_is_held(void);
 #else
-static inline int lockdep_rtnl_is_held(void)
+static inline bool lockdep_rtnl_is_held(void)
 {
-	return 1;
+	return true;
 }
 #endif /* #ifdef CONFIG_PROVE_LOCKING */
 
@@ -77,7 +77,12 @@ static inline struct netdev_queue *dev_ingress_queue(struct net_device *dev)
 	return rtnl_dereference(dev->ingress_queue);
 }
 
-extern struct netdev_queue *dev_ingress_queue_create(struct net_device *dev);
+struct netdev_queue *dev_ingress_queue_create(struct net_device *dev);
+
+#ifdef CONFIG_NET_INGRESS
+void net_inc_ingress_queue(void);
+void net_dec_ingress_queue(void);
+#endif
 
 extern void rtnetlink_init(void);
 extern void __rtnl_unlock(void);
@@ -109,5 +114,9 @@ extern int ndo_dflt_fdb_del(struct ndmsg *ndm,
 
 extern int ndo_dflt_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 				   struct net_device *dev, u16 mode,
-				   u32 flags, u32 mask);
+				   u32 flags, u32 mask, int nlflags,
+				   u32 filter_mask,
+				   int (*vlan_fill)(struct sk_buff *skb,
+						    struct net_device *dev,
+						    u32 filter_mask));
 #endif	/* __LINUX_RTNETLINK_H */

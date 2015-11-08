@@ -60,30 +60,6 @@ struct	__queue	{
 #define LIST_CONTAINOR(ptr, type, member) \
 	((type *)((char *)(ptr)-(SIZE_T)(&((type *)0)->member)))
 
-static inline void _init_timer(struct timer_list *ptimer,
-			       struct  net_device *padapter,
-			       void *pfunc, void *cntx)
-{
-	ptimer->function = pfunc;
-	ptimer->data = (addr_t)cntx;
-	init_timer(ptimer);
-}
-
-static inline void _set_timer(struct timer_list *ptimer, u32 delay_time)
-{
-	mod_timer(ptimer, (jiffies+msecs_to_jiffies(delay_time)));
-}
-
-static inline void _cancel_timer(struct timer_list *ptimer, u8 *bcancelled)
-{
-	del_timer(ptimer);
-	*bcancelled = true; /*true ==1; false==0*/
-}
-
-#ifndef BIT
-	#define BIT(x)	(1 << (x))
-#endif
-
 static inline u32 _down_sema(struct semaphore *sema)
 {
 	if (down_interruptible(sema))
@@ -104,11 +80,6 @@ static inline void sleep_schedulable(int ms)
 	delta = msecs_to_jiffies(ms);/*(ms)*/
 	set_current_state(TASK_INTERRUPTIBLE);
 	schedule_timeout(delta);
-}
-
-static inline unsigned char _cancel_timer_ex(struct timer_list *ptimer)
-{
-	return del_timer(ptimer);
 }
 
 static inline void flush_signals_thread(void)

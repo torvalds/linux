@@ -437,7 +437,7 @@ static int mgslpc_device_count = 0;
  * .text section address and breakpoint on module load.
  * This is useful for use with gdb and add-symbol-file command.
  */
-static bool break_on_load=0;
+static bool break_on_load;
 
 /*
  * Driver major number, defaults to zero to get auto
@@ -2506,15 +2506,6 @@ static int mgslpc_open(struct tty_struct *tty, struct file * filp)
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):mgslpc_open(%s), old ref count = %d\n",
 			 __FILE__, __LINE__, tty->driver->name, port->count);
-
-	/* If port is closing, signal caller to try again */
-	if (port->flags & ASYNC_CLOSING){
-		wait_event_interruptible_tty(tty, port->close_wait,
-					     !(port->flags & ASYNC_CLOSING));
-		retval = ((port->flags & ASYNC_HUP_NOTIFY) ?
-			-EAGAIN : -ERESTARTSYS);
-		goto cleanup;
-	}
 
 	port->low_latency = (port->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 

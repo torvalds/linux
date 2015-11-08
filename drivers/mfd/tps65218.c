@@ -211,6 +211,7 @@ static const struct of_device_id of_tps65218_match_table[] = {
 	{ .compatible = "ti,tps65218", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, of_tps65218_match_table);
 
 static int tps65218_probe(struct i2c_client *client,
 				const struct i2c_device_id *ids)
@@ -280,7 +281,6 @@ MODULE_DEVICE_TABLE(i2c, tps65218_id_table);
 static struct i2c_driver tps65218_driver = {
 	.driver		= {
 		.name	= "tps65218",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_tps65218_match_table,
 	},
 	.probe		= tps65218_probe,

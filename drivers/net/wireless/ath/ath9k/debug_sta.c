@@ -26,12 +26,11 @@ static ssize_t read_file_node_aggr(struct file *file, char __user *user_buf,
 	struct ath_node *an = file->private_data;
 	struct ath_softc *sc = an->sc;
 	struct ath_atx_tid *tid;
-	struct ath_atx_ac *ac;
 	struct ath_txq *txq;
 	u32 len = 0, size = 4096;
 	char *buf;
 	size_t retval;
-	int tidno, acno;
+	int tidno;
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (buf == NULL)
@@ -49,26 +48,13 @@ static ssize_t read_file_node_aggr(struct file *file, char __user *user_buf,
 			 an->mpdudensity);
 
 	len += scnprintf(buf + len, size - len,
-			 "%2s%7s\n", "AC", "SCHED");
-
-	for (acno = 0, ac = &an->ac[acno];
-	     acno < IEEE80211_NUM_ACS; acno++, ac++) {
-		txq = ac->txq;
-		ath_txq_lock(sc, txq);
-		len += scnprintf(buf + len, size - len,
-				 "%2d%7d\n",
-				 acno, ac->sched);
-		ath_txq_unlock(sc, txq);
-	}
-
-	len += scnprintf(buf + len, size - len,
 			 "\n%3s%11s%10s%10s%10s%10s%9s%6s%8s\n",
 			 "TID", "SEQ_START", "SEQ_NEXT", "BAW_SIZE",
 			 "BAW_HEAD", "BAW_TAIL", "BAR_IDX", "SCHED", "PAUSED");
 
 	for (tidno = 0, tid = &an->tid[tidno];
 	     tidno < IEEE80211_NUM_TIDS; tidno++, tid++) {
-		txq = tid->ac->txq;
+		txq = tid->txq;
 		ath_txq_lock(sc, txq);
 		if (tid->active) {
 			len += scnprintf(buf + len, size - len,
@@ -80,7 +66,7 @@ static ssize_t read_file_node_aggr(struct file *file, char __user *user_buf,
 					 tid->baw_head,
 					 tid->baw_tail,
 					 tid->bar_index,
-					 tid->sched);
+					 !list_empty(&tid->list));
 		}
 		ath_txq_unlock(sc, txq);
 	}

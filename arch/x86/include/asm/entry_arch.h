@@ -23,6 +23,8 @@ BUILD_INTERRUPT(x86_platform_ipi, X86_PLATFORM_IPI_VECTOR)
 #ifdef CONFIG_HAVE_KVM
 BUILD_INTERRUPT3(kvm_posted_intr_ipi, POSTED_INTR_VECTOR,
 		 smp_kvm_posted_intr_ipi)
+BUILD_INTERRUPT3(kvm_posted_intr_wakeup_ipi, POSTED_INTR_WAKEUP_VECTOR,
+		 smp_kvm_posted_intr_wakeup_ipi)
 #endif
 
 /*
@@ -50,4 +52,7 @@ BUILD_INTERRUPT(thermal_interrupt,THERMAL_APIC_VECTOR)
 BUILD_INTERRUPT(threshold_interrupt,THRESHOLD_APIC_VECTOR)
 #endif
 
+#ifdef CONFIG_X86_MCE_AMD
+BUILD_INTERRUPT(deferred_error_interrupt, DEFERRED_ERROR_VECTOR)
+#endif
 #endif

@@ -1,3 +1,4 @@
 nvkm-y += nvkm/engine/ce/gt215.o
 nvkm-y += nvkm/engine/ce/gf100.o
 nvkm-y += nvkm/engine/ce/gk104.o
+nvkm-y += nvkm/engine/ce/gm204.o

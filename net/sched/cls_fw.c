@@ -83,7 +83,7 @@ static int fw_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 			}
 		}
 	} else {
-		/* old method */
+		/* Old method: classify the packet using its skb mark. */
 		if (id && (TC_H_MAJ(id) == 0 ||
 			   !(TC_H_MAJ(id ^ tp->q->handle)))) {
 			res->classid = id;
@@ -113,6 +113,9 @@ static unsigned long fw_get(struct tcf_proto *tp, u32 handle)
 
 static int fw_init(struct tcf_proto *tp)
 {
+	/* We don't allocate fw_head here, because in the old method
+	 * we don't need it at all.
+	 */
 	return 0;
 }
 
@@ -124,14 +127,20 @@ static void fw_delete_filter(struct rcu_head *head)
 	kfree(f);
 }
 
-static void fw_destroy(struct tcf_proto *tp)
+static bool fw_destroy(struct tcf_proto *tp, bool force)
 {
 	struct fw_head *head = rtnl_dereference(tp->root);
 	struct fw_filter *f;
 	int h;
 
 	if (head == NULL)
-		return;
+		return true;
+
+	if (!force) {
+		for (h = 0; h < HTSIZE; h++)
+			if (rcu_access_pointer(head->ht[h]))
+				return false;
+	}
 
 	for (h = 0; h < HTSIZE; h++) {
 		while ((f = rtnl_dereference(head->ht[h])) != NULL) {
@@ -143,6 +152,7 @@ static void fw_destroy(struct tcf_proto *tp)
 	}
 	RCU_INIT_POINTER(tp->root, NULL);
 	kfree_rcu(head, rcu);
+	return true;
 }
 
 static int fw_delete(struct tcf_proto *tp, unsigned long arg)
@@ -236,7 +246,7 @@ static int fw_change(struct net *net, struct sk_buff *in_skb,
 	int err;
 
 	if (!opt)
-		return handle ? -EINVAL : 0;
+		return handle ? -EINVAL : 0; /* Succeed if it is old method. */
 
 	err = nla_parse_nested(tb, TCA_FW_MAX, opt, fw_policy);
 	if (err < 0)
@@ -286,13 +296,13 @@ static int fw_change(struct net *net, struct sk_buff *in_skb,
 	if (!handle)
 		return -EINVAL;
 
-	if (head == NULL) {
+	if (!head) {
 		u32 mask = 0xFFFFFFFF;
 		if (tb[TCA_FW_MASK])
 			mask = nla_get_u32(tb[TCA_FW_MASK]);
 
-		head = kzalloc(sizeof(struct fw_head), GFP_KERNEL);
-		if (head == NULL)
+		head = kzalloc(sizeof(*head), GFP_KERNEL);
+		if (!head)
 			return -ENOBUFS;
 		head->mask = mask;
 

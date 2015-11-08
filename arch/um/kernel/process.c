@@ -90,12 +90,14 @@ void *__switch_to(struct task_struct *from, struct task_struct *to)
 
 void interrupt_end(void)
 {
+	struct pt_regs *regs = &current->thread.regs;
+
 	if (need_resched())
 		schedule();
 	if (test_thread_flag(TIF_SIGPENDING))
-		do_signal();
+		do_signal(regs);
 	if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME))
-		tracehook_notify_resume(&current->thread.regs);
+		tracehook_notify_resume(regs);
 }
 
 void exit_thread(void)
@@ -257,17 +259,6 @@ int clear_user_proc(void __user *buf, int size)
 int strlen_user_proc(char __user *str)
 {
 	return strlen_user(str);
-}
-
-int smp_sigio_handler(void)
-{
-#ifdef CONFIG_SMP
-	int cpu = current_thread_info()->cpu;
-	IPI_handler(cpu);
-	if (cpu != 0)
-		return 1;
-#endif
-	return 0;
 }
 
 int cpu(void)

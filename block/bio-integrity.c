@@ -32,6 +32,11 @@
 static struct kmem_cache *bip_slab;
 static struct workqueue_struct *kintegrityd_wq;
 
+void blk_flush_integrity(void)
+{
+	flush_workqueue(kintegrityd_wq);
+}
+
 /**
  * bio_integrity_alloc - Allocate integrity payload and attach it to bio
  * @bio:	bio to attach integrity metadata to
@@ -51,7 +56,7 @@ struct bio_integrity_payload *bio_integrity_alloc(struct bio *bio,
 	unsigned long idx = BIO_POOL_NONE;
 	unsigned inline_vecs;
 
-	if (!bs) {
+	if (!bs || !bs->bio_integrity_pool) {
 		bip = kmalloc(sizeof(struct bio_integrity_payload) +
 			      sizeof(struct bio_vec) * nr_vecs, gfp_mask);
 		inline_vecs = nr_vecs;
@@ -104,7 +109,7 @@ void bio_integrity_free(struct bio *bio)
 		kfree(page_address(bip->bip_vec->bv_page) +
 		      bip->bip_vec->bv_offset);
 
-	if (bs) {
+	if (bs && bs->bio_integrity_pool) {
 		if (bip->bip_slab != BIO_POOL_NONE)
 			bvec_free(bs->bvec_integrity_pool, bip->bip_vec,
 				  bip->bip_slab);
@@ -140,6 +145,11 @@ int bio_integrity_add_page(struct bio *bio, struct page *page,
 
 	iv = bip->bip_vec + bip->bip_vcnt;
 
+	if (bip->bip_vcnt &&
+	    bvec_gap_to_prev(bdev_get_queue(bio->bi_bdev),
+			     &bip->bip_vec[bip->bip_vcnt - 1], offset))
+		return 0;
+
 	iv->bv_page = page;
 	iv->bv_len = len;
 	iv->bv_offset = offset;
@@ -172,11 +182,11 @@ bool bio_integrity_enabled(struct bio *bio)
 	if (bi == NULL)
 		return false;
 
-	if (bio_data_dir(bio) == READ && bi->verify_fn != NULL &&
+	if (bio_data_dir(bio) == READ && bi->profile->verify_fn != NULL &&
 	    (bi->flags & BLK_INTEGRITY_VERIFY))
 		return true;
 
-	if (bio_data_dir(bio) == WRITE && bi->generate_fn != NULL &&
+	if (bio_data_dir(bio) == WRITE && bi->profile->generate_fn != NULL &&
 	    (bi->flags & BLK_INTEGRITY_GENERATE))
 		return true;
 
@@ -197,7 +207,7 @@ EXPORT_SYMBOL(bio_integrity_enabled);
 static inline unsigned int bio_integrity_intervals(struct blk_integrity *bi,
 						   unsigned int sectors)
 {
-	return sectors >> (ilog2(bi->interval) - 9);
+	return sectors >> (bi->interval_exp - 9);
 }
 
 static inline unsigned int bio_integrity_bytes(struct blk_integrity *bi,
@@ -224,7 +234,7 @@ static int bio_integrity_process(struct bio *bio,
 		bip->bip_vec->bv_offset;
 
 	iter.disk_name = bio->bi_bdev->bd_disk->disk_name;
-	iter.interval = bi->interval;
+	iter.interval = 1 << bi->interval_exp;
 	iter.seed = bip_get_seed(bip);
 	iter.prot_buf = prot_buf;
 
@@ -335,7 +345,7 @@ int bio_integrity_prep(struct bio *bio)
 
 	/* Auto-generate integrity metadata if this is a write */
 	if (bio_data_dir(bio) == WRITE)
-		bio_integrity_process(bio, bi->generate_fn);
+		bio_integrity_process(bio, bi->profile->generate_fn);
 
 	return 0;
 }
@@ -355,13 +365,12 @@ static void bio_integrity_verify_fn(struct work_struct *work)
 		container_of(work, struct bio_integrity_payload, bip_work);
 	struct bio *bio = bip->bip_bio;
 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
-	int error;
 
-	error = bio_integrity_process(bio, bi->verify_fn);
+	bio->bi_error = bio_integrity_process(bio, bi->profile->verify_fn);
 
 	/* Restore original bio completion handler */
 	bio->bi_end_io = bip->bip_end_io;
-	bio_endio_nodec(bio, error);
+	bio_endio(bio);
 }
 
 /**
@@ -376,7 +385,7 @@ static void bio_integrity_verify_fn(struct work_struct *work)
  * in process context.	This function postpones completion
  * accordingly.
  */
-void bio_integrity_endio(struct bio *bio, int error)
+void bio_integrity_endio(struct bio *bio)
 {
 	struct bio_integrity_payload *bip = bio_integrity(bio);
 
@@ -386,9 +395,9 @@ void bio_integrity_endio(struct bio *bio, int error)
 	 * integrity metadata.  Restore original bio end_io handler
 	 * and run it.
 	 */
-	if (error) {
+	if (bio->bi_error) {
 		bio->bi_end_io = bip->bip_end_io;
-		bio_endio_nodec(bio, error);
+		bio_endio(bio);
 
 		return;
 	}

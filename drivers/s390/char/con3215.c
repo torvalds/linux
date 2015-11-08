@@ -667,6 +667,8 @@ static struct raw3215_info *raw3215_alloc_info(void)
 	info->buffer = kzalloc(RAW3215_BUFFER_SIZE, GFP_KERNEL | GFP_DMA);
 	info->inbuf = kzalloc(RAW3215_INBUF_SIZE, GFP_KERNEL | GFP_DMA);
 	if (!info->buffer || !info->inbuf) {
+		kfree(info->inbuf);
+		kfree(info->buffer);
 		kfree(info);
 		return NULL;
 	}

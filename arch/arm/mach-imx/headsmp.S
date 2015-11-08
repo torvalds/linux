@@ -25,7 +25,6 @@ diag_reg_offset:
 	.endm
 
 ENTRY(v7_secondary_startup)
-	bl	v7_invalidate_l1
 	set_diag_reg
 	b	secondary_startup
 ENDPROC(v7_secondary_startup)

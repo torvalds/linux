@@ -228,12 +228,12 @@ int ceph_flock(struct file *file, int cmd, struct file_lock *fl)
 	err = ceph_lock_message(CEPH_LOCK_FLOCK, CEPH_MDS_OP_SETFILELOCK,
 				file, lock_cmd, wait, fl);
 	if (!err) {
-		err = flock_lock_file_wait(file, fl);
+		err = locks_lock_file_wait(file, fl);
 		if (err) {
 			ceph_lock_message(CEPH_LOCK_FLOCK,
 					  CEPH_MDS_OP_SETFILELOCK,
 					  file, CEPH_LOCK_UNLOCK, 0, fl);
-			dout("got %d on flock_lock_file_wait, undid lock", err);
+			dout("got %d on locks_lock_file_wait, undid lock", err);
 		}
 	}
 	return err;
@@ -287,7 +287,7 @@ int ceph_encode_locks_to_buffer(struct inode *inode,
 		return 0;
 
 	spin_lock(&ctx->flc_lock);
-	list_for_each_entry(lock, &ctx->flc_flock, fl_list) {
+	list_for_each_entry(lock, &ctx->flc_posix, fl_list) {
 		++seen_fcntl;
 		if (seen_fcntl > num_fcntl_locks) {
 			err = -ENOSPC;

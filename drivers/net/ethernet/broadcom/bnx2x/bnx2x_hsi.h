@@ -1,6 +1,8 @@
-/* bnx2x_hsi.h: Broadcom Everest network driver.
+/* bnx2x_hsi.h: Qlogic Everest network driver.
  *
  * Copyright (c) 2007-2013 Broadcom Corporation
+ * Copyright (c) 2014 QLogic Corporation
+ * All rights reserved
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -521,6 +523,17 @@ struct port_hw_cfg {		    /* port 0: 0x12c  port 1: 0x2bc */
 	 */
 	#define PORT_HW_CFG_TX_DRV_BROADCAST_MASK                     0x000F0000
 	#define PORT_HW_CFG_TX_DRV_BROADCAST_SHIFT                    16
+	/*  Set non-default values for TXFIR in SFP mode. */
+	#define PORT_HW_CFG_TX_DRV_IFIR_MASK                          0x00F00000
+	#define PORT_HW_CFG_TX_DRV_IFIR_SHIFT                         20
+
+	/*  Set non-default values for IPREDRIVER in SFP mode. */
+	#define PORT_HW_CFG_TX_DRV_IPREDRIVER_MASK                    0x0F000000
+	#define PORT_HW_CFG_TX_DRV_IPREDRIVER_SHIFT                   24
+
+	/*  Set non-default values for POST2 in SFP mode. */
+	#define PORT_HW_CFG_TX_DRV_POST2_MASK                         0xF0000000
+	#define PORT_HW_CFG_TX_DRV_POST2_SHIFT                        28
 
 	u32 reserved0[5];				    /* 0x17c */
 
@@ -718,6 +731,7 @@ struct port_hw_cfg {		    /* port 0: 0x12c  port 1: 0x2bc */
 		#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM8722       0x00000f00
 		#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM54616      0x00001000
 		#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM84834      0x00001100
+		#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM84858      0x00001200
 		#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_FAILURE       0x0000fd00
 		#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_NOT_CONN      0x0000ff00
 
@@ -775,6 +789,7 @@ struct port_hw_cfg {		    /* port 0: 0x12c  port 1: 0x2bc */
 		#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8722        0x00000f00
 		#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM54616       0x00001000
 		#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834       0x00001100
+		#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84858       0x00001200
 		#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT_WC      0x0000fc00
 		#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_FAILURE        0x0000fd00
 		#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_NOT_CONN       0x0000ff00
@@ -853,6 +868,7 @@ struct shared_feat_cfg {		 /* NVRAM Offset */
 		#define SHARED_FEAT_CFG_FORCE_SF_MODE_SPIO4          0x00000200
 		#define SHARED_FEAT_CFG_FORCE_SF_MODE_SWITCH_INDEPT  0x00000300
 		#define SHARED_FEAT_CFG_FORCE_SF_MODE_AFEX_MODE      0x00000400
+		#define SHARED_FEAT_CFG_FORCE_SF_MODE_BD_MODE        0x00000500
 		#define SHARED_FEAT_CFG_FORCE_SF_MODE_UFP_MODE       0x00000600
 		#define SHARED_FEAT_CFG_FORCE_SF_MODE_EXTENDED_MODE  0x00000700
 
@@ -2053,6 +2069,45 @@ struct ncsi_oem_fcoe_features {
 	#define FCOE_FEATURES4_FEATURE_SETTINGS_OFFSET          0
 };
 
+enum curr_cfg_method_e {
+	CURR_CFG_MET_NONE = 0,  /* default config */
+	CURR_CFG_MET_OS = 1,
+	CURR_CFG_MET_VENDOR_SPEC = 2,/* e.g. Option ROM, NPAR, O/S Cfg Utils */
+};
+
+#define FC_NPIV_WWPN_SIZE 8
+#define FC_NPIV_WWNN_SIZE 8
+struct bdn_npiv_settings {
+	u8 npiv_wwpn[FC_NPIV_WWPN_SIZE];
+	u8 npiv_wwnn[FC_NPIV_WWNN_SIZE];
+};
+
+struct bdn_fc_npiv_cfg {
+	/* hdr used internally by the MFW */
+	u32 hdr;
+	u32 num_of_npiv;
+};
+
+#define MAX_NUMBER_NPIV 64
+struct bdn_fc_npiv_tbl {
+	struct bdn_fc_npiv_cfg fc_npiv_cfg;
+	struct bdn_npiv_settings settings[MAX_NUMBER_NPIV];
+};
+
+struct mdump_driver_info {
+	u32 epoc;
+	u32 drv_ver;
+	u32 fw_ver;
+
+	u32 valid_dump;
+	#define FIRST_DUMP_VALID        (1 << 0)
+	#define SECOND_DUMP_VALID       (1 << 1)
+
+	u32 flags;
+	#define ENABLE_ALL_TRIGGERS     (0x7fffffff)
+	#define TRIGGER_MDUMP_ONCE      (1 << 31)
+};
+
 struct ncsi_oem_data {
 	u32 driver_version[4];
 	struct ncsi_oem_fcoe_features ncsi_oem_fcoe_features;
@@ -2176,6 +2231,8 @@ struct shmem2_region {
 #define DRV_FLAGS_CAPABILITIES_LOADED_L2        0x00000002
 #define DRV_FLAGS_CAPABILITIES_LOADED_FCOE      0x00000004
 #define DRV_FLAGS_CAPABILITIES_LOADED_ISCSI     0x00000008
+#define DRV_FLAGS_MTU_MASK			0xffff0000
+#define DRV_FLAGS_MTU_SHIFT			16
 
 	u32 extended_dev_info_shared_cfg_size;
 
@@ -2240,6 +2297,7 @@ struct shmem2_region {
 	u32 reserved4;				/* Offset 0x150 */
 	u32 link_attr_sync[PORT_MAX];		/* Offset 0x154 */
 	#define LINK_ATTR_SYNC_KR2_ENABLE	0x00000001
+	#define LINK_ATTR_84858			0x00000002
 	#define LINK_SFP_EEPROM_COMP_CODE_MASK	0x0000ff00
 	#define LINK_SFP_EEPROM_COMP_CODE_SHIFT		 8
 	#define LINK_SFP_EEPROM_COMP_CODE_SR	0x00001000
@@ -2247,8 +2305,8 @@ struct shmem2_region {
 	#define LINK_SFP_EEPROM_COMP_CODE_LRM	0x00004000
 
 	u32 reserved5[2];
-	u32 reserved6[PORT_MAX];
-
+	u32 link_change_count[PORT_MAX];        /* Offset 0x160-0x164 */
+	#define LINK_CHANGE_COUNT_MASK 0xff     /* Offset 0x168 */
 	/* driver version for each personality */
 	struct os_drv_ver func_os_drv_ver[E2_FUNC_MAX]; /* Offset 0x16c */
 
@@ -2257,6 +2315,74 @@ struct shmem2_region {
 
 	/* We use indication for each PF (0..3) */
 #define MFW_DRV_IND_READ_DONE_OFFSET(_pf_) (1 << (_pf_))
+	union { /* For various OEMs */			/* Offset 0x1a0 */
+		u8 storage_boot_prog[E2_FUNC_MAX];
+	#define STORAGE_BOOT_PROG_MASK				0x000000FF
+	#define STORAGE_BOOT_PROG_NONE				0x00000000
+	#define STORAGE_BOOT_PROG_ISCSI_IP_ACQUIRED		0x00000002
+	#define STORAGE_BOOT_PROG_FCOE_FABRIC_LOGIN_SUCCESS	0x00000002
+	#define STORAGE_BOOT_PROG_TARGET_FOUND			0x00000004
+	#define STORAGE_BOOT_PROG_ISCSI_CHAP_SUCCESS		0x00000008
+	#define STORAGE_BOOT_PROG_FCOE_LUN_FOUND		0x00000008
+	#define STORAGE_BOOT_PROG_LOGGED_INTO_TGT		0x00000010
+	#define STORAGE_BOOT_PROG_IMG_DOWNLOADED		0x00000020
+	#define STORAGE_BOOT_PROG_OS_HANDOFF			0x00000040
+	#define STORAGE_BOOT_PROG_COMPLETED			0x00000080
+
+		u32 oem_i2c_data_addr;
+	};
+
+	/* 9 entires for the C2S PCP map for each inner VLAN PCP + 1 default */
+	/* For PCP values 0-3 use the map lower */
+	/* 0xFF000000 - PCP 0, 0x00FF0000 - PCP 1,
+	 * 0x0000FF00 - PCP 2, 0x000000FF PCP 3
+	 */
+	u32 c2s_pcp_map_lower[E2_FUNC_MAX];			/* 0x1a4 */
+
+	/* For PCP values 4-7 use the map upper */
+	/* 0xFF000000 - PCP 4, 0x00FF0000 - PCP 5,
+	 * 0x0000FF00 - PCP 6, 0x000000FF PCP 7
+	 */
+	u32 c2s_pcp_map_upper[E2_FUNC_MAX];			/* 0x1b4 */
+
+	/* For PCP default value get the MSB byte of the map default */
+	u32 c2s_pcp_map_default[E2_FUNC_MAX];			/* 0x1c4 */
+
+	/* FC_NPIV table offset in NVRAM */
+	u32 fc_npiv_nvram_tbl_addr[PORT_MAX];			/* 0x1d4 */
+
+	/* Shows last method that changed configuration of this device */
+	enum curr_cfg_method_e curr_cfg;			/* 0x1dc */
+
+	/* Storm FW version, shold be kept in the format 0xMMmmbbdd:
+	 * MM - Major, mm - Minor, bb - Build ,dd - Drop
+	 */
+	u32 netproc_fw_ver;					/* 0x1e0 */
+
+	/* Option ROM SMASH CLP version */
+	u32 clp_ver;						/* 0x1e4 */
+
+	u32 pcie_bus_num;					/* 0x1e8 */
+
+	u32 sriov_switch_mode;					/* 0x1ec */
+	#define SRIOV_SWITCH_MODE_NONE		0x0
+	#define SRIOV_SWITCH_MODE_VEB		0x1
+	#define SRIOV_SWITCH_MODE_VEPA		0x2
+
+	u8  rsrv2[E2_FUNC_MAX];					/* 0x1f0 */
+
+	u32 img_inv_table_addr;	/* Address to INV_TABLE_P */	/* 0x1f4 */
+
+	u32 mtu_size[E2_FUNC_MAX];				/* 0x1f8 */
+
+	u32 os_driver_state[E2_FUNC_MAX];			/* 0x208 */
+	#define OS_DRIVER_STATE_NOT_LOADED	0 /* not installed */
+	#define OS_DRIVER_STATE_LOADING		1 /* transition state */
+	#define OS_DRIVER_STATE_DISABLED	2 /* installed but disabled */
+	#define OS_DRIVER_STATE_ACTIVE		3 /* installed and active */
+
+	/* mini dump driver info */
+	struct mdump_driver_info drv_info;			/* 0x218 */
 };
 
 
@@ -2887,8 +3013,8 @@ struct afex_stats {
 };
 
 #define BCM_5710_FW_MAJOR_VERSION			7
-#define BCM_5710_FW_MINOR_VERSION			10
-#define BCM_5710_FW_REVISION_VERSION		51
+#define BCM_5710_FW_MINOR_VERSION			12
+#define BCM_5710_FW_REVISION_VERSION		30
 #define BCM_5710_FW_ENGINEERING_VERSION		0
 #define BCM_5710_FW_COMPILE_FLAGS			1
 
@@ -3890,7 +4016,11 @@ struct eth_fast_path_rx_cqe {
 	__le16 len_on_bd;
 	struct parsing_flags pars_flags;
 	union eth_sgl_or_raw_data sgl_or_raw_data;
-	__le32 reserved1[7];
+	u8 tunn_type;
+	u8 tunn_inner_hdrs_offset;
+	__le16 reserved1;
+	__le32 tunn_tenant_id;
+	__le32 padding[5];
 	u32 marker;
 };
 
@@ -4001,8 +4131,8 @@ struct eth_tunnel_data {
 	__le16 pseudo_csum;
 	u8 ip_hdr_start_inner_w;
 	u8 flags;
-#define ETH_TUNNEL_DATA_IP_HDR_TYPE_OUTER (0x1<<0)
-#define ETH_TUNNEL_DATA_IP_HDR_TYPE_OUTER_SHIFT 0
+#define ETH_TUNNEL_DATA_IPV6_OUTER (0x1<<0)
+#define ETH_TUNNEL_DATA_IPV6_OUTER_SHIFT 0
 #define ETH_TUNNEL_DATA_RESERVED (0x7F<<1)
 #define ETH_TUNNEL_DATA_RESERVED_SHIFT 1
 };
@@ -4109,16 +4239,12 @@ struct eth_rss_update_ramrod_data {
 #define ETH_RSS_UPDATE_RAMROD_DATA_IPV6_UDP_CAPABILITY_SHIFT 6
 #define ETH_RSS_UPDATE_RAMROD_DATA_IPV6_VXLAN_CAPABILITY (0x1<<7)
 #define ETH_RSS_UPDATE_RAMROD_DATA_IPV6_VXLAN_CAPABILITY_SHIFT 7
-#define ETH_RSS_UPDATE_RAMROD_DATA_EN_5_TUPLE_CAPABILITY (0x1<<8)
-#define ETH_RSS_UPDATE_RAMROD_DATA_EN_5_TUPLE_CAPABILITY_SHIFT 8
-#define ETH_RSS_UPDATE_RAMROD_DATA_NVGRE_KEY_ENTROPY_CAPABILITY (0x1<<9)
-#define ETH_RSS_UPDATE_RAMROD_DATA_NVGRE_KEY_ENTROPY_CAPABILITY_SHIFT 9
-#define ETH_RSS_UPDATE_RAMROD_DATA_GRE_INNER_HDRS_CAPABILITY (0x1<<10)
-#define ETH_RSS_UPDATE_RAMROD_DATA_GRE_INNER_HDRS_CAPABILITY_SHIFT 10
-#define ETH_RSS_UPDATE_RAMROD_DATA_UPDATE_RSS_KEY (0x1<<11)
-#define ETH_RSS_UPDATE_RAMROD_DATA_UPDATE_RSS_KEY_SHIFT 11
-#define ETH_RSS_UPDATE_RAMROD_DATA_RESERVED (0xF<<12)
-#define ETH_RSS_UPDATE_RAMROD_DATA_RESERVED_SHIFT 12
+#define ETH_RSS_UPDATE_RAMROD_DATA_TUNN_INNER_HDRS_CAPABILITY (0x1<<8)
+#define ETH_RSS_UPDATE_RAMROD_DATA_TUNN_INNER_HDRS_CAPABILITY_SHIFT 8
+#define ETH_RSS_UPDATE_RAMROD_DATA_UPDATE_RSS_KEY (0x1<<9)
+#define ETH_RSS_UPDATE_RAMROD_DATA_UPDATE_RSS_KEY_SHIFT 9
+#define ETH_RSS_UPDATE_RAMROD_DATA_RESERVED (0x3F<<10)
+#define ETH_RSS_UPDATE_RAMROD_DATA_RESERVED_SHIFT 10
 	u8 rss_result_mask;
 	u8 reserved3;
 	__le16 reserved4;
@@ -4301,6 +4427,18 @@ enum eth_tunnel_non_lso_csum_location {
 	CSUM_ON_PKT,
 	CSUM_ON_BD,
 	MAX_ETH_TUNNEL_NON_LSO_CSUM_LOCATION
+};
+
+enum eth_tunn_type {
+	TUNN_TYPE_NONE,
+	TUNN_TYPE_VXLAN,
+	TUNN_TYPE_L2_GRE,
+	TUNN_TYPE_IPV4_GRE,
+	TUNN_TYPE_IPV6_GRE,
+	TUNN_TYPE_L2_GENEVE,
+	TUNN_TYPE_IPV4_GENEVE,
+	TUNN_TYPE_IPV6_GENEVE,
+	MAX_ETH_TUNN_TYPE
 };
 
 /*
@@ -4747,6 +4885,9 @@ struct afex_vif_list_ramrod_data {
 	__le16 reserved1;
 };
 
+struct c2s_pri_trans_table_entry {
+	u8 val[MAX_VLAN_PRIORITIES];
+};
 
 /*
  * cfc delete event data
@@ -5235,6 +5376,7 @@ struct flow_control_configuration {
 	u8 dont_add_pri_0_en;
 	u8 reserved1;
 	__le32 reserved2;
+	u8 dcb_outer_pri[MAX_TRAFFIC_TYPES];
 };
 
 
@@ -5249,18 +5391,25 @@ struct function_start_data {
 	u8 path_id;
 	u8 network_cos_mode;
 	u8 dmae_cmd_id;
-	u8 tunnel_mode;
-	u8 gre_tunnel_type;
-	u8 tunn_clss_en;
-	u8 inner_gre_rss_en;
-	u8 sd_accept_mf_clss_fail;
+	u8 no_added_tags;
+	__le16 reserved0;
+	__le32 reserved1;
+	u8 inner_clss_vxlan;
+	u8 inner_clss_l2gre;
+	u8 inner_clss_l2geneve;
+	u8 inner_rss;
 	__le16 vxlan_dst_port;
+	__le16 geneve_dst_port;
+	u8 sd_accept_mf_clss_fail;
+	u8 sd_accept_mf_clss_fail_match_ethtype;
 	__le16 sd_accept_mf_clss_fail_ethtype;
 	__le16 sd_vlan_eth_type;
 	u8 sd_vlan_force_pri_flg;
 	u8 sd_vlan_force_pri_val;
-	u8 sd_accept_mf_clss_fail_match_ethtype;
-	u8 no_added_tags;
+	u8 c2s_pri_tt_valid;
+	u8 c2s_pri_default;
+	u8 reserved2[6];
+	struct c2s_pri_trans_table_entry c2s_pri_trans_table;
 };
 
 struct function_update_data {
@@ -5278,11 +5427,12 @@ struct function_update_data {
 	u8 tx_switch_suspend;
 	u8 echo;
 	u8 update_tunn_cfg_flg;
-	u8 tunnel_mode;
-	u8 gre_tunnel_type;
-	u8 tunn_clss_en;
-	u8 inner_gre_rss_en;
+	u8 inner_clss_vxlan;
+	u8 inner_clss_l2gre;
+	u8 inner_clss_l2geneve;
+	u8 inner_rss;
 	__le16 vxlan_dst_port;
+	__le16 geneve_dst_port;
 	u8 sd_vlan_force_pri_change_flg;
 	u8 sd_vlan_force_pri_flg;
 	u8 sd_vlan_force_pri_val;
@@ -5291,6 +5441,8 @@ struct function_update_data {
 	u8 reserved1;
 	__le16 sd_vlan_tag;
 	__le16 sd_vlan_eth_type;
+	__le16 reserved0;
+	__le32 reserved2;
 };
 
 /*
@@ -5317,15 +5469,6 @@ struct fw_version {
 #define FW_VERSION_CHIP_VERSION_SHIFT 2
 #define __FW_VERSION_RESERVED (0xFFFFFFF<<4)
 #define __FW_VERSION_RESERVED_SHIFT 4
-};
-
-
-/* GRE Tunnel Mode */
-enum gre_tunnel_type {
-	NVGRE_TUNNEL,
-	L2GRE_TUNNEL,
-	IPGRE_TUNNEL,
-	MAX_GRE_TUNNEL_TYPE
 };
 
 /*

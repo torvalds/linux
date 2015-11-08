@@ -39,16 +39,30 @@ static gpa_t kvm_trap_emul_gva_to_gpa_cb(gva_t gva)
 
 static int kvm_trap_emul_handle_cop_unusable(struct kvm_vcpu *vcpu)
 {
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	struct kvm_run *run = vcpu->run;
 	uint32_t __user *opc = (uint32_t __user *) vcpu->arch.pc;
 	unsigned long cause = vcpu->arch.host_cp0_cause;
 	enum emulation_result er = EMULATE_DONE;
 	int ret = RESUME_GUEST;
 
-	if (((cause & CAUSEF_CE) >> CAUSEB_CE) == 1)
-		er = kvm_mips_emulate_fpu_exc(cause, opc, run, vcpu);
-	else
+	if (((cause & CAUSEF_CE) >> CAUSEB_CE) == 1) {
+		/* FPU Unusable */
+		if (!kvm_mips_guest_has_fpu(&vcpu->arch) ||
+		    (kvm_read_c0_guest_status(cop0) & ST0_CU1) == 0) {
+			/*
+			 * Unusable/no FPU in guest:
+			 * deliver guest COP1 Unusable Exception
+			 */
+			er = kvm_mips_emulate_fpu_exc(cause, opc, run, vcpu);
+		} else {
+			/* Restore FPU state */
+			kvm_own_fpu(vcpu);
+			er = EMULATE_DONE;
+		}
+	} else {
 		er = kvm_mips_emulate_inst(cause, opc, run, vcpu);
+	}
 
 	switch (er) {
 	case EMULATE_DONE:
@@ -330,6 +344,107 @@ static int kvm_trap_emul_handle_break(struct kvm_vcpu *vcpu)
 	return ret;
 }
 
+static int kvm_trap_emul_handle_trap(struct kvm_vcpu *vcpu)
+{
+	struct kvm_run *run = vcpu->run;
+	uint32_t __user *opc = (uint32_t __user *)vcpu->arch.pc;
+	unsigned long cause = vcpu->arch.host_cp0_cause;
+	enum emulation_result er = EMULATE_DONE;
+	int ret = RESUME_GUEST;
+
+	er = kvm_mips_emulate_trap_exc(cause, opc, run, vcpu);
+	if (er == EMULATE_DONE) {
+		ret = RESUME_GUEST;
+	} else {
+		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		ret = RESUME_HOST;
+	}
+	return ret;
+}
+
+static int kvm_trap_emul_handle_msa_fpe(struct kvm_vcpu *vcpu)
+{
+	struct kvm_run *run = vcpu->run;
+	uint32_t __user *opc = (uint32_t __user *)vcpu->arch.pc;
+	unsigned long cause = vcpu->arch.host_cp0_cause;
+	enum emulation_result er = EMULATE_DONE;
+	int ret = RESUME_GUEST;
+
+	er = kvm_mips_emulate_msafpe_exc(cause, opc, run, vcpu);
+	if (er == EMULATE_DONE) {
+		ret = RESUME_GUEST;
+	} else {
+		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		ret = RESUME_HOST;
+	}
+	return ret;
+}
+
+static int kvm_trap_emul_handle_fpe(struct kvm_vcpu *vcpu)
+{
+	struct kvm_run *run = vcpu->run;
+	uint32_t __user *opc = (uint32_t __user *)vcpu->arch.pc;
+	unsigned long cause = vcpu->arch.host_cp0_cause;
+	enum emulation_result er = EMULATE_DONE;
+	int ret = RESUME_GUEST;
+
+	er = kvm_mips_emulate_fpe_exc(cause, opc, run, vcpu);
+	if (er == EMULATE_DONE) {
+		ret = RESUME_GUEST;
+	} else {
+		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		ret = RESUME_HOST;
+	}
+	return ret;
+}
+
+/**
+ * kvm_trap_emul_handle_msa_disabled() - Guest used MSA while disabled in root.
+ * @vcpu:	Virtual CPU context.
+ *
+ * Handle when the guest attempts to use MSA when it is disabled.
+ */
+static int kvm_trap_emul_handle_msa_disabled(struct kvm_vcpu *vcpu)
+{
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	struct kvm_run *run = vcpu->run;
+	uint32_t __user *opc = (uint32_t __user *) vcpu->arch.pc;
+	unsigned long cause = vcpu->arch.host_cp0_cause;
+	enum emulation_result er = EMULATE_DONE;
+	int ret = RESUME_GUEST;
+
+	if (!kvm_mips_guest_has_msa(&vcpu->arch) ||
+	    (kvm_read_c0_guest_status(cop0) & (ST0_CU1 | ST0_FR)) == ST0_CU1) {
+		/*
+		 * No MSA in guest, or FPU enabled and not in FR=1 mode,
+		 * guest reserved instruction exception
+		 */
+		er = kvm_mips_emulate_ri_exc(cause, opc, run, vcpu);
+	} else if (!(kvm_read_c0_guest_config5(cop0) & MIPS_CONF5_MSAEN)) {
+		/* MSA disabled by guest, guest MSA disabled exception */
+		er = kvm_mips_emulate_msadis_exc(cause, opc, run, vcpu);
+	} else {
+		/* Restore MSA/FPU state */
+		kvm_own_msa(vcpu);
+		er = EMULATE_DONE;
+	}
+
+	switch (er) {
+	case EMULATE_DONE:
+		ret = RESUME_GUEST;
+		break;
+
+	case EMULATE_FAIL:
+		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		ret = RESUME_HOST;
+		break;
+
+	default:
+		BUG();
+	}
+	return ret;
+}
+
 static int kvm_trap_emul_vm_init(struct kvm *kvm)
 {
 	return 0;
@@ -351,8 +466,9 @@ static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 	 * guest will come up as expected, for now we simulate a MIPS 24kc
 	 */
 	kvm_write_c0_guest_prid(cop0, 0x00019300);
-	kvm_write_c0_guest_config(cop0,
-				  MIPS_CONFIG0 | (0x1 << CP0C0_AR) |
+	/* Have config1, Cacheable, noncoherent, write-back, write allocate */
+	kvm_write_c0_guest_config(cop0, MIPS_CONF_M | (0x3 << CP0C0_K0) |
+				  (0x1 << CP0C0_AR) |
 				  (MMU_TYPE_R4000 << CP0C0_MT));
 
 	/* Read the cache characteristics from the host Config1 Register */
@@ -368,10 +484,18 @@ static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 	      (1 << CP0C1_WR) | (1 << CP0C1_CA));
 	kvm_write_c0_guest_config1(cop0, config1);
 
-	kvm_write_c0_guest_config2(cop0, MIPS_CONFIG2);
-	/* MIPS_CONFIG2 | (read_c0_config2() & 0xfff) */
-	kvm_write_c0_guest_config3(cop0, MIPS_CONFIG3 | (0 << CP0C3_VInt) |
-					 (1 << CP0C3_ULRI));
+	/* Have config3, no tertiary/secondary caches implemented */
+	kvm_write_c0_guest_config2(cop0, MIPS_CONF_M);
+	/* MIPS_CONF_M | (read_c0_config2() & 0xfff) */
+
+	/* Have config4, UserLocal */
+	kvm_write_c0_guest_config3(cop0, MIPS_CONF_M | MIPS_CONF3_ULRI);
+
+	/* Have config5 */
+	kvm_write_c0_guest_config4(cop0, MIPS_CONF_M);
+
+	/* No config6 */
+	kvm_write_c0_guest_config5(cop0, 0);
 
 	/* Set Wait IE/IXMT Ignore in Config7, IAR, AR */
 	kvm_write_c0_guest_config7(cop0, (MIPS_CONF7_WII) | (1 << 10));
@@ -416,6 +540,7 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	int ret = 0;
+	unsigned int cur, change;
 
 	switch (reg->id) {
 	case KVM_REG_MIPS_CP0_COUNT:
@@ -444,6 +569,44 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 			kvm_write_c0_guest_cause(cop0, v);
 		}
 		break;
+	case KVM_REG_MIPS_CP0_CONFIG:
+		/* read-only for now */
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG1:
+		cur = kvm_read_c0_guest_config1(cop0);
+		change = (cur ^ v) & kvm_mips_config1_wrmask(vcpu);
+		if (change) {
+			v = cur ^ change;
+			kvm_write_c0_guest_config1(cop0, v);
+		}
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG2:
+		/* read-only for now */
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG3:
+		cur = kvm_read_c0_guest_config3(cop0);
+		change = (cur ^ v) & kvm_mips_config3_wrmask(vcpu);
+		if (change) {
+			v = cur ^ change;
+			kvm_write_c0_guest_config3(cop0, v);
+		}
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG4:
+		cur = kvm_read_c0_guest_config4(cop0);
+		change = (cur ^ v) & kvm_mips_config4_wrmask(vcpu);
+		if (change) {
+			v = cur ^ change;
+			kvm_write_c0_guest_config4(cop0, v);
+		}
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG5:
+		cur = kvm_read_c0_guest_config5(cop0);
+		change = (cur ^ v) & kvm_mips_config5_wrmask(vcpu);
+		if (change) {
+			v = cur ^ change;
+			kvm_write_c0_guest_config5(cop0, v);
+		}
+		break;
 	case KVM_REG_MIPS_COUNT_CTL:
 		ret = kvm_mips_set_count_ctl(vcpu, v);
 		break;
@@ -459,6 +622,18 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 	return ret;
 }
 
+static int kvm_trap_emul_vcpu_get_regs(struct kvm_vcpu *vcpu)
+{
+	kvm_lose_fpu(vcpu);
+
+	return 0;
+}
+
+static int kvm_trap_emul_vcpu_set_regs(struct kvm_vcpu *vcpu)
+{
+	return 0;
+}
+
 static struct kvm_mips_callbacks kvm_trap_emul_callbacks = {
 	/* exit handlers */
 	.handle_cop_unusable = kvm_trap_emul_handle_cop_unusable,
@@ -470,6 +645,10 @@ static struct kvm_mips_callbacks kvm_trap_emul_callbacks = {
 	.handle_syscall = kvm_trap_emul_handle_syscall,
 	.handle_res_inst = kvm_trap_emul_handle_res_inst,
 	.handle_break = kvm_trap_emul_handle_break,
+	.handle_trap = kvm_trap_emul_handle_trap,
+	.handle_msa_fpe = kvm_trap_emul_handle_msa_fpe,
+	.handle_fpe = kvm_trap_emul_handle_fpe,
+	.handle_msa_disabled = kvm_trap_emul_handle_msa_disabled,
 
 	.vm_init = kvm_trap_emul_vm_init,
 	.vcpu_init = kvm_trap_emul_vcpu_init,
@@ -483,6 +662,8 @@ static struct kvm_mips_callbacks kvm_trap_emul_callbacks = {
 	.irq_clear = kvm_mips_irq_clear_cb,
 	.get_one_reg = kvm_trap_emul_get_one_reg,
 	.set_one_reg = kvm_trap_emul_set_one_reg,
+	.vcpu_get_regs = kvm_trap_emul_vcpu_get_regs,
+	.vcpu_set_regs = kvm_trap_emul_vcpu_set_regs,
 };
 
 int kvm_mips_emulation_init(struct kvm_mips_callbacks **install_callbacks)

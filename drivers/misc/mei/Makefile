@@ -11,7 +11,7 @@ mei-objs += main.o
 mei-objs += amthif.o
 mei-objs += wd.o
 mei-objs += bus.o
-mei-objs += nfc.o
+mei-objs += bus-fixup.o
 mei-$(CONFIG_DEBUG_FS) += debugfs.o
 
 obj-$(CONFIG_INTEL_MEI_ME) += mei-me.o
@@ -21,3 +21,6 @@ mei-me-objs += hw-me.o
 obj-$(CONFIG_INTEL_MEI_TXE) += mei-txe.o
 mei-txe-objs := pci-txe.o
 mei-txe-objs += hw-txe.o
+
+mei-$(CONFIG_EVENT_TRACING) += mei-trace.o
+CFLAGS_mei-trace.o = -I$(src)

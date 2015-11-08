@@ -260,16 +260,28 @@ static __init const char *test_string_find_match(const struct test_string_2 *s2,
 	return NULL;
 }
 
+static __init void
+test_string_escape_overflow(const char *in, int p, unsigned int flags, const char *esc,
+			    int q_test, const char *name)
+{
+	int q_real;
+
+	q_real = string_escape_mem(in, p, NULL, 0, flags, esc);
+	if (q_real != q_test)
+		pr_warn("Test '%s' failed: flags = %u, osz = 0, expected %d, got %d\n",
+			name, flags, q_test, q_real);
+}
+
 static __init void test_string_escape(const char *name,
 				      const struct test_string_2 *s2,
 				      unsigned int flags, const char *esc)
 {
-	int q_real = 512;
-	char *out_test = kmalloc(q_real, GFP_KERNEL);
-	char *out_real = kmalloc(q_real, GFP_KERNEL);
+	size_t out_size = 512;
+	char *out_test = kmalloc(out_size, GFP_KERNEL);
+	char *out_real = kmalloc(out_size, GFP_KERNEL);
 	char *in = kmalloc(256, GFP_KERNEL);
-	char *buf = out_real;
 	int p = 0, q_test = 0;
+	int q_real;
 
 	if (!out_test || !out_real || !in)
 		goto out;
@@ -301,27 +313,50 @@ static __init void test_string_escape(const char *name,
 		q_test += len;
 	}
 
-	q_real = string_escape_mem(in, p, &buf, q_real, flags, esc);
+	q_real = string_escape_mem(in, p, out_real, out_size, flags, esc);
 
 	test_string_check_buf(name, flags, in, p, out_real, q_real, out_test,
 			      q_test);
+
+	test_string_escape_overflow(in, p, flags, esc, q_test, name);
+
 out:
 	kfree(in);
 	kfree(out_real);
 	kfree(out_test);
 }
 
-static __init void test_string_escape_nomem(void)
-{
-	char *in = "\eb \\C\007\"\x90\r]";
-	char out[64], *buf = out;
-	int rc = -ENOMEM, ret;
+#define string_get_size_maxbuf 16
+#define test_string_get_size_one(size, blk_size, units, exp_result)            \
+	do {                                                                   \
+		BUILD_BUG_ON(sizeof(exp_result) >= string_get_size_maxbuf);    \
+		__test_string_get_size((size), (blk_size), (units),            \
+				       (exp_result));                          \
+	} while (0)
 
-	ret = string_escape_str_any_np(in, &buf, strlen(in), NULL);
-	if (ret == rc)
+
+static __init void __test_string_get_size(const u64 size, const u64 blk_size,
+					  const enum string_size_units units,
+					  const char *exp_result)
+{
+	char buf[string_get_size_maxbuf];
+
+	string_get_size(size, blk_size, units, buf, sizeof(buf));
+	if (!memcmp(buf, exp_result, strlen(exp_result) + 1))
 		return;
 
-	pr_err("Test 'escape nomem' failed: got %d instead of %d\n", ret, rc);
+	buf[sizeof(buf) - 1] = '\0';
+	pr_warn("Test 'test_string_get_size_one' failed!\n");
+	pr_warn("string_get_size(size = %llu, blk_size = %llu, units = %d\n",
+		size, blk_size, units);
+	pr_warn("expected: '%s', got '%s'\n", exp_result, buf);
+}
+
+static __init void test_string_get_size(void)
+{
+	test_string_get_size_one(16384, 512, STRING_UNITS_2, "8.00 MiB");
+	test_string_get_size_one(8192, 4096, STRING_UNITS_10, "32.7 MB");
+	test_string_get_size_one(1, 512, STRING_UNITS_10, "512 B");
 }
 
 static int __init test_string_helpers_init(void)
@@ -342,7 +377,8 @@ static int __init test_string_helpers_init(void)
 	for (i = 0; i < (ESCAPE_ANY_NP | ESCAPE_HEX) + 1; i++)
 		test_string_escape("escape 1", escape1, i, TEST_STRING_2_DICT_1);
 
-	test_string_escape_nomem();
+	/* Test string_get_size() */
+	test_string_get_size();
 
 	return -EINVAL;
 }

@@ -70,6 +70,9 @@
  *
  *****************************************************************************/
 
+extern const u8 acpi_gbl_short_op_index[];
+extern const u8 acpi_gbl_long_op_index[];
+
 /*
  * psxface - Parser external interfaces
  */
@@ -191,10 +194,8 @@ union acpi_parse_object *acpi_ps_find(union acpi_parse_object *scope,
 
 union acpi_parse_object *acpi_ps_get_arg(union acpi_parse_object *op, u32 argn);
 
-#ifdef	ACPI_FUTURE_USAGE
 union acpi_parse_object *acpi_ps_get_depth_next(union acpi_parse_object *origin,
 						union acpi_parse_object *op);
-#endif				/* ACPI_FUTURE_USAGE */
 
 /*
  * pswalk - parse tree walk routines
@@ -222,19 +223,17 @@ void acpi_ps_delete_parse_tree(union acpi_parse_object *root);
 /*
  * psutils - parser utilities
  */
-union acpi_parse_object *acpi_ps_create_scope_op(void);
+union acpi_parse_object *acpi_ps_create_scope_op(u8 *aml);
 
 void acpi_ps_init_op(union acpi_parse_object *op, u16 opcode);
 
-union acpi_parse_object *acpi_ps_alloc_op(u16 opcode);
+union acpi_parse_object *acpi_ps_alloc_op(u16 opcode, u8 *aml);
 
 void acpi_ps_free_op(union acpi_parse_object *op);
 
 u8 acpi_ps_is_leading_char(u32 c);
 
-#ifdef	ACPI_FUTURE_USAGE
 u32 acpi_ps_get_name(union acpi_parse_object *op);
-#endif				/* ACPI_FUTURE_USAGE */
 
 void acpi_ps_set_name(union acpi_parse_object *op, u32 name);
 

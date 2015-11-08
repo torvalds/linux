@@ -251,7 +251,7 @@ static int ad1836_resume(struct snd_soc_codec *codec)
 static int ad1836_probe(struct snd_soc_codec *codec)
 {
 	struct ad1836_priv *ad1836 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	int num_dacs, num_adcs;
 	int ret = 0;
 	int i;
@@ -404,7 +404,6 @@ MODULE_DEVICE_TABLE(spi, ad1836_ids);
 static struct spi_driver ad1836_spi_driver = {
 	.driver = {
 		.name	= "ad1836",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ad1836_spi_probe,
 	.remove		= ad1836_spi_remove,

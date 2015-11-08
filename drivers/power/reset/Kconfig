@@ -15,7 +15,7 @@ config POWER_RESET_AS3722
 	  This driver supports turning off board via a ams AS3722 power-off.
 
 config POWER_RESET_AT91_POWEROFF
-	bool "Atmel AT91 poweroff driver"
+	tristate "Atmel AT91 poweroff driver"
 	depends on ARCH_AT91
 	default SOC_AT91SAM9 || SOC_SAMA5
 	help
@@ -23,7 +23,7 @@ config POWER_RESET_AT91_POWEROFF
 	  SoCs
 
 config POWER_RESET_AT91_RESET
-	bool "Atmel AT91 reset driver"
+	tristate "Atmel AT91 reset driver"
 	depends on ARCH_AT91
 	default SOC_AT91SAM9 || SOC_SAMA5
 	help
@@ -41,6 +41,7 @@ config POWER_RESET_AXXIA
 config POWER_RESET_BRCMSTB
 	bool "Broadcom STB reset driver"
 	depends on ARM || MIPS || COMPILE_TEST
+	depends on MFD_SYSCON
 	default ARCH_BRCMSTB
 	help
 	  This driver provides restart support for Broadcom STB boards.
@@ -151,11 +152,26 @@ config POWER_RESET_SYSCON
 	help
 	  Reboot support for generic SYSCON mapped register reset.
 
+config POWER_RESET_SYSCON_POWEROFF
+	bool "Generic SYSCON regmap poweroff driver"
+	depends on OF
+	select MFD_SYSCON
+	help
+	  Poweroff support for generic SYSCON mapped register poweroff.
+
 config POWER_RESET_RMOBILE
 	tristate "Renesas R-Mobile reset driver"
 	depends on ARCH_RMOBILE || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Reboot support for Renesas R-Mobile and SH-Mobile SoCs.
+
+config POWER_RESET_ZX
+	tristate "ZTE SoCs reset driver"
+	depends on ARCH_ZX || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Reboot support for ZTE SoCs.
 
 endif
 

@@ -58,6 +58,10 @@ static void of_get_regulation_constraints(struct device_node *np,
 	if (!of_property_read_u32(np, "regulator-max-microamp", &pval))
 		constraints->max_uA = pval;
 
+	if (!of_property_read_u32(np, "regulator-input-current-limit-microamp",
+				  &pval))
+		constraints->ilim_uA = pval;
+
 	/* Current change possible? */
 	if (constraints->min_uA != constraints->max_uA)
 		constraints->valid_ops_mask |= REGULATOR_CHANGE_CURRENT;
@@ -67,8 +71,13 @@ static void of_get_regulation_constraints(struct device_node *np,
 	if (!constraints->always_on) /* status change should be possible. */
 		constraints->valid_ops_mask |= REGULATOR_CHANGE_STATUS;
 
+	constraints->pull_down = of_property_read_bool(np, "regulator-pull-down");
+
 	if (of_property_read_bool(np, "regulator-allow-bypass"))
 		constraints->valid_ops_mask |= REGULATOR_CHANGE_BYPASS;
+
+	if (of_property_read_bool(np, "regulator-allow-set-load"))
+		constraints->valid_ops_mask |= REGULATOR_CHANGE_DRMS;
 
 	ret = of_property_read_u32(np, "regulator-ramp-delay", &pval);
 	if (!ret) {
@@ -81,6 +90,9 @@ static void of_get_regulation_constraints(struct device_node *np,
 	ret = of_property_read_u32(np, "regulator-enable-ramp-delay", &pval);
 	if (!ret)
 		constraints->enable_time = pval;
+
+	constraints->soft_start = of_property_read_bool(np,
+					"regulator-soft-start");
 
 	if (!of_property_read_u32(np, "regulator-initial-mode", &pval)) {
 		if (desc && desc->of_map_mode) {
@@ -95,6 +107,12 @@ static void of_get_regulation_constraints(struct device_node *np,
 		}
 	}
 
+	if (!of_property_read_u32(np, "regulator-system-load", &pval))
+		constraints->system_load = pval;
+
+	constraints->over_current_protection = of_property_read_bool(np,
+					"regulator-over-current-protection");
+
 	for (i = 0; i < ARRAY_SIZE(regulator_states); i++) {
 		switch (i) {
 		case PM_SUSPEND_MEM:
@@ -108,7 +126,7 @@ static void of_get_regulation_constraints(struct device_node *np,
 		case PM_SUSPEND_STANDBY:
 		default:
 			continue;
-		};
+		}
 
 		suspend_np = of_get_child_by_name(np, regulator_states[i]);
 		if (!suspend_np || !suspend_state)
@@ -292,7 +310,7 @@ struct regulator_init_data *regulator_of_get_init_data(struct device *dev,
 		return NULL;
 	}
 
-	for_each_child_of_node(search, child) {
+	for_each_available_child_of_node(search, child) {
 		name = of_get_property(child, "regulator-compatible", NULL);
 		if (!name)
 			name = child->name;

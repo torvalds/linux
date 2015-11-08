@@ -60,6 +60,8 @@ omapdss_of_get_next_port(const struct device_node *parent,
 			}
 			prev = port;
 		} while (of_node_cmp(port->name, "port") != 0);
+
+		of_node_put(ports);
 	}
 
 	return port;
@@ -94,7 +96,7 @@ struct device_node *dss_of_port_get_parent_device(struct device_node *port)
 	if (!port)
 		return NULL;
 
-	np = of_get_next_parent(port);
+	np = of_get_parent(port);
 
 	for (i = 0; i < 2 && np; ++i) {
 		struct property *prop;

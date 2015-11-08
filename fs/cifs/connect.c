@@ -280,6 +280,11 @@ static const match_table_t cifs_smb_version_tokens = {
 	{ Smb_21, SMB21_VERSION_STRING },
 	{ Smb_30, SMB30_VERSION_STRING },
 	{ Smb_302, SMB302_VERSION_STRING },
+#ifdef CONFIG_CIFS_SMB311
+	{ Smb_311, SMB311_VERSION_STRING },
+	{ Smb_311, ALT_SMB311_VERSION_STRING },
+#endif /* SMB311 */
+	{ Smb_version_err, NULL }
 };
 
 static int ip_connect(struct TCP_Server_Info *server);
@@ -386,6 +391,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		rc = generic_ip_connect(server);
 		if (rc) {
 			cifs_dbg(FYI, "reconnect error %d\n", rc);
+			mutex_unlock(&server->srv_mutex);
 			msleep(3000);
 		} else {
 			atomic_inc(&tcpSesReconnectCount);
@@ -393,8 +399,8 @@ cifs_reconnect(struct TCP_Server_Info *server)
 			if (server->tcpStatus != CifsExiting)
 				server->tcpStatus = CifsNeedNegotiate;
 			spin_unlock(&GlobalMid_Lock);
+			mutex_unlock(&server->srv_mutex);
 		}
-		mutex_unlock(&server->srv_mutex);
 	} while (server->tcpStatus == CifsNeedReconnect);
 
 	return rc;
@@ -773,8 +779,7 @@ static void clean_demultiplex_info(struct TCP_Server_Info *server)
 
 	length = atomic_dec_return(&tcpSesAllocCount);
 	if (length > 0)
-		mempool_resize(cifs_req_poolp, length + cifs_min_rcv,
-				GFP_KERNEL);
+		mempool_resize(cifs_req_poolp, length + cifs_min_rcv);
 }
 
 static int
@@ -848,8 +853,7 @@ cifs_demultiplex_thread(void *p)
 
 	length = atomic_inc_return(&tcpSesAllocCount);
 	if (length > 1)
-		mempool_resize(cifs_req_poolp, length + cifs_min_rcv,
-				GFP_KERNEL);
+		mempool_resize(cifs_req_poolp, length + cifs_min_rcv);
 
 	set_freezable();
 	while (server->tcpStatus != CifsExiting) {
@@ -1134,6 +1138,12 @@ cifs_parse_smb_version(char *value, struct smb_vol *vol)
 		vol->ops = &smb30_operations; /* currently identical with 3.0 */
 		vol->vals = &smb302_values;
 		break;
+#ifdef CONFIG_CIFS_SMB311
+	case Smb_311:
+		vol->ops = &smb311_operations;
+		vol->vals = &smb311_values;
+		break;
+#endif /* SMB311 */
 #endif
 	default:
 		cifs_dbg(VFS, "Unknown vers= option specified: %s\n", value);
@@ -1599,6 +1609,8 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 				pr_warn("CIFS: username too long\n");
 				goto cifs_parse_mount_err;
 			}
+
+			kfree(vol->username);
 			vol->username = kstrdup(string, GFP_KERNEL);
 			if (!vol->username)
 				goto cifs_parse_mount_err;
@@ -1700,6 +1712,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 				goto cifs_parse_mount_err;
 			}
 
+			kfree(vol->domainname);
 			vol->domainname = kstrdup(string, GFP_KERNEL);
 			if (!vol->domainname) {
 				pr_warn("CIFS: no memory for domainname\n");
@@ -1731,6 +1744,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			}
 
 			 if (strncasecmp(string, "default", 7) != 0) {
+				kfree(vol->iocharset);
 				vol->iocharset = kstrdup(string,
 							 GFP_KERNEL);
 				if (!vol->iocharset) {
@@ -2311,13 +2325,14 @@ static int
 cifs_set_cifscreds(struct smb_vol *vol, struct cifs_ses *ses)
 {
 	int rc = 0;
-	char *desc, *delim, *payload;
+	const char *delim, *payload;
+	char *desc;
 	ssize_t len;
 	struct key *key;
 	struct TCP_Server_Info *server = ses->server;
 	struct sockaddr_in *sa;
 	struct sockaddr_in6 *sa6;
-	struct user_key_payload *upayload;
+	const struct user_key_payload *upayload;
 
 	desc = kmalloc(CIFSCREDS_DESC_SIZE, GFP_KERNEL);
 	if (!desc)
@@ -2360,14 +2375,14 @@ cifs_set_cifscreds(struct smb_vol *vol, struct cifs_ses *ses)
 	}
 
 	down_read(&key->sem);
-	upayload = key->payload.data;
+	upayload = user_key_payload(key);
 	if (IS_ERR_OR_NULL(upayload)) {
 		rc = upayload ? PTR_ERR(upayload) : -EINVAL;
 		goto out_key_put;
 	}
 
 	/* find first : in payload */
-	payload = (char *)upayload->data;
+	payload = upayload->data;
 	delim = strnchr(payload, upayload->datalen, ':');
 	cifs_dbg(FYI, "payload=%s\n", payload);
 	if (!delim) {
@@ -2913,8 +2928,7 @@ ip_rfc1001_connect(struct TCP_Server_Info *server)
 		 * calling name ends in null (byte 16) from old smb
 		 * convention.
 		 */
-		if (server->workstation_RFC1001_name &&
-		    server->workstation_RFC1001_name[0] != 0)
+		if (server->workstation_RFC1001_name[0] != 0)
 			rfc1002mangle(ses_init_buf->trailer.
 				      session_req.calling_name,
 				      server->workstation_RFC1001_name,
@@ -3459,6 +3473,8 @@ try_mount_again:
 		else if (ses)
 			cifs_put_smb_ses(ses);
 
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_POSIX_PATHS;
+
 		free_xid(xid);
 	}
 #endif
@@ -3692,6 +3708,12 @@ CIFSTCon(const unsigned int xid, struct cifs_ses *ses,
 #endif /* CIFS_WEAK_PW_HASH */
 		rc = SMBNTencrypt(tcon->password, ses->server->cryptkey,
 					bcc_ptr, nls_codepage);
+		if (rc) {
+			cifs_dbg(FYI, "%s Can't generate NTLM rsp. Error: %d\n",
+				 __func__, rc);
+			cifs_buf_release(smb_buffer);
+			return rc;
+		}
 
 		bcc_ptr += CIFS_AUTH_RESP_SIZE;
 		if (ses->capabilities & CAP_UNICODE) {

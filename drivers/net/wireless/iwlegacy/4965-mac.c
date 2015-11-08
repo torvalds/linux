@@ -5751,11 +5751,13 @@ il4965_mac_setup_register(struct il_priv *il, u32 max_probe_length)
 	hw->rate_control_algorithm = "iwl-4965-rs";
 
 	/* Tell mac80211 our characteristics */
-	hw->flags =
-	    IEEE80211_HW_SIGNAL_DBM | IEEE80211_HW_AMPDU_AGGREGATION |
-	    IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC | IEEE80211_HW_SPECTRUM_MGMT |
-	    IEEE80211_HW_REPORTS_TX_ACK_STATUS | IEEE80211_HW_SUPPORTS_PS |
-	    IEEE80211_HW_SUPPORTS_DYNAMIC_PS;
+	ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
+	ieee80211_hw_set(hw, SUPPORTS_PS);
+	ieee80211_hw_set(hw, REPORTS_TX_ACK_STATUS);
+	ieee80211_hw_set(hw, SPECTRUM_MGMT);
+	ieee80211_hw_set(hw, NEED_DTIM_BEFORE_ASSOC);
+	ieee80211_hw_set(hw, SIGNAL_DBM);
+	ieee80211_hw_set(hw, AMPDU_AGGREGATION);
 	if (il->cfg->sku & IL_SKU_N)
 		hw->wiphy->features |= NL80211_FEATURE_DYNAMIC_SMPS |
 				       NL80211_FEATURE_STATIC_SMPS;
@@ -5982,7 +5984,7 @@ int
 il4965_mac_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			enum ieee80211_ampdu_mlme_action action,
 			struct ieee80211_sta *sta, u16 tid, u16 * ssn,
-			u8 buf_size)
+			u8 buf_size, bool amsdu)
 {
 	struct il_priv *il = hw->priv;
 	int ret = -EINVAL;
@@ -6166,7 +6168,7 @@ il4965_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 	D_MAC80211("Enter: changed: 0x%x, total: 0x%x\n", changed_flags,
 		   *total_flags);
 
-	CHK(FIF_OTHER_BSS | FIF_PROMISC_IN_BSS, RXON_FILTER_PROMISC_MSK);
+	CHK(FIF_OTHER_BSS, RXON_FILTER_PROMISC_MSK);
 	/* Setting _just_ RXON_FILTER_CTL2HOST_MSK causes FH errors */
 	CHK(FIF_CONTROL, RXON_FILTER_CTL2HOST_MSK | RXON_FILTER_PROMISC_MSK);
 	CHK(FIF_BCN_PRBRESP_PROMISC, RXON_FILTER_BCON_AWARE_MSK);
@@ -6192,7 +6194,7 @@ il4965_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 	 * filters into the device.
 	 */
 	*total_flags &=
-	    FIF_OTHER_BSS | FIF_ALLMULTI | FIF_PROMISC_IN_BSS |
+	    FIF_OTHER_BSS | FIF_ALLMULTI |
 	    FIF_BCN_PRBRESP_PROMISC | FIF_CONTROL;
 }
 

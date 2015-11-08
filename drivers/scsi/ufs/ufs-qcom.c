@@ -214,8 +214,6 @@ static int ufs_qcom_power_up_sequence(struct ufs_hba *hba)
 	struct ufs_qcom_host *host = hba->priv;
 	struct phy *phy = host->generic_phy;
 	int ret = 0;
-	u8 major;
-	u16 minor, step;
 	bool is_rate_B = (UFS_QCOM_LIMIT_HS_RATE == PA_HS_MODE_B)
 							? true : false;
 
@@ -224,8 +222,6 @@ static int ufs_qcom_power_up_sequence(struct ufs_hba *hba)
 	/* provide 1ms delay to let the reset pulse propagate */
 	usleep_range(1000, 1100);
 
-	ufs_qcom_get_controller_revision(hba, &major, &minor, &step);
-	ufs_qcom_phy_save_controller_version(phy, major, minor, step);
 	ret = ufs_qcom_phy_calibrate_phy(phy, is_rate_B);
 	if (ret) {
 		dev_err(hba->dev, "%s: ufs_qcom_phy_calibrate_phy() failed, ret = %d\n",
@@ -311,6 +307,7 @@ static int ufs_qcom_hce_enable_notify(struct ufs_hba *hba, bool status)
 static unsigned long
 ufs_qcom_cfg_timers(struct ufs_hba *hba, u32 gear, u32 hs, u32 rate)
 {
+	struct ufs_qcom_host *host = hba->priv;
 	struct ufs_clk_info *clki;
 	u32 core_clk_period_in_ns;
 	u32 tx_clk_cycles_per_us = 0;
@@ -333,6 +330,16 @@ ufs_qcom_cfg_timers(struct ufs_hba *hba, u32 gear, u32 hs, u32 rate)
 		{UFS_HS_G1, 0x24},
 		{UFS_HS_G2, 0x49},
 	};
+
+	/*
+	 * The Qunipro controller does not use following registers:
+	 * SYS1CLK_1US_REG, TX_SYMBOL_CLK_1US_REG, CLK_NS_REG &
+	 * UFS_REG_PA_LINK_STARTUP_TIMER
+	 * But UTP controller uses SYS1CLK_1US_REG register for Interrupt
+	 * Aggregation logic.
+	*/
+	if (ufs_qcom_cap_qunipro(host) && !ufshcd_is_intr_aggr_allowed(hba))
+		goto out;
 
 	if (gear == 0) {
 		dev_err(hba->dev, "%s: invalid gear = %d\n", __func__, gear);
@@ -687,6 +694,16 @@ out:
 	return ret;
 }
 
+static u32 ufs_qcom_get_ufs_hci_version(struct ufs_hba *hba)
+{
+	struct ufs_qcom_host *host = hba->priv;
+
+	if (host->hw_ver.major == 0x1)
+		return UFSHCI_VERSION_11;
+	else
+		return UFSHCI_VERSION_20;
+}
+
 /**
  * ufs_qcom_advertise_quirks - advertise the known QCOM UFS controller quirks
  * @hba: host controller instance
@@ -698,16 +715,35 @@ out:
  */
 static void ufs_qcom_advertise_quirks(struct ufs_hba *hba)
 {
-	u8 major;
-	u16 minor, step;
+	struct ufs_qcom_host *host = hba->priv;
 
-	ufs_qcom_get_controller_revision(hba, &major, &minor, &step);
+	if (host->hw_ver.major == 0x01) {
+		hba->quirks |= UFSHCD_QUIRK_DELAY_BEFORE_DME_CMDS
+			    | UFSHCD_QUIRK_BROKEN_PA_RXHSUNTERMCAP
+			    | UFSHCD_QUIRK_DME_PEER_ACCESS_AUTO_MODE;
 
-	/*
-	 * TBD
-	 * here we should be advertising controller quirks according to
-	 * controller version.
-	 */
+		if (host->hw_ver.minor == 0x0001 && host->hw_ver.step == 0x0001)
+			hba->quirks |= UFSHCD_QUIRK_BROKEN_INTR_AGGR;
+	}
+
+	if (host->hw_ver.major >= 0x2) {
+		hba->quirks |= UFSHCD_QUIRK_BROKEN_LCC;
+		hba->quirks |= UFSHCD_QUIRK_BROKEN_UFS_HCI_VERSION;
+
+		if (!ufs_qcom_cap_qunipro(host))
+			/* Legacy UniPro mode still need following quirks */
+			hba->quirks |= (UFSHCD_QUIRK_DELAY_BEFORE_DME_CMDS
+				| UFSHCD_QUIRK_DME_PEER_ACCESS_AUTO_MODE
+				| UFSHCD_QUIRK_BROKEN_PA_RXHSUNTERMCAP);
+	}
+}
+
+static void ufs_qcom_set_caps(struct ufs_hba *hba)
+{
+	struct ufs_qcom_host *host = hba->priv;
+
+	if (host->hw_ver.major >= 0x2)
+		host->caps = UFS_QCOM_CAP_QUNIPRO;
 }
 
 static int ufs_qcom_get_bus_vote(struct ufs_qcom_host *host,
@@ -929,6 +965,13 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 	if (err)
 		goto out_host_free;
 
+	ufs_qcom_get_controller_revision(hba, &host->hw_ver.major,
+		&host->hw_ver.minor, &host->hw_ver.step);
+
+	/* update phy revision information before calling phy_init() */
+	ufs_qcom_phy_save_controller_version(host->generic_phy,
+		host->hw_ver.major, host->hw_ver.minor, host->hw_ver.step);
+
 	phy_init(host->generic_phy);
 	err = phy_power_on(host->generic_phy);
 	if (err)
@@ -938,6 +981,7 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 	if (err)
 		goto out_disable_phy;
 
+	ufs_qcom_set_caps(hba);
 	ufs_qcom_advertise_quirks(hba);
 
 	hba->caps |= UFSHCD_CAP_CLK_GATING | UFSHCD_CAP_CLK_SCALING;
@@ -993,6 +1037,7 @@ static const struct ufs_hba_variant_ops ufs_hba_qcom_vops = {
 	.name                   = "qcom",
 	.init                   = ufs_qcom_init,
 	.exit                   = ufs_qcom_exit,
+	.get_ufs_hci_version	= ufs_qcom_get_ufs_hci_version,
 	.clk_scale_notify	= ufs_qcom_clk_scale_notify,
 	.setup_clocks           = ufs_qcom_setup_clocks,
 	.hce_enable_notify      = ufs_qcom_hce_enable_notify,

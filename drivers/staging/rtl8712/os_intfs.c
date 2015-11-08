@@ -97,7 +97,7 @@ static char *initmac;
  */
 static int wifi_test;
 
-module_param_string(ifname, ifname, sizeof(ifname), S_IRUGO|S_IWUSR);
+module_param_string(ifname, ifname, sizeof(ifname), S_IRUGO | S_IWUSR);
 module_param(wifi_test, int, 0644);
 module_param(initmac, charp, 0644);
 module_param(video_mode, int, 0644);
@@ -122,13 +122,11 @@ module_param(low_power, int, 0644);
 MODULE_PARM_DESC(ifname, " Net interface name, wlan%d=default");
 MODULE_PARM_DESC(initmac, "MAC-Address, default: use FUSE");
 
-static uint loadparam(struct _adapter *padapter, struct  net_device *pnetdev);
 static int netdev_open(struct net_device *pnetdev);
 static int netdev_close(struct net_device *pnetdev);
 
-static uint loadparam(struct _adapter *padapter, struct  net_device *pnetdev)
+static void loadparam(struct _adapter *padapter, struct  net_device *pnetdev)
 {
-	uint status = _SUCCESS;
 	struct registry_priv  *registry_par = &padapter->registrypriv;
 
 	registry_par->chip_version = (u8)chip_version;
@@ -172,22 +170,21 @@ static uint loadparam(struct _adapter *padapter, struct  net_device *pnetdev)
 	registry_par->low_power = (u8)low_power;
 	registry_par->wifi_test = (u8) wifi_test;
 	r8712_initmac = initmac;
-	return status;
 }
 
 static int r871x_net_set_mac_address(struct net_device *pnetdev, void *p)
 {
-	struct _adapter *padapter = (struct _adapter *)netdev_priv(pnetdev);
+	struct _adapter *padapter = netdev_priv(pnetdev);
 	struct sockaddr *addr = p;
 
-	if (padapter->bup == false)
-		memcpy(pnetdev->dev_addr, addr->sa_data, ETH_ALEN);
+	if (!padapter->bup)
+		ether_addr_copy(pnetdev->dev_addr, addr->sa_data);
 	return 0;
 }
 
 static struct net_device_stats *r871x_net_get_stats(struct net_device *pnetdev)
 {
-	struct _adapter *padapter = (struct _adapter *) netdev_priv(pnetdev);
+	struct _adapter *padapter = netdev_priv(pnetdev);
 	struct xmit_priv *pxmitpriv = &(padapter->xmitpriv);
 	struct recv_priv *precvpriv = &(padapter->recvpriv);
 
@@ -221,14 +218,13 @@ struct net_device *r8712_init_netdev(void)
 		strcpy(ifname, "wlan%d");
 		dev_alloc_name(pnetdev, ifname);
 	}
-	padapter = (struct _adapter *) netdev_priv(pnetdev);
+	padapter = netdev_priv(pnetdev);
 	padapter->pnetdev = pnetdev;
 	pr_info("r8712u: register rtl8712_netdev_ops to netdev_ops\n");
 	pnetdev->netdev_ops = &rtl8712_netdev_ops;
 	pnetdev->watchdog_timeo = HZ; /* 1 second timeout */
 	pnetdev->wireless_handlers = (struct iw_handler_def *)
 				     &r871x_handlers_def;
-	/*step 2.*/
 	loadparam(padapter, pnetdev);
 	netif_carrier_off(pnetdev);
 	padapter->pid = 0;  /* Initial the PID value used for HW PBC.*/
@@ -255,20 +251,20 @@ void r8712_stop_drv_threads(struct _adapter *padapter)
 
 static void start_drv_timers(struct _adapter *padapter)
 {
-	_set_timer(&padapter->mlmepriv.sitesurveyctrl.sitesurvey_ctrl_timer,
-		   5000);
-	_set_timer(&padapter->mlmepriv.wdg_timer, 2000);
+	mod_timer(&padapter->mlmepriv.sitesurveyctrl.sitesurvey_ctrl_timer,
+		  jiffies + msecs_to_jiffies(5000));
+	mod_timer(&padapter->mlmepriv.wdg_timer,
+		  jiffies + msecs_to_jiffies(2000));
 }
 
 void r8712_stop_drv_timers(struct _adapter *padapter)
 {
-	_cancel_timer_ex(&padapter->mlmepriv.assoc_timer);
-	_cancel_timer_ex(&padapter->securitypriv.tkip_timer);
-	_cancel_timer_ex(&padapter->mlmepriv.scan_to_timer);
-	_cancel_timer_ex(&padapter->mlmepriv.dhcp_timer);
-	_cancel_timer_ex(&padapter->mlmepriv.wdg_timer);
-	_cancel_timer_ex(&padapter->mlmepriv.sitesurveyctrl.
-			 sitesurvey_ctrl_timer);
+	del_timer_sync(&padapter->mlmepriv.assoc_timer);
+	del_timer_sync(&padapter->securitypriv.tkip_timer);
+	del_timer_sync(&padapter->mlmepriv.scan_to_timer);
+	del_timer_sync(&padapter->mlmepriv.dhcp_timer);
+	del_timer_sync(&padapter->mlmepriv.wdg_timer);
+	del_timer_sync(&padapter->mlmepriv.sitesurveyctrl.sitesurvey_ctrl_timer);
 }
 
 static u8 init_default_value(struct _adapter *padapter)
@@ -322,8 +318,8 @@ u8 r8712_init_drv_sw(struct _adapter *padapter)
 	_r8712_init_recv_priv(&padapter->recvpriv, padapter);
 	memset((unsigned char *)&padapter->securitypriv, 0,
 	       sizeof(struct security_priv));
-	_init_timer(&(padapter->securitypriv.tkip_timer), padapter->pnetdev,
-		    r8712_use_tkipkey_handler, padapter);
+	setup_timer(&padapter->securitypriv.tkip_timer,
+		    r8712_use_tkipkey_handler, (unsigned long)padapter);
 	_r8712_init_sta_priv(&padapter->stapriv);
 	padapter->stapriv.padapter = padapter;
 	r8712_init_bcmc_stainfo(padapter);
@@ -337,7 +333,7 @@ u8 r8712_init_drv_sw(struct _adapter *padapter)
 
 u8 r8712_free_drv_sw(struct _adapter *padapter)
 {
-	struct net_device *pnetdev = (struct net_device *)padapter->pnetdev;
+	struct net_device *pnetdev = padapter->pnetdev;
 
 	r8712_free_cmd_priv(&padapter->cmdpriv);
 	r8712_free_evt_priv(&padapter->evtpriv);
@@ -370,7 +366,8 @@ static void enable_video_mode(struct _adapter *padapter, int cbw40_value)
 
 	if (cbw40_value) {
 		/* if the driver supports the 40M bandwidth,
-		 * we can enable the bit 9.*/
+		 * we can enable the bit 9.
+		 */
 		intcmd |= 0x200;
 	}
 	r8712_fw_cmd(padapter, intcmd);
@@ -384,10 +381,10 @@ static void enable_video_mode(struct _adapter *padapter, int cbw40_value)
  */
 static int netdev_open(struct net_device *pnetdev)
 {
-	struct _adapter *padapter = (struct _adapter *)netdev_priv(pnetdev);
+	struct _adapter *padapter = netdev_priv(pnetdev);
 
 	mutex_lock(&padapter->mutex_start);
-	if (padapter->bup == false) {
+	if (!padapter->bup) {
 		padapter->bDriverStopped = false;
 		padapter->bSurpriseRemoved = false;
 		padapter->bup = true;
@@ -452,7 +449,7 @@ netdev_open_error:
  */
 static int netdev_close(struct net_device *pnetdev)
 {
-	struct _adapter *padapter = (struct _adapter *) netdev_priv(pnetdev);
+	struct _adapter *padapter = netdev_priv(pnetdev);
 
 	/* Close LED*/
 	padapter->ledpriv.LedControlHandler(padapter, LED_CTL_POWER_OFF);

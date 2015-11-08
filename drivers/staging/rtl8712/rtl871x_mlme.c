@@ -62,8 +62,8 @@ static sint _init_mlme_priv(struct _adapter *padapter)
 	_init_queue(&(pmlmepriv->scanned_queue));
 	set_scanned_network_val(pmlmepriv, 0);
 	memset(&pmlmepriv->assoc_ssid, 0, sizeof(struct ndis_802_11_ssid));
-	pbuf = kmalloc(MAX_BSS_CNT * (sizeof(struct wlan_network)),
-		       GFP_ATOMIC);
+	pbuf = kmalloc_array(MAX_BSS_CNT, sizeof(struct wlan_network),
+			     GFP_ATOMIC);
 	if (pbuf == NULL)
 		return _FAIL;
 	pmlmepriv->free_bss_buf = pbuf;
@@ -110,7 +110,7 @@ static void _free_network(struct mlme_priv *pmlmepriv,
 
 	if (pnetwork == NULL)
 		return;
-	if (pnetwork->fixed == true)
+	if (pnetwork->fixed)
 		return;
 	curr_time = jiffies;
 	delta_time = (curr_time - (u32)pnetwork->last_scanned) / HZ;
@@ -130,7 +130,7 @@ static void _free_network_nolock(struct mlme_priv *pmlmepriv,
 
 	if (pnetwork == NULL)
 		return;
-	if (pnetwork->fixed == true)
+	if (pnetwork->fixed)
 		return;
 	list_del_init(&pnetwork->list);
 	list_add_tail(&pnetwork->list, &free_queue->queue);
@@ -176,7 +176,7 @@ static void _free_network_queue(struct _adapter *padapter)
 	spin_lock_irqsave(&scanned_queue->lock, irqL);
 	phead = &scanned_queue->queue;
 	plist = phead->next;
-	while (end_of_queue_search(phead, plist) == false) {
+	while (!end_of_queue_search(phead, plist)) {
 		pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
 		plist = plist->next;
 		_free_network(pmlmepriv, pnetwork);
@@ -189,10 +189,11 @@ sint r8712_if_up(struct _adapter *padapter)
 	sint res;
 
 	if (padapter->bDriverStopped || padapter->bSurpriseRemoved ||
-	    (check_fwstate(&padapter->mlmepriv, _FW_LINKED) == false)) {
+	    !check_fwstate(&padapter->mlmepriv, _FW_LINKED)) {
 		res = false;
-	} else
+	} else {
 		res = true;
+	}
 	return res;
 }
 
@@ -204,23 +205,13 @@ void r8712_generate_random_ibss(u8 *pibss)
 	pibss[1] = 0x11;
 	pibss[2] = 0x87;
 	pibss[3] = (u8)(curtime & 0xff);
-	pibss[4] = (u8)((curtime>>8) & 0xff);
-	pibss[5] = (u8)((curtime>>16) & 0xff);
+	pibss[4] = (u8)((curtime >> 8) & 0xff);
+	pibss[5] = (u8)((curtime >> 16) & 0xff);
 }
 
-uint r8712_get_ndis_wlan_bssid_ex_sz(struct ndis_wlan_bssid_ex *bss)
+uint r8712_get_wlan_bssid_ex_sz(struct wlan_bssid_ex *bss)
 {
-	uint t_len;
-
-	t_len = sizeof(u32) + 6 * sizeof(unsigned long) + 2 +
-			sizeof(struct ndis_802_11_ssid) + sizeof(u32) +
-			sizeof(s32) +
-			sizeof(enum NDIS_802_11_NETWORK_TYPE) +
-			sizeof(struct NDIS_802_11_CONFIGURATION) +
-			sizeof(enum NDIS_802_11_NETWORK_INFRASTRUCTURE) +
-			sizeof(NDIS_802_11_RATES_EX) +
-			sizeof(u32) + bss->IELength;
-	return t_len;
+	return sizeof(*bss) + bss->IELength - MAX_IE_SZ;
 }
 
 u8 *r8712_get_capability_from_ie(u8 *ie)
@@ -286,8 +277,8 @@ int r8712_is_same_ibss(struct _adapter *adapter, struct wlan_network *pnetwork)
 
 }
 
-static int is_same_network(struct ndis_wlan_bssid_ex *src,
-			   struct ndis_wlan_bssid_ex *dst)
+static int is_same_network(struct wlan_bssid_ex *src,
+			   struct wlan_bssid_ex *dst)
 {
 	 u16 s_cap, d_cap;
 
@@ -332,8 +323,8 @@ struct	wlan_network *r8712_get_oldest_wlan_network(
 	return oldest;
 }
 
-static void update_network(struct ndis_wlan_bssid_ex *dst,
-			   struct ndis_wlan_bssid_ex *src,
+static void update_network(struct wlan_bssid_ex *dst,
+			   struct wlan_bssid_ex *src,
 			   struct _adapter *padapter)
 {
 	u32 last_evm = 0, tmpVal;
@@ -364,13 +355,14 @@ static void update_network(struct ndis_wlan_bssid_ex *dst,
 		padapter->recvpriv.signal = (u8)tmpVal;
 
 		src->Rssi = padapter->recvpriv.signal;
-	} else
+	} else {
 		src->Rssi = (src->Rssi + dst->Rssi) / 2;
-	memcpy((u8 *)dst, (u8 *)src, r8712_get_ndis_wlan_bssid_ex_sz(src));
+	}
+	memcpy((u8 *)dst, (u8 *)src, r8712_get_wlan_bssid_ex_sz(src));
 }
 
 static void update_current_network(struct _adapter *adapter,
-				   struct ndis_wlan_bssid_ex *pnetwork)
+				   struct wlan_bssid_ex *pnetwork)
 {
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 
@@ -388,7 +380,7 @@ static void update_current_network(struct _adapter *adapter,
 Caller must hold pmlmepriv->lock first.
 */
 static void update_scanned_network(struct _adapter *adapter,
-			    struct ndis_wlan_bssid_ex *target)
+			    struct wlan_bssid_ex *target)
 {
 	struct list_head *plist, *phead;
 
@@ -402,7 +394,7 @@ static void update_scanned_network(struct _adapter *adapter,
 	plist = phead->next;
 
 	while (1) {
-		if (end_of_queue_search(phead, plist) == true)
+		if (end_of_queue_search(phead, plist))
 			break;
 
 		pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
@@ -419,14 +411,14 @@ static void update_scanned_network(struct _adapter *adapter,
 
 	/* If we didn't find a match, then get a new network slot to initialize
 	 * with this beacon's information */
-	if (end_of_queue_search(phead, plist) == true) {
+	if (end_of_queue_search(phead, plist)) {
 		if (list_empty(&pmlmepriv->free_bss_pool.queue)) {
 			/* If there are no more slots, expire the oldest */
 			pnetwork = oldest;
 			target->Rssi = (pnetwork->network.Rssi +
 					target->Rssi) / 2;
 			memcpy(&pnetwork->network, target,
-				r8712_get_ndis_wlan_bssid_ex_sz(target));
+				r8712_get_wlan_bssid_ex_sz(target));
 			pnetwork->last_scanned = jiffies;
 		} else {
 			/* Otherwise just pull from the free list */
@@ -434,7 +426,7 @@ static void update_scanned_network(struct _adapter *adapter,
 			pnetwork = alloc_network(pmlmepriv);
 			if (pnetwork == NULL)
 				return;
-			bssid_ex_sz = r8712_get_ndis_wlan_bssid_ex_sz(target);
+			bssid_ex_sz = r8712_get_wlan_bssid_ex_sz(target);
 			target->Length = bssid_ex_sz;
 			memcpy(&pnetwork->network, target, bssid_ex_sz);
 			list_add_tail(&pnetwork->list, &queue->queue);
@@ -451,7 +443,7 @@ static void update_scanned_network(struct _adapter *adapter,
 }
 
 static void rtl8711_add_network(struct _adapter *adapter,
-			 struct ndis_wlan_bssid_ex *pnetwork)
+			 struct wlan_bssid_ex *pnetwork)
 {
 	unsigned long irqL;
 	struct mlme_priv *pmlmepriv = &(((struct _adapter *)adapter)->mlmepriv);
@@ -478,10 +470,10 @@ static int is_desired_network(struct _adapter *adapter,
 	int bselected = true;
 	struct	security_priv *psecuritypriv = &adapter->securitypriv;
 
-	if (psecuritypriv->wps_phase == true) {
+	if (psecuritypriv->wps_phase) {
 		if (r8712_get_wps_ie(pnetwork->network.IEs,
 		    pnetwork->network.IELength, wps_ie,
-		    &wps_ielen) == true)
+		    &wps_ielen))
 			return true;
 		else
 			return false;
@@ -489,7 +481,7 @@ static int is_desired_network(struct _adapter *adapter,
 	if ((psecuritypriv->PrivacyAlgrthm != _NO_PRIVACY_) &&
 		    (pnetwork->network.Privacy == 0))
 		bselected = false;
-	if (check_fwstate(&adapter->mlmepriv, WIFI_ADHOC_STATE) == true) {
+	if (check_fwstate(&adapter->mlmepriv, WIFI_ADHOC_STATE)) {
 		if (pnetwork->network.InfrastructureMode !=
 			adapter->mlmepriv.cur_network.network.
 			InfrastructureMode)
@@ -507,10 +499,10 @@ void r8712_survey_event_callback(struct _adapter *adapter, u8 *pbuf)
 {
 	unsigned long flags;
 	u32 len;
-	struct ndis_wlan_bssid_ex *pnetwork;
+	struct wlan_bssid_ex *pnetwork;
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 
-	pnetwork = (struct ndis_wlan_bssid_ex *)pbuf;
+	pnetwork = (struct wlan_bssid_ex *)pbuf;
 #ifdef __BIG_ENDIAN
 	/* endian_convert */
 	pnetwork->Length = le32_to_cpu(pnetwork->Length);
@@ -538,12 +530,12 @@ void r8712_survey_event_callback(struct _adapter *adapter, u8 *pbuf)
 		 le32_to_cpu(pnetwork->InfrastructureMode);
 	pnetwork->IELength = le32_to_cpu(pnetwork->IELength);
 #endif
-	len = r8712_get_ndis_wlan_bssid_ex_sz(pnetwork);
+	len = r8712_get_wlan_bssid_ex_sz(pnetwork);
 	if (len > sizeof(struct wlan_bssid_ex))
 		return;
 	spin_lock_irqsave(&pmlmepriv->lock2, flags);
 	/* update IBSS_network 's timestamp */
-	if (check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == true) {
+	if (check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)) {
 		if (!memcmp(&(pmlmepriv->cur_network.network.MacAddress),
 		    pnetwork->MacAddress, ETH_ALEN)) {
 			struct wlan_network *ibss_wlan = NULL;
@@ -561,10 +553,10 @@ void r8712_survey_event_callback(struct _adapter *adapter, u8 *pbuf)
 		}
 	}
 	/* lock pmlmepriv->lock when you accessing network_q */
-	if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING) == false) {
-		if (pnetwork->Ssid.Ssid[0] != 0)
+	if (!check_fwstate(pmlmepriv, _FW_UNDER_LINKING)) {
+		if (pnetwork->Ssid.Ssid[0] != 0) {
 			rtl8711_add_network(adapter, pnetwork);
-		else {
+		} else {
 			pnetwork->Ssid.SsidLength = 8;
 			memcpy(pnetwork->Ssid.Ssid, "<hidden>", 8);
 			rtl8711_add_network(adapter, pnetwork);
@@ -581,23 +573,21 @@ void r8712_surveydone_event_callback(struct _adapter *adapter, u8 *pbuf)
 
 	spin_lock_irqsave(&pmlmepriv->lock, irqL);
 
-	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY) == true) {
-		u8 timer_cancelled;
-
-		_cancel_timer(&pmlmepriv->scan_to_timer, &timer_cancelled);
+	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY)) {
+		del_timer(&pmlmepriv->scan_to_timer);
 
 		_clr_fwstate_(pmlmepriv, _FW_UNDER_SURVEY);
 	}
 
-	if (pmlmepriv->to_join == true) {
-		if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == true) {
-			if (check_fwstate(pmlmepriv, _FW_LINKED) == false) {
+	if (pmlmepriv->to_join) {
+		if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE)) {
+			if (!check_fwstate(pmlmepriv, _FW_LINKED)) {
 				set_fwstate(pmlmepriv, _FW_UNDER_LINKING);
 
 				if (r8712_select_and_join_from_scan(pmlmepriv)
 				    == _SUCCESS)
-					_set_timer(&pmlmepriv->assoc_timer,
-						   MAX_JOIN_TIMEOUT);
+					mod_timer(&pmlmepriv->assoc_timer, jiffies +
+						  msecs_to_jiffies(MAX_JOIN_TIMEOUT));
 				else {
 					struct wlan_bssid_ex *pdev_network =
 					  &(adapter->registrypriv.dev_network);
@@ -622,8 +612,8 @@ void r8712_surveydone_event_callback(struct _adapter *adapter, u8 *pbuf)
 			set_fwstate(pmlmepriv, _FW_UNDER_LINKING);
 			if (r8712_select_and_join_from_scan(pmlmepriv) ==
 			    _SUCCESS)
-				_set_timer(&pmlmepriv->assoc_timer,
-					   MAX_JOIN_TIMEOUT);
+				mod_timer(&pmlmepriv->assoc_timer, jiffies +
+					  msecs_to_jiffies(MAX_JOIN_TIMEOUT));
 			else
 				_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 		}
@@ -645,7 +635,7 @@ void r8712_free_assoc_resources(struct _adapter *adapter)
 	pwlan = r8712_find_network(&pmlmepriv->scanned_queue,
 				   tgt_network->network.MacAddress);
 
-	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE|WIFI_AP_STATE)) {
+	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE | WIFI_AP_STATE)) {
 		struct sta_info *psta;
 
 		psta = r8712_get_stainfo(&adapter->stapriv,
@@ -657,7 +647,7 @@ void r8712_free_assoc_resources(struct _adapter *adapter)
 	}
 
 	if (check_fwstate(pmlmepriv,
-	    WIFI_ADHOC_STATE|WIFI_ADHOC_MASTER_STATE|WIFI_AP_STATE))
+	    WIFI_ADHOC_STATE | WIFI_ADHOC_MASTER_STATE | WIFI_AP_STATE))
 		r8712_free_all_stainfo(adapter);
 	if (pwlan)
 		pwlan->fixed = false;
@@ -679,7 +669,8 @@ void r8712_indicate_connect(struct _adapter *padapter)
 	padapter->ledpriv.LedControlHandler(padapter, LED_CTL_LINK);
 	r8712_os_indicate_connect(padapter);
 	if (padapter->registrypriv.power_mgnt > PS_MODE_ACTIVE)
-		_set_timer(&pmlmepriv->dhcp_timer, 60000);
+		mod_timer(&pmlmepriv->dhcp_timer,
+			  jiffies + msecs_to_jiffies(60000));
 }
 
 
@@ -690,14 +681,14 @@ void r8712_ind_disconnect(struct _adapter *padapter)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == true) {
+	if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 		_clr_fwstate_(pmlmepriv, _FW_LINKED);
 		padapter->ledpriv.LedControlHandler(padapter, LED_CTL_NO_LINK);
 		r8712_os_indicate_disconnect(padapter);
 	}
 	if (padapter->pwrctrlpriv.pwr_mode !=
 	    padapter->registrypriv.power_mgnt) {
-		_cancel_timer_ex(&pmlmepriv->dhcp_timer);
+		del_timer(&pmlmepriv->dhcp_timer);
 		r8712_set_ps_mode(padapter, padapter->registrypriv.power_mgnt,
 				  padapter->registrypriv.smart_ps);
 	}
@@ -716,7 +707,6 @@ void r8712_ind_disconnect(struct _adapter *padapter)
 void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 {
 	unsigned long irqL = 0, irqL2;
-	u8 timer_cancelled;
 	struct sta_info	*ptarget_sta = NULL, *pcur_sta = NULL;
 	struct sta_priv	*pstapriv = &adapter->stapriv;
 	struct mlme_priv	*pmlmepriv = &adapter->mlmepriv;
@@ -727,10 +717,13 @@ void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 
 	if (sizeof(struct list_head) == 4 * sizeof(u32)) {
 		pnetwork = kmalloc(sizeof(struct wlan_network), GFP_ATOMIC);
-		memcpy((u8 *)pnetwork+16, (u8 *)pbuf + 8,
-			sizeof(struct wlan_network) - 16);
-	} else
+		if (!pnetwork)
+			return;
+		memcpy((u8 *)pnetwork + 16, (u8 *)pbuf + 8,
+		       sizeof(struct wlan_network) - 16);
+	} else {
 		pnetwork = (struct wlan_network *)pbuf;
+	}
 
 #ifdef __BIG_ENDIAN
 	/* endian_convert */
@@ -769,20 +762,20 @@ void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 	the_same_macaddr = !memcmp(pnetwork->network.MacAddress,
 				   cur_network->network.MacAddress, ETH_ALEN);
 	pnetwork->network.Length =
-		 r8712_get_ndis_wlan_bssid_ex_sz(&pnetwork->network);
+		 r8712_get_wlan_bssid_ex_sz(&pnetwork->network);
 	spin_lock_irqsave(&pmlmepriv->lock, irqL);
 	if (pnetwork->network.Length > sizeof(struct wlan_bssid_ex))
 		goto ignore_joinbss_callback;
 	if (pnetwork->join_res > 0) {
-		if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING) == true) {
+		if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING)) {
 			/*s1. find ptarget_wlan*/
-			if (check_fwstate(pmlmepriv, _FW_LINKED) == true) {
-				if (the_same_macaddr == true)
+			if (check_fwstate(pmlmepriv, _FW_LINKED)) {
+				if (the_same_macaddr) {
 					ptarget_wlan =
 					    r8712_find_network(&pmlmepriv->
 					    scanned_queue,
 					    cur_network->network.MacAddress);
-				else {
+				} else {
 					pcur_wlan =
 					     r8712_find_network(&pmlmepriv->
 					     scanned_queue,
@@ -823,7 +816,7 @@ void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 
 			/*s2. find ptarget_sta & update ptarget_sta*/
 			if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
-				if (the_same_macaddr == true) {
+				if (the_same_macaddr) {
 					ptarget_sta =
 						 r8712_get_stainfo(pstapriv,
 						 pnetwork->network.MacAddress);
@@ -831,10 +824,11 @@ void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 						ptarget_sta =
 						 r8712_alloc_stainfo(pstapriv,
 						 pnetwork->network.MacAddress);
-				} else
+				} else {
 					ptarget_sta =
 						 r8712_alloc_stainfo(pstapriv,
 						 pnetwork->network.MacAddress);
+				}
 				if (ptarget_sta) /*update ptarget_sta*/ {
 					ptarget_sta->aid = pnetwork->join_res;
 					ptarget_sta->qos_option = 1;
@@ -907,16 +901,16 @@ void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 			update_ht_cap(adapter, cur_network->network.IEs,
 				      cur_network->network.IELength);
 			/*indicate connect*/
-			if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)
-				== true)
+			if (check_fwstate(pmlmepriv, WIFI_STATION_STATE))
 				r8712_indicate_connect(adapter);
-			_cancel_timer(&pmlmepriv->assoc_timer,
-				      &timer_cancelled);
-		} else
+			del_timer(&pmlmepriv->assoc_timer);
+		} else {
 			goto ignore_joinbss_callback;
+		}
 	} else {
-		if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING) == true) {
-			_set_timer(&pmlmepriv->assoc_timer, 1);
+		if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING)) {
+			mod_timer(&pmlmepriv->assoc_timer,
+				  jiffies + msecs_to_jiffies(1));
 			_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 		}
 	}
@@ -934,7 +928,7 @@ void r8712_stassoc_event_callback(struct _adapter *adapter, u8 *pbuf)
 	struct stassoc_event *pstassoc	= (struct stassoc_event *)pbuf;
 
 	/* to do: */
-	if (r8712_access_ctrl(&adapter->acl_list, pstassoc->macaddr) == false)
+	if (!r8712_access_ctrl(&adapter->acl_list, pstassoc->macaddr))
 		return;
 	psta = r8712_get_stainfo(&adapter->stapriv, pstassoc->macaddr);
 	if (psta != NULL) {
@@ -956,8 +950,8 @@ void r8712_stassoc_event_callback(struct _adapter *adapter, u8 *pbuf)
 		psta->XPrivacy = adapter->securitypriv.PrivacyAlgrthm;
 	psta->ieee8021x_blocked = false;
 	spin_lock_irqsave(&pmlmepriv->lock, irqL);
-	if ((check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == true) ||
-	    (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == true)) {
+	if (check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) ||
+	    check_fwstate(pmlmepriv, WIFI_ADHOC_STATE)) {
 		if (adapter->stapriv.asoc_sta_count == 2) {
 			/* a sta + bc/mc_stainfo (not Ibss_stainfo) */
 			r8712_indicate_connect(adapter);
@@ -979,7 +973,7 @@ void r8712_stadel_event_callback(struct _adapter *adapter, u8 *pbuf)
 	struct wlan_network *tgt_network = &pmlmepriv->cur_network;
 
 	spin_lock_irqsave(&pmlmepriv->lock, irqL2);
-	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE) == true) {
+	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
 		r8712_ind_disconnect(adapter);
 		r8712_free_assoc_resources(adapter);
 	}
@@ -1001,7 +995,7 @@ void r8712_stadel_event_callback(struct _adapter *adapter, u8 *pbuf)
 			pdev_network = &(adapter->registrypriv.dev_network);
 			pibss = adapter->registrypriv.dev_network.MacAddress;
 			memcpy(pdev_network, &tgt_network->network,
-				r8712_get_ndis_wlan_bssid_ex_sz(&tgt_network->
+				r8712_get_wlan_bssid_ex_sz(&tgt_network->
 							network));
 			memcpy(&pdev_network->Ssid,
 				&pmlmepriv->assoc_ssid,
@@ -1056,7 +1050,7 @@ void r8712_got_addbareq_event_callback(struct _adapter *adapter, u8 *pbuf)
 
 void r8712_wpspbc_event_callback(struct _adapter *adapter, u8 *pbuf)
 {
-	if (adapter->securitypriv.wps_hw_pbc_pressed == false)
+	if (!adapter->securitypriv.wps_hw_pbc_pressed)
 		adapter->securitypriv.wps_hw_pbc_pressed = true;
 }
 
@@ -1091,7 +1085,7 @@ void _r8712_join_timeout_handler(struct _adapter *adapter)
 	spin_lock_irqsave(&pmlmepriv->lock, irqL);
 	_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 	pmlmepriv->to_join = false;
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == true) {
+	if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 		r8712_os_indicate_disconnect(adapter);
 		_clr_fwstate_(pmlmepriv, _FW_LINKED);
 	}
@@ -1141,8 +1135,8 @@ int r8712_select_and_join_from_scan(struct mlme_priv *pmlmepriv)
 	phead = &queue->queue;
 	pmlmepriv->pscanned = phead->next;
 	while (1) {
-		if (end_of_queue_search(phead, pmlmepriv->pscanned) == true) {
-			if ((pmlmepriv->assoc_by_rssi == true) &&
+		if (end_of_queue_search(phead, pmlmepriv->pscanned)) {
+			if ((pmlmepriv->assoc_by_rssi) &&
 			    (pnetwork_max_rssi != NULL)) {
 				pnetwork = pnetwork_max_rssi;
 				goto ask_for_joinbss;
@@ -1154,7 +1148,7 @@ int r8712_select_and_join_from_scan(struct mlme_priv *pmlmepriv)
 		if (pnetwork == NULL)
 			return _FAIL;
 		pmlmepriv->pscanned = pmlmepriv->pscanned->next;
-		if (pmlmepriv->assoc_by_bssid == true) {
+		if (pmlmepriv->assoc_by_bssid) {
 			dst_ssid = pnetwork->network.MacAddress;
 			src_ssid = pmlmepriv->assoc_bssid;
 			if (!memcmp(dst_ssid, src_ssid, ETH_ALEN)) {
@@ -1174,23 +1168,25 @@ int r8712_select_and_join_from_scan(struct mlme_priv *pmlmepriv)
 				}
 				goto ask_for_joinbss;
 			}
-		} else if (pmlmepriv->assoc_ssid.SsidLength == 0)
+		} else if (pmlmepriv->assoc_ssid.SsidLength == 0) {
 			goto ask_for_joinbss;
+		}
 		dst_ssid = pnetwork->network.Ssid.Ssid;
 		src_ssid = pmlmepriv->assoc_ssid.Ssid;
 		if ((pnetwork->network.Ssid.SsidLength ==
 		    pmlmepriv->assoc_ssid.SsidLength) &&
 		    (!memcmp(dst_ssid, src_ssid,
 		     pmlmepriv->assoc_ssid.SsidLength))) {
-			if (pmlmepriv->assoc_by_rssi == true) {
+			if (pmlmepriv->assoc_by_rssi) {
 				/* if the ssid is the same, select the bss
 				 *  which has the max rssi*/
 				if (pnetwork_max_rssi) {
 					if (pnetwork->network.Rssi >
 					    pnetwork_max_rssi->network.Rssi)
 						pnetwork_max_rssi = pnetwork;
-				} else
+				} else {
 					pnetwork_max_rssi = pnetwork;
+				}
 			} else if (is_desired_network(adapter, pnetwork)) {
 				if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 					r8712_disassoc_cmd(adapter);
@@ -1200,7 +1196,7 @@ int r8712_select_and_join_from_scan(struct mlme_priv *pmlmepriv)
 			}
 		}
 	}
-	return _FAIL;
+
 ask_for_joinbss:
 	return r8712_joinbss_cmd(adapter, pnetwork);
 }
@@ -1418,7 +1414,7 @@ sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 	while (cnt < in_len) {
 		if (in_ie[cnt] == authmode) {
 			if ((authmode == _WPA_IE_ID_) &&
-			    (!memcmp(&in_ie[cnt+2], &wpa_oui[0], 4))) {
+			    (!memcmp(&in_ie[cnt + 2], &wpa_oui[0], 4))) {
 				memcpy(&sec_ie[0], &in_ie[cnt],
 					in_ie[cnt + 1] + 2);
 				match = true;
@@ -1436,10 +1432,10 @@ sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 				memcpy(&bkup_ie[0], &in_ie[cnt],
 					in_ie[cnt + 1] + 2);
 		}
-		cnt += in_ie[cnt+1] + 2; /*get next*/
+		cnt += in_ie[cnt + 1] + 2; /*get next*/
 	}
 	/*restruct WPA IE or WPA2 IE in sec_ie[] */
-	if (match == true) {
+	if (match) {
 		if (sec_ie[0] == _WPA_IE_ID_) {
 			/* parsing SSN IE to select required encryption
 			 * algorithm, and set the bc/mc encryption algorithm */
@@ -1496,7 +1492,7 @@ sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 					/*select the uncst_oui and remove
 					 * the other uncst_oui*/
 					cnt = sec_ie[12];
-					remove_cnt = (cnt-1) * 4;
+					remove_cnt = (cnt - 1) * 4;
 					sec_ie[12] = 0x01;
 					memcpy(&sec_ie[14], &uncst_oui[0], 4);
 					/*remove the other unicast suit*/
@@ -1557,7 +1553,7 @@ sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 					/*select the uncst_oui and remove the
 					 * other uncst_oui*/
 					cnt = sec_ie[8];
-					remove_cnt = (cnt-1)*4;
+					remove_cnt = (cnt - 1) * 4;
 					sec_ie[8] = 0x01;
 					memcpy(&sec_ie[10], &uncst_oui[0], 4);
 					/*remove the other unicast suit*/
@@ -1565,7 +1561,7 @@ sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 						&sec_ie[14 + remove_cnt],
 						(sec_ie[1] - 14 + 2 -
 						remove_cnt));
-					sec_ie[1] = sec_ie[1]-remove_cnt;
+					sec_ie[1] = sec_ie[1] - remove_cnt;
 				}
 				break;
 			}
@@ -1576,8 +1572,8 @@ sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 		memcpy(out_ie, in_ie, 12);
 		ielength = 12;
 		/*copy RSN or SSN*/
-		if (match == true) {
-			memcpy(&out_ie[ielength], &sec_ie[0], sec_ie[1]+2);
+		if (match) {
+			memcpy(&out_ie[ielength], &sec_ie[0], sec_ie[1] + 2);
 			ielength += sec_ie[1] + 2;
 			if (authmode == _WPA2_IE_ID_) {
 				/*the Pre-Authentication bit should be zero*/
@@ -1590,26 +1586,24 @@ sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 		/*copy fixed ie only*/
 		memcpy(out_ie, in_ie, 12);
 		ielength = 12;
-		if (psecuritypriv->wps_phase == true) {
-			memcpy(out_ie+ielength, psecuritypriv->wps_ie,
-				psecuritypriv->wps_ie_len);
+		if (psecuritypriv->wps_phase) {
+			memcpy(out_ie + ielength, psecuritypriv->wps_ie,
+			       psecuritypriv->wps_ie_len);
 			ielength += psecuritypriv->wps_ie_len;
 		}
 	}
 	iEntry = SecIsInPMKIDList(adapter, pmlmepriv->assoc_bssid);
 	if (iEntry < 0)
 		return ielength;
-	else {
-		if (authmode == _WPA2_IE_ID_) {
-			out_ie[ielength] = 1;
-			ielength++;
-			out_ie[ielength] = 0;	/*PMKID count = 0x0100*/
-			ielength++;
-			memcpy(&out_ie[ielength],
-				&psecuritypriv->PMKIDList[iEntry].PMKID, 16);
-			ielength += 16;
-			out_ie[13] += 18;/*PMKID length = 2+16*/
-		}
+	if (authmode == _WPA2_IE_ID_) {
+		out_ie[ielength] = 1;
+		ielength++;
+		out_ie[ielength] = 0;	/*PMKID count = 0x0100*/
+		ielength++;
+		memcpy(&out_ie[ielength],
+			&psecuritypriv->PMKIDList[iEntry].PMKID, 16);
+		ielength += 16;
+		out_ie[13] += 18;/*PMKID length = 2+16*/
 	}
 	return ielength;
 }
@@ -1670,8 +1664,7 @@ void r8712_update_registrypriv_dev_network(struct _adapter *adapter)
 	 */
 	sz = r8712_generate_ie(pregistrypriv);
 	pdev_network->IELength = sz;
-	pdev_network->Length = r8712_get_ndis_wlan_bssid_ex_sz(
-			      (struct ndis_wlan_bssid_ex *)pdev_network);
+	pdev_network->Length = r8712_get_wlan_bssid_ex_sz(pdev_network);
 }
 
 /*the function is at passive_level*/
@@ -1709,11 +1702,11 @@ unsigned int r8712_restructure_ht_ie(struct _adapter *padapter, u8 *in_ie,
 	struct ht_priv *phtpriv = &pmlmepriv->htpriv;
 
 	phtpriv->ht_option = 0;
-	p = r8712_get_ie(in_ie+12, _HT_CAPABILITY_IE_, &ielen, in_len-12);
+	p = r8712_get_ie(in_ie + 12, _HT_CAPABILITY_IE_, &ielen, in_len - 12);
 	if (p && (ielen > 0)) {
 		if (pqospriv->qos_option == 0) {
 			out_len = *pout_len;
-			r8712_set_ie(out_ie+out_len, _VENDOR_SPECIFIC_IE_,
+			r8712_set_ie(out_ie + out_len, _VENDOR_SPECIFIC_IE_,
 				     _WMM_IE_Length_, WMM_IE, pout_len);
 			pqospriv->qos_option = 1;
 		}
@@ -1727,7 +1720,7 @@ unsigned int r8712_restructure_ht_ie(struct _adapter *padapter, u8 *in_ie,
 				    IEEE80211_HT_CAP_DSSSCCK40;
 		ht_capie.ampdu_params_info = (IEEE80211_HT_CAP_AMPDU_FACTOR &
 				0x03) | (IEEE80211_HT_CAP_AMPDU_DENSITY & 0x00);
-		r8712_set_ie(out_ie+out_len, _HT_CAPABILITY_IE_,
+		r8712_set_ie(out_ie + out_len, _HT_CAPABILITY_IE_,
 			     sizeof(struct ieee80211_ht_cap),
 			     (unsigned char *)&ht_capie, pout_len);
 		phtpriv->ht_option = 1;
@@ -1751,7 +1744,7 @@ static void update_ht_cap(struct _adapter *padapter, u8 *pie, uint ie_len)
 	if (!phtpriv->ht_option)
 		return;
 	/* maybe needs check if ap supports rx ampdu. */
-	if ((phtpriv->ampdu_enable == false) &&
+	if (!phtpriv->ampdu_enable &&
 	    (pregistrypriv->ampdu_enable == 1))
 		phtpriv->ampdu_enable = true;
 	/*check Max Rx A-MPDU Size*/
@@ -1761,11 +1754,11 @@ static void update_ht_cap(struct _adapter *padapter, u8 *pie, uint ie_len)
 				&len, ie_len -
 				sizeof(struct NDIS_802_11_FIXED_IEs));
 	if (p && len > 0) {
-		pht_capie = (struct ieee80211_ht_cap *)(p+2);
+		pht_capie = (struct ieee80211_ht_cap *)(p + 2);
 		max_ampdu_sz = (pht_capie->ampdu_params_info &
 				IEEE80211_HT_CAP_AMPDU_FACTOR);
 		/* max_ampdu_sz (kbytes); */
-		max_ampdu_sz = 1 << (max_ampdu_sz+3);
+		max_ampdu_sz = 1 << (max_ampdu_sz + 3);
 		phtpriv->rx_ampdu_maxlen = max_ampdu_sz;
 	}
 	/* for A-MPDU Rx reordering buffer control for bmc_sta & sta_info
@@ -1793,7 +1786,7 @@ static void update_ht_cap(struct _adapter *padapter, u8 *pie, uint ie_len)
 	len = 0;
 	p = r8712_get_ie(pie + sizeof(struct NDIS_802_11_FIXED_IEs),
 		   _HT_ADD_INFO_IE_, &len,
-		   ie_len-sizeof(struct NDIS_802_11_FIXED_IEs));
+		   ie_len - sizeof(struct NDIS_802_11_FIXED_IEs));
 }
 
 void r8712_issue_addbareq_cmd(struct _adapter *padapter, int priority)
@@ -1801,8 +1794,8 @@ void r8712_issue_addbareq_cmd(struct _adapter *padapter, int priority)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct ht_priv	 *phtpriv = &pmlmepriv->htpriv;
 
-	if ((phtpriv->ht_option == 1) && (phtpriv->ampdu_enable == true)) {
-		if (phtpriv->baddbareq_issued[priority] == false) {
+	if ((phtpriv->ht_option == 1) && (phtpriv->ampdu_enable)) {
+		if (!phtpriv->baddbareq_issued[priority]) {
 			r8712_addbareq_cmd(padapter, (u8)priority);
 			phtpriv->baddbareq_issued[priority] = true;
 		}

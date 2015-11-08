@@ -357,7 +357,8 @@ drbd_alloc_peer_req(struct drbd_peer_device *peer_device, u64 id, sector_t secto
 	}
 
 	if (has_payload && data_size) {
-		page = drbd_alloc_pages(peer_device, nr_pages, (gfp_mask & __GFP_WAIT));
+		page = drbd_alloc_pages(peer_device, nr_pages,
+					gfpflags_allow_blocking(gfp_mask));
 		if (!page)
 			goto fail;
 	}
@@ -598,7 +599,7 @@ static struct socket *drbd_try_connect(struct drbd_connection *connection)
 	memcpy(&peer_in6, &connection->peer_addr, peer_addr_len);
 
 	what = "sock_create_kern";
-	err = sock_create_kern(((struct sockaddr *)&src_in6)->sa_family,
+	err = sock_create_kern(&init_net, ((struct sockaddr *)&src_in6)->sa_family,
 			       SOCK_STREAM, IPPROTO_TCP, &sock);
 	if (err < 0) {
 		sock = NULL;
@@ -693,7 +694,7 @@ static int prepare_listen_socket(struct drbd_connection *connection, struct acce
 	memcpy(&my_addr, &connection->my_addr, my_addr_len);
 
 	what = "sock_create_kern";
-	err = sock_create_kern(((struct sockaddr *)&my_addr)->sa_family,
+	err = sock_create_kern(&init_net, ((struct sockaddr *)&my_addr)->sa_family,
 			       SOCK_STREAM, IPPROTO_TCP, &s_listen);
 	if (err) {
 		s_listen = NULL;

@@ -38,6 +38,10 @@
 
 #include <linux/omap-dma.h>
 
+#ifdef CONFIG_ARCH_OMAP1
+#include <mach/soc.h>
+#endif
+
 /*
  * MAX_LOGICAL_DMA_CH_COUNT: the maximum number of logical DMA
  * channels that an instance of the SDMA IP block can support.  Used

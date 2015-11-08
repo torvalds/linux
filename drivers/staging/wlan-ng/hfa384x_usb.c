@@ -557,17 +557,13 @@ void hfa384x_create(hfa384x_t *hw, struct usb_device *usb)
 	INIT_WORK(&hw->link_bh, prism2sta_processing_defer);
 	INIT_WORK(&hw->usb_work, hfa384x_usb_defer);
 
-	init_timer(&hw->throttle);
-	hw->throttle.function = hfa384x_usb_throttlefn;
-	hw->throttle.data = (unsigned long)hw;
+	setup_timer(&hw->throttle, hfa384x_usb_throttlefn, (unsigned long)hw);
 
-	init_timer(&hw->resptimer);
-	hw->resptimer.function = hfa384x_usbctlx_resptimerfn;
-	hw->resptimer.data = (unsigned long)hw;
+	setup_timer(&hw->resptimer, hfa384x_usbctlx_resptimerfn,
+		    (unsigned long)hw);
 
-	init_timer(&hw->reqtimer);
-	hw->reqtimer.function = hfa384x_usbctlx_reqtimerfn;
-	hw->reqtimer.data = (unsigned long)hw;
+	setup_timer(&hw->reqtimer, hfa384x_usbctlx_reqtimerfn,
+		    (unsigned long)hw);
 
 	usb_init_urb(&hw->rx_urb);
 	usb_init_urb(&hw->tx_urb);
@@ -577,9 +573,8 @@ void hfa384x_create(hfa384x_t *hw, struct usb_device *usb)
 	hw->state = HFA384x_STATE_INIT;
 
 	INIT_WORK(&hw->commsqual_bh, prism2sta_commsqual_defer);
-	init_timer(&hw->commsqual_timer);
-	hw->commsqual_timer.data = (unsigned long)hw;
-	hw->commsqual_timer.function = prism2sta_commsqual_timer;
+	setup_timer(&hw->commsqual_timer, prism2sta_commsqual_timer,
+		    (unsigned long)hw);
 }
 
 /*----------------------------------------------------------------
@@ -624,11 +619,10 @@ static hfa384x_usbctlx_t *usbctlx_alloc(void)
 {
 	hfa384x_usbctlx_t *ctlx;
 
-	ctlx = kmalloc(sizeof(*ctlx), in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
-	if (ctlx != NULL) {
-		memset(ctlx, 0, sizeof(*ctlx));
+	ctlx = kzalloc(sizeof(*ctlx),
+		       in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
+	if (ctlx != NULL)
 		init_completion(&ctlx->done);
-	}
 
 	return ctlx;
 }
@@ -1200,7 +1194,7 @@ int hfa384x_cmd_download(hfa384x_t *hw, u16 mode, u16 lowaddr,
 ----------------------------------------------------------------*/
 int hfa384x_corereset(hfa384x_t *hw, int holdtime, int settletime, int genesis)
 {
-	int result = 0;
+	int result;
 
 	result = usb_reset_device(hw->usb);
 	if (result < 0) {

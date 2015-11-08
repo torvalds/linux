@@ -1,5 +1,5 @@
 /dts-v1/;
-/include/ "bcm2835-rpi.dtsi"
+#include "bcm2835-rpi.dtsi"
 
 / {
 	compatible = "raspberrypi,model-b", "brcm,bcm2835";
@@ -18,6 +18,6 @@
 	/* I2S interface */
 	i2s_alt2: i2s_alt2 {
 		brcm,pins = <28 29 30 31>;
-		brcm,function = <6>; /* alt2 */
+		brcm,function = <BCM2835_FSEL_ALT2>;
 	};
 };

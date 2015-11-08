@@ -83,28 +83,6 @@ static inline void eeh_pcid_put(struct pci_dev *pdev)
 	module_put(pdev->driver->driver.owner);
 }
 
-#if 0
-static void print_device_node_tree(struct pci_dn *pdn, int dent)
-{
-	int i;
-	struct device_node *pc;
-
-	if (!pdn)
-		return;
-	for (i = 0; i < dent; i++)
-		printk(" ");
-	printk("dn=%s mode=%x \tcfg_addr=%x pe_addr=%x \tfull=%s\n",
-		pdn->node->name, pdn->eeh_mode, pdn->eeh_config_addr,
-		pdn->eeh_pe_config_addr, pdn->node->full_name);
-	dent += 3;
-	pc = pdn->node->child;
-	while (pc) {
-		print_device_node_tree(PCI_DN(pc), dent);
-		pc = pc->sibling;
-	}
-}
-#endif
-
 /**
  * eeh_disable_irq - Disable interrupt for the recovering device
  * @dev: PCI device
@@ -438,7 +416,10 @@ static void *eeh_rmv_device(void *data, void *userdata)
 	driver = eeh_pcid_get(dev);
 	if (driver) {
 		eeh_pcid_put(dev);
-		if (driver->err_handler)
+		if (driver->err_handler &&
+		    driver->err_handler->error_detected &&
+		    driver->err_handler->slot_reset &&
+		    driver->err_handler->resume)
 			return NULL;
 	}
 
@@ -609,10 +590,16 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus)
 	eeh_ops->configure_bridge(pe);
 	eeh_pe_restore_bars(pe);
 
-	/* Clear frozen state */
-	rc = eeh_clear_pe_frozen_state(pe, false);
-	if (rc)
-		return rc;
+	/*
+	 * If it's PHB PE, the frozen state on all available PEs should have
+	 * been cleared by the PHB reset. Otherwise, we unfreeze the PE and its
+	 * child PEs because they might be in frozen state.
+	 */
+	if (!(pe->type & EEH_PE_PHB)) {
+		rc = eeh_clear_pe_frozen_state(pe, false);
+		if (rc)
+			return rc;
+	}
 
 	/* Give the system 5 seconds to finish running the user-space
 	 * hotplug shutdown scripts, e.g. ifdown for ethernet.  Yes,
@@ -677,12 +664,20 @@ static void eeh_handle_normal_event(struct eeh_pe *pe)
 	 * to accomplish the reset.  Each child gets a report of the
 	 * status ... if any child can't handle the reset, then the entire
 	 * slot is dlpar removed and added.
+	 *
+	 * When the PHB is fenced, we have to issue a reset to recover from
+	 * the error. Override the result if necessary to have partially
+	 * hotplug for this case.
 	 */
 	pr_info("EEH: Notify device drivers to shutdown\n");
 	eeh_pe_dev_traverse(pe, eeh_report_error, &result);
+	if ((pe->type & EEH_PE_PHB) &&
+	    result != PCI_ERS_RESULT_NONE &&
+	    result != PCI_ERS_RESULT_NEED_RESET)
+		result = PCI_ERS_RESULT_NEED_RESET;
 
 	/* Get the current PCI slot state. This can take a long time,
-	 * sometimes over 3 seconds for certain systems.
+	 * sometimes over 300 seconds for certain systems.
 	 */
 	rc = eeh_ops->wait_state(pe, MAX_WAIT_FOR_RECOVERY*1000);
 	if (rc < 0 || rc == EEH_STATE_NOT_SUPPORT) {

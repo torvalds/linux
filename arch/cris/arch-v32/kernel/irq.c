@@ -10,6 +10,8 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/profile.h>
+#include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/threads.h>
@@ -35,7 +37,7 @@
 #define IGNOREMASK (1 << (SER0_INTR_VECT - FIRST_IRQ))
 #elif defined(CONFIG_ETRAX_KGDB_PORT1)
 #define IGNOREMASK (1 << (SER1_INTR_VECT - FIRST_IRQ))
-#elif defined(CONFIG_ETRAX_KGB_PORT2)
+#elif defined(CONFIG_ETRAX_KGDB_PORT2)
 #define IGNOREMASK (1 << (SER2_INTR_VECT - FIRST_IRQ))
 #elif defined(CONFIG_ETRAX_KGDB_PORT3)
 #define IGNOREMASK (1 << (SER3_INTR_VECT - FIRST_IRQ))
@@ -56,9 +58,6 @@ struct cris_irq_allocation irq_allocations[NR_REAL_IRQS] =
 static unsigned long irq_regs[NR_CPUS] =
 {
   regi_irq,
-#ifdef CONFIG_SMP
-  regi_irq2,
-#endif
 };
 
 #if NR_REAL_IRQS > 32
@@ -431,6 +430,19 @@ crisv32_do_multiple(struct pt_regs* regs)
 	irq_exit();
 }
 
+static int crisv32_irq_map(struct irq_domain *h, unsigned int virq,
+			   irq_hw_number_t hw_irq_num)
+{
+	irq_set_chip_and_handler(virq, &crisv32_irq_type, handle_simple_irq);
+
+	return 0;
+}
+
+static struct irq_domain_ops crisv32_irq_ops = {
+	.map	= crisv32_irq_map,
+	.xlate	= irq_domain_xlate_onecell,
+};
+
 /*
  * This is called by start_kernel. It fixes the IRQ masks and setup the
  * interrupt vector table to point to bad_interrupt pointers.
@@ -441,6 +453,8 @@ init_IRQ(void)
 	int i;
 	int j;
 	reg_intr_vect_rw_mask vect_mask = {0};
+	struct device_node *np;
+	struct irq_domain *domain;
 
 	/* Clear all interrupts masks. */
 	for (i = 0; i < NBR_REGS; i++)
@@ -449,10 +463,15 @@ init_IRQ(void)
 	for (i = 0; i < 256; i++)
 		etrax_irv->v[i] = weird_irq;
 
-	/* Point all IRQ's to bad handlers. */
-	for (i = FIRST_IRQ, j = 0; j < NR_IRQS; i++, j++) {
-		irq_set_chip_and_handler(j, &crisv32_irq_type,
-					 handle_simple_irq);
+	np = of_find_compatible_node(NULL, NULL, "axis,crisv32-intc");
+	domain = irq_domain_add_legacy(np, NBR_INTR_VECT - FIRST_IRQ,
+				       FIRST_IRQ, FIRST_IRQ,
+				       &crisv32_irq_ops, NULL);
+	BUG_ON(!domain);
+	irq_set_default_host(domain);
+	of_node_put(np);
+
+	for (i = FIRST_IRQ, j = 0; j < NBR_INTR_VECT; i++, j++) {
 		set_exception_vector(i, interrupt[j]);
 	}
 

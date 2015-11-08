@@ -154,9 +154,8 @@ static int _rtl88e_fw_free_to_go(struct adapter *adapt)
 			break;
 	} while (counter++ < POLLING_READY_TIMEOUT_COUNT);
 
-	if (counter >= POLLING_READY_TIMEOUT_COUNT) {
+	if (counter >= POLLING_READY_TIMEOUT_COUNT)
 		goto exit;
-	}
 
 	value32 = usb_read32(adapt, REG_MCUFWDL);
 	value32 |= MCUFWDL_RDY;
@@ -191,7 +190,6 @@ int rtl88eu_download_fw(struct adapter *adapt)
 	struct rtl92c_firmware_header *pfwheader = NULL;
 	u8 *pfwdata;
 	u32 fwsize;
-	int err;
 
 	if (request_firmware(&fw, fw_name, device)) {
 		dev_err(device, "Firmware %s not available\n", fw_name);
@@ -230,7 +228,5 @@ int rtl88eu_download_fw(struct adapter *adapt)
 	_rtl88e_write_fw(adapt, pfwdata, fwsize);
 	_rtl88e_enable_fw_download(adapt, false);
 
-	err = _rtl88e_fw_free_to_go(adapt);
-
-	return err;
+	return _rtl88e_fw_free_to_go(adapt);
 }

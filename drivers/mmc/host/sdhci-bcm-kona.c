@@ -54,7 +54,6 @@
 
 struct sdhci_bcm_kona_dev {
 	struct mutex	write_lock; /* protect back to back writes */
-	struct clk	*external_clk;
 };
 
 
@@ -175,24 +174,6 @@ static void sdhci_bcm_kona_card_event(struct sdhci_host *host)
 	}
 }
 
-/*
- * Get the base clock. Use central clock source for now. Not sure if different
- * clock speed to each dev is allowed
- */
-static unsigned int sdhci_bcm_kona_get_max_clk(struct sdhci_host *host)
-{
-	struct sdhci_bcm_kona_dev *kona_dev;
-	struct sdhci_pltfm_host *pltfm_priv = sdhci_priv(host);
-	kona_dev = sdhci_pltfm_priv(pltfm_priv);
-
-	return host->mmc->f_max;
-}
-
-static unsigned int sdhci_bcm_kona_get_timeout_clock(struct sdhci_host *host)
-{
-	return sdhci_bcm_kona_get_max_clk(host);
-}
-
 static void sdhci_bcm_kona_init_74_clocks(struct sdhci_host *host,
 				u8 power_mode)
 {
@@ -207,8 +188,8 @@ static void sdhci_bcm_kona_init_74_clocks(struct sdhci_host *host,
 
 static struct sdhci_ops sdhci_bcm_kona_ops = {
 	.set_clock = sdhci_set_clock,
-	.get_max_clock = sdhci_bcm_kona_get_max_clk,
-	.get_timeout_clock = sdhci_bcm_kona_get_timeout_clock,
+	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
+	.get_timeout_clock = sdhci_pltfm_clk_get_max_clock,
 	.platform_send_init_74_clocks = sdhci_bcm_kona_init_74_clocks,
 	.set_bus_width = sdhci_set_bus_width,
 	.reset = sdhci_reset,
@@ -264,21 +245,21 @@ static int sdhci_bcm_kona_probe(struct platform_device *pdev)
 		goto err_pltfm_free;
 	}
 
-	/* Get and enable the external clock */
-	kona_dev->external_clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(kona_dev->external_clk)) {
-		dev_err(dev, "Failed to get external clock\n");
-		ret = PTR_ERR(kona_dev->external_clk);
+	/* Get and enable the core clock */
+	pltfm_priv->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(pltfm_priv->clk)) {
+		dev_err(dev, "Failed to get core clock\n");
+		ret = PTR_ERR(pltfm_priv->clk);
 		goto err_pltfm_free;
 	}
 
-	if (clk_set_rate(kona_dev->external_clk, host->mmc->f_max) != 0) {
-		dev_err(dev, "Failed to set rate external clock\n");
+	if (clk_set_rate(pltfm_priv->clk, host->mmc->f_max) != 0) {
+		dev_err(dev, "Failed to set rate core clock\n");
 		goto err_pltfm_free;
 	}
 
-	if (clk_prepare_enable(kona_dev->external_clk) != 0) {
-		dev_err(dev, "Failed to enable external clock\n");
+	if (clk_prepare_enable(pltfm_priv->clk) != 0) {
+		dev_err(dev, "Failed to enable core clock\n");
 		goto err_pltfm_free;
 	}
 
@@ -292,7 +273,7 @@ static int sdhci_bcm_kona_probe(struct platform_device *pdev)
 		host->quirks |= SDHCI_QUIRK_BROKEN_CARD_DETECTION;
 
 	dev_dbg(dev, "is_8bit=%c\n",
-		(host->mmc->caps | MMC_CAP_8_BIT_DATA) ? 'Y' : 'N');
+		(host->mmc->caps & MMC_CAP_8_BIT_DATA) ? 'Y' : 'N');
 
 	ret = sdhci_bcm_kona_sd_reset(host);
 	if (ret)
@@ -333,29 +314,13 @@ err_reset:
 	sdhci_bcm_kona_sd_reset(host);
 
 err_clk_disable:
-	clk_disable_unprepare(kona_dev->external_clk);
+	clk_disable_unprepare(pltfm_priv->clk);
 
 err_pltfm_free:
 	sdhci_pltfm_free(pdev);
 
 	dev_err(dev, "Probing of sdhci-pltfm failed: %d\n", ret);
 	return ret;
-}
-
-static int sdhci_bcm_kona_remove(struct platform_device *pdev)
-{
-	struct sdhci_host *host = platform_get_drvdata(pdev);
-	struct sdhci_pltfm_host *pltfm_priv = sdhci_priv(host);
-	struct sdhci_bcm_kona_dev *kona_dev = sdhci_pltfm_priv(pltfm_priv);
-	int dead = (readl(host->ioaddr + SDHCI_INT_STATUS) == 0xffffffff);
-
-	sdhci_remove_host(host, dead);
-
-	clk_disable_unprepare(kona_dev->external_clk);
-
-	sdhci_pltfm_free(pdev);
-
-	return 0;
 }
 
 static struct platform_driver sdhci_bcm_kona_driver = {
@@ -365,7 +330,7 @@ static struct platform_driver sdhci_bcm_kona_driver = {
 		.of_match_table = sdhci_bcm_kona_of_match,
 	},
 	.probe		= sdhci_bcm_kona_probe,
-	.remove		= sdhci_bcm_kona_remove,
+	.remove		= sdhci_pltfm_unregister,
 };
 module_platform_driver(sdhci_bcm_kona_driver);
 

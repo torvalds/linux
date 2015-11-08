@@ -37,6 +37,7 @@ static int tcf_connmark(struct sk_buff *skb, const struct tc_action *a,
 	struct nf_conntrack_tuple tuple;
 	enum ip_conntrack_info ctinfo;
 	struct tcf_connmark_info *ca = a->priv;
+	struct nf_conntrack_zone zone;
 	struct nf_conn *c;
 	int proto;
 
@@ -63,15 +64,17 @@ static int tcf_connmark(struct sk_buff *skb, const struct tc_action *a,
 		skb->mark = c->mark;
 		/* using overlimits stats to count how many packets marked */
 		ca->tcf_qstats.overlimits++;
-		nf_ct_put(c);
 		goto out;
 	}
 
 	if (!nf_ct_get_tuplepr(skb, skb_network_offset(skb),
-			       proto, &tuple))
+			       proto, ca->net, &tuple))
 		goto out;
 
-	thash = nf_conntrack_find_get(dev_net(skb->dev), ca->zone, &tuple);
+	zone.id = ca->zone;
+	zone.dir = NF_CT_DEFAULT_ZONE_DIR;
+
+	thash = nf_conntrack_find_get(ca->net, &zone, &tuple);
 	if (!thash)
 		goto out;
 
@@ -82,7 +85,6 @@ static int tcf_connmark(struct sk_buff *skb, const struct tc_action *a,
 	nf_ct_put(c);
 
 out:
-	skb->nfct = NULL;
 	spin_unlock(&ca->tcf_lock);
 	return ca->tcf_action;
 }
@@ -110,12 +112,14 @@ static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 	parm = nla_data(tb[TCA_CONNMARK_PARMS]);
 
 	if (!tcf_hash_check(parm->index, a, bind)) {
-		ret = tcf_hash_create(parm->index, est, a, sizeof(*ci), bind);
+		ret = tcf_hash_create(parm->index, est, a, sizeof(*ci),
+				      bind, false);
 		if (ret)
 			return ret;
 
 		ci = to_connmark(a);
 		ci->tcf_action = parm->action;
+		ci->net = net;
 		ci->zone = parm->zone;
 
 		tcf_hash_insert(a);

@@ -41,8 +41,7 @@
 #define CS0			gpio.aux[0]
 #define CS1			gpio.aux[1]
 
-
-/* diffusing error (“Floyd-Steinberg”) */
+/* diffusing error (Floyd-Steinberg) */
 #define DIFFUSING_MATRIX_WIDTH	2
 #define DIFFUSING_MATRIX_HEIGHT	2
 
@@ -75,8 +74,6 @@ static int init_display(struct fbtft_par *par)
 {
 	u8 i;
 
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	par->fbtftops.reset(par);
 
 	for (i = 0; i < 2; ++i) {
@@ -94,7 +91,7 @@ static void reset(struct fbtft_par *par)
 	if (par->gpio.reset == -1)
 		return;
 
-	fbtft_dev_dbg(DEBUG_RESET, par, par->info->device, "%s()\n", __func__);
+	dev_dbg(par->info->device, "%s()\n", __func__);
 
 	gpio_set_value(par->gpio.reset, 0);
 	udelay(20);
@@ -107,7 +104,7 @@ static int verify_gpios(struct fbtft_par *par)
 {
 	int i;
 
-	fbtft_dev_dbg(DEBUG_VERIFY_GPIOS, par, par->info->device,
+	dev_dbg(par->info->device,
 		"%s()\n", __func__);
 
 	if (par->EPIN < 0) {
@@ -145,7 +142,7 @@ static int verify_gpios(struct fbtft_par *par)
 static unsigned long
 request_gpios_match(struct fbtft_par *par, const struct fbtft_gpio *gpio)
 {
-	fbtft_dev_dbg(DEBUG_REQUEST_GPIOS_MATCH, par, par->info->device,
+	dev_dbg(par->info->device,
 		"%s('%s')\n", __func__, gpio->name);
 
 	if (strcasecmp(gpio->name, "wr") == 0) {
@@ -174,13 +171,13 @@ request_gpios_match(struct fbtft_par *par, const struct fbtft_gpio *gpio)
 
 /* This function oses to enter commands
  * first byte - destination controller 0 or 1
- * folowing - commands
+ * following - commands
  */
 static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 {
 	va_list args;
 	int i, ret;
-	u8 *buf = (u8 *)par->buf;
+	u8 *buf = par->buf;
 
 	if (unlikely(par->debug & DEBUG_WRITE_REGISTER)) {
 		va_start(args, len);
@@ -198,8 +195,8 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 
 	if (*buf > 1) {
 		va_end(args);
-		dev_err(par->info->device, "%s: Incorrect chip sellect request (%d)\n",
-			__func__, *buf);
+		dev_err(par->info->device,
+			"Incorrect chip select request (%d)\n", *buf);
 		return;
 	}
 
@@ -224,8 +221,8 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 		ret = par->fbtftops.write(par, par->buf, len * (sizeof(u8)));
 		if (ret < 0) {
 			va_end(args);
-			dev_err(par->info->device, "%s: write() failed and returned %d\n",
-				__func__, ret);
+			dev_err(par->info->device,
+				"write() failed and returned %d\n", ret);
 			return;
 		}
 	}
@@ -245,10 +242,6 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 	addr_win.ys_page = ys / 8;
 	addr_win.xe = xe;
 	addr_win.ye_page = ye / 8;
-
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
-		"%s(xs=%d, ys_page=%d, xe=%d, ye_page=%d)\n", __func__,
-		addr_win.xs, addr_win.ys_page, addr_win.xe, addr_win.ye_page);
 }
 
 static void
@@ -273,16 +266,17 @@ construct_line_bitmap(struct fbtft_par *par, u8 *dest, signed short *src,
 
 static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 {
-	u16 *vmem16 = (u16 *)par->info->screen_base;
+	u16 *vmem16 = (u16 *)par->info->screen_buffer;
 	u8 *buf = par->txbuf.buf;
 	int x, y;
 	int ret = 0;
 
-	/* buffer to convert RGB565 -> grayscale16 -> Ditherd image 1bpp */
+	/* buffer to convert RGB565 -> grayscale16 -> Dithered image 1bpp */
 	signed short *convert_buf = kmalloc(par->info->var.xres *
 		par->info->var.yres * sizeof(signed short), GFP_NOIO);
 
-	fbtft_par_dbg(DEBUG_WRITE_VMEM, par, "%s()\n", __func__);
+	if (!convert_buf)
+		return -ENOMEM;
 
 	/* converting to grayscale16 */
 	for (x = 0; x < par->info->var.xres; ++x)
@@ -376,8 +370,8 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 			ret = par->fbtftops.write(par, buf, len);
 			if (ret < 0)
 				dev_err(par->info->device,
-					"%s: write failed and returned: %d\n",
-					__func__, ret);
+					"write failed and returned: %d\n",
+					ret);
 		}
 		/* right half of display */
 		if (addr_win.xe >= par->info->var.xres / 2) {
@@ -390,7 +384,7 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 			/* select right side (sc1)
 			 * set addr
 			 */
-			write_reg(par, 0x01, (1 << 6));
+			write_reg(par, 0x01, 1 << 6);
 			write_reg(par, 0x01, (0x17 << 3) | (u8)y);
 
 			/* write bitmap */
@@ -398,8 +392,8 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 			par->fbtftops.write(par, buf, len);
 			if (ret < 0)
 				dev_err(par->info->device,
-					"%s: write failed and returned: %d\n",
-					__func__, ret);
+					"write failed and returned: %d\n",
+					ret);
 		}
 	}
 	kfree(convert_buf);
@@ -416,7 +410,6 @@ static int write(struct fbtft_par *par, void *buf, size_t len)
 		"%s(len=%d): ", __func__, len);
 
 	gpio_set_value(par->RW, 0); /* set write mode */
-
 
 	while (len--) {
 		u8 i, data;
@@ -453,6 +446,7 @@ static struct fbtft_display display = {
 		.write_vmem = write_vmem,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "displaytronic,fb_agm1264k-fl", &display);
 
 MODULE_ALIAS("platform:" DRVNAME);

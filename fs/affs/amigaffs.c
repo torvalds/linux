@@ -138,9 +138,9 @@ affs_fix_dcache(struct inode *inode, u32 entry_ino)
 static int
 affs_remove_link(struct dentry *dentry)
 {
-	struct inode *dir, *inode = dentry->d_inode;
+	struct inode *dir, *inode = d_inode(dentry);
 	struct super_block *sb = inode->i_sb;
-	struct buffer_head *bh = NULL, *link_bh = NULL;
+	struct buffer_head *bh, *link_bh = NULL;
 	u32 link_ino, ino;
 	int retval;
 
@@ -268,11 +268,11 @@ affs_remove_header(struct dentry *dentry)
 	struct buffer_head *bh = NULL;
 	int retval;
 
-	dir = dentry->d_parent->d_inode;
+	dir = d_inode(dentry->d_parent);
 	sb = dir->i_sb;
 
 	retval = -ENOENT;
-	inode = dentry->d_inode;
+	inode = d_inode(dentry);
 	if (!inode)
 		goto done;
 
@@ -471,9 +471,9 @@ affs_warning(struct super_block *sb, const char *function, const char *fmt, ...)
 bool
 affs_nofilenametruncate(const struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
-	return AFFS_SB(inode->i_sb)->s_flags & SF_NO_TRUNCATE;
+	struct inode *inode = d_inode(dentry);
 
+	return affs_test_opt(AFFS_SB(inode->i_sb)->s_flags, SF_NO_TRUNCATE);
 }
 
 /* Check if the name is valid for a affs object. */

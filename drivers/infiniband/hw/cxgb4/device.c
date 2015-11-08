@@ -93,6 +93,7 @@ static struct ibnl_client_cbs c4iw_nl_cb_table[] = {
 	[RDMA_NL_IWPM_ADD_MAPPING] = {.dump = iwpm_add_mapping_cb},
 	[RDMA_NL_IWPM_QUERY_MAPPING] = {.dump = iwpm_add_and_query_mapping_cb},
 	[RDMA_NL_IWPM_HANDLE_ERR] = {.dump = iwpm_mapping_error_cb},
+	[RDMA_NL_IWPM_REMOTE_INFO] = {.dump = iwpm_remote_info_cb},
 	[RDMA_NL_IWPM_MAPINFO] = {.dump = iwpm_mapping_info_cb},
 	[RDMA_NL_IWPM_MAPINFO_NUM] = {.dump = iwpm_ack_mapping_info_cb}
 };
@@ -151,7 +152,7 @@ static int wr_log_show(struct seq_file *seq, void *v)
 	int prev_ts_set = 0;
 	int idx, end;
 
-#define ts2ns(ts) div64_ul((ts) * dev->rdev.lldi.cclk_ps, 1000)
+#define ts2ns(ts) div64_u64((ts) * dev->rdev.lldi.cclk_ps, 1000)
 
 	idx = atomic_read(&dev->rdev.wr_log_idx) &
 		(dev->rdev.wr_log_size - 1);
@@ -489,6 +490,7 @@ static int stats_show(struct seq_file *seq, void *v)
 		   dev->rdev.stats.act_ofld_conn_fails);
 	seq_printf(seq, "PAS_OFLD_CONN_FAILS: %10llu\n",
 		   dev->rdev.stats.pas_ofld_conn_fails);
+	seq_printf(seq, "NEG_ADV_RCVD: %10llu\n", dev->rdev.stats.neg_adv);
 	seq_printf(seq, "AVAILABLE IRD: %10u\n", dev->avail_ird);
 	return 0;
 }
@@ -560,10 +562,13 @@ static int dump_ep(int id, void *p, void *data)
 		cc = snprintf(epd->buf + epd->pos, space,
 			      "ep %p cm_id %p qp %p state %d flags 0x%lx "
 			      "history 0x%lx hwtid %d atid %d "
+			      "conn_na %u abort_na %u "
 			      "%pI4:%d/%d <-> %pI4:%d/%d\n",
 			      ep, ep->com.cm_id, ep->com.qp,
 			      (int)ep->com.state, ep->com.flags,
 			      ep->com.history, ep->hwtid, ep->atid,
+			      ep->stats.connect_neg_adv,
+			      ep->stats.abort_neg_adv,
 			      &lsin->sin_addr, ntohs(lsin->sin_port),
 			      ntohs(mapped_lsin->sin_port),
 			      &rsin->sin_addr, ntohs(rsin->sin_port),
@@ -581,10 +586,13 @@ static int dump_ep(int id, void *p, void *data)
 		cc = snprintf(epd->buf + epd->pos, space,
 			      "ep %p cm_id %p qp %p state %d flags 0x%lx "
 			      "history 0x%lx hwtid %d atid %d "
+			      "conn_na %u abort_na %u "
 			      "%pI6:%d/%d <-> %pI6:%d/%d\n",
 			      ep, ep->com.cm_id, ep->com.qp,
 			      (int)ep->com.state, ep->com.flags,
 			      ep->com.history, ep->hwtid, ep->atid,
+			      ep->stats.connect_neg_adv,
+			      ep->stats.abort_neg_adv,
 			      &lsin6->sin6_addr, ntohs(lsin6->sin6_port),
 			      ntohs(mapped_lsin6->sin6_port),
 			      &rsin6->sin6_addr, ntohs(rsin6->sin6_port),
@@ -765,12 +773,29 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	c4iw_init_dev_ucontext(rdev, &rdev->uctx);
 
 	/*
-	 * qpshift is the number of bits to shift the qpid left in order
-	 * to get the correct address of the doorbell for that qp.
+	 * This implementation assumes udb_density == ucq_density!  Eventually
+	 * we might need to support this but for now fail the open. Also the
+	 * cqid and qpid range must match for now.
 	 */
-	rdev->qpshift = PAGE_SHIFT - ilog2(rdev->lldi.udb_density);
+	if (rdev->lldi.udb_density != rdev->lldi.ucq_density) {
+		pr_err(MOD "%s: unsupported udb/ucq densities %u/%u\n",
+		       pci_name(rdev->lldi.pdev), rdev->lldi.udb_density,
+		       rdev->lldi.ucq_density);
+		err = -EINVAL;
+		goto err1;
+	}
+	if (rdev->lldi.vr->qp.start != rdev->lldi.vr->cq.start ||
+	    rdev->lldi.vr->qp.size != rdev->lldi.vr->cq.size) {
+		pr_err(MOD "%s: unsupported qp and cq id ranges "
+		       "qp start %u size %u cq start %u size %u\n",
+		       pci_name(rdev->lldi.pdev), rdev->lldi.vr->qp.start,
+		       rdev->lldi.vr->qp.size, rdev->lldi.vr->cq.size,
+		       rdev->lldi.vr->cq.size);
+		err = -EINVAL;
+		goto err1;
+	}
+
 	rdev->qpmask = rdev->lldi.udb_density - 1;
-	rdev->cqshift = PAGE_SHIFT - ilog2(rdev->lldi.ucq_density);
 	rdev->cqmask = rdev->lldi.ucq_density - 1;
 	PDBG("%s dev %s stag start 0x%0x size 0x%0x num stags %d "
 	     "pbl start 0x%0x size 0x%0x rq start 0x%0x size 0x%0x "
@@ -784,14 +809,12 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	     rdev->lldi.vr->qp.size,
 	     rdev->lldi.vr->cq.start,
 	     rdev->lldi.vr->cq.size);
-	PDBG("udb len 0x%x udb base %llx db_reg %p gts_reg %p qpshift %lu "
-	     "qpmask 0x%x cqshift %lu cqmask 0x%x\n",
+	PDBG("udb len 0x%x udb base %p db_reg %p gts_reg %p "
+	     "qpmask 0x%x cqmask 0x%x\n",
 	     (unsigned)pci_resource_len(rdev->lldi.pdev, 2),
-	     (u64)pci_resource_start(rdev->lldi.pdev, 2),
-	     rdev->lldi.db_reg,
-	     rdev->lldi.gts_reg,
-	     rdev->qpshift, rdev->qpmask,
-	     rdev->cqshift, rdev->cqmask);
+	     (void *)pci_resource_start(rdev->lldi.pdev, 2),
+	     rdev->lldi.db_reg, rdev->lldi.gts_reg,
+	     rdev->qpmask, rdev->cqmask);
 
 	if (c4iw_num_stags(rdev) == 0) {
 		err = -EINVAL;
@@ -939,12 +962,12 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 		devp->rdev.lldi.sge_egrstatuspagesize;
 
 	/*
-	 * For T5 devices, we map all of BAR2 with WC.
+	 * For T5/T6 devices, we map all of BAR2 with WC.
 	 * For T4 devices with onchip qp mem, we map only that part
 	 * of BAR2 with WC.
 	 */
 	devp->rdev.bar2_pa = pci_resource_start(devp->rdev.lldi.pdev, 2);
-	if (is_t5(devp->rdev.lldi.adapter_type)) {
+	if (!is_t4(devp->rdev.lldi.adapter_type)) {
 		devp->rdev.bar2_kva = ioremap_wc(devp->rdev.bar2_pa,
 			pci_resource_len(devp->rdev.lldi.pdev, 2));
 		if (!devp->rdev.bar2_kva) {
@@ -1244,11 +1267,9 @@ static int enable_qp_db(int id, void *p, void *data)
 static void resume_rc_qp(struct c4iw_qp *qp)
 {
 	spin_lock(&qp->lock);
-	t4_ring_sq_db(&qp->wq, qp->wq.sq.wq_pidx_inc,
-		      is_t5(qp->rhp->rdev.lldi.adapter_type), NULL);
+	t4_ring_sq_db(&qp->wq, qp->wq.sq.wq_pidx_inc, NULL);
 	qp->wq.sq.wq_pidx_inc = 0;
-	t4_ring_rq_db(&qp->wq, qp->wq.rq.wq_pidx_inc,
-		      is_t5(qp->rhp->rdev.lldi.adapter_type), NULL);
+	t4_ring_rq_db(&qp->wq, qp->wq.rq.wq_pidx_inc, NULL);
 	qp->wq.rq.wq_pidx_inc = 0;
 	spin_unlock(&qp->lock);
 }
@@ -1355,7 +1376,7 @@ static void recover_lost_dbs(struct uld_ctx *ctx, struct qp_list *qp_list)
 					  t4_sq_host_wq_pidx(&qp->wq),
 					  t4_sq_wq_size(&qp->wq));
 		if (ret) {
-			pr_err(KERN_ERR MOD "%s: Fatal error - "
+			pr_err(MOD "%s: Fatal error - "
 			       "DB overflow recovery failed - "
 			       "error syncing SQ qid %u\n",
 			       pci_name(ctx->lldi.pdev), qp->wq.sq.qid);
@@ -1371,7 +1392,7 @@ static void recover_lost_dbs(struct uld_ctx *ctx, struct qp_list *qp_list)
 					  t4_rq_wq_size(&qp->wq));
 
 		if (ret) {
-			pr_err(KERN_ERR MOD "%s: Fatal error - "
+			pr_err(MOD "%s: Fatal error - "
 			       "DB overflow recovery failed - "
 			       "error syncing RQ qid %u\n",
 			       pci_name(ctx->lldi.pdev), qp->wq.rq.qid);

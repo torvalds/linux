@@ -17,8 +17,8 @@
 
 #include <xen/xen.h>
 #include <xen/interface/xen.h>
+#include <xen/page.h>
 #include <asm/xen/hypercall.h>
-#include <asm/xen/page.h>
 #include <asm/xen/hypervisor.h>
 #include <xen/tmem.h>
 
@@ -129,21 +129,17 @@ static int xen_tmem_new_pool(struct tmem_pool_uuid uuid,
 /* xen generic tmem ops */
 
 static int xen_tmem_put_page(u32 pool_id, struct tmem_oid oid,
-			     u32 index, unsigned long pfn)
+			     u32 index, struct page *page)
 {
-	unsigned long gmfn = xen_pv_domain() ? pfn_to_mfn(pfn) : pfn;
-
 	return xen_tmem_op(TMEM_PUT_PAGE, pool_id, oid, index,
-		gmfn, 0, 0, 0);
+			   xen_page_to_gfn(page), 0, 0, 0);
 }
 
 static int xen_tmem_get_page(u32 pool_id, struct tmem_oid oid,
-			     u32 index, unsigned long pfn)
+			     u32 index, struct page *page)
 {
-	unsigned long gmfn = xen_pv_domain() ? pfn_to_mfn(pfn) : pfn;
-
 	return xen_tmem_op(TMEM_GET_PAGE, pool_id, oid, index,
-		gmfn, 0, 0, 0);
+			   xen_page_to_gfn(page), 0, 0, 0);
 }
 
 static int xen_tmem_flush_page(u32 pool_id, struct tmem_oid oid, u32 index)
@@ -173,14 +169,13 @@ static void tmem_cleancache_put_page(int pool, struct cleancache_filekey key,
 {
 	u32 ind = (u32) index;
 	struct tmem_oid oid = *(struct tmem_oid *)&key;
-	unsigned long pfn = page_to_pfn(page);
 
 	if (pool < 0)
 		return;
 	if (ind != index)
 		return;
 	mb(); /* ensure page is quiescent; tmem may address it with an alias */
-	(void)xen_tmem_put_page((u32)pool, oid, ind, pfn);
+	(void)xen_tmem_put_page((u32)pool, oid, ind, page);
 }
 
 static int tmem_cleancache_get_page(int pool, struct cleancache_filekey key,
@@ -188,7 +183,6 @@ static int tmem_cleancache_get_page(int pool, struct cleancache_filekey key,
 {
 	u32 ind = (u32) index;
 	struct tmem_oid oid = *(struct tmem_oid *)&key;
-	unsigned long pfn = page_to_pfn(page);
 	int ret;
 
 	/* translate return values to linux semantics */
@@ -196,7 +190,7 @@ static int tmem_cleancache_get_page(int pool, struct cleancache_filekey key,
 		return -1;
 	if (ind != index)
 		return -1;
-	ret = xen_tmem_get_page((u32)pool, oid, ind, pfn);
+	ret = xen_tmem_get_page((u32)pool, oid, ind, page);
 	if (ret == 1)
 		return 0;
 	else
@@ -287,7 +281,6 @@ static int tmem_frontswap_store(unsigned type, pgoff_t offset,
 {
 	u64 ind64 = (u64)offset;
 	u32 ind = (u32)offset;
-	unsigned long pfn = page_to_pfn(page);
 	int pool = tmem_frontswap_poolid;
 	int ret;
 
@@ -296,7 +289,7 @@ static int tmem_frontswap_store(unsigned type, pgoff_t offset,
 	if (ind64 != ind)
 		return -1;
 	mb(); /* ensure page is quiescent; tmem may address it with an alias */
-	ret = xen_tmem_put_page(pool, oswiz(type, ind), iswiz(ind), pfn);
+	ret = xen_tmem_put_page(pool, oswiz(type, ind), iswiz(ind), page);
 	/* translate Xen tmem return values to linux semantics */
 	if (ret == 1)
 		return 0;
@@ -313,7 +306,6 @@ static int tmem_frontswap_load(unsigned type, pgoff_t offset,
 {
 	u64 ind64 = (u64)offset;
 	u32 ind = (u32)offset;
-	unsigned long pfn = page_to_pfn(page);
 	int pool = tmem_frontswap_poolid;
 	int ret;
 
@@ -321,7 +313,7 @@ static int tmem_frontswap_load(unsigned type, pgoff_t offset,
 		return -1;
 	if (ind64 != ind)
 		return -1;
-	ret = xen_tmem_get_page(pool, oswiz(type, ind), iswiz(ind), pfn);
+	ret = xen_tmem_get_page(pool, oswiz(type, ind), iswiz(ind), page);
 	/* translate Xen tmem return values to linux semantics */
 	if (ret == 1)
 		return 0;
@@ -381,29 +373,25 @@ static int __init xen_tmem_init(void)
 #ifdef CONFIG_FRONTSWAP
 	if (tmem_enabled && frontswap) {
 		char *s = "";
-		struct frontswap_ops *old_ops;
 
 		tmem_frontswap_poolid = -1;
-		old_ops = frontswap_register_ops(&tmem_frontswap_ops);
-		if (IS_ERR(old_ops) || old_ops) {
-			if (IS_ERR(old_ops))
-				return PTR_ERR(old_ops);
-			s = " (WARNING: frontswap_ops overridden)";
-		}
+		frontswap_register_ops(&tmem_frontswap_ops);
 		pr_info("frontswap enabled, RAM provided by Xen Transcendent Memory%s\n",
 			s);
 	}
 #endif
 #ifdef CONFIG_CLEANCACHE
-	BUG_ON(sizeof(struct cleancache_filekey) != sizeof(struct tmem_oid));
+	BUILD_BUG_ON(sizeof(struct cleancache_filekey) != sizeof(struct tmem_oid));
 	if (tmem_enabled && cleancache) {
-		char *s = "";
-		struct cleancache_ops *old_ops =
-			cleancache_register_ops(&tmem_cleancache_ops);
-		if (old_ops)
-			s = " (WARNING: cleancache_ops overridden)";
-		pr_info("cleancache enabled, RAM provided by Xen Transcendent Memory%s\n",
-			s);
+		int err;
+
+		err = cleancache_register_ops(&tmem_cleancache_ops);
+		if (err)
+			pr_warn("xen-tmem: failed to enable cleancache: %d\n",
+				err);
+		else
+			pr_info("cleancache enabled, RAM provided by "
+				"Xen Transcendent Memory\n");
 	}
 #endif
 #ifdef CONFIG_XEN_SELFBALLOONING

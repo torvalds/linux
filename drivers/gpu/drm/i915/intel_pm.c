@@ -56,24 +56,78 @@ static void gen9_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	/*
-	 * WaDisableSDEUnitClockGating:skl
-	 * This seems to be a pre-production w/a.
+	/* WaEnableLbsSlaRetryTimerDecrement:skl */
+	I915_WRITE(BDW_SCRATCH1, I915_READ(BDW_SCRATCH1) |
+		   GEN9_LBS_SLA_RETRY_TIMER_DECREMENT_ENABLE);
+
+	/* WaDisableKillLogic:bxt,skl */
+	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
+		   ECOCHK_DIS_TLB);
+}
+
+static void skl_init_clock_gating(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	gen9_init_clock_gating(dev);
+
+	if (INTEL_REVID(dev) <= SKL_REVID_B0) {
+		/*
+		 * WaDisableSDEUnitClockGating:skl
+		 * WaSetGAPSunitClckGateDisable:skl
+		 */
+		I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
+			   GEN8_GAPSUNIT_CLOCK_GATE_DISABLE |
+			   GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
+
+		/* WaDisableVFUnitClockGating:skl */
+		I915_WRITE(GEN6_UCGCTL2, I915_READ(GEN6_UCGCTL2) |
+			   GEN6_VFUNIT_CLOCK_GATE_DISABLE);
+	}
+
+	if (INTEL_REVID(dev) <= SKL_REVID_D0) {
+		/* WaDisableHDCInvalidation:skl */
+		I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
+			   BDW_DISABLE_HDC_INVALIDATION);
+
+		/* WaDisableChickenBitTSGBarrierAckForFFSliceCS:skl */
+		I915_WRITE(FF_SLICE_CS_CHICKEN2,
+			   _MASKED_BIT_ENABLE(GEN9_TSG_BARRIER_ACK_DISABLE));
+	}
+
+	/* GEN8_L3SQCREG4 has a dependency with WA batch so any new changes
+	 * involving this register should also be added to WA batch as required.
 	 */
+	if (INTEL_REVID(dev) <= SKL_REVID_E0)
+		/* WaDisableLSQCROPERFforOCL:skl */
+		I915_WRITE(GEN8_L3SQCREG4, I915_READ(GEN8_L3SQCREG4) |
+			   GEN8_LQSC_RO_PERF_DIS);
+
+	/* WaEnableGapsTsvCreditFix:skl */
+	if (IS_SKYLAKE(dev) && (INTEL_REVID(dev) >= SKL_REVID_C0)) {
+		I915_WRITE(GEN8_GARBCNTL, (I915_READ(GEN8_GARBCNTL) |
+					   GEN9_GAPS_TSV_CREDIT_DISABLE));
+	}
+}
+
+static void bxt_init_clock_gating(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	gen9_init_clock_gating(dev);
+
+	/*
+	 * FIXME:
+	 * GEN8_SDEUNIT_CLOCK_GATE_DISABLE applies on A0 only.
+	 * GEN8_HDCUNIT_CLOCK_GATE_DISABLE_HDCREQ applies on 3x6 GT SKUs only.
+	 */
+	 /* WaDisableSDEUnitClockGating:bxt */
 	I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
-		   GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
+		   GEN8_SDEUNIT_CLOCK_GATE_DISABLE |
+		   GEN8_HDCUNIT_CLOCK_GATE_DISABLE_HDCREQ);
 
-	/*
-	 * WaDisableDgMirrorFixInHalfSliceChicken5:skl
-	 * This is a pre-production w/a.
-	 */
-	I915_WRITE(GEN9_HALF_SLICE_CHICKEN5,
-		   I915_READ(GEN9_HALF_SLICE_CHICKEN5) &
-		   ~GEN9_DG_MIRROR_FIX_ENABLE);
-
-	/* Wa4x4STCOptimizationDisable:skl */
-	I915_WRITE(CACHE_MODE_1,
-		   _MASKED_BIT_ENABLE(GEN8_4x4_STC_OPTIMIZATION_DISABLE));
+	/* FIXME: apply on A0 only */
+	I915_WRITE(TILECTL, I915_READ(TILECTL) | TILECTL_TLBPF);
 }
 
 static void i915_pineview_get_mem_freq(struct drm_device *dev)
@@ -245,6 +299,47 @@ static const struct cxsr_latency *intel_get_cxsr_latency(int is_desktop,
 	return NULL;
 }
 
+static void chv_set_memory_dvfs(struct drm_i915_private *dev_priv, bool enable)
+{
+	u32 val;
+
+	mutex_lock(&dev_priv->rps.hw_lock);
+
+	val = vlv_punit_read(dev_priv, PUNIT_REG_DDR_SETUP2);
+	if (enable)
+		val &= ~FORCE_DDR_HIGH_FREQ;
+	else
+		val |= FORCE_DDR_HIGH_FREQ;
+	val &= ~FORCE_DDR_LOW_FREQ;
+	val |= FORCE_DDR_FREQ_REQ_ACK;
+	vlv_punit_write(dev_priv, PUNIT_REG_DDR_SETUP2, val);
+
+	if (wait_for((vlv_punit_read(dev_priv, PUNIT_REG_DDR_SETUP2) &
+		      FORCE_DDR_FREQ_REQ_ACK) == 0, 3))
+		DRM_ERROR("timed out waiting for Punit DDR DVFS request\n");
+
+	mutex_unlock(&dev_priv->rps.hw_lock);
+}
+
+static void chv_set_memory_pm5(struct drm_i915_private *dev_priv, bool enable)
+{
+	u32 val;
+
+	mutex_lock(&dev_priv->rps.hw_lock);
+
+	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
+	if (enable)
+		val |= DSP_MAXFIFO_PM5_ENABLE;
+	else
+		val &= ~DSP_MAXFIFO_PM5_ENABLE;
+	vlv_punit_write(dev_priv, PUNIT_REG_DSPFREQ, val);
+
+	mutex_unlock(&dev_priv->rps.hw_lock);
+}
+
+#define FW_WM(value, plane) \
+	(((value) << DSPFW_ ## plane ## _SHIFT) & DSPFW_ ## plane ## _MASK)
+
 void intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
 {
 	struct drm_device *dev = dev_priv->dev;
@@ -252,20 +347,26 @@ void intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
 
 	if (IS_VALLEYVIEW(dev)) {
 		I915_WRITE(FW_BLC_SELF_VLV, enable ? FW_CSPWRDWNEN : 0);
+		POSTING_READ(FW_BLC_SELF_VLV);
+		dev_priv->wm.vlv.cxsr = enable;
 	} else if (IS_G4X(dev) || IS_CRESTLINE(dev)) {
 		I915_WRITE(FW_BLC_SELF, enable ? FW_BLC_SELF_EN : 0);
+		POSTING_READ(FW_BLC_SELF);
 	} else if (IS_PINEVIEW(dev)) {
 		val = I915_READ(DSPFW3) & ~PINEVIEW_SELF_REFRESH_EN;
 		val |= enable ? PINEVIEW_SELF_REFRESH_EN : 0;
 		I915_WRITE(DSPFW3, val);
+		POSTING_READ(DSPFW3);
 	} else if (IS_I945G(dev) || IS_I945GM(dev)) {
 		val = enable ? _MASKED_BIT_ENABLE(FW_BLC_SELF_EN) :
 			       _MASKED_BIT_DISABLE(FW_BLC_SELF_EN);
 		I915_WRITE(FW_BLC_SELF, val);
+		POSTING_READ(FW_BLC_SELF);
 	} else if (IS_I915GM(dev)) {
 		val = enable ? _MASKED_BIT_ENABLE(INSTPM_SELF_EN) :
 			       _MASKED_BIT_DISABLE(INSTPM_SELF_EN);
 		I915_WRITE(INSTPM, val);
+		POSTING_READ(INSTPM);
 	} else {
 		return;
 	}
@@ -273,6 +374,7 @@ void intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
 	DRM_DEBUG_KMS("memory self-refresh is %s\n",
 		      enable ? "enabled" : "disabled");
 }
+
 
 /*
  * Latency for FIFO fetches is dependent on several factors:
@@ -289,6 +391,61 @@ void intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
  * platforms but not overly aggressive on lower latency configs.
  */
 static const int pessimal_latency_ns = 5000;
+
+#define VLV_FIFO_START(dsparb, dsparb2, lo_shift, hi_shift) \
+	((((dsparb) >> (lo_shift)) & 0xff) | ((((dsparb2) >> (hi_shift)) & 0x1) << 8))
+
+static int vlv_get_fifo_size(struct drm_device *dev,
+			      enum pipe pipe, int plane)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int sprite0_start, sprite1_start, size;
+
+	switch (pipe) {
+		uint32_t dsparb, dsparb2, dsparb3;
+	case PIPE_A:
+		dsparb = I915_READ(DSPARB);
+		dsparb2 = I915_READ(DSPARB2);
+		sprite0_start = VLV_FIFO_START(dsparb, dsparb2, 0, 0);
+		sprite1_start = VLV_FIFO_START(dsparb, dsparb2, 8, 4);
+		break;
+	case PIPE_B:
+		dsparb = I915_READ(DSPARB);
+		dsparb2 = I915_READ(DSPARB2);
+		sprite0_start = VLV_FIFO_START(dsparb, dsparb2, 16, 8);
+		sprite1_start = VLV_FIFO_START(dsparb, dsparb2, 24, 12);
+		break;
+	case PIPE_C:
+		dsparb2 = I915_READ(DSPARB2);
+		dsparb3 = I915_READ(DSPARB3);
+		sprite0_start = VLV_FIFO_START(dsparb3, dsparb2, 0, 16);
+		sprite1_start = VLV_FIFO_START(dsparb3, dsparb2, 8, 20);
+		break;
+	default:
+		return 0;
+	}
+
+	switch (plane) {
+	case 0:
+		size = sprite0_start;
+		break;
+	case 1:
+		size = sprite1_start - sprite0_start;
+		break;
+	case 2:
+		size = 512 - 1 - sprite1_start;
+		break;
+	default:
+		return 0;
+	}
+
+	DRM_DEBUG_KMS("Pipe %c %s %c FIFO size: %d\n",
+		      pipe_name(pipe), plane == 0 ? "primary" : "sprite",
+		      plane == 0 ? plane_name(pipe) : sprite_name(pipe, plane - 1),
+		      size);
+
+	return size;
+}
 
 static int i9xx_get_fifo_size(struct drm_device *dev, int plane)
 {
@@ -535,7 +692,7 @@ static void pineview_update_wm(struct drm_crtc *unused_crtc)
 	crtc = single_enabled_crtc(dev);
 	if (crtc) {
 		const struct drm_display_mode *adjusted_mode;
-		int pixel_size = crtc->primary->fb->bits_per_pixel / 8;
+		int pixel_size = crtc->primary->state->fb->bits_per_pixel / 8;
 		int clock;
 
 		adjusted_mode = &to_intel_crtc(crtc)->config->base.adjusted_mode;
@@ -547,7 +704,7 @@ static void pineview_update_wm(struct drm_crtc *unused_crtc)
 					pixel_size, latency->display_sr);
 		reg = I915_READ(DSPFW1);
 		reg &= ~DSPFW_SR_MASK;
-		reg |= wm << DSPFW_SR_SHIFT;
+		reg |= FW_WM(wm, SR);
 		I915_WRITE(DSPFW1, reg);
 		DRM_DEBUG_KMS("DSPFW1 register is %x\n", reg);
 
@@ -557,7 +714,7 @@ static void pineview_update_wm(struct drm_crtc *unused_crtc)
 					pixel_size, latency->cursor_sr);
 		reg = I915_READ(DSPFW3);
 		reg &= ~DSPFW_CURSOR_SR_MASK;
-		reg |= (wm & 0x3f) << DSPFW_CURSOR_SR_SHIFT;
+		reg |= FW_WM(wm, CURSOR_SR);
 		I915_WRITE(DSPFW3, reg);
 
 		/* Display HPLL off SR */
@@ -566,7 +723,7 @@ static void pineview_update_wm(struct drm_crtc *unused_crtc)
 					pixel_size, latency->display_hpll_disable);
 		reg = I915_READ(DSPFW3);
 		reg &= ~DSPFW_HPLL_SR_MASK;
-		reg |= wm & DSPFW_HPLL_SR_MASK;
+		reg |= FW_WM(wm, HPLL_SR);
 		I915_WRITE(DSPFW3, reg);
 
 		/* cursor HPLL off SR */
@@ -575,7 +732,7 @@ static void pineview_update_wm(struct drm_crtc *unused_crtc)
 					pixel_size, latency->cursor_hpll_disable);
 		reg = I915_READ(DSPFW3);
 		reg &= ~DSPFW_HPLL_CURSOR_MASK;
-		reg |= (wm & 0x3f) << DSPFW_HPLL_CURSOR_SHIFT;
+		reg |= FW_WM(wm, HPLL_CURSOR);
 		I915_WRITE(DSPFW3, reg);
 		DRM_DEBUG_KMS("DSPFW3 register is %x\n", reg);
 
@@ -611,7 +768,7 @@ static bool g4x_compute_wm0(struct drm_device *dev,
 	clock = adjusted_mode->crtc_clock;
 	htotal = adjusted_mode->crtc_htotal;
 	hdisplay = to_intel_crtc(crtc)->config->pipe_src_w;
-	pixel_size = crtc->primary->fb->bits_per_pixel / 8;
+	pixel_size = crtc->primary->state->fb->bits_per_pixel / 8;
 
 	/* Use the small buffer method to calculate plane watermark */
 	entries = ((clock * pixel_size / 1000) * display_latency_ns) / 1000;
@@ -626,7 +783,7 @@ static bool g4x_compute_wm0(struct drm_device *dev,
 	/* Use the large buffer method to calculate cursor watermark */
 	line_time_us = max(htotal * 1000 / clock, 1);
 	line_count = (cursor_latency_ns / line_time_us + 1000) / 1000;
-	entries = line_count * to_intel_crtc(crtc)->cursor_width * pixel_size;
+	entries = line_count * crtc->cursor->state->crtc_w * pixel_size;
 	tlb_miss = cursor->fifo_size*cursor->cacheline_size - hdisplay * 8;
 	if (tlb_miss > 0)
 		entries += tlb_miss;
@@ -698,7 +855,7 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 	clock = adjusted_mode->crtc_clock;
 	htotal = adjusted_mode->crtc_htotal;
 	hdisplay = to_intel_crtc(crtc)->config->pipe_src_w;
-	pixel_size = crtc->primary->fb->bits_per_pixel / 8;
+	pixel_size = crtc->primary->state->fb->bits_per_pixel / 8;
 
 	line_time_us = max(htotal * 1000 / clock, 1);
 	line_count = (latency_ns / line_time_us + 1000) / 1000;
@@ -712,7 +869,7 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 	*display_wm = entries + display->guard_size;
 
 	/* calculate the self-refresh watermark for display cursor */
-	entries = line_count * pixel_size * to_intel_crtc(crtc)->cursor_width;
+	entries = line_count * pixel_size * crtc->cursor->state->crtc_w;
 	entries = DIV_ROUND_UP(entries, cursor->cacheline_size);
 	*cursor_wm = entries + cursor->guard_size;
 
@@ -721,269 +878,545 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 			      display, cursor);
 }
 
-static bool vlv_compute_drain_latency(struct drm_crtc *crtc,
-				      int pixel_size,
-				      int *prec_mult,
-				      int *drain_latency)
+#define FW_WM_VLV(value, plane) \
+	(((value) << DSPFW_ ## plane ## _SHIFT) & DSPFW_ ## plane ## _MASK_VLV)
+
+static void vlv_write_wm_values(struct intel_crtc *crtc,
+				const struct vlv_wm_values *wm)
 {
-	struct drm_device *dev = crtc->dev;
-	int entries;
-	int clock = to_intel_crtc(crtc)->config->base.adjusted_mode.crtc_clock;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
 
-	if (WARN(clock == 0, "Pixel clock is zero!\n"))
-		return false;
+	I915_WRITE(VLV_DDL(pipe),
+		   (wm->ddl[pipe].cursor << DDL_CURSOR_SHIFT) |
+		   (wm->ddl[pipe].sprite[1] << DDL_SPRITE_SHIFT(1)) |
+		   (wm->ddl[pipe].sprite[0] << DDL_SPRITE_SHIFT(0)) |
+		   (wm->ddl[pipe].primary << DDL_PLANE_SHIFT));
 
-	if (WARN(pixel_size == 0, "Pixel size is zero!\n"))
-		return false;
+	I915_WRITE(DSPFW1,
+		   FW_WM(wm->sr.plane, SR) |
+		   FW_WM(wm->pipe[PIPE_B].cursor, CURSORB) |
+		   FW_WM_VLV(wm->pipe[PIPE_B].primary, PLANEB) |
+		   FW_WM_VLV(wm->pipe[PIPE_A].primary, PLANEA));
+	I915_WRITE(DSPFW2,
+		   FW_WM_VLV(wm->pipe[PIPE_A].sprite[1], SPRITEB) |
+		   FW_WM(wm->pipe[PIPE_A].cursor, CURSORA) |
+		   FW_WM_VLV(wm->pipe[PIPE_A].sprite[0], SPRITEA));
+	I915_WRITE(DSPFW3,
+		   FW_WM(wm->sr.cursor, CURSOR_SR));
 
-	entries = DIV_ROUND_UP(clock, 1000) * pixel_size;
-	if (IS_CHERRYVIEW(dev))
-		*prec_mult = (entries > 128) ? DRAIN_LATENCY_PRECISION_32 :
-					       DRAIN_LATENCY_PRECISION_16;
-	else
-		*prec_mult = (entries > 128) ? DRAIN_LATENCY_PRECISION_64 :
-					       DRAIN_LATENCY_PRECISION_32;
-	*drain_latency = (64 * (*prec_mult) * 4) / entries;
+	if (IS_CHERRYVIEW(dev_priv)) {
+		I915_WRITE(DSPFW7_CHV,
+			   FW_WM_VLV(wm->pipe[PIPE_B].sprite[1], SPRITED) |
+			   FW_WM_VLV(wm->pipe[PIPE_B].sprite[0], SPRITEC));
+		I915_WRITE(DSPFW8_CHV,
+			   FW_WM_VLV(wm->pipe[PIPE_C].sprite[1], SPRITEF) |
+			   FW_WM_VLV(wm->pipe[PIPE_C].sprite[0], SPRITEE));
+		I915_WRITE(DSPFW9_CHV,
+			   FW_WM_VLV(wm->pipe[PIPE_C].primary, PLANEC) |
+			   FW_WM(wm->pipe[PIPE_C].cursor, CURSORC));
+		I915_WRITE(DSPHOWM,
+			   FW_WM(wm->sr.plane >> 9, SR_HI) |
+			   FW_WM(wm->pipe[PIPE_C].sprite[1] >> 8, SPRITEF_HI) |
+			   FW_WM(wm->pipe[PIPE_C].sprite[0] >> 8, SPRITEE_HI) |
+			   FW_WM(wm->pipe[PIPE_C].primary >> 8, PLANEC_HI) |
+			   FW_WM(wm->pipe[PIPE_B].sprite[1] >> 8, SPRITED_HI) |
+			   FW_WM(wm->pipe[PIPE_B].sprite[0] >> 8, SPRITEC_HI) |
+			   FW_WM(wm->pipe[PIPE_B].primary >> 8, PLANEB_HI) |
+			   FW_WM(wm->pipe[PIPE_A].sprite[1] >> 8, SPRITEB_HI) |
+			   FW_WM(wm->pipe[PIPE_A].sprite[0] >> 8, SPRITEA_HI) |
+			   FW_WM(wm->pipe[PIPE_A].primary >> 8, PLANEA_HI));
+	} else {
+		I915_WRITE(DSPFW7,
+			   FW_WM_VLV(wm->pipe[PIPE_B].sprite[1], SPRITED) |
+			   FW_WM_VLV(wm->pipe[PIPE_B].sprite[0], SPRITEC));
+		I915_WRITE(DSPHOWM,
+			   FW_WM(wm->sr.plane >> 9, SR_HI) |
+			   FW_WM(wm->pipe[PIPE_B].sprite[1] >> 8, SPRITED_HI) |
+			   FW_WM(wm->pipe[PIPE_B].sprite[0] >> 8, SPRITEC_HI) |
+			   FW_WM(wm->pipe[PIPE_B].primary >> 8, PLANEB_HI) |
+			   FW_WM(wm->pipe[PIPE_A].sprite[1] >> 8, SPRITEB_HI) |
+			   FW_WM(wm->pipe[PIPE_A].sprite[0] >> 8, SPRITEA_HI) |
+			   FW_WM(wm->pipe[PIPE_A].primary >> 8, PLANEA_HI));
+	}
 
-	if (*drain_latency > DRAIN_LATENCY_MASK)
-		*drain_latency = DRAIN_LATENCY_MASK;
+	/* zero (unused) WM1 watermarks */
+	I915_WRITE(DSPFW4, 0);
+	I915_WRITE(DSPFW5, 0);
+	I915_WRITE(DSPFW6, 0);
+	I915_WRITE(DSPHOWM1, 0);
 
-	return true;
+	POSTING_READ(DSPFW1);
 }
 
-/*
- * Update drain latency registers of memory arbiter
- *
- * Valleyview SoC has a new memory arbiter and needs drain latency registers
- * to be programmed. Each plane has a drain latency multiplier and a drain
- * latency value.
- */
+#undef FW_WM_VLV
 
-static void vlv_update_drain_latency(struct drm_crtc *crtc)
+enum vlv_wm_level {
+	VLV_WM_LEVEL_PM2,
+	VLV_WM_LEVEL_PM5,
+	VLV_WM_LEVEL_DDR_DVFS,
+};
+
+/* latency must be in 0.1us units. */
+static unsigned int vlv_wm_method2(unsigned int pixel_rate,
+				   unsigned int pipe_htotal,
+				   unsigned int horiz_pixels,
+				   unsigned int bytes_per_pixel,
+				   unsigned int latency)
+{
+	unsigned int ret;
+
+	ret = (latency * pixel_rate) / (pipe_htotal * 10000);
+	ret = (ret + 1) * horiz_pixels * bytes_per_pixel;
+	ret = DIV_ROUND_UP(ret, 64);
+
+	return ret;
+}
+
+static void vlv_setup_wm_latency(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/* all latencies in usec */
+	dev_priv->wm.pri_latency[VLV_WM_LEVEL_PM2] = 3;
+
+	dev_priv->wm.max_level = VLV_WM_LEVEL_PM2;
+
+	if (IS_CHERRYVIEW(dev_priv)) {
+		dev_priv->wm.pri_latency[VLV_WM_LEVEL_PM5] = 12;
+		dev_priv->wm.pri_latency[VLV_WM_LEVEL_DDR_DVFS] = 33;
+
+		dev_priv->wm.max_level = VLV_WM_LEVEL_DDR_DVFS;
+	}
+}
+
+static uint16_t vlv_compute_wm_level(struct intel_plane *plane,
+				     struct intel_crtc *crtc,
+				     const struct intel_plane_state *state,
+				     int level)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	int clock, htotal, pixel_size, width, wm;
+
+	if (dev_priv->wm.pri_latency[level] == 0)
+		return USHRT_MAX;
+
+	if (!state->visible)
+		return 0;
+
+	pixel_size = drm_format_plane_cpp(state->base.fb->pixel_format, 0);
+	clock = crtc->config->base.adjusted_mode.crtc_clock;
+	htotal = crtc->config->base.adjusted_mode.crtc_htotal;
+	width = crtc->config->pipe_src_w;
+	if (WARN_ON(htotal == 0))
+		htotal = 1;
+
+	if (plane->base.type == DRM_PLANE_TYPE_CURSOR) {
+		/*
+		 * FIXME the formula gives values that are
+		 * too big for the cursor FIFO, and hence we
+		 * would never be able to use cursors. For
+		 * now just hardcode the watermark.
+		 */
+		wm = 63;
+	} else {
+		wm = vlv_wm_method2(clock, htotal, width, pixel_size,
+				    dev_priv->wm.pri_latency[level] * 10);
+	}
+
+	return min_t(int, wm, USHRT_MAX);
+}
+
+static void vlv_compute_fifo(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct vlv_wm_state *wm_state = &crtc->wm_state;
+	struct intel_plane *plane;
+	unsigned int total_rate = 0;
+	const int fifo_size = 512 - 1;
+	int fifo_extra, fifo_left = fifo_size;
+
+	for_each_intel_plane_on_crtc(dev, crtc, plane) {
+		struct intel_plane_state *state =
+			to_intel_plane_state(plane->base.state);
+
+		if (plane->base.type == DRM_PLANE_TYPE_CURSOR)
+			continue;
+
+		if (state->visible) {
+			wm_state->num_active_planes++;
+			total_rate += drm_format_plane_cpp(state->base.fb->pixel_format, 0);
+		}
+	}
+
+	for_each_intel_plane_on_crtc(dev, crtc, plane) {
+		struct intel_plane_state *state =
+			to_intel_plane_state(plane->base.state);
+		unsigned int rate;
+
+		if (plane->base.type == DRM_PLANE_TYPE_CURSOR) {
+			plane->wm.fifo_size = 63;
+			continue;
+		}
+
+		if (!state->visible) {
+			plane->wm.fifo_size = 0;
+			continue;
+		}
+
+		rate = drm_format_plane_cpp(state->base.fb->pixel_format, 0);
+		plane->wm.fifo_size = fifo_size * rate / total_rate;
+		fifo_left -= plane->wm.fifo_size;
+	}
+
+	fifo_extra = DIV_ROUND_UP(fifo_left, wm_state->num_active_planes ?: 1);
+
+	/* spread the remainder evenly */
+	for_each_intel_plane_on_crtc(dev, crtc, plane) {
+		int plane_extra;
+
+		if (fifo_left == 0)
+			break;
+
+		if (plane->base.type == DRM_PLANE_TYPE_CURSOR)
+			continue;
+
+		/* give it all to the first plane if none are active */
+		if (plane->wm.fifo_size == 0 &&
+		    wm_state->num_active_planes)
+			continue;
+
+		plane_extra = min(fifo_extra, fifo_left);
+		plane->wm.fifo_size += plane_extra;
+		fifo_left -= plane_extra;
+	}
+
+	WARN_ON(fifo_left != 0);
+}
+
+static void vlv_invert_wms(struct intel_crtc *crtc)
+{
+	struct vlv_wm_state *wm_state = &crtc->wm_state;
+	int level;
+
+	for (level = 0; level < wm_state->num_levels; level++) {
+		struct drm_device *dev = crtc->base.dev;
+		const int sr_fifo_size = INTEL_INFO(dev)->num_pipes * 512 - 1;
+		struct intel_plane *plane;
+
+		wm_state->sr[level].plane = sr_fifo_size - wm_state->sr[level].plane;
+		wm_state->sr[level].cursor = 63 - wm_state->sr[level].cursor;
+
+		for_each_intel_plane_on_crtc(dev, crtc, plane) {
+			switch (plane->base.type) {
+				int sprite;
+			case DRM_PLANE_TYPE_CURSOR:
+				wm_state->wm[level].cursor = plane->wm.fifo_size -
+					wm_state->wm[level].cursor;
+				break;
+			case DRM_PLANE_TYPE_PRIMARY:
+				wm_state->wm[level].primary = plane->wm.fifo_size -
+					wm_state->wm[level].primary;
+				break;
+			case DRM_PLANE_TYPE_OVERLAY:
+				sprite = plane->plane;
+				wm_state->wm[level].sprite[sprite] = plane->wm.fifo_size -
+					wm_state->wm[level].sprite[sprite];
+				break;
+			}
+		}
+	}
+}
+
+static void vlv_compute_wm(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct vlv_wm_state *wm_state = &crtc->wm_state;
+	struct intel_plane *plane;
+	int sr_fifo_size = INTEL_INFO(dev)->num_pipes * 512 - 1;
+	int level;
+
+	memset(wm_state, 0, sizeof(*wm_state));
+
+	wm_state->cxsr = crtc->pipe != PIPE_C && crtc->wm.cxsr_allowed;
+	wm_state->num_levels = to_i915(dev)->wm.max_level + 1;
+
+	wm_state->num_active_planes = 0;
+
+	vlv_compute_fifo(crtc);
+
+	if (wm_state->num_active_planes != 1)
+		wm_state->cxsr = false;
+
+	if (wm_state->cxsr) {
+		for (level = 0; level < wm_state->num_levels; level++) {
+			wm_state->sr[level].plane = sr_fifo_size;
+			wm_state->sr[level].cursor = 63;
+		}
+	}
+
+	for_each_intel_plane_on_crtc(dev, crtc, plane) {
+		struct intel_plane_state *state =
+			to_intel_plane_state(plane->base.state);
+
+		if (!state->visible)
+			continue;
+
+		/* normal watermarks */
+		for (level = 0; level < wm_state->num_levels; level++) {
+			int wm = vlv_compute_wm_level(plane, crtc, state, level);
+			int max_wm = plane->base.type == DRM_PLANE_TYPE_CURSOR ? 63 : 511;
+
+			/* hack */
+			if (WARN_ON(level == 0 && wm > max_wm))
+				wm = max_wm;
+
+			if (wm > plane->wm.fifo_size)
+				break;
+
+			switch (plane->base.type) {
+				int sprite;
+			case DRM_PLANE_TYPE_CURSOR:
+				wm_state->wm[level].cursor = wm;
+				break;
+			case DRM_PLANE_TYPE_PRIMARY:
+				wm_state->wm[level].primary = wm;
+				break;
+			case DRM_PLANE_TYPE_OVERLAY:
+				sprite = plane->plane;
+				wm_state->wm[level].sprite[sprite] = wm;
+				break;
+			}
+		}
+
+		wm_state->num_levels = level;
+
+		if (!wm_state->cxsr)
+			continue;
+
+		/* maxfifo watermarks */
+		switch (plane->base.type) {
+			int sprite, level;
+		case DRM_PLANE_TYPE_CURSOR:
+			for (level = 0; level < wm_state->num_levels; level++)
+				wm_state->sr[level].cursor =
+					wm_state->sr[level].cursor;
+			break;
+		case DRM_PLANE_TYPE_PRIMARY:
+			for (level = 0; level < wm_state->num_levels; level++)
+				wm_state->sr[level].plane =
+					min(wm_state->sr[level].plane,
+					    wm_state->wm[level].primary);
+			break;
+		case DRM_PLANE_TYPE_OVERLAY:
+			sprite = plane->plane;
+			for (level = 0; level < wm_state->num_levels; level++)
+				wm_state->sr[level].plane =
+					min(wm_state->sr[level].plane,
+					    wm_state->wm[level].sprite[sprite]);
+			break;
+		}
+	}
+
+	/* clear any (partially) filled invalid levels */
+	for (level = wm_state->num_levels; level < to_i915(dev)->wm.max_level + 1; level++) {
+		memset(&wm_state->wm[level], 0, sizeof(wm_state->wm[level]));
+		memset(&wm_state->sr[level], 0, sizeof(wm_state->sr[level]));
+	}
+
+	vlv_invert_wms(crtc);
+}
+
+#define VLV_FIFO(plane, value) \
+	(((value) << DSPARB_ ## plane ## _SHIFT_VLV) & DSPARB_ ## plane ## _MASK_VLV)
+
+static void vlv_pipe_set_fifo_size(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_plane *plane;
+	int sprite0_start = 0, sprite1_start = 0, fifo_size = 0;
+
+	for_each_intel_plane_on_crtc(dev, crtc, plane) {
+		if (plane->base.type == DRM_PLANE_TYPE_CURSOR) {
+			WARN_ON(plane->wm.fifo_size != 63);
+			continue;
+		}
+
+		if (plane->base.type == DRM_PLANE_TYPE_PRIMARY)
+			sprite0_start = plane->wm.fifo_size;
+		else if (plane->plane == 0)
+			sprite1_start = sprite0_start + plane->wm.fifo_size;
+		else
+			fifo_size = sprite1_start + plane->wm.fifo_size;
+	}
+
+	WARN_ON(fifo_size != 512 - 1);
+
+	DRM_DEBUG_KMS("Pipe %c FIFO split %d / %d / %d\n",
+		      pipe_name(crtc->pipe), sprite0_start,
+		      sprite1_start, fifo_size);
+
+	switch (crtc->pipe) {
+		uint32_t dsparb, dsparb2, dsparb3;
+	case PIPE_A:
+		dsparb = I915_READ(DSPARB);
+		dsparb2 = I915_READ(DSPARB2);
+
+		dsparb &= ~(VLV_FIFO(SPRITEA, 0xff) |
+			    VLV_FIFO(SPRITEB, 0xff));
+		dsparb |= (VLV_FIFO(SPRITEA, sprite0_start) |
+			   VLV_FIFO(SPRITEB, sprite1_start));
+
+		dsparb2 &= ~(VLV_FIFO(SPRITEA_HI, 0x1) |
+			     VLV_FIFO(SPRITEB_HI, 0x1));
+		dsparb2 |= (VLV_FIFO(SPRITEA_HI, sprite0_start >> 8) |
+			   VLV_FIFO(SPRITEB_HI, sprite1_start >> 8));
+
+		I915_WRITE(DSPARB, dsparb);
+		I915_WRITE(DSPARB2, dsparb2);
+		break;
+	case PIPE_B:
+		dsparb = I915_READ(DSPARB);
+		dsparb2 = I915_READ(DSPARB2);
+
+		dsparb &= ~(VLV_FIFO(SPRITEC, 0xff) |
+			    VLV_FIFO(SPRITED, 0xff));
+		dsparb |= (VLV_FIFO(SPRITEC, sprite0_start) |
+			   VLV_FIFO(SPRITED, sprite1_start));
+
+		dsparb2 &= ~(VLV_FIFO(SPRITEC_HI, 0xff) |
+			     VLV_FIFO(SPRITED_HI, 0xff));
+		dsparb2 |= (VLV_FIFO(SPRITEC_HI, sprite0_start >> 8) |
+			   VLV_FIFO(SPRITED_HI, sprite1_start >> 8));
+
+		I915_WRITE(DSPARB, dsparb);
+		I915_WRITE(DSPARB2, dsparb2);
+		break;
+	case PIPE_C:
+		dsparb3 = I915_READ(DSPARB3);
+		dsparb2 = I915_READ(DSPARB2);
+
+		dsparb3 &= ~(VLV_FIFO(SPRITEE, 0xff) |
+			     VLV_FIFO(SPRITEF, 0xff));
+		dsparb3 |= (VLV_FIFO(SPRITEE, sprite0_start) |
+			    VLV_FIFO(SPRITEF, sprite1_start));
+
+		dsparb2 &= ~(VLV_FIFO(SPRITEE_HI, 0xff) |
+			     VLV_FIFO(SPRITEF_HI, 0xff));
+		dsparb2 |= (VLV_FIFO(SPRITEE_HI, sprite0_start >> 8) |
+			   VLV_FIFO(SPRITEF_HI, sprite1_start >> 8));
+
+		I915_WRITE(DSPARB3, dsparb3);
+		I915_WRITE(DSPARB2, dsparb2);
+		break;
+	default:
+		break;
+	}
+}
+
+#undef VLV_FIFO
+
+static void vlv_merge_wm(struct drm_device *dev,
+			 struct vlv_wm_values *wm)
+{
+	struct intel_crtc *crtc;
+	int num_active_crtcs = 0;
+
+	wm->level = to_i915(dev)->wm.max_level;
+	wm->cxsr = true;
+
+	for_each_intel_crtc(dev, crtc) {
+		const struct vlv_wm_state *wm_state = &crtc->wm_state;
+
+		if (!crtc->active)
+			continue;
+
+		if (!wm_state->cxsr)
+			wm->cxsr = false;
+
+		num_active_crtcs++;
+		wm->level = min_t(int, wm->level, wm_state->num_levels - 1);
+	}
+
+	if (num_active_crtcs != 1)
+		wm->cxsr = false;
+
+	if (num_active_crtcs > 1)
+		wm->level = VLV_WM_LEVEL_PM2;
+
+	for_each_intel_crtc(dev, crtc) {
+		struct vlv_wm_state *wm_state = &crtc->wm_state;
+		enum pipe pipe = crtc->pipe;
+
+		if (!crtc->active)
+			continue;
+
+		wm->pipe[pipe] = wm_state->wm[wm->level];
+		if (wm->cxsr)
+			wm->sr = wm_state->sr[wm->level];
+
+		wm->ddl[pipe].primary = DDL_PRECISION_HIGH | 2;
+		wm->ddl[pipe].sprite[0] = DDL_PRECISION_HIGH | 2;
+		wm->ddl[pipe].sprite[1] = DDL_PRECISION_HIGH | 2;
+		wm->ddl[pipe].cursor = DDL_PRECISION_HIGH | 2;
+	}
+}
+
+static void vlv_update_wm(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pixel_size;
-	int drain_latency;
 	enum pipe pipe = intel_crtc->pipe;
-	int plane_prec, prec_mult, plane_dl;
-	const int high_precision = IS_CHERRYVIEW(dev) ?
-		DRAIN_LATENCY_PRECISION_32 : DRAIN_LATENCY_PRECISION_64;
+	struct vlv_wm_values wm = {};
 
-	plane_dl = I915_READ(VLV_DDL(pipe)) & ~(DDL_PLANE_PRECISION_HIGH |
-		   DRAIN_LATENCY_MASK | DDL_CURSOR_PRECISION_HIGH |
-		   (DRAIN_LATENCY_MASK << DDL_CURSOR_SHIFT));
+	vlv_compute_wm(intel_crtc);
+	vlv_merge_wm(dev, &wm);
 
-	if (!intel_crtc_active(crtc)) {
-		I915_WRITE(VLV_DDL(pipe), plane_dl);
+	if (memcmp(&dev_priv->wm.vlv, &wm, sizeof(wm)) == 0) {
+		/* FIXME should be part of crtc atomic commit */
+		vlv_pipe_set_fifo_size(intel_crtc);
 		return;
 	}
 
-	/* Primary plane Drain Latency */
-	pixel_size = crtc->primary->fb->bits_per_pixel / 8;	/* BPP */
-	if (vlv_compute_drain_latency(crtc, pixel_size, &prec_mult, &drain_latency)) {
-		plane_prec = (prec_mult == high_precision) ?
-					   DDL_PLANE_PRECISION_HIGH :
-					   DDL_PLANE_PRECISION_LOW;
-		plane_dl |= plane_prec | drain_latency;
-	}
+	if (wm.level < VLV_WM_LEVEL_DDR_DVFS &&
+	    dev_priv->wm.vlv.level >= VLV_WM_LEVEL_DDR_DVFS)
+		chv_set_memory_dvfs(dev_priv, false);
 
-	/* Cursor Drain Latency
-	 * BPP is always 4 for cursor
-	 */
-	pixel_size = 4;
+	if (wm.level < VLV_WM_LEVEL_PM5 &&
+	    dev_priv->wm.vlv.level >= VLV_WM_LEVEL_PM5)
+		chv_set_memory_pm5(dev_priv, false);
 
-	/* Program cursor DL only if it is enabled */
-	if (intel_crtc->cursor_base &&
-	    vlv_compute_drain_latency(crtc, pixel_size, &prec_mult, &drain_latency)) {
-		plane_prec = (prec_mult == high_precision) ?
-					   DDL_CURSOR_PRECISION_HIGH :
-					   DDL_CURSOR_PRECISION_LOW;
-		plane_dl |= plane_prec | (drain_latency << DDL_CURSOR_SHIFT);
-	}
+	if (!wm.cxsr && dev_priv->wm.vlv.cxsr)
+		intel_set_memory_cxsr(dev_priv, false);
 
-	I915_WRITE(VLV_DDL(pipe), plane_dl);
+	/* FIXME should be part of crtc atomic commit */
+	vlv_pipe_set_fifo_size(intel_crtc);
+
+	vlv_write_wm_values(intel_crtc, &wm);
+
+	DRM_DEBUG_KMS("Setting FIFO watermarks - %c: plane=%d, cursor=%d, "
+		      "sprite0=%d, sprite1=%d, SR: plane=%d, cursor=%d level=%d cxsr=%d\n",
+		      pipe_name(pipe), wm.pipe[pipe].primary, wm.pipe[pipe].cursor,
+		      wm.pipe[pipe].sprite[0], wm.pipe[pipe].sprite[1],
+		      wm.sr.plane, wm.sr.cursor, wm.level, wm.cxsr);
+
+	if (wm.cxsr && !dev_priv->wm.vlv.cxsr)
+		intel_set_memory_cxsr(dev_priv, true);
+
+	if (wm.level >= VLV_WM_LEVEL_PM5 &&
+	    dev_priv->wm.vlv.level < VLV_WM_LEVEL_PM5)
+		chv_set_memory_pm5(dev_priv, true);
+
+	if (wm.level >= VLV_WM_LEVEL_DDR_DVFS &&
+	    dev_priv->wm.vlv.level < VLV_WM_LEVEL_DDR_DVFS)
+		chv_set_memory_dvfs(dev_priv, true);
+
+	dev_priv->wm.vlv = wm;
 }
 
 #define single_plane_enabled(mask) is_power_of_2(mask)
-
-static void valleyview_update_wm(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	static const int sr_latency_ns = 12000;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int planea_wm, planeb_wm, cursora_wm, cursorb_wm;
-	int plane_sr, cursor_sr;
-	int ignore_plane_sr, ignore_cursor_sr;
-	unsigned int enabled = 0;
-	bool cxsr_enabled;
-
-	vlv_update_drain_latency(crtc);
-
-	if (g4x_compute_wm0(dev, PIPE_A,
-			    &valleyview_wm_info, pessimal_latency_ns,
-			    &valleyview_cursor_wm_info, pessimal_latency_ns,
-			    &planea_wm, &cursora_wm))
-		enabled |= 1 << PIPE_A;
-
-	if (g4x_compute_wm0(dev, PIPE_B,
-			    &valleyview_wm_info, pessimal_latency_ns,
-			    &valleyview_cursor_wm_info, pessimal_latency_ns,
-			    &planeb_wm, &cursorb_wm))
-		enabled |= 1 << PIPE_B;
-
-	if (single_plane_enabled(enabled) &&
-	    g4x_compute_srwm(dev, ffs(enabled) - 1,
-			     sr_latency_ns,
-			     &valleyview_wm_info,
-			     &valleyview_cursor_wm_info,
-			     &plane_sr, &ignore_cursor_sr) &&
-	    g4x_compute_srwm(dev, ffs(enabled) - 1,
-			     2*sr_latency_ns,
-			     &valleyview_wm_info,
-			     &valleyview_cursor_wm_info,
-			     &ignore_plane_sr, &cursor_sr)) {
-		cxsr_enabled = true;
-	} else {
-		cxsr_enabled = false;
-		intel_set_memory_cxsr(dev_priv, false);
-		plane_sr = cursor_sr = 0;
-	}
-
-	DRM_DEBUG_KMS("Setting FIFO watermarks - A: plane=%d, cursor=%d, "
-		      "B: plane=%d, cursor=%d, SR: plane=%d, cursor=%d\n",
-		      planea_wm, cursora_wm,
-		      planeb_wm, cursorb_wm,
-		      plane_sr, cursor_sr);
-
-	I915_WRITE(DSPFW1,
-		   (plane_sr << DSPFW_SR_SHIFT) |
-		   (cursorb_wm << DSPFW_CURSORB_SHIFT) |
-		   (planeb_wm << DSPFW_PLANEB_SHIFT) |
-		   (planea_wm << DSPFW_PLANEA_SHIFT));
-	I915_WRITE(DSPFW2,
-		   (I915_READ(DSPFW2) & ~DSPFW_CURSORA_MASK) |
-		   (cursora_wm << DSPFW_CURSORA_SHIFT));
-	I915_WRITE(DSPFW3,
-		   (I915_READ(DSPFW3) & ~DSPFW_CURSOR_SR_MASK) |
-		   (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
-
-	if (cxsr_enabled)
-		intel_set_memory_cxsr(dev_priv, true);
-}
-
-static void cherryview_update_wm(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	static const int sr_latency_ns = 12000;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int planea_wm, planeb_wm, planec_wm;
-	int cursora_wm, cursorb_wm, cursorc_wm;
-	int plane_sr, cursor_sr;
-	int ignore_plane_sr, ignore_cursor_sr;
-	unsigned int enabled = 0;
-	bool cxsr_enabled;
-
-	vlv_update_drain_latency(crtc);
-
-	if (g4x_compute_wm0(dev, PIPE_A,
-			    &valleyview_wm_info, pessimal_latency_ns,
-			    &valleyview_cursor_wm_info, pessimal_latency_ns,
-			    &planea_wm, &cursora_wm))
-		enabled |= 1 << PIPE_A;
-
-	if (g4x_compute_wm0(dev, PIPE_B,
-			    &valleyview_wm_info, pessimal_latency_ns,
-			    &valleyview_cursor_wm_info, pessimal_latency_ns,
-			    &planeb_wm, &cursorb_wm))
-		enabled |= 1 << PIPE_B;
-
-	if (g4x_compute_wm0(dev, PIPE_C,
-			    &valleyview_wm_info, pessimal_latency_ns,
-			    &valleyview_cursor_wm_info, pessimal_latency_ns,
-			    &planec_wm, &cursorc_wm))
-		enabled |= 1 << PIPE_C;
-
-	if (single_plane_enabled(enabled) &&
-	    g4x_compute_srwm(dev, ffs(enabled) - 1,
-			     sr_latency_ns,
-			     &valleyview_wm_info,
-			     &valleyview_cursor_wm_info,
-			     &plane_sr, &ignore_cursor_sr) &&
-	    g4x_compute_srwm(dev, ffs(enabled) - 1,
-			     2*sr_latency_ns,
-			     &valleyview_wm_info,
-			     &valleyview_cursor_wm_info,
-			     &ignore_plane_sr, &cursor_sr)) {
-		cxsr_enabled = true;
-	} else {
-		cxsr_enabled = false;
-		intel_set_memory_cxsr(dev_priv, false);
-		plane_sr = cursor_sr = 0;
-	}
-
-	DRM_DEBUG_KMS("Setting FIFO watermarks - A: plane=%d, cursor=%d, "
-		      "B: plane=%d, cursor=%d, C: plane=%d, cursor=%d, "
-		      "SR: plane=%d, cursor=%d\n",
-		      planea_wm, cursora_wm,
-		      planeb_wm, cursorb_wm,
-		      planec_wm, cursorc_wm,
-		      plane_sr, cursor_sr);
-
-	I915_WRITE(DSPFW1,
-		   (plane_sr << DSPFW_SR_SHIFT) |
-		   (cursorb_wm << DSPFW_CURSORB_SHIFT) |
-		   (planeb_wm << DSPFW_PLANEB_SHIFT) |
-		   (planea_wm << DSPFW_PLANEA_SHIFT));
-	I915_WRITE(DSPFW2,
-		   (I915_READ(DSPFW2) & ~DSPFW_CURSORA_MASK) |
-		   (cursora_wm << DSPFW_CURSORA_SHIFT));
-	I915_WRITE(DSPFW3,
-		   (I915_READ(DSPFW3) & ~DSPFW_CURSOR_SR_MASK) |
-		   (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
-	I915_WRITE(DSPFW9_CHV,
-		   (I915_READ(DSPFW9_CHV) & ~(DSPFW_PLANEC_MASK |
-					      DSPFW_CURSORC_MASK)) |
-		   (planec_wm << DSPFW_PLANEC_SHIFT) |
-		   (cursorc_wm << DSPFW_CURSORC_SHIFT));
-
-	if (cxsr_enabled)
-		intel_set_memory_cxsr(dev_priv, true);
-}
-
-static void valleyview_update_sprite_wm(struct drm_plane *plane,
-					struct drm_crtc *crtc,
-					uint32_t sprite_width,
-					uint32_t sprite_height,
-					int pixel_size,
-					bool enabled, bool scaled)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipe = to_intel_plane(plane)->pipe;
-	int sprite = to_intel_plane(plane)->plane;
-	int drain_latency;
-	int plane_prec;
-	int sprite_dl;
-	int prec_mult;
-	const int high_precision = IS_CHERRYVIEW(dev) ?
-		DRAIN_LATENCY_PRECISION_32 : DRAIN_LATENCY_PRECISION_64;
-
-	sprite_dl = I915_READ(VLV_DDL(pipe)) & ~(DDL_SPRITE_PRECISION_HIGH(sprite) |
-		    (DRAIN_LATENCY_MASK << DDL_SPRITE_SHIFT(sprite)));
-
-	if (enabled && vlv_compute_drain_latency(crtc, pixel_size, &prec_mult,
-						 &drain_latency)) {
-		plane_prec = (prec_mult == high_precision) ?
-					   DDL_SPRITE_PRECISION_HIGH(sprite) :
-					   DDL_SPRITE_PRECISION_LOW(sprite);
-		sprite_dl |= plane_prec |
-			     (drain_latency << DDL_SPRITE_SHIFT(sprite));
-	}
-
-	I915_WRITE(VLV_DDL(pipe), sprite_dl);
-}
 
 static void g4x_update_wm(struct drm_crtc *crtc)
 {
@@ -1027,17 +1460,17 @@ static void g4x_update_wm(struct drm_crtc *crtc)
 		      plane_sr, cursor_sr);
 
 	I915_WRITE(DSPFW1,
-		   (plane_sr << DSPFW_SR_SHIFT) |
-		   (cursorb_wm << DSPFW_CURSORB_SHIFT) |
-		   (planeb_wm << DSPFW_PLANEB_SHIFT) |
-		   (planea_wm << DSPFW_PLANEA_SHIFT));
+		   FW_WM(plane_sr, SR) |
+		   FW_WM(cursorb_wm, CURSORB) |
+		   FW_WM(planeb_wm, PLANEB) |
+		   FW_WM(planea_wm, PLANEA));
 	I915_WRITE(DSPFW2,
 		   (I915_READ(DSPFW2) & ~DSPFW_CURSORA_MASK) |
-		   (cursora_wm << DSPFW_CURSORA_SHIFT));
+		   FW_WM(cursora_wm, CURSORA));
 	/* HPLL off in SR has some issues on G4x... disable it */
 	I915_WRITE(DSPFW3,
 		   (I915_READ(DSPFW3) & ~(DSPFW_HPLL_SR_EN | DSPFW_CURSOR_SR_MASK)) |
-		   (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
+		   FW_WM(cursor_sr, CURSOR_SR));
 
 	if (cxsr_enabled)
 		intel_set_memory_cxsr(dev_priv, true);
@@ -1062,7 +1495,7 @@ static void i965_update_wm(struct drm_crtc *unused_crtc)
 		int clock = adjusted_mode->crtc_clock;
 		int htotal = adjusted_mode->crtc_htotal;
 		int hdisplay = to_intel_crtc(crtc)->config->pipe_src_w;
-		int pixel_size = crtc->primary->fb->bits_per_pixel / 8;
+		int pixel_size = crtc->primary->state->fb->bits_per_pixel / 8;
 		unsigned long line_time_us;
 		int entries;
 
@@ -1080,7 +1513,7 @@ static void i965_update_wm(struct drm_crtc *unused_crtc)
 			      entries, srwm);
 
 		entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
-			pixel_size * to_intel_crtc(crtc)->cursor_width;
+			pixel_size * crtc->cursor->state->crtc_w;
 		entries = DIV_ROUND_UP(entries,
 					  i965_cursor_wm_info.cacheline_size);
 		cursor_sr = i965_cursor_wm_info.fifo_size -
@@ -1103,18 +1536,20 @@ static void i965_update_wm(struct drm_crtc *unused_crtc)
 		      srwm);
 
 	/* 965 has limitations... */
-	I915_WRITE(DSPFW1, (srwm << DSPFW_SR_SHIFT) |
-		   (8 << DSPFW_CURSORB_SHIFT) |
-		   (8 << DSPFW_PLANEB_SHIFT) |
-		   (8 << DSPFW_PLANEA_SHIFT));
-	I915_WRITE(DSPFW2, (8 << DSPFW_CURSORA_SHIFT) |
-		   (8 << DSPFW_PLANEC_SHIFT_OLD));
+	I915_WRITE(DSPFW1, FW_WM(srwm, SR) |
+		   FW_WM(8, CURSORB) |
+		   FW_WM(8, PLANEB) |
+		   FW_WM(8, PLANEA));
+	I915_WRITE(DSPFW2, FW_WM(8, CURSORA) |
+		   FW_WM(8, PLANEC_OLD));
 	/* update cursor SR watermark */
-	I915_WRITE(DSPFW3, (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
+	I915_WRITE(DSPFW3, FW_WM(cursor_sr, CURSOR_SR));
 
 	if (cxsr_enabled)
 		intel_set_memory_cxsr(dev_priv, true);
 }
+
+#undef FW_WM
 
 static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 {
@@ -1139,7 +1574,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 	crtc = intel_get_crtc_for_plane(dev, 0);
 	if (intel_crtc_active(crtc)) {
 		const struct drm_display_mode *adjusted_mode;
-		int cpp = crtc->primary->fb->bits_per_pixel / 8;
+		int cpp = crtc->primary->state->fb->bits_per_pixel / 8;
 		if (IS_GEN2(dev))
 			cpp = 4;
 
@@ -1161,7 +1596,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 	crtc = intel_get_crtc_for_plane(dev, 1);
 	if (intel_crtc_active(crtc)) {
 		const struct drm_display_mode *adjusted_mode;
-		int cpp = crtc->primary->fb->bits_per_pixel / 8;
+		int cpp = crtc->primary->state->fb->bits_per_pixel / 8;
 		if (IS_GEN2(dev))
 			cpp = 4;
 
@@ -1184,7 +1619,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 	if (IS_I915GM(dev) && enabled) {
 		struct drm_i915_gem_object *obj;
 
-		obj = intel_fb_obj(enabled->primary->fb);
+		obj = intel_fb_obj(enabled->primary->state->fb);
 
 		/* self-refresh seems busted with untiled */
 		if (obj->tiling_mode == I915_TILING_NONE)
@@ -1208,7 +1643,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 		int clock = adjusted_mode->crtc_clock;
 		int htotal = adjusted_mode->crtc_htotal;
 		int hdisplay = to_intel_crtc(enabled)->config->pipe_src_w;
-		int pixel_size = enabled->primary->fb->bits_per_pixel / 8;
+		int pixel_size = enabled->primary->state->fb->bits_per_pixel / 8;
 		unsigned long line_time_us;
 		int entries;
 
@@ -1273,23 +1708,22 @@ static void i845_update_wm(struct drm_crtc *unused_crtc)
 	I915_WRITE(FW_BLC, fwater_lo);
 }
 
-static uint32_t ilk_pipe_pixel_rate(struct drm_device *dev,
-				    struct drm_crtc *crtc)
+uint32_t ilk_pipe_pixel_rate(const struct intel_crtc_state *pipe_config)
 {
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	uint32_t pixel_rate;
 
-	pixel_rate = intel_crtc->config->base.adjusted_mode.crtc_clock;
+	pixel_rate = pipe_config->base.adjusted_mode.crtc_clock;
 
 	/* We only use IF-ID interlacing. If we ever use PF-ID we'll need to
 	 * adjust the pixel_rate here. */
 
-	if (intel_crtc->config->pch_pfit.enabled) {
+	if (pipe_config->pch_pfit.enabled) {
 		uint64_t pipe_w, pipe_h, pfit_w, pfit_h;
-		uint32_t pfit_size = intel_crtc->config->pch_pfit.size;
+		uint32_t pfit_size = pipe_config->pch_pfit.size;
 
-		pipe_w = intel_crtc->config->pipe_src_w;
-		pipe_h = intel_crtc->config->pipe_src_h;
+		pipe_w = pipe_config->pipe_src_w;
+		pipe_h = pipe_config->pipe_src_h;
+
 		pfit_w = (pfit_size >> 16) & 0xFFFF;
 		pfit_h = pfit_size & 0xFFFF;
 		if (pipe_w < pfit_w)
@@ -1645,7 +2079,7 @@ hsw_compute_linetime_wm(struct drm_device *dev, struct drm_crtc *crtc)
 	struct drm_display_mode *mode = &intel_crtc->config->base.adjusted_mode;
 	u32 linetime, ips_linetime;
 
-	if (!intel_crtc_active(crtc))
+	if (!intel_crtc->active)
 		return 0;
 
 	/* The WM are computed with base on how long it takes to fill a single
@@ -1654,7 +2088,7 @@ hsw_compute_linetime_wm(struct drm_device *dev, struct drm_crtc *crtc)
 	linetime = DIV_ROUND_CLOSEST(mode->crtc_htotal * 1000 * 8,
 				     mode->crtc_clock);
 	ips_linetime = DIV_ROUND_CLOSEST(mode->crtc_htotal * 1000 * 8,
-					 intel_ddi_get_cdclk_freq(dev_priv));
+					 dev_priv->cdclk_freq);
 
 	return PIPE_WM_LINETIME_IPS_LINETIME(ips_linetime) |
 	       PIPE_WM_LINETIME_TIME(linetime);
@@ -1711,6 +2145,8 @@ static void intel_read_wm_latency(struct drm_device *dev, uint16_t wm[8])
 				GEN9_MEM_LATENCY_LEVEL_MASK;
 
 		/*
+		 * WaWmMemoryReadLatency:skl
+		 *
 		 * punit doesn't take into account the read latency so we need
 		 * to add 2us to the various latency levels we retrieve from
 		 * the punit.
@@ -1783,7 +2219,7 @@ static void intel_fixup_cur_wm_latency(struct drm_device *dev, uint16_t wm[5])
 int ilk_wm_max_level(const struct drm_device *dev)
 {
 	/* how many WM levels are we expecting */
-	if (IS_GEN9(dev))
+	if (INTEL_INFO(dev)->gen >= 9)
 		return 7;
 	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		return 4;
@@ -1898,21 +2334,31 @@ static void ilk_compute_wm_parameters(struct drm_crtc *crtc,
 	enum pipe pipe = intel_crtc->pipe;
 	struct drm_plane *plane;
 
-	if (!intel_crtc_active(crtc))
+	if (!intel_crtc->active)
 		return;
 
 	p->active = true;
 	p->pipe_htotal = intel_crtc->config->base.adjusted_mode.crtc_htotal;
-	p->pixel_rate = ilk_pipe_pixel_rate(dev, crtc);
-	p->pri.bytes_per_pixel = crtc->primary->fb->bits_per_pixel / 8;
+	p->pixel_rate = ilk_pipe_pixel_rate(intel_crtc->config);
+
+	if (crtc->primary->state->fb)
+		p->pri.bytes_per_pixel =
+			crtc->primary->state->fb->bits_per_pixel / 8;
+	else
+		p->pri.bytes_per_pixel = 4;
+
 	p->cur.bytes_per_pixel = 4;
-	p->pri.horiz_pixels = intel_crtc->config->pipe_src_w;
-	p->cur.horiz_pixels = intel_crtc->cursor_width;
-	/* TODO: for now, assume primary and cursor planes are always enabled. */
+	/*
+	 * TODO: for now, assume primary and cursor planes are always enabled.
+	 * Setting them to false makes the screen flicker.
+	 */
 	p->pri.enabled = true;
 	p->cur.enabled = true;
 
-	drm_for_each_legacy_plane(plane, &dev->mode_config.plane_list) {
+	p->pri.horiz_pixels = intel_crtc->config->pipe_src_w;
+	p->cur.horiz_pixels = intel_crtc->base.cursor->state->crtc_w;
+
+	drm_for_each_legacy_plane(plane, dev) {
 		struct intel_plane *intel_plane = to_intel_plane(plane);
 
 		if (intel_plane->pipe == pipe) {
@@ -2042,6 +2488,7 @@ static void ilk_wm_merge(struct drm_device *dev,
 			 const struct ilk_wm_maximums *max,
 			 struct intel_pipe_wm *merged)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int level, max_level = ilk_wm_max_level(dev);
 	int last_enabled_level = max_level;
 
@@ -2082,7 +2529,8 @@ static void ilk_wm_merge(struct drm_device *dev,
 	 * What we should check here is whether FBC can be
 	 * enabled sometime later.
 	 */
-	if (IS_GEN5(dev) && !merged->fbc_wm_enabled && intel_fbc_enabled(dev)) {
+	if (IS_GEN5(dev) && !merged->fbc_wm_enabled &&
+	    intel_fbc_enabled(dev_priv)) {
 		for (level = 2; level <= max_level; level++) {
 			struct intel_wm_level *wm = &merged->wm[level];
 
@@ -2386,6 +2834,7 @@ static bool ilk_disable_lp_wm(struct drm_device *dev)
  */
 
 #define SKL_DDB_SIZE		896	/* in blocks */
+#define BXT_DDB_SIZE		512
 
 static void
 skl_ddb_get_pipe_allocation_limits(struct drm_device *dev,
@@ -2404,13 +2853,16 @@ skl_ddb_get_pipe_allocation_limits(struct drm_device *dev,
 		return;
 	}
 
-	ddb_size = SKL_DDB_SIZE;
+	if (IS_BROXTON(dev))
+		ddb_size = BXT_DDB_SIZE;
+	else
+		ddb_size = SKL_DDB_SIZE;
 
 	ddb_size -= 4; /* 4 blocks for bypass path allocation */
 
 	nth_active_pipe = 0;
 	for_each_crtc(dev, crtc) {
-		if (!intel_crtc_active(crtc))
+		if (!to_intel_crtc(crtc)->active)
 			continue;
 
 		if (crtc == for_crtc)
@@ -2443,13 +2895,12 @@ static void skl_ddb_entry_init_from_hw(struct skl_ddb_entry *entry, u32 reg)
 void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
 			  struct skl_ddb_allocation *ddb /* out */)
 {
-	struct drm_device *dev = dev_priv->dev;
 	enum pipe pipe;
 	int plane;
 	u32 val;
 
 	for_each_pipe(dev_priv, pipe) {
-		for_each_plane(pipe, plane) {
+		for_each_plane(dev_priv, pipe, plane) {
 			val = I915_READ(PLANE_BUF_CFG(pipe, plane));
 			skl_ddb_entry_init_from_hw(&ddb->plane[pipe][plane],
 						   val);
@@ -2461,8 +2912,18 @@ void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
 }
 
 static unsigned int
-skl_plane_relative_data_rate(const struct intel_plane_wm_parameters *p)
+skl_plane_relative_data_rate(const struct intel_plane_wm_parameters *p, int y)
 {
+
+	/* for planar format */
+	if (p->y_bytes_per_pixel) {
+		if (y)  /* y-plane data rate */
+			return p->horiz_pixels * p->vert_pixels * p->y_bytes_per_pixel;
+		else    /* uv-plane data rate */
+			return (p->horiz_pixels/2) * (p->vert_pixels/2) * p->bytes_per_pixel;
+	}
+
+	/* for packed formats */
 	return p->horiz_pixels * p->vert_pixels * p->bytes_per_pixel;
 }
 
@@ -2485,7 +2946,10 @@ skl_get_total_relative_data_rate(struct intel_crtc *intel_crtc,
 		if (!p->enabled)
 			continue;
 
-		total_data_rate += skl_plane_relative_data_rate(p);
+		total_data_rate += skl_plane_relative_data_rate(p, 0); /* packed/uv */
+		if (p->y_bytes_per_pixel) {
+			total_data_rate += skl_plane_relative_data_rate(p, 1); /* y-plane */
+		}
 	}
 
 	return total_data_rate;
@@ -2498,10 +2962,13 @@ skl_allocate_pipe_ddb(struct drm_crtc *crtc,
 		      struct skl_ddb_allocation *ddb /* out */)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum pipe pipe = intel_crtc->pipe;
 	struct skl_ddb_entry *alloc = &ddb->pipe[pipe];
 	uint16_t alloc_size, start, cursor_blocks;
+	uint16_t minimum[I915_MAX_PLANES];
+	uint16_t y_minimum[I915_MAX_PLANES];
 	unsigned int total_data_rate;
 	int plane;
 
@@ -2520,9 +2987,23 @@ skl_allocate_pipe_ddb(struct drm_crtc *crtc,
 	alloc_size -= cursor_blocks;
 	alloc->end -= cursor_blocks;
 
+	/* 1. Allocate the mininum required blocks for each active plane */
+	for_each_plane(dev_priv, pipe, plane) {
+		const struct intel_plane_wm_parameters *p;
+
+		p = &params->plane[plane];
+		if (!p->enabled)
+			continue;
+
+		minimum[plane] = 8;
+		alloc_size -= minimum[plane];
+		y_minimum[plane] = p->y_bytes_per_pixel ? 8 : 0;
+		alloc_size -= y_minimum[plane];
+	}
+
 	/*
-	 * Each active plane get a portion of the remaining space, in
-	 * proportion to the amount of data they need to fetch from memory.
+	 * 2. Distribute the remaining space in proportion to the amount of
+	 * data each plane needs to fetch from memory.
 	 *
 	 * FIXME: we may not allocate every single block here.
 	 */
@@ -2531,26 +3012,44 @@ skl_allocate_pipe_ddb(struct drm_crtc *crtc,
 	start = alloc->start;
 	for (plane = 0; plane < intel_num_planes(intel_crtc); plane++) {
 		const struct intel_plane_wm_parameters *p;
-		unsigned int data_rate;
-		uint16_t plane_blocks;
+		unsigned int data_rate, y_data_rate;
+		uint16_t plane_blocks, y_plane_blocks = 0;
 
 		p = &params->plane[plane];
 		if (!p->enabled)
 			continue;
 
-		data_rate = skl_plane_relative_data_rate(p);
+		data_rate = skl_plane_relative_data_rate(p, 0);
 
 		/*
+		 * allocation for (packed formats) or (uv-plane part of planar format):
 		 * promote the expression to 64 bits to avoid overflowing, the
 		 * result is < available as data_rate / total_data_rate < 1
 		 */
-		plane_blocks = div_u64((uint64_t)alloc_size * data_rate,
-				       total_data_rate);
+		plane_blocks = minimum[plane];
+		plane_blocks += div_u64((uint64_t)alloc_size * data_rate,
+					total_data_rate);
 
 		ddb->plane[pipe][plane].start = start;
 		ddb->plane[pipe][plane].end = start + plane_blocks;
 
 		start += plane_blocks;
+
+		/*
+		 * allocation for y_plane part of planar format:
+		 */
+		if (p->y_bytes_per_pixel) {
+			y_data_rate = skl_plane_relative_data_rate(p, 1);
+			y_plane_blocks = y_minimum[plane];
+			y_plane_blocks += div_u64((uint64_t)alloc_size * y_data_rate,
+						total_data_rate);
+
+			ddb->y_plane[pipe][plane].start = start;
+			ddb->y_plane[pipe][plane].end = start + y_plane_blocks;
+
+			start += y_plane_blocks;
+		}
+
 	}
 
 }
@@ -2575,7 +3074,7 @@ static uint32_t skl_wm_method1(uint32_t pixel_rate, uint8_t bytes_per_pixel,
 	if (latency == 0)
 		return UINT_MAX;
 
-	wm_intermediate_val = latency * pixel_rate * bytes_per_pixel;
+	wm_intermediate_val = latency * pixel_rate * bytes_per_pixel / 512;
 	ret = DIV_ROUND_UP(wm_intermediate_val, 1000);
 
 	return ret;
@@ -2583,17 +3082,29 @@ static uint32_t skl_wm_method1(uint32_t pixel_rate, uint8_t bytes_per_pixel,
 
 static uint32_t skl_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
 			       uint32_t horiz_pixels, uint8_t bytes_per_pixel,
-			       uint32_t latency)
+			       uint64_t tiling, uint32_t latency)
 {
-	uint32_t ret, plane_bytes_per_line, wm_intermediate_val;
+	uint32_t ret;
+	uint32_t plane_bytes_per_line, plane_blocks_per_line;
+	uint32_t wm_intermediate_val;
 
 	if (latency == 0)
 		return UINT_MAX;
 
 	plane_bytes_per_line = horiz_pixels * bytes_per_pixel;
+
+	if (tiling == I915_FORMAT_MOD_Y_TILED ||
+	    tiling == I915_FORMAT_MOD_Yf_TILED) {
+		plane_bytes_per_line *= 4;
+		plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
+		plane_blocks_per_line /= 4;
+	} else {
+		plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
+	}
+
 	wm_intermediate_val = latency * pixel_rate;
 	ret = DIV_ROUND_UP(wm_intermediate_val, pipe_htotal * 1000) *
-				plane_bytes_per_line;
+				plane_blocks_per_line;
 
 	return ret;
 }
@@ -2624,7 +3135,7 @@ static void skl_compute_wm_global_parameters(struct drm_device *dev,
 	struct drm_plane *plane;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
-		config->num_pipes_active += intel_crtc_active(crtc);
+		config->num_pipes_active += to_intel_crtc(crtc)->active;
 
 	/* FIXME: I don't think we need those two global parameters on SKL */
 	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
@@ -2642,26 +3153,46 @@ static void skl_compute_wm_pipe_parameters(struct drm_crtc *crtc,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum pipe pipe = intel_crtc->pipe;
 	struct drm_plane *plane;
+	struct drm_framebuffer *fb;
 	int i = 1; /* Index for sprite planes start */
 
-	p->active = intel_crtc_active(crtc);
+	p->active = intel_crtc->active;
 	if (p->active) {
 		p->pipe_htotal = intel_crtc->config->base.adjusted_mode.crtc_htotal;
 		p->pixel_rate = skl_pipe_pixel_rate(intel_crtc->config);
 
-		/*
-		 * For now, assume primary and cursor planes are always enabled.
-		 */
-		p->plane[0].enabled = true;
-		p->plane[0].bytes_per_pixel =
-			crtc->primary->fb->bits_per_pixel / 8;
+		fb = crtc->primary->state->fb;
+		/* For planar: Bpp is for uv plane, y_Bpp is for y plane */
+		if (fb) {
+			p->plane[0].enabled = true;
+			p->plane[0].bytes_per_pixel = fb->pixel_format == DRM_FORMAT_NV12 ?
+				drm_format_plane_cpp(fb->pixel_format, 1) : fb->bits_per_pixel / 8;
+			p->plane[0].y_bytes_per_pixel = fb->pixel_format == DRM_FORMAT_NV12 ?
+				drm_format_plane_cpp(fb->pixel_format, 0) : 0;
+			p->plane[0].tiling = fb->modifier[0];
+		} else {
+			p->plane[0].enabled = false;
+			p->plane[0].bytes_per_pixel = 0;
+			p->plane[0].y_bytes_per_pixel = 0;
+			p->plane[0].tiling = DRM_FORMAT_MOD_NONE;
+		}
 		p->plane[0].horiz_pixels = intel_crtc->config->pipe_src_w;
 		p->plane[0].vert_pixels = intel_crtc->config->pipe_src_h;
+		p->plane[0].rotation = crtc->primary->state->rotation;
 
-		p->cursor.enabled = true;
-		p->cursor.bytes_per_pixel = 4;
-		p->cursor.horiz_pixels = intel_crtc->cursor_width ?
-					 intel_crtc->cursor_width : 64;
+		fb = crtc->cursor->state->fb;
+		p->cursor.y_bytes_per_pixel = 0;
+		if (fb) {
+			p->cursor.enabled = true;
+			p->cursor.bytes_per_pixel = fb->bits_per_pixel / 8;
+			p->cursor.horiz_pixels = crtc->cursor->state->crtc_w;
+			p->cursor.vert_pixels = crtc->cursor->state->crtc_h;
+		} else {
+			p->cursor.enabled = false;
+			p->cursor.bytes_per_pixel = 0;
+			p->cursor.horiz_pixels = 64;
+			p->cursor.vert_pixels = 64;
+		}
 	}
 
 	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
@@ -2673,41 +3204,77 @@ static void skl_compute_wm_pipe_parameters(struct drm_crtc *crtc,
 	}
 }
 
-static bool skl_compute_plane_wm(struct skl_pipe_wm_parameters *p,
+static bool skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
+				 struct skl_pipe_wm_parameters *p,
 				 struct intel_plane_wm_parameters *p_params,
 				 uint16_t ddb_allocation,
-				 uint32_t mem_value,
+				 int level,
 				 uint16_t *out_blocks, /* out */
 				 uint8_t *out_lines /* out */)
 {
-	uint32_t method1, method2, plane_bytes_per_line, res_blocks, res_lines;
-	uint32_t result_bytes;
+	uint32_t latency = dev_priv->wm.skl_latency[level];
+	uint32_t method1, method2;
+	uint32_t plane_bytes_per_line, plane_blocks_per_line;
+	uint32_t res_blocks, res_lines;
+	uint32_t selected_result;
+	uint8_t bytes_per_pixel;
 
-	if (mem_value == 0 || !p->active || !p_params->enabled)
+	if (latency == 0 || !p->active || !p_params->enabled)
 		return false;
 
+	bytes_per_pixel = p_params->y_bytes_per_pixel ?
+		p_params->y_bytes_per_pixel :
+		p_params->bytes_per_pixel;
 	method1 = skl_wm_method1(p->pixel_rate,
-				 p_params->bytes_per_pixel,
-				 mem_value);
+				 bytes_per_pixel,
+				 latency);
 	method2 = skl_wm_method2(p->pixel_rate,
 				 p->pipe_htotal,
 				 p_params->horiz_pixels,
-				 p_params->bytes_per_pixel,
-				 mem_value);
+				 bytes_per_pixel,
+				 p_params->tiling,
+				 latency);
 
-	plane_bytes_per_line = p_params->horiz_pixels *
-					p_params->bytes_per_pixel;
+	plane_bytes_per_line = p_params->horiz_pixels * bytes_per_pixel;
+	plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
 
-	/* For now xtile and linear */
-	if (((ddb_allocation * 512) / plane_bytes_per_line) >= 1)
-		result_bytes = min(method1, method2);
-	else
-		result_bytes = method1;
+	if (p_params->tiling == I915_FORMAT_MOD_Y_TILED ||
+	    p_params->tiling == I915_FORMAT_MOD_Yf_TILED) {
+		uint32_t min_scanlines = 4;
+		uint32_t y_tile_minimum;
+		if (intel_rotation_90_or_270(p_params->rotation)) {
+			switch (p_params->bytes_per_pixel) {
+			case 1:
+				min_scanlines = 16;
+				break;
+			case 2:
+				min_scanlines = 8;
+				break;
+			case 8:
+				WARN(1, "Unsupported pixel depth for rotation");
+			}
+		}
+		y_tile_minimum = plane_blocks_per_line * min_scanlines;
+		selected_result = max(method2, y_tile_minimum);
+	} else {
+		if ((ddb_allocation / plane_blocks_per_line) >= 1)
+			selected_result = min(method1, method2);
+		else
+			selected_result = method1;
+	}
 
-	res_blocks = DIV_ROUND_UP(result_bytes, 512) + 1;
-	res_lines = DIV_ROUND_UP(result_bytes, plane_bytes_per_line);
+	res_blocks = selected_result + 1;
+	res_lines = DIV_ROUND_UP(selected_result, plane_blocks_per_line);
 
-	if (res_blocks > ddb_allocation || res_lines > 31)
+	if (level >= 1 && level <= 7) {
+		if (p_params->tiling == I915_FORMAT_MOD_Y_TILED ||
+		    p_params->tiling == I915_FORMAT_MOD_Yf_TILED)
+			res_lines += 4;
+		else
+			res_blocks++;
+	}
+
+	if (res_blocks >= ddb_allocation || res_lines > 31)
 		return false;
 
 	*out_blocks = res_blocks;
@@ -2724,34 +3291,37 @@ static void skl_compute_wm_level(const struct drm_i915_private *dev_priv,
 				 int num_planes,
 				 struct skl_wm_level *result)
 {
-	uint16_t latency = dev_priv->wm.skl_latency[level];
 	uint16_t ddb_blocks;
 	int i;
 
 	for (i = 0; i < num_planes; i++) {
 		ddb_blocks = skl_ddb_entry_size(&ddb->plane[pipe][i]);
 
-		result->plane_en[i] = skl_compute_plane_wm(p, &p->plane[i],
+		result->plane_en[i] = skl_compute_plane_wm(dev_priv,
+						p, &p->plane[i],
 						ddb_blocks,
-						latency,
+						level,
 						&result->plane_res_b[i],
 						&result->plane_res_l[i]);
 	}
 
 	ddb_blocks = skl_ddb_entry_size(&ddb->cursor[pipe]);
-	result->cursor_en = skl_compute_plane_wm(p, &p->cursor, ddb_blocks,
-						 latency, &result->cursor_res_b,
+	result->cursor_en = skl_compute_plane_wm(dev_priv, p, &p->cursor,
+						 ddb_blocks, level,
+						 &result->cursor_res_b,
 						 &result->cursor_res_l);
 }
 
 static uint32_t
 skl_compute_linetime_wm(struct drm_crtc *crtc, struct skl_pipe_wm_parameters *p)
 {
-	if (!intel_crtc_active(crtc))
+	if (!to_intel_crtc(crtc)->active)
+		return 0;
+
+	if (WARN_ON(p->pixel_rate == 0))
 		return 0;
 
 	return DIV_ROUND_UP(8 * p->pipe_htotal * 1000, p->pixel_rate);
-
 }
 
 static void skl_compute_transition_wm(struct drm_crtc *crtc,
@@ -2884,10 +3454,14 @@ static void skl_write_wm_values(struct drm_i915_private *dev_priv,
 				   new->plane_trans[pipe][i]);
 		I915_WRITE(CUR_WM_TRANS(pipe), new->cursor_trans[pipe]);
 
-		for (i = 0; i < intel_num_planes(crtc); i++)
+		for (i = 0; i < intel_num_planes(crtc); i++) {
 			skl_ddb_entry_write(dev_priv,
 					    PLANE_BUF_CFG(pipe, i),
 					    &new->ddb.plane[pipe][i]);
+			skl_ddb_entry_write(dev_priv,
+					    PLANE_NV12_BUF_CFG(pipe, i),
+					    &new->ddb.y_plane[pipe][i]);
+		}
 
 		skl_ddb_entry_write(dev_priv, CUR_BUF_CFG(pipe),
 				    &new->ddb.cursor[pipe]);
@@ -2921,12 +3495,11 @@ static void skl_write_wm_values(struct drm_i915_private *dev_priv,
 static void
 skl_wm_flush_pipe(struct drm_i915_private *dev_priv, enum pipe pipe, int pass)
 {
-	struct drm_device *dev = dev_priv->dev;
 	int plane;
 
 	DRM_DEBUG_KMS("flush pipe %c (pass %d)\n", pipe_name(pipe), pass);
 
-	for_each_plane(pipe, plane) {
+	for_each_plane(dev_priv, pipe, plane) {
 		I915_WRITE(PLANE_SURF(pipe, plane),
 			   I915_READ(PLANE_SURF(pipe, plane)));
 	}
@@ -2953,7 +3526,7 @@ static void skl_flush_wm_values(struct drm_i915_private *dev_priv,
 {
 	struct drm_device *dev = dev_priv->dev;
 	struct skl_ddb_allocation *cur_ddb, *new_ddb;
-	bool reallocated[I915_MAX_PIPES] = {false, false, false};
+	bool reallocated[I915_MAX_PIPES] = {};
 	struct intel_crtc *crtc;
 	enum pipe pipe;
 
@@ -3046,6 +3619,7 @@ static bool skl_update_pipe_wm(struct drm_crtc *crtc,
 		return false;
 
 	intel_crtc->wm.skl_active = *pipe_wm;
+
 	return true;
 }
 
@@ -3133,12 +3707,29 @@ skl_update_sprite_wm(struct drm_plane *plane, struct drm_crtc *crtc,
 		     int pixel_size, bool enabled, bool scaled)
 {
 	struct intel_plane *intel_plane = to_intel_plane(plane);
+	struct drm_framebuffer *fb = plane->state->fb;
 
 	intel_plane->wm.enabled = enabled;
 	intel_plane->wm.scaled = scaled;
 	intel_plane->wm.horiz_pixels = sprite_width;
 	intel_plane->wm.vert_pixels = sprite_height;
-	intel_plane->wm.bytes_per_pixel = pixel_size;
+	intel_plane->wm.tiling = DRM_FORMAT_MOD_NONE;
+
+	/* For planar: Bpp is for UV plane, y_Bpp is for Y plane */
+	intel_plane->wm.bytes_per_pixel =
+		(fb && fb->pixel_format == DRM_FORMAT_NV12) ?
+		drm_format_plane_cpp(plane->state->fb->pixel_format, 1) : pixel_size;
+	intel_plane->wm.y_bytes_per_pixel =
+		(fb && fb->pixel_format == DRM_FORMAT_NV12) ?
+		drm_format_plane_cpp(plane->state->fb->pixel_format, 0) : 0;
+
+	/*
+	 * Framebuffer can be NULL on plane disable, but it does not
+	 * matter for watermarks if we assume no tiling in that case.
+	 */
+	if (fb)
+		intel_plane->wm.tiling = fb->modifier[0];
+	intel_plane->wm.rotation = plane->state->rotation;
 
 	skl_update_wm(crtc);
 }
@@ -3287,7 +3878,7 @@ static void skl_pipe_wm_get_hw_state(struct drm_crtc *crtc)
 		hw->plane_trans[pipe][i] = I915_READ(PLANE_WM_TRANS(pipe, i));
 	hw->cursor_trans[pipe] = I915_READ(CUR_WM_TRANS(pipe));
 
-	if (!intel_crtc_active(crtc))
+	if (!intel_crtc->active)
 		return;
 
 	hw->dirty[pipe] = true;
@@ -3342,7 +3933,7 @@ static void ilk_pipe_wm_get_hw_state(struct drm_crtc *crtc)
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		hw->wm_linetime[pipe] = I915_READ(PIPE_WM_LINETIME(pipe));
 
-	active->pipe_enabled = intel_crtc_active(crtc);
+	active->pipe_enabled = intel_crtc->active;
 
 	if (active->pipe_enabled) {
 		u32 tmp = hw->wm_pipe[pipe];
@@ -3369,6 +3960,159 @@ static void ilk_pipe_wm_get_hw_state(struct drm_crtc *crtc)
 		for (level = 0; level <= max_level; level++)
 			active->wm[level].enable = true;
 	}
+}
+
+#define _FW_WM(value, plane) \
+	(((value) & DSPFW_ ## plane ## _MASK) >> DSPFW_ ## plane ## _SHIFT)
+#define _FW_WM_VLV(value, plane) \
+	(((value) & DSPFW_ ## plane ## _MASK_VLV) >> DSPFW_ ## plane ## _SHIFT)
+
+static void vlv_read_wm_values(struct drm_i915_private *dev_priv,
+			       struct vlv_wm_values *wm)
+{
+	enum pipe pipe;
+	uint32_t tmp;
+
+	for_each_pipe(dev_priv, pipe) {
+		tmp = I915_READ(VLV_DDL(pipe));
+
+		wm->ddl[pipe].primary =
+			(tmp >> DDL_PLANE_SHIFT) & (DDL_PRECISION_HIGH | DRAIN_LATENCY_MASK);
+		wm->ddl[pipe].cursor =
+			(tmp >> DDL_CURSOR_SHIFT) & (DDL_PRECISION_HIGH | DRAIN_LATENCY_MASK);
+		wm->ddl[pipe].sprite[0] =
+			(tmp >> DDL_SPRITE_SHIFT(0)) & (DDL_PRECISION_HIGH | DRAIN_LATENCY_MASK);
+		wm->ddl[pipe].sprite[1] =
+			(tmp >> DDL_SPRITE_SHIFT(1)) & (DDL_PRECISION_HIGH | DRAIN_LATENCY_MASK);
+	}
+
+	tmp = I915_READ(DSPFW1);
+	wm->sr.plane = _FW_WM(tmp, SR);
+	wm->pipe[PIPE_B].cursor = _FW_WM(tmp, CURSORB);
+	wm->pipe[PIPE_B].primary = _FW_WM_VLV(tmp, PLANEB);
+	wm->pipe[PIPE_A].primary = _FW_WM_VLV(tmp, PLANEA);
+
+	tmp = I915_READ(DSPFW2);
+	wm->pipe[PIPE_A].sprite[1] = _FW_WM_VLV(tmp, SPRITEB);
+	wm->pipe[PIPE_A].cursor = _FW_WM(tmp, CURSORA);
+	wm->pipe[PIPE_A].sprite[0] = _FW_WM_VLV(tmp, SPRITEA);
+
+	tmp = I915_READ(DSPFW3);
+	wm->sr.cursor = _FW_WM(tmp, CURSOR_SR);
+
+	if (IS_CHERRYVIEW(dev_priv)) {
+		tmp = I915_READ(DSPFW7_CHV);
+		wm->pipe[PIPE_B].sprite[1] = _FW_WM_VLV(tmp, SPRITED);
+		wm->pipe[PIPE_B].sprite[0] = _FW_WM_VLV(tmp, SPRITEC);
+
+		tmp = I915_READ(DSPFW8_CHV);
+		wm->pipe[PIPE_C].sprite[1] = _FW_WM_VLV(tmp, SPRITEF);
+		wm->pipe[PIPE_C].sprite[0] = _FW_WM_VLV(tmp, SPRITEE);
+
+		tmp = I915_READ(DSPFW9_CHV);
+		wm->pipe[PIPE_C].primary = _FW_WM_VLV(tmp, PLANEC);
+		wm->pipe[PIPE_C].cursor = _FW_WM(tmp, CURSORC);
+
+		tmp = I915_READ(DSPHOWM);
+		wm->sr.plane |= _FW_WM(tmp, SR_HI) << 9;
+		wm->pipe[PIPE_C].sprite[1] |= _FW_WM(tmp, SPRITEF_HI) << 8;
+		wm->pipe[PIPE_C].sprite[0] |= _FW_WM(tmp, SPRITEE_HI) << 8;
+		wm->pipe[PIPE_C].primary |= _FW_WM(tmp, PLANEC_HI) << 8;
+		wm->pipe[PIPE_B].sprite[1] |= _FW_WM(tmp, SPRITED_HI) << 8;
+		wm->pipe[PIPE_B].sprite[0] |= _FW_WM(tmp, SPRITEC_HI) << 8;
+		wm->pipe[PIPE_B].primary |= _FW_WM(tmp, PLANEB_HI) << 8;
+		wm->pipe[PIPE_A].sprite[1] |= _FW_WM(tmp, SPRITEB_HI) << 8;
+		wm->pipe[PIPE_A].sprite[0] |= _FW_WM(tmp, SPRITEA_HI) << 8;
+		wm->pipe[PIPE_A].primary |= _FW_WM(tmp, PLANEA_HI) << 8;
+	} else {
+		tmp = I915_READ(DSPFW7);
+		wm->pipe[PIPE_B].sprite[1] = _FW_WM_VLV(tmp, SPRITED);
+		wm->pipe[PIPE_B].sprite[0] = _FW_WM_VLV(tmp, SPRITEC);
+
+		tmp = I915_READ(DSPHOWM);
+		wm->sr.plane |= _FW_WM(tmp, SR_HI) << 9;
+		wm->pipe[PIPE_B].sprite[1] |= _FW_WM(tmp, SPRITED_HI) << 8;
+		wm->pipe[PIPE_B].sprite[0] |= _FW_WM(tmp, SPRITEC_HI) << 8;
+		wm->pipe[PIPE_B].primary |= _FW_WM(tmp, PLANEB_HI) << 8;
+		wm->pipe[PIPE_A].sprite[1] |= _FW_WM(tmp, SPRITEB_HI) << 8;
+		wm->pipe[PIPE_A].sprite[0] |= _FW_WM(tmp, SPRITEA_HI) << 8;
+		wm->pipe[PIPE_A].primary |= _FW_WM(tmp, PLANEA_HI) << 8;
+	}
+}
+
+#undef _FW_WM
+#undef _FW_WM_VLV
+
+void vlv_wm_get_hw_state(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct vlv_wm_values *wm = &dev_priv->wm.vlv;
+	struct intel_plane *plane;
+	enum pipe pipe;
+	u32 val;
+
+	vlv_read_wm_values(dev_priv, wm);
+
+	for_each_intel_plane(dev, plane) {
+		switch (plane->base.type) {
+			int sprite;
+		case DRM_PLANE_TYPE_CURSOR:
+			plane->wm.fifo_size = 63;
+			break;
+		case DRM_PLANE_TYPE_PRIMARY:
+			plane->wm.fifo_size = vlv_get_fifo_size(dev, plane->pipe, 0);
+			break;
+		case DRM_PLANE_TYPE_OVERLAY:
+			sprite = plane->plane;
+			plane->wm.fifo_size = vlv_get_fifo_size(dev, plane->pipe, sprite + 1);
+			break;
+		}
+	}
+
+	wm->cxsr = I915_READ(FW_BLC_SELF_VLV) & FW_CSPWRDWNEN;
+	wm->level = VLV_WM_LEVEL_PM2;
+
+	if (IS_CHERRYVIEW(dev_priv)) {
+		mutex_lock(&dev_priv->rps.hw_lock);
+
+		val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
+		if (val & DSP_MAXFIFO_PM5_ENABLE)
+			wm->level = VLV_WM_LEVEL_PM5;
+
+		/*
+		 * If DDR DVFS is disabled in the BIOS, Punit
+		 * will never ack the request. So if that happens
+		 * assume we don't have to enable/disable DDR DVFS
+		 * dynamically. To test that just set the REQ_ACK
+		 * bit to poke the Punit, but don't change the
+		 * HIGH/LOW bits so that we don't actually change
+		 * the current state.
+		 */
+		val = vlv_punit_read(dev_priv, PUNIT_REG_DDR_SETUP2);
+		val |= FORCE_DDR_FREQ_REQ_ACK;
+		vlv_punit_write(dev_priv, PUNIT_REG_DDR_SETUP2, val);
+
+		if (wait_for((vlv_punit_read(dev_priv, PUNIT_REG_DDR_SETUP2) &
+			      FORCE_DDR_FREQ_REQ_ACK) == 0, 3)) {
+			DRM_DEBUG_KMS("Punit not acking DDR DVFS request, "
+				      "assuming DDR DVFS is disabled\n");
+			dev_priv->wm.max_level = VLV_WM_LEVEL_PM5;
+		} else {
+			val = vlv_punit_read(dev_priv, PUNIT_REG_DDR_SETUP2);
+			if ((val & FORCE_DDR_HIGH_FREQ) == 0)
+				wm->level = VLV_WM_LEVEL_DDR_DVFS;
+		}
+
+		mutex_unlock(&dev_priv->rps.hw_lock);
+	}
+
+	for_each_pipe(dev_priv, pipe)
+		DRM_DEBUG_KMS("Initial watermarks: pipe %c, plane=%d, cursor=%d, sprite0=%d, sprite1=%d\n",
+			      pipe_name(pipe), wm->pipe[pipe].primary, wm->pipe[pipe].cursor,
+			      wm->pipe[pipe].sprite[0], wm->pipe[pipe].sprite[1]);
+
+	DRM_DEBUG_KMS("Initial watermarks: SR plane=%d, SR cursor=%d level=%d cxsr=%d\n",
+		      wm->sr.plane, wm->sr.cursor, wm->level, wm->cxsr);
 }
 
 void ilk_wm_get_hw_state(struct drm_device *dev)
@@ -3454,41 +4198,6 @@ void intel_update_sprite_watermarks(struct drm_plane *plane,
 		dev_priv->display.update_sprite_wm(plane, crtc,
 						   sprite_width, sprite_height,
 						   pixel_size, enabled, scaled);
-}
-
-static struct drm_i915_gem_object *
-intel_alloc_context_page(struct drm_device *dev)
-{
-	struct drm_i915_gem_object *ctx;
-	int ret;
-
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
-
-	ctx = i915_gem_alloc_object(dev, 4096);
-	if (!ctx) {
-		DRM_DEBUG("failed to alloc power context, RC6 disabled\n");
-		return NULL;
-	}
-
-	ret = i915_gem_obj_ggtt_pin(ctx, 4096, 0);
-	if (ret) {
-		DRM_ERROR("failed to pin power context: %d\n", ret);
-		goto err_unref;
-	}
-
-	ret = i915_gem_object_set_to_gtt_domain(ctx, 1);
-	if (ret) {
-		DRM_ERROR("failed to set-domain on power context: %d\n", ret);
-		goto err_unpin;
-	}
-
-	return ctx;
-
-err_unpin:
-	i915_gem_object_ggtt_unpin(ctx);
-err_unref:
-	drm_gem_object_unreference(&ctx->base);
-	return NULL;
 }
 
 /**
@@ -3623,7 +4332,7 @@ static void ironlake_disable_drps(struct drm_device *dev)
  * ourselves, instead of doing a rmw cycle (which might result in us clearing
  * all limits and the gpu stuck at whatever frequency it is at atm).
  */
-static u32 gen6_rps_limits(struct drm_i915_private *dev_priv, u8 val)
+static u32 intel_rps_limits(struct drm_i915_private *dev_priv, u8 val)
 {
 	u32 limits;
 
@@ -3633,9 +4342,15 @@ static u32 gen6_rps_limits(struct drm_i915_private *dev_priv, u8 val)
 	 * the hw runs at the minimal clock before selecting the desired
 	 * frequency, if the down threshold expires in that window we will not
 	 * receive a down interrupt. */
-	limits = dev_priv->rps.max_freq_softlimit << 24;
-	if (val <= dev_priv->rps.min_freq_softlimit)
-		limits |= dev_priv->rps.min_freq_softlimit << 16;
+	if (IS_GEN9(dev_priv->dev)) {
+		limits = (dev_priv->rps.max_freq_softlimit) << 23;
+		if (val <= dev_priv->rps.min_freq_softlimit)
+			limits |= (dev_priv->rps.min_freq_softlimit) << 14;
+	} else {
+		limits = dev_priv->rps.max_freq_softlimit << 24;
+		if (val <= dev_priv->rps.min_freq_softlimit)
+			limits |= dev_priv->rps.min_freq_softlimit << 16;
+	}
 
 	return limits;
 }
@@ -3643,6 +4358,8 @@ static u32 gen6_rps_limits(struct drm_i915_private *dev_priv, u8 val)
 static void gen6_set_rps_thresholds(struct drm_i915_private *dev_priv, u8 val)
 {
 	int new_power;
+	u32 threshold_up = 0, threshold_down = 0; /* in % */
+	u32 ei_up = 0, ei_down = 0;
 
 	new_power = dev_priv->rps.power;
 	switch (dev_priv->rps.power) {
@@ -3664,9 +4381,9 @@ static void gen6_set_rps_thresholds(struct drm_i915_private *dev_priv, u8 val)
 		break;
 	}
 	/* Max/min bins are special */
-	if (val == dev_priv->rps.min_freq_softlimit)
+	if (val <= dev_priv->rps.min_freq_softlimit)
 		new_power = LOW_POWER;
-	if (val == dev_priv->rps.max_freq_softlimit)
+	if (val >= dev_priv->rps.max_freq_softlimit)
 		new_power = HIGH_POWER;
 	if (new_power == dev_priv->rps.power)
 		return;
@@ -3675,60 +4392,56 @@ static void gen6_set_rps_thresholds(struct drm_i915_private *dev_priv, u8 val)
 	switch (new_power) {
 	case LOW_POWER:
 		/* Upclock if more than 95% busy over 16ms */
-		I915_WRITE(GEN6_RP_UP_EI, 12500);
-		I915_WRITE(GEN6_RP_UP_THRESHOLD, 11800);
+		ei_up = 16000;
+		threshold_up = 95;
 
 		/* Downclock if less than 85% busy over 32ms */
-		I915_WRITE(GEN6_RP_DOWN_EI, 25000);
-		I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 21250);
-
-		I915_WRITE(GEN6_RP_CONTROL,
-			   GEN6_RP_MEDIA_TURBO |
-			   GEN6_RP_MEDIA_HW_NORMAL_MODE |
-			   GEN6_RP_MEDIA_IS_GFX |
-			   GEN6_RP_ENABLE |
-			   GEN6_RP_UP_BUSY_AVG |
-			   GEN6_RP_DOWN_IDLE_AVG);
+		ei_down = 32000;
+		threshold_down = 85;
 		break;
 
 	case BETWEEN:
 		/* Upclock if more than 90% busy over 13ms */
-		I915_WRITE(GEN6_RP_UP_EI, 10250);
-		I915_WRITE(GEN6_RP_UP_THRESHOLD, 9225);
+		ei_up = 13000;
+		threshold_up = 90;
 
 		/* Downclock if less than 75% busy over 32ms */
-		I915_WRITE(GEN6_RP_DOWN_EI, 25000);
-		I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 18750);
-
-		I915_WRITE(GEN6_RP_CONTROL,
-			   GEN6_RP_MEDIA_TURBO |
-			   GEN6_RP_MEDIA_HW_NORMAL_MODE |
-			   GEN6_RP_MEDIA_IS_GFX |
-			   GEN6_RP_ENABLE |
-			   GEN6_RP_UP_BUSY_AVG |
-			   GEN6_RP_DOWN_IDLE_AVG);
+		ei_down = 32000;
+		threshold_down = 75;
 		break;
 
 	case HIGH_POWER:
 		/* Upclock if more than 85% busy over 10ms */
-		I915_WRITE(GEN6_RP_UP_EI, 8000);
-		I915_WRITE(GEN6_RP_UP_THRESHOLD, 6800);
+		ei_up = 10000;
+		threshold_up = 85;
 
 		/* Downclock if less than 60% busy over 32ms */
-		I915_WRITE(GEN6_RP_DOWN_EI, 25000);
-		I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 15000);
-
-		I915_WRITE(GEN6_RP_CONTROL,
-			   GEN6_RP_MEDIA_TURBO |
-			   GEN6_RP_MEDIA_HW_NORMAL_MODE |
-			   GEN6_RP_MEDIA_IS_GFX |
-			   GEN6_RP_ENABLE |
-			   GEN6_RP_UP_BUSY_AVG |
-			   GEN6_RP_DOWN_IDLE_AVG);
+		ei_down = 32000;
+		threshold_down = 60;
 		break;
 	}
 
+	I915_WRITE(GEN6_RP_UP_EI,
+		GT_INTERVAL_FROM_US(dev_priv, ei_up));
+	I915_WRITE(GEN6_RP_UP_THRESHOLD,
+		GT_INTERVAL_FROM_US(dev_priv, (ei_up * threshold_up / 100)));
+
+	I915_WRITE(GEN6_RP_DOWN_EI,
+		GT_INTERVAL_FROM_US(dev_priv, ei_down));
+	I915_WRITE(GEN6_RP_DOWN_THRESHOLD,
+		GT_INTERVAL_FROM_US(dev_priv, (ei_down * threshold_down / 100)));
+
+	 I915_WRITE(GEN6_RP_CONTROL,
+		    GEN6_RP_MEDIA_TURBO |
+		    GEN6_RP_MEDIA_HW_NORMAL_MODE |
+		    GEN6_RP_MEDIA_IS_GFX |
+		    GEN6_RP_ENABLE |
+		    GEN6_RP_UP_BUSY_AVG |
+		    GEN6_RP_DOWN_IDLE_AVG);
+
 	dev_priv->rps.power = new_power;
+	dev_priv->rps.up_threshold = threshold_up;
+	dev_priv->rps.down_threshold = threshold_down;
 	dev_priv->rps.last_adj = 0;
 }
 
@@ -3737,11 +4450,10 @@ static u32 gen6_rps_pm_mask(struct drm_i915_private *dev_priv, u8 val)
 	u32 mask = 0;
 
 	if (val > dev_priv->rps.min_freq_softlimit)
-		mask |= GEN6_PM_RP_DOWN_THRESHOLD | GEN6_PM_RP_DOWN_TIMEOUT;
+		mask |= GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_DOWN_THRESHOLD | GEN6_PM_RP_DOWN_TIMEOUT;
 	if (val < dev_priv->rps.max_freq_softlimit)
-		mask |= GEN6_PM_RP_UP_THRESHOLD;
+		mask |= GEN6_PM_RP_UP_EI_EXPIRED | GEN6_PM_RP_UP_THRESHOLD;
 
-	mask |= dev_priv->pm_rps_events & (GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_UP_EI_EXPIRED);
 	mask &= dev_priv->pm_rps_events;
 
 	return gen6_sanitize_rps_pm_mask(dev_priv, ~mask);
@@ -3750,13 +4462,13 @@ static u32 gen6_rps_pm_mask(struct drm_i915_private *dev_priv, u8 val)
 /* gen6_set_rps is called to update the frequency request, but should also be
  * called when the range (min_delay and max_delay) is modified so that we can
  * update the GEN6_RP_INTERRUPT_LIMITS register accordingly. */
-void gen6_set_rps(struct drm_device *dev, u8 val)
+static void gen6_set_rps(struct drm_device *dev, u8 val)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
-	WARN_ON(val > dev_priv->rps.max_freq_softlimit);
-	WARN_ON(val < dev_priv->rps.min_freq_softlimit);
+	WARN_ON(val > dev_priv->rps.max_freq);
+	WARN_ON(val < dev_priv->rps.min_freq);
 
 	/* min/max delay may still have been modified so be sure to
 	 * write the limits value.
@@ -3764,7 +4476,10 @@ void gen6_set_rps(struct drm_device *dev, u8 val)
 	if (val != dev_priv->rps.cur_freq) {
 		gen6_set_rps_thresholds(dev_priv, val);
 
-		if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+		if (IS_GEN9(dev))
+			I915_WRITE(GEN6_RPNSWREQ,
+				   GEN9_FREQUENCY(val));
+		else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 			I915_WRITE(GEN6_RPNSWREQ,
 				   HSW_FREQUENCY(val));
 		else
@@ -3777,7 +4492,7 @@ void gen6_set_rps(struct drm_device *dev, u8 val)
 	/* Make sure we continue to get interrupts
 	 * until we hit the minimum or maximum frequencies.
 	 */
-	I915_WRITE(GEN6_RP_INTERRUPT_LIMITS, gen6_rps_limits(dev_priv, val));
+	I915_WRITE(GEN6_RP_INTERRUPT_LIMITS, intel_rps_limits(dev_priv, val));
 	I915_WRITE(GEN6_PMINTRMSK, gen6_rps_pm_mask(dev_priv, val));
 
 	POSTING_READ(GEN6_RPNSWREQ);
@@ -3786,51 +4501,61 @@ void gen6_set_rps(struct drm_device *dev, u8 val)
 	trace_intel_gpu_freq_change(val * 50);
 }
 
-/* vlv_set_rps_idle: Set the frequency to Rpn if Gfx clocks are down
+static void valleyview_set_rps(struct drm_device *dev, u8 val)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
+	WARN_ON(val > dev_priv->rps.max_freq);
+	WARN_ON(val < dev_priv->rps.min_freq);
+
+	if (WARN_ONCE(IS_CHERRYVIEW(dev) && (val & 1),
+		      "Odd GPU freq value\n"))
+		val &= ~1;
+
+	I915_WRITE(GEN6_PMINTRMSK, gen6_rps_pm_mask(dev_priv, val));
+
+	if (val != dev_priv->rps.cur_freq) {
+		vlv_punit_write(dev_priv, PUNIT_REG_GPU_FREQ_REQ, val);
+		if (!IS_CHERRYVIEW(dev_priv))
+			gen6_set_rps_thresholds(dev_priv, val);
+	}
+
+	dev_priv->rps.cur_freq = val;
+	trace_intel_gpu_freq_change(intel_gpu_freq(dev_priv, val));
+}
+
+/* vlv_set_rps_idle: Set the frequency to idle, if Gfx clocks are down
  *
  * * If Gfx is Idle, then
- * 1. Mask Turbo interrupts
- * 2. Bring up Gfx clock
- * 3. Change the freq to Rpn and wait till P-Unit updates freq
- * 4. Clear the Force GFX CLK ON bit so that Gfx can down
- * 5. Unmask Turbo interrupts
+ * 1. Forcewake Media well.
+ * 2. Request idle freq.
+ * 3. Release Forcewake of Media well.
 */
 static void vlv_set_rps_idle(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	u32 val = dev_priv->rps.idle_freq;
 
-	/* CHV and latest VLV don't need to force the gfx clock */
-	if (IS_CHERRYVIEW(dev) || dev->pdev->revision >= 0xd) {
-		valleyview_set_rps(dev_priv->dev, dev_priv->rps.min_freq_softlimit);
+	if (dev_priv->rps.cur_freq <= val)
 		return;
+
+	/* Wake up the media well, as that takes a lot less
+	 * power than the Render well. */
+	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_MEDIA);
+	valleyview_set_rps(dev_priv->dev, val);
+	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_MEDIA);
+}
+
+void gen6_rps_busy(struct drm_i915_private *dev_priv)
+{
+	mutex_lock(&dev_priv->rps.hw_lock);
+	if (dev_priv->rps.enabled) {
+		if (dev_priv->pm_rps_events & (GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_UP_EI_EXPIRED))
+			gen6_rps_reset_ei(dev_priv);
+		I915_WRITE(GEN6_PMINTRMSK,
+			   gen6_rps_pm_mask(dev_priv, dev_priv->rps.cur_freq));
 	}
-
-	/*
-	 * When we are idle.  Drop to min voltage state.
-	 */
-
-	if (dev_priv->rps.cur_freq <= dev_priv->rps.min_freq_softlimit)
-		return;
-
-	/* Mask turbo interrupt so that they will not come in between */
-	I915_WRITE(GEN6_PMINTRMSK,
-		   gen6_sanitize_rps_pm_mask(dev_priv, ~0));
-
-	vlv_force_gfx_clock(dev_priv, true);
-
-	dev_priv->rps.cur_freq = dev_priv->rps.min_freq_softlimit;
-
-	vlv_punit_write(dev_priv, PUNIT_REG_GPU_FREQ_REQ,
-					dev_priv->rps.min_freq_softlimit);
-
-	if (wait_for(((vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS))
-				& GENFREQSTATUS) == 0, 100))
-		DRM_ERROR("timed out waiting for Punit\n");
-
-	vlv_force_gfx_clock(dev_priv, false);
-
-	I915_WRITE(GEN6_PMINTRMSK,
-		   gen6_rps_pm_mask(dev_priv, dev_priv->rps.cur_freq));
+	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
 void gen6_rps_idle(struct drm_i915_private *dev_priv)
@@ -3842,46 +4567,60 @@ void gen6_rps_idle(struct drm_i915_private *dev_priv)
 		if (IS_VALLEYVIEW(dev))
 			vlv_set_rps_idle(dev_priv);
 		else
-			gen6_set_rps(dev_priv->dev, dev_priv->rps.min_freq_softlimit);
+			gen6_set_rps(dev_priv->dev, dev_priv->rps.idle_freq);
 		dev_priv->rps.last_adj = 0;
+		I915_WRITE(GEN6_PMINTRMSK, 0xffffffff);
 	}
 	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	spin_lock(&dev_priv->rps.client_lock);
+	while (!list_empty(&dev_priv->rps.clients))
+		list_del_init(dev_priv->rps.clients.next);
+	spin_unlock(&dev_priv->rps.client_lock);
 }
 
-void gen6_rps_boost(struct drm_i915_private *dev_priv)
+void gen6_rps_boost(struct drm_i915_private *dev_priv,
+		    struct intel_rps_client *rps,
+		    unsigned long submitted)
 {
-	struct drm_device *dev = dev_priv->dev;
+	/* This is intentionally racy! We peek at the state here, then
+	 * validate inside the RPS worker.
+	 */
+	if (!(dev_priv->mm.busy &&
+	      dev_priv->rps.enabled &&
+	      dev_priv->rps.cur_freq < dev_priv->rps.max_freq_softlimit))
+		return;
 
-	mutex_lock(&dev_priv->rps.hw_lock);
-	if (dev_priv->rps.enabled) {
-		if (IS_VALLEYVIEW(dev))
-			valleyview_set_rps(dev_priv->dev, dev_priv->rps.max_freq_softlimit);
-		else
-			gen6_set_rps(dev_priv->dev, dev_priv->rps.max_freq_softlimit);
-		dev_priv->rps.last_adj = 0;
+	/* Force a RPS boost (and don't count it against the client) if
+	 * the GPU is severely congested.
+	 */
+	if (rps && time_after(jiffies, submitted + DRM_I915_THROTTLE_JIFFIES))
+		rps = NULL;
+
+	spin_lock(&dev_priv->rps.client_lock);
+	if (rps == NULL || list_empty(&rps->link)) {
+		spin_lock_irq(&dev_priv->irq_lock);
+		if (dev_priv->rps.interrupts_enabled) {
+			dev_priv->rps.client_boost = true;
+			queue_work(dev_priv->wq, &dev_priv->rps.work);
+		}
+		spin_unlock_irq(&dev_priv->irq_lock);
+
+		if (rps != NULL) {
+			list_add(&rps->link, &dev_priv->rps.clients);
+			rps->boosts++;
+		} else
+			dev_priv->rps.boosts++;
 	}
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	spin_unlock(&dev_priv->rps.client_lock);
 }
 
-void valleyview_set_rps(struct drm_device *dev, u8 val)
+void intel_set_rps(struct drm_device *dev, u8 val)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
-	WARN_ON(val > dev_priv->rps.max_freq_softlimit);
-	WARN_ON(val < dev_priv->rps.min_freq_softlimit);
-
-	if (WARN_ONCE(IS_CHERRYVIEW(dev) && (val & 1),
-		      "Odd GPU freq value\n"))
-		val &= ~1;
-
-	if (val != dev_priv->rps.cur_freq)
-		vlv_punit_write(dev_priv, PUNIT_REG_GPU_FREQ_REQ, val);
-
-	I915_WRITE(GEN6_PMINTRMSK, gen6_rps_pm_mask(dev_priv, val));
-
-	dev_priv->rps.cur_freq = val;
-	trace_intel_gpu_freq_change(intel_gpu_freq(dev_priv, val));
+	if (IS_VALLEYVIEW(dev))
+		valleyview_set_rps(dev, val);
+	else
+		gen6_set_rps(dev, val);
 }
 
 static void gen9_disable_rps(struct drm_device *dev)
@@ -3941,12 +4680,8 @@ static void intel_print_rc6_info(struct drm_device *dev, u32 mode)
 
 static int sanitize_rc6_option(const struct drm_device *dev, int enable_rc6)
 {
-	/* No RC6 before Ironlake */
-	if (INTEL_INFO(dev)->gen < 5)
-		return 0;
-
-	/* RC6 is only on Ironlake mobile not on desktop */
-	if (INTEL_INFO(dev)->gen == 5 && !IS_IRONLAKE_M(dev))
+	/* No RC6 before Ironlake and code is gone for ilk. */
+	if (INTEL_INFO(dev)->gen < 6)
 		return 0;
 
 	/* Respect the kernel parameter if it is set */
@@ -3966,10 +4701,6 @@ static int sanitize_rc6_option(const struct drm_device *dev, int enable_rc6)
 		return enable_rc6 & mask;
 	}
 
-	/* Disable RC6 on Ironlake */
-	if (INTEL_INFO(dev)->gen == 5)
-		return 0;
-
 	if (IS_IVYBRIDGE(dev))
 		return (INTEL_RC6_ENABLE | INTEL_RC6p_ENABLE);
 
@@ -3988,18 +4719,26 @@ static void gen6_init_rps_frequencies(struct drm_device *dev)
 	u32 ddcc_status = 0;
 	int ret;
 
-	rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
 	/* All of these values are in units of 50MHz */
 	dev_priv->rps.cur_freq		= 0;
 	/* static values from HW: RP0 > RP1 > RPn (min_freq) */
-	dev_priv->rps.rp0_freq		= (rp_state_cap >>  0) & 0xff;
-	dev_priv->rps.rp1_freq		= (rp_state_cap >>  8) & 0xff;
-	dev_priv->rps.min_freq		= (rp_state_cap >> 16) & 0xff;
+	if (IS_BROXTON(dev)) {
+		rp_state_cap = I915_READ(BXT_RP_STATE_CAP);
+		dev_priv->rps.rp0_freq = (rp_state_cap >> 16) & 0xff;
+		dev_priv->rps.rp1_freq = (rp_state_cap >>  8) & 0xff;
+		dev_priv->rps.min_freq = (rp_state_cap >>  0) & 0xff;
+	} else {
+		rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
+		dev_priv->rps.rp0_freq = (rp_state_cap >>  0) & 0xff;
+		dev_priv->rps.rp1_freq = (rp_state_cap >>  8) & 0xff;
+		dev_priv->rps.min_freq = (rp_state_cap >> 16) & 0xff;
+	}
+
 	/* hw_max = RP0 until we check for overclocking */
 	dev_priv->rps.max_freq		= dev_priv->rps.rp0_freq;
 
 	dev_priv->rps.efficient_freq = dev_priv->rps.rp1_freq;
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev) || IS_SKYLAKE(dev)) {
 		ret = sandybridge_pcode_read(dev_priv,
 					HSW_PCODE_DYNAMIC_DUTY_CYCLE_CONTROL,
 					&ddcc_status);
@@ -4011,6 +4750,18 @@ static void gen6_init_rps_frequencies(struct drm_device *dev)
 					dev_priv->rps.max_freq);
 	}
 
+	if (IS_SKYLAKE(dev)) {
+		/* Store the frequency values in 16.66 MHZ units, which is
+		   the natural hardware unit for SKL */
+		dev_priv->rps.rp0_freq *= GEN9_FREQ_SCALER;
+		dev_priv->rps.rp1_freq *= GEN9_FREQ_SCALER;
+		dev_priv->rps.min_freq *= GEN9_FREQ_SCALER;
+		dev_priv->rps.max_freq *= GEN9_FREQ_SCALER;
+		dev_priv->rps.efficient_freq *= GEN9_FREQ_SCALER;
+	}
+
+	dev_priv->rps.idle_freq = dev_priv->rps.min_freq;
+
 	/* Preserve min/max settings in case of re-init */
 	if (dev_priv->rps.max_freq_softlimit == 0)
 		dev_priv->rps.max_freq_softlimit = dev_priv->rps.max_freq;
@@ -4018,8 +4769,8 @@ static void gen6_init_rps_frequencies(struct drm_device *dev)
 	if (dev_priv->rps.min_freq_softlimit == 0) {
 		if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 			dev_priv->rps.min_freq_softlimit =
-				/* max(RPe, 450 MHz) */
-				max(dev_priv->rps.efficient_freq, (u8) 9);
+				max_t(int, dev_priv->rps.efficient_freq,
+				      intel_freq_opcode(dev_priv, 450));
 		else
 			dev_priv->rps.min_freq_softlimit =
 				dev_priv->rps.min_freq;
@@ -4035,23 +4786,21 @@ static void gen9_enable_rps(struct drm_device *dev)
 
 	gen6_init_rps_frequencies(dev);
 
-	I915_WRITE(GEN6_RPNSWREQ, 0xc800000);
-	I915_WRITE(GEN6_RC_VIDEO_FREQ, 0xc800000);
+	/* Program defaults and thresholds for RPS*/
+	I915_WRITE(GEN6_RC_VIDEO_FREQ,
+		GEN9_FREQUENCY(dev_priv->rps.rp1_freq));
 
-	I915_WRITE(GEN6_RP_DOWN_TIMEOUT, 0xf4240);
-	I915_WRITE(GEN6_RP_INTERRUPT_LIMITS, 0x12060000);
-	I915_WRITE(GEN6_RP_UP_THRESHOLD, 0xe808);
-	I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 0x3bd08);
-	I915_WRITE(GEN6_RP_UP_EI, 0x101d0);
-	I915_WRITE(GEN6_RP_DOWN_EI, 0x55730);
+	/* 1 second timeout*/
+	I915_WRITE(GEN6_RP_DOWN_TIMEOUT,
+		GT_INTERVAL_FROM_US(dev_priv, 1000000));
+
 	I915_WRITE(GEN6_RP_IDLE_HYSTERSIS, 0xa);
-	I915_WRITE(GEN6_PMINTRMSK, 0x6);
-	I915_WRITE(GEN6_RP_CONTROL, GEN6_RP_MEDIA_TURBO |
-		   GEN6_RP_MEDIA_HW_MODE | GEN6_RP_MEDIA_IS_GFX |
-		   GEN6_RP_ENABLE | GEN6_RP_UP_BUSY_AVG |
-		   GEN6_RP_DOWN_IDLE_AVG);
 
-	gen6_enable_rps_interrupts(dev);
+	/* Leaning on the below call to gen6_set_rps to program/setup the
+	 * Up/Down EI & threshold registers, as well as the RP_CONTROL,
+	 * RP_INTERRUPT_LIMITS & RPNSWREQ registers */
+	dev_priv->rps.power = HIGH_POWER; /* force a reset */
+	gen6_set_rps(dev_priv->dev, dev_priv->rps.min_freq_softlimit);
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 }
@@ -4095,8 +4844,13 @@ static void gen9_enable_rc6(struct drm_device *dev)
 				   GEN6_RC_CTL_EI_MODE(1) |
 				   rc6_mask);
 
-	/* 3b: Enable Coarse Power Gating only when RC6 is enabled */
-	I915_WRITE(GEN9_PG_ENABLE, (rc6_mask & GEN6_RC_CTL_RC6_ENABLE) ? 3 : 0);
+	/*
+	 * 3b: Enable Coarse Power Gating only when RC6 is enabled.
+	 * WaDisableRenderPowerGating:skl,bxt - Render PG need to be disabled with RC6.
+	 */
+	I915_WRITE(GEN9_PG_ENABLE, (rc6_mask & GEN6_RC_CTL_RC6_ENABLE) ?
+			GEN9_MEDIA_PG_ENABLE : 0);
+
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 
@@ -4179,7 +4933,7 @@ static void gen8_enable_rps(struct drm_device *dev)
 	/* 6: Ring frequency + overclocking (our driver does this later */
 
 	dev_priv->rps.power = HIGH_POWER; /* force a reset */
-	gen6_set_rps(dev_priv->dev, dev_priv->rps.min_freq_softlimit);
+	gen6_set_rps(dev_priv->dev, dev_priv->rps.idle_freq);
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 }
@@ -4273,7 +5027,7 @@ static void gen6_enable_rps(struct drm_device *dev)
 	}
 
 	dev_priv->rps.power = HIGH_POWER; /* force a reset */
-	gen6_set_rps(dev_priv->dev, dev_priv->rps.min_freq_softlimit);
+	gen6_set_rps(dev_priv->dev, dev_priv->rps.idle_freq);
 
 	rc6vids = 0;
 	ret = sandybridge_pcode_read(dev_priv, GEN6_PCODE_READ_RC6VIDS, &rc6vids);
@@ -4298,6 +5052,7 @@ static void __gen6_update_ring_freq(struct drm_device *dev)
 	int min_freq = 15;
 	unsigned int gpu_freq;
 	unsigned int max_ia_freq, min_ring_freq;
+	unsigned int max_gpu_freq, min_gpu_freq;
 	int scaling_factor = 180;
 	struct cpufreq_policy *policy;
 
@@ -4322,17 +5077,31 @@ static void __gen6_update_ring_freq(struct drm_device *dev)
 	/* convert DDR frequency from units of 266.6MHz to bandwidth */
 	min_ring_freq = mult_frac(min_ring_freq, 8, 3);
 
+	if (IS_SKYLAKE(dev)) {
+		/* Convert GT frequency to 50 HZ units */
+		min_gpu_freq = dev_priv->rps.min_freq / GEN9_FREQ_SCALER;
+		max_gpu_freq = dev_priv->rps.max_freq / GEN9_FREQ_SCALER;
+	} else {
+		min_gpu_freq = dev_priv->rps.min_freq;
+		max_gpu_freq = dev_priv->rps.max_freq;
+	}
+
 	/*
 	 * For each potential GPU frequency, load a ring frequency we'd like
 	 * to use for memory access.  We do this by specifying the IA frequency
 	 * the PCU should use as a reference to determine the ring frequency.
 	 */
-	for (gpu_freq = dev_priv->rps.max_freq; gpu_freq >= dev_priv->rps.min_freq;
-	     gpu_freq--) {
-		int diff = dev_priv->rps.max_freq - gpu_freq;
+	for (gpu_freq = max_gpu_freq; gpu_freq >= min_gpu_freq; gpu_freq--) {
+		int diff = max_gpu_freq - gpu_freq;
 		unsigned int ia_freq = 0, ring_freq = 0;
 
-		if (INTEL_INFO(dev)->gen >= 8) {
+		if (IS_SKYLAKE(dev)) {
+			/*
+			 * ring_freq = 2 * GT. ring_freq is in 100MHz units
+			 * No floor required for ring frequency on SKL.
+			 */
+			ring_freq = gpu_freq;
+		} else if (INTEL_INFO(dev)->gen >= 8) {
 			/* max(2 * GT, DDR). NB: GT is 50MHz units */
 			ring_freq = max(min_ring_freq, gpu_freq);
 		} else if (IS_HASWELL(dev)) {
@@ -4366,7 +5135,7 @@ void gen6_update_ring_freq(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (INTEL_INFO(dev)->gen < 6 || IS_VALLEYVIEW(dev))
+	if (!HAS_CORE_RING_FREQ(dev))
 		return;
 
 	mutex_lock(&dev_priv->rps.hw_lock);
@@ -4433,24 +5202,6 @@ static int cherryview_rps_guar_freq(struct drm_i915_private *dev_priv)
 		       PUNIT_GPU_STATUS_MAX_FREQ_MASK);
 	}
 	return rp1;
-}
-
-static int cherryview_rps_min_freq(struct drm_i915_private *dev_priv)
-{
-	struct drm_device *dev = dev_priv->dev;
-	u32 val, rpn;
-
-	if (dev->pdev->revision >= 0x20) {
-		val = vlv_punit_read(dev_priv, FB_GFX_FMIN_AT_VMIN_FUSE);
-		rpn = ((val >> FB_GFX_FMIN_AT_VMIN_FUSE_SHIFT) &
-		       FB_GFX_FREQ_FUSE_MASK);
-	} else { /* For pre-production hardware */
-		val = vlv_punit_read(dev_priv, PUNIT_GPU_STATUS_REG);
-		rpn = ((val >> PUNIT_GPU_STATIS_GFX_MIN_FREQ_SHIFT) &
-		       PUNIT_GPU_STATUS_GFX_MIN_FREQ_MASK);
-	}
-
-	return rpn;
 }
 
 static int valleyview_rps_guar_freq(struct drm_i915_private *dev_priv)
@@ -4638,6 +5389,8 @@ static void valleyview_init_gt_powersave(struct drm_device *dev)
 			 intel_gpu_freq(dev_priv, dev_priv->rps.min_freq),
 			 dev_priv->rps.min_freq);
 
+	dev_priv->rps.idle_freq = dev_priv->rps.min_freq;
+
 	/* Preserve min/max settings in case of re-init */
 	if (dev_priv->rps.max_freq_softlimit == 0)
 		dev_priv->rps.max_freq_softlimit = dev_priv->rps.max_freq;
@@ -4657,9 +5410,9 @@ static void cherryview_init_gt_powersave(struct drm_device *dev)
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 
-	mutex_lock(&dev_priv->dpio_lock);
+	mutex_lock(&dev_priv->sb_lock);
 	val = vlv_cck_read(dev_priv, CCK_FUSE_REG);
-	mutex_unlock(&dev_priv->dpio_lock);
+	mutex_unlock(&dev_priv->sb_lock);
 
 	switch ((val >> 2) & 0x7) {
 	case 0:
@@ -4702,7 +5455,8 @@ static void cherryview_init_gt_powersave(struct drm_device *dev)
 			 intel_gpu_freq(dev_priv, dev_priv->rps.rp1_freq),
 			 dev_priv->rps.rp1_freq);
 
-	dev_priv->rps.min_freq = cherryview_rps_min_freq(dev_priv);
+	/* PUnit validated range is only [RPe, RP0] */
+	dev_priv->rps.min_freq = dev_priv->rps.efficient_freq;
 	DRM_DEBUG_DRIVER("min GPU freq: %d MHz (%u)\n",
 			 intel_gpu_freq(dev_priv, dev_priv->rps.min_freq),
 			 dev_priv->rps.min_freq);
@@ -4712,6 +5466,8 @@ static void cherryview_init_gt_powersave(struct drm_device *dev)
 		   dev_priv->rps.rp1_freq |
 		   dev_priv->rps.min_freq) & 1,
 		  "Odd GPU freq values\n");
+
+	dev_priv->rps.idle_freq = dev_priv->rps.min_freq;
 
 	/* Preserve min/max settings in case of re-init */
 	if (dev_priv->rps.max_freq_softlimit == 0)
@@ -4762,8 +5518,8 @@ static void cherryview_enable_rps(struct drm_device *dev)
 		I915_WRITE(RING_MAX_IDLE(ring->mmio_base), 10);
 	I915_WRITE(GEN6_RC_SLEEP, 0);
 
-	/* TO threshold set to 1750 us ( 0x557 * 1.28 us) */
-	I915_WRITE(GEN6_RC6_THRESHOLD, 0x557);
+	/* TO threshold set to 500 us ( 0x186 * 1.28 us) */
+	I915_WRITE(GEN6_RC6_THRESHOLD, 0x186);
 
 	/* allows RC6 residency counter to work */
 	I915_WRITE(VLV_COUNTER_CONTROL,
@@ -4797,6 +5553,12 @@ static void cherryview_enable_rps(struct drm_device *dev)
 		   GEN6_RP_ENABLE |
 		   GEN6_RP_UP_BUSY_AVG |
 		   GEN6_RP_DOWN_IDLE_AVG);
+
+	/* Setting Fixed Bias */
+	val = VLV_OVERRIDE_EN |
+		  VLV_SOC_TDP_EN |
+		  CHV_BIAS_CPU_50_SOC_50;
+	vlv_punit_write(dev_priv, VLV_TURBO_SOC_OVERRIDE, val);
 
 	val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 
@@ -4882,6 +5644,12 @@ static void valleyview_enable_rps(struct drm_device *dev)
 
 	I915_WRITE(GEN6_RC_CONTROL, rc6_mode);
 
+	/* Setting Fixed Bias */
+	val = VLV_OVERRIDE_EN |
+		  VLV_SOC_TDP_EN |
+		  VLV_BIAS_CPU_125_SOC_875;
+	vlv_punit_write(dev_priv, VLV_TURBO_SOC_OVERRIDE, val);
+
 	val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 
 	/* RPS code assumes GPLL is used */
@@ -4902,124 +5670,6 @@ static void valleyview_enable_rps(struct drm_device *dev)
 	valleyview_set_rps(dev_priv->dev, dev_priv->rps.efficient_freq);
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
-}
-
-void ironlake_teardown_rc6(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (dev_priv->ips.renderctx) {
-		i915_gem_object_ggtt_unpin(dev_priv->ips.renderctx);
-		drm_gem_object_unreference(&dev_priv->ips.renderctx->base);
-		dev_priv->ips.renderctx = NULL;
-	}
-
-	if (dev_priv->ips.pwrctx) {
-		i915_gem_object_ggtt_unpin(dev_priv->ips.pwrctx);
-		drm_gem_object_unreference(&dev_priv->ips.pwrctx->base);
-		dev_priv->ips.pwrctx = NULL;
-	}
-}
-
-static void ironlake_disable_rc6(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (I915_READ(PWRCTXA)) {
-		/* Wake the GPU, prevent RC6, then restore RSTDBYCTL */
-		I915_WRITE(RSTDBYCTL, I915_READ(RSTDBYCTL) | RCX_SW_EXIT);
-		wait_for(((I915_READ(RSTDBYCTL) & RSX_STATUS_MASK) == RSX_STATUS_ON),
-			 50);
-
-		I915_WRITE(PWRCTXA, 0);
-		POSTING_READ(PWRCTXA);
-
-		I915_WRITE(RSTDBYCTL, I915_READ(RSTDBYCTL) & ~RCX_SW_EXIT);
-		POSTING_READ(RSTDBYCTL);
-	}
-}
-
-static int ironlake_setup_rc6(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (dev_priv->ips.renderctx == NULL)
-		dev_priv->ips.renderctx = intel_alloc_context_page(dev);
-	if (!dev_priv->ips.renderctx)
-		return -ENOMEM;
-
-	if (dev_priv->ips.pwrctx == NULL)
-		dev_priv->ips.pwrctx = intel_alloc_context_page(dev);
-	if (!dev_priv->ips.pwrctx) {
-		ironlake_teardown_rc6(dev);
-		return -ENOMEM;
-	}
-
-	return 0;
-}
-
-static void ironlake_enable_rc6(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring = &dev_priv->ring[RCS];
-	bool was_interruptible;
-	int ret;
-
-	/* rc6 disabled by default due to repeated reports of hanging during
-	 * boot and resume.
-	 */
-	if (!intel_enable_rc6(dev))
-		return;
-
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
-
-	ret = ironlake_setup_rc6(dev);
-	if (ret)
-		return;
-
-	was_interruptible = dev_priv->mm.interruptible;
-	dev_priv->mm.interruptible = false;
-
-	/*
-	 * GPU can automatically power down the render unit if given a page
-	 * to save state.
-	 */
-	ret = intel_ring_begin(ring, 6);
-	if (ret) {
-		ironlake_teardown_rc6(dev);
-		dev_priv->mm.interruptible = was_interruptible;
-		return;
-	}
-
-	intel_ring_emit(ring, MI_SUSPEND_FLUSH | MI_SUSPEND_FLUSH_EN);
-	intel_ring_emit(ring, MI_SET_CONTEXT);
-	intel_ring_emit(ring, i915_gem_obj_ggtt_offset(dev_priv->ips.renderctx) |
-			MI_MM_SPACE_GTT |
-			MI_SAVE_EXT_STATE_EN |
-			MI_RESTORE_EXT_STATE_EN |
-			MI_RESTORE_INHIBIT);
-	intel_ring_emit(ring, MI_SUSPEND_FLUSH);
-	intel_ring_emit(ring, MI_NOOP);
-	intel_ring_emit(ring, MI_FLUSH);
-	intel_ring_advance(ring);
-
-	/*
-	 * Wait for the command parser to advance past MI_SET_CONTEXT. The HW
-	 * does an implicit flush, combined with MI_FLUSH above, it should be
-	 * safe to assume that renderctx is valid
-	 */
-	ret = intel_ring_idle(ring);
-	dev_priv->mm.interruptible = was_interruptible;
-	if (ret) {
-		DRM_ERROR("failed to enable ironlake power savings\n");
-		ironlake_teardown_rc6(dev);
-		return;
-	}
-
-	I915_WRITE(PWRCTXA, i915_gem_obj_ggtt_offset(dev_priv->ips.pwrctx) | PWRCTX_EN);
-	I915_WRITE(RSTDBYCTL, I915_READ(RSTDBYCTL) & ~RCX_SW_EXIT);
-
-	intel_print_rc6_info(dev, GEN6_RC_CTL_RC6_ENABLE);
 }
 
 static unsigned long intel_pxfreq(u32 vidfreq)
@@ -5534,12 +6184,7 @@ static void gen6_suspend_rps(struct drm_device *dev)
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
-	/*
-	 * TODO: disable RPS interrupts on GEN9+ too once RPS support
-	 * is added for it.
-	 */
-	if (INTEL_INFO(dev)->gen < 9)
-		gen6_disable_rps_interrupts(dev);
+	gen6_disable_rps_interrupts(dev);
 }
 
 /**
@@ -5569,7 +6214,6 @@ void intel_disable_gt_powersave(struct drm_device *dev)
 
 	if (IS_IRONLAKE_M(dev)) {
 		ironlake_disable_drps(dev);
-		ironlake_disable_rc6(dev);
 	} else if (INTEL_INFO(dev)->gen >= 6) {
 		intel_suspend_gt_powersave(dev);
 
@@ -5597,12 +6241,7 @@ static void intel_gen6_powersave_work(struct work_struct *work)
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 
-	/*
-	 * TODO: reset/enable RPS interrupts on GEN9+ too, once RPS support is
-	 * added for it.
-	 */
-	if (INTEL_INFO(dev)->gen < 9)
-		gen6_reset_rps_interrupts(dev);
+	gen6_reset_rps_interrupts(dev);
 
 	if (IS_CHERRYVIEW(dev)) {
 		cherryview_enable_rps(dev);
@@ -5611,7 +6250,8 @@ static void intel_gen6_powersave_work(struct work_struct *work)
 	} else if (INTEL_INFO(dev)->gen >= 9) {
 		gen9_enable_rc6(dev);
 		gen9_enable_rps(dev);
-		__gen6_update_ring_freq(dev);
+		if (IS_SKYLAKE(dev))
+			__gen6_update_ring_freq(dev);
 	} else if (IS_BROADWELL(dev)) {
 		gen8_enable_rps(dev);
 		__gen6_update_ring_freq(dev);
@@ -5619,10 +6259,16 @@ static void intel_gen6_powersave_work(struct work_struct *work)
 		gen6_enable_rps(dev);
 		__gen6_update_ring_freq(dev);
 	}
+
+	WARN_ON(dev_priv->rps.max_freq < dev_priv->rps.min_freq);
+	WARN_ON(dev_priv->rps.idle_freq > dev_priv->rps.max_freq);
+
+	WARN_ON(dev_priv->rps.efficient_freq < dev_priv->rps.min_freq);
+	WARN_ON(dev_priv->rps.efficient_freq > dev_priv->rps.max_freq);
+
 	dev_priv->rps.enabled = true;
 
-	if (INTEL_INFO(dev)->gen < 9)
-		gen6_enable_rps_interrupts(dev);
+	gen6_enable_rps_interrupts(dev);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
@@ -5633,10 +6279,13 @@ void intel_enable_gt_powersave(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	/* Powersaving is controlled by the host when inside a VM */
+	if (intel_vgpu_active(dev))
+		return;
+
 	if (IS_IRONLAKE_M(dev)) {
 		mutex_lock(&dev->struct_mutex);
 		ironlake_enable_drps(dev);
-		ironlake_enable_rc6(dev);
 		intel_init_emon(dev);
 		mutex_unlock(&dev->struct_mutex);
 	} else if (INTEL_INFO(dev)->gen >= 6) {
@@ -5684,13 +6333,15 @@ static void ibx_init_clock_gating(struct drm_device *dev)
 static void g4x_disable_trickle_feed(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipe;
+	enum pipe pipe;
 
 	for_each_pipe(dev_priv, pipe) {
 		I915_WRITE(DSPCNTR(pipe),
 			   I915_READ(DSPCNTR(pipe)) |
 			   DISPPLANE_TRICKLE_FEED_DISABLE);
-		intel_flush_primary_plane(dev_priv, pipe);
+
+		I915_WRITE(DSPSURF(pipe), I915_READ(DSPSURF(pipe)));
+		POSTING_READ(DSPSURF(pipe));
 	}
 }
 
@@ -5980,10 +6631,9 @@ static void broadwell_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum pipe pipe;
+	uint32_t misccpctl;
 
-	I915_WRITE(WM3_LP_ILK, 0);
-	I915_WRITE(WM2_LP_ILK, 0);
-	I915_WRITE(WM1_LP_ILK, 0);
+	ilk_init_lp_watermarks(dev);
 
 	/* WaSwitchSolVfFArbitrationPriority:bdw */
 	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) | HSW_ECOCHK_ARB_PRIO_SOL);
@@ -6011,6 +6661,22 @@ static void broadwell_init_clock_gating(struct drm_device *dev)
 	/* WaDisableSDEUnitClockGating:bdw */
 	I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
 		   GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
+
+	/*
+	 * WaProgramL3SqcReg1Default:bdw
+	 * WaTempDisableDOPClkGating:bdw
+	 */
+	misccpctl = I915_READ(GEN7_MISCCPCTL);
+	I915_WRITE(GEN7_MISCCPCTL, misccpctl & ~GEN7_DOP_CLOCK_GATE_ENABLE);
+	I915_WRITE(GEN8_L3SQCREG1, BDW_WA_L3SQCREG1_DEFAULT);
+	I915_WRITE(GEN7_MISCCPCTL, misccpctl);
+
+	/*
+	 * WaGttCachingOffByDefault:bdw
+	 * GTT cache may not work with big pages, so if those
+	 * are ever enabled GTT cache may need to be disabled.
+	 */
+	I915_WRITE(HSW_GTT_CACHE_EN, GTT_CACHE_EN_ALL);
 
 	lpt_init_clock_gating(dev);
 }
@@ -6169,11 +6835,22 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 	gen6_check_mch_setup(dev);
 }
 
+static void vlv_init_display_clock_gating(struct drm_i915_private *dev_priv)
+{
+	I915_WRITE(DSPCLK_GATE_D, VRHUNIT_CLOCK_GATE_DISABLE);
+
+	/*
+	 * Disable trickle feed and enable pnd deadline calculation
+	 */
+	I915_WRITE(MI_ARB_VLV, MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE);
+	I915_WRITE(CBR1_VLV, 0);
+}
+
 static void valleyview_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	I915_WRITE(DSPCLK_GATE_D, VRHUNIT_CLOCK_GATE_DISABLE);
+	vlv_init_display_clock_gating(dev_priv);
 
 	/* WaDisableEarlyCull:vlv */
 	I915_WRITE(_3D_CHICKEN3,
@@ -6221,8 +6898,6 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(GEN7_UCGCTL4,
 		   I915_READ(GEN7_UCGCTL4) | GEN7_L3BANK2X_CLOCK_GATE_DISABLE);
 
-	I915_WRITE(MI_ARB_VLV, MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE);
-
 	/*
 	 * BSpec says this must be set, even though
 	 * WaDisable4x2SubspanOptimization isn't listed for VLV.
@@ -6259,9 +6934,7 @@ static void cherryview_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	I915_WRITE(DSPCLK_GATE_D, VRHUNIT_CLOCK_GATE_DISABLE);
-
-	I915_WRITE(MI_ARB_VLV, MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE);
+	vlv_init_display_clock_gating(dev_priv);
 
 	/* WaVSRefCountFullforceMissDisable:chv */
 	/* WaDSRefCountFullforceMissDisable:chv */
@@ -6280,6 +6953,12 @@ static void cherryview_init_clock_gating(struct drm_device *dev)
 	/* WaDisableSDEUnitClockGating:chv */
 	I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
 		   GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
+
+	/*
+	 * GTT cache may not work with big pages, so if those
+	 * are ever enabled GTT cache may need to be disabled.
+	 */
+	I915_WRITE(HSW_GTT_CACHE_EN, GTT_CACHE_EN_ALL);
 }
 
 static void g4x_init_clock_gating(struct drm_device *dev)
@@ -6396,7 +7075,8 @@ void intel_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	dev_priv->display.init_clock_gating(dev);
+	if (dev_priv->display.init_clock_gating)
+		dev_priv->display.init_clock_gating(dev);
 }
 
 void intel_suspend_hw(struct drm_device *dev)
@@ -6422,7 +7102,12 @@ void intel_init_pm(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen >= 9) {
 		skl_setup_wm_latency(dev);
 
-		dev_priv->display.init_clock_gating = gen9_init_clock_gating;
+		if (IS_BROXTON(dev))
+			dev_priv->display.init_clock_gating =
+				bxt_init_clock_gating;
+		else if (IS_SKYLAKE(dev))
+			dev_priv->display.init_clock_gating =
+				skl_init_clock_gating;
 		dev_priv->display.update_wm = skl_update_wm;
 		dev_priv->display.update_sprite_wm = skl_update_sprite_wm;
 	} else if (HAS_PCH_SPLIT(dev)) {
@@ -6450,13 +7135,15 @@ void intel_init_pm(struct drm_device *dev)
 		else if (INTEL_INFO(dev)->gen == 8)
 			dev_priv->display.init_clock_gating = broadwell_init_clock_gating;
 	} else if (IS_CHERRYVIEW(dev)) {
-		dev_priv->display.update_wm = cherryview_update_wm;
-		dev_priv->display.update_sprite_wm = valleyview_update_sprite_wm;
+		vlv_setup_wm_latency(dev);
+
+		dev_priv->display.update_wm = vlv_update_wm;
 		dev_priv->display.init_clock_gating =
 			cherryview_init_clock_gating;
 	} else if (IS_VALLEYVIEW(dev)) {
-		dev_priv->display.update_wm = valleyview_update_wm;
-		dev_priv->display.update_sprite_wm = valleyview_update_sprite_wm;
+		vlv_setup_wm_latency(dev);
+
+		dev_priv->display.update_wm = vlv_update_wm;
 		dev_priv->display.init_clock_gating =
 			valleyview_init_clock_gating;
 	} else if (IS_PINEVIEW(dev)) {
@@ -6618,7 +7305,9 @@ static int chv_freq_opcode(struct drm_i915_private *dev_priv, int val)
 
 int intel_gpu_freq(struct drm_i915_private *dev_priv, int val)
 {
-	if (IS_CHERRYVIEW(dev_priv->dev))
+	if (IS_GEN9(dev_priv->dev))
+		return (val * GT_FREQUENCY_MULTIPLIER) / GEN9_FREQ_SCALER;
+	else if (IS_CHERRYVIEW(dev_priv->dev))
 		return chv_gpu_freq(dev_priv, val);
 	else if (IS_VALLEYVIEW(dev_priv->dev))
 		return byt_gpu_freq(dev_priv, val);
@@ -6628,7 +7317,9 @@ int intel_gpu_freq(struct drm_i915_private *dev_priv, int val)
 
 int intel_freq_opcode(struct drm_i915_private *dev_priv, int val)
 {
-	if (IS_CHERRYVIEW(dev_priv->dev))
+	if (IS_GEN9(dev_priv->dev))
+		return (val * GEN9_FREQ_SCALER) / GT_FREQUENCY_MULTIPLIER;
+	else if (IS_CHERRYVIEW(dev_priv->dev))
 		return chv_freq_opcode(dev_priv, val);
 	else if (IS_VALLEYVIEW(dev_priv->dev))
 		return byt_freq_opcode(dev_priv, val);
@@ -6636,14 +7327,58 @@ int intel_freq_opcode(struct drm_i915_private *dev_priv, int val)
 		return val / GT_FREQUENCY_MULTIPLIER;
 }
 
+struct request_boost {
+	struct work_struct work;
+	struct drm_i915_gem_request *req;
+};
+
+static void __intel_rps_boost_work(struct work_struct *work)
+{
+	struct request_boost *boost = container_of(work, struct request_boost, work);
+	struct drm_i915_gem_request *req = boost->req;
+
+	if (!i915_gem_request_completed(req, true))
+		gen6_rps_boost(to_i915(req->ring->dev), NULL,
+			       req->emitted_jiffies);
+
+	i915_gem_request_unreference__unlocked(req);
+	kfree(boost);
+}
+
+void intel_queue_rps_boost_for_request(struct drm_device *dev,
+				       struct drm_i915_gem_request *req)
+{
+	struct request_boost *boost;
+
+	if (req == NULL || INTEL_INFO(dev)->gen < 6)
+		return;
+
+	if (i915_gem_request_completed(req, true))
+		return;
+
+	boost = kmalloc(sizeof(*boost), GFP_ATOMIC);
+	if (boost == NULL)
+		return;
+
+	i915_gem_request_reference(req);
+	boost->req = req;
+
+	INIT_WORK(&boost->work, __intel_rps_boost_work);
+	queue_work(to_i915(dev)->wq, &boost->work);
+}
+
 void intel_pm_setup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	mutex_init(&dev_priv->rps.hw_lock);
+	spin_lock_init(&dev_priv->rps.client_lock);
 
 	INIT_DELAYED_WORK(&dev_priv->rps.delayed_resume_work,
 			  intel_gen6_powersave_work);
+	INIT_LIST_HEAD(&dev_priv->rps.clients);
+	INIT_LIST_HEAD(&dev_priv->rps.semaphores.link);
+	INIT_LIST_HEAD(&dev_priv->rps.mmioflips.link);
 
 	dev_priv->pm.suspended = false;
 }

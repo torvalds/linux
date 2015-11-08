@@ -38,10 +38,10 @@
 #define _TIPC_BEARER_H
 
 #include "netlink.h"
+#include "core.h"
 #include <net/genetlink.h>
 
-#define MAX_BEARERS	2
-#define MAX_MEDIA	2
+#define MAX_MEDIA	3
 #define MAX_NODES	4096
 #define WSIZE		32
 
@@ -50,14 +50,16 @@
  * - the field's actual content and length is defined per media
  * - remaining unused bytes in the field are set to zero
  */
-#define TIPC_MEDIA_ADDR_SIZE	32
+#define TIPC_MEDIA_INFO_SIZE	32
 #define TIPC_MEDIA_TYPE_OFFSET	3
+#define TIPC_MEDIA_ADDR_OFFSET	4
 
 /*
  * Identifiers of supported TIPC media types
  */
 #define TIPC_MEDIA_TYPE_ETH	1
 #define TIPC_MEDIA_TYPE_IB	2
+#define TIPC_MEDIA_TYPE_UDP	3
 
 /**
  * struct tipc_node_map - set of node identifiers
@@ -76,7 +78,7 @@ struct tipc_node_map {
  * @broadcast: non-zero if address is a broadcast address
  */
 struct tipc_media_addr {
-	u8 value[TIPC_MEDIA_ADDR_SIZE];
+	u8 value[TIPC_MEDIA_INFO_SIZE];
 	u8 media_id;
 	u8 broadcast;
 };
@@ -103,7 +105,8 @@ struct tipc_media {
 	int (*send_msg)(struct net *net, struct sk_buff *buf,
 			struct tipc_bearer *b_ptr,
 			struct tipc_media_addr *dest);
-	int (*enable_media)(struct net *net, struct tipc_bearer *b_ptr);
+	int (*enable_media)(struct net *net, struct tipc_bearer *b_ptr,
+			    struct nlattr *attr[]);
 	void (*disable_media)(struct tipc_bearer *b_ptr);
 	int (*addr2str)(struct tipc_media_addr *addr,
 			char *strbuf,
@@ -160,6 +163,7 @@ struct tipc_bearer {
 	u32 identity;
 	struct tipc_link_req *link_req;
 	char net_plane;
+	int node_cnt;
 	struct tipc_node_map nodes;
 };
 
@@ -182,6 +186,9 @@ extern struct tipc_media eth_media_info;
 #ifdef CONFIG_TIPC_MEDIA_IB
 extern struct tipc_media ib_media_info;
 #endif
+#ifdef CONFIG_TIPC_MEDIA_UDP
+extern struct tipc_media udp_media_info;
+#endif
 
 int tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info);
@@ -196,7 +203,8 @@ int tipc_nl_media_set(struct sk_buff *skb, struct genl_info *info);
 int tipc_media_set_priority(const char *name, u32 new_value);
 int tipc_media_set_window(const char *name, u32 new_value);
 void tipc_media_addr_printf(char *buf, int len, struct tipc_media_addr *a);
-int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b);
+int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b,
+			 struct nlattr *attrs[]);
 void tipc_disable_l2_media(struct tipc_bearer *b);
 int tipc_l2_send_msg(struct net *net, struct sk_buff *buf,
 		     struct tipc_bearer *b, struct tipc_media_addr *dest);
@@ -208,7 +216,14 @@ struct tipc_media *tipc_media_find(const char *name);
 int tipc_bearer_setup(void);
 void tipc_bearer_cleanup(void);
 void tipc_bearer_stop(struct net *net);
-void tipc_bearer_send(struct net *net, u32 bearer_id, struct sk_buff *buf,
-		      struct tipc_media_addr *dest);
+int tipc_bearer_mtu(struct net *net, u32 bearer_id);
+void tipc_bearer_xmit_skb(struct net *net, u32 bearer_id,
+			  struct sk_buff *skb,
+			  struct tipc_media_addr *dest);
+void tipc_bearer_xmit(struct net *net, u32 bearer_id,
+		      struct sk_buff_head *xmitq,
+		      struct tipc_media_addr *dst);
+void tipc_bearer_bc_xmit(struct net *net, u32 bearer_id,
+			 struct sk_buff_head *xmitq);
 
 #endif	/* _TIPC_BEARER_H */

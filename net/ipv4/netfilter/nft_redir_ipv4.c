@@ -18,26 +18,25 @@
 #include <net/netfilter/nft_redir.h>
 
 static void nft_redir_ipv4_eval(const struct nft_expr *expr,
-				struct nft_data data[NFT_REG_MAX + 1],
+				struct nft_regs *regs,
 				const struct nft_pktinfo *pkt)
 {
 	struct nft_redir *priv = nft_expr_priv(expr);
 	struct nf_nat_ipv4_multi_range_compat mr;
-	unsigned int verdict;
 
 	memset(&mr, 0, sizeof(mr));
 	if (priv->sreg_proto_min) {
 		mr.range[0].min.all =
-			*(__be16 *)&data[priv->sreg_proto_min].data[0];
+			*(__be16 *)&regs->data[priv->sreg_proto_min];
 		mr.range[0].max.all =
-			*(__be16 *)&data[priv->sreg_proto_max].data[0];
+			*(__be16 *)&regs->data[priv->sreg_proto_max];
 		mr.range[0].flags |= NF_NAT_RANGE_PROTO_SPECIFIED;
 	}
 
 	mr.range[0].flags |= priv->flags;
 
-	verdict = nf_nat_redirect_ipv4(pkt->skb, &mr, pkt->ops->hooknum);
-	data[NFT_REG_VERDICT].verdict = verdict;
+	regs->verdict.code = nf_nat_redirect_ipv4(pkt->skb, &mr,
+						  pkt->hook);
 }
 
 static struct nft_expr_type nft_redir_ipv4_type;

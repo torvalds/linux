@@ -45,6 +45,7 @@ struct ath_struct {
 	struct hci_uart *hu;
 	unsigned int cur_sleep;
 
+	struct sk_buff *rx_skb;
 	struct sk_buff_head txq;
 	struct work_struct ctxtsw;
 };
@@ -94,7 +95,6 @@ static void ath_hci_uart_work(struct work_struct *work)
 	hci_uart_tx_wakeup(hu);
 }
 
-/* Initialize protocol */
 static int ath_open(struct hci_uart *hu)
 {
 	struct ath_struct *ath;
@@ -115,7 +115,24 @@ static int ath_open(struct hci_uart *hu)
 	return 0;
 }
 
-/* Flush protocol data */
+static int ath_close(struct hci_uart *hu)
+{
+	struct ath_struct *ath = hu->priv;
+
+	BT_DBG("hu %p", hu);
+
+	skb_queue_purge(&ath->txq);
+
+	kfree_skb(ath->rx_skb);
+
+	cancel_work_sync(&ath->ctxtsw);
+
+	hu->priv = NULL;
+	kfree(ath);
+
+	return 0;
+}
+
 static int ath_flush(struct hci_uart *hu)
 {
 	struct ath_struct *ath = hu->priv;
@@ -127,26 +144,63 @@ static int ath_flush(struct hci_uart *hu)
 	return 0;
 }
 
-/* Close protocol */
-static int ath_close(struct hci_uart *hu)
+static int ath_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr)
 {
-	struct ath_struct *ath = hu->priv;
+	struct sk_buff *skb;
+	u8 buf[10];
+	int err;
 
-	BT_DBG("hu %p", hu);
+	buf[0] = 0x01;
+	buf[1] = 0x01;
+	buf[2] = 0x00;
+	buf[3] = sizeof(bdaddr_t);
+	memcpy(buf + 4, bdaddr, sizeof(bdaddr_t));
 
-	skb_queue_purge(&ath->txq);
-
-	cancel_work_sync(&ath->ctxtsw);
-
-	hu->priv = NULL;
-	kfree(ath);
+	skb = __hci_cmd_sync(hdev, 0xfc0b, sizeof(buf), buf, HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		err = PTR_ERR(skb);
+		BT_ERR("%s: Change address command failed (%d)",
+		       hdev->name, err);
+		return err;
+	}
+	kfree_skb(skb);
 
 	return 0;
 }
 
+static int ath_setup(struct hci_uart *hu)
+{
+	BT_DBG("hu %p", hu);
+
+	hu->hdev->set_bdaddr = ath_set_bdaddr;
+
+	return 0;
+}
+
+static const struct h4_recv_pkt ath_recv_pkts[] = {
+	{ H4_RECV_ACL,   .recv = hci_recv_frame },
+	{ H4_RECV_SCO,   .recv = hci_recv_frame },
+	{ H4_RECV_EVENT, .recv = hci_recv_frame },
+};
+
+static int ath_recv(struct hci_uart *hu, const void *data, int count)
+{
+	struct ath_struct *ath = hu->priv;
+
+	ath->rx_skb = h4_recv_buf(hu->hdev, ath->rx_skb, data, count,
+				  ath_recv_pkts, ARRAY_SIZE(ath_recv_pkts));
+	if (IS_ERR(ath->rx_skb)) {
+		int err = PTR_ERR(ath->rx_skb);
+		BT_ERR("%s: Frame reassembly failed (%d)", hu->hdev->name, err);
+		ath->rx_skb = NULL;
+		return err;
+	}
+
+	return count;
+}
+
 #define HCI_OP_ATH_SLEEP 0xFC04
 
-/* Enqueue frame for transmittion */
 static int ath_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 {
 	struct ath_struct *ath = hu->priv;
@@ -156,8 +210,7 @@ static int ath_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 		return 0;
 	}
 
-	/*
-	 * Update power management enable flag with parameters of
+	/* Update power management enable flag with parameters of
 	 * HCI sleep enable vendor specific HCI command.
 	 */
 	if (bt_cb(skb)->pkt_type == HCI_COMMAND_PKT) {
@@ -187,40 +240,22 @@ static struct sk_buff *ath_dequeue(struct hci_uart *hu)
 	return skb_dequeue(&ath->txq);
 }
 
-/* Recv data */
-static int ath_recv(struct hci_uart *hu, void *data, int count)
-{
-	int ret;
-
-	ret = hci_recv_stream_fragment(hu->hdev, data, count);
-	if (ret < 0) {
-		BT_ERR("Frame Reassembly Failed");
-		return ret;
-	}
-
-	return count;
-}
-
-static struct hci_uart_proto athp = {
-	.id = HCI_UART_ATH3K,
-	.open = ath_open,
-	.close = ath_close,
-	.recv = ath_recv,
-	.enqueue = ath_enqueue,
-	.dequeue = ath_dequeue,
-	.flush = ath_flush,
+static const struct hci_uart_proto athp = {
+	.id		= HCI_UART_ATH3K,
+	.name		= "ATH3K",
+	.manufacturer	= 69,
+	.open		= ath_open,
+	.close		= ath_close,
+	.flush		= ath_flush,
+	.setup		= ath_setup,
+	.recv		= ath_recv,
+	.enqueue	= ath_enqueue,
+	.dequeue	= ath_dequeue,
 };
 
 int __init ath_init(void)
 {
-	int err = hci_uart_register_proto(&athp);
-
-	if (!err)
-		BT_INFO("HCIATH3K protocol initialized");
-	else
-		BT_ERR("HCIATH3K protocol registration failed");
-
-	return err;
+	return hci_uart_register_proto(&athp);
 }
 
 int __exit ath_deinit(void)

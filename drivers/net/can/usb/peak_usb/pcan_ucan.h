@@ -26,8 +26,8 @@
 #define PUCAN_CMD_FILTER_STD		0x008
 #define PUCAN_CMD_TX_ABORT		0x009
 #define PUCAN_CMD_WR_ERR_CNT		0x00a
-#define PUCAN_CMD_RX_FRAME_ENABLE	0x00b
-#define PUCAN_CMD_RX_FRAME_DISABLE	0x00c
+#define PUCAN_CMD_SET_EN_OPTION		0x00b
+#define PUCAN_CMD_CLR_DIS_OPTION	0x00c
 #define PUCAN_CMD_END_OF_COLLECTION	0x3ff
 
 /* uCAN received messages list */
@@ -101,14 +101,15 @@ struct __packed pucan_wr_err_cnt {
 	u16	unused;
 };
 
-/* uCAN RX_FRAME_ENABLE command fields */
-#define PUCAN_FLTEXT_ERROR		0x0001
-#define PUCAN_FLTEXT_BUSLOAD		0x0002
+/* uCAN SET_EN/CLR_DIS _OPTION command fields */
+#define PUCAN_OPTION_ERROR		0x0001
+#define PUCAN_OPTION_BUSLOAD		0x0002
+#define PUCAN_OPTION_CANDFDISO		0x0004
 
-struct __packed pucan_filter_ext {
+struct __packed pucan_options {
 	__le16	opcode_channel;
 
-	__le16	ext_mask;
+	__le16	options;
 	u32	unused;
 };
 

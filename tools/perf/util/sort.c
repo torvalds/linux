@@ -9,7 +9,7 @@ regex_t		parent_regex;
 const char	default_parent_pattern[] = "^sys_|^do_page_fault";
 const char	*parent_pattern = default_parent_pattern;
 const char	default_sort_order[] = "comm,dso,symbol";
-const char	default_branch_sort_order[] = "comm,dso_from,symbol_from,dso_to,symbol_to";
+const char	default_branch_sort_order[] = "comm,dso_from,symbol_from,symbol_to,cycles";
 const char	default_mem_sort_order[] = "local_weight,mem,sym,dso,symbol_daddr,dso_daddr,snoop,tlb,locked";
 const char	default_top_sort_order[] = "dso,symbol";
 const char	default_diff_sort_order[] = "dso,symbol";
@@ -21,6 +21,7 @@ int		sort__need_collapse = 0;
 int		sort__has_parent = 0;
 int		sort__has_sym = 0;
 int		sort__has_dso = 0;
+int		sort__has_socket = 0;
 enum sort_mode	sort__mode = SORT_MODE__NORMAL;
 
 
@@ -89,14 +90,14 @@ static int64_t
 sort__comm_cmp(struct hist_entry *left, struct hist_entry *right)
 {
 	/* Compare the addr that should be unique among comm */
-	return comm__str(right->comm) - comm__str(left->comm);
+	return strcmp(comm__str(right->comm), comm__str(left->comm));
 }
 
 static int64_t
 sort__comm_collapse(struct hist_entry *left, struct hist_entry *right)
 {
 	/* Compare the addr that should be unique among comm */
-	return comm__str(right->comm) - comm__str(left->comm);
+	return strcmp(comm__str(right->comm), comm__str(left->comm));
 }
 
 static int64_t
@@ -182,18 +183,16 @@ static int64_t _sort__addr_cmp(u64 left_ip, u64 right_ip)
 
 static int64_t _sort__sym_cmp(struct symbol *sym_l, struct symbol *sym_r)
 {
-	u64 ip_l, ip_r;
-
 	if (!sym_l || !sym_r)
 		return cmp_null(sym_l, sym_r);
 
 	if (sym_l == sym_r)
 		return 0;
 
-	ip_l = sym_l->start;
-	ip_r = sym_r->start;
+	if (sym_l->start != sym_r->start)
+		return (int64_t)(sym_r->start - sym_l->start);
 
-	return (int64_t)(ip_r - ip_l);
+	return (int64_t)(sym_r->end - sym_l->end);
 }
 
 static int64_t
@@ -321,6 +320,59 @@ struct sort_entry sort_srcline = {
 	.se_width_idx	= HISTC_SRCLINE,
 };
 
+/* --sort srcfile */
+
+static char no_srcfile[1];
+
+static char *get_srcfile(struct hist_entry *e)
+{
+	char *sf, *p;
+	struct map *map = e->ms.map;
+
+	sf = __get_srcline(map->dso, map__rip_2objdump(map, e->ip),
+			 e->ms.sym, false, true);
+	if (!strcmp(sf, SRCLINE_UNKNOWN))
+		return no_srcfile;
+	p = strchr(sf, ':');
+	if (p && *sf) {
+		*p = 0;
+		return sf;
+	}
+	free(sf);
+	return no_srcfile;
+}
+
+static int64_t
+sort__srcfile_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	if (!left->srcfile) {
+		if (!left->ms.map)
+			left->srcfile = no_srcfile;
+		else
+			left->srcfile = get_srcfile(left);
+	}
+	if (!right->srcfile) {
+		if (!right->ms.map)
+			right->srcfile = no_srcfile;
+		else
+			right->srcfile = get_srcfile(right);
+	}
+	return strcmp(right->srcfile, left->srcfile);
+}
+
+static int hist_entry__srcfile_snprintf(struct hist_entry *he, char *bf,
+					size_t size, unsigned int width)
+{
+	return repsep_snprintf(bf, size, "%-*.*s", width, width, he->srcfile);
+}
+
+struct sort_entry sort_srcfile = {
+	.se_header	= "Source File",
+	.se_cmp		= sort__srcfile_cmp,
+	.se_snprintf	= hist_entry__srcfile_snprintf,
+	.se_width_idx	= HISTC_SRCFILE,
+};
+
 /* --sort parent */
 
 static int64_t
@@ -368,6 +420,27 @@ struct sort_entry sort_cpu = {
 	.se_cmp	        = sort__cpu_cmp,
 	.se_snprintf    = hist_entry__cpu_snprintf,
 	.se_width_idx	= HISTC_CPU,
+};
+
+/* --sort socket */
+
+static int64_t
+sort__socket_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	return right->socket - left->socket;
+}
+
+static int hist_entry__socket_snprintf(struct hist_entry *he, char *bf,
+				    size_t size, unsigned int width)
+{
+	return repsep_snprintf(bf, size, "%*.*d", width, width-3, he->socket);
+}
+
+struct sort_entry sort_socket = {
+	.se_header      = "Socket",
+	.se_cmp	        = sort__socket_cmp,
+	.se_snprintf    = hist_entry__socket_snprintf,
+	.se_width_idx	= HISTC_SOCKET,
 };
 
 /* sort keys for branch stacks */
@@ -528,6 +601,29 @@ static int hist_entry__mispredict_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "%-*.*s", width, width, out);
 }
 
+static int64_t
+sort__cycles_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	return left->branch_info->flags.cycles -
+		right->branch_info->flags.cycles;
+}
+
+static int hist_entry__cycles_snprintf(struct hist_entry *he, char *bf,
+				    size_t size, unsigned int width)
+{
+	if (he->branch_info->flags.cycles == 0)
+		return repsep_snprintf(bf, size, "%-*s", width, "-");
+	return repsep_snprintf(bf, size, "%-*hd", width,
+			       he->branch_info->flags.cycles);
+}
+
+struct sort_entry sort_cycles = {
+	.se_header	= "Basic Block Cycles",
+	.se_cmp		= sort__cycles_cmp,
+	.se_snprintf	= hist_entry__cycles_snprintf,
+	.se_width_idx	= HISTC_CYCLES,
+};
+
 /* --sort daddr_sym */
 static int64_t
 sort__daddr_cmp(struct hist_entry *left, struct hist_entry *right)
@@ -553,6 +649,35 @@ static int hist_entry__daddr_snprintf(struct hist_entry *he, char *bf,
 		addr = he->mem_info->daddr.addr;
 		map = he->mem_info->daddr.map;
 		sym = he->mem_info->daddr.sym;
+	}
+	return _hist_entry__sym_snprintf(map, sym, addr, he->level, bf, size,
+					 width);
+}
+
+static int64_t
+sort__iaddr_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	uint64_t l = 0, r = 0;
+
+	if (left->mem_info)
+		l = left->mem_info->iaddr.addr;
+	if (right->mem_info)
+		r = right->mem_info->iaddr.addr;
+
+	return (int64_t)(r - l);
+}
+
+static int hist_entry__iaddr_snprintf(struct hist_entry *he, char *bf,
+				    size_t size, unsigned int width)
+{
+	uint64_t addr = 0;
+	struct map *map = NULL;
+	struct symbol *sym = NULL;
+
+	if (he->mem_info) {
+		addr = he->mem_info->iaddr.addr;
+		map  = he->mem_info->iaddr.map;
+		sym  = he->mem_info->iaddr.sym;
 	}
 	return _hist_entry__sym_snprintf(map, sym, addr, he->level, bf, size,
 					 width);
@@ -981,6 +1106,13 @@ struct sort_entry sort_mem_daddr_sym = {
 	.se_width_idx	= HISTC_MEM_DADDR_SYMBOL,
 };
 
+struct sort_entry sort_mem_iaddr_sym = {
+	.se_header	= "Code Symbol",
+	.se_cmp		= sort__iaddr_cmp,
+	.se_snprintf	= hist_entry__iaddr_snprintf,
+	.se_width_idx	= HISTC_MEM_IADDR_SYMBOL,
+};
+
 struct sort_entry sort_mem_daddr_dso = {
 	.se_header	= "Data Object",
 	.se_cmp		= sort__dso_daddr_cmp,
@@ -1174,7 +1306,9 @@ static struct sort_dimension common_sort_dimensions[] = {
 	DIM(SORT_SYM, "symbol", sort_sym),
 	DIM(SORT_PARENT, "parent", sort_parent),
 	DIM(SORT_CPU, "cpu", sort_cpu),
+	DIM(SORT_SOCKET, "socket", sort_socket),
 	DIM(SORT_SRCLINE, "srcline", sort_srcline),
+	DIM(SORT_SRCFILE, "srcfile", sort_srcfile),
 	DIM(SORT_LOCAL_WEIGHT, "local_weight", sort_local_weight),
 	DIM(SORT_GLOBAL_WEIGHT, "weight", sort_global_weight),
 	DIM(SORT_TRANSACTION, "transaction", sort_transaction),
@@ -1192,6 +1326,7 @@ static struct sort_dimension bstack_sort_dimensions[] = {
 	DIM(SORT_MISPREDICT, "mispredict", sort_mispredict),
 	DIM(SORT_IN_TX, "in_tx", sort_in_tx),
 	DIM(SORT_ABORT, "abort", sort_abort),
+	DIM(SORT_CYCLES, "cycles", sort_cycles),
 };
 
 #undef DIM
@@ -1200,6 +1335,7 @@ static struct sort_dimension bstack_sort_dimensions[] = {
 
 static struct sort_dimension memory_sort_dimensions[] = {
 	DIM(SORT_MEM_DADDR_SYMBOL, "symbol_daddr", sort_mem_daddr_sym),
+	DIM(SORT_MEM_IADDR_SYMBOL, "symbol_iaddr", sort_mem_iaddr_sym),
 	DIM(SORT_MEM_DADDR_DSO, "dso_daddr", sort_mem_daddr_dso),
 	DIM(SORT_MEM_LOCKED, "locked", sort_mem_locked),
 	DIM(SORT_MEM_TLB, "tlb", sort_mem_tlb),
@@ -1441,6 +1577,12 @@ static int __hpp_dimension__add_output(struct hpp_dimension *hd)
 	return 0;
 }
 
+int hpp_dimension__add_output(unsigned col)
+{
+	BUG_ON(col >= PERF_HPP__MAX_INDEX);
+	return __hpp_dimension__add_output(&hpp_sort_dimensions[col]);
+}
+
 int sort_dimension__add(const char *tok)
 {
 	unsigned int i;
@@ -1463,8 +1605,19 @@ int sort_dimension__add(const char *tok)
 			sort__has_parent = 1;
 		} else if (sd->entry == &sort_sym) {
 			sort__has_sym = 1;
+			/*
+			 * perf diff displays the performance difference amongst
+			 * two or more perf.data files. Those files could come
+			 * from different binaries. So we should not compare
+			 * their ips, but the name of symbol.
+			 */
+			if (sort__mode == SORT_MODE__DIFF)
+				sd->entry->se_collapse = sort__sym_sort;
+
 		} else if (sd->entry == &sort_dso) {
 			sort__has_dso = 1;
+		} else if (sd->entry == &sort_socket) {
+			sort__has_socket = 1;
 		}
 
 		return __sort_dimension__add(sd);
@@ -1769,8 +1922,6 @@ static int __setup_output_field(void)
 
 	if (field_order == NULL)
 		return 0;
-
-	reset_dimensions();
 
 	strp = str = strdup(field_order);
 	if (str == NULL) {

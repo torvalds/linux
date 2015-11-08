@@ -26,7 +26,7 @@
 
 #include "internal.h"
 
-static DEFINE_SPINLOCK(proc_subdir_lock);
+static DEFINE_RWLOCK(proc_subdir_lock);
 
 static int proc_match(unsigned int len, const char *name, struct proc_dir_entry *de)
 {
@@ -101,7 +101,7 @@ static bool pde_subdir_insert(struct proc_dir_entry *dir,
 
 static int proc_notify_change(struct dentry *dentry, struct iattr *iattr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct proc_dir_entry *de = PDE(inode);
 	int error;
 
@@ -120,7 +120,7 @@ static int proc_notify_change(struct dentry *dentry, struct iattr *iattr)
 static int proc_getattr(struct vfsmount *mnt, struct dentry *dentry,
 			struct kstat *stat)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct proc_dir_entry *de = PDE(inode);
 	if (de && de->nlink)
 		set_nlink(inode, de->nlink);
@@ -172,9 +172,9 @@ static int xlate_proc_name(const char *name, struct proc_dir_entry **ret,
 {
 	int rv;
 
-	spin_lock(&proc_subdir_lock);
+	read_lock(&proc_subdir_lock);
 	rv = __xlate_proc_name(name, ret, residual);
-	spin_unlock(&proc_subdir_lock);
+	read_unlock(&proc_subdir_lock);
 	return rv;
 }
 
@@ -231,11 +231,11 @@ struct dentry *proc_lookup_de(struct proc_dir_entry *de, struct inode *dir,
 {
 	struct inode *inode;
 
-	spin_lock(&proc_subdir_lock);
+	read_lock(&proc_subdir_lock);
 	de = pde_subdir_find(de, dentry->d_name.name, dentry->d_name.len);
 	if (de) {
 		pde_get(de);
-		spin_unlock(&proc_subdir_lock);
+		read_unlock(&proc_subdir_lock);
 		inode = proc_get_inode(dir->i_sb, de);
 		if (!inode)
 			return ERR_PTR(-ENOMEM);
@@ -243,7 +243,7 @@ struct dentry *proc_lookup_de(struct proc_dir_entry *de, struct inode *dir,
 		d_add(dentry, inode);
 		return NULL;
 	}
-	spin_unlock(&proc_subdir_lock);
+	read_unlock(&proc_subdir_lock);
 	return ERR_PTR(-ENOENT);
 }
 
@@ -270,12 +270,12 @@ int proc_readdir_de(struct proc_dir_entry *de, struct file *file,
 	if (!dir_emit_dots(file, ctx))
 		return 0;
 
-	spin_lock(&proc_subdir_lock);
+	read_lock(&proc_subdir_lock);
 	de = pde_subdir_first(de);
 	i = ctx->pos - 2;
 	for (;;) {
 		if (!de) {
-			spin_unlock(&proc_subdir_lock);
+			read_unlock(&proc_subdir_lock);
 			return 0;
 		}
 		if (!i)
@@ -287,19 +287,19 @@ int proc_readdir_de(struct proc_dir_entry *de, struct file *file,
 	do {
 		struct proc_dir_entry *next;
 		pde_get(de);
-		spin_unlock(&proc_subdir_lock);
+		read_unlock(&proc_subdir_lock);
 		if (!dir_emit(ctx, de->name, de->namelen,
 			    de->low_ino, de->mode >> 12)) {
 			pde_put(de);
 			return 0;
 		}
-		spin_lock(&proc_subdir_lock);
+		read_lock(&proc_subdir_lock);
 		ctx->pos++;
 		next = pde_subdir_next(de);
 		pde_put(de);
 		de = next;
 	} while (de);
-	spin_unlock(&proc_subdir_lock);
+	read_unlock(&proc_subdir_lock);
 	return 1;
 }
 
@@ -338,16 +338,16 @@ static int proc_register(struct proc_dir_entry * dir, struct proc_dir_entry * dp
 	if (ret)
 		return ret;
 
-	spin_lock(&proc_subdir_lock);
+	write_lock(&proc_subdir_lock);
 	dp->parent = dir;
 	if (pde_subdir_insert(dir, dp) == false) {
 		WARN(1, "proc_dir_entry '%s/%s' already registered\n",
 		     dir->name, dp->name);
-		spin_unlock(&proc_subdir_lock);
+		write_unlock(&proc_subdir_lock);
 		proc_free_inum(dp->low_ino);
 		return -EEXIST;
 	}
-	spin_unlock(&proc_subdir_lock);
+	write_unlock(&proc_subdir_lock);
 
 	return 0;
 }
@@ -371,6 +371,10 @@ static struct proc_dir_entry *__proc_create(struct proc_dir_entry **parent,
 	}
 	if (*parent == &proc_root && name_to_int(&qstr) != ~0U) {
 		WARN(1, "create '/proc/%s' by hand\n", qstr.name);
+		return NULL;
+	}
+	if (is_empty_pde(*parent)) {
+		WARN(1, "attempt to add to permanently empty directory");
 		return NULL;
 	}
 
@@ -455,6 +459,25 @@ struct proc_dir_entry *proc_mkdir(const char *name,
 }
 EXPORT_SYMBOL(proc_mkdir);
 
+struct proc_dir_entry *proc_create_mount_point(const char *name)
+{
+	umode_t mode = S_IFDIR | S_IRUGO | S_IXUGO;
+	struct proc_dir_entry *ent, *parent = NULL;
+
+	ent = __proc_create(&parent, name, mode, 2);
+	if (ent) {
+		ent->data = NULL;
+		ent->proc_fops = NULL;
+		ent->proc_iops = NULL;
+		if (proc_register(parent, ent) < 0) {
+			kfree(ent);
+			parent->nlink--;
+			ent = NULL;
+		}
+	}
+	return ent;
+}
+
 struct proc_dir_entry *proc_create_data(const char *name, umode_t mode,
 					struct proc_dir_entry *parent,
 					const struct file_operations *proc_fops,
@@ -526,9 +549,9 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 	const char *fn = name;
 	unsigned int len;
 
-	spin_lock(&proc_subdir_lock);
+	write_lock(&proc_subdir_lock);
 	if (__xlate_proc_name(name, &parent, &fn) != 0) {
-		spin_unlock(&proc_subdir_lock);
+		write_unlock(&proc_subdir_lock);
 		return;
 	}
 	len = strlen(fn);
@@ -536,7 +559,7 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 	de = pde_subdir_find(parent, fn, len);
 	if (de)
 		rb_erase(&de->subdir_node, &parent->subdir);
-	spin_unlock(&proc_subdir_lock);
+	write_unlock(&proc_subdir_lock);
 	if (!de) {
 		WARN(1, "name '%s'\n", name);
 		return;
@@ -560,16 +583,16 @@ int remove_proc_subtree(const char *name, struct proc_dir_entry *parent)
 	const char *fn = name;
 	unsigned int len;
 
-	spin_lock(&proc_subdir_lock);
+	write_lock(&proc_subdir_lock);
 	if (__xlate_proc_name(name, &parent, &fn) != 0) {
-		spin_unlock(&proc_subdir_lock);
+		write_unlock(&proc_subdir_lock);
 		return -ENOENT;
 	}
 	len = strlen(fn);
 
 	root = pde_subdir_find(parent, fn, len);
 	if (!root) {
-		spin_unlock(&proc_subdir_lock);
+		write_unlock(&proc_subdir_lock);
 		return -ENOENT;
 	}
 	rb_erase(&root->subdir_node, &parent->subdir);
@@ -582,7 +605,7 @@ int remove_proc_subtree(const char *name, struct proc_dir_entry *parent)
 			de = next;
 			continue;
 		}
-		spin_unlock(&proc_subdir_lock);
+		write_unlock(&proc_subdir_lock);
 
 		proc_entry_rundown(de);
 		next = de->parent;
@@ -593,7 +616,7 @@ int remove_proc_subtree(const char *name, struct proc_dir_entry *parent)
 			break;
 		pde_put(de);
 
-		spin_lock(&proc_subdir_lock);
+		write_lock(&proc_subdir_lock);
 		de = next;
 	}
 	pde_put(root);

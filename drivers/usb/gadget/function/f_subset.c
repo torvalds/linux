@@ -262,7 +262,7 @@ static int geth_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 
 	/* we know alt == 0, so this is an activation or a reset */
 
-	if (geth->port.in_ep->driver_data) {
+	if (geth->port.in_ep->enabled) {
 		DBG(cdev, "reset cdc subset\n");
 		gether_disconnect(&geth->port);
 	}
@@ -343,13 +343,11 @@ geth_bind(struct usb_configuration *c, struct usb_function *f)
 	if (!ep)
 		goto fail;
 	geth->port.in_ep = ep;
-	ep->driver_data = cdev;	/* claim */
 
 	ep = usb_ep_autoconfig(cdev->gadget, &fs_subset_out_desc);
 	if (!ep)
 		goto fail;
 	geth->port.out_ep = ep;
-	ep->driver_data = cdev;	/* claim */
 
 	/* support all relevant hardware speeds... we expect that when
 	 * hardware is dual speed, all bulk-capable endpoints work at
@@ -380,12 +378,6 @@ geth_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 
 fail:
-	/* we might as well release our claims on endpoints */
-	if (geth->port.out_ep)
-		geth->port.out_ep->driver_data = NULL;
-	if (geth->port.in_ep)
-		geth->port.in_ep->driver_data = NULL;
-
 	ERROR(cdev, "%s: can't bind, err %d\n", f->name, status);
 
 	return status;

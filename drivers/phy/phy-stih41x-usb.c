@@ -87,8 +87,12 @@ static int stih41x_usb_phy_power_on(struct phy *phy)
 		return ret;
 	}
 
-	return regmap_update_bits(phy_dev->regmap, phy_dev->cfg->syscfg,
-			phy_dev->cfg->oscok, phy_dev->cfg->oscok);
+	ret = regmap_update_bits(phy_dev->regmap, phy_dev->cfg->syscfg,
+				 phy_dev->cfg->oscok, phy_dev->cfg->oscok);
+	if (ret)
+		clk_disable_unprepare(phy_dev->clk);
+
+	return ret;
 }
 
 static int stih41x_usb_phy_power_off(struct phy *phy)
@@ -108,7 +112,7 @@ static int stih41x_usb_phy_power_off(struct phy *phy)
 	return 0;
 }
 
-static struct phy_ops stih41x_usb_phy_ops = {
+static const struct phy_ops stih41x_usb_phy_ops = {
 	.init		= stih41x_usb_phy_init,
 	.power_on	= stih41x_usb_phy_power_on,
 	.power_off	= stih41x_usb_phy_power_off,

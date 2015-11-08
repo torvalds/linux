@@ -16,11 +16,6 @@
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
  *
- *     You should have received a copy of the GNU General Public
- *     License along with this file; if not, write to the Free
- *     Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
- *     MA 02110-1301 USA
- *
  * Or, alternatively,
  *
  *  b) Permission is hereby granted, free of charge, to any person
@@ -54,6 +49,16 @@
 / {
 	model = "LeMaker Banana Pro";
 	compatible = "lemaker,bananapro", "allwinner,sun7i-a20";
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart4;
+		serial2 = &uart7;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
 
 	leds {
 		compatible = "gpio-leds";
@@ -144,7 +149,7 @@
 
 &ir0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir0_pins_a>;
+	pinctrl-0 = <&ir0_rx_pins_a>;
 	status = "okay";
 };
 
@@ -233,7 +238,9 @@
 
 &spi0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&spi0_pins_a>;
+	pinctrl-0 = <&spi0_pins_a>,
+		    <&spi0_cs0_pins_a>,
+		    <&spi0_cs1_pins_a>;
 	status = "okay";
 };
 
@@ -243,9 +250,9 @@
 	status = "okay";
 };
 
-&uart2 {
+&uart4 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart2_pins_a>;
+	pinctrl-0 = <&uart4_pins_b>;
 	status = "okay";
 };
 

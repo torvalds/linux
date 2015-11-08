@@ -171,17 +171,21 @@ static s32 ixgbe_init_phy_ops_82598(struct ixgbe_hw *hw)
  *  @hw: pointer to hardware structure
  *
  *  Starts the hardware using the generic start_hw function.
- *  Disables relaxed ordering Then set pcie completion timeout
+ *  Disables relaxed ordering for archs other than SPARC
+ *  Then set pcie completion timeout
  *
  **/
 static s32 ixgbe_start_hw_82598(struct ixgbe_hw *hw)
 {
+#ifndef CONFIG_SPARC
 	u32 regval;
 	u32 i;
+#endif
 	s32 ret_val;
 
 	ret_val = ixgbe_start_hw_generic(hw);
 
+#ifndef CONFIG_SPARC
 	/* Disable relaxed ordering */
 	for (i = 0; ((i < hw->mac.max_tx_queues) &&
 	     (i < IXGBE_DCA_MAX_QUEUES_82598)); i++) {
@@ -197,7 +201,7 @@ static s32 ixgbe_start_hw_82598(struct ixgbe_hw *hw)
 			    IXGBE_DCA_RXCTRL_HEAD_WRO_EN);
 		IXGBE_WRITE_REG(hw, IXGBE_DCA_RXCTRL(i), regval);
 	}
-
+#endif
 	if (ret_val)
 		return ret_val;
 
@@ -1193,6 +1197,8 @@ static struct ixgbe_mac_operations mac_ops_82598 = {
 	.init_thermal_sensor_thresh = NULL,
 	.prot_autoc_read	= &prot_autoc_read_generic,
 	.prot_autoc_write	= &prot_autoc_write_generic,
+	.enable_rx		= &ixgbe_enable_rx_generic,
+	.disable_rx		= &ixgbe_disable_rx_generic,
 };
 
 static struct ixgbe_eeprom_operations eeprom_ops_82598 = {
@@ -1219,7 +1225,7 @@ static struct ixgbe_phy_operations phy_ops_82598 = {
 	.setup_link_speed	= &ixgbe_setup_phy_link_speed_generic,
 	.read_i2c_sff8472	= &ixgbe_read_i2c_sff8472_82598,
 	.read_i2c_eeprom	= &ixgbe_read_i2c_eeprom_82598,
-	.check_overtemp   = &ixgbe_tn_check_overtemp,
+	.check_overtemp		= &ixgbe_tn_check_overtemp,
 };
 
 struct ixgbe_info ixgbe_82598_info = {
@@ -1228,4 +1234,5 @@ struct ixgbe_info ixgbe_82598_info = {
 	.mac_ops		= &mac_ops_82598,
 	.eeprom_ops		= &eeprom_ops_82598,
 	.phy_ops		= &phy_ops_82598,
+	.mvals			= ixgbe_mvals_8259X,
 };

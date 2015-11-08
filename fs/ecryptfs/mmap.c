@@ -299,7 +299,7 @@ static int ecryptfs_write_begin(struct file *file,
 			rc = ecryptfs_read_lower_page_segment(
 				page, index, 0, PAGE_CACHE_SIZE, mapping->host);
 			if (rc) {
-				printk(KERN_ERR "%s: Error attemping to read "
+				printk(KERN_ERR "%s: Error attempting to read "
 				       "lower page segment; rc = [%d]\n",
 				       __func__, rc);
 				ClearPageUptodate(page);
@@ -420,7 +420,7 @@ static int ecryptfs_write_inode_size_to_xattr(struct inode *ecryptfs_inode)
 	void *xattr_virt;
 	struct dentry *lower_dentry =
 		ecryptfs_inode_to_private(ecryptfs_inode)->lower_file->f_path.dentry;
-	struct inode *lower_inode = lower_dentry->d_inode;
+	struct inode *lower_inode = d_inode(lower_dentry);
 	int rc;
 
 	if (!lower_inode->i_op->getxattr || !lower_inode->i_op->setxattr) {

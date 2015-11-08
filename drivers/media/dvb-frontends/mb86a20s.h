@@ -34,7 +34,7 @@ struct mb86a20s_config {
 	bool	is_serial;
 };
 
-#if IS_ENABLED(CONFIG_DVB_MB86A20S)
+#if IS_REACHABLE(CONFIG_DVB_MB86A20S)
 extern struct dvb_frontend *mb86a20s_attach(const struct mb86a20s_config *config,
 					   struct i2c_adapter *i2c);
 extern struct i2c_adapter *mb86a20s_get_tuner_i2c_adapter(struct dvb_frontend *);
@@ -45,7 +45,7 @@ static inline struct dvb_frontend *mb86a20s_attach(
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-static struct i2c_adapter *
+static inline struct i2c_adapter *
 	mb86a20s_get_tuner_i2c_adapter(struct dvb_frontend *fe)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);

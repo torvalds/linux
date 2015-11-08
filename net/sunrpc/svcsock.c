@@ -257,7 +257,7 @@ static int svc_sendto(struct svc_rqst *rqstp, struct xdr_buf *xdr)
 
 		svc_set_cmsg_data(rqstp, cmh);
 
-		if (sock_sendmsg(sock, &msg, 0) < 0)
+		if (sock_sendmsg(sock, &msg) < 0)
 			goto out;
 	}
 

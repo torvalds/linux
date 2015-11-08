@@ -415,7 +415,7 @@ static void reset_with_ipi(struct pnmask *distribution, struct bau_control *bcp)
 	struct reset_args reset_args;
 
 	reset_args.sender = sender;
-	cpus_clear(*mask);
+	cpumask_clear(mask);
 	/* find a single cpu for each uvhub in this distribution mask */
 	maskbits = sizeof(struct pnmask) * BITSPERBYTE;
 	/* each bit is a pnode relative to the partition base pnode */
@@ -425,7 +425,7 @@ static void reset_with_ipi(struct pnmask *distribution, struct bau_control *bcp)
 			continue;
 		apnode = pnode + bcp->partition_base_pnode;
 		cpu = pnode_to_first_cpu(apnode, smaster);
-		cpu_set(cpu, *mask);
+		cpumask_set_cpu(cpu, mask);
 	}
 
 	/* IPI all cpus; preemption is already disabled */
@@ -1126,7 +1126,7 @@ const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
 	/* don't actually do a shootdown of the local cpu */
 	cpumask_andnot(flush_mask, cpumask, cpumask_of(cpu));
 
-	if (cpu_isset(cpu, *cpumask))
+	if (cpumask_test_cpu(cpu, cpumask))
 		stat->s_ntargself++;
 
 	bau_desc = bcp->descriptor_base;

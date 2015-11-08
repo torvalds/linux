@@ -146,6 +146,29 @@ static const struct btmrvl_sdio_card_reg btmrvl_reg_8897 = {
 	.fw_dump_end = 0xea,
 };
 
+static const struct btmrvl_sdio_card_reg btmrvl_reg_8997 = {
+	.cfg = 0x00,
+	.host_int_mask = 0x08,
+	.host_intstatus = 0x0c,
+	.card_status = 0x5c,
+	.sq_read_base_addr_a0 = 0xf8,
+	.sq_read_base_addr_a1 = 0xf9,
+	.card_revision = 0xc8,
+	.card_fw_status0 = 0xe8,
+	.card_fw_status1 = 0xe9,
+	.card_rx_len = 0xea,
+	.card_rx_unit = 0xeb,
+	.io_port_0 = 0xe4,
+	.io_port_1 = 0xe5,
+	.io_port_2 = 0xe6,
+	.int_read_to_clear = true,
+	.host_int_rsr = 0x04,
+	.card_misc_cfg = 0xD8,
+	.fw_dump_ctrl = 0xf0,
+	.fw_dump_start = 0xf1,
+	.fw_dump_end = 0xf8,
+};
+
 static const struct btmrvl_sdio_device btmrvl_sdio_sd8688 = {
 	.helper		= "mrvl/sd8688_helper.bin",
 	.firmware	= "mrvl/sd8688.bin",
@@ -191,25 +214,37 @@ static const struct btmrvl_sdio_device btmrvl_sdio_sd8897 = {
 	.supports_fw_dump = true,
 };
 
+static const struct btmrvl_sdio_device btmrvl_sdio_sd8997 = {
+	.helper         = NULL,
+	.firmware       = "mrvl/sd8997_uapsta.bin",
+	.reg            = &btmrvl_reg_8997,
+	.support_pscan_win_report = true,
+	.sd_blksz_fw_dl = 256,
+	.supports_fw_dump = true,
+};
+
 static const struct sdio_device_id btmrvl_sdio_ids[] = {
 	/* Marvell SD8688 Bluetooth device */
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, 0x9105),
-			.driver_data = (unsigned long) &btmrvl_sdio_sd8688 },
+			.driver_data = (unsigned long)&btmrvl_sdio_sd8688 },
 	/* Marvell SD8787 Bluetooth device */
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, 0x911A),
-			.driver_data = (unsigned long) &btmrvl_sdio_sd8787 },
+			.driver_data = (unsigned long)&btmrvl_sdio_sd8787 },
 	/* Marvell SD8787 Bluetooth AMP device */
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, 0x911B),
-			.driver_data = (unsigned long) &btmrvl_sdio_sd8787 },
+			.driver_data = (unsigned long)&btmrvl_sdio_sd8787 },
 	/* Marvell SD8797 Bluetooth device */
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, 0x912A),
-			.driver_data = (unsigned long) &btmrvl_sdio_sd8797 },
+			.driver_data = (unsigned long)&btmrvl_sdio_sd8797 },
 	/* Marvell SD8887 Bluetooth device */
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, 0x9136),
 			.driver_data = (unsigned long)&btmrvl_sdio_sd8887 },
 	/* Marvell SD8897 Bluetooth device */
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, 0x912E),
-			.driver_data = (unsigned long) &btmrvl_sdio_sd8897 },
+			.driver_data = (unsigned long)&btmrvl_sdio_sd8897 },
+	/* Marvell SD8997 Bluetooth device */
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, 0x9142),
+			.driver_data = (unsigned long)&btmrvl_sdio_sd8997 },
 
 	{ }	/* Terminating entry */
 };
@@ -619,7 +654,7 @@ static int btmrvl_sdio_card_to_host(struct btmrvl_private *priv)
 
 	/* Allocate buffer */
 	skb = bt_skb_alloc(num_blocks * blksz + BTSDIO_DMA_ALIGN, GFP_ATOMIC);
-	if (skb == NULL) {
+	if (!skb) {
 		BT_ERR("No free skb");
 		ret = -ENOMEM;
 		goto exit;
@@ -1071,8 +1106,6 @@ static int btmrvl_sdio_download_fw(struct btmrvl_sdio_card *card)
 		}
 	}
 
-	sdio_release_host(card->func);
-
 	/*
 	 * winner or not, with this test the FW synchronizes when the
 	 * module can continue its initialization
@@ -1081,6 +1114,8 @@ static int btmrvl_sdio_download_fw(struct btmrvl_sdio_card *card)
 		BT_ERR("FW failed to be active in time!");
 		return -ETIMEDOUT;
 	}
+
+	sdio_release_host(card->func);
 
 	return 0;
 
@@ -1217,7 +1252,7 @@ static void btmrvl_sdio_dump_firmware(struct btmrvl_private *priv)
 	unsigned int reg, reg_start, reg_end;
 	enum rdwr_status stat;
 	u8 *dbg_ptr, *end_ptr, *fw_dump_data, *fw_dump_ptr;
-	u8 dump_num, idx, i, read_reg, doneflag = 0;
+	u8 dump_num = 0, idx, i, read_reg, doneflag = 0;
 	u32 memory_size, fw_dump_len = 0;
 
 	/* dump sdio register first */
@@ -1278,6 +1313,12 @@ static void btmrvl_sdio_dump_firmware(struct btmrvl_private *priv)
 
 		if (memory_size == 0) {
 			BT_INFO("Firmware dump finished!");
+			sdio_writeb(card->func, FW_DUMP_READ_DONE,
+				    card->reg->fw_dump_ctrl, &ret);
+			if (ret) {
+				BT_ERR("SDIO Write MEMDUMP_FINISH ERR");
+				goto done;
+			}
 			break;
 		}
 
@@ -1376,8 +1417,7 @@ done:
 
 	/* fw_dump_data will be free in device coredump release function
 	   after 5 min*/
-	dev_coredumpv(&priv->btmrvl_dev.hcidev->dev, fw_dump_data,
-		      fw_dump_len, GFP_KERNEL);
+	dev_coredumpv(&card->func->dev, fw_dump_data, fw_dump_len, GFP_KERNEL);
 	BT_INFO("== btmrvl firmware dump to /sys/class/devcoredump end");
 }
 
@@ -1617,3 +1657,4 @@ MODULE_FIRMWARE("mrvl/sd8787_uapsta.bin");
 MODULE_FIRMWARE("mrvl/sd8797_uapsta.bin");
 MODULE_FIRMWARE("mrvl/sd8887_uapsta.bin");
 MODULE_FIRMWARE("mrvl/sd8897_uapsta.bin");
+MODULE_FIRMWARE("mrvl/sd8997_uapsta.bin");

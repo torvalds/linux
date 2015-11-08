@@ -370,22 +370,15 @@ isl1208_i2c_set_alarm(struct i2c_client *client, struct rtc_wkalrm *alarm)
 	struct rtc_time *alarm_tm = &alarm->time;
 	u8 regs[ISL1208_ALARM_SECTION_LEN] = { 0, };
 	const int offs = ISL1208_REG_SCA;
-	unsigned long rtc_secs, alarm_secs;
 	struct rtc_time rtc_tm;
 	int err, enable;
 
 	err = isl1208_i2c_read_time(client, &rtc_tm);
 	if (err)
 		return err;
-	err = rtc_tm_to_time(&rtc_tm, &rtc_secs);
-	if (err)
-		return err;
-	err = rtc_tm_to_time(alarm_tm, &alarm_secs);
-	if (err)
-		return err;
 
 	/* If the alarm time is before the current time disable the alarm */
-	if (!alarm->enabled || alarm_secs <= rtc_secs)
+	if (!alarm->enabled || rtc_tm_sub(alarm_tm, &rtc_tm) <= 0)
 		enable = 0x00;
 	else
 		enable = 0x80;

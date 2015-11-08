@@ -104,7 +104,7 @@ xfs_readlink_bmap(
 			cur_chunk += sizeof(struct xfs_dsymlink_hdr);
 		}
 
-		memcpy(link + offset, bp->b_addr, byte_cnt);
+		memcpy(link + offset, cur_chunk, byte_cnt);
 
 		pathlen -= byte_cnt;
 		offset += byte_cnt;
@@ -177,8 +177,7 @@ xfs_symlink(
 	int			pathlen;
 	struct xfs_bmap_free	free_list;
 	xfs_fsblock_t		first_block;
-	bool			unlock_dp_on_error = false;
-	uint			cancel_flags;
+	bool                    unlock_dp_on_error = false;
 	int			committed;
 	xfs_fileoff_t		first_fsb;
 	xfs_filblks_t		fs_blocks;
@@ -221,10 +220,9 @@ xfs_symlink(
 			XFS_QMOPT_QUOTALL | XFS_QMOPT_INHERIT,
 			&udqp, &gdqp, &pdqp);
 	if (error)
-		goto std_return;
+		return error;
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_SYMLINK);
-	cancel_flags = XFS_TRANS_RELEASE_LOG_RES;
 	/*
 	 * The symlink will fit into the inode data fork?
 	 * There can't be any attributes so we get the whole variable part.
@@ -239,12 +237,11 @@ xfs_symlink(
 		resblks = 0;
 		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_symlink, 0, 0);
 	}
-	if (error) {
-		cancel_flags = 0;
-		goto error_return;
-	}
+	if (error)
+		goto out_trans_cancel;
 
-	xfs_ilock(dp, XFS_ILOCK_EXCL | XFS_ILOCK_PARENT);
+	xfs_ilock(dp, XFS_IOLOCK_EXCL | XFS_ILOCK_EXCL |
+		      XFS_IOLOCK_PARENT | XFS_ILOCK_PARENT);
 	unlock_dp_on_error = true;
 
 	/*
@@ -252,7 +249,7 @@ xfs_symlink(
 	 */
 	if (dp->i_d.di_flags & XFS_DIFLAG_NOSYMLINKS) {
 		error = -EPERM;
-		goto error_return;
+		goto out_trans_cancel;
 	}
 
 	/*
@@ -261,7 +258,7 @@ xfs_symlink(
 	error = xfs_trans_reserve_quota(tp, mp, udqp, gdqp,
 						pdqp, resblks, 1, 0);
 	if (error)
-		goto error_return;
+		goto out_trans_cancel;
 
 	/*
 	 * Check for ability to enter directory entry, if no space reserved.
@@ -269,7 +266,7 @@ xfs_symlink(
 	if (!resblks) {
 		error = xfs_dir_canenter(tp, dp, link_name);
 		if (error)
-			goto error_return;
+			goto out_trans_cancel;
 	}
 	/*
 	 * Initialize the bmap freelist prior to calling either
@@ -282,18 +279,17 @@ xfs_symlink(
 	 */
 	error = xfs_dir_ialloc(&tp, dp, S_IFLNK | (mode & ~S_IFMT), 1, 0,
 			       prid, resblks > 0, &ip, NULL);
-	if (error) {
-		if (error == -ENOSPC)
-			goto error_return;
-		goto error1;
-	}
+	if (error)
+		goto out_trans_cancel;
 
 	/*
-	 * An error after we've joined dp to the transaction will result in the
-	 * transaction cancel unlocking dp so don't do it explicitly in the
+	 * Now we join the directory inode to the transaction.  We do not do it
+	 * earlier because xfs_dir_ialloc might commit the previous transaction
+	 * (and release all the locks).  An error from here on will result in
+	 * the transaction cancel unlocking dp so don't do it explicitly in the
 	 * error path.
 	 */
-	xfs_trans_ijoin(tp, dp, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, dp, XFS_IOLOCK_EXCL | XFS_ILOCK_EXCL);
 	unlock_dp_on_error = false;
 
 	/*
@@ -330,7 +326,7 @@ xfs_symlink(
 				  XFS_BMAPI_METADATA, &first_block, resblks,
 				  mval, &nmaps, &free_list);
 		if (error)
-			goto error2;
+			goto out_bmap_cancel;
 
 		if (resblks)
 			resblks -= fs_blocks;
@@ -348,7 +344,7 @@ xfs_symlink(
 					       BTOBB(byte_cnt), 0);
 			if (!bp) {
 				error = -ENOMEM;
-				goto error2;
+				goto out_bmap_cancel;
 			}
 			bp->b_ops = &xfs_symlink_buf_ops;
 
@@ -378,7 +374,7 @@ xfs_symlink(
 	error = xfs_dir_createname(tp, dp, link_name, ip->i_ino,
 					&first_block, &free_list, resblks);
 	if (error)
-		goto error2;
+		goto out_bmap_cancel;
 	xfs_trans_ichgtime(tp, dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 	xfs_trans_log_inode(tp, dp, XFS_ILOG_CORE);
 
@@ -392,10 +388,13 @@ xfs_symlink(
 	}
 
 	error = xfs_bmap_finish(&tp, &free_list, &committed);
-	if (error) {
-		goto error2;
-	}
-	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+	if (error)
+		goto out_bmap_cancel;
+
+	error = xfs_trans_commit(tp);
+	if (error)
+		goto out_release_inode;
+
 	xfs_qm_dqrele(udqp);
 	xfs_qm_dqrele(gdqp);
 	xfs_qm_dqrele(pdqp);
@@ -403,20 +402,27 @@ xfs_symlink(
 	*ipp = ip;
 	return 0;
 
- error2:
-	IRELE(ip);
- error1:
+out_bmap_cancel:
 	xfs_bmap_cancel(&free_list);
-	cancel_flags |= XFS_TRANS_ABORT;
- error_return:
-	xfs_trans_cancel(tp, cancel_flags);
+out_trans_cancel:
+	xfs_trans_cancel(tp);
+out_release_inode:
+	/*
+	 * Wait until after the current transaction is aborted to finish the
+	 * setup of the inode and release the inode.  This prevents recursive
+	 * transactions and deadlocks from xfs_inactive.
+	 */
+	if (ip) {
+		xfs_finish_inode_setup(ip);
+		IRELE(ip);
+	}
+
 	xfs_qm_dqrele(udqp);
 	xfs_qm_dqrele(gdqp);
 	xfs_qm_dqrele(pdqp);
 
 	if (unlock_dp_on_error)
-		xfs_iunlock(dp, XFS_ILOCK_EXCL);
- std_return:
+		xfs_iunlock(dp, XFS_IOLOCK_EXCL | XFS_ILOCK_EXCL);
 	return error;
 }
 
@@ -454,7 +460,7 @@ xfs_inactive_symlink_rmt(
 	tp = xfs_trans_alloc(mp, XFS_TRANS_INACTIVE);
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_itruncate, 0, 0);
 	if (error) {
-		xfs_trans_cancel(tp, 0);
+		xfs_trans_cancel(tp);
 		return error;
 	}
 
@@ -496,7 +502,7 @@ xfs_inactive_symlink_rmt(
 	/*
 	 * Unmap the dead block(s) to the free_list.
 	 */
-	error = xfs_bunmapi(tp, ip, 0, size, XFS_BMAPI_METADATA, nmaps,
+	error = xfs_bunmapi(tp, ip, 0, size, 0, nmaps,
 			    &first_block, &free_list, &done);
 	if (error)
 		goto error_bmap_cancel;
@@ -523,7 +529,7 @@ xfs_inactive_symlink_rmt(
 	/*
 	 * Commit the transaction containing extent freeing and EFDs.
 	 */
-	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+	error = xfs_trans_commit(tp);
 	if (error) {
 		ASSERT(XFS_FORCED_SHUTDOWN(mp));
 		goto error_unlock;
@@ -542,7 +548,7 @@ xfs_inactive_symlink_rmt(
 error_bmap_cancel:
 	xfs_bmap_cancel(&free_list);
 error_trans_cancel:
-	xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES | XFS_TRANS_ABORT);
+	xfs_trans_cancel(tp);
 error_unlock:
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;

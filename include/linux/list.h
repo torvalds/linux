@@ -87,7 +87,7 @@ static inline void list_add_tail(struct list_head *new, struct list_head *head)
 static inline void __list_del(struct list_head * prev, struct list_head * next)
 {
 	next->prev = prev;
-	prev->next = next;
+	WRITE_ONCE(prev->next, next);
 }
 
 /**
@@ -615,7 +615,8 @@ static inline void __hlist_del(struct hlist_node *n)
 {
 	struct hlist_node *next = n->next;
 	struct hlist_node **pprev = n->pprev;
-	*pprev = next;
+
+	WRITE_ONCE(*pprev, next);
 	if (next)
 		next->pprev = pprev;
 }
@@ -670,6 +671,11 @@ static inline void hlist_add_behind(struct hlist_node *n,
 static inline void hlist_add_fake(struct hlist_node *n)
 {
 	n->pprev = &n->next;
+}
+
+static inline bool hlist_fake(struct hlist_node *h)
+{
+	return h->pprev == &h->next;
 }
 
 /*

@@ -1,5 +1,5 @@
 /* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -37,7 +37,7 @@ static s32 fm10k_stop_hw_vf(struct fm10k_hw *hw)
 	if (err)
 		return err;
 
-	/* If permenant address is set then we need to restore it */
+	/* If permanent address is set then we need to restore it */
 	if (is_valid_ether_addr(perm_addr)) {
 		bal = (((u32)perm_addr[3]) << 24) |
 		      (((u32)perm_addr[4]) << 16) |
@@ -65,7 +65,7 @@ static s32 fm10k_stop_hw_vf(struct fm10k_hw *hw)
  *  fm10k_reset_hw_vf - VF hardware reset
  *  @hw: pointer to hardware structure
  *
- *  This function should return the hardare to a state similar to the
+ *  This function should return the hardware to a state similar to the
  *  one it is in after just being initialized.
  **/
 static s32 fm10k_reset_hw_vf(struct fm10k_hw *hw)
@@ -124,20 +124,11 @@ static s32 fm10k_init_hw_vf(struct fm10k_hw *hw)
 	/* record maximum queue count */
 	hw->mac.max_queues = i;
 
-	return 0;
-}
+	/* fetch default VLAN */
+	hw->mac.default_vid = (fm10k_read_reg(hw, FM10K_TXQCTL(0)) &
+			       FM10K_TXQCTL_VID_MASK) >> FM10K_TXQCTL_VID_SHIFT;
 
-/**
- *  fm10k_is_slot_appropriate_vf - Indicate appropriate slot for this SKU
- *  @hw: pointer to hardware structure
- *
- *  Looks at the PCIe bus info to confirm whether or not this slot can support
- *  the necessary bandwidth for this device. Since the VF has no control over
- *  the "slot" it is in, always indicate that the slot is appropriate.
- **/
-static bool fm10k_is_slot_appropriate_vf(struct fm10k_hw *hw)
-{
-	return true;
+	return 0;
 }
 
 /* This structure defines the attibutes to be parsed below */
@@ -252,7 +243,7 @@ static s32 fm10k_read_mac_addr_vf(struct fm10k_hw *hw)
 }
 
 /**
- *  fm10k_update_uc_addr_vf - Update device unicast address
+ *  fm10k_update_uc_addr_vf - Update device unicast addresses
  *  @hw: pointer to the HW structure
  *  @glort: unused
  *  @mac: MAC address to add/remove from table
@@ -282,7 +273,7 @@ static s32 fm10k_update_uc_addr_vf(struct fm10k_hw *hw, u16 glort,
 	    memcmp(hw->mac.perm_addr, mac, ETH_ALEN))
 		return FM10K_ERR_PARAM;
 
-	/* add bit to notify us if this is a set of clear operation */
+	/* add bit to notify us if this is a set or clear operation */
 	if (!add)
 		vid |= FM10K_VLAN_CLEAR;
 
@@ -295,7 +286,7 @@ static s32 fm10k_update_uc_addr_vf(struct fm10k_hw *hw, u16 glort,
 }
 
 /**
- *  fm10k_update_mc_addr_vf - Update device multicast address
+ *  fm10k_update_mc_addr_vf - Update device multicast addresses
  *  @hw: pointer to the HW structure
  *  @glort: unused
  *  @mac: MAC address to add/remove from table
@@ -319,7 +310,7 @@ static s32 fm10k_update_mc_addr_vf(struct fm10k_hw *hw, u16 glort,
 	if (!is_multicast_ether_addr(mac))
 		return FM10K_ERR_PARAM;
 
-	/* add bit to notify us if this is a set of clear operation */
+	/* add bit to notify us if this is a set or clear operation */
 	if (!add)
 		vid |= FM10K_VLAN_CLEAR;
 
@@ -515,7 +506,7 @@ static s32 fm10k_adjust_systime_vf(struct fm10k_hw *hw, s32 ppb)
  *  @hw: pointer to the hardware structure
  *
  *  Function reads the content of 2 registers, combined to represent a 64 bit
- *  value measured in nanosecods.  In order to guarantee the value is accurate
+ *  value measured in nanoseconds.  In order to guarantee the value is accurate
  *  we check the 32 most significant bits both before and after reading the
  *  32 least significant bits to verify they didn't change as we were reading
  *  the registers.
@@ -548,7 +539,6 @@ static struct fm10k_mac_ops mac_ops_vf = {
 	.init_hw		= &fm10k_init_hw_vf,
 	.start_hw		= &fm10k_start_hw_generic,
 	.stop_hw		= &fm10k_stop_hw_vf,
-	.is_slot_appropriate	= &fm10k_is_slot_appropriate_vf,
 	.update_vlan		= &fm10k_update_vlan_vf,
 	.read_mac_addr		= &fm10k_read_mac_addr_vf,
 	.update_uc_addr		= &fm10k_update_uc_addr_vf,

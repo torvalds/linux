@@ -15,11 +15,12 @@ typedef   signed long long s64;
 
 /* Just for familiarity */
 typedef uint32_t u32;
+typedef uint16_t u16;
 typedef uint8_t u8;
 
 
 int test_harness(int (test_function)(void), char *name);
-
+extern void *get_auxv_entry(int type);
 
 /* Yes, this is evil */
 #define FAIL_IF(x)						\

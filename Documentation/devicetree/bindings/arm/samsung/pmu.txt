@@ -29,10 +29,27 @@ Properties:
  - clocks : list of phandles and specifiers to all input clocks listed in
 		clock-names property.
 
+Optional properties:
+
+Some PMUs are capable of behaving as an interrupt controller (mostly
+to wake up a suspended PMU). In which case, they can have the
+following properties:
+
+- interrupt-controller: indicate that said PMU is an interrupt controller
+
+- #interrupt-cells: must be identical to the that of the parent interrupt
+  controller.
+
+- interrupt-parent: a phandle indicating which interrupt controller
+  this PMU signals interrupts to.
+
 Example :
 pmu_system_controller: system-controller@10040000 {
 	compatible = "samsung,exynos5250-pmu", "syscon";
 	reg = <0x10040000 0x5000>;
+	interrupt-controller;
+	#interrupt-cells = <3>;
+	interrupt-parent = <&gic>;
 	#clock-cells = <1>;
 	clock-names = "clkout0", "clkout1", "clkout2", "clkout3",
 			"clkout4", "clkout8", "clkout9";

@@ -55,7 +55,7 @@ static int rtc_suspend(struct device *dev)
 	struct timespec64	delta, delta_delta;
 	int err;
 
-	if (has_persistent_clock())
+	if (timekeeping_rtc_skipsuspend())
 		return 0;
 
 	if (strcmp(dev_name(&rtc->dev), CONFIG_RTC_HCTOSYS_DEVICE) != 0)
@@ -102,7 +102,7 @@ static int rtc_resume(struct device *dev)
 	struct timespec64	sleep_time;
 	int err;
 
-	if (has_persistent_clock())
+	if (timekeeping_rtc_skipresume())
 		return 0;
 
 	rtc_hctosys_ret = -ENODEV;
@@ -117,10 +117,6 @@ static int rtc_resume(struct device *dev)
 		return 0;
 	}
 
-	if (rtc_valid_tm(&tm) != 0) {
-		pr_debug("%s:  bogus resume time\n", dev_name(&rtc->dev));
-		return 0;
-	}
 	new_rtc.tv_sec = rtc_tm_to_time64(&tm);
 	new_rtc.tv_nsec = 0;
 
@@ -206,6 +202,7 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 	rtc->max_user_freq = 64;
 	rtc->dev.parent = dev;
 	rtc->dev.class = rtc_class;
+	rtc->dev.groups = rtc_get_dev_attribute_groups();
 	rtc->dev.release = rtc_device_release;
 
 	mutex_init(&rtc->ops_lock);
@@ -225,34 +222,31 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 	rtc->pie_timer.function = rtc_pie_update_irq;
 	rtc->pie_enabled = 0;
 
+	strlcpy(rtc->name, name, RTC_DEVICE_NAME_SIZE);
+	dev_set_name(&rtc->dev, "rtc%d", id);
+
 	/* Check to see if there is an ALARM already set in hw */
 	err = __rtc_read_alarm(rtc, &alrm);
 
 	if (!err && !rtc_valid_tm(&alrm.time))
 		rtc_initialize_alarm(rtc, &alrm);
 
-	strlcpy(rtc->name, name, RTC_DEVICE_NAME_SIZE);
-	dev_set_name(&rtc->dev, "rtc%d", id);
-
 	rtc_dev_prepare(rtc);
 
 	err = device_register(&rtc->dev);
 	if (err) {
+		/* This will free both memory and the ID */
 		put_device(&rtc->dev);
-		goto exit_kfree;
+		goto exit;
 	}
 
 	rtc_dev_add_device(rtc);
-	rtc_sysfs_add_device(rtc);
 	rtc_proc_add_device(rtc);
 
 	dev_info(dev, "rtc core: registered %s as %s\n",
 			rtc->name, dev_name(&rtc->dev));
 
 	return rtc;
-
-exit_kfree:
-	kfree(rtc);
 
 exit_ida:
 	ida_simple_remove(&rtc_ida, id);
@@ -272,19 +266,17 @@ EXPORT_SYMBOL_GPL(rtc_device_register);
  */
 void rtc_device_unregister(struct rtc_device *rtc)
 {
-	if (get_device(&rtc->dev) != NULL) {
-		mutex_lock(&rtc->ops_lock);
-		/* remove innards of this RTC, then disable it, before
-		 * letting any rtc_class_open() users access it again
-		 */
-		rtc_sysfs_del_device(rtc);
-		rtc_dev_del_device(rtc);
-		rtc_proc_del_device(rtc);
-		device_unregister(&rtc->dev);
-		rtc->ops = NULL;
-		mutex_unlock(&rtc->ops_lock);
-		put_device(&rtc->dev);
-	}
+	mutex_lock(&rtc->ops_lock);
+	/*
+	 * Remove innards of this RTC, then disable it, before
+	 * letting any rtc_class_open() users access it again
+	 */
+	rtc_dev_del_device(rtc);
+	rtc_proc_del_device(rtc);
+	device_del(&rtc->dev);
+	rtc->ops = NULL;
+	mutex_unlock(&rtc->ops_lock);
+	put_device(&rtc->dev);
 }
 EXPORT_SYMBOL_GPL(rtc_device_unregister);
 
@@ -367,7 +359,6 @@ static int __init rtc_init(void)
 	}
 	rtc_class->pm = RTC_CLASS_DEV_PM_OPS;
 	rtc_dev_init();
-	rtc_sysfs_init(rtc_class);
 	return 0;
 }
 

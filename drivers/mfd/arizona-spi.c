@@ -27,7 +27,7 @@ static int arizona_spi_probe(struct spi_device *spi)
 {
 	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct arizona *arizona;
-	const struct regmap_config *regmap_config;
+	const struct regmap_config *regmap_config = NULL;
 	unsigned long type;
 	int ret;
 
@@ -37,19 +37,23 @@ static int arizona_spi_probe(struct spi_device *spi)
 		type = id->driver_data;
 
 	switch (type) {
-#ifdef CONFIG_MFD_WM5102
 	case WM5102:
-		regmap_config = &wm5102_spi_regmap;
+		if (IS_ENABLED(CONFIG_MFD_WM5102))
+			regmap_config = &wm5102_spi_regmap;
 		break;
-#endif
-#ifdef CONFIG_MFD_WM5110
 	case WM5110:
-		regmap_config = &wm5110_spi_regmap;
+	case WM8280:
+		if (IS_ENABLED(CONFIG_MFD_WM5110))
+			regmap_config = &wm5110_spi_regmap;
 		break;
-#endif
 	default:
-		dev_err(&spi->dev, "Unknown device type %ld\n",
-			id->driver_data);
+		dev_err(&spi->dev, "Unknown device type %ld\n", type);
+		return -EINVAL;
+	}
+
+	if (!regmap_config) {
+		dev_err(&spi->dev,
+			"No kernel support for device type %ld\n", type);
 		return -EINVAL;
 	}
 
@@ -65,7 +69,7 @@ static int arizona_spi_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	arizona->type = id->driver_data;
+	arizona->type = type;
 	arizona->dev = &spi->dev;
 	arizona->irq = spi->irq;
 
@@ -84,6 +88,7 @@ static int arizona_spi_remove(struct spi_device *spi)
 static const struct spi_device_id arizona_spi_ids[] = {
 	{ "wm5102", WM5102 },
 	{ "wm5110", WM5110 },
+	{ "wm8280", WM8280 },
 	{ },
 };
 MODULE_DEVICE_TABLE(spi, arizona_spi_ids);
@@ -91,7 +96,6 @@ MODULE_DEVICE_TABLE(spi, arizona_spi_ids);
 static struct spi_driver arizona_spi_driver = {
 	.driver = {
 		.name	= "arizona",
-		.owner	= THIS_MODULE,
 		.pm	= &arizona_pm_ops,
 		.of_match_table	= of_match_ptr(arizona_of_match),
 	},

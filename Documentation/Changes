@@ -43,6 +43,8 @@ o  udev                   081                     # udevd --version
 o  grub                   0.93                    # grub --version || grub-install --version
 o  mcelog                 0.6                     # mcelog --version
 o  iptables               1.4.2                   # iptables -V
+o  openssl & libcrypto    1.0.0                   # openssl version
+o  bc                     1.06.95                 # bc --version
 
 
 Kernel compilation
@@ -77,6 +79,17 @@ BC
 --
 
 You will need bc to build kernels 3.10 and higher
+
+
+OpenSSL
+-------
+
+Module signing and external certificate handling use the OpenSSL program and
+crypto library to do key creation and signature generation.
+
+You will need openssl to build kernels 3.7 and higher if module signing is
+enabled.  You will also need openssl development packages to build kernels 4.3
+and higher.
 
 
 System utilities
@@ -295,6 +308,10 @@ Binutils
 --------
 o  <ftp://ftp.kernel.org/pub/linux/devel/binutils/>
 
+OpenSSL
+-------
+o  <https://www.openssl.org/>
+
 System utilities
 ****************
 
@@ -392,4 +409,3 @@ o  <http://oprofile.sf.net/download/>
 NFS-Utils
 ---------
 o  <http://nfs.sourceforge.net/>
-

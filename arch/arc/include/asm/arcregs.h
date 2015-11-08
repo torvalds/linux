@@ -16,6 +16,8 @@
 #define ARC_REG_PERIBASE_BCR	0x69
 #define ARC_REG_FP_BCR		0x6B	/* ARCompact: Single-Precision FPU */
 #define ARC_REG_DPFP_BCR	0x6C	/* ARCompact: Dbl Precision FPU */
+#define ARC_REG_FP_V2_BCR	0xc8	/* ARCv2 FPU */
+#define ARC_REG_SLC_BCR		0xce
 #define ARC_REG_DCCM_BCR	0x74	/* DCCM Present + SZ */
 #define ARC_REG_TIMERS_BCR	0x75
 #define ARC_REG_AP_BCR		0x76
@@ -30,7 +32,10 @@
 #define ARC_REG_D_UNCACH_BCR	0x6A
 #define ARC_REG_BPU_BCR		0xc0
 #define ARC_REG_ISA_CFG_BCR	0xc1
+#define ARC_REG_RTT_BCR		0xF2
+#define ARC_REG_IRQ_BCR		0xF3
 #define ARC_REG_SMART_BCR	0xFF
+#define ARC_REG_CLUSTER_BCR	0xcf
 
 /* status32 Bits Positions */
 #define STATUS_AE_BIT		5	/* Exception active */
@@ -50,19 +55,26 @@
  * [15: 8] = Exception Cause Code
  * [ 7: 0] = Exception Parameters (for certain types only)
  */
-#define ECR_VEC_MASK			0xff0000
-#define ECR_CODE_MASK			0x00ff00
-#define ECR_PARAM_MASK			0x0000ff
-
-/* Exception Cause Vector Values */
+#ifdef CONFIG_ISA_ARCOMPACT
+#define ECR_V_MEM_ERR			0x01
 #define ECR_V_INSN_ERR			0x02
 #define ECR_V_MACH_CHK			0x20
 #define ECR_V_ITLB_MISS			0x21
 #define ECR_V_DTLB_MISS			0x22
 #define ECR_V_PROTV			0x23
 #define ECR_V_TRAP			0x25
+#else
+#define ECR_V_MEM_ERR			0x01
+#define ECR_V_INSN_ERR			0x02
+#define ECR_V_MACH_CHK			0x03
+#define ECR_V_ITLB_MISS			0x04
+#define ECR_V_DTLB_MISS			0x05
+#define ECR_V_PROTV			0x06
+#define ECR_V_TRAP			0x09
+#endif
 
-/* Protection Violation Exception Cause Code Values */
+/* DTLB Miss and Protection Violation Cause Codes */
+
 #define ECR_C_PROTV_INST_FETCH		0x00
 #define ECR_C_PROTV_LOAD		0x01
 #define ECR_C_PROTV_STORE		0x02
@@ -78,14 +90,10 @@
 #define ECR_C_BIT_DTLB_LD_MISS		8
 #define ECR_C_BIT_DTLB_ST_MISS		9
 
-/* Dummy ECR values for Interrupts */
-#define event_IRQ1		0x0031abcd
-#define event_IRQ2		0x0032abcd
-
 /* Auxiliary registers */
 #define AUX_IDENTITY		4
 #define AUX_INTR_VEC_BASE	0x25
-
+#define AUX_NON_VOL		0x5e
 
 /*
  * Floating Pt Registers
@@ -112,7 +120,7 @@
 
 /* gcc builtin sr needs reg param to be long immediate */
 #define write_aux_reg(reg_immed, val)		\
-		__builtin_arc_sr((unsigned int)val, reg_immed)
+		__builtin_arc_sr((unsigned int)(val), reg_immed)
 
 #else
 
@@ -173,11 +181,11 @@
 	}						\
 }
 
-#define WRITE_BCR(reg, into)				\
+#define WRITE_AUX(reg, into)				\
 {							\
 	unsigned int tmp;				\
 	if (sizeof(tmp) == sizeof(into)) {		\
-		tmp = (*(unsigned int *)(into));	\
+		tmp = (*(unsigned int *)&(into));	\
 		write_aux_reg(reg, tmp);		\
 	} else  {					\
 		extern void bogus_undefined(void);	\
@@ -206,9 +214,11 @@ struct bcr_identity {
 
 struct bcr_isa {
 #ifdef CONFIG_CPU_BIG_ENDIAN
-	unsigned int pad1:23, atomic1:1, ver:8;
+	unsigned int div_rem:4, pad2:4, ldd:1, unalign:1, atomic:1, be:1,
+		     pad1:11, atomic1:1, ver:8;
 #else
-	unsigned int ver:8, atomic1:1, pad1:23;
+	unsigned int ver:8, atomic1:1, pad1:11, be:1, atomic:1, unalign:1,
+		     ldd:1, pad2:4, div_rem:4;
 #endif
 };
 
@@ -230,9 +240,9 @@ struct bcr_extn_xymem {
 
 struct bcr_perip {
 #ifdef CONFIG_CPU_BIG_ENDIAN
-	unsigned int start:8, pad2:8, sz:8, pad:8;
+	unsigned int start:8, pad2:8, sz:8, ver:8;
 #else
-	unsigned int pad:8, sz:8, pad2:8, start:8;
+	unsigned int ver:8, sz:8, pad2:8, start:8;
 #endif
 };
 
@@ -271,11 +281,19 @@ struct bcr_fp_arcompact {
 #endif
 };
 
+struct bcr_fp_arcv2 {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad2:15, dp:1, pad1:7, sp:1, ver:8;
+#else
+	unsigned int ver:8, sp:1, pad1:7, dp:1, pad2:15;
+#endif
+};
+
 struct bcr_timer {
 #ifdef CONFIG_CPU_BIG_ENDIAN
-	unsigned int pad2:15, rtsc:1, pad1:6, t1:1, t0:1, ver:8;
+	unsigned int pad2:15, rtsc:1, pad1:5, rtc:1, t1:1, t0:1, ver:8;
 #else
-	unsigned int ver:8, t0:1, t1:1, pad1:6, rtsc:1, pad2:15;
+	unsigned int ver:8, t0:1, t1:1, rtc:1, pad1:5, rtsc:1, pad2:15;
 #endif
 };
 
@@ -284,6 +302,14 @@ struct bcr_bpu_arcompact {
 	unsigned int pad2:19, fam:1, pad:2, ent:2, ver:8;
 #else
 	unsigned int ver:8, ent:2, pad:2, fam:1, pad2:19;
+#endif
+};
+
+struct bcr_bpu_arcv2 {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad:6, fbe:2, tqe:2, ts:4, ft:1, rse:2, pte:3, bce:3, ver:8;
+#else
+	unsigned int ver:8, bce:3, pte:3, rse:2, ft:1, ts:4, tqe:2, fbe:2, pad:6;
 #endif
 };
 
@@ -301,11 +327,12 @@ struct bcr_generic {
  */
 
 struct cpuinfo_arc_mmu {
-	unsigned int ver, pg_sz, sets, ways, u_dtlb, u_itlb, num_tlb;
+	unsigned int ver:4, pg_sz_k:8, s_pg_sz_m:8, pad:10, sasid:1, pae:1;
+	unsigned int sets:12, ways:4, u_dtlb:8, u_itlb:8;
 };
 
 struct cpuinfo_arc_cache {
-	unsigned int sz_k:8, line_len:8, assoc:4, ver:4, alias:1, vipt:1, pad:6;
+	unsigned int sz_k:14, line_len:8, assoc:4, ver:4, alias:1, vipt:1;
 };
 
 struct cpuinfo_arc_bpu {
@@ -317,14 +344,13 @@ struct cpuinfo_arc_ccm {
 };
 
 struct cpuinfo_arc {
-	struct cpuinfo_arc_cache icache, dcache;
+	struct cpuinfo_arc_cache icache, dcache, slc;
 	struct cpuinfo_arc_mmu mmu;
 	struct cpuinfo_arc_bpu bpu;
 	struct bcr_identity core;
 	struct bcr_isa isa;
 	struct bcr_timer timers;
 	unsigned int vec_base;
-	unsigned int uncached_base;
 	struct cpuinfo_arc_ccm iccm, dccm;
 	struct {
 		unsigned int swap:1, norm:1, minmax:1, barrel:1, crc:1, pad1:3,
@@ -337,6 +363,22 @@ struct cpuinfo_arc {
 };
 
 extern struct cpuinfo_arc cpuinfo_arc700[];
+
+static inline int is_isa_arcv2(void)
+{
+	return IS_ENABLED(CONFIG_ISA_ARCV2);
+}
+
+static inline int is_isa_arcompact(void)
+{
+	return IS_ENABLED(CONFIG_ISA_ARCOMPACT);
+}
+
+#if defined(CONFIG_ISA_ARCOMPACT) && !defined(_CPU_DEFAULT_A7)
+#error "Toolchain not configured for ARCompact builds"
+#elif defined(CONFIG_ISA_ARCV2) && !defined(_CPU_DEFAULT_HS)
+#error "Toolchain not configured for ARCv2 builds"
+#endif
 
 #endif /* __ASEMBLY__ */
 

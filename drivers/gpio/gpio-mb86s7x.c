@@ -58,6 +58,11 @@ static int mb86s70_gpio_request(struct gpio_chip *gc, unsigned gpio)
 	spin_lock_irqsave(&gchip->lock, flags);
 
 	val = readl(gchip->base + PFR(gpio));
+	if (!(val & OFFSET(gpio))) {
+		spin_unlock_irqrestore(&gchip->lock, flags);
+		return -EINVAL;
+	}
+
 	val &= ~OFFSET(gpio);
 	writel(val, gchip->base + PFR(gpio));
 

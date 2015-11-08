@@ -50,7 +50,7 @@
 #include <linux/interrupt.h>
 #include <linux/completion.h>
 #include <linux/fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/miscdevice.h>
 
 # define DEBUG_SUBSYSTEM S_LNET
@@ -146,7 +146,7 @@ void libcfs_run_lbug_upcall(struct libcfs_debug_msg_data *msgdata)
 }
 
 /* coverity[+kill] */
-void lbug_with_loc(struct libcfs_debug_msg_data *msgdata)
+void __noreturn lbug_with_loc(struct libcfs_debug_msg_data *msgdata)
 {
 	libcfs_catastrophe = 1;
 	libcfs_debug_msg(msgdata, "LBUG\n");

@@ -249,7 +249,10 @@ static int usbctrl_vendorreq(struct adapter *adapt, u8 request, u16 value, u16 i
 		goto exit;
 	}
 
-	_enter_critical_mutex(&dvobjpriv->usb_vendor_req_mutex, NULL);
+	if (mutex_lock_interruptible(&dvobjpriv->usb_vendor_req_mutex)) {
+		status = -ERESTARTSYS;
+		goto exit;
+	}
 
 	/*  Acquire IO memory for vendorreq */
 	pIo_buf = dvobjpriv->usb_vendor_req_buf;
@@ -530,6 +533,7 @@ void usb_read_port_cancel(struct adapter *padapter)
 {
 	int i;
 	struct recv_buf *precvbuf;
+
 	precvbuf = (struct recv_buf *)padapter->recvpriv.precv_buf;
 
 	DBG_88E("%s\n", __func__);
@@ -552,7 +556,6 @@ int usb_write8(struct adapter *adapter, u32 addr, u8 val)
 	u16 index;
 	u16 len;
 	u8 data;
-	int ret;
 
 	request = 0x05;
 	requesttype = 0x00;/* write_out */
@@ -560,8 +563,8 @@ int usb_write8(struct adapter *adapter, u32 addr, u8 val)
 	wvalue = (u16)(addr&0x0000ffff);
 	len = 1;
 	data = val;
-	ret = usbctrl_vendorreq(adapter, request, wvalue, index, &data, len, requesttype);
-	return ret;
+	return usbctrl_vendorreq(adapter, request, wvalue,
+				 index, &data, len, requesttype);
 }
 
 int usb_write16(struct adapter *adapter, u32 addr, u16 val)
@@ -572,7 +575,6 @@ int usb_write16(struct adapter *adapter, u32 addr, u16 val)
 	u16 index;
 	u16 len;
 	__le32 data;
-	int ret;
 
 
 	request = 0x05;
@@ -584,10 +586,10 @@ int usb_write16(struct adapter *adapter, u32 addr, u16 val)
 
 	data = cpu_to_le32(val & 0x0000ffff);
 
-	ret = usbctrl_vendorreq(adapter, request, wvalue, index, &data, len, requesttype);
+	return usbctrl_vendorreq(adapter, request, wvalue,
+				 index, &data, len, requesttype);
 
 
-	return ret;
 }
 
 int usb_write32(struct adapter *adapter, u32 addr, u32 val)
@@ -598,7 +600,6 @@ int usb_write32(struct adapter *adapter, u32 addr, u32 val)
 	u16 index;
 	u16 len;
 	__le32 data;
-	int ret;
 
 
 	request = 0x05;
@@ -609,10 +610,10 @@ int usb_write32(struct adapter *adapter, u32 addr, u32 val)
 	len = 4;
 	data = cpu_to_le32(val);
 
-	ret = usbctrl_vendorreq(adapter, request, wvalue, index, &data, len, requesttype);
+	return usbctrl_vendorreq(adapter, request, wvalue,
+				 index, &data, len, requesttype);
 
 
-	return ret;
 }
 
 static void usb_write_port_complete(struct urb *purb, struct pt_regs *regs)

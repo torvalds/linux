@@ -6,10 +6,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -74,17 +70,11 @@ static inline void cpMacAddr(unsigned char *des, unsigned char *src)
 	(GET_DOT11D_INFO(__pIeeeDev)->CountryIeLen > 0)
 
 #define IS_EQUAL_CIE_SRC(__pIeeeDev, __pTa)		\
-	 eqMacAddr(GET_DOT11D_INFO(__pIeeeDev)->CountryIeSrcAddr, __pTa)
+	 ether_addr_equal_unaligned( \
+		GET_DOT11D_INFO(__pIeeeDev)->CountryIeSrcAddr, __pTa)
 #define UPDATE_CIE_SRC(__pIeeeDev, __pTa)		\
 	cpMacAddr(GET_DOT11D_INFO(__pIeeeDev)->CountryIeSrcAddr, __pTa)
 
-#define IS_COUNTRY_IE_CHANGED(__pIeeeDev, __Ie) \
-	(((__Ie).Length == 0 || (__Ie).Length !=	\
-	GET_DOT11D_INFO(__pIeeeDev)->CountryIeLen) ?	\
-	false : (!memcmp(GET_DOT11D_INFO(__pIeeeDev)->CountryIeBuf,	\
-	(__Ie).Octet, (__Ie).Length)))
-
-#define CIE_WATCHDOG_TH 1
 #define GET_CIE_WATCHDOG(__pIeeeDev)				\
 	 (GET_DOT11D_INFO(__pIeeeDev)->CountryIeWatchdog)
 static inline void RESET_CIE_WATCHDOG(struct rtllib_device *__pIeeeDev)
@@ -93,16 +83,11 @@ static inline void RESET_CIE_WATCHDOG(struct rtllib_device *__pIeeeDev)
 }
 #define UPDATE_CIE_WATCHDOG(__pIeeeDev) (++GET_CIE_WATCHDOG(__pIeeeDev))
 
-#define IS_DOT11D_STATE_DONE(__pIeeeDev)			\
-	(GET_DOT11D_INFO(__pIeeeDev)->State == DOT11D_STATE_DONE)
-
 void dot11d_init(struct rtllib_device *dev);
 void Dot11d_Channelmap(u8 channel_plan, struct rtllib_device *ieee);
 void Dot11d_Reset(struct rtllib_device *dev);
 void Dot11d_UpdateCountryIe(struct rtllib_device *dev, u8 *pTaddr,
 			    u16 CoutryIeLen, u8 *pCoutryIe);
-u8 DOT11D_GetMaxTxPwrInDbm(struct rtllib_device *dev, u8 Channel);
 void DOT11D_ScanComplete(struct rtllib_device *dev);
-int ToLegalChannel(struct rtllib_device *dev, u8 channel);
 
 #endif

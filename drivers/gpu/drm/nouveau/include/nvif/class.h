@@ -12,6 +12,13 @@
 #define NV_DMA_TO_MEMORY                                             0x00000003
 #define NV_DMA_IN_MEMORY                                             0x0000003d
 
+#define FERMI_TWOD_A                                                 0x0000902d
+
+#define FERMI_MEMORY_TO_MEMORY_FORMAT_A                              0x00009039
+
+#define KEPLER_INLINE_TO_MEMORY_A                                    0x0000a040
+#define KEPLER_INLINE_TO_MEMORY_B                                    0x0000a140
+
 #define NV04_DISP                                                    0x00000046
 
 #define NV03_CHANNEL_DMA                                             0x0000006b
@@ -25,6 +32,7 @@
 #define G82_CHANNEL_GPFIFO                                           0x0000826f
 #define FERMI_CHANNEL_GPFIFO                                         0x0000906f
 #define KEPLER_CHANNEL_GPFIFO_A                                      0x0000a06f
+#define MAXWELL_CHANNEL_GPFIFO_A                                     0x0000b06f
 
 #define NV50_DISP                                                    0x00005070
 #define G82_DISP                                                     0x00008270
@@ -36,6 +44,11 @@
 #define GK110_DISP                                                   0x00009270
 #define GM107_DISP                                                   0x00009470
 #define GM204_DISP                                                   0x00009570
+
+#define NV31_MPEG                                                    0x00003174
+#define G82_MPEG                                                     0x00008274
+
+#define NV74_VP2                                                     0x00007476
 
 #define NV50_DISP_CURSOR                                             0x0000507a
 #define G82_DISP_CURSOR                                              0x0000827a
@@ -84,15 +97,42 @@
 #define KEPLER_C                                                     0x0000a297
 
 #define MAXWELL_A                                                    0x0000b097
+#define MAXWELL_B                                                    0x0000b197
+
+#define NV74_BSP                                                     0x000074b0
+
+#define GT212_MSVLD                                                  0x000085b1
+#define IGT21A_MSVLD                                                 0x000086b1
+#define G98_MSVLD                                                    0x000088b1
+#define GF100_MSVLD                                                  0x000090b1
+#define GK104_MSVLD                                                  0x000095b1
+
+#define GT212_MSPDEC                                                 0x000085b2
+#define G98_MSPDEC                                                   0x000088b2
+#define GF100_MSPDEC                                                 0x000090b2
+#define GK104_MSPDEC                                                 0x000095b2
+
+#define GT212_MSPPP                                                  0x000085b3
+#define G98_MSPPP                                                    0x000088b3
+#define GF100_MSPPP                                                  0x000090b3
+
+#define G98_SEC                                                      0x000088b4
+
+#define GT212_DMA                                                    0x000085b5
+#define FERMI_DMA                                                    0x000090b5
+#define KEPLER_DMA_COPY_A                                            0x0000a0b5
+#define MAXWELL_DMA_COPY_A                                           0x0000b0b5
+
+#define FERMI_DECOMPRESS                                             0x000090b8
 
 #define FERMI_COMPUTE_A                                              0x000090c0
 #define FERMI_COMPUTE_B                                              0x000091c0
-
 #define KEPLER_COMPUTE_A                                             0x0000a0c0
 #define KEPLER_COMPUTE_B                                             0x0000a1c0
-
 #define MAXWELL_COMPUTE_A                                            0x0000b0c0
+#define MAXWELL_COMPUTE_B                                            0x0000b1c0
 
+#define NV74_CIPHER                                                  0x000074c1
 
 /*******************************************************************************
  * client
@@ -116,32 +156,10 @@ struct nv_device_v0 {
 	__u8  version;
 	__u8  pad01[7];
 	__u64 device;	/* device identifier, ~0 for client default */
-#define NV_DEVICE_V0_DISABLE_IDENTIFY                     0x0000000000000001ULL
-#define NV_DEVICE_V0_DISABLE_MMIO                         0x0000000000000002ULL
-#define NV_DEVICE_V0_DISABLE_VBIOS                        0x0000000000000004ULL
-#define NV_DEVICE_V0_DISABLE_CORE                         0x0000000000000008ULL
-#define NV_DEVICE_V0_DISABLE_DISP                         0x0000000000010000ULL
-#define NV_DEVICE_V0_DISABLE_FIFO                         0x0000000000020000ULL
-#define NV_DEVICE_V0_DISABLE_GR                           0x0000000100000000ULL
-#define NV_DEVICE_V0_DISABLE_MPEG                         0x0000000200000000ULL
-#define NV_DEVICE_V0_DISABLE_ME                           0x0000000400000000ULL
-#define NV_DEVICE_V0_DISABLE_VP                           0x0000000800000000ULL
-#define NV_DEVICE_V0_DISABLE_CIPHER                       0x0000001000000000ULL
-#define NV_DEVICE_V0_DISABLE_BSP                          0x0000002000000000ULL
-#define NV_DEVICE_V0_DISABLE_MSPPP                        0x0000004000000000ULL
-#define NV_DEVICE_V0_DISABLE_CE0                          0x0000008000000000ULL
-#define NV_DEVICE_V0_DISABLE_CE1                          0x0000010000000000ULL
-#define NV_DEVICE_V0_DISABLE_VIC                          0x0000020000000000ULL
-#define NV_DEVICE_V0_DISABLE_MSENC                        0x0000040000000000ULL
-#define NV_DEVICE_V0_DISABLE_CE2                          0x0000080000000000ULL
-#define NV_DEVICE_V0_DISABLE_MSVLD                        0x0000100000000000ULL
-#define NV_DEVICE_V0_DISABLE_SEC                          0x0000200000000000ULL
-#define NV_DEVICE_V0_DISABLE_MSPDEC                       0x0000400000000000ULL
-	__u64 disable;	/* disable particular subsystems */
-	__u64 debug0;	/* as above, but *internal* ids, and *NOT* ABI */
 };
 
 #define NV_DEVICE_V0_INFO                                                  0x00
+#define NV_DEVICE_V0_TIME                                                  0x01
 
 struct nv_device_info_v0 {
 	__u8  version;
@@ -166,6 +184,14 @@ struct nv_device_info_v0 {
 	__u8  pad06[2];
 	__u64 ram_size;
 	__u64 ram_user;
+	char  chip[16];
+	char  name[64];
+};
+
+struct nv_device_time_v0 {
+	__u8  version;
+	__u8  pad01[7];
+	__u64 time;
 };
 
 
@@ -225,13 +251,13 @@ struct gf100_dma_v0 {
 	__u8  pad03[5];
 };
 
-struct gf110_dma_v0 {
+struct gf119_dma_v0 {
 	__u8  version;
-#define GF110_DMA_V0_PAGE_LP                                               0x00
-#define GF110_DMA_V0_PAGE_SP                                               0x01
+#define GF119_DMA_V0_PAGE_LP                                               0x00
+#define GF119_DMA_V0_PAGE_SP                                               0x01
 	__u8  page;
-#define GF110_DMA_V0_KIND_PITCH                                            0x00
-#define GF110_DMA_V0_KIND_VM                                               0xff
+#define GF119_DMA_V0_KIND_PITCH                                            0x00
+#define GF119_DMA_V0_KIND_VM                                               0xff
 	__u8  kind;
 	__u8  pad03[5];
 };
@@ -241,33 +267,74 @@ struct gf110_dma_v0 {
  * perfmon
  ******************************************************************************/
 
-struct nvif_perfctr_v0 {
-	__u8  version;
-	__u8  pad01[1];
-	__u16 logic_op;
-	__u8  pad04[4];
-	char  name[4][64];
-};
+#define NVIF_PERFMON_V0_QUERY_DOMAIN                                       0x00
+#define NVIF_PERFMON_V0_QUERY_SIGNAL                                       0x01
+#define NVIF_PERFMON_V0_QUERY_SOURCE                                       0x02
 
-#define NVIF_PERFCTR_V0_QUERY                                              0x00
-#define NVIF_PERFCTR_V0_SAMPLE                                             0x01
-#define NVIF_PERFCTR_V0_READ                                               0x02
-
-struct nvif_perfctr_query_v0 {
+struct nvif_perfmon_query_domain_v0 {
 	__u8  version;
-	__u8  pad01[3];
-	__u32 iter;
+	__u8  id;
+	__u8  counter_nr;
+	__u8  iter;
+	__u16 signal_nr;
+	__u8  pad05[2];
 	char  name[64];
 };
 
-struct nvif_perfctr_sample {
+struct nvif_perfmon_query_signal_v0 {
+	__u8  version;
+	__u8  domain;
+	__u16 iter;
+	__u8  signal;
+	__u8  source_nr;
+	__u8  pad05[2];
+	char  name[64];
 };
 
-struct nvif_perfctr_read_v0 {
+struct nvif_perfmon_query_source_v0 {
+	__u8  version;
+	__u8  domain;
+	__u8  signal;
+	__u8  iter;
+	__u8  pad04[4];
+	__u32 source;
+	__u32 mask;
+	char  name[64];
+};
+
+
+/*******************************************************************************
+ * perfdom
+ ******************************************************************************/
+
+struct nvif_perfdom_v0 {
+	__u8  version;
+	__u8  domain;
+	__u8  mode;
+	__u8  pad03[1];
+	struct {
+		__u8  signal[4];
+		__u64 source[4][8];
+		__u16 logic_op;
+	} ctr[4];
+};
+
+#define NVIF_PERFDOM_V0_INIT                                               0x00
+#define NVIF_PERFDOM_V0_SAMPLE                                             0x01
+#define NVIF_PERFDOM_V0_READ                                               0x02
+
+struct nvif_perfdom_init {
+};
+
+struct nvif_perfdom_sample {
+};
+
+struct nvif_perfdom_read_v0 {
 	__u8  version;
 	__u8  pad01[7];
-	__u32 ctr;
+	__u32 ctr[4];
 	__u32 clk;
+	__u8  pad04[4];
 };
 
 
@@ -327,7 +394,16 @@ struct nv03_channel_dma_v0 {
 	__u8  version;
 	__u8  chid;
 	__u8  pad02[2];
-	__u32 pushbuf;
+	__u32 offset;
+	__u64 pushbuf;
+};
+
+struct nv50_channel_dma_v0 {
+	__u8  version;
+	__u8  chid;
+	__u8  pad02[6];
+	__u64 vm;
+	__u64 pushbuf;
 	__u64 offset;
 };
 
@@ -340,10 +416,20 @@ struct nv03_channel_dma_v0 {
 struct nv50_channel_gpfifo_v0 {
 	__u8  version;
 	__u8  chid;
-	__u8  pad01[6];
-	__u32 pushbuf;
+	__u8  pad02[2];
 	__u32 ilength;
 	__u64 ioffset;
+	__u64 pushbuf;
+	__u64 vm;
+};
+
+struct fermi_channel_gpfifo_v0 {
+	__u8  version;
+	__u8  chid;
+	__u8  pad02[2];
+	__u32 ilength;
+	__u64 ioffset;
+	__u64 vm;
 };
 
 struct kepler_channel_gpfifo_a_v0 {
@@ -357,10 +443,9 @@ struct kepler_channel_gpfifo_a_v0 {
 #define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_ENC                              0x40
 	__u8  engine;
 	__u16 chid;
-	__u8  pad04[4];
-	__u32 pushbuf;
 	__u32 ilength;
 	__u64 ioffset;
+	__u64 vm;
 };
 
 /*******************************************************************************
@@ -481,8 +566,8 @@ struct nv50_disp_pior_pwr_v0 {
 /* core */
 struct nv50_disp_core_channel_dma_v0 {
 	__u8  version;
-	__u8  pad01[3];
-	__u32 pushbuf;
+	__u8  pad01[7];
+	__u64 pushbuf;
 };
 
 #define NV50_DISP_CORE_CHANNEL_DMA_V0_NTFY_UEVENT                          0x00
@@ -499,9 +584,9 @@ struct nv50_disp_cursor_v0 {
 /* base */
 struct nv50_disp_base_channel_dma_v0 {
 	__u8  version;
-	__u8  pad01[2];
 	__u8  head;
-	__u32 pushbuf;
+	__u8  pad02[6];
+	__u64 pushbuf;
 };
 
 #define NV50_DISP_BASE_CHANNEL_DMA_V0_NTFY_UEVENT                          0x00
@@ -509,9 +594,9 @@ struct nv50_disp_base_channel_dma_v0 {
 /* overlay */
 struct nv50_disp_overlay_channel_dma_v0 {
 	__u8  version;
-	__u8  pad01[2];
 	__u8  head;
-	__u32 pushbuf;
+	__u8  pad02[6];
+	__u64 pushbuf;
 };
 
 #define NV50_DISP_OVERLAY_CHANNEL_DMA_V0_NTFY_UEVENT                       0x00
@@ -524,6 +609,20 @@ struct nv50_disp_overlay_v0 {
 };
 
 #define NV50_DISP_OVERLAY_V0_NTFY_UEVENT                                   0x00
+
+/*******************************************************************************
+ * software
+ ******************************************************************************/
+
+#define NVSW_NTFY_UEVENT                                                   0x00
+
+#define NV04_NVSW_GET_REF                                                  0x00
+
+struct nv04_nvsw_get_ref_v0 {
+	__u8  version;
+	__u8  pad01[3];
+	__u32 ref;
+};
 
 /*******************************************************************************
  * fermi

@@ -6043,23 +6043,30 @@ hdspm_hw_constraints_aes32_sample_rates = {
 	.mask = 0
 };
 
-static int snd_hdspm_playback_open(struct snd_pcm_substream *substream)
+static int snd_hdspm_open(struct snd_pcm_substream *substream)
 {
 	struct hdspm *hdspm = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	bool playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
 
 	spin_lock_irq(&hdspm->lock);
-
 	snd_pcm_set_sync(substream);
+	runtime->hw = (playback) ? snd_hdspm_playback_subinfo :
+		snd_hdspm_capture_subinfo;
 
+	if (playback) {
+		if (hdspm->capture_substream == NULL)
+			hdspm_stop_audio(hdspm);
 
-	runtime->hw = snd_hdspm_playback_subinfo;
+		hdspm->playback_pid = current->pid;
+		hdspm->playback_substream = substream;
+	} else {
+		if (hdspm->playback_substream == NULL)
+			hdspm_stop_audio(hdspm);
 
-	if (hdspm->capture_substream == NULL)
-		hdspm_stop_audio(hdspm);
-
-	hdspm->playback_pid = current->pid;
-	hdspm->playback_substream = substream;
+		hdspm->capture_pid = current->pid;
+		hdspm->capture_substream = substream;
+	}
 
 	spin_unlock_irq(&hdspm->lock);
 
@@ -6073,18 +6080,17 @@ static int snd_hdspm_playback_open(struct snd_pcm_substream *substream)
 					     SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
 					     32, 4096);
 		/* RayDAT & AIO have a fixed buffer of 16384 samples per channel */
-		snd_pcm_hw_constraint_minmax(runtime,
+		snd_pcm_hw_constraint_single(runtime,
 					     SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
-					     16384, 16384);
+					     16384);
 		break;
 
 	default:
 		snd_pcm_hw_constraint_minmax(runtime,
 					     SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
 					     64, 8192);
-		snd_pcm_hw_constraint_minmax(runtime,
-					     SNDRV_PCM_HW_PARAM_PERIODS,
-					     2, 2);
+		snd_pcm_hw_constraint_single(runtime,
+					     SNDRV_PCM_HW_PARAM_PERIODS, 2);
 		break;
 	}
 
@@ -6094,108 +6100,42 @@ static int snd_hdspm_playback_open(struct snd_pcm_substream *substream)
 				&hdspm_hw_constraints_aes32_sample_rates);
 	} else {
 		snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
-				snd_hdspm_hw_rule_rate_out_channels, hdspm,
+				(playback ?
+				 snd_hdspm_hw_rule_rate_out_channels :
+				 snd_hdspm_hw_rule_rate_in_channels), hdspm,
 				SNDRV_PCM_HW_PARAM_CHANNELS, -1);
 	}
 
 	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-			snd_hdspm_hw_rule_out_channels, hdspm,
+			(playback ? snd_hdspm_hw_rule_out_channels :
+			 snd_hdspm_hw_rule_in_channels), hdspm,
 			SNDRV_PCM_HW_PARAM_CHANNELS, -1);
 
 	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-			snd_hdspm_hw_rule_out_channels_rate, hdspm,
+			(playback ? snd_hdspm_hw_rule_out_channels_rate :
+			 snd_hdspm_hw_rule_in_channels_rate), hdspm,
 			SNDRV_PCM_HW_PARAM_RATE, -1);
 
 	return 0;
 }
 
-static int snd_hdspm_playback_release(struct snd_pcm_substream *substream)
+static int snd_hdspm_release(struct snd_pcm_substream *substream)
 {
 	struct hdspm *hdspm = snd_pcm_substream_chip(substream);
+	bool playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
 
 	spin_lock_irq(&hdspm->lock);
 
-	hdspm->playback_pid = -1;
-	hdspm->playback_substream = NULL;
-
-	spin_unlock_irq(&hdspm->lock);
-
-	return 0;
-}
-
-
-static int snd_hdspm_capture_open(struct snd_pcm_substream *substream)
-{
-	struct hdspm *hdspm = snd_pcm_substream_chip(substream);
-	struct snd_pcm_runtime *runtime = substream->runtime;
-
-	spin_lock_irq(&hdspm->lock);
-	snd_pcm_set_sync(substream);
-	runtime->hw = snd_hdspm_capture_subinfo;
-
-	if (hdspm->playback_substream == NULL)
-		hdspm_stop_audio(hdspm);
-
-	hdspm->capture_pid = current->pid;
-	hdspm->capture_substream = substream;
-
-	spin_unlock_irq(&hdspm->lock);
-
-	snd_pcm_hw_constraint_msbits(runtime, 0, 32, 24);
-	snd_pcm_hw_constraint_pow2(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_SIZE);
-
-	switch (hdspm->io_type) {
-	case AIO:
-	case RayDAT:
-		snd_pcm_hw_constraint_minmax(runtime,
-					     SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
-					     32, 4096);
-		snd_pcm_hw_constraint_minmax(runtime,
-					     SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
-					     16384, 16384);
-		break;
-
-	default:
-		snd_pcm_hw_constraint_minmax(runtime,
-					     SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
-					     64, 8192);
-		snd_pcm_hw_constraint_minmax(runtime,
-					     SNDRV_PCM_HW_PARAM_PERIODS,
-					     2, 2);
-		break;
-	}
-
-	if (AES32 == hdspm->io_type) {
-		runtime->hw.rates |= SNDRV_PCM_RATE_KNOT;
-		snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
-				&hdspm_hw_constraints_aes32_sample_rates);
+	if (playback) {
+		hdspm->playback_pid = -1;
+		hdspm->playback_substream = NULL;
 	} else {
-		snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
-				snd_hdspm_hw_rule_rate_in_channels, hdspm,
-				SNDRV_PCM_HW_PARAM_CHANNELS, -1);
+		hdspm->capture_pid = -1;
+		hdspm->capture_substream = NULL;
 	}
 
-	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-			snd_hdspm_hw_rule_in_channels, hdspm,
-			SNDRV_PCM_HW_PARAM_CHANNELS, -1);
-
-	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-			snd_hdspm_hw_rule_in_channels_rate, hdspm,
-			SNDRV_PCM_HW_PARAM_RATE, -1);
-
-	return 0;
-}
-
-static int snd_hdspm_capture_release(struct snd_pcm_substream *substream)
-{
-	struct hdspm *hdspm = snd_pcm_substream_chip(substream);
-
-	spin_lock_irq(&hdspm->lock);
-
-	hdspm->capture_pid = -1;
-	hdspm->capture_substream = NULL;
-
 	spin_unlock_irq(&hdspm->lock);
+
 	return 0;
 }
 
@@ -6413,21 +6353,9 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 	return 0;
 }
 
-static struct snd_pcm_ops snd_hdspm_playback_ops = {
-	.open = snd_hdspm_playback_open,
-	.close = snd_hdspm_playback_release,
-	.ioctl = snd_hdspm_ioctl,
-	.hw_params = snd_hdspm_hw_params,
-	.hw_free = snd_hdspm_hw_free,
-	.prepare = snd_hdspm_prepare,
-	.trigger = snd_hdspm_trigger,
-	.pointer = snd_hdspm_hw_pointer,
-	.page = snd_pcm_sgbuf_ops_page,
-};
-
-static struct snd_pcm_ops snd_hdspm_capture_ops = {
-	.open = snd_hdspm_capture_open,
-	.close = snd_hdspm_capture_release,
+static struct snd_pcm_ops snd_hdspm_ops = {
+	.open = snd_hdspm_open,
+	.close = snd_hdspm_release,
 	.ioctl = snd_hdspm_ioctl,
 	.hw_params = snd_hdspm_hw_params,
 	.hw_free = snd_hdspm_hw_free,
@@ -6521,9 +6449,9 @@ static int snd_hdspm_create_pcm(struct snd_card *card,
 	strcpy(pcm->name, hdspm->card_name);
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
-			&snd_hdspm_playback_ops);
+			&snd_hdspm_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,
-			&snd_hdspm_capture_ops);
+			&snd_hdspm_ops);
 
 	pcm->info_flags = SNDRV_PCM_INFO_JOINT_DUPLEX;
 

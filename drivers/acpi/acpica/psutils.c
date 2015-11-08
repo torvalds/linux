@@ -60,11 +60,11 @@ ACPI_MODULE_NAME("psutils")
  * DESCRIPTION: Create a Scope and associated namepath op with the root name
  *
  ******************************************************************************/
-union acpi_parse_object *acpi_ps_create_scope_op(void)
+union acpi_parse_object *acpi_ps_create_scope_op(u8 *aml)
 {
 	union acpi_parse_object *scope_op;
 
-	scope_op = acpi_ps_alloc_op(AML_SCOPE_OP);
+	scope_op = acpi_ps_alloc_op(AML_SCOPE_OP, aml);
 	if (!scope_op) {
 		return (NULL);
 	}
@@ -93,10 +93,9 @@ void acpi_ps_init_op(union acpi_parse_object *op, u16 opcode)
 	op->common.descriptor_type = ACPI_DESC_TYPE_PARSER;
 	op->common.aml_opcode = opcode;
 
-	ACPI_DISASM_ONLY_MEMBERS(ACPI_STRNCPY(op->common.aml_op_name,
-					      (acpi_ps_get_opcode_info
-					       (opcode))->name,
-					      sizeof(op->common.aml_op_name)));
+	ACPI_DISASM_ONLY_MEMBERS(strncpy(op->common.aml_op_name,
+					 (acpi_ps_get_opcode_info(opcode))->
+					 name, sizeof(op->common.aml_op_name)));
 }
 
 /*******************************************************************************
@@ -104,6 +103,7 @@ void acpi_ps_init_op(union acpi_parse_object *op, u16 opcode)
  * FUNCTION:    acpi_ps_alloc_op
  *
  * PARAMETERS:  opcode          - Opcode that will be stored in the new Op
+ *              aml             - Address of the opcode
  *
  * RETURN:      Pointer to the new Op, null on failure
  *
@@ -113,7 +113,7 @@ void acpi_ps_init_op(union acpi_parse_object *op, u16 opcode)
  *
  ******************************************************************************/
 
-union acpi_parse_object *acpi_ps_alloc_op(u16 opcode)
+union acpi_parse_object *acpi_ps_alloc_op(u16 opcode, u8 *aml)
 {
 	union acpi_parse_object *op;
 	const struct acpi_opcode_info *op_info;
@@ -150,6 +150,7 @@ union acpi_parse_object *acpi_ps_alloc_op(u16 opcode)
 
 	if (op) {
 		acpi_ps_init_op(op, opcode);
+		op->common.aml = aml;
 		op->common.flags = flags;
 	}
 
@@ -204,7 +205,6 @@ u8 acpi_ps_is_leading_char(u32 c)
 /*
  * Get op's name (4-byte name segment) or 0 if unnamed
  */
-#ifdef ACPI_FUTURE_USAGE
 u32 acpi_ps_get_name(union acpi_parse_object * op)
 {
 
@@ -218,7 +218,6 @@ u32 acpi_ps_get_name(union acpi_parse_object * op)
 
 	return (op->named.name);
 }
-#endif				/*  ACPI_FUTURE_USAGE  */
 
 /*
  * Set op's name

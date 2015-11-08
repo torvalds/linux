@@ -505,7 +505,7 @@ static int si2165_upload_firmware(struct si2165_state *state)
 	/* reset crc */
 	ret = si2165_writereg8(state, 0x0379, 0x01);
 	if (ret)
-		return ret;
+		goto error;
 
 	ret = si2165_upload_firmware_block(state, data, len,
 					   &offset, block_count);
@@ -698,7 +698,7 @@ static int si2165_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int si2165_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int si2165_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	int ret;
 	u8 fec_lock = 0;

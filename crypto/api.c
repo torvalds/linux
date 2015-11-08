@@ -172,7 +172,7 @@ static struct crypto_alg *crypto_larval_wait(struct crypto_alg *alg)
 	struct crypto_larval *larval = (void *)alg;
 	long timeout;
 
-	timeout = wait_for_completion_interruptible_timeout(
+	timeout = wait_for_completion_killable_timeout(
 		&larval->completion, 60 * HZ);
 
 	alg = larval->adult;
@@ -256,6 +256,16 @@ struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask)
 		type |= CRYPTO_ALG_TESTED;
 		mask |= CRYPTO_ALG_TESTED;
 	}
+
+	/*
+	 * If the internal flag is set for a cipher, require a caller to
+	 * to invoke the cipher with the internal flag to use that cipher.
+	 * Also, if a caller wants to allocate a cipher that may or may
+	 * not be an internal cipher, use type | CRYPTO_ALG_INTERNAL and
+	 * !(mask & CRYPTO_ALG_INTERNAL).
+	 */
+	if (!((type | mask) & CRYPTO_ALG_INTERNAL))
+		mask |= CRYPTO_ALG_INTERNAL;
 
 	larval = crypto_larval_lookup(name, type, mask);
 	if (IS_ERR(larval) || !crypto_is_larval(larval))
@@ -435,7 +445,7 @@ struct crypto_tfm *crypto_alloc_base(const char *alg_name, u32 type, u32 mask)
 err:
 		if (err != -EAGAIN)
 			break;
-		if (signal_pending(current)) {
+		if (fatal_signal_pending(current)) {
 			err = -EINTR;
 			break;
 		}
@@ -552,7 +562,7 @@ void *crypto_alloc_tfm(const char *alg_name,
 err:
 		if (err != -EAGAIN)
 			break;
-		if (signal_pending(current)) {
+		if (fatal_signal_pending(current)) {
 			err = -EINTR;
 			break;
 		}

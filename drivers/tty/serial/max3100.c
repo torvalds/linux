@@ -782,7 +782,7 @@ static int max3100_probe(struct spi_device *spi)
 	pdata = dev_get_platdata(&spi->dev);
 	max3100s[i]->crystal = pdata->crystal;
 	max3100s[i]->loopback = pdata->loopback;
-	max3100s[i]->poll_time = pdata->poll_time * HZ / 1000;
+	max3100s[i]->poll_time = msecs_to_jiffies(pdata->poll_time);
 	if (pdata->poll_time > 0 && max3100s[i]->poll_time == 0)
 		max3100s[i]->poll_time = 1;
 	max3100s[i]->max3100_hw_suspend = pdata->max3100_hw_suspend;
@@ -904,7 +904,6 @@ static SIMPLE_DEV_PM_OPS(max3100_pm_ops, max3100_suspend, max3100_resume);
 static struct spi_driver max3100_driver = {
 	.driver = {
 		.name		= "max3100",
-		.owner		= THIS_MODULE,
 		.pm		= MAX3100_PM_OPS,
 	},
 	.probe		= max3100_probe,

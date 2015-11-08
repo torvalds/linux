@@ -95,7 +95,7 @@ static void dcss_mkname(char *ascii_name, char *ebcdic_name)
 		if (ascii_name[i] == '\0')
 			break;
 		ebcdic_name[i] = toupper(ascii_name[i]);
-	};
+	}
 	for (; i < 8; i++)
 		ebcdic_name[i] = ' ';
 	ASCEBC(ebcdic_name, 8);
@@ -229,7 +229,7 @@ static struct mon_msg *mon_next_message(struct mon_private *monpriv)
 /******************************************************************************
  *                               IUCV handler                                 *
  *****************************************************************************/
-static void mon_iucv_path_complete(struct iucv_path *path, u8 ipuser[16])
+static void mon_iucv_path_complete(struct iucv_path *path, u8 *ipuser)
 {
 	struct mon_private *monpriv = path->private;
 
@@ -237,7 +237,7 @@ static void mon_iucv_path_complete(struct iucv_path *path, u8 ipuser[16])
 	wake_up(&mon_conn_wait_queue);
 }
 
-static void mon_iucv_path_severed(struct iucv_path *path, u8 ipuser[16])
+static void mon_iucv_path_severed(struct iucv_path *path, u8 *ipuser)
 {
 	struct mon_private *monpriv = path->private;
 

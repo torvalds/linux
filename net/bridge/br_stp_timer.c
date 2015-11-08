@@ -40,7 +40,9 @@ static void br_hello_timer_expired(unsigned long arg)
 	if (br->dev->flags & IFF_UP) {
 		br_config_bpdu_generation(br);
 
-		mod_timer(&br->hello_timer, round_jiffies(jiffies + br->hello_time));
+		if (br->stp_enabled != BR_USER_STP)
+			mod_timer(&br->hello_timer,
+				  round_jiffies(jiffies + br->hello_time));
 	}
 	spin_unlock(&br->lock);
 }
@@ -97,7 +99,9 @@ static void br_forward_delay_timer_expired(unsigned long arg)
 		netif_carrier_on(br->dev);
 	}
 	br_log_state(p);
+	rcu_read_lock();
 	br_ifinfo_notify(RTM_NEWLINK, p);
+	rcu_read_unlock();
 	spin_unlock(&br->lock);
 }
 

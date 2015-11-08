@@ -302,7 +302,7 @@ out:
 	return ret;
 }
 
-static struct reg_default lp8860_reg_defs[] = {
+static const struct reg_default lp8860_reg_defs[] = {
 	{ LP8860_DISP_CL1_BRT_MSB, 0x00},
 	{ LP8860_DISP_CL1_BRT_LSB, 0x00},
 	{ LP8860_DISP_CL1_CURR_MSB, 0x00},
@@ -332,7 +332,7 @@ static const struct regmap_config lp8860_regmap_config = {
 	.cache_type = REGCACHE_NONE,
 };
 
-static struct reg_default lp8860_eeprom_defs[] = {
+static const struct reg_default lp8860_eeprom_defs[] = {
 	{ LP8860_EEPROM_REG_0, 0x00 },
 	{ LP8860_EEPROM_REG_1, 0x00 },
 	{ LP8860_EEPROM_REG_2, 0x00 },
@@ -391,11 +391,13 @@ static int lp8860_probe(struct i2c_client *client,
 		}
 	}
 
-	led->enable_gpio = devm_gpiod_get(&client->dev, "enable");
-	if (IS_ERR(led->enable_gpio))
-		led->enable_gpio = NULL;
-	else
-		gpiod_direction_output(led->enable_gpio, 0);
+	led->enable_gpio = devm_gpiod_get_optional(&client->dev,
+						   "enable", GPIOD_OUT_LOW);
+	if (IS_ERR(led->enable_gpio)) {
+		ret = PTR_ERR(led->enable_gpio);
+		dev_err(&client->dev, "Failed to get enable gpio: %d\n", ret);
+		return ret;
+	}
 
 	led->regulator = devm_regulator_get(&client->dev, "vled");
 	if (IS_ERR(led->regulator))
@@ -486,6 +488,6 @@ static struct i2c_driver lp8860_driver = {
 };
 module_i2c_driver(lp8860_driver);
 
-MODULE_DESCRIPTION("Texas Instruments LP8860 LED drvier");
+MODULE_DESCRIPTION("Texas Instruments LP8860 LED driver");
 MODULE_AUTHOR("Dan Murphy <dmurphy@ti.com>");
 MODULE_LICENSE("GPL");

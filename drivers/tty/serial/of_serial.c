@@ -21,6 +21,10 @@
 #include <linux/nwpserial.h>
 #include <linux/clk.h>
 
+#ifdef CONFIG_SERIAL_8250_MODULE
+#define CONFIG_SERIAL_8250 CONFIG_SERIAL_8250_MODULE
+#endif
+
 #include "8250/8250.h"
 
 struct of_serial_info {
@@ -67,14 +71,17 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	if (of_property_read_u32(np, "clock-frequency", &clk)) {
 
 		/* Get clk rate through clk driver if present */
-		info->clk = clk_get(&ofdev->dev, NULL);
+		info->clk = devm_clk_get(&ofdev->dev, NULL);
 		if (IS_ERR(info->clk)) {
 			dev_warn(&ofdev->dev,
 				"clk or clock-frequency not defined\n");
 			return PTR_ERR(info->clk);
 		}
 
-		clk_prepare_enable(info->clk);
+		ret = clk_prepare_enable(info->clk);
+		if (ret < 0)
+			return ret;
+
 		clk = clk_get_rate(info->clk);
 	}
 	/* If current-speed was set, then try not to change it. */
@@ -89,6 +96,7 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 
 	spin_lock_init(&port->lock);
 	port->mapbase = resource.start;
+	port->mapsize = resource_size(&resource);
 
 	/* Check for shifted address mapping */
 	if (of_property_read_u32(np, "reg-offset", &prop) == 0)
@@ -115,7 +123,8 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 			port->iotype = UPIO_MEM;
 			break;
 		case 4:
-			port->iotype = UPIO_MEM32;
+			port->iotype = of_device_is_big_endian(np) ?
+				       UPIO_MEM32BE : UPIO_MEM32;
 			break;
 		default:
 			dev_warn(&ofdev->dev, "unsupported reg-io-width (%d)\n",
@@ -145,6 +154,11 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 		break;
 	}
 
+	if (IS_ENABLED(CONFIG_SERIAL_8250_FSL) &&
+	    (of_device_is_compatible(np, "fsl,ns16550") ||
+	     of_device_is_compatible(np, "fsl,16550-FIFO64")))
+		port->handle_irq = fsl8250_handle_irq;
+
 	return 0;
 out:
 	if (info->clk)
@@ -155,7 +169,7 @@ out:
 /*
  * Try to register a serial port
  */
-static struct of_device_id of_platform_serial_table[];
+static const struct of_device_id of_platform_serial_table[];
 static int of_platform_serial_probe(struct platform_device *ofdev)
 {
 	const struct of_device_id *match;
@@ -186,7 +200,6 @@ static int of_platform_serial_probe(struct platform_device *ofdev)
 	{
 		struct uart_8250_port port8250;
 		memset(&port8250, 0, sizeof(port8250));
-		port.type = port_type;
 		port8250.port = port;
 
 		if (port.fifosize)
@@ -320,7 +333,7 @@ static SIMPLE_DEV_PM_OPS(of_serial_pm_ops, of_serial_suspend, of_serial_resume);
 /*
  * A few common types, add more as needed.
  */
-static struct of_device_id of_platform_serial_table[] = {
+static const struct of_device_id of_platform_serial_table[] = {
 	{ .compatible = "ns8250",   .data = (void *)PORT_8250, },
 	{ .compatible = "ns16450",  .data = (void *)PORT_16450, },
 	{ .compatible = "ns16550a", .data = (void *)PORT_16550A, },
@@ -344,9 +357,9 @@ static struct of_device_id of_platform_serial_table[] = {
 	{ .compatible = "ibm,qpace-nwp-serial",
 		.data = (void *)PORT_NWPSERIAL, },
 #endif
-	{ .type = "serial",         .data = (void *)PORT_UNKNOWN, },
 	{ /* end of list */ },
 };
+MODULE_DEVICE_TABLE(of, of_platform_serial_table);
 
 static struct platform_driver of_platform_serial_driver = {
 	.driver = {

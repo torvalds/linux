@@ -2,10 +2,11 @@
 # Makefile for the 8250 serial device drivers.
 #
 
-obj-$(CONFIG_SERIAL_8250)		+= 8250.o
+obj-$(CONFIG_SERIAL_8250)		+= 8250.o 8250_base.o
 8250-y					:= 8250_core.o
 8250-$(CONFIG_SERIAL_8250_PNP)		+= 8250_pnp.o
-8250-$(CONFIG_SERIAL_8250_DMA)		+= 8250_dma.o
+8250_base-y				:= 8250_port.o
+8250_base-$(CONFIG_SERIAL_8250_DMA)	+= 8250_dma.o
 obj-$(CONFIG_SERIAL_8250_GSC)		+= 8250_gsc.o
 obj-$(CONFIG_SERIAL_8250_PCI)		+= 8250_pci.o
 obj-$(CONFIG_SERIAL_8250_HP300)		+= 8250_hp300.o
@@ -22,4 +23,10 @@ obj-$(CONFIG_SERIAL_8250_DW)		+= 8250_dw.o
 obj-$(CONFIG_SERIAL_8250_EM)		+= 8250_em.o
 obj-$(CONFIG_SERIAL_8250_OMAP)		+= 8250_omap.o
 obj-$(CONFIG_SERIAL_8250_FINTEK)	+= 8250_fintek.o
+obj-$(CONFIG_SERIAL_8250_LPC18XX)	+= 8250_lpc18xx.o
 obj-$(CONFIG_SERIAL_8250_MT6577)	+= 8250_mtk.o
+obj-$(CONFIG_SERIAL_8250_UNIPHIER)	+= 8250_uniphier.o
+obj-$(CONFIG_SERIAL_8250_INGENIC)	+= 8250_ingenic.o
+obj-$(CONFIG_SERIAL_8250_MID)		+= 8250_mid.o
+
+CFLAGS_8250_ingenic.o += -I$(srctree)/scripts/dtc/libfdt

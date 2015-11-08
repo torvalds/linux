@@ -16,8 +16,13 @@ menuconfig VIRTUALIZATION
 
 if VIRTUALIZATION
 
+config KVM_ARM_VGIC_V3
+	bool
+
 config KVM
 	bool "Kernel-based Virtual Machine (KVM) support"
+	depends on OF
+	depends on !ARM64_16K_PAGES
 	select MMU_NOTIFIER
 	select PREEMPT_NOTIFIERS
 	select ANON_INODES
@@ -25,12 +30,16 @@ config KVM
 	select HAVE_KVM_ARCH_TLB_FLUSH_ALL
 	select KVM_MMIO
 	select KVM_ARM_HOST
-	select KVM_ARM_VGIC
-	select KVM_ARM_TIMER
 	select KVM_GENERIC_DIRTYLOG_READ_PROTECT
 	select SRCU
+	select KVM_VFIO
+	select HAVE_KVM_EVENTFD
+	select HAVE_KVM_IRQFD
+	select KVM_ARM_VGIC_V3
 	---help---
 	  Support hosting virtualized guest machines.
+	  We don't support KVM with 16K page tables yet, due to the multiple
+	  levels of fake page tables.
 
 	  If unsure, say N.
 
@@ -39,28 +48,6 @@ config KVM_ARM_HOST
 	---help---
 	  Provides host support for ARM processors.
 
-config KVM_ARM_MAX_VCPUS
-	int "Number maximum supported virtual CPUs per VM"
-	depends on KVM_ARM_HOST
-	default 4
-	help
-	  Static number of max supported virtual CPUs per VM.
-
-	  If you choose a high number, the vcpu structures will be quite
-	  large, so only choose a reasonable number that you expect to
-	  actually use.
-
-config KVM_ARM_VGIC
-	bool
-	depends on KVM_ARM_HOST && OF
-	select HAVE_KVM_IRQCHIP
-	---help---
-	  Adds support for a hardware assisted, in-kernel GIC emulation.
-
-config KVM_ARM_TIMER
-	bool
-	depends on KVM_ARM_VGIC
-	---help---
-	  Adds support for the Architected Timers in virtual machines.
+source drivers/vhost/Kconfig
 
 endif # VIRTUALIZATION

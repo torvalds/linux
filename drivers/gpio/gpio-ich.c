@@ -173,6 +173,11 @@ static bool ichx_gpio_check_available(struct gpio_chip *gpio, unsigned nr)
 	return !!(ichx_priv.use_gpio & (1 << (nr / 32)));
 }
 
+static int ichx_gpio_get_direction(struct gpio_chip *gpio, unsigned nr)
+{
+	return ichx_read_bit(GPIO_IO_SEL, nr) ? GPIOF_DIR_IN : GPIOF_DIR_OUT;
+}
+
 static int ichx_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 {
 	/*
@@ -286,6 +291,7 @@ static void ichx_gpiolib_setup(struct gpio_chip *chip)
 		ichx_priv.desc->get : ichx_gpio_get;
 
 	chip->set = ichx_gpio_set;
+	chip->get_direction = ichx_gpio_get_direction;
 	chip->direction_input = ichx_gpio_direction_input;
 	chip->direction_output = ichx_gpio_direction_output;
 	chip->base = modparam_gpiobase;

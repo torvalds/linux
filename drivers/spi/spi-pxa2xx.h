@@ -36,11 +36,6 @@ struct driver_data {
 	/* PXA hookup */
 	struct pxa2xx_spi_master *master_info;
 
-	/* PXA private DMA setup stuff */
-	int rx_channel;
-	int tx_channel;
-	u32 *null_dma_buf;
-
 	/* SSP register addresses */
 	void __iomem *ioaddr;
 	u32 ssdr_physical;
@@ -50,9 +45,6 @@ struct driver_data {
 	u32 int_cr1;
 	u32 clear_sr;
 	u32 mask_sr;
-
-	/* Maximun clock rate */
-	unsigned long max_clk_rate;
 
 	/* Message Transfer pump */
 	struct tasklet_struct pump_transfers;
@@ -91,10 +83,8 @@ struct driver_data {
 };
 
 struct chip_data {
-	u32 cr0;
 	u32 cr1;
 	u32 dds_rate;
-	u32 psp;
 	u32 timeout;
 	u8 n_bytes;
 	u32 dma_burst_size;
@@ -103,8 +93,6 @@ struct chip_data {
 	u16 lpss_rx_threshold;
 	u16 lpss_tx_threshold;
 	u8 enable_dma;
-	u8 bits_per_word;
-	u32 speed_hz;
 	union {
 		int gpio_cs;
 		unsigned int frm;
@@ -162,11 +150,7 @@ extern void *pxa2xx_spi_next_transfer(struct driver_data *drv_data);
 /*
  * Select the right DMA implementation.
  */
-#if defined(CONFIG_SPI_PXA2XX_PXADMA)
-#define SPI_PXA2XX_USE_DMA	1
-#define MAX_DMA_LEN		8191
-#define DEFAULT_DMA_CR1		(SSCR1_TSRE | SSCR1_RSRE | SSCR1_TINTE)
-#elif defined(CONFIG_SPI_PXA2XX_DMA)
+#if defined(CONFIG_SPI_PXA2XX_DMA)
 #define SPI_PXA2XX_USE_DMA	1
 #define MAX_DMA_LEN		SZ_64K
 #define DEFAULT_DMA_CR1		(SSCR1_TSRE | SSCR1_RSRE | SSCR1_TRAIL)
@@ -184,7 +168,6 @@ extern int pxa2xx_spi_dma_prepare(struct driver_data *drv_data, u32 dma_burst);
 extern void pxa2xx_spi_dma_start(struct driver_data *drv_data);
 extern int pxa2xx_spi_dma_setup(struct driver_data *drv_data);
 extern void pxa2xx_spi_dma_release(struct driver_data *drv_data);
-extern void pxa2xx_spi_dma_resume(struct driver_data *drv_data);
 extern int pxa2xx_spi_set_dma_burst_and_threshold(struct chip_data *chip,
 						  struct spi_device *spi,
 						  u8 bits_per_word,
@@ -205,7 +188,6 @@ static inline int pxa2xx_spi_dma_setup(struct driver_data *drv_data)
 	return 0;
 }
 static inline void pxa2xx_spi_dma_release(struct driver_data *drv_data) {}
-static inline void pxa2xx_spi_dma_resume(struct driver_data *drv_data) {}
 static inline int pxa2xx_spi_set_dma_burst_and_threshold(struct chip_data *chip,
 							 struct spi_device *spi,
 							 u8 bits_per_word,

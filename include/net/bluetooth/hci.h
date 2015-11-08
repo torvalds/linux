@@ -44,6 +44,9 @@
 #define HCI_DEV_DOWN			4
 #define HCI_DEV_SUSPEND			5
 #define HCI_DEV_RESUME			6
+#define HCI_DEV_OPEN			7
+#define HCI_DEV_CLOSE			8
+#define HCI_DEV_SETUP			9
 
 /* HCI notify events */
 #define HCI_NOTIFY_CONN_ADD		1
@@ -160,6 +163,23 @@ enum {
 	 * during the hdev->setup vendor callback.
 	 */
 	HCI_QUIRK_STRICT_DUPLICATE_FILTER,
+
+	/* When this quirk is set, LE scan and BR/EDR inquiry is done
+	 * simultaneously, otherwise it's interleaved.
+	 *
+	 * This quirk can be set before hci_register_dev is called or
+	 * during the hdev->setup vendor callback.
+	 */
+	HCI_QUIRK_SIMULTANEOUS_DISCOVERY,
+
+	/* When this quirk is set, the enabling of diagnostic mode is
+	 * not persistent over HCI Reset. Every time the controller
+	 * is brought up it needs to be reprogrammed.
+	 *
+	 * This quirk can be set before hci_register_dev is called or
+	 * during the hdev->setup vendor callback.
+	 */
+	HCI_QUIRK_NON_PERSISTENT_DIAG,
 };
 
 /* HCI device flags */
@@ -179,13 +199,14 @@ enum {
 	HCI_RESET,
 };
 
-/* BR/EDR and/or LE controller flags: the flags defined here should represent
- * states configured via debugfs for debugging and testing purposes only.
- */
+/* HCI socket flags */
 enum {
-	HCI_DUT_MODE,
-	HCI_FORCE_BREDR_SMP,
-	HCI_FORCE_STATIC_ADDR,
+	HCI_SOCK_TRUSTED,
+	HCI_MGMT_INDEX_EVENTS,
+	HCI_MGMT_UNCONF_INDEX_EVENTS,
+	HCI_MGMT_EXT_INDEX_EVENTS,
+	HCI_MGMT_GENERIC_EVENTS,
+	HCI_MGMT_OOB_DATA_EVENTS,
 };
 
 /*
@@ -217,6 +238,8 @@ enum {
 	HCI_HS_ENABLED,
 	HCI_LE_ENABLED,
 	HCI_ADVERTISING,
+	HCI_ADVERTISING_CONNECTABLE,
+	HCI_ADVERTISING_INSTANCE,
 	HCI_CONNECTABLE,
 	HCI_DISCOVERABLE,
 	HCI_LIMITED_DISCOVERABLE,
@@ -225,13 +248,14 @@ enum {
 	HCI_FAST_CONNECTABLE,
 	HCI_BREDR_ENABLED,
 	HCI_LE_SCAN_INTERRUPTED,
-};
 
-/* A mask for the flags that are supposed to remain when a reset happens
- * or the HCI device is closed.
- */
-#define HCI_PERSISTENT_MASK (BIT(HCI_LE_SCAN) | BIT(HCI_PERIODIC_INQ) | \
-			      BIT(HCI_FAST_CONNECTABLE) | BIT(HCI_LE_ADV))
+	HCI_DUT_MODE,
+	HCI_VENDOR_DIAG,
+	HCI_FORCE_BREDR_SMP,
+	HCI_FORCE_STATIC_ADDR,
+
+	__HCI_NUM_FLAGS,
+};
 
 /* HCI timeouts */
 #define HCI_DISCONN_TIMEOUT	msecs_to_jiffies(2000)	/* 2 seconds */
@@ -249,6 +273,7 @@ enum {
 #define HCI_ACLDATA_PKT		0x02
 #define HCI_SCODATA_PKT		0x03
 #define HCI_EVENT_PKT		0x04
+#define HCI_DIAG_PKT		0xf0
 #define HCI_VENDOR_PKT		0xff
 
 /* HCI packet types */
@@ -363,6 +388,7 @@ enum {
 /* LE features */
 #define HCI_LE_ENCRYPTION		0x01
 #define HCI_LE_CONN_PARAM_REQ_PROC	0x02
+#define HCI_LE_SLAVE_FEATURES		0x08
 #define HCI_LE_PING			0x10
 #define HCI_LE_DATA_LEN_EXT		0x20
 #define HCI_LE_EXT_SCAN_POLICY		0x80
@@ -452,9 +478,16 @@ enum {
 #define EIR_NAME_COMPLETE	0x09 /* complete local name */
 #define EIR_TX_POWER		0x0A /* transmit power level */
 #define EIR_CLASS_OF_DEV	0x0D /* Class of Device */
-#define EIR_SSP_HASH_C		0x0E /* Simple Pairing Hash C */
-#define EIR_SSP_RAND_R		0x0F /* Simple Pairing Randomizer R */
+#define EIR_SSP_HASH_C192	0x0E /* Simple Pairing Hash C-192 */
+#define EIR_SSP_RAND_R192	0x0F /* Simple Pairing Randomizer R-192 */
 #define EIR_DEVICE_ID		0x10 /* device ID */
+#define EIR_APPEARANCE		0x19 /* Device appearance */
+#define EIR_LE_BDADDR		0x1B /* LE Bluetooth device address */
+#define EIR_LE_ROLE		0x1C /* LE role */
+#define EIR_SSP_HASH_C256	0x1D /* Simple Pairing Hash C-256 */
+#define EIR_SSP_RAND_R256	0x1E /* Simple Pairing Rand R-256 */
+#define EIR_LE_SC_CONFIRM	0x22 /* LE SC Confirmation Value */
+#define EIR_LE_SC_RANDOM	0x23 /* LE SC Random Value */
 
 /* Low Energy Advertising Flags */
 #define LE_AD_LIMITED		0x01 /* Limited Discoverable */
@@ -1183,6 +1216,16 @@ struct hci_rp_read_clock {
 	__le16   accuracy;
 } __packed;
 
+#define HCI_OP_READ_ENC_KEY_SIZE	0x1408
+struct hci_cp_read_enc_key_size {
+	__le16   handle;
+} __packed;
+struct hci_rp_read_enc_key_size {
+	__u8     status;
+	__le16   handle;
+	__u8     key_size;
+} __packed;
+
 #define HCI_OP_READ_LOCAL_AMP_INFO	0x1409
 struct hci_rp_read_local_amp_info {
 	__u8     status;
@@ -1356,6 +1399,11 @@ struct hci_cp_le_conn_update {
 	__le16   supervision_timeout;
 	__le16   min_ce_len;
 	__le16   max_ce_len;
+} __packed;
+
+#define HCI_OP_LE_READ_REMOTE_FEATURES	0x2016
+struct hci_cp_le_read_remote_features {
+	__le16	 handle;
 } __packed;
 
 #define HCI_OP_LE_START_ENC		0x2019
@@ -1848,6 +1896,13 @@ struct hci_ev_le_conn_update_complete {
 	__le16   interval;
 	__le16   latency;
 	__le16   supervision_timeout;
+} __packed;
+
+#define HCI_EV_LE_REMOTE_FEAT_COMPLETE	0x04
+struct hci_ev_le_remote_feat_complete {
+	__u8     status;
+	__le16   handle;
+	__u8     features[8];
 } __packed;
 
 #define HCI_EV_LE_LTK_REQ		0x05

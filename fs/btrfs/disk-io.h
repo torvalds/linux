@@ -52,7 +52,7 @@ int reada_tree_block_flagged(struct btrfs_root *root, u64 bytenr,
 struct extent_buffer *btrfs_find_create_tree_block(struct btrfs_root *root,
 						   u64 bytenr);
 void clean_tree_block(struct btrfs_trans_handle *trans,
-		      struct btrfs_root *root, struct extent_buffer *buf);
+		      struct btrfs_fs_info *fs_info, struct extent_buffer *buf);
 int open_ctree(struct super_block *sb,
 	       struct btrfs_fs_devices *fs_devices,
 	       char *options);
@@ -60,8 +60,10 @@ void close_ctree(struct btrfs_root *root);
 int write_ctree_super(struct btrfs_trans_handle *trans,
 		      struct btrfs_root *root, int max_mirrors);
 struct buffer_head *btrfs_read_dev_super(struct block_device *bdev);
+int btrfs_read_dev_one_super(struct block_device *bdev, int copy_num,
+			struct buffer_head **bh_ret);
 int btrfs_commit_super(struct btrfs_root *root);
-struct extent_buffer *btrfs_find_tree_block(struct btrfs_root *root,
+struct extent_buffer *btrfs_find_tree_block(struct btrfs_fs_info *fs_info,
 					    u64 bytenr);
 struct btrfs_root *btrfs_read_fs_root(struct btrfs_root *tree_root,
 				      struct btrfs_key *location);
@@ -139,6 +141,7 @@ struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 				     u64 objectid);
 int btree_lock_page_hook(struct page *page, void *data,
 				void (*flush_fn)(void *));
+int btrfs_get_num_tolerated_disk_barrier_failures(u64 flags);
 int btrfs_calc_num_tolerated_disk_barrier_failures(
 	struct btrfs_fs_info *fs_info);
 int __init btrfs_end_io_wq_init(void);

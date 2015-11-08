@@ -201,7 +201,10 @@ static void dwmac1000_flow_ctrl(struct mac_device_info *hw, unsigned int duplex,
 				unsigned int fc, unsigned int pause_time)
 {
 	void __iomem *ioaddr = hw->pcsr;
-	unsigned int flow = 0;
+	/* Set flow such that DZPQ in Mac Register 6 is 0,
+	 * and unicast pause detect is enabled.
+	 */
+	unsigned int flow = GMAC_FLOW_CTRL_UP;
 
 	pr_debug("GMAC Flow-Control:\n");
 	if (fc & FLOW_RX) {

@@ -39,15 +39,19 @@
 #include <net/route.h>
 #include <net/xfrm.h>
 
-static bool ip_may_fragment(const struct sk_buff *skb)
-{
-	return unlikely((ip_hdr(skb)->frag_off & htons(IP_DF)) == 0) ||
-		skb->ignore_df;
-}
-
 static bool ip_exceeds_mtu(const struct sk_buff *skb, unsigned int mtu)
 {
 	if (skb->len <= mtu)
+		return false;
+
+	if (unlikely((ip_hdr(skb)->frag_off & htons(IP_DF)) == 0))
+		return false;
+
+	/* original fragment exceeds mtu and DF is set */
+	if (unlikely(IPCB(skb)->frag_max_size > mtu))
+		return true;
+
+	if (skb->ignore_df)
 		return false;
 
 	if (skb_is_gso(skb) && skb_gso_network_seglen(skb) <= mtu)
@@ -57,18 +61,18 @@ static bool ip_exceeds_mtu(const struct sk_buff *skb, unsigned int mtu)
 }
 
 
-static int ip_forward_finish(struct sk_buff *skb)
+static int ip_forward_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct ip_options *opt	= &(IPCB(skb)->opt);
 
-	IP_INC_STATS_BH(dev_net(skb_dst(skb)->dev), IPSTATS_MIB_OUTFORWDATAGRAMS);
-	IP_ADD_STATS_BH(dev_net(skb_dst(skb)->dev), IPSTATS_MIB_OUTOCTETS, skb->len);
+	IP_INC_STATS_BH(net, IPSTATS_MIB_OUTFORWDATAGRAMS);
+	IP_ADD_STATS_BH(net, IPSTATS_MIB_OUTOCTETS, skb->len);
 
 	if (unlikely(opt->optlen))
 		ip_forward_options(skb);
 
 	skb_sender_cpu_clear(skb);
-	return dst_output(skb);
+	return dst_output(net, sk, skb);
 }
 
 int ip_forward(struct sk_buff *skb)
@@ -77,9 +81,13 @@ int ip_forward(struct sk_buff *skb)
 	struct iphdr *iph;	/* Our header */
 	struct rtable *rt;	/* Route we use */
 	struct ip_options *opt	= &(IPCB(skb)->opt);
+	struct net *net;
 
 	/* that should never happen */
 	if (skb->pkt_type != PACKET_HOST)
+		goto drop;
+
+	if (unlikely(skb->sk))
 		goto drop;
 
 	if (skb_warn_if_lro(skb))
@@ -92,6 +100,7 @@ int ip_forward(struct sk_buff *skb)
 		return NET_RX_SUCCESS;
 
 	skb_forward_csum(skb);
+	net = dev_net(skb->dev);
 
 	/*
 	 *	According to the RFC, we must first decrease the TTL field. If
@@ -111,8 +120,8 @@ int ip_forward(struct sk_buff *skb)
 
 	IPCB(skb)->flags |= IPSKB_FORWARDED;
 	mtu = ip_dst_mtu_maybe_forward(&rt->dst, true);
-	if (!ip_may_fragment(skb) && ip_exceeds_mtu(skb, mtu)) {
-		IP_INC_STATS(dev_net(rt->dst.dev), IPSTATS_MIB_FRAGFAILS);
+	if (ip_exceeds_mtu(skb, mtu)) {
+		IP_INC_STATS(net, IPSTATS_MIB_FRAGFAILS);
 		icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
 			  htonl(mtu));
 		goto drop;
@@ -136,8 +145,9 @@ int ip_forward(struct sk_buff *skb)
 
 	skb->priority = rt_tos2priority(iph->tos);
 
-	return NF_HOOK(NFPROTO_IPV4, NF_INET_FORWARD, skb, skb->dev,
-		       rt->dst.dev, ip_forward_finish);
+	return NF_HOOK(NFPROTO_IPV4, NF_INET_FORWARD,
+		       net, NULL, skb, skb->dev, rt->dst.dev,
+		       ip_forward_finish);
 
 sr_failed:
 	/*
@@ -148,7 +158,7 @@ sr_failed:
 
 too_many_hops:
 	/* Tell the sender its packet died... */
-	IP_INC_STATS_BH(dev_net(skb_dst(skb)->dev), IPSTATS_MIB_INHDRERRORS);
+	IP_INC_STATS_BH(net, IPSTATS_MIB_INHDRERRORS);
 	icmp_send(skb, ICMP_TIME_EXCEEDED, ICMP_EXC_TTL, 0);
 drop:
 	kfree_skb(skb);

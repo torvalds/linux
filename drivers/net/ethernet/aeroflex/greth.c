@@ -1141,8 +1141,6 @@ static void greth_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *in
 	strlcpy(info->version, "revision: 1.0", sizeof(info->version));
 	strlcpy(info->bus_info, greth->dev->bus->name, sizeof(info->bus_info));
 	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
-	info->eedump_len = 0;
-	info->regdump_len = sizeof(struct greth_regs);
 }
 
 static void greth_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
@@ -1588,7 +1586,7 @@ static int greth_of_remove(struct platform_device *of_dev)
 	return 0;
 }
 
-static struct of_device_id greth_of_match[] = {
+static const struct of_device_id greth_of_match[] = {
 	{
 	 .name = "GAISLER_ETHMAC",
 	 },

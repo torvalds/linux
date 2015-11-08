@@ -485,7 +485,7 @@ static void pmecc_config_ecc_layout(struct nand_ecclayout *layout,
 	for (i = 0; i < ecc_len; i++)
 		layout->eccpos[i] = oobsize - ecc_len + i;
 
-	layout->oobfree[0].offset = 2;
+	layout->oobfree[0].offset = PMECC_OOB_RESERVED_BYTES;
 	layout->oobfree[0].length =
 		oobsize - ecc_len - layout->oobfree[0].offset;
 }
@@ -954,7 +954,8 @@ static int atmel_nand_pmecc_read_page(struct mtd_info *mtd,
 }
 
 static int atmel_nand_pmecc_write_page(struct mtd_info *mtd,
-		struct nand_chip *chip, const uint8_t *buf, int oob_required)
+		struct nand_chip *chip, const uint8_t *buf, int oob_required,
+		int page)
 {
 	struct atmel_nand_host *host = chip->priv;
 	uint32_t *eccpos = chip->ecc.layout->eccpos;
@@ -1204,14 +1205,14 @@ static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 		goto err;
 	}
 
-	regs_rom = platform_get_resource(pdev, IORESOURCE_MEM, 3);
-	host->pmecc_rom_base = devm_ioremap_resource(&pdev->dev, regs_rom);
-	if (IS_ERR(host->pmecc_rom_base)) {
-		if (!host->has_no_lookup_table)
-			/* Don't display the information again */
+	if (!host->has_no_lookup_table) {
+		regs_rom = platform_get_resource(pdev, IORESOURCE_MEM, 3);
+		host->pmecc_rom_base = devm_ioremap_resource(&pdev->dev,
+								regs_rom);
+		if (IS_ERR(host->pmecc_rom_base)) {
 			dev_err(host->dev, "Can not get I/O resource for ROM, will build a lookup table in runtime!\n");
-
-		host->has_no_lookup_table = true;
+			host->has_no_lookup_table = true;
+		}
 	}
 
 	if (host->has_no_lookup_table) {
@@ -1254,7 +1255,8 @@ static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 		nand_chip->ecc.steps = mtd->writesize / sector_size;
 		nand_chip->ecc.total = nand_chip->ecc.bytes *
 			nand_chip->ecc.steps;
-		if (nand_chip->ecc.total > mtd->oobsize - 2) {
+		if (nand_chip->ecc.total >
+				mtd->oobsize - PMECC_OOB_RESERVED_BYTES) {
 			dev_err(host->dev, "No room for ECC bytes\n");
 			err_no = -EINVAL;
 			goto err;
@@ -1719,7 +1721,7 @@ static int nfc_wait_interrupt(struct atmel_nand_host *host, u32 flag)
 		comp[index++] = &host->nfc->comp_cmd_done;
 
 	if (index == 0) {
-		dev_err(host->dev, "Unkown interrupt flag: 0x%08x\n", flag);
+		dev_err(host->dev, "Unknown interrupt flag: 0x%08x\n", flag);
 		return -EINVAL;
 	}
 
@@ -1752,11 +1754,10 @@ static int nfc_send_command(struct atmel_nand_host *host,
 		cmd, addr, cycle0);
 
 	timeout = jiffies + msecs_to_jiffies(NFC_TIME_OUT_MS);
-	while (nfc_cmd_readl(NFCADDR_CMD_NFCBUSY, host->nfc->base_cmd_regs)
-			& NFCADDR_CMD_NFCBUSY) {
+	while (nfc_readl(host->nfc->hsmc_regs, SR) & NFC_SR_BUSY) {
 		if (time_after(jiffies, timeout)) {
 			dev_err(host->dev,
-				"Time out to wait CMD_NFCBUSY ready!\n");
+				"Time out to wait for NFC ready!\n");
 			return -ETIMEDOUT;
 		}
 	}
@@ -2005,7 +2006,8 @@ static int nfc_sram_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 	if (likely(!raw))
 		/* Need to write ecc into oob */
-		status = chip->ecc.write_page(mtd, chip, buf, oob_required);
+		status = chip->ecc.write_page(mtd, chip, buf, oob_required,
+					      page);
 
 	if (status < 0)
 		return status;
@@ -2126,7 +2128,7 @@ static int atmel_nand_probe(struct platform_device *pdev)
 
 	nand_chip->priv = host;		/* link the private data structures */
 	mtd->priv = nand_chip;
-	mtd->owner = THIS_MODULE;
+	mtd->dev.parent = &pdev->dev;
 
 	/* Set address of NAND IO lines */
 	nand_chip->IO_ADDR_R = host->io_base;

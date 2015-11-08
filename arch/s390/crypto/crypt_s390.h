@@ -3,9 +3,10 @@
  *
  * Support for s390 cryptographic instructions.
  *
- *   Copyright IBM Corp. 2003, 2007
+ *   Copyright IBM Corp. 2003, 2015
  *   Author(s): Thomas Spatzier
  *		Jan Glauber (jan.glauber@de.ibm.com)
+ *		Harald Freudenberger (freude@de.ibm.com)
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -28,15 +29,17 @@
 #define CRYPT_S390_MSA	0x1
 #define CRYPT_S390_MSA3	0x2
 #define CRYPT_S390_MSA4	0x4
+#define CRYPT_S390_MSA5	0x8
 
 /* s390 cryptographic operations */
 enum crypt_s390_operations {
-	CRYPT_S390_KM   = 0x0100,
-	CRYPT_S390_KMC  = 0x0200,
-	CRYPT_S390_KIMD = 0x0300,
-	CRYPT_S390_KLMD = 0x0400,
-	CRYPT_S390_KMAC = 0x0500,
-	CRYPT_S390_KMCTR = 0x0600
+	CRYPT_S390_KM	 = 0x0100,
+	CRYPT_S390_KMC	 = 0x0200,
+	CRYPT_S390_KIMD  = 0x0300,
+	CRYPT_S390_KLMD  = 0x0400,
+	CRYPT_S390_KMAC  = 0x0500,
+	CRYPT_S390_KMCTR = 0x0600,
+	CRYPT_S390_PPNO  = 0x0700
 };
 
 /*
@@ -138,6 +141,16 @@ enum crypt_s390_kmac_func {
 	KMAC_TDEA_192 = CRYPT_S390_KMAC | 3
 };
 
+/*
+ * function codes for PPNO (PERFORM PSEUDORANDOM NUMBER
+ * OPERATION) instruction
+ */
+enum crypt_s390_ppno_func {
+	PPNO_QUERY	      = CRYPT_S390_PPNO | 0,
+	PPNO_SHA512_DRNG_GEN  = CRYPT_S390_PPNO | 3,
+	PPNO_SHA512_DRNG_SEED = CRYPT_S390_PPNO | 0x83
+};
+
 /**
  * crypt_s390_km:
  * @func: the function code passed to KM; see crypt_s390_km_func
@@ -162,11 +175,11 @@ static inline int crypt_s390_km(long func, void *param,
 	int ret;
 
 	asm volatile(
-		"0:	.insn	rre,0xb92e0000,%3,%1 \n" /* KM opcode */
-		"1:	brc	1,0b \n" /* handle partial completion */
+		"0:	.insn	rre,0xb92e0000,%3,%1\n" /* KM opcode */
+		"1:	brc	1,0b\n" /* handle partial completion */
 		"	la	%0,0\n"
 		"2:\n"
-		EX_TABLE(0b,2b) EX_TABLE(1b,2b)
+		EX_TABLE(0b, 2b) EX_TABLE(1b, 2b)
 		: "=d" (ret), "+a" (__src), "+d" (__src_len), "+a" (__dest)
 		: "d" (__func), "a" (__param), "0" (-1) : "cc", "memory");
 	if (ret < 0)
@@ -198,11 +211,11 @@ static inline int crypt_s390_kmc(long func, void *param,
 	int ret;
 
 	asm volatile(
-		"0:	.insn	rre,0xb92f0000,%3,%1 \n" /* KMC opcode */
-		"1:	brc	1,0b \n" /* handle partial completion */
+		"0:	.insn	rre,0xb92f0000,%3,%1\n" /* KMC opcode */
+		"1:	brc	1,0b\n" /* handle partial completion */
 		"	la	%0,0\n"
 		"2:\n"
-		EX_TABLE(0b,2b) EX_TABLE(1b,2b)
+		EX_TABLE(0b, 2b) EX_TABLE(1b, 2b)
 		: "=d" (ret), "+a" (__src), "+d" (__src_len), "+a" (__dest)
 		: "d" (__func), "a" (__param), "0" (-1) : "cc", "memory");
 	if (ret < 0)
@@ -233,11 +246,11 @@ static inline int crypt_s390_kimd(long func, void *param,
 	int ret;
 
 	asm volatile(
-		"0:	.insn	rre,0xb93e0000,%1,%1 \n" /* KIMD opcode */
-		"1:	brc	1,0b \n" /* handle partial completion */
+		"0:	.insn	rre,0xb93e0000,%1,%1\n" /* KIMD opcode */
+		"1:	brc	1,0b\n" /* handle partial completion */
 		"	la	%0,0\n"
 		"2:\n"
-		EX_TABLE(0b,2b) EX_TABLE(1b,2b)
+		EX_TABLE(0b, 2b) EX_TABLE(1b, 2b)
 		: "=d" (ret), "+a" (__src), "+d" (__src_len)
 		: "d" (__func), "a" (__param), "0" (-1) : "cc", "memory");
 	if (ret < 0)
@@ -267,11 +280,11 @@ static inline int crypt_s390_klmd(long func, void *param,
 	int ret;
 
 	asm volatile(
-		"0:	.insn	rre,0xb93f0000,%1,%1 \n" /* KLMD opcode */
-		"1:	brc	1,0b \n" /* handle partial completion */
+		"0:	.insn	rre,0xb93f0000,%1,%1\n" /* KLMD opcode */
+		"1:	brc	1,0b\n" /* handle partial completion */
 		"	la	%0,0\n"
 		"2:\n"
-		EX_TABLE(0b,2b) EX_TABLE(1b,2b)
+		EX_TABLE(0b, 2b) EX_TABLE(1b, 2b)
 		: "=d" (ret), "+a" (__src), "+d" (__src_len)
 		: "d" (__func), "a" (__param), "0" (-1) : "cc", "memory");
 	if (ret < 0)
@@ -302,11 +315,11 @@ static inline int crypt_s390_kmac(long func, void *param,
 	int ret;
 
 	asm volatile(
-		"0:	.insn	rre,0xb91e0000,%1,%1 \n" /* KLAC opcode */
-		"1:	brc	1,0b \n" /* handle partial completion */
+		"0:	.insn	rre,0xb91e0000,%1,%1\n" /* KLAC opcode */
+		"1:	brc	1,0b\n" /* handle partial completion */
 		"	la	%0,0\n"
 		"2:\n"
-		EX_TABLE(0b,2b) EX_TABLE(1b,2b)
+		EX_TABLE(0b, 2b) EX_TABLE(1b, 2b)
 		: "=d" (ret), "+a" (__src), "+d" (__src_len)
 		: "d" (__func), "a" (__param), "0" (-1) : "cc", "memory");
 	if (ret < 0)
@@ -340,17 +353,58 @@ static inline int crypt_s390_kmctr(long func, void *param, u8 *dest,
 	int ret = -1;
 
 	asm volatile(
-		"0:	.insn	rrf,0xb92d0000,%3,%1,%4,0 \n" /* KMCTR opcode */
-		"1:	brc	1,0b \n" /* handle partial completion */
+		"0:	.insn	rrf,0xb92d0000,%3,%1,%4,0\n" /* KMCTR opcode */
+		"1:	brc	1,0b\n" /* handle partial completion */
 		"	la	%0,0\n"
 		"2:\n"
-		EX_TABLE(0b,2b) EX_TABLE(1b,2b)
+		EX_TABLE(0b, 2b) EX_TABLE(1b, 2b)
 		: "+d" (ret), "+a" (__src), "+d" (__src_len), "+a" (__dest),
 		  "+a" (__ctr)
 		: "d" (__func), "a" (__param) : "cc", "memory");
 	if (ret < 0)
 		return ret;
 	return (func & CRYPT_S390_FUNC_MASK) ? src_len - __src_len : __src_len;
+}
+
+/**
+ * crypt_s390_ppno:
+ * @func: the function code passed to PPNO; see crypt_s390_ppno_func
+ * @param: address of parameter block; see POP for details on each func
+ * @dest: address of destination memory area
+ * @dest_len: size of destination memory area in bytes
+ * @seed: address of seed data
+ * @seed_len: size of seed data in bytes
+ *
+ * Executes the PPNO (PERFORM PSEUDORANDOM NUMBER OPERATION)
+ * operation of the CPU.
+ *
+ * Returns -1 for failure, 0 for the query func, number of random
+ * bytes stored in dest buffer for generate function
+ */
+static inline int crypt_s390_ppno(long func, void *param,
+				  u8 *dest, long dest_len,
+				  const u8 *seed, long seed_len)
+{
+	register long  __func	  asm("0") = func & CRYPT_S390_FUNC_MASK;
+	register void *__param	  asm("1") = param;    /* param block (240 bytes) */
+	register u8   *__dest	  asm("2") = dest;     /* buf for recv random bytes */
+	register long  __dest_len asm("3") = dest_len; /* requested random bytes */
+	register const u8 *__seed asm("4") = seed;     /* buf with seed data */
+	register long  __seed_len asm("5") = seed_len; /* bytes in seed buf */
+	int ret = -1;
+
+	asm volatile (
+		"0:	.insn	rre,0xb93c0000,%1,%5\n"	/* PPNO opcode */
+		"1:	brc	1,0b\n"	  /* handle partial completion */
+		"	la	%0,0\n"
+		"2:\n"
+		EX_TABLE(0b, 2b) EX_TABLE(1b, 2b)
+		: "+d" (ret), "+a"(__dest), "+d"(__dest_len)
+		: "d"(__func), "a"(__param), "a"(__seed), "d"(__seed_len)
+		: "cc", "memory");
+	if (ret < 0)
+		return ret;
+	return (func & CRYPT_S390_FUNC_MASK) ? dest_len - __dest_len : 0;
 }
 
 /**
@@ -369,12 +423,11 @@ static inline int crypt_s390_func_available(int func,
 
 	if (facility_mask & CRYPT_S390_MSA && !test_facility(17))
 		return 0;
-
-	if (facility_mask & CRYPT_S390_MSA3 &&
-	    (!test_facility(2) || !test_facility(76)))
+	if (facility_mask & CRYPT_S390_MSA3 && !test_facility(76))
 		return 0;
-	if (facility_mask & CRYPT_S390_MSA4 &&
-	    (!test_facility(2) || !test_facility(77)))
+	if (facility_mask & CRYPT_S390_MSA4 && !test_facility(77))
+		return 0;
+	if (facility_mask & CRYPT_S390_MSA5 && !test_facility(57))
 		return 0;
 
 	switch (func & CRYPT_S390_OP_MASK) {
@@ -394,8 +447,12 @@ static inline int crypt_s390_func_available(int func,
 		ret = crypt_s390_kmac(KMAC_QUERY, &status, NULL, 0);
 		break;
 	case CRYPT_S390_KMCTR:
-		ret = crypt_s390_kmctr(KMCTR_QUERY, &status, NULL, NULL, 0,
-				       NULL);
+		ret = crypt_s390_kmctr(KMCTR_QUERY, &status,
+				       NULL, NULL, 0, NULL);
+		break;
+	case CRYPT_S390_PPNO:
+		ret = crypt_s390_ppno(PPNO_QUERY, &status,
+				      NULL, 0, NULL, 0);
 		break;
 	default:
 		return 0;
@@ -423,15 +480,14 @@ static inline int crypt_s390_pcc(long func, void *param)
 	int ret = -1;
 
 	asm volatile(
-		"0:	.insn	rre,0xb92c0000,0,0 \n" /* PCC opcode */
-		"1:	brc	1,0b \n" /* handle partial completion */
+		"0:	.insn	rre,0xb92c0000,0,0\n" /* PCC opcode */
+		"1:	brc	1,0b\n" /* handle partial completion */
 		"	la	%0,0\n"
 		"2:\n"
-		EX_TABLE(0b,2b) EX_TABLE(1b,2b)
+		EX_TABLE(0b, 2b) EX_TABLE(1b, 2b)
 		: "+d" (ret)
 		: "d" (__func), "a" (__param) : "cc", "memory");
 	return ret;
 }
-
 
 #endif	/* _CRYPTO_ARCH_S390_CRYPT_S390_H */

@@ -59,71 +59,66 @@ static inline void pmc_write(struct at91_pmc *pmc, int offset, u32 value)
 int of_at91_get_clk_range(struct device_node *np, const char *propname,
 			  struct clk_range *range);
 
-extern void __init of_at91sam9260_clk_slow_setup(struct device_node *np,
-						 struct at91_pmc *pmc);
+void of_at91sam9260_clk_slow_setup(struct device_node *np,
+				   struct at91_pmc *pmc);
 
-extern void __init of_at91rm9200_clk_main_osc_setup(struct device_node *np,
-						    struct at91_pmc *pmc);
-extern void __init of_at91sam9x5_clk_main_rc_osc_setup(struct device_node *np,
-						       struct at91_pmc *pmc);
-extern void __init of_at91rm9200_clk_main_setup(struct device_node *np,
-						struct at91_pmc *pmc);
-extern void __init of_at91sam9x5_clk_main_setup(struct device_node *np,
-						struct at91_pmc *pmc);
+void of_at91rm9200_clk_main_osc_setup(struct device_node *np,
+				      struct at91_pmc *pmc);
+void of_at91sam9x5_clk_main_rc_osc_setup(struct device_node *np,
+					 struct at91_pmc *pmc);
+void of_at91rm9200_clk_main_setup(struct device_node *np,
+				  struct at91_pmc *pmc);
+void of_at91sam9x5_clk_main_setup(struct device_node *np,
+				  struct at91_pmc *pmc);
 
-extern void __init of_at91rm9200_clk_pll_setup(struct device_node *np,
-					       struct at91_pmc *pmc);
-extern void __init of_at91sam9g45_clk_pll_setup(struct device_node *np,
-						struct at91_pmc *pmc);
-extern void __init of_at91sam9g20_clk_pllb_setup(struct device_node *np,
-						 struct at91_pmc *pmc);
-extern void __init of_sama5d3_clk_pll_setup(struct device_node *np,
-					    struct at91_pmc *pmc);
-extern void __init of_at91sam9x5_clk_plldiv_setup(struct device_node *np,
-						  struct at91_pmc *pmc);
+void of_at91rm9200_clk_pll_setup(struct device_node *np,
+				 struct at91_pmc *pmc);
+void of_at91sam9g45_clk_pll_setup(struct device_node *np,
+				  struct at91_pmc *pmc);
+void of_at91sam9g20_clk_pllb_setup(struct device_node *np,
+				   struct at91_pmc *pmc);
+void of_sama5d3_clk_pll_setup(struct device_node *np,
+			      struct at91_pmc *pmc);
+void of_at91sam9x5_clk_plldiv_setup(struct device_node *np,
+				    struct at91_pmc *pmc);
 
-extern void __init of_at91rm9200_clk_master_setup(struct device_node *np,
-						  struct at91_pmc *pmc);
-extern void __init of_at91sam9x5_clk_master_setup(struct device_node *np,
-						  struct at91_pmc *pmc);
+void of_at91rm9200_clk_master_setup(struct device_node *np,
+				    struct at91_pmc *pmc);
+void of_at91sam9x5_clk_master_setup(struct device_node *np,
+				    struct at91_pmc *pmc);
 
-extern void __init of_at91rm9200_clk_sys_setup(struct device_node *np,
-					       struct at91_pmc *pmc);
+void of_at91rm9200_clk_sys_setup(struct device_node *np,
+				 struct at91_pmc *pmc);
 
-extern void __init of_at91rm9200_clk_periph_setup(struct device_node *np,
-						  struct at91_pmc *pmc);
-extern void __init of_at91sam9x5_clk_periph_setup(struct device_node *np,
-						  struct at91_pmc *pmc);
+void of_at91rm9200_clk_periph_setup(struct device_node *np,
+				    struct at91_pmc *pmc);
+void of_at91sam9x5_clk_periph_setup(struct device_node *np,
+				    struct at91_pmc *pmc);
 
-extern void __init of_at91rm9200_clk_prog_setup(struct device_node *np,
-						struct at91_pmc *pmc);
-extern void __init of_at91sam9g45_clk_prog_setup(struct device_node *np,
-						 struct at91_pmc *pmc);
-extern void __init of_at91sam9x5_clk_prog_setup(struct device_node *np,
-						struct at91_pmc *pmc);
+void of_at91rm9200_clk_prog_setup(struct device_node *np,
+				  struct at91_pmc *pmc);
+void of_at91sam9g45_clk_prog_setup(struct device_node *np,
+				   struct at91_pmc *pmc);
+void of_at91sam9x5_clk_prog_setup(struct device_node *np,
+				  struct at91_pmc *pmc);
 
-#if defined(CONFIG_HAVE_AT91_UTMI)
-extern void __init of_at91sam9x5_clk_utmi_setup(struct device_node *np,
-						struct at91_pmc *pmc);
-#endif
+void of_at91sam9x5_clk_utmi_setup(struct device_node *np,
+				  struct at91_pmc *pmc);
 
-#if defined(CONFIG_HAVE_AT91_USB_CLK)
-extern void __init of_at91rm9200_clk_usb_setup(struct device_node *np,
-					       struct at91_pmc *pmc);
-extern void __init of_at91sam9x5_clk_usb_setup(struct device_node *np,
-					       struct at91_pmc *pmc);
-extern void __init of_at91sam9n12_clk_usb_setup(struct device_node *np,
-						struct at91_pmc *pmc);
-#endif
+void of_at91rm9200_clk_usb_setup(struct device_node *np,
+				 struct at91_pmc *pmc);
+void of_at91sam9x5_clk_usb_setup(struct device_node *np,
+				 struct at91_pmc *pmc);
+void of_at91sam9n12_clk_usb_setup(struct device_node *np,
+				  struct at91_pmc *pmc);
 
-#if defined(CONFIG_HAVE_AT91_SMD)
-extern void __init of_at91sam9x5_clk_smd_setup(struct device_node *np,
-					       struct at91_pmc *pmc);
-#endif
+void of_at91sam9x5_clk_smd_setup(struct device_node *np,
+				 struct at91_pmc *pmc);
 
-#if defined(CONFIG_HAVE_AT91_SMD)
-extern void __init of_sama5d4_clk_h32mx_setup(struct device_node *np,
-					      struct at91_pmc *pmc);
-#endif
+void of_sama5d4_clk_h32mx_setup(struct device_node *np,
+				struct at91_pmc *pmc);
+
+void of_sama5d2_clk_generated_setup(struct device_node *np,
+				    struct at91_pmc *pmc);
 
 #endif /* __PMC_H_ */

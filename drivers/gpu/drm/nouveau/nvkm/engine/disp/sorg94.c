@@ -24,7 +24,6 @@
 #include "nv50.h"
 #include "outpdp.h"
 
-#include <core/device.h>
 #include <subdev/timer.h>
 
 static inline u32
@@ -39,12 +38,33 @@ g94_sor_loff(struct nvkm_output_dp *outp)
 	return g94_sor_soff(outp) + !(outp->base.info.sorconf.link & 1) * 0x80;
 }
 
-static inline u32
-g94_sor_dp_lane_map(struct nv50_disp_priv *priv, u8 lane)
+/*******************************************************************************
+ * TMDS/LVDS
+ ******************************************************************************/
+static const struct nvkm_output_func
+g94_sor_output_func = {
+};
+
+int
+g94_sor_output_new(struct nvkm_disp *disp, int index,
+		   struct dcb_output *dcbE, struct nvkm_output **poutp)
 {
+	return nvkm_output_new_(&g94_sor_output_func, disp,
+				index, dcbE, poutp);
+}
+
+/*******************************************************************************
+ * DisplayPort
+ ******************************************************************************/
+u32
+g94_sor_dp_lane_map(struct nvkm_device *device, u8 lane)
+{
+	static const u8 gm100[] = { 0, 8, 16, 24 };
 	static const u8 mcp89[] = { 24, 16, 8, 0 }; /* thanks, apple.. */
-	static const u8 g94[] = { 16, 8, 0, 24 };
-	if (nv_device(priv)->chipset == 0xaf)
+	static const u8   g94[] = { 16, 8, 0, 24 };
+	if (device->chipset >= 0x110)
+		return gm100[lane];
+	if (device->chipset == 0xaf)
 		return mcp89[lane];
 	return g94[lane];
 }
@@ -52,33 +72,36 @@ g94_sor_dp_lane_map(struct nv50_disp_priv *priv, u8 lane)
 static int
 g94_sor_dp_pattern(struct nvkm_output_dp *outp, int pattern)
 {
-	struct nv50_disp_priv *priv = (void *)nvkm_disp(outp);
+	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
 	const u32 loff = g94_sor_loff(outp);
-	nv_mask(priv, 0x61c10c + loff, 0x0f000000, pattern << 24);
+	nvkm_mask(device, 0x61c10c + loff, 0x0f000000, pattern << 24);
 	return 0;
 }
 
 int
 g94_sor_dp_lnk_pwr(struct nvkm_output_dp *outp, int nr)
 {
-	struct nv50_disp_priv *priv = (void *)nvkm_disp(outp);
+	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
 	const u32 soff = g94_sor_soff(outp);
 	const u32 loff = g94_sor_loff(outp);
 	u32 mask = 0, i;
 
 	for (i = 0; i < nr; i++)
-		mask |= 1 << (g94_sor_dp_lane_map(priv, i) >> 3);
+		mask |= 1 << (g94_sor_dp_lane_map(device, i) >> 3);
 
-	nv_mask(priv, 0x61c130 + loff, 0x0000000f, mask);
-	nv_mask(priv, 0x61c034 + soff, 0x80000000, 0x80000000);
-	nv_wait(priv, 0x61c034 + soff, 0x80000000, 0x00000000);
+	nvkm_mask(device, 0x61c130 + loff, 0x0000000f, mask);
+	nvkm_mask(device, 0x61c034 + soff, 0x80000000, 0x80000000);
+	nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x61c034 + soff) & 0x80000000))
+			break;
+	);
 	return 0;
 }
 
 static int
 g94_sor_dp_lnk_ctl(struct nvkm_output_dp *outp, int nr, int bw, bool ef)
 {
-	struct nv50_disp_priv *priv = (void *)nvkm_disp(outp);
+	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
 	const u32 soff = g94_sor_soff(outp);
 	const u32 loff = g94_sor_loff(outp);
 	u32 dpctrl = 0x00000000;
@@ -90,17 +113,17 @@ g94_sor_dp_lnk_ctl(struct nvkm_output_dp *outp, int nr, int bw, bool ef)
 	if (bw > 0x06)
 		clksor |= 0x00040000;
 
-	nv_mask(priv, 0x614300 + soff, 0x000c0000, clksor);
-	nv_mask(priv, 0x61c10c + loff, 0x001f4000, dpctrl);
+	nvkm_mask(device, 0x614300 + soff, 0x000c0000, clksor);
+	nvkm_mask(device, 0x61c10c + loff, 0x001f4000, dpctrl);
 	return 0;
 }
 
 static int
 g94_sor_dp_drv_ctl(struct nvkm_output_dp *outp, int ln, int vs, int pe, int pc)
 {
-	struct nv50_disp_priv *priv = (void *)nvkm_disp(outp);
-	struct nvkm_bios *bios = nvkm_bios(priv);
-	const u32 shift = g94_sor_dp_lane_map(priv, ln);
+	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
+	struct nvkm_bios *bios = device->bios;
+	const u32 shift = g94_sor_dp_lane_map(device, ln);
 	const u32 loff = g94_sor_loff(outp);
 	u32 addr, data[3];
 	u8  ver, hdr, cnt, len;
@@ -109,37 +132,37 @@ g94_sor_dp_drv_ctl(struct nvkm_output_dp *outp, int ln, int vs, int pe, int pc)
 
 	addr = nvbios_dpout_match(bios, outp->base.info.hasht,
 					outp->base.info.hashm,
-				 &ver, &hdr, &cnt, &len, &info);
+				  &ver, &hdr, &cnt, &len, &info);
 	if (!addr)
 		return -ENODEV;
 
 	addr = nvbios_dpcfg_match(bios, addr, 0, vs, pe,
-				 &ver, &hdr, &cnt, &len, &ocfg);
+				  &ver, &hdr, &cnt, &len, &ocfg);
 	if (!addr)
 		return -EINVAL;
 
-	data[0] = nv_rd32(priv, 0x61c118 + loff) & ~(0x000000ff << shift);
-	data[1] = nv_rd32(priv, 0x61c120 + loff) & ~(0x000000ff << shift);
-	data[2] = nv_rd32(priv, 0x61c130 + loff);
+	data[0] = nvkm_rd32(device, 0x61c118 + loff) & ~(0x000000ff << shift);
+	data[1] = nvkm_rd32(device, 0x61c120 + loff) & ~(0x000000ff << shift);
+	data[2] = nvkm_rd32(device, 0x61c130 + loff);
 	if ((data[2] & 0x0000ff00) < (ocfg.tx_pu << 8) || ln == 0)
 		data[2] = (data[2] & ~0x0000ff00) | (ocfg.tx_pu << 8);
-	nv_wr32(priv, 0x61c118 + loff, data[0] | (ocfg.dc << shift));
-	nv_wr32(priv, 0x61c120 + loff, data[1] | (ocfg.pe << shift));
-	nv_wr32(priv, 0x61c130 + loff, data[2] | (ocfg.tx_pu << 8));
+	nvkm_wr32(device, 0x61c118 + loff, data[0] | (ocfg.dc << shift));
+	nvkm_wr32(device, 0x61c120 + loff, data[1] | (ocfg.pe << shift));
+	nvkm_wr32(device, 0x61c130 + loff, data[2]);
 	return 0;
 }
 
-struct nvkm_output_dp_impl
-g94_sor_dp_impl = {
-	.base.base.handle = DCB_OUTPUT_DP,
-	.base.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_output_dp_ctor,
-		.dtor = _nvkm_output_dp_dtor,
-		.init = _nvkm_output_dp_init,
-		.fini = _nvkm_output_dp_fini,
-	},
+static const struct nvkm_output_dp_func
+g94_sor_dp_func = {
 	.pattern = g94_sor_dp_pattern,
 	.lnk_pwr = g94_sor_dp_lnk_pwr,
 	.lnk_ctl = g94_sor_dp_lnk_ctl,
 	.drv_ctl = g94_sor_dp_drv_ctl,
 };
+
+int
+g94_sor_dp_new(struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
+	       struct nvkm_output **poutp)
+{
+	return nvkm_output_dp_new_(&g94_sor_dp_func, disp, index, dcbE, poutp);
+}

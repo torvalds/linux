@@ -47,8 +47,8 @@ consume far too much memory.
 Using this device-mapper switch target we can now build a two-layer
 device hierarchy:
 
-    Upper Tier – Determine which array member the I/O should be sent to.
-    Lower Tier – Load balance amongst paths to a particular member.
+    Upper Tier - Determine which array member the I/O should be sent to.
+    Lower Tier - Load balance amongst paths to a particular member.
 
 The lower tier consists of a single dm multipath device for each member.
 Each of these multipath devices contains the set of paths directly to

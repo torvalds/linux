@@ -27,7 +27,7 @@
 #include <linux/kvm_host.h>
 #include <linux/spinlock.h>
 
-#include "iodev.h"
+#include <kvm/iodev.h>
 #include "ioapic.h"
 #include "lapic.h"
 
@@ -74,7 +74,7 @@ struct kvm_pic {
 };
 
 struct kvm_pic *kvm_create_pic(struct kvm *kvm);
-void kvm_destroy_pic(struct kvm *kvm);
+void kvm_destroy_pic(struct kvm_pic *vpic);
 int kvm_pic_read_irq(struct kvm *kvm);
 void kvm_pic_update_irq(struct kvm_pic *s);
 
@@ -83,13 +83,38 @@ static inline struct kvm_pic *pic_irqchip(struct kvm *kvm)
 	return kvm->arch.vpic;
 }
 
-static inline int irqchip_in_kernel(struct kvm *kvm)
+static inline int pic_in_kernel(struct kvm *kvm)
 {
 	int ret;
 
 	ret = (pic_irqchip(kvm) != NULL);
+	return ret;
+}
+
+static inline int irqchip_split(struct kvm *kvm)
+{
+	return kvm->arch.irqchip_split;
+}
+
+static inline int irqchip_in_kernel(struct kvm *kvm)
+{
+	struct kvm_pic *vpic = pic_irqchip(kvm);
+	bool ret;
+
+	ret = (vpic != NULL);
+	ret |= irqchip_split(kvm);
+
+	/* Read vpic before kvm->irq_routing.  */
 	smp_rmb();
 	return ret;
+}
+
+static inline int lapic_in_kernel(struct kvm_vcpu *vcpu)
+{
+	/* Same as irqchip_in_kernel(vcpu->kvm), but with less
+	 * pointer chasing and no unnecessary memory barriers.
+	 */
+	return vcpu->arch.apic != NULL;
 }
 
 void kvm_pic_reset(struct kvm_kpic_state *s);

@@ -21,8 +21,6 @@
 #include <net/ip6_route.h>
 #include <net/addrconf.h>
 
-#include <net/af_ieee802154.h> /* to get the address type */
-
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
@@ -35,7 +33,6 @@ static struct dentry *lowpan_enable_debugfs;
 static struct dentry *lowpan_control_debugfs;
 
 #define IFACE_NAME_TEMPLATE "bt%d"
-#define EUI64_ADDR_LEN 8
 
 struct skb_cb {
 	struct in6_addr addr;
@@ -85,7 +82,7 @@ struct lowpan_dev {
 
 static inline struct lowpan_dev *lowpan_dev(const struct net_device *netdev)
 {
-	return netdev_priv(netdev);
+	return (struct lowpan_dev *)lowpan_priv(netdev)->priv;
 }
 
 static inline void peer_add(struct lowpan_dev *dev, struct lowpan_peer *peer)
@@ -192,7 +189,7 @@ static inline struct lowpan_peer *peer_lookup_dst(struct lowpan_dev *dev,
 		if (ipv6_addr_any(nexthop))
 			return NULL;
 	} else {
-		nexthop = rt6_nexthop(rt);
+		nexthop = rt6_nexthop(rt, daddr);
 
 		/* We need to remember the address because it is needed
 		 * by bt_xmit() when sending the packet. In bt_xmit(), the
@@ -266,14 +263,13 @@ static int give_skb_to_upper(struct sk_buff *skb, struct net_device *dev)
 	if (!skb_cp)
 		return NET_RX_DROP;
 
-	return netif_rx(skb_cp);
+	return netif_rx_ni(skb_cp);
 }
 
 static int iphc_decompress(struct sk_buff *skb, struct net_device *netdev,
 			   struct l2cap_chan *chan)
 {
 	const u8 *saddr, *daddr;
-	u8 iphc0, iphc1;
 	struct lowpan_dev *dev;
 	struct lowpan_peer *peer;
 
@@ -288,22 +284,7 @@ static int iphc_decompress(struct sk_buff *skb, struct net_device *netdev,
 	saddr = peer->eui64_addr;
 	daddr = dev->netdev->dev_addr;
 
-	/* at least two bytes will be used for the encoding */
-	if (skb->len < 2)
-		return -EINVAL;
-
-	if (lowpan_fetch_skb_u8(skb, &iphc0))
-		return -EINVAL;
-
-	if (lowpan_fetch_skb_u8(skb, &iphc1))
-		return -EINVAL;
-
-	return lowpan_header_decompress(skb, netdev,
-					saddr, IEEE802154_ADDR_LONG,
-					EUI64_ADDR_LEN, daddr,
-					IEEE802154_ADDR_LONG, EUI64_ADDR_LEN,
-					iphc0, iphc1);
-
+	return lowpan_header_decompress(skb, netdev, daddr, saddr);
 }
 
 static int recv_pkt(struct sk_buff *skb, struct net_device *dev,
@@ -315,15 +296,17 @@ static int recv_pkt(struct sk_buff *skb, struct net_device *dev,
 	if (!netif_running(dev))
 		goto drop;
 
-	if (dev->type != ARPHRD_6LOWPAN)
+	if (dev->type != ARPHRD_6LOWPAN || !skb->len)
 		goto drop;
+
+	skb_reset_network_header(skb);
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (!skb)
 		goto drop;
 
 	/* check that it's our buffer */
-	if (skb->data[0] == LOWPAN_DISPATCH_IPV6) {
+	if (lowpan_is_ipv6(*skb_network_header(skb))) {
 		/* Copy the packet so that the IPv6 header is
 		 * properly aligned.
 		 */
@@ -335,7 +318,6 @@ static int recv_pkt(struct sk_buff *skb, struct net_device *dev,
 		local_skb->protocol = htons(ETH_P_IPV6);
 		local_skb->pkt_type = PACKET_HOST;
 
-		skb_reset_network_header(local_skb);
 		skb_set_transport_header(local_skb, sizeof(struct ipv6hdr));
 
 		if (give_skb_to_upper(local_skb, dev) != NET_RX_SUCCESS) {
@@ -348,38 +330,34 @@ static int recv_pkt(struct sk_buff *skb, struct net_device *dev,
 
 		consume_skb(local_skb);
 		consume_skb(skb);
-	} else {
-		switch (skb->data[0] & 0xe0) {
-		case LOWPAN_DISPATCH_IPHC:	/* ipv6 datagram */
-			local_skb = skb_clone(skb, GFP_ATOMIC);
-			if (!local_skb)
-				goto drop;
+	} else if (lowpan_is_iphc(*skb_network_header(skb))) {
+		local_skb = skb_clone(skb, GFP_ATOMIC);
+		if (!local_skb)
+			goto drop;
 
-			ret = iphc_decompress(local_skb, dev, chan);
-			if (ret < 0) {
-				kfree_skb(local_skb);
-				goto drop;
-			}
-
-			local_skb->protocol = htons(ETH_P_IPV6);
-			local_skb->pkt_type = PACKET_HOST;
-			local_skb->dev = dev;
-
-			if (give_skb_to_upper(local_skb, dev)
-					!= NET_RX_SUCCESS) {
-				kfree_skb(local_skb);
-				goto drop;
-			}
-
-			dev->stats.rx_bytes += skb->len;
-			dev->stats.rx_packets++;
-
-			consume_skb(local_skb);
-			consume_skb(skb);
-			break;
-		default:
-			break;
+		ret = iphc_decompress(local_skb, dev, chan);
+		if (ret < 0) {
+			kfree_skb(local_skb);
+			goto drop;
 		}
+
+		local_skb->protocol = htons(ETH_P_IPV6);
+		local_skb->pkt_type = PACKET_HOST;
+		local_skb->dev = dev;
+
+		if (give_skb_to_upper(local_skb, dev)
+				!= NET_RX_SUCCESS) {
+			kfree_skb(local_skb);
+			goto drop;
+		}
+
+		dev->stats.rx_bytes += skb->len;
+		dev->stats.rx_packets++;
+
+		consume_skb(local_skb);
+		consume_skb(skb);
+	} else {
+		goto drop;
 	}
 
 	return NET_RX_SUCCESS;
@@ -493,8 +471,7 @@ static int setup_header(struct sk_buff *skb, struct net_device *netdev,
 		status = 1;
 	}
 
-	lowpan_header_compress(skb, netdev, ETH_P_IPV6, daddr,
-			       dev->netdev->dev_addr, skb->len);
+	lowpan_header_compress(skb, netdev, daddr, dev->netdev->dev_addr);
 
 	err = dev_hard_header(skb, netdev, ETH_P_IPV6, NULL, NULL, 0);
 	if (err < 0)
@@ -674,13 +651,8 @@ static struct header_ops header_ops = {
 
 static void netdev_setup(struct net_device *dev)
 {
-	dev->addr_len		= EUI64_ADDR_LEN;
-	dev->type		= ARPHRD_6LOWPAN;
-
 	dev->hard_header_len	= 0;
 	dev->needed_tailroom	= 0;
-	dev->mtu		= IPV6_MIN_MTU;
-	dev->tx_queue_len	= 0;
 	dev->flags		= IFF_RUNNING | IFF_POINTOPOINT |
 				  IFF_MULTICAST;
 	dev->watchdog_timeo	= 0;
@@ -775,24 +747,7 @@ static struct l2cap_chan *chan_create(void)
 
 	chan->chan_type = L2CAP_CHAN_CONN_ORIENTED;
 	chan->mode = L2CAP_MODE_LE_FLOWCTL;
-	chan->omtu = 65535;
-	chan->imtu = chan->omtu;
-
-	return chan;
-}
-
-static struct l2cap_chan *chan_open(struct l2cap_chan *pchan)
-{
-	struct l2cap_chan *chan;
-
-	chan = chan_create();
-	if (!chan)
-		return NULL;
-
-	chan->remote_mps = chan->omtu;
-	chan->mps = chan->omtu;
-
-	chan->state = BT_CONNECTED;
+	chan->imtu = 1280;
 
 	return chan;
 }
@@ -848,30 +803,19 @@ static int setup_netdev(struct l2cap_chan *chan, struct lowpan_dev **dev)
 	struct net_device *netdev;
 	int err = 0;
 
-	netdev = alloc_netdev(sizeof(struct lowpan_dev), IFACE_NAME_TEMPLATE,
-			      NET_NAME_UNKNOWN, netdev_setup);
+	netdev = alloc_netdev(LOWPAN_PRIV_SIZE(sizeof(struct lowpan_dev)),
+			      IFACE_NAME_TEMPLATE, NET_NAME_UNKNOWN,
+			      netdev_setup);
 	if (!netdev)
 		return -ENOMEM;
 
 	set_dev_addr(netdev, &chan->src, chan->src_type);
 
 	netdev->netdev_ops = &netdev_ops;
-	SET_NETDEV_DEV(netdev, &chan->conn->hcon->dev);
+	SET_NETDEV_DEV(netdev, &chan->conn->hcon->hdev->dev);
 	SET_NETDEV_DEVTYPE(netdev, &bt_type);
 
-	err = register_netdev(netdev);
-	if (err < 0) {
-		BT_INFO("register_netdev failed %d", err);
-		free_netdev(netdev);
-		goto out;
-	}
-
-	BT_DBG("ifindex %d peer bdaddr %pMR type %d my addr %pMR type %d",
-	       netdev->ifindex, &chan->dst, chan->dst_type,
-	       &chan->src, chan->src_type);
-	set_bit(__LINK_STATE_PRESENT, &netdev->state);
-
-	*dev = netdev_priv(netdev);
+	*dev = lowpan_dev(netdev);
 	(*dev)->netdev = netdev;
 	(*dev)->hdev = chan->conn->hcon->hdev;
 	INIT_LIST_HEAD(&(*dev)->peers);
@@ -880,6 +824,23 @@ static int setup_netdev(struct l2cap_chan *chan, struct lowpan_dev **dev)
 	INIT_LIST_HEAD(&(*dev)->list);
 	list_add_rcu(&(*dev)->list, &bt_6lowpan_devices);
 	spin_unlock(&devices_lock);
+
+	lowpan_netdev_setup(netdev, LOWPAN_LLTYPE_BTLE);
+
+	err = register_netdev(netdev);
+	if (err < 0) {
+		BT_INFO("register_netdev failed %d", err);
+		spin_lock(&devices_lock);
+		list_del_rcu(&(*dev)->list);
+		spin_unlock(&devices_lock);
+		free_netdev(netdev);
+		goto out;
+	}
+
+	BT_DBG("ifindex %d peer bdaddr %pMR type %d my addr %pMR type %d",
+	       netdev->ifindex, &chan->dst, chan->dst_type,
+	       &chan->src, chan->src_type);
+	set_bit(__LINK_STATE_PRESENT, &netdev->state);
 
 	return 0;
 
@@ -913,7 +874,10 @@ static inline struct l2cap_chan *chan_new_conn_cb(struct l2cap_chan *pchan)
 {
 	struct l2cap_chan *chan;
 
-	chan = chan_open(pchan);
+	chan = chan_create();
+	if (!chan)
+		return NULL;
+
 	chan->ops = pchan->ops;
 
 	BT_DBG("chan %p pchan %p", chan, pchan);
@@ -928,7 +892,7 @@ static void delete_netdev(struct work_struct *work)
 
 	unregister_netdev(entry->netdev);
 
-	/* The entry pointer is deleted in device_event() */
+	/* The entry pointer is deleted by the netdev destructor. */
 }
 
 static void chan_close_cb(struct l2cap_chan *chan)
@@ -937,7 +901,7 @@ static void chan_close_cb(struct l2cap_chan *chan)
 	struct lowpan_dev *dev = NULL;
 	struct lowpan_peer *peer;
 	int err = -ENOENT;
-	bool last = false, removed = true;
+	bool last = false, remove = true;
 
 	BT_DBG("chan %p conn %p", chan, chan->conn);
 
@@ -948,7 +912,7 @@ static void chan_close_cb(struct l2cap_chan *chan)
 		/* If conn is set, then the netdev is also there and we should
 		 * not remove it.
 		 */
-		removed = false;
+		remove = false;
 	}
 
 	spin_lock(&devices_lock);
@@ -977,7 +941,7 @@ static void chan_close_cb(struct l2cap_chan *chan)
 
 		ifdown(dev->netdev);
 
-		if (!removed) {
+		if (remove) {
 			INIT_WORK(&entry->delete_netdev, delete_netdev);
 			schedule_work(&entry->delete_netdev);
 		}
@@ -1059,34 +1023,23 @@ static inline __u8 bdaddr_type(__u8 type)
 		return BDADDR_LE_RANDOM;
 }
 
-static struct l2cap_chan *chan_get(void)
-{
-	struct l2cap_chan *pchan;
-
-	pchan = chan_create();
-	if (!pchan)
-		return NULL;
-
-	pchan->ops = &bt_6lowpan_chan_ops;
-
-	return pchan;
-}
-
 static int bt_6lowpan_connect(bdaddr_t *addr, u8 dst_type)
 {
-	struct l2cap_chan *pchan;
+	struct l2cap_chan *chan;
 	int err;
 
-	pchan = chan_get();
-	if (!pchan)
+	chan = chan_create();
+	if (!chan)
 		return -EINVAL;
 
-	err = l2cap_chan_connect(pchan, cpu_to_le16(L2CAP_PSM_IPSP), 0,
+	chan->ops = &bt_6lowpan_chan_ops;
+
+	err = l2cap_chan_connect(chan, cpu_to_le16(L2CAP_PSM_IPSP), 0,
 				 addr, dst_type);
 
-	BT_DBG("chan %p err %d", pchan, err);
+	BT_DBG("chan %p err %d", chan, err);
 	if (err < 0)
-		l2cap_chan_put(pchan);
+		l2cap_chan_put(chan);
 
 	return err;
 }
@@ -1111,31 +1064,32 @@ static int bt_6lowpan_disconnect(struct l2cap_conn *conn, u8 dst_type)
 static struct l2cap_chan *bt_6lowpan_listen(void)
 {
 	bdaddr_t *addr = BDADDR_ANY;
-	struct l2cap_chan *pchan;
+	struct l2cap_chan *chan;
 	int err;
 
 	if (!enable_6lowpan)
 		return NULL;
 
-	pchan = chan_get();
-	if (!pchan)
+	chan = chan_create();
+	if (!chan)
 		return NULL;
 
-	pchan->state = BT_LISTEN;
-	pchan->src_type = BDADDR_LE_PUBLIC;
+	chan->ops = &bt_6lowpan_chan_ops;
+	chan->state = BT_LISTEN;
+	chan->src_type = BDADDR_LE_PUBLIC;
 
-	atomic_set(&pchan->nesting, L2CAP_NESTING_PARENT);
+	atomic_set(&chan->nesting, L2CAP_NESTING_PARENT);
 
-	BT_DBG("chan %p src type %d", pchan, pchan->src_type);
+	BT_DBG("chan %p src type %d", chan, chan->src_type);
 
-	err = l2cap_add_psm(pchan, addr, cpu_to_le16(L2CAP_PSM_IPSP));
+	err = l2cap_add_psm(chan, addr, cpu_to_le16(L2CAP_PSM_IPSP));
 	if (err) {
-		l2cap_chan_put(pchan);
+		l2cap_chan_put(chan);
 		BT_ERR("psm cannot be added err %d", err);
 		return NULL;
 	}
 
-	return pchan;
+	return chan;
 }
 
 static int get_l2cap_conn(char *buf, bdaddr_t *addr, u8 *addr_type,
@@ -1159,7 +1113,7 @@ static int get_l2cap_conn(char *buf, bdaddr_t *addr, u8 *addr_type,
 		return -ENOENT;
 
 	hci_dev_lock(hdev);
-	hcon = hci_conn_hash_lookup_ba(hdev, LE_LINK, addr);
+	hcon = hci_conn_hash_lookup_le(hdev, addr, *addr_type);
 	hci_dev_unlock(hdev);
 
 	if (!hcon)
@@ -1208,8 +1162,6 @@ static void disconnect_all_peers(void)
 
 		list_del_rcu(&peer->list);
 		kfree_rcu(peer, rcu);
-
-		module_put(THIS_MODULE);
 	}
 	spin_unlock(&devices_lock);
 }
@@ -1418,7 +1370,6 @@ static int device_event(struct notifier_block *unused,
 				BT_DBG("Unregistered netdev %s %p",
 				       netdev->name, netdev);
 				list_del(&entry->list);
-				kfree(entry);
 				break;
 			}
 		}

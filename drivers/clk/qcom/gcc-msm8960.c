@@ -113,40 +113,42 @@ static struct clk_regmap pll14_vote = {
 	},
 };
 
-#define P_PXO	0
-#define P_PLL8	1
-#define P_PLL3	2
-#define P_CXO	2
-
-static const u8 gcc_pxo_pll8_map[] = {
-	[P_PXO]		= 0,
-	[P_PLL8]	= 3,
+enum {
+	P_PXO,
+	P_PLL8,
+	P_PLL3,
+	P_CXO,
 };
 
-static const char *gcc_pxo_pll8[] = {
+static const struct parent_map gcc_pxo_pll8_map[] = {
+	{ P_PXO, 0 },
+	{ P_PLL8, 3 }
+};
+
+static const char * const gcc_pxo_pll8[] = {
 	"pxo",
 	"pll8_vote",
 };
 
-static const u8 gcc_pxo_pll8_cxo_map[] = {
-	[P_PXO]		= 0,
-	[P_PLL8]	= 3,
-	[P_CXO]		= 5,
+static const struct parent_map gcc_pxo_pll8_cxo_map[] = {
+	{ P_PXO, 0 },
+	{ P_PLL8, 3 },
+	{ P_CXO, 5 }
 };
 
-static const char *gcc_pxo_pll8_cxo[] = {
+static const char * const gcc_pxo_pll8_cxo[] = {
 	"pxo",
 	"pll8_vote",
 	"cxo",
 };
 
-static const u8 gcc_pxo_pll8_pll3_map[] = {
-	[P_PXO]		= 0,
-	[P_PLL8]	= 3,
-	[P_PLL3]	= 6,
+static const struct parent_map gcc_pxo_pll8_pll3_map[] = {
+	{ P_PXO, 0 },
+	{ P_PLL8, 3 },
+	{ P_PLL3, 6 }
 };
 
-static const char *gcc_pxo_pll8_pll3[] = {
+static const char * const gcc_pxo_pll8_pll3[] = {
 	"pxo",
 	"pll8_vote",
 	"pll3",
@@ -2083,7 +2085,7 @@ static struct clk_rcg usb_hsic_xcvr_fs_src = {
 	}
 };
 
-static const char *usb_hsic_xcvr_fs_src_p[] = { "usb_hsic_xcvr_fs_src" };
+static const char * const usb_hsic_xcvr_fs_src_p[] = { "usb_hsic_xcvr_fs_src" };
 
 static struct clk_branch usb_hsic_xcvr_fs_clk = {
 	.halt_reg = 0x2fc8,
@@ -2179,7 +2181,7 @@ static struct clk_rcg usb_fs1_xcvr_fs_src = {
 	}
 };
 
-static const char *usb_fs1_xcvr_fs_src_p[] = { "usb_fs1_xcvr_fs_src" };
+static const char * const usb_fs1_xcvr_fs_src_p[] = { "usb_fs1_xcvr_fs_src" };
 
 static struct clk_branch usb_fs1_xcvr_fs_clk = {
 	.halt_reg = 0x2fcc,
@@ -2246,7 +2248,7 @@ static struct clk_rcg usb_fs2_xcvr_fs_src = {
 	}
 };
 
-static const char *usb_fs2_xcvr_fs_src_p[] = { "usb_fs2_xcvr_fs_src" };
+static const char * const usb_fs2_xcvr_fs_src_p[] = { "usb_fs2_xcvr_fs_src" };
 
 static struct clk_branch usb_fs2_xcvr_fs_clk = {
 	.halt_reg = 0x2fcc,
@@ -3504,6 +3506,8 @@ static int gcc_msm8960_probe(struct platform_device *pdev)
 	struct clk *clk;
 	struct device *dev = &pdev->dev;
 	const struct of_device_id *match;
+	struct platform_device *tsens;
+	int ret;
 
 	match = of_match_device(gcc_msm8960_match_table, &pdev->dev);
 	if (!match)
@@ -3518,12 +3522,26 @@ static int gcc_msm8960_probe(struct platform_device *pdev)
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
-	return qcom_cc_probe(pdev, match->data);
+	ret = qcom_cc_probe(pdev, match->data);
+	if (ret)
+		return ret;
+
+	tsens = platform_device_register_data(&pdev->dev, "qcom-tsens", -1,
+					      NULL, 0);
+	if (IS_ERR(tsens))
+		return PTR_ERR(tsens);
+
+	platform_set_drvdata(pdev, tsens);
+
+	return 0;
 }
 
 static int gcc_msm8960_remove(struct platform_device *pdev)
 {
-	qcom_cc_remove(pdev);
+	struct platform_device *tsens = platform_get_drvdata(pdev);
+
+	platform_device_unregister(tsens);
+
 	return 0;
 }
 

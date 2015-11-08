@@ -4,7 +4,8 @@ config SND_HDA
 	tristate
 	select SND_PCM
 	select SND_VMASTER
-	select SND_KCTL_JACK
+	select SND_JACK if INPUT=y || INPUT=SND
+	select SND_HDA_CORE
 
 config SND_HDA_INTEL
 	tristate "HD Audio PCI"
@@ -36,22 +37,6 @@ config SND_HDA_TEGRA
 	  will be called snd-hda-tegra.
 
 if SND_HDA
-
-config SND_HDA_DSP_LOADER
-	bool
-
-config SND_HDA_PREALLOC_SIZE
-	int "Pre-allocated buffer size for HD-audio driver"
-	range 0 32768
-	default 64
-	help
-	  Specifies the default pre-allocated buffer-size in kB for the
-	  HD-audio driver.  A larger buffer (e.g. 2048) is preferred
-	  for systems using PulseAudio.  The default 64 is chosen just
-	  for compatibility reasons.
-
-	  Note that the pre-allocation size can be changed dynamically
-	  via a proc file (/proc/asound/card*/pcm*/sub*/prealloc), too.
 
 config SND_HDA_HWDEP
 	bool "Build hwdep interface for HD-audio driver"
@@ -85,14 +70,6 @@ config SND_HDA_INPUT_BEEP_MODE
 	  Set 0 to disable the digital beep interface for HD-audio by default.
 	  Set 1 to always enable the digital beep interface for HD-audio by
 	  default.
-
-config SND_HDA_INPUT_JACK
-	bool "Support jack plugging notification via input layer"
-	depends on INPUT=y || INPUT=SND
-	select SND_JACK
-	help
-	  Say Y here to enable the jack plugging notification via
-	  input layer.
 
 config SND_HDA_PATCH_LOADER
 	bool "Support initialization patch loading for HD-audio"
@@ -154,11 +131,6 @@ config SND_HDA_CODEC_HDMI
 
 comment "Set to Y if you want auto-loading the codec driver"
 	depends on SND_HDA=y && SND_HDA_CODEC_HDMI=m
-
-config SND_HDA_I915
-	bool
-	default y
-	depends on DRM_I915
 
 config SND_HDA_CODEC_CIRRUS
 	tristate "Build Cirrus Logic codec support"

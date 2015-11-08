@@ -108,6 +108,7 @@
 #define CON_DRIVER_FLAG_MODULE 1
 #define CON_DRIVER_FLAG_INIT   2
 #define CON_DRIVER_FLAG_ATTR   4
+#define CON_DRIVER_FLAG_ZOMBIE 8
 
 struct con_driver {
 	const struct consw *con;
@@ -135,6 +136,7 @@ const struct consw *conswitchp;
  */
 #define DEFAULT_BELL_PITCH	750
 #define DEFAULT_BELL_DURATION	(HZ/8)
+#define DEFAULT_CURSOR_BLINK_MS	200
 
 struct vc vc_cons [MAX_NR_CONSOLES];
 
@@ -153,6 +155,7 @@ static int set_vesa_blanking(char __user *p);
 static void set_cursor(struct vc_data *vc);
 static void hide_cursor(struct vc_data *vc);
 static void console_callback(struct work_struct *ignored);
+static void con_driver_unregister_callback(struct work_struct *ignored);
 static void blank_screen_t(unsigned long dummy);
 static void set_palette(struct vc_data *vc);
 
@@ -182,6 +185,7 @@ static int blankinterval = 10*60;
 core_param(consoleblank, blankinterval, int, 0444);
 
 static DECLARE_WORK(console_work, console_callback);
+static DECLARE_WORK(con_driver_unregister_work, con_driver_unregister_callback);
 
 /*
  * fg_console is the current virtual console,
@@ -738,6 +742,8 @@ static void visual_init(struct vc_data *vc, int num, int init)
 	__module_get(vc->vc_sw->owner);
 	vc->vc_num = num;
 	vc->vc_display_fg = &master_display_fg;
+	if (vc->vc_uni_pagedir_loc)
+		con_free_unimap(vc);
 	vc->vc_uni_pagedir_loc = &vc->vc_uni_pagedir;
 	vc->vc_uni_pagedir = NULL;
 	vc->vc_hi_font_mask = 0;
@@ -1237,7 +1243,7 @@ static void default_attr(struct vc_data *vc)
 
 struct rgb { u8 r; u8 g; u8 b; };
 
-struct rgb rgb_from_256(int i)
+static struct rgb rgb_from_256(int i)
 {
 	struct rgb c;
 	if (i < 8) {            /* Standard colours. */
@@ -1573,7 +1579,7 @@ static void setterm_command(struct vc_data *vc)
 		case 11: /* set bell duration in msec */
 			if (vc->vc_npar >= 1)
 				vc->vc_bell_duration = (vc->vc_par[1] < 2000) ?
-					vc->vc_par[1] * HZ / 1000 : 0;
+					msecs_to_jiffies(vc->vc_par[1]) : 0;
 			else
 				vc->vc_bell_duration = DEFAULT_BELL_DURATION;
 			break;
@@ -1589,6 +1595,13 @@ static void setterm_command(struct vc_data *vc)
 			break;
 		case 15: /* activate the previous console */
 			set_console(last_console);
+			break;
+		case 16: /* set cursor blink duration in msec */
+			if (vc->vc_npar >= 1 && vc->vc_par[1] >= 50 &&
+					vc->vc_par[1] <= USHRT_MAX)
+				vc->vc_cur_blink_ms = vc->vc_par[1];
+			else
+				vc->vc_cur_blink_ms = DEFAULT_CURSOR_BLINK_MS;
 			break;
 	}
 }
@@ -1717,6 +1730,7 @@ static void reset_terminal(struct vc_data *vc, int do_clear)
 
 	vc->vc_bell_pitch = DEFAULT_BELL_PITCH;
 	vc->vc_bell_duration = DEFAULT_BELL_DURATION;
+	vc->vc_cur_blink_ms = DEFAULT_CURSOR_BLINK_MS;
 
 	gotoxy(vc, 0, 0);
 	save_cur(vc);
@@ -3041,17 +3055,24 @@ static ssize_t show_tty_active(struct device *dev,
 }
 static DEVICE_ATTR(active, S_IRUGO, show_tty_active, NULL);
 
+static struct attribute *vt_dev_attrs[] = {
+	&dev_attr_active.attr,
+	NULL
+};
+
+ATTRIBUTE_GROUPS(vt_dev);
+
 int __init vty_init(const struct file_operations *console_fops)
 {
 	cdev_init(&vc0_cdev, console_fops);
 	if (cdev_add(&vc0_cdev, MKDEV(TTY_MAJOR, 0), 1) ||
 	    register_chrdev_region(MKDEV(TTY_MAJOR, 0), 1, "/dev/vc/0") < 0)
 		panic("Couldn't register /dev/tty0 driver\n");
-	tty0dev = device_create(tty_class, NULL, MKDEV(TTY_MAJOR, 0), NULL, "tty0");
+	tty0dev = device_create_with_groups(tty_class, NULL,
+					    MKDEV(TTY_MAJOR, 0), NULL,
+					    vt_dev_groups, "tty0");
 	if (IS_ERR(tty0dev))
 		tty0dev = NULL;
-	else
-		WARN_ON(device_create_file(tty0dev, &dev_attr_active) < 0);
 
 	vcs_init();
 
@@ -3185,22 +3206,6 @@ err:
 
 
 #ifdef CONFIG_VT_HW_CONSOLE_BINDING
-static int con_is_graphics(const struct consw *csw, int first, int last)
-{
-	int i, retval = 0;
-
-	for (i = first; i <= last; i++) {
-		struct vc_data *vc = vc_cons[i].d;
-
-		if (vc && vc->vc_mode == KD_GRAPHICS) {
-			retval = 1;
-			break;
-		}
-	}
-
-	return retval;
-}
-
 /* unlocked version of unbind_con_driver() */
 int do_unbind_con_driver(const struct consw *csw, int first, int last, int deflt)
 {
@@ -3286,8 +3291,7 @@ static int vt_bind(struct con_driver *con)
 	const struct consw *defcsw = NULL, *csw = NULL;
 	int i, more = 1, first = -1, last = -1, deflt = 0;
 
- 	if (!con->con || !(con->flag & CON_DRIVER_FLAG_MODULE) ||
-	    con_is_graphics(con->con, con->first, con->last))
+ 	if (!con->con || !(con->flag & CON_DRIVER_FLAG_MODULE))
 		goto err;
 
 	csw = con->con;
@@ -3338,8 +3342,7 @@ static int vt_unbind(struct con_driver *con)
 	int i, more = 1, first = -1, last = -1, deflt = 0;
 	int ret;
 
- 	if (!con->con || !(con->flag & CON_DRIVER_FLAG_MODULE) ||
-	    con_is_graphics(con->con, con->first, con->last))
+ 	if (!con->con || !(con->flag & CON_DRIVER_FLAG_MODULE))
 		goto err;
 
 	csw = con->con;
@@ -3423,42 +3426,26 @@ static ssize_t show_name(struct device *dev, struct device_attribute *attr,
 
 }
 
-static struct device_attribute device_attrs[] = {
-	__ATTR(bind, S_IRUGO|S_IWUSR, show_bind, store_bind),
-	__ATTR(name, S_IRUGO, show_name, NULL),
+static DEVICE_ATTR(bind, S_IRUGO|S_IWUSR, show_bind, store_bind);
+static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+
+static struct attribute *con_dev_attrs[] = {
+	&dev_attr_bind.attr,
+	&dev_attr_name.attr,
+	NULL
 };
+
+ATTRIBUTE_GROUPS(con_dev);
 
 static int vtconsole_init_device(struct con_driver *con)
 {
-	int i;
-	int error = 0;
-
 	con->flag |= CON_DRIVER_FLAG_ATTR;
-	dev_set_drvdata(con->dev, con);
-	for (i = 0; i < ARRAY_SIZE(device_attrs); i++) {
-		error = device_create_file(con->dev, &device_attrs[i]);
-		if (error)
-			break;
-	}
-
-	if (error) {
-		while (--i >= 0)
-			device_remove_file(con->dev, &device_attrs[i]);
-		con->flag &= ~CON_DRIVER_FLAG_ATTR;
-	}
-
-	return error;
+	return 0;
 }
 
 static void vtconsole_deinit_device(struct con_driver *con)
 {
-	int i;
-
-	if (con->flag & CON_DRIVER_FLAG_ATTR) {
-		for (i = 0; i < ARRAY_SIZE(device_attrs); i++)
-			device_remove_file(con->dev, &device_attrs[i]);
-		con->flag &= ~CON_DRIVER_FLAG_ATTR;
-	}
+	con->flag &= ~CON_DRIVER_FLAG_ATTR;
 }
 
 /**
@@ -3605,7 +3592,8 @@ static int do_register_con_driver(const struct consw *csw, int first, int last)
 	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
 		con_driver = &registered_con_driver[i];
 
-		if (con_driver->con == NULL) {
+		if (con_driver->con == NULL &&
+		    !(con_driver->flag & CON_DRIVER_FLAG_ZOMBIE)) {
 			con_driver->con = csw;
 			con_driver->desc = desc;
 			con_driver->node = i;
@@ -3621,11 +3609,11 @@ static int do_register_con_driver(const struct consw *csw, int first, int last)
 	if (retval)
 		goto err;
 
-	con_driver->dev = device_create(vtconsole_class, NULL,
-						MKDEV(0, con_driver->node),
-						NULL, "vtcon%i",
-						con_driver->node);
-
+	con_driver->dev =
+		device_create_with_groups(vtconsole_class, NULL,
+					  MKDEV(0, con_driver->node),
+					  con_driver, con_dev_groups,
+					  "vtcon%i", con_driver->node);
 	if (IS_ERR(con_driver->dev)) {
 		printk(KERN_WARNING "Unable to create device for %s; "
 		       "errno = %ld\n", con_driver->desc,
@@ -3667,16 +3655,20 @@ int do_unregister_con_driver(const struct consw *csw)
 		struct con_driver *con_driver = &registered_con_driver[i];
 
 		if (con_driver->con == csw) {
-			vtconsole_deinit_device(con_driver);
-			device_destroy(vtconsole_class,
-				       MKDEV(0, con_driver->node));
+			/*
+			 * Defer the removal of the sysfs entries since that
+			 * will acquire the kernfs s_active lock and we can't
+			 * acquire this lock while holding the console lock:
+			 * the unbind sysfs entry imposes already the opposite
+			 * order. Reset con already here to prevent any later
+			 * lookup to succeed and mark this slot as zombie, so
+			 * it won't get reused until we complete the removal
+			 * in the deferred work.
+			 */
 			con_driver->con = NULL;
-			con_driver->desc = NULL;
-			con_driver->dev = NULL;
-			con_driver->node = 0;
-			con_driver->flag = 0;
-			con_driver->first = 0;
-			con_driver->last = 0;
+			con_driver->flag = CON_DRIVER_FLAG_ZOMBIE;
+			schedule_work(&con_driver_unregister_work);
+
 			return 0;
 		}
 	}
@@ -3684,6 +3676,39 @@ int do_unregister_con_driver(const struct consw *csw)
 	return -ENODEV;
 }
 EXPORT_SYMBOL_GPL(do_unregister_con_driver);
+
+static void con_driver_unregister_callback(struct work_struct *ignored)
+{
+	int i;
+
+	console_lock();
+
+	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
+		struct con_driver *con_driver = &registered_con_driver[i];
+
+		if (!(con_driver->flag & CON_DRIVER_FLAG_ZOMBIE))
+			continue;
+
+		console_unlock();
+
+		vtconsole_deinit_device(con_driver);
+		device_destroy(vtconsole_class, MKDEV(0, con_driver->node));
+
+		console_lock();
+
+		if (WARN_ON_ONCE(con_driver->con))
+			con_driver->con = NULL;
+		con_driver->desc = NULL;
+		con_driver->dev = NULL;
+		con_driver->node = 0;
+		WARN_ON_ONCE(con_driver->flag != CON_DRIVER_FLAG_ZOMBIE);
+		con_driver->flag = 0;
+		con_driver->first = 0;
+		con_driver->last = 0;
+	}
+
+	console_unlock();
+}
 
 /*
  *	If we support more console drivers, this function is used
@@ -3739,10 +3764,11 @@ static int __init vtconsole_class_init(void)
 		struct con_driver *con = &registered_con_driver[i];
 
 		if (con->con && !con->dev) {
-			con->dev = device_create(vtconsole_class, NULL,
-							 MKDEV(0, con->node),
-							 NULL, "vtcon%i",
-							 con->node);
+			con->dev =
+				device_create_with_groups(vtconsole_class, NULL,
+							  MKDEV(0, con->node),
+							  con, con_dev_groups,
+							  "vtcon%i", con->node);
 
 			if (IS_ERR(con->dev)) {
 				printk(KERN_WARNING "Unable to create "

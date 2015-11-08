@@ -75,7 +75,7 @@ struct tsc2007 {
 	u16			model;
 	u16			x_plate_ohms;
 	u16			max_rt;
-	unsigned long		poll_period;
+	unsigned long		poll_period; /* in jiffies */
 	int			fuzzx;
 	int			fuzzy;
 	int			fuzzz;
@@ -214,8 +214,7 @@ static irqreturn_t tsc2007_soft_irq(int irq, void *handle)
 			dev_dbg(&ts->client->dev, "ignored pressure %d\n", rt);
 		}
 
-		wait_event_timeout(ts->wait, ts->stopped,
-				   msecs_to_jiffies(ts->poll_period));
+		wait_event_timeout(ts->wait, ts->stopped, ts->poll_period);
 	}
 
 	dev_dbg(&ts->client->dev, "UP\n");
@@ -314,9 +313,9 @@ static int tsc2007_probe_dt(struct i2c_client *client, struct tsc2007 *ts)
 		ts->fuzzz = val32;
 
 	if (!of_property_read_u64(np, "ti,poll-period", &val64))
-		ts->poll_period = val64;
+		ts->poll_period = msecs_to_jiffies(val64);
 	else
-		ts->poll_period = 1;
+		ts->poll_period = msecs_to_jiffies(1);
 
 	if (!of_property_read_u32(np, "ti,x-plate-ohms", &val32)) {
 		ts->x_plate_ohms = val32;
@@ -350,7 +349,7 @@ static int tsc2007_probe_pdev(struct i2c_client *client, struct tsc2007 *ts,
 	ts->model             = pdata->model;
 	ts->x_plate_ohms      = pdata->x_plate_ohms;
 	ts->max_rt            = pdata->max_rt ? : MAX_12BIT;
-	ts->poll_period       = pdata->poll_period ? : 1;
+	ts->poll_period       = msecs_to_jiffies(pdata->poll_period ? : 1);
 	ts->get_pendown_state = pdata->get_pendown_state;
 	ts->clear_penirq      = pdata->clear_penirq;
 	ts->fuzzx             = pdata->fuzzx;
@@ -483,7 +482,6 @@ MODULE_DEVICE_TABLE(of, tsc2007_of_match);
 
 static struct i2c_driver tsc2007_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "tsc2007",
 		.of_match_table = of_match_ptr(tsc2007_of_match),
 	},

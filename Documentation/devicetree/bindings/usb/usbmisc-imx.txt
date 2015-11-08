@@ -5,6 +5,7 @@ Required properties:
 - compatible: Should be one of below:
 	"fsl,imx6q-usbmisc" for imx6q
 	"fsl,vf610-usbmisc" for Vybrid vf610
+	"fsl,imx6sx-usbmisc" for imx6sx
 - reg: Should contain registers location and length
 
 Examples:

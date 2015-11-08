@@ -94,7 +94,7 @@
 /* Define the timeout for waiting for a DHCP/BOOTP/RARP reply */
 #define CONF_OPEN_RETRIES 	2	/* (Re)open devices twice */
 #define CONF_SEND_RETRIES 	6	/* Send six requests per open */
-#define CONF_INTER_TIMEOUT	(HZ/2)	/* Inter-device timeout: 1/2 second */
+#define CONF_INTER_TIMEOUT	(HZ)	/* Inter-device timeout: 1 second */
 #define CONF_BASE_TIMEOUT	(HZ*2)	/* Initial timeout: 2 seconds */
 #define CONF_TIMEOUT_RANDOM	(HZ)	/* Maximum amount of randomization */
 #define CONF_TIMEOUT_MULT	*7/4	/* Rate of timeout growth */
@@ -145,6 +145,10 @@ u8 root_server_path[256] = { 0, };	/* Path to mount as root */
 
 /* vendor class identifier */
 static char vendor_class_identifier[253] __initdata;
+
+#if defined(CONFIG_IP_PNP_DHCP)
+static char dhcp_client_identifier[253] __initdata;
+#endif
 
 /* Persistent data: */
 
@@ -504,7 +508,8 @@ ic_rarp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	if (!net_eq(dev_net(dev), &init_net))
 		goto drop;
 
-	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (!skb)
 		return NET_RX_DROP;
 
 	if (!pskb_may_pull(skb, sizeof(struct arphdr)))
@@ -726,6 +731,16 @@ ic_dhcp_init_options(u8 *options)
 			*e++ = len;
 			memcpy(e, vendor_class_identifier, len);
 			e += len;
+		}
+		len = strlen(dhcp_client_identifier + 1);
+		/* the minimum length of identifier is 2, include 1 byte type,
+		 * and can not be larger than the length of options
+		 */
+		if (len >= 1 && len < 312 - (e - options) - 1) {
+			*e++ = 61;
+			*e++ = len + 1;
+			memcpy(e, dhcp_client_identifier, len + 1);
+			e += len + 1;
 		}
 	}
 
@@ -958,7 +973,8 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 	if (skb->pkt_type == PACKET_OTHERHOST)
 		goto drop;
 
-	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (!skb)
 		return NET_RX_DROP;
 
 	if (!pskb_may_pull(skb,
@@ -1555,8 +1571,24 @@ static int __init ic_proto_name(char *name)
 		return 0;
 	}
 #ifdef CONFIG_IP_PNP_DHCP
-	else if (!strcmp(name, "dhcp")) {
+	else if (!strncmp(name, "dhcp", 4)) {
+		char *client_id;
+
 		ic_proto_enabled &= ~IC_RARP;
+		client_id = strstr(name, "dhcp,");
+		if (client_id) {
+			char *v;
+
+			client_id = client_id + 5;
+			v = strchr(client_id, ',');
+			if (!v)
+				return 1;
+			*v = 0;
+			if (kstrtou8(client_id, 0, dhcp_client_identifier))
+				DBG("DHCP: Invalid client identifier type\n");
+			strncpy(dhcp_client_identifier + 1, v + 1, 251);
+			*v = ',';
+		}
 		return 1;
 	}
 #endif

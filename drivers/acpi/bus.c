@@ -15,10 +15,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  *  General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
- *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
@@ -319,14 +315,10 @@ static void acpi_bus_osc_support(void)
 
 	capbuf[OSC_QUERY_DWORD] = OSC_QUERY_ENABLE;
 	capbuf[OSC_SUPPORT_DWORD] = OSC_SB_PR3_SUPPORT; /* _PR3 is in use */
-#if defined(CONFIG_ACPI_PROCESSOR_AGGREGATOR) ||\
-			defined(CONFIG_ACPI_PROCESSOR_AGGREGATOR_MODULE)
-	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PAD_SUPPORT;
-#endif
-
-#if defined(CONFIG_ACPI_PROCESSOR) || defined(CONFIG_ACPI_PROCESSOR_MODULE)
-	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PPC_OST_SUPPORT;
-#endif
+	if (IS_ENABLED(CONFIG_ACPI_PROCESSOR_AGGREGATOR))
+		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PAD_SUPPORT;
+	if (IS_ENABLED(CONFIG_ACPI_PROCESSOR))
+		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PPC_OST_SUPPORT;
 
 	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_HOTPLUG_OST_SUPPORT;
 
@@ -423,6 +415,406 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 	acpi_evaluate_ost(handle, type, ost_code, NULL);
 }
 
+static void acpi_device_notify(acpi_handle handle, u32 event, void *data)
+{
+	struct acpi_device *device = data;
+
+	device->driver->ops.notify(device, event);
+}
+
+static void acpi_device_notify_fixed(void *data)
+{
+	struct acpi_device *device = data;
+
+	/* Fixed hardware devices have no handles */
+	acpi_device_notify(NULL, ACPI_FIXED_HARDWARE_EVENT, device);
+}
+
+static u32 acpi_device_fixed_event(void *data)
+{
+	acpi_os_execute(OSL_NOTIFY_HANDLER, acpi_device_notify_fixed, data);
+	return ACPI_INTERRUPT_HANDLED;
+}
+
+static int acpi_device_install_notify_handler(struct acpi_device *device)
+{
+	acpi_status status;
+
+	if (device->device_type == ACPI_BUS_TYPE_POWER_BUTTON)
+		status =
+		    acpi_install_fixed_event_handler(ACPI_EVENT_POWER_BUTTON,
+						     acpi_device_fixed_event,
+						     device);
+	else if (device->device_type == ACPI_BUS_TYPE_SLEEP_BUTTON)
+		status =
+		    acpi_install_fixed_event_handler(ACPI_EVENT_SLEEP_BUTTON,
+						     acpi_device_fixed_event,
+						     device);
+	else
+		status = acpi_install_notify_handler(device->handle,
+						     ACPI_DEVICE_NOTIFY,
+						     acpi_device_notify,
+						     device);
+
+	if (ACPI_FAILURE(status))
+		return -EINVAL;
+	return 0;
+}
+
+static void acpi_device_remove_notify_handler(struct acpi_device *device)
+{
+	if (device->device_type == ACPI_BUS_TYPE_POWER_BUTTON)
+		acpi_remove_fixed_event_handler(ACPI_EVENT_POWER_BUTTON,
+						acpi_device_fixed_event);
+	else if (device->device_type == ACPI_BUS_TYPE_SLEEP_BUTTON)
+		acpi_remove_fixed_event_handler(ACPI_EVENT_SLEEP_BUTTON,
+						acpi_device_fixed_event);
+	else
+		acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
+					   acpi_device_notify);
+}
+
+/* --------------------------------------------------------------------------
+                             Device Matching
+   -------------------------------------------------------------------------- */
+
+static struct acpi_device *acpi_primary_dev_companion(struct acpi_device *adev,
+						      const struct device *dev)
+{
+	struct mutex *physical_node_lock = &adev->physical_node_lock;
+
+	mutex_lock(physical_node_lock);
+	if (list_empty(&adev->physical_node_list)) {
+		adev = NULL;
+	} else {
+		const struct acpi_device_physical_node *node;
+
+		node = list_first_entry(&adev->physical_node_list,
+					struct acpi_device_physical_node, node);
+		if (node->dev != dev)
+			adev = NULL;
+	}
+	mutex_unlock(physical_node_lock);
+	return adev;
+}
+
+/**
+ * acpi_device_is_first_physical_node - Is given dev first physical node
+ * @adev: ACPI companion device
+ * @dev: Physical device to check
+ *
+ * Function checks if given @dev is the first physical devices attached to
+ * the ACPI companion device. This distinction is needed in some cases
+ * where the same companion device is shared between many physical devices.
+ *
+ * Note that the caller have to provide valid @adev pointer.
+ */
+bool acpi_device_is_first_physical_node(struct acpi_device *adev,
+					const struct device *dev)
+{
+	return !!acpi_primary_dev_companion(adev, dev);
+}
+
+/*
+ * acpi_companion_match() - Can we match via ACPI companion device
+ * @dev: Device in question
+ *
+ * Check if the given device has an ACPI companion and if that companion has
+ * a valid list of PNP IDs, and if the device is the first (primary) physical
+ * device associated with it.  Return the companion pointer if that's the case
+ * or NULL otherwise.
+ *
+ * If multiple physical devices are attached to a single ACPI companion, we need
+ * to be careful.  The usage scenario for this kind of relationship is that all
+ * of the physical devices in question use resources provided by the ACPI
+ * companion.  A typical case is an MFD device where all the sub-devices share
+ * the parent's ACPI companion.  In such cases we can only allow the primary
+ * (first) physical device to be matched with the help of the companion's PNP
+ * IDs.
+ *
+ * Additional physical devices sharing the ACPI companion can still use
+ * resources available from it but they will be matched normally using functions
+ * provided by their bus types (and analogously for their modalias).
+ */
+struct acpi_device *acpi_companion_match(const struct device *dev)
+{
+	struct acpi_device *adev;
+
+	adev = ACPI_COMPANION(dev);
+	if (!adev)
+		return NULL;
+
+	if (list_empty(&adev->pnp.ids))
+		return NULL;
+
+	return acpi_primary_dev_companion(adev, dev);
+}
+
+/**
+ * acpi_of_match_device - Match device object using the "compatible" property.
+ * @adev: ACPI device object to match.
+ * @of_match_table: List of device IDs to match against.
+ *
+ * If @dev has an ACPI companion which has ACPI_DT_NAMESPACE_HID in its list of
+ * identifiers and a _DSD object with the "compatible" property, use that
+ * property to match against the given list of identifiers.
+ */
+static bool acpi_of_match_device(struct acpi_device *adev,
+				 const struct of_device_id *of_match_table)
+{
+	const union acpi_object *of_compatible, *obj;
+	int i, nval;
+
+	if (!adev)
+		return false;
+
+	of_compatible = adev->data.of_compatible;
+	if (!of_match_table || !of_compatible)
+		return false;
+
+	if (of_compatible->type == ACPI_TYPE_PACKAGE) {
+		nval = of_compatible->package.count;
+		obj = of_compatible->package.elements;
+	} else { /* Must be ACPI_TYPE_STRING. */
+		nval = 1;
+		obj = of_compatible;
+	}
+	/* Now we can look for the driver DT compatible strings */
+	for (i = 0; i < nval; i++, obj++) {
+		const struct of_device_id *id;
+
+		for (id = of_match_table; id->compatible[0]; id++)
+			if (!strcasecmp(obj->string.pointer, id->compatible))
+				return true;
+	}
+
+	return false;
+}
+
+static bool __acpi_match_device_cls(const struct acpi_device_id *id,
+				    struct acpi_hardware_id *hwid)
+{
+	int i, msk, byte_shift;
+	char buf[3];
+
+	if (!id->cls)
+		return false;
+
+	/* Apply class-code bitmask, before checking each class-code byte */
+	for (i = 1; i <= 3; i++) {
+		byte_shift = 8 * (3 - i);
+		msk = (id->cls_msk >> byte_shift) & 0xFF;
+		if (!msk)
+			continue;
+
+		sprintf(buf, "%02x", (id->cls >> byte_shift) & msk);
+		if (strncmp(buf, &hwid->id[(i - 1) * 2], 2))
+			return false;
+	}
+	return true;
+}
+
+static const struct acpi_device_id *__acpi_match_device(
+	struct acpi_device *device,
+	const struct acpi_device_id *ids,
+	const struct of_device_id *of_ids)
+{
+	const struct acpi_device_id *id;
+	struct acpi_hardware_id *hwid;
+
+	/*
+	 * If the device is not present, it is unnecessary to load device
+	 * driver for it.
+	 */
+	if (!device || !device->status.present)
+		return NULL;
+
+	list_for_each_entry(hwid, &device->pnp.ids, list) {
+		/* First, check the ACPI/PNP IDs provided by the caller. */
+		for (id = ids; id->id[0] || id->cls; id++) {
+			if (id->id[0] && !strcmp((char *) id->id, hwid->id))
+				return id;
+			else if (id->cls && __acpi_match_device_cls(id, hwid))
+				return id;
+		}
+
+		/*
+		 * Next, check ACPI_DT_NAMESPACE_HID and try to match the
+		 * "compatible" property if found.
+		 *
+		 * The id returned by the below is not valid, but the only
+		 * caller passing non-NULL of_ids here is only interested in
+		 * whether or not the return value is NULL.
+		 */
+		if (!strcmp(ACPI_DT_NAMESPACE_HID, hwid->id)
+		    && acpi_of_match_device(device, of_ids))
+			return id;
+	}
+	return NULL;
+}
+
+/**
+ * acpi_match_device - Match a struct device against a given list of ACPI IDs
+ * @ids: Array of struct acpi_device_id object to match against.
+ * @dev: The device structure to match.
+ *
+ * Check if @dev has a valid ACPI handle and if there is a struct acpi_device
+ * object for that handle and use that object to match against a given list of
+ * device IDs.
+ *
+ * Return a pointer to the first matching ID on success or %NULL on failure.
+ */
+const struct acpi_device_id *acpi_match_device(const struct acpi_device_id *ids,
+					       const struct device *dev)
+{
+	return __acpi_match_device(acpi_companion_match(dev), ids, NULL);
+}
+EXPORT_SYMBOL_GPL(acpi_match_device);
+
+int acpi_match_device_ids(struct acpi_device *device,
+			  const struct acpi_device_id *ids)
+{
+	return __acpi_match_device(device, ids, NULL) ? 0 : -ENOENT;
+}
+EXPORT_SYMBOL(acpi_match_device_ids);
+
+bool acpi_driver_match_device(struct device *dev,
+			      const struct device_driver *drv)
+{
+	if (!drv->acpi_match_table)
+		return acpi_of_match_device(ACPI_COMPANION(dev),
+					    drv->of_match_table);
+
+	return !!__acpi_match_device(acpi_companion_match(dev),
+				     drv->acpi_match_table, drv->of_match_table);
+}
+EXPORT_SYMBOL_GPL(acpi_driver_match_device);
+
+/* --------------------------------------------------------------------------
+                              ACPI Driver Management
+   -------------------------------------------------------------------------- */
+
+/**
+ * acpi_bus_register_driver - register a driver with the ACPI bus
+ * @driver: driver being registered
+ *
+ * Registers a driver with the ACPI bus.  Searches the namespace for all
+ * devices that match the driver's criteria and binds.  Returns zero for
+ * success or a negative error status for failure.
+ */
+int acpi_bus_register_driver(struct acpi_driver *driver)
+{
+	int ret;
+
+	if (acpi_disabled)
+		return -ENODEV;
+	driver->drv.name = driver->name;
+	driver->drv.bus = &acpi_bus_type;
+	driver->drv.owner = driver->owner;
+
+	ret = driver_register(&driver->drv);
+	return ret;
+}
+
+EXPORT_SYMBOL(acpi_bus_register_driver);
+
+/**
+ * acpi_bus_unregister_driver - unregisters a driver with the ACPI bus
+ * @driver: driver to unregister
+ *
+ * Unregisters a driver with the ACPI bus.  Searches the namespace for all
+ * devices that match the driver's criteria and unbinds.
+ */
+void acpi_bus_unregister_driver(struct acpi_driver *driver)
+{
+	driver_unregister(&driver->drv);
+}
+
+EXPORT_SYMBOL(acpi_bus_unregister_driver);
+
+/* --------------------------------------------------------------------------
+                              ACPI Bus operations
+   -------------------------------------------------------------------------- */
+
+static int acpi_bus_match(struct device *dev, struct device_driver *drv)
+{
+	struct acpi_device *acpi_dev = to_acpi_device(dev);
+	struct acpi_driver *acpi_drv = to_acpi_driver(drv);
+
+	return acpi_dev->flags.match_driver
+		&& !acpi_match_device_ids(acpi_dev, acpi_drv->ids);
+}
+
+static int acpi_device_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	return __acpi_device_uevent_modalias(to_acpi_device(dev), env);
+}
+
+static int acpi_device_probe(struct device *dev)
+{
+	struct acpi_device *acpi_dev = to_acpi_device(dev);
+	struct acpi_driver *acpi_drv = to_acpi_driver(dev->driver);
+	int ret;
+
+	if (acpi_dev->handler && !acpi_is_pnp_device(acpi_dev))
+		return -EINVAL;
+
+	if (!acpi_drv->ops.add)
+		return -ENOSYS;
+
+	ret = acpi_drv->ops.add(acpi_dev);
+	if (ret)
+		return ret;
+
+	acpi_dev->driver = acpi_drv;
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			  "Driver [%s] successfully bound to device [%s]\n",
+			  acpi_drv->name, acpi_dev->pnp.bus_id));
+
+	if (acpi_drv->ops.notify) {
+		ret = acpi_device_install_notify_handler(acpi_dev);
+		if (ret) {
+			if (acpi_drv->ops.remove)
+				acpi_drv->ops.remove(acpi_dev);
+
+			acpi_dev->driver = NULL;
+			acpi_dev->driver_data = NULL;
+			return ret;
+		}
+	}
+
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found driver [%s] for device [%s]\n",
+			  acpi_drv->name, acpi_dev->pnp.bus_id));
+	get_device(dev);
+	return 0;
+}
+
+static int acpi_device_remove(struct device * dev)
+{
+	struct acpi_device *acpi_dev = to_acpi_device(dev);
+	struct acpi_driver *acpi_drv = acpi_dev->driver;
+
+	if (acpi_drv) {
+		if (acpi_drv->ops.notify)
+			acpi_device_remove_notify_handler(acpi_dev);
+		if (acpi_drv->ops.remove)
+			acpi_drv->ops.remove(acpi_dev);
+	}
+	acpi_dev->driver = NULL;
+	acpi_dev->driver_data = NULL;
+
+	put_device(dev);
+	return 0;
+}
+
+struct bus_type acpi_bus_type = {
+	.name		= "acpi",
+	.match		= acpi_bus_match,
+	.probe		= acpi_device_probe,
+	.remove		= acpi_device_remove,
+	.uevent		= acpi_device_uevent,
+};
+
 /* --------------------------------------------------------------------------
                              Initialization/Cleanup
    -------------------------------------------------------------------------- */
@@ -448,6 +840,9 @@ static int __init acpi_bus_init_irq(void)
 	case ACPI_IRQ_MODEL_IOSAPIC:
 		message = "IOSAPIC";
 		break;
+	case ACPI_IRQ_MODEL_GIC:
+		message = "GIC";
+		break;
 	case ACPI_IRQ_MODEL_PLATFORM:
 		message = "platform specific model";
 		break;
@@ -467,6 +862,16 @@ static int __init acpi_bus_init_irq(void)
 	return 0;
 }
 
+/**
+ * acpi_early_init - Initialize ACPICA and populate the ACPI namespace.
+ *
+ * The ACPI tables are accessible after this, but the handling of events has not
+ * been initialized and the global lock is not available yet, so AML should not
+ * be executed at this point.
+ *
+ * Doing this before switching the EFI runtime services to virtual mode allows
+ * the EfiBootServices memory to be freed slightly earlier on boot.
+ */
 void __init acpi_early_init(void)
 {
 	acpi_status status;
@@ -530,26 +935,42 @@ void __init acpi_early_init(void)
 		acpi_gbl_FADT.sci_interrupt = acpi_sci_override_gsi;
 	}
 #endif
+	return;
+
+ error0:
+	disable_acpi();
+}
+
+/**
+ * acpi_subsystem_init - Finalize the early initialization of ACPI.
+ *
+ * Switch over the platform to the ACPI mode (if possible), initialize the
+ * handling of ACPI events, install the interrupt and global lock handlers.
+ *
+ * Doing this too early is generally unsafe, but at the same time it needs to be
+ * done before all things that really depend on ACPI.  The right spot appears to
+ * be before finalizing the EFI initialization.
+ */
+void __init acpi_subsystem_init(void)
+{
+	acpi_status status;
+
+	if (acpi_disabled)
+		return;
 
 	status = acpi_enable_subsystem(~ACPI_NO_ACPI_ENABLE);
 	if (ACPI_FAILURE(status)) {
 		printk(KERN_ERR PREFIX "Unable to enable ACPI\n");
-		goto error0;
+		disable_acpi();
+	} else {
+		/*
+		 * If the system is using ACPI then we can be reasonably
+		 * confident that any regulators are managed by the firmware
+		 * so tell the regulator core it has everything it needs to
+		 * know.
+		 */
+		regulator_has_full_constraints();
 	}
-
-	/*
-	 * If the system is using ACPI then we can be reasonably
-	 * confident that any regulators are managed by the firmware
-	 * so tell the regulator core it has everything it needs to
-	 * know.
-	 */
-	regulator_has_full_constraints();
-
-	return;
-
-      error0:
-	disable_acpi();
-	return;
 }
 
 static int __init acpi_bus_init(void)
@@ -632,7 +1053,9 @@ static int __init acpi_bus_init(void)
 	 */
 	acpi_root_dir = proc_mkdir(ACPI_BUS_FILE_ROOT, NULL);
 
-	return 0;
+	result = bus_register(&acpi_bus_type);
+	if (!result)
+		return 0;
 
 	/* Mimic structured exception handling */
       error1:

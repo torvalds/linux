@@ -57,7 +57,7 @@ static int tipc_ib_addr2str(struct tipc_media_addr *a, char *str_buf,
 /* Convert from media address format to discovery message addr format */
 static int tipc_ib_addr2msg(char *msg, struct tipc_media_addr *addr)
 {
-	memset(msg, 0, TIPC_MEDIA_ADDR_SIZE);
+	memset(msg, 0, TIPC_MEDIA_INFO_SIZE);
 	memcpy(msg, addr->value, INFINIBAND_ALEN);
 	return 0;
 }

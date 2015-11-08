@@ -182,7 +182,7 @@ static inline int srcu_read_lock_held(struct srcu_struct *sp)
  * lockdep_is_held() calls.
  */
 #define srcu_dereference_check(p, sp, c) \
-	__rcu_dereference_check((p), srcu_read_lock_held(sp) || (c), __rcu)
+	__rcu_dereference_check((p), (c) || srcu_read_lock_held(sp), __rcu)
 
 /**
  * srcu_dereference - fetch SRCU-protected pointer for later dereferencing
@@ -215,8 +215,11 @@ static inline int srcu_read_lock_held(struct srcu_struct *sp)
  */
 static inline int srcu_read_lock(struct srcu_struct *sp) __acquires(sp)
 {
-	int retval = __srcu_read_lock(sp);
+	int retval;
 
+	preempt_disable();
+	retval = __srcu_read_lock(sp);
+	preempt_enable();
 	rcu_lock_acquire(&(sp)->dep_map);
 	return retval;
 }

@@ -217,7 +217,8 @@ static int lov_init_raid0(const struct lu_env *env,
 	r0->lo_nr  = lsm->lsm_stripe_count;
 	LASSERT(r0->lo_nr <= lov_targets_nr(dev));
 
-	OBD_ALLOC_LARGE(r0->lo_sub, r0->lo_nr * sizeof(r0->lo_sub[0]));
+	r0->lo_sub = libcfs_kvzalloc(r0->lo_nr * sizeof(r0->lo_sub[0]),
+				     GFP_NOFS);
 	if (r0->lo_sub != NULL) {
 		result = 0;
 		subconf->coc_inode = conf->coc_inode;
@@ -229,6 +230,9 @@ static int lov_init_raid0(const struct lu_env *env,
 			struct cl_device *subdev;
 			struct lov_oinfo *oinfo = lsm->lsm_oinfo[i];
 			int ost_idx = oinfo->loi_ost_idx;
+
+			if (lov_oinfo_is_dummy(oinfo))
+				continue;
 
 			result = ostid_to_fid(ofid, &oinfo->loi_oi,
 					      oinfo->loi_ost_idx);
@@ -371,7 +375,7 @@ static void lov_fini_raid0(const struct lu_env *env, struct lov_object *lov,
 	struct lov_layout_raid0 *r0 = &state->raid0;
 
 	if (r0->lo_sub != NULL) {
-		OBD_FREE_LARGE(r0->lo_sub, r0->lo_nr * sizeof(r0->lo_sub[0]));
+		kvfree(r0->lo_sub);
 		r0->lo_sub = NULL;
 	}
 
@@ -563,7 +567,7 @@ static const struct lov_layout_operations lov_dispatch[] = {
 /**
  * Return lov_layout_type associated with a given lsm
  */
-enum lov_layout_type lov_type(struct lov_stripe_md *lsm)
+static enum lov_layout_type lov_type(struct lov_stripe_md *lsm)
 {
 	if (lsm == NULL)
 		return LLT_EMPTY;
@@ -804,7 +808,7 @@ static void lov_object_free(const struct lu_env *env, struct lu_object *obj)
 
 	LOV_2DISPATCH_VOID(lov, llo_fini, env, lov, &lov->u);
 	lu_object_fini(obj);
-	OBD_SLAB_FREE_PTR(lov, lov_object_kmem);
+	kmem_cache_free(lov_object_kmem, lov);
 }
 
 static int lov_object_print(const struct lu_env *env, void *cookie,
@@ -887,7 +891,7 @@ struct lu_object *lov_object_alloc(const struct lu_env *env,
 	struct lov_object *lov;
 	struct lu_object  *obj;
 
-	OBD_SLAB_ALLOC_PTR_GFP(lov, lov_object_kmem, GFP_NOFS);
+	lov = kmem_cache_alloc(lov_object_kmem, GFP_NOFS | __GFP_ZERO);
 	if (lov != NULL) {
 		obj = lov2lu(lov);
 		lu_object_init(obj, NULL, dev);
@@ -904,7 +908,7 @@ struct lu_object *lov_object_alloc(const struct lu_env *env,
 	return obj;
 }
 
-struct lov_stripe_md *lov_lsm_addref(struct lov_object *lov)
+static struct lov_stripe_md *lov_lsm_addref(struct lov_object *lov)
 {
 	struct lov_stripe_md *lsm = NULL;
 
@@ -917,17 +921,6 @@ struct lov_stripe_md *lov_lsm_addref(struct lov_object *lov)
 	}
 	lov_conf_thaw(lov);
 	return lsm;
-}
-
-void lov_lsm_decref(struct lov_object *lov, struct lov_stripe_md *lsm)
-{
-	if (lsm == NULL)
-		return;
-
-	CDEBUG(D_INODE, "lsm %p decref %d by %p.\n",
-		lsm, atomic_read(&lsm->lsm_refc), current);
-
-	lov_free_memmd(&lsm);
 }
 
 struct lov_stripe_md *lov_lsm_get(struct cl_object *clobj)
@@ -973,6 +966,10 @@ int lov_read_and_clear_async_rc(struct cl_object *clob)
 			LASSERT(lsm != NULL);
 			for (i = 0; i < lsm->lsm_stripe_count; i++) {
 				struct lov_oinfo *loi = lsm->lsm_oinfo[i];
+
+				if (lov_oinfo_is_dummy(loi))
+					continue;
+
 				if (loi->loi_ar.ar_rc && !rc)
 					rc = loi->loi_ar.ar_rc;
 				loi->loi_ar.ar_rc = 0;

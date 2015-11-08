@@ -32,6 +32,7 @@
 #define DRIVER_DESC		"USB Video Class driver"
 
 unsigned int uvc_clock_param = CLOCK_MONOTONIC;
+unsigned int uvc_hw_timestamps_param;
 unsigned int uvc_no_drop_param;
 static unsigned int uvc_quirks_param = -1;
 unsigned int uvc_trace_param;
@@ -1669,10 +1670,6 @@ static void uvc_delete(struct uvc_device *dev)
 #ifdef CONFIG_MEDIA_CONTROLLER
 		uvc_mc_cleanup_entity(entity);
 #endif
-		if (entity->vdev) {
-			video_device_release(entity->vdev);
-			entity->vdev = NULL;
-		}
 		kfree(entity);
 	}
 
@@ -1717,11 +1714,10 @@ static void uvc_unregister_video(struct uvc_device *dev)
 	atomic_inc(&dev->nstreams);
 
 	list_for_each_entry(stream, &dev->streams, list) {
-		if (stream->vdev == NULL)
+		if (!video_is_registered(&stream->vdev))
 			continue;
 
-		video_unregister_device(stream->vdev);
-		stream->vdev = NULL;
+		video_unregister_device(&stream->vdev);
 
 		uvc_debugfs_cleanup_stream(stream);
 	}
@@ -1736,7 +1732,7 @@ static void uvc_unregister_video(struct uvc_device *dev)
 static int uvc_register_video(struct uvc_device *dev,
 		struct uvc_streaming *stream)
 {
-	struct video_device *vdev;
+	struct video_device *vdev = &stream->vdev;
 	int ret;
 
 	/* Initialize the video buffers queue. */
@@ -1757,12 +1753,6 @@ static int uvc_register_video(struct uvc_device *dev,
 	uvc_debugfs_init_stream(stream);
 
 	/* Register the device with V4L. */
-	vdev = video_device_alloc();
-	if (vdev == NULL) {
-		uvc_printk(KERN_ERR, "Failed to allocate video device (%d).\n",
-			   ret);
-		return -ENOMEM;
-	}
 
 	/* We already hold a reference to dev->udev. The video device will be
 	 * unregistered before the reference is released, so we don't need to
@@ -1780,15 +1770,12 @@ static int uvc_register_video(struct uvc_device *dev,
 	/* Set the driver data before calling video_register_device, otherwise
 	 * uvc_v4l2_open might race us.
 	 */
-	stream->vdev = vdev;
 	video_set_drvdata(vdev, stream);
 
 	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
 	if (ret < 0) {
 		uvc_printk(KERN_ERR, "Failed to register video device (%d).\n",
 			   ret);
-		stream->vdev = NULL;
-		video_device_release(vdev);
 		return ret;
 	}
 
@@ -1827,7 +1814,7 @@ static int uvc_register_terms(struct uvc_device *dev,
 		if (ret < 0)
 			return ret;
 
-		term->vdev = stream->vdev;
+		term->vdev = &stream->vdev;
 	}
 
 	return 0;
@@ -1981,8 +1968,6 @@ static void uvc_disconnect(struct usb_interface *intf)
 	    UVC_SC_VIDEOSTREAMING)
 		return;
 
-	dev->state |= UVC_DEV_DISCONNECTED;
-
 	uvc_unregister_video(dev);
 }
 
@@ -2094,6 +2079,8 @@ static int uvc_clock_param_set(const char *val, struct kernel_param *kp)
 module_param_call(clock, uvc_clock_param_set, uvc_clock_param_get,
 		  &uvc_clock_param, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(clock, "Video buffers timestamp clock");
+module_param_named(hwtimestamps, uvc_hw_timestamps_param, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(hwtimestamps, "Use hardware timestamps");
 module_param_named(nodrop, uvc_no_drop_param, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(nodrop, "Don't drop incomplete frames");
 module_param_named(quirks, uvc_quirks_param, uint, S_IRUGO|S_IWUSR);
@@ -2461,6 +2448,14 @@ static struct usb_device_id uvc_ids[] = {
 	  .bInterfaceProtocol	= 0,
 	  .driver_info		= UVC_QUIRK_PROBE_MINMAX
 				| UVC_QUIRK_PROBE_EXTRAFIELDS },
+	/* Aveo Technology USB 2.0 Camera (Tasco USB Microscope) */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x1871,
+	  .idProduct		= 0x0516,
+	  .bInterfaceClass	= USB_CLASS_VENDOR_SPEC,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0 },
 	/* Ecamm Pico iMage */
 	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
 				| USB_DEVICE_ID_MATCH_INT_INFO,

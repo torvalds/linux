@@ -62,11 +62,10 @@ Socket Interface
 ================
 
   AF_RDS, PF_RDS, SOL_RDS
-        These constants haven't been assigned yet, because RDS isn't in
-        mainline yet. Currently, the kernel module assigns some constant
-        and publishes it to user space through two sysctl files
-                /proc/sys/net/rds/pf_rds
-                /proc/sys/net/rds/sol_rds
+	AF_RDS and PF_RDS are the domain type to be used with socket(2)
+	to create RDS sockets. SOL_RDS is the socket-level to be used
+	with setsockopt(2) and getsockopt(2) for RDS specific socket
+	options.
 
   fd = socket(PF_RDS, SOCK_SEQPACKET, 0);
         This creates a new, unbound RDS socket.

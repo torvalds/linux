@@ -36,7 +36,9 @@ static void __init bockw_init(void)
 	void __iomem *fpga;
 	void __iomem *pfc;
 
+#ifndef CONFIG_COMMON_CLK
 	r8a7778_clock_init();
+#endif
 	r8a7778_init_irq_extpin_dt(1);
 	r8a7778_add_dt_devices();
 
@@ -70,7 +72,7 @@ static void __init bockw_init(void)
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
-static const char *bockw_boards_compat_dt[] __initdata = {
+static const char *const bockw_boards_compat_dt[] __initconst = {
 	"renesas,bockw-reference",
 	NULL,
 };

@@ -19,6 +19,8 @@
  ******************************************************************************/
 #define _RTW_WLAN_UTIL_C_
 
+#include <linux/ieee80211.h>
+
 #include <osdep_service.h>
 #include <drv_types.h>
 #include <wifi.h>
@@ -88,35 +90,25 @@ int cckratesonly_included(unsigned char *rate, int ratelen)
 
 unsigned char networktype_to_raid(unsigned char network_type)
 {
-	unsigned char raid;
-
 	switch (network_type) {
 	case WIRELESS_11B:
-		raid = RATR_INX_WIRELESS_B;
-		break;
+		return RATR_INX_WIRELESS_B;
 	case WIRELESS_11A:
 	case WIRELESS_11G:
-		raid = RATR_INX_WIRELESS_G;
-		break;
+		return RATR_INX_WIRELESS_G;
 	case WIRELESS_11BG:
-		raid = RATR_INX_WIRELESS_GB;
-		break;
+		return RATR_INX_WIRELESS_GB;
 	case WIRELESS_11_24N:
 	case WIRELESS_11_5N:
-		raid = RATR_INX_WIRELESS_N;
-		break;
+		return RATR_INX_WIRELESS_N;
 	case WIRELESS_11A_5N:
 	case WIRELESS_11G_24N:
-		raid = RATR_INX_WIRELESS_NG;
-		break;
+		return  RATR_INX_WIRELESS_NG;
 	case WIRELESS_11BG_24N:
-		raid = RATR_INX_WIRELESS_NGB;
-		break;
+		return RATR_INX_WIRELESS_NGB;
 	default:
-		raid = RATR_INX_WIRELESS_GB;
-		break;
+		return RATR_INX_WIRELESS_GB;
 	}
-	return raid;
 }
 
 u8 judge_network_type(struct adapter *padapter, unsigned char *rate, int ratelen)
@@ -146,47 +138,34 @@ u8 judge_network_type(struct adapter *padapter, unsigned char *rate, int ratelen
 
 static unsigned char ratetbl_val_2wifirate(unsigned char rate)
 {
-	unsigned char val = 0;
-
 	switch (rate & 0x7f) {
 	case 0:
-		val = IEEE80211_CCK_RATE_1MB;
-		break;
+		return IEEE80211_CCK_RATE_1MB;
 	case 1:
-		val = IEEE80211_CCK_RATE_2MB;
-		break;
+		return IEEE80211_CCK_RATE_2MB;
 	case 2:
-		val = IEEE80211_CCK_RATE_5MB;
-		break;
+		return IEEE80211_CCK_RATE_5MB;
 	case 3:
-		val = IEEE80211_CCK_RATE_11MB;
-		break;
+		return IEEE80211_CCK_RATE_11MB;
 	case 4:
-		val = IEEE80211_OFDM_RATE_6MB;
-		break;
+		return IEEE80211_OFDM_RATE_6MB;
 	case 5:
-		val = IEEE80211_OFDM_RATE_9MB;
-		break;
+		return IEEE80211_OFDM_RATE_9MB;
 	case 6:
-		val = IEEE80211_OFDM_RATE_12MB;
-		break;
+		return IEEE80211_OFDM_RATE_12MB;
 	case 7:
-		val = IEEE80211_OFDM_RATE_18MB;
-		break;
+		return IEEE80211_OFDM_RATE_18MB;
 	case 8:
-		val = IEEE80211_OFDM_RATE_24MB;
-		break;
+		return IEEE80211_OFDM_RATE_24MB;
 	case 9:
-		val = IEEE80211_OFDM_RATE_36MB;
-		break;
+		return IEEE80211_OFDM_RATE_36MB;
 	case 10:
-		val = IEEE80211_OFDM_RATE_48MB;
-		break;
+		return IEEE80211_OFDM_RATE_48MB;
 	case 11:
-		val = IEEE80211_OFDM_RATE_54MB;
-		break;
+		return IEEE80211_OFDM_RATE_54MB;
+	default:
+		return 0;
 	}
-	return val;
 }
 
 static int is_basicrate(struct adapter *padapter, unsigned char rate)
@@ -485,14 +464,14 @@ void write_cam(struct adapter *padapter, u8 entry, u16 ctrl, u8 *mac, u8 *key)
 	for (j = 5; j >= 0; j--) {
 		switch (j) {
 		case 0:
-			val = (ctrl | (mac[0] << 16) | (mac[1] << 24));
+			val = ctrl | (mac[0] << 16) | (mac[1] << 24);
 			break;
 		case 1:
-			val = (mac[2] | (mac[3] << 8) | (mac[4] << 16) | (mac[5] << 24));
+			val = mac[2] | (mac[3] << 8) | (mac[4] << 16) | (mac[5] << 24);
 			break;
 		default:
 			i = (j - 2) << 2;
-			val = (key[i] | (key[i+1] << 8) | (key[i+2] << 16) | (key[i+3] << 24));
+			val = key[i] | (key[i+1] << 8) | (key[i+2] << 16) | (key[i+3] << 24);
 			break;
 		}
 
@@ -587,7 +566,7 @@ void WMMOnAssocRsp(struct adapter *padapter)
 		/* AIFS = AIFSN * slot time + SIFS - r2t phy delay */
 		AIFS = (pmlmeinfo->WMM_param.ac_param[i].ACI_AIFSN & 0x0f) * pmlmeinfo->slotTime + aSifsTime;
 
-		ECWMin = (pmlmeinfo->WMM_param.ac_param[i].CW & 0x0f);
+		ECWMin = pmlmeinfo->WMM_param.ac_param[i].CW & 0x0f;
 		ECWMax = (pmlmeinfo->WMM_param.ac_param[i].CW & 0xf0) >> 4;
 		TXOP = le16_to_cpu(pmlmeinfo->WMM_param.ac_param[i].TXOP_limit);
 
@@ -626,7 +605,7 @@ void WMMOnAssocRsp(struct adapter *padapter)
 	inx[0] = 0; inx[1] = 1; inx[2] = 2; inx[3] = 3;
 
 	if (pregpriv->wifi_spec == 1) {
-		u32	j, tmp, change_inx = false;
+		u32	j, change_inx = false;
 
 		/* entry indx: 0->vo, 1->vi, 2->be, 3->bk. */
 		for (i = 0; i < 4; i++) {
@@ -641,14 +620,8 @@ void WMMOnAssocRsp(struct adapter *padapter)
 				}
 
 				if (change_inx) {
-					tmp = edca[i];
-					edca[i] = edca[j];
-					edca[j] = tmp;
-
-					tmp = inx[i];
-					inx[i] = inx[j];
-					inx[j] = tmp;
-
+					swap(edca[i], edca[j]);
+					swap(inx[i], inx[j]);
 					change_inx = false;
 				}
 			}
@@ -659,8 +632,6 @@ void WMMOnAssocRsp(struct adapter *padapter)
 		pxmitpriv->wmm_para_seq[i] = inx[i];
 		DBG_88E("wmm_para_seq(%d): %d\n", i, pxmitpriv->wmm_para_seq[i]);
 	}
-
-	return;
 }
 
 static void bwmode_update_check(struct adapter *padapter, struct ndis_802_11_var_ie *pIE)
@@ -766,14 +737,14 @@ void HT_caps_handler(struct adapter *padapter, struct ndis_802_11_var_ie *pIE)
 		} else {
 			/* modify from  fw by Thomas 2010/11/17 */
 			if ((pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para & 0x3) > (pIE->data[i] & 0x3))
-				max_AMPDU_len = (pIE->data[i] & 0x3);
+				max_AMPDU_len = pIE->data[i] & 0x3;
 			else
-				max_AMPDU_len = (pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para & 0x3);
+				max_AMPDU_len = pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para & 0x3;
 
 			if ((pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para & 0x1c) > (pIE->data[i] & 0x1c))
-				min_MPDU_spacing = (pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para & 0x1c);
+				min_MPDU_spacing = pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para & 0x1c;
 			else
-				min_MPDU_spacing = (pIE->data[i] & 0x1c);
+				min_MPDU_spacing = pIE->data[i] & 0x1c;
 
 			pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para = max_AMPDU_len | min_MPDU_spacing;
 		}
@@ -788,7 +759,6 @@ void HT_caps_handler(struct adapter *padapter, struct ndis_802_11_var_ie *pIE)
 		else
 			pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate[i] &= MCS_rate_2R[i];
 	}
-	return;
 }
 
 void HT_info_handler(struct adapter *padapter, struct ndis_802_11_var_ie *pIE)
@@ -809,7 +779,6 @@ void HT_info_handler(struct adapter *padapter, struct ndis_802_11_var_ie *pIE)
 
 	pmlmeinfo->HT_info_enable = 1;
 	memcpy(&(pmlmeinfo->HT_info), pIE->data, pIE->Length);
-	return;
 }
 
 void HTOnAssocRsp(struct adapter *padapter)
@@ -1221,48 +1190,36 @@ unsigned int is_ap_in_wep(struct adapter *padapter)
 
 static int wifirate2_ratetbl_inx(unsigned char rate)
 {
-	int	inx = 0;
 	rate = rate & 0x7f;
 
 	switch (rate) {
 	case 54*2:
-		inx = 11;
-		break;
+		return 11;
 	case 48*2:
-		inx = 10;
-		break;
+		return 10;
 	case 36*2:
-		inx = 9;
-		break;
+		return 9;
 	case 24*2:
-		inx = 8;
-		break;
+		return 8;
 	case 18*2:
-		inx = 7;
-		break;
+		return 7;
 	case 12*2:
-		inx = 6;
-		break;
+		return 6;
 	case 9*2:
-		inx = 5;
-		break;
+		return 5;
 	case 6*2:
-		inx = 4;
-		break;
+		return 4;
 	case 11*2:
-		inx = 3;
-		break;
+		return 3;
 	case 11:
-		inx = 2;
-		break;
+		return 2;
 	case 2*2:
-		inx = 1;
-		break;
+		return 1;
 	case 1*2:
-		inx = 0;
-		break;
+		return 0;
+	default:
+		return 0;
 	}
-	return inx;
 }
 
 unsigned int update_basic_rate(unsigned char *ptn, unsigned int ptn_sz)
@@ -1270,7 +1227,7 @@ unsigned int update_basic_rate(unsigned char *ptn, unsigned int ptn_sz)
 	unsigned int i, num_of_rate;
 	unsigned int mask = 0;
 
-	num_of_rate = (ptn_sz > NumRates) ? NumRates : ptn_sz;
+	num_of_rate = min_t(unsigned int, ptn_sz, NumRates);
 
 	for (i = 0; i < num_of_rate; i++) {
 		if ((*(ptn + i)) & 0x80)
@@ -1284,7 +1241,7 @@ unsigned int update_supported_rate(unsigned char *ptn, unsigned int ptn_sz)
 	unsigned int i, num_of_rate;
 	unsigned int mask = 0;
 
-	num_of_rate = (ptn_sz > NumRates) ? NumRates : ptn_sz;
+	num_of_rate = min_t(unsigned int, ptn_sz, NumRates);
 
 	for (i = 0; i < num_of_rate; i++)
 		mask |= 0x1 << wifirate2_ratetbl_inx(*(ptn + i));
@@ -1295,7 +1252,7 @@ unsigned int update_MSC_rate(struct HT_caps_element *pHT_caps)
 {
 	unsigned int mask = 0;
 
-	mask = ((pHT_caps->u.HT_cap_element.MCS_rate[0] << 12) | (pHT_caps->u.HT_cap_element.MCS_rate[1] << 20));
+	mask = (pHT_caps->u.HT_cap_element.MCS_rate[0] << 12) | (pHT_caps->u.HT_cap_element.MCS_rate[1] << 20);
 
 	return mask;
 }
@@ -1309,7 +1266,7 @@ int support_short_GI(struct adapter *padapter, struct HT_caps_element *pHT_caps)
 	if (!(pmlmeinfo->HT_enable))
 		return _FAIL;
 
-	if ((pmlmeinfo->assoc_AP_vendor == HT_IOT_PEER_RALINK))
+	if (pmlmeinfo->assoc_AP_vendor == HT_IOT_PEER_RALINK)
 		return _FAIL;
 
 	bit_offset = (pmlmeext->cur_bwmode & HT_CHANNEL_WIDTH_40) ? 6 : 5;
@@ -1457,13 +1414,15 @@ void update_IOT_info(struct adapter *padapter)
 		pmlmeinfo->turboMode_cts2self = 0;
 		pmlmeinfo->turboMode_rtsen = 1;
 		/* disable high power */
-		Switch_DM_Func(padapter, (~DYNAMIC_BB_DYNAMIC_TXPWR), false);
+		Switch_DM_Func(padapter, (u32)(~DYNAMIC_BB_DYNAMIC_TXPWR),
+			       false);
 		break;
 	case HT_IOT_PEER_REALTEK:
 		/* rtw_write16(padapter, 0x4cc, 0xffff); */
 		/* rtw_write16(padapter, 0x546, 0x01c0); */
 		/* disable high power */
-		Switch_DM_Func(padapter, (~DYNAMIC_BB_DYNAMIC_TXPWR), false);
+		Switch_DM_Func(padapter, (u32)(~DYNAMIC_BB_DYNAMIC_TXPWR),
+			       false);
 		break;
 	default:
 		pmlmeinfo->turboMode_cts2self = 0;

@@ -112,7 +112,7 @@ static void TsAddBaProcess(unsigned long data)
 
 static void ResetTsCommonInfo(PTS_COMMON_INFO pTsCommonInfo)
 {
-	memset(pTsCommonInfo->Addr, 0, 6);
+	eth_zero_addr(pTsCommonInfo->Addr);
 	memset(&pTsCommonInfo->TSpec, 0, sizeof(TSPEC_BODY));
 	memset(&pTsCommonInfo->TClass, 0, sizeof(QOS_TCLAS)*TCLAS_NUM);
 	pTsCommonInfo->TClasProc = 0;
@@ -156,26 +156,16 @@ void TSInitialize(struct ieee80211_device *ieee)
 		pTxTS->num = count;
 		// The timers for the operation of Traffic Stream and Block Ack.
 		// DLS related timer will be add here in the future!!
-		init_timer(&pTxTS->TsCommonInfo.SetupTimer);
-		pTxTS->TsCommonInfo.SetupTimer.data = (unsigned long)pTxTS;
-		pTxTS->TsCommonInfo.SetupTimer.function = TsSetupTimeOut;
-
-		init_timer(&pTxTS->TsCommonInfo.InactTimer);
-		pTxTS->TsCommonInfo.InactTimer.data = (unsigned long)pTxTS;
-		pTxTS->TsCommonInfo.InactTimer.function = TsInactTimeout;
-
-		init_timer(&pTxTS->TsAddBaTimer);
-		pTxTS->TsAddBaTimer.data = (unsigned long)pTxTS;
-		pTxTS->TsAddBaTimer.function = TsAddBaProcess;
-
-		init_timer(&pTxTS->TxPendingBARecord.Timer);
-		pTxTS->TxPendingBARecord.Timer.data = (unsigned long)pTxTS;
-		pTxTS->TxPendingBARecord.Timer.function = BaSetupTimeOut;
-
-		init_timer(&pTxTS->TxAdmittedBARecord.Timer);
-		pTxTS->TxAdmittedBARecord.Timer.data = (unsigned long)pTxTS;
-		pTxTS->TxAdmittedBARecord.Timer.function = TxBaInactTimeout;
-
+		setup_timer(&pTxTS->TsCommonInfo.SetupTimer, TsSetupTimeOut,
+			    (unsigned long)pTxTS);
+		setup_timer(&pTxTS->TsCommonInfo.InactTimer, TsInactTimeout,
+			    (unsigned long)pTxTS);
+		setup_timer(&pTxTS->TsAddBaTimer, TsAddBaProcess,
+			    (unsigned long)pTxTS);
+		setup_timer(&pTxTS->TxPendingBARecord.Timer, BaSetupTimeOut,
+			    (unsigned long)pTxTS);
+		setup_timer(&pTxTS->TxAdmittedBARecord.Timer,
+			    TxBaInactTimeout, (unsigned long)pTxTS);
 		ResetTxTsEntry(pTxTS);
 		list_add_tail(&pTxTS->TsCommonInfo.List, &ieee->Tx_TS_Unused_List);
 		pTxTS++;
@@ -189,23 +179,14 @@ void TSInitialize(struct ieee80211_device *ieee)
 	{
 		pRxTS->num = count;
 		INIT_LIST_HEAD(&pRxTS->RxPendingPktList);
-
-		init_timer(&pRxTS->TsCommonInfo.SetupTimer);
-		pRxTS->TsCommonInfo.SetupTimer.data = (unsigned long)pRxTS;
-		pRxTS->TsCommonInfo.SetupTimer.function = TsSetupTimeOut;
-
-		init_timer(&pRxTS->TsCommonInfo.InactTimer);
-		pRxTS->TsCommonInfo.InactTimer.data = (unsigned long)pRxTS;
-		pRxTS->TsCommonInfo.InactTimer.function = TsInactTimeout;
-
-		init_timer(&pRxTS->RxAdmittedBARecord.Timer);
-		pRxTS->RxAdmittedBARecord.Timer.data = (unsigned long)pRxTS;
-		pRxTS->RxAdmittedBARecord.Timer.function = RxBaInactTimeout;
-
-		init_timer(&pRxTS->RxPktPendingTimer);
-		pRxTS->RxPktPendingTimer.data = (unsigned long)pRxTS;
-		pRxTS->RxPktPendingTimer.function = RxPktPendingTimeout;
-
+		setup_timer(&pRxTS->TsCommonInfo.SetupTimer, TsSetupTimeOut,
+			    (unsigned long)pRxTS);
+		setup_timer(&pRxTS->TsCommonInfo.InactTimer, TsInactTimeout,
+			    (unsigned long)pRxTS);
+		setup_timer(&pRxTS->RxAdmittedBARecord.Timer,
+			    RxBaInactTimeout, (unsigned long)pRxTS);
+		setup_timer(&pRxTS->RxPktPendingTimer, RxPktPendingTimeout,
+			    (unsigned long)pRxTS);
 		ResetRxTsEntry(pRxTS);
 		list_add_tail(&pRxTS->TsCommonInfo.List, &ieee->Rx_TS_Unused_List);
 		pRxTS++;
@@ -288,7 +269,7 @@ static PTS_COMMON_INFO SearchAdmitTRStream(struct ieee80211_device *ieee,
 	//for(dir = DIR_UP; dir <= DIR_BI_DIR; dir++)
 	for(dir = 0; dir <= DIR_BI_DIR; dir++)
 	{
-		if(search_dir[dir] ==false )
+		if (!search_dir[dir])
 			continue;
 		list_for_each_entry(pRet, psearch_list, List){
 	//		IEEE80211_DEBUG(IEEE80211_DL_TS, "ADD:%pM, TID:%d, dir:%d\n", pRet->Addr, pRet->TSpec.f.TSInfo.field.ucTSID, pRet->TSpec.f.TSInfo.field.ucDirection);
@@ -400,8 +381,7 @@ bool GetTs(
 	}
 	else
 	{
-		if(bAddNewTs == false)
-		{
+		if (!bAddNewTs) {
 			IEEE80211_DEBUG(IEEE80211_DL_TS, "add new TS failed(tid:%d)\n", UP);
 			return false;
 		}
@@ -604,7 +584,7 @@ void RemoveAllTS(struct ieee80211_device *ieee)
 
 void TsStartAddBaProcess(struct ieee80211_device *ieee, PTX_TS_RECORD	pTxTS)
 {
-	if(pTxTS->bAddBaReqInProgress == false)
+	if(!pTxTS->bAddBaReqInProgress)
 	{
 		pTxTS->bAddBaReqInProgress = true;
 		if(pTxTS->bAddBaReqDelayed)

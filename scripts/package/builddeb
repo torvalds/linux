@@ -15,6 +15,8 @@ set -e
 create_package() {
 	local pname="$1" pdir="$2"
 
+	mkdir -m 755 -p "$pdir/DEBIAN"
+	mkdir -p "$pdir/usr/share/doc/$pname"
 	cp debian/copyright "$pdir/usr/share/doc/$pname/"
 	cp debian/changelog "$pdir/usr/share/doc/$pname/changelog.Debian"
 	gzip -9 "$pdir/usr/share/doc/$pname/changelog.Debian"
@@ -25,8 +27,13 @@ create_package() {
 	chown -R root:root "$pdir"
 	chmod -R go-w "$pdir"
 
+	# Create the package
+	dpkg-gencontrol $forcearch -Vkernel:debarch="${debarch}" -p$pname -P"$pdir"
+	dpkg --build "$pdir" ..
+}
+
+set_debarch() {
 	# Attempt to find the correct Debian architecture
-	local forcearch="" debarch=""
 	case "$UTS_MACHINE" in
 	i386|ia64|alpha)
 		debarch="$UTS_MACHINE" ;;
@@ -47,6 +54,7 @@ create_package() {
 	arm*)
 		debarch=arm$(grep -q CONFIG_AEABI=y $KCONFIG_CONFIG && echo el || true) ;;
 	*)
+		debarch=$(dpkg --print-architecture)
 		echo "" >&2
 		echo "** ** **  WARNING  ** ** **" >&2
 		echo "" >&2
@@ -59,13 +67,8 @@ create_package() {
 	if [ -n "$KBUILD_DEBARCH" ] ; then
 		debarch="$KBUILD_DEBARCH"
 	fi
-	if [ -n "$debarch" ] ; then
-		forcearch="-DArchitecture=$debarch"
-	fi
+	forcearch="-DArchitecture=$debarch"
 
-	# Create the package
-	dpkg-gencontrol $forcearch -Vkernel:debarch="${debarch:-$(dpkg --print-architecture)}" -p$pname -P"$pdir"
-	dpkg --build "$pdir" ..
 }
 
 # Some variables and settings used throughout the script
@@ -76,6 +79,7 @@ if [ -n "$KDEB_PKGVERSION" ]; then
 else
 	packageversion=$version-$revision
 fi
+sourcename=$KDEB_SOURCENAME
 tmpdir="$objtree/debian/tmp"
 fwdir="$objtree/debian/fwtmp"
 kernel_headers_dir="$objtree/debian/hdrtmp"
@@ -86,6 +90,9 @@ fwpackagename=linux-firmware-image-$version
 kernel_headers_packagename=linux-headers-$version
 libc_headers_packagename=linux-libc-dev
 dbg_packagename=$packagename-dbg
+debarch=
+forcearch=
+set_debarch
 
 if [ "$ARCH" = "um" ] ; then
 	packagename=user-mode-linux-$version
@@ -108,26 +115,15 @@ esac
 BUILD_DEBUG="$(grep -s '^CONFIG_DEBUG_INFO=y' $KCONFIG_CONFIG || true)"
 
 # Setup the directory structure
-rm -rf "$tmpdir" "$fwdir" "$kernel_headers_dir" "$libc_headers_dir" "$dbg_dir"
+rm -rf "$tmpdir" "$fwdir" "$kernel_headers_dir" "$libc_headers_dir" "$dbg_dir" $objtree/debian/files
 mkdir -m 755 -p "$tmpdir/DEBIAN"
-mkdir -p  "$tmpdir/lib" "$tmpdir/boot" "$tmpdir/usr/share/doc/$packagename"
-mkdir -m 755 -p "$fwdir/DEBIAN"
-mkdir -p "$fwdir/lib/firmware/$version/" "$fwdir/usr/share/doc/$fwpackagename"
-mkdir -m 755 -p "$libc_headers_dir/DEBIAN"
-mkdir -p "$libc_headers_dir/usr/share/doc/$libc_headers_packagename"
-mkdir -m 755 -p "$kernel_headers_dir/DEBIAN"
-mkdir -p "$kernel_headers_dir/usr/share/doc/$kernel_headers_packagename"
+mkdir -p "$tmpdir/lib" "$tmpdir/boot"
+mkdir -p "$fwdir/lib/firmware/$version/"
 mkdir -p "$kernel_headers_dir/lib/modules/$version/"
-if [ "$ARCH" = "um" ] ; then
-	mkdir -p "$tmpdir/usr/lib/uml/modules/$version" "$tmpdir/usr/bin"
-fi
-if [ -n "$BUILD_DEBUG" ] ; then
-	mkdir -p "$dbg_dir/usr/share/doc/$dbg_packagename"
-	mkdir -m 755 -p "$dbg_dir/DEBIAN"
-fi
 
 # Build and install the kernel
 if [ "$ARCH" = "um" ] ; then
+	mkdir -p "$tmpdir/usr/lib/uml/modules/$version" "$tmpdir/usr/bin" "$tmpdir/usr/share/doc/$packagename"
 	$MAKE linux
 	cp System.map "$tmpdir/usr/lib/uml/modules/$version/System.map"
 	cp $KCONFIG_CONFIG "$tmpdir/usr/share/doc/$packagename/config"
@@ -141,6 +137,13 @@ if [ -e $KBUILD_IMAGE ]; then
 	cp $KBUILD_IMAGE "$tmpdir/$installed_image_path"
 else
 	cp arch/$ARCH/boot/$KBUILD_IMAGE "$tmpdir/$installed_image_path"
+fi
+
+if grep -q "^CONFIG_OF=y" $KCONFIG_CONFIG ; then
+	# Only some architectures with OF support have this target
+	if grep -q dtbs_install "${srctree}/arch/$SRCARCH/Makefile"; then
+		$MAKE KBUILD_SRC= INSTALL_DTBS_PATH="$tmpdir/usr/lib/$packagename" dtbs_install
+	fi
 fi
 
 if grep -q '^CONFIG_MODULES=y' $KCONFIG_CONFIG ; then
@@ -162,6 +165,12 @@ if grep -q '^CONFIG_MODULES=y' $KCONFIG_CONFIG ; then
 			# then add a link to those
 			$OBJCOPY --add-gnu-debuglink=$dbg_dir/usr/lib/debug/$module $tmpdir/$module
 		done
+
+		# resign stripped modules
+		MODULE_SIG_ALL="$(grep -s '^CONFIG_MODULE_SIG_ALL=y' $KCONFIG_CONFIG || true)"
+		if [ -n "$MODULE_SIG_ALL" ]; then
+			INSTALL_MOD_PATH="$tmpdir" $MAKE KBUILD_SRC= modules_sign
+		fi
 	fi
 fi
 
@@ -206,7 +215,7 @@ if [ -n "$DEBEMAIL" ]; then
 elif [ -n "$EMAIL" ]; then
        email=$EMAIL
 else
-       email=$(id -nu)@$(hostname -f)
+       email=$(id -nu)@$(hostname -f 2>/dev/null || hostname)
 fi
 if [ -n "$DEBFULLNAME" ]; then
        name=$DEBFULLNAME
@@ -230,7 +239,7 @@ fi
 
 # Generate a simple changelog template
 cat <<EOF > debian/changelog
-linux-upstream ($packageversion) $distribution; urgency=low
+$sourcename ($packageversion) $distribution; urgency=low
 
   * Custom built Linux kernel.
 
@@ -257,12 +266,16 @@ On Debian GNU/Linux systems, the complete text of the GNU General Public
 License version 2 can be found in \`/usr/share/common-licenses/GPL-2'.
 EOF
 
+
+build_depends="bc, kmod, cpio "
+
 # Generate a control file
 cat <<EOF > debian/control
-Source: linux-upstream
+Source: $sourcename
 Section: kernel
 Priority: optional
 Maintainer: $maintainer
+Build-Depends: $build_depends
 Standards-Version: 3.8.4
 Homepage: http://www.kernel.org/
 EOF
@@ -381,6 +394,35 @@ Description: Linux kernel debugging symbols for $version
 EOF
 
 	create_package "$dbg_packagename" "$dbg_dir"
+fi
+
+if [ "x$1" = "xdeb-pkg" ]
+then
+    cat <<EOF > debian/rules
+#!/usr/bin/make -f
+
+build:
+	\$(MAKE)
+
+binary-arch:
+	\$(MAKE) KDEB_SOURCENAME=${sourcename} KDEB_PKGVERSION=${packageversion} bindeb-pkg
+
+clean:
+	rm -rf debian/*tmp debian/files
+	mv debian/ debian.backup # debian/ might be cleaned away
+	\$(MAKE) clean
+	mv debian.backup debian
+
+binary: binary-arch
+EOF
+	mv ${sourcename}.tar.gz ../${sourcename}_${version}.orig.tar.gz
+	tar caf ../${sourcename}_${packageversion}.debian.tar.gz debian/{copyright,rules,changelog,control}
+	dpkg-source -cdebian/control -ldebian/changelog --format="3.0 (custom)" --target-format="3.0 (quilt)" \
+		-b / ../${sourcename}_${version}.orig.tar.gz  ../${sourcename}_${packageversion}.debian.tar.gz
+	mv ${sourcename}_${packageversion}*dsc ..
+	dpkg-genchanges > ../${sourcename}_${packageversion}_${debarch}.changes
+else
+	dpkg-genchanges -b > ../${sourcename}_${packageversion}_${debarch}.changes
 fi
 
 exit 0

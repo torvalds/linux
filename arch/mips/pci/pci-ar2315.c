@@ -318,9 +318,9 @@ static int ar2315_pci_host_setup(struct ar2315_pci_ctrl *apc)
 	return 0;
 }
 
-static void ar2315_pci_irq_handler(unsigned irq, struct irq_desc *desc)
+static void ar2315_pci_irq_handler(struct irq_desc *desc)
 {
-	struct ar2315_pci_ctrl *apc = irq_get_handler_data(irq);
+	struct ar2315_pci_ctrl *apc = irq_desc_get_handler_data(desc);
 	u32 pending = ar2315_pci_reg_read(apc, AR2315_PCI_ISR) &
 		      ar2315_pci_reg_read(apc, AR2315_PCI_IMR);
 	unsigned pci_irq = 0;
@@ -384,8 +384,8 @@ static void ar2315_pci_irq_init(struct ar2315_pci_ctrl *apc)
 
 	apc->irq_ext = irq_create_mapping(apc->domain, AR2315_PCI_IRQ_EXT);
 
-	irq_set_chained_handler(apc->irq, ar2315_pci_irq_handler);
-	irq_set_handler_data(apc->irq, apc);
+	irq_set_chained_handler_and_data(apc->irq, ar2315_pci_irq_handler,
+					 apc);
 
 	/* Clear any pending Abort or external Interrupts
 	 * and enable interrupt processing */
@@ -488,7 +488,6 @@ static struct platform_driver ar2315_pci_driver = {
 	.probe = ar2315_pci_probe,
 	.driver = {
 		.name = "ar2315-pci",
-		.owner = THIS_MODULE,
 	},
 };
 

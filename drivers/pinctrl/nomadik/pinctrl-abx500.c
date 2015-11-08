@@ -466,7 +466,7 @@ static int abx500_set_mode(struct pinctrl_dev *pctldev, struct gpio_chip *chip,
 		break;
 
 	default:
-		dev_dbg(pct->dev, "unknow alt_setting %d\n", alt_setting);
+		dev_dbg(pct->dev, "unknown alt_setting %d\n", alt_setting);
 
 		return -EINVAL;
 	}
@@ -654,25 +654,11 @@ static inline void abx500_gpio_dbg_show_one(struct seq_file *s,
 #define abx500_gpio_dbg_show	NULL
 #endif
 
-static int abx500_gpio_request(struct gpio_chip *chip, unsigned offset)
-{
-	int gpio = chip->base + offset;
-
-	return pinctrl_request_gpio(gpio);
-}
-
-static void abx500_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-	int gpio = chip->base + offset;
-
-	pinctrl_free_gpio(gpio);
-}
-
 static struct gpio_chip abx500gpio_chip = {
 	.label			= "abx500-gpio",
 	.owner			= THIS_MODULE,
-	.request		= abx500_gpio_request,
-	.free			= abx500_gpio_free,
+	.request		= gpiochip_generic_request,
+	.free			= gpiochip_generic_free,
 	.direction_input	= abx500_gpio_direction_input,
 	.get			= abx500_gpio_get,
 	.direction_output	= abx500_gpio_direction_output,
@@ -1234,10 +1220,10 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 	abx500_pinctrl_desc.pins = pct->soc->pins;
 	abx500_pinctrl_desc.npins = pct->soc->npins;
 	pct->pctldev = pinctrl_register(&abx500_pinctrl_desc, &pdev->dev, pct);
-	if (!pct->pctldev) {
+	if (IS_ERR(pct->pctldev)) {
 		dev_err(&pdev->dev,
 			"could not register abx500 pinctrl driver\n");
-		ret = -EINVAL;
+		ret = PTR_ERR(pct->pctldev);
 		goto out_rem_chip;
 	}
 	dev_info(&pdev->dev, "registered pin controller\n");

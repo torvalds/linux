@@ -193,8 +193,10 @@ static int moxart_terminate_all(struct dma_chan *chan)
 
 	spin_lock_irqsave(&ch->vc.lock, flags);
 
-	if (ch->desc)
+	if (ch->desc) {
+		moxart_dma_desc_free(&ch->desc->vd);
 		ch->desc = NULL;
+	}
 
 	ctrl = readl(ch->base + REG_OFF_CTRL);
 	ctrl &= ~(APB_DMA_ENABLE | APB_DMA_FIN_INT_EN | APB_DMA_ERR_INT_EN);

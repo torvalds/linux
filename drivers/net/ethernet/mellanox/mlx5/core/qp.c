@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -187,9 +187,16 @@ int mlx5_core_create_qp(struct mlx5_core_dev *dev,
 	struct mlx5_destroy_qp_mbox_in din;
 	struct mlx5_destroy_qp_mbox_out dout;
 	int err;
+	void *qpc;
 
 	memset(&out, 0, sizeof(out));
 	in->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_CREATE_QP);
+
+	if (dev->issi) {
+		qpc = MLX5_ADDR_OF(create_qp_in, in, qpc);
+		/* 0xffffff means we ask to work with cqe version 0 */
+		MLX5_SET(qpc, qpc, user_index, 0xffffff);
+	}
 
 	err = mlx5_cmd_exec(dev, in, inlen, &out, sizeof(out));
 	if (err) {
@@ -338,6 +345,7 @@ void mlx5_init_qp_table(struct mlx5_core_dev *dev)
 {
 	struct mlx5_qp_table *table = &dev->priv.qp_table;
 
+	memset(table, 0, sizeof(*table));
 	spin_lock_init(&table->lock);
 	INIT_RADIX_TREE(&table->tree, GFP_ATOMIC);
 	mlx5_qp_debugfs_init(dev);

@@ -15,14 +15,93 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/clk/ti.h>
 
+#include "clock.h"
+
 #undef pr_fmt
 #define pr_fmt(fmt) "%s: " fmt, __func__
+
+/**
+ * omap2_clkops_enable_clkdm - increment usecount on clkdm of @hw
+ * @hw: struct clk_hw * of the clock being enabled
+ *
+ * Increment the usecount of the clockdomain of the clock pointed to
+ * by @hw; if the usecount is 1, the clockdomain will be "enabled."
+ * Only needed for clocks that don't use omap2_dflt_clk_enable() as
+ * their enable function pointer.  Passes along the return value of
+ * clkdm_clk_enable(), -EINVAL if @hw is not associated with a
+ * clockdomain, or 0 if clock framework-based clockdomain control is
+ * not implemented.
+ */
+int omap2_clkops_enable_clkdm(struct clk_hw *hw)
+{
+	struct clk_hw_omap *clk;
+	int ret = 0;
+
+	clk = to_clk_hw_omap(hw);
+
+	if (unlikely(!clk->clkdm)) {
+		pr_err("%s: %s: no clkdm set ?!\n", __func__,
+		       clk_hw_get_name(hw));
+		return -EINVAL;
+	}
+
+	if (unlikely(clk->enable_reg))
+		pr_err("%s: %s: should use dflt_clk_enable ?!\n", __func__,
+		       clk_hw_get_name(hw));
+
+	if (ti_clk_get_features()->flags & TI_CLK_DISABLE_CLKDM_CONTROL) {
+		pr_err("%s: %s: clkfw-based clockdomain control disabled ?!\n",
+		       __func__, clk_hw_get_name(hw));
+		return 0;
+	}
+
+	ret = ti_clk_ll_ops->clkdm_clk_enable(clk->clkdm, hw->clk);
+	WARN(ret, "%s: could not enable %s's clockdomain %s: %d\n",
+	     __func__, clk_hw_get_name(hw), clk->clkdm_name, ret);
+
+	return ret;
+}
+
+/**
+ * omap2_clkops_disable_clkdm - decrement usecount on clkdm of @hw
+ * @hw: struct clk_hw * of the clock being disabled
+ *
+ * Decrement the usecount of the clockdomain of the clock pointed to
+ * by @hw; if the usecount is 0, the clockdomain will be "disabled."
+ * Only needed for clocks that don't use omap2_dflt_clk_disable() as their
+ * disable function pointer.  No return value.
+ */
+void omap2_clkops_disable_clkdm(struct clk_hw *hw)
+{
+	struct clk_hw_omap *clk;
+
+	clk = to_clk_hw_omap(hw);
+
+	if (unlikely(!clk->clkdm)) {
+		pr_err("%s: %s: no clkdm set ?!\n", __func__,
+		       clk_hw_get_name(hw));
+		return;
+	}
+
+	if (unlikely(clk->enable_reg))
+		pr_err("%s: %s: should use dflt_clk_disable ?!\n", __func__,
+		       clk_hw_get_name(hw));
+
+	if (ti_clk_get_features()->flags & TI_CLK_DISABLE_CLKDM_CONTROL) {
+		pr_err("%s: %s: clkfw-based clockdomain control disabled ?!\n",
+		       __func__, clk_hw_get_name(hw));
+		return;
+	}
+
+	ti_clk_ll_ops->clkdm_clk_disable(clk->clkdm, hw->clk);
+}
 
 static void __init of_ti_clockdomain_setup(struct device_node *node)
 {
@@ -32,7 +111,7 @@ static void __init of_ti_clockdomain_setup(struct device_node *node)
 	int i;
 	int num_clks;
 
-	num_clks = of_count_phandle_with_args(node, "clocks", "#clock-cells");
+	num_clks = of_clk_get_parent_count(node);
 
 	for (i = 0; i < num_clks; i++) {
 		clk = of_clk_get(node, i);
@@ -41,18 +120,18 @@ static void __init of_ti_clockdomain_setup(struct device_node *node)
 			       __func__, node->full_name, i, PTR_ERR(clk));
 			continue;
 		}
-		if (__clk_get_flags(clk) & CLK_IS_BASIC) {
+		clk_hw = __clk_get_hw(clk);
+		if (clk_hw_get_flags(clk_hw) & CLK_IS_BASIC) {
 			pr_warn("can't setup clkdm for basic clk %s\n",
 				__clk_get_name(clk));
 			continue;
 		}
-		clk_hw = __clk_get_hw(clk);
 		to_clk_hw_omap(clk_hw)->clkdm_name = clkdm_name;
 		omap2_init_clk_clkdm(clk_hw);
 	}
 }
 
-static struct of_device_id ti_clkdm_match_table[] __initdata = {
+static const struct of_device_id ti_clkdm_match_table[] __initconst = {
 	{ .compatible = "ti,clockdomain" },
 	{ }
 };

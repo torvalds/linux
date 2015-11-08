@@ -37,7 +37,6 @@
 #include <asm/smp.h>
 #include <asm/mmu.h>
 #include <asm/pgtable.h>
-#include <asm/pci.h>
 #include <asm/iommu.h>
 #include <asm/btext.h>
 #include <asm/sections.h>
@@ -642,6 +641,15 @@ static void __init early_cmdline_parse(void)
 #define W(x)	((x) >> 24) & 0xff, ((x) >> 16) & 0xff, \
 		((x) >> 8) & 0xff, (x) & 0xff
 
+/* Firmware expects the value to be n - 1, where n is the # of vectors */
+#define NUM_VECTORS(n)		((n) - 1)
+
+/*
+ * Firmware expects 1 + n - 2, where n is the length of the option vector in
+ * bytes. The 1 accounts for the length byte itself, the - 2 .. ?
+ */
+#define VECTOR_LENGTH(n)	(1 + (n) - 2)
+
 unsigned char ibm_architecture_vec[] = {
 	W(0xfffe0000), W(0x003a0000),	/* POWER5/POWER5+ */
 	W(0xffff0000), W(0x003e0000),	/* POWER6 */
@@ -652,16 +660,16 @@ unsigned char ibm_architecture_vec[] = {
 	W(0xffffffff), W(0x0f000003),	/* all 2.06-compliant */
 	W(0xffffffff), W(0x0f000002),	/* all 2.05-compliant */
 	W(0xfffffffe), W(0x0f000001),	/* all 2.04-compliant and earlier */
-	6 - 1,				/* 6 option vectors */
+	NUM_VECTORS(6),			/* 6 option vectors */
 
 	/* option vector 1: processor architectures supported */
-	3 - 2,				/* length */
+	VECTOR_LENGTH(2),		/* length */
 	0,				/* don't ignore, don't halt */
 	OV1_PPC_2_00 | OV1_PPC_2_01 | OV1_PPC_2_02 | OV1_PPC_2_03 |
 	OV1_PPC_2_04 | OV1_PPC_2_05 | OV1_PPC_2_06 | OV1_PPC_2_07,
 
 	/* option vector 2: Open Firmware options supported */
-	34 - 2,				/* length */
+	VECTOR_LENGTH(33),		/* length */
 	OV2_REAL_MODE,
 	0, 0,
 	W(0xffffffff),			/* real_base */
@@ -675,17 +683,17 @@ unsigned char ibm_architecture_vec[] = {
 	48,				/* max log_2(hash table size) */
 
 	/* option vector 3: processor options supported */
-	3 - 2,				/* length */
+	VECTOR_LENGTH(2),		/* length */
 	0,				/* don't ignore, don't halt */
 	OV3_FP | OV3_VMX | OV3_DFP,
 
 	/* option vector 4: IBM PAPR implementation */
-	3 - 2,				/* length */
+	VECTOR_LENGTH(2),		/* length */
 	0,				/* don't halt */
 	OV4_MIN_ENT_CAP,		/* minimum VP entitled capacity */
 
 	/* option vector 5: PAPR/OF options */
-	19 - 2,				/* length */
+	VECTOR_LENGTH(18),		/* length */
 	0,				/* don't ignore, don't halt */
 	OV5_FEAT(OV5_LPAR) | OV5_FEAT(OV5_SPLPAR) | OV5_FEAT(OV5_LARGE_PAGES) |
 	OV5_FEAT(OV5_DRCONF_MEMORY) | OV5_FEAT(OV5_DONATE_DEDICATE_CPU) |
@@ -718,12 +726,12 @@ unsigned char ibm_architecture_vec[] = {
 	OV5_FEAT(OV5_PFO_HW_RNG) | OV5_FEAT(OV5_PFO_HW_ENCR) |
 	OV5_FEAT(OV5_PFO_HW_842),
 	OV5_FEAT(OV5_SUB_PROCESSORS),
+
 	/* option vector 6: IBM PAPR hints */
-	4 - 2,				/* length */
+	VECTOR_LENGTH(3),		/* length */
 	0,
 	0,
 	OV6_LINUX,
-
 };
 
 /* Old method - ELF header with PT_NOTE sections only works on BE */
@@ -1417,27 +1425,45 @@ static void __init prom_instantiate_sml(void)
 {
 	phandle ibmvtpm_node;
 	ihandle ibmvtpm_inst;
-	u32 entry = 0, size = 0;
+	u32 entry = 0, size = 0, succ = 0;
 	u64 base;
+	__be32 val;
 
 	prom_debug("prom_instantiate_sml: start...\n");
 
-	ibmvtpm_node = call_prom("finddevice", 1, 1, ADDR("/ibm,vtpm"));
+	ibmvtpm_node = call_prom("finddevice", 1, 1, ADDR("/vdevice/vtpm"));
 	prom_debug("ibmvtpm_node: %x\n", ibmvtpm_node);
 	if (!PHANDLE_VALID(ibmvtpm_node))
 		return;
 
-	ibmvtpm_inst = call_prom("open", 1, 1, ADDR("/ibm,vtpm"));
+	ibmvtpm_inst = call_prom("open", 1, 1, ADDR("/vdevice/vtpm"));
 	if (!IHANDLE_VALID(ibmvtpm_inst)) {
 		prom_printf("opening vtpm package failed (%x)\n", ibmvtpm_inst);
 		return;
 	}
 
-	if (call_prom_ret("call-method", 2, 2, &size,
-			  ADDR("sml-get-handover-size"),
-			  ibmvtpm_inst) != 0 || size == 0) {
-		prom_printf("SML get handover size failed\n");
-		return;
+	if (prom_getprop(ibmvtpm_node, "ibm,sml-efi-reformat-supported",
+			 &val, sizeof(val)) != PROM_ERROR) {
+		if (call_prom_ret("call-method", 2, 2, &succ,
+				  ADDR("reformat-sml-to-efi-alignment"),
+				  ibmvtpm_inst) != 0 || succ == 0) {
+			prom_printf("Reformat SML to EFI alignment failed\n");
+			return;
+		}
+
+		if (call_prom_ret("call-method", 2, 2, &size,
+				  ADDR("sml-get-allocated-size"),
+				  ibmvtpm_inst) != 0 || size == 0) {
+			prom_printf("SML get allocated size failed\n");
+			return;
+		}
+	} else {
+		if (call_prom_ret("call-method", 2, 2, &size,
+				  ADDR("sml-get-handover-size"),
+				  ibmvtpm_inst) != 0 || size == 0) {
+			prom_printf("SML get handover size failed\n");
+			return;
+		}
 	}
 
 	base = alloc_down(size, PAGE_SIZE, 0);
@@ -1445,6 +1471,8 @@ static void __init prom_instantiate_sml(void)
 		prom_panic("Could not allocate memory for sml\n");
 
 	prom_printf("instantiating sml at 0x%x...", base);
+
+	memset((void *)base, 0, size);
 
 	if (call_prom_ret("call-method", 4, 2, &entry,
 			  ADDR("sml-handover"),
@@ -1456,9 +1484,9 @@ static void __init prom_instantiate_sml(void)
 
 	reserve_mem(base, size);
 
-	prom_setprop(ibmvtpm_node, "/ibm,vtpm", "linux,sml-base",
+	prom_setprop(ibmvtpm_node, "/vdevice/vtpm", "linux,sml-base",
 		     &base, sizeof(base));
-	prom_setprop(ibmvtpm_node, "/ibm,vtpm", "linux,sml-size",
+	prom_setprop(ibmvtpm_node, "/vdevice/vtpm", "linux,sml-size",
 		     &size, sizeof(size));
 
 	prom_debug("sml base     = 0x%x\n", base);
@@ -2898,7 +2926,7 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 * Call OF "quiesce" method to shut down pending DMA's from
 	 * devices etc...
 	 */
-	prom_printf("Calling quiesce...\n");
+	prom_printf("Quiescing Open Firmware ...\n");
 	call_prom("quiesce", 0, 0);
 
 	/*
@@ -2910,7 +2938,7 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 
 	/* Don't print anything after quiesce under OPAL, it crashes OFW */
 	if (of_platform != PLATFORM_OPAL) {
-		prom_printf("returning from prom_init\n");
+		prom_printf("Booting Linux via __start() ...\n");
 		prom_debug("->dt_header_start=0x%x\n", hdr);
 	}
 

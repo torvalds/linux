@@ -10,7 +10,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-dev.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 
 /*
  * Create our own symbols for the supported buffer modes, but, for now,
@@ -146,7 +146,6 @@ struct mcam_camera {
 	struct v4l2_ctrl_handler ctrl_handler;
 	enum mcam_state state;
 	unsigned long flags;		/* Buffer status, mainly (dev_lock) */
-	int users;			/* How many open FDs */
 
 	struct mcam_frame_state frame_state;	/* Frame state counter */
 	/*
@@ -162,6 +161,8 @@ struct mcam_camera {
 
 	unsigned int nbufs;		/* How many are alloc'd */
 	int next_buf;			/* Next to consume (dev_lock) */
+
+	char bus_info[32];		/* querycap bus_info */
 
 	/* DMA buffers - vmalloc mode */
 #ifdef MCAM_MODE_VMALLOC
@@ -330,10 +331,10 @@ int mccic_resume(struct mcam_camera *cam);
 #define	  C0_YUVE_YVYU	  0x00010000	/* Y1CrY0Cb		*/
 #define	  C0_YUVE_VYUY	  0x00020000	/* CrY1CbY0		*/
 #define	  C0_YUVE_UYVY	  0x00030000	/* CbY1CrY0		*/
-#define	  C0_YUVE_XYUV	  0x00000000	/* 420: .YUV		*/
-#define	  C0_YUVE_XYVU	  0x00010000	/* 420: .YVU		*/
-#define	  C0_YUVE_XUVY	  0x00020000	/* 420: .UVY		*/
-#define	  C0_YUVE_XVUY	  0x00030000	/* 420: .VUY		*/
+#define	  C0_YUVE_NOSWAP  0x00000000	/* no bytes swapping	*/
+#define	  C0_YUVE_SWAP13  0x00010000	/* swap byte 1 and 3	*/
+#define	  C0_YUVE_SWAP24  0x00020000	/* swap byte 2 and 4	*/
+#define	  C0_YUVE_SWAP1324 0x00030000	/* swap bytes 1&3 and 2&4 */
 /* Bayer bits 18,19 if needed */
 #define	  C0_EOF_VSYNC	  0x00400000	/* Generate EOF by VSYNC */
 #define	  C0_VEDGE_CTRL   0x00800000	/* Detect falling edge of VSYNC */

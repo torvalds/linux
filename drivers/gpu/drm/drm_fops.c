@@ -167,6 +167,7 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 	INIT_LIST_HEAD(&priv->lhead);
 	INIT_LIST_HEAD(&priv->fbs);
 	mutex_init(&priv->fbs_lock);
+	INIT_LIST_HEAD(&priv->blobs);
 	INIT_LIST_HEAD(&priv->event_list);
 	init_waitqueue_head(&priv->event_wait);
 	priv->event_space = 4096; /* set aside 4k for event buffer */
@@ -380,6 +381,8 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	mutex_lock(&dev->struct_mutex);
 	list_del(&file_priv->lhead);
+	if (file_priv->magic)
+		idr_remove(&file_priv->master->magic_map, file_priv->magic);
 	mutex_unlock(&dev->struct_mutex);
 
 	if (dev->driver->preclose)
@@ -394,11 +397,6 @@ int drm_release(struct inode *inode, struct file *filp)
 		  (long)old_encode_dev(file_priv->minor->kdev->devt),
 		  dev->open_count);
 
-	/* Release any auth tokens that might point to this file_priv,
-	   (do that under the drm_global_mutex) */
-	if (file_priv->magic)
-		(void) drm_remove_magic(file_priv->master, file_priv->magic);
-
 	/* if the master has gone away we can't do anything with the lock */
 	if (file_priv->minor->master)
 		drm_master_release(dev, filp);
@@ -408,8 +406,10 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	drm_events_release(file_priv);
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		drm_fb_release(file_priv);
+		drm_property_destroy_user_blobs(dev, file_priv);
+	}
 
 	if (drm_core_check_feature(dev, DRIVER_GEM))
 		drm_gem_release(dev, file_priv);

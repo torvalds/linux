@@ -397,7 +397,7 @@ static int pci_irq_host_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops pci_irq_domain_ops = {
+static const struct irq_domain_ops pci_irq_domain_ops = {
 	.map = pci_irq_host_map,
 	.xlate = pci_irq_host_xlate,
 };
@@ -428,7 +428,7 @@ void __init tsi108_pci_int_init(struct device_node *node)
 	init_pci_source();
 }
 
-void tsi108_irq_cascade(unsigned int irq, struct irq_desc *desc)
+void tsi108_irq_cascade(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int cascade_irq = get_pci_source();

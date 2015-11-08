@@ -31,17 +31,6 @@
 #include <trace/events/kvm.h>
 #include "irq.h"
 
-struct kvm_irq_routing_table {
-	int chip[KVM_NR_IRQCHIPS][KVM_IRQCHIP_NUM_PINS];
-	struct kvm_kernel_irq_routing_entry *rt_entries;
-	u32 nr_rt_entries;
-	/*
-	 * Array indexed by gsi. Each entry contains list of irq chips
-	 * the gsi is connected to.
-	 */
-	struct hlist_head map[0];
-};
-
 int kvm_irq_map_gsi(struct kvm *kvm,
 		    struct kvm_kernel_irq_routing_entry *entries, int gsi)
 {
@@ -105,7 +94,7 @@ int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
 	i = kvm_irq_map_gsi(kvm, irq_set, irq);
 	srcu_read_unlock(&kvm->irq_srcu, idx);
 
-	while(i--) {
+	while (i--) {
 		int r;
 		r = irq_set[i].set(&irq_set[i], kvm, irq_source_id, level,
 				   line_status);
@@ -118,11 +107,32 @@ int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
 	return ret;
 }
 
+static void free_irq_routing_table(struct kvm_irq_routing_table *rt)
+{
+	int i;
+
+	if (!rt)
+		return;
+
+	for (i = 0; i < rt->nr_rt_entries; ++i) {
+		struct kvm_kernel_irq_routing_entry *e;
+		struct hlist_node *n;
+
+		hlist_for_each_entry_safe(e, n, &rt->map[i], link) {
+			hlist_del(&e->link);
+			kfree(e);
+		}
+	}
+
+	kfree(rt);
+}
+
 void kvm_free_irq_routing(struct kvm *kvm)
 {
 	/* Called only during vm destruction. Nobody can use the pointer
 	   at this stage */
-	kfree(kvm->irq_routing);
+	struct kvm_irq_routing_table *rt = rcu_access_pointer(kvm->irq_routing);
+	free_irq_routing_table(rt);
 }
 
 static int setup_routing_entry(struct kvm_irq_routing_table *rt,
@@ -134,11 +144,11 @@ static int setup_routing_entry(struct kvm_irq_routing_table *rt,
 
 	/*
 	 * Do not allow GSI to be mapped to the same irqchip more than once.
-	 * Allow only one to one mapping between GSI and MSI.
+	 * Allow only one to one mapping between GSI and non-irqchip routing.
 	 */
 	hlist_for_each_entry(ei, &rt->map[ue->gsi], link)
-		if (ei->type == KVM_IRQ_ROUTING_MSI ||
-		    ue->type == KVM_IRQ_ROUTING_MSI ||
+		if (ei->type != KVM_IRQ_ROUTING_IRQCHIP ||
+		    ue->type != KVM_IRQ_ROUTING_IRQCHIP ||
 		    ue->u.irqchip.irqchip == ei->irqchip.irqchip)
 			return r;
 
@@ -173,14 +183,11 @@ int kvm_set_irq_routing(struct kvm *kvm,
 
 	nr_rt_entries += 1;
 
-	new = kzalloc(sizeof(*new) + (nr_rt_entries * sizeof(struct hlist_head))
-		      + (nr * sizeof(struct kvm_kernel_irq_routing_entry)),
+	new = kzalloc(sizeof(*new) + (nr_rt_entries * sizeof(struct hlist_head)),
 		      GFP_KERNEL);
 
 	if (!new)
 		return -ENOMEM;
-
-	new->rt_entries = (void *)&new->map[nr_rt_entries];
 
 	new->nr_rt_entries = nr_rt_entries;
 	for (i = 0; i < KVM_NR_IRQCHIPS; i++)
@@ -188,12 +195,23 @@ int kvm_set_irq_routing(struct kvm *kvm,
 			new->chip[i][j] = -1;
 
 	for (i = 0; i < nr; ++i) {
+		struct kvm_kernel_irq_routing_entry *e;
+
+		r = -ENOMEM;
+		e = kzalloc(sizeof(*e), GFP_KERNEL);
+		if (!e)
+			goto out;
+
 		r = -EINVAL;
-		if (ue->flags)
+		if (ue->flags) {
+			kfree(e);
 			goto out;
-		r = setup_routing_entry(new, &new->rt_entries[i], ue);
-		if (r)
+		}
+		r = setup_routing_entry(new, e, ue);
+		if (r) {
+			kfree(e);
 			goto out;
+		}
 		++ue;
 	}
 
@@ -203,12 +221,15 @@ int kvm_set_irq_routing(struct kvm *kvm,
 	kvm_irq_routing_update(kvm);
 	mutex_unlock(&kvm->irq_lock);
 
+	kvm_arch_irq_routing_update(kvm);
+
 	synchronize_srcu_expedited(&kvm->irq_srcu);
 
 	new = old;
 	r = 0;
 
 out:
-	kfree(new);
+	free_irq_routing_table(new);
+
 	return r;
 }

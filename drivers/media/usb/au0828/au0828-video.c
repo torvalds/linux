@@ -299,29 +299,23 @@ static int au0828_init_isoc(struct au0828_dev *dev, int max_packets,
  * Announces that a buffer were filled and request the next
  */
 static inline void buffer_filled(struct au0828_dev *dev,
-				  struct au0828_dmaqueue *dma_q,
-				  struct au0828_buffer *buf)
+				 struct au0828_dmaqueue *dma_q,
+				 struct au0828_buffer *buf)
 {
+	struct vb2_v4l2_buffer *vb = &buf->vb;
+	struct vb2_queue *q = vb->vb2_buf.vb2_queue;
+
 	/* Advice that buffer was filled */
 	au0828_isocdbg("[%p/%d] wakeup\n", buf, buf->top_field);
 
-	buf->vb.v4l2_buf.sequence = dev->frame_count++;
-	buf->vb.v4l2_buf.field = V4L2_FIELD_INTERLACED;
-	v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
-	vb2_buffer_done(&buf->vb, VB2_BUF_STATE_DONE);
-}
+	if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		vb->sequence = dev->frame_count++;
+	else
+		vb->sequence = dev->vbi_frame_count++;
 
-static inline void vbi_buffer_filled(struct au0828_dev *dev,
-				     struct au0828_dmaqueue *dma_q,
-				     struct au0828_buffer *buf)
-{
-	/* Advice that buffer was filled */
-	au0828_isocdbg("[%p/%d] wakeup\n", buf, buf->top_field);
-
-	buf->vb.v4l2_buf.sequence = dev->vbi_frame_count++;
-	buf->vb.v4l2_buf.field = V4L2_FIELD_INTERLACED;
-	v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
-	vb2_buffer_done(&buf->vb, VB2_BUF_STATE_DONE);
+	vb->field = V4L2_FIELD_INTERLACED;
+	v4l2_get_timestamp(&vb->timestamp);
+	vb2_buffer_done(&vb->vb2_buf, VB2_BUF_STATE_DONE);
 }
 
 /*
@@ -537,11 +531,11 @@ static inline int au0828_isoc_copy(struct au0828_dev *dev, struct urb *urb)
 
 	buf = dev->isoc_ctl.buf;
 	if (buf != NULL)
-		outp = vb2_plane_vaddr(&buf->vb, 0);
+		outp = vb2_plane_vaddr(&buf->vb.vb2_buf, 0);
 
 	vbi_buf = dev->isoc_ctl.vbi_buf;
 	if (vbi_buf != NULL)
-		vbioutp = vb2_plane_vaddr(&vbi_buf->vb, 0);
+		vbioutp = vb2_plane_vaddr(&vbi_buf->vb.vb2_buf, 0);
 
 	for (i = 0; i < urb->number_of_packets; i++) {
 		int status = urb->iso_frame_desc[i].status;
@@ -574,15 +568,13 @@ static inline int au0828_isoc_copy(struct au0828_dev *dev, struct urb *urb)
 			if (fbyte & 0x40) {
 				/* VBI */
 				if (vbi_buf != NULL)
-					vbi_buffer_filled(dev,
-							  vbi_dma_q,
-							  vbi_buf);
+					buffer_filled(dev, vbi_dma_q, vbi_buf);
 				vbi_get_next_buf(vbi_dma_q, &vbi_buf);
 				if (vbi_buf == NULL)
 					vbioutp = NULL;
 				else
 					vbioutp = vb2_plane_vaddr(
-						&vbi_buf->vb, 0);
+						&vbi_buf->vb.vb2_buf, 0);
 
 				/* Video */
 				if (buf != NULL)
@@ -591,7 +583,8 @@ static inline int au0828_isoc_copy(struct au0828_dev *dev, struct urb *urb)
 				if (buf == NULL)
 					outp = NULL;
 				else
-					outp = vb2_plane_vaddr(&buf->vb, 0);
+					outp = vb2_plane_vaddr(
+						&buf->vb.vb2_buf, 0);
 
 				/* As long as isoc traffic is arriving, keep
 				   resetting the timer */
@@ -645,10 +638,11 @@ static inline int au0828_isoc_copy(struct au0828_dev *dev, struct urb *urb)
 	return rc;
 }
 
-static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+static int queue_setup(struct vb2_queue *vq, const void *parg,
 		       unsigned int *nbuffers, unsigned int *nplanes,
 		       unsigned int sizes[], void *alloc_ctxs[])
 {
+	const struct v4l2_format *fmt = parg;
 	struct au0828_dev *dev = vb2_get_drv_priv(vq);
 	unsigned long img_size = dev->height * dev->bytesperline;
 	unsigned long size;
@@ -666,7 +660,9 @@ static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 static int
 buffer_prepare(struct vb2_buffer *vb)
 {
-	struct au0828_buffer *buf = container_of(vb, struct au0828_buffer, vb);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct au0828_buffer *buf = container_of(vbuf,
+				struct au0828_buffer, vb);
 	struct au0828_dev    *dev = vb2_get_drv_priv(vb->vb2_queue);
 
 	buf->length = dev->height * dev->bytesperline;
@@ -676,14 +672,15 @@ buffer_prepare(struct vb2_buffer *vb)
 			__func__, vb2_plane_size(vb, 0), buf->length);
 		return -EINVAL;
 	}
-	vb2_set_plane_payload(&buf->vb, 0, buf->length);
+	vb2_set_plane_payload(&buf->vb.vb2_buf, 0, buf->length);
 	return 0;
 }
 
 static void
 buffer_queue(struct vb2_buffer *vb)
 {
-	struct au0828_buffer    *buf     = container_of(vb,
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct au0828_buffer    *buf     = container_of(vbuf,
 							struct au0828_buffer,
 							vb);
 	struct au0828_dev       *dev     = vb2_get_drv_priv(vb->vb2_queue);
@@ -834,14 +831,15 @@ static void au0828_stop_streaming(struct vb2_queue *vq)
 
 	spin_lock_irqsave(&dev->slock, flags);
 	if (dev->isoc_ctl.buf != NULL) {
-		vb2_buffer_done(&dev->isoc_ctl.buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&dev->isoc_ctl.buf->vb.vb2_buf,
+				VB2_BUF_STATE_ERROR);
 		dev->isoc_ctl.buf = NULL;
 	}
 	while (!list_empty(&vidq->active)) {
 		struct au0828_buffer *buf;
 
 		buf = list_entry(vidq->active.next, struct au0828_buffer, list);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 		list_del(&buf->list);
 	}
 	spin_unlock_irqrestore(&dev->slock, flags);
@@ -861,7 +859,7 @@ void au0828_stop_vbi_streaming(struct vb2_queue *vq)
 
 	spin_lock_irqsave(&dev->slock, flags);
 	if (dev->isoc_ctl.vbi_buf != NULL) {
-		vb2_buffer_done(&dev->isoc_ctl.vbi_buf->vb,
+		vb2_buffer_done(&dev->isoc_ctl.vbi_buf->vb.vb2_buf,
 				VB2_BUF_STATE_ERROR);
 		dev->isoc_ctl.vbi_buf = NULL;
 	}
@@ -870,7 +868,7 @@ void au0828_stop_vbi_streaming(struct vb2_queue *vq)
 
 		buf = list_entry(vbiq->active.next, struct au0828_buffer, list);
 		list_del(&buf->list);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 	spin_unlock_irqrestore(&dev->slock, flags);
 
@@ -899,12 +897,8 @@ void au0828_analog_unregister(struct au0828_dev *dev)
 {
 	dprintk(1, "au0828_analog_unregister called\n");
 	mutex_lock(&au0828_sysfs_lock);
-
-	if (dev->vdev)
-		video_unregister_device(dev->vdev);
-	if (dev->vbi_dev)
-		video_unregister_device(dev->vbi_dev);
-
+	video_unregister_device(&dev->vdev);
+	video_unregister_device(&dev->vbi_dev);
 	mutex_unlock(&au0828_sysfs_lock);
 }
 
@@ -923,7 +917,7 @@ static void au0828_vid_buffer_timeout(unsigned long data)
 
 	buf = dev->isoc_ctl.buf;
 	if (buf != NULL) {
-		vid_data = vb2_plane_vaddr(&buf->vb, 0);
+		vid_data = vb2_plane_vaddr(&buf->vb.vb2_buf, 0);
 		memset(vid_data, 0x00, buf->length); /* Blank green frame */
 		buffer_filled(dev, dma_q, buf);
 	}
@@ -947,9 +941,9 @@ static void au0828_vbi_buffer_timeout(unsigned long data)
 
 	buf = dev->isoc_ctl.vbi_buf;
 	if (buf != NULL) {
-		vbi_data = vb2_plane_vaddr(&buf->vb, 0);
+		vbi_data = vb2_plane_vaddr(&buf->vb.vb2_buf, 0);
 		memset(vbi_data, 0x00, buf->length);
-		vbi_buffer_filled(dev, dma_q, buf);
+		buffer_filled(dev, dma_q, buf);
 	}
 	vbi_get_next_buf(dma_q, &buf);
 
@@ -1286,7 +1280,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 		input->audioset = 2;
 	}
 
-	input->std = dev->vdev->tvnorms;
+	input->std = dev->vdev.tvnorms;
 
 	return 0;
 }
@@ -1704,7 +1698,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 
 static const struct video_device au0828_video_template = {
 	.fops                       = &au0828_v4l_fops,
-	.release                    = video_device_release,
+	.release                    = video_device_release_empty,
 	.ioctl_ops 		    = &video_ioctl_ops,
 	.tvnorms                    = V4L2_STD_NTSC_M | V4L2_STD_PAL_M,
 };
@@ -1814,52 +1808,36 @@ int au0828_analog_register(struct au0828_dev *dev,
 	dev->std = V4L2_STD_NTSC_M;
 	au0828_s_input(dev, 0);
 
-	/* allocate and fill v4l2 video struct */
-	dev->vdev = video_device_alloc();
-	if (NULL == dev->vdev) {
-		dprintk(1, "Can't allocate video_device.\n");
-		return -ENOMEM;
-	}
-
-	/* allocate the VBI struct */
-	dev->vbi_dev = video_device_alloc();
-	if (NULL == dev->vbi_dev) {
-		dprintk(1, "Can't allocate vbi_device.\n");
-		ret = -ENOMEM;
-		goto err_vdev;
-	}
-
 	mutex_init(&dev->vb_queue_lock);
 	mutex_init(&dev->vb_vbi_queue_lock);
 
 	/* Fill the video capture device struct */
-	*dev->vdev = au0828_video_template;
-	dev->vdev->v4l2_dev = &dev->v4l2_dev;
-	dev->vdev->lock = &dev->lock;
-	dev->vdev->queue = &dev->vb_vidq;
-	dev->vdev->queue->lock = &dev->vb_queue_lock;
-	strcpy(dev->vdev->name, "au0828a video");
+	dev->vdev = au0828_video_template;
+	dev->vdev.v4l2_dev = &dev->v4l2_dev;
+	dev->vdev.lock = &dev->lock;
+	dev->vdev.queue = &dev->vb_vidq;
+	dev->vdev.queue->lock = &dev->vb_queue_lock;
+	strcpy(dev->vdev.name, "au0828a video");
 
 	/* Setup the VBI device */
-	*dev->vbi_dev = au0828_video_template;
-	dev->vbi_dev->v4l2_dev = &dev->v4l2_dev;
-	dev->vbi_dev->lock = &dev->lock;
-	dev->vbi_dev->queue = &dev->vb_vbiq;
-	dev->vbi_dev->queue->lock = &dev->vb_vbi_queue_lock;
-	strcpy(dev->vbi_dev->name, "au0828a vbi");
+	dev->vbi_dev = au0828_video_template;
+	dev->vbi_dev.v4l2_dev = &dev->v4l2_dev;
+	dev->vbi_dev.lock = &dev->lock;
+	dev->vbi_dev.queue = &dev->vb_vbiq;
+	dev->vbi_dev.queue->lock = &dev->vb_vbi_queue_lock;
+	strcpy(dev->vbi_dev.name, "au0828a vbi");
 
 	/* initialize videobuf2 stuff */
 	retval = au0828_vb2_setup(dev);
 	if (retval != 0) {
 		dprintk(1, "unable to setup videobuf2 queues (error = %d).\n",
 			retval);
-		ret = -ENODEV;
-		goto err_vbi_dev;
+		return -ENODEV;
 	}
 
 	/* Register the v4l2 device */
-	video_set_drvdata(dev->vdev, dev);
-	retval = video_register_device(dev->vdev, VFL_TYPE_GRABBER, -1);
+	video_set_drvdata(&dev->vdev, dev);
+	retval = video_register_device(&dev->vdev, VFL_TYPE_GRABBER, -1);
 	if (retval != 0) {
 		dprintk(1, "unable to register video device (error = %d).\n",
 			retval);
@@ -1868,8 +1846,8 @@ int au0828_analog_register(struct au0828_dev *dev,
 	}
 
 	/* Register the vbi device */
-	video_set_drvdata(dev->vbi_dev, dev);
-	retval = video_register_device(dev->vbi_dev, VFL_TYPE_VBI, -1);
+	video_set_drvdata(&dev->vbi_dev, dev);
+	retval = video_register_device(&dev->vbi_dev, VFL_TYPE_VBI, -1);
 	if (retval != 0) {
 		dprintk(1, "unable to register vbi device (error = %d).\n",
 			retval);
@@ -1882,14 +1860,10 @@ int au0828_analog_register(struct au0828_dev *dev,
 	return 0;
 
 err_reg_vbi_dev:
-	video_unregister_device(dev->vdev);
+	video_unregister_device(&dev->vdev);
 err_reg_vdev:
 	vb2_queue_release(&dev->vb_vidq);
 	vb2_queue_release(&dev->vb_vbiq);
-err_vbi_dev:
-	video_device_release(dev->vbi_dev);
-err_vdev:
-	video_device_release(dev->vdev);
 	return ret;
 }
 

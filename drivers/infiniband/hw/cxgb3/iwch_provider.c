@@ -85,9 +85,13 @@ static int iwch_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 static int iwch_process_mad(struct ib_device *ibdev,
 			    int mad_flags,
 			    u8 port_num,
-			    struct ib_wc *in_wc,
-			    struct ib_grh *in_grh,
-			    struct ib_mad *in_mad, struct ib_mad *out_mad)
+			    const struct ib_wc *in_wc,
+			    const struct ib_grh *in_grh,
+			    const struct ib_mad_hdr *in_mad,
+			    size_t in_mad_size,
+			    struct ib_mad_hdr *out_mad,
+			    size_t *out_mad_size,
+			    u16 *out_mad_pkey_index)
 {
 	return -ENOSYS;
 }
@@ -138,10 +142,12 @@ static int iwch_destroy_cq(struct ib_cq *ib_cq)
 	return 0;
 }
 
-static struct ib_cq *iwch_create_cq(struct ib_device *ibdev, int entries, int vector,
-			     struct ib_ucontext *ib_context,
-			     struct ib_udata *udata)
+static struct ib_cq *iwch_create_cq(struct ib_device *ibdev,
+				    const struct ib_cq_init_attr *attr,
+				    struct ib_ucontext *ib_context,
+				    struct ib_udata *udata)
 {
+	int entries = attr->cqe;
 	struct iwch_dev *rhp;
 	struct iwch_cq *chp;
 	struct iwch_create_cq_resp uresp;
@@ -151,6 +157,9 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev, int entries, int ve
 	size_t resplen;
 
 	PDBG("%s ib_dev %p entries %d\n", __func__, ibdev, entries);
+	if (attr->flags)
+		return ERR_PTR(-EINVAL);
+
 	rhp = to_iwch_dev(ibdev);
 	chp = kzalloc(sizeof(*chp), GFP_KERNEL);
 	if (!chp)
@@ -454,6 +463,7 @@ static int iwch_dereg_mr(struct ib_mr *ib_mr)
 		return -EINVAL;
 
 	mhp = to_iwch_mr(ib_mr);
+	kfree(mhp->pages);
 	rhp = mhp->rhp;
 	mmid = mhp->attr.stag >> 8;
 	cxio_dereg_mem(&rhp->rdev, mhp->attr.stag, mhp->attr.pbl_size,
@@ -727,6 +737,10 @@ static struct ib_mr *iwch_get_dma_mr(struct ib_pd *pd, int acc)
 	/*
 	 * T3 only supports 32 bits of size.
 	 */
+	if (sizeof(phys_addr_t) > 4) {
+		pr_warn_once(MOD "Cannot support dma_mrs on this platform.\n");
+		return ERR_PTR(-ENOTSUPP);
+	}
 	bl.size = 0xffffffff;
 	bl.addr = 0;
 	kva = 0;
@@ -787,7 +801,9 @@ static int iwch_dealloc_mw(struct ib_mw *mw)
 	return 0;
 }
 
-static struct ib_mr *iwch_alloc_fast_reg_mr(struct ib_pd *pd, int pbl_depth)
+static struct ib_mr *iwch_alloc_mr(struct ib_pd *pd,
+				   enum ib_mr_type mr_type,
+				   u32 max_num_sg)
 {
 	struct iwch_dev *rhp;
 	struct iwch_pd *php;
@@ -796,17 +812,27 @@ static struct ib_mr *iwch_alloc_fast_reg_mr(struct ib_pd *pd, int pbl_depth)
 	u32 stag = 0;
 	int ret = 0;
 
+	if (mr_type != IB_MR_TYPE_MEM_REG ||
+	    max_num_sg > T3_MAX_FASTREG_DEPTH)
+		return ERR_PTR(-EINVAL);
+
 	php = to_iwch_pd(pd);
 	rhp = php->rhp;
 	mhp = kzalloc(sizeof(*mhp), GFP_KERNEL);
 	if (!mhp)
 		goto err;
 
+	mhp->pages = kcalloc(max_num_sg, sizeof(u64), GFP_KERNEL);
+	if (!mhp->pages) {
+		ret = -ENOMEM;
+		goto pl_err;
+	}
+
 	mhp->rhp = rhp;
-	ret = iwch_alloc_pbl(mhp, pbl_depth);
+	ret = iwch_alloc_pbl(mhp, max_num_sg);
 	if (ret)
 		goto err1;
-	mhp->attr.pbl_size = pbl_depth;
+	mhp->attr.pbl_size = max_num_sg;
 	ret = cxio_allocate_stag(&rhp->rdev, &stag, php->pdid,
 				 mhp->attr.pbl_size, mhp->attr.pbl_addr);
 	if (ret)
@@ -828,31 +854,34 @@ err3:
 err2:
 	iwch_free_pbl(mhp);
 err1:
+	kfree(mhp->pages);
+pl_err:
 	kfree(mhp);
 err:
 	return ERR_PTR(ret);
 }
 
-static struct ib_fast_reg_page_list *iwch_alloc_fastreg_pbl(
-					struct ib_device *device,
-					int page_list_len)
+static int iwch_set_page(struct ib_mr *ibmr, u64 addr)
 {
-	struct ib_fast_reg_page_list *page_list;
+	struct iwch_mr *mhp = to_iwch_mr(ibmr);
 
-	page_list = kmalloc(sizeof *page_list + page_list_len * sizeof(u64),
-			    GFP_KERNEL);
-	if (!page_list)
-		return ERR_PTR(-ENOMEM);
+	if (unlikely(mhp->npages == mhp->attr.pbl_size))
+		return -ENOMEM;
 
-	page_list->page_list = (u64 *)(page_list + 1);
-	page_list->max_page_list_len = page_list_len;
+	mhp->pages[mhp->npages++] = addr;
 
-	return page_list;
+	return 0;
 }
 
-static void iwch_free_fastreg_pbl(struct ib_fast_reg_page_list *page_list)
+static int iwch_map_mr_sg(struct ib_mr *ibmr,
+			  struct scatterlist *sg,
+			  int sg_nents)
 {
-	kfree(page_list);
+	struct iwch_mr *mhp = to_iwch_mr(ibmr);
+
+	mhp->npages = 0;
+
+	return ib_sg_to_pages(ibmr, sg, sg_nents, iwch_set_page);
 }
 
 static int iwch_destroy_qp(struct ib_qp *ib_qp)
@@ -1145,12 +1174,16 @@ static u64 fw_vers_string_to_u64(struct iwch_dev *iwch_dev)
 	       (fw_mic & 0xffff);
 }
 
-static int iwch_query_device(struct ib_device *ibdev,
-			     struct ib_device_attr *props)
+static int iwch_query_device(struct ib_device *ibdev, struct ib_device_attr *props,
+			     struct ib_udata *uhw)
 {
 
 	struct iwch_dev *dev;
+
 	PDBG("%s ibdev %p\n", __func__, ibdev);
+
+	if (uhw->inlen || uhw->outlen)
+		return -EINVAL;
 
 	dev = to_iwch_dev(ibdev);
 	memset(props, 0, sizeof *props);
@@ -1343,6 +1376,23 @@ static struct device_attribute *iwch_class_attributes[] = {
 	&dev_attr_board_id,
 };
 
+static int iwch_port_immutable(struct ib_device *ibdev, u8 port_num,
+			       struct ib_port_immutable *immutable)
+{
+	struct ib_port_attr attr;
+	int err;
+
+	err = iwch_query_port(ibdev, port_num, &attr);
+	if (err)
+		return err;
+
+	immutable->pkey_tbl_len = attr.pkey_tbl_len;
+	immutable->gid_tbl_len = attr.gid_tbl_len;
+	immutable->core_cap_flags = RDMA_CORE_PORT_IWARP;
+
+	return 0;
+}
+
 int iwch_register_device(struct iwch_dev *dev)
 {
 	int ret;
@@ -1409,9 +1459,8 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.alloc_mw = iwch_alloc_mw;
 	dev->ibdev.bind_mw = iwch_bind_mw;
 	dev->ibdev.dealloc_mw = iwch_dealloc_mw;
-	dev->ibdev.alloc_fast_reg_mr = iwch_alloc_fast_reg_mr;
-	dev->ibdev.alloc_fast_reg_page_list = iwch_alloc_fastreg_pbl;
-	dev->ibdev.free_fast_reg_page_list = iwch_free_fastreg_pbl;
+	dev->ibdev.alloc_mr = iwch_alloc_mr;
+	dev->ibdev.map_mr_sg = iwch_map_mr_sg;
 	dev->ibdev.attach_mcast = iwch_multicast_attach;
 	dev->ibdev.detach_mcast = iwch_multicast_detach;
 	dev->ibdev.process_mad = iwch_process_mad;
@@ -1420,6 +1469,7 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.post_recv = iwch_post_receive;
 	dev->ibdev.get_protocol_stats = iwch_get_mib;
 	dev->ibdev.uverbs_abi_ver = IWCH_UVERBS_ABI_VERSION;
+	dev->ibdev.get_port_immutable = iwch_port_immutable;
 
 	dev->ibdev.iwcm = kmalloc(sizeof(struct iw_cm_verbs), GFP_KERNEL);
 	if (!dev->ibdev.iwcm)

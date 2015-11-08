@@ -65,7 +65,7 @@ static int octeon_spi_do_transfer(struct octeon_spi *p,
 	cpha = mode & SPI_CPHA;
 	cpol = mode & SPI_CPOL;
 
-	speed_hz = xfer->speed_hz ? : spi->max_speed_hz;
+	speed_hz = xfer->speed_hz;
 
 	clkdiv = octeon_get_io_clock_rate() / (2 * speed_hz);
 
@@ -238,7 +238,7 @@ static int octeon_spi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id octeon_spi_match[] = {
+static const struct of_device_id octeon_spi_match[] = {
 	{ .compatible = "cavium,octeon-3010-spi", },
 	{},
 };

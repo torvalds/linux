@@ -227,7 +227,6 @@ struct tty_port {
 	int			blocked_open;	/* Waiting to open */
 	int			count;		/* Usage count */
 	wait_queue_head_t	open_wait;	/* Open waiters */
-	wait_queue_head_t	close_wait;	/* Close waiters */
 	wait_queue_head_t	delta_msr_wait;	/* Modem status change */
 	unsigned long		flags;		/* TTY flags ASY_*/
 	unsigned char		console:1,	/* port is a console */
@@ -339,6 +338,7 @@ struct tty_file_private {
 #define TTY_EXCLUSIVE 		3	/* Exclusive open mode */
 #define TTY_DEBUG 		4	/* Debugging */
 #define TTY_DO_WRITE_WAKEUP 	5	/* Call write_wakeup after queuing new */
+#define TTY_OTHER_DONE		6	/* Closed pty has completed input processing */
 #define TTY_LDISC_OPEN	 	11	/* Line discipline is open */
 #define TTY_PTY_LOCK 		16	/* pty private */
 #define TTY_NO_WRITE_SPLIT 	17	/* Preserve write boundaries to driver */
@@ -421,8 +421,9 @@ static inline struct tty_struct *tty_kref_get(struct tty_struct *tty)
 
 extern int tty_paranoia_check(struct tty_struct *tty, struct inode *inode,
 			      const char *routine);
-extern char *tty_name(struct tty_struct *tty, char *buf);
+extern const char *tty_name(const struct tty_struct *tty);
 extern void tty_wait_until_sent(struct tty_struct *tty, long timeout);
+extern int __tty_check_change(struct tty_struct *tty, int sig);
 extern int tty_check_change(struct tty_struct *tty);
 extern void __stop_tty(struct tty_struct *tty);
 extern void stop_tty(struct tty_struct *tty);
@@ -462,11 +463,12 @@ extern int tty_hung_up_p(struct file *filp);
 extern void do_SAK(struct tty_struct *tty);
 extern void __do_SAK(struct tty_struct *tty);
 extern void no_tty(void);
-extern void tty_flush_to_ldisc(struct tty_struct *tty);
 extern void tty_buffer_free_all(struct tty_port *port);
 extern void tty_buffer_flush(struct tty_struct *tty, struct tty_ldisc *ld);
 extern void tty_buffer_init(struct tty_port *port);
 extern void tty_buffer_set_lock_subclass(struct tty_port *port);
+extern bool tty_buffer_restart_work(struct tty_port *port);
+extern bool tty_buffer_cancel_work(struct tty_port *port);
 extern speed_t tty_termios_baud_rate(struct ktermios *termios);
 extern speed_t tty_termios_input_baud_rate(struct ktermios *termios);
 extern void tty_termios_encode_baud_rate(struct ktermios *termios,
@@ -491,6 +493,7 @@ static inline speed_t tty_get_baud_rate(struct tty_struct *tty)
 
 extern void tty_termios_copy_hw(struct ktermios *new, struct ktermios *old);
 extern int tty_termios_hw_change(struct ktermios *a, struct ktermios *b);
+extern int tty_set_termios(struct tty_struct *tty, struct ktermios *kt);
 
 extern struct tty_ldisc *tty_ldisc_ref(struct tty_struct *);
 extern void tty_ldisc_deref(struct tty_ldisc *);
@@ -655,50 +658,6 @@ extern void __lockfunc tty_unlock(struct tty_struct *tty);
 extern void __lockfunc tty_lock_slave(struct tty_struct *tty);
 extern void __lockfunc tty_unlock_slave(struct tty_struct *tty);
 extern void tty_set_lock_subclass(struct tty_struct *tty);
-/*
- * this shall be called only from where BTM is held (like close)
- *
- * We need this to ensure nobody waits for us to finish while we are waiting.
- * Without this we were encountering system stalls.
- *
- * This should be indeed removed with BTM removal later.
- *
- * Locking: BTM required. Nobody is allowed to hold port->mutex.
- */
-static inline void tty_wait_until_sent_from_close(struct tty_struct *tty,
-		long timeout)
-{
-	tty_unlock(tty); /* tty->ops->close holds the BTM, drop it while waiting */
-	tty_wait_until_sent(tty, timeout);
-	tty_lock(tty);
-}
-
-/*
- * wait_event_interruptible_tty -- wait for a condition with the tty lock held
- *
- * The condition we are waiting for might take a long time to
- * become true, or might depend on another thread taking the
- * BTM. In either case, we need to drop the BTM to guarantee
- * forward progress. This is a leftover from the conversion
- * from the BKL and should eventually get removed as the BTM
- * falls out of use.
- *
- * Do not use in new code.
- */
-#define wait_event_interruptible_tty(tty, wq, condition)		\
-({									\
-	int __ret = 0;							\
-	if (!(condition))						\
-		__ret = __wait_event_interruptible_tty(tty, wq,		\
-						       condition);	\
-	__ret;								\
-})
-
-#define __wait_event_interruptible_tty(tty, wq, condition)		\
-	___wait_event(wq, condition, TASK_INTERRUPTIBLE, 0, 0,		\
-			tty_unlock(tty);				\
-			schedule();					\
-			tty_lock(tty))
 
 #ifdef CONFIG_PROC_FS
 extern void proc_tty_register_driver(struct tty_driver *);
@@ -707,5 +666,11 @@ extern void proc_tty_unregister_driver(struct tty_driver *);
 static inline void proc_tty_register_driver(struct tty_driver *d) {}
 static inline void proc_tty_unregister_driver(struct tty_driver *d) {}
 #endif
+
+#define tty_debug(tty, f, args...)					\
+	do {								\
+		printk(KERN_DEBUG "%s: %s: " f, __func__,		\
+		       tty_name(tty), ##args);				\
+	} while (0)
 
 #endif

@@ -294,7 +294,7 @@ static int mb86a20s_i2c_readreg(struct mb86a20s_state *state,
  * The functions below assume that gateway lock has already obtained
  */
 
-static int mb86a20s_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int mb86a20s_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct mb86a20s_state *state = fe->demodulator_priv;
 	int val;
@@ -1951,7 +1951,7 @@ static int mb86a20s_set_frontend(struct dvb_frontend *fe)
 }
 
 static int mb86a20s_read_status_and_stats(struct dvb_frontend *fe,
-					  fe_status_t *status)
+					  enum fe_status *status)
 {
 	struct mb86a20s_state *state = fe->demodulator_priv;
 	int rc, status_nr;
@@ -2042,7 +2042,7 @@ static int mb86a20s_tune(struct dvb_frontend *fe,
 			bool re_tune,
 			unsigned int mode_flags,
 			unsigned int *delay,
-			fe_status_t *status)
+			enum fe_status *status)
 {
 	struct mb86a20s_state *state = fe->demodulator_priv;
 	int rc = 0;

@@ -330,13 +330,6 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs,
 	}
 
 	/*
-	 * translate the signal
-	 */
-	if (usig < 32 && thread->exec_domain
-			&& thread->exec_domain->signal_invmap)
-		usig = thread->exec_domain->signal_invmap[usig];
-
-	/*
 	 * Set up the stack frame
 	 */
 	if (ksig->ka.sa.sa_flags & SA_SIGINFO)

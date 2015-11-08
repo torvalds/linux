@@ -103,6 +103,7 @@ static const struct cfg_param {
 	{"nvidia,lock",			TEGRA_PINCONF_PARAM_LOCK},
 	{"nvidia,io-reset",		TEGRA_PINCONF_PARAM_IORESET},
 	{"nvidia,rcv-sel",		TEGRA_PINCONF_PARAM_RCV_SEL},
+	{"nvidia,io-hv",		TEGRA_PINCONF_PARAM_RCV_SEL},
 	{"nvidia,high-speed-mode",	TEGRA_PINCONF_PARAM_HIGH_SPEED_MODE},
 	{"nvidia,schmitt",		TEGRA_PINCONF_PARAM_SCHMITT},
 	{"nvidia,low-power-mode",	TEGRA_PINCONF_PARAM_LOW_POWER_MODE},
@@ -348,14 +349,24 @@ static int tegra_pinconf_reg(struct tegra_pmx *pmx,
 		*width = 1;
 		break;
 	case TEGRA_PINCONF_PARAM_HIGH_SPEED_MODE:
-		*bank = g->drv_bank;
-		*reg = g->drv_reg;
+		if (pmx->soc->hsm_in_mux) {
+			*bank = g->mux_bank;
+			*reg = g->mux_reg;
+		} else {
+			*bank = g->drv_bank;
+			*reg = g->drv_reg;
+		}
 		*bit = g->hsm_bit;
 		*width = 1;
 		break;
 	case TEGRA_PINCONF_PARAM_SCHMITT:
-		*bank = g->drv_bank;
-		*reg = g->drv_reg;
+		if (pmx->soc->schmitt_in_mux) {
+			*bank = g->mux_bank;
+			*reg = g->mux_reg;
+		} else {
+			*bank = g->drv_bank;
+			*reg = g->drv_reg;
+		}
 		*bit = g->schmitt_bit;
 		*width = 1;
 		break;
@@ -390,8 +401,13 @@ static int tegra_pinconf_reg(struct tegra_pmx *pmx,
 		*width = g->slwr_width;
 		break;
 	case TEGRA_PINCONF_PARAM_DRIVE_TYPE:
-		*bank = g->drv_bank;
-		*reg = g->drv_reg;
+		if (pmx->soc->drvtype_in_mux) {
+			*bank = g->mux_bank;
+			*reg = g->mux_reg;
+		} else {
+			*bank = g->drv_bank;
+			*reg = g->drv_reg;
+		}
 		*bit = g->drvtype_bit;
 		*width = 2;
 		break;
@@ -608,6 +624,22 @@ static struct pinctrl_desc tegra_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
+static bool gpio_node_has_range(void)
+{
+	struct device_node *np;
+	bool has_prop = false;
+
+	np = of_find_compatible_node(NULL, NULL, "nvidia,tegra30-gpio");
+	if (!np)
+		return has_prop;
+
+	has_prop = of_find_property(np, "gpio-ranges", NULL);
+
+	of_node_put(np);
+
+	return has_prop;
+}
+
 int tegra_pinctrl_probe(struct platform_device *pdev,
 			const struct tegra_pinctrl_soc_data *soc_data)
 {
@@ -687,12 +719,13 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 	}
 
 	pmx->pctl = pinctrl_register(&tegra_pinctrl_desc, &pdev->dev, pmx);
-	if (!pmx->pctl) {
+	if (IS_ERR(pmx->pctl)) {
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
-		return -ENODEV;
+		return PTR_ERR(pmx->pctl);
 	}
 
-	pinctrl_add_gpio_range(pmx->pctl, &tegra_pinctrl_gpio_range);
+	if (!gpio_node_has_range())
+		pinctrl_add_gpio_range(pmx->pctl, &tegra_pinctrl_gpio_range);
 
 	platform_set_drvdata(pdev, pmx);
 

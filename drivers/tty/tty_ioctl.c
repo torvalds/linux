@@ -26,6 +26,12 @@
 
 #undef TTY_DEBUG_WAIT_UNTIL_SENT
 
+#ifdef TTY_DEBUG_WAIT_UNTIL_SENT
+# define tty_debug_wait_until_sent(tty, f, args...)    tty_debug(tty, f, ##args)
+#else
+# define tty_debug_wait_until_sent(tty, f, args...)    do {} while (0)
+#endif
+
 #undef	DEBUG
 
 /*
@@ -210,11 +216,8 @@ int tty_unthrottle_safe(struct tty_struct *tty)
 
 void tty_wait_until_sent(struct tty_struct *tty, long timeout)
 {
-#ifdef TTY_DEBUG_WAIT_UNTIL_SENT
-	char buf[64];
+	tty_debug_wait_until_sent(tty, "\n");
 
-	printk(KERN_DEBUG "%s wait until sent...\n", tty_name(tty, buf));
-#endif
 	if (!timeout)
 		timeout = MAX_SCHEDULE_TIMEOUT;
 
@@ -536,7 +539,7 @@ EXPORT_SYMBOL(tty_termios_hw_change);
  *	Locking: termios_rwsem
  */
 
-static int tty_set_termios(struct tty_struct *tty, struct ktermios *new_termios)
+int tty_set_termios(struct tty_struct *tty, struct ktermios *new_termios)
 {
 	struct ktermios old_termios;
 	struct tty_ldisc *ld;
@@ -569,6 +572,7 @@ static int tty_set_termios(struct tty_struct *tty, struct ktermios *new_termios)
 	up_write(&tty->termios_rwsem);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(tty_set_termios);
 
 /**
  *	set_termios		-	set termios values for a tty

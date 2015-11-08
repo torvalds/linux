@@ -14,6 +14,8 @@
 #include <linux/clk-provider.h>
 #include <linux/clk/ti.h>
 
+#include "clock.h"
+
 static struct ti_dt_clk dm816x_clks[] = {
 	DT_CLK(NULL, "sys_clkin", "sys_clkin_ck"),
 	DT_CLK(NULL, "timer_sys_ck", "sys_clkin_ck"),
@@ -42,7 +44,7 @@ static const char *enable_init_clks[] = {
 	"ddr_pll_clk3",
 };
 
-int __init ti81xx_dt_clk_init(void)
+int __init dm816x_dt_clk_init(void)
 {
 	ti_dt_clocks_register(dm816x_clks);
 	omap2_clk_disable_autoidle_all();

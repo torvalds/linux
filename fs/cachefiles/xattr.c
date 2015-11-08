@@ -33,7 +33,7 @@ int cachefiles_check_object_type(struct cachefiles_object *object)
 	int ret;
 
 	ASSERT(dentry);
-	ASSERT(dentry->d_inode);
+	ASSERT(d_backing_inode(dentry));
 
 	if (!object->fscache.cookie)
 		strcpy(type, "C3");
@@ -52,7 +52,7 @@ int cachefiles_check_object_type(struct cachefiles_object *object)
 
 	if (ret != -EEXIST) {
 		pr_err("Can't set xattr on %pd [%lu] (err %d)\n",
-		       dentry, dentry->d_inode->i_ino,
+		       dentry, d_backing_inode(dentry)->i_ino,
 		       -ret);
 		goto error;
 	}
@@ -64,7 +64,7 @@ int cachefiles_check_object_type(struct cachefiles_object *object)
 			goto bad_type_length;
 
 		pr_err("Can't read xattr on %pd [%lu] (err %d)\n",
-		       dentry, dentry->d_inode->i_ino,
+		       dentry, d_backing_inode(dentry)->i_ino,
 		       -ret);
 		goto error;
 	}
@@ -84,14 +84,14 @@ error:
 
 bad_type_length:
 	pr_err("Cache object %lu type xattr length incorrect\n",
-	       dentry->d_inode->i_ino);
+	       d_backing_inode(dentry)->i_ino);
 	ret = -EIO;
 	goto error;
 
 bad_type:
 	xtype[2] = 0;
 	pr_err("Cache object %pd [%lu] type %s not %s\n",
-	       dentry, dentry->d_inode->i_ino,
+	       dentry, d_backing_inode(dentry)->i_ino,
 	       xtype, type);
 	ret = -EIO;
 	goto error;
@@ -165,7 +165,7 @@ int cachefiles_check_auxdata(struct cachefiles_object *object)
 	int ret;
 
 	ASSERT(dentry);
-	ASSERT(dentry->d_inode);
+	ASSERT(d_backing_inode(dentry));
 	ASSERT(object->fscache.cookie->def->check_aux);
 
 	auxbuf = kmalloc(sizeof(struct cachefiles_xattr) + 512, GFP_KERNEL);
@@ -204,7 +204,7 @@ int cachefiles_check_object_xattr(struct cachefiles_object *object,
 	_enter("%p,#%d", object, auxdata->len);
 
 	ASSERT(dentry);
-	ASSERT(dentry->d_inode);
+	ASSERT(d_backing_inode(dentry));
 
 	auxbuf = kmalloc(sizeof(struct cachefiles_xattr) + 512, cachefiles_gfp);
 	if (!auxbuf) {
@@ -225,7 +225,7 @@ int cachefiles_check_object_xattr(struct cachefiles_object *object,
 
 		cachefiles_io_error_obj(object,
 					"Can't read xattr on %lu (err %d)",
-					dentry->d_inode->i_ino, -ret);
+					d_backing_inode(dentry)->i_ino, -ret);
 		goto error;
 	}
 
@@ -276,7 +276,7 @@ int cachefiles_check_object_xattr(struct cachefiles_object *object,
 			cachefiles_io_error_obj(object,
 						"Can't update xattr on %lu"
 						" (error %d)",
-						dentry->d_inode->i_ino, -ret);
+						d_backing_inode(dentry)->i_ino, -ret);
 			goto error;
 		}
 	}
@@ -291,7 +291,7 @@ error:
 
 bad_type_length:
 	pr_err("Cache object %lu xattr length incorrect\n",
-	       dentry->d_inode->i_ino);
+	       d_backing_inode(dentry)->i_ino);
 	ret = -EIO;
 	goto error;
 
@@ -316,7 +316,7 @@ int cachefiles_remove_object_xattr(struct cachefiles_cache *cache,
 			cachefiles_io_error(cache,
 					    "Can't remove xattr from %lu"
 					    " (error %d)",
-					    dentry->d_inode->i_ino, -ret);
+					    d_backing_inode(dentry)->i_ino, -ret);
 	}
 
 	_leave(" = %d", ret);

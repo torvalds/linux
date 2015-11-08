@@ -167,6 +167,17 @@ struct acpi_pkg_info {
 #define DB_QWORD_DISPLAY    8
 
 /*
+ * utnonansi - Non-ANSI C library functions
+ */
+void acpi_ut_strupr(char *src_string);
+
+void acpi_ut_strlwr(char *src_string);
+
+int acpi_ut_stricmp(char *string1, char *string2);
+
+acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer);
+
+/*
  * utglobal - Global data structures and procedures
  */
 acpi_status acpi_ut_init_globals(void);
@@ -204,68 +215,6 @@ u8 acpi_ut_valid_object_type(acpi_object_type type);
 acpi_status acpi_ut_hardware_initialize(void);
 
 void acpi_ut_subsystem_shutdown(void);
-
-/*
- * utclib - Local implementations of C library functions
- */
-#ifndef ACPI_USE_SYSTEM_CLIBRARY
-
-acpi_size acpi_ut_strlen(const char *string);
-
-char *acpi_ut_strchr(const char *string, int ch);
-
-char *acpi_ut_strcpy(char *dst_string, const char *src_string);
-
-char *acpi_ut_strncpy(char *dst_string,
-		      const char *src_string, acpi_size count);
-
-int acpi_ut_memcmp(const char *buffer1, const char *buffer2, acpi_size count);
-
-int acpi_ut_strncmp(const char *string1, const char *string2, acpi_size count);
-
-int acpi_ut_strcmp(const char *string1, const char *string2);
-
-char *acpi_ut_strcat(char *dst_string, const char *src_string);
-
-char *acpi_ut_strncat(char *dst_string,
-		      const char *src_string, acpi_size count);
-
-u32 acpi_ut_strtoul(const char *string, char **terminator, u32 base);
-
-char *acpi_ut_strstr(char *string1, char *string2);
-
-void *acpi_ut_memcpy(void *dest, const void *src, acpi_size count);
-
-void *acpi_ut_memset(void *dest, u8 value, acpi_size count);
-
-int acpi_ut_to_upper(int c);
-
-int acpi_ut_to_lower(int c);
-
-extern const u8 _acpi_ctype[];
-
-#define _ACPI_XA     0x00	/* extra alphabetic - not supported */
-#define _ACPI_XS     0x40	/* extra space */
-#define _ACPI_BB     0x00	/* BEL, BS, etc. - not supported */
-#define _ACPI_CN     0x20	/* CR, FF, HT, NL, VT */
-#define _ACPI_DI     0x04	/* '0'-'9' */
-#define _ACPI_LO     0x02	/* 'a'-'z' */
-#define _ACPI_PU     0x10	/* punctuation */
-#define _ACPI_SP     0x08	/* space */
-#define _ACPI_UP     0x01	/* 'A'-'Z' */
-#define _ACPI_XD     0x80	/* '0'-'9', 'A'-'F', 'a'-'f' */
-
-#define ACPI_IS_DIGIT(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_DI))
-#define ACPI_IS_SPACE(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_SP))
-#define ACPI_IS_XDIGIT(c) (_acpi_ctype[(unsigned char)(c)] & (_ACPI_XD))
-#define ACPI_IS_UPPER(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_UP))
-#define ACPI_IS_LOWER(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO))
-#define ACPI_IS_PRINT(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO | _ACPI_UP | _ACPI_DI | _ACPI_XS | _ACPI_PU))
-#define ACPI_IS_ALPHA(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO | _ACPI_UP))
-
-#endif				/* !ACPI_USE_SYSTEM_CLIBRARY */
-
-#define ACPI_IS_ASCII(c)  ((c) < 0x80)
 
 /*
  * utcopy - Object construction and conversion interfaces
@@ -430,6 +379,10 @@ acpi_status
 acpi_ut_execute_CID(struct acpi_namespace_node *device_node,
 		    struct acpi_pnp_device_id_list ** return_cid_list);
 
+acpi_status
+acpi_ut_execute_CLS(struct acpi_namespace_node *device_node,
+		    struct acpi_pnp_device_id **return_id);
+
 /*
  * utlock - reader/writer locks
  */
@@ -502,6 +455,9 @@ const union acpi_predefined_info *acpi_ut_get_next_predefined_method(const union
 
 const union acpi_predefined_info *acpi_ut_match_predefined_method(char *name);
 
+void acpi_ut_get_expected_return_types(char *buffer, u32 expected_btypes);
+
+#if (defined ACPI_ASL_COMPILER || defined ACPI_HELP_APP)
 const union acpi_predefined_info *acpi_ut_match_resource_name(char *name);
 
 void
@@ -509,9 +465,8 @@ acpi_ut_display_predefined_method(char *buffer,
 				  const union acpi_predefined_info *this_name,
 				  u8 multi_line);
 
-void acpi_ut_get_expected_return_types(char *buffer, u32 expected_btypes);
-
 u32 acpi_ut_get_resource_bit_width(char *buffer, u16 types);
+#endif
 
 /*
  * utstate - Generic state creation/cache routines
@@ -539,14 +494,6 @@ acpi_ut_create_update_state_and_push(union acpi_operand_object *object,
 				     u16 action,
 				     union acpi_generic_state **state_list);
 
-#ifdef	ACPI_FUTURE_USAGE
-acpi_status
-acpi_ut_create_pkg_state_and_push(void *internal_object,
-				  void *external_object,
-				  u16 index,
-				  union acpi_generic_state **state_list);
-#endif				/* ACPI_FUTURE_USAGE */
-
 union acpi_generic_state *acpi_ut_create_control_state(void);
 
 void acpi_ut_delete_generic_state(union acpi_generic_state *state);
@@ -570,7 +517,9 @@ const struct acpi_exception_info *acpi_ut_validate_exception(acpi_status
 
 u8 acpi_ut_is_pci_root_bridge(char *id);
 
+#if (defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP || defined ACPI_NAMES_APP)
 u8 acpi_ut_is_aml_table(struct acpi_table_header *table);
+#endif
 
 acpi_status
 acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
@@ -627,17 +576,11 @@ acpi_ut_get_resource_end_tag(union acpi_operand_object *obj_desc, u8 **end_tag);
 /*
  * utstring - String and character utilities
  */
-void acpi_ut_strupr(char *src_string);
-
-void acpi_ut_strlwr(char *src_string);
-
-int acpi_ut_stricmp(char *string1, char *string2);
-
-acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer);
-
 void acpi_ut_print_string(char *string, u16 max_length);
 
+#if defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP
 void ut_convert_backslashes(char *pathname);
+#endif
 
 u8 acpi_ut_valid_acpi_name(char *name);
 
@@ -692,9 +635,7 @@ void
 acpi_ut_free_and_track(void *address,
 		       u32 component, const char *module, u32 line);
 
-#ifdef	ACPI_FUTURE_USAGE
 void acpi_ut_dump_allocation_info(void);
-#endif				/* ACPI_FUTURE_USAGE */
 
 void acpi_ut_dump_allocations(u32 component, const char *module);
 
@@ -785,6 +726,8 @@ int acpi_ut_file_printf(ACPI_FILE file, const char *format, ...);
 /*
  * utuuid -- UUID support functions
  */
+#if (defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP || defined ACPI_HELP_APP)
 void acpi_ut_convert_string_to_uuid(char *in_string, u8 *uuid_buffer);
+#endif
 
 #endif				/* _ACUTILS_H */

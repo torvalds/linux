@@ -63,10 +63,15 @@ struct ahash_request {
 	void *__ctx[] CRYPTO_MINALIGN_ATTR;
 };
 
+#define AHASH_REQUEST_ON_STACK(name, ahash) \
+	char __##name##_desc[sizeof(struct ahash_request) + \
+		crypto_ahash_reqsize(ahash)] CRYPTO_MINALIGN_ATTR; \
+	struct ahash_request *name = (void *)__##name##_desc
+
 /**
  * struct ahash_alg - asynchronous message digest definition
  * @init: Initialize the transformation context. Intended only to initialize the
- *	  state of the HASH transformation at the begining. This shall fill in
+ *	  state of the HASH transformation at the beginning. This shall fill in
  *	  the internal structures used during the entire duration of the whole
  *	  transformation. No data processing happens at this point.
  * @update: Push a chunk of data into the driver for transformation. This
@@ -257,6 +262,20 @@ static inline unsigned int crypto_ahash_alignmask(
 	struct crypto_ahash *tfm)
 {
 	return crypto_tfm_alg_alignmask(crypto_ahash_tfm(tfm));
+}
+
+/**
+ * crypto_ahash_blocksize() - obtain block size for cipher
+ * @tfm: cipher handle
+ *
+ * The block size for the message digest cipher referenced with the cipher
+ * handle is returned.
+ *
+ * Return: block size of cipher
+ */
+static inline unsigned int crypto_ahash_blocksize(struct crypto_ahash *tfm)
+{
+	return crypto_tfm_alg_blocksize(crypto_ahash_tfm(tfm));
 }
 
 static inline struct hash_alg_common *__crypto_hash_alg_common(

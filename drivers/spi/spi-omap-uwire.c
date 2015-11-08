@@ -44,7 +44,6 @@
 #include <linux/module.h>
 #include <linux/io.h>
 
-#include <asm/irq.h>
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 
@@ -206,7 +205,7 @@ static void uwire_chipselect(struct spi_device *spi, int value)
 static int uwire_txrx(struct spi_device *spi, struct spi_transfer *t)
 {
 	unsigned	len = t->len;
-	unsigned	bits = t->bits_per_word ? : spi->bits_per_word;
+	unsigned	bits = t->bits_per_word;
 	unsigned	bytes;
 	u16		val, w;
 	int		status = 0;
@@ -345,9 +344,10 @@ static int uwire_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	/* assume it's already enabled */
 	rate = clk_get_rate(uwire->ck);
 
-	hz = spi->max_speed_hz;
-	if (t != NULL && t->speed_hz)
+	if (t != NULL)
 		hz = t->speed_hz;
+	else
+		hz = spi->max_speed_hz;
 
 	if (!hz) {
 		pr_debug("%s: zero speed?\n", dev_name(&spi->dev));

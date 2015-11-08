@@ -29,7 +29,8 @@
  */
 
 #define TALITOS_TIMEOUT 100000
-#define TALITOS_MAX_DATA_LEN 65535
+#define TALITOS1_MAX_DATA_LEN 32768
+#define TALITOS2_MAX_DATA_LEN 65535
 
 #define DESC_TYPE(desc_hdr) ((be32_to_cpu(desc_hdr) >> 3) & 0x1f)
 #define PRIMARY_EU(desc_hdr) ((be32_to_cpu(desc_hdr) >> 28) & 0xf)
@@ -37,25 +38,34 @@
 
 /* descriptor pointer entry */
 struct talitos_ptr {
-	__be16 len;     /* length */
-	u8 j_extent;    /* jump to sg link table and/or extent */
-	u8 eptr;        /* extended address */
+	union {
+		struct {		/* SEC2 format */
+			__be16 len;     /* length */
+			u8 j_extent;    /* jump to sg link table and/or extent*/
+			u8 eptr;        /* extended address */
+		};
+		struct {			/* SEC1 format */
+			__be16 res;
+			__be16 len1;	/* length */
+		};
+	};
 	__be32 ptr;     /* address */
 };
 
-static const struct talitos_ptr zero_entry = {
-	.len = 0,
-	.j_extent = 0,
-	.eptr = 0,
-	.ptr = 0
-};
+static const struct talitos_ptr zero_entry;
 
 /* descriptor */
 struct talitos_desc {
 	__be32 hdr;                     /* header high bits */
-	__be32 hdr_lo;                  /* header low bits */
+	union {
+		__be32 hdr_lo;		/* header low bits */
+		__be32 hdr1;		/* header for SEC1 */
+	};
 	struct talitos_ptr ptr[7];      /* ptr/len pair array */
+	__be32 next_desc;		/* next descriptor (SEC1) */
 };
+
+#define TALITOS_DESC_SIZE	(sizeof(struct talitos_desc) - sizeof(__be32))
 
 /**
  * talitos_request - descriptor submission request
@@ -97,6 +107,14 @@ struct talitos_private {
 	struct device *dev;
 	struct platform_device *ofdev;
 	void __iomem *reg;
+	void __iomem *reg_deu;
+	void __iomem *reg_aesu;
+	void __iomem *reg_mdeu;
+	void __iomem *reg_afeu;
+	void __iomem *reg_rngu;
+	void __iomem *reg_pkeu;
+	void __iomem *reg_keu;
+	void __iomem *reg_crcu;
 	int irq[2];
 
 	/* SEC global registers lock  */
@@ -131,6 +149,7 @@ struct talitos_private {
 
 	/* hwrng device */
 	struct hwrng rng;
+	bool rng_registered;
 };
 
 extern int talitos_submit(struct device *dev, int ch, struct talitos_desc *desc,
@@ -144,10 +163,30 @@ extern int talitos_submit(struct device *dev, int ch, struct talitos_desc *desc,
 #define TALITOS_FTR_HW_AUTH_CHECK 0x00000002
 #define TALITOS_FTR_SHA224_HWINIT 0x00000004
 #define TALITOS_FTR_HMAC_OK 0x00000008
+#define TALITOS_FTR_SEC1 0x00000010
+
+/*
+ * If both CONFIG_CRYPTO_DEV_TALITOS1 and CONFIG_CRYPTO_DEV_TALITOS2 are
+ * defined, we check the features which are set according to the device tree.
+ * Otherwise, we answer true or false directly
+ */
+static inline bool has_ftr_sec1(struct talitos_private *priv)
+{
+#if defined(CONFIG_CRYPTO_DEV_TALITOS1) && defined(CONFIG_CRYPTO_DEV_TALITOS2)
+	return priv->features & TALITOS_FTR_SEC1 ? true : false;
+#elif defined(CONFIG_CRYPTO_DEV_TALITOS1)
+	return true;
+#else
+	return false;
+#endif
+}
 
 /*
  * TALITOS_xxx_LO addresses point to the low data bits (32-63) of the register
  */
+
+#define ISR1_FORMAT(x)			(((x) << 28) | ((x) << 16))
+#define ISR2_FORMAT(x)			(((x) << 4) | (x))
 
 /* global register offset addresses */
 #define TALITOS_MCR			0x1030  /* master control register */
@@ -155,38 +194,49 @@ extern int talitos_submit(struct device *dev, int ch, struct talitos_desc *desc,
 #define   TALITOS_MCR_RCA1		(1 << 14) /* remap channel 1 */
 #define   TALITOS_MCR_RCA2		(1 << 13) /* remap channel 2 */
 #define   TALITOS_MCR_RCA3		(1 << 12) /* remap channel 3 */
-#define   TALITOS_MCR_SWR		0x1     /* s/w reset */
+#define   TALITOS1_MCR_SWR		0x1000000     /* s/w reset */
+#define   TALITOS2_MCR_SWR		0x1     /* s/w reset */
 #define TALITOS_MCR_LO			0x1034
 #define TALITOS_IMR			0x1008  /* interrupt mask register */
-#define   TALITOS_IMR_INIT		0x100ff /* enable channel IRQs */
-#define   TALITOS_IMR_DONE		0x00055 /* done IRQs */
+/* enable channel IRQs */
+#define   TALITOS1_IMR_INIT		ISR1_FORMAT(0xf)
+#define   TALITOS1_IMR_DONE		ISR1_FORMAT(0x5) /* done IRQs */
+/* enable channel IRQs */
+#define   TALITOS2_IMR_INIT		(ISR2_FORMAT(0xf) | 0x10000)
+#define   TALITOS2_IMR_DONE		ISR1_FORMAT(0x5) /* done IRQs */
 #define TALITOS_IMR_LO			0x100C
-#define   TALITOS_IMR_LO_INIT		0x20000 /* allow RNGU error IRQs */
+#define   TALITOS1_IMR_LO_INIT		0x2000000 /* allow RNGU error IRQs */
+#define   TALITOS2_IMR_LO_INIT		0x20000 /* allow RNGU error IRQs */
 #define TALITOS_ISR			0x1010  /* interrupt status register */
-#define   TALITOS_ISR_4CHERR		0xaa    /* 4 channel errors mask */
-#define   TALITOS_ISR_4CHDONE		0x55    /* 4 channel done mask */
-#define   TALITOS_ISR_CH_0_2_ERR	0x22    /* channels 0, 2 errors mask */
-#define   TALITOS_ISR_CH_0_2_DONE	0x11    /* channels 0, 2 done mask */
-#define   TALITOS_ISR_CH_1_3_ERR	0x88    /* channels 1, 3 errors mask */
-#define   TALITOS_ISR_CH_1_3_DONE	0x44    /* channels 1, 3 done mask */
+#define   TALITOS1_ISR_4CHERR		ISR1_FORMAT(0xa) /* 4 ch errors mask */
+#define   TALITOS1_ISR_4CHDONE		ISR1_FORMAT(0x5) /* 4 ch done mask */
+#define   TALITOS1_ISR_TEA_ERR		0x00000040
+#define   TALITOS2_ISR_4CHERR		ISR2_FORMAT(0xa) /* 4 ch errors mask */
+#define   TALITOS2_ISR_4CHDONE		ISR2_FORMAT(0x5) /* 4 ch done mask */
+#define   TALITOS2_ISR_CH_0_2_ERR	ISR2_FORMAT(0x2) /* ch 0, 2 err mask */
+#define   TALITOS2_ISR_CH_0_2_DONE	ISR2_FORMAT(0x1) /* ch 0, 2 done mask */
+#define   TALITOS2_ISR_CH_1_3_ERR	ISR2_FORMAT(0x8) /* ch 1, 3 err mask */
+#define   TALITOS2_ISR_CH_1_3_DONE	ISR2_FORMAT(0x4) /* ch 1, 3 done mask */
 #define TALITOS_ISR_LO			0x1014
 #define TALITOS_ICR			0x1018  /* interrupt clear register */
 #define TALITOS_ICR_LO			0x101C
 
 /* channel register address stride */
 #define TALITOS_CH_BASE_OFFSET		0x1000	/* default channel map base */
-#define TALITOS_CH_STRIDE		0x100
+#define TALITOS1_CH_STRIDE		0x1000
+#define TALITOS2_CH_STRIDE		0x100
 
 /* channel configuration register  */
 #define TALITOS_CCCR			0x8
-#define   TALITOS_CCCR_CONT		0x2    /* channel continue */
-#define   TALITOS_CCCR_RESET		0x1    /* channel reset */
+#define   TALITOS2_CCCR_CONT		0x2    /* channel continue on SEC2 */
+#define   TALITOS2_CCCR_RESET		0x1    /* channel reset on SEC2 */
 #define TALITOS_CCCR_LO			0xc
 #define   TALITOS_CCCR_LO_IWSE		0x80   /* chan. ICCR writeback enab. */
 #define   TALITOS_CCCR_LO_EAE		0x20   /* extended address enable */
 #define   TALITOS_CCCR_LO_CDWE		0x10   /* chan. done writeback enab. */
 #define   TALITOS_CCCR_LO_NT		0x4    /* notification type */
 #define   TALITOS_CCCR_LO_CDIE		0x2    /* channel done IRQ enable */
+#define   TALITOS1_CCCR_LO_RESET	0x1    /* channel reset on SEC1 */
 
 /* CCPSR: channel pointer status register */
 #define TALITOS_CCPSR			0x10
@@ -224,37 +274,48 @@ extern int talitos_submit(struct device *dev, int ch, struct talitos_desc *desc,
 #define TALITOS_SCATTER			0xe0
 #define TALITOS_SCATTER_LO		0xe4
 
+/* execution unit registers base */
+#define TALITOS2_DEU			0x2000
+#define TALITOS2_AESU			0x4000
+#define TALITOS2_MDEU			0x6000
+#define TALITOS2_AFEU			0x8000
+#define TALITOS2_RNGU			0xa000
+#define TALITOS2_PKEU			0xc000
+#define TALITOS2_KEU			0xe000
+#define TALITOS2_CRCU			0xf000
+
+#define TALITOS12_AESU			0x4000
+#define TALITOS12_DEU			0x5000
+#define TALITOS12_MDEU			0x6000
+
+#define TALITOS10_AFEU			0x8000
+#define TALITOS10_DEU			0xa000
+#define TALITOS10_MDEU			0xc000
+#define TALITOS10_RNGU			0xe000
+#define TALITOS10_PKEU			0x10000
+#define TALITOS10_AESU			0x12000
+
 /* execution unit interrupt status registers */
-#define TALITOS_DEUISR			0x2030 /* DES unit */
-#define TALITOS_DEUISR_LO		0x2034
-#define TALITOS_AESUISR			0x4030 /* AES unit */
-#define TALITOS_AESUISR_LO		0x4034
-#define TALITOS_MDEUISR			0x6030 /* message digest unit */
-#define TALITOS_MDEUISR_LO		0x6034
-#define TALITOS_MDEUICR			0x6038 /* interrupt control */
-#define TALITOS_MDEUICR_LO		0x603c
+#define TALITOS_EUDSR			0x10	/* data size */
+#define TALITOS_EUDSR_LO		0x14
+#define TALITOS_EURCR			0x18 /* reset control*/
+#define TALITOS_EURCR_LO		0x1c
+#define TALITOS_EUSR			0x28 /* rng status */
+#define TALITOS_EUSR_LO			0x2c
+#define TALITOS_EUISR			0x30
+#define TALITOS_EUISR_LO		0x34
+#define TALITOS_EUICR			0x38 /* int. control */
+#define TALITOS_EUICR_LO		0x3c
+#define TALITOS_EU_FIFO			0x800 /* output FIFO */
+#define TALITOS_EU_FIFO_LO		0x804 /* output FIFO */
+/* DES unit */
+#define   TALITOS1_DEUICR_KPE		0x00200000 /* Key Parity Error */
+/* message digest unit */
 #define   TALITOS_MDEUICR_LO_ICE	0x4000 /* integrity check IRQ enable */
-#define TALITOS_AFEUISR			0x8030 /* arc4 unit */
-#define TALITOS_AFEUISR_LO		0x8034
-#define TALITOS_RNGUISR			0xa030 /* random number unit */
-#define TALITOS_RNGUISR_LO		0xa034
-#define TALITOS_RNGUSR			0xa028 /* rng status */
-#define TALITOS_RNGUSR_LO		0xa02c
+/* random number unit */
 #define   TALITOS_RNGUSR_LO_RD		0x1	/* reset done */
 #define   TALITOS_RNGUSR_LO_OFL		0xff0000/* output FIFO length */
-#define TALITOS_RNGUDSR			0xa010	/* data size */
-#define TALITOS_RNGUDSR_LO		0xa014
-#define TALITOS_RNGU_FIFO		0xa800	/* output FIFO */
-#define TALITOS_RNGU_FIFO_LO		0xa804	/* output FIFO */
-#define TALITOS_RNGURCR			0xa018	/* reset control */
-#define TALITOS_RNGURCR_LO		0xa01c
 #define   TALITOS_RNGURCR_LO_SR		0x1	/* software reset */
-#define TALITOS_PKEUISR			0xc030 /* public key unit */
-#define TALITOS_PKEUISR_LO		0xc034
-#define TALITOS_KEUISR			0xe030 /* kasumi unit */
-#define TALITOS_KEUISR_LO		0xe034
-#define TALITOS_CRCUISR			0xf030 /* cyclic redundancy check unit*/
-#define TALITOS_CRCUISR_LO		0xf034
 
 #define TALITOS_MDEU_CONTEXT_SIZE_MD5_SHA1_SHA256	0x28
 #define TALITOS_MDEU_CONTEXT_SIZE_SHA384_SHA512		0x48

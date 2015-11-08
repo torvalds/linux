@@ -151,6 +151,12 @@ STAT LIVE OPTIONS
        Show events other than HLT (x86 only) or Wait state (s390 only)
        that take longer than duration usecs.
 
+--proc-map-timeout::
+	When processing pre-existing threads /proc/XXX/mmap, it may take
+	a long time, because the file may be huge. A time out is needed
+	in such cases.
+	This option sets the time out limit. The default value is 500 ms.
+
 SEE ALSO
 --------
 linkperf:perf-top[1], linkperf:perf-record[1], linkperf:perf-report[1],

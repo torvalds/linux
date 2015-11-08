@@ -68,6 +68,8 @@
 #include <asm/pgalloc.h>
 #include <asm/cachetype.h>
 #include <asm/cacheflush.h>
+#include <asm/mmu_context.h>
+#include <asm/pgtable.h>
 
 #define KERN_TO_HYP(kva)	((unsigned long)kva - PAGE_OFFSET + HYP_PAGE_OFFSET)
 
@@ -163,12 +165,12 @@ static inline bool kvm_s2pmd_readonly(pmd_t *pmd)
 /*
  * If we are concatenating first level stage-2 page tables, we would have less
  * than or equal to 16 pointers in the fake PGD, because that's what the
- * architecture allows.  In this case, (4 - CONFIG_ARM64_PGTABLE_LEVELS)
+ * architecture allows.  In this case, (4 - CONFIG_PGTABLE_LEVELS)
  * represents the first level for the host, and we add 1 to go to the next
  * level (which uses contatenation) for the stage-2 tables.
  */
 #if PTRS_PER_S2_PGD <= 16
-#define KVM_PREALLOC_LEVEL	(4 - CONFIG_ARM64_PGTABLE_LEVELS + 1)
+#define KVM_PREALLOC_LEVEL	(4 - CONFIG_PGTABLE_LEVELS + 1)
 #else
 #define KVM_PREALLOC_LEVEL	(0)
 #endif
@@ -268,6 +270,37 @@ static inline void __kvm_flush_dcache_pud(pud_t pud)
 
 void kvm_set_way_flush(struct kvm_vcpu *vcpu);
 void kvm_toggle_cache(struct kvm_vcpu *vcpu, bool was_enabled);
+
+static inline bool __kvm_cpu_uses_extended_idmap(void)
+{
+	return __cpu_uses_extended_idmap();
+}
+
+static inline void __kvm_extend_hypmap(pgd_t *boot_hyp_pgd,
+				       pgd_t *hyp_pgd,
+				       pgd_t *merged_hyp_pgd,
+				       unsigned long hyp_idmap_start)
+{
+	int idmap_idx;
+
+	/*
+	 * Use the first entry to access the HYP mappings. It is
+	 * guaranteed to be free, otherwise we wouldn't use an
+	 * extended idmap.
+	 */
+	VM_BUG_ON(pgd_val(merged_hyp_pgd[0]));
+	merged_hyp_pgd[0] = __pgd(__pa(hyp_pgd) | PMD_TYPE_TABLE);
+
+	/*
+	 * Create another extended level entry that points to the boot HYP map,
+	 * which contains an ID mapping of the HYP init code. We essentially
+	 * merge the boot and runtime HYP maps by doing so, but they don't
+	 * overlap anyway, so this is fine.
+	 */
+	idmap_idx = hyp_idmap_start >> VA_BITS;
+	VM_BUG_ON(pgd_val(merged_hyp_pgd[idmap_idx]));
+	merged_hyp_pgd[idmap_idx] = __pgd(__pa(boot_hyp_pgd) | PMD_TYPE_TABLE);
+}
 
 #endif /* __ASSEMBLY__ */
 #endif /* __ARM64_KVM_MMU_H__ */

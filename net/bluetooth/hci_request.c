@@ -34,7 +34,8 @@ void hci_req_init(struct hci_request *req, struct hci_dev *hdev)
 	req->err = 0;
 }
 
-int hci_req_run(struct hci_request *req, hci_req_complete_t complete)
+static int req_run(struct hci_request *req, hci_req_complete_t complete,
+		   hci_req_complete_skb_t complete_skb)
 {
 	struct hci_dev *hdev = req->hdev;
 	struct sk_buff *skb;
@@ -55,7 +56,8 @@ int hci_req_run(struct hci_request *req, hci_req_complete_t complete)
 		return -ENODATA;
 
 	skb = skb_peek_tail(&req->cmd_q);
-	bt_cb(skb)->req.complete = complete;
+	bt_cb(skb)->hci.req_complete = complete;
+	bt_cb(skb)->hci.req_complete_skb = complete_skb;
 
 	spin_lock_irqsave(&hdev->cmd_q.lock, flags);
 	skb_queue_splice_tail(&req->cmd_q, &hdev->cmd_q);
@@ -64,6 +66,16 @@ int hci_req_run(struct hci_request *req, hci_req_complete_t complete)
 	queue_work(hdev->workqueue, &hdev->cmd_work);
 
 	return 0;
+}
+
+int hci_req_run(struct hci_request *req, hci_req_complete_t complete)
+{
+	return req_run(req, complete, NULL);
+}
+
+int hci_req_run_skb(struct hci_request *req, hci_req_complete_skb_t complete)
+{
+	return req_run(req, NULL, complete);
 }
 
 struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode, u32 plen,
@@ -87,7 +99,7 @@ struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode, u32 plen,
 	BT_DBG("skb len %d", skb->len);
 
 	bt_cb(skb)->pkt_type = HCI_COMMAND_PKT;
-	bt_cb(skb)->opcode = opcode;
+	bt_cb(skb)->hci.opcode = opcode;
 
 	return skb;
 }
@@ -116,9 +128,9 @@ void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen,
 	}
 
 	if (skb_queue_empty(&req->cmd_q))
-		bt_cb(skb)->req.start = true;
+		bt_cb(skb)->hci.req_start = true;
 
-	bt_cb(skb)->req.event = event;
+	bt_cb(skb)->hci.req_event = event;
 
 	skb_queue_tail(&req->cmd_q, skb);
 }
@@ -270,7 +282,7 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 	 * and 0x01 (whitelist enabled) use the new filter policies
 	 * 0x02 (no whitelist) and 0x03 (whitelist enabled).
 	 */
-	if (test_bit(HCI_PRIVACY, &hdev->dev_flags) &&
+	if (hci_dev_test_flag(hdev, HCI_PRIVACY) &&
 	    (hdev->le_features[0] & HCI_LE_EXT_SCAN_POLICY))
 		filter_policy |= 0x02;
 
@@ -304,10 +316,10 @@ static void set_random_addr(struct hci_request *req, bdaddr_t *rpa)
 	 * In this kind of scenario skip the update and let the random
 	 * address be updated at the next cycle.
 	 */
-	if (test_bit(HCI_LE_ADV, &hdev->dev_flags) ||
-	    hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT)) {
+	if (hci_dev_test_flag(hdev, HCI_LE_ADV) ||
+	    hci_lookup_le_connect(hdev)) {
 		BT_DBG("Deferring random address update");
-		set_bit(HCI_RPA_EXPIRED, &hdev->dev_flags);
+		hci_dev_set_flag(hdev, HCI_RPA_EXPIRED);
 		return;
 	}
 
@@ -324,12 +336,12 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 	 * current RPA has expired or there is something else than
 	 * the current RPA in use, then generate a new one.
 	 */
-	if (test_bit(HCI_PRIVACY, &hdev->dev_flags)) {
+	if (hci_dev_test_flag(hdev, HCI_PRIVACY)) {
 		int to;
 
 		*own_addr_type = ADDR_LE_DEV_RANDOM;
 
-		if (!test_and_clear_bit(HCI_RPA_EXPIRED, &hdev->dev_flags) &&
+		if (!hci_dev_test_and_clear_flag(hdev, HCI_RPA_EXPIRED) &&
 		    !bacmp(&hdev->random_addr, &hdev->rpa))
 			return 0;
 
@@ -383,9 +395,9 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 	 * and a static address has been configured, then use that
 	 * address instead of the public BR/EDR address.
 	 */
-	if (test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dbg_flags) ||
+	if (hci_dev_test_flag(hdev, HCI_FORCE_STATIC_ADDR) ||
 	    !bacmp(&hdev->bdaddr, BDADDR_ANY) ||
-	    (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags) &&
+	    (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED) &&
 	     bacmp(&hdev->static_addr, BDADDR_ANY))) {
 		*own_addr_type = ADDR_LE_DEV_RANDOM;
 		if (bacmp(&hdev->static_addr, &hdev->random_addr))
@@ -425,7 +437,7 @@ void __hci_update_page_scan(struct hci_request *req)
 	struct hci_dev *hdev = req->hdev;
 	u8 scan;
 
-	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
+	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
 		return;
 
 	if (!hdev_is_powered(hdev))
@@ -434,7 +446,7 @@ void __hci_update_page_scan(struct hci_request *req)
 	if (mgmt_powering_down(hdev))
 		return;
 
-	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags) ||
+	if (hci_dev_test_flag(hdev, HCI_CONNECTABLE) ||
 	    disconnected_whitelist_entries(hdev))
 		scan = SCAN_PAGE;
 	else
@@ -443,7 +455,7 @@ void __hci_update_page_scan(struct hci_request *req)
 	if (test_bit(HCI_PSCAN, &hdev->flags) == !!(scan & SCAN_PAGE))
 		return;
 
-	if (test_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_DISCOVERABLE))
 		scan |= SCAN_INQUIRY;
 
 	hci_req_add(req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
@@ -467,18 +479,17 @@ void hci_update_page_scan(struct hci_dev *hdev)
 void __hci_update_background_scan(struct hci_request *req)
 {
 	struct hci_dev *hdev = req->hdev;
-	struct hci_conn *conn;
 
 	if (!test_bit(HCI_UP, &hdev->flags) ||
 	    test_bit(HCI_INIT, &hdev->flags) ||
-	    test_bit(HCI_SETUP, &hdev->dev_flags) ||
-	    test_bit(HCI_CONFIG, &hdev->dev_flags) ||
-	    test_bit(HCI_AUTO_OFF, &hdev->dev_flags) ||
-	    test_bit(HCI_UNREGISTER, &hdev->dev_flags))
+	    hci_dev_test_flag(hdev, HCI_SETUP) ||
+	    hci_dev_test_flag(hdev, HCI_CONFIG) ||
+	    hci_dev_test_flag(hdev, HCI_AUTO_OFF) ||
+	    hci_dev_test_flag(hdev, HCI_UNREGISTER))
 		return;
 
 	/* No point in doing scanning if LE support hasn't been enabled */
-	if (!test_bit(HCI_LE_ENABLED, &hdev->dev_flags))
+	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED))
 		return;
 
 	/* If discovery is active don't interfere with it */
@@ -502,7 +513,7 @@ void __hci_update_background_scan(struct hci_request *req)
 		 */
 
 		/* If controller is not scanning we are done. */
-		if (!test_bit(HCI_LE_SCAN, &hdev->dev_flags))
+		if (!hci_dev_test_flag(hdev, HCI_LE_SCAN))
 			return;
 
 		hci_req_add_le_scan_disable(req);
@@ -517,14 +528,13 @@ void __hci_update_background_scan(struct hci_request *req)
 		 * since some controllers are not able to scan and connect at
 		 * the same time.
 		 */
-		conn = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
-		if (conn)
+		if (hci_lookup_le_connect(hdev))
 			return;
 
 		/* If controller is currently scanning, we stop it to ensure we
 		 * don't miss any advertising (due to duplicates filter).
 		 */
-		if (test_bit(HCI_LE_SCAN, &hdev->dev_flags))
+		if (hci_dev_test_flag(hdev, HCI_LE_SCAN))
 			hci_req_add_le_scan_disable(req);
 
 		hci_req_add_le_passive_scan(req);
@@ -553,4 +563,97 @@ void hci_update_background_scan(struct hci_dev *hdev)
 	err = hci_req_run(&req, update_background_scan_complete);
 	if (err && err != -ENODATA)
 		BT_ERR("Failed to run HCI request: err %d", err);
+}
+
+void __hci_abort_conn(struct hci_request *req, struct hci_conn *conn,
+		      u8 reason)
+{
+	switch (conn->state) {
+	case BT_CONNECTED:
+	case BT_CONFIG:
+		if (conn->type == AMP_LINK) {
+			struct hci_cp_disconn_phy_link cp;
+
+			cp.phy_handle = HCI_PHY_HANDLE(conn->handle);
+			cp.reason = reason;
+			hci_req_add(req, HCI_OP_DISCONN_PHY_LINK, sizeof(cp),
+				    &cp);
+		} else {
+			struct hci_cp_disconnect dc;
+
+			dc.handle = cpu_to_le16(conn->handle);
+			dc.reason = reason;
+			hci_req_add(req, HCI_OP_DISCONNECT, sizeof(dc), &dc);
+		}
+
+		conn->state = BT_DISCONN;
+
+		break;
+	case BT_CONNECT:
+		if (conn->type == LE_LINK) {
+			if (test_bit(HCI_CONN_SCANNING, &conn->flags))
+				break;
+			hci_req_add(req, HCI_OP_LE_CREATE_CONN_CANCEL,
+				    0, NULL);
+		} else if (conn->type == ACL_LINK) {
+			if (req->hdev->hci_ver < BLUETOOTH_VER_1_2)
+				break;
+			hci_req_add(req, HCI_OP_CREATE_CONN_CANCEL,
+				    6, &conn->dst);
+		}
+		break;
+	case BT_CONNECT2:
+		if (conn->type == ACL_LINK) {
+			struct hci_cp_reject_conn_req rej;
+
+			bacpy(&rej.bdaddr, &conn->dst);
+			rej.reason = reason;
+
+			hci_req_add(req, HCI_OP_REJECT_CONN_REQ,
+				    sizeof(rej), &rej);
+		} else if (conn->type == SCO_LINK || conn->type == ESCO_LINK) {
+			struct hci_cp_reject_sync_conn_req rej;
+
+			bacpy(&rej.bdaddr, &conn->dst);
+
+			/* SCO rejection has its own limited set of
+			 * allowed error values (0x0D-0x0F) which isn't
+			 * compatible with most values passed to this
+			 * function. To be safe hard-code one of the
+			 * values that's suitable for SCO.
+			 */
+			rej.reason = HCI_ERROR_REMOTE_LOW_RESOURCES;
+
+			hci_req_add(req, HCI_OP_REJECT_SYNC_CONN_REQ,
+				    sizeof(rej), &rej);
+		}
+		break;
+	default:
+		conn->state = BT_CLOSED;
+		break;
+	}
+}
+
+static void abort_conn_complete(struct hci_dev *hdev, u8 status, u16 opcode)
+{
+	if (status)
+		BT_DBG("Failed to abort connection: status 0x%2.2x", status);
+}
+
+int hci_abort_conn(struct hci_conn *conn, u8 reason)
+{
+	struct hci_request req;
+	int err;
+
+	hci_req_init(&req, conn->hdev);
+
+	__hci_abort_conn(&req, conn, reason);
+
+	err = hci_req_run(&req, abort_conn_complete);
+	if (err && err != -ENODATA) {
+		BT_ERR("Failed to run HCI request: err %d", err);
+		return err;
+	}
+
+	return 0;
 }

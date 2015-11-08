@@ -276,6 +276,16 @@ int usbhs_set_device_config(struct usbhs_priv *priv, int devnum,
 }
 
 /*
+ *		interrupt functions
+ */
+void usbhs_xxxsts_clear(struct usbhs_priv *priv, u16 sts_reg, u16 bit)
+{
+	u16 pipe_mask = (u16)GENMASK(usbhs_get_dparam(priv, pipe_size), 0);
+
+	usbhs_write(priv, sts_reg, ~(1 << bit) & pipe_mask);
+}
+
+/*
  *		local functions
  */
 static void usbhsc_set_buswait(struct usbhs_priv *priv)
@@ -378,7 +388,7 @@ static void usbhsc_hotplug(struct usbhs_priv *priv)
 
 	if (enable && !mod) {
 		if (priv->edev) {
-			cable = extcon_get_cable_state(priv->edev, "USB-HOST");
+			cable = extcon_get_cable_state_(priv->edev, EXTCON_USB_HOST);
 			if ((cable > 0 && id != USBHS_HOST) ||
 			    (!cable && id != USBHS_GADGET)) {
 				dev_info(&pdev->dev,
@@ -456,11 +466,20 @@ static int usbhsc_drvcllbck_notify_hotplug(struct platform_device *pdev)
 static const struct of_device_id usbhs_of_match[] = {
 	{
 		.compatible = "renesas,usbhs-r8a7790",
-		.data = (void *)USBHS_TYPE_R8A7790,
+		.data = (void *)USBHS_TYPE_RCAR_GEN2,
 	},
 	{
 		.compatible = "renesas,usbhs-r8a7791",
-		.data = (void *)USBHS_TYPE_R8A7791,
+		.data = (void *)USBHS_TYPE_RCAR_GEN2,
+	},
+	{
+		.compatible = "renesas,usbhs-r8a7794",
+		.data = (void *)USBHS_TYPE_RCAR_GEN2,
+	},
+	{
+		/* Gen3 is compatible with Gen2 */
+		.compatible = "renesas,usbhs-r8a7795",
+		.data = (void *)USBHS_TYPE_RCAR_GEN2,
 	},
 	{ },
 };
@@ -479,13 +498,16 @@ static struct renesas_usbhs_platform_info *usbhs_parse_dt(struct device *dev)
 		return NULL;
 
 	dparam = &info->driver_param;
-	dparam->type = of_id ? (u32)of_id->data : 0;
+	dparam->type = of_id ? (uintptr_t)of_id->data : 0;
 	if (!of_property_read_u32(dev->of_node, "renesas,buswait", &tmp))
 		dparam->buswait_bwait = tmp;
 	gpio = of_get_named_gpio_flags(dev->of_node, "renesas,enable-gpio", 0,
 				       NULL);
 	if (gpio > 0)
 		dparam->enable_gpio = gpio;
+
+	if (dparam->type == USBHS_TYPE_RCAR_GEN2)
+		dparam->has_usb_dmac = 1;
 
 	return info;
 }
@@ -540,8 +562,7 @@ static int usbhs_probe(struct platform_device *pdev)
 	       sizeof(struct renesas_usbhs_driver_param));
 
 	switch (priv->dparam.type) {
-	case USBHS_TYPE_R8A7790:
-	case USBHS_TYPE_R8A7791:
+	case USBHS_TYPE_RCAR_GEN2:
 		priv->pfunc = usbhs_rcar2_ops;
 		if (!priv->dparam.pipe_type) {
 			priv->dparam.pipe_type = usbhsc_new_pipe_type;

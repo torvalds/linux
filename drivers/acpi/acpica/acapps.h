@@ -64,15 +64,15 @@
 /* Macros for signons and file headers */
 
 #define ACPI_COMMON_SIGNON(utility_name) \
-	"\n%s\n%s version %8.8X%s [%s]\n%s\n\n", \
+	"\n%s\n%s version %8.8X%s\n%s\n\n", \
 	ACPICA_NAME, \
-	utility_name, ((u32) ACPI_CA_VERSION), ACPI_WIDTH, __DATE__, \
+	utility_name, ((u32) ACPI_CA_VERSION), ACPI_WIDTH, \
 	ACPICA_COPYRIGHT
 
 #define ACPI_COMMON_HEADER(utility_name, prefix) \
-	"%s%s\n%s%s version %8.8X%s [%s]\n%s%s\n%s\n", \
+	"%s%s\n%s%s version %8.8X%s\n%s%s\n%s\n", \
 	prefix, ACPICA_NAME, \
-	prefix, utility_name, ((u32) ACPI_CA_VERSION), ACPI_WIDTH, __DATE__, \
+	prefix, utility_name, ((u32) ACPI_CA_VERSION), ACPI_WIDTH, \
 	prefix, ACPICA_COPYRIGHT, \
 	prefix
 
@@ -88,7 +88,7 @@
 	acpi_os_printf (" %-18s%s\n", name, description);
 
 #define FILE_SUFFIX_DISASSEMBLY     "dsl"
-#define ACPI_TABLE_FILE_SUFFIX      ".dat"
+#define FILE_SUFFIX_BINARY_TABLE    ".dat"	/* Needs the dot */
 
 /*
  * getopt

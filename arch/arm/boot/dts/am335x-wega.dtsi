@@ -1,0 +1,151 @@
+/*
+ * Copyright (C) 2015 Phytec Messtechnik GmbH
+ * Author: Teresa Remmet <t.remmet@phytec.de>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/ {
+	model = "Phytec AM335x phyBOARD-WEGA";
+	compatible = "phytec,am335x-wega", "phytec,am335x-phycore-som", "ti,am33xx";
+
+};
+
+/* CAN Busses */
+&am33xx_pinmux {
+	dcan1_pins: pinmux_dcan1 {
+		pinctrl-single,pins = <
+			0x168 (PIN_OUTPUT_PULLUP | MUX_MODE2) /* uart0_ctsn.d_can1_tx */
+			0x16c (PIN_INPUT_PULLUP | MUX_MODE2) /* uart0_rtsn.d_can1_rx */
+		>;
+	};
+};
+
+&dcan1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&dcan1_pins>;
+	status = "okay";
+};
+
+/* Ethernet */
+&am33xx_pinmux {
+	ethernet1_pins: pinmux_ethernet1 {
+		pinctrl-single,pins = <
+			0x40 (PIN_OUTPUT | MUX_MODE1)		/* gpmc_a0.mii2_txen */
+			0x44 (PIN_INPUT_PULLDOWN | MUX_MODE1)	/* gpmc_a1.mii2_rxdv */
+			0x48 (PIN_OUTPUT | MUX_MODE1)		/* gpmc_a2.mii2_txd3 */
+			0x4c (PIN_OUTPUT | MUX_MODE1)		/* gpmc_a3.mii2_txd2 */
+			0x50 (PIN_OUTPUT | MUX_MODE1)		/* gpmc_a4.mii2_txd1 */
+			0x54 (PIN_OUTPUT | MUX_MODE1)		/* gpmc_a5.mii2_txd0 */
+			0x58 (PIN_INPUT_PULLDOWN | MUX_MODE1)	/* gpmc_a6.mii2_txclk */
+			0x5c (PIN_INPUT_PULLDOWN | MUX_MODE1)	/* gpmc_a7.mii2_rxclk */
+			0x60 (PIN_INPUT_PULLDOWN | MUX_MODE1)	/* gpmc_a8.mii2_rxd3 */
+			0x64 (PIN_INPUT_PULLDOWN | MUX_MODE1)	/* gpmc_a9.mii2_rxd2 */
+			0x68 (PIN_INPUT_PULLDOWN | MUX_MODE1)	/* gpmc_a10.mii2_rxd1 */
+			0x6c (PIN_INPUT_PULLDOWN | MUX_MODE1)	/* gpmc_a11.mii2_rxd0 */
+			0x74 (PIN_INPUT_PULLDOWN | MUX_MODE1)	/* gpmc_wpn.mii2_rxerr */
+			0x78 (PIN_INPUT_PULLDOWN | MUX_MODE1)	/* gpmc_ben1.mii2_col */
+		>;
+	};
+};
+
+&cpsw_emac1 {
+	phy_id = <&davinci_mdio>, <1>;
+	phy-mode = "mii";
+	dual_emac_res_vlan = <2>;
+};
+
+&mac {
+	slaves = <2>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&ethernet0_pins &ethernet1_pins>;
+	dual_emac = <1>;
+};
+
+/* MMC */
+&am33xx_pinmux {
+	mmc1_pins: pinmux_mmc1 {
+		pinctrl-single,pins = <
+			0x0F0 (PIN_INPUT_PULLUP | MUX_MODE0)	/* mmc0_dat3.mmc0_dat3 */
+			0x0F4 (PIN_INPUT_PULLUP | MUX_MODE0)	/* mmc0_dat2.mmc0_dat2 */
+			0x0F8 (PIN_INPUT_PULLUP | MUX_MODE0)	/* mmc0_dat1.mmc0_dat1 */
+			0x0FC (PIN_INPUT_PULLUP | MUX_MODE0)	/* mmc0_dat0.mmc0_dat0 */
+			0x100 (PIN_INPUT_PULLUP | MUX_MODE0)	/* mmc0_clk.mmc0_clk */
+			0x104 (PIN_INPUT_PULLUP | MUX_MODE0)	/* mmc0_cmd.mmc0_cmd */
+			0x160 (PIN_INPUT_PULLUP | MUX_MODE7)	/* spi0_cs1.mmc0_sdcd */
+		>;
+	};
+};
+
+&mmc1 {
+	vmmc-supply = <&vmmc_reg>;
+	bus-width = <4>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins>;
+	cd-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+/* UARTs */
+&am33xx_pinmux {
+	uart0_pins: pinmux_uart0 {
+		pinctrl-single,pins = <
+			0x170 (PIN_INPUT_PULLUP | MUX_MODE0)    /* uart0_rxd.uart0_rxd */
+			0x174 (PIN_OUTPUT_PULLDOWN | MUX_MODE0) /* uart0_txd.uart0_txd */
+		>;
+	};
+
+	uart1_pins: pinmux_uart1_pins {
+		pinctrl-single,pins = <
+			0x180 (PIN_INPUT_PULLUP | MUX_MODE0)	/* uart1_rxd.uart1_rxd */
+			0x184 (PIN_OUTPUT_PULLDOWN | MUX_MODE0)	/* uart1_txd.uart1_txd */
+			0x178 (PIN_INPUT | MUX_MODE0)		/* uart1_ctsn.uart1_ctsn */
+			0x17c (PIN_OUTPUT_PULLDOWN | MUX_MODE0)		/* uart1_rtsn.uart1_rtsn */
+		>;
+	};
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins>;
+	status = "okay";
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins>;
+	status = "okay";
+};
+
+/* USB */
+&cppi41dma {
+	status = "okay";
+};
+
+&usb_ctrl_mod {
+	status = "okay";
+};
+
+&usb {
+	status = "okay";
+};
+
+&usb0 {
+	dr_mode = "peripheral";
+	status = "okay";
+};
+
+&usb0_phy {
+	status = "okay";
+};
+
+&usb1 {
+	dr_mode = "host";
+	status = "okay";
+};
+
+&usb1_phy {
+	status = "okay";
+};

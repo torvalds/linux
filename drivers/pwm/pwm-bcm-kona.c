@@ -76,19 +76,36 @@ static inline struct kona_pwmc *to_kona_pwmc(struct pwm_chip *_chip)
 	return container_of(_chip, struct kona_pwmc, chip);
 }
 
-static void kona_pwmc_apply_settings(struct kona_pwmc *kp, unsigned int chan)
+/*
+ * Clear trigger bit but set smooth bit to maintain old output.
+ */
+static void kona_pwmc_prepare_for_settings(struct kona_pwmc *kp,
+	unsigned int chan)
 {
 	unsigned int value = readl(kp->base + PWM_CONTROL_OFFSET);
 
-	/* Clear trigger bit but set smooth bit to maintain old output */
 	value |= 1 << PWM_CONTROL_SMOOTH_SHIFT(chan);
 	value &= ~(1 << PWM_CONTROL_TRIGGER_SHIFT(chan));
 	writel(value, kp->base + PWM_CONTROL_OFFSET);
+
+	/*
+	 * There must be a min 400ns delay between clearing trigger and setting
+	 * it. Failing to do this may result in no PWM signal.
+	 */
+	ndelay(400);
+}
+
+static void kona_pwmc_apply_settings(struct kona_pwmc *kp, unsigned int chan)
+{
+	unsigned int value = readl(kp->base + PWM_CONTROL_OFFSET);
 
 	/* Set trigger bit and clear smooth bit to apply new settings */
 	value &= ~(1 << PWM_CONTROL_SMOOTH_SHIFT(chan));
 	value |= 1 << PWM_CONTROL_TRIGGER_SHIFT(chan);
 	writel(value, kp->base + PWM_CONTROL_OFFSET);
+
+	/* Trigger bit must be held high for at least 400 ns. */
+	ndelay(400);
 }
 
 static int kona_pwmc_config(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -133,8 +150,14 @@ static int kona_pwmc_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			return -EINVAL;
 	}
 
-	/* If the PWM channel is enabled, write the settings to the HW */
-	if (test_bit(PWMF_ENABLED, &pwm->flags)) {
+	/*
+	 * Don't apply settings if disabled. The period and duty cycle are
+	 * always calculated above to ensure the new values are
+	 * validated immediately instead of on enable.
+	 */
+	if (pwm_is_enabled(pwm)) {
+		kona_pwmc_prepare_for_settings(kp, chan);
+
 		value = readl(kp->base + PRESCALE_OFFSET);
 		value &= ~PRESCALE_MASK(chan);
 		value |= prescale << PRESCALE_SHIFT(chan);
@@ -164,6 +187,8 @@ static int kona_pwmc_set_polarity(struct pwm_chip *chip, struct pwm_device *pwm,
 		return ret;
 	}
 
+	kona_pwmc_prepare_for_settings(kp, chan);
+
 	value = readl(kp->base + PWM_CONTROL_OFFSET);
 
 	if (polarity == PWM_POLARITY_NORMAL)
@@ -174,9 +199,6 @@ static int kona_pwmc_set_polarity(struct pwm_chip *chip, struct pwm_device *pwm,
 	writel(value, kp->base + PWM_CONTROL_OFFSET);
 
 	kona_pwmc_apply_settings(kp, chan);
-
-	/* Wait for waveform to settle before gating off the clock */
-	ndelay(400);
 
 	clk_disable_unprepare(kp->clk);
 
@@ -194,7 +216,8 @@ static int kona_pwmc_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 		return ret;
 	}
 
-	ret = kona_pwmc_config(chip, pwm, pwm->duty_cycle, pwm->period);
+	ret = kona_pwmc_config(chip, pwm, pwm_get_duty_cycle(pwm),
+			       pwm_get_period(pwm));
 	if (ret < 0) {
 		clk_disable_unprepare(kp->clk);
 		return ret;
@@ -207,13 +230,20 @@ static void kona_pwmc_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct kona_pwmc *kp = to_kona_pwmc(chip);
 	unsigned int chan = pwm->hwpwm;
+	unsigned int value;
+
+	kona_pwmc_prepare_for_settings(kp, chan);
 
 	/* Simulate a disable by configuring for zero duty */
 	writel(0, kp->base + DUTY_CYCLE_HIGH_OFFSET(chan));
-	kona_pwmc_apply_settings(kp, chan);
+	writel(0, kp->base + PERIOD_COUNT_OFFSET(chan));
 
-	/* Wait for waveform to settle before gating off the clock */
-	ndelay(400);
+	/* Set prescale to 0 for this channel */
+	value = readl(kp->base + PRESCALE_OFFSET);
+	value &= ~PRESCALE_MASK(chan);
+	writel(value, kp->base + PRESCALE_OFFSET);
+
+	kona_pwmc_apply_settings(kp, chan);
 
 	clk_disable_unprepare(kp->clk);
 }
@@ -266,18 +296,15 @@ static int kona_pwmc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* Set smooth mode, push/pull, and normal polarity for all channels */
-	for (chan = 0; chan < kp->chip.npwm; chan++) {
-		value |= (1 << PWM_CONTROL_SMOOTH_SHIFT(chan));
+	/* Set push/pull for all channels */
+	for (chan = 0; chan < kp->chip.npwm; chan++)
 		value |= (1 << PWM_CONTROL_TYPE_SHIFT(chan));
-		value |= (1 << PWM_CONTROL_POLARITY_SHIFT(chan));
-	}
 
 	writel(value, kp->base + PWM_CONTROL_OFFSET);
 
 	clk_disable_unprepare(kp->clk);
 
-	ret = pwmchip_add(&kp->chip);
+	ret = pwmchip_add_with_polarity(&kp->chip, PWM_POLARITY_INVERSED);
 	if (ret < 0)
 		dev_err(&pdev->dev, "failed to add PWM chip: %d\n", ret);
 
@@ -290,7 +317,7 @@ static int kona_pwmc_remove(struct platform_device *pdev)
 	unsigned int chan;
 
 	for (chan = 0; chan < kp->chip.npwm; chan++)
-		if (test_bit(PWMF_ENABLED, &kp->chip.pwms[chan].flags))
+		if (pwm_is_enabled(&kp->chip.pwms[chan]))
 			clk_disable_unprepare(kp->clk);
 
 	return pwmchip_remove(&kp->chip);

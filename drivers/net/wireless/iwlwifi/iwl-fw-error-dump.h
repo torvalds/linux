@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2014 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2014 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -82,6 +82,12 @@
  *	sections like this in a single file.
  * @IWL_FW_ERROR_DUMP_FH_REGS: range of FH registers
  * @IWL_FW_ERROR_DUMP_MEM: chunk of memory
+ * @IWL_FW_ERROR_DUMP_ERROR_INFO: description of what triggered this dump.
+ *	Structured as &struct iwl_fw_error_dump_trigger_desc.
+ * @IWL_FW_ERROR_DUMP_RB: the content of an RB structured as
+ *	&struct iwl_fw_error_dump_rb
+ * @IWL_FW_ERROR_PAGING: UMAC's image memory segments which were
+ *	paged to the DRAM.
  */
 enum iwl_fw_error_dump_type {
 	/* 0 is deprecated */
@@ -94,6 +100,9 @@ enum iwl_fw_error_dump_type {
 	IWL_FW_ERROR_DUMP_TXF = 7,
 	IWL_FW_ERROR_DUMP_FH_REGS = 8,
 	IWL_FW_ERROR_DUMP_MEM = 9,
+	IWL_FW_ERROR_DUMP_ERROR_INFO = 10,
+	IWL_FW_ERROR_DUMP_RB = 11,
+	IWL_FW_ERROR_DUMP_PAGING = 12,
 
 	IWL_FW_ERROR_DUMP_MAX,
 };
@@ -180,7 +189,7 @@ struct iwl_fw_error_dump_info {
  * struct iwl_fw_error_dump_fw_mon - FW monitor data
  * @fw_mon_wr_ptr: the position of the write pointer in the cyclic buffer
  * @fw_mon_base_ptr: base pointer of the data
- * @fw_mon_cycle_cnt: number of wrap arounds
+ * @fw_mon_cycle_cnt: number of wraparounds
  * @reserved: for future use
  * @data: captured data
  */
@@ -220,6 +229,33 @@ struct iwl_fw_error_dump_mem {
 };
 
 /**
+ * struct iwl_fw_error_dump_rb - content of an Receive Buffer
+ * @index: the index of the Receive Buffer in the Rx queue
+ * @rxq: the RB's Rx queue
+ * @reserved:
+ * @data: the content of the Receive Buffer
+ */
+struct iwl_fw_error_dump_rb {
+	__le32 index;
+	__le32 rxq;
+	__le32 reserved;
+	u8 data[];
+};
+
+/**
+ * struct iwl_fw_error_dump_paging - content of the UMAC's image page
+ *	block on DRAM
+ * @index: the index of the page block
+ * @reserved:
+ * @data: the content of the page block
+ */
+struct iwl_fw_error_dump_paging {
+	__le32 index;
+	__le32 reserved;
+	u8 data[];
+};
+
+/**
  * iwl_fw_error_next_data - advance fw error dump data pointer
  * @data: previous data block
  * Returns: next data block
@@ -229,5 +265,56 @@ iwl_fw_error_next_data(struct iwl_fw_error_dump_data *data)
 {
 	return (void *)(data->data + le32_to_cpu(data->len));
 }
+
+/**
+ * enum iwl_fw_dbg_trigger - triggers available
+ *
+ * @FW_DBG_TRIGGER_USER: trigger log collection by user
+ *	This should not be defined as a trigger to the driver, but a value the
+ *	driver should set to indicate that the trigger was initiated by the
+ *	user.
+ * @FW_DBG_TRIGGER_FW_ASSERT: trigger log collection when the firmware asserts
+ * @FW_DBG_TRIGGER_MISSED_BEACONS: trigger log collection when beacons are
+ *	missed.
+ * @FW_DBG_TRIGGER_CHANNEL_SWITCH: trigger log collection upon channel switch.
+ * @FW_DBG_TRIGGER_FW_NOTIF: trigger log collection when the firmware sends a
+ *	command response or a notification.
+ * @FW_DBG_TRIGGER_MLME: trigger log collection upon MLME event.
+ * @FW_DBG_TRIGGER_STATS: trigger log collection upon statistics threshold.
+ * @FW_DBG_TRIGGER_RSSI: trigger log collection when the rssi of the beacon
+ *	goes below a threshold.
+ * @FW_DBG_TRIGGER_TXQ_TIMERS: configures the timers for the Tx queue hang
+ *	detection.
+ * @FW_DBG_TRIGGER_TIME_EVENT: trigger log collection upon time events related
+ *	events.
+ * @FW_DBG_TRIGGER_BA: trigger log collection upon BlockAck related events.
+ */
+enum iwl_fw_dbg_trigger {
+	FW_DBG_TRIGGER_INVALID = 0,
+	FW_DBG_TRIGGER_USER,
+	FW_DBG_TRIGGER_FW_ASSERT,
+	FW_DBG_TRIGGER_MISSED_BEACONS,
+	FW_DBG_TRIGGER_CHANNEL_SWITCH,
+	FW_DBG_TRIGGER_FW_NOTIF,
+	FW_DBG_TRIGGER_MLME,
+	FW_DBG_TRIGGER_STATS,
+	FW_DBG_TRIGGER_RSSI,
+	FW_DBG_TRIGGER_TXQ_TIMERS,
+	FW_DBG_TRIGGER_TIME_EVENT,
+	FW_DBG_TRIGGER_BA,
+
+	/* must be last */
+	FW_DBG_TRIGGER_MAX,
+};
+
+/**
+ * struct iwl_fw_error_dump_trigger_desc - describes the trigger condition
+ * @type: %enum iwl_fw_dbg_trigger
+ * @data: raw data about what happened
+ */
+struct iwl_fw_error_dump_trigger_desc {
+	__le32 type;
+	u8 data[];
+};
 
 #endif /* __fw_error_dump_h__ */

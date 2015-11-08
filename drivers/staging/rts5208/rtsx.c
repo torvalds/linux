@@ -26,12 +26,6 @@
 #include <linux/workqueue.h>
 
 #include "rtsx.h"
-#include "rtsx_chip.h"
-#include "rtsx_transport.h"
-#include "rtsx_scsi.h"
-#include "rtsx_card.h"
-#include "general.h"
-
 #include "ms.h"
 #include "sd.h"
 #include "xd.h"
@@ -137,8 +131,8 @@ static int queuecommand_lck(struct scsi_cmnd *srb,
 
 	/* check for state-transition errors */
 	if (chip->srb != NULL) {
-		dev_err(&dev->pci->dev, "Error in %s: chip->srb = %p\n",
-			__func__, chip->srb);
+		dev_err(&dev->pci->dev, "Error: chip->srb = %p\n",
+			chip->srb);
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
 
@@ -236,7 +230,6 @@ static struct scsi_host_template rtsx_host_template = {
 
 	/* queue commands only, only one command per LUN */
 	.can_queue =			1,
-	.cmd_per_lun =			1,
 
 	/* unknown initiator id */
 	.this_id =			-1,
@@ -543,7 +536,7 @@ static int rtsx_polling_thread(void *__dev)
 	for (;;) {
 
 		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(POLLING_INTERVAL);
+		schedule_timeout(msecs_to_jiffies(POLLING_INTERVAL));
 
 		/* lock the device pointers */
 		mutex_lock(&(dev->dev_mutex));
@@ -654,8 +647,6 @@ static void rtsx_release_resources(struct rtsx_dev *dev)
 	wait_timeout(200);
 
 	if (dev->rtsx_resv_buf) {
-		dma_free_coherent(&(dev->pci->dev), RTSX_RESV_BUF_LEN,
-				dev->rtsx_resv_buf, dev->rtsx_resv_buf_addr);
 		dev->chip->host_cmds_ptr = NULL;
 		dev->chip->host_sg_tbl_ptr = NULL;
 	}
@@ -925,8 +916,8 @@ static int rtsx_probe(struct pci_dev *pci,
 	dev_info(&pci->dev, "Original address: 0x%lx, remapped address: 0x%lx\n",
 		 (unsigned long)(dev->addr), (unsigned long)(dev->remap_addr));
 
-	dev->rtsx_resv_buf = dma_alloc_coherent(&(pci->dev), RTSX_RESV_BUF_LEN,
-			&(dev->rtsx_resv_buf_addr), GFP_KERNEL);
+	dev->rtsx_resv_buf = dmam_alloc_coherent(&pci->dev, RTSX_RESV_BUF_LEN,
+			&dev->rtsx_resv_buf_addr, GFP_KERNEL);
 	if (dev->rtsx_resv_buf == NULL) {
 		dev_err(&pci->dev, "alloc dma buffer fail\n");
 		err = -ENXIO;
@@ -1036,7 +1027,7 @@ static const struct pci_device_id rtsx_ids[] = {
 MODULE_DEVICE_TABLE(pci, rtsx_ids);
 
 /* pci_driver definition */
-static struct pci_driver driver = {
+static struct pci_driver rtsx_driver = {
 	.name = CR_DRIVER_NAME,
 	.id_table = rtsx_ids,
 	.probe = rtsx_probe,
@@ -1048,21 +1039,4 @@ static struct pci_driver driver = {
 	.shutdown = rtsx_shutdown,
 };
 
-static int __init rtsx_init(void)
-{
-	pr_info("Initializing Realtek PCIE storage driver...\n");
-
-	return pci_register_driver(&driver);
-}
-
-static void __exit rtsx_exit(void)
-{
-	pr_info("rtsx_exit() called\n");
-
-	pci_unregister_driver(&driver);
-
-	pr_info("%s module exit\n", CR_DRIVER_NAME);
-}
-
-module_init(rtsx_init)
-module_exit(rtsx_exit)
+module_pci_driver(rtsx_driver);

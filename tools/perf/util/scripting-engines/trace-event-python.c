@@ -44,10 +44,10 @@
 
 PyMODINIT_FUNC initperf_trace_context(void);
 
-#define FTRACE_MAX_EVENT				\
+#define TRACE_EVENT_TYPE_MAX				\
 	((1 << (sizeof(unsigned short) * 8)) - 1)
 
-static DECLARE_BITMAP(events_defined, FTRACE_MAX_EVENT);
+static DECLARE_BITMAP(events_defined, TRACE_EVENT_TYPE_MAX);
 
 #define MAX_FIELDS	64
 #define N_COMMON_FIELDS	7
@@ -231,6 +231,11 @@ static void define_event_symbols(struct event_format *event,
 		define_event_symbols(event, ev_name, args->hex.field);
 		define_event_symbols(event, ev_name, args->hex.size);
 		break;
+	case PRINT_INT_ARRAY:
+		define_event_symbols(event, ev_name, args->int_array.field);
+		define_event_symbols(event, ev_name, args->int_array.count);
+		define_event_symbols(event, ev_name, args->int_array.el_size);
+		break;
 	case PRINT_STRING:
 		break;
 	case PRINT_TYPE:
@@ -246,6 +251,7 @@ static void define_event_symbols(struct event_format *event,
 		/* gcc warns for these? */
 	case PRINT_BSTRING:
 	case PRINT_DYNAMIC_ARRAY:
+	case PRINT_DYNAMIC_ARRAY_LEN:
 	case PRINT_FUNC:
 	case PRINT_BITMASK:
 		/* we should warn... */
@@ -313,7 +319,7 @@ static PyObject *python_process_callchain(struct perf_sample *sample,
 
 	if (thread__resolve_callchain(al->thread, evsel,
 				      sample, NULL, NULL,
-				      PERF_MAX_STACK_DEPTH) != 0) {
+				      scripting_max_stack) != 0) {
 		pr_err("Failed to resolve callchain. Skipping\n");
 		goto exit;
 	}
@@ -376,7 +382,6 @@ exit:
 
 static void python_process_tracepoint(struct perf_sample *sample,
 				      struct perf_evsel *evsel,
-				      struct thread *thread,
 				      struct addr_location *al)
 {
 	struct event_format *event = evsel->tp_format;
@@ -390,7 +395,7 @@ static void python_process_tracepoint(struct perf_sample *sample,
 	int cpu = sample->cpu;
 	void *data = sample->raw_data;
 	unsigned long long nsecs = sample->time;
-	const char *comm = thread__comm_str(thread);
+	const char *comm = thread__comm_str(al->thread);
 
 	t = PyTuple_New(MAX_FIELDS);
 	if (!t)
@@ -675,7 +680,7 @@ static int python_export_sample(struct db_export *dbe,
 	tuple_set_u64(t, 0, es->db_id);
 	tuple_set_u64(t, 1, es->evsel->db_id);
 	tuple_set_u64(t, 2, es->al->machine->db_id);
-	tuple_set_u64(t, 3, es->thread->db_id);
+	tuple_set_u64(t, 3, es->al->thread->db_id);
 	tuple_set_u64(t, 4, es->comm_db_id);
 	tuple_set_u64(t, 5, es->dso_db_id);
 	tuple_set_u64(t, 6, es->sym_db_id);
@@ -761,7 +766,6 @@ static int python_process_call_return(struct call_return *cr, void *data)
 
 static void python_process_general_event(struct perf_sample *sample,
 					 struct perf_evsel *evsel,
-					 struct thread *thread,
 					 struct addr_location *al)
 {
 	PyObject *handler, *t, *dict, *callchain, *dict_sample;
@@ -811,7 +815,7 @@ static void python_process_general_event(struct perf_sample *sample,
 	pydict_set_item_string_decref(dict, "raw_buf", PyString_FromStringAndSize(
 			(const char *)sample->raw_data, sample->raw_size));
 	pydict_set_item_string_decref(dict, "comm",
-			PyString_FromString(thread__comm_str(thread)));
+			PyString_FromString(thread__comm_str(al->thread)));
 	if (al->map) {
 		pydict_set_item_string_decref(dict, "dso",
 			PyString_FromString(al->map->dso->name));
@@ -838,22 +842,20 @@ exit:
 static void python_process_event(union perf_event *event,
 				 struct perf_sample *sample,
 				 struct perf_evsel *evsel,
-				 struct thread *thread,
 				 struct addr_location *al)
 {
 	struct tables *tables = &tables_global;
 
 	switch (evsel->attr.type) {
 	case PERF_TYPE_TRACEPOINT:
-		python_process_tracepoint(sample, evsel, thread, al);
+		python_process_tracepoint(sample, evsel, al);
 		break;
 	/* Reserve for future process_hw/sw/raw APIs */
 	default:
 		if (tables->db_export_mode)
-			db_export__sample(&tables->dbe, event, sample, evsel,
-					  thread, al);
+			db_export__sample(&tables->dbe, event, sample, evsel, al);
 		else
-			python_process_general_event(sample, evsel, thread, al);
+			python_process_general_event(sample, evsel, al);
 	}
 }
 

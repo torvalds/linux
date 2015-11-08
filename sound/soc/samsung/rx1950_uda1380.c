@@ -38,16 +38,15 @@ static int rx1950_hw_params(struct snd_pcm_substream *substream,
 static int rx1950_spk_power(struct snd_soc_dapm_widget *w,
 				struct snd_kcontrol *kcontrol, int event);
 
-static unsigned int rates[] = {
+static const unsigned int rates[] = {
 	16000,
 	44100,
 	48000,
 };
 
-static struct snd_pcm_hw_constraint_list hw_rates = {
+static const struct snd_pcm_hw_constraint_list hw_rates = {
 	.count = ARRAY_SIZE(rates),
 	.list = rates,
-	.mask = 0,
 };
 
 static struct snd_soc_jack hp_jack;
@@ -211,13 +210,8 @@ static int rx1950_hw_params(struct snd_pcm_substream *substream,
 
 static int rx1950_uda1380_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
-
-	snd_soc_jack_new(codec, "Headphone Jack", SND_JACK_HEADPHONE,
-		&hp_jack);
-
-	snd_soc_jack_add_pins(&hp_jack, ARRAY_SIZE(hp_jack_pins),
-		hp_jack_pins);
+	snd_soc_card_jack_new(rtd->card, "Headphone Jack", SND_JACK_HEADPHONE,
+		&hp_jack, hp_jack_pins, ARRAY_SIZE(hp_jack_pins));
 
 	snd_soc_jack_add_gpios(&hp_jack, ARRAY_SIZE(hp_jack_gpios),
 		hp_jack_gpios);

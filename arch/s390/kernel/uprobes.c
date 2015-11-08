@@ -188,7 +188,9 @@ static void adjust_psw_addr(psw_t *psw, unsigned long len)
 	else if (put_user(*(input), __ptr))		\
 		__rc = EMU_ADDRESSING;			\
 	if (__rc == 0)					\
-		sim_stor_event(regs, __ptr, mask + 1);	\
+		sim_stor_event(regs,			\
+			       (void __force *)__ptr,	\
+			       mask + 1);		\
 	__rc;						\
 })
 

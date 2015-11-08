@@ -480,8 +480,7 @@ out:
 /* Userspace will call sendmsg() on the tunnel socket to send L2TP
  * control frames.
  */
-static int l2tp_ip6_sendmsg(struct kiocb *iocb, struct sock *sk,
-			    struct msghdr *msg, size_t len)
+static int l2tp_ip6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 {
 	struct ipv6_txoptions opt_space;
 	DECLARE_SOCKADDR(struct sockaddr_l2tpip6 *, lsa, msg->msg_name);
@@ -643,9 +642,8 @@ do_confirm:
 	goto done;
 }
 
-static int l2tp_ip6_recvmsg(struct kiocb *iocb, struct sock *sk,
-			    struct msghdr *msg, size_t len, int noblock,
-			    int flags, int *addr_len)
+static int l2tp_ip6_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
+			    int noblock, int flags, int *addr_len)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	DECLARE_SOCKADDR(struct sockaddr_l2tpip6 *, lsa, msg->msg_name);
@@ -803,3 +801,4 @@ MODULE_VERSION("1.0");
  * enums
  */
 MODULE_ALIAS_NET_PF_PROTO_TYPE(PF_INET6, 2, IPPROTO_L2TP);
+MODULE_ALIAS_NET_PF_PROTO(PF_INET6, IPPROTO_L2TP);

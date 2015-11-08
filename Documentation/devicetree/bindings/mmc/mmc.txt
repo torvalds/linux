@@ -21,6 +21,11 @@ Optional properties:
   below for the case, when a GPIO is used for the CD line
 - wp-inverted: when present, polarity on the WP line is inverted. See the note
   below for the case, when a GPIO is used for the WP line
+- disable-wp: When set no physical WP line is present. This property should
+  only be specified when the controller has a dedicated write-protect
+  detection logic. If a GPIO is always used for the write-protect detection
+  logic it is sufficient to not specify wp-gpios property in the absence of a WP
+  line.
 - max-frequency: maximum operating clock frequency
 - no-1-8-v: when present, denotes that 1.8v card voltage is not supported on
   this system, even if the controller claims it is.
@@ -32,6 +37,7 @@ Optional properties:
 - sd-uhs-sdr104: SD UHS SDR104 speed is supported
 - sd-uhs-ddr50: SD UHS DDR50 speed is supported
 - cap-power-off-card: powering off the card is safe
+- cap-mmc-hw-reset: eMMC hardware reset is supported
 - cap-sdio-irq: enable SDIO IRQ signalling on this interface
 - full-pwr-cycle: full power cycle of the card is supported
 - mmc-ddr-1_8v: eMMC high-speed DDR mode(1.8V I/O) is supported
@@ -62,7 +68,8 @@ polarity is in effect.
 
 Optional SDIO properties:
 - keep-power-in-suspend: Preserves card power during a suspend/resume cycle
-- enable-sdio-wakeup: Enables wake up of host system on SDIO IRQ assertion
+- wakeup-source: Enables wake up of host system on SDIO IRQ assertion
+		 (Legacy property supported: "enable-sdio-wakeup")
 
 
 MMC power sequences:
@@ -112,7 +119,7 @@ sdhci@ab000000 {
 	wp-gpios = <&gpio 70 0>;
 	max-frequency = <50000000>;
 	keep-power-in-suspend;
-	enable-sdio-wakeup;
+	wakeup-source;
 	mmc-pwrseq = <&sdhci0_pwrseq>
 }
 

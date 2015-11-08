@@ -187,7 +187,7 @@ config KEYBOARD_EP93XX
 
 config KEYBOARD_GPIO
 	tristate "GPIO Buttons"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  This driver implements support for buttons connected
 	  to GPIO pins of various CPUs (and some other chips).
@@ -253,7 +253,7 @@ config KEYBOARD_TCA8418
 
 config KEYBOARD_MATRIX
 	tristate "GPIO driven matrix keypad support"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	select INPUT_MATRIXKMAP
 	help
 	  Enable support for GPIO driven matrix keypad.
@@ -367,6 +367,7 @@ config KEYBOARD_MAPLE
 
 config KEYBOARD_MAX7359
 	tristate "Maxim MAX7359 Key Switch Controller"
+	select INPUT_MATRIXKMAP
 	depends on I2C
 	help
 	  If you say yes here you get support for the Maxim MAX7359 Key
@@ -399,6 +400,17 @@ config KEYBOARD_MPR121
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mpr121_touchkey.
+
+config KEYBOARD_SNVS_PWRKEY
+	tristate "IMX SNVS Power Key Driver"
+	depends on SOC_IMX6SX
+	depends on OF
+	help
+	  This is the snvs powerkey driver for the Freescale i.MX application
+	  processors that are newer than i.MX6 SX.
+
+	  To compile this driver as a module, choose M here; the
+	  module will be called snvs_pwrkey.
 
 config KEYBOARD_IMX
 	tristate "IMX keypad support"
@@ -504,7 +516,7 @@ config KEYBOARD_SAMSUNG
 	  module will be called samsung-keypad.
 
 config KEYBOARD_GOLDFISH_EVENTS
-	depends on GOLDFISH
+	depends on GOLDFISH || COMPILE_TEST
 	tristate "Generic Input Event device for Goldfish"
 	help
 	  Say Y here to get an input event device for the Goldfish virtual
@@ -587,6 +599,16 @@ config KEYBOARD_DAVINCI
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called davinci_keyscan.
+
+config KEYBOARD_IPAQ_MICRO
+	tristate "Buttons on Micro SoC (iPaq h3100,h3600,h3700)"
+	depends on MFD_IPAQ_MICRO
+	help
+	  Say Y to enable support for the buttons attached to
+	  Micro peripheral controller on iPAQ h3100/h3600/h3700
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ipaq-micro-keys.
 
 config KEYBOARD_OMAP
 	tristate "TI OMAP keypad support"
@@ -685,5 +707,16 @@ config KEYBOARD_CAP11XX
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cap11xx.
+
+config KEYBOARD_BCM
+	tristate "Broadcom keypad driver"
+	depends on OF && HAVE_CLK
+	select INPUT_MATRIXKMAP
+	default ARCH_BCM_CYGNUS
+	help
+	  Say Y here if you want to use Broadcom keypad.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bcm-keypad.
 
 endif

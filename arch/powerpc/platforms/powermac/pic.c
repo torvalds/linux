@@ -268,7 +268,8 @@ static struct irqaction gatwick_cascade_action = {
 	.name		= "cascade",
 };
 
-static int pmac_pic_host_match(struct irq_domain *h, struct device_node *node)
+static int pmac_pic_host_match(struct irq_domain *h, struct device_node *node,
+			       enum irq_domain_bus_token bus_token)
 {
 	/* We match all, we don't always have a node anyway */
 	return 1;
@@ -321,6 +322,9 @@ static void __init pmac_pic_probe_oldstyle(void)
 		max_irqs = max_real_irqs = 64;
 
 		/* We might have a second cascaded heathrow */
+
+		/* Compensate for of_node_put() in of_find_node_by_name() */
+		of_node_get(master);
 		slave = of_find_node_by_name(master, "mac-io");
 
 		/* Check ordering of master & slave */

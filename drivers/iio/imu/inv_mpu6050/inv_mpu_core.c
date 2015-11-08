@@ -410,42 +410,63 @@ error_read_raw:
 	}
 }
 
-static int inv_mpu6050_write_fsr(struct inv_mpu6050_state *st, int fsr)
+static int inv_mpu6050_write_gyro_scale(struct inv_mpu6050_state *st, int val)
 {
-	int result;
+	int result, i;
 	u8 d;
 
-	if (fsr < 0 || fsr > INV_MPU6050_MAX_GYRO_FS_PARAM)
-		return -EINVAL;
-	if (fsr == st->chip_config.fsr)
-		return 0;
+	for (i = 0; i < ARRAY_SIZE(gyro_scale_6050); ++i) {
+		if (gyro_scale_6050[i] == val) {
+			d = (i << INV_MPU6050_GYRO_CONFIG_FSR_SHIFT);
+			result = inv_mpu6050_write_reg(st,
+					st->reg->gyro_config, d);
+			if (result)
+				return result;
 
-	d = (fsr << INV_MPU6050_GYRO_CONFIG_FSR_SHIFT);
-	result = inv_mpu6050_write_reg(st, st->reg->gyro_config, d);
-	if (result)
-		return result;
-	st->chip_config.fsr = fsr;
+			st->chip_config.fsr = i;
+			return 0;
+		}
+	}
 
-	return 0;
+	return -EINVAL;
 }
 
-static int inv_mpu6050_write_accel_fs(struct inv_mpu6050_state *st, int fs)
+static int inv_write_raw_get_fmt(struct iio_dev *indio_dev,
+				 struct iio_chan_spec const *chan, long mask)
 {
-	int result;
+	switch (mask) {
+	case IIO_CHAN_INFO_SCALE:
+		switch (chan->type) {
+		case IIO_ANGL_VEL:
+			return IIO_VAL_INT_PLUS_NANO;
+		default:
+			return IIO_VAL_INT_PLUS_MICRO;
+		}
+	default:
+		return IIO_VAL_INT_PLUS_MICRO;
+	}
+
+	return -EINVAL;
+}
+static int inv_mpu6050_write_accel_scale(struct inv_mpu6050_state *st, int val)
+{
+	int result, i;
 	u8 d;
 
-	if (fs < 0 || fs > INV_MPU6050_MAX_ACCL_FS_PARAM)
-		return -EINVAL;
-	if (fs == st->chip_config.accl_fs)
-		return 0;
+	for (i = 0; i < ARRAY_SIZE(accel_scale); ++i) {
+		if (accel_scale[i] == val) {
+			d = (i << INV_MPU6050_ACCL_CONFIG_FSR_SHIFT);
+			result = inv_mpu6050_write_reg(st,
+					st->reg->accl_config, d);
+			if (result)
+				return result;
 
-	d = (fs << INV_MPU6050_ACCL_CONFIG_FSR_SHIFT);
-	result = inv_mpu6050_write_reg(st, st->reg->accl_config, d);
-	if (result)
-		return result;
-	st->chip_config.accl_fs = fs;
+			st->chip_config.accl_fs = i;
+			return 0;
+		}
+	}
 
-	return 0;
+	return -EINVAL;
 }
 
 static int inv_mpu6050_write_raw(struct iio_dev *indio_dev,
@@ -471,10 +492,10 @@ static int inv_mpu6050_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_ANGL_VEL:
-			result = inv_mpu6050_write_fsr(st, val);
+			result = inv_mpu6050_write_gyro_scale(st, val2);
 			break;
 		case IIO_ACCEL:
-			result = inv_mpu6050_write_accel_fs(st, val);
+			result = inv_mpu6050_write_accel_scale(st, val2);
 			break;
 		default:
 			result = -EINVAL;
@@ -669,6 +690,10 @@ static const struct iio_chan_spec inv_mpu_channels[] = {
 
 /* constant IIO attribute */
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("10 20 50 100 200 500");
+static IIO_CONST_ATTR(in_anglvel_scale_available,
+					  "0.000133090 0.000266181 0.000532362 0.001064724");
+static IIO_CONST_ATTR(in_accel_scale_available,
+					  "0.000598 0.001196 0.002392 0.004785");
 static IIO_DEV_ATTR_SAMP_FREQ(S_IRUGO | S_IWUSR, inv_fifo_rate_show,
 	inv_mpu6050_fifo_rate_store);
 static IIO_DEVICE_ATTR(in_gyro_matrix, S_IRUGO, inv_attr_show, NULL,
@@ -681,6 +706,8 @@ static struct attribute *inv_attributes[] = {
 	&iio_dev_attr_in_accel_matrix.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
+	&iio_const_attr_in_accel_scale_available.dev_attr.attr,
+	&iio_const_attr_in_anglvel_scale_available.dev_attr.attr,
 	NULL,
 };
 
@@ -692,6 +719,7 @@ static const struct iio_info mpu_info = {
 	.driver_module = THIS_MODULE,
 	.read_raw = &inv_mpu6050_read_raw,
 	.write_raw = &inv_mpu6050_write_raw,
+	.write_raw_get_fmt = &inv_write_raw_get_fmt,
 	.attrs = &inv_attribute_group,
 	.validate_trigger = inv_mpu6050_validate_trigger,
 };
@@ -825,8 +853,14 @@ static int inv_mpu_probe(struct i2c_client *client,
 		goto out_unreg_device;
 	}
 
+	result = inv_mpu_acpi_create_mux_client(st);
+	if (result)
+		goto out_del_mux;
+
 	return 0;
 
+out_del_mux:
+	i2c_del_mux_adapter(st->mux_adapter);
 out_unreg_device:
 	iio_device_unregister(indio_dev);
 out_remove_trigger:
@@ -841,6 +875,7 @@ static int inv_mpu_remove(struct i2c_client *client)
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
 
+	inv_mpu_acpi_delete_mux_client(st);
 	i2c_del_mux_adapter(st->mux_adapter);
 	iio_device_unregister(indio_dev);
 	inv_mpu6050_remove_trigger(st);
@@ -892,7 +927,6 @@ static struct i2c_driver inv_mpu_driver = {
 	.remove		=	inv_mpu_remove,
 	.id_table	=	inv_mpu_id,
 	.driver = {
-		.owner	=	THIS_MODULE,
 		.name	=	"inv-mpu6050",
 		.pm     =       INV_MPU6050_PMOPS,
 		.acpi_match_table = ACPI_PTR(inv_acpi_match),

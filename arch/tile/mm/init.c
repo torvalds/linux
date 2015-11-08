@@ -233,9 +233,12 @@ static pgprot_t __init init_pgprot(ulong address)
 	if (kdata_huge)
 		return construct_pgprot(PAGE_KERNEL, PAGE_HOME_HASH);
 
-	/* We map the aliased pages of permanent text inaccessible. */
+	/*
+	 * We map the aliased pages of permanent text so we can
+	 * update them if necessary, for ftrace, etc.
+	 */
 	if (address < (ulong) _sinittext - CODE_DELTA)
-		return PAGE_NONE;
+		return construct_pgprot(PAGE_KERNEL, PAGE_HOME_HASH);
 
 	/* We map read-only data non-coherent for performance. */
 	if ((address >= (ulong) __start_rodata &&
@@ -860,7 +863,7 @@ void __init mem_init(void)
  * memory to the highmem for now.
  */
 #ifndef CONFIG_NEED_MULTIPLE_NODES
-int arch_add_memory(u64 start, u64 size)
+int arch_add_memory(u64 start, u64 size, bool for_device)
 {
 	struct pglist_data *pgdata = &contig_page_data;
 	struct zone *zone = pgdata->node_zones + MAX_NR_ZONES-1;

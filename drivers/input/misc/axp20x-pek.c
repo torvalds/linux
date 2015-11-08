@@ -167,9 +167,13 @@ static irqreturn_t axp20x_pek_irq(int irq, void *pwr)
 	struct input_dev *idev = pwr;
 	struct axp20x_pek *axp20x_pek = input_get_drvdata(idev);
 
-	if (irq == axp20x_pek->irq_dbr)
+	/*
+	 * The power-button is connected to ground so a falling edge (dbf)
+	 * means it is pressed.
+	 */
+	if (irq == axp20x_pek->irq_dbf)
 		input_report_key(idev, KEY_POWER, true);
-	else if (irq == axp20x_pek->irq_dbf)
+	else if (irq == axp20x_pek->irq_dbr)
 		input_report_key(idev, KEY_POWER, false);
 
 	input_sync(idev);
@@ -288,3 +292,4 @@ module_platform_driver(axp20x_pek_driver);
 MODULE_DESCRIPTION("axp20x Power Button");
 MODULE_AUTHOR("Carlo Caione <carlo@caione.org>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:axp20x-pek");

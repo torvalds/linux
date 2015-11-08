@@ -32,7 +32,8 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/oom.h>
@@ -156,17 +157,20 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 			     p->pid, p->comm, oom_score_adj, tasksize);
 	}
 	if (selected) {
-		lowmem_print(1, "send sigkill to %d (%s), adj %hd, size %d\n",
-			     selected->pid, selected->comm,
-			     selected_oom_score_adj, selected_tasksize);
-		lowmem_deathpending_timeout = jiffies + HZ;
+		task_lock(selected);
+		send_sig(SIGKILL, selected, 0);
 		/*
 		 * FIXME: lowmemorykiller shouldn't abuse global OOM killer
 		 * infrastructure. There is no real reason why the selected
 		 * task should have access to the memory reserves.
 		 */
-		mark_tsk_oom_victim(selected);
-		send_sig(SIGKILL, selected, 0);
+		if (selected->mm)
+			mark_oom_victim(selected);
+		task_unlock(selected);
+		lowmem_print(1, "send sigkill to %d (%s), adj %hd, size %d\n",
+			     selected->pid, selected->comm,
+			     selected_oom_score_adj, selected_tasksize);
+		lowmem_deathpending_timeout = jiffies + HZ;
 		rem += selected_tasksize;
 	}
 
@@ -187,21 +191,16 @@ static int __init lowmem_init(void)
 	register_shrinker(&lowmem_shrinker);
 	return 0;
 }
+device_initcall(lowmem_init);
 
-static void __exit lowmem_exit(void)
-{
-	unregister_shrinker(&lowmem_shrinker);
-}
-
+/*
+ * not really modular, but the easiest way to keep compat with existing
+ * bootargs behaviour is to continue using module_param here.
+ */
 module_param_named(cost, lowmem_shrinker.seeks, int, S_IRUGO | S_IWUSR);
 module_param_array_named(adj, lowmem_adj, short, &lowmem_adj_size,
 			 S_IRUGO | S_IWUSR);
 module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size,
 			 S_IRUGO | S_IWUSR);
 module_param_named(debug_level, lowmem_debug_level, uint, S_IRUGO | S_IWUSR);
-
-module_init(lowmem_init);
-module_exit(lowmem_exit);
-
-MODULE_LICENSE("GPL");
 

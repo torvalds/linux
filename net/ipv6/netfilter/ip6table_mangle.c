@@ -32,7 +32,7 @@ static const struct xt_table packet_mangler = {
 };
 
 static unsigned int
-ip6t_mangle_out(struct sk_buff *skb, const struct net_device *out)
+ip6t_mangle_out(struct sk_buff *skb, const struct nf_hook_state *state)
 {
 	unsigned int ret;
 	struct in6_addr saddr, daddr;
@@ -57,8 +57,7 @@ ip6t_mangle_out(struct sk_buff *skb, const struct net_device *out)
 	/* flowlabel and prio (includes version, which shouldn't change either */
 	flowlabel = *((u_int32_t *)ipv6_hdr(skb));
 
-	ret = ip6t_do_table(skb, NF_INET_LOCAL_OUT, NULL, out,
-			    dev_net(out)->ipv6.ip6table_mangle);
+	ret = ip6t_do_table(skb, state, state->net->ipv6.ip6table_mangle);
 
 	if (ret != NF_DROP && ret != NF_STOLEN &&
 	    (!ipv6_addr_equal(&ipv6_hdr(skb)->saddr, &saddr) ||
@@ -66,7 +65,7 @@ ip6t_mangle_out(struct sk_buff *skb, const struct net_device *out)
 	     skb->mark != mark ||
 	     ipv6_hdr(skb)->hop_limit != hop_limit ||
 	     flowlabel != *((u_int32_t *)ipv6_hdr(skb)))) {
-		err = ip6_route_me_harder(skb);
+		err = ip6_route_me_harder(state->net, skb);
 		if (err < 0)
 			ret = NF_DROP_ERR(err);
 	}
@@ -76,18 +75,16 @@ ip6t_mangle_out(struct sk_buff *skb, const struct net_device *out)
 
 /* The work comes in here from netfilter.c. */
 static unsigned int
-ip6table_mangle_hook(const struct nf_hook_ops *ops, struct sk_buff *skb,
-		     const struct net_device *in, const struct net_device *out,
-		     int (*okfn)(struct sk_buff *))
+ip6table_mangle_hook(void *priv, struct sk_buff *skb,
+		     const struct nf_hook_state *state)
 {
-	if (ops->hooknum == NF_INET_LOCAL_OUT)
-		return ip6t_mangle_out(skb, out);
-	if (ops->hooknum == NF_INET_POST_ROUTING)
-		return ip6t_do_table(skb, ops->hooknum, in, out,
-				     dev_net(out)->ipv6.ip6table_mangle);
+	if (state->hook == NF_INET_LOCAL_OUT)
+		return ip6t_mangle_out(skb, state);
+	if (state->hook == NF_INET_POST_ROUTING)
+		return ip6t_do_table(skb, state,
+				     state->net->ipv6.ip6table_mangle);
 	/* INPUT/FORWARD */
-	return ip6t_do_table(skb, ops->hooknum, in, out,
-			     dev_net(in)->ipv6.ip6table_mangle);
+	return ip6t_do_table(skb, state, state->net->ipv6.ip6table_mangle);
 }
 
 static struct nf_hook_ops *mangle_ops __read_mostly;

@@ -56,9 +56,13 @@ struct ieee802154_local {
 	struct hrtimer ifs_timer;
 
 	bool started;
+	bool suspended;
 
 	struct tasklet_struct tasklet;
 	struct sk_buff_head skb_queue;
+
+	struct sk_buff *tx_skb;
+	struct work_struct tx_work;
 };
 
 enum {
@@ -86,19 +90,13 @@ struct ieee802154_sub_if_data {
 	unsigned long state;
 	char name[IFNAMSIZ];
 
-	spinlock_t mib_lock;
-
 	/* protects sec from concurrent access by netlink. access by
 	 * encrypt/decrypt/header_create safe without additional protection.
 	 */
 	struct mutex sec_mtx;
 
 	struct mac802154_llsec sec;
-	/* must be last, dynamically sized area in this! */
-	struct ieee802154_vif vif;
 };
-
-#define MAC802154_CHAN_NONE		0xff /* No channel is assigned */
 
 /* utility functions/constants */
 extern const void *const mac802154_wpan_phy_privid; /*  for wpan_phy privid */
@@ -129,6 +127,8 @@ ieee802154_sdata_running(struct ieee802154_sub_if_data *sdata)
 
 extern struct ieee802154_mlme_ops mac802154_mlme_wpan;
 
+void ieee802154_rx(struct ieee802154_local *local, struct sk_buff *skb);
+void ieee802154_xmit_worker(struct work_struct *work);
 netdev_tx_t
 ieee802154_monitor_start_xmit(struct sk_buff *skb, struct net_device *dev);
 netdev_tx_t
@@ -136,12 +136,7 @@ ieee802154_subif_start_xmit(struct sk_buff *skb, struct net_device *dev);
 enum hrtimer_restart ieee802154_xmit_ifs_timer(struct hrtimer *timer);
 
 /* MIB callbacks */
-void mac802154_dev_set_short_addr(struct net_device *dev, __le16 val);
-__le16 mac802154_dev_get_short_addr(const struct net_device *dev);
-__le16 mac802154_dev_get_pan_id(const struct net_device *dev);
-void mac802154_dev_set_pan_id(struct net_device *dev, __le16 val);
 void mac802154_dev_set_page_channel(struct net_device *dev, u8 page, u8 chan);
-u8 mac802154_dev_get_dsn(const struct net_device *dev);
 
 int mac802154_get_params(struct net_device *dev,
 			 struct ieee802154_llsec_params *params);
@@ -176,13 +171,17 @@ void mac802154_get_table(struct net_device *dev,
 			 struct ieee802154_llsec_table **t);
 void mac802154_unlock_table(struct net_device *dev);
 
+int mac802154_wpan_update_llsec(struct net_device *dev);
+
 /* interface handling */
 int ieee802154_iface_init(void);
 void ieee802154_iface_exit(void);
 void ieee802154_if_remove(struct ieee802154_sub_if_data *sdata);
 struct net_device *
 ieee802154_if_add(struct ieee802154_local *local, const char *name,
-		  enum nl802154_iftype type, __le64 extended_addr);
+		  unsigned char name_assign_type, enum nl802154_iftype type,
+		  __le64 extended_addr);
 void ieee802154_remove_interfaces(struct ieee802154_local *local);
+void ieee802154_stop_device(struct ieee802154_local *local);
 
 #endif /* __IEEE802154_I_H */

@@ -79,6 +79,7 @@ static DEFINE_SPINLOCK(map_lock);
 static DECLARE_BITMAP(dev_map, IB_UVERBS_MAX_DEVICES);
 
 static ssize_t (*uverbs_cmd_table[])(struct ib_uverbs_file *file,
+				     struct ib_device *ib_dev,
 				     const char __user *buf, int in_len,
 				     int out_len) = {
 	[IB_USER_VERBS_CMD_GET_CONTEXT]		= ib_uverbs_get_context,
@@ -119,23 +120,31 @@ static ssize_t (*uverbs_cmd_table[])(struct ib_uverbs_file *file,
 };
 
 static int (*uverbs_ex_cmd_table[])(struct ib_uverbs_file *file,
+				    struct ib_device *ib_dev,
 				    struct ib_udata *ucore,
 				    struct ib_udata *uhw) = {
 	[IB_USER_VERBS_EX_CMD_CREATE_FLOW]	= ib_uverbs_ex_create_flow,
 	[IB_USER_VERBS_EX_CMD_DESTROY_FLOW]	= ib_uverbs_ex_destroy_flow,
 	[IB_USER_VERBS_EX_CMD_QUERY_DEVICE]	= ib_uverbs_ex_query_device,
+	[IB_USER_VERBS_EX_CMD_CREATE_CQ]	= ib_uverbs_ex_create_cq,
+	[IB_USER_VERBS_EX_CMD_CREATE_QP]        = ib_uverbs_ex_create_qp,
 };
 
 static void ib_uverbs_add_one(struct ib_device *device);
-static void ib_uverbs_remove_one(struct ib_device *device);
+static void ib_uverbs_remove_one(struct ib_device *device, void *client_data);
 
-static void ib_uverbs_release_dev(struct kref *ref)
+static void ib_uverbs_release_dev(struct kobject *kobj)
 {
 	struct ib_uverbs_device *dev =
-		container_of(ref, struct ib_uverbs_device, ref);
+		container_of(kobj, struct ib_uverbs_device, kobj);
 
-	complete(&dev->comp);
+	cleanup_srcu_struct(&dev->disassociate_srcu);
+	kfree(dev);
 }
+
+static struct kobj_type ib_uverbs_dev_ktype = {
+	.release = ib_uverbs_release_dev,
+};
 
 static void ib_uverbs_release_event_file(struct kref *ref)
 {
@@ -200,9 +209,6 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 {
 	struct ib_uobject *uobj, *tmp;
 
-	if (!context)
-		return 0;
-
 	context->closing = 1;
 
 	list_for_each_entry_safe(uobj, tmp, &context->ah_list, list) {
@@ -246,6 +252,17 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 		kfree(uqp);
 	}
 
+	list_for_each_entry_safe(uobj, tmp, &context->srq_list, list) {
+		struct ib_srq *srq = uobj->object;
+		struct ib_uevent_object *uevent =
+			container_of(uobj, struct ib_uevent_object, uobject);
+
+		idr_remove_uobj(&ib_uverbs_srq_idr, uobj);
+		ib_destroy_srq(srq);
+		ib_uverbs_release_uevent(file, uevent);
+		kfree(uevent);
+	}
+
 	list_for_each_entry_safe(uobj, tmp, &context->cq_list, list) {
 		struct ib_cq *cq = uobj->object;
 		struct ib_uverbs_event_file *ev_file = cq->cq_context;
@@ -256,17 +273,6 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 		ib_destroy_cq(cq);
 		ib_uverbs_release_ucq(file, ev_file, ucq);
 		kfree(ucq);
-	}
-
-	list_for_each_entry_safe(uobj, tmp, &context->srq_list, list) {
-		struct ib_srq *srq = uobj->object;
-		struct ib_uevent_object *uevent =
-			container_of(uobj, struct ib_uevent_object, uobject);
-
-		idr_remove_uobj(&ib_uverbs_srq_idr, uobj);
-		ib_destroy_srq(srq);
-		ib_uverbs_release_uevent(file, uevent);
-		kfree(uevent);
 	}
 
 	list_for_each_entry_safe(uobj, tmp, &context->mr_list, list) {
@@ -302,13 +308,27 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 	return context->device->dealloc_ucontext(context);
 }
 
+static void ib_uverbs_comp_dev(struct ib_uverbs_device *dev)
+{
+	complete(&dev->comp);
+}
+
 static void ib_uverbs_release_file(struct kref *ref)
 {
 	struct ib_uverbs_file *file =
 		container_of(ref, struct ib_uverbs_file, ref);
+	struct ib_device *ib_dev;
+	int srcu_key;
 
-	module_put(file->device->ib_dev->owner);
-	kref_put(&file->device->ref, ib_uverbs_release_dev);
+	srcu_key = srcu_read_lock(&file->device->disassociate_srcu);
+	ib_dev = srcu_dereference(file->device->ib_dev,
+				  &file->device->disassociate_srcu);
+	if (ib_dev && !ib_dev->disassociate_ucontext)
+		module_put(ib_dev->owner);
+	srcu_read_unlock(&file->device->disassociate_srcu, srcu_key);
+
+	if (atomic_dec_and_test(&file->device->refcount))
+		ib_uverbs_comp_dev(file->device);
 
 	kfree(file);
 }
@@ -330,8 +350,18 @@ static ssize_t ib_uverbs_event_read(struct file *filp, char __user *buf,
 			return -EAGAIN;
 
 		if (wait_event_interruptible(file->poll_wait,
-					     !list_empty(&file->event_list)))
+					     (!list_empty(&file->event_list) ||
+			/* The barriers built into wait_event_interruptible()
+			 * and wake_up() guarentee this will see the null set
+			 * without using RCU
+			 */
+					     !file->uverbs_file->device->ib_dev)))
 			return -ERESTARTSYS;
+
+		/* If device was disassociated and no event exists set an error */
+		if (list_empty(&file->event_list) &&
+		    !file->uverbs_file->device->ib_dev)
+			return -EIO;
 
 		spin_lock_irq(&file->lock);
 	}
@@ -395,8 +425,11 @@ static int ib_uverbs_event_close(struct inode *inode, struct file *filp)
 {
 	struct ib_uverbs_event_file *file = filp->private_data;
 	struct ib_uverbs_event *entry, *tmp;
+	int closed_already = 0;
 
+	mutex_lock(&file->uverbs_file->device->lists_mutex);
 	spin_lock_irq(&file->lock);
+	closed_already = file->is_closed;
 	file->is_closed = 1;
 	list_for_each_entry_safe(entry, tmp, &file->event_list, list) {
 		if (entry->counter)
@@ -404,11 +437,15 @@ static int ib_uverbs_event_close(struct inode *inode, struct file *filp)
 		kfree(entry);
 	}
 	spin_unlock_irq(&file->lock);
-
-	if (file->is_async) {
-		ib_unregister_event_handler(&file->uverbs_file->event_handler);
-		kref_put(&file->uverbs_file->ref, ib_uverbs_release_file);
+	if (!closed_already) {
+		list_del(&file->list);
+		if (file->is_async)
+			ib_unregister_event_handler(&file->uverbs_file->
+				event_handler);
 	}
+	mutex_unlock(&file->uverbs_file->device->lists_mutex);
+
+	kref_put(&file->uverbs_file->ref, ib_uverbs_release_file);
 	kref_put(&file->ref, ib_uverbs_release_event_file);
 
 	return 0;
@@ -540,13 +577,21 @@ void ib_uverbs_event_handler(struct ib_event_handler *handler,
 				NULL, NULL);
 }
 
+void ib_uverbs_free_async_event_file(struct ib_uverbs_file *file)
+{
+	kref_put(&file->async_file->ref, ib_uverbs_release_event_file);
+	file->async_file = NULL;
+}
+
 struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
+					struct ib_device	*ib_dev,
 					int is_async)
 {
 	struct ib_uverbs_event_file *ev_file;
 	struct file *filp;
+	int ret;
 
-	ev_file = kmalloc(sizeof *ev_file, GFP_KERNEL);
+	ev_file = kzalloc(sizeof(*ev_file), GFP_KERNEL);
 	if (!ev_file)
 		return ERR_PTR(-ENOMEM);
 
@@ -555,15 +600,46 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 	INIT_LIST_HEAD(&ev_file->event_list);
 	init_waitqueue_head(&ev_file->poll_wait);
 	ev_file->uverbs_file = uverbs_file;
+	kref_get(&ev_file->uverbs_file->ref);
 	ev_file->async_queue = NULL;
-	ev_file->is_async    = is_async;
 	ev_file->is_closed   = 0;
 
 	filp = anon_inode_getfile("[infinibandevent]", &uverbs_event_fops,
 				  ev_file, O_RDONLY);
 	if (IS_ERR(filp))
-		kfree(ev_file);
+		goto err_put_refs;
 
+	mutex_lock(&uverbs_file->device->lists_mutex);
+	list_add_tail(&ev_file->list,
+		      &uverbs_file->device->uverbs_events_file_list);
+	mutex_unlock(&uverbs_file->device->lists_mutex);
+
+	if (is_async) {
+		WARN_ON(uverbs_file->async_file);
+		uverbs_file->async_file = ev_file;
+		kref_get(&uverbs_file->async_file->ref);
+		INIT_IB_EVENT_HANDLER(&uverbs_file->event_handler,
+				      ib_dev,
+				      ib_uverbs_event_handler);
+		ret = ib_register_event_handler(&uverbs_file->event_handler);
+		if (ret)
+			goto err_put_file;
+
+		/* At that point async file stuff was fully set */
+		ev_file->is_async = 1;
+	}
+
+	return filp;
+
+err_put_file:
+	fput(filp);
+	kref_put(&uverbs_file->async_file->ref, ib_uverbs_release_event_file);
+	uverbs_file->async_file = NULL;
+	return ERR_PTR(ret);
+
+err_put_refs:
+	kref_put(&ev_file->uverbs_file->ref, ib_uverbs_release_file);
+	kref_put(&ev_file->ref, ib_uverbs_release_event_file);
 	return filp;
 }
 
@@ -600,14 +676,25 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 			     size_t count, loff_t *pos)
 {
 	struct ib_uverbs_file *file = filp->private_data;
+	struct ib_device *ib_dev;
 	struct ib_uverbs_cmd_hdr hdr;
 	__u32 flags;
+	int srcu_key;
+	ssize_t ret;
 
 	if (count < sizeof hdr)
 		return -EINVAL;
 
 	if (copy_from_user(&hdr, buf, sizeof hdr))
 		return -EFAULT;
+
+	srcu_key = srcu_read_lock(&file->device->disassociate_srcu);
+	ib_dev = srcu_dereference(file->device->ib_dev,
+				  &file->device->disassociate_srcu);
+	if (!ib_dev) {
+		ret = -EIO;
+		goto out;
+	}
 
 	flags = (hdr.command &
 		 IB_USER_VERBS_CMD_FLAGS_MASK) >> IB_USER_VERBS_CMD_FLAGS_SHIFT;
@@ -616,26 +703,36 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 		__u32 command;
 
 		if (hdr.command & ~(__u32)(IB_USER_VERBS_CMD_FLAGS_MASK |
-					   IB_USER_VERBS_CMD_COMMAND_MASK))
-			return -EINVAL;
+					   IB_USER_VERBS_CMD_COMMAND_MASK)) {
+			ret = -EINVAL;
+			goto out;
+		}
 
 		command = hdr.command & IB_USER_VERBS_CMD_COMMAND_MASK;
 
 		if (command >= ARRAY_SIZE(uverbs_cmd_table) ||
-		    !uverbs_cmd_table[command])
-			return -EINVAL;
+		    !uverbs_cmd_table[command]) {
+			ret = -EINVAL;
+			goto out;
+		}
 
 		if (!file->ucontext &&
-		    command != IB_USER_VERBS_CMD_GET_CONTEXT)
-			return -EINVAL;
+		    command != IB_USER_VERBS_CMD_GET_CONTEXT) {
+			ret = -EINVAL;
+			goto out;
+		}
 
-		if (!(file->device->ib_dev->uverbs_cmd_mask & (1ull << command)))
-			return -ENOSYS;
+		if (!(ib_dev->uverbs_cmd_mask & (1ull << command))) {
+			ret = -ENOSYS;
+			goto out;
+		}
 
-		if (hdr.in_words * 4 != count)
-			return -EINVAL;
+		if (hdr.in_words * 4 != count) {
+			ret = -EINVAL;
+			goto out;
+		}
 
-		return uverbs_cmd_table[command](file,
+		ret = uverbs_cmd_table[command](file, ib_dev,
 						 buf + sizeof(hdr),
 						 hdr.in_words * 4,
 						 hdr.out_words * 4);
@@ -646,51 +743,72 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 		struct ib_uverbs_ex_cmd_hdr ex_hdr;
 		struct ib_udata ucore;
 		struct ib_udata uhw;
-		int err;
 		size_t written_count = count;
 
 		if (hdr.command & ~(__u32)(IB_USER_VERBS_CMD_FLAGS_MASK |
-					   IB_USER_VERBS_CMD_COMMAND_MASK))
-			return -EINVAL;
+					   IB_USER_VERBS_CMD_COMMAND_MASK)) {
+			ret = -EINVAL;
+			goto out;
+		}
 
 		command = hdr.command & IB_USER_VERBS_CMD_COMMAND_MASK;
 
 		if (command >= ARRAY_SIZE(uverbs_ex_cmd_table) ||
-		    !uverbs_ex_cmd_table[command])
-			return -ENOSYS;
+		    !uverbs_ex_cmd_table[command]) {
+			ret = -ENOSYS;
+			goto out;
+		}
 
-		if (!file->ucontext)
-			return -EINVAL;
+		if (!file->ucontext) {
+			ret = -EINVAL;
+			goto out;
+		}
 
-		if (!(file->device->ib_dev->uverbs_ex_cmd_mask & (1ull << command)))
-			return -ENOSYS;
+		if (!(ib_dev->uverbs_ex_cmd_mask & (1ull << command))) {
+			ret = -ENOSYS;
+			goto out;
+		}
 
-		if (count < (sizeof(hdr) + sizeof(ex_hdr)))
-			return -EINVAL;
+		if (count < (sizeof(hdr) + sizeof(ex_hdr))) {
+			ret = -EINVAL;
+			goto out;
+		}
 
-		if (copy_from_user(&ex_hdr, buf + sizeof(hdr), sizeof(ex_hdr)))
-			return -EFAULT;
+		if (copy_from_user(&ex_hdr, buf + sizeof(hdr), sizeof(ex_hdr))) {
+			ret = -EFAULT;
+			goto out;
+		}
 
 		count -= sizeof(hdr) + sizeof(ex_hdr);
 		buf += sizeof(hdr) + sizeof(ex_hdr);
 
-		if ((hdr.in_words + ex_hdr.provider_in_words) * 8 != count)
-			return -EINVAL;
+		if ((hdr.in_words + ex_hdr.provider_in_words) * 8 != count) {
+			ret = -EINVAL;
+			goto out;
+		}
 
-		if (ex_hdr.cmd_hdr_reserved)
-			return -EINVAL;
+		if (ex_hdr.cmd_hdr_reserved) {
+			ret = -EINVAL;
+			goto out;
+		}
 
 		if (ex_hdr.response) {
-			if (!hdr.out_words && !ex_hdr.provider_out_words)
-				return -EINVAL;
+			if (!hdr.out_words && !ex_hdr.provider_out_words) {
+				ret = -EINVAL;
+				goto out;
+			}
 
 			if (!access_ok(VERIFY_WRITE,
 				       (void __user *) (unsigned long) ex_hdr.response,
-				       (hdr.out_words + ex_hdr.provider_out_words) * 8))
-				return -EFAULT;
+				       (hdr.out_words + ex_hdr.provider_out_words) * 8)) {
+				ret = -EFAULT;
+				goto out;
+			}
 		} else {
-			if (hdr.out_words || ex_hdr.provider_out_words)
-				return -EINVAL;
+			if (hdr.out_words || ex_hdr.provider_out_words) {
+				ret = -EINVAL;
+				goto out;
+			}
 		}
 
 		INIT_UDATA_BUF_OR_NULL(&ucore, buf, (unsigned long) ex_hdr.response,
@@ -702,27 +820,43 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 				       ex_hdr.provider_in_words * 8,
 				       ex_hdr.provider_out_words * 8);
 
-		err = uverbs_ex_cmd_table[command](file,
+		ret = uverbs_ex_cmd_table[command](file,
+						   ib_dev,
 						   &ucore,
 						   &uhw);
-
-		if (err)
-			return err;
-
-		return written_count;
+		if (!ret)
+			ret = written_count;
+	} else {
+		ret = -ENOSYS;
 	}
 
-	return -ENOSYS;
+out:
+	srcu_read_unlock(&file->device->disassociate_srcu, srcu_key);
+	return ret;
 }
 
 static int ib_uverbs_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct ib_uverbs_file *file = filp->private_data;
+	struct ib_device *ib_dev;
+	int ret = 0;
+	int srcu_key;
+
+	srcu_key = srcu_read_lock(&file->device->disassociate_srcu);
+	ib_dev = srcu_dereference(file->device->ib_dev,
+				  &file->device->disassociate_srcu);
+	if (!ib_dev) {
+		ret = -EIO;
+		goto out;
+	}
 
 	if (!file->ucontext)
-		return -ENODEV;
+		ret = -ENODEV;
 	else
-		return file->device->ib_dev->mmap(file->ucontext, vma);
+		ret = ib_dev->mmap(file->ucontext, vma);
+out:
+	srcu_read_unlock(&file->device->disassociate_srcu, srcu_key);
+	return ret;
 }
 
 /*
@@ -739,23 +873,43 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 {
 	struct ib_uverbs_device *dev;
 	struct ib_uverbs_file *file;
+	struct ib_device *ib_dev;
 	int ret;
+	int module_dependent;
+	int srcu_key;
 
 	dev = container_of(inode->i_cdev, struct ib_uverbs_device, cdev);
-	if (dev)
-		kref_get(&dev->ref);
-	else
+	if (!atomic_inc_not_zero(&dev->refcount))
 		return -ENXIO;
 
-	if (!try_module_get(dev->ib_dev->owner)) {
-		ret = -ENODEV;
+	srcu_key = srcu_read_lock(&dev->disassociate_srcu);
+	mutex_lock(&dev->lists_mutex);
+	ib_dev = srcu_dereference(dev->ib_dev,
+				  &dev->disassociate_srcu);
+	if (!ib_dev) {
+		ret = -EIO;
 		goto err;
 	}
 
-	file = kmalloc(sizeof *file, GFP_KERNEL);
+	/* In case IB device supports disassociate ucontext, there is no hard
+	 * dependency between uverbs device and its low level device.
+	 */
+	module_dependent = !(ib_dev->disassociate_ucontext);
+
+	if (module_dependent) {
+		if (!try_module_get(ib_dev->owner)) {
+			ret = -ENODEV;
+			goto err;
+		}
+	}
+
+	file = kzalloc(sizeof(*file), GFP_KERNEL);
 	if (!file) {
 		ret = -ENOMEM;
-		goto err_module;
+		if (module_dependent)
+			goto err_module;
+
+		goto err;
 	}
 
 	file->device	 = dev;
@@ -765,27 +919,47 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 	mutex_init(&file->mutex);
 
 	filp->private_data = file;
+	kobject_get(&dev->kobj);
+	list_add_tail(&file->list, &dev->uverbs_file_list);
+	mutex_unlock(&dev->lists_mutex);
+	srcu_read_unlock(&dev->disassociate_srcu, srcu_key);
 
 	return nonseekable_open(inode, filp);
 
 err_module:
-	module_put(dev->ib_dev->owner);
+	module_put(ib_dev->owner);
 
 err:
-	kref_put(&dev->ref, ib_uverbs_release_dev);
+	mutex_unlock(&dev->lists_mutex);
+	srcu_read_unlock(&dev->disassociate_srcu, srcu_key);
+	if (atomic_dec_and_test(&dev->refcount))
+		ib_uverbs_comp_dev(dev);
+
 	return ret;
 }
 
 static int ib_uverbs_close(struct inode *inode, struct file *filp)
 {
 	struct ib_uverbs_file *file = filp->private_data;
+	struct ib_uverbs_device *dev = file->device;
+	struct ib_ucontext *ucontext = NULL;
 
-	ib_uverbs_cleanup_ucontext(file, file->ucontext);
+	mutex_lock(&file->device->lists_mutex);
+	ucontext = file->ucontext;
+	file->ucontext = NULL;
+	if (!file->is_closed) {
+		list_del(&file->list);
+		file->is_closed = 1;
+	}
+	mutex_unlock(&file->device->lists_mutex);
+	if (ucontext)
+		ib_uverbs_cleanup_ucontext(file, ucontext);
 
 	if (file->async_file)
 		kref_put(&file->async_file->ref, ib_uverbs_release_event_file);
 
 	kref_put(&file->ref, ib_uverbs_release_file);
+	kobject_put(&dev->kobj);
 
 	return 0;
 }
@@ -816,12 +990,21 @@ static struct ib_client uverbs_client = {
 static ssize_t show_ibdev(struct device *device, struct device_attribute *attr,
 			  char *buf)
 {
+	int ret = -ENODEV;
+	int srcu_key;
 	struct ib_uverbs_device *dev = dev_get_drvdata(device);
+	struct ib_device *ib_dev;
 
 	if (!dev)
 		return -ENODEV;
 
-	return sprintf(buf, "%s\n", dev->ib_dev->name);
+	srcu_key = srcu_read_lock(&dev->disassociate_srcu);
+	ib_dev = srcu_dereference(dev->ib_dev, &dev->disassociate_srcu);
+	if (ib_dev)
+		ret = sprintf(buf, "%s\n", ib_dev->name);
+	srcu_read_unlock(&dev->disassociate_srcu, srcu_key);
+
+	return ret;
 }
 static DEVICE_ATTR(ibdev, S_IRUGO, show_ibdev, NULL);
 
@@ -829,11 +1012,19 @@ static ssize_t show_dev_abi_version(struct device *device,
 				    struct device_attribute *attr, char *buf)
 {
 	struct ib_uverbs_device *dev = dev_get_drvdata(device);
+	int ret = -ENODEV;
+	int srcu_key;
+	struct ib_device *ib_dev;
 
 	if (!dev)
 		return -ENODEV;
+	srcu_key = srcu_read_lock(&dev->disassociate_srcu);
+	ib_dev = srcu_dereference(dev->ib_dev, &dev->disassociate_srcu);
+	if (ib_dev)
+		ret = sprintf(buf, "%d\n", ib_dev->uverbs_abi_ver);
+	srcu_read_unlock(&dev->disassociate_srcu, srcu_key);
 
-	return sprintf(buf, "%d\n", dev->ib_dev->uverbs_abi_ver);
+	return ret;
 }
 static DEVICE_ATTR(abi_version, S_IRUGO, show_dev_abi_version, NULL);
 
@@ -873,6 +1064,7 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	int devnum;
 	dev_t base;
 	struct ib_uverbs_device *uverbs_dev;
+	int ret;
 
 	if (!device->alloc_ucontext)
 		return;
@@ -881,10 +1073,20 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	if (!uverbs_dev)
 		return;
 
-	kref_init(&uverbs_dev->ref);
+	ret = init_srcu_struct(&uverbs_dev->disassociate_srcu);
+	if (ret) {
+		kfree(uverbs_dev);
+		return;
+	}
+
+	atomic_set(&uverbs_dev->refcount, 1);
 	init_completion(&uverbs_dev->comp);
 	uverbs_dev->xrcd_tree = RB_ROOT;
 	mutex_init(&uverbs_dev->xrcd_tree_mutex);
+	kobject_init(&uverbs_dev->kobj, &ib_uverbs_dev_ktype);
+	mutex_init(&uverbs_dev->lists_mutex);
+	INIT_LIST_HEAD(&uverbs_dev->uverbs_file_list);
+	INIT_LIST_HEAD(&uverbs_dev->uverbs_events_file_list);
 
 	spin_lock(&map_lock);
 	devnum = find_first_zero_bit(dev_map, IB_UVERBS_MAX_DEVICES);
@@ -905,12 +1107,13 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	}
 	spin_unlock(&map_lock);
 
-	uverbs_dev->ib_dev           = device;
+	rcu_assign_pointer(uverbs_dev->ib_dev, device);
 	uverbs_dev->num_comp_vectors = device->num_comp_vectors;
 
 	cdev_init(&uverbs_dev->cdev, NULL);
 	uverbs_dev->cdev.owner = THIS_MODULE;
 	uverbs_dev->cdev.ops = device->mmap ? &uverbs_mmap_fops : &uverbs_fops;
+	uverbs_dev->cdev.kobj.parent = &uverbs_dev->kobj;
 	kobject_set_name(&uverbs_dev->cdev.kobj, "uverbs%d", uverbs_dev->devnum);
 	if (cdev_add(&uverbs_dev->cdev, base, 1))
 		goto err_cdev;
@@ -941,15 +1144,79 @@ err_cdev:
 		clear_bit(devnum, overflow_map);
 
 err:
-	kref_put(&uverbs_dev->ref, ib_uverbs_release_dev);
+	if (atomic_dec_and_test(&uverbs_dev->refcount))
+		ib_uverbs_comp_dev(uverbs_dev);
 	wait_for_completion(&uverbs_dev->comp);
-	kfree(uverbs_dev);
+	kobject_put(&uverbs_dev->kobj);
 	return;
 }
 
-static void ib_uverbs_remove_one(struct ib_device *device)
+static void ib_uverbs_free_hw_resources(struct ib_uverbs_device *uverbs_dev,
+					struct ib_device *ib_dev)
 {
-	struct ib_uverbs_device *uverbs_dev = ib_get_client_data(device, &uverbs_client);
+	struct ib_uverbs_file *file;
+	struct ib_uverbs_event_file *event_file;
+	struct ib_event event;
+
+	/* Pending running commands to terminate */
+	synchronize_srcu(&uverbs_dev->disassociate_srcu);
+	event.event = IB_EVENT_DEVICE_FATAL;
+	event.element.port_num = 0;
+	event.device = ib_dev;
+
+	mutex_lock(&uverbs_dev->lists_mutex);
+	while (!list_empty(&uverbs_dev->uverbs_file_list)) {
+		struct ib_ucontext *ucontext;
+
+		file = list_first_entry(&uverbs_dev->uverbs_file_list,
+					struct ib_uverbs_file, list);
+		file->is_closed = 1;
+		ucontext = file->ucontext;
+		list_del(&file->list);
+		file->ucontext = NULL;
+		kref_get(&file->ref);
+		mutex_unlock(&uverbs_dev->lists_mutex);
+		/* We must release the mutex before going ahead and calling
+		 * disassociate_ucontext. disassociate_ucontext might end up
+		 * indirectly calling uverbs_close, for example due to freeing
+		 * the resources (e.g mmput).
+		 */
+		ib_uverbs_event_handler(&file->event_handler, &event);
+		if (ucontext) {
+			ib_dev->disassociate_ucontext(ucontext);
+			ib_uverbs_cleanup_ucontext(file, ucontext);
+		}
+
+		mutex_lock(&uverbs_dev->lists_mutex);
+		kref_put(&file->ref, ib_uverbs_release_file);
+	}
+
+	while (!list_empty(&uverbs_dev->uverbs_events_file_list)) {
+		event_file = list_first_entry(&uverbs_dev->
+					      uverbs_events_file_list,
+					      struct ib_uverbs_event_file,
+					      list);
+		spin_lock_irq(&event_file->lock);
+		event_file->is_closed = 1;
+		spin_unlock_irq(&event_file->lock);
+
+		list_del(&event_file->list);
+		if (event_file->is_async) {
+			ib_unregister_event_handler(&event_file->uverbs_file->
+						    event_handler);
+			event_file->uverbs_file->event_handler.device = NULL;
+		}
+
+		wake_up_interruptible(&event_file->poll_wait);
+		kill_fasync(&event_file->async_queue, SIGIO, POLL_IN);
+	}
+	mutex_unlock(&uverbs_dev->lists_mutex);
+}
+
+static void ib_uverbs_remove_one(struct ib_device *device, void *client_data)
+{
+	struct ib_uverbs_device *uverbs_dev = client_data;
+	int wait_clients = 1;
 
 	if (!uverbs_dev)
 		return;
@@ -963,9 +1230,28 @@ static void ib_uverbs_remove_one(struct ib_device *device)
 	else
 		clear_bit(uverbs_dev->devnum - IB_UVERBS_MAX_DEVICES, overflow_map);
 
-	kref_put(&uverbs_dev->ref, ib_uverbs_release_dev);
-	wait_for_completion(&uverbs_dev->comp);
-	kfree(uverbs_dev);
+	if (device->disassociate_ucontext) {
+		/* We disassociate HW resources and immediately return.
+		 * Userspace will see a EIO errno for all future access.
+		 * Upon returning, ib_device may be freed internally and is not
+		 * valid any more.
+		 * uverbs_device is still available until all clients close
+		 * their files, then the uverbs device ref count will be zero
+		 * and its resources will be freed.
+		 * Note: At this point no more files can be opened since the
+		 * cdev was deleted, however active clients can still issue
+		 * commands and close their open files.
+		 */
+		rcu_assign_pointer(uverbs_dev->ib_dev, NULL);
+		ib_uverbs_free_hw_resources(uverbs_dev, device);
+		wait_clients = 0;
+	}
+
+	if (atomic_dec_and_test(&uverbs_dev->refcount))
+		ib_uverbs_comp_dev(uverbs_dev);
+	if (wait_clients)
+		wait_for_completion(&uverbs_dev->comp);
+	kobject_put(&uverbs_dev->kobj);
 }
 
 static char *uverbs_devnode(struct device *dev, umode_t *mode)

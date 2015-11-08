@@ -422,7 +422,6 @@ static void lms501kf03_shutdown(struct spi_device *spi)
 static struct spi_driver lms501kf03_driver = {
 	.driver = {
 		.name	= "lms501kf03",
-		.owner	= THIS_MODULE,
 		.pm	= &lms501kf03_pm_ops,
 	},
 	.probe		= lms501kf03_probe,

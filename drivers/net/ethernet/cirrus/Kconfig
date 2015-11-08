@@ -7,9 +7,7 @@ config NET_VENDOR_CIRRUS
 	default y
 	depends on ISA || EISA || ARM || MAC
 	---help---
-	  If you have a network (Ethernet) card belonging to this class, say Y
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
@@ -23,9 +21,7 @@ config CS89x0
 	depends on ISA || EISA || ARM
 	---help---
 	  Support for CS89x0 chipset based Ethernet cards. If you have a
-	  network (Ethernet) card of this type, say Y and read the
-	  Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto> as well as
+	  network (Ethernet) card of this type, say Y and read the file
 	  <file:Documentation/networking/cs89x0.txt>.
 
 	  To compile this driver as a module, choose M here. The module
@@ -55,9 +51,7 @@ config MAC89x0
 	depends on MAC
 	---help---
 	  Support for CS89x0 chipset based Ethernet cards.  If you have a
-	  Nubus or LC-PDS network (Ethernet) card of this type, say Y and
-	  read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  Nubus or LC-PDS network (Ethernet) card of this type, say Y here.
 
 	  To compile this driver as a module, choose M here. This module will
 	  be called mac89x0.

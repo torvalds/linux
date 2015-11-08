@@ -6,19 +6,13 @@
 
 #include <linux/linkage.h>
 
-#ifdef CONFIG_32BIT
-#define PGM_CHECK_64BIT(handler) .long default_trap_handler
-#else
-#define PGM_CHECK_64BIT(handler) .long handler
-#endif
-
 #define PGM_CHECK(handler)	.long handler
 #define PGM_CHECK_DEFAULT	PGM_CHECK(default_trap_handler)
 
 /*
  * The program check table contains exactly 128 (0x00-0x7f) entries. Each
- * line defines the 31 and/or 64 bit function to be called corresponding
- * to the program check interruption code.
+ * line defines the function to be called corresponding to the program check
+ * interruption code.
  */
 .section .rodata, "a"
 ENTRY(pgm_check_table)
@@ -46,10 +40,10 @@ PGM_CHECK_DEFAULT			/* 14 */
 PGM_CHECK(operand_exception)		/* 15 */
 PGM_CHECK_DEFAULT			/* 16 */
 PGM_CHECK_DEFAULT			/* 17 */
-PGM_CHECK_64BIT(transaction_exception)	/* 18 */
+PGM_CHECK(transaction_exception)	/* 18 */
 PGM_CHECK_DEFAULT			/* 19 */
 PGM_CHECK_DEFAULT			/* 1a */
-PGM_CHECK_64BIT(vector_exception)	/* 1b */
+PGM_CHECK(vector_exception)		/* 1b */
 PGM_CHECK(space_switch_exception)	/* 1c */
 PGM_CHECK(hfp_sqrt_exception)		/* 1d */
 PGM_CHECK_DEFAULT			/* 1e */
@@ -78,10 +72,10 @@ PGM_CHECK_DEFAULT			/* 34 */
 PGM_CHECK_DEFAULT			/* 35 */
 PGM_CHECK_DEFAULT			/* 36 */
 PGM_CHECK_DEFAULT			/* 37 */
-PGM_CHECK_64BIT(do_dat_exception)	/* 38 */
-PGM_CHECK_64BIT(do_dat_exception)	/* 39 */
-PGM_CHECK_64BIT(do_dat_exception)	/* 3a */
-PGM_CHECK_64BIT(do_dat_exception)	/* 3b */
+PGM_CHECK(do_dat_exception)		/* 38 */
+PGM_CHECK(do_dat_exception)		/* 39 */
+PGM_CHECK(do_dat_exception)		/* 3a */
+PGM_CHECK(do_dat_exception)		/* 3b */
 PGM_CHECK_DEFAULT			/* 3c */
 PGM_CHECK_DEFAULT			/* 3d */
 PGM_CHECK_DEFAULT			/* 3e */

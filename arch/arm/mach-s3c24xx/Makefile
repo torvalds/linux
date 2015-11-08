@@ -32,7 +32,8 @@ obj-$(CONFIG_CPU_S3C2443)	+= s3c2443.o
 
 # PM
 
-obj-$(CONFIG_PM)		+= pm.o irq-pm.o sleep.o
+obj-$(CONFIG_PM)		+= pm.o
+obj-$(CONFIG_PM_SLEEP)		+= irq-pm.o sleep.o
 
 # common code
 
@@ -98,3 +99,4 @@ obj-$(CONFIG_S3C2416_SETUP_SDHCI_GPIO)	+= setup-sdhci-gpio.o
 obj-$(CONFIG_S3C2443_SETUP_SPI)		+= setup-spi.o
 obj-$(CONFIG_ARCH_S3C24XX)		+= setup-i2c.o
 obj-$(CONFIG_S3C24XX_SETUP_TS)		+= setup-ts.o
+obj-$(CONFIG_S3C_SETUP_CAMIF)		+= setup-camif.o

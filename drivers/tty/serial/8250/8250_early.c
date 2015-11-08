@@ -29,22 +29,23 @@
 #include <linux/tty.h>
 #include <linux/init.h>
 #include <linux/console.h>
-#include <linux/serial_core.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/serial_reg.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
 #include <asm/io.h>
 #include <asm/serial.h>
 
-static struct earlycon_device *early_device;
-
-unsigned int __weak __init serial8250_early_in(struct uart_port *port, int offset)
+static unsigned int __init serial8250_early_in(struct uart_port *port, int offset)
 {
 	switch (port->iotype) {
 	case UPIO_MEM:
 		return readb(port->membase + offset);
 	case UPIO_MEM32:
 		return readl(port->membase + (offset << 2));
+	case UPIO_MEM32BE:
+		return ioread32be(port->membase + (offset << 2));
 	case UPIO_PORT:
 		return inb(port->iobase + offset);
 	default:
@@ -52,7 +53,7 @@ unsigned int __weak __init serial8250_early_in(struct uart_port *port, int offse
 	}
 }
 
-void __weak __init serial8250_early_out(struct uart_port *port, int offset, int value)
+static void __init serial8250_early_out(struct uart_port *port, int offset, int value)
 {
 	switch (port->iotype) {
 	case UPIO_MEM:
@@ -60,6 +61,9 @@ void __weak __init serial8250_early_out(struct uart_port *port, int offset, int 
 		break;
 	case UPIO_MEM32:
 		writel(value, port->membase + (offset << 2));
+		break;
+	case UPIO_MEM32BE:
+		iowrite32be(value, port->membase + (offset << 2));
 		break;
 	case UPIO_PORT:
 		outb(value, port->iobase + offset);
@@ -90,7 +94,8 @@ static void __init serial_putc(struct uart_port *port, int c)
 static void __init early_serial8250_write(struct console *console,
 					const char *s, unsigned int count)
 {
-	struct uart_port *port = &early_device->port;
+	struct earlycon_device *device = console->data;
+	struct uart_port *port = &device->port;
 	unsigned int ier;
 
 	/* Save the IER and disable interrupts preserving the UUE bit */
@@ -105,21 +110,6 @@ static void __init early_serial8250_write(struct console *console,
 
 	if (ier)
 		serial8250_early_out(port, UART_IER, ier);
-}
-
-static unsigned int __init probe_baud(struct uart_port *port)
-{
-	unsigned char lcr, dll, dlm;
-	unsigned int quot;
-
-	lcr = serial8250_early_in(port, UART_LCR);
-	serial8250_early_out(port, UART_LCR, lcr | UART_LCR_DLAB);
-	dll = serial8250_early_in(port, UART_DLL);
-	dlm = serial8250_early_in(port, UART_DLM);
-	serial8250_early_out(port, UART_LCR, lcr);
-
-	quot = (dlm << 8) | dll;
-	return (port->uartclk / 16) / quot;
 }
 
 static void __init init_port(struct earlycon_device *device)
@@ -143,56 +133,26 @@ static void __init init_port(struct earlycon_device *device)
 	serial8250_early_out(port, UART_LCR, c & ~UART_LCR_DLAB);
 }
 
-static int __init early_serial8250_setup(struct earlycon_device *device,
+int __init early_serial8250_setup(struct earlycon_device *device,
 					 const char *options)
 {
 	if (!(device->port.membase || device->port.iobase))
-		return 0;
+		return -ENODEV;
 
 	if (!device->baud) {
-		device->baud = probe_baud(&device->port);
-		snprintf(device->options, sizeof(device->options), "%u",
-			 device->baud);
-	}
+		struct uart_port *port = &device->port;
+		unsigned int ier;
 
-	init_port(device);
+		/* assume the device was initialized, only mask interrupts */
+		ier = serial8250_early_in(port, UART_IER);
+		serial8250_early_out(port, UART_IER, ier & UART_IER_UUE);
+	} else
+		init_port(device);
 
-	early_device = device;
 	device->con->write = early_serial8250_write;
 	return 0;
 }
 EARLYCON_DECLARE(uart8250, early_serial8250_setup);
 EARLYCON_DECLARE(uart, early_serial8250_setup);
-
-int __init setup_early_serial8250_console(char *cmdline)
-{
-	char match[] = "uart8250";
-
-	if (cmdline && cmdline[4] == ',')
-		match[4] = '\0';
-
-	return setup_earlycon(cmdline, match, early_serial8250_setup);
-}
-
-int serial8250_find_port_for_earlycon(void)
-{
-	struct earlycon_device *device = early_device;
-	struct uart_port *port = device ? &device->port : NULL;
-	int line;
-	int ret;
-
-	if (!port || (!port->membase && !port->iobase))
-		return -ENODEV;
-
-	line = serial8250_find_port(port);
-	if (line < 0)
-		return -ENODEV;
-
-	ret = update_console_cmdline("uart", 8250,
-			     "ttyS", line, device->options);
-	if (ret < 0)
-		ret = update_console_cmdline("uart", 0,
-				     "ttyS", line, device->options);
-
-	return ret;
-}
+OF_EARLYCON_DECLARE(ns16550, "ns16550", early_serial8250_setup);
+OF_EARLYCON_DECLARE(ns16550a, "ns16550a", early_serial8250_setup);

@@ -16,7 +16,6 @@
 #include <linux/swap.h>
 #include <linux/pagemap.h>
 #include <linux/blkdev.h>
-#include <linux/mutex.h>
 #include <linux/slab.h>
 #include "ext4.h"
 
@@ -235,7 +234,7 @@ int ext4_check_blockref(const char *function, unsigned int line,
 			es->s_last_error_block = cpu_to_le64(blk);
 			ext4_error_inode(inode, function, line, blk,
 					 "invalid block");
-			return -EIO;
+			return -EFSCORRUPTED;
 		}
 	}
 	return 0;

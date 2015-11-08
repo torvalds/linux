@@ -597,7 +597,7 @@ console_initcall(mcf_console_init);
 #define	MCF_CONSOLE	NULL
 
 /****************************************************************************/
-#endif /* CONFIG_MCF_CONSOLE */
+#endif /* CONFIG_SERIAL_MCF_CONSOLE */
 /****************************************************************************/
 
 /*

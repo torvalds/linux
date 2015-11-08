@@ -253,16 +253,6 @@ void armada_drm_vbl_event_remove(struct armada_crtc *dcrtc,
 	}
 }
 
-void armada_drm_vbl_event_remove_unlocked(struct armada_crtc *dcrtc,
-	struct armada_vbl_event *evt)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&dcrtc->irq_lock, flags);
-	armada_drm_vbl_event_remove(dcrtc, evt);
-	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
-}
-
 /* These are called under the vbl_lock. */
 static int armada_drm_enable_vblank(struct drm_device *dev, int crtc)
 {

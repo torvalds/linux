@@ -76,7 +76,7 @@ static void nfhd_make_request(struct request_queue *queue, struct bio *bio)
 				bvec_to_phys(&bvec));
 		sec += len;
 	}
-	bio_endio(bio, 0);
+	bio_endio(bio);
 }
 
 static int nfhd_getgeo(struct block_device *bdev, struct hd_geometry *geo)

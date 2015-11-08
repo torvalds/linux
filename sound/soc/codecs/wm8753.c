@@ -138,11 +138,6 @@ static bool wm8753_volatile(struct device *dev, unsigned int reg)
 	return reg == WM8753_RESET;
 }
 
-static bool wm8753_writeable(struct device *dev, unsigned int reg)
-{
-	return reg <= WM8753_ADCTL2;
-}
-
 /* codec private data */
 struct wm8753_priv {
 	struct regmap *regmap;
@@ -153,6 +148,7 @@ struct wm8753_priv {
 	unsigned int hifi_fmt;
 
 	int dai_func;
+	struct delayed_work charge_work;
 };
 
 #define wm8753_reset(c) snd_soc_write(c, WM8753_RESET, 0)
@@ -275,12 +271,11 @@ static const DECLARE_TLV_DB_SCALE(rec_mix_tlv, -1500, 300, 0);
 static const DECLARE_TLV_DB_SCALE(mic_preamp_tlv, 1200, 600, 0);
 static const DECLARE_TLV_DB_SCALE(adc_tlv, -9750, 50, 1);
 static const DECLARE_TLV_DB_SCALE(dac_tlv, -12750, 50, 1);
-static const unsigned int out_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(out_tlv,
 	/* 0000000 - 0101111 = "Analogue mute" */
 	0, 48, TLV_DB_SCALE_ITEM(-25500, 0, 0),
-	48, 127, TLV_DB_SCALE_ITEM(-7300, 100, 0),
-};
+	48, 127, TLV_DB_SCALE_ITEM(-7300, 100, 0)
+);
 static const DECLARE_TLV_DB_SCALE(mix_tlv, -1500, 300, 0);
 static const DECLARE_TLV_DB_SCALE(voice_mix_tlv, -1200, 300, 0);
 static const DECLARE_TLV_DB_SCALE(pga_tlv, -1725, 75, 0);
@@ -1326,9 +1321,19 @@ static int wm8753_mute(struct snd_soc_dai *dai, int mute)
 	return 0;
 }
 
+static void wm8753_charge_work(struct work_struct *work)
+{
+	struct wm8753_priv *wm8753 =
+		container_of(work, struct wm8753_priv, charge_work.work);
+
+	/* Set to 500k */
+	regmap_update_bits(wm8753->regmap, WM8753_PWR1, 0x0180, 0x0100);
+}
+
 static int wm8753_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
+	struct wm8753_priv *wm8753 = snd_soc_codec_get_drvdata(codec);
 	u16 pwr_reg = snd_soc_read(codec, WM8753_PWR1) & 0xfe3e;
 
 	switch (level) {
@@ -1337,18 +1342,25 @@ static int wm8753_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_write(codec, WM8753_PWR1, pwr_reg | 0x00c0);
 		break;
 	case SND_SOC_BIAS_PREPARE:
-		/* set vmid to 5k for quick power up */
-		snd_soc_write(codec, WM8753_PWR1, pwr_reg | 0x01c1);
+		/* Wait until fully charged */
+		flush_delayed_work(&wm8753->charge_work);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		/* mute dac and set vmid to 500k, enable VREF */
-		snd_soc_write(codec, WM8753_PWR1, pwr_reg | 0x0141);
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
+			/* set vmid to 5k for quick power up */
+			snd_soc_write(codec, WM8753_PWR1, pwr_reg | 0x01c1);
+			schedule_delayed_work(&wm8753->charge_work,
+				msecs_to_jiffies(caps_charge));
+		} else {
+			/* mute dac and set vmid to 500k, enable VREF */
+			snd_soc_write(codec, WM8753_PWR1, pwr_reg | 0x0141);
+		}
 		break;
 	case SND_SOC_BIAS_OFF:
+		cancel_delayed_work_sync(&wm8753->charge_work);
 		snd_soc_write(codec, WM8753_PWR1, 0x0001);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -1428,37 +1440,11 @@ static struct snd_soc_dai_driver wm8753_dai[] = {
 },
 };
 
-static void wm8753_work(struct work_struct *work)
-{
-	struct snd_soc_dapm_context *dapm =
-		container_of(work, struct snd_soc_dapm_context,
-			     delayed_work.work);
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(dapm);
-	wm8753_set_bias_level(codec, dapm->bias_level);
-}
-
-static int wm8753_suspend(struct snd_soc_codec *codec)
-{
-	wm8753_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static int wm8753_resume(struct snd_soc_codec *codec)
 {
 	struct wm8753_priv *wm8753 = snd_soc_codec_get_drvdata(codec);
 
 	regcache_sync(wm8753->regmap);
-
-	wm8753_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	/* charge wm8753 caps */
-	if (codec->dapm.suspend_bias_level == SND_SOC_BIAS_ON) {
-		wm8753_set_bias_level(codec, SND_SOC_BIAS_PREPARE);
-		codec->dapm.bias_level = SND_SOC_BIAS_ON;
-		queue_delayed_work(system_power_efficient_wq,
-				   &codec->dapm.delayed_work,
-				   msecs_to_jiffies(caps_charge));
-	}
 
 	return 0;
 }
@@ -1468,7 +1454,7 @@ static int wm8753_probe(struct snd_soc_codec *codec)
 	struct wm8753_priv *wm8753 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	INIT_DELAYED_WORK(&codec->dapm.delayed_work, wm8753_work);
+	INIT_DELAYED_WORK(&wm8753->charge_work, wm8753_charge_work);
 
 	ret = wm8753_reset(codec);
 	if (ret < 0) {
@@ -1476,13 +1462,7 @@ static int wm8753_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	wm8753_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	wm8753->dai_func = 0;
-
-	/* charge output caps */
-	wm8753_set_bias_level(codec, SND_SOC_BIAS_PREPARE);
-	schedule_delayed_work(&codec->dapm.delayed_work,
-			      msecs_to_jiffies(caps_charge));
 
 	/* set the update bits */
 	snd_soc_update_bits(codec, WM8753_LDAC, 0x0100, 0x0100);
@@ -1499,21 +1479,11 @@ static int wm8753_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-/* power down chip */
-static int wm8753_remove(struct snd_soc_codec *codec)
-{
-	flush_delayed_work(&codec->dapm.delayed_work);
-	wm8753_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_wm8753 = {
 	.probe =	wm8753_probe,
-	.remove =	wm8753_remove,
-	.suspend =	wm8753_suspend,
 	.resume =	wm8753_resume,
 	.set_bias_level = wm8753_set_bias_level,
+	.suspend_bias_off = true,
 
 	.controls = wm8753_snd_controls,
 	.num_controls = ARRAY_SIZE(wm8753_snd_controls),
@@ -1534,7 +1504,6 @@ static const struct regmap_config wm8753_regmap = {
 	.val_bits = 9,
 
 	.max_register = WM8753_ADCTL2,
-	.writeable_reg = wm8753_writeable,
 	.volatile_reg = wm8753_volatile,
 
 	.cache_type = REGCACHE_RBTREE,
@@ -1580,7 +1549,6 @@ static int wm8753_spi_remove(struct spi_device *spi)
 static struct spi_driver wm8753_spi_driver = {
 	.driver = {
 		.name	= "wm8753",
-		.owner	= THIS_MODULE,
 		.of_match_table = wm8753_of_match,
 	},
 	.probe		= wm8753_spi_probe,
@@ -1633,7 +1601,6 @@ MODULE_DEVICE_TABLE(i2c, wm8753_i2c_id);
 static struct i2c_driver wm8753_i2c_driver = {
 	.driver = {
 		.name = "wm8753",
-		.owner = THIS_MODULE,
 		.of_match_table = wm8753_of_match,
 	},
 	.probe =    wm8753_i2c_probe,

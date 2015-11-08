@@ -1247,7 +1247,7 @@ static const struct snd_soc_dapm_route wm5100_dapm_routes[] = {
 	{ "PWM2", NULL, "PWM2 Driver" },
 };
 
-static const struct reg_default wm5100_reva_patches[] = {
+static const struct reg_sequence wm5100_reva_patches[] = {
 	{ WM5100_AUDIO_IF_1_10, 0 },
 	{ WM5100_AUDIO_IF_1_11, 1 },
 	{ WM5100_AUDIO_IF_1_12, 2 },
@@ -1408,7 +1408,7 @@ static int wm5100_hw_params(struct snd_pcm_substream *substream,
 	base = dai->driver->base;
 
 	/* Data sizes if not using TDM */
-	wl = snd_pcm_format_width(params_format(params));
+	wl = params_width(params);
 	if (wl < 0)
 		return wl;
 	fl = snd_soc_params_to_frame_size(params);
@@ -1762,6 +1762,7 @@ static int wm5100_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	struct _fll_div factors;
 	struct wm5100_fll *fll;
 	int ret, base, lock, i, timeout;
+	unsigned long time_left;
 
 	switch (fll_id) {
 	case WM5100_FLL1:
@@ -1842,9 +1843,9 @@ static int wm5100_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	/* Poll for the lock; will use interrupt when we can test */
 	for (i = 0; i < timeout; i++) {
 		if (i2c->irq) {
-			ret = wait_for_completion_timeout(&fll->lock,
-							  msecs_to_jiffies(25));
-			if (ret > 0)
+			time_left = wait_for_completion_timeout(&fll->lock,
+							msecs_to_jiffies(25));
+			if (time_left > 0)
 				break;
 		} else {
 			msleep(1);
@@ -2100,7 +2101,7 @@ static void wm5100_micd_irq(struct wm5100_priv *wm5100)
 int wm5100_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 {
 	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 
 	if (jack) {
 		wm5100->jack = jack;
@@ -2335,6 +2336,7 @@ static void wm5100_free_gpio(struct i2c_client *i2c)
 
 static int wm5100_probe(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct i2c_client *i2c = to_i2c_client(codec->dev);
 	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
 	int ret, i;
@@ -2352,8 +2354,7 @@ static int wm5100_probe(struct snd_soc_codec *codec)
 	/* TODO: check if we're symmetric */
 
 	if (i2c->irq)
-		snd_soc_dapm_new_controls(&codec->dapm,
-					  wm5100_dapm_widgets_noirq,
+		snd_soc_dapm_new_controls(dapm, wm5100_dapm_widgets_noirq,
 					  ARRAY_SIZE(wm5100_dapm_widgets_noirq));
 
 	if (wm5100->pdata.hp_pol) {
@@ -2705,7 +2706,7 @@ static int wm5100_runtime_resume(struct device *dev)
 }
 #endif
 
-static struct dev_pm_ops wm5100_pm = {
+static const struct dev_pm_ops wm5100_pm = {
 	SET_RUNTIME_PM_OPS(wm5100_runtime_suspend, wm5100_runtime_resume,
 			   NULL)
 };
@@ -2719,7 +2720,6 @@ MODULE_DEVICE_TABLE(i2c, wm5100_i2c_id);
 static struct i2c_driver wm5100_i2c_driver = {
 	.driver = {
 		.name = "wm5100",
-		.owner = THIS_MODULE,
 		.pm = &wm5100_pm,
 	},
 	.probe =    wm5100_i2c_probe,

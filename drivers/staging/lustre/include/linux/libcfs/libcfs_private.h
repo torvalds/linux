@@ -42,13 +42,9 @@
 #ifndef __LIBCFS_PRIVATE_H__
 #define __LIBCFS_PRIVATE_H__
 
-/* XXX this layering violation is for nidstrings */
-#include "../lnet/types.h"
-
 #ifndef DEBUG_SUBSYSTEM
 # define DEBUG_SUBSYSTEM S_UNDEFINED
 #endif
-
 
 /*
  * When this is on, LASSERT macro includes check for assignment used instead
@@ -83,31 +79,13 @@ do {									\
 
 #define KLASSERT(e) LASSERT(e)
 
-void lbug_with_loc(struct libcfs_debug_msg_data *)__attribute__((noreturn));
+void __noreturn lbug_with_loc(struct libcfs_debug_msg_data *);
 
 #define LBUG()							  \
 do {								    \
 	LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, D_EMERG, NULL);	     \
 	lbug_with_loc(&msgdata);					\
 } while (0)
-
-extern atomic_t libcfs_kmemory;
-/*
- * Memory
- */
-
-# define libcfs_kmem_inc(ptr, size)		\
-do {						\
-	atomic_add(size, &libcfs_kmemory);	\
-} while (0)
-
-# define libcfs_kmem_dec(ptr, size)		\
-do {						\
-	atomic_sub(size, &libcfs_kmemory);	\
-} while (0)
-
-# define libcfs_kmem_read()			\
-	atomic_read(&libcfs_kmemory)
 
 #ifndef LIBCFS_VMALLOC_SIZE
 #define LIBCFS_VMALLOC_SIZE	(2 << PAGE_CACHE_SHIFT) /* 2 pages */
@@ -117,7 +95,7 @@ do {						\
 do {									    \
 	LASSERT(!in_interrupt() ||					    \
 		((size) <= LIBCFS_VMALLOC_SIZE &&			    \
-		 ((mask) & __GFP_WAIT) == 0));				    \
+		 !gfpflags_allow_blocking(mask)));			    \
 } while (0)
 
 #define LIBCFS_ALLOC_POST(ptr, size)					    \
@@ -125,14 +103,9 @@ do {									    \
 	if (unlikely((ptr) == NULL)) {					    \
 		CERROR("LNET: out of memory at %s:%d (tried to alloc '"	    \
 		       #ptr "' = %d)\n", __FILE__, __LINE__, (int)(size));  \
-		CERROR("LNET: %d total bytes allocated by lnet\n",	    \
-		       libcfs_kmem_read());				    \
 	} else {							    \
 		memset((ptr), 0, (size));				    \
-		libcfs_kmem_inc((ptr), (size));				    \
-		CDEBUG(D_MALLOC, "alloc '" #ptr "': %d at %p (tot %d).\n",  \
-		       (int)(size), (ptr), libcfs_kmem_read());		    \
-	}								   \
+	}								    \
 } while (0)
 
 /**
@@ -184,9 +157,6 @@ do {								    \
 		       "%s:%d\n", s, __FILE__, __LINE__);	       \
 		break;						  \
 	}							       \
-	libcfs_kmem_dec((ptr), s);				      \
-	CDEBUG(D_MALLOC, "kfreed '" #ptr "': %d at %p (tot %d).\n",     \
-	       s, (ptr), libcfs_kmem_read());				\
 	if (unlikely(s > LIBCFS_VMALLOC_SIZE))			  \
 		vfree(ptr);				    \
 	else							    \
@@ -335,8 +305,8 @@ do {							    \
 #define LASSERT_ATOMIC_ZERO(a)		  LASSERT_ATOMIC_EQ(a, 0)
 #define LASSERT_ATOMIC_POS(a)		   LASSERT_ATOMIC_GT(a, 0)
 
-#define CFS_ALLOC_PTR(ptr)      LIBCFS_ALLOC(ptr, sizeof(*(ptr)));
-#define CFS_FREE_PTR(ptr)       LIBCFS_FREE(ptr, sizeof(*(ptr)));
+#define CFS_ALLOC_PTR(ptr)      LIBCFS_ALLOC(ptr, sizeof(*(ptr)))
+#define CFS_FREE_PTR(ptr)       LIBCFS_FREE(ptr, sizeof(*(ptr)))
 
 /*
  * percpu partition lock
@@ -410,36 +380,6 @@ int cfs_percpt_atomic_summary(atomic_t **refs);
  */
 #define CLASSERT(cond) do {switch (42) {case (cond): case 0: break; } } while (0)
 
-/* support decl needed both by kernel and liblustre */
-int	 libcfs_isknown_lnd(int type);
-char       *libcfs_lnd2modname(int type);
-char       *libcfs_lnd2str(int type);
-int	 libcfs_str2lnd(const char *str);
-char       *libcfs_net2str(__u32 net);
-char       *libcfs_nid2str(lnet_nid_t nid);
-__u32       libcfs_str2net(const char *str);
-lnet_nid_t  libcfs_str2nid(const char *str);
-int	 libcfs_str2anynid(lnet_nid_t *nid, const char *str);
-char       *libcfs_id2str(lnet_process_id_t id);
-void	cfs_free_nidlist(struct list_head *list);
-int	 cfs_parse_nidlist(char *str, int len, struct list_head *list);
-int	 cfs_match_nid(lnet_nid_t nid, struct list_head *list);
-
-/** \addtogroup lnet_addr
- * @{ */
-/* how an LNET NID encodes net:address */
-/** extract the address part of an lnet_nid_t */
-#define LNET_NIDADDR(nid)      ((__u32)((nid) & 0xffffffff))
-/** extract the network part of an lnet_nid_t */
-#define LNET_NIDNET(nid)       ((__u32)(((nid) >> 32)) & 0xffffffff)
-/** make an lnet_nid_t from a network part and an address part */
-#define LNET_MKNID(net, addr)   ((((__u64)(net))<<32)|((__u64)(addr)))
-/* how net encodes type:number */
-#define LNET_NETNUM(net)       ((net) & 0xffff)
-#define LNET_NETTYP(net)       (((net) >> 16) & 0xffff)
-#define LNET_MKNET(typ, num)    ((((__u32)(typ))<<16)|((__u32)(num)))
-/** @} lnet_addr */
-
 /* max value for numeric network address */
 #define MAX_NUMERIC_VALUE 0xffffffff
 
@@ -496,19 +436,6 @@ static inline size_t cfs_round_strlen(char *fset)
 	return (size_t)cfs_size_round((int)strlen(fset) + 1);
 }
 
-/* roundup \a val to power2 */
-static inline unsigned int cfs_power2_roundup(unsigned int val)
-{
-	if (val != LOWEST_BIT_SET(val)) { /* not a power of 2 already */
-		do {
-			val &= ~LOWEST_BIT_SET(val);
-		} while (val != LOWEST_BIT_SET(val));
-		/* ...and round up */
-		val <<= 1;
-	}
-	return val;
-}
-
 #define LOGL(var, len, ptr)				       \
 do {							    \
 	if (var)						\
@@ -531,26 +458,5 @@ do {						    \
 	*((char *)(ptr) + len) = 0;		     \
 	ptr += cfs_size_round(len + 1);		 \
 } while (0)
-
-/**
- *  Lustre Network Driver types.
- */
-enum {
-	/* Only add to these values (i.e. don't ever change or redefine them):
-	 * network addresses depend on them... */
-	QSWLND    = 1,
-	SOCKLND   = 2,
-	GMLND     = 3, /* obsolete, keep it so that libcfs_nid2str works */
-	PTLLND    = 4,
-	O2IBLND   = 5,
-	CIBLND    = 6,
-	OPENIBLND = 7,
-	IIBLND    = 8,
-	LOLND     = 9,
-	RALND     = 10,
-	VIBLND    = 11,
-	MXLND     = 12,
-	GNILND    = 13,
-};
 
 #endif

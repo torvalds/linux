@@ -25,7 +25,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/debug_locks.h>
-#include "mcs_spinlock.h"
+#include <linux/osq_lock.h>
 
 /*
  * In the DEBUG case we are using the "NULL fastpath" for mutexes,
@@ -217,44 +217,35 @@ ww_mutex_set_context_slowpath(struct ww_mutex *lock,
 }
 
 #ifdef CONFIG_MUTEX_SPIN_ON_OWNER
-static inline bool owner_running(struct mutex *lock, struct task_struct *owner)
-{
-	if (lock->owner != owner)
-		return false;
-
-	/*
-	 * Ensure we emit the owner->on_cpu, dereference _after_ checking
-	 * lock->owner still matches owner, if that fails, owner might
-	 * point to free()d memory, if it still matches, the rcu_read_lock()
-	 * ensures the memory stays valid.
-	 */
-	barrier();
-
-	return owner->on_cpu;
-}
-
 /*
  * Look out! "owner" is an entirely speculative pointer
  * access and not reliable.
  */
 static noinline
-int mutex_spin_on_owner(struct mutex *lock, struct task_struct *owner)
+bool mutex_spin_on_owner(struct mutex *lock, struct task_struct *owner)
 {
+	bool ret = true;
+
 	rcu_read_lock();
-	while (owner_running(lock, owner)) {
-		if (need_resched())
+	while (lock->owner == owner) {
+		/*
+		 * Ensure we emit the owner->on_cpu, dereference _after_
+		 * checking lock->owner still matches owner. If that fails,
+		 * owner might point to freed memory. If it still matches,
+		 * the rcu_read_lock() ensures the memory stays valid.
+		 */
+		barrier();
+
+		if (!owner->on_cpu || need_resched()) {
+			ret = false;
 			break;
+		}
 
 		cpu_relax_lowlatency();
 	}
 	rcu_read_unlock();
 
-	/*
-	 * We break out the loop above on need_resched() and when the
-	 * owner changed, which is a sign for heavy contention. Return
-	 * success only when lock->owner is NULL.
-	 */
-	return lock->owner == NULL;
+	return ret;
 }
 
 /*
@@ -269,7 +260,7 @@ static inline int mutex_can_spin_on_owner(struct mutex *lock)
 		return 0;
 
 	rcu_read_lock();
-	owner = ACCESS_ONCE(lock->owner);
+	owner = READ_ONCE(lock->owner);
 	if (owner)
 		retval = owner->on_cpu;
 	rcu_read_unlock();
@@ -286,7 +277,7 @@ static inline int mutex_can_spin_on_owner(struct mutex *lock)
 static inline bool mutex_try_to_acquire(struct mutex *lock)
 {
 	return !mutex_is_locked(lock) &&
-		(atomic_cmpxchg(&lock->count, 1, 0) == 1);
+		(atomic_cmpxchg_acquire(&lock->count, 1, 0) == 1);
 }
 
 /*
@@ -343,7 +334,7 @@ static bool mutex_optimistic_spin(struct mutex *lock,
 			 * As such, when deadlock detection needs to be
 			 * performed the optimistic spinning cannot be done.
 			 */
-			if (ACCESS_ONCE(ww->ctx))
+			if (READ_ONCE(ww->ctx))
 				break;
 		}
 
@@ -351,7 +342,7 @@ static bool mutex_optimistic_spin(struct mutex *lock,
 		 * If there's an owner, wait for it to either
 		 * release the lock or go to sleep.
 		 */
-		owner = ACCESS_ONCE(lock->owner);
+		owner = READ_ONCE(lock->owner);
 		if (owner && !mutex_spin_on_owner(lock, owner))
 			break;
 
@@ -490,7 +481,7 @@ static inline int __sched
 __ww_mutex_lock_check_stamp(struct mutex *lock, struct ww_acquire_ctx *ctx)
 {
 	struct ww_mutex *ww = container_of(lock, struct ww_mutex, base);
-	struct ww_acquire_ctx *hold_ctx = ACCESS_ONCE(ww->ctx);
+	struct ww_acquire_ctx *hold_ctx = READ_ONCE(ww->ctx);
 
 	if (!hold_ctx)
 		return 0;
@@ -538,7 +529,8 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 	 * Once more, try to acquire the lock. Only try-lock the mutex if
 	 * it is unlocked to reduce unnecessary xchg() operations.
 	 */
-	if (!mutex_is_locked(lock) && (atomic_xchg(&lock->count, 0) == 1))
+	if (!mutex_is_locked(lock) &&
+	    (atomic_xchg_acquire(&lock->count, 0) == 1))
 		goto skip_wait;
 
 	debug_mutex_lock_common(lock, &waiter);
@@ -562,7 +554,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 		 * non-negative in order to avoid unnecessary xchg operations:
 		 */
 		if (atomic_read(&lock->count) >= 0 &&
-		    (atomic_xchg(&lock->count, -1) == 1))
+		    (atomic_xchg_acquire(&lock->count, -1) == 1))
 			break;
 
 		/*
@@ -876,7 +868,7 @@ static inline int __mutex_trylock_slowpath(atomic_t *lock_count)
 
 	spin_lock_mutex(&lock->wait_lock, flags);
 
-	prev = atomic_xchg(&lock->count, -1);
+	prev = atomic_xchg_acquire(&lock->count, -1);
 	if (likely(prev == 1)) {
 		mutex_set_owner(lock);
 		mutex_acquire(&lock->dep_map, 0, 1, _RET_IP_);

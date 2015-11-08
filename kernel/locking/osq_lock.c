@@ -50,7 +50,7 @@ osq_wait_next(struct optimistic_spin_queue *lock,
 
 	for (;;) {
 		if (atomic_read(&lock->tail) == curr &&
-		    atomic_cmpxchg(&lock->tail, curr, old) == curr) {
+		    atomic_cmpxchg_acquire(&lock->tail, curr, old) == curr) {
 			/*
 			 * We were the last queued, we moved @lock back. @prev
 			 * will now observe @lock and will complete its
@@ -92,13 +92,17 @@ bool osq_lock(struct optimistic_spin_queue *lock)
 	node->next = NULL;
 	node->cpu = curr;
 
-	old = atomic_xchg(&lock->tail, curr);
+	/*
+	 * ACQUIRE semantics, pairs with corresponding RELEASE
+	 * in unlock() uncontended, or fastpath.
+	 */
+	old = atomic_xchg_acquire(&lock->tail, curr);
 	if (old == OSQ_UNLOCKED_VAL)
 		return true;
 
 	prev = decode_cpu(old);
 	node->prev = prev;
-	ACCESS_ONCE(prev->next) = node;
+	WRITE_ONCE(prev->next, node);
 
 	/*
 	 * Normally @prev is untouchable after the above store; because at that
@@ -109,7 +113,7 @@ bool osq_lock(struct optimistic_spin_queue *lock)
 	 * cmpxchg in an attempt to undo our queueing.
 	 */
 
-	while (!ACCESS_ONCE(node->locked)) {
+	while (!READ_ONCE(node->locked)) {
 		/*
 		 * If we need to reschedule bail... so we can block.
 		 */
@@ -148,7 +152,7 @@ unqueue:
 		 * Or we race against a concurrent unqueue()'s step-B, in which
 		 * case its step-C will write us a new @node->prev pointer.
 		 */
-		prev = ACCESS_ONCE(node->prev);
+		prev = READ_ONCE(node->prev);
 	}
 
 	/*
@@ -170,8 +174,8 @@ unqueue:
 	 * it will wait in Step-A.
 	 */
 
-	ACCESS_ONCE(next->prev) = prev;
-	ACCESS_ONCE(prev->next) = next;
+	WRITE_ONCE(next->prev, prev);
+	WRITE_ONCE(prev->next, next);
 
 	return false;
 }
@@ -184,7 +188,8 @@ void osq_unlock(struct optimistic_spin_queue *lock)
 	/*
 	 * Fast path for the uncontended case.
 	 */
-	if (likely(atomic_cmpxchg(&lock->tail, curr, OSQ_UNLOCKED_VAL) == curr))
+	if (likely(atomic_cmpxchg_release(&lock->tail, curr,
+					  OSQ_UNLOCKED_VAL) == curr))
 		return;
 
 	/*
@@ -193,11 +198,11 @@ void osq_unlock(struct optimistic_spin_queue *lock)
 	node = this_cpu_ptr(&osq_node);
 	next = xchg(&node->next, NULL);
 	if (next) {
-		ACCESS_ONCE(next->locked) = 1;
+		WRITE_ONCE(next->locked, 1);
 		return;
 	}
 
 	next = osq_wait_next(lock, node, NULL);
 	if (next)
-		ACCESS_ONCE(next->locked) = 1;
+		WRITE_ONCE(next->locked, 1);
 }

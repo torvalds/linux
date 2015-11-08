@@ -4,9 +4,6 @@
 Your guide to the ancient and twisted locking policies of the tty layer and
 the warped logic behind them. Beware all ye who read on.
 
-FIXME: still need to work out the full set of BKL assumptions and document
-them so they can eventually be killed off.
-
 
 Line Discipline
 ---------------
@@ -42,8 +39,13 @@ TTY side interfaces:
 open()		-	Called when the line discipline is attached to
 			the terminal. No other call into the line
 			discipline for this tty will occur until it
-			completes successfully. Returning an error will
-			prevent the ldisc from being attached. Can sleep.
+			completes successfully. Should initialize any
+			state needed by the ldisc, and set receive_room
+			in the tty_struct to the maximum amount of data
+			the line discipline is willing to accept from the
+			driver with a single call to receive_buf().
+			Returning an error will prevent the ldisc from
+			being attached. Can sleep.
 
 close()		-	This is called on a terminal when the line
 			discipline is being unplugged. At the point of
@@ -55,9 +57,16 @@ hangup()	-	Called when the tty line is hung up.
 			No further calls into the ldisc code will occur.
 			The return value is ignored. Can sleep.
 
-write()		-	A process is writing data through the line
-			discipline.  Multiple write calls are serialized
-			by the tty layer for the ldisc.  May sleep. 
+read()		-	(optional) A process requests reading data from
+			the line. Multiple read calls may occur in parallel
+			and the ldisc must deal with serialization issues.
+			If not defined, the process will receive an EIO
+			error. May sleep.
+
+write()		-	(optional) A process requests writing data to the
+			line. Multiple write calls are serialized by the
+			tty layer for the ldisc. If not defined, the
+			process will receive an EIO error. May sleep.
 
 flush_buffer()	-	(optional) May be called at any point between
 			open and close, and instructs the line discipline
@@ -72,27 +81,33 @@ set_termios()	-	(optional) Called on termios structure changes.
 			termios semaphore so allowed to sleep. Serialized
 			against itself only.
 
-read()		-	Move data from the line discipline to the user.
-			Multiple read calls may occur in parallel and the
-			ldisc must deal with serialization issues. May 
-			sleep.
+poll()		-	(optional) Check the status for the poll/select
+			calls. Multiple poll calls may occur in parallel.
+			May sleep.
 
-poll()		-	Check the status for the poll/select calls. Multiple
-			poll calls may occur in parallel. May sleep.
+ioctl()		-	(optional) Called when an ioctl is handed to the
+			tty layer that might be for the ldisc. Multiple
+			ioctl calls may occur in parallel. May sleep.
 
-ioctl()		-	Called when an ioctl is handed to the tty layer
-			that might be for the ldisc. Multiple ioctl calls
-			may occur in parallel. May sleep. 
-
-compat_ioctl()	-	Called when a 32 bit ioctl is handed to the tty layer
-			that might be for the ldisc. Multiple ioctl calls
-			may occur in parallel. May sleep.
+compat_ioctl()	-	(optional) Called when a 32 bit ioctl is handed
+			to the tty layer that might be for the ldisc.
+			Multiple ioctl calls may occur in parallel.
+			May sleep.
 
 Driver Side Interfaces:
 
-receive_buf()	-	Hand buffers of bytes from the driver to the ldisc
-			for processing. Semantics currently rather
-			mysterious 8(
+receive_buf()	-	(optional) Called by the low-level driver to hand
+			a buffer of received bytes to the ldisc for
+			processing. The number of bytes is guaranteed not
+			to exceed the current value of tty->receive_room.
+			All bytes must be processed.
+
+receive_buf2()	-	(optional) Called by the low-level driver to hand
+			a buffer of received bytes to the ldisc for
+			processing. Returns the number of bytes processed.
+
+			If both receive_buf() and receive_buf2() are
+			defined, receive_buf2() should be preferred.
 
 write_wakeup()	-	May be called at any point between open and close.
 			The TTY_DO_WRITE_WAKEUP flag indicates if a call
@@ -197,6 +212,9 @@ TTY_IO_ERROR		If set, causes all subsequent userspace read/write
 			calls on the tty to fail, returning -EIO.
 
 TTY_OTHER_CLOSED	Device is a pty and the other side has closed.
+
+TTY_OTHER_DONE		Device is a pty and the other side has closed and
+			all pending input processing has been completed.
 
 TTY_NO_WRITE_SPLIT	Prevent driver from splitting up writes into
 			smaller chunks.

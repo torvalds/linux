@@ -17,10 +17,11 @@
 #include "rc80211_minstrel.h"
 #include "rc80211_minstrel_ht.h"
 
+#define AVG_AMPDU_SIZE	16
 #define AVG_PKT_SIZE	1200
 
 /* Number of bits for an average sized packet */
-#define MCS_NBITS (AVG_PKT_SIZE << 3)
+#define MCS_NBITS ((AVG_PKT_SIZE * AVG_AMPDU_SIZE) << 3)
 
 /* Number of symbols for a packet with (bps) bits per symbol */
 #define MCS_NSYMS(bps) DIV_ROUND_UP(MCS_NBITS, (bps))
@@ -33,7 +34,8 @@
 	)
 
 /* Transmit duration for the raw data part of an average sized packet */
-#define MCS_DURATION(streams, sgi, bps) MCS_SYMBOL_TIME(sgi, MCS_NSYMS((streams) * (bps)))
+#define MCS_DURATION(streams, sgi, bps) \
+	(MCS_SYMBOL_TIME(sgi, MCS_NSYMS((streams) * (bps))) / AVG_AMPDU_SIZE)
 
 #define BW_20			0
 #define BW_40			1
@@ -311,67 +313,35 @@ minstrel_get_ratestats(struct minstrel_ht_sta *mi, int index)
 	return &mi->groups[index / MCS_GROUP_RATES].rates[index % MCS_GROUP_RATES];
 }
 
-
 /*
- * Recalculate success probabilities and counters for a rate using EWMA
+ * Return current throughput based on the average A-MPDU length, taking into
+ * account the expected number of retransmissions and their expected length
  */
-static void
-minstrel_calc_rate_ewma(struct minstrel_rate_stats *mr)
+int
+minstrel_ht_get_tp_avg(struct minstrel_ht_sta *mi, int group, int rate,
+		       int prob_ewma)
 {
-	if (unlikely(mr->attempts > 0)) {
-		mr->sample_skipped = 0;
-		mr->cur_prob = MINSTREL_FRAC(mr->success, mr->attempts);
-		if (!mr->att_hist)
-			mr->probability = mr->cur_prob;
-		else
-			mr->probability = minstrel_ewma(mr->probability,
-				mr->cur_prob, EWMA_LEVEL);
-		mr->att_hist += mr->attempts;
-		mr->succ_hist += mr->success;
-	} else {
-		mr->sample_skipped++;
-	}
-	mr->last_success = mr->success;
-	mr->last_attempts = mr->attempts;
-	mr->success = 0;
-	mr->attempts = 0;
-}
-
-/*
- * Calculate throughput based on the average A-MPDU length, taking into account
- * the expected number of retransmissions and their expected length
- */
-static void
-minstrel_ht_calc_tp(struct minstrel_ht_sta *mi, int group, int rate)
-{
-	struct minstrel_rate_stats *mr;
 	unsigned int nsecs = 0;
-	unsigned int tp;
-	unsigned int prob;
 
-	mr = &mi->groups[group].rates[rate];
-	prob = mr->probability;
-
-	if (prob < MINSTREL_FRAC(1, 10)) {
-		mr->cur_tp = 0;
-		return;
-	}
-
-	/*
-	 * For the throughput calculation, limit the probability value to 90% to
-	 * account for collision related packet error rate fluctuation
-	 */
-	if (prob > MINSTREL_FRAC(9, 10))
-		prob = MINSTREL_FRAC(9, 10);
+	/* do not account throughput if sucess prob is below 10% */
+	if (prob_ewma < MINSTREL_FRAC(10, 100))
+		return 0;
 
 	if (group != MINSTREL_CCK_GROUP)
 		nsecs = 1000 * mi->overhead / MINSTREL_TRUNC(mi->avg_ampdu_len);
 
 	nsecs += minstrel_mcs_groups[group].duration[rate];
 
-	/* prob is scaled - see MINSTREL_FRAC above */
-	tp = 1000000 * ((prob * 1000) / nsecs);
-	mr->cur_tp = MINSTREL_TRUNC(tp);
+	/*
+	 * For the throughput calculation, limit the probability value to 90% to
+	 * account for collision related packet error rate fluctuation
+	 * (prob is scaled - see MINSTREL_FRAC above)
+	 */
+	if (prob_ewma > MINSTREL_FRAC(90, 100))
+		return MINSTREL_TRUNC(100000 * ((MINSTREL_FRAC(90, 100) * 1000)
+								      / nsecs));
+	else
+		return MINSTREL_TRUNC(100000 * ((prob_ewma * 1000) / nsecs));
 }
 
 /*
@@ -385,22 +355,23 @@ static void
 minstrel_ht_sort_best_tp_rates(struct minstrel_ht_sta *mi, u16 index,
 			       u16 *tp_list)
 {
-	int cur_group, cur_idx, cur_thr, cur_prob;
-	int tmp_group, tmp_idx, tmp_thr, tmp_prob;
+	int cur_group, cur_idx, cur_tp_avg, cur_prob;
+	int tmp_group, tmp_idx, tmp_tp_avg, tmp_prob;
 	int j = MAX_THR_RATES;
 
 	cur_group = index / MCS_GROUP_RATES;
 	cur_idx = index  % MCS_GROUP_RATES;
-	cur_thr = mi->groups[cur_group].rates[cur_idx].cur_tp;
-	cur_prob = mi->groups[cur_group].rates[cur_idx].probability;
+	cur_prob = mi->groups[cur_group].rates[cur_idx].prob_ewma;
+	cur_tp_avg = minstrel_ht_get_tp_avg(mi, cur_group, cur_idx, cur_prob);
 
 	do {
 		tmp_group = tp_list[j - 1] / MCS_GROUP_RATES;
 		tmp_idx = tp_list[j - 1] % MCS_GROUP_RATES;
-		tmp_thr = mi->groups[tmp_group].rates[tmp_idx].cur_tp;
-		tmp_prob = mi->groups[tmp_group].rates[tmp_idx].probability;
-		if (cur_thr < tmp_thr ||
-		    (cur_thr == tmp_thr && cur_prob <= tmp_prob))
+		tmp_prob = mi->groups[tmp_group].rates[tmp_idx].prob_ewma;
+		tmp_tp_avg = minstrel_ht_get_tp_avg(mi, tmp_group, tmp_idx,
+						    tmp_prob);
+		if (cur_tp_avg < tmp_tp_avg ||
+		    (cur_tp_avg == tmp_tp_avg && cur_prob <= tmp_prob))
 			break;
 		j--;
 	} while (j > 0);
@@ -420,16 +391,21 @@ static void
 minstrel_ht_set_best_prob_rate(struct minstrel_ht_sta *mi, u16 index)
 {
 	struct minstrel_mcs_group_data *mg;
-	struct minstrel_rate_stats *mr;
-	int tmp_group, tmp_idx, tmp_tp, tmp_prob, max_tp_group;
+	struct minstrel_rate_stats *mrs;
+	int tmp_group, tmp_idx, tmp_tp_avg, tmp_prob;
+	int max_tp_group, cur_tp_avg, cur_group, cur_idx;
+	int max_gpr_group, max_gpr_idx;
+	int max_gpr_tp_avg, max_gpr_prob;
 
+	cur_group = index / MCS_GROUP_RATES;
+	cur_idx = index % MCS_GROUP_RATES;
 	mg = &mi->groups[index / MCS_GROUP_RATES];
-	mr = &mg->rates[index % MCS_GROUP_RATES];
+	mrs = &mg->rates[index % MCS_GROUP_RATES];
 
 	tmp_group = mi->max_prob_rate / MCS_GROUP_RATES;
 	tmp_idx = mi->max_prob_rate % MCS_GROUP_RATES;
-	tmp_tp = mi->groups[tmp_group].rates[tmp_idx].cur_tp;
-	tmp_prob = mi->groups[tmp_group].rates[tmp_idx].probability;
+	tmp_prob = mi->groups[tmp_group].rates[tmp_idx].prob_ewma;
+	tmp_tp_avg = minstrel_ht_get_tp_avg(mi, tmp_group, tmp_idx, tmp_prob);
 
 	/* if max_tp_rate[0] is from MCS_GROUP max_prob_rate get selected from
 	 * MCS_GROUP as well as CCK_GROUP rates do not allow aggregation */
@@ -438,15 +414,24 @@ minstrel_ht_set_best_prob_rate(struct minstrel_ht_sta *mi, u16 index)
 	    (max_tp_group != MINSTREL_CCK_GROUP))
 		return;
 
-	if (mr->probability > MINSTREL_FRAC(75, 100)) {
-		if (mr->cur_tp > tmp_tp)
+	if (mrs->prob_ewma > MINSTREL_FRAC(75, 100)) {
+		cur_tp_avg = minstrel_ht_get_tp_avg(mi, cur_group, cur_idx,
+						    mrs->prob_ewma);
+		if (cur_tp_avg > tmp_tp_avg)
 			mi->max_prob_rate = index;
-		if (mr->cur_tp > mg->rates[mg->max_group_prob_rate].cur_tp)
+
+		max_gpr_group = mg->max_group_prob_rate / MCS_GROUP_RATES;
+		max_gpr_idx = mg->max_group_prob_rate %	MCS_GROUP_RATES;
+		max_gpr_prob = mi->groups[max_gpr_group].rates[max_gpr_idx].prob_ewma;
+		max_gpr_tp_avg = minstrel_ht_get_tp_avg(mi, max_gpr_group,
+							max_gpr_idx,
+							max_gpr_prob);
+		if (cur_tp_avg > max_gpr_tp_avg)
 			mg->max_group_prob_rate = index;
 	} else {
-		if (mr->probability > tmp_prob)
+		if (mrs->prob_ewma > tmp_prob)
 			mi->max_prob_rate = index;
-		if (mr->probability > mg->rates[mg->max_group_prob_rate].probability)
+		if (mrs->prob_ewma > mg->rates[mg->max_group_prob_rate].prob_ewma)
 			mg->max_group_prob_rate = index;
 	}
 }
@@ -463,16 +448,18 @@ minstrel_ht_assign_best_tp_rates(struct minstrel_ht_sta *mi,
 				 u16 tmp_mcs_tp_rate[MAX_THR_RATES],
 				 u16 tmp_cck_tp_rate[MAX_THR_RATES])
 {
-	unsigned int tmp_group, tmp_idx, tmp_cck_tp, tmp_mcs_tp;
+	unsigned int tmp_group, tmp_idx, tmp_cck_tp, tmp_mcs_tp, tmp_prob;
 	int i;
 
 	tmp_group = tmp_cck_tp_rate[0] / MCS_GROUP_RATES;
 	tmp_idx = tmp_cck_tp_rate[0] % MCS_GROUP_RATES;
-	tmp_cck_tp = mi->groups[tmp_group].rates[tmp_idx].cur_tp;
+	tmp_prob = mi->groups[tmp_group].rates[tmp_idx].prob_ewma;
+	tmp_cck_tp = minstrel_ht_get_tp_avg(mi, tmp_group, tmp_idx, tmp_prob);
 
 	tmp_group = tmp_mcs_tp_rate[0] / MCS_GROUP_RATES;
 	tmp_idx = tmp_mcs_tp_rate[0] % MCS_GROUP_RATES;
-	tmp_mcs_tp = mi->groups[tmp_group].rates[tmp_idx].cur_tp;
+	tmp_prob = mi->groups[tmp_group].rates[tmp_idx].prob_ewma;
+	tmp_mcs_tp = minstrel_ht_get_tp_avg(mi, tmp_group, tmp_idx, tmp_prob);
 
 	if (tmp_cck_tp > tmp_mcs_tp) {
 		for(i = 0; i < MAX_THR_RATES; i++) {
@@ -491,8 +478,7 @@ static inline void
 minstrel_ht_prob_rate_reduce_streams(struct minstrel_ht_sta *mi)
 {
 	struct minstrel_mcs_group_data *mg;
-	struct minstrel_rate_stats *mr;
-	int tmp_max_streams, group;
+	int tmp_max_streams, group, tmp_idx, tmp_prob;
 	int tmp_tp = 0;
 
 	tmp_max_streams = minstrel_mcs_groups[mi->max_tp_rate[0] /
@@ -501,11 +487,16 @@ minstrel_ht_prob_rate_reduce_streams(struct minstrel_ht_sta *mi)
 		mg = &mi->groups[group];
 		if (!mg->supported || group == MINSTREL_CCK_GROUP)
 			continue;
-		mr = minstrel_get_ratestats(mi, mg->max_group_prob_rate);
-		if (tmp_tp < mr->cur_tp &&
+
+		tmp_idx = mg->max_group_prob_rate % MCS_GROUP_RATES;
+		tmp_prob = mi->groups[group].rates[tmp_idx].prob_ewma;
+
+		if (tmp_tp < minstrel_ht_get_tp_avg(mi, group, tmp_idx, tmp_prob) &&
 		   (minstrel_mcs_groups[group].streams < tmp_max_streams)) {
 				mi->max_prob_rate = mg->max_group_prob_rate;
-				tmp_tp = mr->cur_tp;
+				tmp_tp = minstrel_ht_get_tp_avg(mi, group,
+								tmp_idx,
+								tmp_prob);
 		}
 	}
 }
@@ -523,8 +514,8 @@ static void
 minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 {
 	struct minstrel_mcs_group_data *mg;
-	struct minstrel_rate_stats *mr;
-	int group, i, j;
+	struct minstrel_rate_stats *mrs;
+	int group, i, j, cur_prob;
 	u16 tmp_mcs_tp_rate[MAX_THR_RATES], tmp_group_tp_rate[MAX_THR_RATES];
 	u16 tmp_cck_tp_rate[MAX_THR_RATES], index;
 
@@ -563,12 +554,12 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 
 			index = MCS_GROUP_RATES * group + i;
 
-			mr = &mg->rates[i];
-			mr->retry_updated = false;
-			minstrel_calc_rate_ewma(mr);
-			minstrel_ht_calc_tp(mi, group, i);
+			mrs = &mg->rates[i];
+			mrs->retry_updated = false;
+			minstrel_calc_rate_stats(mrs);
+			cur_prob = mrs->prob_ewma;
 
-			if (!mr->cur_tp)
+			if (minstrel_ht_get_tp_avg(mi, group, i, cur_prob) == 0)
 				continue;
 
 			/* Find max throughput rate set */
@@ -612,7 +603,7 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 #endif
 
 	/* Reset update timer */
-	mi->stats_update = jiffies;
+	mi->last_stats_update = jiffies;
 }
 
 static bool
@@ -635,7 +626,7 @@ minstrel_ht_txstat_valid(struct minstrel_priv *mp, struct ieee80211_tx_rate *rat
 }
 
 static void
-minstrel_next_sample_idx(struct minstrel_ht_sta *mi)
+minstrel_set_next_sample_idx(struct minstrel_ht_sta *mi)
 {
 	struct minstrel_mcs_group_data *mg;
 
@@ -776,7 +767,8 @@ minstrel_ht_tx_status(void *priv, struct ieee80211_supported_band *sband,
 		update = true;
 	}
 
-	if (time_after(jiffies, mi->stats_update + (mp->update_interval / 2 * HZ) / 1000)) {
+	if (time_after(jiffies, mi->last_stats_update +
+				(mp->update_interval / 2 * HZ) / 1000)) {
 		update = true;
 		minstrel_ht_update_stats(mp, mi);
 	}
@@ -789,7 +781,7 @@ static void
 minstrel_calc_retransmit(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
                          int index)
 {
-	struct minstrel_rate_stats *mr;
+	struct minstrel_rate_stats *mrs;
 	const struct mcs_group *group;
 	unsigned int tx_time, tx_time_rtscts, tx_time_data;
 	unsigned int cw = mp->cw_min;
@@ -798,16 +790,16 @@ minstrel_calc_retransmit(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	unsigned int ampdu_len = MINSTREL_TRUNC(mi->avg_ampdu_len);
 	unsigned int overhead = 0, overhead_rtscts = 0;
 
-	mr = minstrel_get_ratestats(mi, index);
-	if (mr->probability < MINSTREL_FRAC(1, 10)) {
-		mr->retry_count = 1;
-		mr->retry_count_rtscts = 1;
+	mrs = minstrel_get_ratestats(mi, index);
+	if (mrs->prob_ewma < MINSTREL_FRAC(1, 10)) {
+		mrs->retry_count = 1;
+		mrs->retry_count_rtscts = 1;
 		return;
 	}
 
-	mr->retry_count = 2;
-	mr->retry_count_rtscts = 2;
-	mr->retry_updated = true;
+	mrs->retry_count = 2;
+	mrs->retry_count_rtscts = 2;
+	mrs->retry_updated = true;
 
 	group = &minstrel_mcs_groups[index / MCS_GROUP_RATES];
 	tx_time_data = group->duration[index % MCS_GROUP_RATES] * ampdu_len / 1000;
@@ -838,9 +830,9 @@ minstrel_calc_retransmit(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 		tx_time_rtscts += ctime + overhead_rtscts + tx_time_data;
 
 		if (tx_time_rtscts < mp->segment_size)
-			mr->retry_count_rtscts++;
+			mrs->retry_count_rtscts++;
 	} while ((tx_time < mp->segment_size) &&
-	         (++mr->retry_count < mp->max_retry));
+	         (++mrs->retry_count < mp->max_retry));
 }
 
 
@@ -849,22 +841,22 @@ minstrel_ht_set_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
                      struct ieee80211_sta_rates *ratetbl, int offset, int index)
 {
 	const struct mcs_group *group = &minstrel_mcs_groups[index / MCS_GROUP_RATES];
-	struct minstrel_rate_stats *mr;
+	struct minstrel_rate_stats *mrs;
 	u8 idx;
 	u16 flags = group->flags;
 
-	mr = minstrel_get_ratestats(mi, index);
-	if (!mr->retry_updated)
+	mrs = minstrel_get_ratestats(mi, index);
+	if (!mrs->retry_updated)
 		minstrel_calc_retransmit(mp, mi, index);
 
-	if (mr->probability < MINSTREL_FRAC(20, 100) || !mr->retry_count) {
+	if (mrs->prob_ewma < MINSTREL_FRAC(20, 100) || !mrs->retry_count) {
 		ratetbl->rate[offset].count = 2;
 		ratetbl->rate[offset].count_rts = 2;
 		ratetbl->rate[offset].count_cts = 2;
 	} else {
-		ratetbl->rate[offset].count = mr->retry_count;
-		ratetbl->rate[offset].count_cts = mr->retry_count;
-		ratetbl->rate[offset].count_rts = mr->retry_count_rtscts;
+		ratetbl->rate[offset].count = mrs->retry_count;
+		ratetbl->rate[offset].count_cts = mrs->retry_count;
+		ratetbl->rate[offset].count_rts = mrs->retry_count_rtscts;
 	}
 
 	if (index / MCS_GROUP_RATES == MINSTREL_CCK_GROUP)
@@ -875,7 +867,13 @@ minstrel_ht_set_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	else
 		idx = index % MCS_GROUP_RATES + (group->streams - 1) * 8;
 
-	if (offset > 0) {
+	/* enable RTS/CTS if needed:
+	 *  - if station is in dynamic SMPS (and streams > 1)
+	 *  - for fallback rates, to increase chances of getting through
+	 */
+	if (offset > 0 &&
+	    (mi->sta->smps_mode == IEEE80211_SMPS_DYNAMIC &&
+	     group->streams > 1)) {
 		ratetbl->rate[offset].count = ratetbl->rate[offset].count_rts;
 		flags |= IEEE80211_TX_RC_USE_RTS_CTS;
 	}
@@ -922,7 +920,7 @@ minstrel_get_duration(int index)
 static int
 minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 {
-	struct minstrel_rate_stats *mr;
+	struct minstrel_rate_stats *mrs;
 	struct minstrel_mcs_group_data *mg;
 	unsigned int sample_dur, sample_group, cur_max_tp_streams;
 	int sample_idx = 0;
@@ -938,12 +936,12 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	sample_group = mi->sample_group;
 	mg = &mi->groups[sample_group];
 	sample_idx = sample_table[mg->column][mg->index];
-	minstrel_next_sample_idx(mi);
+	minstrel_set_next_sample_idx(mi);
 
 	if (!(mg->supported & BIT(sample_idx)))
 		return -1;
 
-	mr = &mg->rates[sample_idx];
+	mrs = &mg->rates[sample_idx];
 	sample_idx += sample_group * MCS_GROUP_RATES;
 
 	/*
@@ -960,7 +958,7 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	 * Do not sample if the probability is already higher than 95%
 	 * to avoid wasting airtime.
 	 */
-	if (mr->probability > MINSTREL_FRAC(95, 100))
+	if (mrs->prob_ewma > MINSTREL_FRAC(95, 100))
 		return -1;
 
 	/*
@@ -975,7 +973,7 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	    (cur_max_tp_streams - 1 <
 	     minstrel_mcs_groups[sample_group].streams ||
 	     sample_dur >= minstrel_get_duration(mi->max_prob_rate))) {
-		if (mr->sample_skipped < 20)
+		if (mrs->sample_skipped < 20)
 			return -1;
 
 		if (mi->sample_slow++ > 2)
@@ -1078,7 +1076,7 @@ minstrel_ht_update_cck(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	if (sband->band != IEEE80211_BAND_2GHZ)
 		return;
 
-	if (!(mp->hw->flags & IEEE80211_HW_SUPPORTS_HT_CCK_RATES))
+	if (!ieee80211_hw_check(mp->hw, SUPPORTS_HT_CCK_RATES))
 		return;
 
 	mi->cck_supported = 0;
@@ -1129,7 +1127,7 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 	memset(mi, 0, sizeof(*mi));
 
 	mi->sta = sta;
-	mi->stats_update = jiffies;
+	mi->last_stats_update = jiffies;
 
 	ack_dur = ieee80211_frame_duration(sband->band, 10, 60, 1, 1, 0);
 	mi->overhead = ieee80211_frame_duration(sband->band, 0, 60, 1, 1, 0);
@@ -1326,16 +1324,19 @@ static u32 minstrel_ht_get_expected_throughput(void *priv_sta)
 {
 	struct minstrel_ht_sta_priv *msp = priv_sta;
 	struct minstrel_ht_sta *mi = &msp->ht;
-	int i, j;
+	int i, j, prob, tp_avg;
 
 	if (!msp->is_ht)
 		return mac80211_minstrel.get_expected_throughput(priv_sta);
 
 	i = mi->max_tp_rate[0] / MCS_GROUP_RATES;
 	j = mi->max_tp_rate[0] % MCS_GROUP_RATES;
+	prob = mi->groups[i].rates[j].prob_ewma;
 
-	/* convert cur_tp from pkt per second in kbps */
-	return mi->groups[i].rates[j].cur_tp * AVG_PKT_SIZE * 8 / 1024;
+	/* convert tp_avg from pkt per second in kbps */
+	tp_avg = minstrel_ht_get_tp_avg(mi, i, j, prob) * AVG_PKT_SIZE * 8 / 1024;
+
+	return tp_avg;
 }
 
 static const struct rate_control_ops mac80211_minstrel_ht = {

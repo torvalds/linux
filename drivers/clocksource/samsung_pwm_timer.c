@@ -207,25 +207,18 @@ static int samsung_set_next_event(unsigned long cycles,
 	return 0;
 }
 
-static void samsung_set_mode(enum clock_event_mode mode,
-				struct clock_event_device *evt)
+static int samsung_shutdown(struct clock_event_device *evt)
 {
 	samsung_time_stop(pwm.event_id);
+	return 0;
+}
 
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		samsung_time_setup(pwm.event_id, pwm.clock_count_per_tick - 1);
-		samsung_time_start(pwm.event_id, true);
-		break;
-
-	case CLOCK_EVT_MODE_ONESHOT:
-		break;
-
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	case CLOCK_EVT_MODE_RESUME:
-		break;
-	}
+static int samsung_set_periodic(struct clock_event_device *evt)
+{
+	samsung_time_stop(pwm.event_id);
+	samsung_time_setup(pwm.event_id, pwm.clock_count_per_tick - 1);
+	samsung_time_start(pwm.event_id, true);
+	return 0;
 }
 
 static void samsung_clockevent_resume(struct clock_event_device *cev)
@@ -240,12 +233,16 @@ static void samsung_clockevent_resume(struct clock_event_device *cev)
 }
 
 static struct clock_event_device time_event_device = {
-	.name		= "samsung_event_timer",
-	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.rating		= 200,
-	.set_next_event	= samsung_set_next_event,
-	.set_mode	= samsung_set_mode,
-	.resume		= samsung_clockevent_resume,
+	.name			= "samsung_event_timer",
+	.features		= CLOCK_EVT_FEAT_PERIODIC |
+				  CLOCK_EVT_FEAT_ONESHOT,
+	.rating			= 200,
+	.set_next_event		= samsung_set_next_event,
+	.set_state_shutdown	= samsung_shutdown,
+	.set_state_periodic	= samsung_set_periodic,
+	.set_state_oneshot	= samsung_shutdown,
+	.tick_resume		= samsung_shutdown,
+	.resume			= samsung_clockevent_resume,
 };
 
 static irqreturn_t samsung_clock_event_isr(int irq, void *dev_id)
@@ -310,7 +307,7 @@ static void samsung_clocksource_resume(struct clocksource *cs)
 	samsung_time_start(pwm.source_id, true);
 }
 
-static cycle_t samsung_clocksource_read(struct clocksource *c)
+static cycle_t notrace samsung_clocksource_read(struct clocksource *c)
 {
 	return ~readl_relaxed(pwm.source_reg);
 }

@@ -16,10 +16,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -35,7 +31,9 @@
 #define WIDTH		84
 #define HEIGHT		48
 #define TXBUFLEN	WIDTH
-#define DEFAULT_GAMMA	"40" /* gamma is used to control contrast in this driver */
+
+/* gamma is used to control contrast in this driver */
+#define DEFAULT_GAMMA	"40"
 
 static unsigned bs = 4;
 module_param(bs, uint, 0);
@@ -43,15 +41,14 @@ MODULE_PARM_DESC(bs, "BS[2:0] Bias voltage level: 0-7 (default: 4)");
 
 static int init_display(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	par->fbtftops.reset(par);
 
 	/* Enter extended command mode */
 	write_reg(par, 0x21); /* 5:1  1
 				 2:0  PD - Powerdown control: chip is active
 				 1:0  V  - Entry mode: horizontal addressing
-				 0:1  H  - Extended instruction set control: extended
+				 0:1  H  - Extended instruction set control:
+						extended
 			      */
 
 	/* H=1 Bias system */
@@ -83,8 +80,6 @@ static int init_display(struct fbtft_par *par)
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par, "%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__, xs, ys, xe, ye);
-
 	/* H=0 Set X address of RAM */
 	write_reg(par, 0x80); /* 7:1  1
 				 6-0: X[6:0] - 0x00
@@ -99,13 +94,11 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 
 static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 {
-	u16 *vmem16 = (u16 *)par->info->screen_base;
+	u16 *vmem16 = (u16 *)par->info->screen_buffer;
 	int x, y, i;
 	int ret = 0;
 
-	fbtft_par_dbg(DEBUG_WRITE_VMEM, par, "%s()\n", __func__);
-
-	for (y = 0; y < HEIGHT/8; y++) {
+	for (y = 0; y < HEIGHT / 8; y++) {
 		u8 *buf = par->txbuf.buf;
 		/* The display is 102x68 but the LCD is 84x48.  Set
 		   the write pointer at the start of each row. */
@@ -115,9 +108,10 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 
 		for (x = 0; x < WIDTH; x++) {
 			u8 ch = 0;
-			for (i = 0; i < 8*WIDTH; i += WIDTH) {
+
+			for (i = 0; i < 8 * WIDTH; i += WIDTH) {
 				ch >>= 1;
-				if (vmem16[(y*8*WIDTH)+i+x])
+				if (vmem16[(y * 8 * WIDTH) + i + x])
 					ch |= 0x80;
 			}
 			*buf++ = ch;
@@ -127,7 +121,7 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 		ret = par->fbtftops.write(par, par->txbuf.buf, WIDTH);
 		if (ret < 0) {
 			dev_err(par->info->device,
-				"%s: write failed and returned: %d\n", __func__, ret);
+				"write failed and returned: %d\n", ret);
 			break;
 		}
 	}
@@ -137,8 +131,6 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 
 static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	/* apply mask */
 	curves[0] &= 0x7F;
 
@@ -148,7 +140,6 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 
 	return 0;
 }
-
 
 static struct fbtft_display display = {
 	.regwidth = 8,
@@ -166,6 +157,7 @@ static struct fbtft_display display = {
 	},
 	.backlight = 1,
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "teralane,tls8204", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

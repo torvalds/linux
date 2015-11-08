@@ -7,6 +7,14 @@ menuconfig MEMORY
 
 if MEMORY
 
+config ARM_PL172_MPMC
+	tristate "ARM PL172 MPMC driver"
+	depends on ARM_AMBA && OF
+	help
+	  This selects the ARM PrimeCell PL172 MultiPort Memory Controller.
+	  If you have an embedded system with an AMBA bus and a PL172
+	  controller, say Y or M here.
+
 config ATMEL_SDRAMC
 	bool "Atmel (Multi-port DDR-)SDRAM Controller"
 	default y
@@ -49,6 +57,20 @@ config OMAP_GPMC
 	  interfacing to a variety of asynchronous as well as synchronous
 	  memory drives like NOR, NAND, OneNAND, SRAM.
 
+config OMAP_GPMC_DEBUG
+	bool "Enable GPMC debug output and skip reset of GPMC during init"
+	depends on OMAP_GPMC
+	help
+	  Enables verbose debugging mostly to decode the bootloader provided
+	  timings. To preserve the bootloader provided timings, the reset
+	  of GPMC is skipped during init. Enable this during development to
+	  configure devices connected to the GPMC bus.
+
+	  NOTE: In addition to matching the register setup with the bootloader
+	  you also need to match the GPMC FCLK frequency used by the
+	  bootloader or else the GPMC timings won't be identical with the
+	  bootloader timings.
+
 config MVEBU_DEVBUS
 	bool "Marvell EBU Device Bus Controller"
 	default y
@@ -82,6 +104,15 @@ config FSL_CORENET_CF
 config FSL_IFC
 	bool
 	depends on FSL_SOC
+
+config JZ4780_NEMC
+	bool "Ingenic JZ4780 SoC NEMC driver"
+	default y
+	depends on MACH_JZ4780
+	help
+	  This driver is for the NAND/External Memory Controller (NEMC) in
+	  the Ingenic JZ4780. This controller is used to handle external
+	  memory devices such as NAND and SRAM.
 
 source "drivers/memory/tegra/Kconfig"
 

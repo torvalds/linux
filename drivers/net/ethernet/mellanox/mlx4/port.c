@@ -38,6 +38,7 @@
 #include <linux/mlx4/cmd.h>
 
 #include "mlx4.h"
+#include "mlx4_stats.h"
 
 #define MLX4_MAC_VALID		(1ull << 63)
 
@@ -48,6 +49,9 @@
 #define MLX4_STATS_TRAFFIC_DROPS_MASK		0xc0ULL
 #define MLX4_STATS_ERROR_COUNTERS_MASK		0x1ffc30ULL
 #define MLX4_STATS_PORT_COUNTERS_MASK		0x1fe00000ULL
+
+#define MLX4_FLAG_V_IGNORE_FCS_MASK		0x2
+#define MLX4_IGNORE_FCS_MASK			0x1
 
 void mlx4_init_mac_table(struct mlx4_dev *dev, struct mlx4_mac_table *table)
 {
@@ -127,8 +131,9 @@ static int mlx4_set_port_mac_table(struct mlx4_dev *dev, u8 port,
 
 	in_mod = MLX4_SET_PORT_MAC_TABLE << 8 | port;
 
-	err = mlx4_cmd(dev, mailbox->dma, in_mod, 1, MLX4_CMD_SET_PORT,
-		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
+	err = mlx4_cmd(dev, mailbox->dma, in_mod, MLX4_SET_PORT_ETH_OPCODE,
+		       MLX4_CMD_SET_PORT, MLX4_CMD_TIME_CLASS_B,
+		       MLX4_CMD_NATIVE);
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;
@@ -341,8 +346,9 @@ static int mlx4_set_port_vlan_table(struct mlx4_dev *dev, u8 port,
 
 	memcpy(mailbox->buf, entries, MLX4_VLAN_TABLE_SIZE);
 	in_mod = MLX4_SET_PORT_VLAN_TABLE << 8 | port;
-	err = mlx4_cmd(dev, mailbox->dma, in_mod, 1, MLX4_CMD_SET_PORT,
-		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
+	err = mlx4_cmd(dev, mailbox->dma, in_mod, MLX4_SET_PORT_ETH_OPCODE,
+		       MLX4_CMD_SET_PORT, MLX4_CMD_TIME_CLASS_B,
+		       MLX4_CMD_NATIVE);
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
 
@@ -629,9 +635,9 @@ static int mlx4_reset_roce_port_gids(struct mlx4_dev *dev, int slave,
 		       MLX4_ROCE_GID_ENTRY_SIZE);
 
 	err = mlx4_cmd(dev, mailbox->dma,
-		       ((u32)port) | (MLX4_SET_PORT_GID_TABLE << 8), 1,
-		       MLX4_CMD_SET_PORT, MLX4_CMD_TIME_CLASS_B,
-		       MLX4_CMD_NATIVE);
+		       ((u32)port) | (MLX4_SET_PORT_GID_TABLE << 8),
+		       MLX4_SET_PORT_ETH_OPCODE, MLX4_CMD_SET_PORT,
+		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
 	mutex_unlock(&(priv->port[port].gid_table.mutex));
 	return err;
 }
@@ -837,6 +843,12 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 				MLX4_CMD_NATIVE);
 	}
 
+	/* Slaves are not allowed to SET_PORT beacon (LED) blink */
+	if (op_mod == MLX4_SET_PORT_BEACON_OPCODE) {
+		mlx4_warn(dev, "denying SET_PORT Beacon slave:%d\n", slave);
+		return -EPERM;
+	}
+
 	/* For IB, we only consider:
 	 * - The capability mask, which is set to the aggregate of all
 	 *   slave function capabilities
@@ -945,8 +957,9 @@ int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port, int pkey_tbl_sz)
 			(pkey_tbl_flag << MLX4_CHANGE_PORT_PKEY_TBL_SZ) |
 			(dev->caps.port_ib_mtu[port] << MLX4_SET_PORT_MTU_CAP) |
 			(vl_cap << MLX4_SET_PORT_VL_CAP));
-		err = mlx4_cmd(dev, mailbox->dma, port, 0, MLX4_CMD_SET_PORT,
-				MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
+		err = mlx4_cmd(dev, mailbox->dma, port,
+			       MLX4_SET_PORT_IB_OPCODE, MLX4_CMD_SET_PORT,
+			       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
 		if (err != -ENOMEM)
 			break;
 	}
@@ -975,8 +988,9 @@ int mlx4_SET_PORT_general(struct mlx4_dev *dev, u8 port, int mtu,
 	context->pfcrx = pfcrx;
 
 	in_mod = MLX4_SET_PORT_GENERAL << 8 | port;
-	err = mlx4_cmd(dev, mailbox->dma, in_mod, 1, MLX4_CMD_SET_PORT,
-		       MLX4_CMD_TIME_CLASS_B,  MLX4_CMD_WRAPPED);
+	err = mlx4_cmd(dev, mailbox->dma, in_mod, MLX4_SET_PORT_ETH_OPCODE,
+		       MLX4_CMD_SET_PORT, MLX4_CMD_TIME_CLASS_B,
+		       MLX4_CMD_WRAPPED);
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;
@@ -1012,84 +1026,40 @@ int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
 	context->vlan_miss = MLX4_VLAN_MISS_IDX;
 
 	in_mod = MLX4_SET_PORT_RQP_CALC << 8 | port;
-	err = mlx4_cmd(dev, mailbox->dma, in_mod, 1, MLX4_CMD_SET_PORT,
-		       MLX4_CMD_TIME_CLASS_B,  MLX4_CMD_WRAPPED);
+	err = mlx4_cmd(dev, mailbox->dma, in_mod, MLX4_SET_PORT_ETH_OPCODE,
+		       MLX4_CMD_SET_PORT, MLX4_CMD_TIME_CLASS_B,
+		       MLX4_CMD_WRAPPED);
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;
 }
 EXPORT_SYMBOL(mlx4_SET_PORT_qpn_calc);
 
-int mlx4_SET_PORT_PRIO2TC(struct mlx4_dev *dev, u8 port, u8 *prio2tc)
+int mlx4_SET_PORT_fcs_check(struct mlx4_dev *dev, u8 port, u8 ignore_fcs_value)
 {
 	struct mlx4_cmd_mailbox *mailbox;
-	struct mlx4_set_port_prio2tc_context *context;
-	int err;
+	struct mlx4_set_port_general_context *context;
 	u32 in_mod;
-	int i;
+	int err;
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
 	context = mailbox->buf;
-	for (i = 0; i < MLX4_NUM_UP; i += 2)
-		context->prio2tc[i >> 1] = prio2tc[i] << 4 | prio2tc[i + 1];
+	context->v_ignore_fcs |= MLX4_FLAG_V_IGNORE_FCS_MASK;
+	if (ignore_fcs_value)
+		context->ignore_fcs |= MLX4_IGNORE_FCS_MASK;
+	else
+		context->ignore_fcs &= ~MLX4_IGNORE_FCS_MASK;
 
-	in_mod = MLX4_SET_PORT_PRIO2TC << 8 | port;
+	in_mod = MLX4_SET_PORT_GENERAL << 8 | port;
 	err = mlx4_cmd(dev, mailbox->dma, in_mod, 1, MLX4_CMD_SET_PORT,
 		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;
 }
-EXPORT_SYMBOL(mlx4_SET_PORT_PRIO2TC);
-
-int mlx4_SET_PORT_SCHEDULER(struct mlx4_dev *dev, u8 port, u8 *tc_tx_bw,
-		u8 *pg, u16 *ratelimit)
-{
-	struct mlx4_cmd_mailbox *mailbox;
-	struct mlx4_set_port_scheduler_context *context;
-	int err;
-	u32 in_mod;
-	int i;
-
-	mailbox = mlx4_alloc_cmd_mailbox(dev);
-	if (IS_ERR(mailbox))
-		return PTR_ERR(mailbox);
-	context = mailbox->buf;
-
-	for (i = 0; i < MLX4_NUM_TC; i++) {
-		struct mlx4_port_scheduler_tc_cfg_be *tc = &context->tc[i];
-		u16 r;
-
-		if (ratelimit && ratelimit[i]) {
-			if (ratelimit[i] <= MLX4_MAX_100M_UNITS_VAL) {
-				r = ratelimit[i];
-				tc->max_bw_units =
-					htons(MLX4_RATELIMIT_100M_UNITS);
-			} else {
-				r = ratelimit[i]/10;
-				tc->max_bw_units =
-					htons(MLX4_RATELIMIT_1G_UNITS);
-			}
-			tc->max_bw_value = htons(r);
-		} else {
-			tc->max_bw_value = htons(MLX4_RATELIMIT_DEFAULT);
-			tc->max_bw_units = htons(MLX4_RATELIMIT_1G_UNITS);
-		}
-
-		tc->pg = htons(pg[i]);
-		tc->bw_precentage = htons(tc_tx_bw[i]);
-	}
-
-	in_mod = MLX4_SET_PORT_SCHEDULER << 8 | port;
-	err = mlx4_cmd(dev, mailbox->dma, in_mod, 1, MLX4_CMD_SET_PORT,
-		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
-
-	mlx4_free_cmd_mailbox(dev, mailbox);
-	return err;
-}
-EXPORT_SYMBOL(mlx4_SET_PORT_SCHEDULER);
+EXPORT_SYMBOL(mlx4_SET_PORT_fcs_check);
 
 enum {
 	VXLAN_ENABLE_MODIFY	= 1 << 7,
@@ -1125,13 +1095,34 @@ int mlx4_SET_PORT_VXLAN(struct mlx4_dev *dev, u8 port, u8 steering, int enable)
 	context->steering  = steering;
 
 	in_mod = MLX4_SET_PORT_VXLAN << 8 | port;
-	err = mlx4_cmd(dev, mailbox->dma, in_mod, 1, MLX4_CMD_SET_PORT,
-		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
+	err = mlx4_cmd(dev, mailbox->dma, in_mod, MLX4_SET_PORT_ETH_OPCODE,
+		       MLX4_CMD_SET_PORT, MLX4_CMD_TIME_CLASS_B,
+		       MLX4_CMD_NATIVE);
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;
 }
 EXPORT_SYMBOL(mlx4_SET_PORT_VXLAN);
+
+int mlx4_SET_PORT_BEACON(struct mlx4_dev *dev, u8 port, u16 time)
+{
+	int err;
+	struct mlx4_cmd_mailbox *mailbox;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	*((__be32 *)mailbox->buf) = cpu_to_be32(time);
+
+	err = mlx4_cmd(dev, mailbox->dma, port, MLX4_SET_PORT_BEACON_OPCODE,
+		       MLX4_CMD_SET_PORT, MLX4_CMD_TIME_CLASS_B,
+		       MLX4_CMD_NATIVE);
+
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return err;
+}
+EXPORT_SYMBOL(mlx4_SET_PORT_BEACON);
 
 int mlx4_SET_MCAST_FLTR_wrapper(struct mlx4_dev *dev, int slave,
 				struct mlx4_vhcr *vhcr,
@@ -1183,22 +1174,6 @@ int mlx4_DUMP_ETH_STATS_wrapper(struct mlx4_dev *dev, int slave,
 	return mlx4_common_dump_eth_stats(dev, slave,
 					  vhcr->in_modifier, outbox);
 }
-
-void mlx4_set_stats_bitmap(struct mlx4_dev *dev, u64 *stats_bitmap)
-{
-	if (!mlx4_is_mfunc(dev)) {
-		*stats_bitmap = 0;
-		return;
-	}
-
-	*stats_bitmap = (MLX4_STATS_TRAFFIC_COUNTERS_MASK |
-			 MLX4_STATS_TRAFFIC_DROPS_MASK |
-			 MLX4_STATS_PORT_COUNTERS_MASK);
-
-	if (mlx4_is_master(dev))
-		*stats_bitmap |= MLX4_STATS_ERROR_COUNTERS_MASK;
-}
-EXPORT_SYMBOL(mlx4_set_stats_bitmap);
 
 int mlx4_get_slave_from_roce_gid(struct mlx4_dev *dev, int port, u8 *gid,
 				 int *slave_id)

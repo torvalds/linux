@@ -52,11 +52,6 @@ tstart:
 
 	GIO_INIT
 
-#ifdef CONFIG_SMP
-secondary_cpu_entry: /* Entry point for secondary CPUs */
-	di
-#endif
-
 	;; Setup and enable the MMU. Use same configuration for both the data
 	;; and the instruction MMU.
 	;;
@@ -164,33 +159,6 @@ secondary_cpu_entry: /* Entry point for secondary CPUs */
 	nop
 	nop
 
-#ifdef CONFIG_SMP
-	;; Read CPU ID
-	move    0, $srs
-	nop
-	nop
-	nop
-	move    $s12, $r0
-	cmpq    0, $r0
-	beq	master_cpu
-	nop
-slave_cpu:
-	; Time to boot-up. Get stack location provided by master CPU.
-	move.d  smp_init_current_idle_thread, $r1
-	move.d  [$r1], $sp
-	add.d	8192, $sp
-	move.d	ebp_start, $r0	; Defined in linker-script.
-	move	$r0, $ebp
-	jsr	smp_callin
-	nop
-master_cpu:
-	/* Set up entry point for secondary CPUs. The boot ROM has set up
-	 * EBP at start of internal memory. The CPU will get there
-	 * later when we issue an IPI to them... */
-	move.d MEM_INTMEM_START + IPI_INTR_VECT * 4, $r0
-	move.d secondary_cpu_entry, $r1
-	move.d $r1, [$r0]
-#endif
 	; Check if starting from DRAM (network->RAM boot or unpacked
 	; compressed kernel), or directly from flash.
 	lapcq	., $r0
@@ -324,11 +292,7 @@ _no_romfs_in_flash:
 	;; For cramfs, partition starts with magic and length.
 	;; For jffs2, a jhead is prepended which contains with magic and length.
 	;; The jhead is not part of the jffs2 partition however.
-#ifndef CONFIG_ETRAXFS_SIM
 	move.d	__bss_start, $r0
-#else
-	move.d	__end, $r0
-#endif
 	move.d	[$r0], $r1
 	cmp.d	CRAMFS_MAGIC, $r1 ; cramfs magic?
 	beq	2f		  ; yes, jump

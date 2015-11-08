@@ -33,7 +33,7 @@ struct prop_global {
 /*
  * global proportion descriptor
  *
- * this is needed to consitently flip prop_global structures.
+ * this is needed to consistently flip prop_global structures.
  */
 struct prop_descriptor {
 	int index;

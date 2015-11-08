@@ -388,18 +388,8 @@ module_param_named(start, synth_dtlk.startup, short, S_IRUGO);
 MODULE_PARM_DESC(port, "Set the port for the synthesizer (override probing).");
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
 
-static int __init dtlk_init(void)
-{
-	return synth_add(&synth_dtlk);
-}
+module_spk_synth(synth_dtlk);
 
-static void __exit dtlk_exit(void)
-{
-	synth_remove(&synth_dtlk);
-}
-
-module_init(dtlk_init);
-module_exit(dtlk_exit);
 MODULE_AUTHOR("Kirk Reiser <kirk@braille.uwo.ca>");
 MODULE_AUTHOR("David Borowski");
 MODULE_DESCRIPTION("Speakup support for DoubleTalk PC synthesizers");

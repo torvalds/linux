@@ -2949,5 +2949,5 @@ bool wlc_phy_txpower_ipa_ison(struct brcms_phy_pub *ppi)
 	if (ISNPHY(pi))
 		return wlc_phy_n_txpower_ipa_ison(pi);
 	else
-		return 0;
+		return false;
 }

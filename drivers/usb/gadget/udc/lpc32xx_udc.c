@@ -1803,23 +1803,14 @@ static int lpc32xx_ep_queue(struct usb_ep *_ep,
 	req = container_of(_req, struct lpc32xx_request, req);
 	ep = container_of(_ep, struct lpc32xx_ep, ep);
 
-	if (!_req || !_req->complete || !_req->buf ||
+	if (!_ep || !_req || !_req->complete || !_req->buf ||
 	    !list_empty(&req->queue))
 		return -EINVAL;
 
 	udc = ep->udc;
 
-	if (!_ep) {
-		dev_dbg(udc->dev, "invalid ep\n");
-		return -EINVAL;
-	}
-
-
-	if ((!udc) || (!udc->driver) ||
-	    (udc->gadget.speed == USB_SPEED_UNKNOWN)) {
-		dev_dbg(udc->dev, "invalid device\n");
-		return -EINVAL;
-	}
+	if (udc->gadget.speed == USB_SPEED_UNKNOWN)
+		return -EPIPE;
 
 	if (ep->lep) {
 		struct lpc32xx_usbd_dd_gad *dd;
@@ -2584,6 +2575,8 @@ static const struct lpc32xx_udc controller_template = {
 		.ep = {
 			.name	= "ep0",
 			.ops	= &lpc32xx_ep_ops,
+			.caps	= USB_EP_CAPS(USB_EP_CAPS_TYPE_CONTROL,
+					USB_EP_CAPS_DIR_ALL),
 		},
 		.maxpacket	= 64,
 		.hwep_num_base	= 0,
@@ -2595,6 +2588,8 @@ static const struct lpc32xx_udc controller_template = {
 		.ep = {
 			.name	= "ep1-int",
 			.ops	= &lpc32xx_ep_ops,
+			.caps	= USB_EP_CAPS(USB_EP_CAPS_TYPE_INT,
+					USB_EP_CAPS_DIR_ALL),
 		},
 		.maxpacket	= 64,
 		.hwep_num_base	= 2,
@@ -2606,6 +2601,8 @@ static const struct lpc32xx_udc controller_template = {
 		.ep = {
 			.name	= "ep2-bulk",
 			.ops	= &lpc32xx_ep_ops,
+			.caps	= USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK,
+					USB_EP_CAPS_DIR_ALL),
 		},
 		.maxpacket	= 64,
 		.hwep_num_base	= 4,
@@ -2617,6 +2614,8 @@ static const struct lpc32xx_udc controller_template = {
 		.ep = {
 			.name	= "ep3-iso",
 			.ops	= &lpc32xx_ep_ops,
+			.caps	= USB_EP_CAPS(USB_EP_CAPS_TYPE_ISO,
+					USB_EP_CAPS_DIR_ALL),
 		},
 		.maxpacket	= 1023,
 		.hwep_num_base	= 6,
@@ -2628,6 +2627,8 @@ static const struct lpc32xx_udc controller_template = {
 		.ep = {
 			.name	= "ep4-int",
 			.ops	= &lpc32xx_ep_ops,
+			.caps	= USB_EP_CAPS(USB_EP_CAPS_TYPE_INT,
+					USB_EP_CAPS_DIR_ALL),
 		},
 		.maxpacket	= 64,
 		.hwep_num_base	= 8,
@@ -2639,6 +2640,8 @@ static const struct lpc32xx_udc controller_template = {
 		.ep = {
 			.name	= "ep5-bulk",
 			.ops	= &lpc32xx_ep_ops,
+			.caps	= USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK,
+					USB_EP_CAPS_DIR_ALL),
 		},
 		.maxpacket	= 64,
 		.hwep_num_base	= 10,
@@ -2650,6 +2653,8 @@ static const struct lpc32xx_udc controller_template = {
 		.ep = {
 			.name	= "ep6-iso",
 			.ops	= &lpc32xx_ep_ops,
+			.caps	= USB_EP_CAPS(USB_EP_CAPS_TYPE_ISO,
+					USB_EP_CAPS_DIR_ALL),
 		},
 		.maxpacket	= 1023,
 		.hwep_num_base	= 12,
@@ -2661,6 +2666,8 @@ static const struct lpc32xx_udc controller_template = {
 		.ep = {
 			.name	= "ep7-int",
 			.ops	= &lpc32xx_ep_ops,
+			.caps	= USB_EP_CAPS(USB_EP_CAPS_TYPE_INT,
+					USB_EP_CAPS_DIR_ALL),
 		},
 		.maxpacket	= 64,
 		.hwep_num_base	= 14,
@@ -2672,6 +2679,8 @@ static const struct lpc32xx_udc controller_template = {
 		.ep = {
 			.name	= "ep8-bulk",
 			.ops	= &lpc32xx_ep_ops,
+			.caps	= USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK,
+					USB_EP_CAPS_DIR_ALL),
 		},
 		.maxpacket	= 64,
 		.hwep_num_base	= 16,
@@ -2683,6 +2692,8 @@ static const struct lpc32xx_udc controller_template = {
 		.ep = {
 			.name	= "ep9-iso",
 			.ops	= &lpc32xx_ep_ops,
+			.caps	= USB_EP_CAPS(USB_EP_CAPS_TYPE_ISO,
+					USB_EP_CAPS_DIR_ALL),
 		},
 		.maxpacket	= 1023,
 		.hwep_num_base	= 18,
@@ -2694,6 +2705,8 @@ static const struct lpc32xx_udc controller_template = {
 		.ep = {
 			.name	= "ep10-int",
 			.ops	= &lpc32xx_ep_ops,
+			.caps	= USB_EP_CAPS(USB_EP_CAPS_TYPE_INT,
+					USB_EP_CAPS_DIR_ALL),
 		},
 		.maxpacket	= 64,
 		.hwep_num_base	= 20,
@@ -2705,6 +2718,8 @@ static const struct lpc32xx_udc controller_template = {
 		.ep = {
 			.name	= "ep11-bulk",
 			.ops	= &lpc32xx_ep_ops,
+			.caps	= USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK,
+					USB_EP_CAPS_DIR_ALL),
 		},
 		.maxpacket	= 64,
 		.hwep_num_base	= 22,
@@ -2716,6 +2731,8 @@ static const struct lpc32xx_udc controller_template = {
 		.ep = {
 			.name	= "ep12-iso",
 			.ops	= &lpc32xx_ep_ops,
+			.caps	= USB_EP_CAPS(USB_EP_CAPS_TYPE_ISO,
+					USB_EP_CAPS_DIR_ALL),
 		},
 		.maxpacket	= 1023,
 		.hwep_num_base	= 24,
@@ -2727,6 +2744,8 @@ static const struct lpc32xx_udc controller_template = {
 		.ep = {
 			.name	= "ep13-int",
 			.ops	= &lpc32xx_ep_ops,
+			.caps	= USB_EP_CAPS(USB_EP_CAPS_TYPE_INT,
+					USB_EP_CAPS_DIR_ALL),
 		},
 		.maxpacket	= 64,
 		.hwep_num_base	= 26,
@@ -2738,6 +2757,8 @@ static const struct lpc32xx_udc controller_template = {
 		.ep = {
 			.name	= "ep14-bulk",
 			.ops	= &lpc32xx_ep_ops,
+			.caps	= USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK,
+					USB_EP_CAPS_DIR_ALL),
 		},
 		.maxpacket	= 64,
 		.hwep_num_base	= 28,
@@ -2749,6 +2770,8 @@ static const struct lpc32xx_udc controller_template = {
 		.ep = {
 			.name	= "ep15-bulk",
 			.ops	= &lpc32xx_ep_ops,
+			.caps	= USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK,
+					USB_EP_CAPS_DIR_ALL),
 		},
 		.maxpacket	= 1023,
 		.hwep_num_base	= 30,

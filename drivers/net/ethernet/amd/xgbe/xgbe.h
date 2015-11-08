@@ -129,7 +129,7 @@
 #include <net/dcbnl.h>
 
 #define XGBE_DRV_NAME		"amd-xgbe"
-#define XGBE_DRV_VERSION	"1.0.0-a"
+#define XGBE_DRV_VERSION	"1.0.2"
 #define XGBE_DRV_DESC		"AMD 10 Gigabit Ethernet Driver"
 
 /* Descriptor related defines */
@@ -140,7 +140,7 @@
 
 #define XGBE_TX_MAX_BUF_SIZE	(0x3fff & ~(64 - 1))
 
-/* Descriptors required for maximum contigous TSO/GSO packet */
+/* Descriptors required for maximum contiguous TSO/GSO packet */
 #define XGBE_TX_MAX_SPLIT	((GSO_MAX_SIZE / XGBE_TX_MAX_BUF_SIZE) + 1)
 
 /* Maximum possible descriptors needed for an SKB:
@@ -178,14 +178,17 @@
 #define XGMAC_JUMBO_PACKET_MTU	9000
 #define XGMAC_MAX_JUMBO_PACKET	9018
 
-/* MDIO bus phy name */
-#define XGBE_PHY_NAME		"amd_xgbe_phy"
-#define XGBE_PRTAD		0
-
 /* Common property names */
 #define XGBE_MAC_ADDR_PROPERTY	"mac-address"
 #define XGBE_PHY_MODE_PROPERTY	"phy-mode"
 #define XGBE_DMA_IRQS_PROPERTY	"amd,per-channel-interrupt"
+#define XGBE_SPEEDSET_PROPERTY	"amd,speed-set"
+#define XGBE_BLWC_PROPERTY	"amd,serdes-blwc"
+#define XGBE_CDR_RATE_PROPERTY	"amd,serdes-cdr-rate"
+#define XGBE_PQ_SKEW_PROPERTY	"amd,serdes-pq-skew"
+#define XGBE_TX_AMP_PROPERTY	"amd,serdes-tx-amp"
+#define XGBE_DFE_CFG_PROPERTY	"amd,serdes-dfe-tap-config"
+#define XGBE_DFE_ENA_PROPERTY	"amd,serdes-dfe-tap-enable"
 
 /* Device-tree clock names */
 #define XGBE_DMA_CLOCK		"dma_clk"
@@ -206,8 +209,6 @@
 #define XGMAC_IOCTL_CONTEXT	2
 
 #define XGBE_FIFO_MAX		81920
-#define XGBE_FIFO_SIZE_B(x)	(x)
-#define XGBE_FIFO_SIZE_KB(x)	(x * 1024)
 
 #define XGBE_TC_MIN_QUANTUM	10
 
@@ -222,7 +223,7 @@
 	 ((_idx) & ((_ring)->rdesc_count - 1)))
 
 /* Default coalescing parameters */
-#define XGMAC_INIT_DMA_TX_USECS		50
+#define XGMAC_INIT_DMA_TX_USECS		1000
 #define XGMAC_INIT_DMA_TX_FRAMES	25
 
 #define XGMAC_MAX_DMA_RIWT		0xff
@@ -240,6 +241,49 @@
 #define XGBE_RSS_MAX_TABLE_SIZE		256
 #define XGBE_RSS_LOOKUP_TABLE_TYPE	0
 #define XGBE_RSS_HASH_KEY_TYPE		1
+
+/* Auto-negotiation */
+#define XGBE_AN_MS_TIMEOUT		500
+#define XGBE_LINK_TIMEOUT		10
+
+#define XGBE_AN_INT_CMPLT		0x01
+#define XGBE_AN_INC_LINK		0x02
+#define XGBE_AN_PG_RCV			0x04
+#define XGBE_AN_INT_MASK		0x07
+
+/* Rate-change complete wait/retry count */
+#define XGBE_RATECHANGE_COUNT		500
+
+/* Default SerDes settings */
+#define XGBE_SPEED_10000_BLWC		0
+#define XGBE_SPEED_10000_CDR		0x7
+#define XGBE_SPEED_10000_PLL		0x1
+#define XGBE_SPEED_10000_PQ		0x12
+#define XGBE_SPEED_10000_RATE		0x0
+#define XGBE_SPEED_10000_TXAMP		0xa
+#define XGBE_SPEED_10000_WORD		0x7
+#define XGBE_SPEED_10000_DFE_TAP_CONFIG	0x1
+#define XGBE_SPEED_10000_DFE_TAP_ENABLE	0x7f
+
+#define XGBE_SPEED_2500_BLWC		1
+#define XGBE_SPEED_2500_CDR		0x2
+#define XGBE_SPEED_2500_PLL		0x0
+#define XGBE_SPEED_2500_PQ		0xa
+#define XGBE_SPEED_2500_RATE		0x1
+#define XGBE_SPEED_2500_TXAMP		0xf
+#define XGBE_SPEED_2500_WORD		0x1
+#define XGBE_SPEED_2500_DFE_TAP_CONFIG	0x3
+#define XGBE_SPEED_2500_DFE_TAP_ENABLE	0x0
+
+#define XGBE_SPEED_1000_BLWC		1
+#define XGBE_SPEED_1000_CDR		0x2
+#define XGBE_SPEED_1000_PLL		0x0
+#define XGBE_SPEED_1000_PQ		0xa
+#define XGBE_SPEED_1000_RATE		0x3
+#define XGBE_SPEED_1000_TXAMP		0xf
+#define XGBE_SPEED_1000_WORD		0x1
+#define XGBE_SPEED_1000_DFE_TAP_CONFIG	0x3
+#define XGBE_SPEED_1000_DFE_TAP_ENABLE	0x0
 
 struct xgbe_prv_data;
 
@@ -291,7 +335,8 @@ struct xgbe_buffer_data {
 	struct xgbe_page_alloc pa;
 	struct xgbe_page_alloc pa_unmap;
 
-	dma_addr_t dma;
+	dma_addr_t dma_base;
+	unsigned long dma_off;
 	unsigned int dma_len;
 };
 
@@ -325,8 +370,6 @@ struct xgbe_ring_data {
 	struct xgbe_tx_ring_data tx;	/* Tx-related data */
 	struct xgbe_rx_ring_data rx;	/* Rx-related data */
 
-	unsigned int interrupt;		/* Interrupt indicator */
-
 	unsigned int mapped_as_page;
 
 	/* Incomplete receive save location.  If the budget is exhausted
@@ -336,8 +379,6 @@ struct xgbe_ring_data {
 	 */
 	unsigned int state_saved;
 	struct {
-		unsigned int incomplete;
-		unsigned int context_next;
 		struct sk_buff *skb;
 		unsigned int len;
 		unsigned int error;
@@ -410,11 +451,17 @@ struct xgbe_channel {
 	unsigned int saved_ier;
 
 	unsigned int tx_timer_active;
-	struct hrtimer tx_timer;
+	struct timer_list tx_timer;
 
 	struct xgbe_ring *tx_ring;
 	struct xgbe_ring *rx_ring;
 } ____cacheline_aligned;
+
+enum xgbe_state {
+	XGBE_DOWN,
+	XGBE_LINK_INIT,
+	XGBE_LINK_ERR,
+};
 
 enum xgbe_int {
 	XGMAC_INT_DMA_CH_SR_TI,
@@ -433,18 +480,55 @@ enum xgbe_int_state {
 	XGMAC_INT_STATE_RESTORE,
 };
 
-enum xgbe_mtl_fifo_size {
-	XGMAC_MTL_FIFO_SIZE_256  = 0x00,
-	XGMAC_MTL_FIFO_SIZE_512  = 0x01,
-	XGMAC_MTL_FIFO_SIZE_1K   = 0x03,
-	XGMAC_MTL_FIFO_SIZE_2K   = 0x07,
-	XGMAC_MTL_FIFO_SIZE_4K   = 0x0f,
-	XGMAC_MTL_FIFO_SIZE_8K   = 0x1f,
-	XGMAC_MTL_FIFO_SIZE_16K  = 0x3f,
-	XGMAC_MTL_FIFO_SIZE_32K  = 0x7f,
-	XGMAC_MTL_FIFO_SIZE_64K  = 0xff,
-	XGMAC_MTL_FIFO_SIZE_128K = 0x1ff,
-	XGMAC_MTL_FIFO_SIZE_256K = 0x3ff,
+enum xgbe_speed {
+	XGBE_SPEED_1000 = 0,
+	XGBE_SPEED_2500,
+	XGBE_SPEED_10000,
+	XGBE_SPEEDS,
+};
+
+enum xgbe_an {
+	XGBE_AN_READY = 0,
+	XGBE_AN_PAGE_RECEIVED,
+	XGBE_AN_INCOMPAT_LINK,
+	XGBE_AN_COMPLETE,
+	XGBE_AN_NO_LINK,
+	XGBE_AN_ERROR,
+};
+
+enum xgbe_rx {
+	XGBE_RX_BPA = 0,
+	XGBE_RX_XNP,
+	XGBE_RX_COMPLETE,
+	XGBE_RX_ERROR,
+};
+
+enum xgbe_mode {
+	XGBE_MODE_KR = 0,
+	XGBE_MODE_KX,
+};
+
+enum xgbe_speedset {
+	XGBE_SPEEDSET_1000_10000 = 0,
+	XGBE_SPEEDSET_2500_10000,
+};
+
+struct xgbe_phy {
+	u32 supported;
+	u32 advertising;
+	u32 lp_advertising;
+
+	int address;
+
+	int autoneg;
+	int speed;
+	int duplex;
+
+	int link;
+
+	int pause_autoneg;
+	int tx_pause;
+	int rx_pause;
 };
 
 struct xgbe_mmc_stats {
@@ -494,13 +578,17 @@ struct xgbe_mmc_stats {
 	u64 rxwatchdogerror;
 };
 
+struct xgbe_ext_stats {
+	u64 tx_tso_packets;
+	u64 rx_split_header_packets;
+	u64 rx_buffer_unavailable;
+};
+
 struct xgbe_hw_if {
 	int (*tx_complete)(struct xgbe_ring_desc *);
 
-	int (*set_promiscuous_mode)(struct xgbe_prv_data *, unsigned int);
-	int (*set_all_multicast_mode)(struct xgbe_prv_data *, unsigned int);
-	int (*add_mac_addresses)(struct xgbe_prv_data *);
 	int (*set_mac_address)(struct xgbe_prv_data *, u8 *addr);
+	int (*config_rx_mode)(struct xgbe_prv_data *);
 
 	int (*enable_rx_csum)(struct xgbe_prv_data *);
 	int (*disable_rx_csum)(struct xgbe_prv_data *);
@@ -536,8 +624,9 @@ struct xgbe_hw_if {
 	int (*dev_read)(struct xgbe_channel *);
 	void (*tx_desc_init)(struct xgbe_channel *);
 	void (*rx_desc_init)(struct xgbe_channel *);
-	void (*rx_desc_reset)(struct xgbe_ring_data *);
 	void (*tx_desc_reset)(struct xgbe_ring_data *);
+	void (*rx_desc_reset)(struct xgbe_prv_data *, struct xgbe_ring_data *,
+			      unsigned int);
 	int (*is_last_desc)(struct xgbe_ring_desc *);
 	int (*is_context_desc)(struct xgbe_ring_desc *);
 	void (*tx_start_xmit)(struct xgbe_channel *, struct xgbe_ring *);
@@ -594,6 +683,20 @@ struct xgbe_hw_if {
 	int (*set_rss_lookup_table)(struct xgbe_prv_data *, const u32 *);
 };
 
+struct xgbe_phy_if {
+	/* For initial PHY setup */
+	void (*phy_init)(struct xgbe_prv_data *);
+
+	/* For PHY support when setting device up/down */
+	int (*phy_reset)(struct xgbe_prv_data *);
+	int (*phy_start)(struct xgbe_prv_data *);
+	void (*phy_stop)(struct xgbe_prv_data *);
+
+	/* For PHY support while device is up */
+	void (*phy_status)(struct xgbe_prv_data *);
+	int (*phy_config_aneg)(struct xgbe_prv_data *);
+};
+
 struct xgbe_desc_if {
 	int (*alloc_ring_resources)(struct xgbe_prv_data *);
 	void (*free_ring_resources)(struct xgbe_prv_data *);
@@ -620,7 +723,7 @@ struct xgbe_hw_features {
 	unsigned int mgk;		/* PMT magic packet */
 	unsigned int mmc;		/* RMON module */
 	unsigned int aoe;		/* ARP Offload */
-	unsigned int ts;		/* IEEE 1588-2008 Adavanced Timestamp */
+	unsigned int ts;		/* IEEE 1588-2008 Advanced Timestamp */
 	unsigned int eee;		/* Energy Efficient Ethernet */
 	unsigned int tx_coe;		/* Tx Checksum Offload */
 	unsigned int rx_coe;		/* Rx Checksum Offload */
@@ -632,6 +735,7 @@ struct xgbe_hw_features {
 	unsigned int rx_fifo_size;	/* MTL Receive FIFO Size */
 	unsigned int tx_fifo_size;	/* MTL Transmit FIFO Size */
 	unsigned int adv_ts_hi;		/* Advance Timestamping High Word */
+	unsigned int dma_width;		/* DMA width */
 	unsigned int dcb;		/* DCB Feature */
 	unsigned int sph;		/* Split Header Feature */
 	unsigned int tso;		/* TCP Segmentation Offload */
@@ -662,6 +766,9 @@ struct xgbe_prv_data {
 	/* XGMAC/XPCS related mmio registers */
 	void __iomem *xgmac_regs;	/* XGMAC CSRs */
 	void __iomem *xpcs_regs;	/* XPCS MMD registers */
+	void __iomem *rxtx_regs;	/* SerDes Rx/Tx CSRs */
+	void __iomem *sir0_regs;	/* SerDes integration registers (1/2) */
+	void __iomem *sir1_regs;	/* SerDes integration registers (2/2) */
 
 	/* Overall device lock */
 	spinlock_t lock;
@@ -672,10 +779,14 @@ struct xgbe_prv_data {
 	/* RSS addressing mutex */
 	struct mutex rss_mutex;
 
+	/* Flags representing xgbe_state */
+	unsigned long dev_state;
+
 	int dev_irq;
 	unsigned int per_channel_irq;
 
 	struct xgbe_hw_if hw_if;
+	struct xgbe_phy_if phy_if;
 	struct xgbe_desc_if desc_if;
 
 	/* AXI DMA settings */
@@ -683,6 +794,11 @@ struct xgbe_prv_data {
 	unsigned int axdomain;
 	unsigned int arcache;
 	unsigned int awcache;
+
+	/* Service routine support */
+	struct workqueue_struct *dev_workqueue;
+	struct work_struct service_work;
+	struct timer_list service_timer;
 
 	/* Rings for Tx/Rx on a DMA channel */
 	struct xgbe_channel *channel;
@@ -715,6 +831,7 @@ struct xgbe_prv_data {
 
 	/* Rx coalescing settings */
 	unsigned int rx_riwt;
+	unsigned int rx_usecs;
 	unsigned int rx_frames;
 
 	/* Current Rx buffer size */
@@ -730,27 +847,12 @@ struct xgbe_prv_data {
 	u32 rss_table[XGBE_RSS_MAX_TABLE_SIZE];
 	u32 rss_options;
 
-	/* MDIO settings */
-	struct module *phy_module;
-	char *mii_bus_id;
-	struct mii_bus *mii;
-	int mdio_mmd;
-	struct phy_device *phydev;
-	int default_autoneg;
-	int default_speed;
-
-	/* Current PHY settings */
-	phy_interface_t phy_mode;
-	int phy_link;
-	int phy_speed;
-	unsigned int phy_tx_pause;
-	unsigned int phy_rx_pause;
-
 	/* Netdev related settings */
 	unsigned char mac_addr[ETH_ALEN];
 	netdev_features_t netdev_features;
 	struct napi_struct napi;
 	struct xgbe_mmc_stats mmc_stats;
+	struct xgbe_ext_stats ext_stats;
 
 	/* Filtering support */
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
@@ -788,6 +890,54 @@ struct xgbe_prv_data {
 	/* Keeps track of power mode */
 	unsigned int power_down;
 
+	/* Network interface message level setting */
+	u32 msg_enable;
+
+	/* Current PHY settings */
+	phy_interface_t phy_mode;
+	int phy_link;
+	int phy_speed;
+
+	/* MDIO/PHY related settings */
+	struct xgbe_phy phy;
+	int mdio_mmd;
+	unsigned long link_check;
+
+	char an_name[IFNAMSIZ + 32];
+	struct workqueue_struct *an_workqueue;
+
+	int an_irq;
+	struct work_struct an_irq_work;
+
+	unsigned int speed_set;
+
+	/* SerDes UEFI configurable settings.
+	 *   Switching between modes/speeds requires new values for some
+	 *   SerDes settings.  The values can be supplied as device
+	 *   properties in array format.  The first array entry is for
+	 *   1GbE, second for 2.5GbE and third for 10GbE
+	 */
+	u32 serdes_blwc[XGBE_SPEEDS];
+	u32 serdes_cdr_rate[XGBE_SPEEDS];
+	u32 serdes_pq_skew[XGBE_SPEEDS];
+	u32 serdes_tx_amp[XGBE_SPEEDS];
+	u32 serdes_dfe_tap_cfg[XGBE_SPEEDS];
+	u32 serdes_dfe_tap_ena[XGBE_SPEEDS];
+
+	/* Auto-negotiation state machine support */
+	struct mutex an_mutex;
+	enum xgbe_an an_result;
+	enum xgbe_an an_state;
+	enum xgbe_rx kr_state;
+	enum xgbe_rx kx_state;
+	struct work_struct an_work;
+	unsigned int an_supported;
+	unsigned int parallel_detect;
+	unsigned int fec_ability;
+	unsigned long an_start;
+
+	unsigned int lpm_ctrl;		/* CTRL1 for resume */
+
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *xgbe_debugfs;
 
@@ -801,6 +951,7 @@ struct xgbe_prv_data {
 /* Function prototypes*/
 
 void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *);
+void xgbe_init_function_ptrs_phy(struct xgbe_phy_if *);
 void xgbe_init_function_ptrs_desc(struct xgbe_desc_if *);
 struct net_device_ops *xgbe_get_netdev_ops(void);
 struct ethtool_ops *xgbe_get_ethtool_ops(void);
@@ -808,14 +959,11 @@ struct ethtool_ops *xgbe_get_ethtool_ops(void);
 const struct dcbnl_rtnl_ops *xgbe_get_dcbnl_ops(void);
 #endif
 
-int xgbe_mdio_register(struct xgbe_prv_data *);
-void xgbe_mdio_unregister(struct xgbe_prv_data *);
-void xgbe_dump_phy_registers(struct xgbe_prv_data *);
 void xgbe_ptp_register(struct xgbe_prv_data *);
 void xgbe_ptp_unregister(struct xgbe_prv_data *);
-void xgbe_dump_tx_desc(struct xgbe_ring *, unsigned int, unsigned int,
-		       unsigned int);
-void xgbe_dump_rx_desc(struct xgbe_ring *, struct xgbe_ring_desc *,
+void xgbe_dump_tx_desc(struct xgbe_prv_data *, struct xgbe_ring *,
+		       unsigned int, unsigned int, unsigned int);
+void xgbe_dump_rx_desc(struct xgbe_prv_data *, struct xgbe_ring *,
 		       unsigned int);
 void xgbe_print_pkt(struct net_device *, struct sk_buff *, bool);
 void xgbe_get_all_hw_features(struct xgbe_prv_data *);
@@ -832,18 +980,6 @@ static inline void xgbe_debugfs_init(struct xgbe_prv_data *pdata) {}
 static inline void xgbe_debugfs_exit(struct xgbe_prv_data *pdata) {}
 #endif /* CONFIG_DEBUG_FS */
 
-/* NOTE: Uncomment for TX and RX DESCRIPTOR DUMP in KERNEL LOG */
-#if 0
-#define XGMAC_ENABLE_TX_DESC_DUMP
-#define XGMAC_ENABLE_RX_DESC_DUMP
-#endif
-
-/* NOTE: Uncomment for TX and RX PACKET DUMP in KERNEL LOG */
-#if 0
-#define XGMAC_ENABLE_TX_PKT_DUMP
-#define XGMAC_ENABLE_RX_PKT_DUMP
-#endif
-
 /* NOTE: Uncomment for function trace log messages in KERNEL LOG */
 #if 0
 #define YDEBUG
@@ -853,10 +989,8 @@ static inline void xgbe_debugfs_exit(struct xgbe_prv_data *pdata) {}
 /* For debug prints */
 #ifdef YDEBUG
 #define DBGPR(x...) pr_alert(x)
-#define DBGPHY_REGS(x...) xgbe_dump_phy_registers(x)
 #else
 #define DBGPR(x...) do { } while (0)
-#define DBGPHY_REGS(x...) do { } while (0)
 #endif
 
 #ifdef YDEBUG_MDIO

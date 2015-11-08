@@ -434,6 +434,12 @@ static int as3935_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct of_device_id as3935_of_match[] = {
+	{ .compatible = "ams,as3935", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, as3935_of_match);
+
 static const struct spi_device_id as3935_id[] = {
 	{"as3935", 0},
 	{},
@@ -443,7 +449,7 @@ MODULE_DEVICE_TABLE(spi, as3935_id);
 static struct spi_driver as3935_driver = {
 	.driver = {
 		.name	= "as3935",
-		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(as3935_of_match),
 		.pm	= AS3935_PM_OPS,
 	},
 	.probe		= as3935_probe,

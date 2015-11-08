@@ -748,7 +748,7 @@ static int gfs2_write_inode(struct inode *inode, struct writeback_control *wbc)
 
 	if (wbc->sync_mode == WB_SYNC_ALL)
 		gfs2_log_flush(GFS2_SB(inode), ip->i_gl, NORMAL_FLUSH);
-	if (bdi->dirty_exceeded)
+	if (bdi->wb.dirty_exceeded)
 		gfs2_ail1_flush(sdp, wbc);
 	else
 		filemap_fdatawrite(metamapping);
@@ -1171,7 +1171,7 @@ static int gfs2_statfs_i(struct gfs2_sbd *sdp, struct gfs2_statfs_change_host *s
 
 static int gfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	struct super_block *sb = dentry->d_inode->i_sb;
+	struct super_block *sb = d_inode(dentry)->i_sb;
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_statfs_change_host sc;
 	int error;
@@ -1334,11 +1334,11 @@ static int gfs2_show_options(struct seq_file *s, struct dentry *root)
 	if (is_ancestor(root, sdp->sd_master_dir))
 		seq_puts(s, ",meta");
 	if (args->ar_lockproto[0])
-		seq_printf(s, ",lockproto=%s", args->ar_lockproto);
+		seq_show_option(s, "lockproto", args->ar_lockproto);
 	if (args->ar_locktable[0])
-		seq_printf(s, ",locktable=%s", args->ar_locktable);
+		seq_show_option(s, "locktable", args->ar_locktable);
 	if (args->ar_hostdata[0])
-		seq_printf(s, ",hostdata=%s", args->ar_hostdata);
+		seq_show_option(s, "hostdata", args->ar_hostdata);
 	if (args->ar_spectator)
 		seq_puts(s, ",spectator");
 	if (args->ar_localflocks)

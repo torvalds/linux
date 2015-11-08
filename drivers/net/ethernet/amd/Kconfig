@@ -37,8 +37,7 @@ config AMD8111_ETH
 	select MII
 	---help---
 	  If you have an AMD 8111-based PCI LANCE ethernet card,
-	  answer Y here and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  answer Y here.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called amd8111e.
@@ -47,10 +46,8 @@ config LANCE
 	tristate "AMD LANCE and PCnet (AT1500 and NE2100) support"
 	depends on ISA && ISA_DMA_API && !ARM
 	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>. Some LinkSys cards are
-	  of this type.
+	  If you have a network (Ethernet) card of this type, say Y here.
+	  Some LinkSys cards are of this type.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called lance.  This is recommended.
@@ -62,8 +59,7 @@ config PCNET32
 	select MII
 	---help---
 	  If you have a PCnet32 or PCnetPCI based network (Ethernet) card,
-	  answer Y here and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  answer Y here.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called pcnet32.
@@ -104,7 +100,7 @@ config DECLANCE
 	  DEPCA series.  (This chipset is better known via the NE2100 cards.)
 
 config HPLANCE
-	bool "HP on-board LANCE support"
+	tristate "HP on-board LANCE support"
 	depends on DIO
 	select CRC32
 	---help---
@@ -144,9 +140,7 @@ config NI65
 	tristate "NI6510 support"
 	depends on ISA && ISA_DMA_API && !ARM
 	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  If you have a network (Ethernet) card of this type, say Y here.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called ni65.
@@ -179,9 +173,8 @@ config SUNLANCE
 
 config AMD_XGBE
 	tristate "AMD 10GbE Ethernet driver"
-	depends on (OF_NET || ACPI) && HAS_IOMEM
-	select PHYLIB
-	select AMD_XGBE_PHY
+	depends on ((OF_NET && OF_ADDRESS) || ACPI) && HAS_IOMEM && HAS_DMA
+	depends on ARM64 || COMPILE_TEST
 	select BITREVERSE
 	select CRC32
 	select PTP_1588_CLOCK

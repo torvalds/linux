@@ -136,8 +136,8 @@ static struct dentry *__get_parent(struct super_block *sb,
 		return ERR_CAST(req);
 
 	if (child) {
-		req->r_inode = child->d_inode;
-		ihold(child->d_inode);
+		req->r_inode = d_inode(child);
+		ihold(d_inode(child));
 	} else {
 		req->r_ino1 = (struct ceph_vino) {
 			.ino = ino,
@@ -164,7 +164,7 @@ static struct dentry *__get_parent(struct super_block *sb,
 		return ERR_PTR(err);
 	}
 	dout("__get_parent ino %llx parent %p ino %llx.%llx\n",
-	     child ? ceph_ino(child->d_inode) : ino,
+	     child ? ceph_ino(d_inode(child)) : ino,
 	     dentry, ceph_vinop(inode));
 	return dentry;
 }
@@ -172,11 +172,11 @@ static struct dentry *__get_parent(struct super_block *sb,
 static struct dentry *ceph_get_parent(struct dentry *child)
 {
 	/* don't re-export snaps */
-	if (ceph_snap(child->d_inode) != CEPH_NOSNAP)
+	if (ceph_snap(d_inode(child)) != CEPH_NOSNAP)
 		return ERR_PTR(-EINVAL);
 
 	dout("get_parent %p ino %llx.%llx\n",
-	     child, ceph_vinop(child->d_inode));
+	     child, ceph_vinop(d_inode(child)));
 	return __get_parent(child->d_sb, child, 0);
 }
 
@@ -209,32 +209,32 @@ static int ceph_get_name(struct dentry *parent, char *name,
 	struct ceph_mds_request *req;
 	int err;
 
-	mdsc = ceph_inode_to_client(child->d_inode)->mdsc;
+	mdsc = ceph_inode_to_client(d_inode(child))->mdsc;
 	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_LOOKUPNAME,
 				       USE_ANY_MDS);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
-	mutex_lock(&parent->d_inode->i_mutex);
+	mutex_lock(&d_inode(parent)->i_mutex);
 
-	req->r_inode = child->d_inode;
-	ihold(child->d_inode);
-	req->r_ino2 = ceph_vino(parent->d_inode);
-	req->r_locked_dir = parent->d_inode;
+	req->r_inode = d_inode(child);
+	ihold(d_inode(child));
+	req->r_ino2 = ceph_vino(d_inode(parent));
+	req->r_locked_dir = d_inode(parent);
 	req->r_num_caps = 2;
 	err = ceph_mdsc_do_request(mdsc, NULL, req);
 
-	mutex_unlock(&parent->d_inode->i_mutex);
+	mutex_unlock(&d_inode(parent)->i_mutex);
 
 	if (!err) {
 		struct ceph_mds_reply_info_parsed *rinfo = &req->r_reply_info;
 		memcpy(name, rinfo->dname, rinfo->dname_len);
 		name[rinfo->dname_len] = 0;
 		dout("get_name %p ino %llx.%llx name %s\n",
-		     child, ceph_vinop(child->d_inode), name);
+		     child, ceph_vinop(d_inode(child)), name);
 	} else {
 		dout("get_name %p ino %llx.%llx err %d\n",
-		     child, ceph_vinop(child->d_inode), err);
+		     child, ceph_vinop(d_inode(child)), err);
 	}
 
 	ceph_mdsc_put_request(req);

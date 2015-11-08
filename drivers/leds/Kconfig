@@ -11,9 +11,6 @@ menuconfig NEW_LEDS
 	  Say Y to enable Linux LED support.  This allows control of supported
 	  LEDs from both userspace and optionally, by kernel events (triggers).
 
-	  This is not related to standard keyboard LEDs which are controlled
-	  via the input system.
-
 if NEW_LEDS
 
 config LEDS_CLASS
@@ -41,6 +38,32 @@ config LEDS_88PM860X
 	help
 	  This option enables support for on-chip LED drivers found on Marvell
 	  Semiconductor 88PM8606 PMIC.
+
+config LEDS_AAT1290
+	tristate "LED support for the AAT1290"
+	depends on LEDS_CLASS_FLASH
+	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
+	depends on GPIOLIB || COMPILE_TEST
+	depends on OF
+	depends on PINCTRL
+	help
+	 This option enables support for the LEDs on the AAT1290.
+
+config LEDS_BCM6328
+	tristate "LED Support for Broadcom BCM6328"
+	depends on LEDS_CLASS
+	depends on OF
+	help
+	  This option enables support for LEDs connected to the BCM6328
+	  LED HW controller accessed via MMIO registers.
+
+config LEDS_BCM6358
+	tristate "LED Support for Broadcom BCM6358"
+	depends on LEDS_CLASS
+	depends on OF
+	help
+	  This option enables support for LEDs connected to the BCM6358
+	  LED HW controller accessed via MMIO registers.
 
 config LEDS_LM3530
 	tristate "LCD Backlight driver for LM3530"
@@ -147,6 +170,7 @@ config LEDS_SUNFIRE
 
 config LEDS_IPAQ_MICRO
 	tristate "LED Support for the Compaq iPAQ h3xxx"
+	depends on LEDS_CLASS
 	depends on MFD_IPAQ_MICRO
 	help
 	  Choose this option if you want to use the notification LED on
@@ -182,7 +206,7 @@ config LEDS_PCA9532_GPIO
 config LEDS_GPIO
 	tristate "LED Support for GPIO connected LEDs"
 	depends on LEDS_CLASS
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  This option enables support for the LEDs connected to GPIO
 	  outputs. To be useful the particular board must have LEDs
@@ -206,6 +230,7 @@ config LEDS_LP55XX_COMMON
 	tristate "Common Driver for TI/National LP5521/5523/55231/5562/8501"
 	depends on LEDS_LP5521 || LEDS_LP5523 || LEDS_LP5562 || LEDS_LP8501
 	select FW_LOADER
+	select FW_LOADER_USER_HELPER
 	help
 	  This option supports common operations for LP5521/5523/55231/5562/8501
 	  devices.
@@ -395,7 +420,7 @@ config LEDS_INTEL_SS4200
 config LEDS_LT3593
 	tristate "LED driver for LT3593 controllers"
 	depends on LEDS_CLASS
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  This option enables support for LEDs driven by a Linear Technology
 	  LT3593 controller. This controller uses a special one-wire pulse
@@ -431,12 +456,16 @@ config LEDS_MC13783
 config LEDS_NS2
 	tristate "LED support for Network Space v2 GPIO LEDs"
 	depends on LEDS_CLASS
-	depends on MACH_KIRKWOOD
+	depends on MACH_KIRKWOOD || MACH_ARMADA_370
 	default y
 	help
-	  This option enable support for the dual-GPIO LED found on the
-	  Network Space v2 board (and parents). This include Internet Space v2,
-	  Network Space (Max) v2 and d2 Network v2 boards.
+	  This option enables support for the dual-GPIO LEDs found on the
+	  following LaCie/Seagate boards:
+
+		Network Space v2 (and parents: Max, Mini)
+		Internet Space v2
+		d2 Network v2
+		n090401 (Seagate NAS 4-Bay)
 
 config LEDS_NETXBIG
 	tristate "LED support for Big Network series LEDs"
@@ -466,6 +495,25 @@ config LEDS_TCA6507
 	  This option enables support for LEDs connected to TC6507
 	  LED driver chips accessed via the I2C bus.
 	  Driver support brightness control and hardware-assisted blinking.
+
+config LEDS_TLC591XX
+	tristate "LED driver for TLC59108 and TLC59116 controllers"
+	depends on LEDS_CLASS && I2C
+	select REGMAP_I2C
+	help
+	  This option enables support for Texas Instruments TLC59108
+	  and TLC59116 LED controllers.
+
+config LEDS_MAX77693
+	tristate "LED support for MAX77693 Flash"
+	depends on LEDS_CLASS_FLASH
+	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
+	depends on MFD_MAX77693
+	depends on OF
+	help
+	  This option enables support for the flash part of the MAX77693
+	  multifunction device. It has build in control for two leds in flash
+	  and torch mode.
 
 config LEDS_MAX8997
 	tristate "LED support for MAX8997 PMIC"
@@ -498,6 +546,26 @@ config LEDS_MENF21BMC
 	  This driver can also be built as a module. If so the module
 	  will be called leds-menf21bmc.
 
+config LEDS_KTD2692
+	tristate "LED support for KTD2692 flash LED controller"
+	depends on LEDS_CLASS_FLASH && OF
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  This option enables support for KTD2692 LED flash connected
+	  through ExpressWire interface.
+
+	  Say Y to enable this driver.
+
+config LEDS_SEAD3
+	tristate "LED support for the MIPS SEAD 3 board"
+	depends on LEDS_CLASS && MIPS_SEAD3
+	help
+	  Say Y here to include support for the FLED and PLED LEDs on SEAD3 eval
+	  boards.
+
+	  This driver can also be built as a module. If so the module
+	  will be called leds-sead3.
+
 comment "LED driver for blink(1) USB RGB LED is under Special HID drivers (HID_THINGM)"
 
 config LEDS_BLINKM
@@ -507,6 +575,17 @@ config LEDS_BLINKM
 	help
 	  This option enables support for the BlinkM RGB LED connected
 	  through I2C. Say Y to enable support for the BlinkM LED.
+
+config LEDS_POWERNV
+	tristate "LED support for PowerNV Platform"
+	depends on LEDS_CLASS
+	depends on PPC_POWERNV
+	depends on OF
+	help
+	  This option enables support for the system LEDs present on
+	  PowerNV platforms. Say 'y' to enable this support in kernel.
+	  To compile this driver as a module, choose 'm' here: the module
+	  will be called leds-powernv.
 
 config LEDS_SYSCON
 	bool "LED support for LEDs on system controllers"

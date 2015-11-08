@@ -36,7 +36,7 @@
 static void radeon_legacy_encoder_disable(struct drm_encoder *encoder)
 {
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-	struct drm_encoder_helper_funcs *encoder_funcs;
+	const struct drm_encoder_helper_funcs *encoder_funcs;
 
 	encoder_funcs = encoder->helper_private;
 	encoder_funcs->dpms(encoder, DRM_MODE_DPMS_OFF);
@@ -441,6 +441,7 @@ void radeon_legacy_backlight_init(struct radeon_encoder *radeon_encoder,
 	backlight_update_status(bd);
 
 	DRM_INFO("radeon legacy LVDS backlight initialized\n");
+	rdev->mode_info.bl_encoder = radeon_encoder;
 
 	return;
 

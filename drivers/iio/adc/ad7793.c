@@ -852,7 +852,6 @@ MODULE_DEVICE_TABLE(spi, ad7793_id);
 static struct spi_driver ad7793_driver = {
 	.driver = {
 		.name	= "ad7793",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ad7793_probe,
 	.remove		= ad7793_remove,
@@ -861,5 +860,5 @@ static struct spi_driver ad7793_driver = {
 module_spi_driver(ad7793_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
-MODULE_DESCRIPTION("Analog Devices AD7793 and simialr ADCs");
+MODULE_DESCRIPTION("Analog Devices AD7793 and similar ADCs");
 MODULE_LICENSE("GPL v2");

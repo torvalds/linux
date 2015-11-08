@@ -18,7 +18,8 @@
 
 #define pr_fmt(fmt) "ashmem: " fmt
 
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/export.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/falloc.h>
@@ -43,7 +44,7 @@
  * @unpinned_list:	The list of all ashmem areas
  * @file:		The shmem-based backing file
  * @size:		The size of the mapping, in bytes
- * @prot_masks:		The allowed protection bits, as vm_flags
+ * @prot_mask:		The allowed protection bits, as vm_flags
  *
  * The lifecycle of this structure is from our parent file's open() until
  * its release(). It is also protected by 'ashmem_mutex'
@@ -82,14 +83,14 @@ struct ashmem_range {
 /* LRU list of unpinned pages, protected by ashmem_mutex */
 static LIST_HEAD(ashmem_lru_list);
 
-/**
+/*
  * long lru_count - The count of pages on our LRU list.
  *
  * This is protected by ashmem_mutex.
  */
 static unsigned long lru_count;
 
-/**
+/*
  * ashmem_mutex - protects the list of and each individual ashmem_area
  *
  * Lock Ordering: ashmex_mutex -> i_mutex -> i_alloc_sem
@@ -310,11 +311,10 @@ static ssize_t ashmem_read(struct file *file, char __user *buf,
 	 * be destroyed until all references to the file are dropped and
 	 * ashmem_release is called.
 	 */
-	ret = asma->file->f_op->read(asma->file, buf, len, pos);
-	if (ret >= 0) {
+	ret = __vfs_read(asma->file, buf, len, pos);
+	if (ret >= 0)
 		/** Update backing file pos, since f_ops->read() doesn't */
 		asma->file->f_pos = *pos;
-	}
 	return ret;
 
 out_unlock:
@@ -388,7 +388,7 @@ static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
 
 		/* ... and allocate the backing shmem file */
 		vmfile = shmem_file_setup(name, asma->size, vma->vm_flags);
-		if (unlikely(IS_ERR(vmfile))) {
+		if (IS_ERR(vmfile)) {
 			ret = PTR_ERR(vmfile);
 			goto out;
 		}
@@ -618,7 +618,8 @@ static int ashmem_pin(struct ashmem_area *asma, size_t pgstart, size_t pgend)
 
 			/* Case #3: We overlap from the rear, so adjust it */
 			if (range->pgend <= pgend) {
-				range_shrink(range, range->pgstart, pgstart-1);
+				range_shrink(range, range->pgstart,
+					     pgstart - 1);
 				continue;
 			}
 
@@ -660,7 +661,7 @@ restart:
 		if (page_range_subsumed_by_range(range, pgstart, pgend))
 			return 0;
 		if (page_range_in_range(range, pgstart, pgend)) {
-			pgstart = min_t(size_t, range->pgstart, pgstart),
+			pgstart = min_t(size_t, range->pgstart, pgstart);
 			pgend = max_t(size_t, range->pgend, pgend);
 			purged |= range->purged;
 			range_del(range);
@@ -715,7 +716,7 @@ static int ashmem_pin_unpin(struct ashmem_area *asma, unsigned long cmd,
 	if (unlikely((pin.offset | pin.len) & ~PAGE_MASK))
 		return -EINVAL;
 
-	if (unlikely(((__u32) -1) - pin.offset < pin.len))
+	if (unlikely(((__u32)-1) - pin.offset < pin.len))
 		return -EINVAL;
 
 	if (unlikely(PAGE_ALIGN(asma->size) < pin.offset + pin.len))
@@ -759,7 +760,7 @@ static long ashmem_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		ret = -EINVAL;
 		if (!asma->file) {
 			ret = 0;
-			asma->size = (size_t) arg;
+			asma->size = (size_t)arg;
 		}
 		break;
 	case ASHMEM_GET_SIZE:
@@ -833,16 +834,16 @@ static int __init ashmem_init(void)
 	int ret;
 
 	ashmem_area_cachep = kmem_cache_create("ashmem_area_cache",
-					  sizeof(struct ashmem_area),
-					  0, 0, NULL);
+					       sizeof(struct ashmem_area),
+					       0, 0, NULL);
 	if (unlikely(!ashmem_area_cachep)) {
 		pr_err("failed to create slab cache\n");
 		return -ENOMEM;
 	}
 
 	ashmem_range_cachep = kmem_cache_create("ashmem_range_cache",
-					  sizeof(struct ashmem_range),
-					  0, 0, NULL);
+						sizeof(struct ashmem_range),
+						0, 0, NULL);
 	if (unlikely(!ashmem_range_cachep)) {
 		pr_err("failed to create slab cache\n");
 		return -ENOMEM;
@@ -860,24 +861,4 @@ static int __init ashmem_init(void)
 
 	return 0;
 }
-
-static void __exit ashmem_exit(void)
-{
-	int ret;
-
-	unregister_shrinker(&ashmem_shrinker);
-
-	ret = misc_deregister(&ashmem_misc);
-	if (unlikely(ret))
-		pr_err("failed to unregister misc device!\n");
-
-	kmem_cache_destroy(ashmem_range_cachep);
-	kmem_cache_destroy(ashmem_area_cachep);
-
-	pr_info("unloaded\n");
-}
-
-module_init(ashmem_init);
-module_exit(ashmem_exit);
-
-MODULE_LICENSE("GPL");
+device_initcall(ashmem_init);

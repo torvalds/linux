@@ -197,6 +197,7 @@ config ENABLE_MUST_CHECK
 config FRAME_WARN
 	int "Warn for stack frames larger than (needs gcc 4.4)"
 	range 0 8192
+	default 0 if KASAN
 	default 1024 if !64BIT
 	default 2048 if 64BIT
 	help
@@ -841,9 +842,14 @@ config SCHED_DEBUG
 	  that can help debug the scheduler. The runtime overhead of this
 	  option is minimal.
 
+config SCHED_INFO
+	bool
+	default n
+
 config SCHEDSTATS
 	bool "Collect scheduler statistics"
 	depends on DEBUG_KERNEL && PROC_FS
+	select SCHED_INFO
 	help
 	  If you say Y here, additional code will be inserted into the
 	  scheduler and related routines to collect statistics about
@@ -864,6 +870,19 @@ config SCHED_STACK_END_CHECK
 	  This is to ensure no erroneous behaviour occurs which could result in
 	  data corruption or a sporadic crash at a later stage once the region
 	  is examined. The runtime overhead introduced is minimal.
+
+config DEBUG_TIMEKEEPING
+	bool "Enable extra timekeeping sanity checking"
+	help
+	  This option will enable additional timekeeping sanity checks
+	  which may be helpful when diagnosing issues where timekeeping
+	  problems are suspected.
+
+	  This may include checks in the timekeeping hotpaths, so this
+	  option may have a (very small) performance impact to some
+	  workloads.
+
+	  If unsure, say N.
 
 config TIMER_STATS
 	bool "Collect kernel timers statistics"
@@ -897,12 +916,6 @@ config DEBUG_RT_MUTEXES
 	help
 	 This allows rt mutex semantics violations and rt mutex related
 	 deadlocks (lockups) to be detected and reported automatically.
-
-config RT_MUTEX_TESTER
-	bool "Built-in scriptable tester for rt-mutexes"
-	depends on DEBUG_KERNEL && RT_MUTEXES && BROKEN
-	help
-	  This option enables a rt-mutex tester.
 
 config DEBUG_SPINLOCK
 	bool "Spinlock and rw-lock debugging: basic checks"
@@ -1180,16 +1193,7 @@ config DEBUG_CREDENTIALS
 menu "RCU Debugging"
 
 config PROVE_RCU
-	bool "RCU debugging: prove RCU correctness"
-	depends on PROVE_LOCKING
-	default n
-	help
-	 This feature enables lockdep extensions that check for correct
-	 use of RCU APIs.  This is currently under development.  Say Y
-	 if you want to debug RCU usage or help work on the PROVE_RCU
-	 feature.
-
-	 Say N if you are unsure.
+	def_bool PROVE_LOCKING
 
 config PROVE_RCU_REPEATEDLY
 	bool "RCU debugging: don't disable PROVE_RCU on first splat"
@@ -1229,6 +1233,7 @@ config RCU_TORTURE_TEST
 	depends on DEBUG_KERNEL
 	select TORTURE_TEST
 	select SRCU
+	select TASKS_RCU
 	default n
 	help
 	  This option provides a kernel module that runs torture tests
@@ -1257,6 +1262,81 @@ config RCU_TORTURE_TEST_RUNNABLE
 	  Say N here if you want the RCU torture tests to start only
 	  after being manually enabled via /proc.
 
+config RCU_TORTURE_TEST_SLOW_PREINIT
+	bool "Slow down RCU grace-period pre-initialization to expose races"
+	depends on RCU_TORTURE_TEST
+	help
+	  This option delays grace-period pre-initialization (the
+	  propagation of CPU-hotplug changes up the rcu_node combining
+	  tree) for a few jiffies between initializing each pair of
+	  consecutive rcu_node structures.  This helps to expose races
+	  involving grace-period pre-initialization, in other words, it
+	  makes your kernel less stable.  It can also greatly increase
+	  grace-period latency, especially on systems with large numbers
+	  of CPUs.  This is useful when torture-testing RCU, but in
+	  almost no other circumstance.
+
+	  Say Y here if you want your system to crash and hang more often.
+	  Say N if you want a sane system.
+
+config RCU_TORTURE_TEST_SLOW_PREINIT_DELAY
+	int "How much to slow down RCU grace-period pre-initialization"
+	range 0 5
+	default 3
+	depends on RCU_TORTURE_TEST_SLOW_PREINIT
+	help
+	  This option specifies the number of jiffies to wait between
+	  each rcu_node structure pre-initialization step.
+
+config RCU_TORTURE_TEST_SLOW_INIT
+	bool "Slow down RCU grace-period initialization to expose races"
+	depends on RCU_TORTURE_TEST
+	help
+	  This option delays grace-period initialization for a few
+	  jiffies between initializing each pair of consecutive
+	  rcu_node structures.	This helps to expose races involving
+	  grace-period initialization, in other words, it makes your
+	  kernel less stable.  It can also greatly increase grace-period
+	  latency, especially on systems with large numbers of CPUs.
+	  This is useful when torture-testing RCU, but in almost no
+	  other circumstance.
+
+	  Say Y here if you want your system to crash and hang more often.
+	  Say N if you want a sane system.
+
+config RCU_TORTURE_TEST_SLOW_INIT_DELAY
+	int "How much to slow down RCU grace-period initialization"
+	range 0 5
+	default 3
+	depends on RCU_TORTURE_TEST_SLOW_INIT
+	help
+	  This option specifies the number of jiffies to wait between
+	  each rcu_node structure initialization.
+
+config RCU_TORTURE_TEST_SLOW_CLEANUP
+	bool "Slow down RCU grace-period cleanup to expose races"
+	depends on RCU_TORTURE_TEST
+	help
+	  This option delays grace-period cleanup for a few jiffies
+	  between cleaning up each pair of consecutive rcu_node
+	  structures.  This helps to expose races involving grace-period
+	  cleanup, in other words, it makes your kernel less stable.
+	  It can also greatly increase grace-period latency, especially
+	  on systems with large numbers of CPUs.  This is useful when
+	  torture-testing RCU, but in almost no other circumstance.
+
+	  Say Y here if you want your system to crash and hang more often.
+	  Say N if you want a sane system.
+
+config RCU_TORTURE_TEST_SLOW_CLEANUP_DELAY
+	int "How much to slow down RCU grace-period cleanup"
+	range 0 5
+	default 3
+	depends on RCU_TORTURE_TEST_SLOW_CLEANUP
+	help
+	  This option specifies the number of jiffies to wait between
+	  each rcu_node structure cleanup operation.
+
 config RCU_CPU_STALL_TIMEOUT
 	int "RCU CPU stall timeout in seconds"
 	depends on RCU_STALL_COMMON
@@ -1268,20 +1348,6 @@ config RCU_CPU_STALL_TIMEOUT
 	  RCU grace period persists, additional CPU stall warnings are
 	  printed at more widely spaced intervals.
 
-config RCU_CPU_STALL_INFO
-	bool "Print additional diagnostics on RCU CPU stall"
-	depends on (TREE_RCU || PREEMPT_RCU) && DEBUG_KERNEL
-	default y
-	help
-	  For each stalled CPU that is aware of the current RCU grace
-	  period, print out additional per-CPU diagnostic information
-	  regarding scheduling-clock ticks, idle state, and,
-	  for RCU_FAST_NO_HZ kernels, idle-entry state.
-
-	  Say N if you are unsure.
-
-	  Say Y if you want to enable such diagnostics.
-
 config RCU_TRACE
 	bool "Enable tracing for RCU"
 	depends on DEBUG_KERNEL
@@ -1292,6 +1358,17 @@ config RCU_TRACE
 
 	  Say Y here if you want to enable RCU tracing
 	  Say N if you are unsure.
+
+config RCU_EQS_DEBUG
+	bool "Provide debugging asserts for adding NO_HZ support to an arch"
+	depends on DEBUG_KERNEL
+	help
+	  This option provides consistency checks in RCU's handling of
+	  NO_HZ.  These checks have proven quite helpful in detecting
+	  bugs in arch-specific NO_HZ code.
+
+	  Say N here if you need ultimate kernel/user switch latencies
+	  Say Y if you are unsure
 
 endmenu # "RCU Debugging"
 
@@ -1445,6 +1522,13 @@ config FAIL_MMC_REQUEST
 	  useful to test the error handling in the mmc block device
 	  and to test how the mmc host driver handles retries from
 	  the block device.
+
+config FAIL_FUTEX
+	bool "Fault-injection capability for futexes"
+	select DEBUG_FS
+	depends on FAULT_INJECTION && FUTEX
+	help
+	  Provide fault-injection capability for futexes.
 
 config FAULT_INJECTION_DEBUG_FS
 	bool "Debugfs entries for fault-injection capabilities"
@@ -1602,6 +1686,9 @@ config TEST_STRING_HELPERS
 config TEST_KSTRTOX
 	tristate "Test kstrto*() family of functions at runtime"
 
+config TEST_PRINTF
+	tristate "Test printf() family of functions at runtime"
+
 config TEST_RHASHTABLE
 	tristate "Perform selftest on resizable hash table"
 	default n
@@ -1729,6 +1816,27 @@ config TEST_UDELAY
 	help
 	  This builds the "udelay_test" module that helps to make sure
 	  that udelay() is working properly.
+
+	  If unsure, say N.
+
+config MEMTEST
+	bool "Memtest"
+	depends on HAVE_MEMBLOCK
+	---help---
+	  This option adds a kernel parameter 'memtest', which allows memtest
+	  to be set.
+	        memtest=0, mean disabled; -- default
+	        memtest=1, mean do 1 test pattern;
+	        ...
+	        memtest=17, mean do 17 test patterns.
+	  If you are unsure how to answer this question, answer N.
+
+config TEST_STATIC_KEYS
+	tristate "Test static keys"
+	default n
+	depends on m
+	help
+	  Test the static key interfaces.
 
 	  If unsure, say N.
 

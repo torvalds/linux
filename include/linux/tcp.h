@@ -58,6 +58,7 @@ static inline unsigned int tcp_optlen(const struct sk_buff *skb)
 struct tcp_fastopen_cookie {
 	s8	len;
 	u8	val[TCP_FASTOPEN_COOKIE_MAX];
+	bool	exp;	/* In RFC6994 experimental option format */
 };
 
 /* This defines a selective acknowledgement block. */
@@ -111,10 +112,11 @@ struct tcp_request_sock_ops;
 struct tcp_request_sock {
 	struct inet_request_sock 	req;
 	const struct tcp_request_sock_ops *af_specific;
-	struct sock			*listener; /* needed for TFO */
+	struct skb_mstamp		snt_synack; /* first SYNACK sent time */
+	bool				tfo_listener;
+	u32				txhash;
 	u32				rcv_isn;
 	u32				snt_isn;
-	u32				snt_synack; /* synack sent time */
 	u32				last_oow_ack_time; /* last SYNACK */
 	u32				rcv_nxt; /* the ack # by SYNACK. For
 						  * FastOpen it's the seq#
@@ -144,10 +146,25 @@ struct tcp_sock {
  *	read the code and the spec side by side (and laugh ...)
  *	See RFC793 and RFC1122. The RFC writes these in capitals.
  */
+	u64	bytes_received;	/* RFC4898 tcpEStatsAppHCThruOctetsReceived
+				 * sum(delta(rcv_nxt)), or how many bytes
+				 * were acked.
+				 */
+	u32	segs_in;	/* RFC4898 tcpEStatsPerfSegsIn
+				 * total number of segments in.
+				 */
  	u32	rcv_nxt;	/* What we want to receive next 	*/
 	u32	copied_seq;	/* Head of yet unread data		*/
 	u32	rcv_wup;	/* rcv_nxt on last window update sent	*/
  	u32	snd_nxt;	/* Next sequence we send		*/
+	u32	segs_out;	/* RFC4898 tcpEStatsPerfSegsOut
+				 * The total number of segments sent.
+				 */
+	u64	bytes_acked;	/* RFC4898 tcpEStatsAppHCThruOctetsAcked
+				 * sum(delta(snd_una)), or how many bytes
+				 * were acked.
+				 */
+	struct u64_stats_sync syncp; /* protects 64bit vars (cf tcp_get_info()) */
 
  	u32	snd_una;	/* First byte we want an ack for	*/
  	u32	snd_sml;	/* Last byte of the most recently transmitted small packet */
@@ -177,6 +194,12 @@ struct tcp_sock {
 	u32	window_clamp;	/* Maximal window to advertise		*/
 	u32	rcv_ssthresh;	/* Current window clamp			*/
 
+	/* Information of the most recently (s)acked skb */
+	struct tcp_rack {
+		struct skb_mstamp mstamp; /* (Re)sent time of the skb */
+		u8 advanced; /* mstamp advanced since last lost marking */
+		u8 reord;    /* reordering detected */
+	} rack;
 	u16	advmss;		/* Advertised MSS			*/
 	u8	unused;
 	u8	nonagle     : 4,/* Disable Nagle algorithm?             */
@@ -188,7 +211,9 @@ struct tcp_sock {
 	u8	do_early_retrans:1,/* Enable RFC5827 early-retransmit  */
 		syn_data:1,	/* SYN includes data */
 		syn_fastopen:1,	/* SYN includes Fast Open option */
+		syn_fastopen_exp:1,/* SYN includes Fast Open exp. option */
 		syn_data_acked:1,/* data in SYN is acked by SYN-ACK */
+		save_syn:1,	/* Save headers of SYN packet */
 		is_cwnd_limited:1;/* forward progress limited by snd_cwnd? */
 	u32	tlp_high_seq;	/* snd_nxt at the time of TLP retransmit. */
 
@@ -198,6 +223,9 @@ struct tcp_sock {
 	u32	mdev_max_us;	/* maximal mdev for the last rtt period	*/
 	u32	rttvar_us;	/* smoothed mdev_max			*/
 	u32	rtt_seq;	/* sequence number to update rttvar	*/
+	struct rtt_meas {
+		u32 rtt, ts;	/* RTT in usec and sampling time in jiffies. */
+	} rtt_min[3];
 
 	u32	packets_out;	/* Packets which are "in flight"	*/
 	u32	retrans_out;	/* Retransmitted packets out		*/
@@ -236,7 +264,6 @@ struct tcp_sock {
 	u32	lost_out;	/* Lost packets			*/
 	u32	sacked_out;	/* SACK'd packets			*/
 	u32	fackets_out;	/* FACK'd packets			*/
-	u32	tso_deferred;
 
 	/* from STCP, retrans queue hinting */
 	struct sk_buff* lost_skb_hint;
@@ -261,8 +288,6 @@ struct tcp_sock {
 
 	int     lost_cnt_hint;
 	u32     retransmit_high;	/* L-bits may be on up to this seqno */
-
-	u32	lost_retrans_low;	/* Sent seq after any rxmit (lowest) */
 
 	u32	prior_ssthresh; /* ssthresh saved at recovery start	*/
 	u32	high_seq;	/* snd_nxt at onset of congestion	*/
@@ -317,6 +342,7 @@ struct tcp_sock {
 	 * socket. Used to retransmit SYNACKs etc.
 	 */
 	struct request_sock *fastopen_rsk;
+	u32	*saved_syn;
 };
 
 enum tsq_flags {
@@ -337,8 +363,8 @@ static inline struct tcp_sock *tcp_sk(const struct sock *sk)
 
 struct tcp_timewait_sock {
 	struct inet_timewait_sock tw_sk;
-	u32			  tw_rcv_nxt;
-	u32			  tw_snd_nxt;
+#define tw_rcv_nxt tw_sk.__tw_common.skc_tw_rcv_nxt
+#define tw_snd_nxt tw_sk.__tw_common.skc_tw_snd_nxt
 	u32			  tw_rcv_wnd;
 	u32			  tw_ts_offset;
 	u32			  tw_ts_recent;
@@ -363,25 +389,18 @@ static inline bool tcp_passive_fastopen(const struct sock *sk)
 		tcp_sk(sk)->fastopen_rsk != NULL);
 }
 
-extern void tcp_sock_destruct(struct sock *sk);
-
-static inline int fastopen_init_queue(struct sock *sk, int backlog)
+static inline void fastopen_queue_tune(struct sock *sk, int backlog)
 {
-	struct request_sock_queue *queue =
-	    &inet_csk(sk)->icsk_accept_queue;
+	struct request_sock_queue *queue = &inet_csk(sk)->icsk_accept_queue;
+	int somaxconn = READ_ONCE(sock_net(sk)->core.sysctl_somaxconn);
 
-	if (queue->fastopenq == NULL) {
-		queue->fastopenq = kzalloc(
-		    sizeof(struct fastopen_queue),
-		    sk->sk_allocation);
-		if (queue->fastopenq == NULL)
-			return -ENOMEM;
+	queue->fastopenq.max_qlen = min_t(unsigned int, backlog, somaxconn);
+}
 
-		sk->sk_destruct = tcp_sock_destruct;
-		spin_lock_init(&queue->fastopenq->lock);
-	}
-	queue->fastopenq->max_qlen = backlog;
-	return 0;
+static inline void tcp_saved_syn_free(struct tcp_sock *tp)
+{
+	kfree(tp->saved_syn);
+	tp->saved_syn = NULL;
 }
 
 #endif	/* _LINUX_TCP_H */

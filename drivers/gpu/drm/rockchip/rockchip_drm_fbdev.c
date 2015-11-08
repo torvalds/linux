@@ -37,9 +37,9 @@ static int rockchip_fbdev_mmap(struct fb_info *info,
 static struct fb_ops rockchip_drm_fbdev_ops = {
 	.owner		= THIS_MODULE,
 	.fb_mmap	= rockchip_fbdev_mmap,
-	.fb_fillrect	= cfb_fillrect,
-	.fb_copyarea	= cfb_copyarea,
-	.fb_imageblit	= cfb_imageblit,
+	.fb_fillrect	= drm_fb_helper_cfb_fillrect,
+	.fb_copyarea	= drm_fb_helper_cfb_copyarea,
+	.fb_imageblit	= drm_fb_helper_cfb_imageblit,
 	.fb_check_var	= drm_fb_helper_check_var,
 	.fb_set_par	= drm_fb_helper_set_par,
 	.fb_blank	= drm_fb_helper_blank,
@@ -71,16 +71,16 @@ static int rockchip_drm_fbdev_create(struct drm_fb_helper *helper,
 
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 
-	rk_obj = rockchip_gem_create_object(dev, size);
+	rk_obj = rockchip_gem_create_object(dev, size, true);
 	if (IS_ERR(rk_obj))
 		return -ENOMEM;
 
 	private->fbdev_bo = &rk_obj->base;
 
-	fbi = framebuffer_alloc(0, dev->dev);
-	if (!fbi) {
-		dev_err(dev->dev, "Failed to allocate framebuffer info.\n");
-		ret = -ENOMEM;
+	fbi = drm_fb_helper_alloc_fbi(helper);
+	if (IS_ERR(fbi)) {
+		dev_err(dev->dev, "Failed to create framebuffer info.\n");
+		ret = PTR_ERR(fbi);
 		goto err_rockchip_gem_free_object;
 	}
 
@@ -89,24 +89,16 @@ static int rockchip_drm_fbdev_create(struct drm_fb_helper *helper,
 	if (IS_ERR(helper->fb)) {
 		dev_err(dev->dev, "Failed to allocate DRM framebuffer.\n");
 		ret = PTR_ERR(helper->fb);
-		goto err_framebuffer_release;
+		goto err_release_fbi;
 	}
-
-	helper->fbdev = fbi;
 
 	fbi->par = helper;
 	fbi->flags = FBINFO_FLAG_DEFAULT;
 	fbi->fbops = &rockchip_drm_fbdev_ops;
 
-	ret = fb_alloc_cmap(&fbi->cmap, 256, 0);
-	if (ret) {
-		dev_err(dev->dev, "Failed to allocate color map.\n");
-		goto err_drm_framebuffer_unref;
-	}
-
 	fb = helper->fb;
 	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->depth);
-	drm_fb_helper_fill_var(fbi, helper, fb->width, fb->height);
+	drm_fb_helper_fill_var(fbi, helper, sizes->fb_width, sizes->fb_height);
 
 	offset = fbi->var.xoffset * bytes_per_pixel;
 	offset += fbi->var.yoffset * fb->pitches[0];
@@ -119,12 +111,13 @@ static int rockchip_drm_fbdev_create(struct drm_fb_helper *helper,
 	DRM_DEBUG_KMS("FB [%dx%d]-%d kvaddr=%p offset=%ld size=%d\n",
 		      fb->width, fb->height, fb->depth, rk_obj->kvaddr,
 		      offset, size);
+
+	fbi->skip_vt_switch = true;
+
 	return 0;
 
-err_drm_framebuffer_unref:
-	drm_framebuffer_unreference(helper->fb);
-err_framebuffer_release:
-	framebuffer_release(fbi);
+err_release_fbi:
+	drm_fb_helper_release_fbi(helper);
 err_rockchip_gem_free_object:
 	rockchip_gem_free_object(&rk_obj->base);
 	return ret;
@@ -187,21 +180,8 @@ void rockchip_drm_fbdev_fini(struct drm_device *dev)
 
 	helper = &private->fbdev_helper;
 
-	if (helper->fbdev) {
-		struct fb_info *info;
-		int ret;
-
-		info = helper->fbdev;
-		ret = unregister_framebuffer(info);
-		if (ret < 0)
-			DRM_DEBUG_KMS("failed unregister_framebuffer() - %d\n",
-				      ret);
-
-		if (info->cmap.len)
-			fb_dealloc_cmap(&info->cmap);
-
-		framebuffer_release(info);
-	}
+	drm_fb_helper_unregister_fbi(helper);
+	drm_fb_helper_release_fbi(helper);
 
 	if (helper->fb)
 		drm_framebuffer_unreference(helper->fb);

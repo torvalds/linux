@@ -659,6 +659,7 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	chip = &prv->chip;
 
 	mtd->priv = chip;
+	mtd->dev.parent = dev;
 	chip->priv = prv;
 	prv->dev = dev;
 
@@ -837,10 +838,11 @@ static int mpc5121_nfc_remove(struct platform_device *op)
 	return 0;
 }
 
-static struct of_device_id mpc5121_nfc_match[] = {
+static const struct of_device_id mpc5121_nfc_match[] = {
 	{ .compatible = "fsl,mpc5121-nfc", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, mpc5121_nfc_match);
 
 static struct platform_driver mpc5121_nfc_driver = {
 	.probe		= mpc5121_nfc_probe,

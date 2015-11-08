@@ -35,10 +35,10 @@ static struct dbgp {
 static struct usb_device_descriptor device_desc = {
 	.bLength = sizeof device_desc,
 	.bDescriptorType = USB_DT_DEVICE,
-	.bcdUSB = __constant_cpu_to_le16(0x0200),
+	.bcdUSB = cpu_to_le16(0x0200),
 	.bDeviceClass =	USB_CLASS_VENDOR_SPEC,
-	.idVendor = __constant_cpu_to_le16(DRIVER_VENDOR_ID),
-	.idProduct = __constant_cpu_to_le16(DRIVER_PRODUCT_ID),
+	.idVendor = cpu_to_le16(DRIVER_VENDOR_ID),
+	.idProduct = cpu_to_le16(DRIVER_PRODUCT_ID),
 	.bNumConfigurations = 1,
 };
 
@@ -79,10 +79,7 @@ static int dbgp_consume(char *buf, unsigned len)
 
 static void __disable_ep(struct usb_ep *ep)
 {
-	if (ep && ep->driver_data == dbgp.gadget) {
-		usb_ep_disable(ep);
-		ep->driver_data = NULL;
-	}
+	usb_ep_disable(ep);
 }
 
 static void dbgp_disable_ep(void)
@@ -171,7 +168,6 @@ static int __enable_ep(struct usb_ep *ep, struct usb_endpoint_descriptor *desc)
 	int err;
 	ep->desc = desc;
 	err = usb_ep_enable(ep);
-	ep->driver_data = dbgp.gadget;
 	return err;
 }
 
@@ -229,8 +225,6 @@ static void dbgp_unbind(struct usb_gadget *gadget)
 		usb_ep_free_request(gadget->ep0, dbgp.req);
 		dbgp.req = NULL;
 	}
-
-	gadget->ep0->driver_data = NULL;
 }
 
 #ifdef CONFIG_USB_G_DBGP_SERIAL
@@ -249,20 +243,17 @@ static int dbgp_configure_endpoints(struct usb_gadget *gadget)
 		goto fail_1;
 	}
 
-	dbgp.i_ep->driver_data = gadget;
 	i_desc.wMaxPacketSize =
-		__constant_cpu_to_le16(USB_DEBUG_MAX_PACKET_SIZE);
+		cpu_to_le16(USB_DEBUG_MAX_PACKET_SIZE);
 
 	dbgp.o_ep = usb_ep_autoconfig(gadget, &o_desc);
 	if (!dbgp.o_ep) {
-		dbgp.i_ep->driver_data = NULL;
 		stp = 2;
-		goto fail_2;
+		goto fail_1;
 	}
 
-	dbgp.o_ep->driver_data = gadget;
 	o_desc.wMaxPacketSize =
-		__constant_cpu_to_le16(USB_DEBUG_MAX_PACKET_SIZE);
+		cpu_to_le16(USB_DEBUG_MAX_PACKET_SIZE);
 
 	dbg_desc.bDebugInEndpoint = i_desc.bEndpointAddress;
 	dbg_desc.bDebugOutEndpoint = o_desc.bEndpointAddress;
@@ -277,14 +268,12 @@ static int dbgp_configure_endpoints(struct usb_gadget *gadget)
 
 	return 0;
 
-fail_2:
-	dbgp.i_ep->driver_data = NULL;
 fail_1:
 	dev_dbg(&dbgp.gadget->dev, "ep config: failure (%d)\n", stp);
 	return -ENODEV;
 }
 
-static int __init dbgp_bind(struct usb_gadget *gadget,
+static int dbgp_bind(struct usb_gadget *gadget,
 		struct usb_gadget_driver *driver)
 {
 	int err, stp;
@@ -306,7 +295,6 @@ static int __init dbgp_bind(struct usb_gadget *gadget,
 	}
 
 	dbgp.req->length = DBGP_REQ_EP0_LEN;
-	gadget->ep0->driver_data = gadget;
 
 #ifdef CONFIG_USB_G_DBGP_SERIAL
 	dbgp.serial = kzalloc(sizeof(struct gserial), GFP_KERNEL);
@@ -356,8 +344,6 @@ static int dbgp_setup(struct usb_gadget *gadget,
 	void *data = NULL;
 	u16 len = 0;
 
-	gadget->ep0->driver_data = gadget;
-
 	if (request == USB_REQ_GET_DESCRIPTOR) {
 		switch (value>>8) {
 		case USB_DT_DEVICE:
@@ -406,7 +392,7 @@ fail:
 	return err;
 }
 
-static __refdata struct usb_gadget_driver dbgp_driver = {
+static struct usb_gadget_driver dbgp_driver = {
 	.function = "dbgp",
 	.max_speed = USB_SPEED_HIGH,
 	.bind = dbgp_bind,

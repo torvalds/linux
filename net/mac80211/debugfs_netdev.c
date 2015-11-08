@@ -114,14 +114,6 @@ static ssize_t ieee80211_if_fmt_##name(					\
 	return scnprintf(buf, buflen, "%pM\n", sdata->field);		\
 }
 
-#define IEEE80211_IF_FMT_DEC_DIV_16(name, field)			\
-static ssize_t ieee80211_if_fmt_##name(					\
-	const struct ieee80211_sub_if_data *sdata,			\
-	char *buf, int buflen)						\
-{									\
-	return scnprintf(buf, buflen, "%d\n", sdata->field / 16);	\
-}
-
 #define IEEE80211_IF_FMT_JIFFIES_TO_MS(name, field)			\
 static ssize_t ieee80211_if_fmt_##name(					\
 	const struct ieee80211_sub_if_data *sdata,			\
@@ -177,7 +169,6 @@ static ssize_t ieee80211_if_write_##name(struct file *file,		\
 	IEEE80211_IF_FILE_R(name)
 
 /* common attributes */
-IEEE80211_IF_FILE(drop_unencrypted, drop_unencrypted, DEC);
 IEEE80211_IF_FILE(rc_rateidx_mask_2ghz, rc_rateidx_mask[IEEE80211_BAND_2GHZ],
 		  HEX);
 IEEE80211_IF_FILE(rc_rateidx_mask_5ghz, rc_rateidx_mask[IEEE80211_BAND_5GHZ],
@@ -186,6 +177,38 @@ IEEE80211_IF_FILE(rc_rateidx_mcs_mask_2ghz,
 		  rc_rateidx_mcs_mask[IEEE80211_BAND_2GHZ], HEXARRAY);
 IEEE80211_IF_FILE(rc_rateidx_mcs_mask_5ghz,
 		  rc_rateidx_mcs_mask[IEEE80211_BAND_5GHZ], HEXARRAY);
+
+static ssize_t ieee80211_if_fmt_rc_rateidx_vht_mcs_mask_2ghz(
+				const struct ieee80211_sub_if_data *sdata,
+				char *buf, int buflen)
+{
+	int i, len = 0;
+	const u16 *mask = sdata->rc_rateidx_vht_mcs_mask[IEEE80211_BAND_2GHZ];
+
+	for (i = 0; i < NL80211_VHT_NSS_MAX; i++)
+		len += scnprintf(buf + len, buflen - len, "%04x ", mask[i]);
+	len += scnprintf(buf + len, buflen - len, "\n");
+
+	return len;
+}
+
+IEEE80211_IF_FILE_R(rc_rateidx_vht_mcs_mask_2ghz);
+
+static ssize_t ieee80211_if_fmt_rc_rateidx_vht_mcs_mask_5ghz(
+				const struct ieee80211_sub_if_data *sdata,
+				char *buf, int buflen)
+{
+	int i, len = 0;
+	const u16 *mask = sdata->rc_rateidx_vht_mcs_mask[IEEE80211_BAND_5GHZ];
+
+	for (i = 0; i < NL80211_VHT_NSS_MAX; i++)
+		len += scnprintf(buf + len, buflen - len, "%04x ", mask[i]);
+	len += scnprintf(buf + len, buflen - len, "\n");
+
+	return len;
+}
+
+IEEE80211_IF_FILE_R(rc_rateidx_vht_mcs_mask_5ghz);
 
 IEEE80211_IF_FILE(flags, flags, HEX);
 IEEE80211_IF_FILE(state, state, LHEX);
@@ -216,8 +239,6 @@ IEEE80211_IF_FILE_R(hw_queues);
 /* STA attributes */
 IEEE80211_IF_FILE(bssid, u.mgd.bssid, MAC);
 IEEE80211_IF_FILE(aid, u.mgd.aid, DEC);
-IEEE80211_IF_FILE(last_beacon, u.mgd.last_beacon_signal, DEC);
-IEEE80211_IF_FILE(ave_beacon, u.mgd.ave_beacon_signal, DEC_DIV_16);
 IEEE80211_IF_FILE(beacon_timeout, u.mgd.beacon_timeout, JIFFIES_TO_MS);
 
 static int ieee80211_set_smps(struct ieee80211_sub_if_data *sdata,
@@ -424,6 +445,34 @@ static ssize_t ieee80211_if_parse_uapsd_max_sp_len(
 }
 IEEE80211_IF_FILE_RW(uapsd_max_sp_len);
 
+static ssize_t ieee80211_if_fmt_tdls_wider_bw(
+	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
+{
+	const struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	bool tdls_wider_bw;
+
+	tdls_wider_bw = ieee80211_hw_check(&sdata->local->hw, TDLS_WIDER_BW) &&
+			!ifmgd->tdls_wider_bw_prohibited;
+
+	return snprintf(buf, buflen, "%d\n", tdls_wider_bw);
+}
+
+static ssize_t ieee80211_if_parse_tdls_wider_bw(
+	struct ieee80211_sub_if_data *sdata, const char *buf, int buflen)
+{
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	u8 val;
+	int ret;
+
+	ret = kstrtou8(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	ifmgd->tdls_wider_bw_prohibited = !val;
+	return buflen;
+}
+IEEE80211_IF_FILE_RW(tdls_wider_bw);
+
 /* AP attributes */
 IEEE80211_IF_FILE(num_mcast_sta, u.ap.num_mcast_sta, ATOMIC);
 IEEE80211_IF_FILE(num_sta_ps, u.ap.ps.num_sta_ps, ATOMIC);
@@ -562,11 +611,12 @@ IEEE80211_IF_FILE(dot11MeshAwakeWindowDuration,
 
 static void add_common_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_ADD(drop_unencrypted);
 	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
 	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
 	DEBUGFS_ADD(rc_rateidx_mcs_mask_2ghz);
 	DEBUGFS_ADD(rc_rateidx_mcs_mask_5ghz);
+	DEBUGFS_ADD(rc_rateidx_vht_mcs_mask_2ghz);
+	DEBUGFS_ADD(rc_rateidx_vht_mcs_mask_5ghz);
 	DEBUGFS_ADD(hw_queues);
 }
 
@@ -574,14 +624,13 @@ static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(bssid);
 	DEBUGFS_ADD(aid);
-	DEBUGFS_ADD(last_beacon);
-	DEBUGFS_ADD(ave_beacon);
 	DEBUGFS_ADD(beacon_timeout);
 	DEBUGFS_ADD_MODE(smps, 0600);
 	DEBUGFS_ADD_MODE(tkip_mic_test, 0200);
 	DEBUGFS_ADD_MODE(beacon_loss, 0200);
 	DEBUGFS_ADD_MODE(uapsd_queues, 0600);
 	DEBUGFS_ADD_MODE(uapsd_max_sp_len, 0600);
+	DEBUGFS_ADD_MODE(tdls_wider_bw, 0600);
 }
 
 static void add_ap_files(struct ieee80211_sub_if_data *sdata)
@@ -725,6 +774,7 @@ void ieee80211_debugfs_remove_netdev(struct ieee80211_sub_if_data *sdata)
 
 	debugfs_remove_recursive(sdata->vif.debugfs_dir);
 	sdata->vif.debugfs_dir = NULL;
+	sdata->debugfs.subdir_stations = NULL;
 }
 
 void ieee80211_debugfs_rename_netdev(struct ieee80211_sub_if_data *sdata)

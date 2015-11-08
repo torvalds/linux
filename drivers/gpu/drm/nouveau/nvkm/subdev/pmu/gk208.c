@@ -24,17 +24,17 @@
 #include "priv.h"
 #include "fuc/gk208.fuc5.h"
 
-struct nvkm_oclass *
-gk208_pmu_oclass = &(struct nvkm_pmu_impl) {
-	.base.handle = NV_SUBDEV(PMU, 0x00),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_pmu_ctor,
-		.dtor = _nvkm_pmu_dtor,
-		.init = _nvkm_pmu_init,
-		.fini = _nvkm_pmu_fini,
-	},
+static const struct nvkm_pmu_func
+gk208_pmu = {
 	.code.data = gk208_pmu_code,
 	.code.size = sizeof(gk208_pmu_code),
 	.data.data = gk208_pmu_data,
 	.data.size = sizeof(gk208_pmu_data),
-}.base;
+	.pgob = gk110_pmu_pgob,
+};
+
+int
+gk208_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
+{
+	return nvkm_pmu_new_(&gk208_pmu, device, index, ppmu);
+}

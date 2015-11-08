@@ -29,6 +29,7 @@
 #include <linux/mpage.h>
 #include <linux/quotaops.h>
 #include <linux/blkdev.h>
+#include <linux/uio.h>
 
 #include <cluster/masklog.h>
 
@@ -226,7 +227,7 @@ int ocfs2_read_inline_data(struct inode *inode, struct page *page,
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
 
 	if (!(le16_to_cpu(di->i_dyn_features) & OCFS2_INLINE_DATA_FL)) {
-		ocfs2_error(inode->i_sb, "Inode %llu lost inline data flag",
+		ocfs2_error(inode->i_sb, "Inode %llu lost inline data flag\n",
 			    (unsigned long long)OCFS2_I(inode)->ip_blkno);
 		return -EROFS;
 	}
@@ -236,7 +237,7 @@ int ocfs2_read_inline_data(struct inode *inode, struct page *page,
 	if (size > PAGE_CACHE_SIZE ||
 	    size > ocfs2_max_inline_data_with_xattr(inode->i_sb, di)) {
 		ocfs2_error(inode->i_sb,
-			    "Inode %llu has with inline data has bad size: %Lu",
+			    "Inode %llu has with inline data has bad size: %Lu\n",
 			    (unsigned long long)OCFS2_I(inode)->ip_blkno,
 			    (unsigned long long)size);
 		return -EROFS;
@@ -522,7 +523,7 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 	unsigned char blocksize_bits = inode->i_sb->s_blocksize_bits;
 	unsigned long max_blocks = bh_result->b_size >> inode->i_blkbits;
 	unsigned long len = bh_result->b_size;
-	unsigned int clusters_to_alloc = 0;
+	unsigned int clusters_to_alloc = 0, contig_clusters = 0;
 
 	cpos = ocfs2_blocks_to_clusters(inode->i_sb, iblock);
 
@@ -532,10 +533,14 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 
 	inode_blocks = ocfs2_blocks_for_bytes(inode->i_sb, i_size_read(inode));
 
+	down_read(&OCFS2_I(inode)->ip_alloc_sem);
+
 	/* This figures out the size of the next contiguous block, and
 	 * our logical offset */
 	ret = ocfs2_extent_map_get_blocks(inode, iblock, &p_blkno,
 					  &contig_blocks, &ext_flags);
+	up_read(&OCFS2_I(inode)->ip_alloc_sem);
+
 	if (ret) {
 		mlog(ML_ERROR, "get_blocks() failed iblock=%llu\n",
 		     (unsigned long long)iblock);
@@ -556,16 +561,21 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 
 		alloc_locked = 1;
 
+		down_write(&OCFS2_I(inode)->ip_alloc_sem);
+
 		/* fill hole, allocate blocks can't be larger than the size
 		 * of the hole */
 		clusters_to_alloc = ocfs2_clusters_for_bytes(inode->i_sb, len);
-		if (clusters_to_alloc > contig_blocks)
-			clusters_to_alloc = contig_blocks;
+		contig_clusters = ocfs2_clusters_for_blocks(inode->i_sb,
+				contig_blocks);
+		if (clusters_to_alloc > contig_clusters)
+			clusters_to_alloc = contig_clusters;
 
 		/* allocate extent and insert them into the extent tree */
 		ret = ocfs2_extend_allocation(inode, cpos,
 				clusters_to_alloc, 0);
 		if (ret < 0) {
+			up_write(&OCFS2_I(inode)->ip_alloc_sem);
 			mlog_errno(ret);
 			goto bail;
 		}
@@ -573,11 +583,14 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 		ret = ocfs2_extent_map_get_blocks(inode, iblock, &p_blkno,
 				&contig_blocks, &ext_flags);
 		if (ret < 0) {
+			up_write(&OCFS2_I(inode)->ip_alloc_sem);
 			mlog(ML_ERROR, "get_blocks() failed iblock=%llu\n",
 					(unsigned long long)iblock);
 			ret = -EIO;
 			goto bail;
 		}
+		set_buffer_new(bh_result);
+		up_write(&OCFS2_I(inode)->ip_alloc_sem);
 	}
 
 	/*
@@ -618,19 +631,19 @@ static void ocfs2_dio_end_io(struct kiocb *iocb,
 	/* this io's submitter should not have unlocked this before we could */
 	BUG_ON(!ocfs2_iocb_is_rw_locked(iocb));
 
-	if (ocfs2_iocb_is_sem_locked(iocb))
-		ocfs2_iocb_clear_sem_locked(iocb);
-
 	if (ocfs2_iocb_is_unaligned_aio(iocb)) {
 		ocfs2_iocb_clear_unaligned_aio(iocb);
 
 		mutex_unlock(&OCFS2_I(inode)->ip_unaligned_aio);
 	}
 
-	ocfs2_iocb_clear_rw_locked(iocb);
+	/* Let rw unlock to be done later to protect append direct io write */
+	if (offset + bytes <= i_size_read(inode)) {
+		ocfs2_iocb_clear_rw_locked(iocb);
 
-	level = ocfs2_iocb_rw_locked_level(iocb);
-	ocfs2_rw_unlock(inode, level);
+		level = ocfs2_iocb_rw_locked_level(iocb);
+		ocfs2_rw_unlock(inode, level);
+	}
 }
 
 static int ocfs2_releasepage(struct page *page, gfp_t wait)
@@ -663,6 +676,117 @@ static int ocfs2_is_overwrite(struct ocfs2_super *osb,
 	return 0;
 }
 
+static int ocfs2_direct_IO_zero_extend(struct ocfs2_super *osb,
+		struct inode *inode, loff_t offset,
+		u64 zero_len, int cluster_align)
+{
+	u32 p_cpos = 0;
+	u32 v_cpos = ocfs2_bytes_to_clusters(osb->sb, i_size_read(inode));
+	unsigned int num_clusters = 0;
+	unsigned int ext_flags = 0;
+	int ret = 0;
+
+	if (offset <= i_size_read(inode) || cluster_align)
+		return 0;
+
+	ret = ocfs2_get_clusters(inode, v_cpos, &p_cpos, &num_clusters,
+			&ext_flags);
+	if (ret < 0) {
+		mlog_errno(ret);
+		return ret;
+	}
+
+	if (p_cpos && !(ext_flags & OCFS2_EXT_UNWRITTEN)) {
+		u64 s = i_size_read(inode);
+		sector_t sector = ((u64)p_cpos << (osb->s_clustersize_bits - 9)) +
+			(do_div(s, osb->s_clustersize) >> 9);
+
+		ret = blkdev_issue_zeroout(osb->sb->s_bdev, sector,
+				zero_len >> 9, GFP_NOFS, false);
+		if (ret < 0)
+			mlog_errno(ret);
+	}
+
+	return ret;
+}
+
+static int ocfs2_direct_IO_extend_no_holes(struct ocfs2_super *osb,
+		struct inode *inode, loff_t offset)
+{
+	u64 zero_start, zero_len, total_zero_len;
+	u32 p_cpos = 0, clusters_to_add;
+	u32 v_cpos = ocfs2_bytes_to_clusters(osb->sb, i_size_read(inode));
+	unsigned int num_clusters = 0;
+	unsigned int ext_flags = 0;
+	u32 size_div, offset_div;
+	int ret = 0;
+
+	{
+		u64 o = offset;
+		u64 s = i_size_read(inode);
+
+		offset_div = do_div(o, osb->s_clustersize);
+		size_div = do_div(s, osb->s_clustersize);
+	}
+
+	if (offset <= i_size_read(inode))
+		return 0;
+
+	clusters_to_add = ocfs2_bytes_to_clusters(inode->i_sb, offset) -
+		ocfs2_bytes_to_clusters(inode->i_sb, i_size_read(inode));
+	total_zero_len = offset - i_size_read(inode);
+	if (clusters_to_add)
+		total_zero_len -= offset_div;
+
+	/* Allocate clusters to fill out holes, and this is only needed
+	 * when we add more than one clusters. Otherwise the cluster will
+	 * be allocated during direct IO */
+	if (clusters_to_add > 1) {
+		ret = ocfs2_extend_allocation(inode,
+				OCFS2_I(inode)->ip_clusters,
+				clusters_to_add - 1, 0);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+	}
+
+	while (total_zero_len) {
+		ret = ocfs2_get_clusters(inode, v_cpos, &p_cpos, &num_clusters,
+				&ext_flags);
+		if (ret < 0) {
+			mlog_errno(ret);
+			goto out;
+		}
+
+		zero_start = ocfs2_clusters_to_bytes(osb->sb, p_cpos) +
+			size_div;
+		zero_len = ocfs2_clusters_to_bytes(osb->sb, num_clusters) -
+			size_div;
+		zero_len = min(total_zero_len, zero_len);
+
+		if (p_cpos && !(ext_flags & OCFS2_EXT_UNWRITTEN)) {
+			ret = blkdev_issue_zeroout(osb->sb->s_bdev,
+					zero_start >> 9, zero_len >> 9,
+					GFP_NOFS, false);
+			if (ret < 0) {
+				mlog_errno(ret);
+				goto out;
+			}
+		}
+
+		total_zero_len -= zero_len;
+		v_cpos += ocfs2_bytes_to_clusters(osb->sb, zero_len + size_div);
+
+		/* Only at first iteration can be cluster not aligned.
+		 * So set size_div to 0 for the rest */
+		size_div = 0;
+	}
+
+out:
+	return ret;
+}
+
 static ssize_t ocfs2_direct_IO_write(struct kiocb *iocb,
 		struct iov_iter *iter,
 		loff_t offset)
@@ -677,8 +801,8 @@ static ssize_t ocfs2_direct_IO_write(struct kiocb *iocb,
 	struct buffer_head *di_bh = NULL;
 	size_t count = iter->count;
 	journal_t *journal = osb->journal->j_journal;
-	u32 zero_len;
-	int cluster_align;
+	u64 zero_len_head, zero_len_tail;
+	int cluster_align_head, cluster_align_tail;
 	loff_t final_size = offset + count;
 	int append_write = offset >= i_size_read(inode) ? 1 : 0;
 	unsigned int num_clusters = 0;
@@ -686,9 +810,16 @@ static ssize_t ocfs2_direct_IO_write(struct kiocb *iocb,
 
 	{
 		u64 o = offset;
+		u64 s = i_size_read(inode);
 
-		zero_len = do_div(o, 1 << osb->s_clustersize_bits);
-		cluster_align = !zero_len;
+		zero_len_head = do_div(o, 1 << osb->s_clustersize_bits);
+		cluster_align_head = !zero_len_head;
+
+		zero_len_tail = osb->s_clustersize -
+			do_div(s, osb->s_clustersize);
+		if ((offset - i_size_read(inode)) < zero_len_tail)
+			zero_len_tail = offset - i_size_read(inode);
+		cluster_align_tail = !zero_len_tail;
 	}
 
 	/*
@@ -706,42 +837,47 @@ static ssize_t ocfs2_direct_IO_write(struct kiocb *iocb,
 	}
 
 	if (append_write) {
-		ret = ocfs2_inode_lock(inode, &di_bh, 1);
+		ret = ocfs2_inode_lock(inode, NULL, 1);
 		if (ret < 0) {
 			mlog_errno(ret);
 			goto clean_orphan;
 		}
 
-		if (ocfs2_sparse_alloc(OCFS2_SB(inode->i_sb)))
-			ret = ocfs2_zero_extend(inode, di_bh, offset);
-		else
-			ret = ocfs2_extend_no_holes(inode, di_bh, offset,
+		/* zeroing out the previously allocated cluster tail
+		 * that but not zeroed */
+		if (ocfs2_sparse_alloc(OCFS2_SB(inode->i_sb))) {
+			down_read(&OCFS2_I(inode)->ip_alloc_sem);
+			ret = ocfs2_direct_IO_zero_extend(osb, inode, offset,
+					zero_len_tail, cluster_align_tail);
+			up_read(&OCFS2_I(inode)->ip_alloc_sem);
+		} else {
+			down_write(&OCFS2_I(inode)->ip_alloc_sem);
+			ret = ocfs2_direct_IO_extend_no_holes(osb, inode,
 					offset);
+			up_write(&OCFS2_I(inode)->ip_alloc_sem);
+		}
 		if (ret < 0) {
 			mlog_errno(ret);
 			ocfs2_inode_unlock(inode, 1);
-			brelse(di_bh);
 			goto clean_orphan;
 		}
 
 		is_overwrite = ocfs2_is_overwrite(osb, inode, offset);
 		if (is_overwrite < 0) {
 			mlog_errno(is_overwrite);
+			ret = is_overwrite;
 			ocfs2_inode_unlock(inode, 1);
-			brelse(di_bh);
 			goto clean_orphan;
 		}
 
 		ocfs2_inode_unlock(inode, 1);
-		brelse(di_bh);
-		di_bh = NULL;
 	}
 
-	written = __blockdev_direct_IO(WRITE, iocb, inode, inode->i_sb->s_bdev,
-			iter, offset,
-			ocfs2_direct_IO_get_blocks,
-			ocfs2_dio_end_io, NULL, 0);
-	if (unlikely(written < 0)) {
+	written = __blockdev_direct_IO(iocb, inode, inode->i_sb->s_bdev, iter,
+				       offset, ocfs2_direct_IO_get_blocks,
+				       ocfs2_dio_end_io, NULL, 0);
+	/* overwrite aio may return -EIOCBQUEUED, and it is not an error */
+	if ((written < 0) && (written != -EIOCBQUEUED)) {
 		loff_t i_size = i_size_read(inode);
 
 		if (offset + count > i_size) {
@@ -760,36 +896,48 @@ static ssize_t ocfs2_direct_IO_write(struct kiocb *iocb,
 
 					ocfs2_inode_unlock(inode, 1);
 					brelse(di_bh);
+					di_bh = NULL;
 					goto clean_orphan;
 				}
 			}
 
 			ocfs2_inode_unlock(inode, 1);
 			brelse(di_bh);
+			di_bh = NULL;
 
 			ret = jbd2_journal_force_commit(journal);
 			if (ret < 0)
 				mlog_errno(ret);
 		}
-	} else if (written < 0 && append_write && !is_overwrite &&
-			!cluster_align) {
+	} else if (written > 0 && append_write && !is_overwrite &&
+			!cluster_align_head) {
+		/* zeroing out the allocated cluster head */
 		u32 p_cpos = 0;
 		u32 v_cpos = ocfs2_bytes_to_clusters(osb->sb, offset);
+
+		ret = ocfs2_inode_lock(inode, NULL, 0);
+		if (ret < 0) {
+			mlog_errno(ret);
+			goto clean_orphan;
+		}
 
 		ret = ocfs2_get_clusters(inode, v_cpos, &p_cpos,
 				&num_clusters, &ext_flags);
 		if (ret < 0) {
 			mlog_errno(ret);
+			ocfs2_inode_unlock(inode, 0);
 			goto clean_orphan;
 		}
 
 		BUG_ON(!p_cpos || (ext_flags & OCFS2_EXT_UNWRITTEN));
 
 		ret = blkdev_issue_zeroout(osb->sb->s_bdev,
-				p_cpos << (osb->s_clustersize_bits - 9),
-				zero_len >> 9, GFP_KERNEL, false);
+				(u64)p_cpos << (osb->s_clustersize_bits - 9),
+				zero_len_head >> 9, GFP_NOFS, false);
 		if (ret < 0)
 			mlog_errno(ret);
+
+		ocfs2_inode_unlock(inode, 0);
 	}
 
 clean_orphan:
@@ -798,12 +946,24 @@ clean_orphan:
 		int update_isize = written > 0 ? 1 : 0;
 		loff_t end = update_isize ? offset + written : 0;
 
-		tmp_ret = ocfs2_del_inode_from_orphan(osb, inode,
+		tmp_ret = ocfs2_inode_lock(inode, &di_bh, 1);
+		if (tmp_ret < 0) {
+			ret = tmp_ret;
+			mlog_errno(ret);
+			goto out;
+		}
+
+		tmp_ret = ocfs2_del_inode_from_orphan(osb, inode, di_bh,
 				update_isize, end);
 		if (tmp_ret < 0) {
 			ret = tmp_ret;
+			mlog_errno(ret);
+			brelse(di_bh);
 			goto out;
 		}
+
+		ocfs2_inode_unlock(inode, 1);
+		brelse(di_bh);
 
 		tmp_ret = jbd2_journal_force_commit(journal);
 		if (tmp_ret < 0) {
@@ -818,9 +978,7 @@ out:
 	return ret;
 }
 
-static ssize_t ocfs2_direct_IO(int rw,
-			       struct kiocb *iocb,
-			       struct iov_iter *iter,
+static ssize_t ocfs2_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 			       loff_t offset)
 {
 	struct file *file = iocb->ki_filp;
@@ -842,12 +1000,11 @@ static ssize_t ocfs2_direct_IO(int rw,
 	if (i_size_read(inode) <= offset && !full_coherency)
 		return 0;
 
-	if (rw == READ)
-		return __blockdev_direct_IO(rw, iocb, inode,
-				    inode->i_sb->s_bdev,
-				    iter, offset,
-				    ocfs2_direct_IO_get_blocks,
-				    ocfs2_dio_end_io, NULL, 0);
+	if (iov_iter_rw(iter) == READ)
+		return __blockdev_direct_IO(iocb, inode, inode->i_sb->s_bdev,
+					    iter, offset,
+					    ocfs2_direct_IO_get_blocks,
+					    ocfs2_dio_end_io, NULL, 0);
 	else
 		return ocfs2_direct_IO_write(iocb, iter, offset);
 }
@@ -2052,10 +2209,7 @@ try_again:
 		if (ret)
 			goto out_commit;
 	}
-	/*
-	 * We don't want this to fail in ocfs2_write_end(), so do it
-	 * here.
-	 */
+
 	ret = ocfs2_journal_access_di(handle, INODE_CACHE(inode), wc->w_di_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
@@ -2212,7 +2366,7 @@ int ocfs2_write_end_nolock(struct address_space *mapping,
 			   loff_t pos, unsigned len, unsigned copied,
 			   struct page *page, void *fsdata)
 {
-	int i;
+	int i, ret;
 	unsigned from, to, start = pos & (PAGE_CACHE_SIZE - 1);
 	struct inode *inode = mapping->host;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
@@ -2220,6 +2374,14 @@ int ocfs2_write_end_nolock(struct address_space *mapping,
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)wc->w_di_bh->b_data;
 	handle_t *handle = wc->w_handle;
 	struct page *tmppage;
+
+	ret = ocfs2_journal_access_di(handle, INODE_CACHE(inode), wc->w_di_bh,
+			OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret) {
+		copied = ret;
+		mlog_errno(ret);
+		goto out;
+	}
 
 	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL) {
 		ocfs2_write_end_inline(inode, pos, len, &copied, di, wc);
@@ -2276,6 +2438,7 @@ out_write_size:
 	ocfs2_update_inode_fsync_trans(handle, inode, 1);
 	ocfs2_journal_dirty(handle, wc->w_di_bh);
 
+out:
 	/* unlock pages before dealloc since it needs acquiring j_trans_barrier
 	 * lock, or it will cause a deadlock since journal commit threads holds
 	 * this lock and will ask for the page lock when flushing the data.

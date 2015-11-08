@@ -122,8 +122,10 @@ struct rtnl_af_ops {
 	int			family;
 
 	int			(*fill_link_af)(struct sk_buff *skb,
-						const struct net_device *dev);
-	size_t			(*get_link_af_size)(const struct net_device *dev);
+						const struct net_device *dev,
+						u32 ext_filter_mask);
+	size_t			(*get_link_af_size)(const struct net_device *dev,
+						    u32 ext_filter_mask);
 
 	int			(*validate_link_af)(const struct net_device *dev,
 						    const struct nlattr *attr);
@@ -137,10 +139,11 @@ void rtnl_af_register(struct rtnl_af_ops *ops);
 void rtnl_af_unregister(struct rtnl_af_ops *ops);
 
 struct net *rtnl_link_get_net(struct net *src_net, struct nlattr *tb[]);
-struct net_device *rtnl_create_link(struct net *net, char *ifname,
+struct net_device *rtnl_create_link(struct net *net, const char *ifname,
 				    unsigned char name_assign_type,
 				    const struct rtnl_link_ops *ops,
 				    struct nlattr *tb[]);
+int rtnl_delete_link(struct net_device *dev);
 int rtnl_configure_link(struct net_device *dev, const struct ifinfomsg *ifm);
 
 int rtnl_nla_parse_ifla(struct nlattr **tb, const struct nlattr *head, int len);

@@ -950,7 +950,7 @@ static void qe_uart_set_termios(struct uart_port *port,
 	if ((termios->c_cflag & CREAD) == 0)
 		port->read_status_mask &= ~BD_SC_EMPTY;
 
-	baud = uart_get_baud_rate(port, termios, old, 0, 115200);
+	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk / 16);
 
 	/* Do we really need a spinlock here? */
 	spin_lock_irqsave(&port->lock, flags);
@@ -1473,7 +1473,7 @@ static int ucc_uart_remove(struct platform_device *ofdev)
 	return 0;
 }
 
-static struct of_device_id ucc_uart_match[] = {
+static const struct of_device_id ucc_uart_match[] = {
 	{
 		.type = "serial",
 		.compatible = "ucc_uart",

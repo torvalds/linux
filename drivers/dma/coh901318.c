@@ -2730,7 +2730,7 @@ static int __init coh901318_probe(struct platform_device *pdev)
 	 * This controller can only access address at even 32bit boundaries,
 	 * i.e. 2^2
 	 */
-	base->dma_memcpy.copy_align = 2;
+	base->dma_memcpy.copy_align = DMAENGINE_ALIGN_4_BYTES;
 	err = dma_async_device_register(&base->dma_memcpy);
 
 	if (err)

@@ -316,7 +316,7 @@ qla2x00_clear_nvram_protection(struct qla_hw_data *ha)
 
 	wprot_old = cpu_to_le16(qla2x00_get_nvram_word(ha, ha->nvram_base));
 	stat = qla2x00_write_nvram_word_tmo(ha, ha->nvram_base,
-	    __constant_cpu_to_le16(0x1234), 100000);
+					    cpu_to_le16(0x1234), 100000);
 	wprot = cpu_to_le16(qla2x00_get_nvram_word(ha, ha->nvram_base));
 	if (stat != QLA_SUCCESS || wprot != 0x1234) {
 		/* Write enable. */
@@ -691,9 +691,9 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 	region = (struct qla_flt_region *)&flt[1];
 	ha->isp_ops->read_optrom(vha, (uint8_t *)req->ring,
 	    flt_addr << 2, OPTROM_BURST_SIZE);
-	if (*wptr == __constant_cpu_to_le16(0xffff))
+	if (*wptr == cpu_to_le16(0xffff))
 		goto no_flash_data;
-	if (flt->version != __constant_cpu_to_le16(1)) {
+	if (flt->version != cpu_to_le16(1)) {
 		ql_log(ql_log_warn, vha, 0x0047,
 		    "Unsupported FLT detected: version=0x%x length=0x%x checksum=0x%x.\n",
 		    le16_to_cpu(flt->version), le16_to_cpu(flt->length),
@@ -892,7 +892,7 @@ qla2xxx_get_fdt_info(scsi_qla_host_t *vha)
 	fdt = (struct qla_fdt_layout *)req->ring;
 	ha->isp_ops->read_optrom(vha, (uint8_t *)req->ring,
 	    ha->flt_region_fdt << 2, OPTROM_BURST_SIZE);
-	if (*wptr == __constant_cpu_to_le16(0xffff))
+	if (*wptr == cpu_to_le16(0xffff))
 		goto no_flash_data;
 	if (fdt->sig[0] != 'Q' || fdt->sig[1] != 'L' || fdt->sig[2] != 'I' ||
 	    fdt->sig[3] != 'D')
@@ -991,7 +991,7 @@ qla2xxx_get_idc_param(scsi_qla_host_t *vha)
 	ha->isp_ops->read_optrom(vha, (uint8_t *)req->ring,
 		QLA82XX_IDC_PARAM_ADDR , 8);
 
-	if (*wptr == __constant_cpu_to_le32(0xffffffff)) {
+	if (*wptr == cpu_to_le32(0xffffffff)) {
 		ha->fcoe_dev_init_timeout = QLA82XX_ROM_DEV_INIT_TIMEOUT;
 		ha->fcoe_reset_timeout = QLA82XX_ROM_DRV_RESET_ACK_TIMEOUT;
 	} else {
@@ -1051,9 +1051,9 @@ qla2xxx_flash_npiv_conf(scsi_qla_host_t *vha)
 
 	ha->isp_ops->read_optrom(vha, (uint8_t *)&hdr,
 	    ha->flt_region_npiv_conf << 2, sizeof(struct qla_npiv_header));
-	if (hdr.version == __constant_cpu_to_le16(0xffff))
+	if (hdr.version == cpu_to_le16(0xffff))
 		return;
-	if (hdr.version != __constant_cpu_to_le16(1)) {
+	if (hdr.version != cpu_to_le16(1)) {
 		ql_dbg(ql_dbg_user, vha, 0x7090,
 		    "Unsupported NPIV-Config "
 		    "detected: version=0x%x entries=0x%x checksum=0x%x.\n",
@@ -1697,7 +1697,7 @@ qla83xx_select_led_port(struct qla_hw_data *ha)
 {
 	uint32_t led_select_value = 0;
 
-	if (!IS_QLA83XX(ha))
+	if (!IS_QLA83XX(ha) && !IS_QLA27XX(ha))
 		goto out;
 
 	if (ha->port_no == 0)
@@ -1718,13 +1718,16 @@ qla83xx_beacon_blink(struct scsi_qla_host *vha)
 	uint16_t orig_led_cfg[6];
 	uint32_t led_10_value, led_43_value;
 
-	if (!IS_QLA83XX(ha) && !IS_QLA81XX(ha))
+	if (!IS_QLA83XX(ha) && !IS_QLA81XX(ha) && !IS_QLA27XX(ha))
 		return;
 
 	if (!ha->beacon_blink_led)
 		return;
 
-	if (IS_QLA2031(ha)) {
+	if (IS_QLA27XX(ha)) {
+		qla2x00_write_ram_word(vha, 0x1003, 0x40000230);
+		qla2x00_write_ram_word(vha, 0x1004, 0x40000230);
+	} else if (IS_QLA2031(ha)) {
 		led_select_value = qla83xx_select_led_port(ha);
 
 		qla83xx_wr_reg(vha, led_select_value, 0x40000230);
@@ -1811,7 +1814,7 @@ qla24xx_beacon_on(struct scsi_qla_host *vha)
 			return QLA_FUNCTION_FAILED;
 		}
 
-		if (IS_QLA2031(ha))
+		if (IS_QLA2031(ha) || IS_QLA27XX(ha))
 			goto skip_gpio;
 
 		spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -1848,7 +1851,7 @@ qla24xx_beacon_off(struct scsi_qla_host *vha)
 
 	ha->beacon_blink_led = 0;
 
-	if (IS_QLA2031(ha))
+	if (IS_QLA2031(ha) || IS_QLA27XX(ha))
 		goto set_fw_options;
 
 	if (IS_QLA8031(ha) || IS_QLA81XX(ha))

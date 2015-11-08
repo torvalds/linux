@@ -16,6 +16,8 @@
 #include <linux/clkdev.h>
 #include <linux/clk/ti.h>
 
+#include "clock.h"
+
 /*
  * OMAP4 ABE DPLL default frequency. In OMAP4460 TRM version V, section
  * "3.6.3.2.3 CM1_ABE Clock Generator" states that the "DPLL_ABE_X2_CLK
@@ -249,17 +251,6 @@ static struct ti_dt_clk omap44xx_clks[] = {
 	DT_CLK("usbhs_tll", "usbtll_fck", "dummy_ck"),
 	DT_CLK("omap_wdt", "ick", "dummy_ck"),
 	DT_CLK(NULL, "timer_32k_ck", "sys_32k_ck"),
-	DT_CLK("omap_timer.1", "timer_sys_ck", "sys_clkin_ck"),
-	DT_CLK("omap_timer.2", "timer_sys_ck", "sys_clkin_ck"),
-	DT_CLK("omap_timer.3", "timer_sys_ck", "sys_clkin_ck"),
-	DT_CLK("omap_timer.4", "timer_sys_ck", "sys_clkin_ck"),
-	DT_CLK("omap_timer.9", "timer_sys_ck", "sys_clkin_ck"),
-	DT_CLK("omap_timer.10", "timer_sys_ck", "sys_clkin_ck"),
-	DT_CLK("omap_timer.11", "timer_sys_ck", "sys_clkin_ck"),
-	DT_CLK("omap_timer.5", "timer_sys_ck", "syc_clk_div_ck"),
-	DT_CLK("omap_timer.6", "timer_sys_ck", "syc_clk_div_ck"),
-	DT_CLK("omap_timer.7", "timer_sys_ck", "syc_clk_div_ck"),
-	DT_CLK("omap_timer.8", "timer_sys_ck", "syc_clk_div_ck"),
 	DT_CLK("4a318000.timer", "timer_sys_ck", "sys_clkin_ck"),
 	DT_CLK("48032000.timer", "timer_sys_ck", "sys_clkin_ck"),
 	DT_CLK("48034000.timer", "timer_sys_ck", "sys_clkin_ck"),

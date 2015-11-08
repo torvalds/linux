@@ -2245,6 +2245,20 @@ typedef struct {
 #define FILE_DEVICE_VIRTUAL_DISK        0x00000024
 #define FILE_DEVICE_NETWORK_REDIRECTOR  0x00000028
 
+/* Device Characteristics */
+#define FILE_REMOVABLE_MEDIA			0x00000001
+#define FILE_READ_ONLY_DEVICE			0x00000002
+#define FILE_FLOPPY_DISKETTE			0x00000004
+#define FILE_WRITE_ONCE_MEDIA			0x00000008
+#define FILE_REMOTE_DEVICE			0x00000010
+#define FILE_DEVICE_IS_MOUNTED			0x00000020
+#define FILE_VIRTUAL_VOLUME			0x00000040
+#define FILE_DEVICE_SECURE_OPEN			0x00000100
+#define FILE_CHARACTERISTIC_TS_DEVICE		0x00001000
+#define FILE_CHARACTERISTIC_WEBDAV_DEVICE	0x00002000
+#define FILE_PORTABLE_DEVICE			0x00004000
+#define FILE_DEVICE_ALLOW_APPCONTAINER_TRAVERSAL 0x00020000
+
 typedef struct {
 	__le32 DeviceType;
 	__le32 DeviceCharacteristics;
@@ -2255,6 +2269,8 @@ typedef struct {
 
 
 /* List of FileSystemAttributes - see 2.5.1 of MS-FSCC */
+#define FILE_SUPPORTS_SPARSE_VDL	0x10000000 /* faster nonsparse extend */
+#define FILE_SUPPORTS_BLOCK_REFCOUNTING	0x08000000 /* allow ioctl dup extents */
 #define FILE_SUPPORT_INTEGRITY_STREAMS	0x04000000
 #define FILE_SUPPORTS_USN_JOURNAL	0x02000000
 #define FILE_SUPPORTS_OPEN_BY_FILE_ID	0x01000000
@@ -2309,6 +2325,16 @@ typedef struct { /* data block encoding of response to level 263 QPathInfo */
 	__le32 FileNameLength;
 	char FileName[1];
 } __attribute__((packed)) FILE_ALL_INFO;	/* level 0x107 QPathInfo */
+
+typedef struct {
+	__le64 AllocationSize;
+	__le64 EndOfFile;	/* size ie offset to first free byte in file */
+	__le32 NumberOfLinks;	/* hard links */
+	__u8 DeletePending;
+	__u8 Directory;
+	__u16 Pad;
+} __attribute__((packed)) FILE_STANDARD_INFO;	/* level 0x102 QPathInfo */
+
 
 /* defines for enumerating possible values of the Unix type field below */
 #define UNIX_FILE      0

@@ -23,10 +23,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/kernel.h>
@@ -161,11 +157,15 @@ static void __iomem *ghes_ioremap_pfn_nmi(u64 pfn)
 
 static void __iomem *ghes_ioremap_pfn_irq(u64 pfn)
 {
-	unsigned long vaddr;
+	unsigned long vaddr, paddr;
+	pgprot_t prot;
 
 	vaddr = (unsigned long)GHES_IOREMAP_IRQ_PAGE(ghes_ioremap_area->addr);
-	ioremap_page_range(vaddr, vaddr + PAGE_SIZE,
-			   pfn << PAGE_SHIFT, PAGE_KERNEL);
+
+	paddr = pfn << PAGE_SHIFT;
+	prot = arch_apei_get_mem_attribute(paddr);
+
+	ioremap_page_range(vaddr, vaddr + PAGE_SIZE, paddr, prot);
 
 	return (void __iomem *)vaddr;
 }
@@ -729,10 +729,10 @@ static struct llist_head ghes_estatus_llist;
 static struct irq_work ghes_proc_irq_work;
 
 /*
- * NMI may be triggered on any CPU, so ghes_nmi_lock is used for
- * mutual exclusion.
+ * NMI may be triggered on any CPU, so ghes_in_nmi is used for
+ * having only one concurrent reader.
  */
-static DEFINE_RAW_SPINLOCK(ghes_nmi_lock);
+static atomic_t ghes_in_nmi = ATOMIC_INIT(0);
 
 static LIST_HEAD(ghes_nmi);
 
@@ -797,73 +797,75 @@ static void ghes_print_queued_estatus(void)
 	}
 }
 
+/* Save estatus for further processing in IRQ context */
+static void __process_error(struct ghes *ghes)
+{
+#ifdef CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG
+	u32 len, node_len;
+	struct ghes_estatus_node *estatus_node;
+	struct acpi_hest_generic_status *estatus;
+
+	if (ghes_estatus_cached(ghes->estatus))
+		return;
+
+	len = cper_estatus_len(ghes->estatus);
+	node_len = GHES_ESTATUS_NODE_LEN(len);
+
+	estatus_node = (void *)gen_pool_alloc(ghes_estatus_pool, node_len);
+	if (!estatus_node)
+		return;
+
+	estatus_node->ghes = ghes;
+	estatus_node->generic = ghes->generic;
+	estatus = GHES_ESTATUS_FROM_NODE(estatus_node);
+	memcpy(estatus, ghes->estatus, len);
+	llist_add(&estatus_node->llnode, &ghes_estatus_llist);
+#endif
+}
+
+static void __ghes_panic(struct ghes *ghes)
+{
+	oops_begin();
+	ghes_print_queued_estatus();
+	__ghes_print_estatus(KERN_EMERG, ghes->generic, ghes->estatus);
+
+	/* reboot to log the error! */
+	if (panic_timeout == 0)
+		panic_timeout = ghes_panic_timeout;
+	panic("Fatal hardware error!");
+}
+
 static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
 {
-	struct ghes *ghes, *ghes_global = NULL;
-	int sev, sev_global = -1;
-	int ret = NMI_DONE;
+	struct ghes *ghes;
+	int sev, ret = NMI_DONE;
 
-	raw_spin_lock(&ghes_nmi_lock);
+	if (!atomic_add_unless(&ghes_in_nmi, 1, 1))
+		return ret;
+
 	list_for_each_entry_rcu(ghes, &ghes_nmi, list) {
 		if (ghes_read_estatus(ghes, 1)) {
 			ghes_clear_estatus(ghes);
 			continue;
 		}
+
 		sev = ghes_severity(ghes->estatus->error_severity);
-		if (sev > sev_global) {
-			sev_global = sev;
-			ghes_global = ghes;
-		}
+		if (sev >= GHES_SEV_PANIC)
+			__ghes_panic(ghes);
+
+		if (!(ghes->flags & GHES_TO_CLEAR))
+			continue;
+
+		__process_error(ghes);
+		ghes_clear_estatus(ghes);
+
 		ret = NMI_HANDLED;
 	}
 
-	if (ret == NMI_DONE)
-		goto out;
-
-	if (sev_global >= GHES_SEV_PANIC) {
-		oops_begin();
-		ghes_print_queued_estatus();
-		__ghes_print_estatus(KERN_EMERG, ghes_global->generic,
-				     ghes_global->estatus);
-		/* reboot to log the error! */
-		if (panic_timeout == 0)
-			panic_timeout = ghes_panic_timeout;
-		panic("Fatal hardware error!");
-	}
-
-	list_for_each_entry_rcu(ghes, &ghes_nmi, list) {
-#ifdef CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG
-		u32 len, node_len;
-		struct ghes_estatus_node *estatus_node;
-		struct acpi_hest_generic_status *estatus;
-#endif
-		if (!(ghes->flags & GHES_TO_CLEAR))
-			continue;
-#ifdef CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG
-		if (ghes_estatus_cached(ghes->estatus))
-			goto next;
-		/* Save estatus for further processing in IRQ context */
-		len = cper_estatus_len(ghes->estatus);
-		node_len = GHES_ESTATUS_NODE_LEN(len);
-		estatus_node = (void *)gen_pool_alloc(ghes_estatus_pool,
-						      node_len);
-		if (estatus_node) {
-			estatus_node->ghes = ghes;
-			estatus_node->generic = ghes->generic;
-			estatus = GHES_ESTATUS_FROM_NODE(estatus_node);
-			memcpy(estatus, ghes->estatus, len);
-			llist_add(&estatus_node->llnode, &ghes_estatus_llist);
-		}
-next:
-#endif
-		ghes_clear_estatus(ghes);
-	}
 #ifdef CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG
 	irq_work_queue(&ghes_proc_irq_work);
 #endif
-
-out:
-	raw_spin_unlock(&ghes_nmi_lock);
+	atomic_dec(&ghes_in_nmi);
 	return ret;
 }
 

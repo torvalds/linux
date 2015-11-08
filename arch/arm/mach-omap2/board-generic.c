@@ -20,13 +20,6 @@
 
 #include "common.h"
 
-#if !(defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3))
-#define intc_of_init	NULL
-#endif
-#ifndef CONFIG_ARCH_OMAP4
-#define gic_of_init		NULL
-#endif
-
 static const struct of_device_id omap_dt_match_table[] __initconst = {
 	{ .compatible = "simple-bus", },
 	{ .compatible = "ti,omap-infra", },
@@ -113,6 +106,7 @@ DT_MACHINE_START(OMAP3_DT, "Generic OMAP3 (Flattened Device Tree)")
 MACHINE_END
 
 static const char *const omap36xx_boards_compat[] __initconst = {
+	"ti,omap3630",
 	"ti,omap36xx",
 	NULL,
 };
@@ -169,7 +163,7 @@ static const char *const ti814x_boards_compat[] __initconst = {
 	NULL,
 };
 
-DT_MACHINE_START(TI81XX_DT, "Generic ti814x (Flattened Device Tree)")
+DT_MACHINE_START(TI814X_DT, "Generic ti814x (Flattened Device Tree)")
 	.reserve	= omap_reserve,
 	.map_io		= ti81xx_map_io,
 	.init_early	= ti814x_init_early,
@@ -250,6 +244,9 @@ static const char *const omap5_boards_compat[] __initconst = {
 };
 
 DT_MACHINE_START(OMAP5_DT, "Generic OMAP5 (Flattened Device Tree)")
+#if defined(CONFIG_ZONE_DMA) && defined(CONFIG_ARM_LPAE)
+	.dma_zone_size	= SZ_2G,
+#endif
 	.reserve	= omap_reserve,
 	.smp		= smp_ops(omap4_smp_ops),
 	.map_io		= omap5_map_io,
@@ -295,9 +292,12 @@ static const char *const dra74x_boards_compat[] __initconst = {
 };
 
 DT_MACHINE_START(DRA74X_DT, "Generic DRA74X (Flattened Device Tree)")
+#if defined(CONFIG_ZONE_DMA) && defined(CONFIG_ARM_LPAE)
+	.dma_zone_size	= SZ_2G,
+#endif
 	.reserve	= omap_reserve,
 	.smp		= smp_ops(omap4_smp_ops),
-	.map_io		= omap5_map_io,
+	.map_io		= dra7xx_map_io,
 	.init_early	= dra7xx_init_early,
 	.init_late	= dra7xx_init_late,
 	.init_irq	= omap_gic_of_init,
@@ -315,8 +315,11 @@ static const char *const dra72x_boards_compat[] __initconst = {
 };
 
 DT_MACHINE_START(DRA72X_DT, "Generic DRA72X (Flattened Device Tree)")
+#if defined(CONFIG_ZONE_DMA) && defined(CONFIG_ARM_LPAE)
+	.dma_zone_size	= SZ_2G,
+#endif
 	.reserve	= omap_reserve,
-	.map_io		= omap5_map_io,
+	.map_io		= dra7xx_map_io,
 	.init_early	= dra7xx_init_early,
 	.init_late	= dra7xx_init_late,
 	.init_irq	= omap_gic_of_init,

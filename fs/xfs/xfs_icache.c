@@ -412,6 +412,8 @@ xfs_iget(
 	if (!ino || XFS_INO_TO_AGNO(mp, ino) >= mp->m_sb.sb_agcount)
 		return -EINVAL;
 
+	XFS_STATS_INC(xs_ig_attempts);
+
 	/* get the perag structure and ensure that it's inode capable */
 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, ino));
 	agino = XFS_INO_TO_AGINO(mp, ino);
@@ -439,11 +441,11 @@ again:
 	*ipp = ip;
 
 	/*
-	 * If we have a real type for an on-disk inode, we can set ops(&unlock)
+	 * If we have a real type for an on-disk inode, we can setup the inode
 	 * now.	 If it's a new inode being created, xfs_ialloc will handle it.
 	 */
 	if (xfs_iflags_test(ip, XFS_INEW) && ip->i_d.di_mode != 0)
-		xfs_setup_inode(ip);
+		xfs_setup_existing_inode(ip);
 	return 0;
 
 out_error_or_again:

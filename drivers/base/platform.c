@@ -101,6 +101,15 @@ int platform_get_irq(struct platform_device *dev, unsigned int num)
 	}
 
 	r = platform_get_resource(dev, IORESOURCE_IRQ, num);
+	/*
+	 * The resources may pass trigger flags to the irqs that need
+	 * to be set up. It so happens that the trigger flags for
+	 * IORESOURCE_BITS correspond 1-to-1 to the IRQF_TRIGGER*
+	 * settings.
+	 */
+	if (r && r->flags & IORESOURCE_BITS)
+		irqd_set_trigger_type(irq_get_irq_data(r->start),
+				      r->flags & IORESOURCE_BITS);
 
 	return r ? r->start : -ENXIO;
 #endif
@@ -366,9 +375,7 @@ int platform_device_add(struct platform_device *pdev)
 
 	while (--i >= 0) {
 		struct resource *r = &pdev->resource[i];
-		unsigned long type = resource_type(r);
-
-		if (type == IORESOURCE_MEM || type == IORESOURCE_IO)
+		if (r->parent)
 			release_resource(r);
 	}
 
@@ -399,9 +406,7 @@ void platform_device_del(struct platform_device *pdev)
 
 		for (i = 0; i < pdev->num_resources; i++) {
 			struct resource *r = &pdev->resource[i];
-			unsigned long type = resource_type(r);
-
-			if (type == IORESOURCE_MEM || type == IORESOURCE_IO)
+			if (r->parent)
 				release_resource(r);
 		}
 	}
@@ -454,7 +459,7 @@ struct platform_device *platform_device_register_full(
 		goto err_alloc;
 
 	pdev->dev.parent = pdevinfo->parent;
-	ACPI_COMPANION_SET(&pdev->dev, pdevinfo->acpi_node.companion);
+	pdev->dev.fwnode = pdevinfo->fwnode;
 
 	if (pdevinfo->dma_mask) {
 		/*
@@ -508,7 +513,7 @@ static int platform_drv_probe(struct device *_dev)
 		return ret;
 
 	ret = dev_pm_domain_attach(_dev, true);
-	if (ret != -EPROBE_DEFER) {
+	if (ret != -EPROBE_DEFER && drv->probe) {
 		ret = drv->probe(dev);
 		if (ret)
 			dev_pm_domain_detach(_dev, true);
@@ -531,9 +536,10 @@ static int platform_drv_remove(struct device *_dev)
 {
 	struct platform_driver *drv = to_platform_driver(_dev->driver);
 	struct platform_device *dev = to_platform_device(_dev);
-	int ret;
+	int ret = 0;
 
-	ret = drv->remove(dev);
+	if (drv->remove)
+		ret = drv->remove(dev);
 	dev_pm_domain_detach(_dev, true);
 
 	return ret;
@@ -544,7 +550,8 @@ static void platform_drv_shutdown(struct device *_dev)
 	struct platform_driver *drv = to_platform_driver(_dev->driver);
 	struct platform_device *dev = to_platform_device(_dev);
 
-	drv->shutdown(dev);
+	if (drv->shutdown)
+		drv->shutdown(dev);
 	dev_pm_domain_detach(_dev, true);
 }
 
@@ -558,12 +565,9 @@ int __platform_driver_register(struct platform_driver *drv,
 {
 	drv->driver.owner = owner;
 	drv->driver.bus = &platform_bus_type;
-	if (drv->probe)
-		drv->driver.probe = platform_drv_probe;
-	if (drv->remove)
-		drv->driver.remove = platform_drv_remove;
-	if (drv->shutdown)
-		drv->driver.shutdown = platform_drv_shutdown;
+	drv->driver.probe = platform_drv_probe;
+	drv->driver.remove = platform_drv_remove;
+	drv->driver.shutdown = platform_drv_shutdown;
 
 	return driver_register(&drv->driver);
 }
@@ -603,6 +607,19 @@ int __init_or_module __platform_driver_probe(struct platform_driver *drv,
 		int (*probe)(struct platform_device *), struct module *module)
 {
 	int retval, code;
+
+	if (drv->driver.probe_type == PROBE_PREFER_ASYNCHRONOUS) {
+		pr_err("%s: drivers registered with %s can not be probed asynchronously\n",
+			 drv->driver.name, __func__);
+		return -EINVAL;
+	}
+
+	/*
+	 * We have to run our probes synchronously because we check if
+	 * we find any devices to bind to and exit with error if there
+	 * are any.
+	 */
+	drv->driver.probe_type = PROBE_FORCE_SYNCHRONOUS;
 
 	/*
 	 * Prevent driver from requesting probe deferral to avoid further
@@ -692,6 +709,67 @@ err_out:
 	return ERR_PTR(error);
 }
 EXPORT_SYMBOL_GPL(__platform_create_bundle);
+
+/**
+ * __platform_register_drivers - register an array of platform drivers
+ * @drivers: an array of drivers to register
+ * @count: the number of drivers to register
+ * @owner: module owning the drivers
+ *
+ * Registers platform drivers specified by an array. On failure to register a
+ * driver, all previously registered drivers will be unregistered. Callers of
+ * this API should use platform_unregister_drivers() to unregister drivers in
+ * the reverse order.
+ *
+ * Returns: 0 on success or a negative error code on failure.
+ */
+int __platform_register_drivers(struct platform_driver * const *drivers,
+				unsigned int count, struct module *owner)
+{
+	unsigned int i;
+	int err;
+
+	for (i = 0; i < count; i++) {
+		pr_debug("registering platform driver %ps\n", drivers[i]);
+
+		err = __platform_driver_register(drivers[i], owner);
+		if (err < 0) {
+			pr_err("failed to register platform driver %ps: %d\n",
+			       drivers[i], err);
+			goto error;
+		}
+	}
+
+	return 0;
+
+error:
+	while (i--) {
+		pr_debug("unregistering platform driver %ps\n", drivers[i]);
+		platform_driver_unregister(drivers[i]);
+	}
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(__platform_register_drivers);
+
+/**
+ * platform_unregister_drivers - unregister an array of platform drivers
+ * @drivers: an array of drivers to unregister
+ * @count: the number of drivers to unregister
+ *
+ * Unegisters platform drivers specified by an array. This is typically used
+ * to complement an earlier call to platform_register_drivers(). Drivers are
+ * unregistered in the reverse order in which they were registered.
+ */
+void platform_unregister_drivers(struct platform_driver * const *drivers,
+				 unsigned int count)
+{
+	while (count--) {
+		pr_debug("unregistering platform driver %ps\n", drivers[count]);
+		platform_driver_unregister(drivers[count]);
+	}
+}
+EXPORT_SYMBOL_GPL(platform_unregister_drivers);
 
 /* modalias support enables more hands-off userspace setup:
  * (a) environment variable lets new-style hotplug events work once system is

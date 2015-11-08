@@ -45,7 +45,7 @@ static inline struct nf_generic_net *generic_pernet(struct net *net)
 
 static bool generic_pkt_to_tuple(const struct sk_buff *skb,
 				 unsigned int dataoff,
-				 struct nf_conntrack_tuple *tuple)
+				 struct net *net, struct nf_conntrack_tuple *tuple)
 {
 	tuple->src.u.all = 0;
 	tuple->dst.u.all = 0;
@@ -90,7 +90,13 @@ static int generic_packet(struct nf_conn *ct,
 static bool generic_new(struct nf_conn *ct, const struct sk_buff *skb,
 			unsigned int dataoff, unsigned int *timeouts)
 {
-	return nf_generic_should_process(nf_ct_protonum(ct));
+	bool ret;
+
+	ret = nf_generic_should_process(nf_ct_protonum(ct));
+	if (!ret)
+		pr_warn_once("conntrack: generic helper won't handle protocol %d. Please consider loading the specific helper module.\n",
+			     nf_ct_protonum(ct));
+	return ret;
 }
 
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)

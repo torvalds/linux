@@ -70,16 +70,16 @@ XFER  = YTMP0
 BYTE_FLIP_MASK  = %ymm9
 
 # 1st arg
-INP         = %rdi
+CTX         = %rdi
 # 2nd arg
-CTX         = %rsi
+INP         = %rsi
 # 3rd arg
 NUM_BLKS    = %rdx
 
 c           = %rcx
 d           = %r8
 e           = %rdx
-y3          = %rdi
+y3          = %rsi
 
 TBL   = %rbp
 
@@ -562,7 +562,7 @@ frame_size = frame_GPRSAVE + GPRSAVE_SIZE
 .endm
 
 ########################################################################
-# void sha512_transform_rorx(const void* M, void* D, uint64_t L)#
+# void sha512_transform_rorx(void* D, const void* M, uint64_t L)#
 # Purpose: Updates the SHA512 digest stored at D with the message stored in M.
 # The size of the message pointed to by M must be an integer multiple of SHA512
 #   message blocks.

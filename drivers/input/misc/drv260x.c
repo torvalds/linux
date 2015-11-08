@@ -204,7 +204,7 @@ struct drv260x_data {
 	int overdrive_voltage;
 };
 
-static struct reg_default drv260x_reg_defs[] = {
+static const struct reg_default drv260x_reg_defs[] = {
 	{ DRV260X_STATUS, 0xe0 },
 	{ DRV260X_MODE, 0x40 },
 	{ DRV260X_RT_PB_IN, 0x00 },
@@ -313,14 +313,14 @@ static void drv260x_close(struct input_dev *input)
 	gpiod_set_value(haptics->enable_gpio, 0);
 }
 
-static const struct reg_default drv260x_lra_cal_regs[] = {
+static const struct reg_sequence drv260x_lra_cal_regs[] = {
 	{ DRV260X_MODE, DRV260X_AUTO_CAL },
 	{ DRV260X_CTRL3, DRV260X_NG_THRESH_2 },
 	{ DRV260X_FEEDBACK_CTRL, DRV260X_FB_REG_LRA_MODE |
 		DRV260X_BRAKE_FACTOR_4X | DRV260X_LOOP_GAIN_HIGH },
 };
 
-static const struct reg_default drv260x_lra_init_regs[] = {
+static const struct reg_sequence drv260x_lra_init_regs[] = {
 	{ DRV260X_MODE, DRV260X_RT_PLAYBACK },
 	{ DRV260X_A_TO_V_CTRL, DRV260X_AUDIO_HAPTICS_PEAK_20MS |
 		DRV260X_AUDIO_HAPTICS_FILTER_125HZ },
@@ -337,7 +337,7 @@ static const struct reg_default drv260x_lra_init_regs[] = {
 	{ DRV260X_CTRL4, DRV260X_AUTOCAL_TIME_500MS },
 };
 
-static const struct reg_default drv260x_erm_cal_regs[] = {
+static const struct reg_sequence drv260x_erm_cal_regs[] = {
 	{ DRV260X_MODE, DRV260X_AUTO_CAL },
 	{ DRV260X_A_TO_V_MIN_INPUT, DRV260X_AUDIO_HAPTICS_MIN_IN_VOLT },
 	{ DRV260X_A_TO_V_MAX_INPUT, DRV260X_AUDIO_HAPTICS_MAX_IN_VOLT },
@@ -580,15 +580,10 @@ static int drv260x_probe(struct i2c_client *client,
 		return error;
 	}
 
-	haptics->enable_gpio = devm_gpiod_get(&client->dev, "enable");
-	if (IS_ERR(haptics->enable_gpio)) {
-		error = PTR_ERR(haptics->enable_gpio);
-		if (error != -ENOENT && error != -ENOSYS)
-			return error;
-		haptics->enable_gpio = NULL;
-	} else {
-		gpiod_direction_output(haptics->enable_gpio, 1);
-	}
+	haptics->enable_gpio = devm_gpiod_get_optional(&client->dev, "enable",
+						       GPIOD_OUT_HIGH);
+	if (IS_ERR(haptics->enable_gpio))
+		return PTR_ERR(haptics->enable_gpio);
 
 	haptics->input_dev = devm_input_allocate_device(&client->dev);
 	if (!haptics->input_dev) {
@@ -725,7 +720,6 @@ static struct i2c_driver drv260x_driver = {
 	.probe		= drv260x_probe,
 	.driver		= {
 		.name	= "drv260x-haptics",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(drv260x_of_match),
 		.pm	= &drv260x_pm_ops,
 	},

@@ -31,6 +31,8 @@
 
 #include "ioapic.h"
 
+#include "lapic.h"
+
 static int kvm_set_pic_irq(struct kvm_kernel_irq_routing_entry *e,
 			   struct kvm *kvm, int irq_source_id, int level,
 			   bool line_status)
@@ -48,11 +50,6 @@ static int kvm_set_ioapic_irq(struct kvm_kernel_irq_routing_entry *e,
 				line_status);
 }
 
-inline static bool kvm_is_dm_lowest_prio(struct kvm_lapic_irq *irq)
-{
-	return irq->delivery_mode == APIC_DM_LOWEST;
-}
-
 int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 		struct kvm_lapic_irq *irq, unsigned long *dest_map)
 {
@@ -60,7 +57,7 @@ int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 	struct kvm_vcpu *vcpu, *lowest = NULL;
 
 	if (irq->dest_mode == 0 && irq->dest_id == 0xff &&
-			kvm_is_dm_lowest_prio(irq)) {
+			kvm_lowest_prio_delivery(irq)) {
 		printk(KERN_INFO "kvm: apic: phys broadcast and lowest prio\n");
 		irq->delivery_mode = APIC_DM_FIXED;
 	}
@@ -76,7 +73,7 @@ int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 					irq->dest_id, irq->dest_mode))
 			continue;
 
-		if (!kvm_is_dm_lowest_prio(irq)) {
+		if (!kvm_lowest_prio_delivery(irq)) {
 			if (r < 0)
 				r = 0;
 			r += kvm_apic_set_irq(vcpu, irq, dest_map);
@@ -94,8 +91,8 @@ int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 	return r;
 }
 
-static inline void kvm_set_msi_irq(struct kvm_kernel_irq_routing_entry *e,
-				   struct kvm_lapic_irq *irq)
+void kvm_set_msi_irq(struct kvm_kernel_irq_routing_entry *e,
+		     struct kvm_lapic_irq *irq)
 {
 	trace_kvm_msi_set_irq(e->msi.address_lo, e->msi.data);
 
@@ -106,10 +103,12 @@ static inline void kvm_set_msi_irq(struct kvm_kernel_irq_routing_entry *e,
 	irq->dest_mode = (1 << MSI_ADDR_DEST_MODE_SHIFT) & e->msi.address_lo;
 	irq->trig_mode = (1 << MSI_DATA_TRIGGER_SHIFT) & e->msi.data;
 	irq->delivery_mode = e->msi.data & 0x700;
+	irq->msi_redir_hint = ((e->msi.address_lo
+		& MSI_ADDR_REDIRECTION_LOWPRI) > 0);
 	irq->level = 1;
 	irq->shorthand = 0;
-	/* TODO Deal with RH bit of MSI message address */
 }
+EXPORT_SYMBOL_GPL(kvm_set_msi_irq);
 
 int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 		struct kvm *kvm, int irq_source_id, int level, bool line_status)
@@ -125,11 +124,15 @@ int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 }
 
 
-static int kvm_set_msi_inatomic(struct kvm_kernel_irq_routing_entry *e,
-			 struct kvm *kvm)
+int kvm_arch_set_irq_inatomic(struct kvm_kernel_irq_routing_entry *e,
+			      struct kvm *kvm, int irq_source_id, int level,
+			      bool line_status)
 {
 	struct kvm_lapic_irq irq;
 	int r;
+
+	if (unlikely(e->type != KVM_IRQ_ROUTING_MSI))
+		return -EWOULDBLOCK;
 
 	kvm_set_msi_irq(e, &irq);
 
@@ -137,42 +140,6 @@ static int kvm_set_msi_inatomic(struct kvm_kernel_irq_routing_entry *e,
 		return r;
 	else
 		return -EWOULDBLOCK;
-}
-
-/*
- * Deliver an IRQ in an atomic context if we can, or return a failure,
- * user can retry in a process context.
- * Return value:
- *  -EWOULDBLOCK - Can't deliver in atomic context: retry in a process context.
- *  Other values - No need to retry.
- */
-int kvm_set_irq_inatomic(struct kvm *kvm, int irq_source_id, u32 irq, int level)
-{
-	struct kvm_kernel_irq_routing_entry entries[KVM_NR_IRQCHIPS];
-	struct kvm_kernel_irq_routing_entry *e;
-	int ret = -EINVAL;
-	int idx;
-
-	trace_kvm_set_irq(irq, level, irq_source_id);
-
-	/*
-	 * Injection into either PIC or IOAPIC might need to scan all CPUs,
-	 * which would need to be retried from thread context;  when same GSI
-	 * is connected to both PIC and IOAPIC, we'd have to report a
-	 * partial failure here.
-	 * Since there's no easy way to do this, we only support injecting MSI
-	 * which is limited to 1:1 GSI mapping.
-	 */
-	idx = srcu_read_lock(&kvm->irq_srcu);
-	if (kvm_irq_map_gsi(kvm, entries, irq) > 0) {
-		e = &entries[0];
-		if (likely(e->type == KVM_IRQ_ROUTING_MSI))
-			ret = kvm_set_msi_inatomic(e, kvm);
-		else
-			ret = -EWOULDBLOCK;
-	}
-	srcu_read_unlock(&kvm->irq_srcu, idx);
-	return ret;
 }
 
 int kvm_request_irq_source_id(struct kvm *kvm)
@@ -210,7 +177,7 @@ void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id)
 		goto unlock;
 	}
 	clear_bit(irq_source_id, &kvm->arch.irq_sources_bitmap);
-	if (!irqchip_in_kernel(kvm))
+	if (!ioapic_in_kernel(kvm))
 		goto unlock;
 
 	kvm_ioapic_clear_all(kvm->arch.vioapic, irq_source_id);
@@ -299,6 +266,33 @@ out:
 	return r;
 }
 
+bool kvm_intr_is_single_vcpu(struct kvm *kvm, struct kvm_lapic_irq *irq,
+			     struct kvm_vcpu **dest_vcpu)
+{
+	int i, r = 0;
+	struct kvm_vcpu *vcpu;
+
+	if (kvm_intr_is_single_vcpu_fast(kvm, irq, dest_vcpu))
+		return true;
+
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		if (!kvm_apic_present(vcpu))
+			continue;
+
+		if (!kvm_apic_match_dest(vcpu, NULL, irq->shorthand,
+					irq->dest_id, irq->dest_mode))
+			continue;
+
+		if (++r == 2)
+			return false;
+
+		*dest_vcpu = vcpu;
+	}
+
+	return r == 1;
+}
+EXPORT_SYMBOL_GPL(kvm_intr_is_single_vcpu);
+
 #define IOAPIC_ROUTING_ENTRY(irq) \
 	{ .gsi = irq, .type = KVM_IRQ_ROUTING_IRQCHIP,	\
 	  .u.irqchip = { .irqchip = KVM_IRQCHIP_IOAPIC, .pin = (irq) } }
@@ -329,4 +323,55 @@ int kvm_setup_default_irq_routing(struct kvm *kvm)
 {
 	return kvm_set_irq_routing(kvm, default_routing,
 				   ARRAY_SIZE(default_routing), 0);
+}
+
+static const struct kvm_irq_routing_entry empty_routing[] = {};
+
+int kvm_setup_empty_irq_routing(struct kvm *kvm)
+{
+	return kvm_set_irq_routing(kvm, empty_routing, 0, 0);
+}
+
+void kvm_arch_irq_routing_update(struct kvm *kvm)
+{
+	if (ioapic_in_kernel(kvm) || !irqchip_in_kernel(kvm))
+		return;
+	kvm_make_scan_ioapic_request(kvm);
+}
+
+void kvm_scan_ioapic_routes(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap)
+{
+	struct kvm *kvm = vcpu->kvm;
+	struct kvm_kernel_irq_routing_entry *entry;
+	struct kvm_irq_routing_table *table;
+	u32 i, nr_ioapic_pins;
+	int idx;
+
+	/* kvm->irq_routing must be read after clearing
+	 * KVM_SCAN_IOAPIC. */
+	smp_mb();
+	idx = srcu_read_lock(&kvm->irq_srcu);
+	table = srcu_dereference(kvm->irq_routing, &kvm->irq_srcu);
+	nr_ioapic_pins = min_t(u32, table->nr_rt_entries,
+			       kvm->arch.nr_reserved_ioapic_pins);
+	for (i = 0; i < nr_ioapic_pins; ++i) {
+		hlist_for_each_entry(entry, &table->map[i], link) {
+			u32 dest_id, dest_mode;
+			bool level;
+
+			if (entry->type != KVM_IRQ_ROUTING_MSI)
+				continue;
+			dest_id = (entry->msi.address_lo >> 12) & 0xff;
+			dest_mode = (entry->msi.address_lo >> 2) & 0x1;
+			level = entry->msi.data & MSI_DATA_TRIGGER_LEVEL;
+			if (level && kvm_apic_match_dest(vcpu, NULL, 0,
+						dest_id, dest_mode)) {
+				u32 vector = entry->msi.data & 0xff;
+
+				__set_bit(vector,
+					  (unsigned long *) eoi_exit_bitmap);
+			}
+		}
+	}
+	srcu_read_unlock(&kvm->irq_srcu, idx);
 }

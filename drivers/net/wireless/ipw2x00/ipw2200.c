@@ -1964,7 +1964,7 @@ static void notify_wx_assoc_event(struct ipw_priv *priv)
 	if (priv->status & STATUS_ASSOCIATED)
 		memcpy(wrqu.ap_addr.sa_data, priv->bssid, ETH_ALEN);
 	else
-		memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
+		eth_zero_addr(wrqu.ap_addr.sa_data);
 	wireless_send_event(priv->net_dev, SIOCGIWAP, &wrqu, NULL);
 }
 
@@ -7400,7 +7400,7 @@ static int ipw_associate_network(struct ipw_priv *priv,
 	memcpy(priv->assoc_request.bssid, network->bssid, ETH_ALEN);
 
 	if (priv->ieee->iw_mode == IW_MODE_ADHOC) {
-		memset(&priv->assoc_request.dest, 0xFF, ETH_ALEN);
+		eth_broadcast_addr(priv->assoc_request.dest);
 		priv->assoc_request.atim_window = cpu_to_le16(network->atim_window);
 	} else {
 		memcpy(priv->assoc_request.dest, network->bssid, ETH_ALEN);
@@ -8986,7 +8986,7 @@ static int ipw_wx_get_wap(struct net_device *dev,
 		wrqu->ap_addr.sa_family = ARPHRD_ETHER;
 		memcpy(wrqu->ap_addr.sa_data, priv->bssid, ETH_ALEN);
 	} else
-		memset(wrqu->ap_addr.sa_data, 0, ETH_ALEN);
+		eth_zero_addr(wrqu->ap_addr.sa_data);
 
 	IPW_DEBUG_WX("Getting WAP BSSID: %pM\n",
 		     wrqu->ap_addr.sa_data);
@@ -10470,7 +10470,6 @@ static void ipw_ethtool_get_drvinfo(struct net_device *dev,
 		 vers, date);
 	strlcpy(info->bus_info, pci_name(p->pci_dev),
 		sizeof(info->bus_info));
-	info->eedump_len = IPW_EEPROM_IMAGE_SIZE;
 }
 
 static u32 ipw_ethtool_get_link(struct net_device *dev)

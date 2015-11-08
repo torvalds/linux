@@ -75,19 +75,21 @@ struct mic_device_ctrl {
  * struct mic_bootparam: Virtio device independent information in device page
  *
  * @magic: A magic value used by the card to ensure it can see the host
- * @c2h_shutdown_db: Card to Host shutdown doorbell set by host
- * @h2c_shutdown_db: Host to Card shutdown doorbell set by card
  * @h2c_config_db: Host to Card Virtio config doorbell set by card
- * @shutdown_status: Card shutdown status set by card
- * @shutdown_card: Set to 1 by the host when a card shutdown is initiated
+ * @node_id: Unique id of the node
+ * @h2c_scif_db - Host to card SCIF doorbell set by card
+ * @c2h_scif_db - Card to host SCIF doorbell set by host
+ * @scif_host_dma_addr - SCIF host queue pair DMA address
+ * @scif_card_dma_addr - SCIF card queue pair DMA address
  */
 struct mic_bootparam {
 	__le32 magic;
-	__s8 c2h_shutdown_db;
-	__s8 h2c_shutdown_db;
 	__s8 h2c_config_db;
-	__u8 shutdown_status;
-	__u8 shutdown_card;
+	__u8 node_id;
+	__u8 h2c_scif_db;
+	__u8 c2h_scif_db;
+	__u64 scif_host_dma_addr;
+	__u64 scif_card_dma_addr;
 } __attribute__ ((aligned(8)));
 
 /**
@@ -207,12 +209,12 @@ static inline unsigned mic_total_desc_size(struct mic_device_desc *desc)
  * enum mic_states - MIC states.
  */
 enum mic_states {
-	MIC_OFFLINE = 0,
+	MIC_READY = 0,
+	MIC_BOOTING,
 	MIC_ONLINE,
 	MIC_SHUTTING_DOWN,
+	MIC_RESETTING,
 	MIC_RESET_FAILED,
-	MIC_SUSPENDING,
-	MIC_SUSPENDED,
 	MIC_LAST
 };
 

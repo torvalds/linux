@@ -52,11 +52,14 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	struct ieee80211_tx_info *info;
 	struct ath10k_skb_cb *skb_cb;
 	struct sk_buff *msdu;
+	struct ieee80211_hdr *hdr;
+	__le16 fc;
+	bool limit_mgmt_desc = false;
 
-	lockdep_assert_held(&htt->tx_lock);
-
-	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt tx completion msdu_id %u discard %d no_ack %d\n",
-		   tx_done->msdu_id, !!tx_done->discard, !!tx_done->no_ack);
+	ath10k_dbg(ar, ATH10K_DBG_HTT,
+		   "htt tx completion msdu_id %u discard %d no_ack %d success %d\n",
+		   tx_done->msdu_id, !!tx_done->discard,
+		   !!tx_done->no_ack, !!tx_done->success);
 
 	if (tx_done->msdu_id >= htt->max_num_pending_tx) {
 		ath10k_warn(ar, "warning: msdu_id %d too big, ignoring\n",
@@ -64,21 +67,30 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 		return;
 	}
 
+	spin_lock_bh(&htt->tx_lock);
 	msdu = idr_find(&htt->pending_tx, tx_done->msdu_id);
 	if (!msdu) {
 		ath10k_warn(ar, "received tx completion for invalid msdu_id: %d\n",
 			    tx_done->msdu_id);
+		spin_unlock_bh(&htt->tx_lock);
 		return;
 	}
 
+	hdr = (struct ieee80211_hdr *)msdu->data;
+	fc = hdr->frame_control;
+
+	if (unlikely(ieee80211_is_mgmt(fc)) &&
+	    ar->hw_params.max_probe_resp_desc_thres)
+		limit_mgmt_desc = true;
+
+	ath10k_htt_tx_free_msdu_id(htt, tx_done->msdu_id);
+	__ath10k_htt_tx_dec_pending(htt, limit_mgmt_desc);
+	if (htt->num_pending_tx == 0)
+		wake_up(&htt->empty_tx_wq);
+	spin_unlock_bh(&htt->tx_lock);
+
 	skb_cb = ATH10K_SKB_CB(msdu);
-
 	dma_unmap_single(dev, skb_cb->paddr, msdu->len, DMA_TO_DEVICE);
-
-	if (skb_cb->htt.txbuf)
-		dma_pool_free(htt->tx_pool,
-			      skb_cb->htt.txbuf,
-			      skb_cb->htt.txbuf_paddr);
 
 	ath10k_report_offchan_tx(htt->ar, msdu);
 
@@ -88,7 +100,7 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 
 	if (tx_done->discard) {
 		ieee80211_free_txskb(htt->ar->hw, msdu);
-		goto exit;
+		return;
 	}
 
 	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
@@ -97,14 +109,11 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	if (tx_done->no_ack)
 		info->flags &= ~IEEE80211_TX_STAT_ACK;
 
+	if (tx_done->success && (info->flags & IEEE80211_TX_CTL_NO_ACK))
+		info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
+
 	ieee80211_tx_status(htt->ar->hw, msdu);
 	/* we do not own the msdu anymore */
-
-exit:
-	ath10k_htt_tx_free_msdu_id(htt, tx_done->msdu_id);
-	__ath10k_htt_tx_dec_pending(htt);
-	if (htt->num_pending_tx == 0)
-		wake_up(&htt->empty_tx_wq);
 }
 
 struct ath10k_peer *ath10k_peer_find(struct ath10k *ar, int vdev_id,
@@ -142,9 +151,9 @@ struct ath10k_peer *ath10k_peer_find_by_id(struct ath10k *ar, int peer_id)
 static int ath10k_wait_for_peer_common(struct ath10k *ar, int vdev_id,
 				       const u8 *addr, bool expect_mapped)
 {
-	int ret;
+	long time_left;
 
-	ret = wait_event_timeout(ar->peer_mapping_wq, ({
+	time_left = wait_event_timeout(ar->peer_mapping_wq, ({
 			bool mapped;
 
 			spin_lock_bh(&ar->data_lock);
@@ -155,7 +164,7 @@ static int ath10k_wait_for_peer_common(struct ath10k *ar, int vdev_id,
 			 test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags));
 		}), 3*HZ);
 
-	if (ret <= 0)
+	if (time_left == 0)
 		return -ETIMEDOUT;
 
 	return 0;

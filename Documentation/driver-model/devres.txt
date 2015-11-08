@@ -276,6 +276,7 @@ IOMAP
   devm_ioport_unmap()
   devm_ioremap()
   devm_ioremap_nocache()
+  devm_ioremap_wc()
   devm_ioremap_resource() : checks resource, requests memory region, ioremaps
   devm_iounmap()
   pcim_iomap()
@@ -288,6 +289,10 @@ IRQ
   devm_request_any_context_irq()
   devm_request_irq()
   devm_request_threaded_irq()
+
+LED
+  devm_led_classdev_register()
+  devm_led_classdev_unregister()
 
 MDIO
   devm_mdiobus_alloc()

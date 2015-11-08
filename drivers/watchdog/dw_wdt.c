@@ -35,7 +35,6 @@
 #include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
-#include <linux/spinlock.h>
 #include <linux/timer.h>
 #include <linux/uaccess.h>
 #include <linux/watchdog.h>
@@ -61,7 +60,6 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
 #define WDT_TIMEOUT		(HZ / 2)
 
 static struct {
-	spinlock_t		lock;
 	void __iomem		*regs;
 	struct clk		*clk;
 	unsigned long		in_use;
@@ -177,7 +175,6 @@ static int dw_wdt_open(struct inode *inode, struct file *filp)
 	/* Make sure we don't get unloaded. */
 	__module_get(THIS_MODULE);
 
-	spin_lock(&dw_wdt.lock);
 	if (!dw_wdt_is_enabled()) {
 		/*
 		 * The watchdog is not currently enabled. Set the timeout to
@@ -189,8 +186,6 @@ static int dw_wdt_open(struct inode *inode, struct file *filp)
 	}
 
 	dw_wdt_set_next_heartbeat();
-
-	spin_unlock(&dw_wdt.lock);
 
 	return nonseekable_open(inode, filp);
 }
@@ -220,6 +215,7 @@ static ssize_t dw_wdt_write(struct file *filp, const char __user *buf,
 	}
 
 	dw_wdt_set_next_heartbeat();
+	dw_wdt_keepalive();
 	mod_timer(&dw_wdt.timer, jiffies + WDT_TIMEOUT);
 
 	return len;
@@ -347,8 +343,6 @@ static int dw_wdt_drv_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(dw_wdt.clk);
 	if (ret)
 		return ret;
-
-	spin_lock_init(&dw_wdt.lock);
 
 	ret = misc_register(&dw_wdt_miscdev);
 	if (ret)

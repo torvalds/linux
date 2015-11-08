@@ -67,7 +67,7 @@
 
 	timer@c1109940 {
 		compatible = "amlogic,meson6-timer";
-		reg = <0xc1109940 0x14>;
+		reg = <0xc1109940 0x18>;
 		interrupts = <0 10 1>;
 	};
 
@@ -80,36 +80,37 @@
 		wdt: watchdog@c1109900 {
 			compatible = "amlogic,meson6-wdt";
 			reg = <0xc1109900 0x8>;
+			interrupts = <0 0 1>;
 		};
 
 		uart_AO: serial@c81004c0 {
 			compatible = "amlogic,meson-uart";
-			reg = <0xc81004c0 0x14>;
+			reg = <0xc81004c0 0x18>;
 			interrupts = <0 90 1>;
 			clocks = <&clk81>;
 			status = "disabled";
 		};
 
-		uart_A: serial@c81084c0 {
+		uart_A: serial@c11084c0 {
 			compatible = "amlogic,meson-uart";
-			reg = <0xc81084c0 0x14>;
-			interrupts = <0 90 1>;
+			reg = <0xc11084c0 0x18>;
+			interrupts = <0 26 1>;
 			clocks = <&clk81>;
 			status = "disabled";
 		};
 
-		uart_B: serial@c81084dc {
+		uart_B: serial@c11084dc {
 			compatible = "amlogic,meson-uart";
-			reg = <0xc81084dc 0x14>;
-			interrupts = <0 90 1>;
+			reg = <0xc11084dc 0x18>;
+			interrupts = <0 75 1>;
 			clocks = <&clk81>;
 			status = "disabled";
 		};
 
-		uart_C: serial@c8108700 {
+		uart_C: serial@c1108700 {
 			compatible = "amlogic,meson-uart";
-			reg = <0xc8108700 0x14>;
-			interrupts = <0 90 1>;
+			reg = <0xc1108700 0x18>;
+			interrupts = <0 93 1>;
 			clocks = <&clk81>;
 			status = "disabled";
 		};
@@ -148,6 +149,26 @@
 			compatible= "amlogic,meson6-ir";
 			reg = <0xc8100480 0x20>;
 			interrupts = <0 15 1>;
+			status = "disabled";
+		};
+
+		spifc: spi@c1108c80 {
+			compatible = "amlogic,meson6-spifc";
+			reg = <0xc1108c80 0x80>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&clk81>;
+			status = "disabled";
+		};
+
+		ethmac: ethernet@c9410000 {
+			compatible = "amlogic,meson6-dwmac", "snps,dwmac";
+			reg = <0xc9410000 0x10000
+			       0xc1108108 0x4>;
+			interrupts = <0 8 1>;
+			interrupt-names = "macirq";
+			clocks = <&clk81>;
+			clock-names = "stmmaceth";
 			status = "disabled";
 		};
 	};

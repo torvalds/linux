@@ -201,8 +201,12 @@ struct wl1271_if_operations {
 };
 
 struct wlcore_platdev_data {
-	struct wl12xx_platform_data *pdata;
 	struct wl1271_if_operations *if_ops;
+
+	bool ref_clock_xtal;	/* specify whether the clock is XTAL or not */
+	u32 ref_clock_freq;	/* in Hertz */
+	u32 tcxo_clock_freq;	/* in Hertz, tcxo is always XTAL */
+	bool pwr_in_suspend;
 };
 
 #define MAX_NUM_KEYS 14
@@ -497,6 +501,11 @@ static inline
 struct ieee80211_vif *wl12xx_wlvif_to_vif(struct wl12xx_vif *wlvif)
 {
 	return container_of((void *)wlvif, struct ieee80211_vif, drv_priv);
+}
+
+static inline bool wlcore_is_p2p_mgmt(struct wl12xx_vif *wlvif)
+{
+	return wl12xx_wlvif_to_vif(wlvif)->type == NL80211_IFTYPE_P2P_DEVICE;
 }
 
 #define wl12xx_for_each_wlvif(wl, wlvif) \

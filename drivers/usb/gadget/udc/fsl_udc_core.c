@@ -2313,6 +2313,19 @@ static int struct_ep_setup(struct fsl_udc *udc, unsigned char index,
 	ep->ep.ops = &fsl_ep_ops;
 	ep->stopped = 0;
 
+	if (index == 0) {
+		ep->ep.caps.type_control = true;
+	} else {
+		ep->ep.caps.type_iso = true;
+		ep->ep.caps.type_bulk = true;
+		ep->ep.caps.type_int = true;
+	}
+
+	if (index & 1)
+		ep->ep.caps.dir_in = true;
+	else
+		ep->ep.caps.dir_out = true;
+
 	/* for ep0: maxP defined in desc
 	 * for other eps, maxP is set by epautoconfig() called by gadget layer
 	 */
@@ -2525,7 +2538,7 @@ err_kfree:
 /* Driver removal function
  * Free resources and finish pending transactions
  */
-static int __exit fsl_udc_remove(struct platform_device *pdev)
+static int fsl_udc_remove(struct platform_device *pdev)
 {
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct fsl_usb2_platform_data *pdata = dev_get_platdata(&pdev->dev);
@@ -2663,7 +2676,7 @@ static const struct platform_device_id fsl_udc_devtype[] = {
 };
 MODULE_DEVICE_TABLE(platform, fsl_udc_devtype);
 static struct platform_driver udc_driver = {
-	.remove		= __exit_p(fsl_udc_remove),
+	.remove		= fsl_udc_remove,
 	/* Just for FSL i.mx SoC currently */
 	.id_table	= fsl_udc_devtype,
 	/* these suspend and resume are not usb suspend and resume */

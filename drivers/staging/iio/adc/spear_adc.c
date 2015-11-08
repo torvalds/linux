@@ -29,11 +29,11 @@
 #define SPEAR_ADC_CLK_HIGH(x)		(((x) & 0xf) << 4)
 
 /* Bit definitions for SPEAR_ADC_STATUS */
-#define SPEAR_ADC_STATUS_START_CONVERSION	(1 << 0)
+#define SPEAR_ADC_STATUS_START_CONVERSION	BIT(0)
 #define SPEAR_ADC_STATUS_CHANNEL_NUM(x)		((x) << 1)
-#define SPEAR_ADC_STATUS_ADC_ENABLE		(1 << 4)
+#define SPEAR_ADC_STATUS_ADC_ENABLE		BIT(4)
 #define SPEAR_ADC_STATUS_AVG_SAMPLE(x)		((x) << 5)
-#define SPEAR_ADC_STATUS_VREF_INTERNAL		(1 << 9)
+#define SPEAR_ADC_STATUS_VREF_INTERNAL		BIT(9)
 
 #define SPEAR_ADC_DATA_MASK		0x03ff
 #define SPEAR_ADC_DATA_BITS		10
@@ -191,8 +191,8 @@ static int spear_adc_write_raw(struct iio_dev *indio_dev,
 	mutex_lock(&indio_dev->mlock);
 
 	if ((val < SPEAR_ADC_CLK_MIN) ||
-		(val > SPEAR_ADC_CLK_MAX) ||
-		(val2 != 0)) {
+	    (val > SPEAR_ADC_CLK_MAX) ||
+	    (val2 != 0)) {
 		ret = -EINVAL;
 		goto out;
 	}

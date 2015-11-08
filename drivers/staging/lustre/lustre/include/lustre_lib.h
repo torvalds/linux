@@ -97,10 +97,10 @@ struct obd_client_handle {
 	__u32			 och_magic;
 	fmode_t			 och_flags;
 };
+
 #define OBD_CLIENT_HANDLE_MAGIC 0xd15ea5ed
 
 /* statfs_pack.c */
-void statfs_pack(struct obd_statfs *osfs, struct kstatfs *sfs);
 void statfs_unpack(struct kstatfs *sfs, struct obd_statfs *osfs);
 
 /*
@@ -178,13 +178,13 @@ struct obd_ioctl_hdr {
 static inline int obd_ioctl_packlen(struct obd_ioctl_data *data)
 {
 	int len = cfs_size_round(sizeof(struct obd_ioctl_data));
+
 	len += cfs_size_round(data->ioc_inllen1);
 	len += cfs_size_round(data->ioc_inllen2);
 	len += cfs_size_round(data->ioc_inllen3);
 	len += cfs_size_round(data->ioc_inllen4);
 	return len;
 }
-
 
 static inline int obd_ioctl_is_invalid(struct obd_ioctl_data *data)
 {
@@ -249,7 +249,6 @@ static inline int obd_ioctl_is_invalid(struct obd_ioctl_data *data)
 	return 0;
 }
 
-
 #include "obd_support.h"
 
 /* function defined in lustre/obdclass/<platform>/<platform>-module.c */
@@ -258,7 +257,7 @@ int obd_ioctl_popdata(void *arg, void *data, int len);
 
 static inline void obd_ioctl_freedata(char *buf, int len)
 {
-	OBD_FREE_LARGE(buf, len);
+	kvfree(buf);
 	return;
 }
 
@@ -289,7 +288,6 @@ static inline void obd_ioctl_freedata(char *buf, int len)
 #define OBD_IOC_READ		   _IOWR('f', 109, OBD_IOC_DATA_TYPE)
 #define OBD_IOC_WRITE		  _IOWR('f', 110, OBD_IOC_DATA_TYPE)
 
-
 #define OBD_IOC_STATFS		 _IOWR('f', 113, OBD_IOC_DATA_TYPE)
 #define OBD_IOC_SYNC		   _IOW ('f', 114, OBD_IOC_DATA_TYPE)
 #define OBD_IOC_READ2		  _IOWR('f', 115, OBD_IOC_DATA_TYPE)
@@ -313,7 +311,7 @@ static inline void obd_ioctl_freedata(char *buf, int len)
 #define OBD_IOC_CLIENT_RECOVER	 _IOW ('f', 133, OBD_IOC_DATA_TYPE)
 #define OBD_IOC_PING_TARGET	    _IOW ('f', 136, OBD_IOC_DATA_TYPE)
 
-#define OBD_IOC_DEC_FS_USE_COUNT       _IO  ('f', 139      )
+#define OBD_IOC_DEC_FS_USE_COUNT       _IO  ('f', 139)
 #define OBD_IOC_NO_TRANSNO	     _IOW ('f', 140, OBD_IOC_DATA_TYPE)
 #define OBD_IOC_SET_READONLY	   _IOW ('f', 141, OBD_IOC_DATA_TYPE)
 #define OBD_IOC_ABORT_RECOVERY	 _IOR ('f', 142, OBD_IOC_DATA_TYPE)
@@ -453,7 +451,7 @@ static inline void obd_ioctl_freedata(char *buf, int len)
  *					 __wake_up_common(q, ...);     (2.2)
  *					 spin_unlock(&q->lock, flags); (2.3)
  *
- *   OBD_FREE_PTR(obj);						  (3)
+ *   kfree(obj);						  (3)
  *
  * As l_wait_event() may "short-cut" execution and return without taking
  * wait-queue spin-lock, some additional synchronization is necessary to
@@ -523,7 +521,6 @@ struct l_wait_info {
 			   sigmask(SIGTERM) | sigmask(SIGQUIT) |	\
 			   sigmask(SIGALRM))
 
-
 /*
  * wait for @condition to become true, but no longer than timeout, specified
  * by @info.
@@ -549,23 +546,17 @@ do {									   \
 		__blocked = cfs_block_sigsinv(0);			      \
 									       \
 	for (;;) {							     \
-		unsigned       __wstate;				       \
-									       \
-		__wstate = info->lwi_on_signal != NULL &&		      \
-			   (__timeout == 0 || __allow_intr) ?		  \
-			TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;	       \
-									       \
-		set_current_state(TASK_INTERRUPTIBLE);		 \
-									       \
 		if (condition)						 \
 			break;						 \
 									       \
+		set_current_state(TASK_INTERRUPTIBLE);			       \
+									       \
 		if (__timeout == 0) {					  \
-			schedule();						\
+			schedule();					       \
 		} else {						       \
-			long interval = info->lwi_interval?	  \
+			long interval = info->lwi_interval ?	  \
 					     min_t(long,	     \
-						 info->lwi_interval,__timeout):\
+						 info->lwi_interval, __timeout) : \
 					     __timeout;			\
 			long remaining = schedule_timeout(interval);\
 			__timeout = cfs_time_sub(__timeout,		    \
@@ -581,6 +572,8 @@ do {									   \
 				    (void)cfs_block_sigsinv(LUSTRE_FATAL_SIGS);\
 			}						      \
 		}							      \
+									       \
+		set_current_state(TASK_RUNNING);			       \
 									       \
 		if (condition)						 \
 			break;						 \
@@ -605,11 +598,8 @@ do {									   \
 									       \
 	cfs_restore_sigs(__blocked);					   \
 									       \
-	set_current_state(TASK_RUNNING);			       \
 	remove_wait_queue(&wq, &__wait);					   \
 } while (0)
-
-
 
 #define l_wait_event(wq, condition, info)		       \
 ({							      \

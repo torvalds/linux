@@ -23,7 +23,6 @@
  */
 #include <core/client.h>
 #include <core/device.h>
-#include <core/handle.h>
 #include <core/notify.h>
 #include <core/option.h>
 
@@ -91,7 +90,7 @@ int
 nvkm_client_notify_new(struct nvkm_object *object,
 		       struct nvkm_event *event, void *data, u32 size)
 {
-	struct nvkm_client *client = nvkm_client(object);
+	struct nvkm_client *client = object->client;
 	struct nvkm_client_notify *notify;
 	union {
 		struct nvif_notify_req_v0 v0;
@@ -111,11 +110,11 @@ nvkm_client_notify_new(struct nvkm_object *object,
 	if (!notify)
 		return -ENOMEM;
 
-	nv_ioctl(client, "notify new size %d\n", size);
+	nvif_ioctl(object, "notify new size %d\n", size);
 	if (nvif_unpack(req->v0, 0, 0, true)) {
-		nv_ioctl(client, "notify new vers %d reply %d route %02x "
-				 "token %llx\n", req->v0.version,
-			 req->v0.reply, req->v0.route, req->v0.token);
+		nvif_ioctl(object, "notify new vers %d reply %d route %02x "
+				   "token %llx\n", req->v0.version,
+			   req->v0.reply, req->v0.route, req->v0.token);
 		notify->version = req->v0.version;
 		notify->size = sizeof(notify->rep.v0);
 		notify->rep.v0.version = req->v0.version;
@@ -146,10 +145,10 @@ nvkm_client_mthd_devlist(struct nvkm_object *object, void *data, u32 size)
 	} *args = data;
 	int ret;
 
-	nv_ioctl(object, "client devlist size %d\n", size);
+	nvif_ioctl(object, "client devlist size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, true)) {
-		nv_ioctl(object, "client devlist vers %d count %d\n",
-			 args->v0.version, args->v0.count);
+		nvif_ioctl(object, "client devlist vers %d count %d\n",
+			   args->v0.version, args->v0.count);
 		if (size == sizeof(args->v0.device[0]) * args->v0.count) {
 			ret = nvkm_device_list(args->v0.device, args->v0.count);
 			if (ret >= 0) {
@@ -176,91 +175,134 @@ nvkm_client_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	return -EINVAL;
 }
 
-static void
-nvkm_client_dtor(struct nvkm_object *object)
+static int
+nvkm_client_child_new(const struct nvkm_oclass *oclass,
+		      void *data, u32 size, struct nvkm_object **pobject)
 {
-	struct nvkm_client *client = (void *)object;
-	int i;
-	for (i = 0; i < ARRAY_SIZE(client->notify); i++)
-		nvkm_client_notify_del(client, i);
-	nvkm_object_ref(NULL, &client->device);
-	nvkm_handle_destroy(client->root);
-	nvkm_namedb_destroy(&client->namedb);
+	return oclass->base.ctor(oclass, data, size, pobject);
 }
 
-static struct nvkm_oclass
-nvkm_client_oclass = {
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.dtor = nvkm_client_dtor,
-		.mthd = nvkm_client_mthd,
-	},
-};
-
-int
-nvkm_client_create_(const char *name, u64 devname, const char *cfg,
-		    const char *dbg, int length, void **pobject)
+static int
+nvkm_client_child_get(struct nvkm_object *object, int index,
+		      struct nvkm_oclass *oclass)
 {
-	struct nvkm_object *device;
-	struct nvkm_client *client;
-	int ret;
+	const struct nvkm_sclass *sclass;
 
-	device = (void *)nvkm_device_find(devname);
-	if (!device)
-		return -ENODEV;
+	switch (index) {
+	case 0: sclass = &nvkm_udevice_sclass; break;
+	default:
+		return -EINVAL;
+	}
 
-	ret = nvkm_namedb_create_(NULL, NULL, &nvkm_client_oclass,
-				  NV_CLIENT_CLASS, NULL,
-				  (1ULL << NVDEV_ENGINE_DEVICE),
-				  length, pobject);
-	client = *pobject;
-	if (ret)
-		return ret;
-
-	ret = nvkm_handle_create(nv_object(client), ~0, ~0, nv_object(client),
-				 &client->root);
-	if (ret)
-		return ret;
-
-	/* prevent init/fini being called, os in in charge of this */
-	atomic_set(&nv_object(client)->usecount, 2);
-
-	nvkm_object_ref(device, &client->device);
-	snprintf(client->name, sizeof(client->name), "%s", name);
-	client->debug = nvkm_dbgopt(dbg, "CLIENT");
+	oclass->ctor = nvkm_client_child_new;
+	oclass->base = *sclass;
 	return 0;
 }
 
-int
-nvkm_client_init(struct nvkm_client *client)
+static const struct nvkm_object_func
+nvkm_client_object_func = {
+	.mthd = nvkm_client_mthd,
+	.sclass = nvkm_client_child_get,
+};
+
+void
+nvkm_client_remove(struct nvkm_client *client, struct nvkm_object *object)
 {
-	int ret;
-	nv_debug(client, "init running\n");
-	ret = nvkm_handle_init(client->root);
-	nv_debug(client, "init completed with %d\n", ret);
-	return ret;
+	if (!RB_EMPTY_NODE(&object->node))
+		rb_erase(&object->node, &client->objroot);
+}
+
+bool
+nvkm_client_insert(struct nvkm_client *client, struct nvkm_object *object)
+{
+	struct rb_node **ptr = &client->objroot.rb_node;
+	struct rb_node *parent = NULL;
+
+	while (*ptr) {
+		struct nvkm_object *this =
+			container_of(*ptr, typeof(*this), node);
+		parent = *ptr;
+		if (object->object < this->object)
+			ptr = &parent->rb_left;
+		else
+		if (object->object > this->object)
+			ptr = &parent->rb_right;
+		else
+			return false;
+	}
+
+	rb_link_node(&object->node, parent, ptr);
+	rb_insert_color(&object->node, &client->objroot);
+	return true;
+}
+
+struct nvkm_object *
+nvkm_client_search(struct nvkm_client *client, u64 handle)
+{
+	struct rb_node *node = client->objroot.rb_node;
+	while (node) {
+		struct nvkm_object *object =
+			container_of(node, typeof(*object), node);
+		if (handle < object->object)
+			node = node->rb_left;
+		else
+		if (handle > object->object)
+			node = node->rb_right;
+		else
+			return object;
+	}
+	return NULL;
 }
 
 int
 nvkm_client_fini(struct nvkm_client *client, bool suspend)
 {
+	struct nvkm_object *object = &client->object;
 	const char *name[2] = { "fini", "suspend" };
-	int ret, i;
-	nv_debug(client, "%s running\n", name[suspend]);
-	nv_debug(client, "%s notify\n", name[suspend]);
+	int i;
+	nvif_debug(object, "%s notify\n", name[suspend]);
 	for (i = 0; i < ARRAY_SIZE(client->notify); i++)
 		nvkm_client_notify_put(client, i);
-	nv_debug(client, "%s object\n", name[suspend]);
-	ret = nvkm_handle_fini(client->root, suspend);
-	nv_debug(client, "%s completed with %d\n", name[suspend], ret);
-	return ret;
+	return nvkm_object_fini(&client->object, suspend);
 }
 
-const char *
-nvkm_client_name(void *obj)
+int
+nvkm_client_init(struct nvkm_client *client)
 {
-	const char *client_name = "unknown";
-	struct nvkm_client *client = nvkm_client(obj);
-	if (client)
-		client_name = client->name;
-	return client_name;
+	return nvkm_object_init(&client->object);
+}
+
+void
+nvkm_client_del(struct nvkm_client **pclient)
+{
+	struct nvkm_client *client = *pclient;
+	int i;
+	if (client) {
+		nvkm_client_fini(client, false);
+		for (i = 0; i < ARRAY_SIZE(client->notify); i++)
+			nvkm_client_notify_del(client, i);
+		nvkm_object_dtor(&client->object);
+		kfree(*pclient);
+		*pclient = NULL;
+	}
+}
+
+int
+nvkm_client_new(const char *name, u64 device, const char *cfg,
+		const char *dbg, struct nvkm_client **pclient)
+{
+	struct nvkm_oclass oclass = {};
+	struct nvkm_client *client;
+
+	if (!(client = *pclient = kzalloc(sizeof(*client), GFP_KERNEL)))
+		return -ENOMEM;
+	oclass.client = client;
+
+	nvkm_object_ctor(&nvkm_client_object_func, &oclass, &client->object);
+	snprintf(client->name, sizeof(client->name), "%s", name);
+	client->device = device;
+	client->debug = nvkm_dbgopt(dbg, "CLIENT");
+	client->objroot = RB_ROOT;
+	client->dmaroot = RB_ROOT;
+	return 0;
 }

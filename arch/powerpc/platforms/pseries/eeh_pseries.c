@@ -118,9 +118,8 @@ static int pseries_eeh_init(void)
 	return 0;
 }
 
-static int pseries_eeh_cap_start(struct device_node *dn)
+static int pseries_eeh_cap_start(struct pci_dn *pdn)
 {
-	struct pci_dn *pdn = PCI_DN(dn);
 	u32 status;
 
 	if (!pdn)
@@ -134,10 +133,9 @@ static int pseries_eeh_cap_start(struct device_node *dn)
 }
 
 
-static int pseries_eeh_find_cap(struct device_node *dn, int cap)
+static int pseries_eeh_find_cap(struct pci_dn *pdn, int cap)
 {
-	struct pci_dn *pdn = PCI_DN(dn);
-	int pos = pseries_eeh_cap_start(dn);
+	int pos = pseries_eeh_cap_start(pdn);
 	int cnt = 48;	/* Maximal number of capabilities */
 	u32 id;
 
@@ -160,10 +158,9 @@ static int pseries_eeh_find_cap(struct device_node *dn, int cap)
 	return 0;
 }
 
-static int pseries_eeh_find_ecap(struct device_node *dn, int cap)
+static int pseries_eeh_find_ecap(struct pci_dn *pdn, int cap)
 {
-	struct pci_dn *pdn = PCI_DN(dn);
-	struct eeh_dev *edev = of_node_to_eeh_dev(dn);
+	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
 	u32 header;
 	int pos = 256;
 	int ttl = (4096 - 256) / 8;
@@ -191,53 +188,44 @@ static int pseries_eeh_find_ecap(struct device_node *dn, int cap)
 }
 
 /**
- * pseries_eeh_of_probe - EEH probe on the given device
- * @dn: OF node
- * @flag: Unused
+ * pseries_eeh_probe - EEH probe on the given device
+ * @pdn: PCI device node
+ * @data: Unused
  *
  * When EEH module is installed during system boot, all PCI devices
  * are checked one by one to see if it supports EEH. The function
  * is introduced for the purpose.
  */
-static void *pseries_eeh_of_probe(struct device_node *dn, void *flag)
+static void *pseries_eeh_probe(struct pci_dn *pdn, void *data)
 {
 	struct eeh_dev *edev;
 	struct eeh_pe pe;
-	struct pci_dn *pdn = PCI_DN(dn);
-	const __be32 *classp, *vendorp, *devicep;
-	u32 class_code;
-	const __be32 *regs;
 	u32 pcie_flags;
 	int enable = 0;
 	int ret;
 
 	/* Retrieve OF node and eeh device */
-	edev = of_node_to_eeh_dev(dn);
-	if (edev->pe || !of_device_is_available(dn))
+	edev = pdn_to_eeh_dev(pdn);
+	if (!edev || edev->pe)
 		return NULL;
 
-	/* Retrieve class/vendor/device IDs */
-	classp = of_get_property(dn, "class-code", NULL);
-	vendorp = of_get_property(dn, "vendor-id", NULL);
-	devicep = of_get_property(dn, "device-id", NULL);
-
-	/* Skip for bad OF node or PCI-ISA bridge */
-	if (!classp || !vendorp || !devicep)
-		return NULL;
-	if (dn->type && !strcmp(dn->type, "isa"))
+	/* Check class/vendor/device IDs */
+	if (!pdn->vendor_id || !pdn->device_id || !pdn->class_code)
 		return NULL;
 
-	class_code = of_read_number(classp, 1);
+	/* Skip for PCI-ISA bridge */
+        if ((pdn->class_code >> 8) == PCI_CLASS_BRIDGE_ISA)
+		return NULL;
 
 	/*
 	 * Update class code and mode of eeh device. We need
 	 * correctly reflects that current device is root port
 	 * or PCIe switch downstream port.
 	 */
-	edev->class_code = class_code;
-	edev->pcix_cap = pseries_eeh_find_cap(dn, PCI_CAP_ID_PCIX);
-	edev->pcie_cap = pseries_eeh_find_cap(dn, PCI_CAP_ID_EXP);
-	edev->aer_cap = pseries_eeh_find_ecap(dn, PCI_EXT_CAP_ID_ERR);
+	edev->class_code = pdn->class_code;
+	edev->pcix_cap = pseries_eeh_find_cap(pdn, PCI_CAP_ID_PCIX);
+	edev->pcie_cap = pseries_eeh_find_cap(pdn, PCI_CAP_ID_EXP);
+	edev->aer_cap = pseries_eeh_find_ecap(pdn, PCI_EXT_CAP_ID_ERR);
 	edev->mode &= 0xFFFFFF00;
 	if ((edev->class_code >> 8) == PCI_CLASS_BRIDGE_PCI) {
 		edev->mode |= EEH_DEV_BRIDGE;
@@ -252,24 +240,16 @@ static void *pseries_eeh_of_probe(struct device_node *dn, void *flag)
 		}
 	}
 
-	/* Retrieve the device address */
-	regs = of_get_property(dn, "reg", NULL);
-	if (!regs) {
-		pr_warn("%s: OF node property %s::reg not found\n",
-			__func__, dn->full_name);
-		return NULL;
-	}
-
 	/* Initialize the fake PE */
 	memset(&pe, 0, sizeof(struct eeh_pe));
 	pe.phb = edev->phb;
-	pe.config_addr = of_read_number(regs, 1);
+	pe.config_addr = (pdn->busno << 16) | (pdn->devfn << 8);
 
 	/* Enable EEH on the device */
 	ret = eeh_ops->set_option(&pe, EEH_OPT_ENABLE);
 	if (!ret) {
-		edev->config_addr = of_read_number(regs, 1);
 		/* Retrieve PE address */
+		edev->config_addr = (pdn->busno << 16) | (pdn->devfn << 8);
 		edev->pe_config_addr = eeh_ops->get_pe_addr(&pe);
 		pe.addr = edev->pe_config_addr;
 
@@ -285,16 +265,17 @@ static void *pseries_eeh_of_probe(struct device_node *dn, void *flag)
 			eeh_add_flag(EEH_ENABLED);
 			eeh_add_to_parent_pe(edev);
 
-			pr_debug("%s: EEH enabled on %s PHB#%d-PE#%x, config addr#%x\n",
-				__func__, dn->full_name, pe.phb->global_number,
-				pe.addr, pe.config_addr);
-		} else if (dn->parent && of_node_to_eeh_dev(dn->parent) &&
-			   (of_node_to_eeh_dev(dn->parent))->pe) {
+			pr_debug("%s: EEH enabled on %02x:%02x.%01x PHB#%d-PE#%x\n",
+				__func__, pdn->busno, PCI_SLOT(pdn->devfn),
+				PCI_FUNC(pdn->devfn), pe.phb->global_number,
+				pe.addr);
+		} else if (pdn->parent && pdn_to_eeh_dev(pdn->parent) &&
+			   (pdn_to_eeh_dev(pdn->parent))->pe) {
 			/* This device doesn't support EEH, but it may have an
 			 * EEH parent, in which case we mark it as supported.
 			 */
-			edev->config_addr = of_node_to_eeh_dev(dn->parent)->config_addr;
-			edev->pe_config_addr = of_node_to_eeh_dev(dn->parent)->pe_config_addr;
+			edev->config_addr = pdn_to_eeh_dev(pdn->parent)->config_addr;
+			edev->pe_config_addr = pdn_to_eeh_dev(pdn->parent)->pe_config_addr;
 			eeh_add_to_parent_pe(edev);
 		}
 	}
@@ -452,42 +433,34 @@ static int pseries_eeh_get_state(struct eeh_pe *pe, int *state)
 		return ret;
 
 	/* Parse the result out */
-	result = 0;
-	if (rets[1]) {
-		switch(rets[0]) {
-		case 0:
-			result &= ~EEH_STATE_RESET_ACTIVE;
-			result |= EEH_STATE_MMIO_ACTIVE;
-			result |= EEH_STATE_DMA_ACTIVE;
-			break;
-		case 1:
-			result |= EEH_STATE_RESET_ACTIVE;
-			result |= EEH_STATE_MMIO_ACTIVE;
-			result |= EEH_STATE_DMA_ACTIVE;
-			break;
-		case 2:
-			result &= ~EEH_STATE_RESET_ACTIVE;
-			result &= ~EEH_STATE_MMIO_ACTIVE;
-			result &= ~EEH_STATE_DMA_ACTIVE;
-			break;
-		case 4:
-			result &= ~EEH_STATE_RESET_ACTIVE;
-			result &= ~EEH_STATE_MMIO_ACTIVE;
-			result &= ~EEH_STATE_DMA_ACTIVE;
-			result |= EEH_STATE_MMIO_ENABLED;
-			break;
-		case 5:
-			if (rets[2]) {
-				if (state) *state = rets[2];
-				result = EEH_STATE_UNAVAILABLE;
-			} else {
-				result = EEH_STATE_NOT_SUPPORT;
-			}
-			break;
-		default:
+	if (!rets[1])
+		return EEH_STATE_NOT_SUPPORT;
+
+	switch(rets[0]) {
+	case 0:
+		result = EEH_STATE_MMIO_ACTIVE |
+			 EEH_STATE_DMA_ACTIVE;
+		break;
+	case 1:
+		result = EEH_STATE_RESET_ACTIVE |
+			 EEH_STATE_MMIO_ACTIVE  |
+			 EEH_STATE_DMA_ACTIVE;
+		break;
+	case 2:
+		result = 0;
+		break;
+	case 4:
+		result = EEH_STATE_MMIO_ENABLED;
+		break;
+	case 5:
+		if (rets[2]) {
+			if (state) *state = rets[2];
+			result = EEH_STATE_UNAVAILABLE;
+		} else {
 			result = EEH_STATE_NOT_SUPPORT;
 		}
-	} else {
+		break;
+	default:
 		result = EEH_STATE_NOT_SUPPORT;
 	}
 
@@ -538,7 +511,7 @@ static int pseries_eeh_reset(struct eeh_pe *pe, int option)
 /**
  * pseries_eeh_wait_state - Wait for PE state
  * @pe: EEH PE
- * @max_wait: maximal period in microsecond
+ * @max_wait: maximal period in millisecond
  *
  * Wait for the state of associated PE. It might take some time
  * to retrieve the PE's state.
@@ -670,45 +643,36 @@ static int pseries_eeh_configure_bridge(struct eeh_pe *pe)
 
 /**
  * pseries_eeh_read_config - Read PCI config space
- * @dn: device node
+ * @pdn: PCI device node
  * @where: PCI address
  * @size: size to read
  * @val: return value
  *
  * Read config space from the speicifed device
  */
-static int pseries_eeh_read_config(struct device_node *dn, int where, int size, u32 *val)
+static int pseries_eeh_read_config(struct pci_dn *pdn, int where, int size, u32 *val)
 {
-	struct pci_dn *pdn;
-
-	pdn = PCI_DN(dn);
-
 	return rtas_read_config(pdn, where, size, val);
 }
 
 /**
  * pseries_eeh_write_config - Write PCI config space
- * @dn: device node
+ * @pdn: PCI device node
  * @where: PCI address
  * @size: size to write
  * @val: value to be written
  *
  * Write config space to the specified device
  */
-static int pseries_eeh_write_config(struct device_node *dn, int where, int size, u32 val)
+static int pseries_eeh_write_config(struct pci_dn *pdn, int where, int size, u32 val)
 {
-	struct pci_dn *pdn;
-
-	pdn = PCI_DN(dn);
-
 	return rtas_write_config(pdn, where, size, val);
 }
 
 static struct eeh_ops pseries_eeh_ops = {
 	.name			= "pseries",
 	.init			= pseries_eeh_init,
-	.of_probe		= pseries_eeh_of_probe,
-	.dev_probe		= NULL,
+	.probe			= pseries_eeh_probe,
 	.set_option		= pseries_eeh_set_option,
 	.get_pe_addr		= pseries_eeh_get_pe_addr,
 	.get_state		= pseries_eeh_get_state,

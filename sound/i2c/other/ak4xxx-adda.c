@@ -859,7 +859,6 @@ static int build_deemphasis(struct snd_akm4xxx *ak, int num_emphs)
 	return 0;
 }
 
-#ifdef CONFIG_PROC_FS
 static void proc_regs_read(struct snd_info_entry *entry,
 		struct snd_info_buffer *buffer)
 {
@@ -884,9 +883,6 @@ static int proc_init(struct snd_akm4xxx *ak)
 	snd_info_set_text_ops(entry, ak, proc_regs_read);
 	return 0;
 }
-#else /* !CONFIG_PROC_FS */
-static int proc_init(struct snd_akm4xxx *ak) { return 0; }
-#endif
 
 int snd_akm4xxx_build_controls(struct snd_akm4xxx *ak)
 {

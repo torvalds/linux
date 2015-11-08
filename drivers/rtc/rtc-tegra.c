@@ -261,7 +261,9 @@ static int tegra_rtc_proc(struct device *dev, struct seq_file *seq)
 	if (!dev || !dev->driver)
 		return 0;
 
-	return seq_printf(seq, "name\t\t: %s\n", dev_name(dev));
+	seq_printf(seq, "name\t\t: %s\n", dev_name(dev));
+
+	return 0;
 }
 
 static irqreturn_t tegra_rtc_irq_handler(int irq, void *data)

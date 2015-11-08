@@ -1,7 +1,52 @@
-What:		/sys/module/hid_logitech/drivers/hid:logitech/<dev>/range.
+What:		/sys/bus/hid/drivers/logitech/<dev>/range
 Date:		July 2011
 KernelVersion:	3.2
-Contact:	Michal Malý <madcatxster@gmail.com>
+Contact:	Michal Malý <madcatxster@devoid-pointer.net>
 Description:	Display minimum, maximum and current range of the steering
 		wheel. Writing a value within min and max boundaries sets the
 		range of the wheel.
+
+What:		/sys/bus/hid/drivers/logitech/<dev>/alternate_modes
+Date:		Feb 2015
+KernelVersion:	4.1
+Contact:	Michal Malý <madcatxster@devoid-pointer.net>
+Description:	Displays a set of alternate modes supported by a wheel. Each
+		mode is listed as follows:
+		  Tag: Mode Name
+		Currently active mode is marked with an asterisk. List also
+		contains an abstract item "native" which always denotes the
+		native mode of the wheel. Echoing the mode tag switches the
+		wheel into the corresponding mode. Depending on the exact model
+		of the wheel not all listed modes might always be selectable.
+		If a wheel cannot be switched into the desired mode, -EINVAL
+		is returned accompanied with an explanatory message in the
+		kernel log.
+		This entry is not created for devices that have only one mode.
+
+		Currently supported mode switches:
+		Driving Force Pro:
+		  DF-EX --> DFP
+
+		G25:
+		  DF-EX --> DFP --> G25
+
+		G27:
+		  DF-EX <*> DFP <-> G25 <-> G27
+		  DF-EX <*--------> G25 <-> G27
+		  DF-EX <*----------------> G27
+
+		DFGT:
+		  DF-EX <*> DFP <-> DFGT
+		  DF-EX <*--------> DFGT
+
+		* hid_logitech module must be loaded with lg4ff_no_autoswitch=1
+		  parameter set in order for the switch to DF-EX mode to work.
+
+What:		/sys/bus/hid/drivers/logitech/<dev>/real_id
+Date:		Feb 2015
+KernelVersion:	4.1
+Contact:	Michal Malý <madcatxster@devoid-pointer.net>
+Description:	Displays the real model of the wheel regardless of any
+		alternate mode the wheel might be switched to.
+		It is a read-only value.
+		This entry is not created for devices that have only one mode.

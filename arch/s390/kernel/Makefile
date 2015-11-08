@@ -26,25 +26,32 @@ CFLAGS_dumpstack.o	+= -fno-optimize-sibling-calls
 #
 CFLAGS_ptrace.o		+= -DUTS_MACHINE='"$(UTS_MACHINE)"'
 
-CFLAGS_sysinfo.o += -Iinclude/math-emu -Iarch/s390/math-emu -w
+CFLAGS_sysinfo.o += -w
+
+#
+# Use -march=z900 for sclp.c to be able to print an error message if
+# the kernel is started on a machine which is too old
+#
+CFLAGS_REMOVE_sclp.o = $(CC_FLAGS_FTRACE)
+ifneq ($(CC_FLAGS_MARCH),-march=z900)
+CFLAGS_REMOVE_sclp.o += $(CC_FLAGS_MARCH)
+CFLAGS_sclp.o	+= -march=z900
+endif
+GCOV_PROFILE_sclp.o := n
 
 obj-y	:= traps.o time.o process.o base.o early.o setup.o idle.o vtime.o
 obj-y	+= processor.o sys_s390.o ptrace.o signal.o cpcmd.o ebcdic.o nmi.o
 obj-y	+= debug.o irq.o ipl.o dis.o diag.o sclp.o vdso.o
 obj-y	+= sysinfo.o jump_label.o lgr.o os_info.o machine_kexec.o pgm_check.o
-obj-y	+= dumpstack.o
+obj-y	+= runtime_instr.o cache.o dumpstack.o
+obj-y	+= entry.o reipl.o relocate_kernel.o
 
-obj-y	+= $(if $(CONFIG_64BIT),entry64.o,entry.o)
-obj-y	+= $(if $(CONFIG_64BIT),reipl64.o,reipl.o)
-obj-y	+= $(if $(CONFIG_64BIT),relocate_kernel64.o,relocate_kernel.o)
-
-extra-y				+= head.o vmlinux.lds
-extra-y				+= $(if $(CONFIG_64BIT),head64.o,head31.o)
+extra-y				+= head.o head64.o vmlinux.lds
 
 obj-$(CONFIG_MODULES)		+= s390_ksyms.o module.o
 obj-$(CONFIG_SMP)		+= smp.o
 obj-$(CONFIG_SCHED_BOOK)	+= topology.o
-obj-$(CONFIG_HIBERNATION)	+= suspend.o swsusp_asm64.o
+obj-$(CONFIG_HIBERNATION)	+= suspend.o swsusp.o
 obj-$(CONFIG_AUDIT)		+= audit.o
 compat-obj-$(CONFIG_AUDIT)	+= compat_audit.o
 obj-$(CONFIG_COMPAT)		+= compat_linux.o compat_signal.o
@@ -56,13 +63,11 @@ obj-$(CONFIG_FUNCTION_TRACER)	+= mcount.o ftrace.o
 obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
 obj-$(CONFIG_UPROBES)		+= uprobes.o
 
-ifdef CONFIG_64BIT
-obj-$(CONFIG_PERF_EVENTS)	+= perf_event.o perf_cpum_cf.o perf_cpum_sf.o \
-						perf_cpum_cf_events.o
-obj-y				+= runtime_instr.o cache.o
-endif
+obj-$(CONFIG_PERF_EVENTS)	+= perf_event.o perf_cpum_cf.o perf_cpum_sf.o
+obj-$(CONFIG_PERF_EVENTS)	+= perf_cpum_cf_events.o
+
+obj-$(CONFIG_TRACEPOINTS)	+= trace.o
 
 # vdso
-obj-$(CONFIG_64BIT)		+= vdso64/
-obj-$(CONFIG_32BIT)		+= vdso32/
+obj-y				+= vdso64/
 obj-$(CONFIG_COMPAT)		+= vdso32/

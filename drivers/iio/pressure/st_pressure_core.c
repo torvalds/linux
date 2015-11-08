@@ -178,6 +178,7 @@ static const struct iio_chan_spec st_press_lps001wp_channels[] = {
 static const struct st_sensor_settings st_press_sensors_settings[] = {
 	{
 		.wai = ST_PRESS_LPS331AP_WAI_EXP,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LPS331AP_PRESS_DEV_NAME,
 		},
@@ -225,6 +226,7 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 	},
 	{
 		.wai = ST_PRESS_LPS001WP_WAI_EXP,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LPS001WP_PRESS_DEV_NAME,
 		},
@@ -260,6 +262,7 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 	},
 	{
 		.wai = ST_PRESS_LPS25H_WAI_EXP,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LPS25H_PRESS_DEV_NAME,
 		},
@@ -397,6 +400,7 @@ static const struct iio_info press_info = {
 	.attrs = &st_press_attribute_group,
 	.read_raw = &st_press_read_raw,
 	.write_raw = &st_press_write_raw,
+	.debugfs_reg_access = &st_sensors_debugfs_reg_access,
 };
 
 #ifdef CONFIG_IIO_TRIGGER
@@ -417,6 +421,7 @@ int st_press_common_probe(struct iio_dev *indio_dev)
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &press_info;
+	mutex_init(&press_data->tb.buf_lock);
 
 	st_sensors_power_enable(indio_dev);
 

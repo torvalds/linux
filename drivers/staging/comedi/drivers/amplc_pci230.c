@@ -181,14 +181,12 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
-#include "comedi_fc.h"
-#include "8253.h"
+#include "comedi_8254.h"
 #include "8255.h"
 
 /*
@@ -206,10 +204,6 @@
 #define PCI230_PPI_X_C		0x02	/* User PPI (82C55) port C */
 #define PCI230_PPI_X_CMD	0x03	/* User PPI (82C55) control word */
 #define PCI230_Z2_CT_BASE	0x14	/* 82C54 counter/timer base */
-#define PCI230_Z2_CT0		0x14	/* 82C54 counter/timer 0 */
-#define PCI230_Z2_CT1		0x15	/* 82C54 counter/timer 1 */
-#define PCI230_Z2_CT2		0x16	/* 82C54 counter/timer 2 */
-#define PCI230_Z2_CTC		0x17	/* 82C54 counter/timer control word */
 #define PCI230_ZCLK_SCE		0x1A	/* Group Z Clock Configuration */
 #define PCI230_ZGAT_SCE		0x1D	/* Group Z Gate Configuration */
 #define PCI230_INT_SCE		0x1E	/* Interrupt source mask (w) */
@@ -377,12 +371,6 @@
 #define CLK_EXT		7	/* external clock */
 /* Macro to construct clock input configuration register value. */
 #define CLK_CONFIG(chan, src)	((((chan) & 3) << 3) | ((src) & 7))
-/* Timebases in ns. */
-#define TIMEBASE_10MHZ		100
-#define TIMEBASE_1MHZ		1000
-#define TIMEBASE_100KHZ		10000
-#define TIMEBASE_10KHZ		100000
-#define TIMEBASE_1KHZ		1000000
 
 /*
  * Counter/timer gate input configuration sources.
@@ -507,11 +495,11 @@ struct pci230_private {
 
 /* PCI230 clock source periods in ns */
 static const unsigned int pci230_timebase[8] = {
-	[CLK_10MHZ] = TIMEBASE_10MHZ,
-	[CLK_1MHZ] = TIMEBASE_1MHZ,
-	[CLK_100KHZ] = TIMEBASE_100KHZ,
-	[CLK_10KHZ] = TIMEBASE_10KHZ,
-	[CLK_1KHZ] = TIMEBASE_1KHZ,
+	[CLK_10MHZ]	= I8254_OSC_BASE_10MHZ,
+	[CLK_1MHZ]	= I8254_OSC_BASE_1MHZ,
+	[CLK_100KHZ]	= I8254_OSC_BASE_100KHZ,
+	[CLK_10KHZ]	= I8254_OSC_BASE_10KHZ,
+	[CLK_1KHZ]	= I8254_OSC_BASE_1KHZ,
 };
 
 /* PCI230 analogue input range table */
@@ -540,7 +528,7 @@ static const struct comedi_lrange pci230_ao_range = {
 
 static unsigned short pci230_ai_read(struct comedi_device *dev)
 {
-	const struct pci230_board *thisboard = dev->board_ptr;
+	const struct pci230_board *board = dev->board_ptr;
 	struct pci230_private *devpriv = dev->private;
 	unsigned short data;
 
@@ -555,21 +543,21 @@ static unsigned short pci230_ai_read(struct comedi_device *dev)
 	 */
 	if (devpriv->ai_bipolar)
 		data ^= 0x8000;
-	data >>= (16 - thisboard->ai_bits);
+	data >>= (16 - board->ai_bits);
 	return data;
 }
 
 static unsigned short pci230_ao_mangle_datum(struct comedi_device *dev,
 					     unsigned short datum)
 {
-	const struct pci230_board *thisboard = dev->board_ptr;
+	const struct pci230_board *board = dev->board_ptr;
 	struct pci230_private *devpriv = dev->private;
 
 	/*
 	 * PCI230 is 12 bit - stored in upper bits of 16 bit register (lower
 	 * four bits reserved for expansion).  PCI230+ is also 12 bit AO.
 	 */
-	datum <<= (16 - thisboard->ao_bits);
+	datum <<= (16 - board->ao_bits);
 	/*
 	 * If a bipolar range was specified, mangle it
 	 * (straight binary->twos complement).
@@ -695,7 +683,7 @@ static void pci230_ct_setup_ns_mode(struct comedi_device *dev, unsigned int ct,
 	unsigned int count;
 
 	/* Set mode. */
-	i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0, ct, mode);
+	comedi_8254_set_mode(dev->pacer, ct, mode);
 	/* Determine clock source and count. */
 	clk_src = pci230_choose_clk_count(ns, &count, flags);
 	/* Program clock source. */
@@ -704,13 +692,13 @@ static void pci230_ct_setup_ns_mode(struct comedi_device *dev, unsigned int ct,
 	if (count >= 65536)
 		count = 0;
 
-	i8254_write(dev->iobase + PCI230_Z2_CT_BASE, 0, ct, count);
+	comedi_8254_write(dev->pacer, ct, count);
 }
 
 static void pci230_cancel_ct(struct comedi_device *dev, unsigned int ct)
 {
-	i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0, ct, I8254_MODE1);
 	/* Counter ct, 8254 mode 1, initial count not written. */
+	comedi_8254_set_mode(dev->pacer, ct, I8254_MODE1);
 }
 
 static int pci230_ai_eoc(struct comedi_device *dev,
@@ -760,7 +748,7 @@ static int pci230_ai_insn_read(struct comedi_device *dev,
 	 */
 	adccon = PCI230_ADC_TRIG_Z2CT2 | PCI230_ADC_FIFO_EN;
 	/* Set Z2-CT2 output low to avoid any false triggers. */
-	i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0, 2, I8254_MODE0);
+	comedi_8254_set_mode(dev->pacer, 2, I8254_MODE0);
 	devpriv->ai_bipolar = comedi_range_is_bipolar(s, range);
 	if (aref == AREF_DIFF) {
 		/* Differential. */
@@ -811,10 +799,8 @@ static int pci230_ai_insn_read(struct comedi_device *dev,
 		 * Trigger conversion by toggling Z2-CT2 output
 		 * (finish with output high).
 		 */
-		i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0,
-			       2, I8254_MODE0);
-		i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0,
-			       2, I8254_MODE1);
+		comedi_8254_set_mode(dev->pacer, 2, I8254_MODE0);
+		comedi_8254_set_mode(dev->pacer, 2, I8254_MODE1);
 
 		/* wait for conversion to end */
 		ret = comedi_timeout(dev, s, insn, pci230_ai_eoc, 0);
@@ -891,24 +877,24 @@ static int pci230_ao_check_chanlist(struct comedi_device *dev,
 static int pci230_ao_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	const struct pci230_board *thisboard = dev->board_ptr;
+	const struct pci230_board *board = dev->board_ptr;
 	struct pci230_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int tmp;
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_INT);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_INT);
 
 	tmp = TRIG_TIMER | TRIG_INT;
-	if (thisboard->min_hwver > 0 && devpriv->hwver >= 2) {
+	if (board->min_hwver > 0 && devpriv->hwver >= 2) {
 		/*
 		 * For PCI230+ hardware version 2 onwards, allow external
 		 * trigger from EXTTRIG/EXTCONVCLK input (PCI230+ pin 25).
 		 *
 		 * FIXME: The permitted scan_begin_src values shouldn't depend
 		 * on devpriv->hwver (the detected card's actual hardware
-		 * version).  They should only depend on thisboard->min_hwver
+		 * version).  They should only depend on board->min_hwver
 		 * (the static capabilities of the configured card).  To fix
 		 * it, a new card model, e.g. "pci230+2" would have to be
 		 * defined with min_hwver set to 2.  It doesn't seem worth it
@@ -918,19 +904,19 @@ static int pci230_ao_cmdtest(struct comedi_device *dev,
 		 */
 		tmp |= TRIG_EXT;
 	}
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, tmp);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, tmp);
 
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= comedi_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
@@ -939,7 +925,7 @@ static int pci230_ao_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
 #define MAX_SPEED_AO	8000	/* 8000 ns => 125 kHz */
 /*
@@ -950,10 +936,10 @@ static int pci230_ao_cmdtest(struct comedi_device *dev,
 
 	switch (cmd->scan_begin_src) {
 	case TRIG_TIMER:
-		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-						 MAX_SPEED_AO);
-		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg,
-						 MIN_SPEED_AO);
+		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+						    MAX_SPEED_AO);
+		err |= comedi_check_trigger_arg_max(&cmd->scan_begin_arg,
+						    MIN_SPEED_AO);
 		break;
 	case TRIG_EXT:
 		/*
@@ -978,16 +964,17 @@ static int pci230_ao_cmdtest(struct comedi_device *dev,
 		}
 		break;
 	default:
-		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 		break;
 	}
 
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
 	else	/* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -1513,17 +1500,17 @@ static int pci230_ai_check_chanlist(struct comedi_device *dev,
 static int pci230_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	const struct pci230_board *thisboard = dev->board_ptr;
+	const struct pci230_board *board = dev->board_ptr;
 	struct pci230_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int tmp;
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
 
 	tmp = TRIG_FOLLOW | TRIG_TIMER | TRIG_INT;
-	if (thisboard->have_dio || thisboard->min_hwver > 0) {
+	if (board->have_dio || board->min_hwver > 0) {
 		/*
 		 * Unfortunately, we cannot trigger a scan off an external
 		 * source on the PCI260 board, since it uses the PPIC0 (DIO)
@@ -1532,21 +1519,21 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 		 */
 		tmp |= TRIG_EXT;
 	}
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, tmp);
-	err |= cfc_check_trigger_src(&cmd->convert_src,
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, tmp);
+	err |= comedi_check_trigger_src(&cmd->convert_src,
 					TRIG_TIMER | TRIG_INT | TRIG_EXT);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->start_src);
-	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
-	err |= cfc_check_trigger_is_unique(cmd->convert_src);
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= comedi_check_trigger_is_unique(cmd->start_src);
+	err |= comedi_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= comedi_check_trigger_is_unique(cmd->convert_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
@@ -1563,7 +1550,7 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
 #define MAX_SPEED_AI_SE		3200	/* PCI230 SE:   3200 ns => 312.5 kHz */
 #define MAX_SPEED_AI_DIFF	8000	/* PCI230 DIFF: 8000 ns => 125 kHz */
@@ -1598,10 +1585,10 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 			max_speed_ai = MAX_SPEED_AI_PLUS;
 		}
 
-		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
-						 max_speed_ai);
-		err |= cfc_check_trigger_arg_max(&cmd->convert_arg,
-						 MIN_SPEED_AI);
+		err |= comedi_check_trigger_arg_min(&cmd->convert_arg,
+						    max_speed_ai);
+		err |= comedi_check_trigger_arg_max(&cmd->convert_arg,
+						    MIN_SPEED_AI);
 	} else if (cmd->convert_src == TRIG_EXT) {
 		/*
 		 * external trigger
@@ -1636,18 +1623,20 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 			 * convert_arg == 0 => trigger on -ve edge.
 			 * convert_arg == 1 => trigger on +ve edge.
 			 */
-			err |= cfc_check_trigger_arg_max(&cmd->convert_arg, 1);
+			err |= comedi_check_trigger_arg_max(&cmd->convert_arg,
+							    1);
 		}
 	} else {
-		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
 	}
 
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
 	else	/* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_EXT) {
 		/*
@@ -1672,7 +1661,7 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 			err |= -EINVAL;
 
 	} else {
-		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 	}
 
 	if (err)
@@ -1767,8 +1756,8 @@ static int pci230_ai_inttrig_convert(struct comedi_device *dev,
 	 * Trigger conversion by toggling Z2-CT2 output.
 	 * Finish with output high.
 	 */
-	i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0, 2, I8254_MODE0);
-	i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0, 2, I8254_MODE1);
+	comedi_8254_set_mode(dev->pacer, 2, I8254_MODE0);
+	comedi_8254_set_mode(dev->pacer, 2, I8254_MODE1);
 	/*
 	 * Delay.  Should driver be responsible for this?  An
 	 * alternative would be to wait until conversion is complete,
@@ -2022,17 +2011,17 @@ static void pci230_handle_ai(struct comedi_device *dev,
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int status_fifo;
 	unsigned int i;
-	unsigned int todo;
+	unsigned int nsamples;
 	unsigned int fifoamount;
 	unsigned short val;
 
 	/* Determine number of samples to read. */
-	todo = comedi_nsamples_left(s, PCI230_ADC_FIFOLEVEL_HALFFULL);
-	if (todo == 0)
+	nsamples = comedi_nsamples_left(s, PCI230_ADC_FIFOLEVEL_HALFFULL);
+	if (nsamples == 0)
 		return;
 
 	fifoamount = 0;
-	for (i = 0; i < todo; i++) {
+	for (i = 0; i < nsamples; i++) {
 		if (fifoamount == 0) {
 			/* Read FIFO state. */
 			status_fifo = inw(devpriv->daqio + PCI230_ADCCON);
@@ -2189,7 +2178,7 @@ static int pci230_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	 * Set counter/timer 2 output high for use as the initial start
 	 * conversion source.
 	 */
-	i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0, 2, I8254_MODE1);
+	comedi_8254_set_mode(dev->pacer, 2, I8254_MODE1);
 
 	/*
 	 * Temporarily use CT2 output as conversion trigger source and
@@ -2286,7 +2275,7 @@ static int pci230_ai_cancel(struct comedi_device *dev,
 static irqreturn_t pci230_interrupt(int irq, void *d)
 {
 	unsigned char status_int, valid_status_int, temp_ier;
-	struct comedi_device *dev = (struct comedi_device *)d;
+	struct comedi_device *dev = d;
 	struct pci230_private *devpriv = dev->private;
 	struct comedi_subdevice *s_ao = dev->write_subdev;
 	struct comedi_subdevice *s_ai = dev->read_subdev;
@@ -2375,7 +2364,7 @@ static int pci230_auto_attach(struct comedi_device *dev,
 			      unsigned long context_unused)
 {
 	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
-	const struct pci230_board *thisboard;
+	const struct pci230_board *board;
 	struct pci230_private *devpriv;
 	struct comedi_subdevice *s;
 	int rc;
@@ -2392,14 +2381,14 @@ static int pci230_auto_attach(struct comedi_device *dev,
 	spin_lock_init(&devpriv->ai_stop_spinlock);
 	spin_lock_init(&devpriv->ao_stop_spinlock);
 
-	dev->board_ptr = pci230_find_pci_board(pci_dev);
-	if (dev->board_ptr == NULL) {
+	board = pci230_find_pci_board(pci_dev);
+	if (!board) {
 		dev_err(dev->class_dev,
 			"amplc_pci230: BUG! cannot determine board type!\n");
 		return -EINVAL;
 	}
-	thisboard = dev->board_ptr;
-	dev->board_name = thisboard->name;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 
 	rc = comedi_pci_enable(dev);
 	if (rc)
@@ -2425,15 +2414,15 @@ static int pci230_auto_attach(struct comedi_device *dev,
 		unsigned short extfunc = 0;
 
 		devpriv->hwver = inw(devpriv->daqio + PCI230P_HWVER);
-		if (devpriv->hwver < thisboard->min_hwver) {
+		if (devpriv->hwver < board->min_hwver) {
 			dev_err(dev->class_dev,
 				"%s - bad hardware version - got %u, need %u\n",
 				dev->board_name, devpriv->hwver,
-				thisboard->min_hwver);
+				board->min_hwver);
 			return -EIO;
 		}
 		if (devpriv->hwver > 0) {
-			if (!thisboard->have_dio) {
+			if (!board->have_dio) {
 				/*
 				 * No DIO ports.  Route counters' external gates
 				 * to the EXTTRIG signal (PCI260+ pin 17).
@@ -2443,7 +2432,7 @@ static int pci230_auto_attach(struct comedi_device *dev,
 				 */
 				extfunc |= PCI230P_EXTFUNC_GAT_EXTTRIG;
 			}
-			if (thisboard->ao_bits && devpriv->hwver >= 2) {
+			if (board->ao_bits && devpriv->hwver >= 2) {
 				/* Enable DAC FIFO functionality. */
 				extfunc |= PCI230P2_EXTFUNC_DACFIFO;
 			}
@@ -2481,6 +2470,11 @@ static int pci230_auto_attach(struct comedi_device *dev,
 			dev->irq = pci_dev->irq;
 	}
 
+	dev->pacer = comedi_8254_init(dev->iobase + PCI230_Z2_CT_BASE,
+				      0, I8254_IO8, 0);
+	if (!dev->pacer)
+		return -ENOMEM;
+
 	rc = comedi_alloc_subdevices(dev, 3);
 	if (rc)
 		return rc;
@@ -2490,7 +2484,7 @@ static int pci230_auto_attach(struct comedi_device *dev,
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_GROUND;
 	s->n_chan = 16;
-	s->maxdata = (1 << thisboard->ai_bits) - 1;
+	s->maxdata = (1 << board->ai_bits) - 1;
 	s->range_table = &pci230_ai_range;
 	s->insn_read = pci230_ai_insn_read;
 	s->len_chanlist = 256;	/* but there are restrictions. */
@@ -2504,11 +2498,11 @@ static int pci230_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[1];
 	/* analog output subdevice */
-	if (thisboard->ao_bits) {
+	if (board->ao_bits) {
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
 		s->n_chan = 2;
-		s->maxdata = (1 << thisboard->ao_bits) - 1;
+		s->maxdata = (1 << board->ao_bits) - 1;
 		s->range_table = &pci230_ao_range;
 		s->insn_write = pci230_ao_insn_write;
 		s->len_chanlist = 2;
@@ -2529,7 +2523,7 @@ static int pci230_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[2];
 	/* digital i/o subdevice */
-	if (thisboard->have_dio) {
+	if (board->have_dio) {
 		rc = subdev_8255_init(dev, s, NULL, PCI230_PPI_X_BASE);
 		if (rc)
 			return rc;

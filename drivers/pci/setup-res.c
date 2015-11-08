@@ -36,6 +36,11 @@ void pci_update_resource(struct pci_dev *dev, int resno)
 	enum pci_bar_type type;
 	struct resource *res = dev->resource + resno;
 
+	if (dev->is_virtfn) {
+		dev_warn(&dev->dev, "can't update VF BAR%d\n", resno);
+		return;
+	}
+
 	/*
 	 * Ignore resources for unimplemented BARs and unused resource slots
 	 * for 64 bit BARs.
@@ -120,6 +125,7 @@ int pci_claim_resource(struct pci_dev *dev, int resource)
 	if (!root) {
 		dev_info(&dev->dev, "can't claim BAR %d %pR: no compatible bridge window\n",
 			 resource, res);
+		res->flags |= IORESOURCE_UNSET;
 		return -EINVAL;
 	}
 
@@ -127,6 +133,7 @@ int pci_claim_resource(struct pci_dev *dev, int resource)
 	if (conflict) {
 		dev_info(&dev->dev, "can't claim BAR %d %pR: address conflict with %s %pR\n",
 			 resource, res, conflict->name, conflict);
+		res->flags |= IORESOURCE_UNSET;
 		return -EBUSY;
 	}
 
@@ -175,6 +182,7 @@ static int pci_revert_fw_address(struct resource *res, struct pci_dev *dev,
 	end = res->end;
 	res->start = fw_addr;
 	res->end = res->start + size - 1;
+	res->flags &= ~IORESOURCE_UNSET;
 
 	root = pci_find_parent_resource(dev, res);
 	if (!root) {
@@ -192,6 +200,7 @@ static int pci_revert_fw_address(struct resource *res, struct pci_dev *dev,
 			 resno, res, conflict->name, conflict);
 		res->start = start;
 		res->end = end;
+		res->flags |= IORESOURCE_UNSET;
 		return -EBUSY;
 	}
 	return 0;

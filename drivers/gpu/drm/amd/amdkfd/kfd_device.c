@@ -33,14 +33,21 @@
 static const struct kfd_device_info kaveri_device_info = {
 	.asic_family = CHIP_KAVERI,
 	.max_pasid_bits = 16,
+	/* max num of queues for KV.TODO should be a dynamic value */
+	.max_no_of_hqd	= 24,
 	.ih_ring_entry_size = 4 * sizeof(uint32_t),
+	.event_interrupt_class = &event_interrupt_class_cik,
+	.num_of_watch_points = 4,
 	.mqd_size_aligned = MQD_SIZE_ALIGNED
 };
 
 static const struct kfd_device_info carrizo_device_info = {
 	.asic_family = CHIP_CARRIZO,
 	.max_pasid_bits = 16,
+	/* max num of queues for CZ.TODO should be a dynamic value */
+	.max_no_of_hqd	= 24,
 	.ih_ring_entry_size = 4 * sizeof(uint32_t),
+	.event_interrupt_class = &event_interrupt_class_cik,
 	.num_of_watch_points = 4,
 	.mqd_size_aligned = MQD_SIZE_ALIGNED
 };
@@ -73,7 +80,12 @@ static const struct kfd_deviceid supported_devices[] = {
 	{ 0x1318, &kaveri_device_info },	/* Kaveri */
 	{ 0x131B, &kaveri_device_info },	/* Kaveri */
 	{ 0x131C, &kaveri_device_info },	/* Kaveri */
-	{ 0x131D, &kaveri_device_info }		/* Kaveri */
+	{ 0x131D, &kaveri_device_info },	/* Kaveri */
+	{ 0x9870, &carrizo_device_info },	/* Carrizo */
+	{ 0x9874, &carrizo_device_info },	/* Carrizo */
+	{ 0x9875, &carrizo_device_info },	/* Carrizo */
+	{ 0x9876, &carrizo_device_info },	/* Carrizo */
+	{ 0x9877, &carrizo_device_info }	/* Carrizo */
 };
 
 static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
@@ -94,7 +106,8 @@ static const struct kfd_device_info *lookup_device_info(unsigned short did)
 	return NULL;
 }
 
-struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd, struct pci_dev *pdev)
+struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
+	struct pci_dev *pdev, const struct kfd2kgd_calls *f2g)
 {
 	struct kfd_dev *kfd;
 
@@ -112,6 +125,11 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd, struct pci_dev *pdev)
 	kfd->device_info = device_info;
 	kfd->pdev = pdev;
 	kfd->init_complete = false;
+	kfd->kfd2kgd = f2g;
+
+	mutex_init(&kfd->doorbell_mutex);
+	memset(&kfd->doorbell_available_index, 0,
+		sizeof(kfd->doorbell_available_index));
 
 	return kfd;
 }
@@ -175,6 +193,32 @@ static void iommu_pasid_shutdown_callback(struct pci_dev *pdev, int pasid)
 		kfd_unbind_process_from_device(dev, pasid);
 }
 
+/*
+ * This function called by IOMMU driver on PPR failure
+ */
+static int iommu_invalid_ppr_cb(struct pci_dev *pdev, int pasid,
+		unsigned long address, u16 flags)
+{
+	struct kfd_dev *dev;
+
+	dev_warn(kfd_device,
+			"Invalid PPR device %x:%x.%x pasid %d address 0x%lX flags 0x%X",
+			PCI_BUS_NUM(pdev->devfn),
+			PCI_SLOT(pdev->devfn),
+			PCI_FUNC(pdev->devfn),
+			pasid,
+			address,
+			flags);
+
+	dev = kfd_device_by_pci_dev(pdev);
+	BUG_ON(dev == NULL);
+
+	kfd_signal_iommu_event(dev, pasid, address,
+			flags & PPR_FAULT_WRITE, flags & PPR_FAULT_EXEC);
+
+	return AMD_IOMMU_INV_PRI_RSP_INVALID;
+}
+
 bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			 const struct kgd2kfd_shared_resources *gpu_resources)
 {
@@ -200,8 +244,9 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	/* add another 512KB for all other allocations on gart (HPD, fences) */
 	size += 512 * 1024;
 
-	if (kfd2kgd->init_gtt_mem_allocation(kfd->kgd, size, &kfd->gtt_mem,
-			&kfd->gtt_start_gpu_addr, &kfd->gtt_start_cpu_ptr)) {
+	if (kfd->kfd2kgd->init_gtt_mem_allocation(
+			kfd->kgd, size, &kfd->gtt_mem,
+			&kfd->gtt_start_gpu_addr, &kfd->gtt_start_cpu_ptr)){
 		dev_err(kfd_device,
 			"Could not allocate %d bytes for device (%x:%x)\n",
 			size, kfd->pdev->vendor, kfd->pdev->device);
@@ -228,6 +273,13 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		goto kfd_topology_add_device_error;
 	}
 
+	if (kfd_interrupt_init(kfd)) {
+		dev_err(kfd_device,
+			"Error initializing interrupts for device (%x:%x)\n",
+			kfd->pdev->vendor, kfd->pdev->device);
+		goto kfd_interrupt_error;
+	}
+
 	if (!device_iommu_pasid_init(kfd)) {
 		dev_err(kfd_device,
 			"Error initializing iommuv2 for device (%x:%x)\n",
@@ -236,6 +288,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	}
 	amd_iommu_set_invalidate_ctx_cb(kfd->pdev,
 						iommu_pasid_shutdown_callback);
+	amd_iommu_set_invalid_ppr_cb(kfd->pdev, iommu_invalid_ppr_cb);
 
 	kfd->dqm = device_queue_manager_init(kfd);
 	if (!kfd->dqm) {
@@ -252,6 +305,8 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		goto dqm_start_error;
 	}
 
+	kfd->dbgmgr = NULL;
+
 	kfd->init_complete = true;
 	dev_info(kfd_device, "added device (%x:%x)\n", kfd->pdev->vendor,
 		 kfd->pdev->device);
@@ -266,11 +321,13 @@ dqm_start_error:
 device_queue_manager_error:
 	amd_iommu_free_device(kfd->pdev);
 device_iommu_pasid_error:
+	kfd_interrupt_exit(kfd);
+kfd_interrupt_error:
 	kfd_topology_remove_device(kfd);
 kfd_topology_add_device_error:
 	kfd_gtt_sa_fini(kfd);
 kfd_gtt_sa_init_error:
-	kfd2kgd->free_gtt_mem(kfd->kgd, kfd->gtt_mem);
+	kfd->kfd2kgd->free_gtt_mem(kfd->kgd, kfd->gtt_mem);
 	dev_err(kfd_device,
 		"device (%x:%x) NOT added due to errors\n",
 		kfd->pdev->vendor, kfd->pdev->device);
@@ -283,9 +340,10 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 	if (kfd->init_complete) {
 		device_queue_manager_uninit(kfd->dqm);
 		amd_iommu_free_device(kfd->pdev);
+		kfd_interrupt_exit(kfd);
 		kfd_topology_remove_device(kfd);
 		kfd_gtt_sa_fini(kfd);
-		kfd2kgd->free_gtt_mem(kfd->kgd, kfd->gtt_mem);
+		kfd->kfd2kgd->free_gtt_mem(kfd->kgd, kfd->gtt_mem);
 	}
 
 	kfree(kfd);
@@ -298,6 +356,7 @@ void kgd2kfd_suspend(struct kfd_dev *kfd)
 	if (kfd->init_complete) {
 		kfd->dqm->ops.stop(kfd->dqm);
 		amd_iommu_set_invalidate_ctx_cb(kfd->pdev, NULL);
+		amd_iommu_set_invalid_ppr_cb(kfd->pdev, NULL);
 		amd_iommu_free_device(kfd->pdev);
 	}
 }
@@ -317,6 +376,7 @@ int kgd2kfd_resume(struct kfd_dev *kfd)
 			return -ENXIO;
 		amd_iommu_set_invalidate_ctx_cb(kfd->pdev,
 						iommu_pasid_shutdown_callback);
+		amd_iommu_set_invalid_ppr_cb(kfd->pdev, iommu_invalid_ppr_cb);
 		kfd->dqm->ops.start(kfd->dqm);
 	}
 
@@ -326,7 +386,17 @@ int kgd2kfd_resume(struct kfd_dev *kfd)
 /* This is called directly from KGD at ISR. */
 void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry)
 {
-	/* Process interrupts / schedule work as necessary */
+	if (!kfd->init_complete)
+		return;
+
+	spin_lock(&kfd->interrupt_lock);
+
+	if (kfd->interrupts_active
+	    && interrupt_is_wanted(kfd, ih_ring_entry)
+	    && enqueue_ih_ring_entry(kfd, ih_ring_entry))
+		schedule_work(&kfd->interrupt_work);
+
+	spin_unlock(&kfd->interrupt_lock);
 }
 
 static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,

@@ -1,22 +1,23 @@
 /*
-    comedi/drivers/vmk80xx.c
-    Velleman USB Board Low-Level Driver
+ * vmk80xx.c
+ * Velleman USB Board Low-Level Driver
+ *
+ * Copyright (C) 2009 Manuel Gebele <forensixs@gmx.de>, Germany
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    Copyright (C) 2009 Manuel Gebele <forensixs@gmx.de>, Germany
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
  * Driver: vmk80xx
  * Description: Velleman USB Board Low-Level Driver
@@ -51,52 +52,52 @@ enum {
 	DEVICE_VMK8061
 };
 
-#define VMK8055_DI_REG          0x00
-#define VMK8055_DO_REG          0x01
-#define VMK8055_AO1_REG         0x02
-#define VMK8055_AO2_REG         0x03
-#define VMK8055_AI1_REG         0x02
-#define VMK8055_AI2_REG         0x03
-#define VMK8055_CNT1_REG        0x04
-#define VMK8055_CNT2_REG        0x06
+#define VMK8055_DI_REG		0x00
+#define VMK8055_DO_REG		0x01
+#define VMK8055_AO1_REG		0x02
+#define VMK8055_AO2_REG		0x03
+#define VMK8055_AI1_REG		0x02
+#define VMK8055_AI2_REG		0x03
+#define VMK8055_CNT1_REG	0x04
+#define VMK8055_CNT2_REG	0x06
 
-#define VMK8061_CH_REG          0x01
-#define VMK8061_DI_REG          0x01
-#define VMK8061_DO_REG          0x01
-#define VMK8061_PWM_REG1        0x01
-#define VMK8061_PWM_REG2        0x02
-#define VMK8061_CNT_REG         0x02
-#define VMK8061_AO_REG          0x02
-#define VMK8061_AI_REG1         0x02
-#define VMK8061_AI_REG2         0x03
+#define VMK8061_CH_REG		0x01
+#define VMK8061_DI_REG		0x01
+#define VMK8061_DO_REG		0x01
+#define VMK8061_PWM_REG1	0x01
+#define VMK8061_PWM_REG2	0x02
+#define VMK8061_CNT_REG		0x02
+#define VMK8061_AO_REG		0x02
+#define VMK8061_AI_REG1		0x02
+#define VMK8061_AI_REG2		0x03
 
-#define VMK8055_CMD_RST         0x00
-#define VMK8055_CMD_DEB1_TIME   0x01
-#define VMK8055_CMD_DEB2_TIME   0x02
-#define VMK8055_CMD_RST_CNT1    0x03
-#define VMK8055_CMD_RST_CNT2    0x04
-#define VMK8055_CMD_WRT_AD      0x05
+#define VMK8055_CMD_RST		0x00
+#define VMK8055_CMD_DEB1_TIME	0x01
+#define VMK8055_CMD_DEB2_TIME	0x02
+#define VMK8055_CMD_RST_CNT1	0x03
+#define VMK8055_CMD_RST_CNT2	0x04
+#define VMK8055_CMD_WRT_AD	0x05
 
-#define VMK8061_CMD_RD_AI       0x00
-#define VMK8061_CMR_RD_ALL_AI   0x01	/* !non-active! */
-#define VMK8061_CMD_SET_AO      0x02
-#define VMK8061_CMD_SET_ALL_AO  0x03	/* !non-active! */
-#define VMK8061_CMD_OUT_PWM     0x04
-#define VMK8061_CMD_RD_DI       0x05
-#define VMK8061_CMD_DO          0x06	/* !non-active! */
-#define VMK8061_CMD_CLR_DO      0x07
-#define VMK8061_CMD_SET_DO      0x08
-#define VMK8061_CMD_RD_CNT      0x09	/* TODO: completely pointless? */
-#define VMK8061_CMD_RST_CNT     0x0a	/* TODO: completely pointless? */
-#define VMK8061_CMD_RD_VERSION  0x0b	/* internal usage */
-#define VMK8061_CMD_RD_JMP_STAT 0x0c	/* TODO: not implemented yet */
-#define VMK8061_CMD_RD_PWR_STAT 0x0d	/* internal usage */
-#define VMK8061_CMD_RD_DO       0x0e
-#define VMK8061_CMD_RD_AO       0x0f
-#define VMK8061_CMD_RD_PWM      0x10
+#define VMK8061_CMD_RD_AI	0x00
+#define VMK8061_CMR_RD_ALL_AI	0x01	/* !non-active! */
+#define VMK8061_CMD_SET_AO	0x02
+#define VMK8061_CMD_SET_ALL_AO	0x03	/* !non-active! */
+#define VMK8061_CMD_OUT_PWM	0x04
+#define VMK8061_CMD_RD_DI	0x05
+#define VMK8061_CMD_DO		0x06	/* !non-active! */
+#define VMK8061_CMD_CLR_DO	0x07
+#define VMK8061_CMD_SET_DO	0x08
+#define VMK8061_CMD_RD_CNT	0x09	/* TODO: completely pointless? */
+#define VMK8061_CMD_RST_CNT	0x0a	/* TODO: completely pointless? */
+#define VMK8061_CMD_RD_VERSION	0x0b	/* internal usage */
+#define VMK8061_CMD_RD_JMP_STAT	0x0c	/* TODO: not implemented yet */
+#define VMK8061_CMD_RD_PWR_STAT	0x0d	/* internal usage */
+#define VMK8061_CMD_RD_DO	0x0e
+#define VMK8061_CMD_RD_AO	0x0f
+#define VMK8061_CMD_RD_PWM	0x10
 
-#define IC3_VERSION             (1 << 0)
-#define IC6_VERSION             (1 << 1)
+#define IC3_VERSION		BIT(0)
+#define IC6_VERSION		BIT(1)
 
 enum vmk80xx_model {
 	VMK8055_MODEL,
@@ -700,7 +701,7 @@ static int vmk80xx_alloc_usb_buffers(struct comedi_device *dev)
 
 static int vmk80xx_init_subdevices(struct comedi_device *dev)
 {
-	const struct vmk80xx_board *boardinfo = dev->board_ptr;
+	const struct vmk80xx_board *board = dev->board_ptr;
 	struct vmk80xx_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
 	int n_subd;
@@ -722,18 +723,18 @@ static int vmk80xx_init_subdevices(struct comedi_device *dev)
 	s = &dev->subdevices[0];
 	s->type		= COMEDI_SUBD_AI;
 	s->subdev_flags	= SDF_READABLE | SDF_GROUND;
-	s->n_chan	= boardinfo->ai_nchans;
-	s->maxdata	= boardinfo->ai_maxdata;
-	s->range_table	= boardinfo->range;
+	s->n_chan	= board->ai_nchans;
+	s->maxdata	= board->ai_maxdata;
+	s->range_table	= board->range;
 	s->insn_read	= vmk80xx_ai_insn_read;
 
 	/* Analog output subdevice */
 	s = &dev->subdevices[1];
 	s->type		= COMEDI_SUBD_AO;
 	s->subdev_flags	= SDF_WRITABLE | SDF_GROUND;
-	s->n_chan	= boardinfo->ao_nchans;
+	s->n_chan	= board->ao_nchans;
 	s->maxdata	= 0x00ff;
-	s->range_table	= boardinfo->range;
+	s->range_table	= board->range;
 	s->insn_write	= vmk80xx_ao_insn_write;
 	if (devpriv->model == VMK8061_MODEL) {
 		s->subdev_flags	|= SDF_READABLE;
@@ -744,7 +745,7 @@ static int vmk80xx_init_subdevices(struct comedi_device *dev)
 	s = &dev->subdevices[2];
 	s->type		= COMEDI_SUBD_DI;
 	s->subdev_flags	= SDF_READABLE;
-	s->n_chan	= boardinfo->di_nchans;
+	s->n_chan	= board->di_nchans;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
 	s->insn_bits	= vmk80xx_di_insn_bits;
@@ -763,7 +764,7 @@ static int vmk80xx_init_subdevices(struct comedi_device *dev)
 	s->type		= COMEDI_SUBD_COUNTER;
 	s->subdev_flags	= SDF_READABLE;
 	s->n_chan	= 2;
-	s->maxdata	= boardinfo->cnt_maxdata;
+	s->maxdata	= board->cnt_maxdata;
 	s->insn_read	= vmk80xx_cnt_insn_read;
 	s->insn_config	= vmk80xx_cnt_insn_config;
 	if (devpriv->model == VMK8055_MODEL) {
@@ -776,8 +777,8 @@ static int vmk80xx_init_subdevices(struct comedi_device *dev)
 		s = &dev->subdevices[5];
 		s->type		= COMEDI_SUBD_PWM;
 		s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
-		s->n_chan	= boardinfo->pwm_nchans;
-		s->maxdata	= boardinfo->pwm_maxdata;
+		s->n_chan	= board->pwm_nchans;
+		s->maxdata	= board->pwm_maxdata;
 		s->insn_read	= vmk80xx_pwm_insn_read;
 		s->insn_write	= vmk80xx_pwm_insn_write;
 	}
@@ -791,19 +792,22 @@ static int vmk80xx_auto_attach(struct comedi_device *dev,
 			       unsigned long context)
 {
 	struct usb_interface *intf = comedi_to_usb_interface(dev);
-	const struct vmk80xx_board *boardinfo;
+	const struct vmk80xx_board *board = NULL;
 	struct vmk80xx_private *devpriv;
 	int ret;
 
-	boardinfo = &vmk80xx_boardinfo[context];
-	dev->board_ptr = boardinfo;
-	dev->board_name = boardinfo->name;
+	if (context < ARRAY_SIZE(vmk80xx_boardinfo))
+		board = &vmk80xx_boardinfo[context];
+	if (!board)
+		return -ENODEV;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
 
-	devpriv->model = boardinfo->model;
+	devpriv->model = board->model;
 
 	ret = vmk80xx_find_usb_endpoints(dev);
 	if (ret)

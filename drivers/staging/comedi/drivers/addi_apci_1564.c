@@ -22,12 +22,10 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 
-#include "../comedidev.h"
-#include "comedi_fc.h"
+#include "../comedi_pci.h"
 #include "addi_tcw.h"
 #include "addi_watchdog.h"
 
@@ -46,12 +44,12 @@
  *   0x48 - 0x64  Timer 12-Bit
  */
 #define APCI1564_EEPROM_REG			0x00
-#define APCI1564_EEPROM_VCC_STATUS		(1 << 8)
+#define APCI1564_EEPROM_VCC_STATUS		BIT(8)
 #define APCI1564_EEPROM_TO_REV(x)		(((x) >> 4) & 0xf)
-#define APCI1564_EEPROM_DI			(1 << 3)
-#define APCI1564_EEPROM_DO			(1 << 2)
-#define APCI1564_EEPROM_CS			(1 << 1)
-#define APCI1564_EEPROM_CLK			(1 << 0)
+#define APCI1564_EEPROM_DI			BIT(3)
+#define APCI1564_EEPROM_DO			BIT(2)
+#define APCI1564_EEPROM_CS			BIT(1)
+#define APCI1564_EEPROM_CLK			BIT(0)
 #define APCI1564_REV1_TIMER_IOBASE		0x04
 #define APCI1564_REV2_MAIN_IOBASE		0x04
 #define APCI1564_REV2_TIMER_IOBASE		0x48
@@ -81,10 +79,17 @@
 #define APCI1564_DI_INT_MODE2_REG		0x08
 #define APCI1564_DI_INT_STATUS_REG		0x0c
 #define APCI1564_DI_IRQ_REG			0x10
+#define APCI1564_DI_IRQ_ENA			BIT(2)
+#define APCI1564_DI_IRQ_MODE			BIT(1)	/* 1=AND, 0=OR */
 #define APCI1564_DO_REG				0x14
 #define APCI1564_DO_INT_CTRL_REG		0x18
+#define APCI1564_DO_INT_CTRL_CC_INT_ENA		BIT(1)
+#define APCI1564_DO_INT_CTRL_VCC_INT_ENA	BIT(0)
 #define APCI1564_DO_INT_STATUS_REG		0x1c
+#define APCI1564_DO_INT_STATUS_CC		BIT(1)
+#define APCI1564_DO_INT_STATUS_VCC		BIT(0)
 #define APCI1564_DO_IRQ_REG			0x20
+#define APCI1564_DO_IRQ_INTR			BIT(0)
 #define APCI1564_WDOG_REG			0x24
 #define APCI1564_WDOG_RELOAD_REG		0x28
 #define APCI1564_WDOG_TIMEBASE_REG		0x2c
@@ -107,12 +112,12 @@
 #define APCI1564_COUNTER(x)			((x) * 0x20)
 
 struct apci1564_private {
-	unsigned long eeprom;		/* base address of EEPROM register */
-	unsigned long timer;		/* base address of 12-bit timer */
-	unsigned long counters;		/* base address of 32-bit counters */
-	unsigned int mode1;		/* riding-edge/high level channels */
-	unsigned int mode2;		/* falling-edge/low level channels */
-	unsigned int ctrl;		/* interrupt mode OR (edge) . AND (level) */
+	unsigned long eeprom;	/* base address of EEPROM register */
+	unsigned long timer;	/* base address of 12-bit timer */
+	unsigned long counters;	/* base address of 32-bit counters */
+	unsigned int mode1;	/* riding-edge/high level channels */
+	unsigned int mode2;	/* falling-edge/low level channels */
+	unsigned int ctrl;	/* interrupt mode OR (edge) . AND (level) */
 	struct task_struct *tsk_current;
 };
 
@@ -161,9 +166,9 @@ static irqreturn_t apci1564_interrupt(int irq, void *d)
 	unsigned int chan;
 
 	status = inl(dev->iobase + APCI1564_DI_IRQ_REG);
-	if (status & APCI1564_DI_INT_ENABLE) {
+	if (status & APCI1564_DI_IRQ_ENA) {
 		/* disable the interrupt */
-		outl(status & APCI1564_DI_INT_DISABLE,
+		outl(status & ~APCI1564_DI_IRQ_ENA,
 		     dev->iobase + APCI1564_DI_IRQ_REG);
 
 		s->state = inl(dev->iobase + APCI1564_DI_INT_STATUS_REG) &
@@ -302,11 +307,9 @@ static int apci1564_cos_insn_config(struct comedi_device *dev,
 			outl(0x0, dev->iobase + APCI1564_DI_INT_MODE2_REG);
 			break;
 		case COMEDI_DIGITAL_TRIG_ENABLE_EDGES:
-			if (devpriv->ctrl != (APCI1564_DI_INT_ENABLE |
-					      APCI1564_DI_INT_OR)) {
+			if (devpriv->ctrl != APCI1564_DI_IRQ_ENA) {
 				/* switching to 'OR' mode */
-				devpriv->ctrl = APCI1564_DI_INT_ENABLE |
-						APCI1564_DI_INT_OR;
+				devpriv->ctrl = APCI1564_DI_IRQ_ENA;
 				/* wipe old channels */
 				devpriv->mode1 = 0;
 				devpriv->mode2 = 0;
@@ -320,11 +323,11 @@ static int apci1564_cos_insn_config(struct comedi_device *dev,
 			devpriv->mode2 |= data[5] << shift;
 			break;
 		case COMEDI_DIGITAL_TRIG_ENABLE_LEVELS:
-			if (devpriv->ctrl != (APCI1564_DI_INT_ENABLE |
-					      APCI1564_DI_INT_AND)) {
+			if (devpriv->ctrl != (APCI1564_DI_IRQ_ENA |
+					      APCI1564_DI_IRQ_MODE)) {
 				/* switching to 'AND' mode */
-				devpriv->ctrl = APCI1564_DI_INT_ENABLE |
-						APCI1564_DI_INT_AND;
+				devpriv->ctrl = APCI1564_DI_IRQ_ENA |
+						APCI1564_DI_IRQ_MODE;
 				/* wipe old channels */
 				devpriv->mode1 = 0;
 				devpriv->mode2 = 0;
@@ -365,11 +368,11 @@ static int apci1564_cos_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_FOLLOW);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_FOLLOW);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_NONE);
 
 	if (err)
 		return 1;
@@ -379,11 +382,12 @@ static int apci1564_cos_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
-	err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -407,7 +411,7 @@ static int apci1564_cos_cmd(struct comedi_device *dev,
 
 	if (!devpriv->ctrl) {
 		dev_warn(dev->class_dev,
-			"Interrupts disabled due to mode configuration!\n");
+			 "Interrupts disabled due to mode configuration!\n");
 		return -EINVAL;
 	}
 
@@ -430,7 +434,7 @@ static int apci1564_cos_cancel(struct comedi_device *dev,
 }
 
 static int apci1564_auto_attach(struct comedi_device *dev,
-				      unsigned long context_unused)
+				unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct apci1564_private *devpriv;

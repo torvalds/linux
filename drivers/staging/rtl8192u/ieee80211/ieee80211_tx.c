@@ -32,7 +32,6 @@
 ******************************************************************************/
 
 #include <linux/compiler.h>
-//#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>
@@ -49,7 +48,7 @@
 #include <linux/types.h>
 #include <linux/wireless.h>
 #include <linux/etherdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/if_vlan.h>
 
 #include "ieee80211.h"
@@ -195,9 +194,9 @@ int ieee80211_encrypt_fragment(
 	if (ieee->tkip_countermeasures &&
 	    crypt && crypt->ops && strcmp(crypt->ops->name, "TKIP") == 0) {
 		if (net_ratelimit()) {
-			struct ieee80211_hdr_3addrqos *header;
+			struct rtl_80211_hdr_3addrqos *header;
 
-			header = (struct ieee80211_hdr_3addrqos *)frag->data;
+			header = (struct rtl_80211_hdr_3addrqos *)frag->data;
 			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
 			       "TX packet to %pM\n",
 			       ieee->dev->name, header->addr1);
@@ -309,7 +308,7 @@ static void ieee80211_tx_query_agg_cap(struct ieee80211_device *ieee,
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 	PTX_TS_RECORD			pTxTs = NULL;
-	struct ieee80211_hdr_1addr *hdr = (struct ieee80211_hdr_1addr *)skb->data;
+	struct rtl_80211_hdr_1addr *hdr = (struct rtl_80211_hdr_1addr *)skb->data;
 
 	if (!pHTInfo->bCurrentHTSupport||!pHTInfo->bEnableHT)
 		return;
@@ -337,12 +336,12 @@ static void ieee80211_tx_query_agg_cap(struct ieee80211_device *ieee,
 			printk("===>can't get TS\n");
 			return;
 		}
-		if (pTxTs->TxAdmittedBARecord.bValid == false)
+		if (!pTxTs->TxAdmittedBARecord.bValid)
 		{
 			TsStartAddBaProcess(ieee, pTxTs);
 			goto FORCED_AGG_SETTING;
 		}
-		else if (pTxTs->bUsingBa == false)
+		else if (!pTxTs->bUsingBa)
 		{
 			if (SN_LESS(pTxTs->TxAdmittedBARecord.BaStartSeqCtrl.field.SeqNum, (pTxTs->TxCurSeq+1)%4096))
 				pTxTs->bUsingBa = true;
@@ -554,16 +553,16 @@ static void ieee80211_txrate_selectmode(struct ieee80211_device *ieee,
 #ifdef TO_DO_LIST
 	if(!IsDataFrame(pFrame))
 	{
-		pTcb->bTxDisableRateFallBack = TRUE;
-		pTcb->bTxUseDriverAssingedRate = TRUE;
+		pTcb->bTxDisableRateFallBack = true;
+		pTcb->bTxUseDriverAssingedRate = true;
 		pTcb->RATRIndex = 7;
 		return;
 	}
 
 	if(pMgntInfo->ForcedDataRate!= 0)
 	{
-		pTcb->bTxDisableRateFallBack = TRUE;
-		pTcb->bTxUseDriverAssingedRate = TRUE;
+		pTcb->bTxDisableRateFallBack = true;
+		pTcb->bTxUseDriverAssingedRate = true;
 		return;
 	}
 #endif
@@ -599,14 +598,14 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ieee80211_device *ieee = netdev_priv(dev);
 	struct ieee80211_txb *txb = NULL;
-	struct ieee80211_hdr_3addrqos *frag_hdr;
+	struct rtl_80211_hdr_3addrqos *frag_hdr;
 	int i, bytes_per_frag, nr_frags, bytes_last_frag, frag_size;
 	unsigned long flags;
 	struct net_device_stats *stats = &ieee->stats;
 	int ether_type = 0, encrypt;
 	int bytes, fc, qos_ctl = 0, hdr_len;
 	struct sk_buff *skb_frag;
-	struct ieee80211_hdr_3addrqos header = { /* Ensure zero initialized */
+	struct rtl_80211_hdr_3addrqos header = { /* Ensure zero initialized */
 		.duration_id = 0,
 		.seq_ctl = 0,
 		.qos_ctl = 0
@@ -788,7 +787,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 			{
 				tcb_desc->bHwSec = 0;
 			}
-			frag_hdr = (struct ieee80211_hdr_3addrqos *)skb_put(skb_frag, hdr_len);
+			frag_hdr = (struct rtl_80211_hdr_3addrqos *)skb_put(skb_frag, hdr_len);
 			memcpy(frag_hdr, &header, hdr_len);
 
 			/* If this is not the last fragment, then add the MOREFRAGS
@@ -846,7 +845,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 			ieee->seq_ctrl[0]++;
 		}
 	}else{
-		if (unlikely(skb->len < sizeof(struct ieee80211_hdr_3addr))) {
+		if (unlikely(skb->len < sizeof(struct rtl_80211_hdr_3addr))) {
 			printk(KERN_WARNING "%s: skb too small (%d).\n",
 			ieee->dev->name, skb->len);
 			goto success;

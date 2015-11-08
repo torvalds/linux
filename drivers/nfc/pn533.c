@@ -1820,7 +1820,7 @@ static int pn533_rf_complete(struct pn533 *dev, void *arg,
 	if (IS_ERR(resp)) {
 		rc = PTR_ERR(resp);
 
-		nfc_err(&dev->interface->dev, "RF setting error %d", rc);
+		nfc_err(&dev->interface->dev, "RF setting error %d\n", rc);
 
 		return rc;
 	}
@@ -2263,7 +2263,7 @@ static int pn533_activate_target(struct nfc_dev *nfc_dev,
 }
 
 static void pn533_deactivate_target(struct nfc_dev *nfc_dev,
-				    struct nfc_target *target)
+				    struct nfc_target *target, u8 mode)
 {
 	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
 	struct sk_buff *skb;
@@ -2554,8 +2554,10 @@ static int pn533_data_exchange_complete(struct pn533 *dev, void *_arg,
 	}
 
 	skb = pn533_build_response(dev);
-	if (!skb)
+	if (!skb) {
+		rc = -ENOMEM;
 		goto error;
+	}
 
 	arg->cb(arg->cb_context, skb, 0);
 	kfree(arg);

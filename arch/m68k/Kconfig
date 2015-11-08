@@ -67,6 +67,10 @@ config HZ
 	default 1000 if CLEOPATRA
 	default 100
 
+config PGTABLE_LEVELS
+	default 2 if SUN3 || COLDFIRE
+	default 3
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
@@ -91,6 +95,7 @@ config MMU_SUN3
 config KEXEC
 	bool "kexec system call"
 	depends on M68KCLASSIC
+	select KEXEC_CORE
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot

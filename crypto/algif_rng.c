@@ -55,8 +55,8 @@ struct rng_ctx {
 	struct crypto_rng *drng;
 };
 
-static int rng_recvmsg(struct kiocb *unused, struct socket *sock,
-		       struct msghdr *msg, size_t len, int flags)
+static int rng_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
+		       int flags)
 {
 	struct sock *sk = sock->sk;
 	struct alg_sock *ask = alg_sk(sk);
@@ -87,7 +87,7 @@ static int rng_recvmsg(struct kiocb *unused, struct socket *sock,
 		return genlen;
 
 	err = memcpy_to_msg(msg, result, len);
-	memzero_explicit(result, genlen);
+	memzero_explicit(result, len);
 
 	return err ? err : len;
 }
@@ -164,7 +164,7 @@ static int rng_setkey(void *private, const u8 *seed, unsigned int seedlen)
 	 * Check whether seedlen is of sufficient size is done in RNG
 	 * implementations.
 	 */
-	return crypto_rng_reset(private, (u8 *)seed, seedlen);
+	return crypto_rng_reset(private, seed, seedlen);
 }
 
 static const struct af_alg_type algif_type_rng = {

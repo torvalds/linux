@@ -14,9 +14,7 @@
  */
 const struct file_operations minix_file_operations = {
 	.llseek		= generic_file_llseek,
-	.read		= new_sync_read,
 	.read_iter	= generic_file_read_iter,
-	.write		= new_sync_write,
 	.write_iter	= generic_file_write_iter,
 	.mmap		= generic_file_mmap,
 	.fsync		= generic_file_fsync,
@@ -25,7 +23,7 @@ const struct file_operations minix_file_operations = {
 
 static int minix_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int error;
 
 	error = inode_change_ok(inode, attr);

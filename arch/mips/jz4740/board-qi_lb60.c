@@ -26,6 +26,7 @@
 #include <linux/power/jz4740-battery.h>
 #include <linux/power/gpio-charger.h>
 
+#include <asm/mach-jz4740/gpio.h>
 #include <asm/mach-jz4740/jz4740_fb.h>
 #include <asm/mach-jz4740/jz4740_mmc.h>
 #include <asm/mach-jz4740/jz4740_nand.h>
@@ -482,8 +483,6 @@ static int __init qi_lb60_init_platform_devices(void)
 	gpiod_add_lookup_table(&qi_lb60_audio_gpio_table);
 	gpiod_add_lookup_table(&qi_lb60_nand_gpio_table);
 
-	jz4740_serial_device_register();
-
 	spi_register_board_info(qi_lb60_spi_board_info,
 				ARRAY_SIZE(qi_lb60_spi_board_info));
 
@@ -496,11 +495,6 @@ static int __init qi_lb60_init_platform_devices(void)
 					ARRAY_SIZE(jz_platform_devices));
 
 }
-
-struct jz4740_clock_board_data jz4740_clock_bdata = {
-	.ext_rate = 12000000,
-	.rtc_rate = 32768,
-};
 
 static __init int board_avt2(char *str)
 {

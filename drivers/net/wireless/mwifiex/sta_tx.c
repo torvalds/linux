@@ -53,7 +53,8 @@ void *mwifiex_process_sta_txpd(struct mwifiex_private *priv,
 		       INTF_HEADER_LEN;
 
 	if (!skb->len) {
-		dev_err(adapter->dev, "Tx: bad packet length: %d\n", skb->len);
+		mwifiex_dbg(adapter, ERROR,
+			    "Tx: bad packet length: %d\n", skb->len);
 		tx_info->status_code = -1;
 		return skb->data;
 	}
@@ -152,6 +153,10 @@ int mwifiex_send_null_packet(struct mwifiex_private *priv, u8 flags)
 	if (adapter->data_sent)
 		return -1;
 
+	if (adapter->if_ops.is_port_ready &&
+	    !adapter->if_ops.is_port_ready(priv))
+		return -1;
+
 	skb = dev_alloc_skb(data_len);
 	if (!skb)
 		return -1;
@@ -173,7 +178,7 @@ int mwifiex_send_null_packet(struct mwifiex_private *priv, u8 flags)
 	local_tx_pd->bss_type = priv->bss_type;
 
 	if (adapter->iface_type == MWIFIEX_USB) {
-		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_USB_EP_DATA,
+		ret = adapter->if_ops.host_to_card(adapter, priv->usb_port,
 						   skb, NULL);
 	} else {
 		skb_push(skb, INTF_HEADER_LEN);
@@ -184,21 +189,23 @@ int mwifiex_send_null_packet(struct mwifiex_private *priv, u8 flags)
 	switch (ret) {
 	case -EBUSY:
 		dev_kfree_skb_any(skb);
-		dev_err(adapter->dev, "%s: host_to_card failed: ret=%d\n",
-			__func__, ret);
+		mwifiex_dbg(adapter, ERROR,
+			    "%s: host_to_card failed: ret=%d\n",
+			    __func__, ret);
 		adapter->dbg.num_tx_host_to_card_failure++;
 		break;
 	case -1:
-		adapter->data_sent = false;
 		dev_kfree_skb_any(skb);
-		dev_err(adapter->dev, "%s: host_to_card failed: ret=%d\n",
-			__func__, ret);
+		mwifiex_dbg(adapter, ERROR,
+			    "%s: host_to_card failed: ret=%d\n",
+			    __func__, ret);
 		adapter->dbg.num_tx_host_to_card_failure++;
 		break;
 	case 0:
 		dev_kfree_skb_any(skb);
-		dev_dbg(adapter->dev, "data: %s: host_to_card succeeded\n",
-			__func__);
+		mwifiex_dbg(adapter, DATA,
+			    "data: %s: host_to_card succeeded\n",
+			    __func__);
 		adapter->tx_lock_flag = true;
 		break;
 	case -EINPROGRESS:

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2014 Emulex
+ * Copyright (C) 2005 - 2015 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -65,7 +65,8 @@ enum mcc_base_status {
 enum mcc_addl_status {
 	MCC_ADDL_STATUS_INSUFFICIENT_RESOURCES = 0x16,
 	MCC_ADDL_STATUS_FLASH_IMAGE_CRC_MISMATCH = 0x4d,
-	MCC_ADDL_STATUS_TOO_MANY_INTERFACES = 0x4a
+	MCC_ADDL_STATUS_TOO_MANY_INTERFACES = 0x4a,
+	MCC_ADDL_STATUS_INSUFFICIENT_VLANS = 0xab
 };
 
 #define CQE_BASE_STATUS_MASK		0xFFFF
@@ -104,6 +105,7 @@ struct be_mcc_compl {
 #define ASYNC_DEBUG_EVENT_TYPE_QNQ	1
 #define ASYNC_EVENT_CODE_SLIPORT	0x11
 #define ASYNC_EVENT_PORT_MISCONFIG	0x9
+#define ASYNC_EVENT_FW_CONTROL		0x5
 
 enum {
 	LINK_DOWN	= 0x0,
@@ -178,6 +180,22 @@ struct be_async_event_misconfig_port {
 	u32 event_data_word2;
 	u32 rsvd0;
 	u32 flags;
+} __packed;
+
+#define BMC_FILT_BROADCAST_ARP				BIT(0)
+#define BMC_FILT_BROADCAST_DHCP_CLIENT			BIT(1)
+#define BMC_FILT_BROADCAST_DHCP_SERVER			BIT(2)
+#define BMC_FILT_BROADCAST_NET_BIOS			BIT(3)
+#define BMC_FILT_BROADCAST				BIT(7)
+#define BMC_FILT_MULTICAST_IPV6_NEIGH_ADVER		BIT(8)
+#define BMC_FILT_MULTICAST_IPV6_RA			BIT(9)
+#define BMC_FILT_MULTICAST_IPV6_RAS			BIT(10)
+#define BMC_FILT_MULTICAST				BIT(15)
+struct be_async_fw_control {
+	u32 event_data_word1;
+	u32 event_data_word2;
+	u32 evt_tag;
+	u32 event_data_word4;
 } __packed;
 
 struct be_mcc_mailbox {
@@ -271,7 +289,9 @@ struct be_cmd_req_hdr {
 	u32 timeout;		/* dword 1 */
 	u32 request_length;	/* dword 2 */
 	u8 version;		/* dword 3 */
-	u8 rsvd[3];		/* dword 3 */
+	u8 rsvd1;		/* dword 3 */
+	u8 pf_num;		/* dword 3 */
+	u8 rsvd2;		/* dword 3 */
 };
 
 #define RESP_HDR_INFO_OPCODE_SHIFT	0	/* bits 0 - 7 */
@@ -588,18 +608,24 @@ enum be_if_flags {
 	BE_IF_FLAGS_MCAST_PROMISCUOUS = 0x200,
 	BE_IF_FLAGS_PASS_L2_ERRORS = 0x400,
 	BE_IF_FLAGS_PASS_L3L4_ERRORS = 0x800,
-	BE_IF_FLAGS_MULTICAST = 0x1000
+	BE_IF_FLAGS_MULTICAST = 0x1000,
+	BE_IF_FLAGS_DEFQ_RSS = 0x1000000
 };
 
 #define BE_IF_CAP_FLAGS_WANT (BE_IF_FLAGS_RSS | BE_IF_FLAGS_PROMISCUOUS |\
 			 BE_IF_FLAGS_BROADCAST | BE_IF_FLAGS_VLAN_PROMISCUOUS |\
 			 BE_IF_FLAGS_VLAN | BE_IF_FLAGS_MCAST_PROMISCUOUS |\
 			 BE_IF_FLAGS_PASS_L3L4_ERRORS | BE_IF_FLAGS_MULTICAST |\
-			 BE_IF_FLAGS_UNTAGGED)
+			 BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_DEFQ_RSS)
 
 #define BE_IF_FLAGS_ALL_PROMISCUOUS	(BE_IF_FLAGS_PROMISCUOUS | \
 					 BE_IF_FLAGS_VLAN_PROMISCUOUS |\
 					 BE_IF_FLAGS_MCAST_PROMISCUOUS)
+
+#define BE_IF_EN_FLAGS	(BE_IF_FLAGS_BROADCAST | BE_IF_FLAGS_PASS_L3L4_ERRORS |\
+			BE_IF_FLAGS_MULTICAST | BE_IF_FLAGS_UNTAGGED)
+
+#define BE_IF_ALL_FILT_FLAGS	(BE_IF_EN_FLAGS | BE_IF_FLAGS_ALL_PROMISCUOUS)
 
 /* An RX interface is an object with one or more MAC addresses and
  * filtering capabilities. */
@@ -1108,10 +1134,6 @@ struct be_cmd_req_query_fw_cfg {
 	u32 rsvd[31];
 };
 
-/* ASIC revisions */
-#define ASIC_REV_B0		0x10
-#define ASIC_REV_P2		0x11
-
 struct be_cmd_resp_query_fw_cfg {
 	struct be_cmd_resp_hdr hdr;
 	u32 be_config_number;
@@ -1480,6 +1502,8 @@ struct be_cmd_resp_acpi_wol_magic_config_v1 {
 #define BE_PME_D3COLD_CAP		0x80
 
 /********************** LoopBack test *********************/
+#define SET_LB_MODE_TIMEOUT		12000
+
 struct be_cmd_req_loopback_test {
 	struct be_cmd_req_hdr hdr;
 	u32 loopback_type;
@@ -1620,15 +1644,21 @@ struct be_cmd_req_set_qos {
 struct mgmt_hba_attribs {
 	u32 rsvd0[24];
 	u8 controller_model_number[32];
-	u32 rsvd1[79];
-	u8 rsvd2[3];
+	u32 rsvd1[16];
+	u32 controller_serial_number[8];
+	u32 rsvd2[55];
+	u8 rsvd3[3];
 	u8 phy_port;
-	u32 rsvd3[13];
+	u32 rsvd4[13];
 } __packed;
 
 struct mgmt_controller_attrib {
 	struct mgmt_hba_attribs hba_attribs;
-	u32 rsvd0[10];
+	u32 rsvd0[2];
+	u16 rsvd1;
+	u8 pci_func_num;
+	u8 rsvd2;
+	u32 rsvd3[7];
 } __packed;
 
 struct be_cmd_req_cntl_attribs {
@@ -1743,19 +1773,26 @@ struct be_cmd_req_set_mac_list {
 /*********************** HSW Config ***********************/
 #define PORT_FWD_TYPE_VEPA		0x3
 #define PORT_FWD_TYPE_VEB		0x2
+#define PORT_FWD_TYPE_PASSTHRU		0x1
+
+#define ENABLE_MAC_SPOOFCHK		0x2
+#define DISABLE_MAC_SPOOFCHK		0x3
 
 struct amap_set_hsw_context {
 	u8 interface_id[16];
-	u8 rsvd0[14];
+	u8 rsvd0[8];
+	u8 mac_spoofchk[2];
+	u8 rsvd1[4];
 	u8 pvid_valid;
 	u8 pport;
-	u8 rsvd1[6];
+	u8 rsvd2[6];
 	u8 port_fwd_type[3];
-	u8 rsvd2[7];
+	u8 rsvd3[5];
+	u8 vlan_spoofchk[2];
 	u8 pvid[16];
-	u8 rsvd3[32];
 	u8 rsvd4[32];
 	u8 rsvd5[32];
+	u8 rsvd6[32];
 } __packed;
 
 struct be_cmd_req_set_hsw_config {
@@ -1773,11 +1810,13 @@ struct amap_get_hsw_req_context {
 struct amap_get_hsw_resp_context {
 	u8 rsvd0[6];
 	u8 port_fwd_type[3];
-	u8 rsvd1[7];
+	u8 rsvd1[5];
+	u8 spoofchk;
+	u8 rsvd2;
 	u8 pvid[16];
-	u8 rsvd2[32];
 	u8 rsvd3[32];
 	u8 rsvd4[32];
+	u8 rsvd5[32];
 } __packed;
 
 struct be_cmd_req_get_hsw_config {
@@ -2021,6 +2060,7 @@ struct be_cmd_req_set_ext_fat_caps {
 #define PORT_RESOURCE_DESC_TYPE_V1		0x55
 #define MAX_RESOURCE_DESC			264
 
+#define IF_CAPS_FLAGS_VALID_SHIFT		0	/* IF caps valid */
 #define VFT_SHIFT				3	/* VF template */
 #define IMM_SHIFT				6	/* Immediate */
 #define NOSV_SHIFT				7	/* No save */
@@ -2131,20 +2171,28 @@ struct be_cmd_resp_get_func_config {
 	u8 func_param[MAX_RESOURCE_DESC * RESOURCE_DESC_SIZE_V1];
 };
 
-#define ACTIVE_PROFILE_TYPE			0x2
+enum {
+	RESOURCE_LIMITS,
+	RESOURCE_MODIFIABLE
+};
+
 struct be_cmd_req_get_profile_config {
 	struct be_cmd_req_hdr hdr;
 	u8 rsvd;
+#define ACTIVE_PROFILE_TYPE			0x2
+#define QUERY_MODIFIABLE_FIELDS_TYPE		BIT(3)
 	u8 type;
 	u16 rsvd1;
 };
 
 struct be_cmd_resp_get_profile_config {
 	struct be_cmd_resp_hdr hdr;
-	u32 desc_count;
+	__le16 desc_count;
+	u16 rsvd;
 	u8 func_param[MAX_RESOURCE_DESC * RESOURCE_DESC_SIZE_V1];
 };
 
+#define FIELD_MODIFIABLE			0xFFFF
 struct be_cmd_req_set_profile_config {
 	struct be_cmd_req_hdr hdr;
 	u32 rsvd;
@@ -2324,9 +2372,9 @@ int be_cmd_set_mac_list(struct be_adapter *adapter, u8 *mac_array, u8 mac_count,
 			u32 domain);
 int be_cmd_set_mac(struct be_adapter *adapter, u8 *mac, int if_id, u32 dom);
 int be_cmd_set_hsw_config(struct be_adapter *adapter, u16 pvid, u32 domain,
-			  u16 intf_id, u16 hsw_mode);
+			  u16 intf_id, u16 hsw_mode, u8 spoofchk);
 int be_cmd_get_hsw_config(struct be_adapter *adapter, u16 *pvid, u32 domain,
-			  u16 intf_id, u8 *mode);
+			  u16 intf_id, u8 *mode, bool *spoofchk);
 int be_cmd_get_acpi_wol_cap(struct be_adapter *adapter);
 int be_cmd_set_fw_log_level(struct be_adapter *adapter, u32 level);
 int be_cmd_get_fw_log_level(struct be_adapter *adapter);
@@ -2344,7 +2392,7 @@ int be_cmd_query_port_name(struct be_adapter *adapter);
 int be_cmd_get_func_config(struct be_adapter *adapter,
 			   struct be_resources *res);
 int be_cmd_get_profile_config(struct be_adapter *adapter,
-			      struct be_resources *res, u8 domain);
+			      struct be_resources *res, u8 query, u8 domain);
 int be_cmd_get_active_profile(struct be_adapter *adapter, u16 *profile);
 int be_cmd_get_if_id(struct be_adapter *adapter, struct be_vf_cfg *vf_cfg,
 		     int vf_num);
@@ -2355,4 +2403,5 @@ int be_cmd_set_logical_link_config(struct be_adapter *adapter,
 int be_cmd_set_vxlan_port(struct be_adapter *adapter, __be16 port);
 int be_cmd_manage_iface(struct be_adapter *adapter, u32 iface, u8 op);
 int be_cmd_set_sriov_config(struct be_adapter *adapter,
-			    struct be_resources res, u16 num_vfs);
+			    struct be_resources res, u16 num_vfs,
+			    u16 num_vf_qs);

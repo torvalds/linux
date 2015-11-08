@@ -28,6 +28,13 @@ struct xfs_btree_cur;
 /* Move inodes in clusters of this size */
 #define	XFS_INODE_BIG_CLUSTER_SIZE	8192
 
+struct xfs_icluster {
+	bool		deleted;	/* record is deleted */
+	xfs_ino_t	first_ino;	/* first inode number */
+	uint64_t	alloc;		/* inode phys. allocation bitmap for
+					 * sparse chunks */
+};
+
 /* Calculate and return the number of filesystem blocks per inode cluster */
 static inline int
 xfs_icluster_size_fsb(
@@ -44,8 +51,7 @@ xfs_icluster_size_fsb(
 static inline struct xfs_dinode *
 xfs_make_iptr(struct xfs_mount *mp, struct xfs_buf *b, int o)
 {
-	return (struct xfs_dinode *)
-		(xfs_buf_offset(b, o << (mp)->m_sb.sb_inodelog));
+	return xfs_buf_offset(b, o << (mp)->m_sb.sb_inodelog);
 }
 
 /*
@@ -90,8 +96,7 @@ xfs_difree(
 	struct xfs_trans *tp,		/* transaction pointer */
 	xfs_ino_t	inode,		/* inode to be freed */
 	struct xfs_bmap_free *flist,	/* extents to free */
-	int		*deleted,	/* set if inode cluster was deleted */
-	xfs_ino_t	*first_ino);	/* first inode in deleted cluster */
+	struct xfs_icluster *ifree);	/* cluster info if deleted */
 
 /*
  * Return the location of the inode in imap, for mapping it into a buffer.
@@ -156,7 +161,7 @@ int xfs_inobt_get_rec(struct xfs_btree_cur *cur,
  * Inode chunk initialisation routine
  */
 int xfs_ialloc_inode_init(struct xfs_mount *mp, struct xfs_trans *tp,
-			  struct list_head *buffer_list,
+			  struct list_head *buffer_list, int icount,
 			  xfs_agnumber_t agno, xfs_agblock_t agbno,
 			  xfs_agblock_t length, unsigned int gen);
 

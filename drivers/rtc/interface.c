@@ -31,13 +31,14 @@ static int __rtc_read_time(struct rtc_device *rtc, struct rtc_time *tm)
 		memset(tm, 0, sizeof(struct rtc_time));
 		err = rtc->ops->read_time(rtc->dev.parent, tm);
 		if (err < 0) {
-			dev_err(&rtc->dev, "read_time: fail to read\n");
+			dev_dbg(&rtc->dev, "read_time: fail to read: %d\n",
+				err);
 			return err;
 		}
 
 		err = rtc_valid_tm(tm);
 		if (err < 0)
-			dev_err(&rtc->dev, "read_time: rtc_time isn't valid\n");
+			dev_dbg(&rtc->dev, "read_time: rtc_time isn't valid\n");
 	}
 	return err;
 }
@@ -72,7 +73,11 @@ int rtc_set_time(struct rtc_device *rtc, struct rtc_time *tm)
 		err = -ENODEV;
 	else if (rtc->ops->set_time)
 		err = rtc->ops->set_time(rtc->dev.parent, tm);
-	else if (rtc->ops->set_mmss) {
+	else if (rtc->ops->set_mmss64) {
+		time64_t secs64 = rtc_tm_to_time64(tm);
+
+		err = rtc->ops->set_mmss64(rtc->dev.parent, secs64);
+	} else if (rtc->ops->set_mmss) {
 		time64_t secs64 = rtc_tm_to_time64(tm);
 		err = rtc->ops->set_mmss(rtc->dev.parent, secs64);
 	} else
@@ -85,49 +90,6 @@ int rtc_set_time(struct rtc_device *rtc, struct rtc_time *tm)
 	return err;
 }
 EXPORT_SYMBOL_GPL(rtc_set_time);
-
-int rtc_set_mmss(struct rtc_device *rtc, unsigned long secs)
-{
-	int err;
-
-	err = mutex_lock_interruptible(&rtc->ops_lock);
-	if (err)
-		return err;
-
-	if (!rtc->ops)
-		err = -ENODEV;
-	else if (rtc->ops->set_mmss)
-		err = rtc->ops->set_mmss(rtc->dev.parent, secs);
-	else if (rtc->ops->read_time && rtc->ops->set_time) {
-		struct rtc_time new, old;
-
-		err = rtc->ops->read_time(rtc->dev.parent, &old);
-		if (err == 0) {
-			rtc_time64_to_tm(secs, &new);
-
-			/*
-			 * avoid writing when we're going to change the day of
-			 * the month. We will retry in the next minute. This
-			 * basically means that if the RTC must not drift
-			 * by more than 1 minute in 11 minutes.
-			 */
-			if (!((old.tm_hour == 23 && old.tm_min == 59) ||
-				(new.tm_hour == 23 && new.tm_min == 59)))
-				err = rtc->ops->set_time(rtc->dev.parent,
-						&new);
-		}
-	} else {
-		err = -EINVAL;
-	}
-
-	pm_stay_awake(rtc->dev.parent);
-	mutex_unlock(&rtc->ops_lock);
-	/* A timer might have just expired */
-	schedule_work(&rtc->irqwork);
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(rtc_set_mmss);
 
 static int rtc_read_alarm_internal(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 {
@@ -602,7 +564,7 @@ enum hrtimer_restart rtc_pie_update_irq(struct hrtimer *timer)
 void rtc_update_irq(struct rtc_device *rtc,
 		unsigned long num, unsigned long events)
 {
-	if (unlikely(IS_ERR_OR_NULL(rtc)))
+	if (IS_ERR_OR_NULL(rtc))
 		return;
 
 	pm_stay_awake(rtc->dev.parent);
@@ -969,14 +931,12 @@ int rtc_timer_start(struct rtc_device *rtc, struct rtc_timer *timer,
  *
  * Kernel interface to cancel an rtc_timer
  */
-int rtc_timer_cancel(struct rtc_device *rtc, struct rtc_timer *timer)
+void rtc_timer_cancel(struct rtc_device *rtc, struct rtc_timer *timer)
 {
-	int ret = 0;
 	mutex_lock(&rtc->ops_lock);
 	if (timer->enabled)
 		rtc_timer_remove(rtc, timer);
 	mutex_unlock(&rtc->ops_lock);
-	return ret;
 }
 
 

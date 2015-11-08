@@ -19,6 +19,7 @@
 #include <linux/bitmap.h>
 #include <linux/types.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -31,7 +32,6 @@
 #include <asm/mach/irq.h>
 
 #include "irq-atmel-aic-common.h"
-#include "irqchip.h"
 
 /* Number of irq lines managed by AIC */
 #define NR_AIC5_IRQS	128
@@ -70,16 +70,15 @@ static struct irq_domain *aic5_domain;
 static asmlinkage void __exception_irq_entry
 aic5_handle(struct pt_regs *regs)
 {
-	struct irq_domain_chip_generic *dgc = aic5_domain->gc;
-	struct irq_chip_generic *gc = dgc->gc[0];
+	struct irq_chip_generic *bgc = irq_get_domain_generic_chip(aic5_domain, 0);
 	u32 irqnr;
 	u32 irqstat;
 
-	irqnr = irq_reg_readl(gc, AT91_AIC5_IVR);
-	irqstat = irq_reg_readl(gc, AT91_AIC5_ISR);
+	irqnr = irq_reg_readl(bgc, AT91_AIC5_IVR);
+	irqstat = irq_reg_readl(bgc, AT91_AIC5_ISR);
 
 	if (!irqstat)
-		irq_reg_writel(gc, 0, AT91_AIC5_EOICR);
+		irq_reg_writel(bgc, 0, AT91_AIC5_EOICR);
 	else
 		handle_domain_irq(aic5_domain, irqnr, regs);
 }
@@ -87,42 +86,47 @@ aic5_handle(struct pt_regs *regs)
 static void aic5_mask(struct irq_data *d)
 {
 	struct irq_domain *domain = d->domain;
-	struct irq_domain_chip_generic *dgc = domain->gc;
-	struct irq_chip_generic *gc = dgc->gc[0];
+	struct irq_chip_generic *bgc = irq_get_domain_generic_chip(domain, 0);
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 
-	/* Disable interrupt on AIC5 */
-	irq_gc_lock(gc);
+	/*
+	 * Disable interrupt on AIC5. We always take the lock of the
+	 * first irq chip as all chips share the same registers.
+	 */
+	irq_gc_lock(bgc);
 	irq_reg_writel(gc, d->hwirq, AT91_AIC5_SSR);
 	irq_reg_writel(gc, 1, AT91_AIC5_IDCR);
 	gc->mask_cache &= ~d->mask;
-	irq_gc_unlock(gc);
+	irq_gc_unlock(bgc);
 }
 
 static void aic5_unmask(struct irq_data *d)
 {
 	struct irq_domain *domain = d->domain;
-	struct irq_domain_chip_generic *dgc = domain->gc;
-	struct irq_chip_generic *gc = dgc->gc[0];
+	struct irq_chip_generic *bgc = irq_get_domain_generic_chip(domain, 0);
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 
-	/* Enable interrupt on AIC5 */
-	irq_gc_lock(gc);
+	/*
+	 * Enable interrupt on AIC5. We always take the lock of the
+	 * first irq chip as all chips share the same registers.
+	 */
+	irq_gc_lock(bgc);
 	irq_reg_writel(gc, d->hwirq, AT91_AIC5_SSR);
 	irq_reg_writel(gc, 1, AT91_AIC5_IECR);
 	gc->mask_cache |= d->mask;
-	irq_gc_unlock(gc);
+	irq_gc_unlock(bgc);
 }
 
 static int aic5_retrigger(struct irq_data *d)
 {
 	struct irq_domain *domain = d->domain;
-	struct irq_domain_chip_generic *dgc = domain->gc;
-	struct irq_chip_generic *gc = dgc->gc[0];
+	struct irq_chip_generic *bgc = irq_get_domain_generic_chip(domain, 0);
 
 	/* Enable interrupt on AIC5 */
-	irq_gc_lock(gc);
-	irq_reg_writel(gc, d->hwirq, AT91_AIC5_SSR);
-	irq_reg_writel(gc, 1, AT91_AIC5_ISCR);
-	irq_gc_unlock(gc);
+	irq_gc_lock(bgc);
+	irq_reg_writel(bgc, d->hwirq, AT91_AIC5_SSR);
+	irq_reg_writel(bgc, 1, AT91_AIC5_ISCR);
+	irq_gc_unlock(bgc);
 
 	return 0;
 }
@@ -130,18 +134,17 @@ static int aic5_retrigger(struct irq_data *d)
 static int aic5_set_type(struct irq_data *d, unsigned type)
 {
 	struct irq_domain *domain = d->domain;
-	struct irq_domain_chip_generic *dgc = domain->gc;
-	struct irq_chip_generic *gc = dgc->gc[0];
+	struct irq_chip_generic *bgc = irq_get_domain_generic_chip(domain, 0);
 	unsigned int smr;
 	int ret;
 
-	irq_gc_lock(gc);
-	irq_reg_writel(gc, d->hwirq, AT91_AIC5_SSR);
-	smr = irq_reg_readl(gc, AT91_AIC5_SMR);
+	irq_gc_lock(bgc);
+	irq_reg_writel(bgc, d->hwirq, AT91_AIC5_SSR);
+	smr = irq_reg_readl(bgc, AT91_AIC5_SMR);
 	ret = aic_common_set_type(d, type, &smr);
 	if (!ret)
-		irq_reg_writel(gc, smr, AT91_AIC5_SMR);
-	irq_gc_unlock(gc);
+		irq_reg_writel(bgc, smr, AT91_AIC5_SMR);
+	irq_gc_unlock(bgc);
 
 	return ret;
 }
@@ -151,7 +154,7 @@ static void aic5_suspend(struct irq_data *d)
 {
 	struct irq_domain *domain = d->domain;
 	struct irq_domain_chip_generic *dgc = domain->gc;
-	struct irq_chip_generic *bgc = dgc->gc[0];
+	struct irq_chip_generic *bgc = irq_get_domain_generic_chip(domain, 0);
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	int i;
 	u32 mask;
@@ -175,7 +178,7 @@ static void aic5_resume(struct irq_data *d)
 {
 	struct irq_domain *domain = d->domain;
 	struct irq_domain_chip_generic *dgc = domain->gc;
-	struct irq_chip_generic *bgc = dgc->gc[0];
+	struct irq_chip_generic *bgc = irq_get_domain_generic_chip(domain, 0);
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	int i;
 	u32 mask;
@@ -199,7 +202,7 @@ static void aic5_pm_shutdown(struct irq_data *d)
 {
 	struct irq_domain *domain = d->domain;
 	struct irq_domain_chip_generic *dgc = domain->gc;
-	struct irq_chip_generic *bgc = dgc->gc[0];
+	struct irq_chip_generic *bgc = irq_get_domain_generic_chip(domain, 0);
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	int i;
 
@@ -254,12 +257,11 @@ static int aic5_irq_domain_xlate(struct irq_domain *d,
 				 irq_hw_number_t *out_hwirq,
 				 unsigned int *out_type)
 {
-	struct irq_domain_chip_generic *dgc = d->gc;
-	struct irq_chip_generic *gc;
+	struct irq_chip_generic *bgc = irq_get_domain_generic_chip(d, 0);
 	unsigned smr;
 	int ret;
 
-	if (!dgc)
+	if (!bgc)
 		return -EINVAL;
 
 	ret = aic_common_irq_domain_xlate(d, ctrlr, intspec, intsize,
@@ -267,15 +269,13 @@ static int aic5_irq_domain_xlate(struct irq_domain *d,
 	if (ret)
 		return ret;
 
-	gc = dgc->gc[0];
-
-	irq_gc_lock(gc);
-	irq_reg_writel(gc, *out_hwirq, AT91_AIC5_SSR);
-	smr = irq_reg_readl(gc, AT91_AIC5_SMR);
+	irq_gc_lock(bgc);
+	irq_reg_writel(bgc, *out_hwirq, AT91_AIC5_SSR);
+	smr = irq_reg_readl(bgc, AT91_AIC5_SMR);
 	ret = aic_common_set_priority(intspec[2], &smr);
 	if (!ret)
-		irq_reg_writel(gc, intspec[2] | smr, AT91_AIC5_SMR);
-	irq_gc_unlock(gc);
+		irq_reg_writel(bgc, intspec[2] | smr, AT91_AIC5_SMR);
+	irq_gc_unlock(bgc);
 
 	return ret;
 }
@@ -290,7 +290,7 @@ static void __init sama5d3_aic_irq_fixup(struct device_node *root)
 	aic_common_rtc_irq_fixup(root);
 }
 
-static const struct of_device_id __initdata aic5_irq_fixups[] = {
+static const struct of_device_id aic5_irq_fixups[] __initconst = {
 	{ .compatible = "atmel,sama5d3", .data = sama5d3_aic_irq_fixup },
 	{ .compatible = "atmel,sama5d4", .data = sama5d3_aic_irq_fixup },
 	{ /* sentinel */ },
@@ -338,6 +338,15 @@ static int __init aic5_of_init(struct device_node *node,
 
 	return 0;
 }
+
+#define NR_SAMA5D2_IRQS		77
+
+static int __init sama5d2_aic5_of_init(struct device_node *node,
+				       struct device_node *parent)
+{
+	return aic5_of_init(node, parent, NR_SAMA5D2_IRQS);
+}
+IRQCHIP_DECLARE(sama5d2_aic5, "atmel,sama5d2-aic", sama5d2_aic5_of_init);
 
 #define NR_SAMA5D3_IRQS		48
 

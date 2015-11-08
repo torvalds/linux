@@ -52,7 +52,7 @@ static void free_dentry_data(struct rcu_head *head)
 	struct ll_dentry_data *lld;
 
 	lld = container_of(head, struct ll_dentry_data, lld_rcu_head);
-	OBD_FREE_PTR(lld);
+	kfree(lld);
 }
 
 /* should NOT be called with the dcache lock, see fs/dcache.c */
@@ -67,7 +67,7 @@ static void ll_release(struct dentry *de)
 
 	if (lld->lld_it) {
 		ll_intent_release(lld->lld_it);
-		OBD_FREE(lld->lld_it, sizeof(*lld->lld_it));
+		kfree(lld->lld_it);
 	}
 
 	de->d_fsdata = NULL;
@@ -128,7 +128,7 @@ static int find_cbdata(struct inode *inode)
 	rc = md_find_cbdata(sbi->ll_md_exp, ll_inode2fid(inode),
 			    return_if_equal, NULL);
 	if (rc != 0)
-		 return rc;
+		return rc;
 
 	lsm = ccc_inode_lsm_get(inode);
 	if (lsm == NULL)
@@ -153,7 +153,7 @@ static int ll_ddelete(const struct dentry *de)
 
 	CDEBUG(D_DENTRY, "%s dentry %pd (%p, parent %p, inode %p) %s%s\n",
 	       d_lustre_invalid((struct dentry *)de) ? "deleting" : "keeping",
-	       de, de, de->d_parent, de->d_inode,
+	       de, de, de->d_parent, d_inode(de),
 	       d_unhashed(de) ? "" : "hashed,",
 	       list_empty(&de->d_subdirs) ? "" : "subdirs");
 
@@ -167,8 +167,8 @@ static int ll_ddelete(const struct dentry *de)
 #if 0
 	/* if not ldlm lock for this inode, set i_nlink to 0 so that
 	 * this inode can be recycled later b=20433 */
-	if (de->d_inode && !find_cbdata(de->d_inode))
-		clear_nlink(de->d_inode);
+	if (d_really_is_positive(de) && !find_cbdata(d_inode(de)))
+		clear_nlink(d_inode(de));
 #endif
 
 	if (d_lustre_invalid((struct dentry *)de))
@@ -181,7 +181,7 @@ int ll_d_init(struct dentry *de)
 	LASSERT(de != NULL);
 
 	CDEBUG(D_DENTRY, "ldd on dentry %pd (%p) parent %p inode %p refc %d\n",
-		de, de, de->d_parent, de->d_inode,
+		de, de, de->d_parent, d_inode(de),
 		d_count(de));
 
 	if (de->d_fsdata == NULL) {
@@ -194,7 +194,7 @@ int ll_d_init(struct dentry *de)
 				de->d_fsdata = lld;
 				__d_lustre_invalidate(de);
 			} else {
-				OBD_FREE_PTR(lld);
+				kfree(lld);
 			}
 			spin_unlock(&de->d_lock);
 		} else {
@@ -250,7 +250,6 @@ void ll_intent_release(struct lookup_intent *it)
 void ll_invalidate_aliases(struct inode *inode)
 {
 	struct dentry *dentry;
-	struct ll_d_hlist_node *p;
 
 	LASSERT(inode != NULL);
 
@@ -258,10 +257,10 @@ void ll_invalidate_aliases(struct inode *inode)
 	       inode->i_ino, inode->i_generation, inode);
 
 	ll_lock_dcache(inode);
-	ll_d_hlist_for_each_entry(dentry, p, &inode->i_dentry, d_u.d_alias) {
+	hlist_for_each_entry(dentry, &inode->i_dentry, d_u.d_alias) {
 		CDEBUG(D_DENTRY, "dentry in drop %pd (%p) parent %p inode %p flags %d\n",
 		       dentry, dentry, dentry->d_parent,
-		       dentry->d_inode, dentry->d_flags);
+		       d_inode(dentry), dentry->d_flags);
 
 		d_lustre_invalidate(dentry, 0);
 	}
@@ -309,7 +308,7 @@ void ll_lookup_finish_locks(struct lookup_intent *it, struct inode *inode)
 static int ll_revalidate_dentry(struct dentry *dentry,
 				unsigned int lookup_flags)
 {
-	struct inode *dir = dentry->d_parent->d_inode;
+	struct inode *dir = d_inode(dentry->d_parent);
 
 	/*
 	 * if open&create is set, talk to MDS to make sure file is created if
@@ -329,7 +328,7 @@ static int ll_revalidate_dentry(struct dentry *dentry,
 	if (lookup_flags & LOOKUP_RCU)
 		return -ECHILD;
 
-	do_statahead_enter(dir, &dentry, dentry->d_inode == NULL);
+	do_statahead_enter(dir, &dentry, d_inode(dentry) == NULL);
 	ll_statahead_mark(dir, dentry);
 	return 1;
 }
@@ -339,15 +338,11 @@ static int ll_revalidate_dentry(struct dentry *dentry,
  */
 static int ll_revalidate_nd(struct dentry *dentry, unsigned int flags)
 {
-	int rc;
-
 	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd, flags=%u\n",
 	       dentry, flags);
 
-	rc = ll_revalidate_dentry(dentry, flags);
-	return rc;
+	return ll_revalidate_dentry(dentry, flags);
 }
-
 
 static void ll_d_iput(struct dentry *de, struct inode *inode)
 {

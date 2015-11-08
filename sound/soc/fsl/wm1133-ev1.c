@@ -202,23 +202,20 @@ static struct snd_soc_jack_pin mic_jack_pins[] = {
 static int wm1133_ev1_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
 	/* Headphone jack detection */
-	snd_soc_jack_new(codec, "Headphone", SND_JACK_HEADPHONE, &hp_jack);
-	snd_soc_jack_add_pins(&hp_jack, ARRAY_SIZE(hp_jack_pins),
-			      hp_jack_pins);
+	snd_soc_card_jack_new(rtd->card, "Headphone", SND_JACK_HEADPHONE,
+			      &hp_jack, hp_jack_pins, ARRAY_SIZE(hp_jack_pins));
 	wm8350_hp_jack_detect(codec, WM8350_JDR, &hp_jack, SND_JACK_HEADPHONE);
 
 	/* Microphone jack detection */
-	snd_soc_jack_new(codec, "Microphone",
-			 SND_JACK_MICROPHONE | SND_JACK_BTN_0, &mic_jack);
-	snd_soc_jack_add_pins(&mic_jack, ARRAY_SIZE(mic_jack_pins),
-			      mic_jack_pins);
+	snd_soc_card_jack_new(rtd->card, "Microphone",
+			      SND_JACK_MICROPHONE | SND_JACK_BTN_0, &mic_jack,
+			      mic_jack_pins, ARRAY_SIZE(mic_jack_pins));
 	wm8350_mic_jack_detect(codec, &mic_jack, SND_JACK_MICROPHONE,
 			       SND_JACK_BTN_0);
 
-	snd_soc_dapm_force_enable_pin(dapm, "Mic Bias");
+	snd_soc_dapm_force_enable_pin(&rtd->card->dapm, "Mic Bias");
 
 	return 0;
 }

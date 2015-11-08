@@ -1,5 +1,5 @@
 /*
- * Linux network driver for Brocade Converged Network Adapter.
+ * Linux network driver for QLogic BR-series Converged Network Adapter.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License (GPL) Version 2 as
@@ -11,9 +11,10 @@
  * General Public License for more details.
  */
 /*
- * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
+ * Copyright (c) 2014-2015 QLogic Corporation
  * All rights reserved
- * www.brocade.com
+ * www.qlogic.com
  */
 #include <linux/firmware.h>
 #include "bnad.h"
@@ -29,15 +30,22 @@ cna_read_firmware(struct pci_dev *pdev, u32 **bfi_image,
 			u32 *bfi_image_size, char *fw_name)
 {
 	const struct firmware *fw;
+	u32 n;
 
 	if (request_firmware(&fw, fw_name, &pdev->dev)) {
-		pr_alert("Can't locate firmware %s\n", fw_name);
+		dev_alert(&pdev->dev, "can't load firmware %s\n", fw_name);
 		goto error;
 	}
 
 	*bfi_image = (u32 *)fw->data;
 	*bfi_image_size = fw->size/sizeof(u32);
 	bfi_fw = fw;
+
+	/* Convert loaded firmware to host order as it is stored in file
+	 * as sequence of LE32 integers.
+	 */
+	for (n = 0; n < *bfi_image_size; n++)
+		le32_to_cpus(*bfi_image + n);
 
 	return *bfi_image;
 error:

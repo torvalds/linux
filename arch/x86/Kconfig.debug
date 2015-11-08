@@ -43,10 +43,6 @@ config EARLY_PRINTK
 	  with klogd/syslogd or the X server. You should normally N here,
 	  unless you want to debug such a crash.
 
-config EARLY_PRINTK_INTEL_MID
-	bool "Early printk for Intel MID platform support"
-	depends on EARLY_PRINTK && X86_INTEL_MID
-
 config EARLY_PRINTK_DBGP
 	bool "Early printk via EHCI debug port"
 	depends on EARLY_PRINTK && PCI
@@ -69,10 +65,14 @@ config EARLY_PRINTK_EFI
 	  This is useful for kernel debugging when your machine crashes very
 	  early before the console code is initialized.
 
+config X86_PTDUMP_CORE
+	def_bool n
+
 config X86_PTDUMP
 	bool "Export kernel pagetable layout to userspace via debugfs"
 	depends on DEBUG_KERNEL
 	select DEBUG_FS
+	select X86_PTDUMP_CORE
 	---help---
 	  Say Y here if you want to show the kernel pagetable layout in a
 	  debugfs file. This information is only useful for kernel developers
@@ -83,7 +83,8 @@ config X86_PTDUMP
 
 config EFI_PGT_DUMP
 	bool "Dump the EFI pagetable"
-	depends on EFI && X86_PTDUMP
+	depends on EFI
+	select X86_PTDUMP_CORE
 	---help---
 	  Enable this if you want to dump the EFI page table before
 	  enabling virtual mode. This can be used to debug miscellaneous
@@ -108,6 +109,34 @@ config DEBUG_RODATA_TEST
 	  This option enables a testcase for the DEBUG_RODATA
 	  feature as well as for the change_page_attr() infrastructure.
 	  If in doubt, say "N"
+
+config DEBUG_WX
+	bool "Warn on W+X mappings at boot"
+	depends on DEBUG_RODATA
+	select X86_PTDUMP_CORE
+	---help---
+	  Generate a warning if any W+X mappings are found at boot.
+
+	  This is useful for discovering cases where the kernel is leaving
+	  W+X mappings after applying NX, as such mappings are a security risk.
+
+	  Look for a message in dmesg output like this:
+
+	    x86/mm: Checked W+X mappings: passed, no W+X pages found.
+
+	  or like this, if the check failed:
+
+	    x86/mm: Checked W+X mappings: FAILED, <N> W+X pages found.
+
+	  Note that even if the check fails, your kernel is possibly
+	  still fine, as W+X mappings are not a security hole in
+	  themselves, what they do is that they make the exploitation
+	  of other unfixed kernel bugs easier.
+
+	  There is no runtime or memory usage effect of this option
+	  once the kernel has booted up - it's a one time check.
+
+	  If in doubt, say "Y".
 
 config DEBUG_SET_MODULE_RONX
 	bool "Set loadable kernel module data as NX and text as RO"
@@ -301,6 +330,18 @@ config OPTIMIZE_INLINING
 
 	  If unsure, say N.
 
+config DEBUG_ENTRY
+	bool "Debug low-level entry code"
+	depends on DEBUG_KERNEL
+	---help---
+	  This option enables sanity checks in x86's low-level entry code.
+	  Some of these sanity checks may slow down kernel entries and
+	  exits or otherwise impact performance.
+
+	  This is currently used to help test NMI code.
+
+	  If unsure, say N.
+
 config DEBUG_NMI_SELFTEST
 	bool "NMI Selftest"
 	depends on DEBUG_KERNEL && X86_LOCAL_APIC
@@ -335,5 +376,28 @@ config X86_DEBUG_STATIC_CPU_HAS
 	  run.
 
 	  If unsure, say N.
+
+config X86_DEBUG_FPU
+	bool "Debug the x86 FPU code"
+	depends on DEBUG_KERNEL
+	default y
+	---help---
+	  If this option is enabled then there will be extra sanity
+	  checks and (boot time) debug printouts added to the kernel.
+	  This debugging adds some small amount of runtime overhead
+	  to the kernel.
+
+	  If unsure, say N.
+
+config PUNIT_ATOM_DEBUG
+	tristate "ATOM Punit debug driver"
+	select DEBUG_FS
+	select IOSF_MBI
+	---help---
+	  This is a debug driver, which gets the power states
+	  of all Punit North Complex devices. The power states of
+	  each device is exposed as part of the debugfs interface.
+	  The current power state can be read from
+	  /sys/kernel/debug/punit_atom/dev_power_state
 
 endmenu

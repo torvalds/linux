@@ -37,11 +37,10 @@ Commands are not supported.
 */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #define AO_VALUE_OFFSET			0x00
 #define	AO_CHAN_OFFSET			0x0c
@@ -146,7 +145,7 @@ static int ni_670x_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-/* ripped from mite.h and mite_setup2() to avoid mite dependancy */
+/* ripped from mite.h and mite_setup2() to avoid mite dependency */
 #define MITE_IODWBSR	0xc0	 /* IO Device Window Base Size Register */
 #define WENAB		(1 << 7) /* window enable */
 
@@ -173,18 +172,18 @@ static int ni_670x_auto_attach(struct comedi_device *dev,
 			       unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct ni_670x_board *thisboard = NULL;
+	const struct ni_670x_board *board = NULL;
 	struct ni_670x_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 	int i;
 
 	if (context < ARRAY_SIZE(ni_670x_boards))
-		thisboard = &ni_670x_boards[context];
-	if (!thisboard)
+		board = &ni_670x_boards[context];
+	if (!board)
 		return -ENODEV;
-	dev->board_ptr = thisboard;
-	dev->board_name = thisboard->name;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)
@@ -210,7 +209,7 @@ static int ni_670x_auto_attach(struct comedi_device *dev,
 	/* analog output subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = thisboard->ao_chans;
+	s->n_chan = board->ao_chans;
 	s->maxdata = 0xffff;
 	if (s->n_chan == 32) {
 		const struct comedi_lrange **range_table_list;

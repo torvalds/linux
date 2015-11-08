@@ -43,9 +43,8 @@
 #define I40E_PTP_10GB_INCVAL 0x0333333333ULL
 #define I40E_PTP_1GB_INCVAL  0x2000000000ULL
 
-#define I40E_PRTTSYN_CTL1_TSYNTYPE_V1  (0x1 << \
-					I40E_PRTTSYN_CTL1_TSYNTYPE_SHIFT)
-#define I40E_PRTTSYN_CTL1_TSYNTYPE_V2  (0x2 << \
+#define I40E_PRTTSYN_CTL1_TSYNTYPE_V1  BIT(I40E_PRTTSYN_CTL1_TSYNTYPE_SHIFT)
+#define I40E_PRTTSYN_CTL1_TSYNTYPE_V2  (2 << \
 					I40E_PRTTSYN_CTL1_TSYNTYPE_SHIFT)
 
 /**
@@ -57,7 +56,7 @@
  * timespec. However, since the registers are 64 bits of nanoseconds, we must
  * convert the result to a timespec before we can return.
  **/
-static void i40e_ptp_read(struct i40e_pf *pf, struct timespec *ts)
+static void i40e_ptp_read(struct i40e_pf *pf, struct timespec64 *ts)
 {
 	struct i40e_hw *hw = &pf->hw;
 	u32 hi, lo;
@@ -69,7 +68,7 @@ static void i40e_ptp_read(struct i40e_pf *pf, struct timespec *ts)
 
 	ns = (((u64)hi) << 32) | lo;
 
-	*ts = ns_to_timespec(ns);
+	*ts = ns_to_timespec64(ns);
 }
 
 /**
@@ -81,10 +80,10 @@ static void i40e_ptp_read(struct i40e_pf *pf, struct timespec *ts)
  * we receive a timespec from the stack, we must convert that timespec into
  * nanoseconds before programming the registers.
  **/
-static void i40e_ptp_write(struct i40e_pf *pf, const struct timespec *ts)
+static void i40e_ptp_write(struct i40e_pf *pf, const struct timespec64 *ts)
 {
 	struct i40e_hw *hw = &pf->hw;
-	u64 ns = timespec_to_ns(ts);
+	u64 ns = timespec64_to_ns(ts);
 
 	/* The timer will not update until the high register is written, so
 	 * write the low register first.
@@ -159,14 +158,14 @@ static int i40e_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 static int i40e_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
 	struct i40e_pf *pf = container_of(ptp, struct i40e_pf, ptp_caps);
-	struct timespec now, then = ns_to_timespec(delta);
+	struct timespec64 now, then = ns_to_timespec64(delta);
 	unsigned long flags;
 
 	spin_lock_irqsave(&pf->tmreg_lock, flags);
 
 	i40e_ptp_read(pf, &now);
-	now = timespec_add(now, then);
-	i40e_ptp_write(pf, (const struct timespec *)&now);
+	now = timespec64_add(now, then);
+	i40e_ptp_write(pf, (const struct timespec64 *)&now);
 
 	spin_unlock_irqrestore(&pf->tmreg_lock, flags);
 
@@ -181,7 +180,7 @@ static int i40e_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
  * Read the device clock and return the correct value on ns, after converting it
  * into a timespec struct.
  **/
-static int i40e_ptp_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
+static int i40e_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 {
 	struct i40e_pf *pf = container_of(ptp, struct i40e_pf, ptp_caps);
 	unsigned long flags;
@@ -202,7 +201,7 @@ static int i40e_ptp_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
  * to ns happens in the write function.
  **/
 static int i40e_ptp_settime(struct ptp_clock_info *ptp,
-			    const struct timespec *ts)
+			    const struct timespec64 *ts)
 {
 	struct i40e_pf *pf = container_of(ptp, struct i40e_pf, ptp_caps);
 	unsigned long flags;
@@ -357,7 +356,7 @@ void i40e_ptp_rx_hwtstamp(struct i40e_pf *pf, struct sk_buff *skb, u8 index)
 
 	prttsyn_stat = rd32(hw, I40E_PRTTSYN_STAT_1);
 
-	if (!(prttsyn_stat & (1 << index)))
+	if (!(prttsyn_stat & BIT(index)))
 		return;
 
 	lo = rd32(hw, I40E_PRTTSYN_RXTIME_L(index));
@@ -613,15 +612,14 @@ static long i40e_ptp_create_clock(struct i40e_pf *pf)
 	pf->ptp_caps.pps = 0;
 	pf->ptp_caps.adjfreq = i40e_ptp_adjfreq;
 	pf->ptp_caps.adjtime = i40e_ptp_adjtime;
-	pf->ptp_caps.gettime = i40e_ptp_gettime;
-	pf->ptp_caps.settime = i40e_ptp_settime;
+	pf->ptp_caps.gettime64 = i40e_ptp_gettime;
+	pf->ptp_caps.settime64 = i40e_ptp_settime;
 	pf->ptp_caps.enable = i40e_ptp_feature_enable;
 
 	/* Attempt to register the clock before enabling the hardware. */
 	pf->ptp_clock = ptp_clock_register(&pf->ptp_caps, &pf->pdev->dev);
-	if (IS_ERR(pf->ptp_clock)) {
+	if (IS_ERR(pf->ptp_clock))
 		return PTR_ERR(pf->ptp_clock);
-	}
 
 	/* clear the hwtstamp settings here during clock create, instead of
 	 * during regular init, so that we can maintain settings across a
@@ -673,11 +671,11 @@ void i40e_ptp_init(struct i40e_pf *pf)
 		dev_err(&pf->pdev->dev, "%s: ptp_clock_register failed\n",
 			__func__);
 	} else {
-		struct timespec ts;
+		struct timespec64 ts;
 		u32 regval;
 
-		dev_info(&pf->pdev->dev, "%s: added PHC on %s\n", __func__,
-			 netdev->name);
+		if (pf->hw.debug_mask & I40E_DEBUG_LAN)
+			dev_info(&pf->pdev->dev, "PHC enabled\n");
 		pf->flags |= I40E_FLAG_PTP;
 
 		/* Ensure the clocks are running. */
@@ -695,7 +693,7 @@ void i40e_ptp_init(struct i40e_pf *pf)
 		i40e_ptp_set_timestamp_mode(pf, &pf->tstamp_config);
 
 		/* Set the clock value. */
-		ts = ktime_to_timespec(ktime_get_real());
+		ts = ktime_to_timespec64(ktime_get_real());
 		i40e_ptp_settime(&pf->ptp_caps, &ts);
 	}
 }

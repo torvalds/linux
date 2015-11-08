@@ -1,14 +1,88 @@
-<section id="FE_GET_SET_PROPERTY">
-<title><constant>FE_GET_PROPERTY/FE_SET_PROPERTY</constant></title>
-<para>This section describes the DVB version 5 extension of the DVB-API, also
-called "S2API", as this API were added to provide support for DVB-S2. It was
-designed to be able to replace the old frontend API. Yet, the DISEQC and
-the capability ioctls weren't implemented yet via the new way.</para>
-<para>The typical usage for the <constant>FE_GET_PROPERTY/FE_SET_PROPERTY</constant>
-API is to replace the ioctl's were the <link linkend="dvb-frontend-parameters">
-struct <constant>dvb_frontend_parameters</constant></link> were used.</para>
+<section id="frontend-properties">
+<title>DVB Frontend properties</title>
+<para>Tuning into a Digital TV physical channel and starting decoding it
+    requires changing a set of parameters, in order to control the
+    tuner, the demodulator, the Linear Low-noise Amplifier (LNA) and to set the
+    antenna subsystem via Satellite Equipment Control (SEC), on satellite
+    systems. The actual parameters are specific to each particular digital
+    TV standards, and may change as the digital TV specs evolves.</para>
+<para>In the past, the strategy used was to have a union with the parameters
+    needed to tune for DVB-S, DVB-C, DVB-T and ATSC delivery systems grouped
+    there. The problem is that, as the second generation standards appeared,
+    those structs were not big enough to contain the additional parameters.
+    Also, the union didn't have any space left to be expanded without breaking
+    userspace. So, the decision was to deprecate the legacy union/struct based
+    approach, in favor of a properties set approach.</para>
+
+<para>NOTE: on Linux DVB API version 3, setting a frontend were done via
+    <link linkend="dvb-frontend-parameters">struct  <constant>dvb_frontend_parameters</constant></link>.
+    This got replaced on version 5 (also called "S2API", as this API were
+    added originally_enabled to provide support for DVB-S2), because the old
+    API has a very limited support to new standards and new hardware. This
+    section describes the new and recommended way to set the frontend, with
+    suppports all digital TV delivery systems.</para>
+
+<para>Example: with the properties based approach, in order to set the tuner
+    to a DVB-C channel at 651 kHz, modulated with 256-QAM, FEC 3/4 and symbol
+    rate of 5.217 Mbauds, those properties should be sent to
+    <link linkend="FE_GET_PROPERTY"><constant>FE_SET_PROPERTY</constant></link> ioctl:</para>
+    <itemizedlist>
+	<listitem><para>&DTV-DELIVERY-SYSTEM; = SYS_DVBC_ANNEX_A</para></listitem>
+	<listitem><para>&DTV-FREQUENCY; = 651000000</para></listitem>
+	<listitem><para>&DTV-MODULATION; = QAM_256</para></listitem>
+	<listitem><para>&DTV-INVERSION; = INVERSION_AUTO</para></listitem>
+	<listitem><para>&DTV-SYMBOL-RATE; = 5217000</para></listitem>
+	<listitem><para>&DTV-INNER-FEC; = FEC_3_4</para></listitem>
+	<listitem><para>&DTV-TUNE;</para></listitem>
+    </itemizedlist>
+
+<para>The code that would do the above is:</para>
+<programlisting>
+#include &lt;stdio.h&gt;
+#include &lt;fcntl.h&gt;
+#include &lt;sys/ioctl.h&gt;
+#include &lt;linux/dvb/frontend.h&gt;
+
+static struct dtv_property props[] = {
+	{ .cmd = DTV_DELIVERY_SYSTEM, .u.data = SYS_DVBC_ANNEX_A },
+	{ .cmd = DTV_FREQUENCY,       .u.data = 651000000 },
+	{ .cmd = DTV_MODULATION,      .u.data = QAM_256 },
+	{ .cmd = DTV_INVERSION,       .u.data = INVERSION_AUTO },
+	{ .cmd = DTV_SYMBOL_RATE,     .u.data = 5217000 },
+	{ .cmd = DTV_INNER_FEC,       .u.data = FEC_3_4 },
+	{ .cmd = DTV_TUNE }
+};
+
+static struct dtv_properties dtv_prop = {
+	.num = 6, .props = props
+};
+
+int main(void)
+{
+	int fd = open("/dev/dvb/adapter0/frontend0", O_RDWR);
+
+	if (!fd) {
+	    perror ("open");
+	    return -1;
+	}
+	if (ioctl(fd, FE_SET_PROPERTY, &amp;dtv_prop) == -1) {
+		perror("ioctl");
+		return -1;
+	}
+	printf("Frontend set\n");
+	return 0;
+}
+</programlisting>
+
+<para>NOTE: While it is possible to directly call the Kernel code like the
+    above example, it is strongly recommended to use
+    <ulink url="http://linuxtv.org/docs/libdvbv5/index.html">libdvbv5</ulink>,
+    as it provides abstraction to work with the supported digital TV standards
+    and provides methods for usual operations like program scanning and to
+    read/write channel descriptor files.</para>
+
 <section id="dtv-stats">
-<title>DTV stats type</title>
+<title>struct <structname>dtv_stats</structname></title>
 <programlisting>
 struct dtv_stats {
 	__u8 scale;	/* enum fecap_scale_params type */
@@ -20,19 +94,19 @@ struct dtv_stats {
 </programlisting>
 </section>
 <section id="dtv-fe-stats">
-<title>DTV stats type</title>
+<title>struct <structname>dtv_fe_stats</structname></title>
 <programlisting>
 #define MAX_DTV_STATS   4
 
 struct dtv_fe_stats {
 	__u8 len;
-	struct dtv_stats stat[MAX_DTV_STATS];
+	&dtv-stats; stat[MAX_DTV_STATS];
 } __packed;
 </programlisting>
 </section>
 
 <section id="dtv-property">
-<title>DTV property type</title>
+<title>struct <structname>dtv_property</structname></title>
 <programlisting>
 /* Reserved fields should be set to 0 */
 
@@ -41,7 +115,7 @@ struct dtv_property {
 	__u32 reserved[3];
 	union {
 		__u32 data;
-		struct dtv_fe_stats st;
+		&dtv-fe-stats; st;
 		struct {
 			__u8 data[32];
 			__u32 len;
@@ -57,115 +131,19 @@ struct dtv_property {
 </programlisting>
 </section>
 <section id="dtv-properties">
-<title>DTV properties type</title>
+<title>struct <structname>dtv_properties</structname></title>
 <programlisting>
 struct dtv_properties {
 	__u32 num;
-	struct dtv_property *props;
+	&dtv-property; *props;
 };
 </programlisting>
-</section>
-
-<section id="FE_GET_PROPERTY">
-<title>FE_GET_PROPERTY</title>
-<para>DESCRIPTION
-</para>
-<informaltable><tgroup cols="1"><tbody><row><entry
- align="char">
-<para>This ioctl call returns one or more frontend properties. This call only
- requires read-only access to the device.</para>
-</entry>
- </row></tbody></tgroup></informaltable>
-<para>SYNOPSIS
-</para>
-<informaltable><tgroup cols="1"><tbody><row><entry
- align="char">
-<para>int ioctl(int fd, int request = <link linkend="FE_GET_PROPERTY">FE_GET_PROPERTY</link>,
- dtv_properties &#x22C6;props);</para>
-</entry>
- </row></tbody></tgroup></informaltable>
-<para>PARAMETERS
-</para>
-<informaltable><tgroup cols="2"><tbody><row><entry align="char">
-<para>int fd</para>
-</entry><entry
- align="char">
-<para>File descriptor returned by a previous call to open().</para>
-</entry>
- </row><row><entry
- align="char">
-<para>int num</para>
-</entry><entry
- align="char">
-<para>Equals <link linkend="FE_GET_PROPERTY">FE_GET_PROPERTY</link> for this command.</para>
-</entry>
- </row><row><entry
- align="char">
-<para>struct dtv_property *props</para>
-</entry><entry
- align="char">
-<para>Points to the location where the front-end property commands are stored.</para>
-</entry>
- </row></tbody></tgroup></informaltable>
-&return-value-dvb;
-<informaltable><tgroup cols="2"><tbody><row>
-  <entry align="char"><para>EOPNOTSUPP</para></entry>
-  <entry align="char"><para>Property type not supported.</para></entry>
- </row></tbody></tgroup></informaltable>
-</section>
-
-<section id="FE_SET_PROPERTY">
-<title>FE_SET_PROPERTY</title>
-<para>DESCRIPTION
-</para>
-<informaltable><tgroup cols="1"><tbody><row><entry
- align="char">
-<para>This ioctl call sets one or more frontend properties. This call
- requires read/write access to the device.</para>
-</entry>
- </row></tbody></tgroup></informaltable>
-<para>SYNOPSIS
-</para>
-<informaltable><tgroup cols="1"><tbody><row><entry
- align="char">
-<para>int ioctl(int fd, int request = <link linkend="FE_SET_PROPERTY">FE_SET_PROPERTY</link>,
- dtv_properties &#x22C6;props);</para>
-</entry>
- </row></tbody></tgroup></informaltable>
-<para>PARAMETERS
-</para>
-<informaltable><tgroup cols="2"><tbody><row><entry align="char">
-<para>int fd</para>
-</entry><entry
- align="char">
-<para>File descriptor returned by a previous call to open().</para>
-</entry>
- </row><row><entry
- align="char">
-<para>int num</para>
-</entry><entry
- align="char">
-<para>Equals <link linkend="FE_SET_PROPERTY">FE_SET_PROPERTY</link> for this command.</para>
-</entry>
- </row><row><entry
- align="char">
-<para>struct dtv_property *props</para>
-</entry><entry
- align="char">
-<para>Points to the location where the front-end property commands are stored.</para>
-</entry>
- </row></tbody></tgroup></informaltable>
-&return-value-dvb;
-<informaltable><tgroup cols="2"><tbody><row>
-  <entry align="char"><para>EOPNOTSUPP</para></entry>
-  <entry align="char"><para>Property type not supported.</para></entry>
- </row></tbody></tgroup></informaltable>
 </section>
 
 <section>
 	<title>Property types</title>
 <para>
-On <link linkend="FE_GET_PROPERTY">FE_GET_PROPERTY</link>/<link linkend="FE_SET_PROPERTY">FE_SET_PROPERTY</link>,
+On <link linkend="FE_GET_PROPERTY">FE_GET_PROPERTY and FE_SET_PROPERTY</link>,
 the actual action is determined by the dtv_property cmd/data pairs. With one single ioctl, is possible to
 get/set up to 64 properties. The actual meaning of each property is described on the next sections.
 </para>
@@ -193,7 +171,7 @@ get/set up to 64 properties. The actual meaning of each property is described on
 		<para>Central frequency of the channel.</para>
 
 		<para>Notes:</para>
-		<para>1)For satellital delivery systems, it is measured in kHz.
+		<para>1)For satellite delivery systems, it is measured in kHz.
 			For the other ones, it is measured in Hz.</para>
 		<para>2)For ISDB-T, the channels are usually transmitted with an offset of 143kHz.
 			E.g. a valid frequency could be 474143 kHz. The stepping is bound to the bandwidth of
@@ -205,25 +183,78 @@ get/set up to 64 properties. The actual meaning of each property is described on
 	</section>
 	<section id="DTV-MODULATION">
 	<title><constant>DTV_MODULATION</constant></title>
-<para>Specifies the frontend modulation type for cable and satellite types. The modulation can be one of the types bellow:</para>
-<programlisting>
- typedef enum fe_modulation {
-	QPSK,
-	QAM_16,
-	QAM_32,
-	QAM_64,
-	QAM_128,
-	QAM_256,
-	QAM_AUTO,
-	VSB_8,
-	VSB_16,
-	PSK_8,
-	APSK_16,
-	APSK_32,
-	DQPSK,
-	QAM_4_NR,
- } fe_modulation_t;
-</programlisting>
+<para>Specifies the frontend modulation type for delivery systems that supports
+    more than one modulation type. The modulation can be one of the types
+    defined by &fe-modulation;.</para>
+
+
+<section id="fe-modulation-t">
+<title>Modulation property</title>
+
+<para>Most of the digital TV standards currently offers more than one possible
+    modulation (sometimes called as "constellation" on some standards). This
+    enum contains the values used by the Kernel. Please note that not all
+    modulations are supported by a given standard.</para>
+
+<table pgwide="1" frame="none" id="fe-modulation">
+    <title>enum fe_modulation</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry id="QPSK"><constant>QPSK</constant></entry>
+	    <entry>QPSK modulation</entry>
+	</row><row>
+	    <entry id="QAM-16"><constant>QAM_16</constant></entry>
+	    <entry>16-QAM modulation</entry>
+	</row><row>
+	    <entry id="QAM-32"><constant>QAM_32</constant></entry>
+	    <entry>32-QAM modulation</entry>
+	</row><row>
+	    <entry id="QAM-64"><constant>QAM_64</constant></entry>
+	    <entry>64-QAM modulation</entry>
+	</row><row>
+	    <entry id="QAM-128"><constant>QAM_128</constant></entry>
+	    <entry>128-QAM modulation</entry>
+	</row><row>
+	    <entry id="QAM-256"><constant>QAM_256</constant></entry>
+	    <entry>256-QAM modulation</entry>
+	</row><row>
+	    <entry id="QAM-AUTO"><constant>QAM_AUTO</constant></entry>
+	    <entry>Autodetect QAM modulation</entry>
+	</row><row>
+	    <entry id="VSB-8"><constant>VSB_8</constant></entry>
+	    <entry>8-VSB modulation</entry>
+	</row><row>
+	    <entry id="VSB-16"><constant>VSB_16</constant></entry>
+	    <entry>16-VSB modulation</entry>
+	</row><row>
+	    <entry id="PSK-8"><constant>PSK_8</constant></entry>
+	    <entry>8-PSK modulation</entry>
+	</row><row>
+	    <entry id="APSK-16"><constant>APSK_16</constant></entry>
+	    <entry>16-APSK modulation</entry>
+	</row><row>
+	    <entry id="APSK-32"><constant>APSK_32</constant></entry>
+	    <entry>32-APSK modulation</entry>
+	</row><row>
+	    <entry id="DQPSK"><constant>DQPSK</constant></entry>
+	    <entry>DQPSK modulation</entry>
+	</row><row>
+	    <entry id="QAM-4-NR"><constant>QAM_4_NR</constant></entry>
+	    <entry>4-QAM-NR modulation</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
+</section>
+
 	</section>
 	<section id="DTV-BANDWIDTH-HZ">
 		<title><constant>DTV_BANDWIDTH_HZ</constant></title>
@@ -253,19 +284,45 @@ get/set up to 64 properties. The actual meaning of each property is described on
 	</section>
 	<section id="DTV-INVERSION">
 	<title><constant>DTV_INVERSION</constant></title>
-	<para>The Inversion field can take one of these values:
-	</para>
-	<programlisting>
-	typedef enum fe_spectral_inversion {
-		INVERSION_OFF,
-		INVERSION_ON,
-		INVERSION_AUTO
-	} fe_spectral_inversion_t;
-	</programlisting>
-	<para>It indicates if spectral inversion should be presumed or not. In the automatic setting
-	(<constant>INVERSION_AUTO</constant>) the hardware will try to figure out the correct setting by
-	itself.
-	</para>
+
+	<para>Specifies if the frontend should do spectral inversion or not.</para>
+
+<section id="fe-spectral-inversion-t">
+<title>enum fe_modulation: Frontend spectral inversion</title>
+
+<para>This parameter indicates if spectral inversion should be presumed or not.
+    In the automatic setting (<constant>INVERSION_AUTO</constant>) the hardware
+    will try to figure out the correct setting by itself. If the hardware
+    doesn't support, the DVB core will try to lock at the carrier first with
+    inversion off. If it fails, it will try to enable inversion.
+</para>
+
+<table pgwide="1" frame="none" id="fe-spectral-inversion">
+    <title>enum fe_modulation</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry id="INVERSION-OFF"><constant>INVERSION_OFF</constant></entry>
+	    <entry>Don't do spectral band inversion.</entry>
+	</row><row>
+	    <entry id="INVERSION-ON"><constant>INVERSION_ON</constant></entry>
+	    <entry>Do spectral band inversion.</entry>
+	</row><row>
+	    <entry id="INVERSION-AUTO"><constant>INVERSION_AUTO</constant></entry>
+	    <entry>Autodetect spectral band inversion.</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
+</section>
+
 	</section>
 	<section id="DTV-DISEQC-MASTER">
 	<title><constant>DTV_DISEQC_MASTER</constant></title>
@@ -279,25 +336,64 @@ get/set up to 64 properties. The actual meaning of each property is described on
 	<title><constant>DTV_INNER_FEC</constant></title>
 	<para>Used cable/satellite transmissions. The acceptable values are:
 	</para>
-	<programlisting>
-typedef enum fe_code_rate {
-	FEC_NONE = 0,
-	FEC_1_2,
-	FEC_2_3,
-	FEC_3_4,
-	FEC_4_5,
-	FEC_5_6,
-	FEC_6_7,
-	FEC_7_8,
-	FEC_8_9,
-	FEC_AUTO,
-	FEC_3_5,
-	FEC_9_10,
-	FEC_2_5,
-} fe_code_rate_t;
-	</programlisting>
-	<para>which correspond to error correction rates of 1/2, 2/3, etc.,
-	no error correction or auto detection.</para>
+<section id="fe-code-rate-t">
+<title>enum fe_code_rate: type of the Forward Error Correction.</title>
+
+<table pgwide="1" frame="none" id="fe-code-rate">
+    <title>enum fe_code_rate</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry id="FEC-NONE"><constant>FEC_NONE</constant></entry>
+	    <entry>No Forward Error Correction Code</entry>
+	</row><row>
+	    <entry id="FEC-AUTO"><constant>FEC_AUTO</constant></entry>
+	    <entry>Autodetect Error Correction Code</entry>
+	</row><row>
+	    <entry id="FEC-1-2"><constant>FEC_1_2</constant></entry>
+	    <entry>Forward Error Correction Code 1/2</entry>
+	</row><row>
+	    <entry id="FEC-2-3"><constant>FEC_2_3</constant></entry>
+	    <entry>Forward Error Correction Code 2/3</entry>
+	</row><row>
+	    <entry id="FEC-3-4"><constant>FEC_3_4</constant></entry>
+	    <entry>Forward Error Correction Code 3/4</entry>
+	</row><row>
+	    <entry id="FEC-4-5"><constant>FEC_4_5</constant></entry>
+	    <entry>Forward Error Correction Code 4/5</entry>
+	</row><row>
+	    <entry id="FEC-5-6"><constant>FEC_5_6</constant></entry>
+	    <entry>Forward Error Correction Code 5/6</entry>
+	</row><row>
+	    <entry id="FEC-6-7"><constant>FEC_6_7</constant></entry>
+	    <entry>Forward Error Correction Code 6/7</entry>
+	</row><row>
+	    <entry id="FEC-7-8"><constant>FEC_7_8</constant></entry>
+	    <entry>Forward Error Correction Code 7/8</entry>
+	</row><row>
+	    <entry id="FEC-8-9"><constant>FEC_8_9</constant></entry>
+	    <entry>Forward Error Correction Code 8/9</entry>
+	</row><row>
+	    <entry id="FEC-9-10"><constant>FEC_9_10</constant></entry>
+	    <entry>Forward Error Correction Code 9/10</entry>
+	</row><row>
+	    <entry id="FEC-2-5"><constant>FEC_2_5</constant></entry>
+	    <entry>Forward Error Correction Code 2/5</entry>
+	</row><row>
+	    <entry id="FEC-3-5"><constant>FEC_3_5</constant></entry>
+	    <entry>Forward Error Correction Code 3/5</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
+</section>
 	</section>
 	<section id="DTV-VOLTAGE">
 	<title><constant>DTV_VOLTAGE</constant></title>
@@ -305,12 +401,31 @@ typedef enum fe_code_rate {
 	the polarzation (horizontal/vertical). When using DiSEqC epuipment this
 	voltage has to be switched consistently to the DiSEqC commands as
 	described in the DiSEqC spec.</para>
-	<programlisting>
-		typedef enum fe_sec_voltage {
-		SEC_VOLTAGE_13,
-		SEC_VOLTAGE_18
-		} fe_sec_voltage_t;
-	</programlisting>
+
+<table pgwide="1" frame="none" id="fe-sec-voltage">
+    <title id="fe-sec-voltage-t">enum fe_sec_voltage</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry align="char" id="SEC-VOLTAGE-13"><constant>SEC_VOLTAGE_13</constant></entry>
+	    <entry align="char">Set DC voltage level to 13V</entry>
+	</row><row>
+	    <entry align="char" id="SEC-VOLTAGE-18"><constant>SEC_VOLTAGE_18</constant></entry>
+	    <entry align="char">Set DC voltage level to 18V</entry>
+	</row><row>
+	    <entry align="char" id="SEC-VOLTAGE-OFF"><constant>SEC_VOLTAGE_OFF</constant></entry>
+	    <entry align="char">Don't send any voltage to the antenna</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
 	</section>
 	<section id="DTV-TONE">
 	<title><constant>DTV_TONE</constant></title>
@@ -321,13 +436,30 @@ typedef enum fe_code_rate {
 	<para>Sets DVB-S2 pilot</para>
 	<section id="fe-pilot-t">
 		<title>fe_pilot type</title>
-		<programlisting>
-typedef enum fe_pilot {
-	PILOT_ON,
-	PILOT_OFF,
-	PILOT_AUTO,
-} fe_pilot_t;
-		</programlisting>
+<table pgwide="1" frame="none" id="fe-pilot">
+    <title>enum fe_pilot</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry align="char" id="PILOT-ON"><constant>PILOT_ON</constant></entry>
+	    <entry align="char">Pilot tones enabled</entry>
+	</row><row>
+	    <entry align="char" id="PILOT-OFF"><constant>PILOT_OFF</constant></entry>
+	    <entry align="char">Pilot tones disabled</entry>
+	</row><row>
+	    <entry align="char" id="PILOT-AUTO"><constant>PILOT_AUTO</constant></entry>
+	    <entry align="char">Autodetect pilot tones</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
 		</section>
 	</section>
 	<section id="DTV-ROLLOFF">
@@ -336,14 +468,33 @@ typedef enum fe_pilot {
 
 	<section id="fe-rolloff-t">
 		<title>fe_rolloff type</title>
-		<programlisting>
-typedef enum fe_rolloff {
-	ROLLOFF_35, /* Implied value in DVB-S, default for DVB-S2 */
-	ROLLOFF_20,
-	ROLLOFF_25,
-	ROLLOFF_AUTO,
-} fe_rolloff_t;
-		</programlisting>
+<table pgwide="1" frame="none" id="fe-rolloff">
+    <title>enum fe_rolloff</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry align="char" id="ROLLOFF-35"><constant>ROLLOFF_35</constant></entry>
+	    <entry align="char">Roloff factor: &alpha;=35%</entry>
+	</row><row>
+	    <entry align="char" id="ROLLOFF-20"><constant>ROLLOFF_20</constant></entry>
+	    <entry align="char">Roloff factor: &alpha;=20%</entry>
+	</row><row>
+	    <entry align="char" id="ROLLOFF-25"><constant>ROLLOFF_25</constant></entry>
+	    <entry align="char">Roloff factor: &alpha;=25%</entry>
+	</row><row>
+	    <entry align="char" id="ROLLOFF-AUTO"><constant>ROLLOFF_AUTO</constant></entry>
+	    <entry align="char">Auto-detect the roloff factor.</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
 		</section>
 	</section>
 	<section id="DTV-DISEQC-SLAVE-REPLY">
@@ -364,31 +515,82 @@ typedef enum fe_rolloff {
 		<section id="fe-delivery-system-t">
 		<title>fe_delivery_system type</title>
 		<para>Possible values: </para>
-<programlisting>
 
-typedef enum fe_delivery_system {
-	SYS_UNDEFINED,
-	SYS_DVBC_ANNEX_A,
-	SYS_DVBC_ANNEX_B,
-	SYS_DVBT,
-	SYS_DSS,
-	SYS_DVBS,
-	SYS_DVBS2,
-	SYS_DVBH,
-	SYS_ISDBT,
-	SYS_ISDBS,
-	SYS_ISDBC,
-	SYS_ATSC,
-	SYS_ATSCMH,
-	SYS_DTMB,
-	SYS_CMMB,
-	SYS_DAB,
-	SYS_DVBT2,
-	SYS_TURBO,
-	SYS_DVBC_ANNEX_C,
-} fe_delivery_system_t;
-</programlisting>
-		</section>
+<table pgwide="1" frame="none" id="fe-delivery-system">
+    <title>enum fe_delivery_system</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+		<entry id="SYS-UNDEFINED"><constant>SYS_UNDEFINED</constant></entry>
+		<entry>Undefined standard. Generally, indicates an error</entry>
+	</row><row>
+		<entry id="SYS-DVBC-ANNEX-A"><constant>SYS_DVBC_ANNEX_A</constant></entry>
+		<entry>Cable TV: DVB-C following ITU-T J.83 Annex A spec</entry>
+	</row><row>
+		<entry id="SYS-DVBC-ANNEX-B"><constant>SYS_DVBC_ANNEX_B</constant></entry>
+		<entry>Cable TV: DVB-C following ITU-T J.83 Annex B spec (ClearQAM)</entry>
+	</row><row>
+		<entry id="SYS-DVBC-ANNEX-C"><constant>SYS_DVBC_ANNEX_C</constant></entry>
+		<entry>Cable TV: DVB-C following ITU-T J.83 Annex C spec</entry>
+	</row><row>
+		<entry id="SYS-ISDBC"><constant>SYS_ISDBC</constant></entry>
+		<entry>Cable TV: ISDB-C (no drivers yet)</entry>
+	</row><row>
+		<entry id="SYS-DVBT"><constant>SYS_DVBT</constant></entry>
+		<entry>Terrestral TV: DVB-T</entry>
+	</row><row>
+		<entry id="SYS-DVBT2"><constant>SYS_DVBT2</constant></entry>
+		<entry>Terrestral TV: DVB-T2</entry>
+	</row><row>
+		<entry id="SYS-ISDBT"><constant>SYS_ISDBT</constant></entry>
+		<entry>Terrestral TV: ISDB-T</entry>
+	</row><row>
+		<entry id="SYS-ATSC"><constant>SYS_ATSC</constant></entry>
+		<entry>Terrestral TV: ATSC</entry>
+	</row><row>
+		<entry id="SYS-ATSCMH"><constant>SYS_ATSCMH</constant></entry>
+		<entry>Terrestral TV (mobile): ATSC-M/H</entry>
+	</row><row>
+		<entry id="SYS-DTMB"><constant>SYS_DTMB</constant></entry>
+		<entry>Terrestrial TV: DTMB</entry>
+	</row><row>
+		<entry id="SYS-DVBS"><constant>SYS_DVBS</constant></entry>
+		<entry>Satellite TV: DVB-S</entry>
+	</row><row>
+		<entry id="SYS-DVBS2"><constant>SYS_DVBS2</constant></entry>
+		<entry>Satellite TV: DVB-S2</entry>
+	</row><row>
+		<entry id="SYS-TURBO"><constant>SYS_TURBO</constant></entry>
+		<entry>Satellite TV: DVB-S Turbo</entry>
+	</row><row>
+		<entry id="SYS-ISDBS"><constant>SYS_ISDBS</constant></entry>
+		<entry>Satellite TV: ISDB-S</entry>
+	</row><row>
+		<entry id="SYS-DAB"><constant>SYS_DAB</constant></entry>
+		<entry>Digital audio: DAB (not fully supported)</entry>
+	</row><row>
+		<entry id="SYS-DSS"><constant>SYS_DSS</constant></entry>
+		<entry>Satellite TV:"DSS (not fully supported)</entry>
+	</row><row>
+		<entry id="SYS-CMMB"><constant>SYS_CMMB</constant></entry>
+		<entry>Terrestral TV (mobile):CMMB (not fully supported)</entry>
+	</row><row>
+		<entry id="SYS-DVBH"><constant>SYS_DVBH</constant></entry>
+		<entry>Terrestral TV (mobile): DVB-H (standard deprecated)</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
+
+
+</section>
 	</section>
 	<section id="DTV-ISDBT-PARTIAL-RECEPTION">
 		<title><constant>DTV_ISDBT_PARTIAL_RECEPTION</constant></title>
@@ -630,114 +832,177 @@ typedef enum fe_delivery_system {
 		</section>
 		<section id="DTV-ATSCMH-RS-FRAME-MODE">
 			<title><constant>DTV_ATSCMH_RS_FRAME_MODE</constant></title>
-			<para>RS frame mode.</para>
+			<para>Reed Solomon (RS) frame mode.</para>
 			<para>Possible values are:</para>
-		  <para id="atscmh-rs-frame-mode">
-<programlisting>
-typedef enum atscmh_rs_frame_mode {
-	ATSCMH_RSFRAME_PRI_ONLY  = 0,
-	ATSCMH_RSFRAME_PRI_SEC   = 1,
-} atscmh_rs_frame_mode_t;
-</programlisting>
-		  </para>
+<table pgwide="1" frame="none" id="atscmh-rs-frame-mode">
+    <title>enum atscmh_rs_frame_mode</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry id="ATSCMH-RSFRAME-PRI-ONLY"><constant>ATSCMH_RSFRAME_PRI_ONLY</constant></entry>
+	    <entry>Single Frame: There is only a primary RS Frame for all
+		Group Regions.</entry>
+	</row><row>
+	    <entry id="ATSCMH-RSFRAME-PRI-SEC"><constant>ATSCMH_RSFRAME_PRI_SEC</constant></entry>
+	    <entry>Dual Frame: There are two separate RS Frames: Primary RS
+		Frame for Group Region A and B and Secondary RS Frame for Group
+		Region C and D.</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
 		</section>
 		<section id="DTV-ATSCMH-RS-FRAME-ENSEMBLE">
 			<title><constant>DTV_ATSCMH_RS_FRAME_ENSEMBLE</constant></title>
-			<para>RS frame ensemble.</para>
+			<para>Reed Solomon(RS) frame ensemble.</para>
 			<para>Possible values are:</para>
-		  <para id="atscmh-rs-frame-ensemble">
-<programlisting>
-typedef enum atscmh_rs_frame_ensemble {
-	ATSCMH_RSFRAME_ENS_PRI   = 0,
-	ATSCMH_RSFRAME_ENS_SEC   = 1,
-} atscmh_rs_frame_ensemble_t;
-</programlisting>
-		  </para>
+<table pgwide="1" frame="none" id="atscmh-rs-frame-ensemble">
+    <title>enum atscmh_rs_frame_ensemble</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry id="ATSCMH-RSFRAME-ENS-PRI"><constant>ATSCMH_RSFRAME_ENS_PRI</constant></entry>
+	    <entry>Primary Ensemble.</entry>
+	</row><row>
+	    <entry id="ATSCMH-RSFRAME-ENS-SEC"><constant>AATSCMH_RSFRAME_PRI_SEC</constant></entry>
+	    <entry>Secondary Ensemble.</entry>
+	</row><row>
+	    <entry id="ATSCMH-RSFRAME-RES"><constant>AATSCMH_RSFRAME_RES</constant></entry>
+	    <entry>Reserved. Shouldn't be used.</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
 		</section>
 		<section id="DTV-ATSCMH-RS-CODE-MODE-PRI">
 			<title><constant>DTV_ATSCMH_RS_CODE_MODE_PRI</constant></title>
-			<para>RS code mode (primary).</para>
+			<para>Reed Solomon (RS) code mode (primary).</para>
 			<para>Possible values are:</para>
-		  <para id="atscmh-rs-code-mode">
-<programlisting>
-typedef enum atscmh_rs_code_mode {
-	ATSCMH_RSCODE_211_187    = 0,
-	ATSCMH_RSCODE_223_187    = 1,
-	ATSCMH_RSCODE_235_187    = 2,
-} atscmh_rs_code_mode_t;
-</programlisting>
-		  </para>
+<table pgwide="1" frame="none" id="atscmh-rs-code-mode">
+    <title>enum atscmh_rs_code_mode</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry id="ATSCMH-RSCODE-211-187"><constant>ATSCMH_RSCODE_211_187</constant></entry>
+	    <entry>Reed Solomon code (211,187).</entry>
+	</row><row>
+	    <entry id="ATSCMH-RSCODE-223-187"><constant>ATSCMH_RSCODE_223_187</constant></entry>
+	    <entry>Reed Solomon code (223,187).</entry>
+	</row><row>
+	    <entry id="ATSCMH-RSCODE-235-187"><constant>ATSCMH_RSCODE_235_187</constant></entry>
+	    <entry>Reed Solomon code (235,187).</entry>
+	</row><row>
+	    <entry id="ATSCMH-RSCODE-RES"><constant>ATSCMH_RSCODE_RES</constant></entry>
+	    <entry>Reserved. Shouldn't be used.</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
 		</section>
 		<section id="DTV-ATSCMH-RS-CODE-MODE-SEC">
 			<title><constant>DTV_ATSCMH_RS_CODE_MODE_SEC</constant></title>
-			<para>RS code mode (secondary).</para>
-			<para>Possible values are:</para>
-<programlisting>
-typedef enum atscmh_rs_code_mode {
-	ATSCMH_RSCODE_211_187    = 0,
-	ATSCMH_RSCODE_223_187    = 1,
-	ATSCMH_RSCODE_235_187    = 2,
-} atscmh_rs_code_mode_t;
-</programlisting>
+			<para>Reed Solomon (RS) code mode (secondary).</para>
+			<para>Possible values are the same as documented on
+			    &atscmh-rs-code-mode;:</para>
 		</section>
 		<section id="DTV-ATSCMH-SCCC-BLOCK-MODE">
 			<title><constant>DTV_ATSCMH_SCCC_BLOCK_MODE</constant></title>
 			<para>Series Concatenated Convolutional Code Block Mode.</para>
 			<para>Possible values are:</para>
-		  <para id="atscmh-sccc-block-mode">
-<programlisting>
-typedef enum atscmh_sccc_block_mode {
-	ATSCMH_SCCC_BLK_SEP      = 0,
-	ATSCMH_SCCC_BLK_COMB     = 1,
-} atscmh_sccc_block_mode_t;
-</programlisting>
-		  </para>
+<table pgwide="1" frame="none" id="atscmh-sccc-block-mode">
+    <title>enum atscmh_scc_block_mode</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry id="ATSCMH-SCCC-BLK-SEP"><constant>ATSCMH_SCCC_BLK_SEP</constant></entry>
+	    <entry>Separate SCCC: the SCCC outer code mode shall be set independently
+		for each Group Region (A, B, C, D)</entry>
+	</row><row>
+	    <entry id="ATSCMH-SCCC-BLK-COMB"><constant>ATSCMH_SCCC_BLK_COMB</constant></entry>
+	    <entry>Combined SCCC: all four Regions shall have the same SCCC outer
+		code mode.</entry>
+	</row><row>
+	    <entry id="ATSCMH-SCCC-BLK-RES"><constant>ATSCMH_SCCC_BLK_RES</constant></entry>
+	    <entry>Reserved. Shouldn't be used.</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
 		</section>
 		<section id="DTV-ATSCMH-SCCC-CODE-MODE-A">
 			<title><constant>DTV_ATSCMH_SCCC_CODE_MODE_A</constant></title>
 			<para>Series Concatenated Convolutional Code Rate.</para>
 			<para>Possible values are:</para>
-		  <para id="atscmh-sccc-code-mode">
-<programlisting>
-typedef enum atscmh_sccc_code_mode {
-	ATSCMH_SCCC_CODE_HLF     = 0,
-	ATSCMH_SCCC_CODE_QTR     = 1,
-} atscmh_sccc_code_mode_t;
-</programlisting>
-		  </para>
+<table pgwide="1" frame="none" id="atscmh-sccc-code-mode">
+    <title>enum atscmh_sccc_code_mode</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry id="ATSCMH-SCCC-CODE-HLF"><constant>ATSCMH_SCCC_CODE_HLF</constant></entry>
+	    <entry>The outer code rate of a SCCC Block is 1/2 rate.</entry>
+	</row><row>
+	    <entry id="ATSCMH-SCCC-CODE-QTR"><constant>ATSCMH_SCCC_CODE_QTR</constant></entry>
+	    <entry>The outer code rate of a SCCC Block is 1/4 rate.</entry>
+	</row><row>
+	    <entry id="ATSCMH-SCCC-CODE-RES"><constant>ATSCMH_SCCC_CODE_RES</constant></entry>
+	    <entry>to be documented.</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
 		</section>
 		<section id="DTV-ATSCMH-SCCC-CODE-MODE-B">
 			<title><constant>DTV_ATSCMH_SCCC_CODE_MODE_B</constant></title>
 			<para>Series Concatenated Convolutional Code Rate.</para>
-			<para>Possible values are:</para>
-<programlisting>
-typedef enum atscmh_sccc_code_mode {
-	ATSCMH_SCCC_CODE_HLF     = 0,
-	ATSCMH_SCCC_CODE_QTR     = 1,
-} atscmh_sccc_code_mode_t;
-</programlisting>
+			<para>Possible values are the same as documented on
+			    &atscmh-sccc-code-mode;.</para>
 		</section>
 		<section id="DTV-ATSCMH-SCCC-CODE-MODE-C">
 			<title><constant>DTV_ATSCMH_SCCC_CODE_MODE_C</constant></title>
 			<para>Series Concatenated Convolutional Code Rate.</para>
-			<para>Possible values are:</para>
-<programlisting>
-typedef enum atscmh_sccc_code_mode {
-	ATSCMH_SCCC_CODE_HLF     = 0,
-	ATSCMH_SCCC_CODE_QTR     = 1,
-} atscmh_sccc_code_mode_t;
-</programlisting>
+			<para>Possible values are the same as documented on
+			    &atscmh-sccc-code-mode;.</para>
 		</section>
 		<section id="DTV-ATSCMH-SCCC-CODE-MODE-D">
 			<title><constant>DTV_ATSCMH_SCCC_CODE_MODE_D</constant></title>
 			<para>Series Concatenated Convolutional Code Rate.</para>
-			<para>Possible values are:</para>
-<programlisting>
-typedef enum atscmh_sccc_code_mode {
-	ATSCMH_SCCC_CODE_HLF     = 0,
-	ATSCMH_SCCC_CODE_QTR     = 1,
-} atscmh_sccc_code_mode_t;
-</programlisting>
+			<para>Possible values are the same as documented on
+			    &atscmh-sccc-code-mode;.</para>
 		</section>
 	</section>
 	<section id="DTV-API-VERSION">
@@ -746,65 +1011,74 @@ typedef enum atscmh_sccc_code_mode {
 	</section>
 	<section id="DTV-CODE-RATE-HP">
 	<title><constant>DTV_CODE_RATE_HP</constant></title>
-	<para>Used on terrestrial transmissions. The acceptable values are:
+	<para>Used on terrestrial transmissions.  The acceptable values are
+	    the ones described at &fe-transmit-mode-t;.
 	</para>
-	<programlisting>
-typedef enum fe_code_rate {
-	FEC_NONE = 0,
-	FEC_1_2,
-	FEC_2_3,
-	FEC_3_4,
-	FEC_4_5,
-	FEC_5_6,
-	FEC_6_7,
-	FEC_7_8,
-	FEC_8_9,
-	FEC_AUTO,
-	FEC_3_5,
-	FEC_9_10,
-} fe_code_rate_t;
-	</programlisting>
 	</section>
 	<section id="DTV-CODE-RATE-LP">
 	<title><constant>DTV_CODE_RATE_LP</constant></title>
-	<para>Used on terrestrial transmissions. The acceptable values are:
+	<para>Used on terrestrial transmissions. The acceptable values are
+	    the ones described at &fe-transmit-mode-t;.
 	</para>
-	<programlisting>
-typedef enum fe_code_rate {
-	FEC_NONE = 0,
-	FEC_1_2,
-	FEC_2_3,
-	FEC_3_4,
-	FEC_4_5,
-	FEC_5_6,
-	FEC_6_7,
-	FEC_7_8,
-	FEC_8_9,
-	FEC_AUTO,
-	FEC_3_5,
-	FEC_9_10,
-} fe_code_rate_t;
-	</programlisting>
+
 	</section>
+
 	<section id="DTV-GUARD-INTERVAL">
 		<title><constant>DTV_GUARD_INTERVAL</constant></title>
 
 		<para>Possible values are:</para>
-<programlisting>
-typedef enum fe_guard_interval {
-	GUARD_INTERVAL_1_32,
-	GUARD_INTERVAL_1_16,
-	GUARD_INTERVAL_1_8,
-	GUARD_INTERVAL_1_4,
-	GUARD_INTERVAL_AUTO,
-	GUARD_INTERVAL_1_128,
-	GUARD_INTERVAL_19_128,
-	GUARD_INTERVAL_19_256,
-	GUARD_INTERVAL_PN420,
-	GUARD_INTERVAL_PN595,
-	GUARD_INTERVAL_PN945,
-} fe_guard_interval_t;
-</programlisting>
+
+<section id="fe-guard-interval-t">
+<title>Modulation guard interval</title>
+
+<table pgwide="1" frame="none" id="fe-guard-interval">
+    <title>enum fe_guard_interval</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry id="GUARD-INTERVAL-AUTO"><constant>GUARD_INTERVAL_AUTO</constant></entry>
+	    <entry>Autodetect the guard interval</entry>
+	</row><row>
+	    <entry id="GUARD-INTERVAL-1-128"><constant>GUARD_INTERVAL_1_128</constant></entry>
+	    <entry>Guard interval 1/128</entry>
+	</row><row>
+	    <entry id="GUARD-INTERVAL-1-32"><constant>GUARD_INTERVAL_1_32</constant></entry>
+	    <entry>Guard interval 1/32</entry>
+	</row><row>
+	    <entry id="GUARD-INTERVAL-1-16"><constant>GUARD_INTERVAL_1_16</constant></entry>
+	    <entry>Guard interval 1/16</entry>
+	</row><row>
+	    <entry id="GUARD-INTERVAL-1-8"><constant>GUARD_INTERVAL_1_8</constant></entry>
+	    <entry>Guard interval 1/8</entry>
+	</row><row>
+	    <entry id="GUARD-INTERVAL-1-4"><constant>GUARD_INTERVAL_1_4</constant></entry>
+	    <entry>Guard interval 1/4</entry>
+	</row><row>
+	    <entry id="GUARD-INTERVAL-19-128"><constant>GUARD_INTERVAL_19_128</constant></entry>
+	    <entry>Guard interval 19/128</entry>
+	</row><row>
+	    <entry id="GUARD-INTERVAL-19-256"><constant>GUARD_INTERVAL_19_256</constant></entry>
+	    <entry>Guard interval 19/256</entry>
+	</row><row>
+	    <entry id="GUARD-INTERVAL-PN420"><constant>GUARD_INTERVAL_PN420</constant></entry>
+	    <entry>PN length 420 (1/4)</entry>
+	</row><row>
+	    <entry id="GUARD-INTERVAL-PN595"><constant>GUARD_INTERVAL_PN595</constant></entry>
+	    <entry>PN length 595 (1/6)</entry>
+	</row><row>
+	    <entry id="GUARD-INTERVAL-PN945"><constant>GUARD_INTERVAL_PN945</constant></entry>
+	    <entry>PN length 945 (1/9)</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
 
 		<para>Notes:</para>
 		<para>1) If <constant>DTV_GUARD_INTERVAL</constant> is set the <constant>GUARD_INTERVAL_AUTO</constant> the hardware will
@@ -812,26 +1086,64 @@ typedef enum fe_guard_interval {
 			in the missing parameters.</para>
 		<para>2) Intervals 1/128, 19/128 and 19/256 are used only for DVB-T2 at present</para>
 		<para>3) DTMB specifies PN420, PN595 and PN945.</para>
+</section>
 	</section>
 	<section id="DTV-TRANSMISSION-MODE">
 		<title><constant>DTV_TRANSMISSION_MODE</constant></title>
 
-		<para>Specifies the number of carriers used by the standard</para>
+		<para>Specifies the number of carriers used by the standard.
+		    This is used only on OFTM-based standards, e. g.
+		    DVB-T/T2, ISDB-T, DTMB</para>
 
-		<para>Possible values are:</para>
-<programlisting>
-typedef enum fe_transmit_mode {
-	TRANSMISSION_MODE_2K,
-	TRANSMISSION_MODE_8K,
-	TRANSMISSION_MODE_AUTO,
-	TRANSMISSION_MODE_4K,
-	TRANSMISSION_MODE_1K,
-	TRANSMISSION_MODE_16K,
-	TRANSMISSION_MODE_32K,
-	TRANSMISSION_MODE_C1,
-	TRANSMISSION_MODE_C3780,
-} fe_transmit_mode_t;
-</programlisting>
+<section id="fe-transmit-mode-t">
+<title>enum fe_transmit_mode: Number of carriers per channel</title>
+
+<table pgwide="1" frame="none" id="fe-transmit-mode">
+    <title>enum fe_transmit_mode</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry id="TRANSMISSION-MODE-AUTO"><constant>TRANSMISSION_MODE_AUTO</constant></entry>
+	    <entry>Autodetect transmission mode. The hardware will try to find
+		the correct FFT-size (if capable) to fill in the missing
+		parameters.</entry>
+	</row><row>
+	    <entry id="TRANSMISSION-MODE-1K"><constant>TRANSMISSION_MODE_1K</constant></entry>
+	    <entry>Transmission mode 1K</entry>
+	</row><row>
+	    <entry id="TRANSMISSION-MODE-2K"><constant>TRANSMISSION_MODE_2K</constant></entry>
+	    <entry>Transmission mode 2K</entry>
+	</row><row>
+	    <entry id="TRANSMISSION-MODE-8K"><constant>TRANSMISSION_MODE_8K</constant></entry>
+	    <entry>Transmission mode 8K</entry>
+	</row><row>
+	    <entry id="TRANSMISSION-MODE-4K"><constant>TRANSMISSION_MODE_4K</constant></entry>
+	    <entry>Transmission mode 4K</entry>
+	</row><row>
+	    <entry id="TRANSMISSION-MODE-16K"><constant>TRANSMISSION_MODE_16K</constant></entry>
+	    <entry>Transmission mode 16K</entry>
+	</row><row>
+	    <entry id="TRANSMISSION-MODE-32K"><constant>TRANSMISSION_MODE_32K</constant></entry>
+	    <entry>Transmission mode 32K</entry>
+	</row><row>
+	    <entry id="TRANSMISSION-MODE-C1"><constant>TRANSMISSION_MODE_C1</constant></entry>
+	    <entry>Single Carrier (C=1) transmission mode (DTMB)</entry>
+	</row><row>
+	    <entry id="TRANSMISSION-MODE-C3780"><constant>TRANSMISSION_MODE_C3780</constant></entry>
+	    <entry>Multi Carrier (C=3780) transmission mode (DTMB)</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
+
+
 		<para>Notes:</para>
 		<para>1) ISDB-T supports three carrier/symbol-size: 8K, 4K, 2K. It is called
 			'mode' in the standard: Mode 1 is 2K, mode 2 is 4K, mode 3 is 8K</para>
@@ -842,19 +1154,48 @@ typedef enum fe_transmit_mode {
 		<para>3) DVB-T specifies 2K and 8K as valid sizes.</para>
 		<para>4) DVB-T2 specifies 1K, 2K, 4K, 8K, 16K and 32K.</para>
 		<para>5) DTMB specifies C1 and C3780.</para>
+</section>
 	</section>
 	<section id="DTV-HIERARCHY">
 	<title><constant>DTV_HIERARCHY</constant></title>
 	<para>Frontend hierarchy</para>
-	<programlisting>
-typedef enum fe_hierarchy {
-	 HIERARCHY_NONE,
-	 HIERARCHY_1,
-	 HIERARCHY_2,
-	 HIERARCHY_4,
-	 HIERARCHY_AUTO
- } fe_hierarchy_t;
-	</programlisting>
+
+
+<section id="fe-hierarchy-t">
+<title>Frontend hierarchy</title>
+
+<table pgwide="1" frame="none" id="fe-hierarchy">
+    <title>enum fe_hierarchy</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	     <entry id="HIERARCHY-NONE"><constant>HIERARCHY_NONE</constant></entry>
+	    <entry>No hierarchy</entry>
+	</row><row>
+	     <entry id="HIERARCHY-AUTO"><constant>HIERARCHY_AUTO</constant></entry>
+	    <entry>Autodetect hierarchy (if supported)</entry>
+	</row><row>
+	     <entry id="HIERARCHY-1"><constant>HIERARCHY_1</constant></entry>
+	    <entry>Hierarchy 1</entry>
+	</row><row>
+	     <entry id="HIERARCHY-2"><constant>HIERARCHY_2</constant></entry>
+	    <entry>Hierarchy 2</entry>
+	</row><row>
+	     <entry id="HIERARCHY-4"><constant>HIERARCHY_4</constant></entry>
+	    <entry>Hierarchy 4</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
+</section>
+
 	</section>
 	<section id="DTV-STREAM-ID">
 	<title><constant>DTV_STREAM_ID</constant></title>
@@ -891,15 +1232,37 @@ typedef enum fe_hierarchy {
 	</section>
 	<section id="DTV-INTERLEAVING">
 	<title><constant>DTV_INTERLEAVING</constant></title>
-	<para id="fe-interleaving">Interleaving mode</para>
-	<programlisting>
-enum fe_interleaving {
-	INTERLEAVING_NONE,
-	INTERLEAVING_AUTO,
-	INTERLEAVING_240,
-	INTERLEAVING_720,
-};
-	</programlisting>
+
+<para>Time interleaving to be used. Currently, used only on DTMB.</para>
+
+<table pgwide="1" frame="none" id="fe-interleaving">
+    <title>enum fe_interleaving</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry id="INTERLEAVING-NONE"><constant>INTERLEAVING_NONE</constant></entry>
+	    <entry>No interleaving.</entry>
+	</row><row>
+	    <entry id="INTERLEAVING-AUTO"><constant>INTERLEAVING_AUTO</constant></entry>
+	    <entry>Auto-detect interleaving.</entry>
+	</row><row>
+	    <entry id="INTERLEAVING-240"><constant>INTERLEAVING_240</constant></entry>
+	    <entry>Interleaving of 240 symbols.</entry>
+	</row><row>
+	    <entry id="INTERLEAVING-720"><constant>INTERLEAVING_720</constant></entry>
+	    <entry>Interleaving of 720 symbols.</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
+
 	</section>
 	<section id="DTV-LNA">
 	<title><constant>DTV_LNA</constant></title>
@@ -921,7 +1284,7 @@ enum fe_interleaving {
 	<para>For most delivery systems, <constant>dtv_property.stat.len</constant>
 	      will be 1 if the stats is supported, and the properties will
 	      return a single value for each parameter.</para>
-	<para>It should be noticed, however, that new OFDM delivery systems
+	<para>It should be noted, however, that new OFDM delivery systems
 	      like ISDB can use different modulation types for each group of
 	      carriers. On such standards, up to 3 groups of statistics can be
 	      provided, and <constant>dtv_property.stat.len</constant> is updated
@@ -940,10 +1303,10 @@ enum fe_interleaving {
 			and <constant>uvalue</constant> is for unsigned values (counters, relative scale)</para></listitem>
 		<listitem><para><constant>scale</constant> - Scale for the value. It can be:</para>
 			<itemizedlist mark='bullet' id="fecap-scale-params">
-				<listitem><para><constant>FE_SCALE_NOT_AVAILABLE</constant> - The parameter is supported by the frontend, but it was not possible to collect it (could be a transitory or permanent condition)</para></listitem>
-				<listitem><para><constant>FE_SCALE_DECIBEL</constant> - parameter is a signed value, measured in 1/1000 dB</para></listitem>
-				<listitem><para><constant>FE_SCALE_RELATIVE</constant> - parameter is a unsigned value, where 0 means 0% and 65535 means 100%.</para></listitem>
-				<listitem><para><constant>FE_SCALE_COUNTER</constant> - parameter is a unsigned value that counts the occurrence of an event, like bit error, block error, or lapsed time.</para></listitem>
+				<listitem id="FE-SCALE-NOT-AVAILABLE"><para><constant>FE_SCALE_NOT_AVAILABLE</constant> - The parameter is supported by the frontend, but it was not possible to collect it (could be a transitory or permanent condition)</para></listitem>
+				<listitem id="FE-SCALE-DECIBEL"><para><constant>FE_SCALE_DECIBEL</constant> - parameter is a signed value, measured in 1/1000 dB</para></listitem>
+				<listitem id="FE-SCALE-RELATIVE"><para><constant>FE_SCALE_RELATIVE</constant> - parameter is a unsigned value, where 0 means 0% and 65535 means 100%.</para></listitem>
+				<listitem id="FE-SCALE-COUNTER"><para><constant>FE_SCALE_COUNTER</constant> - parameter is a unsigned value that counts the occurrence of an event, like bit error, block error, or lapsed time.</para></listitem>
 			</itemizedlist>
 		</listitem>
 	</itemizedlist>
@@ -953,7 +1316,7 @@ enum fe_interleaving {
 		<para>Possible scales for this metric are:</para>
 		<itemizedlist mark='bullet'>
 			<listitem><para><constant>FE_SCALE_NOT_AVAILABLE</constant> - it failed to measure it, or the measurement was not complete yet.</para></listitem>
-			<listitem><para><constant>FE_SCALE_DECIBEL</constant> - signal strength is in 0.0001 dBm units, power measured in miliwatts. This value is generally negative.</para></listitem>
+			<listitem><para><constant>FE_SCALE_DECIBEL</constant> - signal strength is in 0.001 dBm units, power measured in miliwatts. This value is generally negative.</para></listitem>
 			<listitem><para><constant>FE_SCALE_RELATIVE</constant> - The frontend provides a 0% to 100% measurement for power (actually, 0 to 65535).</para></listitem>
 		</itemizedlist>
 	</section>
@@ -963,7 +1326,7 @@ enum fe_interleaving {
 		<para>Possible scales for this metric are:</para>
 		<itemizedlist mark='bullet'>
 			<listitem><para><constant>FE_SCALE_NOT_AVAILABLE</constant> - it failed to measure it, or the measurement was not complete yet.</para></listitem>
-			<listitem><para><constant>FE_SCALE_DECIBEL</constant> - Signal/Noise ratio is in 0.0001 dB units.</para></listitem>
+			<listitem><para><constant>FE_SCALE_DECIBEL</constant> - Signal/Noise ratio is in 0.001 dB units.</para></listitem>
 			<listitem><para><constant>FE_SCALE_RELATIVE</constant> - The frontend provides a 0% to 100% measurement for Signal/Noise (actually, 0 to 65535).</para></listitem>
 		</itemizedlist>
 	</section>
@@ -985,7 +1348,7 @@ enum fe_interleaving {
 		<title><constant>DTV_STAT_PRE_TOTAL_BIT_COUNT</constant></title>
 		<para>Measures the amount of bits received before the inner code block, during the same period as
 		<link linkend="DTV-STAT-PRE-ERROR-BIT-COUNT"><constant>DTV_STAT_PRE_ERROR_BIT_COUNT</constant></link> measurement was taken.</para>
-		<para>It should be noticed that this measurement can be smaller than the total amount of bits on the transport stream,
+		<para>It should be noted that this measurement can be smaller than the total amount of bits on the transport stream,
 		      as the frontend may need to manually restart the measurement, losing some data between each measurement interval.</para>
 		<para>This measurement is monotonically increased, as the frontend gets more bit count measurements.
 		      The frontend may reset it when a channel/transponder is tuned.</para>
@@ -1014,7 +1377,7 @@ enum fe_interleaving {
 		<title><constant>DTV_STAT_POST_TOTAL_BIT_COUNT</constant></title>
 		<para>Measures the amount of bits received after the inner coding, during the same period as
 		<link linkend="DTV-STAT-POST-ERROR-BIT-COUNT"><constant>DTV_STAT_POST_ERROR_BIT_COUNT</constant></link> measurement was taken.</para>
-		<para>It should be noticed that this measurement can be smaller than the total amount of bits on the transport stream,
+		<para>It should be noted that this measurement can be smaller than the total amount of bits on the transport stream,
 		      as the frontend may need to manually restart the measurement, losing some data between each measurement interval.</para>
 		<para>This measurement is monotonically increased, as the frontend gets more bit count measurements.
 		      The frontend may reset it when a channel/transponder is tuned.</para>
@@ -1255,8 +1618,8 @@ enum fe_interleaving {
 		<para>In addition, the <link linkend="frontend-stat-properties">DTV QoS statistics</link> are also valid.</para>
 	</section>
 	</section>
-	<section id="frontend-property-satellital-systems">
-	<title>Properties used on satellital delivery systems</title>
+	<section id="frontend-property-satellite-systems">
+	<title>Properties used on satellite delivery systems</title>
 	<section id="dvbs-params">
 		<title>DVB-S delivery system</title>
 		<para>The following parameters are valid for DVB-S:</para>

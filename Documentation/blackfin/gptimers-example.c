@@ -17,6 +17,12 @@
 
 #define DRIVER_NAME "gptimer_example"
 
+#ifdef IRQ_TIMER5
+#define SAMPLE_IRQ_TIMER IRQ_TIMER5
+#else
+#define SAMPLE_IRQ_TIMER IRQ_TIMER2
+#endif
+
 struct gptimer_data {
 	uint32_t period, width;
 };
@@ -57,7 +63,8 @@ static int __init gptimer_example_init(void)
 	}
 
 	/* grab the IRQ for the timer */
-	ret = request_irq(IRQ_TIMER5, gptimer_example_irq, IRQF_SHARED, DRIVER_NAME, &data);
+	ret = request_irq(SAMPLE_IRQ_TIMER, gptimer_example_irq,
+			IRQF_SHARED, DRIVER_NAME, &data);
 	if (ret) {
 		printk(KERN_NOTICE DRIVER_NAME ": IRQ request failed\n");
 		peripheral_free(P_TMR5);
@@ -65,7 +72,8 @@ static int __init gptimer_example_init(void)
 	}
 
 	/* setup the timer and enable it */
-	set_gptimer_config(TIMER5_id, WDTH_CAP | PULSE_HI | PERIOD_CNT | IRQ_ENA);
+	set_gptimer_config(TIMER5_id,
+			WDTH_CAP | PULSE_HI | PERIOD_CNT | IRQ_ENA);
 	enable_gptimers(TIMER5bit);
 
 	return 0;
@@ -75,7 +83,7 @@ module_init(gptimer_example_init);
 static void __exit gptimer_example_exit(void)
 {
 	disable_gptimers(TIMER5bit);
-	free_irq(IRQ_TIMER5, &data);
+	free_irq(SAMPLE_IRQ_TIMER, &data);
 	peripheral_free(P_TMR5);
 }
 module_exit(gptimer_example_exit);

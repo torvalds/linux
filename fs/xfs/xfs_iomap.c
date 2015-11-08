@@ -183,7 +183,7 @@ xfs_iomap_write_direct(
 	 * Check for running out of space, note: need lock to return
 	 */
 	if (error) {
-		xfs_trans_cancel(tp, 0);
+		xfs_trans_cancel(tp);
 		return error;
 	}
 
@@ -213,7 +213,7 @@ xfs_iomap_write_direct(
 	error = xfs_bmap_finish(&tp, &free_list, &committed);
 	if (error)
 		goto out_bmap_cancel;
-	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+	error = xfs_trans_commit(tp);
 	if (error)
 		goto out_unlock;
 
@@ -236,7 +236,7 @@ out_bmap_cancel:
 	xfs_bmap_cancel(&free_list);
 	xfs_trans_unreserve_quota_nblks(tp, ip, (long)qblocks, 0, quota_flag);
 out_trans_cancel:
-	xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES | XFS_TRANS_ABORT);
+	xfs_trans_cancel(tp);
 	goto out_unlock;
 }
 
@@ -460,8 +460,7 @@ xfs_iomap_prealloc_size(
 	alloc_blocks = XFS_FILEOFF_MIN(roundup_pow_of_two(MAXEXTLEN),
 				       alloc_blocks);
 
-	xfs_icsb_sync_counters(mp, XFS_ICSB_LAZY_COUNT);
-	freesp = mp->m_sb.sb_fdblocks;
+	freesp = percpu_counter_read_positive(&mp->m_fdblocks);
 	if (freesp < mp->m_low_space[XFS_LOWSP_5_PCNT]) {
 		shift = 2;
 		if (freesp < mp->m_low_space[XFS_LOWSP_4_PCNT])
@@ -691,7 +690,7 @@ xfs_iomap_write_allocate(
 			error = xfs_trans_reserve(tp, &M_RES(mp)->tr_write,
 						  nres, 0);
 			if (error) {
-				xfs_trans_cancel(tp, 0);
+				xfs_trans_cancel(tp);
 				return error;
 			}
 			xfs_ilock(ip, XFS_ILOCK_EXCL);
@@ -761,7 +760,7 @@ xfs_iomap_write_allocate(
 			if (error)
 				goto trans_cancel;
 
-			error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+			error = xfs_trans_commit(tp);
 			if (error)
 				goto error0;
 
@@ -792,7 +791,7 @@ xfs_iomap_write_allocate(
 
 trans_cancel:
 	xfs_bmap_cancel(&free_list);
-	xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES | XFS_TRANS_ABORT);
+	xfs_trans_cancel(tp);
 error0:
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;
@@ -854,7 +853,7 @@ xfs_iomap_write_unwritten(
 		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_write,
 					  resblks, 0);
 		if (error) {
-			xfs_trans_cancel(tp, 0);
+			xfs_trans_cancel(tp);
 			return error;
 		}
 
@@ -891,7 +890,7 @@ xfs_iomap_write_unwritten(
 		if (error)
 			goto error_on_bmapi_transaction;
 
-		error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+		error = xfs_trans_commit(tp);
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		if (error)
 			return error;
@@ -915,7 +914,7 @@ xfs_iomap_write_unwritten(
 
 error_on_bmapi_transaction:
 	xfs_bmap_cancel(&free_list);
-	xfs_trans_cancel(tp, (XFS_TRANS_RELEASE_LOG_RES | XFS_TRANS_ABORT));
+	xfs_trans_cancel(tp);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;
 }

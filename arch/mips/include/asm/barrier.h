@@ -112,8 +112,8 @@
 #define __WEAK_LLSC_MB		"		\n"
 #endif
 
-#define set_mb(var, value) \
-	do { var = value; smp_mb(); } while (0)
+#define smp_store_mb(var, value) \
+	do { WRITE_ONCE(var, value); smp_mb(); } while (0)
 
 #define smp_llsc_mb()	__asm__ __volatile__(__WEAK_LLSC_MB : : :"memory")
 
@@ -133,12 +133,12 @@
 do {									\
 	compiletime_assert_atomic_type(*p);				\
 	smp_mb();							\
-	ACCESS_ONCE(*p) = (v);						\
+	WRITE_ONCE(*p, v);						\
 } while (0)
 
 #define smp_load_acquire(p)						\
 ({									\
-	typeof(*p) ___p1 = ACCESS_ONCE(*p);				\
+	typeof(*p) ___p1 = READ_ONCE(*p);				\
 	compiletime_assert_atomic_type(*p);				\
 	smp_mb();							\
 	___p1;								\

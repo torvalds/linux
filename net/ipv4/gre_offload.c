@@ -36,7 +36,8 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 				  SKB_GSO_TCP_ECN |
 				  SKB_GSO_GRE |
 				  SKB_GSO_GRE_CSUM |
-				  SKB_GSO_IPIP)))
+				  SKB_GSO_IPIP |
+				  SKB_GSO_SIT)))
 		goto out;
 
 	if (!skb->encapsulation)
@@ -149,7 +150,7 @@ static struct sk_buff **gre_gro_receive(struct sk_buff **head,
 
 	rcu_read_lock();
 	ptype = gro_find_receive_by_type(type);
-	if (ptype == NULL)
+	if (!ptype)
 		goto out_unlock;
 
 	grehlen = GRE_HEADER_SECTION;
@@ -243,7 +244,7 @@ static int gre_gro_complete(struct sk_buff *skb, int nhoff)
 
 	rcu_read_lock();
 	ptype = gro_find_complete_by_type(type);
-	if (ptype != NULL)
+	if (ptype)
 		err = ptype->callbacks.gro_complete(skb, nhoff + grehlen);
 
 	rcu_read_unlock();

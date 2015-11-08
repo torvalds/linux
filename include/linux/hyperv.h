@@ -26,6 +26,7 @@
 #define _HYPERV_H
 
 #include <uapi/linux/hyperv.h>
+#include <uapi/asm/hyperv.h>
 
 #include <linux/types.h>
 #include <linux/scatterlist.h>
@@ -160,16 +161,18 @@ hv_get_ringbuffer_availbytes(struct hv_ring_buffer_info *rbi,
  * 1 . 1  (Windows 7)
  * 2 . 4  (Windows 8)
  * 3 . 0  (Windows 8 R2)
+ * 4 . 0  (Windows 10)
  */
 
 #define VERSION_WS2008  ((0 << 16) | (13))
 #define VERSION_WIN7    ((1 << 16) | (1))
 #define VERSION_WIN8    ((2 << 16) | (4))
 #define VERSION_WIN8_1    ((3 << 16) | (0))
+#define VERSION_WIN10	((4 << 16) | (0))
 
 #define VERSION_INVAL -1
 
-#define VERSION_CURRENT VERSION_WIN8_1
+#define VERSION_CURRENT VERSION_WIN10
 
 /* Make maximum size of pipe payload of 16K */
 #define MAX_PIPE_DATA_PAYLOAD		(sizeof(u8) * 16384)
@@ -389,10 +392,7 @@ enum vmbus_channel_message_type {
 	CHANNELMSG_INITIATE_CONTACT		= 14,
 	CHANNELMSG_VERSION_RESPONSE		= 15,
 	CHANNELMSG_UNLOAD			= 16,
-#ifdef VMBUS_FEATURE_PARENT_OR_PEER_MEMORY_MAPPED_INTO_A_CHILD
-	CHANNELMSG_VIEWRANGE_ADD		= 17,
-	CHANNELMSG_VIEWRANGE_REMOVE		= 18,
-#endif
+	CHANNELMSG_UNLOAD_RESPONSE		= 17,
 	CHANNELMSG_COUNT
 };
 
@@ -549,21 +549,6 @@ struct vmbus_channel_gpadl_torndown {
 	u32 gpadl;
 } __packed;
 
-#ifdef VMBUS_FEATURE_PARENT_OR_PEER_MEMORY_MAPPED_INTO_A_CHILD
-struct vmbus_channel_view_range_add {
-	struct vmbus_channel_message_header header;
-	PHYSICAL_ADDRESS viewrange_base;
-	u64 viewrange_length;
-	u32 child_relid;
-} __packed;
-
-struct vmbus_channel_view_range_remove {
-	struct vmbus_channel_message_header header;
-	PHYSICAL_ADDRESS viewrange_base;
-	u32 child_relid;
-} __packed;
-#endif
-
 struct vmbus_channel_relid_released {
 	struct vmbus_channel_message_header header;
 	u32 child_relid;
@@ -646,11 +631,12 @@ struct hv_input_signal_event_buffer {
 };
 
 struct vmbus_channel {
+	/* Unique channel id */
+	int id;
+
 	struct list_head listentry;
 
 	struct hv_device *device_obj;
-
-	struct work_struct work;
 
 	enum vmbus_channel_state state;
 
@@ -672,7 +658,6 @@ struct vmbus_channel {
 	struct hv_ring_buffer_info outbound;	/* send to parent */
 	struct hv_ring_buffer_info inbound;	/* receive from parent */
 	spinlock_t inbound_lock;
-	struct workqueue_struct *controlwq;
 
 	struct vmbus_close_msg close_msg;
 
@@ -713,6 +698,11 @@ struct vmbus_channel {
 	/* The corresponding CPUID in the guest */
 	u32 target_cpu;
 	/*
+	 * State to manage the CPU affiliation of channels.
+	 */
+	struct cpumask alloced_cpus_in_node;
+	int numa_node;
+	/*
 	 * Support for sub-channels. For high performance devices,
 	 * it will be useful to have multiple sub-channels to support
 	 * a scalable communication infrastructure with the host.
@@ -744,6 +734,15 @@ struct vmbus_channel {
 	 * All Sub-channels of a primary channel are linked here.
 	 */
 	struct list_head sc_list;
+	/*
+	 * Current number of sub-channels.
+	 */
+	int num_sc;
+	/*
+	 * Number of a sub-channel (position within sc_list) which is supposed
+	 * to be used as the next outgoing channel.
+	 */
+	int next_oc;
 	/*
 	 * The primary channel this sub-channel belongs to.
 	 * This will be NULL for the primary channel.
@@ -861,12 +860,29 @@ extern int vmbus_sendpacket(struct vmbus_channel *channel,
 				  enum vmbus_packet_type type,
 				  u32 flags);
 
+extern int vmbus_sendpacket_ctl(struct vmbus_channel *channel,
+				  void *buffer,
+				  u32 bufferLen,
+				  u64 requestid,
+				  enum vmbus_packet_type type,
+				  u32 flags,
+				  bool kick_q);
+
 extern int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
 					    struct hv_page_buffer pagebuffers[],
 					    u32 pagecount,
 					    void *buffer,
 					    u32 bufferlen,
 					    u64 requestid);
+
+extern int vmbus_sendpacket_pagebuffer_ctl(struct vmbus_channel *channel,
+					   struct hv_page_buffer pagebuffers[],
+					   u32 pagecount,
+					   void *buffer,
+					   u32 bufferlen,
+					   u64 requestid,
+					   u32 flags,
+					   bool kick_q);
 
 extern int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 					struct hv_multipage_buffer *mpb,
@@ -961,6 +977,11 @@ int __must_check __vmbus_driver_register(struct hv_driver *hv_driver,
 					 struct module *owner,
 					 const char *mod_name);
 void vmbus_driver_unregister(struct hv_driver *hv_driver);
+
+int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
+			resource_size_t min, resource_size_t max,
+			resource_size_t size, resource_size_t align,
+			bool fb_overlap_ok);
 
 /**
  * VMBUS_DEVICE - macro used to describe a specific hyperv vmbus device
@@ -1107,6 +1128,16 @@ void vmbus_driver_unregister(struct hv_driver *hv_driver);
 		}
 
 /*
+ * NetworkDirect. This is the guest RDMA service.
+ * {8c2eaf3d-32a7-4b09-ab99-bd1f1c86b501}
+ */
+#define HV_ND_GUID \
+	.guid = { \
+			0x3d, 0xaf, 0x2e, 0x8c, 0xa7, 0x32, 0x09, 0x4b, \
+			0xab, 0x99, 0xbd, 0x1f, 0x1c, 0x86, 0xb5, 0x01 \
+		}
+
+/*
  * Common header for Hyper-V ICs
  */
 
@@ -1206,15 +1237,7 @@ extern bool vmbus_prep_negotiate_resp(struct icmsg_hdr *,
 					struct icmsg_negotiate *, u8 *, int,
 					int);
 
-int hv_kvp_init(struct hv_util_service *);
-void hv_kvp_deinit(void);
-void hv_kvp_onchannelcallback(void *);
-
-int hv_vss_init(struct hv_util_service *);
-void hv_vss_deinit(void);
-void hv_vss_onchannelcallback(void *);
-
-extern struct resource hyperv_mmio;
+void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid);
 
 /*
  * Negotiated version with the Host.

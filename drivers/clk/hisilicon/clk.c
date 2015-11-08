@@ -24,15 +24,14 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/clk-provider.h>
 #include <linux/clkdev.h>
+#include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/slab.h>
-#include <linux/clk.h>
 
 #include "clk.h"
 
@@ -45,14 +44,9 @@ struct hisi_clock_data __init *hisi_clk_init(struct device_node *np,
 	struct clk **clk_table;
 	void __iomem *base;
 
-	if (np) {
-		base = of_iomap(np, 0);
-		if (!base) {
-			pr_err("failed to map Hisilicon clock registers\n");
-			goto err;
-		}
-	} else {
-		pr_err("failed to find Hisilicon clock node in DTS\n");
+	base = of_iomap(np, 0);
+	if (!base) {
+		pr_err("%s: failed to map clock registers\n", __func__);
 		goto err;
 	}
 
@@ -219,6 +213,35 @@ void __init hisi_clk_register_gate_sep(struct hisi_gate_clock *clks,
 						base + clks[i].offset,
 						clks[i].bit_idx,
 						clks[i].gate_flags,
+						&hisi_clk_lock);
+		if (IS_ERR(clk)) {
+			pr_err("%s: failed to register clock %s\n",
+			       __func__, clks[i].name);
+			continue;
+		}
+
+		if (clks[i].alias)
+			clk_register_clkdev(clk, clks[i].alias, NULL);
+
+		data->clk_data.clks[clks[i].id] = clk;
+	}
+}
+
+void __init hi6220_clk_register_divider(struct hi6220_divider_clock *clks,
+					int nums, struct hisi_clock_data *data)
+{
+	struct clk *clk;
+	void __iomem *base = data->base;
+	int i;
+
+	for (i = 0; i < nums; i++) {
+		clk = hi6220_register_clkdiv(NULL, clks[i].name,
+						clks[i].parent_name,
+						clks[i].flags,
+						base + clks[i].offset,
+						clks[i].shift,
+						clks[i].width,
+						clks[i].mask_bit,
 						&hisi_clk_lock);
 		if (IS_ERR(clk)) {
 			pr_err("%s: failed to register clock %s\n",

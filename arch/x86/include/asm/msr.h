@@ -1,13 +1,14 @@
 #ifndef _ASM_X86_MSR_H
 #define _ASM_X86_MSR_H
 
-#include <uapi/asm/msr.h>
+#include "msr-index.h"
 
 #ifndef __ASSEMBLY__
 
 #include <asm/asm.h>
 #include <asm/errno.h>
 #include <asm/cpumask.h>
+#include <uapi/asm/msr.h>
 
 struct msr {
 	union {
@@ -46,14 +47,13 @@ static inline unsigned long long native_read_tscp(unsigned int *aux)
  * it means rax *or* rdx.
  */
 #ifdef CONFIG_X86_64
-#define DECLARE_ARGS(val, low, high)	unsigned low, high
-#define EAX_EDX_VAL(val, low, high)	((low) | ((u64)(high) << 32))
-#define EAX_EDX_ARGS(val, low, high)	"a" (low), "d" (high)
+/* Using 64-bit values saves one instruction clearing the high half of low */
+#define DECLARE_ARGS(val, low, high)	unsigned long low, high
+#define EAX_EDX_VAL(val, low, high)	((low) | (high) << 32)
 #define EAX_EDX_RET(val, low, high)	"=a" (low), "=d" (high)
 #else
 #define DECLARE_ARGS(val, low, high)	unsigned long long val
 #define EAX_EDX_VAL(val, low, high)	(val)
-#define EAX_EDX_ARGS(val, low, high)	"A" (val)
 #define EAX_EDX_RET(val, low, high)	"=A" (val)
 #endif
 
@@ -105,12 +105,19 @@ notrace static inline int native_write_msr_safe(unsigned int msr,
 	return err;
 }
 
-extern unsigned long long native_read_tsc(void);
-
 extern int rdmsr_safe_regs(u32 regs[8]);
 extern int wrmsr_safe_regs(u32 regs[8]);
 
-static __always_inline unsigned long long __native_read_tsc(void)
+/**
+ * rdtsc() - returns the current TSC without ordering constraints
+ *
+ * rdtsc() returns the result of RDTSC as a 64-bit integer.  The
+ * only ordering constraint it supplies is the ordering implied by
+ * "asm volatile": it will put the RDTSC in the place you expect.  The
+ * CPU can and will speculatively execute that RDTSC, though, so the
+ * results can be non-monotonic if compared on different CPUs.
+ */
+static __always_inline unsigned long long rdtsc(void)
 {
 	DECLARE_ARGS(val, low, high);
 
@@ -118,6 +125,35 @@ static __always_inline unsigned long long __native_read_tsc(void)
 
 	return EAX_EDX_VAL(val, low, high);
 }
+
+/**
+ * rdtsc_ordered() - read the current TSC in program order
+ *
+ * rdtsc_ordered() returns the result of RDTSC as a 64-bit integer.
+ * It is ordered like a load to a global in-memory counter.  It should
+ * be impossible to observe non-monotonic rdtsc_unordered() behavior
+ * across multiple CPUs as long as the TSC is synced.
+ */
+static __always_inline unsigned long long rdtsc_ordered(void)
+{
+	/*
+	 * The RDTSC instruction is not ordered relative to memory
+	 * access.  The Intel SDM and the AMD APM are both vague on this
+	 * point, but empirically an RDTSC instruction can be
+	 * speculatively executed before prior loads.  An RDTSC
+	 * immediately after an appropriate barrier appears to be
+	 * ordered as a normal load, that is, it provides the same
+	 * ordering guarantees as reading from a global memory location
+	 * that some other imaginary CPU is updating continuously with a
+	 * time stamp.
+	 */
+	alternative_2("", "mfence", X86_FEATURE_MFENCE_RDTSC,
+			  "lfence", X86_FEATURE_LFENCE_RDTSC);
+	return rdtsc();
+}
+
+/* Deprecated, keep it for a cycle for easier merging: */
+#define rdtscll(now)	do { (now) = rdtsc_ordered(); } while (0)
 
 static inline unsigned long long native_read_pmc(int counter)
 {
@@ -152,8 +188,10 @@ static inline void wrmsr(unsigned msr, unsigned low, unsigned high)
 #define rdmsrl(msr, val)			\
 	((val) = native_read_msr((msr)))
 
-#define wrmsrl(msr, val)						\
-	native_write_msr((msr), (u32)((u64)(val)), (u32)((u64)(val) >> 32))
+static inline void wrmsrl(unsigned msr, u64 val)
+{
+	native_write_msr(msr, (u32)val, (u32)(val >> 32));
+}
 
 /* wrmsr with exception handling */
 static inline int wrmsr_safe(unsigned msr, unsigned low, unsigned high)
@@ -179,12 +217,6 @@ static inline int rdmsrl_safe(unsigned msr, unsigned long long *p)
 	return err;
 }
 
-#define rdtscl(low)						\
-	((low) = (u32)__native_read_tsc())
-
-#define rdtscll(val)						\
-	((val) = __native_read_tsc())
-
 #define rdpmc(counter, low, high)			\
 do {							\
 	u64 _l = native_read_pmc((counter));		\
@@ -194,19 +226,15 @@ do {							\
 
 #define rdpmcl(counter, val) ((val) = native_read_pmc(counter))
 
-#define rdtscp(low, high, aux)					\
-do {                                                            \
-	unsigned long long _val = native_read_tscp(&(aux));     \
-	(low) = (u32)_val;                                      \
-	(high) = (u32)(_val >> 32);                             \
-} while (0)
-
-#define rdtscpll(val, aux) (val) = native_read_tscp(&(aux))
-
 #endif	/* !CONFIG_PARAVIRT */
 
-#define wrmsrl_safe(msr, val) wrmsr_safe((msr), (u32)(val),		\
-					     (u32)((val) >> 32))
+/*
+ * 64-bit version of wrmsr_safe():
+ */
+static inline int wrmsrl_safe(u32 msr, u64 val)
+{
+	return wrmsr_safe(msr, (u32)val,  (u32)(val >> 32));
+}
 
 #define write_tsc(low, high) wrmsr(MSR_IA32_TSC, (low), (high))
 

@@ -22,7 +22,4 @@ config ARCH_MSM8974
 	bool "Enable support for MSM8974"
 	select HAVE_ARM_ARCH_TIMER
 
-config QCOM_SCM
-	bool
-
 endif

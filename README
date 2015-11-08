@@ -1,6 +1,6 @@
-        Linux kernel release 3.x <http://kernel.org/>
+        Linux kernel release 4.x <http://kernel.org/>
 
-These are the release notes for Linux version 3.  Read them carefully,
+These are the release notes for Linux version 4.  Read them carefully,
 as they tell you what this is all about, explain how to install the
 kernel, and what to do if something goes wrong. 
 
@@ -24,7 +24,7 @@ ON WHAT HARDWARE DOES IT RUN?
   today Linux also runs on (at least) the Compaq Alpha AXP, Sun SPARC and
   UltraSPARC, Motorola 68000, PowerPC, PowerPC64, ARM, Hitachi SuperH, Cell,
   IBM S/390, MIPS, HP PA-RISC, Intel IA-64, DEC VAX, AMD x86-64, AXIS CRIS,
-  Xtensa, Tilera TILE, AVR32 and Renesas M32R architectures.
+  Xtensa, Tilera TILE, AVR32, ARC and Renesas M32R architectures.
 
   Linux is easily portable to most general-purpose 32- or 64-bit architectures
   as long as they have a paged memory management unit (PMMU) and a port of the
@@ -62,11 +62,7 @@ INSTALLING the kernel source:
    directory where you have permissions (eg. your home directory) and
    unpack it:
 
-     gzip -cd linux-3.X.tar.gz | tar xvf -
-
-   or
-
-     bzip2 -dc linux-3.X.tar.bz2 | tar xvf -
+     xz -cd linux-4.X.tar.xz | tar xvf -
 
    Replace "X" with the version number of the latest kernel.
 
@@ -75,16 +71,12 @@ INSTALLING the kernel source:
    files.  They should match the library, and not get messed up by
    whatever the kernel-du-jour happens to be.
 
- - You can also upgrade between 3.x releases by patching.  Patches are
-   distributed in the traditional gzip and the newer bzip2 format.  To
-   install by patching, get all the newer patch files, enter the
-   top level directory of the kernel source (linux-3.X) and execute:
+ - You can also upgrade between 4.x releases by patching.  Patches are
+   distributed in the xz format.  To install by patching, get all the
+   newer patch files, enter the top level directory of the kernel source
+   (linux-4.X) and execute:
 
-     gzip -cd ../patch-3.x.gz | patch -p1
-
-   or
-
-     bzip2 -dc ../patch-3.x.bz2 | patch -p1
+     xz -cd ../patch-4.x.xz | patch -p1
 
    Replace "x" for all versions bigger than the version "X" of your current
    source tree, _in_order_, and you should be ok.  You may want to remove
@@ -92,13 +84,13 @@ INSTALLING the kernel source:
    that there are no failed patches (some-file-name# or some-file-name.rej).
    If there are, either you or I have made a mistake.
 
-   Unlike patches for the 3.x kernels, patches for the 3.x.y kernels
+   Unlike patches for the 4.x kernels, patches for the 4.x.y kernels
    (also known as the -stable kernels) are not incremental but instead apply
-   directly to the base 3.x kernel.  For example, if your base kernel is 3.0
-   and you want to apply the 3.0.3 patch, you must not first apply the 3.0.1
-   and 3.0.2 patches. Similarly, if you are running kernel version 3.0.2 and
-   want to jump to 3.0.3, you must first reverse the 3.0.2 patch (that is,
-   patch -R) _before_ applying the 3.0.3 patch. You can read more on this in
+   directly to the base 4.x kernel.  For example, if your base kernel is 4.0
+   and you want to apply the 4.0.3 patch, you must not first apply the 4.0.1
+   and 4.0.2 patches. Similarly, if you are running kernel version 4.0.2 and
+   want to jump to 4.0.3, you must first reverse the 4.0.2 patch (that is,
+   patch -R) _before_ applying the 4.0.3 patch. You can read more on this in
    Documentation/applying-patches.txt
 
    Alternatively, the script patch-kernel can be used to automate this
@@ -120,7 +112,7 @@ INSTALLING the kernel source:
 
 SOFTWARE REQUIREMENTS
 
-   Compiling and running the 3.x kernels requires up-to-date
+   Compiling and running the 4.x kernels requires up-to-date
    versions of various software packages.  Consult
    Documentation/Changes for the minimum version numbers required
    and how to get updates for these packages.  Beware that using
@@ -137,12 +129,12 @@ BUILD directory for the kernel:
    place for the output files (including .config).
    Example:
 
-     kernel source code: /usr/src/linux-3.X
+     kernel source code: /usr/src/linux-4.X
      build directory:    /home/name/build/kernel
 
    To configure and build the kernel, use:
 
-     cd /usr/src/linux-3.X
+     cd /usr/src/linux-4.X
      make O=/home/name/build/kernel menuconfig
      make O=/home/name/build/kernel
      sudo make O=/home/name/build/kernel modules_install install
@@ -169,7 +161,7 @@ CONFIGURING the kernel:
 
      "make xconfig"     X windows (Qt) based configuration tool.
 
-     "make gconfig"     X windows (Gtk) based configuration tool.
+     "make gconfig"     X windows (GTK+) based configuration tool.
 
      "make oldconfig"   Default all questions based on the contents of
                         your existing ./.config file and asking about

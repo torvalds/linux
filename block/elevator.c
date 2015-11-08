@@ -35,11 +35,11 @@
 #include <linux/hash.h>
 #include <linux/uaccess.h>
 #include <linux/pm_runtime.h>
+#include <linux/blk-cgroup.h>
 
 #include <trace/events/block.h>
 
 #include "blk.h"
-#include "blk-cgroup.h"
 
 static DEFINE_SPINLOCK(elv_list_lock);
 static LIST_HEAD(elv_list);
@@ -157,7 +157,7 @@ struct elevator_queue *elevator_alloc(struct request_queue *q,
 
 	eq = kzalloc_node(sizeof(*eq), GFP_KERNEL, q->node);
 	if (unlikely(!eq))
-		goto err;
+		return NULL;
 
 	eq->type = e;
 	kobject_init(&eq->kobj, &elv_ktype);
@@ -165,10 +165,6 @@ struct elevator_queue *elevator_alloc(struct request_queue *q,
 	hash_init(eq->hash);
 
 	return eq;
-err:
-	kfree(eq);
-	elevator_put(e);
-	return NULL;
 }
 EXPORT_SYMBOL(elevator_alloc);
 
@@ -424,7 +420,7 @@ int elv_merge(struct request_queue *q, struct request **req, struct bio *bio)
 	 * 	noxmerges: Only simple one-hit cache try
 	 * 	merges:	   All merge tries attempted
 	 */
-	if (blk_queue_nomerges(q))
+	if (blk_queue_nomerges(q) || !bio_mergeable(bio))
 		return ELEVATOR_NO_MERGE;
 
 	/*
@@ -810,6 +806,8 @@ int elv_register_queue(struct request_queue *q)
 		}
 		kobject_uevent(&e->kobj, KOBJ_ADD);
 		e->registered = 1;
+		if (e->type->ops.elevator_registered_fn)
+			e->type->ops.elevator_registered_fn(q);
 	}
 	return error;
 }

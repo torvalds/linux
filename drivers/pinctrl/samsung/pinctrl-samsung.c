@@ -33,11 +33,6 @@
 #include "../core.h"
 #include "pinctrl-samsung.h"
 
-#define GROUP_SUFFIX		"-grp"
-#define GSUFFIX_LEN		sizeof(GROUP_SUFFIX)
-#define FUNCTION_SUFFIX		"-mux"
-#define FSUFFIX_LEN		sizeof(FUNCTION_SUFFIX)
-
 /* list of all possible config options supported */
 static struct pin_config {
 	const char *property;
@@ -806,7 +801,7 @@ static int samsung_pinctrl_parse_dt(struct platform_device *pdev,
 	functions = samsung_pinctrl_create_functions(dev, drvdata, &func_cnt);
 	if (IS_ERR(functions)) {
 		dev_err(dev, "failed to parse pin functions\n");
-		return PTR_ERR(groups);
+		return PTR_ERR(functions);
 	}
 
 	drvdata->pin_groups = groups;
@@ -873,9 +868,9 @@ static int samsung_pinctrl_register(struct platform_device *pdev,
 		return ret;
 
 	drvdata->pctl_dev = pinctrl_register(ctrldesc, &pdev->dev, drvdata);
-	if (!drvdata->pctl_dev) {
+	if (IS_ERR(drvdata->pctl_dev)) {
 		dev_err(&pdev->dev, "could not register pinctrl driver\n");
-		return -EINVAL;
+		return PTR_ERR(drvdata->pctl_dev);
 	}
 
 	for (bank = 0; bank < drvdata->nr_banks; ++bank) {
@@ -893,19 +888,9 @@ static int samsung_pinctrl_register(struct platform_device *pdev,
 	return 0;
 }
 
-static int samsung_gpio_request(struct gpio_chip *chip, unsigned offset)
-{
-	return pinctrl_request_gpio(chip->base + offset);
-}
-
-static void samsung_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-	pinctrl_free_gpio(chip->base + offset);
-}
-
 static const struct gpio_chip samsung_gpiolib_chip = {
-	.request = samsung_gpio_request,
-	.free = samsung_gpio_free,
+	.request = gpiochip_generic_request,
+	.free = gpiochip_generic_free,
 	.set = samsung_gpio_set,
 	.get = samsung_gpio_get,
 	.direction_input = samsung_gpio_direction_input,
@@ -1239,6 +1224,8 @@ static const struct of_device_id samsung_pinctrl_dt_match[] = {
 		.data = (void *)exynos5260_pin_ctrl },
 	{ .compatible = "samsung,exynos5420-pinctrl",
 		.data = (void *)exynos5420_pin_ctrl },
+	{ .compatible = "samsung,exynos5433-pinctrl",
+		.data = (void *)exynos5433_pin_ctrl },
 	{ .compatible = "samsung,s5pv210-pinctrl",
 		.data = (void *)s5pv210_pin_ctrl },
 	{ .compatible = "samsung,exynos7-pinctrl",

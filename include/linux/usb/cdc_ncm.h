@@ -80,6 +80,9 @@
 #define CDC_NCM_TIMER_INTERVAL_MIN		5UL
 #define CDC_NCM_TIMER_INTERVAL_MAX		(U32_MAX / NSEC_PER_USEC)
 
+/* Driver flags */
+#define CDC_NCM_FLAG_NDP_TO_END	0x02		/* NDP is placed at end of frame */
+
 #define cdc_ncm_comm_intf_is_mbim(x)  ((x)->desc.bInterfaceSubClass == USB_CDC_SUBCLASS_MBIM && \
 				       (x)->desc.bInterfaceProtocol == USB_CDC_PROTO_NONE)
 #define cdc_ncm_data_intf_is_mbim(x)  ((x)->desc.bInterfaceProtocol == USB_CDC_MBIM_PROTO_NTB)
@@ -103,9 +106,11 @@ struct cdc_ncm_ctx {
 
 	spinlock_t mtx;
 	atomic_t stop;
+	int drvflags;
 
 	u32 timer_interval;
 	u32 max_ndp_size;
+	struct usb_cdc_ncm_ndp16 *delayed_ndp16;
 
 	u32 tx_timer_pending;
 	u32 tx_curr_frame_num;
@@ -133,7 +138,7 @@ struct cdc_ncm_ctx {
 };
 
 u8 cdc_ncm_select_altsetting(struct usb_interface *intf);
-int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_altsetting);
+int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_altsetting, int drvflags);
 void cdc_ncm_unbind(struct usbnet *dev, struct usb_interface *intf);
 struct sk_buff *cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign);
 int cdc_ncm_rx_verify_nth16(struct cdc_ncm_ctx *ctx, struct sk_buff *skb_in);

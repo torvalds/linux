@@ -148,7 +148,7 @@ acpi_rs_move_data(void *destination, void *source, u16 item_count, u8 move_type)
 		case ACPI_RSC_MOVE_SERIAL_VEN:
 		case ACPI_RSC_MOVE_SERIAL_RES:
 
-			ACPI_MEMCPY(destination, source, item_count);
+			memcpy(destination, source, item_count);
 			return;
 
 			/*
@@ -364,12 +364,11 @@ acpi_rs_get_resource_source(acpi_rs_length resource_length,
 		 * Zero the entire area of the buffer.
 		 */
 		total_length =
-		    (u32)
-		    ACPI_STRLEN(ACPI_CAST_PTR(char, &aml_resource_source[1])) +
+		    (u32)strlen(ACPI_CAST_PTR(char, &aml_resource_source[1])) +
 		    1;
-		total_length = (u32) ACPI_ROUND_UP_TO_NATIVE_WORD(total_length);
+		total_length = (u32)ACPI_ROUND_UP_TO_NATIVE_WORD(total_length);
 
-		ACPI_MEMSET(resource_source->string_ptr, 0, total_length);
+		memset(resource_source->string_ptr, 0, total_length);
 
 		/* Copy the resource_source string to the destination */
 
@@ -432,8 +431,8 @@ acpi_rs_set_resource_source(union aml_resource * aml,
 
 		/* Copy the resource_source string */
 
-		ACPI_STRCPY(ACPI_CAST_PTR(char, &aml_resource_source[1]),
-			    resource_source->string_ptr);
+		strcpy(ACPI_CAST_PTR(char, &aml_resource_source[1]),
+		       resource_source->string_ptr);
 
 		/*
 		 * Add the length of the string (+ 1 for null terminator) to the
@@ -565,7 +564,6 @@ acpi_rs_get_crs_method_data(struct acpi_namespace_node *node,
  *
  ******************************************************************************/
 
-#ifdef ACPI_FUTURE_USAGE
 acpi_status
 acpi_rs_get_prs_method_data(struct acpi_namespace_node *node,
 			    struct acpi_buffer *ret_buffer)
@@ -597,7 +595,6 @@ acpi_rs_get_prs_method_data(struct acpi_namespace_node *node,
 	acpi_ut_remove_reference(obj_desc);
 	return_ACPI_STATUS(status);
 }
-#endif				/*  ACPI_FUTURE_USAGE  */
 
 /*******************************************************************************
  *

@@ -256,8 +256,8 @@ static void lifebook_disconnect(struct psmouse *psmouse)
 
 int lifebook_detect(struct psmouse *psmouse, bool set_properties)
 {
-        if (!lifebook_present)
-                return -1;
+	if (!lifebook_present)
+		return -1;
 
 	if (desired_serio_phys &&
 	    strcmp(psmouse->ps2dev.serio->phys, desired_serio_phys))
@@ -268,7 +268,7 @@ int lifebook_detect(struct psmouse *psmouse, bool set_properties)
 		psmouse->name = "Lifebook TouchScreen";
 	}
 
-        return 0;
+	return 0;
 }
 
 static int lifebook_create_relative_device(struct psmouse *psmouse)

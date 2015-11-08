@@ -293,6 +293,7 @@ struct bcmgenet_mib_counters {
 #define UMAC_IRQ_PHY_DET_F		(1 << 3)
 #define UMAC_IRQ_LINK_UP		(1 << 4)
 #define UMAC_IRQ_LINK_DOWN		(1 << 5)
+#define UMAC_IRQ_LINK_EVENT		(UMAC_IRQ_LINK_UP | UMAC_IRQ_LINK_DOWN)
 #define UMAC_IRQ_UMAC			(1 << 6)
 #define UMAC_IRQ_UMAC_TSV		(1 << 7)
 #define UMAC_IRQ_TBUF_UNDERRUN		(1 << 8)
@@ -303,12 +304,20 @@ struct bcmgenet_mib_counters {
 #define UMAC_IRQ_RXDMA_MBDONE		(1 << 13)
 #define UMAC_IRQ_RXDMA_PDONE		(1 << 14)
 #define UMAC_IRQ_RXDMA_BDONE		(1 << 15)
+#define UMAC_IRQ_RXDMA_DONE		UMAC_IRQ_RXDMA_MBDONE
 #define UMAC_IRQ_TXDMA_MBDONE		(1 << 16)
 #define UMAC_IRQ_TXDMA_PDONE		(1 << 17)
 #define UMAC_IRQ_TXDMA_BDONE		(1 << 18)
+#define UMAC_IRQ_TXDMA_DONE		UMAC_IRQ_TXDMA_MBDONE
+
 /* Only valid for GENETv3+ */
 #define UMAC_IRQ_MDIO_DONE		(1 << 23)
 #define UMAC_IRQ_MDIO_ERROR		(1 << 24)
+
+/* INTRL2 instance 1 definitions */
+#define UMAC_IRQ1_TX_INTR_MASK		0xFFFF
+#define UMAC_IRQ1_RX_INTR_MASK		0xFFFF
+#define UMAC_IRQ1_RX_INTR_SHIFT		16
 
 /* Register block offsets */
 #define GENET_SYS_OFF			0x0000
@@ -354,6 +363,7 @@ struct bcmgenet_mib_counters {
 #define EXT_GPHY_CTRL			0x1C
 #define  EXT_CFG_IDDQ_BIAS		(1 << 0)
 #define  EXT_CFG_PWR_DOWN		(1 << 1)
+#define  EXT_CK25_DIS			(1 << 4)
 #define  EXT_GPHY_RESET			(1 << 5)
 
 /* DMA rings size */
@@ -375,7 +385,7 @@ struct bcmgenet_mib_counters {
 #define DMA_RING_BUFFER_SIZE_MASK	0xFFFF
 
 /* DMA interrupt threshold register */
-#define DMA_INTR_THRESHOLD_MASK		0x00FF
+#define DMA_INTR_THRESHOLD_MASK		0x01FF
 
 /* DMA XON/XOFF register */
 #define DMA_XON_THREHOLD_MASK		0xFFFF
@@ -497,17 +507,20 @@ enum bcmgenet_version {
 #define GENET_HAS_40BITS	(1 << 0)
 #define GENET_HAS_EXT		(1 << 1)
 #define GENET_HAS_MDIO_INTR	(1 << 2)
+#define GENET_HAS_MOCA_LINK_DET	(1 << 3)
 
 /* BCMGENET hardware parameters, keep this structure nicely aligned
  * since it is going to be used in hot paths
  */
 struct bcmgenet_hw_params {
 	u8		tx_queues;
+	u8		tx_bds_per_q;
 	u8		rx_queues;
-	u8		bds_cnt;
+	u8		rx_bds_per_q;
 	u8		bp_in_en_shift;
 	u32		bp_in_mask;
 	u8		hfb_filter_cnt;
+	u8		hfb_filter_size;
 	u8		qtag_mask;
 	u16		tbuf_offset;
 	u32		hfb_offset;
@@ -525,16 +538,30 @@ struct bcmgenet_tx_ring {
 	unsigned int	queue;		/* queue index */
 	struct enet_cb	*cbs;		/* tx ring buffer control block*/
 	unsigned int	size;		/* size of each tx ring */
+	unsigned int    clean_ptr;      /* Tx ring clean pointer */
 	unsigned int	c_index;	/* last consumer index of each ring*/
 	unsigned int	free_bds;	/* # of free bds for each ring */
 	unsigned int	write_ptr;	/* Tx ring write pointer SW copy */
 	unsigned int	prod_index;	/* Tx ring producer index SW copy */
 	unsigned int	cb_ptr;		/* Tx ring initial CB ptr */
 	unsigned int	end_ptr;	/* Tx ring end CB ptr */
-	void (*int_enable)(struct bcmgenet_priv *priv,
-			   struct bcmgenet_tx_ring *);
-	void (*int_disable)(struct bcmgenet_priv *priv,
-			    struct bcmgenet_tx_ring *);
+	void (*int_enable)(struct bcmgenet_tx_ring *);
+	void (*int_disable)(struct bcmgenet_tx_ring *);
+	struct bcmgenet_priv *priv;
+};
+
+struct bcmgenet_rx_ring {
+	struct napi_struct napi;	/* Rx NAPI struct */
+	unsigned int	index;		/* Rx ring index */
+	struct enet_cb	*cbs;		/* Rx ring buffer control block */
+	unsigned int	size;		/* Rx ring size */
+	unsigned int	c_index;	/* Rx last consumer index */
+	unsigned int	read_ptr;	/* Rx ring read pointer */
+	unsigned int	cb_ptr;		/* Rx ring initial CB ptr */
+	unsigned int	end_ptr;	/* Rx ring end CB ptr */
+	unsigned int	old_discards;
+	void (*int_enable)(struct bcmgenet_rx_ring *);
+	void (*int_disable)(struct bcmgenet_rx_ring *);
 	struct bcmgenet_priv *priv;
 };
 
@@ -543,11 +570,6 @@ struct bcmgenet_priv {
 	void __iomem *base;
 	enum bcmgenet_version version;
 	struct net_device *dev;
-	u32 int0_mask;
-	u32 int1_mask;
-
-	/* NAPI for descriptor based rx */
-	struct napi_struct napi ____cacheline_aligned;
 
 	/* transmit variables */
 	void __iomem *tx_bds;
@@ -558,13 +580,11 @@ struct bcmgenet_priv {
 
 	/* receive variables */
 	void __iomem *rx_bds;
-	void __iomem *rx_bd_assign_ptr;
-	int rx_bd_assign_index;
 	struct enet_cb *rx_cbs;
 	unsigned int num_rx_bds;
 	unsigned int rx_buf_len;
-	unsigned int rx_read_ptr;
-	unsigned int rx_c_index;
+
+	struct bcmgenet_rx_ring rx_rings[DESC_INDEX + 1];
 
 	/* other misc variables */
 	struct bcmgenet_hw_params *hw_params;
@@ -572,7 +592,9 @@ struct bcmgenet_priv {
 	/* MDIO bus variables */
 	wait_queue_head_t wq;
 	struct phy_device *phydev;
+	bool internal_phy;
 	struct device_node *phy_dn;
+	struct device_node *mdio_dn;
 	struct mii_bus *mii_bus;
 	u16 gphy_rev;
 	struct clk *clk_eee;
@@ -648,9 +670,11 @@ GENET_IO_MACRO(rbuf, GENET_RBUF_OFF);
 
 /* MDIO routines */
 int bcmgenet_mii_init(struct net_device *dev);
-int bcmgenet_mii_config(struct net_device *dev, bool init);
+int bcmgenet_mii_config(struct net_device *dev);
+int bcmgenet_mii_probe(struct net_device *dev);
 void bcmgenet_mii_exit(struct net_device *dev);
 void bcmgenet_mii_reset(struct net_device *dev);
+void bcmgenet_phy_power_set(struct net_device *dev, bool enable);
 void bcmgenet_mii_setup(struct net_device *dev);
 
 /* Wake-on-LAN routines */

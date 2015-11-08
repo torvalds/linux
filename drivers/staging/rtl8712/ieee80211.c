@@ -107,9 +107,10 @@ u8 *r8712_set_ie(u8 *pbuf, sint index, uint len, u8 *source, uint *frlen)
 	return pbuf + len + 2;
 }
 
-/*----------------------------------------------------------------------------
-index: the information element id index, limit is the limit for search
------------------------------------------------------------------------------*/
+/* ---------------------------------------------------------------------------
+ * index: the information element id index, limit is the limit for search
+ * ---------------------------------------------------------------------------
+ */
 u8 *r8712_get_ie(u8 *pbuf, sint index, sint *len, sint limit)
 {
 	sint tmp, i;
@@ -134,22 +135,20 @@ u8 *r8712_get_ie(u8 *pbuf, sint index, sint *len, sint limit)
 	return NULL;
 }
 
-static void set_supported_rate(u8 *SupportedRates, uint mode)
+static void set_supported_rate(u8 *rates, uint mode)
 {
-	memset(SupportedRates, 0, NDIS_802_11_LENGTH_RATES_EX);
+	memset(rates, 0, NDIS_802_11_LENGTH_RATES_EX);
 	switch (mode) {
 	case WIRELESS_11B:
-		memcpy(SupportedRates, WIFI_CCKRATES,
-			IEEE80211_CCK_RATE_LEN);
+		memcpy(rates, WIFI_CCKRATES, IEEE80211_CCK_RATE_LEN);
 		break;
 	case WIRELESS_11G:
 	case WIRELESS_11A:
-		memcpy(SupportedRates, WIFI_OFDMRATES,
-			IEEE80211_NUM_OFDM_RATESLEN);
+		memcpy(rates, WIFI_OFDMRATES, IEEE80211_NUM_OFDM_RATESLEN);
 		break;
 	case WIRELESS_11BG:
-		memcpy(SupportedRates, WIFI_CCKRATES, IEEE80211_CCK_RATE_LEN);
-		memcpy(SupportedRates + IEEE80211_CCK_RATE_LEN, WIFI_OFDMRATES,
+		memcpy(rates, WIFI_CCKRATES, IEEE80211_CCK_RATE_LEN);
+		memcpy(rates + IEEE80211_CCK_RATE_LEN, WIFI_OFDMRATES,
 			IEEE80211_NUM_OFDM_RATESLEN);
 		break;
 	}
@@ -195,17 +194,16 @@ int r8712_generate_ie(struct registry_priv *pregistrypriv)
 	ie = r8712_set_ie(ie, _SSID_IE_, pdev_network->Ssid.SsidLength,
 		    pdev_network->Ssid.Ssid, &sz);
 	/*supported rates*/
-	set_supported_rate(pdev_network->SupportedRates,
-			   pregistrypriv->wireless_mode);
-	rateLen = r8712_get_rateset_len(pdev_network->SupportedRates);
+	set_supported_rate(pdev_network->rates, pregistrypriv->wireless_mode);
+	rateLen = r8712_get_rateset_len(pdev_network->rates);
 	if (rateLen > 8) {
 		ie = r8712_set_ie(ie, _SUPPORTEDRATES_IE_, 8,
-			    pdev_network->SupportedRates, &sz);
+			    pdev_network->rates, &sz);
 		ie = r8712_set_ie(ie, _EXT_SUPPORTEDRATES_IE_, (rateLen - 8),
-			    (pdev_network->SupportedRates + 8), &sz);
+			    (pdev_network->rates + 8), &sz);
 	} else
 		ie = r8712_set_ie(ie, _SUPPORTEDRATES_IE_,
-			    rateLen, pdev_network->SupportedRates, &sz);
+			    rateLen, pdev_network->rates, &sz);
 	/*DS parameter set*/
 	ie = r8712_set_ie(ie, _DSSET_IE_, 1,
 		    (u8 *)&(pdev_network->Configuration.DSConfig), &sz);
@@ -306,8 +304,9 @@ int r8712_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher,
 		*group_cipher = r8712_get_wpa_cipher_suite(pos);
 		pos += WPA_SELECTOR_LEN;
 		left -= WPA_SELECTOR_LEN;
-	} else if (left > 0)
+	} else if (left > 0) {
 		return _FAIL;
+	}
 	/*pairwise_cipher*/
 	if (left >= 2) {
 		count = le16_to_cpu(*(u16 *)pos);
@@ -320,8 +319,9 @@ int r8712_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher,
 			pos += WPA_SELECTOR_LEN;
 			left -= WPA_SELECTOR_LEN;
 		}
-	} else if (left == 1)
+	} else if (left == 1) {
 		return _FAIL;
+	}
 	return _SUCCESS;
 }
 
@@ -336,7 +336,8 @@ int r8712_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher,
 		/* No RSN IE - fail silently */
 		return _FAIL;
 	}
-	if ((*rsn_ie != _WPA2_IE_ID_) || (*(rsn_ie+1) != (u8)(rsn_ie_len - 2)))
+	if ((*rsn_ie != _WPA2_IE_ID_) ||
+	    (*(rsn_ie + 1) != (u8)(rsn_ie_len - 2)))
 		return _FAIL;
 	pos = rsn_ie;
 	pos += 4;
@@ -346,8 +347,9 @@ int r8712_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher,
 		*group_cipher = r8712_get_wpa2_cipher_suite(pos);
 		pos += RSN_SELECTOR_LEN;
 		left -= RSN_SELECTOR_LEN;
-	} else if (left > 0)
+	} else if (left > 0) {
 		return _FAIL;
+	}
 	/*pairwise_cipher*/
 	if (left >= 2) {
 		count = le16_to_cpu(*(u16 *)pos);
@@ -360,8 +362,9 @@ int r8712_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher,
 			pos += RSN_SELECTOR_LEN;
 			left -= RSN_SELECTOR_LEN;
 		}
-	} else if (left == 1)
+	} else if (left == 1) {
 		return _FAIL;
+	}
 	return _SUCCESS;
 }
 
@@ -379,16 +382,17 @@ int r8712_get_sec_ie(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len,
 		if ((authmode == _WPA_IE_ID_) &&
 		    (!memcmp(&in_ie[cnt + 2], &wpa_oui[0], 4))) {
 			memcpy(wpa_ie, &in_ie[cnt], in_ie[cnt + 1] + 2);
-			*wpa_len = in_ie[cnt+1]+2;
+			*wpa_len = in_ie[cnt + 1] + 2;
 			cnt += in_ie[cnt + 1] + 2;  /*get next */
 		} else {
 			if (authmode == _WPA2_IE_ID_) {
 				memcpy(rsn_ie, &in_ie[cnt],
 					in_ie[cnt + 1] + 2);
-				*rsn_len = in_ie[cnt+1] + 2;
-				cnt += in_ie[cnt+1] + 2;  /*get next*/
-			} else
-				cnt += in_ie[cnt+1] + 2;   /*get next*/
+				*rsn_len = in_ie[cnt + 1] + 2;
+				cnt += in_ie[cnt + 1] + 2;  /*get next*/
+			} else {
+				cnt += in_ie[cnt + 1] + 2;   /*get next*/
+			}
 		}
 	}
 	return *rsn_len + *wpa_len;
@@ -405,14 +409,14 @@ int r8712_get_wps_ie(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps_ielen)
 	while (cnt < in_len) {
 		eid = in_ie[cnt];
 		if ((eid == _WPA_IE_ID_) &&
-		    (!memcmp(&in_ie[cnt+2], wps_oui, 4))) {
-			memcpy(wps_ie, &in_ie[cnt], in_ie[cnt+1]+2);
-			*wps_ielen = in_ie[cnt+1]+2;
-			cnt += in_ie[cnt+1]+2;
+		    (!memcmp(&in_ie[cnt + 2], wps_oui, 4))) {
+			memcpy(wps_ie, &in_ie[cnt], in_ie[cnt + 1] + 2);
+			*wps_ielen = in_ie[cnt + 1] + 2;
+			cnt += in_ie[cnt + 1] + 2;
 			match = true;
 			break;
 		}
-			cnt += in_ie[cnt+1]+2; /* goto next */
+			cnt += in_ie[cnt + 1] + 2; /* goto next */
 	}
 	return match;
 }

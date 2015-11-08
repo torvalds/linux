@@ -4,6 +4,8 @@ Required properties:
   - compatible: Must contain one of the following:
 	- "renesas,usbhs-r8a7790"
 	- "renesas,usbhs-r8a7791"
+	- "renesas,usbhs-r8a7794"
+	- "renesas,usbhs-r8a7795"
   - reg: Base address and length of the register for the USBHS
   - interrupts: Interrupt specifier for the USBHS
   - clocks: A list of phandle + clock specifier pairs
@@ -15,7 +17,8 @@ Optional properties:
   - phys: phandle + phy specifier pair
   - phy-names: must be "usb"
   - dmas: Must contain a list of references to DMA specifiers.
-  - dma-names : Must contain a list of DMA names, "tx" or "rx".
+  - dma-names : named "ch%d", where %d is the channel number ranging from zero
+                to the number of channels (DnFIFOs) minus one.
 
 Example:
 	usbhs: usb@e6590000 {

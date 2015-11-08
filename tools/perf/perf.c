@@ -8,13 +8,16 @@
  */
 #include "builtin.h"
 
+#include "util/env.h"
 #include "util/exec_cmd.h"
 #include "util/cache.h"
 #include "util/quote.h"
 #include "util/run-command.h"
 #include "util/parse-events.h"
+#include "util/parse-options.h"
+#include "util/bpf-loader.h"
 #include "util/debug.h"
-#include <api/fs/debugfs.h>
+#include <api/fs/tracing_path.h>
 #include <pthread.h>
 
 const char perf_usage_string[] =
@@ -62,6 +65,7 @@ static struct cmd_struct commands[] = {
 #endif
 	{ "inject",	cmd_inject,	0 },
 	{ "mem",	cmd_mem,	0 },
+	{ "data",	cmd_data,	0 },
 };
 
 struct pager_config {
@@ -124,6 +128,23 @@ static void commit_pager_choice(void)
 	}
 }
 
+struct option options[] = {
+	OPT_ARGUMENT("help", "help"),
+	OPT_ARGUMENT("version", "version"),
+	OPT_ARGUMENT("exec-path", "exec-path"),
+	OPT_ARGUMENT("html-path", "html-path"),
+	OPT_ARGUMENT("paginate", "paginate"),
+	OPT_ARGUMENT("no-pager", "no-pager"),
+	OPT_ARGUMENT("perf-dir", "perf-dir"),
+	OPT_ARGUMENT("work-tree", "work-tree"),
+	OPT_ARGUMENT("debugfs-dir", "debugfs-dir"),
+	OPT_ARGUMENT("buildid-dir", "buildid-dir"),
+	OPT_ARGUMENT("list-cmds", "list-cmds"),
+	OPT_ARGUMENT("list-opts", "list-opts"),
+	OPT_ARGUMENT("debug", "debug"),
+	OPT_END()
+};
+
 static int handle_options(const char ***argv, int *argc, int *envchanged)
 {
 	int handled = 0;
@@ -140,6 +161,20 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 		 */
 		if (!strcmp(cmd, "--help") || !strcmp(cmd, "--version"))
 			break;
+
+		/*
+		 * Shortcut for '-h' and '-v' options to invoke help
+		 * and version command.
+		 */
+		if (!strcmp(cmd, "-h")) {
+			(*argv)[0] = "--help";
+			break;
+		}
+
+		if (!strcmp(cmd, "-v")) {
+			(*argv)[0] = "--version";
+			break;
+		}
 
 		/*
 		 * Check remaining flags.
@@ -195,7 +230,7 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 				fprintf(stderr, "No directory given for --debugfs-dir.\n");
 				usage(perf_usage_string);
 			}
-			perf_debugfs_set_path((*argv)[1]);
+			tracing_path_set((*argv)[1]);
 			if (envchanged)
 				*envchanged = 1;
 			(*argv)++;
@@ -211,8 +246,8 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 			(*argv)++;
 			(*argc)--;
 		} else if (!prefixcmp(cmd, CMD_DEBUGFS_DIR)) {
-			perf_debugfs_set_path(cmd + strlen(CMD_DEBUGFS_DIR));
-			fprintf(stderr, "dir: %s\n", debugfs_mountpoint);
+			tracing_path_set(cmd + strlen(CMD_DEBUGFS_DIR));
+			fprintf(stderr, "dir: %s\n", tracing_path);
 			if (envchanged)
 				*envchanged = 1;
 		} else if (!strcmp(cmd, "--list-cmds")) {
@@ -222,6 +257,16 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 				struct cmd_struct *p = commands+i;
 				printf("%s ", p->cmd);
 			}
+			putchar('\n');
+			exit(0);
+		} else if (!strcmp(cmd, "--list-opts")) {
+			unsigned int i;
+
+			for (i = 0; i < ARRAY_SIZE(options)-1; i++) {
+				struct option *p = options+i;
+				printf("--%s ", p->long_name);
+			}
+			putchar('\n');
 			exit(0);
 		} else if (!strcmp(cmd, "--debug")) {
 			if (*argc < 2) {
@@ -340,6 +385,8 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 
 	status = p->fn(argc, argv, prefix);
 	exit_browser(status);
+	perf_env__exit(&perf_env);
+	bpf__clear();
 
 	if (status)
 		return status & 0xff;
@@ -488,8 +535,10 @@ int main(int argc, const char **argv)
 	cmd = perf_extract_argv0_path(argv[0]);
 	if (!cmd)
 		cmd = "perf-help";
-	/* get debugfs mount point from /proc/mounts */
-	perf_debugfs_mount(NULL);
+
+	/* get debugfs/tracefs mount point from /proc/mounts */
+	tracing_path_mount();
+
 	/*
 	 * "perf-xxxx" is the same as "perf xxxx", but we obviously:
 	 *

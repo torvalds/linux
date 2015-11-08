@@ -113,7 +113,7 @@ config USB_GADGET_VBUS_DRAW
 
 config USB_GADGET_STORAGE_NUM_BUFFERS
 	int "Number of storage pipeline buffers"
-	range 2 4
+	range 2 32
 	default 2
 	help
 	   Usually 2 buffers are enough to establish a good buffering
@@ -194,6 +194,9 @@ config USB_F_MIDI
 	tristate
 
 config USB_F_HID
+	tristate
+
+config USB_F_PRINTER
 	tristate
 
 choice
@@ -433,6 +436,20 @@ config USB_CONFIGFS_F_UVC
 	  The Webcam function acts as a composite USB Audio and Video Class
 	  device. It provides a userspace API to process UVC control requests
 	  and stream video data to the host.
+
+config USB_CONFIGFS_F_PRINTER
+	bool "Printer function"
+	select USB_F_PRINTER
+	depends on USB_CONFIGFS
+	help
+	  The Printer function channels data between the USB host and a
+	  userspace program driving the print engine. The user space
+	  program reads and writes the device file /dev/g_printer<X> to
+	  receive or send printer data. It can use ioctl calls to
+	  the device file to get or set printer status.
+
+	  For more information, see Documentation/usb/gadget_printer.txt
+	  which includes sample code for accessing the device file.
 
 source "drivers/usb/gadget/legacy/Kconfig"
 

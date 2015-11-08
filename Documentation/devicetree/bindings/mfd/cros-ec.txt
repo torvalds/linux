@@ -18,6 +18,10 @@ Required properties (SPI):
 - reg: SPI chip select
 
 Optional properties (SPI):
+- google,cros-ec-spi-pre-delay: Some implementations of the EC need a little
+  time to wake up from sleep before they can receive SPI transfers at a high
+  clock rate. This property specifies the delay, in usecs, between the
+  assertion of the CS to the start of the first clock pulse.
 - google,cros-ec-spi-msg-delay: Some implementations of the EC require some
   additional processing time in order to accept new transactions. If the delay
   between transactions is not long enough the EC may not be able to respond
@@ -30,6 +34,10 @@ Required properties (LPC):
 - compatible: "google,cros-ec-lpc"
 - reg: List of (IO address, size) pairs defining the interface uses
 
+Optional properties (all):
+- google,has-vbc-nvram: Some implementations of the EC include a small
+  nvram space used to store verified boot context data. This boolean flag
+  is used to specify whether this nvram is present or not.
 
 Example for I2C:
 

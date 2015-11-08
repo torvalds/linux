@@ -23,6 +23,7 @@
 
 #include "kfd_device_queue_manager.h"
 #include "cik_regs.h"
+#include "oss/oss_2_4_sh_mask.h"
 
 static bool set_cache_memory_policy_cik(struct device_queue_manager *dqm,
 				   struct qcm_process_device *qpd,
@@ -33,12 +34,15 @@ static bool set_cache_memory_policy_cik(struct device_queue_manager *dqm,
 static int register_process_cik(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd);
 static int initialize_cpsch_cik(struct device_queue_manager *dqm);
+static void init_sdma_vm(struct device_queue_manager *dqm, struct queue *q,
+				struct qcm_process_device *qpd);
 
-void device_queue_manager_init_cik(struct device_queue_manager_ops *ops)
+void device_queue_manager_init_cik(struct device_queue_manager_asic_ops *ops)
 {
 	ops->set_cache_memory_policy = set_cache_memory_policy_cik;
 	ops->register_process = register_process_cik;
 	ops->initialize = initialize_cpsch_cik;
+	ops->init_sdma_vm = init_sdma_vm;
 }
 
 static uint32_t compute_sh_mem_bases_64bit(unsigned int top_address_nybble)
@@ -127,6 +131,22 @@ static int register_process_cik(struct device_queue_manager *dqm,
 		qpd->pqm->process->is_32bit_user_mode, temp, qpd->sh_mem_bases);
 
 	return 0;
+}
+
+static void init_sdma_vm(struct device_queue_manager *dqm, struct queue *q,
+				struct qcm_process_device *qpd)
+{
+	uint32_t value = (1 << SDMA0_RLC0_VIRTUAL_ADDR__ATC__SHIFT);
+
+	if (q->process->is_32bit_user_mode)
+		value |= (1 << SDMA0_RLC0_VIRTUAL_ADDR__PTR32__SHIFT) |
+				get_sh_mem_bases_32(qpd_to_pdd(qpd));
+	else
+		value |= ((get_sh_mem_bases_nybble_64(qpd_to_pdd(qpd))) <<
+				SDMA0_RLC0_VIRTUAL_ADDR__SHARED_BASE__SHIFT) &
+				SDMA0_RLC0_VIRTUAL_ADDR__SHARED_BASE_MASK;
+
+	q->properties.sdma_vm_addr = value;
 }
 
 static int initialize_cpsch_cik(struct device_queue_manager *dqm)

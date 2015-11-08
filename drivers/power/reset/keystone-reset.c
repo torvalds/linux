@@ -70,7 +70,7 @@ static struct notifier_block rsctrl_restart_nb = {
 	.priority = 128,
 };
 
-static struct of_device_id rsctrl_of_match[] = {
+static const struct of_device_id rsctrl_of_match[] = {
 	{.compatible = "ti,keystone-reset", },
 	{},
 };

@@ -246,8 +246,7 @@ int __init arch_clk_init(void)
 	for (i = 0; i < ARRAY_SIZE(main_clks); i++)
 		ret |= clk_register(main_clks[i]);
 
-	for (i = 0; i < ARRAY_SIZE(lookups); i++)
-		clkdev_add(&lookups[i]);
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	if (!ret)
 		ret = sh_clk_div4_register(div4_clks, ARRAY_SIZE(div4_clks),

@@ -17,10 +17,6 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc., 59
-  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-
   The full GNU General Public License is included in this distribution in the
   file called LICENSE.
 
@@ -57,26 +53,16 @@ u32 rt_global_debug_component = COMP_ERR;
 EXPORT_SYMBOL(rt_global_debug_component);
 
 
-void _setup_timer(struct timer_list *ptimer, void *fun, unsigned long data)
-{
-	ptimer->function = fun;
-	ptimer->data = data;
-	init_timer(ptimer);
-}
 
 static inline int rtllib_networks_allocate(struct rtllib_device *ieee)
 {
 	if (ieee->networks)
 		return 0;
 
-	ieee->networks = kzalloc(
-		MAX_NETWORK_COUNT * sizeof(struct rtllib_network),
-		GFP_KERNEL);
-	if (!ieee->networks) {
-		printk(KERN_WARNING "%s: Out of memory allocating beacons\n",
-		       ieee->dev->name);
+	ieee->networks = kcalloc(MAX_NETWORK_COUNT,
+				 sizeof(struct rtllib_network), GFP_KERNEL);
+	if (!ieee->networks)
 		return -ENOMEM;
-	}
 
 	return 0;
 }
@@ -106,11 +92,11 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	struct net_device *dev;
 	int i, err;
 
-	RTLLIB_DEBUG_INFO("Initializing...\n");
+	pr_debug("rtllib: Initializing...\n");
 
 	dev = alloc_etherdev(sizeof(struct rtllib_device) + sizeof_priv);
 	if (!dev) {
-		RTLLIB_ERROR("Unable to network device.\n");
+		pr_err("Unable to allocate net_device.\n");
 		return NULL;
 	}
 	ieee = (struct rtllib_device *)netdev_priv_rsl(dev);
@@ -119,8 +105,7 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 
 	err = rtllib_networks_allocate(ieee);
 	if (err) {
-		RTLLIB_ERROR("Unable to allocate beacon storage: %d\n",
-				err);
+		pr_err("Unable to allocate beacon storage: %d\n", err);
 		goto failed;
 	}
 	rtllib_networks_initialize(ieee);
@@ -140,15 +125,12 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 
 	spin_lock_init(&ieee->lock);
 	spin_lock_init(&ieee->wpax_suitlist_lock);
-	spin_lock_init(&ieee->bw_spinlock);
 	spin_lock_init(&ieee->reorder_spinlock);
-	atomic_set(&(ieee->atm_chnlop), 0);
 	atomic_set(&(ieee->atm_swbw), 0);
 
 	/* SAM FIXME */
 	lib80211_crypt_info_init(&ieee->crypt_info, "RTLLIB", &ieee->lock);
 
-	ieee->bHalfNMode = false;
 	ieee->wpa_enabled = 0;
 	ieee->tkip_countermeasures = 0;
 	ieee->drop_unencrypted = 0;
@@ -161,10 +143,9 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	rtllib_softmac_init(ieee);
 
 	ieee->pHTInfo = kzalloc(sizeof(struct rt_hi_throughput), GFP_KERNEL);
-	if (ieee->pHTInfo == NULL) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "can't alloc memory for HTInfo\n");
+	if (ieee->pHTInfo == NULL)
 		return NULL;
-	}
+
 	HTUpdateDefaultSetting(ieee);
 	HTInitializeHTInfo(ieee);
 	TSInitialize(ieee);
@@ -201,67 +182,13 @@ void free_rtllib(struct net_device *dev)
 }
 EXPORT_SYMBOL(free_rtllib);
 
-u32 rtllib_debug_level;
-static int debug = RTLLIB_DL_ERR;
-static struct proc_dir_entry *rtllib_proc;
-
-static int show_debug_level(struct seq_file *m, void *v)
-{
-	return seq_printf(m, "0x%08X\n", rtllib_debug_level);
-}
-
-static ssize_t write_debug_level(struct file *file, const char __user *buffer,
-			     size_t count, loff_t *ppos)
-{
-	unsigned long val;
-	int err = kstrtoul_from_user(buffer, count, 0, &val);
-
-	if (err)
-		return err;
-	rtllib_debug_level = val;
-	return count;
-}
-
-static int open_debug_level(struct inode *inode, struct file *file)
-{
-	return single_open(file, show_debug_level, NULL);
-}
-
-static const struct file_operations fops = {
-	.open = open_debug_level,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.write = write_debug_level,
-	.release = single_release,
-};
-
 static int __init rtllib_init(void)
 {
-	struct proc_dir_entry *e;
-
-	rtllib_debug_level = debug;
-	rtllib_proc = proc_mkdir(DRV_NAME, init_net.proc_net);
-	if (rtllib_proc == NULL) {
-		RTLLIB_ERROR("Unable to create " DRV_NAME
-				" proc directory\n");
-		return -EIO;
-	}
-	e = proc_create("debug_level", S_IRUGO | S_IWUSR, rtllib_proc, &fops);
-	if (!e) {
-		remove_proc_entry(DRV_NAME, init_net.proc_net);
-		rtllib_proc = NULL;
-		return -EIO;
-	}
 	return 0;
 }
 
 static void __exit rtllib_exit(void)
 {
-	if (rtllib_proc) {
-		remove_proc_entry("debug_level", rtllib_proc);
-		remove_proc_entry(DRV_NAME, init_net.proc_net);
-		rtllib_proc = NULL;
-	}
 }
 
 module_init(rtllib_init);

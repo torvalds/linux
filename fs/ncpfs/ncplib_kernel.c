@@ -727,7 +727,7 @@ int
 ncp_del_file_or_subdir2(struct ncp_server *server,
 			struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	__u8  volnum;
 	__le32 dirent;
 
@@ -1001,8 +1001,8 @@ out:
  */
 int
 ncp_read_bounce(struct ncp_server *server, const char *file_id,
-	 __u32 offset, __u16 to_read, char __user *target, int *bytes_read,
-	 void* bounce, __u32 bufsize)
+	 __u32 offset, __u16 to_read, struct iov_iter *to,
+	 int *bytes_read, void *bounce, __u32 bufsize)
 {
 	int result;
 
@@ -1025,7 +1025,7 @@ ncp_read_bounce(struct ncp_server *server, const char *file_id,
 			         (offset & 1);
 			*bytes_read = len;
 			result = 0;
-			if (copy_to_user(target, source, len))
+			if (copy_to_iter(source, len, to) != len)
 				result = -EFAULT;
 		}
 	}

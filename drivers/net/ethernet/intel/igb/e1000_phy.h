@@ -61,6 +61,7 @@ s32  igb_phy_has_link(struct e1000_hw *hw, u32 iterations,
 void igb_power_up_phy_copper(struct e1000_hw *hw);
 void igb_power_down_phy_copper(struct e1000_hw *hw);
 s32  igb_phy_init_script_igp3(struct e1000_hw *hw);
+s32  igb_initialize_M88E1512_phy(struct e1000_hw *hw);
 s32  igb_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data);
 s32  igb_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data);
 s32  igb_read_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 *data);

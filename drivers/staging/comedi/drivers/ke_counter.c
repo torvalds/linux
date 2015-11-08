@@ -28,9 +28,8 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 /*
  * PCI BAR 0 Register I/O map
@@ -42,9 +41,10 @@
 #define KE_MSB_REG(x)			(0x0c + ((x) * 0x20))
 #define KE_SIGN_REG(x)			(0x10 + ((x) * 0x20))
 #define KE_OSC_SEL_REG			0xf8
-#define KE_OSC_SEL_EXT			(1 << 0)
-#define KE_OSC_SEL_4MHZ			(2 << 0)
-#define KE_OSC_SEL_20MHZ		(3 << 0)
+#define KE_OSC_SEL_CLK(x)		(((x) & 0x3) << 0)
+#define KE_OSC_SEL_EXT			KE_OSC_SEL_CLK(1)
+#define KE_OSC_SEL_4MHZ			KE_OSC_SEL_CLK(2)
+#define KE_OSC_SEL_20MHZ		KE_OSC_SEL_CLK(3)
 #define KE_DO_REG			0xfc
 
 static int ke_counter_insn_write(struct comedi_device *dev,

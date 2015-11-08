@@ -186,7 +186,30 @@ static int usb3503_probe(struct usb3503 *hub)
 		hub->mode		= pdata->initial_mode;
 	} else if (np) {
 		struct clk *clk;
+		u32 rate = 0;
 		hub->port_off_mask = 0;
+
+		if (!of_property_read_u32(np, "refclk-frequency", &rate)) {
+			switch (rate) {
+			case 38400000:
+			case 26000000:
+			case 19200000:
+			case 12000000:
+				hub->secondary_ref_clk = 0;
+				break;
+			case 24000000:
+			case 27000000:
+			case 25000000:
+			case 50000000:
+				hub->secondary_ref_clk = 1;
+				break;
+			default:
+				dev_err(dev,
+					"unsupported reference clock rate (%d)\n",
+					(int) rate);
+				return -EINVAL;
+			}
+		}
 
 		clk = devm_clk_get(dev, "refclk");
 		if (IS_ERR(clk) && PTR_ERR(clk) != -ENOENT) {
@@ -196,31 +219,9 @@ static int usb3503_probe(struct usb3503 *hub)
 		}
 
 		if (!IS_ERR(clk)) {
-			u32 rate = 0;
 			hub->clk = clk;
 
-			if (!of_property_read_u32(np, "refclk-frequency",
-						 &rate)) {
-
-				switch (rate) {
-				case 38400000:
-				case 26000000:
-				case 19200000:
-				case 12000000:
-					hub->secondary_ref_clk = 0;
-					break;
-				case 24000000:
-				case 27000000:
-				case 25000000:
-				case 50000000:
-					hub->secondary_ref_clk = 1;
-					break;
-				default:
-					dev_err(dev,
-						"unsupported reference clock rate (%d)\n",
-						(int) rate);
-					return -EINVAL;
-				}
+			if (rate != 0) {
 				err = clk_set_rate(hub->clk, rate);
 				if (err) {
 					dev_err(dev,
@@ -409,7 +410,7 @@ static int __init usb3503_init(void)
 {
 	int err;
 
-	err = i2c_register_driver(THIS_MODULE, &usb3503_i2c_driver);
+	err = i2c_add_driver(&usb3503_i2c_driver);
 	if (err != 0)
 		pr_err("usb3503: Failed to register I2C driver: %d\n", err);
 

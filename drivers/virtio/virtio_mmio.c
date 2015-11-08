@@ -58,6 +58,7 @@
 
 #define pr_fmt(fmt) "virtio-mmio: " fmt
 
+#include <linux/acpi.h>
 #include <linux/highmem.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -581,14 +582,6 @@ static int virtio_mmio_probe(struct platform_device *pdev)
 	}
 	vm_dev->vdev.id.vendor = readl(vm_dev->base + VIRTIO_MMIO_VENDOR_ID);
 
-	/* Reject legacy-only IDs for version 2 devices */
-	if (vm_dev->version == 2 &&
-			virtio_device_is_legacy_only(vm_dev->vdev.id)) {
-		dev_err(&pdev->dev, "Version 2 not supported for devices %u!\n",
-				vm_dev->vdev.id.device);
-		return -ENODEV;
-	}
-
 	if (vm_dev->version == 1)
 		writel(PAGE_SIZE, vm_dev->base + VIRTIO_MMIO_GUEST_PAGE_SIZE);
 
@@ -699,7 +692,7 @@ static int vm_cmdline_get(char *buffer, const struct kernel_param *kp)
 	return strlen(buffer) + 1;
 }
 
-static struct kernel_param_ops vm_cmdline_param_ops = {
+static const struct kernel_param_ops vm_cmdline_param_ops = {
 	.set = vm_cmdline_set,
 	.get = vm_cmdline_get,
 };
@@ -740,12 +733,21 @@ static struct of_device_id virtio_mmio_match[] = {
 };
 MODULE_DEVICE_TABLE(of, virtio_mmio_match);
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id virtio_mmio_acpi_match[] = {
+	{ "LNRO0005", },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, virtio_mmio_acpi_match);
+#endif
+
 static struct platform_driver virtio_mmio_driver = {
 	.probe		= virtio_mmio_probe,
 	.remove		= virtio_mmio_remove,
 	.driver		= {
 		.name	= "virtio-mmio",
 		.of_match_table	= virtio_mmio_match,
+		.acpi_match_table = ACPI_PTR(virtio_mmio_acpi_match),
 	},
 };
 

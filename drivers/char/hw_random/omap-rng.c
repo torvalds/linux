@@ -236,7 +236,7 @@ static int omap4_rng_init(struct omap_rng_dev *priv)
 	u32 val;
 
 	/* Return if RNG is already running. */
-	if (omap_rng_read(priv, RNG_CONFIG_REG) & RNG_CONTROL_ENABLE_TRNG_MASK)
+	if (omap_rng_read(priv, RNG_CONTROL_REG) & RNG_CONTROL_ENABLE_TRNG_MASK)
 		return 0;
 
 	val = RNG_CONFIG_MIN_REFIL_CYCLES << RNG_CONFIG_MIN_REFIL_CYCLES_SHIFT;
@@ -262,7 +262,7 @@ static void omap4_rng_cleanup(struct omap_rng_dev *priv)
 
 	val = omap_rng_read(priv, RNG_CONTROL_REG);
 	val &= ~RNG_CONTROL_ENABLE_TRNG_MASK;
-	omap_rng_write(priv, RNG_CONFIG_REG, val);
+	omap_rng_write(priv, RNG_CONTROL_REG, val);
 }
 
 static irqreturn_t omap4_rng_irq(int irq, void *dev_id)
@@ -408,7 +408,7 @@ err_ioremap:
 	return ret;
 }
 
-static int __exit omap_rng_remove(struct platform_device *pdev)
+static int omap_rng_remove(struct platform_device *pdev)
 {
 	struct omap_rng_dev *priv = platform_get_drvdata(pdev);
 
@@ -422,9 +422,7 @@ static int __exit omap_rng_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-
-static int omap_rng_suspend(struct device *dev)
+static int __maybe_unused omap_rng_suspend(struct device *dev)
 {
 	struct omap_rng_dev *priv = dev_get_drvdata(dev);
 
@@ -434,7 +432,7 @@ static int omap_rng_suspend(struct device *dev)
 	return 0;
 }
 
-static int omap_rng_resume(struct device *dev)
+static int __maybe_unused omap_rng_resume(struct device *dev)
 {
 	struct omap_rng_dev *priv = dev_get_drvdata(dev);
 
@@ -445,22 +443,15 @@ static int omap_rng_resume(struct device *dev)
 }
 
 static SIMPLE_DEV_PM_OPS(omap_rng_pm, omap_rng_suspend, omap_rng_resume);
-#define	OMAP_RNG_PM	(&omap_rng_pm)
-
-#else
-
-#define	OMAP_RNG_PM	NULL
-
-#endif
 
 static struct platform_driver omap_rng_driver = {
 	.driver = {
 		.name		= "omap_rng",
-		.pm		= OMAP_RNG_PM,
+		.pm		= &omap_rng_pm,
 		.of_match_table = of_match_ptr(omap_rng_of_match),
 	},
 	.probe		= omap_rng_probe,
-	.remove		= __exit_p(omap_rng_remove),
+	.remove		= omap_rng_remove,
 };
 
 module_platform_driver(omap_rng_driver);

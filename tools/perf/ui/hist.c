@@ -463,27 +463,27 @@ void perf_hpp__init(void)
 		return;
 
 	if (symbol_conf.cumulate_callchain) {
-		perf_hpp__column_enable(PERF_HPP__OVERHEAD_ACC);
+		hpp_dimension__add_output(PERF_HPP__OVERHEAD_ACC);
 		perf_hpp__format[PERF_HPP__OVERHEAD].name = "Self";
 	}
 
-	perf_hpp__column_enable(PERF_HPP__OVERHEAD);
+	hpp_dimension__add_output(PERF_HPP__OVERHEAD);
 
 	if (symbol_conf.show_cpu_utilization) {
-		perf_hpp__column_enable(PERF_HPP__OVERHEAD_SYS);
-		perf_hpp__column_enable(PERF_HPP__OVERHEAD_US);
+		hpp_dimension__add_output(PERF_HPP__OVERHEAD_SYS);
+		hpp_dimension__add_output(PERF_HPP__OVERHEAD_US);
 
 		if (perf_guest) {
-			perf_hpp__column_enable(PERF_HPP__OVERHEAD_GUEST_SYS);
-			perf_hpp__column_enable(PERF_HPP__OVERHEAD_GUEST_US);
+			hpp_dimension__add_output(PERF_HPP__OVERHEAD_GUEST_SYS);
+			hpp_dimension__add_output(PERF_HPP__OVERHEAD_GUEST_US);
 		}
 	}
 
 	if (symbol_conf.show_nr_samples)
-		perf_hpp__column_enable(PERF_HPP__SAMPLES);
+		hpp_dimension__add_output(PERF_HPP__SAMPLES);
 
 	if (symbol_conf.show_total_period)
-		perf_hpp__column_enable(PERF_HPP__PERIOD);
+		hpp_dimension__add_output(PERF_HPP__PERIOD);
 
 	/* prepend overhead field for backward compatiblity.  */
 	list = &perf_hpp__format[PERF_HPP__OVERHEAD].sort_list;

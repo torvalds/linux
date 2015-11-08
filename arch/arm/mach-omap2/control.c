@@ -14,6 +14,9 @@
 
 #include <linux/kernel.h>
 #include <linux/io.h>
+#include <linux/of_address.h>
+#include <linux/regmap.h>
+#include <linux/mfd/syscon.h>
 
 #include "soc.h"
 #include "iomap.h"
@@ -25,13 +28,15 @@
 #include "sdrc.h"
 #include "pm.h"
 #include "control.h"
+#include "clock.h"
 
 /* Used by omap3_ctrl_save_padconf() */
 #define START_PADCONF_SAVE		0x2
 #define PADCONF_SAVE_DONE		0x1
 
 static void __iomem *omap2_ctrl_base;
-static void __iomem *omap4_ctrl_pad_base;
+static s16 omap2_ctrl_offset;
+static struct regmap *omap2_ctrl_syscon;
 
 #if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)
 struct omap3_scratchpad {
@@ -107,6 +112,7 @@ struct omap3_control_regs {
 	u32 csirxfe;
 	u32 iva2_bootaddr;
 	u32 iva2_bootmod;
+	u32 wkup_ctrl;
 	u32 debobs_0;
 	u32 debobs_1;
 	u32 debobs_2;
@@ -133,66 +139,79 @@ struct omap3_control_regs {
 static struct omap3_control_regs control_context;
 #endif /* CONFIG_ARCH_OMAP3 && CONFIG_PM */
 
-#define OMAP_CTRL_REGADDR(reg)		(omap2_ctrl_base + (reg))
-#define OMAP4_CTRL_PAD_REGADDR(reg)	(omap4_ctrl_pad_base + (reg))
-
-void __init omap2_set_globals_control(void __iomem *ctrl,
-				      void __iomem *ctrl_pad)
+void __init omap2_set_globals_control(void __iomem *ctrl)
 {
 	omap2_ctrl_base = ctrl;
-	omap4_ctrl_pad_base = ctrl_pad;
-}
-
-void __iomem *omap_ctrl_base_get(void)
-{
-	return omap2_ctrl_base;
 }
 
 u8 omap_ctrl_readb(u16 offset)
 {
-	return readb_relaxed(OMAP_CTRL_REGADDR(offset));
+	u32 val;
+	u8 byte_offset = offset & 0x3;
+
+	val = omap_ctrl_readl(offset);
+
+	return (val >> (byte_offset * 8)) & 0xff;
 }
 
 u16 omap_ctrl_readw(u16 offset)
 {
-	return readw_relaxed(OMAP_CTRL_REGADDR(offset));
+	u32 val;
+	u16 byte_offset = offset & 0x2;
+
+	val = omap_ctrl_readl(offset);
+
+	return (val >> (byte_offset * 8)) & 0xffff;
 }
 
 u32 omap_ctrl_readl(u16 offset)
 {
-	return readl_relaxed(OMAP_CTRL_REGADDR(offset));
+	u32 val;
+
+	offset &= 0xfffc;
+	if (!omap2_ctrl_syscon)
+		val = readl_relaxed(omap2_ctrl_base + offset);
+	else
+		regmap_read(omap2_ctrl_syscon, omap2_ctrl_offset + offset,
+			    &val);
+
+	return val;
 }
 
 void omap_ctrl_writeb(u8 val, u16 offset)
 {
-	writeb_relaxed(val, OMAP_CTRL_REGADDR(offset));
+	u32 tmp;
+	u8 byte_offset = offset & 0x3;
+
+	tmp = omap_ctrl_readl(offset);
+
+	tmp &= 0xffffffff ^ (0xff << (byte_offset * 8));
+	tmp |= val << (byte_offset * 8);
+
+	omap_ctrl_writel(tmp, offset);
 }
 
 void omap_ctrl_writew(u16 val, u16 offset)
 {
-	writew_relaxed(val, OMAP_CTRL_REGADDR(offset));
+	u32 tmp;
+	u8 byte_offset = offset & 0x2;
+
+	tmp = omap_ctrl_readl(offset);
+
+	tmp &= 0xffffffff ^ (0xffff << (byte_offset * 8));
+	tmp |= val << (byte_offset * 8);
+
+	omap_ctrl_writel(tmp, offset);
 }
 
 void omap_ctrl_writel(u32 val, u16 offset)
 {
-	writel_relaxed(val, OMAP_CTRL_REGADDR(offset));
-}
-
-/*
- * On OMAP4 control pad are not addressable from control
- * core base. So the common omap_ctrl_read/write APIs breaks
- * Hence export separate APIs to manage the omap4 pad control
- * registers. This APIs will work only for OMAP4
- */
-
-u32 omap4_ctrl_pad_readl(u16 offset)
-{
-	return readl_relaxed(OMAP4_CTRL_PAD_REGADDR(offset));
-}
-
-void omap4_ctrl_pad_writel(u32 val, u16 offset)
-{
-	writel_relaxed(val, OMAP4_CTRL_PAD_REGADDR(offset));
+	offset &= 0xfffc;
+	if (!omap2_ctrl_syscon)
+		writel_relaxed(val, omap2_ctrl_base + offset);
+	else
+		regmap_write(omap2_ctrl_syscon, omap2_ctrl_offset + offset,
+			     val);
 }
 
 #ifdef CONFIG_ARCH_OMAP3
@@ -437,6 +456,7 @@ void omap3_control_save_context(void)
 			omap_ctrl_readl(OMAP343X_CONTROL_IVA2_BOOTADDR);
 	control_context.iva2_bootmod =
 			omap_ctrl_readl(OMAP343X_CONTROL_IVA2_BOOTMOD);
+	control_context.wkup_ctrl = omap_ctrl_readl(OMAP34XX_CONTROL_WKUP_CTRL);
 	control_context.debobs_0 = omap_ctrl_readl(OMAP343X_CONTROL_DEBOBS(0));
 	control_context.debobs_1 = omap_ctrl_readl(OMAP343X_CONTROL_DEBOBS(1));
 	control_context.debobs_2 = omap_ctrl_readl(OMAP343X_CONTROL_DEBOBS(2));
@@ -494,6 +514,7 @@ void omap3_control_restore_context(void)
 					OMAP343X_CONTROL_IVA2_BOOTADDR);
 	omap_ctrl_writel(control_context.iva2_bootmod,
 					OMAP343X_CONTROL_IVA2_BOOTMOD);
+	omap_ctrl_writel(control_context.wkup_ctrl, OMAP34XX_CONTROL_WKUP_CTRL);
 	omap_ctrl_writel(control_context.debobs_0, OMAP343X_CONTROL_DEBOBS(0));
 	omap_ctrl_writel(control_context.debobs_1, OMAP343X_CONTROL_DEBOBS(1));
 	omap_ctrl_writel(control_context.debobs_2, OMAP343X_CONTROL_DEBOBS(2));
@@ -611,3 +632,121 @@ void __init omap3_ctrl_init(void)
 	omap3_ctrl_setup_d2d_padconf();
 }
 #endif /* CONFIG_ARCH_OMAP3 && CONFIG_PM */
+
+struct control_init_data {
+	int index;
+	s16 offset;
+};
+
+static struct control_init_data ctrl_data = {
+	.index = TI_CLKM_CTRL,
+};
+
+static const struct control_init_data omap2_ctrl_data = {
+	.index = TI_CLKM_CTRL,
+	.offset = -OMAP2_CONTROL_GENERAL,
+};
+
+static const struct of_device_id omap_scrm_dt_match_table[] = {
+	{ .compatible = "ti,am3-scm", .data = &ctrl_data },
+	{ .compatible = "ti,am4-scm", .data = &ctrl_data },
+	{ .compatible = "ti,omap2-scm", .data = &omap2_ctrl_data },
+	{ .compatible = "ti,omap3-scm", .data = &omap2_ctrl_data },
+	{ .compatible = "ti,dm814-scm", .data = &ctrl_data },
+	{ .compatible = "ti,dm816-scrm", .data = &ctrl_data },
+	{ .compatible = "ti,omap4-scm-core", .data = &ctrl_data },
+	{ .compatible = "ti,omap5-scm-core", .data = &ctrl_data },
+	{ .compatible = "ti,dra7-scm-core", .data = &ctrl_data },
+	{ }
+};
+
+/**
+ * omap2_control_base_init - initialize iomappings for the control driver
+ *
+ * Detects and initializes the iomappings for the control driver, based
+ * on the DT data. Returns 0 in success, negative error value
+ * otherwise.
+ */
+int __init omap2_control_base_init(void)
+{
+	struct device_node *np;
+	const struct of_device_id *match;
+	struct control_init_data *data;
+
+	for_each_matching_node_and_match(np, omap_scrm_dt_match_table, &match) {
+		data = (struct control_init_data *)match->data;
+
+		omap2_ctrl_base = of_iomap(np, 0);
+		if (!omap2_ctrl_base)
+			return -ENOMEM;
+
+		omap2_ctrl_offset = data->offset;
+	}
+
+	return 0;
+}
+
+/**
+ * omap_control_init - low level init for the control driver
+ *
+ * Initializes the low level clock infrastructure for control driver.
+ * Returns 0 in success, negative error value in failure.
+ */
+int __init omap_control_init(void)
+{
+	struct device_node *np, *scm_conf;
+	const struct of_device_id *match;
+	const struct omap_prcm_init_data *data;
+	int ret;
+	struct regmap *syscon;
+
+	for_each_matching_node_and_match(np, omap_scrm_dt_match_table, &match) {
+		data = match->data;
+
+		/*
+		 * Check if we have scm_conf node, if yes, use this to
+		 * access clock registers.
+		 */
+		scm_conf = of_get_child_by_name(np, "scm_conf");
+
+		if (scm_conf) {
+			syscon = syscon_node_to_regmap(scm_conf);
+
+			if (IS_ERR(syscon))
+				return PTR_ERR(syscon);
+
+			omap2_ctrl_syscon = syscon;
+
+			if (of_get_child_by_name(scm_conf, "clocks")) {
+				ret = omap2_clk_provider_init(scm_conf,
+							      data->index,
+							      syscon, NULL);
+				if (ret)
+					return ret;
+			}
+
+			iounmap(omap2_ctrl_base);
+			omap2_ctrl_base = NULL;
+		} else {
+			/* No scm_conf found, direct access */
+			ret = omap2_clk_provider_init(np, data->index, NULL,
+						      omap2_ctrl_base);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * omap3_control_legacy_iomap_init - legacy iomap init for clock providers
+ *
+ * Legacy iomap init for clock provider. Needed only by legacy boot mode,
+ * where the base addresses are not parsed from DT, but still required
+ * by the clock driver to be setup properly.
+ */
+void __init omap3_control_legacy_iomap_init(void)
+{
+	omap2_clk_legacy_provider_init(TI_CLKM_SCRM, omap2_ctrl_base);
+}

@@ -112,12 +112,38 @@ static ssize_t load_image_on_perst_store(struct device *device,
 	return count;
 }
 
+static ssize_t perst_reloads_same_image_show(struct device *device,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	struct cxl *adapter = to_cxl_adapter(device);
+
+	return scnprintf(buf, PAGE_SIZE, "%i\n", adapter->perst_same_image);
+}
+
+static ssize_t perst_reloads_same_image_store(struct device *device,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	struct cxl *adapter = to_cxl_adapter(device);
+	int rc;
+	int val;
+
+	rc = sscanf(buf, "%i", &val);
+	if ((rc != 1) || !(val == 1 || val == 0))
+		return -EINVAL;
+
+	adapter->perst_same_image = (val == 1 ? true : false);
+	return count;
+}
+
 static struct device_attribute adapter_attrs[] = {
 	__ATTR_RO(caia_version),
 	__ATTR_RO(psl_revision),
 	__ATTR_RO(base_image),
 	__ATTR_RO(image_loaded),
 	__ATTR_RW(load_image_on_perst),
+	__ATTR_RW(perst_reloads_same_image),
 	__ATTR(reset, S_IWUSR, NULL, reset_adapter_store),
 };
 
@@ -185,7 +211,7 @@ static ssize_t reset_store_afu(struct device *device,
 		goto err;
 	}
 
-	if ((rc = cxl_afu_reset(afu)))
+	if ((rc = __cxl_afu_reset(afu)))
 		goto err;
 
 	rc = count;
@@ -356,6 +382,16 @@ static ssize_t api_version_compatible_show(struct device *device,
 	return scnprintf(buf, PAGE_SIZE, "%i\n", CXL_API_VERSION_COMPATIBLE);
 }
 
+static ssize_t afu_eb_read(struct file *filp, struct kobject *kobj,
+			       struct bin_attribute *bin_attr, char *buf,
+			       loff_t off, size_t count)
+{
+	struct cxl_afu *afu = to_cxl_afu(container_of(kobj,
+						      struct device, kobj));
+
+	return cxl_afu_read_err_buffer(afu, buf, off, count);
+}
+
 static struct device_attribute afu_attrs[] = {
 	__ATTR_RO(mmio_size),
 	__ATTR_RO(irqs_min),
@@ -433,12 +469,7 @@ static ssize_t afu_read_config(struct file *filp, struct kobject *kobj,
 	struct afu_config_record *cr = to_cr(kobj);
 	struct cxl_afu *afu = to_cxl_afu(container_of(kobj->parent, struct device, kobj));
 
-	u64 i, j, val, size = afu->crs_len;
-
-	if (off > size)
-		return 0;
-	if (off + count > size)
-		count = size - off;
+	u64 i, j, val;
 
 	for (i = 0; i < count;) {
 		val = cxl_afu_cr_read64(afu, cr->cr, off & ~0x7);
@@ -534,6 +565,10 @@ void cxl_sysfs_afu_remove(struct cxl_afu *afu)
 	struct afu_config_record *cr, *tmp;
 	int i;
 
+	/* remove the err buffer bin attribute */
+	if (afu->eb_len)
+		device_remove_bin_file(&afu->dev, &afu->attr_eb);
+
 	for (i = 0; i < ARRAY_SIZE(afu_attrs); i++)
 		device_remove_file(&afu->dev, &afu_attrs[i]);
 
@@ -555,6 +590,24 @@ int cxl_sysfs_afu_add(struct cxl_afu *afu)
 			goto err;
 	}
 
+	/* conditionally create the add the binary file for error info buffer */
+	if (afu->eb_len) {
+		sysfs_attr_init(&afu->attr_eb.attr);
+
+		afu->attr_eb.attr.name = "afu_err_buff";
+		afu->attr_eb.attr.mode = S_IRUGO;
+		afu->attr_eb.size = afu->eb_len;
+		afu->attr_eb.read = afu_eb_read;
+
+		rc = device_create_bin_file(&afu->dev, &afu->attr_eb);
+		if (rc) {
+			dev_err(&afu->dev,
+				"Unable to create eb attr for the afu. Err(%d)\n",
+				rc);
+			goto err;
+		}
+	}
+
 	for (i = 0; i < afu->crs_num; i++) {
 		cr = cxl_sysfs_afu_new_cr(afu, i);
 		if (IS_ERR(cr)) {
@@ -570,6 +623,9 @@ err1:
 	cxl_sysfs_afu_remove(afu);
 	return rc;
 err:
+	/* reset the eb_len as we havent created the bin attr */
+	afu->eb_len = 0;
+
 	for (i--; i >= 0; i--)
 		device_remove_file(&afu->dev, &afu_attrs[i]);
 	return rc;

@@ -1350,6 +1350,9 @@ void edma_stop(unsigned channel)
 		edma_shadow0_write_array(ctlr, SH_SECR, j, mask);
 		edma_write_array(ctlr, EDMA_EMCR, j, mask);
 
+		/* clear possibly pending completion interrupt */
+		edma_shadow0_write_array(ctlr, SH_ICR, j, mask);
+
 		pr_debug("EDMA: EER%d %08x\n", j,
 				edma_shadow0_read_array(ctlr, SH_EER, j));
 

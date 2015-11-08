@@ -131,7 +131,7 @@ static int evm_calc_hmac_or_hash(struct dentry *dentry,
 				size_t req_xattr_value_len,
 				char type, char *digest)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_backing_inode(dentry);
 	struct shash_desc *desc;
 	char **xattrname;
 	size_t xattr_size = 0;
@@ -199,7 +199,7 @@ int evm_calc_hash(struct dentry *dentry, const char *req_xattr_name,
 int evm_update_evmxattr(struct dentry *dentry, const char *xattr_name,
 			const char *xattr_value, size_t xattr_value_len)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_backing_inode(dentry);
 	struct evm_ima_xattr_data xattr_data;
 	int rc = 0;
 
@@ -247,7 +247,7 @@ int evm_init_key(void)
 		return -ENOENT;
 
 	down_read(&evm_key->sem);
-	ekp = evm_key->payload.data;
+	ekp = evm_key->payload.data[0];
 	if (ekp->decrypted_datalen > MAX_KEY_SIZE) {
 		rc = -EINVAL;
 		goto out;

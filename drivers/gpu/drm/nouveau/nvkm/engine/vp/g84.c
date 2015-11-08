@@ -22,72 +22,23 @@
  * Authors: Ben Skeggs, Ilia Mirkin
  */
 #include <engine/vp.h>
-#include <engine/xtensa.h>
 
-#include <core/engctx.h>
+#include <nvif/class.h>
 
-/*******************************************************************************
- * VP object classes
- ******************************************************************************/
-
-static struct nvkm_oclass
-g84_vp_sclass[] = {
-	{ 0x7476, &nvkm_object_ofuncs },
-	{},
+static const struct nvkm_xtensa_func
+g84_vp = {
+	.pmc_enable = 0x01020000,
+	.fifo_val = 0x111,
+	.unkd28 = 0x9c544,
+	.sclass = {
+		{ -1, -1, NV74_VP2 },
+		{}
+	}
 };
 
-/*******************************************************************************
- * PVP context
- ******************************************************************************/
-
-static struct nvkm_oclass
-g84_vp_cclass = {
-	.handle = NV_ENGCTX(VP, 0x84),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_xtensa_engctx_ctor,
-		.dtor = _nvkm_engctx_dtor,
-		.init = _nvkm_engctx_init,
-		.fini = _nvkm_engctx_fini,
-		.rd32 = _nvkm_engctx_rd32,
-		.wr32 = _nvkm_engctx_wr32,
-	},
-};
-
-/*******************************************************************************
- * PVP engine/subdev functions
- ******************************************************************************/
-
-static int
-g84_vp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	    struct nvkm_oclass *oclass, void *data, u32 size,
-	    struct nvkm_object **pobject)
+int
+g84_vp_new(struct nvkm_device *device, int index, struct nvkm_engine **pengine)
 {
-	struct nvkm_xtensa *priv;
-	int ret;
-
-	ret = nvkm_xtensa_create(parent, engine, oclass, 0xf000, true,
-				 "PVP", "vp", &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	nv_subdev(priv)->unit = 0x01020000;
-	nv_engine(priv)->cclass = &g84_vp_cclass;
-	nv_engine(priv)->sclass = g84_vp_sclass;
-	priv->fifo_val = 0x111;
-	priv->unkd28 = 0x9c544;
-	return 0;
+	return nvkm_xtensa_new_(&g84_vp, device, index,
+				true, 0x00f000, pengine);
 }
-
-struct nvkm_oclass
-g84_vp_oclass = {
-	.handle = NV_ENGINE(VP, 0x84),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = g84_vp_ctor,
-		.dtor = _nvkm_xtensa_dtor,
-		.init = _nvkm_xtensa_init,
-		.fini = _nvkm_xtensa_fini,
-		.rd32 = _nvkm_xtensa_rd32,
-		.wr32 = _nvkm_xtensa_wr32,
-	},
-};

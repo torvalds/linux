@@ -27,11 +27,12 @@
 /* Some fake data */
 
 static const s16 fakedata[] = {
-	[voltage0] = 7,
-	[diffvoltage1m2] = -33,
-	[diffvoltage3m4] = -2,
-	[accelx] = 344,
+	[DUMMY_INDEX_VOLTAGE_0] = 7,
+	[DUMMY_INDEX_DIFFVOLTAGE_1M2] = -33,
+	[DUMMY_INDEX_DIFFVOLTAGE_3M4] = -2,
+	[DUMMY_INDEX_ACCELX] = 344,
 };
+
 /**
  * iio_simple_dummy_trigger_h() - the trigger handler function
  * @irq: the interrupt number
@@ -50,7 +51,7 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 	u16 *data;
 
 	data = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
-	if (data == NULL)
+	if (!data)
 		goto done;
 
 	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength)) {
@@ -122,7 +123,7 @@ int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev)
 
 	/* Allocate a buffer to use - here a kfifo */
 	buffer = iio_kfifo_allocate();
-	if (buffer == NULL) {
+	if (!buffer) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
@@ -161,7 +162,7 @@ int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev)
 						 "iio_simple_dummy_consumer%d",
 						 indio_dev->id);
 
-	if (indio_dev->pollfunc == NULL) {
+	if (!indio_dev->pollfunc) {
 		ret = -ENOMEM;
 		goto error_free_buffer;
 	}
@@ -178,7 +179,6 @@ error_free_buffer:
 	iio_kfifo_free(indio_dev->buffer);
 error_ret:
 	return ret;
-
 }
 
 /**

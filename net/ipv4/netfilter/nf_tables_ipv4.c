@@ -18,24 +18,20 @@
 #include <net/ip.h>
 #include <net/netfilter/nf_tables_ipv4.h>
 
-static unsigned int nft_do_chain_ipv4(const struct nf_hook_ops *ops,
+static unsigned int nft_do_chain_ipv4(void *priv,
 				      struct sk_buff *skb,
-				      const struct net_device *in,
-				      const struct net_device *out,
-				      int (*okfn)(struct sk_buff *))
+				      const struct nf_hook_state *state)
 {
 	struct nft_pktinfo pkt;
 
-	nft_set_pktinfo_ipv4(&pkt, ops, skb, in, out);
+	nft_set_pktinfo_ipv4(&pkt, skb, state);
 
-	return nft_do_chain(&pkt, ops);
+	return nft_do_chain(&pkt, priv);
 }
 
-static unsigned int nft_ipv4_output(const struct nf_hook_ops *ops,
+static unsigned int nft_ipv4_output(void *priv,
 				    struct sk_buff *skb,
-				    const struct net_device *in,
-				    const struct net_device *out,
-				    int (*okfn)(struct sk_buff *))
+				    const struct nf_hook_state *state)
 {
 	if (unlikely(skb->len < sizeof(struct iphdr) ||
 		     ip_hdr(skb)->ihl < sizeof(struct iphdr) / 4)) {
@@ -45,7 +41,7 @@ static unsigned int nft_ipv4_output(const struct nf_hook_ops *ops,
 		return NF_ACCEPT;
 	}
 
-	return nft_do_chain_ipv4(ops, skb, in, out, okfn);
+	return nft_do_chain_ipv4(priv, skb, state);
 }
 
 struct nft_af_info nft_af_ipv4 __read_mostly = {

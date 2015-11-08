@@ -143,7 +143,8 @@ static int cx24110_readreg (struct cx24110_state* state, u8 reg)
 	return b1[0];
 }
 
-static int cx24110_set_inversion (struct cx24110_state* state, fe_spectral_inversion_t inversion)
+static int cx24110_set_inversion(struct cx24110_state *state,
+				 enum fe_spectral_inversion inversion)
 {
 /* fixme (low): error handling */
 
@@ -177,7 +178,7 @@ static int cx24110_set_inversion (struct cx24110_state* state, fe_spectral_inver
 	return 0;
 }
 
-static int cx24110_set_fec(struct cx24110_state* state, fe_code_rate_t fec)
+static int cx24110_set_fec(struct cx24110_state *state, enum fe_code_rate fec)
 {
 	static const int rate[FEC_AUTO] = {-1,    1,    2,    3,    5,    7, -1};
 	static const int g1[FEC_AUTO]   = {-1, 0x01, 0x02, 0x05, 0x15, 0x45, -1};
@@ -220,7 +221,7 @@ static int cx24110_set_fec(struct cx24110_state* state, fe_code_rate_t fec)
 	return 0;
 }
 
-static fe_code_rate_t cx24110_get_fec (struct cx24110_state* state)
+static enum fe_code_rate cx24110_get_fec(struct cx24110_state *state)
 {
 	int i;
 
@@ -365,7 +366,8 @@ static int cx24110_initfe(struct dvb_frontend* fe)
 	return 0;
 }
 
-static int cx24110_set_voltage (struct dvb_frontend* fe, fe_sec_voltage_t voltage)
+static int cx24110_set_voltage(struct dvb_frontend *fe,
+			       enum fe_sec_voltage voltage)
 {
 	struct cx24110_state *state = fe->demodulator_priv;
 
@@ -379,7 +381,8 @@ static int cx24110_set_voltage (struct dvb_frontend* fe, fe_sec_voltage_t voltag
 	}
 }
 
-static int cx24110_diseqc_send_burst(struct dvb_frontend* fe, fe_sec_mini_cmd_t burst)
+static int cx24110_diseqc_send_burst(struct dvb_frontend *fe,
+				     enum fe_sec_mini_cmd burst)
 {
 	int rv, bit;
 	struct cx24110_state *state = fe->demodulator_priv;
@@ -434,7 +437,8 @@ static int cx24110_send_diseqc_msg(struct dvb_frontend* fe,
 	return 0;
 }
 
-static int cx24110_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int cx24110_read_status(struct dvb_frontend *fe,
+			       enum fe_status *status)
 {
 	struct cx24110_state *state = fe->demodulator_priv;
 
@@ -574,7 +578,8 @@ static int cx24110_get_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int cx24110_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
+static int cx24110_set_tone(struct dvb_frontend *fe,
+			    enum fe_sec_tone_mode tone)
 {
 	struct cx24110_state *state = fe->demodulator_priv;
 

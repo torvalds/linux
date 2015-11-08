@@ -21,12 +21,6 @@
 #include "dfs_pri_detector.h"
 #include "ath.h"
 
-/*
- * tolerated deviation of radar time stamp in usecs on both sides
- * TODO: this might need to be HW-dependent
- */
-#define PRI_TOLERANCE	16
-
 /**
  * struct radar_types - contains array of patterns defined for one DFS domain
  * @domain: DFS regulatory domain
@@ -41,30 +35,31 @@ struct radar_types {
 
 /* percentage on ppb threshold to trigger detection */
 #define MIN_PPB_THRESH	50
-#define PPB_THRESH(PPB) ((PPB * MIN_PPB_THRESH + 50) / 100)
+#define PPB_THRESH_RATE(PPB, RATE) ((PPB * RATE + 100 - RATE) / 100)
+#define PPB_THRESH(PPB) PPB_THRESH_RATE(PPB, MIN_PPB_THRESH)
 #define PRF2PRI(PRF) ((1000000 + PRF / 2) / PRF)
 /* percentage of pulse width tolerance */
 #define WIDTH_TOLERANCE 5
 #define WIDTH_LOWER(X) ((X*(100-WIDTH_TOLERANCE)+50)/100)
 #define WIDTH_UPPER(X) ((X*(100+WIDTH_TOLERANCE)+50)/100)
 
-#define ETSI_PATTERN(ID, WMIN, WMAX, PMIN, PMAX, PRF, PPB)	\
+#define ETSI_PATTERN(ID, WMIN, WMAX, PMIN, PMAX, PRF, PPB, CHIRP)	\
 {								\
 	ID, WIDTH_LOWER(WMIN), WIDTH_UPPER(WMAX),		\
 	(PRF2PRI(PMAX) - PRI_TOLERANCE),			\
 	(PRF2PRI(PMIN) * PRF + PRI_TOLERANCE), PRF, PPB * PRF,	\
-	PPB_THRESH(PPB), PRI_TOLERANCE,				\
+	PPB_THRESH(PPB), PRI_TOLERANCE,	CHIRP			\
 }
 
 /* radar types as defined by ETSI EN-301-893 v1.5.1 */
 static const struct radar_detector_specs etsi_radar_ref_types_v15[] = {
-	ETSI_PATTERN(0,  0,  1,  700,  700, 1, 18),
-	ETSI_PATTERN(1,  0,  5,  200, 1000, 1, 10),
-	ETSI_PATTERN(2,  0, 15,  200, 1600, 1, 15),
-	ETSI_PATTERN(3,  0, 15, 2300, 4000, 1, 25),
-	ETSI_PATTERN(4, 20, 30, 2000, 4000, 1, 20),
-	ETSI_PATTERN(5,  0,  2,  300,  400, 3, 10),
-	ETSI_PATTERN(6,  0,  2,  400, 1200, 3, 15),
+	ETSI_PATTERN(0,  0,  1,  700,  700, 1, 18, false),
+	ETSI_PATTERN(1,  0,  5,  200, 1000, 1, 10, false),
+	ETSI_PATTERN(2,  0, 15,  200, 1600, 1, 15, false),
+	ETSI_PATTERN(3,  0, 15, 2300, 4000, 1, 25, false),
+	ETSI_PATTERN(4, 20, 30, 2000, 4000, 1, 20, false),
+	ETSI_PATTERN(5,  0,  2,  300,  400, 3, 10, false),
+	ETSI_PATTERN(6,  0,  2,  400, 1200, 3, 15, false),
 };
 
 static const struct radar_types etsi_radar_types_v15 = {
@@ -73,21 +68,30 @@ static const struct radar_types etsi_radar_types_v15 = {
 	.radar_types		= etsi_radar_ref_types_v15,
 };
 
-#define FCC_PATTERN(ID, WMIN, WMAX, PMIN, PMAX, PRF, PPB)	\
+#define FCC_PATTERN(ID, WMIN, WMAX, PMIN, PMAX, PRF, PPB, CHIRP)	\
 {								\
 	ID, WIDTH_LOWER(WMIN), WIDTH_UPPER(WMAX),		\
 	PMIN - PRI_TOLERANCE,					\
 	PMAX * PRF + PRI_TOLERANCE, PRF, PPB * PRF,		\
-	PPB_THRESH(PPB), PRI_TOLERANCE,				\
+	PPB_THRESH(PPB), PRI_TOLERANCE,	CHIRP			\
 }
 
+/* radar types released on August 14, 2014
+ * type 1 PRI values randomly selected within the range of 518 and 3066.
+ * divide it to 3 groups is good enough for both of radar detection and
+ * avoiding false detection based on practical test results
+ * collected for more than a year.
+ */
 static const struct radar_detector_specs fcc_radar_ref_types[] = {
-	FCC_PATTERN(0, 0, 1, 1428, 1428, 1, 18),
-	FCC_PATTERN(1, 0, 5, 150, 230, 1, 23),
-	FCC_PATTERN(2, 6, 10, 200, 500, 1, 16),
-	FCC_PATTERN(3, 11, 20, 200, 500, 1, 12),
-	FCC_PATTERN(4, 50, 100, 1000, 2000, 1, 1),
-	FCC_PATTERN(5, 0, 1, 333, 333, 1, 9),
+	FCC_PATTERN(0, 0, 1, 1428, 1428, 1, 18, false),
+	FCC_PATTERN(101, 0, 1, 518, 938, 1, 57, false),
+	FCC_PATTERN(102, 0, 1, 938, 2000, 1, 27, false),
+	FCC_PATTERN(103, 0, 1, 2000, 3066, 1, 18, false),
+	FCC_PATTERN(2, 0, 5, 150, 230, 1, 23, false),
+	FCC_PATTERN(3, 6, 10, 200, 500, 1, 16, false),
+	FCC_PATTERN(4, 11, 20, 200, 500, 1, 12, false),
+	FCC_PATTERN(5, 50, 100, 1000, 2000, 1, 1, true),
+	FCC_PATTERN(6, 0, 1, 333, 333, 1, 9, false),
 };
 
 static const struct radar_types fcc_radar_types = {
@@ -96,17 +100,23 @@ static const struct radar_types fcc_radar_types = {
 	.radar_types		= fcc_radar_ref_types,
 };
 
-#define JP_PATTERN FCC_PATTERN
+#define JP_PATTERN(ID, WMIN, WMAX, PMIN, PMAX, PRF, PPB, RATE, CHIRP)	\
+{								\
+	ID, WIDTH_LOWER(WMIN), WIDTH_UPPER(WMAX),		\
+	PMIN - PRI_TOLERANCE,					\
+	PMAX * PRF + PRI_TOLERANCE, PRF, PPB * PRF,		\
+	PPB_THRESH_RATE(PPB, RATE), PRI_TOLERANCE, CHIRP	\
+}
 static const struct radar_detector_specs jp_radar_ref_types[] = {
-	JP_PATTERN(0, 0, 1, 1428, 1428, 1, 18),
-	JP_PATTERN(1, 2, 3, 3846, 3846, 1, 18),
-	JP_PATTERN(2, 0, 1, 1388, 1388, 1, 18),
-	JP_PATTERN(3, 1, 2, 4000, 4000, 1, 18),
-	JP_PATTERN(4, 0, 5, 150, 230, 1, 23),
-	JP_PATTERN(5, 6, 10, 200, 500, 1, 16),
-	JP_PATTERN(6, 11, 20, 200, 500, 1, 12),
-	JP_PATTERN(7, 50, 100, 1000, 2000, 1, 20),
-	JP_PATTERN(5, 0, 1, 333, 333, 1, 9),
+	JP_PATTERN(0, 0, 1, 1428, 1428, 1, 18, 29, false),
+	JP_PATTERN(1, 2, 3, 3846, 3846, 1, 18, 29, false),
+	JP_PATTERN(2, 0, 1, 1388, 1388, 1, 18, 50, false),
+	JP_PATTERN(3, 1, 2, 4000, 4000, 1, 18, 50, false),
+	JP_PATTERN(4, 0, 5, 150, 230, 1, 23, 50, false),
+	JP_PATTERN(5, 6, 10, 200, 500, 1, 16, 50, false),
+	JP_PATTERN(6, 11, 20, 200, 500, 1, 12, 50, false),
+	JP_PATTERN(7, 50, 100, 1000, 2000, 1, 3, 50, false),
+	JP_PATTERN(5, 0, 1, 333, 333, 1, 9, 50, false),
 };
 
 static const struct radar_types jp_radar_types = {
@@ -274,10 +284,10 @@ dpd_add_pulse(struct dfs_pattern_detector *dpd, struct pulse_event *event)
 	if (cd == NULL)
 		return false;
 
-	dpd->last_pulse_ts = event->ts;
 	/* reset detector on time stamp wraparound, caused by TSF reset */
 	if (event->ts < dpd->last_pulse_ts)
 		dpd_reset(dpd);
+	dpd->last_pulse_ts = event->ts;
 
 	/* do type individual pattern matching */
 	for (i = 0; i < dpd->num_radar_types; i++) {
@@ -289,7 +299,7 @@ dpd_add_pulse(struct dfs_pattern_detector *dpd, struct pulse_event *event)
 				"count=%d, count_false=%d\n",
 				event->freq, pd->rs->type_id,
 				ps->pri, ps->count, ps->count_falses);
-			channel_detector_reset(dpd, cd);
+			pd->reset(pd, dpd->last_pulse_ts);
 			return true;
 		}
 	}

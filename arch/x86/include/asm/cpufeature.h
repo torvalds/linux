@@ -12,7 +12,7 @@
 #include <asm/disabled-features.h>
 #endif
 
-#define NCAPINTS	11	/* N 32-bit words worth of info */
+#define NCAPINTS	14	/* N 32-bit words worth of info */
 #define NBUGINTS	1	/* N 32-bit bug flags */
 
 /*
@@ -119,6 +119,7 @@
 #define X86_FEATURE_TM2		( 4*32+ 8) /* Thermal Monitor 2 */
 #define X86_FEATURE_SSSE3	( 4*32+ 9) /* Supplemental SSE-3 */
 #define X86_FEATURE_CID		( 4*32+10) /* Context ID */
+#define X86_FEATURE_SDBG	( 4*32+11) /* Silicon Debug */
 #define X86_FEATURE_FMA		( 4*32+12) /* Fused multiply-add */
 #define X86_FEATURE_CX16	( 4*32+13) /* CMPXCHG16B */
 #define X86_FEATURE_XTPR	( 4*32+14) /* Send Task Priority Messages */
@@ -176,6 +177,7 @@
 #define X86_FEATURE_PERFCTR_NB  ( 6*32+24) /* NB performance counter extensions */
 #define X86_FEATURE_BPEXT	(6*32+26) /* data breakpoint extension */
 #define X86_FEATURE_PERFCTR_L2	( 6*32+28) /* L2 performance counter extensions */
+#define X86_FEATURE_MWAITX	( 6*32+29) /* MWAIT extension (MONITORX/MWAITX) */
 
 /*
  * Auxiliary flags: Linux defined - For features scattered in various
@@ -191,10 +193,11 @@
 #define X86_FEATURE_HW_PSTATE	( 7*32+ 8) /* AMD HW-PState */
 #define X86_FEATURE_PROC_FEEDBACK ( 7*32+ 9) /* AMD ProcFeedbackInterface */
 #define X86_FEATURE_HWP		( 7*32+ 10) /* "hwp" Intel HWP */
-#define X86_FEATURE_HWP_NOITFY	( 7*32+ 11) /* Intel HWP_NOTIFY */
+#define X86_FEATURE_HWP_NOTIFY	( 7*32+ 11) /* Intel HWP_NOTIFY */
 #define X86_FEATURE_HWP_ACT_WINDOW ( 7*32+ 12) /* Intel HWP_ACT_WINDOW */
 #define X86_FEATURE_HWP_EPP	( 7*32+13) /* Intel HWP_EPP */
 #define X86_FEATURE_HWP_PKG_REQ ( 7*32+14) /* Intel HWP_PKG_REQ */
+#define X86_FEATURE_INTEL_PT	( 7*32+15) /* Intel Processor Trace */
 
 /* Virtualization flags: Linux defined, word 8 */
 #define X86_FEATURE_TPR_SHADOW  ( 8*32+ 0) /* Intel TPR Shadow */
@@ -226,21 +229,34 @@
 #define X86_FEATURE_ERMS	( 9*32+ 9) /* Enhanced REP MOVSB/STOSB */
 #define X86_FEATURE_INVPCID	( 9*32+10) /* Invalidate Processor Context ID */
 #define X86_FEATURE_RTM		( 9*32+11) /* Restricted Transactional Memory */
+#define X86_FEATURE_CQM		( 9*32+12) /* Cache QoS Monitoring */
 #define X86_FEATURE_MPX		( 9*32+14) /* Memory Protection Extension */
 #define X86_FEATURE_AVX512F	( 9*32+16) /* AVX-512 Foundation */
 #define X86_FEATURE_RDSEED	( 9*32+18) /* The RDSEED instruction */
 #define X86_FEATURE_ADX		( 9*32+19) /* The ADCX and ADOX instructions */
 #define X86_FEATURE_SMAP	( 9*32+20) /* Supervisor Mode Access Prevention */
+#define X86_FEATURE_PCOMMIT	( 9*32+22) /* PCOMMIT instruction */
 #define X86_FEATURE_CLFLUSHOPT	( 9*32+23) /* CLFLUSHOPT instruction */
+#define X86_FEATURE_CLWB	( 9*32+24) /* CLWB instruction */
 #define X86_FEATURE_AVX512PF	( 9*32+26) /* AVX-512 Prefetch */
 #define X86_FEATURE_AVX512ER	( 9*32+27) /* AVX-512 Exponential and Reciprocal */
 #define X86_FEATURE_AVX512CD	( 9*32+28) /* AVX-512 Conflict Detection */
+#define X86_FEATURE_SHA_NI	( 9*32+29) /* SHA1/SHA256 Instruction Extensions */
 
 /* Extended state features, CPUID level 0x0000000d:1 (eax), word 10 */
 #define X86_FEATURE_XSAVEOPT	(10*32+ 0) /* XSAVEOPT */
 #define X86_FEATURE_XSAVEC	(10*32+ 1) /* XSAVEC */
 #define X86_FEATURE_XGETBV1	(10*32+ 2) /* XGETBV with ECX = 1 */
 #define X86_FEATURE_XSAVES	(10*32+ 3) /* XSAVES/XRSTORS */
+
+/* Intel-defined CPU QoS Sub-leaf, CPUID level 0x0000000F:0 (edx), word 11 */
+#define X86_FEATURE_CQM_LLC	(11*32+ 1) /* LLC QoS if 1 */
+
+/* Intel-defined CPU QoS Sub-leaf, CPUID level 0x0000000F:1 (edx), word 12 */
+#define X86_FEATURE_CQM_OCCUP_LLC (12*32+ 0) /* LLC occupancy monitoring if 1 */
+
+/* AMD-defined CPU features, CPUID level 0x80000008 (ebx), word 13 */
+#define X86_FEATURE_CLZERO	(13*32+0) /* CLZERO instruction */
 
 /*
  * BUG word(s)
@@ -255,6 +271,7 @@
 #define X86_BUG_11AP		X86_BUG(5) /* Bad local APIC aka 11AP */
 #define X86_BUG_FXSAVE_LEAK	X86_BUG(6) /* FXSAVE leaks FOP/FIP/FOP */
 #define X86_BUG_CLFLUSH_MONITOR	X86_BUG(7) /* AAI65, CLFLUSH required before MONITOR */
+#define X86_BUG_SYSRET_SS_ATTRS	X86_BUG(8) /* SYSRET doesn't fix up SS attrs */
 
 #if defined(__KERNEL__) && !defined(__ASSEMBLY__)
 
@@ -418,6 +435,7 @@ static __always_inline __pure bool __static_cpu_has(u16 bit)
 			 " .word %P0\n"		/* 1: do replace */
 			 " .byte 2b - 1b\n"	/* source len */
 			 " .byte 0\n"		/* replacement len */
+			 " .byte 0\n"		/* pad len */
 			 ".previous\n"
 			 /* skipping size check since replacement size = 0 */
 			 : : "i" (X86_FEATURE_ALWAYS) : : t_warn);
@@ -432,6 +450,7 @@ static __always_inline __pure bool __static_cpu_has(u16 bit)
 			 " .word %P0\n"		/* feature bit */
 			 " .byte 2b - 1b\n"	/* source len */
 			 " .byte 0\n"		/* replacement len */
+			 " .byte 0\n"		/* pad len */
 			 ".previous\n"
 			 /* skipping size check since replacement size = 0 */
 			 : : "i" (bit) : : t_no);
@@ -457,6 +476,7 @@ static __always_inline __pure bool __static_cpu_has(u16 bit)
 			     " .word %P1\n"		/* feature bit */
 			     " .byte 2b - 1b\n"		/* source len */
 			     " .byte 4f - 3f\n"		/* replacement len */
+			     " .byte 0\n"		/* pad len */
 			     ".previous\n"
 			     ".section .discard,\"aw\",@progbits\n"
 			     " .byte 0xff + (4f-3f) - (2b-1b)\n" /* size check */
@@ -483,31 +503,30 @@ static __always_inline __pure bool __static_cpu_has(u16 bit)
 static __always_inline __pure bool _static_cpu_has_safe(u16 bit)
 {
 #ifdef CC_HAVE_ASM_GOTO
-/*
- * We need to spell the jumps to the compiler because, depending on the offset,
- * the replacement jump can be bigger than the original jump, and this we cannot
- * have. Thus, we force the jump to the widest, 4-byte, signed relative
- * offset even though the last would often fit in less bytes.
- */
-		asm_volatile_goto("1: .byte 0xe9\n .long %l[t_dynamic] - 2f\n"
+		asm_volatile_goto("1: jmp %l[t_dynamic]\n"
 			 "2:\n"
+			 ".skip -(((5f-4f) - (2b-1b)) > 0) * "
+			         "((5f-4f) - (2b-1b)),0x90\n"
+			 "3:\n"
 			 ".section .altinstructions,\"a\"\n"
 			 " .long 1b - .\n"		/* src offset */
-			 " .long 3f - .\n"		/* repl offset */
+			 " .long 4f - .\n"		/* repl offset */
 			 " .word %P1\n"			/* always replace */
-			 " .byte 2b - 1b\n"		/* src len */
-			 " .byte 4f - 3f\n"		/* repl len */
+			 " .byte 3b - 1b\n"		/* src len */
+			 " .byte 5f - 4f\n"		/* repl len */
+			 " .byte 3b - 2b\n"		/* pad len */
 			 ".previous\n"
 			 ".section .altinstr_replacement,\"ax\"\n"
-			 "3: .byte 0xe9\n .long %l[t_no] - 2b\n"
-			 "4:\n"
+			 "4: jmp %l[t_no]\n"
+			 "5:\n"
 			 ".previous\n"
 			 ".section .altinstructions,\"a\"\n"
 			 " .long 1b - .\n"		/* src offset */
 			 " .long 0\n"			/* no replacement */
 			 " .word %P0\n"			/* feature bit */
-			 " .byte 2b - 1b\n"		/* src len */
+			 " .byte 3b - 1b\n"		/* src len */
 			 " .byte 0\n"			/* repl len */
+			 " .byte 0\n"			/* pad len */
 			 ".previous\n"
 			 : : "i" (bit), "i" (X86_FEATURE_ALWAYS)
 			 : : t_dynamic, t_no);
@@ -527,6 +546,7 @@ static __always_inline __pure bool _static_cpu_has_safe(u16 bit)
 			     " .word %P2\n"		/* always replace */
 			     " .byte 2b - 1b\n"		/* source len */
 			     " .byte 4f - 3f\n"		/* replacement len */
+			     " .byte 0\n"		/* pad len */
 			     ".previous\n"
 			     ".section .discard,\"aw\",@progbits\n"
 			     " .byte 0xff + (4f-3f) - (2b-1b)\n" /* size check */
@@ -541,6 +561,7 @@ static __always_inline __pure bool _static_cpu_has_safe(u16 bit)
 			     " .word %P1\n"		/* feature bit */
 			     " .byte 4b - 3b\n"		/* src len */
 			     " .byte 6f - 5f\n"		/* repl len */
+			     " .byte 0\n"		/* pad len */
 			     ".previous\n"
 			     ".section .discard,\"aw\",@progbits\n"
 			     " .byte 0xff + (6f-5f) - (4b-3b)\n" /* size check */

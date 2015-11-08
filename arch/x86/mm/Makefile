@@ -14,7 +14,7 @@ obj-$(CONFIG_SMP)		+= tlb.o
 obj-$(CONFIG_X86_32)		+= pgtable_32.o iomap_32.o
 
 obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
-obj-$(CONFIG_X86_PTDUMP)	+= dump_pagetables.o
+obj-$(CONFIG_X86_PTDUMP_CORE)	+= dump_pagetables.o
 
 obj-$(CONFIG_HIGHMEM)		+= highmem_32.o
 
@@ -31,7 +31,5 @@ obj-$(CONFIG_NUMA)		+= numa.o numa_$(BITS).o
 obj-$(CONFIG_AMD_NUMA)		+= amdtopology.o
 obj-$(CONFIG_ACPI_NUMA)		+= srat.o
 obj-$(CONFIG_NUMA_EMU)		+= numa_emulation.o
-
-obj-$(CONFIG_MEMTEST)		+= memtest.o
 
 obj-$(CONFIG_X86_INTEL_MPX)	+= mpx.o

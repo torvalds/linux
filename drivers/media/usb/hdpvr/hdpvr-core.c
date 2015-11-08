@@ -69,10 +69,6 @@ MODULE_DEVICE_TABLE(usb, hdpvr_table);
 void hdpvr_delete(struct hdpvr_device *dev)
 {
 	hdpvr_free_buffers(dev);
-
-	if (dev->video_dev)
-		video_device_release(dev->video_dev);
-
 	usb_put_dev(dev->udev);
 }
 
@@ -397,7 +393,7 @@ static int hdpvr_probe(struct usb_interface *interface,
 
 	/* let the user know what node this device is now attached to */
 	v4l2_info(&dev->v4l2_dev, "device now attached to %s\n",
-		  video_device_node_name(dev->video_dev));
+		  video_device_node_name(&dev->video_dev));
 	return 0;
 
 reg_fail:
@@ -420,7 +416,7 @@ static void hdpvr_disconnect(struct usb_interface *interface)
 	struct hdpvr_device *dev = to_hdpvr_dev(usb_get_intfdata(interface));
 
 	v4l2_info(&dev->v4l2_dev, "device %s disconnected\n",
-		  video_device_node_name(dev->video_dev));
+		  video_device_node_name(&dev->video_dev));
 	/* prevent more I/O from starting and stop any ongoing */
 	mutex_lock(&dev->io_mutex);
 	dev->status = STATUS_DISCONNECTED;
@@ -436,7 +432,7 @@ static void hdpvr_disconnect(struct usb_interface *interface)
 #if IS_ENABLED(CONFIG_I2C)
 	i2c_del_adapter(&dev->i2c_adapter);
 #endif
-	video_unregister_device(dev->video_dev);
+	video_unregister_device(&dev->video_dev);
 	atomic_dec(&dev_nr);
 }
 

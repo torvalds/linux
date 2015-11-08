@@ -13,7 +13,7 @@ and NOT read it.  Burn them, it's a great symbolic gesture.
 Anyway, here goes:
 
 
-	 	Chapter 1: Indentation
+		Chapter 1: Indentation
 
 Tabs are 8 characters, and thus indentations are also 8 characters.
 There are heretic movements that try to make indentations 4 (or even 2!)
@@ -55,7 +55,6 @@ instead of "double-indenting" the "case" labels.  E.g.:
 	default:
 		break;
 	}
-
 
 Don't put multiple statements on a single line unless you have
 something to hide:
@@ -156,25 +155,25 @@ comments on.
 
 Do not unnecessarily use braces where a single statement will do.
 
-if (condition)
-	action();
+	if (condition)
+		action();
 
 and
 
-if (condition)
-	do_this();
-else
-	do_that();
+	if (condition)
+		do_this();
+	else
+		do_that();
 
 This does not apply if only one branch of a conditional statement is a single
 statement; in the latter case use braces in both branches:
 
-if (condition) {
-	do_this();
-	do_that();
-} else {
-	otherwise();
-}
+	if (condition) {
+		do_this();
+		do_that();
+	} else {
+		otherwise();
+	}
 
 		3.1:  Spaces
 
@@ -186,8 +185,11 @@ although they are not required in the language, as in: "sizeof info" after
 "struct fileinfo info;" is declared).
 
 So use a space after these keywords:
+
 	if, switch, case, for, do, while
+
 but not with sizeof, typeof, alignof, or __attribute__.  E.g.,
+
 	s = sizeof(struct file);
 
 Do not add spaces around (inside) parenthesized expressions.  This example is
@@ -209,12 +211,15 @@ such as any of these:
 	=  +  -  <  >  *  /  %  |  &  ^  <=  >=  ==  !=  ?  :
 
 but no space after unary operators:
+
 	&  *  +  -  ~  !  sizeof  typeof  alignof  __attribute__  defined
 
 no space before the postfix increment & decrement unary operators:
+
 	++  --
 
 no space after the prefix increment & decrement unary operators:
+
 	++  --
 
 and no space around the '.' and "->" structure member operators.
@@ -268,13 +273,11 @@ See chapter 6 (Functions).
 		Chapter 5: Typedefs
 
 Please don't use things like "vps_t".
-
 It's a _mistake_ to use typedef for structures and pointers. When you see a
 
 	vps_t a;
 
 in the source, what does it mean?
-
 In contrast, if it says
 
 	struct virtual_container *a;
@@ -372,11 +375,11 @@ In source files, separate functions with one blank line.  If the function is
 exported, the EXPORT* macro for it should follow immediately after the closing
 function brace line.  E.g.:
 
-int system_is_up(void)
-{
-	return system_state == SYSTEM_RUNNING;
-}
-EXPORT_SYMBOL(system_is_up);
+	int system_is_up(void)
+	{
+		return system_state == SYSTEM_RUNNING;
+	}
+	EXPORT_SYMBOL(system_is_up);
 
 In function prototypes, include parameter names with their data types.
 Although this is not required by the C language, it is preferred in Linux
@@ -405,34 +408,34 @@ The rationale for using gotos is:
     modifications are prevented
 - saves the compiler work to optimize redundant code away ;)
 
-int fun(int a)
-{
-	int result = 0;
-	char *buffer;
+	int fun(int a)
+	{
+		int result = 0;
+		char *buffer;
 
-	buffer = kmalloc(SIZE, GFP_KERNEL);
-	if (!buffer)
-		return -ENOMEM;
+		buffer = kmalloc(SIZE, GFP_KERNEL);
+		if (!buffer)
+			return -ENOMEM;
 
-	if (condition1) {
-		while (loop1) {
-			...
+		if (condition1) {
+			while (loop1) {
+				...
+			}
+			result = 1;
+			goto out_buffer;
 		}
-		result = 1;
-		goto out_buffer;
+		...
+	out_buffer:
+		kfree(buffer);
+		return result;
 	}
-	...
-out_buffer:
-	kfree(buffer);
-	return result;
-}
 
 A common type of bug to be aware of it "one err bugs" which look like this:
 
-err:
-	kfree(foo->bar);
-	kfree(foo);
-	return ret;
+	err:
+		kfree(foo->bar);
+		kfree(foo);
+		return ret;
 
 The bug in this code is that on some exit paths "foo" is NULL.  Normally the
 fix for this is to split it up into two error labels "err_bar:" and "err_foo:".
@@ -503,9 +506,9 @@ values.  To do the latter, you can stick the following in your .emacs file:
 (defun c-lineup-arglist-tabs-only (ignored)
   "Line up argument lists by tabs, not spaces"
   (let* ((anchor (c-langelem-pos c-syntactic-element))
-	 (column (c-langelem-2nd-pos c-syntactic-element))
-	 (offset (- (1+ column) anchor))
-	 (steps (floor offset c-basic-offset)))
+         (column (c-langelem-2nd-pos c-syntactic-element))
+         (offset (- (1+ column) anchor))
+         (steps (floor offset c-basic-offset)))
     (* (max steps 1)
        c-basic-offset)))
 
@@ -612,7 +615,7 @@ have a reference count on it, you almost certainly have a bug.
 
 Names of macros defining constants and labels in enums are capitalized.
 
-#define CONSTANT 0x12345
+	#define CONSTANT 0x12345
 
 Enums are preferred when defining several related constants.
 
@@ -623,28 +626,28 @@ Generally, inline functions are preferable to macros resembling functions.
 
 Macros with multiple statements should be enclosed in a do - while block:
 
-#define macrofun(a, b, c) 			\
-	do {					\
-		if (a == 5)			\
-			do_this(b, c);		\
-	} while (0)
+	#define macrofun(a, b, c) 			\
+		do {					\
+			if (a == 5)			\
+				do_this(b, c);		\
+		} while (0)
 
 Things to avoid when using macros:
 
 1) macros that affect control flow:
 
-#define FOO(x)					\
-	do {					\
-		if (blah(x) < 0)		\
-			return -EBUGGERED;	\
-	} while(0)
+	#define FOO(x)					\
+		do {					\
+			if (blah(x) < 0)		\
+				return -EBUGGERED;	\
+		} while(0)
 
 is a _very_ bad idea.  It looks like a function call but exits the "calling"
 function; don't break the internal parsers of those who will read the code.
 
 2) macros that depend on having a local variable with a magic name:
 
-#define FOO(val) bar(index, val)
+	#define FOO(val) bar(index, val)
 
 might look like a good thing, but it's confusing as hell when one reads the
 code and it's prone to breakage from seemingly innocent changes.
@@ -656,8 +659,21 @@ bite you if somebody e.g. turns FOO into an inline function.
 must enclose the expression in parentheses. Beware of similar issues with
 macros using parameters.
 
-#define CONSTANT 0x4000
-#define CONSTEXP (CONSTANT | 3)
+	#define CONSTANT 0x4000
+	#define CONSTEXP (CONSTANT | 3)
+
+5) namespace collisions when defining local variables in macros resembling
+functions:
+
+#define FOO(x)				\
+({					\
+	typeof(x) ret;			\
+	ret = calc_ret(x);		\
+	(ret);				\
+})
+
+ret is a common name for a local variable - __foo_ret is less likely
+to collide with an existing variable.
 
 The cpp manual deals with macros exhaustively. The gcc internals manual also
 covers RTL which is used frequently with assembly language in the kernel.
@@ -796,11 +812,11 @@ you should use, rather than explicitly coding some variant of them yourself.
 For example, if you need to calculate the length of an array, take advantage
 of the macro
 
-  #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+	#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 Similarly, if you need to calculate the size of some structure member, use
 
-  #define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
+	#define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
 
 There are also min() and max() macros that do strict type checking if you
 need them.  Feel free to peruse that header file to see what else is already
@@ -813,19 +829,19 @@ Some editors can interpret configuration information embedded in source files,
 indicated with special markers.  For example, emacs interprets lines marked
 like this:
 
--*- mode: c -*-
+	-*- mode: c -*-
 
 Or like this:
 
-/*
-Local Variables:
-compile-command: "gcc -DMAGIC_DEBUG_FLAG foo.c"
-End:
-*/
+	/*
+	Local Variables:
+	compile-command: "gcc -DMAGIC_DEBUG_FLAG foo.c"
+	End:
+	*/
 
 Vim interprets markers that look like this:
 
-/* vim:set sw=8 noet */
+	/* vim:set sw=8 noet */
 
 Do not include any of these in source files.  People have their own personal
 editor configurations, and your source files should not override them.  This
@@ -902,9 +918,9 @@ At the end of any non-trivial #if or #ifdef block (more than a few lines),
 place a comment after the #endif on the same line, noting the conditional
 expression used.  For instance:
 
-#ifdef CONFIG_SOMETHING
-...
-#endif /* CONFIG_SOMETHING */
+	#ifdef CONFIG_SOMETHING
+	...
+	#endif /* CONFIG_SOMETHING */
 
 
 		Appendix I: References
@@ -913,13 +929,11 @@ The C Programming Language, Second Edition
 by Brian W. Kernighan and Dennis M. Ritchie.
 Prentice Hall, Inc., 1988.
 ISBN 0-13-110362-8 (paperback), 0-13-110370-9 (hardback).
-URL: http://cm.bell-labs.com/cm/cs/cbook/
 
 The Practice of Programming
 by Brian W. Kernighan and Rob Pike.
 Addison-Wesley, Inc., 1999.
 ISBN 0-201-61586-X.
-URL: http://cm.bell-labs.com/cm/cs/tpop/
 
 GNU manuals - where in compliance with K&R and this text - for cpp, gcc,
 gcc internals and indent, all available from http://www.gnu.org/manual/

@@ -48,13 +48,6 @@ eeprom_93xx46_bin_read(struct file *filp, struct kobject *kobj,
 	dev = container_of(kobj, struct device, kobj);
 	edev = dev_get_drvdata(dev);
 
-	if (unlikely(off >= edev->bin.size))
-		return 0;
-	if ((off + count) > edev->bin.size)
-		count = edev->bin.size - off;
-	if (unlikely(!count))
-		return count;
-
 	cmd_addr = OP_READ << edev->addrlen;
 
 	if (edev->addrlen == 7) {
@@ -199,13 +192,6 @@ eeprom_93xx46_bin_write(struct file *filp, struct kobject *kobj,
 
 	dev = container_of(kobj, struct device, kobj);
 	edev = dev_get_drvdata(dev);
-
-	if (unlikely(off >= edev->bin.size))
-		return -EFBIG;
-	if ((off + count) > edev->bin.size)
-		count = edev->bin.size - off;
-	if (unlikely(!count))
-		return count;
 
 	/* only write even number of bytes on 16-bit devices */
 	if (edev->addrlen == 6) {
@@ -384,7 +370,6 @@ static int eeprom_93xx46_remove(struct spi_device *spi)
 static struct spi_driver eeprom_93xx46_driver = {
 	.driver = {
 		.name	= "93xx46",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= eeprom_93xx46_probe,
 	.remove		= eeprom_93xx46_remove,

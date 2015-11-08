@@ -47,6 +47,7 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_pack.h>
 #include <net/ipv6.h>
+#include <net/net_namespace.h>
 
 struct rdma_addr_client {
 	atomic_t refcount;
@@ -64,6 +65,16 @@ void rdma_addr_register_client(struct rdma_addr_client *client);
  */
 void rdma_addr_unregister_client(struct rdma_addr_client *client);
 
+/**
+ * struct rdma_dev_addr - Contains resolved RDMA hardware addresses
+ * @src_dev_addr:	Source MAC address.
+ * @dst_dev_addr:	Destination MAC address.
+ * @broadcast:		Broadcast address of the device.
+ * @dev_type:		The interface hardware type of the device.
+ * @bound_dev_if:	An optional device interface index.
+ * @transport:		The transport type used.
+ * @net:		Network namespace containing the bound_dev_if net_dev.
+ */
 struct rdma_dev_addr {
 	unsigned char src_dev_addr[MAX_ADDR_LEN];
 	unsigned char dst_dev_addr[MAX_ADDR_LEN];
@@ -71,11 +82,14 @@ struct rdma_dev_addr {
 	unsigned short dev_type;
 	int bound_dev_if;
 	enum rdma_transport_type transport;
+	struct net *net;
 };
 
 /**
  * rdma_translate_ip - Translate a local IP address to an RDMA hardware
  *   address.
+ *
+ * The dev_addr->net field must be initialized.
  */
 int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr,
 		      u16 *vlan_id);
@@ -90,7 +104,7 @@ int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr,
  * @dst_addr: The destination address to resolve.
  * @addr: A reference to a data location that will receive the resolved
  *   addresses.  The data location must remain valid until the callback has
- *   been invoked.
+ *   been invoked. The net field of the addr struct must be valid.
  * @timeout_ms: Amount of time to wait for the address resolution to complete.
  * @callback: Call invoked once address resolution has completed, timed out,
  *   or been canceled.  A status of 0 indicates success.
@@ -111,8 +125,8 @@ int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
 int rdma_addr_size(struct sockaddr *addr);
 
 int rdma_addr_find_smac_by_sgid(union ib_gid *sgid, u8 *smac, u16 *vlan_id);
-int rdma_addr_find_dmac_by_grh(union ib_gid *sgid, union ib_gid *dgid, u8 *smac,
-			       u16 *vlan_id);
+int rdma_addr_find_dmac_by_grh(const union ib_gid *sgid, const union ib_gid *dgid,
+			       u8 *smac, u16 *vlan_id, int if_index);
 
 static inline u16 ib_addr_get_pkey(struct rdma_dev_addr *dev_addr)
 {
@@ -160,7 +174,7 @@ static inline int rdma_ip2gid(struct sockaddr *addr, union ib_gid *gid)
 }
 
 /* Important - sockaddr should be a union of sockaddr_in and sockaddr_in6 */
-static inline int rdma_gid2ip(struct sockaddr *out, union ib_gid *gid)
+static inline void rdma_gid2ip(struct sockaddr *out, const union ib_gid *gid)
 {
 	if (ipv6_addr_v4mapped((struct in6_addr *)gid)) {
 		struct sockaddr_in *out_in = (struct sockaddr_in *)out;
@@ -173,7 +187,6 @@ static inline int rdma_gid2ip(struct sockaddr *out, union ib_gid *gid)
 		out_in->sin6_family = AF_INET6;
 		memcpy(&out_in->sin6_addr.s6_addr, gid->raw, 16);
 	}
-	return 0;
 }
 
 static inline void iboe_addr_get_sgid(struct rdma_dev_addr *dev_addr,

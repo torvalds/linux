@@ -131,7 +131,7 @@ nv84_fence_context_del(struct nouveau_channel *chan)
 int
 nv84_fence_context_new(struct nouveau_channel *chan)
 {
-	struct nouveau_cli *cli = (void *)nvif_client(&chan->device->base);
+	struct nouveau_cli *cli = (void *)chan->user.client;
 	struct nv84_fence_priv *priv = chan->drm->fence;
 	struct nv84_fence_chan *fctx;
 	int ret, i;
@@ -213,8 +213,9 @@ nv84_fence_destroy(struct nouveau_drm *drm)
 int
 nv84_fence_create(struct nouveau_drm *drm)
 {
-	struct nvkm_fifo *pfifo = nvxx_fifo(&drm->device);
+	struct nvkm_fifo *fifo = nvxx_fifo(&drm->device);
 	struct nv84_fence_priv *priv;
+	u32 domain;
 	int ret;
 
 	priv = drm->fence = kzalloc(sizeof(*priv), GFP_KERNEL);
@@ -227,14 +228,21 @@ nv84_fence_create(struct nouveau_drm *drm)
 	priv->base.context_new = nv84_fence_context_new;
 	priv->base.context_del = nv84_fence_context_del;
 
-	priv->base.contexts = pfifo->max + 1;
+	priv->base.contexts = fifo->nr;
 	priv->base.context_base = fence_context_alloc(priv->base.contexts);
 	priv->base.uevent = true;
 
-	ret = nouveau_bo_new(drm->dev, 16 * priv->base.contexts, 0,
-			     TTM_PL_FLAG_VRAM, 0, 0, NULL, NULL, &priv->bo);
+	/* Use VRAM if there is any ; otherwise fallback to system memory */
+	domain = drm->device.info.ram_size != 0 ? TTM_PL_FLAG_VRAM :
+			 /*
+			  * fences created in sysmem must be non-cached or we
+			  * will lose CPU/GPU coherency!
+			  */
+			 TTM_PL_FLAG_TT | TTM_PL_FLAG_UNCACHED;
+	ret = nouveau_bo_new(drm->dev, 16 * priv->base.contexts, 0, domain, 0,
+			     0, NULL, NULL, &priv->bo);
 	if (ret == 0) {
-		ret = nouveau_bo_pin(priv->bo, TTM_PL_FLAG_VRAM, false);
+		ret = nouveau_bo_pin(priv->bo, domain, false);
 		if (ret == 0) {
 			ret = nouveau_bo_map(priv->bo);
 			if (ret)

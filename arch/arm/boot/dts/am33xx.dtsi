@@ -83,20 +83,6 @@
 		};
 	};
 
-	am33xx_control_module: control_module@4a002000 {
-		compatible = "syscon";
-		reg = <0x44e10000 0x7fc>;
-	};
-
-	am33xx_pinmux: pinmux@44e10800 {
-		compatible = "pinctrl-single";
-		reg = <0x44e10800 0x0238>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		pinctrl-single,register-width = <32>;
-		pinctrl-single,function-mask = <0x7f>;
-	};
-
 	/*
 	 * XXX: Use a flat representation of the AM33XX interconnect.
 	 * The real AM33XX interconnect network is quite complex. Since
@@ -111,35 +97,73 @@
 		ranges;
 		ti,hwmods = "l3_main";
 
-		prcm: prcm@44e00000 {
-			compatible = "ti,am3-prcm";
-			reg = <0x44e00000 0x4000>;
+		l4_wkup: l4_wkup@44c00000 {
+			compatible = "ti,am3-l4-wkup", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x44c00000 0x280000>;
 
-			prcm_clocks: clocks {
+			wkup_m3: wkup_m3@100000 {
+				compatible = "ti,am3352-wkup-m3";
+				reg = <0x100000 0x4000>,
+				      <0x180000	0x2000>;
+				reg-names = "umem", "dmem";
+				ti,hwmods = "wkup_m3";
+				ti,pm-firmware = "am335x-pm-firmware.elf";
+			};
+
+			prcm: prcm@200000 {
+				compatible = "ti,am3-prcm";
+				reg = <0x200000 0x4000>;
+
+				prcm_clocks: clocks {
+					#address-cells = <1>;
+					#size-cells = <0>;
+				};
+
+				prcm_clockdomains: clockdomains {
+				};
+			};
+
+			scm: scm@210000 {
+				compatible = "ti,am3-scm", "simple-bus";
+				reg = <0x210000 0x2000>;
 				#address-cells = <1>;
-				#size-cells = <0>;
+				#size-cells = <1>;
+				ranges = <0 0x210000 0x2000>;
+
+				am33xx_pinmux: pinmux@800 {
+					compatible = "pinctrl-single";
+					reg = <0x800 0x238>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					pinctrl-single,register-width = <32>;
+					pinctrl-single,function-mask = <0x7f>;
+				};
+
+				scm_conf: scm_conf@0 {
+					compatible = "syscon";
+					reg = <0x0 0x800>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+
+					scm_clocks: clocks {
+						#address-cells = <1>;
+						#size-cells = <0>;
+					};
+				};
+
+				wkup_m3_ipc: wkup_m3_ipc@1324 {
+					compatible = "ti,am3352-wkup-m3-ipc";
+					reg = <0x1324 0x24>;
+					interrupts = <78>;
+					ti,rproc = <&wkup_m3>;
+					mboxes = <&mailbox &mbox_wkupm3>;
+				};
+
+				scm_clockdomains: clockdomains {
+				};
 			};
-
-			prcm_clockdomains: clockdomains {
-			};
-		};
-
-		scrm: scrm@44e10000 {
-			compatible = "ti,am3-scrm";
-			reg = <0x44e10000 0x2000>;
-
-			scrm_clocks: clocks {
-				#address-cells = <1>;
-				#size-cells = <0>;
-			};
-
-			scrm_clockdomains: clockdomains {
-			};
-		};
-
-		cm: syscon@44e10000 {
-			compatible = "ti,am33xx-controlmodule", "syscon";
-			reg = <0x44e10000 0x800>;
 		};
 
 		intc: interrupt-controller@48200000 {
@@ -203,7 +227,7 @@
 		};
 
 		uart0: serial@44e09000 {
-			compatible = "ti,omap3-uart";
+			compatible = "ti,am3352-uart", "ti,omap3-uart";
 			ti,hwmods = "uart1";
 			clock-frequency = <48000000>;
 			reg = <0x44e09000 0x2000>;
@@ -214,7 +238,7 @@
 		};
 
 		uart1: serial@48022000 {
-			compatible = "ti,omap3-uart";
+			compatible = "ti,am3352-uart", "ti,omap3-uart";
 			ti,hwmods = "uart2";
 			clock-frequency = <48000000>;
 			reg = <0x48022000 0x2000>;
@@ -225,7 +249,7 @@
 		};
 
 		uart2: serial@48024000 {
-			compatible = "ti,omap3-uart";
+			compatible = "ti,am3352-uart", "ti,omap3-uart";
 			ti,hwmods = "uart3";
 			clock-frequency = <48000000>;
 			reg = <0x48024000 0x2000>;
@@ -236,7 +260,7 @@
 		};
 
 		uart3: serial@481a6000 {
-			compatible = "ti,omap3-uart";
+			compatible = "ti,am3352-uart", "ti,omap3-uart";
 			ti,hwmods = "uart4";
 			clock-frequency = <48000000>;
 			reg = <0x481a6000 0x2000>;
@@ -245,7 +269,7 @@
 		};
 
 		uart4: serial@481a8000 {
-			compatible = "ti,omap3-uart";
+			compatible = "ti,am3352-uart", "ti,omap3-uart";
 			ti,hwmods = "uart5";
 			clock-frequency = <48000000>;
 			reg = <0x481a8000 0x2000>;
@@ -254,7 +278,7 @@
 		};
 
 		uart5: serial@481aa000 {
-			compatible = "ti,omap3-uart";
+			compatible = "ti,am3352-uart", "ti,omap3-uart";
 			ti,hwmods = "uart6";
 			clock-frequency = <48000000>;
 			reg = <0x481aa000 0x2000>;
@@ -350,7 +374,7 @@
 			reg = <0x481cc000 0x2000>;
 			clocks = <&dcan0_fck>;
 			clock-names = "fck";
-			syscon-raminit = <&am33xx_control_module 0x644 0>;
+			syscon-raminit = <&scm_conf 0x644 0>;
 			interrupts = <52>;
 			status = "disabled";
 		};
@@ -361,7 +385,7 @@
 			reg = <0x481d0000 0x2000>;
 			clocks = <&dcan1_fck>;
 			clock-names = "fck";
-			syscon-raminit = <&am33xx_control_module 0x644 1>;
+			syscon-raminit = <&scm_conf 0x644 1>;
 			interrupts = <55>;
 			status = "disabled";
 		};
@@ -693,7 +717,7 @@
 		};
 
 		mac: ethernet@4a100000 {
-			compatible = "ti,cpsw";
+			compatible = "ti,am335x-cpsw","ti,cpsw";
 			ti,hwmods = "cpgmac0";
 			clocks = <&cpsw_125mhz_gclk>, <&cpsw_cpts_rft_clk>;
 			clock-names = "fck", "cpts";
@@ -720,7 +744,7 @@
 			 */
 			interrupts = <40 41 42 43>;
 			ranges;
-			syscon = <&cm>;
+			syscon = <&scm_conf>;
 			status = "disabled";
 
 			davinci_mdio: mdio@4a101000 {
@@ -753,14 +777,6 @@
 		ocmcram: ocmcram@40300000 {
 			compatible = "mmio-sram";
 			reg = <0x40300000 0x10000>; /* 64k */
-		};
-
-		wkup_m3: wkup_m3@44d00000 {
-			compatible = "ti,am3353-wkup-m3";
-			reg = <0x44d00000 0x4000	/* M3 UMEM */
-			       0x44d80000 0x2000>;	/* M3 DMEM */
-			ti,hwmods = "wkup_m3";
-			ti,no-reset-on-init;
 		};
 
 		elm: elm@48080000 {

@@ -111,6 +111,18 @@ static struct pci_ops fsl_indirect_pcie_ops =
 #define MAX_PHYS_ADDR_BITS	40
 static u64 pci64_dma_offset = 1ull << MAX_PHYS_ADDR_BITS;
 
+#ifdef CONFIG_SWIOTLB
+static void setup_swiotlb_ops(struct pci_controller *hose)
+{
+	if (ppc_swiotlb_enable) {
+		hose->controller_ops.dma_dev_setup = pci_dma_dev_setup_swiotlb;
+		set_pci_dma_ops(&swiotlb_dma_ops);
+	}
+}
+#else
+static inline void setup_swiotlb_ops(struct pci_controller *hose) {}
+#endif
+
 static int fsl_pci_dma_set_mask(struct device *dev, u64 dma_mask)
 {
 	if (!dev->dma_mask || !dma_supported(dev, dma_mask))
@@ -167,6 +179,19 @@ static int setup_one_atmu(struct ccsr_pci __iomem *pci,
 	return i;
 }
 
+static bool is_kdump(void)
+{
+	struct device_node *node;
+
+	node = of_find_node_by_type(NULL, "memory");
+	if (!node) {
+		WARN_ON_ONCE(1);
+		return false;
+	}
+
+	return of_property_read_bool(node, "linux,usable-memory");
+}
+
 /* atmu setup for fsl pci/pcie controller */
 static void setup_pci_atmu(struct pci_controller *hose)
 {
@@ -180,6 +205,16 @@ static void setup_pci_atmu(struct pci_controller *hose)
 	const char *name = hose->dn->full_name;
 	const u64 *reg;
 	int len;
+	bool setup_inbound;
+
+	/*
+	 * If this is kdump, we don't want to trigger a bunch of PCI
+	 * errors by closing the window on in-flight DMA.
+	 *
+	 * We still run most of the function's logic so that things like
+	 * hose->dma_window_size still get set.
+	 */
+	setup_inbound = !is_kdump();
 
 	if (early_find_capability(hose, 0, 0, PCI_CAP_ID_EXP)) {
 		if (in_be32(&pci->block_rev1) >= PCIE_IP_REV_2_2) {
@@ -192,8 +227,11 @@ static void setup_pci_atmu(struct pci_controller *hose)
 	/* Disable all windows (except powar0 since it's ignored) */
 	for(i = 1; i < 5; i++)
 		out_be32(&pci->pow[i].powar, 0);
-	for (i = start_idx; i < end_idx; i++)
-		out_be32(&pci->piw[i].piwar, 0);
+
+	if (setup_inbound) {
+		for (i = start_idx; i < end_idx; i++)
+			out_be32(&pci->piw[i].piwar, 0);
+	}
 
 	/* Setup outbound MEM window */
 	for(i = 0, j = 1; i < 3; i++) {
@@ -266,6 +304,7 @@ static void setup_pci_atmu(struct pci_controller *hose)
 
 	/* Setup inbound mem window */
 	mem = memblock_end_of_DRAM();
+	pr_info("%s: end of DRAM %llx\n", __func__, mem);
 
 	/*
 	 * The msi-address-64 property, if it exists, indicates the physical
@@ -308,12 +347,14 @@ static void setup_pci_atmu(struct pci_controller *hose)
 
 		piwar |= ((mem_log - 1) & PIWAR_SZ_MASK);
 
-		/* Setup inbound memory window */
-		out_be32(&pci->piw[win_idx].pitar,  0x00000000);
-		out_be32(&pci->piw[win_idx].piwbar, 0x00000000);
-		out_be32(&pci->piw[win_idx].piwar,  piwar);
-		win_idx--;
+		if (setup_inbound) {
+			/* Setup inbound memory window */
+			out_be32(&pci->piw[win_idx].pitar,  0x00000000);
+			out_be32(&pci->piw[win_idx].piwbar, 0x00000000);
+			out_be32(&pci->piw[win_idx].piwar,  piwar);
+		}
 
+		win_idx--;
 		hose->dma_window_base_cur = 0x00000000;
 		hose->dma_window_size = (resource_size_t)sz;
 
@@ -331,13 +372,15 @@ static void setup_pci_atmu(struct pci_controller *hose)
 
 			piwar = (piwar & ~PIWAR_SZ_MASK) | (mem_log - 1);
 
-			/* Setup inbound memory window */
-			out_be32(&pci->piw[win_idx].pitar,  0x00000000);
-			out_be32(&pci->piw[win_idx].piwbear,
-					pci64_dma_offset >> 44);
-			out_be32(&pci->piw[win_idx].piwbar,
-					pci64_dma_offset >> 12);
-			out_be32(&pci->piw[win_idx].piwar,  piwar);
+			if (setup_inbound) {
+				/* Setup inbound memory window */
+				out_be32(&pci->piw[win_idx].pitar,  0x00000000);
+				out_be32(&pci->piw[win_idx].piwbear,
+						pci64_dma_offset >> 44);
+				out_be32(&pci->piw[win_idx].piwbar,
+						pci64_dma_offset >> 12);
+				out_be32(&pci->piw[win_idx].piwar,  piwar);
+			}
 
 			/*
 			 * install our own dma_set_mask handler to fixup dma_ops
@@ -350,12 +393,15 @@ static void setup_pci_atmu(struct pci_controller *hose)
 	} else {
 		u64 paddr = 0;
 
-		/* Setup inbound memory window */
-		out_be32(&pci->piw[win_idx].pitar,  paddr >> 12);
-		out_be32(&pci->piw[win_idx].piwbar, paddr >> 12);
-		out_be32(&pci->piw[win_idx].piwar,  (piwar | (mem_log - 1)));
-		win_idx--;
+		if (setup_inbound) {
+			/* Setup inbound memory window */
+			out_be32(&pci->piw[win_idx].pitar,  paddr >> 12);
+			out_be32(&pci->piw[win_idx].piwbar, paddr >> 12);
+			out_be32(&pci->piw[win_idx].piwar,
+				 (piwar | (mem_log - 1)));
+		}
 
+		win_idx--;
 		paddr += 1ull << mem_log;
 		sz -= 1ull << mem_log;
 
@@ -363,11 +409,15 @@ static void setup_pci_atmu(struct pci_controller *hose)
 			mem_log = ilog2(sz);
 			piwar |= (mem_log - 1);
 
-			out_be32(&pci->piw[win_idx].pitar,  paddr >> 12);
-			out_be32(&pci->piw[win_idx].piwbar, paddr >> 12);
-			out_be32(&pci->piw[win_idx].piwar,  piwar);
-			win_idx--;
+			if (setup_inbound) {
+				out_be32(&pci->piw[win_idx].pitar,
+					 paddr >> 12);
+				out_be32(&pci->piw[win_idx].piwbar,
+					 paddr >> 12);
+				out_be32(&pci->piw[win_idx].piwar, piwar);
+			}
 
+			win_idx--;
 			paddr += 1ull << mem_log;
 		}
 
@@ -547,6 +597,9 @@ int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 
 	/* Setup PEX window registers */
 	setup_pci_atmu(hose);
+
+	/* Set up controller operations */
+	setup_swiotlb_ops(hose);
 
 	return 0;
 
@@ -984,10 +1037,10 @@ int fsl_pci_mcheck_exception(struct pt_regs *regs)
 			ret = get_user(regs->nip, &inst);
 			pagefault_enable();
 		} else {
-			ret = probe_kernel_address(regs->nip, inst);
+			ret = probe_kernel_address((void *)regs->nip, inst);
 		}
 
-		if (mcheck_handle_load(regs, inst)) {
+		if (!ret && mcheck_handle_load(regs, inst)) {
 			regs->nip += 4;
 			return 1;
 		}
@@ -1098,7 +1151,7 @@ static int fsl_pci_pme_probe(struct pci_controller *hose)
 			IRQF_SHARED,
 			"[PCI] PME", hose);
 	if (res < 0) {
-		dev_err(&dev->dev, "Unable to requiest irq %d for PME\n", pme_irq);
+		dev_err(&dev->dev, "Unable to request irq %d for PME\n", pme_irq);
 		irq_dispose_mapping(pme_irq);
 
 		return -ENODEV;

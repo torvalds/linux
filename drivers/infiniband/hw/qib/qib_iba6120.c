@@ -3315,11 +3315,9 @@ static int init_6120_variables(struct qib_devdata *dd)
 	qib_6120_config_ctxts(dd);
 	qib_set_ctxtcnt(dd);
 
-	if (qib_wc_pat) {
-		ret = init_chip_wc_pat(dd, 0);
-		if (ret)
-			goto bail;
-	}
+	ret = init_chip_wc_pat(dd, 0);
+	if (ret)
+		goto bail;
 	set_6120_baseaddrs(dd); /* set chip access pointers now */
 
 	ret = 0;

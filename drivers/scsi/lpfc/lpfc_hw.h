@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2014 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2015 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -33,7 +33,7 @@
 
 #define FF_DEF_EDTOV          2000	/* Default E_D_TOV (2000ms) */
 #define FF_DEF_ALTOV            15	/* Default AL_TIME (15ms) */
-#define FF_DEF_RATOV             2	/* Default RA_TOV (2s) */
+#define FF_DEF_RATOV            10	/* Default RA_TOV (10s) */
 #define FF_DEF_ARBTOV         1900	/* Default ARB_TOV (1900ms) */
 
 #define LPFC_BUF_RING0        64	/* Number of buffers to post to RING
@@ -107,6 +107,7 @@ struct lpfc_sli_ct_request {
 	uint8_t ReasonCode;
 	uint8_t Explanation;
 	uint8_t VendorUnique;
+#define LPFC_CT_PREAMBLE	20	/* Size of CTReq + 4 up to here */
 
 	union {
 		uint32_t PortID;
@@ -169,6 +170,8 @@ struct lpfc_sli_ct_request {
 		} rff;
 	} un;
 };
+
+#define LPFC_MAX_CT_SIZE	(60 * 4096)
 
 #define  SLI_CT_REVISION        1
 #define  GID_REQUEST_SZ   (offsetof(struct lpfc_sli_ct_request, un) + \
@@ -540,6 +543,7 @@ struct fc_vft_header {
 #define ELS_CMD_TEST      0x11000000
 #define ELS_CMD_RRQ       0x12000000
 #define ELS_CMD_REC       0x13000000
+#define ELS_CMD_RDP       0x18000000
 #define ELS_CMD_PRLI      0x20100014
 #define ELS_CMD_PRLO      0x21100014
 #define ELS_CMD_PRLO_ACC  0x02100014
@@ -555,6 +559,7 @@ struct fc_vft_header {
 #define ELS_CMD_SCR       0x62000000
 #define ELS_CMD_RNID      0x78000000
 #define ELS_CMD_LIRR      0x7A000000
+#define ELS_CMD_LCB	  0x81000000
 #else	/*  __LITTLE_ENDIAN_BITFIELD */
 #define ELS_CMD_MASK      0xffff
 #define ELS_RSP_MASK      0xff
@@ -577,6 +582,7 @@ struct fc_vft_header {
 #define ELS_CMD_TEST      0x11
 #define ELS_CMD_RRQ       0x12
 #define ELS_CMD_REC       0x13
+#define ELS_CMD_RDP	  0x18
 #define ELS_CMD_PRLI      0x14001020
 #define ELS_CMD_PRLO      0x14001021
 #define ELS_CMD_PRLO_ACC  0x14001002
@@ -592,6 +598,7 @@ struct fc_vft_header {
 #define ELS_CMD_SCR       0x62
 #define ELS_CMD_RNID      0x78
 #define ELS_CMD_LIRR      0x7A
+#define ELS_CMD_LCB	  0x81
 #endif
 
 /*
@@ -1008,77 +1015,236 @@ typedef struct _ELS_PKT {	/* Structure is in Big Endian format */
 } ELS_PKT;
 
 /*
- * FDMI
- * HBA MAnagement Operations Command Codes
+ * Link Cable Beacon (LCB) ELS Frame
  */
-#define  SLI_MGMT_GRHL     0x100	/* Get registered HBA list */
-#define  SLI_MGMT_GHAT     0x101	/* Get HBA attributes */
-#define  SLI_MGMT_GRPL     0x102	/* Get registered Port list */
-#define  SLI_MGMT_GPAT     0x110	/* Get Port attributes */
-#define  SLI_MGMT_RHBA     0x200	/* Register HBA */
-#define  SLI_MGMT_RHAT     0x201	/* Register HBA attributes */
-#define  SLI_MGMT_RPRT     0x210	/* Register Port */
-#define  SLI_MGMT_RPA      0x211	/* Register Port attributes */
-#define  SLI_MGMT_DHBA     0x300	/* De-register HBA */
-#define  SLI_MGMT_DPRT     0x310	/* De-register Port */
+
+struct fc_lcb_request_frame {
+	uint32_t      lcb_command;      /* ELS command opcode (0x81)     */
+	uint8_t       lcb_sub_command;/* LCB Payload Word 1, bit 24:31 */
+#define LPFC_LCB_ON    0x1
+#define LPFC_LCB_OFF   0x2
+	uint8_t       reserved[3];
+
+	uint8_t       lcb_type; /* LCB Payload Word 2, bit 24:31 */
+#define LPFC_LCB_GREEN 0x1
+#define LPFC_LCB_AMBER 0x2
+	uint8_t       lcb_frequency;    /* LCB Payload Word 2, bit 16:23 */
+	uint16_t      lcb_duration;     /* LCB Payload Word 2, bit 15:0  */
+};
 
 /*
- * Management Service Subtypes
+ * Link Cable Beacon (LCB) ELS Response Frame
  */
-#define  SLI_CT_FDMI_Subtypes     0x10
+struct fc_lcb_res_frame {
+	uint32_t      lcb_ls_acc;       /* Acceptance of LCB request (0x02) */
+	uint8_t       lcb_sub_command;/* LCB Payload Word 1, bit 24:31 */
+	uint8_t       reserved[3];
+	uint8_t       lcb_type; /* LCB Payload Word 2, bit 24:31 */
+	uint8_t       lcb_frequency;    /* LCB Payload Word 2, bit 16:23 */
+	uint16_t      lcb_duration;     /* LCB Payload Word 2, bit 15:0  */
+};
 
 /*
- * HBA Management Service Reject Code
+ * Read Diagnostic Parameters (RDP) ELS frame.
  */
-#define  REJECT_CODE             0x9	/* Unable to perform command request */
+#define SFF_PG0_IDENT_SFP              0x3
 
-/*
- * HBA Management Service Reject Reason Code
- * Please refer to the Reason Codes above
- */
+#define SFP_FLAG_PT_OPTICAL            0x0
+#define SFP_FLAG_PT_SWLASER            0x01
+#define SFP_FLAG_PT_LWLASER_LC1310     0x02
+#define SFP_FLAG_PT_LWLASER_LL1550     0x03
+#define SFP_FLAG_PT_MASK               0x0F
+#define SFP_FLAG_PT_SHIFT              0
 
-/*
- * HBA Attribute Types
- */
-#define  NODE_NAME               0x1
-#define  MANUFACTURER            0x2
-#define  SERIAL_NUMBER           0x3
-#define  MODEL                   0x4
-#define  MODEL_DESCRIPTION       0x5
-#define  HARDWARE_VERSION        0x6
-#define  DRIVER_VERSION          0x7
-#define  OPTION_ROM_VERSION      0x8
-#define  FIRMWARE_VERSION        0x9
-#define  OS_NAME_VERSION	 0xa
-#define  MAX_CT_PAYLOAD_LEN	 0xb
+#define SFP_FLAG_IS_OPTICAL_PORT       0x01
+#define SFP_FLAG_IS_OPTICAL_MASK       0x010
+#define SFP_FLAG_IS_OPTICAL_SHIFT      4
 
-/*
- * Port Attrubute Types
- */
-#define  SUPPORTED_FC4_TYPES     0x1
-#define  SUPPORTED_SPEED         0x2
-#define  PORT_SPEED              0x3
-#define  MAX_FRAME_SIZE          0x4
-#define  OS_DEVICE_NAME          0x5
-#define  HOST_NAME               0x6
+#define SFP_FLAG_IS_DESC_VALID         0x01
+#define SFP_FLAG_IS_DESC_VALID_MASK    0x020
+#define SFP_FLAG_IS_DESC_VALID_SHIFT   5
 
-union AttributesDef {
-	/* Structure is in Big Endian format */
-	struct {
-		uint32_t AttrType:16;
-		uint32_t AttrLen:16;
-	} bits;
-	uint32_t word;
+#define SFP_FLAG_CT_UNKNOWN            0x0
+#define SFP_FLAG_CT_SFP_PLUS           0x01
+#define SFP_FLAG_CT_MASK               0x3C
+#define SFP_FLAG_CT_SHIFT              6
+
+struct fc_rdp_port_name_info {
+	uint8_t wwnn[8];
+	uint8_t wwpn[8];
 };
 
 
 /*
- * HBA Attribute Entry (8 - 260 bytes)
+ * Link Error Status Block Structure (FC-FS-3) for RDP
+ * This similar to RPS ELS
  */
-typedef struct {
-	union AttributesDef ad;
+struct fc_link_status {
+	uint32_t      link_failure_cnt;
+	uint32_t      loss_of_synch_cnt;
+	uint32_t      loss_of_signal_cnt;
+	uint32_t      primitive_seq_proto_err;
+	uint32_t      invalid_trans_word;
+	uint32_t      invalid_crc_cnt;
+
+};
+
+#define RDP_PORT_NAMES_DESC_TAG  0x00010003
+struct fc_rdp_port_name_desc {
+	uint32_t	tag;     /* 0001 0003h */
+	uint32_t	length;  /* set to size of payload struct */
+	struct fc_rdp_port_name_info  port_names;
+};
+
+
+struct fc_rdp_link_error_status_payload_info {
+	struct fc_link_status link_status; /* 24 bytes */
+	uint32_t  port_type;             /* bits 31-30 only */
+};
+
+#define RDP_LINK_ERROR_STATUS_DESC_TAG  0x00010002
+struct fc_rdp_link_error_status_desc {
+	uint32_t         tag;     /* 0001 0002h */
+	uint32_t         length;  /* set to size of payload struct */
+	struct fc_rdp_link_error_status_payload_info info;
+};
+
+#define VN_PT_PHY_UNKNOWN      0x00
+#define VN_PT_PHY_PF_PORT      0x01
+#define VN_PT_PHY_ETH_MAC      0x10
+#define VN_PT_PHY_SHIFT                30
+
+#define RDP_PS_1GB             0x8000
+#define RDP_PS_2GB             0x4000
+#define RDP_PS_4GB             0x2000
+#define RDP_PS_10GB            0x1000
+#define RDP_PS_8GB             0x0800
+#define RDP_PS_16GB            0x0400
+#define RDP_PS_32GB            0x0200
+
+#define RDP_CAP_UNKNOWN        0x0001
+#define RDP_PS_UNKNOWN         0x0002
+#define RDP_PS_NOT_ESTABLISHED 0x0001
+
+struct fc_rdp_port_speed {
+	uint16_t   capabilities;
+	uint16_t   speed;
+};
+
+struct fc_rdp_port_speed_info {
+	struct fc_rdp_port_speed   port_speed;
+};
+
+#define RDP_PORT_SPEED_DESC_TAG  0x00010001
+struct fc_rdp_port_speed_desc {
+	uint32_t         tag;            /* 00010001h */
+	uint32_t         length;         /* set to size of payload struct */
+	struct fc_rdp_port_speed_info info;
+};
+
+#define RDP_NPORT_ID_SIZE      4
+#define RDP_N_PORT_DESC_TAG    0x00000003
+struct fc_rdp_nport_desc {
+	uint32_t         tag;          /* 0000 0003h, big endian */
+	uint32_t         length;       /* size of RDP_N_PORT_ID struct */
+	uint32_t         nport_id : 12;
+	uint32_t         reserved : 8;
+};
+
+
+struct fc_rdp_link_service_info {
+	uint32_t         els_req;    /* Request payload word 0 value.*/
+};
+
+#define RDP_LINK_SERVICE_DESC_TAG  0x00000001
+struct fc_rdp_link_service_desc {
+	uint32_t         tag;     /* Descriptor tag  1 */
+	uint32_t         length;  /* set to size of payload struct. */
+	struct fc_rdp_link_service_info  payload;
+				  /* must be ELS req Word 0(0x18) */
+};
+
+struct fc_rdp_sfp_info {
+	uint16_t	temperature;
+	uint16_t	vcc;
+	uint16_t	tx_bias;
+	uint16_t	tx_power;
+	uint16_t	rx_power;
+	uint16_t	flags;
+};
+
+#define RDP_SFP_DESC_TAG  0x00010000
+struct fc_rdp_sfp_desc {
+	uint32_t         tag;
+	uint32_t         length;  /* set to size of sfp_info struct */
+	struct fc_rdp_sfp_info sfp_info;
+};
+
+struct fc_rdp_req_frame {
+	uint32_t         rdp_command;           /* ELS command opcode (0x18)*/
+	uint32_t         rdp_des_length;        /* RDP Payload Word 1 */
+	struct fc_rdp_nport_desc nport_id_desc; /* RDP Payload Word 2 - 4 */
+};
+
+
+struct fc_rdp_res_frame {
+	uint32_t	reply_sequence;		/* FC word0 LS_ACC or LS_RJT */
+	uint32_t	length;			/* FC Word 1      */
+	struct fc_rdp_link_service_desc link_service_desc;    /* Word 2 -4  */
+	struct fc_rdp_sfp_desc sfp_desc;                      /* Word 5 -9  */
+	struct fc_rdp_port_speed_desc portspeed_desc;         /* Word 10-12 */
+	struct fc_rdp_link_error_status_desc link_error_desc; /* Word 13-21 */
+	struct fc_rdp_port_name_desc diag_port_names_desc;    /* Word 22-27 */
+	struct fc_rdp_port_name_desc attached_port_names_desc;/* Word 28-33 */
+};
+
+
+#define RDP_DESC_PAYLOAD_SIZE (sizeof(struct fc_rdp_link_service_desc) \
+			+ sizeof(struct fc_rdp_sfp_desc) \
+			+ sizeof(struct fc_rdp_port_speed_desc) \
+			+ sizeof(struct fc_rdp_link_error_status_desc) \
+			+ (sizeof(struct fc_rdp_port_name_desc) * 2))
+
+
+/******** FDMI ********/
+
+/* lpfc_sli_ct_request defines the CT_IU preamble for FDMI commands */
+#define  SLI_CT_FDMI_Subtypes     0x10	/* Management Service Subtype */
+
+/*
+ * Registered Port List Format
+ */
+struct lpfc_fdmi_reg_port_list {
+	uint32_t EntryCnt;
+	uint32_t pe;		/* Variable-length array */
+};
+
+
+/* Definitions for HBA / Port attribute entries */
+
+struct lpfc_fdmi_attr_def { /* Defined in TLV format */
+	/* Structure is in Big Endian format */
+	uint32_t AttrType:16;
+	uint32_t AttrLen:16;
+	uint32_t AttrValue;  /* Marks start of Value (ATTRIBUTE_ENTRY) */
+};
+
+
+/* Attribute Entry */
+struct lpfc_fdmi_attr_entry {
 	union {
 		uint32_t VendorSpecific;
+		uint32_t SupportClass;
+		uint32_t SupportSpeed;
+		uint32_t PortSpeed;
+		uint32_t MaxFrameSize;
+		uint32_t MaxCTPayloadLen;
+		uint32_t PortState;
+		uint32_t PortId;
+		struct lpfc_name NodeName;
+		struct lpfc_name PortName;
+		struct lpfc_name FabricName;
+		uint8_t FC4Types[32];
 		uint8_t Manufacturer[64];
 		uint8_t SerialNumber[64];
 		uint8_t Model[256];
@@ -1087,97 +1253,115 @@ typedef struct {
 		uint8_t DriverVersion[256];
 		uint8_t OptionROMVersion[256];
 		uint8_t FirmwareVersion[256];
-		struct lpfc_name NodeName;
-		uint8_t SupportFC4Types[32];
-		uint32_t SupportSpeed;
-		uint32_t PortSpeed;
-		uint32_t MaxFrameSize;
+		uint8_t OsHostName[256];
+		uint8_t NodeSymName[256];
 		uint8_t OsDeviceName[256];
 		uint8_t OsNameVersion[256];
-		uint32_t MaxCTPayloadLen;
 		uint8_t HostName[256];
 	} un;
-} ATTRIBUTE_ENTRY;
+};
+
+#define LPFC_FDMI_MAX_AE_SIZE	sizeof(struct lpfc_fdmi_attr_entry)
 
 /*
  * HBA Attribute Block
  */
-typedef struct {
-	uint32_t EntryCnt;	/* Number of HBA attribute entries */
-	ATTRIBUTE_ENTRY Entry;	/* Variable-length array */
-} ATTRIBUTE_BLOCK;
+struct lpfc_fdmi_attr_block {
+	uint32_t EntryCnt;		/* Number of HBA attribute entries */
+	struct lpfc_fdmi_attr_entry Entry;	/* Variable-length array */
+};
 
 /*
  * Port Entry
  */
-typedef struct {
+struct lpfc_fdmi_port_entry {
 	struct lpfc_name PortName;
-} PORT_ENTRY;
+};
 
 /*
  * HBA Identifier
  */
-typedef struct {
+struct lpfc_fdmi_hba_ident {
 	struct lpfc_name PortName;
-} HBA_IDENTIFIER;
-
-/*
- * Registered Port List Format
- */
-typedef struct {
-	uint32_t EntryCnt;
-	PORT_ENTRY pe;		/* Variable-length array */
-} REG_PORT_LIST;
+};
 
 /*
  * Register HBA(RHBA)
  */
-typedef struct {
-	HBA_IDENTIFIER hi;
-	REG_PORT_LIST rpl;	/* variable-length array */
-/* ATTRIBUTE_BLOCK   ab; */
-} REG_HBA;
+struct lpfc_fdmi_reg_hba {
+	struct lpfc_fdmi_hba_ident hi;
+	struct lpfc_fdmi_reg_port_list rpl;	/* variable-length array */
+/* struct lpfc_fdmi_attr_block   ab; */
+};
 
 /*
  * Register HBA Attributes (RHAT)
  */
-typedef struct {
+struct lpfc_fdmi_reg_hbaattr {
 	struct lpfc_name HBA_PortName;
-	ATTRIBUTE_BLOCK ab;
-} REG_HBA_ATTRIBUTE;
+	struct lpfc_fdmi_attr_block ab;
+};
 
 /*
  * Register Port Attributes (RPA)
  */
-typedef struct {
+struct lpfc_fdmi_reg_portattr {
 	struct lpfc_name PortName;
-	ATTRIBUTE_BLOCK ab;
-} REG_PORT_ATTRIBUTE;
+	struct lpfc_fdmi_attr_block ab;
+};
 
 /*
- * Get Registered HBA List (GRHL) Accept Payload Format
+ * HBA MAnagement Operations Command Codes
  */
-typedef struct {
-	uint32_t HBA__Entry_Cnt; /* Number of Registered HBA Identifiers */
-	struct lpfc_name HBA_PortName;	/* Variable-length array */
-} GRHL_ACC_PAYLOAD;
+#define  SLI_MGMT_GRHL     0x100	/* Get registered HBA list */
+#define  SLI_MGMT_GHAT     0x101	/* Get HBA attributes */
+#define  SLI_MGMT_GRPL     0x102	/* Get registered Port list */
+#define  SLI_MGMT_GPAT     0x110	/* Get Port attributes */
+#define  SLI_MGMT_GPAS     0x120	/* Get Port Statistics */
+#define  SLI_MGMT_RHBA     0x200	/* Register HBA */
+#define  SLI_MGMT_RHAT     0x201	/* Register HBA attributes */
+#define  SLI_MGMT_RPRT     0x210	/* Register Port */
+#define  SLI_MGMT_RPA      0x211	/* Register Port attributes */
+#define  SLI_MGMT_DHBA     0x300	/* De-register HBA */
+#define  SLI_MGMT_DHAT     0x301	/* De-register HBA attributes */
+#define  SLI_MGMT_DPRT     0x310	/* De-register Port */
+#define  SLI_MGMT_DPA      0x311	/* De-register Port attributes */
 
 /*
- * Get Registered Port List (GRPL) Accept Payload Format
+ * HBA Attribute Types
  */
-typedef struct {
-	uint32_t RPL_Entry_Cnt;	/* Number of Registered Port Entries */
-	PORT_ENTRY Reg_Port_Entry[1];	/* Variable-length array */
-} GRPL_ACC_PAYLOAD;
+#define  RHBA_NODENAME           0x1 /* 8 byte WWNN */
+#define  RHBA_MANUFACTURER       0x2 /* 4 to 64 byte ASCII string */
+#define  RHBA_SERIAL_NUMBER      0x3 /* 4 to 64 byte ASCII string */
+#define  RHBA_MODEL              0x4 /* 4 to 256 byte ASCII string */
+#define  RHBA_MODEL_DESCRIPTION  0x5 /* 4 to 256 byte ASCII string */
+#define  RHBA_HARDWARE_VERSION   0x6 /* 4 to 256 byte ASCII string */
+#define  RHBA_DRIVER_VERSION     0x7 /* 4 to 256 byte ASCII string */
+#define  RHBA_OPTION_ROM_VERSION 0x8 /* 4 to 256 byte ASCII string */
+#define  RHBA_FIRMWARE_VERSION   0x9 /* 4 to 256 byte ASCII string */
+#define  RHBA_OS_NAME_VERSION	 0xa /* 4 to 256 byte ASCII string */
+#define  RHBA_MAX_CT_PAYLOAD_LEN 0xb /* 32-bit unsigned int */
+#define  RHBA_SYM_NODENAME       0xc /* 4 to 256 byte ASCII string */
 
 /*
- * Get Port Attributes (GPAT) Accept Payload Format
+ * Port Attrubute Types
  */
-
-typedef struct {
-	ATTRIBUTE_BLOCK pab;
-} GPAT_ACC_PAYLOAD;
-
+#define  RPRT_SUPPORTED_FC4_TYPES     0x1 /* 32 byte binary array */
+#define  RPRT_SUPPORTED_SPEED         0x2 /* 32-bit unsigned int */
+#define  RPRT_PORT_SPEED              0x3 /* 32-bit unsigned int */
+#define  RPRT_MAX_FRAME_SIZE          0x4 /* 32-bit unsigned int */
+#define  RPRT_OS_DEVICE_NAME          0x5 /* 4 to 256 byte ASCII string */
+#define  RPRT_HOST_NAME               0x6 /* 4 to 256 byte ASCII string */
+#define  RPRT_NODENAME                0x7 /* 8 byte WWNN */
+#define  RPRT_PORTNAME                0x8 /* 8 byte WWNN */
+#define  RPRT_SYM_PORTNAME            0x9 /* 4 to 256 byte ASCII string */
+#define  RPRT_PORT_TYPE               0xa /* 32-bit unsigned int */
+#define  RPRT_SUPPORTED_CLASS         0xb /* 32-bit unsigned int */
+#define  RPRT_FABRICNAME              0xc /* 8 byte Fabric WWNN */
+#define  RPRT_ACTIVE_FC4_TYPES        0xd /* 32 byte binary array */
+#define  RPRT_PORT_STATE              0x101 /* 32-bit unsigned int */
+#define  RPRT_DISC_PORT               0x102 /* 32-bit unsigned int */
+#define  RPRT_PORT_ID                 0x103 /* 32-bit unsigned int */
 
 /*
  *  Begin HBA configuration parameters.
@@ -1216,6 +1400,7 @@ typedef struct {
 #define PCI_DEVICE_ID_LANCER_FC_VF  0xe208
 #define PCI_DEVICE_ID_LANCER_FCOE   0xe260
 #define PCI_DEVICE_ID_LANCER_FCOE_VF 0xe268
+#define PCI_DEVICE_ID_LANCER_G6_FC  0xe300
 #define PCI_DEVICE_ID_SAT_SMB       0xf011
 #define PCI_DEVICE_ID_SAT_MID       0xf015
 #define PCI_DEVICE_ID_RFLY          0xf095
@@ -1599,6 +1784,11 @@ typedef struct {		/* FireFly BIU registers */
 #define TEMPERATURE_OFFSET 0xB0	/* Slim offset for critical temperature event */
 
 /*
+ * return code Fail
+ */
+#define FAILURE 1
+
+/*
  *    Begin Structure Definitions for Mailbox Commands
  */
 
@@ -1886,6 +2076,7 @@ typedef struct {
 #define LINK_SPEED_8G   0x8     /* 8 Gigabaud */
 #define LINK_SPEED_10G  0x10    /* 10 Gigabaud */
 #define LINK_SPEED_16G  0x11    /* 16 Gigabaud */
+#define LINK_SPEED_32G  0x14    /* 32 Gigabaud */
 
 } INIT_LINK_VAR;
 
@@ -2057,6 +2248,7 @@ typedef struct {
 #define LMT_8Gb       0x080
 #define LMT_10Gb      0x100
 #define LMT_16Gb      0x200
+#define LMT_32Gb      0x400
 	uint32_t rsvd2;
 	uint32_t rsvd3;
 	uint32_t max_xri;
@@ -2538,6 +2730,7 @@ struct lpfc_mbx_read_top {
 #define LPFC_LINK_SPEED_8GHZ	0x20
 #define LPFC_LINK_SPEED_10GHZ	0x40
 #define LPFC_LINK_SPEED_16GHZ	0x80
+#define LPFC_LINK_SPEED_32GHZ	0x90
 };
 
 /* Structure for MB Command CLEAR_LA (22) */

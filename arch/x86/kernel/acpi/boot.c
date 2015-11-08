@@ -31,12 +31,12 @@
 #include <linux/module.h>
 #include <linux/dmi.h>
 #include <linux/irq.h>
-#include <linux/irqdomain.h>
 #include <linux/slab.h>
 #include <linux/bootmem.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
 
+#include <asm/irqdomain.h>
 #include <asm/pci_x86.h>
 #include <asm/pgtable.h>
 #include <asm/io_apic.h>
@@ -400,57 +400,13 @@ static int mp_config_acpi_gsi(struct device *dev, u32 gsi, int trigger,
 	return 0;
 }
 
-static int mp_register_gsi(struct device *dev, u32 gsi, int trigger,
-			   int polarity)
-{
-	int irq, node;
-
-	if (acpi_irq_model != ACPI_IRQ_MODEL_IOAPIC)
-		return gsi;
-
-	trigger = trigger == ACPI_EDGE_SENSITIVE ? 0 : 1;
-	polarity = polarity == ACPI_ACTIVE_HIGH ? 0 : 1;
-	node = dev ? dev_to_node(dev) : NUMA_NO_NODE;
-	if (mp_set_gsi_attr(gsi, trigger, polarity, node)) {
-		pr_warn("Failed to set pin attr for GSI%d\n", gsi);
-		return -1;
-	}
-
-	irq = mp_map_gsi_to_irq(gsi, IOAPIC_MAP_ALLOC);
-	if (irq < 0)
-		return irq;
-
-	/* Don't set up the ACPI SCI because it's already set up */
-	if (enable_update_mptable && acpi_gbl_FADT.sci_interrupt != gsi)
-		mp_config_acpi_gsi(dev, gsi, trigger, polarity);
-
-	return irq;
-}
-
-static void mp_unregister_gsi(u32 gsi)
-{
-	int irq;
-
-	if (acpi_irq_model != ACPI_IRQ_MODEL_IOAPIC)
-		return;
-
-	irq = mp_map_gsi_to_irq(gsi, 0);
-	if (irq > 0)
-		mp_unmap_irq(irq);
-}
-
-static struct irq_domain_ops acpi_irqdomain_ops = {
-	.map = mp_irqdomain_map,
-	.unmap = mp_irqdomain_unmap,
-};
-
 static int __init
 acpi_parse_ioapic(struct acpi_subtable_header * header, const unsigned long end)
 {
 	struct acpi_madt_io_apic *ioapic = NULL;
 	struct ioapic_domain_cfg cfg = {
 		.type = IOAPIC_DOMAIN_DYNAMIC,
-		.ops = &acpi_irqdomain_ops,
+		.ops = &mp_ioapic_irqdomain_ops,
 	};
 
 	ioapic = (struct acpi_madt_io_apic *)header;
@@ -489,6 +445,7 @@ static void __init acpi_sci_ioapic_setup(u8 bus_irq, u16 polarity, u16 trigger, 
 		polarity = acpi_sci_flags & ACPI_MADT_POLARITY_MASK;
 
 	mp_override_legacy_irq(bus_irq, polarity, trigger, gsi);
+	acpi_penalize_sci_irq(bus_irq, trigger, polarity);
 
 	/*
 	 * stash over-ride to indicate we've been here
@@ -652,7 +609,7 @@ static int acpi_register_gsi_pic(struct device *dev, u32 gsi,
 	 * Make sure all (legacy) PCI IRQs are set as level-triggered.
 	 */
 	if (trigger == ACPI_LEVEL_SENSITIVE)
-		eisa_set_level_irq(gsi);
+		elcr_set_level_irq(gsi);
 #endif
 
 	return gsi;
@@ -663,10 +620,21 @@ static int acpi_register_gsi_ioapic(struct device *dev, u32 gsi,
 				    int trigger, int polarity)
 {
 	int irq = gsi;
-
 #ifdef CONFIG_X86_IO_APIC
+	int node;
+	struct irq_alloc_info info;
+
+	node = dev ? dev_to_node(dev) : NUMA_NO_NODE;
+	trigger = trigger == ACPI_EDGE_SENSITIVE ? 0 : 1;
+	polarity = polarity == ACPI_ACTIVE_HIGH ? 0 : 1;
+	ioapic_set_alloc_attr(&info, node, trigger, polarity);
+
 	mutex_lock(&acpi_ioapic_lock);
-	irq = mp_register_gsi(dev, gsi, trigger, polarity);
+	irq = mp_map_gsi_to_irq(gsi, IOAPIC_MAP_ALLOC, &info);
+	/* Don't set up the ACPI SCI because it's already set up */
+	if (irq >= 0 && enable_update_mptable &&
+	    acpi_gbl_FADT.sci_interrupt != gsi)
+		mp_config_acpi_gsi(dev, gsi, trigger, polarity);
 	mutex_unlock(&acpi_ioapic_lock);
 #endif
 
@@ -676,8 +644,12 @@ static int acpi_register_gsi_ioapic(struct device *dev, u32 gsi,
 static void acpi_unregister_gsi_ioapic(u32 gsi)
 {
 #ifdef CONFIG_X86_IO_APIC
+	int irq;
+
 	mutex_lock(&acpi_ioapic_lock);
-	mp_unregister_gsi(gsi);
+	irq = mp_map_gsi_to_irq(gsi, 0, NULL);
+	if (irq > 0)
+		mp_unmap_irq(irq);
 	mutex_unlock(&acpi_ioapic_lock);
 #endif
 }
@@ -739,7 +711,7 @@ static void acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
 #endif
 }
 
-static int _acpi_map_lsapic(acpi_handle handle, int physid, int *pcpu)
+int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, int *pcpu)
 {
 	int cpu;
 
@@ -754,12 +726,6 @@ static int _acpi_map_lsapic(acpi_handle handle, int physid, int *pcpu)
 
 	*pcpu = cpu;
 	return 0;
-}
-
-/* wrapper to silence section mismatch warning */
-int __ref acpi_map_cpu(acpi_handle handle, int physid, int *pcpu)
-{
-	return _acpi_map_lsapic(handle, physid, pcpu);
 }
 EXPORT_SYMBOL(acpi_map_cpu);
 
@@ -786,7 +752,7 @@ int acpi_register_ioapic(acpi_handle handle, u64 phys_addr, u32 gsi_base)
 	u64 addr;
 	struct ioapic_domain_cfg cfg = {
 		.type = IOAPIC_DOMAIN_DYNAMIC,
-		.ops = &acpi_irqdomain_ops,
+		.ops = &mp_ioapic_irqdomain_ops,
 	};
 
 	ioapic_id = acpi_get_ioapic_id(handle, gsi_base, &addr);
@@ -1010,6 +976,8 @@ static int __init acpi_parse_madt_lapic_entries(void)
 {
 	int count;
 	int x2count = 0;
+	int ret;
+	struct acpi_subtable_proc madt_proc[2];
 
 	if (!cpu_has_apic)
 		return -ENODEV;
@@ -1033,10 +1001,22 @@ static int __init acpi_parse_madt_lapic_entries(void)
 				      acpi_parse_sapic, MAX_LOCAL_APIC);
 
 	if (!count) {
-		x2count = acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_X2APIC,
-					acpi_parse_x2apic, MAX_LOCAL_APIC);
-		count = acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_APIC,
-					acpi_parse_lapic, MAX_LOCAL_APIC);
+		memset(madt_proc, 0, sizeof(madt_proc));
+		madt_proc[0].id = ACPI_MADT_TYPE_LOCAL_APIC;
+		madt_proc[0].handler = acpi_parse_lapic;
+		madt_proc[1].id = ACPI_MADT_TYPE_LOCAL_X2APIC;
+		madt_proc[1].handler = acpi_parse_x2apic;
+		ret = acpi_table_parse_entries_array(ACPI_SIG_MADT,
+				sizeof(struct acpi_table_madt),
+				madt_proc, ARRAY_SIZE(madt_proc), MAX_LOCAL_APIC);
+		if (ret < 0) {
+			printk(KERN_ERR PREFIX
+					"Error parsing LAPIC/X2APIC entries\n");
+			return ret;
+		}
+
+		x2count = madt_proc[0].count;
+		count = madt_proc[1].count;
 	}
 	if (!count && !x2count) {
 		printk(KERN_ERR PREFIX "No LAPIC entries present\n");

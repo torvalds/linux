@@ -230,7 +230,8 @@ static void dwc_dostart(struct dw_dma_chan *dwc, struct dw_desc *first)
 	/* ASSERT:  channel is idle */
 	if (dma_readl(dw, CH_EN) & dwc->mask) {
 		dev_err(chan2dev(&dwc->chan),
-			"BUG: Attempted to start non-idle channel\n");
+			"%s: BUG: Attempted to start non-idle channel\n",
+			__func__);
 		dwc_dump_chan_regs(dwc);
 
 		/* The tasklet will hopefully advance the queue... */
@@ -814,11 +815,8 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 slave_sg_todev_fill_desc:
 			desc = dwc_desc_get(dwc);
-			if (!desc) {
-				dev_err(chan2dev(chan),
-					"not enough descriptors available\n");
+			if (!desc)
 				goto err_desc_get;
-			}
 
 			desc->lli.sar = mem;
 			desc->lli.dar = reg;
@@ -874,11 +872,8 @@ slave_sg_todev_fill_desc:
 
 slave_sg_fromdev_fill_desc:
 			desc = dwc_desc_get(dwc);
-			if (!desc) {
-				dev_err(chan2dev(chan),
-						"not enough descriptors available\n");
+			if (!desc)
 				goto err_desc_get;
-			}
 
 			desc->lli.sar = reg;
 			desc->lli.dar = mem;
@@ -922,6 +917,8 @@ slave_sg_fromdev_fill_desc:
 	return &first->txd;
 
 err_desc_get:
+	dev_err(chan2dev(chan),
+		"not enough descriptors available. Direction %d\n", direction);
 	dwc_desc_put(dwc, first);
 	return NULL;
 }
@@ -1261,7 +1258,8 @@ int dw_dma_cyclic_start(struct dma_chan *chan)
 	/* Assert channel is idle */
 	if (dma_readl(dw, CH_EN) & dwc->mask) {
 		dev_err(chan2dev(&dwc->chan),
-			"BUG: Attempted to start non-idle channel\n");
+			"%s: BUG: Attempted to start non-idle channel\n",
+			__func__);
 		dwc_dump_chan_regs(dwc);
 		spin_unlock_irqrestore(&dwc->lock, flags);
 		return -EBUSY;
@@ -1593,7 +1591,6 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 	INIT_LIST_HEAD(&dw->dma.channels);
 	for (i = 0; i < nr_channels; i++) {
 		struct dw_dma_chan	*dwc = &dw->chan[i];
-		int			r = nr_channels - i - 1;
 
 		dwc->chan.device = &dw->dma;
 		dma_cookie_init(&dwc->chan);
@@ -1605,7 +1602,7 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 
 		/* 7 is highest priority & 0 is lowest. */
 		if (pdata->chan_priority == CHAN_PRIORITY_ASCENDING)
-			dwc->priority = r;
+			dwc->priority = nr_channels - i - 1;
 		else
 			dwc->priority = i;
 
@@ -1624,6 +1621,7 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 		/* Hardware configuration */
 		if (autocfg) {
 			unsigned int dwc_params;
+			unsigned int r = DW_DMA_MAX_NR_CHANNELS - i - 1;
 			void __iomem *addr = chip->regs + r * sizeof(u32);
 
 			dwc_params = dma_read_byaddr(addr, DWC_PARAMS);
@@ -1748,4 +1746,4 @@ EXPORT_SYMBOL_GPL(dw_dma_enable);
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Synopsys DesignWare DMA Controller core driver");
 MODULE_AUTHOR("Haavard Skinnemoen (Atmel)");
-MODULE_AUTHOR("Viresh Kumar <viresh.linux@gmail.com>");
+MODULE_AUTHOR("Viresh Kumar <vireshk@kernel.org>");

@@ -169,6 +169,17 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 	 * cases, and 32-bit non-hash with 32-bit PTEs.
 	 */
 	*ptep = pte;
+
+#ifdef CONFIG_PPC_BOOK3E_64
+	/*
+	 * With hardware tablewalk, a sync is needed to ensure that
+	 * subsequent accesses see the PTE we just wrote.  Unlike userspace
+	 * mappings, we can't tolerate spurious faults, so make sure
+	 * the new PTE will be seen the first time.
+	 */
+	if (is_kernel_addr(addr))
+		mb();
+#endif
 #endif
 }
 
@@ -247,28 +258,16 @@ extern int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
 #define pmd_large(pmd)		0
 #define has_transparent_hugepage() 0
 #endif
-pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
-				 unsigned *shift);
-
-static inline pte_t *lookup_linux_ptep(pgd_t *pgdir, unsigned long hva,
-				     unsigned long *pte_sizep)
+pte_t *__find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
+				   bool *is_thp, unsigned *shift);
+static inline pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
+					       bool *is_thp, unsigned *shift)
 {
-	pte_t *ptep;
-	unsigned long ps = *pte_sizep;
-	unsigned int shift;
-
-	ptep = find_linux_pte_or_hugepte(pgdir, hva, &shift);
-	if (!ptep)
-		return NULL;
-	if (shift)
-		*pte_sizep = 1ul << shift;
-	else
-		*pte_sizep = PAGE_SIZE;
-
-	if (ps > *pte_sizep)
-		return NULL;
-
-	return ptep;
+	if (!arch_irqs_disabled()) {
+		pr_info("%s called with irq enabled\n", __func__);
+		dump_stack();
+	}
+	return __find_linux_pte_or_hugepte(pgdir, ea, is_thp, shift);
 }
 #endif /* __ASSEMBLY__ */
 

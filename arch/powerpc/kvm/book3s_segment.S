@@ -123,7 +123,7 @@ no_dcbz32_on:
 	PPC_LL	r8, SVCPU_CTR(r3)
 	PPC_LL	r9, SVCPU_LR(r3)
 	lwz	r10, SVCPU_CR(r3)
-	lwz	r11, SVCPU_XER(r3)
+	PPC_LL	r11, SVCPU_XER(r3)
 
 	mtctr	r8
 	mtlr	r9
@@ -237,7 +237,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
 	mfctr	r8
 	mflr	r9
 
-	stw	r5, SVCPU_XER(r13)
+	PPC_STL	r5, SVCPU_XER(r13)
 	PPC_STL	r6, SVCPU_FAULT_DAR(r13)
 	stw	r7, SVCPU_FAULT_DSISR(r13)
 	PPC_STL	r8, SVCPU_CTR(r13)

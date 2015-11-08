@@ -291,6 +291,14 @@ struct vring_tx_dma {
 	__le16 length;
 } __packed;
 
+/* TSO type used in dma descriptor d0 bits 11-12 */
+enum {
+	wil_tso_type_hdr = 0,
+	wil_tso_type_first = 1,
+	wil_tso_type_mid  = 2,
+	wil_tso_type_lst  = 3,
+};
+
 /* Rx descriptor - MAC part
  * [dword 0]
  * bit  0.. 3 : tid:4 The QoS (b3-0) TID Field
@@ -384,19 +392,27 @@ struct vring_rx_mac {
  *  [word 7] length
  */
 
-#define RX_DMA_D0_CMD_DMA_IT     BIT(10)
+#define RX_DMA_D0_CMD_DMA_EOP	BIT(8)
+#define RX_DMA_D0_CMD_DMA_RT	BIT(9)  /* always 1 */
+#define RX_DMA_D0_CMD_DMA_IT	BIT(10) /* interrupt */
 
-/* Error field, offload bits */
-#define RX_DMA_ERROR_L3_ERR   BIT(4)
-#define RX_DMA_ERROR_L4_ERR   BIT(5)
+/* Error field */
+#define RX_DMA_ERROR_FCS	BIT(0)
+#define RX_DMA_ERROR_MIC	BIT(1)
+#define RX_DMA_ERROR_KEY	BIT(2) /* Key missing */
+#define RX_DMA_ERROR_REPLAY	BIT(3)
+#define RX_DMA_ERROR_L3_ERR	BIT(4)
+#define RX_DMA_ERROR_L4_ERR	BIT(5)
 
 /* Status field */
-#define RX_DMA_STATUS_DU         BIT(0)
-#define RX_DMA_STATUS_ERROR      BIT(2)
-
+#define RX_DMA_STATUS_DU	BIT(0)
+#define RX_DMA_STATUS_EOP	BIT(1)
+#define RX_DMA_STATUS_ERROR	BIT(2)
+#define RX_DMA_STATUS_MI	BIT(3) /* MAC Interrupt is asserted */
 #define RX_DMA_STATUS_L3I	BIT(4)
 #define RX_DMA_STATUS_L4I	BIT(5)
 #define RX_DMA_STATUS_PHY_INFO	BIT(6)
+#define RX_DMA_STATUS_FFM	BIT(7) /* EtherType Flex Filter Match */
 
 struct vring_rx_dma {
 	u32 d0;
@@ -448,6 +464,12 @@ static inline int wil_rxdesc_subtype(struct vring_rx_desc *d)
 	return WIL_GET_BITS(d->mac.d0, 12, 15);
 }
 
+/* 1-st byte (with frame type/subtype) of FC field */
+static inline u8 wil_rxdesc_fc1(struct vring_rx_desc *d)
+{
+	return (u8)(WIL_GET_BITS(d->mac.d0, 10, 15) << 2);
+}
+
 static inline int wil_rxdesc_seq(struct vring_rx_desc *d)
 {
 	return WIL_GET_BITS(d->mac.d0, 16, 27);
@@ -485,6 +507,7 @@ static inline struct vring_rx_desc *wil_skb_rxdesc(struct sk_buff *skb)
 
 void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev);
 void wil_rx_reorder(struct wil6210_priv *wil, struct sk_buff *skb);
+void wil_rx_bar(struct wil6210_priv *wil, u8 cid, u8 tid, u16 seq);
 struct wil_tid_ampdu_rx *wil_tid_ampdu_rx_alloc(struct wil6210_priv *wil,
 						int size, u16 ssn);
 void wil_tid_ampdu_rx_free(struct wil6210_priv *wil,

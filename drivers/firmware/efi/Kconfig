@@ -18,6 +18,11 @@ config EFI_VARS
 	  Subsequent efibootmgr releases may be found at:
 	  <http://github.com/vathpela/efibootmgr>
 
+config EFI_ESRT
+	bool
+	depends on EFI && !IA64
+	default y
+
 config EFI_VARS_PSTORE
 	tristate "Register efivars backend for pstore"
 	depends on EFI_VARS && PSTORE
@@ -38,7 +43,7 @@ config EFI_VARS_PSTORE_DEFAULT_DISABLE
 
 config EFI_RUNTIME_MAP
 	bool "Export efi runtime maps to sysfs"
-	depends on X86 && EFI && KEXEC
+	depends on X86 && EFI && KEXEC_CORE
 	default y
 	help
 	  Export efi runtime memory maps to /sys/firmware/efi/runtime-map.
@@ -46,6 +51,28 @@ config EFI_RUNTIME_MAP
 	  mapping the 2nd kernel, but can also be used for debugging purposes.
 
 	  See also Documentation/ABI/testing/sysfs-firmware-efi-runtime-map.
+
+config EFI_FAKE_MEMMAP
+	bool "Enable EFI fake memory map"
+	depends on EFI && X86
+	default n
+	help
+	  Saying Y here will enable "efi_fake_mem" boot option.
+	  By specifying this parameter, you can add arbitrary attribute
+	  to specific memory range by updating original (firmware provided)
+	  EFI memmap.
+	  This is useful for debugging of EFI memmap related feature.
+	  e.g. Address Range Mirroring feature.
+
+config EFI_MAX_FAKE_MEM
+	int "maximum allowable number of ranges in efi_fake_mem boot option"
+	depends on EFI_FAKE_MEMMAP
+	range 1 128
+	default 8
+	help
+	  Maximum allowable number of ranges in efi_fake_mem boot option.
+	  Ranges can be set up to this value using comma-separated list.
+	  The default value is 8.
 
 config EFI_PARAMS_FROM_FDT
 	bool

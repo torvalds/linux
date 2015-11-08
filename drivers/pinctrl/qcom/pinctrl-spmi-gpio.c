@@ -260,6 +260,7 @@ static int pmic_gpio_set_mux(struct pinctrl_dev *pctldev, unsigned function,
 			val = 1;
 	}
 
+	val = val << PMIC_GPIO_REG_MODE_DIR_SHIFT;
 	val |= pad->function << PMIC_GPIO_REG_MODE_FUNCTION_SHIFT;
 	val |= pad->out_value & PMIC_GPIO_REG_MODE_VALUE_SHIFT;
 
@@ -417,7 +418,7 @@ static int pmic_gpio_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		return ret;
 
 	val = pad->buffer_type << PMIC_GPIO_REG_OUT_TYPE_SHIFT;
-	val = pad->strength << PMIC_GPIO_REG_OUT_STRENGTH_SHIFT;
+	val |= pad->strength << PMIC_GPIO_REG_OUT_STRENGTH_SHIFT;
 
 	ret = pmic_gpio_write(state, pad, PMIC_GPIO_REG_DIG_OUT_CTL, val);
 	if (ret < 0)
@@ -466,12 +467,13 @@ static void pmic_gpio_config_dbg_show(struct pinctrl_dev *pctldev,
 		seq_puts(s, " ---");
 	} else {
 
-		if (!pad->input_enabled) {
+		if (pad->input_enabled) {
 			ret = pmic_gpio_read(state, pad, PMIC_MPP_REG_RT_STS);
-			if (!ret) {
-				ret &= PMIC_MPP_REG_RT_STS_VAL_MASK;
-				pad->out_value = ret;
-			}
+			if (ret < 0)
+				return;
+
+			ret &= PMIC_MPP_REG_RT_STS_VAL_MASK;
+			pad->out_value = ret;
 		}
 
 		seq_printf(s, " %-4s", pad->output_enabled ? "out" : "in");
@@ -544,16 +546,6 @@ static void pmic_gpio_set(struct gpio_chip *chip, unsigned pin, int value)
 	pmic_gpio_config_set(state->ctrl, pin, &config, 1);
 }
 
-static int pmic_gpio_request(struct gpio_chip *chip, unsigned base)
-{
-	return pinctrl_request_gpio(chip->base + base);
-}
-
-static void pmic_gpio_free(struct gpio_chip *chip, unsigned base)
-{
-	pinctrl_free_gpio(chip->base + base);
-}
-
 static int pmic_gpio_of_xlate(struct gpio_chip *chip,
 			      const struct of_phandle_args *gpio_desc,
 			      u32 *flags)
@@ -593,8 +585,8 @@ static const struct gpio_chip pmic_gpio_gpio_template = {
 	.direction_output	= pmic_gpio_direction_output,
 	.get			= pmic_gpio_get,
 	.set			= pmic_gpio_set,
-	.request		= pmic_gpio_request,
-	.free			= pmic_gpio_free,
+	.request		= gpiochip_generic_request,
+	.free			= gpiochip_generic_free,
 	.of_xlate		= pmic_gpio_of_xlate,
 	.to_irq			= pmic_gpio_to_irq,
 	.dbg_show		= pmic_gpio_dbg_show,
@@ -776,8 +768,8 @@ static int pmic_gpio_probe(struct platform_device *pdev)
 	state->chip.can_sleep = false;
 
 	state->ctrl = pinctrl_register(pctrldesc, dev, state);
-	if (!state->ctrl)
-		return -ENODEV;
+	if (IS_ERR(state->ctrl))
+		return PTR_ERR(state->ctrl);
 
 	ret = gpiochip_add(&state->chip);
 	if (ret) {
@@ -810,6 +802,7 @@ static int pmic_gpio_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id pmic_gpio_of_match[] = {
+	{ .compatible = "qcom,pm8916-gpio" },	/* 4 GPIO's */
 	{ .compatible = "qcom,pm8941-gpio" },	/* 36 GPIO's */
 	{ .compatible = "qcom,pma8084-gpio" },	/* 22 GPIO's */
 	{ },

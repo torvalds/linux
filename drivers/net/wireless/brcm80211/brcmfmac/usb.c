@@ -144,6 +144,7 @@ struct brcmf_usbdev_info {
 
 	struct usb_device *usbdev;
 	struct device *dev;
+	struct mutex dev_init_lock;
 
 	int ctl_in_pipe, ctl_out_pipe;
 	struct urb *ctl_urb; /* URB for control endpoint */
@@ -1204,6 +1205,8 @@ static void brcmf_usb_probe_phase2(struct device *dev,
 	int ret;
 
 	brcmf_dbg(USB, "Start fw downloading\n");
+
+	devinfo = bus->bus_priv.usb->devinfo;
 	ret = check_file(fw->data);
 	if (ret < 0) {
 		brcmf_err("invalid firmware\n");
@@ -1211,7 +1214,6 @@ static void brcmf_usb_probe_phase2(struct device *dev,
 		goto error;
 	}
 
-	devinfo = bus->bus_priv.usb->devinfo;
 	devinfo->image = fw->data;
 	devinfo->image_len = fw->size;
 
@@ -1224,9 +1226,11 @@ static void brcmf_usb_probe_phase2(struct device *dev,
 	if (ret)
 		goto error;
 
+	mutex_unlock(&devinfo->dev_init_lock);
 	return;
 error:
 	brcmf_dbg(TRACE, "failed: dev=%s, err=%d\n", dev_name(dev), ret);
+	mutex_unlock(&devinfo->dev_init_lock);
 	device_release_driver(dev);
 }
 
@@ -1264,14 +1268,20 @@ static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo)
 		if (ret)
 			goto fail;
 		/* we are done */
+		mutex_unlock(&devinfo->dev_init_lock);
 		return 0;
 	}
 	bus->chip = bus_pub->devid;
 	bus->chiprev = bus_pub->chiprev;
 
 	/* request firmware here */
-	brcmf_fw_get_firmwares(dev, 0, brcmf_usb_get_fwname(devinfo), NULL,
-			       brcmf_usb_probe_phase2);
+	ret = brcmf_fw_get_firmwares(dev, 0, brcmf_usb_get_fwname(devinfo),
+				     NULL, brcmf_usb_probe_phase2);
+	if (ret) {
+		brcmf_err("firmware request failed: %d\n", ret);
+		goto fail;
+	}
+
 	return 0;
 
 fail:
@@ -1312,6 +1322,12 @@ brcmf_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	devinfo->usbdev = usb;
 	devinfo->dev = &usb->dev;
+	/* Take an init lock, to protect for disconnect while still loading.
+	 * Necessary because of the asynchronous firmware load construction
+	 */
+	mutex_init(&devinfo->dev_init_lock);
+	mutex_lock(&devinfo->dev_init_lock);
+
 	usb_set_intfdata(intf, devinfo);
 
 	/* Check that the device supports only one configuration */
@@ -1386,6 +1402,7 @@ brcmf_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	return 0;
 
 fail:
+	mutex_unlock(&devinfo->dev_init_lock);
 	kfree(devinfo);
 	usb_set_intfdata(intf, NULL);
 	return ret;
@@ -1398,8 +1415,19 @@ brcmf_usb_disconnect(struct usb_interface *intf)
 
 	brcmf_dbg(USB, "Enter\n");
 	devinfo = (struct brcmf_usbdev_info *)usb_get_intfdata(intf);
-	brcmf_usb_disconnect_cb(devinfo);
-	kfree(devinfo);
+
+	if (devinfo) {
+		mutex_lock(&devinfo->dev_init_lock);
+		/* Make sure that devinfo still exists. Firmware probe routines
+		 * may have released the device and cleared the intfdata.
+		 */
+		if (!usb_get_intfdata(intf))
+			goto done;
+
+		brcmf_usb_disconnect_cb(devinfo);
+		kfree(devinfo);
+	}
+done:
 	brcmf_dbg(USB, "Exit\n");
 }
 

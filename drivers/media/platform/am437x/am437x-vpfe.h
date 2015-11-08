@@ -31,6 +31,7 @@
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
+#include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
 
 #include "am437x-vpfe_regs.h"
@@ -83,7 +84,6 @@ struct vpfe_route {
 };
 
 struct vpfe_subdev_info {
-	 char name[32];
 	/* Sub device group id */
 	int grp_id;
 	/* inputs available at the sub device */
@@ -105,7 +105,7 @@ struct vpfe_config {
 };
 
 struct vpfe_cap_buffer {
-	struct vb2_buffer vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head list;
 };
 
@@ -223,7 +223,7 @@ struct vpfe_ccdc {
 struct vpfe_device {
 	/* V4l2 specific parameters */
 	/* Identifies video device for this channel */
-	struct video_device *video_dev;
+	struct video_device video_dev;
 	/* sub devices */
 	struct v4l2_subdev **sd;
 	/* vpfe cfg */

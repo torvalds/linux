@@ -43,15 +43,19 @@
 #define UBIFS_VERSION 1
 
 /* Normal UBIFS messages */
-#define ubifs_msg(fmt, ...) pr_notice("UBIFS: " fmt "\n", ##__VA_ARGS__)
+#define ubifs_msg(c, fmt, ...)                                      \
+	pr_notice("UBIFS (ubi%d:%d): " fmt "\n",                    \
+		  (c)->vi.ubi_num, (c)->vi.vol_id, ##__VA_ARGS__)
 /* UBIFS error messages */
-#define ubifs_err(fmt, ...)                                         \
-	pr_err("UBIFS error (pid %d): %s: " fmt "\n", current->pid, \
+#define ubifs_err(c, fmt, ...)                                      \
+	pr_err("UBIFS error (ubi%d:%d pid %d): %s: " fmt "\n",      \
+	       (c)->vi.ubi_num, (c)->vi.vol_id, current->pid,       \
 	       __func__, ##__VA_ARGS__)
 /* UBIFS warning messages */
-#define ubifs_warn(fmt, ...)                                        \
-	pr_warn("UBIFS warning (pid %d): %s: " fmt "\n",            \
-		current->pid, __func__, ##__VA_ARGS__)
+#define ubifs_warn(c, fmt, ...)                                     \
+	pr_warn("UBIFS warning (ubi%d:%d pid %d): %s: " fmt "\n",   \
+		(c)->vi.ubi_num, (c)->vi.vol_id, current->pid,      \
+		__func__, ##__VA_ARGS__)
 /*
  * A variant of 'ubifs_err()' which takes the UBIFS file-sytem description
  * object as an argument.
@@ -59,7 +63,7 @@
 #define ubifs_errc(c, fmt, ...)                                     \
 	do {                                                        \
 		if (!(c)->probing)                                  \
-			ubifs_err(fmt, ##__VA_ARGS__);              \
+			ubifs_err(c, fmt, ##__VA_ARGS__);           \
 	} while (0)
 
 /* UBIFS file system VFS magic number */
@@ -158,7 +162,7 @@
 #define WORST_COMPR_FACTOR 2
 
 /*
- * How much memory is needed for a buffer where we comress a data node.
+ * How much memory is needed for a buffer where we compress a data node.
  */
 #define COMPRESSED_DATA_NODE_BUF_SZ \
 	(UBIFS_DATA_NODE_SZ + UBIFS_BLOCK_SIZE * WORST_COMPR_FACTOR)
@@ -664,7 +668,7 @@ typedef int (*ubifs_lpt_scan_callback)(struct ubifs_info *c,
  * @lock: serializes @buf, @lnum, @offs, @avail, @used, @next_ino and @inodes
  *        fields
  * @softlimit: soft write-buffer timeout interval
- * @delta: hard and soft timeouts delta (the timer expire inteval is @softlimit
+ * @delta: hard and soft timeouts delta (the timer expire interval is @softlimit
  *         and @softlimit + @delta)
  * @timer: write-buffer timer
  * @no_timer: non-zero if this write-buffer does not have a timer
@@ -930,9 +934,9 @@ struct ubifs_orphan {
 /**
  * struct ubifs_mount_opts - UBIFS-specific mount options information.
  * @unmount_mode: selected unmount mode (%0 default, %1 normal, %2 fast)
- * @bulk_read: enable/disable bulk-reads (%0 default, %1 disabe, %2 enable)
+ * @bulk_read: enable/disable bulk-reads (%0 default, %1 disable, %2 enable)
  * @chk_data_crc: enable/disable CRC data checking when reading data nodes
- *                (%0 default, %1 disabe, %2 enable)
+ *                (%0 default, %1 disable, %2 enable)
  * @override_compr: override default compressor (%0 - do not override and use
  *                  superblock compressor, %1 - override and use compressor
  *                  specified in @compr_type)
@@ -962,9 +966,9 @@ struct ubifs_mount_opts {
  *           optimization)
  * @nospace_rp: the same as @nospace, but additionally means that even reserved
  *              pool is full
- * @page_budget: budget for a page (constant, nenver changed after mount)
- * @inode_budget: budget for an inode (constant, nenver changed after mount)
- * @dent_budget: budget for a directory entry (constant, nenver changed after
+ * @page_budget: budget for a page (constant, never changed after mount)
+ * @inode_budget: budget for an inode (constant, never changed after mount)
+ * @dent_budget: budget for a directory entry (constant, never changed after
  *               mount)
  */
 struct ubifs_budg_info {
@@ -1787,10 +1791,10 @@ long ubifs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 /* compressor.c */
 int __init ubifs_compressors_init(void);
 void ubifs_compressors_exit(void);
-void ubifs_compress(const void *in_buf, int in_len, void *out_buf, int *out_len,
-		    int *compr_type);
-int ubifs_decompress(const void *buf, int len, void *out, int *out_len,
-		     int compr_type);
+void ubifs_compress(const struct ubifs_info *c, const void *in_buf, int in_len,
+		    void *out_buf, int *out_len, int *compr_type);
+int ubifs_decompress(const struct ubifs_info *c, const void *buf, int len,
+		     void *out, int *out_len, int compr_type);
 
 #include "debug.h"
 #include "misc.h"

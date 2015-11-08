@@ -59,7 +59,7 @@ static void goldfish_tty_do_write(int line, const char *buf, unsigned count)
 	struct goldfish_tty *qtty = &goldfish_ttys[line];
 	void __iomem *base = qtty->base;
 	spin_lock_irqsave(&qtty->lock, irq_flags);
-	gf_write64((u64)buf, base + GOLDFISH_TTY_DATA_PTR,
+	gf_write_ptr(buf, base + GOLDFISH_TTY_DATA_PTR,
 				base + GOLDFISH_TTY_DATA_PTR_HIGH);
 	writel(count, base + GOLDFISH_TTY_DATA_LEN);
 	writel(GOLDFISH_TTY_CMD_WRITE_BUFFER, base + GOLDFISH_TTY_CMD);
@@ -81,7 +81,7 @@ static irqreturn_t goldfish_tty_interrupt(int irq, void *dev_id)
 
 	count = tty_prepare_flip_string(&qtty->port, &buf, count);
 	spin_lock_irqsave(&qtty->lock, irq_flags);
-	gf_write64((u64)buf, base + GOLDFISH_TTY_DATA_PTR,
+	gf_write_ptr(buf, base + GOLDFISH_TTY_DATA_PTR,
 				base + GOLDFISH_TTY_DATA_PTR_HIGH);
 	writel(count, base + GOLDFISH_TTY_DATA_LEN);
 	writel(GOLDFISH_TTY_CMD_READ_BUFFER, base + GOLDFISH_TTY_CMD);
@@ -229,7 +229,6 @@ static int goldfish_tty_probe(struct platform_device *pdev)
 {
 	struct goldfish_tty *qtty;
 	int ret = -EINVAL;
-	int i;
 	struct resource *r;
 	struct device *ttydev;
 	void __iomem *base;
@@ -293,7 +292,6 @@ static int goldfish_tty_probe(struct platform_device *pdev)
 	mutex_unlock(&goldfish_tty_lock);
 	return 0;
 
-	tty_unregister_device(goldfish_tty_driver, i);
 err_tty_register_device_failed:
 	free_irq(irq, pdev);
 err_request_irq_failed:

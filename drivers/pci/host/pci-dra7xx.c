@@ -17,6 +17,7 @@
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_gpio.h>
 #include <linux/pci.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
@@ -61,6 +62,7 @@
 
 #define	PCIECTRL_DRA7XX_CONF_PHY_CS			0x010C
 #define	LINK_UP						BIT(16)
+#define	DRA7XX_CPU_TO_BUS_ADDR				0x0FFFFFFF
 
 struct dra7xx_pcie {
 	void __iomem		*base;
@@ -83,6 +85,17 @@ static inline void dra7xx_pcie_writel(struct dra7xx_pcie *pcie, u32 offset,
 	writel(value, pcie->base + offset);
 }
 
+static inline u32 dra7xx_pcie_readl_rc(struct pcie_port *pp, u32 offset)
+{
+	return readl(pp->dbi_base + offset);
+}
+
+static inline void dra7xx_pcie_writel_rc(struct pcie_port *pp, u32 offset,
+					 u32 value)
+{
+	writel(value, pp->dbi_base + offset);
+}
+
 static int dra7xx_pcie_link_up(struct pcie_port *pp)
 {
 	struct dra7xx_pcie *dra7xx = to_dra7xx_pcie(pp);
@@ -93,9 +106,9 @@ static int dra7xx_pcie_link_up(struct pcie_port *pp)
 
 static int dra7xx_pcie_establish_link(struct pcie_port *pp)
 {
-	u32 reg;
-	unsigned int retries = 1000;
 	struct dra7xx_pcie *dra7xx = to_dra7xx_pcie(pp);
+	u32 reg;
+	unsigned int retries;
 
 	if (dw_pcie_link_up(pp)) {
 		dev_err(pp->dev, "link is already up\n");
@@ -106,19 +119,14 @@ static int dra7xx_pcie_establish_link(struct pcie_port *pp)
 	reg |= LTSSM_EN;
 	dra7xx_pcie_writel(dra7xx, PCIECTRL_DRA7XX_CONF_DEVICE_CMD, reg);
 
-	while (retries--) {
-		reg = dra7xx_pcie_readl(dra7xx,	PCIECTRL_DRA7XX_CONF_PHY_CS);
-		if (reg & LINK_UP)
-			break;
+	for (retries = 0; retries < 1000; retries++) {
+		if (dw_pcie_link_up(pp))
+			return 0;
 		usleep_range(10, 20);
 	}
 
-	if (retries == 0) {
-		dev_err(pp->dev, "link is not up\n");
-		return -ETIMEDOUT;
-	}
-
-	return 0;
+	dev_err(pp->dev, "link is not up\n");
+	return -EINVAL;
 }
 
 static void dra7xx_pcie_enable_interrupts(struct pcie_port *pp)
@@ -144,6 +152,12 @@ static void dra7xx_pcie_enable_interrupts(struct pcie_port *pp)
 static void dra7xx_pcie_host_init(struct pcie_port *pp)
 {
 	dw_pcie_setup_rc(pp);
+
+	pp->io_base &= DRA7XX_CPU_TO_BUS_ADDR;
+	pp->mem_base &= DRA7XX_CPU_TO_BUS_ADDR;
+	pp->cfg0_base &= DRA7XX_CPU_TO_BUS_ADDR;
+	pp->cfg1_base &= DRA7XX_CPU_TO_BUS_ADDR;
+
 	dra7xx_pcie_establish_link(pp);
 	if (IS_ENABLED(CONFIG_PCI_MSI))
 		dw_pcie_msi_init(pp);
@@ -160,7 +174,6 @@ static int dra7xx_pcie_intx_map(struct irq_domain *domain, unsigned int irq,
 {
 	irq_set_chip_and_handler(irq, &dummy_irq_chip, handle_simple_irq);
 	irq_set_chip_data(irq, domain->host_data);
-	set_irq_flags(irq, IRQF_VALID);
 
 	return 0;
 }
@@ -330,6 +343,9 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	char name[10];
+	int gpio_sel;
+	enum of_gpio_flags flags;
+	unsigned long gpio_flags;
 
 	dra7xx = devm_kzalloc(dev, sizeof(*dra7xx), GFP_KERNEL);
 	if (!dra7xx)
@@ -387,9 +403,25 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 	ret = pm_runtime_get_sync(dev);
-	if (IS_ERR_VALUE(ret)) {
+	if (ret < 0) {
 		dev_err(dev, "pm_runtime_get_sync failed\n");
-		goto err_phy;
+		goto err_get_sync;
+	}
+
+	gpio_sel = of_get_gpio_flags(dev->of_node, 0, &flags);
+	if (gpio_is_valid(gpio_sel)) {
+		gpio_flags = (flags & OF_GPIO_ACTIVE_LOW) ?
+				GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH;
+		ret = devm_gpio_request_one(dev, gpio_sel, gpio_flags,
+					    "pcie_reset");
+		if (ret) {
+			dev_err(&pdev->dev, "gpio%d request failed, ret %d\n",
+				gpio_sel, ret);
+			goto err_gpio;
+		}
+	} else if (gpio_sel == -EPROBE_DEFER) {
+		ret = -EPROBE_DEFER;
+		goto err_gpio;
 	}
 
 	reg = dra7xx_pcie_readl(dra7xx, PCIECTRL_DRA7XX_CONF_DEVICE_CMD);
@@ -400,12 +432,14 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 
 	ret = dra7xx_add_pcie_port(dra7xx, pdev);
 	if (ret < 0)
-		goto err_add_port;
+		goto err_gpio;
 
 	return 0;
 
-err_add_port:
+err_gpio:
 	pm_runtime_put(dev);
+
+err_get_sync:
 	pm_runtime_disable(dev);
 
 err_phy:
@@ -436,6 +470,85 @@ static int __exit dra7xx_pcie_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int dra7xx_pcie_suspend(struct device *dev)
+{
+	struct dra7xx_pcie *dra7xx = dev_get_drvdata(dev);
+	struct pcie_port *pp = &dra7xx->pp;
+	u32 val;
+
+	/* clear MSE */
+	val = dra7xx_pcie_readl_rc(pp, PCI_COMMAND);
+	val &= ~PCI_COMMAND_MEMORY;
+	dra7xx_pcie_writel_rc(pp, PCI_COMMAND, val);
+
+	return 0;
+}
+
+static int dra7xx_pcie_resume(struct device *dev)
+{
+	struct dra7xx_pcie *dra7xx = dev_get_drvdata(dev);
+	struct pcie_port *pp = &dra7xx->pp;
+	u32 val;
+
+	/* set MSE */
+	val = dra7xx_pcie_readl_rc(pp, PCI_COMMAND);
+	val |= PCI_COMMAND_MEMORY;
+	dra7xx_pcie_writel_rc(pp, PCI_COMMAND, val);
+
+	return 0;
+}
+
+static int dra7xx_pcie_suspend_noirq(struct device *dev)
+{
+	struct dra7xx_pcie *dra7xx = dev_get_drvdata(dev);
+	int count = dra7xx->phy_count;
+
+	while (count--) {
+		phy_power_off(dra7xx->phy[count]);
+		phy_exit(dra7xx->phy[count]);
+	}
+
+	return 0;
+}
+
+static int dra7xx_pcie_resume_noirq(struct device *dev)
+{
+	struct dra7xx_pcie *dra7xx = dev_get_drvdata(dev);
+	int phy_count = dra7xx->phy_count;
+	int ret;
+	int i;
+
+	for (i = 0; i < phy_count; i++) {
+		ret = phy_init(dra7xx->phy[i]);
+		if (ret < 0)
+			goto err_phy;
+
+		ret = phy_power_on(dra7xx->phy[i]);
+		if (ret < 0) {
+			phy_exit(dra7xx->phy[i]);
+			goto err_phy;
+		}
+	}
+
+	return 0;
+
+err_phy:
+	while (--i >= 0) {
+		phy_power_off(dra7xx->phy[i]);
+		phy_exit(dra7xx->phy[i]);
+	}
+
+	return ret;
+}
+#endif
+
+static const struct dev_pm_ops dra7xx_pcie_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(dra7xx_pcie_suspend, dra7xx_pcie_resume)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(dra7xx_pcie_suspend_noirq,
+				      dra7xx_pcie_resume_noirq)
+};
+
 static const struct of_device_id of_dra7xx_pcie_match[] = {
 	{ .compatible = "ti,dra7-pcie", },
 	{},
@@ -447,6 +560,7 @@ static struct platform_driver dra7xx_pcie_driver = {
 	.driver = {
 		.name	= "dra7-pcie",
 		.of_match_table = of_dra7xx_pcie_match,
+		.pm	= &dra7xx_pcie_pm_ops,
 	},
 };
 

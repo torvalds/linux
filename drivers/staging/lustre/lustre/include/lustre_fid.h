@@ -330,8 +330,6 @@ enum lu_mgr_type {
 	LUSTRE_SEQ_CONTROLLER
 };
 
-struct lu_server_seq;
-
 /* Client sequence manager interface. */
 struct lu_client_seq {
 	/* Sequence-controller export. */
@@ -346,7 +344,7 @@ struct lu_client_seq {
 	struct lu_seq_range	 lcs_space;
 
 	/* Seq related proc */
-	struct proc_dir_entry   *lcs_proc_dir;
+	struct dentry		*lcs_debugfs_entry;
 
 	/* This holds last allocated fid in last obtained seq */
 	struct lu_fid	   lcs_fid;
@@ -366,111 +364,16 @@ struct lu_client_seq {
 	 */
 	__u64		   lcs_width;
 
-	/* Seq-server for direct talking */
-	struct lu_server_seq   *lcs_srv;
-
 	/* wait queue for fid allocation and update indicator */
 	wait_queue_head_t	     lcs_waitq;
 	int		     lcs_update;
 };
 
-/* server sequence manager interface */
-struct lu_server_seq {
-	/* Available sequences space */
-	struct lu_seq_range	 lss_space;
-
-	/* keeps highwater in lsr_end for seq allocation algorithm */
-	struct lu_seq_range	 lss_lowater_set;
-	struct lu_seq_range	 lss_hiwater_set;
-
-	/*
-	 * Device for server side seq manager needs (saving sequences to backing
-	 * store).
-	 */
-	struct dt_device       *lss_dev;
-
-	/* /seq file object device */
-	struct dt_object       *lss_obj;
-
-	/* Seq related proc */
-	struct proc_dir_entry   *lss_proc_dir;
-
-	/* LUSTRE_SEQ_SERVER or LUSTRE_SEQ_CONTROLLER */
-	enum lu_mgr_type       lss_type;
-
-	/* Client interface to request controller */
-	struct lu_client_seq   *lss_cli;
-
-	/* Mutex for protecting allocation */
-	struct mutex		lss_mutex;
-
-	/*
-	 * Service uuid, passed from MDT + seq name to form unique seq name to
-	 * use it with procfs.
-	 */
-	char		    lss_name[LUSTRE_MDT_MAXNAMELEN];
-
-	/*
-	 * Allocation chunks for super and meta sequences. Default values are
-	 * LUSTRE_SEQ_SUPER_WIDTH and LUSTRE_SEQ_META_WIDTH.
-	 */
-	__u64		   lss_width;
-
-	/*
-	 * minimum lss_alloc_set size that should be allocated from
-	 * lss_space
-	 */
-	__u64		   lss_set_width;
-
-	/* sync is needed for update operation */
-	__u32		   lss_need_sync;
-
-	/**
-	 * Pointer to site object, required to access site fld.
-	 */
-	struct seq_server_site  *lss_site;
-};
-
-/* Server methods */
-
-int seq_server_init(struct lu_server_seq *seq,
-		    struct dt_device *dev,
-		    const char *prefix,
-		    enum lu_mgr_type type,
-		    struct seq_server_site *ss,
-		    const struct lu_env *env);
-
-void seq_server_fini(struct lu_server_seq *seq,
-		     const struct lu_env *env);
-
-int seq_server_alloc_super(struct lu_server_seq *seq,
-			   struct lu_seq_range *out,
-			   const struct lu_env *env);
-
-int seq_server_alloc_meta(struct lu_server_seq *seq,
-			  struct lu_seq_range *out,
-			  const struct lu_env *env);
-
-int seq_server_set_cli(struct lu_server_seq *seq,
-		       struct lu_client_seq *cli,
-		       const struct lu_env *env);
-
 /* Client methods */
-int seq_client_init(struct lu_client_seq *seq,
-		    struct obd_export *exp,
-		    enum lu_cli_type type,
-		    const char *prefix,
-		    struct lu_server_seq *srv);
-
-void seq_client_fini(struct lu_client_seq *seq);
-
 void seq_client_flush(struct lu_client_seq *seq);
 
 int seq_client_alloc_fid(const struct lu_env *env, struct lu_client_seq *seq,
 			 struct lu_fid *fid);
-int seq_client_get_seq(const struct lu_env *env, struct lu_client_seq *seq,
-		       u64 *seqnr);
-int seq_site_fini(const struct lu_env *env, struct seq_server_site *ss);
 /* Fids common stuff */
 int fid_is_local(const struct lu_env *env,
 		 struct lu_site *site, const struct lu_fid *fid);
@@ -629,6 +532,7 @@ static inline void ost_fid_build_resid(const struct lu_fid *fid,
 {
 	if (fid_is_mdt0(fid) || fid_is_idif(fid)) {
 		struct ost_id oi;
+
 		oi.oi.oi_id = 0; /* gcc 4.7.2 complains otherwise */
 		if (fid_to_ostid(fid, &oi) != 0)
 			return;
@@ -644,6 +548,7 @@ static inline void ost_fid_from_resid(struct lu_fid *fid,
 	if (fid_seq_is_mdt0(name->name[LUSTRE_RES_ID_VER_OID_OFF])) {
 		/* old resid */
 		struct ost_id oi;
+
 		ostid_set_seq(&oi, name->name[LUSTRE_RES_ID_VER_OID_OFF]);
 		ostid_set_id(&oi, name->name[LUSTRE_RES_ID_SEQ_OFF]);
 		ostid_to_fid(fid, &oi, 0);

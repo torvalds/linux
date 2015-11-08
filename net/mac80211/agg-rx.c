@@ -49,8 +49,6 @@ static void ieee80211_free_tid_rx(struct rcu_head *h)
 		container_of(h, struct tid_ampdu_rx, rcu_head);
 	int i;
 
-	del_timer_sync(&tid_rx->reorder_timer);
-
 	for (i = 0; i < tid_rx->buf_size; i++)
 		__skb_queue_purge(&tid_rx->reorder_buf[i]);
 	kfree(tid_rx->reorder_buf);
@@ -81,7 +79,7 @@ void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 	       (int)reason);
 
 	if (drv_ampdu_action(local, sta->sdata, IEEE80211_AMPDU_RX_STOP,
-			     &sta->sta, tid, NULL, 0))
+			     &sta->sta, tid, NULL, 0, false))
 		sdata_info(sta->sdata,
 			   "HW problem - can not stop rx aggregation for %pM tid %d\n",
 			   sta->sta.addr, tid);
@@ -92,6 +90,12 @@ void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 				     tid, WLAN_BACK_RECIPIENT, reason);
 
 	del_timer_sync(&tid_rx->session_timer);
+
+	/* make sure ieee80211_sta_reorder_release() doesn't re-arm the timer */
+	spin_lock_bh(&tid_rx->reorder_lock);
+	tid_rx->removed = true;
+	spin_unlock_bh(&tid_rx->reorder_lock);
+	del_timer_sync(&tid_rx->reorder_timer);
 
 	call_rcu(&tid_rx->rcu_head, ieee80211_free_tid_rx);
 }
@@ -185,6 +189,7 @@ static void ieee80211_send_addba_resp(struct ieee80211_sub_if_data *sdata, u8 *d
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
+	bool amsdu = ieee80211_hw_check(&local->hw, SUPPORTS_AMSDU_IN_AMPDU);
 	u16 capab;
 
 	skb = dev_alloc_skb(sizeof(*mgmt) + local->hw.extra_tx_headroom);
@@ -213,7 +218,8 @@ static void ieee80211_send_addba_resp(struct ieee80211_sub_if_data *sdata, u8 *d
 	mgmt->u.action.u.addba_resp.action_code = WLAN_ACTION_ADDBA_RESP;
 	mgmt->u.action.u.addba_resp.dialog_token = dialog_token;
 
-	capab = (u16)(policy << 1);	/* bit 1 aggregation policy */
+	capab = (u16)(amsdu << 0);	/* bit 0 A-MSDU support */
+	capab |= (u16)(policy << 1);	/* bit 1 aggregation policy */
 	capab |= (u16)(tid << 2); 	/* bit 5:2 TID number */
 	capab |= (u16)(buf_size << 6);	/* bit 15:6 max size of aggregation */
 
@@ -233,6 +239,14 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 	struct tid_ampdu_rx *tid_agg_rx;
 	int i, ret = -EOPNOTSUPP;
 	u16 status = WLAN_STATUS_REQUEST_DECLINED;
+
+	if (!sta->sta.ht_cap.ht_supported) {
+		ht_dbg(sta->sdata,
+		       "STA %pM erroneously requests BA session on tid %d w/o QoS\n",
+		       sta->sta.addr, tid);
+		/* send a response anyway, it's an error case if we get here */
+		goto end_no_lock;
+	}
 
 	if (test_sta_flag(sta, WLAN_STA_BLOCK_BA)) {
 		ht_dbg(sta->sdata,
@@ -309,7 +323,7 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 		__skb_queue_head_init(&tid_agg_rx->reorder_buf[i]);
 
 	ret = drv_ampdu_action(local, sta->sdata, IEEE80211_AMPDU_RX_START,
-			       &sta->sta, tid, &start_seq_num, 0);
+			       &sta->sta, tid, &start_seq_num, 0, false);
 	ht_dbg(sta->sdata, "Rx A-MPDU request on %pM tid %d result %d\n",
 	       sta->sta.addr, tid, ret);
 	if (ret) {

@@ -9,6 +9,24 @@
 
 #include "blk.h"
 
+static bool iovec_gap_to_prv(struct request_queue *q,
+			     struct iovec *prv, struct iovec *cur)
+{
+	unsigned long prev_end;
+
+	if (!queue_virt_boundary(q))
+		return false;
+
+	if (prv->iov_base == NULL && prv->iov_len == 0)
+		/* prv is not set - don't check */
+		return false;
+
+	prev_end = (unsigned long)(prv->iov_base + prv->iov_len);
+
+	return (((unsigned long)cur->iov_base & queue_virt_boundary(q)) ||
+		prev_end & queue_virt_boundary(q));
+}
+
 int blk_rq_append_bio(struct request_queue *q, struct request *rq,
 		      struct bio *bio)
 {
@@ -67,7 +85,7 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 	struct bio *bio;
 	int unaligned = 0;
 	struct iov_iter i;
-	struct iovec iov;
+	struct iovec iov, prv = {.iov_base = NULL, .iov_len = 0};
 
 	if (!iter || !iter->count)
 		return -EINVAL;
@@ -81,8 +99,12 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 		/*
 		 * Keep going so we check length of all segments
 		 */
-		if (uaddr & queue_dma_alignment(q))
+		if ((uaddr & queue_dma_alignment(q)) ||
+		    iovec_gap_to_prv(q, &prv, &iov))
 			unaligned = 1;
+
+		prv.iov_base = iov.iov_base;
+		prv.iov_len = iov.iov_len;
 	}
 
 	if (unaligned || (q->dma_pad_mask & iter->count) || map_data)
@@ -94,7 +116,7 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 		return PTR_ERR(bio);
 
 	if (map_data && map_data->null_mapped)
-		bio->bi_flags |= (1 << BIO_NULL_MAPPED);
+		bio_set_flag(bio, BIO_NULL_MAPPED);
 
 	if (bio->bi_iter.bi_size != iter->count) {
 		/*
@@ -103,7 +125,7 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 		 * normal IO completion path
 		 */
 		bio_get(bio);
-		bio_endio(bio, 0);
+		bio_endio(bio);
 		__blk_rq_unmap_user(bio);
 		return -EINVAL;
 	}
@@ -124,10 +146,10 @@ int blk_rq_map_user(struct request_queue *q, struct request *rq,
 {
 	struct iovec iov;
 	struct iov_iter i;
+	int ret = import_single_range(rq_data_dir(rq), ubuf, len, &iov, &i);
 
-	iov.iov_base = ubuf;
-	iov.iov_len = len;
-	iov_iter_init(&i, rq_data_dir(rq), &iov, 1, len);
+	if (unlikely(ret < 0))
+		return ret;
 
 	return blk_rq_map_user_iov(q, rq, map_data, &i, gfp_mask);
 }

@@ -21,17 +21,18 @@
 #include "wil6210.h"
 #include "txrx.h"
 #include "wmi.h"
+#include "boot_loader.h"
 
 #define WAIT_FOR_DISCONNECT_TIMEOUT_MS 2000
 #define WAIT_FOR_DISCONNECT_INTERVAL_MS 10
 
+bool debug_fw; /* = false; */
+module_param(debug_fw, bool, S_IRUGO);
+MODULE_PARM_DESC(debug_fw, " do not perform card reset. For FW debug");
+
 bool no_fw_recovery;
 module_param(no_fw_recovery, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(no_fw_recovery, " disable automatic FW error recovery");
-
-static bool no_fw_load = true;
-module_param(no_fw_load, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(no_fw_load, " do not download FW, use one in on-card flash.");
 
 /* if not set via modparam, will be set to default value of 1/8 of
  * rx ring size during init flow
@@ -62,7 +63,7 @@ static int mtu_max_set(const char *val, const struct kernel_param *kp)
 	return ret;
 }
 
-static struct kernel_param_ops mtu_max_ops = {
+static const struct kernel_param_ops mtu_max_ops = {
 	.set = mtu_max_set,
 	.get = param_get_uint,
 };
@@ -72,6 +73,7 @@ MODULE_PARM_DESC(mtu_max, " Max MTU value.");
 
 static uint rx_ring_order = WIL_RX_RING_SIZE_ORDER_DEFAULT;
 static uint tx_ring_order = WIL_TX_RING_SIZE_ORDER_DEFAULT;
+static uint bcast_ring_order = WIL_BCAST_RING_SIZE_ORDER_DEFAULT;
 
 static int ring_order_set(const char *val, const struct kernel_param *kp)
 {
@@ -90,7 +92,7 @@ static int ring_order_set(const char *val, const struct kernel_param *kp)
 	return 0;
 }
 
-static struct kernel_param_ops ring_order_ops = {
+static const struct kernel_param_ops ring_order_ops = {
 	.set = ring_order_set,
 	.get = param_get_uint,
 };
@@ -99,6 +101,8 @@ module_param_cb(rx_ring_order, &ring_order_ops, &rx_ring_order, S_IRUGO);
 MODULE_PARM_DESC(rx_ring_order, " Rx ring order; size = 1 << order");
 module_param_cb(tx_ring_order, &ring_order_ops, &tx_ring_order, S_IRUGO);
 MODULE_PARM_DESC(tx_ring_order, " Tx ring order; size = 1 << order");
+module_param_cb(bcast_ring_order, &ring_order_ops, &bcast_ring_order, S_IRUGO);
+MODULE_PARM_DESC(bcast_ring_order, " Bcast ring order; size = 1 << order");
 
 #define RST_DELAY (20) /* msec, for loop in @wil_target_reset */
 #define RST_COUNT (1 + 1000/RST_DELAY) /* round up to be above 1 sec total */
@@ -149,7 +153,6 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	wil_dbg_misc(wil, "%s(CID %d, status %d)\n", __func__, cid,
 		     sta->status);
 
-	sta->data_port_open = false;
 	if (sta->status != wil_sta_unused) {
 		if (!from_event)
 			wmi_disconnect_sta(wil, sta->addr, reason_code);
@@ -200,11 +203,13 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 	 * - disconnect single STA, already disconnected
 	 * - disconnect all
 	 *
-	 * For "disconnect all", there are 2 options:
+	 * For "disconnect all", there are 3 options:
 	 * - bssid == NULL
+	 * - bssid is broadcast address (ff:ff:ff:ff:ff:ff)
 	 * - bssid is our MAC address
 	 */
-	if (bssid && memcmp(ndev->dev_addr, bssid, ETH_ALEN)) {
+	if (bssid && !is_broadcast_ether_addr(bssid) &&
+	    !ether_addr_equal_unaligned(ndev->dev_addr, bssid)) {
 		cid = wil_find_cid(wil, bssid);
 		wil_dbg_misc(wil, "Disconnect %pM, CID=%d, reason=%d\n",
 			     bssid, cid, reason_code);
@@ -220,13 +225,14 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
+		wil_bcast_fini(wil);
 		netif_tx_stop_all_queues(ndev);
 		netif_carrier_off(ndev);
 
 		if (test_bit(wil_status_fwconnected, wil->status)) {
 			clear_bit(wil_status_fwconnected, wil->status);
 			cfg80211_disconnected(ndev, reason_code,
-					      NULL, 0, GFP_KERNEL);
+					      NULL, 0, false, GFP_KERNEL);
 		} else if (test_bit(wil_status_fwconnecting, wil->status)) {
 			cfg80211_connect_result(ndev, bssid, NULL, 0, NULL, 0,
 						WLAN_STATUS_UNSPECIFIED_FAILURE,
@@ -267,8 +273,7 @@ static void wil_scan_timer_fn(ulong x)
 
 	clear_bit(wil_status_fwready, wil->status);
 	wil_err(wil, "Scan timeout detected, start fw error recovery\n");
-	wil->recovery_state = fw_recovery_pending;
-	schedule_work(&wil->fw_error_worker);
+	wil_fw_error_recovery(wil);
 }
 
 static int wil_wait_for_recovery(struct wil6210_priv *wil)
@@ -364,6 +369,36 @@ static int wil_find_free_vring(struct wil6210_priv *wil)
 	return -EINVAL;
 }
 
+int wil_bcast_init(struct wil6210_priv *wil)
+{
+	int ri = wil->bcast_vring, rc;
+
+	if ((ri >= 0) && wil->vring_tx[ri].va)
+		return 0;
+
+	ri = wil_find_free_vring(wil);
+	if (ri < 0)
+		return ri;
+
+	wil->bcast_vring = ri;
+	rc = wil_vring_init_bcast(wil, ri, 1 << bcast_ring_order);
+	if (rc)
+		wil->bcast_vring = -1;
+
+	return rc;
+}
+
+void wil_bcast_fini(struct wil6210_priv *wil)
+{
+	int ri = wil->bcast_vring;
+
+	if (ri < 0)
+		return;
+
+	wil->bcast_vring = -1;
+	wil_vring_fini_tx(wil, ri);
+}
+
 static void wil_connect_worker(struct work_struct *work)
 {
 	int rc;
@@ -387,7 +422,7 @@ static void wil_connect_worker(struct work_struct *work)
 		wil->sta[cid].status = wil_sta_connected;
 		netif_tx_wake_all_queues(ndev);
 	} else {
-		wil->sta[cid].status = wil_sta_unused;
+		wil_disconnect_cid(wil, cid, WLAN_REASON_UNSPECIFIED, true);
 	}
 }
 
@@ -411,6 +446,7 @@ int wil_priv_init(struct wil6210_priv *wil)
 	init_completion(&wil->wmi_call);
 
 	wil->pending_connect_cid = -1;
+	wil->bcast_vring = -1;
 	setup_timer(&wil->connect_timer, wil_connect_timer_fn, (ulong)wil);
 	setup_timer(&wil->scan_timer, wil_scan_timer_fn, (ulong)wil);
 
@@ -494,119 +530,100 @@ void wil_priv_deinit(struct wil6210_priv *wil)
 	destroy_workqueue(wil->wmi_wq);
 }
 
-/* target operations */
-/* register read */
-#define R(a) ioread32(wil->csr + HOSTADDR(a))
-/* register write. wmb() to make sure it is completed */
-#define W(a, v) do { iowrite32(v, wil->csr + HOSTADDR(a)); wmb(); } while (0)
-/* register set = read, OR, write */
-#define S(a, v) W(a, R(a) | v)
-/* register clear = read, AND with inverted, write */
-#define C(a, v) W(a, R(a) & ~v)
-
 static inline void wil_halt_cpu(struct wil6210_priv *wil)
 {
-	W(RGF_USER_USER_CPU_0, BIT_USER_USER_CPU_MAN_RST);
-	W(RGF_USER_MAC_CPU_0,  BIT_USER_MAC_CPU_MAN_RST);
+	wil_w(wil, RGF_USER_USER_CPU_0, BIT_USER_USER_CPU_MAN_RST);
+	wil_w(wil, RGF_USER_MAC_CPU_0,  BIT_USER_MAC_CPU_MAN_RST);
 }
 
 static inline void wil_release_cpu(struct wil6210_priv *wil)
 {
 	/* Start CPU */
-	W(RGF_USER_USER_CPU_0, 1);
+	wil_w(wil, RGF_USER_USER_CPU_0, 1);
 }
 
 static int wil_target_reset(struct wil6210_priv *wil)
 {
 	int delay = 0;
-	u32 x;
-	bool is_reset_v2 = test_bit(hw_capability_reset_v2,
-				    wil->hw_capabilities);
+	u32 x, x1 = 0;
 
 	wil_dbg_misc(wil, "Resetting \"%s\"...\n", wil->hw_name);
 
 	/* Clear MAC link up */
-	S(RGF_HP_CTRL, BIT(15));
-	S(RGF_USER_CLKS_CTL_SW_RST_MASK_0, BIT_HPAL_PERST_FROM_PAD);
-	S(RGF_USER_CLKS_CTL_SW_RST_MASK_0, BIT_CAR_PERST_RST);
+	wil_s(wil, RGF_HP_CTRL, BIT(15));
+	wil_s(wil, RGF_USER_CLKS_CTL_SW_RST_MASK_0, BIT_HPAL_PERST_FROM_PAD);
+	wil_s(wil, RGF_USER_CLKS_CTL_SW_RST_MASK_0, BIT_CAR_PERST_RST);
 
 	wil_halt_cpu(wil);
 
+	/* clear all boot loader "ready" bits */
+	wil_w(wil, RGF_USER_BL +
+	      offsetof(struct bl_dedicated_registers_v0, boot_loader_ready), 0);
 	/* Clear Fw Download notification */
-	C(RGF_USER_USAGE_6, BIT(0));
+	wil_c(wil, RGF_USER_USAGE_6, BIT(0));
 
-	if (is_reset_v2) {
-		S(RGF_CAF_OSC_CONTROL, BIT_CAF_OSC_XTAL_EN);
-		/* XTAL stabilization should take about 3ms */
-		usleep_range(5000, 7000);
-		x = R(RGF_CAF_PLL_LOCK_STATUS);
-		if (!(x & BIT_CAF_OSC_DIG_XTAL_STABLE)) {
-			wil_err(wil, "Xtal stabilization timeout\n"
-				"RGF_CAF_PLL_LOCK_STATUS = 0x%08x\n", x);
-			return -ETIME;
-		}
-		/* switch 10k to XTAL*/
-		C(RGF_USER_SPARROW_M_4, BIT_SPARROW_M_4_SEL_SLEEP_OR_REF);
-		/* 40 MHz */
-		C(RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_CAR_AHB_SW_SEL);
-
-		W(RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_0, 0x3ff81f);
-		W(RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_1, 0xf);
+	wil_s(wil, RGF_CAF_OSC_CONTROL, BIT_CAF_OSC_XTAL_EN);
+	/* XTAL stabilization should take about 3ms */
+	usleep_range(5000, 7000);
+	x = wil_r(wil, RGF_CAF_PLL_LOCK_STATUS);
+	if (!(x & BIT_CAF_OSC_DIG_XTAL_STABLE)) {
+		wil_err(wil, "Xtal stabilization timeout\n"
+			"RGF_CAF_PLL_LOCK_STATUS = 0x%08x\n", x);
+		return -ETIME;
 	}
+	/* switch 10k to XTAL*/
+	wil_c(wil, RGF_USER_SPARROW_M_4, BIT_SPARROW_M_4_SEL_SLEEP_OR_REF);
+	/* 40 MHz */
+	wil_c(wil, RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_CAR_AHB_SW_SEL);
 
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0xFE000000);
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_1, 0x0000003F);
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_3,
-	  is_reset_v2 ? 0x000000f0 : 0x00000170);
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0xFFE7FE00);
+	wil_w(wil, RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_0, 0x3ff81f);
+	wil_w(wil, RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_1, 0xf);
 
-	if (is_reset_v2) {
-		W(RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_0, 0x0);
-		W(RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_1, 0x0);
-	}
+	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0xFE000000);
+	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_1, 0x0000003F);
+	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0x000000f0);
+	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0xFFE7FE00);
 
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0);
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0);
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_1, 0);
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
+	wil_w(wil, RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_0, 0x0);
+	wil_w(wil, RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_1, 0x0);
 
-	if (is_reset_v2) {
-		W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0x00000003);
-		/* reset A2 PCIE AHB */
-		W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0x00008000);
-	} else {
-		W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0x00000001);
-		W(RGF_PCIE_LOS_COUNTER_CTL, BIT(6) | BIT(8));
-		W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0x00008000);
-	}
+	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0);
+	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0);
+	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_1, 0);
+	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
 
-	/* TODO: check order here!!! Erez code is different */
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
+	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0x00000003);
+	/* reset A2 PCIE AHB */
+	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0x00008000);
 
-	/* wait until device ready. typical time is 200..250 msec */
+	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
+
+	/* wait until device ready. typical time is 20..80 msec */
 	do {
 		msleep(RST_DELAY);
-		x = R(RGF_USER_HW_MACHINE_STATE);
+		x = wil_r(wil, RGF_USER_BL +
+			  offsetof(struct bl_dedicated_registers_v0,
+				   boot_loader_ready));
+		if (x1 != x) {
+			wil_dbg_misc(wil, "BL.ready 0x%08x => 0x%08x\n", x1, x);
+			x1 = x;
+		}
 		if (delay++ > RST_COUNT) {
-			wil_err(wil, "Reset not completed, hw_state 0x%08x\n",
+			wil_err(wil, "Reset not completed, bl.ready 0x%08x\n",
 				x);
 			return -ETIME;
 		}
-	} while (x != HW_MACHINE_BOOT_DONE);
+	} while (x != BL_READY);
 
-	if (!is_reset_v2)
-		W(RGF_PCIE_LOS_COUNTER_CTL, BIT(8));
+	wil_c(wil, RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_RST_PWGD);
 
-	C(RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_RST_PWGD);
+	/* enable fix for HW bug related to the SA/DA swap in AP Rx */
+	wil_s(wil, RGF_DMA_OFUL_NID_0, BIT_DMA_OFUL_NID_0_RX_EXT_TR_EN |
+	      BIT_DMA_OFUL_NID_0_RX_EXT_A3_SRC);
 
 	wil_dbg_misc(wil, "Reset completed in %d ms\n", delay * RST_DELAY);
 	return 0;
 }
-
-#undef R
-#undef W
-#undef S
-#undef C
 
 void wil_mbox_ring_le2cpus(struct wil6210_mbox_ring *r)
 {
@@ -615,6 +632,96 @@ void wil_mbox_ring_le2cpus(struct wil6210_mbox_ring *r)
 	le16_to_cpus(&r->size);
 	le32_to_cpus(&r->tail);
 	le32_to_cpus(&r->head);
+}
+
+static int wil_get_bl_info(struct wil6210_priv *wil)
+{
+	struct net_device *ndev = wil_to_ndev(wil);
+	union {
+		struct bl_dedicated_registers_v0 bl0;
+		struct bl_dedicated_registers_v1 bl1;
+	} bl;
+	u32 bl_ver;
+	u8 *mac;
+	u16 rf_status;
+
+	wil_memcpy_fromio_32(&bl, wil->csr + HOSTADDR(RGF_USER_BL),
+			     sizeof(bl));
+	bl_ver = le32_to_cpu(bl.bl0.boot_loader_struct_version);
+	mac = bl.bl0.mac_address;
+
+	if (bl_ver == 0) {
+		le32_to_cpus(&bl.bl0.rf_type);
+		le32_to_cpus(&bl.bl0.baseband_type);
+		rf_status = 0; /* actually, unknown */
+		wil_info(wil,
+			 "Boot Loader struct v%d: MAC = %pM RF = 0x%08x bband = 0x%08x\n",
+			 bl_ver, mac,
+			 bl.bl0.rf_type, bl.bl0.baseband_type);
+		wil_info(wil, "Boot Loader build unknown for struct v0\n");
+	} else {
+		le16_to_cpus(&bl.bl1.rf_type);
+		rf_status = le16_to_cpu(bl.bl1.rf_status);
+		le32_to_cpus(&bl.bl1.baseband_type);
+		le16_to_cpus(&bl.bl1.bl_version_subminor);
+		le16_to_cpus(&bl.bl1.bl_version_build);
+		wil_info(wil,
+			 "Boot Loader struct v%d: MAC = %pM RF = 0x%04x (status 0x%04x) bband = 0x%08x\n",
+			 bl_ver, mac,
+			 bl.bl1.rf_type, rf_status,
+			 bl.bl1.baseband_type);
+		wil_info(wil, "Boot Loader build %d.%d.%d.%d\n",
+			 bl.bl1.bl_version_major, bl.bl1.bl_version_minor,
+			 bl.bl1.bl_version_subminor, bl.bl1.bl_version_build);
+	}
+
+	if (!is_valid_ether_addr(mac)) {
+		wil_err(wil, "BL: Invalid MAC %pM\n", mac);
+		return -EINVAL;
+	}
+
+	ether_addr_copy(ndev->perm_addr, mac);
+	if (!is_valid_ether_addr(ndev->dev_addr))
+		ether_addr_copy(ndev->dev_addr, mac);
+
+	if (rf_status) {/* bad RF cable? */
+		wil_err(wil, "RF communication error 0x%04x",
+			rf_status);
+		return -EAGAIN;
+	}
+
+	return 0;
+}
+
+static void wil_bl_crash_info(struct wil6210_priv *wil, bool is_err)
+{
+	u32 bl_assert_code, bl_assert_blink, bl_magic_number;
+	u32 bl_ver = wil_r(wil, RGF_USER_BL +
+			   offsetof(struct bl_dedicated_registers_v0,
+				    boot_loader_struct_version));
+
+	if (bl_ver < 2)
+		return;
+
+	bl_assert_code = wil_r(wil, RGF_USER_BL +
+			       offsetof(struct bl_dedicated_registers_v1,
+					bl_assert_code));
+	bl_assert_blink = wil_r(wil, RGF_USER_BL +
+				offsetof(struct bl_dedicated_registers_v1,
+					 bl_assert_blink));
+	bl_magic_number = wil_r(wil, RGF_USER_BL +
+				offsetof(struct bl_dedicated_registers_v1,
+					 bl_magic_number));
+
+	if (is_err) {
+		wil_err(wil,
+			"BL assert code 0x%08x blink 0x%08x magic 0x%08x\n",
+			bl_assert_code, bl_assert_blink, bl_magic_number);
+	} else {
+		wil_dbg_misc(wil,
+			     "BL assert code 0x%08x blink 0x%08x magic 0x%08x\n",
+			     bl_assert_code, bl_assert_blink, bl_magic_number);
+	}
 }
 
 static int wil_wait_for_fw_ready(struct wil6210_priv *wil)
@@ -637,20 +744,34 @@ static int wil_wait_for_fw_ready(struct wil6210_priv *wil)
  * After calling this routine, you're expected to reload
  * the firmware.
  */
-int wil_reset(struct wil6210_priv *wil)
+int wil_reset(struct wil6210_priv *wil, bool load_fw)
 {
 	int rc;
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
-	if (wil->hw_version == HW_VER_UNKNOWN)
-		return -ENODEV;
-
 	WARN_ON(!mutex_is_locked(&wil->mutex));
 	WARN_ON(test_bit(wil_status_napi_en, wil->status));
 
+	if (debug_fw) {
+		static const u8 mac[ETH_ALEN] = {
+			0x00, 0xde, 0xad, 0x12, 0x34, 0x56,
+		};
+		struct net_device *ndev = wil_to_ndev(wil);
+
+		ether_addr_copy(ndev->perm_addr, mac);
+		ether_addr_copy(ndev->dev_addr, ndev->perm_addr);
+		return 0;
+	}
+
+	if (wil->hw_version == HW_VER_UNKNOWN)
+		return -ENODEV;
+
+	set_bit(wil_status_resetting, wil->status);
+
 	cancel_work_sync(&wil->disconnect_worker);
 	wil6210_disconnect(wil, NULL, WLAN_REASON_DEAUTH_LEAVING, false);
+	wil_bcast_fini(wil);
 
 	/* prevent NAPI from being scheduled */
 	bitmap_zero(wil->status, wil_status_last);
@@ -670,47 +791,63 @@ int wil_reset(struct wil6210_priv *wil)
 	flush_workqueue(wil->wq_service);
 	flush_workqueue(wil->wmi_wq);
 
+	wil_bl_crash_info(wil, false);
 	rc = wil_target_reset(wil);
 	wil_rx_fini(wil);
+	if (rc) {
+		wil_bl_crash_info(wil, true);
+		return rc;
+	}
+
+	rc = wil_get_bl_info(wil);
+	if (rc == -EAGAIN && !load_fw) /* ignore RF error if not going up */
+		rc = 0;
 	if (rc)
 		return rc;
 
-	if (!no_fw_load) {
-		wil_info(wil, "Use firmware <%s>\n", WIL_FW_NAME);
+	if (load_fw) {
+		wil_info(wil, "Use firmware <%s> + board <%s>\n", WIL_FW_NAME,
+			 WIL_FW2_NAME);
+
 		wil_halt_cpu(wil);
 		/* Loading f/w from the file */
 		rc = wil_request_firmware(wil, WIL_FW_NAME);
 		if (rc)
 			return rc;
+		rc = wil_request_firmware(wil, WIL_FW2_NAME);
+		if (rc)
+			return rc;
 
-		/* clear any interrupts which on-card-firmware may have set */
+		/* Mark FW as loaded from host */
+		wil_s(wil, RGF_USER_USAGE_6, 1);
+
+		/* clear any interrupts which on-card-firmware
+		 * may have set
+		 */
 		wil6210_clear_irq(wil);
-		{ /* CAF_ICR - clear and mask */
-			u32 a = HOSTADDR(RGF_CAF_ICR) +
-				offsetof(struct RGF_ICR, ICR);
-			u32 m = HOSTADDR(RGF_CAF_ICR) +
-				offsetof(struct RGF_ICR, IMV);
-			u32 icr = ioread32(wil->csr + a);
+		/* CAF_ICR - clear and mask */
+		/* it is W1C, clear by writing back same value */
+		wil_s(wil, RGF_CAF_ICR + offsetof(struct RGF_ICR, ICR), 0);
+		wil_w(wil, RGF_CAF_ICR + offsetof(struct RGF_ICR, IMV), ~0);
 
-			iowrite32(icr, wil->csr + a); /* W1C */
-			iowrite32(~0, wil->csr + m);
-			wmb(); /* wait for completion */
-		}
 		wil_release_cpu(wil);
-	} else {
-		wil_info(wil, "Use firmware from on-card flash\n");
 	}
 
 	/* init after reset */
 	wil->pending_connect_cid = -1;
+	wil->ap_isolate = 0;
 	reinit_completion(&wil->wmi_ready);
 	reinit_completion(&wil->wmi_call);
 
-	wil_configure_interrupt_moderation(wil);
-	wil_unmask_irq(wil);
+	if (load_fw) {
+		wil_configure_interrupt_moderation(wil);
+		wil_unmask_irq(wil);
 
-	/* we just started MAC, wait for FW ready */
-	rc = wil_wait_for_fw_ready(wil);
+		/* we just started MAC, wait for FW ready */
+		rc = wil_wait_for_fw_ready(wil);
+		if (rc == 0) /* check FW is responsive */
+			rc = wmi_echo(wil);
+	}
 
 	return rc;
 }
@@ -718,6 +855,12 @@ int wil_reset(struct wil6210_priv *wil)
 void wil_fw_error_recovery(struct wil6210_priv *wil)
 {
 	wil_dbg_misc(wil, "starting fw error recovery\n");
+
+	if (test_bit(wil_status_resetting, wil->status)) {
+		wil_info(wil, "Reset already in progress\n");
+		return;
+	}
+
 	wil->recovery_state = fw_recovery_pending;
 	schedule_work(&wil->fw_error_worker);
 }
@@ -730,7 +873,7 @@ int __wil_up(struct wil6210_priv *wil)
 
 	WARN_ON(!mutex_is_locked(&wil->mutex));
 
-	rc = wil_reset(wil);
+	rc = wil_reset(wil, true);
 	if (rc)
 		return rc;
 
@@ -837,7 +980,7 @@ int __wil_down(struct wil6210_priv *wil)
 	if (!iter)
 		wil_err(wil, "timeout waiting for idle FW/HW\n");
 
-	wil_rx_fini(wil);
+	wil_reset(wil, false);
 
 	return 0;
 }

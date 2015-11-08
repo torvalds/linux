@@ -37,13 +37,14 @@
 #include <linux/mutex.h>
 #include <linux/acpi.h>
 #include <linux/of.h>
+#include <linux/gpio/consumer.h>
 
 #include <linux/i2c/i2c-hid.h>
 
 /* flags */
-#define I2C_HID_STARTED		(1 << 0)
-#define I2C_HID_RESET_PENDING	(1 << 1)
-#define I2C_HID_READ_PENDING	(1 << 2)
+#define I2C_HID_STARTED		0
+#define I2C_HID_RESET_PENDING	1
+#define I2C_HID_READ_PENDING	2
 
 #define I2C_HID_PWR_ON		0x00
 #define I2C_HID_PWR_SLEEP	0x01
@@ -144,8 +145,12 @@ struct i2c_hid {
 	unsigned long		flags;		/* device flags */
 
 	wait_queue_head_t	wait;		/* For waiting the interrupt */
+	struct gpio_desc	*desc;
+	int			irq;
 
 	struct i2c_hid_platform_data pdata;
+
+	bool			irq_wake_enabled;
 };
 
 static int __i2c_hid_command(struct i2c_client *client,
@@ -785,16 +790,16 @@ static int i2c_hid_init_irq(struct i2c_client *client)
 	struct i2c_hid *ihid = i2c_get_clientdata(client);
 	int ret;
 
-	dev_dbg(&client->dev, "Requesting IRQ: %d\n", client->irq);
+	dev_dbg(&client->dev, "Requesting IRQ: %d\n", ihid->irq);
 
-	ret = request_threaded_irq(client->irq, NULL, i2c_hid_irq,
+	ret = request_threaded_irq(ihid->irq, NULL, i2c_hid_irq,
 			IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 			client->name, ihid);
 	if (ret < 0) {
 		dev_warn(&client->dev,
 			"Could not register for %s interrupt, irq = %d,"
 			" ret = %d\n",
-			client->name, client->irq, ret);
+			client->name, ihid->irq, ret);
 
 		return ret;
 	}
@@ -841,6 +846,14 @@ static int i2c_hid_fetch_hid_descriptor(struct i2c_hid *ihid)
 }
 
 #ifdef CONFIG_ACPI
+
+/* Default GPIO mapping */
+static const struct acpi_gpio_params i2c_hid_irq_gpio = { 0, 0, true };
+static const struct acpi_gpio_mapping i2c_hid_acpi_gpios[] = {
+	{ "gpios", &i2c_hid_irq_gpio, 1 },
+	{ },
+};
+
 static int i2c_hid_acpi_pdata(struct i2c_client *client,
 		struct i2c_hid_platform_data *pdata)
 {
@@ -851,6 +864,7 @@ static int i2c_hid_acpi_pdata(struct i2c_client *client,
 	union acpi_object *obj;
 	struct acpi_device *adev;
 	acpi_handle handle;
+	int ret;
 
 	handle = ACPI_HANDLE(&client->dev);
 	if (!handle || acpi_bus_get_device(handle, &adev))
@@ -866,7 +880,9 @@ static int i2c_hid_acpi_pdata(struct i2c_client *client,
 	pdata->hid_descriptor_address = obj->integer.value;
 	ACPI_FREE(obj);
 
-	return 0;
+	/* GPIOs are optional */
+	ret = acpi_dev_add_driver_gpios(adev, i2c_hid_acpi_gpios);
+	return ret < 0 && ret != -ENXIO ? ret : 0;
 }
 
 static const struct acpi_device_id i2c_hid_acpi_match[] = {
@@ -930,12 +946,6 @@ static int i2c_hid_probe(struct i2c_client *client,
 
 	dbg_hid("HID probe called for i2c 0x%02x\n", client->addr);
 
-	if (!client->irq) {
-		dev_err(&client->dev,
-			"HID over i2c has not been provided an Int IRQ\n");
-		return -EINVAL;
-	}
-
 	ihid = kzalloc(sizeof(struct i2c_hid), GFP_KERNEL);
 	if (!ihid)
 		return -ENOMEM;
@@ -953,6 +963,23 @@ static int i2c_hid_probe(struct i2c_client *client,
 		}
 	} else {
 		ihid->pdata = *platform_data;
+	}
+
+	if (client->irq > 0) {
+		ihid->irq = client->irq;
+	} else if (ACPI_COMPANION(&client->dev)) {
+		ihid->desc = gpiod_get(&client->dev, NULL, GPIOD_IN);
+		if (IS_ERR(ihid->desc)) {
+			dev_err(&client->dev, "Failed to get GPIO interrupt\n");
+			return PTR_ERR(ihid->desc);
+		}
+
+		ihid->irq = gpiod_to_irq(ihid->desc);
+		if (ihid->irq < 0) {
+			gpiod_put(ihid->desc);
+			dev_err(&client->dev, "Failed to convert GPIO to IRQ\n");
+			return ihid->irq;
+		}
 	}
 
 	i2c_set_clientdata(client, ihid);
@@ -994,7 +1021,6 @@ static int i2c_hid_probe(struct i2c_client *client,
 	hid->driver_data = client;
 	hid->ll_driver = &i2c_hid_ll_driver;
 	hid->dev.parent = &client->dev;
-	ACPI_COMPANION_SET(&hid->dev, ACPI_COMPANION(&client->dev));
 	hid->bus = BUS_I2C;
 	hid->version = le16_to_cpu(ihid->hdesc.bcdVersion);
 	hid->vendor = le16_to_cpu(ihid->hdesc.wVendorID);
@@ -1002,6 +1028,7 @@ static int i2c_hid_probe(struct i2c_client *client,
 
 	snprintf(hid->name, sizeof(hid->name), "%s %04hX:%04hX",
 		 client->name, hid->vendor, hid->product);
+	strlcpy(hid->phys, dev_name(&client->dev), sizeof(hid->phys));
 
 	ret = hid_add_device(hid);
 	if (ret) {
@@ -1017,13 +1044,16 @@ err_mem_free:
 	hid_destroy_device(hid);
 
 err_irq:
-	free_irq(client->irq, ihid);
+	free_irq(ihid->irq, ihid);
 
 err_pm:
 	pm_runtime_put_noidle(&client->dev);
 	pm_runtime_disable(&client->dev);
 
 err:
+	if (ihid->desc)
+		gpiod_put(ihid->desc);
+
 	i2c_hid_free_buffers(ihid);
 	kfree(ihid);
 	return ret;
@@ -1042,12 +1072,17 @@ static int i2c_hid_remove(struct i2c_client *client)
 	hid = ihid->hid;
 	hid_destroy_device(hid);
 
-	free_irq(client->irq, ihid);
+	free_irq(ihid->irq, ihid);
 
 	if (ihid->bufsize)
 		i2c_hid_free_buffers(ihid);
 
+	if (ihid->desc)
+		gpiod_put(ihid->desc);
+
 	kfree(ihid);
+
+	acpi_dev_remove_driver_gpios(ACPI_COMPANION(&client->dev));
 
 	return 0;
 }
@@ -1059,13 +1094,20 @@ static int i2c_hid_suspend(struct device *dev)
 	struct i2c_hid *ihid = i2c_get_clientdata(client);
 	struct hid_device *hid = ihid->hid;
 	int ret = 0;
-
-	disable_irq(client->irq);
-	if (device_may_wakeup(&client->dev))
-		enable_irq_wake(client->irq);
+	int wake_status;
 
 	if (hid->driver && hid->driver->suspend)
 		ret = hid->driver->suspend(hid, PMSG_SUSPEND);
+
+	disable_irq(ihid->irq);
+	if (device_may_wakeup(&client->dev)) {
+		wake_status = enable_irq_wake(ihid->irq);
+		if (!wake_status)
+			ihid->irq_wake_enabled = true;
+		else
+			hid_warn(hid, "Failed to enable irq wake: %d\n",
+				wake_status);
+	}
 
 	/* Save some power */
 	i2c_hid_set_power(client, I2C_HID_PWR_SLEEP);
@@ -1079,14 +1121,21 @@ static int i2c_hid_resume(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct i2c_hid *ihid = i2c_get_clientdata(client);
 	struct hid_device *hid = ihid->hid;
+	int wake_status;
 
-	enable_irq(client->irq);
+	enable_irq(ihid->irq);
 	ret = i2c_hid_hwreset(client);
 	if (ret)
 		return ret;
 
-	if (device_may_wakeup(&client->dev))
-		disable_irq_wake(client->irq);
+	if (device_may_wakeup(&client->dev) && ihid->irq_wake_enabled) {
+		wake_status = disable_irq_wake(ihid->irq);
+		if (!wake_status)
+			ihid->irq_wake_enabled = false;
+		else
+			hid_warn(hid, "Failed to disable irq wake: %d\n",
+				wake_status);
+	}
 
 	if (hid->driver && hid->driver->reset_resume) {
 		ret = hid->driver->reset_resume(hid);
@@ -1101,17 +1150,19 @@ static int i2c_hid_resume(struct device *dev)
 static int i2c_hid_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
+	struct i2c_hid *ihid = i2c_get_clientdata(client);
 
 	i2c_hid_set_power(client, I2C_HID_PWR_SLEEP);
-	disable_irq(client->irq);
+	disable_irq(ihid->irq);
 	return 0;
 }
 
 static int i2c_hid_runtime_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
+	struct i2c_hid *ihid = i2c_get_clientdata(client);
 
-	enable_irq(client->irq);
+	enable_irq(ihid->irq);
 	i2c_hid_set_power(client, I2C_HID_PWR_ON);
 	return 0;
 }

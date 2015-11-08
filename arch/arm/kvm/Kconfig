@@ -18,18 +18,23 @@ if VIRTUALIZATION
 
 config KVM
 	bool "Kernel-based Virtual Machine (KVM) support"
+	depends on MMU && OF
 	select PREEMPT_NOTIFIERS
 	select ANON_INODES
+	select ARM_GIC
 	select HAVE_KVM_CPU_RELAX_INTERCEPT
 	select HAVE_KVM_ARCH_TLB_FLUSH_ALL
 	select KVM_MMIO
 	select KVM_ARM_HOST
 	select KVM_GENERIC_DIRTYLOG_READ_PROTECT
 	select SRCU
-	depends on ARM_VIRT_EXT && ARM_LPAE
+	select MMU_NOTIFIER
+	select KVM_VFIO
+	select HAVE_KVM_EVENTFD
+	select HAVE_KVM_IRQFD
+	depends on ARM_VIRT_EXT && ARM_LPAE && ARM_ARCH_TIMER
 	---help---
-	  Support hosting virtualized guest machines. You will also
-	  need to select one or more of the processor modules below.
+	  Support hosting virtualized guest machines.
 
 	  This module provides access to the hardware capabilities through
 	  a character device node named /dev/kvm.
@@ -37,38 +42,10 @@ config KVM
 	  If unsure, say N.
 
 config KVM_ARM_HOST
-	bool "KVM host support for ARM cpus."
-	depends on KVM
-	depends on MMU
-	select	MMU_NOTIFIER
+	bool
 	---help---
 	  Provides host support for ARM processors.
 
-config KVM_ARM_MAX_VCPUS
-	int "Number maximum supported virtual CPUs per VM"
-	depends on KVM_ARM_HOST
-	default 4
-	help
-	  Static number of max supported virtual CPUs per VM.
-
-	  If you choose a high number, the vcpu structures will be quite
-	  large, so only choose a reasonable number that you expect to
-	  actually use.
-
-config KVM_ARM_VGIC
-	bool "KVM support for Virtual GIC"
-	depends on KVM_ARM_HOST && OF
-	select HAVE_KVM_IRQCHIP
-	default y
-	---help---
-	  Adds support for a hardware assisted, in-kernel GIC emulation.
-
-config KVM_ARM_TIMER
-	bool "KVM support for Architected Timers"
-	depends on KVM_ARM_VGIC && ARM_ARCH_TIMER
-	select HAVE_KVM_IRQCHIP
-	default y
-	---help---
-	  Adds support for the Architected Timers in virtual machines
+source drivers/vhost/Kconfig
 
 endif # VIRTUALIZATION

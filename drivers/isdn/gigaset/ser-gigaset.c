@@ -524,8 +524,17 @@ gigaset_tty_open(struct tty_struct *tty)
 	cs->hw.ser->tty = tty;
 	atomic_set(&cs->hw.ser->refcnt, 1);
 	init_completion(&cs->hw.ser->dead_cmp);
-
 	tty->disc_data = cs;
+
+	/* Set the amount of data we're willing to receive per call
+	 * from the hardware driver to half of the input buffer size
+	 * to leave some reserve.
+	 * Note: We don't do flow control towards the hardware driver.
+	 * If more data is received than will fit into the input buffer,
+	 * it will be dropped and an error will be logged. This should
+	 * never happen as the device is slow and the buffer size ample.
+	 */
+	tty->receive_room = RBUFSIZE/2;
 
 	/* OK.. Initialization of the datastructures and the HW is done.. Now
 	 * startup system and notify the LL that we are ready to run
@@ -595,28 +604,6 @@ static int gigaset_tty_hangup(struct tty_struct *tty)
 {
 	gigaset_tty_close(tty);
 	return 0;
-}
-
-/*
- * Read on the tty.
- * Unused, received data goes only to the Gigaset driver.
- */
-static ssize_t
-gigaset_tty_read(struct tty_struct *tty, struct file *file,
-		 unsigned char __user *buf, size_t count)
-{
-	return -EAGAIN;
-}
-
-/*
- * Write on the tty.
- * Unused, transmit data comes only from the Gigaset driver.
- */
-static ssize_t
-gigaset_tty_write(struct tty_struct *tty, struct file *file,
-		  const unsigned char *buf, size_t count)
-{
-	return -EAGAIN;
 }
 
 /*
@@ -752,8 +739,6 @@ static struct tty_ldisc_ops gigaset_ldisc = {
 	.open		= gigaset_tty_open,
 	.close		= gigaset_tty_close,
 	.hangup		= gigaset_tty_hangup,
-	.read		= gigaset_tty_read,
-	.write		= gigaset_tty_write,
 	.ioctl		= gigaset_tty_ioctl,
 	.receive_buf	= gigaset_tty_receive,
 	.write_wakeup	= gigaset_tty_wakeup,

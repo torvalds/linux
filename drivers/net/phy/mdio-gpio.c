@@ -25,7 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
-#include <linux/mdio-gpio.h>
+#include <linux/platform_data/mdio-gpio.h>
 
 #include <linux/of_gpio.h>
 #include <linux/of_mdio.h>
@@ -80,7 +80,8 @@ static void mdio_dir(struct mdiobb_ctrl *ctrl, int dir)
 		 * assume the pin serves as pull-up. If direction is
 		 * output, the default value is high.
 		 */
-		gpio_set_value(bitbang->mdo, 1 ^ bitbang->mdo_active_low);
+		gpio_set_value_cansleep(bitbang->mdo,
+					1 ^ bitbang->mdo_active_low);
 		return;
 	}
 
@@ -96,7 +97,8 @@ static int mdio_get(struct mdiobb_ctrl *ctrl)
 	struct mdio_gpio_info *bitbang =
 		container_of(ctrl, struct mdio_gpio_info, ctrl);
 
-	return gpio_get_value(bitbang->mdio) ^ bitbang->mdio_active_low;
+	return gpio_get_value_cansleep(bitbang->mdio) ^
+		bitbang->mdio_active_low;
 }
 
 static void mdio_set(struct mdiobb_ctrl *ctrl, int what)
@@ -105,9 +107,11 @@ static void mdio_set(struct mdiobb_ctrl *ctrl, int what)
 		container_of(ctrl, struct mdio_gpio_info, ctrl);
 
 	if (bitbang->mdo)
-		gpio_set_value(bitbang->mdo, what ^ bitbang->mdo_active_low);
+		gpio_set_value_cansleep(bitbang->mdo,
+					what ^ bitbang->mdo_active_low);
 	else
-		gpio_set_value(bitbang->mdio, what ^ bitbang->mdio_active_low);
+		gpio_set_value_cansleep(bitbang->mdio,
+					what ^ bitbang->mdio_active_low);
 }
 
 static void mdc_set(struct mdiobb_ctrl *ctrl, int what)
@@ -115,7 +119,7 @@ static void mdc_set(struct mdiobb_ctrl *ctrl, int what)
 	struct mdio_gpio_info *bitbang =
 		container_of(ctrl, struct mdio_gpio_info, ctrl);
 
-	gpio_set_value(bitbang->mdc, what ^ bitbang->mdc_active_low);
+	gpio_set_value_cansleep(bitbang->mdc, what ^ bitbang->mdc_active_low);
 }
 
 static struct mdiobb_ops mdio_gpio_ops = {
@@ -154,6 +158,7 @@ static struct mii_bus *mdio_gpio_bus_init(struct device *dev,
 	new_bus->name = "GPIO Bitbanged MDIO",
 
 	new_bus->phy_mask = pdata->phy_mask;
+	new_bus->phy_ignore_ta_mask = pdata->phy_ignore_ta_mask;
 	new_bus->irq = pdata->irqs;
 	new_bus->parent = dev;
 
@@ -164,7 +169,10 @@ static struct mii_bus *mdio_gpio_bus_init(struct device *dev,
 		if (!new_bus->irq[i])
 			new_bus->irq[i] = PHY_POLL;
 
-	snprintf(new_bus->id, MII_BUS_ID_SIZE, "gpio-%x", bus_id);
+	if (bus_id != -1)
+		snprintf(new_bus->id, MII_BUS_ID_SIZE, "gpio-%x", bus_id);
+	else
+		strncpy(new_bus->id, "gpio", MII_BUS_ID_SIZE);
 
 	if (devm_gpio_request(dev, bitbang->mdc, "mdc"))
 		goto out_free_bus;
@@ -249,10 +257,11 @@ static int mdio_gpio_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id mdio_gpio_of_match[] = {
+static const struct of_device_id mdio_gpio_of_match[] = {
 	{ .compatible = "virtual,mdio-gpio", },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, mdio_gpio_of_match);
 
 static struct platform_driver mdio_gpio_driver = {
 	.probe = mdio_gpio_probe,

@@ -303,14 +303,15 @@ static int ade7758_reset(struct device *dev)
 	int ret;
 	u8 val;
 
-	ade7758_spi_read_reg_8(dev,
-			ADE7758_OPMODE,
-			&val);
-	val |= 1 << 6; /* Software Chip Reset */
-	ret = ade7758_spi_write_reg_8(dev,
-			ADE7758_OPMODE,
-			val);
-
+	ret = ade7758_spi_read_reg_8(dev, ADE7758_OPMODE, &val);
+	if (ret < 0) {
+		dev_err(dev, "Failed to read opmode reg\n");
+		return ret;
+	}
+	val |= BIT(6); /* Software Chip Reset */
+	ret = ade7758_spi_write_reg_8(dev, ADE7758_OPMODE, val);
+	if (ret < 0)
+		dev_err(dev, "Failed to write opmode reg\n");
 	return ret;
 }
 
@@ -425,10 +426,10 @@ int ade7758_set_irq(struct device *dev, bool enable)
 		goto error_ret;
 
 	if (enable)
-		irqen |= 1 << 16; /* Enables an interrupt when a data is
+		irqen |= BIT(16); /* Enables an interrupt when a data is
 				     present in the waveform register */
 	else
-		irqen &= ~(1 << 16);
+		irqen &= ~BIT(16);
 
 	ret = ade7758_spi_write_reg_24(dev, ADE7758_MASK, irqen);
 	if (ret)
@@ -444,14 +445,15 @@ static int ade7758_stop_device(struct device *dev)
 	int ret;
 	u8 val;
 
-	ade7758_spi_read_reg_8(dev,
-			ADE7758_OPMODE,
-			&val);
+	ret = ade7758_spi_read_reg_8(dev, ADE7758_OPMODE, &val);
+	if (ret < 0) {
+		dev_err(dev, "Failed to read opmode reg\n");
+		return ret;
+	}
 	val |= 7 << 3;  /* ADE7758 powered down */
-	ret = ade7758_spi_write_reg_8(dev,
-			ADE7758_OPMODE,
-			val);
-
+	ret = ade7758_spi_write_reg_8(dev, ADE7758_OPMODE, val);
+	if (ret < 0)
+		dev_err(dev, "Failed to write opmode reg\n");
 	return ret;
 }
 
@@ -483,7 +485,7 @@ static ssize_t ade7758_read_frequency(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	int ret, len = 0;
+	int ret;
 	u8 t;
 	int sps;
 
@@ -496,8 +498,7 @@ static ssize_t ade7758_read_frequency(struct device *dev,
 	t = (t >> 5) & 0x3;
 	sps = 26040 / (1 << t);
 
-	len = sprintf(buf, "%d SPS\n", sps);
-	return len;
+	return sprintf(buf, "%d SPS\n", sps);
 }
 
 static ssize_t ade7758_write_frequency(struct device *dev,
@@ -832,7 +833,7 @@ static int ade7758_probe(struct spi_device *spi)
 	if (!st->rx)
 		return -ENOMEM;
 	st->tx = kcalloc(ADE7758_MAX_TX, sizeof(*st->tx), GFP_KERNEL);
-	if (st->tx == NULL) {
+	if (!st->tx) {
 		ret = -ENOMEM;
 		goto error_free_rx;
 	}
@@ -903,7 +904,6 @@ MODULE_DEVICE_TABLE(spi, ade7758_id);
 static struct spi_driver ade7758_driver = {
 	.driver = {
 		.name = "ade7758",
-		.owner = THIS_MODULE,
 	},
 	.probe = ade7758_probe,
 	.remove = ade7758_remove,

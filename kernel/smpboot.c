@@ -4,6 +4,7 @@
 #include <linux/cpu.h>
 #include <linux/err.h>
 #include <linux/smp.h>
+#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/slab.h>
@@ -112,7 +113,8 @@ static int smpboot_thread_fn(void *data)
 		if (kthread_should_stop()) {
 			__set_current_state(TASK_RUNNING);
 			preempt_enable();
-			if (ht->cleanup)
+			/* cleanup must mirror setup */
+			if (ht->cleanup && td->status != HP_THREAD_NONE)
 				ht->cleanup(td->cpu, cpu_online(td->cpu));
 			kfree(td);
 			return 0;
@@ -220,9 +222,8 @@ static void smpboot_unpark_thread(struct smp_hotplug_thread *ht, unsigned int cp
 {
 	struct task_struct *tsk = *per_cpu_ptr(ht->store, cpu);
 
-	if (ht->pre_unpark)
-		ht->pre_unpark(cpu);
-	kthread_unpark(tsk);
+	if (!ht->selfparking)
+		kthread_unpark(tsk);
 }
 
 void smpboot_unpark_threads(unsigned int cpu)
@@ -231,7 +232,8 @@ void smpboot_unpark_threads(unsigned int cpu)
 
 	mutex_lock(&smpboot_threads_lock);
 	list_for_each_entry(cur, &hotplug_threads, list)
-		smpboot_unpark_thread(cur, cpu);
+		if (cpumask_test_cpu(cpu, cur->cpumask))
+			smpboot_unpark_thread(cur, cpu);
 	mutex_unlock(&smpboot_threads_lock);
 }
 
@@ -270,15 +272,22 @@ static void smpboot_destroy_threads(struct smp_hotplug_thread *ht)
 }
 
 /**
- * smpboot_register_percpu_thread - Register a per_cpu thread related to hotplug
+ * smpboot_register_percpu_thread_cpumask - Register a per_cpu thread related
+ * 					    to hotplug
  * @plug_thread:	Hotplug thread descriptor
+ * @cpumask:		The cpumask where threads run
  *
  * Creates and starts the threads on all online cpus.
  */
-int smpboot_register_percpu_thread(struct smp_hotplug_thread *plug_thread)
+int smpboot_register_percpu_thread_cpumask(struct smp_hotplug_thread *plug_thread,
+					   const struct cpumask *cpumask)
 {
 	unsigned int cpu;
 	int ret = 0;
+
+	if (!alloc_cpumask_var(&plug_thread->cpumask, GFP_KERNEL))
+		return -ENOMEM;
+	cpumask_copy(plug_thread->cpumask, cpumask);
 
 	get_online_cpus();
 	mutex_lock(&smpboot_threads_lock);
@@ -286,9 +295,11 @@ int smpboot_register_percpu_thread(struct smp_hotplug_thread *plug_thread)
 		ret = __smpboot_create_thread(plug_thread, cpu);
 		if (ret) {
 			smpboot_destroy_threads(plug_thread);
+			free_cpumask_var(plug_thread->cpumask);
 			goto out;
 		}
-		smpboot_unpark_thread(plug_thread, cpu);
+		if (cpumask_test_cpu(cpu, cpumask))
+			smpboot_unpark_thread(plug_thread, cpu);
 	}
 	list_add(&plug_thread->list, &hotplug_threads);
 out:
@@ -296,7 +307,7 @@ out:
 	put_online_cpus();
 	return ret;
 }
-EXPORT_SYMBOL_GPL(smpboot_register_percpu_thread);
+EXPORT_SYMBOL_GPL(smpboot_register_percpu_thread_cpumask);
 
 /**
  * smpboot_unregister_percpu_thread - Unregister a per_cpu thread related to hotplug
@@ -312,5 +323,204 @@ void smpboot_unregister_percpu_thread(struct smp_hotplug_thread *plug_thread)
 	smpboot_destroy_threads(plug_thread);
 	mutex_unlock(&smpboot_threads_lock);
 	put_online_cpus();
+	free_cpumask_var(plug_thread->cpumask);
 }
 EXPORT_SYMBOL_GPL(smpboot_unregister_percpu_thread);
+
+/**
+ * smpboot_update_cpumask_percpu_thread - Adjust which per_cpu hotplug threads stay parked
+ * @plug_thread:	Hotplug thread descriptor
+ * @new:		Revised mask to use
+ *
+ * The cpumask field in the smp_hotplug_thread must not be updated directly
+ * by the client, but only by calling this function.
+ * This function can only be called on a registered smp_hotplug_thread.
+ */
+int smpboot_update_cpumask_percpu_thread(struct smp_hotplug_thread *plug_thread,
+					 const struct cpumask *new)
+{
+	struct cpumask *old = plug_thread->cpumask;
+	cpumask_var_t tmp;
+	unsigned int cpu;
+
+	if (!alloc_cpumask_var(&tmp, GFP_KERNEL))
+		return -ENOMEM;
+
+	get_online_cpus();
+	mutex_lock(&smpboot_threads_lock);
+
+	/* Park threads that were exclusively enabled on the old mask. */
+	cpumask_andnot(tmp, old, new);
+	for_each_cpu_and(cpu, tmp, cpu_online_mask)
+		smpboot_park_thread(plug_thread, cpu);
+
+	/* Unpark threads that are exclusively enabled on the new mask. */
+	cpumask_andnot(tmp, new, old);
+	for_each_cpu_and(cpu, tmp, cpu_online_mask)
+		smpboot_unpark_thread(plug_thread, cpu);
+
+	cpumask_copy(old, new);
+
+	mutex_unlock(&smpboot_threads_lock);
+	put_online_cpus();
+
+	free_cpumask_var(tmp);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(smpboot_update_cpumask_percpu_thread);
+
+static DEFINE_PER_CPU(atomic_t, cpu_hotplug_state) = ATOMIC_INIT(CPU_POST_DEAD);
+
+/*
+ * Called to poll specified CPU's state, for example, when waiting for
+ * a CPU to come online.
+ */
+int cpu_report_state(int cpu)
+{
+	return atomic_read(&per_cpu(cpu_hotplug_state, cpu));
+}
+
+/*
+ * If CPU has died properly, set its state to CPU_UP_PREPARE and
+ * return success.  Otherwise, return -EBUSY if the CPU died after
+ * cpu_wait_death() timed out.  And yet otherwise again, return -EAGAIN
+ * if cpu_wait_death() timed out and the CPU still hasn't gotten around
+ * to dying.  In the latter two cases, the CPU might not be set up
+ * properly, but it is up to the arch-specific code to decide.
+ * Finally, -EIO indicates an unanticipated problem.
+ *
+ * Note that it is permissible to omit this call entirely, as is
+ * done in architectures that do no CPU-hotplug error checking.
+ */
+int cpu_check_up_prepare(int cpu)
+{
+	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU)) {
+		atomic_set(&per_cpu(cpu_hotplug_state, cpu), CPU_UP_PREPARE);
+		return 0;
+	}
+
+	switch (atomic_read(&per_cpu(cpu_hotplug_state, cpu))) {
+
+	case CPU_POST_DEAD:
+
+		/* The CPU died properly, so just start it up again. */
+		atomic_set(&per_cpu(cpu_hotplug_state, cpu), CPU_UP_PREPARE);
+		return 0;
+
+	case CPU_DEAD_FROZEN:
+
+		/*
+		 * Timeout during CPU death, so let caller know.
+		 * The outgoing CPU completed its processing, but after
+		 * cpu_wait_death() timed out and reported the error. The
+		 * caller is free to proceed, in which case the state
+		 * will be reset properly by cpu_set_state_online().
+		 * Proceeding despite this -EBUSY return makes sense
+		 * for systems where the outgoing CPUs take themselves
+		 * offline, with no post-death manipulation required from
+		 * a surviving CPU.
+		 */
+		return -EBUSY;
+
+	case CPU_BROKEN:
+
+		/*
+		 * The most likely reason we got here is that there was
+		 * a timeout during CPU death, and the outgoing CPU never
+		 * did complete its processing.  This could happen on
+		 * a virtualized system if the outgoing VCPU gets preempted
+		 * for more than five seconds, and the user attempts to
+		 * immediately online that same CPU.  Trying again later
+		 * might return -EBUSY above, hence -EAGAIN.
+		 */
+		return -EAGAIN;
+
+	default:
+
+		/* Should not happen.  Famous last words. */
+		return -EIO;
+	}
+}
+
+/*
+ * Mark the specified CPU online.
+ *
+ * Note that it is permissible to omit this call entirely, as is
+ * done in architectures that do no CPU-hotplug error checking.
+ */
+void cpu_set_state_online(int cpu)
+{
+	(void)atomic_xchg(&per_cpu(cpu_hotplug_state, cpu), CPU_ONLINE);
+}
+
+#ifdef CONFIG_HOTPLUG_CPU
+
+/*
+ * Wait for the specified CPU to exit the idle loop and die.
+ */
+bool cpu_wait_death(unsigned int cpu, int seconds)
+{
+	int jf_left = seconds * HZ;
+	int oldstate;
+	bool ret = true;
+	int sleep_jf = 1;
+
+	might_sleep();
+
+	/* The outgoing CPU will normally get done quite quickly. */
+	if (atomic_read(&per_cpu(cpu_hotplug_state, cpu)) == CPU_DEAD)
+		goto update_state;
+	udelay(5);
+
+	/* But if the outgoing CPU dawdles, wait increasingly long times. */
+	while (atomic_read(&per_cpu(cpu_hotplug_state, cpu)) != CPU_DEAD) {
+		schedule_timeout_uninterruptible(sleep_jf);
+		jf_left -= sleep_jf;
+		if (jf_left <= 0)
+			break;
+		sleep_jf = DIV_ROUND_UP(sleep_jf * 11, 10);
+	}
+update_state:
+	oldstate = atomic_read(&per_cpu(cpu_hotplug_state, cpu));
+	if (oldstate == CPU_DEAD) {
+		/* Outgoing CPU died normally, update state. */
+		smp_mb(); /* atomic_read() before update. */
+		atomic_set(&per_cpu(cpu_hotplug_state, cpu), CPU_POST_DEAD);
+	} else {
+		/* Outgoing CPU still hasn't died, set state accordingly. */
+		if (atomic_cmpxchg(&per_cpu(cpu_hotplug_state, cpu),
+				   oldstate, CPU_BROKEN) != oldstate)
+			goto update_state;
+		ret = false;
+	}
+	return ret;
+}
+
+/*
+ * Called by the outgoing CPU to report its successful death.  Return
+ * false if this report follows the surviving CPU's timing out.
+ *
+ * A separate "CPU_DEAD_FROZEN" is used when the surviving CPU
+ * timed out.  This approach allows architectures to omit calls to
+ * cpu_check_up_prepare() and cpu_set_state_online() without defeating
+ * the next cpu_wait_death()'s polling loop.
+ */
+bool cpu_report_death(void)
+{
+	int oldstate;
+	int newstate;
+	int cpu = smp_processor_id();
+
+	do {
+		oldstate = atomic_read(&per_cpu(cpu_hotplug_state, cpu));
+		if (oldstate != CPU_BROKEN)
+			newstate = CPU_DEAD;
+		else
+			newstate = CPU_DEAD_FROZEN;
+	} while (atomic_cmpxchg(&per_cpu(cpu_hotplug_state, cpu),
+				oldstate, newstate) != oldstate);
+	return newstate == CPU_DEAD;
+}
+
+#endif /* #ifdef CONFIG_HOTPLUG_CPU */

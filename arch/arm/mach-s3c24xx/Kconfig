@@ -39,14 +39,14 @@ config CPU_S3C2412
 	bool "SAMSUNG S3C2412"
 	select CPU_ARM926T
 	select S3C2412_COMMON_CLK
-	select S3C2412_PM if PM
+	select S3C2412_PM if PM_SLEEP
 	help
 	  Support for the S3C2412 and S3C2413 SoCs from the S3C24XX line
 
 config CPU_S3C2416
 	bool "SAMSUNG S3C2416/S3C2450"
 	select CPU_ARM926T
-	select S3C2416_PM if PM
+	select S3C2416_PM if PM_SLEEP
 	select S3C2443_COMMON_CLK
 	help
 	  Support for the S3C2416 SoC from the S3C24XX line
@@ -55,7 +55,7 @@ config CPU_S3C2440
 	bool "SAMSUNG S3C2440"
 	select CPU_ARM920T
 	select S3C2410_COMMON_CLK
-	select S3C2410_PM if PM
+	select S3C2410_PM if PM_SLEEP
 	help
 	  Support for S3C2440 Samsung Mobile CPU based systems.
 
@@ -63,7 +63,7 @@ config CPU_S3C2442
 	bool "SAMSUNG S3C2442"
 	select CPU_ARM920T
 	select S3C2410_COMMON_CLK
-	select S3C2410_PM if PM
+	select S3C2410_PM if PM_SLEEP
 	help
 	  Support for S3C2442 Samsung Mobile CPU based systems.
 
@@ -123,6 +123,11 @@ config S3C24XX_PLL
 
 	  This also means that the PLL tables for the selected CPU(s) will
 	  be built which may increase the size of the kernel image.
+
+config S3C_SETUP_CAMIF
+	bool
+	help
+	  Compile in common setup code for S3C CAMIF devices
 
 # cpu frequency items common between s3c2410 and s3c2440/s3c2442
 
@@ -227,11 +232,6 @@ config H1940BT
 	help
 	  This is a simple driver that is able to control
 	  the state of built in bluetooth chip on h1940.
-
-config PM_H1940
-	bool
-	help
-	  Internal node for H1940 and related PM
 
 config MACH_N30
 	bool "Acer N30 family"
@@ -362,6 +362,7 @@ if CPU_S3C2416
 config S3C2416_PM
 	bool
 	select S3C2412_PM_SLEEP
+	select SAMSUNG_WAKEMASK
 	help
 	  Internal config node to apply S3C2416 power management
 
@@ -583,6 +584,11 @@ config MACH_SMDK2443
 	  Say Y here if you are using an SMDK2443
 
 endif	# CPU_S3C2443
+
+config PM_H1940
+	bool
+	help
+	  Internal node for H1940 and related PM
 
 endmenu	# SAMSUNG S3C24XX SoCs Support
 

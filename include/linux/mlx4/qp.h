@@ -135,7 +135,10 @@ struct mlx4_rss_context {
 
 struct mlx4_qp_path {
 	u8			fl;
-	u8			vlan_control;
+	union {
+		u8			vlan_control;
+		u8			control;
+	};
 	u8			disable_pkey_check;
 	u8			pkey_index;
 	u8			counter_index;
@@ -156,9 +159,16 @@ struct mlx4_qp_path {
 };
 
 enum { /* fl */
-	MLX4_FL_CV      = 1 << 6,
-	MLX4_FL_ETH_HIDE_CQE_VLAN       = 1 << 2
+	MLX4_FL_CV	= 1 << 6,
+	MLX4_FL_ETH_HIDE_CQE_VLAN	= 1 << 2,
+	MLX4_FL_ETH_SRC_CHECK_MC_LB	= 1 << 1,
+	MLX4_FL_ETH_SRC_CHECK_UC_LB	= 1 << 0,
 };
+
+enum { /* control */
+	MLX4_CTRL_ETH_SRC_CHECK_IF_COUNTER	= 1 << 7,
+};
+
 enum { /* vlan_control */
 	MLX4_VLAN_CTRL_ETH_TX_BLOCK_TAGGED	= 1 << 6,
 	MLX4_VLAN_CTRL_ETH_TX_BLOCK_PRIO_TAGGED	= 1 << 5, /* 802.1p priority tag */
@@ -207,14 +217,17 @@ struct mlx4_qp_context {
 	__be32			msn;
 	__be16			rq_wqe_counter;
 	__be16			sq_wqe_counter;
-	u32			reserved3[2];
+	u32			reserved3;
+	__be16			rate_limit_params;
+	u8			reserved4;
+	u8			qos_vport;
 	__be32			param3;
 	__be32			nummmcpeers_basemkey;
 	u8			log_page_size;
-	u8			reserved4[2];
+	u8			reserved5[2];
 	u8			mtt_base_addr_h;
 	__be32			mtt_base_addr_l;
-	u32			reserved5[10];
+	u32			reserved6[10];
 };
 
 struct mlx4_update_qp_context {
@@ -229,6 +242,8 @@ struct mlx4_update_qp_context {
 enum {
 	MLX4_UPD_QP_MASK_PM_STATE	= 32,
 	MLX4_UPD_QP_MASK_VSD		= 33,
+	MLX4_UPD_QP_MASK_QOS_VPP	= 34,
+	MLX4_UPD_QP_MASK_RATE_LIMIT	= 35,
 };
 
 enum {
@@ -249,6 +264,8 @@ enum {
 	MLX4_UPD_QP_PATH_MASK_SCHED_QUEUE		= 14 + 32,
 	MLX4_UPD_QP_PATH_MASK_IF_COUNTER_INDEX		= 15 + 32,
 	MLX4_UPD_QP_PATH_MASK_FVL_RX			= 16 + 32,
+	MLX4_UPD_QP_PATH_MASK_ETH_SRC_CHECK_UC_LB	= 18 + 32,
+	MLX4_UPD_QP_PATH_MASK_ETH_SRC_CHECK_MC_LB	= 19 + 32,
 };
 
 enum { /* param3 */
@@ -267,7 +284,8 @@ enum {
 	MLX4_WQE_CTRL_SOLICITED		= 1 << 1,
 	MLX4_WQE_CTRL_IP_CSUM		= 1 << 4,
 	MLX4_WQE_CTRL_TCP_UDP_CSUM	= 1 << 5,
-	MLX4_WQE_CTRL_INS_VLAN		= 1 << 6,
+	MLX4_WQE_CTRL_INS_CVLAN		= 1 << 6,
+	MLX4_WQE_CTRL_INS_SVLAN		= 1 << 7,
 	MLX4_WQE_CTRL_STRONG_ORDER	= 1 << 7,
 	MLX4_WQE_CTRL_FORCE_LOOPBACK	= 1 << 0,
 };
@@ -428,16 +446,23 @@ struct mlx4_wqe_inline_seg {
 enum mlx4_update_qp_attr {
 	MLX4_UPDATE_QP_SMAC		= 1 << 0,
 	MLX4_UPDATE_QP_VSD		= 1 << 1,
-	MLX4_UPDATE_QP_SUPPORTED_ATTRS	= (1 << 2) - 1
+	MLX4_UPDATE_QP_RATE_LIMIT	= 1 << 2,
+	MLX4_UPDATE_QP_QOS_VPORT	= 1 << 3,
+	MLX4_UPDATE_QP_ETH_SRC_CHECK_MC_LB      = 1 << 4,
+	MLX4_UPDATE_QP_SUPPORTED_ATTRS	= (1 << 5) - 1
 };
 
 enum mlx4_update_qp_params_flags {
-	MLX4_UPDATE_QP_PARAMS_FLAGS_VSD_ENABLE		= 1 << 0,
+	MLX4_UPDATE_QP_PARAMS_FLAGS_ETH_CHECK_MC_LB     = 1 << 0,
+	MLX4_UPDATE_QP_PARAMS_FLAGS_VSD_ENABLE		= 1 << 1,
 };
 
 struct mlx4_update_qp_params {
 	u8	smac_index;
+	u8	qos_vport;
 	u32	flags;
+	u16	rate_unit;
+	u16	rate_val;
 };
 
 int mlx4_update_qp(struct mlx4_dev *dev, u32 qpn,

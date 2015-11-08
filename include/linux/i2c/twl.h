@@ -675,6 +675,7 @@ struct twl4030_power_data {
 	struct twl4030_resconfig *board_config;
 #define TWL4030_RESCONFIG_UNDEF	((u8)-1)
 	bool use_poweroff;	/* Board is wired for TWL poweroff */
+	bool ac_charger_quirk;	/* Disable AC charger on board */
 };
 
 extern int twl4030_remove_script(u8 flags);

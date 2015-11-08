@@ -15,7 +15,6 @@
  */
 
 #include <linux/io.h>
-#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 #include <linux/of.h>
@@ -24,6 +23,7 @@
 #include <linux/export.h>
 #include <linux/clk/tegra.h>
 #include <dt-bindings/clock/tegra124-car.h>
+#include <dt-bindings/reset/tegra124-car.h>
 
 #include "clk.h"
 #include "clk-id.h"
@@ -38,6 +38,9 @@
 
 #define CLK_SOURCE_CSITE 0x1d4
 #define CLK_SOURCE_EMC 0x19c
+
+#define RST_DFLL_DVCO			0x2f4
+#define DVFS_DFLL_RESET_SHIFT		0
 
 #define PLLC_BASE 0x80
 #define PLLC_OUT 0x84
@@ -94,6 +97,8 @@
 #define PMC_PLLM_WB0_OVERRIDE 0x1dc
 #define PMC_PLLM_WB0_OVERRIDE_2 0x2b0
 
+#define CCLKG_BURST_POLICY 0x368
+
 #define UTMIP_PLL_CFG2 0x488
 #define UTMIP_PLL_CFG2_STABLE_COUNT(x) (((x) & 0xffff) << 6)
 #define UTMIP_PLL_CFG2_ACTIVE_DLY_COUNT(x) (((x) & 0x3f) << 18)
@@ -126,6 +131,8 @@
 #ifdef CONFIG_PM_SLEEP
 static struct cpu_clk_suspend_context {
 	u32 clk_csite_src;
+	u32 cclkg_burst;
+	u32 cclkg_divider;
 } tegra124_cpu_clk_sctx;
 #endif
 
@@ -151,11 +158,6 @@ static unsigned long tegra124_input_freq[] = {
 	[9] = 48000000,
 	[12] = 260000000,
 };
-
-static const char *mux_pllmcp_clkm[] = {
-	"pll_m", "pll_c", "pll_p", "clk_m", "pll_m_ud", "pll_c2", "pll_c3",
-};
-#define mux_pllmcp_clkm_idx NULL
 
 static struct div_nmp pllxc_nmp = {
 	.divm_shift = 0,
@@ -791,7 +793,6 @@ static struct tegra_clk tegra124_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_i2c2] = { .dt_id = TEGRA124_CLK_I2C2, .present = true },
 	[tegra_clk_uartc] = { .dt_id = TEGRA124_CLK_UARTC, .present = true },
 	[tegra_clk_mipi_cal] = { .dt_id = TEGRA124_CLK_MIPI_CAL, .present = true },
-	[tegra_clk_emc] = { .dt_id = TEGRA124_CLK_EMC, .present = true },
 	[tegra_clk_usb2] = { .dt_id = TEGRA124_CLK_USB2, .present = true },
 	[tegra_clk_usb3] = { .dt_id = TEGRA124_CLK_USB3, .present = true },
 	[tegra_clk_vde_8] = { .dt_id = TEGRA124_CLK_VDE, .present = true },
@@ -1014,6 +1015,9 @@ static struct tegra_devclk devclks[] __initdata = {
 	{ .con_id = "fuse", .dt_id = TEGRA124_CLK_FUSE },
 	{ .dev_id = "rtc-tegra", .dt_id = TEGRA124_CLK_RTC },
 	{ .dev_id = "timer", .dt_id = TEGRA124_CLK_TIMER },
+	{ .con_id = "hda", .dt_id = TEGRA124_CLK_HDA },
+	{ .con_id = "hda2codec_2x", .dt_id = TEGRA124_CLK_HDA2CODEC_2X },
+	{ .con_id = "hda2hdmi", .dt_id = TEGRA124_CLK_HDA2HDMI },
 };
 
 static struct clk **clks;
@@ -1110,25 +1114,21 @@ static __init void tegra124_periph_clk_init(void __iomem *clk_base,
 					1, 2);
 	clks[TEGRA124_CLK_XUSB_SS_DIV2] = clk;
 
-	clk = clk_register_gate(NULL, "plld_dsi", "plld_out0", 0,
+	clk = clk_register_gate(NULL, "pll_d_dsi_out", "pll_d_out0", 0,
 				clk_base + PLLD_MISC, 30, 0, &pll_d_lock);
-	clks[TEGRA124_CLK_PLLD_DSI] = clk;
+	clks[TEGRA124_CLK_PLL_D_DSI_OUT] = clk;
 
-	clk = tegra_clk_register_periph_gate("dsia", "plld_dsi", 0, clk_base,
-					     0, 48, periph_clk_enb_refcnt);
+	clk = tegra_clk_register_periph_gate("dsia", "pll_d_dsi_out", 0,
+					     clk_base, 0, 48,
+					     periph_clk_enb_refcnt);
 	clks[TEGRA124_CLK_DSIA] = clk;
 
-	clk = tegra_clk_register_periph_gate("dsib", "plld_dsi", 0, clk_base,
-					     0, 82, periph_clk_enb_refcnt);
+	clk = tegra_clk_register_periph_gate("dsib", "pll_d_dsi_out", 0,
+					     clk_base, 0, 82,
+					     periph_clk_enb_refcnt);
 	clks[TEGRA124_CLK_DSIB] = clk;
 
-	/* emc mux */
-	clk = clk_register_mux(NULL, "emc_mux", mux_pllmcp_clkm,
-			       ARRAY_SIZE(mux_pllmcp_clkm), 0,
-			       clk_base + CLK_SOURCE_EMC,
-			       29, 3, 0, &emc_lock);
-
-	clk = tegra_clk_register_mc("mc", "emc_mux", clk_base + CLK_SOURCE_EMC,
+	clk = tegra_clk_register_mc("mc", "emc", clk_base + CLK_SOURCE_EMC,
 				    &emc_lock);
 	clks[TEGRA124_CLK_MC] = clk;
 
@@ -1326,12 +1326,22 @@ static void tegra124_cpu_clock_suspend(void)
 	tegra124_cpu_clk_sctx.clk_csite_src =
 				readl(clk_base + CLK_SOURCE_CSITE);
 	writel(3 << 30, clk_base + CLK_SOURCE_CSITE);
+
+	tegra124_cpu_clk_sctx.cclkg_burst =
+				readl(clk_base + CCLKG_BURST_POLICY);
+	tegra124_cpu_clk_sctx.cclkg_divider =
+				readl(clk_base + CCLKG_BURST_POLICY + 4);
 }
 
 static void tegra124_cpu_clock_resume(void)
 {
 	writel(tegra124_cpu_clk_sctx.clk_csite_src,
 				clk_base + CLK_SOURCE_CSITE);
+
+	writel(tegra124_cpu_clk_sctx.cclkg_burst,
+					clk_base + CCLKG_BURST_POLICY);
+	writel(tegra124_cpu_clk_sctx.cclkg_divider,
+					clk_base + CCLKG_BURST_POLICY + 4);
 }
 #endif
 
@@ -1384,7 +1394,6 @@ static struct tegra_clk_init_table common_init_table[] __initdata = {
 	{TEGRA124_CLK_XUSB_HOST_SRC, TEGRA124_CLK_PLL_RE_OUT, 112000000, 0},
 	{TEGRA124_CLK_SATA, TEGRA124_CLK_PLL_P, 104000000, 0},
 	{TEGRA124_CLK_SATA_OOB, TEGRA124_CLK_PLL_P, 204000000, 0},
-	{TEGRA124_CLK_EMC, TEGRA124_CLK_CLK_MAX, 0, 1},
 	{TEGRA124_CLK_MSELECT, TEGRA124_CLK_CLK_MAX, 0, 1},
 	{TEGRA124_CLK_CSITE, TEGRA124_CLK_CLK_MAX, 0, 1},
 	{TEGRA124_CLK_TSENSOR, TEGRA124_CLK_CLK_M, 400000, 0},
@@ -1395,6 +1404,8 @@ static struct tegra_clk_init_table common_init_table[] __initdata = {
 static struct tegra_clk_init_table tegra124_init_table[] __initdata = {
 	{TEGRA124_CLK_SOC_THERM, TEGRA124_CLK_PLL_P, 51000000, 0},
 	{TEGRA124_CLK_CCLK_G, TEGRA124_CLK_CLK_MAX, 0, 1},
+	{TEGRA124_CLK_HDA, TEGRA124_CLK_PLL_P, 102000000, 0},
+	{TEGRA124_CLK_HDA2CODEC_2X, TEGRA124_CLK_PLL_P, 48000000, 0},
 	/* This MUST be the last entry. */
 	{TEGRA124_CLK_CLK_MAX, TEGRA124_CLK_CLK_MAX, 0, 0},
 };
@@ -1404,6 +1415,10 @@ static struct tegra_clk_init_table tegra132_init_table[] __initdata = {
 	{TEGRA124_CLK_SOC_THERM, TEGRA124_CLK_PLL_P, 51000000, 1},
 	/* This MUST be the last entry. */
 	{TEGRA124_CLK_CLK_MAX, TEGRA124_CLK_CLK_MAX, 0, 0},
+};
+
+static struct tegra_audio_clk_info tegra124_audio_plls[] = {
+	{ "pll_a", &pll_a_params, tegra_clk_pll_a, "pll_p_out1" },
 };
 
 /**
@@ -1418,6 +1433,68 @@ static void __init tegra124_clock_apply_init_table(void)
 {
 	tegra_init_from_table(common_init_table, clks, TEGRA124_CLK_CLK_MAX);
 	tegra_init_from_table(tegra124_init_table, clks, TEGRA124_CLK_CLK_MAX);
+}
+
+/**
+ * tegra124_car_barrier - wait for pending writes to the CAR to complete
+ *
+ * Wait for any outstanding writes to the CAR MMIO space from this CPU
+ * to complete before continuing execution.  No return value.
+ */
+static void tegra124_car_barrier(void)
+{
+	readl_relaxed(clk_base + RST_DFLL_DVCO);
+}
+
+/**
+ * tegra124_clock_assert_dfll_dvco_reset - assert the DFLL's DVCO reset
+ *
+ * Assert the reset line of the DFLL's DVCO.  No return value.
+ */
+static void tegra124_clock_assert_dfll_dvco_reset(void)
+{
+	u32 v;
+
+	v = readl_relaxed(clk_base + RST_DFLL_DVCO);
+	v |= (1 << DVFS_DFLL_RESET_SHIFT);
+	writel_relaxed(v, clk_base + RST_DFLL_DVCO);
+	tegra124_car_barrier();
+}
+
+/**
+ * tegra124_clock_deassert_dfll_dvco_reset - deassert the DFLL's DVCO reset
+ *
+ * Deassert the reset line of the DFLL's DVCO, allowing the DVCO to
+ * operate.  No return value.
+ */
+static void tegra124_clock_deassert_dfll_dvco_reset(void)
+{
+	u32 v;
+
+	v = readl_relaxed(clk_base + RST_DFLL_DVCO);
+	v &= ~(1 << DVFS_DFLL_RESET_SHIFT);
+	writel_relaxed(v, clk_base + RST_DFLL_DVCO);
+	tegra124_car_barrier();
+}
+
+static int tegra124_reset_assert(unsigned long id)
+{
+	if (id == TEGRA124_RST_DFLL_DVCO)
+		tegra124_clock_assert_dfll_dvco_reset();
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+static int tegra124_reset_deassert(unsigned long id)
+{
+	if (id == TEGRA124_RST_DFLL_DVCO)
+		tegra124_clock_deassert_dfll_dvco_reset();
+	else
+		return -EINVAL;
+
+	return 0;
 }
 
 /**
@@ -1475,13 +1552,16 @@ static void __init tegra124_132_clock_init_pre(struct device_node *np)
 		return;
 
 	if (tegra_osc_clk_init(clk_base, tegra124_clks, tegra124_input_freq,
-		ARRAY_SIZE(tegra124_input_freq), &osc_freq, &pll_ref_freq) < 0)
+			       ARRAY_SIZE(tegra124_input_freq), 1, &osc_freq,
+			       &pll_ref_freq) < 0)
 		return;
 
 	tegra_fixed_clk_init(tegra124_clks);
 	tegra124_pll_init(clk_base, pmc_base);
 	tegra124_periph_clk_init(clk_base, pmc_base);
-	tegra_audio_clk_init(clk_base, pmc_base, tegra124_clks, &pll_a_params);
+	tegra_audio_clk_init(clk_base, pmc_base, tegra124_clks,
+			     tegra124_audio_plls,
+			     ARRAY_SIZE(tegra124_audio_plls));
 	tegra_pmc_clk_init(pmc_base, tegra124_clks);
 
 	/* For Tegra124 & Tegra132, PLLD is the only source for DSIA & DSIB */
@@ -1504,7 +1584,13 @@ static void __init tegra124_132_clock_init_post(struct device_node *np)
 {
 	tegra_super_clk_gen4_init(clk_base, pmc_base, tegra124_clks,
 				  &pll_x_params);
+	tegra_init_special_resets(1, tegra124_reset_assert,
+				  tegra124_reset_deassert);
 	tegra_add_of_provider(np);
+
+	clks[TEGRA124_CLK_EMC] = tegra_clk_register_emc(clk_base, np,
+							&emc_lock);
+
 	tegra_register_devclks(devclks, ARRAY_SIZE(devclks));
 
 	tegra_cpu_car_ops = &tegra124_cpu_car_ops;

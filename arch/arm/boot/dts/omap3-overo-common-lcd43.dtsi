@@ -98,7 +98,7 @@
 
 	lcd0: display@0 {
 		compatible = "samsung,lte430wq-f0c", "panel-dpi";
-		label = "lcd";
+		label = "lcd43";
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&lte430_pins>;

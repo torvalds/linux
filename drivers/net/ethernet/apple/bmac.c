@@ -483,8 +483,8 @@ static int bmac_suspend(struct macio_dev *mdev, pm_message_t state)
        		bmwrite(dev, TXCFG, (config & ~TxMACEnable));
 		bmwrite(dev, INTDISABLE, DisableAll); /* disable all intrs */
        		/* disable rx and tx dma */
-       		st_le32(&rd->control, DBDMA_CLEAR(RUN|PAUSE|FLUSH|WAKE));	/* clear run bit */
-       		st_le32(&td->control, DBDMA_CLEAR(RUN|PAUSE|FLUSH|WAKE));	/* clear run bit */
+		rd->control = cpu_to_le32(DBDMA_CLEAR(RUN|PAUSE|FLUSH|WAKE));	/* clear run bit */
+		td->control = cpu_to_le32(DBDMA_CLEAR(RUN|PAUSE|FLUSH|WAKE));	/* clear run bit */
        		/* free some skb's */
        		for (i=0; i<N_RX_RING; i++) {
        			if (bp->rx_bufs[i] != NULL) {
@@ -699,8 +699,8 @@ static irqreturn_t bmac_rxdma_intr(int irq, void *dev_id)
 
 	while (1) {
 		cp = &bp->rx_cmds[i];
-		stat = ld_le16(&cp->xfer_status);
-		residual = ld_le16(&cp->res_count);
+		stat = le16_to_cpu(cp->xfer_status);
+		residual = le16_to_cpu(cp->res_count);
 		if ((stat & ACTIVE) == 0)
 			break;
 		nb = RX_BUFLEN - residual - 2;
@@ -728,8 +728,8 @@ static irqreturn_t bmac_rxdma_intr(int irq, void *dev_id)
 				skb_reserve(bp->rx_bufs[i], 2);
 		}
 		bmac_construct_rxbuff(skb, &bp->rx_cmds[i]);
-		st_le16(&cp->res_count, 0);
-		st_le16(&cp->xfer_status, 0);
+		cp->res_count = cpu_to_le16(0);
+		cp->xfer_status = cpu_to_le16(0);
 		last = i;
 		if (++i >= N_RX_RING) i = 0;
 	}
@@ -769,7 +769,7 @@ static irqreturn_t bmac_txdma_intr(int irq, void *dev_id)
 
 	while (1) {
 		cp = &bp->tx_cmds[bp->tx_empty];
-		stat = ld_le16(&cp->xfer_status);
+		stat = le16_to_cpu(cp->xfer_status);
 		if (txintcount < 10) {
 			XXDEBUG(("bmac_txdma_xfer_stat=%#0x\n", stat));
 		}
@@ -1411,8 +1411,8 @@ static int bmac_close(struct net_device *dev)
 	bmwrite(dev, INTDISABLE, DisableAll); /* disable all intrs */
 
 	/* disable rx and tx dma */
-	st_le32(&rd->control, DBDMA_CLEAR(RUN|PAUSE|FLUSH|WAKE));	/* clear run bit */
-	st_le32(&td->control, DBDMA_CLEAR(RUN|PAUSE|FLUSH|WAKE));	/* clear run bit */
+	rd->control = cpu_to_le32(DBDMA_CLEAR(RUN|PAUSE|FLUSH|WAKE));	/* clear run bit */
+	td->control = cpu_to_le32(DBDMA_CLEAR(RUN|PAUSE|FLUSH|WAKE));	/* clear run bit */
 
 	/* free some skb's */
 	XXDEBUG(("bmac: free rx bufs\n"));
@@ -1493,7 +1493,7 @@ static void bmac_tx_timeout(unsigned long data)
 
 	cp = &bp->tx_cmds[bp->tx_empty];
 /*	XXDEBUG((KERN_DEBUG "bmac: tx dmastat=%x %x runt=%d pr=%x fs=%x fc=%x\n", */
-/* 	   ld_le32(&td->status), ld_le16(&cp->xfer_status), bp->tx_bad_runt, */
+/* 	   le32_to_cpu(td->status), le16_to_cpu(cp->xfer_status), bp->tx_bad_runt, */
 /* 	   mb->pr, mb->xmtfs, mb->fifofc)); */
 
 	/* turn off both tx and rx and reset the chip */
@@ -1506,7 +1506,7 @@ static void bmac_tx_timeout(unsigned long data)
 	bmac_enable_and_reset_chip(dev);
 
 	/* restart rx dma */
-	cp = bus_to_virt(ld_le32(&rd->cmdptr));
+	cp = bus_to_virt(le32_to_cpu(rd->cmdptr));
 	out_le32(&rd->control, DBDMA_CLEAR(RUN|PAUSE|FLUSH|WAKE|ACTIVE|DEAD));
 	out_le16(&cp->xfer_status, 0);
 	out_le32(&rd->cmdptr, virt_to_bus(cp));
@@ -1553,10 +1553,10 @@ static void dump_dbdma(volatile struct dbdma_cmd *cp,int count)
 		ip = (int*)(cp+i);
 
 		printk("dbdma req 0x%x addr 0x%x baddr 0x%x xfer/res 0x%x\n",
-		       ld_le32(ip+0),
-		       ld_le32(ip+1),
-		       ld_le32(ip+2),
-		       ld_le32(ip+3));
+		       le32_to_cpup(ip+0),
+		       le32_to_cpup(ip+1),
+		       le32_to_cpup(ip+2),
+		       le32_to_cpup(ip+3));
 	}
 
 }
@@ -1621,7 +1621,7 @@ static int bmac_remove(struct macio_dev *mdev)
 	return 0;
 }
 
-static struct of_device_id bmac_match[] =
+static const struct of_device_id bmac_match[] =
 {
 	{
 	.name 		= "bmac",

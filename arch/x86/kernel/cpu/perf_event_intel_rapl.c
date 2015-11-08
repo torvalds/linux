@@ -62,6 +62,14 @@
 #define RAPL_IDX_PP1_NRG_STAT	3	/* gpu */
 #define INTEL_RAPL_PP1		0x4	/* pseudo-encoding */
 
+#define NR_RAPL_DOMAINS         0x4
+static const char *rapl_domain_names[NR_RAPL_DOMAINS] __initconst = {
+	"pp0-core",
+	"package",
+	"dram",
+	"pp1-gpu",
+};
+
 /* Clients have PP0, PKG */
 #define RAPL_IDX_CLN	(1<<RAPL_IDX_PP0_NRG_STAT|\
 			 1<<RAPL_IDX_PKG_NRG_STAT|\
@@ -77,6 +85,10 @@
 			 1<<RAPL_IDX_PKG_NRG_STAT|\
 			 1<<RAPL_IDX_RAM_NRG_STAT|\
 			 1<<RAPL_IDX_PP1_NRG_STAT)
+
+/* Knights Landing has PKG, RAM */
+#define RAPL_IDX_KNL	(1<<RAPL_IDX_PKG_NRG_STAT|\
+			 1<<RAPL_IDX_RAM_NRG_STAT)
 
 /*
  * event code: LSB 8 bits, passed in attr->config
@@ -112,7 +124,6 @@ static struct perf_pmu_events_attr event_attr_##v = {			\
 
 struct rapl_pmu {
 	spinlock_t	 lock;
-	int		 hw_unit;  /* 1/2^hw_unit Joule */
 	int		 n_active; /* number of active events */
 	struct list_head active_list;
 	struct pmu	 *pmu; /* pointer to rapl_pmu_class */
@@ -120,6 +131,7 @@ struct rapl_pmu {
 	struct hrtimer   hrtimer;
 };
 
+static int rapl_hw_unit[NR_RAPL_DOMAINS] __read_mostly;  /* 1/2^hw_unit Joule */
 static struct pmu rapl_pmu_class;
 static cpumask_t rapl_cpu_mask;
 static int rapl_cntr_mask;
@@ -127,6 +139,7 @@ static int rapl_cntr_mask;
 static DEFINE_PER_CPU(struct rapl_pmu *, rapl_pmu);
 static DEFINE_PER_CPU(struct rapl_pmu *, rapl_pmu_to_free);
 
+static struct x86_pmu_quirk *rapl_quirks;
 static inline u64 rapl_read_counter(struct perf_event *event)
 {
 	u64 raw;
@@ -134,15 +147,28 @@ static inline u64 rapl_read_counter(struct perf_event *event)
 	return raw;
 }
 
-static inline u64 rapl_scale(u64 v)
+#define rapl_add_quirk(func_)						\
+do {									\
+	static struct x86_pmu_quirk __quirk __initdata = {		\
+		.func = func_,						\
+	};								\
+	__quirk.next = rapl_quirks;					\
+	rapl_quirks = &__quirk;						\
+} while (0)
+
+static inline u64 rapl_scale(u64 v, int cfg)
 {
+	if (cfg > NR_RAPL_DOMAINS) {
+		pr_warn("invalid domain %d, failed to scale data\n", cfg);
+		return v;
+	}
 	/*
 	 * scale delta to smallest unit (1/2^32)
 	 * users must then scale back: count * 1/(1e9*2^32) to get Joules
 	 * or use ldexp(count, -32).
 	 * Watts = Joules/Time delta
 	 */
-	return v << (32 - __this_cpu_read(rapl_pmu)->hw_unit);
+	return v << (32 - rapl_hw_unit[cfg - 1]);
 }
 
 static u64 rapl_event_update(struct perf_event *event)
@@ -173,7 +199,7 @@ again:
 	delta = (new_raw_count << shift) - (prev_raw_count << shift);
 	delta >>= shift;
 
-	sdelta = rapl_scale(delta);
+	sdelta = rapl_scale(delta, event->hw.config);
 
 	local64_add(sdelta, &event->count);
 
@@ -182,9 +208,8 @@ again:
 
 static void rapl_start_hrtimer(struct rapl_pmu *pmu)
 {
-	__hrtimer_start_range_ns(&pmu->hrtimer,
-			pmu->timer_interval, 0,
-			HRTIMER_MODE_REL_PINNED, 0);
+       hrtimer_start(&pmu->hrtimer, pmu->timer_interval,
+		     HRTIMER_MODE_REL_PINNED);
 }
 
 static void rapl_stop_hrtimer(struct rapl_pmu *pmu)
@@ -465,6 +490,18 @@ static struct attribute *rapl_events_hsw_attr[] = {
 	NULL,
 };
 
+static struct attribute *rapl_events_knl_attr[] = {
+	EVENT_PTR(rapl_pkg),
+	EVENT_PTR(rapl_ram),
+
+	EVENT_PTR(rapl_pkg_unit),
+	EVENT_PTR(rapl_ram_unit),
+
+	EVENT_PTR(rapl_pkg_scale),
+	EVENT_PTR(rapl_ram_scale),
+	NULL,
+};
+
 static struct attribute_group rapl_pmu_events_group = {
 	.name = "events",
 	.attrs = NULL, /* patched at runtime */
@@ -546,12 +583,22 @@ static void rapl_cpu_init(int cpu)
 	cpumask_set_cpu(cpu, &rapl_cpu_mask);
 }
 
+static __init void rapl_hsw_server_quirk(void)
+{
+	/*
+	 * DRAM domain on HSW server has fixed energy unit which can be
+	 * different than the unit from power unit MSR.
+	 * "Intel Xeon Processor E5-1600 and E5-2600 v3 Product Families, V2
+	 * of 2. Datasheet, September 2014, Reference Number: 330784-001 "
+	 */
+	rapl_hw_unit[RAPL_IDX_RAM_NRG_STAT] = 16;
+}
+
 static int rapl_cpu_prepare(int cpu)
 {
 	struct rapl_pmu *pmu = per_cpu(rapl_pmu, cpu);
 	int phys_id = topology_physical_package_id(cpu);
 	u64 ms;
-	u64 msr_rapl_power_unit_bits;
 
 	if (pmu)
 		return 0;
@@ -559,24 +606,13 @@ static int rapl_cpu_prepare(int cpu)
 	if (phys_id < 0)
 		return -1;
 
-	/* protect rdmsrl() to handle virtualization */
-	if (rdmsrl_safe(MSR_RAPL_POWER_UNIT, &msr_rapl_power_unit_bits))
-		return -1;
-
 	pmu = kzalloc_node(sizeof(*pmu), GFP_KERNEL, cpu_to_node(cpu));
 	if (!pmu)
 		return -1;
-
 	spin_lock_init(&pmu->lock);
 
 	INIT_LIST_HEAD(&pmu->active_list);
 
-	/*
-	 * grab power unit as: 1/2^unit Joules
-	 *
-	 * we cache in local PMU instance
-	 */
-	pmu->hw_unit = (msr_rapl_power_unit_bits >> 8) & 0x1FULL;
 	pmu->pmu = &rapl_pmu_class;
 
 	/*
@@ -586,8 +622,8 @@ static int rapl_cpu_prepare(int cpu)
 	 * divide interval by 2 to avoid lockstep (2 * 100)
 	 * if hw unit is 32, then we use 2 ms 1/200/2
 	 */
-	if (pmu->hw_unit < 32)
-		ms = (1000 / (2 * 100)) * (1ULL << (32 - pmu->hw_unit - 1));
+	if (rapl_hw_unit[0] < 32)
+		ms = (1000 / (2 * 100)) * (1ULL << (32 - rapl_hw_unit[0] - 1));
 	else
 		ms = 2;
 
@@ -655,6 +691,20 @@ static int rapl_cpu_notifier(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
+static int rapl_check_hw_unit(void)
+{
+	u64 msr_rapl_power_unit_bits;
+	int i;
+
+	/* protect rdmsrl() to handle virtualization */
+	if (rdmsrl_safe(MSR_RAPL_POWER_UNIT, &msr_rapl_power_unit_bits))
+		return -1;
+	for (i = 0; i < NR_RAPL_DOMAINS; i++)
+		rapl_hw_unit[i] = (msr_rapl_power_unit_bits >> 8) & 0x1FULL;
+
+	return 0;
+}
+
 static const struct x86_cpu_id rapl_cpu_match[] = {
 	[0] = { .vendor = X86_VENDOR_INTEL, .family = 6 },
 	[1] = {},
@@ -664,6 +714,8 @@ static int __init rapl_pmu_init(void)
 {
 	struct rapl_pmu *pmu;
 	int cpu, ret;
+	struct x86_pmu_quirk *quirk;
+	int i;
 
 	/*
 	 * check for Intel processor family 6
@@ -678,8 +730,14 @@ static int __init rapl_pmu_init(void)
 		rapl_cntr_mask = RAPL_IDX_CLN;
 		rapl_pmu_events_group.attrs = rapl_events_cln_attr;
 		break;
+	case 63: /* Haswell-Server */
+		rapl_add_quirk(rapl_hsw_server_quirk);
+		rapl_cntr_mask = RAPL_IDX_SRV;
+		rapl_pmu_events_group.attrs = rapl_events_srv_attr;
+		break;
 	case 60: /* Haswell */
 	case 69: /* Haswell-Celeron */
+	case 61: /* Broadwell */
 		rapl_cntr_mask = RAPL_IDX_HSW;
 		rapl_pmu_events_group.attrs = rapl_events_hsw_attr;
 		break;
@@ -688,12 +746,22 @@ static int __init rapl_pmu_init(void)
 		rapl_cntr_mask = RAPL_IDX_SRV;
 		rapl_pmu_events_group.attrs = rapl_events_srv_attr;
 		break;
+	case 87: /* Knights Landing */
+		rapl_add_quirk(rapl_hsw_server_quirk);
+		rapl_cntr_mask = RAPL_IDX_KNL;
+		rapl_pmu_events_group.attrs = rapl_events_knl_attr;
 
 	default:
 		/* unsupported */
 		return 0;
 	}
+	ret = rapl_check_hw_unit();
+	if (ret)
+		return ret;
 
+	/* run cpu model quirks */
+	for (quirk = rapl_quirks; quirk; quirk = quirk->next)
+		quirk->func();
 	cpu_notifier_register_begin();
 
 	for_each_online_cpu(cpu) {
@@ -714,14 +782,18 @@ static int __init rapl_pmu_init(void)
 
 	pmu = __this_cpu_read(rapl_pmu);
 
-	pr_info("RAPL PMU detected, hw unit 2^-%d Joules,"
+	pr_info("RAPL PMU detected,"
 		" API unit is 2^-32 Joules,"
 		" %d fixed counters"
 		" %llu ms ovfl timer\n",
-		pmu->hw_unit,
 		hweight32(rapl_cntr_mask),
 		ktime_to_ms(pmu->timer_interval));
-
+	for (i = 0; i < NR_RAPL_DOMAINS; i++) {
+		if (rapl_cntr_mask & (1 << i)) {
+			pr_info("hw unit of domain %s 2^-%d Joules\n",
+				rapl_domain_names[i], rapl_hw_unit[i]);
+		}
+	}
 out:
 	cpu_notifier_register_done();
 

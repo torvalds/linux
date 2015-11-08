@@ -17,7 +17,7 @@ static int midi_capture_open(struct snd_rawmidi_substream *substream)
 	if (err < 0)
 		goto end;
 
-	atomic_inc(&bebob->capture_substreams);
+	atomic_inc(&bebob->substreams_counter);
 	err = snd_bebob_stream_start_duplex(bebob, 0);
 	if (err < 0)
 		snd_bebob_stream_lock_release(bebob);
@@ -34,7 +34,7 @@ static int midi_playback_open(struct snd_rawmidi_substream *substream)
 	if (err < 0)
 		goto end;
 
-	atomic_inc(&bebob->playback_substreams);
+	atomic_inc(&bebob->substreams_counter);
 	err = snd_bebob_stream_start_duplex(bebob, 0);
 	if (err < 0)
 		snd_bebob_stream_lock_release(bebob);
@@ -46,7 +46,7 @@ static int midi_capture_close(struct snd_rawmidi_substream *substream)
 {
 	struct snd_bebob *bebob = substream->rmidi->private_data;
 
-	atomic_dec(&bebob->capture_substreams);
+	atomic_dec(&bebob->substreams_counter);
 	snd_bebob_stream_stop_duplex(bebob);
 
 	snd_bebob_stream_lock_release(bebob);
@@ -57,7 +57,7 @@ static int midi_playback_close(struct snd_rawmidi_substream *substream)
 {
 	struct snd_bebob *bebob = substream->rmidi->private_data;
 
-	atomic_dec(&bebob->playback_substreams);
+	atomic_dec(&bebob->substreams_counter);
 	snd_bebob_stream_stop_duplex(bebob);
 
 	snd_bebob_stream_lock_release(bebob);
@@ -72,11 +72,11 @@ static void midi_capture_trigger(struct snd_rawmidi_substream *substrm, int up)
 	spin_lock_irqsave(&bebob->lock, flags);
 
 	if (up)
-		amdtp_stream_midi_trigger(&bebob->tx_stream,
-					  substrm->number, substrm);
+		amdtp_am824_midi_trigger(&bebob->tx_stream,
+					 substrm->number, substrm);
 	else
-		amdtp_stream_midi_trigger(&bebob->tx_stream,
-					  substrm->number, NULL);
+		amdtp_am824_midi_trigger(&bebob->tx_stream,
+					 substrm->number, NULL);
 
 	spin_unlock_irqrestore(&bebob->lock, flags);
 }
@@ -89,11 +89,11 @@ static void midi_playback_trigger(struct snd_rawmidi_substream *substrm, int up)
 	spin_lock_irqsave(&bebob->lock, flags);
 
 	if (up)
-		amdtp_stream_midi_trigger(&bebob->rx_stream,
-					  substrm->number, substrm);
+		amdtp_am824_midi_trigger(&bebob->rx_stream,
+					 substrm->number, substrm);
 	else
-		amdtp_stream_midi_trigger(&bebob->rx_stream,
-					  substrm->number, NULL);
+		amdtp_am824_midi_trigger(&bebob->rx_stream,
+					 substrm->number, NULL);
 
 	spin_unlock_irqrestore(&bebob->lock, flags);
 }

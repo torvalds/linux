@@ -12,6 +12,11 @@ menuconfig IEEE802154
 
 if IEEE802154
 
+config IEEE802154_NL802154_EXPERIMENTAL
+	bool "IEEE 802.15.4 experimental netlink support"
+	---help---
+	  Adds experimental netlink support for nl802154.
+
 config IEEE802154_SOCKET
 	tristate "IEEE 802.15.4 socket interface"
 	default y

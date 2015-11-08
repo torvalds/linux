@@ -897,7 +897,7 @@ static int wm8985_set_bias_level(struct snd_soc_codec *codec,
 				    1 << WM8985_VMIDSEL_SHIFT);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			ret = regulator_bulk_enable(ARRAY_SIZE(wm8985->supplies),
 						    wm8985->supplies);
 			if (ret) {
@@ -957,7 +957,6 @@ static int wm8985_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -1097,7 +1096,6 @@ static int wm8985_spi_remove(struct spi_device *spi)
 static struct spi_driver wm8985_spi_driver = {
 	.driver = {
 		.name = "wm8985",
-		.owner = THIS_MODULE,
 	},
 	.probe = wm8985_spi_probe,
 	.remove = wm8985_spi_remove
@@ -1145,7 +1143,6 @@ MODULE_DEVICE_TABLE(i2c, wm8985_i2c_id);
 static struct i2c_driver wm8985_i2c_driver = {
 	.driver = {
 		.name = "wm8985",
-		.owner = THIS_MODULE,
 	},
 	.probe = wm8985_i2c_probe,
 	.remove = wm8985_i2c_remove,

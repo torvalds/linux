@@ -33,9 +33,11 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_driver.h>
 #include <scsi/scsi_eh.h>
+#include <scsi/scsi_common.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_ioctl.h>
+#include <scsi/scsi_dh.h>
 #include <scsi/sg.h>
 
 #include "scsi_priv.h"
@@ -420,6 +422,10 @@ static void scsi_report_sense(struct scsi_device *sdev,
 			evt_type = SDEV_EVT_MODE_PARAMETER_CHANGE_REPORTED;
 			sdev_printk(KERN_WARNING, sdev,
 				    "Mode parameters changed");
+		} else if (sshdr->asc == 0x2a && sshdr->ascq == 0x06) {
+			evt_type = SDEV_EVT_ALUA_STATE_CHANGE_REPORTED;
+			sdev_printk(KERN_WARNING, sdev,
+				    "Asymmetric access state changed");
 		} else if (sshdr->asc == 0x2a && sshdr->ascq == 0x09) {
 			evt_type = SDEV_EVT_CAPACITY_CHANGE_REPORTED;
 			sdev_printk(KERN_WARNING, sdev,
@@ -459,11 +465,10 @@ static int scsi_check_sense(struct scsi_cmnd *scmd)
 	if (scsi_sense_is_deferred(&sshdr))
 		return NEEDS_RETRY;
 
-	if (sdev->scsi_dh_data && sdev->scsi_dh_data->scsi_dh &&
-			sdev->scsi_dh_data->scsi_dh->check_sense) {
+	if (sdev->handler && sdev->handler->check_sense) {
 		int rc;
 
-		rc = sdev->scsi_dh_data->scsi_dh->check_sense(sdev, &sshdr);
+		rc = sdev->handler->check_sense(sdev, &sshdr);
 		if (rc != SCSI_RETURN_NOT_HANDLED)
 			return rc;
 		/* handler does not care. Drop down to default handling */
@@ -943,7 +948,7 @@ void scsi_eh_prep_cmnd(struct scsi_cmnd *scmd, struct scsi_eh_save *ses,
 			    scmd->sdb.length);
 		scmd->sdb.table.sgl = &ses->sense_sgl;
 		scmd->sc_data_direction = DMA_FROM_DEVICE;
-		scmd->sdb.table.nents = 1;
+		scmd->sdb.table.nents = scmd->sdb.table.orig_nents = 1;
 		scmd->cmnd[0] = REQUEST_SENSE;
 		scmd->cmnd[4] = scmd->sdb.length;
 		scmd->cmd_len = COMMAND_SIZE(scmd->cmnd[0]);
@@ -1155,8 +1160,13 @@ int scsi_eh_get_sense(struct list_head *work_q,
 	struct Scsi_Host *shost;
 	int rtn;
 
+	/*
+	 * If SCSI_EH_ABORT_SCHEDULED has been set, it is timeout IO,
+	 * should not get sense.
+	 */
 	list_for_each_entry_safe(scmd, next, work_q, eh_entry) {
 		if ((scmd->eh_eflags & SCSI_EH_CANCEL_CMD) ||
+		    (scmd->eh_eflags & SCSI_EH_ABORT_SCHEDULED) ||
 		    SCSI_SENSE_VALID(scmd))
 			continue;
 
@@ -1960,7 +1970,7 @@ static void scsi_eh_lock_door(struct scsi_device *sdev)
 	struct request *req;
 
 	/*
-	 * blk_get_request with GFP_KERNEL (__GFP_WAIT) sleeps until a
+	 * blk_get_request with GFP_KERNEL (__GFP_RECLAIM) sleeps until a
 	 * request becomes available
 	 */
 	req = blk_get_request(sdev->request_queue, READ, GFP_KERNEL);
@@ -2169,8 +2179,17 @@ int scsi_error_handler(void *data)
 	 * We never actually get interrupted because kthread_run
 	 * disables signal delivery for the created thread.
 	 */
-	while (!kthread_should_stop()) {
+	while (true) {
+		/*
+		 * The sequence in kthread_stop() sets the stop flag first
+		 * then wakes the process.  To avoid missed wakeups, the task
+		 * should always be in a non running state before the stop
+		 * flag is checked
+		 */
 		set_current_state(TASK_INTERRUPTIBLE);
+		if (kthread_should_stop())
+			break;
+
 		if ((shost->host_failed == 0 && shost->host_eh_scheduled == 0) ||
 		    shost->host_failed != atomic_read(&shost->host_busy)) {
 			SCSI_LOG_ERROR_RECOVERY(1,
@@ -2398,70 +2417,6 @@ out_put_autopm_host:
 }
 EXPORT_SYMBOL(scsi_ioctl_reset);
 
-/**
- * scsi_normalize_sense - normalize main elements from either fixed or
- *			descriptor sense data format into a common format.
- *
- * @sense_buffer:	byte array containing sense data returned by device
- * @sb_len:		number of valid bytes in sense_buffer
- * @sshdr:		pointer to instance of structure that common
- *			elements are written to.
- *
- * Notes:
- *	The "main elements" from sense data are: response_code, sense_key,
- *	asc, ascq and additional_length (only for descriptor format).
- *
- *	Typically this function can be called after a device has
- *	responded to a SCSI command with the CHECK_CONDITION status.
- *
- * Return value:
- *	true if valid sense data information found, else false;
- */
-bool scsi_normalize_sense(const u8 *sense_buffer, int sb_len,
-			  struct scsi_sense_hdr *sshdr)
-{
-	if (!sense_buffer || !sb_len)
-		return false;
-
-	memset(sshdr, 0, sizeof(struct scsi_sense_hdr));
-
-	sshdr->response_code = (sense_buffer[0] & 0x7f);
-
-	if (!scsi_sense_valid(sshdr))
-		return false;
-
-	if (sshdr->response_code >= 0x72) {
-		/*
-		 * descriptor format
-		 */
-		if (sb_len > 1)
-			sshdr->sense_key = (sense_buffer[1] & 0xf);
-		if (sb_len > 2)
-			sshdr->asc = sense_buffer[2];
-		if (sb_len > 3)
-			sshdr->ascq = sense_buffer[3];
-		if (sb_len > 7)
-			sshdr->additional_length = sense_buffer[7];
-	} else {
-		/*
-		 * fixed format
-		 */
-		if (sb_len > 2)
-			sshdr->sense_key = (sense_buffer[2] & 0xf);
-		if (sb_len > 7) {
-			sb_len = (sb_len < (sense_buffer[7] + 8)) ?
-					 sb_len : (sense_buffer[7] + 8);
-			if (sb_len > 12)
-				sshdr->asc = sense_buffer[12];
-			if (sb_len > 13)
-				sshdr->ascq = sense_buffer[13];
-		}
-	}
-
-	return true;
-}
-EXPORT_SYMBOL(scsi_normalize_sense);
-
 bool scsi_command_normalize_sense(const struct scsi_cmnd *cmd,
 				  struct scsi_sense_hdr *sshdr)
 {
@@ -2469,45 +2424,6 @@ bool scsi_command_normalize_sense(const struct scsi_cmnd *cmd,
 			SCSI_SENSE_BUFFERSIZE, sshdr);
 }
 EXPORT_SYMBOL(scsi_command_normalize_sense);
-
-/**
- * scsi_sense_desc_find - search for a given descriptor type in	descriptor sense data format.
- * @sense_buffer:	byte array of descriptor format sense data
- * @sb_len:		number of valid bytes in sense_buffer
- * @desc_type:		value of descriptor type to find
- *			(e.g. 0 -> information)
- *
- * Notes:
- *	only valid when sense data is in descriptor format
- *
- * Return value:
- *	pointer to start of (first) descriptor if found else NULL
- */
-const u8 * scsi_sense_desc_find(const u8 * sense_buffer, int sb_len,
-				int desc_type)
-{
-	int add_sen_len, add_len, desc_len, k;
-	const u8 * descp;
-
-	if ((sb_len < 8) || (0 == (add_sen_len = sense_buffer[7])))
-		return NULL;
-	if ((sense_buffer[0] < 0x72) || (sense_buffer[0] > 0x73))
-		return NULL;
-	add_sen_len = (add_sen_len < (sb_len - 8)) ?
-			add_sen_len : (sb_len - 8);
-	descp = &sense_buffer[8];
-	for (desc_len = 0, k = 0; k < add_sen_len; k += desc_len) {
-		descp += desc_len;
-		add_len = (k < (add_sen_len - 1)) ? descp[1]: -1;
-		desc_len = add_len + 2;
-		if (descp[0] == desc_type)
-			return descp;
-		if (add_len < 0) // short descriptor ??
-			break;
-	}
-	return NULL;
-}
-EXPORT_SYMBOL(scsi_sense_desc_find);
 
 /**
  * scsi_get_sense_info_fld - get information field from sense data (either fixed or descriptor format)
@@ -2558,31 +2474,3 @@ int scsi_get_sense_info_fld(const u8 * sense_buffer, int sb_len,
 	}
 }
 EXPORT_SYMBOL(scsi_get_sense_info_fld);
-
-/**
- * scsi_build_sense_buffer - build sense data in a buffer
- * @desc:	Sense format (non zero == descriptor format,
- * 		0 == fixed format)
- * @buf:	Where to build sense data
- * @key:	Sense key
- * @asc:	Additional sense code
- * @ascq:	Additional sense code qualifier
- *
- **/
-void scsi_build_sense_buffer(int desc, u8 *buf, u8 key, u8 asc, u8 ascq)
-{
-	if (desc) {
-		buf[0] = 0x72;	/* descriptor, current */
-		buf[1] = key;
-		buf[2] = asc;
-		buf[3] = ascq;
-		buf[7] = 0;
-	} else {
-		buf[0] = 0x70;	/* fixed, current */
-		buf[2] = key;
-		buf[7] = 0xa;
-		buf[12] = asc;
-		buf[13] = ascq;
-	}
-}
-EXPORT_SYMBOL(scsi_build_sense_buffer);

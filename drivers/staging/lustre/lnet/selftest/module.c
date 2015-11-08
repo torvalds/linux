@@ -39,7 +39,7 @@
 #include "selftest.h"
 
 enum {
-	LST_INIT_NONE		= 0,
+	LST_INIT_NONE = 0,
 	LST_INIT_WI_SERIAL,
 	LST_INIT_WI_TEST,
 	LST_INIT_RPC,
@@ -58,7 +58,7 @@ struct cfs_wi_sched **lst_sched_test;
 static void
 lnet_selftest_fini(void)
 {
-	int	i;
+	int i;
 
 	switch (lst_init_step) {
 	case LST_INIT_CONSOLE:
@@ -87,15 +87,14 @@ lnet_selftest_fini(void)
 	default:
 		LBUG();
 	}
-	return;
 }
 
 static int
 lnet_selftest_init(void)
 {
-	int	nscheds;
-	int	rc;
-	int	i;
+	int nscheds;
+	int rc;
+	int i;
 
 	rc = cfs_wi_sched_create("lst_s", lnet_cpt_table(), CFS_CPT_ANY,
 				 1, &lst_sched_serial);
@@ -150,7 +149,6 @@ error:
 	lnet_selftest_fini();
 	return rc;
 }
-
 
 MODULE_DESCRIPTION("LNet Selftest");
 MODULE_LICENSE("GPL");

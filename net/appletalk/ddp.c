@@ -1030,7 +1030,7 @@ static int atalk_create(struct net *net, struct socket *sock, int protocol,
 	if (sock->type != SOCK_RAW && sock->type != SOCK_DGRAM)
 		goto out;
 	rc = -ENOMEM;
-	sk = sk_alloc(net, PF_APPLETALK, GFP_KERNEL, &ddp_proto);
+	sk = sk_alloc(net, PF_APPLETALK, GFP_KERNEL, &ddp_proto, kern);
 	if (!sk)
 		goto out;
 	rc = 0;
@@ -1559,8 +1559,7 @@ freeit:
 	return 0;
 }
 
-static int atalk_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
-			 size_t len)
+static int atalk_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 {
 	struct sock *sk = sock->sk;
 	struct atalk_sock *at = at_sk(sk);
@@ -1728,8 +1727,8 @@ out:
 	return err ? : len;
 }
 
-static int atalk_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
-			 size_t size, int flags)
+static int atalk_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
+			 int flags)
 {
 	struct sock *sk = sock->sk;
 	struct ddpehdr *ddp;

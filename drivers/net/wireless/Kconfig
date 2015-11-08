@@ -214,8 +214,6 @@ config USB_NET_RNDIS_WLAN
 
 	  If you choose to build a module, it'll be called rndis_wlan.
 
-source "drivers/net/wireless/rtl818x/Kconfig"
-
 config ADM8211
 	tristate "ADMtek ADM8211 support"
 	depends on MAC80211 && PCI
@@ -242,6 +240,8 @@ config ADM8211
 	  the Ralink RT2400 (SMC2635W) without a model number change.
 
 	  Thanks to Infineon-ADMtek for their support of this driver.
+
+source "drivers/net/wireless/realtek/rtl818x/Kconfig"
 
 config MAC80211_HWSIM
 	tristate "Simulated radio testing tool for mac80211"
@@ -277,7 +277,9 @@ source "drivers/net/wireless/libertas/Kconfig"
 source "drivers/net/wireless/orinoco/Kconfig"
 source "drivers/net/wireless/p54/Kconfig"
 source "drivers/net/wireless/rt2x00/Kconfig"
-source "drivers/net/wireless/rtlwifi/Kconfig"
+source "drivers/net/wireless/mediatek/Kconfig"
+source "drivers/net/wireless/realtek/rtlwifi/Kconfig"
+source "drivers/net/wireless/realtek/rtl8xxxu/Kconfig"
 source "drivers/net/wireless/ti/Kconfig"
 source "drivers/net/wireless/zd1211rw/Kconfig"
 source "drivers/net/wireless/mwifiex/Kconfig"

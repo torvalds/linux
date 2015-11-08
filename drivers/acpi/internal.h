@@ -13,9 +13,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #ifndef _ACPI_INTERNAL_H_
@@ -24,7 +21,7 @@
 #define PREFIX "ACPI: "
 
 acpi_status acpi_os_initialize1(void);
-int init_acpi_device_notify(void);
+void init_acpi_device_notify(void);
 int acpi_scan_init(void);
 void acpi_pci_root_init(void);
 void acpi_pci_link_init(void);
@@ -58,6 +55,7 @@ void acpi_cmos_rtc_init(void);
 #else
 static inline void acpi_cmos_rtc_init(void) {}
 #endif
+int acpi_rev_override_setup(char *str);
 
 extern bool acpi_force_hot_remove;
 
@@ -69,7 +67,7 @@ void acpi_scan_hotplug_enabled(struct acpi_hotplug_profile *hotplug, bool val);
 
 #ifdef CONFIG_DEBUG_FS
 extern struct dentry *acpi_debugfs_dir;
-int acpi_debugfs_init(void);
+void acpi_debugfs_init(void);
 #else
 static inline void acpi_debugfs_init(void) { return; }
 #endif
@@ -92,10 +90,21 @@ int acpi_device_add(struct acpi_device *device,
 		    void (*release)(struct device *));
 void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 			     int type, unsigned long long sta);
+int acpi_device_setup_files(struct acpi_device *dev);
+void acpi_device_remove_files(struct acpi_device *dev);
 void acpi_device_add_finalize(struct acpi_device *device);
 void acpi_free_pnp_ids(struct acpi_device_pnp *pnp);
 bool acpi_device_is_present(struct acpi_device *adev);
 bool acpi_device_is_battery(struct acpi_device *adev);
+bool acpi_device_is_first_physical_node(struct acpi_device *adev,
+					const struct device *dev);
+
+/* --------------------------------------------------------------------------
+                     Device Matching and Notification
+   -------------------------------------------------------------------------- */
+struct acpi_device *acpi_companion_match(const struct device *dev);
+int __acpi_device_uevent_modalias(struct acpi_device *adev,
+				  struct kobj_uevent_env *env);
 
 /* --------------------------------------------------------------------------
                                   Power Resource
@@ -129,7 +138,7 @@ struct acpi_ec {
 	unsigned long gpe;
 	unsigned long command_addr;
 	unsigned long data_addr;
-	unsigned long global_lock;
+	bool global_lock;
 	unsigned long flags;
 	unsigned long reference_count;
 	struct mutex mutex;
@@ -138,6 +147,8 @@ struct acpi_ec {
 	struct transaction *curr;
 	spinlock_t lock;
 	struct work_struct work;
+	unsigned long timestamp;
+	unsigned long nr_pending_queries;
 };
 
 extern struct acpi_ec *first_ec;
@@ -161,16 +172,20 @@ void acpi_ec_remove_query_handler(struct acpi_ec *ec, u8 query_bit);
 /*--------------------------------------------------------------------------
                                   Suspend/Resume
   -------------------------------------------------------------------------- */
+#ifdef CONFIG_ACPI_SYSTEM_POWER_STATES_SUPPORT
 extern int acpi_sleep_init(void);
+#else
+static inline int acpi_sleep_init(void) { return -ENXIO; }
+#endif
 
 #ifdef CONFIG_ACPI_SLEEP
-int acpi_sleep_proc_init(void);
+void acpi_sleep_proc_init(void);
 int suspend_nvs_alloc(void);
 void suspend_nvs_free(void);
 int suspend_nvs_save(void);
 void suspend_nvs_restore(void);
 #else
-static inline int acpi_sleep_proc_init(void) { return 0; }
+static inline void acpi_sleep_proc_init(void) {}
 static inline int suspend_nvs_alloc(void) { return 0; }
 static inline void suspend_nvs_free(void) {}
 static inline int suspend_nvs_save(void) { return 0; }
@@ -178,15 +193,10 @@ static inline void suspend_nvs_restore(void) {}
 #endif
 
 /*--------------------------------------------------------------------------
-					Video
-  -------------------------------------------------------------------------- */
-#if defined(CONFIG_ACPI_VIDEO) || defined(CONFIG_ACPI_VIDEO_MODULE)
-bool acpi_osi_is_win8(void);
-#endif
-
-/*--------------------------------------------------------------------------
 				Device properties
   -------------------------------------------------------------------------- */
+#define ACPI_DT_NAMESPACE_HID	"PRP0001"
+
 void acpi_init_properties(struct acpi_device *adev);
 void acpi_free_properties(struct acpi_device *adev);
 

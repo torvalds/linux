@@ -171,20 +171,7 @@ static struct usb_device_descriptor device_desc = {
 	.bNumConfigurations =	1,
 };
 
-static struct usb_otg_descriptor otg_descriptor = {
-	.bLength =		sizeof otg_descriptor,
-	.bDescriptorType =	USB_DT_OTG,
-
-	/* REVISIT SRP-only hardware is possible, although
-	 * it would not be called "OTG" ...
-	 */
-	.bmAttributes =		USB_OTG_SRP | USB_OTG_HNP,
-};
-
-static const struct usb_descriptor_header *otg_desc[] = {
-	(struct usb_descriptor_header *) &otg_descriptor,
-	NULL,
-};
+static const struct usb_descriptor_header *otg_desc[2];
 
 static struct usb_string strings_dev[] = {
 	[USB_GADGET_MANUFACTURER_IDX].s = "",
@@ -222,7 +209,7 @@ static struct usb_function *f_rndis;
  * the first one present.  That's to make Microsoft's drivers happy,
  * and to follow DOCSIS 1.0 (cable modem standard).
  */
-static int __init rndis_do_config(struct usb_configuration *c)
+static int rndis_do_config(struct usb_configuration *c)
 {
 	int status;
 
@@ -264,7 +251,7 @@ MODULE_PARM_DESC(use_eem, "use CDC EEM mode");
 /*
  * We _always_ have an ECM, CDC Subset, or EEM configuration.
  */
-static int __init eth_do_config(struct usb_configuration *c)
+static int eth_do_config(struct usb_configuration *c)
 {
 	int status = 0;
 
@@ -318,7 +305,7 @@ static struct usb_configuration eth_config_driver = {
 
 /*-------------------------------------------------------------------------*/
 
-static int __init eth_bind(struct usb_composite_dev *cdev)
+static int eth_bind(struct usb_composite_dev *cdev)
 {
 	struct usb_gadget	*gadget = cdev->gadget;
 	struct f_eem_opts	*eem_opts = NULL;
@@ -416,17 +403,28 @@ static int __init eth_bind(struct usb_composite_dev *cdev)
 	device_desc.iManufacturer = strings_dev[USB_GADGET_MANUFACTURER_IDX].id;
 	device_desc.iProduct = strings_dev[USB_GADGET_PRODUCT_IDX].id;
 
+	if (gadget_is_otg(gadget) && !otg_desc[0]) {
+		struct usb_descriptor_header *usb_desc;
+
+		usb_desc = usb_otg_descriptor_alloc(gadget);
+		if (!usb_desc)
+			goto fail1;
+		usb_otg_descriptor_init(gadget, usb_desc);
+		otg_desc[0] = usb_desc;
+		otg_desc[1] = NULL;
+	}
+
 	/* register our configuration(s); RNDIS first, if it's used */
 	if (has_rndis()) {
 		status = usb_add_config(cdev, &rndis_config_driver,
 				rndis_do_config);
 		if (status < 0)
-			goto fail1;
+			goto fail2;
 	}
 
 	status = usb_add_config(cdev, &eth_config_driver, eth_do_config);
 	if (status < 0)
-		goto fail1;
+		goto fail2;
 
 	usb_composite_overwrite_options(cdev, &coverwrite);
 	dev_info(&gadget->dev, "%s, version: " DRIVER_VERSION "\n",
@@ -434,6 +432,9 @@ static int __init eth_bind(struct usb_composite_dev *cdev)
 
 	return 0;
 
+fail2:
+	kfree(otg_desc[0]);
+	otg_desc[0] = NULL;
 fail1:
 	if (has_rndis())
 		usb_put_function_instance(fi_rndis);
@@ -447,7 +448,7 @@ fail:
 	return status;
 }
 
-static int __exit eth_unbind(struct usb_composite_dev *cdev)
+static int eth_unbind(struct usb_composite_dev *cdev)
 {
 	if (has_rndis()) {
 		usb_put_function(f_rndis);
@@ -463,16 +464,19 @@ static int __exit eth_unbind(struct usb_composite_dev *cdev)
 		usb_put_function(f_geth);
 		usb_put_function_instance(fi_geth);
 	}
+	kfree(otg_desc[0]);
+	otg_desc[0] = NULL;
+
 	return 0;
 }
 
-static __refdata struct usb_composite_driver eth_driver = {
+static struct usb_composite_driver eth_driver = {
 	.name		= "g_ether",
 	.dev		= &device_desc,
 	.strings	= dev_strings,
 	.max_speed	= USB_SPEED_SUPER,
 	.bind		= eth_bind,
-	.unbind		= __exit_p(eth_unbind),
+	.unbind		= eth_unbind,
 };
 
 module_usb_composite_driver(eth_driver);

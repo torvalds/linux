@@ -30,7 +30,7 @@
 #include "ieee802154_i.h"
 #include "driver-ops.h"
 
-static int mac802154_wpan_update_llsec(struct net_device *dev)
+int mac802154_wpan_update_llsec(struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct ieee802154_mlme_ops *ops = ieee802154_mlme_ops(dev);
@@ -62,9 +62,10 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		(struct sockaddr_ieee802154 *)&ifr->ifr_addr;
 	int err = -ENOIOCTLCMD;
 
-	ASSERT_RTNL();
+	if (cmd != SIOCGIFADDR && cmd != SIOCSIFADDR)
+		return err;
 
-	spin_lock_bh(&sdata->mib_lock);
+	rtnl_lock();
 
 	switch (cmd) {
 	case SIOCGIFADDR:
@@ -89,7 +90,7 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	}
 	case SIOCSIFADDR:
 		if (netif_running(dev)) {
-			spin_unlock_bh(&sdata->mib_lock);
+			rtnl_unlock();
 			return -EBUSY;
 		}
 
@@ -111,7 +112,7 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		break;
 	}
 
-	spin_unlock_bh(&sdata->mib_lock);
+	rtnl_unlock();
 	return err;
 }
 
@@ -124,29 +125,97 @@ static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 	if (netif_running(dev))
 		return -EBUSY;
 
+	/* lowpan need to be down for update
+	 * SLAAC address after ifup
+	 */
+	if (sdata->wpan_dev.lowpan_dev) {
+		if (netif_running(sdata->wpan_dev.lowpan_dev))
+			return -EBUSY;
+	}
+
 	ieee802154_be64_to_le64(&extended_addr, addr->sa_data);
-	if (!ieee802154_is_valid_extended_addr(extended_addr))
+	if (!ieee802154_is_valid_extended_unicast_addr(extended_addr))
 		return -EINVAL;
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 	sdata->wpan_dev.extended_addr = extended_addr;
 
+	/* update lowpan interface mac address when
+	 * wpan mac has been changed
+	 */
+	if (sdata->wpan_dev.lowpan_dev)
+		memcpy(sdata->wpan_dev.lowpan_dev->dev_addr, dev->dev_addr,
+		       dev->addr_len);
+
 	return mac802154_wpan_update_llsec(dev);
+}
+
+static int ieee802154_setup_hw(struct ieee802154_sub_if_data *sdata)
+{
+	struct ieee802154_local *local = sdata->local;
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	int ret;
+
+	if (local->hw.flags & IEEE802154_HW_PROMISCUOUS) {
+		ret = drv_set_promiscuous_mode(local,
+					       wpan_dev->promiscuous_mode);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (local->hw.flags & IEEE802154_HW_AFILT) {
+		ret = drv_set_pan_id(local, wpan_dev->pan_id);
+		if (ret < 0)
+			return ret;
+
+		ret = drv_set_extended_addr(local, wpan_dev->extended_addr);
+		if (ret < 0)
+			return ret;
+
+		ret = drv_set_short_addr(local, wpan_dev->short_addr);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (local->hw.flags & IEEE802154_HW_LBT) {
+		ret = drv_set_lbt_mode(local, wpan_dev->lbt);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (local->hw.flags & IEEE802154_HW_CSMA_PARAMS) {
+		ret = drv_set_csma_params(local, wpan_dev->min_be,
+					  wpan_dev->max_be,
+					  wpan_dev->csma_retries);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (local->hw.flags & IEEE802154_HW_FRAME_RETRIES) {
+		ret = drv_set_max_frame_retries(local, wpan_dev->frame_retries);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int mac802154_slave_open(struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct ieee802154_local *local = sdata->local;
-	int res = 0;
+	int res;
 
 	ASSERT_RTNL();
 
 	set_bit(SDATA_STATE_RUNNING, &sdata->state);
 
 	if (!local->open_count) {
+		res = ieee802154_setup_hw(sdata);
+		if (res)
+			goto err;
+
 		res = drv_start(local);
-		WARN_ON(res);
 		if (res)
 			goto err;
 	}
@@ -174,24 +243,16 @@ ieee802154_check_mac_settings(struct ieee802154_local *local,
 	}
 
 	if (local->hw.flags & IEEE802154_HW_AFILT) {
-		if (wpan_dev->pan_id != nwpan_dev->pan_id)
-			return -EBUSY;
-
-		if (wpan_dev->short_addr != nwpan_dev->short_addr)
-			return -EBUSY;
-
-		if (wpan_dev->extended_addr != nwpan_dev->extended_addr)
+		if (wpan_dev->pan_id != nwpan_dev->pan_id ||
+		    wpan_dev->short_addr != nwpan_dev->short_addr ||
+		    wpan_dev->extended_addr != nwpan_dev->extended_addr)
 			return -EBUSY;
 	}
 
 	if (local->hw.flags & IEEE802154_HW_CSMA_PARAMS) {
-		if (wpan_dev->min_be != nwpan_dev->min_be)
-			return -EBUSY;
-
-		if (wpan_dev->max_be != nwpan_dev->max_be)
-			return -EBUSY;
-
-		if (wpan_dev->csma_retries != nwpan_dev->csma_retries)
+		if (wpan_dev->min_be != nwpan_dev->min_be ||
+		    wpan_dev->max_be != nwpan_dev->max_be ||
+		    wpan_dev->csma_retries != nwpan_dev->csma_retries)
 			return -EBUSY;
 	}
 
@@ -226,8 +287,8 @@ ieee802154_check_concurrent_iface(struct ieee802154_sub_if_data *sdata,
 			 * exist really an use case if we need to support
 			 * multiple node types at the same time.
 			 */
-			if (sdata->vif.type == NL802154_IFTYPE_NODE &&
-			    nsdata->vif.type == NL802154_IFTYPE_NODE)
+			if (wpan_dev->iftype == NL802154_IFTYPE_NODE &&
+			    nsdata->wpan_dev.iftype == NL802154_IFTYPE_NODE)
 				return -EBUSY;
 
 			/* check all phy mac sublayer settings are the same.
@@ -247,67 +308,13 @@ static int mac802154_wpan_open(struct net_device *dev)
 {
 	int rc;
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-	struct ieee802154_local *local = sdata->local;
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
-	struct wpan_phy *phy = sdata->local->phy;
 
-	rc = ieee802154_check_concurrent_iface(sdata, sdata->vif.type);
+	rc = ieee802154_check_concurrent_iface(sdata, wpan_dev->iftype);
 	if (rc < 0)
 		return rc;
 
-	rc = mac802154_slave_open(dev);
-	if (rc < 0)
-		return rc;
-
-	mutex_lock(&phy->pib_lock);
-
-	if (local->hw.flags & IEEE802154_HW_PROMISCUOUS) {
-		rc = drv_set_promiscuous_mode(local,
-					      wpan_dev->promiscuous_mode);
-		if (rc < 0)
-			goto out;
-	}
-
-	if (local->hw.flags & IEEE802154_HW_AFILT) {
-		rc = drv_set_pan_id(local, wpan_dev->pan_id);
-		if (rc < 0)
-			goto out;
-
-		rc = drv_set_extended_addr(local, wpan_dev->extended_addr);
-		if (rc < 0)
-			goto out;
-
-		rc = drv_set_short_addr(local, wpan_dev->short_addr);
-		if (rc < 0)
-			goto out;
-	}
-
-	if (local->hw.flags & IEEE802154_HW_LBT) {
-		rc = drv_set_lbt_mode(local, wpan_dev->lbt);
-		if (rc < 0)
-			goto out;
-	}
-
-	if (local->hw.flags & IEEE802154_HW_CSMA_PARAMS) {
-		rc = drv_set_csma_params(local, wpan_dev->min_be,
-					 wpan_dev->max_be,
-					 wpan_dev->csma_retries);
-		if (rc < 0)
-			goto out;
-	}
-
-	if (local->hw.flags & IEEE802154_HW_FRAME_RETRIES) {
-		rc = drv_set_max_frame_retries(local, wpan_dev->frame_retries);
-		if (rc < 0)
-			goto out;
-	}
-
-	mutex_unlock(&phy->pib_lock);
-	return 0;
-
-out:
-	mutex_unlock(&phy->pib_lock);
-	return rc;
+	return mac802154_slave_open(dev);
 }
 
 static int mac802154_slave_close(struct net_device *dev)
@@ -317,15 +324,13 @@ static int mac802154_slave_close(struct net_device *dev)
 
 	ASSERT_RTNL();
 
-	hrtimer_cancel(&local->ifs_timer);
-
 	netif_stop_queue(dev);
 	local->open_count--;
 
 	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 
 	if (!local->open_count)
-		drv_stop(local);
+		ieee802154_stop_device(local);
 
 	return 0;
 }
@@ -362,12 +367,11 @@ static int mac802154_set_header_security(struct ieee802154_sub_if_data *sdata,
 	return 0;
 }
 
-static int mac802154_header_create(struct sk_buff *skb,
-				   struct net_device *dev,
-				   unsigned short type,
-				   const void *daddr,
-				   const void *saddr,
-				   unsigned len)
+static int ieee802154_header_create(struct sk_buff *skb,
+				    struct net_device *dev,
+				    const struct ieee802154_addr *daddr,
+				    const struct ieee802154_addr *saddr,
+				    unsigned len)
 {
 	struct ieee802154_hdr hdr;
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
@@ -382,14 +386,12 @@ static int mac802154_header_create(struct sk_buff *skb,
 	hdr.fc.type = cb->type;
 	hdr.fc.security_enabled = cb->secen;
 	hdr.fc.ack_request = cb->ackreq;
-	hdr.seq = ieee802154_mlme_ops(dev)->get_dsn(dev);
+	hdr.seq = atomic_inc_return(&dev->ieee802154_ptr->dsn) & 0xFF;
 
 	if (mac802154_set_header_security(sdata, &hdr, cb) < 0)
 		return -EINVAL;
 
 	if (!saddr) {
-		spin_lock_bh(&sdata->mib_lock);
-
 		if (wpan_dev->short_addr == cpu_to_le16(IEEE802154_ADDR_BROADCAST) ||
 		    wpan_dev->short_addr == cpu_to_le16(IEEE802154_ADDR_UNDEF) ||
 		    wpan_dev->pan_id == cpu_to_le16(IEEE802154_PANID_BROADCAST)) {
@@ -401,8 +403,6 @@ static int mac802154_header_create(struct sk_buff *skb,
 		}
 
 		hdr.source.pan_id = wpan_dev->pan_id;
-
-		spin_unlock_bh(&sdata->mib_lock);
 	} else {
 		hdr.source = *(const struct ieee802154_addr *)saddr;
 	}
@@ -422,24 +422,89 @@ static int mac802154_header_create(struct sk_buff *skb,
 	return hlen;
 }
 
+static const struct wpan_dev_header_ops ieee802154_header_ops = {
+	.create		= ieee802154_header_create,
+};
+
+/* This header create functionality assumes a 8 byte array for
+ * source and destination pointer at maximum. To adapt this for
+ * the 802.15.4 dataframe header we use extended address handling
+ * here only and intra pan connection. fc fields are mostly fallback
+ * handling. For provide dev_hard_header for dgram sockets.
+ */
+static int mac802154_header_create(struct sk_buff *skb,
+				   struct net_device *dev,
+				   unsigned short type,
+				   const void *daddr,
+				   const void *saddr,
+				   unsigned len)
+{
+	struct ieee802154_hdr hdr;
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	struct ieee802154_mac_cb cb = { };
+	int hlen;
+
+	if (!daddr)
+		return -EINVAL;
+
+	memset(&hdr.fc, 0, sizeof(hdr.fc));
+	hdr.fc.type = IEEE802154_FC_TYPE_DATA;
+	hdr.fc.ack_request = wpan_dev->ackreq;
+	hdr.seq = atomic_inc_return(&dev->ieee802154_ptr->dsn) & 0xFF;
+
+	/* TODO currently a workaround to give zero cb block to set
+	 * security parameters defaults according MIB.
+	 */
+	if (mac802154_set_header_security(sdata, &hdr, &cb) < 0)
+		return -EINVAL;
+
+	hdr.dest.pan_id = wpan_dev->pan_id;
+	hdr.dest.mode = IEEE802154_ADDR_LONG;
+	ieee802154_be64_to_le64(&hdr.dest.extended_addr, daddr);
+
+	hdr.source.pan_id = hdr.dest.pan_id;
+	hdr.source.mode = IEEE802154_ADDR_LONG;
+
+	if (!saddr)
+		hdr.source.extended_addr = wpan_dev->extended_addr;
+	else
+		ieee802154_be64_to_le64(&hdr.source.extended_addr, saddr);
+
+	hlen = ieee802154_hdr_push(skb, &hdr);
+	if (hlen < 0)
+		return -EINVAL;
+
+	skb_reset_mac_header(skb);
+	skb->mac_len = hlen;
+
+	if (len > ieee802154_max_payload(&hdr))
+		return -EMSGSIZE;
+
+	return hlen;
+}
+
 static int
 mac802154_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 {
 	struct ieee802154_hdr hdr;
-	struct ieee802154_addr *addr = (struct ieee802154_addr *)haddr;
 
 	if (ieee802154_hdr_peek_addrs(skb, &hdr) < 0) {
 		pr_debug("malformed packet\n");
 		return 0;
 	}
 
-	*addr = hdr.source;
-	return sizeof(*addr);
+	if (hdr.source.mode == IEEE802154_ADDR_LONG) {
+		ieee802154_le64_to_be64(haddr, &hdr.source.extended_addr);
+		return IEEE802154_EXTENDED_ADDR_LEN;
+	}
+
+	return 0;
 }
 
-static struct header_ops mac802154_header_ops = {
-	.create		= mac802154_header_create,
-	.parse		= mac802154_header_parse,
+static const struct header_ops mac802154_header_ops = {
+	.create         = mac802154_header_create,
+	.parse          = mac802154_header_parse,
 };
 
 static const struct net_device_ops mac802154_wpan_ops = {
@@ -470,9 +535,29 @@ static void ieee802154_if_setup(struct net_device *dev)
 	dev->addr_len		= IEEE802154_EXTENDED_ADDR_LEN;
 	memset(dev->broadcast, 0xff, IEEE802154_EXTENDED_ADDR_LEN);
 
-	dev->hard_header_len	= MAC802154_FRAME_HARD_HEADER_LEN;
-	dev->needed_tailroom	= 2 + 16; /* FCS + MIC */
-	dev->mtu		= IEEE802154_MTU;
+	/* Let hard_header_len set to IEEE802154_MIN_HEADER_LEN. AF_PACKET
+	 * will not send frames without any payload, but ack frames
+	 * has no payload, so substract one that we can send a 3 bytes
+	 * frame. The xmit callback assumes at least a hard header where two
+	 * bytes fc and sequence field are set.
+	 */
+	dev->hard_header_len	= IEEE802154_MIN_HEADER_LEN - 1;
+	/* The auth_tag header is for security and places in private payload
+	 * room of mac frame which stucks between payload and FCS field.
+	 */
+	dev->needed_tailroom	= IEEE802154_MAX_AUTH_TAG_LEN +
+				  IEEE802154_FCS_LEN;
+	/* The mtu size is the payload without mac header in this case.
+	 * We have a dynamic length header with a minimum header length
+	 * which is hard_header_len. In this case we let mtu to the size
+	 * of maximum payload which is IEEE802154_MTU - IEEE802154_FCS_LEN -
+	 * hard_header_len. The FCS which is set by hardware or ndo_start_xmit
+	 * and the minimum mac header which can be evaluated inside driver
+	 * layer. The rest of mac header will be part of payload if greater
+	 * than hard_header_len.
+	 */
+	dev->mtu		= IEEE802154_MTU - IEEE802154_FCS_LEN -
+				  dev->hard_header_len;
 	dev->tx_queue_len	= 300;
 	dev->flags		= IFF_NOARP | IFF_BROADCAST;
 }
@@ -482,20 +567,22 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 		       enum nl802154_iftype type)
 {
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	int ret;
+	u8 tmp;
 
 	/* set some type-dependent values */
-	sdata->vif.type = type;
 	sdata->wpan_dev.iftype = type;
 
-	get_random_bytes(&wpan_dev->bsn, 1);
-	get_random_bytes(&wpan_dev->dsn, 1);
+	get_random_bytes(&tmp, sizeof(tmp));
+	atomic_set(&wpan_dev->bsn, tmp);
+	get_random_bytes(&tmp, sizeof(tmp));
+	atomic_set(&wpan_dev->dsn, tmp);
 
 	/* defaults per 802.15.4-2011 */
 	wpan_dev->min_be = 3;
 	wpan_dev->max_be = 5;
 	wpan_dev->csma_retries = 4;
-	/* for compatibility, actual default is 3 */
-	wpan_dev->frame_retries = -1;
+	wpan_dev->frame_retries = 3;
 
 	wpan_dev->pan_id = cpu_to_le16(IEEE802154_PANID_BROADCAST);
 	wpan_dev->short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
@@ -510,11 +597,15 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 		sdata->dev->netdev_ops = &mac802154_wpan_ops;
 		sdata->dev->ml_priv = &mac802154_mlme_wpan;
 		wpan_dev->promiscuous_mode = false;
+		wpan_dev->header_ops = &ieee802154_header_ops;
 
-		spin_lock_init(&sdata->mib_lock);
 		mutex_init(&sdata->sec_mtx);
 
 		mac802154_llsec_init(&sdata->sec);
+		ret = mac802154_wpan_update_llsec(sdata->dev);
+		if (ret < 0)
+			return ret;
+
 		break;
 	case NL802154_IFTYPE_MONITOR:
 		sdata->dev->destructor = free_netdev;
@@ -530,7 +621,8 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 
 struct net_device *
 ieee802154_if_add(struct ieee802154_local *local, const char *name,
-		  enum nl802154_iftype type, __le64 extended_addr)
+		  unsigned char name_assign_type, enum nl802154_iftype type,
+		  __le64 extended_addr)
 {
 	struct net_device *ndev = NULL;
 	struct ieee802154_sub_if_data *sdata = NULL;
@@ -538,12 +630,13 @@ ieee802154_if_add(struct ieee802154_local *local, const char *name,
 
 	ASSERT_RTNL();
 
-	ndev = alloc_netdev(sizeof(*sdata) + local->hw.vif_data_size, name,
-			    NET_NAME_UNKNOWN, ieee802154_if_setup);
+	ndev = alloc_netdev(sizeof(*sdata), name,
+			    name_assign_type, ieee802154_if_setup);
 	if (!ndev)
 		return ERR_PTR(-ENOMEM);
 
-	ndev->needed_headroom = local->hw.extra_tx_headroom;
+	ndev->needed_headroom = local->hw.extra_tx_headroom +
+				IEEE802154_MAX_HEADER_LEN;
 
 	ret = dev_alloc_name(ndev, ndev->name);
 	if (ret < 0)
@@ -554,7 +647,7 @@ ieee802154_if_add(struct ieee802154_local *local, const char *name,
 	switch (type) {
 	case NL802154_IFTYPE_NODE:
 		ndev->type = ARPHRD_IEEE802154;
-		if (ieee802154_is_valid_extended_addr(extended_addr))
+		if (ieee802154_is_valid_extended_unicast_addr(extended_addr))
 			ieee802154_le64_to_be64(ndev->dev_addr, &extended_addr);
 		else
 			memcpy(ndev->dev_addr, ndev->perm_addr,

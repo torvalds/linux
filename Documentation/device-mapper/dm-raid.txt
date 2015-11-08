@@ -209,6 +209,37 @@ include:
 	"repair" - Initiate a repair of the array.
 	"reshape"- Currently unsupported (-EINVAL).
 
+
+Discard Support
+---------------
+The implementation of discard support among hardware vendors varies.
+When a block is discarded, some storage devices will return zeroes when
+the block is read.  These devices set the 'discard_zeroes_data'
+attribute.  Other devices will return random data.  Confusingly, some
+devices that advertise 'discard_zeroes_data' will not reliably return
+zeroes when discarded blocks are read!  Since RAID 4/5/6 uses blocks
+from a number of devices to calculate parity blocks and (for performance
+reasons) relies on 'discard_zeroes_data' being reliable, it is important
+that the devices be consistent.  Blocks may be discarded in the middle
+of a RAID 4/5/6 stripe and if subsequent read results are not
+consistent, the parity blocks may be calculated differently at any time;
+making the parity blocks useless for redundancy.  It is important to
+understand how your hardware behaves with discards if you are going to
+enable discards with RAID 4/5/6.
+
+Since the behavior of storage devices is unreliable in this respect,
+even when reporting 'discard_zeroes_data', by default RAID 4/5/6
+discard support is disabled -- this ensures data integrity at the
+expense of losing some performance.
+
+Storage devices that properly support 'discard_zeroes_data' are
+increasingly whitelisted in the kernel and can thus be trusted.
+
+For trusted devices, the following dm-raid module parameter can be set
+to safely enable discard support for RAID 4/5/6:
+    'devices_handle_discards_safely'
+
+
 Version History
 ---------------
 1.0.0	Initial version.  Support for RAID 4/5/6
@@ -224,3 +255,5 @@ Version History
 	New status (STATUSTYPE_INFO) fields: sync_action and mismatch_cnt.
 1.5.1   Add ability to restore transiently failed devices on resume.
 1.5.2   'mismatch_cnt' is zero unless [last_]sync_action is "check".
+1.6.0   Add discard support (and devices_handle_discard_safely module param).
+1.7.0   Add support for MD RAID0 mappings.

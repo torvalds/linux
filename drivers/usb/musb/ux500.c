@@ -188,7 +188,11 @@ static int ux500_musb_exit(struct musb *musb)
 }
 
 static const struct musb_platform_ops ux500_ops = {
-	.quirks		= MUSB_INDEXED_EP,
+	.quirks		= MUSB_DMA_UX500 | MUSB_INDEXED_EP,
+#ifdef CONFIG_USB_UX500_DMA
+	.dma_init	= ux500_dma_controller_create,
+	.dma_exit	= ux500_dma_controller_destroy,
+#endif
 	.init		= ux500_musb_init,
 	.exit		= ux500_musb_exit,
 	.fifo_mode	= 5,
@@ -338,7 +342,7 @@ static int ux500_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int ux500_suspend(struct device *dev)
 {
 	struct ux500_glue	*glue = dev_get_drvdata(dev);
@@ -374,6 +378,8 @@ static const struct of_device_id ux500_match[] = {
         { .compatible = "stericsson,db8500-musb", },
         {}
 };
+
+MODULE_DEVICE_TABLE(of, ux500_match);
 
 static struct platform_driver ux500_driver = {
 	.probe		= ux500_probe,

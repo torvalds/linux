@@ -42,7 +42,7 @@
 	"	cmp		%0, #0\n"			\
 	"	movne		%0, %4\n"			\
 	"2:\n"							\
-	"	.section	 .fixup,\"ax\"\n"		\
+	"	.section	 .text.fixup,\"ax\"\n"		\
 	"	.align		2\n"				\
 	"3:	mov		%0, %5\n"			\
 	"	b		2b\n"				\
@@ -141,11 +141,14 @@ static int emulate_swpX(unsigned int address, unsigned int *data,
 
 	while (1) {
 		unsigned long temp;
+		unsigned int __ua_flags;
 
+		__ua_flags = uaccess_save_and_enable();
 		if (type == TYPE_SWPB)
 			__user_swpb_asm(*data, address, res, temp);
 		else
 			__user_swp_asm(*data, address, res, temp);
+		uaccess_restore(__ua_flags);
 
 		if (likely(res != -EAGAIN) || signal_pending(current))
 			break;

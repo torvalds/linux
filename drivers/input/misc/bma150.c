@@ -333,10 +333,9 @@ static void bma150_report_xyz(struct bma150_data *bma150)
 	y = ((0xc0 & data[2]) >> 6) | (data[3] << 2);
 	z = ((0xc0 & data[4]) >> 6) | (data[5] << 2);
 
-	/* sign extension */
-	x = (s16) (x << 6) >> 6;
-	y = (s16) (y << 6) >> 6;
-	z = (s16) (z << 6) >> 6;
+	x = sign_extend32(x, 9);
+	y = sign_extend32(y, 9);
+	z = sign_extend32(z, 9);
 
 	input_report_abs(bma150->input, ABS_X, x);
 	input_report_abs(bma150->input, ABS_Y, y);
@@ -654,7 +653,6 @@ MODULE_DEVICE_TABLE(i2c, bma150_id);
 
 static struct i2c_driver bma150_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= BMA150_DRIVER,
 		.pm	= &bma150_pm,
 	},

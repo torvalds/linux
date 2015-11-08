@@ -29,19 +29,10 @@ static ssize_t sta_ ##name## _read(struct file *file,			\
 				      format_string, sta->field);	\
 }
 #define STA_READ_D(name, field) STA_READ(name, field, "%d\n")
-#define STA_READ_U(name, field) STA_READ(name, field, "%u\n")
-#define STA_READ_S(name, field) STA_READ(name, field, "%s\n")
 
 #define STA_OPS(name)							\
 static const struct file_operations sta_ ##name## _ops = {		\
 	.read = sta_##name##_read,					\
-	.open = simple_open,						\
-	.llseek = generic_file_llseek,					\
-}
-
-#define STA_OPS_W(name)							\
-static const struct file_operations sta_ ##name## _ops = {		\
-	.write = sta_##name##_write,					\
 	.open = simple_open,						\
 	.llseek = generic_file_llseek,					\
 }
@@ -59,10 +50,6 @@ static const struct file_operations sta_ ##name## _ops = {		\
 		STA_OPS(name)
 
 STA_FILE(aid, sta.aid, D);
-STA_FILE(dev, sdata->name, S);
-STA_FILE(last_signal, last_signal, D);
-STA_FILE(last_ack_signal, last_ack_signal, D);
-STA_FILE(beacon_loss_count, beacon_loss_count, D);
 
 static ssize_t sta_flags_read(struct file *file, char __user *userbuf,
 			      size_t count, loff_t *ppos)
@@ -107,40 +94,6 @@ static ssize_t sta_num_ps_buf_frames_read(struct file *file,
 	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
 }
 STA_OPS(num_ps_buf_frames);
-
-static ssize_t sta_inactive_ms_read(struct file *file, char __user *userbuf,
-				    size_t count, loff_t *ppos)
-{
-	struct sta_info *sta = file->private_data;
-	return mac80211_format_buffer(userbuf, count, ppos, "%d\n",
-				      jiffies_to_msecs(jiffies - sta->last_rx));
-}
-STA_OPS(inactive_ms);
-
-
-static ssize_t sta_connected_time_read(struct file *file, char __user *userbuf,
-					size_t count, loff_t *ppos)
-{
-	struct sta_info *sta = file->private_data;
-	struct timespec uptime;
-	struct tm result;
-	long connected_time_secs;
-	char buf[100];
-	int res;
-	ktime_get_ts(&uptime);
-	connected_time_secs = uptime.tv_sec - sta->last_connected;
-	time_to_tm(connected_time_secs, 0, &result);
-	result.tm_year -= 70;
-	result.tm_mday -= 1;
-	res = scnprintf(buf, sizeof(buf),
-		"years  - %ld\nmonths - %d\ndays   - %d\nclock  - %d:%d:%d\n\n",
-			result.tm_year, result.tm_mon, result.tm_mday,
-			result.tm_hour, result.tm_min, result.tm_sec);
-	return simple_read_from_buffer(userbuf, count, ppos, buf, res);
-}
-STA_OPS(connected_time);
-
-
 
 static ssize_t sta_last_seq_ctrl_read(struct file *file, char __user *userbuf,
 				      size_t count, loff_t *ppos)
@@ -366,162 +319,6 @@ static ssize_t sta_vht_capa_read(struct file *file, char __user *userbuf,
 }
 STA_OPS(vht_capa);
 
-static ssize_t sta_current_tx_rate_read(struct file *file, char __user *userbuf,
-					size_t count, loff_t *ppos)
-{
-	struct sta_info *sta = file->private_data;
-	struct rate_info rinfo;
-	u16 rate;
-	sta_set_rate_info_tx(sta, &sta->last_tx_rate, &rinfo);
-	rate = cfg80211_calculate_bitrate(&rinfo);
-
-	return mac80211_format_buffer(userbuf, count, ppos,
-				      "%d.%d MBit/s\n",
-				      rate/10, rate%10);
-}
-STA_OPS(current_tx_rate);
-
-static ssize_t sta_last_rx_rate_read(struct file *file, char __user *userbuf,
-				     size_t count, loff_t *ppos)
-{
-	struct sta_info *sta = file->private_data;
-	struct rate_info rinfo;
-	u16 rate;
-
-	sta_set_rate_info_rx(sta, &rinfo);
-
-	rate = cfg80211_calculate_bitrate(&rinfo);
-
-	return mac80211_format_buffer(userbuf, count, ppos,
-				      "%d.%d MBit/s\n",
-				      rate/10, rate%10);
-}
-STA_OPS(last_rx_rate);
-
-static int
-sta_tx_latency_stat_header(struct ieee80211_tx_latency_bin_ranges *tx_latency,
-			   char *buf, int pos, int bufsz)
-{
-	int i;
-	int range_count = tx_latency->n_ranges;
-	u32 *bin_ranges = tx_latency->ranges;
-
-	pos += scnprintf(buf + pos, bufsz - pos,
-			  "Station\t\t\tTID\tMax\tAvg");
-	if (range_count) {
-		pos += scnprintf(buf + pos, bufsz - pos,
-				  "\t<=%d", bin_ranges[0]);
-		for (i = 0; i < range_count - 1; i++)
-			pos += scnprintf(buf + pos, bufsz - pos, "\t%d-%d",
-					  bin_ranges[i], bin_ranges[i+1]);
-		pos += scnprintf(buf + pos, bufsz - pos,
-				  "\t%d<", bin_ranges[range_count - 1]);
-	}
-
-	pos += scnprintf(buf + pos, bufsz - pos, "\n");
-
-	return pos;
-}
-
-static int
-sta_tx_latency_stat_table(struct ieee80211_tx_latency_bin_ranges *tx_lat_range,
-			  struct ieee80211_tx_latency_stat *tx_lat,
-			  char *buf, int pos, int bufsz, int tid)
-{
-	u32 avg = 0;
-	int j;
-	int bin_count = tx_lat->bin_count;
-
-	pos += scnprintf(buf + pos, bufsz - pos, "\t\t\t%d", tid);
-	/* make sure you don't divide in 0 */
-	if (tx_lat->counter)
-		avg = tx_lat->sum / tx_lat->counter;
-
-	pos += scnprintf(buf + pos, bufsz - pos, "\t%d\t%d",
-			  tx_lat->max, avg);
-
-	if (tx_lat_range->n_ranges && tx_lat->bins)
-		for (j = 0; j < bin_count; j++)
-			pos += scnprintf(buf + pos, bufsz - pos,
-					  "\t%d", tx_lat->bins[j]);
-	pos += scnprintf(buf + pos, bufsz - pos, "\n");
-
-	return pos;
-}
-
-/*
- * Output Tx latency statistics station && restart all statistics information
- */
-static ssize_t sta_tx_latency_stat_read(struct file *file,
-					char __user *userbuf,
-					size_t count, loff_t *ppos)
-{
-	struct sta_info *sta = file->private_data;
-	struct ieee80211_local *local = sta->local;
-	struct ieee80211_tx_latency_bin_ranges *tx_latency;
-	char *buf;
-	int bufsz, ret, i;
-	int pos = 0;
-
-	bufsz = 20 * IEEE80211_NUM_TIDS *
-		sizeof(struct ieee80211_tx_latency_stat);
-	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	rcu_read_lock();
-
-	tx_latency = rcu_dereference(local->tx_latency);
-
-	if (!sta->tx_lat) {
-		pos += scnprintf(buf + pos, bufsz - pos,
-				 "Tx latency statistics are not enabled\n");
-		goto unlock;
-	}
-
-	pos = sta_tx_latency_stat_header(tx_latency, buf, pos, bufsz);
-
-	pos += scnprintf(buf + pos, bufsz - pos, "%pM\n", sta->sta.addr);
-	for (i = 0; i < IEEE80211_NUM_TIDS; i++)
-		pos = sta_tx_latency_stat_table(tx_latency, &sta->tx_lat[i],
-						buf, pos, bufsz, i);
-unlock:
-	rcu_read_unlock();
-
-	ret = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
-	kfree(buf);
-
-	return ret;
-}
-STA_OPS(tx_latency_stat);
-
-static ssize_t sta_tx_latency_stat_reset_write(struct file *file,
-					       const char __user *userbuf,
-					       size_t count, loff_t *ppos)
-{
-	u32 *bins;
-	int bin_count;
-	struct sta_info *sta = file->private_data;
-	int i;
-
-	if (!sta->tx_lat)
-		return -EINVAL;
-
-	for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
-		bins = sta->tx_lat[i].bins;
-		bin_count = sta->tx_lat[i].bin_count;
-
-		sta->tx_lat[i].max = 0;
-		sta->tx_lat[i].sum = 0;
-		sta->tx_lat[i].counter = 0;
-
-		if (bin_count)
-			memset(bins, 0, bin_count * sizeof(u32));
-	}
-
-	return count;
-}
-STA_OPS_W(tx_latency_stat_reset);
 
 #define DEBUGFS_ADD(name) \
 	debugfs_create_file(#name, 0400, \
@@ -564,32 +361,14 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 
 	DEBUGFS_ADD(flags);
 	DEBUGFS_ADD(num_ps_buf_frames);
-	DEBUGFS_ADD(inactive_ms);
-	DEBUGFS_ADD(connected_time);
 	DEBUGFS_ADD(last_seq_ctrl);
 	DEBUGFS_ADD(agg_status);
-	DEBUGFS_ADD(dev);
-	DEBUGFS_ADD(last_signal);
-	DEBUGFS_ADD(beacon_loss_count);
 	DEBUGFS_ADD(ht_capa);
 	DEBUGFS_ADD(vht_capa);
-	DEBUGFS_ADD(last_ack_signal);
-	DEBUGFS_ADD(current_tx_rate);
-	DEBUGFS_ADD(last_rx_rate);
-	DEBUGFS_ADD(tx_latency_stat);
-	DEBUGFS_ADD(tx_latency_stat_reset);
 
-	DEBUGFS_ADD_COUNTER(rx_packets, rx_packets);
-	DEBUGFS_ADD_COUNTER(tx_packets, tx_packets);
-	DEBUGFS_ADD_COUNTER(rx_bytes, rx_bytes);
-	DEBUGFS_ADD_COUNTER(tx_bytes, tx_bytes);
-	DEBUGFS_ADD_COUNTER(rx_duplicates, num_duplicates);
-	DEBUGFS_ADD_COUNTER(rx_fragments, rx_fragments);
-	DEBUGFS_ADD_COUNTER(rx_dropped, rx_dropped);
-	DEBUGFS_ADD_COUNTER(tx_fragments, tx_fragments);
-	DEBUGFS_ADD_COUNTER(tx_filtered, tx_filtered_count);
-	DEBUGFS_ADD_COUNTER(tx_retry_failed, tx_retry_failed);
-	DEBUGFS_ADD_COUNTER(tx_retry_count, tx_retry_count);
+	DEBUGFS_ADD_COUNTER(rx_duplicates, rx_stats.num_duplicates);
+	DEBUGFS_ADD_COUNTER(rx_fragments, rx_stats.fragments);
+	DEBUGFS_ADD_COUNTER(tx_filtered, status_stats.filtered);
 
 	if (sizeof(sta->driver_buffered_tids) == sizeof(u32))
 		debugfs_create_x32("driver_buffered_tids", 0400,

@@ -18,7 +18,7 @@ static inline int rt_task(struct task_struct *p)
 #ifdef CONFIG_RT_MUTEXES
 extern int rt_mutex_getprio(struct task_struct *p);
 extern void rt_mutex_setprio(struct task_struct *p, int prio);
-extern int rt_mutex_check_prio(struct task_struct *task, int newprio);
+extern int rt_mutex_get_effective_prio(struct task_struct *task, int newprio);
 extern struct task_struct *rt_mutex_get_top_task(struct task_struct *task);
 extern void rt_mutex_adjust_pi(struct task_struct *p);
 static inline bool tsk_is_pi_blocked(struct task_struct *tsk)
@@ -31,9 +31,10 @@ static inline int rt_mutex_getprio(struct task_struct *p)
 	return p->normal_prio;
 }
 
-static inline int rt_mutex_check_prio(struct task_struct *task, int newprio)
+static inline int rt_mutex_get_effective_prio(struct task_struct *task,
+					      int newprio)
 {
-	return 0;
+	return newprio;
 }
 
 static inline struct task_struct *rt_mutex_get_top_task(struct task_struct *task)

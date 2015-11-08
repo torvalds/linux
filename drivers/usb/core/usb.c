@@ -49,6 +49,22 @@ const char *usbcore_name = "usbcore";
 
 static bool nousb;	/* Disable USB when built into kernel image */
 
+/* To disable USB, kernel command line is 'nousb' not 'usbcore.nousb' */
+#ifdef MODULE
+module_param(nousb, bool, 0444);
+#else
+core_param(nousb, nousb, bool, 0444);
+#endif
+
+/*
+ * for external read access to <nousb>
+ */
+int usb_disabled(void)
+{
+	return nousb;
+}
+EXPORT_SYMBOL_GPL(usb_disabled);
+
 #ifdef	CONFIG_PM
 static int usb_autosuspend_delay = 2;		/* Default delay value,
 						 * in seconds */
@@ -494,7 +510,7 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 	if (root_hub)	/* Root hub always ok [and always wired] */
 		dev->authorized = 1;
 	else {
-		dev->authorized = usb_hcd->authorized_default;
+		dev->authorized = !!HCD_DEV_AUTHORIZED(usb_hcd);
 		dev->wusb = usb_bus_is_wusb(bus) ? 1 : 0;
 	}
 	return dev;
@@ -964,22 +980,6 @@ void usb_buffer_unmap_sg(const struct usb_device *dev, int is_in,
 EXPORT_SYMBOL_GPL(usb_buffer_unmap_sg);
 #endif
 
-/* To disable USB, kernel command line is 'nousb' not 'usbcore.nousb' */
-#ifdef MODULE
-module_param(nousb, bool, 0444);
-#else
-core_param(nousb, nousb, bool, 0444);
-#endif
-
-/*
- * for external read access to <nousb>
- */
-int usb_disabled(void)
-{
-	return nousb;
-}
-EXPORT_SYMBOL_GPL(usb_disabled);
-
 /*
  * Notifications of device and interface registration
  */
@@ -1045,7 +1045,7 @@ static void usb_debugfs_cleanup(void)
 static int __init usb_init(void)
 {
 	int retval;
-	if (nousb) {
+	if (usb_disabled()) {
 		pr_info("%s: USB support disabled\n", usbcore_name);
 		return 0;
 	}
@@ -1102,7 +1102,7 @@ out:
 static void __exit usb_exit(void)
 {
 	/* This will matter if shutdown/reboot does exitcalls. */
-	if (nousb)
+	if (usb_disabled())
 		return;
 
 	usb_deregister_device_driver(&usb_generic_driver);

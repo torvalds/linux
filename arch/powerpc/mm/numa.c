@@ -80,7 +80,7 @@ static void __init setup_node_to_cpumask_map(void)
 		setup_nr_node_ids();
 
 	/* allocate the map */
-	for (node = 0; node < nr_node_ids; node++)
+	for_each_node(node)
 		alloc_bootmem_cpumask_var(&node_to_cpumask_map[node]);
 
 	/* cpumask_of_node() will now work */
@@ -225,7 +225,7 @@ static void initialize_distance_lookup_table(int nid,
 	for (i = 0; i < distance_ref_points_depth; i++) {
 		const __be32 *entry;
 
-		entry = &associativity[be32_to_cpu(distance_ref_points[i])];
+		entry = &associativity[be32_to_cpu(distance_ref_points[i]) - 1];
 		distance_lookup_table[nid][i] = of_read_number(entry, 1);
 	}
 }
@@ -248,8 +248,12 @@ static int associativity_to_nid(const __be32 *associativity)
 		nid = -1;
 
 	if (nid > 0 &&
-	    of_read_number(associativity, 1) >= distance_ref_points_depth)
-		initialize_distance_lookup_table(nid, associativity);
+		of_read_number(associativity, 1) >= distance_ref_points_depth) {
+		/*
+		 * Skip the length field and send start of associativity array
+		 */
+		initialize_distance_lookup_table(nid, associativity + 1);
+	}
 
 out:
 	return nid;
@@ -272,7 +276,6 @@ static int of_node_to_nid_single(struct device_node *device)
 /* Walk the device tree upwards, looking for an associativity id */
 int of_node_to_nid(struct device_node *device)
 {
-	struct device_node *tmp;
 	int nid = -1;
 
 	of_node_get(device);
@@ -281,9 +284,7 @@ int of_node_to_nid(struct device_node *device)
 		if (nid != -1)
 			break;
 
-	        tmp = device;
-		device = of_get_parent(tmp);
-		of_node_put(tmp);
+		device = of_get_next_parent(device);
 	}
 	of_node_put(device);
 
@@ -507,6 +508,12 @@ static int of_drconf_to_nid_single(struct of_drconf_cell *drmem,
 
 		if (nid == 0xffff || nid >= MAX_NUMNODES)
 			nid = default_nid;
+
+		if (nid > 0) {
+			index = drmem->aa_index * aa->array_sz;
+			initialize_distance_lookup_table(nid,
+							&aa->arrays[index]);
+		}
 	}
 
 	return nid;
@@ -958,6 +965,13 @@ void __init initmem_init(void)
 
 	memblock_dump_all();
 
+	/*
+	 * Reduce the possible NUMA nodes to the online NUMA nodes,
+	 * since we do not support node hotplug. This ensures that  we
+	 * lower the maximum NUMA node ID to what is actually present.
+	 */
+	nodes_and(node_possible_map, node_possible_map, node_online_map);
+
 	for_each_online_node(nid) {
 		unsigned long start_pfn, end_pfn;
 
@@ -1177,6 +1191,9 @@ u64 memory_hotplug_max(void)
 
 /* Virtual Processor Home Node (VPHN) support */
 #ifdef CONFIG_PPC_SPLPAR
+
+#include "vphn.h"
+
 struct topology_update_data {
 	struct topology_update_data *next;
 	unsigned int cpu;
@@ -1248,55 +1265,6 @@ static int update_cpu_associativity_changes_mask(void)
 }
 
 /*
- * 6 64-bit registers unpacked into 12 32-bit associativity values. To form
- * the complete property we have to add the length in the first cell.
- */
-#define VPHN_ASSOC_BUFSIZE (6*sizeof(u64)/sizeof(u32) + 1)
-
-/*
- * Convert the associativity domain numbers returned from the hypervisor
- * to the sequence they would appear in the ibm,associativity property.
- */
-static int vphn_unpack_associativity(const long *packed, __be32 *unpacked)
-{
-	int i, nr_assoc_doms = 0;
-	const __be16 *field = (const __be16 *) packed;
-
-#define VPHN_FIELD_UNUSED	(0xffff)
-#define VPHN_FIELD_MSB		(0x8000)
-#define VPHN_FIELD_MASK		(~VPHN_FIELD_MSB)
-
-	for (i = 1; i < VPHN_ASSOC_BUFSIZE; i++) {
-		if (be16_to_cpup(field) == VPHN_FIELD_UNUSED) {
-			/* All significant fields processed, and remaining
-			 * fields contain the reserved value of all 1's.
-			 * Just store them.
-			 */
-			unpacked[i] = *((__be32 *)field);
-			field += 2;
-		} else if (be16_to_cpup(field) & VPHN_FIELD_MSB) {
-			/* Data is in the lower 15 bits of this field */
-			unpacked[i] = cpu_to_be32(
-				be16_to_cpup(field) & VPHN_FIELD_MASK);
-			field++;
-			nr_assoc_doms++;
-		} else {
-			/* Data is in the lower 15 bits of this field
-			 * concatenated with the next 16 bit field
-			 */
-			unpacked[i] = *((__be32 *)field);
-			field += 2;
-			nr_assoc_doms++;
-		}
-	}
-
-	/* The first cell contains the length of the property */
-	unpacked[0] = cpu_to_be32(nr_assoc_doms);
-
-	return nr_assoc_doms;
-}
-
-/*
  * Retrieve the new associativity information for a virtual processor's
  * home node.
  */
@@ -1306,11 +1274,8 @@ static long hcall_vphn(unsigned long cpu, __be32 *associativity)
 	long retbuf[PLPAR_HCALL9_BUFSIZE] = {0};
 	u64 flags = 1;
 	int hwcpu = get_hard_smp_processor_id(cpu);
-	int i;
 
 	rc = plpar_hcall9(H_HOME_NODE_ASSOCIATIVITY, retbuf, flags, hwcpu);
-	for (i = 0; i < 6; i++)
-		retbuf[i] = cpu_to_be64(retbuf[i]);
 	vphn_unpack_associativity(retbuf, associativity);
 
 	return rc;

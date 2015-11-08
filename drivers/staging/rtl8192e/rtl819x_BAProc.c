@@ -6,10 +6,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -18,6 +14,7 @@
 ******************************************************************************/
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
+#include <linux/etherdevice.h>
 #include "rtllib.h"
 #include "rtl819x_BA.h"
 
@@ -26,7 +23,7 @@ static void ActivateBAEntry(struct rtllib_device *ieee, struct ba_record *pBA,
 {
 	pBA->bValid = true;
 	if (Time != 0)
-		mod_timer(&pBA->Timer, jiffies + MSECS(Time));
+		mod_timer(&pBA->Timer, jiffies + msecs_to_jiffies(Time));
 }
 
 static void DeActivateBAEntry(struct rtllib_device *ieee, struct ba_record *pBA)
@@ -83,18 +80,16 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 	u8 *tag = NULL;
 	u16 len = ieee->tx_headroom + 9;
 
-	RTLLIB_DEBUG(RTLLIB_DL_TRACE | RTLLIB_DL_BA, "========>%s(), frame(%d)"
-		     " sentd to: %pM, ieee->dev:%p\n", __func__,
-		     type, Dst, ieee->dev);
+	netdev_dbg(ieee->dev, "%s(): frame(%d) sentd to: %pM, ieee->dev:%p\n",
+		   __func__, type, Dst, ieee->dev);
+
 	if (pBA == NULL) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "pBA is NULL\n");
+		netdev_warn(ieee->dev, "pBA is NULL\n");
 		return NULL;
 	}
 	skb = dev_alloc_skb(len + sizeof(struct rtllib_hdr_3addr));
-	if (skb == NULL) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "can't alloc skb for ADDBA_REQ\n");
+	if (skb == NULL)
 		return NULL;
-	}
 
 	memset(skb->data, 0, sizeof(struct rtllib_hdr_3addr));
 
@@ -103,10 +98,10 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 	BAReq = (struct rtllib_hdr_3addr *)skb_put(skb,
 		 sizeof(struct rtllib_hdr_3addr));
 
-	memcpy(BAReq->addr1, Dst, ETH_ALEN);
-	memcpy(BAReq->addr2, ieee->dev->dev_addr, ETH_ALEN);
+	ether_addr_copy(BAReq->addr1, Dst);
+	ether_addr_copy(BAReq->addr2, ieee->dev->dev_addr);
 
-	memcpy(BAReq->addr3, ieee->current_network.bssid, ETH_ALEN);
+	ether_addr_copy(BAReq->addr3, ieee->current_network.bssid);
 	BAReq->frame_ctl = cpu_to_le16(RTLLIB_STYPE_MANAGE_ACT);
 
 	tag = (u8 *)skb_put(skb, 9);
@@ -114,7 +109,7 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 	*tag++ = type;
 	*tag++ = pBA->DialogToken;
 
-	if (ACT_ADDBARSP == type) {
+	if (type == ACT_ADDBARSP) {
 		RT_TRACE(COMP_DBG, "====>to send ADDBARSP\n");
 
 		put_unaligned_le16(StatusCode, tag);
@@ -127,12 +122,15 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 	put_unaligned_le16(pBA->BaTimeoutValue, tag);
 	tag += 2;
 
-	if (ACT_ADDBAREQ == type) {
+	if (type == ACT_ADDBAREQ) {
 		memcpy(tag, (u8 *)&(pBA->BaStartSeqCtrl), 2);
 		tag += 2;
 	}
 
-	RTLLIB_DEBUG_DATA(RTLLIB_DL_DATA|RTLLIB_DL_BA, skb->data, skb->len);
+#ifdef VERBOSE_DEBUG
+	print_hex_dump_bytes("rtllib_ADDBA(): ", DUMP_PREFIX_NONE, skb->data,
+			     skb->len);
+#endif
 	return skb;
 }
 
@@ -147,10 +145,8 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 	u16 len = 6 + ieee->tx_headroom;
 
 	if (net_ratelimit())
-		RTLLIB_DEBUG(RTLLIB_DL_TRACE | RTLLIB_DL_BA,
-			     "========>%s(), Reason"
-			     "Code(%d) sentd to: %pM\n", __func__,
-			     ReasonCode, dst);
+		netdev_dbg(ieee->dev, "%s(): ReasonCode(%d) sentd to: %pM\n",
+			   __func__, ReasonCode, dst);
 
 	memset(&DelbaParamSet, 0, 2);
 
@@ -158,19 +154,17 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 	DelbaParamSet.field.TID	= pBA->BaParamSet.field.TID;
 
 	skb = dev_alloc_skb(len + sizeof(struct rtllib_hdr_3addr));
-	if (skb == NULL) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "can't alloc skb for ADDBA_REQ\n");
+	if (skb == NULL)
 		return NULL;
-	}
 
 	skb_reserve(skb, ieee->tx_headroom);
 
 	Delba = (struct rtllib_hdr_3addr *) skb_put(skb,
 		 sizeof(struct rtllib_hdr_3addr));
 
-	memcpy(Delba->addr1, dst, ETH_ALEN);
-	memcpy(Delba->addr2, ieee->dev->dev_addr, ETH_ALEN);
-	memcpy(Delba->addr3, ieee->current_network.bssid, ETH_ALEN);
+	ether_addr_copy(Delba->addr1, dst);
+	ether_addr_copy(Delba->addr2, ieee->dev->dev_addr);
+	ether_addr_copy(Delba->addr3, ieee->current_network.bssid);
 	Delba->frame_ctl = cpu_to_le16(RTLLIB_STYPE_MANAGE_ACT);
 
 	tag = (u8 *)skb_put(skb, 6);
@@ -185,10 +179,10 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 	put_unaligned_le16(ReasonCode, tag);
 	tag += 2;
 
-	RTLLIB_DEBUG_DATA(RTLLIB_DL_DATA|RTLLIB_DL_BA, skb->data, skb->len);
-	if (net_ratelimit())
-		RTLLIB_DEBUG(RTLLIB_DL_TRACE | RTLLIB_DL_BA, "<=====%s()\n",
-			     __func__);
+#ifdef VERBOSE_DEBUG
+	print_hex_dump_bytes("rtllib_DELBA(): ", DUMP_PREFIX_NONE, skb->data,
+			     skb->len);
+#endif
 	return skb;
 }
 
@@ -203,8 +197,7 @@ static void rtllib_send_ADDBAReq(struct rtllib_device *ieee, u8 *dst,
 		RT_TRACE(COMP_DBG, "====>to send ADDBAREQ!!!!!\n");
 		softmac_mgmt_xmit(skb, ieee);
 	} else {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "alloc skb error in function"
-			     " %s()\n", __func__);
+		netdev_dbg(ieee->dev, "Failed to generate ADDBAReq packet.\n");
 	}
 }
 
@@ -217,8 +210,7 @@ static void rtllib_send_ADDBARsp(struct rtllib_device *ieee, u8 *dst,
 	if (skb)
 		softmac_mgmt_xmit(skb, ieee);
 	else
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "alloc skb error in function"
-			     " %s()\n", __func__);
+		netdev_dbg(ieee->dev, "Failed to generate ADDBARsp packet.\n");
 }
 
 static void rtllib_send_DELBA(struct rtllib_device *ieee, u8 *dst,
@@ -231,8 +223,7 @@ static void rtllib_send_DELBA(struct rtllib_device *ieee, u8 *dst,
 	if (skb)
 		softmac_mgmt_xmit(skb, ieee);
 	else
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "alloc skb error in function"
-			     " %s()\n", __func__);
+		netdev_dbg(ieee->dev, "Failed to generate DELBA packet.\n");
 }
 
 int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
@@ -247,13 +238,16 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	struct rx_ts_record *pTS = NULL;
 
 	if (skb->len < sizeof(struct rtllib_hdr_3addr) + 9) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, " Invalid skb len in BAREQ(%d / "
-			     "%d)\n", (int)skb->len,
-			     (int)(sizeof(struct rtllib_hdr_3addr) + 9));
+		netdev_warn(ieee->dev, "Invalid skb len in BAREQ(%d / %d)\n",
+			    (int)skb->len,
+			    (int)(sizeof(struct rtllib_hdr_3addr) + 9));
 		return -1;
 	}
 
-	RTLLIB_DEBUG_DATA(RTLLIB_DL_DATA|RTLLIB_DL_BA, skb->data, skb->len);
+#ifdef VERBOSE_DEBUG
+	print_hex_dump_bytes("rtllib_rx_ADDBAReq(): ", DUMP_PREFIX_NONE,
+			     skb->data, skb->len);
+#endif
 
 	req = (struct rtllib_hdr_3addr *) skb->data;
 	tag = (u8 *)req;
@@ -269,24 +263,24 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	    (ieee->pHTInfo->bCurrentHTSupport == false) ||
 	    (ieee->pHTInfo->IOTAction & HT_IOT_ACT_REJECT_ADDBA_REQ)) {
 		rc = ADDBA_STATUS_REFUSED;
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "Failed to reply on ADDBA_REQ as "
-			     "some capability is not ready(%d, %d)\n",
-			     ieee->current_network.qos_data.active,
-			     ieee->pHTInfo->bCurrentHTSupport);
+		netdev_warn(ieee->dev,
+			    "Failed to reply on ADDBA_REQ as some capability is not ready(%d, %d)\n",
+			    ieee->current_network.qos_data.active,
+			    ieee->pHTInfo->bCurrentHTSupport);
 		goto OnADDBAReq_Fail;
 	}
 	if (!GetTs(ieee, (struct ts_common_info **)(&pTS), dst,
 	    (u8)(pBaParamSet->field.TID), RX_DIR, true)) {
 		rc = ADDBA_STATUS_REFUSED;
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "can't get TS in %s()\n", __func__);
+		netdev_warn(ieee->dev, "%s(): can't get TS\n", __func__);
 		goto OnADDBAReq_Fail;
 	}
 	pBA = &pTS->RxAdmittedBARecord;
 
 	if (pBaParamSet->field.BAPolicy == BA_POLICY_DELAYED) {
 		rc = ADDBA_STATUS_INVALID_PARAM;
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "BA Policy is not correct in "
-			     "%s()\n", __func__);
+		netdev_warn(ieee->dev, "%s(): BA Policy is not correct\n",
+			    __func__);
 		goto OnADDBAReq_Fail;
 	}
 
@@ -333,9 +327,9 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	u16			ReasonCode;
 
 	if (skb->len < sizeof(struct rtllib_hdr_3addr) + 9) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, " Invalid skb len in BARSP(%d / "
-			     "%d)\n", (int)skb->len,
-			     (int)(sizeof(struct rtllib_hdr_3addr) + 9));
+		netdev_warn(ieee->dev, "Invalid skb len in BARSP(%d / %d)\n",
+			    (int)skb->len,
+			    (int)(sizeof(struct rtllib_hdr_3addr) + 9));
 		return -1;
 	}
 	rsp = (struct rtllib_hdr_3addr *)skb->data;
@@ -351,11 +345,11 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	if (ieee->current_network.qos_data.active == 0  ||
 	    ieee->pHTInfo->bCurrentHTSupport == false ||
 	    ieee->pHTInfo->bCurrentAMPDUEnable == false) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "reject to ADDBA_RSP as some capab"
-			     "ility is not ready(%d, %d, %d)\n",
-			     ieee->current_network.qos_data.active,
-			     ieee->pHTInfo->bCurrentHTSupport,
-			     ieee->pHTInfo->bCurrentAMPDUEnable);
+		netdev_warn(ieee->dev,
+			    "reject to ADDBA_RSP as some capability is not ready(%d, %d, %d)\n",
+			    ieee->current_network.qos_data.active,
+			    ieee->pHTInfo->bCurrentHTSupport,
+			    ieee->pHTInfo->bCurrentAMPDUEnable);
 		ReasonCode = DELBA_REASON_UNKNOWN_BA;
 		goto OnADDBARsp_Reject;
 	}
@@ -363,7 +357,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 
 	if (!GetTs(ieee, (struct ts_common_info **)(&pTS), dst,
 		   (u8)(pBaParamSet->field.TID), TX_DIR, false)) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "can't get TS in %s()\n", __func__);
+		netdev_warn(ieee->dev, "%s(): can't get TS\n", __func__);
 		ReasonCode = DELBA_REASON_UNKNOWN_BA;
 		goto OnADDBARsp_Reject;
 	}
@@ -374,18 +368,20 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 
 
 	if (pAdmittedBA->bValid == true) {
-		RTLLIB_DEBUG(RTLLIB_DL_BA, "OnADDBARsp(): Recv ADDBA Rsp."
-			     " Drop because already admit it!\n");
+		netdev_dbg(ieee->dev, "%s(): ADDBA response already admitted\n",
+			   __func__);
 		return -1;
 	} else if ((pPendingBA->bValid == false) ||
 		   (*pDialogToken != pPendingBA->DialogToken)) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR,  "OnADDBARsp(): Recv ADDBA Rsp. "
-			     "BA invalid, DELBA!\n");
+		netdev_warn(ieee->dev,
+			    "%s(): ADDBA Rsp. BA invalid, DELBA!\n",
+			    __func__);
 		ReasonCode = DELBA_REASON_UNKNOWN_BA;
 		goto OnADDBARsp_Reject;
 	} else {
-		RTLLIB_DEBUG(RTLLIB_DL_BA, "OnADDBARsp(): Recv ADDBA Rsp. BA "
-			     "is admitted! Status code:%X\n", *pStatusCode);
+		netdev_dbg(ieee->dev,
+			   "%s(): Recv ADDBA Rsp. BA is admitted! Status code:%X\n",
+			   __func__, *pStatusCode);
 		DeActivateBAEntry(ieee, pPendingBA);
 	}
 
@@ -428,40 +424,41 @@ int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb)
 {
 	 struct rtllib_hdr_3addr *delba = NULL;
 	union delba_param_set *pDelBaParamSet = NULL;
-	u16 *pReasonCode = NULL;
 	u8 *dst = NULL;
 
 	if (skb->len < sizeof(struct rtllib_hdr_3addr) + 6) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, " Invalid skb len in DELBA(%d /"
-			     " %d)\n", (int)skb->len,
-			     (int)(sizeof(struct rtllib_hdr_3addr) + 6));
+		netdev_warn(ieee->dev, "Invalid skb len in DELBA(%d / %d)\n",
+			    (int)skb->len,
+			    (int)(sizeof(struct rtllib_hdr_3addr) + 6));
 		return -1;
 	}
 
 	if (ieee->current_network.qos_data.active == 0  ||
 		ieee->pHTInfo->bCurrentHTSupport == false) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "received DELBA while QOS or HT "
-			     "is not supported(%d, %d)\n",
-			     ieee->current_network. qos_data.active,
-			     ieee->pHTInfo->bCurrentHTSupport);
+		netdev_warn(ieee->dev,
+			    "received DELBA while QOS or HT is not supported(%d, %d)\n",
+			    ieee->current_network. qos_data.active,
+			    ieee->pHTInfo->bCurrentHTSupport);
 		return -1;
 	}
 
-	RTLLIB_DEBUG_DATA(RTLLIB_DL_DATA|RTLLIB_DL_BA, skb->data, skb->len);
+#ifdef VERBOSE_DEBUG
+	print_hex_dump_bytes("rtllib_rx_DELBA(): ", DUMP_PREFIX_NONE, skb->data,
+			     skb->len);
+#endif
 	delba = (struct rtllib_hdr_3addr *)skb->data;
 	dst = (u8 *)(&delba->addr2[0]);
-	delba += sizeof(struct rtllib_hdr_3addr);
-	pDelBaParamSet = (union delba_param_set *)(delba+2);
-	pReasonCode = (u16 *)(delba+4);
+	pDelBaParamSet = (union delba_param_set *)&delba->payload[2];
 
 	if (pDelBaParamSet->field.Initiator == 1) {
 		struct rx_ts_record *pRxTs;
 
 		if (!GetTs(ieee, (struct ts_common_info **)&pRxTs, dst,
 		    (u8)pDelBaParamSet->field.TID, RX_DIR, false)) {
-			RTLLIB_DEBUG(RTLLIB_DL_ERR,  "can't get TS for RXTS in "
-				     "%s().dst: %pM TID:%d\n", __func__, dst,
-				     (u8)pDelBaParamSet->field.TID);
+			netdev_warn(ieee->dev,
+				    "%s(): can't get TS for RXTS. dst:%pM TID:%d\n",
+				    __func__, dst,
+				    (u8)pDelBaParamSet->field.TID);
 			return -1;
 		}
 
@@ -471,8 +468,8 @@ int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb)
 
 		if (!GetTs(ieee, (struct ts_common_info **)&pTxTs, dst,
 			   (u8)pDelBaParamSet->field.TID, TX_DIR, false)) {
-			RTLLIB_DEBUG(RTLLIB_DL_ERR,  "can't get TS for TXTS in "
-				     "%s()\n", __func__);
+			netdev_warn(ieee->dev, "%s(): can't get TS for TXTS\n",
+				    __func__);
 			return -1;
 		}
 

@@ -35,13 +35,13 @@
 #include <linux/delay.h>
 #include <linux/clocksource.h>
 #include <linux/clk-provider.h>
+#include <linux/acpi.h>
 
 #include <clocksource/arm_arch_timer.h>
 
 #include <asm/thread_info.h>
 #include <asm/stacktrace.h>
 
-#ifdef CONFIG_SMP
 unsigned long profile_pc(struct pt_regs *regs)
 {
 	struct stackframe frame;
@@ -61,14 +61,13 @@ unsigned long profile_pc(struct pt_regs *regs)
 	return frame.pc;
 }
 EXPORT_SYMBOL(profile_pc);
-#endif
 
 void __init time_init(void)
 {
 	u32 arch_timer_rate;
 
 	of_clk_init(NULL);
-	clocksource_of_init();
+	clocksource_probe();
 
 	tick_setup_hrtimer_broadcast();
 

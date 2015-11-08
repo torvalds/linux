@@ -236,7 +236,8 @@ int rtw_enqueue_cmd23a(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
 	res = queue_work(pcmdpriv->wq, &cmd_obj->work);
 
 	if (!res) {
-		printk(KERN_ERR "%s: Call to queue_work() failed\n", __func__);
+		netdev_err(pcmdpriv->padapter->pnetdev,
+			   "%s: Call to queue_work() failed\n", __func__);
 		res = _FAIL;
 	} else
 		res = _SUCCESS;
@@ -299,9 +300,8 @@ post_process:
 		pcmd_callback =	rtw_cmd_callback[pcmd->cmdcode].callback;
 		if (!pcmd_callback) {
 			RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_,
-				 ("mlme_cmd_hdl(): pcmd_callback = 0x%p, "
-				  "cmdcode = 0x%x\n",
-				  pcmd_callback, pcmd->cmdcode));
+				 "mlme_cmd_hdl(): pcmd_callback = 0x%p, cmdcode = 0x%x\n",
+				 pcmd_callback, pcmd->cmdcode);
 			rtw_free_cmd_obj23a(pcmd);
 		} else {
 			/* need consider that free cmd_obj in
@@ -310,8 +310,8 @@ post_process:
 		}
 	} else {
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
-			 ("%s: cmdcode = 0x%x callback not defined!\n",
-			  __func__, pcmd->cmdcode));
+			 "%s: cmdcode = 0x%x callback not defined!\n",
+			 __func__, pcmd->cmdcode);
 		rtw_free_cmd_obj23a(pcmd);
 	}
 }
@@ -343,7 +343,7 @@ int rtw_sitesurvey_cmd23a(struct rtw_adapter *padapter,
 	rtw_free_network_queue23a(padapter);
 
 	RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_,
-		 ("%s: flush network queue\n", __func__));
+		 "%s: flush network queue\n", __func__);
 
 	init_h2fwcmd_w_parm_no_rsp(ph2c, psurveyPara,
 				   GEN_CMD_CODE(_SiteSurvey));
@@ -412,12 +412,12 @@ int rtw_createbss_cmd23a(struct rtw_adapter  *padapter)
 
 	if (pmlmepriv->assoc_ssid.ssid_len == 0) {
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_,
-			 (" createbss for Any SSid:%s\n",
-			  pmlmepriv->assoc_ssid.ssid));
+			 "createbss for Any SSid:%s\n",
+			 pmlmepriv->assoc_ssid.ssid);
 	} else {
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_,
-			 (" createbss for SSid:%s\n",
-			  pmlmepriv->assoc_ssid.ssid));
+			 "createbss for SSid:%s\n",
+			 pmlmepriv->assoc_ssid.ssid);
 	}
 
 	pcmd = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
@@ -460,19 +460,18 @@ int rtw_joinbss_cmd23a(struct rtw_adapter *padapter,
 
 	if (pmlmepriv->assoc_ssid.ssid_len == 0) {
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_,
-			 ("+Join cmd: Any SSid\n"));
+			 "+Join cmd: Any SSid\n");
 	} else {
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_notice_,
-			 ("+Join cmd: SSid =[%s]\n",
-			  pmlmepriv->assoc_ssid.ssid));
+			 "+Join cmd: SSid =[%s]\n",
+			 pmlmepriv->assoc_ssid.ssid);
 	}
 
 	pcmd = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (!pcmd) {
 		res = _FAIL;
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
-			 ("rtw_joinbss_cmd23a: memory allocate for cmd_obj "
-			  "fail!!!\n"));
+			 "rtw_joinbss_cmd23a: memory allocate for cmd_obj fail!!!\n");
 		goto exit;
 	}
 
@@ -497,7 +496,7 @@ int rtw_joinbss_cmd23a(struct rtw_adapter *padapter,
 		res = _FAIL;
 
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
-			 ("rtw_joinbss_cmd23a :psecnetwork == NULL!!!\n"));
+			 "rtw_joinbss_cmd23a :psecnetwork == NULL!!!\n");
 
 		goto exit;
 	}
@@ -599,7 +598,7 @@ int rtw_disassoc_cmd23a(struct rtw_adapter *padapter, u32 deauth_timeout_ms,
 	int res = _SUCCESS;
 
 	RT_TRACE(_module_rtl871x_cmd_c_, _drv_notice_,
-		 ("+rtw_disassoc_cmd23a\n"));
+		 "+rtw_disassoc_cmd23a\n");
 
 	/* prepare cmd parameter */
 	param = kzalloc(sizeof(*param), GFP_ATOMIC);
@@ -622,7 +621,7 @@ int rtw_disassoc_cmd23a(struct rtw_adapter *padapter, u32 deauth_timeout_ms,
 	} else {
 		/* no need to enqueue, do the cmd hdl directly and
 		   free cmd parameter */
-		if (H2C_SUCCESS != disconnect_hdl23a(padapter, (u8 *)param))
+		if (disconnect_hdl23a(padapter, (u8 *)param) != H2C_SUCCESS)
 			res = _FAIL;
 		kfree(param);
 	}
@@ -1291,8 +1290,7 @@ void rtw_survey_cmd_callback23a(struct rtw_adapter *padapter,
 		mod_timer(&pmlmepriv->scan_to_timer,
 			  jiffies + msecs_to_jiffies(1));
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
-			 ("\n ********Error: MgntActrtw_set_802_11_bssid23a_"
-			  "LIST_SCAN Fail ************\n\n."));
+			 "********Error: MgntActrtw_set_802_11_bssid23a_LIST_SCAN Fail ************\n");
 	}
 
 	/*  free cmd */
@@ -1309,7 +1307,7 @@ void rtw_disassoc_cmd23a_callback(struct rtw_adapter *padapter,
 		set_fwstate(pmlmepriv, _FW_LINKED);
 		spin_unlock_bh(&pmlmepriv->lock);
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
-			 ("\n ***Error: disconnect_cmd_callback Fail ***\n."));
+			 "***Error: disconnect_cmd_callback Fail ***\n");
 		return;
 	}
 
@@ -1329,8 +1327,7 @@ void rtw_joinbss_cmd23a_callback(struct rtw_adapter *padapter,
 			  jiffies + msecs_to_jiffies(1));
 	} else if (pcmd->res != H2C_SUCCESS) {
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
-			 ("********Error:rtw_select_and_join_from_scanned_"
-			  "queue Wait Sema  Fail ************\n"));
+			 "********Error:rtw_select_and_join_from_scanned_queue Wait Sema  Fail ************\n");
 		mod_timer(&pmlmepriv->assoc_timer,
 			  jiffies + msecs_to_jiffies(1));
 	}
@@ -1346,11 +1343,11 @@ void rtw_createbss_cmd23a_callback(struct rtw_adapter *padapter,
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_bssid_ex *pnetwork = (struct wlan_bssid_ex *)pcmd->parmbuf;
 	struct wlan_network *tgt_network = &pmlmepriv->cur_network;
+	struct rtw_queue *scanned_queue = &pmlmepriv->scanned_queue;
 
 	if (pcmd->res != H2C_SUCCESS) {
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
-			 ("\n ********Error: rtw_createbss_cmd23a_callback  "
-			  "Fail ************\n\n."));
+			 "********Error: rtw_createbss_cmd23a_callback  Fail ************\n");
 		mod_timer(&pmlmepriv->assoc_timer,
 			  jiffies + msecs_to_jiffies(1));
 	}
@@ -1366,9 +1363,8 @@ void rtw_createbss_cmd23a_callback(struct rtw_adapter *padapter,
 						    GFP_KERNEL);
 			if (!psta) {
 				RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
-					 ("\nCan't alloc sta_info when "
-					  "createbss_cmd_callback\n"));
-				goto createbss_cmd_fail ;
+					 "Can't alloc sta_info when createbss_cmd_callback\n");
+				goto createbss_cmd_fail;
 			}
 		}
 
@@ -1377,20 +1373,19 @@ void rtw_createbss_cmd23a_callback(struct rtw_adapter *padapter,
 		spin_unlock_bh(&pmlmepriv->lock);
 	} else {
 		pwlan = rtw_alloc_network(pmlmepriv, GFP_KERNEL);
-		spin_lock_bh(&pmlmepriv->scanned_queue.lock);
+		spin_lock_bh(&scanned_queue->lock);
 		if (!pwlan) {
-			pwlan = rtw_get_oldest_wlan_network23a(&pmlmepriv->scanned_queue);
+			pwlan = rtw_get_oldest_wlan_network23a(scanned_queue);
 			if (!pwlan) {
 				RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
-					 ("\n Error:  can't get pwlan in "
-					  "rtw23a_joinbss_event_cb\n"));
-				spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
+					 "Error:  can't get pwlan in rtw23a_joinbss_event_cb\n");
+				spin_unlock_bh(&scanned_queue->lock);
 				goto createbss_cmd_fail;
 			}
 			pwlan->last_scanned = jiffies;
 		} else {
 			list_add_tail(&pwlan->list,
-				      &pmlmepriv->scanned_queue.queue);
+				      &scanned_queue->queue);
 		}
 
 		pnetwork->Length = get_wlan_bssid_ex_sz(pnetwork);
@@ -1409,9 +1404,9 @@ void rtw_createbss_cmd23a_callback(struct rtw_adapter *padapter,
 
 		clr_fwstate(pmlmepriv, _FW_UNDER_LINKING);
 
-		spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
 		/*  we will set _FW_LINKED when there is one more sat to
 		    join us (rtw_stassoc_event_callback23a) */
+		spin_unlock_bh(&scanned_queue->lock);
 	}
 
 createbss_cmd_fail:
@@ -1432,8 +1427,7 @@ void rtw_setstaKey_cmdrsp_callback23a(struct rtw_adapter *padapter,
 
 	if (!psta) {
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
-			 ("\nERROR: rtw_setstaKey_cmdrsp_callback23a => "
-			  "can't get sta_info\n\n"));
+			 "ERROR: rtw_setstaKey_cmdrsp_callback23a => can't get sta_info\n");
 		goto exit;
 	}
 
@@ -1457,8 +1451,7 @@ void rtw_setassocsta_cmdrsp_callback23a(struct rtw_adapter *padapter,
 
 	if (psta == NULL) {
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
-			 ("\nERROR: setassocsta_cmdrsp_callbac => can't "
-			  "get sta_info\n\n"));
+			 "ERROR: setassocsta_cmdrsp_callbac => can't get sta_info\n");
 		goto exit;
 	}
 

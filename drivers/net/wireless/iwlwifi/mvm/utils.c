@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright (C) 2015 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -108,7 +109,7 @@ int iwl_mvm_send_cmd(struct iwl_mvm *mvm, struct iwl_host_cmd *cmd)
 	return ret;
 }
 
-int iwl_mvm_send_cmd_pdu(struct iwl_mvm *mvm, u8 id,
+int iwl_mvm_send_cmd_pdu(struct iwl_mvm *mvm, u32 id,
 			 u32 flags, u16 len, const void *data)
 {
 	struct iwl_host_cmd cmd = {
@@ -122,7 +123,7 @@ int iwl_mvm_send_cmd_pdu(struct iwl_mvm *mvm, u8 id,
 }
 
 /*
- * We assume that the caller set the status to the sucess value
+ * We assume that the caller set the status to the success value
  */
 int iwl_mvm_send_cmd_status(struct iwl_mvm *mvm, struct iwl_host_cmd *cmd,
 			    u32 *status)
@@ -166,11 +167,6 @@ int iwl_mvm_send_cmd_status(struct iwl_mvm *mvm, struct iwl_host_cmd *cmd,
 		goto out_free_resp;
 	}
 
-	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
-		ret = -EIO;
-		goto out_free_resp;
-	}
-
 	resp_len = iwl_rx_packet_payload_len(pkt);
 	if (WARN_ON_ONCE(resp_len != sizeof(*resp))) {
 		ret = -EIO;
@@ -187,7 +183,7 @@ int iwl_mvm_send_cmd_status(struct iwl_mvm *mvm, struct iwl_host_cmd *cmd,
 /*
  * We assume that the caller set the status to the sucess value
  */
-int iwl_mvm_send_cmd_pdu_status(struct iwl_mvm *mvm, u8 id, u16 len,
+int iwl_mvm_send_cmd_pdu_status(struct iwl_mvm *mvm, u32 id, u16 len,
 				const void *data, u32 *status)
 {
 	struct iwl_host_cmd cmd = {
@@ -243,8 +239,7 @@ u8 iwl_mvm_mac80211_idx_to_hwrate(int rate_idx)
 	return fw_rate_idx_to_plcp[rate_idx];
 }
 
-int iwl_mvm_rx_fw_error(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
-			  struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_fw_error(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_error_resp *err_resp = (void *)pkt->data;
@@ -256,7 +251,6 @@ int iwl_mvm_rx_fw_error(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 		le32_to_cpu(err_resp->error_service));
 	IWL_ERR(mvm, "FW Error notification: timestamp 0x%16llX\n",
 		le64_to_cpu(err_resp->timestamp));
-	return 0;
 }
 
 /*
@@ -332,7 +326,7 @@ static const char *desc_lookup(u32 num)
  * read with u32-sized accesses, any members with a different size
  * need to be ordered correctly though!
  */
-struct iwl_error_event_table {
+struct iwl_error_event_table_v1 {
 	u32 valid;		/* (nonzero) valid, (0) log is empty */
 	u32 error_id;		/* type of error */
 	u32 pc;			/* program counter */
@@ -377,7 +371,55 @@ struct iwl_error_event_table {
 	u32 u_timestamp;	/* indicate when the date and time of the
 				 * compilation */
 	u32 flow_handler;	/* FH read/write pointers, RX credit */
-} __packed;
+} __packed /* LOG_ERROR_TABLE_API_S_VER_1 */;
+
+struct iwl_error_event_table {
+	u32 valid;		/* (nonzero) valid, (0) log is empty */
+	u32 error_id;		/* type of error */
+	u32 pc;			/* program counter */
+	u32 blink1;		/* branch link */
+	u32 blink2;		/* branch link */
+	u32 ilink1;		/* interrupt link */
+	u32 ilink2;		/* interrupt link */
+	u32 data1;		/* error-specific data */
+	u32 data2;		/* error-specific data */
+	u32 data3;		/* error-specific data */
+	u32 bcon_time;		/* beacon timer */
+	u32 tsf_low;		/* network timestamp function timer */
+	u32 tsf_hi;		/* network timestamp function timer */
+	u32 gp1;		/* GP1 timer register */
+	u32 gp2;		/* GP2 timer register */
+	u32 gp3;		/* GP3 timer register */
+	u32 major;		/* uCode version major */
+	u32 minor;		/* uCode version minor */
+	u32 hw_ver;		/* HW Silicon version */
+	u32 brd_ver;		/* HW board version */
+	u32 log_pc;		/* log program counter */
+	u32 frame_ptr;		/* frame pointer */
+	u32 stack_ptr;		/* stack pointer */
+	u32 hcmd;		/* last host command header */
+	u32 isr0;		/* isr status register LMPM_NIC_ISR0:
+				 * rxtx_flag */
+	u32 isr1;		/* isr status register LMPM_NIC_ISR1:
+				 * host_flag */
+	u32 isr2;		/* isr status register LMPM_NIC_ISR2:
+				 * enc_flag */
+	u32 isr3;		/* isr status register LMPM_NIC_ISR3:
+				 * time_flag */
+	u32 isr4;		/* isr status register LMPM_NIC_ISR4:
+				 * wico interrupt */
+	u32 isr_pref;		/* isr status register LMPM_NIC_PREF_STAT */
+	u32 wait_event;		/* wait event() caller address */
+	u32 l2p_control;	/* L2pControlField */
+	u32 l2p_duration;	/* L2pDurationField */
+	u32 l2p_mhvalid;	/* L2pMhValidBits */
+	u32 l2p_addr_match;	/* L2pAddrMatchStat */
+	u32 lmpm_pmg_sel;	/* indicate which clocks are turned on
+				 * (LMPM_PMG_SEL) */
+	u32 u_timestamp;	/* indicate when the date and time of the
+				 * compilation */
+	u32 flow_handler;	/* FH read/write pointers, RX credit */
+} __packed /* LOG_ERROR_TABLE_API_S_VER_2 */;
 
 /*
  * UMAC error struct - relevant starting from family 8000 chip.
@@ -396,11 +438,11 @@ struct iwl_umac_error_event_table {
 	u32 data1;		/* error-specific data */
 	u32 data2;		/* error-specific data */
 	u32 data3;		/* error-specific data */
-	u32 umac_fw_ver;	/* UMAC version */
-	u32 umac_fw_api_ver;	/* UMAC FW API ver */
+	u32 umac_major;
+	u32 umac_minor;
 	u32 frame_pointer;	/* core register 27*/
 	u32 stack_pointer;	/* core register 28 */
-	u32 cmd_header;	/* latest host cmd sent to UMAC */
+	u32 cmd_header;		/* latest host cmd sent to UMAC */
 	u32 nic_isr_pref;	/* ISR status register */
 } __packed;
 
@@ -441,18 +483,18 @@ static void iwl_mvm_dump_umac_error_log(struct iwl_mvm *mvm)
 	IWL_ERR(mvm, "0x%08X | umac data1\n", table.data1);
 	IWL_ERR(mvm, "0x%08X | umac data2\n", table.data2);
 	IWL_ERR(mvm, "0x%08X | umac data3\n", table.data3);
-	IWL_ERR(mvm, "0x%08X | umac version\n", table.umac_fw_ver);
-	IWL_ERR(mvm, "0x%08X | umac api version\n", table.umac_fw_api_ver);
+	IWL_ERR(mvm, "0x%08X | umac major\n", table.umac_major);
+	IWL_ERR(mvm, "0x%08X | umac minor\n", table.umac_minor);
 	IWL_ERR(mvm, "0x%08X | frame pointer\n", table.frame_pointer);
 	IWL_ERR(mvm, "0x%08X | stack pointer\n", table.stack_pointer);
 	IWL_ERR(mvm, "0x%08X | last host cmd\n", table.cmd_header);
 	IWL_ERR(mvm, "0x%08X | isr status reg\n", table.nic_isr_pref);
 }
 
-void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
+static void iwl_mvm_dump_nic_error_log_old(struct iwl_mvm *mvm)
 {
 	struct iwl_trans *trans = mvm->trans;
-	struct iwl_error_event_table table;
+	struct iwl_error_event_table_v1 table;
 	u32 base;
 
 	base = mvm->error_event_table;
@@ -489,7 +531,7 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 				      table.data1, table.data2, table.data3,
 				      table.blink1, table.blink2, table.ilink1,
 				      table.ilink2, table.bcon_time, table.gp1,
-				      table.gp2, table.gp3, table.ucode_ver,
+				      table.gp2, table.gp3, table.ucode_ver, 0,
 				      table.hw_ver, table.brd_ver);
 	IWL_ERR(mvm, "0x%08X | %-28s\n", table.error_id,
 		desc_lookup(table.error_id));
@@ -530,44 +572,228 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 		iwl_mvm_dump_umac_error_log(mvm);
 }
 
-void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, u16 ssn,
-			const struct iwl_trans_txq_scd_cfg *cfg,
-			unsigned int wdg_timeout)
+void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 {
-	struct iwl_scd_txq_cfg_cmd cmd = {
-		.scd_queue = queue,
-		.enable = 1,
-		.window = cfg->frame_limit,
-		.sta_id = cfg->sta_id,
-		.ssn = cpu_to_le16(ssn),
-		.tx_fifo = cfg->fifo,
-		.aggregate = cfg->aggregate,
-		.tid = cfg->tid,
-	};
+	struct iwl_trans *trans = mvm->trans;
+	struct iwl_error_event_table table;
+	u32 base;
 
-	if (!iwl_mvm_is_scd_cfg_supported(mvm)) {
-		iwl_trans_txq_enable_cfg(mvm->trans, queue, ssn, cfg,
-					 wdg_timeout);
+	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_NEW_VERSION)) {
+		iwl_mvm_dump_nic_error_log_old(mvm);
 		return;
 	}
 
-	iwl_trans_txq_enable_cfg(mvm->trans, queue, ssn, NULL, wdg_timeout);
-	WARN(iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, 0, sizeof(cmd), &cmd),
-	     "Failed to configure queue %d on FIFO %d\n", queue, cfg->fifo);
+	base = mvm->error_event_table;
+	if (mvm->cur_ucode == IWL_UCODE_INIT) {
+		if (!base)
+			base = mvm->fw->init_errlog_ptr;
+	} else {
+		if (!base)
+			base = mvm->fw->inst_errlog_ptr;
+	}
+
+	if (base < 0x800000) {
+		IWL_ERR(mvm,
+			"Not valid error log pointer 0x%08X for %s uCode\n",
+			base,
+			(mvm->cur_ucode == IWL_UCODE_INIT)
+					? "Init" : "RT");
+		return;
+	}
+
+	iwl_trans_read_mem_bytes(trans, base, &table, sizeof(table));
+
+	if (ERROR_START_OFFSET <= table.valid * ERROR_ELEM_SIZE) {
+		IWL_ERR(trans, "Start IWL Error Log Dump:\n");
+		IWL_ERR(trans, "Status: 0x%08lX, count: %d\n",
+			mvm->status, table.valid);
+	}
+
+	/* Do not change this output - scripts rely on it */
+
+	IWL_ERR(mvm, "Loaded firmware version: %s\n", mvm->fw->fw_version);
+
+	trace_iwlwifi_dev_ucode_error(trans->dev, table.error_id, table.tsf_low,
+				      table.data1, table.data2, table.data3,
+				      table.blink1, table.blink2, table.ilink1,
+				      table.ilink2, table.bcon_time, table.gp1,
+				      table.gp2, table.gp3, table.major,
+				      table.minor, table.hw_ver, table.brd_ver);
+	IWL_ERR(mvm, "0x%08X | %-28s\n", table.error_id,
+		desc_lookup(table.error_id));
+	IWL_ERR(mvm, "0x%08X | uPc\n", table.pc);
+	IWL_ERR(mvm, "0x%08X | branchlink1\n", table.blink1);
+	IWL_ERR(mvm, "0x%08X | branchlink2\n", table.blink2);
+	IWL_ERR(mvm, "0x%08X | interruptlink1\n", table.ilink1);
+	IWL_ERR(mvm, "0x%08X | interruptlink2\n", table.ilink2);
+	IWL_ERR(mvm, "0x%08X | data1\n", table.data1);
+	IWL_ERR(mvm, "0x%08X | data2\n", table.data2);
+	IWL_ERR(mvm, "0x%08X | data3\n", table.data3);
+	IWL_ERR(mvm, "0x%08X | beacon time\n", table.bcon_time);
+	IWL_ERR(mvm, "0x%08X | tsf low\n", table.tsf_low);
+	IWL_ERR(mvm, "0x%08X | tsf hi\n", table.tsf_hi);
+	IWL_ERR(mvm, "0x%08X | time gp1\n", table.gp1);
+	IWL_ERR(mvm, "0x%08X | time gp2\n", table.gp2);
+	IWL_ERR(mvm, "0x%08X | time gp3\n", table.gp3);
+	IWL_ERR(mvm, "0x%08X | uCode version major\n", table.major);
+	IWL_ERR(mvm, "0x%08X | uCode version minor\n", table.minor);
+	IWL_ERR(mvm, "0x%08X | hw version\n", table.hw_ver);
+	IWL_ERR(mvm, "0x%08X | board version\n", table.brd_ver);
+	IWL_ERR(mvm, "0x%08X | hcmd\n", table.hcmd);
+	IWL_ERR(mvm, "0x%08X | isr0\n", table.isr0);
+	IWL_ERR(mvm, "0x%08X | isr1\n", table.isr1);
+	IWL_ERR(mvm, "0x%08X | isr2\n", table.isr2);
+	IWL_ERR(mvm, "0x%08X | isr3\n", table.isr3);
+	IWL_ERR(mvm, "0x%08X | isr4\n", table.isr4);
+	IWL_ERR(mvm, "0x%08X | isr_pref\n", table.isr_pref);
+	IWL_ERR(mvm, "0x%08X | wait_event\n", table.wait_event);
+	IWL_ERR(mvm, "0x%08X | l2p_control\n", table.l2p_control);
+	IWL_ERR(mvm, "0x%08X | l2p_duration\n", table.l2p_duration);
+	IWL_ERR(mvm, "0x%08X | l2p_mhvalid\n", table.l2p_mhvalid);
+	IWL_ERR(mvm, "0x%08X | l2p_addr_match\n", table.l2p_addr_match);
+	IWL_ERR(mvm, "0x%08X | lmpm_pmg_sel\n", table.lmpm_pmg_sel);
+	IWL_ERR(mvm, "0x%08X | timestamp\n", table.u_timestamp);
+	IWL_ERR(mvm, "0x%08X | flow_handler\n", table.flow_handler);
+
+	if (mvm->support_umac_log)
+		iwl_mvm_dump_umac_error_log(mvm);
 }
 
-void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, u8 flags)
+int iwl_mvm_find_free_queue(struct iwl_mvm *mvm, u8 minq, u8 maxq)
+{
+	int i;
+
+	lockdep_assert_held(&mvm->queue_info_lock);
+
+	for (i = minq; i <= maxq; i++)
+		if (mvm->queue_info[i].hw_queue_refcount == 0 &&
+		    !mvm->queue_info[i].setup_reserved)
+			return i;
+
+	return -ENOSPC;
+}
+
+void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
+			u16 ssn, const struct iwl_trans_txq_scd_cfg *cfg,
+			unsigned int wdg_timeout)
+{
+	bool enable_queue = true;
+
+	spin_lock_bh(&mvm->queue_info_lock);
+
+	/* Make sure this TID isn't already enabled */
+	if (mvm->queue_info[queue].tid_bitmap & BIT(cfg->tid)) {
+		spin_unlock_bh(&mvm->queue_info_lock);
+		IWL_ERR(mvm, "Trying to enable TXQ with existing TID %d\n",
+			cfg->tid);
+		return;
+	}
+
+	/* Update mappings and refcounts */
+	mvm->queue_info[queue].hw_queue_to_mac80211 |= BIT(mac80211_queue);
+	mvm->queue_info[queue].hw_queue_refcount++;
+	if (mvm->queue_info[queue].hw_queue_refcount > 1)
+		enable_queue = false;
+	mvm->queue_info[queue].tid_bitmap |= BIT(cfg->tid);
+
+	IWL_DEBUG_TX_QUEUES(mvm,
+			    "Enabling TXQ #%d refcount=%d (mac80211 map:0x%x)\n",
+			    queue, mvm->queue_info[queue].hw_queue_refcount,
+			    mvm->queue_info[queue].hw_queue_to_mac80211);
+
+	spin_unlock_bh(&mvm->queue_info_lock);
+
+	/* Send the enabling command if we need to */
+	if (enable_queue) {
+		struct iwl_scd_txq_cfg_cmd cmd = {
+			.scd_queue = queue,
+			.enable = 1,
+			.window = cfg->frame_limit,
+			.sta_id = cfg->sta_id,
+			.ssn = cpu_to_le16(ssn),
+			.tx_fifo = cfg->fifo,
+			.aggregate = cfg->aggregate,
+			.tid = cfg->tid,
+		};
+
+		iwl_trans_txq_enable_cfg(mvm->trans, queue, ssn, NULL,
+					 wdg_timeout);
+		WARN(iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, 0, sizeof(cmd),
+					  &cmd),
+		     "Failed to configure queue %d on FIFO %d\n", queue,
+		     cfg->fifo);
+	}
+}
+
+void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
+			 u8 tid, u8 flags)
 {
 	struct iwl_scd_txq_cfg_cmd cmd = {
 		.scd_queue = queue,
 		.enable = 0,
 	};
+	bool remove_mac_queue = true;
 	int ret;
 
-	if (!iwl_mvm_is_scd_cfg_supported(mvm)) {
-		iwl_trans_txq_disable(mvm->trans, queue, true);
+	spin_lock_bh(&mvm->queue_info_lock);
+
+	if (WARN_ON(mvm->queue_info[queue].hw_queue_refcount == 0)) {
+		spin_unlock_bh(&mvm->queue_info_lock);
 		return;
 	}
+
+	mvm->queue_info[queue].tid_bitmap &= ~BIT(tid);
+
+	/*
+	 * If there is another TID with the same AC - don't remove the MAC queue
+	 * from the mapping
+	 */
+	if (tid < IWL_MAX_TID_COUNT) {
+		unsigned long tid_bitmap =
+			mvm->queue_info[queue].tid_bitmap;
+		int ac = tid_to_mac80211_ac[tid];
+		int i;
+
+		for_each_set_bit(i, &tid_bitmap, IWL_MAX_TID_COUNT) {
+			if (tid_to_mac80211_ac[i] == ac)
+				remove_mac_queue = false;
+		}
+	}
+
+	if (remove_mac_queue)
+		mvm->queue_info[queue].hw_queue_to_mac80211 &=
+			~BIT(mac80211_queue);
+	mvm->queue_info[queue].hw_queue_refcount--;
+
+	cmd.enable = mvm->queue_info[queue].hw_queue_refcount ? 1 : 0;
+
+	IWL_DEBUG_TX_QUEUES(mvm,
+			    "Disabling TXQ #%d refcount=%d (mac80211 map:0x%x)\n",
+			    queue,
+			    mvm->queue_info[queue].hw_queue_refcount,
+			    mvm->queue_info[queue].hw_queue_to_mac80211);
+
+	/* If the queue is still enabled - nothing left to do in this func */
+	if (cmd.enable) {
+		spin_unlock_bh(&mvm->queue_info_lock);
+		return;
+	}
+
+	/* Make sure queue info is correct even though we overwrite it */
+	WARN(mvm->queue_info[queue].hw_queue_refcount ||
+	     mvm->queue_info[queue].tid_bitmap ||
+	     mvm->queue_info[queue].hw_queue_to_mac80211,
+	     "TXQ #%d info out-of-sync - refcount=%d, mac map=0x%x, tid=0x%x\n",
+	     queue, mvm->queue_info[queue].hw_queue_refcount,
+	     mvm->queue_info[queue].hw_queue_to_mac80211,
+	     mvm->queue_info[queue].tid_bitmap);
+
+	/* If we are here - the queue is freed and we can zero out these vals */
+	mvm->queue_info[queue].hw_queue_refcount = 0;
+	mvm->queue_info[queue].tid_bitmap = 0;
+	mvm->queue_info[queue].hw_queue_to_mac80211 = 0;
+
+	spin_unlock_bh(&mvm->queue_info_lock);
 
 	iwl_trans_txq_disable(mvm->trans, queue, false);
 	ret = iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, flags,
@@ -603,7 +829,7 @@ int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq, bool init)
 }
 
 /**
- * iwl_mvm_update_smps - Get a requst to change the SMPS mode
+ * iwl_mvm_update_smps - Get a request to change the SMPS mode
  * @req_type: The part of the driver who call for a change.
  * @smps_requests: The request to change the SMPS mode.
  *
@@ -641,6 +867,40 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	}
 
 	ieee80211_request_smps(vif, smps_mode);
+}
+
+int iwl_mvm_request_statistics(struct iwl_mvm *mvm, bool clear)
+{
+	struct iwl_statistics_cmd scmd = {
+		.flags = clear ? cpu_to_le32(IWL_STATISTICS_FLG_CLEAR) : 0,
+	};
+	struct iwl_host_cmd cmd = {
+		.id = STATISTICS_CMD,
+		.len[0] = sizeof(scmd),
+		.data[0] = &scmd,
+		.flags = CMD_WANT_SKB,
+	};
+	int ret;
+
+	ret = iwl_mvm_send_cmd(mvm, &cmd);
+	if (ret)
+		return ret;
+
+	iwl_mvm_handle_rx_statistics(mvm, cmd.resp_pkt);
+	iwl_free_resp(&cmd);
+
+	if (clear)
+		iwl_mvm_accu_radio_stats(mvm);
+
+	return 0;
+}
+
+void iwl_mvm_accu_radio_stats(struct iwl_mvm *mvm)
+{
+	mvm->accu_radio_stats.rx_time += mvm->radio_stats.rx_time;
+	mvm->accu_radio_stats.tx_time += mvm->radio_stats.tx_time;
+	mvm->accu_radio_stats.on_time_rf += mvm->radio_stats.on_time_rf;
+	mvm->accu_radio_stats.on_time_scan += mvm->radio_stats.on_time_scan;
 }
 
 static void iwl_mvm_diversity_iter(void *_data, u8 *mac,
@@ -689,7 +949,7 @@ int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	mvmvif->low_latency = value;
 
-	res = iwl_mvm_update_quotas(mvm, NULL);
+	res = iwl_mvm_update_quotas(mvm, false, NULL);
 	if (res)
 		return res;
 
@@ -715,25 +975,6 @@ bool iwl_mvm_low_latency(struct iwl_mvm *mvm)
 			iwl_mvm_ll_iter, &result);
 
 	return result;
-}
-
-static void iwl_mvm_idle_iter(void *_data, u8 *mac, struct ieee80211_vif *vif)
-{
-	bool *idle = _data;
-
-	if (!vif->bss_conf.idle)
-		*idle = false;
-}
-
-bool iwl_mvm_is_idle(struct iwl_mvm *mvm)
-{
-	bool idle = true;
-
-	ieee80211_iterate_active_interfaces_atomic(
-			mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
-			iwl_mvm_idle_iter, &idle);
-
-	return idle;
 }
 
 struct iwl_bss_iter_data {
@@ -771,4 +1012,72 @@ struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm)
 	}
 
 	return bss_iter_data.vif;
+}
+
+unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
+				    struct ieee80211_vif *vif,
+				    bool tdls, bool cmd_q)
+{
+	struct iwl_fw_dbg_trigger_tlv *trigger;
+	struct iwl_fw_dbg_trigger_txq_timer *txq_timer;
+	unsigned int default_timeout =
+		cmd_q ? IWL_DEF_WD_TIMEOUT : mvm->cfg->base_params->wd_timeout;
+
+	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_TXQ_TIMERS))
+		return iwlmvm_mod_params.tfd_q_hang_detect ?
+			default_timeout : IWL_WATCHDOG_DISABLED;
+
+	trigger = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_TXQ_TIMERS);
+	txq_timer = (void *)trigger->data;
+
+	if (tdls)
+		return le32_to_cpu(txq_timer->tdls);
+
+	if (cmd_q)
+		return le32_to_cpu(txq_timer->command_queue);
+
+	if (WARN_ON(!vif))
+		return default_timeout;
+
+	switch (ieee80211_vif_type_p2p(vif)) {
+	case NL80211_IFTYPE_ADHOC:
+		return le32_to_cpu(txq_timer->ibss);
+	case NL80211_IFTYPE_STATION:
+		return le32_to_cpu(txq_timer->bss);
+	case NL80211_IFTYPE_AP:
+		return le32_to_cpu(txq_timer->softap);
+	case NL80211_IFTYPE_P2P_CLIENT:
+		return le32_to_cpu(txq_timer->p2p_client);
+	case NL80211_IFTYPE_P2P_GO:
+		return le32_to_cpu(txq_timer->p2p_go);
+	case NL80211_IFTYPE_P2P_DEVICE:
+		return le32_to_cpu(txq_timer->p2p_device);
+	default:
+		WARN_ON(1);
+		return mvm->cfg->base_params->wd_timeout;
+	}
+}
+
+void iwl_mvm_connection_loss(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			     const char *errmsg)
+{
+	struct iwl_fw_dbg_trigger_tlv *trig;
+	struct iwl_fw_dbg_trigger_mlme *trig_mlme;
+
+	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_MLME))
+		goto out;
+
+	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_MLME);
+	trig_mlme = (void *)trig->data;
+	if (!iwl_fw_dbg_trigger_check_stop(mvm, vif, trig))
+		goto out;
+
+	if (trig_mlme->stop_connection_loss &&
+	    --trig_mlme->stop_connection_loss)
+		goto out;
+
+	iwl_mvm_fw_dbg_collect_trig(mvm, trig, "%s", errmsg);
+
+out:
+	ieee80211_connection_loss(vif);
 }

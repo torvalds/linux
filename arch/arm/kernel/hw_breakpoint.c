@@ -35,7 +35,6 @@
 #include <asm/cputype.h>
 #include <asm/current.h>
 #include <asm/hw_breakpoint.h>
-#include <asm/kdebug.h>
 #include <asm/traps.h>
 
 /* Breakpoint currently in use for each BRP. */
@@ -648,7 +647,7 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp)
 		 * Per-cpu breakpoints are not supported by our stepping
 		 * mechanism.
 		 */
-		if (!bp->hw.bp_target)
+		if (!bp->hw.target)
 			return -EINVAL;
 
 		/*

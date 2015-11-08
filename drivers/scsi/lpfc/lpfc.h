@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2014 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2015 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -230,6 +230,8 @@ struct lpfc_stats {
 	uint32_t elsRcvRRQ;
 	uint32_t elsRcvRTV;
 	uint32_t elsRcvECHO;
+	uint32_t elsRcvLCB;
+	uint32_t elsRcvRDP;
 	uint32_t elsXmitFLOGI;
 	uint32_t elsXmitFDISC;
 	uint32_t elsXmitPLOGI;
@@ -413,6 +415,9 @@ struct lpfc_vport {
 	uint32_t cfg_fcp_class;
 	uint32_t cfg_use_adisc;
 	uint32_t cfg_fdmi_on;
+#define LPFC_FDMI_SUPPORT	1	/* bit 0 - FDMI supported? */
+#define LPFC_FDMI_REG_DELAY	2	/* bit 1 - 60 sec registration delay */
+#define LPFC_FDMI_ALL_ATTRIB	4	/* bit 2 - register ALL attributes? */
 	uint32_t cfg_discovery_threads;
 	uint32_t cfg_log_verbose;
 	uint32_t cfg_max_luns;
@@ -490,15 +495,17 @@ struct unsol_rcv_ct_ctx {
 #define LPFC_USER_LINK_SPEED_8G		8	/* 8 Gigabaud */
 #define LPFC_USER_LINK_SPEED_10G	10	/* 10 Gigabaud */
 #define LPFC_USER_LINK_SPEED_16G	16	/* 16 Gigabaud */
-#define LPFC_USER_LINK_SPEED_MAX	LPFC_USER_LINK_SPEED_16G
-#define LPFC_USER_LINK_SPEED_BITMAP ((1 << LPFC_USER_LINK_SPEED_16G) | \
+#define LPFC_USER_LINK_SPEED_32G	32	/* 32 Gigabaud */
+#define LPFC_USER_LINK_SPEED_MAX	LPFC_USER_LINK_SPEED_32G
+#define LPFC_USER_LINK_SPEED_BITMAP  ((1ULL << LPFC_USER_LINK_SPEED_32G) | \
+				     (1 << LPFC_USER_LINK_SPEED_16G) | \
 				     (1 << LPFC_USER_LINK_SPEED_10G) | \
 				     (1 << LPFC_USER_LINK_SPEED_8G) | \
 				     (1 << LPFC_USER_LINK_SPEED_4G) | \
 				     (1 << LPFC_USER_LINK_SPEED_2G) | \
 				     (1 << LPFC_USER_LINK_SPEED_1G) | \
 				     (1 << LPFC_USER_LINK_SPEED_AUTO))
-#define LPFC_LINK_SPEED_STRING "0, 1, 2, 4, 8, 10, 16"
+#define LPFC_LINK_SPEED_STRING "0, 1, 2, 4, 8, 10, 16, 32"
 
 enum nemb_type {
 	nemb_mse = 1,

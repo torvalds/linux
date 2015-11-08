@@ -2514,7 +2514,8 @@ static struct dma_async_tx_descriptor *d40_prep_memcpy(struct dma_chan *chan,
 	sg_dma_len(&dst_sg) = size;
 	sg_dma_len(&src_sg) = size;
 
-	return d40_prep_sg(chan, &src_sg, &dst_sg, 1, DMA_NONE, dma_flags);
+	return d40_prep_sg(chan, &src_sg, &dst_sg, 1,
+			   DMA_MEM_TO_MEM, dma_flags);
 }
 
 static struct dma_async_tx_descriptor *
@@ -2526,7 +2527,8 @@ d40_prep_memcpy_sg(struct dma_chan *chan,
 	if (dst_nents != src_nents)
 		return NULL;
 
-	return d40_prep_sg(chan, src_sg, dst_sg, src_nents, DMA_NONE, dma_flags);
+	return d40_prep_sg(chan, src_sg, dst_sg, src_nents,
+			   DMA_MEM_TO_MEM, dma_flags);
 }
 
 static struct dma_async_tx_descriptor *
@@ -2851,7 +2853,7 @@ static void d40_ops_init(struct d40_base *base, struct dma_device *dev)
 		 * This controller can only access address at even
 		 * 32bit boundaries, i.e. 2^2
 		 */
-		dev->copy_align = 2;
+		dev->copy_align = DMAENGINE_ALIGN_4_BYTES;
 	}
 
 	if (dma_has_cap(DMA_SG, dev->cap_mask))
@@ -3548,7 +3550,7 @@ static int __init d40_probe(struct platform_device *pdev)
 
 	if (!plat_data) {
 		if (np) {
-			if(d40_of_probe(pdev, np)) {
+			if (d40_of_probe(pdev, np)) {
 				ret = -ENOMEM;
 				goto failure;
 			}

@@ -58,6 +58,7 @@
 #include <net/ipv6.h>
 #include <net/ip.h>
 #include <net/dsa.h>
+#include <net/flow_dissector.h>
 #include <linux/uaccess.h>
 
 __setup("ether=", netdev_boot_setup);
@@ -104,7 +105,7 @@ int eth_header(struct sk_buff *skb, struct net_device *dev,
 	 */
 
 	if (dev->flags & (IFF_LOOPBACK | IFF_NOARP)) {
-		memset(eth->h_dest, 0, ETH_ALEN);
+		eth_zero_addr(eth->h_dest);
 		return ETH_HLEN;
 	}
 
@@ -113,40 +114,7 @@ int eth_header(struct sk_buff *skb, struct net_device *dev,
 EXPORT_SYMBOL(eth_header);
 
 /**
- * eth_rebuild_header- rebuild the Ethernet MAC header.
- * @skb: socket buffer to update
- *
- * This is called after an ARP or IPV6 ndisc it's resolution on this
- * sk_buff. We now let protocol (ARP) fill in the other fields.
- *
- * This routine CANNOT use cached dst->neigh!
- * Really, it is used only when dst->neigh is wrong.
- */
-int eth_rebuild_header(struct sk_buff *skb)
-{
-	struct ethhdr *eth = (struct ethhdr *)skb->data;
-	struct net_device *dev = skb->dev;
-
-	switch (eth->h_proto) {
-#ifdef CONFIG_INET
-	case htons(ETH_P_IP):
-		return arp_find(eth->h_dest, skb);
-#endif
-	default:
-		netdev_dbg(dev,
-		       "%s: unable to resolve type %X addresses.\n",
-		       dev->name, ntohs(eth->h_proto));
-
-		memcpy(eth->h_source, dev->dev_addr, ETH_ALEN);
-		break;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(eth_rebuild_header);
-
-/**
- * eth_get_headlen - determine the the length of header for an ethernet frame
+ * eth_get_headlen - determine the length of header for an ethernet frame
  * @data: pointer to start of frame
  * @len: total length of frame
  *
@@ -159,13 +127,13 @@ u32 eth_get_headlen(void *data, unsigned int len)
 	struct flow_keys keys;
 
 	/* this should never happen, but better safe than sorry */
-	if (len < sizeof(*eth))
+	if (unlikely(len < sizeof(*eth)))
 		return len;
 
 	/* parse any remaining L2/L3 headers, check for L4 */
-	if (!__skb_flow_dissect(NULL, &keys, data,
-				eth->h_proto, sizeof(*eth), len))
-		return max_t(u32, keys.thoff, sizeof(*eth));
+	if (!skb_flow_dissect_flow_keys_buf(&keys, data, eth->h_proto,
+					    sizeof(*eth), len, 0))
+		return max_t(u32, keys.control.thoff, sizeof(*eth));
 
 	/* parse for any L4 headers */
 	return min_t(u32, __skb_get_poff(NULL, data, &keys, len), len);
@@ -189,10 +157,11 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 
 	skb->dev = dev;
 	skb_reset_mac_header(skb);
-	skb_pull_inline(skb, ETH_HLEN);
-	eth = eth_hdr(skb);
 
-	if (unlikely(is_multicast_ether_addr(eth->h_dest))) {
+	eth = (struct ethhdr *)skb->data;
+	skb_pull_inline(skb, ETH_HLEN);
+
+	if (unlikely(is_multicast_ether_addr_64bits(eth->h_dest))) {
 		if (ether_addr_equal_64bits(eth->h_dest, dev->broadcast))
 			skb->pkt_type = PACKET_BROADCAST;
 		else
@@ -211,7 +180,7 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(netdev_uses_dsa(dev)))
 		return htons(ETH_P_XDSA);
 
-	if (likely(ntohs(eth->h_proto) >= ETH_P_802_3_MIN))
+	if (likely(eth_proto_is_802_3(eth->h_proto)))
 		return eth->h_proto;
 
 	/*
@@ -369,7 +338,6 @@ EXPORT_SYMBOL(eth_validate_addr);
 const struct header_ops eth_header_ops ____cacheline_aligned = {
 	.create		= eth_header,
 	.parse		= eth_header_parse,
-	.rebuild	= eth_rebuild_header,
 	.cache		= eth_header_cache,
 	.cache_update	= eth_header_cache_update,
 };
@@ -391,7 +359,7 @@ void ether_setup(struct net_device *dev)
 	dev->flags		= IFF_BROADCAST|IFF_MULTICAST;
 	dev->priv_flags		|= IFF_TX_SKB_SHARING;
 
-	memset(dev->broadcast, 0xFF, ETH_ALEN);
+	eth_broadcast_addr(dev->broadcast);
 
 }
 EXPORT_SYMBOL(ether_setup);
@@ -502,6 +470,7 @@ EXPORT_SYMBOL(eth_gro_complete);
 
 static struct packet_offload eth_packet_offload __read_mostly = {
 	.type = cpu_to_be16(ETH_P_TEB),
+	.priority = 10,
 	.callbacks = {
 		.gro_receive = eth_gro_receive,
 		.gro_complete = eth_gro_complete,

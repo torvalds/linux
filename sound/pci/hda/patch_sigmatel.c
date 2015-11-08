@@ -100,6 +100,7 @@ enum {
 	STAC_HP_ENVY_BASS,
 	STAC_HP_BNB13_EQ,
 	STAC_HP_ENVY_TS_BASS,
+	STAC_HP_ENVY_TS_DAC_BIND,
 	STAC_92HD83XXX_GPIO10_EAPD,
 	STAC_92HD83XXX_MODELS
 };
@@ -299,32 +300,33 @@ static void stac_gpio_set(struct hda_codec *codec, unsigned int mask,
 			  unsigned int dir_mask, unsigned int data)
 {
 	unsigned int gpiostate, gpiomask, gpiodir;
+	hda_nid_t fg = codec->core.afg;
 
 	codec_dbg(codec, "%s msk %x dir %x gpio %x\n", __func__, mask, dir_mask, data);
 
-	gpiostate = snd_hda_codec_read(codec, codec->afg, 0,
+	gpiostate = snd_hda_codec_read(codec, fg, 0,
 				       AC_VERB_GET_GPIO_DATA, 0);
 	gpiostate = (gpiostate & ~dir_mask) | (data & dir_mask);
 
-	gpiomask = snd_hda_codec_read(codec, codec->afg, 0,
+	gpiomask = snd_hda_codec_read(codec, fg, 0,
 				      AC_VERB_GET_GPIO_MASK, 0);
 	gpiomask |= mask;
 
-	gpiodir = snd_hda_codec_read(codec, codec->afg, 0,
+	gpiodir = snd_hda_codec_read(codec, fg, 0,
 				     AC_VERB_GET_GPIO_DIRECTION, 0);
 	gpiodir |= dir_mask;
 
 	/* Configure GPIOx as CMOS */
-	snd_hda_codec_write(codec, codec->afg, 0, 0x7e7, 0);
+	snd_hda_codec_write(codec, fg, 0, 0x7e7, 0);
 
-	snd_hda_codec_write(codec, codec->afg, 0,
+	snd_hda_codec_write(codec, fg, 0,
 			    AC_VERB_SET_GPIO_MASK, gpiomask);
-	snd_hda_codec_read(codec, codec->afg, 0,
+	snd_hda_codec_read(codec, fg, 0,
 			   AC_VERB_SET_GPIO_DIRECTION, gpiodir); /* sync */
 
 	msleep(1);
 
-	snd_hda_codec_read(codec, codec->afg, 0,
+	snd_hda_codec_read(codec, fg, 0,
 			   AC_VERB_SET_GPIO_DATA, gpiostate); /* sync */
 }
 
@@ -387,7 +389,7 @@ static unsigned int stac_vref_led_power_filter(struct hda_codec *codec,
 					       hda_nid_t nid,
 					       unsigned int power_state)
 {
-	if (nid == codec->afg && power_state == AC_PWRST_D3)
+	if (nid == codec->core.afg && power_state == AC_PWRST_D3)
 		return AC_PWRST_D1;
 	return snd_hda_gen_path_power_filter(codec, nid, power_state);
 }
@@ -432,7 +434,7 @@ static void stac_update_outputs(struct hda_codec *codec)
 
 	if (spec->gpio_mute)
 		spec->gen.master_mute =
-			!(snd_hda_codec_read(codec, codec->afg, 0,
+			!(snd_hda_codec_read(codec, codec->core.afg, 0,
 				AC_VERB_GET_GPIO_DATA, 0) & spec->gpio_mute);
 
 	snd_hda_gen_update_outputs(codec);
@@ -476,7 +478,7 @@ static void stac_toggle_power_map(struct hda_codec *codec, hda_nid_t nid,
 	if (val != spec->power_map_bits) {
 		spec->power_map_bits = val;
 		if (do_write)
-			snd_hda_codec_write(codec, codec->afg, 0,
+			snd_hda_codec_write(codec, codec->core.afg, 0,
 					    AC_VERB_IDT_SET_POWER_MAP, val);
 	}
 }
@@ -508,7 +510,8 @@ static void jack_update_power(struct hda_codec *codec,
 				      false);
 	}
 
-	snd_hda_codec_write(codec, codec->afg, 0, AC_VERB_IDT_SET_POWER_MAP,
+	snd_hda_codec_write(codec, codec->core.afg, 0,
+			    AC_VERB_IDT_SET_POWER_MAP,
 			    spec->power_map_bits);
 }
 
@@ -517,10 +520,10 @@ static void stac_vref_event(struct hda_codec *codec,
 {
 	unsigned int data;
 
-	data = snd_hda_codec_read(codec, codec->afg, 0,
+	data = snd_hda_codec_read(codec, codec->core.afg, 0,
 				  AC_VERB_GET_GPIO_DATA, 0);
 	/* toggle VREF state based on GPIOx status */
-	snd_hda_codec_write(codec, codec->afg, 0, 0x7e0,
+	snd_hda_codec_write(codec, codec->core.afg, 0, 0x7e0,
 			    !!(data & (1 << event->private_data)));
 }
 
@@ -622,7 +625,7 @@ static int stac_aloopback_put(struct snd_kcontrol *kcontrol,
 	/* Only return the bits defined by the shift value of the
 	 * first two bytes of the mask
 	 */
-	dac_mode = snd_hda_codec_read(codec, codec->afg, 0,
+	dac_mode = snd_hda_codec_read(codec, codec->core.afg, 0,
 				      kcontrol->private_value & 0xFFFF, 0x0);
 	dac_mode >>= spec->aloopback_shift;
 
@@ -634,7 +637,7 @@ static int stac_aloopback_put(struct snd_kcontrol *kcontrol,
 		dac_mode &= ~idx_val;
 	}
 
-	snd_hda_codec_write_cache(codec, codec->afg, 0,
+	snd_hda_codec_write_cache(codec, codec->core.afg, 0,
 		kcontrol->private_value >> 16, dac_mode);
 
 	return 1;
@@ -658,11 +661,11 @@ static int stac_aloopback_put(struct snd_kcontrol *kcontrol,
 /* check whether it's a HP laptop with a docking port */
 static bool hp_bnb2011_with_dock(struct hda_codec *codec)
 {
-	if (codec->vendor_id != 0x111d7605 &&
-	    codec->vendor_id != 0x111d76d1)
+	if (codec->core.vendor_id != 0x111d7605 &&
+	    codec->core.vendor_id != 0x111d76d1)
 		return false;
 
-	switch (codec->subsystem_id) {
+	switch (codec->core.subsystem_id) {
 	case 0x103c1618:
 	case 0x103c1619:
 	case 0x103c161a:
@@ -699,6 +702,7 @@ static bool hp_bnb2011_with_dock(struct hda_codec *codec)
 static bool hp_blike_system(u32 subsystem_id)
 {
 	switch (subsystem_id) {
+	case 0x103c1473: /* HP ProBook 6550b */
 	case 0x103c1520:
 	case 0x103c1521:
 	case 0x103c1523:
@@ -733,7 +737,7 @@ static void set_hp_led_gpio(struct hda_codec *codec)
 	if (spec->gpio_led)
 		return;
 
-	gpio = snd_hda_param_read(codec, codec->afg, AC_PAR_GPIO_CAP);
+	gpio = snd_hda_param_read(codec, codec->core.afg, AC_PAR_GPIO_CAP);
 	gpio &= AC_GPIO_IO_COUNT;
 	if (gpio > 3)
 		spec->gpio_led = 0x08; /* GPIO 3 */
@@ -777,7 +781,7 @@ static int find_mute_led_cfg(struct hda_codec *codec, int default_polarity)
 			   &spec->gpio_led_polarity,
 			   &spec->gpio_led) == 2) {
 			unsigned int max_gpio;
-			max_gpio = snd_hda_param_read(codec, codec->afg,
+			max_gpio = snd_hda_param_read(codec, codec->core.afg,
 						      AC_PAR_GPIO_CAP);
 			max_gpio &= AC_GPIO_IO_COUNT;
 			if (spec->gpio_led < max_gpio)
@@ -807,7 +811,7 @@ static int find_mute_led_cfg(struct hda_codec *codec, int default_polarity)
 	 * we statically set the GPIO - if not a B-series system
 	 * and default polarity is provided
 	 */
-	if (!hp_blike_system(codec->subsystem_id) &&
+	if (!hp_blike_system(codec->core.subsystem_id) &&
 	    (default_polarity == 0 || default_polarity == 1)) {
 		set_hp_led_gpio(codec);
 		spec->gpio_led_polarity = default_polarity;
@@ -1048,12 +1052,9 @@ static const struct hda_verb stac92hd71bxx_core_init[] = {
 	{}
 };
 
-static const struct hda_verb stac92hd71bxx_unmute_core_init[] = {
+static const hda_nid_t stac92hd71bxx_unmute_nids[] = {
 	/* unmute right and left channels for nodes 0x0f, 0xa, 0x0d */
-	{ 0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{ 0x0a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{ 0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{}
+	0x0f, 0x0a, 0x0d, 0
 };
 
 static const struct hda_verb stac925x_core_init[] = {
@@ -2132,8 +2133,10 @@ static void stac92hd83xxx_fixup_hp_mic_led(struct hda_codec *codec,
 
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		spec->mic_mute_led_gpio = 0x08; /* GPIO3 */
+#ifdef CONFIG_PM
 		/* resetting controller clears GPIO, so we need to keep on */
-		codec->bus->power_keep_link_on = 1;
+		codec->core.power_caps &= ~AC_PWRST_CLKSTOP;
+#endif
 	}
 }
 
@@ -2168,6 +2171,22 @@ static void stac92hd83xxx_fixup_gpio10_eapd(struct hda_codec *codec,
 	spec->eapd_mask = spec->gpio_mask = spec->gpio_dir =
 		spec->gpio_data = 0x10;
 	spec->eapd_switch = 0;
+}
+
+static void hp_envy_ts_fixup_dac_bind(struct hda_codec *codec,
+					    const struct hda_fixup *fix,
+					    int action)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	static hda_nid_t preferred_pairs[] = {
+		0xd, 0x13,
+		0
+	};
+
+	if (action != HDA_FIXUP_ACT_PRE_PROBE)
+		return;
+
+	spec->gen.preferred_dacs = preferred_pairs;
 }
 
 static const struct hda_verb hp_bnb13_eq_verbs[] = {
@@ -2685,6 +2704,12 @@ static const struct hda_fixup stac92hd83xxx_fixups[] = {
 			{}
 		},
 	},
+	[STAC_HP_ENVY_TS_DAC_BIND] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = hp_envy_ts_fixup_dac_bind,
+		.chained = true,
+		.chain_id = STAC_HP_ENVY_TS_BASS,
+	},
 	[STAC_92HD83XXX_GPIO10_EAPD] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = stac92hd83xxx_fixup_gpio10_eapd,
@@ -2763,6 +2788,8 @@ static const struct snd_pci_quirk stac92hd83xxx_fixup_tbl[] = {
 			  "HP bNB13", STAC_HP_BNB13_EQ),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x190e,
 			  "HP ENVY TS", STAC_HP_ENVY_TS_BASS),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x1967,
+			  "HP ENVY TS", STAC_HP_ENVY_TS_DAC_BIND),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x1940,
 			  "HP bNB13", STAC_HP_BNB13_EQ),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x1941,
@@ -2894,7 +2921,8 @@ static const struct snd_pci_quirk stac92hd83xxx_fixup_tbl[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x148a,
 		      "HP Mini", STAC_92HD83XXX_HP_LED),
 	SND_PCI_QUIRK_VENDOR(PCI_VENDOR_ID_HP, "HP", STAC_92HD83XXX_HP),
-	SND_PCI_QUIRK(PCI_VENDOR_ID_TOSHIBA, 0xfa91,
+	/* match both for 0xfa91 and 0xfa93 */
+	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_TOSHIBA, 0xfffd, 0xfa91,
 		      "Toshiba Satellite S50D", STAC_92HD83XXX_GPIO10_EAPD),
 	{} /* terminator */
 };
@@ -3029,9 +3057,9 @@ static void stac92hd71bxx_fixup_hp_m4(struct hda_codec *codec,
 		return;
 
 	/* Enable VREF power saving on GPIO1 detect */
-	snd_hda_codec_write_cache(codec, codec->afg, 0,
+	snd_hda_codec_write_cache(codec, codec->core.afg, 0,
 				  AC_VERB_SET_GPIO_UNSOLICITED_RSP_MASK, 0x02);
-	jack = snd_hda_jack_detect_enable_callback(codec, codec->afg,
+	jack = snd_hda_jack_detect_enable_callback(codec, codec->core.afg,
 						   stac_vref_event);
 	if (!IS_ERR(jack))
 		jack->private_data = 0x02;
@@ -3091,7 +3119,7 @@ static void stac92hd71bxx_fixup_hp(struct hda_codec *codec,
 	if (action != HDA_FIXUP_ACT_PRE_PROBE)
 		return;
 
-	if (hp_blike_system(codec->subsystem_id)) {
+	if (hp_blike_system(codec->core.subsystem_id)) {
 		unsigned int pin_cfg = snd_hda_codec_get_pincfg(codec, 0x0f);
 		if (get_defcfg_device(pin_cfg) == AC_JACK_LINE_OUT ||
 			get_defcfg_device(pin_cfg) == AC_JACK_SPEAKER  ||
@@ -3790,7 +3818,7 @@ static void stac927x_fixup_dell_dmic(struct hda_codec *codec,
 	if (action != HDA_FIXUP_ACT_PRE_PROBE)
 		return;
 
-	if (codec->subsystem_id != 0x1028022f) {
+	if (codec->core.subsystem_id != 0x1028022f) {
 		/* GPIO2 High = Enable EAPD */
 		spec->eapd_mask = spec->gpio_mask = 0x04;
 		spec->gpio_dir = spec->gpio_data = 0x04;
@@ -4051,9 +4079,9 @@ static void stac9205_fixup_dell_m43(struct hda_codec *codec,
 		snd_hda_apply_pincfgs(codec, dell_9205_m43_pin_configs);
 
 		/* Enable unsol response for GPIO4/Dock HP connection */
-		snd_hda_codec_write_cache(codec, codec->afg, 0,
+		snd_hda_codec_write_cache(codec, codec->core.afg, 0,
 			AC_VERB_SET_GPIO_UNSOLICITED_RSP_MASK, 0x10);
-		jack = snd_hda_jack_detect_enable_callback(codec, codec->afg,
+		jack = snd_hda_jack_detect_enable_callback(codec, codec->core.afg,
 							   stac_vref_event);
 		if (!IS_ERR(jack))
 			jack->private_data = 0x01;
@@ -4223,6 +4251,12 @@ static int stac_parse_auto_config(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
+	if (spec->vref_mute_led_nid) {
+		err = snd_hda_gen_fix_pin_power(codec, spec->vref_mute_led_nid);
+		if (err < 0)
+			return err;
+	}
+
 	/* setup analog beep controls */
 	if (spec->anabeep_nid > 0) {
 		err = stac_auto_create_beep_ctls(codec,
@@ -4259,6 +4293,10 @@ static int stac_parse_auto_config(struct hda_codec *codec)
 
 	if (spec->aloopback_ctl &&
 	    snd_hda_get_bool_hint(codec, "loopback") == 1) {
+		unsigned int wr_verb =
+			spec->aloopback_ctl->private_value >> 16;
+		if (snd_hdac_regmap_add_vendor_verb(&codec->core, wr_verb))
+			return -ENOMEM;
 		if (!snd_hda_gen_add_kctl(&spec->gen, NULL, spec->aloopback_ctl))
 			return -ENOMEM;
 	}
@@ -4294,7 +4332,7 @@ static int stac_init(struct hda_codec *codec)
 
 	/* sync the power-map */
 	if (spec->num_pwrs)
-		snd_hda_codec_write(codec, codec->afg, 0,
+		snd_hda_codec_write(codec, codec->core.afg, 0,
 				    AC_VERB_IDT_SET_POWER_MAP,
 				    spec->power_map_bits);
 
@@ -4326,11 +4364,11 @@ static void stac_shutup(struct hda_codec *codec)
 
 #define stac_free	snd_hda_gen_free
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 static void stac92hd_proc_hook(struct snd_info_buffer *buffer,
 			       struct hda_codec *codec, hda_nid_t nid)
 {
-	if (nid == codec->afg)
+	if (nid == codec->core.afg)
 		snd_iprintf(buffer, "Power-Map: 0x%02x\n", 
 			    snd_hda_codec_read(codec, nid, 0,
 					       AC_VERB_IDT_GET_POWER_MAP, 0));
@@ -4341,7 +4379,7 @@ static void analog_loop_proc_hook(struct snd_info_buffer *buffer,
 				  unsigned int verb)
 {
 	snd_iprintf(buffer, "Analog Loopback: 0x%02x\n",
-		    snd_hda_codec_read(codec, codec->afg, 0, verb, 0));
+		    snd_hda_codec_read(codec, codec->core.afg, 0, verb, 0));
 }
 
 /* stac92hd71bxx, stac92hd73xx */
@@ -4349,21 +4387,21 @@ static void stac92hd7x_proc_hook(struct snd_info_buffer *buffer,
 				 struct hda_codec *codec, hda_nid_t nid)
 {
 	stac92hd_proc_hook(buffer, codec, nid);
-	if (nid == codec->afg)
+	if (nid == codec->core.afg)
 		analog_loop_proc_hook(buffer, codec, 0xfa0);
 }
 
 static void stac9205_proc_hook(struct snd_info_buffer *buffer,
 			       struct hda_codec *codec, hda_nid_t nid)
 {
-	if (nid == codec->afg)
+	if (nid == codec->core.afg)
 		analog_loop_proc_hook(buffer, codec, 0xfe0);
 }
 
 static void stac927x_proc_hook(struct snd_info_buffer *buffer,
 			       struct hda_codec *codec, hda_nid_t nid)
 {
-	if (nid == codec->afg)
+	if (nid == codec->core.afg)
 		analog_loop_proc_hook(buffer, codec, 0xfeb);
 }
 #else
@@ -4406,6 +4444,7 @@ static int alloc_stac_spec(struct hda_codec *codec)
 	codec->spec = spec;
 	codec->no_trigger_sense = 1; /* seems common with STAC/IDT codecs */
 	spec->gen.dac_min_mute = true;
+	codec->patch_ops = stac_patch_ops;
 	return 0;
 }
 
@@ -4422,7 +4461,6 @@ static int patch_stac9200(struct hda_codec *codec)
 	spec->linear_tone_beep = 1;
 	spec->gen.own_eapd_ctl = 1;
 
-	codec->patch_ops = stac_patch_ops;
 	codec->power_filter = snd_hda_codec_eapd_power_filter;
 
 	snd_hda_add_verbs(codec, stac9200_eapd_init);
@@ -4455,8 +4493,6 @@ static int patch_stac925x(struct hda_codec *codec)
 	spec->linear_tone_beep = 1;
 	spec->gen.own_eapd_ctl = 1;
 
-	codec->patch_ops = stac_patch_ops;
-
 	snd_hda_add_verbs(codec, stac925x_core_init);
 
 	snd_hda_pick_fixup(codec, stac925x_models, stac925x_fixup_tbl,
@@ -4485,6 +4521,11 @@ static int patch_stac92hd73xx(struct hda_codec *codec)
 		return err;
 
 	spec = codec->spec;
+	/* enable power_save_node only for new 92HD89xx chips, as it causes
+	 * click noises on old 92HD73xx chips.
+	 */
+	if ((codec->core.vendor_id & 0xfffffff0) != 0x111d7670)
+		codec->power_save_node = 1;
 	spec->linear_tone_beep = 0;
 	spec->gen.mixer_nid = 0x1d;
 	spec->have_spdif_mux = 1;
@@ -4524,8 +4565,6 @@ static int patch_stac92hd73xx(struct hda_codec *codec)
 
 	spec->gen.own_eapd_ctl = 1;
 	spec->gen.power_down_unused = 1;
-
-	codec->patch_ops = stac_patch_ops;
 
 	snd_hda_pick_fixup(codec, stac92hd73xx_models, stac92hd73xx_fixup_tbl,
 			   stac92hd73xx_fixups);
@@ -4587,9 +4626,11 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
-	codec->epss = 0; /* longer delay needed for D3 */
+	/* longer delay needed for D3 */
+	codec->core.power_caps &= ~AC_PWRST_EPSS;
 
 	spec = codec->spec;
+	codec->power_save_node = 1;
 	spec->linear_tone_beep = 0;
 	spec->gen.own_eapd_ctl = 1;
 	spec->gen.power_down_unused = 1;
@@ -4599,8 +4640,6 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 	spec->pwr_nids = stac92hd83xxx_pwr_nids;
 	spec->num_pwrs = ARRAY_SIZE(stac92hd83xxx_pwr_nids);
 	spec->default_polarity = -1; /* no default cfg */
-
-	codec->patch_ops = stac_patch_ops;
 
 	snd_hda_add_verbs(codec, stac92hd83xxx_core_init);
 
@@ -4636,9 +4675,11 @@ static int patch_stac92hd95(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
-	codec->epss = 0; /* longer delay needed for D3 */
+	/* longer delay needed for D3 */
+	codec->core.power_caps &= ~AC_PWRST_EPSS;
 
 	spec = codec->spec;
+	codec->power_save_node = 1;
 	spec->linear_tone_beep = 0;
 	spec->gen.own_eapd_ctl = 1;
 	spec->gen.power_down_unused = 1;
@@ -4647,8 +4688,6 @@ static int patch_stac92hd95(struct hda_codec *codec)
 	spec->pwr_nids = stac92hd95_pwr_nids;
 	spec->num_pwrs = ARRAY_SIZE(stac92hd95_pwr_nids);
 	spec->default_polarity = 0;
-
-	codec->patch_ops = stac_patch_ops;
 
 	snd_hda_pick_fixup(codec, stac92hd95_models, stac92hd95_fixup_tbl,
 			   stac92hd95_fixups);
@@ -4672,7 +4711,7 @@ static int patch_stac92hd95(struct hda_codec *codec)
 static int patch_stac92hd71bxx(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec;
-	const struct hda_verb *unmute_init = stac92hd71bxx_unmute_core_init;
+	const hda_nid_t *unmute_nids = stac92hd71bxx_unmute_nids;
 	int err;
 
 	err = alloc_stac_spec(codec);
@@ -4680,36 +4719,36 @@ static int patch_stac92hd71bxx(struct hda_codec *codec)
 		return err;
 
 	spec = codec->spec;
+	/* disabled power_save_node since it causes noises on a Dell machine */
+	/* codec->power_save_node = 1; */
 	spec->linear_tone_beep = 0;
 	spec->gen.own_eapd_ctl = 1;
 	spec->gen.power_down_unused = 1;
 	spec->gen.mixer_nid = 0x17;
 	spec->have_spdif_mux = 1;
 
-	codec->patch_ops = stac_patch_ops;
-
 	/* GPIO0 = EAPD */
 	spec->gpio_mask = 0x01;
 	spec->gpio_dir = 0x01;
 	spec->gpio_data = 0x01;
 
-	switch (codec->vendor_id) {
+	switch (codec->core.vendor_id) {
 	case 0x111d76b6: /* 4 Port without Analog Mixer */
 	case 0x111d76b7:
-		unmute_init++;
+		unmute_nids++;
 		break;
 	case 0x111d7608: /* 5 Port with Analog Mixer */
-		if ((codec->revision_id & 0xf) == 0 ||
-		    (codec->revision_id & 0xf) == 1)
+		if ((codec->core.revision_id & 0xf) == 0 ||
+		    (codec->core.revision_id & 0xf) == 1)
 			spec->stream_delay = 40; /* 40 milliseconds */
 
 		/* disable VSW */
-		unmute_init++;
+		unmute_nids++;
 		snd_hda_codec_set_pincfg(codec, 0x0f, 0x40f000f0);
 		snd_hda_codec_set_pincfg(codec, 0x19, 0x40f000f3);
 		break;
 	case 0x111d7603: /* 6 Port with Analog Mixer */
-		if ((codec->revision_id & 0xf) == 1)
+		if ((codec->core.revision_id & 0xf) == 1)
 			spec->stream_delay = 40; /* 40 milliseconds */
 
 		break;
@@ -4718,8 +4757,12 @@ static int patch_stac92hd71bxx(struct hda_codec *codec)
 	if (get_wcaps_type(get_wcaps(codec, 0x28)) == AC_WID_VOL_KNB)
 		snd_hda_add_verbs(codec, stac92hd71bxx_core_init);
 
-	if (get_wcaps(codec, 0xa) & AC_WCAP_IN_AMP)
-		snd_hda_sequence_write_cache(codec, unmute_init);
+	if (get_wcaps(codec, 0xa) & AC_WCAP_IN_AMP) {
+		const hda_nid_t *p;
+		for (p = unmute_nids; *p; p++)
+			snd_hda_codec_amp_init_stereo(codec, *p, HDA_INPUT, 0,
+						      0xff, 0x00);
+	}
 
 	spec->aloopback_ctl = &stac92hd71bxx_loopback;
 	spec->aloopback_mask = 0x50;
@@ -4761,8 +4804,6 @@ static int patch_stac922x(struct hda_codec *codec)
 	spec = codec->spec;
 	spec->linear_tone_beep = 1;
 	spec->gen.own_eapd_ctl = 1;
-
-	codec->patch_ops = stac_patch_ops;
 
 	snd_hda_add_verbs(codec, stac922x_core_init);
 
@@ -4818,8 +4859,6 @@ static int patch_stac927x(struct hda_codec *codec)
 	spec->aloopback_mask = 0x40;
 	spec->aloopback_shift = 0;
 	spec->eapd_switch = 1;
-
-	codec->patch_ops = stac_patch_ops;
 
 	snd_hda_pick_fixup(codec, stac927x_models, stac927x_fixup_tbl,
 			   stac927x_fixups);
@@ -4881,8 +4920,6 @@ static int patch_stac9205(struct hda_codec *codec)
 
 	/* Turn on/off EAPD per HP plugging */
 	spec->eapd_switch = 1;
-
-	codec->patch_ops = stac_patch_ops;
 
 	snd_hda_pick_fixup(codec, stac9205_models, stac9205_fixup_tbl,
 			   stac9205_fixups);
@@ -4955,8 +4992,6 @@ static int patch_stac9872(struct hda_codec *codec)
 	spec->linear_tone_beep = 1;
 	spec->gen.own_eapd_ctl = 1;
 
-	codec->patch_ops = stac_patch_ops;
-
 	snd_hda_add_verbs(codec, stac9872_core_init);
 
 	snd_hda_pick_fixup(codec, stac9872_models, stac9872_fixup_tbl,
@@ -4978,133 +5013,119 @@ static int patch_stac9872(struct hda_codec *codec)
 /*
  * patch entries
  */
-static const struct hda_codec_preset snd_hda_preset_sigmatel[] = {
- 	{ .id = 0x83847690, .name = "STAC9200", .patch = patch_stac9200 },
- 	{ .id = 0x83847882, .name = "STAC9220 A1", .patch = patch_stac922x },
- 	{ .id = 0x83847680, .name = "STAC9221 A1", .patch = patch_stac922x },
- 	{ .id = 0x83847880, .name = "STAC9220 A2", .patch = patch_stac922x },
- 	{ .id = 0x83847681, .name = "STAC9220D/9223D A2", .patch = patch_stac922x },
- 	{ .id = 0x83847682, .name = "STAC9221 A2", .patch = patch_stac922x },
- 	{ .id = 0x83847683, .name = "STAC9221D A2", .patch = patch_stac922x },
- 	{ .id = 0x83847618, .name = "STAC9227", .patch = patch_stac927x },
- 	{ .id = 0x83847619, .name = "STAC9227", .patch = patch_stac927x },
- 	{ .id = 0x83847616, .name = "STAC9228", .patch = patch_stac927x },
- 	{ .id = 0x83847617, .name = "STAC9228", .patch = patch_stac927x },
- 	{ .id = 0x83847614, .name = "STAC9229", .patch = patch_stac927x },
- 	{ .id = 0x83847615, .name = "STAC9229", .patch = patch_stac927x },
- 	{ .id = 0x83847620, .name = "STAC9274", .patch = patch_stac927x },
- 	{ .id = 0x83847621, .name = "STAC9274D", .patch = patch_stac927x },
- 	{ .id = 0x83847622, .name = "STAC9273X", .patch = patch_stac927x },
- 	{ .id = 0x83847623, .name = "STAC9273D", .patch = patch_stac927x },
- 	{ .id = 0x83847624, .name = "STAC9272X", .patch = patch_stac927x },
- 	{ .id = 0x83847625, .name = "STAC9272D", .patch = patch_stac927x },
- 	{ .id = 0x83847626, .name = "STAC9271X", .patch = patch_stac927x },
- 	{ .id = 0x83847627, .name = "STAC9271D", .patch = patch_stac927x },
- 	{ .id = 0x83847628, .name = "STAC9274X5NH", .patch = patch_stac927x },
- 	{ .id = 0x83847629, .name = "STAC9274D5NH", .patch = patch_stac927x },
-	{ .id = 0x83847632, .name = "STAC9202",  .patch = patch_stac925x },
-	{ .id = 0x83847633, .name = "STAC9202D", .patch = patch_stac925x },
-	{ .id = 0x83847634, .name = "STAC9250", .patch = patch_stac925x },
-	{ .id = 0x83847635, .name = "STAC9250D", .patch = patch_stac925x },
-	{ .id = 0x83847636, .name = "STAC9251", .patch = patch_stac925x },
-	{ .id = 0x83847637, .name = "STAC9250D", .patch = patch_stac925x },
-	{ .id = 0x83847645, .name = "92HD206X", .patch = patch_stac927x },
-	{ .id = 0x83847646, .name = "92HD206D", .patch = patch_stac927x },
- 	/* The following does not take into account .id=0x83847661 when subsys =
- 	 * 104D0C00 which is STAC9225s. Because of this, some SZ Notebooks are
- 	 * currently not fully supported.
- 	 */
- 	{ .id = 0x83847661, .name = "CXD9872RD/K", .patch = patch_stac9872 },
- 	{ .id = 0x83847662, .name = "STAC9872AK", .patch = patch_stac9872 },
- 	{ .id = 0x83847664, .name = "CXD9872AKD", .patch = patch_stac9872 },
-	{ .id = 0x83847698, .name = "STAC9205", .patch = patch_stac9205 },
- 	{ .id = 0x838476a0, .name = "STAC9205", .patch = patch_stac9205 },
- 	{ .id = 0x838476a1, .name = "STAC9205D", .patch = patch_stac9205 },
- 	{ .id = 0x838476a2, .name = "STAC9204", .patch = patch_stac9205 },
- 	{ .id = 0x838476a3, .name = "STAC9204D", .patch = patch_stac9205 },
- 	{ .id = 0x838476a4, .name = "STAC9255", .patch = patch_stac9205 },
- 	{ .id = 0x838476a5, .name = "STAC9255D", .patch = patch_stac9205 },
- 	{ .id = 0x838476a6, .name = "STAC9254", .patch = patch_stac9205 },
- 	{ .id = 0x838476a7, .name = "STAC9254D", .patch = patch_stac9205 },
-	{ .id = 0x111d7603, .name = "92HD75B3X5", .patch = patch_stac92hd71bxx},
-	{ .id = 0x111d7604, .name = "92HD83C1X5", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76d4, .name = "92HD83C1C5", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d7605, .name = "92HD81B1X5", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76d5, .name = "92HD81B1C5", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76d1, .name = "92HD87B1/3", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76d9, .name = "92HD87B2/4", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d7666, .name = "92HD88B3", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d7667, .name = "92HD88B1", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d7668, .name = "92HD88B2", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d7669, .name = "92HD88B4", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d7608, .name = "92HD75B2X5", .patch = patch_stac92hd71bxx},
-	{ .id = 0x111d7674, .name = "92HD73D1X5", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d7675, .name = "92HD73C1X5", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d7676, .name = "92HD73E1X5", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d7695, .name = "92HD95", .patch = patch_stac92hd95 },
-	{ .id = 0x111d76b0, .name = "92HD71B8X", .patch = patch_stac92hd71bxx },
-	{ .id = 0x111d76b1, .name = "92HD71B8X", .patch = patch_stac92hd71bxx },
-	{ .id = 0x111d76b2, .name = "92HD71B7X", .patch = patch_stac92hd71bxx },
-	{ .id = 0x111d76b3, .name = "92HD71B7X", .patch = patch_stac92hd71bxx },
-	{ .id = 0x111d76b4, .name = "92HD71B6X", .patch = patch_stac92hd71bxx },
-	{ .id = 0x111d76b5, .name = "92HD71B6X", .patch = patch_stac92hd71bxx },
-	{ .id = 0x111d76b6, .name = "92HD71B5X", .patch = patch_stac92hd71bxx },
-	{ .id = 0x111d76b7, .name = "92HD71B5X", .patch = patch_stac92hd71bxx },
-	{ .id = 0x111d76c0, .name = "92HD89C3", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76c1, .name = "92HD89C2", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76c2, .name = "92HD89C1", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76c3, .name = "92HD89B3", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76c4, .name = "92HD89B2", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76c5, .name = "92HD89B1", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76c6, .name = "92HD89E3", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76c7, .name = "92HD89E2", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76c8, .name = "92HD89E1", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76c9, .name = "92HD89D3", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76ca, .name = "92HD89D2", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76cb, .name = "92HD89D1", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76cc, .name = "92HD89F3", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76cd, .name = "92HD89F2", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76ce, .name = "92HD89F1", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76df, .name = "92HD93BXX", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76e0, .name = "92HD91BXX", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76e3, .name = "92HD98BXX", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76e5, .name = "92HD99BXX", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76e7, .name = "92HD90BXX", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76e8, .name = "92HD66B1X5", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76e9, .name = "92HD66B2X5", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76ea, .name = "92HD66B3X5", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76eb, .name = "92HD66C1X5", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76ec, .name = "92HD66C2X5", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76ed, .name = "92HD66C3X5", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76ee, .name = "92HD66B1X3", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76ef, .name = "92HD66B2X3", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76f0, .name = "92HD66B3X3", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76f1, .name = "92HD66C1X3", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76f2, .name = "92HD66C2X3", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76f3, .name = "92HD66C3/65", .patch = patch_stac92hd83xxx},
+static const struct hda_device_id snd_hda_id_sigmatel[] = {
+	HDA_CODEC_ENTRY(0x83847690, "STAC9200", patch_stac9200),
+	HDA_CODEC_ENTRY(0x83847882, "STAC9220 A1", patch_stac922x),
+	HDA_CODEC_ENTRY(0x83847680, "STAC9221 A1", patch_stac922x),
+	HDA_CODEC_ENTRY(0x83847880, "STAC9220 A2", patch_stac922x),
+	HDA_CODEC_ENTRY(0x83847681, "STAC9220D/9223D A2", patch_stac922x),
+	HDA_CODEC_ENTRY(0x83847682, "STAC9221 A2", patch_stac922x),
+	HDA_CODEC_ENTRY(0x83847683, "STAC9221D A2", patch_stac922x),
+	HDA_CODEC_ENTRY(0x83847618, "STAC9227", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847619, "STAC9227", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847616, "STAC9228", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847617, "STAC9228", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847614, "STAC9229", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847615, "STAC9229", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847620, "STAC9274", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847621, "STAC9274D", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847622, "STAC9273X", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847623, "STAC9273D", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847624, "STAC9272X", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847625, "STAC9272D", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847626, "STAC9271X", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847627, "STAC9271D", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847628, "STAC9274X5NH", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847629, "STAC9274D5NH", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847632, "STAC9202",  patch_stac925x),
+	HDA_CODEC_ENTRY(0x83847633, "STAC9202D", patch_stac925x),
+	HDA_CODEC_ENTRY(0x83847634, "STAC9250", patch_stac925x),
+	HDA_CODEC_ENTRY(0x83847635, "STAC9250D", patch_stac925x),
+	HDA_CODEC_ENTRY(0x83847636, "STAC9251", patch_stac925x),
+	HDA_CODEC_ENTRY(0x83847637, "STAC9250D", patch_stac925x),
+	HDA_CODEC_ENTRY(0x83847645, "92HD206X", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847646, "92HD206D", patch_stac927x),
+	/* The following does not take into account .id=0x83847661 when subsys =
+	 * 104D0C00 which is STAC9225s. Because of this, some SZ Notebooks are
+	 * currently not fully supported.
+	 */
+	HDA_CODEC_ENTRY(0x83847661, "CXD9872RD/K", patch_stac9872),
+	HDA_CODEC_ENTRY(0x83847662, "STAC9872AK", patch_stac9872),
+	HDA_CODEC_ENTRY(0x83847664, "CXD9872AKD", patch_stac9872),
+	HDA_CODEC_ENTRY(0x83847698, "STAC9205", patch_stac9205),
+	HDA_CODEC_ENTRY(0x838476a0, "STAC9205", patch_stac9205),
+	HDA_CODEC_ENTRY(0x838476a1, "STAC9205D", patch_stac9205),
+	HDA_CODEC_ENTRY(0x838476a2, "STAC9204", patch_stac9205),
+	HDA_CODEC_ENTRY(0x838476a3, "STAC9204D", patch_stac9205),
+	HDA_CODEC_ENTRY(0x838476a4, "STAC9255", patch_stac9205),
+	HDA_CODEC_ENTRY(0x838476a5, "STAC9255D", patch_stac9205),
+	HDA_CODEC_ENTRY(0x838476a6, "STAC9254", patch_stac9205),
+	HDA_CODEC_ENTRY(0x838476a7, "STAC9254D", patch_stac9205),
+	HDA_CODEC_ENTRY(0x111d7603, "92HD75B3X5", patch_stac92hd71bxx),
+	HDA_CODEC_ENTRY(0x111d7604, "92HD83C1X5", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76d4, "92HD83C1C5", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d7605, "92HD81B1X5", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76d5, "92HD81B1C5", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76d1, "92HD87B1/3", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76d9, "92HD87B2/4", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d7666, "92HD88B3", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d7667, "92HD88B1", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d7668, "92HD88B2", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d7669, "92HD88B4", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d7608, "92HD75B2X5", patch_stac92hd71bxx),
+	HDA_CODEC_ENTRY(0x111d7674, "92HD73D1X5", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d7675, "92HD73C1X5", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d7676, "92HD73E1X5", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d7695, "92HD95", patch_stac92hd95),
+	HDA_CODEC_ENTRY(0x111d76b0, "92HD71B8X", patch_stac92hd71bxx),
+	HDA_CODEC_ENTRY(0x111d76b1, "92HD71B8X", patch_stac92hd71bxx),
+	HDA_CODEC_ENTRY(0x111d76b2, "92HD71B7X", patch_stac92hd71bxx),
+	HDA_CODEC_ENTRY(0x111d76b3, "92HD71B7X", patch_stac92hd71bxx),
+	HDA_CODEC_ENTRY(0x111d76b4, "92HD71B6X", patch_stac92hd71bxx),
+	HDA_CODEC_ENTRY(0x111d76b5, "92HD71B6X", patch_stac92hd71bxx),
+	HDA_CODEC_ENTRY(0x111d76b6, "92HD71B5X", patch_stac92hd71bxx),
+	HDA_CODEC_ENTRY(0x111d76b7, "92HD71B5X", patch_stac92hd71bxx),
+	HDA_CODEC_ENTRY(0x111d76c0, "92HD89C3", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76c1, "92HD89C2", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76c2, "92HD89C1", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76c3, "92HD89B3", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76c4, "92HD89B2", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76c5, "92HD89B1", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76c6, "92HD89E3", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76c7, "92HD89E2", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76c8, "92HD89E1", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76c9, "92HD89D3", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76ca, "92HD89D2", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76cb, "92HD89D1", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76cc, "92HD89F3", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76cd, "92HD89F2", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76ce, "92HD89F1", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76df, "92HD93BXX", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76e0, "92HD91BXX", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76e3, "92HD98BXX", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76e5, "92HD99BXX", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76e7, "92HD90BXX", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76e8, "92HD66B1X5", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76e9, "92HD66B2X5", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76ea, "92HD66B3X5", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76eb, "92HD66C1X5", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76ec, "92HD66C2X5", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76ed, "92HD66C3X5", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76ee, "92HD66B1X3", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76ef, "92HD66B2X3", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76f0, "92HD66B3X3", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76f1, "92HD66C1X3", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76f2, "92HD66C2X3", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76f3, "92HD66C3/65", patch_stac92hd83xxx),
 	{} /* terminator */
 };
-
-MODULE_ALIAS("snd-hda-codec-id:8384*");
-MODULE_ALIAS("snd-hda-codec-id:111d*");
+MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_sigmatel);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("IDT/Sigmatel HD-audio codec");
 
-static struct hda_codec_preset_list sigmatel_list = {
-	.preset = snd_hda_preset_sigmatel,
-	.owner = THIS_MODULE,
+static struct hda_codec_driver sigmatel_driver = {
+	.id = snd_hda_id_sigmatel,
 };
 
-static int __init patch_sigmatel_init(void)
-{
-	return snd_hda_add_codec_preset(&sigmatel_list);
-}
-
-static void __exit patch_sigmatel_exit(void)
-{
-	snd_hda_delete_codec_preset(&sigmatel_list);
-}
-
-module_init(patch_sigmatel_init)
-module_exit(patch_sigmatel_exit)
+module_hda_codec_driver(sigmatel_driver);

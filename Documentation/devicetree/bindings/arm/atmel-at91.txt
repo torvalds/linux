@@ -27,6 +27,8 @@ compatible: must be one of:
     o "atmel,at91sam9xe"
  * "atmel,sama5" for SoCs using a Cortex-A5, shall be extended with the specific
    SoC family:
+    o "atmel,sama5d2" shall be extended with the specific SoC compatible:
+       - "atmel,sama5d27"
     o "atmel,sama5d3" shall be extended with the specific SoC compatible:
        - "atmel,sama5d31"
        - "atmel,sama5d33"
@@ -46,10 +48,13 @@ PIT Timer required properties:
   shared across all System Controller members.
 
 System Timer (ST) required properties:
-- compatible: Should be "atmel,at91rm9200-st"
+- compatible: Should be "atmel,at91rm9200-st", "syscon", "simple-mfd"
 - reg: Should contain registers location and length
 - interrupts: Should contain interrupt for the ST which is the IRQ line
   shared across all System Controller members.
+- clocks: phandle to input clock.
+Its subnodes can be:
+- watchdog: compatible should be "atmel,at91rm9200-wdt"
 
 TC/TCLIB Timer required properties:
 - compatible: Should be "atmel,<chip>-tcb".
@@ -59,7 +64,7 @@ TC/TCLIB Timer required properties:
   Note that you can specify several interrupt cells if the TC
   block has one interrupt per channel.
 - clock-names: tuple listing input clock names.
-	Required elements: "t0_clk"
+	Required elements: "t0_clk", "slow_clk"
 	Optional elements: "t1_clk", "t2_clk"
 - clocks: phandles to input clocks.
 
@@ -85,18 +90,20 @@ One interrupt per TC channel in a TC block:
 
 RSTC Reset Controller required properties:
 - compatible: Should be "atmel,<chip>-rstc".
-  <chip> can be "at91sam9260" or "at91sam9g45"
+  <chip> can be "at91sam9260" or "at91sam9g45" or "sama5d3"
 - reg: Should contain registers location and length
+- clocks: phandle to input clock.
 
 Example:
 
 	rstc@fffffd00 {
 		compatible = "atmel,at91sam9260-rstc";
 		reg = <0xfffffd00 0x10>;
+		clocks = <&clk32k>;
 	};
 
 RAMC SDRAM/DDR Controller required properties:
-- compatible: Should be "atmel,at91rm9200-sdramc",
+- compatible: Should be "atmel,at91rm9200-sdramc", "syscon"
 			"atmel,at91sam9260-sdramc",
 			"atmel,at91sam9g45-ddramc",
 			"atmel,sama5d3-ddramc",
@@ -115,6 +122,7 @@ required properties:
 - compatible: Should be "atmel,<chip>-shdwc".
   <chip> can be "at91sam9260", "at91sam9rl" or "at91sam9x5".
 - reg: Should contain registers location and length
+- clocks: phandle to input clock.
 
 optional properties:
 - atmel,wakeup-mode: String, operation mode of the wakeup mode.
@@ -133,9 +141,10 @@ optional at91sam9x5 properties:
 
 Example:
 
-	rstc@fffffd00 {
-		compatible = "atmel,at91sam9260-rstc";
-		reg = <0xfffffd00 0x10>;
+	shdwc@fffffd10 {
+		compatible = "atmel,at91sam9260-shdwc";
+		reg = <0xfffffd10 0x10>;
+		clocks = <&clk32k>;
 	};
 
 Special Function Registers (SFR)

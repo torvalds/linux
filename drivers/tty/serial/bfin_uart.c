@@ -74,8 +74,8 @@ static void bfin_serial_tx_chars(struct bfin_serial_port *uart);
 
 static void bfin_serial_reset_irda(struct uart_port *port);
 
-#if defined(CONFIG_SERIAL_BFIN_CTSRTS) || \
-	defined(CONFIG_SERIAL_BFIN_HARD_CTSRTS)
+#if defined(SERIAL_BFIN_CTSRTS) || \
+	defined(SERIAL_BFIN_HARD_CTSRTS)
 static unsigned int bfin_serial_get_mctrl(struct uart_port *port)
 {
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
@@ -110,7 +110,7 @@ static irqreturn_t bfin_serial_mctrl_cts_int(int irq, void *dev_id)
 	struct bfin_serial_port *uart = dev_id;
 	struct uart_port *uport = &uart->port;
 	unsigned int status = bfin_serial_get_mctrl(uport);
-#ifdef CONFIG_SERIAL_BFIN_HARD_CTSRTS
+#ifdef SERIAL_BFIN_HARD_CTSRTS
 
 	UART_CLEAR_SCTS(uart);
 	if (uport->hw_stopped) {
@@ -464,6 +464,7 @@ void bfin_serial_rx_dma_timeout(struct bfin_serial_port *uart)
 	int x_pos, pos;
 	unsigned long flags;
 
+	dma_disable_irq_nosync(uart->rx_dma_channel);
 	spin_lock_irqsave(&uart->rx_lock, flags);
 
 	/* 2D DMA RX buffer ring is used. Because curr_y_count and
@@ -496,6 +497,7 @@ void bfin_serial_rx_dma_timeout(struct bfin_serial_port *uart)
 	}
 
 	spin_unlock_irqrestore(&uart->rx_lock, flags);
+	dma_enable_irq(uart->rx_dma_channel);
 
 	mod_timer(&(uart->rx_dma_timer), jiffies + DMA_RX_FLUSH_JIFFIES);
 }
@@ -698,7 +700,7 @@ static int bfin_serial_startup(struct uart_port *port)
 # endif
 #endif
 
-#ifdef CONFIG_SERIAL_BFIN_CTSRTS
+#ifdef SERIAL_BFIN_CTSRTS
 	if (uart->cts_pin >= 0) {
 		if (request_irq(gpio_to_irq(uart->cts_pin),
 			bfin_serial_mctrl_cts_int,
@@ -716,7 +718,7 @@ static int bfin_serial_startup(struct uart_port *port)
 			gpio_direction_output(uart->rts_pin, 0);
 	}
 #endif
-#ifdef CONFIG_SERIAL_BFIN_HARD_CTSRTS
+#ifdef SERIAL_BFIN_HARD_CTSRTS
 	if (uart->cts_pin >= 0) {
 		if (request_irq(uart->status_irq, bfin_serial_mctrl_cts_int,
 			0, "BFIN_UART_MODEM_STATUS", uart)) {
@@ -764,13 +766,13 @@ static void bfin_serial_shutdown(struct uart_port *port)
 	free_irq(uart->tx_irq, uart);
 #endif
 
-#ifdef CONFIG_SERIAL_BFIN_CTSRTS
+#ifdef SERIAL_BFIN_CTSRTS
 	if (uart->cts_pin >= 0)
 		free_irq(gpio_to_irq(uart->cts_pin), uart);
 	if (uart->rts_pin >= 0)
 		gpio_free(uart->rts_pin);
 #endif
-#ifdef CONFIG_SERIAL_BFIN_HARD_CTSRTS
+#ifdef SERIAL_BFIN_HARD_CTSRTS
 	if (uart->cts_pin >= 0)
 		free_irq(uart->status_irq, uart);
 #endif
@@ -786,7 +788,7 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned int ier, lcr = 0;
 	unsigned long timeout;
 
-#ifdef CONFIG_SERIAL_BFIN_CTSRTS
+#ifdef SERIAL_BFIN_CTSRTS
 	if (old == NULL && uart->cts_pin != -1)
 		termios->c_cflag |= CRTSCTS;
 	else if (uart->cts_pin == -1)
@@ -1108,8 +1110,8 @@ bfin_serial_console_setup(struct console *co, char *options)
 	int baud = 57600;
 	int bits = 8;
 	int parity = 'n';
-# if defined(CONFIG_SERIAL_BFIN_CTSRTS) || \
-	defined(CONFIG_SERIAL_BFIN_HARD_CTSRTS)
+# if defined(SERIAL_BFIN_CTSRTS) || \
+	defined(SERIAL_BFIN_HARD_CTSRTS)
 	int flow = 'r';
 # else
 	int flow = 'n';
@@ -1320,8 +1322,8 @@ static int bfin_serial_probe(struct platform_device *pdev)
 		init_timer(&(uart->rx_dma_timer));
 #endif
 
-#if defined(CONFIG_SERIAL_BFIN_CTSRTS) || \
-	defined(CONFIG_SERIAL_BFIN_HARD_CTSRTS)
+#if defined(SERIAL_BFIN_CTSRTS) || \
+	defined(SERIAL_BFIN_HARD_CTSRTS)
 		res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 		if (res == NULL)
 			uart->cts_pin = -1;

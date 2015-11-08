@@ -63,7 +63,7 @@ int cfg80211_wext_giwname(struct net_device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_giwname);
+EXPORT_WEXT_HANDLER(cfg80211_wext_giwname);
 
 int cfg80211_wext_siwmode(struct net_device *dev, struct iw_request_info *info,
 			  u32 *mode, char *extra)
@@ -99,7 +99,7 @@ int cfg80211_wext_siwmode(struct net_device *dev, struct iw_request_info *info,
 
 	return cfg80211_change_iface(rdev, dev, type, NULL, &vifparams);
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_siwmode);
+EXPORT_WEXT_HANDLER(cfg80211_wext_siwmode);
 
 int cfg80211_wext_giwmode(struct net_device *dev, struct iw_request_info *info,
 			  u32 *mode, char *extra)
@@ -134,7 +134,7 @@ int cfg80211_wext_giwmode(struct net_device *dev, struct iw_request_info *info,
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_giwmode);
+EXPORT_WEXT_HANDLER(cfg80211_wext_giwmode);
 
 
 int cfg80211_wext_giwrange(struct net_device *dev,
@@ -248,7 +248,7 @@ int cfg80211_wext_giwrange(struct net_device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_giwrange);
+EXPORT_WEXT_HANDLER(cfg80211_wext_giwrange);
 
 
 /**
@@ -303,7 +303,7 @@ int cfg80211_wext_siwrts(struct net_device *dev,
 
 	return err;
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_siwrts);
+EXPORT_WEXT_HANDLER(cfg80211_wext_siwrts);
 
 int cfg80211_wext_giwrts(struct net_device *dev,
 			 struct iw_request_info *info,
@@ -317,7 +317,7 @@ int cfg80211_wext_giwrts(struct net_device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_giwrts);
+EXPORT_WEXT_HANDLER(cfg80211_wext_giwrts);
 
 int cfg80211_wext_siwfrag(struct net_device *dev,
 			  struct iw_request_info *info,
@@ -343,7 +343,7 @@ int cfg80211_wext_siwfrag(struct net_device *dev,
 
 	return err;
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_siwfrag);
+EXPORT_WEXT_HANDLER(cfg80211_wext_siwfrag);
 
 int cfg80211_wext_giwfrag(struct net_device *dev,
 			  struct iw_request_info *info,
@@ -357,7 +357,7 @@ int cfg80211_wext_giwfrag(struct net_device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_giwfrag);
+EXPORT_WEXT_HANDLER(cfg80211_wext_giwfrag);
 
 static int cfg80211_wext_siwretry(struct net_device *dev,
 				  struct iw_request_info *info,
@@ -427,7 +427,7 @@ int cfg80211_wext_giwretry(struct net_device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_giwretry);
+EXPORT_WEXT_HANDLER(cfg80211_wext_giwretry);
 
 static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 				     struct net_device *dev, bool pairwise,
@@ -1332,6 +1332,8 @@ static struct iw_statistics *cfg80211_wireless_stats(struct net_device *dev)
 	}
 	memcpy(bssid, wdev->current_bss->pub.bssid, ETH_ALEN);
 	wdev_unlock(wdev);
+
+	memset(&sinfo, 0, sizeof(sinfo));
 
 	if (rdev_get_station(rdev, dev, bssid, &sinfo))
 		return NULL;

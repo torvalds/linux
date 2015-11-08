@@ -68,21 +68,16 @@ int udf_build_ustr(struct ustr *dest, dstring *ptr, int size)
 /*
  * udf_build_ustr_exact
  */
-static int udf_build_ustr_exact(struct ustr *dest, dstring *ptr, int exactsize)
+static void udf_build_ustr_exact(struct ustr *dest, dstring *ptr, int exactsize)
 {
-	if ((!dest) || (!ptr) || (!exactsize))
-		return -1;
-
 	memset(dest, 0, sizeof(struct ustr));
 	dest->u_cmpID = ptr[0];
 	dest->u_len = exactsize - 1;
 	memcpy(dest->u_name, ptr + 1, exactsize - 1);
-
-	return 0;
 }
 
 /*
- * udf_ocu_to_utf8
+ * udf_CS0toUTF8
  *
  * PURPOSE
  *	Convert OSTA Compressed Unicode to the UTF-8 equivalent.
@@ -94,7 +89,7 @@ static int udf_build_ustr_exact(struct ustr *dest, dstring *ptr, int exactsize)
  * 				both of type "struct ustr *"
  *
  * POST-CONDITIONS
- *	<return>		Zero on success.
+ *	<return>		>= 0 on success.
  *
  * HISTORY
  *	November 12, 1997 - Andrew E. Mileski
@@ -117,7 +112,7 @@ int udf_CS0toUTF8(struct ustr *utf_o, const struct ustr *ocu_i)
 		memset(utf_o, 0, sizeof(struct ustr));
 		pr_err("unknown compression code (%d) stri=%s\n",
 		       cmp_id, ocu_i->u_name);
-		return 0;
+		return -EINVAL;
 	}
 
 	ocu = ocu_i->u_name;
@@ -154,7 +149,7 @@ int udf_CS0toUTF8(struct ustr *utf_o, const struct ustr *ocu_i)
 
 /*
  *
- * udf_utf8_to_ocu
+ * udf_UTF8toCS0
  *
  * PURPOSE
  *	Convert UTF-8 to the OSTA Compressed Unicode equivalent.
@@ -270,7 +265,7 @@ static int udf_CS0toNLS(struct nls_table *nls, struct ustr *utf_o,
 		memset(utf_o, 0, sizeof(struct ustr));
 		pr_err("unknown compression code (%d) stri=%s\n",
 		       cmp_id, ocu_i->u_name);
-		return 0;
+		return -EINVAL;
 	}
 
 	ocu = ocu_i->u_name;
@@ -338,43 +333,51 @@ int udf_get_filename(struct super_block *sb, uint8_t *sname, int slen,
 		     uint8_t *dname, int dlen)
 {
 	struct ustr *filename, *unifilename;
-	int len = 0;
+	int ret;
+
+	if (!slen)
+		return -EIO;
 
 	filename = kmalloc(sizeof(struct ustr), GFP_NOFS);
 	if (!filename)
-		return 0;
+		return -ENOMEM;
 
 	unifilename = kmalloc(sizeof(struct ustr), GFP_NOFS);
-	if (!unifilename)
+	if (!unifilename) {
+		ret = -ENOMEM;
 		goto out1;
+	}
 
-	if (udf_build_ustr_exact(unifilename, sname, slen))
-		goto out2;
-
+	udf_build_ustr_exact(unifilename, sname, slen);
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UTF8)) {
-		if (!udf_CS0toUTF8(filename, unifilename)) {
+		ret = udf_CS0toUTF8(filename, unifilename);
+		if (ret < 0) {
 			udf_debug("Failed in udf_get_filename: sname = %s\n",
 				  sname);
 			goto out2;
 		}
 	} else if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP)) {
-		if (!udf_CS0toNLS(UDF_SB(sb)->s_nls_map, filename,
-				  unifilename)) {
+		ret = udf_CS0toNLS(UDF_SB(sb)->s_nls_map, filename,
+				   unifilename);
+		if (ret < 0) {
 			udf_debug("Failed in udf_get_filename: sname = %s\n",
 				  sname);
 			goto out2;
 		}
 	} else
-		goto out2;
+		BUG();
 
-	len = udf_translate_to_linux(dname, dlen,
+	ret = udf_translate_to_linux(dname, dlen,
 				     filename->u_name, filename->u_len,
 				     unifilename->u_name, unifilename->u_len);
+	/* Zero length filename isn't valid... */
+	if (ret == 0)
+		ret = -EINVAL;
 out2:
 	kfree(unifilename);
 out1:
 	kfree(filename);
-	return len;
+	return ret;
 }
 
 int udf_put_filename(struct super_block *sb, const uint8_t *sname,

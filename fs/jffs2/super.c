@@ -140,14 +140,14 @@ static struct dentry *jffs2_get_parent(struct dentry *child)
 
 	BUG_ON(!d_is_dir(child));
 
-	f = JFFS2_INODE_INFO(child->d_inode);
+	f = JFFS2_INODE_INFO(d_inode(child));
 
 	pino = f->inocache->pino_nlink;
 
 	JFFS2_DEBUG("Parent of directory ino #%u is #%u\n",
 		    f->inocache->ino, pino);
 
-	return d_obtain_alias(jffs2_iget(child->d_inode->i_sb, pino));
+	return d_obtain_alias(jffs2_iget(d_inode(child)->i_sb, pino));
 }
 
 static const struct export_operations jffs2_export_ops = {

@@ -409,7 +409,7 @@ DECLARE_EVENT_CLASS(nfs4_open_event,
 			__entry->flags = flags;
 			__entry->fmode = (__force unsigned int)ctx->mode;
 			__entry->dev = ctx->dentry->d_sb->s_dev;
-			if (!IS_ERR(state))
+			if (!IS_ERR_OR_NULL(state))
 				inode = state->inode;
 			if (inode != NULL) {
 				__entry->fileid = NFS_FILEID(inode);
@@ -418,7 +418,7 @@ DECLARE_EVENT_CLASS(nfs4_open_event,
 				__entry->fileid = 0;
 				__entry->fhandle = 0;
 			}
-			__entry->dir = NFS_FILEID(ctx->dentry->d_parent->d_inode);
+			__entry->dir = NFS_FILEID(d_inode(ctx->dentry->d_parent));
 			__assign_str(name, ctx->dentry->d_name.name);
 		),
 
@@ -884,6 +884,66 @@ DEFINE_NFS4_GETATTR_EVENT(nfs4_getattr);
 DEFINE_NFS4_GETATTR_EVENT(nfs4_lookup_root);
 DEFINE_NFS4_GETATTR_EVENT(nfs4_fsinfo);
 
+DECLARE_EVENT_CLASS(nfs4_inode_callback_event,
+		TP_PROTO(
+			const struct nfs_client *clp,
+			const struct nfs_fh *fhandle,
+			const struct inode *inode,
+			int error
+		),
+
+		TP_ARGS(clp, fhandle, inode, error),
+
+		TP_STRUCT__entry(
+			__field(int, error)
+			__field(dev_t, dev)
+			__field(u32, fhandle)
+			__field(u64, fileid)
+			__string(dstaddr, clp ?
+				rpc_peeraddr2str(clp->cl_rpcclient,
+					RPC_DISPLAY_ADDR) : "unknown")
+		),
+
+		TP_fast_assign(
+			__entry->error = error;
+			__entry->fhandle = nfs_fhandle_hash(fhandle);
+			if (inode != NULL) {
+				__entry->fileid = NFS_FILEID(inode);
+				__entry->dev = inode->i_sb->s_dev;
+			} else {
+				__entry->fileid = 0;
+				__entry->dev = 0;
+			}
+			__assign_str(dstaddr, clp ?
+				rpc_peeraddr2str(clp->cl_rpcclient,
+					RPC_DISPLAY_ADDR) : "unknown")
+		),
+
+		TP_printk(
+			"error=%d (%s) fileid=%02x:%02x:%llu fhandle=0x%08x "
+			"dstaddr=%s",
+			__entry->error,
+			show_nfsv4_errors(__entry->error),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->fileid,
+			__entry->fhandle,
+			__get_str(dstaddr)
+		)
+);
+
+#define DEFINE_NFS4_INODE_CALLBACK_EVENT(name) \
+	DEFINE_EVENT(nfs4_inode_callback_event, name, \
+			TP_PROTO( \
+				const struct nfs_client *clp, \
+				const struct nfs_fh *fhandle, \
+				const struct inode *inode, \
+				int error \
+			), \
+			TP_ARGS(clp, fhandle, inode, error))
+DEFINE_NFS4_INODE_CALLBACK_EVENT(nfs4_cb_getattr);
+DEFINE_NFS4_INODE_CALLBACK_EVENT(nfs4_cb_layoutrecall_inode);
+
+
 DECLARE_EVENT_CLASS(nfs4_idmap_event,
 		TP_PROTO(
 			const char *name,
@@ -1110,7 +1170,7 @@ TRACE_EVENT(nfs4_layoutget,
 		),
 
 		TP_fast_assign(
-			const struct inode *inode = ctx->dentry->d_inode;
+			const struct inode *inode = d_inode(ctx->dentry);
 			__entry->dev = inode->i_sb->s_dev;
 			__entry->fileid = NFS_FILEID(inode);
 			__entry->fhandle = nfs_fhandle_hash(NFS_FH(inode));
@@ -1136,6 +1196,7 @@ TRACE_EVENT(nfs4_layoutget,
 
 DEFINE_NFS4_INODE_EVENT(nfs4_layoutcommit);
 DEFINE_NFS4_INODE_EVENT(nfs4_layoutreturn);
+DEFINE_NFS4_INODE_EVENT(nfs4_layoutreturn_on_close);
 
 #endif /* CONFIG_NFS_V4_1 */
 

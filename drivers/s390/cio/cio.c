@@ -143,13 +143,11 @@ cio_start_key (struct subchannel *sch,	/* subchannel structure */
 	orb->cmd.spnd = priv->options.suspend;
 	orb->cmd.ssic = priv->options.suspend && priv->options.inter;
 	orb->cmd.lpm = (lpm != 0) ? lpm : sch->lpm;
-#ifdef CONFIG_64BIT
 	/*
 	 * for 64 bit we always support 64 bit IDAWs with 4k page size only
 	 */
 	orb->cmd.c64 = 1;
 	orb->cmd.i2k = 0;
-#endif
 	orb->cmd.key = key >> 4;
 	/* issue "Start Subchannel" */
 	orb->cmd.cpa = (__u32) __pa(cpa);
@@ -478,26 +476,6 @@ static int cio_check_devno_blacklisted(struct subchannel *sch)
 	return 0;
 }
 
-static int cio_validate_io_subchannel(struct subchannel *sch)
-{
-	/* Initialization for io subchannels. */
-	if (!css_sch_is_valid(&sch->schib))
-		return -ENODEV;
-
-	/* Devno is valid. */
-	return cio_check_devno_blacklisted(sch);
-}
-
-static int cio_validate_msg_subchannel(struct subchannel *sch)
-{
-	/* Initialization for message subchannels. */
-	if (!css_sch_is_valid(&sch->schib))
-		return -ENODEV;
-
-	/* Devno is valid. */
-	return cio_check_devno_blacklisted(sch);
-}
-
 /**
  * cio_validate_subchannel - basic validation of subchannel
  * @sch: subchannel structure to be filled out
@@ -535,10 +513,11 @@ int cio_validate_subchannel(struct subchannel *sch, struct subchannel_id schid)
 
 	switch (sch->st) {
 	case SUBCHANNEL_TYPE_IO:
-		err = cio_validate_io_subchannel(sch);
-		break;
 	case SUBCHANNEL_TYPE_MSG:
-		err = cio_validate_msg_subchannel(sch);
+		if (!css_sch_is_valid(&sch->schib))
+			err = -ENODEV;
+		else
+			err = cio_check_devno_blacklisted(sch);
 		break;
 	default:
 		err = 0;
@@ -828,11 +807,11 @@ static atomic_t chpid_reset_count;
 static void s390_reset_chpids_mcck_handler(void)
 {
 	struct crw crw;
-	struct mci *mci;
+	union mci mci;
 
 	/* Check for pending channel report word. */
-	mci = (struct mci *)&S390_lowcore.mcck_interruption_code;
-	if (!mci->cp)
+	mci.val = S390_lowcore.mcck_interruption_code;
+	if (!mci.cp)
 		return;
 	/* Process channel report words. */
 	while (stcrw(&crw) == 0) {

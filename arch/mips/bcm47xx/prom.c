@@ -35,7 +35,6 @@
 #include <bcm47xx.h>
 #include <bcm47xx_board.h>
 
-
 static char bcm47xx_system_type[20] = "Broadcom BCM47XX";
 
 const char *get_system_type(void)
@@ -83,7 +82,7 @@ static __init void prom_init_mem(void)
 		/* Loop condition may be not enough, off may be over 1 MiB */
 		if (off + mem >= max) {
 			mem = max;
-			printk(KERN_DEBUG "assume 128MB RAM\n");
+			pr_debug("Assume 128MB RAM\n");
 			break;
 		}
 		if (!memcmp(prom_init, prom_init + mem, 32))
@@ -127,7 +126,7 @@ void __init prom_free_prom_memory(void)
 /* Stripped version of tlb_init, with the call to build_tlb_refill_handler
  * dropped. Calling it at this stage causes a hang.
  */
-void __cpuinit early_tlb_init(void)
+void early_tlb_init(void)
 {
 	write_c0_pagemask(PM_DEFAULT_MASK);
 	write_c0_wired(0);

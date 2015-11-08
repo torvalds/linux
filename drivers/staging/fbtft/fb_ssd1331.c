@@ -23,30 +23,28 @@
 
 static int init_display(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	par->fbtftops.reset(par);
 
 	write_reg(par, 0xae); /* Display Off */
 	write_reg(par, 0xa0, 0x70 | (par->bgr << 2)); /* Set Colour Depth */
-	write_reg(par, 0x72); // RGB colour
+	write_reg(par, 0x72); /* RGB colour */
 	write_reg(par, 0xa1, 0x00); /* Set Display Start Line */
 	write_reg(par, 0xa2, 0x00); /* Set Display Offset */
 	write_reg(par, 0xa4); /* NORMALDISPLAY */
-	write_reg(par, 0xa8, 0x3f); // Set multiplex
-	write_reg(par, 0xad, 0x8e); // Set master
-	// write_reg(par, 0xb0, 0x0b); // Set power mode
-	write_reg(par, 0xb1, 0x31); // Precharge
-	write_reg(par, 0xb3, 0xf0); // Clock div
-	write_reg(par, 0x8a, 0x64); // Precharge A
-	write_reg(par, 0x8b, 0x78); // Precharge B
-	write_reg(par, 0x8c, 0x64); // Precharge C
-	write_reg(par, 0xbb, 0x3a); // Precharge level
-	write_reg(par, 0xbe, 0x3e); // vcomh
-	write_reg(par, 0x87, 0x06); // Master current
-	write_reg(par, 0x81, 0x91); // Contrast A
-	write_reg(par, 0x82, 0x50); // Contrast B
-	write_reg(par, 0x83, 0x7d); // Contrast C
+	write_reg(par, 0xa8, 0x3f); /* Set multiplex */
+	write_reg(par, 0xad, 0x8e); /* Set master */
+	/* write_reg(par, 0xb0, 0x0b);  Set power mode */
+	write_reg(par, 0xb1, 0x31); /* Precharge */
+	write_reg(par, 0xb3, 0xf0); /* Clock div */
+	write_reg(par, 0x8a, 0x64); /* Precharge A */
+	write_reg(par, 0x8b, 0x78); /* Precharge B */
+	write_reg(par, 0x8c, 0x64); /* Precharge C */
+	write_reg(par, 0xbb, 0x3a); /* Precharge level */
+	write_reg(par, 0xbe, 0x3e); /* vcomh */
+	write_reg(par, 0x87, 0x06); /* Master current */
+	write_reg(par, 0x81, 0x91); /* Contrast A */
+	write_reg(par, 0x82, 0x50); /* Contrast B */
+	write_reg(par, 0x83, 0x7d); /* Contrast C */
 	write_reg(par, 0xaf); /* Set Sleep Mode Display On */
 
 	return 0;
@@ -54,9 +52,6 @@ static int init_display(struct fbtft_par *par)
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
-		"%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__, xs, ys, xe, ye);
-
 	write_reg(par, 0x15, xs, xe);
 	write_reg(par, 0x75, ys, ye);
 }
@@ -65,13 +60,12 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 {
 	va_list args;
 	int i, ret;
-	u8 *buf = (u8 *)par->buf;
+	u8 *buf = par->buf;
 
 	if (unlikely(par->debug & DEBUG_WRITE_REGISTER)) {
 		va_start(args, len);
-		for (i = 0; i < len; i++) {
+		for (i = 0; i < len; i++)
 			buf[i] = (u8)va_arg(args, unsigned int);
-		}
 		va_end(args);
 		fbtft_par_dbg_hex(DEBUG_WRITE_REGISTER, par, par->info->device, u8, buf, len, "%s: ", __func__);
 	}
@@ -84,20 +78,21 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 	ret = par->fbtftops.write(par, par->buf, sizeof(u8));
 	if (ret < 0) {
 		va_end(args);
-		dev_err(par->info->device, "%s: write() failed and returned %d\n", __func__, ret);
+		dev_err(par->info->device,
+			"write() failed and returned %d\n", ret);
 		return;
 	}
 	len--;
 
 	if (len) {
 		i = len;
-		while (i--) {
+		while (i--)
 			*buf++ = (u8)va_arg(args, unsigned int);
-		}
 		ret = par->fbtftops.write(par, par->buf, len * (sizeof(u8)));
 		if (ret < 0) {
 			va_end(args);
-			dev_err(par->info->device, "%s: write() failed and returned %d\n", __func__, ret);
+			dev_err(par->info->device,
+				"write() failed and returned %d\n", ret);
 			return;
 		}
 	}
@@ -126,14 +121,11 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 			:
 			Setting of GS63 has to be > Setting of GS62 +1
 
-
 */
 static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 {
 	unsigned long tmp[GAMMA_NUM * GAMMA_LEN];
 	int i, acc = 0;
-
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
 
 	for (i = 0; i < 63; i++) {
 		if (i > 0 && curves[i] < 2) {
@@ -175,7 +167,6 @@ static int blank(struct fbtft_par *par, bool on)
 		write_reg(par, 0xAF);
 	return 0;
 }
-
 
 static struct fbtft_display display = {
 	.regwidth = 8,

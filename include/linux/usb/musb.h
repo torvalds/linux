@@ -95,7 +95,7 @@ struct musb_hdrc_config {
 	/* musb CLKIN in Blackfin in MHZ */
 	unsigned char   clkin;
 #endif
-
+	u32		maximum_speed;
 };
 
 struct musb_hdrc_platform_data {

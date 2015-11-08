@@ -328,6 +328,7 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	struct btrfs_device *prev_dev;
 	u32 blocksize;
 	u64 length;
+	int real_stripes;
 	int nzones = 0;
 	int i;
 	unsigned long index = logical >> PAGE_CACHE_SHIFT;
@@ -369,7 +370,8 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 		goto error;
 	}
 
-	for (nzones = 0; nzones < bbio->num_stripes; ++nzones) {
+	real_stripes = bbio->num_stripes - bbio->num_tgtdevs;
+	for (nzones = 0; nzones < real_stripes; ++nzones) {
 		struct reada_zone *zone;
 
 		dev = bbio->stripes[nzones].dev;
@@ -567,7 +569,7 @@ static int reada_add_block(struct reada_control *rc, u64 logical,
 	rec = kzalloc(sizeof(*rec), GFP_NOFS);
 	if (!rec) {
 		reada_extent_put(root->fs_info, re);
-		return -1;
+		return -ENOMEM;
 	}
 
 	rec->rc = rc;
@@ -916,6 +918,7 @@ struct reada_control *btrfs_reada_add(struct btrfs_root *root,
 	u64 start;
 	u64 generation;
 	int level;
+	int ret;
 	struct extent_buffer *node;
 	static struct btrfs_key max_key = {
 		.objectid = (u64)-1,
@@ -941,9 +944,10 @@ struct reada_control *btrfs_reada_add(struct btrfs_root *root,
 	generation = btrfs_header_generation(node);
 	free_extent_buffer(node);
 
-	if (reada_add_block(rc, start, &max_key, level, generation)) {
+	ret = reada_add_block(rc, start, &max_key, level, generation);
+	if (ret) {
 		kfree(rc);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(ret);
 	}
 
 	reada_start_machine(root->fs_info);

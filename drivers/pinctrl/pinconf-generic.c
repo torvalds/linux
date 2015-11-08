@@ -28,25 +28,25 @@
 
 #ifdef CONFIG_DEBUG_FS
 static const struct pin_config_item conf_items[] = {
+	PCONFDUMP(PIN_CONFIG_BIAS_BUS_HOLD, "input bias bus hold", NULL, false),
 	PCONFDUMP(PIN_CONFIG_BIAS_DISABLE, "input bias disabled", NULL, false),
 	PCONFDUMP(PIN_CONFIG_BIAS_HIGH_IMPEDANCE, "input bias high impedance", NULL, false),
-	PCONFDUMP(PIN_CONFIG_BIAS_BUS_HOLD, "input bias bus hold", NULL, false),
-	PCONFDUMP(PIN_CONFIG_BIAS_PULL_UP, "input bias pull up", NULL, false),
 	PCONFDUMP(PIN_CONFIG_BIAS_PULL_DOWN, "input bias pull down", NULL, false),
 	PCONFDUMP(PIN_CONFIG_BIAS_PULL_PIN_DEFAULT,
 				"input bias pull to pin specific state", NULL, false),
-	PCONFDUMP(PIN_CONFIG_DRIVE_PUSH_PULL, "output drive push pull", NULL, false),
+	PCONFDUMP(PIN_CONFIG_BIAS_PULL_UP, "input bias pull up", NULL, false),
 	PCONFDUMP(PIN_CONFIG_DRIVE_OPEN_DRAIN, "output drive open drain", NULL, false),
 	PCONFDUMP(PIN_CONFIG_DRIVE_OPEN_SOURCE, "output drive open source", NULL, false),
+	PCONFDUMP(PIN_CONFIG_DRIVE_PUSH_PULL, "output drive push pull", NULL, false),
 	PCONFDUMP(PIN_CONFIG_DRIVE_STRENGTH, "output drive strength", "mA", true),
-	PCONFDUMP(PIN_CONFIG_INPUT_ENABLE, "input enabled", NULL, false),
-	PCONFDUMP(PIN_CONFIG_INPUT_SCHMITT_ENABLE, "input schmitt enabled", NULL, false),
-	PCONFDUMP(PIN_CONFIG_INPUT_SCHMITT, "input schmitt trigger", NULL, false),
 	PCONFDUMP(PIN_CONFIG_INPUT_DEBOUNCE, "input debounce", "usec", true),
-	PCONFDUMP(PIN_CONFIG_POWER_SOURCE, "pin power source", "selector", true),
-	PCONFDUMP(PIN_CONFIG_SLEW_RATE, "slew rate", NULL, true),
+	PCONFDUMP(PIN_CONFIG_INPUT_ENABLE, "input enabled", NULL, false),
+	PCONFDUMP(PIN_CONFIG_INPUT_SCHMITT, "input schmitt trigger", NULL, false),
+	PCONFDUMP(PIN_CONFIG_INPUT_SCHMITT_ENABLE, "input schmitt enabled", NULL, false),
 	PCONFDUMP(PIN_CONFIG_LOW_POWER_MODE, "pin low power", "mode", true),
 	PCONFDUMP(PIN_CONFIG_OUTPUT, "pin output", "level", true),
+	PCONFDUMP(PIN_CONFIG_POWER_SOURCE, "pin power source", "selector", true),
+	PCONFDUMP(PIN_CONFIG_SLEW_RATE, "slew rate", NULL, true),
 };
 
 static void pinconf_generic_dump_one(struct pinctrl_dev *pctldev,
@@ -150,27 +150,28 @@ EXPORT_SYMBOL_GPL(pinconf_generic_dump_config);
 
 #ifdef CONFIG_OF
 static const struct pinconf_generic_params dt_params[] = {
+	{ "bias-bus-hold", PIN_CONFIG_BIAS_BUS_HOLD, 0 },
 	{ "bias-disable", PIN_CONFIG_BIAS_DISABLE, 0 },
 	{ "bias-high-impedance", PIN_CONFIG_BIAS_HIGH_IMPEDANCE, 0 },
-	{ "bias-bus-hold", PIN_CONFIG_BIAS_BUS_HOLD, 0 },
 	{ "bias-pull-up", PIN_CONFIG_BIAS_PULL_UP, 1 },
-	{ "bias-pull-down", PIN_CONFIG_BIAS_PULL_DOWN, 1 },
 	{ "bias-pull-pin-default", PIN_CONFIG_BIAS_PULL_PIN_DEFAULT, 1 },
-	{ "drive-push-pull", PIN_CONFIG_DRIVE_PUSH_PULL, 0 },
+	{ "bias-pull-down", PIN_CONFIG_BIAS_PULL_DOWN, 1 },
 	{ "drive-open-drain", PIN_CONFIG_DRIVE_OPEN_DRAIN, 0 },
 	{ "drive-open-source", PIN_CONFIG_DRIVE_OPEN_SOURCE, 0 },
+	{ "drive-push-pull", PIN_CONFIG_DRIVE_PUSH_PULL, 0 },
 	{ "drive-strength", PIN_CONFIG_DRIVE_STRENGTH, 0 },
-	{ "input-enable", PIN_CONFIG_INPUT_ENABLE, 1 },
-	{ "input-disable", PIN_CONFIG_INPUT_ENABLE, 0 },
-	{ "input-schmitt-enable", PIN_CONFIG_INPUT_SCHMITT_ENABLE, 1 },
-	{ "input-schmitt-disable", PIN_CONFIG_INPUT_SCHMITT_ENABLE, 0 },
 	{ "input-debounce", PIN_CONFIG_INPUT_DEBOUNCE, 0 },
-	{ "power-source", PIN_CONFIG_POWER_SOURCE, 0 },
-	{ "low-power-enable", PIN_CONFIG_LOW_POWER_MODE, 1 },
+	{ "input-disable", PIN_CONFIG_INPUT_ENABLE, 0 },
+	{ "input-enable", PIN_CONFIG_INPUT_ENABLE, 1 },
+	{ "input-schmitt", PIN_CONFIG_INPUT_SCHMITT, 0 },
+	{ "input-schmitt-disable", PIN_CONFIG_INPUT_SCHMITT_ENABLE, 0 },
+	{ "input-schmitt-enable", PIN_CONFIG_INPUT_SCHMITT_ENABLE, 1 },
 	{ "low-power-disable", PIN_CONFIG_LOW_POWER_MODE, 0 },
-	{ "output-low", PIN_CONFIG_OUTPUT, 0, },
+	{ "low-power-enable", PIN_CONFIG_LOW_POWER_MODE, 1 },
 	{ "output-high", PIN_CONFIG_OUTPUT, 1, },
-	{ "slew-rate", PIN_CONFIG_SLEW_RATE, 0},
+	{ "output-low", PIN_CONFIG_OUTPUT, 0, },
+	{ "power-source", PIN_CONFIG_POWER_SOURCE, 0 },
+	{ "slew-rate", PIN_CONFIG_SLEW_RATE, 0 },
 };
 
 /**
@@ -283,23 +284,40 @@ int pinconf_generic_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	struct device *dev = pctldev->dev;
 	unsigned long *configs = NULL;
 	unsigned num_configs = 0;
-	unsigned reserve;
+	unsigned reserve, strings_count;
 	struct property *prop;
 	const char *group;
 	const char *subnode_target_type = "pins";
+
+	ret = of_property_count_strings(np, "pins");
+	if (ret < 0) {
+		ret = of_property_count_strings(np, "groups");
+		if (ret < 0)
+			/* skip this node; may contain config child nodes */
+			return 0;
+		if (type == PIN_MAP_TYPE_INVALID)
+			type = PIN_MAP_TYPE_CONFIGS_GROUP;
+		subnode_target_type = "groups";
+	} else {
+		if (type == PIN_MAP_TYPE_INVALID)
+			type = PIN_MAP_TYPE_CONFIGS_PIN;
+	}
+	strings_count = ret;
 
 	ret = of_property_read_string(np, "function", &function);
 	if (ret < 0) {
 		/* EINVAL=missing, which is fine since it's optional */
 		if (ret != -EINVAL)
-			dev_err(dev, "could not parse property function\n");
+			dev_err(dev, "%s: could not parse property function\n",
+				of_node_full_name(np));
 		function = NULL;
 	}
 
 	ret = pinconf_generic_parse_dt_config(np, pctldev, &configs,
 					      &num_configs);
 	if (ret < 0) {
-		dev_err(dev, "could not parse node property\n");
+		dev_err(dev, "%s: could not parse node property\n",
+			of_node_full_name(np));
 		return ret;
 	}
 
@@ -309,21 +327,7 @@ int pinconf_generic_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	if (num_configs)
 		reserve++;
 
-	ret = of_property_count_strings(np, "pins");
-	if (ret < 0) {
-		ret = of_property_count_strings(np, "groups");
-		if (ret < 0) {
-			dev_err(dev, "could not parse property pins/groups\n");
-			goto exit;
-		}
-		if (type == PIN_MAP_TYPE_INVALID)
-			type = PIN_MAP_TYPE_CONFIGS_GROUP;
-		subnode_target_type = "groups";
-	} else {
-		if (type == PIN_MAP_TYPE_INVALID)
-			type = PIN_MAP_TYPE_CONFIGS_PIN;
-	}
-	reserve *= ret;
+	reserve *= strings_count;
 
 	ret = pinctrl_utils_reserve_map(pctldev, map, reserved_maps,
 			num_maps, reserve);
@@ -367,15 +371,22 @@ int pinconf_generic_dt_node_to_map(struct pinctrl_dev *pctldev,
 	*map = NULL;
 	*num_maps = 0;
 
+	ret = pinconf_generic_dt_subnode_to_map(pctldev, np_config, map,
+						&reserved_maps, num_maps, type);
+	if (ret < 0)
+		goto exit;
+
 	for_each_child_of_node(np_config, np) {
 		ret = pinconf_generic_dt_subnode_to_map(pctldev, np, map,
 					&reserved_maps, num_maps, type);
-		if (ret < 0) {
-			pinctrl_utils_dt_free_map(pctldev, *map, *num_maps);
-			return ret;
-		}
+		if (ret < 0)
+			goto exit;
 	}
 	return 0;
+
+exit:
+	pinctrl_utils_dt_free_map(pctldev, *map, *num_maps);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(pinconf_generic_dt_node_to_map);
 

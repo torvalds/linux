@@ -134,7 +134,7 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 
 	_enter("{%pd}", mntpt);
 
-	BUG_ON(!mntpt->d_inode);
+	BUG_ON(!d_inode(mntpt));
 
 	ret = -ENOMEM;
 	devname = (char *) get_zeroed_page(GFP_KERNEL);
@@ -145,7 +145,7 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 	if (!options)
 		goto error_no_options;
 
-	vnode = AFS_FS_I(mntpt->d_inode);
+	vnode = AFS_FS_I(d_inode(mntpt));
 	if (test_bit(AFS_VNODE_PSEUDODIR, &vnode->flags)) {
 		/* if the directory is a pseudo directory, use the d_name */
 		static const char afs_root_cell[] = ":root.cell.";
@@ -169,14 +169,14 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 		}
 	} else {
 		/* read the contents of the AFS special symlink */
-		loff_t size = i_size_read(mntpt->d_inode);
+		loff_t size = i_size_read(d_inode(mntpt));
 		char *buf;
 
 		ret = -EINVAL;
 		if (size > PAGE_SIZE - 1)
 			goto error_no_page;
 
-		page = read_mapping_page(mntpt->d_inode->i_mapping, 0, NULL);
+		page = read_mapping_page(d_inode(mntpt)->i_mapping, 0, NULL);
 		if (IS_ERR(page)) {
 			ret = PTR_ERR(page);
 			goto error_no_page;

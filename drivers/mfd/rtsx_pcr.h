@@ -27,12 +27,23 @@
 #define MIN_DIV_N_PCR		80
 #define MAX_DIV_N_PCR		208
 
+#define RTS522A_PM_CTRL3		0xFF7E
+
+#define RTS524A_PME_FORCE_CTL		0xFF78
+#define RTS524A_PM_CTRL3		0xFF7E
+
+int __rtsx_pci_write_phy_register(struct rtsx_pcr *pcr, u8 addr, u16 val);
+int __rtsx_pci_read_phy_register(struct rtsx_pcr *pcr, u8 addr, u16 *val);
+
 void rts5209_init_params(struct rtsx_pcr *pcr);
 void rts5229_init_params(struct rtsx_pcr *pcr);
 void rtl8411_init_params(struct rtsx_pcr *pcr);
 void rtl8402_init_params(struct rtsx_pcr *pcr);
 void rts5227_init_params(struct rtsx_pcr *pcr);
+void rts522a_init_params(struct rtsx_pcr *pcr);
 void rts5249_init_params(struct rtsx_pcr *pcr);
+void rts524a_init_params(struct rtsx_pcr *pcr);
+void rts525a_init_params(struct rtsx_pcr *pcr);
 void rtl8411b_init_params(struct rtsx_pcr *pcr);
 
 static inline u8 map_sd_drive(int idx)

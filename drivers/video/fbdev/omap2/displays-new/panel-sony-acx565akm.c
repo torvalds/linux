@@ -108,7 +108,7 @@ static const struct omap_video_timings acx565akm_panel_timings = {
 
 	.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
 	.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
-	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
+	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
 };
 
 #define to_panel_data(p) container_of(p, struct panel_drv_data, dssdev)
@@ -898,11 +898,11 @@ static const struct of_device_id acx565akm_of_match[] = {
 	{ .compatible = "omapdss,sony,acx565akm", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, acx565akm_of_match);
 
 static struct spi_driver acx565akm_driver = {
 	.driver = {
 		.name	= "acx565akm",
-		.owner	= THIS_MODULE,
 		.of_match_table = acx565akm_of_match,
 		.suppress_bind_attrs = true,
 	},

@@ -1,0 +1,34 @@
+config NFC_ST_NCI
+	tristate "STMicroelectronics ST NCI NFC driver"
+	depends on NFC_NCI
+	default n
+	---help---
+	  STMicroelectronics NFC NCI chips core driver. It implements the chipset
+	  NCI logic and hooks into the NFC kernel APIs. Physical layers will
+	  register against it.
+
+	  To compile this driver as a module, choose m here. The module will
+	  be called st-nci.
+	  Say N if unsure.
+
+config NFC_ST_NCI_I2C
+	tristate "NFC ST NCI i2c support"
+	depends on NFC_ST_NCI && I2C
+	---help---
+	  This module adds support for an I2C interface to the
+	  STMicroelectronics NFC NCI chips familly.
+	  Select this if your platform is using the i2c bus.
+
+	  If you choose to build a module, it'll be called st-nci_i2c.
+	  Say N if unsure.
+
+config NFC_ST_NCI_SPI
+	tristate "NFC ST NCI spi support"
+	depends on NFC_ST_NCI && SPI
+	---help---
+	  This module adds support for an SPI interface to the
+	  STMicroelectronics NFC NCI chips familly.
+	  Select this if your platform is using the spi bus.
+
+	  If you choose to build a module, it'll be called st-nci_spi.
+	  Say N if unsure.

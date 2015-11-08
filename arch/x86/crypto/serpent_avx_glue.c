@@ -36,8 +36,7 @@
 #include <crypto/ctr.h>
 #include <crypto/lrw.h>
 #include <crypto/xts.h>
-#include <asm/xcr.h>
-#include <asm/xsave.h>
+#include <asm/fpu/api.h>
 #include <asm/crypto/serpent-avx.h>
 #include <asm/crypto/glue_helper.h>
 
@@ -378,7 +377,8 @@ static struct crypto_alg serpent_algs[10] = { {
 	.cra_name		= "__ecb-serpent-avx",
 	.cra_driver_name	= "__driver-ecb-serpent-avx",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= SERPENT_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct serpent_ctx),
 	.cra_alignmask		= 0,
@@ -397,7 +397,8 @@ static struct crypto_alg serpent_algs[10] = { {
 	.cra_name		= "__cbc-serpent-avx",
 	.cra_driver_name	= "__driver-cbc-serpent-avx",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= SERPENT_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct serpent_ctx),
 	.cra_alignmask		= 0,
@@ -416,7 +417,8 @@ static struct crypto_alg serpent_algs[10] = { {
 	.cra_name		= "__ctr-serpent-avx",
 	.cra_driver_name	= "__driver-ctr-serpent-avx",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= 1,
 	.cra_ctxsize		= sizeof(struct serpent_ctx),
 	.cra_alignmask		= 0,
@@ -436,7 +438,8 @@ static struct crypto_alg serpent_algs[10] = { {
 	.cra_name		= "__lrw-serpent-avx",
 	.cra_driver_name	= "__driver-lrw-serpent-avx",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= SERPENT_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct serpent_lrw_ctx),
 	.cra_alignmask		= 0,
@@ -459,7 +462,8 @@ static struct crypto_alg serpent_algs[10] = { {
 	.cra_name		= "__xts-serpent-avx",
 	.cra_driver_name	= "__driver-xts-serpent-avx",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= SERPENT_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct serpent_xts_ctx),
 	.cra_alignmask		= 0,
@@ -591,16 +595,11 @@ static struct crypto_alg serpent_algs[10] = { {
 
 static int __init serpent_init(void)
 {
-	u64 xcr0;
+	const char *feature_name;
 
-	if (!cpu_has_avx || !cpu_has_osxsave) {
-		printk(KERN_INFO "AVX instructions are not detected.\n");
-		return -ENODEV;
-	}
-
-	xcr0 = xgetbv(XCR_XFEATURE_ENABLED_MASK);
-	if ((xcr0 & (XSTATE_SSE | XSTATE_YMM)) != (XSTATE_SSE | XSTATE_YMM)) {
-		printk(KERN_INFO "AVX detected but unusable.\n");
+	if (!cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM,
+				&feature_name)) {
+		pr_info("CPU feature '%s' is not supported.\n", feature_name);
 		return -ENODEV;
 	}
 

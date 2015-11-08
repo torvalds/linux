@@ -92,11 +92,9 @@ static int ipv4_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 	return NF_ACCEPT;
 }
 
-static unsigned int ipv4_helper(const struct nf_hook_ops *ops,
+static unsigned int ipv4_helper(void *priv,
 				struct sk_buff *skb,
-				const struct net_device *in,
-				const struct net_device *out,
-				int (*okfn)(struct sk_buff *))
+				const struct nf_hook_state *state)
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
@@ -121,11 +119,9 @@ static unsigned int ipv4_helper(const struct nf_hook_ops *ops,
 			    ct, ctinfo);
 }
 
-static unsigned int ipv4_confirm(const struct nf_hook_ops *ops,
+static unsigned int ipv4_confirm(void *priv,
 				 struct sk_buff *skb,
-				 const struct net_device *in,
-				 const struct net_device *out,
-				 int (*okfn)(struct sk_buff *))
+				 const struct nf_hook_state *state)
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
@@ -147,26 +143,22 @@ out:
 	return nf_conntrack_confirm(skb);
 }
 
-static unsigned int ipv4_conntrack_in(const struct nf_hook_ops *ops,
+static unsigned int ipv4_conntrack_in(void *priv,
 				      struct sk_buff *skb,
-				      const struct net_device *in,
-				      const struct net_device *out,
-				      int (*okfn)(struct sk_buff *))
+				      const struct nf_hook_state *state)
 {
-	return nf_conntrack_in(dev_net(in), PF_INET, ops->hooknum, skb);
+	return nf_conntrack_in(state->net, PF_INET, state->hook, skb);
 }
 
-static unsigned int ipv4_conntrack_local(const struct nf_hook_ops *ops,
+static unsigned int ipv4_conntrack_local(void *priv,
 					 struct sk_buff *skb,
-					 const struct net_device *in,
-					 const struct net_device *out,
-					 int (*okfn)(struct sk_buff *))
+					 const struct nf_hook_state *state)
 {
 	/* root is playing with raw sockets. */
 	if (skb->len < sizeof(struct iphdr) ||
 	    ip_hdrlen(skb) < sizeof(struct iphdr))
 		return NF_ACCEPT;
-	return nf_conntrack_in(dev_net(out), PF_INET, ops->hooknum, skb);
+	return nf_conntrack_in(state->net, PF_INET, state->hook, skb);
 }
 
 /* Connection tracking may drop packets, but never alters them, so
@@ -174,42 +166,36 @@ static unsigned int ipv4_conntrack_local(const struct nf_hook_ops *ops,
 static struct nf_hook_ops ipv4_conntrack_ops[] __read_mostly = {
 	{
 		.hook		= ipv4_conntrack_in,
-		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_IPV4,
 		.hooknum	= NF_INET_PRE_ROUTING,
 		.priority	= NF_IP_PRI_CONNTRACK,
 	},
 	{
 		.hook		= ipv4_conntrack_local,
-		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_IPV4,
 		.hooknum	= NF_INET_LOCAL_OUT,
 		.priority	= NF_IP_PRI_CONNTRACK,
 	},
 	{
 		.hook		= ipv4_helper,
-		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_IPV4,
 		.hooknum	= NF_INET_POST_ROUTING,
 		.priority	= NF_IP_PRI_CONNTRACK_HELPER,
 	},
 	{
 		.hook		= ipv4_confirm,
-		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_IPV4,
 		.hooknum	= NF_INET_POST_ROUTING,
 		.priority	= NF_IP_PRI_CONNTRACK_CONFIRM,
 	},
 	{
 		.hook		= ipv4_helper,
-		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_IPV4,
 		.hooknum	= NF_INET_LOCAL_IN,
 		.priority	= NF_IP_PRI_CONNTRACK_HELPER,
 	},
 	{
 		.hook		= ipv4_confirm,
-		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_IPV4,
 		.hooknum	= NF_INET_LOCAL_IN,
 		.priority	= NF_IP_PRI_CONNTRACK_CONFIRM,
@@ -288,7 +274,7 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 		return -EINVAL;
 	}
 
-	h = nf_conntrack_find_get(sock_net(sk), NF_CT_DEFAULT_ZONE, &tuple);
+	h = nf_conntrack_find_get(sock_net(sk), &nf_ct_zone_dflt, &tuple);
 	if (h) {
 		struct sockaddr_in sin;
 		struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(h);
@@ -322,8 +308,8 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 static int ipv4_tuple_to_nlattr(struct sk_buff *skb,
 				const struct nf_conntrack_tuple *tuple)
 {
-	if (nla_put_be32(skb, CTA_IP_V4_SRC, tuple->src.u3.ip) ||
-	    nla_put_be32(skb, CTA_IP_V4_DST, tuple->dst.u3.ip))
+	if (nla_put_in_addr(skb, CTA_IP_V4_SRC, tuple->src.u3.ip) ||
+	    nla_put_in_addr(skb, CTA_IP_V4_DST, tuple->dst.u3.ip))
 		goto nla_put_failure;
 	return 0;
 
@@ -342,8 +328,8 @@ static int ipv4_nlattr_to_tuple(struct nlattr *tb[],
 	if (!tb[CTA_IP_V4_SRC] || !tb[CTA_IP_V4_DST])
 		return -EINVAL;
 
-	t->src.u3.ip = nla_get_be32(tb[CTA_IP_V4_SRC]);
-	t->dst.u3.ip = nla_get_be32(tb[CTA_IP_V4_DST]);
+	t->src.u3.ip = nla_get_in_addr(tb[CTA_IP_V4_SRC]);
+	t->dst.u3.ip = nla_get_in_addr(tb[CTA_IP_V4_DST]);
 
 	return 0;
 }

@@ -45,6 +45,21 @@ OPTIONS
           param1 and param2 are defined as formats for the PMU in:
           /sys/bus/event_sources/devices/<pmu>/format/*
 
+	  There are also some params which are not defined in .../<pmu>/format/*.
+	  These params can be used to overload default config values per event.
+	  Here is a list of the params.
+	  - 'period': Set event sampling period
+	  - 'freq': Set event sampling frequency
+	  - 'time': Disable/enable time stamping. Acceptable values are 1 for
+		    enabling time stamping. 0 for disabling time stamping.
+		    The default is 1.
+	  - 'call-graph': Disable/enable callgraph. Acceptable str are "fp" for
+			 FP mode, "dwarf" for DWARF mode, "lbr" for LBR mode and
+			 "no" for disable callgraph.
+	  - 'stack-size': user stack size for dwarf mode
+	  Note: If user explicitly sets options which conflict with the params,
+	  the value set by the params will be overridden.
+
         - a hardware breakpoint event in the form of '\mem:addr[/len][:access]'
           where addr is the address in memory you want to break in.
           Access is the memory access type (read, write, execute) it can
@@ -55,15 +70,26 @@ OPTIONS
           If you want to profile write accesses in [0x1000~1008), just set
           'mem:0x1000/8:w'.
 
+	- a group of events surrounded by a pair of brace ("{event1,event2,...}").
+	  Each event is separated by commas and the group should be quoted to
+	  prevent the shell interpretation.  You also need to use --group on
+	  "perf report" to view group events together.
+
 --filter=<filter>::
-        Event filter.
+        Event filter. This option should follow a event selector (-e) which
+	selects tracepoint event(s). Multiple '--filter' options are combined
+	using '&&'.
+
+--exclude-perf::
+	Don't record events issued by perf itself. This option should follow
+	a event selector (-e) which selects tracepoint event(s). It adds a
+	filter expression 'common_pid != $PERFPID' to filters. If other
+	'--filter' exists, the new filter expression will be combined with
+	them by '&&'.
 
 -a::
 --all-cpus::
         System-wide collection from all CPUs.
-
--l::
-        Scale counter values.
 
 -p::
 --pid=::
@@ -106,22 +132,39 @@ OPTIONS
 	Number of mmap data pages (must be a power of two) or size
 	specification with appended unit character - B/K/M/G. The
 	size is rounded up to have nearest pages power of two value.
+	Also, by adding a comma, the number of mmap pages for AUX
+	area tracing can be specified.
+
+--group::
+	Put all events in a single event group.  This precedes the --event
+	option and remains only for backward compatibility.  See --event.
 
 -g::
 	Enables call-graph (stack chain/backtrace) recording.
 
 --call-graph::
 	Setup and enable call-graph (stack chain/backtrace) recording,
-	implies -g.
+	implies -g.  Default is "fp".
 
 	Allows specifying "fp" (frame pointer) or "dwarf"
-	(DWARF's CFI - Call Frame Information) as the method to collect
+	(DWARF's CFI - Call Frame Information) or "lbr"
+	(Hardware Last Branch Record facility) as the method to collect
 	the information used to show the call graphs.
 
 	In some systems, where binaries are build with gcc
 	--fomit-frame-pointer, using the "fp" method will produce bogus
 	call graphs, using "dwarf", if available (perf tools linked to
-	the libunwind library) should be used instead.
+	the libunwind or libdw library) should be used instead.
+	Using the "lbr" method doesn't require any compiler options. It
+	will produce call graphs from the hardware LBR registers. The
+	main limition is that it is only available on new Intel
+	platforms, such as Haswell. It can only get user call chain. It
+	doesn't work with branch stack sampling at the same time.
+
+	When "dwarf" recording is used, perf also records (user) stack dump
+	when sampled.  Default size of the stack dump is 8192 (bytes).
+	User can change the size by passing the size after comma like
+	"--call-graph dwarf,4096".
 
 -q::
 --quiet::
@@ -133,16 +176,21 @@ OPTIONS
 
 -s::
 --stat::
-	Per thread counts.
+	Record per-thread event counts.  Use it with 'perf report -T' to see
+	the values.
 
 -d::
 --data::
-	Sample addresses.
+	Record the sample addresses.
 
 -T::
 --timestamp::
-	Sample timestamps. Use it with 'perf report -D' to see the timestamps,
-	for instance.
+	Record the sample timestamps. Use it with 'perf report -D' to see the
+	timestamps, for instance.
+
+-P::
+--period::
+	Record the sample period.
 
 -n::
 --no-samples::
@@ -193,6 +241,7 @@ following filters are defined:
         - any_call: any function call or system call
         - any_ret: any function return or system call return
         - ind_call: any indirect branch
+        - call: direct calls, including far (to/from kernel) calls
         - u:  only when the branch target is at the user level
         - k: only when the branch target is in the kernel
         - hv: only when the target is at the hypervisor level
@@ -233,7 +282,43 @@ filter out the startup phase of the program, which is often very different.
 --intr-regs::
 Capture machine state (registers) at interrupt, i.e., on counter overflows for
 each sample. List of captured registers depends on the architecture. This option
-is off by default.
+is off by default. It is possible to select the registers to sample using their
+symbolic names, e.g. on x86, ax, si. To list the available registers use
+--intr-regs=\?. To name registers, pass a comma separated list such as
+--intr-regs=ax,bx. The list of register is architecture dependent.
+
+
+--running-time::
+Record running and enabled time for read events (:S)
+
+-k::
+--clockid::
+Sets the clock id to use for the various time fields in the perf_event_type
+records. See clock_gettime(). In particular CLOCK_MONOTONIC and
+CLOCK_MONOTONIC_RAW are supported, some events might also allow
+CLOCK_BOOTTIME, CLOCK_REALTIME and CLOCK_TAI.
+
+-S::
+--snapshot::
+Select AUX area tracing Snapshot Mode. This option is valid only with an
+AUX area tracing event. Optionally the number of bytes to capture per
+snapshot can be specified. In Snapshot Mode, trace data is captured only when
+signal SIGUSR2 is received.
+
+--proc-map-timeout::
+When processing pre-existing threads /proc/XXX/mmap, it may take a long time,
+because the file may be huge. A time out is needed in such cases.
+This option sets the time out limit. The default value is 500 ms.
+
+--switch-events::
+Record context switch events i.e. events of type PERF_RECORD_SWITCH or
+PERF_RECORD_SWITCH_CPU_WIDE.
+
+--clang-path::
+Path to clang binary to use for compiling BPF scriptlets.
+
+--clang-opt::
+Options passed to clang when compiling BPF scriptlets.
 
 SEE ALSO
 --------

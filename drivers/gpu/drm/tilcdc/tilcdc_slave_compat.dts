@@ -1,0 +1,72 @@
+/*
+ * DTS overlay for converting ti,tilcdc,slave binding to new binding.
+ *
+ * Copyright (C) 2015 Texas Instruments Inc.
+ * Author: Jyri Sarha <jsarha@ti.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * version 2 as published by the Free Software Foundation.
+ */
+
+/*
+ * target-path property values are simple tags that are replaced with
+ * correct values in tildcdc_slave_compat.c. Some properties are also
+ * copied over from the ti,tilcdc,slave node.
+ */
+
+/dts-v1/;
+/ {
+	fragment@0 {
+		target-path = "i2c";
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			tda19988 {
+				compatible = "nxp,tda998x";
+				reg = <0x70>;
+				status = "okay";
+
+				port {
+					hdmi_0: endpoint@0 {
+						remote-endpoint = <&lcd_0>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@1 {
+		target-path = "lcdc";
+		__overlay__ {
+			port {
+				lcd_0: endpoint@0 {
+					remote-endpoint = <&hdmi_0>;
+				};
+			};
+		};
+	};
+
+	__local_fixups__ {
+		fragment@0 {
+			__overlay__ {
+				tda19988 {
+					port {
+						endpoint@0 {
+							remote-endpoint	= <0>;
+						};
+					};
+				};
+			};
+		};
+		fragment@1 {
+			__overlay__ {
+				port {
+					endpoint@0 {
+						remote-endpoint	= <0>;
+					};
+				};
+			};
+		};
+	};
+};

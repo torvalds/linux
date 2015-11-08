@@ -89,7 +89,7 @@ MODULE_PARM_DESC(dma_tx_num, "Number of descriptors in the TX list");
 
 #define TXQUEUESTOP_THRESHHOLD	2
 
-static struct of_device_id altera_tse_ids[];
+static const struct of_device_id altera_tse_ids[];
 
 static inline u32 tse_tx_avail(struct altera_tse_private *priv)
 {
@@ -105,11 +105,11 @@ static int altera_tse_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 
 	/* set MDIO address */
 	csrwr32((mii_id & 0x1f), priv->mac_dev,
-		tse_csroffs(mdio_phy0_addr));
+		tse_csroffs(mdio_phy1_addr));
 
 	/* get the data */
 	return csrrd32(priv->mac_dev,
-		       tse_csroffs(mdio_phy0) + regnum * 4) & 0xffff;
+		       tse_csroffs(mdio_phy1) + regnum * 4) & 0xffff;
 }
 
 static int altera_tse_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
@@ -120,10 +120,10 @@ static int altera_tse_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 
 	/* set MDIO address */
 	csrwr32((mii_id & 0x1f), priv->mac_dev,
-		tse_csroffs(mdio_phy0_addr));
+		tse_csroffs(mdio_phy1_addr));
 
 	/* write the data */
-	csrwr32(value, priv->mac_dev, tse_csroffs(mdio_phy0) + regnum * 4);
+	csrwr32(value, priv->mac_dev, tse_csroffs(mdio_phy1) + regnum * 4);
 	return 0;
 }
 
@@ -376,8 +376,13 @@ static int tse_rx(struct altera_tse_private *priv, int limit)
 	u16 pktlength;
 	u16 pktstatus;
 
-	while (((rxstatus = priv->dmaops->get_rx_status(priv)) != 0) &&
-	       (count < limit))  {
+	/* Check for count < limit first as get_rx_status is changing
+	* the response-fifo so we must process the next packet
+	* after calling get_rx_status if a response is pending.
+	* (reading the last byte of the response pops the value from the fifo.)
+	*/
+	while ((count < limit) &&
+	       ((rxstatus = priv->dmaops->get_rx_status(priv)) != 0)) {
 		pktstatus = rxstatus >> 16;
 		pktlength = rxstatus & 0xffff;
 
@@ -385,6 +390,12 @@ static int tse_rx(struct altera_tse_private *priv, int limit)
 			netdev_err(priv->dev,
 				   "RCV pktstatus %08X pktlength %08X\n",
 				   pktstatus, pktlength);
+
+		/* DMA trasfer from TSE starts with 2 aditional bytes for
+		 * IP payload alignment. Status returned by get_rx_status()
+		 * contains DMA transfer length. Packet is 2 bytes shorter.
+		 */
+		pktlength -= 2;
 
 		count++;
 		next_entry = (++priv->rx_cons) % priv->rx_ring_size;
@@ -500,8 +511,7 @@ static int tse_poll(struct napi_struct *napi, int budget)
 
 	if (rxcomplete < budget) {
 
-		napi_gro_flush(napi, false);
-		__napi_complete(napi);
+		napi_complete(napi);
 
 		netdev_dbg(priv->dev,
 			   "NAPI Complete, did %d packets with budget %d\n",
@@ -772,6 +782,8 @@ static int init_phy(struct net_device *dev)
 	struct altera_tse_private *priv = netdev_priv(dev);
 	struct phy_device *phydev;
 	struct device_node *phynode;
+	bool fixed_link = false;
+	int rc = 0;
 
 	/* Avoid init phy in case of no phy present */
 	if (!priv->phy_iface)
@@ -784,13 +796,32 @@ static int init_phy(struct net_device *dev)
 	phynode = of_parse_phandle(priv->device->of_node, "phy-handle", 0);
 
 	if (!phynode) {
-		netdev_dbg(dev, "no phy-handle found\n");
-		if (!priv->mdio) {
-			netdev_err(dev,
-				   "No phy-handle nor local mdio specified\n");
-			return -ENODEV;
+		/* check if a fixed-link is defined in device-tree */
+		if (of_phy_is_fixed_link(priv->device->of_node)) {
+			rc = of_phy_register_fixed_link(priv->device->of_node);
+			if (rc < 0) {
+				netdev_err(dev, "cannot register fixed PHY\n");
+				return rc;
+			}
+
+			/* In the case of a fixed PHY, the DT node associated
+			 * to the PHY is the Ethernet MAC DT node.
+			 */
+			phynode = of_node_get(priv->device->of_node);
+			fixed_link = true;
+
+			netdev_dbg(dev, "fixed-link detected\n");
+			phydev = of_phy_connect(dev, phynode,
+						&altera_tse_adjust_link,
+						0, priv->phy_iface);
+		} else {
+			netdev_dbg(dev, "no phy-handle found\n");
+			if (!priv->mdio) {
+				netdev_err(dev, "No phy-handle nor local mdio specified\n");
+				return -ENODEV;
+			}
+			phydev = connect_local_phy(dev);
 		}
-		phydev = connect_local_phy(dev);
 	} else {
 		netdev_dbg(dev, "phy-handle found\n");
 		phydev = of_phy_connect(dev, phynode,
@@ -814,10 +845,10 @@ static int init_phy(struct net_device *dev)
 	/* Broken HW is sometimes missing the pull-up resistor on the
 	 * MDIO line, which results in reads to non-existent devices returning
 	 * 0 rather than 0xffff. Catch this here and treat 0 as a non-existent
-	 * device as well.
+	 * device as well. If a fixed-link is used the phy_id is always 0.
 	 * Note: phydev->phy_id is the result of reading the UID PHY registers.
 	 */
-	if (phydev->phy_id == 0) {
+	if ((phydev->phy_id == 0) && !fixed_link) {
 		netdev_err(dev, "Bad PHY UID 0x%08x\n", phydev->phy_id);
 		phy_disconnect(phydev);
 		return -ENODEV;
@@ -1098,8 +1129,12 @@ static int tse_open(struct net_device *dev)
 
 	spin_lock(&priv->mac_cfg_lock);
 	ret = reset_mac(priv);
+	/* Note that reset_mac will fail if the clocks are gated by the PHY
+	 * due to the PHY being put into isolation or power down mode.
+	 * This is not an error if reset fails due to no clock.
+	 */
 	if (ret)
-		netdev_err(dev, "Cannot reset MAC core (error: %d)\n", ret);
+		netdev_dbg(dev, "Cannot reset MAC core (error: %d)\n", ret);
 
 	ret = init_mac(priv);
 	spin_unlock(&priv->mac_cfg_lock);
@@ -1203,8 +1238,12 @@ static int tse_shutdown(struct net_device *dev)
 	spin_lock(&priv->tx_lock);
 
 	ret = reset_mac(priv);
+	/* Note that reset_mac will fail if the clocks are gated by the PHY
+	 * due to the PHY being put into isolation or power down mode.
+	 * This is not an error if reset fails due to no clock.
+	 */
 	if (ret)
-		netdev_err(dev, "Cannot reset MAC core (error: %d)\n", ret);
+		netdev_dbg(dev, "Cannot reset MAC core (error: %d)\n", ret);
 	priv->dmaops->reset_dma(priv);
 	free_skbufs(dev);
 
@@ -1478,6 +1517,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 	spin_lock_init(&priv->tx_lock);
 	spin_lock_init(&priv->rxdma_irq_lock);
 
+	netif_carrier_off(ndev);
 	ret = register_netdev(ndev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register TSE net device\n");
@@ -1568,7 +1608,7 @@ static const struct altera_dmaops altera_dtype_msgdma = {
 	.start_rxdma = msgdma_start_rxdma,
 };
 
-static struct of_device_id altera_tse_ids[] = {
+static const struct of_device_id altera_tse_ids[] = {
 	{ .compatible = "altr,tse-msgdma-1.0", .data = &altera_dtype_msgdma, },
 	{ .compatible = "altr,tse-1.0", .data = &altera_dtype_sgdma, },
 	{ .compatible = "ALTR,tse-1.0", .data = &altera_dtype_sgdma, },

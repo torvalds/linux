@@ -179,6 +179,7 @@ static int rds_iw_init_qp_attrs(struct ib_qp_init_attr *attr,
 		void *context)
 {
 	struct ib_device *dev = rds_iwdev->dev;
+	struct ib_cq_init_attr cq_attr = {};
 	unsigned int send_size, recv_size;
 	int ret;
 
@@ -198,9 +199,10 @@ static int rds_iw_init_qp_attrs(struct ib_qp_init_attr *attr,
 	attr->sq_sig_type = IB_SIGNAL_REQ_WR;
 	attr->qp_type = IB_QPT_RC;
 
+	cq_attr.cqe = send_size;
 	attr->send_cq = ib_create_cq(dev, send_cq_handler,
 				     rds_iw_cq_event_handler,
-				     context, send_size, 0);
+				     context, &cq_attr);
 	if (IS_ERR(attr->send_cq)) {
 		ret = PTR_ERR(attr->send_cq);
 		attr->send_cq = NULL;
@@ -208,9 +210,10 @@ static int rds_iw_init_qp_attrs(struct ib_qp_init_attr *attr,
 		goto out;
 	}
 
+	cq_attr.cqe = recv_size;
 	attr->recv_cq = ib_create_cq(dev, recv_cq_handler,
 				     rds_iw_cq_event_handler,
-				     context, recv_size, 0);
+				     context, &cq_attr);
 	if (IS_ERR(attr->recv_cq)) {
 		ret = PTR_ERR(attr->recv_cq);
 		attr->recv_cq = NULL;
@@ -395,8 +398,9 @@ int rds_iw_cm_handle_connect(struct rdma_cm_id *cm_id,
 		 &dp->dp_saddr, &dp->dp_daddr,
 		 RDS_PROTOCOL_MAJOR(version), RDS_PROTOCOL_MINOR(version));
 
-	conn = rds_conn_create(dp->dp_daddr, dp->dp_saddr, &rds_iw_transport,
-			       GFP_KERNEL);
+	/* RDS/IW is not currently netns aware, thus init_net */
+	conn = rds_conn_create(&init_net, dp->dp_daddr, dp->dp_saddr,
+			       &rds_iw_transport, GFP_KERNEL);
 	if (IS_ERR(conn)) {
 		rdsdebug("rds_conn_create failed (%ld)\n", PTR_ERR(conn));
 		conn = NULL;
@@ -520,7 +524,7 @@ int rds_iw_conn_connect(struct rds_connection *conn)
 
 	/* XXX I wonder what affect the port space has */
 	/* delegate cm event handler to rdma_transport */
-	ic->i_cm_id = rdma_create_id(rds_rdma_cm_event_handler, conn,
+	ic->i_cm_id = rdma_create_id(&init_net, rds_rdma_cm_event_handler, conn,
 				     RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(ic->i_cm_id)) {
 		ret = PTR_ERR(ic->i_cm_id);

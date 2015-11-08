@@ -26,6 +26,8 @@
 #include "sdio_cis.h"
 #include "bus.h"
 
+#define to_mmc_driver(d)	container_of(d, struct mmc_driver, drv)
+
 static ssize_t type_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -105,14 +107,33 @@ mmc_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return retval;
 }
 
+static int mmc_bus_probe(struct device *dev)
+{
+	struct mmc_driver *drv = to_mmc_driver(dev->driver);
+	struct mmc_card *card = mmc_dev_to_card(dev);
+
+	return drv->probe(card);
+}
+
+static int mmc_bus_remove(struct device *dev)
+{
+	struct mmc_driver *drv = to_mmc_driver(dev->driver);
+	struct mmc_card *card = mmc_dev_to_card(dev);
+
+	drv->remove(card);
+
+	return 0;
+}
+
 static void mmc_bus_shutdown(struct device *dev)
 {
+	struct mmc_driver *drv = to_mmc_driver(dev->driver);
 	struct mmc_card *card = mmc_dev_to_card(dev);
 	struct mmc_host *host = card->host;
 	int ret;
 
-	if (dev->driver && dev->driver->shutdown)
-		dev->driver->shutdown(dev);
+	if (dev->driver && drv->shutdown)
+		drv->shutdown(card);
 
 	if (host->bus_ops->shutdown) {
 		ret = host->bus_ops->shutdown(host);
@@ -181,6 +202,8 @@ static struct bus_type mmc_bus_type = {
 	.dev_groups	= mmc_dev_groups,
 	.match		= mmc_bus_match,
 	.uevent		= mmc_bus_uevent,
+	.probe		= mmc_bus_probe,
+	.remove		= mmc_bus_remove,
 	.shutdown	= mmc_bus_shutdown,
 	.pm		= &mmc_bus_pm_ops,
 };
@@ -199,22 +222,24 @@ void mmc_unregister_bus(void)
  *	mmc_register_driver - register a media driver
  *	@drv: MMC media driver
  */
-int mmc_register_driver(struct device_driver *drv)
+int mmc_register_driver(struct mmc_driver *drv)
 {
-	drv->bus = &mmc_bus_type;
-	return driver_register(drv);
+	drv->drv.bus = &mmc_bus_type;
+	return driver_register(&drv->drv);
 }
+
 EXPORT_SYMBOL(mmc_register_driver);
 
 /**
  *	mmc_unregister_driver - unregister a media driver
  *	@drv: MMC media driver
  */
-void mmc_unregister_driver(struct device_driver *drv)
+void mmc_unregister_driver(struct mmc_driver *drv)
 {
-	drv->bus = &mmc_bus_type;
-	driver_unregister(drv);
+	drv->drv.bus = &mmc_bus_type;
+	driver_unregister(&drv->drv);
 }
+
 EXPORT_SYMBOL(mmc_unregister_driver);
 
 static void mmc_release_card(struct device *dev)

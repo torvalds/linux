@@ -56,7 +56,7 @@ void dma_fifo_init(struct dma_fifo *fifo)
  * @size: 'apparent' size, in bytes, of fifo
  * @align: dma alignment to maintain (should be at least cpu cache alignment),
  *         must be power of 2
- * @tx_limit: maximum # of bytes transmissable per dma (rounded down to
+ * @tx_limit: maximum # of bytes transmissible per dma (rounded down to
  *            multiple of alignment, but at least align size)
  * @open_limit: maximum # of outstanding dma transactions allowed
  * @gfp_mask: get_free_pages mask, passed to kmalloc()

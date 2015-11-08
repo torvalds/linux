@@ -104,8 +104,8 @@ int class_add_uuid(const char *uuid, __u64 nid)
 	if (strlen(uuid) > UUID_MAX - 1)
 		return -EOVERFLOW;
 
-	OBD_ALLOC_PTR(data);
-	if (data == NULL)
+	data = kzalloc(sizeof(*data), GFP_NOFS);
+	if (!data)
 		return -ENOMEM;
 
 	obd_str2uuid(&data->un_uuid, uuid);
@@ -136,7 +136,7 @@ int class_add_uuid(const char *uuid, __u64 nid)
 	if (found) {
 		CDEBUG(D_INFO, "found uuid %s %s cnt=%d\n", uuid,
 		       libcfs_nid2str(nid), entry->un_nid_count);
-		OBD_FREE(data, sizeof(*data));
+		kfree(data);
 	} else {
 		CDEBUG(D_INFO, "add uuid %s %s\n", uuid, libcfs_nid2str(nid));
 	}
@@ -180,7 +180,7 @@ int class_del_uuid(const char *uuid)
 		       libcfs_nid2str(data->un_nids[0]),
 		       data->un_nid_count);
 
-		OBD_FREE(data, sizeof(*data));
+		kfree(data);
 	}
 
 	return 0;

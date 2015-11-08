@@ -1728,10 +1728,8 @@ BBuGetFrameTime(
 	unsigned int uRateIdx = (unsigned int) wRate;
 	unsigned int uRate = 0;
 
-	if (uRateIdx > RATE_54M) {
-		ASSERT(0);
+	if (uRateIdx > RATE_54M)
 		return 0;
-	}
 
 	uRate = (unsigned int)awcFrameTime[uRateIdx];
 
@@ -1945,7 +1943,6 @@ bool BBbReadEmbedded(struct vnt_private *priv,
 	VNSvInPortB(dwIoBase + MAC_REG_BBREGDATA, pbyData);
 
 	if (ww == W_MAX_TIMEOUT) {
-		DBG_PORT80(0x30);
 		pr_debug(" DBG_PORT80(0x30)\n");
 		return false;
 	}
@@ -1988,7 +1985,6 @@ bool BBbWriteEmbedded(struct vnt_private *priv,
 	}
 
 	if (ww == W_MAX_TIMEOUT) {
-		DBG_PORT80(0x31);
 		pr_debug(" DBG_PORT80(0x31)\n");
 		return false;
 	}
@@ -2021,14 +2017,20 @@ bool BBbVT3253Init(struct vnt_private *priv)
 	if (byRFType == RF_RFMD2959) {
 		if (byLocalID <= REV_ID_VT3253_A1) {
 			for (ii = 0; ii < CB_VT3253_INIT_FOR_RFMD; ii++)
-				bResult &= BBbWriteEmbedded(priv, byVT3253InitTab_RFMD[ii][0], byVT3253InitTab_RFMD[ii][1]);
+				bResult &= BBbWriteEmbedded(priv,
+					byVT3253InitTab_RFMD[ii][0],
+					byVT3253InitTab_RFMD[ii][1]);
 
 		} else {
 			for (ii = 0; ii < CB_VT3253B0_INIT_FOR_RFMD; ii++)
-				bResult &= BBbWriteEmbedded(priv, byVT3253B0_RFMD[ii][0], byVT3253B0_RFMD[ii][1]);
+				bResult &= BBbWriteEmbedded(priv,
+					byVT3253B0_RFMD[ii][0],
+					byVT3253B0_RFMD[ii][1]);
 
 			for (ii = 0; ii < CB_VT3253B0_AGC_FOR_RFMD2959; ii++)
-				bResult &= BBbWriteEmbedded(priv, byVT3253B0_AGC4_RFMD2959[ii][0], byVT3253B0_AGC4_RFMD2959[ii][1]);
+				bResult &= BBbWriteEmbedded(priv,
+					byVT3253B0_AGC4_RFMD2959[ii][0],
+					byVT3253B0_AGC4_RFMD2959[ii][1]);
 
 			VNSvOutPortD(dwIoBase + MAC_REG_ITRTMSET, 0x23);
 			MACvRegBitsOn(dwIoBase, MAC_REG_PAPEDELAY, BIT(0));
@@ -2043,10 +2045,13 @@ bool BBbVT3253Init(struct vnt_private *priv)
 		priv->ldBmThreshold[3] = 0;
 	} else if ((byRFType == RF_AIROHA) || (byRFType == RF_AL2230S)) {
 		for (ii = 0; ii < CB_VT3253B0_INIT_FOR_AIROHA2230; ii++)
-			bResult &= BBbWriteEmbedded(priv, byVT3253B0_AIROHA2230[ii][0], byVT3253B0_AIROHA2230[ii][1]);
+			bResult &= BBbWriteEmbedded(priv,
+				byVT3253B0_AIROHA2230[ii][0],
+				byVT3253B0_AIROHA2230[ii][1]);
 
 		for (ii = 0; ii < CB_VT3253B0_AGC; ii++)
-			bResult &= BBbWriteEmbedded(priv, byVT3253B0_AGC[ii][0], byVT3253B0_AGC[ii][1]);
+			bResult &= BBbWriteEmbedded(priv,
+				byVT3253B0_AGC[ii][0], byVT3253B0_AGC[ii][1]);
 
 		priv->abyBBVGA[0] = 0x1C;
 		priv->abyBBVGA[1] = 0x10;
@@ -2058,10 +2063,14 @@ bool BBbVT3253Init(struct vnt_private *priv)
 		priv->ldBmThreshold[3] = 0;
 	} else if (byRFType == RF_UW2451) {
 		for (ii = 0; ii < CB_VT3253B0_INIT_FOR_UW2451; ii++)
-			bResult &= BBbWriteEmbedded(priv, byVT3253B0_UW2451[ii][0], byVT3253B0_UW2451[ii][1]);
+			bResult &= BBbWriteEmbedded(priv,
+				byVT3253B0_UW2451[ii][0],
+				byVT3253B0_UW2451[ii][1]);
 
 		for (ii = 0; ii < CB_VT3253B0_AGC; ii++)
-			bResult &= BBbWriteEmbedded(priv, byVT3253B0_AGC[ii][0], byVT3253B0_AGC[ii][1]);
+			bResult &= BBbWriteEmbedded(priv,
+				byVT3253B0_AGC[ii][0],
+				byVT3253B0_AGC[ii][1]);
 
 		VNSvOutPortB(dwIoBase + MAC_REG_ITRTMSET, 0x23);
 		MACvRegBitsOn(dwIoBase, MAC_REG_PAPEDELAY, BIT(0));
@@ -2076,11 +2085,23 @@ bool BBbVT3253Init(struct vnt_private *priv)
 		priv->ldBmThreshold[3] = 0;
 	} else if (byRFType == RF_UW2452) {
 		for (ii = 0; ii < CB_VT3253B0_INIT_FOR_UW2451; ii++)
-			bResult &= BBbWriteEmbedded(priv, byVT3253B0_UW2451[ii][0], byVT3253B0_UW2451[ii][1]);
+			bResult &= BBbWriteEmbedded(priv,
+				byVT3253B0_UW2451[ii][0],
+				byVT3253B0_UW2451[ii][1]);
 
-		/* Init ANT B select,TX Config CR09 = 0x61->0x45, 0x45->0x41(VC1/VC2 define, make the ANT_A, ANT_B inverted) */
+		/* Init ANT B select,
+		 * TX Config CR09 = 0x61->0x45,
+		 * 0x45->0x41(VC1/VC2 define, make the ANT_A, ANT_B inverted)
+		 */
+
 		/*bResult &= BBbWriteEmbedded(dwIoBase,0x09,0x41);*/
-		/* Init ANT B select,RX Config CR10 = 0x28->0x2A, 0x2A->0x28(VC1/VC2 define, make the ANT_A, ANT_B inverted) */
+
+		/* Init ANT B select,
+		 * RX Config CR10 = 0x28->0x2A,
+		 * 0x2A->0x28(VC1/VC2 define,
+		 * make the ANT_A, ANT_B inverted)
+		 */
+
 		/*bResult &= BBbWriteEmbedded(dwIoBase,0x0a,0x28);*/
 		/* Select VC1/VC2, CR215 = 0x02->0x06 */
 		bResult &= BBbWriteEmbedded(priv, 0xd7, 0x06);
@@ -2097,7 +2118,8 @@ bool BBbVT3253Init(struct vnt_private *priv)
 		bResult &= BBbWriteEmbedded(priv, 0xb0, 0x58);
 
 		for (ii = 0; ii < CB_VT3253B0_AGC; ii++)
-			bResult &= BBbWriteEmbedded(priv, byVT3253B0_AGC[ii][0], byVT3253B0_AGC[ii][1]);
+			bResult &= BBbWriteEmbedded(priv,
+				byVT3253B0_AGC[ii][0], byVT3253B0_AGC[ii][1]);
 
 		priv->abyBBVGA[0] = 0x14;
 		priv->abyBBVGA[1] = 0x0A;
@@ -2111,10 +2133,13 @@ bool BBbVT3253Init(struct vnt_private *priv)
 
 	} else if (byRFType == RF_VT3226) {
 		for (ii = 0; ii < CB_VT3253B0_INIT_FOR_AIROHA2230; ii++)
-			bResult &= BBbWriteEmbedded(priv, byVT3253B0_AIROHA2230[ii][0], byVT3253B0_AIROHA2230[ii][1]);
+			bResult &= BBbWriteEmbedded(priv,
+				byVT3253B0_AIROHA2230[ii][0],
+				byVT3253B0_AIROHA2230[ii][1]);
 
 		for (ii = 0; ii < CB_VT3253B0_AGC; ii++)
-			bResult &= BBbWriteEmbedded(priv, byVT3253B0_AGC[ii][0], byVT3253B0_AGC[ii][1]);
+			bResult &= BBbWriteEmbedded(priv,
+				byVT3253B0_AGC[ii][0], byVT3253B0_AGC[ii][1]);
 
 		priv->abyBBVGA[0] = 0x1C;
 		priv->abyBBVGA[1] = 0x10;
@@ -2129,7 +2154,9 @@ bool BBbVT3253Init(struct vnt_private *priv)
 		/* {{ RobertYu: 20050104 */
 	} else if (byRFType == RF_AIROHA7230) {
 		for (ii = 0; ii < CB_VT3253B0_INIT_FOR_AIROHA2230; ii++)
-			bResult &= BBbWriteEmbedded(priv, byVT3253B0_AIROHA2230[ii][0], byVT3253B0_AIROHA2230[ii][1]);
+			bResult &= BBbWriteEmbedded(priv,
+				byVT3253B0_AIROHA2230[ii][0],
+				byVT3253B0_AIROHA2230[ii][1]);
 
 
 		/* {{ RobertYu:20050223, request by JerryChung */
@@ -2142,7 +2169,8 @@ bool BBbVT3253Init(struct vnt_private *priv)
 		/* }} */
 
 		for (ii = 0; ii < CB_VT3253B0_AGC; ii++)
-			bResult &= BBbWriteEmbedded(priv, byVT3253B0_AGC[ii][0], byVT3253B0_AGC[ii][1]);
+			bResult &= BBbWriteEmbedded(priv,
+				byVT3253B0_AGC[ii][0], byVT3253B0_AGC[ii][1]);
 
 		priv->abyBBVGA[0] = 0x1C;
 		priv->abyBBVGA[1] = 0x10;

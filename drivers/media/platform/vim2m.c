@@ -80,7 +80,6 @@ static struct platform_device vim2m_pdev = {
 };
 
 struct vim2m_fmt {
-	char	*name;
 	u32	fourcc;
 	int	depth;
 	/* Types the format can be used for */
@@ -89,14 +88,12 @@ struct vim2m_fmt {
 
 static struct vim2m_fmt formats[] = {
 	{
-		.name	= "RGB565 (BE)",
 		.fourcc	= V4L2_PIX_FMT_RGB565X, /* rrrrrggg gggbbbbb */
 		.depth	= 16,
 		/* Both capture and output format */
 		.types	= MEM2MEM_CAPTURE | MEM2MEM_OUTPUT,
 	},
 	{
-		.name	= "4:2:2, packed, YUYV",
 		.fourcc	= V4L2_PIX_FMT_YUYV,
 		.depth	= 16,
 		/* Output-only format */
@@ -142,7 +139,7 @@ static struct vim2m_fmt *find_format(struct v4l2_format *f)
 
 struct vim2m_dev {
 	struct v4l2_device	v4l2_dev;
-	struct video_device	*vfd;
+	struct video_device	vfd;
 
 	atomic_t		num_inst;
 	struct mutex		dev_mutex;
@@ -200,8 +197,8 @@ static struct vim2m_q_data *get_q_data(struct vim2m_ctx *ctx,
 
 
 static int device_process(struct vim2m_ctx *ctx,
-			  struct vb2_buffer *in_vb,
-			  struct vb2_buffer *out_vb)
+			  struct vb2_v4l2_buffer *in_vb,
+			  struct vb2_v4l2_buffer *out_vb)
 {
 	struct vim2m_dev *dev = ctx->dev;
 	struct vim2m_q_data *q_data;
@@ -216,15 +213,16 @@ static int device_process(struct vim2m_ctx *ctx,
 	height	= q_data->height;
 	bytesperline	= (q_data->width * q_data->fmt->depth) >> 3;
 
-	p_in = vb2_plane_vaddr(in_vb, 0);
-	p_out = vb2_plane_vaddr(out_vb, 0);
+	p_in = vb2_plane_vaddr(&in_vb->vb2_buf, 0);
+	p_out = vb2_plane_vaddr(&out_vb->vb2_buf, 0);
 	if (!p_in || !p_out) {
 		v4l2_err(&dev->v4l2_dev,
 			 "Acquiring kernel pointers to buffers failed\n");
 		return -EFAULT;
 	}
 
-	if (vb2_plane_size(in_vb, 0) > vb2_plane_size(out_vb, 0)) {
+	if (vb2_plane_size(&in_vb->vb2_buf, 0) >
+			vb2_plane_size(&out_vb->vb2_buf, 0)) {
 		v4l2_err(&dev->v4l2_dev, "Output buffer is too small\n");
 		return -EINVAL;
 	}
@@ -234,16 +232,15 @@ static int device_process(struct vim2m_ctx *ctx,
 	bytes_left = bytesperline - tile_w * MEM2MEM_NUM_TILES;
 	w = 0;
 
-	out_vb->v4l2_buf.sequence = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE)->sequence++;
-	in_vb->v4l2_buf.sequence = q_data->sequence++;
-	memcpy(&out_vb->v4l2_buf.timestamp,
-			&in_vb->v4l2_buf.timestamp,
-			sizeof(struct timeval));
-	if (in_vb->v4l2_buf.flags & V4L2_BUF_FLAG_TIMECODE)
-		memcpy(&out_vb->v4l2_buf.timecode, &in_vb->v4l2_buf.timecode,
-			sizeof(struct v4l2_timecode));
-	out_vb->v4l2_buf.field = in_vb->v4l2_buf.field;
-	out_vb->v4l2_buf.flags = in_vb->v4l2_buf.flags &
+	out_vb->sequence =
+		get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE)->sequence++;
+	in_vb->sequence = q_data->sequence++;
+	out_vb->timestamp = in_vb->timestamp;
+
+	if (in_vb->flags & V4L2_BUF_FLAG_TIMECODE)
+		out_vb->timecode = in_vb->timecode;
+	out_vb->field = in_vb->field;
+	out_vb->flags = in_vb->flags &
 		(V4L2_BUF_FLAG_TIMECODE |
 		 V4L2_BUF_FLAG_KEYFRAME |
 		 V4L2_BUF_FLAG_PFRAME |
@@ -377,7 +374,7 @@ static void device_run(void *priv)
 {
 	struct vim2m_ctx *ctx = priv;
 	struct vim2m_dev *dev = ctx->dev;
-	struct vb2_buffer *src_buf, *dst_buf;
+	struct vb2_v4l2_buffer *src_buf, *dst_buf;
 
 	src_buf = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
 	dst_buf = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
@@ -392,7 +389,7 @@ static void device_isr(unsigned long priv)
 {
 	struct vim2m_dev *vim2m_dev = (struct vim2m_dev *)priv;
 	struct vim2m_ctx *curr_ctx;
-	struct vb2_buffer *src_vb, *dst_vb;
+	struct vb2_v4l2_buffer *src_vb, *dst_vb;
 	unsigned long flags;
 
 	curr_ctx = v4l2_m2m_get_curr_priv(vim2m_dev->m2m_dev);
@@ -458,7 +455,6 @@ static int enum_fmt(struct v4l2_fmtdesc *f, u32 type)
 	if (i < NUM_FORMATS) {
 		/* Format found */
 		fmt = &formats[i];
-		strncpy(f->description, fmt->name, sizeof(f->description) - 1);
 		f->pixelformat = fmt->fourcc;
 		return 0;
 	}
@@ -697,6 +693,8 @@ static const struct v4l2_ioctl_ops vim2m_ioctl_ops = {
 	.vidioc_querybuf	= v4l2_m2m_ioctl_querybuf,
 	.vidioc_qbuf		= v4l2_m2m_ioctl_qbuf,
 	.vidioc_dqbuf		= v4l2_m2m_ioctl_dqbuf,
+	.vidioc_prepare_buf	= v4l2_m2m_ioctl_prepare_buf,
+	.vidioc_create_bufs	= v4l2_m2m_ioctl_create_bufs,
 	.vidioc_expbuf		= v4l2_m2m_ioctl_expbuf,
 
 	.vidioc_streamon	= v4l2_m2m_ioctl_streamon,
@@ -712,10 +710,11 @@ static const struct v4l2_ioctl_ops vim2m_ioctl_ops = {
  */
 
 static int vim2m_queue_setup(struct vb2_queue *vq,
-				const struct v4l2_format *fmt,
+				const void *parg,
 				unsigned int *nbuffers, unsigned int *nplanes,
 				unsigned int sizes[], void *alloc_ctxs[])
 {
+	const struct v4l2_format *fmt = parg;
 	struct vim2m_ctx *ctx = vb2_get_drv_priv(vq);
 	struct vim2m_q_data *q_data;
 	unsigned int size, count = *nbuffers;
@@ -723,6 +722,12 @@ static int vim2m_queue_setup(struct vb2_queue *vq,
 	q_data = get_q_data(ctx, vq->type);
 
 	size = q_data->width * q_data->height * q_data->fmt->depth >> 3;
+
+	if (fmt) {
+		if (fmt->fmt.pix.sizeimage < size)
+			return -EINVAL;
+		size = fmt->fmt.pix.sizeimage;
+	}
 
 	while (size * count > MEM2MEM_VID_MEM_LIMIT)
 		(count)--;
@@ -743,6 +748,7 @@ static int vim2m_queue_setup(struct vb2_queue *vq,
 
 static int vim2m_buf_prepare(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vim2m_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 	struct vim2m_q_data *q_data;
 
@@ -750,9 +756,9 @@ static int vim2m_buf_prepare(struct vb2_buffer *vb)
 
 	q_data = get_q_data(ctx, vb->vb2_queue->type);
 	if (V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type)) {
-		if (vb->v4l2_buf.field == V4L2_FIELD_ANY)
-			vb->v4l2_buf.field = V4L2_FIELD_NONE;
-		if (vb->v4l2_buf.field != V4L2_FIELD_NONE) {
+		if (vbuf->field == V4L2_FIELD_ANY)
+			vbuf->field = V4L2_FIELD_NONE;
+		if (vbuf->field != V4L2_FIELD_NONE) {
 			dprintk(ctx->dev, "%s field isn't supported\n",
 					__func__);
 			return -EINVAL;
@@ -772,9 +778,10 @@ static int vim2m_buf_prepare(struct vb2_buffer *vb)
 
 static void vim2m_buf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vim2m_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 
-	v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, vb);
+	v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, vbuf);
 }
 
 static int vim2m_start_streaming(struct vb2_queue *q, unsigned count)
@@ -789,18 +796,18 @@ static int vim2m_start_streaming(struct vb2_queue *q, unsigned count)
 static void vim2m_stop_streaming(struct vb2_queue *q)
 {
 	struct vim2m_ctx *ctx = vb2_get_drv_priv(q);
-	struct vb2_buffer *vb;
+	struct vb2_v4l2_buffer *vbuf;
 	unsigned long flags;
 
 	for (;;) {
 		if (V4L2_TYPE_IS_OUTPUT(q->type))
-			vb = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
+			vbuf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
 		else
-			vb = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
-		if (vb == NULL)
+			vbuf = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
+		if (vbuf == NULL)
 			return;
 		spin_lock_irqsave(&ctx->dev->irqlock, flags);
-		v4l2_m2m_buf_done(vb, VB2_BUF_STATE_ERROR);
+		v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_ERROR);
 		spin_unlock_irqrestore(&ctx->dev->irqlock, flags);
 	}
 }
@@ -968,7 +975,7 @@ static struct video_device vim2m_videodev = {
 	.fops		= &vim2m_fops,
 	.ioctl_ops	= &vim2m_ioctl_ops,
 	.minor		= -1,
-	.release	= video_device_release,
+	.release	= video_device_release_empty,
 };
 
 static struct v4l2_m2m_ops m2m_ops = {
@@ -996,26 +1003,19 @@ static int vim2m_probe(struct platform_device *pdev)
 	atomic_set(&dev->num_inst, 0);
 	mutex_init(&dev->dev_mutex);
 
-	vfd = video_device_alloc();
-	if (!vfd) {
-		v4l2_err(&dev->v4l2_dev, "Failed to allocate video device\n");
-		ret = -ENOMEM;
-		goto unreg_dev;
-	}
-
-	*vfd = vim2m_videodev;
+	dev->vfd = vim2m_videodev;
+	vfd = &dev->vfd;
 	vfd->lock = &dev->dev_mutex;
 	vfd->v4l2_dev = &dev->v4l2_dev;
 
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
 	if (ret) {
 		v4l2_err(&dev->v4l2_dev, "Failed to register video device\n");
-		goto rel_vdev;
+		goto unreg_dev;
 	}
 
 	video_set_drvdata(vfd, dev);
 	snprintf(vfd->name, sizeof(vfd->name), "%s", vim2m_videodev.name);
-	dev->vfd = vfd;
 	v4l2_info(&dev->v4l2_dev,
 			"Device registered as /dev/video%d\n", vfd->num);
 
@@ -1033,9 +1033,7 @@ static int vim2m_probe(struct platform_device *pdev)
 
 err_m2m:
 	v4l2_m2m_release(dev->m2m_dev);
-	video_unregister_device(dev->vfd);
-rel_vdev:
-	video_device_release(vfd);
+	video_unregister_device(&dev->vfd);
 unreg_dev:
 	v4l2_device_unregister(&dev->v4l2_dev);
 
@@ -1049,7 +1047,7 @@ static int vim2m_remove(struct platform_device *pdev)
 	v4l2_info(&dev->v4l2_dev, "Removing " MEM2MEM_NAME);
 	v4l2_m2m_release(dev->m2m_dev);
 	del_timer_sync(&dev->timer);
-	video_unregister_device(dev->vfd);
+	video_unregister_device(&dev->vfd);
 	v4l2_device_unregister(&dev->v4l2_dev);
 
 	return 0;

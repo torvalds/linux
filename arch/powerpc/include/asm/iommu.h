@@ -2,17 +2,17 @@
  * Copyright (C) 2001 Mike Corrigan & Dave Engebretsen, IBM Corporation
  * Rewrite, cleanup:
  * Copyright (C) 2004 Olof Johansson <olof@lixom.net>, IBM Corporation
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
@@ -29,6 +29,7 @@
 #include <linux/bitops.h>
 #include <asm/machdep.h>
 #include <asm/types.h>
+#include <asm/pci-bridge.h>
 
 #define IOMMU_PAGE_SHIFT_4K      12
 #define IOMMU_PAGE_SIZE_4K       (ASM_CONST(1) << IOMMU_PAGE_SHIFT_4K)
@@ -42,6 +43,39 @@
 /* Boot time flags */
 extern int iommu_is_off;
 extern int iommu_force_on;
+
+struct iommu_table_ops {
+	/*
+	 * When called with direction==DMA_NONE, it is equal to clear().
+	 * uaddr is a linear map address.
+	 */
+	int (*set)(struct iommu_table *tbl,
+			long index, long npages,
+			unsigned long uaddr,
+			enum dma_data_direction direction,
+			struct dma_attrs *attrs);
+#ifdef CONFIG_IOMMU_API
+	/*
+	 * Exchanges existing TCE with new TCE plus direction bits;
+	 * returns old TCE and DMA direction mask.
+	 * @tce is a physical address.
+	 */
+	int (*exchange)(struct iommu_table *tbl,
+			long index,
+			unsigned long *hpa,
+			enum dma_data_direction *direction);
+#endif
+	void (*clear)(struct iommu_table *tbl,
+			long index, long npages);
+	/* get() returns a physical address */
+	unsigned long (*get)(struct iommu_table *tbl, long index);
+	void (*flush)(struct iommu_table *tbl);
+	void (*free)(struct iommu_table *tbl);
+};
+
+/* These are used by VIO */
+extern struct iommu_table_ops iommu_table_lpar_multi_ops;
+extern struct iommu_table_ops iommu_table_pseries_ops;
 
 /*
  * IOMAP_MAX_ORDER defines the largest contiguous block
@@ -63,6 +97,9 @@ struct iommu_pool {
 struct iommu_table {
 	unsigned long  it_busno;     /* Bus number this table belongs to */
 	unsigned long  it_size;      /* Size of iommu table in entries */
+	unsigned long  it_indirect_levels;
+	unsigned long  it_level_size;
+	unsigned long  it_allocated_size;
 	unsigned long  it_offset;    /* Offset into global table */
 	unsigned long  it_base;      /* mapped address of tce table */
 	unsigned long  it_index;     /* which iommu table this is */
@@ -74,11 +111,15 @@ struct iommu_table {
 	struct iommu_pool pools[IOMMU_NR_POOLS];
 	unsigned long *it_map;       /* A simple allocation bitmap for now */
 	unsigned long  it_page_shift;/* table iommu page size */
-#ifdef CONFIG_IOMMU_API
-	struct iommu_group *it_group;
-#endif
-	void (*set_bypass)(struct iommu_table *tbl, bool enable);
+	struct list_head it_group_list;/* List of iommu_table_group_link */
+	unsigned long *it_userspace; /* userspace view of the table */
+	struct iommu_table_ops *it_ops;
 };
+
+#define IOMMU_TABLE_USERSPACE_ENTRY(tbl, entry) \
+		((tbl)->it_userspace ? \
+			&((tbl)->it_userspace[(entry) - (tbl)->it_offset]) : \
+			NULL)
 
 /* Pure 2^n version of get_order */
 static inline __attribute_const__
@@ -90,15 +131,20 @@ int get_iommu_order(unsigned long size, struct iommu_table *tbl)
 
 struct scatterlist;
 
-static inline void set_iommu_table_base(struct device *dev, void *base)
+#ifdef CONFIG_PPC64
+
+static inline void set_iommu_table_base(struct device *dev,
+					struct iommu_table *base)
 {
-	dev->archdata.dma_data.iommu_table_base = base;
+	dev->archdata.iommu_table_base = base;
 }
 
 static inline void *get_iommu_table_base(struct device *dev)
 {
-	return dev->archdata.dma_data.iommu_table_base;
+	return dev->archdata.iommu_table_base;
 }
+
+extern int dma_iommu_dma_supported(struct device *dev, u64 mask);
 
 /* Frees table for an individual device node */
 extern void iommu_free_table(struct iommu_table *tbl, const char *node_name);
@@ -108,14 +154,62 @@ extern void iommu_free_table(struct iommu_table *tbl, const char *node_name);
  */
 extern struct iommu_table *iommu_init_table(struct iommu_table * tbl,
 					    int nid);
+#define IOMMU_TABLE_GROUP_MAX_TABLES	2
+
+struct iommu_table_group;
+
+struct iommu_table_group_ops {
+	unsigned long (*get_table_size)(
+			__u32 page_shift,
+			__u64 window_size,
+			__u32 levels);
+	long (*create_table)(struct iommu_table_group *table_group,
+			int num,
+			__u32 page_shift,
+			__u64 window_size,
+			__u32 levels,
+			struct iommu_table **ptbl);
+	long (*set_window)(struct iommu_table_group *table_group,
+			int num,
+			struct iommu_table *tblnew);
+	long (*unset_window)(struct iommu_table_group *table_group,
+			int num);
+	/* Switch ownership from platform code to external user (e.g. VFIO) */
+	void (*take_ownership)(struct iommu_table_group *table_group);
+	/* Switch ownership from external user (e.g. VFIO) back to core */
+	void (*release_ownership)(struct iommu_table_group *table_group);
+};
+
+struct iommu_table_group_link {
+	struct list_head next;
+	struct rcu_head rcu;
+	struct iommu_table_group *table_group;
+};
+
+struct iommu_table_group {
+	/* IOMMU properties */
+	__u32 tce32_start;
+	__u32 tce32_size;
+	__u64 pgsizes; /* Bitmap of supported page sizes */
+	__u32 max_dynamic_windows_supported;
+	__u32 max_levels;
+
+	struct iommu_group *group;
+	struct iommu_table *tables[IOMMU_TABLE_GROUP_MAX_TABLES];
+	struct iommu_table_group_ops *ops;
+};
+
 #ifdef CONFIG_IOMMU_API
-extern void iommu_register_group(struct iommu_table *tbl,
+
+extern void iommu_register_group(struct iommu_table_group *table_group,
 				 int pci_domain_number, unsigned long pe_num);
 extern int iommu_add_device(struct device *dev);
 extern void iommu_del_device(struct device *dev);
 extern int __init tce_iommu_bus_notifier_init(void);
+extern long iommu_tce_xchg(struct iommu_table *tbl, unsigned long entry,
+		unsigned long *hpa, enum dma_data_direction *direction);
 #else
-static inline void iommu_register_group(struct iommu_table *tbl,
+static inline void iommu_register_group(struct iommu_table_group *table_group,
 					int pci_domain_number,
 					unsigned long pe_num)
 {
@@ -136,12 +230,19 @@ static inline int __init tce_iommu_bus_notifier_init(void)
 }
 #endif /* !CONFIG_IOMMU_API */
 
-static inline void set_iommu_table_base_and_group(struct device *dev,
-						  void *base)
+#else
+
+static inline void *get_iommu_table_base(struct device *dev)
 {
-	set_iommu_table_base(dev, base);
-	iommu_add_device(dev);
+	return NULL;
 }
+
+static inline int dma_iommu_dma_supported(struct device *dev, u64 mask)
+{
+	return 0;
+}
+
+#endif /* CONFIG_PPC64 */
 
 extern int ppc_iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 			    struct scatterlist *sglist, int nelems,
@@ -169,7 +270,7 @@ extern void iommu_unmap_page(struct iommu_table *tbl, dma_addr_t dma_handle,
 			     struct dma_attrs *attrs);
 
 extern void iommu_init_early_pSeries(void);
-extern void iommu_init_early_dart(void);
+extern void iommu_init_early_dart(struct pci_controller_ops *controller_ops);
 extern void iommu_init_early_pasemi(void);
 
 extern void alloc_dart_table(void);
@@ -193,20 +294,13 @@ extern int iommu_tce_clear_param_check(struct iommu_table *tbl,
 		unsigned long npages);
 extern int iommu_tce_put_param_check(struct iommu_table *tbl,
 		unsigned long ioba, unsigned long tce);
-extern int iommu_tce_build(struct iommu_table *tbl, unsigned long entry,
-		unsigned long hwaddr, enum dma_data_direction direction);
-extern unsigned long iommu_clear_tce(struct iommu_table *tbl,
-		unsigned long entry);
-extern int iommu_clear_tces_and_put_pages(struct iommu_table *tbl,
-		unsigned long entry, unsigned long pages);
-extern int iommu_put_tce_user_mode(struct iommu_table *tbl,
-		unsigned long entry, unsigned long tce);
 
 extern void iommu_flush_tce(struct iommu_table *tbl);
 extern int iommu_take_ownership(struct iommu_table *tbl);
 extern void iommu_release_ownership(struct iommu_table *tbl);
 
 extern enum dma_data_direction iommu_tce_direction(unsigned long tce);
+extern unsigned long iommu_direction_to_tce_perm(enum dma_data_direction dir);
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_IOMMU_H */

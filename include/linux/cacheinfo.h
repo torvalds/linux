@@ -19,7 +19,7 @@ enum cache_type {
 /**
  * struct cacheinfo - represent a cache leaf node
  * @type: type of the cache - data, inst or unified
- * @level: represents the hierarcy in the multi-level cache
+ * @level: represents the hierarchy in the multi-level cache
  * @coherency_line_size: size of each cache line usually representing
  *	the minimum amount of data that gets transferred from memory
  * @number_of_sets: total number of sets, a set is a collection of cache

@@ -71,7 +71,7 @@ acpi_status acpi_enable(void)
 
 	/* ACPI tables must be present */
 
-	if (!acpi_tb_tables_loaded()) {
+	if (acpi_gbl_fadt_index == ACPI_INVALID_TABLE_INDEX) {
 		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
 	}
 
@@ -356,7 +356,8 @@ acpi_status acpi_get_event_status(u32 event, acpi_event_status * event_status)
 	}
 
 	if (in_byte) {
-		local_event_status |= ACPI_EVENT_FLAG_ENABLED;
+		local_event_status |=
+		    (ACPI_EVENT_FLAG_ENABLED | ACPI_EVENT_FLAG_ENABLE_SET);
 	}
 
 	/* Fixed event currently active? */
@@ -369,7 +370,7 @@ acpi_status acpi_get_event_status(u32 event, acpi_event_status * event_status)
 	}
 
 	if (in_byte) {
-		local_event_status |= ACPI_EVENT_FLAG_SET;
+		local_event_status |= ACPI_EVENT_FLAG_STATUS_SET;
 	}
 
 	(*event_status) = local_event_status;

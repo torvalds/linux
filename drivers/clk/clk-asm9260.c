@@ -274,7 +274,7 @@ static void __init asm9260_acc_init(struct device_node *np)
 	u32 accuracy = 0;
 
 	base = of_io_request_and_map(np, 0, np->name);
-	if (!base)
+	if (IS_ERR(base))
 		panic("%s: unable to map resource", np->name);
 
 	/* register pll */

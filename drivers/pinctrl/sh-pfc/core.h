@@ -46,7 +46,9 @@ struct sh_pfc {
 	unsigned int nr_gpio_pins;
 
 	struct sh_pfc_chip *gpio;
+#ifdef CONFIG_SUPERH
 	struct sh_pfc_chip *func;
+#endif
 
 	struct sh_pfc_pinctrl *pinctrl;
 };
@@ -57,10 +59,9 @@ int sh_pfc_unregister_gpiochip(struct sh_pfc *pfc);
 int sh_pfc_register_pinctrl(struct sh_pfc *pfc);
 int sh_pfc_unregister_pinctrl(struct sh_pfc *pfc);
 
-unsigned long sh_pfc_read_raw_reg(void __iomem *mapped_reg,
-				  unsigned long reg_width);
-void sh_pfc_write_raw_reg(void __iomem *mapped_reg, unsigned long reg_width,
-			  unsigned long data);
+u32 sh_pfc_read_raw_reg(void __iomem *mapped_reg, unsigned int reg_width);
+void sh_pfc_write_raw_reg(void __iomem *mapped_reg, unsigned int reg_width,
+			  u32 data);
 
 int sh_pfc_get_pin_index(struct sh_pfc *pfc, unsigned int pin);
 int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type);
@@ -72,6 +73,9 @@ extern const struct sh_pfc_soc_info r8a7778_pinmux_info;
 extern const struct sh_pfc_soc_info r8a7779_pinmux_info;
 extern const struct sh_pfc_soc_info r8a7790_pinmux_info;
 extern const struct sh_pfc_soc_info r8a7791_pinmux_info;
+extern const struct sh_pfc_soc_info r8a7793_pinmux_info;
+extern const struct sh_pfc_soc_info r8a7794_pinmux_info;
+extern const struct sh_pfc_soc_info r8a7795_pinmux_info;
 extern const struct sh_pfc_soc_info sh7203_pinmux_info;
 extern const struct sh_pfc_soc_info sh7264_pinmux_info;
 extern const struct sh_pfc_soc_info sh7269_pinmux_info;

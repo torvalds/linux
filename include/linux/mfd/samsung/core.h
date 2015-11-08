@@ -58,13 +58,7 @@ enum sec_device_type {
  * @irq_base:		Base IRQ number for device, required for IRQs
  * @irq:		Generic IRQ number for device
  * @irq_data:		Runtime data structure for IRQ controller
- * @ono:		Power onoff IRQ number for s5m87xx
  * @wakeup:		Whether or not this is a wakeup device
- * @wtsr_smpl:		Whether or not to enable in RTC driver the Watchdog
- *			Timer Software Reset (registers set to default value
- *			after PWRHOLD falling) and Sudden Momentary Power Loss
- *			(PMIC will enter power on sequence after short drop in
- *			VBATT voltage).
  */
 struct sec_pmic_dev {
 	struct device *dev;
@@ -77,9 +71,7 @@ struct sec_pmic_dev {
 	int irq;
 	struct regmap_irq_chip_data *irq_data;
 
-	int ono;
 	bool wakeup;
-	bool wtsr_smpl;
 };
 
 int sec_irq_init(struct sec_pmic_dev *sec_pmic);
@@ -95,7 +87,6 @@ struct sec_platform_data {
 	int				irq_base;
 	int				(*cfg_pmic_irq)(void);
 
-	int				ono;
 	bool				wakeup;
 	bool				buck_voltage_lock;
 
@@ -141,6 +132,10 @@ struct sec_platform_data {
 	int				buck2_init;
 	int				buck3_init;
 	int				buck4_init;
+	/* Whether or not manually set PWRHOLD to low during shutdown. */
+	bool				manual_poweroff;
+	/* Disable the WRSTBI (buck voltage warm reset) when probing? */
+	bool				disable_wrstbi;
 };
 
 /**

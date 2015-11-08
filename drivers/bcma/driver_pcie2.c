@@ -10,6 +10,7 @@
 
 #include "bcma_private.h"
 #include <linux/bcma/bcma.h>
+#include <linux/pci.h>
 
 /**************************************************
  * R/W ops.
@@ -156,14 +157,23 @@ static void pciedev_reg_pm_clk_period(struct bcma_drv_pcie2 *pcie2)
 
 void bcma_core_pcie2_init(struct bcma_drv_pcie2 *pcie2)
 {
-	struct bcma_chipinfo *ci = &pcie2->core->bus->chipinfo;
+	struct bcma_bus *bus = pcie2->core->bus;
+	struct bcma_chipinfo *ci = &bus->chipinfo;
 	u32 tmp;
 
 	tmp = pcie2_read32(pcie2, BCMA_CORE_PCIE2_SPROM(54));
 	if ((tmp & 0xe) >> 1 == 2)
 		bcma_core_pcie2_cfg_write(pcie2, 0x4e0, 0x17);
 
-	/* TODO: Do we need pcie_reqsize? */
+	switch (bus->chipinfo.id) {
+	case BCMA_CHIP_ID_BCM4360:
+	case BCMA_CHIP_ID_BCM4352:
+		pcie2->reqsize = 1024;
+		break;
+	default:
+		pcie2->reqsize = 128;
+		break;
+	}
 
 	if (ci->id == BCMA_CHIP_ID_BCM4360 && ci->rev > 3)
 		bcma_core_pcie2_war_delay_perst_enab(pcie2, true);
@@ -172,4 +182,19 @@ void bcma_core_pcie2_init(struct bcma_drv_pcie2 *pcie2)
 	pciedev_reg_pm_clk_period(pcie2);
 	pciedev_crwlpciegen2_180(pcie2);
 	pciedev_crwlpciegen2_182(pcie2);
+}
+
+/**************************************************
+ * Runtime ops.
+ **************************************************/
+
+void bcma_core_pcie2_up(struct bcma_drv_pcie2 *pcie2)
+{
+	struct bcma_bus *bus = pcie2->core->bus;
+	struct pci_dev *dev = bus->host_pci;
+	int err;
+
+	err = pcie_set_readrq(dev, pcie2->reqsize);
+	if (err)
+		bcma_err(bus, "Error setting PCI_EXP_DEVCTL_READRQ: %d\n", err);
 }

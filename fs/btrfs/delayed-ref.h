@@ -24,8 +24,24 @@
 #define BTRFS_ADD_DELAYED_EXTENT 3 /* record a full extent allocation */
 #define BTRFS_UPDATE_DELAYED_HEAD 4 /* not changing ref count on head ref */
 
+/*
+ * XXX: Qu: I really hate the design that ref_head and tree/data ref shares the
+ * same ref_node structure.
+ * Ref_head is in a higher logic level than tree/data ref, and duplicated
+ * bytenr/num_bytes in ref_node is really a waste or memory, they should be
+ * referred from ref_head.
+ * This gets more disgusting after we use list to store tree/data ref in
+ * ref_head. Must clean this mess up later.
+ */
 struct btrfs_delayed_ref_node {
+	/*
+	 * ref_head use rb tree, stored in ref_root->href.
+	 * indexed by bytenr
+	 */
 	struct rb_node rb_node;
+
+	/*data/tree ref use list, stored in ref_head->ref_list. */
+	struct list_head list;
 
 	/* the starting bytenr of the extent */
 	u64 bytenr;
@@ -52,7 +68,6 @@ struct btrfs_delayed_ref_node {
 
 	unsigned int action:8;
 	unsigned int type:8;
-	unsigned int no_quota:1;
 	/* is this node still in the rbtree? */
 	unsigned int is_head:1;
 	unsigned int in_tree:1;
@@ -83,11 +98,30 @@ struct btrfs_delayed_ref_head {
 	struct mutex mutex;
 
 	spinlock_t lock;
-	struct rb_root ref_root;
+	struct list_head ref_list;
 
 	struct rb_node href_node;
 
 	struct btrfs_delayed_extent_op *extent_op;
+
+	/*
+	 * This is used to track the final ref_mod from all the refs associated
+	 * with this head ref, this is not adjusted as delayed refs are run,
+	 * this is meant to track if we need to do the csum accounting or not.
+	 */
+	int total_ref_mod;
+
+	/*
+	 * For qgroup reserved space freeing.
+	 *
+	 * ref_root and reserved will be recorded after
+	 * BTRFS_ADD_DELAYED_EXTENT is called.
+	 * And will be used to free reserved qgroup space at
+	 * run_delayed_refs() time.
+	 */
+	u64 qgroup_ref_root;
+	u64 qgroup_reserved;
+
 	/*
 	 * when a new extent is allocated, it is just reserved in memory
 	 * The actual extent isn't inserted into the extent allocation tree
@@ -124,6 +158,9 @@ struct btrfs_delayed_ref_root {
 	/* head ref rbtree */
 	struct rb_root href_root;
 
+	/* dirty extent records */
+	struct rb_root dirty_extent_root;
+
 	/* this spin lock protects the rbtree and the entries inside */
 	spinlock_t lock;
 
@@ -138,6 +175,8 @@ struct btrfs_delayed_ref_root {
 	/* total number of head nodes ready for processing */
 	unsigned long num_heads_ready;
 
+	u64 pending_csums;
+
 	/*
 	 * set when the tree is flushing before a transaction commit,
 	 * used by the throttling code to decide if new updates need
@@ -146,6 +185,14 @@ struct btrfs_delayed_ref_root {
 	int flushing;
 
 	u64 run_delayed_start;
+
+	/*
+	 * To make qgroup to skip given root.
+	 * This is for snapshot, as btrfs_qgroup_inherit() will manully
+	 * modify counters for snapshot and its source, so we should skip
+	 * the snapshot in new_root/old_roots or it will get calculated twice
+	 */
+	u64 qgroup_to_skip;
 };
 
 extern struct kmem_cache *btrfs_delayed_ref_head_cachep;
@@ -196,15 +243,16 @@ int btrfs_add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
 			       struct btrfs_trans_handle *trans,
 			       u64 bytenr, u64 num_bytes, u64 parent,
 			       u64 ref_root, int level, int action,
-			       struct btrfs_delayed_extent_op *extent_op,
-			       int no_quota);
+			       struct btrfs_delayed_extent_op *extent_op);
 int btrfs_add_delayed_data_ref(struct btrfs_fs_info *fs_info,
 			       struct btrfs_trans_handle *trans,
 			       u64 bytenr, u64 num_bytes,
 			       u64 parent, u64 ref_root,
-			       u64 owner, u64 offset, int action,
-			       struct btrfs_delayed_extent_op *extent_op,
-			       int no_quota);
+			       u64 owner, u64 offset, u64 reserved, int action,
+			       struct btrfs_delayed_extent_op *extent_op);
+int btrfs_add_delayed_qgroup_reserve(struct btrfs_fs_info *fs_info,
+				     struct btrfs_trans_handle *trans,
+				     u64 ref_root, u64 bytenr, u64 num_bytes);
 int btrfs_add_delayed_extent_op(struct btrfs_fs_info *fs_info,
 				struct btrfs_trans_handle *trans,
 				u64 bytenr, u64 num_bytes,

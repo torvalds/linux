@@ -8,7 +8,6 @@ obj-$(CONFIG_NETIUCV) += netiucv.o fsm.o
 obj-$(CONFIG_SMSGIUCV) += smsgiucv.o
 obj-$(CONFIG_SMSGIUCV_EVENT) += smsgiucv_app.o
 obj-$(CONFIG_LCS) += lcs.o
-obj-$(CONFIG_CLAW) += claw.o
 qeth-y += qeth_core_sys.o qeth_core_main.o qeth_core_mpc.o
 obj-$(CONFIG_QETH) += qeth.o
 qeth_l2-y += qeth_l2_main.o qeth_l2_sys.o

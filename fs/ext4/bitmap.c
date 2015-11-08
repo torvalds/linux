@@ -8,7 +8,6 @@
  */
 
 #include <linux/buffer_head.h>
-#include <linux/jbd2.h>
 #include "ext4.h"
 
 unsigned int ext4_count_free(char *bitmap, unsigned int numchars)

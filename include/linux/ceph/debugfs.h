@@ -7,13 +7,7 @@
 #define CEPH_DEFINE_SHOW_FUNC(name)					\
 static int name##_open(struct inode *inode, struct file *file)		\
 {									\
-	struct seq_file *sf;						\
-	int ret;							\
-									\
-	ret = single_open(file, name, NULL);				\
-	sf = file->private_data;					\
-	sf->private = inode->i_private;					\
-	return ret;							\
+	return single_open(file, name, inode->i_private);		\
 }									\
 									\
 static const struct file_operations name##_fops = {			\

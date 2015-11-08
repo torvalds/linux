@@ -65,7 +65,7 @@ struct charger_cable {
 	const char *extcon_name;
 	const char *name;
 
-	/* The charger-manager use Exton framework*/
+	/* The charger-manager use Extcon framework */
 	struct extcon_specific_cable_nb extcon_dev;
 	struct work_struct wq;
 	struct notifier_block nb;
@@ -94,7 +94,7 @@ struct charger_cable {
  *	the charger will be maintained with disabled state.
  * @cables:
  *	the array of charger cables to enable/disable charger
- *	and set current limit according to constratint data of
+ *	and set current limit according to constraint data of
  *	struct charger_cable if only charger cable included
  *	in the array of charger cables is attached/detached.
  * @num_cables: the number of charger cables.
@@ -148,7 +148,7 @@ struct charger_regulator {
  * @polling_interval_ms: interval in millisecond at which
  *	charger manager will monitor battery health
  * @battery_present:
- *	Specify where information for existance of battery can be obtained
+ *	Specify where information for existence of battery can be obtained
  * @psy_charger_stat: the names of power-supply for chargers
  * @num_charger_regulator: the number of entries in charger_regulators
  * @charger_regulators: array of charger regulators
@@ -156,7 +156,7 @@ struct charger_regulator {
  * @thermal_zone : the name of thermal zone for battery
  * @temp_min : Minimum battery temperature for charging.
  * @temp_max : Maximum battery temperature for charging.
- * @temp_diff : Temperature diffential to restart charging.
+ * @temp_diff : Temperature difference to restart charging.
  * @measure_battery_temp:
  *	true: measure battery temperature
  *	false: measure ambient temperature
@@ -242,7 +242,8 @@ struct charger_manager {
 	int emergency_stop;
 
 	char psy_name_buf[PSY_NAME_MAX + 1];
-	struct power_supply charger_psy;
+	struct power_supply_desc charger_psy_desc;
+	struct power_supply *charger_psy;
 
 	u64 charging_start_time;
 	u64 charging_end_time;

@@ -15,6 +15,8 @@
  * "Sending and receiving", using SMBus level communication is preferred.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -373,8 +375,8 @@ static void ds3232_work(struct work_struct *work)
 	if (stat & DS3232_REG_SR_A1F) {
 		control = i2c_smbus_read_byte_data(client, DS3232_REG_CR);
 		if (control < 0) {
-			pr_warn("Read DS3232 Control Register error."
-				"Disable IRQ%d.\n", client->irq);
+			pr_warn("Read Control Register error - Disable IRQ%d\n",
+				client->irq);
 		} else {
 			/* disable alarm1 interrupt */
 			control &= ~(DS3232_REG_CR_A1IE);
@@ -441,7 +443,7 @@ static int ds3232_remove(struct i2c_client *client)
 {
 	struct ds3232 *ds3232 = i2c_get_clientdata(client);
 
-	if (client->irq >= 0) {
+	if (client->irq > 0) {
 		mutex_lock(&ds3232->mutex);
 		ds3232->exiting = 1;
 		mutex_unlock(&ds3232->mutex);
@@ -461,7 +463,10 @@ static int ds3232_suspend(struct device *dev)
 
 	if (device_can_wakeup(dev)) {
 		ds3232->suspended = true;
-		irq_set_irq_wake(client->irq, 1);
+		if (irq_set_irq_wake(client->irq, 1)) {
+			dev_warn_once(dev, "Cannot set wakeup source\n");
+			ds3232->suspended = false;
+		}
 	}
 
 	return 0;
@@ -498,7 +503,6 @@ MODULE_DEVICE_TABLE(i2c, ds3232_id);
 static struct i2c_driver ds3232_driver = {
 	.driver = {
 		.name = "rtc-ds3232",
-		.owner = THIS_MODULE,
 		.pm	= &ds3232_pm_ops,
 	},
 	.probe = ds3232_probe,

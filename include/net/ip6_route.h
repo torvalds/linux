@@ -145,7 +145,7 @@ static inline void __ip6_dst_store(struct sock *sk, struct dst_entry *dst,
 #ifdef CONFIG_IPV6_SUBTREES
 	np->saddr_cache = saddr;
 #endif
-	np->dst_cookie = rt->rt6i_node ? rt->rt6i_node->fn_sernum : 0;
+	np->dst_cookie = rt6_get_cookie(rt);
 }
 
 static inline void ip6_dst_store(struct sock *sk, struct dst_entry *dst,
@@ -163,18 +163,23 @@ static inline bool ipv6_unicast_destination(const struct sk_buff *skb)
 	return rt->rt6i_flags & RTF_LOCAL;
 }
 
-static inline bool ipv6_anycast_destination(const struct sk_buff *skb)
+static inline bool ipv6_anycast_destination(const struct dst_entry *dst,
+					    const struct in6_addr *daddr)
 {
-	struct rt6_info *rt = (struct rt6_info *) skb_dst(skb);
+	struct rt6_info *rt = (struct rt6_info *)dst;
 
-	return rt->rt6i_flags & RTF_ANYCAST;
+	return rt->rt6i_flags & RTF_ANYCAST ||
+		(rt->rt6i_dst.plen != 128 &&
+		 ipv6_addr_equal(&rt->rt6i_dst.addr, daddr));
 }
 
-int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *));
+int ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
+		 int (*output)(struct net *, struct sock *, struct sk_buff *));
 
 static inline int ip6_skb_dst_mtu(struct sk_buff *skb)
 {
-	struct ipv6_pinfo *np = skb->sk ? inet6_sk(skb->sk) : NULL;
+	struct ipv6_pinfo *np = skb->sk && !dev_recursion_level() ?
+				inet6_sk(skb->sk) : NULL;
 
 	return (np && np->pmtudisc >= IPV6_PMTUDISC_PROBE) ?
 	       skb_dst(skb)->dev->mtu : dst_mtu(skb_dst(skb));
@@ -192,9 +197,15 @@ static inline bool ip6_sk_ignore_df(const struct sock *sk)
 	       inet6_sk(sk)->pmtudisc == IPV6_PMTUDISC_OMIT;
 }
 
-static inline struct in6_addr *rt6_nexthop(struct rt6_info *rt)
+static inline struct in6_addr *rt6_nexthop(struct rt6_info *rt,
+					   struct in6_addr *daddr)
 {
-	return &rt->rt6i_gateway;
+	if (rt->rt6i_flags & RTF_GATEWAY)
+		return &rt->rt6i_gateway;
+	else if (unlikely(rt->rt6i_flags & RTF_CACHE))
+		return &rt->rt6i_dst.addr;
+	else
+		return daddr;
 }
 
 #endif

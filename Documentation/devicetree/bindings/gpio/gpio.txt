@@ -16,7 +16,9 @@ properties, each containing a 'gpio-list':
 GPIO properties should be named "[<name>-]gpios", with <name> being the purpose
 of this GPIO for the device. While a non-existent <name> is considered valid
 for compatibility reasons (resolving to the "gpios" property), it is not allowed
-for new bindings.
+for new bindings. Also, GPIO properties named "[<name>-]gpio" are valid and old
+bindings use it, but are only supported for compatibility reasons and should not
+be used for newer bindings since it has been deprecated.
 
 GPIO properties can contain one or more GPIO phandles, but only in exceptional
 cases should they contain more than one. If your device uses several GPIOs with
@@ -52,9 +54,13 @@ only uses one.
 
 gpio-specifier may encode: bank, pin position inside the bank,
 whether pin is open-drain and whether pin is logically inverted.
+
 Exact meaning of each specifier cell is controller specific, and must
-be documented in the device tree binding for the device. Use the macros
-defined in include/dt-bindings/gpio/gpio.h whenever possible:
+be documented in the device tree binding for the device.
+
+Most controllers are however specifying a generic flag bitfield
+in the last cell, so for these, use the macros defined in
+include/dt-bindings/gpio/gpio.h whenever possible:
 
 Example of a node using GPIOs:
 
@@ -64,6 +70,15 @@ Example of a node using GPIOs:
 
 GPIO_ACTIVE_HIGH is 0, so in this example gpio-specifier is "18 0" and encodes
 GPIO pin number, and GPIO flags as accepted by the "qe_pio_e" gpio-controller.
+
+Optional standard bitfield specifiers for the last cell:
+
+- Bit 0: 0 means active high, 1 means active low
+- Bit 1: 1 means single-ended wiring, see:
+           https://en.wikipedia.org/wiki/Single-ended_triode
+	   When used with active-low, this means open drain/collector, see:
+           https://en.wikipedia.org/wiki/Open_collector
+	   When used with active-high, this means open source/emitter
 
 1.1) GPIO specifier best practices
 ----------------------------------
@@ -116,6 +131,53 @@ Every GPIO controller node must contain both an empty "gpio-controller"
 property, and a #gpio-cells integer property, which indicates the number of
 cells in a gpio-specifier.
 
+Optionally, a GPIO controller may have a "ngpios" property. This property
+indicates the number of in-use slots of available slots for GPIOs. The
+typical example is something like this: the hardware register is 32 bits
+wide, but only 18 of the bits have a physical counterpart. The driver is
+generally written so that all 32 bits can be used, but the IP block is reused
+in a lot of designs, some using all 32 bits, some using 18 and some using
+12. In this case, setting "ngpios = <18>;" informs the driver that only the
+first 18 GPIOs, at local offset 0 .. 17, are in use.
+
+If these GPIOs do not happen to be the first N GPIOs at offset 0...N-1, an
+additional bitmask is needed to specify which GPIOs are actually in use,
+and which are dummies. The bindings for this case has not yet been
+specified, but should be specified if/when such hardware appears.
+
+Example:
+
+gpio-controller@00000000 {
+	compatible = "foo";
+	reg = <0x00000000 0x1000>;
+	gpio-controller;
+	#gpio-cells = <2>;
+	ngpios = <18>;
+}
+
+The GPIO chip may contain GPIO hog definitions. GPIO hogging is a mechanism
+providing automatic GPIO request and configuration as part of the
+gpio-controller's driver probe function.
+
+Each GPIO hog definition is represented as a child node of the GPIO controller.
+Required properties:
+- gpio-hog:   A property specifying that this child node represent a GPIO hog.
+- gpios:      Store the GPIO information (id, flags, ...). Shall contain the
+	      number of cells specified in its parent node (GPIO controller
+	      node).
+Only one of the following properties scanned in the order shown below.
+This means that when multiple properties are present they will be searched
+in the order presented below and the first match is taken as the intended
+configuration.
+- input:      A property specifying to set the GPIO direction as input.
+- output-low  A property specifying to set the GPIO direction as output with
+	      the value low.
+- output-high A property specifying to set the GPIO direction as output with
+	      the value high.
+
+Optional properties:
+- line-name:  The GPIO label name. If not present the node name is used.
+
 Example of two SOC GPIO banks defined as gpio-controller nodes:
 
 	qe_pio_a: gpio-controller@1400 {
@@ -123,6 +185,13 @@ Example of two SOC GPIO banks defined as gpio-controller nodes:
 		reg = <0x1400 0x18>;
 		gpio-controller;
 		#gpio-cells = <2>;
+
+		line_b {
+			gpio-hog;
+			gpios = <6 0>;
+			output-low;
+			line-name = "foo-bar-gpio";
+		};
 	};
 
 	qe_pio_e: gpio-controller@1460 {

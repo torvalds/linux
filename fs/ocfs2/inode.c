@@ -624,7 +624,7 @@ static int ocfs2_remove_inode(struct inode *inode,
 		ocfs2_get_system_file_inode(osb, INODE_ALLOC_SYSTEM_INODE,
 					    le16_to_cpu(di->i_suballoc_slot));
 	if (!inode_alloc_inode) {
-		status = -EEXIST;
+		status = -ENOENT;
 		mlog_errno(status);
 		goto bail;
 	}
@@ -742,7 +742,7 @@ static int ocfs2_wipe_inode(struct inode *inode,
 							       ORPHAN_DIR_SYSTEM_INODE,
 							       orphaned_slot);
 		if (!orphan_dir_inode) {
-			status = -EEXIST;
+			status = -ENOENT;
 			mlog_errno(status);
 			goto bail;
 		}
@@ -971,6 +971,7 @@ static void ocfs2_delete_inode(struct inode *inode)
 	int wipe, status;
 	sigset_t oldset;
 	struct buffer_head *di_bh = NULL;
+	struct ocfs2_dinode *di = NULL;
 
 	trace_ocfs2_delete_inode(inode->i_ino,
 				 (unsigned long long)OCFS2_I(inode)->ip_blkno,
@@ -1023,6 +1024,14 @@ static void ocfs2_delete_inode(struct inode *inode)
 			mlog_errno(status);
 		ocfs2_cleanup_delete_inode(inode, 0);
 		goto bail_unlock_nfs_sync;
+	}
+
+	di = (struct ocfs2_dinode *)di_bh->b_data;
+	/* Skip inode deletion and wait for dio orphan entry recovered
+	 * first */
+	if (unlikely(di->i_flags & cpu_to_le32(OCFS2_DIO_ORPHANED_FL))) {
+		ocfs2_cleanup_delete_inode(inode, 0);
+		goto bail_unlock_inode;
 	}
 
 	/* Query the cluster. This will be the final decision made
@@ -1191,17 +1200,19 @@ void ocfs2_evict_inode(struct inode *inode)
 int ocfs2_drop_inode(struct inode *inode)
 {
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
-	int res;
 
 	trace_ocfs2_drop_inode((unsigned long long)oi->ip_blkno,
 				inode->i_nlink, oi->ip_flags);
 
-	if (oi->ip_flags & OCFS2_INODE_MAYBE_ORPHANED)
-		res = 1;
-	else
-		res = generic_drop_inode(inode);
+	assert_spin_locked(&inode->i_lock);
+	inode->i_state |= I_WILL_FREE;
+	spin_unlock(&inode->i_lock);
+	write_inode_now(inode, 1);
+	spin_lock(&inode->i_lock);
+	WARN_ON(inode->i_state & I_NEW);
+	inode->i_state &= ~I_WILL_FREE;
 
-	return res;
+	return 1;
 }
 
 /*
@@ -1209,7 +1220,7 @@ int ocfs2_drop_inode(struct inode *inode)
  */
 int ocfs2_inode_revalidate(struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int status = 0;
 
 	trace_ocfs2_inode_revalidate(inode,
@@ -1350,32 +1361,32 @@ int ocfs2_validate_inode_block(struct super_block *sb,
 	rc = -EINVAL;
 
 	if (!OCFS2_IS_VALID_DINODE(di)) {
-		ocfs2_error(sb, "Invalid dinode #%llu: signature = %.*s\n",
-			    (unsigned long long)bh->b_blocknr, 7,
-			    di->i_signature);
+		rc = ocfs2_error(sb, "Invalid dinode #%llu: signature = %.*s\n",
+				 (unsigned long long)bh->b_blocknr, 7,
+				 di->i_signature);
 		goto bail;
 	}
 
 	if (le64_to_cpu(di->i_blkno) != bh->b_blocknr) {
-		ocfs2_error(sb, "Invalid dinode #%llu: i_blkno is %llu\n",
-			    (unsigned long long)bh->b_blocknr,
-			    (unsigned long long)le64_to_cpu(di->i_blkno));
+		rc = ocfs2_error(sb, "Invalid dinode #%llu: i_blkno is %llu\n",
+				 (unsigned long long)bh->b_blocknr,
+				 (unsigned long long)le64_to_cpu(di->i_blkno));
 		goto bail;
 	}
 
 	if (!(di->i_flags & cpu_to_le32(OCFS2_VALID_FL))) {
-		ocfs2_error(sb,
-			    "Invalid dinode #%llu: OCFS2_VALID_FL not set\n",
-			    (unsigned long long)bh->b_blocknr);
+		rc = ocfs2_error(sb,
+				 "Invalid dinode #%llu: OCFS2_VALID_FL not set\n",
+				 (unsigned long long)bh->b_blocknr);
 		goto bail;
 	}
 
 	if (le32_to_cpu(di->i_fs_generation) !=
 	    OCFS2_SB(sb)->fs_generation) {
-		ocfs2_error(sb,
-			    "Invalid dinode #%llu: fs_generation is %u\n",
-			    (unsigned long long)bh->b_blocknr,
-			    le32_to_cpu(di->i_fs_generation));
+		rc = ocfs2_error(sb,
+				 "Invalid dinode #%llu: fs_generation is %u\n",
+				 (unsigned long long)bh->b_blocknr,
+				 le32_to_cpu(di->i_fs_generation));
 		goto bail;
 	}
 

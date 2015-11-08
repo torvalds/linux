@@ -152,7 +152,7 @@ static int lbtf_setup_firmware(struct lbtf_private *priv)
 	/*
 	 * Read priv address from HW
 	 */
-	memset(priv->current_addr, 0xff, ETH_ALEN);
+	eth_broadcast_addr(priv->current_addr);
 	ret = lbtf_update_hw_spec(priv);
 	if (ret) {
 		ret = -1;
@@ -199,7 +199,7 @@ out:
 static int lbtf_init_adapter(struct lbtf_private *priv)
 {
 	lbtf_deb_enter(LBTF_DEB_MAIN);
-	memset(priv->current_addr, 0xff, ETH_ALEN);
+	eth_broadcast_addr(priv->current_addr);
 	mutex_init(&priv->lock);
 
 	priv->vif = NULL;
@@ -439,7 +439,7 @@ static u64 lbtf_op_prepare_multicast(struct ieee80211_hw *hw,
 	return mc_count;
 }
 
-#define SUPPORTED_FIF_FLAGS  (FIF_PROMISC_IN_BSS | FIF_ALLMULTI)
+#define SUPPORTED_FIF_FLAGS  FIF_ALLMULTI
 static void lbtf_op_configure_filter(struct ieee80211_hw *hw,
 			unsigned int changed_flags,
 			unsigned int *new_flags,
@@ -458,10 +458,7 @@ static void lbtf_op_configure_filter(struct ieee80211_hw *hw,
 		return;
 	}
 
-	if (*new_flags & (FIF_PROMISC_IN_BSS))
-		priv->mac_control |= CMD_ACT_MAC_PROMISCUOUS_ENABLE;
-	else
-		priv->mac_control &= ~CMD_ACT_MAC_PROMISCUOUS_ENABLE;
+	priv->mac_control &= ~CMD_ACT_MAC_PROMISCUOUS_ENABLE;
 	if (*new_flags & (FIF_ALLMULTI) ||
 	    multicast > MRVDRV_MAX_MULTICAST_LIST_SIZE) {
 		priv->mac_control |= CMD_ACT_MAC_ALL_MULTICAST_ENABLE;
@@ -637,7 +634,7 @@ struct lbtf_private *lbtf_add_card(void *card, struct device *dmdev)
 	priv->tx_skb = NULL;
 
 	hw->queues = 1;
-	hw->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING;
+	ieee80211_hw_set(hw, HOST_BROADCAST_PS_BUFFERING);
 	hw->extra_tx_headroom = sizeof(struct txpd);
 	memcpy(priv->channels, lbtf_channels, sizeof(lbtf_channels));
 	memcpy(priv->rates, lbtf_rates, sizeof(lbtf_rates));

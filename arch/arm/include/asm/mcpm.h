@@ -137,17 +137,12 @@ int mcpm_wait_for_cpu_powerdown(unsigned int cpu, unsigned int cluster);
 /**
  * mcpm_cpu_suspend - bring the calling CPU in a suspended state
  *
- * @expected_residency: duration in microseconds the CPU is expected
- *			to remain suspended, or 0 if unknown/infinity.
- *
- * The calling CPU is suspended.  The expected residency argument is used
- * as a hint by the platform specific backend to implement the appropriate
- * sleep state level according to the knowledge it has on wake-up latency
- * for the given hardware.
+ * The calling CPU is suspended.  This is similar to mcpm_cpu_power_down()
+ * except for possible extra platform specific configuration steps to allow
+ * an asynchronous wake-up e.g. with a pending interrupt.
  *
  * If this CPU is found to be the "last man standing" in the cluster
- * then the cluster may be prepared for power-down too, if the expected
- * residency makes it worthwhile.
+ * then the cluster may be prepared for power-down too.
  *
  * This must be called with interrupts disabled.
  *
@@ -157,7 +152,7 @@ int mcpm_wait_for_cpu_powerdown(unsigned int cpu, unsigned int cluster);
  * This will return if mcpm_platform_register() has not been called
  * previously in which case the caller should take appropriate action.
  */
-void mcpm_cpu_suspend(u64 expected_residency);
+void mcpm_cpu_suspend(void);
 
 /**
  * mcpm_cpu_powered_up - housekeeping workafter a CPU has been powered up
@@ -171,14 +166,69 @@ void mcpm_cpu_suspend(u64 expected_residency);
 int mcpm_cpu_powered_up(void);
 
 /*
- * Platform specific methods used in the implementation of the above API.
+ * Platform specific callbacks used in the implementation of the above API.
+ *
+ * cpu_powerup:
+ * Make given CPU runable. Called with MCPM lock held and IRQs disabled.
+ * The given cluster is assumed to be set up (cluster_powerup would have
+ * been called beforehand). Must return 0 for success or negative error code.
+ *
+ * cluster_powerup:
+ * Set up power for given cluster. Called with MCPM lock held and IRQs
+ * disabled. Called before first cpu_powerup when cluster is down. Must
+ * return 0 for success or negative error code.
+ *
+ * cpu_suspend_prepare:
+ * Special suspend configuration. Called on target CPU with MCPM lock held
+ * and IRQs disabled. This callback is optional. If provided, it is called
+ * before cpu_powerdown_prepare.
+ *
+ * cpu_powerdown_prepare:
+ * Configure given CPU for power down. Called on target CPU with MCPM lock
+ * held and IRQs disabled. Power down must be effective only at the next WFI instruction.
+ *
+ * cluster_powerdown_prepare:
+ * Configure given cluster for power down. Called on one CPU from target
+ * cluster with MCPM lock held and IRQs disabled. A cpu_powerdown_prepare
+ * for each CPU in the cluster has happened when this occurs.
+ *
+ * cpu_cache_disable:
+ * Clean and disable CPU level cache for the calling CPU. Called on with IRQs
+ * disabled only. The CPU is no longer cache coherent with the rest of the
+ * system when this returns.
+ *
+ * cluster_cache_disable:
+ * Clean and disable the cluster wide cache as well as the CPU level cache
+ * for the calling CPU. No call to cpu_cache_disable will happen for this
+ * CPU. Called with IRQs disabled and only when all the other CPUs are done
+ * with their own cpu_cache_disable. The cluster is no longer cache coherent
+ * with the rest of the system when this returns.
+ *
+ * cpu_is_up:
+ * Called on given CPU after it has been powered up or resumed. The MCPM lock
+ * is held and IRQs disabled. This callback is optional.
+ *
+ * cluster_is_up:
+ * Called by the first CPU to be powered up or resumed in given cluster.
+ * The MCPM lock is held and IRQs disabled. This callback is optional. If
+ * provided, it is called before cpu_is_up for that CPU.
+ *
+ * wait_for_powerdown:
+ * Wait until given CPU is powered down. This is called in sleeping context.
+ * Some reasonable timeout must be considered. Must return 0 for success or
+ * negative error code.
  */
 struct mcpm_platform_ops {
-	int (*power_up)(unsigned int cpu, unsigned int cluster);
-	void (*power_down)(void);
+	int (*cpu_powerup)(unsigned int cpu, unsigned int cluster);
+	int (*cluster_powerup)(unsigned int cluster);
+	void (*cpu_suspend_prepare)(unsigned int cpu, unsigned int cluster);
+	void (*cpu_powerdown_prepare)(unsigned int cpu, unsigned int cluster);
+	void (*cluster_powerdown_prepare)(unsigned int cluster);
+	void (*cpu_cache_disable)(void);
+	void (*cluster_cache_disable)(void);
+	void (*cpu_is_up)(unsigned int cpu, unsigned int cluster);
+	void (*cluster_is_up)(unsigned int cluster);
 	int (*wait_for_powerdown)(unsigned int cpu, unsigned int cluster);
-	void (*suspend)(u64);
-	void (*powered_up)(void);
 };
 
 /**
@@ -189,35 +239,6 @@ struct mcpm_platform_ops {
  * An error is returned if the registration has been done previously.
  */
 int __init mcpm_platform_register(const struct mcpm_platform_ops *ops);
-
-/* Synchronisation structures for coordinating safe cluster setup/teardown: */
-
-/*
- * When modifying this structure, make sure you update the MCPM_SYNC_ defines
- * to match.
- */
-struct mcpm_sync_struct {
-	/* individual CPU states */
-	struct {
-		s8 cpu __aligned(__CACHE_WRITEBACK_GRANULE);
-	} cpus[MAX_CPUS_PER_CLUSTER];
-
-	/* cluster state */
-	s8 cluster __aligned(__CACHE_WRITEBACK_GRANULE);
-
-	/* inbound-side state */
-	s8 inbound __aligned(__CACHE_WRITEBACK_GRANULE);
-};
-
-struct sync_struct {
-	struct mcpm_sync_struct clusters[MAX_NR_CLUSTERS];
-};
-
-void __mcpm_cpu_going_down(unsigned int cpu, unsigned int cluster);
-void __mcpm_cpu_down(unsigned int cpu, unsigned int cluster);
-void __mcpm_outbound_leave_critical(unsigned int cluster, int state);
-bool __mcpm_outbound_enter_critical(unsigned int this_cpu, unsigned int cluster);
-int __mcpm_cluster_state(unsigned int cluster);
 
 /**
  * mcpm_sync_init - Initialize the cluster synchronization support
@@ -256,6 +277,29 @@ int __init mcpm_sync_init(
 int __init mcpm_loopback(void (*cache_disable)(void));
 
 void __init mcpm_smp_set_ops(void);
+
+/*
+ * Synchronisation structures for coordinating safe cluster setup/teardown.
+ * This is private to the MCPM core code and shared between C and assembly.
+ * When modifying this structure, make sure you update the MCPM_SYNC_ defines
+ * to match.
+ */
+struct mcpm_sync_struct {
+	/* individual CPU states */
+	struct {
+		s8 cpu __aligned(__CACHE_WRITEBACK_GRANULE);
+	} cpus[MAX_CPUS_PER_CLUSTER];
+
+	/* cluster state */
+	s8 cluster __aligned(__CACHE_WRITEBACK_GRANULE);
+
+	/* inbound-side state */
+	s8 inbound __aligned(__CACHE_WRITEBACK_GRANULE);
+};
+
+struct sync_struct {
+	struct mcpm_sync_struct clusters[MAX_NR_CLUSTERS];
+};
 
 #else
 

@@ -25,88 +25,9 @@
 
 __thread struct callchain_cursor callchain_cursor;
 
-#ifdef HAVE_DWARF_UNWIND_SUPPORT
-static int get_stack_size(const char *str, unsigned long *_size)
+int parse_callchain_record_opt(const char *arg, struct callchain_param *param)
 {
-	char *endptr;
-	unsigned long size;
-	unsigned long max_size = round_down(USHRT_MAX, sizeof(u64));
-
-	size = strtoul(str, &endptr, 0);
-
-	do {
-		if (*endptr)
-			break;
-
-		size = round_up(size, sizeof(u64));
-		if (!size || size > max_size)
-			break;
-
-		*_size = size;
-		return 0;
-
-	} while (0);
-
-	pr_err("callchain: Incorrect stack dump size (max %ld): %s\n",
-	       max_size, str);
-	return -1;
-}
-#endif /* HAVE_DWARF_UNWIND_SUPPORT */
-
-int parse_callchain_record_opt(const char *arg)
-{
-	char *tok, *name, *saveptr = NULL;
-	char *buf;
-	int ret = -1;
-
-	/* We need buffer that we know we can write to. */
-	buf = malloc(strlen(arg) + 1);
-	if (!buf)
-		return -ENOMEM;
-
-	strcpy(buf, arg);
-
-	tok = strtok_r((char *)buf, ",", &saveptr);
-	name = tok ? : (char *)buf;
-
-	do {
-		/* Framepointer style */
-		if (!strncmp(name, "fp", sizeof("fp"))) {
-			if (!strtok_r(NULL, ",", &saveptr)) {
-				callchain_param.record_mode = CALLCHAIN_FP;
-				ret = 0;
-			} else
-				pr_err("callchain: No more arguments "
-				       "needed for --call-graph fp\n");
-			break;
-
-#ifdef HAVE_DWARF_UNWIND_SUPPORT
-		/* Dwarf style */
-		} else if (!strncmp(name, "dwarf", sizeof("dwarf"))) {
-			const unsigned long default_stack_dump_size = 8192;
-
-			ret = 0;
-			callchain_param.record_mode = CALLCHAIN_DWARF;
-			callchain_param.dump_size = default_stack_dump_size;
-
-			tok = strtok_r(NULL, ",", &saveptr);
-			if (tok) {
-				unsigned long size = 0;
-
-				ret = get_stack_size(tok, &size);
-				callchain_param.dump_size = size;
-			}
-#endif /* HAVE_DWARF_UNWIND_SUPPORT */
-		} else {
-			pr_err("callchain: Unknown --call-graph option "
-			       "value: %s\n", arg);
-			break;
-		}
-
-	} while (0);
-
-	free(buf);
-	return ret;
+	return parse_callchain_record(arg, param);
 }
 
 static int parse_callchain_mode(const char *value)
@@ -130,10 +51,12 @@ static int parse_callchain_order(const char *value)
 {
 	if (!strncmp(value, "caller", strlen(value))) {
 		callchain_param.order = ORDER_CALLER;
+		callchain_param.order_set = true;
 		return 0;
 	}
 	if (!strncmp(value, "callee", strlen(value))) {
 		callchain_param.order = ORDER_CALLEE;
+		callchain_param.order_set = true;
 		return 0;
 	}
 	return -1;
@@ -156,12 +79,14 @@ static int parse_callchain_sort_key(const char *value)
 	return -1;
 }
 
-int
-parse_callchain_report_opt(const char *arg)
+static int
+__parse_callchain_report_opt(const char *arg, bool allow_record_opt)
 {
 	char *tok;
 	char *endptr;
 	bool minpcnt_set = false;
+	bool record_opt_set = false;
+	bool try_stack_size = false;
 
 	symbol_conf.use_callchain = true;
 
@@ -179,6 +104,28 @@ parse_callchain_report_opt(const char *arg)
 		    !parse_callchain_order(tok) ||
 		    !parse_callchain_sort_key(tok)) {
 			/* parsing ok - move on to the next */
+			try_stack_size = false;
+			goto next;
+		} else if (allow_record_opt && !record_opt_set) {
+			if (parse_callchain_record(tok, &callchain_param))
+				goto try_numbers;
+
+			/* assume that number followed by 'dwarf' is stack size */
+			if (callchain_param.record_mode == CALLCHAIN_DWARF)
+				try_stack_size = true;
+
+			record_opt_set = true;
+			goto next;
+		}
+
+try_numbers:
+		if (try_stack_size) {
+			unsigned long size = 0;
+
+			if (get_stack_size(tok, &size) < 0)
+				return -1;
+			callchain_param.dump_size = size;
+			try_stack_size = false;
 		} else if (!minpcnt_set) {
 			/* try to get the min percent */
 			callchain_param.min_percent = strtod(tok, &endptr);
@@ -191,7 +138,7 @@ parse_callchain_report_opt(const char *arg)
 			if (tok == endptr)
 				return -1;
 		}
-
+next:
 		arg = NULL;
 	}
 
@@ -200,6 +147,16 @@ parse_callchain_report_opt(const char *arg)
 		return -1;
 	}
 	return 0;
+}
+
+int parse_callchain_report_opt(const char *arg)
+{
+	return __parse_callchain_report_opt(arg, false);
+}
+
+int parse_callchain_top_opt(const char *arg)
+{
+	return __parse_callchain_report_opt(arg, true);
 }
 
 int perf_callchain_config(const char *var, const char *value)
@@ -211,7 +168,7 @@ int perf_callchain_config(const char *var, const char *value)
 	var += sizeof("call-graph.") - 1;
 
 	if (!strcmp(var, "record-mode"))
-		return parse_callchain_record_opt(value);
+		return parse_callchain_record_opt(value, &callchain_param);
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
 	if (!strcmp(var, "dump-size")) {
 		unsigned long size = 0;

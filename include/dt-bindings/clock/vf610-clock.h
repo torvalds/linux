@@ -193,6 +193,8 @@
 #define VF610_PLL6_BYPASS		180
 #define VF610_PLL7_BYPASS		181
 #define VF610_CLK_SNVS			182
-#define VF610_CLK_END			183
+#define VF610_CLK_DAP			183
+#define VF610_CLK_OCOTP         184
+#define VF610_CLK_END			185
 
 #endif /* __DT_BINDINGS_CLOCK_VF610_H */

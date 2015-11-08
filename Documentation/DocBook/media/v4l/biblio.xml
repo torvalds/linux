@@ -1,14 +1,13 @@
   <bibliography>
     <title>References</title>
 
-    <biblioentry id="eia608">
-      <abbrev>EIA&nbsp;608-B</abbrev>
+    <biblioentry id="cea608">
+      <abbrev>CEA&nbsp;608-E</abbrev>
       <authorgroup>
-	<corpauthor>Electronic Industries Alliance (<ulink
-url="http://www.eia.org">http://www.eia.org</ulink>)</corpauthor>
+	<corpauthor>Consumer Electronics Association (<ulink
+url="http://www.ce.org">http://www.ce.org</ulink>)</corpauthor>
       </authorgroup>
-      <title>EIA 608-B "Recommended Practice for Line 21 Data
-Service"</title>
+      <title>CEA-608-E R-2014 "Line 21 Data Services"</title>
     </biblioentry>
 
     <biblioentry id="en300294">
@@ -176,6 +175,24 @@ Signal - NTSC for Studio Applications"</title>
       </authorgroup>
       <title>SMPTE 240M-1999 "Television - Signal Parameters -
 1125-Line High-Definition Production"</title>
+    </biblioentry>
+
+    <biblioentry id="smpte431">
+      <abbrev>SMPTE&nbsp;RP&nbsp;431-2</abbrev>
+      <authorgroup>
+	<corpauthor>Society of Motion Picture and Television Engineers
+(<ulink url="http://www.smpte.org">http://www.smpte.org</ulink>)</corpauthor>
+      </authorgroup>
+      <title>SMPTE RP 431-2:2011 "D-Cinema Quality - Reference Projector and Environment"</title>
+    </biblioentry>
+
+    <biblioentry id="smpte2084">
+      <abbrev>SMPTE&nbsp;ST&nbsp;2084</abbrev>
+      <authorgroup>
+	<corpauthor>Society of Motion Picture and Television Engineers
+(<ulink url="http://www.smpte.org">http://www.smpte.org</ulink>)</corpauthor>
+      </authorgroup>
+      <title>SMPTE ST 2084:2014 "High Dynamic Range Electro-Optical Transfer Function of Master Reference Displays"</title>
     </biblioentry>
 
     <biblioentry id="srgb">

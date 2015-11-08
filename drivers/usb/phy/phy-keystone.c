@@ -96,11 +96,7 @@ static int keystone_usbphy_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, k_phy);
 
-	ret = usb_add_phy_dev(&k_phy->usb_phy_gen.phy);
-	if (ret)
-		return ret;
-
-	return 0;
+	return usb_add_phy_dev(&k_phy->usb_phy_gen.phy);
 }
 
 static int keystone_usbphy_remove(struct platform_device *pdev)

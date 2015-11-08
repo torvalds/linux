@@ -48,8 +48,8 @@ struct sh_msiof_spi_priv {
 	const struct sh_msiof_chipdata *chipdata;
 	struct sh_msiof_spi_info *info;
 	struct completion done;
-	int tx_fifo_size;
-	int rx_fifo_size;
+	unsigned int tx_fifo_size;
+	unsigned int rx_fifo_size;
 	void *tx_dma_page;
 	void *rx_dma_page;
 	dma_addr_t tx_dma_addr;
@@ -94,8 +94,6 @@ struct sh_msiof_spi_priv {
 #define MDR2_BITLEN1(i)	(((i) - 1) << 24) /* Data Size (8-32 bits) */
 #define MDR2_WDLEN1(i)	(((i) - 1) << 16) /* Word Count (1-64/256 (SH, A1))) */
 #define MDR2_GRPMASK1	0x00000001 /* Group Output Mask 1 (SH, A1) */
-
-#define MAX_WDLEN	256U
 
 /* TSCR and RSCR */
 #define SCR_BRPS_MASK	    0x1f00 /* Prescaler Setting (1-32) */
@@ -850,7 +848,12 @@ static int sh_msiof_transfer_one(struct spi_master *master,
 		 *  DMA supports 32-bit words only, hence pack 8-bit and 16-bit
 		 *  words, with byte resp. word swapping.
 		 */
-		unsigned int l = min(len, MAX_WDLEN * 4);
+		unsigned int l = 0;
+
+		if (tx_buf)
+			l = min(len, p->tx_fifo_size * 4);
+		if (rx_buf)
+			l = min(len, p->rx_fifo_size * 4);
 
 		if (bits <= 8) {
 			if (l & 3)
@@ -963,7 +966,7 @@ static const struct sh_msiof_chipdata sh_data = {
 
 static const struct sh_msiof_chipdata r8a779x_data = {
 	.tx_fifo_size = 64,
-	.rx_fifo_size = 256,
+	.rx_fifo_size = 64,
 	.master_flags = SPI_MASTER_MUST_TX,
 };
 
@@ -1030,7 +1033,6 @@ static struct dma_chan *sh_msiof_request_dma_chan(struct device *dev,
 	}
 
 	memset(&cfg, 0, sizeof(cfg));
-	cfg.slave_id = id;
 	cfg.direction = dir;
 	if (dir == DMA_MEM_TO_DEV) {
 		cfg.dst_addr = port_addr;
@@ -1264,13 +1266,8 @@ static int sh_msiof_spi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id spi_driver_ids[] = {
+static const struct platform_device_id spi_driver_ids[] = {
 	{ "spi_sh_msiof",	(kernel_ulong_t)&sh_data },
-	{ "spi_r8a7790_msiof",	(kernel_ulong_t)&r8a779x_data },
-	{ "spi_r8a7791_msiof",	(kernel_ulong_t)&r8a779x_data },
-	{ "spi_r8a7792_msiof",	(kernel_ulong_t)&r8a779x_data },
-	{ "spi_r8a7793_msiof",	(kernel_ulong_t)&r8a779x_data },
-	{ "spi_r8a7794_msiof",	(kernel_ulong_t)&r8a779x_data },
 	{},
 };
 MODULE_DEVICE_TABLE(platform, spi_driver_ids);

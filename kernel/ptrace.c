@@ -456,8 +456,6 @@ static bool __ptrace_detach(struct task_struct *tracer, struct task_struct *p)
 
 static int ptrace_detach(struct task_struct *child, unsigned int data)
 {
-	bool dead = false;
-
 	if (!valid_signal(data))
 		return -EIO;
 
@@ -467,18 +465,19 @@ static int ptrace_detach(struct task_struct *child, unsigned int data)
 
 	write_lock_irq(&tasklist_lock);
 	/*
-	 * This child can be already killed. Make sure de_thread() or
-	 * our sub-thread doing do_wait() didn't do release_task() yet.
+	 * We rely on ptrace_freeze_traced(). It can't be killed and
+	 * untraced by another thread, it can't be a zombie.
 	 */
-	if (child->ptrace) {
-		child->exit_code = data;
-		dead = __ptrace_detach(current, child);
-	}
+	WARN_ON(!child->ptrace || child->exit_state);
+	/*
+	 * tasklist_lock avoids the race with wait_task_stopped(), see
+	 * the comment in ptrace_resume().
+	 */
+	child->exit_code = data;
+	__ptrace_detach(current, child);
 	write_unlock_irq(&tasklist_lock);
 
 	proc_ptrace_connector(child, PTRACE_DETACH);
-	if (unlikely(dead))
-		release_task(child);
 
 	return 0;
 }
@@ -556,6 +555,19 @@ static int ptrace_setoptions(struct task_struct *child, unsigned long data)
 
 	if (data & ~(unsigned long)PTRACE_O_MASK)
 		return -EINVAL;
+
+	if (unlikely(data & PTRACE_O_SUSPEND_SECCOMP)) {
+		if (!config_enabled(CONFIG_CHECKPOINT_RESTORE) ||
+		    !config_enabled(CONFIG_SECCOMP))
+			return -EINVAL;
+
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+
+		if (seccomp_mode(&current->seccomp) != SECCOMP_MODE_DISABLED ||
+		    current->ptrace & PT_SUSPEND_SECCOMP)
+			return -EPERM;
+	}
 
 	/* Avoid intermediate state when all opts are cleared */
 	flags = child->ptrace;
@@ -697,6 +709,8 @@ static int ptrace_peek_siginfo(struct task_struct *child,
 static int ptrace_resume(struct task_struct *child, long request,
 			 unsigned long data)
 {
+	bool need_siglock;
+
 	if (!valid_signal(data))
 		return -EIO;
 
@@ -724,8 +738,26 @@ static int ptrace_resume(struct task_struct *child, long request,
 		user_disable_single_step(child);
 	}
 
+	/*
+	 * Change ->exit_code and ->state under siglock to avoid the race
+	 * with wait_task_stopped() in between; a non-zero ->exit_code will
+	 * wrongly look like another report from tracee.
+	 *
+	 * Note that we need siglock even if ->exit_code == data and/or this
+	 * status was not reported yet, the new status must not be cleared by
+	 * wait_task_stopped() after resume.
+	 *
+	 * If data == 0 we do not care if wait_task_stopped() reports the old
+	 * status and clears the code too; this can't race with the tracee, it
+	 * takes siglock after resume.
+	 */
+	need_siglock = data && !thread_group_empty(current);
+	if (need_siglock)
+		spin_lock_irq(&child->sighand->siglock);
 	child->exit_code = data;
 	wake_up_state(child, __TASK_TRACED);
+	if (need_siglock)
+		spin_unlock_irq(&child->sighand->siglock);
 
 	return 0;
 }
@@ -984,6 +1016,11 @@ int ptrace_request(struct task_struct *child, long request,
 		break;
 	}
 #endif
+
+	case PTRACE_SECCOMP_GET_FILTER:
+		ret = seccomp_get_filter(child, addr, datavp);
+		break;
+
 	default:
 		break;
 	}

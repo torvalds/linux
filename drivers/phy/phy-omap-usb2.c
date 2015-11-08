@@ -137,14 +137,13 @@ static int omap_usb_init(struct phy *x)
 	return 0;
 }
 
-static struct phy_ops ops = {
+static const struct phy_ops ops = {
 	.init		= omap_usb_init,
 	.power_on	= omap_usb_power_on,
 	.power_off	= omap_usb_power_off,
 	.owner		= THIS_MODULE,
 };
 
-#ifdef CONFIG_OF
 static const struct usb_phy_data omap_usb2_data = {
 	.label = "omap_usb2",
 	.flags = OMAP_USB2_HAS_START_SRP | OMAP_USB2_HAS_SET_VBUS,
@@ -185,7 +184,6 @@ static const struct of_device_id omap_usb2_id_table[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, omap_usb2_id_table);
-#endif
 
 static int omap_usb2_probe(struct platform_device *pdev)
 {
@@ -200,7 +198,7 @@ static int omap_usb2_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id;
 	struct usb_phy_data *phy_data;
 
-	of_id = of_match_device(of_match_ptr(omap_usb2_id_table), &pdev->dev);
+	of_id = of_match_device(omap_usb2_id_table, &pdev->dev);
 
 	if (!of_id)
 		return -EINVAL;
@@ -277,6 +275,7 @@ static int omap_usb2_probe(struct platform_device *pdev)
 		phy->wkupclk = devm_clk_get(phy->dev, "usb_phy_cm_clk32k");
 		if (IS_ERR(phy->wkupclk)) {
 			dev_err(&pdev->dev, "unable to get usb_phy_cm_clk32k\n");
+			pm_runtime_disable(phy->dev);
 			return PTR_ERR(phy->wkupclk);
 		} else {
 			dev_warn(&pdev->dev,
@@ -378,7 +377,7 @@ static struct platform_driver omap_usb2_driver = {
 	.driver		= {
 		.name	= "omap-usb2",
 		.pm	= DEV_PM_OPS,
-		.of_match_table = of_match_ptr(omap_usb2_id_table),
+		.of_match_table = omap_usb2_id_table,
 	},
 };
 

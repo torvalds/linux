@@ -257,7 +257,7 @@ struct lpuart_port {
 	struct timer_list	lpuart_timer;
 };
 
-static struct of_device_id lpuart_dt_ids[] = {
+static const struct of_device_id lpuart_dt_ids[] = {
 	{
 		.compatible = "fsl,vf610-lpuart",
 	},
@@ -921,6 +921,9 @@ static void lpuart_setup_watermark(struct lpuart_port *sport)
 	writeb(val | UARTPFIFO_TXFE | UARTPFIFO_RXFE,
 			sport->port.membase + UARTPFIFO);
 
+	/* explicitly clear RDRF */
+	readb(sport->port.membase + UARTSR1);
+
 	/* flush Tx and Rx FIFO */
 	writeb(UARTCFIFO_TXFLUSH | UARTCFIFO_RXFLUSH,
 			sport->port.membase + UARTCFIFO);
@@ -1075,6 +1078,8 @@ static int lpuart_startup(struct uart_port *port)
 
 	sport->txfifo_size = 0x1 << (((temp >> UARTPFIFO_TXSIZE_OFF) &
 		UARTPFIFO_FIFOSIZE_MASK) + 1);
+
+	sport->port.fifosize = sport->txfifo_size;
 
 	sport->rxfifo_size = 0x1 << (((temp >> UARTPFIFO_RXSIZE_OFF) &
 		UARTPFIFO_FIFOSIZE_MASK) + 1);
@@ -1740,6 +1745,45 @@ static struct console lpuart32_console = {
 	.index		= -1,
 	.data		= &lpuart_reg,
 };
+
+static void lpuart_early_write(struct console *con, const char *s, unsigned n)
+{
+	struct earlycon_device *dev = con->data;
+
+	uart_console_write(&dev->port, s, n, lpuart_console_putchar);
+}
+
+static void lpuart32_early_write(struct console *con, const char *s, unsigned n)
+{
+	struct earlycon_device *dev = con->data;
+
+	uart_console_write(&dev->port, s, n, lpuart32_console_putchar);
+}
+
+static int __init lpuart_early_console_setup(struct earlycon_device *device,
+					  const char *opt)
+{
+	if (!device->port.membase)
+		return -ENODEV;
+
+	device->con->write = lpuart_early_write;
+	return 0;
+}
+
+static int __init lpuart32_early_console_setup(struct earlycon_device *device,
+					  const char *opt)
+{
+	if (!device->port.membase)
+		return -ENODEV;
+
+	device->con->write = lpuart32_early_write;
+	return 0;
+}
+
+OF_EARLYCON_DECLARE(lpuart, "fsl,vf610-lpuart", lpuart_early_console_setup);
+OF_EARLYCON_DECLARE(lpuart32, "fsl,ls1021a-lpuart", lpuart32_early_console_setup);
+EARLYCON_DECLARE(lpuart, lpuart_early_console_setup);
+EARLYCON_DECLARE(lpuart32, lpuart32_early_console_setup);
 
 #define LPUART_CONSOLE	(&lpuart_console)
 #define LPUART32_CONSOLE	(&lpuart32_console)

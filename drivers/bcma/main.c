@@ -7,11 +7,14 @@
 
 #include "bcma_private.h"
 #include <linux/module.h>
+#include <linux/mmc/sdio_func.h>
 #include <linux/platform_device.h>
+#include <linux/pci.h>
 #include <linux/bcma/bcma.h>
 #include <linux/slab.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/of_platform.h>
 
 MODULE_DESCRIPTION("Broadcom's specific AMBA driver");
 MODULE_LICENSE("GPL");
@@ -268,6 +271,28 @@ void bcma_prepare_core(struct bcma_bus *bus, struct bcma_device *core)
 	}
 }
 
+struct device *bcma_bus_get_host_dev(struct bcma_bus *bus)
+{
+	switch (bus->hosttype) {
+	case BCMA_HOSTTYPE_PCI:
+		if (bus->host_pci)
+			return &bus->host_pci->dev;
+		else
+			return NULL;
+	case BCMA_HOSTTYPE_SOC:
+		if (bus->host_pdev)
+			return &bus->host_pdev->dev;
+		else
+			return NULL;
+	case BCMA_HOSTTYPE_SDIO:
+		if (bus->host_sdio)
+			return &bus->host_sdio->dev;
+		else
+			return NULL;
+	}
+	return NULL;
+}
+
 void bcma_init_bus(struct bcma_bus *bus)
 {
 	mutex_lock(&bcma_buses_mutex);
@@ -363,7 +388,7 @@ static int bcma_register_devices(struct bcma_bus *bus)
 	return 0;
 }
 
-static void bcma_unregister_cores(struct bcma_bus *bus)
+void bcma_unregister_cores(struct bcma_bus *bus)
 {
 	struct bcma_device *core, *tmp;
 
@@ -387,6 +412,7 @@ int bcma_bus_register(struct bcma_bus *bus)
 {
 	int err;
 	struct bcma_device *core;
+	struct device *dev;
 
 	/* Scan for devices (cores) */
 	err = bcma_bus_scan(bus);
@@ -407,6 +433,11 @@ int bcma_bus_register(struct bcma_bus *bus)
 	if (core) {
 		bus->drv_pci[0].core = core;
 		bcma_core_pci_early_init(&bus->drv_pci[0]);
+	}
+
+	dev = bcma_bus_get_host_dev(bus);
+	if (dev) {
+		of_platform_default_populate(dev->of_node, NULL, dev);
 	}
 
 	/* Cores providing flash access go before SPROM init */

@@ -122,6 +122,8 @@ enum usb_interface_condition {
  *	has been deferred.
  * @needs_binding: flag set when the driver should be re-probed or unbound
  *	following a reset or suspend operation it doesn't support.
+ * @authorized: This allows to (de)authorize individual interfaces instead
+ *	a whole device in contrast to the device authorization.
  * @dev: driver model's view of this device
  * @usb_dev: if an interface is bound to the USB major, this will point
  *	to the sysfs representation for that device.
@@ -178,6 +180,7 @@ struct usb_interface {
 	unsigned needs_altsetting0:1;	/* switch to altsetting 0 is pending */
 	unsigned needs_binding:1;	/* needs delayed unbind/rebind */
 	unsigned resetting_device:1;	/* true: bandwidth alloc after reset */
+	unsigned authorized:1;		/* used for interface authorization */
 
 	struct device dev;		/* interface specific device info */
 	struct device *usb_dev;
@@ -204,6 +207,32 @@ void usb_put_intf(struct usb_interface *intf);
 /* this maximum is arbitrary */
 #define USB_MAXINTERFACES	32
 #define USB_MAXIADS		(USB_MAXINTERFACES/2)
+
+/*
+ * USB Resume Timer: Every Host controller driver should drive the resume
+ * signalling on the bus for the amount of time defined by this macro.
+ *
+ * That way we will have a 'stable' behavior among all HCDs supported by Linux.
+ *
+ * Note that the USB Specification states we should drive resume for *at least*
+ * 20 ms, but it doesn't give an upper bound. This creates two possible
+ * situations which we want to avoid:
+ *
+ * (a) sometimes an msleep(20) might expire slightly before 20 ms, which causes
+ * us to fail USB Electrical Tests, thus failing Certification
+ *
+ * (b) Some (many) devices actually need more than 20 ms of resume signalling,
+ * and while we can argue that's against the USB Specification, we don't have
+ * control over which devices a certification laboratory will be using for
+ * certification. If CertLab uses a device which was tested against Windows and
+ * that happens to have relaxed resume signalling rules, we might fall into
+ * situations where we fail interoperability and electrical tests.
+ *
+ * In order to avoid both conditions, we're using a 40 ms resume timeout, which
+ * should cope with both LPJ calibration errors and devices not following every
+ * detail of the USB Specification.
+ */
+#define USB_RESUME_TIMEOUT	40 /* ms */
 
 /**
  * struct usb_interface_cache - long-term representation of a device interface
@@ -299,6 +328,7 @@ struct usb_host_bos {
 	/* wireless cap descriptor is handled by wusb */
 	struct usb_ext_cap_descriptor	*ext_cap;
 	struct usb_ss_cap_descriptor	*ss_cap;
+	struct usb_ssp_cap_descriptor	*ssp_cap;
 	struct usb_ss_container_id_descriptor	*ss_id;
 };
 

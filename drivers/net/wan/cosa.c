@@ -517,7 +517,7 @@ static int cosa_probe(int base, int irq, int dma)
 		 */
 		set_current_state(TASK_INTERRUPTIBLE);
 		cosa_putstatus(cosa, SR_TX_INT_ENA);
-		schedule_timeout(30);
+		schedule_timeout(msecs_to_jiffies(300));
 		irq = probe_irq_off(irqs);
 		/* Disable all IRQs from the card */
 		cosa_putstatus(cosa, 0);
@@ -579,6 +579,7 @@ static int cosa_probe(int base, int irq, int dma)
 		/* Register the network interface */
 		if (!(chan->netdev = alloc_hdlcdev(chan))) {
 			pr_warn("%s: alloc_hdlcdev failed\n", chan->name);
+			err = -ENOMEM;
 			goto err_hdlcdev;
 		}
 		dev_to_hdlc(chan->netdev)->attach = cosa_net_attach;
@@ -588,7 +589,8 @@ static int cosa_probe(int base, int irq, int dma)
 		chan->netdev->base_addr = chan->cosa->datareg;
 		chan->netdev->irq = chan->cosa->irq;
 		chan->netdev->dma = chan->cosa->dma;
-		if (register_hdlc_device(chan->netdev)) {
+		err = register_hdlc_device(chan->netdev);
+		if (err) {
 			netdev_warn(chan->netdev,
 				    "register_hdlc_device() failed\n");
 			free_netdev(chan->netdev);

@@ -178,12 +178,16 @@ void i40e_dcbnl_set_all(struct i40e_vsi *vsi)
 	if (!(pf->flags & I40E_FLAG_DCB_ENABLED))
 		return;
 
+	/* MFP mode but not an iSCSI PF so return */
+	if ((pf->flags & I40E_FLAG_MFP_ENABLED) && !(pf->hw.func_caps.iscsi))
+		return;
+
 	dcbxcfg = &hw->local_dcbx_config;
 
 	/* Set up all the App TLVs if DCBx is negotiated */
 	for (i = 0; i < dcbxcfg->numapps; i++) {
 		prio = dcbxcfg->app[i].priority;
-		tc_map = (1 << dcbxcfg->etscfg.prioritytable[prio]);
+		tc_map = BIT(dcbxcfg->etscfg.prioritytable[prio]);
 
 		/* Add APP only if the TC is enabled for this VSI */
 		if (tc_map & vsi->tc_config.enabled_tc) {
@@ -223,7 +227,7 @@ static int i40e_dcbnl_vsi_del_app(struct i40e_vsi *vsi,
 
 /**
  * i40e_dcbnl_del_app - Delete APP on all VSIs
- * @pf: the corresponding pf
+ * @pf: the corresponding PF
  * @app: APP to delete
  *
  * Delete given APP from all the VSIs for given PF
@@ -232,14 +236,13 @@ static void i40e_dcbnl_del_app(struct i40e_pf *pf,
 			       struct i40e_dcb_app_priority_table *app)
 {
 	int v, err;
+
 	for (v = 0; v < pf->num_alloc_vsi; v++) {
 		if (pf->vsi[v] && pf->vsi[v]->netdev) {
 			err = i40e_dcbnl_vsi_del_app(pf->vsi[v], app);
-			if (err)
-				dev_info(&pf->pdev->dev, "%s: Failed deleting app for VSI seid=%d err=%d sel=%d proto=0x%x prio=%d\n",
-					 __func__, pf->vsi[v]->seid,
-					 err, app->selector,
-					 app->protocolid, app->priority);
+			dev_dbg(&pf->pdev->dev, "Deleting app for VSI seid=%d err=%d sel=%d proto=0x%x prio=%d\n",
+				pf->vsi[v]->seid, err, app->selector,
+				app->protocolid, app->priority);
 		}
 	}
 }
@@ -268,23 +271,26 @@ static bool i40e_dcbnl_find_app(struct i40e_dcbx_config *cfg,
 
 /**
  * i40e_dcbnl_flush_apps - Delete all removed APPs
- * @pf: the corresponding pf
+ * @pf: the corresponding PF
+ * @old_cfg: old DCBX configuration data
  * @new_cfg: new DCBX configuration data
  *
  * Find and delete all APPs that are not present in the passed
  * DCB configuration
  **/
 void i40e_dcbnl_flush_apps(struct i40e_pf *pf,
+			   struct i40e_dcbx_config *old_cfg,
 			   struct i40e_dcbx_config *new_cfg)
 {
 	struct i40e_dcb_app_priority_table app;
-	struct i40e_dcbx_config *dcbxcfg;
-	struct i40e_hw *hw = &pf->hw;
 	int i;
 
-	dcbxcfg = &hw->local_dcbx_config;
-	for (i = 0; i < dcbxcfg->numapps; i++) {
-		app = dcbxcfg->app[i];
+	/* MFP mode but not an iSCSI PF so return */
+	if ((pf->flags & I40E_FLAG_MFP_ENABLED) && !(pf->hw.func_caps.iscsi))
+		return;
+
+	for (i = 0; i < old_cfg->numapps; i++) {
+		app = old_cfg->app[i];
 		/* The APP is not available anymore delete it */
 		if (!i40e_dcbnl_find_app(new_cfg, &app))
 			i40e_dcbnl_del_app(pf, &app);
@@ -306,9 +312,7 @@ void i40e_dcbnl_setup(struct i40e_vsi *vsi)
 	if (!(pf->flags & I40E_FLAG_DCB_CAPABLE))
 		return;
 
-	/* Do not setup DCB NL ops for MFP mode */
-	if (!(pf->flags & I40E_FLAG_MFP_ENABLED))
-		dev->dcbnl_ops = &dcbnl_ops;
+	dev->dcbnl_ops = &dcbnl_ops;
 
 	/* Set initial IEEE DCB settings */
 	i40e_dcbnl_set_all(vsi);

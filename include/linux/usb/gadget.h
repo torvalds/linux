@@ -141,10 +141,49 @@ struct usb_ep_ops {
 };
 
 /**
+ * struct usb_ep_caps - endpoint capabilities description
+ * @type_control:Endpoint supports control type (reserved for ep0).
+ * @type_iso:Endpoint supports isochronous transfers.
+ * @type_bulk:Endpoint supports bulk transfers.
+ * @type_int:Endpoint supports interrupt transfers.
+ * @dir_in:Endpoint supports IN direction.
+ * @dir_out:Endpoint supports OUT direction.
+ */
+struct usb_ep_caps {
+	unsigned type_control:1;
+	unsigned type_iso:1;
+	unsigned type_bulk:1;
+	unsigned type_int:1;
+	unsigned dir_in:1;
+	unsigned dir_out:1;
+};
+
+#define USB_EP_CAPS_TYPE_CONTROL     0x01
+#define USB_EP_CAPS_TYPE_ISO         0x02
+#define USB_EP_CAPS_TYPE_BULK        0x04
+#define USB_EP_CAPS_TYPE_INT         0x08
+#define USB_EP_CAPS_TYPE_ALL \
+	(USB_EP_CAPS_TYPE_ISO | USB_EP_CAPS_TYPE_BULK | USB_EP_CAPS_TYPE_INT)
+#define USB_EP_CAPS_DIR_IN           0x01
+#define USB_EP_CAPS_DIR_OUT          0x02
+#define USB_EP_CAPS_DIR_ALL  (USB_EP_CAPS_DIR_IN | USB_EP_CAPS_DIR_OUT)
+
+#define USB_EP_CAPS(_type, _dir) \
+	{ \
+		.type_control = !!(_type & USB_EP_CAPS_TYPE_CONTROL), \
+		.type_iso = !!(_type & USB_EP_CAPS_TYPE_ISO), \
+		.type_bulk = !!(_type & USB_EP_CAPS_TYPE_BULK), \
+		.type_int = !!(_type & USB_EP_CAPS_TYPE_INT), \
+		.dir_in = !!(_dir & USB_EP_CAPS_DIR_IN), \
+		.dir_out = !!(_dir & USB_EP_CAPS_DIR_OUT), \
+	}
+
+/**
  * struct usb_ep - device side representation of USB endpoint
  * @name:identifier for the endpoint, such as "ep-a" or "ep9in-bulk"
  * @ops: Function pointers used to access hardware-specific operations.
  * @ep_list:the gadget's ep_list holds all of its endpoints
+ * @caps:The structure describing types and directions supported by endoint.
  * @maxpacket:The maximum packet size used on this endpoint.  The initial
  *	value can sometimes be reduced (hardware allowing), according to
  *      the endpoint descriptor used to configure the endpoint.
@@ -167,12 +206,16 @@ struct usb_ep_ops {
  * gadget->ep_list.  the control endpoint (gadget->ep0) is not in that list,
  * and is accessed only in response to a driver setup() callback.
  */
+
 struct usb_ep {
 	void			*driver_data;
 
 	const char		*name;
 	const struct usb_ep_ops	*ops;
 	struct list_head	ep_list;
+	struct usb_ep_caps	caps;
+	bool			claimed;
+	bool			enabled;
 	unsigned		maxpacket:16;
 	unsigned		maxpacket_limit:16;
 	unsigned		max_streams:16;
@@ -190,7 +233,7 @@ struct usb_ep {
  * @ep:the endpoint being configured
  * @maxpacket_limit:value of maximum packet size limit
  *
- * This function shoud be used only in UDC drivers to initialize endpoint
+ * This function should be used only in UDC drivers to initialize endpoint
  * (usually in probe function).
  */
 static inline void usb_ep_set_maxpacket_limit(struct usb_ep *ep,
@@ -222,7 +265,18 @@ static inline void usb_ep_set_maxpacket_limit(struct usb_ep *ep,
  */
 static inline int usb_ep_enable(struct usb_ep *ep)
 {
-	return ep->ops->enable(ep, ep->desc);
+	int ret;
+
+	if (ep->enabled)
+		return 0;
+
+	ret = ep->ops->enable(ep, ep->desc);
+	if (ret)
+		return ret;
+
+	ep->enabled = true;
+
+	return 0;
 }
 
 /**
@@ -239,7 +293,18 @@ static inline int usb_ep_enable(struct usb_ep *ep)
  */
 static inline int usb_ep_disable(struct usb_ep *ep)
 {
-	return ep->ops->disable(ep);
+	int ret;
+
+	if (!ep->enabled)
+		return 0;
+
+	ret = ep->ops->disable(ep);
+	if (ret)
+		return ret;
+
+	ep->enabled = false;
+
+	return 0;
 }
 
 /**
@@ -474,6 +539,7 @@ struct usb_dcd_config_params {
 
 struct usb_gadget;
 struct usb_gadget_driver;
+struct usb_udc;
 
 /* the rest of the api to the controller hardware: device operations,
  * which don't involve endpoints (or i/o).
@@ -491,11 +557,15 @@ struct usb_gadget_ops {
 	int	(*udc_start)(struct usb_gadget *,
 			struct usb_gadget_driver *);
 	int	(*udc_stop)(struct usb_gadget *);
+	struct usb_ep *(*match_ep)(struct usb_gadget *,
+			struct usb_endpoint_descriptor *,
+			struct usb_ss_ep_comp_descriptor *);
 };
 
 /**
  * struct usb_gadget - represents a usb slave device
  * @work: (internal use) Workqueue to be used for sysfs_notify()
+ * @udc: struct usb_udc pointer for this gadget
  * @ops: Function pointers used to access hardware-specific operations.
  * @ep0: Endpoint zero, used when reading or writing responses to
  *	driver setup() requests
@@ -509,6 +579,7 @@ struct usb_gadget_ops {
  * @dev: Driver model state for this abstract device.
  * @out_epnum: last used out ep number
  * @in_epnum: last used in ep number
+ * @otg_caps: OTG capabilities of this gadget.
  * @sg_supported: true if we can handle scatter-gather
  * @is_otg: True if the USB device port uses a Mini-AB jack, so that the
  *	gadget driver must provide a USB OTG descriptor.
@@ -524,6 +595,9 @@ struct usb_gadget_ops {
  * @quirk_ep_out_aligned_size: epout requires buffer size to be aligned to
  *	MaxPacketSize.
  * @is_selfpowered: if the gadget is self-powered.
+ * @deactivated: True if gadget is deactivated - in deactivated state it cannot
+ *	be connected.
+ * @connected: True if gadget is connected.
  *
  * Gadgets have a mostly-portable "gadget driver" implementing device
  * functions, handling all usb configurations and interfaces.  Gadget
@@ -545,6 +619,7 @@ struct usb_gadget_ops {
  */
 struct usb_gadget {
 	struct work_struct		work;
+	struct usb_udc			*udc;
 	/* readonly to gadget driver */
 	const struct usb_gadget_ops	*ops;
 	struct usb_ep			*ep0;
@@ -556,6 +631,7 @@ struct usb_gadget {
 	struct device			dev;
 	unsigned			out_epnum;
 	unsigned			in_epnum;
+	struct usb_otg_caps		*otg_caps;
 
 	unsigned			sg_supported:1;
 	unsigned			is_otg:1;
@@ -564,7 +640,12 @@ struct usb_gadget {
 	unsigned			a_hnp_support:1;
 	unsigned			a_alt_hnp_support:1;
 	unsigned			quirk_ep_out_aligned_size:1;
+	unsigned			quirk_altset_not_supp:1;
+	unsigned			quirk_stall_not_supp:1;
+	unsigned			quirk_zlp_not_supp:1;
 	unsigned			is_selfpowered:1;
+	unsigned			deactivated:1;
+	unsigned			connected:1;
 };
 #define work_to_gadget(w)	(container_of((w), struct usb_gadget, work))
 
@@ -581,7 +662,6 @@ static inline struct usb_gadget *dev_to_usb_gadget(struct device *dev)
 #define gadget_for_each_ep(tmp, gadget) \
 	list_for_each_entry(tmp, &(gadget)->ep_list, ep_list)
 
-
 /**
  * usb_ep_align_maybe - returns @len aligned to ep's maxpacketsize if gadget
  *	requires quirk_ep_out_aligned_size, otherwise reguens len.
@@ -597,6 +677,34 @@ usb_ep_align_maybe(struct usb_gadget *g, struct usb_ep *ep, size_t len)
 {
 	return !g->quirk_ep_out_aligned_size ? len :
 			round_up(len, (size_t)ep->desc->wMaxPacketSize);
+}
+
+/**
+ * gadget_is_altset_supported - return true iff the hardware supports
+ *	altsettings
+ * @g: controller to check for quirk
+ */
+static inline int gadget_is_altset_supported(struct usb_gadget *g)
+{
+	return !g->quirk_altset_not_supp;
+}
+
+/**
+ * gadget_is_stall_supported - return true iff the hardware supports stalling
+ * @g: controller to check for quirk
+ */
+static inline int gadget_is_stall_supported(struct usb_gadget *g)
+{
+	return !g->quirk_stall_not_supp;
+}
+
+/**
+ * gadget_is_zlp_supported - return true iff the hardware supports zlp
+ * @g: controller to check for quirk
+ */
+static inline int gadget_is_zlp_supported(struct usb_gadget *g)
+{
+	return !g->quirk_zlp_not_supp;
 }
 
 /**
@@ -768,9 +876,24 @@ static inline int usb_gadget_vbus_disconnect(struct usb_gadget *gadget)
  */
 static inline int usb_gadget_connect(struct usb_gadget *gadget)
 {
+	int ret;
+
 	if (!gadget->ops->pullup)
 		return -EOPNOTSUPP;
-	return gadget->ops->pullup(gadget, 1);
+
+	if (gadget->deactivated) {
+		/*
+		 * If gadget is deactivated we only save new state.
+		 * Gadget will be connected automatically after activation.
+		 */
+		gadget->connected = true;
+		return 0;
+	}
+
+	ret = gadget->ops->pullup(gadget, 1);
+	if (!ret)
+		gadget->connected = 1;
+	return ret;
 }
 
 /**
@@ -781,20 +904,88 @@ static inline int usb_gadget_connect(struct usb_gadget *gadget)
  * as a disconnect (when a VBUS session is active).  Not all systems
  * support software pullup controls.
  *
- * This routine may be used during the gadget driver bind() call to prevent
- * the peripheral from ever being visible to the USB host, unless later
- * usb_gadget_connect() is called.  For example, user mode components may
- * need to be activated before the system can talk to hosts.
- *
  * Returns zero on success, else negative errno.
  */
 static inline int usb_gadget_disconnect(struct usb_gadget *gadget)
 {
+	int ret;
+
 	if (!gadget->ops->pullup)
 		return -EOPNOTSUPP;
-	return gadget->ops->pullup(gadget, 0);
+
+	if (gadget->deactivated) {
+		/*
+		 * If gadget is deactivated we only save new state.
+		 * Gadget will stay disconnected after activation.
+		 */
+		gadget->connected = false;
+		return 0;
+	}
+
+	ret = gadget->ops->pullup(gadget, 0);
+	if (!ret)
+		gadget->connected = 0;
+	return ret;
 }
 
+/**
+ * usb_gadget_deactivate - deactivate function which is not ready to work
+ * @gadget: the peripheral being deactivated
+ *
+ * This routine may be used during the gadget driver bind() call to prevent
+ * the peripheral from ever being visible to the USB host, unless later
+ * usb_gadget_activate() is called.  For example, user mode components may
+ * need to be activated before the system can talk to hosts.
+ *
+ * Returns zero on success, else negative errno.
+ */
+static inline int usb_gadget_deactivate(struct usb_gadget *gadget)
+{
+	int ret;
+
+	if (gadget->deactivated)
+		return 0;
+
+	if (gadget->connected) {
+		ret = usb_gadget_disconnect(gadget);
+		if (ret)
+			return ret;
+		/*
+		 * If gadget was being connected before deactivation, we want
+		 * to reconnect it in usb_gadget_activate().
+		 */
+		gadget->connected = true;
+	}
+	gadget->deactivated = true;
+
+	return 0;
+}
+
+/**
+ * usb_gadget_activate - activate function which is not ready to work
+ * @gadget: the peripheral being activated
+ *
+ * This routine activates gadget which was previously deactivated with
+ * usb_gadget_deactivate() call. It calls usb_gadget_connect() if needed.
+ *
+ * Returns zero on success, else negative errno.
+ */
+static inline int usb_gadget_activate(struct usb_gadget *gadget)
+{
+	if (!gadget->deactivated)
+		return 0;
+
+	gadget->deactivated = false;
+
+	/*
+	 * If gadget has been connected before deactivation, or became connected
+	 * while it was being deactivated, we call usb_gadget_connect().
+	 */
+	if (gadget->connected)
+		return usb_gadget_connect(gadget);
+
+	return 0;
+}
 
 /*-------------------------------------------------------------------------*/
 
@@ -999,6 +1190,10 @@ int usb_assign_descriptors(struct usb_function *f,
 		struct usb_descriptor_header **ss);
 void usb_free_all_descriptors(struct usb_function *f);
 
+struct usb_descriptor_header *usb_otg_descriptor_alloc(
+				struct usb_gadget *gadget);
+int usb_otg_descriptor_init(struct usb_gadget *gadget,
+		struct usb_descriptor_header *otg_desc);
 /*-------------------------------------------------------------------------*/
 
 /* utility to simplify map/unmap of usb_requests to/from DMA */
@@ -1029,6 +1224,25 @@ extern void usb_gadget_udc_reset(struct usb_gadget *gadget,
 extern void usb_gadget_giveback_request(struct usb_ep *ep,
 		struct usb_request *req);
 
+/*-------------------------------------------------------------------------*/
+
+/* utility to find endpoint by name */
+
+extern struct usb_ep *gadget_find_ep_by_name(struct usb_gadget *g,
+		const char *name);
+
+/*-------------------------------------------------------------------------*/
+
+/* utility to check if endpoint caps match descriptor needs */
+
+extern int usb_gadget_ep_match_desc(struct usb_gadget *gadget,
+		struct usb_ep *ep, struct usb_endpoint_descriptor *desc,
+		struct usb_ss_ep_comp_descriptor *ep_comp);
+
+/*-------------------------------------------------------------------------*/
+
+/* utility to update vbus status for udc core, it may be scheduled */
+extern void usb_udc_vbus_handler(struct usb_gadget *gadget, bool status);
 
 /*-------------------------------------------------------------------------*/
 
@@ -1041,6 +1255,8 @@ extern struct usb_ep *usb_ep_autoconfig(struct usb_gadget *,
 extern struct usb_ep *usb_ep_autoconfig_ss(struct usb_gadget *,
 			struct usb_endpoint_descriptor *,
 			struct usb_ss_ep_comp_descriptor *);
+
+extern void usb_ep_autoconfig_release(struct usb_ep *);
 
 extern void usb_ep_autoconfig_reset(struct usb_gadget *);
 

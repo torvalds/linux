@@ -22,6 +22,12 @@
 #define CREATE_TRACE_POINTS
 #include <asm/trace/irq_vectors.h>
 
+DEFINE_PER_CPU_SHARED_ALIGNED(irq_cpustat_t, irq_stat);
+EXPORT_PER_CPU_SYMBOL(irq_stat);
+
+DEFINE_PER_CPU(struct pt_regs *, irq_regs);
+EXPORT_PER_CPU_SYMBOL(irq_regs);
+
 atomic_t irq_err_count;
 
 /* Function pointer for generic interrupt vector handling */
@@ -116,6 +122,12 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 		seq_printf(p, "%10u ", irq_stats(j)->irq_threshold_count);
 	seq_puts(p, "  Threshold APIC interrupts\n");
 #endif
+#ifdef CONFIG_X86_MCE_AMD
+	seq_printf(p, "%*s: ", prec, "DFR");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", irq_stats(j)->irq_deferred_error_count);
+	seq_puts(p, "  Deferred Error APIC interrupts\n");
+#endif
 #ifdef CONFIG_X86_MCE
 	seq_printf(p, "%*s: ", prec, "MCE");
 	for_each_online_cpu(j)
@@ -127,14 +139,29 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 	seq_puts(p, "  Machine check polls\n");
 #endif
 #if IS_ENABLED(CONFIG_HYPERV) || defined(CONFIG_XEN)
-	seq_printf(p, "%*s: ", prec, "HYP");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", irq_stats(j)->irq_hv_callback_count);
-	seq_puts(p, "  Hypervisor callback interrupts\n");
+	if (test_bit(HYPERVISOR_CALLBACK_VECTOR, used_vectors)) {
+		seq_printf(p, "%*s: ", prec, "HYP");
+		for_each_online_cpu(j)
+			seq_printf(p, "%10u ",
+				   irq_stats(j)->irq_hv_callback_count);
+		seq_puts(p, "  Hypervisor callback interrupts\n");
+	}
 #endif
 	seq_printf(p, "%*s: %10u\n", prec, "ERR", atomic_read(&irq_err_count));
 #if defined(CONFIG_X86_IO_APIC)
 	seq_printf(p, "%*s: %10u\n", prec, "MIS", atomic_read(&irq_mis_count));
+#endif
+#ifdef CONFIG_HAVE_KVM
+	seq_printf(p, "%*s: ", prec, "PIN");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", irq_stats(j)->kvm_posted_intr_ipis);
+	seq_puts(p, "  Posted-interrupt notification event\n");
+
+	seq_printf(p, "%*s: ", prec, "PIW");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ",
+			   irq_stats(j)->kvm_posted_intr_wakeup_ipis);
+	seq_puts(p, "  Posted-interrupt wakeup event\n");
 #endif
 	return 0;
 }
@@ -187,29 +214,42 @@ u64 arch_irq_stat(void)
 __visible unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
-
+	struct irq_desc * desc;
 	/* high bit used in ret_from_ code  */
 	unsigned vector = ~regs->orig_ax;
-	unsigned irq;
 
-	irq_enter();
-	exit_idle();
+	/*
+	 * NB: Unlike exception entries, IRQ entries do not reliably
+	 * handle context tracking in the low-level entry code.  This is
+	 * because syscall entries execute briefly with IRQs on before
+	 * updating context tracking state, so we can take an IRQ from
+	 * kernel mode with CONTEXT_USER.  The low-level entry code only
+	 * updates the context if we came from user mode, so we won't
+	 * switch to CONTEXT_KERNEL.  We'll fix that once the syscall
+	 * code is cleaned up enough that we can cleanly defer enabling
+	 * IRQs.
+	 */
 
-	irq = __this_cpu_read(vector_irq[vector]);
+	entering_irq();
 
-	if (!handle_irq(irq, regs)) {
+	/* entering_irq() tells RCU that we're not quiescent.  Check it. */
+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "IRQ failed to wake up RCU");
+
+	desc = __this_cpu_read(vector_irq[vector]);
+
+	if (!handle_irq(desc, regs)) {
 		ack_APIC_irq();
 
-		if (irq != VECTOR_RETRIGGERED) {
-			pr_emerg_ratelimited("%s: %d.%d No irq handler for vector (irq %d)\n",
+		if (desc != VECTOR_RETRIGGERED) {
+			pr_emerg_ratelimited("%s: %d.%d No irq handler for vector\n",
 					     __func__, smp_processor_id(),
-					     vector, irq);
+					     vector);
 		} else {
-			__this_cpu_write(vector_irq[vector], VECTOR_UNDEFINED);
+			__this_cpu_write(vector_irq[vector], VECTOR_UNUSED);
 		}
 	}
 
-	irq_exit();
+	exiting_irq();
 
 	set_irq_regs(old_regs);
 	return 1;
@@ -237,6 +277,18 @@ __visible void smp_x86_platform_ipi(struct pt_regs *regs)
 }
 
 #ifdef CONFIG_HAVE_KVM
+static void dummy_handler(void) {}
+static void (*kvm_posted_intr_wakeup_handler)(void) = dummy_handler;
+
+void kvm_set_posted_intr_wakeup_handler(void (*handler)(void))
+{
+	if (handler)
+		kvm_posted_intr_wakeup_handler = handler;
+	else
+		kvm_posted_intr_wakeup_handler = dummy_handler;
+}
+EXPORT_SYMBOL_GPL(kvm_set_posted_intr_wakeup_handler);
+
 /*
  * Handler for POSTED_INTERRUPT_VECTOR.
  */
@@ -244,16 +296,23 @@ __visible void smp_kvm_posted_intr_ipi(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
-	ack_APIC_irq();
-
-	irq_enter();
-
-	exit_idle();
-
+	entering_ack_irq();
 	inc_irq_stat(kvm_posted_intr_ipis);
+	exiting_irq();
+	set_irq_regs(old_regs);
+}
 
-	irq_exit();
+/*
+ * Handler for POSTED_INTERRUPT_WAKEUP_VECTOR.
+ */
+__visible void smp_kvm_posted_intr_wakeup_ipi(struct pt_regs *regs)
+{
+	struct pt_regs *old_regs = set_irq_regs(regs);
 
+	entering_ack_irq();
+	inc_irq_stat(kvm_posted_intr_wakeup_ipis);
+	kvm_posted_intr_wakeup_handler();
+	exiting_irq();
 	set_irq_regs(old_regs);
 }
 #endif
@@ -288,50 +347,54 @@ static struct cpumask affinity_new, online_new;
  */
 int check_irq_vectors_for_cpu_disable(void)
 {
-	int irq, cpu;
 	unsigned int this_cpu, vector, this_count, count;
 	struct irq_desc *desc;
 	struct irq_data *data;
+	int cpu;
 
 	this_cpu = smp_processor_id();
 	cpumask_copy(&online_new, cpu_online_mask);
-	cpu_clear(this_cpu, online_new);
+	cpumask_clear_cpu(this_cpu, &online_new);
 
 	this_count = 0;
 	for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS; vector++) {
-		irq = __this_cpu_read(vector_irq[vector]);
-		if (irq >= 0) {
-			desc = irq_to_desc(irq);
-			if (!desc)
-				continue;
+		desc = __this_cpu_read(vector_irq[vector]);
+		if (IS_ERR_OR_NULL(desc))
+			continue;
+		/*
+		 * Protect against concurrent action removal, affinity
+		 * changes etc.
+		 */
+		raw_spin_lock(&desc->lock);
+		data = irq_desc_get_irq_data(desc);
+		cpumask_copy(&affinity_new,
+			     irq_data_get_affinity_mask(data));
+		cpumask_clear_cpu(this_cpu, &affinity_new);
 
-			data = irq_desc_get_irq_data(desc);
-			cpumask_copy(&affinity_new, data->affinity);
-			cpu_clear(this_cpu, affinity_new);
-
-			/* Do not count inactive or per-cpu irqs. */
-			if (!irq_has_action(irq) || irqd_is_per_cpu(data))
-				continue;
-
-			/*
-			 * A single irq may be mapped to multiple
-			 * cpu's vector_irq[] (for example IOAPIC cluster
-			 * mode).  In this case we have two
-			 * possibilities:
-			 *
-			 * 1) the resulting affinity mask is empty; that is
-			 * this the down'd cpu is the last cpu in the irq's
-			 * affinity mask, or
-			 *
-			 * 2) the resulting affinity mask is no longer
-			 * a subset of the online cpus but the affinity
-			 * mask is not zero; that is the down'd cpu is the
-			 * last online cpu in a user set affinity mask.
-			 */
-			if (cpumask_empty(&affinity_new) ||
-			    !cpumask_subset(&affinity_new, &online_new))
-				this_count++;
+		/* Do not count inactive or per-cpu irqs. */
+		if (!irq_desc_has_action(desc) || irqd_is_per_cpu(data)) {
+			raw_spin_unlock(&desc->lock);
+			continue;
 		}
+
+		raw_spin_unlock(&desc->lock);
+		/*
+		 * A single irq may be mapped to multiple cpu's
+		 * vector_irq[] (for example IOAPIC cluster mode).  In
+		 * this case we have two possibilities:
+		 *
+		 * 1) the resulting affinity mask is empty; that is
+		 * this the down'd cpu is the last cpu in the irq's
+		 * affinity mask, or
+		 *
+		 * 2) the resulting affinity mask is no longer a
+		 * subset of the online cpus but the affinity mask is
+		 * not zero; that is the down'd cpu is the last online
+		 * cpu in a user set affinity mask.
+		 */
+		if (cpumask_empty(&affinity_new) ||
+		    !cpumask_subset(&affinity_new, &online_new))
+			this_count++;
 	}
 
 	count = 0;
@@ -343,12 +406,15 @@ int check_irq_vectors_for_cpu_disable(void)
 		 * vector. If the vector is marked in the used vectors
 		 * bitmap or an irq is assigned to it, we don't count
 		 * it as available.
+		 *
+		 * As this is an inaccurate snapshot anyway, we can do
+		 * this w/o holding vector_lock.
 		 */
 		for (vector = FIRST_EXTERNAL_VECTOR;
 		     vector < first_system_vector; vector++) {
 			if (!test_bit(vector, used_vectors) &&
-			    per_cpu(vector_irq, cpu)[vector] < 0)
-					count++;
+			    IS_ERR_OR_NULL(per_cpu(vector_irq, cpu)[vector]))
+			    count++;
 		}
 	}
 
@@ -384,7 +450,7 @@ void fixup_irqs(void)
 		raw_spin_lock(&desc->lock);
 
 		data = irq_desc_get_irq_data(desc);
-		affinity = data->affinity;
+		affinity = irq_data_get_affinity_mask(data);
 		if (!irq_has_action(irq) || irqd_is_per_cpu(data) ||
 		    cpumask_subset(affinity, cpu_online_mask)) {
 			raw_spin_unlock(&desc->lock);
@@ -444,20 +510,24 @@ void fixup_irqs(void)
 	 */
 	mdelay(1);
 
+	/*
+	 * We can walk the vector array of this cpu without holding
+	 * vector_lock because the cpu is already marked !online, so
+	 * nothing else will touch it.
+	 */
 	for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS; vector++) {
 		unsigned int irr;
 
-		if (__this_cpu_read(vector_irq[vector]) <= VECTOR_UNDEFINED)
+		if (IS_ERR_OR_NULL(__this_cpu_read(vector_irq[vector])))
 			continue;
 
 		irr = apic_read(APIC_IRR + (vector / 32 * 0x10));
 		if (irr  & (1 << (vector % 32))) {
-			irq = __this_cpu_read(vector_irq[vector]);
+			desc = __this_cpu_read(vector_irq[vector]);
 
-			desc = irq_to_desc(irq);
+			raw_spin_lock(&desc->lock);
 			data = irq_desc_get_irq_data(desc);
 			chip = irq_data_get_irq_chip(data);
-			raw_spin_lock(&desc->lock);
 			if (chip->irq_retrigger) {
 				chip->irq_retrigger(data);
 				__this_cpu_write(vector_irq[vector], VECTOR_RETRIGGERED);
@@ -465,7 +535,7 @@ void fixup_irqs(void)
 			raw_spin_unlock(&desc->lock);
 		}
 		if (__this_cpu_read(vector_irq[vector]) != VECTOR_RETRIGGERED)
-			__this_cpu_write(vector_irq[vector], VECTOR_UNDEFINED);
+			__this_cpu_write(vector_irq[vector], VECTOR_UNUSED);
 	}
 }
 #endif

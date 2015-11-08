@@ -21,36 +21,18 @@
 
 #include "wil6210.h"
 
-static int use_msi = 1;
-module_param(use_msi, int, S_IRUGO);
-MODULE_PARM_DESC(use_msi,
-		 " Use MSI interrupt: "
-		 "0 - don't, 1 - (default) - single, or 3");
-
-static bool debug_fw; /* = false; */
-module_param(debug_fw, bool, S_IRUGO);
-MODULE_PARM_DESC(debug_fw, " load driver if FW not ready. For FW debug");
+static bool use_msi = true;
+module_param(use_msi, bool, S_IRUGO);
+MODULE_PARM_DESC(use_msi, " Use MSI interrupt, default - true");
 
 static
 void wil_set_capabilities(struct wil6210_priv *wil)
 {
-	u32 rev_id = ioread32(wil->csr + HOSTADDR(RGF_USER_JTAG_DEV_ID));
+	u32 rev_id = wil_r(wil, RGF_USER_JTAG_DEV_ID);
 
 	bitmap_zero(wil->hw_capabilities, hw_capability_last);
 
 	switch (rev_id) {
-	case JTAG_DEV_ID_MARLON_B0:
-		wil->hw_name = "Marlon B0";
-		wil->hw_version = HW_VER_MARLON_B0;
-		break;
-	case JTAG_DEV_ID_SPARROW_A0:
-		wil->hw_name = "Sparrow A0";
-		wil->hw_version = HW_VER_SPARROW_A0;
-		break;
-	case JTAG_DEV_ID_SPARROW_A1:
-		wil->hw_name = "Sparrow A1";
-		wil->hw_version = HW_VER_SPARROW_A1;
-		break;
 	case JTAG_DEV_ID_SPARROW_B0:
 		wil->hw_name = "Sparrow B0";
 		wil->hw_version = HW_VER_SPARROW_B0;
@@ -62,35 +44,16 @@ void wil_set_capabilities(struct wil6210_priv *wil)
 	}
 
 	wil_info(wil, "Board hardware is %s\n", wil->hw_name);
-
-	if (wil->hw_version >= HW_VER_SPARROW_A0)
-		set_bit(hw_capability_reset_v2, wil->hw_capabilities);
-
-	if (wil->hw_version >= HW_VER_SPARROW_B0)
-		set_bit(hw_capability_advanced_itr_moderation,
-			wil->hw_capabilities);
 }
 
 void wil_disable_irq(struct wil6210_priv *wil)
 {
-	int irq = wil->pdev->irq;
-
-	disable_irq(irq);
-	if (wil->n_msi == 3) {
-		disable_irq(irq + 1);
-		disable_irq(irq + 2);
-	}
+	disable_irq(wil->pdev->irq);
 }
 
 void wil_enable_irq(struct wil6210_priv *wil)
 {
-	int irq = wil->pdev->irq;
-
-	enable_irq(irq);
-	if (wil->n_msi == 3) {
-		enable_irq(irq + 1);
-		enable_irq(irq + 2);
-	}
+	enable_irq(wil->pdev->irq);
 }
 
 /* Bus ops */
@@ -103,6 +66,7 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 	 * and only MSI should be used
 	 */
 	int msi_only = pdev->msi_enabled;
+	bool _use_msi = use_msi;
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
@@ -110,50 +74,27 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 
 	pci_set_master(pdev);
 
-	/*
-	 * how many MSI interrupts to request?
-	 */
-	switch (use_msi) {
-	case 3:
-	case 1:
-		wil_dbg_misc(wil, "Setup %d MSI interrupts\n", use_msi);
-		break;
-	case 0:
-		wil_dbg_misc(wil, "MSI interrupts disabled, use INTx\n");
-		break;
-	default:
-		wil_err(wil, "Invalid use_msi=%d, default to 1\n", use_msi);
-		use_msi = 1;
-	}
+	wil_dbg_misc(wil, "Setup %s interrupt\n", use_msi ? "MSI" : "INTx");
 
-	if (use_msi == 3 && pci_enable_msi_range(pdev, 3, 3) < 0) {
-		wil_err(wil, "3 MSI mode failed, try 1 MSI\n");
-		use_msi = 1;
-	}
-
-	if (use_msi == 1 && pci_enable_msi(pdev)) {
+	if (use_msi && pci_enable_msi(pdev)) {
 		wil_err(wil, "pci_enable_msi failed, use INTx\n");
-		use_msi = 0;
+		_use_msi = false;
 	}
 
-	wil->n_msi = use_msi;
-
-	if ((wil->n_msi == 0) && msi_only) {
+	if (!_use_msi && msi_only) {
 		wil_err(wil, "Interrupt pin not routed, unable to use INTx\n");
 		rc = -ENODEV;
 		goto stop_master;
 	}
 
-	rc = wil6210_init_irq(wil, pdev->irq);
+	rc = wil6210_init_irq(wil, pdev->irq, _use_msi);
 	if (rc)
 		goto stop_master;
 
 	/* need reset here to obtain MAC */
 	mutex_lock(&wil->mutex);
-	rc = wil_reset(wil);
+	rc = wil_reset(wil, false);
 	mutex_unlock(&wil->mutex);
-	if (debug_fw)
-		rc = 0;
 	if (rc)
 		goto release_irq;
 
@@ -188,7 +129,6 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct wil6210_priv *wil;
 	struct device *dev = &pdev->dev;
-	void __iomem *csr;
 	int rc;
 
 	/* check HW */
@@ -203,9 +143,28 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -ENODEV;
 	}
 
+	wil = wil_if_alloc(dev);
+	if (IS_ERR(wil)) {
+		rc = (int)PTR_ERR(wil);
+		dev_err(dev, "wil_if_alloc failed: %d\n", rc);
+		return rc;
+	}
+	wil->pdev = pdev;
+	pci_set_drvdata(pdev, wil);
+	/* rollback to if_free */
+
+	wil->platform_handle =
+			wil_platform_init(&pdev->dev, &wil->platform_ops);
+	if (!wil->platform_handle) {
+		rc = -ENODEV;
+		wil_err(wil, "wil_platform_init failed\n");
+		goto if_free;
+	}
+	/* rollback to err_plat */
+
 	rc = pci_enable_device(pdev);
 	if (rc) {
-		dev_err(&pdev->dev,
+		wil_err(wil,
 			"pci_enable_device failed, retry with MSI only\n");
 		/* Work around for platforms that can't allocate IRQ:
 		 * retry with MSI only
@@ -213,47 +172,37 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		pdev->msi_enabled = 1;
 		rc = pci_enable_device(pdev);
 	}
-	if (rc)
-		return -ENODEV;
+	if (rc) {
+		wil_err(wil,
+			"pci_enable_device failed, even with MSI only\n");
+		goto err_plat;
+	}
 	/* rollback to err_disable_pdev */
 
 	rc = pci_request_region(pdev, 0, WIL_NAME);
 	if (rc) {
-		dev_err(&pdev->dev, "pci_request_region failed\n");
+		wil_err(wil, "pci_request_region failed\n");
 		goto err_disable_pdev;
 	}
 	/* rollback to err_release_reg */
 
-	csr = pci_ioremap_bar(pdev, 0);
-	if (!csr) {
-		dev_err(&pdev->dev, "pci_ioremap_bar failed\n");
+	wil->csr = pci_ioremap_bar(pdev, 0);
+	if (!wil->csr) {
+		wil_err(wil, "pci_ioremap_bar failed\n");
 		rc = -ENODEV;
 		goto err_release_reg;
 	}
 	/* rollback to err_iounmap */
-	dev_info(&pdev->dev, "CSR at %pR -> 0x%p\n", &pdev->resource[0], csr);
+	wil_info(wil, "CSR at %pR -> 0x%p\n", &pdev->resource[0], wil->csr);
 
-	wil = wil_if_alloc(dev, csr);
-	if (IS_ERR(wil)) {
-		rc = (int)PTR_ERR(wil);
-		dev_err(dev, "wil_if_alloc failed: %d\n", rc);
-		goto err_iounmap;
-	}
-	/* rollback to if_free */
-
-	pci_set_drvdata(pdev, wil);
-	wil->pdev = pdev;
 	wil_set_capabilities(wil);
 	wil6210_clear_irq(wil);
-
-	wil->platform_handle =
-			wil_platform_init(&pdev->dev, &wil->platform_ops);
 
 	/* FW should raise IRQ when ready */
 	rc = wil_if_pcie_enable(wil);
 	if (rc) {
 		wil_err(wil, "Enable device failed\n");
-		goto if_free;
+		goto err_iounmap;
 	}
 	/* rollback to bus_disable */
 
@@ -265,23 +214,22 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	wil6210_debugfs_init(wil);
 
-	/* check FW is alive */
-	wmi_echo(wil);
 
 	return 0;
 
- bus_disable:
+bus_disable:
 	wil_if_pcie_disable(wil);
- if_free:
+err_iounmap:
+	pci_iounmap(pdev, wil->csr);
+err_release_reg:
+	pci_release_region(pdev, 0);
+err_disable_pdev:
+	pci_disable_device(pdev);
+err_plat:
 	if (wil->platform_ops.uninit)
 		wil->platform_ops.uninit(wil->platform_handle);
+if_free:
 	wil_if_free(wil);
- err_iounmap:
-	pci_iounmap(pdev, csr);
- err_release_reg:
-	pci_release_region(pdev, 0);
- err_disable_pdev:
-	pci_disable_device(pdev);
 
 	return rc;
 }
@@ -296,30 +244,118 @@ static void wil_pcie_remove(struct pci_dev *pdev)
 	wil6210_debugfs_remove(wil);
 	wil_if_remove(wil);
 	wil_if_pcie_disable(wil);
-	if (wil->platform_ops.uninit)
-		wil->platform_ops.uninit(wil->platform_handle);
-	wil_if_free(wil);
 	pci_iounmap(pdev, csr);
 	pci_release_region(pdev, 0);
 	pci_disable_device(pdev);
+	if (wil->platform_ops.uninit)
+		wil->platform_ops.uninit(wil->platform_handle);
+	wil_if_free(wil);
 }
 
 static const struct pci_device_id wil6210_pcie_ids[] = {
-	{ PCI_DEVICE(0x1ae9, 0x0301) },
 	{ PCI_DEVICE(0x1ae9, 0x0310) },
 	{ PCI_DEVICE(0x1ae9, 0x0302) }, /* same as above, firmware broken */
 	{ /* end: all zeroes */	},
 };
 MODULE_DEVICE_TABLE(pci, wil6210_pcie_ids);
 
+#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
+
+static int wil6210_suspend(struct device *dev, bool is_runtime)
+{
+	int rc = 0;
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct wil6210_priv *wil = pci_get_drvdata(pdev);
+
+	wil_dbg_pm(wil, "%s(%s)\n", __func__,
+		   is_runtime ? "runtime" : "system");
+
+	rc = wil_can_suspend(wil, is_runtime);
+	if (rc)
+		goto out;
+
+	rc = wil_suspend(wil, is_runtime);
+	if (rc)
+		goto out;
+
+	/* TODO: how do I bring card in low power state? */
+
+	/* disable bus mastering */
+	pci_clear_master(pdev);
+	/* PCI will call pci_save_state(pdev) and pci_prepare_to_sleep(pdev) */
+
+out:
+	return rc;
+}
+
+static int wil6210_resume(struct device *dev, bool is_runtime)
+{
+	int rc = 0;
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct wil6210_priv *wil = pci_get_drvdata(pdev);
+
+	wil_dbg_pm(wil, "%s(%s)\n", __func__,
+		   is_runtime ? "runtime" : "system");
+
+	/* allow master */
+	pci_set_master(pdev);
+
+	rc = wil_resume(wil, is_runtime);
+	if (rc)
+		pci_clear_master(pdev);
+
+	return rc;
+}
+
+static int wil6210_pm_suspend(struct device *dev)
+{
+	return wil6210_suspend(dev, false);
+}
+
+static int wil6210_pm_resume(struct device *dev)
+{
+	return wil6210_resume(dev, false);
+}
+#endif /* CONFIG_PM_SLEEP */
+
+#endif /* CONFIG_PM */
+
+static const struct dev_pm_ops wil6210_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(wil6210_pm_suspend, wil6210_pm_resume)
+};
+
 static struct pci_driver wil6210_driver = {
 	.probe		= wil_pcie_probe,
 	.remove		= wil_pcie_remove,
 	.id_table	= wil6210_pcie_ids,
 	.name		= WIL_NAME,
+	.driver		= {
+		.pm = &wil6210_pm_ops,
+	},
 };
 
-module_pci_driver(wil6210_driver);
+static int __init wil6210_driver_init(void)
+{
+	int rc;
+
+	rc = wil_platform_modinit();
+	if (rc)
+		return rc;
+
+	rc = pci_register_driver(&wil6210_driver);
+	if (rc)
+		wil_platform_modexit();
+	return rc;
+}
+module_init(wil6210_driver_init);
+
+static void __exit wil6210_driver_exit(void)
+{
+	pci_unregister_driver(&wil6210_driver);
+	wil_platform_modexit();
+}
+module_exit(wil6210_driver_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Qualcomm Atheros <wil6210@qca.qualcomm.com>");

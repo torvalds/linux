@@ -32,7 +32,14 @@ config USB_XHCI_PCI
        default y
 
 config USB_XHCI_PLATFORM
-	tristate
+	tristate "Generic xHCI driver for a platform device"
+	---help---
+	  Adds an xHCI host driver for a generic platform device, which
+	  provides a memory space and an irq.
+	  It is also a prerequisite for platform specific drivers that
+	  implement some extra quirks.
+
+	  If unsure, say N.
 
 config USB_XHCI_MVEBU
 	tristate "xHCI support for Marvell Armada 375/38x"
@@ -137,7 +144,7 @@ config XPS_USB_HCD_XILINX
 		devices only.
 
 config USB_EHCI_FSL
-	bool "Support for Freescale PPC on-chip EHCI USB controller"
+	tristate "Support for Freescale PPC on-chip EHCI USB controller"
 	depends on FSL_SOC
 	select USB_EHCI_ROOT_HUB_TT
 	select USB_FSL_MPH_DR_OF if OF
@@ -198,7 +205,7 @@ config USB_EHCI_HCD_AT91
 
 config USB_EHCI_MSM
 	tristate "Support for Qualcomm QSD/MSM on-chip EHCI USB controller"
-	depends on ARCH_MSM || ARCH_QCOM
+	depends on ARCH_QCOM
 	select USB_EHCI_ROOT_HUB_TT
 	---help---
 	  Enables support for the USB Host controller present on the
@@ -295,7 +302,7 @@ config USB_OCTEON_EHCI
 	bool "Octeon on-chip EHCI support (DEPRECATED)"
 	depends on CAVIUM_OCTEON_SOC
 	default n
-	select USB_EHCI_BIG_ENDIAN_MMIO
+	select USB_EHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
 	select USB_EHCI_HCD_PLATFORM
 	help
 	  This option is deprecated now and the driver was removed, use
@@ -340,16 +347,6 @@ config USB_ISP1362_HCD
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called isp1362-hcd.
-
-config USB_FUSBH200_HCD
-	tristate "FUSBH200 HCD support"
-	depends on USB
-	---help---
-	Faraday FUSBH200 is designed to meet USB2.0 EHCI specification
-	with minor modification.
-
-	To compile this driver as a module, choose M here: the
-	module will be called fusbh200-hcd.
 
 config USB_FOTG210_HCD
 	tristate "FOTG210 HCD support"
@@ -441,10 +438,10 @@ config USB_OHCI_HCD_PXA27X
 	  PXA27x/PXA3xx chips.
 
 config USB_OHCI_HCD_AT91
-        tristate "Support for Atmel on-chip OHCI USB controller"
-        depends on USB_OHCI_HCD && ARCH_AT91
-        default y
-        ---help---
+	tristate "Support for Atmel on-chip OHCI USB controller"
+	depends on USB_OHCI_HCD && ARCH_AT91 && OF
+	default y
+	---help---
           Enables support for the on-chip OHCI controller on
           Atmel chips.
 
@@ -568,7 +565,7 @@ config USB_OCTEON_OHCI
 	bool "Octeon on-chip OHCI support (DEPRECATED)"
 	depends on CAVIUM_OCTEON_SOC
 	default USB_OCTEON_EHCI
-	select USB_OHCI_BIG_ENDIAN_MMIO
+	select USB_OHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
 	select USB_OHCI_LITTLE_ENDIAN
 	select USB_OHCI_HCD_PLATFORM
 	help

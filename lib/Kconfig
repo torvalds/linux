@@ -18,9 +18,8 @@ config HAVE_ARCH_BITREVERSE
 	default n
 	depends on BITREVERSE
 	help
-	  This option provides an config for the architecture which have instruction
-	  can do bitreverse operation, we use the hardware instruction if the architecture
-	  have this capability.
+	  This option enables the use of hardware bit-reversal instructions on
+	  architectures which support such operations.
 
 config RATIONAL
 	bool
@@ -52,9 +51,6 @@ config GENERIC_IO
 	default n
 
 config STMP_DEVICE
-	bool
-
-config PERCPU_RWSEM
 	bool
 
 config ARCH_USE_CMPXCHG_LOCKREF
@@ -213,11 +209,18 @@ config RANDOM32_SELFTEST
 #
 # compression support is select'ed if needed
 #
+config 842_COMPRESS
+	tristate
+
+config 842_DECOMPRESS
+	tristate
+
 config ZLIB_INFLATE
 	tristate
 
 config ZLIB_DEFLATE
 	tristate
+	select BITREVERSE
 
 config LZO_COMPRESS
 	tristate
@@ -397,10 +400,6 @@ config CPUMASK_OFFSTACK
 	  them on the stack.  This is a bit more expensive, but avoids
 	  stack overflow.
 
-config DISABLE_OBSOLETE_CPUMASK_FUNCTIONS
-       bool "Disable obsolete cpumask functions" if DEBUG_PER_CPU_MAPS
-       depends on BROKEN
-
 config CPU_RMAP
 	bool
 	depends on SMP
@@ -459,16 +458,6 @@ config ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 config LRU_CACHE
 	tristate
 
-config AVERAGE
-	bool "Averaging functions"
-	help
-	  This option is provided for the case where no in-kernel-tree
-	  modules require averaging functions, but a module built outside
-	  the kernel tree does. Such modules that use library averaging
-	  functions require Y here.
-
-	  If unsure, say N.
-
 config CLZ_TAB
 	bool
 
@@ -520,11 +509,24 @@ config UCS2_STRING
 
 source "lib/fonts/Kconfig"
 
+config SG_SPLIT
+	def_bool n
+	help
+	 Provides a heler to split scatterlists into chunks, each chunk being a
+	 scatterlist. This should be selected by a driver or an API which
+	 whishes to split a scatterlist amongst multiple DMA channel.
+
 #
 # sg chaining option
 #
 
 config ARCH_HAS_SG_CHAIN
 	def_bool n
+
+config ARCH_HAS_PMEM_API
+	bool
+
+config ARCH_HAS_MMIO_FLUSH
+	bool
 
 endmenu

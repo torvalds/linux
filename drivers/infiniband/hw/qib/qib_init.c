@@ -91,15 +91,6 @@ MODULE_PARM_DESC(krcvqs, "number of kernel receive queues per IB port");
 unsigned qib_cc_table_size;
 module_param_named(cc_table_size, qib_cc_table_size, uint, S_IRUGO);
 MODULE_PARM_DESC(cc_table_size, "Congestion control table entries 0 (CCA disabled - default), min = 128, max = 1984");
-/*
- * qib_wc_pat parameter:
- *      0 is WC via MTRR
- *      1 is WC via PAT
- *      If PAT initialization fails, code reverts back to MTRR
- */
-unsigned qib_wc_pat = 1; /* default (1) is to use PAT, not MTRR */
-module_param_named(wc_pat, qib_wc_pat, uint, S_IRUGO);
-MODULE_PARM_DESC(wc_pat, "enable write-combining via PAT mechanism");
 
 static void verify_interrupt(unsigned long);
 
@@ -1377,8 +1368,7 @@ static void cleanup_device_data(struct qib_devdata *dd)
 		spin_unlock(&dd->pport[pidx].cc_shadow_lock);
 	}
 
-	if (!qib_wc_pat)
-		qib_disable_wc(dd);
+	qib_disable_wc(dd);
 
 	if (dd->pioavailregs_dma) {
 		dma_free_coherent(&dd->pcidev->dev, PAGE_SIZE,
@@ -1547,14 +1537,12 @@ static int qib_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto bail;
 	}
 
-	if (!qib_wc_pat) {
-		ret = qib_enable_wc(dd);
-		if (ret) {
-			qib_dev_err(dd,
-				"Write combining not enabled (err %d): performance may be poor\n",
-				-ret);
-			ret = 0;
-		}
+	ret = qib_enable_wc(dd);
+	if (ret) {
+		qib_dev_err(dd,
+			"Write combining not enabled (err %d): performance may be poor\n",
+			-ret);
+		ret = 0;
 	}
 
 	qib_verify_pioperf(dd);
@@ -1692,7 +1680,7 @@ int qib_setup_eagerbufs(struct qib_ctxtdata *rcd)
 	 * heavy filesystem activity makes these fail, and we can
 	 * use compound pages.
 	 */
-	gfp_flags = __GFP_WAIT | __GFP_IO | __GFP_COMP;
+	gfp_flags = __GFP_RECLAIM | __GFP_IO | __GFP_COMP;
 
 	egrcnt = rcd->rcvegrcnt;
 	egroff = rcd->rcvegr_tid_base;

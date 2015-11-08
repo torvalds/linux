@@ -25,10 +25,10 @@
 #include <Hal8188EPhyCfg.h>
 
 enum RTL871X_HCI_TYPE {
-	RTW_PCIE	= BIT0,
-	RTW_USB		= BIT1,
-	RTW_SDIO	= BIT2,
-	RTW_GSPI	= BIT3,
+	RTW_PCIE	= BIT(0),
+	RTW_USB		= BIT(1),
+	RTW_SDIO	= BIT(2),
+	RTW_GSPI	= BIT(3),
 };
 
 enum _CHIP_TYPE {
@@ -171,8 +171,6 @@ struct hal_ops {
 
 	void	(*read_adapter_info)(struct adapter *padapter);
 
-	void	(*enable_interrupt)(struct adapter *padapter);
-	void	(*disable_interrupt)(struct adapter *padapter);
 	s32	(*interrupt_handler)(struct adapter *padapter);
 
 	void	(*set_bwmode_handler)(struct adapter *padapter,
@@ -188,9 +186,6 @@ struct hal_ops {
 				   u8 *val);
 
 	u8	(*GetHalDefVarHandler)(struct adapter *padapter,
-				       enum hal_def_variable eVariable,
-				       void *pValue);
-	u8	(*SetHalDefVarHandler)(struct adapter *padapter,
 				       enum hal_def_variable eVariable,
 				       void *pValue);
 
@@ -216,9 +211,6 @@ struct hal_ops {
 	u32	(*read_rfreg)(struct adapter *padapter,
 			      enum rf_radio_path eRFPath, u32 RegAddr,
 			      u32 BitMask);
-	void	(*write_rfreg)(struct adapter *padapter,
-			       enum rf_radio_path eRFPath, u32 RegAddr,
-			       u32 BitMask, u32 Data);
 
 	void (*sreset_init_value)(struct adapter *padapter);
 	u8 (*sreset_get_wifi_status)(struct adapter *padapter);
@@ -234,10 +226,10 @@ enum rt_eeprom_type {
 };
 
 #define RF_CHANGE_BY_INIT	0
-#define RF_CHANGE_BY_IPS	BIT28
-#define RF_CHANGE_BY_PS		BIT29
-#define RF_CHANGE_BY_HW		BIT30
-#define RF_CHANGE_BY_SW		BIT31
+#define RF_CHANGE_BY_IPS	BIT(28)
+#define RF_CHANGE_BY_PS		BIT(29)
+#define RF_CHANGE_BY_HW		BIT(30)
+#define RF_CHANGE_BY_SW		BIT(31)
 
 enum hardware_type {
 	HARDWARE_TYPE_RTL8188EU,
@@ -267,17 +259,12 @@ void rtw_hal_chip_configure(struct adapter *padapter);
 void rtw_hal_read_chip_info(struct adapter *padapter);
 void rtw_hal_read_chip_version(struct adapter *padapter);
 
-u8 rtw_hal_set_def_var(struct adapter *padapter,
-		       enum hal_def_variable eVariable, void *pValue);
 u8 rtw_hal_get_def_var(struct adapter *padapter,
 		       enum hal_def_variable eVariable, void *pValue);
 
 void rtw_hal_set_odm_var(struct adapter *padapter,
 			 enum hal_odm_variable eVariable, void *pValue1,
 			 bool bSet);
-
-void rtw_hal_enable_interrupt(struct adapter *padapter);
-void rtw_hal_disable_interrupt(struct adapter *padapter);
 
 u32	rtw_hal_inirp_init(struct adapter *padapter);
 u32	rtw_hal_inirp_deinit(struct adapter *padapter);
@@ -300,9 +287,6 @@ void rtw_hal_bcn_related_reg_setting(struct adapter *padapter);
 
 u32	rtw_hal_read_rfreg(struct adapter *padapter, enum rf_radio_path eRFPath,
 			   u32 RegAddr, u32 BitMask);
-void	rtw_hal_write_rfreg(struct adapter *padapter,
-			    enum rf_radio_path eRFPath, u32 RegAddr,
-			    u32 BitMask, u32 Data);
 
 void	rtw_hal_set_bwmode(struct adapter *padapter,
 			   enum ht_channel_width Bandwidth, u8 Offset);

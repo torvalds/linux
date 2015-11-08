@@ -19,7 +19,7 @@
 #include "generic.h"
 
 #ifdef CONFIG_PXA3xx
-static const struct of_dev_auxdata pxa3xx_auxdata_lookup[] __initconst = {
+static const struct of_dev_auxdata const pxa3xx_auxdata_lookup[] __initconst = {
 	OF_DEV_AUXDATA("mrvl,pxa-uart",		0x40100000, "pxa2xx-uart.0", NULL),
 	OF_DEV_AUXDATA("mrvl,pxa-uart",		0x40200000, "pxa2xx-uart.1", NULL),
 	OF_DEV_AUXDATA("mrvl,pxa-uart",		0x40700000, "pxa2xx-uart.2", NULL),
@@ -39,7 +39,7 @@ static void __init pxa3xx_dt_init(void)
 			     pxa3xx_auxdata_lookup, NULL);
 }
 
-static const char *pxa3xx_dt_board_compat[] __initdata = {
+static const char *const pxa3xx_dt_board_compat[] __initconst = {
 	"marvell,pxa300",
 	"marvell,pxa310",
 	"marvell,pxa320",

@@ -65,7 +65,7 @@ nvkm_sddr2_calc(struct nvkm_ram *ram)
 	case 0x10:
 		CL  = ram->next->bios.timing_10_CL;
 		WR  = ram->next->bios.timing_10_WR;
-		DLL = !ram->next->bios.ramcfg_10_DLLoff;
+		DLL = !ram->next->bios.ramcfg_DLLoff;
 		ODT = ram->next->bios.timing_10_ODT & 3;
 		break;
 	case 0x20:

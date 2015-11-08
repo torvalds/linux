@@ -42,7 +42,9 @@
 #define PRID_COMP_LEXRA		0x0b0000
 #define PRID_COMP_NETLOGIC	0x0c0000
 #define PRID_COMP_CAVIUM	0x0d0000
-#define PRID_COMP_INGENIC	0xd00000
+#define PRID_COMP_INGENIC_D0	0xd00000	/* JZ4740, JZ4750 */
+#define PRID_COMP_INGENIC_D1	0xd10000	/* JZ4770, JZ4775 */
+#define PRID_COMP_INGENIC_E1	0xe10000	/* JZ4780 */
 
 /*
  * Assigned Processor ID (implementation) values for bits 15:8 of the PRId
@@ -67,7 +69,7 @@
 #define PRID_IMP_R4300		0x0b00
 #define PRID_IMP_VR41XX		0x0c00
 #define PRID_IMP_R12000		0x0e00
-#define PRID_IMP_R14000		0x0f00
+#define PRID_IMP_R14000		0x0f00		/* R14K && R16K */
 #define PRID_IMP_R8000		0x1000
 #define PRID_IMP_PR4450		0x1200
 #define PRID_IMP_R4600		0x2000
@@ -118,6 +120,7 @@
 #define PRID_IMP_PROAPTIV_MP	0xa300
 #define PRID_IMP_M5150		0xa700
 #define PRID_IMP_P5600		0xa800
+#define PRID_IMP_I6400		0xa900
 
 /*
  * These are the PRID's for when 23:16 == PRID_COMP_SIBYTE
@@ -168,7 +171,7 @@
 #define PRID_IMP_CAVIUM_CN70XX 0x9600
 
 /*
- * These are the PRID's for when 23:16 == PRID_COMP_INGENIC
+ * These are the PRID's for when 23:16 == PRID_COMP_INGENIC_*
  */
 
 #define PRID_IMP_JZRISC	       0x0200
@@ -284,8 +287,8 @@ enum cpu_type_enum {
 	CPU_R4000PC, CPU_R4000SC, CPU_R4000MC, CPU_R4200, CPU_R4300, CPU_R4310,
 	CPU_R4400PC, CPU_R4400SC, CPU_R4400MC, CPU_R4600, CPU_R4640, CPU_R4650,
 	CPU_R4700, CPU_R5000, CPU_R5500, CPU_NEVADA, CPU_R5432, CPU_R10000,
-	CPU_R12000, CPU_R14000, CPU_VR41XX, CPU_VR4111, CPU_VR4121, CPU_VR4122,
-	CPU_VR4131, CPU_VR4133, CPU_VR4181, CPU_VR4181A, CPU_RM7000,
+	CPU_R12000, CPU_R14000, CPU_R16000, CPU_VR41XX, CPU_VR4111, CPU_VR4121,
+	CPU_VR4122, CPU_VR4131, CPU_VR4133, CPU_VR4181, CPU_VR4181A, CPU_RM7000,
 	CPU_SR71000, CPU_TX49XX,
 
 	/*
@@ -305,6 +308,7 @@ enum cpu_type_enum {
 	CPU_ALCHEMY, CPU_PR4450, CPU_BMIPS32, CPU_BMIPS3300, CPU_BMIPS4350,
 	CPU_BMIPS4380, CPU_BMIPS5000, CPU_JZRISC, CPU_LOONGSON1, CPU_M14KC,
 	CPU_M14KEC, CPU_INTERAPTIV, CPU_P5600, CPU_PROAPTIV, CPU_1074K, CPU_M5150,
+	CPU_I6400,
 
 	/*
 	 * MIPS64 class processors
@@ -377,6 +381,11 @@ enum cpu_type_enum {
 #define MIPS_CPU_MAAR		0x400000000ull /* MAAR(I) registers are present */
 #define MIPS_CPU_FRE		0x800000000ull /* FRE & UFE bits implemented */
 #define MIPS_CPU_RW_LLB		0x1000000000ull /* LLADDR/LLB writes are allowed */
+#define MIPS_CPU_XPA		0x2000000000ull /* CPU supports Extended Physical Addressing */
+#define MIPS_CPU_CDMM		0x4000000000ull	/* CPU has Common Device Memory Map */
+#define MIPS_CPU_BP_GHIST	0x8000000000ull /* R12K+ Branch Prediction Global History */
+#define MIPS_CPU_SP		0x10000000000ull /* Small (1KB) page support */
+#define MIPS_CPU_FTLB		0x20000000000ull /* CPU has Fixed-page-size TLB */
 
 /*
  * CPU ASE encodings

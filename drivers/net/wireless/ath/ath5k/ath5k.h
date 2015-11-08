@@ -1252,6 +1252,8 @@ struct ath5k_statistics {
 #define ATH5K_TXQ_LEN_MAX	(ATH_TXBUF / 4)		/* bufs per queue */
 #define ATH5K_TXQ_LEN_LOW	(ATH5K_TXQ_LEN_MAX / 2)	/* low mark */
 
+DECLARE_EWMA(beacon_rssi, 1024, 8)
+
 /* Driver state associated with an instance of a device */
 struct ath5k_hw {
 	struct ath_common       common;
@@ -1280,9 +1282,9 @@ struct ath5k_hw {
 
 	DECLARE_BITMAP(status, 4);
 #define ATH_STAT_INVALID	0		/* disable hardware accesses */
-#define ATH_STAT_PROMISC	1
 #define ATH_STAT_LEDSOFT	2		/* enable LED gpio status */
 #define ATH_STAT_STARTED	3		/* opened & irqs enabled */
+#define ATH_STAT_RESET		4		/* hw reset */
 
 	unsigned int		filter_flags;	/* HW flags, AR5K_RX_FILTER_* */
 	unsigned int		fif_filter_flags; /* Current FIF_* filter flags */
@@ -1365,7 +1367,7 @@ struct ath5k_hw {
 	u8			ah_retry_long;
 	u8			ah_retry_short;
 
-	u32			ah_use_32khz_clock;
+	bool			ah_use_32khz_clock;
 
 	u8			ah_coverage_class;
 	bool			ah_ack_bitrate_high;
@@ -1432,7 +1434,7 @@ struct ath5k_hw {
 	struct ath5k_nfcal_hist ah_nfcal_hist;
 
 	/* average beacon RSSI in our BSS (used by ANI) */
-	struct ewma		ah_beacon_rssi_avg;
+	struct ewma_beacon_rssi	ah_beacon_rssi_avg;
 
 	/* noise floor from last periodic calibration */
 	s32			ah_noise_floor;

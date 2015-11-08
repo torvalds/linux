@@ -2,15 +2,14 @@
 #define BOOT_COMPRESSED_MISC_H
 
 /*
- * we have to be careful, because no indirections are allowed here, and
- * paravirt_ops is a kind of one. As it will only run in baremetal anyway,
- * we just keep it from happening
+ * Special hack: we have to be careful, because no indirections are allowed here,
+ * and paravirt_ops is a kind of one. As it will only run in baremetal anyway,
+ * we just keep it from happening. (This list needs to be extended when new
+ * paravirt and debugging variants are added.)
  */
 #undef CONFIG_PARAVIRT
+#undef CONFIG_PARAVIRT_SPINLOCKS
 #undef CONFIG_KASAN
-#ifdef CONFIG_X86_32
-#define _ASM_X86_DESC_H 1
-#endif
 
 #include <linux/linkage.h>
 #include <linux/screen_info.h>
@@ -35,16 +34,27 @@ extern memptr free_mem_ptr;
 extern memptr free_mem_end_ptr;
 extern struct boot_params *real_mode;		/* Pointer to real-mode data */
 void __putstr(const char *s);
+void __puthex(unsigned long value);
 #define error_putstr(__x)  __putstr(__x)
+#define error_puthex(__x)  __puthex(__x)
 
 #ifdef CONFIG_X86_VERBOSE_BOOTUP
 
 #define debug_putstr(__x)  __putstr(__x)
+#define debug_puthex(__x)  __puthex(__x)
+#define debug_putaddr(__x) { \
+		debug_putstr(#__x ": 0x"); \
+		debug_puthex((unsigned long)(__x)); \
+		debug_putstr("\n"); \
+	}
 
 #else
 
 static inline void debug_putstr(const char *s)
 { }
+static inline void debug_puthex(const char *s)
+{ }
+#define debug_putaddr(x) /* */
 
 #endif
 
@@ -57,7 +67,8 @@ int cmdline_find_option_bool(const char *option);
 
 #if CONFIG_RANDOMIZE_BASE
 /* aslr.c */
-unsigned char *choose_kernel_location(unsigned char *input,
+unsigned char *choose_kernel_location(struct boot_params *boot_params,
+				      unsigned char *input,
 				      unsigned long input_size,
 				      unsigned char *output,
 				      unsigned long output_size);
@@ -65,7 +76,8 @@ unsigned char *choose_kernel_location(unsigned char *input,
 bool has_cpuflag(int flag);
 #else
 static inline
-unsigned char *choose_kernel_location(unsigned char *input,
+unsigned char *choose_kernel_location(struct boot_params *boot_params,
+				      unsigned char *input,
 				      unsigned long input_size,
 				      unsigned char *output,
 				      unsigned long output_size)

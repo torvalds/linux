@@ -39,12 +39,10 @@
 #error Do not #include this file directly. #include <lustre_lite.h> instead
 #endif
 
-
-#include <asm/statfs.h>
+#include <linux/statfs.h>
 
 #include <linux/fs.h>
 #include <linux/dcache.h>
-#include <linux/proc_fs.h>
 
 #include "../obd_class.h"
 #include "../lustre_net.h"
@@ -93,6 +91,5 @@ enum {
 	 LPROC_LL_INODE_PERM,
 	 LPROC_LL_FILE_OPCODES
 };
-
 
 #endif

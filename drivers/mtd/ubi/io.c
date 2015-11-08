@@ -859,6 +859,9 @@ int ubi_io_write_ec_hdr(struct ubi_device *ubi, int pnum,
 	if (err)
 		return err;
 
+	if (ubi_dbg_power_cut(ubi, POWER_CUT_EC_WRITE))
+		return -EROFS;
+
 	err = ubi_io_write(ubi, ec_hdr, pnum, 0, ubi->ec_hdr_alsize);
 	return err;
 }
@@ -920,6 +923,11 @@ static int validate_vid_hdr(const struct ubi_device *ubi,
 
 	if (data_pad >= ubi->leb_size / 2) {
 		ubi_err(ubi, "bad data_pad");
+		goto bad;
+	}
+
+	if (data_size > ubi->leb_size) {
+		ubi_err(ubi, "bad data_size");
 		goto bad;
 	}
 
@@ -1105,6 +1113,9 @@ int ubi_io_write_vid_hdr(struct ubi_device *ubi, int pnum,
 	err = self_check_vid_hdr(ubi, pnum, vid_hdr);
 	if (err)
 		return err;
+
+	if (ubi_dbg_power_cut(ubi, POWER_CUT_VID_WRITE))
+		return -EROFS;
 
 	p = (char *)vid_hdr - ubi->vid_hdr_shift;
 	err = ubi_io_write(ubi, p, pnum, ubi->vid_hdr_aloffset,

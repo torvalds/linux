@@ -197,6 +197,8 @@ struct wl1271 {
 
 	int irq;
 
+	int irq_flags;
+
 	spinlock_t wl_lock;
 
 	enum wlcore_state state;
@@ -316,7 +318,7 @@ struct wl1271 {
 	bool watchdog_recovery;
 
 	/* Reg domain last configuration */
-	u32 reg_ch_conf_last[2];
+	u32 reg_ch_conf_last[2]  __aligned(8);
 	/* Reg domain pending configuration */
 	u32 reg_ch_conf_pending[2];
 
@@ -403,9 +405,6 @@ struct wl1271 {
 
 	/* Quirks of specific hardware revisions */
 	unsigned int quirks;
-
-	/* Platform limitations */
-	unsigned int platform_quirks;
 
 	/* number of currently active RX BA sessions */
 	int ba_rx_session_count;
@@ -501,6 +500,9 @@ struct wl1271 {
 	/* interface combinations supported by the hw */
 	const struct ieee80211_iface_combination *iface_combinations;
 	u8 n_iface_combinations;
+
+	/* dynamic fw traces */
+	u32 dynamic_fw_traces;
 };
 
 int wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);

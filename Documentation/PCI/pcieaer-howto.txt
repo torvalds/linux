@@ -66,8 +66,8 @@ hardware (mostly chipsets) has root ports that cannot obtain the reporting
 source ID. nosourceid=n by default.
 
 2.3 AER error output
-When a PCI-E AER error is captured, an error message will be outputed to
-console. If it's a correctable error, it is outputed as a warning.
+When a PCI-E AER error is captured, an error message will be outputted to
+console. If it's a correctable error, it is outputted as a warning.
 Otherwise, it is printed as an error. So users could choose different
 log level to filter out correctable error messages.
 

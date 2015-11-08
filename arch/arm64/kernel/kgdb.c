@@ -235,13 +235,13 @@ static int kgdb_step_brk_fn(struct pt_regs *regs, unsigned int esr)
 
 static struct break_hook kgdb_brkpt_hook = {
 	.esr_mask	= 0xffffffff,
-	.esr_val	= DBG_ESR_VAL_BRK(KGDB_DYN_DBG_BRK_IMM),
+	.esr_val	= (u32)ESR_ELx_VAL_BRK64(KGDB_DYN_DBG_BRK_IMM),
 	.fn		= kgdb_brk_fn
 };
 
 static struct break_hook kgdb_compiled_brkpt_hook = {
 	.esr_mask	= 0xffffffff,
-	.esr_val	= DBG_ESR_VAL_BRK(KGDB_COMPILED_DBG_BRK_IMM),
+	.esr_val	= (u32)ESR_ELx_VAL_BRK64(KGDB_COMPILED_DBG_BRK_IMM),
 	.fn		= kgdb_compiled_brk_fn
 };
 
@@ -328,9 +328,9 @@ void kgdb_arch_exit(void)
  */
 struct kgdb_arch arch_kgdb_ops = {
 	.gdb_bpt_instr = {
-		KGDB_DYN_BRK_INS_BYTE0,
-		KGDB_DYN_BRK_INS_BYTE1,
-		KGDB_DYN_BRK_INS_BYTE2,
-		KGDB_DYN_BRK_INS_BYTE3,
+		KGDB_DYN_BRK_INS_BYTE(0),
+		KGDB_DYN_BRK_INS_BYTE(1),
+		KGDB_DYN_BRK_INS_BYTE(2),
+		KGDB_DYN_BRK_INS_BYTE(3),
 	}
 };

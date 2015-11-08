@@ -140,59 +140,112 @@ static struct clk_regmap pll14_vote = {
 	},
 };
 
-#define P_PXO	0
-#define P_PLL8	1
-#define P_PLL3	1
-#define P_PLL0	2
-#define P_CXO	2
+#define NSS_PLL_RATE(f, _l, _m, _n, i) \
+	{  \
+		.freq = f,  \
+		.l = _l, \
+		.m = _m, \
+		.n = _n, \
+		.ibits = i, \
+	}
 
-static const u8 gcc_pxo_pll8_map[] = {
-	[P_PXO]		= 0,
-	[P_PLL8]	= 3,
+static struct pll_freq_tbl pll18_freq_tbl[] = {
+	NSS_PLL_RATE(550000000, 44, 0, 1, 0x01495625),
+	NSS_PLL_RATE(733000000, 58, 16, 25, 0x014b5625),
 };
 
-static const char *gcc_pxo_pll8[] = {
+static struct clk_pll pll18 = {
+	.l_reg = 0x31a4,
+	.m_reg = 0x31a8,
+	.n_reg = 0x31ac,
+	.config_reg = 0x31b4,
+	.mode_reg = 0x31a0,
+	.status_reg = 0x31b8,
+	.status_bit = 16,
+	.post_div_shift = 16,
+	.post_div_width = 1,
+	.freq_tbl = pll18_freq_tbl,
+	.clkr.hw.init = &(struct clk_init_data){
+		.name = "pll18",
+		.parent_names = (const char *[]){ "pxo" },
+		.num_parents = 1,
+		.ops = &clk_pll_ops,
+	},
+};
+
+enum {
+	P_PXO,
+	P_PLL8,
+	P_PLL3,
+	P_PLL0,
+	P_CXO,
+	P_PLL14,
+	P_PLL18,
+};
+
+static const struct parent_map gcc_pxo_pll8_map[] = {
+	{ P_PXO, 0 },
+	{ P_PLL8, 3 }
+};
+
+static const char * const gcc_pxo_pll8[] = {
 	"pxo",
 	"pll8_vote",
 };
 
-static const u8 gcc_pxo_pll8_cxo_map[] = {
-	[P_PXO]		= 0,
-	[P_PLL8]	= 3,
-	[P_CXO]		= 5,
+static const struct parent_map gcc_pxo_pll8_cxo_map[] = {
+	{ P_PXO, 0 },
+	{ P_PLL8, 3 },
+	{ P_CXO, 5 }
 };
 
-static const char *gcc_pxo_pll8_cxo[] = {
+static const char * const gcc_pxo_pll8_cxo[] = {
 	"pxo",
 	"pll8_vote",
 	"cxo",
 };
 
-static const u8 gcc_pxo_pll3_map[] = {
-	[P_PXO]		= 0,
-	[P_PLL3]	= 1,
+static const struct parent_map gcc_pxo_pll3_map[] = {
+	{ P_PXO, 0 },
+	{ P_PLL3, 1 }
 };
 
-static const u8 gcc_pxo_pll3_sata_map[] = {
-	[P_PXO]		= 0,
-	[P_PLL3]	= 6,
+static const struct parent_map gcc_pxo_pll3_sata_map[] = {
+	{ P_PXO, 0 },
+	{ P_PLL3, 6 }
 };
 
-static const char *gcc_pxo_pll3[] = {
+static const char * const gcc_pxo_pll3[] = {
 	"pxo",
 	"pll3",
 };
 
-static const u8 gcc_pxo_pll8_pll0[] = {
-	[P_PXO]		= 0,
-	[P_PLL8]	= 3,
-	[P_PLL0]	= 2,
+static const struct parent_map gcc_pxo_pll8_pll0[] = {
+	{ P_PXO, 0 },
+	{ P_PLL8, 3 },
+	{ P_PLL0, 2 }
 };
 
-static const char *gcc_pxo_pll8_pll0_map[] = {
+static const char * const gcc_pxo_pll8_pll0_map[] = {
 	"pxo",
 	"pll8_vote",
 	"pll0_vote",
+};
+
+static const struct parent_map gcc_pxo_pll8_pll14_pll18_pll0_map[] = {
+	{ P_PXO, 0 },
+	{ P_PLL8, 4 },
+	{ P_PLL0, 2 },
+	{ P_PLL14, 5 },
+	{ P_PLL18, 1 }
+};
+
+static const char * const gcc_pxo_pll8_pll14_pll18_pll0[] = {
+	"pxo",
+	"pll8_vote",
+	"pll0_vote",
+	"pll14",
+	"pll18",
 };
 
 static struct freq_tbl clk_tbl_gsbi_uart[] = {
@@ -525,8 +578,8 @@ static struct freq_tbl clk_tbl_gsbi_qup[] = {
 	{ 10800000, P_PXO,  1, 2,  5 },
 	{ 15060000, P_PLL8, 1, 2, 51 },
 	{ 24000000, P_PLL8, 4, 1,  4 },
+	{ 25000000, P_PXO,  1, 0,  0 },
 	{ 25600000, P_PLL8, 1, 1, 15 },
-	{ 27000000, P_PXO,  1, 0,  0 },
 	{ 48000000, P_PLL8, 4, 1,  2 },
 	{ 51200000, P_PLL8, 1, 2, 15 },
 	{ }
@@ -2170,6 +2223,502 @@ static struct clk_branch usb_fs1_h_clk = {
 	},
 };
 
+static struct clk_branch ebi2_clk = {
+	.hwcg_reg = 0x3b00,
+	.hwcg_bit = 6,
+	.halt_reg = 0x2fcc,
+	.halt_bit = 1,
+	.clkr = {
+		.enable_reg = 0x3b00,
+		.enable_mask = BIT(4),
+		.hw.init = &(struct clk_init_data){
+			.name = "ebi2_clk",
+			.ops = &clk_branch_ops,
+			.flags = CLK_IS_ROOT,
+		},
+	},
+};
+
+static struct clk_branch ebi2_aon_clk = {
+	.halt_reg = 0x2fcc,
+	.halt_bit = 0,
+	.clkr = {
+		.enable_reg = 0x3b00,
+		.enable_mask = BIT(8),
+		.hw.init = &(struct clk_init_data){
+			.name = "ebi2_always_on_clk",
+			.ops = &clk_branch_ops,
+			.flags = CLK_IS_ROOT,
+		},
+	},
+};
+
+static const struct freq_tbl clk_tbl_gmac[] = {
+	{ 133000000, P_PLL0, 1,  50, 301 },
+	{ 266000000, P_PLL0, 1, 127, 382 },
+	{ }
+};
+
+static struct clk_dyn_rcg gmac_core1_src = {
+	.ns_reg[0] = 0x3cac,
+	.ns_reg[1] = 0x3cb0,
+	.md_reg[0] = 0x3ca4,
+	.md_reg[1] = 0x3ca8,
+	.bank_reg = 0x3ca0,
+	.mn[0] = {
+		.mnctr_en_bit = 8,
+		.mnctr_reset_bit = 7,
+		.mnctr_mode_shift = 5,
+		.n_val_shift = 16,
+		.m_val_shift = 16,
+		.width = 8,
+	},
+	.mn[1] = {
+		.mnctr_en_bit = 8,
+		.mnctr_reset_bit = 7,
+		.mnctr_mode_shift = 5,
+		.n_val_shift = 16,
+		.m_val_shift = 16,
+		.width = 8,
+	},
+	.s[0] = {
+		.src_sel_shift = 0,
+		.parent_map = gcc_pxo_pll8_pll14_pll18_pll0_map,
+	},
+	.s[1] = {
+		.src_sel_shift = 0,
+		.parent_map = gcc_pxo_pll8_pll14_pll18_pll0_map,
+	},
+	.p[0] = {
+		.pre_div_shift = 3,
+		.pre_div_width = 2,
+	},
+	.p[1] = {
+		.pre_div_shift = 3,
+		.pre_div_width = 2,
+	},
+	.mux_sel_bit = 0,
+	.freq_tbl = clk_tbl_gmac,
+	.clkr = {
+		.enable_reg = 0x3ca0,
+		.enable_mask = BIT(1),
+		.hw.init = &(struct clk_init_data){
+			.name = "gmac_core1_src",
+			.parent_names = gcc_pxo_pll8_pll14_pll18_pll0,
+			.num_parents = 5,
+			.ops = &clk_dyn_rcg_ops,
+		},
+	},
+};
+
+static struct clk_branch gmac_core1_clk = {
+	.halt_reg = 0x3c20,
+	.halt_bit = 4,
+	.hwcg_reg = 0x3cb4,
+	.hwcg_bit = 6,
+	.clkr = {
+		.enable_reg = 0x3cb4,
+		.enable_mask = BIT(4),
+		.hw.init = &(struct clk_init_data){
+			.name = "gmac_core1_clk",
+			.parent_names = (const char *[]){
+				"gmac_core1_src",
+			},
+			.num_parents = 1,
+			.ops = &clk_branch_ops,
+			.flags = CLK_SET_RATE_PARENT,
+		},
+	},
+};
+
+static struct clk_dyn_rcg gmac_core2_src = {
+	.ns_reg[0] = 0x3ccc,
+	.ns_reg[1] = 0x3cd0,
+	.md_reg[0] = 0x3cc4,
+	.md_reg[1] = 0x3cc8,
+	.bank_reg = 0x3ca0,
+	.mn[0] = {
+		.mnctr_en_bit = 8,
+		.mnctr_reset_bit = 7,
+		.mnctr_mode_shift = 5,
+		.n_val_shift = 16,
+		.m_val_shift = 16,
+		.width = 8,
+	},
+	.mn[1] = {
+		.mnctr_en_bit = 8,
+		.mnctr_reset_bit = 7,
+		.mnctr_mode_shift = 5,
+		.n_val_shift = 16,
+		.m_val_shift = 16,
+		.width = 8,
+	},
+	.s[0] = {
+		.src_sel_shift = 0,
+		.parent_map = gcc_pxo_pll8_pll14_pll18_pll0_map,
+	},
+	.s[1] = {
+		.src_sel_shift = 0,
+		.parent_map = gcc_pxo_pll8_pll14_pll18_pll0_map,
+	},
+	.p[0] = {
+		.pre_div_shift = 3,
+		.pre_div_width = 2,
+	},
+	.p[1] = {
+		.pre_div_shift = 3,
+		.pre_div_width = 2,
+	},
+	.mux_sel_bit = 0,
+	.freq_tbl = clk_tbl_gmac,
+	.clkr = {
+		.enable_reg = 0x3cc0,
+		.enable_mask = BIT(1),
+		.hw.init = &(struct clk_init_data){
+			.name = "gmac_core2_src",
+			.parent_names = gcc_pxo_pll8_pll14_pll18_pll0,
+			.num_parents = 5,
+			.ops = &clk_dyn_rcg_ops,
+		},
+	},
+};
+
+static struct clk_branch gmac_core2_clk = {
+	.halt_reg = 0x3c20,
+	.halt_bit = 5,
+	.hwcg_reg = 0x3cd4,
+	.hwcg_bit = 6,
+	.clkr = {
+		.enable_reg = 0x3cd4,
+		.enable_mask = BIT(4),
+		.hw.init = &(struct clk_init_data){
+			.name = "gmac_core2_clk",
+			.parent_names = (const char *[]){
+				"gmac_core2_src",
+			},
+			.num_parents = 1,
+			.ops = &clk_branch_ops,
+			.flags = CLK_SET_RATE_PARENT,
+		},
+	},
+};
+
+static struct clk_dyn_rcg gmac_core3_src = {
+	.ns_reg[0] = 0x3cec,
+	.ns_reg[1] = 0x3cf0,
+	.md_reg[0] = 0x3ce4,
+	.md_reg[1] = 0x3ce8,
+	.bank_reg = 0x3ce0,
+	.mn[0] = {
+		.mnctr_en_bit = 8,
+		.mnctr_reset_bit = 7,
+		.mnctr_mode_shift = 5,
+		.n_val_shift = 16,
+		.m_val_shift = 16,
+		.width = 8,
+	},
+	.mn[1] = {
+		.mnctr_en_bit = 8,
+		.mnctr_reset_bit = 7,
+		.mnctr_mode_shift = 5,
+		.n_val_shift = 16,
+		.m_val_shift = 16,
+		.width = 8,
+	},
+	.s[0] = {
+		.src_sel_shift = 0,
+		.parent_map = gcc_pxo_pll8_pll14_pll18_pll0_map,
+	},
+	.s[1] = {
+		.src_sel_shift = 0,
+		.parent_map = gcc_pxo_pll8_pll14_pll18_pll0_map,
+	},
+	.p[0] = {
+		.pre_div_shift = 3,
+		.pre_div_width = 2,
+	},
+	.p[1] = {
+		.pre_div_shift = 3,
+		.pre_div_width = 2,
+	},
+	.mux_sel_bit = 0,
+	.freq_tbl = clk_tbl_gmac,
+	.clkr = {
+		.enable_reg = 0x3ce0,
+		.enable_mask = BIT(1),
+		.hw.init = &(struct clk_init_data){
+			.name = "gmac_core3_src",
+			.parent_names = gcc_pxo_pll8_pll14_pll18_pll0,
+			.num_parents = 5,
+			.ops = &clk_dyn_rcg_ops,
+		},
+	},
+};
+
+static struct clk_branch gmac_core3_clk = {
+	.halt_reg = 0x3c20,
+	.halt_bit = 6,
+	.hwcg_reg = 0x3cf4,
+	.hwcg_bit = 6,
+	.clkr = {
+		.enable_reg = 0x3cf4,
+		.enable_mask = BIT(4),
+		.hw.init = &(struct clk_init_data){
+			.name = "gmac_core3_clk",
+			.parent_names = (const char *[]){
+				"gmac_core3_src",
+			},
+			.num_parents = 1,
+			.ops = &clk_branch_ops,
+			.flags = CLK_SET_RATE_PARENT,
+		},
+	},
+};
+
+static struct clk_dyn_rcg gmac_core4_src = {
+	.ns_reg[0] = 0x3d0c,
+	.ns_reg[1] = 0x3d10,
+	.md_reg[0] = 0x3d04,
+	.md_reg[1] = 0x3d08,
+	.bank_reg = 0x3d00,
+	.mn[0] = {
+		.mnctr_en_bit = 8,
+		.mnctr_reset_bit = 7,
+		.mnctr_mode_shift = 5,
+		.n_val_shift = 16,
+		.m_val_shift = 16,
+		.width = 8,
+	},
+	.mn[1] = {
+		.mnctr_en_bit = 8,
+		.mnctr_reset_bit = 7,
+		.mnctr_mode_shift = 5,
+		.n_val_shift = 16,
+		.m_val_shift = 16,
+		.width = 8,
+	},
+	.s[0] = {
+		.src_sel_shift = 0,
+		.parent_map = gcc_pxo_pll8_pll14_pll18_pll0_map,
+	},
+	.s[1] = {
+		.src_sel_shift = 0,
+		.parent_map = gcc_pxo_pll8_pll14_pll18_pll0_map,
+	},
+	.p[0] = {
+		.pre_div_shift = 3,
+		.pre_div_width = 2,
+	},
+	.p[1] = {
+		.pre_div_shift = 3,
+		.pre_div_width = 2,
+	},
+	.mux_sel_bit = 0,
+	.freq_tbl = clk_tbl_gmac,
+	.clkr = {
+		.enable_reg = 0x3d00,
+		.enable_mask = BIT(1),
+		.hw.init = &(struct clk_init_data){
+			.name = "gmac_core4_src",
+			.parent_names = gcc_pxo_pll8_pll14_pll18_pll0,
+			.num_parents = 5,
+			.ops = &clk_dyn_rcg_ops,
+		},
+	},
+};
+
+static struct clk_branch gmac_core4_clk = {
+	.halt_reg = 0x3c20,
+	.halt_bit = 7,
+	.hwcg_reg = 0x3d14,
+	.hwcg_bit = 6,
+	.clkr = {
+		.enable_reg = 0x3d14,
+		.enable_mask = BIT(4),
+		.hw.init = &(struct clk_init_data){
+			.name = "gmac_core4_clk",
+			.parent_names = (const char *[]){
+				"gmac_core4_src",
+			},
+			.num_parents = 1,
+			.ops = &clk_branch_ops,
+			.flags = CLK_SET_RATE_PARENT,
+		},
+	},
+};
+
+static const struct freq_tbl clk_tbl_nss_tcm[] = {
+	{ 266000000, P_PLL0, 3, 0, 0 },
+	{ 400000000, P_PLL0, 2, 0, 0 },
+	{ }
+};
+
+static struct clk_dyn_rcg nss_tcm_src = {
+	.ns_reg[0] = 0x3dc4,
+	.ns_reg[1] = 0x3dc8,
+	.bank_reg = 0x3dc0,
+	.s[0] = {
+		.src_sel_shift = 0,
+		.parent_map = gcc_pxo_pll8_pll14_pll18_pll0_map,
+	},
+	.s[1] = {
+		.src_sel_shift = 0,
+		.parent_map = gcc_pxo_pll8_pll14_pll18_pll0_map,
+	},
+	.p[0] = {
+		.pre_div_shift = 3,
+		.pre_div_width = 4,
+	},
+	.p[1] = {
+		.pre_div_shift = 3,
+		.pre_div_width = 4,
+	},
+	.mux_sel_bit = 0,
+	.freq_tbl = clk_tbl_nss_tcm,
+	.clkr = {
+		.enable_reg = 0x3dc0,
+		.enable_mask = BIT(1),
+		.hw.init = &(struct clk_init_data){
+			.name = "nss_tcm_src",
+			.parent_names = gcc_pxo_pll8_pll14_pll18_pll0,
+			.num_parents = 5,
+			.ops = &clk_dyn_rcg_ops,
+		},
+	},
+};
+
+static struct clk_branch nss_tcm_clk = {
+	.halt_reg = 0x3c20,
+	.halt_bit = 14,
+	.clkr = {
+		.enable_reg = 0x3dd0,
+		.enable_mask = BIT(6) | BIT(4),
+		.hw.init = &(struct clk_init_data){
+			.name = "nss_tcm_clk",
+			.parent_names = (const char *[]){
+				"nss_tcm_src",
+			},
+			.num_parents = 1,
+			.ops = &clk_branch_ops,
+			.flags = CLK_SET_RATE_PARENT,
+		},
+	},
+};
+
+static const struct freq_tbl clk_tbl_nss[] = {
+	{ 110000000, P_PLL18, 1, 1, 5 },
+	{ 275000000, P_PLL18, 2, 0, 0 },
+	{ 550000000, P_PLL18, 1, 0, 0 },
+	{ 733000000, P_PLL18, 1, 0, 0 },
+	{ }
+};
+
+static struct clk_dyn_rcg ubi32_core1_src_clk = {
+	.ns_reg[0] = 0x3d2c,
+	.ns_reg[1] = 0x3d30,
+	.md_reg[0] = 0x3d24,
+	.md_reg[1] = 0x3d28,
+	.bank_reg = 0x3d20,
+	.mn[0] = {
+		.mnctr_en_bit = 8,
+		.mnctr_reset_bit = 7,
+		.mnctr_mode_shift = 5,
+		.n_val_shift = 16,
+		.m_val_shift = 16,
+		.width = 8,
+	},
+	.mn[1] = {
+		.mnctr_en_bit = 8,
+		.mnctr_reset_bit = 7,
+		.mnctr_mode_shift = 5,
+		.n_val_shift = 16,
+		.m_val_shift = 16,
+		.width = 8,
+	},
+	.s[0] = {
+		.src_sel_shift = 0,
+		.parent_map = gcc_pxo_pll8_pll14_pll18_pll0_map,
+	},
+	.s[1] = {
+		.src_sel_shift = 0,
+		.parent_map = gcc_pxo_pll8_pll14_pll18_pll0_map,
+	},
+	.p[0] = {
+		.pre_div_shift = 3,
+		.pre_div_width = 2,
+	},
+	.p[1] = {
+		.pre_div_shift = 3,
+		.pre_div_width = 2,
+	},
+	.mux_sel_bit = 0,
+	.freq_tbl = clk_tbl_nss,
+	.clkr = {
+		.enable_reg = 0x3d20,
+		.enable_mask = BIT(1),
+		.hw.init = &(struct clk_init_data){
+			.name = "ubi32_core1_src_clk",
+			.parent_names = gcc_pxo_pll8_pll14_pll18_pll0,
+			.num_parents = 5,
+			.ops = &clk_dyn_rcg_ops,
+			.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+		},
+	},
+};
+
+static struct clk_dyn_rcg ubi32_core2_src_clk = {
+	.ns_reg[0] = 0x3d4c,
+	.ns_reg[1] = 0x3d50,
+	.md_reg[0] = 0x3d44,
+	.md_reg[1] = 0x3d48,
+	.bank_reg = 0x3d40,
+	.mn[0] = {
+		.mnctr_en_bit = 8,
+		.mnctr_reset_bit = 7,
+		.mnctr_mode_shift = 5,
+		.n_val_shift = 16,
+		.m_val_shift = 16,
+		.width = 8,
+	},
+	.mn[1] = {
+		.mnctr_en_bit = 8,
+		.mnctr_reset_bit = 7,
+		.mnctr_mode_shift = 5,
+		.n_val_shift = 16,
+		.m_val_shift = 16,
+		.width = 8,
+	},
+	.s[0] = {
+		.src_sel_shift = 0,
+		.parent_map = gcc_pxo_pll8_pll14_pll18_pll0_map,
+	},
+	.s[1] = {
+		.src_sel_shift = 0,
+		.parent_map = gcc_pxo_pll8_pll14_pll18_pll0_map,
+	},
+	.p[0] = {
+		.pre_div_shift = 3,
+		.pre_div_width = 2,
+	},
+	.p[1] = {
+		.pre_div_shift = 3,
+		.pre_div_width = 2,
+	},
+	.mux_sel_bit = 0,
+	.freq_tbl = clk_tbl_nss,
+	.clkr = {
+		.enable_reg = 0x3d40,
+		.enable_mask = BIT(1),
+		.hw.init = &(struct clk_init_data){
+			.name = "ubi32_core2_src_clk",
+			.parent_names = gcc_pxo_pll8_pll14_pll18_pll0,
+			.num_parents = 5,
+			.ops = &clk_dyn_rcg_ops,
+			.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+		},
+	},
+};
+
 static struct clk_regmap *gcc_ipq806x_clks[] = {
 	[PLL0] = &pll0.clkr,
 	[PLL0_VOTE] = &pll0_vote,
@@ -2179,6 +2728,7 @@ static struct clk_regmap *gcc_ipq806x_clks[] = {
 	[PLL8_VOTE] = &pll8_vote,
 	[PLL14] = &pll14.clkr,
 	[PLL14_VOTE] = &pll14_vote,
+	[PLL18] = &pll18.clkr,
 	[GSBI1_UART_SRC] = &gsbi1_uart_src.clkr,
 	[GSBI1_UART_CLK] = &gsbi1_uart_clk.clkr,
 	[GSBI2_UART_SRC] = &gsbi2_uart_src.clkr,
@@ -2273,6 +2823,20 @@ static struct clk_regmap *gcc_ipq806x_clks[] = {
 	[USB_FS1_XCVR_SRC] = &usb_fs1_xcvr_clk_src.clkr,
 	[USB_FS1_XCVR_CLK] = &usb_fs1_xcvr_clk.clkr,
 	[USB_FS1_SYSTEM_CLK] = &usb_fs1_sys_clk.clkr,
+	[EBI2_CLK] = &ebi2_clk.clkr,
+	[EBI2_AON_CLK] = &ebi2_aon_clk.clkr,
+	[GMAC_CORE1_CLK_SRC] = &gmac_core1_src.clkr,
+	[GMAC_CORE1_CLK] = &gmac_core1_clk.clkr,
+	[GMAC_CORE2_CLK_SRC] = &gmac_core2_src.clkr,
+	[GMAC_CORE2_CLK] = &gmac_core2_clk.clkr,
+	[GMAC_CORE3_CLK_SRC] = &gmac_core3_src.clkr,
+	[GMAC_CORE3_CLK] = &gmac_core3_clk.clkr,
+	[GMAC_CORE4_CLK_SRC] = &gmac_core4_src.clkr,
+	[GMAC_CORE4_CLK] = &gmac_core4_clk.clkr,
+	[UBI32_CORE1_CLK_SRC] = &ubi32_core1_src_clk.clkr,
+	[UBI32_CORE2_CLK_SRC] = &ubi32_core2_src_clk.clkr,
+	[NSSTCM_CLK_SRC] = &nss_tcm_src.clkr,
+	[NSSTCM_CLK] = &nss_tcm_clk.clkr,
 };
 
 static const struct qcom_reset_map gcc_ipq806x_resets[] = {
@@ -2391,6 +2955,48 @@ static const struct qcom_reset_map gcc_ipq806x_resets[] = {
 	[USB30_1_PHY_RESET] = { 0x3b58, 0 },
 	[NSSFB0_RESET] = { 0x3b60, 6 },
 	[NSSFB1_RESET] = { 0x3b60, 7 },
+	[UBI32_CORE1_CLKRST_CLAMP_RESET] = { 0x3d3c, 3},
+	[UBI32_CORE1_CLAMP_RESET] = { 0x3d3c, 2 },
+	[UBI32_CORE1_AHB_RESET] = { 0x3d3c, 1 },
+	[UBI32_CORE1_AXI_RESET] = { 0x3d3c, 0 },
+	[UBI32_CORE2_CLKRST_CLAMP_RESET] = { 0x3d5c, 3 },
+	[UBI32_CORE2_CLAMP_RESET] = { 0x3d5c, 2 },
+	[UBI32_CORE2_AHB_RESET] = { 0x3d5c, 1 },
+	[UBI32_CORE2_AXI_RESET] = { 0x3d5c, 0 },
+	[GMAC_CORE1_RESET] = { 0x3cbc, 0 },
+	[GMAC_CORE2_RESET] = { 0x3cdc, 0 },
+	[GMAC_CORE3_RESET] = { 0x3cfc, 0 },
+	[GMAC_CORE4_RESET] = { 0x3d1c, 0 },
+	[GMAC_AHB_RESET] = { 0x3e24, 0 },
+	[NSS_CH0_RST_RX_CLK_N_RESET] = { 0x3b60, 0 },
+	[NSS_CH0_RST_TX_CLK_N_RESET] = { 0x3b60, 1 },
+	[NSS_CH0_RST_RX_125M_N_RESET] = { 0x3b60, 2 },
+	[NSS_CH0_HW_RST_RX_125M_N_RESET] = { 0x3b60, 3 },
+	[NSS_CH0_RST_TX_125M_N_RESET] = { 0x3b60, 4 },
+	[NSS_CH1_RST_RX_CLK_N_RESET] = { 0x3b60, 5 },
+	[NSS_CH1_RST_TX_CLK_N_RESET] = { 0x3b60, 6 },
+	[NSS_CH1_RST_RX_125M_N_RESET] = { 0x3b60, 7 },
+	[NSS_CH1_HW_RST_RX_125M_N_RESET] = { 0x3b60, 8 },
+	[NSS_CH1_RST_TX_125M_N_RESET] = { 0x3b60, 9 },
+	[NSS_CH2_RST_RX_CLK_N_RESET] = { 0x3b60, 10 },
+	[NSS_CH2_RST_TX_CLK_N_RESET] = { 0x3b60, 11 },
+	[NSS_CH2_RST_RX_125M_N_RESET] = { 0x3b60, 12 },
+	[NSS_CH2_HW_RST_RX_125M_N_RESET] = { 0x3b60, 13 },
+	[NSS_CH2_RST_TX_125M_N_RESET] = { 0x3b60, 14 },
+	[NSS_CH3_RST_RX_CLK_N_RESET] = { 0x3b60, 15 },
+	[NSS_CH3_RST_TX_CLK_N_RESET] = { 0x3b60, 16 },
+	[NSS_CH3_RST_RX_125M_N_RESET] = { 0x3b60, 17 },
+	[NSS_CH3_HW_RST_RX_125M_N_RESET] = { 0x3b60, 18 },
+	[NSS_CH3_RST_TX_125M_N_RESET] = { 0x3b60, 19 },
+	[NSS_RST_RX_250M_125M_N_RESET] = { 0x3b60, 20 },
+	[NSS_RST_TX_250M_125M_N_RESET] = { 0x3b60, 21 },
+	[NSS_QSGMII_TXPI_RST_N_RESET] = { 0x3b60, 22 },
+	[NSS_QSGMII_CDR_RST_N_RESET] = { 0x3b60, 23 },
+	[NSS_SGMII2_CDR_RST_N_RESET] = { 0x3b60, 24 },
+	[NSS_SGMII3_CDR_RST_N_RESET] = { 0x3b60, 25 },
+	[NSS_CAL_PRBS_RST_N_RESET] = { 0x3b60, 26 },
+	[NSS_LCKDT_RST_N_RESET] = { 0x3b60, 27 },
+	[NSS_SRDS_N_RESET] = { 0x3b60, 28 },
 };
 
 static const struct regmap_config gcc_ipq806x_regmap_config = {
@@ -2419,6 +3025,8 @@ static int gcc_ipq806x_probe(struct platform_device *pdev)
 {
 	struct clk *clk;
 	struct device *dev = &pdev->dev;
+	struct regmap *regmap;
+	int ret;
 
 	/* Temporary until RPM clocks supported */
 	clk = clk_register_fixed_rate(dev, "cxo", NULL, CLK_IS_ROOT, 25000000);
@@ -2429,18 +3037,29 @@ static int gcc_ipq806x_probe(struct platform_device *pdev)
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
-	return qcom_cc_probe(pdev, &gcc_ipq806x_desc);
-}
+	ret = qcom_cc_probe(pdev, &gcc_ipq806x_desc);
+	if (ret)
+		return ret;
 
-static int gcc_ipq806x_remove(struct platform_device *pdev)
-{
-	qcom_cc_remove(pdev);
+	regmap = dev_get_regmap(dev, NULL);
+	if (!regmap)
+		return -ENODEV;
+
+	/* Setup PLL18 static bits */
+	regmap_update_bits(regmap, 0x31a4, 0xffffffc0, 0x40000400);
+	regmap_write(regmap, 0x31b0, 0x3080);
+
+	/* Set GMAC footswitch sleep/wakeup values */
+	regmap_write(regmap, 0x3cb8, 8);
+	regmap_write(regmap, 0x3cd8, 8);
+	regmap_write(regmap, 0x3cf8, 8);
+	regmap_write(regmap, 0x3d18, 8);
+
 	return 0;
 }
 
 static struct platform_driver gcc_ipq806x_driver = {
 	.probe		= gcc_ipq806x_probe,
-	.remove		= gcc_ipq806x_remove,
 	.driver		= {
 		.name	= "gcc-ipq806x",
 		.of_match_table = gcc_ipq806x_match_table,

@@ -298,18 +298,18 @@ vfs_removexattr(struct dentry *dentry, const char *name)
 
 	mutex_lock(&inode->i_mutex);
 	error = security_inode_removexattr(dentry, name);
-	if (error) {
-		mutex_unlock(&inode->i_mutex);
-		return error;
-	}
+	if (error)
+		goto out;
 
 	error = inode->i_op->removexattr(dentry, name);
-	mutex_unlock(&inode->i_mutex);
 
 	if (!error) {
 		fsnotify_xattr(dentry);
 		evm_inode_post_removexattr(dentry, name);
 	}
+
+out:
+	mutex_unlock(&inode->i_mutex);
 	return error;
 }
 EXPORT_SYMBOL_GPL(vfs_removexattr);

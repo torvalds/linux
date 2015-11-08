@@ -263,7 +263,7 @@ static int taos_get_lux(struct iio_dev *indio_dev)
 	if ((ch0 >= chip->als_saturation) || (ch1 >= chip->als_saturation))
 		goto return_max;
 
-	if (ch0 == 0) {
+	if (!ch0) {
 		/* have no data, so return LAST VALUE */
 		ret = chip->als_cur_info.lux = 0;
 		goto out_unlock;
@@ -415,7 +415,7 @@ static int taos_chip_on(struct iio_dev *indio_dev)
 
 	/* determine als integration register */
 	als_count = (chip->taos_settings.als_time * 100 + 135) / 270;
-	if (als_count == 0)
+	if (!als_count)
 		als_count = 1; /* ensure at least one cycle */
 
 	/* convert back to time (encompasses overrides) */
@@ -471,14 +471,12 @@ static int taos_chip_on(struct iio_dev *indio_dev)
 static int taos_chip_off(struct iio_dev *indio_dev)
 {
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
-	int ret;
 
 	/* turn device off */
 	chip->taos_chip_status = TSL258X_CHIP_SUSPENDED;
-	ret = i2c_smbus_write_byte_data(chip->client,
+	return i2c_smbus_write_byte_data(chip->client,
 					TSL258X_CMD_REG | TSL258X_CNTRL,
 					0x00);
-	return ret;
 }
 
 /* Sysfs Interface Functions */
@@ -501,7 +499,7 @@ static ssize_t taos_power_state_store(struct device *dev,
 	if (kstrtoint(buf, 0, &value))
 		return -EINVAL;
 
-	if (value == 0)
+	if (!value)
 		taos_chip_off(indio_dev);
 	else
 		taos_chip_on(indio_dev);
@@ -864,7 +862,7 @@ static int taos_probe(struct i2c_client *clientp,
 	indio_dev->dev.parent = &clientp->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->name = chip->client->name;
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(indio_dev->dev.parent, indio_dev);
 	if (ret) {
 		dev_err(&clientp->dev, "iio registration failed\n");
 		return ret;
@@ -919,13 +917,6 @@ static SIMPLE_DEV_PM_OPS(taos_pm_ops, taos_suspend, taos_resume);
 #define TAOS_PM_OPS NULL
 #endif
 
-static int taos_remove(struct i2c_client *client)
-{
-	iio_device_unregister(i2c_get_clientdata(client));
-
-	return 0;
-}
-
 static struct i2c_device_id taos_idtable[] = {
 	{ "tsl2580", 0 },
 	{ "tsl2581", 1 },
@@ -942,7 +933,6 @@ static struct i2c_driver taos_driver = {
 	},
 	.id_table = taos_idtable,
 	.probe = taos_probe,
-	.remove = taos_remove,
 };
 module_i2c_driver(taos_driver);
 

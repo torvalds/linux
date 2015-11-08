@@ -67,7 +67,6 @@ struct nfs_rw_ops {
 	const fmode_t rw_mode;
 	struct nfs_pgio_header *(*rw_alloc_header)(void);
 	void (*rw_free_header)(struct nfs_pgio_header *);
-	void (*rw_release)(struct nfs_pgio_header *);
 	int  (*rw_done)(struct rpc_task *, struct nfs_pgio_header *,
 			struct inode *);
 	void (*rw_result)(struct rpc_task *, struct nfs_pgio_header *);

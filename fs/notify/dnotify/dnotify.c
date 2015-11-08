@@ -154,6 +154,7 @@ void dnotify_flush(struct file *filp, fl_owner_t id)
 	struct dnotify_struct *dn;
 	struct dnotify_struct **prev;
 	struct inode *inode;
+	bool free = false;
 
 	inode = file_inode(filp);
 	if (!S_ISDIR(inode->i_mode))
@@ -182,11 +183,15 @@ void dnotify_flush(struct file *filp, fl_owner_t id)
 
 	/* nothing else could have found us thanks to the dnotify_groups
 	   mark_mutex */
-	if (dn_mark->dn == NULL)
-		fsnotify_destroy_mark_locked(fsn_mark, dnotify_group);
+	if (dn_mark->dn == NULL) {
+		fsnotify_detach_mark(fsn_mark);
+		free = true;
+	}
 
 	mutex_unlock(&dnotify_group->mark_mutex);
 
+	if (free)
+		fsnotify_free_mark(fsn_mark);
 	fsnotify_put_mark(fsn_mark);
 }
 
@@ -362,9 +367,10 @@ out:
 	spin_unlock(&fsn_mark->lock);
 
 	if (destroy)
-		fsnotify_destroy_mark_locked(fsn_mark, dnotify_group);
-
+		fsnotify_detach_mark(fsn_mark);
 	mutex_unlock(&dnotify_group->mark_mutex);
+	if (destroy)
+		fsnotify_free_mark(fsn_mark);
 	fsnotify_put_mark(fsn_mark);
 out_err:
 	if (new_fsn_mark)

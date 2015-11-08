@@ -1283,12 +1283,14 @@ static int snd_echo_mixer_info(struct snd_kcontrol *kcontrol,
 static int snd_echo_mixer_get(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct echoaudio *chip;
+	struct echoaudio *chip = snd_kcontrol_chip(kcontrol);
+	unsigned int out = ucontrol->id.index / num_busses_in(chip);
+	unsigned int in = ucontrol->id.index % num_busses_in(chip);
 
-	chip = snd_kcontrol_chip(kcontrol);
-	ucontrol->value.integer.value[0] =
-		chip->monitor_gain[ucontrol->id.index / num_busses_in(chip)]
-			[ucontrol->id.index % num_busses_in(chip)];
+	if (out >= ECHO_MAXAUDIOOUTPUTS || in >= ECHO_MAXAUDIOINPUTS)
+		return -EINVAL;
+
+	ucontrol->value.integer.value[0] = chip->monitor_gain[out][in];
 	return 0;
 }
 
@@ -1297,12 +1299,14 @@ static int snd_echo_mixer_put(struct snd_kcontrol *kcontrol,
 {
 	struct echoaudio *chip;
 	int changed,  gain;
-	short out, in;
+	unsigned int out, in;
 
 	changed = 0;
 	chip = snd_kcontrol_chip(kcontrol);
 	out = ucontrol->id.index / num_busses_in(chip);
 	in = ucontrol->id.index % num_busses_in(chip);
+	if (out >= ECHO_MAXAUDIOOUTPUTS || in >= ECHO_MAXAUDIOINPUTS)
+		return -EINVAL;
 	gain = ucontrol->value.integer.value[0];
 	if (gain < ECHOGAIN_MINOUT || gain > ECHOGAIN_MAXOUT)
 		return -EINVAL;
@@ -2241,7 +2245,7 @@ static int snd_echo_resume(struct device *dev)
 
 #ifdef ECHOCARD_HAS_MIDI
 	if (chip->midi_input_enabled)
-		enable_midi_input(chip, TRUE);
+		enable_midi_input(chip, true);
 	if (chip->midi_out)
 		snd_echo_midi_output_trigger(chip->midi_out, 1);
 #endif

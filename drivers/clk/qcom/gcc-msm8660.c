@@ -59,27 +59,29 @@ static struct clk_regmap pll8_vote = {
 	},
 };
 
-#define P_PXO	0
-#define P_PLL8	1
-#define P_CXO	2
-
-static const u8 gcc_pxo_pll8_map[] = {
-	[P_PXO]		= 0,
-	[P_PLL8]	= 3,
+enum {
+	P_PXO,
+	P_PLL8,
+	P_CXO,
 };
 
-static const char *gcc_pxo_pll8[] = {
+static const struct parent_map gcc_pxo_pll8_map[] = {
+	{ P_PXO, 0 },
+	{ P_PLL8, 3 }
+};
+
+static const char * const gcc_pxo_pll8[] = {
 	"pxo",
 	"pll8_vote",
 };
 
-static const u8 gcc_pxo_pll8_cxo_map[] = {
-	[P_PXO]		= 0,
-	[P_PLL8]	= 3,
-	[P_CXO]		= 5,
+static const struct parent_map gcc_pxo_pll8_cxo_map[] = {
+	{ P_PXO, 0 },
+	{ P_PLL8, 3 },
+	{ P_CXO, 5 }
 };
 
-static const char *gcc_pxo_pll8_cxo[] = {
+static const char * const gcc_pxo_pll8_cxo[] = {
 	"pxo",
 	"pll8_vote",
 	"cxo",
@@ -1915,7 +1917,7 @@ static struct clk_rcg usb_fs1_xcvr_fs_src = {
 	}
 };
 
-static const char *usb_fs1_xcvr_fs_src_p[] = { "usb_fs1_xcvr_fs_src" };
+static const char * const usb_fs1_xcvr_fs_src_p[] = { "usb_fs1_xcvr_fs_src" };
 
 static struct clk_branch usb_fs1_xcvr_fs_clk = {
 	.halt_reg = 0x2fcc,
@@ -1982,7 +1984,7 @@ static struct clk_rcg usb_fs2_xcvr_fs_src = {
 	}
 };
 
-static const char *usb_fs2_xcvr_fs_src_p[] = { "usb_fs2_xcvr_fs_src" };
+static const char * const usb_fs2_xcvr_fs_src_p[] = { "usb_fs2_xcvr_fs_src" };
 
 static struct clk_branch usb_fs2_xcvr_fs_clk = {
 	.halt_reg = 0x2fcc,
@@ -2733,15 +2735,8 @@ static int gcc_msm8660_probe(struct platform_device *pdev)
 	return qcom_cc_probe(pdev, &gcc_msm8660_desc);
 }
 
-static int gcc_msm8660_remove(struct platform_device *pdev)
-{
-	qcom_cc_remove(pdev);
-	return 0;
-}
-
 static struct platform_driver gcc_msm8660_driver = {
 	.probe		= gcc_msm8660_probe,
-	.remove		= gcc_msm8660_remove,
 	.driver		= {
 		.name	= "gcc-msm8660",
 		.of_match_table = gcc_msm8660_match_table,

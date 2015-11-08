@@ -113,6 +113,8 @@ struct gs_port {
 	int write_allocated;
 	struct gs_buf		port_write_buf;
 	wait_queue_head_t	drain_wait;	/* wait while writes drain */
+	bool                    write_busy;
+	wait_queue_head_t	close_wait;
 
 	/* REVISIT this state ... */
 	struct usb_cdc_line_coding port_line_coding;	/* 8-N-1 etc */
@@ -363,7 +365,7 @@ __acquires(&port->port_lock)
 	int			status = 0;
 	bool			do_tty_wake = false;
 
-	while (!list_empty(pool)) {
+	while (!port->write_busy && !list_empty(pool)) {
 		struct usb_request	*req;
 		int			len;
 
@@ -393,9 +395,11 @@ __acquires(&port->port_lock)
 		 * NOTE that we may keep sending data for a while after
 		 * the TTY closed (dev->ioport->port_tty is NULL).
 		 */
+		port->write_busy = true;
 		spin_unlock(&port->port_lock);
 		status = usb_ep_queue(in, req, GFP_ATOMIC);
 		spin_lock(&port->port_lock);
+		port->write_busy = false;
 
 		if (status) {
 			pr_debug("%s: %s %s err %d\n",
@@ -873,7 +877,6 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 	else
 		gs_buf_clear(&port->port_write_buf);
 
-	tty->driver_data = NULL;
 	port->port.tty = NULL;
 
 	port->openclose = false;
@@ -881,7 +884,7 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 	pr_debug("gs_close: ttyGS%d (%p,%p) done!\n",
 			port->port_num, tty, file);
 
-	wake_up(&port->port.close_wait);
+	wake_up(&port->close_wait);
 exit:
 	spin_unlock_irq(&port->port_lock);
 }
@@ -912,7 +915,7 @@ static int gs_put_char(struct tty_struct *tty, unsigned char ch)
 	unsigned long	flags;
 	int		status;
 
-	pr_vdebug("gs_put_char: (%d,%p) char=0x%x, called from %pf\n",
+	pr_vdebug("gs_put_char: (%d,%p) char=0x%x, called from %ps\n",
 		port->port_num, tty, ch, __builtin_return_address(0));
 
 	spin_lock_irqsave(&port->port_lock, flags);
@@ -1041,6 +1044,7 @@ gs_port_alloc(unsigned port_num, struct usb_cdc_line_coding *coding)
 	tty_port_init(&port->port);
 	spin_lock_init(&port->port_lock);
 	init_waitqueue_head(&port->drain_wait);
+	init_waitqueue_head(&port->close_wait);
 
 	tasklet_init(&port->push, gs_rx_push, (unsigned long) port);
 
@@ -1071,7 +1075,7 @@ static void gserial_free_port(struct gs_port *port)
 {
 	tasklet_kill(&port->push);
 	/* wait for old opens to finish */
-	wait_event(port->port.close_wait, gs_closed(port));
+	wait_event(port->close_wait, gs_closed(port));
 	WARN_ON(port->port_usb != NULL);
 	tty_port_destroy(&port->port);
 	kfree(port);
@@ -1221,7 +1225,6 @@ int gserial_connect(struct gserial *gser, u8 port_num)
 
 fail_out:
 	usb_ep_disable(gser->in);
-	gser->in->driver_data = NULL;
 	return status;
 }
 EXPORT_SYMBOL_GPL(gserial_connect);
@@ -1261,10 +1264,7 @@ void gserial_disconnect(struct gserial *gser)
 
 	/* disable endpoints, aborting down any active I/O */
 	usb_ep_disable(gser->out);
-	gser->out->driver_data = NULL;
-
 	usb_ep_disable(gser->in);
-	gser->in->driver_data = NULL;
 
 	/* finally, free any unused/unusable I/O buffers */
 	spin_lock_irqsave(&port->port_lock, flags);

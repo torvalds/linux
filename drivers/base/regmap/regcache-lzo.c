@@ -355,9 +355,9 @@ static int regcache_lzo_sync(struct regmap *map, unsigned int min,
 		if (ret > 0 && val == map->reg_defaults[ret].def)
 			continue;
 
-		map->cache_bypass = 1;
+		map->cache_bypass = true;
 		ret = _regmap_write(map, i, val);
-		map->cache_bypass = 0;
+		map->cache_bypass = false;
 		if (ret)
 			return ret;
 		dev_dbg(map->dev, "Synced register %#x, value %#x\n",

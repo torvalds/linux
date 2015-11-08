@@ -30,6 +30,12 @@
 
 #define LLC_RESERVE sizeof(struct llc_pdu_un)
 
+static int br_send_bpdu_finish(struct net *net, struct sock *sk,
+			       struct sk_buff *skb)
+{
+	return dev_queue_xmit(skb);
+}
+
 static void br_send_bpdu(struct net_bridge_port *p,
 			 const unsigned char *data, int length)
 {
@@ -54,8 +60,9 @@ static void br_send_bpdu(struct net_bridge_port *p,
 
 	skb_reset_mac_header(skb);
 
-	NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_OUT, skb, NULL, skb->dev,
-		dev_queue_xmit);
+	NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_OUT,
+		dev_net(p->dev), NULL, skb, NULL, skb->dev,
+		br_send_bpdu_finish);
 }
 
 static inline void br_set_ticks(unsigned char *dest, int j)

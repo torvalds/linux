@@ -348,7 +348,7 @@ static void fsmc_select_chip(struct mtd_info *mtd, int chipnr)
 		break;
 
 	default:
-		BUG();
+		dev_err(host->dev, "unsupported chip-select %d\n", chipnr);
 	}
 }
 
@@ -562,6 +562,7 @@ static int dma_xfer(struct fsmc_nand_data *host, void *buffer, int len,
 	dma_cookie_t cookie;
 	unsigned long flags = DMA_CTRL_ACK | DMA_PREP_INTERRUPT;
 	int ret;
+	unsigned long time_left;
 
 	if (direction == DMA_TO_DEVICE)
 		chan = host->write_dma_chan;
@@ -601,14 +602,13 @@ static int dma_xfer(struct fsmc_nand_data *host, void *buffer, int len,
 
 	dma_async_issue_pending(chan);
 
-	ret =
+	time_left =
 	wait_for_completion_timeout(&host->dma_access_complete,
 				msecs_to_jiffies(3000));
-	if (ret <= 0) {
+	if (time_left == 0) {
 		dmaengine_terminate_all(chan);
 		dev_err(host->dev, "wait_for_completion_timeout\n");
-		if (!ret)
-			ret = -ETIMEDOUT;
+		ret = -ETIMEDOUT;
 		goto unmap_dma;
 	}
 
@@ -873,6 +873,7 @@ static int fsmc_nand_probe_config_dt(struct platform_device *pdev,
 {
 	struct fsmc_nand_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	u32 val;
+	int ret;
 
 	/* Set default NAND width to 8 bits */
 	pdata->width = 8;
@@ -891,8 +892,12 @@ static int fsmc_nand_probe_config_dt(struct platform_device *pdev,
 				sizeof(*pdata->nand_timings), GFP_KERNEL);
 	if (!pdata->nand_timings)
 		return -ENOMEM;
-	of_property_read_u8_array(np, "timings", (u8 *)pdata->nand_timings,
+	ret = of_property_read_u8_array(np, "timings", (u8 *)pdata->nand_timings,
 						sizeof(*pdata->nand_timings));
+	if (ret) {
+		dev_info(&pdev->dev, "No timings in dts specified, using default timings!\n");
+		pdata->nand_timings = NULL;
+	}
 
 	/* Set default NAND bank to 0 */
 	pdata->bank = 0;
@@ -955,7 +960,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	host->data_va = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(host->data_va))
 		return PTR_ERR(host->data_va);
-	
+
 	host->data_pa = (dma_addr_t)res->start;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nand_addr");
@@ -1012,18 +1017,23 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	mtd->priv = nand;
 	nand->priv = host;
 
-	host->mtd.owner = THIS_MODULE;
+	host->mtd.dev.parent = &pdev->dev;
 	nand->IO_ADDR_R = host->data_va;
 	nand->IO_ADDR_W = host->data_va;
 	nand->cmd_ctrl = fsmc_cmd_ctrl;
 	nand->chip_delay = 30;
 
+	/*
+	 * Setup default ECC mode. nand_dt_init() called from nand_scan_ident()
+	 * can overwrite this value if the DT provides a different value.
+	 */
 	nand->ecc.mode = NAND_ECC_HW;
 	nand->ecc.hwctl = fsmc_enable_hwecc;
 	nand->ecc.size = 512;
 	nand->options = pdata->options;
 	nand->select_chip = fsmc_select_chip;
 	nand->badblockbits = 7;
+	nand->flash_node = np;
 
 	if (pdata->width == FSMC_NAND_BW16)
 		nand->options |= NAND_BUSWIDTH_16;
@@ -1065,11 +1075,6 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 		nand->ecc.correct = fsmc_bch8_correct_data;
 		nand->ecc.bytes = 13;
 		nand->ecc.strength = 8;
-	} else {
-		nand->ecc.calculate = fsmc_read_hwecc_ecc1;
-		nand->ecc.correct = nand_correct_data;
-		nand->ecc.bytes = 3;
-		nand->ecc.strength = 1;
 	}
 
 	/*
@@ -1106,23 +1111,50 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 		default:
 			dev_warn(&pdev->dev, "No oob scheme defined for oobsize %d\n",
 				 mtd->oobsize);
-			BUG();
+			ret = -EINVAL;
+			goto err_probe;
 		}
 	} else {
-		switch (host->mtd.oobsize) {
-		case 16:
-			nand->ecc.layout = &fsmc_ecc1_16_layout;
+		switch (nand->ecc.mode) {
+		case NAND_ECC_HW:
+			dev_info(&pdev->dev, "Using 1-bit HW ECC scheme\n");
+			nand->ecc.calculate = fsmc_read_hwecc_ecc1;
+			nand->ecc.correct = nand_correct_data;
+			nand->ecc.bytes = 3;
+			nand->ecc.strength = 1;
 			break;
-		case 64:
-			nand->ecc.layout = &fsmc_ecc1_64_layout;
+
+		case NAND_ECC_SOFT_BCH:
+			dev_info(&pdev->dev, "Using 4-bit SW BCH ECC scheme\n");
 			break;
-		case 128:
-			nand->ecc.layout = &fsmc_ecc1_128_layout;
-			break;
+
 		default:
-			dev_warn(&pdev->dev, "No oob scheme defined for oobsize %d\n",
-				 mtd->oobsize);
-			BUG();
+			dev_err(&pdev->dev, "Unsupported ECC mode!\n");
+			goto err_probe;
+		}
+
+		/*
+		 * Don't set layout for BCH4 SW ECC. This will be
+		 * generated later in nand_bch_init() later.
+		 */
+		if (nand->ecc.mode != NAND_ECC_SOFT_BCH) {
+			switch (host->mtd.oobsize) {
+			case 16:
+				nand->ecc.layout = &fsmc_ecc1_16_layout;
+				break;
+			case 64:
+				nand->ecc.layout = &fsmc_ecc1_64_layout;
+				break;
+			case 128:
+				nand->ecc.layout = &fsmc_ecc1_128_layout;
+				break;
+			default:
+				dev_warn(&pdev->dev,
+					 "No oob scheme defined for oobsize %d\n",
+					 mtd->oobsize);
+				ret = -EINVAL;
+				goto err_probe;
+			}
 		}
 	}
 

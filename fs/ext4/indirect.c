@@ -20,9 +20,10 @@
  *	(sct@redhat.com), 1993, 1998
  */
 
-#include <linux/aio.h>
 #include "ext4_jbd2.h"
 #include "truncate.h"
+#include <linux/dax.h>
+#include <linux/uio.h>
 
 #include <trace/events/ext4.h>
 
@@ -561,11 +562,10 @@ int ext4_ind_map_blocks(handle_t *handle, struct inode *inode,
 	/*
 	 * Okay, we need to do block allocation.
 	*/
-	if (EXT4_HAS_RO_COMPAT_FEATURE(inode->i_sb,
-				       EXT4_FEATURE_RO_COMPAT_BIGALLOC)) {
+	if (ext4_has_feature_bigalloc(inode->i_sb)) {
 		EXT4_ERROR_INODE(inode, "Can't allocate blocks for "
 				 "non-extent mapped inodes with bigalloc");
-		return -ENOSPC;
+		return -EFSCORRUPTED;
 	}
 
 	/* Set up for the direct block allocation */
@@ -576,6 +576,8 @@ int ext4_ind_map_blocks(handle_t *handle, struct inode *inode,
 		ar.flags = EXT4_MB_HINT_DATA;
 	if (flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE)
 		ar.flags |= EXT4_MB_DELALLOC_RESERVED;
+	if (flags & EXT4_GET_BLOCKS_METADATA_NOFAIL)
+		ar.flags |= EXT4_MB_USE_RESERVED;
 
 	ar.goal = ext4_find_goal(inode, map->m_lblk, partial);
 
@@ -642,8 +644,8 @@ out:
  * crashes then stale disk data _may_ be exposed inside the file. But current
  * VFS code falls back into buffered path in that case so we are safe.
  */
-ssize_t ext4_ind_direct_IO(int rw, struct kiocb *iocb,
-			   struct iov_iter *iter, loff_t offset)
+ssize_t ext4_ind_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
+			   loff_t offset)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
@@ -654,7 +656,7 @@ ssize_t ext4_ind_direct_IO(int rw, struct kiocb *iocb,
 	size_t count = iov_iter_count(iter);
 	int retries = 0;
 
-	if (rw == WRITE) {
+	if (iov_iter_rw(iter) == WRITE) {
 		loff_t final_size = offset + count;
 
 		if (final_size > inode->i_size) {
@@ -676,37 +678,38 @@ ssize_t ext4_ind_direct_IO(int rw, struct kiocb *iocb,
 	}
 
 retry:
-	if (rw == READ && ext4_should_dioread_nolock(inode)) {
+	if (iov_iter_rw(iter) == READ && ext4_should_dioread_nolock(inode)) {
 		/*
 		 * Nolock dioread optimization may be dynamically disabled
 		 * via ext4_inode_block_unlocked_dio(). Check inode's state
 		 * while holding extra i_dio_count ref.
 		 */
-		atomic_inc(&inode->i_dio_count);
+		inode_dio_begin(inode);
 		smp_mb();
 		if (unlikely(ext4_test_inode_state(inode,
 						    EXT4_STATE_DIOREAD_LOCK))) {
-			inode_dio_done(inode);
+			inode_dio_end(inode);
 			goto locked;
 		}
 		if (IS_DAX(inode))
-			ret = dax_do_io(rw, iocb, inode, iter, offset,
+			ret = dax_do_io(iocb, inode, iter, offset,
 					ext4_get_block, NULL, 0);
 		else
-			ret = __blockdev_direct_IO(rw, iocb, inode,
-					inode->i_sb->s_bdev, iter, offset,
-					ext4_get_block, NULL, NULL, 0);
-		inode_dio_done(inode);
+			ret = __blockdev_direct_IO(iocb, inode,
+						   inode->i_sb->s_bdev, iter,
+						   offset, ext4_get_block, NULL,
+						   NULL, 0);
+		inode_dio_end(inode);
 	} else {
 locked:
 		if (IS_DAX(inode))
-			ret = dax_do_io(rw, iocb, inode, iter, offset,
+			ret = dax_do_io(iocb, inode, iter, offset,
 					ext4_get_block, NULL, DIO_LOCKING);
 		else
-			ret = blockdev_direct_IO(rw, iocb, inode, iter,
-					offset, ext4_get_block);
+			ret = blockdev_direct_IO(iocb, inode, iter, offset,
+						 ext4_get_block);
 
-		if (unlikely((rw & WRITE) && ret < 0)) {
+		if (unlikely(iov_iter_rw(iter) == WRITE && ret < 0)) {
 			loff_t isize = i_size_read(inode);
 			loff_t end = offset + count;
 

@@ -387,7 +387,8 @@ static struct crypto_alg serpent_algs[10] = { {
 	.cra_name		= "__ecb-serpent-sse2",
 	.cra_driver_name	= "__driver-ecb-serpent-sse2",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= SERPENT_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct serpent_ctx),
 	.cra_alignmask		= 0,
@@ -406,7 +407,8 @@ static struct crypto_alg serpent_algs[10] = { {
 	.cra_name		= "__cbc-serpent-sse2",
 	.cra_driver_name	= "__driver-cbc-serpent-sse2",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= SERPENT_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct serpent_ctx),
 	.cra_alignmask		= 0,
@@ -425,7 +427,8 @@ static struct crypto_alg serpent_algs[10] = { {
 	.cra_name		= "__ctr-serpent-sse2",
 	.cra_driver_name	= "__driver-ctr-serpent-sse2",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= 1,
 	.cra_ctxsize		= sizeof(struct serpent_ctx),
 	.cra_alignmask		= 0,
@@ -445,7 +448,8 @@ static struct crypto_alg serpent_algs[10] = { {
 	.cra_name		= "__lrw-serpent-sse2",
 	.cra_driver_name	= "__driver-lrw-serpent-sse2",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= SERPENT_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct serpent_lrw_ctx),
 	.cra_alignmask		= 0,
@@ -468,7 +472,8 @@ static struct crypto_alg serpent_algs[10] = { {
 	.cra_name		= "__xts-serpent-sse2",
 	.cra_driver_name	= "__driver-xts-serpent-sse2",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= SERPENT_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct serpent_xts_ctx),
 	.cra_alignmask		= 0,

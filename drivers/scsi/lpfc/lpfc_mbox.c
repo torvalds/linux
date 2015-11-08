@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2015 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -289,9 +289,7 @@ lpfc_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb,
 		   struct lpfc_dmabuf *mp)
 {
 	MAILBOX_t *mb;
-	struct lpfc_sli *psli;
 
-	psli = &phba->sli;
 	mb = &pmb->u.mb;
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
@@ -483,13 +481,11 @@ lpfc_init_link(struct lpfc_hba * phba,
 	       LPFC_MBOXQ_t * pmb, uint32_t topology, uint32_t linkspeed)
 {
 	lpfc_vpd_t *vpd;
-	struct lpfc_sli *psli;
 	MAILBOX_t *mb;
 
 	mb = &pmb->u.mb;
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
-	psli = &phba->sli;
 	switch (topology) {
 	case FLAGS_TOPOLOGY_MODE_LOOP_PT:
 		mb->un.varInitLnk.link_flags = FLAGS_TOPOLOGY_MODE_LOOP;
@@ -508,6 +504,13 @@ lpfc_init_link(struct lpfc_hba * phba,
 	case FLAGS_LOCAL_LB:
 		mb->un.varInitLnk.link_flags = FLAGS_LOCAL_LB;
 		break;
+	}
+
+	if (phba->pcidev->device == PCI_DEVICE_ID_LANCER_G6_FC &&
+		mb->un.varInitLnk.link_flags & FLAGS_TOPOLOGY_MODE_LOOP) {
+		/* Failover is not tried for Lancer G6 */
+		mb->un.varInitLnk.link_flags = FLAGS_TOPOLOGY_MODE_PT_PT;
+		phba->cfg_topology = FLAGS_TOPOLOGY_MODE_PT_PT;
 	}
 
 	/* Enable asynchronous ABTS responses from firmware */
@@ -542,6 +545,10 @@ lpfc_init_link(struct lpfc_hba * phba,
 		case LPFC_USER_LINK_SPEED_16G:
 			mb->un.varInitLnk.link_flags |=	FLAGS_LINK_SPEED;
 			mb->un.varInitLnk.link_speed = LINK_SPEED_16G;
+			break;
+		case LPFC_USER_LINK_SPEED_32G:
+			mb->un.varInitLnk.link_flags |= FLAGS_LINK_SPEED;
+			mb->un.varInitLnk.link_speed = LINK_SPEED_32G;
 			break;
 		case LPFC_USER_LINK_SPEED_AUTO:
 		default:
@@ -585,9 +592,7 @@ lpfc_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb, int vpi)
 {
 	struct lpfc_dmabuf *mp;
 	MAILBOX_t *mb;
-	struct lpfc_sli *psli;
 
-	psli = &phba->sli;
 	mb = &pmb->u.mb;
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
@@ -2010,7 +2015,6 @@ lpfc_sli4_mbx_read_fcf_rec(struct lpfc_hba *phba,
 			   uint16_t fcf_index)
 {
 	void *virt_addr;
-	dma_addr_t phys_addr;
 	uint8_t *bytep;
 	struct lpfc_mbx_sge sge;
 	uint32_t alloc_len, req_len;
@@ -2039,7 +2043,6 @@ lpfc_sli4_mbx_read_fcf_rec(struct lpfc_hba *phba,
 	 * routine only uses a single SGE.
 	 */
 	lpfc_sli4_mbx_sge_get(mboxq, 0, &sge);
-	phys_addr = getPaddr(sge.pa_hi, sge.pa_lo);
 	virt_addr = mboxq->sge_array->addr[0];
 	read_fcf = (struct lpfc_mbx_read_fcf_tbl *)virt_addr;
 
@@ -2252,6 +2255,159 @@ lpfc_sli4_dump_cfg_rg23(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
 	mb->un.varDmp.sli4_length = DMP_RGN23_SIZE;
 	mb->un.varWords[3] = putPaddrLow(mp->phys);
 	mb->un.varWords[4] = putPaddrHigh(mp->phys);
+	return 0;
+}
+
+void
+lpfc_mbx_cmpl_rdp_link_stat(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
+{
+	MAILBOX_t *mb;
+	int rc = FAILURE;
+	struct lpfc_rdp_context *rdp_context =
+			(struct lpfc_rdp_context *)(mboxq->context2);
+
+	mb = &mboxq->u.mb;
+	if (mb->mbxStatus)
+		goto mbx_failed;
+
+	memcpy(&rdp_context->link_stat, &mb->un.varRdLnk, sizeof(READ_LNK_VAR));
+
+	rc = SUCCESS;
+
+mbx_failed:
+	lpfc_sli4_mbox_cmd_free(phba, mboxq);
+	rdp_context->cmpl(phba, rdp_context, rc);
+}
+
+void
+lpfc_mbx_cmpl_rdp_page_a2(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
+{
+	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) mbox->context1;
+	struct lpfc_rdp_context *rdp_context =
+			(struct lpfc_rdp_context *)(mbox->context2);
+
+	if (bf_get(lpfc_mqe_status, &mbox->u.mqe))
+		goto error_mbuf_free;
+
+	lpfc_sli_bemem_bcopy(mp->virt, &rdp_context->page_a2,
+				DMP_SFF_PAGE_A2_SIZE);
+
+	/* We don't need dma buffer for link stat. */
+	lpfc_mbuf_free(phba, mp->virt, mp->phys);
+	kfree(mp);
+
+	memset(mbox, 0, sizeof(*mbox));
+	lpfc_read_lnk_stat(phba, mbox);
+	mbox->vport = rdp_context->ndlp->vport;
+	mbox->mbox_cmpl = lpfc_mbx_cmpl_rdp_link_stat;
+	mbox->context2 = (struct lpfc_rdp_context *) rdp_context;
+	if (lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT) == MBX_NOT_FINISHED)
+		goto error_cmd_free;
+
+	return;
+
+error_mbuf_free:
+	lpfc_mbuf_free(phba, mp->virt, mp->phys);
+	kfree(mp);
+error_cmd_free:
+	lpfc_sli4_mbox_cmd_free(phba, mbox);
+	rdp_context->cmpl(phba, rdp_context, FAILURE);
+}
+
+void
+lpfc_mbx_cmpl_rdp_page_a0(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
+{
+	int rc;
+	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) (mbox->context1);
+	struct lpfc_rdp_context *rdp_context =
+			(struct lpfc_rdp_context *)(mbox->context2);
+
+	if (bf_get(lpfc_mqe_status, &mbox->u.mqe))
+		goto error;
+
+	lpfc_sli_bemem_bcopy(mp->virt, &rdp_context->page_a0,
+				DMP_SFF_PAGE_A0_SIZE);
+
+	memset(mbox, 0, sizeof(*mbox));
+
+	memset(mp->virt, 0, DMP_SFF_PAGE_A2_SIZE);
+	INIT_LIST_HEAD(&mp->list);
+
+	/* save address for completion */
+	mbox->context1 = mp;
+	mbox->vport = rdp_context->ndlp->vport;
+
+	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_DUMP_MEMORY);
+	bf_set(lpfc_mbx_memory_dump_type3_type,
+		&mbox->u.mqe.un.mem_dump_type3, DMP_LMSD);
+	bf_set(lpfc_mbx_memory_dump_type3_link,
+		&mbox->u.mqe.un.mem_dump_type3, phba->sli4_hba.physical_port);
+	bf_set(lpfc_mbx_memory_dump_type3_page_no,
+		&mbox->u.mqe.un.mem_dump_type3, DMP_PAGE_A2);
+	bf_set(lpfc_mbx_memory_dump_type3_length,
+		&mbox->u.mqe.un.mem_dump_type3, DMP_SFF_PAGE_A2_SIZE);
+	mbox->u.mqe.un.mem_dump_type3.addr_lo = putPaddrLow(mp->phys);
+	mbox->u.mqe.un.mem_dump_type3.addr_hi = putPaddrHigh(mp->phys);
+
+	mbox->mbox_cmpl = lpfc_mbx_cmpl_rdp_page_a2;
+	mbox->context2 = (struct lpfc_rdp_context *) rdp_context;
+	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
+	if (rc == MBX_NOT_FINISHED)
+		goto error;
+
+	return;
+
+error:
+	lpfc_mbuf_free(phba, mp->virt, mp->phys);
+	kfree(mp);
+	lpfc_sli4_mbox_cmd_free(phba, mbox);
+	rdp_context->cmpl(phba, rdp_context, FAILURE);
+}
+
+
+/*
+ * lpfc_sli4_dump_sfp_pagea0 - Dump sli4 read SFP Diagnostic.
+ * @phba: pointer to the hba structure containing.
+ * @mbox: pointer to lpfc mbox command to initialize.
+ *
+ * This function create a SLI4 dump mailbox command to dump configure
+ * type 3 page 0xA0.
+ */
+int
+lpfc_sli4_dump_page_a0(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
+{
+	struct lpfc_dmabuf *mp = NULL;
+
+	memset(mbox, 0, sizeof(*mbox));
+
+	mp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+	if (mp)
+		mp->virt = lpfc_mbuf_alloc(phba, 0, &mp->phys);
+	if (!mp || !mp->virt) {
+		kfree(mp);
+		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
+			"3569 dump type 3 page 0xA0 allocation failed\n");
+		return 1;
+	}
+
+	memset(mp->virt, 0, LPFC_BPL_SIZE);
+	INIT_LIST_HEAD(&mp->list);
+
+	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_DUMP_MEMORY);
+	/* save address for completion */
+	mbox->context1 = mp;
+
+	bf_set(lpfc_mbx_memory_dump_type3_type,
+		&mbox->u.mqe.un.mem_dump_type3, DMP_LMSD);
+	bf_set(lpfc_mbx_memory_dump_type3_link,
+		&mbox->u.mqe.un.mem_dump_type3, phba->sli4_hba.physical_port);
+	bf_set(lpfc_mbx_memory_dump_type3_page_no,
+		&mbox->u.mqe.un.mem_dump_type3, DMP_PAGE_A0);
+	bf_set(lpfc_mbx_memory_dump_type3_length,
+		&mbox->u.mqe.un.mem_dump_type3, DMP_SFF_PAGE_A0_SIZE);
+	mbox->u.mqe.un.mem_dump_type3.addr_lo = putPaddrLow(mp->phys);
+	mbox->u.mqe.un.mem_dump_type3.addr_hi = putPaddrHigh(mp->phys);
+
 	return 0;
 }
 

@@ -283,25 +283,26 @@ static const struct berlin2_gate_data bg2q_gates[] __initconst = {
 	{ "usb2",	"perif",	13 },
 	{ "usb3",	"perif",	14 },
 	{ "pbridge",	"perif",	15, CLK_IGNORE_UNUSED },
-	{ "sdio",	"perif",	16, CLK_IGNORE_UNUSED },
+	{ "sdio",	"perif",	16 },
 	{ "nfc",	"perif",	18 },
 	{ "pcie",	"perif",	22 },
 };
 
 static void __init berlin2q_clock_setup(struct device_node *np)
 {
+	struct device_node *parent_np = of_get_parent(np);
 	const char *parent_names[9];
 	struct clk *clk;
 	int n;
 
-	gbase = of_iomap(np, 0);
+	gbase = of_iomap(parent_np, 0);
 	if (!gbase) {
 		pr_err("%s: Unable to map global base\n", np->full_name);
 		return;
 	}
 
 	/* BG2Q CPU PLL is not part of global registers */
-	cpupll_base = of_iomap(np, 1);
+	cpupll_base = of_iomap(parent_np, 1);
 	if (!cpupll_base) {
 		pr_err("%s: Unable to map cpupll base\n", np->full_name);
 		iounmap(gbase);
@@ -384,5 +385,5 @@ bg2q_fail:
 	iounmap(cpupll_base);
 	iounmap(gbase);
 }
-CLK_OF_DECLARE(berlin2q_clock, "marvell,berlin2q-chip-ctrl",
+CLK_OF_DECLARE(berlin2q_clk, "marvell,berlin2q-clk",
 	       berlin2q_clock_setup);

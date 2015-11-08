@@ -286,6 +286,8 @@ enum ocfs2_mount_options
 	OCFS2_MOUNT_HB_GLOBAL = 1 << 14, /* Global heartbeat */
 
 	OCFS2_MOUNT_JOURNAL_ASYNC_COMMIT = 1 << 15,  /* Journal Async Commit */
+	OCFS2_MOUNT_ERRORS_CONT = 1 << 16, /* Return EIO to the calling process on error */
+	OCFS2_MOUNT_ERRORS_ROFS = 1 << 17, /* Change filesystem to read-only on error */
 };
 
 #define OCFS2_OSB_SOFT_RO	0x0001
@@ -715,6 +717,16 @@ static inline u64 ocfs2_clusters_to_blocks(struct super_block *sb,
 		sb->s_blocksize_bits;
 
 	return (u64)clusters << c_to_b_bits;
+}
+
+static inline u32 ocfs2_clusters_for_blocks(struct super_block *sb,
+		u64 blocks)
+{
+	int b_to_c_bits = OCFS2_SB(sb)->s_clustersize_bits -
+			sb->s_blocksize_bits;
+
+	blocks += (1 << b_to_c_bits) - 1;
+	return (u32)(blocks >> b_to_c_bits);
 }
 
 static inline u32 ocfs2_blocks_to_clusters(struct super_block *sb,

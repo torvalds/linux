@@ -55,7 +55,7 @@ int FillH2CCmd(struct rtw_adapter *padapter, u8 ElementID, u32 CmdLen,
 	u8 h2c_box_num;
 	u32 msgbox_addr;
 	u32 msgbox_ex_addr;
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
+	struct hal_data_8723a *pHalData;
 	u32 h2c_cmd = 0;
 	u16 h2c_cmd_ex = 0;
 	int ret = _FAIL;
@@ -127,8 +127,7 @@ int rtl8723a_set_raid_cmd(struct rtw_adapter *padapter, u32 mask, u8 arg)
 	u8 buf[5];
 
 	memset(buf, 0, 5);
-	mask = cpu_to_le32(mask);
-	memcpy(buf, &mask, 4);
+	put_unaligned_le32(mask, buf);
 	buf[4]  = arg;
 
 	FillH2CCmd(padapter, MACID_CONFIG_EID, 5, buf);
@@ -142,32 +141,18 @@ int rtl8723a_set_raid_cmd(struct rtw_adapter *padapter, u32 mask, u8 arg)
 /* arg[5] = Short GI */
 void rtl8723a_add_rateatid(struct rtw_adapter *pAdapter, u32 bitmap, u8 arg, u8 rssi_level)
 {
-	struct hal_data_8723a	*pHalData = GET_HAL_DATA(pAdapter);
-	u8 macid = arg&0x1f;
-	u8 raid = (bitmap>>28) & 0x0f;
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(pAdapter);
+	u8 macid = arg & 0x1f;
+	u32 raid = bitmap & 0xf0000000;
 
 	bitmap &= 0x0fffffff;
 	if (rssi_level != DM_RATR_STA_INIT)
 		bitmap = ODM_Get_Rate_Bitmap23a(pHalData, macid, bitmap,
 						rssi_level);
 
-	bitmap |= ((raid<<28)&0xf0000000);
+	bitmap |= raid;
 
-	if (pHalData->fw_ractrl == true) {
-		rtl8723a_set_raid_cmd(pAdapter, bitmap, arg);
-	} else {
-		u8 init_rate, shortGIrate = false;
-
-		init_rate = get_highest_rate_idx23a(bitmap&0x0fffffff)&0x3f;
-
-		shortGIrate = (arg&BIT(5)) ? true:false;
-
-		if (shortGIrate == true)
-			init_rate |= BIT(6);
-
-		rtl8723au_write8(pAdapter, REG_INIDATA_RATE_SEL + macid,
-				 init_rate);
-	}
+	rtl8723a_set_raid_cmd(pAdapter, bitmap, arg);
 }
 
 void rtl8723a_set_FwPwrMode_cmd(struct rtw_adapter *padapter, u8 Mode)
@@ -183,10 +168,8 @@ void rtl8723a_set_FwPwrMode_cmd(struct rtw_adapter *padapter, u8 Mode)
 	    prevent conficting setting in Fw power */
 	/*  saving sequence. 2010.06.07. Added by tynli.
 	    Suggested by SD3 yschang. */
-	if ((Mode != PS_MODE_ACTIVE) &&
-	    (!IS_92C_SERIAL(pHalData->VersionID))) {
+	if (Mode != PS_MODE_ACTIVE && pHalData->rf_type != RF_2T2R)
 		ODM_RF_Saving23a(&pHalData->odmpriv, true);
-	}
 
 	H2CSetPwrMode.Mode = Mode;
 	H2CSetPwrMode.SmartPS = pwrpriv->smart_ps;

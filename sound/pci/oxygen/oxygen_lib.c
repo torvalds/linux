@@ -196,7 +196,6 @@ static void oxygen_gpio_changed(struct work_struct *work)
 		chip->model.gpio_changed(chip);
 }
 
-#ifdef CONFIG_PROC_FS
 static void oxygen_proc_read(struct snd_info_entry *entry,
 			     struct snd_info_buffer *buffer)
 {
@@ -250,9 +249,6 @@ static void oxygen_proc_init(struct oxygen *chip)
 	if (!snd_card_proc_new(chip->card, "oxygen", &entry))
 		snd_info_set_text_ops(entry, chip, oxygen_proc_read);
 }
-#else
-#define oxygen_proc_init(chip)
-#endif
 
 static const struct pci_device_id *
 oxygen_search_pci_id(struct oxygen *chip, const struct pci_device_id ids[])

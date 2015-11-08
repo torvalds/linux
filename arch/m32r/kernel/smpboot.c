@@ -376,7 +376,7 @@ void __init smp_cpus_done(unsigned int max_cpus)
 	if (!cpumask_equal(&cpu_callin_map, cpu_online_mask))
 		BUG();
 
-	for (cpu_id = 0 ; cpu_id < num_online_cpus() ; cpu_id++)
+	for_each_online_cpu(cpu_id)
 		show_cpu_info(cpu_id);
 
 	/*

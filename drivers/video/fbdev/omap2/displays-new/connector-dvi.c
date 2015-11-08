@@ -37,7 +37,7 @@ static const struct omap_video_timings dvic_default_timings = {
 	.hsync_level	= OMAPDSS_SIG_ACTIVE_HIGH,
 	.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
 	.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
-	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
+	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
 };
 
 struct panel_drv_data {
@@ -294,7 +294,7 @@ static int dvic_probe_of(struct platform_device *pdev)
 
 	adapter_node = of_parse_phandle(node, "ddc-i2c-bus", 0);
 	if (adapter_node) {
-		adapter = of_find_i2c_adapter_by_node(adapter_node);
+		adapter = of_get_i2c_adapter_by_node(adapter_node);
 		if (adapter == NULL) {
 			dev_err(&pdev->dev, "failed to parse ddc-i2c-bus\n");
 			omap_dss_put_device(ddata->in);

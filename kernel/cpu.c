@@ -20,6 +20,8 @@
 #include <linux/gfp.h>
 #include <linux/suspend.h>
 #include <linux/lockdep.h>
+#include <linux/tick.h>
+#include <linux/irq.h>
 #include <trace/events/power.h>
 
 #include "smpboot.h"
@@ -100,19 +102,6 @@ void get_online_cpus(void)
 }
 EXPORT_SYMBOL_GPL(get_online_cpus);
 
-bool try_get_online_cpus(void)
-{
-	if (cpu_hotplug.active_writer == current)
-		return true;
-	if (!mutex_trylock(&cpu_hotplug.lock))
-		return false;
-	cpuhp_lock_acquire_tryread();
-	atomic_inc(&cpu_hotplug.refcount);
-	mutex_unlock(&cpu_hotplug.lock);
-	return true;
-}
-EXPORT_SYMBOL_GPL(try_get_online_cpus);
-
 void put_online_cpus(void)
 {
 	int refcount;
@@ -189,21 +178,22 @@ void cpu_hotplug_done(void)
 void cpu_hotplug_disable(void)
 {
 	cpu_maps_update_begin();
-	cpu_hotplug_disabled = 1;
+	cpu_hotplug_disabled++;
 	cpu_maps_update_done();
 }
+EXPORT_SYMBOL_GPL(cpu_hotplug_disable);
 
 void cpu_hotplug_enable(void)
 {
 	cpu_maps_update_begin();
-	cpu_hotplug_disabled = 0;
+	WARN_ON(--cpu_hotplug_disabled < 0);
 	cpu_maps_update_done();
 }
-
+EXPORT_SYMBOL_GPL(cpu_hotplug_enable);
 #endif	/* CONFIG_HOTPLUG_CPU */
 
 /* Need to know about CPUs going up/down? */
-int __ref register_cpu_notifier(struct notifier_block *nb)
+int register_cpu_notifier(struct notifier_block *nb)
 {
 	int ret;
 	cpu_maps_update_begin();
@@ -212,7 +202,7 @@ int __ref register_cpu_notifier(struct notifier_block *nb)
 	return ret;
 }
 
-int __ref __register_cpu_notifier(struct notifier_block *nb)
+int __register_cpu_notifier(struct notifier_block *nb)
 {
 	return raw_notifier_chain_register(&cpu_chain, nb);
 }
@@ -242,7 +232,7 @@ static void cpu_notify_nofail(unsigned long val, void *v)
 EXPORT_SYMBOL(register_cpu_notifier);
 EXPORT_SYMBOL(__register_cpu_notifier);
 
-void __ref unregister_cpu_notifier(struct notifier_block *nb)
+void unregister_cpu_notifier(struct notifier_block *nb)
 {
 	cpu_maps_update_begin();
 	raw_notifier_chain_unregister(&cpu_chain, nb);
@@ -250,7 +240,7 @@ void __ref unregister_cpu_notifier(struct notifier_block *nb)
 }
 EXPORT_SYMBOL(unregister_cpu_notifier);
 
-void __ref __unregister_cpu_notifier(struct notifier_block *nb)
+void __unregister_cpu_notifier(struct notifier_block *nb)
 {
 	raw_notifier_chain_unregister(&cpu_chain, nb);
 }
@@ -301,8 +291,8 @@ static inline void check_for_tasks(int dead_cpu)
 {
 	struct task_struct *g, *p;
 
-	read_lock_irq(&tasklist_lock);
-	do_each_thread(g, p) {
+	read_lock(&tasklist_lock);
+	for_each_process_thread(g, p) {
 		if (!p->on_rq)
 			continue;
 		/*
@@ -317,8 +307,8 @@ static inline void check_for_tasks(int dead_cpu)
 
 		pr_warn("Task %s (pid=%d) is on cpu %d (state=%ld, flags=%x)\n",
 			p->comm, task_pid_nr(p), dead_cpu, p->state, p->flags);
-	} while_each_thread(g, p);
-	read_unlock_irq(&tasklist_lock);
+	}
+	read_unlock(&tasklist_lock);
 }
 
 struct take_cpu_down_param {
@@ -327,7 +317,7 @@ struct take_cpu_down_param {
 };
 
 /* Take this CPU down. */
-static int __ref take_cpu_down(void *_param)
+static int take_cpu_down(void *_param)
 {
 	struct take_cpu_down_param *param = _param;
 	int err;
@@ -338,13 +328,15 @@ static int __ref take_cpu_down(void *_param)
 		return err;
 
 	cpu_notify(CPU_DYING | param->mod, param->hcpu);
+	/* Give up timekeeping duties */
+	tick_handover_do_timer();
 	/* Park the stopper thread */
-	kthread_park(current);
+	stop_machine_park((long)param->hcpu);
 	return 0;
 }
 
 /* Requires cpu_add_remove_lock to be held */
-static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
+static int _cpu_down(unsigned int cpu, int tasks_frozen)
 {
 	int err, nr_calls = 0;
 	void *hcpu = (void *)(long)cpu;
@@ -377,26 +369,31 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 	 * will observe it.
 	 *
 	 * For CONFIG_PREEMPT we have preemptible RCU and its sync_rcu() might
-	 * not imply sync_sched(), so explicitly call both.
+	 * not imply sync_sched(), so wait for both.
 	 *
 	 * Do sync before park smpboot threads to take care the rcu boost case.
 	 */
-#ifdef CONFIG_PREEMPT
-	synchronize_sched();
-#endif
-	synchronize_rcu();
+	if (IS_ENABLED(CONFIG_PREEMPT))
+		synchronize_rcu_mult(call_rcu, call_rcu_sched);
+	else
+		synchronize_rcu();
 
 	smpboot_park_threads(cpu);
 
 	/*
+	 * Prevent irq alloc/free while the dying cpu reorganizes the
+	 * interrupt affinities.
+	 */
+	irq_lock_sparse();
+
+	/*
 	 * So now all preempt/rcu users must observe !cpu_active().
 	 */
-
-	err = __stop_machine(take_cpu_down, &tcd_param, cpumask_of(cpu));
+	err = stop_machine(take_cpu_down, &tcd_param, cpumask_of(cpu));
 	if (err) {
 		/* CPU didn't die: tell everyone.  Can't complain. */
-		smpboot_unpark_threads(cpu);
 		cpu_notify_nofail(CPU_DOWN_FAILED | mod, hcpu);
+		irq_unlock_sparse();
 		goto out_release;
 	}
 	BUG_ON(cpu_online(cpu));
@@ -408,13 +405,20 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 	 *
 	 * Wait for the stop thread to go away.
 	 */
-	while (!idle_cpu(cpu))
+	while (!per_cpu(cpu_dead_idle, cpu))
 		cpu_relax();
+	smp_mb(); /* Read from cpu_dead_idle before __cpu_die(). */
+	per_cpu(cpu_dead_idle, cpu) = false;
 
+	/* Interrupts are moved away from the dying cpu, reenable alloc/free */
+	irq_unlock_sparse();
+
+	hotplug_cpu__broadcast_tick_pull(cpu);
 	/* This actually kills the CPU. */
 	__cpu_die(cpu);
 
 	/* CPU is completely dead: tell everyone.  Too late to complain. */
+	tick_cleanup_dead_cpu(cpu);
 	cpu_notify_nofail(CPU_DEAD | mod, hcpu);
 
 	check_for_tasks(cpu);
@@ -426,7 +430,7 @@ out_release:
 	return err;
 }
 
-int __ref cpu_down(unsigned int cpu)
+int cpu_down(unsigned int cpu)
 {
 	int err;
 
@@ -445,6 +449,38 @@ out:
 }
 EXPORT_SYMBOL(cpu_down);
 #endif /*CONFIG_HOTPLUG_CPU*/
+
+/*
+ * Unpark per-CPU smpboot kthreads at CPU-online time.
+ */
+static int smpboot_thread_call(struct notifier_block *nfb,
+			       unsigned long action, void *hcpu)
+{
+	int cpu = (long)hcpu;
+
+	switch (action & ~CPU_TASKS_FROZEN) {
+
+	case CPU_DOWN_FAILED:
+	case CPU_ONLINE:
+		smpboot_unpark_threads(cpu);
+		break;
+
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block smpboot_thread_notifier = {
+	.notifier_call = smpboot_thread_call,
+	.priority = CPU_PRI_SMPBOOT,
+};
+
+void smpboot_thread_init(void)
+{
+	register_cpu_notifier(&smpboot_thread_notifier);
+}
 
 /* Requires cpu_add_remove_lock to be held */
 static int _cpu_up(unsigned int cpu, int tasks_frozen)
@@ -481,12 +517,10 @@ static int _cpu_up(unsigned int cpu, int tasks_frozen)
 
 	/* Arch-specific enabling code. */
 	ret = __cpu_up(cpu, idle);
+
 	if (ret != 0)
 		goto out_notify;
 	BUG_ON(!cpu_online(cpu));
-
-	/* Wake the per cpu threads */
-	smpboot_unpark_threads(cpu);
 
 	/* Now call notifier in preparation. */
 	cpu_notify(CPU_ONLINE | mod, hcpu);
@@ -562,13 +596,18 @@ int disable_nonboot_cpus(void)
 		}
 	}
 
-	if (!error) {
+	if (!error)
 		BUG_ON(num_online_cpus() > 1);
-		/* Make sure the CPUs won't be enabled by someone else */
-		cpu_hotplug_disabled = 1;
-	} else {
+	else
 		pr_err("Non-boot CPUs are not disabled\n");
-	}
+
+	/*
+	 * Make sure the CPUs won't be enabled by someone else. We need to do
+	 * this even in case of failure as all disable_nonboot_cpus() users are
+	 * supposed to do enable_nonboot_cpus() on the failure path.
+	 */
+	cpu_hotplug_disabled++;
+
 	cpu_maps_update_done();
 	return error;
 }
@@ -581,13 +620,13 @@ void __weak arch_enable_nonboot_cpus_end(void)
 {
 }
 
-void __ref enable_nonboot_cpus(void)
+void enable_nonboot_cpus(void)
 {
 	int cpu, error;
 
 	/* Allow everyone to use the CPU hotplug again */
 	cpu_maps_update_begin();
-	cpu_hotplug_disabled = 0;
+	WARN_ON(--cpu_hotplug_disabled < 0);
 	if (cpumask_empty(frozen_cpus))
 		goto out;
 

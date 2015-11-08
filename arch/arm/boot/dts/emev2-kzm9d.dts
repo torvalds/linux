@@ -35,28 +35,28 @@
 
 		button@1 {
 			debounce_interval = <50>;
-			wakeup = <1>;
+			wakeup-source;
 			label = "DSW2-1";
 			linux,code = <KEY_1>;
 			gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
 		};
 		button@2 {
 			debounce_interval = <50>;
-			wakeup = <1>;
+			wakeup-source;
 			label = "DSW2-2";
 			linux,code = <KEY_2>;
 			gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
 		};
 		button@3 {
 			debounce_interval = <50>;
-			wakeup = <1>;
+			wakeup-source;
 			label = "DSW2-3";
 			linux,code = <KEY_3>;
 			gpios = <&gpio0 16 GPIO_ACTIVE_HIGH>;
 		};
 		button@4 {
 			debounce_interval = <50>;
-			wakeup = <1>;
+			wakeup-source;
 			label = "DSW2-4";
 			linux,code = <KEY_4>;
 			gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;
@@ -81,7 +81,7 @@
 		regulator-boot-on;
 	};
 
-	lan9220@20000000 {
+	ethernet@20000000 {
 		compatible = "smsc,lan9220", "smsc,lan9115";
 		reg = <0x20000000 0x10000>;
 		phy-mode = "mii";
@@ -93,4 +93,25 @@
 		vddvario-supply = <&reg_1p8v>;
 		vdd33a-supply = <&reg_3p3v>;
 	};
+};
+
+&iic0 {
+	status = "okay";
+};
+
+&iic1 {
+	status = "okay";
+};
+
+&pfc {
+	uart1_pins: serial@e1030000 {
+		renesas,groups = "uart1_ctrl", "uart1_data";
+		renesas,function = "uart1";
+	};
+};
+
+&uart1 {
+	pinctrl-0 = <&uart1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
 };

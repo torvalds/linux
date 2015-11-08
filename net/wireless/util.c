@@ -887,7 +887,8 @@ void cfg80211_process_wdev_events(struct wireless_dev *wdev)
 		case EVENT_DISCONNECTED:
 			__cfg80211_disconnected(wdev->netdev,
 						ev->dc.ie, ev->dc.ie_len,
-						ev->dc.reason, true);
+						ev->dc.reason,
+						!ev->dc.locally_generated);
 			break;
 		case EVENT_IBSS_JOINED:
 			__cfg80211_ibss_joined(wdev->netdev, ev->ij.bssid,
@@ -944,7 +945,7 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 	     ntype == NL80211_IFTYPE_P2P_CLIENT))
 		return -EBUSY;
 
-	if (ntype != otype && netif_running(dev)) {
+	if (ntype != otype) {
 		dev->ieee80211_ptr->use_4addr = false;
 		dev->ieee80211_ptr->mesh_id_up_len = 0;
 		wdev_lock(dev->ieee80211_ptr);
@@ -1290,12 +1291,54 @@ int cfg80211_get_p2p_attr(const u8 *ies, unsigned int len,
 }
 EXPORT_SYMBOL(cfg80211_get_p2p_attr);
 
+static bool ieee80211_id_in_list(const u8 *ids, int n_ids, u8 id)
+{
+	int i;
+
+	for (i = 0; i < n_ids; i++)
+		if (ids[i] == id)
+			return true;
+	return false;
+}
+
+size_t ieee80211_ie_split_ric(const u8 *ies, size_t ielen,
+			      const u8 *ids, int n_ids,
+			      const u8 *after_ric, int n_after_ric,
+			      size_t offset)
+{
+	size_t pos = offset;
+
+	while (pos < ielen && ieee80211_id_in_list(ids, n_ids, ies[pos])) {
+		if (ies[pos] == WLAN_EID_RIC_DATA && n_after_ric) {
+			pos += 2 + ies[pos + 1];
+
+			while (pos < ielen &&
+			       !ieee80211_id_in_list(after_ric, n_after_ric,
+						     ies[pos]))
+				pos += 2 + ies[pos + 1];
+		} else {
+			pos += 2 + ies[pos + 1];
+		}
+	}
+
+	return pos;
+}
+EXPORT_SYMBOL(ieee80211_ie_split_ric);
+
+size_t ieee80211_ie_split(const u8 *ies, size_t ielen,
+			  const u8 *ids, int n_ids, size_t offset)
+{
+	return ieee80211_ie_split_ric(ies, ielen, ids, n_ids, NULL, 0, offset);
+}
+EXPORT_SYMBOL(ieee80211_ie_split);
+
 bool ieee80211_operating_class_to_band(u8 operating_class,
 				       enum ieee80211_band *band)
 {
 	switch (operating_class) {
 	case 112:
 	case 115 ... 127:
+	case 128 ... 130:
 		*band = IEEE80211_BAND_5GHZ;
 		return true;
 	case 81:
@@ -1312,6 +1355,135 @@ bool ieee80211_operating_class_to_band(u8 operating_class,
 	return false;
 }
 EXPORT_SYMBOL(ieee80211_operating_class_to_band);
+
+bool ieee80211_chandef_to_operating_class(struct cfg80211_chan_def *chandef,
+					  u8 *op_class)
+{
+	u8 vht_opclass;
+	u16 freq = chandef->center_freq1;
+
+	if (freq >= 2412 && freq <= 2472) {
+		if (chandef->width > NL80211_CHAN_WIDTH_40)
+			return false;
+
+		/* 2.407 GHz, channels 1..13 */
+		if (chandef->width == NL80211_CHAN_WIDTH_40) {
+			if (freq > chandef->chan->center_freq)
+				*op_class = 83; /* HT40+ */
+			else
+				*op_class = 84; /* HT40- */
+		} else {
+			*op_class = 81;
+		}
+
+		return true;
+	}
+
+	if (freq == 2484) {
+		if (chandef->width > NL80211_CHAN_WIDTH_40)
+			return false;
+
+		*op_class = 82; /* channel 14 */
+		return true;
+	}
+
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_80:
+		vht_opclass = 128;
+		break;
+	case NL80211_CHAN_WIDTH_160:
+		vht_opclass = 129;
+		break;
+	case NL80211_CHAN_WIDTH_80P80:
+		vht_opclass = 130;
+		break;
+	case NL80211_CHAN_WIDTH_10:
+	case NL80211_CHAN_WIDTH_5:
+		return false; /* unsupported for now */
+	default:
+		vht_opclass = 0;
+		break;
+	}
+
+	/* 5 GHz, channels 36..48 */
+	if (freq >= 5180 && freq <= 5240) {
+		if (vht_opclass) {
+			*op_class = vht_opclass;
+		} else if (chandef->width == NL80211_CHAN_WIDTH_40) {
+			if (freq > chandef->chan->center_freq)
+				*op_class = 116;
+			else
+				*op_class = 117;
+		} else {
+			*op_class = 115;
+		}
+
+		return true;
+	}
+
+	/* 5 GHz, channels 52..64 */
+	if (freq >= 5260 && freq <= 5320) {
+		if (vht_opclass) {
+			*op_class = vht_opclass;
+		} else if (chandef->width == NL80211_CHAN_WIDTH_40) {
+			if (freq > chandef->chan->center_freq)
+				*op_class = 119;
+			else
+				*op_class = 120;
+		} else {
+			*op_class = 118;
+		}
+
+		return true;
+	}
+
+	/* 5 GHz, channels 100..144 */
+	if (freq >= 5500 && freq <= 5720) {
+		if (vht_opclass) {
+			*op_class = vht_opclass;
+		} else if (chandef->width == NL80211_CHAN_WIDTH_40) {
+			if (freq > chandef->chan->center_freq)
+				*op_class = 122;
+			else
+				*op_class = 123;
+		} else {
+			*op_class = 121;
+		}
+
+		return true;
+	}
+
+	/* 5 GHz, channels 149..169 */
+	if (freq >= 5745 && freq <= 5845) {
+		if (vht_opclass) {
+			*op_class = vht_opclass;
+		} else if (chandef->width == NL80211_CHAN_WIDTH_40) {
+			if (freq > chandef->chan->center_freq)
+				*op_class = 126;
+			else
+				*op_class = 127;
+		} else if (freq <= 5805) {
+			*op_class = 124;
+		} else {
+			*op_class = 125;
+		}
+
+		return true;
+	}
+
+	/* 56.16 GHz, channel 1..4 */
+	if (freq >= 56160 + 2160 * 1 && freq <= 56160 + 2160 * 4) {
+		if (chandef->width >= NL80211_CHAN_WIDTH_40)
+			return false;
+
+		*op_class = 180;
+		return true;
+	}
+
+	/* not supported yet */
+	return false;
+}
+EXPORT_SYMBOL(ieee80211_chandef_to_operating_class);
 
 int cfg80211_validate_beacon_int(struct cfg80211_registered_device *rdev,
 				 u32 beacon_int)

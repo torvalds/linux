@@ -441,15 +441,15 @@ static int isl29028_chip_init(struct isl29028_chip *chip)
 
 	ret = isl29028_set_proxim_sampling(chip, chip->prox_sampling);
 	if (ret < 0) {
-		dev_err(chip->dev, "%s(): setting the proximity, err = %d\n",
-			__func__, ret);
+		dev_err(chip->dev, "setting the proximity, err = %d\n",
+			ret);
 		return ret;
 	}
 
 	ret = isl29028_set_als_scale(chip, chip->lux_scale);
 	if (ret < 0)
-		dev_err(chip->dev, "%s(): setting als scale failed, err = %d\n",
-			__func__, ret);
+		dev_err(chip->dev,
+			"setting als scale failed, err = %d\n", ret);
 	return ret;
 }
 
@@ -513,20 +513,12 @@ static int isl29028_probe(struct i2c_client *client,
 	indio_dev->name = id->name;
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(indio_dev->dev.parent, indio_dev);
 	if (ret < 0) {
 		dev_err(chip->dev, "iio registration fails with error %d\n",
 			ret);
 		return ret;
 	}
-	return 0;
-}
-
-static int isl29028_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-
-	iio_device_unregister(indio_dev);
 	return 0;
 }
 
@@ -547,11 +539,9 @@ static struct i2c_driver isl29028_driver = {
 	.class	= I2C_CLASS_HWMON,
 	.driver  = {
 		.name = "isl29028",
-		.owner = THIS_MODULE,
 		.of_match_table = isl29028_of_match,
 	},
 	.probe	 = isl29028_probe,
-	.remove  = isl29028_remove,
 	.id_table = isl29028_id,
 };
 

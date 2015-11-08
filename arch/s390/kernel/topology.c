@@ -18,7 +18,10 @@
 #include <linux/cpu.h>
 #include <linux/smp.h>
 #include <linux/mm.h>
+#include <linux/nodemask.h>
+#include <linux/node.h>
 #include <asm/sysinfo.h>
+#include <asm/numa.h>
 
 #define PTF_HORIZONTAL	(0UL)
 #define PTF_VERTICAL	(1UL)
@@ -37,8 +40,10 @@ static struct sysinfo_15_1_x *tl_info;
 static int topology_enabled = 1;
 static DECLARE_WORK(topology_work, topology_work_fn);
 
-/* topology_lock protects the socket and book linked lists */
-static DEFINE_SPINLOCK(topology_lock);
+/*
+ * Socket/Book linked lists and per_cpu(cpu_topology) updates are
+ * protected by "sched_domains_mutex".
+ */
 static struct mask_info socket_info;
 static struct mask_info book_info;
 
@@ -79,6 +84,7 @@ static struct mask_info *add_cpus_to_mask(struct topology_core *tl_core,
 					  struct mask_info *socket,
 					  int one_socket_per_cpu)
 {
+	struct cpu_topology_s390 *topo;
 	unsigned int core;
 
 	for_each_set_bit(core, &tl_core->mask[0], TOPOLOGY_CORE_BITS) {
@@ -90,15 +96,16 @@ static struct mask_info *add_cpus_to_mask(struct topology_core *tl_core,
 		if (lcpu < 0)
 			continue;
 		for (i = 0; i <= smp_cpu_mtid; i++) {
-			per_cpu(cpu_topology, lcpu + i).book_id = book->id;
-			per_cpu(cpu_topology, lcpu + i).core_id = rcore;
-			per_cpu(cpu_topology, lcpu + i).thread_id = lcpu + i;
+			topo = &per_cpu(cpu_topology, lcpu + i);
+			topo->book_id = book->id;
+			topo->core_id = rcore;
+			topo->thread_id = lcpu + i;
 			cpumask_set_cpu(lcpu + i, &book->mask);
 			cpumask_set_cpu(lcpu + i, &socket->mask);
 			if (one_socket_per_cpu)
-				per_cpu(cpu_topology, lcpu + i).socket_id = rcore;
+				topo->socket_id = rcore;
 			else
-				per_cpu(cpu_topology, lcpu + i).socket_id = socket->id;
+				topo->socket_id = socket->id;
 			smp_cpu_set_polarization(lcpu + i, tl_core->pp);
 		}
 		if (one_socket_per_cpu)
@@ -188,7 +195,6 @@ static void tl_to_masks(struct sysinfo_15_1_x *info)
 {
 	struct cpuid cpu_id;
 
-	spin_lock_irq(&topology_lock);
 	get_cpu_id(&cpu_id);
 	clear_masks();
 	switch (cpu_id.machine) {
@@ -199,7 +205,6 @@ static void tl_to_masks(struct sysinfo_15_1_x *info)
 	default:
 		__tl_to_masks_generic(info);
 	}
-	spin_unlock_irq(&topology_lock);
 }
 
 static void topology_update_polarization_simple(void)
@@ -244,22 +249,22 @@ int topology_set_cpu_management(int fc)
 
 static void update_cpu_masks(void)
 {
-	unsigned long flags;
+	struct cpu_topology_s390 *topo;
 	int cpu;
 
-	spin_lock_irqsave(&topology_lock, flags);
 	for_each_possible_cpu(cpu) {
-		per_cpu(cpu_topology, cpu).thread_mask = cpu_thread_map(cpu);
-		per_cpu(cpu_topology, cpu).core_mask = cpu_group_map(&socket_info, cpu);
-		per_cpu(cpu_topology, cpu).book_mask = cpu_group_map(&book_info, cpu);
+		topo = &per_cpu(cpu_topology, cpu);
+		topo->thread_mask = cpu_thread_map(cpu);
+		topo->core_mask = cpu_group_map(&socket_info, cpu);
+		topo->book_mask = cpu_group_map(&book_info, cpu);
 		if (!MACHINE_HAS_TOPOLOGY) {
-			per_cpu(cpu_topology, cpu).thread_id = cpu;
-			per_cpu(cpu_topology, cpu).core_id = cpu;
-			per_cpu(cpu_topology, cpu).socket_id = cpu;
-			per_cpu(cpu_topology, cpu).book_id = cpu;
+			topo->thread_id = cpu;
+			topo->core_id = cpu;
+			topo->socket_id = cpu;
+			topo->book_id = cpu;
 		}
 	}
-	spin_unlock_irqrestore(&topology_lock, flags);
+	numa_update_cpu_topology();
 }
 
 void store_topology(struct sysinfo_15_1_x *info)
@@ -274,21 +279,21 @@ int arch_update_cpu_topology(void)
 {
 	struct sysinfo_15_1_x *info = tl_info;
 	struct device *dev;
-	int cpu;
+	int cpu, rc = 0;
 
-	if (!MACHINE_HAS_TOPOLOGY) {
-		update_cpu_masks();
-		topology_update_polarization_simple();
-		return 0;
+	if (MACHINE_HAS_TOPOLOGY) {
+		rc = 1;
+		store_topology(info);
+		tl_to_masks(info);
 	}
-	store_topology(info);
-	tl_to_masks(info);
 	update_cpu_masks();
+	if (!MACHINE_HAS_TOPOLOGY)
+		topology_update_polarization_simple();
 	for_each_online_cpu(cpu) {
 		dev = get_cpu_device(cpu);
 		kobject_uevent(&dev->kobj, KOBJ_CHANGE);
 	}
-	return 1;
+	return rc;
 }
 
 static void topology_work_fn(struct work_struct *work)
@@ -421,7 +426,7 @@ int topology_cpu_init(struct cpu *cpu)
 	return sysfs_create_group(&cpu->dev.kobj, &topology_cpu_attr_group);
 }
 
-const struct cpumask *cpu_thread_mask(int cpu)
+static const struct cpumask *cpu_thread_mask(int cpu)
 {
 	return &per_cpu(cpu_topology, cpu).thread_mask;
 }

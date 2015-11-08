@@ -125,7 +125,6 @@ static int pmc_irq_map(struct irq_domain *h, unsigned int virq,
 
 	irq_set_chip_and_handler(virq, &pmc_irq,
 				 handle_level_irq);
-	set_irq_flags(virq, IRQF_VALID);
 	irq_set_chip_data(virq, pmc);
 
 	return 0;
@@ -153,7 +152,7 @@ static int pmc_irq_domain_xlate(struct irq_domain *d,
 	return 0;
 }
 
-static struct irq_domain_ops pmc_irq_ops = {
+static const struct irq_domain_ops pmc_irq_ops = {
 	.map	= pmc_irq_map,
 	.xlate	= pmc_irq_domain_xlate,
 };
@@ -205,6 +204,14 @@ static const struct at91_pmc_caps at91sam9x5_caps = {
 			  AT91_PMC_LOCKU | AT91_PMC_PCK0RDY |
 			  AT91_PMC_PCK1RDY | AT91_PMC_MOSCSELS |
 			  AT91_PMC_MOSCRCS | AT91_PMC_CFDEV,
+};
+
+static const struct at91_pmc_caps sama5d2_caps = {
+	.available_irqs = AT91_PMC_MOSCS | AT91_PMC_LOCKA | AT91_PMC_MCKRDY |
+			  AT91_PMC_LOCKU | AT91_PMC_PCK0RDY |
+			  AT91_PMC_PCK1RDY | AT91_PMC_PCK2RDY |
+			  AT91_PMC_MOSCSELS | AT91_PMC_MOSCRCS |
+			  AT91_PMC_CFDEV | AT91_PMC_GCKRDY,
 };
 
 static const struct at91_pmc_caps sama5d3_caps = {
@@ -370,6 +377,12 @@ static const struct of_device_id pmc_clk_ids[] __initconst = {
 		.data = of_sama5d4_clk_h32mx_setup,
 	},
 #endif
+#if defined(CONFIG_HAVE_AT91_GENERATED_CLK)
+	{
+		.compatible = "atmel,sama5d2-clk-generated",
+		.data = of_sama5d2_clk_generated_setup,
+	},
+#endif
 	{ /*sentinel*/ }
 };
 
@@ -436,6 +449,13 @@ static void __init of_at91sam9x5_pmc_setup(struct device_node *np)
 }
 CLK_OF_DECLARE(at91sam9x5_clk_pmc, "atmel,at91sam9x5-pmc",
 	       of_at91sam9x5_pmc_setup);
+
+static void __init of_sama5d2_pmc_setup(struct device_node *np)
+{
+	of_at91_pmc_setup(np, &sama5d2_caps);
+}
+CLK_OF_DECLARE(sama5d2_clk_pmc, "atmel,sama5d2-pmc",
+	       of_sama5d2_pmc_setup);
 
 static void __init of_sama5d3_pmc_setup(struct device_node *np)
 {

@@ -365,7 +365,7 @@ void __aa_fs_profile_rmdir(struct aa_profile *profile)
 		if (!profile->dents[i])
 			continue;
 
-		r = profile->dents[i]->d_inode->i_private;
+		r = d_inode(profile->dents[i])->i_private;
 		securityfs_remove(profile->dents[i]);
 		aa_put_replacedby(r);
 		profile->dents[i] = NULL;

@@ -50,6 +50,8 @@
 #define MAX_ACTIVE_NODE_LOGS	8
 #define MAX_ACTIVE_DATA_LOGS	8
 
+#define VERSION_LEN	256
+
 /*
  * For superblock
  */
@@ -86,6 +88,12 @@ struct f2fs_super_block {
 	__le32 extension_count;		/* # of extensions below */
 	__u8 extension_list[F2FS_MAX_EXTENSION][8];	/* extension array */
 	__le32 cp_payload;
+	__u8 version[VERSION_LEN];	/* the kernel version */
+	__u8 init_version[VERSION_LEN];	/* the initial kernel version */
+	__le32 feature;			/* defined features */
+	__u8 encryption_level;		/* versioning level for encryption */
+	__u8 encrypt_pw_salt[16];	/* Salt used for string2key algorithm */
+	__u8 reserved[871];		/* valid reserved region */
 } __packed;
 
 /*
@@ -153,7 +161,7 @@ struct f2fs_orphan_block {
  */
 struct f2fs_extent {
 	__le32 fofs;		/* start file offset of the extent */
-	__le32 blk_addr;	/* start block address of the extent */
+	__le32 blk;		/* start block address of the extent */
 	__le32 len;		/* lengh of the extent */
 } __packed;
 
@@ -178,6 +186,7 @@ struct f2fs_extent {
 #define F2FS_INLINE_DATA	0x02	/* file inline data flag */
 #define F2FS_INLINE_DENTRY	0x04	/* file inline dentry flag */
 #define F2FS_DATA_EXIST		0x08	/* file inline data exist flag */
+#define F2FS_INLINE_DOTS	0x10	/* file having implicit dot dentries */
 
 #define MAX_INLINE_DATA		(sizeof(__le32) * (DEF_ADDRS_PER_INODE - \
 						F2FS_INLINE_XATTR_ADDRS - 1))
@@ -408,15 +417,25 @@ typedef __le32	f2fs_hash_t;
 
 #define GET_DENTRY_SLOTS(x)	((x + F2FS_SLOT_LEN - 1) >> F2FS_SLOT_LEN_BITS)
 
-/* the number of dentry in a block */
-#define NR_DENTRY_IN_BLOCK	214
-
 /* MAX level for dir lookup */
 #define MAX_DIR_HASH_DEPTH	63
 
 /* MAX buckets in one level of dir */
 #define MAX_DIR_BUCKETS		(1 << ((MAX_DIR_HASH_DEPTH / 2) - 1))
 
+/*
+ * space utilization of regular dentry and inline dentry
+ *		regular dentry			inline dentry
+ * bitmap	1 * 27 = 27			1 * 23 = 23
+ * reserved	1 * 3 = 3			1 * 7 = 7
+ * dentry	11 * 214 = 2354			11 * 182 = 2002
+ * filename	8 * 214 = 1712			8 * 182 = 1456
+ * total	4096				3488
+ *
+ * Note: there are more reserved space in inline dentry than in regular
+ * dentry, when converting inline dentry we should handle this carefully.
+ */
+#define NR_DENTRY_IN_BLOCK	214	/* the number of dentry in a block */
 #define SIZE_OF_DIR_ENTRY	11	/* by byte */
 #define SIZE_OF_DENTRY_BITMAP	((NR_DENTRY_IN_BLOCK + BITS_PER_BYTE - 1) / \
 					BITS_PER_BYTE)

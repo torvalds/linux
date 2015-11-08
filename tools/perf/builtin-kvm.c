@@ -13,11 +13,11 @@
 #include "util/parse-options.h"
 #include "util/trace-event.h"
 #include "util/debug.h"
-#include <api/fs/debugfs.h>
 #include "util/tool.h"
 #include "util/stat.h"
 #include "util/top.h"
 #include "util/data.h"
+#include "util/ordered-events.h"
 
 #include <sys/prctl.h>
 #ifdef HAVE_TIMERFD_SUPPORT
@@ -650,6 +650,7 @@ static int process_sample_event(struct perf_tool *tool,
 				struct perf_evsel *evsel,
 				struct machine *machine)
 {
+	int err = 0;
 	struct thread *thread;
 	struct perf_kvm_stat *kvm = container_of(tool, struct perf_kvm_stat,
 						 tool);
@@ -665,9 +666,10 @@ static int process_sample_event(struct perf_tool *tool,
 	}
 
 	if (!handle_kvm_event(kvm, thread, evsel, sample))
-		return -1;
+		err = -1;
 
-	return 0;
+	thread__put(thread);
+	return err;
 }
 
 static int cpu_isa_config(struct perf_kvm_stat *kvm)
@@ -730,9 +732,9 @@ static s64 perf_kvm__mmap_read_idx(struct perf_kvm_stat *kvm, int idx,
 			return -1;
 		}
 
-		err = perf_session_queue_event(kvm->session, event, &kvm->tool, &sample, 0);
+		err = perf_session__queue_event(kvm->session, event, &sample, 0);
 		/*
-		 * FIXME: Here we can't consume the event, as perf_session_queue_event will
+		 * FIXME: Here we can't consume the event, as perf_session__queue_event will
 		 *        point to it, and it'll get possibly overwritten by the kernel.
 		 */
 		perf_evlist__mmap_consume(kvm->evlist, idx);
@@ -783,8 +785,10 @@ static int perf_kvm__mmap_read(struct perf_kvm_stat *kvm)
 
 	/* flush queue after each round in which we processed events */
 	if (ntotal) {
-		kvm->session->ordered_events.next_flush = flush_time;
-		err = kvm->tool.finished_round(&kvm->tool, NULL, kvm->session);
+		struct ordered_events *oe = &kvm->session->ordered_events;
+
+		oe->next_flush = flush_time;
+		err = ordered_events__flush(oe, OE_FLUSH__ROUND);
 		if (err) {
 			if (kvm->lost_events)
 				pr_info("\nLost events: %" PRIu64 "\n\n",
@@ -1044,6 +1048,7 @@ static int read_events(struct perf_kvm_stat *kvm)
 	struct perf_data_file file = {
 		.path = kvm->file_name,
 		.mode = PERF_DATA_MODE_READ,
+		.force = kvm->force,
 	};
 
 	kvm->tool = eops;
@@ -1055,8 +1060,10 @@ static int read_events(struct perf_kvm_stat *kvm)
 
 	symbol__init(&kvm->session->header.env);
 
-	if (!perf_session__has_traces(kvm->session, "kvm record"))
-		return -EINVAL;
+	if (!perf_session__has_traces(kvm->session, "kvm record")) {
+		ret = -EINVAL;
+		goto out_delete;
+	}
 
 	/*
 	 * Do not use 'isa' recorded in kvm_exit tracepoint since it is not
@@ -1064,9 +1071,13 @@ static int read_events(struct perf_kvm_stat *kvm)
 	 */
 	ret = cpu_isa_config(kvm);
 	if (ret < 0)
-		return ret;
+		goto out_delete;
 
-	return perf_session__process_events(kvm->session, &kvm->tool);
+	ret = perf_session__process_events(kvm->session);
+
+out_delete:
+	perf_session__delete(kvm->session);
+	return ret;
 }
 
 static int parse_target_str(struct perf_kvm_stat *kvm)
@@ -1201,6 +1212,7 @@ kvm_events_report(struct perf_kvm_stat *kvm, int argc, const char **argv)
 			    " time (sort by avg time)"),
 		OPT_STRING('p', "pid", &kvm->opts.target.pid, "pid",
 			   "analyze events only for given process id(s)"),
+		OPT_BOOLEAN('f', "force", &kvm->force, "don't complain, do it"),
 		OPT_END()
 	};
 
@@ -1304,6 +1316,8 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 			"show events other than"
 			" HLT (x86 only) or Wait state (s390 only)"
 			" that take longer than duration usecs"),
+		OPT_UINTEGER(0, "proc-map-timeout", &kvm->opts.proc_map_timeout,
+				"per thread proc mmap processing timeout in ms"),
 		OPT_END()
 	};
 	const char * const live_usage[] = {
@@ -1331,6 +1345,7 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 	kvm->opts.target.uses_mmap = false;
 	kvm->opts.target.uid_str = NULL;
 	kvm->opts.target.uid = UINT_MAX;
+	kvm->opts.proc_map_timeout = 500;
 
 	symbol__init(NULL);
 	disable_buildid_cache();
@@ -1386,7 +1401,7 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 	perf_session__set_id_hdr_size(kvm->session);
 	ordered_events__set_copy_on_queue(&kvm->session->ordered_events, true);
 	machine__synthesize_threads(&kvm->session->machines.host, &kvm->opts.target,
-				    kvm->evlist->threads, false);
+				    kvm->evlist->threads, false, kvm->opts.proc_map_timeout);
 	err = kvm_live_open_events(kvm);
 	if (err)
 		goto out;

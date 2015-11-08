@@ -185,8 +185,8 @@ static int __btrfs_lookup_bio_sums(struct btrfs_root *root,
 	nblocks = bio->bi_iter.bi_size >> inode->i_sb->s_blocksize_bits;
 	if (!dst) {
 		if (nblocks * csum_size > BTRFS_BIO_INLINE_CSUM_SIZE) {
-			btrfs_bio->csum_allocated = kmalloc(nblocks * csum_size,
-							    GFP_NOFS);
+			btrfs_bio->csum_allocated = kmalloc_array(nblocks,
+					csum_size, GFP_NOFS);
 			if (!btrfs_bio->csum_allocated) {
 				btrfs_free_path(path);
 				return -ENOMEM;
@@ -553,7 +553,7 @@ static noinline void truncate_one_csum(struct btrfs_root *root,
 		btrfs_truncate_item(root, path, new_size, 0);
 
 		key->offset = end_byte;
-		btrfs_set_item_key_safe(root, path, key);
+		btrfs_set_item_key_safe(root->fs_info, path, key);
 	} else {
 		BUG();
 	}

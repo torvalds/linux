@@ -14,8 +14,10 @@
 /* node block offset on the NAT area dedicated to the given start node id */
 #define	NAT_BLOCK_OFFSET(start_nid) (start_nid / NAT_ENTRY_PER_BLOCK)
 
-/* # of pages to perform readahead before building free nids */
+/* # of pages to perform synchronous readahead before building free nids */
 #define FREE_NID_PAGES 4
+
+#define DEF_RA_NID_PAGES	4	/* # of nid pages to be readaheaded */
 
 /* maximum readahead size for node during getting data blocks */
 #define MAX_RA_NODE		128
@@ -120,6 +122,7 @@ enum mem_type {
 	NAT_ENTRIES,	/* indicates the cached nat entry */
 	DIRTY_DENTS,	/* indicates dirty dentry pages */
 	INO_ENTRIES,	/* indicates inode entries */
+	EXTENT_CACHE,	/* indicates extent cache */
 	BASE_CHECK,	/* check kernel status */
 };
 
@@ -342,28 +345,6 @@ static inline nid_t get_nid(struct page *p, int off, bool i)
  *  - Mark cold node blocks in their node footer
  *  - Mark cold data pages in page cache
  */
-static inline int is_file(struct inode *inode, int type)
-{
-	return F2FS_I(inode)->i_advise & type;
-}
-
-static inline void set_file(struct inode *inode, int type)
-{
-	F2FS_I(inode)->i_advise |= type;
-}
-
-static inline void clear_file(struct inode *inode, int type)
-{
-	F2FS_I(inode)->i_advise &= ~type;
-}
-
-#define file_is_cold(inode)	is_file(inode, FADVISE_COLD_BIT)
-#define file_wrong_pino(inode)	is_file(inode, FADVISE_LOST_PINO_BIT)
-#define file_set_cold(inode)	set_file(inode, FADVISE_COLD_BIT)
-#define file_lost_pino(inode)	set_file(inode, FADVISE_LOST_PINO_BIT)
-#define file_clear_cold(inode)	clear_file(inode, FADVISE_COLD_BIT)
-#define file_got_pino(inode)	clear_file(inode, FADVISE_LOST_PINO_BIT)
-
 static inline int is_cold_data(struct page *page)
 {
 	return PageChecked(page);

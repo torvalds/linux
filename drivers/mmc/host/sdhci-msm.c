@@ -22,6 +22,11 @@
 
 #include "sdhci-pltfm.h"
 
+#define CORE_MCI_VERSION		0x50
+#define CORE_VERSION_MAJOR_SHIFT	28
+#define CORE_VERSION_MAJOR_MASK		(0xf << CORE_VERSION_MAJOR_SHIFT)
+#define CORE_VERSION_MINOR_MASK		0xff
+
 #define CORE_HC_MODE		0x78
 #define HC_MODE_EN		0x1
 #define CORE_POWER		0x0
@@ -40,6 +45,8 @@
 
 #define CORE_VENDOR_SPEC	0x10c
 #define CORE_CLK_PWRSAVE	BIT(1)
+
+#define CORE_VENDOR_SPEC_CAPABILITIES0	0x11c
 
 #define CDR_SELEXT_SHIFT	20
 #define CDR_SELEXT_MASK		(0xf << CDR_SELEXT_SHIFT)
@@ -366,7 +373,7 @@ retry:
 		if (rc)
 			return rc;
 
-		rc = mmc_send_tuning(mmc);
+		rc = mmc_send_tuning(mmc, opcode, NULL);
 		if (!rc) {
 			/* Tuning is successful at this tuning point */
 			tuned_phases[tuned_phase_cnt++] = phase;
@@ -426,7 +433,9 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	struct sdhci_msm_host *msm_host;
 	struct resource *core_memres;
 	int ret;
-	u16 host_version;
+	u16 host_version, core_minor;
+	u32 core_version, caps;
+	u8 core_major;
 
 	msm_host = devm_kzalloc(&pdev->dev, sizeof(*msm_host), GFP_KERNEL);
 	if (!msm_host)
@@ -480,6 +489,11 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 		goto pclk_disable;
 	}
 
+	/* Vote for maximum clock rate for maximum performance */
+	ret = clk_set_rate(msm_host->clk, INT_MAX);
+	if (ret)
+		dev_warn(&pdev->dev, "core clock boost failed\n");
+
 	ret = clk_prepare_enable(msm_host->clk);
 	if (ret)
 		goto pclk_disable;
@@ -515,6 +529,24 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "Host Version: 0x%x Vendor Version 0x%x\n",
 		host_version, ((host_version & SDHCI_VENDOR_VER_MASK) >>
 			       SDHCI_VENDOR_VER_SHIFT));
+
+	core_version = readl_relaxed(msm_host->core_mem + CORE_MCI_VERSION);
+	core_major = (core_version & CORE_VERSION_MAJOR_MASK) >>
+		      CORE_VERSION_MAJOR_SHIFT;
+	core_minor = core_version & CORE_VERSION_MINOR_MASK;
+	dev_dbg(&pdev->dev, "MCI Version: 0x%08x, major: 0x%04x, minor: 0x%02x\n",
+		core_version, core_major, core_minor);
+
+	/*
+	 * Support for some capabilities is not advertised by newer
+	 * controller versions and must be explicitly enabled.
+	 */
+	if (core_major >= 1 && core_minor != 0x11 && core_minor != 0x12) {
+		caps = readl_relaxed(host->ioaddr + SDHCI_CAPABILITIES);
+		caps |= SDHCI_CAN_VDD_300 | SDHCI_CAN_DO_8BIT;
+		writel_relaxed(caps, host->ioaddr +
+			       CORE_VENDOR_SPEC_CAPABILITIES0);
+	}
 
 	ret = sdhci_add_host(host);
 	if (ret)

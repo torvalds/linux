@@ -10,6 +10,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
@@ -58,7 +59,7 @@
 #define CDCE706_CLKOUT_DIVIDER_MASK	0x7
 #define CDCE706_CLKOUT_ENABLE_MASK	0x8
 
-static struct regmap_config cdce706_regmap_config = {
+static const struct regmap_config cdce706_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.val_format_endian = REGMAP_ENDIAN_NATIVE,
@@ -94,7 +95,7 @@ static const char * const cdce706_source_name[] = {
 	"clk_in0", "clk_in1",
 };
 
-static const char *cdce706_clkin_name[] = {
+static const char * const cdce706_clkin_name[] = {
 	"clk_in",
 };
 
@@ -102,7 +103,7 @@ static const char * const cdce706_pll_name[] = {
 	"pll1", "pll2", "pll3",
 };
 
-static const char *cdce706_divider_parent_name[] = {
+static const char * const cdce706_divider_parent_name[] = {
 	"clk_in", "pll1", "pll2", "pll2", "pll3",
 };
 
@@ -309,7 +310,7 @@ static long cdce706_divider_round_rate(struct clk_hw *hw, unsigned long rate,
 	if (!mul)
 		div = CDCE706_DIVIDER_DIVIDER_MAX;
 
-	if (__clk_get_flags(hw->clk) & CLK_SET_RATE_PARENT) {
+	if (clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT) {
 		unsigned long best_diff = rate;
 		unsigned long best_div = 0;
 		struct clk *gp_clk = cdce->clkin_clk[cdce->clkin[0].parent];
@@ -666,6 +667,7 @@ static int cdce706_probe(struct i2c_client *client,
 
 static int cdce706_remove(struct i2c_client *client)
 {
+	of_clk_del_provider(client->dev.of_node);
 	return 0;
 }
 

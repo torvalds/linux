@@ -43,10 +43,6 @@ struct tmio_mmc_data;
 struct tmio_mmc_host;
 
 struct tmio_mmc_dma {
-	void *chan_priv_tx;
-	void *chan_priv_rx;
-	int slave_id_tx;
-	int slave_id_rx;
 	enum dma_slave_buswidth dma_buswidth;
 	bool (*filter)(struct dma_chan *chan, void *arg);
 	void (*enable)(struct tmio_mmc_host *host, bool enable);

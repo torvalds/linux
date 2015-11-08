@@ -154,7 +154,7 @@ struct ath6kl_vif *ath6kl_get_vif_by_index(struct ath6kl *ar, u8 if_idx)
 }
 
 /*  Performs DIX to 802.3 encapsulation for transmit packets.
- *  Assumes the entire DIX header is contigous and that there is
+ *  Assumes the entire DIX header is contiguous and that there is
  *  enough room in the buffer for a 802.3 mac header and LLC+SNAP headers.
  */
 int ath6kl_wmi_dix_2_dot3(struct wmi *wmi, struct sk_buff *skb)
@@ -449,7 +449,7 @@ int ath6kl_wmi_dot11_hdr_remove(struct wmi *wmi, struct sk_buff *skb)
 
 /*
  * Performs 802.3 to DIX encapsulation for received packets.
- * Assumes the entire 802.3 header is contigous.
+ * Assumes the entire 802.3 header is contiguous.
  */
 int ath6kl_wmi_dot3_2_dix(struct sk_buff *skb)
 {

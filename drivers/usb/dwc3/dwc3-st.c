@@ -135,8 +135,6 @@ static int st_dwc3_drd_init(struct st_dwc3 *dwc3_data)
 			| USB3_SEL_FORCE_DMPULLDOWN2 | USB3_FORCE_DMPULLDOWN2);
 
 		val |= USB3_DEVICE_NOT_HOST;
-
-		dev_dbg(dwc3_data->dev, "Configuring as Device\n");
 		break;
 
 	case USB_DR_MODE_HOST:
@@ -154,8 +152,6 @@ static int st_dwc3_drd_init(struct st_dwc3 *dwc3_data)
 		 */
 
 		val |= USB3_DELAY_VBUSVALID;
-
-		dev_dbg(dwc3_data->dev, "Configuring as Host\n");
 		break;
 
 	default:
@@ -199,6 +195,7 @@ static int st_dwc3_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node, *child;
+	struct platform_device *child_pdev;
 	struct regmap *regmap;
 	int ret;
 
@@ -257,14 +254,21 @@ static int st_dwc3_probe(struct platform_device *pdev)
 		goto undo_softreset;
 	}
 
-	dwc3_data->dr_mode = of_usb_get_dr_mode(child);
-
 	/* Allocate and initialize the core */
 	ret = of_platform_populate(node, NULL, NULL, dev);
 	if (ret) {
 		dev_err(dev, "failed to add dwc3 core\n");
 		goto undo_softreset;
 	}
+
+	child_pdev = of_find_device_by_node(child);
+	if (!child_pdev) {
+		dev_err(dev, "failed to find dwc3 core device\n");
+		ret = -ENODEV;
+		goto undo_softreset;
+	}
+
+	dwc3_data->dr_mode = usb_get_dr_mode(&child_pdev->dev);
 
 	/*
 	 * Configure the USB port as device or host according to the static

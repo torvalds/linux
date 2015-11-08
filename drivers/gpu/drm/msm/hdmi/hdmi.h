@@ -37,6 +37,8 @@ struct hdmi_audio {
 	int rate;
 };
 
+struct hdmi_hdcp_ctrl;
+
 struct hdmi {
 	struct drm_device *dev;
 	struct platform_device *pdev;
@@ -51,6 +53,8 @@ struct hdmi {
 	unsigned long int pixclock;
 
 	void __iomem *mmio;
+	void __iomem *qfprom_mmio;
+	phys_addr_t mmio_phy_addr;
 
 	struct regulator **hpd_regs;
 	struct regulator **pwr_regs;
@@ -68,12 +72,25 @@ struct hdmi {
 	bool hdmi_mode;               /* are we in hdmi mode? */
 
 	int irq;
+	struct workqueue_struct *workq;
+
+	struct hdmi_hdcp_ctrl *hdcp_ctrl;
+
+	/*
+	* spinlock to protect registers shared by different execution
+	* REG_HDMI_CTRL
+	* REG_HDMI_DDC_ARBITRATION
+	* REG_HDMI_HDCP_INT_CTRL
+	* REG_HDMI_HPD_CTRL
+	*/
+	spinlock_t reg_lock;
 };
 
 /* platform config data (ie. from DT, or pdata) */
 struct hdmi_platform_config {
 	struct hdmi_phy *(*phy_init)(struct hdmi *hdmi);
 	const char *mmio_name;
+	const char *qfprom_mmio_name;
 
 	/* regulators that need to be on for hpd: */
 	const char **hpd_reg_names;
@@ -109,6 +126,11 @@ static inline u32 hdmi_read(struct hdmi *hdmi, u32 reg)
 	return msm_readl(hdmi->mmio + reg);
 }
 
+static inline u32 hdmi_qfprom_read(struct hdmi *hdmi, u32 reg)
+{
+	return msm_readl(hdmi->qfprom_mmio + reg);
+}
+
 /*
  * The phy appears to be different, for example between 8960 and 8x60,
  * so split the phy related functions out and load the correct one at
@@ -117,7 +139,6 @@ static inline u32 hdmi_read(struct hdmi *hdmi, u32 reg)
 
 struct hdmi_phy_funcs {
 	void (*destroy)(struct hdmi_phy *phy);
-	void (*reset)(struct hdmi_phy *phy);
 	void (*powerup)(struct hdmi_phy *phy, unsigned long int pixclock);
 	void (*powerdown)(struct hdmi_phy *phy);
 };
@@ -162,5 +183,14 @@ struct drm_connector *hdmi_connector_init(struct hdmi *hdmi);
 void hdmi_i2c_irq(struct i2c_adapter *i2c);
 void hdmi_i2c_destroy(struct i2c_adapter *i2c);
 struct i2c_adapter *hdmi_i2c_init(struct hdmi *hdmi);
+
+/*
+ * hdcp
+ */
+struct hdmi_hdcp_ctrl *hdmi_hdcp_init(struct hdmi *hdmi);
+void hdmi_hdcp_destroy(struct hdmi *hdmi);
+void hdmi_hdcp_on(struct hdmi_hdcp_ctrl *hdcp_ctrl);
+void hdmi_hdcp_off(struct hdmi_hdcp_ctrl *hdcp_ctrl);
+void hdmi_hdcp_irq(struct hdmi_hdcp_ctrl *hdcp_ctrl);
 
 #endif /* __HDMI_CONNECTOR_H__ */

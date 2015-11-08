@@ -33,12 +33,12 @@ struct last_io_info {
 };
 
 extern void f2fs_trace_pid(struct page *);
-extern void f2fs_trace_ios(struct page *, struct f2fs_io_info *, int);
+extern void f2fs_trace_ios(struct f2fs_io_info *, int);
 extern void f2fs_build_trace_ios(void);
 extern void f2fs_destroy_trace_ios(void);
 #else
 #define f2fs_trace_pid(p)
-#define f2fs_trace_ios(p, i, n)
+#define f2fs_trace_ios(i, n)
 #define f2fs_build_trace_ios()
 #define f2fs_destroy_trace_ios()
 

@@ -60,7 +60,7 @@
 	li	t0, LSU_DEFEATURE
 	mfcr	t1, t0
 
-	lui	t2, 0xc080	/* SUE, Enable Unaligned Access, L2HPE */
+	lui	t2, 0x4080	/* Enable Unaligned Access, L2HPE */
 	or	t1, t1, t2
 	mtcr	t1, t0
 
@@ -235,6 +235,26 @@ EXPORT(nlm_boot_siblings)
 	mfc0	v0, CP0_EBASE, 1
 	andi	v0, 0x3ff		/* v0 <- node/core */
 
+	/*
+	 * Errata: to avoid potential live lock, setup IFU_BRUB_RESERVE
+	 * when running 4 threads per core
+	 */
+	andi	v1, v0, 0x3             /* v1 <- thread id */
+	bnez	v1, 2f
+	nop
+
+	/* thread 0 of each core. */
+	li	t0, CKSEG1ADDR(RESET_DATA_PHYS)
+	lw	t1, BOOT_THREAD_MODE(t0)        /* t1 <- thread mode */
+	subu	t1, 0x3				/* 4-thread per core mode? */
+	bnez	t1, 2f
+	nop
+
+	li	t0, IFU_BRUB_RESERVE
+	li	t1, 0x55
+	mtcr	t1, t0
+	_ehb
+2:
 	beqz	v0, 4f		/* boot cpu (cpuid == 0)? */
 	nop
 

@@ -1661,7 +1661,7 @@ static int tz1090_pinconf_reg(struct pinctrl_dev *pctldev,
 		break;
 	default:
 		return -ENOTSUPP;
-	};
+	}
 
 	/* Only input bias parameters supported */
 	pu = &tz1090_pinconf_pullup[pin];
@@ -1790,7 +1790,7 @@ static int tz1090_pinconf_group_reg(struct pinctrl_dev *pctldev,
 		break;
 	default:
 		return -ENOTSUPP;
-	};
+	}
 
 	/* Calculate field information */
 	*shift = g->slw_bit * *width;
@@ -1963,9 +1963,9 @@ static int tz1090_pinctrl_probe(struct platform_device *pdev)
 		return PTR_ERR(pmx->regs);
 
 	pmx->pctl = pinctrl_register(&tz1090_pinctrl_desc, &pdev->dev, pmx);
-	if (!pmx->pctl) {
+	if (IS_ERR(pmx->pctl)) {
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
-		return -ENODEV;
+		return PTR_ERR(pmx->pctl);
 	}
 
 	platform_set_drvdata(pdev, pmx);
@@ -1984,7 +1984,7 @@ static int tz1090_pinctrl_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id tz1090_pinctrl_of_match[] = {
+static const struct of_device_id tz1090_pinctrl_of_match[] = {
 	{ .compatible = "img,tz1090-pinctrl", },
 	{ },
 };

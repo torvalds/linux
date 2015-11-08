@@ -1,5 +1,5 @@
 /*
- * offset.c: Calculate pt_regs and task_struct offsets.
+ * asm-offsets.c: Calculate pt_regs and task_struct offsets.
  *
  * Copyright (C) 1996 David S. Miller
  * Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003 Ralf Baechle
@@ -92,7 +92,6 @@ void output_thread_info_defines(void)
 {
 	COMMENT("MIPS thread_info offsets.");
 	OFFSET(TI_TASK, thread_info, task);
-	OFFSET(TI_EXEC_DOMAIN, thread_info, exec_domain);
 	OFFSET(TI_FLAGS, thread_info, flags);
 	OFFSET(TI_TP_VALUE, thread_info, tp_value);
 	OFFSET(TI_CPU, thread_info, cpu);
@@ -129,6 +128,7 @@ void output_thread_defines(void)
 	       thread.cp0_baduaddr);
 	OFFSET(THREAD_ECODE, task_struct, \
 	       thread.error_code);
+	OFFSET(THREAD_TRAPNO, task_struct, thread.trap_nr);
 	BLANK();
 }
 
@@ -166,72 +166,6 @@ void output_thread_fpu_defines(void)
 	OFFSET(THREAD_FPR29, task_struct, thread.fpu.fpr[29]);
 	OFFSET(THREAD_FPR30, task_struct, thread.fpu.fpr[30]);
 	OFFSET(THREAD_FPR31, task_struct, thread.fpu.fpr[31]);
-
-	/* the least significant 64 bits of each FP register */
-	OFFSET(THREAD_FPR0_LS64, task_struct,
-	       thread.fpu.fpr[0].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR1_LS64, task_struct,
-	       thread.fpu.fpr[1].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR2_LS64, task_struct,
-	       thread.fpu.fpr[2].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR3_LS64, task_struct,
-	       thread.fpu.fpr[3].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR4_LS64, task_struct,
-	       thread.fpu.fpr[4].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR5_LS64, task_struct,
-	       thread.fpu.fpr[5].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR6_LS64, task_struct,
-	       thread.fpu.fpr[6].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR7_LS64, task_struct,
-	       thread.fpu.fpr[7].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR8_LS64, task_struct,
-	       thread.fpu.fpr[8].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR9_LS64, task_struct,
-	       thread.fpu.fpr[9].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR10_LS64, task_struct,
-	       thread.fpu.fpr[10].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR11_LS64, task_struct,
-	       thread.fpu.fpr[11].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR12_LS64, task_struct,
-	       thread.fpu.fpr[12].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR13_LS64, task_struct,
-	       thread.fpu.fpr[13].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR14_LS64, task_struct,
-	       thread.fpu.fpr[14].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR15_LS64, task_struct,
-	       thread.fpu.fpr[15].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR16_LS64, task_struct,
-	       thread.fpu.fpr[16].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR17_LS64, task_struct,
-	       thread.fpu.fpr[17].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR18_LS64, task_struct,
-	       thread.fpu.fpr[18].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR19_LS64, task_struct,
-	       thread.fpu.fpr[19].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR20_LS64, task_struct,
-	       thread.fpu.fpr[20].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR21_LS64, task_struct,
-	       thread.fpu.fpr[21].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR22_LS64, task_struct,
-	       thread.fpu.fpr[22].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR23_LS64, task_struct,
-	       thread.fpu.fpr[23].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR24_LS64, task_struct,
-	       thread.fpu.fpr[24].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR25_LS64, task_struct,
-	       thread.fpu.fpr[25].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR26_LS64, task_struct,
-	       thread.fpu.fpr[26].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR27_LS64, task_struct,
-	       thread.fpu.fpr[27].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR28_LS64, task_struct,
-	       thread.fpu.fpr[28].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR29_LS64, task_struct,
-	       thread.fpu.fpr[29].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR30_LS64, task_struct,
-	       thread.fpu.fpr[30].val64[FPR_IDX(64, 0)]);
-	OFFSET(THREAD_FPR31_LS64, task_struct,
-	       thread.fpu.fpr[31].val64[FPR_IDX(64, 0)]);
 
 	OFFSET(THREAD_FCR31, task_struct, thread.fpu.fcr31);
 	OFFSET(THREAD_MSA_CSR, task_struct, thread.fpu.msacsr);
@@ -308,17 +242,6 @@ void output_sc_defines(void)
 	OFFSET(SC_MDLO, sigcontext, sc_mdlo);
 	OFFSET(SC_PC, sigcontext, sc_pc);
 	OFFSET(SC_FPC_CSR, sigcontext, sc_fpc_csr);
-	BLANK();
-}
-#endif
-
-#ifdef CONFIG_MIPS32_COMPAT
-void output_sc32_defines(void)
-{
-	COMMENT("Linux 32-bit sigcontext offsets.");
-	OFFSET(SC32_FPREGS, sigcontext32, sc_fpregs);
-	OFFSET(SC32_FPC_CSR, sigcontext32, sc_fpc_csr);
-	OFFSET(SC32_FPC_EIR, sigcontext32, sc_fpc_eir);
 	BLANK();
 }
 #endif
@@ -470,6 +393,45 @@ void output_kvm_defines(void)
 	OFFSET(VCPU_LO, kvm_vcpu_arch, lo);
 	OFFSET(VCPU_HI, kvm_vcpu_arch, hi);
 	OFFSET(VCPU_PC, kvm_vcpu_arch, pc);
+	BLANK();
+
+	OFFSET(VCPU_FPR0, kvm_vcpu_arch, fpu.fpr[0]);
+	OFFSET(VCPU_FPR1, kvm_vcpu_arch, fpu.fpr[1]);
+	OFFSET(VCPU_FPR2, kvm_vcpu_arch, fpu.fpr[2]);
+	OFFSET(VCPU_FPR3, kvm_vcpu_arch, fpu.fpr[3]);
+	OFFSET(VCPU_FPR4, kvm_vcpu_arch, fpu.fpr[4]);
+	OFFSET(VCPU_FPR5, kvm_vcpu_arch, fpu.fpr[5]);
+	OFFSET(VCPU_FPR6, kvm_vcpu_arch, fpu.fpr[6]);
+	OFFSET(VCPU_FPR7, kvm_vcpu_arch, fpu.fpr[7]);
+	OFFSET(VCPU_FPR8, kvm_vcpu_arch, fpu.fpr[8]);
+	OFFSET(VCPU_FPR9, kvm_vcpu_arch, fpu.fpr[9]);
+	OFFSET(VCPU_FPR10, kvm_vcpu_arch, fpu.fpr[10]);
+	OFFSET(VCPU_FPR11, kvm_vcpu_arch, fpu.fpr[11]);
+	OFFSET(VCPU_FPR12, kvm_vcpu_arch, fpu.fpr[12]);
+	OFFSET(VCPU_FPR13, kvm_vcpu_arch, fpu.fpr[13]);
+	OFFSET(VCPU_FPR14, kvm_vcpu_arch, fpu.fpr[14]);
+	OFFSET(VCPU_FPR15, kvm_vcpu_arch, fpu.fpr[15]);
+	OFFSET(VCPU_FPR16, kvm_vcpu_arch, fpu.fpr[16]);
+	OFFSET(VCPU_FPR17, kvm_vcpu_arch, fpu.fpr[17]);
+	OFFSET(VCPU_FPR18, kvm_vcpu_arch, fpu.fpr[18]);
+	OFFSET(VCPU_FPR19, kvm_vcpu_arch, fpu.fpr[19]);
+	OFFSET(VCPU_FPR20, kvm_vcpu_arch, fpu.fpr[20]);
+	OFFSET(VCPU_FPR21, kvm_vcpu_arch, fpu.fpr[21]);
+	OFFSET(VCPU_FPR22, kvm_vcpu_arch, fpu.fpr[22]);
+	OFFSET(VCPU_FPR23, kvm_vcpu_arch, fpu.fpr[23]);
+	OFFSET(VCPU_FPR24, kvm_vcpu_arch, fpu.fpr[24]);
+	OFFSET(VCPU_FPR25, kvm_vcpu_arch, fpu.fpr[25]);
+	OFFSET(VCPU_FPR26, kvm_vcpu_arch, fpu.fpr[26]);
+	OFFSET(VCPU_FPR27, kvm_vcpu_arch, fpu.fpr[27]);
+	OFFSET(VCPU_FPR28, kvm_vcpu_arch, fpu.fpr[28]);
+	OFFSET(VCPU_FPR29, kvm_vcpu_arch, fpu.fpr[29]);
+	OFFSET(VCPU_FPR30, kvm_vcpu_arch, fpu.fpr[30]);
+	OFFSET(VCPU_FPR31, kvm_vcpu_arch, fpu.fpr[31]);
+
+	OFFSET(VCPU_FCR31, kvm_vcpu_arch, fpu.fcr31);
+	OFFSET(VCPU_MSA_CSR, kvm_vcpu_arch, fpu.msacsr);
+	BLANK();
+
 	OFFSET(VCPU_COP0, kvm_vcpu_arch, cop0);
 	OFFSET(VCPU_GUEST_KERNEL_ASID, kvm_vcpu_arch, guest_kernel_asid);
 	OFFSET(VCPU_GUEST_USER_ASID, kvm_vcpu_arch, guest_user_asid);

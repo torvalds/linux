@@ -32,6 +32,8 @@
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_coproc.h>
 
+#include "trace.h"
+
 struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ NULL }
 };
@@ -293,7 +295,8 @@ int __attribute_const__ kvm_target_cpu(void)
 		break;
 	};
 
-	return -EINVAL;
+	/* Return a default generic target */
+	return KVM_ARM_TARGET_GENERIC_V8;
 }
 
 int kvm_vcpu_preferred_target(struct kvm_vcpu_init *init)
@@ -330,4 +333,42 @@ int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
 				  struct kvm_translation *tr)
 {
 	return -EINVAL;
+}
+
+#define KVM_GUESTDBG_VALID_MASK (KVM_GUESTDBG_ENABLE |    \
+			    KVM_GUESTDBG_USE_SW_BP | \
+			    KVM_GUESTDBG_USE_HW | \
+			    KVM_GUESTDBG_SINGLESTEP)
+
+/**
+ * kvm_arch_vcpu_ioctl_set_guest_debug - set up guest debugging
+ * @kvm:	pointer to the KVM struct
+ * @kvm_guest_debug: the ioctl data buffer
+ *
+ * This sets up and enables the VM for guest debugging. Userspace
+ * passes in a control flag to enable different debug types and
+ * potentially other architecture specific information in the rest of
+ * the structure.
+ */
+int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
+					struct kvm_guest_debug *dbg)
+{
+	trace_kvm_set_guest_debug(vcpu, dbg->control);
+
+	if (dbg->control & ~KVM_GUESTDBG_VALID_MASK)
+		return -EINVAL;
+
+	if (dbg->control & KVM_GUESTDBG_ENABLE) {
+		vcpu->guest_debug = dbg->control;
+
+		/* Hardware assisted Break and Watch points */
+		if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW) {
+			vcpu->arch.external_debug_state = dbg->arch;
+		}
+
+	} else {
+		/* If not enabled clear all flags */
+		vcpu->guest_debug = 0;
+	}
+	return 0;
 }

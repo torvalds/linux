@@ -58,7 +58,6 @@
 #include "../include/lustre_lib.h"
 #include "ldlm_internal.h"
 
-
 /* When a lock is cancelled by a client, the KMS may undergo change if this
  * is the "highest lock".  This function returns the new KMS value.
  * Caller must hold lr_lock already.
@@ -97,12 +96,23 @@ __u64 ldlm_extent_shift_kms(struct ldlm_lock *lock, __u64 old_kms)
 EXPORT_SYMBOL(ldlm_extent_shift_kms);
 
 struct kmem_cache *ldlm_interval_slab;
+
+/* interval tree, for LDLM_EXTENT. */
+static void ldlm_interval_attach(struct ldlm_interval *n, struct ldlm_lock *l)
+{
+	LASSERT(!l->l_tree_node);
+	LASSERT(l->l_resource->lr_type == LDLM_EXTENT);
+
+	list_add_tail(&l->l_sl_policy, &n->li_group);
+	l->l_tree_node = n;
+}
+
 struct ldlm_interval *ldlm_interval_alloc(struct ldlm_lock *lock)
 {
 	struct ldlm_interval *node;
 
 	LASSERT(lock->l_resource->lr_type == LDLM_EXTENT);
-	OBD_SLAB_ALLOC_PTR_GFP(node, ldlm_interval_slab, GFP_NOFS);
+	node = kmem_cache_alloc(ldlm_interval_slab, GFP_NOFS | __GFP_ZERO);
 	if (node == NULL)
 		return NULL;
 
@@ -116,19 +126,8 @@ void ldlm_interval_free(struct ldlm_interval *node)
 	if (node) {
 		LASSERT(list_empty(&node->li_group));
 		LASSERT(!interval_is_intree(&node->li_node));
-		OBD_SLAB_FREE(node, ldlm_interval_slab, sizeof(*node));
+		kmem_cache_free(ldlm_interval_slab, node);
 	}
-}
-
-/* interval tree, for LDLM_EXTENT. */
-void ldlm_interval_attach(struct ldlm_interval *n,
-			  struct ldlm_lock *l)
-{
-	LASSERT(l->l_tree_node == NULL);
-	LASSERT(l->l_resource->lr_type == LDLM_EXTENT);
-
-	list_add_tail(&l->l_sl_policy, &n->li_group);
-	l->l_tree_node = n;
 }
 
 struct ldlm_interval *ldlm_interval_detach(struct ldlm_lock *l)
@@ -151,7 +150,8 @@ static inline int lock_mode_to_index(ldlm_mode_t mode)
 
 	LASSERT(mode != 0);
 	LASSERT(IS_PO2(mode));
-	for (index = -1; mode; index++, mode >>= 1) ;
+	for (index = -1; mode; index++)
+		mode >>= 1;
 	LASSERT(index < LCK_MODE_NUM);
 	return index;
 }

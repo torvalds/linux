@@ -9,6 +9,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -521,9 +522,8 @@ static int parse_command(const char __user *buffer, size_t count)
 
 static void entry_status(Node *e, char *page)
 {
-	char *dp;
-	char *status = "disabled";
-	const char *flags = "flags: ";
+	char *dp = page;
+	const char *status = "disabled";
 
 	if (test_bit(Enabled, &e->flags))
 		status = "enabled";
@@ -533,12 +533,10 @@ static void entry_status(Node *e, char *page)
 		return;
 	}
 
-	sprintf(page, "%s\ninterpreter %s\n", status, e->interpreter);
-	dp = page + strlen(page);
+	dp += sprintf(dp, "%s\ninterpreter %s\n", status, e->interpreter);
 
 	/* print the special flags */
-	sprintf(dp, "%s", flags);
-	dp += strlen(flags);
+	dp += sprintf(dp, "flags: ");
 	if (e->flags & MISC_FMT_PRESERVE_ARGV0)
 		*dp++ = 'P';
 	if (e->flags & MISC_FMT_OPEN_BINARY)
@@ -550,21 +548,11 @@ static void entry_status(Node *e, char *page)
 	if (!test_bit(Magic, &e->flags)) {
 		sprintf(dp, "extension .%s\n", e->magic);
 	} else {
-		int i;
-
-		sprintf(dp, "offset %i\nmagic ", e->offset);
-		dp = page + strlen(page);
-		for (i = 0; i < e->size; i++) {
-			sprintf(dp, "%02x", 0xff & (int) (e->magic[i]));
-			dp += 2;
-		}
+		dp += sprintf(dp, "offset %i\nmagic ", e->offset);
+		dp = bin2hex(dp, e->magic, e->size);
 		if (e->mask) {
-			sprintf(dp, "\nmask ");
-			dp += 6;
-			for (i = 0; i < e->size; i++) {
-				sprintf(dp, "%02x", 0xff & (int) (e->mask[i]));
-				dp += 2;
-			}
+			dp += sprintf(dp, "\nmask ");
+			dp = bin2hex(dp, e->mask, e->size);
 		}
 		*dp++ = '\n';
 		*dp = '\0';
@@ -603,7 +591,7 @@ static void kill_node(Node *e)
 	write_unlock(&entries_lock);
 
 	if (dentry) {
-		drop_nlink(dentry->d_inode);
+		drop_nlink(d_inode(dentry));
 		d_drop(dentry);
 		dput(dentry);
 		simple_release_fs(&bm_mnt, &entry_count);
@@ -650,11 +638,11 @@ static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 	case 3:
 		/* Delete this handler. */
 		root = dget(file->f_path.dentry->d_sb->s_root);
-		mutex_lock(&root->d_inode->i_mutex);
+		mutex_lock(&d_inode(root)->i_mutex);
 
 		kill_node(e);
 
-		mutex_unlock(&root->d_inode->i_mutex);
+		mutex_unlock(&d_inode(root)->i_mutex);
 		dput(root);
 		break;
 	default:
@@ -687,14 +675,14 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 		return PTR_ERR(e);
 
 	root = dget(sb->s_root);
-	mutex_lock(&root->d_inode->i_mutex);
+	mutex_lock(&d_inode(root)->i_mutex);
 	dentry = lookup_one_len(e->name, root, strlen(e->name));
 	err = PTR_ERR(dentry);
 	if (IS_ERR(dentry))
 		goto out;
 
 	err = -EEXIST;
-	if (dentry->d_inode)
+	if (d_really_is_positive(dentry))
 		goto out2;
 
 	inode = bm_get_inode(sb, S_IFREG | 0644);
@@ -723,7 +711,7 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 out2:
 	dput(dentry);
 out:
-	mutex_unlock(&root->d_inode->i_mutex);
+	mutex_unlock(&d_inode(root)->i_mutex);
 	dput(root);
 
 	if (err) {
@@ -766,12 +754,12 @@ static ssize_t bm_status_write(struct file *file, const char __user *buffer,
 	case 3:
 		/* Delete all handlers. */
 		root = dget(file->f_path.dentry->d_sb->s_root);
-		mutex_lock(&root->d_inode->i_mutex);
+		mutex_lock(&d_inode(root)->i_mutex);
 
 		while (!list_empty(&entries))
 			kill_node(list_entry(entries.next, Node, list));
 
-		mutex_unlock(&root->d_inode->i_mutex);
+		mutex_unlock(&d_inode(root)->i_mutex);
 		dput(root);
 		break;
 	default:

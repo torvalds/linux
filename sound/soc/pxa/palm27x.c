@@ -75,17 +75,12 @@ static struct snd_soc_card palm27x_asoc;
 
 static int palm27x_ac97_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
 	int err;
 
 	/* Jack detection API stuff */
-	err = snd_soc_jack_new(codec, "Headphone Jack",
-				SND_JACK_HEADPHONE, &hs_jack);
-	if (err)
-		return err;
-
-	err = snd_soc_jack_add_pins(&hs_jack, ARRAY_SIZE(hs_jack_pins),
-				hs_jack_pins);
+	err = snd_soc_card_jack_new(rtd->card, "Headphone Jack",
+				    SND_JACK_HEADPHONE, &hs_jack, hs_jack_pins,
+				    ARRAY_SIZE(hs_jack_pins));
 	if (err)
 		return err;
 
@@ -145,22 +140,15 @@ static int palm27x_asoc_probe(struct platform_device *pdev)
 
 	palm27x_asoc.dev = &pdev->dev;
 
-	ret = snd_soc_register_card(&palm27x_asoc);
+	ret = devm_snd_soc_register_card(&pdev->dev, &palm27x_asoc);
 	if (ret)
 		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
 			ret);
 	return ret;
 }
 
-static int palm27x_asoc_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_card(&palm27x_asoc);
-	return 0;
-}
-
 static struct platform_driver palm27x_wm9712_driver = {
 	.probe		= palm27x_asoc_probe,
-	.remove		= palm27x_asoc_remove,
 	.driver		= {
 		.name		= "palm27x-asoc",
 		.pm     = &snd_soc_pm_ops,

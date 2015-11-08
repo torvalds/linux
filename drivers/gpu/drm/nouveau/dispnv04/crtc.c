@@ -703,7 +703,7 @@ static void nv_crtc_prepare(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	struct drm_crtc_helper_funcs *funcs = crtc->helper_private;
+	const struct drm_crtc_helper_funcs *funcs = crtc->helper_private;
 
 	if (nv_two_heads(dev))
 		NVSetOwner(dev, nv_crtc->index);
@@ -724,7 +724,7 @@ static void nv_crtc_prepare(struct drm_crtc *crtc)
 static void nv_crtc_commit(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_crtc_helper_funcs *funcs = crtc->helper_private;
+	const struct drm_crtc_helper_funcs *funcs = crtc->helper_private;
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 
 	nouveau_hw_load_state(dev, nv_crtc->index, &nv04_display(dev)->mode_reg);

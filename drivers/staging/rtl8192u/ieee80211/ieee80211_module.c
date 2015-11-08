@@ -31,7 +31,7 @@
 *******************************************************************************/
 
 #include <linux/compiler.h>
-//#include <linux/config.h>
+/* #include <linux/config.h> */
 #include <linux/errno.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>
@@ -48,7 +48,7 @@
 #include <linux/types.h>
 #include <linux/wireless.h>
 #include <linux/etherdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <net/arp.h>
 
 #include "ieee80211.h"
@@ -133,15 +133,14 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 	ieee->ieee802_1x = 1; /* Default to supporting 802.1x */
 
 	INIT_LIST_HEAD(&ieee->crypt_deinit_list);
-	init_timer(&ieee->crypt_deinit_timer);
-	ieee->crypt_deinit_timer.data = (unsigned long)ieee;
-	ieee->crypt_deinit_timer.function = ieee80211_crypt_deinit_handler;
+	setup_timer(&ieee->crypt_deinit_timer,
+		    ieee80211_crypt_deinit_handler, (unsigned long)ieee);
 
 	spin_lock_init(&ieee->lock);
 	spin_lock_init(&ieee->wpax_suitlist_lock);
 	spin_lock_init(&ieee->bw_spinlock);
 	spin_lock_init(&ieee->reorder_spinlock);
-	//added by WB
+	/* added by WB */
 	atomic_set(&(ieee->atm_chnlop), 0);
 	atomic_set(&(ieee->atm_swbw), 0);
 
@@ -153,7 +152,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 	ieee->ieee802_1x = 1;
 	ieee->raw_tx = 0;
 	//ieee->hwsec_support = 1; //defalt support hw security. //use module_param instead.
-	ieee->hwsec_active = 0; //disable hwsec, switch it on when necessary.
+	ieee->hwsec_active = 0; /* disable hwsec, switch it on when necessary. */
 
 	ieee80211_softmac_init(ieee);
 
@@ -164,7 +163,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 		goto failed;
 	}
 	HTUpdateDefaultSetting(ieee);
-	HTInitializeHTInfo(ieee); //may move to other place.
+	HTInitializeHTInfo(ieee); /* may move to other place. */
 	TSInitialize(ieee);
 
 	for (i = 0; i < IEEE_IBSS_MAC_HASH_SIZE; i++)
@@ -176,7 +175,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 	  ieee->last_packet_time[i] = 0;
 	}
 
-//These function were added to load crypte module autoly
+/* These function were added to load crypte module autoly */
 	ieee80211_tkip_null();
 	ieee80211_wep_null();
 	ieee80211_ccmp_null();
@@ -195,7 +194,7 @@ void free_ieee80211(struct net_device *dev)
 {
 	struct ieee80211_device *ieee = netdev_priv(dev);
 	int i;
-	//struct list_head *p, *q;
+	/* struct list_head *p, *q; */
 //	del_timer_sync(&ieee->SwBwTimer);
 	kfree(ieee->pHTInfo);
 	ieee->pHTInfo = NULL;
@@ -239,13 +238,15 @@ static int debug = \
 	//		    IEEE80211_DL_REORDER|
 //			    IEEE80211_DL_TRACE  |
 			    //IEEE80211_DL_DATA	|
-			    IEEE80211_DL_ERR	  //awayls open this flags to show error out
+			    IEEE80211_DL_ERR	  /* awayls open this flags to show error out */
 			    ;
 static struct proc_dir_entry *ieee80211_proc;
 
 static int show_debug_level(struct seq_file *m, void *v)
 {
-	return seq_printf(m, "0x%08X\n", ieee80211_debug_level);
+	seq_printf(m, "0x%08X\n", ieee80211_debug_level);
+
+	return 0;
 }
 
 static ssize_t write_debug_level(struct file *file, const char __user *buffer,
@@ -284,7 +285,7 @@ int __init ieee80211_debug_init(void)
 				" proc directory\n");
 		return -EIO;
 	}
-	e = proc_create("debug_level", S_IRUGO | S_IWUSR, 
+	e = proc_create("debug_level", S_IRUGO | S_IWUSR,
 			      ieee80211_proc, &fops);
 	if (!e) {
 		remove_proc_entry(DRV_NAME, init_net.proc_net);
@@ -303,7 +304,6 @@ void __exit ieee80211_debug_exit(void)
 	}
 }
 
-#include <linux/moduleparam.h>
 module_param(debug, int, 0444);
 MODULE_PARM_DESC(debug, "debug output mask");
 #endif

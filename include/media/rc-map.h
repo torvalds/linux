@@ -14,30 +14,28 @@
 enum rc_type {
 	RC_TYPE_UNKNOWN		= 0,	/* Protocol not known */
 	RC_TYPE_OTHER		= 1,	/* Protocol known but proprietary */
-	RC_TYPE_LIRC		= 2,	/* Pass raw IR to lirc userspace */
-	RC_TYPE_RC5		= 3,	/* Philips RC5 protocol */
-	RC_TYPE_RC5X		= 4,	/* Philips RC5x protocol */
-	RC_TYPE_RC5_SZ		= 5,	/* StreamZap variant of RC5 */
-	RC_TYPE_JVC		= 6,	/* JVC protocol */
-	RC_TYPE_SONY12		= 7,	/* Sony 12 bit protocol */
-	RC_TYPE_SONY15		= 8,	/* Sony 15 bit protocol */
-	RC_TYPE_SONY20		= 9,	/* Sony 20 bit protocol */
-	RC_TYPE_NEC		= 10,	/* NEC protocol */
-	RC_TYPE_SANYO		= 11,	/* Sanyo protocol */
-	RC_TYPE_MCE_KBD		= 12,	/* RC6-ish MCE keyboard/mouse */
-	RC_TYPE_RC6_0		= 13,	/* Philips RC6-0-16 protocol */
-	RC_TYPE_RC6_6A_20	= 14,	/* Philips RC6-6A-20 protocol */
-	RC_TYPE_RC6_6A_24	= 15,	/* Philips RC6-6A-24 protocol */
-	RC_TYPE_RC6_6A_32	= 16,	/* Philips RC6-6A-32 protocol */
-	RC_TYPE_RC6_MCE		= 17,	/* MCE (Philips RC6-6A-32 subtype) protocol */
-	RC_TYPE_SHARP		= 18,	/* Sharp protocol */
-	RC_TYPE_XMP		= 19,	/* XMP protocol */
+	RC_TYPE_RC5		= 2,	/* Philips RC5 protocol */
+	RC_TYPE_RC5X		= 3,	/* Philips RC5x protocol */
+	RC_TYPE_RC5_SZ		= 4,	/* StreamZap variant of RC5 */
+	RC_TYPE_JVC		= 5,	/* JVC protocol */
+	RC_TYPE_SONY12		= 6,	/* Sony 12 bit protocol */
+	RC_TYPE_SONY15		= 7,	/* Sony 15 bit protocol */
+	RC_TYPE_SONY20		= 8,	/* Sony 20 bit protocol */
+	RC_TYPE_NEC		= 9,	/* NEC protocol */
+	RC_TYPE_SANYO		= 10,	/* Sanyo protocol */
+	RC_TYPE_MCE_KBD		= 11,	/* RC6-ish MCE keyboard/mouse */
+	RC_TYPE_RC6_0		= 12,	/* Philips RC6-0-16 protocol */
+	RC_TYPE_RC6_6A_20	= 13,	/* Philips RC6-6A-20 protocol */
+	RC_TYPE_RC6_6A_24	= 14,	/* Philips RC6-6A-24 protocol */
+	RC_TYPE_RC6_6A_32	= 15,	/* Philips RC6-6A-32 protocol */
+	RC_TYPE_RC6_MCE		= 16,	/* MCE (Philips RC6-6A-32 subtype) protocol */
+	RC_TYPE_SHARP		= 17,	/* Sharp protocol */
+	RC_TYPE_XMP		= 18,	/* XMP protocol */
 };
 
 #define RC_BIT_NONE		0
 #define RC_BIT_UNKNOWN		(1 << RC_TYPE_UNKNOWN)
 #define RC_BIT_OTHER		(1 << RC_TYPE_OTHER)
-#define RC_BIT_LIRC		(1 << RC_TYPE_LIRC)
 #define RC_BIT_RC5		(1 << RC_TYPE_RC5)
 #define RC_BIT_RC5X		(1 << RC_TYPE_RC5X)
 #define RC_BIT_RC5_SZ		(1 << RC_TYPE_RC5_SZ)
@@ -56,7 +54,7 @@ enum rc_type {
 #define RC_BIT_SHARP		(1 << RC_TYPE_SHARP)
 #define RC_BIT_XMP		(1 << RC_TYPE_XMP)
 
-#define RC_BIT_ALL	(RC_BIT_UNKNOWN | RC_BIT_OTHER | RC_BIT_LIRC | \
+#define RC_BIT_ALL	(RC_BIT_UNKNOWN | RC_BIT_OTHER | \
 			 RC_BIT_RC5 | RC_BIT_RC5X | RC_BIT_RC5_SZ | \
 			 RC_BIT_JVC | \
 			 RC_BIT_SONY12 | RC_BIT_SONY15 | RC_BIT_SONY20 | \
@@ -194,7 +192,10 @@ void rc_map_init(void);
 #define RC_MAP_SNAPSTREAM_FIREFLY        "rc-snapstream-firefly"
 #define RC_MAP_STREAMZAP                 "rc-streamzap"
 #define RC_MAP_TBS_NEC                   "rc-tbs-nec"
+#define RC_MAP_TECHNISAT_TS35            "rc-technisat-ts35"
 #define RC_MAP_TECHNISAT_USB2            "rc-technisat-usb2"
+#define RC_MAP_TERRATEC_CINERGY_C_PCI    "rc-terratec-cinergy-c-pci"
+#define RC_MAP_TERRATEC_CINERGY_S2_HD    "rc-terratec-cinergy-s2-hd"
 #define RC_MAP_TERRATEC_CINERGY_XS       "rc-terratec-cinergy-xs"
 #define RC_MAP_TERRATEC_SLIM             "rc-terratec-slim"
 #define RC_MAP_TERRATEC_SLIM_2           "rc-terratec-slim-2"
@@ -204,6 +205,7 @@ void rc_map_init(void);
 #define RC_MAP_TOTAL_MEDIA_IN_HAND_02    "rc-total-media-in-hand-02"
 #define RC_MAP_TREKSTOR                  "rc-trekstor"
 #define RC_MAP_TT_1500                   "rc-tt-1500"
+#define RC_MAP_TWINHAN_DTV_CAB_CI        "rc-twinhan-dtv-cab-ci"
 #define RC_MAP_TWINHAN_VP1027_DVBS       "rc-twinhan1027"
 #define RC_MAP_VIDEOMATE_K100            "rc-videomate-k100"
 #define RC_MAP_VIDEOMATE_S350            "rc-videomate-s350"

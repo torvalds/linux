@@ -27,16 +27,31 @@
 #include <linux/smp.h>
 #include <linux/of.h>
 #include <linux/reboot.h>
+#include <linux/slab.h>
 
 #include <asm/cputhreads.h>
 #include <asm/firmware.h>
 #include <asm/reg.h>
 #include <asm/smp.h> /* Required for cpu_sibling_mask() in UP configs */
+#include <asm/opal.h>
 
 #define POWERNV_MAX_PSTATES	256
+#define PMSR_PSAFE_ENABLE	(1UL << 30)
+#define PMSR_SPR_EM_DISABLE	(1UL << 31)
+#define PMSR_MAX(x)		((x >> 32) & 0xFF)
 
 static struct cpufreq_frequency_table powernv_freqs[POWERNV_MAX_PSTATES+1];
-static bool rebooting;
+static bool rebooting, throttled, occ_reset;
+
+static struct chip {
+	unsigned int id;
+	bool throttled;
+	cpumask_t mask;
+	struct work_struct throttle;
+	bool restore;
+} *chips;
+
+static int nr_chips;
 
 /*
  * Note: The set of pstates consists of contiguous integers, the
@@ -294,6 +309,57 @@ static inline unsigned int get_nominal_index(void)
 	return powernv_pstate_info.max - powernv_pstate_info.nominal;
 }
 
+static void powernv_cpufreq_throttle_check(void *data)
+{
+	unsigned int cpu = smp_processor_id();
+	unsigned long pmsr;
+	int pmsr_pmax, i;
+
+	pmsr = get_pmspr(SPRN_PMSR);
+
+	for (i = 0; i < nr_chips; i++)
+		if (chips[i].id == cpu_to_chip_id(cpu))
+			break;
+
+	/* Check for Pmax Capping */
+	pmsr_pmax = (s8)PMSR_MAX(pmsr);
+	if (pmsr_pmax != powernv_pstate_info.max) {
+		if (chips[i].throttled)
+			goto next;
+		chips[i].throttled = true;
+		if (pmsr_pmax < powernv_pstate_info.nominal)
+			pr_crit("CPU %d on Chip %u has Pmax reduced below nominal frequency (%d < %d)\n",
+				cpu, chips[i].id, pmsr_pmax,
+				powernv_pstate_info.nominal);
+		else
+			pr_info("CPU %d on Chip %u has Pmax reduced below turbo frequency (%d < %d)\n",
+				cpu, chips[i].id, pmsr_pmax,
+				powernv_pstate_info.max);
+	} else if (chips[i].throttled) {
+		chips[i].throttled = false;
+		pr_info("CPU %d on Chip %u has Pmax restored to %d\n", cpu,
+			chips[i].id, pmsr_pmax);
+	}
+
+	/* Check if Psafe_mode_active is set in PMSR. */
+next:
+	if (pmsr & PMSR_PSAFE_ENABLE) {
+		throttled = true;
+		pr_info("Pstate set to safe frequency\n");
+	}
+
+	/* Check if SPR_EM_DISABLE is set in PMSR */
+	if (pmsr & PMSR_SPR_EM_DISABLE) {
+		throttled = true;
+		pr_info("Frequency Control disabled from OS\n");
+	}
+
+	if (throttled) {
+		pr_info("PMSR = %16lx\n", pmsr);
+		pr_crit("CPU Frequency could be throttled\n");
+	}
+}
+
 /*
  * powernv_cpufreq_target_index: Sets the frequency corresponding to
  * the cpufreq table entry indexed by new_index on the cpus in the
@@ -306,6 +372,9 @@ static int powernv_cpufreq_target_index(struct cpufreq_policy *policy,
 
 	if (unlikely(rebooting) && new_index != get_nominal_index())
 		return 0;
+
+	if (!throttled)
+		powernv_cpufreq_throttle_check(NULL);
 
 	freq_data.pstate_id = powernv_freqs[new_index].driver_data;
 
@@ -350,6 +419,119 @@ static struct notifier_block powernv_cpufreq_reboot_nb = {
 	.notifier_call = powernv_cpufreq_reboot_notifier,
 };
 
+void powernv_cpufreq_work_fn(struct work_struct *work)
+{
+	struct chip *chip = container_of(work, struct chip, throttle);
+	unsigned int cpu;
+	cpumask_var_t mask;
+
+	smp_call_function_any(&chip->mask,
+			      powernv_cpufreq_throttle_check, NULL, 0);
+
+	if (!chip->restore)
+		return;
+
+	chip->restore = false;
+	cpumask_copy(mask, &chip->mask);
+	for_each_cpu_and(cpu, mask, cpu_online_mask) {
+		int index, tcpu;
+		struct cpufreq_policy policy;
+
+		cpufreq_get_policy(&policy, cpu);
+		cpufreq_frequency_table_target(&policy, policy.freq_table,
+					       policy.cur,
+					       CPUFREQ_RELATION_C, &index);
+		powernv_cpufreq_target_index(&policy, index);
+		for_each_cpu(tcpu, policy.cpus)
+			cpumask_clear_cpu(tcpu, mask);
+	}
+}
+
+static char throttle_reason[][30] = {
+					"No throttling",
+					"Power Cap",
+					"Processor Over Temperature",
+					"Power Supply Failure",
+					"Over Current",
+					"OCC Reset"
+				     };
+
+static int powernv_cpufreq_occ_msg(struct notifier_block *nb,
+				   unsigned long msg_type, void *_msg)
+{
+	struct opal_msg *msg = _msg;
+	struct opal_occ_msg omsg;
+	int i;
+
+	if (msg_type != OPAL_MSG_OCC)
+		return 0;
+
+	omsg.type = be64_to_cpu(msg->params[0]);
+
+	switch (omsg.type) {
+	case OCC_RESET:
+		occ_reset = true;
+		pr_info("OCC (On Chip Controller - enforces hard thermal/power limits) Resetting\n");
+		/*
+		 * powernv_cpufreq_throttle_check() is called in
+		 * target() callback which can detect the throttle state
+		 * for governors like ondemand.
+		 * But static governors will not call target() often thus
+		 * report throttling here.
+		 */
+		if (!throttled) {
+			throttled = true;
+			pr_crit("CPU frequency is throttled for duration\n");
+		}
+
+		break;
+	case OCC_LOAD:
+		pr_info("OCC Loading, CPU frequency is throttled until OCC is started\n");
+		break;
+	case OCC_THROTTLE:
+		omsg.chip = be64_to_cpu(msg->params[1]);
+		omsg.throttle_status = be64_to_cpu(msg->params[2]);
+
+		if (occ_reset) {
+			occ_reset = false;
+			throttled = false;
+			pr_info("OCC Active, CPU frequency is no longer throttled\n");
+
+			for (i = 0; i < nr_chips; i++) {
+				chips[i].restore = true;
+				schedule_work(&chips[i].throttle);
+			}
+
+			return 0;
+		}
+
+		if (omsg.throttle_status &&
+		    omsg.throttle_status <= OCC_MAX_THROTTLE_STATUS)
+			pr_info("OCC: Chip %u Pmax reduced due to %s\n",
+				(unsigned int)omsg.chip,
+				throttle_reason[omsg.throttle_status]);
+		else if (!omsg.throttle_status)
+			pr_info("OCC: Chip %u %s\n", (unsigned int)omsg.chip,
+				throttle_reason[omsg.throttle_status]);
+		else
+			return 0;
+
+		for (i = 0; i < nr_chips; i++)
+			if (chips[i].id == omsg.chip) {
+				if (!omsg.throttle_status)
+					chips[i].restore = true;
+				schedule_work(&chips[i].throttle);
+			}
+	}
+	return 0;
+}
+
+static struct notifier_block powernv_cpufreq_opal_nb = {
+	.notifier_call	= powernv_cpufreq_occ_msg,
+	.next		= NULL,
+	.priority	= 0,
+};
+
 static void powernv_cpufreq_stop_cpu(struct cpufreq_policy *policy)
 {
 	struct powernv_smp_call_data freq_data;
@@ -369,6 +551,36 @@ static struct cpufreq_driver powernv_cpufreq_driver = {
 	.attr		= powernv_cpu_freq_attr,
 };
 
+static int init_chip_info(void)
+{
+	unsigned int chip[256];
+	unsigned int cpu, i;
+	unsigned int prev_chip_id = UINT_MAX;
+
+	for_each_possible_cpu(cpu) {
+		unsigned int id = cpu_to_chip_id(cpu);
+
+		if (prev_chip_id != id) {
+			prev_chip_id = id;
+			chip[nr_chips++] = id;
+		}
+	}
+
+	chips = kmalloc_array(nr_chips, sizeof(struct chip), GFP_KERNEL);
+	if (!chips)
+		return -ENOMEM;
+
+	for (i = 0; i < nr_chips; i++) {
+		chips[i].id = chip[i];
+		chips[i].throttled = false;
+		cpumask_copy(&chips[i].mask, cpumask_of_node(chip[i]));
+		INIT_WORK(&chips[i].throttle, powernv_cpufreq_work_fn);
+		chips[i].restore = false;
+	}
+
+	return 0;
+}
+
 static int __init powernv_cpufreq_init(void)
 {
 	int rc = 0;
@@ -384,7 +596,13 @@ static int __init powernv_cpufreq_init(void)
 		return rc;
 	}
 
+	/* Populate chip info */
+	rc = init_chip_info();
+	if (rc)
+		return rc;
+
 	register_reboot_notifier(&powernv_cpufreq_reboot_nb);
+	opal_message_notifier_register(OPAL_MSG_OCC, &powernv_cpufreq_opal_nb);
 	return cpufreq_register_driver(&powernv_cpufreq_driver);
 }
 module_init(powernv_cpufreq_init);
@@ -392,6 +610,8 @@ module_init(powernv_cpufreq_init);
 static void __exit powernv_cpufreq_exit(void)
 {
 	unregister_reboot_notifier(&powernv_cpufreq_reboot_nb);
+	opal_message_notifier_unregister(OPAL_MSG_OCC,
+					 &powernv_cpufreq_opal_nb);
 	cpufreq_unregister_driver(&powernv_cpufreq_driver);
 }
 module_exit(powernv_cpufreq_exit);

@@ -32,41 +32,7 @@ static struct memblock_type oldmem_type = {
 	.regions = &oldmem_region,
 };
 
-#define for_each_dump_mem_range(i, nid, p_start, p_end, p_nid)		\
-	for (i = 0, __next_mem_range(&i, nid, &memblock.physmem,	\
-				     &oldmem_type, p_start,		\
-				     p_end, p_nid);			\
-	     i != (u64)ULLONG_MAX;					\
-	     __next_mem_range(&i, nid, &memblock.physmem,		\
-			      &oldmem_type,				\
-			      p_start, p_end, p_nid))
-
 struct dump_save_areas dump_save_areas;
-
-/*
- * Allocate and add a save area for a CPU
- */
-struct save_area_ext *dump_save_area_create(int cpu)
-{
-	struct save_area_ext **save_areas, *save_area;
-
-	save_area = kmalloc(sizeof(*save_area), GFP_KERNEL);
-	if (!save_area)
-		return NULL;
-	if (cpu + 1 > dump_save_areas.count) {
-		dump_save_areas.count = cpu + 1;
-		save_areas = krealloc(dump_save_areas.areas,
-				      dump_save_areas.count * sizeof(void *),
-				      GFP_KERNEL | __GFP_ZERO);
-		if (!save_areas) {
-			kfree(save_area);
-			return NULL;
-		}
-		dump_save_areas.areas = save_areas;
-	}
-	dump_save_areas.areas[cpu] = save_area;
-	return save_area;
-}
 
 /*
  * Return physical address for virtual address
@@ -122,7 +88,7 @@ static ssize_t copy_oldmem_page_zfcpdump(char *buf, size_t csize,
 {
 	int rc;
 
-	if (src < sclp_get_hsa_size()) {
+	if (src < sclp.hsa_size) {
 		rc = memcpy_hsa(buf, src, csize, userbuf);
 	} else {
 		if (userbuf)
@@ -215,7 +181,7 @@ static int remap_oldmem_pfn_range_zfcpdump(struct vm_area_struct *vma,
 					   unsigned long pfn,
 					   unsigned long size, pgprot_t prot)
 {
-	unsigned long hsa_end = sclp_get_hsa_size();
+	unsigned long hsa_end = sclp.hsa_size;
 	unsigned long size_hsa;
 
 	if (pfn < hsa_end >> PAGE_SHIFT) {
@@ -258,7 +224,7 @@ int copy_from_oldmem(void *dest, void *src, size_t count)
 				return rc;
 		}
 	} else {
-		unsigned long hsa_end = sclp_get_hsa_size();
+		unsigned long hsa_end = sclp.hsa_size;
 		if ((unsigned long) src < hsa_end) {
 			copied = min(count, hsa_end - (unsigned long) src);
 			rc = memcpy_hsa(dest, (unsigned long) src, copied, 0);
@@ -415,7 +381,7 @@ static void *nt_s390_vx_low(void *ptr, __vector128 *vx_regs)
 	ptr += len;
 	/* Copy lower halves of SIMD registers 0-15 */
 	for (i = 0; i < 16; i++) {
-		memcpy(ptr, &vx_regs[i], 8);
+		memcpy(ptr, &vx_regs[i].u[2], 8);
 		ptr += 8;
 	}
 	return ptr;
@@ -539,7 +505,8 @@ static int get_mem_chunk_cnt(void)
 	int cnt = 0;
 	u64 idx;
 
-	for_each_dump_mem_range(idx, NUMA_NO_NODE, NULL, NULL, NULL)
+	for_each_mem_range(idx, &memblock.physmem, &oldmem_type, NUMA_NO_NODE,
+			   MEMBLOCK_NONE, NULL, NULL, NULL)
 		cnt++;
 	return cnt;
 }
@@ -552,7 +519,8 @@ static void loads_init(Elf64_Phdr *phdr, u64 loads_offset)
 	phys_addr_t start, end;
 	u64 idx;
 
-	for_each_dump_mem_range(idx, NUMA_NO_NODE, &start, &end, NULL) {
+	for_each_mem_range(idx, &memblock.physmem, &oldmem_type, NUMA_NO_NODE,
+			   MEMBLOCK_NONE, &start, &end, NULL) {
 		phdr->p_filesz = end - start;
 		phdr->p_type = PT_LOAD;
 		phdr->p_offset = start;
@@ -609,7 +577,7 @@ int elfcorehdr_alloc(unsigned long long *addr, unsigned long long *size)
 	if (elfcorehdr_addr != ELFCORE_ADDR_MAX)
 		return 0;
 	/* If we cannot get HSA size for zfcpdump return error */
-	if (ipl_info.type == IPL_TYPE_FCP_DUMP && !sclp_get_hsa_size())
+	if (ipl_info.type == IPL_TYPE_FCP_DUMP && !sclp.hsa_size)
 		return -ENODEV;
 
 	/* For kdump, exclude previous crashkernel memory */

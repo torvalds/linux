@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Qualcomm Atheros, Inc.
+ * Copyright (c) 2014-2015 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,16 +20,7 @@
 #include "fw.h"
 
 MODULE_FIRMWARE(WIL_FW_NAME);
-
-/* target operations */
-/* register read */
-#define R(a) ioread32(wil->csr + HOSTADDR(a))
-/* register write. wmb() to make sure it is completed */
-#define W(a, v) do { iowrite32(v, wil->csr + HOSTADDR(a)); wmb(); } while (0)
-/* register set = read, OR, write */
-#define S(a, v) W(a, R(a) | v)
-/* register clear = read, AND with inverted, write */
-#define C(a, v) W(a, R(a) & ~v)
+MODULE_FIRMWARE(WIL_FW2_NAME);
 
 static
 void wil_memset_toio_32(volatile void __iomem *dst, u32 val,

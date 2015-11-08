@@ -50,7 +50,8 @@
 	compatible = "atmel,sama5d4ek", "atmel,sama5d4", "atmel,sama5";
 
 	chosen {
-		bootargs = "console=ttyS0,115200 ignore_loglevel earlyprintk";
+		bootargs = "ignore_loglevel earlyprintk";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
@@ -99,6 +100,15 @@
 			};
 
 			adc0: adc@fc034000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <
+					/* external trigger conflicts with USBA_VBUS */
+					&pinctrl_adc0_ad0
+					&pinctrl_adc0_ad1
+					&pinctrl_adc0_ad2
+					&pinctrl_adc0_ad3
+					&pinctrl_adc0_ad4
+					>;
 				/* The vref depends on JP22 of EK. If connect 1-2 then use 3.3V. connect 2-3 use 3.0V */
 				atmel,adc-vref = <3300>;
 				/*atmel,adc-ts-wires = <4>;*/	/* Set up ADC touch screen */
@@ -108,11 +118,15 @@
 			mmc0: mmc@f8000000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_mmc0_clk_cmd_dat0 &pinctrl_mmc0_dat1_3 &pinctrl_mmc0_cd>;
-				slot@1 {
-					reg = <1>;
+				slot@0 {
+					reg = <0>;
 					bus-width = <4>;
 					cd-gpios = <&pioE 5 0>;
 				};
+			};
+
+			ssc0: ssc@f8008000 {
+				status = "okay";
 			};
 
 			spi0: spi@f8010000 {
@@ -127,6 +141,13 @@
 
 			i2c0: i2c@f8014000 {
 				status = "okay";
+
+				wm8904: codec@1a {
+					compatible = "wlf,wm8904";
+					reg = <0x1a>;
+					clocks = <&pck2>;
+					clock-names = "mclk";
+				};
 			};
 
 			macb0: ethernet@f8020000 {
@@ -170,6 +191,10 @@
 					pinctrl_mmc1_cd: mmc1_cd {
 						atmel,pins =
 							<AT91_PIOE 6 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;
+					};
+					pinctrl_pck2_as_audio_mck: pck2_as_audio_mck {
+						atmel,pins =
+							<AT91_PIOB 10 AT91_PERIPH_B AT91_PINCTRL_NONE>;
 					};
 					pinctrl_usba_vbus: usba_vbus {
 						atmel,pins =
@@ -244,8 +269,6 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_key_gpio>;
@@ -256,5 +279,43 @@
 			linux,code = <0x100>;
 			gpio-key,wakeup;
 		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		status = "okay";
+
+		d8 {
+			label = "d8";
+			/* PE28, conflicts with usart4 rts pin */
+			gpios = <&pioE 28 GPIO_ACTIVE_LOW>;
+		};
+
+		d9 {
+			label = "d9";
+			gpios = <&pioE 9 GPIO_ACTIVE_HIGH>;
+		};
+
+		d10 {
+			label = "d10";
+			gpios = <&pioE 8 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	sound {
+		compatible = "atmel,asoc-wm8904";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pck2_as_audio_mck>;
+
+		atmel,model = "wm8904 @ SAMA5D4EK";
+		atmel,audio-routing =
+			"Headphone Jack", "HPOUTL",
+			"Headphone Jack", "HPOUTR",
+			"IN1L", "Line In Jack",
+			"IN1R", "Line In Jack";
+
+		atmel,ssc-controller = <&ssc0>;
+		atmel,audio-codec = <&wm8904>;
 	};
 };

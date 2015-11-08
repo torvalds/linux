@@ -4,6 +4,7 @@
 #include <linux/types.h>
 #include <linux/netlink.h>
 #include <linux/jiffies.h>
+#include <linux/in6.h>
 
 /* ========================================================================
  *         Netlink Messages and Attributes Interface (As Seen On TV)
@@ -105,6 +106,8 @@
  *   nla_put_string(skb, type, str)	add string attribute to skb
  *   nla_put_flag(skb, type)		add flag attribute to skb
  *   nla_put_msecs(skb, type, jiffies)	add msecs attribute to skb
+ *   nla_put_in_addr(skb, type, addr)	add IPv4 address attribute to skb
+ *   nla_put_in6_addr(skb, type, addr)	add IPv6 address attribute to skb
  *
  * Nested Attributes Construction:
  *   nla_nest_start(skb, type)		start a nested attribute
@@ -957,6 +960,32 @@ static inline int nla_put_msecs(struct sk_buff *skb, int attrtype,
 }
 
 /**
+ * nla_put_in_addr - Add an IPv4 address netlink attribute to a socket
+ * buffer
+ * @skb: socket buffer to add attribute to
+ * @attrtype: attribute type
+ * @addr: IPv4 address
+ */
+static inline int nla_put_in_addr(struct sk_buff *skb, int attrtype,
+				  __be32 addr)
+{
+	return nla_put_be32(skb, attrtype, addr);
+}
+
+/**
+ * nla_put_in6_addr - Add an IPv6 address netlink attribute to a socket
+ * buffer
+ * @skb: socket buffer to add attribute to
+ * @attrtype: attribute type
+ * @addr: IPv6 address
+ */
+static inline int nla_put_in6_addr(struct sk_buff *skb, int attrtype,
+				   const struct in6_addr *addr)
+{
+	return nla_put(skb, attrtype, sizeof(*addr), addr);
+}
+
+/**
  * nla_get_u32 - return payload of u32 attribute
  * @nla: u32 netlink attribute
  */
@@ -972,6 +1001,15 @@ static inline u32 nla_get_u32(const struct nlattr *nla)
 static inline __be32 nla_get_be32(const struct nlattr *nla)
 {
 	return *(__be32 *) nla_data(nla);
+}
+
+/**
+ * nla_get_le32 - return payload of __le32 attribute
+ * @nla: __le32 netlink attribute
+ */
+static inline __le32 nla_get_le32(const struct nlattr *nla)
+{
+	return *(__le32 *) nla_data(nla);
 }
 
 /**
@@ -1037,6 +1075,15 @@ static inline __be64 nla_get_be64(const struct nlattr *nla)
 }
 
 /**
+ * nla_get_le64 - return payload of __le64 attribute
+ * @nla: __le64 netlink attribute
+ */
+static inline __le64 nla_get_le64(const struct nlattr *nla)
+{
+	return *(__le64 *) nla_data(nla);
+}
+
+/**
  * nla_get_s32 - return payload of s32 attribute
  * @nla: s32 netlink attribute
  */
@@ -1096,6 +1143,27 @@ static inline unsigned long nla_get_msecs(const struct nlattr *nla)
 	u64 msecs = nla_get_u64(nla);
 
 	return msecs_to_jiffies((unsigned long) msecs);
+}
+
+/**
+ * nla_get_in_addr - return payload of IPv4 address attribute
+ * @nla: IPv4 address netlink attribute
+ */
+static inline __be32 nla_get_in_addr(const struct nlattr *nla)
+{
+	return *(__be32 *) nla_data(nla);
+}
+
+/**
+ * nla_get_in6_addr - return payload of IPv6 address attribute
+ * @nla: IPv6 address netlink attribute
+ */
+static inline struct in6_addr nla_get_in6_addr(const struct nlattr *nla)
+{
+	struct in6_addr tmp;
+
+	nla_memcpy(&tmp, nla, sizeof(tmp));
+	return tmp;
 }
 
 /**

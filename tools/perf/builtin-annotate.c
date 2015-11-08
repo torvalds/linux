@@ -59,10 +59,15 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 	    (al->sym == NULL ||
 	     strcmp(ann->sym_hist_filter, al->sym->name) != 0)) {
 		/* We're only interested in a symbol named sym_hist_filter */
+		/*
+		 * FIXME: why isn't this done in the symbol_filter when loading
+		 * the DSO?
+		 */
 		if (al->sym != NULL) {
 			rb_erase(&al->sym->rb_node,
 				 &al->map->dso->symbols[al->map->type]);
 			symbol__delete(al->sym);
+			dso__reset_find_symbol_cache(al->map->dso);
 		}
 		return 0;
 	}
@@ -84,6 +89,7 @@ static int process_sample_event(struct perf_tool *tool,
 {
 	struct perf_annotate *ann = container_of(tool, struct perf_annotate, tool);
 	struct addr_location al;
+	int ret = 0;
 
 	if (perf_event__preprocess_sample(event, machine, &al, sample) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
@@ -92,15 +98,16 @@ static int process_sample_event(struct perf_tool *tool,
 	}
 
 	if (ann->cpu_list && !test_bit(sample->cpu, ann->cpu_bitmap))
-		return 0;
+		goto out_put;
 
 	if (!al.filtered && perf_evsel__add_sample(evsel, sample, &al, ann)) {
 		pr_warning("problem incrementing symbol count, "
 			   "skipping event\n");
-		return -1;
+		ret = -1;
 	}
-
-	return 0;
+out_put:
+	addr_location__put(&al);
+	return ret;
 }
 
 static int hist_entry__tty_annotate(struct hist_entry *he,
@@ -181,6 +188,7 @@ find_next:
 			 * symbol, free he->ms.sym->src to signal we already
 			 * processed this symbol.
 			 */
+			zfree(&notes->src->cycles_hist);
 			zfree(&notes->src);
 		}
 	}
@@ -203,12 +211,12 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	}
 
 	if (!objdump_path) {
-		ret = perf_session_env__lookup_objdump(&session->header.env);
+		ret = perf_env__lookup_objdump(&session->header.env);
 		if (ret)
 			goto out;
 	}
 
-	ret = perf_session__process_events(session, &ann->tool);
+	ret = perf_session__process_events(session);
 	if (ret)
 		goto out;
 
@@ -232,6 +240,8 @@ static int __cmd_annotate(struct perf_annotate *ann)
 		if (nr_samples > 0) {
 			total_nr_samples += nr_samples;
 			hists__collapse_resort(hists, NULL);
+			/* Don't sort callchain */
+			perf_evsel__reset_sample_bit(pos, CALLCHAIN);
 			hists__output_resort(hists, NULL);
 
 			if (symbol_conf.event_group &&
@@ -283,7 +293,6 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 		},
 	};
 	struct perf_data_file file = {
-		.path  = input_name,
 		.mode  = PERF_DATA_MODE_READ,
 	};
 	const struct option options[] = {
@@ -324,6 +333,8 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "objdump binary to use for disassembly and annotations"),
 	OPT_BOOLEAN(0, "group", &symbol_conf.event_group,
 		    "Show event group information together"),
+	OPT_BOOLEAN(0, "show-total-period", &symbol_conf.show_total_period,
+		    "Show a column with the sum of periods"),
 	OPT_END()
 	};
 	int ret = hists__init();
@@ -339,6 +350,8 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 		use_browser = 1;
 	else if (annotate.use_gtk)
 		use_browser = 2;
+
+	file.path  = input_name;
 
 	setup_browser(true);
 

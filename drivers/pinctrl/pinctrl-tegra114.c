@@ -1547,6 +1547,7 @@ static struct tegra_function tegra114_functions[] = {
 #define DRV_PINGROUP_REG_A		0x868	/* bank 0 */
 #define PINGROUP_REG_A			0x3000	/* bank 1 */
 
+#define DRV_PINGROUP_REG(r)		((r) - DRV_PINGROUP_REG_A)
 #define PINGROUP_REG(r)			((r) - PINGROUP_REG_A)
 
 #define PINGROUP_BIT_Y(b)		(b)
@@ -1572,20 +1573,17 @@ static struct tegra_function tegra114_functions[] = {
 		.tri_reg = PINGROUP_REG(r),				\
 		.tri_bank = 1,						\
 		.tri_bit = 4,						\
-		.einput_bit = PINGROUP_BIT_Y(5),			\
+		.einput_bit = 5,					\
 		.odrain_bit = PINGROUP_BIT_##od(6),			\
-		.lock_bit = PINGROUP_BIT_Y(7),				\
+		.lock_bit = 7,						\
 		.ioreset_bit = PINGROUP_BIT_##ior(8),			\
 		.rcv_sel_bit = PINGROUP_BIT_##rcv_sel(9),		\
 		.drv_reg = -1,						\
 	}
 
-#define DRV_PINGROUP_REG(r)		((r) - DRV_PINGROUP_REG_A)
-
-#define DRV_PINGROUP(pg_name, r, hsm_b, schmitt_b, lpmd_b,		\
-		     drvdn_b, drvdn_w, drvup_b, drvup_w,		\
-		     slwr_b, slwr_w, slwf_b, slwf_w,			\
-		     drvtype)						\
+#define DRV_PINGROUP(pg_name, r, hsm_b, schmitt_b, lpmd_b, drvdn_b,	\
+		     drvdn_w, drvup_b, drvup_w, slwr_b, slwr_w,		\
+		     slwf_b, slwf_w, drvtype)				\
 	{								\
 		.name = "drive_" #pg_name,				\
 		.pins = drive_##pg_name##_pins,				\
@@ -1843,6 +1841,9 @@ static const struct tegra_pinctrl_soc_data tegra114_pinctrl = {
 	.nfunctions = ARRAY_SIZE(tegra114_functions),
 	.groups = tegra114_groups,
 	.ngroups = ARRAY_SIZE(tegra114_groups),
+	.hsm_in_mux = false,
+	.schmitt_in_mux = false,
+	.drvtype_in_mux = false,
 };
 
 static int tegra114_pinctrl_probe(struct platform_device *pdev)

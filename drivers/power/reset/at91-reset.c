@@ -1,5 +1,5 @@
 /*
- * Atmel AT91 SAM9 SoCs reset code
+ * Atmel AT91 SAM9 & SAMA5 SoCs reset code
  *
  * Copyright (C) 2007 Atmel Corporation.
  * Copyright (C) BitBox Ltd 2010
@@ -11,6 +11,7 @@
  * warranty of any kind, whether express or implied.
  */
 
+#include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
@@ -46,6 +47,7 @@ enum reset_type {
 };
 
 static void __iomem *at91_ramc_base[2], *at91_rstc_base;
+static struct clk *sclk;
 
 /*
 * unless the SDRAM is cleanly shutdown before we hit the
@@ -73,8 +75,8 @@ static int at91sam9260_restart(struct notifier_block *this, unsigned long mode,
 		: "r" (at91_ramc_base[0]),
 		  "r" (at91_rstc_base),
 		  "r" (1),
-		  "r" (AT91_SDRAMC_LPCB_POWER_DOWN),
-		  "r" (AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST));
+		  "r" cpu_to_le32(AT91_SDRAMC_LPCB_POWER_DOWN),
+		  "r" cpu_to_le32(AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST));
 
 	return NOTIFY_DONE;
 }
@@ -116,9 +118,18 @@ static int at91sam9g45_restart(struct notifier_block *this, unsigned long mode,
 		  "r" (at91_ramc_base[1]),
 		  "r" (at91_rstc_base),
 		  "r" (1),
-		  "r" (AT91_DDRSDRC_LPCB_POWER_DOWN),
-		  "r" (AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST)
+		  "r" cpu_to_le32(AT91_DDRSDRC_LPCB_POWER_DOWN),
+		  "r" cpu_to_le32(AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST)
 		: "r0");
+
+	return NOTIFY_DONE;
+}
+
+static int sama5d3_restart(struct notifier_block *this, unsigned long mode,
+			   void *cmd)
+{
+	writel(cpu_to_le32(AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST),
+	       at91_rstc_base);
 
 	return NOTIFY_DONE;
 }
@@ -152,16 +163,16 @@ static void __init at91_reset_status(struct platform_device *pdev)
 	pr_info("AT91: Starting after %s\n", reason);
 }
 
-static struct of_device_id at91_ramc_of_match[] = {
+static const struct of_device_id at91_ramc_of_match[] = {
 	{ .compatible = "atmel,at91sam9260-sdramc", },
 	{ .compatible = "atmel,at91sam9g45-ddramc", },
-	{ .compatible = "atmel,sama5d3-ddramc", },
 	{ /* sentinel */ }
 };
 
-static struct of_device_id at91_reset_of_match[] = {
+static const struct of_device_id at91_reset_of_match[] = {
 	{ .compatible = "atmel,at91sam9260-rstc", .data = at91sam9260_restart },
 	{ .compatible = "atmel,at91sam9g45-rstc", .data = at91sam9g45_restart },
+	{ .compatible = "atmel,sama5d3-rstc", .data = sama5d3_restart },
 	{ /* sentinel */ }
 };
 
@@ -169,11 +180,11 @@ static struct notifier_block at91_restart_nb = {
 	.priority = 192,
 };
 
-static int at91_reset_of_probe(struct platform_device *pdev)
+static int __init at91_reset_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	struct device_node *np;
-	int idx = 0;
+	int ret, idx = 0;
 
 	at91_rstc_base = of_iomap(pdev->dev.of_node, 0);
 	if (!at91_rstc_base) {
@@ -181,80 +192,66 @@ static int at91_reset_of_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	for_each_matching_node(np, at91_ramc_of_match) {
-		at91_ramc_base[idx] = of_iomap(np, 0);
-		if (!at91_ramc_base[idx]) {
-			dev_err(&pdev->dev, "Could not map ram controller address\n");
-			return -ENODEV;
+	if (!of_device_is_compatible(pdev->dev.of_node, "atmel,sama5d3-rstc")) {
+		/* we need to shutdown the ddr controller, so get ramc base */
+		for_each_matching_node(np, at91_ramc_of_match) {
+			at91_ramc_base[idx] = of_iomap(np, 0);
+			if (!at91_ramc_base[idx]) {
+				dev_err(&pdev->dev, "Could not map ram controller address\n");
+				return -ENODEV;
+			}
+			idx++;
 		}
-		idx++;
 	}
 
 	match = of_match_node(at91_reset_of_match, pdev->dev.of_node);
 	at91_restart_nb.notifier_call = match->data;
-	return register_restart_handler(&at91_restart_nb);
-}
 
-static int at91_reset_platform_probe(struct platform_device *pdev)
-{
-	const struct platform_device_id *match;
-	struct resource *res;
-	int idx = 0;
+	sclk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(sclk))
+		return PTR_ERR(sclk);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	at91_rstc_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(at91_rstc_base)) {
-		dev_err(&pdev->dev, "Could not map reset controller address\n");
-		return PTR_ERR(at91_rstc_base);
-	}
-
-	for (idx = 0; idx < 2; idx++) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, idx + 1 );
-		at91_ramc_base[idx] = devm_ioremap(&pdev->dev, res->start,
-						   resource_size(res));
-		if (IS_ERR(at91_ramc_base[idx])) {
-			dev_err(&pdev->dev, "Could not map ram controller address\n");
-			return PTR_ERR(at91_ramc_base[idx]);
-		}
-	}
-
-	match = platform_get_device_id(pdev);
-	at91_restart_nb.notifier_call =
-		(int (*)(struct notifier_block *,
-			 unsigned long, void *)) match->driver_data;
-
-	return register_restart_handler(&at91_restart_nb);
-}
-
-static int at91_reset_probe(struct platform_device *pdev)
-{
-	int ret;
-
-	if (pdev->dev.of_node)
-		ret = at91_reset_of_probe(pdev);
-	else
-		ret = at91_reset_platform_probe(pdev);
-
-	if (ret)
+	ret = clk_prepare_enable(sclk);
+	if (ret) {
+		dev_err(&pdev->dev, "Could not enable slow clock\n");
 		return ret;
+	}
+
+	ret = register_restart_handler(&at91_restart_nb);
+	if (ret) {
+		clk_disable_unprepare(sclk);
+		return ret;
+	}
 
 	at91_reset_status(pdev);
 
 	return 0;
 }
 
-static struct platform_device_id at91_reset_plat_match[] = {
+static int __exit at91_reset_remove(struct platform_device *pdev)
+{
+	unregister_restart_handler(&at91_restart_nb);
+	clk_disable_unprepare(sclk);
+
+	return 0;
+}
+
+static const struct platform_device_id at91_reset_plat_match[] = {
 	{ "at91-sam9260-reset", (unsigned long)at91sam9260_restart },
 	{ "at91-sam9g45-reset", (unsigned long)at91sam9g45_restart },
 	{ /* sentinel */ }
 };
 
 static struct platform_driver at91_reset_driver = {
-	.probe = at91_reset_probe,
+	.remove = __exit_p(at91_reset_remove),
 	.driver = {
 		.name = "at91-reset",
 		.of_match_table = at91_reset_of_match,
 	},
 	.id_table = at91_reset_plat_match,
 };
-module_platform_driver(at91_reset_driver);
+module_platform_driver_probe(at91_reset_driver, at91_reset_probe);
+
+MODULE_AUTHOR("Atmel Corporation");
+MODULE_DESCRIPTION("Reset driver for Atmel SoCs");
+MODULE_LICENSE("GPL v2");

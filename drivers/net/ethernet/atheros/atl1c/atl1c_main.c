@@ -752,7 +752,7 @@ static void atl1c_patch_assign(struct atl1c_hw *hw)
 
 	if (hw->device_id == PCI_DEVICE_ID_ATHEROS_L2C_B2 &&
 	    hw->revision_id == L2CB_V21) {
-		/* config acess mode */
+		/* config access mode */
 		pci_write_config_dword(pdev, REG_PCIE_IND_ACC_ADDR,
 				       REG_PCIE_DEV_MISC_CTRL);
 		pci_read_config_dword(pdev, REG_PCIE_IND_ACC_DATA, &misc_ctrl);
@@ -873,6 +873,8 @@ static void atl1c_clean_tx_ring(struct atl1c_adapter *adapter,
 		buffer_info = &tpd_ring->buffer_info[index];
 		atl1c_clean_buffer(pdev, buffer_info);
 	}
+
+	netdev_reset_queue(adapter->netdev);
 
 	/* Zero out Tx-buffers */
 	memset(tpd_ring->desc, 0, sizeof(struct atl1c_tpd_desc) *
@@ -1551,6 +1553,7 @@ static bool atl1c_clean_tx_irq(struct atl1c_adapter *adapter,
 	u16 next_to_clean = atomic_read(&tpd_ring->next_to_clean);
 	u16 hw_next_to_clean;
 	u16 reg;
+	unsigned int total_bytes = 0, total_packets = 0;
 
 	reg = type == atl1c_trans_high ? REG_TPD_PRI1_CIDX : REG_TPD_PRI0_CIDX;
 
@@ -1558,11 +1561,17 @@ static bool atl1c_clean_tx_irq(struct atl1c_adapter *adapter,
 
 	while (next_to_clean != hw_next_to_clean) {
 		buffer_info = &tpd_ring->buffer_info[next_to_clean];
+		if (buffer_info->skb) {
+			total_bytes += buffer_info->skb->len;
+			total_packets++;
+		}
 		atl1c_clean_buffer(pdev, buffer_info);
 		if (++next_to_clean == tpd_ring->count)
 			next_to_clean = 0;
 		atomic_set(&tpd_ring->next_to_clean, next_to_clean);
 	}
+
+	netdev_completed_queue(adapter->netdev, total_packets, total_bytes);
 
 	if (netif_queue_stopped(adapter->netdev) &&
 			netif_carrier_ok(adapter->netdev)) {
@@ -2256,6 +2265,7 @@ static netdev_tx_t atl1c_xmit_frame(struct sk_buff *skb,
 		spin_unlock_irqrestore(&adapter->tx_lock, flags);
 		dev_kfree_skb_any(skb);
 	} else {
+		netdev_sent_queue(adapter->netdev, skb->len);
 		atl1c_tx_queue(adapter, skb, tpd, type);
 		spin_unlock_irqrestore(&adapter->tx_lock, flags);
 	}

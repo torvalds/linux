@@ -158,6 +158,8 @@ struct dma_desc {
 			u32 buffer2_size:13;
 			u32 reserved4:3;
 		} etx;		/* -- enhanced -- */
+
+		u64 all_flags;
 	} des01;
 	unsigned int des2;
 	unsigned int des3;

@@ -111,7 +111,7 @@ struct fscache_cookie *__fscache_acquire_cookie(
 
 	/* radix tree insertion won't use the preallocation pool unless it's
 	 * told it may not wait */
-	INIT_RADIX_TREE(&cookie->stores, GFP_NOFS & ~__GFP_WAIT);
+	INIT_RADIX_TREE(&cookie->stores, GFP_NOFS & ~__GFP_DIRECT_RECLAIM);
 
 	switch (cookie->def->type) {
 	case FSCACHE_COOKIE_TYPE_INDEX:
@@ -327,7 +327,8 @@ static int fscache_alloc_object(struct fscache_cache *cache,
 
 object_already_extant:
 	ret = -ENOBUFS;
-	if (fscache_object_is_dead(object)) {
+	if (fscache_object_is_dying(object) ||
+	    fscache_cache_is_broken(object)) {
 		spin_unlock(&cookie->lock);
 		goto error;
 	}
@@ -671,7 +672,7 @@ int __fscache_check_consistency(struct fscache_cookie *cookie)
 	if (!op)
 		return -ENOMEM;
 
-	fscache_operation_init(op, NULL, NULL);
+	fscache_operation_init(op, NULL, NULL, NULL);
 	op->flags = FSCACHE_OP_MYTHREAD |
 		(1 << FSCACHE_OP_WAITING) |
 		(1 << FSCACHE_OP_UNUSE_COOKIE);
@@ -695,8 +696,7 @@ int __fscache_check_consistency(struct fscache_cookie *cookie)
 	/* the work queue now carries its own ref on the object */
 	spin_unlock(&cookie->lock);
 
-	ret = fscache_wait_for_operation_activation(object, op,
-						    NULL, NULL, NULL);
+	ret = fscache_wait_for_operation_activation(object, op, NULL, NULL);
 	if (ret == 0) {
 		/* ask the cache to honour the operation */
 		ret = object->cache->ops->check_consistency(op);

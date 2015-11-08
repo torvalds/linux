@@ -437,7 +437,7 @@ int ssp_queue_ssp_refresh_task(struct ssp_data *data, unsigned int delay)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id ssp_of_match[] = {
+static const struct of_device_id ssp_of_match[] = {
 	{
 		.compatible	= "samsung,sensorhub-rinato",
 		.data		= &ssp_rinato_info,
@@ -700,8 +700,6 @@ static struct spi_driver ssp_driver = {
 	.remove = ssp_remove,
 	.driver = {
 		.pm = &ssp_pm_ops,
-		.bus = &spi_bus_type,
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(ssp_of_match),
 		.name = "sensorhub"
 	},

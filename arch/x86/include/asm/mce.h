@@ -17,11 +17,16 @@
 #define MCG_EXT_CNT(c)		(((c) & MCG_EXT_CNT_MASK) >> MCG_EXT_CNT_SHIFT)
 #define MCG_SER_P		(1ULL<<24)   /* MCA recovery/new status bits */
 #define MCG_ELOG_P		(1ULL<<26)   /* Extended error log supported */
+#define MCG_LMCE_P		(1ULL<<27)   /* Local machine check supported */
 
 /* MCG_STATUS register defines */
 #define MCG_STATUS_RIPV  (1ULL<<0)   /* restart ip valid */
 #define MCG_STATUS_EIPV  (1ULL<<1)   /* ip points to correct instruction */
 #define MCG_STATUS_MCIP  (1ULL<<2)   /* machine check in progress */
+#define MCG_STATUS_LMCES (1ULL<<3)   /* LMCE signaled */
+
+/* MCG_EXT_CTL register defines */
+#define MCG_EXT_CTL_LMCE_EN (1ULL<<0) /* Enable LMCE */
 
 /* MCi_STATUS register defines */
 #define MCI_STATUS_VAL   (1ULL<<63)  /* valid error */
@@ -104,6 +109,7 @@ struct mce_log {
 struct mca_config {
 	bool dont_log_ce;
 	bool cmci_disabled;
+	bool lmce_disabled;
 	bool ignore_ce;
 	bool disabled;
 	bool ser;
@@ -115,6 +121,31 @@ struct mca_config {
 	int panic_timeout;
 	u32 rip_msr;
 };
+
+struct mce_vendor_flags {
+	/*
+	 * Indicates that overflow conditions are not fatal, when set.
+	 */
+	__u64 overflow_recov	: 1,
+
+	/*
+	 * (AMD) SUCCOR stands for S/W UnCorrectable error COntainment and
+	 * Recovery. It indicates support for data poisoning in HW and deferred
+	 * error interrupts.
+	 */
+	      succor		: 1,
+
+	/*
+	 * (AMD) SMCA: This bit indicates support for Scalable MCA which expands
+	 * the register space for each MCA bank and also increases number of
+	 * banks. Also, to accommodate the new banks and registers, the MCA
+	 * register space is moved to a new MSR range.
+	 */
+	      smca		: 1,
+
+	      __reserved_0	: 61;
+};
+extern struct mce_vendor_flags mce_flags;
 
 extern struct mca_config mca_cfg;
 extern void mce_register_decode_chain(struct notifier_block *nb);
@@ -128,9 +159,13 @@ extern int mce_p5_enabled;
 #ifdef CONFIG_X86_MCE
 int mcheck_init(void);
 void mcheck_cpu_init(struct cpuinfo_x86 *c);
+void mcheck_cpu_clear(struct cpuinfo_x86 *c);
+void mcheck_vendor_init_severity(void);
 #else
 static inline int mcheck_init(void) { return 0; }
 static inline void mcheck_cpu_init(struct cpuinfo_x86 *c) {}
+static inline void mcheck_cpu_clear(struct cpuinfo_x86 *c) {}
+static inline void mcheck_vendor_init_severity(void) {}
 #endif
 
 #ifdef CONFIG_X86_ANCIENT_MCE
@@ -156,12 +191,14 @@ DECLARE_PER_CPU(struct device *, mce_device);
 
 #ifdef CONFIG_X86_MCE_INTEL
 void mce_intel_feature_init(struct cpuinfo_x86 *c);
+void mce_intel_feature_clear(struct cpuinfo_x86 *c);
 void cmci_clear(void);
 void cmci_reenable(void);
 void cmci_rediscover(void);
 void cmci_recheck(void);
 #else
 static inline void mce_intel_feature_init(struct cpuinfo_x86 *c) { }
+static inline void mce_intel_feature_clear(struct cpuinfo_x86 *c) { }
 static inline void cmci_clear(void) {}
 static inline void cmci_reenable(void) {}
 static inline void cmci_rediscover(void) {}
@@ -183,11 +220,11 @@ typedef DECLARE_BITMAP(mce_banks_t, MAX_NR_BANKS);
 DECLARE_PER_CPU(mce_banks_t, mce_poll_banks);
 
 enum mcp_flags {
-	MCP_TIMESTAMP = (1 << 0),	/* log time stamp */
-	MCP_UC = (1 << 1),		/* log uncorrected errors */
-	MCP_DONTLOG = (1 << 2),		/* only clear, don't log */
+	MCP_TIMESTAMP	= BIT(0),	/* log time stamp */
+	MCP_UC		= BIT(1),	/* log uncorrected errors */
+	MCP_DONTLOG	= BIT(2),	/* only clear, don't log */
 };
-void machine_check_poll(enum mcp_flags flags, mce_banks_t *b);
+bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b);
 
 int mce_notify_irq(void);
 
@@ -214,6 +251,9 @@ void do_machine_check(struct pt_regs *, long);
 
 extern void (*mce_threshold_vector)(void);
 extern void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
+
+/* Deferred error interrupt handler */
+extern void (*deferred_error_int_vector)(void);
 
 /*
  * Thermal handler

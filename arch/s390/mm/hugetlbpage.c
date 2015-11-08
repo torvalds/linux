@@ -14,20 +14,23 @@ static inline pmd_t __pte_to_pmd(pte_t pte)
 
 	/*
 	 * Convert encoding		  pte bits	   pmd bits
-	 *				.IR...wrdytp	dy..R...I...wr
-	 * empty			.10...000000 -> 00..0...1...00
-	 * prot-none, clean, old	.11...000001 -> 00..1...1...00
-	 * prot-none, clean, young	.11...000101 -> 01..1...1...00
-	 * prot-none, dirty, old	.10...001001 -> 10..1...1...00
-	 * prot-none, dirty, young	.10...001101 -> 11..1...1...00
-	 * read-only, clean, old	.11...010001 -> 00..1...1...01
-	 * read-only, clean, young	.01...010101 -> 01..1...0...01
-	 * read-only, dirty, old	.11...011001 -> 10..1...1...01
-	 * read-only, dirty, young	.01...011101 -> 11..1...0...01
-	 * read-write, clean, old	.11...110001 -> 00..0...1...11
-	 * read-write, clean, young	.01...110101 -> 01..0...0...11
-	 * read-write, dirty, old	.10...111001 -> 10..0...1...11
-	 * read-write, dirty, young	.00...111101 -> 11..0...0...11
+	 *				lIR.uswrdy.p	dy..R...I...wr
+	 * empty			010.000000.0 -> 00..0...1...00
+	 * prot-none, clean, old	111.000000.1 -> 00..1...1...00
+	 * prot-none, clean, young	111.000001.1 -> 01..1...1...00
+	 * prot-none, dirty, old	111.000010.1 -> 10..1...1...00
+	 * prot-none, dirty, young	111.000011.1 -> 11..1...1...00
+	 * read-only, clean, old	111.000100.1 -> 00..1...1...01
+	 * read-only, clean, young	101.000101.1 -> 01..1...0...01
+	 * read-only, dirty, old	111.000110.1 -> 10..1...1...01
+	 * read-only, dirty, young	101.000111.1 -> 11..1...0...01
+	 * read-write, clean, old	111.001100.1 -> 00..1...1...11
+	 * read-write, clean, young	101.001101.1 -> 01..1...0...11
+	 * read-write, dirty, old	110.001110.1 -> 10..0...1...11
+	 * read-write, dirty, young	100.001111.1 -> 11..0...0...11
+	 * HW-bits: R read-only, I invalid
+	 * SW-bits: p present, y young, d dirty, r read, w write, s special,
+	 *	    u unused, l large
 	 */
 	if (pte_present(pte)) {
 		pmd_val(pmd) = pte_val(pte) & PAGE_MASK;
@@ -37,6 +40,7 @@ static inline pmd_t __pte_to_pmd(pte_t pte)
 		pmd_val(pmd) |= (pte_val(pte) & _PAGE_PROTECT);
 		pmd_val(pmd) |= (pte_val(pte) & _PAGE_DIRTY) << 10;
 		pmd_val(pmd) |= (pte_val(pte) & _PAGE_YOUNG) << 10;
+		pmd_val(pmd) |= (pte_val(pte) & _PAGE_SOFT_DIRTY) << 13;
 	} else
 		pmd_val(pmd) = _SEGMENT_ENTRY_INVALID;
 	return pmd;
@@ -48,20 +52,23 @@ static inline pte_t __pmd_to_pte(pmd_t pmd)
 
 	/*
 	 * Convert encoding		   pmd bits	    pte bits
-	 *				dy..R...I...wr	  .IR...wrdytp
-	 * empty			00..0...1...00 -> .10...001100
-	 * prot-none, clean, old	00..0...1...00 -> .10...000001
-	 * prot-none, clean, young	01..0...1...00 -> .10...000101
-	 * prot-none, dirty, old	10..0...1...00 -> .10...001001
-	 * prot-none, dirty, young	11..0...1...00 -> .10...001101
-	 * read-only, clean, old	00..1...1...01 -> .11...010001
-	 * read-only, clean, young	01..1...1...01 -> .11...010101
-	 * read-only, dirty, old	10..1...1...01 -> .11...011001
-	 * read-only, dirty, young	11..1...1...01 -> .11...011101
-	 * read-write, clean, old	00..0...1...11 -> .10...110001
-	 * read-write, clean, young	01..0...1...11 -> .10...110101
-	 * read-write, dirty, old	10..0...1...11 -> .10...111001
-	 * read-write, dirty, young	11..0...1...11 -> .10...111101
+	 *				dy..R...I...wr	  lIR.uswrdy.p
+	 * empty			00..0...1...00 -> 010.000000.0
+	 * prot-none, clean, old	00..1...1...00 -> 111.000000.1
+	 * prot-none, clean, young	01..1...1...00 -> 111.000001.1
+	 * prot-none, dirty, old	10..1...1...00 -> 111.000010.1
+	 * prot-none, dirty, young	11..1...1...00 -> 111.000011.1
+	 * read-only, clean, old	00..1...1...01 -> 111.000100.1
+	 * read-only, clean, young	01..1...0...01 -> 101.000101.1
+	 * read-only, dirty, old	10..1...1...01 -> 111.000110.1
+	 * read-only, dirty, young	11..1...0...01 -> 101.000111.1
+	 * read-write, clean, old	00..1...1...11 -> 111.001100.1
+	 * read-write, clean, young	01..1...0...11 -> 101.001101.1
+	 * read-write, dirty, old	10..0...1...11 -> 110.001110.1
+	 * read-write, dirty, young	11..0...0...11 -> 100.001111.1
+	 * HW-bits: R read-only, I invalid
+	 * SW-bits: p present, y young, d dirty, r read, w write, s special,
+	 *	    u unused, l large
 	 */
 	if (pmd_present(pmd)) {
 		pte_val(pte) = pmd_val(pmd) & _SEGMENT_ENTRY_ORIGIN_LARGE;
@@ -70,8 +77,9 @@ static inline pte_t __pmd_to_pte(pmd_t pmd)
 		pte_val(pte) |= (pmd_val(pmd) & _SEGMENT_ENTRY_WRITE) << 4;
 		pte_val(pte) |= (pmd_val(pmd) & _SEGMENT_ENTRY_INVALID) << 5;
 		pte_val(pte) |= (pmd_val(pmd) & _SEGMENT_ENTRY_PROTECT);
-		pmd_val(pmd) |= (pte_val(pte) & _PAGE_DIRTY) << 10;
-		pmd_val(pmd) |= (pte_val(pte) & _PAGE_YOUNG) << 10;
+		pte_val(pte) |= (pmd_val(pmd) & _SEGMENT_ENTRY_DIRTY) >> 10;
+		pte_val(pte) |= (pmd_val(pmd) & _SEGMENT_ENTRY_YOUNG) >> 10;
+		pte_val(pte) |= (pmd_val(pmd) & _SEGMENT_ENTRY_SOFT_DIRTY) >> 13;
 	} else
 		pte_val(pte) = _PAGE_INVALID;
 	return pte;
@@ -80,31 +88,16 @@ static inline pte_t __pmd_to_pte(pmd_t pmd)
 void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 		     pte_t *ptep, pte_t pte)
 {
-	pmd_t pmd;
+	pmd_t pmd = __pte_to_pmd(pte);
 
-	pmd = __pte_to_pmd(pte);
-	if (!MACHINE_HAS_HPAGE) {
-		/* Emulated huge ptes loose the dirty and young bit */
-		pmd_val(pmd) &= ~_SEGMENT_ENTRY_ORIGIN;
-		pmd_val(pmd) |= pte_page(pte)[1].index;
-	} else
-		pmd_val(pmd) |= _SEGMENT_ENTRY_LARGE;
+	pmd_val(pmd) |= _SEGMENT_ENTRY_LARGE;
 	*(pmd_t *) ptep = pmd;
 }
 
 pte_t huge_ptep_get(pte_t *ptep)
 {
-	unsigned long origin;
-	pmd_t pmd;
+	pmd_t pmd = *(pmd_t *) ptep;
 
-	pmd = *(pmd_t *) ptep;
-	if (!MACHINE_HAS_HPAGE && pmd_present(pmd)) {
-		origin = pmd_val(pmd) & _SEGMENT_ENTRY_ORIGIN;
-		pmd_val(pmd) &= ~_SEGMENT_ENTRY_ORIGIN;
-		pmd_val(pmd) |= *(unsigned long *) origin;
-		/* Emulated huge ptes are young and dirty by definition */
-		pmd_val(pmd) |= _SEGMENT_ENTRY_YOUNG | _SEGMENT_ENTRY_DIRTY;
-	}
 	return __pmd_to_pte(pmd);
 }
 
@@ -117,45 +110,6 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
 	pmdp_flush_direct(mm, addr, pmdp);
 	pmd_val(*pmdp) = _SEGMENT_ENTRY_EMPTY;
 	return pte;
-}
-
-int arch_prepare_hugepage(struct page *page)
-{
-	unsigned long addr = page_to_phys(page);
-	pte_t pte;
-	pte_t *ptep;
-	int i;
-
-	if (MACHINE_HAS_HPAGE)
-		return 0;
-
-	ptep = (pte_t *) pte_alloc_one(&init_mm, addr);
-	if (!ptep)
-		return -ENOMEM;
-
-	pte_val(pte) = addr;
-	for (i = 0; i < PTRS_PER_PTE; i++) {
-		set_pte_at(&init_mm, addr + i * PAGE_SIZE, ptep + i, pte);
-		pte_val(pte) += PAGE_SIZE;
-	}
-	page[1].index = (unsigned long) ptep;
-	return 0;
-}
-
-void arch_release_hugepage(struct page *page)
-{
-	pte_t *ptep;
-
-	if (MACHINE_HAS_HPAGE)
-		return;
-
-	ptep = (pte_t *) page[1].index;
-	if (!ptep)
-		return;
-	clear_table((unsigned long *) ptep, _PAGE_INVALID,
-		    PTRS_PER_PTE * sizeof(pte_t));
-	page_table_free(&init_mm, (unsigned long *) ptep);
-	page[1].index = 0;
 }
 
 pte_t *huge_pte_alloc(struct mm_struct *mm,
@@ -187,17 +141,9 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 	return (pte_t *) pmdp;
 }
 
-int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
-{
-	return 0;
-}
-
 int pmd_huge(pmd_t pmd)
 {
-	if (!MACHINE_HAS_HPAGE)
-		return 0;
-
-	return !!(pmd_val(pmd) & _SEGMENT_ENTRY_LARGE);
+	return pmd_large(pmd);
 }
 
 int pud_huge(pud_t pud)

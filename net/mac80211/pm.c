@@ -6,6 +6,13 @@
 #include "driver-ops.h"
 #include "led.h"
 
+static void ieee80211_sched_scan_cancel(struct ieee80211_local *local)
+{
+	if (ieee80211_request_sched_scan_stop(local))
+		return;
+	cfg80211_sched_scan_stopped_rtnl(local->hw.wiphy);
+}
+
 int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
@@ -23,7 +30,8 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 
 	ieee80211_del_virtual_monitor(local);
 
-	if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
+	if (ieee80211_hw_check(hw, AMPDU_AGGREGATION) &&
+	    !(wowlan && wowlan->any)) {
 		mutex_lock(&local->sta_mtx);
 		list_for_each_entry(sta, &local->sta_list, list) {
 			set_sta_flag(sta, WLAN_STA_BLOCK_BA);
@@ -32,6 +40,10 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 		}
 		mutex_unlock(&local->sta_mtx);
 	}
+
+	/* keep sched_scan only in case of 'any' trigger */
+	if (!(wowlan && wowlan->any))
+		ieee80211_sched_scan_cancel(local);
 
 	ieee80211_stop_queues_by_reason(hw,
 					IEEE80211_MAX_QUEUE_MAP,
@@ -59,13 +71,46 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	cancel_work_sync(&local->dynamic_ps_enable_work);
 	del_timer_sync(&local->dynamic_ps_timer);
 
-	local->wowlan = wowlan && local->open_count;
+	local->wowlan = wowlan;
 	if (local->wowlan) {
-		int err = drv_suspend(local, wowlan);
+		int err;
+
+		/* Drivers don't expect to suspend while some operations like
+		 * authenticating or associating are in progress. It doesn't
+		 * make sense anyway to accept that, since the authentication
+		 * or association would never finish since the driver can't do
+		 * that on its own.
+		 * Thus, clean up in-progress auth/assoc first.
+		 */
+		list_for_each_entry(sdata, &local->interfaces, list) {
+			if (!ieee80211_sdata_running(sdata))
+				continue;
+			if (sdata->vif.type != NL80211_IFTYPE_STATION)
+				continue;
+			ieee80211_mgd_quiesce(sdata);
+			/* If suspended during TX in progress, and wowlan
+			 * is enabled (connection will be active) there
+			 * can be a race where the driver is put out
+			 * of power-save due to TX and during suspend
+			 * dynamic_ps_timer is cancelled and TX packet
+			 * is flushed, leaving the driver in ACTIVE even
+			 * after resuming until dynamic_ps_timer puts
+			 * driver back in DOZE.
+			 */
+			if (sdata->u.mgd.associated &&
+			    sdata->u.mgd.powersave &&
+			     !(local->hw.conf.flags & IEEE80211_CONF_PS)) {
+				local->hw.conf.flags |= IEEE80211_CONF_PS;
+				ieee80211_hw_config(local,
+						    IEEE80211_CONF_CHANGE_PS);
+			}
+		}
+
+		err = drv_suspend(local, wowlan);
 		if (err < 0) {
 			local->quiescing = false;
 			local->wowlan = false;
-			if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
+			if (ieee80211_hw_check(hw, AMPDU_AGGREGATION)) {
 				mutex_lock(&local->sta_mtx);
 				list_for_each_entry(sta,
 						    &local->sta_list, list) {
@@ -80,6 +125,13 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 			return err;
 		} else if (err > 0) {
 			WARN_ON(err != 1);
+			/* cfg80211 will call back into mac80211 to disconnect
+			 * all interfaces, allow that to proceed properly
+			 */
+			ieee80211_wake_queues_by_reason(hw,
+					IEEE80211_MAX_QUEUE_MAP,
+					IEEE80211_QUEUE_STOP_REASON_SUSPEND,
+					false);
 			return err;
 		} else {
 			goto suspend;

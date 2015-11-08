@@ -404,7 +404,8 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 	if (wm8350->irq_base) {
 		ret = request_threaded_irq(wm8350->irq_base +
 					   WM8350_IRQ_AUXADC_DATARDY,
-					   NULL, wm8350_auxadc_irq, 0,
+					   NULL, wm8350_auxadc_irq,
+					   IRQF_ONESHOT,
 					   "auxadc", wm8350);
 		if (ret < 0)
 			dev_warn(wm8350->dev,

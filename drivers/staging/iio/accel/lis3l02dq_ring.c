@@ -69,25 +69,25 @@ static int lis3l02dq_read_all(struct iio_dev *indio_dev, u8 *rx_array)
 
 	mutex_lock(&st->buf_lock);
 
-	for (i = 0; i < ARRAY_SIZE(read_all_tx_array)/4; i++)
+	for (i = 0; i < ARRAY_SIZE(read_all_tx_array) / 4; i++)
 		if (test_bit(i, indio_dev->active_scan_mask)) {
 			/* lower byte */
-			xfers[j].tx_buf = st->tx + 2*j;
-			st->tx[2*j] = read_all_tx_array[i*4];
-			st->tx[2*j + 1] = 0;
+			xfers[j].tx_buf = st->tx + (2 * j);
+			st->tx[2 * j] = read_all_tx_array[i * 4];
+			st->tx[2 * j + 1] = 0;
 			if (rx_array)
-				xfers[j].rx_buf = rx_array + j*2;
+				xfers[j].rx_buf = rx_array + (j * 2);
 			xfers[j].bits_per_word = 8;
 			xfers[j].len = 2;
 			xfers[j].cs_change = 1;
 			j++;
 
 			/* upper byte */
-			xfers[j].tx_buf = st->tx + 2*j;
-			st->tx[2*j] = read_all_tx_array[i*4 + 2];
-			st->tx[2*j + 1] = 0;
+			xfers[j].tx_buf = st->tx + (2 * j);
+			st->tx[2 * j] = read_all_tx_array[i * 4 + 2];
+			st->tx[2 * j + 1] = 0;
 			if (rx_array)
-				xfers[j].rx_buf = rx_array + j*2;
+				xfers[j].rx_buf = rx_array + (j * 2);
 			xfers[j].bits_per_word = 8;
 			xfers[j].len = 2;
 			xfers[j].cs_change = 1;
@@ -110,7 +110,7 @@ static int lis3l02dq_read_all(struct iio_dev *indio_dev, u8 *rx_array)
 }
 
 static int lis3l02dq_get_buffer_element(struct iio_dev *indio_dev,
-				u8 *buf)
+					u8 *buf)
 {
 	int ret, i;
 	u8 *rx_array;
@@ -118,8 +118,8 @@ static int lis3l02dq_get_buffer_element(struct iio_dev *indio_dev,
 	int scan_count = bitmap_weight(indio_dev->active_scan_mask,
 				       indio_dev->masklength);
 
-	rx_array = kzalloc(4 * scan_count, GFP_KERNEL);
-	if (rx_array == NULL)
+	rx_array = kcalloc(4, scan_count, GFP_KERNEL);
+	if (!rx_array)
 		return -ENOMEM;
 	ret = lis3l02dq_read_all(indio_dev, rx_array);
 	if (ret < 0) {
@@ -127,11 +127,11 @@ static int lis3l02dq_get_buffer_element(struct iio_dev *indio_dev,
 		return ret;
 	}
 	for (i = 0; i < scan_count; i++)
-		data[i] = combine_8_to_16(rx_array[i*4+1],
-					rx_array[i*4+3]);
+		data[i] = combine_8_to_16(rx_array[i * 4 + 1],
+					rx_array[i * 4 + 3]);
 	kfree(rx_array);
 
-	return i*sizeof(data[0]);
+	return i * sizeof(data[0]);
 }
 
 static irqreturn_t lis3l02dq_trigger_handler(int irq, void *p)
@@ -142,7 +142,7 @@ static irqreturn_t lis3l02dq_trigger_handler(int irq, void *p)
 	char *data;
 
 	data = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
-	if (data == NULL)
+	if (!data)
 		goto done;
 
 	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
@@ -195,7 +195,8 @@ __lis3l02dq_write_data_ready_config(struct iio_dev *indio_dev, bool state)
 	/* Enable requested */
 	} else if (state && !currentlyset) {
 		/* If not set, enable requested
-		 * first disable all events */
+		 * first disable all events
+		 */
 		ret = lis3l02dq_disable_all_events(indio_dev);
 		if (ret < 0)
 			goto error_ret;
@@ -255,7 +256,8 @@ static int lis3l02dq_trig_try_reen(struct iio_trigger *trig)
 	int i;
 
 	/* If gpio still high (or high again)
-	 * In theory possible we will need to do this several times */
+	 * In theory possible we will need to do this several times
+	 */
 	for (i = 0; i < 5; i++)
 		if (gpio_get_value(st->gpio))
 			lis3l02dq_read_all(indio_dev, NULL);
@@ -330,19 +332,21 @@ static int lis3l02dq_buffer_postenable(struct iio_dev *indio_dev)
 	if (test_bit(0, indio_dev->active_scan_mask)) {
 		t |= LIS3L02DQ_REG_CTRL_1_AXES_X_ENABLE;
 		oneenabled = true;
-	} else
+	} else {
 		t &= ~LIS3L02DQ_REG_CTRL_1_AXES_X_ENABLE;
+	}
 	if (test_bit(1, indio_dev->active_scan_mask)) {
 		t |= LIS3L02DQ_REG_CTRL_1_AXES_Y_ENABLE;
 		oneenabled = true;
-	} else
+	} else {
 		t &= ~LIS3L02DQ_REG_CTRL_1_AXES_Y_ENABLE;
+	}
 	if (test_bit(2, indio_dev->active_scan_mask)) {
 		t |= LIS3L02DQ_REG_CTRL_1_AXES_Z_ENABLE;
 		oneenabled = true;
-	} else
+	} else {
 		t &= ~LIS3L02DQ_REG_CTRL_1_AXES_Z_ENABLE;
-
+	}
 	if (!oneenabled) /* what happens in this case is unknown */
 		return -EINVAL;
 	ret = lis3l02dq_spi_write_reg_8(indio_dev,
@@ -410,7 +414,7 @@ int lis3l02dq_configure_buffer(struct iio_dev *indio_dev)
 						 "lis3l02dq_consumer%d",
 						 indio_dev->id);
 
-	if (indio_dev->pollfunc == NULL) {
+	if (!indio_dev->pollfunc) {
 		ret = -ENOMEM;
 		goto error_iio_sw_rb_free;
 	}

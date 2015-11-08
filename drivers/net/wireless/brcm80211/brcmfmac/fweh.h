@@ -85,7 +85,6 @@ struct brcmf_event;
 	BRCMF_ENUM_DEF(IF, 54) \
 	BRCMF_ENUM_DEF(P2P_DISC_LISTEN_COMPLETE, 55) \
 	BRCMF_ENUM_DEF(RSSI, 56) \
-	BRCMF_ENUM_DEF(PFN_SCAN_COMPLETE, 57) \
 	BRCMF_ENUM_DEF(EXTLOG_MSG, 58) \
 	BRCMF_ENUM_DEF(ACTION_FRAME, 59) \
 	BRCMF_ENUM_DEF(ACTION_FRAME_COMPLETE, 60) \
@@ -103,8 +102,7 @@ struct brcmf_event;
 	BRCMF_ENUM_DEF(FIFO_CREDIT_MAP, 74) \
 	BRCMF_ENUM_DEF(ACTION_FRAME_RX, 75) \
 	BRCMF_ENUM_DEF(TDLS_PEER_EVENT, 92) \
-	BRCMF_ENUM_DEF(BCMC_CREDIT_SUPPORT, 127) \
-	BRCMF_ENUM_DEF(PSTA_PRIMARY_INTF_IND, 128)
+	BRCMF_ENUM_DEF(BCMC_CREDIT_SUPPORT, 127)
 
 #define BRCMF_ENUM_DEF(id, val) \
 	BRCMF_E_##id = (val),
@@ -112,7 +110,11 @@ struct brcmf_event;
 /* firmware event codes sent by the dongle */
 enum brcmf_fweh_event_code {
 	BRCMF_FWEH_EVENT_ENUM_DEFLIST
-	BRCMF_E_LAST
+	/* this determines event mask length which must match
+	 * minimum length check in device firmware so it is
+	 * hard-coded here.
+	 */
+	BRCMF_E_LAST = 139
 };
 #undef BRCMF_ENUM_DEF
 
@@ -228,12 +230,14 @@ typedef int (*brcmf_fweh_handler_t)(struct brcmf_if *ifp,
 /**
  * struct brcmf_fweh_info - firmware event handling information.
  *
+ * @p2pdev_setup_ongoing: P2P device creation in progress.
  * @event_work: event worker.
  * @evt_q_lock: lock for event queue protection.
  * @event_q: event queue.
  * @evt_handler: registered event handlers.
  */
 struct brcmf_fweh_info {
+	bool p2pdev_setup_ongoing;
 	struct work_struct event_work;
 	spinlock_t evt_q_lock;
 	struct list_head event_q;
@@ -253,6 +257,7 @@ void brcmf_fweh_unregister(struct brcmf_pub *drvr,
 int brcmf_fweh_activate_events(struct brcmf_if *ifp);
 void brcmf_fweh_process_event(struct brcmf_pub *drvr,
 			      struct brcmf_event *event_packet);
+void brcmf_fweh_p2pdev_setup(struct brcmf_if *ifp, bool ongoing);
 
 static inline void brcmf_fweh_process_skb(struct brcmf_pub *drvr,
 					  struct sk_buff *skb)

@@ -70,7 +70,6 @@ struct ser_device {
 	struct tty_struct *tty;
 	bool tx_started;
 	unsigned long state;
-	char *tty_name;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_tty_dir;
 	struct debugfs_blob_wrapper tx_blob;
@@ -428,7 +427,7 @@ static void caifdev_setup(struct net_device *dev)
 	dev->type = ARPHRD_CAIF;
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP;
 	dev->mtu = CAIF_MAX_MTU;
-	dev->tx_queue_len = 0;
+	dev->priv_flags |= IFF_NO_QUEUE;
 	dev->destructor = free_netdev;
 	skb_queue_head_init(&serdev->head);
 	serdev->common.link_select = CAIF_LINK_LOW_LATENCY;

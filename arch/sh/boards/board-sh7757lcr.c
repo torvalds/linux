@@ -17,6 +17,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #include <linux/io.h>
+#include <linux/mfd/tmio.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/sh_mmcif.h>
 #include <linux/mmc/sh_mobile_sdhi.h>
@@ -243,10 +244,10 @@ static struct platform_device sh_mmcif_device = {
 };
 
 /* SDHI0 */
-static struct sh_mobile_sdhi_info sdhi_info = {
-	.dma_slave_tx	= SHDMA_SLAVE_SDHI_TX,
-	.dma_slave_rx	= SHDMA_SLAVE_SDHI_RX,
-	.tmio_caps	= MMC_CAP_SD_HIGHSPEED,
+static struct tmio_mmc_data sdhi_info = {
+	.chan_priv_tx	= (void *)SHDMA_SLAVE_SDHI_TX,
+	.chan_priv_rx	= (void *)SHDMA_SLAVE_SDHI_RX,
+	.capabilities	= MMC_CAP_SD_HIGHSPEED,
 };
 
 static struct resource sdhi_resources[] = {

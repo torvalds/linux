@@ -33,7 +33,6 @@ static unsigned int sha_disable;
 module_param(sha_disable, uint, 0444);
 MODULE_PARM_DESC(sha_disable, "Disable use of SHA - any non-zero value");
 
-
 /* List heads for the supported algorithms */
 static LIST_HEAD(hash_algs);
 static LIST_HEAD(cipher_algs);
@@ -48,6 +47,7 @@ struct ccp_crypto_queue {
 	struct list_head *backlog;
 	unsigned int cmd_count;
 };
+
 #define CCP_CRYPTO_MAX_QLEN	100
 
 static struct ccp_crypto_queue req_queue;
@@ -76,7 +76,6 @@ struct ccp_crypto_cpu {
 	struct ccp_crypto_cmd *crypto_cmd;
 	int err;
 };
-
 
 static inline bool ccp_crypto_success(int err)
 {
@@ -143,7 +142,7 @@ static void ccp_crypto_complete(void *data, int err)
 	int ret;
 
 	if (err == -EINPROGRESS) {
-		/* Only propogate the -EINPROGRESS if necessary */
+		/* Only propagate the -EINPROGRESS if necessary */
 		if (crypto_cmd->ret == -EBUSY) {
 			crypto_cmd->ret = -EINPROGRESS;
 			req->complete(req, -EINPROGRESS);
@@ -306,14 +305,16 @@ struct scatterlist *ccp_crypto_sg_table_add(struct sg_table *table,
 	for (sg = table->sgl; sg; sg = sg_next(sg))
 		if (!sg_page(sg))
 			break;
-	BUG_ON(!sg);
+	if (WARN_ON(!sg))
+		return NULL;
 
 	for (; sg && sg_add; sg = sg_next(sg), sg_add = sg_next(sg_add)) {
 		sg_set_page(sg, sg_page(sg_add), sg_add->length,
 			    sg_add->offset);
 		sg_last = sg;
 	}
-	BUG_ON(sg_add);
+	if (WARN_ON(sg_add))
+		return NULL;
 
 	return sg_last;
 }

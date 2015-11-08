@@ -50,8 +50,8 @@ prototypes:
 	int (*rename2) (struct inode *, struct dentry *,
 			struct inode *, struct dentry *, unsigned int);
 	int (*readlink) (struct dentry *, char __user *,int);
-	void * (*follow_link) (struct dentry *, struct nameidata *);
-	void (*put_link) (struct dentry *, struct nameidata *, void *);
+	const char *(*follow_link) (struct dentry *, void **);
+	void (*put_link) (struct inode *, void *);
 	void (*truncate) (struct inode *);
 	int (*permission) (struct inode *, int, unsigned int);
 	int (*get_acl)(struct inode *, int);
@@ -196,7 +196,7 @@ prototypes:
 	void (*invalidatepage) (struct page *, unsigned int, unsigned int);
 	int (*releasepage) (struct page *, int);
 	void (*freepage)(struct page *);
-	int (*direct_IO)(int, struct kiocb *, struct iov_iter *iter, loff_t offset);
+	int (*direct_IO)(struct kiocb *, struct iov_iter *iter, loff_t offset);
 	int (*migratepage)(struct address_space *, struct page *, struct page *);
 	int (*launder_page)(struct page *);
 	int (*is_partially_uptodate)(struct page *, unsigned long, unsigned long);
@@ -397,7 +397,8 @@ prototypes:
 	int (*release) (struct gendisk *, fmode_t);
 	int (*ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
 	int (*compat_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
-	int (*direct_access) (struct block_device *, sector_t, void **, unsigned long *);
+	int (*direct_access) (struct block_device *, sector_t, void __pmem **,
+				unsigned long *);
 	int (*media_changed) (struct gendisk *);
 	void (*unlock_native_capacity) (struct gendisk *);
 	int (*revalidate_disk) (struct gendisk *);
@@ -429,8 +430,6 @@ prototypes:
 	loff_t (*llseek) (struct file *, loff_t, int);
 	ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
 	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
-	ssize_t (*aio_read) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
-	ssize_t (*aio_write) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
 	ssize_t (*read_iter) (struct kiocb *, struct iov_iter *);
 	ssize_t (*write_iter) (struct kiocb *, struct iov_iter *);
 	int (*iterate) (struct file *, struct dir_context *);
@@ -525,6 +524,7 @@ prototypes:
 	void (*close)(struct vm_area_struct*);
 	int (*fault)(struct vm_area_struct*, struct vm_fault *);
 	int (*page_mkwrite)(struct vm_area_struct *, struct vm_fault *);
+	int (*pfn_mkwrite)(struct vm_area_struct *, struct vm_fault *);
 	int (*access)(struct vm_area_struct *, unsigned long, void*, int, int);
 
 locking rules:
@@ -534,6 +534,7 @@ close:		yes
 fault:		yes		can return with page locked
 map_pages:	yes
 page_mkwrite:	yes		can return with page locked
+pfn_mkwrite:	yes
 access:		yes
 
 	->fault() is called when a previously not present pte is about
@@ -559,6 +560,12 @@ no truncate/invalidate races, and then return with the page locked. If
 the page has been truncated, the filesystem should not look up a new page
 like the ->fault() handler, but simply return with VM_FAULT_NOPAGE, which
 will cause the VM to retry the fault.
+
+	->pfn_mkwrite() is the same as page_mkwrite but when the pte is
+VM_PFNMAP or VM_MIXEDMAP with a page-less entry. Expected return is
+VM_FAULT_NOPAGE. Or one of the VM_FAULT_ERROR types. The default behavior
+after this call is to make the pte read-write, unless pfn_mkwrite returns
+an error.
 
 	->access() is called when get_user_pages() fails in
 access_process_vm(), typically used to debug a process through

@@ -734,6 +734,7 @@ static int parse_opts(char *params, struct p9_fd_opts *opts)
 	opts->port = P9_PORT;
 	opts->rfd = ~0;
 	opts->wfd = ~0;
+	opts->privport = 0;
 
 	if (!params)
 		return 0;
@@ -940,7 +941,7 @@ p9_fd_create_tcp(struct p9_client *client, const char *addr, char *args)
 	sin_server.sin_family = AF_INET;
 	sin_server.sin_addr.s_addr = in_aton(addr);
 	sin_server.sin_port = htons(opts.port);
-	err = __sock_create(read_pnet(&current->nsproxy->net_ns), PF_INET,
+	err = __sock_create(current->nsproxy->net_ns, PF_INET,
 			    SOCK_STREAM, IPPROTO_TCP, &csocket, 1);
 	if (err) {
 		pr_err("%s (%d): problem creating socket\n",
@@ -988,7 +989,7 @@ p9_fd_create_unix(struct p9_client *client, const char *addr, char *args)
 
 	sun_server.sun_family = PF_UNIX;
 	strcpy(sun_server.sun_path, addr);
-	err = __sock_create(read_pnet(&current->nsproxy->net_ns), PF_UNIX,
+	err = __sock_create(current->nsproxy->net_ns, PF_UNIX,
 			    SOCK_STREAM, 0, &csocket, 1);
 	if (err < 0) {
 		pr_err("%s (%d): problem creating socket\n",
@@ -1013,7 +1014,6 @@ p9_fd_create(struct p9_client *client, const char *addr, char *args)
 {
 	int err;
 	struct p9_fd_opts opts;
-	struct p9_trans_fd *p;
 
 	parse_opts(args, &opts);
 
@@ -1026,7 +1026,6 @@ p9_fd_create(struct p9_client *client, const char *addr, char *args)
 	if (err < 0)
 		return err;
 
-	p = (struct p9_trans_fd *) client->trans;
 	p9_conn_create(client);
 
 	return 0;

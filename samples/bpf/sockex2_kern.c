@@ -42,13 +42,13 @@ static inline int proto_ports_offset(__u64 proto)
 	}
 }
 
-static inline int ip_is_fragment(struct sk_buff *ctx, __u64 nhoff)
+static inline int ip_is_fragment(struct __sk_buff *ctx, __u64 nhoff)
 {
 	return load_half(ctx, nhoff + offsetof(struct iphdr, frag_off))
 		& (IP_MF | IP_OFFSET);
 }
 
-static inline __u32 ipv6_addr_hash(struct sk_buff *ctx, __u64 off)
+static inline __u32 ipv6_addr_hash(struct __sk_buff *ctx, __u64 off)
 {
 	__u64 w0 = load_word(ctx, off);
 	__u64 w1 = load_word(ctx, off + 4);
@@ -58,7 +58,7 @@ static inline __u32 ipv6_addr_hash(struct sk_buff *ctx, __u64 off)
 	return (__u32)(w0 ^ w1 ^ w2 ^ w3);
 }
 
-static inline __u64 parse_ip(struct sk_buff *skb, __u64 nhoff, __u64 *ip_proto,
+static inline __u64 parse_ip(struct __sk_buff *skb, __u64 nhoff, __u64 *ip_proto,
 			     struct flow_keys *flow)
 {
 	__u64 verlen;
@@ -82,7 +82,7 @@ static inline __u64 parse_ip(struct sk_buff *skb, __u64 nhoff, __u64 *ip_proto,
 	return nhoff;
 }
 
-static inline __u64 parse_ipv6(struct sk_buff *skb, __u64 nhoff, __u64 *ip_proto,
+static inline __u64 parse_ipv6(struct __sk_buff *skb, __u64 nhoff, __u64 *ip_proto,
 			       struct flow_keys *flow)
 {
 	*ip_proto = load_byte(skb,
@@ -96,7 +96,7 @@ static inline __u64 parse_ipv6(struct sk_buff *skb, __u64 nhoff, __u64 *ip_proto
 	return nhoff;
 }
 
-static inline bool flow_dissector(struct sk_buff *skb, struct flow_keys *flow)
+static inline bool flow_dissector(struct __sk_buff *skb, struct flow_keys *flow)
 {
 	__u64 nhoff = ETH_HLEN;
 	__u64 ip_proto;
@@ -183,18 +183,23 @@ static inline bool flow_dissector(struct sk_buff *skb, struct flow_keys *flow)
 	return true;
 }
 
+struct pair {
+	long packets;
+	long bytes;
+};
+
 struct bpf_map_def SEC("maps") hash_map = {
 	.type = BPF_MAP_TYPE_HASH,
 	.key_size = sizeof(__be32),
-	.value_size = sizeof(long),
+	.value_size = sizeof(struct pair),
 	.max_entries = 1024,
 };
 
 SEC("socket2")
-int bpf_prog2(struct sk_buff *skb)
+int bpf_prog2(struct __sk_buff *skb)
 {
 	struct flow_keys flow;
-	long *value;
+	struct pair *value;
 	u32 key;
 
 	if (!flow_dissector(skb, &flow))
@@ -203,9 +208,10 @@ int bpf_prog2(struct sk_buff *skb)
 	key = flow.dst;
 	value = bpf_map_lookup_elem(&hash_map, &key);
 	if (value) {
-		__sync_fetch_and_add(value, 1);
+		__sync_fetch_and_add(&value->packets, 1);
+		__sync_fetch_and_add(&value->bytes, skb->len);
 	} else {
-		long val = 1;
+		struct pair val = {1, skb->len};
 
 		bpf_map_update_elem(&hash_map, &key, &val, BPF_ANY);
 	}

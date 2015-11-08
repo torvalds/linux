@@ -12,6 +12,7 @@
 #ifndef __LINUX_LEDS_H_INCLUDED
 #define __LINUX_LEDS_H_INCLUDED
 
+#include <linux/device.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/rwsem.h>
@@ -47,7 +48,6 @@ struct led_classdev {
 #define SET_BRIGHTNESS_ASYNC	(1 << 21)
 #define SET_BRIGHTNESS_SYNC	(1 << 22)
 #define LED_DEV_CAP_FLASH	(1 << 23)
-#define LED_DEV_CAP_SYNC_STROBE	(1 << 24)
 
 	/* Set LED brightness level */
 	/* Must not sleep, use a workqueue if needed */
@@ -105,7 +105,11 @@ struct led_classdev {
 
 extern int led_classdev_register(struct device *parent,
 				 struct led_classdev *led_cdev);
+extern int devm_led_classdev_register(struct device *parent,
+				      struct led_classdev *led_cdev);
 extern void led_classdev_unregister(struct led_classdev *led_cdev);
+extern void devm_led_classdev_unregister(struct device *parent,
+					 struct led_classdev *led_cdev);
 extern void led_classdev_suspend(struct led_classdev *led_cdev);
 extern void led_classdev_resume(struct led_classdev *led_cdev);
 
@@ -219,6 +223,11 @@ struct led_trigger {
 	struct list_head  next_trig;
 };
 
+ssize_t led_trigger_store(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count);
+ssize_t led_trigger_show(struct device *dev, struct device_attribute *attr,
+			char *buf);
+
 /* Registration functions for complex triggers */
 extern int led_trigger_register(struct led_trigger *trigger);
 extern void led_trigger_unregister(struct led_trigger *trigger);
@@ -235,6 +244,16 @@ extern void led_trigger_blink_oneshot(struct led_trigger *trigger,
 				      unsigned long *delay_on,
 				      unsigned long *delay_off,
 				      int invert);
+extern void led_trigger_set_default(struct led_classdev *led_cdev);
+extern void led_trigger_set(struct led_classdev *led_cdev,
+			struct led_trigger *trigger);
+extern void led_trigger_remove(struct led_classdev *led_cdev);
+
+static inline void *led_get_trigger_data(struct led_classdev *led_cdev)
+{
+	return led_cdev->trigger_data;
+}
+
 /**
  * led_trigger_rename_static - rename a trigger
  * @name: the new trigger name
@@ -264,6 +283,22 @@ static inline void led_trigger_register_simple(const char *name,
 static inline void led_trigger_unregister_simple(struct led_trigger *trigger) {}
 static inline void led_trigger_event(struct led_trigger *trigger,
 				enum led_brightness event) {}
+static inline void led_trigger_blink(struct led_trigger *trigger,
+				      unsigned long *delay_on,
+				      unsigned long *delay_off) {}
+static inline void led_trigger_blink_oneshot(struct led_trigger *trigger,
+				      unsigned long *delay_on,
+				      unsigned long *delay_off,
+				      int invert) {}
+static inline void led_trigger_set_default(struct led_classdev *led_cdev) {}
+static inline void led_trigger_set(struct led_classdev *led_cdev,
+				struct led_trigger *trigger) {}
+static inline void led_trigger_remove(struct led_classdev *led_cdev) {}
+static inline void *led_get_trigger_data(struct led_classdev *led_cdev)
+{
+	return NULL;
+}
+
 #endif /* CONFIG_LEDS_TRIGGERS */
 
 /* Trigger specific functions */

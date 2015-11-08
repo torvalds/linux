@@ -132,19 +132,19 @@ static bool vnt_rx_data(struct vnt_private *priv, struct sk_buff *skb,
 	return true;
 }
 
-bool vnt_receive_frame(struct vnt_private *priv, PSRxDesc curr_rd)
+bool vnt_receive_frame(struct vnt_private *priv, struct vnt_rx_desc *curr_rd)
 {
-	PDEVICE_RD_INFO rd_info = curr_rd->pRDInfo;
+	struct vnt_rd_info *rd_info = curr_rd->rd_info;
 	struct sk_buff *skb;
 	u16 frame_size;
 
 	skb = rd_info->skb;
 
-	pci_unmap_single(priv->pcid, rd_info->skb_dma,
-			 priv->rx_buf_sz, PCI_DMA_FROMDEVICE);
+	dma_unmap_single(&priv->pcid->dev, rd_info->skb_dma,
+			 priv->rx_buf_sz, DMA_FROM_DEVICE);
 
-	frame_size = le16_to_cpu(curr_rd->m_rd1RD1.wReqCount)
-			- cpu_to_le16(curr_rd->m_rd0RD0.wResCount);
+	frame_size = le16_to_cpu(curr_rd->rd1.req_count)
+			- le16_to_cpu(curr_rd->rd0.res_count);
 
 	if ((frame_size > 2364) || (frame_size < 33)) {
 		/* Frame Size error drop this packet.*/

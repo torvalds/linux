@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2014 Emulex
+ * Copyright (C) 2005 - 2015 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -8,7 +8,7 @@
  * Public License is included in this distribution in the file called COPYING.
  *
  * Contact Information:
- * linux-drivers@emulex.com
+ * linux-drivers@avagotech.com
  *
  * Emulex
  * 3333 Susan Street
@@ -237,7 +237,7 @@ int beiscsi_mccq_compl(struct beiscsi_hba *phba,
 			beiscsi_log(phba, KERN_WARNING,
 				    BEISCSI_LOG_INIT | BEISCSI_LOG_EH |
 				    BEISCSI_LOG_CONFIG,
-				    "BC_%d : Insufficent Buffer Error "
+				    "BC_%d : Insufficient Buffer Error "
 				    "Resp_Len : %d Actual_Resp_Len : %d\n",
 				    mbx_resp_hdr->response_length,
 				    mbx_resp_hdr->actual_resp_len);
@@ -452,6 +452,7 @@ void beiscsi_async_link_state_process(struct beiscsi_hba *phba,
 		    ((evt->port_link_status & ASYNC_EVENT_LOGICAL) &&
 		     (evt->port_fault == BEISCSI_PHY_LINK_FAULT_NONE))) {
 		phba->state = BE_ADAPTER_LINK_UP | BE_ADAPTER_CHECK_BOOT;
+		phba->get_boot = BE_GET_BOOT_RETRIES;
 
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_INIT,
@@ -480,6 +481,7 @@ int beiscsi_process_mcc(struct beiscsi_hba *phba)
 				case ASYNC_EVENT_NEW_ISCSI_CONN:
 				case ASYNC_EVENT_NEW_TCP_CONN:
 					phba->state |= BE_ADAPTER_CHECK_BOOT;
+					phba->get_boot = BE_GET_BOOT_RETRIES;
 					beiscsi_log(phba, KERN_ERR,
 						    BEISCSI_LOG_CONFIG |
 						    BEISCSI_LOG_MBOX,
@@ -488,6 +490,8 @@ int beiscsi_process_mcc(struct beiscsi_hba *phba)
 						    compl->flags);
 					break;
 				default:
+					phba->state |= BE_ADAPTER_CHECK_BOOT;
+					phba->get_boot = BE_GET_BOOT_RETRIES;
 					beiscsi_log(phba, KERN_ERR,
 						    BEISCSI_LOG_CONFIG |
 						    BEISCSI_LOG_MBOX,

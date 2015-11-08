@@ -178,6 +178,16 @@ config REGULATOR_DA9055
 	  This driver can also be built as a module. If so, the module
 	  will be called da9055-regulator.
 
+config REGULATOR_DA9062
+	tristate "Dialog Semiconductor DA9062 regulators"
+	depends on MFD_DA9062
+	help
+	  Say y here to support the BUCKs and LDOs regulators found on
+	  DA9062 PMICs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called da9062-regulator.
+
 config REGULATOR_DA9063
 	tristate "Dialog Semiconductor DA9063 regulators"
 	depends on MFD_DA9063
@@ -199,13 +209,13 @@ config REGULATOR_DA9210
 	  interface.
 
 config REGULATOR_DA9211
-	tristate "Dialog Semiconductor DA9211/DA9212/DA9213/DA9214 regulator"
+	tristate "Dialog Semiconductor DA9211/DA9212/DA9213/DA9214/DA9215 regulator"
 	depends on I2C
 	select REGMAP_I2C
 	help
 	  Say y here to support for the Dialog Semiconductor DA9211/DA9212
-	  /DA9213/DA9214.
-	  The DA9211/DA9212/DA9213/DA9214 is a multi-phase synchronous
+	  /DA9213/DA9214/DA9215.
+	  The DA9211/DA9212/DA9213/DA9214/DA9215 is a multi-phase synchronous
 	  step down converter 12A or 16A DC-DC Buck controlled through an I2C
 	  interface.
 
@@ -233,7 +243,7 @@ config REGULATOR_FAN53555
 
 config REGULATOR_GPIO
 	tristate "GPIO regulator support"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  This driver provides support for regulators that can be
 	  controlled via gpios.
@@ -397,13 +407,13 @@ config REGULATOR_MAX77686
 	  Exynos-4 chips to control VARM and VINT voltages.
 
 config REGULATOR_MAX77693
-	tristate "Maxim MAX77693 regulator"
-	depends on MFD_MAX77693
+	tristate "Maxim 77693/77843 regulator"
+	depends on (MFD_MAX77693 || MFD_MAX77843)
 	help
-	  This driver controls a Maxim 77693 regulator via I2C bus.
+	  This driver controls a Maxim 77693/77843 regulators via I2C bus.
 	  The regulators include two LDOs, 'SAFEOUT1', 'SAFEOUT2'
 	  and one current regulator 'CHARGER'. This is suitable for
-	  Exynos-4x12 chips.
+	  Exynos-4x12 (MAX77693) or Exynos5433 (MAX77843) SoC chips.
 
 config REGULATOR_MAX77802
 	tristate "Maxim 77802 regulator"
@@ -413,14 +423,6 @@ config REGULATOR_MAX77802
 	  via I2C bus. The provided regulator is suitable for
 	  Exynos5420/Exynos5800 SoCs to control various voltages.
 	  It includes support for control of voltage and ramp speed.
-
-config REGULATOR_MAX77843
-	tristate "Maxim 77843 regulator"
-	depends on MFD_MAX77843
-	help
-	  This driver controls a Maxim 77843 regulator.
-	  The regulator include two 'SAFEOUT' for USB(Universal Serial Bus)
-	  This is suitable for Exynos5433 SoC chips.
 
 config REGULATOR_MC13XXX_CORE
 	tristate
@@ -440,6 +442,15 @@ config REGULATOR_MC13892
 	help
 	  Say y here to support the regulators found on the Freescale MC13892
 	  PMIC.
+
+config REGULATOR_MT6311
+	tristate "MediaTek MT6311 PMIC"
+	depends on I2C
+	help
+	  Say y here to select this option to enable the power regulator of
+	  MediaTek MT6311 PMIC.
+	  This driver supports the control of different power rails of device
+	  through regulator interface.
 
 config REGULATOR_MT6397
 	tristate "MediaTek MT6397 PMIC"
@@ -511,6 +522,29 @@ config REGULATOR_QCOM_RPM
 	  Say M here if you want to include support for the regulators on the
 	  Qualcomm RPM as a module. The module will be named
 	  "qcom_rpm-regulator".
+
+config REGULATOR_QCOM_SMD_RPM
+	tristate "Qualcomm SMD based RPM regulator driver"
+	depends on QCOM_SMD_RPM
+	help
+	  If you say yes to this option, support will be included for the
+	  regulators exposed by the Resource Power Manager found in Qualcomm
+	  8974 based devices.
+
+	  Say M here if you want to include support for the regulators on the
+	  Qualcomm RPM as a module. The module will be named
+	  "qcom_smd-regulator".
+
+config REGULATOR_QCOM_SPMI
+	tristate "Qualcomm SPMI regulator driver"
+	depends on SPMI || COMPILE_TEST
+	help
+	  If you say yes to this option, support will be included for the
+	  regulators found in Qualcomm SPMI PMICs.
+
+	  Say M here if you want to include support for the regulators on the
+	  Qualcomm SPMI PMICs as a module. The module will be named
+	  "qcom_spmi-regulator".
 
 config REGULATOR_RC5T583
 	tristate "RICOH RC5T583 Power regulators"
@@ -593,7 +627,7 @@ config REGULATOR_TI_ABB
 
 config REGULATOR_STW481X_VMMC
 	bool "ST Microelectronics STW481X VMMC regulator"
-	depends on MFD_STW481X
+	depends on MFD_STW481X || COMPILE_TEST
 	default y if MFD_STW481X
 	help
 	  This driver supports the internal VMMC regulator in the STw481x

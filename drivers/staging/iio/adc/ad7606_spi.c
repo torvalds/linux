@@ -44,8 +44,8 @@ static int ad7606_spi_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 
 	indio_dev = ad7606_probe(&spi->dev, spi->irq, NULL,
-			   spi_get_device_id(spi)->driver_data,
-			   &ad7606_spi_bops);
+				 spi_get_device_id(spi)->driver_data,
+				 &ad7606_spi_bops);
 
 	if (IS_ERR(indio_dev))
 		return PTR_ERR(indio_dev);
@@ -85,6 +85,7 @@ static const struct dev_pm_ops ad7606_pm_ops = {
 	.suspend = ad7606_spi_suspend,
 	.resume  = ad7606_spi_resume,
 };
+
 #define AD7606_SPI_PM_OPS (&ad7606_pm_ops)
 
 #else
@@ -102,7 +103,6 @@ MODULE_DEVICE_TABLE(spi, ad7606_id);
 static struct spi_driver ad7606_driver = {
 	.driver = {
 		.name = "ad7606",
-		.owner = THIS_MODULE,
 		.pm    = AD7606_SPI_PM_OPS,
 	},
 	.probe = ad7606_spi_probe,

@@ -348,9 +348,9 @@ int rtw_generate_ie23a(struct registry_priv *pregistrypriv)
 {
 	u8	wireless_mode;
 	int	sz = 0, rateLen;
-	struct wlan_bssid_ex*	pdev_network = &pregistrypriv->dev_network;
-	u8*	ie = pdev_network->IEs;
-	u16 cap;
+	struct wlan_bssid_ex *pdev_network = &pregistrypriv->dev_network;
+	u8	*ie = pdev_network->IEs;
+	u16	cap;
 
 	pdev_network->tsf = 0;
 
@@ -444,7 +444,8 @@ static int rtw_get_wpa2_cipher_suite(const u8 *s)
 	return 0;
 }
 
-int rtw_parse_wpa_ie23a(const u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwise_cipher, int *is_8021x)
+int rtw_parse_wpa_ie23a(const u8 *wpa_ie, int wpa_ie_len, int *group_cipher,
+			int *pairwise_cipher, int *is_8021x)
 {
 	int i, ret = _SUCCESS;
 	int left, count;
@@ -472,8 +473,8 @@ int rtw_parse_wpa_ie23a(const u8* wpa_ie, int wpa_ie_len, int *group_cipher, int
 		left -= WPA_SELECTOR_LEN;
 	} else if (left > 0) {
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
-			 ("%s: ie length mismatch, %u too much",
-			  __func__, left));
+			 "%s: ie length mismatch, %u too much\n",
+			 __func__, left);
 
 		return _FAIL;
 	}
@@ -487,9 +488,8 @@ int rtw_parse_wpa_ie23a(const u8* wpa_ie, int wpa_ie_len, int *group_cipher, int
 
 		if (count == 0 || left < count * WPA_SELECTOR_LEN) {
 			RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
-				 ("%s: ie count botch (pairwise), "
-				  "count %u left %u", __func__,
-				  count, left));
+				 "%s: ie count botch (pairwise), count %u left %u\n",
+				 __func__, count, left);
 			return _FAIL;
 		}
 
@@ -501,7 +501,7 @@ int rtw_parse_wpa_ie23a(const u8* wpa_ie, int wpa_ie_len, int *group_cipher, int
 		}
 	} else if (left == 1) {
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
-			 ("%s: ie too short (for key mgmt)", __func__));
+			 "%s: ie too short (for key mgmt)\n", __func__);
 		return _FAIL;
 	}
 
@@ -510,8 +510,8 @@ int rtw_parse_wpa_ie23a(const u8* wpa_ie, int wpa_ie_len, int *group_cipher, int
 			pos += 2;
 			if (!memcmp(pos, RTW_WPA_OUI23A_TYPE, 4)) {
 				RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-					 ("%s : there has 802.1x auth\n",
-					  __func__));
+					 "%s : there has 802.1x auth\n",
+					 __func__);
 				*is_8021x = 1;
 			}
 		}
@@ -549,8 +549,8 @@ int rtw_parse_wpa2_ie23a(const u8 *rsn_ie, int rsn_ie_len, int *group_cipher,
 		left -= RSN_SELECTOR_LEN;
 	} else if (left > 0) {
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
-			 ("%s: ie length mismatch, %u too much",
-			  __func__, left));
+			 "%s: ie length mismatch, %u too much\n",
+			 __func__, left);
 		return _FAIL;
 	}
 
@@ -563,9 +563,8 @@ int rtw_parse_wpa2_ie23a(const u8 *rsn_ie, int rsn_ie_len, int *group_cipher,
 
 		if (count == 0 || left < count * RSN_SELECTOR_LEN) {
 			RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
-				 ("%s: ie count botch (pairwise), "
-				  "count %u left %u",
-				  __func__, count, left));
+				 "%s: ie count botch (pairwise), count %u left %u\n",
+				 __func__, count, left);
 			return _FAIL;
 		}
 
@@ -577,7 +576,7 @@ int rtw_parse_wpa2_ie23a(const u8 *rsn_ie, int rsn_ie_len, int *group_cipher,
 		}
 	} else if (left == 1) {
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
-			 ("%s: ie too short (for key mgmt)",  __func__));
+			 "%s: ie too short (for key mgmt)\n",  __func__);
 
 		return _FAIL;
 	}
@@ -587,8 +586,8 @@ int rtw_parse_wpa2_ie23a(const u8 *rsn_ie, int rsn_ie_len, int *group_cipher,
 			pos += 2;
 			if (!memcmp(pos, SUITE_1X, 4)) {
 				RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-					 ("%s (): there has 802.1x auth\n",
-					  __func__));
+					 "%s (): there has 802.1x auth\n",
+					 __func__);
 				*is_8021x = 1;
 			}
 		}
@@ -700,7 +699,7 @@ static int rtw_get_cipher_info(struct wlan_network *pnetwork)
 
 	if (pbuf && pbuf[1] > 0) {
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-			 ("rtw_get_cipher_info: wpa_ielen: %d", pbuf[1]));
+			 "rtw_get_cipher_info: wpa_ielen: %d\n", pbuf[1]);
 		r = rtw_parse_wpa_ie23a(pbuf, pbuf[1] + 2, &group_cipher,
 				     &pairwise_cipher, &is8021x);
 		if (r == _SUCCESS) {
@@ -708,10 +707,9 @@ static int rtw_get_cipher_info(struct wlan_network *pnetwork)
 			pnetwork->BcnInfo.group_cipher = group_cipher;
 			pnetwork->BcnInfo.is_8021x = is8021x;
 			RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-				 ("%s: pnetwork->pairwise_cipher: %d, is_"
-				  "8021x is %d", __func__,
-				  pnetwork->BcnInfo.pairwise_cipher,
-				  pnetwork->BcnInfo.is_8021x));
+				 "%s: pnetwork->pairwise_cipher: %d, is_8021x is %d\n",
+				 __func__, pnetwork->BcnInfo.pairwise_cipher,
+				 pnetwork->BcnInfo.is_8021x);
 			ret = _SUCCESS;
 		}
 	} else {
@@ -719,24 +717,23 @@ static int rtw_get_cipher_info(struct wlan_network *pnetwork)
 
 		if (pbuf && pbuf[1] > 0) {
 			RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-				 ("get RSN IE\n"));
+				 "get RSN IE\n");
 			r = rtw_parse_wpa2_ie23a(pbuf, pbuf[1] + 2,
 					      &group_cipher, &pairwise_cipher,
 					      &is8021x);
 			if (r == _SUCCESS) {
 				RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-					 ("get RSN IE  OK!!!\n"));
+					 "get RSN IE  OK!!!\n");
 				pnetwork->BcnInfo.pairwise_cipher =
 					pairwise_cipher;
 				pnetwork->BcnInfo.group_cipher = group_cipher;
 				pnetwork->BcnInfo.is_8021x = is8021x;
 				RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-					 ("%s: pnetwork->pairwise_cipher: %d,"
-					  "pnetwork->group_cipher is %d, "
-					  "is_8021x is %d", __func__,
-					  pnetwork->BcnInfo.pairwise_cipher,
-					  pnetwork->BcnInfo.group_cipher,
-					  pnetwork->BcnInfo.is_8021x));
+					 "%s: pnetwork->pairwise_cipher: %d,pnetwork->group_cipher is %d, is_8021x is %d\n",
+					 __func__,
+					 pnetwork->BcnInfo.pairwise_cipher,
+					 pnetwork->BcnInfo.group_cipher,
+					 pnetwork->BcnInfo.is_8021x);
 				ret = _SUCCESS;
 			}
 		}
@@ -759,7 +756,7 @@ void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 		pnetwork->BcnInfo.encryp_protocol = ENCRYP_PROTOCOL_OPENSYS;
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-		 ("%s: ssid =%s\n", __func__, pnetwork->network.Ssid.ssid));
+		 "%s: ssid =%s\n", __func__, pnetwork->network.Ssid.ssid);
 
 	pie = pnetwork->network.IEs;
 	pie_len = pnetwork->network.IELength;
@@ -776,11 +773,11 @@ void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 			pnetwork->BcnInfo.encryp_protocol = ENCRYP_PROTOCOL_WEP;
 	}
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-		 ("%s: pnetwork->encryp_protocol is %x\n", __func__,
-		  pnetwork->BcnInfo.encryp_protocol));
+		 "%s: pnetwork->encryp_protocol is %x\n", __func__,
+		 pnetwork->BcnInfo.encryp_protocol);
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-		 ("%s: pnetwork->encryp_protocol is %x\n", __func__,
-		  pnetwork->BcnInfo.encryp_protocol));
+		 "%s: pnetwork->encryp_protocol is %x\n", __func__,
+		 pnetwork->BcnInfo.encryp_protocol);
 	rtw_get_cipher_info(pnetwork);
 
 	/* get bwmode and ch_offset */

@@ -43,7 +43,11 @@ extern unsigned long s3c_irqwake_eintmask;
 
 /* IRQ masks for IRQs allowed to go to sleep (see irq.c) */
 extern unsigned long s3c_irqwake_intallow;
+#ifdef CONFIG_PM_SLEEP
 extern unsigned long s3c_irqwake_eintallow;
+#else
+#define s3c_irqwake_eintallow 0
+#endif
 
 /* per-cpu sleep functions */
 
@@ -58,14 +62,18 @@ extern unsigned long s3c_pm_flags;
 
 extern int s3c2410_cpu_suspend(unsigned long);
 
-#ifdef CONFIG_SAMSUNG_PM
+#ifdef CONFIG_PM_SLEEP
 extern int s3c_irq_wake(struct irq_data *data, unsigned int state);
-extern int s3c_irqext_wake(struct irq_data *data, unsigned int state);
 extern void s3c_cpu_resume(void);
 #else
 #define s3c_irq_wake NULL
-#define s3c_irqext_wake NULL
 #define s3c_cpu_resume NULL
+#endif
+
+#ifdef CONFIG_SAMSUNG_PM
+extern int s3c_irqext_wake(struct irq_data *data, unsigned int state);
+#else
+#define s3c_irqext_wake NULL
 #endif
 
 #ifdef CONFIG_S3C_PM_DEBUG_LED_SMDK

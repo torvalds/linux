@@ -47,8 +47,16 @@ __my_reassemble_comp_words_by_ref()
 	done
 }
 
-type _get_comp_words_by_ref &>/dev/null ||
-_get_comp_words_by_ref()
+# Define preload_get_comp_words_by_ref="false", if the function
+# __perf_get_comp_words_by_ref() is required instead.
+preload_get_comp_words_by_ref="true"
+
+if [ $preload_get_comp_words_by_ref = "true" ]; then
+	type _get_comp_words_by_ref &>/dev/null ||
+	preload_get_comp_words_by_ref="false"
+fi
+[ $preload_get_comp_words_by_ref = "true" ] ||
+__perf_get_comp_words_by_ref()
 {
 	local exclude cur_ words_ cword_
 	if [ "$1" = "-n" ]; then
@@ -76,8 +84,16 @@ _get_comp_words_by_ref()
 	done
 }
 
-type __ltrim_colon_completions &>/dev/null ||
-__ltrim_colon_completions()
+# Define preload__ltrim_colon_completions="false", if the function
+# __perf__ltrim_colon_completions() is required instead.
+preload__ltrim_colon_completions="true"
+
+if [ $preload__ltrim_colon_completions = "true" ]; then
+	type __ltrim_colon_completions &>/dev/null ||
+	preload__ltrim_colon_completions="false"
+fi
+[ $preload__ltrim_colon_completions = "true" ] ||
+__perf__ltrim_colon_completions()
 {
 	if [[ "$1" == *:* && "$COMP_WORDBREAKS" == *:* ]]; then
 		# Remove colon-word prefix from COMPREPLY items
@@ -97,7 +113,32 @@ __perfcomp ()
 __perfcomp_colon ()
 {
 	__perfcomp "$1" "$2"
-	__ltrim_colon_completions $cur
+	if [ $preload__ltrim_colon_completions = "true" ]; then
+		__ltrim_colon_completions $cur
+	else
+		__perf__ltrim_colon_completions $cur
+	fi
+}
+
+__perf_prev_skip_opts ()
+{
+	local i cmd_ cmds_
+
+	let i=cword-1
+	cmds_=$($cmd $1 --list-cmds)
+	prev_skip_opts=()
+	while [ $i -ge 0 ]; do
+		if [[ ${words[i]} == $1 ]]; then
+			return
+		fi
+		for cmd_ in $cmds_; do
+			if [[ ${words[i]} == $cmd_ ]]; then
+				prev_skip_opts=${words[i]}
+				return
+			fi
+		done
+		((i--))
+	done
 }
 
 __perf_main ()
@@ -107,29 +148,36 @@ __perf_main ()
 	cmd=${words[0]}
 	COMPREPLY=()
 
+	# Skip options backward and find the last perf command
+	__perf_prev_skip_opts
 	# List perf subcommands or long options
-	if [ $cword -eq 1 ]; then
+	if [ -z $prev_skip_opts ]; then
 		if [[ $cur == --* ]]; then
-			__perfcomp '--help --version \
-			--exec-path --html-path --paginate --no-pager \
-			--perf-dir --work-tree --debugfs-dir' -- "$cur"
+			cmds=$($cmd --list-opts)
 		else
 			cmds=$($cmd --list-cmds)
-			__perfcomp "$cmds" "$cur"
 		fi
+		__perfcomp "$cmds" "$cur"
 	# List possible events for -e option
-	elif [[ $prev == "-e" && "${words[1]}" == @(record|stat|top) ]]; then
+	elif [[ $prev == @("-e"|"--event") &&
+		$prev_skip_opts == @(record|stat|top) ]]; then
 		evts=$($cmd list --raw-dump)
 		__perfcomp_colon "$evts" "$cur"
-	# List subcommands for perf commands
-	elif [[ $prev == @(kvm|kmem|mem|lock|sched) ]]; then
-		subcmds=$($cmd $prev --list-cmds)
-		__perfcomp_colon "$subcmds" "$cur"
-	# List long option names
-	elif [[ $cur == --* ]];  then
-		subcmd=${words[1]}
-		opts=$($cmd $subcmd --list-opts)
-		__perfcomp "$opts" "$cur"
+	else
+		# List subcommands for perf commands
+		if [[ $prev_skip_opts == @(kvm|kmem|mem|lock|sched|
+			|data|help|script|test|timechart|trace) ]]; then
+			subcmds=$($cmd $prev_skip_opts --list-cmds)
+			__perfcomp_colon "$subcmds" "$cur"
+		fi
+		# List long option names
+		if [[ $cur == --* ]];  then
+			subcmd=$prev_skip_opts
+			__perf_prev_skip_opts $subcmd
+			subcmd=$subcmd" "$prev_skip_opts
+			opts=$($cmd $subcmd --list-opts)
+			__perfcomp "$opts" "$cur"
+		fi
 	fi
 }
 
@@ -198,7 +246,11 @@ type perf &>/dev/null &&
 _perf()
 {
 	local cur words cword prev
-	_get_comp_words_by_ref -n =: cur words cword prev
+	if [ $preload_get_comp_words_by_ref = "true" ]; then
+		_get_comp_words_by_ref -n =: cur words cword prev
+	else
+		__perf_get_comp_words_by_ref -n =: cur words cword prev
+	fi
 	__perf_main
 } &&
 

@@ -121,6 +121,9 @@ extern s32 i2c_smbus_read_i2c_block_data(const struct i2c_client *client,
 extern s32 i2c_smbus_write_i2c_block_data(const struct i2c_client *client,
 					  u8 command, u8 length,
 					  const u8 *values);
+extern s32
+i2c_smbus_read_i2c_block_data_or_emulated(const struct i2c_client *client,
+					  u8 command, u8 length, u8 *values);
 #endif /* I2C */
 
 /**
@@ -253,10 +256,10 @@ static inline void i2c_set_clientdata(struct i2c_client *dev, void *data)
 
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
 enum i2c_slave_event {
-	I2C_SLAVE_REQ_READ_START,
-	I2C_SLAVE_REQ_READ_END,
-	I2C_SLAVE_REQ_WRITE_START,
-	I2C_SLAVE_REQ_WRITE_END,
+	I2C_SLAVE_READ_REQUESTED,
+	I2C_SLAVE_WRITE_REQUESTED,
+	I2C_SLAVE_READ_PROCESSED,
+	I2C_SLAVE_WRITE_RECEIVED,
 	I2C_SLAVE_STOP,
 };
 
@@ -278,7 +281,7 @@ static inline int i2c_slave_event(struct i2c_client *client,
  * @platform_data: stored in i2c_client.dev.platform_data
  * @archdata: copied into i2c_client.dev.archdata
  * @of_node: pointer to OpenFirmware device node
- * @acpi_node: ACPI device node
+ * @fwnode: device node supplied by the platform firmware
  * @irq: stored in i2c_client.irq
  *
  * I2C doesn't actually support hardware probing, although controllers and
@@ -299,7 +302,7 @@ struct i2c_board_info {
 	void		*platform_data;
 	struct dev_archdata	*archdata;
 	struct device_node *of_node;
-	struct acpi_dev_node acpi_node;
+	struct fwnode_handle *fwnode;
 	int		irq;
 };
 
@@ -435,8 +438,8 @@ struct i2c_bus_recovery_info {
 	void (*set_scl)(struct i2c_adapter *, int val);
 	int (*get_sda)(struct i2c_adapter *);
 
-	void (*prepare_recovery)(struct i2c_bus_recovery_info *bri);
-	void (*unprepare_recovery)(struct i2c_bus_recovery_info *bri);
+	void (*prepare_recovery)(struct i2c_adapter *);
+	void (*unprepare_recovery)(struct i2c_adapter *);
 
 	/* gpio recovery */
 	int scl_gpio;
@@ -448,6 +451,48 @@ int i2c_recover_bus(struct i2c_adapter *adap);
 /* Generic recovery routines */
 int i2c_generic_gpio_recovery(struct i2c_adapter *adap);
 int i2c_generic_scl_recovery(struct i2c_adapter *adap);
+
+/**
+ * struct i2c_adapter_quirks - describe flaws of an i2c adapter
+ * @flags: see I2C_AQ_* for possible flags and read below
+ * @max_num_msgs: maximum number of messages per transfer
+ * @max_write_len: maximum length of a write message
+ * @max_read_len: maximum length of a read message
+ * @max_comb_1st_msg_len: maximum length of the first msg in a combined message
+ * @max_comb_2nd_msg_len: maximum length of the second msg in a combined message
+ *
+ * Note about combined messages: Some I2C controllers can only send one message
+ * per transfer, plus something called combined message or write-then-read.
+ * This is (usually) a small write message followed by a read message and
+ * barely enough to access register based devices like EEPROMs. There is a flag
+ * to support this mode. It implies max_num_msg = 2 and does the length checks
+ * with max_comb_*_len because combined message mode usually has its own
+ * limitations. Because of HW implementations, some controllers can actually do
+ * write-then-anything or other variants. To support that, write-then-read has
+ * been broken out into smaller bits like write-first and read-second which can
+ * be combined as needed.
+ */
+
+struct i2c_adapter_quirks {
+	u64 flags;
+	int max_num_msgs;
+	u16 max_write_len;
+	u16 max_read_len;
+	u16 max_comb_1st_msg_len;
+	u16 max_comb_2nd_msg_len;
+};
+
+/* enforce max_num_msgs = 2 and use max_comb_*_len for length checks */
+#define I2C_AQ_COMB			BIT(0)
+/* first combined message must be write */
+#define I2C_AQ_COMB_WRITE_FIRST		BIT(1)
+/* second combined message must be read */
+#define I2C_AQ_COMB_READ_SECOND		BIT(2)
+/* both combined messages must have the same target address */
+#define I2C_AQ_COMB_SAME_ADDR		BIT(3)
+/* convenience macro for typical write-then read case */
+#define I2C_AQ_COMB_WRITE_THEN_READ	(I2C_AQ_COMB | I2C_AQ_COMB_WRITE_FIRST | \
+					 I2C_AQ_COMB_READ_SECOND | I2C_AQ_COMB_SAME_ADDR)
 
 /*
  * i2c_adapter is the structure used to identify a physical i2c bus along
@@ -474,6 +519,7 @@ struct i2c_adapter {
 	struct list_head userspace_clients;
 
 	struct i2c_bus_recovery_info *bus_recovery_info;
+	const struct i2c_adapter_quirks *quirks;
 };
 #define to_i2c_adapter(d) container_of(d, struct i2c_adapter, dev)
 
@@ -507,11 +553,12 @@ void i2c_lock_adapter(struct i2c_adapter *);
 void i2c_unlock_adapter(struct i2c_adapter *);
 
 /*flags for the client struct: */
-#define I2C_CLIENT_PEC	0x04		/* Use Packet Error Checking */
-#define I2C_CLIENT_TEN	0x10		/* we have a ten bit chip address */
+#define I2C_CLIENT_PEC		0x04	/* Use Packet Error Checking */
+#define I2C_CLIENT_TEN		0x10	/* we have a ten bit chip address */
 					/* Must equal I2C_M_TEN below */
-#define I2C_CLIENT_WAKE	0x80		/* for board_info; true iff can wake */
-#define I2C_CLIENT_SCCB	0x9000		/* Use Omnivision SCCB protocol */
+#define I2C_CLIENT_SLAVE	0x20	/* we are the slave */
+#define I2C_CLIENT_WAKE		0x80	/* for board_info; true iff can wake */
+#define I2C_CLIENT_SCCB		0x9000	/* Use Omnivision SCCB protocol */
 					/* Must match I2C_M_STOP|IGNORE_NAK */
 
 /* i2c adapter classes (bitmask) */
@@ -595,6 +642,8 @@ extern struct i2c_client *of_find_i2c_device_by_node(struct device_node *node);
 /* must call put_device() when done with returned i2c_adapter device */
 extern struct i2c_adapter *of_find_i2c_adapter_by_node(struct device_node *node);
 
+/* must call i2c_put_adapter() when done with returned i2c_adapter device */
+struct i2c_adapter *of_get_i2c_adapter_by_node(struct device_node *node);
 #else
 
 static inline struct i2c_client *of_find_i2c_device_by_node(struct device_node *node)
@@ -603,6 +652,11 @@ static inline struct i2c_client *of_find_i2c_device_by_node(struct device_node *
 }
 
 static inline struct i2c_adapter *of_find_i2c_adapter_by_node(struct device_node *node)
+{
+	return NULL;
+}
+
+static inline struct i2c_adapter *of_get_i2c_adapter_by_node(struct device_node *node)
 {
 	return NULL;
 }

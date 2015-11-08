@@ -1756,43 +1756,43 @@ static irqreturn_t adt7316_event_handler(int irq, void *private)
 			stat1 &= 0x1F;
 
 		time = iio_get_time_ns();
-		if (stat1 & (1 << 0))
+		if (stat1 & BIT(0))
 			iio_push_event(indio_dev,
 				       IIO_UNMOD_EVENT_CODE(IIO_TEMP, 0,
 							    IIO_EV_TYPE_THRESH,
 							    IIO_EV_DIR_RISING),
 				       time);
-		if (stat1 & (1 << 1))
+		if (stat1 & BIT(1))
 			iio_push_event(indio_dev,
 				       IIO_UNMOD_EVENT_CODE(IIO_TEMP, 0,
 							    IIO_EV_TYPE_THRESH,
 							    IIO_EV_DIR_FALLING),
 				       time);
-		if (stat1 & (1 << 2))
+		if (stat1 & BIT(2))
 			iio_push_event(indio_dev,
 				       IIO_UNMOD_EVENT_CODE(IIO_TEMP, 1,
 							    IIO_EV_TYPE_THRESH,
 							    IIO_EV_DIR_RISING),
 				       time);
-		if (stat1 & (1 << 3))
+		if (stat1 & BIT(3))
 			iio_push_event(indio_dev,
 				       IIO_UNMOD_EVENT_CODE(IIO_TEMP, 1,
 							    IIO_EV_TYPE_THRESH,
 							    IIO_EV_DIR_FALLING),
 				       time);
-		if (stat1 & (1 << 5))
+		if (stat1 & BIT(5))
 			iio_push_event(indio_dev,
 				       IIO_UNMOD_EVENT_CODE(IIO_VOLTAGE, 1,
 							    IIO_EV_TYPE_THRESH,
 							    IIO_EV_DIR_EITHER),
 				       time);
-		if (stat1 & (1 << 6))
+		if (stat1 & BIT(6))
 			iio_push_event(indio_dev,
 				       IIO_UNMOD_EVENT_CODE(IIO_VOLTAGE, 2,
 							    IIO_EV_TYPE_THRESH,
 							    IIO_EV_DIR_EITHER),
 				       time);
-		if (stat1 & (1 << 7))
+		if (stat1 & BIT(7))
 			iio_push_event(indio_dev,
 				       IIO_UNMOD_EVENT_CODE(IIO_VOLTAGE, 3,
 							    IIO_EV_TYPE_THRESH,
@@ -2152,7 +2152,7 @@ int adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 
 		ret = devm_request_threaded_irq(dev, chip->bus.irq,
 						NULL,
-						&adt7316_event_handler,
+						adt7316_event_handler,
 						chip->bus.irq_flags |
 						IRQF_ONESHOT,
 						indio_dev->name,

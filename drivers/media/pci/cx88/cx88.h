@@ -321,13 +321,12 @@ struct cx88_riscmem {
 /* buffer for one video frame */
 struct cx88_buffer {
 	/* common v4l buffer stuff -- must be first */
-	struct vb2_buffer vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head       list;
 
 	/* cx88 specific */
 	unsigned int           bpl;
 	struct cx88_riscmem    risc;
-	u32                    count;
 };
 
 struct cx88_dmaqueue {
@@ -376,9 +375,10 @@ struct cx88_core {
 
 	/* config info -- dvb */
 #if IS_ENABLED(CONFIG_VIDEO_CX88_DVB)
-	int 			   (*prev_set_voltage)(struct dvb_frontend *fe, fe_sec_voltage_t voltage);
+	int	(*prev_set_voltage)(struct dvb_frontend *fe,
+				    enum fe_sec_voltage voltage);
 #endif
-	void			   (*gate_ctrl)(struct cx88_core  *core, int open);
+	void	(*gate_ctrl)(struct cx88_core *core, int open);
 
 	/* state info */
 	struct task_struct         *kthread;
@@ -478,9 +478,9 @@ struct cx8800_dev {
 
 	/* various device info */
 	unsigned int               resources;
-	struct video_device        *video_dev;
-	struct video_device        *vbi_dev;
-	struct video_device        *radio_dev;
+	struct video_device        video_dev;
+	struct video_device        vbi_dev;
+	struct video_device        radio_dev;
 
 	/* pci i/o */
 	struct pci_dev             *pci;
@@ -563,7 +563,7 @@ struct cx8802_dev {
 	/* for blackbird only */
 	struct list_head           devlist;
 #if IS_ENABLED(CONFIG_VIDEO_CX88_BLACKBIRD)
-	struct video_device        *mpeg_dev;
+	struct video_device        mpeg_dev;
 	u32                        mailbox;
 
 	/* mpeg params */
@@ -647,10 +647,11 @@ extern int cx88_set_scale(struct cx88_core *core, unsigned int width,
 			  unsigned int height, enum v4l2_field field);
 extern int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm);
 
-extern struct video_device *cx88_vdev_init(struct cx88_core *core,
-					   struct pci_dev *pci,
-					   const struct video_device *template_,
-					   const char *type);
+extern void cx88_vdev_init(struct cx88_core *core,
+			   struct pci_dev *pci,
+			   struct video_device *vfd,
+			   const struct video_device *template_,
+			   const char *type);
 extern struct cx88_core *cx88_core_get(struct pci_dev *pci);
 extern void cx88_core_put(struct cx88_core *core,
 			  struct pci_dev *pci);

@@ -360,7 +360,7 @@ static struct lock_class_key irq_nested_lock_class;
 int irq_map_generic_chip(struct irq_domain *d, unsigned int virq,
 			 irq_hw_number_t hw_irq)
 {
-	struct irq_data *data = irq_get_irq_data(virq);
+	struct irq_data *data = irq_domain_get_irq_data(d, virq);
 	struct irq_domain_chip_generic *dgc = d->gc;
 	struct irq_chip_generic *gc;
 	struct irq_chip_type *ct;
@@ -405,8 +405,7 @@ int irq_map_generic_chip(struct irq_domain *d, unsigned int virq,
 	else
 		data->mask = 1 << idx;
 
-	irq_set_chip_and_handler(virq, chip, ct->handler);
-	irq_set_chip_data(virq, gc);
+	irq_domain_set_info(d, virq, hw_irq, chip, gc, ct->handler, NULL, NULL);
 	irq_modify_status(virq, dgc->irq_flags_to_clear, dgc->irq_flags_to_set);
 	return 0;
 }
@@ -554,6 +553,9 @@ static int irq_gc_suspend(void)
 			if (data)
 				ct->chip.irq_suspend(data);
 		}
+
+		if (gc->suspend)
+			gc->suspend(gc);
 	}
 	return 0;
 }
@@ -564,6 +566,9 @@ static void irq_gc_resume(void)
 
 	list_for_each_entry(gc, &gc_list, list) {
 		struct irq_chip_type *ct = gc->chip_types;
+
+		if (gc->resume)
+			gc->resume(gc);
 
 		if (ct->chip.irq_resume) {
 			struct irq_data *data = irq_gc_get_irq_data(gc);

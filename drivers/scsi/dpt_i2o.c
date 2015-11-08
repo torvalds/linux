@@ -1924,6 +1924,9 @@ static void adpt_alpha_info(sysInfo_S* si)
 #endif
 
 #if defined __i386__
+
+#include <uapi/asm/vm86.h>
+
 static void adpt_i386_info(sysInfo_S* si)
 {
 	// This is all the info we need for now
@@ -3562,7 +3565,6 @@ static struct scsi_host_template driver_template = {
 	.slave_configure	= adpt_slave_configure,
 	.can_queue		= MAX_TO_IOP_MESSAGES,
 	.this_id		= 7,
-	.cmd_per_lun		= 1,
 	.use_clustering		= ENABLE_CLUSTERING,
 };
 

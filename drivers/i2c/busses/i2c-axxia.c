@@ -42,6 +42,10 @@
 #define IBML_LOW_SEXT		0x18
 #define TIMER_CLOCK_DIV		0x1c
 #define I2C_BUS_MONITOR		0x20
+#define   BM_SDAC		BIT(3)
+#define   BM_SCLC		BIT(2)
+#define   BM_SDAS		BIT(1)
+#define   BM_SCLS		BIT(0)
 #define SOFT_RESET		0x24
 #define MST_COMMAND		0x28
 #define   CMD_BUSY		(1<<3)
@@ -334,12 +338,7 @@ static int axxia_i2c_xfer_msg(struct axxia_i2c_dev *idev, struct i2c_msg *msg)
 	u32 int_mask = MST_STATUS_ERR | MST_STATUS_SNS;
 	u32 rx_xfer, tx_xfer;
 	u32 addr_1, addr_2;
-	int ret;
-
-	if (msg->len > 255) {
-		dev_warn(idev->dev, "unsupported length %u\n", msg->len);
-		return -EINVAL;
-	}
+	unsigned long time_left;
 
 	idev->msg = msg;
 	idev->msg_xfrd = 0;
@@ -388,16 +387,19 @@ static int axxia_i2c_xfer_msg(struct axxia_i2c_dev *idev, struct i2c_msg *msg)
 
 	i2c_int_enable(idev, int_mask);
 
-	ret = wait_for_completion_timeout(&idev->msg_complete,
-					  I2C_XFER_TIMEOUT);
+	time_left = wait_for_completion_timeout(&idev->msg_complete,
+					      I2C_XFER_TIMEOUT);
 
 	i2c_int_disable(idev, int_mask);
 
 	if (readl(idev->base + MST_COMMAND) & CMD_BUSY)
 		dev_warn(idev->dev, "busy after xfer\n");
 
-	if (ret == 0)
+	if (time_left == 0)
 		idev->msg_err = -ETIMEDOUT;
+
+	if (idev->msg_err == -ETIMEDOUT)
+		i2c_recover_bus(&idev->adapter);
 
 	if (unlikely(idev->msg_err) && idev->msg_err != -ENXIO)
 		axxia_i2c_init(idev);
@@ -408,17 +410,17 @@ static int axxia_i2c_xfer_msg(struct axxia_i2c_dev *idev, struct i2c_msg *msg)
 static int axxia_i2c_stop(struct axxia_i2c_dev *idev)
 {
 	u32 int_mask = MST_STATUS_ERR | MST_STATUS_SCC;
-	int ret;
+	unsigned long time_left;
 
 	reinit_completion(&idev->msg_complete);
 
 	/* Issue stop */
 	writel(0xb, idev->base + MST_COMMAND);
 	i2c_int_enable(idev, int_mask);
-	ret = wait_for_completion_timeout(&idev->msg_complete,
-					  I2C_STOP_TIMEOUT);
+	time_left = wait_for_completion_timeout(&idev->msg_complete,
+					      I2C_STOP_TIMEOUT);
 	i2c_int_disable(idev, int_mask);
-	if (ret == 0)
+	if (time_left == 0)
 		return -ETIMEDOUT;
 
 	if (readl(idev->base + MST_COMMAND) & CMD_BUSY)
@@ -442,6 +444,39 @@ axxia_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	return ret ? : i;
 }
 
+static int axxia_i2c_get_scl(struct i2c_adapter *adap)
+{
+	struct axxia_i2c_dev *idev = i2c_get_adapdata(adap);
+
+	return !!(readl(idev->base + I2C_BUS_MONITOR) & BM_SCLS);
+}
+
+static void axxia_i2c_set_scl(struct i2c_adapter *adap, int val)
+{
+	struct axxia_i2c_dev *idev = i2c_get_adapdata(adap);
+	u32 tmp;
+
+	/* Preserve SDA Control */
+	tmp = readl(idev->base + I2C_BUS_MONITOR) & BM_SDAC;
+	if (!val)
+		tmp |= BM_SCLC;
+	writel(tmp, idev->base + I2C_BUS_MONITOR);
+}
+
+static int axxia_i2c_get_sda(struct i2c_adapter *adap)
+{
+	struct axxia_i2c_dev *idev = i2c_get_adapdata(adap);
+
+	return !!(readl(idev->base + I2C_BUS_MONITOR) & BM_SDAS);
+}
+
+static struct i2c_bus_recovery_info axxia_i2c_recovery_info = {
+	.recover_bus = i2c_generic_scl_recovery,
+	.get_scl = axxia_i2c_get_scl,
+	.set_scl = axxia_i2c_set_scl,
+	.get_sda = axxia_i2c_get_sda,
+};
+
 static u32 axxia_i2c_func(struct i2c_adapter *adap)
 {
 	u32 caps = (I2C_FUNC_I2C | I2C_FUNC_10BIT_ADDR |
@@ -452,6 +487,11 @@ static u32 axxia_i2c_func(struct i2c_adapter *adap)
 static const struct i2c_algorithm axxia_i2c_algo = {
 	.master_xfer = axxia_i2c_xfer,
 	.functionality = axxia_i2c_func,
+};
+
+static struct i2c_adapter_quirks axxia_i2c_quirks = {
+	.max_read_len = 255,
+	.max_write_len = 255,
 };
 
 static int axxia_i2c_probe(struct platform_device *pdev)
@@ -511,6 +551,8 @@ static int axxia_i2c_probe(struct platform_device *pdev)
 	strlcpy(idev->adapter.name, pdev->name, sizeof(idev->adapter.name));
 	idev->adapter.owner = THIS_MODULE;
 	idev->adapter.algo = &axxia_i2c_algo;
+	idev->adapter.bus_recovery_info = &axxia_i2c_recovery_info;
+	idev->adapter.quirks = &axxia_i2c_quirks;
 	idev->adapter.dev.parent = &pdev->dev;
 	idev->adapter.dev.of_node = pdev->dev.of_node;
 

@@ -1,49 +1,45 @@
 include ../../scripts/Makefile.include
 include ../../perf/config/utilities.mak		# QUIET_CLEAN
 
+ifeq ($(srctree),)
+srctree := $(patsubst %/,%,$(dir $(shell pwd)))
+srctree := $(patsubst %/,%,$(dir $(srctree)))
+srctree := $(patsubst %/,%,$(dir $(srctree)))
+#$(info Determined 'srctree' to be $(srctree))
+endif
+
 CC = $(CROSS_COMPILE)gcc
 AR = $(CROSS_COMPILE)ar
 
-# guard against environment variables
-LIB_H=
-LIB_OBJS=
+MAKEFLAGS += --no-print-directory
 
-LIB_H += fs/debugfs.h
-LIB_H += fs/fs.h
-# See comment below about piggybacking...
-LIB_H += fd/array.h
+LIBFILE = $(OUTPUT)libapi.a
 
-LIB_OBJS += $(OUTPUT)fs/debugfs.o
-LIB_OBJS += $(OUTPUT)fs/fs.o
-# XXX piggybacking here, need to introduce libapikfd, or rename this
-# to plain libapik.a and make it have it all api goodies
-LIB_OBJS += $(OUTPUT)fd/array.o
-
-LIBFILE = libapikfs.a
-
-CFLAGS = -ggdb3 -Wall -Wextra -std=gnu99 -Werror -O6 -D_FORTIFY_SOURCE=2 $(EXTRA_WARNINGS) $(EXTRA_CFLAGS) -fPIC
-EXTLIBS = -lelf -lpthread -lrt -lm
-ALL_CFLAGS = $(CFLAGS) $(BASIC_CFLAGS) -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
-ALL_LDFLAGS = $(LDFLAGS)
+CFLAGS := $(EXTRA_WARNINGS) $(EXTRA_CFLAGS)
+CFLAGS += -ggdb3 -Wall -Wextra -std=gnu99 -Werror -O6 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC
+CFLAGS += -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
 
 RM = rm -f
 
-$(LIBFILE): $(LIB_OBJS)
-	$(QUIET_AR)$(RM) $@ && $(AR) rcs $(OUTPUT)$@ $(LIB_OBJS)
+API_IN := $(OUTPUT)libapi-in.o
 
-$(LIB_OBJS): $(LIB_H)
+all:
 
-libapi_dirs:
-	$(QUIET_MKDIR)mkdir -p $(OUTPUT)fd $(OUTPUT)fs
+export srctree OUTPUT CC LD CFLAGS V
+include $(srctree)/tools/build/Makefile.include
 
-$(OUTPUT)%.o: %.c libapi_dirs
-	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) $<
-$(OUTPUT)%.s: %.c libapi_dirs
-	$(QUIET_CC)$(CC) -S $(ALL_CFLAGS) $<
-$(OUTPUT)%.o: %.S libapi_dirs
-	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) $<
+all: fixdep $(LIBFILE)
+
+$(API_IN): FORCE
+	@$(MAKE) $(build)=libapi
+
+$(LIBFILE): $(API_IN)
+	$(QUIET_AR)$(RM) $@ && $(AR) rcs $@ $(API_IN)
 
 clean:
-	$(call QUIET_CLEAN, libapi) $(RM) $(LIB_OBJS) $(LIBFILE)
+	$(call QUIET_CLEAN, libapi) $(RM) $(LIBFILE); \
+	find $(if $(OUTPUT),$(OUTPUT),.) -name \*.o -or -name \*.o.cmd -or -name \*.o.d | xargs $(RM)
 
-.PHONY: clean
+FORCE:
+
+.PHONY: clean FORCE

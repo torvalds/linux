@@ -94,6 +94,8 @@ do {									\
 
 #define edac_dev_name(dev) (dev)->dev_name
 
+#define to_mci(k) container_of(k, struct mem_ctl_info, dev)
+
 /*
  * The following are the structures to provide for a generic
  * or abstract 'edac_device'. This set of structures and the
@@ -446,7 +448,9 @@ struct mem_ctl_info *edac_mc_alloc(unsigned mc_num,
 				   unsigned n_layers,
 				   struct edac_mc_layer *layers,
 				   unsigned sz_pvt);
-extern int edac_mc_add_mc(struct mem_ctl_info *mci);
+extern int edac_mc_add_mc_with_groups(struct mem_ctl_info *mci,
+				      const struct attribute_group **groups);
+#define edac_mc_add_mc(mci)	edac_mc_add_mc_with_groups(mci, NULL)
 extern void edac_mc_free(struct mem_ctl_info *mci);
 extern struct mem_ctl_info *edac_mc_find(int idx);
 extern struct mem_ctl_info *find_mci_by_dev(struct device *dev);

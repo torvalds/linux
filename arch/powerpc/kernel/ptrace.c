@@ -1762,26 +1762,81 @@ long arch_ptrace(struct task_struct *child, long request,
 	return ret;
 }
 
-/*
- * We must return the syscall number to actually look up in the table.
- * This can be -1L to skip running any syscall at all.
+#ifdef CONFIG_SECCOMP
+static int do_seccomp(struct pt_regs *regs)
+{
+	if (!test_thread_flag(TIF_SECCOMP))
+		return 0;
+
+	/*
+	 * The ABI we present to seccomp tracers is that r3 contains
+	 * the syscall return value and orig_gpr3 contains the first
+	 * syscall parameter. This is different to the ptrace ABI where
+	 * both r3 and orig_gpr3 contain the first syscall parameter.
+	 */
+	regs->gpr[3] = -ENOSYS;
+
+	/*
+	 * We use the __ version here because we have already checked
+	 * TIF_SECCOMP. If this fails, there is nothing left to do, we
+	 * have already loaded -ENOSYS into r3, or seccomp has put
+	 * something else in r3 (via SECCOMP_RET_ERRNO/TRACE).
+	 */
+	if (__secure_computing())
+		return -1;
+
+	/*
+	 * The syscall was allowed by seccomp, restore the register
+	 * state to what ptrace and audit expect.
+	 * Note that we use orig_gpr3, which means a seccomp tracer can
+	 * modify the first syscall parameter (in orig_gpr3) and also
+	 * allow the syscall to proceed.
+	 */
+	regs->gpr[3] = regs->orig_gpr3;
+
+	return 0;
+}
+#else
+static inline int do_seccomp(struct pt_regs *regs) { return 0; }
+#endif /* CONFIG_SECCOMP */
+
+/**
+ * do_syscall_trace_enter() - Do syscall tracing on kernel entry.
+ * @regs: the pt_regs of the task to trace (current)
+ *
+ * Performs various types of tracing on syscall entry. This includes seccomp,
+ * ptrace, syscall tracepoints and audit.
+ *
+ * The pt_regs are potentially visible to userspace via ptrace, so their
+ * contents is ABI.
+ *
+ * One or more of the tracers may modify the contents of pt_regs, in particular
+ * to modify arguments or even the syscall number itself.
+ *
+ * It's also possible that a tracer can choose to reject the system call. In
+ * that case this function will return an illegal syscall number, and will put
+ * an appropriate return value in regs->r3.
+ *
+ * Return: the (possibly changed) syscall number.
  */
 long do_syscall_trace_enter(struct pt_regs *regs)
 {
-	long ret = 0;
+	bool abort = false;
 
 	user_exit();
 
-	secure_computing_strict(regs->gpr[0]);
+	if (do_seccomp(regs))
+		return -1;
 
-	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
-	    tracehook_report_syscall_entry(regs))
+	if (test_thread_flag(TIF_SYSCALL_TRACE)) {
 		/*
-		 * Tracing decided this syscall should not happen.
-		 * We'll return a bogus call number to get an ENOSYS
-		 * error, but leave the original number in regs->gpr[0].
+		 * The tracer may decide to abort the syscall, if so tracehook
+		 * will return !0. Note that the tracer may also just change
+		 * regs->gpr[0] to an invalid syscall number, that is handled
+		 * below on the exit path.
 		 */
-		ret = -1L;
+		abort = tracehook_report_syscall_entry(regs) != 0;
+	}
 
 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
 		trace_sys_enter(regs, regs->gpr[0]);
@@ -1798,7 +1853,17 @@ long do_syscall_trace_enter(struct pt_regs *regs)
 				    regs->gpr[5] & 0xffffffff,
 				    regs->gpr[6] & 0xffffffff);
 
-	return ret ?: regs->gpr[0];
+	if (abort || regs->gpr[0] >= NR_syscalls) {
+		/*
+		 * If we are aborting explicitly, or if the syscall number is
+		 * now invalid, set the return value to -ENOSYS.
+		 */
+		regs->gpr[3] = -ENOSYS;
+		return -1;
+	}
+
+	/* Return the possibly modified but valid syscall number */
+	return regs->gpr[0];
 }
 
 void do_syscall_trace_leave(struct pt_regs *regs)

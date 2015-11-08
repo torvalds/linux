@@ -36,6 +36,7 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/i2c.h>
+#include <linux/etherdevice.h>
 
 #include "ttpci-eeprom.h"
 
@@ -145,7 +146,7 @@ int ttpci_eeprom_parse_mac(struct i2c_adapter *adapter, u8 *proposed_mac)
 
 	if (ret != 0) {		/* Will only be -ENODEV */
 		dprintk("Couldn't read from EEPROM: not there?\n");
-		memset(proposed_mac, 0, 6);
+		eth_zero_addr(proposed_mac);
 		return ret;
 	}
 
@@ -157,14 +158,12 @@ int ttpci_eeprom_parse_mac(struct i2c_adapter *adapter, u8 *proposed_mac)
 			dprintk( "%.2x:", encodedMAC[i]);
 		}
 		dprintk("%.2x\n", encodedMAC[19]);
-		memset(proposed_mac, 0, 6);
+		eth_zero_addr(proposed_mac);
 		return ret;
 	}
 
 	memcpy(proposed_mac, decodedMAC, 6);
-	dprintk("adapter has MAC addr = %.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
-		decodedMAC[0], decodedMAC[1], decodedMAC[2],
-		decodedMAC[3], decodedMAC[4], decodedMAC[5]);
+	dprintk("adapter has MAC addr = %pM\n", decodedMAC);
 	return 0;
 }
 

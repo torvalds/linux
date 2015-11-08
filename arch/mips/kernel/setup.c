@@ -31,6 +31,7 @@
 #include <asm/bootinfo.h>
 #include <asm/bugs.h>
 #include <asm/cache.h>
+#include <asm/cdmm.h>
 #include <asm/cpu.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
@@ -336,6 +337,11 @@ static void __init bootmem_init(void)
 			min_low_pfn = start;
 		if (end <= reserved_end)
 			continue;
+#ifdef CONFIG_BLK_DEV_INITRD
+		/* Skip zones before initrd and initrd itself */
+		if (initrd_end && end <= (unsigned long)PFN_UP(__pa(initrd_end)))
+			continue;
+#endif
 		if (start >= mapstart)
 			continue;
 		mapstart = max(reserved_end, start);
@@ -478,7 +484,7 @@ static void __init bootmem_init(void)
  *  o bootmem_init()
  *  o sparse_init()
  *  o paging_init()
- *  o dma_continguous_reserve()
+ *  o dma_contiguous_reserve()
  *
  * At this stage the bootmem allocator is ready to use.
  *
@@ -763,6 +769,7 @@ void __init setup_arch(char **cmdline_p)
 	cpu_probe();
 	prom_init();
 
+	setup_early_fdc_console();
 #ifdef CONFIG_EARLY_PRINTK
 	setup_early_printk();
 #endif

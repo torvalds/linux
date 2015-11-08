@@ -1,6 +1,4 @@
 /*
- *  drivers/mtd/ndfc.c
- *
  *  Overview:
  *   Platform independent driver for NDFC (NanD Flash Controller)
  *   integrated into EP440 cores
@@ -171,7 +169,7 @@ static int ndfc_chip_init(struct ndfc_controller *ndfc,
 	chip->priv = ndfc;
 
 	ndfc->mtd.priv = chip;
-	ndfc->mtd.owner = THIS_MODULE;
+	ndfc->mtd.dev.parent = &ndfc->ofdev->dev;
 
 	flash_np = of_get_next_child(node, NULL);
 	if (!flash_np)

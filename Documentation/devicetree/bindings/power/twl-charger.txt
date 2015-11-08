@@ -1,5 +1,15 @@
 TWL BCI (Battery Charger Interface)
 
+The battery charger needs to interact with the USB phy in order
+to know when charging is permissible, and when there is a connection
+or disconnection.
+
+The choice of phy cannot be configured at a hardware level, so there
+is no value in explicit configuration in device-tree.  Rather
+if there is a sibling of the BCI node which is compatible with
+"ti,twl4030-usb", then that is used to determine when and how
+use USB power for charging.
+
 Required properties:
 - compatible:
   - "ti,twl4030-bci"

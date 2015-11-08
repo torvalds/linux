@@ -15,6 +15,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/clk/ti.h>
 
@@ -4320,7 +4321,6 @@ static struct ti_clk_alias omap3xxx_clks[] = {
 	CLK(NULL, "dpll3_m3x2_ck", &dpll3_m3x2_ck),
 	CLK("etb", "emu_core_alwon_ck", &emu_core_alwon_ck),
 	CLK(NULL, "sys_altclk", &sys_altclk),
-	CLK(NULL, "mcbsp_clks", &mcbsp_clks),
 	CLK(NULL, "sys_clkout1", &sys_clkout1),
 	CLK(NULL, "dpll3_m2_ck", &dpll3_m2_ck),
 	CLK(NULL, "core_ck", &core_ck),
@@ -4369,8 +4369,6 @@ static struct ti_clk_alias omap3xxx_clks[] = {
 	CLK(NULL, "i2c3_fck", &i2c3_fck),
 	CLK(NULL, "i2c2_fck", &i2c2_fck),
 	CLK(NULL, "i2c1_fck", &i2c1_fck),
-	CLK(NULL, "mcbsp5_fck", &mcbsp5_fck),
-	CLK(NULL, "mcbsp1_fck", &mcbsp1_fck),
 	CLK(NULL, "core_48m_fck", &core_48m_fck),
 	CLK(NULL, "mcspi4_fck", &mcspi4_fck),
 	CLK(NULL, "mcspi3_fck", &mcspi3_fck),
@@ -4409,8 +4407,6 @@ static struct ti_clk_alias omap3xxx_clks[] = {
 	CLK(NULL, "uart1_ick", &uart1_ick),
 	CLK(NULL, "gpt11_ick", &gpt11_ick),
 	CLK(NULL, "gpt10_ick", &gpt10_ick),
-	CLK("omap-mcbsp.5", "ick", &mcbsp5_ick),
-	CLK("omap-mcbsp.1", "ick", &mcbsp1_ick),
 	CLK(NULL, "mcbsp5_ick", &mcbsp5_ick),
 	CLK(NULL, "mcbsp1_ick", &mcbsp1_ick),
 	CLK(NULL, "omapctrl_ick", &omapctrl_ick),
@@ -4467,15 +4463,22 @@ static struct ti_clk_alias omap3xxx_clks[] = {
 	CLK(NULL, "gpt4_ick", &gpt4_ick),
 	CLK(NULL, "gpt3_ick", &gpt3_ick),
 	CLK(NULL, "gpt2_ick", &gpt2_ick),
+	CLK(NULL, "mcbsp_clks", &mcbsp_clks),
+	CLK("omap-mcbsp.1", "ick", &mcbsp1_ick),
 	CLK("omap-mcbsp.2", "ick", &mcbsp2_ick),
 	CLK("omap-mcbsp.3", "ick", &mcbsp3_ick),
 	CLK("omap-mcbsp.4", "ick", &mcbsp4_ick),
-	CLK(NULL, "mcbsp4_ick", &mcbsp2_ick),
+	CLK("omap-mcbsp.5", "ick", &mcbsp5_ick),
+	CLK(NULL, "mcbsp1_ick", &mcbsp1_ick),
+	CLK(NULL, "mcbsp2_ick", &mcbsp2_ick),
 	CLK(NULL, "mcbsp3_ick", &mcbsp3_ick),
-	CLK(NULL, "mcbsp2_ick", &mcbsp4_ick),
+	CLK(NULL, "mcbsp4_ick", &mcbsp4_ick),
+	CLK(NULL, "mcbsp5_ick", &mcbsp5_ick),
+	CLK(NULL, "mcbsp1_fck", &mcbsp1_fck),
 	CLK(NULL, "mcbsp2_fck", &mcbsp2_fck),
 	CLK(NULL, "mcbsp3_fck", &mcbsp3_fck),
 	CLK(NULL, "mcbsp4_fck", &mcbsp4_fck),
+	CLK(NULL, "mcbsp5_fck", &mcbsp5_fck),
 	CLK(NULL, "emu_src_mux_ck", &emu_src_mux_ck),
 	CLK("etb", "emu_src_ck", &emu_src_ck),
 	CLK(NULL, "emu_src_mux_ck", &emu_src_mux_ck),

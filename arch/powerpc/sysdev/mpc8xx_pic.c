@@ -55,13 +55,13 @@ static int mpc8xx_set_irq_type(struct irq_data *d, unsigned int flow_type)
 		unsigned int siel = in_be32(&siu_reg->sc_siel);
 		siel |= mpc8xx_irqd_to_bit(d);
 		out_be32(&siu_reg->sc_siel, siel);
-		__irq_set_handler_locked(d->irq, handle_edge_irq);
+		irq_set_handler_locked(d, handle_edge_irq);
 	}
 	return 0;
 }
 
 static struct irq_chip mpc8xx_pic = {
-	.name = "MPC8XX SIU",
+	.name = "8XX SIU",
 	.irq_unmask = mpc8xx_unmask_irq,
 	.irq_mask = mpc8xx_mask_irq,
 	.irq_ack = mpc8xx_ack,
@@ -120,7 +120,7 @@ static int mpc8xx_pic_host_xlate(struct irq_domain *h, struct device_node *ct,
 }
 
 
-static struct irq_domain_ops mpc8xx_pic_host_ops = {
+static const struct irq_domain_ops mpc8xx_pic_host_ops = {
 	.map = mpc8xx_pic_host_map,
 	.xlate = mpc8xx_pic_host_xlate,
 };

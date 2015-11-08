@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -32,6 +32,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/io-mapping.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/cmd.h>
 #include "mlx5_core.h"
@@ -175,12 +176,13 @@ int mlx5_alloc_uuars(struct mlx5_core_dev *dev, struct mlx5_uuar_info *uuari)
 	for (i = 0; i < tot_uuars; i++) {
 		bf = &uuari->bfs[i];
 
-		bf->buf_size = dev->caps.gen.bf_reg_size / 2;
+		bf->buf_size = (1 << MLX5_CAP_GEN(dev, log_bf_reg_size)) / 2;
 		bf->uar = &uuari->uars[i / MLX5_BF_REGS_PER_PAGE];
 		bf->regreg = uuari->uars[i / MLX5_BF_REGS_PER_PAGE].map;
 		bf->reg = NULL; /* Add WC support */
-		bf->offset = (i % MLX5_BF_REGS_PER_PAGE) * dev->caps.gen.bf_reg_size +
-			MLX5_BF_OFFSET;
+		bf->offset = (i % MLX5_BF_REGS_PER_PAGE) *
+			     (1 << MLX5_CAP_GEN(dev, log_bf_reg_size)) +
+			     MLX5_BF_OFFSET;
 		bf->need_lock = need_uuar_lock(i);
 		spin_lock_init(&bf->lock);
 		spin_lock_init(&bf->lock32);
@@ -223,3 +225,45 @@ int mlx5_free_uuars(struct mlx5_core_dev *dev, struct mlx5_uuar_info *uuari)
 
 	return 0;
 }
+
+int mlx5_alloc_map_uar(struct mlx5_core_dev *mdev, struct mlx5_uar *uar)
+{
+	phys_addr_t pfn;
+	phys_addr_t uar_bar_start;
+	int err;
+
+	err = mlx5_cmd_alloc_uar(mdev, &uar->index);
+	if (err) {
+		mlx5_core_warn(mdev, "mlx5_cmd_alloc_uar() failed, %d\n", err);
+		return err;
+	}
+
+	uar_bar_start = pci_resource_start(mdev->pdev, 0);
+	pfn           = (uar_bar_start >> PAGE_SHIFT) + uar->index;
+	uar->map      = ioremap(pfn << PAGE_SHIFT, PAGE_SIZE);
+	if (!uar->map) {
+		mlx5_core_warn(mdev, "ioremap() failed, %d\n", err);
+		err = -ENOMEM;
+		goto err_free_uar;
+	}
+
+	if (mdev->priv.bf_mapping)
+		uar->bf_map = io_mapping_map_wc(mdev->priv.bf_mapping,
+						uar->index << PAGE_SHIFT);
+
+	return 0;
+
+err_free_uar:
+	mlx5_cmd_free_uar(mdev, uar->index);
+
+	return err;
+}
+EXPORT_SYMBOL(mlx5_alloc_map_uar);
+
+void mlx5_unmap_free_uar(struct mlx5_core_dev *mdev, struct mlx5_uar *uar)
+{
+	io_mapping_unmap(uar->bf_map);
+	iounmap(uar->map);
+	mlx5_cmd_free_uar(mdev, uar->index);
+}
+EXPORT_SYMBOL(mlx5_unmap_free_uar);

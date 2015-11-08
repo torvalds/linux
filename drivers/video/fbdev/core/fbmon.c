@@ -33,10 +33,6 @@
 #include <video/edid.h>
 #include <video/of_videomode.h>
 #include <video/videomode.h>
-#ifdef CONFIG_PPC_OF
-#include <asm/prom.h>
-#include <asm/pci-bridge.h>
-#endif
 #include "../edid.h"
 
 /*
@@ -1076,9 +1072,9 @@ void fb_edid_add_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 
 	for (i = specs->modedb_len + num; i < specs->modedb_len + num + svd_n; i++) {
 		int idx = svd[i - specs->modedb_len - num];
-		if (!idx || idx > 63) {
+		if (!idx || idx >= ARRAY_SIZE(cea_modes)) {
 			pr_warning("Reserved SVD code %d\n", idx);
-		} else if (idx > ARRAY_SIZE(cea_modes) || !cea_modes[idx].xres) {
+		} else if (!cea_modes[idx].xres) {
 			pr_warning("Unimplemented SVD code %d\n", idx);
 		} else {
 			memcpy(&m[i], cea_modes + idx, sizeof(m[i]));
@@ -1479,7 +1475,9 @@ int of_get_fb_videomode(struct device_node *np, struct fb_videomode *fb,
 	if (ret)
 		return ret;
 
-	fb_videomode_from_videomode(&vm, fb);
+	ret = fb_videomode_from_videomode(&vm, fb);
+	if (ret)
+		return ret;
 
 	pr_debug("%s: got %dx%d display mode from %s\n",
 		of_node_full_name(np), vm.hactive, vm.vactive, np->name);

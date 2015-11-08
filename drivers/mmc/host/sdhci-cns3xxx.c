@@ -98,18 +98,13 @@ static int sdhci_cns3xxx_probe(struct platform_device *pdev)
 	return sdhci_pltfm_register(pdev, &sdhci_cns3xxx_pdata, 0);
 }
 
-static int sdhci_cns3xxx_remove(struct platform_device *pdev)
-{
-	return sdhci_pltfm_unregister(pdev);
-}
-
 static struct platform_driver sdhci_cns3xxx_driver = {
 	.driver		= {
 		.name	= "sdhci-cns3xxx",
 		.pm	= SDHCI_PLTFM_PMOPS,
 	},
 	.probe		= sdhci_cns3xxx_probe,
-	.remove		= sdhci_cns3xxx_remove,
+	.remove		= sdhci_pltfm_unregister,
 };
 
 module_platform_driver(sdhci_cns3xxx_driver);

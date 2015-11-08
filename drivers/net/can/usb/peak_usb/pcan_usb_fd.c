@@ -110,13 +110,13 @@ struct __packed pcan_ufd_led {
 	u8	unused[5];
 };
 
-/* Extended usage of uCAN commands CMD_RX_FRAME_xxxABLE for PCAN-USB Pro FD */
+/* Extended usage of uCAN commands CMD_xxx_xx_OPTION for PCAN-USB Pro FD */
 #define PCAN_UFD_FLTEXT_CALIBRATION	0x8000
 
-struct __packed pcan_ufd_filter_ext {
+struct __packed pcan_ufd_options {
 	__le16	opcode_channel;
 
-	__le16	ext_mask;
+	__le16	ucan_mask;
 	u16	unused;
 	__le16	usb_mask;
 };
@@ -182,7 +182,7 @@ static inline void *pcan_usb_fd_cmd_buffer(struct peak_usb_device *dev)
 static int pcan_usb_fd_send_cmd(struct peak_usb_device *dev, void *cmd_tail)
 {
 	void *cmd_head = pcan_usb_fd_cmd_buffer(dev);
-	int err;
+	int err = 0;
 	u8 *packet_ptr;
 	int i, n = 1, packet_len;
 	ptrdiff_t cmd_len;
@@ -250,6 +250,27 @@ static int pcan_usb_fd_build_restart_cmd(struct peak_usb_device *dev, u8 *buf)
 
 	/* moves the pointer forward */
 	pc += sizeof(struct pucan_wr_err_cnt);
+
+	/* add command to switch from ISO to non-ISO mode, if fw allows it */
+	if (dev->can.ctrlmode_supported & CAN_CTRLMODE_FD_NON_ISO) {
+		struct pucan_options *puo = (struct pucan_options *)pc;
+
+		puo->opcode_channel =
+			(dev->can.ctrlmode & CAN_CTRLMODE_FD_NON_ISO) ?
+			pucan_cmd_opcode_channel(dev,
+						 PUCAN_CMD_CLR_DIS_OPTION) :
+			pucan_cmd_opcode_channel(dev, PUCAN_CMD_SET_EN_OPTION);
+
+		puo->options = cpu_to_le16(PUCAN_OPTION_CANDFDISO);
+
+		/* to be sure that no other extended bits will be taken into
+		 * account
+		 */
+		puo->unused = 0;
+
+		/* moves the pointer forward */
+		pc += sizeof(struct pucan_options);
+	}
 
 	/* next, go back to operational mode */
 	cmd = (struct pucan_command *)pc;
@@ -321,21 +342,21 @@ static int pcan_usb_fd_set_filter_std(struct peak_usb_device *dev, int idx,
 	return pcan_usb_fd_send_cmd(dev, cmd);
 }
 
-/* set/unset notifications filter:
+/* set/unset options
  *
- *	onoff	sets(1)/unset(0) notifications
- *	mask	each bit defines a kind of notification to set/unset
+ *	onoff	set(1)/unset(0) options
+ *	mask	each bit defines a kind of options to set/unset
  */
-static int pcan_usb_fd_set_filter_ext(struct peak_usb_device *dev,
-				      bool onoff, u16 ext_mask, u16 usb_mask)
+static int pcan_usb_fd_set_options(struct peak_usb_device *dev,
+				   bool onoff, u16 ucan_mask, u16 usb_mask)
 {
-	struct pcan_ufd_filter_ext *cmd = pcan_usb_fd_cmd_buffer(dev);
+	struct pcan_ufd_options *cmd = pcan_usb_fd_cmd_buffer(dev);
 
 	cmd->opcode_channel = pucan_cmd_opcode_channel(dev,
-					(onoff) ? PUCAN_CMD_RX_FRAME_ENABLE :
-						  PUCAN_CMD_RX_FRAME_DISABLE);
+					(onoff) ? PUCAN_CMD_SET_EN_OPTION :
+						  PUCAN_CMD_CLR_DIS_OPTION);
 
-	cmd->ext_mask = cpu_to_le16(ext_mask);
+	cmd->ucan_mask = cpu_to_le16(ucan_mask);
 	cmd->usb_mask = cpu_to_le16(usb_mask);
 
 	/* send the command */
@@ -770,9 +791,9 @@ static int pcan_usb_fd_start(struct peak_usb_device *dev)
 				       &pcan_usb_pro_fd);
 
 		/* enable USB calibration messages */
-		err = pcan_usb_fd_set_filter_ext(dev, 1,
-						 PUCAN_FLTEXT_ERROR,
-						 PCAN_UFD_FLTEXT_CALIBRATION);
+		err = pcan_usb_fd_set_options(dev, 1,
+					      PUCAN_OPTION_ERROR,
+					      PCAN_UFD_FLTEXT_CALIBRATION);
 	}
 
 	pdev->usb_if->dev_opened_count++;
@@ -806,9 +827,9 @@ static int pcan_usb_fd_stop(struct peak_usb_device *dev)
 
 	/* turn off special msgs for that interface if no other dev opened */
 	if (pdev->usb_if->dev_opened_count == 1)
-		pcan_usb_fd_set_filter_ext(dev, 0,
-					   PUCAN_FLTEXT_ERROR,
-					   PCAN_UFD_FLTEXT_CALIBRATION);
+		pcan_usb_fd_set_options(dev, 0,
+					PUCAN_OPTION_ERROR,
+					PCAN_UFD_FLTEXT_CALIBRATION);
 	pdev->usb_if->dev_opened_count--;
 
 	return 0;
@@ -860,8 +881,14 @@ static int pcan_usb_fd_init(struct peak_usb_device *dev)
 			 pdev->usb_if->fw_info.fw_version[2],
 			 dev->adapter->ctrl_count);
 
-		/* the currently supported hw is non-ISO */
-		dev->can.ctrlmode = CAN_CTRLMODE_FD_NON_ISO;
+		/* check for ability to switch between ISO/non-ISO modes */
+		if (pdev->usb_if->fw_info.fw_version[0] >= 2) {
+			/* firmware >= 2.x supports ISO/non-ISO switching */
+			dev->can.ctrlmode_supported |= CAN_CTRLMODE_FD_NON_ISO;
+		} else {
+			/* firmware < 2.x only supports fixed(!) non-ISO */
+			dev->can.ctrlmode |= CAN_CTRLMODE_FD_NON_ISO;
+		}
 
 		/* tell the hardware the can driver is running */
 		err = pcan_usb_fd_drv_loaded(dev, 1);
@@ -937,9 +964,9 @@ static void pcan_usb_fd_exit(struct peak_usb_device *dev)
 	if (dev->ctrl_idx == 0) {
 		/* turn off calibration message if any device were opened */
 		if (pdev->usb_if->dev_opened_count > 0)
-			pcan_usb_fd_set_filter_ext(dev, 0,
-						   PUCAN_FLTEXT_ERROR,
-						   PCAN_UFD_FLTEXT_CALIBRATION);
+			pcan_usb_fd_set_options(dev, 0,
+						PUCAN_OPTION_ERROR,
+						PCAN_UFD_FLTEXT_CALIBRATION);
 
 		/* tell USB adapter that the driver is being unloaded */
 		pcan_usb_fd_drv_loaded(dev, 0);
@@ -963,6 +990,30 @@ static void pcan_usb_fd_free(struct peak_usb_device *dev)
 }
 
 /* describes the PCAN-USB FD adapter */
+static const struct can_bittiming_const pcan_usb_fd_const = {
+	.name = "pcan_usb_fd",
+	.tseg1_min = 1,
+	.tseg1_max = 64,
+	.tseg2_min = 1,
+	.tseg2_max = 16,
+	.sjw_max = 16,
+	.brp_min = 1,
+	.brp_max = 1024,
+	.brp_inc = 1,
+};
+
+static const struct can_bittiming_const pcan_usb_fd_data_const = {
+	.name = "pcan_usb_fd",
+	.tseg1_min = 1,
+	.tseg1_max = 16,
+	.tseg2_min = 1,
+	.tseg2_max = 8,
+	.sjw_max = 4,
+	.brp_min = 1,
+	.brp_max = 1024,
+	.brp_inc = 1,
+};
+
 const struct peak_usb_adapter pcan_usb_fd = {
 	.name = "PCAN-USB FD",
 	.device_id = PCAN_USBFD_PRODUCT_ID,
@@ -972,28 +1023,8 @@ const struct peak_usb_adapter pcan_usb_fd = {
 	.clock = {
 		.freq = PCAN_UFD_CRYSTAL_HZ,
 	},
-	.bittiming_const = {
-		.name = "pcan_usb_fd",
-		.tseg1_min = 1,
-		.tseg1_max = 64,
-		.tseg2_min = 1,
-		.tseg2_max = 16,
-		.sjw_max = 16,
-		.brp_min = 1,
-		.brp_max = 1024,
-		.brp_inc = 1,
-	},
-	.data_bittiming_const = {
-		.name = "pcan_usb_fd",
-		.tseg1_min = 1,
-		.tseg1_max = 16,
-		.tseg2_min = 1,
-		.tseg2_max = 8,
-		.sjw_max = 4,
-		.brp_min = 1,
-		.brp_max = 1024,
-		.brp_inc = 1,
-	},
+	.bittiming_const = &pcan_usb_fd_const,
+	.data_bittiming_const = &pcan_usb_fd_data_const,
 
 	/* size of device private data */
 	.sizeof_dev_private = sizeof(struct pcan_usb_fd_device),
@@ -1031,6 +1062,30 @@ const struct peak_usb_adapter pcan_usb_fd = {
 };
 
 /* describes the PCAN-USB Pro FD adapter */
+static const struct can_bittiming_const pcan_usb_pro_fd_const = {
+	.name = "pcan_usb_pro_fd",
+	.tseg1_min = 1,
+	.tseg1_max = 64,
+	.tseg2_min = 1,
+	.tseg2_max = 16,
+	.sjw_max = 16,
+	.brp_min = 1,
+	.brp_max = 1024,
+	.brp_inc = 1,
+};
+
+static const struct can_bittiming_const pcan_usb_pro_fd_data_const = {
+	.name = "pcan_usb_pro_fd",
+	.tseg1_min = 1,
+	.tseg1_max = 16,
+	.tseg2_min = 1,
+	.tseg2_max = 8,
+	.sjw_max = 4,
+	.brp_min = 1,
+	.brp_max = 1024,
+	.brp_inc = 1,
+};
+
 const struct peak_usb_adapter pcan_usb_pro_fd = {
 	.name = "PCAN-USB Pro FD",
 	.device_id = PCAN_USBPROFD_PRODUCT_ID,
@@ -1040,28 +1095,8 @@ const struct peak_usb_adapter pcan_usb_pro_fd = {
 	.clock = {
 		.freq = PCAN_UFD_CRYSTAL_HZ,
 	},
-	.bittiming_const = {
-		.name = "pcan_usb_pro_fd",
-		.tseg1_min = 1,
-		.tseg1_max = 64,
-		.tseg2_min = 1,
-		.tseg2_max = 16,
-		.sjw_max = 16,
-		.brp_min = 1,
-		.brp_max = 1024,
-		.brp_inc = 1,
-	},
-	.data_bittiming_const = {
-		.name = "pcan_usb_pro_fd",
-		.tseg1_min = 1,
-		.tseg1_max = 16,
-		.tseg2_min = 1,
-		.tseg2_max = 8,
-		.sjw_max = 4,
-		.brp_min = 1,
-		.brp_max = 1024,
-		.brp_inc = 1,
-	},
+	.bittiming_const = &pcan_usb_pro_fd_const,
+	.data_bittiming_const = &pcan_usb_pro_fd_data_const,
 
 	/* size of device private data */
 	.sizeof_dev_private = sizeof(struct pcan_usb_fd_device),

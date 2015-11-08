@@ -23,6 +23,9 @@ PCIe Designware Controller
    interrupt-map-mask,
    interrupt-map : as specified in ../designware-pcie.txt
 
+Optional Property:
+ - gpios : Should be added if a gpio line is required to drive PERST# line
+
 Example:
 axi {
 	compatible = "simple-bus";

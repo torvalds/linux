@@ -200,18 +200,6 @@ config MEMORY_HOTREMOVE
 	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
 	depends on MIGRATION
 
-#
-# If we have space for more page flags then we can enable additional
-# optimizations and functionality.
-#
-# Regular Sparsemem takes page flag bits for the sectionid if it does not
-# use a virtual memmap. Disable extended page flags for 32 bit platforms
-# that require the use of a sectionid in the page flags.
-#
-config PAGEFLAGS_EXTENDED
-	def_bool y
-	depends on 64BIT || SPARSEMEM_VMEMMAP || !SPARSEMEM
-
 # Heavily threaded applications may benefit from splitting the mm-wide
 # page_table_lock, so that faults on different parts of the user address
 # space can be handled with less contention: split it at this NR_CPUS.
@@ -299,15 +287,9 @@ config BOUNCE
 # On the 'tile' arch, USB OHCI needs the bounce pool since tilegx will often
 # have more than 4GB of memory, but we don't currently use the IOTLB to present
 # a 32-bit address to OHCI.  So we need to use a bounce pool instead.
-#
-# We also use the bounce pool to provide stable page writes for jbd.  jbd
-# initiates buffer writeback without locking the page or setting PG_writeback,
-# and fixing that behavior (a second time; jbd2 doesn't have this problem) is
-# a major rework effort.  Instead, use the bounce buffer to snapshot pages
-# (until jbd goes away).  The only jbd user is ext3.
 config NEED_BOUNCE_POOL
 	bool
-	default y if (TILE && USB_OHCI_HCD) || (BLK_DEV_INTEGRITY && JBD)
+	default y if TILE && USB_OHCI_HCD
 
 config NR_QUICK
 	int
@@ -368,6 +350,7 @@ config MEMORY_FAILURE
 	depends on ARCH_SUPPORTS_MEMORY_FAILURE
 	bool "Enable recovery from hardware memory errors"
 	select MEMORY_ISOLATION
+	select RAS
 	help
 	  Enables code to recover from some memory failures on systems
 	  with MCA recovery. This allows a system to continue running
@@ -517,6 +500,12 @@ config CMA_DEBUG
 	  processing calls such as dma_alloc_from_contiguous().
 	  This option does not affect warning and error messages.
 
+config CMA_DEBUGFS
+	bool "CMA debugfs interface"
+	depends on CMA && DEBUG_FS
+	help
+	  Turns on the DebugFS interface for CMA.
+
 config CMA_AREAS
 	int "Maximum count of the CMA areas"
 	depends on CMA
@@ -629,3 +618,53 @@ config MAX_STACK_SIZE_MB
 	  changed to a smaller value in which case that is used.
 
 	  A sane initial value is 80 MB.
+
+# For architectures that support deferred memory initialisation
+config ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
+	bool
+
+config DEFERRED_STRUCT_PAGE_INIT
+	bool "Defer initialisation of struct pages to kswapd"
+	default n
+	depends on ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
+	depends on MEMORY_HOTPLUG
+	help
+	  Ordinarily all struct pages are initialised during early boot in a
+	  single thread. On very large machines this can take a considerable
+	  amount of time. If this option is set, large machines will bring up
+	  a subset of memmap at boot and then initialise the rest in parallel
+	  when kswapd starts. This has a potential performance impact on
+	  processes running early in the lifetime of the systemm until kswapd
+	  finishes the initialisation.
+
+config IDLE_PAGE_TRACKING
+	bool "Enable idle page tracking"
+	depends on SYSFS && MMU
+	select PAGE_EXTENSION if !64BIT
+	help
+	  This feature allows to estimate the amount of user pages that have
+	  not been touched during a given period of time. This information can
+	  be useful to tune memory cgroup limits and/or for job placement
+	  within a compute cluster.
+
+	  See Documentation/vm/idle_page_tracking.txt for more details.
+
+config ZONE_DEVICE
+	bool "Device memory (pmem, etc...) hotplug support" if EXPERT
+	default !ZONE_DMA
+	depends on !ZONE_DMA
+	depends on MEMORY_HOTPLUG
+	depends on MEMORY_HOTREMOVE
+	depends on X86_64 #arch_add_memory() comprehends device memory
+
+	help
+	  Device memory hotplug support allows for establishing pmem,
+	  or other device driver discovered memory regions, in the
+	  memmap. This allows pfn_to_page() lookups of otherwise
+	  "device-physical" addresses which is needed for using a DAX
+	  mapping in an O_DIRECT operation, among other things.
+
+	  If FS_DAX is enabled, then say Y.
+
+config FRAME_VECTOR
+	bool

@@ -196,7 +196,7 @@ DEFINE_FETCH_file_offset(string)
 DEFINE_FETCH_file_offset(string_size)
 
 /* Fetch type information table */
-const struct fetch_type uprobes_fetch_type_table[] = {
+static const struct fetch_type uprobes_fetch_type_table[] = {
 	/* Special types */
 	[FETCH_TYPE_STRING] = __ASSIGN_FETCH_TYPE("string", string, string,
 					sizeof(u32), 1, "__data_loc char[]"),
@@ -293,7 +293,7 @@ static struct trace_uprobe *find_probe_event(const char *event, const char *grou
 	struct trace_uprobe *tu;
 
 	list_for_each_entry(tu, &uprobe_list, list)
-		if (strcmp(ftrace_event_name(&tu->tp.call), event) == 0 &&
+		if (strcmp(trace_event_name(&tu->tp.call), event) == 0 &&
 		    strcmp(tu->tp.call.class->system, group) == 0)
 			return tu;
 
@@ -323,7 +323,7 @@ static int register_trace_uprobe(struct trace_uprobe *tu)
 	mutex_lock(&uprobe_lock);
 
 	/* register as an event */
-	old_tu = find_probe_event(ftrace_event_name(&tu->tp.call),
+	old_tu = find_probe_event(trace_event_name(&tu->tp.call),
 			tu->tp.call.class->system);
 	if (old_tu) {
 		/* delete old event */
@@ -443,7 +443,7 @@ static int create_trace_uprobe(int argc, char **argv)
 	if (ret)
 		goto fail_address_parse;
 
-	inode = igrab(path.dentry->d_inode);
+	inode = igrab(d_inode(path.dentry));
 	path_put(&path);
 
 	if (!inode || !S_ISREG(inode->i_mode)) {
@@ -535,7 +535,8 @@ static int create_trace_uprobe(int argc, char **argv)
 
 		/* Parse fetch argument */
 		ret = traceprobe_parse_probe_arg(arg, &tu->tp.size, parg,
-						 is_return, false);
+						 is_return, false,
+						 uprobes_fetch_type_table);
 		if (ret) {
 			pr_info("Parse error at argument[%d]. (%d)\n", i, ret);
 			goto error;
@@ -599,8 +600,23 @@ static int probes_seq_show(struct seq_file *m, void *v)
 	int i;
 
 	seq_printf(m, "%c:%s/%s", c, tu->tp.call.class->system,
-			ftrace_event_name(&tu->tp.call));
-	seq_printf(m, " %s:0x%p", tu->filename, (void *)tu->offset);
+			trace_event_name(&tu->tp.call));
+	seq_printf(m, " %s:", tu->filename);
+
+	/* Don't print "0x  (null)" when offset is 0 */
+	if (tu->offset) {
+		seq_printf(m, "0x%p", (void *)tu->offset);
+	} else {
+		switch (sizeof(void *)) {
+		case 4:
+			seq_printf(m, "0x00000000");
+			break;
+		case 8:
+		default:
+			seq_printf(m, "0x0000000000000000");
+			break;
+		}
+	}
 
 	for (i = 0; i < tu->tp.nr_args; i++)
 		seq_printf(m, " %s=%s", tu->tp.args[i].name, tu->tp.args[i].comm);
@@ -650,7 +666,7 @@ static int probes_profile_seq_show(struct seq_file *m, void *v)
 	struct trace_uprobe *tu = v;
 
 	seq_printf(m, "  %s %-44s %15lu\n", tu->filename,
-			ftrace_event_name(&tu->tp.call), tu->nhit);
+			trace_event_name(&tu->tp.call), tu->nhit);
 	return 0;
 }
 
@@ -769,26 +785,26 @@ static void uprobe_buffer_put(struct uprobe_cpu_buffer *ucb)
 static void __uprobe_trace_func(struct trace_uprobe *tu,
 				unsigned long func, struct pt_regs *regs,
 				struct uprobe_cpu_buffer *ucb, int dsize,
-				struct ftrace_event_file *ftrace_file)
+				struct trace_event_file *trace_file)
 {
 	struct uprobe_trace_entry_head *entry;
 	struct ring_buffer_event *event;
 	struct ring_buffer *buffer;
 	void *data;
 	int size, esize;
-	struct ftrace_event_call *call = &tu->tp.call;
+	struct trace_event_call *call = &tu->tp.call;
 
-	WARN_ON(call != ftrace_file->event_call);
+	WARN_ON(call != trace_file->event_call);
 
 	if (WARN_ON_ONCE(tu->tp.size + dsize > PAGE_SIZE))
 		return;
 
-	if (ftrace_trigger_soft_disabled(ftrace_file))
+	if (trace_trigger_soft_disabled(trace_file))
 		return;
 
 	esize = SIZEOF_TRACE_ENTRY(is_ret_probe(tu));
 	size = esize + tu->tp.size + dsize;
-	event = trace_event_buffer_lock_reserve(&buffer, ftrace_file,
+	event = trace_event_buffer_lock_reserve(&buffer, trace_file,
 						call->event.type, size, 0, 0);
 	if (!event)
 		return;
@@ -805,7 +821,7 @@ static void __uprobe_trace_func(struct trace_uprobe *tu,
 
 	memcpy(data, ucb->buf, tu->tp.size + dsize);
 
-	event_trigger_unlock_commit(ftrace_file, buffer, event, entry, 0, 0);
+	event_trigger_unlock_commit(trace_file, buffer, event, entry, 0, 0);
 }
 
 /* uprobe handler */
@@ -852,12 +868,12 @@ print_uprobe_event(struct trace_iterator *iter, int flags, struct trace_event *e
 
 	if (is_ret_probe(tu)) {
 		trace_seq_printf(s, "%s: (0x%lx <- 0x%lx)",
-				 ftrace_event_name(&tu->tp.call),
+				 trace_event_name(&tu->tp.call),
 				 entry->vaddr[1], entry->vaddr[0]);
 		data = DATAOF_TRACE_ENTRY(entry, true);
 	} else {
 		trace_seq_printf(s, "%s: (0x%lx)",
-				 ftrace_event_name(&tu->tp.call),
+				 trace_event_name(&tu->tp.call),
 				 entry->vaddr[0]);
 		data = DATAOF_TRACE_ENTRY(entry, false);
 	}
@@ -880,7 +896,7 @@ typedef bool (*filter_func_t)(struct uprobe_consumer *self,
 				struct mm_struct *mm);
 
 static int
-probe_event_enable(struct trace_uprobe *tu, struct ftrace_event_file *file,
+probe_event_enable(struct trace_uprobe *tu, struct trace_event_file *file,
 		   filter_func_t filter)
 {
 	bool enabled = trace_probe_is_enabled(&tu->tp);
@@ -937,7 +953,7 @@ probe_event_enable(struct trace_uprobe *tu, struct ftrace_event_file *file,
 }
 
 static void
-probe_event_disable(struct trace_uprobe *tu, struct ftrace_event_file *file)
+probe_event_disable(struct trace_uprobe *tu, struct trace_event_file *file)
 {
 	if (!trace_probe_is_enabled(&tu->tp))
 		return;
@@ -966,7 +982,7 @@ probe_event_disable(struct trace_uprobe *tu, struct ftrace_event_file *file)
 	uprobe_buffer_disable();
 }
 
-static int uprobe_event_define_fields(struct ftrace_event_call *event_call)
+static int uprobe_event_define_fields(struct trace_event_call *event_call)
 {
 	int ret, i, size;
 	struct uprobe_trace_entry_head field;
@@ -1005,7 +1021,7 @@ __uprobe_perf_filter(struct trace_uprobe_filter *filter, struct mm_struct *mm)
 		return true;
 
 	list_for_each_entry(event, &filter->perf_events, hw.tp_list) {
-		if (event->hw.tp_target->mm == mm)
+		if (event->hw.target->mm == mm)
 			return true;
 	}
 
@@ -1015,7 +1031,7 @@ __uprobe_perf_filter(struct trace_uprobe_filter *filter, struct mm_struct *mm)
 static inline bool
 uprobe_filter_event(struct trace_uprobe *tu, struct perf_event *event)
 {
-	return __uprobe_perf_filter(&tu->filter, event->hw.tp_target->mm);
+	return __uprobe_perf_filter(&tu->filter, event->hw.target->mm);
 }
 
 static int uprobe_perf_close(struct trace_uprobe *tu, struct perf_event *event)
@@ -1023,10 +1039,10 @@ static int uprobe_perf_close(struct trace_uprobe *tu, struct perf_event *event)
 	bool done;
 
 	write_lock(&tu->filter.rwlock);
-	if (event->hw.tp_target) {
+	if (event->hw.target) {
 		list_del(&event->hw.tp_list);
 		done = tu->filter.nr_systemwide ||
-			(event->hw.tp_target->flags & PF_EXITING) ||
+			(event->hw.target->flags & PF_EXITING) ||
 			uprobe_filter_event(tu, event);
 	} else {
 		tu->filter.nr_systemwide--;
@@ -1046,7 +1062,7 @@ static int uprobe_perf_open(struct trace_uprobe *tu, struct perf_event *event)
 	int err;
 
 	write_lock(&tu->filter.rwlock);
-	if (event->hw.tp_target) {
+	if (event->hw.target) {
 		/*
 		 * event->parent != NULL means copy_process(), we can avoid
 		 * uprobe_apply(). current->mm must be probed and we can rely
@@ -1092,12 +1108,16 @@ static void __uprobe_perf_func(struct trace_uprobe *tu,
 			       unsigned long func, struct pt_regs *regs,
 			       struct uprobe_cpu_buffer *ucb, int dsize)
 {
-	struct ftrace_event_call *call = &tu->tp.call;
+	struct trace_event_call *call = &tu->tp.call;
 	struct uprobe_trace_entry_head *entry;
+	struct bpf_prog *prog = call->prog;
 	struct hlist_head *head;
 	void *data;
 	int size, esize;
 	int rctx;
+
+	if (prog && !trace_call_bpf(prog, regs))
+		return;
 
 	esize = SIZEOF_TRACE_ENTRY(is_ret_probe(tu));
 
@@ -1158,11 +1178,11 @@ static void uretprobe_perf_func(struct trace_uprobe *tu, unsigned long func,
 #endif	/* CONFIG_PERF_EVENTS */
 
 static int
-trace_uprobe_register(struct ftrace_event_call *event, enum trace_reg type,
+trace_uprobe_register(struct trace_event_call *event, enum trace_reg type,
 		      void *data)
 {
 	struct trace_uprobe *tu = event->data;
-	struct ftrace_event_file *file = data;
+	struct trace_event_file *file = data;
 
 	switch (type) {
 	case TRACE_REG_REGISTER:
@@ -1271,10 +1291,10 @@ static struct trace_event_functions uprobe_funcs = {
 
 static int register_uprobe_event(struct trace_uprobe *tu)
 {
-	struct ftrace_event_call *call = &tu->tp.call;
+	struct trace_event_call *call = &tu->tp.call;
 	int ret;
 
-	/* Initialize ftrace_event_call */
+	/* Initialize trace_event_call */
 	INIT_LIST_HEAD(&call->class->fields);
 	call->event.funcs = &uprobe_funcs;
 	call->class->define_fields = uprobe_event_define_fields;
@@ -1282,21 +1302,22 @@ static int register_uprobe_event(struct trace_uprobe *tu)
 	if (set_print_fmt(&tu->tp, is_ret_probe(tu)) < 0)
 		return -ENOMEM;
 
-	ret = register_ftrace_event(&call->event);
+	ret = register_trace_event(&call->event);
 	if (!ret) {
 		kfree(call->print_fmt);
 		return -ENODEV;
 	}
 
+	call->flags = TRACE_EVENT_FL_UPROBE;
 	call->class->reg = trace_uprobe_register;
 	call->data = tu;
 	ret = trace_add_event_call(call);
 
 	if (ret) {
 		pr_info("Failed to register uprobe event: %s\n",
-			ftrace_event_name(call));
+			trace_event_name(call));
 		kfree(call->print_fmt);
-		unregister_ftrace_event(&call->event);
+		unregister_trace_event(&call->event);
 	}
 
 	return ret;

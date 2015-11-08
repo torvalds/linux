@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include "priv.h"
+#include "ram.h"
 
 /* binary driver only executes this path if the condition (a) is true
  * for any configuration (combination of rammap+ramcfg+timing) that

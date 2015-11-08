@@ -446,7 +446,7 @@ int start_dma_without_bch_irq(struct gpmi_nand_data *this,
 				struct dma_async_tx_descriptor *desc)
 {
 	struct completion *dma_c = &this->dma_done;
-	int err;
+	unsigned long timeout;
 
 	init_completion(dma_c);
 
@@ -456,8 +456,8 @@ int start_dma_without_bch_irq(struct gpmi_nand_data *this,
 	dma_async_issue_pending(get_dma_chan(this));
 
 	/* Wait for the interrupt from the DMA block. */
-	err = wait_for_completion_timeout(dma_c, msecs_to_jiffies(1000));
-	if (!err) {
+	timeout = wait_for_completion_timeout(dma_c, msecs_to_jiffies(1000));
+	if (!timeout) {
 		dev_err(this->dev, "DMA timeout, last DMA :%d\n",
 			this->last_dma_type);
 		gpmi_dump_info(this);
@@ -477,7 +477,7 @@ int start_dma_with_bch_irq(struct gpmi_nand_data *this,
 			struct dma_async_tx_descriptor *desc)
 {
 	struct completion *bch_c = &this->bch_done;
-	int err;
+	unsigned long timeout;
 
 	/* Prepare to receive an interrupt from the BCH block. */
 	init_completion(bch_c);
@@ -486,8 +486,8 @@ int start_dma_with_bch_irq(struct gpmi_nand_data *this,
 	start_dma_without_bch_irq(this, desc);
 
 	/* Wait for the interrupt from the BCH block. */
-	err = wait_for_completion_timeout(bch_c, msecs_to_jiffies(1000));
-	if (!err) {
+	timeout = wait_for_completion_timeout(bch_c, msecs_to_jiffies(1000));
+	if (!timeout) {
 		dev_err(this->dev, "BCH timeout, last DMA :%d\n",
 			this->last_dma_type);
 		gpmi_dump_info(this);
@@ -1160,7 +1160,7 @@ static int gpmi_ecc_read_subpage(struct mtd_info *mtd, struct nand_chip *chip,
 }
 
 static int gpmi_ecc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-				const uint8_t *buf, int oob_required)
+				const uint8_t *buf, int oob_required, int page)
 {
 	struct gpmi_nand_data *this = chip->priv;
 	struct bch_geometry *nfc_geo = &this->bch_geometry;
@@ -1446,7 +1446,7 @@ static int gpmi_ecc_read_page_raw(struct mtd_info *mtd,
 static int gpmi_ecc_write_page_raw(struct mtd_info *mtd,
 				   struct nand_chip *chip,
 				   const uint8_t *buf,
-				   int oob_required)
+				   int oob_required, int page)
 {
 	struct gpmi_nand_data *this = chip->priv;
 	struct bch_geometry *nfc_geo = &this->bch_geometry;
@@ -1533,7 +1533,7 @@ static int gpmi_ecc_write_oob_raw(struct mtd_info *mtd, struct nand_chip *chip,
 {
 	chip->cmdfunc(mtd, NAND_CMD_SEQIN, 0, page);
 
-	return gpmi_ecc_write_page_raw(mtd, chip, NULL, 1);
+	return gpmi_ecc_write_page_raw(mtd, chip, NULL, 1, page);
 }
 
 static int gpmi_block_markbad(struct mtd_info *mtd, loff_t ofs)
@@ -1717,7 +1717,7 @@ static int mx23_write_transcription_stamp(struct gpmi_nand_data *this)
 		/* Write the first page of the current stride. */
 		dev_dbg(dev, "Writing an NCB fingerprint in page 0x%x\n", page);
 		chip->cmdfunc(mtd, NAND_CMD_SEQIN, 0x00, page);
-		chip->ecc.write_page_raw(mtd, chip, buffer, 0);
+		chip->ecc.write_page_raw(mtd, chip, buffer, 0, page);
 		chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
 
 		/* Wait for the write to finish. */
@@ -1897,7 +1897,7 @@ static int gpmi_nand_init(struct gpmi_nand_data *this)
 	/* init the MTD data structures */
 	mtd->priv		= chip;
 	mtd->name		= "gpmi-nand";
-	mtd->owner		= THIS_MODULE;
+	mtd->dev.parent		= this->dev;
 
 	/* init the nand_chip{}, we don't support a 16-bit NAND Flash bus. */
 	chip->priv		= this;
@@ -1950,7 +1950,9 @@ static int gpmi_nand_init(struct gpmi_nand_data *this)
 	ret = nand_boot_init(this);
 	if (ret)
 		goto err_out;
-	chip->scan_bbt(mtd);
+	ret = chip->scan_bbt(mtd);
+	if (ret)
+		goto err_out;
 
 	ppdata.of_node = this->pdev->dev.of_node;
 	ret = mtd_device_parse_register(mtd, NULL, &ppdata, NULL, 0);

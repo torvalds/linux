@@ -15,6 +15,8 @@
  *  GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/bcd.h>
@@ -48,8 +50,6 @@ struct s5m_rtc_reg_config {
 	unsigned int alarm0;
 	/* First register for alarm 1, seconds */
 	unsigned int alarm1;
-	/* SMPL/WTSR register */
-	unsigned int smpl_wtsr;
 	/*
 	 * Register for update flag (UDR). Typically setting UDR field to 1
 	 * will enable update of time or alarm register. Then it will be
@@ -67,7 +67,6 @@ static const struct s5m_rtc_reg_config s5m_rtc_regs = {
 	.ctrl			= S5M_ALARM1_CONF,
 	.alarm0			= S5M_ALARM0_SEC,
 	.alarm1			= S5M_ALARM1_SEC,
-	.smpl_wtsr		= S5M_WTSR_SMPL_CNTL,
 	.rtc_udr_update		= S5M_RTC_UDR_CON,
 	.rtc_udr_mask		= S5M_RTC_UDR_MASK,
 };
@@ -82,7 +81,6 @@ static const struct s5m_rtc_reg_config s2mps_rtc_regs = {
 	.ctrl			= S2MPS_RTC_CTRL,
 	.alarm0			= S2MPS_ALARM0_SEC,
 	.alarm1			= S2MPS_ALARM1_SEC,
-	.smpl_wtsr		= S2MPS_WTSR_SMPL_CNTL,
 	.rtc_udr_update		= S2MPS_RTC_UDR_CON,
 	.rtc_udr_mask		= S2MPS_RTC_WUDR_MASK,
 };
@@ -94,9 +92,8 @@ struct s5m_rtc_info {
 	struct regmap *regmap;
 	struct rtc_device *rtc_dev;
 	int irq;
-	int device_type;
+	enum sec_device_type device_type;
 	int rtc_24hr_mode;
-	bool wtsr_smpl;
 	const struct s5m_rtc_reg_config	*regs;
 };
 
@@ -151,7 +148,7 @@ static int s5m8767_tm_to_data(struct rtc_time *tm, u8 *data)
 	data[RTC_YEAR1] = tm->tm_year > 100 ? (tm->tm_year - 100) : 0;
 
 	if (tm->tm_year < 100) {
-		pr_err("s5m8767 RTC cannot handle the year %d.\n",
+		pr_err("RTC cannot handle the year %d\n",
 		       1900 + tm->tm_year);
 		return -EINVAL;
 	} else {
@@ -192,6 +189,7 @@ static inline int s5m_check_peding_alarm_interrupt(struct s5m_rtc_info *info,
 		val &= S5M_ALARM0_STATUS;
 		break;
 	case S2MPS14X:
+	case S2MPS13X:
 		ret = regmap_read(info->s5m87xx->regmap_pmic, S2MPS14_REG_ST2,
 				&val);
 		val &= S2MPS_ALARM0_STATUS;
@@ -257,6 +255,9 @@ static inline int s5m8767_rtc_set_alarm_reg(struct s5m_rtc_info *info)
 	case S2MPS14X:
 		data |= S2MPS_RTC_RUDR_MASK;
 		break;
+	case S2MPS13X:
+		data |= S2MPS13_RTC_AUDR_MASK;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -269,6 +270,11 @@ static inline int s5m8767_rtc_set_alarm_reg(struct s5m_rtc_info *info)
 	}
 
 	ret = s5m8767_wait_for_udr_update(info);
+
+	/* On S2MPS13 the AUDR is not auto-cleared */
+	if (info->device_type == S2MPS13X)
+		regmap_update_bits(info->regmap, info->regs->rtc_udr_update,
+				   S2MPS13_RTC_AUDR_MASK, 0);
 
 	return ret;
 }
@@ -311,7 +317,7 @@ static int s5m_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	u8 data[info->regs->regs_count];
 	int ret;
 
-	if (info->device_type == S2MPS14X) {
+	if (info->device_type == S2MPS14X || info->device_type == S2MPS13X) {
 		ret = regmap_update_bits(info->regmap,
 				info->regs->rtc_udr_update,
 				S2MPS_RTC_RUDR_MASK, S2MPS_RTC_RUDR_MASK);
@@ -334,6 +340,7 @@ static int s5m_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	case S5M8767X:
 	case S2MPS14X:
+	case S2MPS13X:
 		s5m8767_data_to_tm(data, tm, info->rtc_24hr_mode);
 		break;
 
@@ -360,6 +367,7 @@ static int s5m_rtc_set_time(struct device *dev, struct rtc_time *tm)
 		break;
 	case S5M8767X:
 	case S2MPS14X:
+	case S2MPS13X:
 		ret = s5m8767_tm_to_data(tm, data);
 		break;
 	default:
@@ -407,6 +415,7 @@ static int s5m_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	case S5M8767X:
 	case S2MPS14X:
+	case S2MPS13X:
 		s5m8767_data_to_tm(data, &alrm->time, info->rtc_24hr_mode);
 		alrm->enabled = 0;
 		for (i = 0; i < info->regs->regs_count; i++) {
@@ -455,6 +464,7 @@ static int s5m_rtc_stop_alarm(struct s5m_rtc_info *info)
 
 	case S5M8767X:
 	case S2MPS14X:
+	case S2MPS13X:
 		for (i = 0; i < info->regs->regs_count; i++)
 			data[i] &= ~ALARM_ENABLE_MASK;
 
@@ -499,6 +509,7 @@ static int s5m_rtc_start_alarm(struct s5m_rtc_info *info)
 
 	case S5M8767X:
 	case S2MPS14X:
+	case S2MPS13X:
 		data[RTC_SEC] |= ALARM_ENABLE_MASK;
 		data[RTC_MIN] |= ALARM_ENABLE_MASK;
 		data[RTC_HOUR] |= ALARM_ENABLE_MASK;
@@ -538,6 +549,7 @@ static int s5m_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	case S5M8767X:
 	case S2MPS14X:
+	case S2MPS13X:
 		s5m8767_tm_to_data(&alrm->time, data);
 		break;
 
@@ -597,28 +609,6 @@ static const struct rtc_class_ops s5m_rtc_ops = {
 	.alarm_irq_enable = s5m_rtc_alarm_irq_enable,
 };
 
-static void s5m_rtc_enable_wtsr(struct s5m_rtc_info *info, bool enable)
-{
-	int ret;
-	ret = regmap_update_bits(info->regmap, info->regs->smpl_wtsr,
-				 WTSR_ENABLE_MASK,
-				 enable ? WTSR_ENABLE_MASK : 0);
-	if (ret < 0)
-		dev_err(info->dev, "%s: fail to update WTSR reg(%d)\n",
-			__func__, ret);
-}
-
-static void s5m_rtc_enable_smpl(struct s5m_rtc_info *info, bool enable)
-{
-	int ret;
-	ret = regmap_update_bits(info->regmap, info->regs->smpl_wtsr,
-				 SMPL_ENABLE_MASK,
-				 enable ? SMPL_ENABLE_MASK : 0);
-	if (ret < 0)
-		dev_err(info->dev, "%s: fail to update SMPL reg(%d)\n",
-			__func__, ret);
-}
-
 static int s5m8767_rtc_init_reg(struct s5m_rtc_info *info)
 {
 	u8 data[2];
@@ -642,8 +632,19 @@ static int s5m8767_rtc_init_reg(struct s5m_rtc_info *info)
 		break;
 
 	case S2MPS14X:
+	case S2MPS13X:
 		data[0] = (0 << BCD_EN_SHIFT) | (1 << MODEL24_SHIFT);
 		ret = regmap_write(info->regmap, info->regs->ctrl, data[0]);
+		if (ret < 0)
+			break;
+
+		/*
+		 * Should set WUDR & (RUDR or AUDR) bits to high after writing
+		 * RTC_CTRL register like writing Alarm registers. We can't find
+		 * the description from datasheet but vendor code does that
+		 * really.
+		 */
+		ret = s5m8767_rtc_set_alarm_reg(info);
 		break;
 
 	default:
@@ -677,8 +678,9 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 	if (!info)
 		return -ENOMEM;
 
-	switch (pdata->device_type) {
+	switch (platform_get_device_id(pdev)->driver_data) {
 	case S2MPS14X:
+	case S2MPS13X:
 		regmap_cfg = &s2mps14_rtc_regmap_config;
 		info->regs = &s2mps_rtc_regs;
 		alarm_irq = S2MPS14_IRQ_RTCA0;
@@ -694,7 +696,9 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 		alarm_irq = S5M8767_IRQ_RTCA1;
 		break;
 	default:
-		dev_err(&pdev->dev, "Device type is not supported by RTC driver\n");
+		dev_err(&pdev->dev,
+				"Device type %lu is not supported by RTC driver\n",
+				platform_get_device_id(pdev)->driver_data);
 		return -ENODEV;
 	}
 
@@ -714,8 +718,7 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 
 	info->dev = &pdev->dev;
 	info->s5m87xx = s5m87xx;
-	info->device_type = s5m87xx->device_type;
-	info->wtsr_smpl = s5m87xx->wtsr_smpl;
+	info->device_type = platform_get_device_id(pdev)->driver_data;
 
 	if (s5m87xx->irq_data) {
 		info->irq = regmap_irq_get_virq(s5m87xx->irq_data, alarm_irq);
@@ -730,11 +733,6 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, info);
 
 	ret = s5m8767_rtc_init_reg(info);
-
-	if (info->wtsr_smpl) {
-		s5m_rtc_enable_wtsr(info, true);
-		s5m_rtc_enable_smpl(info, true);
-	}
 
 	device_init_wakeup(&pdev->dev, 1);
 
@@ -768,36 +766,10 @@ err:
 	return ret;
 }
 
-static void s5m_rtc_shutdown(struct platform_device *pdev)
-{
-	struct s5m_rtc_info *info = platform_get_drvdata(pdev);
-	int i;
-	unsigned int val = 0;
-	if (info->wtsr_smpl) {
-		for (i = 0; i < 3; i++) {
-			s5m_rtc_enable_wtsr(info, false);
-			regmap_read(info->regmap, info->regs->smpl_wtsr, &val);
-			pr_debug("%s: WTSR_SMPL reg(0x%02x)\n", __func__, val);
-			if (val & WTSR_ENABLE_MASK)
-				pr_emerg("%s: fail to disable WTSR\n",
-					 __func__);
-			else {
-				pr_info("%s: success to disable WTSR\n",
-					__func__);
-				break;
-			}
-		}
-	}
-	/* Disable SMPL when power off */
-	s5m_rtc_enable_smpl(info, false);
-}
-
 static int s5m_rtc_remove(struct platform_device *pdev)
 {
 	struct s5m_rtc_info *info = platform_get_drvdata(pdev);
 
-	/* Perform also all shutdown steps when removing */
-	s5m_rtc_shutdown(pdev);
 	i2c_unregister_device(info->i2c);
 
 	return 0;
@@ -831,9 +803,11 @@ static SIMPLE_DEV_PM_OPS(s5m_rtc_pm_ops, s5m_rtc_suspend, s5m_rtc_resume);
 
 static const struct platform_device_id s5m_rtc_id[] = {
 	{ "s5m-rtc",		S5M8767X },
+	{ "s2mps13-rtc",	S2MPS13X },
 	{ "s2mps14-rtc",	S2MPS14X },
 	{ },
 };
+MODULE_DEVICE_TABLE(platform, s5m_rtc_id);
 
 static struct platform_driver s5m_rtc_driver = {
 	.driver		= {
@@ -842,7 +816,6 @@ static struct platform_driver s5m_rtc_driver = {
 	},
 	.probe		= s5m_rtc_probe,
 	.remove		= s5m_rtc_remove,
-	.shutdown	= s5m_rtc_shutdown,
 	.id_table	= s5m_rtc_id,
 };
 

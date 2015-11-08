@@ -46,11 +46,10 @@
 
 / {
 	model = "Marvell Armada 385 Access Point Development Board";
-	compatible = "marvell,a385-db-ap", "marvell,armada385", "marvell,armada38x";
+	compatible = "marvell,a385-db-ap", "marvell,armada385", "marvell,armada380";
 
 	chosen {
-		bootargs = "console=ttyS0,115200";
-		stdout-path = &uart1;
+		stdout-path = "serial1:115200n8";
 	};
 
 	memory {
@@ -71,7 +70,7 @@
 				spi-flash@0 {
 					#address-cells = <1>;
 					#size-cells = <1>;
-					compatible = "st,m25p128";
+					compatible = "st,m25p128", "jedec,spi-nor";
 					reg = <0>; /* Chip select 0 */
 					spi-max-frequency = <54000000>;
 				};
@@ -126,6 +125,13 @@
 				status = "okay";
 			};
 
+			pinctrl@18000 {
+				xhci0_vbus_pins: xhci0-vbus-pins {
+					marvell,pins = "mpp44";
+					marvell,function = "gpio";
+				};
+			};
+
 			ethernet@30000 {
 				status = "okay";
 				phy = <&phy2>;
@@ -149,6 +155,24 @@
 				status = "okay";
 				phy = <&phy0>;
 				phy-mode = "rgmii-id";
+			};
+
+			nfc: flash@d0000 {
+				status = "okay";
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				num-cs = <1>;
+				nand-ecc-strength = <4>;
+				nand-ecc-step-size = <512>;
+				marvell,nand-keep-config;
+				marvell,nand-enable-arbiter;
+				nand-on-flash-bbt;
+			};
+
+			usb3@f0000 {
+				status = "okay";
+				usb-phy = <&usb3_phy>;
 			};
 		};
 
@@ -174,5 +198,21 @@
 				status = "okay";
 			};
 		};
+	};
+
+	usb3_phy: usb3_phy {
+		compatible = "usb-nop-xceiv";
+		vcc-supply = <&reg_xhci0_vbus>;
+	};
+
+	reg_xhci0_vbus: xhci0-vbus {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&xhci0_vbus_pins>;
+		regulator-name = "xhci0-vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio1 12 GPIO_ACTIVE_HIGH>;
 	};
 };

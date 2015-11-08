@@ -47,15 +47,17 @@ static struct clk_pll pll4 = {
 	},
 };
 
-#define P_PXO	0
-#define P_PLL4	1
-
-static const u8 lcc_pxo_pll4_map[] = {
-	[P_PXO]		= 0,
-	[P_PLL4]	= 2,
+enum {
+	P_PXO,
+	P_PLL4,
 };
 
-static const char *lcc_pxo_pll4[] = {
+static const struct parent_map lcc_pxo_pll4_map[] = {
+	{ P_PXO, 0 },
+	{ P_PLL4, 2 }
+};
+
+static const char * const lcc_pxo_pll4[] = {
 	"pxo",
 	"pll4_vote",
 };
@@ -125,7 +127,7 @@ static struct clk_rcg mi2s_osr_src = {
 	},
 };
 
-static const char *lcc_mi2s_parents[] = {
+static const char * const lcc_mi2s_parents[] = {
 	"mi2s_osr_src",
 };
 
@@ -231,7 +233,7 @@ static struct clk_rcg prefix##_osr_src = {			\
 	},							\
 };								\
 								\
-static const char *lcc_##prefix##_parents[] = {			\
+static const char * const lcc_##prefix##_parents[] = {		\
 	#prefix "_osr_src",					\
 };								\
 								\
@@ -443,7 +445,7 @@ static struct clk_rcg slimbus_src = {
 	},
 };
 
-static const char *lcc_slimbus_parents[] = {
+static const char * const lcc_slimbus_parents[] = {
 	"slimbus_src",
 };
 
@@ -563,15 +565,8 @@ static int lcc_msm8960_probe(struct platform_device *pdev)
 	return qcom_cc_really_probe(pdev, &lcc_msm8960_desc, regmap);
 }
 
-static int lcc_msm8960_remove(struct platform_device *pdev)
-{
-	qcom_cc_remove(pdev);
-	return 0;
-}
-
 static struct platform_driver lcc_msm8960_driver = {
 	.probe		= lcc_msm8960_probe,
-	.remove		= lcc_msm8960_remove,
 	.driver		= {
 		.name	= "lcc-msm8960",
 		.of_match_table = lcc_msm8960_match_table,

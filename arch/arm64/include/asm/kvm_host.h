@@ -28,18 +28,17 @@
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmio.h>
 
-#if defined(CONFIG_KVM_ARM_MAX_VCPUS)
-#define KVM_MAX_VCPUS CONFIG_KVM_ARM_MAX_VCPUS
-#else
-#define KVM_MAX_VCPUS 0
-#endif
+#define __KVM_HAVE_ARCH_INTC_INITIALIZED
 
 #define KVM_USER_MEM_SLOTS 32
 #define KVM_PRIVATE_MEM_SLOTS 4
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
+#define KVM_HALT_POLL_NS_DEFAULT 500000
 
 #include <kvm/arm_vgic.h>
 #include <kvm/arm_arch_timer.h>
+
+#define KVM_MAX_VCPUS VGIC_V3_MAX_CPUS
 
 #define KVM_VCPU_MAX_FEATURES 3
 
@@ -101,15 +100,34 @@ struct kvm_vcpu_arch {
 
 	/* HYP configuration */
 	u64 hcr_el2;
+	u32 mdcr_el2;
 
 	/* Exception Information */
 	struct kvm_vcpu_fault_info fault;
 
-	/* Debug state */
+	/* Guest debug state */
 	u64 debug_flags;
+
+	/*
+	 * We maintain more than a single set of debug registers to support
+	 * debugging the guest from the host and to maintain separate host and
+	 * guest state during world switches. vcpu_debug_state are the debug
+	 * registers of the vcpu as the guest sees them.  host_debug_state are
+	 * the host registers which are saved and restored during
+	 * world switches. external_debug_state contains the debug
+	 * values we want to debug the guest. This is set via the
+	 * KVM_SET_GUEST_DEBUG ioctl.
+	 *
+	 * debug_ptr points to the set of debug registers that should be loaded
+	 * onto the hardware when running the guest.
+	 */
+	struct kvm_guest_debug_arch *debug_ptr;
+	struct kvm_guest_debug_arch vcpu_debug_state;
+	struct kvm_guest_debug_arch external_debug_state;
 
 	/* Pointer to host CPU context */
 	kvm_cpu_context_t *host_cpu_context;
+	struct kvm_guest_debug_arch host_debug_state;
 
 	/* VGIC state */
 	struct vgic_cpu vgic_cpu;
@@ -120,7 +138,21 @@ struct kvm_vcpu_arch {
 	 * here.
 	 */
 
-	/* Don't run the guest */
+	/*
+	 * Guest registers we preserve during guest debugging.
+	 *
+	 * These shadow registers are updated by the kvm_handle_sys_reg
+	 * trap handler if the guest accesses or updates them while we
+	 * are using guest debug.
+	 */
+	struct {
+		u32	mdscr_el1;
+	} guest_debug_preserved;
+
+	/* vcpu power-off state */
+	bool power_off;
+
+	/* Don't run the guest (internal implementation need) */
 	bool pause;
 
 	/* IO related fields */
@@ -163,6 +195,7 @@ struct kvm_vm_stat {
 
 struct kvm_vcpu_stat {
 	u32 halt_successful_poll;
+	u32 halt_attempted_poll;
 	u32 halt_wakeup;
 };
 
@@ -177,19 +210,10 @@ int kvm_unmap_hva(struct kvm *kvm, unsigned long hva);
 int kvm_unmap_hva_range(struct kvm *kvm,
 			unsigned long start, unsigned long end);
 void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte);
+int kvm_age_hva(struct kvm *kvm, unsigned long start, unsigned long end);
+int kvm_test_age_hva(struct kvm *kvm, unsigned long hva);
 
 /* We do not have shadow page tables, hence the empty hooks */
-static inline int kvm_age_hva(struct kvm *kvm, unsigned long start,
-			      unsigned long end)
-{
-	return 0;
-}
-
-static inline int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)
-{
-	return 0;
-}
-
 static inline void kvm_arch_mmu_notifier_invalidate_page(struct kvm *kvm,
 							 unsigned long address)
 {
@@ -223,38 +247,15 @@ static inline void __cpu_init_hyp_mode(phys_addr_t boot_pgd_ptr,
 		     hyp_stack_ptr, vector_ptr);
 }
 
-struct vgic_sr_vectors {
-	void	*save_vgic;
-	void	*restore_vgic;
-};
-
-static inline void vgic_arch_setup(const struct vgic_params *vgic)
-{
-	extern struct vgic_sr_vectors __vgic_sr_vectors;
-
-	switch(vgic->type)
-	{
-	case VGIC_V2:
-		__vgic_sr_vectors.save_vgic	= __save_vgic_v2_state;
-		__vgic_sr_vectors.restore_vgic	= __restore_vgic_v2_state;
-		break;
-
-#ifdef CONFIG_ARM_GIC_V3
-	case VGIC_V3:
-		__vgic_sr_vectors.save_vgic	= __save_vgic_v3_state;
-		__vgic_sr_vectors.restore_vgic	= __restore_vgic_v3_state;
-		break;
-#endif
-
-	default:
-		BUG();
-	}
-}
-
 static inline void kvm_arch_hardware_disable(void) {}
 static inline void kvm_arch_hardware_unsetup(void) {}
 static inline void kvm_arch_sync_events(struct kvm *kvm) {}
 static inline void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
+
+void kvm_arm_init_debug(void);
+void kvm_arm_setup_debug(struct kvm_vcpu *vcpu);
+void kvm_arm_clear_debug(struct kvm_vcpu *vcpu);
+void kvm_arm_reset_debug_ptr(struct kvm_vcpu *vcpu);
 
 #endif /* __ARM64_KVM_HOST_H__ */

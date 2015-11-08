@@ -1746,7 +1746,7 @@ static const char *progname;
 
 static void usage(void)
 {
-	printf(_("%s <config>\n"), progname);
+	printf(_("%s [-s] <config>\n"), progname);
 	exit(0);
 }
 
@@ -1762,6 +1762,9 @@ int main(int ac, char** av)
 	configApp = new QApplication(ac, av);
 	if (ac > 1 && av[1][0] == '-') {
 		switch (av[1][1]) {
+		case 's':
+			conf_set_message_callback(NULL);
+			break;
 		case 'h':
 		case '?':
 			usage();

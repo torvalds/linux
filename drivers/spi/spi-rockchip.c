@@ -179,6 +179,7 @@ struct rockchip_spi {
 	u8 tmode;
 	u8 bpw;
 	u8 n_bytes;
+	u8 rsd_nsecs;
 	unsigned len;
 	u32 speed;
 
@@ -302,8 +303,8 @@ static int rockchip_spi_prepare_message(struct spi_master *master,
 	return 0;
 }
 
-static int rockchip_spi_unprepare_message(struct spi_master *master,
-					  struct spi_message *msg)
+static void rockchip_spi_handle_err(struct spi_master *master,
+				    struct spi_message *msg)
 {
 	unsigned long flags;
 	struct rockchip_spi *rs = spi_master_get_devdata(master);
@@ -313,8 +314,8 @@ static int rockchip_spi_unprepare_message(struct spi_master *master,
 	/*
 	 * For DMA mode, we need terminate DMA channel and flush
 	 * fifo for the next transfer if DMA thansfer timeout.
-	 * unprepare_message() was called by core if transfer complete
-	 * or timeout. Maybe it is reasonable for error handling here.
+	 * handle_err() was called by core if transfer failed.
+	 * Maybe it is reasonable for error handling here.
 	 */
 	if (rs->use_dma) {
 		if (rs->state & RXBUSY) {
@@ -327,6 +328,12 @@ static int rockchip_spi_unprepare_message(struct spi_master *master,
 	}
 
 	spin_unlock_irqrestore(&rs->lock, flags);
+}
+
+static int rockchip_spi_unprepare_message(struct spi_master *master,
+					  struct spi_message *msg)
+{
+	struct rockchip_spi *rs = spi_master_get_devdata(master);
 
 	spi_enable_chip(rs, 0);
 
@@ -493,6 +500,7 @@ static void rockchip_spi_config(struct rockchip_spi *rs)
 {
 	u32 div = 0;
 	u32 dmacr = 0;
+	int rsd = 0;
 
 	u32 cr0 = (CR0_BHT_8BIT << CR0_BHT_OFFSET)
 		| (CR0_SSD_ONE << CR0_SSD_OFFSET);
@@ -519,8 +527,22 @@ static void rockchip_spi_config(struct rockchip_spi *rs)
 	}
 
 	/* div doesn't support odd number */
-	div = max_t(u32, rs->max_freq / rs->speed, 1);
+	div = DIV_ROUND_UP(rs->max_freq, rs->speed);
 	div = (div + 1) & 0xfffe;
+
+	/* Rx sample delay is expressed in parent clock cycles (max 3) */
+	rsd = DIV_ROUND_CLOSEST(rs->rsd_nsecs * (rs->max_freq >> 8),
+				1000000000 >> 8);
+	if (!rsd && rs->rsd_nsecs) {
+		pr_warn_once("rockchip-spi: %u Hz are too slow to express %u ns delay\n",
+			     rs->max_freq, rs->rsd_nsecs);
+	} else if (rsd > 3) {
+		rsd = 3;
+		pr_warn_once("rockchip-spi: %u Hz are too fast to express %u ns delay, clamping at %u ns\n",
+			     rs->max_freq, rs->rsd_nsecs,
+			     rsd * 1000000000U / rs->max_freq);
+	}
+	cr0 |= rsd << CR0_RSD_OFFSET;
 
 	writel_relaxed(cr0, rs->regs + ROCKCHIP_SPI_CTRLR0);
 
@@ -614,6 +636,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	struct rockchip_spi *rs;
 	struct spi_master *master;
 	struct resource *mem;
+	u32 rsd_nsecs;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct rockchip_spi));
 	if (!master)
@@ -622,7 +645,6 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, master);
 
 	rs = spi_master_get_devdata(master);
-	memset(rs, 0, sizeof(struct rockchip_spi));
 
 	/* Get basic io resource and map it */
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -665,6 +687,10 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	rs->dev = &pdev->dev;
 	rs->max_freq = clk_get_rate(rs->spiclk);
 
+	if (!of_property_read_u32(pdev->dev.of_node, "rx-sample-delay-ns",
+				  &rsd_nsecs))
+		rs->rsd_nsecs = rsd_nsecs;
+
 	rs->fifo_len = get_fifo_len(rs);
 	if (!rs->fifo_len) {
 		dev_err(&pdev->dev, "Failed to get fifo length\n");
@@ -688,6 +714,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	master->prepare_message = rockchip_spi_prepare_message;
 	master->unprepare_message = rockchip_spi_unprepare_message;
 	master->transfer_one = rockchip_spi_transfer_one;
+	master->handle_err = rockchip_spi_handle_err;
 
 	rs->dma_tx.ch = dma_request_slave_channel(rs->dev, "tx");
 	if (!rs->dma_tx.ch)

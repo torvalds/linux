@@ -14,7 +14,17 @@ Optional properties:
   device, hence no steps need to be passed.
 - rotary-encoder,rollover: Automatic rollove when the rotary value becomes
   greater than the specified steps or smaller than 0. For absolute axis only.
+- rotary-encoder,steps-per-period: Number of steps (stable states) per period.
+  The values have the following meaning:
+  1: Full-period mode (default)
+  2: Half-period mode
+  4: Quarter-period mode
+- wakeup-source: Boolean, rotary encoder can wake up the system.
+
+Deprecated properties:
 - rotary-encoder,half-period: Makes the driver work on half-period mode.
+  This property is deprecated. Instead, a 'steps-per-period ' value should
+  be used, such as "rotary-encoder,steps-per-period = <2>".
 
 See Documentation/input/rotary-encoder.txt for more information.
 

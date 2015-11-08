@@ -156,7 +156,6 @@ static int ds1390_probe(struct spi_device *spi)
 static struct spi_driver ds1390_driver = {
 	.driver = {
 		.name	= "rtc-ds1390",
-		.owner	= THIS_MODULE,
 	},
 	.probe	= ds1390_probe,
 };

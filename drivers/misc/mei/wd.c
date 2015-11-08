@@ -50,15 +50,15 @@ static void mei_wd_set_start_timeout(struct mei_device *dev, u16 timeout)
  * mei_wd_host_init - connect to the watchdog client
  *
  * @dev: the device structure
+ * @me_cl: me client
  *
  * Return: -ENOTTY if wd client cannot be found
  *         -EIO if write has failed
  *         0 on success
  */
-int mei_wd_host_init(struct mei_device *dev)
+int mei_wd_host_init(struct mei_device *dev, struct mei_me_client *me_cl)
 {
 	struct mei_cl *cl = &dev->wd_cl;
-	struct mei_me_client *me_cl;
 	int ret;
 
 	mei_cl_init(cl, dev);
@@ -66,27 +66,13 @@ int mei_wd_host_init(struct mei_device *dev)
 	dev->wd_timeout = MEI_WD_DEFAULT_TIMEOUT;
 	dev->wd_state = MEI_WD_IDLE;
 
-
-	/* check for valid client id */
-	me_cl = mei_me_cl_by_uuid(dev, &mei_wd_guid);
-	if (!me_cl) {
-		dev_info(dev->dev, "wd: failed to find the client\n");
-		return -ENOTTY;
-	}
-
-	cl->me_client_id = me_cl->client_id;
-	cl->cl_uuid = me_cl->props.protocol_name;
-	mei_me_cl_put(me_cl);
-
 	ret = mei_cl_link(cl, MEI_WD_HOST_CLIENT_ID);
-
 	if (ret < 0) {
 		dev_info(dev->dev, "wd: failed link client\n");
 		return ret;
 	}
 
-	ret = mei_cl_connect(cl, NULL);
-
+	ret = mei_cl_connect(cl, me_cl, NULL);
 	if (ret) {
 		dev_err(dev->dev, "wd: failed to connect = %d\n", ret);
 		mei_cl_unlink(cl);
@@ -118,7 +104,7 @@ int mei_wd_send(struct mei_device *dev)
 	int ret;
 
 	hdr.host_addr = cl->host_client_id;
-	hdr.me_addr = cl->me_client_id;
+	hdr.me_addr = mei_cl_me_id(cl);
 	hdr.msg_complete = 1;
 	hdr.reserved = 0;
 	hdr.internal = 0;
@@ -160,9 +146,10 @@ int mei_wd_send(struct mei_device *dev)
  */
 int mei_wd_stop(struct mei_device *dev)
 {
+	struct mei_cl *cl = &dev->wd_cl;
 	int ret;
 
-	if (dev->wd_cl.state != MEI_FILE_CONNECTED ||
+	if (!mei_cl_is_connected(cl) ||
 	    dev->wd_state != MEI_WD_RUNNING)
 		return 0;
 
@@ -170,7 +157,7 @@ int mei_wd_stop(struct mei_device *dev)
 
 	dev->wd_state = MEI_WD_STOPPING;
 
-	ret = mei_cl_flow_ctrl_creds(&dev->wd_cl);
+	ret = mei_cl_flow_ctrl_creds(cl);
 	if (ret < 0)
 		goto err;
 
@@ -202,21 +189,24 @@ err:
 	return ret;
 }
 
-/*
+/**
  * mei_wd_ops_start - wd start command from the watchdog core.
  *
- * @wd_dev - watchdog device struct
+ * @wd_dev: watchdog device struct
  *
  * Return: 0 if success, negative errno code for failure
  */
 static int mei_wd_ops_start(struct watchdog_device *wd_dev)
 {
-	int err = -ENODEV;
 	struct mei_device *dev;
+	struct mei_cl *cl;
+	int err = -ENODEV;
 
 	dev = watchdog_get_drvdata(wd_dev);
 	if (!dev)
 		return -ENODEV;
+
+	cl = &dev->wd_cl;
 
 	mutex_lock(&dev->device_lock);
 
@@ -226,8 +216,8 @@ static int mei_wd_ops_start(struct watchdog_device *wd_dev)
 		goto end_unlock;
 	}
 
-	if (dev->wd_cl.state != MEI_FILE_CONNECTED)	{
-		dev_dbg(dev->dev, "MEI Driver is not connected to Watchdog Client\n");
+	if (!mei_cl_is_connected(cl)) {
+		cl_dbg(dev, cl, "MEI Driver is not connected to Watchdog Client\n");
 		goto end_unlock;
 	}
 
@@ -239,10 +229,10 @@ end_unlock:
 	return err;
 }
 
-/*
+/**
  * mei_wd_ops_stop -  wd stop command from the watchdog core.
  *
- * @wd_dev - watchdog device struct
+ * @wd_dev: watchdog device struct
  *
  * Return: 0 if success, negative errno code for failure
  */
@@ -261,10 +251,10 @@ static int mei_wd_ops_stop(struct watchdog_device *wd_dev)
 	return 0;
 }
 
-/*
+/**
  * mei_wd_ops_ping - wd ping command from the watchdog core.
  *
- * @wd_dev - watchdog device struct
+ * @wd_dev: watchdog device struct
  *
  * Return: 0 if success, negative errno code for failure
  */
@@ -282,8 +272,8 @@ static int mei_wd_ops_ping(struct watchdog_device *wd_dev)
 
 	mutex_lock(&dev->device_lock);
 
-	if (cl->state != MEI_FILE_CONNECTED) {
-		dev_err(dev->dev, "wd: not connected.\n");
+	if (!mei_cl_is_connected(cl)) {
+		cl_err(dev, cl, "wd: not connected.\n");
 		ret = -ENODEV;
 		goto end;
 	}
@@ -311,11 +301,11 @@ end:
 	return ret;
 }
 
-/*
+/**
  * mei_wd_ops_set_timeout - wd set timeout command from the watchdog core.
  *
- * @wd_dev - watchdog device struct
- * @timeout - timeout value to set
+ * @wd_dev: watchdog device struct
+ * @timeout: timeout value to set
  *
  * Return: 0 if success, negative errno code for failure
  */
@@ -374,6 +364,7 @@ int mei_watchdog_register(struct mei_device *dev)
 
 	int ret;
 
+	amt_wd_dev.parent = dev->dev;
 	/* unlock to perserve correct locking order */
 	mutex_unlock(&dev->device_lock);
 	ret = watchdog_register_device(&amt_wd_dev);

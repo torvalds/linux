@@ -17,6 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/bug.h>
 #include <linux/signal.h>
 #include <linux/personality.h>
 #include <linux/kallsyms.h>
@@ -32,8 +33,10 @@
 #include <linux/syscalls.h>
 
 #include <asm/atomic.h>
+#include <asm/bug.h>
 #include <asm/debug-monitors.h>
 #include <asm/esr.h>
+#include <asm/insn.h>
 #include <asm/traps.h>
 #include <asm/stacktrace.h>
 #include <asm/exception.h>
@@ -52,11 +55,12 @@ int show_unhandled_signals = 1;
  * Dump out the contents of some memory nicely...
  */
 static void dump_mem(const char *lvl, const char *str, unsigned long bottom,
-		     unsigned long top)
+		     unsigned long top, bool compat)
 {
 	unsigned long first;
 	mm_segment_t fs;
 	int i;
+	unsigned int width = compat ? 4 : 8;
 
 	/*
 	 * We need to switch to kernel mode so that we can use __get_user
@@ -75,13 +79,22 @@ static void dump_mem(const char *lvl, const char *str, unsigned long bottom,
 		memset(str, ' ', sizeof(str));
 		str[sizeof(str) - 1] = '\0';
 
-		for (p = first, i = 0; i < 8 && p < top; i++, p += 4) {
+		for (p = first, i = 0; i < (32 / width)
+					&& p < top; i++, p += width) {
 			if (p >= bottom && p < top) {
-				unsigned int val;
-				if (__get_user(val, (unsigned int *)p) == 0)
-					sprintf(str + i * 9, " %08x", val);
-				else
-					sprintf(str + i * 9, " ????????");
+				unsigned long val;
+
+				if (width == 8) {
+					if (__get_user(val, (unsigned long *)p) == 0)
+						sprintf(str + i * 17, " %016lx", val);
+					else
+						sprintf(str + i * 17, " ????????????????");
+				} else {
+					if (__get_user(val, (unsigned int *)p) == 0)
+						sprintf(str + i * 9, " %08lx", val);
+					else
+						sprintf(str + i * 9, " ????????");
+				}
 			}
 		}
 		printk("%s%04lx:%s\n", lvl, first & 0xffff, str);
@@ -90,12 +103,12 @@ static void dump_mem(const char *lvl, const char *str, unsigned long bottom,
 	set_fs(fs);
 }
 
-static void dump_backtrace_entry(unsigned long where, unsigned long stack)
+static void dump_backtrace_entry(unsigned long where)
 {
+	/*
+	 * Note that 'where' can have a physical address, but it's not handled.
+	 */
 	print_ip_sym(where);
-	if (in_exception_text(where))
-		dump_mem("", "Exception stack", stack,
-			 stack + sizeof(struct pt_regs));
 }
 
 static void dump_instr(const char *lvl, struct pt_regs *regs)
@@ -159,12 +172,17 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 	pr_emerg("Call trace:\n");
 	while (1) {
 		unsigned long where = frame.pc;
+		unsigned long stack;
 		int ret;
 
+		dump_backtrace_entry(where);
 		ret = unwind_frame(&frame);
 		if (ret < 0)
 			break;
-		dump_backtrace_entry(where, frame.sp);
+		stack = frame.sp;
+		if (in_exception_text(where))
+			dump_mem("", "Exception stack", stack,
+				 stack + sizeof(struct pt_regs), false);
 	}
 }
 
@@ -179,11 +197,7 @@ void show_stack(struct task_struct *tsk, unsigned long *sp)
 #else
 #define S_PREEMPT ""
 #endif
-#ifdef CONFIG_SMP
 #define S_SMP " SMP"
-#else
-#define S_SMP ""
-#endif
 
 static int __die(const char *str, int err, struct thread_info *thread,
 		 struct pt_regs *regs)
@@ -207,7 +221,8 @@ static int __die(const char *str, int err, struct thread_info *thread,
 
 	if (!user_mode(regs) || in_interrupt()) {
 		dump_mem(KERN_EMERG, "Stack: ", regs->sp,
-			 THREAD_SIZE + (unsigned long)task_stack_page(tsk));
+			 THREAD_SIZE + (unsigned long)task_stack_page(tsk),
+			 compat_user_mode(regs));
 		dump_backtrace(regs, tsk);
 		dump_instr(KERN_EMERG, regs);
 	}
@@ -335,8 +350,7 @@ asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 	if (call_undef_hook(regs) == 0)
 		return;
 
-	if (show_unhandled_signals && unhandled_signal(current, SIGILL) &&
-	    printk_ratelimit()) {
+	if (unhandled_signal(current, SIGILL) && show_unhandled_signals_ratelimited()) {
 		pr_info("%s[%d]: undefined instruction: pc=%p\n",
 			current->comm, task_pid_nr(current), pc);
 		dump_instr(KERN_INFO, regs);
@@ -363,7 +377,7 @@ asmlinkage long do_ni_syscall(struct pt_regs *regs)
 	}
 #endif
 
-	if (show_unhandled_signals && printk_ratelimit()) {
+	if (show_unhandled_signals_ratelimited()) {
 		pr_info("%s[%d]: syscall %d\n", current->comm,
 			task_pid_nr(current), (int)regs->syscallno);
 		dump_instr("", regs);
@@ -460,7 +474,63 @@ void __pgd_error(const char *file, int line, unsigned long val)
 	pr_crit("%s:%d: bad pgd %016lx.\n", file, line, val);
 }
 
+/* GENERIC_BUG traps */
+
+int is_valid_bugaddr(unsigned long addr)
+{
+	/*
+	 * bug_handler() only called for BRK #BUG_BRK_IMM.
+	 * So the answer is trivial -- any spurious instances with no
+	 * bug table entry will be rejected by report_bug() and passed
+	 * back to the debug-monitors code and handled as a fatal
+	 * unexpected debug exception.
+	 */
+	return 1;
+}
+
+static int bug_handler(struct pt_regs *regs, unsigned int esr)
+{
+	if (user_mode(regs))
+		return DBG_HOOK_ERROR;
+
+	switch (report_bug(regs->pc, regs)) {
+	case BUG_TRAP_TYPE_BUG:
+		die("Oops - BUG", regs, 0);
+		break;
+
+	case BUG_TRAP_TYPE_WARN:
+		/* Ideally, report_bug() should backtrace for us... but no. */
+		dump_backtrace(regs, NULL);
+		break;
+
+	default:
+		/* unknown/unrecognised bug trap type */
+		return DBG_HOOK_ERROR;
+	}
+
+	/* If thread survives, skip over the BUG instruction and continue: */
+	regs->pc += AARCH64_INSN_SIZE;	/* skip BRK and resume */
+	return DBG_HOOK_HANDLED;
+}
+
+static struct break_hook bug_break_hook = {
+	.esr_val = 0xf2000000 | BUG_BRK_IMM,
+	.esr_mask = 0xffffffff,
+	.fn = bug_handler,
+};
+
+/*
+ * Initial handler for AArch64 BRK exceptions
+ * This handler only used until debug_traps_init().
+ */
+int __init early_brk64(unsigned long addr, unsigned int esr,
+		struct pt_regs *regs)
+{
+	return bug_handler(regs, esr) != DBG_HOOK_HANDLED;
+}
+
+/* This registration must happen early, before debug_traps_init(). */
 void __init trap_init(void)
 {
-	return;
+	register_break_hook(&bug_break_hook);
 }

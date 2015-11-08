@@ -97,6 +97,7 @@ struct mmc_ext_csd {
 	u8			raw_erased_mem_count;	/* 181 */
 	u8			raw_ext_csd_structure;	/* 194 */
 	u8			raw_card_type;		/* 196 */
+	u8			raw_driver_strength;	/* 197 */
 	u8			out_of_int_time;	/* 198 */
 	u8			raw_pwr_cl_52_195;	/* 200 */
 	u8			raw_pwr_cl_26_195;	/* 201 */
@@ -268,7 +269,6 @@ struct mmc_card {
 						/* for byte mode */
 #define MMC_QUIRK_NONSTD_SDIO	(1<<2)		/* non-standard SDIO card attached */
 						/* (missing CIA registers) */
-#define MMC_QUIRK_BROKEN_CLK_GATING (1<<3)	/* clock gating the sdio bus will make card fail */
 #define MMC_QUIRK_NONSTD_FUNC_IF (1<<4)		/* SDIO card has nonstd function interfaces */
 #define MMC_QUIRK_DISABLE_CD	(1<<5)		/* disconnect CD/DAT[3] resistor */
 #define MMC_QUIRK_INAND_CMD38	(1<<6)		/* iNAND devices have broken CMD38 */
@@ -278,10 +278,13 @@ struct mmc_card {
 #define MMC_QUIRK_LONG_READ_TIME (1<<9)		/* Data read time > CSD says */
 #define MMC_QUIRK_SEC_ERASE_TRIM_BROKEN (1<<10)	/* Skip secure for erase/trim */
 #define MMC_QUIRK_BROKEN_IRQ_POLLING	(1<<11)	/* Polling SDIO_CCCR_INTx could create a fake interrupt */
+#define MMC_QUIRK_TRIM_BROKEN	(1<<12)		/* Skip trim */
+
 
 	unsigned int		erase_size;	/* erase size in sectors */
  	unsigned int		erase_shift;	/* if erase unit is power 2 */
  	unsigned int		pref_erase;	/* in sectors */
+	unsigned int		eg_boundary;	/* don't cross erase-group boundaries */
  	u8			erased_byte;	/* value of erased bytes */
 
 	u32			raw_cid[4];	/* raw card CID */
@@ -305,6 +308,7 @@ struct mmc_card {
 
 	unsigned int		sd_bus_speed;	/* Bus Speed Mode set for the card */
 	unsigned int		mmc_avail_type;	/* supported device type by both host and card */
+	unsigned int		drive_strength;	/* for UHS-I, HS200 or HS400 */
 
 	struct dentry		*debugfs_root;
 	struct mmc_part	part[MMC_NUM_PHY_PARTITION]; /* physical partitions */
@@ -512,8 +516,18 @@ static inline int mmc_card_broken_irq_polling(const struct mmc_card *c)
 
 #define mmc_dev_to_card(d)	container_of(d, struct mmc_card, dev)
 
-extern int mmc_register_driver(struct device_driver *);
-extern void mmc_unregister_driver(struct device_driver *);
+/*
+ * MMC device driver (e.g., Flash card, I/O card...)
+ */
+struct mmc_driver {
+	struct device_driver drv;
+	int (*probe)(struct mmc_card *);
+	void (*remove)(struct mmc_card *);
+	void (*shutdown)(struct mmc_card *);
+};
+
+extern int mmc_register_driver(struct mmc_driver *);
+extern void mmc_unregister_driver(struct mmc_driver *);
 
 extern void mmc_fixup_device(struct mmc_card *card,
 			     const struct mmc_fixup *table);

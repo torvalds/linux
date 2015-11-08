@@ -99,6 +99,8 @@ ret_from_kernel_thread:
 
 	.type	ret_from_intr,@function
 ret_from_intr:
+	moveq	0, $r9			; not a syscall
+
 	;; Check for resched if preemptive kernel, or if we're going back to
 	;; user-mode. This test matches the user_regs(regs) macro. Don't simply
 	;; test CCS since that doesn't necessarily reflect what mode we'll
@@ -145,7 +147,7 @@ system_call:
 	;; Stack-frame similar to the irq heads, which is reversed in
 	;; ret_from_sys_call.
 
-	sub.d	92, $sp		; Skip EXS and EDA.
+	sub.d	92, $sp		; Skip EDA.
 	movem	$r13, [$sp]
 	move.d	$sp, $r8
 	addq	14*4, $r8
@@ -156,8 +158,9 @@ system_call:
 	move	$ccs, $r4
 	move	$srp, $r5
 	move	$erp, $r6
+	move.d	$r9, $r7	; Store syscall number in EXS
 	subq	4, $sp
-	movem	$r6, [$r8]
+	movem	$r7, [$r8]
 	ei			; Enable interrupts while processing syscalls.
 	move.d	$r10, [$sp]
 
@@ -237,6 +240,17 @@ ret_from_sys_call:
 
 	.type	_Rexit,@function
 _Rexit:
+#if defined(CONFIG_TRACE_IRQFLAGS)
+	addoq	+PT_ccs, $sp, $acr
+	move.d	[$acr], $r0
+	btstq	15, $r0		; I1
+	bpl	1f
+	nop
+	jsr	trace_hardirqs_on
+	nop
+1:
+#endif
+
 	;; This epilogue MUST match the prologues in multiple_interrupt, irq.h
 	;; and ptregs.h.
 	addq	4, $sp		; Skip orig_r10.
@@ -278,43 +292,14 @@ _syscall_exit_work:
 	.type	_work_pending,@function
 _work_pending:
 	addoq	+TI_flags, $r0, $acr
-	move.d	[$acr], $r10
-	btstq	TIF_NEED_RESCHED, $r10	; Need resched?
-	bpl	_work_notifysig		; No, must be signal/notify.
-	nop
-	.size	_work_pending, . - _work_pending
-
-	.type	_work_resched,@function
-_work_resched:
-	move.d	$r9, $r1		; Preserve R9.
-	jsr	schedule
-	nop
-	move.d	$r1, $r9
-	di
-
-	addoq	+TI_flags, $r0, $acr
-	move.d	[$acr], $r1
-	and.d	_TIF_WORK_MASK, $r1	; Ignore sycall trace counter.
-	beq	_Rexit
-	nop
-	btstq	TIF_NEED_RESCHED, $r1
-	bmi	_work_resched		; current->work.need_resched.
-	nop
-	.size	_work_resched, . - _work_resched
-
-	.type	_work_notifysig,@function
-_work_notifysig:
-	;; Deal with pending signals and notify-resume requests.
-
-	addoq	+TI_flags, $r0, $acr
 	move.d	[$acr], $r12		; The thread_info_flags parameter.
 	move.d	$sp, $r11		; The regs param.
-	jsr	do_notify_resume
-	move.d	$r9, $r10		; do_notify_resume syscall/irq param.
+	jsr	do_work_pending
+	move.d	$r9, $r10		; The syscall/irq param.
 
 	ba _Rexit
 	nop
-	.size	_work_notifysig, . - _work_notifysig
+	.size	_work_pending, . - _work_pending
 
 	;; We get here as a sidetrack when we've entered a syscall with the
 	;; trace-bit set. We need to call do_syscall_trace and then continue
@@ -901,6 +886,14 @@ sys_call_table:
 	.long sys_process_vm_writev
 	.long sys_kcmp			/* 350 */
 	.long sys_finit_module
+	.long sys_sched_setattr
+	.long sys_sched_getattr
+	.long sys_renameat2
+	.long sys_seccomp		/* 355 */
+	.long sys_getrandom
+	.long sys_memfd_create
+	.long sys_bpf
+	.long sys_execveat
 
 	/*
 	 * NOTE!! This doesn't have to be exact - we just have

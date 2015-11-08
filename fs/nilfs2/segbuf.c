@@ -338,17 +338,11 @@ void nilfs_add_checksums_on_logs(struct list_head *logs, u32 seed)
 /*
  * BIO operations
  */
-static void nilfs_end_bio_write(struct bio *bio, int err)
+static void nilfs_end_bio_write(struct bio *bio)
 {
-	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	struct nilfs_segment_buffer *segbuf = bio->bi_private;
 
-	if (err == -EOPNOTSUPP) {
-		set_bit(BIO_EOPNOTSUPP, &bio->bi_flags);
-		/* to be detected by nilfs_segbuf_submit_bio() */
-	}
-
-	if (!uptodate)
+	if (bio->bi_error)
 		atomic_inc(&segbuf->sb_err);
 
 	bio_put(bio);
@@ -374,15 +368,8 @@ static int nilfs_segbuf_submit_bio(struct nilfs_segment_buffer *segbuf,
 
 	bio->bi_end_io = nilfs_end_bio_write;
 	bio->bi_private = segbuf;
-	bio_get(bio);
 	submit_bio(mode, bio);
 	segbuf->sb_nbio++;
-	if (bio_flagged(bio, BIO_EOPNOTSUPP)) {
-		bio_put(bio);
-		err = -EOPNOTSUPP;
-		goto failed;
-	}
-	bio_put(bio);
 
 	wi->bio = NULL;
 	wi->rest_blocks -= wi->end - wi->start;
@@ -427,7 +414,7 @@ static void nilfs_segbuf_prepare_write(struct nilfs_segment_buffer *segbuf,
 {
 	wi->bio = NULL;
 	wi->rest_blocks = segbuf->sb_sum.nblocks;
-	wi->max_pages = bio_get_nr_vecs(wi->nilfs->ns_bdev);
+	wi->max_pages = BIO_MAX_PAGES;
 	wi->nr_vecs = min(wi->max_pages, wi->rest_blocks);
 	wi->start = wi->end = 0;
 	wi->blocknr = segbuf->sb_pseg_start;

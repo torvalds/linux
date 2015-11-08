@@ -58,6 +58,10 @@ ACPI_GLOBAL(struct acpi_table_list, acpi_gbl_root_table_list);
 
 ACPI_GLOBAL(struct acpi_table_header *, acpi_gbl_DSDT);
 ACPI_GLOBAL(struct acpi_table_header, acpi_gbl_original_dsdt_header);
+ACPI_INIT_GLOBAL(u32, acpi_gbl_dsdt_index, ACPI_INVALID_TABLE_INDEX);
+ACPI_INIT_GLOBAL(u32, acpi_gbl_facs_index, ACPI_INVALID_TABLE_INDEX);
+ACPI_INIT_GLOBAL(u32, acpi_gbl_xfacs_index, ACPI_INVALID_TABLE_INDEX);
+ACPI_INIT_GLOBAL(u32, acpi_gbl_fadt_index, ACPI_INVALID_TABLE_INDEX);
 
 #if (!ACPI_REDUCED_HARDWARE)
 ACPI_GLOBAL(struct acpi_table_facs *, acpi_gbl_FACS);
@@ -233,6 +237,10 @@ ACPI_INIT_GLOBAL(u32, acpi_gbl_nesting_level, 0);
 
 ACPI_GLOBAL(struct acpi_thread_state *, acpi_gbl_current_walk_list);
 
+/* Maximum number of While() loop iterations before forced abort */
+
+ACPI_GLOBAL(u16, acpi_gbl_max_loop_iterations);
+
 /* Control method single step flag */
 
 ACPI_GLOBAL(u8, acpi_gbl_cm_single_step);
@@ -288,8 +296,6 @@ ACPI_GLOBAL(u32, acpi_fixed_event_count[ACPI_NUM_FIXED_EVENTS]);
 
 ACPI_GLOBAL(u32, acpi_gbl_original_dbg_level);
 ACPI_GLOBAL(u32, acpi_gbl_original_dbg_layer);
-ACPI_GLOBAL(u32, acpi_gbl_trace_dbg_level);
-ACPI_GLOBAL(u32, acpi_gbl_trace_dbg_layer);
 
 /*****************************************************************************
  *
@@ -306,9 +312,11 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_db_output_flags, ACPI_DB_CONSOLE_OUTPUT);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_no_resource_disassembly, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_ignore_noop_operator, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_cstyle_disassembly, TRUE);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_force_aml_disassembly, FALSE);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_dm_opt_verbose, TRUE);
 
-ACPI_GLOBAL(u8, acpi_gbl_db_opt_disasm);
-ACPI_GLOBAL(u8, acpi_gbl_db_opt_verbose);
+ACPI_GLOBAL(u8, acpi_gbl_dm_opt_disasm);
+ACPI_GLOBAL(u8, acpi_gbl_dm_opt_listing);
 ACPI_GLOBAL(u8, acpi_gbl_num_external_methods);
 ACPI_GLOBAL(u32, acpi_gbl_resolved_external_methods);
 ACPI_GLOBAL(struct acpi_external_list *, acpi_gbl_external_list);
@@ -317,13 +325,11 @@ ACPI_GLOBAL(struct acpi_external_file *, acpi_gbl_external_file_list);
 
 #ifdef ACPI_DEBUGGER
 
-ACPI_INIT_GLOBAL(u8, acpi_gbl_db_terminate_threads, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_abort_method, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_method_executing, FALSE);
+ACPI_INIT_GLOBAL(acpi_thread_id, acpi_gbl_db_thread_id, ACPI_INVALID_THREAD_ID);
 
-ACPI_GLOBAL(u8, acpi_gbl_db_opt_tables);
-ACPI_GLOBAL(u8, acpi_gbl_db_opt_stats);
-ACPI_GLOBAL(u8, acpi_gbl_db_opt_ini_methods);
+ACPI_GLOBAL(u8, acpi_gbl_db_opt_no_ini_methods);
 ACPI_GLOBAL(u8, acpi_gbl_db_opt_no_region_support);
 ACPI_GLOBAL(u8, acpi_gbl_db_output_to_file);
 ACPI_GLOBAL(char *, acpi_gbl_db_buffer);
@@ -331,6 +337,8 @@ ACPI_GLOBAL(char *, acpi_gbl_db_filename);
 ACPI_GLOBAL(u32, acpi_gbl_db_debug_level);
 ACPI_GLOBAL(u32, acpi_gbl_db_console_debug_level);
 ACPI_GLOBAL(struct acpi_namespace_node *, acpi_gbl_db_scope_node);
+ACPI_GLOBAL(u8, acpi_gbl_db_terminate_loop);
+ACPI_GLOBAL(u8, acpi_gbl_db_threads_terminated);
 
 ACPI_GLOBAL(char *, acpi_gbl_db_args[ACPI_DEBUGGER_MAX_ARGS]);
 ACPI_GLOBAL(acpi_object_type, acpi_gbl_db_arg_types[ACPI_DEBUGGER_MAX_ARGS]);
@@ -345,12 +353,15 @@ ACPI_GLOBAL(char, acpi_gbl_db_debug_filename[ACPI_DB_LINE_BUFFER_SIZE]);
 /*
  * Statistic globals
  */
-ACPI_GLOBAL(u16, acpi_gbl_obj_type_count[ACPI_TYPE_NS_NODE_MAX + 1]);
-ACPI_GLOBAL(u16, acpi_gbl_node_type_count[ACPI_TYPE_NS_NODE_MAX + 1]);
+ACPI_GLOBAL(u16, acpi_gbl_obj_type_count[ACPI_TOTAL_TYPES]);
+ACPI_GLOBAL(u16, acpi_gbl_node_type_count[ACPI_TOTAL_TYPES]);
 ACPI_GLOBAL(u16, acpi_gbl_obj_type_count_misc);
 ACPI_GLOBAL(u16, acpi_gbl_node_type_count_misc);
 ACPI_GLOBAL(u32, acpi_gbl_num_nodes);
 ACPI_GLOBAL(u32, acpi_gbl_num_objects);
+
+ACPI_GLOBAL(acpi_mutex, acpi_gbl_db_command_ready);
+ACPI_GLOBAL(acpi_mutex, acpi_gbl_db_command_complete);
 
 #endif				/* ACPI_DEBUGGER */
 

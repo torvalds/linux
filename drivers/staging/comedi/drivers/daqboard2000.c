@@ -1,113 +1,112 @@
 /*
-   comedi/drivers/daqboard2000.c
-   hardware driver for IOtech DAQboard/2000
-
-   COMEDI - Linux Control and Measurement Device Interface
-   Copyright (C) 1999 Anders Blomdell <anders.blomdell@control.lth.se>
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+ * comedi/drivers/daqboard2000.c
+ * hardware driver for IOtech DAQboard/2000
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1999 Anders Blomdell <anders.blomdell@control.lth.se>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
 /*
-Driver: daqboard2000
-Description: IOTech DAQBoard/2000
-Author: Anders Blomdell <anders.blomdell@control.lth.se>
-Status: works
-Updated: Mon, 14 Apr 2008 15:28:52 +0100
-Devices: [IOTech] DAQBoard/2000 (daqboard2000)
-
-Much of the functionality of this driver was determined from reading
-the source code for the Windows driver.
-
-The FPGA on the board requires fimware, which is available from
-http://www.comedi.org in the comedi_nonfree_firmware tarball.
-
-Configuration options: not applicable, uses PCI auto config
-*/
+ * Driver: daqboard2000
+ * Description: IOTech DAQBoard/2000
+ * Author: Anders Blomdell <anders.blomdell@control.lth.se>
+ * Status: works
+ * Updated: Mon, 14 Apr 2008 15:28:52 +0100
+ * Devices: [IOTech] DAQBoard/2000 (daqboard2000)
+ *
+ * Much of the functionality of this driver was determined from reading
+ * the source code for the Windows driver.
+ *
+ * The FPGA on the board requires fimware, which is available from
+ * http://www.comedi.org in the comedi_nonfree_firmware tarball.
+ *
+ * Configuration options: not applicable, uses PCI auto config
+ */
 /*
-   This card was obviously never intended to leave the Windows world,
-   since it lacked all kind of hardware documentation (except for cable
-   pinouts, plug and pray has something to catch up with yet).
-
-   With some help from our swedish distributor, we got the Windows sourcecode
-   for the card, and here are the findings so far.
-
-   1. A good document that describes the PCI interface chip is 9080db-106.pdf
-      available from http://www.plxtech.com/products/io/pci9080 
-
-   2. The initialization done so far is:
-        a. program the FPGA (windows code sans a lot of error messages)
-	b.
-
-   3. Analog out seems to work OK with DAC's disabled, if DAC's are enabled,
-      you have to output values to all enabled DAC's until result appears, I
-      guess that it has something to do with pacer clocks, but the source
-      gives me no clues. I'll keep it simple so far.
-
-   4. Analog in.
-        Each channel in the scanlist seems to be controlled by four
-	control words:
-
-        Word0:
-          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-          ! | | | ! | | | ! | | | ! | | | !
-          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-
-        Word1:
-          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-          ! | | | ! | | | ! | | | ! | | | !
-          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	   |             |       | | | | |
-           +------+------+       | | | | +-- Digital input (??)
-		  |		 | | | +---- 10 us settling time
-		  |		 | | +------ Suspend acquisition (last to scan)
-		  |		 | +-------- Simultaneous sample and hold
-		  |		 +---------- Signed data format
-		  +------------------------- Correction offset low
-
-        Word2:
-          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-          ! | | | ! | | | ! | | | ! | | | !
-          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-           |     | |     | | | | | |     |
-           +-----+ +--+--+ +++ +++ +--+--+
-              |       |     |   |     +----- Expansion channel
-	      |       |     |   +----------- Expansion gain
-              |       |     +--------------- Channel (low)
-	      |       +--------------------- Correction offset high
-	      +----------------------------- Correction gain low
-        Word3:
-          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-          ! | | | ! | | | ! | | | ! | | | !
-          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-           |             | | | |   | | | |
-           +------+------+ | | +-+-+ | | +-- Low bank enable
-                  |        | |   |   | +---- High bank enable
-                  |        | |   |   +------ Hi/low select
-		  |    	   | |   +---------- Gain (1,?,2,4,8,16,32,64)
-		  |    	   | +-------------- differential/single ended
-		  |    	   +---------------- Unipolar
-		  +------------------------- Correction gain high
-
-   999. The card seems to have an incredible amount of capabilities, but
-        trying to reverse engineer them from the Windows source is beyond my
-	patience.
-
+ * This card was obviously never intended to leave the Windows world,
+ * since it lacked all kind of hardware documentation (except for cable
+ * pinouts, plug and pray has something to catch up with yet).
+ *
+ * With some help from our swedish distributor, we got the Windows sourcecode
+ * for the card, and here are the findings so far.
+ *
+ * 1. A good document that describes the PCI interface chip is 9080db-106.pdf
+ *    available from http://www.plxtech.com/products/io/pci9080
+ *
+ * 2. The initialization done so far is:
+ *      a. program the FPGA (windows code sans a lot of error messages)
+ *      b.
+ *
+ * 3. Analog out seems to work OK with DAC's disabled, if DAC's are enabled,
+ *    you have to output values to all enabled DAC's until result appears, I
+ *    guess that it has something to do with pacer clocks, but the source
+ *    gives me no clues. I'll keep it simple so far.
+ *
+ * 4. Analog in.
+ *    Each channel in the scanlist seems to be controlled by four
+ *    control words:
+ *
+ *	Word0:
+ *	  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *	  ! | | | ! | | | ! | | | ! | | | !
+ *	  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *
+ *	Word1:
+ *	  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *	  ! | | | ! | | | ! | | | ! | | | !
+ *	  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *	   |             |       | | | | |
+ *	   +------+------+       | | | | +-- Digital input (??)
+ *		  |		 | | | +---- 10 us settling time
+ *		  |		 | | +------ Suspend acquisition (last to scan)
+ *		  |		 | +-------- Simultaneous sample and hold
+ *		  |		 +---------- Signed data format
+ *		  +------------------------- Correction offset low
+ *
+ *	Word2:
+ *	  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *	  ! | | | ! | | | ! | | | ! | | | !
+ *	  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *	   |     | |     | | | | | |     |
+ *	   +-----+ +--+--+ +++ +++ +--+--+
+ *	      |       |     |   |     +----- Expansion channel
+ *	      |       |     |   +----------- Expansion gain
+ *	      |       |     +--------------- Channel (low)
+ *	      |       +--------------------- Correction offset high
+ *	      +----------------------------- Correction gain low
+ *	Word3:
+ *	  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *	  ! | | | ! | | | ! | | | ! | | | !
+ *	  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *	   |             | | | |   | | | |
+ *	   +------+------+ | | +-+-+ | | +-- Low bank enable
+ *		  |	   | |   |   | +---- High bank enable
+ *		  |	   | |   |   +------ Hi/low select
+ *		  |	   | |   +---------- Gain (1,?,2,4,8,16,32,64)
+ *		  |	   | +-------------- differential/single ended
+ *		  |	   +---------------- Unipolar
+ *		  +------------------------- Correction gain high
+ *
+ * 999. The card seems to have an incredible amount of capabilities, but
+ *      trying to reverse engineer them from the Windows source is beyond my
+ *      patience.
+ *
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #include "8255.h"
 
@@ -649,7 +648,7 @@ static const void *daqboard2000_find_boardinfo(struct comedi_device *dev,
 }
 
 static int daqboard2000_auto_attach(struct comedi_device *dev,
-					      unsigned long context_unused)
+				    unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct daq200_boardtype *board;
@@ -714,12 +713,8 @@ static int daqboard2000_auto_attach(struct comedi_device *dev,
 		return result;
 
 	s = &dev->subdevices[2];
-	result = subdev_8255_init(dev, s, daqboard2000_8255_cb,
-				  dioP2ExpansionIO8Bit);
-	if (result)
-		return result;
-
-	return 0;
+	return subdev_8255_init(dev, s, daqboard2000_8255_cb,
+				dioP2ExpansionIO8Bit);
 }
 
 static void daqboard2000_detach(struct comedi_device *dev)

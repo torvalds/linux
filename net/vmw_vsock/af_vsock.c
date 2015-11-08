@@ -36,19 +36,20 @@
  * not support simultaneous connects (two "client" sockets connecting).
  *
  * - "Server" sockets are referred to as listener sockets throughout this
- * implementation because they are in the SS_LISTEN state.  When a connection
- * request is received (the second kind of socket mentioned above), we create a
- * new socket and refer to it as a pending socket.  These pending sockets are
- * placed on the pending connection list of the listener socket.  When future
- * packets are received for the address the listener socket is bound to, we
- * check if the source of the packet is from one that has an existing pending
- * connection.  If it does, we process the packet for the pending socket.  When
- * that socket reaches the connected state, it is removed from the listener
- * socket's pending list and enqueued in the listener socket's accept queue.
- * Callers of accept(2) will accept connected sockets from the listener socket's
- * accept queue.  If the socket cannot be accepted for some reason then it is
- * marked rejected.  Once the connection is accepted, it is owned by the user
- * process and the responsibility for cleanup falls with that user process.
+ * implementation because they are in the VSOCK_SS_LISTEN state.  When a
+ * connection request is received (the second kind of socket mentioned above),
+ * we create a new socket and refer to it as a pending socket.  These pending
+ * sockets are placed on the pending connection list of the listener socket.
+ * When future packets are received for the address the listener socket is
+ * bound to, we check if the source of the packet is from one that has an
+ * existing pending connection.  If it does, we process the packet for the
+ * pending socket.  When that socket reaches the connected state, it is removed
+ * from the listener socket's pending list and enqueued in the listener
+ * socket's accept queue.  Callers of accept(2) will accept connected sockets
+ * from the listener socket's accept queue.  If the socket cannot be accepted
+ * for some reason then it is marked rejected.  Once the connection is
+ * accepted, it is owned by the user process and the responsibility for cleanup
+ * falls with that user process.
  *
  * - It is possible that these pending sockets will never reach the connected
  * state; in fact, we may never receive another packet after the connection
@@ -113,8 +114,6 @@ static struct proto vsock_proto = {
  * to a control message.
  */
 #define VSOCK_DEFAULT_CONNECT_TIMEOUT (2 * HZ)
-
-#define SS_LISTEN 255
 
 static const struct vsock_transport *transport;
 static DEFINE_MUTEX(vsock_register_mutex);
@@ -581,13 +580,14 @@ struct sock *__vsock_create(struct net *net,
 			    struct socket *sock,
 			    struct sock *parent,
 			    gfp_t priority,
-			    unsigned short type)
+			    unsigned short type,
+			    int kern)
 {
 	struct sock *sk;
 	struct vsock_sock *psk;
 	struct vsock_sock *vsk;
 
-	sk = sk_alloc(net, AF_VSOCK, priority, &vsock_proto);
+	sk = sk_alloc(net, AF_VSOCK, priority, &vsock_proto, kern);
 	if (!sk)
 		return NULL;
 
@@ -886,7 +886,7 @@ static unsigned int vsock_poll(struct file *file, struct socket *sock,
 		/* Listening sockets that have connections in their accept
 		 * queue can be read.
 		 */
-		if (sk->sk_state == SS_LISTEN
+		if (sk->sk_state == VSOCK_SS_LISTEN
 		    && !vsock_is_accept_queue_empty(sk))
 			mask |= POLLIN | POLLRDNORM;
 
@@ -949,8 +949,8 @@ static unsigned int vsock_poll(struct file *file, struct socket *sock,
 	return mask;
 }
 
-static int vsock_dgram_sendmsg(struct kiocb *kiocb, struct socket *sock,
-			       struct msghdr *msg, size_t len)
+static int vsock_dgram_sendmsg(struct socket *sock, struct msghdr *msg,
+			       size_t len)
 {
 	int err;
 	struct sock *sk;
@@ -1062,11 +1062,10 @@ out:
 	return err;
 }
 
-static int vsock_dgram_recvmsg(struct kiocb *kiocb, struct socket *sock,
-			       struct msghdr *msg, size_t len, int flags)
+static int vsock_dgram_recvmsg(struct socket *sock, struct msghdr *msg,
+			       size_t len, int flags)
 {
-	return transport->dgram_dequeue(kiocb, vsock_sk(sock->sk), msg, len,
-					flags);
+	return transport->dgram_dequeue(vsock_sk(sock->sk), msg, len, flags);
 }
 
 static const struct proto_ops vsock_dgram_ops = {
@@ -1144,7 +1143,7 @@ static int vsock_stream_connect(struct socket *sock, struct sockaddr *addr,
 		err = -EALREADY;
 		break;
 	default:
-		if ((sk->sk_state == SS_LISTEN) ||
+		if ((sk->sk_state == VSOCK_SS_LISTEN) ||
 		    vsock_addr_cast(addr, addr_len, &remote_addr) != 0) {
 			err = -EINVAL;
 			goto out;
@@ -1256,7 +1255,7 @@ static int vsock_accept(struct socket *sock, struct socket *newsock, int flags)
 		goto out;
 	}
 
-	if (listener->sk_state != SS_LISTEN) {
+	if (listener->sk_state != VSOCK_SS_LISTEN) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -1348,7 +1347,7 @@ static int vsock_listen(struct socket *sock, int backlog)
 	}
 
 	sk->sk_max_ack_backlog = backlog;
-	sk->sk_state = SS_LISTEN;
+	sk->sk_state = VSOCK_SS_LISTEN;
 
 	err = 0;
 
@@ -1505,8 +1504,8 @@ static int vsock_stream_getsockopt(struct socket *sock,
 	return 0;
 }
 
-static int vsock_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
-				struct msghdr *msg, size_t len)
+static int vsock_stream_sendmsg(struct socket *sock, struct msghdr *msg,
+				size_t len)
 {
 	struct sock *sk;
 	struct vsock_sock *vsk;
@@ -1644,9 +1643,8 @@ out:
 
 
 static int
-vsock_stream_recvmsg(struct kiocb *kiocb,
-		     struct socket *sock,
-		     struct msghdr *msg, size_t len, int flags)
+vsock_stream_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
+		     int flags)
 {
 	struct sock *sk;
 	struct vsock_sock *vsk;
@@ -1868,7 +1866,7 @@ static int vsock_create(struct net *net, struct socket *sock,
 
 	sock->state = SS_UNCONNECTED;
 
-	return __vsock_create(net, sock, NULL, GFP_KERNEL, 0) ? 0 : -ENOMEM;
+	return __vsock_create(net, sock, NULL, GFP_KERNEL, 0, kern) ? 0 : -ENOMEM;
 }
 
 static const struct net_proto_family vsock_family_ops = {
@@ -1949,13 +1947,13 @@ int __vsock_core_init(const struct vsock_transport *t, struct module *owner)
 	err = misc_register(&vsock_device);
 	if (err) {
 		pr_err("Failed to register misc device\n");
-		return -ENOENT;
+		goto err_reset_transport;
 	}
 
 	err = proto_register(&vsock_proto, 1);	/* we want our slab */
 	if (err) {
 		pr_err("Cannot register vsock protocol\n");
-		goto err_misc_deregister;
+		goto err_deregister_misc;
 	}
 
 	err = sock_register(&vsock_family_ops);
@@ -1970,8 +1968,9 @@ int __vsock_core_init(const struct vsock_transport *t, struct module *owner)
 
 err_unregister_proto:
 	proto_unregister(&vsock_proto);
-err_misc_deregister:
+err_deregister_misc:
 	misc_deregister(&vsock_device);
+err_reset_transport:
 	transport = NULL;
 err_busy:
 	mutex_unlock(&vsock_register_mutex);

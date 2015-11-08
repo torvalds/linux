@@ -46,9 +46,11 @@
 #include <net/mpls.h>
 #include <net/ndisc.h>
 
+#include "conntrack.h"
 #include "datapath.h"
 #include "flow.h"
 #include "flow_netlink.h"
+#include "vport.h"
 
 u64 ovs_flow_used_time(unsigned long flow_jiffies)
 {
@@ -100,7 +102,9 @@ void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
 
 				new_stats =
 					kmem_cache_alloc_node(flow_stats_cache,
-							      GFP_THISNODE |
+							      GFP_NOWAIT |
+							      __GFP_THISNODE |
+							      __GFP_NOWARN |
 							      __GFP_NOMEMALLOC,
 							      node);
 				if (likely(new_stats)) {
@@ -269,8 +273,6 @@ static int parse_ipv6hdr(struct sk_buff *skb, struct sw_flow_key *key)
 	key->ipv6.addr.dst = nh->daddr;
 
 	payload_ofs = ipv6_skip_exthdr(skb, payload_ofs, &nexthdr, &frag_off);
-	if (unlikely(payload_ofs < 0))
-		return -EINVAL;
 
 	if (frag_off) {
 		if (frag_off & htons(~0x7))
@@ -280,6 +282,13 @@ static int parse_ipv6hdr(struct sk_buff *skb, struct sw_flow_key *key)
 	} else {
 		key->ip.frag = OVS_FRAG_TYPE_NONE;
 	}
+
+	/* Delayed handling of error in ipv6_skip_exthdr() as it
+	 * always sets frag_off to a valid value which may be
+	 * used to set key->ip.frag above.
+	 */
+	if (unlikely(payload_ofs < 0))
+		return -EPROTO;
 
 	nh_len = payload_ofs - nh_ofs;
 	skb_set_transport_header(skb, nh_ofs + nh_len);
@@ -330,7 +339,7 @@ static __be16 parse_ethertype(struct sk_buff *skb)
 	proto = *(__be16 *) skb->data;
 	__skb_pull(skb, sizeof(__be16));
 
-	if (ntohs(proto) >= ETH_P_802_3_MIN)
+	if (eth_proto_is_802_3(proto))
 		return proto;
 
 	if (skb->len < sizeof(struct llc_snap_hdr))
@@ -347,7 +356,7 @@ static __be16 parse_ethertype(struct sk_buff *skb)
 
 	__skb_pull(skb, sizeof(struct llc_snap_hdr));
 
-	if (ntohs(llc->ethertype) >= ETH_P_802_3_MIN)
+	if (eth_proto_is_802_3(llc->ethertype))
 		return llc->ethertype;
 
 	return htons(ETH_P_802_2);
@@ -620,12 +629,16 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 
 		nh_len = parse_ipv6hdr(skb, key);
 		if (unlikely(nh_len < 0)) {
-			memset(&key->ip, 0, sizeof(key->ip));
-			memset(&key->ipv6.addr, 0, sizeof(key->ipv6.addr));
-			if (nh_len == -EINVAL) {
+			switch (nh_len) {
+			case -EINVAL:
+				memset(&key->ip, 0, sizeof(key->ip));
+				memset(&key->ipv6.addr, 0, sizeof(key->ipv6.addr));
+				/* fall-through */
+			case -EPROTO:
 				skb->transport_header = skb->network_header;
 				error = 0;
-			} else {
+				break;
+			default:
 				error = nh_len;
 			}
 			return error;
@@ -680,24 +693,27 @@ int ovs_flow_key_update(struct sk_buff *skb, struct sw_flow_key *key)
 	return key_extract(skb, key);
 }
 
-int ovs_flow_key_extract(const struct ovs_tunnel_info *tun_info,
+int ovs_flow_key_extract(const struct ip_tunnel_info *tun_info,
 			 struct sk_buff *skb, struct sw_flow_key *key)
 {
 	/* Extract metadata from packet. */
 	if (tun_info) {
-		memcpy(&key->tun_key, &tun_info->tunnel, sizeof(key->tun_key));
+		key->tun_proto = ip_tunnel_info_af(tun_info);
+		memcpy(&key->tun_key, &tun_info->key, sizeof(key->tun_key));
 
-		if (tun_info->options) {
+		if (tun_info->options_len) {
 			BUILD_BUG_ON((1 << (sizeof(tun_info->options_len) *
 						   8)) - 1
 					> sizeof(key->tun_opts));
-			memcpy(TUN_METADATA_OPTS(key, tun_info->options_len),
-			       tun_info->options, tun_info->options_len);
+
+			ip_tunnel_info_opts_get(TUN_METADATA_OPTS(key, tun_info->options_len),
+						tun_info);
 			key->tun_opts_len = tun_info->options_len;
 		} else {
 			key->tun_opts_len = 0;
 		}
 	} else  {
+		key->tun_proto = 0;
 		key->tun_opts_len = 0;
 		memset(&key->tun_key, 0, sizeof(key->tun_key));
 	}
@@ -705,13 +721,14 @@ int ovs_flow_key_extract(const struct ovs_tunnel_info *tun_info,
 	key->phy.priority = skb->priority;
 	key->phy.in_port = OVS_CB(skb)->input_vport->port_no;
 	key->phy.skb_mark = skb->mark;
+	ovs_ct_fill_key(skb, key);
 	key->ovs_flow_hash = 0;
 	key->recirc_id = 0;
 
 	return key_extract(skb, key);
 }
 
-int ovs_flow_key_extract_userspace(const struct nlattr *attr,
+int ovs_flow_key_extract_userspace(struct net *net, const struct nlattr *attr,
 				   struct sk_buff *skb,
 				   struct sw_flow_key *key, bool log)
 {
@@ -720,7 +737,7 @@ int ovs_flow_key_extract_userspace(const struct nlattr *attr,
 	memset(key, 0, OVS_SW_FLOW_KEY_METADATA_SIZE);
 
 	/* Extract metadata from netlink attributes. */
-	err = ovs_nla_get_flow_metadata(attr, key, log);
+	err = ovs_nla_get_flow_metadata(net, attr, key, log);
 	if (err)
 		return err;
 

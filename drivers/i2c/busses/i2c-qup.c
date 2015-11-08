@@ -412,17 +412,6 @@ static int qup_i2c_read_one(struct qup_i2c_dev *qup, struct i2c_msg *msg)
 	unsigned long left;
 	int ret;
 
-	/*
-	 * The QUP block will issue a NACK and STOP on the bus when reaching
-	 * the end of the read, the length of the read is specified as one byte
-	 * which limits the possible read to 256 (QUP_READ_LIMIT) bytes.
-	 */
-	if (msg->len > QUP_READ_LIMIT) {
-		dev_err(qup->dev, "HW not capable of reads over %d bytes\n",
-			QUP_READ_LIMIT);
-		return -EINVAL;
-	}
-
 	qup->msg = msg;
 	qup->pos  = 0;
 
@@ -532,6 +521,15 @@ static u32 qup_i2c_func(struct i2c_adapter *adap)
 static const struct i2c_algorithm qup_i2c_algo = {
 	.master_xfer	= qup_i2c_xfer,
 	.functionality	= qup_i2c_func,
+};
+
+/*
+ * The QUP block will issue a NACK and STOP on the bus when reaching
+ * the end of the read, the length of the read is specified as one byte
+ * which limits the possible read to 256 (QUP_READ_LIMIT) bytes.
+ */
+static struct i2c_adapter_quirks qup_i2c_quirks = {
+	.max_read_len = QUP_READ_LIMIT,
 };
 
 static void qup_i2c_enable_clocks(struct qup_i2c_dev *qup)
@@ -670,6 +668,7 @@ static int qup_i2c_probe(struct platform_device *pdev)
 
 	i2c_set_adapdata(&qup->adap, qup);
 	qup->adap.algo = &qup_i2c_algo;
+	qup->adap.quirks = &qup_i2c_quirks;
 	qup->adap.dev.parent = qup->dev;
 	qup->adap.dev.of_node = pdev->dev.of_node;
 	strlcpy(qup->adap.name, "QUP I2C adapter", sizeof(qup->adap.name));

@@ -96,7 +96,11 @@ struct zbud_pool {
 	struct list_head buddied;
 	struct list_head lru;
 	u64 pages_nr;
-	struct zbud_ops *ops;
+	const struct zbud_ops *ops;
+#ifdef CONFIG_ZPOOL
+	struct zpool *zpool;
+	const struct zpool_ops *zpool_ops;
+#endif
 };
 
 /*
@@ -123,17 +127,28 @@ struct zbud_header {
 
 static int zbud_zpool_evict(struct zbud_pool *pool, unsigned long handle)
 {
-	return zpool_evict(pool, handle);
+	if (pool->zpool && pool->zpool_ops && pool->zpool_ops->evict)
+		return pool->zpool_ops->evict(pool->zpool, handle);
+	else
+		return -ENOENT;
 }
 
-static struct zbud_ops zbud_zpool_ops = {
+static const struct zbud_ops zbud_zpool_ops = {
 	.evict =	zbud_zpool_evict
 };
 
-static void *zbud_zpool_create(char *name, gfp_t gfp,
-			struct zpool_ops *zpool_ops)
+static void *zbud_zpool_create(const char *name, gfp_t gfp,
+			       const struct zpool_ops *zpool_ops,
+			       struct zpool *zpool)
 {
-	return zbud_create_pool(gfp, zpool_ops ? &zbud_zpool_ops : NULL);
+	struct zbud_pool *pool;
+
+	pool = zbud_create_pool(gfp, zpool_ops ? &zbud_zpool_ops : NULL);
+	if (pool) {
+		pool->zpool = zpool;
+		pool->zpool_ops = zpool_ops;
+	}
+	return pool;
 }
 
 static void zbud_zpool_destroy(void *pool)
@@ -287,12 +302,12 @@ static int num_free_chunks(struct zbud_header *zhdr)
  * Return: pointer to the new zbud pool or NULL if the metadata allocation
  * failed.
  */
-struct zbud_pool *zbud_create_pool(gfp_t gfp, struct zbud_ops *ops)
+struct zbud_pool *zbud_create_pool(gfp_t gfp, const struct zbud_ops *ops)
 {
 	struct zbud_pool *pool;
 	int i;
 
-	pool = kmalloc(sizeof(struct zbud_pool), gfp);
+	pool = kzalloc(sizeof(struct zbud_pool), gfp);
 	if (!pool)
 		return NULL;
 	spin_lock_init(&pool->lock);

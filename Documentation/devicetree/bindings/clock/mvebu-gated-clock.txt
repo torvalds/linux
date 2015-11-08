@@ -1,6 +1,6 @@
 * Gated Clock bindings for Marvell EBU SoCs
 
-Marvell Armada 370/375/380/385/XP, Dove and Kirkwood allow some
+Marvell Armada 370/375/380/385/39x/XP, Dove and Kirkwood allow some
 peripheral clocks to be gated to save some power. The clock consumer
 should specify the desired clock by having the clock ID in its
 "clocks" phandle cell. The clock ID is directly mapped to the
@@ -19,6 +19,7 @@ ID	Clock	Peripheral
 9	pex1	PCIe Cntrl 1
 15	sata0	SATA Host 0
 17	sdio	SDHCI Host
+23	crypto	CESA (crypto engine)
 25	tdm	Time Division Mplx
 28	ddr	DDR Cntrl
 30	sata1	SATA Host 0
@@ -76,6 +77,18 @@ ID	Clock		Peripheral
 25	tdm		Time Division Multiplexing
 28	xor1		XOR 1
 30	sata1		SATA 1
+
+The following is a list of provided IDs for Armada 39x:
+ID	Clock		Peripheral
+-----------------------------------
+5	pex1		PCIe 1
+6	pex2		PCIe 2
+7	pex3		PCIe 3
+8	pex0		PCIe 0
+9	usb3h0		USB3 Host 0
+17	sdio		SDIO
+22	xor0		XOR 0
+28	xor1		XOR 1
 
 The following is a list of provided IDs for Armada XP:
 ID	Clock	Peripheral
@@ -152,6 +165,7 @@ Required properties:
 	"marvell,armada-370-gating-clock" - for Armada 370 SoC clock gating
 	"marvell,armada-375-gating-clock" - for Armada 375 SoC clock gating
 	"marvell,armada-380-gating-clock" - for Armada 380/385 SoC clock gating
+	"marvell,armada-390-gating-clock" - for Armada 39x SoC clock gating
 	"marvell,armada-xp-gating-clock" - for Armada XP SoC clock gating
 	"marvell,dove-gating-clock" - for Dove SoC clock gating
 	"marvell,kirkwood-gating-clock" - for Kirkwood SoC clock gating

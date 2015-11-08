@@ -159,6 +159,7 @@ struct hid_item {
 #define HID_UP_LED		0x00080000
 #define HID_UP_BUTTON		0x00090000
 #define HID_UP_ORDINAL		0x000a0000
+#define HID_UP_TELEPHONY	0x000b0000
 #define HID_UP_CONSUMER		0x000c0000
 #define HID_UP_DIGITIZER	0x000d0000
 #define HID_UP_PID		0x000f0000
@@ -269,6 +270,7 @@ struct hid_item {
 #define HID_DG_DEVICEINDEX	0x000d0053
 #define HID_DG_CONTACTCOUNT	0x000d0054
 #define HID_DG_CONTACTMAX	0x000d0055
+#define HID_DG_BUTTONTYPE	0x000d0059
 #define HID_DG_BARRELSWITCH2	0x000d005a
 #define HID_DG_TOOLSERIALNUMBER	0x000d005b
 
@@ -514,10 +516,10 @@ struct hid_device {							/* device report descriptor */
 #ifdef CONFIG_HID_BATTERY_STRENGTH
 	/*
 	 * Power supply information for HID devices which report
-	 * battery strength. power_supply is registered iff
-	 * battery.name is non-NULL.
+	 * battery strength. power_supply was successfully registered if
+	 * battery is non-NULL.
 	 */
-	struct power_supply battery;
+	struct power_supply *battery;
 	__s32 battery_min;
 	__s32 battery_max;
 	__s32 battery_report_type;
@@ -696,8 +698,8 @@ struct hid_driver {
 	int (*input_mapped)(struct hid_device *hdev,
 			struct hid_input *hidinput, struct hid_field *field,
 			struct hid_usage *usage, unsigned long **bit, int *max);
-	void (*input_configured)(struct hid_device *hdev,
-				 struct hid_input *hidinput);
+	int (*input_configured)(struct hid_device *hdev,
+				struct hid_input *hidinput);
 	void (*feature_mapping)(struct hid_device *hdev,
 			struct hid_field *field,
 			struct hid_usage *usage);
@@ -813,6 +815,8 @@ void hid_disconnect(struct hid_device *hid);
 const struct hid_device_id *hid_match_id(struct hid_device *hdev,
 					 const struct hid_device_id *id);
 s32 hid_snto32(__u32 value, unsigned n);
+__u32 hid_field_extract(const struct hid_device *hid, __u8 *report,
+		     unsigned offset, unsigned n);
 
 /**
  * hid_device_io_start - enable HID input during probe, remove

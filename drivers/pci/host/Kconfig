@@ -39,7 +39,8 @@ config PCI_TEGRA
 
 config PCI_RCAR_GEN2
 	bool "Renesas R-Car Gen2 Internal PCI controller"
-	depends on ARCH_SHMOBILE || (ARM && COMPILE_TEST)
+	depends on ARM
+	depends on ARCH_SHMOBILE || COMPILE_TEST
 	help
 	  Say Y here if you want internal PCI support on R-Car Gen2 SoC.
 	  There are 3 internal PCI controllers available with a single
@@ -47,13 +48,14 @@ config PCI_RCAR_GEN2
 
 config PCI_RCAR_GEN2_PCIE
 	bool "Renesas R-Car PCIe controller"
-	depends on ARCH_SHMOBILE || (ARM && COMPILE_TEST)
+	depends on ARM
+	depends on ARCH_SHMOBILE || COMPILE_TEST
 	help
 	  Say Y here if you want PCIe controller support on R-Car Gen2 SoCs.
 
 config PCI_HOST_GENERIC
 	bool "Generic PCI host controller"
-	depends on ARM && OF
+	depends on (ARM || ARM64) && OF
 	help
 	  Say Y here if you want to support a simple generic PCI host
 	  controller, such as the one emulated by kvmtool.
@@ -89,14 +91,23 @@ config PCI_XGENE
 	depends on ARCH_XGENE
 	depends on OF
 	select PCIEPORTBUS
+	select PCI_MSI_IRQ_DOMAIN if PCI_MSI
 	help
 	  Say Y here if you want internal PCI support on APM X-Gene SoC.
 	  There are 5 internal PCIe ports available. Each port is GEN3 capable
 	  and have varied lanes from x1 to x8.
 
+config PCI_XGENE_MSI
+	bool "X-Gene v1 PCIe MSI feature"
+	depends on PCI_XGENE && PCI_MSI
+	default y
+	help
+	  Say Y here if you want PCIe MSI support for the APM X-Gene v1 SoC.
+	  This MSI driver supports 5 PCIe ports on the APM X-Gene v1 SoC.
+
 config PCI_LAYERSCAPE
 	bool "Freescale Layerscape PCIe controller"
-	depends on OF && ARM
+	depends on OF && (ARM || ARCH_LAYERSCAPE)
 	select PCIE_DW
 	select MFD_SYSCON
 	help
@@ -105,5 +116,60 @@ config PCI_LAYERSCAPE
 config PCI_VERSATILE
 	bool "ARM Versatile PB PCI controller"
 	depends on ARCH_VERSATILE
+
+config PCIE_IPROC
+	tristate "Broadcom iProc PCIe controller"
+	depends on OF && (ARM || ARM64)
+	default n
+	help
+	  This enables the iProc PCIe core controller support for Broadcom's
+	  iProc family of SoCs. An appropriate bus interface driver also needs
+	  to be enabled
+
+config PCIE_IPROC_PLATFORM
+	tristate "Broadcom iProc PCIe platform bus driver"
+	depends on ARCH_BCM_IPROC || (ARM && COMPILE_TEST)
+	depends on OF
+	select PCIE_IPROC
+	default ARCH_BCM_IPROC
+	help
+	  Say Y here if you want to use the Broadcom iProc PCIe controller
+	  through the generic platform bus interface
+
+config PCIE_IPROC_BCMA
+	tristate "Broadcom iProc PCIe BCMA bus driver"
+	depends on ARM && (ARCH_BCM_IPROC || COMPILE_TEST)
+	select PCIE_IPROC
+	select BCMA
+	select PCI_DOMAINS
+	default ARCH_BCM_5301X
+	help
+	  Say Y here if you want to use the Broadcom iProc PCIe controller
+	  through the BCMA bus interface
+
+config PCIE_ALTERA
+	bool "Altera PCIe controller"
+	depends on ARM || NIOS2
+	depends on OF_PCI
+	select PCI_DOMAINS
+	help
+	  Say Y here if you want to enable PCIe controller support on Altera
+	  FPGA.
+
+config PCIE_ALTERA_MSI
+	bool "Altera PCIe MSI feature"
+	depends on PCIE_ALTERA && PCI_MSI
+	select PCI_MSI_IRQ_DOMAIN
+	help
+	  Say Y here if you want PCIe MSI support for the Altera FPGA.
+	  This MSI driver supports Altera MSI to GIC controller IP.
+
+config PCI_HISI
+	depends on OF && ARM64
+	bool "HiSilicon SoC HIP05 PCIe controller"
+	select PCIEPORTBUS
+	select PCIE_DW
+	help
+	  Say Y here if you want PCIe controller support on HiSilicon HIP05 SoC
 
 endmenu

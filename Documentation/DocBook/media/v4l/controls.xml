@@ -3414,7 +3414,7 @@ giving priority to the center of the metered area.</entry>
 		<row>
 		  <entry><constant>V4L2_EXPOSURE_METERING_MATRIX</constant>&nbsp;</entry>
 		  <entry>A multi-zone metering. The light intensity is measured
-in several points of the frame and the the results are combined. The
+in several points of the frame and the results are combined. The
 algorithm of the zones selection and their significance in calculating the
 final value is device dependent.</entry>
 		</row>
@@ -4863,7 +4863,7 @@ interface and may change in the future.</para>
       </note>
 
       <para>
-	The Image Source control class is intended for low-level control of
+	The Image Process control class is intended for low-level control of
 	image processing functions. Unlike
 	<constant>V4L2_CID_IMAGE_SOURCE_CLASS</constant>, the controls in
 	this class affect processing the image, and do not control capturing
@@ -4871,7 +4871,7 @@ interface and may change in the future.</para>
       </para>
 
       <table pgwide="1" frame="none" id="image-process-control-id">
-      <title>Image Source Control IDs</title>
+      <title>Image Process Control IDs</title>
 
       <tgroup cols="4">
 	<colspec colname="c1" colwidth="1*" />
@@ -5418,6 +5418,18 @@ set. Unit is in Hz. The range and step are driver-specific.</entry>
               <entry spanname="descr">Enables/disables IF automatic gain control (AGC)</entry>
             </row>
             <row>
+              <entry spanname="id"><constant>V4L2_CID_RF_TUNER_RF_GAIN</constant>&nbsp;</entry>
+              <entry>integer</entry>
+            </row>
+            <row>
+              <entry spanname="descr">The RF amplifier is the very first
+amplifier on the receiver signal path, just right after the antenna input.
+The difference between the LNA gain and the RF gain in this document is that
+the LNA gain is integrated in the tuner chip while the RF gain is a separate
+chip. There may be both RF and LNA gain controls in the same device.
+The range and step are driver-specific.</entry>
+            </row>
+            <row>
               <entry spanname="id"><constant>V4L2_CID_RF_TUNER_LNA_GAIN</constant>&nbsp;</entry>
               <entry>integer</entry>
             </row>
@@ -5425,6 +5437,8 @@ set. Unit is in Hz. The range and step are driver-specific.</entry>
               <entry spanname="descr">LNA (low noise amplifier) gain is first
 gain stage on the RF tuner signal path. It is located very close to tuner
 antenna input. Used when <constant>V4L2_CID_RF_TUNER_LNA_GAIN_AUTO</constant> is not set.
+See <constant>V4L2_CID_RF_TUNER_RF_GAIN</constant> to understand how RF gain
+and LNA gain differs from the each others.
 The range and step are driver-specific.</entry>
             </row>
             <row>

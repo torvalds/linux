@@ -31,40 +31,14 @@
 #define ST_OFF (_THREAD_SIZE - 32 - PT_SIZE + PT_STATUS)
 
 /*
- * FPU context is saved iff the process has used it's FPU in the current
- * time slice as indicated by TIF_USEDFPU.  In any case, the CU1 bit for user
- * space STATUS register should be 0, so that a process *always* starts its
- * userland with FPU disabled after each context switch.
- *
- * FPU will be enabled as soon as the process accesses FPU again, through
- * do_cpu() trap.
- */
-
-/*
  * task_struct *resume(task_struct *prev, task_struct *next,
- *		       struct thread_info *next_ti, int usedfpu)
+ *		       struct thread_info *next_ti)
  */
 LEAF(resume)
 	mfc0	t1, CP0_STATUS
 	sw	t1, THREAD_STATUS(a0)
 	cpu_save_nonscratch a0
 	sw	ra, THREAD_REG31(a0)
-
-	beqz	a3, 1f
-
-	PTR_L	t3, TASK_THREAD_INFO(a0)
-
-	/*
-	 * clear saved user stack CU1 bit
-	 */
-	lw	t0, ST_OFF(t3)
-	li	t1, ~ST0_CU1
-	and	t0, t0, t1
-	sw	t0, ST_OFF(t3)
-
-	fpu_save_single a0, t0			# clobbers t0
-
-1:
 
 #if defined(CONFIG_CC_STACKPROTECTOR) && !defined(CONFIG_SMP)
 	PTR_LA	t8, __stack_chk_guard
@@ -115,10 +89,8 @@ LEAF(_restore_fp)
  * the property that no matter whether considered as single or as double
  * precision represents signaling NANS.
  *
- * We initialize fcr31 to rounding to nearest, no exceptions.
+ * The value to initialize fcr31 to comes in $a0.
  */
-
-#define FPU_DEFAULT  0x00000000
 
 	.set push
 	SET_HARDFLOAT
@@ -129,8 +101,7 @@ LEAF(_init_fpu)
 	or	t0, t1
 	mtc0	t0, CP0_STATUS
 
-	li	t1, FPU_DEFAULT
-	ctc1	t1, fcr31
+	ctc1	a0, fcr31
 
 	li	t0, -1
 

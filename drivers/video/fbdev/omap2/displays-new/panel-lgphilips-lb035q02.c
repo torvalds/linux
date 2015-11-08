@@ -37,7 +37,7 @@ static struct omap_video_timings lb035q02_timings = {
 	.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
 	.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
 	.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
-	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
+	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
 };
 
 struct panel_drv_data {
@@ -285,14 +285,13 @@ static int lb035q02_probe_of(struct spi_device *spi)
 	struct omap_dss_device *in;
 	struct gpio_desc *gpio;
 
-	gpio = devm_gpiod_get(&spi->dev, "enable");
+	gpio = devm_gpiod_get(&spi->dev, "enable", GPIOD_OUT_LOW);
 	if (IS_ERR(gpio)) {
 		dev_err(&spi->dev, "failed to parse enable gpio\n");
 		return PTR_ERR(gpio);
-	} else {
-		gpiod_direction_output(gpio, 0);
-		ddata->enable_gpio = gpio;
 	}
+
+	ddata->enable_gpio = gpio;
 
 	ddata->backlight_gpio = -ENOENT;
 
@@ -392,7 +391,6 @@ static struct spi_driver lb035q02_spi_driver = {
 	.remove		= lb035q02_panel_spi_remove,
 	.driver		= {
 		.name	= "panel_lgphilips_lb035q02",
-		.owner	= THIS_MODULE,
 		.of_match_table = lb035q02_of_match,
 		.suppress_bind_attrs = true,
 	},

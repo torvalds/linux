@@ -33,16 +33,42 @@
  * This file is part of Lustre, http://www.lustre.org/
  * Lustre is a trademark of Sun Microsystems, Inc.
  */
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/mm.h>
+#include <linux/string.h>
+#include <linux/stat.h>
+#include <linux/errno.h>
+#include <linux/unistd.h>
+#include <net/sock.h>
+#include <linux/uio.h>
 
-#define DEBUG_SUBSYSTEM S_LNET
+#include <linux/uaccess.h>
+
+#include <linux/fs.h>
+#include <linux/file.h>
+#include <linux/list.h>
+
+#include <linux/sysctl.h>
+#include <linux/debugfs.h>
+
+# define DEBUG_SUBSYSTEM S_LNET
 
 #include "../../include/linux/libcfs/libcfs.h"
+#include <asm/div64.h>
+
 #include "../../include/linux/libcfs/libcfs_crypto.h"
 #include "../../include/linux/lnet/lib-lnet.h"
 #include "../../include/linux/lnet/lnet.h"
 #include "tracefile.h"
 
-static void kportal_memhog_free (struct libcfs_device_userstate *ldu)
+MODULE_AUTHOR("Peter J. Braam <braam@clusterfs.com>");
+MODULE_DESCRIPTION("Portals v3.1");
+MODULE_LICENSE("GPL");
+
+static struct dentry *lnet_debugfs_root;
+
+static void kportal_memhog_free(struct libcfs_device_userstate *ldu)
 {
 	struct page **level0p = &ldu->ldu_memhog_root_page;
 	struct page **level1p;
@@ -82,7 +108,7 @@ static void kportal_memhog_free (struct libcfs_device_userstate *ldu)
 		*level0p = NULL;
 	}
 
-	LASSERT (ldu->ldu_memhog_pages == 0);
+	LASSERT(ldu->ldu_memhog_pages == 0);
 }
 
 static int kportal_memhog_alloc(struct libcfs_device_userstate *ldu, int npages,
@@ -94,8 +120,8 @@ static int kportal_memhog_alloc(struct libcfs_device_userstate *ldu, int npages,
 	int	   count1;
 	int	   count2;
 
-	LASSERT (ldu->ldu_memhog_pages == 0);
-	LASSERT (ldu->ldu_memhog_root_page == NULL);
+	LASSERT(ldu->ldu_memhog_pages == 0);
+	LASSERT(ldu->ldu_memhog_root_page == NULL);
 
 	if (npages < 0)
 		return -EINVAL;
@@ -182,8 +208,8 @@ static int libcfs_psdev_release(unsigned long flags, void *args)
 	return 0;
 }
 
-static struct rw_semaphore ioctl_list_sem;
-static struct list_head ioctl_list;
+static DECLARE_RWSEM(ioctl_list_sem);
+static LIST_HEAD(ioctl_list);
 
 int libcfs_register_ioctl(struct libcfs_ioctl_handler *hand)
 {
@@ -267,6 +293,7 @@ static int libcfs_ioctl_int(struct cfs_psdev_file *pfile, unsigned long cmd,
 
 	default: {
 		struct libcfs_ioctl_handler *hand;
+
 		err = -EINVAL;
 		down_read(&ioctl_list_sem);
 		list_for_each_entry(hand, &ioctl_list, item) {
@@ -274,7 +301,7 @@ static int libcfs_ioctl_int(struct cfs_psdev_file *pfile, unsigned long cmd,
 			if (err != -EINVAL) {
 				if (err == 0)
 					err = libcfs_ioctl_popdata(arg,
-							data, sizeof (*data));
+							data, sizeof(*data));
 				break;
 			}
 		}
@@ -292,12 +319,12 @@ static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd, void *a
 	struct libcfs_ioctl_data *data;
 	int err = 0;
 
-	LIBCFS_ALLOC_GFP(buf, 1024, GFP_IOFS);
+	LIBCFS_ALLOC_GFP(buf, 1024, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
 	/* 'cmd' and permissions get checked in our arch-specific caller */
-	if (libcfs_ioctl_getdata(buf, buf + 800, (void *)arg)) {
+	if (libcfs_ioctl_getdata(buf, buf + 800, arg)) {
 		CERROR("PORTALS ioctl: data error\n");
 		err = -EINVAL;
 		goto out;
@@ -311,7 +338,6 @@ out:
 	return err;
 }
 
-
 struct cfs_psdev_ops libcfs_psdev_ops = {
 	libcfs_psdev_open,
 	libcfs_psdev_release,
@@ -320,34 +346,364 @@ struct cfs_psdev_ops libcfs_psdev_ops = {
 	libcfs_ioctl
 };
 
-extern int insert_proc(void);
-extern void remove_proc(void);
-MODULE_AUTHOR("Peter J. Braam <braam@clusterfs.com>");
-MODULE_DESCRIPTION("Portals v3.1");
-MODULE_LICENSE("GPL");
+static int proc_call_handler(void *data, int write, loff_t *ppos,
+		void __user *buffer, size_t *lenp,
+		int (*handler)(void *data, int write,
+		loff_t pos, void __user *buffer, int len))
+{
+	int rc = handler(data, write, *ppos, buffer, *lenp);
 
-extern struct miscdevice libcfs_dev;
-extern struct rw_semaphore cfs_tracefile_sem;
-extern struct mutex cfs_trace_thread_mutex;
-extern struct cfs_wi_sched *cfs_sched_rehash;
+	if (rc < 0)
+		return rc;
 
-extern void libcfs_init_nidstrings(void);
+	if (write) {
+		*ppos += *lenp;
+	} else {
+		*lenp = rc;
+		*ppos += rc;
+	}
+	return 0;
+}
+
+static int __proc_dobitmasks(void *data, int write,
+			     loff_t pos, void __user *buffer, int nob)
+{
+	const int     tmpstrlen = 512;
+	char	 *tmpstr;
+	int	   rc;
+	unsigned int *mask = data;
+	int	   is_subsys = (mask == &libcfs_subsystem_debug) ? 1 : 0;
+	int	   is_printk = (mask == &libcfs_printk) ? 1 : 0;
+
+	rc = cfs_trace_allocate_string_buffer(&tmpstr, tmpstrlen);
+	if (rc < 0)
+		return rc;
+
+	if (!write) {
+		libcfs_debug_mask2str(tmpstr, tmpstrlen, *mask, is_subsys);
+		rc = strlen(tmpstr);
+
+		if (pos >= rc) {
+			rc = 0;
+		} else {
+			rc = cfs_trace_copyout_string(buffer, nob,
+						      tmpstr + pos, "\n");
+		}
+	} else {
+		rc = cfs_trace_copyin_string(tmpstr, tmpstrlen, buffer, nob);
+		if (rc < 0) {
+			cfs_trace_free_string_buffer(tmpstr, tmpstrlen);
+			return rc;
+		}
+
+		rc = libcfs_debug_str2mask(mask, tmpstr, is_subsys);
+		/* Always print LBUG/LASSERT to console, so keep this mask */
+		if (is_printk)
+			*mask |= D_EMERG;
+	}
+
+	cfs_trace_free_string_buffer(tmpstr, tmpstrlen);
+	return rc;
+}
+
+static int proc_dobitmasks(struct ctl_table *table, int write,
+			   void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	return proc_call_handler(table->data, write, ppos, buffer, lenp,
+				 __proc_dobitmasks);
+}
+
+static int __proc_dump_kernel(void *data, int write,
+			      loff_t pos, void __user *buffer, int nob)
+{
+	if (!write)
+		return 0;
+
+	return cfs_trace_dump_debug_buffer_usrstr(buffer, nob);
+}
+
+static int proc_dump_kernel(struct ctl_table *table, int write,
+			    void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	return proc_call_handler(table->data, write, ppos, buffer, lenp,
+				 __proc_dump_kernel);
+}
+
+static int __proc_daemon_file(void *data, int write,
+			      loff_t pos, void __user *buffer, int nob)
+{
+	if (!write) {
+		int len = strlen(cfs_tracefile);
+
+		if (pos >= len)
+			return 0;
+
+		return cfs_trace_copyout_string(buffer, nob,
+						cfs_tracefile + pos, "\n");
+	}
+
+	return cfs_trace_daemon_command_usrstr(buffer, nob);
+}
+
+static int proc_daemon_file(struct ctl_table *table, int write,
+			    void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	return proc_call_handler(table->data, write, ppos, buffer, lenp,
+				 __proc_daemon_file);
+}
+
+static int libcfs_force_lbug(struct ctl_table *table, int write,
+			     void __user *buffer,
+			     size_t *lenp, loff_t *ppos)
+{
+	if (write)
+		LBUG();
+	return 0;
+}
+
+static int proc_fail_loc(struct ctl_table *table, int write,
+			 void __user *buffer,
+			 size_t *lenp, loff_t *ppos)
+{
+	int rc;
+	long old_fail_loc = cfs_fail_loc;
+
+	rc = proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
+	if (old_fail_loc != cfs_fail_loc)
+		wake_up(&cfs_race_waitq);
+	return rc;
+}
+
+static int __proc_cpt_table(void *data, int write,
+			    loff_t pos, void __user *buffer, int nob)
+{
+	char *buf = NULL;
+	int   len = 4096;
+	int   rc  = 0;
+
+	if (write)
+		return -EPERM;
+
+	LASSERT(cfs_cpt_table != NULL);
+
+	while (1) {
+		LIBCFS_ALLOC(buf, len);
+		if (buf == NULL)
+			return -ENOMEM;
+
+		rc = cfs_cpt_table_print(cfs_cpt_table, buf, len);
+		if (rc >= 0)
+			break;
+
+		if (rc == -EFBIG) {
+			LIBCFS_FREE(buf, len);
+			len <<= 1;
+			continue;
+		}
+		goto out;
+	}
+
+	if (pos >= rc) {
+		rc = 0;
+		goto out;
+	}
+
+	rc = cfs_trace_copyout_string(buffer, nob, buf + pos, NULL);
+ out:
+	if (buf != NULL)
+		LIBCFS_FREE(buf, len);
+	return rc;
+}
+
+static int proc_cpt_table(struct ctl_table *table, int write,
+			   void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	return proc_call_handler(table->data, write, ppos, buffer, lenp,
+				 __proc_cpt_table);
+}
+
+static struct ctl_table lnet_table[] = {
+	/*
+	 * NB No .strategy entries have been provided since sysctl(8) prefers
+	 * to go via /proc for portability.
+	 */
+	{
+		.procname = "debug",
+		.data     = &libcfs_debug,
+		.maxlen   = sizeof(int),
+		.mode     = 0644,
+		.proc_handler = &proc_dobitmasks,
+	},
+	{
+		.procname = "subsystem_debug",
+		.data     = &libcfs_subsystem_debug,
+		.maxlen   = sizeof(int),
+		.mode     = 0644,
+		.proc_handler = &proc_dobitmasks,
+	},
+	{
+		.procname = "printk",
+		.data     = &libcfs_printk,
+		.maxlen   = sizeof(int),
+		.mode     = 0644,
+		.proc_handler = &proc_dobitmasks,
+	},
+	{
+		.procname = "cpu_partition_table",
+		.maxlen   = 128,
+		.mode     = 0444,
+		.proc_handler = &proc_cpt_table,
+	},
+
+	{
+		.procname = "upcall",
+		.data     = lnet_upcall,
+		.maxlen   = sizeof(lnet_upcall),
+		.mode     = 0644,
+		.proc_handler = &proc_dostring,
+	},
+	{
+		.procname = "debug_log_upcall",
+		.data     = lnet_debug_log_upcall,
+		.maxlen   = sizeof(lnet_debug_log_upcall),
+		.mode     = 0644,
+		.proc_handler = &proc_dostring,
+	},
+	{
+		.procname = "catastrophe",
+		.data     = &libcfs_catastrophe,
+		.maxlen   = sizeof(int),
+		.mode     = 0444,
+		.proc_handler = &proc_dointvec,
+	},
+	{
+		.procname = "dump_kernel",
+		.maxlen   = 256,
+		.mode     = 0200,
+		.proc_handler = &proc_dump_kernel,
+	},
+	{
+		.procname = "daemon_file",
+		.mode     = 0644,
+		.maxlen   = 256,
+		.proc_handler = &proc_daemon_file,
+	},
+	{
+		.procname = "force_lbug",
+		.data     = NULL,
+		.maxlen   = 0,
+		.mode     = 0200,
+		.proc_handler = &libcfs_force_lbug
+	},
+	{
+		.procname = "fail_loc",
+		.data     = &cfs_fail_loc,
+		.maxlen   = sizeof(cfs_fail_loc),
+		.mode     = 0644,
+		.proc_handler = &proc_fail_loc
+	},
+	{
+		.procname = "fail_val",
+		.data     = &cfs_fail_val,
+		.maxlen   = sizeof(int),
+		.mode     = 0644,
+		.proc_handler = &proc_dointvec
+	},
+	{
+	}
+};
+
+static const struct lnet_debugfs_symlink_def lnet_debugfs_symlinks[] = {
+	{ "console_ratelimit",
+	  "/sys/module/libcfs/parameters/libcfs_console_ratelimit"},
+	{ "debug_path",
+	  "/sys/module/libcfs/parameters/libcfs_debug_file_path"},
+	{ "panic_on_lbug",
+	  "/sys/module/libcfs/parameters/libcfs_panic_on_lbug"},
+	{ "libcfs_console_backoff",
+	  "/sys/module/libcfs/parameters/libcfs_console_backoff"},
+	{ "debug_mb",
+	  "/sys/module/libcfs/parameters/libcfs_debug_mb"},
+	{ "console_min_delay_centisecs",
+	  "/sys/module/libcfs/parameters/libcfs_console_min_delay"},
+	{ "console_max_delay_centisecs",
+	  "/sys/module/libcfs/parameters/libcfs_console_max_delay"},
+	{},
+};
+
+static ssize_t lnet_debugfs_read(struct file *filp, char __user *buf,
+				 size_t count, loff_t *ppos)
+{
+	struct ctl_table *table = filp->private_data;
+	int error;
+
+	error = table->proc_handler(table, 0, (void __user *)buf, &count, ppos);
+	if (!error)
+		error = count;
+
+	return error;
+}
+
+static ssize_t lnet_debugfs_write(struct file *filp, const char __user *buf,
+				  size_t count, loff_t *ppos)
+{
+	struct ctl_table *table = filp->private_data;
+	int error;
+
+	error = table->proc_handler(table, 1, (void __user *)buf, &count, ppos);
+	if (!error)
+		error = count;
+
+	return error;
+}
+
+static const struct file_operations lnet_debugfs_file_operations = {
+	.open		= simple_open,
+	.read		= lnet_debugfs_read,
+	.write		= lnet_debugfs_write,
+	.llseek		= default_llseek,
+};
+
+void lustre_insert_debugfs(struct ctl_table *table,
+			   const struct lnet_debugfs_symlink_def *symlinks)
+{
+	struct dentry *entry;
+
+	if (lnet_debugfs_root == NULL)
+		lnet_debugfs_root = debugfs_create_dir("lnet", NULL);
+
+	/* Even if we cannot create, just ignore it altogether) */
+	if (IS_ERR_OR_NULL(lnet_debugfs_root))
+		return;
+
+	for (; table->procname; table++)
+		entry = debugfs_create_file(table->procname, table->mode,
+					    lnet_debugfs_root, table,
+					    &lnet_debugfs_file_operations);
+
+	for (; symlinks && symlinks->name; symlinks++)
+		entry = debugfs_create_symlink(symlinks->name,
+					       lnet_debugfs_root,
+					       symlinks->target);
+
+}
+EXPORT_SYMBOL_GPL(lustre_insert_debugfs);
+
+static void lustre_remove_debugfs(void)
+{
+	if (lnet_debugfs_root != NULL)
+		debugfs_remove_recursive(lnet_debugfs_root);
+
+	lnet_debugfs_root = NULL;
+}
 
 static int init_libcfs_module(void)
 {
 	int rc;
 
-	libcfs_arch_init();
-	libcfs_init_nidstrings();
-	init_rwsem(&cfs_tracefile_sem);
-	mutex_init(&cfs_trace_thread_mutex);
-	init_rwsem(&ioctl_list_sem);
-	INIT_LIST_HEAD(&ioctl_list);
-	init_waitqueue_head(&cfs_race_waitq);
-
 	rc = libcfs_debug_init(5 * 1024 * 1024);
 	if (rc < 0) {
-		printk(KERN_ERR "LustreError: libcfs_debug_init: %d\n", rc);
+		pr_err("LustreError: libcfs_debug_init: %d\n", rc);
 		return rc;
 	}
 
@@ -382,17 +738,10 @@ static int init_libcfs_module(void)
 		goto cleanup_wi;
 	}
 
+	lustre_insert_debugfs(lnet_table, lnet_debugfs_symlinks);
 
-	rc = insert_proc();
-	if (rc) {
-		CERROR("insert_proc: error %d\n", rc);
-		goto cleanup_crypto;
-	}
-
-	CDEBUG (D_OTHER, "portals setup OK\n");
+	CDEBUG(D_OTHER, "portals setup OK\n");
 	return 0;
- cleanup_crypto:
-	cfs_crypto_unregister();
  cleanup_wi:
 	cfs_wi_shutdown();
  cleanup_deregister:
@@ -408,12 +757,9 @@ static void exit_libcfs_module(void)
 {
 	int rc;
 
-	remove_proc();
+	lustre_remove_debugfs();
 
-	CDEBUG(D_MALLOC, "before Portals cleanup: kmem %d\n",
-	       atomic_read(&libcfs_kmemory));
-
-	if (cfs_sched_rehash != NULL) {
+	if (cfs_sched_rehash) {
 		cfs_wi_sched_destroy(cfs_sched_rehash);
 		cfs_sched_rehash = NULL;
 	}
@@ -421,24 +767,16 @@ static void exit_libcfs_module(void)
 	cfs_crypto_unregister();
 	cfs_wi_shutdown();
 
-	rc = misc_deregister(&libcfs_dev);
-	if (rc)
-		CERROR("misc_deregister error %d\n", rc);
+	misc_deregister(&libcfs_dev);
 
 	cfs_cpu_fini();
 
-	if (atomic_read(&libcfs_kmemory) != 0)
-		CERROR("Portals memory leaked: %d bytes\n",
-		       atomic_read(&libcfs_kmemory));
-
 	rc = libcfs_debug_cleanup();
 	if (rc)
-		printk(KERN_ERR "LustreError: libcfs_debug_cleanup: %d\n",
-		       rc);
-
-	libcfs_arch_cleanup();
+		pr_err("LustreError: libcfs_debug_cleanup: %d\n", rc);
 }
 
 MODULE_VERSION("1.0.0");
+
 module_init(init_libcfs_module);
 module_exit(exit_libcfs_module);

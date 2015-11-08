@@ -519,7 +519,7 @@ static int vnet_walk_rx_one(struct vnet_port *port,
 	if (desc->hdr.state != VIO_DESC_READY)
 		return 1;
 
-	rmb();
+	dma_rmb();
 
 	viodbg(DATA, "vio_walk_rx_one desc[%02x:%02x:%08x:%08x:%llx:%llx]\n",
 	       desc->hdr.state, desc->hdr.ack,
@@ -1380,7 +1380,7 @@ static int vnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* This has to be a non-SMP write barrier because we are writing
 	 * to memory which is shared with the peer LDOM.
 	 */
-	wmb();
+	dma_wmb();
 
 	d->hdr.state = VIO_DESC_READY;
 
@@ -1395,7 +1395,7 @@ static int vnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * is marked READY, but start_cons was false.
 	 * If so, vnet_ack() should send out the missed "start" trigger.
 	 *
-	 * Note that the wmb() above makes sure the cookies et al. are
+	 * Note that the dma_wmb() above makes sure the cookies et al. are
 	 * not globally visible before the VIO_DESC_READY, and that the
 	 * stores are ordered correctly by the compiler. The consumer will
 	 * not proceed until the VIO_DESC_READY is visible assuring that
@@ -1411,6 +1411,8 @@ static int vnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(err < 0)) {
 		netdev_info(dev, "TX trigger error %d\n", err);
 		d->hdr.state = VIO_DESC_FREE;
+		skb = port->tx_bufs[txi].skb;
+		port->tx_bufs[txi].skb = NULL;
 		dev->stats.tx_carrier_errors++;
 		goto out_dropped;
 	}
@@ -1754,7 +1756,8 @@ static const struct net_device_ops vnet_ops = {
 #endif
 };
 
-static struct vnet *vnet_new(const u64 *local_mac)
+static struct vnet *vnet_new(const u64 *local_mac,
+			     struct vio_dev *vdev)
 {
 	struct net_device *dev;
 	struct vnet *vp;
@@ -1788,6 +1791,8 @@ static struct vnet *vnet_new(const u64 *local_mac)
 			   NETIF_F_HW_CSUM | NETIF_F_SG;
 	dev->features = dev->hw_features;
 
+	SET_NETDEV_DEV(dev, &vdev->dev);
+
 	err = register_netdev(dev);
 	if (err) {
 		pr_err("Cannot register net device, aborting\n");
@@ -1806,7 +1811,8 @@ err_out_free_dev:
 	return ERR_PTR(err);
 }
 
-static struct vnet *vnet_find_or_create(const u64 *local_mac)
+static struct vnet *vnet_find_or_create(const u64 *local_mac,
+					struct vio_dev *vdev)
 {
 	struct vnet *iter, *vp;
 
@@ -1819,7 +1825,7 @@ static struct vnet *vnet_find_or_create(const u64 *local_mac)
 		}
 	}
 	if (!vp)
-		vp = vnet_new(local_mac);
+		vp = vnet_new(local_mac, vdev);
 	mutex_unlock(&vnet_list_mutex);
 
 	return vp;
@@ -1846,7 +1852,8 @@ static void vnet_cleanup(void)
 static const char *local_mac_prop = "local-mac-address";
 
 static struct vnet *vnet_find_parent(struct mdesc_handle *hp,
-						u64 port_node)
+				     u64 port_node,
+				     struct vio_dev *vdev)
 {
 	const u64 *local_mac = NULL;
 	u64 a;
@@ -1867,7 +1874,7 @@ static struct vnet *vnet_find_parent(struct mdesc_handle *hp,
 	if (!local_mac)
 		return ERR_PTR(-ENODEV);
 
-	return vnet_find_or_create(local_mac);
+	return vnet_find_or_create(local_mac, vdev);
 }
 
 static struct ldc_channel_config vnet_ldc_cfg = {
@@ -1921,7 +1928,7 @@ static int vnet_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 
 	hp = mdesc_grab();
 
-	vp = vnet_find_parent(hp, vdev->mp);
+	vp = vnet_find_parent(hp, vdev->mp, vdev);
 	if (IS_ERR(vp)) {
 		pr_err("Cannot find port parent vnet\n");
 		err = PTR_ERR(vp);

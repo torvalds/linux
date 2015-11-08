@@ -807,6 +807,7 @@ static const struct acpi_device_id norfkill_ids[] __initconst = {
 	{ "IBM0068", 0},
 	{ "LEN0068", 0},
 	{ "SNY5001", 0},	/* sony-laptop in charge */
+	{ "HPQ6601", 0},
 	{ "", 0},
 };
 
@@ -1661,58 +1662,6 @@ static void acer_rfkill_exit(void)
 	return;
 }
 
-/*
- * sysfs interface
- */
-static ssize_t show_bool_threeg(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	u32 result; \
-	acpi_status status;
-
-	pr_info("This threeg sysfs will be removed in 2014 - used by: %s\n",
-		current->comm);
-	status = get_u32(&result, ACER_CAP_THREEG);
-	if (ACPI_SUCCESS(status))
-		return sprintf(buf, "%u\n", result);
-	return sprintf(buf, "Read error\n");
-}
-
-static ssize_t set_bool_threeg(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
-{
-	u32 tmp = simple_strtoul(buf, NULL, 10);
-	acpi_status status = set_u32(tmp, ACER_CAP_THREEG);
-	pr_info("This threeg sysfs will be removed in 2014 - used by: %s\n",
-		current->comm);
-	if (ACPI_FAILURE(status))
-		return -EINVAL;
-	return count;
-}
-static DEVICE_ATTR(threeg, S_IRUGO | S_IWUSR, show_bool_threeg,
-	set_bool_threeg);
-
-static ssize_t show_interface(struct device *dev, struct device_attribute *attr,
-	char *buf)
-{
-	pr_info("This interface sysfs will be removed in 2014 - used by: %s\n",
-		current->comm);
-	switch (interface->type) {
-	case ACER_AMW0:
-		return sprintf(buf, "AMW0\n");
-	case ACER_AMW0_V2:
-		return sprintf(buf, "AMW0 v2\n");
-	case ACER_WMID:
-		return sprintf(buf, "WMID\n");
-	case ACER_WMID_v2:
-		return sprintf(buf, "WMID v2\n");
-	default:
-		return sprintf(buf, "Error!\n");
-	}
-}
-
-static DEVICE_ATTR(interface, S_IRUGO, show_interface, NULL);
-
 static void acer_wmi_notify(u32 value, void *context)
 {
 	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -2126,39 +2075,6 @@ static struct platform_driver acer_platform_driver = {
 
 static struct platform_device *acer_platform_device;
 
-static int remove_sysfs(struct platform_device *device)
-{
-	if (has_cap(ACER_CAP_THREEG))
-		device_remove_file(&device->dev, &dev_attr_threeg);
-
-	device_remove_file(&device->dev, &dev_attr_interface);
-
-	return 0;
-}
-
-static int __init create_sysfs(void)
-{
-	int retval = -ENOMEM;
-
-	if (has_cap(ACER_CAP_THREEG)) {
-		retval = device_create_file(&acer_platform_device->dev,
-			&dev_attr_threeg);
-		if (retval)
-			goto error_sysfs;
-	}
-
-	retval = device_create_file(&acer_platform_device->dev,
-		&dev_attr_interface);
-	if (retval)
-		goto error_sysfs;
-
-	return 0;
-
-error_sysfs:
-		remove_sysfs(acer_platform_device);
-	return retval;
-}
-
 static void remove_debugfs(void)
 {
 	debugfs_remove(interface->debug.devices);
@@ -2246,14 +2162,10 @@ static int __init acer_wmi_init(void)
 	set_quirks();
 
 	if (dmi_check_system(video_vendor_dmi_table))
-		acpi_video_dmi_promote_vendor();
-	if (acpi_video_backlight_support()) {
+		acpi_video_set_dmi_backlight_type(acpi_backlight_vendor);
+
+	if (acpi_video_get_backlight_type() != acpi_backlight_vendor)
 		interface->capability &= ~ACER_CAP_BRIGHTNESS;
-		pr_info("Brightness must be controlled by acpi video driver\n");
-	} else {
-		pr_info("Disabling ACPI video driver\n");
-		acpi_video_unregister_backlight();
-	}
 
 	if (wmi_has_guid(WMID_GUID3)) {
 		if (ec_raw_mode) {
@@ -2293,10 +2205,6 @@ static int __init acer_wmi_init(void)
 	if (err)
 		goto error_device_add;
 
-	err = create_sysfs();
-	if (err)
-		goto error_create_sys;
-
 	if (wmi_has_guid(WMID_GUID2)) {
 		interface->debug.wmid_devices = get_wmid_devices();
 		err = create_debugfs();
@@ -2310,8 +2218,6 @@ static int __init acer_wmi_init(void)
 	return 0;
 
 error_create_debugfs:
-	remove_sysfs(acer_platform_device);
-error_create_sys:
 	platform_device_del(acer_platform_device);
 error_device_add:
 	platform_device_put(acer_platform_device);
@@ -2334,7 +2240,6 @@ static void __exit acer_wmi_exit(void)
 	if (has_cap(ACER_CAP_ACCEL))
 		acer_wmi_accel_destroy();
 
-	remove_sysfs(acer_platform_device);
 	remove_debugfs();
 	platform_device_unregister(acer_platform_device);
 	platform_driver_unregister(&acer_platform_driver);

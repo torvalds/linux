@@ -149,6 +149,7 @@ static const struct qcom_rpm_resource apq8064_rpm_resource_table[] = {
 	[QCOM_RPM_USB_OTG_SWITCH] =		{ 210, 125, 82, 1 },
 	[QCOM_RPM_HDMI_SWITCH] =		{ 211, 126, 83, 1 },
 	[QCOM_RPM_DDR_DMM] =			{ 212, 127, 84, 2 },
+	[QCOM_RPM_QDSS_CLK] =			{ 214, ~0, 7, 1 },
 	[QCOM_RPM_VDDMIN_GPIO] =		{ 215, 131, 89, 1 },
 };
 
@@ -323,10 +324,51 @@ static const struct qcom_rpm_data msm8960_template = {
 	.n_resources = ARRAY_SIZE(msm8960_rpm_resource_table),
 };
 
+static const struct qcom_rpm_resource ipq806x_rpm_resource_table[] = {
+	[QCOM_RPM_CXO_CLK] =			{ 25, 9, 5, 1 },
+	[QCOM_RPM_PXO_CLK] =			{ 26, 10, 6, 1 },
+	[QCOM_RPM_APPS_FABRIC_CLK] =		{ 27, 11, 8, 1 },
+	[QCOM_RPM_SYS_FABRIC_CLK] =		{ 28, 12, 9, 1 },
+	[QCOM_RPM_NSS_FABRIC_0_CLK] =		{ 29, 13, 10, 1 },
+	[QCOM_RPM_DAYTONA_FABRIC_CLK] =		{ 30, 14, 11, 1 },
+	[QCOM_RPM_SFPB_CLK] =			{ 31, 15, 12, 1 },
+	[QCOM_RPM_CFPB_CLK] =			{ 32, 16, 13, 1 },
+	[QCOM_RPM_NSS_FABRIC_1_CLK] =		{ 33, 17, 14, 1 },
+	[QCOM_RPM_EBI1_CLK] =			{ 34, 18, 16, 1 },
+	[QCOM_RPM_APPS_FABRIC_HALT] =		{ 35, 19, 18, 2 },
+	[QCOM_RPM_APPS_FABRIC_MODE] =		{ 37, 20, 19, 3 },
+	[QCOM_RPM_APPS_FABRIC_IOCTL] =		{ 40, 21, 20, 1 },
+	[QCOM_RPM_APPS_FABRIC_ARB] =		{ 41, 22, 21, 12 },
+	[QCOM_RPM_SYS_FABRIC_HALT] =		{ 53, 23, 22, 2 },
+	[QCOM_RPM_SYS_FABRIC_MODE] =		{ 55, 24, 23, 3 },
+	[QCOM_RPM_SYS_FABRIC_IOCTL] =		{ 58, 25, 24, 1 },
+	[QCOM_RPM_SYS_FABRIC_ARB] =		{ 59, 26, 25, 30 },
+	[QCOM_RPM_MM_FABRIC_HALT] =		{ 89, 27, 26, 2 },
+	[QCOM_RPM_MM_FABRIC_MODE] =		{ 91, 28, 27, 3 },
+	[QCOM_RPM_MM_FABRIC_IOCTL] =		{ 94, 29, 28, 1 },
+	[QCOM_RPM_MM_FABRIC_ARB] =		{ 95, 30, 29, 2 },
+	[QCOM_RPM_CXO_BUFFERS] =		{ 209, 33, 31, 1 },
+	[QCOM_RPM_USB_OTG_SWITCH] =		{ 210, 34, 32, 1 },
+	[QCOM_RPM_HDMI_SWITCH] =		{ 211, 35, 33, 1 },
+	[QCOM_RPM_DDR_DMM] =			{ 212, 36, 34, 2 },
+	[QCOM_RPM_VDDMIN_GPIO] =		{ 215, 40, 39, 1 },
+	[QCOM_RPM_SMB208_S1a] =			{ 216, 41, 90, 2 },
+	[QCOM_RPM_SMB208_S1b] =			{ 218, 43, 91, 2 },
+	[QCOM_RPM_SMB208_S2a] =			{ 220, 45, 92, 2 },
+	[QCOM_RPM_SMB208_S2b] =			{ 222, 47, 93, 2 },
+};
+
+static const struct qcom_rpm_data ipq806x_template = {
+	.version = 3,
+	.resource_table = ipq806x_rpm_resource_table,
+	.n_resources = ARRAY_SIZE(ipq806x_rpm_resource_table),
+};
+
 static const struct of_device_id qcom_rpm_of_match[] = {
 	{ .compatible = "qcom,rpm-apq8064", .data = &apq8064_template },
 	{ .compatible = "qcom,rpm-msm8660", .data = &msm8660_template },
 	{ .compatible = "qcom,rpm-msm8960", .data = &msm8960_template },
+	{ .compatible = "qcom,rpm-ipq8064", .data = &ipq806x_template },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, qcom_rpm_of_match);
@@ -508,7 +550,7 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev,
 			       irq_ack,
 			       qcom_rpm_ack_interrupt,
-			       IRQF_TRIGGER_RISING | IRQF_NO_SUSPEND,
+			       IRQF_TRIGGER_RISING,
 			       "qcom_rpm_ack",
 			       rpm);
 	if (ret) {

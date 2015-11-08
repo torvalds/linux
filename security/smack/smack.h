@@ -15,12 +15,27 @@
 
 #include <linux/capability.h>
 #include <linux/spinlock.h>
-#include <linux/security.h>
+#include <linux/lsm_hooks.h>
 #include <linux/in.h>
+#if IS_ENABLED(CONFIG_IPV6)
+#include <linux/in6.h>
+#endif /* CONFIG_IPV6 */
 #include <net/netlabel.h>
 #include <linux/list.h>
 #include <linux/rculist.h>
 #include <linux/lsm_audit.h>
+
+/*
+ * Use IPv6 port labeling if IPv6 is enabled and secmarks
+ * are not being used.
+ */
+#if IS_ENABLED(CONFIG_IPV6) && !defined(CONFIG_SECURITY_SMACK_NETFILTER)
+#define SMACK_IPV6_PORT_LABELING 1
+#endif
+
+#if IS_ENABLED(CONFIG_IPV6) && defined(CONFIG_SECURITY_SMACK_NETFILTER)
+#define SMACK_IPV6_SECMARK_LABELING 1
+#endif
 
 /*
  * Smack labels were limited to 23 characters for a long time.
@@ -100,11 +115,13 @@ struct task_smack {
 	struct smack_known	*smk_forked;	/* label when forked */
 	struct list_head	smk_rules;	/* per task access rules */
 	struct mutex		smk_rules_lock;	/* lock for the rules */
+	struct list_head	smk_relabel;	/* transit allowed labels */
 };
 
 #define	SMK_INODE_INSTANT	0x01	/* inode is instantiated */
 #define	SMK_INODE_TRANSMUTE	0x02	/* directory is transmuting */
 #define	SMK_INODE_CHANGED	0x04	/* smack was transmuted */
+#define	SMK_INODE_IMPURE	0x08	/* involved in an impure transaction */
 
 /*
  * A label access rule.
@@ -117,15 +134,30 @@ struct smack_rule {
 };
 
 /*
- * An entry in the table identifying hosts.
+ * An entry in the table identifying IPv4 hosts.
  */
-struct smk_netlbladdr {
+struct smk_net4addr {
 	struct list_head	list;
-	struct sockaddr_in	smk_host;	/* network address */
+	struct in_addr		smk_host;	/* network address */
 	struct in_addr		smk_mask;	/* network mask */
+	int			smk_masks;	/* mask size */
 	struct smack_known	*smk_label;	/* label */
 };
 
+#if IS_ENABLED(CONFIG_IPV6)
+/*
+ * An entry in the table identifying IPv6 hosts.
+ */
+struct smk_net6addr {
+	struct list_head	list;
+	struct in6_addr		smk_host;	/* network address */
+	struct in6_addr		smk_mask;	/* network mask */
+	int			smk_masks;	/* mask size */
+	struct smack_known	*smk_label;	/* label */
+};
+#endif /* CONFIG_IPV6 */
+
+#ifdef SMACK_IPV6_PORT_LABELING
 /*
  * An entry in the table identifying ports.
  */
@@ -135,6 +167,30 @@ struct smk_port_label {
 	unsigned short		smk_port;	/* the port number */
 	struct smack_known	*smk_in;	/* inbound label */
 	struct smack_known	*smk_out;	/* outgoing label */
+};
+#endif /* SMACK_IPV6_PORT_LABELING */
+
+struct smack_known_list_elem {
+	struct list_head	list;
+	struct smack_known	*smk_label;
+};
+
+/* Super block security struct flags for mount options */
+#define FSDEFAULT_MNT	0x01
+#define FSFLOOR_MNT	0x02
+#define FSHAT_MNT	0x04
+#define FSROOT_MNT	0x08
+#define FSTRANS_MNT	0x10
+
+#define NUM_SMK_MNT_OPTS	5
+
+enum {
+	Opt_error = -1,
+	Opt_fsdefault = 1,
+	Opt_fsfloor = 2,
+	Opt_fshat = 3,
+	Opt_fsroot = 4,
+	Opt_fstransmute = 5,
 };
 
 /*
@@ -146,6 +202,7 @@ struct smk_port_label {
 #define SMK_FSROOT	"smackfsroot="
 #define SMK_FSTRANS	"smackfstransmute="
 
+#define SMACK_DELETE_OPTION	"-DELETE"
 #define SMACK_CIPSO_OPTION 	"-CIPSO"
 
 /*
@@ -193,6 +250,10 @@ struct smk_port_label {
 #define MAY_LOCK	0x00002000	/* Locks should be writes, but ... */
 #define MAY_BRINGUP	0x00004000	/* Report use of this rule */
 
+#define SMACK_BRINGUP_ALLOW		1	/* Allow bringup mode */
+#define SMACK_UNCONFINED_SUBJECT	2	/* Allow unconfined label */
+#define SMACK_UNCONFINED_OBJECT		3	/* Allow unconfined label */
+
 /*
  * Just to make the common cases easier to deal with
  */
@@ -224,10 +285,6 @@ struct smk_audit_info {
 	struct smack_audit_data sad;
 #endif
 };
-/*
- * These functions are in smack_lsm.c
- */
-struct inode_smack *new_inode_smack(struct smack_known *);
 
 /*
  * These functions are in smack_access.c
@@ -244,6 +301,8 @@ int smk_netlbl_mls(int, char *, struct netlbl_lsm_secattr *, int);
 struct smack_known *smk_import_entry(const char *, int);
 void smk_insert_entry(struct smack_known *skp);
 struct smack_known *smk_find_entry(const char *);
+int smack_privileged(int cap);
+void smk_destroy_label_list(struct list_head *list);
 
 /*
  * Shared data.
@@ -252,9 +311,10 @@ extern int smack_enabled;
 extern int smack_cipso_direct;
 extern int smack_cipso_mapped;
 extern struct smack_known *smack_net_ambient;
-extern struct smack_known *smack_onlycap;
 extern struct smack_known *smack_syslog_label;
-extern struct smack_known smack_cipso_option;
+#ifdef CONFIG_SECURITY_SMACK_BRINGUP
+extern struct smack_known *smack_unconfined;
+#endif
 extern int smack_ptrace_rule;
 
 extern struct smack_known smack_known_floor;
@@ -266,9 +326,13 @@ extern struct smack_known smack_known_web;
 
 extern struct mutex	smack_known_lock;
 extern struct list_head smack_known_list;
-extern struct list_head smk_netlbladdr_list;
+extern struct list_head smk_net4addr_list;
+#if IS_ENABLED(CONFIG_IPV6)
+extern struct list_head smk_net6addr_list;
+#endif /* CONFIG_IPV6 */
 
-extern struct security_operations smack_ops;
+extern struct mutex     smack_onlycap_lock;
+extern struct list_head smack_onlycap_list;
 
 #define SMACK_HASH_SLOTS 16
 extern struct hlist_head smack_known_hash[SMACK_HASH_SLOTS];
@@ -323,21 +387,6 @@ static inline struct smack_known *smk_of_forked(const struct task_smack *tsp)
 static inline struct smack_known *smk_of_current(void)
 {
 	return smk_of_task(current_security());
-}
-
-/*
- * Is the task privileged and allowed to be privileged
- * by the onlycap rule.
- */
-static inline int smack_privileged(int cap)
-{
-	struct smack_known *skp = smk_of_current();
-
-	if (!capable(cap))
-		return 0;
-	if (smack_onlycap == NULL || smack_onlycap == skp)
-		return 1;
-	return 0;
 }
 
 /*

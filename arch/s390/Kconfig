@@ -35,7 +35,7 @@ config GENERIC_BUG_RELATIVE_POINTERS
 	def_bool y
 
 config ARCH_DMA_ADDR_T_64BIT
-	def_bool 64BIT
+	def_bool y
 
 config GENERIC_LOCKBREAK
 	def_bool y if SMP && PREEMPT
@@ -48,6 +48,7 @@ config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 
 config KEXEC
 	def_bool y
+	select KEXEC_CORE
 
 config AUDIT_ARCH
 	def_bool y
@@ -59,12 +60,13 @@ config PCI_QUIRKS
 	def_bool n
 
 config ARCH_SUPPORTS_UPROBES
-	def_bool 64BIT
+	def_bool y
 
 config S390
 	def_bool y
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
+	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_HAS_SG_CHAIN
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
@@ -98,31 +100,37 @@ config S390
 	select ARCH_INLINE_WRITE_UNLOCK_IRQRESTORE
 	select ARCH_SAVE_PAGE_KEYS if HIBERNATION
 	select ARCH_SUPPORTS_ATOMIC_RMW
+	select ARCH_SUPPORTS_NUMA_BALANCING
+	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_CMPXCHG_LOCKREF
+	select ARCH_WANTS_PROT_NUMA_PROT_NONE
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select BUILDTIME_EXTABLE_SORT
 	select CLONE_BACKWARDS2
 	select DYNAMIC_FTRACE if FUNCTION_TRACER
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_CPU_AUTOPROBE
 	select GENERIC_CPU_DEVICES if !SMP
 	select GENERIC_FIND_FIRST_BIT
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_TIME_VSYSCALL
 	select HAVE_ALIGNED_STRUCT_PAGE if SLUB
 	select HAVE_ARCH_AUDITSYSCALL
-	select HAVE_ARCH_JUMP_LABEL if !MARCH_G5
+	select HAVE_ARCH_EARLY_PFN_TO_NID
+	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_SECCOMP_FILTER
+	select HAVE_ARCH_SOFT_DIRTY
 	select HAVE_ARCH_TRACEHOOK
-	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if 64BIT
-	select HAVE_BPF_JIT if 64BIT && PACK_STACK
+	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	select HAVE_BPF_JIT if PACK_STACK && HAVE_MARCH_Z196_FEATURES
 	select HAVE_CMPXCHG_DOUBLE
 	select HAVE_CMPXCHG_LOCAL
 	select HAVE_DEBUG_KMEMLEAK
-	select HAVE_DYNAMIC_FTRACE if 64BIT
-	select HAVE_DYNAMIC_FTRACE_WITH_REGS if 64BIT
+	select HAVE_DYNAMIC_FTRACE
+	select HAVE_DYNAMIC_FTRACE_WITH_REGS
 	select HAVE_FTRACE_MCOUNT_RECORD
-	select HAVE_FUNCTION_GRAPH_TRACER if 64BIT
-	select HAVE_FUNCTION_TRACER if 64BIT
+	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_FUNCTION_TRACER
 	select HAVE_FUTEX_CMPXCHG if FUTEX
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_GZIP
@@ -132,7 +140,8 @@ config S390
 	select HAVE_KERNEL_XZ
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
-	select HAVE_KVM if 64BIT
+	select HAVE_KVM
+	select HAVE_LIVEPATCH
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_MEMBLOCK_PHYS_MAP
@@ -141,7 +150,6 @@ config S390
 	select HAVE_PERF_EVENTS
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_SYSCALL_TRACEPOINTS
-	select HAVE_UID16 if 32BIT
 	select HAVE_VIRT_CPU_ACCOUNTING
 	select MODULES_USE_ELF_RELA
 	select NO_BOOTMEM
@@ -152,12 +160,20 @@ config S390
 	select VIRT_CPU_ACCOUNTING
 	select VIRT_TO_BUS
 
+
 config SCHED_OMIT_FRAME_POINTER
 	def_bool y
+
+config PGTABLE_LEVELS
+	int
+	default 4 if 64BIT
+	default 2
 
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
+
+source "kernel/livepatch/Kconfig"
 
 menu "Processor type and features"
 
@@ -190,18 +206,11 @@ config HAVE_MARCH_Z13_FEATURES
 
 choice
 	prompt "Processor type"
-	default MARCH_G5
-
-config MARCH_G5
-	bool "System/390 model G5 and G6"
-	depends on !64BIT
-	help
-	  Select this to build a 31 bit kernel that works
-	  on all ESA/390 and z/Architecture machines.
+	default MARCH_Z900
 
 config MARCH_Z900
 	bool "IBM zSeries model z800 and z900"
-	select HAVE_MARCH_Z900_FEATURES if 64BIT
+	select HAVE_MARCH_Z900_FEATURES
 	help
 	  Select this to enable optimizations for model z800/z900 (2064 and
 	  2066 series). This will enable some optimizations that are not
@@ -209,7 +218,7 @@ config MARCH_Z900
 
 config MARCH_Z990
 	bool "IBM zSeries model z890 and z990"
-	select HAVE_MARCH_Z990_FEATURES if 64BIT
+	select HAVE_MARCH_Z990_FEATURES
 	help
 	  Select this to enable optimizations for model z890/z990 (2084 and
 	  2086 series). The kernel will be slightly faster but will not work
@@ -217,7 +226,7 @@ config MARCH_Z990
 
 config MARCH_Z9_109
 	bool "IBM System z9"
-	select HAVE_MARCH_Z9_109_FEATURES if 64BIT
+	select HAVE_MARCH_Z9_109_FEATURES
 	help
 	  Select this to enable optimizations for IBM System z9 (2094 and
 	  2096 series). The kernel will be slightly faster but will not work
@@ -225,7 +234,7 @@ config MARCH_Z9_109
 
 config MARCH_Z10
 	bool "IBM System z10"
-	select HAVE_MARCH_Z10_FEATURES if 64BIT
+	select HAVE_MARCH_Z10_FEATURES
 	help
 	  Select this to enable optimizations for IBM System z10 (2097 and
 	  2098 series). The kernel will be slightly faster but will not work
@@ -233,7 +242,7 @@ config MARCH_Z10
 
 config MARCH_Z196
 	bool "IBM zEnterprise 114 and 196"
-	select HAVE_MARCH_Z196_FEATURES if 64BIT
+	select HAVE_MARCH_Z196_FEATURES
 	help
 	  Select this to enable optimizations for IBM zEnterprise 114 and 196
 	  (2818 and 2817 series). The kernel will be slightly faster but will
@@ -241,7 +250,7 @@ config MARCH_Z196
 
 config MARCH_ZEC12
 	bool "IBM zBC12 and zEC12"
-	select HAVE_MARCH_ZEC12_FEATURES if 64BIT
+	select HAVE_MARCH_ZEC12_FEATURES
 	help
 	  Select this to enable optimizations for IBM zBC12 and zEC12 (2828 and
 	  2827 series). The kernel will be slightly faster but will not work on
@@ -249,16 +258,13 @@ config MARCH_ZEC12
 
 config MARCH_Z13
 	bool "IBM z13"
-	select HAVE_MARCH_Z13_FEATURES if 64BIT
+	select HAVE_MARCH_Z13_FEATURES
 	help
 	  Select this to enable optimizations for IBM z13 (2964 series).
 	  The kernel will be slightly faster but will not work on older
 	  machines.
 
 endchoice
-
-config MARCH_G5_TUNE
-	def_bool TUNE_G5 || MARCH_G5 && TUNE_DEFAULT
 
 config MARCH_Z900_TUNE
 	def_bool TUNE_Z900 || MARCH_Z900 && TUNE_DEFAULT
@@ -298,9 +304,6 @@ config TUNE_DEFAULT
 	  Tune the generated code for the target processor for which the kernel
 	  will be compiled.
 
-config TUNE_G5
-	bool "System/390 model G5 and G6"
-
 config TUNE_Z900
 	bool "IBM zSeries model z800 and z900"
 
@@ -326,21 +329,14 @@ endchoice
 
 config 64BIT
 	def_bool y
-	prompt "64 bit kernel"
-	help
-	  Select this option if you have an IBM z/Architecture machine
-	  and want to use the 64 bit addressing mode.
-
-config 32BIT
-	def_bool y if !64BIT
 
 config COMPAT
 	def_bool y
 	prompt "Kernel support for 31 bit emulation"
-	depends on 64BIT
 	select COMPAT_BINFMT_ELF if BINFMT_ELF
 	select ARCH_WANT_OLD_COMPAT_IPC
 	select COMPAT_OLD_SIGACTION
+	depends on MULTIUSER
 	help
 	  Select this option if you want to enable your system kernel to
 	  handle system-calls from ELF binaries for 31 bit ESA.  This option
@@ -376,8 +372,7 @@ config NR_CPUS
 	int "Maximum number of CPUs (2-512)"
 	range 2 512
 	depends on SMP
-	default "32" if !64BIT
-	default "64" if 64BIT
+	default "64"
 	help
 	  This allows you to specify the maximum number of CPUs which this
 	  kernel will support. The maximum supported value is 512 and the
@@ -397,6 +392,76 @@ config HOTPLUG_CPU
 
 config SCHED_SMT
 	def_bool n
+
+# Some NUMA nodes have memory ranges that span
+# other nodes.	Even though a pfn is valid and
+# between a node's start and end pfns, it may not
+# reside on that node.	See memmap_init_zone()
+# for details. <- They meant memory holes!
+config NODES_SPAN_OTHER_NODES
+	def_bool NUMA
+
+config NUMA
+	bool "NUMA support"
+	depends on SMP && 64BIT && SCHED_TOPOLOGY
+	default n
+	help
+	  Enable NUMA support
+
+	  This option adds NUMA support to the kernel.
+
+	  An operation mode can be selected by appending
+	  numa=<method> to the kernel command line.
+
+	  The default behaviour is identical to appending numa=plain to
+	  the command line. This will create just one node with all
+	  available memory and all CPUs in it.
+
+config NODES_SHIFT
+	int "Maximum NUMA nodes (as a power of 2)"
+	range 1 10
+	depends on NUMA
+	default "4"
+	help
+	  Specify the maximum number of NUMA nodes available on the target
+	  system. Increases memory reserved to accommodate various tables.
+
+menu "Select NUMA modes"
+	depends on NUMA
+
+config NUMA_EMU
+	bool "NUMA emulation"
+	default y
+	help
+	  Numa emulation mode will split the available system memory into
+	  equal chunks which then are distributed over the configured number
+	  of nodes in a round-robin manner.
+
+	  The number of fake nodes is limited by the number of available memory
+	  chunks (i.e. memory size / fake size) and the number of supported
+	  nodes in the kernel.
+
+	  The CPUs are assigned to the nodes in a way that partially respects
+	  the original machine topology (if supported by the machine).
+	  Fair distribution of the CPUs is not guaranteed.
+
+config EMU_SIZE
+	hex "NUMA emulation memory chunk size"
+	default 0x10000000
+	range 0x400000 0x100000000
+	depends on NUMA_EMU
+	help
+	  Select the default size by which the memory is chopped and then
+	  assigned to emulated NUMA nodes.
+
+	  This can be overridden by specifying
+
+	  emu_size=<n>
+
+	  on the kernel command line where also suffixes K, M, G, and T are
+	  supported.
+
+endmenu
 
 config SCHED_MC
 	def_bool n
@@ -418,15 +483,6 @@ config SCHED_TOPOLOGY
 
 source kernel/Kconfig.preempt
 
-config MATHEMU
-	def_bool y
-	prompt "IEEE FPU emulation"
-	depends on MARCH_G5
-	help
-	  This option is required for IEEE compliant floating point arithmetic
-	  on older ESA/390 machines. Say Y unless you know your machine doesn't
-	  need this.
-
 source kernel/Kconfig.hz
 
 endmenu
@@ -437,7 +493,6 @@ config ARCH_SPARSEMEM_ENABLE
 	def_bool y
 	select SPARSEMEM_VMEMMAP_ENABLE
 	select SPARSEMEM_VMEMMAP
-	select SPARSEMEM_STATIC if !64BIT
 
 config ARCH_SPARSEMEM_DEFAULT
 	def_bool y
@@ -453,7 +508,6 @@ config ARCH_ENABLE_MEMORY_HOTREMOVE
 
 config ARCH_ENABLE_SPLIT_PMD_PTLOCK
 	def_bool y
-	depends on 64BIT
 
 config FORCE_MAX_ZONEORDER
 	int
@@ -528,9 +582,9 @@ config QDIO
 
 menuconfig PCI
 	bool "PCI support"
-	depends on 64BIT
 	select HAVE_DMA_ATTRS
 	select PCI_MSI
+	select IOMMU_SUPPORT
 	help
 	  Enable PCI support.
 
@@ -598,7 +652,6 @@ config CHSC_SCH
 
 config SCM_BUS
 	def_bool y
-	depends on 64BIT
 	prompt "SCM bus driver"
 	help
 	  Bus driver for Storage Class Memory.
@@ -620,7 +673,7 @@ menu "Dump support"
 
 config CRASH_DUMP
 	bool "kernel crash dumps"
-	depends on 64BIT && SMP
+	depends on SMP
 	select KEXEC
 	help
 	  Generate crash dump after being started by kexec.
@@ -659,7 +712,7 @@ endmenu
 menu "Power Management"
 
 config ARCH_HIBERNATION_POSSIBLE
-	def_bool y if 64BIT
+	def_bool y
 
 source "kernel/power/Kconfig"
 
@@ -810,7 +863,6 @@ source "arch/s390/kvm/Kconfig"
 config S390_GUEST
 	def_bool y
 	prompt "s390 support for virtio devices"
-	depends on 64BIT
 	select TTY
 	select VIRTUALIZATION
 	select VIRTIO

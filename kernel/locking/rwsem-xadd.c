@@ -14,8 +14,9 @@
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/sched/rt.h>
+#include <linux/osq_lock.h>
 
-#include "mcs_spinlock.h"
+#include "rwsem.h"
 
 /*
  * Guide to the rw_semaphore's count field for common values.
@@ -186,6 +187,13 @@ __rwsem_do_wake(struct rw_semaphore *sem, enum rwsem_wake_type wake_type)
 		waiter = list_entry(next, struct rwsem_waiter, list);
 		next = waiter->list.next;
 		tsk = waiter->task;
+		/*
+		 * Make sure we do not wakeup the next reader before
+		 * setting the nil condition to grant the next reader;
+		 * otherwise we could miss the wakeup on the other
+		 * side and end up sleeping again. See the pairing
+		 * in rwsem_down_read_failed().
+		 */
 		smp_mb();
 		waiter->task = NULL;
 		wake_up_process(tsk);
@@ -254,10 +262,11 @@ static inline bool rwsem_try_write_lock(long count, struct rw_semaphore *sem)
 	 * to reduce unnecessary expensive cmpxchg() operations.
 	 */
 	if (count == RWSEM_WAITING_BIAS &&
-	    cmpxchg(&sem->count, RWSEM_WAITING_BIAS,
+	    cmpxchg_acquire(&sem->count, RWSEM_WAITING_BIAS,
 		    RWSEM_ACTIVE_WRITE_BIAS) == RWSEM_WAITING_BIAS) {
 		if (!list_is_singular(&sem->wait_list))
 			rwsem_atomic_update(RWSEM_WAITING_BIAS, sem);
+		rwsem_set_owner(sem);
 		return true;
 	}
 
@@ -270,15 +279,18 @@ static inline bool rwsem_try_write_lock(long count, struct rw_semaphore *sem)
  */
 static inline bool rwsem_try_write_lock_unqueued(struct rw_semaphore *sem)
 {
-	long old, count = ACCESS_ONCE(sem->count);
+	long old, count = READ_ONCE(sem->count);
 
 	while (true) {
 		if (!(count == 0 || count == RWSEM_WAITING_BIAS))
 			return false;
 
-		old = cmpxchg(&sem->count, count, count + RWSEM_ACTIVE_WRITE_BIAS);
-		if (old == count)
+		old = cmpxchg_acquire(&sem->count, count,
+				      count + RWSEM_ACTIVE_WRITE_BIAS);
+		if (old == count) {
+			rwsem_set_owner(sem);
 			return true;
+		}
 
 		count = old;
 	}
@@ -287,60 +299,67 @@ static inline bool rwsem_try_write_lock_unqueued(struct rw_semaphore *sem)
 static inline bool rwsem_can_spin_on_owner(struct rw_semaphore *sem)
 {
 	struct task_struct *owner;
-	bool on_cpu = false;
+	bool ret = true;
 
 	if (need_resched())
 		return false;
 
 	rcu_read_lock();
-	owner = ACCESS_ONCE(sem->owner);
-	if (owner)
-		on_cpu = owner->on_cpu;
+	owner = READ_ONCE(sem->owner);
+	if (!owner) {
+		long count = READ_ONCE(sem->count);
+		/*
+		 * If sem->owner is not set, yet we have just recently entered the
+		 * slowpath with the lock being active, then there is a possibility
+		 * reader(s) may have the lock. To be safe, bail spinning in these
+		 * situations.
+		 */
+		if (count & RWSEM_ACTIVE_MASK)
+			ret = false;
+		goto done;
+	}
+
+	ret = owner->on_cpu;
+done:
 	rcu_read_unlock();
-
-	/*
-	 * If sem->owner is not set, yet we have just recently entered the
-	 * slowpath, then there is a possibility reader(s) may have the lock.
-	 * To be safe, avoid spinning in these situations.
-	 */
-	return on_cpu;
-}
-
-static inline bool owner_running(struct rw_semaphore *sem,
-				 struct task_struct *owner)
-{
-	if (sem->owner != owner)
-		return false;
-
-	/*
-	 * Ensure we emit the owner->on_cpu, dereference _after_ checking
-	 * sem->owner still matches owner, if that fails, owner might
-	 * point to free()d memory, if it still matches, the rcu_read_lock()
-	 * ensures the memory stays valid.
-	 */
-	barrier();
-
-	return owner->on_cpu;
+	return ret;
 }
 
 static noinline
 bool rwsem_spin_on_owner(struct rw_semaphore *sem, struct task_struct *owner)
 {
+	long count;
+
 	rcu_read_lock();
-	while (owner_running(sem, owner)) {
-		if (need_resched())
-			break;
+	while (sem->owner == owner) {
+		/*
+		 * Ensure we emit the owner->on_cpu, dereference _after_
+		 * checking sem->owner still matches owner, if that fails,
+		 * owner might point to free()d memory, if it still matches,
+		 * the rcu_read_lock() ensures the memory stays valid.
+		 */
+		barrier();
+
+		/* abort spinning when need_resched or owner is not running */
+		if (!owner->on_cpu || need_resched()) {
+			rcu_read_unlock();
+			return false;
+		}
 
 		cpu_relax_lowlatency();
 	}
 	rcu_read_unlock();
 
+	if (READ_ONCE(sem->owner))
+		return true; /* new owner, continue spinning */
+
 	/*
-	 * We break out the loop above on need_resched() or when the
-	 * owner changed, which is a sign for heavy contention. Return
-	 * success only when sem->owner is NULL.
+	 * When the owner is not set, the lock could be free or
+	 * held by readers. Check the counter to verify the
+	 * state.
 	 */
-	return sem->owner == NULL;
+	count = READ_ONCE(sem->count);
+	return (count == 0 || count == RWSEM_WAITING_BIAS);
 }
 
 static bool rwsem_optimistic_spin(struct rw_semaphore *sem)
@@ -358,7 +377,7 @@ static bool rwsem_optimistic_spin(struct rw_semaphore *sem)
 		goto done;
 
 	while (true) {
-		owner = ACCESS_ONCE(sem->owner);
+		owner = READ_ONCE(sem->owner);
 		if (owner && !rwsem_spin_on_owner(sem, owner))
 			break;
 
@@ -391,8 +410,21 @@ done:
 	return taken;
 }
 
+/*
+ * Return true if the rwsem has active spinner
+ */
+static inline bool rwsem_has_spinner(struct rw_semaphore *sem)
+{
+	return osq_is_locked(&sem->osq);
+}
+
 #else
 static bool rwsem_optimistic_spin(struct rw_semaphore *sem)
+{
+	return false;
+}
+
+static inline bool rwsem_has_spinner(struct rw_semaphore *sem)
 {
 	return false;
 }
@@ -432,7 +464,7 @@ struct rw_semaphore __sched *rwsem_down_write_failed(struct rw_semaphore *sem)
 
 	/* we're now waiting on the lock, but no longer actively locking */
 	if (waiting) {
-		count = ACCESS_ONCE(sem->count);
+		count = READ_ONCE(sem->count);
 
 		/*
 		 * If there were already threads queued before us and there are
@@ -478,7 +510,38 @@ struct rw_semaphore *rwsem_wake(struct rw_semaphore *sem)
 {
 	unsigned long flags;
 
+	/*
+	 * If a spinner is present, it is not necessary to do the wakeup.
+	 * Try to do wakeup only if the trylock succeeds to minimize
+	 * spinlock contention which may introduce too much delay in the
+	 * unlock operation.
+	 *
+	 *    spinning writer		up_write/up_read caller
+	 *    ---------------		-----------------------
+	 * [S]   osq_unlock()		[L]   osq
+	 *	 MB			      RMB
+	 * [RmW] rwsem_try_write_lock() [RmW] spin_trylock(wait_lock)
+	 *
+	 * Here, it is important to make sure that there won't be a missed
+	 * wakeup while the rwsem is free and the only spinning writer goes
+	 * to sleep without taking the rwsem. Even when the spinning writer
+	 * is just going to break out of the waiting loop, it will still do
+	 * a trylock in rwsem_down_write_failed() before sleeping. IOW, if
+	 * rwsem_has_spinner() is true, it will guarantee at least one
+	 * trylock attempt on the rwsem later on.
+	 */
+	if (rwsem_has_spinner(sem)) {
+		/*
+		 * The smp_rmb() here is to make sure that the spinner
+		 * state is consulted before reading the wait_lock.
+		 */
+		smp_rmb();
+		if (!raw_spin_trylock_irqsave(&sem->wait_lock, flags))
+			return sem;
+		goto locked;
+	}
 	raw_spin_lock_irqsave(&sem->wait_lock, flags);
+locked:
 
 	/* do nothing if list empty */
 	if (!list_empty(&sem->wait_list))

@@ -33,7 +33,7 @@
  */
 static inline void __down_read(struct rw_semaphore *sem)
 {
-	if (unlikely(atomic_long_inc_return((atomic_long_t *)&sem->count) <= 0))
+	if (unlikely(atomic_long_inc_return_acquire((atomic_long_t *)&sem->count) <= 0))
 		rwsem_down_read_failed(sem);
 }
 
@@ -42,7 +42,7 @@ static inline int __down_read_trylock(struct rw_semaphore *sem)
 	long tmp;
 
 	while ((tmp = sem->count) >= 0) {
-		if (tmp == cmpxchg(&sem->count, tmp,
+		if (tmp == cmpxchg_acquire(&sem->count, tmp,
 				   tmp + RWSEM_ACTIVE_READ_BIAS)) {
 			return 1;
 		}
@@ -57,7 +57,7 @@ static inline void __down_write_nested(struct rw_semaphore *sem, int subclass)
 {
 	long tmp;
 
-	tmp = atomic_long_add_return(RWSEM_ACTIVE_WRITE_BIAS,
+	tmp = atomic_long_add_return_acquire(RWSEM_ACTIVE_WRITE_BIAS,
 				     (atomic_long_t *)&sem->count);
 	if (unlikely(tmp != RWSEM_ACTIVE_WRITE_BIAS))
 		rwsem_down_write_failed(sem);
@@ -72,7 +72,7 @@ static inline int __down_write_trylock(struct rw_semaphore *sem)
 {
 	long tmp;
 
-	tmp = cmpxchg(&sem->count, RWSEM_UNLOCKED_VALUE,
+	tmp = cmpxchg_acquire(&sem->count, RWSEM_UNLOCKED_VALUE,
 		      RWSEM_ACTIVE_WRITE_BIAS);
 	return tmp == RWSEM_UNLOCKED_VALUE;
 }
@@ -84,7 +84,7 @@ static inline void __up_read(struct rw_semaphore *sem)
 {
 	long tmp;
 
-	tmp = atomic_long_dec_return((atomic_long_t *)&sem->count);
+	tmp = atomic_long_dec_return_release((atomic_long_t *)&sem->count);
 	if (unlikely(tmp < -1 && (tmp & RWSEM_ACTIVE_MASK) == 0))
 		rwsem_wake(sem);
 }
@@ -94,7 +94,7 @@ static inline void __up_read(struct rw_semaphore *sem)
  */
 static inline void __up_write(struct rw_semaphore *sem)
 {
-	if (unlikely(atomic_long_sub_return(RWSEM_ACTIVE_WRITE_BIAS,
+	if (unlikely(atomic_long_sub_return_release(RWSEM_ACTIVE_WRITE_BIAS,
 				 (atomic_long_t *)&sem->count) < 0))
 		rwsem_wake(sem);
 }
@@ -114,7 +114,14 @@ static inline void __downgrade_write(struct rw_semaphore *sem)
 {
 	long tmp;
 
-	tmp = atomic_long_add_return(-RWSEM_WAITING_BIAS,
+	/*
+	 * When downgrading from exclusive to shared ownership,
+	 * anything inside the write-locked region cannot leak
+	 * into the read side. In contrast, anything in the
+	 * read-locked region is ok to be re-ordered into the
+	 * write side. As such, rely on RELEASE semantics.
+	 */
+	tmp = atomic_long_add_return_release(-RWSEM_WAITING_BIAS,
 				     (atomic_long_t *)&sem->count);
 	if (tmp < 0)
 		rwsem_downgrade_wake(sem);

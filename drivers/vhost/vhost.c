@@ -22,19 +22,96 @@
 #include <linux/file.h>
 #include <linux/highmem.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <linux/kthread.h>
 #include <linux/cgroup.h>
 #include <linux/module.h>
+#include <linux/sort.h>
 
 #include "vhost.h"
 
+static ushort max_mem_regions = 64;
+module_param(max_mem_regions, ushort, 0444);
+MODULE_PARM_DESC(max_mem_regions,
+	"Maximum number of memory regions in memory map. (default: 64)");
+
 enum {
-	VHOST_MEMORY_MAX_NREGIONS = 64,
 	VHOST_MEMORY_F_LOG = 0x1,
 };
 
 #define vhost_used_event(vq) ((__virtio16 __user *)&vq->avail->ring[vq->num])
 #define vhost_avail_event(vq) ((__virtio16 __user *)&vq->used->ring[vq->num])
+
+#ifdef CONFIG_VHOST_CROSS_ENDIAN_LEGACY
+static void vhost_vq_reset_user_be(struct vhost_virtqueue *vq)
+{
+	vq->user_be = !virtio_legacy_is_little_endian();
+}
+
+static long vhost_set_vring_endian(struct vhost_virtqueue *vq, int __user *argp)
+{
+	struct vhost_vring_state s;
+
+	if (vq->private_data)
+		return -EBUSY;
+
+	if (copy_from_user(&s, argp, sizeof(s)))
+		return -EFAULT;
+
+	if (s.num != VHOST_VRING_LITTLE_ENDIAN &&
+	    s.num != VHOST_VRING_BIG_ENDIAN)
+		return -EINVAL;
+
+	vq->user_be = s.num;
+
+	return 0;
+}
+
+static long vhost_get_vring_endian(struct vhost_virtqueue *vq, u32 idx,
+				   int __user *argp)
+{
+	struct vhost_vring_state s = {
+		.index = idx,
+		.num = vq->user_be
+	};
+
+	if (copy_to_user(argp, &s, sizeof(s)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static void vhost_init_is_le(struct vhost_virtqueue *vq)
+{
+	/* Note for legacy virtio: user_be is initialized at reset time
+	 * according to the host endianness. If userspace does not set an
+	 * explicit endianness, the default behavior is native endian, as
+	 * expected by legacy virtio.
+	 */
+	vq->is_le = vhost_has_feature(vq, VIRTIO_F_VERSION_1) || !vq->user_be;
+}
+#else
+static void vhost_vq_reset_user_be(struct vhost_virtqueue *vq)
+{
+}
+
+static long vhost_set_vring_endian(struct vhost_virtqueue *vq, int __user *argp)
+{
+	return -ENOIOCTLCMD;
+}
+
+static long vhost_get_vring_endian(struct vhost_virtqueue *vq, u32 idx,
+				   int __user *argp)
+{
+	return -ENOIOCTLCMD;
+}
+
+static void vhost_init_is_le(struct vhost_virtqueue *vq)
+{
+	if (vhost_has_feature(vq, VIRTIO_F_VERSION_1))
+		vq->is_le = true;
+}
+#endif /* CONFIG_VHOST_CROSS_ENDIAN_LEGACY */
 
 static void vhost_poll_func(struct file *file, wait_queue_head_t *wqh,
 			    poll_table *pt)
@@ -199,6 +276,8 @@ static void vhost_vq_reset(struct vhost_dev *dev,
 	vq->call = NULL;
 	vq->log_ctx = NULL;
 	vq->memory = NULL;
+	vq->is_le = virtio_legacy_is_little_endian();
+	vhost_vq_reset_user_be(vq);
 }
 
 static int vhost_worker(void *data)
@@ -470,7 +549,7 @@ void vhost_dev_cleanup(struct vhost_dev *dev, bool locked)
 		fput(dev->log_file);
 	dev->log_file = NULL;
 	/* No one will access memory at this point */
-	kfree(dev->memory);
+	kvfree(dev->memory);
 	dev->memory = NULL;
 	WARN_ON(!list_empty(&dev->work_list));
 	if (dev->worker) {
@@ -590,6 +669,25 @@ int vhost_vq_access_ok(struct vhost_virtqueue *vq)
 }
 EXPORT_SYMBOL_GPL(vhost_vq_access_ok);
 
+static int vhost_memory_reg_sort_cmp(const void *p1, const void *p2)
+{
+	const struct vhost_memory_region *r1 = p1, *r2 = p2;
+	if (r1->guest_phys_addr < r2->guest_phys_addr)
+		return 1;
+	if (r1->guest_phys_addr > r2->guest_phys_addr)
+		return -1;
+	return 0;
+}
+
+static void *vhost_kvzalloc(unsigned long size)
+{
+	void *n = kzalloc(size, GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
+
+	if (!n)
+		n = vzalloc(size);
+	return n;
+}
+
 static long vhost_set_memory(struct vhost_dev *d, struct vhost_memory __user *m)
 {
 	struct vhost_memory mem, *newmem, *oldmem;
@@ -600,21 +698,23 @@ static long vhost_set_memory(struct vhost_dev *d, struct vhost_memory __user *m)
 		return -EFAULT;
 	if (mem.padding)
 		return -EOPNOTSUPP;
-	if (mem.nregions > VHOST_MEMORY_MAX_NREGIONS)
+	if (mem.nregions > max_mem_regions)
 		return -E2BIG;
-	newmem = kmalloc(size + mem.nregions * sizeof *m->regions, GFP_KERNEL);
+	newmem = vhost_kvzalloc(size + mem.nregions * sizeof(*m->regions));
 	if (!newmem)
 		return -ENOMEM;
 
 	memcpy(newmem, &mem, size);
 	if (copy_from_user(newmem->regions, m->regions,
 			   mem.nregions * sizeof *m->regions)) {
-		kfree(newmem);
+		kvfree(newmem);
 		return -EFAULT;
 	}
+	sort(newmem->regions, newmem->nregions, sizeof(*newmem->regions),
+		vhost_memory_reg_sort_cmp, NULL);
 
 	if (!memory_access_ok(d, newmem, 0)) {
-		kfree(newmem);
+		kvfree(newmem);
 		return -EFAULT;
 	}
 	oldmem = d->memory;
@@ -626,7 +726,7 @@ static long vhost_set_memory(struct vhost_dev *d, struct vhost_memory __user *m)
 		d->vqs[i]->memory = newmem;
 		mutex_unlock(&d->vqs[i]->mutex);
 	}
-	kfree(oldmem);
+	kvfree(oldmem);
 	return 0;
 }
 
@@ -806,6 +906,12 @@ long vhost_vring_ioctl(struct vhost_dev *d, int ioctl, void __user *argp)
 		} else
 			filep = eventfp;
 		break;
+	case VHOST_SET_VRING_ENDIAN:
+		r = vhost_set_vring_endian(vq, argp);
+		break;
+	case VHOST_GET_VRING_ENDIAN:
+		r = vhost_get_vring_endian(vq, idx, argp);
+		break;
 	default:
 		r = -ENOIOCTLCMD;
 	}
@@ -886,6 +992,7 @@ long vhost_dev_ioctl(struct vhost_dev *d, unsigned int ioctl, void __user *argp)
 		}
 		if (eventfp != d->log_file) {
 			filep = d->log_file;
+			d->log_file = eventfp;
 			ctx = d->log_ctx;
 			d->log_ctx = eventfp ?
 				eventfd_ctx_fileget(eventfp) : NULL;
@@ -913,17 +1020,22 @@ EXPORT_SYMBOL_GPL(vhost_dev_ioctl);
 static const struct vhost_memory_region *find_region(struct vhost_memory *mem,
 						     __u64 addr, __u32 len)
 {
-	struct vhost_memory_region *reg;
-	int i;
+	const struct vhost_memory_region *reg;
+	int start = 0, end = mem->nregions;
 
-	/* linear search is not brilliant, but we really have on the order of 6
-	 * regions in practice */
-	for (i = 0; i < mem->nregions; ++i) {
-		reg = mem->regions + i;
-		if (reg->guest_phys_addr <= addr &&
-		    reg->guest_phys_addr + reg->memory_size - 1 >= addr)
-			return reg;
+	while (start < end) {
+		int slot = start + (end - start) / 2;
+		reg = mem->regions + slot;
+		if (addr >= reg->guest_phys_addr)
+			end = slot;
+		else
+			start = slot + 1;
 	}
+
+	reg = mem->regions + start;
+	if (addr >= reg->guest_phys_addr &&
+		reg->guest_phys_addr + reg->memory_size > addr)
+		return reg;
 	return NULL;
 }
 
@@ -1044,8 +1156,12 @@ int vhost_init_used(struct vhost_virtqueue *vq)
 {
 	__virtio16 last_used_idx;
 	int r;
-	if (!vq->private_data)
+	if (!vq->private_data) {
+		vq->is_le = virtio_legacy_is_little_endian();
 		return 0;
+	}
+
+	vhost_init_is_le(vq);
 
 	r = vhost_update_used_flags(vq);
 	if (r)

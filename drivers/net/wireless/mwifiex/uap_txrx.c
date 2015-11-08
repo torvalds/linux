@@ -31,7 +31,8 @@
  */
 static bool
 mwifiex_uap_del_tx_pkts_in_ralist(struct mwifiex_private *priv,
-				  struct list_head *ra_list_head)
+				  struct list_head *ra_list_head,
+				  int tid)
 {
 	struct mwifiex_ra_list_tbl *ra_list;
 	struct sk_buff *skb, *tmp;
@@ -49,7 +50,10 @@ mwifiex_uap_del_tx_pkts_in_ralist(struct mwifiex_private *priv,
 				__skb_unlink(skb, &ra_list->skb_head);
 				mwifiex_write_data_complete(adapter, skb, 0,
 							    -1);
-				atomic_dec(&priv->wmm.tx_pkts_queued);
+				if (ra_list->tx_paused)
+					priv->wmm.pkts_paused[tid]--;
+				else
+					atomic_dec(&priv->wmm.tx_pkts_queued);
 				pkt_deleted = true;
 			}
 			if ((atomic_read(&adapter->pending_bridged_pkts) <=
@@ -77,7 +81,7 @@ static void mwifiex_uap_cleanup_tx_queues(struct mwifiex_private *priv)
 		if (priv->del_list_idx == MAX_NUM_TID)
 			priv->del_list_idx = 0;
 		ra_list = &priv->wmm.tid_tbl_ptr[priv->del_list_idx].ra_list;
-		if (mwifiex_uap_del_tx_pkts_in_ralist(priv, ra_list)) {
+		if (mwifiex_uap_del_tx_pkts_in_ralist(priv, ra_list, i)) {
 			priv->del_list_idx++;
 			break;
 		}
@@ -97,14 +101,15 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 	struct mwifiex_txinfo *tx_info;
 	int hdr_chop;
 	struct ethhdr *p_ethhdr;
+	struct mwifiex_sta_node *src_node;
 
 	uap_rx_pd = (struct uap_rxpd *)(skb->data);
 	rx_pkt_hdr = (void *)uap_rx_pd + le16_to_cpu(uap_rx_pd->rx_pkt_offset);
 
 	if ((atomic_read(&adapter->pending_bridged_pkts) >=
 					     MWIFIEX_BRIDGED_PKTS_THR_HIGH)) {
-		dev_err(priv->adapter->dev,
-			"Tx: Bridge packet limit reached. Drop packet!\n");
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "Tx: Bridge packet limit reached. Drop packet!\n");
 		kfree_skb(skb);
 		mwifiex_uap_cleanup_tx_queues(priv);
 		return;
@@ -153,15 +158,15 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 	skb_pull(skb, hdr_chop);
 
 	if (skb_headroom(skb) < MWIFIEX_MIN_DATA_HEADER_LEN) {
-		dev_dbg(priv->adapter->dev,
-			"data: Tx: insufficient skb headroom %d\n",
-			skb_headroom(skb));
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "data: Tx: insufficient skb headroom %d\n",
+			    skb_headroom(skb));
 		/* Insufficient skb headroom - allocate a new skb */
 		new_skb =
 			skb_realloc_headroom(skb, MWIFIEX_MIN_DATA_HEADER_LEN);
 		if (unlikely(!new_skb)) {
-			dev_err(priv->adapter->dev,
-				"Tx: cannot allocate new_skb\n");
+			mwifiex_dbg(priv->adapter, ERROR,
+				    "Tx: cannot allocate new_skb\n");
 			kfree_skb(skb);
 			priv->stats.tx_dropped++;
 			return;
@@ -169,8 +174,9 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 
 		kfree_skb(skb);
 		skb = new_skb;
-		dev_dbg(priv->adapter->dev, "info: new skb headroom %d\n",
-			skb_headroom(skb));
+		mwifiex_dbg(priv->adapter, INFO,
+			    "info: new skb headroom %d\n",
+			    skb_headroom(skb));
 	}
 
 	tx_info = MWIFIEX_SKB_TXCB(skb);
@@ -178,6 +184,15 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 	tx_info->bss_num = priv->bss_num;
 	tx_info->bss_type = priv->bss_type;
 	tx_info->flags |= MWIFIEX_BUF_FLAG_BRIDGED_PKT;
+
+	src_node = mwifiex_get_sta_entry(priv, rx_pkt_hdr->eth803_hdr.h_source);
+	if (src_node) {
+		src_node->stats.last_rx = jiffies;
+		src_node->stats.rx_bytes += skb->len;
+		src_node->stats.rx_packets++;
+		src_node->stats.last_tx_rate = uap_rx_pd->rx_rate;
+		src_node->stats.last_tx_htinfo = uap_rx_pd->ht_info;
+	}
 
 	if (is_unicast_ether_addr(rx_pkt_hdr->eth803_hdr.h_dest)) {
 		/* Update bridge packet statistics as the
@@ -225,7 +240,8 @@ int mwifiex_handle_uap_rx_forward(struct mwifiex_private *priv,
 
 	/* don't do packet forwarding in disconnected state */
 	if (!priv->media_connected) {
-		dev_err(adapter->dev, "drop packet in disconnected state.\n");
+		mwifiex_dbg(adapter, ERROR,
+			    "drop packet in disconnected state.\n");
 		dev_kfree_skb_any(skb);
 		return 0;
 	}
@@ -273,13 +289,20 @@ int mwifiex_process_uap_rx_packet(struct mwifiex_private *priv,
 	rx_pkt_type = le16_to_cpu(uap_rx_pd->rx_pkt_type);
 	rx_pkt_hdr = (void *)uap_rx_pd + le16_to_cpu(uap_rx_pd->rx_pkt_offset);
 
+	ether_addr_copy(ta, rx_pkt_hdr->eth803_hdr.h_source);
+
 	if ((le16_to_cpu(uap_rx_pd->rx_pkt_offset) +
 	     le16_to_cpu(uap_rx_pd->rx_pkt_length)) > (u16) skb->len) {
-		dev_err(adapter->dev,
-			"wrong rx packet: len=%d, offset=%d, length=%d\n",
-			skb->len, le16_to_cpu(uap_rx_pd->rx_pkt_offset),
-			le16_to_cpu(uap_rx_pd->rx_pkt_length));
+		mwifiex_dbg(adapter, ERROR,
+			    "wrong rx packet: len=%d, offset=%d, length=%d\n",
+			    skb->len, le16_to_cpu(uap_rx_pd->rx_pkt_offset),
+			    le16_to_cpu(uap_rx_pd->rx_pkt_length));
 		priv->stats.rx_dropped++;
+
+		node = mwifiex_get_sta_entry(priv, ta);
+		if (node)
+			node->stats.tx_failed++;
+
 		dev_kfree_skb_any(skb);
 		return 0;
 	}
@@ -287,12 +310,12 @@ int mwifiex_process_uap_rx_packet(struct mwifiex_private *priv,
 	if (rx_pkt_type == PKT_TYPE_MGMT) {
 		ret = mwifiex_process_mgmt_packet(priv, skb);
 		if (ret)
-			dev_err(adapter->dev, "Rx of mgmt packet failed");
+			mwifiex_dbg(adapter, ERROR,
+				    "Rx of mgmt packet failed");
 		dev_kfree_skb_any(skb);
 		return ret;
 	}
 
-	memcpy(ta, rx_pkt_hdr->eth803_hdr.h_source, ETH_ALEN);
 
 	if (rx_pkt_type != PKT_TYPE_BAR && uap_rx_pd->priority < MAX_NUM_TID) {
 		spin_lock_irqsave(&priv->sta_list_spinlock, flags);
@@ -354,7 +377,8 @@ void *mwifiex_process_uap_txpd(struct mwifiex_private *priv,
 		       INTF_HEADER_LEN;
 
 	if (!skb->len) {
-		dev_err(adapter->dev, "Tx: bad packet length: %d\n", skb->len);
+		mwifiex_dbg(adapter, ERROR,
+			    "Tx: bad packet length: %d\n", skb->len);
 		tx_info->status_code = -1;
 		return skb->data;
 	}

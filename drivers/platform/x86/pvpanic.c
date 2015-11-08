@@ -92,13 +92,13 @@ pvpanic_walk_resources(struct acpi_resource *res, void *context)
 
 static int pvpanic_add(struct acpi_device *device)
 {
-	acpi_status status;
-	u64 ret;
+	int ret;
 
-	status = acpi_evaluate_integer(device->handle, "_STA", NULL,
-				       &ret);
+	ret = acpi_bus_get_status(device);
+	if (ret < 0)
+		return ret;
 
-	if (ACPI_FAILURE(status) || (ret & 0x0B) != 0x0B)
+	if (!device->status.enabled || !device->status.functional)
 		return -ENODEV;
 
 	acpi_walk_resources(device->handle, METHOD_NAME__CRS,

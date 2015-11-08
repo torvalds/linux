@@ -211,10 +211,9 @@ static void initialize(struct lg_cpu *cpu)
 
 	/*
 	 * The Guest tells us where we're not to deliver interrupts by putting
-	 * the range of addresses into "struct lguest_data".
+	 * the instruction address into "struct lguest_data".
 	 */
-	if (get_user(cpu->lg->noirq_start, &cpu->lg->lguest_data->noirq_start)
-	    || get_user(cpu->lg->noirq_end, &cpu->lg->lguest_data->noirq_end))
+	if (get_user(cpu->lg->noirq_iret, &cpu->lg->lguest_data->noirq_iret))
 		kill_guest(cpu, "bad guest page %p", cpu->lg->lguest_data);
 
 	/*

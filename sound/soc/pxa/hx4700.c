@@ -126,17 +126,12 @@ static const struct snd_soc_dapm_route hx4700_audio_map[] = {
  */
 static int hx4700_ak4641_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
 	int err;
 
 	/* Jack detection API stuff */
-	err = snd_soc_jack_new(codec, "Headphone Jack",
-				SND_JACK_HEADPHONE, &hs_jack);
-	if (err)
-		return err;
-
-	err = snd_soc_jack_add_pins(&hs_jack, ARRAY_SIZE(hs_jack_pin),
-					hs_jack_pin);
+	err = snd_soc_card_jack_new(rtd->card, "Headphone Jack",
+				    SND_JACK_HEADPHONE, &hs_jack, hs_jack_pin,
+				    ARRAY_SIZE(hs_jack_pin));
 	if (err)
 		return err;
 
@@ -198,7 +193,7 @@ static int hx4700_audio_probe(struct platform_device *pdev)
 		return ret;
 
 	snd_soc_card_hx4700.dev = &pdev->dev;
-	ret = snd_soc_register_card(&snd_soc_card_hx4700);
+	ret = devm_snd_soc_register_card(&pdev->dev, &snd_soc_card_hx4700);
 	if (ret)
 		gpio_free_array(hx4700_audio_gpios,
 				ARRAY_SIZE(hx4700_audio_gpios));
@@ -208,8 +203,6 @@ static int hx4700_audio_probe(struct platform_device *pdev)
 
 static int hx4700_audio_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_card(&snd_soc_card_hx4700);
-
 	gpio_set_value(GPIO92_HX4700_HP_DRIVER, 0);
 	gpio_set_value(GPIO107_HX4700_SPK_nSD, 0);
 

@@ -590,24 +590,35 @@ static void delayed_free_vfsmnt(struct rcu_head *head)
 }
 
 /* call under rcu_read_lock */
-bool legitimize_mnt(struct vfsmount *bastard, unsigned seq)
+int __legitimize_mnt(struct vfsmount *bastard, unsigned seq)
 {
 	struct mount *mnt;
 	if (read_seqretry(&mount_lock, seq))
-		return false;
+		return 1;
 	if (bastard == NULL)
-		return true;
+		return 0;
 	mnt = real_mount(bastard);
 	mnt_add_count(mnt, 1);
 	if (likely(!read_seqretry(&mount_lock, seq)))
-		return true;
+		return 0;
 	if (bastard->mnt_flags & MNT_SYNC_UMOUNT) {
 		mnt_add_count(mnt, -1);
-		return false;
+		return 1;
 	}
-	rcu_read_unlock();
-	mntput(bastard);
-	rcu_read_lock();
+	return -1;
+}
+
+/* call under rcu_read_lock */
+bool legitimize_mnt(struct vfsmount *bastard, unsigned seq)
+{
+	int res = __legitimize_mnt(bastard, seq);
+	if (likely(!res))
+		return true;
+	if (unlikely(res < 0)) {
+		rcu_read_unlock();
+		mntput(bastard);
+		rcu_read_lock();
+	}
 	return false;
 }
 
@@ -632,14 +643,17 @@ struct mount *__lookup_mnt(struct vfsmount *mnt, struct dentry *dentry)
  */
 struct mount *__lookup_mnt_last(struct vfsmount *mnt, struct dentry *dentry)
 {
-	struct mount *p, *res;
-	res = p = __lookup_mnt(mnt, dentry);
+	struct mount *p, *res = NULL;
+	p = __lookup_mnt(mnt, dentry);
 	if (!p)
 		goto out;
+	if (!(p->mnt.mnt_flags & MNT_UMOUNT))
+		res = p;
 	hlist_for_each_entry_continue(p, mnt_hash) {
 		if (&p->mnt_parent->mnt != mnt || p->mnt_mountpoint != dentry)
 			break;
-		res = p;
+		if (!(p->mnt.mnt_flags & MNT_UMOUNT))
+			res = p;
 	}
 out:
 	return res;
@@ -795,10 +809,8 @@ static void __touch_mnt_namespace(struct mnt_namespace *ns)
 /*
  * vfsmount lock must be held for write
  */
-static void detach_mnt(struct mount *mnt, struct path *old_path)
+static void unhash_mnt(struct mount *mnt)
 {
-	old_path->dentry = mnt->mnt_mountpoint;
-	old_path->mnt = &mnt->mnt_parent->mnt;
 	mnt->mnt_parent = mnt;
 	mnt->mnt_mountpoint = mnt->mnt.mnt_root;
 	list_del_init(&mnt->mnt_child);
@@ -806,6 +818,26 @@ static void detach_mnt(struct mount *mnt, struct path *old_path)
 	hlist_del_init(&mnt->mnt_mp_list);
 	put_mountpoint(mnt->mnt_mp);
 	mnt->mnt_mp = NULL;
+}
+
+/*
+ * vfsmount lock must be held for write
+ */
+static void detach_mnt(struct mount *mnt, struct path *old_path)
+{
+	old_path->dentry = mnt->mnt_mountpoint;
+	old_path->mnt = &mnt->mnt_parent->mnt;
+	unhash_mnt(mnt);
+}
+
+/*
+ * vfsmount lock must be held for write
+ */
+static void umount_mnt(struct mount *mnt)
+{
+	/* old mountpoint will be dropped when we can do that */
+	mnt->mnt_ex_mountpoint = mnt->mnt_mountpoint;
+	unhash_mnt(mnt);
 }
 
 /*
@@ -1078,6 +1110,13 @@ static void mntput_no_expire(struct mount *mnt)
 	rcu_read_unlock();
 
 	list_del(&mnt->mnt_instance);
+
+	if (unlikely(!list_empty(&mnt->mnt_mounts))) {
+		struct mount *p, *tmp;
+		list_for_each_entry_safe(p, tmp, &mnt->mnt_mounts,  mnt_child) {
+			umount_mnt(p);
+		}
+	}
 	unlock_mount_hash();
 
 	if (likely(!(mnt->mnt.mnt_flags & MNT_INTERNAL))) {
@@ -1187,7 +1226,7 @@ EXPORT_SYMBOL(replace_mount_options);
 /* iterator; we want it to have access to namespace_sem, thus here... */
 static void *m_start(struct seq_file *m, loff_t *pos)
 {
-	struct proc_mounts *p = proc_mounts(m);
+	struct proc_mounts *p = m->private;
 
 	down_read(&namespace_sem);
 	if (p->cached_event == p->ns->event) {
@@ -1208,7 +1247,7 @@ static void *m_start(struct seq_file *m, loff_t *pos)
 
 static void *m_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	struct proc_mounts *p = proc_mounts(m);
+	struct proc_mounts *p = m->private;
 
 	p->cached_mount = seq_list_next(v, &p->ns->list, pos);
 	p->cached_index = *pos;
@@ -1222,7 +1261,7 @@ static void m_stop(struct seq_file *m, void *v)
 
 static int m_show(struct seq_file *m, void *v)
 {
-	struct proc_mounts *p = proc_mounts(m);
+	struct proc_mounts *p = m->private;
 	struct mount *r = list_entry(v, struct mount, mnt_list);
 	return p->show(m, &r->mnt);
 }
@@ -1298,16 +1337,14 @@ static HLIST_HEAD(unmounted);	/* protected by namespace_sem */
 
 static void namespace_unlock(void)
 {
-	struct hlist_head head = unmounted;
+	struct hlist_head head;
 
-	if (likely(hlist_empty(&head))) {
-		up_write(&namespace_sem);
-		return;
-	}
+	hlist_move_list(&unmounted, &head);
 
-	head.first->pprev = &head.first;
-	INIT_HLIST_HEAD(&unmounted);
 	up_write(&namespace_sem);
+
+	if (likely(hlist_empty(&head)))
+		return;
 
 	synchronize_rcu();
 
@@ -1319,49 +1356,90 @@ static inline void namespace_lock(void)
 	down_write(&namespace_sem);
 }
 
+enum umount_tree_flags {
+	UMOUNT_SYNC = 1,
+	UMOUNT_PROPAGATE = 2,
+	UMOUNT_CONNECTED = 4,
+};
+
+static bool disconnect_mount(struct mount *mnt, enum umount_tree_flags how)
+{
+	/* Leaving mounts connected is only valid for lazy umounts */
+	if (how & UMOUNT_SYNC)
+		return true;
+
+	/* A mount without a parent has nothing to be connected to */
+	if (!mnt_has_parent(mnt))
+		return true;
+
+	/* Because the reference counting rules change when mounts are
+	 * unmounted and connected, umounted mounts may not be
+	 * connected to mounted mounts.
+	 */
+	if (!(mnt->mnt_parent->mnt.mnt_flags & MNT_UMOUNT))
+		return true;
+
+	/* Has it been requested that the mount remain connected? */
+	if (how & UMOUNT_CONNECTED)
+		return false;
+
+	/* Is the mount locked such that it needs to remain connected? */
+	if (IS_MNT_LOCKED(mnt))
+		return false;
+
+	/* By default disconnect the mount */
+	return true;
+}
+
 /*
  * mount_lock must be held
  * namespace_sem must be held for write
- * how = 0 => just this tree, don't propagate
- * how = 1 => propagate; we know that nobody else has reference to any victims
- * how = 2 => lazy umount
  */
-void umount_tree(struct mount *mnt, int how)
+static void umount_tree(struct mount *mnt, enum umount_tree_flags how)
 {
-	HLIST_HEAD(tmp_list);
+	LIST_HEAD(tmp_list);
 	struct mount *p;
 
+	if (how & UMOUNT_PROPAGATE)
+		propagate_mount_unlock(mnt);
+
+	/* Gather the mounts to umount */
 	for (p = mnt; p; p = next_mnt(p, mnt)) {
-		hlist_del_init_rcu(&p->mnt_hash);
-		hlist_add_head(&p->mnt_hash, &tmp_list);
+		p->mnt.mnt_flags |= MNT_UMOUNT;
+		list_move(&p->mnt_list, &tmp_list);
 	}
 
-	hlist_for_each_entry(p, &tmp_list, mnt_hash)
+	/* Hide the mounts from mnt_mounts */
+	list_for_each_entry(p, &tmp_list, mnt_list) {
 		list_del_init(&p->mnt_child);
+	}
 
-	if (how)
+	/* Add propogated mounts to the tmp_list */
+	if (how & UMOUNT_PROPAGATE)
 		propagate_umount(&tmp_list);
 
-	while (!hlist_empty(&tmp_list)) {
-		p = hlist_entry(tmp_list.first, struct mount, mnt_hash);
-		hlist_del_init_rcu(&p->mnt_hash);
+	while (!list_empty(&tmp_list)) {
+		bool disconnect;
+		p = list_first_entry(&tmp_list, struct mount, mnt_list);
 		list_del_init(&p->mnt_expire);
 		list_del_init(&p->mnt_list);
 		__touch_mnt_namespace(p->mnt_ns);
 		p->mnt_ns = NULL;
-		if (how < 2)
+		if (how & UMOUNT_SYNC)
 			p->mnt.mnt_flags |= MNT_SYNC_UMOUNT;
 
-		pin_insert_group(&p->mnt_umount, &p->mnt_parent->mnt, &unmounted);
+		disconnect = disconnect_mount(p, how);
+
+		pin_insert_group(&p->mnt_umount, &p->mnt_parent->mnt,
+				 disconnect ? &unmounted : NULL);
 		if (mnt_has_parent(p)) {
-			hlist_del_init(&p->mnt_mp_list);
-			put_mountpoint(p->mnt_mp);
 			mnt_add_count(p->mnt_parent, -1);
-			/* old mountpoint will be dropped when we can do that */
-			p->mnt_ex_mountpoint = p->mnt_mountpoint;
-			p->mnt_mountpoint = p->mnt.mnt_root;
-			p->mnt_parent = p;
-			p->mnt_mp = NULL;
+			if (!disconnect) {
+				/* Don't forget about p */
+				list_add_tail(&p->mnt_child, &p->mnt_parent->mnt_mounts);
+			} else {
+				umount_mnt(p);
+			}
 		}
 		change_mnt_propagation(p, MS_PRIVATE);
 	}
@@ -1447,14 +1525,14 @@ static int do_umount(struct mount *mnt, int flags)
 
 	if (flags & MNT_DETACH) {
 		if (!list_empty(&mnt->mnt_list))
-			umount_tree(mnt, 2);
+			umount_tree(mnt, UMOUNT_PROPAGATE);
 		retval = 0;
 	} else {
 		shrink_submounts(mnt);
 		retval = -EBUSY;
 		if (!propagate_mount_busy(mnt, 2)) {
 			if (!list_empty(&mnt->mnt_list))
-				umount_tree(mnt, 1);
+				umount_tree(mnt, UMOUNT_PROPAGATE|UMOUNT_SYNC);
 			retval = 0;
 		}
 	}
@@ -1480,13 +1558,17 @@ void __detach_mounts(struct dentry *dentry)
 
 	namespace_lock();
 	mp = lookup_mountpoint(dentry);
-	if (!mp)
+	if (IS_ERR_OR_NULL(mp))
 		goto out_unlock;
 
 	lock_mount_hash();
 	while (!hlist_empty(&mp->m_list)) {
 		mnt = hlist_entry(mp->m_list.first, struct mount, mnt_mp_list);
-		umount_tree(mnt, 2);
+		if (mnt->mnt.mnt_flags & MNT_UMOUNT) {
+			hlist_add_head(&mnt->mnt_umount.s_list, &unmounted);
+			umount_mnt(mnt);
+		}
+		else umount_tree(mnt, UMOUNT_CONNECTED);
 	}
 	unlock_mount_hash();
 	put_mountpoint(mp);
@@ -1648,7 +1730,7 @@ struct mount *copy_tree(struct mount *mnt, struct dentry *dentry,
 out:
 	if (res) {
 		lock_mount_hash();
-		umount_tree(res, 0);
+		umount_tree(res, UMOUNT_SYNC);
 		unlock_mount_hash();
 	}
 	return q;
@@ -1660,8 +1742,11 @@ struct vfsmount *collect_mounts(struct path *path)
 {
 	struct mount *tree;
 	namespace_lock();
-	tree = copy_tree(real_mount(path->mnt), path->dentry,
-			 CL_COPY_ALL | CL_PRIVATE);
+	if (!check_mnt(real_mount(path->mnt)))
+		tree = ERR_PTR(-EINVAL);
+	else
+		tree = copy_tree(real_mount(path->mnt), path->dentry,
+				 CL_COPY_ALL | CL_PRIVATE);
 	namespace_unlock();
 	if (IS_ERR(tree))
 		return ERR_CAST(tree);
@@ -1672,7 +1757,7 @@ void drop_collected_mounts(struct vfsmount *mnt)
 {
 	namespace_lock();
 	lock_mount_hash();
-	umount_tree(real_mount(mnt), 0);
+	umount_tree(real_mount(mnt), UMOUNT_SYNC);
 	unlock_mount_hash();
 	namespace_unlock();
 }
@@ -1855,7 +1940,7 @@ static int attach_recursive_mnt(struct mount *source_mnt,
  out_cleanup_ids:
 	while (!hlist_empty(&tree_list)) {
 		child = hlist_entry(tree_list.first, struct mount, mnt_hash);
-		umount_tree(child, 0);
+		umount_tree(child, UMOUNT_SYNC);
 	}
 	unlock_mount_hash();
 	cleanup_group_ids(source_mnt, NULL);
@@ -2035,7 +2120,7 @@ static int do_loopback(struct path *path, const char *old_name,
 	err = graft_tree(mnt, parent, mp);
 	if (err) {
 		lock_mount_hash();
-		umount_tree(mnt, 0);
+		umount_tree(mnt, UMOUNT_SYNC);
 		unlock_mount_hash();
 	}
 out2:
@@ -2282,6 +2367,8 @@ unlock:
 	return err;
 }
 
+static bool fs_fully_visible(struct file_system_type *fs_type, int *new_mnt_flags);
+
 /*
  * create a new mount for userspace and request it to be added into the
  * namespace's tree
@@ -2312,6 +2399,10 @@ static int do_new_mount(struct path *path, const char *fstype, int flags,
 		if (!(type->fs_flags & FS_USERNS_DEV_MOUNT)) {
 			flags |= MS_NODEV;
 			mnt_flags |= MNT_NODEV | MNT_LOCK_NODEV;
+		}
+		if (type->fs_flags & FS_USERNS_VISIBLE) {
+			if (!fs_fully_visible(type, &mnt_flags))
+				return -EPERM;
 		}
 	}
 
@@ -2406,7 +2497,7 @@ void mark_mounts_for_expiry(struct list_head *mounts)
 	while (!list_empty(&graveyard)) {
 		mnt = list_first_entry(&graveyard, struct mount, mnt_expire);
 		touch_mnt_namespace(mnt->mnt_ns);
-		umount_tree(mnt, 1);
+		umount_tree(mnt, UMOUNT_PROPAGATE|UMOUNT_SYNC);
 	}
 	unlock_mount_hash();
 	namespace_unlock();
@@ -2477,7 +2568,7 @@ static void shrink_submounts(struct mount *mnt)
 			m = list_first_entry(&graveyard, struct mount,
 						mnt_expire);
 			touch_mnt_namespace(m->mnt_ns);
-			umount_tree(m, 1);
+			umount_tree(m, UMOUNT_PROPAGATE|UMOUNT_SYNC);
 		}
 	}
 }
@@ -3114,9 +3205,10 @@ bool current_chrooted(void)
 	return chrooted;
 }
 
-bool fs_fully_visible(struct file_system_type *type)
+static bool fs_fully_visible(struct file_system_type *type, int *new_mnt_flags)
 {
 	struct mnt_namespace *ns = current->nsproxy->mnt_ns;
+	int new_flags = *new_mnt_flags;
 	struct mount *mnt;
 	bool visible = false;
 
@@ -3126,19 +3218,62 @@ bool fs_fully_visible(struct file_system_type *type)
 	down_read(&namespace_sem);
 	list_for_each_entry(mnt, &ns->list, mnt_list) {
 		struct mount *child;
+		int mnt_flags;
+
 		if (mnt->mnt.mnt_sb->s_type != type)
 			continue;
 
-		/* This mount is not fully visible if there are any child mounts
-		 * that cover anything except for empty directories.
+		/* This mount is not fully visible if it's root directory
+		 * is not the root directory of the filesystem.
+		 */
+		if (mnt->mnt.mnt_root != mnt->mnt.mnt_sb->s_root)
+			continue;
+
+		/* Read the mount flags and filter out flags that
+		 * may safely be ignored.
+		 */
+		mnt_flags = mnt->mnt.mnt_flags;
+		if (mnt->mnt.mnt_sb->s_iflags & SB_I_NOEXEC)
+			mnt_flags &= ~(MNT_LOCK_NOSUID | MNT_LOCK_NOEXEC);
+
+		/* Verify the mount flags are equal to or more permissive
+		 * than the proposed new mount.
+		 */
+		if ((mnt_flags & MNT_LOCK_READONLY) &&
+		    !(new_flags & MNT_READONLY))
+			continue;
+		if ((mnt_flags & MNT_LOCK_NODEV) &&
+		    !(new_flags & MNT_NODEV))
+			continue;
+		if ((mnt_flags & MNT_LOCK_NOSUID) &&
+		    !(new_flags & MNT_NOSUID))
+			continue;
+		if ((mnt_flags & MNT_LOCK_NOEXEC) &&
+		    !(new_flags & MNT_NOEXEC))
+			continue;
+		if ((mnt_flags & MNT_LOCK_ATIME) &&
+		    ((mnt_flags & MNT_ATIME_MASK) != (new_flags & MNT_ATIME_MASK)))
+			continue;
+
+		/* This mount is not fully visible if there are any
+		 * locked child mounts that cover anything except for
+		 * empty directories.
 		 */
 		list_for_each_entry(child, &mnt->mnt_mounts, mnt_child) {
 			struct inode *inode = child->mnt_mountpoint->d_inode;
-			if (!S_ISDIR(inode->i_mode))
-				goto next;
-			if (inode->i_nlink > 2)
+			/* Only worry about locked mounts */
+			if (!(mnt_flags & MNT_LOCKED))
+				continue;
+			/* Is the directory permanetly empty? */
+			if (!is_empty_dir_inode(inode))
 				goto next;
 		}
+		/* Preserve the locked attributes */
+		*new_mnt_flags |= mnt_flags & (MNT_LOCK_READONLY | \
+					       MNT_LOCK_NODEV    | \
+					       MNT_LOCK_NOSUID   | \
+					       MNT_LOCK_NOEXEC   | \
+					       MNT_LOCK_ATIME);
 		visible = true;
 		goto found;
 	next:	;

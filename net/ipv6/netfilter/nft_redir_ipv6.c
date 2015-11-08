@@ -18,26 +18,24 @@
 #include <net/netfilter/nf_nat_redirect.h>
 
 static void nft_redir_ipv6_eval(const struct nft_expr *expr,
-				struct nft_data data[NFT_REG_MAX + 1],
+				struct nft_regs *regs,
 				const struct nft_pktinfo *pkt)
 {
 	struct nft_redir *priv = nft_expr_priv(expr);
 	struct nf_nat_range range;
-	unsigned int verdict;
 
 	memset(&range, 0, sizeof(range));
 	if (priv->sreg_proto_min) {
 		range.min_proto.all =
-			*(__be16 *)&data[priv->sreg_proto_min].data[0];
+			*(__be16 *)&regs->data[priv->sreg_proto_min],
 		range.max_proto.all =
-			*(__be16 *)&data[priv->sreg_proto_max].data[0];
+			*(__be16 *)&regs->data[priv->sreg_proto_max],
 		range.flags |= NF_NAT_RANGE_PROTO_SPECIFIED;
 	}
 
 	range.flags |= priv->flags;
 
-	verdict = nf_nat_redirect_ipv6(pkt->skb, &range, pkt->ops->hooknum);
-	data[NFT_REG_VERDICT].verdict = verdict;
+	regs->verdict.code = nf_nat_redirect_ipv6(pkt->skb, &range, pkt->hook);
 }
 
 static struct nft_expr_type nft_redir_ipv6_type;

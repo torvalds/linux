@@ -1,4 +1,5 @@
 #include <linux/hw_breakpoint.h>
+#include <linux/err.h>
 #include "util.h"
 #include "../perf.h"
 #include "evlist.h"
@@ -10,25 +11,25 @@
 #include "symbol.h"
 #include "cache.h"
 #include "header.h"
+#include "bpf-loader.h"
 #include "debug.h"
-#include <api/fs/debugfs.h>
+#include <api/fs/tracing_path.h>
 #include "parse-events-bison.h"
 #define YY_EXTRA_TYPE int
 #include "parse-events-flex.h"
 #include "pmu.h"
 #include "thread_map.h"
+#include "cpumap.h"
+#include "asm/bug.h"
 
 #define MAX_NAME_LEN 100
-
-struct event_symbol {
-	const char	*symbol;
-	const char	*alias;
-};
 
 #ifdef PARSER_DEBUG
 extern int parse_events_debug;
 #endif
 int parse_events_parse(void *data, void *scanner);
+static int get_config_terms(struct list_head *head_config,
+			    struct list_head *head_terms __maybe_unused);
 
 static struct perf_pmu_event_symbol *perf_pmu_events_list;
 /*
@@ -39,7 +40,7 @@ static struct perf_pmu_event_symbol *perf_pmu_events_list;
  */
 static int perf_pmu_events_list_num;
 
-static struct event_symbol event_symbols_hw[PERF_COUNT_HW_MAX] = {
+struct event_symbol event_symbols_hw[PERF_COUNT_HW_MAX] = {
 	[PERF_COUNT_HW_CPU_CYCLES] = {
 		.symbol = "cpu-cycles",
 		.alias  = "cycles",
@@ -82,7 +83,7 @@ static struct event_symbol event_symbols_hw[PERF_COUNT_HW_MAX] = {
 	},
 };
 
-static struct event_symbol event_symbols_sw[PERF_COUNT_SW_MAX] = {
+struct event_symbol event_symbols_sw[PERF_COUNT_SW_MAX] = {
 	[PERF_COUNT_SW_CPU_CLOCK] = {
 		.symbol = "cpu-clock",
 		.alias  = "",
@@ -174,9 +175,6 @@ struct tracepoint_path *tracepoint_id_to_path(u64 config)
 	u64 id;
 	char evt_path[MAXPATHLEN];
 	char dir_path[MAXPATHLEN];
-
-	if (debugfs_valid_mountpoint(tracing_events_path))
-		return NULL;
 
 	sys_dir = opendir(tracing_events_path);
 	if (!sys_dir)
@@ -282,7 +280,8 @@ const char *event_type(int type)
 static struct perf_evsel *
 __add_event(struct list_head *list, int *idx,
 	    struct perf_event_attr *attr,
-	    char *name, struct cpu_map *cpus)
+	    char *name, struct cpu_map *cpus,
+	    struct list_head *config_terms)
 {
 	struct perf_evsel *evsel;
 
@@ -292,17 +291,24 @@ __add_event(struct list_head *list, int *idx,
 	if (!evsel)
 		return NULL;
 
-	evsel->cpus = cpus;
+	evsel->cpus     = cpu_map__get(cpus);
+	evsel->own_cpus = cpu_map__get(cpus);
+
 	if (name)
 		evsel->name = strdup(name);
+
+	if (config_terms)
+		list_splice(config_terms, &evsel->config_terms);
+
 	list_add_tail(&evsel->node, list);
 	return evsel;
 }
 
 static int add_event(struct list_head *list, int *idx,
-		     struct perf_event_attr *attr, char *name)
+		     struct perf_event_attr *attr, char *name,
+		     struct list_head *config_terms)
 {
-	return __add_event(list, idx, attr, name, NULL) ? 0 : -ENOMEM;
+	return __add_event(list, idx, attr, name, NULL, config_terms) ? 0 : -ENOMEM;
 }
 
 static int parse_aliases(char *str, const char *names[][PERF_EVSEL__MAX_ALIASES], int size)
@@ -381,35 +387,75 @@ int parse_events_add_cache(struct list_head *list, int *idx,
 	memset(&attr, 0, sizeof(attr));
 	attr.config = cache_type | (cache_op << 8) | (cache_result << 16);
 	attr.type = PERF_TYPE_HW_CACHE;
-	return add_event(list, idx, &attr, name);
+	return add_event(list, idx, &attr, name, NULL);
+}
+
+static void tracepoint_error(struct parse_events_error *e, int err,
+			     char *sys, char *name)
+{
+	char help[BUFSIZ];
+
+	/*
+	 * We get error directly from syscall errno ( > 0),
+	 * or from encoded pointer's error ( < 0).
+	 */
+	err = abs(err);
+
+	switch (err) {
+	case EACCES:
+		e->str = strdup("can't access trace events");
+		break;
+	case ENOENT:
+		e->str = strdup("unknown tracepoint");
+		break;
+	default:
+		e->str = strdup("failed to add tracepoint");
+		break;
+	}
+
+	tracing_path__strerror_open_tp(err, help, sizeof(help), sys, name);
+	e->help = strdup(help);
 }
 
 static int add_tracepoint(struct list_head *list, int *idx,
-			  char *sys_name, char *evt_name)
+			  char *sys_name, char *evt_name,
+			  struct parse_events_error *err,
+			  struct list_head *head_config)
 {
 	struct perf_evsel *evsel;
 
 	evsel = perf_evsel__newtp_idx(sys_name, evt_name, (*idx)++);
-	if (!evsel)
-		return -ENOMEM;
+	if (IS_ERR(evsel)) {
+		tracepoint_error(err, PTR_ERR(evsel), sys_name, evt_name);
+		return PTR_ERR(evsel);
+	}
+
+	if (head_config) {
+		LIST_HEAD(config_terms);
+
+		if (get_config_terms(head_config, &config_terms))
+			return -ENOMEM;
+		list_splice(&config_terms, &evsel->config_terms);
+	}
 
 	list_add_tail(&evsel->node, list);
-
 	return 0;
 }
 
 static int add_tracepoint_multi_event(struct list_head *list, int *idx,
-				      char *sys_name, char *evt_name)
+				      char *sys_name, char *evt_name,
+				      struct parse_events_error *err,
+				      struct list_head *head_config)
 {
 	char evt_path[MAXPATHLEN];
 	struct dirent *evt_ent;
 	DIR *evt_dir;
-	int ret = 0;
+	int ret = 0, found = 0;
 
 	snprintf(evt_path, MAXPATHLEN, "%s/%s", tracing_events_path, sys_name);
 	evt_dir = opendir(evt_path);
 	if (!evt_dir) {
-		perror("Can't open event dir");
+		tracepoint_error(err, errno, sys_name, evt_name);
 		return -1;
 	}
 
@@ -423,7 +469,15 @@ static int add_tracepoint_multi_event(struct list_head *list, int *idx,
 		if (!strglobmatch(evt_ent->d_name, evt_name))
 			continue;
 
-		ret = add_tracepoint(list, idx, sys_name, evt_ent->d_name);
+		found++;
+
+		ret = add_tracepoint(list, idx, sys_name, evt_ent->d_name,
+				     err, head_config);
+	}
+
+	if (!found) {
+		tracepoint_error(err, ENOENT, sys_name, evt_name);
+		ret = -1;
 	}
 
 	closedir(evt_dir);
@@ -431,15 +485,21 @@ static int add_tracepoint_multi_event(struct list_head *list, int *idx,
 }
 
 static int add_tracepoint_event(struct list_head *list, int *idx,
-				char *sys_name, char *evt_name)
+				char *sys_name, char *evt_name,
+				struct parse_events_error *err,
+				struct list_head *head_config)
 {
 	return strpbrk(evt_name, "*?") ?
-	       add_tracepoint_multi_event(list, idx, sys_name, evt_name) :
-	       add_tracepoint(list, idx, sys_name, evt_name);
+	       add_tracepoint_multi_event(list, idx, sys_name, evt_name,
+					  err, head_config) :
+	       add_tracepoint(list, idx, sys_name, evt_name,
+			      err, head_config);
 }
 
 static int add_tracepoint_multi_sys(struct list_head *list, int *idx,
-				    char *sys_name, char *evt_name)
+				    char *sys_name, char *evt_name,
+				    struct parse_events_error *err,
+				    struct list_head *head_config)
 {
 	struct dirent *events_ent;
 	DIR *events_dir;
@@ -447,7 +507,7 @@ static int add_tracepoint_multi_sys(struct list_head *list, int *idx,
 
 	events_dir = opendir(tracing_events_path);
 	if (!events_dir) {
-		perror("Can't open event dir");
+		tracepoint_error(err, errno, sys_name, evt_name);
 		return -1;
 	}
 
@@ -463,26 +523,135 @@ static int add_tracepoint_multi_sys(struct list_head *list, int *idx,
 			continue;
 
 		ret = add_tracepoint_event(list, idx, events_ent->d_name,
-					   evt_name);
+					   evt_name, err, head_config);
 	}
 
 	closedir(events_dir);
 	return ret;
 }
 
-int parse_events_add_tracepoint(struct list_head *list, int *idx,
-				char *sys, char *event)
+struct __add_bpf_event_param {
+	struct parse_events_evlist *data;
+	struct list_head *list;
+};
+
+static int add_bpf_event(struct probe_trace_event *tev, int fd,
+			 void *_param)
 {
-	int ret;
+	LIST_HEAD(new_evsels);
+	struct __add_bpf_event_param *param = _param;
+	struct parse_events_evlist *evlist = param->data;
+	struct list_head *list = param->list;
+	struct perf_evsel *pos;
+	int err;
 
-	ret = debugfs_valid_mountpoint(tracing_events_path);
-	if (ret)
-		return ret;
+	pr_debug("add bpf event %s:%s and attach bpf program %d\n",
+		 tev->group, tev->event, fd);
 
-	if (strpbrk(sys, "*?"))
-		return add_tracepoint_multi_sys(list, idx, sys, event);
-	else
-		return add_tracepoint_event(list, idx, sys, event);
+	err = parse_events_add_tracepoint(&new_evsels, &evlist->idx, tev->group,
+					  tev->event, evlist->error, NULL);
+	if (err) {
+		struct perf_evsel *evsel, *tmp;
+
+		pr_debug("Failed to add BPF event %s:%s\n",
+			 tev->group, tev->event);
+		list_for_each_entry_safe(evsel, tmp, &new_evsels, node) {
+			list_del(&evsel->node);
+			perf_evsel__delete(evsel);
+		}
+		return err;
+	}
+	pr_debug("adding %s:%s\n", tev->group, tev->event);
+
+	list_for_each_entry(pos, &new_evsels, node) {
+		pr_debug("adding %s:%s to %p\n",
+			 tev->group, tev->event, pos);
+		pos->bpf_fd = fd;
+	}
+	list_splice(&new_evsels, list);
+	return 0;
+}
+
+int parse_events_load_bpf_obj(struct parse_events_evlist *data,
+			      struct list_head *list,
+			      struct bpf_object *obj)
+{
+	int err;
+	char errbuf[BUFSIZ];
+	struct __add_bpf_event_param param = {data, list};
+	static bool registered_unprobe_atexit = false;
+
+	if (IS_ERR(obj) || !obj) {
+		snprintf(errbuf, sizeof(errbuf),
+			 "Internal error: load bpf obj with NULL");
+		err = -EINVAL;
+		goto errout;
+	}
+
+	/*
+	 * Register atexit handler before calling bpf__probe() so
+	 * bpf__probe() don't need to unprobe probe points its already
+	 * created when failure.
+	 */
+	if (!registered_unprobe_atexit) {
+		atexit(bpf__clear);
+		registered_unprobe_atexit = true;
+	}
+
+	err = bpf__probe(obj);
+	if (err) {
+		bpf__strerror_probe(obj, err, errbuf, sizeof(errbuf));
+		goto errout;
+	}
+
+	err = bpf__load(obj);
+	if (err) {
+		bpf__strerror_load(obj, err, errbuf, sizeof(errbuf));
+		goto errout;
+	}
+
+	err = bpf__foreach_tev(obj, add_bpf_event, &param);
+	if (err) {
+		snprintf(errbuf, sizeof(errbuf),
+			 "Attach events in BPF object failed");
+		goto errout;
+	}
+
+	return 0;
+errout:
+	data->error->help = strdup("(add -v to see detail)");
+	data->error->str = strdup(errbuf);
+	return err;
+}
+
+int parse_events_load_bpf(struct parse_events_evlist *data,
+			  struct list_head *list,
+			  char *bpf_file_name,
+			  bool source)
+{
+	struct bpf_object *obj;
+
+	obj = bpf__prepare_load(bpf_file_name, source);
+	if (IS_ERR(obj) || !obj) {
+		char errbuf[BUFSIZ];
+		int err;
+
+		err = obj ? PTR_ERR(obj) : -EINVAL;
+
+		if (err == -ENOTSUP)
+			snprintf(errbuf, sizeof(errbuf),
+				 "BPF support is not compiled");
+		else
+			snprintf(errbuf, sizeof(errbuf),
+				 "BPF object file '%s' is invalid",
+				 bpf_file_name);
+
+		data->error->help = strdup("(add -v to see detail)");
+		data->error->str = strdup(errbuf);
+		return err;
+	}
+
+	return parse_events_load_bpf_obj(data, list, obj);
 }
 
 static int
@@ -549,16 +718,38 @@ int parse_events_add_breakpoint(struct list_head *list, int *idx,
 	attr.type = PERF_TYPE_BREAKPOINT;
 	attr.sample_period = 1;
 
-	return add_event(list, idx, &attr, NULL);
+	return add_event(list, idx, &attr, NULL, NULL);
 }
 
-static int config_term(struct perf_event_attr *attr,
-		       struct parse_events_term *term)
+static int check_type_val(struct parse_events_term *term,
+			  struct parse_events_error *err,
+			  int type)
 {
-#define CHECK_TYPE_VAL(type)					\
-do {								\
-	if (PARSE_EVENTS__TERM_TYPE_ ## type != term->type_val)	\
-		return -EINVAL;					\
+	if (type == term->type_val)
+		return 0;
+
+	if (err) {
+		err->idx = term->err_val;
+		if (type == PARSE_EVENTS__TERM_TYPE_NUM)
+			err->str = strdup("expected numeric value");
+		else
+			err->str = strdup("expected string value");
+	}
+	return -EINVAL;
+}
+
+typedef int config_term_func_t(struct perf_event_attr *attr,
+			       struct parse_events_term *term,
+			       struct parse_events_error *err);
+
+static int config_term_common(struct perf_event_attr *attr,
+			      struct parse_events_term *term,
+			      struct parse_events_error *err)
+{
+#define CHECK_TYPE_VAL(type)						   \
+do {									   \
+	if (check_type_val(term, err, PARSE_EVENTS__TERM_TYPE_ ## type)) \
+		return -EINVAL;						   \
 } while (0)
 
 	switch (term->type_term) {
@@ -576,7 +767,9 @@ do {								\
 		break;
 	case PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD:
 		CHECK_TYPE_VAL(NUM);
-		attr->sample_period = term->val.num;
+		break;
+	case PARSE_EVENTS__TERM_TYPE_SAMPLE_FREQ:
+		CHECK_TYPE_VAL(NUM);
 		break;
 	case PARSE_EVENTS__TERM_TYPE_BRANCH_SAMPLE_TYPE:
 		/*
@@ -584,10 +777,33 @@ do {								\
 		 * attr->branch_sample_type = term->val.num;
 		 */
 		break;
+	case PARSE_EVENTS__TERM_TYPE_TIME:
+		CHECK_TYPE_VAL(NUM);
+		if (term->val.num > 1) {
+			err->str = strdup("expected 0 or 1");
+			err->idx = term->err_val;
+			return -EINVAL;
+		}
+		break;
+	case PARSE_EVENTS__TERM_TYPE_CALLGRAPH:
+		CHECK_TYPE_VAL(STR);
+		break;
+	case PARSE_EVENTS__TERM_TYPE_STACKSIZE:
+		CHECK_TYPE_VAL(NUM);
+		break;
+	case PARSE_EVENTS__TERM_TYPE_INHERIT:
+		CHECK_TYPE_VAL(NUM);
+		break;
+	case PARSE_EVENTS__TERM_TYPE_NOINHERIT:
+		CHECK_TYPE_VAL(NUM);
+		break;
 	case PARSE_EVENTS__TERM_TYPE_NAME:
 		CHECK_TYPE_VAL(STR);
 		break;
 	default:
+		err->str = strdup("unknown term");
+		err->idx = term->err_term;
+		err->help = parse_events_formats_error_string(NULL);
 		return -EINVAL;
 	}
 
@@ -595,33 +811,149 @@ do {								\
 #undef CHECK_TYPE_VAL
 }
 
+static int config_term_pmu(struct perf_event_attr *attr,
+			   struct parse_events_term *term,
+			   struct parse_events_error *err)
+{
+	if (term->type_term == PARSE_EVENTS__TERM_TYPE_USER)
+		/*
+		 * Always succeed for sysfs terms, as we dont know
+		 * at this point what type they need to have.
+		 */
+		return 0;
+	else
+		return config_term_common(attr, term, err);
+}
+
+static int config_term_tracepoint(struct perf_event_attr *attr,
+				  struct parse_events_term *term,
+				  struct parse_events_error *err)
+{
+	switch (term->type_term) {
+	case PARSE_EVENTS__TERM_TYPE_CALLGRAPH:
+	case PARSE_EVENTS__TERM_TYPE_STACKSIZE:
+	case PARSE_EVENTS__TERM_TYPE_INHERIT:
+	case PARSE_EVENTS__TERM_TYPE_NOINHERIT:
+		return config_term_common(attr, term, err);
+	default:
+		if (err) {
+			err->idx = term->err_term;
+			err->str = strdup("unknown term");
+			err->help = strdup("valid terms: call-graph,stack-size\n");
+		}
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int config_attr(struct perf_event_attr *attr,
-		       struct list_head *head, int fail)
+		       struct list_head *head,
+		       struct parse_events_error *err,
+		       config_term_func_t config_term)
 {
 	struct parse_events_term *term;
 
 	list_for_each_entry(term, head, list)
-		if (config_term(attr, term) && fail)
+		if (config_term(attr, term, err))
 			return -EINVAL;
 
 	return 0;
 }
 
-int parse_events_add_numeric(struct list_head *list, int *idx,
+static int get_config_terms(struct list_head *head_config,
+			    struct list_head *head_terms __maybe_unused)
+{
+#define ADD_CONFIG_TERM(__type, __name, __val)			\
+do {								\
+	struct perf_evsel_config_term *__t;			\
+								\
+	__t = zalloc(sizeof(*__t));				\
+	if (!__t)						\
+		return -ENOMEM;					\
+								\
+	INIT_LIST_HEAD(&__t->list);				\
+	__t->type       = PERF_EVSEL__CONFIG_TERM_ ## __type;	\
+	__t->val.__name = __val;				\
+	list_add_tail(&__t->list, head_terms);			\
+} while (0)
+
+	struct parse_events_term *term;
+
+	list_for_each_entry(term, head_config, list) {
+		switch (term->type_term) {
+		case PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD:
+			ADD_CONFIG_TERM(PERIOD, period, term->val.num);
+			break;
+		case PARSE_EVENTS__TERM_TYPE_SAMPLE_FREQ:
+			ADD_CONFIG_TERM(FREQ, freq, term->val.num);
+			break;
+		case PARSE_EVENTS__TERM_TYPE_TIME:
+			ADD_CONFIG_TERM(TIME, time, term->val.num);
+			break;
+		case PARSE_EVENTS__TERM_TYPE_CALLGRAPH:
+			ADD_CONFIG_TERM(CALLGRAPH, callgraph, term->val.str);
+			break;
+		case PARSE_EVENTS__TERM_TYPE_STACKSIZE:
+			ADD_CONFIG_TERM(STACK_USER, stack_user, term->val.num);
+			break;
+		case PARSE_EVENTS__TERM_TYPE_INHERIT:
+			ADD_CONFIG_TERM(INHERIT, inherit, term->val.num ? 1 : 0);
+			break;
+		case PARSE_EVENTS__TERM_TYPE_NOINHERIT:
+			ADD_CONFIG_TERM(INHERIT, inherit, term->val.num ? 0 : 1);
+			break;
+		default:
+			break;
+		}
+	}
+#undef ADD_EVSEL_CONFIG
+	return 0;
+}
+
+int parse_events_add_tracepoint(struct list_head *list, int *idx,
+				char *sys, char *event,
+				struct parse_events_error *err,
+				struct list_head *head_config)
+{
+	if (head_config) {
+		struct perf_event_attr attr;
+
+		if (config_attr(&attr, head_config, err,
+				config_term_tracepoint))
+			return -EINVAL;
+	}
+
+	if (strpbrk(sys, "*?"))
+		return add_tracepoint_multi_sys(list, idx, sys, event,
+						err, head_config);
+	else
+		return add_tracepoint_event(list, idx, sys, event,
+					    err, head_config);
+}
+
+int parse_events_add_numeric(struct parse_events_evlist *data,
+			     struct list_head *list,
 			     u32 type, u64 config,
 			     struct list_head *head_config)
 {
 	struct perf_event_attr attr;
+	LIST_HEAD(config_terms);
 
 	memset(&attr, 0, sizeof(attr));
 	attr.type = type;
 	attr.config = config;
 
-	if (head_config &&
-	    config_attr(&attr, head_config, 1))
-		return -EINVAL;
+	if (head_config) {
+		if (config_attr(&attr, head_config, data->error,
+				config_term_common))
+			return -EINVAL;
 
-	return add_event(list, idx, &attr, NULL);
+		if (get_config_terms(head_config, &config_terms))
+			return -ENOMEM;
+	}
+
+	return add_event(list, &data->idx, &attr, NULL, &config_terms);
 }
 
 static int parse_events__is_name_term(struct parse_events_term *term)
@@ -640,13 +972,15 @@ static char *pmu_event_name(struct list_head *head_terms)
 	return NULL;
 }
 
-int parse_events_add_pmu(struct list_head *list, int *idx,
-			 char *name, struct list_head *head_config)
+int parse_events_add_pmu(struct parse_events_evlist *data,
+			 struct list_head *list, char *name,
+			 struct list_head *head_config)
 {
 	struct perf_event_attr attr;
 	struct perf_pmu_info info;
 	struct perf_pmu *pmu;
 	struct perf_evsel *evsel;
+	LIST_HEAD(config_terms);
 
 	pmu = perf_pmu__find(name);
 	if (!pmu)
@@ -661,7 +995,7 @@ int parse_events_add_pmu(struct list_head *list, int *idx,
 
 	if (!head_config) {
 		attr.type = pmu->type;
-		evsel = __add_event(list, idx, &attr, NULL, pmu->cpus);
+		evsel = __add_event(list, &data->idx, &attr, NULL, pmu->cpus, NULL);
 		return evsel ? 0 : -ENOMEM;
 	}
 
@@ -672,13 +1006,18 @@ int parse_events_add_pmu(struct list_head *list, int *idx,
 	 * Configure hardcoded terms first, no need to check
 	 * return value when called with fail == 0 ;)
 	 */
-	config_attr(&attr, head_config, 0);
-
-	if (perf_pmu__config(pmu, &attr, head_config))
+	if (config_attr(&attr, head_config, data->error, config_term_pmu))
 		return -EINVAL;
 
-	evsel = __add_event(list, idx, &attr, pmu_event_name(head_config),
-			    pmu->cpus);
+	if (get_config_terms(head_config, &config_terms))
+		return -ENOMEM;
+
+	if (perf_pmu__config(pmu, &attr, head_config, data->error))
+		return -EINVAL;
+
+	evsel = __add_event(list, &data->idx, &attr,
+			    pmu_event_name(head_config), pmu->cpus,
+			    &config_terms);
 	if (evsel) {
 		evsel->unit = info.unit;
 		evsel->scale = info.scale;
@@ -698,6 +1037,11 @@ int parse_events__modifier_group(struct list_head *list,
 void parse_events__set_leader(char *name, struct list_head *list)
 {
 	struct perf_evsel *leader;
+
+	if (list_empty(list)) {
+		WARN_ONCE(true, "WARNING: failed to set leader: empty list");
+		return;
+	}
 
 	__perf_evlist__set_leader(list);
 	leader = list_entry(list->next, struct perf_evsel, node);
@@ -723,7 +1067,9 @@ struct event_modifier {
 	int eh;
 	int eH;
 	int eG;
+	int eI;
 	int precise;
+	int precise_max;
 	int exclude_GH;
 	int sample_read;
 	int pinned;
@@ -737,7 +1083,9 @@ static int get_event_modifier(struct event_modifier *mod, char *str,
 	int eh = evsel ? evsel->attr.exclude_hv : 0;
 	int eH = evsel ? evsel->attr.exclude_host : 0;
 	int eG = evsel ? evsel->attr.exclude_guest : 0;
+	int eI = evsel ? evsel->attr.exclude_idle : 0;
 	int precise = evsel ? evsel->attr.precise_ip : 0;
+	int precise_max = 0;
 	int sample_read = 0;
 	int pinned = evsel ? evsel->attr.pinned : 0;
 
@@ -767,11 +1115,15 @@ static int get_event_modifier(struct event_modifier *mod, char *str,
 			if (!exclude_GH)
 				exclude_GH = eG = eH = 1;
 			eH = 0;
+		} else if (*str == 'I') {
+			eI = 1;
 		} else if (*str == 'p') {
 			precise++;
 			/* use of precise requires exclude_guest */
 			if (!exclude_GH)
 				eG = 1;
+		} else if (*str == 'P') {
+			precise_max = 1;
 		} else if (*str == 'S') {
 			sample_read = 1;
 		} else if (*str == 'D') {
@@ -800,7 +1152,9 @@ static int get_event_modifier(struct event_modifier *mod, char *str,
 	mod->eh = eh;
 	mod->eH = eH;
 	mod->eG = eG;
+	mod->eI = eI;
 	mod->precise = precise;
+	mod->precise_max = precise_max;
 	mod->exclude_GH = exclude_GH;
 	mod->sample_read = sample_read;
 	mod->pinned = pinned;
@@ -817,7 +1171,7 @@ static int check_modifier(char *str)
 	char *p = str;
 
 	/* The sizeof includes 0 byte as well. */
-	if (strlen(str) > (sizeof("ukhGHpppSD") - 1))
+	if (strlen(str) > (sizeof("ukhGHpppPSDI") - 1))
 		return -1;
 
 	while (*p) {
@@ -853,8 +1207,10 @@ int parse_events__modifier_event(struct list_head *list, char *str, bool add)
 		evsel->attr.precise_ip     = mod.precise;
 		evsel->attr.exclude_host   = mod.eH;
 		evsel->attr.exclude_guest  = mod.eG;
+		evsel->attr.exclude_idle   = mod.eI;
 		evsel->exclude_GH          = mod.exclude_GH;
 		evsel->sample_read         = mod.sample_read;
+		evsel->precise_max         = mod.precise_max;
 
 		if (perf_evsel__is_group_leader(evsel))
 			evsel->attr.pinned = mod.pinned;
@@ -1027,20 +1383,31 @@ int parse_events_terms(struct list_head *terms, const char *str)
 	return ret;
 }
 
-int parse_events(struct perf_evlist *evlist, const char *str)
+int parse_events(struct perf_evlist *evlist, const char *str,
+		 struct parse_events_error *err)
 {
 	struct parse_events_evlist data = {
-		.list = LIST_HEAD_INIT(data.list),
-		.idx  = evlist->nr_entries,
+		.list  = LIST_HEAD_INIT(data.list),
+		.idx   = evlist->nr_entries,
+		.error = err,
 	};
 	int ret;
 
 	ret = parse_events__scanner(str, &data, PE_START_EVENTS);
 	perf_pmu__parse_cleanup();
 	if (!ret) {
-		int entries = data.idx - evlist->nr_entries;
-		perf_evlist__splice_list_tail(evlist, &data.list, entries);
+		struct perf_evsel *last;
+
+		if (list_empty(&data.list)) {
+			WARN_ONCE(true, "WARNING: event parser found nothing");
+			return -1;
+		}
+
+		perf_evlist__splice_list_tail(evlist, &data.list);
 		evlist->nr_groups += data.nr_groups;
+		last = perf_evlist__last(evlist);
+		last->cmdline_group_boundary = true;
+
 		return 0;
 	}
 
@@ -1052,41 +1419,181 @@ int parse_events(struct perf_evlist *evlist, const char *str)
 	return ret;
 }
 
+#define MAX_WIDTH 1000
+static int get_term_width(void)
+{
+	struct winsize ws;
+
+	get_term_dimensions(&ws);
+	return ws.ws_col > MAX_WIDTH ? MAX_WIDTH : ws.ws_col;
+}
+
+static void parse_events_print_error(struct parse_events_error *err,
+				     const char *event)
+{
+	const char *str = "invalid or unsupported event: ";
+	char _buf[MAX_WIDTH];
+	char *buf = (char *) event;
+	int idx = 0;
+
+	if (err->str) {
+		/* -2 for extra '' in the final fprintf */
+		int width       = get_term_width() - 2;
+		int len_event   = strlen(event);
+		int len_str, max_len, cut = 0;
+
+		/*
+		 * Maximum error index indent, we will cut
+		 * the event string if it's bigger.
+		 */
+		int max_err_idx = 13;
+
+		/*
+		 * Let's be specific with the message when
+		 * we have the precise error.
+		 */
+		str     = "event syntax error: ";
+		len_str = strlen(str);
+		max_len = width - len_str;
+
+		buf = _buf;
+
+		/* We're cutting from the beggining. */
+		if (err->idx > max_err_idx)
+			cut = err->idx - max_err_idx;
+
+		strncpy(buf, event + cut, max_len);
+
+		/* Mark cut parts with '..' on both sides. */
+		if (cut)
+			buf[0] = buf[1] = '.';
+
+		if ((len_event - cut) > max_len) {
+			buf[max_len - 1] = buf[max_len - 2] = '.';
+			buf[max_len] = 0;
+		}
+
+		idx = len_str + err->idx - cut;
+	}
+
+	fprintf(stderr, "%s'%s'\n", str, buf);
+	if (idx) {
+		fprintf(stderr, "%*s\\___ %s\n", idx + 1, "", err->str);
+		if (err->help)
+			fprintf(stderr, "\n%s\n", err->help);
+		free(err->str);
+		free(err->help);
+	}
+
+	fprintf(stderr, "Run 'perf list' for a list of valid events\n");
+}
+
+#undef MAX_WIDTH
+
 int parse_events_option(const struct option *opt, const char *str,
 			int unset __maybe_unused)
 {
 	struct perf_evlist *evlist = *(struct perf_evlist **)opt->value;
-	int ret = parse_events(evlist, str);
+	struct parse_events_error err = { .idx = 0, };
+	int ret = parse_events(evlist, str, &err);
 
-	if (ret) {
-		fprintf(stderr, "invalid or unsupported event: '%s'\n", str);
-		fprintf(stderr, "Run 'perf list' for a list of valid events\n");
-	}
+	if (ret)
+		parse_events_print_error(&err, str);
+
 	return ret;
+}
+
+static int
+foreach_evsel_in_last_glob(struct perf_evlist *evlist,
+			   int (*func)(struct perf_evsel *evsel,
+				       const void *arg),
+			   const void *arg)
+{
+	struct perf_evsel *last = NULL;
+	int err;
+
+	/*
+	 * Don't return when list_empty, give func a chance to report
+	 * error when it found last == NULL.
+	 *
+	 * So no need to WARN here, let *func do this.
+	 */
+	if (evlist->nr_entries > 0)
+		last = perf_evlist__last(evlist);
+
+	do {
+		err = (*func)(last, arg);
+		if (err)
+			return -1;
+		if (!last)
+			return 0;
+
+		if (last->node.prev == &evlist->entries)
+			return 0;
+		last = list_entry(last->node.prev, struct perf_evsel, node);
+	} while (!last->cmdline_group_boundary);
+
+	return 0;
+}
+
+static int set_filter(struct perf_evsel *evsel, const void *arg)
+{
+	const char *str = arg;
+
+	if (evsel == NULL || evsel->attr.type != PERF_TYPE_TRACEPOINT) {
+		fprintf(stderr,
+			"--filter option should follow a -e tracepoint option\n");
+		return -1;
+	}
+
+	if (perf_evsel__append_filter(evsel, "&&", str) < 0) {
+		fprintf(stderr,
+			"not enough memory to hold filter string\n");
+		return -1;
+	}
+
+	return 0;
 }
 
 int parse_filter(const struct option *opt, const char *str,
 		 int unset __maybe_unused)
 {
 	struct perf_evlist *evlist = *(struct perf_evlist **)opt->value;
-	struct perf_evsel *last = NULL;
 
-	if (evlist->nr_entries > 0)
-		last = perf_evlist__last(evlist);
+	return foreach_evsel_in_last_glob(evlist, set_filter,
+					  (const void *)str);
+}
 
-	if (last == NULL || last->attr.type != PERF_TYPE_TRACEPOINT) {
+static int add_exclude_perf_filter(struct perf_evsel *evsel,
+				   const void *arg __maybe_unused)
+{
+	char new_filter[64];
+
+	if (evsel == NULL || evsel->attr.type != PERF_TYPE_TRACEPOINT) {
 		fprintf(stderr,
-			"--filter option should follow a -e tracepoint option\n");
+			"--exclude-perf option should follow a -e tracepoint option\n");
 		return -1;
 	}
 
-	last->filter = strdup(str);
-	if (last->filter == NULL) {
-		fprintf(stderr, "not enough memory to hold filter string\n");
+	snprintf(new_filter, sizeof(new_filter), "common_pid != %d", getpid());
+
+	if (perf_evsel__append_filter(evsel, "&&", new_filter) < 0) {
+		fprintf(stderr,
+			"not enough memory to hold filter string\n");
 		return -1;
 	}
 
 	return 0;
+}
+
+int exclude_perf(const struct option *opt,
+		 const char *arg __maybe_unused,
+		 int unset __maybe_unused)
+{
+	struct perf_evlist *evlist = *(struct perf_evlist **)opt->value;
+
+	return foreach_evsel_in_last_glob(evlist, add_exclude_perf_filter,
+					  NULL);
 }
 
 static const char * const event_type_descriptors[] = {
@@ -1097,6 +1604,14 @@ static const char * const event_type_descriptors[] = {
 	"Raw hardware event descriptor",
 	"Hardware breakpoint",
 };
+
+static int cmp_string(const void *a, const void *b)
+{
+	const char * const *as = a;
+	const char * const *bs = b;
+
+	return strcmp(*as, *bs);
+}
 
 /*
  * Print the events from <debugfs_mount_point>/tracing/events
@@ -1109,17 +1624,20 @@ void print_tracepoint_events(const char *subsys_glob, const char *event_glob,
 	struct dirent *sys_next, *evt_next, sys_dirent, evt_dirent;
 	char evt_path[MAXPATHLEN];
 	char dir_path[MAXPATHLEN];
-	char sbuf[STRERR_BUFSIZE];
+	char **evt_list = NULL;
+	unsigned int evt_i = 0, evt_num = 0;
+	bool evt_num_known = false;
 
-	if (debugfs_valid_mountpoint(tracing_events_path)) {
-		printf("  [ Tracepoints not available: %s ]\n",
-			strerror_r(errno, sbuf, sizeof(sbuf)));
-		return;
-	}
-
+restart:
 	sys_dir = opendir(tracing_events_path);
 	if (!sys_dir)
 		return;
+
+	if (evt_num_known) {
+		evt_list = zalloc(sizeof(char *) * evt_num);
+		if (!evt_list)
+			goto out_close_sys_dir;
+	}
 
 	for_each_subsystem(sys_dir, sys_dirent, sys_next) {
 		if (subsys_glob != NULL &&
@@ -1137,19 +1655,56 @@ void print_tracepoint_events(const char *subsys_glob, const char *event_glob,
 			    !strglobmatch(evt_dirent.d_name, event_glob))
 				continue;
 
-			if (name_only) {
-				printf("%s:%s ", sys_dirent.d_name, evt_dirent.d_name);
+			if (!evt_num_known) {
+				evt_num++;
 				continue;
 			}
 
 			snprintf(evt_path, MAXPATHLEN, "%s:%s",
 				 sys_dirent.d_name, evt_dirent.d_name);
-			printf("  %-50s [%s]\n", evt_path,
-				event_type_descriptors[PERF_TYPE_TRACEPOINT]);
+
+			evt_list[evt_i] = strdup(evt_path);
+			if (evt_list[evt_i] == NULL)
+				goto out_close_evt_dir;
+			evt_i++;
 		}
 		closedir(evt_dir);
 	}
 	closedir(sys_dir);
+
+	if (!evt_num_known) {
+		evt_num_known = true;
+		goto restart;
+	}
+	qsort(evt_list, evt_num, sizeof(char *), cmp_string);
+	evt_i = 0;
+	while (evt_i < evt_num) {
+		if (name_only) {
+			printf("%s ", evt_list[evt_i++]);
+			continue;
+		}
+		printf("  %-50s [%s]\n", evt_list[evt_i++],
+				event_type_descriptors[PERF_TYPE_TRACEPOINT]);
+	}
+	if (evt_num && pager_in_use())
+		printf("\n");
+
+out_free:
+	evt_num = evt_i;
+	for (evt_i = 0; evt_i < evt_num; evt_i++)
+		zfree(&evt_list[evt_i]);
+	zfree(&evt_list);
+	return;
+
+out_close_evt_dir:
+	closedir(evt_dir);
+out_close_sys_dir:
+	closedir(sys_dir);
+
+	printf("FATAL: not enough memory to print %s\n",
+			event_type_descriptors[PERF_TYPE_TRACEPOINT]);
+	if (evt_list)
+		goto out_free;
 }
 
 /*
@@ -1162,9 +1717,6 @@ int is_valid_tracepoint(const char *event_string)
 	struct dirent *sys_next, *evt_next, sys_dirent, evt_dirent;
 	char evt_path[MAXPATHLEN];
 	char dir_path[MAXPATHLEN];
-
-	if (debugfs_valid_mountpoint(tracing_events_path))
-		return 0;
 
 	sys_dir = opendir(tracing_events_path);
 	if (!sys_dir)
@@ -1233,38 +1785,19 @@ static bool is_event_supported(u8 type, unsigned config)
 	return ret;
 }
 
-static void __print_events_type(u8 type, struct event_symbol *syms,
-				unsigned max)
-{
-	char name[64];
-	unsigned i;
-
-	for (i = 0; i < max ; i++, syms++) {
-		if (!is_event_supported(type, i))
-			continue;
-
-		if (strlen(syms->alias))
-			snprintf(name, sizeof(name),  "%s OR %s",
-				 syms->symbol, syms->alias);
-		else
-			snprintf(name, sizeof(name), "%s", syms->symbol);
-
-		printf("  %-50s [%s]\n", name, event_type_descriptors[type]);
-	}
-}
-
-void print_events_type(u8 type)
-{
-	if (type == PERF_TYPE_SOFTWARE)
-		__print_events_type(type, event_symbols_sw, PERF_COUNT_SW_MAX);
-	else
-		__print_events_type(type, event_symbols_hw, PERF_COUNT_HW_MAX);
-}
-
 int print_hwcache_events(const char *event_glob, bool name_only)
 {
-	unsigned int type, op, i, printed = 0;
+	unsigned int type, op, i, evt_i = 0, evt_num = 0;
 	char name[64];
+	char **evt_list = NULL;
+	bool evt_num_known = false;
+
+restart:
+	if (evt_num_known) {
+		evt_list = zalloc(sizeof(char *) * evt_num);
+		if (!evt_list)
+			goto out_enomem;
+	}
 
 	for (type = 0; type < PERF_COUNT_HW_CACHE_MAX; type++) {
 		for (op = 0; op < PERF_COUNT_HW_CACHE_OP_MAX; op++) {
@@ -1282,27 +1815,66 @@ int print_hwcache_events(const char *event_glob, bool name_only)
 							type | (op << 8) | (i << 16)))
 					continue;
 
-				if (name_only)
-					printf("%s ", name);
-				else
-					printf("  %-50s [%s]\n", name,
-					       event_type_descriptors[PERF_TYPE_HW_CACHE]);
-				++printed;
+				if (!evt_num_known) {
+					evt_num++;
+					continue;
+				}
+
+				evt_list[evt_i] = strdup(name);
+				if (evt_list[evt_i] == NULL)
+					goto out_enomem;
+				evt_i++;
 			}
 		}
 	}
 
-	if (printed)
+	if (!evt_num_known) {
+		evt_num_known = true;
+		goto restart;
+	}
+	qsort(evt_list, evt_num, sizeof(char *), cmp_string);
+	evt_i = 0;
+	while (evt_i < evt_num) {
+		if (name_only) {
+			printf("%s ", evt_list[evt_i++]);
+			continue;
+		}
+		printf("  %-50s [%s]\n", evt_list[evt_i++],
+				event_type_descriptors[PERF_TYPE_HW_CACHE]);
+	}
+	if (evt_num && pager_in_use())
 		printf("\n");
-	return printed;
+
+out_free:
+	evt_num = evt_i;
+	for (evt_i = 0; evt_i < evt_num; evt_i++)
+		zfree(&evt_list[evt_i]);
+	zfree(&evt_list);
+	return evt_num;
+
+out_enomem:
+	printf("FATAL: not enough memory to print %s\n", event_type_descriptors[PERF_TYPE_HW_CACHE]);
+	if (evt_list)
+		goto out_free;
+	return evt_num;
 }
 
-static void print_symbol_events(const char *event_glob, unsigned type,
+void print_symbol_events(const char *event_glob, unsigned type,
 				struct event_symbol *syms, unsigned max,
 				bool name_only)
 {
-	unsigned i, printed = 0;
+	unsigned int i, evt_i = 0, evt_num = 0;
 	char name[MAX_NAME_LEN];
+	char **evt_list = NULL;
+	bool evt_num_known = false;
+
+restart:
+	if (evt_num_known) {
+		evt_list = zalloc(sizeof(char *) * evt_num);
+		if (!evt_list)
+			goto out_enomem;
+		syms -= max;
+	}
 
 	for (i = 0; i < max; i++, syms++) {
 
@@ -1314,23 +1886,49 @@ static void print_symbol_events(const char *event_glob, unsigned type,
 		if (!is_event_supported(type, i))
 			continue;
 
-		if (name_only) {
-			printf("%s ", syms->symbol);
+		if (!evt_num_known) {
+			evt_num++;
 			continue;
 		}
 
-		if (strlen(syms->alias))
+		if (!name_only && strlen(syms->alias))
 			snprintf(name, MAX_NAME_LEN, "%s OR %s", syms->symbol, syms->alias);
 		else
 			strncpy(name, syms->symbol, MAX_NAME_LEN);
 
-		printf("  %-50s [%s]\n", name, event_type_descriptors[type]);
-
-		printed++;
+		evt_list[evt_i] = strdup(name);
+		if (evt_list[evt_i] == NULL)
+			goto out_enomem;
+		evt_i++;
 	}
 
-	if (printed)
+	if (!evt_num_known) {
+		evt_num_known = true;
+		goto restart;
+	}
+	qsort(evt_list, evt_num, sizeof(char *), cmp_string);
+	evt_i = 0;
+	while (evt_i < evt_num) {
+		if (name_only) {
+			printf("%s ", evt_list[evt_i++]);
+			continue;
+		}
+		printf("  %-50s [%s]\n", evt_list[evt_i++], event_type_descriptors[type]);
+	}
+	if (evt_num && pager_in_use())
 		printf("\n");
+
+out_free:
+	evt_num = evt_i;
+	for (evt_i = 0; evt_i < evt_num; evt_i++)
+		zfree(&evt_list[evt_i]);
+	zfree(&evt_list);
+	return;
+
+out_enomem:
+	printf("FATAL: not enough memory to print %s\n", event_type_descriptors[type]);
+	if (evt_list)
+		goto out_free;
 }
 
 /*
@@ -1338,11 +1936,6 @@ static void print_symbol_events(const char *event_glob, unsigned type,
  */
 void print_events(const char *event_glob, bool name_only)
 {
-	if (!name_only) {
-		printf("\n");
-		printf("List of pre-defined events (to be used in -e):\n");
-	}
-
 	print_symbol_events(event_glob, PERF_TYPE_HARDWARE,
 			    event_symbols_hw, PERF_COUNT_HW_MAX, name_only);
 
@@ -1363,13 +1956,14 @@ void print_events(const char *event_glob, bool name_only)
 		printf("  %-50s [%s]\n",
 		       "cpu/t1=v1[,t2=v2,t3 ...]/modifier",
 		       event_type_descriptors[PERF_TYPE_RAW]);
-		printf("   (see 'man perf-list' on how to encode it)\n");
-		printf("\n");
+		if (pager_in_use())
+			printf("   (see 'man perf-list' on how to encode it)\n\n");
 
 		printf("  %-50s [%s]\n",
 		       "mem:<addr>[/len][:access]",
 			event_type_descriptors[PERF_TYPE_BREAKPOINT]);
-		printf("\n");
+		if (pager_in_use())
+			printf("\n");
 	}
 
 	print_tracepoint_events(NULL, NULL, name_only);
@@ -1382,7 +1976,7 @@ int parse_events__is_hardcoded_term(struct parse_events_term *term)
 
 static int new_term(struct parse_events_term **_term, int type_val,
 		    int type_term, char *config,
-		    char *str, u64 num)
+		    char *str, u64 num, int err_term, int err_val)
 {
 	struct parse_events_term *term;
 
@@ -1394,6 +1988,8 @@ static int new_term(struct parse_events_term **_term, int type_val,
 	term->type_val  = type_val;
 	term->type_term = type_term;
 	term->config = config;
+	term->err_term = err_term;
+	term->err_val  = err_val;
 
 	switch (type_val) {
 	case PARSE_EVENTS__TERM_TYPE_NUM:
@@ -1412,17 +2008,29 @@ static int new_term(struct parse_events_term **_term, int type_val,
 }
 
 int parse_events_term__num(struct parse_events_term **term,
-			   int type_term, char *config, u64 num)
+			   int type_term, char *config, u64 num,
+			   void *loc_term_, void *loc_val_)
 {
+	YYLTYPE *loc_term = loc_term_;
+	YYLTYPE *loc_val = loc_val_;
+
 	return new_term(term, PARSE_EVENTS__TERM_TYPE_NUM, type_term,
-			config, NULL, num);
+			config, NULL, num,
+			loc_term ? loc_term->first_column : 0,
+			loc_val ? loc_val->first_column : 0);
 }
 
 int parse_events_term__str(struct parse_events_term **term,
-			   int type_term, char *config, char *str)
+			   int type_term, char *config, char *str,
+			   void *loc_term_, void *loc_val_)
 {
+	YYLTYPE *loc_term = loc_term_;
+	YYLTYPE *loc_val = loc_val_;
+
 	return new_term(term, PARSE_EVENTS__TERM_TYPE_STR, type_term,
-			config, str, 0);
+			config, str, 0,
+			loc_term ? loc_term->first_column : 0,
+			loc_val ? loc_val->first_column : 0);
 }
 
 int parse_events_term__sym_hw(struct parse_events_term **term,
@@ -1436,18 +2044,20 @@ int parse_events_term__sym_hw(struct parse_events_term **term,
 	if (config)
 		return new_term(term, PARSE_EVENTS__TERM_TYPE_STR,
 				PARSE_EVENTS__TERM_TYPE_USER, config,
-				(char *) sym->symbol, 0);
+				(char *) sym->symbol, 0, 0, 0);
 	else
 		return new_term(term, PARSE_EVENTS__TERM_TYPE_STR,
 				PARSE_EVENTS__TERM_TYPE_USER,
-				(char *) "event", (char *) sym->symbol, 0);
+				(char *) "event", (char *) sym->symbol,
+				0, 0, 0);
 }
 
 int parse_events_term__clone(struct parse_events_term **new,
 			     struct parse_events_term *term)
 {
 	return new_term(new, term->type_val, term->type_term, term->config,
-			term->val.str, term->val.num);
+			term->val.str, term->val.num,
+			term->err_term, term->err_val);
 }
 
 void parse_events__free_terms(struct list_head *terms)
@@ -1456,4 +2066,42 @@ void parse_events__free_terms(struct list_head *terms)
 
 	list_for_each_entry_safe(term, h, terms, list)
 		free(term);
+}
+
+void parse_events_evlist_error(struct parse_events_evlist *data,
+			       int idx, const char *str)
+{
+	struct parse_events_error *err = data->error;
+
+	if (!err)
+		return;
+	err->idx = idx;
+	err->str = strdup(str);
+	WARN_ONCE(!err->str, "WARNING: failed to allocate error string");
+}
+
+/*
+ * Return string contains valid config terms of an event.
+ * @additional_terms: For terms such as PMU sysfs terms.
+ */
+char *parse_events_formats_error_string(char *additional_terms)
+{
+	char *str;
+	static const char *static_terms = "config,config1,config2,name,"
+					  "period,freq,branch_type,time,"
+					  "call-graph,stack-size\n";
+
+	/* valid terms */
+	if (additional_terms) {
+		if (!asprintf(&str, "valid terms: %s,%s",
+			      additional_terms, static_terms))
+			goto fail;
+	} else {
+		if (!asprintf(&str, "valid terms: %s", static_terms))
+			goto fail;
+	}
+	return str;
+
+fail:
+	return NULL;
 }

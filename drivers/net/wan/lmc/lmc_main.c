@@ -850,6 +850,7 @@ static int lmc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev = alloc_hdlcdev(sc);
 	if (!dev) {
 		printk(KERN_ERR "lmc:alloc_netdev for device failed\n");
+		err = -ENOMEM;
 		goto err_hdlcdev;
 	}
 

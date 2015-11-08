@@ -23,16 +23,13 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/interrupt.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
-#include "comedi_fc.h"
-
-#define CONV_UNIT_NS		(1 << 0)
-#define CONV_UNIT_US		(1 << 1)
-#define CONV_UNIT_MS		(1 << 2)
+#define CONV_UNIT_NS		BIT(0)
+#define CONV_UNIT_US		BIT(1)
+#define CONV_UNIT_MS		BIT(2)
 
 static const struct comedi_lrange apci3xxx_ai_range = {
 	8, {
@@ -529,18 +526,18 @@ static int apci3xxx_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
@@ -549,16 +546,17 @@ static int apci3xxx_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
-	err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
-					 board->ai_min_acq_ns);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+	err |= comedi_check_trigger_arg_min(&cmd->convert_arg,
+					    board->ai_min_acq_ns);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
 	else	/* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -567,7 +565,7 @@ static int apci3xxx_ai_cmdtest(struct comedi_device *dev,
 
 	arg = cmd->convert_arg;
 	err |= apci3xxx_ai_ns_to_timer(dev, &arg, cmd->flags);
-	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
+	err |= comedi_check_trigger_arg_is(&cmd->convert_arg, arg);
 
 	if (err)
 		return 4;

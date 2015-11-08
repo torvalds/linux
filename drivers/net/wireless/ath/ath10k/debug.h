@@ -36,6 +36,7 @@ enum ath10k_debug_mask {
 	ATH10K_DBG_REGULATORY	= 0x00000800,
 	ATH10K_DBG_TESTMODE	= 0x00001000,
 	ATH10K_DBG_WMI_PRINT	= 0x00002000,
+	ATH10K_DBG_PCI_PS	= 0x00004000,
 	ATH10K_DBG_ANY		= 0xffffffff,
 };
 
@@ -54,6 +55,9 @@ enum ath10k_dbg_aggr_mode {
 	ATH10K_DBG_AGGR_MODE_MAX,
 };
 
+/* FIXME: How to calculate the buffer size sanely? */
+#define ATH10K_FW_STATS_BUF_SIZE (1024*1024)
+
 extern unsigned int ath10k_debug_mask;
 
 __printf(2, 3) void ath10k_info(struct ath10k *ar, const char *fmt, ...);
@@ -69,6 +73,8 @@ void ath10k_debug_destroy(struct ath10k *ar);
 int ath10k_debug_register(struct ath10k *ar);
 void ath10k_debug_unregister(struct ath10k *ar);
 void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb);
+void ath10k_debug_tpc_stats_process(struct ath10k *ar,
+				    struct ath10k_tpc_stats *tpc_stats);
 struct ath10k_fw_crash_data *
 ath10k_debug_get_new_fw_crash_data(struct ath10k *ar);
 
@@ -114,6 +120,12 @@ static inline void ath10k_debug_unregister(struct ath10k *ar)
 static inline void ath10k_debug_fw_stats_process(struct ath10k *ar,
 						 struct sk_buff *skb)
 {
+}
+
+static inline void ath10k_debug_tpc_stats_process(struct ath10k *ar,
+						  struct ath10k_tpc_stats *tpc_stats)
+{
+	kfree(tpc_stats);
 }
 
 static inline void ath10k_debug_dbglog_add(struct ath10k *ar, u8 *buffer,

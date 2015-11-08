@@ -22,6 +22,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/sched_clock.h>
+#include <linux/acpi.h>
 
 #include <asm/arch_timer.h>
 #include <asm/virt.h>
@@ -180,44 +181,36 @@ static irqreturn_t arch_timer_handler_virt_mem(int irq, void *dev_id)
 	return timer_handler(ARCH_TIMER_MEM_VIRT_ACCESS, evt);
 }
 
-static __always_inline void timer_set_mode(const int access, int mode,
-				  struct clock_event_device *clk)
+static __always_inline int timer_shutdown(const int access,
+					  struct clock_event_device *clk)
 {
 	unsigned long ctrl;
-	switch (mode) {
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		ctrl = arch_timer_reg_read(access, ARCH_TIMER_REG_CTRL, clk);
-		ctrl &= ~ARCH_TIMER_CTRL_ENABLE;
-		arch_timer_reg_write(access, ARCH_TIMER_REG_CTRL, ctrl, clk);
-		break;
-	default:
-		break;
-	}
+
+	ctrl = arch_timer_reg_read(access, ARCH_TIMER_REG_CTRL, clk);
+	ctrl &= ~ARCH_TIMER_CTRL_ENABLE;
+	arch_timer_reg_write(access, ARCH_TIMER_REG_CTRL, ctrl, clk);
+
+	return 0;
 }
 
-static void arch_timer_set_mode_virt(enum clock_event_mode mode,
-				     struct clock_event_device *clk)
+static int arch_timer_shutdown_virt(struct clock_event_device *clk)
 {
-	timer_set_mode(ARCH_TIMER_VIRT_ACCESS, mode, clk);
+	return timer_shutdown(ARCH_TIMER_VIRT_ACCESS, clk);
 }
 
-static void arch_timer_set_mode_phys(enum clock_event_mode mode,
-				     struct clock_event_device *clk)
+static int arch_timer_shutdown_phys(struct clock_event_device *clk)
 {
-	timer_set_mode(ARCH_TIMER_PHYS_ACCESS, mode, clk);
+	return timer_shutdown(ARCH_TIMER_PHYS_ACCESS, clk);
 }
 
-static void arch_timer_set_mode_virt_mem(enum clock_event_mode mode,
-					 struct clock_event_device *clk)
+static int arch_timer_shutdown_virt_mem(struct clock_event_device *clk)
 {
-	timer_set_mode(ARCH_TIMER_MEM_VIRT_ACCESS, mode, clk);
+	return timer_shutdown(ARCH_TIMER_MEM_VIRT_ACCESS, clk);
 }
 
-static void arch_timer_set_mode_phys_mem(enum clock_event_mode mode,
-					 struct clock_event_device *clk)
+static int arch_timer_shutdown_phys_mem(struct clock_event_device *clk)
 {
-	timer_set_mode(ARCH_TIMER_MEM_PHYS_ACCESS, mode, clk);
+	return timer_shutdown(ARCH_TIMER_MEM_PHYS_ACCESS, clk);
 }
 
 static __always_inline void set_next_event(const int access, unsigned long evt,
@@ -272,11 +265,11 @@ static void __arch_timer_setup(unsigned type,
 		clk->cpumask = cpumask_of(smp_processor_id());
 		if (arch_timer_use_virtual) {
 			clk->irq = arch_timer_ppi[VIRT_PPI];
-			clk->set_mode = arch_timer_set_mode_virt;
+			clk->set_state_shutdown = arch_timer_shutdown_virt;
 			clk->set_next_event = arch_timer_set_next_event_virt;
 		} else {
 			clk->irq = arch_timer_ppi[PHYS_SECURE_PPI];
-			clk->set_mode = arch_timer_set_mode_phys;
+			clk->set_state_shutdown = arch_timer_shutdown_phys;
 			clk->set_next_event = arch_timer_set_next_event_phys;
 		}
 	} else {
@@ -285,17 +278,17 @@ static void __arch_timer_setup(unsigned type,
 		clk->rating = 400;
 		clk->cpumask = cpu_all_mask;
 		if (arch_timer_mem_use_virtual) {
-			clk->set_mode = arch_timer_set_mode_virt_mem;
+			clk->set_state_shutdown = arch_timer_shutdown_virt_mem;
 			clk->set_next_event =
 				arch_timer_set_next_event_virt_mem;
 		} else {
-			clk->set_mode = arch_timer_set_mode_phys_mem;
+			clk->set_state_shutdown = arch_timer_shutdown_phys_mem;
 			clk->set_next_event =
 				arch_timer_set_next_event_phys_mem;
 		}
 	}
 
-	clk->set_mode(CLOCK_EVT_MODE_SHUTDOWN, clk);
+	clk->set_state_shutdown(clk);
 
 	clockevents_config_and_register(clk, arch_timer_rate, 0xf, 0x7fffffff);
 }
@@ -371,8 +364,12 @@ arch_timer_detect_rate(void __iomem *cntbase, struct device_node *np)
 	if (arch_timer_rate)
 		return;
 
-	/* Try to determine the frequency from the device tree or CNTFRQ */
-	if (of_property_read_u32(np, "clock-frequency", &arch_timer_rate)) {
+	/*
+	 * Try to determine the frequency from the device tree or CNTFRQ,
+	 * if ACPI is enabled, get the frequency from CNTFRQ ONLY.
+	 */
+	if (!acpi_disabled ||
+	    of_property_read_u32(np, "clock-frequency", &arch_timer_rate)) {
 		if (cntbase)
 			arch_timer_rate = readl_relaxed(cntbase + CNTFRQ);
 		else
@@ -501,7 +498,7 @@ static void arch_timer_stop(struct clock_event_device *clk)
 			disable_percpu_irq(arch_timer_ppi[PHYS_NONSECURE_PPI]);
 	}
 
-	clk->set_mode(CLOCK_EVT_MODE_UNUSED, clk);
+	clk->set_state_shutdown(clk);
 }
 
 static int arch_timer_cpu_notify(struct notifier_block *self,
@@ -661,17 +658,17 @@ static const struct of_device_id arch_timer_mem_of_match[] __initconst = {
 };
 
 static bool __init
-arch_timer_probed(int type, const struct of_device_id *matches)
+arch_timer_needs_probing(int type, const struct of_device_id *matches)
 {
 	struct device_node *dn;
-	bool probed = true;
+	bool needs_probing = false;
 
 	dn = of_find_matching_node(NULL, matches);
 	if (dn && of_device_is_available(dn) && !(arch_timers_present & type))
-		probed = false;
+		needs_probing = true;
 	of_node_put(dn);
 
-	return probed;
+	return needs_probing;
 }
 
 static void __init arch_timer_common_init(void)
@@ -680,9 +677,9 @@ static void __init arch_timer_common_init(void)
 
 	/* Wait until both nodes are probed if we have two timers */
 	if ((arch_timers_present & mask) != mask) {
-		if (!arch_timer_probed(ARCH_MEM_TIMER, arch_timer_mem_of_match))
+		if (arch_timer_needs_probing(ARCH_MEM_TIMER, arch_timer_mem_of_match))
 			return;
-		if (!arch_timer_probed(ARCH_CP15_TIMER, arch_timer_of_match))
+		if (arch_timer_needs_probing(ARCH_CP15_TIMER, arch_timer_of_match))
 			return;
 	}
 
@@ -691,28 +688,8 @@ static void __init arch_timer_common_init(void)
 	arch_timer_arch_init();
 }
 
-static void __init arch_timer_init(struct device_node *np)
+static void __init arch_timer_init(void)
 {
-	int i;
-
-	if (arch_timers_present & ARCH_CP15_TIMER) {
-		pr_warn("arch_timer: multiple nodes in dt, skipping\n");
-		return;
-	}
-
-	arch_timers_present |= ARCH_CP15_TIMER;
-	for (i = PHYS_SECURE_PPI; i < MAX_TIMER_PPI; i++)
-		arch_timer_ppi[i] = irq_of_parse_and_map(np, i);
-	arch_timer_detect_rate(NULL, np);
-
-	/*
-	 * If we cannot rely on firmware initializing the timer registers then
-	 * we should use the physical timers instead.
-	 */
-	if (IS_ENABLED(CONFIG_ARM) &&
-	    of_property_read_bool(np, "arm,cpu-registers-not-fw-configured"))
-			arch_timer_use_virtual = false;
-
 	/*
 	 * If HYP mode is available, we know that the physical timer
 	 * has been configured to be accessible from PL1. Use it, so
@@ -731,13 +708,39 @@ static void __init arch_timer_init(struct device_node *np)
 		}
 	}
 
-	arch_timer_c3stop = !of_property_read_bool(np, "always-on");
-
 	arch_timer_register();
 	arch_timer_common_init();
 }
-CLOCKSOURCE_OF_DECLARE(armv7_arch_timer, "arm,armv7-timer", arch_timer_init);
-CLOCKSOURCE_OF_DECLARE(armv8_arch_timer, "arm,armv8-timer", arch_timer_init);
+
+static void __init arch_timer_of_init(struct device_node *np)
+{
+	int i;
+
+	if (arch_timers_present & ARCH_CP15_TIMER) {
+		pr_warn("arch_timer: multiple nodes in dt, skipping\n");
+		return;
+	}
+
+	arch_timers_present |= ARCH_CP15_TIMER;
+	for (i = PHYS_SECURE_PPI; i < MAX_TIMER_PPI; i++)
+		arch_timer_ppi[i] = irq_of_parse_and_map(np, i);
+
+	arch_timer_detect_rate(NULL, np);
+
+	arch_timer_c3stop = !of_property_read_bool(np, "always-on");
+
+	/*
+	 * If we cannot rely on firmware initializing the timer registers then
+	 * we should use the physical timers instead.
+	 */
+	if (IS_ENABLED(CONFIG_ARM) &&
+	    of_property_read_bool(np, "arm,cpu-registers-not-fw-configured"))
+			arch_timer_use_virtual = false;
+
+	arch_timer_init();
+}
+CLOCKSOURCE_OF_DECLARE(armv7_arch_timer, "arm,armv7-timer", arch_timer_of_init);
+CLOCKSOURCE_OF_DECLARE(armv8_arch_timer, "arm,armv8-timer", arch_timer_of_init);
 
 static void __init arch_timer_mem_init(struct device_node *np)
 {
@@ -804,3 +807,62 @@ static void __init arch_timer_mem_init(struct device_node *np)
 }
 CLOCKSOURCE_OF_DECLARE(armv7_arch_timer_mem, "arm,armv7-timer-mem",
 		       arch_timer_mem_init);
+
+#ifdef CONFIG_ACPI
+static int __init map_generic_timer_interrupt(u32 interrupt, u32 flags)
+{
+	int trigger, polarity;
+
+	if (!interrupt)
+		return 0;
+
+	trigger = (flags & ACPI_GTDT_INTERRUPT_MODE) ? ACPI_EDGE_SENSITIVE
+			: ACPI_LEVEL_SENSITIVE;
+
+	polarity = (flags & ACPI_GTDT_INTERRUPT_POLARITY) ? ACPI_ACTIVE_LOW
+			: ACPI_ACTIVE_HIGH;
+
+	return acpi_register_gsi(NULL, interrupt, trigger, polarity);
+}
+
+/* Initialize per-processor generic timer */
+static int __init arch_timer_acpi_init(struct acpi_table_header *table)
+{
+	struct acpi_table_gtdt *gtdt;
+
+	if (arch_timers_present & ARCH_CP15_TIMER) {
+		pr_warn("arch_timer: already initialized, skipping\n");
+		return -EINVAL;
+	}
+
+	gtdt = container_of(table, struct acpi_table_gtdt, header);
+
+	arch_timers_present |= ARCH_CP15_TIMER;
+
+	arch_timer_ppi[PHYS_SECURE_PPI] =
+		map_generic_timer_interrupt(gtdt->secure_el1_interrupt,
+		gtdt->secure_el1_flags);
+
+	arch_timer_ppi[PHYS_NONSECURE_PPI] =
+		map_generic_timer_interrupt(gtdt->non_secure_el1_interrupt,
+		gtdt->non_secure_el1_flags);
+
+	arch_timer_ppi[VIRT_PPI] =
+		map_generic_timer_interrupt(gtdt->virtual_timer_interrupt,
+		gtdt->virtual_timer_flags);
+
+	arch_timer_ppi[HYP_PPI] =
+		map_generic_timer_interrupt(gtdt->non_secure_el2_interrupt,
+		gtdt->non_secure_el2_flags);
+
+	/* Get the frequency from CNTFRQ */
+	arch_timer_detect_rate(NULL, NULL);
+
+	/* Always-on capability */
+	arch_timer_c3stop = !(gtdt->non_secure_el1_flags & ACPI_GTDT_ALWAYS_ON);
+
+	arch_timer_init();
+	return 0;
+}
+CLOCKSOURCE_ACPI_DECLARE(arch_timer, ACPI_SIG_GTDT, arch_timer_acpi_init);
+#endif

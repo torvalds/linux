@@ -342,12 +342,15 @@ EXPORT_SYMBOL(flush_data_cache_local);
 EXPORT_SYMBOL(flush_kernel_icache_range_asm);
 
 #define FLUSH_THRESHOLD 0x80000 /* 0.5MB */
-int parisc_cache_flush_threshold __read_mostly = FLUSH_THRESHOLD;
+static unsigned long parisc_cache_flush_threshold __read_mostly = FLUSH_THRESHOLD;
+
+#define FLUSH_TLB_THRESHOLD (2*1024*1024) /* 2MB initial TLB threshold */
+static unsigned long parisc_tlb_flush_threshold __read_mostly = FLUSH_TLB_THRESHOLD;
 
 void __init parisc_setup_cache_timing(void)
 {
 	unsigned long rangetime, alltime;
-	unsigned long size;
+	unsigned long size, start;
 
 	alltime = mfctl(16);
 	flush_data_cache();
@@ -364,14 +367,43 @@ void __init parisc_setup_cache_timing(void)
 	/* Racy, but if we see an intermediate value, it's ok too... */
 	parisc_cache_flush_threshold = size * alltime / rangetime;
 
-	parisc_cache_flush_threshold = (parisc_cache_flush_threshold + L1_CACHE_BYTES - 1) &~ (L1_CACHE_BYTES - 1); 
+	parisc_cache_flush_threshold = L1_CACHE_ALIGN(parisc_cache_flush_threshold);
 	if (!parisc_cache_flush_threshold)
 		parisc_cache_flush_threshold = FLUSH_THRESHOLD;
 
 	if (parisc_cache_flush_threshold > cache_info.dc_size)
 		parisc_cache_flush_threshold = cache_info.dc_size;
 
-	printk(KERN_INFO "Setting cache flush threshold to %x (%d CPUs online)\n", parisc_cache_flush_threshold, num_online_cpus());
+	printk(KERN_INFO "Setting cache flush threshold to %lu kB\n",
+		parisc_cache_flush_threshold/1024);
+
+	/* calculate TLB flush threshold */
+
+	alltime = mfctl(16);
+	flush_tlb_all();
+	alltime = mfctl(16) - alltime;
+
+	size = PAGE_SIZE;
+	start = (unsigned long) _text;
+	rangetime = mfctl(16);
+	while (start < (unsigned long) _end) {
+		flush_tlb_kernel_range(start, start + PAGE_SIZE);
+		start += PAGE_SIZE;
+		size += PAGE_SIZE;
+	}
+	rangetime = mfctl(16) - rangetime;
+
+	printk(KERN_DEBUG "Whole TLB flush %lu cycles, flushing %lu bytes %lu cycles\n",
+		alltime, size, rangetime);
+
+	parisc_tlb_flush_threshold = size * alltime / rangetime;
+	parisc_tlb_flush_threshold *= num_online_cpus();
+	parisc_tlb_flush_threshold = PAGE_ALIGN(parisc_tlb_flush_threshold);
+	if (!parisc_tlb_flush_threshold)
+		parisc_tlb_flush_threshold = FLUSH_TLB_THRESHOLD;
+
+	printk(KERN_INFO "Setting TLB flush threshold to %lu kB\n",
+		parisc_tlb_flush_threshold/1024);
 }
 
 extern void purge_kernel_dcache_page_asm(unsigned long);
@@ -403,48 +435,45 @@ void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
 }
 EXPORT_SYMBOL(copy_user_page);
 
-void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
+/* __flush_tlb_range()
+ *
+ * returns 1 if all TLBs were flushed.
+ */
+int __flush_tlb_range(unsigned long sid, unsigned long start,
+		      unsigned long end)
 {
-	unsigned long flags;
+	unsigned long flags, size;
 
-	/* Note: purge_tlb_entries can be called at startup with
-	   no context.  */
-
-	purge_tlb_start(flags);
-	mtsp(mm->context, 1);
-	pdtlb(addr);
-	pitlb(addr);
-	purge_tlb_end(flags);
-}
-EXPORT_SYMBOL(purge_tlb_entries);
-
-void __flush_tlb_range(unsigned long sid, unsigned long start,
-		       unsigned long end)
-{
-	unsigned long npages;
-
-	npages = ((end - (start & PAGE_MASK)) + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
-	if (npages >= 512)  /* 2MB of space: arbitrary, should be tuned */
+	size = (end - start);
+	if (size >= parisc_tlb_flush_threshold) {
 		flush_tlb_all();
-	else {
-		unsigned long flags;
+		return 1;
+	}
 
+	/* Purge TLB entries for small ranges using the pdtlb and
+	   pitlb instructions.  These instructions execute locally
+	   but cause a purge request to be broadcast to other TLBs.  */
+	if (likely(!split_tlb)) {
+		while (start < end) {
+			purge_tlb_start(flags);
+			mtsp(sid, 1);
+			pdtlb(start);
+			purge_tlb_end(flags);
+			start += PAGE_SIZE;
+		}
+		return 0;
+	}
+
+	/* split TLB case */
+	while (start < end) {
 		purge_tlb_start(flags);
 		mtsp(sid, 1);
-		if (split_tlb) {
-			while (npages--) {
-				pdtlb(start);
-				pitlb(start);
-				start += PAGE_SIZE;
-			}
-		} else {
-			while (npages--) {
-				pdtlb(start);
-				start += PAGE_SIZE;
-			}
-		}
+		pdtlb(start);
+		pitlb(start);
 		purge_tlb_end(flags);
+		start += PAGE_SIZE;
 	}
+	return 0;
 }
 
 static void cacheflush_h_tmp_function(void *dummy)

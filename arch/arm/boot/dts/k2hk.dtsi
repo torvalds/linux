@@ -98,5 +98,17 @@
 			#gpio-cells = <2>;
 			gpio,syscon-dev = <&devctrl 0x25c>;
 		};
+
+		mdio: mdio@02090300 {
+			compatible	= "ti,keystone_mdio", "ti,davinci_mdio";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x02090300 0x100>;
+			status = "disabled";
+			clocks = <&clkcpgmac>;
+			clock-names = "fck";
+			bus_freq	= <2500000>;
+		};
+		/include/ "k2hk-netcp.dtsi"
 	};
 };

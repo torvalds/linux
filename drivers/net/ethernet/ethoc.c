@@ -201,6 +201,7 @@ struct ethoc {
 	void __iomem *membase;
 	int dma_alloc;
 	resource_size_t io_region_size;
+	bool big_endian;
 
 	unsigned int num_bd;
 	unsigned int num_tx;
@@ -236,12 +237,18 @@ struct ethoc_bd {
 
 static inline u32 ethoc_read(struct ethoc *dev, loff_t offset)
 {
-	return ioread32(dev->iobase + offset);
+	if (dev->big_endian)
+		return ioread32be(dev->iobase + offset);
+	else
+		return ioread32(dev->iobase + offset);
 }
 
 static inline void ethoc_write(struct ethoc *dev, loff_t offset, u32 data)
 {
-	iowrite32(data, dev->iobase + offset);
+	if (dev->big_endian)
+		iowrite32be(data, dev->iobase + offset);
+	else
+		iowrite32(data, dev->iobase + offset);
 }
 
 static inline void ethoc_read_bd(struct ethoc *dev, int index,
@@ -1106,6 +1113,9 @@ static int ethoc_probe(struct platform_device *pdev)
 		priv->dma_alloc = buffer_size;
 	}
 
+	priv->big_endian = pdata ? pdata->big_endian :
+		of_device_is_big_endian(pdev->dev.of_node);
+
 	/* calculate the number of TX/RX buffers, maximum 128 supported */
 	num_bd = min_t(unsigned int,
 		128, (netdev->mem_end - netdev->mem_start + 1) / ETHOC_BUFSIZ);
@@ -1132,10 +1142,6 @@ static int ethoc_probe(struct platform_device *pdev)
 		memcpy(netdev->dev_addr, pdata->hwaddr, IFHWADDRLEN);
 		priv->phy_id = pdata->phy_id;
 	} else {
-		priv->phy_id = -1;
-
-#ifdef CONFIG_OF
-		{
 		const uint8_t *mac;
 
 		mac = of_get_property(pdev->dev.of_node,
@@ -1143,8 +1149,7 @@ static int ethoc_probe(struct platform_device *pdev)
 				      NULL);
 		if (mac)
 			memcpy(netdev->dev_addr, mac, IFHWADDRLEN);
-		}
-#endif
+		priv->phy_id = -1;
 	}
 
 	/* Check that the given MAC address is valid. If it isn't, read the
@@ -1299,7 +1304,7 @@ static int ethoc_resume(struct platform_device *pdev)
 # define ethoc_resume  NULL
 #endif
 
-static struct of_device_id ethoc_match[] = {
+static const struct of_device_id ethoc_match[] = {
 	{ .compatible = "opencores,ethoc", },
 	{},
 };

@@ -54,6 +54,7 @@ struct nlmsghdr {
 #define NLM_F_ACK		4	/* Reply with ack, with zero or error code */
 #define NLM_F_ECHO		8	/* Echo this request 		*/
 #define NLM_F_DUMP_INTR		16	/* Dump was inconsistent due to sequence change */
+#define NLM_F_DUMP_FILTERED	32	/* Dump was filtered as requested */
 
 /* Modifiers to GET request */
 #define NLM_F_ROOT	0x100	/* specify tree	root	*/
@@ -101,13 +102,16 @@ struct nlmsgerr {
 	struct nlmsghdr msg;
 };
 
-#define NETLINK_ADD_MEMBERSHIP	1
-#define NETLINK_DROP_MEMBERSHIP	2
-#define NETLINK_PKTINFO		3
-#define NETLINK_BROADCAST_ERROR	4
-#define NETLINK_NO_ENOBUFS	5
-#define NETLINK_RX_RING		6
-#define NETLINK_TX_RING		7
+#define NETLINK_ADD_MEMBERSHIP		1
+#define NETLINK_DROP_MEMBERSHIP		2
+#define NETLINK_PKTINFO			3
+#define NETLINK_BROADCAST_ERROR		4
+#define NETLINK_NO_ENOBUFS		5
+#define NETLINK_RX_RING			6
+#define NETLINK_TX_RING			7
+#define NETLINK_LISTEN_ALL_NSID		8
+#define NETLINK_LIST_MEMBERSHIPS	9
+#define NETLINK_CAP_ACK			10
 
 struct nl_pktinfo {
 	__u32	group;

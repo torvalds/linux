@@ -39,6 +39,7 @@
 #include <linux/prefetch.h>
 #include <net/ip6_checksum.h>
 #include <linux/ktime.h>
+#include <linux/numa.h>
 #ifdef CONFIG_RFS_ACCEL
 #include <linux/cpu_rmap.h>
 #endif
@@ -112,6 +113,71 @@ static struct enic_intr_mod_range mod_range[ENIC_MAX_LINK_SPEEDS] = {
 	{3,  6}, /* 10 - 40 Gbps */
 };
 
+static void enic_init_affinity_hint(struct enic *enic)
+{
+	int numa_node = dev_to_node(&enic->pdev->dev);
+	int i;
+
+	for (i = 0; i < enic->intr_count; i++) {
+		if (enic_is_err_intr(enic, i) || enic_is_notify_intr(enic, i) ||
+		    (enic->msix[i].affinity_mask &&
+		     !cpumask_empty(enic->msix[i].affinity_mask)))
+			continue;
+		if (zalloc_cpumask_var(&enic->msix[i].affinity_mask,
+				       GFP_KERNEL))
+			cpumask_set_cpu(cpumask_local_spread(i, numa_node),
+					enic->msix[i].affinity_mask);
+	}
+}
+
+static void enic_free_affinity_hint(struct enic *enic)
+{
+	int i;
+
+	for (i = 0; i < enic->intr_count; i++) {
+		if (enic_is_err_intr(enic, i) || enic_is_notify_intr(enic, i))
+			continue;
+		free_cpumask_var(enic->msix[i].affinity_mask);
+	}
+}
+
+static void enic_set_affinity_hint(struct enic *enic)
+{
+	int i;
+	int err;
+
+	for (i = 0; i < enic->intr_count; i++) {
+		if (enic_is_err_intr(enic, i)		||
+		    enic_is_notify_intr(enic, i)	||
+		    !enic->msix[i].affinity_mask	||
+		    cpumask_empty(enic->msix[i].affinity_mask))
+			continue;
+		err = irq_set_affinity_hint(enic->msix_entry[i].vector,
+					    enic->msix[i].affinity_mask);
+		if (err)
+			netdev_warn(enic->netdev, "irq_set_affinity_hint failed, err %d\n",
+				    err);
+	}
+
+	for (i = 0; i < enic->wq_count; i++) {
+		int wq_intr = enic_msix_wq_intr(enic, i);
+
+		if (enic->msix[wq_intr].affinity_mask &&
+		    !cpumask_empty(enic->msix[wq_intr].affinity_mask))
+			netif_set_xps_queue(enic->netdev,
+					    enic->msix[wq_intr].affinity_mask,
+					    i);
+	}
+}
+
+static void enic_unset_affinity_hint(struct enic *enic)
+{
+	int i;
+
+	for (i = 0; i < enic->intr_count; i++)
+		irq_set_affinity_hint(enic->msix_entry[i].vector, NULL);
+}
+
 int enic_is_dynamic(struct enic *enic)
 {
 	return enic->pdev->device == PCI_DEVICE_ID_CISCO_VIC_ENET_DYN;
@@ -178,13 +244,15 @@ static int enic_wq_service(struct vnic_dev *vdev, struct cq_desc *cq_desc,
 	return 0;
 }
 
-static void enic_log_q_error(struct enic *enic)
+static bool enic_log_q_error(struct enic *enic)
 {
 	unsigned int i;
 	u32 error_status;
+	bool err = false;
 
 	for (i = 0; i < enic->wq_count; i++) {
 		error_status = vnic_wq_error_status(&enic->wq[i]);
+		err |= error_status;
 		if (error_status)
 			netdev_err(enic->netdev, "WQ[%d] error_status %d\n",
 				i, error_status);
@@ -192,10 +260,13 @@ static void enic_log_q_error(struct enic *enic)
 
 	for (i = 0; i < enic->rq_count; i++) {
 		error_status = vnic_rq_error_status(&enic->rq[i]);
+		err |= error_status;
 		if (error_status)
 			netdev_err(enic->netdev, "RQ[%d] error_status %d\n",
 				i, error_status);
 	}
+
+	return err;
 }
 
 static void enic_msglvl_check(struct enic *enic)
@@ -333,10 +404,9 @@ static irqreturn_t enic_isr_msix_err(int irq, void *data)
 
 	vnic_intr_return_all_credits(&enic->intr[intr]);
 
-	enic_log_q_error(enic);
-
-	/* schedule recovery from WQ/RQ error */
-	schedule_work(&enic->reset);
+	if (enic_log_q_error(enic))
+		/* schedule recovery from WQ/RQ error */
+		schedule_work(&enic->reset);
 
 	return IRQ_HANDLED;
 }
@@ -615,8 +685,15 @@ static struct rtnl_link_stats64 *enic_get_stats(struct net_device *netdev,
 {
 	struct enic *enic = netdev_priv(netdev);
 	struct vnic_stats *stats;
+	int err;
 
-	enic_dev_stats_dump(enic, &stats);
+	err = enic_dev_stats_dump(enic, &stats);
+	/* return only when pci_zalloc_consistent fails in vnic_dev_stats_dump
+	 * For other failures, like devcmd failure, we return previously
+	 * recorded stats.
+	 */
+	if (err == -ENOMEM)
+		return net_stats;
 
 	net_stats->tx_packets = stats->tx.tx_frames_ok;
 	net_stats->tx_bytes = stats->tx.tx_bytes_ok;
@@ -797,7 +874,7 @@ static void enic_set_rx_mode(struct net_device *netdev)
 static void enic_tx_timeout(struct net_device *netdev)
 {
 	struct enic *enic = netdev_priv(netdev);
-	schedule_work(&enic->reset);
+	schedule_work(&enic->tx_hang_reset);
 }
 
 static int enic_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
@@ -893,7 +970,7 @@ static int enic_set_vf_port(struct net_device *netdev, int vf,
 		} else {
 			memset(pp, 0, sizeof(*pp));
 			if (vf == PORT_SELF_VF)
-				memset(netdev->dev_addr, 0, ETH_ALEN);
+				eth_zero_addr(netdev->dev_addr);
 		}
 	} else {
 		/* Set flag to indicate that the port assoc/disassoc
@@ -903,14 +980,14 @@ static int enic_set_vf_port(struct net_device *netdev, int vf,
 
 		/* If DISASSOCIATE, clean up all assigned/saved macaddresses */
 		if (pp->request == PORT_REQUEST_DISASSOCIATE) {
-			memset(pp->mac_addr, 0, ETH_ALEN);
+			eth_zero_addr(pp->mac_addr);
 			if (vf == PORT_SELF_VF)
-				memset(netdev->dev_addr, 0, ETH_ALEN);
+				eth_zero_addr(netdev->dev_addr);
 		}
 	}
 
 	if (vf == PORT_SELF_VF)
-		memset(pp->vf_mac, 0, ETH_ALEN);
+		eth_zero_addr(pp->vf_mac);
 
 	return err;
 }
@@ -1142,70 +1219,6 @@ static int enic_rq_service(struct vnic_dev *vdev, struct cq_desc *cq_desc,
 	return 0;
 }
 
-static int enic_poll(struct napi_struct *napi, int budget)
-{
-	struct net_device *netdev = napi->dev;
-	struct enic *enic = netdev_priv(netdev);
-	unsigned int cq_rq = enic_cq_rq(enic, 0);
-	unsigned int cq_wq = enic_cq_wq(enic, 0);
-	unsigned int intr = enic_legacy_io_intr();
-	unsigned int rq_work_to_do = budget;
-	unsigned int wq_work_to_do = -1; /* no limit */
-	unsigned int  work_done, rq_work_done = 0, wq_work_done;
-	int err;
-
-	wq_work_done = vnic_cq_service(&enic->cq[cq_wq], wq_work_to_do,
-				       enic_wq_service, NULL);
-
-	if (!enic_poll_lock_napi(&enic->rq[cq_rq])) {
-		if (wq_work_done > 0)
-			vnic_intr_return_credits(&enic->intr[intr],
-						 wq_work_done,
-						 0 /* dont unmask intr */,
-						 0 /* dont reset intr timer */);
-		return rq_work_done;
-	}
-
-	if (budget > 0)
-		rq_work_done = vnic_cq_service(&enic->cq[cq_rq],
-			rq_work_to_do, enic_rq_service, NULL);
-
-	/* Accumulate intr event credits for this polling
-	 * cycle.  An intr event is the completion of a
-	 * a WQ or RQ packet.
-	 */
-
-	work_done = rq_work_done + wq_work_done;
-
-	if (work_done > 0)
-		vnic_intr_return_credits(&enic->intr[intr],
-			work_done,
-			0 /* don't unmask intr */,
-			0 /* don't reset intr timer */);
-
-	err = vnic_rq_fill(&enic->rq[0], enic_rq_alloc_buf);
-
-	/* Buffer allocation failed. Stay in polling
-	 * mode so we can try to fill the ring again.
-	 */
-
-	if (err)
-		rq_work_done = rq_work_to_do;
-
-	if (rq_work_done < rq_work_to_do) {
-
-		/* Some work done, but not enough to stay in polling,
-		 * exit polling
-		 */
-
-		napi_complete(napi);
-		vnic_intr_unmask(&enic->intr[intr]);
-	}
-	enic_poll_unlock_napi(&enic->rq[cq_rq]);
-
-	return rq_work_done;
-}
-
 static void enic_set_int_moderation(struct enic *enic, struct vnic_rq *rq)
 {
 	unsigned int intr = enic_msix_rq_intr(enic, rq->index);
@@ -1262,6 +1275,77 @@ static void enic_calc_int_moderation(struct enic *enic, struct vnic_rq *rq)
 
 	pkt_size_counter->large_pkt_bytes_cnt = 0;
 	pkt_size_counter->small_pkt_bytes_cnt = 0;
+}
+
+static int enic_poll(struct napi_struct *napi, int budget)
+{
+	struct net_device *netdev = napi->dev;
+	struct enic *enic = netdev_priv(netdev);
+	unsigned int cq_rq = enic_cq_rq(enic, 0);
+	unsigned int cq_wq = enic_cq_wq(enic, 0);
+	unsigned int intr = enic_legacy_io_intr();
+	unsigned int rq_work_to_do = budget;
+	unsigned int wq_work_to_do = -1; /* no limit */
+	unsigned int  work_done, rq_work_done = 0, wq_work_done;
+	int err;
+
+	wq_work_done = vnic_cq_service(&enic->cq[cq_wq], wq_work_to_do,
+				       enic_wq_service, NULL);
+
+	if (!enic_poll_lock_napi(&enic->rq[cq_rq])) {
+		if (wq_work_done > 0)
+			vnic_intr_return_credits(&enic->intr[intr],
+						 wq_work_done,
+						 0 /* dont unmask intr */,
+						 0 /* dont reset intr timer */);
+		return budget;
+	}
+
+	if (budget > 0)
+		rq_work_done = vnic_cq_service(&enic->cq[cq_rq],
+			rq_work_to_do, enic_rq_service, NULL);
+
+	/* Accumulate intr event credits for this polling
+	 * cycle.  An intr event is the completion of a
+	 * a WQ or RQ packet.
+	 */
+
+	work_done = rq_work_done + wq_work_done;
+
+	if (work_done > 0)
+		vnic_intr_return_credits(&enic->intr[intr],
+			work_done,
+			0 /* don't unmask intr */,
+			0 /* don't reset intr timer */);
+
+	err = vnic_rq_fill(&enic->rq[0], enic_rq_alloc_buf);
+	enic_poll_unlock_napi(&enic->rq[cq_rq], napi);
+
+	/* Buffer allocation failed. Stay in polling
+	 * mode so we can try to fill the ring again.
+	 */
+
+	if (err)
+		rq_work_done = rq_work_to_do;
+	if (enic->rx_coalesce_setting.use_adaptive_rx_coalesce)
+		/* Call the function which refreshes the intr coalescing timer
+		 * value based on the traffic.
+		 */
+		enic_calc_int_moderation(enic, &enic->rq[0]);
+
+	if (rq_work_done < rq_work_to_do) {
+
+		/* Some work done, but not enough to stay in polling,
+		 * exit polling
+		 */
+
+		napi_complete(napi);
+		if (enic->rx_coalesce_setting.use_adaptive_rx_coalesce)
+			enic_set_int_moderation(enic, &enic->rq[0]);
+		vnic_intr_unmask(&enic->intr[intr]);
+	}
+
+	return rq_work_done;
 }
 
 #ifdef CONFIG_RFS_ACCEL
@@ -1400,13 +1484,12 @@ static int enic_poll_msix_rq(struct napi_struct *napi, int budget)
 	if (err)
 		work_done = work_to_do;
 	if (enic->rx_coalesce_setting.use_adaptive_rx_coalesce)
-		/* Call the function which refreshes
-		 * the intr coalescing timer value based on
-		 * the traffic.  This is supported only in
-		 * the case of MSI-x mode
+		/* Call the function which refreshes the intr coalescing timer
+		 * value based on the traffic.
 		 */
 		enic_calc_int_moderation(enic, &enic->rq[rq]);
 
+	enic_poll_unlock_napi(&enic->rq[rq], napi);
 	if (work_done < work_to_do) {
 
 		/* Some work done, but not enough to stay in polling,
@@ -1418,7 +1501,6 @@ static int enic_poll_msix_rq(struct napi_struct *napi, int budget)
 			enic_set_int_moderation(enic, &enic->rq[rq]);
 		vnic_intr_unmask(&enic->intr[intr]);
 	}
-	enic_poll_unlock_napi(&enic->rq[rq]);
 
 	return work_done;
 }
@@ -1562,12 +1644,6 @@ static void enic_set_rx_coal_setting(struct enic *enic)
 	int index = -1;
 	struct enic_rx_coal *rx_coal = &enic->rx_coalesce_setting;
 
-	/* If intr mode is not MSIX, do not do adaptive coalescing */
-	if (VNIC_DEV_INTR_MODE_MSIX != vnic_dev_get_intr_mode(enic->vdev)) {
-		netdev_info(enic->netdev, "INTR mode is not MSIX, Not initializing adaptive coalescing");
-		return;
-	}
-
 	/* 1. Read the link speed from fw
 	 * 2. Pick the default range for the speed
 	 * 3. Update it in enic->rx_coalesce_setting
@@ -1639,6 +1715,8 @@ static int enic_open(struct net_device *netdev)
 		netdev_err(netdev, "Unable to request irq.\n");
 		return err;
 	}
+	enic_init_affinity_hint(enic);
+	enic_set_affinity_hint(enic);
 
 	err = enic_dev_notify_set(enic);
 	if (err) {
@@ -1691,6 +1769,7 @@ err_out_free_rq:
 		vnic_rq_clean(&enic->rq[i], enic_free_rq_buf);
 	enic_dev_notify_unset(enic);
 err_out_free_intr:
+	enic_unset_affinity_hint(enic);
 	enic_free_intr(enic);
 
 	return err;
@@ -1744,6 +1823,7 @@ static int enic_stop(struct net_device *netdev)
 	}
 
 	enic_dev_notify_unset(enic);
+	enic_unset_affinity_hint(enic);
 	enic_free_intr(enic);
 
 	for (i = 0; i < enic->wq_count; i++)
@@ -1918,6 +1998,19 @@ static int enic_dev_open(struct enic *enic)
 	return err;
 }
 
+static int enic_dev_soft_reset(struct enic *enic)
+{
+	int err;
+
+	err = enic_dev_wait(enic->vdev, vnic_dev_soft_reset,
+			    vnic_dev_soft_reset_done, 0);
+	if (err)
+		netdev_err(enic->netdev, "vNIC soft reset failed, err %d\n",
+			   err);
+
+	return err;
+}
+
 static int enic_dev_hang_reset(struct enic *enic)
 {
 	int err;
@@ -2050,6 +2143,26 @@ static void enic_reset(struct work_struct *work)
 
 	if (!netif_running(enic->netdev))
 		return;
+
+	rtnl_lock();
+
+	spin_lock(&enic->enic_api_lock);
+	enic_stop(enic->netdev);
+	enic_dev_soft_reset(enic);
+	enic_reset_addr_lists(enic);
+	enic_init_vnic_resources(enic);
+	enic_set_rss_nic_cfg(enic);
+	enic_dev_set_ig_vlan_rewrite_mode(enic);
+	enic_open(enic->netdev);
+	spin_unlock(&enic->enic_api_lock);
+	call_netdevice_notifiers(NETDEV_REBOOT, enic->netdev);
+
+	rtnl_unlock();
+}
+
+static void enic_tx_hang_reset(struct work_struct *work)
+{
+	struct enic *enic = container_of(work, struct enic, tx_hang_reset);
 
 	rtnl_lock();
 
@@ -2266,6 +2379,7 @@ static void enic_dev_deinit(struct enic *enic)
 
 	enic_free_vnic_resources(enic);
 	enic_clear_intr_mode(enic);
+	enic_free_affinity_hint(enic);
 }
 
 static void enic_kdump_kernel_config(struct enic *enic)
@@ -2361,6 +2475,7 @@ static int enic_dev_init(struct enic *enic)
 	return 0;
 
 err_out_free_vnic_resources:
+	enic_free_affinity_hint(enic);
 	enic_clear_intr_mode(enic);
 	enic_free_vnic_resources(enic);
 
@@ -2478,6 +2593,11 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_iounmap;
 	}
 
+	err = vnic_devcmd_init(enic->vdev);
+
+	if (err)
+		goto err_out_vnic_unregister;
+
 #ifdef CONFIG_PCI_IOV
 	/* Get number of subvnics */
 	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
@@ -2572,6 +2692,7 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	enic_set_rx_coal_setting(enic);
 	INIT_WORK(&enic->reset, enic_reset);
+	INIT_WORK(&enic->tx_hang_reset, enic_tx_hang_reset);
 	INIT_WORK(&enic->change_mtu_work, enic_change_mtu_work);
 
 	for (i = 0; i < enic->wq_count; i++)
@@ -2652,8 +2773,8 @@ err_out_disable_sriov_pp:
 		pci_disable_sriov(pdev);
 		enic->priv_flags &= ~ENIC_SRIOV_ENABLED;
 	}
-err_out_vnic_unregister:
 #endif
+err_out_vnic_unregister:
 	vnic_dev_unregister(enic->vdev);
 err_out_iounmap:
 	enic_iounmap(enic);

@@ -124,6 +124,11 @@ static inline acpi_thread_id acpi_os_get_thread_id(void)
 		lock ? AE_OK : AE_NO_MEMORY; \
 	})
 
+static inline u8 acpi_os_readable(void *pointer, acpi_size length)
+{
+	return TRUE;
+}
+
 /*
  * OSL interfaces added by Linux
  */

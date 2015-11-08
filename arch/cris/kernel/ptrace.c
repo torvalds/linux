@@ -42,3 +42,26 @@ void do_notify_resume(int canrestart, struct pt_regs *regs,
 		tracehook_notify_resume(regs);
 	}
 }
+
+void do_work_pending(int syscall, struct pt_regs *regs,
+		     unsigned int thread_flags)
+{
+	do {
+		if (likely(thread_flags & _TIF_NEED_RESCHED)) {
+			schedule();
+		} else {
+			if (unlikely(!user_mode(regs)))
+				return;
+			local_irq_enable();
+			if (thread_flags & _TIF_SIGPENDING) {
+				do_signal(syscall, regs);
+				syscall = 0;
+			} else {
+				clear_thread_flag(TIF_NOTIFY_RESUME);
+				tracehook_notify_resume(regs);
+			}
+		}
+		local_irq_disable();
+		thread_flags = current_thread_info()->flags;
+	} while (thread_flags & _TIF_WORK_MASK);
+}

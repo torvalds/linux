@@ -56,11 +56,11 @@ static int nfs_superblock_set_dummy_root(struct super_block *sb, struct inode *i
 		 * This again causes shrink_dcache_for_umount_subtree() to
 		 * Oops, since the test for IS_ROOT() will fail.
 		 */
-		spin_lock(&sb->s_root->d_inode->i_lock);
+		spin_lock(&d_inode(sb->s_root)->i_lock);
 		spin_lock(&sb->s_root->d_lock);
 		hlist_del_init(&sb->s_root->d_u.d_alias);
 		spin_unlock(&sb->s_root->d_lock);
-		spin_unlock(&sb->s_root->d_inode->i_lock);
+		spin_unlock(&d_inode(sb->s_root)->i_lock);
 	}
 	return 0;
 }

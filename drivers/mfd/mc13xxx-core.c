@@ -51,19 +51,19 @@
 void mc13xxx_lock(struct mc13xxx *mc13xxx)
 {
 	if (!mutex_trylock(&mc13xxx->lock)) {
-		dev_dbg(mc13xxx->dev, "wait for %s from %pf\n",
+		dev_dbg(mc13xxx->dev, "wait for %s from %ps\n",
 				__func__, __builtin_return_address(0));
 
 		mutex_lock(&mc13xxx->lock);
 	}
-	dev_dbg(mc13xxx->dev, "%s from %pf\n",
+	dev_dbg(mc13xxx->dev, "%s from %ps\n",
 			__func__, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(mc13xxx_lock);
 
 void mc13xxx_unlock(struct mc13xxx *mc13xxx)
 {
-	dev_dbg(mc13xxx->dev, "%s from %pf\n",
+	dev_dbg(mc13xxx->dev, "%s from %ps\n",
 			__func__, __builtin_return_address(0));
 	mutex_unlock(&mc13xxx->lock);
 }
@@ -163,7 +163,7 @@ int mc13xxx_irq_request(struct mc13xxx *mc13xxx, int irq,
 	int virq = regmap_irq_get_virq(mc13xxx->irq_data, irq);
 
 	return devm_request_threaded_irq(mc13xxx->dev, virq, NULL, handler,
-					 0, name, dev);
+					 IRQF_ONESHOT, name, dev);
 }
 EXPORT_SYMBOL(mc13xxx_irq_request);
 

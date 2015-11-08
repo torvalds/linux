@@ -211,8 +211,7 @@ static void rawsock_tx_work(struct work_struct *work)
 	}
 }
 
-static int rawsock_sendmsg(struct kiocb *iocb, struct socket *sock,
-			   struct msghdr *msg, size_t len)
+static int rawsock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 {
 	struct sock *sk = sock->sk;
 	struct nfc_dev *dev = nfc_rawsock(sk)->dev;
@@ -248,8 +247,8 @@ static int rawsock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	return len;
 }
 
-static int rawsock_recvmsg(struct kiocb *iocb, struct socket *sock,
-			   struct msghdr *msg, size_t len, int flags)
+static int rawsock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
+			   int flags)
 {
 	int noblock = flags & MSG_DONTWAIT;
 	struct sock *sk = sock->sk;
@@ -322,7 +321,8 @@ static void rawsock_destruct(struct sock *sk)
 
 	if (sk->sk_state == TCP_ESTABLISHED) {
 		nfc_deactivate_target(nfc_rawsock(sk)->dev,
-				      nfc_rawsock(sk)->target_idx);
+				      nfc_rawsock(sk)->target_idx,
+				      NFC_TARGET_MODE_IDLE);
 		nfc_put_device(nfc_rawsock(sk)->dev);
 	}
 
@@ -335,7 +335,7 @@ static void rawsock_destruct(struct sock *sk)
 }
 
 static int rawsock_create(struct net *net, struct socket *sock,
-			  const struct nfc_protocol *nfc_proto)
+			  const struct nfc_protocol *nfc_proto, int kern)
 {
 	struct sock *sk;
 
@@ -349,7 +349,7 @@ static int rawsock_create(struct net *net, struct socket *sock,
 	else
 		sock->ops = &rawsock_ops;
 
-	sk = sk_alloc(net, PF_NFC, GFP_ATOMIC, nfc_proto->proto);
+	sk = sk_alloc(net, PF_NFC, GFP_ATOMIC, nfc_proto->proto, kern);
 	if (!sk)
 		return -ENOMEM;
 

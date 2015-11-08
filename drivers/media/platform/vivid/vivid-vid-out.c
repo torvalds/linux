@@ -31,14 +31,20 @@
 #include "vivid-kthread-out.h"
 #include "vivid-vid-out.h"
 
-static int vid_out_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+static int vid_out_queue_setup(struct vb2_queue *vq, const void *parg,
 		       unsigned *nbuffers, unsigned *nplanes,
 		       unsigned sizes[], void *alloc_ctxs[])
 {
+	const struct v4l2_format *fmt = parg;
 	struct vivid_dev *dev = vb2_get_drv_priv(vq);
-	unsigned planes = dev->fmt_out->planes;
+	const struct vivid_fmt *vfmt = dev->fmt_out;
+	unsigned planes = vfmt->buffers;
 	unsigned h = dev->fmt_out_rect.height;
 	unsigned size = dev->bytesperline_out[0] * h;
+	unsigned p;
+
+	for (p = vfmt->buffers; p < vfmt->planes; p++)
+		size += dev->bytesperline_out[p] * h / vfmt->vdownsampling[p];
 
 	if (dev->field_out == V4L2_FIELD_ALTERNATE) {
 		/*
@@ -74,21 +80,16 @@ static int vid_out_queue_setup(struct vb2_queue *vq, const struct v4l2_format *f
 		if (mp->num_planes != planes)
 			return -EINVAL;
 		sizes[0] = mp->plane_fmt[0].sizeimage;
-		if (planes == 2) {
-			sizes[1] = mp->plane_fmt[1].sizeimage;
-			if (sizes[0] < dev->bytesperline_out[0] * h ||
-			    sizes[1] < dev->bytesperline_out[1] * h)
-				return -EINVAL;
-		} else if (sizes[0] < size) {
+		if (sizes[0] < size)
 			return -EINVAL;
+		for (p = 1; p < planes; p++) {
+			sizes[p] = mp->plane_fmt[p].sizeimage;
+			if (sizes[p] < dev->bytesperline_out[p] * h)
+				return -EINVAL;
 		}
 	} else {
-		if (planes == 2) {
-			sizes[0] = dev->bytesperline_out[0] * h;
-			sizes[1] = dev->bytesperline_out[1] * h;
-		} else {
-			sizes[0] = size;
-		}
+		for (p = 0; p < planes; p++)
+			sizes[p] = p ? dev->bytesperline_out[p] * h : size;
 	}
 
 	if (vq->num_buffers + *nbuffers < 2)
@@ -101,26 +102,26 @@ static int vid_out_queue_setup(struct vb2_queue *vq, const struct v4l2_format *f
 	 * alloc_ctxs array.
 	 */
 
-	if (planes == 2)
-		dprintk(dev, 1, "%s, count=%d, sizes=%u, %u\n", __func__,
-			*nbuffers, sizes[0], sizes[1]);
-	else
-		dprintk(dev, 1, "%s, count=%d, size=%u\n", __func__,
-			*nbuffers, sizes[0]);
+	dprintk(dev, 1, "%s: count=%d\n", __func__, *nbuffers);
+	for (p = 0; p < planes; p++)
+		dprintk(dev, 1, "%s: size[%u]=%u\n", __func__, p, sizes[p]);
 	return 0;
 }
 
 static int vid_out_buf_prepare(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vivid_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
 	unsigned long size;
-	unsigned planes = dev->fmt_out->planes;
+	unsigned planes;
 	unsigned p;
 
 	dprintk(dev, 1, "%s\n", __func__);
 
 	if (WARN_ON(NULL == dev->fmt_out))
 		return -EINVAL;
+
+	planes = dev->fmt_out->planes;
 
 	if (dev->buf_prepare_error) {
 		/*
@@ -132,14 +133,14 @@ static int vid_out_buf_prepare(struct vb2_buffer *vb)
 	}
 
 	if (dev->field_out != V4L2_FIELD_ALTERNATE)
-		vb->v4l2_buf.field = dev->field_out;
-	else if (vb->v4l2_buf.field != V4L2_FIELD_TOP &&
-		 vb->v4l2_buf.field != V4L2_FIELD_BOTTOM)
+		vbuf->field = dev->field_out;
+	else if (vbuf->field != V4L2_FIELD_TOP &&
+		 vbuf->field != V4L2_FIELD_BOTTOM)
 		return -EINVAL;
 
 	for (p = 0; p < planes; p++) {
 		size = dev->bytesperline_out[p] * dev->fmt_out_rect.height +
-			vb->v4l2_planes[p].data_offset;
+			vb->planes[p].data_offset;
 
 		if (vb2_get_plane_payload(vb, p) < size) {
 			dprintk(dev, 1, "%s the payload is too small for plane %u (%lu < %lu)\n",
@@ -153,8 +154,9 @@ static int vid_out_buf_prepare(struct vb2_buffer *vb)
 
 static void vid_out_buf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vivid_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
-	struct vivid_buffer *buf = container_of(vb, struct vivid_buffer, vb);
+	struct vivid_buffer *buf = container_of(vbuf, struct vivid_buffer, vb);
 
 	dprintk(dev, 1, "%s\n", __func__);
 
@@ -187,7 +189,8 @@ static int vid_out_start_streaming(struct vb2_queue *vq, unsigned count)
 
 		list_for_each_entry_safe(buf, tmp, &dev->vid_out_active, list) {
 			list_del(&buf->list);
-			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_QUEUED);
+			vb2_buffer_done(&buf->vb.vb2_buf,
+					VB2_BUF_STATE_QUEUED);
 		}
 	}
 	return err;
@@ -220,7 +223,7 @@ const struct vb2_ops vivid_vid_out_qops = {
 void vivid_update_format_out(struct vivid_dev *dev)
 {
 	struct v4l2_bt_timings *bt = &dev->dv_timings_out.bt;
-	unsigned size;
+	unsigned size, p;
 
 	switch (dev->output_type[dev->output]) {
 	case SVID:
@@ -249,7 +252,7 @@ void vivid_update_format_out(struct vivid_dev *dev)
 			dev->field_out = V4L2_FIELD_ALTERNATE;
 		else
 			dev->field_out = V4L2_FIELD_NONE;
-		if (!dev->dvi_d_out && (bt->standards & V4L2_DV_BT_STD_CEA861)) {
+		if (!dev->dvi_d_out && (bt->flags & V4L2_DV_FL_IS_CE_VIDEO)) {
 			if (bt->width == 720 && bt->height <= 576)
 				dev->colorspace_out = V4L2_COLORSPACE_SMPTE170M;
 			else
@@ -259,6 +262,7 @@ void vivid_update_format_out(struct vivid_dev *dev)
 		}
 		break;
 	}
+	dev->xfer_func_out = V4L2_XFER_FUNC_DEFAULT;
 	dev->ycbcr_enc_out = V4L2_YCBCR_ENC_DEFAULT;
 	dev->quantization_out = V4L2_QUANTIZATION_DEFAULT;
 	dev->compose_out = dev->sink_rect;
@@ -267,9 +271,9 @@ void vivid_update_format_out(struct vivid_dev *dev)
 	if (V4L2_FIELD_HAS_T_OR_B(dev->field_out))
 		dev->crop_out.height /= 2;
 	dev->fmt_out_rect = dev->crop_out;
-	dev->bytesperline_out[0] = (dev->sink_rect.width * dev->fmt_out->depth) / 8;
-	if (dev->fmt_out->planes == 2)
-		dev->bytesperline_out[1] = (dev->sink_rect.width * dev->fmt_out->depth) / 8;
+	for (p = 0; p < dev->fmt_out->planes; p++)
+		dev->bytesperline_out[p] =
+			(dev->sink_rect.width * dev->fmt_out->bit_depth[p]) / 8;
 }
 
 /* Map the field to something that is valid for the current output */
@@ -313,20 +317,28 @@ int vivid_g_fmt_vid_out(struct file *file, void *priv,
 {
 	struct vivid_dev *dev = video_drvdata(file);
 	struct v4l2_pix_format_mplane *mp = &f->fmt.pix_mp;
+	const struct vivid_fmt *fmt = dev->fmt_out;
 	unsigned p;
 
 	mp->width        = dev->fmt_out_rect.width;
 	mp->height       = dev->fmt_out_rect.height;
 	mp->field        = dev->field_out;
-	mp->pixelformat  = dev->fmt_out->fourcc;
+	mp->pixelformat  = fmt->fourcc;
 	mp->colorspace   = dev->colorspace_out;
+	mp->xfer_func    = dev->xfer_func_out;
 	mp->ycbcr_enc    = dev->ycbcr_enc_out;
 	mp->quantization = dev->quantization_out;
-	mp->num_planes = dev->fmt_out->planes;
+	mp->num_planes = fmt->buffers;
 	for (p = 0; p < mp->num_planes; p++) {
 		mp->plane_fmt[p].bytesperline = dev->bytesperline_out[p];
 		mp->plane_fmt[p].sizeimage =
 			mp->plane_fmt[p].bytesperline * mp->height;
+	}
+	for (p = fmt->buffers; p < fmt->planes; p++) {
+		unsigned stride = dev->bytesperline_out[p];
+
+		mp->plane_fmt[0].sizeimage +=
+			(stride * mp->height) / fmt->vdownsampling[p];
 	}
 	return 0;
 }
@@ -386,10 +398,10 @@ int vivid_try_fmt_vid_out(struct file *file, void *priv,
 	/* This driver supports custom bytesperline values */
 
 	/* Calculate the minimum supported bytesperline value */
-	bytesperline = (mp->width * fmt->depth) >> 3;
+	bytesperline = (mp->width * fmt->bit_depth[0]) >> 3;
 	/* Calculate the maximum supported bytesperline value */
-	max_bpl = (MAX_ZOOM * MAX_WIDTH * fmt->depth) >> 3;
-	mp->num_planes = fmt->planes;
+	max_bpl = (MAX_ZOOM * MAX_WIDTH * fmt->bit_depth[0]) >> 3;
+	mp->num_planes = fmt->buffers;
 	for (p = 0; p < mp->num_planes; p++) {
 		if (pfmt[p].bytesperline > max_bpl)
 			pfmt[p].bytesperline = max_bpl;
@@ -398,11 +410,15 @@ int vivid_try_fmt_vid_out(struct file *file, void *priv,
 		pfmt[p].sizeimage = pfmt[p].bytesperline * mp->height;
 		memset(pfmt[p].reserved, 0, sizeof(pfmt[p].reserved));
 	}
+	for (p = fmt->buffers; p < fmt->planes; p++)
+		pfmt[0].sizeimage += (pfmt[0].bytesperline * fmt->bit_depth[p]) /
+				     (fmt->bit_depth[0] * fmt->vdownsampling[p]);
+	mp->xfer_func = V4L2_XFER_FUNC_DEFAULT;
 	mp->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	mp->quantization = V4L2_QUANTIZATION_DEFAULT;
 	if (vivid_is_svid_out(dev)) {
 		mp->colorspace = V4L2_COLORSPACE_SMPTE170M;
-	} else if (dev->dvi_d_out || !(bt->standards & V4L2_DV_BT_STD_CEA861)) {
+	} else if (dev->dvi_d_out || !(bt->flags & V4L2_DV_FL_IS_CE_VIDEO)) {
 		mp->colorspace = V4L2_COLORSPACE_SRGB;
 		if (dev->dvi_d_out)
 			mp->quantization = V4L2_QUANTIZATION_LIM_RANGE;
@@ -429,6 +445,7 @@ int vivid_s_fmt_vid_out(struct file *file, void *priv,
 	struct vb2_queue *q = &dev->vb_vid_out_q;
 	int ret = vivid_try_fmt_vid_out(file, priv, f);
 	unsigned factor = 1;
+	unsigned p;
 
 	if (ret < 0)
 		return ret;
@@ -524,15 +541,19 @@ int vivid_s_fmt_vid_out(struct file *file, void *priv,
 
 	dev->fmt_out_rect.width = mp->width;
 	dev->fmt_out_rect.height = mp->height;
-	dev->bytesperline_out[0] = mp->plane_fmt[0].bytesperline;
-	if (mp->num_planes > 1)
-		dev->bytesperline_out[1] = mp->plane_fmt[1].bytesperline;
+	for (p = 0; p < mp->num_planes; p++)
+		dev->bytesperline_out[p] = mp->plane_fmt[p].bytesperline;
+	for (p = dev->fmt_out->buffers; p < dev->fmt_out->planes; p++)
+		dev->bytesperline_out[p] =
+			(dev->bytesperline_out[0] * dev->fmt_out->bit_depth[p]) /
+			dev->fmt_out->bit_depth[0];
 	dev->field_out = mp->field;
 	if (vivid_is_svid_out(dev))
 		dev->tv_field_out = mp->field;
 
 set_colorspace:
 	dev->colorspace_out = mp->colorspace;
+	dev->xfer_func_out = mp->xfer_func;
 	dev->ycbcr_enc_out = mp->ycbcr_enc;
 	dev->quantization_out = mp->quantization;
 	if (dev->loop_video) {
@@ -1107,20 +1128,31 @@ int vivid_vid_out_s_std(struct file *file, void *priv, v4l2_std_id id)
 	return 0;
 }
 
+static bool valid_cvt_gtf_timings(struct v4l2_dv_timings *timings)
+{
+	struct v4l2_bt_timings *bt = &timings->bt;
+
+	if ((bt->standards & (V4L2_DV_BT_STD_CVT | V4L2_DV_BT_STD_GTF)) &&
+	    v4l2_valid_dv_timings(timings, &vivid_dv_timings_cap, NULL, NULL))
+		return true;
+
+	return false;
+}
+
 int vivid_vid_out_s_dv_timings(struct file *file, void *_fh,
 				    struct v4l2_dv_timings *timings)
 {
 	struct vivid_dev *dev = video_drvdata(file);
-
 	if (!vivid_is_hdmi_out(dev))
 		return -ENODATA;
-	if (vb2_is_busy(&dev->vb_vid_out_q))
-		return -EBUSY;
 	if (!v4l2_find_dv_timings_cap(timings, &vivid_dv_timings_cap,
-				0, NULL, NULL))
+				0, NULL, NULL) &&
+	    !valid_cvt_gtf_timings(timings))
 		return -EINVAL;
 	if (v4l2_match_dv_timings(timings, &dev->dv_timings_out, 0))
 		return 0;
+	if (vb2_is_busy(&dev->vb_vid_out_q))
+		return -EBUSY;
 	dev->dv_timings_out = *timings;
 	vivid_update_format_out(dev);
 	return 0;
@@ -1139,7 +1171,8 @@ int vivid_vid_out_g_parm(struct file *file, void *priv,
 	parm->parm.output.capability   = V4L2_CAP_TIMEPERFRAME;
 	parm->parm.output.timeperframe = dev->timeperframe_vid_out;
 	parm->parm.output.writebuffers  = 1;
-return 0;
+
+	return 0;
 }
 
 int vidioc_subscribe_event(struct v4l2_fh *fh,

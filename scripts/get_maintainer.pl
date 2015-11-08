@@ -42,6 +42,7 @@ my $output_multiline = 1;
 my $output_separator = ", ";
 my $output_roles = 0;
 my $output_rolestats = 1;
+my $output_section_maxlen = 50;
 my $scm = 0;
 my $web = 0;
 my $subsystem = 0;
@@ -186,6 +187,27 @@ if (-f $conf) {
     unshift(@ARGV, @conf_args) if @conf_args;
 }
 
+my @ignore_emails = ();
+my $ignore_file = which_conf(".get_maintainer.ignore");
+if (-f $ignore_file) {
+    open(my $ignore, '<', "$ignore_file")
+	or warn "$P: Can't find a readable .get_maintainer.ignore file $!\n";
+    while (<$ignore>) {
+	my $line = $_;
+
+	$line =~ s/\s*\n?$//;
+	$line =~ s/^\s*//;
+	$line =~ s/\s+$//;
+	$line =~ s/#.*$//;
+
+	next if ($line =~ m/^\s*$/);
+	if (rfc822_valid($line)) {
+	    push(@ignore_emails, $line);
+	}
+    }
+    close($ignore);
+}
+
 if (!GetOptions(
 		'email!' => \$email,
 		'git!' => \$email_git,
@@ -283,7 +305,7 @@ open (my $maint, '<', "${lk_path}MAINTAINERS")
 while (<$maint>) {
     my $line = $_;
 
-    if ($line =~ m/^(\C):\s*(.*)/) {
+    if ($line =~ m/^([A-Z]):\s*(.*)/) {
 	my $type = $1;
 	my $value = $2;
 
@@ -513,12 +535,22 @@ if ($web) {
 
 exit($exit);
 
+sub ignore_email_address {
+    my ($address) = @_;
+
+    foreach my $ignore (@ignore_emails) {
+	return 1 if ($ignore eq $address);
+    }
+
+    return 0;
+}
+
 sub range_is_maintained {
     my ($start, $end) = @_;
 
     for (my $i = $start; $i < $end; $i++) {
 	my $line = $typevalue[$i];
-	if ($line =~ m/^(\C):\s*(.*)/) {
+	if ($line =~ m/^([A-Z]):\s*(.*)/) {
 	    my $type = $1;
 	    my $value = $2;
 	    if ($type eq 'S') {
@@ -536,7 +568,7 @@ sub range_has_maintainer {
 
     for (my $i = $start; $i < $end; $i++) {
 	my $line = $typevalue[$i];
-	if ($line =~ m/^(\C):\s*(.*)/) {
+	if ($line =~ m/^([A-Z]):\s*(.*)/) {
 	    my $type = $1;
 	    my $value = $2;
 	    if ($type eq 'M') {
@@ -585,7 +617,7 @@ sub get_maintainers {
 
 	    for ($i = $start; $i < $end; $i++) {
 		my $line = $typevalue[$i];
-		if ($line =~ m/^(\C):\s*(.*)/) {
+		if ($line =~ m/^([A-Z]):\s*(.*)/) {
 		    my $type = $1;
 		    my $value = $2;
 		    if ($type eq 'X') {
@@ -600,7 +632,7 @@ sub get_maintainers {
 	    if (!$exclude) {
 		for ($i = $start; $i < $end; $i++) {
 		    my $line = $typevalue[$i];
-		    if ($line =~ m/^(\C):\s*(.*)/) {
+		    if ($line =~ m/^([A-Z]):\s*(.*)/) {
 			my $type = $1;
 			my $value = $2;
 			if ($type eq 'F') {
@@ -749,6 +781,7 @@ MAINTAINER field selection options:
     --git-max-maintainers => maximum maintainers to add (default: $email_git_max_maintainers)
     --git-min-percent => minimum percentage of commits required (default: $email_git_min_percent)
     --git-blame => use git blame to find modified commits for patch or file
+    --git-blame-signatures => when used with --git-blame, also include all commit signers
     --git-since => git history to use (default: $email_git_since)
     --hg-since => hg history to use (default: $email_hg_since)
     --interactive => display a menu (mostly useful if used with the --git option)
@@ -780,7 +813,7 @@ Other options:
   --help => show this help information
 
 Default options:
-  [--email --nogit --git-fallback --m --n --l --multiline -pattern-depth=0
+  [--email --nogit --git-fallback --m --r --n --l --multiline --pattern-depth=0
    --remove-duplicates --rolestats]
 
 Notes:
@@ -812,6 +845,9 @@ Notes:
       Entries in this file can be any command line argument.
       This file is prepended to any additional command line arguments.
       Multiple lines and # comments are allowed.
+  Most options have both positive and negative forms.
+      The negative forms for --<foo> are --no<foo> and --no-<foo>.
+
 EOT
 }
 
@@ -901,7 +937,7 @@ sub find_first_section {
 
     while ($index < @typevalue) {
 	my $tv = $typevalue[$index];
-	if (($tv =~ m/^(\C):\s*(.*)/)) {
+	if (($tv =~ m/^([A-Z]):\s*(.*)/)) {
 	    last;
 	}
 	$index++;
@@ -915,7 +951,7 @@ sub find_starting_index {
 
     while ($index > 0) {
 	my $tv = $typevalue[$index];
-	if (!($tv =~ m/^(\C):\s*(.*)/)) {
+	if (!($tv =~ m/^([A-Z]):\s*(.*)/)) {
 	    last;
 	}
 	$index--;
@@ -929,13 +965,27 @@ sub find_ending_index {
 
     while ($index < @typevalue) {
 	my $tv = $typevalue[$index];
-	if (!($tv =~ m/^(\C):\s*(.*)/)) {
+	if (!($tv =~ m/^([A-Z]):\s*(.*)/)) {
 	    last;
 	}
 	$index++;
     }
 
     return $index;
+}
+
+sub get_subsystem_name {
+    my ($index) = @_;
+
+    my $start = find_starting_index($index);
+
+    my $subsystem = $typevalue[$start];
+    if ($output_section_maxlen && length($subsystem) > $output_section_maxlen) {
+	$subsystem = substr($subsystem, 0, $output_section_maxlen - 3);
+	$subsystem =~ s/\s*$//;
+	$subsystem = $subsystem . "...";
+    }
+    return $subsystem;
 }
 
 sub get_maintainer_role {
@@ -946,16 +996,11 @@ sub get_maintainer_role {
     my $end = find_ending_index($index);
 
     my $role = "unknown";
-    my $subsystem = $typevalue[$start];
-    if (length($subsystem) > 20) {
-	$subsystem = substr($subsystem, 0, 17);
-	$subsystem =~ s/\s*$//;
-	$subsystem = $subsystem . "...";
-    }
+    my $subsystem = get_subsystem_name($index);
 
     for ($i = $start + 1; $i < $end; $i++) {
 	my $tv = $typevalue[$i];
-	if ($tv =~ m/^(\C):\s*(.*)/) {
+	if ($tv =~ m/^([A-Z]):\s*(.*)/) {
 	    my $ptype = $1;
 	    my $pvalue = $2;
 	    if ($ptype eq "S") {
@@ -985,16 +1030,7 @@ sub get_maintainer_role {
 sub get_list_role {
     my ($index) = @_;
 
-    my $i;
-    my $start = find_starting_index($index);
-    my $end = find_ending_index($index);
-
-    my $subsystem = $typevalue[$start];
-    if (length($subsystem) > 20) {
-	$subsystem = substr($subsystem, 0, 17);
-	$subsystem =~ s/\s*$//;
-	$subsystem = $subsystem . "...";
-    }
+    my $subsystem = get_subsystem_name($index);
 
     if ($subsystem eq "THE REST") {
 	$subsystem = "";
@@ -1014,7 +1050,7 @@ sub add_categories {
 
     for ($i = $start + 1; $i < $end; $i++) {
 	my $tv = $typevalue[$i];
-	if ($tv =~ m/^(\C):\s*(.*)/) {
+	if ($tv =~ m/^([A-Z]):\s*(.*)/) {
 	    my $ptype = $1;
 	    my $pvalue = $2;
 	    if ($ptype eq "L") {
@@ -1056,7 +1092,7 @@ sub add_categories {
 		if ($name eq "") {
 		    if ($i > 0) {
 			my $tv = $typevalue[$i - 1];
-			if ($tv =~ m/^(\C):\s*(.*)/) {
+			if ($tv =~ m/^([A-Z]):\s*(.*)/) {
 			    if ($1 eq "P") {
 				$name = $2;
 				$pvalue = format_email($name, $address, $email_usename);
@@ -1073,7 +1109,7 @@ sub add_categories {
 		if ($name eq "") {
 		    if ($i > 0) {
 			my $tv = $typevalue[$i - 1];
-			if ($tv =~ m/^(\C):\s*(.*)/) {
+			if ($tv =~ m/^([A-Z]):\s*(.*)/) {
 			    if ($1 eq "P") {
 				$name = $2;
 				$pvalue = format_email($name, $address, $email_usename);
@@ -1082,7 +1118,8 @@ sub add_categories {
 		    }
 		}
 		if ($email_reviewer) {
-		    push_email_addresses($pvalue, 'reviewer');
+		    my $subsystem = get_subsystem_name($i);
+		    push_email_addresses($pvalue, "reviewer:$subsystem");
 		}
 	    } elsif ($ptype eq "T") {
 		push(@scm, $pvalue);
@@ -1868,6 +1905,7 @@ sub vcs_assign {
 	my $percent = $sign_offs * 100 / $divisor;
 
 	$percent = 100 if ($percent > 100);
+	next if (ignore_email_address($line));
 	$count++;
 	last if ($sign_offs < $email_git_min_signatures ||
 		 $count > $email_git_max_maintainers ||

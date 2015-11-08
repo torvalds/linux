@@ -31,7 +31,8 @@ struct udp_port_cfg {
 	__be16			peer_udp_port;
 	unsigned int		use_udp_checksums:1,
 				use_udp6_tx_checksums:1,
-				use_udp6_rx_checksums:1;
+				use_udp6_rx_checksums:1,
+				ipv6_v6only:1;
 };
 
 int udp_sock_create4(struct net *net, struct udp_port_cfg *cfg,
@@ -77,13 +78,14 @@ void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
 			   struct udp_tunnel_sock_cfg *sock_cfg);
 
 /* Transmit the skb using UDP encapsulation. */
-int udp_tunnel_xmit_skb(struct rtable *rt, struct sk_buff *skb,
+int udp_tunnel_xmit_skb(struct rtable *rt, struct sock *sk, struct sk_buff *skb,
 			__be32 src, __be32 dst, __u8 tos, __u8 ttl,
 			__be16 df, __be16 src_port, __be16 dst_port,
 			bool xnet, bool nocheck);
 
 #if IS_ENABLED(CONFIG_IPV6)
-int udp_tunnel6_xmit_skb(struct dst_entry *dst, struct sk_buff *skb,
+int udp_tunnel6_xmit_skb(struct dst_entry *dst, struct sock *sk,
+			 struct sk_buff *skb,
 			 struct net_device *dev, struct in6_addr *saddr,
 			 struct in6_addr *daddr,
 			 __u8 prio, __u8 ttl, __be16 src_port,
@@ -91,6 +93,10 @@ int udp_tunnel6_xmit_skb(struct dst_entry *dst, struct sk_buff *skb,
 #endif
 
 void udp_tunnel_sock_release(struct socket *sock);
+
+struct metadata_dst *udp_tun_rx_dst(struct sk_buff *skb, unsigned short family,
+				    __be16 flags, __be64 tunnel_id,
+				    int md_size);
 
 static inline struct sk_buff *udp_tunnel_handle_offloads(struct sk_buff *skb,
 							 bool udp_csum)

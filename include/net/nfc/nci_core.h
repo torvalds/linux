@@ -31,6 +31,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/skbuff.h>
+#include <linux/tty.h>
 
 #include <net/nfc/nfc.h>
 #include <net/nfc/nci.h>
@@ -66,11 +67,20 @@ enum nci_state {
 
 struct nci_dev;
 
+struct nci_driver_ops {
+	__u16 opcode;
+	int (*rsp)(struct nci_dev *dev, struct sk_buff *skb);
+	int (*ntf)(struct nci_dev *dev, struct sk_buff *skb);
+};
+
 struct nci_ops {
+	int   (*init)(struct nci_dev *ndev);
 	int   (*open)(struct nci_dev *ndev);
 	int   (*close)(struct nci_dev *ndev);
 	int   (*send)(struct nci_dev *ndev, struct sk_buff *skb);
 	int   (*setup)(struct nci_dev *ndev);
+	int   (*post_setup)(struct nci_dev *ndev);
+	int   (*fw_download)(struct nci_dev *ndev, const char *firmware_name);
 	__u32 (*get_rfprotocol)(struct nci_dev *ndev, __u8 rf_protocol);
 	int   (*discover_se)(struct nci_dev *ndev);
 	int   (*disable_se)(struct nci_dev *ndev, u32 se_idx);
@@ -83,12 +93,19 @@ struct nci_ops {
 				    struct sk_buff *skb);
 	void  (*hci_cmd_received)(struct nci_dev *ndev, u8 pipe, u8 cmd,
 				  struct sk_buff *skb);
+
+	struct nci_driver_ops *prop_ops;
+	size_t n_prop_ops;
+
+	struct nci_driver_ops *core_ops;
+	size_t n_core_ops;
 };
 
 #define NCI_MAX_SUPPORTED_RF_INTERFACES		4
 #define NCI_MAX_DISCOVERED_TARGETS		10
 #define NCI_MAX_NUM_NFCEE   255
 #define NCI_MAX_CONN_ID		7
+#define NCI_MAX_PROPRIETARY_CMD 64
 
 struct nci_conn_info {
 	struct list_head list;
@@ -111,6 +128,8 @@ struct nci_conn_info {
 
 /* Gates */
 #define NCI_HCI_ADMIN_GATE         0x00
+#define NCI_HCI_LOOPBACK_GATE	   0x04
+#define NCI_HCI_IDENTITY_MGMT_GATE 0x05
 #define NCI_HCI_LINK_MGMT_GATE     0x06
 
 /* Pipes */
@@ -137,6 +156,10 @@ struct nci_conn_info {
 #define NCI_HCI_INVALID_HOST               0x80
 
 #define NCI_HCI_MAX_CUSTOM_GATES   50
+/*
+ * According to specification 102 622 chapter 4.4 Pipes,
+ * the pipe identifier is 7 bits long.
+ */
 #define NCI_HCI_MAX_PIPES          127
 
 struct nci_hci_gate {
@@ -259,7 +282,13 @@ int nci_request(struct nci_dev *ndev,
 		void (*req)(struct nci_dev *ndev,
 			    unsigned long opt),
 		unsigned long opt, __u32 timeout);
+int nci_prop_cmd(struct nci_dev *ndev, __u8 oid, size_t len, __u8 *payload);
+int nci_core_cmd(struct nci_dev *ndev, __u16 opcode, size_t len, __u8 *payload);
+int nci_core_reset(struct nci_dev *ndev);
+int nci_core_init(struct nci_dev *ndev);
+
 int nci_recv_frame(struct nci_dev *ndev, struct sk_buff *skb);
+int nci_send_frame(struct nci_dev *ndev, struct sk_buff *skb);
 int nci_set_config(struct nci_dev *ndev, __u8 id, size_t len, __u8 *val);
 
 int nci_nfcee_discover(struct nci_dev *ndev, u8 action);
@@ -283,6 +312,7 @@ int nci_hci_set_param(struct nci_dev *ndev, u8 gate, u8 idx,
 		      const u8 *param, size_t param_len);
 int nci_hci_get_param(struct nci_dev *ndev, u8 gate, u8 idx,
 		      struct sk_buff **skb);
+int nci_hci_clear_all_pipes(struct nci_dev *ndev);
 int nci_hci_dev_session_init(struct nci_dev *ndev);
 
 static inline struct sk_buff *nci_skb_alloc(struct nci_dev *ndev,
@@ -313,11 +343,27 @@ static inline void *nci_get_drvdata(struct nci_dev *ndev)
 	return ndev->driver_data;
 }
 
+static inline int nci_set_vendor_cmds(struct nci_dev *ndev,
+				      struct nfc_vendor_cmd *cmds,
+				      int n_cmds)
+{
+	return nfc_set_vendor_cmds(ndev->nfc_dev, cmds, n_cmds);
+}
+
 void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb);
 void nci_ntf_packet(struct nci_dev *ndev, struct sk_buff *skb);
+int nci_prop_rsp_packet(struct nci_dev *ndev, __u16 opcode,
+			struct sk_buff *skb);
+int nci_prop_ntf_packet(struct nci_dev *ndev, __u16 opcode,
+			struct sk_buff *skb);
+int nci_core_rsp_packet(struct nci_dev *ndev, __u16 opcode,
+			struct sk_buff *skb);
+int nci_core_ntf_packet(struct nci_dev *ndev, __u16 opcode,
+			struct sk_buff *skb);
 void nci_rx_data_packet(struct nci_dev *ndev, struct sk_buff *skb);
 int nci_send_cmd(struct nci_dev *ndev, __u16 opcode, __u8 plen, void *payload);
 int nci_send_data(struct nci_dev *ndev, __u8 conn_id, struct sk_buff *skb);
+int nci_conn_max_data_pkt_payload_size(struct nci_dev *ndev, __u8 conn_id);
 void nci_data_exchange_complete(struct nci_dev *ndev, struct sk_buff *skb,
 				__u8 conn_id, int err);
 void nci_hci_data_received_cb(void *context, struct sk_buff *skb, int err);
@@ -332,6 +378,7 @@ void nci_clear_target_list(struct nci_dev *ndev);
 void nci_req_complete(struct nci_dev *ndev, int result);
 struct nci_conn_info *nci_get_conn_info_by_conn_id(struct nci_dev *ndev,
 						   int conn_id);
+int nci_get_conn_info_by_id(struct nci_dev *ndev, u8 id);
 
 /* ----- NCI status code ----- */
 int nci_to_errno(__u8 code);
@@ -347,6 +394,12 @@ struct nci_spi {
 
 	unsigned int		xfer_udelay;	/* microseconds delay between
 						  transactions */
+
+	unsigned int		xfer_speed_hz; /*
+						* SPI clock frequency
+						* 0 => default clock
+						*/
+
 	u8			acknowledge_mode;
 
 	struct completion	req_completion;
@@ -361,5 +414,51 @@ int nci_spi_send(struct nci_spi *nspi,
 		 struct completion *write_handshake_completion,
 		 struct sk_buff *skb);
 struct sk_buff *nci_spi_read(struct nci_spi *nspi);
+
+/* ----- NCI UART ---- */
+
+/* Ioctl */
+#define NCIUARTSETDRIVER	_IOW('U', 0, char *)
+
+enum nci_uart_driver {
+	NCI_UART_DRIVER_MARVELL = 0,
+	NCI_UART_DRIVER_MAX
+};
+
+struct nci_uart;
+
+struct nci_uart_ops {
+	int (*open)(struct nci_uart *nci_uart);
+	void (*close)(struct nci_uart *nci_uart);
+	int (*recv)(struct nci_uart *nci_uart, struct sk_buff *skb);
+	int (*recv_buf)(struct nci_uart *nci_uart, const u8 *data, char *flags,
+			int count);
+	int (*send)(struct nci_uart *nci_uart, struct sk_buff *skb);
+	void (*tx_start)(struct nci_uart *nci_uart);
+	void (*tx_done)(struct nci_uart *nci_uart);
+};
+
+struct nci_uart {
+	struct module		*owner;
+	struct nci_uart_ops	ops;
+	const char		*name;
+	enum nci_uart_driver	driver;
+
+	/* Dynamic data */
+	struct nci_dev		*ndev;
+	spinlock_t		rx_lock;
+	struct work_struct	write_work;
+	struct tty_struct	*tty;
+	unsigned long		tx_state;
+	struct sk_buff_head	tx_q;
+	struct sk_buff		*tx_skb;
+	struct sk_buff		*rx_skb;
+	int			rx_packet_len;
+	void			*drv_data;
+};
+
+int nci_uart_register(struct nci_uart *nu);
+void nci_uart_unregister(struct nci_uart *nu);
+void nci_uart_set_config(struct nci_uart *nu, int baudrate, int flow_ctrl);
 
 #endif /* __NCI_CORE_H */

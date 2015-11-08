@@ -164,7 +164,7 @@ static void hid_io_error(struct hid_device *hid)
 	if (time_after(jiffies, usbhid->stop_retry)) {
 
 		/* Retries failed, so do a port reset unless we lack bandwidth*/
-		if (test_bit(HID_NO_BANDWIDTH, &usbhid->iofl)
+		if (!test_bit(HID_NO_BANDWIDTH, &usbhid->iofl)
 		     && !test_and_set_bit(HID_RESET_PENDING, &usbhid->iofl)) {
 
 			schedule_work(&usbhid->reset_work);
@@ -710,7 +710,8 @@ int usbhid_open(struct hid_device *hid)
 		 * Wait 50 msec for the queue to empty before allowing events
 		 * to go through hid.
 		 */
-		msleep(50);
+		if (res == 0 && !(hid->quirks & HID_QUIRK_ALWAYS_POLL))
+			msleep(50);
 		clear_bit(HID_RESUME_RUNNING, &usbhid->iofl);
 	}
 done:

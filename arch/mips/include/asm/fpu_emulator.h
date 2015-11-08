@@ -44,6 +44,7 @@ struct mips_fpu_emulator_stats {
 	unsigned long ieee754_overflow;
 	unsigned long ieee754_zerodiv;
 	unsigned long ieee754_invalidop;
+	unsigned long ds_emul;
 };
 
 DECLARE_PER_CPU(struct mips_fpu_emulator_stats, fpuemustats);
@@ -65,7 +66,8 @@ extern int do_dsemulret(struct pt_regs *xcp);
 extern int fpu_emulator_cop1Handler(struct pt_regs *xcp,
 				    struct mips_fpu_struct *ctx, int has_fpu,
 				    void *__user *fault_addr);
-int process_fpemu_return(int sig, void __user *fault_addr);
+int process_fpemu_return(int sig, void __user *fault_addr,
+			 unsigned long fcr31);
 int mm_isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 		     unsigned long *contpc);
 
@@ -85,8 +87,6 @@ static inline void fpu_emulator_init_fpu(void)
 {
 	struct task_struct *t = current;
 	int i;
-
-	t->thread.fpu.fcr31 = 0;
 
 	for (i = 0; i < 32; i++)
 		set_fpr64(&t->thread.fpu.fpr[i], 0, SIGNALLING_NAN);

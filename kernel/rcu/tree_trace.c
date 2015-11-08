@@ -81,9 +81,9 @@ static void r_stop(struct seq_file *m, void *v)
 static int show_rcubarrier(struct seq_file *m, void *v)
 {
 	struct rcu_state *rsp = (struct rcu_state *)m->private;
-	seq_printf(m, "bcc: %d nbd: %lu\n",
+	seq_printf(m, "bcc: %d bseq: %lu\n",
 		   atomic_read(&rsp->barrier_cpu_count),
-		   rsp->n_barrier_done);
+		   rsp->barrier_sequence);
 	return 0;
 }
 
@@ -117,13 +117,13 @@ static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 
 	if (!rdp->beenonline)
 		return;
-	seq_printf(m, "%3d%cc=%ld g=%ld pq=%d/%d qp=%d",
+	seq_printf(m, "%3d%cc=%ld g=%ld cnq=%d/%d:%d",
 		   rdp->cpu,
 		   cpu_is_offline(rdp->cpu) ? '!' : ' ',
 		   ulong2long(rdp->completed), ulong2long(rdp->gpnum),
-		   rdp->passed_quiesce,
+		   rdp->cpu_no_qs.b.norm,
 		   rdp->rcu_qs_ctr_snap == per_cpu(rcu_qs_ctr, rdp->cpu),
-		   rdp->qs_pending);
+		   rdp->core_needs_qs);
 	seq_printf(m, " dt=%d/%llx/%d df=%lu",
 		   atomic_read(&rdp->dynticks->dynticks),
 		   rdp->dynticks->dynticks_nesting,
@@ -185,18 +185,15 @@ static int show_rcuexp(struct seq_file *m, void *v)
 {
 	struct rcu_state *rsp = (struct rcu_state *)m->private;
 
-	seq_printf(m, "s=%lu d=%lu w=%lu tf=%lu wd1=%lu wd2=%lu n=%lu sc=%lu dt=%lu dl=%lu dx=%lu\n",
-		   atomic_long_read(&rsp->expedited_start),
-		   atomic_long_read(&rsp->expedited_done),
-		   atomic_long_read(&rsp->expedited_wrap),
-		   atomic_long_read(&rsp->expedited_tryfail),
+	seq_printf(m, "s=%lu wd0=%lu wd1=%lu wd2=%lu wd3=%lu n=%lu enq=%d sc=%lu\n",
+		   rsp->expedited_sequence,
+		   atomic_long_read(&rsp->expedited_workdone0),
 		   atomic_long_read(&rsp->expedited_workdone1),
 		   atomic_long_read(&rsp->expedited_workdone2),
+		   atomic_long_read(&rsp->expedited_workdone3),
 		   atomic_long_read(&rsp->expedited_normal),
-		   atomic_long_read(&rsp->expedited_stoppedcpus),
-		   atomic_long_read(&rsp->expedited_done_tries),
-		   atomic_long_read(&rsp->expedited_done_lost),
-		   atomic_long_read(&rsp->expedited_done_exit));
+		   atomic_read(&rsp->expedited_need_qs),
+		   rsp->expedited_sequence / 2);
 	return 0;
 }
 
@@ -271,20 +268,20 @@ static void print_one_rcu_state(struct seq_file *m, struct rcu_state *rsp)
 	gpnum = rsp->gpnum;
 	seq_printf(m, "c=%ld g=%ld s=%d jfq=%ld j=%x ",
 		   ulong2long(rsp->completed), ulong2long(gpnum),
-		   rsp->fqs_state,
+		   rsp->gp_state,
 		   (long)(rsp->jiffies_force_qs - jiffies),
 		   (int)(jiffies & 0xffff));
 	seq_printf(m, "nfqs=%lu/nfqsng=%lu(%lu) fqlh=%lu oqlen=%ld/%ld\n",
 		   rsp->n_force_qs, rsp->n_force_qs_ngp,
 		   rsp->n_force_qs - rsp->n_force_qs_ngp,
-		   ACCESS_ONCE(rsp->n_force_qs_lh), rsp->qlen_lazy, rsp->qlen);
+		   READ_ONCE(rsp->n_force_qs_lh), rsp->qlen_lazy, rsp->qlen);
 	for (rnp = &rsp->node[0]; rnp - &rsp->node[0] < rcu_num_nodes; rnp++) {
 		if (rnp->level != level) {
 			seq_puts(m, "\n");
 			level = rnp->level;
 		}
-		seq_printf(m, "%lx/%lx %c%c>%c %d:%d ^%d    ",
-			   rnp->qsmask, rnp->qsmaskinit,
+		seq_printf(m, "%lx/%lx->%lx %c%c>%c %d:%d ^%d    ",
+			   rnp->qsmask, rnp->qsmaskinit, rnp->qsmaskinitnext,
 			   ".G"[rnp->gp_tasks != NULL],
 			   ".E"[rnp->exp_tasks != NULL],
 			   ".T"[!list_empty(&rnp->blkd_tasks)],
@@ -323,8 +320,8 @@ static void show_one_rcugp(struct seq_file *m, struct rcu_state *rsp)
 	struct rcu_node *rnp = &rsp->node[0];
 
 	raw_spin_lock_irqsave(&rnp->lock, flags);
-	completed = ACCESS_ONCE(rsp->completed);
-	gpnum = ACCESS_ONCE(rsp->gpnum);
+	completed = READ_ONCE(rsp->completed);
+	gpnum = READ_ONCE(rsp->gpnum);
 	if (completed == gpnum)
 		gpage = 0;
 	else
@@ -364,7 +361,7 @@ static void print_one_rcu_pending(struct seq_file *m, struct rcu_data *rdp)
 		   cpu_is_offline(rdp->cpu) ? '!' : ' ',
 		   rdp->n_rcu_pending);
 	seq_printf(m, "qsp=%ld rpq=%ld cbr=%ld cng=%ld ",
-		   rdp->n_rp_qs_pending,
+		   rdp->n_rp_core_needs_qs,
 		   rdp->n_rp_report_qs,
 		   rdp->n_rp_cb_ready,
 		   rdp->n_rp_cpu_needs_gp);

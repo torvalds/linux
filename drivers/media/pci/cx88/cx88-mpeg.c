@@ -173,7 +173,7 @@ int cx8802_start_dma(struct cx8802_dev    *dev,
 
 	/* reset counter */
 	cx_write(MO_TS_GPCNTRL, GP_COUNT_CONTROL_RESET);
-	q->count = 1;
+	q->count = 0;
 
 	/* enable irqs */
 	dprintk( 1, "setting the interrupt mask\n" );
@@ -214,10 +214,8 @@ static int cx8802_restart_queue(struct cx8802_dev    *dev,
 
 	buf = list_entry(q->active.next, struct cx88_buffer, list);
 	dprintk(2,"restart_queue [%p/%d]: restart dma\n",
-		buf, buf->vb.v4l2_buf.index);
+		buf, buf->vb.vb2_buf.index);
 	cx8802_start_dma(dev, q, buf);
-	list_for_each_entry(buf, &q->active, list)
-		buf->count = q->count++;
 	return 0;
 }
 
@@ -227,13 +225,13 @@ int cx8802_buf_prepare(struct vb2_queue *q, struct cx8802_dev *dev,
 			struct cx88_buffer *buf)
 {
 	int size = dev->ts_packet_size * dev->ts_packet_count;
-	struct sg_table *sgt = vb2_dma_sg_plane_desc(&buf->vb, 0);
+	struct sg_table *sgt = vb2_dma_sg_plane_desc(&buf->vb.vb2_buf, 0);
 	struct cx88_riscmem *risc = &buf->risc;
 	int rc;
 
-	if (vb2_plane_size(&buf->vb, 0) < size)
+	if (vb2_plane_size(&buf->vb.vb2_buf, 0) < size)
 		return -EINVAL;
-	vb2_set_plane_payload(&buf->vb, 0, size);
+	vb2_set_plane_payload(&buf->vb.vb2_buf, 0, size);
 
 	rc = cx88_risc_databuffer(dev->pci, risc, sgt->sgl,
 			     dev->ts_packet_size, dev->ts_packet_count, 0);
@@ -260,19 +258,17 @@ void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf)
 	if (list_empty(&cx88q->active)) {
 		dprintk( 1, "queue is empty - first active\n" );
 		list_add_tail(&buf->list, &cx88q->active);
-		buf->count    = cx88q->count++;
 		dprintk(1,"[%p/%d] %s - first active\n",
-			buf, buf->vb.v4l2_buf.index, __func__);
+			buf, buf->vb.vb2_buf.index, __func__);
 
 	} else {
 		buf->risc.cpu[0] |= cpu_to_le32(RISC_IRQ1);
 		dprintk( 1, "queue is not empty - append to active\n" );
 		prev = list_entry(cx88q->active.prev, struct cx88_buffer, list);
 		list_add_tail(&buf->list, &cx88q->active);
-		buf->count    = cx88q->count++;
 		prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
 		dprintk( 1, "[%p/%d] %s - append to active\n",
-			buf, buf->vb.v4l2_buf.index, __func__);
+			buf, buf->vb.vb2_buf.index, __func__);
 	}
 }
 
@@ -288,7 +284,7 @@ static void do_cancel_buffers(struct cx8802_dev *dev)
 	while (!list_empty(&q->active)) {
 		buf = list_entry(q->active.next, struct cx88_buffer, list);
 		list_del(&buf->list);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 	spin_unlock_irqrestore(&dev->slock,flags);
 }
@@ -732,7 +728,7 @@ static int cx8802_probe(struct pci_dev *pci_dev,
 	dev->alloc_ctx = vb2_dma_sg_init_ctx(&pci_dev->dev);
 	if (IS_ERR(dev->alloc_ctx)) {
 		err = PTR_ERR(dev->alloc_ctx);
-		goto fail_core;
+		goto fail_dev;
 	}
 	dev->core = core;
 
@@ -754,6 +750,7 @@ static int cx8802_probe(struct pci_dev *pci_dev,
 
  fail_free:
 	vb2_dma_sg_cleanup_ctx(dev->alloc_ctx);
+ fail_dev:
 	kfree(dev);
  fail_core:
 	core->dvbdev = NULL;

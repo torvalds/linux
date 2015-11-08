@@ -2062,7 +2062,7 @@ static int snd_cmipci_get_volume(struct snd_kcontrol *kcontrol,
 		val = (snd_cmipci_mixer_read(cm, reg.right_reg) >> reg.right_shift) & reg.mask;
 		if (reg.invert)
 			val = reg.mask - val;
-		 ucontrol->value.integer.value[1] = val;
+		ucontrol->value.integer.value[1] = val;
 	}
 	spin_unlock_irq(&cm->reg_lock);
 	return 0;
@@ -2772,7 +2772,6 @@ static int snd_cmipci_mixer_new(struct cmipci *cm, int pcm_spdif_device)
  * proc interface
  */
 
-#ifdef CONFIG_PROC_FS
 static void snd_cmipci_proc_read(struct snd_info_entry *entry, 
 				 struct snd_info_buffer *buffer)
 {
@@ -2798,10 +2797,6 @@ static void snd_cmipci_proc_init(struct cmipci *cm)
 	if (! snd_card_proc_new(cm->card, "cmipci", &entry))
 		snd_info_set_text_ops(entry, cm, snd_cmipci_proc_read);
 }
-#else /* !CONFIG_PROC_FS */
-static inline void snd_cmipci_proc_init(struct cmipci *cm) {}
-#endif
-
 
 static const struct pci_device_id snd_cmipci_ids[] = {
 	{PCI_VDEVICE(CMEDIA, PCI_DEVICE_ID_CMEDIA_CM8338A), 0},

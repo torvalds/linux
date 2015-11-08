@@ -44,7 +44,7 @@ static int bcm53xxspi_wait(struct bcm53xxspi *b53spi, unsigned int timeout_ms)
 	u32 tmp;
 
 	/* SPE bit has to be 0 before we read MSPI STATUS */
-	deadline = jiffies + BCM53XXSPI_SPE_TIMEOUT_MS * HZ / 1000;
+	deadline = jiffies + msecs_to_jiffies(BCM53XXSPI_SPE_TIMEOUT_MS);
 	do {
 		tmp = bcm53xxspi_read(b53spi, B53SPI_MSPI_SPCR2);
 		if (!(tmp & B53SPI_MSPI_SPCR2_SPE))
@@ -56,7 +56,7 @@ static int bcm53xxspi_wait(struct bcm53xxspi *b53spi, unsigned int timeout_ms)
 		goto spi_timeout;
 
 	/* Check status */
-	deadline = jiffies + timeout_ms * HZ / 1000;
+	deadline = jiffies + msecs_to_jiffies(timeout_ms);
 	do {
 		tmp = bcm53xxspi_read(b53spi, B53SPI_MSPI_MSPI_STATUS);
 		if (tmp & B53SPI_MSPI_MSPI_STATUS_SPIF) {
@@ -247,28 +247,19 @@ static int bcm53xxspi_bcma_probe(struct bcma_device *core)
 	if (err) {
 		spi_master_put(master);
 		bcma_set_drvdata(core, NULL);
-		goto out;
+		return err;
 	}
 
 	/* Broadcom SoCs (at least with the CC rev 42) use SPI for flash only */
 	spi_new_device(master, &bcm53xx_info);
 
-out:
-	return err;
-}
-
-static void bcm53xxspi_bcma_remove(struct bcma_device *core)
-{
-	struct bcm53xxspi *b53spi = bcma_get_drvdata(core);
-
-	spi_unregister_master(b53spi->master);
+	return 0;
 }
 
 static struct bcma_driver bcm53xxspi_bcma_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= bcm53xxspi_bcma_tbl,
 	.probe		= bcm53xxspi_bcma_probe,
-	.remove		= bcm53xxspi_bcma_remove,
 };
 
 /**************************************************

@@ -55,9 +55,6 @@
 static int __read_mostly sysrq_enabled = CONFIG_MAGIC_SYSRQ_DEFAULT_ENABLE;
 static bool __read_mostly sysrq_always_enabled;
 
-unsigned short platform_sysrq_reset_seq[] __weak = { KEY_RESERVED };
-int sysrq_reset_downtime_ms __weak;
-
 static bool sysrq_on(void)
 {
 	return sysrq_enabled || sysrq_always_enabled;
@@ -275,6 +272,7 @@ static struct sysrq_key_op sysrq_showregs_op = {
 static void sysrq_handle_showstate(int key)
 {
 	show_state();
+	show_workqueue_state();
 }
 static struct sysrq_key_op sysrq_showstate_op = {
 	.handler	= sysrq_handle_showstate,
@@ -355,9 +353,18 @@ static struct sysrq_key_op sysrq_term_op = {
 
 static void moom_callback(struct work_struct *ignored)
 {
-	if (!out_of_memory(node_zonelist(first_memory_node, GFP_KERNEL),
-			   GFP_KERNEL, 0, NULL, true))
+	const gfp_t gfp_mask = GFP_KERNEL;
+	struct oom_control oc = {
+		.zonelist = node_zonelist(first_memory_node, gfp_mask),
+		.nodemask = NULL,
+		.gfp_mask = gfp_mask,
+		.order = -1,
+	};
+
+	mutex_lock(&oom_lock);
+	if (!out_of_memory(&oc))
 		pr_info("OOM request ignored because killer is disabled\n");
+	mutex_unlock(&oom_lock);
 }
 
 static DECLARE_WORK(moom_work, moom_callback);
@@ -462,6 +469,7 @@ static struct sysrq_key_op *sysrq_key_table[36] = {
 	/* v: May be registered for frame buffer console restore */
 	NULL,				/* v */
 	&sysrq_showstate_blocked_op,	/* w */
+	/* x: May be registered on mips for TLB dump */
 	/* x: May be registered on ppc/powerpc for xmon */
 	/* x: May be registered on sparc64 for global PMU dump */
 	NULL,				/* x */
@@ -568,6 +576,7 @@ void handle_sysrq(int key)
 EXPORT_SYMBOL(handle_sysrq);
 
 #ifdef CONFIG_INPUT
+static int sysrq_reset_downtime_ms;
 
 /* Simple translation table for the SysRq keys */
 static const unsigned char sysrq_xlate[KEY_CNT] =
@@ -948,23 +957,8 @@ static bool sysrq_handler_registered;
 
 static inline void sysrq_register_handler(void)
 {
-	unsigned short key;
 	int error;
-	int i;
 
-	/* First check if a __weak interface was instantiated. */
-	for (i = 0; i < ARRAY_SIZE(sysrq_reset_seq); i++) {
-		key = platform_sysrq_reset_seq[i];
-		if (key == KEY_RESERVED || key > KEY_MAX)
-			break;
-
-		sysrq_reset_seq[sysrq_reset_seq_len++] = key;
-	}
-
-	/*
-	 * DT configuration takes precedence over anything that would
-	 * have been defined via the __weak interface.
-	 */
 	sysrq_of_get_keyreset_config();
 
 	error = input_register_handler(&sysrq_handler);
@@ -1001,7 +995,7 @@ static int sysrq_reset_seq_param_set(const char *buffer,
 	return 0;
 }
 
-static struct kernel_param_ops param_ops_sysrq_reset_seq = {
+static const struct kernel_param_ops param_ops_sysrq_reset_seq = {
 	.get	= param_get_ushort,
 	.set	= sysrq_reset_seq_param_set,
 };
@@ -1009,6 +1003,10 @@ static struct kernel_param_ops param_ops_sysrq_reset_seq = {
 #define param_check_sysrq_reset_seq(name, p)	\
 	__param_check(name, p, unsigned short)
 
+/*
+ * not really modular, but the easiest way to keep compat with existing
+ * bootargs behaviour is to continue using module_param here.
+ */
 module_param_array_named(reset_seq, sysrq_reset_seq, sysrq_reset_seq,
 			 &sysrq_reset_seq_len, 0644);
 
@@ -1125,4 +1123,4 @@ static int __init sysrq_init(void)
 
 	return 0;
 }
-module_init(sysrq_init);
+device_initcall(sysrq_init);

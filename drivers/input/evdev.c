@@ -56,11 +56,56 @@ struct evdev_client {
 	struct fasync_struct *fasync;
 	struct evdev *evdev;
 	struct list_head node;
-	int clk_type;
+	unsigned int clk_type;
 	bool revoked;
+	unsigned long *evmasks[EV_CNT];
 	unsigned int bufsize;
 	struct input_event buffer[];
 };
+
+static size_t evdev_get_mask_cnt(unsigned int type)
+{
+	static const size_t counts[EV_CNT] = {
+		/* EV_SYN==0 is EV_CNT, _not_ SYN_CNT, see EVIOCGBIT */
+		[EV_SYN]	= EV_CNT,
+		[EV_KEY]	= KEY_CNT,
+		[EV_REL]	= REL_CNT,
+		[EV_ABS]	= ABS_CNT,
+		[EV_MSC]	= MSC_CNT,
+		[EV_SW]		= SW_CNT,
+		[EV_LED]	= LED_CNT,
+		[EV_SND]	= SND_CNT,
+		[EV_FF]		= FF_CNT,
+	};
+
+	return (type < EV_CNT) ? counts[type] : 0;
+}
+
+/* requires the buffer lock to be held */
+static bool __evdev_is_filtered(struct evdev_client *client,
+				unsigned int type,
+				unsigned int code)
+{
+	unsigned long *mask;
+	size_t cnt;
+
+	/* EV_SYN and unknown codes are never filtered */
+	if (type == EV_SYN || type >= EV_CNT)
+		return false;
+
+	/* first test whether the type is filtered */
+	mask = client->evmasks[0];
+	if (mask && !test_bit(type, mask))
+		return true;
+
+	/* unknown values are never filtered */
+	cnt = evdev_get_mask_cnt(type);
+	if (!cnt || code >= cnt)
+		return false;
+
+	mask = client->evmasks[type];
+	return mask && !test_bit(code, mask);
+}
 
 /* flush queued events of type @type, caller must hold client->buffer_lock */
 static void __evdev_flush_queue(struct evdev_client *client, unsigned int type)
@@ -146,37 +191,39 @@ static void evdev_queue_syn_dropped(struct evdev_client *client)
 static int evdev_set_clk_type(struct evdev_client *client, unsigned int clkid)
 {
 	unsigned long flags;
-
-	if (client->clk_type == clkid)
-		return 0;
+	unsigned int clk_type;
 
 	switch (clkid) {
 
 	case CLOCK_REALTIME:
-		client->clk_type = EV_CLK_REAL;
+		clk_type = EV_CLK_REAL;
 		break;
 	case CLOCK_MONOTONIC:
-		client->clk_type = EV_CLK_MONO;
+		clk_type = EV_CLK_MONO;
 		break;
 	case CLOCK_BOOTTIME:
-		client->clk_type = EV_CLK_BOOT;
+		clk_type = EV_CLK_BOOT;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	/*
-	 * Flush pending events and queue SYN_DROPPED event,
-	 * but only if the queue is not empty.
-	 */
-	spin_lock_irqsave(&client->buffer_lock, flags);
+	if (client->clk_type != clk_type) {
+		client->clk_type = clk_type;
 
-	if (client->head != client->tail) {
-		client->packet_head = client->head = client->tail;
-		__evdev_queue_syn_dropped(client);
+		/*
+		 * Flush pending events and queue SYN_DROPPED event,
+		 * but only if the queue is not empty.
+		 */
+		spin_lock_irqsave(&client->buffer_lock, flags);
+
+		if (client->head != client->tail) {
+			client->packet_head = client->head = client->tail;
+			__evdev_queue_syn_dropped(client);
+		}
+
+		spin_unlock_irqrestore(&client->buffer_lock, flags);
 	}
-
-	spin_unlock_irqrestore(&client->buffer_lock, flags);
 
 	return 0;
 }
@@ -226,12 +273,21 @@ static void evdev_pass_values(struct evdev_client *client,
 	spin_lock(&client->buffer_lock);
 
 	for (v = vals; v != vals + count; v++) {
+		if (__evdev_is_filtered(client, v->type, v->code))
+			continue;
+
+		if (v->type == EV_SYN && v->code == SYN_REPORT) {
+			/* drop empty SYN_REPORT */
+			if (client->packet_head == client->head)
+				continue;
+
+			wakeup = true;
+		}
+
 		event.type = v->type;
 		event.code = v->code;
 		event.value = v->value;
 		__pass_event(client, &event);
-		if (v->type == EV_SYN && v->code == SYN_REPORT)
-			wakeup = true;
 	}
 
 	spin_unlock(&client->buffer_lock);
@@ -290,19 +346,14 @@ static int evdev_flush(struct file *file, fl_owner_t id)
 {
 	struct evdev_client *client = file->private_data;
 	struct evdev *evdev = client->evdev;
-	int retval;
 
-	retval = mutex_lock_interruptible(&evdev->mutex);
-	if (retval)
-		return retval;
+	mutex_lock(&evdev->mutex);
 
-	if (!evdev->exist || client->revoked)
-		retval = -ENODEV;
-	else
-		retval = input_flush_device(&evdev->handle, file);
+	if (evdev->exist && !client->revoked)
+		input_flush_device(&evdev->handle, file);
 
 	mutex_unlock(&evdev->mutex);
-	return retval;
+	return 0;
 }
 
 static void evdev_free(struct device *dev)
@@ -415,6 +466,7 @@ static int evdev_release(struct inode *inode, struct file *file)
 {
 	struct evdev_client *client = file->private_data;
 	struct evdev *evdev = client->evdev;
+	unsigned int i;
 
 	mutex_lock(&evdev->mutex);
 	evdev_ungrab(evdev, client);
@@ -422,10 +474,10 @@ static int evdev_release(struct inode *inode, struct file *file)
 
 	evdev_detach_client(evdev, client);
 
-	if (is_vmalloc_addr(client))
-		vfree(client);
-	else
-		kfree(client);
+	for (i = 0; i < EV_CNT; ++i)
+		kfree(client->evmasks[i]);
+
+	kvfree(client);
 
 	evdev_close_device(evdev);
 
@@ -635,7 +687,46 @@ static int bits_to_user(unsigned long *bits, unsigned int maxbit,
 
 	return len;
 }
+
+static int bits_from_user(unsigned long *bits, unsigned int maxbit,
+			  unsigned int maxlen, const void __user *p, int compat)
+{
+	int len, i;
+
+	if (compat) {
+		if (maxlen % sizeof(compat_long_t))
+			return -EINVAL;
+
+		len = BITS_TO_LONGS_COMPAT(maxbit) * sizeof(compat_long_t);
+		if (len > maxlen)
+			len = maxlen;
+
+		for (i = 0; i < len / sizeof(compat_long_t); i++)
+			if (copy_from_user((compat_long_t *) bits +
+						i + 1 - ((i % 2) << 1),
+					   (compat_long_t __user *) p + i,
+					   sizeof(compat_long_t)))
+				return -EFAULT;
+		if (i % 2)
+			*((compat_long_t *) bits + i - 1) = 0;
+
+	} else {
+		if (maxlen % sizeof(long))
+			return -EINVAL;
+
+		len = BITS_TO_LONGS(maxbit) * sizeof(long);
+		if (len > maxlen)
+			len = maxlen;
+
+		if (copy_from_user(bits, p, len))
+			return -EFAULT;
+	}
+
+	return len;
+}
+
 #else
+
 static int bits_to_user(unsigned long *bits, unsigned int maxbit,
 			unsigned int maxlen, void __user *p, int compat)
 {
@@ -648,6 +739,24 @@ static int bits_to_user(unsigned long *bits, unsigned int maxbit,
 
 	return copy_to_user(p, bits, len) ? -EFAULT : len;
 }
+
+static int bits_from_user(unsigned long *bits, unsigned int maxbit,
+			  unsigned int maxlen, const void __user *p, int compat)
+{
+	size_t chunk_size = compat ? sizeof(compat_long_t) : sizeof(long);
+	int len;
+
+	if (maxlen % chunk_size)
+		return -EINVAL;
+
+	len = compat ? BITS_TO_LONGS_COMPAT(maxbit) : BITS_TO_LONGS(maxbit);
+	len *= chunk_size;
+	if (len > maxlen)
+		len = maxlen;
+
+	return copy_from_user(bits, p, len) ? -EFAULT : len;
+}
+
 #endif /* __BIG_ENDIAN */
 
 #else
@@ -661,6 +770,21 @@ static int bits_to_user(unsigned long *bits, unsigned int maxbit,
 		len = maxlen;
 
 	return copy_to_user(p, bits, len) ? -EFAULT : len;
+}
+
+static int bits_from_user(unsigned long *bits, unsigned int maxbit,
+			  unsigned int maxlen, const void __user *p, int compat)
+{
+	int len;
+
+	if (maxlen % sizeof(long))
+		return -EINVAL;
+
+	len = BITS_TO_LONGS(maxbit) * sizeof(long);
+	if (len > maxlen)
+		len = maxlen;
+
+	return copy_from_user(bits, p, len) ? -EFAULT : len;
 }
 
 #endif /* CONFIG_COMPAT */
@@ -857,6 +981,81 @@ static int evdev_revoke(struct evdev *evdev, struct evdev_client *client,
 	return 0;
 }
 
+/* must be called with evdev-mutex held */
+static int evdev_set_mask(struct evdev_client *client,
+			  unsigned int type,
+			  const void __user *codes,
+			  u32 codes_size,
+			  int compat)
+{
+	unsigned long flags, *mask, *oldmask;
+	size_t cnt;
+	int error;
+
+	/* we allow unknown types and 'codes_size > size' for forward-compat */
+	cnt = evdev_get_mask_cnt(type);
+	if (!cnt)
+		return 0;
+
+	mask = kcalloc(sizeof(unsigned long), BITS_TO_LONGS(cnt), GFP_KERNEL);
+	if (!mask)
+		return -ENOMEM;
+
+	error = bits_from_user(mask, cnt - 1, codes_size, codes, compat);
+	if (error < 0) {
+		kfree(mask);
+		return error;
+	}
+
+	spin_lock_irqsave(&client->buffer_lock, flags);
+	oldmask = client->evmasks[type];
+	client->evmasks[type] = mask;
+	spin_unlock_irqrestore(&client->buffer_lock, flags);
+
+	kfree(oldmask);
+
+	return 0;
+}
+
+/* must be called with evdev-mutex held */
+static int evdev_get_mask(struct evdev_client *client,
+			  unsigned int type,
+			  void __user *codes,
+			  u32 codes_size,
+			  int compat)
+{
+	unsigned long *mask;
+	size_t cnt, size, xfer_size;
+	int i;
+	int error;
+
+	/* we allow unknown types and 'codes_size > size' for forward-compat */
+	cnt = evdev_get_mask_cnt(type);
+	size = sizeof(unsigned long) * BITS_TO_LONGS(cnt);
+	xfer_size = min_t(size_t, codes_size, size);
+
+	if (cnt > 0) {
+		mask = client->evmasks[type];
+		if (mask) {
+			error = bits_to_user(mask, cnt - 1,
+					     xfer_size, codes, compat);
+			if (error < 0)
+				return error;
+		} else {
+			/* fake mask with all bits set */
+			for (i = 0; i < xfer_size; i++)
+				if (put_user(0xffU, (u8 __user *)codes + i))
+					return -EFAULT;
+		}
+	}
+
+	if (xfer_size < codes_size)
+		if (clear_user(codes + xfer_size, codes_size - xfer_size))
+			return -EFAULT;
+
+	return 0;
+}
+
 static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 			   void __user *p, int compat_mode)
 {
@@ -864,6 +1063,7 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 	struct evdev *evdev = client->evdev;
 	struct input_dev *dev = evdev->handle.dev;
 	struct input_absinfo abs;
+	struct input_mask mask;
 	struct ff_effect effect;
 	int __user *ip = (int __user *)p;
 	unsigned int i, t, u, v;
@@ -924,6 +1124,30 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 			return -EINVAL;
 		else
 			return evdev_revoke(evdev, client, file);
+
+	case EVIOCGMASK: {
+		void __user *codes_ptr;
+
+		if (copy_from_user(&mask, p, sizeof(mask)))
+			return -EFAULT;
+
+		codes_ptr = (void __user *)(unsigned long)mask.codes_ptr;
+		return evdev_get_mask(client,
+				      mask.type, codes_ptr, mask.codes_size,
+				      compat_mode);
+	}
+
+	case EVIOCSMASK: {
+		const void __user *codes_ptr;
+
+		if (copy_from_user(&mask, p, sizeof(mask)))
+			return -EFAULT;
+
+		codes_ptr = (const void __user *)(unsigned long)mask.codes_ptr;
+		return evdev_set_mask(client,
+				      mask.type, codes_ptr, mask.codes_size,
+				      compat_mode);
+	}
 
 	case EVIOCSCLOCKID:
 		if (copy_from_user(&i, p, sizeof(unsigned int)))

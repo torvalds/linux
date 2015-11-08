@@ -684,8 +684,6 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 			dev->node_props.cpu_core_id_base);
 	sysfs_show_32bit_prop(buffer, "simd_id_base",
 			dev->node_props.simd_id_base);
-	sysfs_show_32bit_prop(buffer, "capability",
-			dev->node_props.capability);
 	sysfs_show_32bit_prop(buffer, "max_waves_per_simd",
 			dev->node_props.max_waves_per_simd);
 	sysfs_show_32bit_prop(buffer, "lds_size_in_kb",
@@ -726,15 +724,18 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 		}
 
 		sysfs_show_32bit_prop(buffer, "max_engine_clk_fcompute",
-				kfd2kgd->get_max_engine_clock_in_mhz(
+			dev->gpu->kfd2kgd->get_max_engine_clock_in_mhz(
 					dev->gpu->kgd));
+
 		sysfs_show_64bit_prop(buffer, "local_mem_size",
-				kfd2kgd->get_vmem_size(dev->gpu->kgd));
+				(unsigned long long int) 0);
 
 		sysfs_show_32bit_prop(buffer, "fw_version",
-				kfd2kgd->get_fw_version(
+			dev->gpu->kfd2kgd->get_fw_version(
 						dev->gpu->kgd,
 						KGD_ENGINE_MEC1));
+		sysfs_show_32bit_prop(buffer, "capability",
+				dev->node_props.capability);
 	}
 
 	return sysfs_show_32bit_prop(buffer, "max_engine_clk_ccompute",
@@ -1099,8 +1100,9 @@ static uint32_t kfd_generate_gpu_id(struct kfd_dev *gpu)
 	buf[2] = gpu->pdev->subsystem_device;
 	buf[3] = gpu->pdev->device;
 	buf[4] = gpu->pdev->bus->number;
-	buf[5] = (uint32_t)(kfd2kgd->get_vmem_size(gpu->kgd) & 0xffffffff);
-	buf[6] = (uint32_t)(kfd2kgd->get_vmem_size(gpu->kgd) >> 32);
+	buf[5] = (uint32_t)(gpu->kfd2kgd->get_vmem_size(gpu->kgd)
+			& 0xffffffff);
+	buf[6] = (uint32_t)(gpu->kfd2kgd->get_vmem_size(gpu->kgd) >> 32);
 
 	for (i = 0, hashout = 0; i < 7; i++)
 		hashout ^= hash_32(buf[i], KFD_GPU_ID_HASH_WIDTH);
@@ -1183,6 +1185,11 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	/*
 	 * TODO: Retrieve max engine clock values from KGD
 	 */
+
+	if (dev->gpu->device_info->asic_family == CHIP_CARRIZO) {
+		dev->node_props.capability |= HSA_CAP_DOORBELL_PACKET_TYPE;
+		pr_info("amdkfd: adding doorbell packet type capability\n");
+	}
 
 	res = 0;
 

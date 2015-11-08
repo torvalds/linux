@@ -49,7 +49,6 @@ static void mmc_pwrseq_emmc_free(struct mmc_host *host)
 	unregister_restart_handler(&pwrseq->reset_nb);
 	gpiod_put(pwrseq->reset_gpio);
 	kfree(pwrseq);
-	host->pwrseq = NULL;
 }
 
 static struct mmc_pwrseq_ops mmc_pwrseq_emmc_ops = {
@@ -67,16 +66,17 @@ static int mmc_pwrseq_emmc_reset_nb(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-int mmc_pwrseq_emmc_alloc(struct mmc_host *host, struct device *dev)
+struct mmc_pwrseq *mmc_pwrseq_emmc_alloc(struct mmc_host *host,
+					 struct device *dev)
 {
 	struct mmc_pwrseq_emmc *pwrseq;
 	int ret = 0;
 
 	pwrseq = kzalloc(sizeof(struct mmc_pwrseq_emmc), GFP_KERNEL);
 	if (!pwrseq)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
-	pwrseq->reset_gpio = gpiod_get_index(dev, "reset", 0, GPIOD_OUT_LOW);
+	pwrseq->reset_gpio = gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(pwrseq->reset_gpio)) {
 		ret = PTR_ERR(pwrseq->reset_gpio);
 		goto free;
@@ -84,18 +84,17 @@ int mmc_pwrseq_emmc_alloc(struct mmc_host *host, struct device *dev)
 
 	/*
 	 * register reset handler to ensure emmc reset also from
-	 * emergency_reboot(), priority 129 schedules it just before
-	 * system reboot
+	 * emergency_reboot(), priority 255 is the highest priority
+	 * so it will be executed before any system reboot handler.
 	 */
 	pwrseq->reset_nb.notifier_call = mmc_pwrseq_emmc_reset_nb;
-	pwrseq->reset_nb.priority = 129;
+	pwrseq->reset_nb.priority = 255;
 	register_restart_handler(&pwrseq->reset_nb);
 
 	pwrseq->pwrseq.ops = &mmc_pwrseq_emmc_ops;
-	host->pwrseq = &pwrseq->pwrseq;
 
-	return 0;
+	return &pwrseq->pwrseq;
 free:
 	kfree(pwrseq);
-	return ret;
+	return ERR_PTR(ret);
 }

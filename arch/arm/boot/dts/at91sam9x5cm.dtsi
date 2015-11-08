@@ -42,6 +42,10 @@
 					};
 				};
 			};
+
+			rtc@fffffeb0 {
+				status = "okay";
+			};
 		};
 
 		nand0: nand@40000000 {

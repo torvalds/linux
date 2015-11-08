@@ -102,10 +102,10 @@ The bus_info must start with "PCI:" for PCI boards, "PCIe:" for PCI Express boar
 	    <entry>__u32</entry>
 	    <entry><structfield>version</structfield></entry>
 	    <entry><para>Version number of the driver.</para>
-<para>Starting on kernel 3.1, the version reported is provided per
-V4L2 subsystem, following the same Kernel numberation scheme. However, it
-should not always return the same version as the kernel, if, for example,
-an stable or distribution-modified kernel uses the V4L2 stack from a
+<para>Starting with kernel 3.1, the version reported is provided by the
+V4L2 subsystem following the kernel numbering scheme. However, it
+may not always return the same version as the kernel if, for example,
+a stable or distribution-modified kernel uses the V4L2 stack from a
 newer kernel.</para>
 <para>The version number is formatted using the
 <constant>KERNEL_VERSION()</constant> macro:</para></entry>
@@ -306,6 +306,12 @@ modulator programming see
 	    <entry>0x00200000</entry>
 	    <entry>The device supports the &v4l2-pix-format; extended
 fields.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_SDR_OUTPUT</constant></entry>
+	    <entry>0x00400000</entry>
+	    <entry>The device supports the
+<link linkend="sdr">SDR Output</link> interface.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CAP_READWRITE</constant></entry>

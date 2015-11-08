@@ -570,6 +570,7 @@ static struct cs_spec *cs_alloc_spec(struct hda_codec *codec, int vendor_nid)
 		return NULL;
 	codec->spec = spec;
 	spec->vendor_nid = vendor_nid;
+	codec->power_save_node = 1;
 	snd_hda_gen_spec_init(&spec->gen);
 
 	return spec;
@@ -584,6 +585,7 @@ static int patch_cs420x(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 
+	codec->patch_ops = cs_patch_ops;
 	spec->gen.automute_hook = cs_automute;
 	codec->single_adc_amp = 1;
 
@@ -594,8 +596,6 @@ static int patch_cs420x(struct hda_codec *codec)
 	err = cs_parse_auto_config(codec);
 	if (err < 0)
 		goto error;
-
-	codec->patch_ops = cs_patch_ops;
 
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PROBE);
 
@@ -634,6 +634,7 @@ static const struct snd_pci_quirk cs4208_mac_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x106b, 0x5e00, "MacBookPro 11,2", CS4208_MBP11),
 	SND_PCI_QUIRK(0x106b, 0x7100, "MacBookAir 6,1", CS4208_MBA6),
 	SND_PCI_QUIRK(0x106b, 0x7200, "MacBookAir 6,2", CS4208_MBA6),
+	SND_PCI_QUIRK(0x106b, 0x7b00, "MacBookPro 12,1", CS4208_MBP11),
 	{} /* terminator */
 };
 
@@ -738,6 +739,7 @@ static int patch_cs4208(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 
+	codec->patch_ops = cs_patch_ops;
 	spec->gen.automute_hook = cs_automute;
 	/* exclude NID 0x10 (HP) from output volumes due to different steps */
 	spec->gen.out_vol_mask = 1ULL << 0x10;
@@ -755,8 +757,6 @@ static int patch_cs4208(struct hda_codec *codec)
 	err = cs_parse_auto_config(codec);
 	if (err < 0)
 		goto error;
-
-	codec->patch_ops = cs_patch_ops;
 
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PROBE);
 
@@ -1001,9 +1001,7 @@ static void cs4210_spdif_automute(struct hda_codec *codec,
 
 	spec->spdif_present = spdif_present;
 	/* SPDIF TX on/off */
-	if (spdif_present)
-		snd_hda_set_pin_ctl(codec, spdif_pin,
-				    spdif_present ? PIN_OUT : 0);
+	snd_hda_set_pin_ctl(codec, spdif_pin, spdif_present ? PIN_OUT : 0);
 
 	cs_automute(codec);
 }
@@ -1150,6 +1148,7 @@ static int patch_cs4210(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 
+	codec->patch_ops = cs421x_patch_ops;
 	spec->gen.automute_hook = cs_automute;
 
 	snd_hda_pick_fixup(codec, cs421x_models, cs421x_fixup_tbl,
@@ -1166,8 +1165,6 @@ static int patch_cs4210(struct hda_codec *codec)
 	err = cs421x_parse_auto_config(codec);
 	if (err < 0)
 		goto error;
-
-	codec->patch_ops = cs421x_patch_ops;
 
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PROBE);
 
@@ -1187,11 +1184,12 @@ static int patch_cs4213(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 
+	codec->patch_ops = cs421x_patch_ops;
+
 	err = cs421x_parse_auto_config(codec);
 	if (err < 0)
 		goto error;
 
-	codec->patch_ops = cs421x_patch_ops;
 	return 0;
 
  error:
@@ -1203,38 +1201,21 @@ static int patch_cs4213(struct hda_codec *codec)
 /*
  * patch entries
  */
-static const struct hda_codec_preset snd_hda_preset_cirrus[] = {
-	{ .id = 0x10134206, .name = "CS4206", .patch = patch_cs420x },
-	{ .id = 0x10134207, .name = "CS4207", .patch = patch_cs420x },
-	{ .id = 0x10134208, .name = "CS4208", .patch = patch_cs4208 },
-	{ .id = 0x10134210, .name = "CS4210", .patch = patch_cs4210 },
-	{ .id = 0x10134213, .name = "CS4213", .patch = patch_cs4213 },
+static const struct hda_device_id snd_hda_id_cirrus[] = {
+	HDA_CODEC_ENTRY(0x10134206, "CS4206", patch_cs420x),
+	HDA_CODEC_ENTRY(0x10134207, "CS4207", patch_cs420x),
+	HDA_CODEC_ENTRY(0x10134208, "CS4208", patch_cs4208),
+	HDA_CODEC_ENTRY(0x10134210, "CS4210", patch_cs4210),
+	HDA_CODEC_ENTRY(0x10134213, "CS4213", patch_cs4213),
 	{} /* terminator */
 };
-
-MODULE_ALIAS("snd-hda-codec-id:10134206");
-MODULE_ALIAS("snd-hda-codec-id:10134207");
-MODULE_ALIAS("snd-hda-codec-id:10134208");
-MODULE_ALIAS("snd-hda-codec-id:10134210");
-MODULE_ALIAS("snd-hda-codec-id:10134213");
+MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_cirrus);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Cirrus Logic HD-audio codec");
 
-static struct hda_codec_preset_list cirrus_list = {
-	.preset = snd_hda_preset_cirrus,
-	.owner = THIS_MODULE,
+static struct hda_codec_driver cirrus_driver = {
+	.id = snd_hda_id_cirrus,
 };
 
-static int __init patch_cirrus_init(void)
-{
-	return snd_hda_add_codec_preset(&cirrus_list);
-}
-
-static void __exit patch_cirrus_exit(void)
-{
-	snd_hda_delete_codec_preset(&cirrus_list);
-}
-
-module_init(patch_cirrus_init)
-module_exit(patch_cirrus_exit)
+module_hda_codec_driver(cirrus_driver);
