@@ -61,6 +61,60 @@ void libbpf_set_print(libbpf_print_fn_t warn,
 	__pr_debug = debug;
 }
 
+#define STRERR_BUFSIZE  128
+
+#define ERRNO_OFFSET(e)		((e) - __LIBBPF_ERRNO__START)
+#define ERRCODE_OFFSET(c)	ERRNO_OFFSET(LIBBPF_ERRNO__##c)
+#define NR_ERRNO	(__LIBBPF_ERRNO__END - __LIBBPF_ERRNO__START)
+
+static const char *libbpf_strerror_table[NR_ERRNO] = {
+	[ERRCODE_OFFSET(LIBELF)]	= "Something wrong in libelf",
+	[ERRCODE_OFFSET(FORMAT)]	= "BPF object format invalid",
+	[ERRCODE_OFFSET(KVERSION)]	= "'version' section incorrect or lost",
+	[ERRCODE_OFFSET(ENDIAN)]	= "Endian missmatch",
+	[ERRCODE_OFFSET(INTERNAL)]	= "Internal error in libbpf",
+	[ERRCODE_OFFSET(RELOC)]		= "Relocation failed",
+	[ERRCODE_OFFSET(VERIFY)]	= "Kernel verifier blocks program loading",
+	[ERRCODE_OFFSET(PROG2BIG)]	= "Program too big",
+	[ERRCODE_OFFSET(KVER)]		= "Incorrect kernel version",
+};
+
+int libbpf_strerror(int err, char *buf, size_t size)
+{
+	if (!buf || !size)
+		return -1;
+
+	err = err > 0 ? err : -err;
+
+	if (err < __LIBBPF_ERRNO__START) {
+		int ret;
+
+		ret = strerror_r(err, buf, size);
+		buf[size - 1] = '\0';
+		return ret;
+	}
+
+	if (err < __LIBBPF_ERRNO__END) {
+		const char *msg;
+
+		msg = libbpf_strerror_table[ERRNO_OFFSET(err)];
+		snprintf(buf, size, "%s", msg);
+		buf[size - 1] = '\0';
+		return 0;
+	}
+
+	snprintf(buf, size, "Unknown libbpf error %d", err);
+	buf[size - 1] = '\0';
+	return -1;
+}
+
+#define CHECK_ERR(action, err, out) do {	\
+	err = action;			\
+	if (err)			\
+		goto out;		\
+} while(0)
+
+
 /* Copied from tools/perf/util/util.h */
 #ifndef zfree
 # define zfree(ptr) ({ free(*ptr); *ptr = NULL; })
@@ -258,7 +312,7 @@ static struct bpf_object *bpf_object__new(const char *path,
 	obj = calloc(1, sizeof(struct bpf_object) + strlen(path) + 1);
 	if (!obj) {
 		pr_warning("alloc memory failed for %s\n", path);
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	strcpy(obj->path, path);
@@ -305,7 +359,7 @@ static int bpf_object__elf_init(struct bpf_object *obj)
 
 	if (obj_elf_valid(obj)) {
 		pr_warning("elf init: internal error\n");
-		return -EEXIST;
+		return -LIBBPF_ERRNO__LIBELF;
 	}
 
 	if (obj->efile.obj_buf_sz > 0) {
@@ -331,14 +385,14 @@ static int bpf_object__elf_init(struct bpf_object *obj)
 	if (!obj->efile.elf) {
 		pr_warning("failed to open %s as ELF file\n",
 				obj->path);
-		err = -EINVAL;
+		err = -LIBBPF_ERRNO__LIBELF;
 		goto errout;
 	}
 
 	if (!gelf_getehdr(obj->efile.elf, &obj->efile.ehdr)) {
 		pr_warning("failed to get EHDR from %s\n",
 				obj->path);
-		err = -EINVAL;
+		err = -LIBBPF_ERRNO__FORMAT;
 		goto errout;
 	}
 	ep = &obj->efile.ehdr;
@@ -346,7 +400,7 @@ static int bpf_object__elf_init(struct bpf_object *obj)
 	if ((ep->e_type != ET_REL) || (ep->e_machine != 0)) {
 		pr_warning("%s is not an eBPF object file\n",
 			obj->path);
-		err = -EINVAL;
+		err = -LIBBPF_ERRNO__FORMAT;
 		goto errout;
 	}
 
@@ -374,14 +428,14 @@ bpf_object__check_endianness(struct bpf_object *obj)
 			goto mismatch;
 		break;
 	default:
-		return -EINVAL;
+		return -LIBBPF_ERRNO__ENDIAN;
 	}
 
 	return 0;
 
 mismatch:
 	pr_warning("Error: endianness mismatch.\n");
-	return -EINVAL;
+	return -LIBBPF_ERRNO__ENDIAN;
 }
 
 static int
@@ -402,7 +456,7 @@ bpf_object__init_kversion(struct bpf_object *obj,
 
 	if (size != sizeof(kver)) {
 		pr_warning("invalid kver section in %s\n", obj->path);
-		return -EINVAL;
+		return -LIBBPF_ERRNO__FORMAT;
 	}
 	memcpy(&kver, data, sizeof(kver));
 	obj->kern_version = kver;
@@ -444,7 +498,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 	if (!elf_rawdata(elf_getscn(elf, ep->e_shstrndx), NULL)) {
 		pr_warning("failed to get e_shstrndx from %s\n",
 			   obj->path);
-		return -EINVAL;
+		return -LIBBPF_ERRNO__FORMAT;
 	}
 
 	while ((scn = elf_nextscn(elf, scn)) != NULL) {
@@ -456,7 +510,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 		if (gelf_getshdr(scn, &sh) != &sh) {
 			pr_warning("failed to get section header from %s\n",
 				   obj->path);
-			err = -EINVAL;
+			err = -LIBBPF_ERRNO__FORMAT;
 			goto out;
 		}
 
@@ -464,7 +518,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 		if (!name) {
 			pr_warning("failed to get section name from %s\n",
 				   obj->path);
-			err = -EINVAL;
+			err = -LIBBPF_ERRNO__FORMAT;
 			goto out;
 		}
 
@@ -472,7 +526,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 		if (!data) {
 			pr_warning("failed to get section data from %s(%s)\n",
 				   name, obj->path);
-			err = -EINVAL;
+			err = -LIBBPF_ERRNO__FORMAT;
 			goto out;
 		}
 		pr_debug("section %s, size %ld, link %d, flags %lx, type=%d\n",
@@ -495,7 +549,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 			if (obj->efile.symbols) {
 				pr_warning("bpf: multiple SYMTAB in %s\n",
 					   obj->path);
-				err = -EEXIST;
+				err = -LIBBPF_ERRNO__FORMAT;
 			} else
 				obj->efile.symbols = data;
 		} else if ((sh.sh_type == SHT_PROGBITS) &&
@@ -504,7 +558,8 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 			err = bpf_object__add_program(obj, data->d_buf,
 						      data->d_size, name, idx);
 			if (err) {
-				char errmsg[128];
+				char errmsg[STRERR_BUFSIZE];
+
 				strerror_r(-err, errmsg, sizeof(errmsg));
 				pr_warning("failed to alloc program %s (%s): %s",
 					   name, obj->path, errmsg);
@@ -576,7 +631,7 @@ bpf_program__collect_reloc(struct bpf_program *prog,
 
 		if (!gelf_getrel(data, i, &rel)) {
 			pr_warning("relocation: failed to get %d reloc\n", i);
-			return -EINVAL;
+			return -LIBBPF_ERRNO__FORMAT;
 		}
 
 		insn_idx = rel.r_offset / sizeof(struct bpf_insn);
@@ -587,20 +642,20 @@ bpf_program__collect_reloc(struct bpf_program *prog,
 				 &sym)) {
 			pr_warning("relocation: symbol %"PRIx64" not found\n",
 				   GELF_R_SYM(rel.r_info));
-			return -EINVAL;
+			return -LIBBPF_ERRNO__FORMAT;
 		}
 
 		if (insns[insn_idx].code != (BPF_LD | BPF_IMM | BPF_DW)) {
 			pr_warning("bpf: relocation: invalid relo for insns[%d].code 0x%x\n",
 				   insn_idx, insns[insn_idx].code);
-			return -EINVAL;
+			return -LIBBPF_ERRNO__RELOC;
 		}
 
 		map_idx = sym.st_value / sizeof(struct bpf_map_def);
 		if (map_idx >= nr_maps) {
 			pr_warning("bpf relocation: map_idx %d large than %d\n",
 				   (int)map_idx, (int)nr_maps - 1);
-			return -EINVAL;
+			return -LIBBPF_ERRNO__RELOC;
 		}
 
 		prog->reloc_desc[i].insn_idx = insn_idx;
@@ -683,7 +738,7 @@ bpf_program__relocate(struct bpf_program *prog, int *map_fds)
 		if (insn_idx >= (int)prog->insns_cnt) {
 			pr_warning("relocation out of range: '%s'\n",
 				   prog->section_name);
-			return -ERANGE;
+			return -LIBBPF_ERRNO__RELOC;
 		}
 		insns[insn_idx].src_reg = BPF_PSEUDO_MAP_FD;
 		insns[insn_idx].imm = map_fds[map_idx];
@@ -721,7 +776,7 @@ static int bpf_object__collect_reloc(struct bpf_object *obj)
 
 	if (!obj_elf_valid(obj)) {
 		pr_warning("Internal error: elf object is closed\n");
-		return -EINVAL;
+		return -LIBBPF_ERRNO__INTERNAL;
 	}
 
 	for (i = 0; i < obj->efile.nr_reloc; i++) {
@@ -734,21 +789,21 @@ static int bpf_object__collect_reloc(struct bpf_object *obj)
 
 		if (shdr->sh_type != SHT_REL) {
 			pr_warning("internal error at %d\n", __LINE__);
-			return -EINVAL;
+			return -LIBBPF_ERRNO__INTERNAL;
 		}
 
 		prog = bpf_object__find_prog_by_idx(obj, idx);
 		if (!prog) {
 			pr_warning("relocation failed: no %d section\n",
 				   idx);
-			return -ENOENT;
+			return -LIBBPF_ERRNO__RELOC;
 		}
 
 		err = bpf_program__collect_reloc(prog, nr_maps,
 						 shdr, data,
 						 obj->efile.symbols);
 		if (err)
-			return -EINVAL;
+			return err;
 	}
 	return 0;
 }
@@ -777,13 +832,23 @@ load_program(struct bpf_insn *insns, int insns_cnt,
 		goto out;
 	}
 
-	ret = -EINVAL;
+	ret = -LIBBPF_ERRNO__LOAD;
 	pr_warning("load bpf program failed: %s\n", strerror(errno));
 
-	if (log_buf) {
+	if (log_buf && log_buf[0] != '\0') {
+		ret = -LIBBPF_ERRNO__VERIFY;
 		pr_warning("-- BEGIN DUMP LOG ---\n");
 		pr_warning("\n%s\n", log_buf);
 		pr_warning("-- END LOG --\n");
+	} else {
+		if (insns_cnt >= BPF_MAXINSNS) {
+			pr_warning("Program too large (%d insns), at most %d insns\n",
+				   insns_cnt, BPF_MAXINSNS);
+			ret = -LIBBPF_ERRNO__PROG2BIG;
+		} else if (log_buf) {
+			pr_warning("log buffer is empty\n");
+			ret = -LIBBPF_ERRNO__KVER;
+		}
 	}
 
 out:
@@ -831,7 +896,7 @@ static int bpf_object__validate(struct bpf_object *obj)
 	if (obj->kern_version == 0) {
 		pr_warning("%s doesn't provide kernel version\n",
 			   obj->path);
-		return -EINVAL;
+		return -LIBBPF_ERRNO__KVERSION;
 	}
 	return 0;
 }
@@ -840,32 +905,28 @@ static struct bpf_object *
 __bpf_object__open(const char *path, void *obj_buf, size_t obj_buf_sz)
 {
 	struct bpf_object *obj;
+	int err;
 
 	if (elf_version(EV_CURRENT) == EV_NONE) {
 		pr_warning("failed to init libelf for %s\n", path);
-		return NULL;
+		return ERR_PTR(-LIBBPF_ERRNO__LIBELF);
 	}
 
 	obj = bpf_object__new(path, obj_buf, obj_buf_sz);
-	if (!obj)
-		return NULL;
+	if (IS_ERR(obj))
+		return obj;
 
-	if (bpf_object__elf_init(obj))
-		goto out;
-	if (bpf_object__check_endianness(obj))
-		goto out;
-	if (bpf_object__elf_collect(obj))
-		goto out;
-	if (bpf_object__collect_reloc(obj))
-		goto out;
-	if (bpf_object__validate(obj))
-		goto out;
+	CHECK_ERR(bpf_object__elf_init(obj), err, out);
+	CHECK_ERR(bpf_object__check_endianness(obj), err, out);
+	CHECK_ERR(bpf_object__elf_collect(obj), err, out);
+	CHECK_ERR(bpf_object__collect_reloc(obj), err, out);
+	CHECK_ERR(bpf_object__validate(obj), err, out);
 
 	bpf_object__elf_finish(obj);
 	return obj;
 out:
 	bpf_object__close(obj);
-	return NULL;
+	return ERR_PTR(err);
 }
 
 struct bpf_object *bpf_object__open(const char *path)
@@ -922,6 +983,8 @@ int bpf_object__unload(struct bpf_object *obj)
 
 int bpf_object__load(struct bpf_object *obj)
 {
+	int err;
+
 	if (!obj)
 		return -EINVAL;
 
@@ -931,18 +994,16 @@ int bpf_object__load(struct bpf_object *obj)
 	}
 
 	obj->loaded = true;
-	if (bpf_object__create_maps(obj))
-		goto out;
-	if (bpf_object__relocate(obj))
-		goto out;
-	if (bpf_object__load_progs(obj))
-		goto out;
+
+	CHECK_ERR(bpf_object__create_maps(obj), err, out);
+	CHECK_ERR(bpf_object__relocate(obj), err, out);
+	CHECK_ERR(bpf_object__load_progs(obj), err, out);
 
 	return 0;
 out:
 	bpf_object__unload(obj);
 	pr_warning("failed to load object '%s'\n", obj->path);
-	return -EINVAL;
+	return err;
 }
 
 void bpf_object__close(struct bpf_object *obj)
@@ -990,8 +1051,16 @@ const char *
 bpf_object__get_name(struct bpf_object *obj)
 {
 	if (!obj)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	return obj->path;
+}
+
+unsigned int
+bpf_object__get_kversion(struct bpf_object *obj)
+{
+	if (!obj)
+		return 0;
+	return obj->kern_version;
 }
 
 struct bpf_program *
@@ -1034,16 +1103,16 @@ int bpf_program__get_private(struct bpf_program *prog, void **ppriv)
 	return 0;
 }
 
-const char *bpf_program__title(struct bpf_program *prog, bool dup)
+const char *bpf_program__title(struct bpf_program *prog, bool needs_copy)
 {
 	const char *title;
 
 	title = prog->section_name;
-	if (dup) {
+	if (needs_copy) {
 		title = strdup(title);
 		if (!title) {
 			pr_warning("failed to strdup program title\n");
-			return NULL;
+			return ERR_PTR(-ENOMEM);
 		}
 	}
 
