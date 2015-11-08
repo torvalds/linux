@@ -5,6 +5,8 @@
 unsigned long memory_start, memory_end;
 static unsigned long _memory_start, mem_size;
 
+void *empty_zero_page;
+
 void __init bootmem_init(int mem_size)
 {
 	int bootmap_size;
@@ -35,6 +37,9 @@ void __init bootmem_init(int mem_size)
 	 */
 	free_bootmem(memory_start, mem_size);
 	reserve_bootmem(memory_start, bootmap_size, BOOTMEM_DEFAULT);
+
+	empty_zero_page = alloc_bootmem_pages(PAGE_SIZE);
+	memset((void *)empty_zero_page, 0, PAGE_SIZE);
 
 	{
 		unsigned long zones_size[MAX_NR_ZONES] = {0, };
