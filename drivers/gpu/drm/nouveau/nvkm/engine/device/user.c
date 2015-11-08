@@ -31,6 +31,7 @@
 #include <subdev/timer.h>
 
 #include <nvif/class.h>
+#include <nvif/cl0080.h>
 #include <nvif/unpack.h>
 
 struct nvkm_udevice {

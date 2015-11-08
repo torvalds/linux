@@ -42,6 +42,7 @@
 #include "nouveau_encoder.h"
 #include "nouveau_crtc.h"
 
+#include <nvif/class.h>
 #include <nvif/cl0046.h>
 #include <nvif/event.h>
 

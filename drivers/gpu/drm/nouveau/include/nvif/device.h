@@ -2,7 +2,7 @@
 #define __NVIF_DEVICE_H__
 
 #include <nvif/object.h>
-#include <nvif/class.h>
+#include <nvif/cl0080.h>
 
 struct nvif_device {
 	struct nvif_object object;
