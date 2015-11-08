@@ -3281,7 +3281,7 @@ int host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *rx_gtk,
 {
 	int result = 0;
 	struct host_if_msg msg;
-	u8 u8KeyLen = gtk_key_len;
+	u8 key_len = gtk_key_len;
 
 	if (!hif_drv) {
 		PRINT_ER("driver is null\n");
@@ -3290,10 +3290,10 @@ int host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *rx_gtk,
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
 	if (rx_mic)
-		u8KeyLen += RX_MIC_KEY_LEN;
+		key_len += RX_MIC_KEY_LEN;
 
 	if (tx_mic)
-		u8KeyLen += TX_MIC_KEY_LEN;
+		key_len += TX_MIC_KEY_LEN;
 
 	if (key_rsc) {
 		msg.body.key_info.attr.wpa.seq = kmalloc(key_rsc_len, GFP_KERNEL);
@@ -3311,7 +3311,7 @@ int host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *rx_gtk,
 	if (mode == STATION_MODE)
 		msg.body.key_info.action = ADDKEY;
 
-	msg.body.key_info.attr.wpa.key = kmalloc(u8KeyLen, GFP_KERNEL);
+	msg.body.key_info.attr.wpa.key = kmalloc(key_len, GFP_KERNEL);
 	memcpy(msg.body.key_info.attr.wpa.key, rx_gtk, gtk_key_len);
 
 	if (rx_mic)
@@ -3323,7 +3323,7 @@ int host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *rx_gtk,
 		       TX_MIC_KEY_LEN);
 
 	msg.body.key_info.attr.wpa.index = index;
-	msg.body.key_info.attr.wpa.key_len = u8KeyLen;
+	msg.body.key_info.attr.wpa.key_len = key_len;
 	msg.body.key_info.attr.wpa.seq_len = key_rsc_len;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
