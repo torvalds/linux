@@ -3215,7 +3215,7 @@ int host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *ptk,
 	int result = 0;
 	struct host_if_msg msg;
 	u8 u8KeyLen = ptk_key_len;
-	u32 i;
+	int i;
 
 	if (!hif_drv) {
 		PRINT_ER("driver is null\n");
