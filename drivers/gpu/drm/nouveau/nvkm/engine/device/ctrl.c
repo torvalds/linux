@@ -27,6 +27,7 @@
 #include <subdev/clk.h>
 
 #include <nvif/class.h>
+#include <nvif/if0001.h>
 #include <nvif/ioctl.h>
 #include <nvif/unpack.h>
 

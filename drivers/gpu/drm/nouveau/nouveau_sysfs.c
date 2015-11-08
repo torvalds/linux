@@ -24,6 +24,7 @@
 
 #include <nvif/os.h>
 #include <nvif/class.h>
+#include <nvif/if0001.h>
 #include <nvif/ioctl.h>
 
 #include "nouveau_sysfs.h"
