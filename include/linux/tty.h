@@ -345,8 +345,6 @@ struct tty_file_private {
 #define TTY_HUPPED 		18	/* Post driver->hangup() */
 #define TTY_LDISC_HALTED	22	/* Line discipline is halted */
 
-#define TTY_WRITE_FLUSH(tty) tty_write_flush((tty))
-
 /* Values for tty->flow_change */
 #define TTY_THROTTLE_SAFE 1
 #define TTY_UNTHROTTLE_SAFE 2
@@ -394,8 +392,6 @@ static inline struct tty_struct *get_current_tty(void)
 static inline int __init tty_init(void)
 { return 0; }
 #endif
-
-extern void tty_write_flush(struct tty_struct *);
 
 extern struct ktermios tty_std_termios;
 
