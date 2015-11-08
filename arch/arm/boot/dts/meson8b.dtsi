@@ -105,6 +105,12 @@
 			#interrupt-cells = <3>;
 		};
 
+		wdt: watchdog@c1109900 {
+			compatible = "amlogic,meson8b-wdt";
+			reg = <0xc1109900 0x8>;
+			interrupts = <0 0 1>;
+		};
+
 		timer@c1109940 {
 			compatible = "amlogic,meson6-timer";
 			reg = <0xc1109940 0x18>;
