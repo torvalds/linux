@@ -200,10 +200,10 @@ gf100_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 	struct nvkm_object *parent = oclass->parent;
 	struct gf100_fifo_chan *chan;
 	u64 usermem, ioffset, ilength;
-	int ret, i;
+	int ret = -ENOSYS, i;
 
 	nvif_ioctl(parent, "create channel gpfifo size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, false)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(parent, "create channel gpfifo vers %d vm %llx "
 				   "ioffset %016llx ilength %08x\n",
 			   args->v0.version, args->v0.vm, args->v0.ioffset,

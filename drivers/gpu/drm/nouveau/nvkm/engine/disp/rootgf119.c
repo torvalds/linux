@@ -42,10 +42,10 @@ gf119_disp_root_scanoutpos(NV50_DISP_MTHD_V0)
 	union {
 		struct nv50_disp_scanoutpos_v0 v0;
 	} *args = data;
-	int ret;
+	int ret = -ENOSYS;
 
 	nvif_ioctl(object, "disp scanoutpos size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, false)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(object, "disp scanoutpos vers %d\n",
 			   args->v0.version);
 		args->v0.vblanke = (blanke & 0xffff0000) >> 16;

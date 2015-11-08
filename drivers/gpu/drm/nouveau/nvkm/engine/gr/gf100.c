@@ -148,9 +148,9 @@ gf100_fermi_mthd_zbc_color(struct nvkm_object *object, void *data, u32 size)
 	union {
 		struct fermi_a_zbc_color_v0 v0;
 	} *args = data;
-	int ret;
+	int ret = -ENOSYS;
 
-	if (nvif_unpack(args->v0, 0, 0, false)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		switch (args->v0.format) {
 		case FERMI_A_ZBC_COLOR_V0_FMT_ZERO:
 		case FERMI_A_ZBC_COLOR_V0_FMT_UNORM_ONE:
@@ -194,9 +194,9 @@ gf100_fermi_mthd_zbc_depth(struct nvkm_object *object, void *data, u32 size)
 	union {
 		struct fermi_a_zbc_depth_v0 v0;
 	} *args = data;
-	int ret;
+	int ret = -ENOSYS;
 
-	if (nvif_unpack(args->v0, 0, 0, false)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		switch (args->v0.format) {
 		case FERMI_A_ZBC_DEPTH_V0_FMT_FP32:
 			ret = gf100_gr_zbc_depth_get(gr, args->v0.format,
@@ -214,6 +214,7 @@ gf100_fermi_mthd_zbc_depth(struct nvkm_object *object, void *data, u32 size)
 static int
 gf100_fermi_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
+	nvif_ioctl(object, "fermi mthd %08x\n", mthd);
 	switch (mthd) {
 	case FERMI_A_ZBC_COLOR:
 		return gf100_fermi_mthd_zbc_color(object, data, size);

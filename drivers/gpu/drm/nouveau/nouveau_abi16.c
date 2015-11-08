@@ -357,9 +357,9 @@ nouveau_abi16_usif(struct drm_file *file_priv, void *data, u32 size)
 	} *args = data;
 	struct nouveau_abi16_chan *chan;
 	struct nouveau_abi16 *abi16;
-	int ret;
+	int ret = -ENOSYS;
 
-	if (nvif_unpack(args->v0, 0, 0, true)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
 		switch (args->v0.type) {
 		case NVIF_IOCTL_V0_NEW:
 		case NVIF_IOCTL_V0_MTHD:

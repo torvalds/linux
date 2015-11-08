@@ -85,10 +85,11 @@ gf119_dmaobj_new(struct nvkm_dma *dma, const struct nvkm_oclass *oclass,
 	if (ret)
 		return ret;
 
+	ret  = -ENOSYS;
 	args = data;
 
 	nvif_ioctl(parent, "create gf119 dma size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, false)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(parent,
 			   "create gf100 dma vers %d page %d kind %02x\n",
 			   args->v0.version, args->v0.page, args->v0.kind);

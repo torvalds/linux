@@ -47,9 +47,9 @@ nv04_nvsw_mthd_get_ref(struct nvkm_nvsw *nvsw, void *data, u32 size)
 	union {
 		struct nv04_nvsw_get_ref_v0 v0;
 	} *args = data;
-	int ret;
+	int ret = -ENOSYS;
 
-	if (nvif_unpack(args->v0, 0, 0, false)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		args->v0.ref = atomic_read(&chan->ref);
 	}
 
