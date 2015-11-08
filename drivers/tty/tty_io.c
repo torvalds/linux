@@ -268,14 +268,12 @@ static int tty_paranoia_check(struct tty_struct *tty, struct inode *inode,
 {
 #ifdef TTY_PARANOIA_CHECK
 	if (!tty) {
-		printk(KERN_WARNING
-			"null TTY for (%d:%d) in %s\n",
+		pr_warn("(%d:%d): %s: NULL tty\n",
 			imajor(inode), iminor(inode), routine);
 		return 1;
 	}
 	if (tty->magic != TTY_MAGIC) {
-		printk(KERN_WARNING
-			"bad magic number for tty struct (%d:%d) in %s\n",
+		pr_warn("(%d:%d): %s: bad magic number\n",
 			imajor(inode), iminor(inode), routine);
 		return 1;
 	}

@@ -458,10 +458,8 @@ void tty_termios_encode_baud_rate(struct ktermios *termios,
 	if (ifound == -1 && (ibaud != obaud || ibinput))
 		termios->c_cflag |= (BOTHER << IBSHIFT);
 #else
-	if (ifound == -1 || ofound == -1) {
-		printk_once(KERN_WARNING "tty: Unable to return correct "
-			  "speed data as your architecture needs updating.\n");
-	}
+	if (ifound == -1 || ofound == -1)
+		pr_warn_once("tty: Unable to return correct speed data as your architecture needs updating.\n");
 #endif
 }
 EXPORT_SYMBOL_GPL(tty_termios_encode_baud_rate);
