@@ -3275,7 +3275,7 @@ int host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *ptk,
 
 int host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *rx_gtk,
 			u8 gtk_key_len,	u8 index,
-			u32 u32KeyRSClen, const u8 *KeyRSC,
+			u32 key_rsc_len, const u8 *KeyRSC,
 			const u8 *pu8RxMic, const u8 *pu8TxMic,
 			u8 mode, u8 u8Ciphermode)
 {
@@ -3296,8 +3296,8 @@ int host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *rx_gtk,
 		u8KeyLen += TX_MIC_KEY_LEN;
 
 	if (KeyRSC) {
-		msg.body.key_info.attr.wpa.seq = kmalloc(u32KeyRSClen, GFP_KERNEL);
-		memcpy(msg.body.key_info.attr.wpa.seq, KeyRSC, u32KeyRSClen);
+		msg.body.key_info.attr.wpa.seq = kmalloc(key_rsc_len, GFP_KERNEL);
+		memcpy(msg.body.key_info.attr.wpa.seq, KeyRSC, key_rsc_len);
 	}
 
 	msg.id = HOST_IF_MSG_KEY;
@@ -3324,7 +3324,7 @@ int host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *rx_gtk,
 
 	msg.body.key_info.attr.wpa.index = index;
 	msg.body.key_info.attr.wpa.key_len = u8KeyLen;
-	msg.body.key_info.attr.wpa.seq_len = u32KeyRSClen;
+	msg.body.key_info.attr.wpa.seq_len = key_rsc_len;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 	if (result)
