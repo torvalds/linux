@@ -28,6 +28,7 @@
 #include <subdev/timer.h>
 
 #include <nvif/class.h>
+#include <nvif/cl507d.h>
 #include <nvif/unpack.h>
 
 int

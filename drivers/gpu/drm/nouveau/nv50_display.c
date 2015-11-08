@@ -31,6 +31,12 @@
 #include <drm/drm_fb_helper.h>
 
 #include <nvif/class.h>
+#include <nvif/cl5070.h>
+#include <nvif/cl507a.h>
+#include <nvif/cl507b.h>
+#include <nvif/cl507c.h>
+#include <nvif/cl507d.h>
+#include <nvif/cl507e.h>
 
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"

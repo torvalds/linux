@@ -28,7 +28,7 @@
 #include <core/ramht.h>
 #include <engine/dma.h>
 
-#include <nvif/class.h>
+#include <nvif/cl507d.h>
 #include <nvif/event.h>
 #include <nvif/unpack.h>
 

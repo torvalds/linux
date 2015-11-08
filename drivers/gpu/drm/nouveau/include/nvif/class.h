@@ -24,7 +24,7 @@
 #define KEPLER_INLINE_TO_MEMORY_A                                    0x0000a040
 #define KEPLER_INLINE_TO_MEMORY_B                                    0x0000a140
 
-#define NV04_DISP                                                    0x00000046
+#define NV04_DISP                                     /* cl0046.h */ 0x00000046
 
 #define NV03_CHANNEL_DMA                                             0x0000006b
 #define NV10_CHANNEL_DMA                                             0x0000006e
@@ -39,59 +39,59 @@
 #define KEPLER_CHANNEL_GPFIFO_A                                      0x0000a06f
 #define MAXWELL_CHANNEL_GPFIFO_A                                     0x0000b06f
 
-#define NV50_DISP                                                    0x00005070
-#define G82_DISP                                                     0x00008270
-#define GT200_DISP                                                   0x00008370
-#define GT214_DISP                                                   0x00008570
-#define GT206_DISP                                                   0x00008870
-#define GF110_DISP                                                   0x00009070
-#define GK104_DISP                                                   0x00009170
-#define GK110_DISP                                                   0x00009270
-#define GM107_DISP                                                   0x00009470
-#define GM204_DISP                                                   0x00009570
+#define NV50_DISP                                     /* cl5070.h */ 0x00005070
+#define G82_DISP                                      /* cl5070.h */ 0x00008270
+#define GT200_DISP                                    /* cl5070.h */ 0x00008370
+#define GT214_DISP                                    /* cl5070.h */ 0x00008570
+#define GT206_DISP                                    /* cl5070.h */ 0x00008870
+#define GF110_DISP                                    /* cl5070.h */ 0x00009070
+#define GK104_DISP                                    /* cl5070.h */ 0x00009170
+#define GK110_DISP                                    /* cl5070.h */ 0x00009270
+#define GM107_DISP                                    /* cl5070.h */ 0x00009470
+#define GM204_DISP                                    /* cl5070.h */ 0x00009570
 
 #define NV31_MPEG                                                    0x00003174
 #define G82_MPEG                                                     0x00008274
 
 #define NV74_VP2                                                     0x00007476
 
-#define NV50_DISP_CURSOR                                             0x0000507a
-#define G82_DISP_CURSOR                                              0x0000827a
-#define GT214_DISP_CURSOR                                            0x0000857a
-#define GF110_DISP_CURSOR                                            0x0000907a
-#define GK104_DISP_CURSOR                                            0x0000917a
+#define NV50_DISP_CURSOR                              /* cl507a.h */ 0x0000507a
+#define G82_DISP_CURSOR                               /* cl507a.h */ 0x0000827a
+#define GT214_DISP_CURSOR                             /* cl507a.h */ 0x0000857a
+#define GF110_DISP_CURSOR                             /* cl507a.h */ 0x0000907a
+#define GK104_DISP_CURSOR                             /* cl507a.h */ 0x0000917a
 
-#define NV50_DISP_OVERLAY                                            0x0000507b
-#define G82_DISP_OVERLAY                                             0x0000827b
-#define GT214_DISP_OVERLAY                                           0x0000857b
-#define GF110_DISP_OVERLAY                                           0x0000907b
-#define GK104_DISP_OVERLAY                                           0x0000917b
+#define NV50_DISP_OVERLAY                             /* cl507b.h */ 0x0000507b
+#define G82_DISP_OVERLAY                              /* cl507b.h */ 0x0000827b
+#define GT214_DISP_OVERLAY                            /* cl507b.h */ 0x0000857b
+#define GF110_DISP_OVERLAY                            /* cl507b.h */ 0x0000907b
+#define GK104_DISP_OVERLAY                            /* cl507b.h */ 0x0000917b
 
-#define NV50_DISP_BASE_CHANNEL_DMA                                   0x0000507c
-#define G82_DISP_BASE_CHANNEL_DMA                                    0x0000827c
-#define GT200_DISP_BASE_CHANNEL_DMA                                  0x0000837c
-#define GT214_DISP_BASE_CHANNEL_DMA                                  0x0000857c
-#define GF110_DISP_BASE_CHANNEL_DMA                                  0x0000907c
-#define GK104_DISP_BASE_CHANNEL_DMA                                  0x0000917c
-#define GK110_DISP_BASE_CHANNEL_DMA                                  0x0000927c
+#define NV50_DISP_BASE_CHANNEL_DMA                    /* cl507c.h */ 0x0000507c
+#define G82_DISP_BASE_CHANNEL_DMA                     /* cl507c.h */ 0x0000827c
+#define GT200_DISP_BASE_CHANNEL_DMA                   /* cl507c.h */ 0x0000837c
+#define GT214_DISP_BASE_CHANNEL_DMA                   /* cl507c.h */ 0x0000857c
+#define GF110_DISP_BASE_CHANNEL_DMA                   /* cl507c.h */ 0x0000907c
+#define GK104_DISP_BASE_CHANNEL_DMA                   /* cl507c.h */ 0x0000917c
+#define GK110_DISP_BASE_CHANNEL_DMA                   /* cl507c.h */ 0x0000927c
 
-#define NV50_DISP_CORE_CHANNEL_DMA                                   0x0000507d
-#define G82_DISP_CORE_CHANNEL_DMA                                    0x0000827d
-#define GT200_DISP_CORE_CHANNEL_DMA                                  0x0000837d
-#define GT214_DISP_CORE_CHANNEL_DMA                                  0x0000857d
-#define GT206_DISP_CORE_CHANNEL_DMA                                  0x0000887d
-#define GF110_DISP_CORE_CHANNEL_DMA                                  0x0000907d
-#define GK104_DISP_CORE_CHANNEL_DMA                                  0x0000917d
-#define GK110_DISP_CORE_CHANNEL_DMA                                  0x0000927d
-#define GM107_DISP_CORE_CHANNEL_DMA                                  0x0000947d
-#define GM204_DISP_CORE_CHANNEL_DMA                                  0x0000957d
+#define NV50_DISP_CORE_CHANNEL_DMA                    /* cl507d.h */ 0x0000507d
+#define G82_DISP_CORE_CHANNEL_DMA                     /* cl507d.h */ 0x0000827d
+#define GT200_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000837d
+#define GT214_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000857d
+#define GT206_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000887d
+#define GF110_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000907d
+#define GK104_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000917d
+#define GK110_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000927d
+#define GM107_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000947d
+#define GM204_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000957d
 
-#define NV50_DISP_OVERLAY_CHANNEL_DMA                                0x0000507e
-#define G82_DISP_OVERLAY_CHANNEL_DMA                                 0x0000827e
-#define GT200_DISP_OVERLAY_CHANNEL_DMA                               0x0000837e
-#define GT214_DISP_OVERLAY_CHANNEL_DMA                               0x0000857e
-#define GF110_DISP_OVERLAY_CONTROL_DMA                               0x0000907e
-#define GK104_DISP_OVERLAY_CONTROL_DMA                               0x0000917e
+#define NV50_DISP_OVERLAY_CHANNEL_DMA                 /* cl507e.h */ 0x0000507e
+#define G82_DISP_OVERLAY_CHANNEL_DMA                  /* cl507e.h */ 0x0000827e
+#define GT200_DISP_OVERLAY_CHANNEL_DMA                /* cl507e.h */ 0x0000837e
+#define GT214_DISP_OVERLAY_CHANNEL_DMA                /* cl507e.h */ 0x0000857e
+#define GF110_DISP_OVERLAY_CONTROL_DMA                /* cl507e.h */ 0x0000907e
+#define GK104_DISP_OVERLAY_CONTROL_DMA                /* cl507e.h */ 0x0000917e
 
 #define FERMI_A                                       /* cl9097.h */ 0x00009097
 #define FERMI_B                                       /* cl9097.h */ 0x00009197
@@ -452,166 +452,4 @@ struct kepler_channel_gpfifo_a_v0 {
 	__u64 ioffset;
 	__u64 vm;
 };
-
-/*******************************************************************************
- * legacy display
- ******************************************************************************/
-
-#define NV04_DISP_NTFY_VBLANK                                              0x00
-#define NV04_DISP_NTFY_CONN                                                0x01
-
-struct nv04_disp_mthd_v0 {
-	__u8  version;
-#define NV04_DISP_SCANOUTPOS                                               0x00
-	__u8  method;
-	__u8  head;
-	__u8  pad03[5];
-};
-
-struct nv04_disp_scanoutpos_v0 {
-	__u8  version;
-	__u8  pad01[7];
-	__s64 time[2];
-	__u16 vblanks;
-	__u16 vblanke;
-	__u16 vtotal;
-	__u16 vline;
-	__u16 hblanks;
-	__u16 hblanke;
-	__u16 htotal;
-	__u16 hline;
-};
-
-/*******************************************************************************
- * display
- ******************************************************************************/
-
-#define NV50_DISP_MTHD                                                     0x00
-
-struct nv50_disp_mthd_v0 {
-	__u8  version;
-#define NV50_DISP_SCANOUTPOS                                               0x00
-	__u8  method;
-	__u8  head;
-	__u8  pad03[5];
-};
-
-struct nv50_disp_mthd_v1 {
-	__u8  version;
-#define NV50_DISP_MTHD_V1_DAC_PWR                                          0x10
-#define NV50_DISP_MTHD_V1_DAC_LOAD                                         0x11
-#define NV50_DISP_MTHD_V1_SOR_PWR                                          0x20
-#define NV50_DISP_MTHD_V1_SOR_HDA_ELD                                      0x21
-#define NV50_DISP_MTHD_V1_SOR_HDMI_PWR                                     0x22
-#define NV50_DISP_MTHD_V1_SOR_LVDS_SCRIPT                                  0x23
-#define NV50_DISP_MTHD_V1_SOR_DP_PWR                                       0x24
-#define NV50_DISP_MTHD_V1_PIOR_PWR                                         0x30
-	__u8  method;
-	__u16 hasht;
-	__u16 hashm;
-	__u8  pad06[2];
-};
-
-struct nv50_disp_dac_pwr_v0 {
-	__u8  version;
-	__u8  state;
-	__u8  data;
-	__u8  vsync;
-	__u8  hsync;
-	__u8  pad05[3];
-};
-
-struct nv50_disp_dac_load_v0 {
-	__u8  version;
-	__u8  load;
-	__u8  pad02[2];
-	__u32 data;
-};
-
-struct nv50_disp_sor_pwr_v0 {
-	__u8  version;
-	__u8  state;
-	__u8  pad02[6];
-};
-
-struct nv50_disp_sor_hda_eld_v0 {
-	__u8  version;
-	__u8  pad01[7];
-	__u8  data[];
-};
-
-struct nv50_disp_sor_hdmi_pwr_v0 {
-	__u8  version;
-	__u8  state;
-	__u8  max_ac_packet;
-	__u8  rekey;
-	__u8  pad04[4];
-};
-
-struct nv50_disp_sor_lvds_script_v0 {
-	__u8  version;
-	__u8  pad01[1];
-	__u16 script;
-	__u8  pad04[4];
-};
-
-struct nv50_disp_sor_dp_pwr_v0 {
-	__u8  version;
-	__u8  state;
-	__u8  pad02[6];
-};
-
-struct nv50_disp_pior_pwr_v0 {
-	__u8  version;
-	__u8  state;
-	__u8  type;
-	__u8  pad03[5];
-};
-
-/* core */
-struct nv50_disp_core_channel_dma_v0 {
-	__u8  version;
-	__u8  pad01[7];
-	__u64 pushbuf;
-};
-
-#define NV50_DISP_CORE_CHANNEL_DMA_V0_NTFY_UEVENT                          0x00
-
-/* cursor immediate */
-struct nv50_disp_cursor_v0 {
-	__u8  version;
-	__u8  head;
-	__u8  pad02[6];
-};
-
-#define NV50_DISP_CURSOR_V0_NTFY_UEVENT                                    0x00
-
-/* base */
-struct nv50_disp_base_channel_dma_v0 {
-	__u8  version;
-	__u8  head;
-	__u8  pad02[6];
-	__u64 pushbuf;
-};
-
-#define NV50_DISP_BASE_CHANNEL_DMA_V0_NTFY_UEVENT                          0x00
-
-/* overlay */
-struct nv50_disp_overlay_channel_dma_v0 {
-	__u8  version;
-	__u8  head;
-	__u8  pad02[6];
-	__u64 pushbuf;
-};
-
-#define NV50_DISP_OVERLAY_CHANNEL_DMA_V0_NTFY_UEVENT                       0x00
-
-/* overlay immediate */
-struct nv50_disp_overlay_v0 {
-	__u8  version;
-	__u8  head;
-	__u8  pad02[6];
-};
-
-#define NV50_DISP_OVERLAY_V0_NTFY_UEVENT                                   0x00
 #endif

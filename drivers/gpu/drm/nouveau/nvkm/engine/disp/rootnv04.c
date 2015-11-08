@@ -27,6 +27,7 @@
 #include <core/client.h>
 
 #include <nvif/class.h>
+#include <nvif/cl0046.h>
 #include <nvif/unpack.h>
 
 struct nv04_disp_root {

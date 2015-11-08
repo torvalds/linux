@@ -27,6 +27,7 @@
 #include <core/client.h>
 
 #include <nvif/class.h>
+#include <nvif/cl507c.h>
 #include <nvif/unpack.h>
 
 int

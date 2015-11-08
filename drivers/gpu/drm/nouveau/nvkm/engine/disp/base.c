@@ -32,6 +32,7 @@
 #include <subdev/bios/dcb.h>
 
 #include <nvif/class.h>
+#include <nvif/cl0046.h>
 #include <nvif/event.h>
 #include <nvif/unpack.h>
 

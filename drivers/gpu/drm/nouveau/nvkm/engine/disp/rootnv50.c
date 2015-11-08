@@ -29,6 +29,7 @@
 #include <subdev/timer.h>
 
 #include <nvif/class.h>
+#include <nvif/cl5070.h>
 #include <nvif/unpack.h>
 
 int
@@ -39,7 +40,7 @@ nv50_disp_root_scanoutpos(NV50_DISP_MTHD_V0)
 	const u32 blanks = nvkm_rd32(device, 0x610af4 + (head * 0x540));
 	const u32 total  = nvkm_rd32(device, 0x610afc + (head * 0x540));
 	union {
-		struct nv04_disp_scanoutpos_v0 v0;
+		struct nv50_disp_scanoutpos_v0 v0;
 	} *args = data;
 	int ret;
 
