@@ -111,7 +111,8 @@ static int c2_tx_ring_alloc(struct c2_ring *tx_ring, void *vaddr,
 	struct c2_element *elem;
 	int i;
 
-	tx_ring->start = kmalloc(sizeof(*elem) * tx_ring->count, GFP_KERNEL);
+	tx_ring->start = kmalloc_array(tx_ring->count, sizeof(*elem),
+				       GFP_KERNEL);
 	if (!tx_ring->start)
 		return -ENOMEM;
 
@@ -160,7 +161,8 @@ static int c2_rx_ring_alloc(struct c2_ring *rx_ring, void *vaddr,
 	struct c2_element *elem;
 	int i;
 
-	rx_ring->start = kmalloc(sizeof(*elem) * rx_ring->count, GFP_KERNEL);
+	rx_ring->start = kmalloc_array(rx_ring->count, sizeof(*elem),
+				       GFP_KERNEL);
 	if (!rx_ring->start)
 		return -ENOMEM;
 

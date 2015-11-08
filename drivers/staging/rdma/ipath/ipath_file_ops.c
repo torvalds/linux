@@ -917,15 +917,15 @@ static int ipath_create_user_egr(struct ipath_portdata *pd)
 	chunk = pd->port_rcvegrbuf_chunks;
 	egrperchunk = pd->port_rcvegrbufs_perchunk;
 	size = pd->port_rcvegrbuf_size;
-	pd->port_rcvegrbuf = kmalloc(chunk * sizeof(pd->port_rcvegrbuf[0]),
-				     GFP_KERNEL);
+	pd->port_rcvegrbuf = kmalloc_array(chunk, sizeof(pd->port_rcvegrbuf[0]),
+					   GFP_KERNEL);
 	if (!pd->port_rcvegrbuf) {
 		ret = -ENOMEM;
 		goto bail;
 	}
 	pd->port_rcvegrbuf_phys =
-		kmalloc(chunk * sizeof(pd->port_rcvegrbuf_phys[0]),
-			GFP_KERNEL);
+		kmalloc_array(chunk, sizeof(pd->port_rcvegrbuf_phys[0]),
+			      GFP_KERNEL);
 	if (!pd->port_rcvegrbuf_phys) {
 		ret = -ENOMEM;
 		goto bail_rcvegrbuf;
