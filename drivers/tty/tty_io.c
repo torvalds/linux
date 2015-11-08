@@ -1580,10 +1580,8 @@ void tty_free_termios(struct tty_struct *tty)
 	tp = tty->driver->termios[idx];
 	if (tp == NULL) {
 		tp = kmalloc(sizeof(struct ktermios), GFP_KERNEL);
-		if (tp == NULL) {
-			pr_warn("tty: no memory to save termios state.\n");
+		if (tp == NULL)
 			return;
-		}
 		tty->driver->termios[idx] = tp;
 	}
 	*tp = tty->termios;
