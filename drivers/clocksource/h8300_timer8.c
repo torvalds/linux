@@ -230,7 +230,7 @@ static void __init h8300_8timer_init(struct device_node *node)
 	}
 
 	irq = irq_of_parse_and_map(node, 0);
-	if (irq < 0) {
+	if (!irq) {
 		pr_err("failed to get irq for clockevent\n");
 		goto unmap_reg;
 	}
