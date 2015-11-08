@@ -605,7 +605,7 @@ extern void n_tty_inherit_ops(struct tty_ldisc_ops *ops);
 
 /* tty_audit.c */
 #ifdef CONFIG_AUDIT
-extern void tty_audit_add_data(struct tty_struct *tty, unsigned char *data,
+extern void tty_audit_add_data(struct tty_struct *tty, const void *data,
 			       size_t size, unsigned icanon);
 extern void tty_audit_exit(void);
 extern void tty_audit_fork(struct signal_struct *sig);
@@ -613,8 +613,8 @@ extern void tty_audit_tiocsti(struct tty_struct *tty, char ch);
 extern void tty_audit_push(struct tty_struct *tty);
 extern int tty_audit_push_current(void);
 #else
-static inline void tty_audit_add_data(struct tty_struct *tty,
-		unsigned char *data, size_t size, unsigned icanon)
+static inline void tty_audit_add_data(struct tty_struct *tty, const void *data,
+				      size_t size, unsigned icanon)
 {
 }
 static inline void tty_audit_tiocsti(struct tty_struct *tty, char ch)
