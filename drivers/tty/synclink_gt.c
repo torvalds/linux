@@ -89,7 +89,7 @@
  * module identification
  */
 static char *driver_name     = "SyncLink GT";
-static char *tty_driver_name = "synclink_gt";
+static char *slgt_driver_name = "synclink_gt";
 static char *tty_dev_prefix  = "ttySLG";
 MODULE_LICENSE("GPL");
 #define MGSL_MAGIC 0x5401
@@ -3799,7 +3799,7 @@ static int __init slgt_init(void)
 
 	/* Initialize the tty_driver structure */
 
-	serial_driver->driver_name = tty_driver_name;
+	serial_driver->driver_name = slgt_driver_name;
 	serial_driver->name = tty_dev_prefix;
 	serial_driver->major = ttymajor;
 	serial_driver->minor_start = 64;
