@@ -3560,20 +3560,6 @@ s32 host_int_get_assoc_res_info(struct host_if_drv *hif_drv,
 	return result;
 }
 
-s32 host_int_get_rx_power_level(struct host_if_drv *hif_drv,
-				u8 *pu8RxPowerLevel,
-				u32 u32RxPowerLevelLen)
-{
-	struct wid wid;
-
-	wid.id = (u16)WID_RX_POWER_LEVEL;
-	wid.type = WID_STR;
-	wid.val = pu8RxPowerLevel;
-	wid.size = u32RxPowerLevelLen;
-
-	return 0;
-}
-
 int host_int_set_mac_chnl_num(struct host_if_drv *hif_drv, u8 channel)
 {
 	int result;

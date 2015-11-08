@@ -339,9 +339,6 @@ s32 host_int_get_assoc_res_info(struct host_if_drv *hWFIDrv,
 				u8 *pu8AssocRespInfo,
 				u32 u32MaxAssocRespInfoLen,
 				u32 *pu32RcvdAssocRespInfoLen);
-s32 host_int_get_rx_power_level(struct host_if_drv *hWFIDrv,
-				u8 *pu8RxPowerLevel,
-				u32 u32RxPowerLevelLen);
 int host_int_set_mac_chnl_num(struct host_if_drv *wfi_drv, u8 channel);
 s32 host_int_get_host_chnl_num(struct host_if_drv *hWFIDrv, u8 *pu8ChNo);
 s32 host_int_get_rssi(struct host_if_drv *hWFIDrv, s8 *ps8Rssi);
