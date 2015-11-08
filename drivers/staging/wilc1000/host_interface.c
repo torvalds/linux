@@ -3276,7 +3276,7 @@ int host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *ptk,
 int host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *rx_gtk,
 			u8 gtk_key_len,	u8 index,
 			u32 key_rsc_len, const u8 *key_rsc,
-			const u8 *rx_mic, const u8 *pu8TxMic,
+			const u8 *rx_mic, const u8 *tx_mic,
 			u8 mode, u8 u8Ciphermode)
 {
 	int result = 0;
@@ -3292,7 +3292,7 @@ int host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *rx_gtk,
 	if (rx_mic)
 		u8KeyLen += RX_MIC_KEY_LEN;
 
-	if (pu8TxMic)
+	if (tx_mic)
 		u8KeyLen += TX_MIC_KEY_LEN;
 
 	if (key_rsc) {
@@ -3318,8 +3318,8 @@ int host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *rx_gtk,
 		memcpy(msg.body.key_info.attr.wpa.key + 16, rx_mic,
 		       RX_MIC_KEY_LEN);
 
-	if (pu8TxMic)
-		memcpy(msg.body.key_info.attr.wpa.key + 24, pu8TxMic,
+	if (tx_mic)
+		memcpy(msg.body.key_info.attr.wpa.key + 24, tx_mic,
 		       TX_MIC_KEY_LEN);
 
 	msg.body.key_info.attr.wpa.index = index;
