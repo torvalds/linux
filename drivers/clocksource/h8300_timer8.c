@@ -24,16 +24,12 @@
 #define TCORB	6
 #define _8TCNT	8
 
-#define FLAG_REPROGRAM (1 << 0)
 #define FLAG_SKIPEVENT (1 << 1)
 #define FLAG_IRQCONTEXT (1 << 2)
 #define FLAG_STARTED (1 << 3)
 
 #define ONESHOT  0
 #define PERIODIC 1
-
-#define RELATIVE 0
-#define ABSOLUTE 1
 
 #define SCALE 64
 
