@@ -3207,7 +3207,7 @@ int host_int_add_wep_key_bss_ap(struct host_if_drv *hif_drv,
 	return result;
 }
 
-int host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *pu8Ptk,
+int host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *ptk,
 		     u8 u8PtkKeylen, const u8 *mac_addr,
 		     const u8 *pu8RxMic, const u8 *pu8TxMic,
 		     u8 mode, u8 u8Ciphermode, u8 u8Idx)
@@ -3240,7 +3240,7 @@ int host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *pu8Ptk,
 		msg.body.key_info.action = ADDKEY;
 
 	msg.body.key_info.attr.wpa.key = kmalloc(u8PtkKeylen, GFP_KERNEL);
-	memcpy(msg.body.key_info.attr.wpa.key, pu8Ptk, u8PtkKeylen);
+	memcpy(msg.body.key_info.attr.wpa.key, ptk, u8PtkKeylen);
 
 	if (pu8RxMic) {
 		memcpy(msg.body.key_info.attr.wpa.key + 16, pu8RxMic, RX_MIC_KEY_LEN);
