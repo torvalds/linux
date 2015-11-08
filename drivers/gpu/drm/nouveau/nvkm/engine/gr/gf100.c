@@ -34,6 +34,7 @@
 #include <engine/fifo.h>
 
 #include <nvif/class.h>
+#include <nvif/cl9097.h>
 #include <nvif/unpack.h>
 
 /*******************************************************************************
