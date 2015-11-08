@@ -24,8 +24,6 @@
 #define TCORB	6
 #define _8TCNT	8
 
-#define FLAG_SKIPEVENT (1 << 1)
-#define FLAG_IRQCONTEXT (1 << 2)
 #define FLAG_STARTED (1 << 3)
 
 #define SCALE 64
@@ -67,14 +65,13 @@ static irqreturn_t timer8_interrupt(int irq, void *dev_id)
 
 	ctrl_outb(ctrl_inb(p->mapbase + _8TCSR) & ~0x40,
 		  p->mapbase + _8TCSR);
-	p->flags |= FLAG_IRQCONTEXT;
+
 	ctrl_outw(p->tcora, p->mapbase + TCORA);
-	if (!(p->flags & FLAG_SKIPEVENT)) {
-		if (clockevent_state_oneshot(&p->ced))
-			ctrl_outw(0x0000, p->mapbase + _8TCR);
-		p->ced.event_handler(&p->ced);
-	}
-	p->flags &= ~(FLAG_SKIPEVENT | FLAG_IRQCONTEXT);
+
+	if (clockevent_state_oneshot(&p->ced))
+		ctrl_outw(0x0000, p->mapbase + _8TCR);
+
+	p->ced.event_handler(&p->ced);
 
 	return IRQ_HANDLED;
 }
