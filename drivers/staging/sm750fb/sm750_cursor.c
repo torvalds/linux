@@ -143,8 +143,7 @@ void hw_cursor_setData(struct lynx_cursor *cursor,
 		iowrite16(data, pbuffer);
 
 		/* assume pitch is 1,2,4,8,...*/
-		if ((i+1) % pitch == 0)
-		{
+		if ((i + 1) % pitch == 0) {
 			/* need a return */
 			pstart += offset;
 			pbuffer = pstart;
