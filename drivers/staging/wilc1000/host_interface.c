@@ -3273,7 +3273,7 @@ int host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *ptk,
 	return result;
 }
 
-int host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *pu8RxGtk,
+int host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *rx_gtk,
 			u8 u8GtkKeylen,	u8 u8KeyIdx,
 			u32 u32KeyRSClen, const u8 *KeyRSC,
 			const u8 *pu8RxMic, const u8 *pu8TxMic,
@@ -3312,7 +3312,7 @@ int host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *pu8RxGtk,
 		msg.body.key_info.action = ADDKEY;
 
 	msg.body.key_info.attr.wpa.key = kmalloc(u8KeyLen, GFP_KERNEL);
-	memcpy(msg.body.key_info.attr.wpa.key, pu8RxGtk, u8GtkKeylen);
+	memcpy(msg.body.key_info.attr.wpa.key, rx_gtk, u8GtkKeylen);
 
 	if (pu8RxMic)
 		memcpy(msg.body.key_info.attr.wpa.key + 16, pu8RxMic,
