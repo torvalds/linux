@@ -19,6 +19,10 @@ lib_source += lib/nt-host.c
 KOPT="KALLSYMS_EXTRA_PASS=1"
 endif
 
+ifeq ($(shell $(LD) -r -print-output-format),elf64-x86-64)
+CFLAGS += -D_FILE_OFFSET_BITS=64
+endif
+
 lib_objs = $(patsubst %.c,%.o, $(lib_source)) lib/lkl.o
 objs = $(patsubst %.c,%.o, $(source))
 execs += $(patsubst %.c,%, $(source))
@@ -43,5 +47,6 @@ clean:
 	-rm -rf include/lkl/ lib/liblkl.a $(lib_objs) $(objs) $(execs)
 
 fs2tar: LDFLAGS += -larchive
+lklfuse: LDFLAGS += -lfuse
 cpfromfs: cptofs
 	if ! [ -e $@ ]; then ln -s $< $@; fi

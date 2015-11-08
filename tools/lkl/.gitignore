@@ -2,3 +2,4 @@ tests/boot
 fs2tar
 cptofs
 cpfromfs
+lklfuse
