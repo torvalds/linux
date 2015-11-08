@@ -38,6 +38,7 @@ config SND_OXFW
 	   * Mackie(Loud) Tapco Link.Firewire
 	   * Mackie(Loud) d.2 pro/d.4 pro
 	   * Mackie(Loud) U.420/U.420d
+	   * TASCAM FireOne
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-oxfw.
