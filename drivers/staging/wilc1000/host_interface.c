@@ -3275,7 +3275,7 @@ int host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *ptk,
 
 int host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *rx_gtk,
 			u8 gtk_key_len,	u8 index,
-			u32 key_rsc_len, const u8 *KeyRSC,
+			u32 key_rsc_len, const u8 *key_rsc,
 			const u8 *pu8RxMic, const u8 *pu8TxMic,
 			u8 mode, u8 u8Ciphermode)
 {
@@ -3295,9 +3295,9 @@ int host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *rx_gtk,
 	if (pu8TxMic)
 		u8KeyLen += TX_MIC_KEY_LEN;
 
-	if (KeyRSC) {
+	if (key_rsc) {
 		msg.body.key_info.attr.wpa.seq = kmalloc(key_rsc_len, GFP_KERNEL);
-		memcpy(msg.body.key_info.attr.wpa.seq, KeyRSC, key_rsc_len);
+		memcpy(msg.body.key_info.attr.wpa.seq, key_rsc, key_rsc_len);
 	}
 
 	msg.id = HOST_IF_MSG_KEY;
