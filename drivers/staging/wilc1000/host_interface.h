@@ -335,7 +335,6 @@ s32 host_int_set_join_req(struct host_if_drv *hWFIDrv, u8 *pu8bssid,
 			  u8 u8channel, void *pJoinParams);
 s32 host_int_flush_join_req(struct host_if_drv *hWFIDrv);
 s32 host_int_disconnect(struct host_if_drv *hWFIDrv, u16 u16ReasonCode);
-s32 host_int_disconnect_station(struct host_if_drv *hWFIDrv, u8 assoc_id);
 s32 host_int_get_assoc_req_info(struct host_if_drv *hWFIDrv,
 				u8 *pu8AssocReqInfo,
 				u32 u32AssocReqInfoLen);

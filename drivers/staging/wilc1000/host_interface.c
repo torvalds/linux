@@ -3529,18 +3529,6 @@ s32 host_int_disconnect(struct host_if_drv *hif_drv, u16 u16ReasonCode)
 	return result;
 }
 
-s32 host_int_disconnect_station(struct host_if_drv *hif_drv, u8 assoc_id)
-{
-	struct wid wid;
-
-	wid.id = (u16)WID_DISCONNECT;
-	wid.type = WID_CHAR;
-	wid.val = (s8 *)&assoc_id;
-	wid.size = sizeof(char);
-
-	return 0;
-}
-
 s32 host_int_get_assoc_req_info(struct host_if_drv *hif_drv,
 				u8 *pu8AssocReqInfo,
 				u32 u32AssocReqInfoLen)
