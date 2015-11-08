@@ -3413,19 +3413,6 @@ s32 host_int_set_MacAddress(struct host_if_drv *hif_drv, u8 *pu8MacAddress)
 	return result;
 }
 
-s32 host_int_get_RSNAConfigPSKPassPhrase(struct host_if_drv *hif_drv,
-					 u8 *pu8PassPhrase, u8 u8Psklength)
-{
-	struct wid wid;
-
-	wid.id = (u16)WID_11I_PSK;
-	wid.type = WID_STR;
-	wid.size = u8Psklength;
-	wid.val = pu8PassPhrase;
-
-	return 0;
-}
-
 s32 host_int_set_start_scan_req(struct host_if_drv *hif_drv, u8 scanSource)
 {
 	struct wid wid;
