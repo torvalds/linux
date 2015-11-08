@@ -3373,22 +3373,6 @@ s32 host_int_set_pmkid_info(struct host_if_drv *hif_drv, struct host_if_pmkid_at
 	return result;
 }
 
-s32 host_int_set_RSNAConfigPSKPassPhrase(struct host_if_drv *hif_drv,
-					 u8 *pu8PassPhrase,
-					 u8 u8Psklength)
-{
-	struct wid wid;
-
-	if ((u8Psklength > 7) && (u8Psklength < 65)) {
-		wid.id = (u16)WID_11I_PSK;
-		wid.type = WID_STR;
-		wid.val = pu8PassPhrase;
-		wid.size = u8Psklength;
-	}
-
-	return 0;
-}
-
 s32 hif_get_mac_address(struct host_if_drv *hif_drv, u8 *pu8MacAddress)
 {
 	s32 result = 0;
