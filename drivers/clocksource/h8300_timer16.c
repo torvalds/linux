@@ -23,8 +23,8 @@
 struct timer16_priv {
 	struct clocksource cs;
 	unsigned long total_cycles;
-	unsigned long mapbase;
-	unsigned long mapcommon;
+	void __iomem *mapbase;
+	void __iomem *mapcommon;
 	unsigned short cs_enabled;
 	unsigned char enb;
 	unsigned char imfa;
@@ -38,15 +38,15 @@ static unsigned long timer16_get_counter(struct timer16_priv *p)
 	unsigned long v1, v2, v3;
 	int o1, o2;
 
-	o1 = ctrl_inb(p->mapcommon + TISRC) & p->ovf;
+	o1 = readb(p->mapcommon + TISRC) & p->ovf;
 
 	/* Make sure the timer value is stable. Stolen from acpi_pm.c */
 	do {
 		o2 = o1;
-		v1 = ctrl_inw(p->mapbase + TCNT);
-		v2 = ctrl_inw(p->mapbase + TCNT);
-		v3 = ctrl_inw(p->mapbase + TCNT);
-		o1 = ctrl_inb(p->mapcommon + TISRC) & p->ovf;
+		v1 = readw(p->mapbase + TCNT);
+		v2 = readw(p->mapbase + TCNT);
+		v3 = readw(p->mapbase + TCNT);
+		o1 = readb(p->mapcommon + TISRC) & p->ovf;
 	} while (unlikely((o1 != o2) || (v1 > v2 && v1 < v3)
 			  || (v2 > v3 && v2 < v1) || (v3 > v1 && v3 < v2)));
 
@@ -59,7 +59,7 @@ static irqreturn_t timer16_interrupt(int irq, void *dev_id)
 {
 	struct timer16_priv *p = (struct timer16_priv *)dev_id;
 
-	ctrl_outb(ctrl_inb(p->mapcommon + TISRA) & ~p->imfa,
+	writeb(readb(p->mapcommon + TISRA) & ~p->imfa,
 		  p->mapcommon + TISRA);
 	p->total_cycles += 0x10000;
 
@@ -89,9 +89,9 @@ static int timer16_enable(struct clocksource *cs)
 	WARN_ON(p->cs_enabled);
 
 	p->total_cycles = 0;
-	ctrl_outw(0x0000, p->mapbase + TCNT);
-	ctrl_outb(0x83, p->mapbase + TCR);
-	ctrl_outb(ctrl_inb(p->mapcommon + TSTR) | p->enb,
+	writew(0x0000, p->mapbase + TCNT);
+	writeb(0x83, p->mapbase + TCR);
+	writeb(readb(p->mapcommon + TSTR) | p->enb,
 		  p->mapcommon + TSTR);
 
 	p->cs_enabled = true;
@@ -104,7 +104,7 @@ static void timer16_disable(struct clocksource *cs)
 
 	WARN_ON(!p->cs_enabled);
 
-	ctrl_outb(ctrl_inb(p->mapcommon + TSTR) & ~p->enb,
+	writeb(readb(p->mapcommon + TSTR) & ~p->enb,
 		  p->mapcommon + TSTR);
 
 	p->cs_enabled = false;
@@ -158,8 +158,8 @@ static void __init h8300_16timer_init(struct device_node *node)
 
 	of_property_read_u32(node, "renesas,channel", &ch);
 
-	timer16_priv.mapbase = (unsigned long)base[REG_CH];
-	timer16_priv.mapcommon = (unsigned long)base[REG_COMM];
+	timer16_priv.mapbase = base[REG_CH];
+	timer16_priv.mapcommon = base[REG_COMM];
 	timer16_priv.enb = 1 << ch;
 	timer16_priv.imfa = 1 << ch;
 	timer16_priv.imiea = 1 << (4 + ch);

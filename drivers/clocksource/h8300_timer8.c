@@ -30,7 +30,7 @@
 
 struct timer8_priv {
 	struct clock_event_device ced;
-	unsigned long mapbase;
+	void __iomem *mapbase;
 	unsigned long flags;
 	unsigned int rate;
 	unsigned int tcora;
@@ -41,15 +41,15 @@ static unsigned long timer8_get_counter(struct timer8_priv *p)
 	unsigned long v1, v2, v3;
 	int o1, o2;
 
-	o1 = ctrl_inb(p->mapbase + _8TCSR) & 0x20;
+	o1 = readb(p->mapbase + _8TCSR) & 0x20;
 
 	/* Make sure the timer value is stable. Stolen from acpi_pm.c */
 	do {
 		o2 = o1;
-		v1 = ctrl_inw(p->mapbase + _8TCNT);
-		v2 = ctrl_inw(p->mapbase + _8TCNT);
-		v3 = ctrl_inw(p->mapbase + _8TCNT);
-		o1 = ctrl_inb(p->mapbase + _8TCSR) & 0x20;
+		v1 = readw(p->mapbase + _8TCNT);
+		v2 = readw(p->mapbase + _8TCNT);
+		v3 = readw(p->mapbase + _8TCNT);
+		o1 = readb(p->mapbase + _8TCSR) & 0x20;
 	} while (unlikely((o1 != o2) || (v1 > v2 && v1 < v3)
 			  || (v2 > v3 && v2 < v1) || (v3 > v1 && v3 < v2)));
 
@@ -61,13 +61,13 @@ static irqreturn_t timer8_interrupt(int irq, void *dev_id)
 {
 	struct timer8_priv *p = dev_id;
 
-	ctrl_outb(ctrl_inb(p->mapbase + _8TCSR) & ~0x40,
+	writeb(readb(p->mapbase + _8TCSR) & ~0x40,
 		  p->mapbase + _8TCSR);
 
-	ctrl_outw(p->tcora, p->mapbase + TCORA);
+	writew(p->tcora, p->mapbase + TCORA);
 
 	if (clockevent_state_oneshot(&p->ced))
-		ctrl_outw(0x0000, p->mapbase + _8TCR);
+		writew(0x0000, p->mapbase + _8TCR);
 
 	p->ced.event_handler(&p->ced);
 
@@ -82,18 +82,18 @@ static void timer8_set_next(struct timer8_priv *p, unsigned long delta)
 		pr_warn("delta out of range\n");
 	now = timer8_get_counter(p);
 	p->tcora = delta;
-	ctrl_outb(ctrl_inb(p->mapbase + _8TCR) | 0x40, p->mapbase + _8TCR);
+	writeb(readb(p->mapbase + _8TCR) | 0x40, p->mapbase + _8TCR);
 	if (delta > now)
-		ctrl_outw(delta, p->mapbase + TCORA);
+		writew(delta, p->mapbase + TCORA);
 	else
-		ctrl_outw(now + 1, p->mapbase + TCORA);
+		writew(now + 1, p->mapbase + TCORA);
 }
 
 static int timer8_enable(struct timer8_priv *p)
 {
-	ctrl_outw(0xffff, p->mapbase + TCORA);
-	ctrl_outw(0x0000, p->mapbase + _8TCNT);
-	ctrl_outw(0x0c02, p->mapbase + _8TCR);
+	writew(0xffff, p->mapbase + TCORA);
+	writew(0x0000, p->mapbase + _8TCNT);
+	writew(0x0c02, p->mapbase + _8TCR);
 
 	return 0;
 }
@@ -114,7 +114,7 @@ static int timer8_start(struct timer8_priv *p)
 
 static void timer8_stop(struct timer8_priv *p)
 {
-	ctrl_outw(0x0000, p->mapbase + _8TCR);
+	writew(0x0000, p->mapbase + _8TCR);
 }
 
 static inline struct timer8_priv *ced_to_priv(struct clock_event_device *ced)
@@ -213,7 +213,7 @@ static void __init h8300_8timer_init(struct device_node *node)
 		goto unmap_reg;
 	}
 
-	timer8_priv.mapbase = (unsigned long)base;
+	timer8_priv.mapbase = base;
 
 	rate = clk_get_rate(clk) / SCALE;
 	if (!rate) {

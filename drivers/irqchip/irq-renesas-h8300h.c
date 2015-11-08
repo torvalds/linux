@@ -21,9 +21,9 @@ static const char ipr_bit[] = {
 	10, 10, 10, 10,  9,  9,  9,  9,
 };
 
-static void *intc_baseaddr;
+static void __iomem *intc_baseaddr;
 
-#define IPR ((unsigned long)intc_baseaddr + 6)
+#define IPR (intc_baseaddr + 6)
 
 static void h8300h_disable_irq(struct irq_data *data)
 {
@@ -81,8 +81,8 @@ static int __init h8300h_intc_of_init(struct device_node *intc,
 	BUG_ON(!intc_baseaddr);
 
 	/* All interrupt priority low */
-	ctrl_outb(0x00, IPR + 0);
-	ctrl_outb(0x00, IPR + 1);
+	writeb(0x00, IPR + 0);
+	writeb(0x00, IPR + 1);
 
 	domain = irq_domain_add_linear(intc, NR_IRQS, &irq_ops, NULL);
 	BUG_ON(!domain);
