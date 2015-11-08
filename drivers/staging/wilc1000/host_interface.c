@@ -3239,8 +3239,9 @@ int host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *ptk,
 	if (mode == STATION_MODE)
 		msg.body.key_info.action = ADDKEY;
 
-	msg.body.key_info.attr.wpa.key = kmalloc(ptk_key_len, GFP_KERNEL);
-	memcpy(msg.body.key_info.attr.wpa.key, ptk, ptk_key_len);
+	msg.body.key_info.attr.wpa.key = kmemdup(ptk, ptk_key_len, GFP_KERNEL);
+	if (!msg.body.key_info.attr.wpa.key)
+		return -ENOMEM;
 
 	if (rx_mic) {
 		memcpy(msg.body.key_info.attr.wpa.key + 16, rx_mic, RX_MIC_KEY_LEN);
