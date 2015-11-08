@@ -318,7 +318,7 @@ int host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *ptk,
 s32 host_int_get_inactive_time(struct host_if_drv *hWFIDrv, const u8 *mac,
 			       u32 *pu32InactiveTime);
 int host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *rx_gtk,
-			u8 u8GtkKeylen,	u8 u8KeyIdx,
+			u8 gtk_key_len,	u8 u8KeyIdx,
 			u32 u32KeyRSClen, const u8 *KeyRSC,
 			const u8 *pu8RxMic, const u8 *pu8TxMic,
 			u8 mode, u8 u8Ciphermode);

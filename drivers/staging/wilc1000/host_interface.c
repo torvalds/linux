@@ -3274,14 +3274,14 @@ int host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *ptk,
 }
 
 int host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *rx_gtk,
-			u8 u8GtkKeylen,	u8 u8KeyIdx,
+			u8 gtk_key_len,	u8 u8KeyIdx,
 			u32 u32KeyRSClen, const u8 *KeyRSC,
 			const u8 *pu8RxMic, const u8 *pu8TxMic,
 			u8 mode, u8 u8Ciphermode)
 {
 	int result = 0;
 	struct host_if_msg msg;
-	u8 u8KeyLen = u8GtkKeylen;
+	u8 u8KeyLen = gtk_key_len;
 
 	if (!hif_drv) {
 		PRINT_ER("driver is null\n");
@@ -3312,7 +3312,7 @@ int host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *rx_gtk,
 		msg.body.key_info.action = ADDKEY;
 
 	msg.body.key_info.attr.wpa.key = kmalloc(u8KeyLen, GFP_KERNEL);
-	memcpy(msg.body.key_info.attr.wpa.key, rx_gtk, u8GtkKeylen);
+	memcpy(msg.body.key_info.attr.wpa.key, rx_gtk, gtk_key_len);
 
 	if (pu8RxMic)
 		memcpy(msg.body.key_info.attr.wpa.key + 16, pu8RxMic,
