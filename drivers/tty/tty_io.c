@@ -3211,7 +3211,7 @@ EXPORT_SYMBOL(tty_register_device);
 
 static void tty_device_create_release(struct device *dev)
 {
-	pr_debug("device: '%s': %s\n", dev_name(dev), __func__);
+	dev_dbg(dev, "releasing...\n");
 	kfree(dev);
 }
 
