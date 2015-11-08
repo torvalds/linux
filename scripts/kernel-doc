@@ -1844,7 +1844,7 @@ sub dump_enum($$) {
     my $file = shift;
 
     $x =~ s@/\*.*?\*/@@gos;	# strip comments.
-    $x =~ s/^#\s*define\s+.*$//; # strip #define macros inside enums
+    $x =~ s@#\s*define\s+[^;]*;@@gos; # strip #define macros inside enums
 
     if ($x =~ /enum\s+(\w+)\s*{(.*)}/) {
 	$declaration_name = $1;
