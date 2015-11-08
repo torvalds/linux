@@ -43,6 +43,7 @@ struct hci_mon_hdr {
 #define HCI_MON_CLOSE_INDEX	9
 #define HCI_MON_INDEX_INFO	10
 #define HCI_MON_VENDOR_DIAG	11
+#define HCI_MON_SYSTEM_NOTE	12
 
 struct hci_mon_new_index {
 	__u8		type;

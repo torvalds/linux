@@ -26,6 +26,8 @@
 
 #include <linux/export.h>
 #include <asm/unaligned.h>
+#include <generated/compile.h>
+#include <generated/utsrelease.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -381,6 +383,29 @@ static struct sk_buff *create_monitor_event(struct hci_dev *hdev, int event)
 	hdr->len = cpu_to_le16(skb->len - HCI_MON_HDR_SIZE);
 
 	return skb;
+}
+
+static void send_monitor_note(struct sock *sk, const char *text)
+{
+	size_t len = strlen(text);
+	struct hci_mon_hdr *hdr;
+	struct sk_buff *skb;
+
+	skb = bt_skb_alloc(len + 1, GFP_ATOMIC);
+	if (!skb)
+		return;
+
+	strcpy(skb_put(skb, len + 1), text);
+
+	__net_timestamp(skb);
+
+	hdr = (void *)skb_push(skb, HCI_MON_HDR_SIZE);
+	hdr->opcode = cpu_to_le16(HCI_MON_SYSTEM_NOTE);
+	hdr->index = cpu_to_le16(HCI_DEV_NONE);
+	hdr->len = cpu_to_le16(skb->len - HCI_MON_HDR_SIZE);
+
+	if (sock_queue_rcv_skb(sk, skb))
+		kfree_skb(skb);
 }
 
 static void send_monitor_replay(struct sock *sk)
@@ -872,6 +897,10 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 		 */
 		hci_sock_set_flag(sk, HCI_SOCK_TRUSTED);
 
+		send_monitor_note(sk, "Linux version " UTS_RELEASE
+				      " (" UTS_MACHINE ")");
+		send_monitor_note(sk, "Bluetooth subsystem version "
+				      BT_SUBSYS_VERSION);
 		send_monitor_replay(sk);
 
 		atomic_inc(&monitor_promisc);
