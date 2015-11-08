@@ -247,11 +247,6 @@ static void unset_locked_termios(struct tty_struct *tty, struct ktermios *old)
 
 #define NOSET_MASK(x, y, z) (x = ((x) & ~(z)) | ((y) & (z)))
 
-	if (!locked) {
-		printk(KERN_WARNING "Warning?!? termios_locked is NULL.\n");
-		return;
-	}
-
 	NOSET_MASK(termios->c_iflag, old->c_iflag, locked->c_iflag);
 	NOSET_MASK(termios->c_oflag, old->c_oflag, locked->c_oflag);
 	NOSET_MASK(termios->c_cflag, old->c_cflag, locked->c_cflag);
