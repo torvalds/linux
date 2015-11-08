@@ -2,7 +2,7 @@ Meson SoCs Watchdog timer
 
 Required properties:
 
-- compatible : should be "amlogic,meson6-wdt"
+- compatible : should be "amlogic,meson6-wdt" or "amlogic,meson8b-wdt"
 - reg : Specifies base physical address and size of the registers.
 
 Example:
