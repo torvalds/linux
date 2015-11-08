@@ -37,6 +37,7 @@
 #include <core/pci.h>
 #include <core/tegra.h>
 
+#include <nvif/cl0002.h>
 #include <nvif/cla06f.h>
 #include <nvif/if0004.h>
 

@@ -28,7 +28,7 @@
 #include <subdev/fb.h>
 #include <subdev/instmem.h>
 
-#include <nvif/class.h>
+#include <nvif/cl0002.h>
 #include <nvif/unpack.h>
 
 static int

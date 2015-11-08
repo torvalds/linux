@@ -28,7 +28,7 @@
 #include <core/gpuobj.h>
 #include <subdev/fb.h>
 
-#include <nvif/class.h>
+#include <nvif/cl0002.h>
 #include <nvif/unpack.h>
 
 struct nv50_dmaobj {

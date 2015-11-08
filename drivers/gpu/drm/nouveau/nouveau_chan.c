@@ -24,6 +24,7 @@
 
 #include <nvif/os.h>
 #include <nvif/class.h>
+#include <nvif/cl0002.h>
 #include <nvif/cl006b.h>
 #include <nvif/cl506f.h>
 #include <nvif/cl906f.h>
