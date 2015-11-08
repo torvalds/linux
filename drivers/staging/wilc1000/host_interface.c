@@ -3214,7 +3214,7 @@ int host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *ptk,
 {
 	int result = 0;
 	struct host_if_msg msg;
-	u8 u8KeyLen = ptk_key_len;
+	u8 key_len = ptk_key_len;
 	int i;
 
 	if (!hif_drv) {
@@ -3223,10 +3223,10 @@ int host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *ptk,
 	}
 
 	if (rx_mic)
-		u8KeyLen += RX_MIC_KEY_LEN;
+		key_len += RX_MIC_KEY_LEN;
 
 	if (tx_mic)
-		u8KeyLen += TX_MIC_KEY_LEN;
+		key_len += TX_MIC_KEY_LEN;
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
@@ -3257,7 +3257,7 @@ int host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *ptk,
 		}
 	}
 
-	msg.body.key_info.attr.wpa.key_len = u8KeyLen;
+	msg.body.key_info.attr.wpa.key_len = key_len;
 	msg.body.key_info.attr.wpa.mac_addr = mac_addr;
 	msg.body.key_info.attr.wpa.mode = cipher_mode;
 	msg.drv = hif_drv;
