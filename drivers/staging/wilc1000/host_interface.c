@@ -3296,8 +3296,11 @@ int host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *rx_gtk,
 		key_len += TX_MIC_KEY_LEN;
 
 	if (key_rsc) {
-		msg.body.key_info.attr.wpa.seq = kmalloc(key_rsc_len, GFP_KERNEL);
-		memcpy(msg.body.key_info.attr.wpa.seq, key_rsc, key_rsc_len);
+		msg.body.key_info.attr.wpa.seq = kmemdup(key_rsc,
+							 key_rsc_len,
+							 GFP_KERNEL);
+		if (!msg.body.key_info.attr.wpa.seq)
+			return -ENOMEM;
 	}
 
 	msg.id = HOST_IF_MSG_KEY;
@@ -3311,8 +3314,11 @@ int host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *rx_gtk,
 	if (mode == STATION_MODE)
 		msg.body.key_info.action = ADDKEY;
 
-	msg.body.key_info.attr.wpa.key = kmalloc(key_len, GFP_KERNEL);
-	memcpy(msg.body.key_info.attr.wpa.key, rx_gtk, gtk_key_len);
+	msg.body.key_info.attr.wpa.key = kmemdup(rx_gtk,
+						 key_len,
+						 GFP_KERNEL);
+	if (!msg.body.key_info.attr.wpa.key)
+		return -ENOMEM;
 
 	if (rx_mic)
 		memcpy(msg.body.key_info.attr.wpa.key + 16, rx_mic,
