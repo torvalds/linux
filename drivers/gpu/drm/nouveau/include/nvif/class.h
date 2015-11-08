@@ -1,9 +1,14 @@
 #ifndef __NVIF_CLASS_H__
 #define __NVIF_CLASS_H__
 
-/*******************************************************************************
- * class identifiers
- ******************************************************************************/
+/* these class numbers are made up by us, and not nvidia-assigned */
+#define NVIF_CLASS_CONTROL                                                   -1
+#define NVIF_CLASS_PERFMON                                                   -2
+#define NVIF_CLASS_PERFDOM                                                   -3
+#define NVIF_CLASS_SW_NV04                                                   -4
+#define NVIF_CLASS_SW_NV10                                                   -5
+#define NVIF_CLASS_SW_NV50                                                   -6
+#define NVIF_CLASS_SW_GF100                                                  -7
 
 /* the below match nvidia-assigned (either in hw, or sw) class numbers */
 #define NV_DEVICE                                                    0x00000080

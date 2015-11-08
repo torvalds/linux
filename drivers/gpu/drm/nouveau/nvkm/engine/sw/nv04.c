@@ -126,7 +126,7 @@ static const struct nvkm_sw_func
 nv04_sw = {
 	.chan_new = nv04_sw_chan_new,
 	.sclass = {
-		{ nv04_nvsw_new, { -1, -1, NVIF_IOCTL_NEW_V0_SW_NV04 } },
+		{ nv04_nvsw_new, { -1, -1, NVIF_CLASS_SW_NV04 } },
 		{}
 	}
 };

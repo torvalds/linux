@@ -378,7 +378,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	/* allocate software object class (used for fences on <= nv05) */
 	if (device->info.family < NV_DEVICE_INFO_V0_CELSIUS) {
 		ret = nvif_object_init(&chan->user, 0x006e,
-				       NVIF_IOCTL_NEW_V0_SW_NV04,
+				       NVIF_CLASS_SW_NV04,
 				       NULL, 0, &chan->nvsw);
 		if (ret)
 			return ret;

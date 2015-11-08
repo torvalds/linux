@@ -204,7 +204,7 @@ nvkm_control_new(struct nvkm_device *device, const struct nvkm_oclass *oclass,
 
 const struct nvkm_device_oclass
 nvkm_control_oclass = {
-	.base.oclass = NVIF_IOCTL_NEW_V0_CONTROL,
+	.base.oclass = NVIF_CLASS_CONTROL,
 	.base.minver = -1,
 	.base.maxver = -1,
 	.ctor = nvkm_control_new,

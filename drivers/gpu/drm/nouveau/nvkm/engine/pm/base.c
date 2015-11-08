@@ -612,7 +612,7 @@ nvkm_perfmon_child_get(struct nvkm_object *object, int index,
 		       struct nvkm_oclass *oclass)
 {
 	if (index == 0) {
-		oclass->base.oclass = NVIF_IOCTL_NEW_V0_PERFDOM;
+		oclass->base.oclass = NVIF_CLASS_PERFDOM;
 		oclass->base.minver = 0;
 		oclass->base.maxver = 0;
 		oclass->ctor = nvkm_perfmon_child_new;
@@ -679,7 +679,7 @@ nvkm_pm_oclass_new(struct nvkm_device *device, const struct nvkm_oclass *oclass,
 
 static const struct nvkm_device_oclass
 nvkm_pm_oclass = {
-	.base.oclass = NVIF_IOCTL_NEW_V0_PERFMON,
+	.base.oclass = NVIF_CLASS_PERFMON,
 	.base.minver = -1,
 	.base.maxver = -1,
 	.ctor = nvkm_pm_oclass_new,
