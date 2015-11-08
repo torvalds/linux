@@ -13,26 +13,30 @@
 #ifndef __VSP1_DRM_H__
 #define __VSP1_DRM_H__
 
+#include "vsp1_dl.h"
 #include "vsp1_pipe.h"
-
-struct vsp1_dl;
 
 /**
  * vsp1_drm - State for the API exposed to the DRM driver
- * @dl: display list for DRM pipeline operation
  * @pipe: the VSP1 pipeline used for display
  * @num_inputs: number of active pipeline inputs at the beginning of an update
  * @update: the pipeline configuration has been updated
+ * @dlm: display list manager used for DRM operation
  */
 struct vsp1_drm {
-	struct vsp1_dl *dl;
 	struct vsp1_pipeline pipe;
 	unsigned int num_inputs;
 	bool update;
+	struct vsp1_dl_manager dlm;
 };
 
 int vsp1_drm_init(struct vsp1_device *vsp1);
 void vsp1_drm_cleanup(struct vsp1_device *vsp1);
 int vsp1_drm_create_links(struct vsp1_device *vsp1);
+
+static inline void vsp1_drm_display_start(struct vsp1_device *vsp1)
+{
+	vsp1_dlm_irq_display_start(&vsp1->drm->dlm);
+}
 
 #endif /* __VSP1_DRM_H__ */

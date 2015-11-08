@@ -68,14 +68,7 @@ static irqreturn_t vsp1_irq_handler(int irq, void *data)
 	vsp1_write(vsp1, VI6_DISP_IRQ_STA, ~status & VI6_DISP_IRQ_STA_DST);
 
 	if (status & VI6_DISP_IRQ_STA_DST) {
-		struct vsp1_rwpf *wpf = vsp1->wpf[0];
-		struct vsp1_pipeline *pipe;
-
-		if (wpf) {
-			pipe = to_vsp1_pipeline(&wpf->entity.subdev.entity);
-			vsp1_pipeline_display_start(pipe);
-		}
-
+		vsp1_drm_display_start(vsp1);
 		ret = IRQ_HANDLED;
 	}
 
@@ -462,7 +455,7 @@ static int vsp1_device_init(struct vsp1_device *vsp1)
 	vsp1_write(vsp1, VI6_DPR_HGT_SMPPT, (7 << VI6_DPR_SMPPT_TGW_SHIFT) |
 		   (VI6_DPR_NODE_UNUSED << VI6_DPR_SMPPT_PT_SHIFT));
 
-	vsp1_dl_setup(vsp1);
+	vsp1_dlm_setup(vsp1);
 
 	return 0;
 }

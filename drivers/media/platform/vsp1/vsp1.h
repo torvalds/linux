@@ -26,7 +26,6 @@
 struct clk;
 struct device;
 
-struct vsp1_dl;
 struct vsp1_drm;
 struct vsp1_entity;
 struct vsp1_platform_data;

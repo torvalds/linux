@@ -226,7 +226,7 @@ int vsp1_pipeline_stop(struct vsp1_pipeline *pipe)
 	unsigned long flags;
 	int ret;
 
-	if (pipe->dl) {
+	if (pipe->lif) {
 		/* When using display lists in continuous frame mode the only
 		 * way to stop the pipeline is to reset the hardware.
 		 */
@@ -271,12 +271,6 @@ bool vsp1_pipeline_ready(struct vsp1_pipeline *pipe)
 	return pipe->buffers_ready == mask;
 }
 
-void vsp1_pipeline_display_start(struct vsp1_pipeline *pipe)
-{
-	if (pipe->dl)
-		vsp1_dl_irq_display_start(pipe->dl);
-}
-
 void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe)
 {
 	enum vsp1_pipeline_state state;
@@ -284,9 +278,6 @@ void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe)
 
 	if (pipe == NULL)
 		return;
-
-	if (pipe->dl)
-		vsp1_dl_irq_frame_end(pipe->dl);
 
 	/* Signal frame end to the pipeline handler. */
 	if (pipe->frame_end)
@@ -299,7 +290,7 @@ void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe)
 	/* When using display lists in continuous frame mode the pipeline is
 	 * automatically restarted by the hardware.
 	 */
-	if (pipe->dl)
+	if (pipe->lif)
 		goto done;
 
 	pipe->state = VSP1_PIPELINE_STOPPED;

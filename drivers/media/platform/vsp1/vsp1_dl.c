@@ -37,117 +37,108 @@ struct vsp1_dl_entry {
 } __attribute__((__packed__));
 
 struct vsp1_dl_list {
-	size_t size;
-	int reg_count;
+	struct list_head list;
 
-	bool in_use;
+	struct vsp1_dl_manager *dlm;
 
 	struct vsp1_dl_entry *body;
 	dma_addr_t dma;
-};
-
-/**
- * struct vsp1_dl - Display List manager
- * @vsp1: the VSP1 device
- * @lock: protects the active, queued and pending lists
- * @lists.all: array of all allocate display lists
- * @lists.active: list currently being processed (loaded) by hardware
- * @lists.queued: list queued to the hardware (written to the DL registers)
- * @lists.pending: list waiting to be queued to the hardware
- * @lists.write: list being written to by software
- */
-struct vsp1_dl {
-	struct vsp1_device *vsp1;
-
-	spinlock_t lock;
-
 	size_t size;
-	dma_addr_t dma;
-	void *mem;
 
-	struct {
-		struct vsp1_dl_list all[VSP1_DL_NUM_LISTS];
-
-		struct vsp1_dl_list *active;
-		struct vsp1_dl_list *queued;
-		struct vsp1_dl_list *pending;
-		struct vsp1_dl_list *write;
-	} lists;
+	int reg_count;
 };
 
 /* -----------------------------------------------------------------------------
  * Display List Transaction Management
  */
 
-static void vsp1_dl_free_list(struct vsp1_dl_list *list)
+static struct vsp1_dl_list *vsp1_dl_list_alloc(struct vsp1_dl_manager *dlm)
 {
-	if (!list)
+	struct vsp1_dl_list *dl;
+
+	dl = kzalloc(sizeof(*dl), GFP_KERNEL);
+	if (!dl)
+		return NULL;
+
+	dl->dlm = dlm;
+	dl->size = VSP1_DL_BODY_SIZE;
+
+	dl->body = dma_alloc_wc(dlm->vsp1->dev, dl->size, &dl->dma, GFP_KERNEL);
+	if (!dl->body) {
+		kfree(dl);
+		return NULL;
+	}
+
+	return dl;
+}
+
+static void vsp1_dl_list_free(struct vsp1_dl_list *dl)
+{
+	dma_free_wc(dl->dlm->vsp1->dev, dl->size, dl->body, dl->dma);
+	kfree(dl);
+}
+
+/**
+ * vsp1_dl_list_get - Get a free display list
+ * @dlm: The display list manager
+ *
+ * Get a display list from the pool of free lists and return it.
+ *
+ * This function must be called without the display list manager lock held.
+ */
+struct vsp1_dl_list *vsp1_dl_list_get(struct vsp1_dl_manager *dlm)
+{
+	struct vsp1_dl_list *dl = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dlm->lock, flags);
+
+	if (!list_empty(&dlm->free)) {
+		dl = list_first_entry(&dlm->free, struct vsp1_dl_list, list);
+		list_del(&dl->list);
+	}
+
+	spin_unlock_irqrestore(&dlm->lock, flags);
+
+	return dl;
+}
+
+/**
+ * vsp1_dl_list_put - Release a display list
+ * @dl: The display list
+ *
+ * Release the display list and return it to the pool of free lists.
+ *
+ * This function must be called with the display list manager lock held.
+ *
+ * Passing a NULL pointer to this function is safe, in that case no operation
+ * will be performed.
+ */
+void vsp1_dl_list_put(struct vsp1_dl_list *dl)
+{
+	if (!dl)
 		return;
 
-	list->in_use = false;
+	dl->reg_count = 0;
+
+	list_add_tail(&dl->list, &dl->dlm->free);
 }
 
-void vsp1_dl_reset(struct vsp1_dl *dl)
+void vsp1_dl_list_write(struct vsp1_dl_list *dl, u32 reg, u32 data)
 {
-	unsigned int i;
-
-	dl->lists.active = NULL;
-	dl->lists.queued = NULL;
-	dl->lists.pending = NULL;
-	dl->lists.write = NULL;
-
-	for (i = 0; i < ARRAY_SIZE(dl->lists.all); ++i)
-		dl->lists.all[i].in_use = false;
+	dl->body[dl->reg_count].addr = reg;
+	dl->body[dl->reg_count].data = data;
+	dl->reg_count++;
 }
 
-void vsp1_dl_begin(struct vsp1_dl *dl)
+void vsp1_dl_list_commit(struct vsp1_dl_list *dl)
 {
-	struct vsp1_dl_list *list = NULL;
-	unsigned long flags;
-	unsigned int i;
-
-	spin_lock_irqsave(&dl->lock, flags);
-
-	for (i = 0; i < ARRAY_SIZE(dl->lists.all); ++i) {
-		if (!dl->lists.all[i].in_use) {
-			list = &dl->lists.all[i];
-			break;
-		}
-	}
-
-	if (!list) {
-		list = dl->lists.pending;
-		dl->lists.pending = NULL;
-	}
-
-	spin_unlock_irqrestore(&dl->lock, flags);
-
-	dl->lists.write = list;
-
-	list->in_use = true;
-	list->reg_count = 0;
-}
-
-void vsp1_dl_add(struct vsp1_dl *dl, u32 reg, u32 data)
-{
-	struct vsp1_dl_list *list = dl->lists.write;
-
-	list->body[list->reg_count].addr = reg;
-	list->body[list->reg_count].data = data;
-	list->reg_count++;
-}
-
-void vsp1_dl_commit(struct vsp1_dl *dl)
-{
-	struct vsp1_device *vsp1 = dl->vsp1;
-	struct vsp1_dl_list *list;
+	struct vsp1_dl_manager *dlm = dl->dlm;
+	struct vsp1_device *vsp1 = dlm->vsp1;
 	unsigned long flags;
 	bool update;
 
-	list = dl->lists.write;
-	dl->lists.write = NULL;
-
-	spin_lock_irqsave(&dl->lock, flags);
+	spin_lock_irqsave(&dlm->lock, flags);
 
 	/* Once the UPD bit has been set the hardware can start processing the
 	 * display list at any time and we can't touch the address and size
@@ -156,8 +147,8 @@ void vsp1_dl_commit(struct vsp1_dl *dl)
 	 */
 	update = !!(vsp1_read(vsp1, VI6_DL_BODY_SIZE) & VI6_DL_BODY_SIZE_UPD);
 	if (update) {
-		vsp1_dl_free_list(dl->lists.pending);
-		dl->lists.pending = list;
+		vsp1_dl_list_put(dlm->pending);
+		dlm->pending = dl;
 		goto done;
 	}
 
@@ -165,42 +156,44 @@ void vsp1_dl_commit(struct vsp1_dl *dl)
 	 * The UPD bit will be cleared by the device when the display list is
 	 * processed.
 	 */
-	vsp1_write(vsp1, VI6_DL_HDR_ADDR(0), list->dma);
+	vsp1_write(vsp1, VI6_DL_HDR_ADDR(0), dl->dma);
 	vsp1_write(vsp1, VI6_DL_BODY_SIZE, VI6_DL_BODY_SIZE_UPD |
-		   (list->reg_count * 8));
+		   (dl->reg_count * 8));
 
-	vsp1_dl_free_list(dl->lists.queued);
-	dl->lists.queued = list;
+	vsp1_dl_list_put(dlm->queued);
+	dlm->queued = dl;
 
 done:
-	spin_unlock_irqrestore(&dl->lock, flags);
+	spin_unlock_irqrestore(&dlm->lock, flags);
 }
 
 /* -----------------------------------------------------------------------------
- * Interrupt Handling
+ * Display List Manager
  */
 
-void vsp1_dl_irq_display_start(struct vsp1_dl *dl)
+/* Interrupt Handling */
+void vsp1_dlm_irq_display_start(struct vsp1_dl_manager *dlm)
 {
-	spin_lock(&dl->lock);
+	spin_lock(&dlm->lock);
 
 	/* The display start interrupt signals the end of the display list
 	 * processing by the device. The active display list, if any, won't be
 	 * accessed anymore and can be reused.
 	 */
-	if (dl->lists.active) {
-		vsp1_dl_free_list(dl->lists.active);
-		dl->lists.active = NULL;
-	}
+	vsp1_dl_list_put(dlm->active);
+	dlm->active = NULL;
 
-	spin_unlock(&dl->lock);
+	spin_unlock(&dlm->lock);
 }
 
-void vsp1_dl_irq_frame_end(struct vsp1_dl *dl)
+void vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 {
-	struct vsp1_device *vsp1 = dl->vsp1;
+	struct vsp1_device *vsp1 = dlm->vsp1;
 
-	spin_lock(&dl->lock);
+	spin_lock(&dlm->lock);
+
+	vsp1_dl_list_put(dlm->active);
+	dlm->active = NULL;
 
 	/* The UPD bit set indicates that the commit operation raced with the
 	 * interrupt and occurred after the frame end event and UPD clear but
@@ -213,35 +206,31 @@ void vsp1_dl_irq_frame_end(struct vsp1_dl *dl)
 	/* The device starts processing the queued display list right after the
 	 * frame end interrupt. The display list thus becomes active.
 	 */
-	if (dl->lists.queued) {
-		WARN_ON(dl->lists.active);
-		dl->lists.active = dl->lists.queued;
-		dl->lists.queued = NULL;
+	if (dlm->queued) {
+		dlm->active = dlm->queued;
+		dlm->queued = NULL;
 	}
 
 	/* Now that the UPD bit has been cleared we can queue the next display
 	 * list to the hardware if one has been prepared.
 	 */
-	if (dl->lists.pending) {
-		struct vsp1_dl_list *list = dl->lists.pending;
+	if (dlm->pending) {
+		struct vsp1_dl_list *dl = dlm->pending;
 
-		vsp1_write(vsp1, VI6_DL_HDR_ADDR(0), list->dma);
+		vsp1_write(vsp1, VI6_DL_HDR_ADDR(0), dl->dma);
 		vsp1_write(vsp1, VI6_DL_BODY_SIZE, VI6_DL_BODY_SIZE_UPD |
-			   (list->reg_count * 8));
+			   (dl->reg_count * 8));
 
-		dl->lists.queued = list;
-		dl->lists.pending = NULL;
+		dlm->queued = dl;
+		dlm->pending = NULL;
 	}
 
 done:
-	spin_unlock(&dl->lock);
+	spin_unlock(&dlm->lock);
 }
 
-/* -----------------------------------------------------------------------------
- * Hardware Setup
- */
-
-void vsp1_dl_setup(struct vsp1_device *vsp1)
+/* Hardware Setup */
+void vsp1_dlm_setup(struct vsp1_device *vsp1)
 {
 	u32 ctrl = (256 << VI6_DL_CTRL_AR_WAIT_SHIFT);
 
@@ -256,46 +245,46 @@ void vsp1_dl_setup(struct vsp1_device *vsp1)
 	vsp1_write(vsp1, VI6_DL_SWAP, VI6_DL_SWAP_LWS);
 }
 
-/* -----------------------------------------------------------------------------
- * Initialization and Cleanup
- */
-
-struct vsp1_dl *vsp1_dl_create(struct vsp1_device *vsp1)
+void vsp1_dlm_reset(struct vsp1_dl_manager *dlm)
 {
-	struct vsp1_dl *dl;
-	unsigned int i;
+	vsp1_dl_list_put(dlm->active);
+	vsp1_dl_list_put(dlm->queued);
+	vsp1_dl_list_put(dlm->pending);
 
-	dl = kzalloc(sizeof(*dl), GFP_KERNEL);
-	if (!dl)
-		return NULL;
-
-	spin_lock_init(&dl->lock);
-
-	dl->vsp1 = vsp1;
-	dl->size = VSP1_DL_BODY_SIZE * ARRAY_SIZE(dl->lists.all);
-
-	dl->mem = dma_alloc_wc(vsp1->dev, dl->size, &dl->dma,
-					 GFP_KERNEL);
-	if (!dl->mem) {
-		kfree(dl);
-		return NULL;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(dl->lists.all); ++i) {
-		struct vsp1_dl_list *list = &dl->lists.all[i];
-
-		list->size = VSP1_DL_BODY_SIZE;
-		list->reg_count = 0;
-		list->in_use = false;
-		list->dma = dl->dma + VSP1_DL_BODY_SIZE * i;
-		list->body = dl->mem + VSP1_DL_BODY_SIZE * i;
-	}
-
-	return dl;
+	dlm->active = NULL;
+	dlm->queued = NULL;
+	dlm->pending = NULL;
 }
 
-void vsp1_dl_destroy(struct vsp1_dl *dl)
+int vsp1_dlm_init(struct vsp1_device *vsp1, struct vsp1_dl_manager *dlm,
+		  unsigned int prealloc)
 {
-	dma_free_wc(dl->vsp1->dev, dl->size, dl->mem, dl->dma);
-	kfree(dl);
+	unsigned int i;
+
+	dlm->vsp1 = vsp1;
+
+	spin_lock_init(&dlm->lock);
+	INIT_LIST_HEAD(&dlm->free);
+
+	for (i = 0; i < prealloc; ++i) {
+		struct vsp1_dl_list *dl;
+
+		dl = vsp1_dl_list_alloc(dlm);
+		if (!dl)
+			return -ENOMEM;
+
+		list_add_tail(&dl->list, &dlm->free);
+	}
+
+	return 0;
+}
+
+void vsp1_dlm_cleanup(struct vsp1_dl_manager *dlm)
+{
+	struct vsp1_dl_list *dl, *next;
+
+	list_for_each_entry_safe(dl, next, &dlm->free, list) {
+		list_del(&dl->list);
+		vsp1_dl_list_free(dl);
+	}
 }

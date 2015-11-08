@@ -28,7 +28,7 @@ void vsp1_mod_write(struct vsp1_entity *e, u32 reg, u32 data)
 	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&e->subdev.entity);
 
 	if (pipe->dl)
-		vsp1_dl_add(pipe->dl, reg, data);
+		vsp1_dl_list_write(pipe->dl, reg, data);
 	else
 		vsp1_write(e->vsp1, reg, data);
 }

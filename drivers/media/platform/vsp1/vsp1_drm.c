@@ -26,6 +26,18 @@
 #include "vsp1_pipe.h"
 #include "vsp1_rwpf.h"
 
+
+/* -----------------------------------------------------------------------------
+ * Interrupt Handling
+ */
+
+void vsp1_drm_frame_end(struct vsp1_pipeline *pipe)
+{
+	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
+
+	vsp1_dlm_irq_frame_end(&vsp1->drm->dlm);
+}
+
 /* -----------------------------------------------------------------------------
  * DU Driver API
  */
@@ -89,14 +101,13 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int width,
 
 		pipe->num_inputs = 0;
 
+		vsp1_dlm_reset(&vsp1->drm->dlm);
 		vsp1_device_put(vsp1);
 
 		dev_dbg(vsp1->dev, "%s: pipeline disabled\n", __func__);
 
 		return 0;
 	}
-
-	vsp1_dl_reset(vsp1->drm->dl);
 
 	/* Configure the format at the BRU sinks and propagate it through the
 	 * pipeline.
@@ -217,7 +228,7 @@ void vsp1_du_atomic_begin(struct device *dev)
 	spin_unlock_irqrestore(&pipe->irqlock, flags);
 
 	/* Prepare the display list. */
-	vsp1_dl_begin(vsp1->drm->dl);
+	pipe->dl = vsp1_dl_list_get(&vsp1->drm->dlm);
 }
 EXPORT_SYMBOL_GPL(vsp1_du_atomic_begin);
 
@@ -467,7 +478,8 @@ void vsp1_du_atomic_flush(struct device *dev)
 		}
 	}
 
-	vsp1_dl_commit(vsp1->drm->dl);
+	vsp1_dl_list_commit(pipe->dl);
+	pipe->dl = NULL;
 
 	spin_lock_irqsave(&pipe->irqlock, flags);
 
@@ -543,18 +555,20 @@ int vsp1_drm_init(struct vsp1_device *vsp1)
 {
 	struct vsp1_pipeline *pipe;
 	unsigned int i;
+	int ret;
 
 	vsp1->drm = devm_kzalloc(vsp1->dev, sizeof(*vsp1->drm), GFP_KERNEL);
 	if (!vsp1->drm)
 		return -ENOMEM;
 
-	vsp1->drm->dl = vsp1_dl_create(vsp1);
-	if (!vsp1->drm->dl)
-		return -ENOMEM;
+	ret = vsp1_dlm_init(vsp1, &vsp1->drm->dlm, 4);
+	if (ret < 0)
+		return ret;
 
 	pipe = &vsp1->drm->pipe;
 
 	vsp1_pipeline_init(pipe);
+	pipe->frame_end = vsp1_drm_frame_end;
 
 	/* The DRM pipeline is static, add entities manually. */
 	for (i = 0; i < vsp1->info->rpf_count; ++i) {
@@ -571,12 +585,10 @@ int vsp1_drm_init(struct vsp1_device *vsp1)
 	pipe->lif = &vsp1->lif->entity;
 	pipe->output = vsp1->wpf[0];
 
-	pipe->dl = vsp1->drm->dl;
-
 	return 0;
 }
 
 void vsp1_drm_cleanup(struct vsp1_device *vsp1)
 {
-	vsp1_dl_destroy(vsp1->drm->dl);
+	vsp1_dlm_cleanup(&vsp1->drm->dlm);
 }
