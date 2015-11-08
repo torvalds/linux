@@ -27,6 +27,8 @@
 #include <core/option.h>
 
 #include <nvif/class.h>
+#include <nvif/if0002.h>
+#include <nvif/if0003.h>
 #include <nvif/ioctl.h>
 #include <nvif/unpack.h>
 

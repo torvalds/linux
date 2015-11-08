@@ -3,8 +3,8 @@
 
 /* these class numbers are made up by us, and not nvidia-assigned */
 #define NVIF_CLASS_CONTROL                                    /* if0001.h */ -1
-#define NVIF_CLASS_PERFMON                                                   -2
-#define NVIF_CLASS_PERFDOM                                                   -3
+#define NVIF_CLASS_PERFMON                                    /* if0002.h */ -2
+#define NVIF_CLASS_PERFDOM                                    /* if0003.h */ -3
 #define NVIF_CLASS_SW_NV04                                    /* if0004.h */ -4
 #define NVIF_CLASS_SW_NV10                                    /* if0005.h */ -5
 #define NVIF_CLASS_SW_NV50                                    /* if0005.h */ -6
@@ -265,80 +265,5 @@ struct gf119_dma_v0 {
 #define GF119_DMA_V0_KIND_VM                                               0xff
 	__u8  kind;
 	__u8  pad03[5];
-};
-
-
-/*******************************************************************************
- * perfmon
- ******************************************************************************/
-
-#define NVIF_PERFMON_V0_QUERY_DOMAIN                                       0x00
-#define NVIF_PERFMON_V0_QUERY_SIGNAL                                       0x01
-#define NVIF_PERFMON_V0_QUERY_SOURCE                                       0x02
-
-struct nvif_perfmon_query_domain_v0 {
-	__u8  version;
-	__u8  id;
-	__u8  counter_nr;
-	__u8  iter;
-	__u16 signal_nr;
-	__u8  pad05[2];
-	char  name[64];
-};
-
-struct nvif_perfmon_query_signal_v0 {
-	__u8  version;
-	__u8  domain;
-	__u16 iter;
-	__u8  signal;
-	__u8  source_nr;
-	__u8  pad05[2];
-	char  name[64];
-};
-
-struct nvif_perfmon_query_source_v0 {
-	__u8  version;
-	__u8  domain;
-	__u8  signal;
-	__u8  iter;
-	__u8  pad04[4];
-	__u32 source;
-	__u32 mask;
-	char  name[64];
-};
-
-
-/*******************************************************************************
- * perfdom
- ******************************************************************************/
-
-struct nvif_perfdom_v0 {
-	__u8  version;
-	__u8  domain;
-	__u8  mode;
-	__u8  pad03[1];
-	struct {
-		__u8  signal[4];
-		__u64 source[4][8];
-		__u16 logic_op;
-	} ctr[4];
-};
-
-#define NVIF_PERFDOM_V0_INIT                                               0x00
-#define NVIF_PERFDOM_V0_SAMPLE                                             0x01
-#define NVIF_PERFDOM_V0_READ                                               0x02
-
-struct nvif_perfdom_init {
-};
-
-struct nvif_perfdom_sample {
-};
-
-struct nvif_perfdom_read_v0 {
-	__u8  version;
-	__u8  pad01[7];
-	__u32 ctr[4];
-	__u32 clk;
-	__u8  pad04[4];
 };
 #endif
