@@ -28,6 +28,7 @@
 
 #include <nvif/class.h>
 #include <nvif/event.h>
+#include <nvif/if0000.h>
 #include <nvif/unpack.h>
 
 struct nvkm_client_notify {
