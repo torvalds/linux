@@ -313,7 +313,7 @@ int host_int_add_wep_key_bss_ap(struct host_if_drv *hif_drv,
 				enum AUTHTYPE auth_type);
 int host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *ptk,
 		     u8 ptk_key_len, const u8 *mac_addr,
-		     const u8 *rx_mic, const u8 *pu8TxMic,
+		     const u8 *rx_mic, const u8 *tx_mic,
 		     u8 mode, u8 u8Ciphermode, u8 u8Idx);
 s32 host_int_get_inactive_time(struct host_if_drv *hWFIDrv, const u8 *mac,
 			       u32 *pu32InactiveTime);

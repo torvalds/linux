@@ -3209,7 +3209,7 @@ int host_int_add_wep_key_bss_ap(struct host_if_drv *hif_drv,
 
 int host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *ptk,
 		     u8 ptk_key_len, const u8 *mac_addr,
-		     const u8 *rx_mic, const u8 *pu8TxMic,
+		     const u8 *rx_mic, const u8 *tx_mic,
 		     u8 mode, u8 u8Ciphermode, u8 u8Idx)
 {
 	int result = 0;
@@ -3225,7 +3225,7 @@ int host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *ptk,
 	if (rx_mic)
 		u8KeyLen += RX_MIC_KEY_LEN;
 
-	if (pu8TxMic)
+	if (tx_mic)
 		u8KeyLen += TX_MIC_KEY_LEN;
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
@@ -3249,11 +3249,11 @@ int host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *ptk,
 				PRINT_INFO(CFG80211_DBG, "PairwiseRx[%d] = %x\n", i, rx_mic[i]);
 		}
 	}
-	if (pu8TxMic) {
-		memcpy(msg.body.key_info.attr.wpa.key + 24, pu8TxMic, TX_MIC_KEY_LEN);
+	if (tx_mic) {
+		memcpy(msg.body.key_info.attr.wpa.key + 24, tx_mic, TX_MIC_KEY_LEN);
 		if (INFO) {
 			for (i = 0; i < TX_MIC_KEY_LEN; i++)
-				PRINT_INFO(CFG80211_DBG, "PairwiseTx[%d] = %x\n", i, pu8TxMic[i]);
+				PRINT_INFO(CFG80211_DBG, "PairwiseTx[%d] = %x\n", i, tx_mic[i]);
 		}
 	}
 
