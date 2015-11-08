@@ -1201,9 +1201,7 @@ static void n_tty_receive_overrun(struct tty_struct *tty)
 	ldata->num_overrun++;
 	if (time_after(jiffies, ldata->overrun_time + HZ) ||
 			time_after(ldata->overrun_time, jiffies)) {
-		printk(KERN_WARNING "%s: %d input overrun(s)\n",
-			tty_name(tty),
-			ldata->num_overrun);
+		tty_warn(tty, "%d input overrun(s)\n", ldata->num_overrun);
 		ldata->overrun_time = jiffies;
 		ldata->num_overrun = 0;
 	}
@@ -1486,8 +1484,7 @@ n_tty_receive_char_flagged(struct tty_struct *tty, unsigned char c, char flag)
 		n_tty_receive_overrun(tty);
 		break;
 	default:
-		printk(KERN_ERR "%s: unknown flag %d\n",
-		       tty_name(tty), flag);
+		tty_err(tty, "unknown flag %d\n", flag);
 		break;
 	}
 }
