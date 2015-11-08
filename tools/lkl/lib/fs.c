@@ -177,10 +177,14 @@ struct lkl_dir *lkl_opendir(const char *path, int *err)
 	return dir;
 }
 
-void lkl_closedir(struct lkl_dir *dir)
+int lkl_closedir(struct lkl_dir *dir)
 {
-	lkl_sys_close(dir->fd);
+	int ret;
+
+	ret = lkl_sys_close(dir->fd);
 	lkl_host_ops.mem_free(dir);
+
+	return ret;
 }
 
 struct lkl_dirent64 *lkl_readdir(struct lkl_dir *dir)
@@ -215,4 +219,9 @@ int lkl_errdir(struct lkl_dir *dir)
 		return 0;
 
 	return dir->len;
+}
+
+int lkl_dirfd(struct lkl_dir *dir)
+{
+	return dir->fd;
 }

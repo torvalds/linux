@@ -87,7 +87,7 @@ struct lkl_dir *lkl_opendir(const char *path, int *err);
  *
  * @dir - the directory handler as returned by lkl_opendir
  */
-void lkl_closedir(struct lkl_dir *dir);
+int lkl_closedir(struct lkl_dir *dir);
 
 /**
  * lkl_readdir - get the next available entry of the directory
@@ -106,5 +106,14 @@ struct lkl_dirent64 *lkl_readdir(struct lkl_dir *dir);
  * @returns - 0 if no error occurred, or a negative value otherwise
  */
 int lkl_errdir(struct lkl_dir *dir);
+
+/**
+ * lkl_dirfd - gets the file descriptor associated with the directory handle
+ *
+ * @dir - the directory handle as returned by lkl_opendir
+ * @returns - a positive value,which is the LKL file descriptor associated with
+ * the directory handle, or a negative value otherwise
+ */
+int lkl_dirfd(struct lkl_dir *dir);
 
 #endif
