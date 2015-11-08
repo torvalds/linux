@@ -2037,17 +2037,6 @@ static int mdc_hsm_ct_reregister(__u32 data, void *cb_arg)
 	return ((rc != 0) && (rc != -EEXIST)) ? rc : 0;
 }
 
-/**
- * Re-establish all kuc contexts with MDT
- * after MDT shutdown/recovery.
- */
-static int mdc_kuc_reregister(struct obd_import *imp)
-{
-	/* re-register HSM agents */
-	return libcfs_kkuc_group_foreach(KUC_GRP_HSM, mdc_hsm_ct_reregister,
-					 (void *)imp);
-}
-
 static int mdc_set_info_async(const struct lu_env *env,
 			      struct obd_export *exp,
 			      u32 keylen, void *key,
@@ -2210,7 +2199,10 @@ static int mdc_import_event(struct obd_device *obd, struct obd_import *imp,
 		rc = obd_notify_observer(obd, obd, OBD_NOTIFY_ACTIVE, NULL);
 		/* redo the kuc registration after reconnecting */
 		if (rc == 0)
-			rc = mdc_kuc_reregister(imp);
+			/* re-register HSM agents */
+			rc = libcfs_kkuc_group_foreach(KUC_GRP_HSM,
+						       mdc_hsm_ct_reregister,
+						       (void *)imp);
 		break;
 	case IMP_EVENT_OCD:
 		rc = obd_notify_observer(obd, obd, OBD_NOTIFY_OCD, NULL);
