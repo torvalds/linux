@@ -195,6 +195,15 @@ void init_syscall_table(void)
 	INIT_STE(setxattr);
 	INIT_STE(lsetxattr);
 	INIT_STE(fsetxattr);
+	INIT_STE(symlink);
+	INIT_STE(fallocate);
+	INIT_STE(link);
+	INIT_STE(pread64);
+	INIT_STE(pwrite64);
+	INIT_STE(fsync);
+	INIT_STE(fdatasync);
+	INIT_STE(removexattr);
+	INIT_STE(utimensat);
 }
 
 int __init syscall_init(void)

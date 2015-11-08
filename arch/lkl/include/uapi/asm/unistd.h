@@ -57,8 +57,17 @@
 #define __NR_setxattr		52
 #define __NR_lsetxattr		53
 #define __NR_fsetxattr		54
+#define __NR_symlink		55
+#define __NR_fallocate		56
+#define __NR_link		57
+#define __NR_pread64		58
+#define __NR_pwrite64		59
+#define __NR_fsync		60
+#define __NR_fdatasync		61
+#define __NR_removexattr	62
+#define __NR_utimensat		63
 #ifdef __KERNEL__
-#define NR_syscalls		55
+#define NR_syscalls		64
 #endif
 
 #define __ARCH_WANT_SYS_UTIME
@@ -248,6 +257,21 @@ LKL_SYSCALL5(lsetxattr, const char *, path, const char *, name,
 	     const void *, value, __lkl__kernel_size_t, size, int, flags);
 LKL_SYSCALL5(fsetxattr, int, fd, const char *, name, const void *, value,
 	     __lkl__kernel_size_t, size, int, flags);
+LKL_SYSCALL2(symlink, const char *, oldname, const char *, newname);
+LKL_SYSCALL2(link, const char *, oldname, const char *, newname);
+LKL_SYSCALL3(chown, const char *, filename, __lkl__kernel_uid32_t, uid,
+	     __lkl__kernel_gid32_t, gid);
+LKL_SYSCALL4(pread64, unsigned int, fd, char *, buf,
+	     __lkl__kernel_size_t, count, __lkl__kernel_loff_t, pos);
+LKL_SYSCALL4(pwrite64, unsigned int, fd, const char *, buf,
+	     __lkl__kernel_size_t, count, __lkl__kernel_loff_t, pos);
+LKL_SYSCALL1(fsync, unsigned int, fd);
+LKL_SYSCALL1(fdatasync, unsigned int, fd);
+LKL_SYSCALL2(removexattr, const char *, path, const char *, name);
+LKL_SYSCALL4(utimensat, int, dirfd, const char *, path,
+	     struct lkl_timespec *, utimes, int, flags);
+LKL_SYSCALL4(fallocate, int, fd, int, mode, __lkl__kernel_loff_t, offset,
+	     __lkl__kernel_loff_t, len);
 
 long lkl_sys_halt(void);
 
