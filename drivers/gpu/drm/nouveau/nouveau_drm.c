@@ -37,6 +37,8 @@
 #include <core/pci.h>
 #include <core/tegra.h>
 
+#include <nvif/if0004.h>
+
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
 #include "nouveau_ttm.h"
@@ -256,8 +258,8 @@ nouveau_accel_init(struct nouveau_drm *drm)
 		}
 
 		ret = nvif_notify_init(&drm->nvsw, nouveau_flip_complete,
-				       false, NVSW_NTFY_UEVENT, NULL, 0, 0,
-				       &drm->flip);
+				       false, NV04_NVSW_NTFY_UEVENT,
+				       NULL, 0, 0, &drm->flip);
 		if (ret == 0)
 			ret = nvif_notify_get(&drm->flip);
 		if (ret) {

@@ -5,10 +5,10 @@
 #define NVIF_CLASS_CONTROL                                                   -1
 #define NVIF_CLASS_PERFMON                                                   -2
 #define NVIF_CLASS_PERFDOM                                                   -3
-#define NVIF_CLASS_SW_NV04                                                   -4
-#define NVIF_CLASS_SW_NV10                                                   -5
-#define NVIF_CLASS_SW_NV50                                                   -6
-#define NVIF_CLASS_SW_GF100                                                  -7
+#define NVIF_CLASS_SW_NV04                                    /* if0004.h */ -4
+#define NVIF_CLASS_SW_NV10                                    /* if0005.h */ -5
+#define NVIF_CLASS_SW_NV50                                    /* if0005.h */ -6
+#define NVIF_CLASS_SW_GF100                                   /* if0005.h */ -7
 
 /* the below match nvidia-assigned (either in hw, or sw) class numbers */
 #define NV_DEVICE                                                    0x00000080
@@ -614,18 +614,4 @@ struct nv50_disp_overlay_v0 {
 };
 
 #define NV50_DISP_OVERLAY_V0_NTFY_UEVENT                                   0x00
-
-/*******************************************************************************
- * software
- ******************************************************************************/
-
-#define NVSW_NTFY_UEVENT                                                   0x00
-
-#define NV04_NVSW_GET_REF                                                  0x00
-
-struct nv04_nvsw_get_ref_v0 {
-	__u8  version;
-	__u8  pad01[3];
-	__u32 ref;
-};
 #endif

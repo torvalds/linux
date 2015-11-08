@@ -27,6 +27,7 @@
 #include "nvsw.h"
 
 #include <nvif/class.h>
+#include <nvif/if0004.h>
 #include <nvif/ioctl.h>
 #include <nvif/unpack.h>
 
