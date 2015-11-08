@@ -1645,7 +1645,6 @@ lnet_msgtyp2str(int type)
 		return "<UNKNOWN>";
 	}
 }
-EXPORT_SYMBOL(lnet_msgtyp2str);
 
 void
 lnet_print_hdr(lnet_hdr_t *hdr)

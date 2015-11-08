@@ -354,7 +354,6 @@ lnet_counters_reset(void)
 
 	lnet_net_unlock(LNET_LOCK_EX);
 }
-EXPORT_SYMBOL(lnet_counters_reset);
 
 static char *
 lnet_res_type2str(int type)
@@ -1153,7 +1152,6 @@ lnet_init(void)
 	lnet_register_lnd(&the_lolnd);
 	return 0;
 }
-EXPORT_SYMBOL(lnet_init);
 
 /**
  * Finalize LNet library.
@@ -1177,7 +1175,6 @@ lnet_fini(void)
 
 	the_lnet.ln_init = 0;
 }
-EXPORT_SYMBOL(lnet_fini);
 
 /**
  * Set LNet PID and start LNet interfaces, routing, and forwarding.
