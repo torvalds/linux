@@ -3210,7 +3210,7 @@ int host_int_add_wep_key_bss_ap(struct host_if_drv *hif_drv,
 int host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *ptk,
 		     u8 ptk_key_len, const u8 *mac_addr,
 		     const u8 *rx_mic, const u8 *tx_mic,
-		     u8 mode, u8 cipher_mode, u8 u8Idx)
+		     u8 mode, u8 cipher_mode, u8 index)
 {
 	int result = 0;
 	struct host_if_msg msg;
@@ -3234,7 +3234,7 @@ int host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *ptk,
 	msg.body.key_info.type = WPA_PTK;
 	if (mode == AP_MODE) {
 		msg.body.key_info.action = ADDKEY_AP;
-		msg.body.key_info.attr.wpa.index = u8Idx;
+		msg.body.key_info.attr.wpa.index = index;
 	}
 	if (mode == STATION_MODE)
 		msg.body.key_info.action = ADDKEY;
