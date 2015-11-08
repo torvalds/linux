@@ -3373,20 +3373,6 @@ s32 host_int_set_pmkid_info(struct host_if_drv *hif_drv, struct host_if_pmkid_at
 	return result;
 }
 
-s32 host_int_get_pmkid_info(struct host_if_drv *hif_drv,
-			    u8 *pu8PmkidInfoArray,
-			    u32 u32PmkidInfoLen)
-{
-	struct wid wid;
-
-	wid.id = (u16)WID_PMKID_INFO;
-	wid.type = WID_STR;
-	wid.size = u32PmkidInfoLen;
-	wid.val = pu8PmkidInfoArray;
-
-	return 0;
-}
-
 s32 host_int_set_RSNAConfigPSKPassPhrase(struct host_if_drv *hif_drv,
 					 u8 *pu8PassPhrase,
 					 u8 u8Psklength)
