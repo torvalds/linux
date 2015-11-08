@@ -3210,7 +3210,7 @@ int host_int_add_wep_key_bss_ap(struct host_if_drv *hif_drv,
 int host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *ptk,
 		     u8 ptk_key_len, const u8 *mac_addr,
 		     const u8 *rx_mic, const u8 *tx_mic,
-		     u8 mode, u8 u8Ciphermode, u8 u8Idx)
+		     u8 mode, u8 cipher_mode, u8 u8Idx)
 {
 	int result = 0;
 	struct host_if_msg msg;
@@ -3259,7 +3259,7 @@ int host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *ptk,
 
 	msg.body.key_info.attr.wpa.key_len = u8KeyLen;
 	msg.body.key_info.attr.wpa.mac_addr = mac_addr;
-	msg.body.key_info.attr.wpa.mode = u8Ciphermode;
+	msg.body.key_info.attr.wpa.mode = cipher_mode;
 	msg.drv = hif_drv;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
