@@ -419,8 +419,6 @@ static inline struct tty_struct *tty_kref_get(struct tty_struct *tty)
 	return tty;
 }
 
-extern int tty_paranoia_check(struct tty_struct *tty, struct inode *inode,
-			      const char *routine);
 extern const char *tty_name(const struct tty_struct *tty);
 extern void tty_wait_until_sent(struct tty_struct *tty, long timeout);
 extern int __tty_check_change(struct tty_struct *tty, int sig);
