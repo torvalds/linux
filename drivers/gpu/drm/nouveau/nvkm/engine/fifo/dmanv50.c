@@ -27,6 +27,7 @@
 #include <core/ramht.h>
 
 #include <nvif/class.h>
+#include <nvif/cl506e.h>
 #include <nvif/unpack.h>
 
 static int

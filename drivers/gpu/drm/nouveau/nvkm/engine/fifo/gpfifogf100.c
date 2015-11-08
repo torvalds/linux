@@ -29,6 +29,7 @@
 #include <subdev/timer.h>
 
 #include <nvif/class.h>
+#include <nvif/cl906f.h>
 #include <nvif/unpack.h>
 
 static u32

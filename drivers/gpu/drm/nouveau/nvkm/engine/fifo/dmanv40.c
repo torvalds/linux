@@ -29,6 +29,7 @@
 #include <subdev/instmem.h>
 
 #include <nvif/class.h>
+#include <nvif/cl006b.h>
 #include <nvif/unpack.h>
 
 static bool

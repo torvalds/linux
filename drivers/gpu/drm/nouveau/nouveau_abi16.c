@@ -25,6 +25,7 @@
 #include <nvif/driver.h>
 #include <nvif/ioctl.h>
 #include <nvif/class.h>
+#include <nvif/cla06f.h>
 #include <nvif/unpack.h>
 
 #include "nouveau_drm.h"

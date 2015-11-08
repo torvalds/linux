@@ -27,6 +27,7 @@
 #include <core/ramht.h>
 
 #include <nvif/class.h>
+#include <nvif/cl826f.h>
 #include <nvif/unpack.h>
 
 static int
@@ -35,7 +36,7 @@ g84_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 {
 	struct nvkm_object *parent = oclass->parent;
 	union {
-		struct nv50_channel_gpfifo_v0 v0;
+		struct g82_channel_gpfifo_v0 v0;
 	} *args = data;
 	struct nv50_fifo *fifo = nv50_fifo(base);
 	struct nv50_fifo_chan *chan;

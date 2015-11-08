@@ -26,18 +26,18 @@
 
 #define NV04_DISP                                     /* cl0046.h */ 0x00000046
 
-#define NV03_CHANNEL_DMA                                             0x0000006b
-#define NV10_CHANNEL_DMA                                             0x0000006e
-#define NV17_CHANNEL_DMA                                             0x0000176e
-#define NV40_CHANNEL_DMA                                             0x0000406e
-#define NV50_CHANNEL_DMA                                             0x0000506e
-#define G82_CHANNEL_DMA                                              0x0000826e
+#define NV03_CHANNEL_DMA                              /* cl506b.h */ 0x0000006b
+#define NV10_CHANNEL_DMA                              /* cl506b.h */ 0x0000006e
+#define NV17_CHANNEL_DMA                              /* cl506b.h */ 0x0000176e
+#define NV40_CHANNEL_DMA                              /* cl506b.h */ 0x0000406e
+#define NV50_CHANNEL_DMA                              /* cl506e.h */ 0x0000506e
+#define G82_CHANNEL_DMA                               /* cl826e.h */ 0x0000826e
 
-#define NV50_CHANNEL_GPFIFO                                          0x0000506f
-#define G82_CHANNEL_GPFIFO                                           0x0000826f
-#define FERMI_CHANNEL_GPFIFO                                         0x0000906f
-#define KEPLER_CHANNEL_GPFIFO_A                                      0x0000a06f
-#define MAXWELL_CHANNEL_GPFIFO_A                                     0x0000b06f
+#define NV50_CHANNEL_GPFIFO                           /* cl506f.h */ 0x0000506f
+#define G82_CHANNEL_GPFIFO                            /* cl826f.h */ 0x0000826f
+#define FERMI_CHANNEL_GPFIFO                          /* cl906f.h */ 0x0000906f
+#define KEPLER_CHANNEL_GPFIFO_A                       /* cla06f.h */ 0x0000a06f
+#define MAXWELL_CHANNEL_GPFIFO_A                      /* cla06f.h */ 0x0000b06f
 
 #define NV50_DISP                                     /* cl5070.h */ 0x00005070
 #define G82_DISP                                      /* cl5070.h */ 0x00008270
@@ -388,68 +388,5 @@ struct nvif_control_pstate_user_v0 {
 	__s8  ustate; /*  in: pstate identifier */
 	__s8  pwrsrc; /*  in: target power source */
 	__u8  pad03[5];
-};
-
-
-/*******************************************************************************
- * DMA FIFO channels
- ******************************************************************************/
-
-struct nv03_channel_dma_v0 {
-	__u8  version;
-	__u8  chid;
-	__u8  pad02[2];
-	__u32 offset;
-	__u64 pushbuf;
-};
-
-struct nv50_channel_dma_v0 {
-	__u8  version;
-	__u8  chid;
-	__u8  pad02[6];
-	__u64 vm;
-	__u64 pushbuf;
-	__u64 offset;
-};
-
-#define G82_CHANNEL_DMA_V0_NTFY_UEVENT                                     0x00
-
-/*******************************************************************************
- * GPFIFO channels
- ******************************************************************************/
-
-struct nv50_channel_gpfifo_v0 {
-	__u8  version;
-	__u8  chid;
-	__u8  pad02[2];
-	__u32 ilength;
-	__u64 ioffset;
-	__u64 pushbuf;
-	__u64 vm;
-};
-
-struct fermi_channel_gpfifo_v0 {
-	__u8  version;
-	__u8  chid;
-	__u8  pad02[2];
-	__u32 ilength;
-	__u64 ioffset;
-	__u64 vm;
-};
-
-struct kepler_channel_gpfifo_a_v0 {
-	__u8  version;
-#define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_GR                               0x01
-#define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_MSPDEC                           0x02
-#define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_MSPPP                            0x04
-#define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_MSVLD                            0x08
-#define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_CE0                              0x10
-#define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_CE1                              0x20
-#define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_ENC                              0x40
-	__u8  engine;
-	__u16 chid;
-	__u32 ilength;
-	__u64 ioffset;
-	__u64 vm;
 };
 #endif

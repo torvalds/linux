@@ -30,6 +30,7 @@
 #include <subdev/timer.h>
 
 #include <nvif/class.h>
+#include <nvif/cla06f.h>
 #include <nvif/unpack.h>
 
 static int
