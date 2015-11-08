@@ -3413,18 +3413,6 @@ s32 host_int_set_MacAddress(struct host_if_drv *hif_drv, u8 *pu8MacAddress)
 	return result;
 }
 
-s32 host_int_set_start_scan_req(struct host_if_drv *hif_drv, u8 scanSource)
-{
-	struct wid wid;
-
-	wid.id = (u16)WID_START_SCAN_REQ;
-	wid.type = WID_CHAR;
-	wid.val = (s8 *)&scanSource;
-	wid.size = sizeof(char);
-
-	return 0;
-}
-
 s32 host_int_get_start_scan_req(struct host_if_drv *hif_drv, u8 *pu8ScanSource)
 {
 	struct wid wid;
