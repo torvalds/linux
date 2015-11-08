@@ -783,7 +783,7 @@ static void do_tty_hangup(struct work_struct *work)
 
 void tty_hangup(struct tty_struct *tty)
 {
-	tty_debug_hangup(tty, "\n");
+	tty_debug_hangup(tty, "hangup\n");
 	schedule_work(&tty->hangup_work);
 }
 
@@ -800,7 +800,7 @@ EXPORT_SYMBOL(tty_hangup);
 
 void tty_vhangup(struct tty_struct *tty)
 {
-	tty_debug_hangup(tty, "\n");
+	tty_debug_hangup(tty, "vhangup\n");
 	__tty_hangup(tty, 0);
 }
 
@@ -837,7 +837,7 @@ void tty_vhangup_self(void)
 
 static void tty_vhangup_session(struct tty_struct *tty)
 {
-	tty_debug_hangup(tty, "\n");
+	tty_debug_hangup(tty, "session hangup\n");
 	__tty_hangup(tty, 1);
 }
 
@@ -1787,7 +1787,7 @@ int tty_release(struct inode *inode, struct file *filp)
 		return 0;
 	}
 
-	tty_debug_hangup(tty, "(tty count=%d)...\n", tty->count);
+	tty_debug_hangup(tty, "releasing (count=%d)\n", tty->count);
 
 	if (tty->ops->close)
 		tty->ops->close(tty, filp);
@@ -1903,7 +1903,7 @@ int tty_release(struct inode *inode, struct file *filp)
 	/* Wait for pending work before tty destruction commmences */
 	tty_flush_works(tty);
 
-	tty_debug_hangup(tty, "freeing structure...\n");
+	tty_debug_hangup(tty, "freeing structure\n");
 	/*
 	 * The release_tty function takes care of the details of clearing
 	 * the slots and preserving the termios structure. The tty_unlock_pair
@@ -2093,7 +2093,7 @@ retry_open:
 	    tty->driver->subtype == PTY_TYPE_MASTER)
 		noctty = 1;
 
-	tty_debug_hangup(tty, "(tty count=%d)\n", tty->count);
+	tty_debug_hangup(tty, "opening (count=%d)\n", tty->count);
 
 	if (tty->ops->open)
 		retval = tty->ops->open(tty, filp);
@@ -2102,7 +2102,7 @@ retry_open:
 	filp->f_flags = saved_flags;
 
 	if (retval) {
-		tty_debug_hangup(tty, "error %d, releasing...\n", retval);
+		tty_debug_hangup(tty, "open error %d, releasing\n", retval);
 
 		tty_unlock(tty); /* need to call tty_release without BTM */
 		tty_release(inode, filp);

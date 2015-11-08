@@ -216,7 +216,7 @@ int tty_unthrottle_safe(struct tty_struct *tty)
 
 void tty_wait_until_sent(struct tty_struct *tty, long timeout)
 {
-	tty_debug_wait_until_sent(tty, "\n");
+	tty_debug_wait_until_sent(tty, "wait until sent, timeout=%ld\n", timeout);
 
 	if (!timeout)
 		timeout = MAX_SCHEDULE_TIMEOUT;

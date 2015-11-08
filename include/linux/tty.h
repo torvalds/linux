@@ -669,8 +669,7 @@ static inline void proc_tty_unregister_driver(struct tty_driver *d) {}
 #define tty_msg(fn, tty, f, ...) \
 	fn("%s %s: " f, tty_driver_name(tty), tty_name(tty), ##__VA_ARGS__)
 
-#define tty_debug(tty, f, ...) \
-		tty_msg(pr_debug, tty, "%s:" f, __func__, ##__VA_ARGS__)
+#define tty_debug(tty, f, ...)	tty_msg(pr_debug, tty, f, ##__VA_ARGS__)
 #define tty_info(tty, f, ...)	tty_msg(pr_info, tty, f, ##__VA_ARGS__)
 #define tty_notice(tty, f, ...)	tty_msg(pr_notice, tty, f, ##__VA_ARGS__)
 #define tty_warn(tty, f, ...)	tty_msg(pr_warn, tty, f, ##__VA_ARGS__)
