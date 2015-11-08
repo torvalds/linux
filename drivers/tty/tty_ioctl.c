@@ -239,10 +239,10 @@ EXPORT_SYMBOL(tty_wait_until_sent);
  *		Termios Helper Methods
  */
 
-static void unset_locked_termios(struct ktermios *termios,
-				 struct ktermios *old,
-				 struct ktermios *locked)
+static void unset_locked_termios(struct tty_struct *tty, struct ktermios *old)
 {
+	struct ktermios *termios = &tty->termios;
+	struct ktermios *locked  = &tty->termios_locked;
 	int	i;
 
 #define NOSET_MASK(x, y, z) (x = ((x) & ~(z)) | ((y) & (z)))
@@ -556,7 +556,7 @@ int tty_set_termios(struct tty_struct *tty, struct ktermios *new_termios)
 	down_write(&tty->termios_rwsem);
 	old_termios = tty->termios;
 	tty->termios = *new_termios;
-	unset_locked_termios(&tty->termios, &old_termios, &tty->termios_locked);
+	unset_locked_termios(tty, &old_termios);
 
 	if (tty->ops->set_termios)
 		tty->ops->set_termios(tty, &old_termios);
