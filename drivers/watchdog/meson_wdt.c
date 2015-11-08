@@ -50,6 +50,12 @@ static struct meson_wdt_data meson6_wdt_data = {
 	.count_unit		= 100000, /* 10 us */
 };
 
+static struct meson_wdt_data meson8b_wdt_data = {
+	.enable			= BIT(19),
+	.terminal_count_mask	= 0xffff,
+	.count_unit		= 7812, /* 128 us */
+};
+
 struct meson_wdt_dev {
 	struct watchdog_device wdt_dev;
 	void __iomem *wdt_base;
@@ -148,6 +154,7 @@ static const struct watchdog_ops meson_wdt_ops = {
 
 static const struct of_device_id meson_wdt_dt_ids[] = {
 	{ .compatible = "amlogic,meson6-wdt", .data = &meson6_wdt_data },
+	{ .compatible = "amlogic,meson8b-wdt", .data = &meson8b_wdt_data },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, meson_wdt_dt_ids);
