@@ -6,20 +6,24 @@ AR=$(CROSS_COMPILE)ar
 LD=$(CROSS_COMPILE)ld
 endif
 
+OUTPUT_FORMAT=$(shell $(LD) -r -print-output-format)
+
 lib_source = $(filter-out %-host.c,$(wildcard lib/*.c))
 source = $(wildcard tests/*.c)
-ifneq (,$(filter $(shell $(LD) -r -print-output-format),elf64-x86-64 elf32-i386))
+ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64 elf32-i386))
 source += $(wildcard *.c)
 lib_source += lib/posix-host.c
 LDFLAGS += -lpthread -lrt
 source += $(wildcard *.c)
 execs =  cpfromfs
-else ifeq ($(shell $(LD) -r -print-output-format),pe-i386)
+else ifeq ($(OUTPUT_FORMAT),pe-i386)
 lib_source += lib/nt-host.c
 KOPT="KALLSYMS_EXTRA_PASS=1"
+else
+$(error Unrecognized platform: $(OUTPUT_FORMAT))
 endif
 
-ifeq ($(shell $(LD) -r -print-output-format),elf64-x86-64)
+ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64))
 CFLAGS += -D_FILE_OFFSET_BITS=64
 endif
 
