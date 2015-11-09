@@ -80,20 +80,6 @@
 #define RK_LF_STATUS_NC                  0xfe
 #define RK_LF_MAX_TIMEOUT 			 (1600000UL << 6)	//>0.64s
 
-
-/* x y mirror or rotate mode */
-#define NO_MIRROR	0
-#define X_MIRROR    	1		/* up-down flip*/
-#define Y_MIRROR    	2		/* left-right flip */
-#define X_Y_MIRROR    	3		/* the same as rotate 180 degrees */
-#define ROTATE_90	4		/* clockwise rotate 90 degrees */
-#define ROTATE_180	8		/* rotate 180 degrees
-					 * It is recommended to use X_Y_MIRROR
-					 * rather than ROTATE_180
-					 */
-#define ROTATE_270	12		/* clockwise rotate 270 degrees */
-
-
 /**
 * pixel align value for gpu,align as 64 bytes in an odd number of times
 */
@@ -116,24 +102,6 @@ extern u32 rk_fb_get_prmry_screen_vbt(void);
 extern u64 rk_fb_get_prmry_screen_framedone_t(void);
 extern int rk_fb_set_prmry_screen_status(int status);
 extern bool rk_fb_poll_wait_frame_complete(void);
-
-/********************************************************************
-**          display output interface supported by rockchip lcdc                       *
-********************************************************************/
-/* */
-#define OUT_P888            0	//24bit screen,connect to lcdc D0~D23
-#define OUT_P666            1	//18bit screen,connect to lcdc D0~D17
-#define OUT_P565            2
-#define OUT_S888x           4
-#define OUT_CCIR656         6
-#define OUT_S888            8
-#define OUT_S888DUMY        12
-#define OUT_YUV_420	    14
-#define OUT_P101010	    15
-#define OUT_YUV_420_10BIT   16
-#define OUT_P16BPP4         24
-#define OUT_D888_P666       0x21	//18bit screen,connect to lcdc D2~D7, D10~D15, D18~D23
-#define OUT_D888_P565       0x22
 
 enum {
 	CSC_BT601,

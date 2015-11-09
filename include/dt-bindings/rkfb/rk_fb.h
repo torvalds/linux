@@ -12,7 +12,9 @@
 #define NO_DUAL		0
 #define ONE_DUAL	1
 #define DUAL		2
-
+/********************************************************************
+**          display output interface supported by rockchip	   **
+********************************************************************/
 #define OUT_P888            0	//24bit screen,connect to lcdc D0~D23
 #define OUT_P666            1	//18bit screen,connect to lcdc D0~D17
 #define OUT_P565            2
@@ -48,13 +50,17 @@
 #define LVDS_10BIT_1    4
 #define LVDS_10BIT_2    5
 
+/* x y mirror or rotate mode */
 #define NO_MIRROR	0
-#define X_MIRROR    	1
-#define Y_MIRROR    	2
-#define X_Y_MIRROR    	3
-#define ROTATE_90	4
-#define ROTATE_180	8
-#define ROTATE_270	12
+#define X_MIRROR	1 /* up-down flip*/
+#define Y_MIRROR	2 /* left-right flip */
+#define X_Y_MIRROR	3 /* the same as rotate 180 degrees */
+#define ROTATE_90	4 /* clockwise rotate 90 degrees */
+#define ROTATE_180	8 /* rotate 180 degrees
+			   * It is recommended to use X_Y_MIRROR
+			   * rather than ROTATE_180
+			   */
+#define ROTATE_270	12/* clockwise rotate 270 degrees */
 
 #define COLOR_RGB		0
 #define COLOR_RGB_BT2020	1
