@@ -30,7 +30,6 @@ struct timer16_priv {
 	unsigned char imfa;
 	unsigned char imiea;
 	unsigned char ovf;
-	raw_spinlock_t lock;
 	struct clk *clk;
 };
 
@@ -75,13 +74,10 @@ static inline struct timer16_priv *cs_to_priv(struct clocksource *cs)
 static cycle_t timer16_clocksource_read(struct clocksource *cs)
 {
 	struct timer16_priv *p = cs_to_priv(cs);
-	unsigned long flags, raw;
-	unsigned long value;
+	unsigned long raw, value;
 
-	raw_spin_lock_irqsave(&p->lock, flags);
 	value = p->total_cycles;
 	raw = timer16_get_counter(p);
-	raw_spin_unlock_irqrestore(&p->lock, flags);
 
 	return value + raw;
 }
