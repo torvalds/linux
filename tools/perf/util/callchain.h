@@ -24,7 +24,7 @@
 #define CALLCHAIN_RECORD_HELP  CALLCHAIN_HELP RECORD_MODE_HELP RECORD_SIZE_HELP
 
 #define CALLCHAIN_REPORT_HELP						\
-	HELP_PAD "print_type:\tcall graph printing style (graph|flat|fractal|none)\n" \
+	HELP_PAD "print_type:\tcall graph printing style (graph|flat|fractal|folded|none)\n" \
 	HELP_PAD "threshold:\tminimum call graph inclusion threshold (<percent>)\n" \
 	HELP_PAD "print_limit:\tmaximum number of call graph entry (<number>)\n" \
 	HELP_PAD "order:\t\tcall graph order (caller|callee)\n" \
@@ -43,7 +43,8 @@ enum chain_mode {
 	CHAIN_NONE,
 	CHAIN_FLAT,
 	CHAIN_GRAPH_ABS,
-	CHAIN_GRAPH_REL
+	CHAIN_GRAPH_REL,
+	CHAIN_FOLDED,
 };
 
 enum chain_order {

@@ -181,6 +181,7 @@ OPTIONS
 	- graph: use a graph tree, displaying absolute overhead rates. (default)
 	- fractal: like graph, but displays relative rates. Each branch of
 		 the tree is considered as a new profiled object.
+	- folded: call chains are displayed in a line, separated by semicolons
 	- none: disable call chain display.
 
 	threshold is a percentage value which specifies a minimum percent to be

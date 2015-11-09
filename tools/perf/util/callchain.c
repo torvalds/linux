@@ -44,6 +44,10 @@ static int parse_callchain_mode(const char *value)
 		callchain_param.mode = CHAIN_GRAPH_REL;
 		return 0;
 	}
+	if (!strncmp(value, "folded", strlen(value))) {
+		callchain_param.mode = CHAIN_FOLDED;
+		return 0;
+	}
 	return -1;
 }
 
@@ -218,6 +222,7 @@ rb_insert_callchain(struct rb_root *root, struct callchain_node *chain,
 
 		switch (mode) {
 		case CHAIN_FLAT:
+		case CHAIN_FOLDED:
 			if (rnode->hit < chain->hit)
 				p = &(*p)->rb_left;
 			else
@@ -338,6 +343,7 @@ int callchain_register_param(struct callchain_param *param)
 		param->sort = sort_chain_graph_rel;
 		break;
 	case CHAIN_FLAT:
+	case CHAIN_FOLDED:
 		param->sort = sort_chain_flat;
 		break;
 	case CHAIN_NONE:
