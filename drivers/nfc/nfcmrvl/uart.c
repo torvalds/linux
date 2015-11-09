@@ -67,8 +67,6 @@ static struct nfcmrvl_if_ops uart_ops = {
 	.nci_update_config = nfcmrvl_uart_nci_update_config
 };
 
-#ifdef CONFIG_OF
-
 static int nfcmrvl_uart_parse_dt(struct device_node *node,
 				 struct nfcmrvl_platform_data *pdata)
 {
@@ -101,16 +99,6 @@ static int nfcmrvl_uart_parse_dt(struct device_node *node,
 
 	return 0;
 }
-
-#else
-
-static int nfcmrvl_uart_parse_dt(struct device_node *node,
-				 struct nfcmrvl_platform_data *pdata)
-{
-	return -ENODEV;
-}
-
-#endif
 
 /*
 ** NCI UART OPS
@@ -152,10 +140,6 @@ static int nfcmrvl_nci_uart_open(struct nci_uart *nu)
 	nu->drv_data = priv;
 	nu->ndev = priv->ndev;
 
-	/* Set BREAK */
-	if (priv->config.break_control && nu->tty->ops->break_ctl)
-		nu->tty->ops->break_ctl(nu->tty, -1);
-
 	return 0;
 }
 
@@ -174,6 +158,9 @@ static void nfcmrvl_nci_uart_tx_start(struct nci_uart *nu)
 {
 	struct nfcmrvl_private *priv = (struct nfcmrvl_private *)nu->drv_data;
 
+	if (priv->ndev->nfc_dev->fw_download_in_progress)
+		return;
+
 	/* Remove BREAK to wake up the NFCC */
 	if (priv->config.break_control && nu->tty->ops->break_ctl) {
 		nu->tty->ops->break_ctl(nu->tty, 0);
@@ -185,13 +172,18 @@ static void nfcmrvl_nci_uart_tx_done(struct nci_uart *nu)
 {
 	struct nfcmrvl_private *priv = (struct nfcmrvl_private *)nu->drv_data;
 
+	if (priv->ndev->nfc_dev->fw_download_in_progress)
+		return;
+
 	/*
 	** To ensure that if the NFCC goes in DEEP SLEEP sate we can wake him
 	** up. we set BREAK. Once we will be ready to send again we will remove
 	** it.
 	*/
-	if (priv->config.break_control && nu->tty->ops->break_ctl)
+	if (priv->config.break_control && nu->tty->ops->break_ctl) {
 		nu->tty->ops->break_ctl(nu->tty, -1);
+		usleep_range(1000, 3000);
+	}
 }
 
 static struct nci_uart nfcmrvl_nci_uart = {

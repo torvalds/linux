@@ -194,6 +194,9 @@ void nfcmrvl_nci_unregister_dev(struct nfcmrvl_private *priv)
 
 	nfcmrvl_fw_dnld_deinit(priv);
 
+	if (priv->config.reset_n_io)
+		devm_gpio_free(priv->dev, priv->config.reset_n_io);
+
 	nci_unregister_device(ndev);
 	nci_free_device(ndev);
 	kfree(priv);
@@ -251,8 +254,6 @@ void nfcmrvl_chip_halt(struct nfcmrvl_private *priv)
 		gpio_set_value(priv->config.reset_n_io, 0);
 }
 
-#ifdef CONFIG_OF
-
 int nfcmrvl_parse_dt(struct device_node *node,
 		     struct nfcmrvl_platform_data *pdata)
 {
@@ -275,16 +276,6 @@ int nfcmrvl_parse_dt(struct device_node *node,
 
 	return 0;
 }
-
-#else
-
-int nfcmrvl_parse_dt(struct device_node *node,
-		     struct nfcmrvl_platform_data *pdata)
-{
-	return -ENODEV;
-}
-
-#endif
 EXPORT_SYMBOL_GPL(nfcmrvl_parse_dt);
 
 MODULE_AUTHOR("Marvell International Ltd.");
