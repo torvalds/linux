@@ -57,6 +57,8 @@ struct gk20a_instobj {
 	/* CPU mapping */
 	u32 *vaddr;
 	struct list_head vaddr_node;
+	/* How many clients are using vaddr? */
+	u32 use_cpt;
 };
 #define gk20a_instobj(p) container_of((p), struct gk20a_instobj, memory)
 
@@ -164,27 +166,35 @@ gk20a_instobj_cpu_map_iommu(struct nvkm_memory *memory)
 }
 
 /*
- * Must be called while holding gk20a_instmem_lock
+ * Recycle the vaddr of obj. Must be called with gk20a_instmem::lock held.
+ */
+static void
+gk20a_instobj_recycle_vaddr(struct gk20a_instobj *obj)
+{
+	struct gk20a_instmem *imem = obj->imem;
+	/* there should not be any user left... */
+	WARN_ON(obj->use_cpt);
+	list_del(&obj->vaddr_node);
+	vunmap(obj->vaddr);
+	obj->vaddr = NULL;
+	imem->vaddr_use -= nvkm_memory_size(&obj->memory);
+	nvkm_debug(&imem->base.subdev, "vaddr used: %x/%x\n", imem->vaddr_use,
+		   imem->vaddr_max);
+}
+
+/*
+ * Must be called while holding gk20a_instmem::lock
  */
 static void
 gk20a_instmem_vaddr_gc(struct gk20a_instmem *imem, const u64 size)
 {
 	while (imem->vaddr_use + size > imem->vaddr_max) {
-		struct gk20a_instobj *obj;
-
 		/* no candidate that can be unmapped, abort... */
 		if (list_empty(&imem->vaddr_lru))
 			break;
 
-		obj = list_first_entry(&imem->vaddr_lru, struct gk20a_instobj,
-				       vaddr_node);
-		list_del(&obj->vaddr_node);
-		vunmap(obj->vaddr);
-		obj->vaddr = NULL;
-		imem->vaddr_use -= nvkm_memory_size(&obj->memory);
-		nvkm_debug(&imem->base.subdev, "(GC) vaddr used: %x/%x\n",
-			   imem->vaddr_use, imem->vaddr_max);
-
+		gk20a_instobj_recycle_vaddr(list_first_entry(&imem->vaddr_lru,
+					     struct gk20a_instobj, vaddr_node));
 	}
 }
 
@@ -202,9 +212,10 @@ gk20a_instobj_acquire(struct nvkm_memory *memory)
 	spin_lock_irqsave(&imem->lock, flags);
 
 	if (node->vaddr) {
-		/* remove us from the LRU list since we cannot be unmapped */
-		list_del(&node->vaddr_node);
-
+		if (!node->use_cpt) {
+			/* remove from LRU list since mapping in use again */
+			list_del(&node->vaddr_node);
+		}
 		goto out;
 	}
 
@@ -224,6 +235,7 @@ gk20a_instobj_acquire(struct nvkm_memory *memory)
 		   imem->vaddr_use, imem->vaddr_max);
 
 out:
+	node->use_cpt++;
 	spin_unlock_irqrestore(&imem->lock, flags);
 
 	return node->vaddr;
@@ -239,9 +251,15 @@ gk20a_instobj_release(struct nvkm_memory *memory)
 
 	spin_lock_irqsave(&imem->lock, flags);
 
-	/* add ourselves to the LRU list so our CPU mapping can be freed */
-	list_add_tail(&node->vaddr_node, &imem->vaddr_lru);
+	/* we should at least have one user to release... */
+	if (WARN_ON(node->use_cpt == 0))
+		goto out;
 
+	/* add unused objs to the LRU list to recycle their mapping */
+	if (--node->use_cpt == 0)
+		list_add_tail(&node->vaddr_node, &imem->vaddr_lru);
+
+out:
 	spin_unlock_irqrestore(&imem->lock, flags);
 
 	wmb();
@@ -279,25 +297,15 @@ static void
 gk20a_instobj_dtor(struct gk20a_instobj *node)
 {
 	struct gk20a_instmem *imem = node->imem;
-	struct gk20a_instobj *obj;
 	unsigned long flags;
 
 	spin_lock_irqsave(&imem->lock, flags);
 
+	/* vaddr has already been recycled */
 	if (!node->vaddr)
 		goto out;
 
-	list_for_each_entry(obj, &imem->vaddr_lru, vaddr_node) {
-		if (obj == node) {
-			list_del(&obj->vaddr_node);
-			break;
-		}
-	}
-	vunmap(node->vaddr);
-	node->vaddr = NULL;
-	imem->vaddr_use -= nvkm_memory_size(&node->memory);
-	nvkm_debug(&imem->base.subdev, "vaddr used: %x/%x\n",
-		   imem->vaddr_use, imem->vaddr_max);
+	gk20a_instobj_recycle_vaddr(node);
 
 out:
 	spin_unlock_irqrestore(&imem->lock, flags);
