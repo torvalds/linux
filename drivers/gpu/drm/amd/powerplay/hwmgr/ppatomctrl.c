@@ -28,6 +28,8 @@
 #include "atombios.h"
 #include "cgs_common.h"
 #include "pp_debug.h"
+#include "ppevvmath.h"
+
 #define MEM_ID_MASK           0xff000000
 #define MEM_ID_SHIFT          24
 #define CLOCK_RANGE_MASK      0x00ffffff
@@ -94,7 +96,7 @@ static int atomctrl_retrieve_ac_timing(
  * VBIOS set end of memory clock AC timing registers by ucPreRegDataLength bit6 = 1
  * @param    reg_block the address ATOM_INIT_REG_BLOCK
  * @param    table the address of MCRegTable
- * @return   PP_Result_OK
+ * @return   0
  */
 static int atomctrl_set_mc_reg_address_table(
 		ATOM_INIT_REG_BLOCK *reg_block,
@@ -286,6 +288,31 @@ int atomctrl_get_memory_pll_dividers_si(
 	return result;
 }
 
+/** atomctrl_get_memory_pll_dividers_vi().
+ *
+ * @param hwmgr                 input parameter: pointer to HwMgr
+ * @param clock_value             input parameter: memory clock
+ * @param dividers               output parameter: memory PLL dividers
+ */
+int atomctrl_get_memory_pll_dividers_vi(struct pp_hwmgr *hwmgr,
+		uint32_t clock_value, pp_atomctrl_memory_clock_param *mpll_param)
+{
+	COMPUTE_MEMORY_CLOCK_PARAM_PARAMETERS_V2_2 mpll_parameters;
+	int result;
+
+	mpll_parameters.ulClock.ulClock = (uint32_t)clock_value;
+
+	result = cgs_atom_exec_cmd_table(hwmgr->device,
+			GetIndexIntoMasterTable(COMMAND, ComputeMemoryClockParam),
+			&mpll_parameters);
+
+	if (!result)
+		mpll_param->mpll_post_divider =
+				(uint32_t)mpll_parameters.ulClock.ucPostDiv;
+
+	return result;
+}
+
 int atomctrl_get_engine_pll_dividers_vi(
 		struct pp_hwmgr *hwmgr,
 		uint32_t clock_value,
@@ -387,7 +414,7 @@ uint32_t atomctrl_get_reference_clock(struct pp_hwmgr *hwmgr)
 }
 
 /**
- * Returns 0 if the given voltage type is controlled by GPIO pins.
+ * Returns true if the given voltage type is controlled by GPIO pins.
  * voltage_type is one of SET_VOLTAGE_TYPE_ASIC_VDDC,
  * SET_VOLTAGE_TYPE_ASIC_MVDDC, SET_VOLTAGE_TYPE_ASIC_MVDDQ.
  * voltage_mode is one of ATOM_SET_VOLTAGE, ATOM_SET_VOLTAGE_PHASE
@@ -402,10 +429,10 @@ bool atomctrl_is_voltage_controled_by_gpio_v3(
 	bool ret;
 
 	PP_ASSERT_WITH_CODE((NULL != voltage_info),
-			"Could not find Voltage Table in BIOS.", return -1;);
+			"Could not find Voltage Table in BIOS.", return false;);
 
 	ret = (NULL != atomctrl_lookup_voltage_type_v3
-			(voltage_info, voltage_type, voltage_mode)) ? 0 : 1;
+			(voltage_info, voltage_type, voltage_mode)) ? true : false;
 
 	return ret;
 }
@@ -523,6 +550,441 @@ bool atomctrl_get_pp_assign_pin(
 		gpio_pin_assignment);
 
 	return bRet;
+}
+
+int atomctrl_calculate_voltage_evv_on_sclk(
+		struct pp_hwmgr *hwmgr,
+		uint8_t voltage_type,
+		uint32_t sclk,
+		uint16_t virtual_voltage_Id,
+		uint16_t *voltage,
+		uint16_t dpm_level,
+		bool debug)
+{
+	ATOM_ASIC_PROFILING_INFO_V3_4 *getASICProfilingInfo;
+
+	EFUSE_LINEAR_FUNC_PARAM sRO_fuse;
+	EFUSE_LINEAR_FUNC_PARAM sCACm_fuse;
+	EFUSE_LINEAR_FUNC_PARAM sCACb_fuse;
+	EFUSE_LOGISTIC_FUNC_PARAM sKt_Beta_fuse;
+	EFUSE_LOGISTIC_FUNC_PARAM sKv_m_fuse;
+	EFUSE_LOGISTIC_FUNC_PARAM sKv_b_fuse;
+	EFUSE_INPUT_PARAMETER sInput_FuseValues;
+	READ_EFUSE_VALUE_PARAMETER sOutput_FuseValues;
+
+	uint32_t ul_RO_fused, ul_CACb_fused, ul_CACm_fused, ul_Kt_Beta_fused, ul_Kv_m_fused, ul_Kv_b_fused;
+	fInt fSM_A0, fSM_A1, fSM_A2, fSM_A3, fSM_A4, fSM_A5, fSM_A6, fSM_A7;
+	fInt fMargin_RO_a, fMargin_RO_b, fMargin_RO_c, fMargin_fixed, fMargin_FMAX_mean, fMargin_Plat_mean, fMargin_FMAX_sigma, fMargin_Plat_sigma, fMargin_DC_sigma;
+	fInt fLkg_FT, repeat;
+	fInt fMicro_FMAX, fMicro_CR, fSigma_FMAX, fSigma_CR, fSigma_DC, fDC_SCLK, fSquared_Sigma_DC, fSquared_Sigma_CR, fSquared_Sigma_FMAX;
+	fInt fRLL_LoadLine, fPowerDPMx, fDerateTDP, fVDDC_base, fA_Term, fC_Term, fB_Term, fRO_DC_margin;
+	fInt fRO_fused, fCACm_fused, fCACb_fused, fKv_m_fused, fKv_b_fused, fKt_Beta_fused, fFT_Lkg_V0NORM;
+	fInt fSclk_margin, fSclk, fEVV_V;
+	fInt fV_min, fV_max, fT_prod, fLKG_Factor, fT_FT, fV_FT, fV_x, fTDP_Power, fTDP_Power_right, fTDP_Power_left, fTDP_Current, fV_NL;
+	uint32_t ul_FT_Lkg_V0NORM;
+	fInt fLn_MaxDivMin, fMin, fAverage, fRange;
+	fInt fRoots[2];
+	fInt fStepSize = GetScaledFraction(625, 100000);
+
+	int result;
+
+	getASICProfilingInfo = (ATOM_ASIC_PROFILING_INFO_V3_4 *)
+			cgs_atom_get_data_table(hwmgr->device,
+					GetIndexIntoMasterTable(DATA, ASIC_ProfilingInfo),
+					NULL, NULL, NULL);
+
+	if (!getASICProfilingInfo)
+		return -1;
+
+	if(getASICProfilingInfo->asHeader.ucTableFormatRevision < 3 ||
+			(getASICProfilingInfo->asHeader.ucTableFormatRevision == 3 &&
+			getASICProfilingInfo->asHeader.ucTableContentRevision < 4))
+		return -1;
+
+	/*-----------------------------------------------------------
+	 *GETTING MULTI-STEP PARAMETERS RELATED TO CURRENT DPM LEVEL
+	 *-----------------------------------------------------------
+	 */
+	fRLL_LoadLine = Divide(getASICProfilingInfo->ulLoadLineSlop, 1000);
+
+	switch (dpm_level) {
+	case 1:
+		fPowerDPMx = Convert_ULONG_ToFraction(getASICProfilingInfo->usPowerDpm1);
+		fDerateTDP = GetScaledFraction(getASICProfilingInfo->ulTdpDerateDPM1, 1000);
+		break;
+	case 2:
+		fPowerDPMx = Convert_ULONG_ToFraction(getASICProfilingInfo->usPowerDpm2);
+		fDerateTDP = GetScaledFraction(getASICProfilingInfo->ulTdpDerateDPM2, 1000);
+		break;
+	case 3:
+		fPowerDPMx = Convert_ULONG_ToFraction(getASICProfilingInfo->usPowerDpm3);
+		fDerateTDP = GetScaledFraction(getASICProfilingInfo->ulTdpDerateDPM3, 1000);
+		break;
+	case 4:
+		fPowerDPMx = Convert_ULONG_ToFraction(getASICProfilingInfo->usPowerDpm4);
+		fDerateTDP = GetScaledFraction(getASICProfilingInfo->ulTdpDerateDPM4, 1000);
+		break;
+	case 5:
+		fPowerDPMx = Convert_ULONG_ToFraction(getASICProfilingInfo->usPowerDpm5);
+		fDerateTDP = GetScaledFraction(getASICProfilingInfo->ulTdpDerateDPM5, 1000);
+		break;
+	case 6:
+		fPowerDPMx = Convert_ULONG_ToFraction(getASICProfilingInfo->usPowerDpm6);
+		fDerateTDP = GetScaledFraction(getASICProfilingInfo->ulTdpDerateDPM6, 1000);
+		break;
+	case 7:
+		fPowerDPMx = Convert_ULONG_ToFraction(getASICProfilingInfo->usPowerDpm7);
+		fDerateTDP = GetScaledFraction(getASICProfilingInfo->ulTdpDerateDPM7, 1000);
+		break;
+	default:
+		printk(KERN_ERR "DPM Level not supported\n");
+		fPowerDPMx = Convert_ULONG_ToFraction(1);
+		fDerateTDP = GetScaledFraction(getASICProfilingInfo->ulTdpDerateDPM0, 1000);
+	}
+
+	/*-------------------------
+	 * DECODING FUSE VALUES
+	 * ------------------------
+	 */
+	/*Decode RO_Fused*/
+	sRO_fuse = getASICProfilingInfo->sRoFuse;
+
+	sInput_FuseValues.usEfuseIndex = sRO_fuse.usEfuseIndex;
+	sInput_FuseValues.ucBitShift = sRO_fuse.ucEfuseBitLSB;
+	sInput_FuseValues.ucBitLength = sRO_fuse.ucEfuseLength;
+
+	sOutput_FuseValues.sEfuse = sInput_FuseValues;
+
+	result = cgs_atom_exec_cmd_table(hwmgr->device,
+			GetIndexIntoMasterTable(COMMAND, ReadEfuseValue),
+			&sOutput_FuseValues);
+
+	if (result)
+		return result;
+
+	/* Finally, the actual fuse value */
+	ul_RO_fused = sOutput_FuseValues.ulEfuseValue;
+	fMin = GetScaledFraction(sRO_fuse.ulEfuseMin, 1);
+	fRange = GetScaledFraction(sRO_fuse.ulEfuseEncodeRange, 1);
+	fRO_fused = fDecodeLinearFuse(ul_RO_fused, fMin, fRange, sRO_fuse.ucEfuseLength);
+
+	sCACm_fuse = getASICProfilingInfo->sCACm;
+
+	sInput_FuseValues.usEfuseIndex = sCACm_fuse.usEfuseIndex;
+	sInput_FuseValues.ucBitShift = sCACm_fuse.ucEfuseBitLSB;
+	sInput_FuseValues.ucBitLength = sCACm_fuse.ucEfuseLength;
+
+	sOutput_FuseValues.sEfuse = sInput_FuseValues;
+
+	result = cgs_atom_exec_cmd_table(hwmgr->device,
+			GetIndexIntoMasterTable(COMMAND, ReadEfuseValue),
+			&sOutput_FuseValues);
+
+	if (result)
+		return result;
+
+	ul_CACm_fused = sOutput_FuseValues.ulEfuseValue;
+	fMin = GetScaledFraction(sCACm_fuse.ulEfuseMin, 1000);
+	fRange = GetScaledFraction(sCACm_fuse.ulEfuseEncodeRange, 1000);
+
+	fCACm_fused = fDecodeLinearFuse(ul_CACm_fused, fMin, fRange, sCACm_fuse.ucEfuseLength);
+
+	sCACb_fuse = getASICProfilingInfo->sCACb;
+
+	sInput_FuseValues.usEfuseIndex = sCACb_fuse.usEfuseIndex;
+	sInput_FuseValues.ucBitShift = sCACb_fuse.ucEfuseBitLSB;
+	sInput_FuseValues.ucBitLength = sCACb_fuse.ucEfuseLength;
+	sOutput_FuseValues.sEfuse = sInput_FuseValues;
+
+	result = cgs_atom_exec_cmd_table(hwmgr->device,
+			GetIndexIntoMasterTable(COMMAND, ReadEfuseValue),
+			&sOutput_FuseValues);
+
+	if (result)
+		return result;
+
+	ul_CACb_fused = sOutput_FuseValues.ulEfuseValue;
+	fMin = GetScaledFraction(sCACb_fuse.ulEfuseMin, 1000);
+	fRange = GetScaledFraction(sCACb_fuse.ulEfuseEncodeRange, 1000);
+
+	fCACb_fused = fDecodeLinearFuse(ul_CACb_fused, fMin, fRange, sCACb_fuse.ucEfuseLength);
+
+	sKt_Beta_fuse = getASICProfilingInfo->sKt_b;
+
+	sInput_FuseValues.usEfuseIndex = sKt_Beta_fuse.usEfuseIndex;
+	sInput_FuseValues.ucBitShift = sKt_Beta_fuse.ucEfuseBitLSB;
+	sInput_FuseValues.ucBitLength = sKt_Beta_fuse.ucEfuseLength;
+
+	sOutput_FuseValues.sEfuse = sInput_FuseValues;
+
+	result = cgs_atom_exec_cmd_table(hwmgr->device,
+			GetIndexIntoMasterTable(COMMAND, ReadEfuseValue),
+			&sOutput_FuseValues);
+
+	if (result)
+		return result;
+
+	ul_Kt_Beta_fused = sOutput_FuseValues.ulEfuseValue;
+	fAverage = GetScaledFraction(sKt_Beta_fuse.ulEfuseEncodeAverage, 1000);
+	fRange = GetScaledFraction(sKt_Beta_fuse.ulEfuseEncodeRange, 1000);
+
+	fKt_Beta_fused = fDecodeLogisticFuse(ul_Kt_Beta_fused,
+			fAverage, fRange, sKt_Beta_fuse.ucEfuseLength);
+
+	sKv_m_fuse = getASICProfilingInfo->sKv_m;
+
+	sInput_FuseValues.usEfuseIndex = sKv_m_fuse.usEfuseIndex;
+	sInput_FuseValues.ucBitShift = sKv_m_fuse.ucEfuseBitLSB;
+	sInput_FuseValues.ucBitLength = sKv_m_fuse.ucEfuseLength;
+
+	sOutput_FuseValues.sEfuse = sInput_FuseValues;
+
+	result = cgs_atom_exec_cmd_table(hwmgr->device,
+			GetIndexIntoMasterTable(COMMAND, ReadEfuseValue),
+			&sOutput_FuseValues);
+	if (result)
+		return result;
+
+	ul_Kv_m_fused = sOutput_FuseValues.ulEfuseValue;
+	fAverage = GetScaledFraction(sKv_m_fuse.ulEfuseEncodeAverage, 1000);
+	fRange = GetScaledFraction((sKv_m_fuse.ulEfuseEncodeRange & 0x7fffffff), 1000);
+	fRange = fMultiply(fRange, ConvertToFraction(-1));
+
+	fKv_m_fused = fDecodeLogisticFuse(ul_Kv_m_fused,
+			fAverage, fRange, sKv_m_fuse.ucEfuseLength);
+
+	sKv_b_fuse = getASICProfilingInfo->sKv_b;
+
+	sInput_FuseValues.usEfuseIndex = sKv_b_fuse.usEfuseIndex;
+	sInput_FuseValues.ucBitShift = sKv_b_fuse.ucEfuseBitLSB;
+	sInput_FuseValues.ucBitLength = sKv_b_fuse.ucEfuseLength;
+	sOutput_FuseValues.sEfuse = sInput_FuseValues;
+
+	result = cgs_atom_exec_cmd_table(hwmgr->device,
+			GetIndexIntoMasterTable(COMMAND, ReadEfuseValue),
+			&sOutput_FuseValues);
+
+	if (result)
+		return result;
+
+	ul_Kv_b_fused = sOutput_FuseValues.ulEfuseValue;
+	fAverage = GetScaledFraction(sKv_b_fuse.ulEfuseEncodeAverage, 1000);
+	fRange = GetScaledFraction(sKv_b_fuse.ulEfuseEncodeRange, 1000);
+
+	fKv_b_fused = fDecodeLogisticFuse(ul_Kv_b_fused,
+			fAverage, fRange, sKv_b_fuse.ucEfuseLength);
+
+	/* Decoding the Leakage - No special struct container */
+	/*
+	 * usLkgEuseIndex=56
+	 * ucLkgEfuseBitLSB=6
+	 * ucLkgEfuseLength=10
+	 * ulLkgEncodeLn_MaxDivMin=69077
+	 * ulLkgEncodeMax=1000000
+	 * ulLkgEncodeMin=1000
+	 * ulEfuseLogisticAlpha=13
+	 */
+
+	sInput_FuseValues.usEfuseIndex = getASICProfilingInfo->usLkgEuseIndex;
+	sInput_FuseValues.ucBitShift = getASICProfilingInfo->ucLkgEfuseBitLSB;
+	sInput_FuseValues.ucBitLength = getASICProfilingInfo->ucLkgEfuseLength;
+
+	sOutput_FuseValues.sEfuse = sInput_FuseValues;
+
+	result = cgs_atom_exec_cmd_table(hwmgr->device,
+			GetIndexIntoMasterTable(COMMAND, ReadEfuseValue),
+			&sOutput_FuseValues);
+
+	if (result)
+		return result;
+
+	ul_FT_Lkg_V0NORM = sOutput_FuseValues.ulEfuseValue;
+	fLn_MaxDivMin = GetScaledFraction(getASICProfilingInfo->ulLkgEncodeLn_MaxDivMin, 10000);
+	fMin = GetScaledFraction(getASICProfilingInfo->ulLkgEncodeMin, 10000);
+
+	fFT_Lkg_V0NORM = fDecodeLeakageID(ul_FT_Lkg_V0NORM,
+			fLn_MaxDivMin, fMin, getASICProfilingInfo->ucLkgEfuseLength);
+	fLkg_FT = fFT_Lkg_V0NORM;
+
+	/*-------------------------------------------
+	 * PART 2 - Grabbing all required values
+	 *-------------------------------------------
+	 */
+	fSM_A0 = fMultiply(GetScaledFraction(getASICProfilingInfo->ulSM_A0, 1000000),
+			ConvertToFraction(uPow(-1, getASICProfilingInfo->ucSM_A0_sign)));
+	fSM_A1 = fMultiply(GetScaledFraction(getASICProfilingInfo->ulSM_A1, 1000000),
+			ConvertToFraction(uPow(-1, getASICProfilingInfo->ucSM_A1_sign)));
+	fSM_A2 = fMultiply(GetScaledFraction(getASICProfilingInfo->ulSM_A2, 100000),
+			ConvertToFraction(uPow(-1, getASICProfilingInfo->ucSM_A2_sign)));
+	fSM_A3 = fMultiply(GetScaledFraction(getASICProfilingInfo->ulSM_A3, 1000000),
+			ConvertToFraction(uPow(-1, getASICProfilingInfo->ucSM_A3_sign)));
+	fSM_A4 = fMultiply(GetScaledFraction(getASICProfilingInfo->ulSM_A4, 1000000),
+			ConvertToFraction(uPow(-1, getASICProfilingInfo->ucSM_A4_sign)));
+	fSM_A5 = fMultiply(GetScaledFraction(getASICProfilingInfo->ulSM_A5, 1000),
+			ConvertToFraction(uPow(-1, getASICProfilingInfo->ucSM_A5_sign)));
+	fSM_A6 = fMultiply(GetScaledFraction(getASICProfilingInfo->ulSM_A6, 1000),
+			ConvertToFraction(uPow(-1, getASICProfilingInfo->ucSM_A6_sign)));
+	fSM_A7 = fMultiply(GetScaledFraction(getASICProfilingInfo->ulSM_A7, 1000),
+			ConvertToFraction(uPow(-1, getASICProfilingInfo->ucSM_A7_sign)));
+
+	fMargin_RO_a = ConvertToFraction(getASICProfilingInfo->ulMargin_RO_a);
+	fMargin_RO_b = ConvertToFraction(getASICProfilingInfo->ulMargin_RO_b);
+	fMargin_RO_c = ConvertToFraction(getASICProfilingInfo->ulMargin_RO_c);
+
+	fMargin_fixed = ConvertToFraction(getASICProfilingInfo->ulMargin_fixed);
+
+	fMargin_FMAX_mean = GetScaledFraction(
+			getASICProfilingInfo->ulMargin_Fmax_mean, 10000);
+	fMargin_Plat_mean = GetScaledFraction(
+			getASICProfilingInfo->ulMargin_plat_mean, 10000);
+	fMargin_FMAX_sigma = GetScaledFraction(
+			getASICProfilingInfo->ulMargin_Fmax_sigma, 10000);
+	fMargin_Plat_sigma = GetScaledFraction(
+			getASICProfilingInfo->ulMargin_plat_sigma, 10000);
+
+	fMargin_DC_sigma = GetScaledFraction(
+			getASICProfilingInfo->ulMargin_DC_sigma, 100);
+	fMargin_DC_sigma = fDivide(fMargin_DC_sigma, ConvertToFraction(1000));
+
+	fCACm_fused = fDivide(fCACm_fused, ConvertToFraction(100));
+	fCACb_fused = fDivide(fCACb_fused, ConvertToFraction(100));
+	fKt_Beta_fused = fDivide(fKt_Beta_fused, ConvertToFraction(100));
+	fKv_m_fused =  fNegate(fDivide(fKv_m_fused, ConvertToFraction(100)));
+	fKv_b_fused = fDivide(fKv_b_fused, ConvertToFraction(10));
+
+	fSclk = GetScaledFraction(sclk, 100);
+
+	fV_max = fDivide(GetScaledFraction(
+			getASICProfilingInfo->ulMaxVddc, 1000), ConvertToFraction(4));
+	fT_prod = GetScaledFraction(getASICProfilingInfo->ulBoardCoreTemp, 10);
+	fLKG_Factor = GetScaledFraction(getASICProfilingInfo->ulEvvLkgFactor, 100);
+	fT_FT = GetScaledFraction(getASICProfilingInfo->ulLeakageTemp, 10);
+	fV_FT = fDivide(GetScaledFraction(
+			getASICProfilingInfo->ulLeakageVoltage, 1000), ConvertToFraction(4));
+	fV_min = fDivide(GetScaledFraction(
+			getASICProfilingInfo->ulMinVddc, 1000), ConvertToFraction(4));
+
+	/*-----------------------
+	 * PART 3
+	 *-----------------------
+	 */
+
+	fA_Term = fAdd(fMargin_RO_a, fAdd(fMultiply(fSM_A4,fSclk), fSM_A5));
+	fB_Term = fAdd(fAdd(fMultiply(fSM_A2, fSclk), fSM_A6), fMargin_RO_b);
+	fC_Term = fAdd(fMargin_RO_c,
+			fAdd(fMultiply(fSM_A0,fLkg_FT),
+			fAdd(fMultiply(fSM_A1, fMultiply(fLkg_FT,fSclk)),
+			fAdd(fMultiply(fSM_A3, fSclk),
+			fSubtract(fSM_A7,fRO_fused)))));
+
+	fVDDC_base = fSubtract(fRO_fused,
+			fSubtract(fMargin_RO_c,
+					fSubtract(fSM_A3, fMultiply(fSM_A1, fSclk))));
+	fVDDC_base = fDivide(fVDDC_base, fAdd(fMultiply(fSM_A0,fSclk), fSM_A2));
+
+	repeat = fSubtract(fVDDC_base,
+			fDivide(fMargin_DC_sigma, ConvertToFraction(1000)));
+
+	fRO_DC_margin = fAdd(fMultiply(fMargin_RO_a,
+			fGetSquare(repeat)),
+			fAdd(fMultiply(fMargin_RO_b, repeat),
+			fMargin_RO_c));
+
+	fDC_SCLK = fSubtract(fRO_fused,
+			fSubtract(fRO_DC_margin,
+			fSubtract(fSM_A3,
+			fMultiply(fSM_A2, repeat))));
+	fDC_SCLK = fDivide(fDC_SCLK, fAdd(fMultiply(fSM_A0,repeat), fSM_A1));
+
+	fSigma_DC = fSubtract(fSclk, fDC_SCLK);
+
+	fMicro_FMAX = fMultiply(fSclk, fMargin_FMAX_mean);
+	fMicro_CR = fMultiply(fSclk, fMargin_Plat_mean);
+	fSigma_FMAX = fMultiply(fSclk, fMargin_FMAX_sigma);
+	fSigma_CR = fMultiply(fSclk, fMargin_Plat_sigma);
+
+	fSquared_Sigma_DC = fGetSquare(fSigma_DC);
+	fSquared_Sigma_CR = fGetSquare(fSigma_CR);
+	fSquared_Sigma_FMAX = fGetSquare(fSigma_FMAX);
+
+	fSclk_margin = fAdd(fMicro_FMAX,
+			fAdd(fMicro_CR,
+			fAdd(fMargin_fixed,
+			fSqrt(fAdd(fSquared_Sigma_FMAX,
+			fAdd(fSquared_Sigma_DC, fSquared_Sigma_CR))))));
+	/*
+	 fA_Term = fSM_A4 * (fSclk + fSclk_margin) + fSM_A5;
+	 fB_Term = fSM_A2 * (fSclk + fSclk_margin) + fSM_A6;
+	 fC_Term = fRO_DC_margin + fSM_A0 * fLkg_FT + fSM_A1 * fLkg_FT * (fSclk + fSclk_margin) + fSM_A3 * (fSclk + fSclk_margin) + fSM_A7 - fRO_fused;
+	 */
+
+	fA_Term = fAdd(fMultiply(fSM_A4, fAdd(fSclk, fSclk_margin)), fSM_A5);
+	fB_Term = fAdd(fMultiply(fSM_A2, fAdd(fSclk, fSclk_margin)), fSM_A6);
+	fC_Term = fAdd(fRO_DC_margin,
+			fAdd(fMultiply(fSM_A0, fLkg_FT),
+			fAdd(fMultiply(fMultiply(fSM_A1, fLkg_FT),
+			fAdd(fSclk, fSclk_margin)),
+			fAdd(fMultiply(fSM_A3,
+			fAdd(fSclk, fSclk_margin)),
+			fSubtract(fSM_A7, fRO_fused)))));
+
+	SolveQuadracticEqn(fA_Term, fB_Term, fC_Term, fRoots);
+
+	if (GreaterThan(fRoots[0], fRoots[1]))
+		fEVV_V = fRoots[1];
+	else
+		fEVV_V = fRoots[0];
+
+	if (GreaterThan(fV_min, fEVV_V))
+		fEVV_V = fV_min;
+	else if (GreaterThan(fEVV_V, fV_max))
+		fEVV_V = fSubtract(fV_max, fStepSize);
+
+	fEVV_V = fRoundUpByStepSize(fEVV_V, fStepSize, 0);
+
+	/*-----------------
+	 * PART 4
+	 *-----------------
+	 */
+
+	fV_x = fV_min;
+
+	while (GreaterThan(fAdd(fV_max, fStepSize), fV_x)) {
+		fTDP_Power_left = fMultiply(fMultiply(fMultiply(fAdd(
+				fMultiply(fCACm_fused, fV_x), fCACb_fused), fSclk),
+				fGetSquare(fV_x)), fDerateTDP);
+
+		fTDP_Power_right = fMultiply(fFT_Lkg_V0NORM, fMultiply(fLKG_Factor,
+				fMultiply(fExponential(fMultiply(fAdd(fMultiply(fKv_m_fused,
+				fT_prod), fKv_b_fused), fV_x)), fV_x)));
+		fTDP_Power_right = fMultiply(fTDP_Power_right, fExponential(fMultiply(
+				fKt_Beta_fused, fT_prod)));
+		fTDP_Power_right = fDivide(fTDP_Power_right, fExponential(fMultiply(
+				fAdd(fMultiply(fKv_m_fused, fT_prod), fKv_b_fused), fV_FT)));
+		fTDP_Power_right = fDivide(fTDP_Power_right, fExponential(fMultiply(
+				fKt_Beta_fused, fT_FT)));
+
+		fTDP_Power = fAdd(fTDP_Power_left, fTDP_Power_right);
+
+		fTDP_Current = fDivide(fTDP_Power, fV_x);
+
+		fV_NL = fAdd(fV_x, fDivide(fMultiply(fTDP_Current, fRLL_LoadLine),
+				ConvertToFraction(10)));
+
+		fV_NL = fRoundUpByStepSize(fV_NL, fStepSize, 0);
+
+		if (GreaterThan(fV_max, fV_NL) &&
+			(GreaterThan(fV_NL,fEVV_V) ||
+			Equal(fV_NL, fEVV_V))) {
+			fV_NL = fMultiply(fV_NL, ConvertToFraction(1000));
+
+			*voltage = (uint16_t)fV_NL.partial.real;
+			break;
+		} else
+			fV_x = fAdd(fV_x, fStepSize);
+	}
+
+	return result;
 }
 
 /** atomctrl_get_voltage_evv_on_sclk gets voltage via call to ATOM COMMAND table.
@@ -701,4 +1163,23 @@ int atomctrl_get_engine_clock_spread_spectrum(
 			ASIC_INTERNAL_ENGINE_SS, engine_clock, ssInfo);
 }
 
+int atomctrl_read_efuse(void *device, uint16_t start_index,
+		uint16_t end_index, uint32_t mask, uint32_t *efuse)
+{
+	int result;
+	READ_EFUSE_VALUE_PARAMETER efuse_param;
 
+	efuse_param.sEfuse.usEfuseIndex = (start_index / 32) * 4;
+	efuse_param.sEfuse.ucBitShift = (uint8_t)
+			(start_index - ((start_index / 32) * 32));
+	efuse_param.sEfuse.ucBitLength  = (uint8_t)
+			((end_index - start_index) + 1);
+
+	result = cgs_atom_exec_cmd_table(device,
+			GetIndexIntoMasterTable(COMMAND, ReadEfuseValue),
+			&efuse_param);
+	if (!result)
+		*efuse = efuse_param.ulEfuseValue & mask;
+
+	return result;
+}

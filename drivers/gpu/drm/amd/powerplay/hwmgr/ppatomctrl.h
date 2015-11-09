@@ -231,6 +231,12 @@ extern int atomctrl_get_engine_pll_dividers_vi(struct pp_hwmgr *hwmgr, uint32_t 
 extern int atomctrl_get_dfs_pll_dividers_vi(struct pp_hwmgr *hwmgr, uint32_t clock_value, pp_atomctrl_clock_dividers_vi *dividers);
 extern bool atomctrl_is_voltage_controled_by_gpio_v3(struct pp_hwmgr *hwmgr, uint8_t voltage_type, uint8_t voltage_mode);
 extern int atomctrl_get_voltage_table_v3(struct pp_hwmgr *hwmgr, uint8_t voltage_type, uint8_t voltage_mode, pp_atomctrl_voltage_table *voltage_table);
+extern int atomctrl_get_memory_pll_dividers_vi(struct pp_hwmgr *hwmgr,
+		uint32_t clock_value, pp_atomctrl_memory_clock_param *mpll_param);
+extern int atomctrl_read_efuse(void *device, uint16_t start_index,
+		uint16_t end_index, uint32_t mask, uint32_t *efuse);
+extern int atomctrl_calculate_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
+		uint32_t sclk, uint16_t virtual_voltage_Id, uint16_t *voltage, uint16_t dpm_level, bool debug);
 
 
 #endif

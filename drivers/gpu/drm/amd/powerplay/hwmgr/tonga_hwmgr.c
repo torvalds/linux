@@ -4507,14 +4507,14 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	data->vdd_gfx_control = TONGA_VOLTAGE_CONTROL_NONE;
 	data->mvdd_control = TONGA_VOLTAGE_CONTROL_NONE;
 
-	if (0 == atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
+	if (atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
 				VOLTAGE_TYPE_VDDC, VOLTAGE_OBJ_SVID2)) {
 		data->voltage_control = TONGA_VOLTAGE_CONTROL_BY_SVID2;
 	}
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_ControlVDDGFX)) {
-		if (0 == atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
+		if (atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
 			VOLTAGE_TYPE_VDDGFX, VOLTAGE_OBJ_SVID2)) {
 			data->vdd_gfx_control = TONGA_VOLTAGE_CONTROL_BY_SVID2;
 		}
@@ -4527,7 +4527,7 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_EnableMVDDControl)) {
-		if (0 == atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
+		if (atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
 					VOLTAGE_TYPE_MVDDC, VOLTAGE_OBJ_GPIO_LUT)) {
 			data->mvdd_control = TONGA_VOLTAGE_CONTROL_BY_GPIO;
 		}
@@ -4540,10 +4540,10 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_ControlVDDCI)) {
-		if (0 == atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
+		if (atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
 					VOLTAGE_TYPE_VDDCI, VOLTAGE_OBJ_GPIO_LUT))
 			data->vdd_ci_control = TONGA_VOLTAGE_CONTROL_BY_GPIO;
-		else if (0 == atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
+		else if (atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
 						VOLTAGE_TYPE_VDDCI, VOLTAGE_OBJ_SVID2))
 			data->vdd_ci_control = TONGA_VOLTAGE_CONTROL_BY_SVID2;
 	}
