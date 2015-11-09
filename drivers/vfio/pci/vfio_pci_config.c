@@ -46,7 +46,7 @@
  *   0: Removed from the user visible capability list
  *   FF: Variable length
  */
-static u8 pci_cap_length[] = {
+static const u8 pci_cap_length[PCI_CAP_ID_MAX + 1] = {
 	[PCI_CAP_ID_BASIC]	= PCI_STD_HEADER_SIZEOF, /* pci config header */
 	[PCI_CAP_ID_PM]		= PCI_PM_SIZEOF,
 	[PCI_CAP_ID_AGP]	= PCI_AGP_SIZEOF,
@@ -74,7 +74,7 @@ static u8 pci_cap_length[] = {
  *   0: Removed or masked from the user visible capabilty list
  *   FF: Variable length
  */
-static u16 pci_ext_cap_length[] = {
+static const u16 pci_ext_cap_length[PCI_EXT_CAP_ID_MAX + 1] = {
 	[PCI_EXT_CAP_ID_ERR]	=	PCI_ERR_ROOT_COMMAND,
 	[PCI_EXT_CAP_ID_VC]	=	0xFF,
 	[PCI_EXT_CAP_ID_DSN]	=	PCI_EXT_CAP_DSN_SIZEOF,
