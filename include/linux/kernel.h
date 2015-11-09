@@ -223,9 +223,6 @@ extern int _cond_resched(void);
 		ret;							\
 	}))
 
-/* Deprecated, use abs instead. */
-#define abs64(x) abs((s64)(x))
-
 /**
  * reciprocal_scale - "scale" a value into range [0, ep_ro)
  * @val: value
