@@ -89,8 +89,71 @@ void perf_gtk__init_hpp(void)
 				perf_gtk__hpp_color_overhead_acc;
 }
 
-static void perf_gtk__add_callchain(struct rb_root *root, GtkTreeStore *store,
-				    GtkTreeIter *parent, int col, u64 total)
+static void perf_gtk__add_callchain_flat(struct rb_root *root, GtkTreeStore *store,
+					 GtkTreeIter *parent, int col, u64 total)
+{
+	struct rb_node *nd;
+	bool has_single_node = (rb_first(root) == rb_last(root));
+
+	for (nd = rb_first(root); nd; nd = rb_next(nd)) {
+		struct callchain_node *node;
+		struct callchain_list *chain;
+		GtkTreeIter iter, new_parent;
+		bool need_new_parent;
+
+		node = rb_entry(nd, struct callchain_node, rb_node);
+
+		new_parent = *parent;
+		need_new_parent = !has_single_node;
+
+		callchain_node__make_parent_list(node);
+
+		list_for_each_entry(chain, &node->parent_val, list) {
+			char buf[128];
+
+			gtk_tree_store_append(store, &iter, &new_parent);
+
+			callchain_node__scnprintf_value(node, buf, sizeof(buf), total);
+			gtk_tree_store_set(store, &iter, 0, buf, -1);
+
+			callchain_list__sym_name(chain, buf, sizeof(buf), false);
+			gtk_tree_store_set(store, &iter, col, buf, -1);
+
+			if (need_new_parent) {
+				/*
+				 * Only show the top-most symbol in a callchain
+				 * if it's not the only callchain.
+				 */
+				new_parent = iter;
+				need_new_parent = false;
+			}
+		}
+
+		list_for_each_entry(chain, &node->val, list) {
+			char buf[128];
+
+			gtk_tree_store_append(store, &iter, &new_parent);
+
+			callchain_node__scnprintf_value(node, buf, sizeof(buf), total);
+			gtk_tree_store_set(store, &iter, 0, buf, -1);
+
+			callchain_list__sym_name(chain, buf, sizeof(buf), false);
+			gtk_tree_store_set(store, &iter, col, buf, -1);
+
+			if (need_new_parent) {
+				/*
+				 * Only show the top-most symbol in a callchain
+				 * if it's not the only callchain.
+				 */
+				new_parent = iter;
+				need_new_parent = false;
+			}
+		}
+	}
+}
+
+static void perf_gtk__add_callchain_graph(struct rb_root *root, GtkTreeStore *store,
+					  GtkTreeIter *parent, int col, u64 total)
 {
 	struct rb_node *nd;
 	bool has_single_node = (rb_first(root) == rb_last(root));
@@ -134,9 +197,18 @@ static void perf_gtk__add_callchain(struct rb_root *root, GtkTreeStore *store,
 			child_total = total;
 
 		/* Now 'iter' contains info of the last callchain_list */
-		perf_gtk__add_callchain(&node->rb_root, store, &iter, col,
-					child_total);
+		perf_gtk__add_callchain_graph(&node->rb_root, store, &iter, col,
+					      child_total);
 	}
+}
+
+static void perf_gtk__add_callchain(struct rb_root *root, GtkTreeStore *store,
+				    GtkTreeIter *parent, int col, u64 total)
+{
+	if (callchain_param.mode == CHAIN_FLAT)
+		perf_gtk__add_callchain_flat(root, store, parent, col, total);
+	else
+		perf_gtk__add_callchain_graph(root, store, parent, col, total);
 }
 
 static void on_row_activated(GtkTreeView *view, GtkTreePath *path,
