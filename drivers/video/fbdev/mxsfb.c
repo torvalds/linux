@@ -1538,7 +1538,7 @@ static void mxsfb_shutdown(struct platform_device *pdev)
 	}
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int mxsfb_runtime_suspend(struct device *dev)
 {
 	release_bus_freq(BUS_FREQ_HIGH);
@@ -1554,12 +1554,7 @@ static int mxsfb_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#else
-#define	mxsfb_runtime_suspend	NULL
-#define	mxsfb_runtime_resume	NULL
-#endif
 
-#ifdef CONFIG_PM
 static int mxsfb_suspend(struct device *pdev)
 {
 	struct fb_info *fb_info = dev_get_drvdata(pdev);
@@ -1588,6 +1583,9 @@ static int mxsfb_resume(struct device *pdev)
 	return 0;
 }
 #else
+#define	mxsfb_runtime_suspend	NULL
+#define	mxsfb_runtime_resume	NULL
+
 #define	mxsfb_suspend	NULL
 #define	mxsfb_resume	NULL
 #endif
