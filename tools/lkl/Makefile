@@ -45,6 +45,7 @@ $(execs): lib/liblkl.a
 
 clean:
 	-rm -rf include/lkl/ lib/liblkl.a $(lib_objs) lib/lkl.o $(objs) $(execs)
+	$(MAKE) -C ../.. ARCH=lkl clean
 
 fs2tar: LDFLAGS += -larchive
 lklfuse: LDFLAGS += -lfuse
