@@ -1818,7 +1818,7 @@ static int pxp_resume(struct device *dev)
 #define	pxp_resume	NULL
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int pxp_runtime_suspend(struct device *dev)
 {
 	dev_dbg(dev, "pxp busfreq high release.\n");
