@@ -739,6 +739,26 @@
 		interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
+	gmac: eth@30200000 {
+		compatible = "rockchip,rk3228-gmac";
+		reg = <0x30200000 0x10000>;
+		rockchip,grf = <&grf>;
+		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "macirq";
+		clocks = <&clk_mac>, <&clk_gates5 5>,
+			<&clk_gates5 6>, <&clk_gates5 3>,
+			<&clk_gates5 4>, <&clk_gates11 4>,
+			<&clk_gates11 5>;
+		clock-names = "clk_mac", "mac_clk_rx",
+			"mac_clk_tx", "clk_mac_ref",
+			"clk_mac_refout", "aclk_mac",
+			"pclk_mac";
+		phy-mode = "rgmii";
+		pinctrl-names = "default";
+		pinctrl-0 = <&rgmii_pins>;
+		status = "disabled";
+	};
+
 	pinctrl: pinctrl {
 		compatible = "rockchip,rk3228-pinctrl";
 		rockchip,grf = <&grf>;
