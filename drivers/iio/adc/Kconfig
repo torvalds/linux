@@ -341,6 +341,16 @@ config TI_ADC128S052
 	  This driver can also be built as a module. If so, the module will be
 	  called ti-adc128s052.
 
+config TI_ADS8688
+	tristate "Texas Instruments ADS8688"
+	depends on SPI && OF
+	help
+	  If you say yes here you get support for Texas Instruments ADS8684 and
+	  and ADS8688 ADC chips
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-ads8688.
+
 config TI_AM335X_ADC
 	tristate "TI's AM335X ADC driver"
 	depends on MFD_TI_AM335X_TSCADC
