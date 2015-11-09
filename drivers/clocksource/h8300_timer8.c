@@ -98,7 +98,7 @@ static void timer8_set_next(struct timer8_priv *p, unsigned long delta)
 
 	raw_spin_lock_irqsave(&p->lock, flags);
 	if (delta >= 0x10000)
-		dev_warn(&p->pdev->dev, "delta out of range\n");
+		pr_warn("delta out of range\n");
 	now = timer8_get_counter(p);
 	p->tcora = delta;
 	ctrl_outb(ctrl_inb(p->mapbase + _8TCR) | 0x40, p->mapbase + _8TCR);
