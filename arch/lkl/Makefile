@@ -12,6 +12,12 @@ else
 $(error Unrecognized platform: $(OUTPUT_FORMAT))
 endif
 
+ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64-freebsd))
+NPROC=$(shell sysctl -n hw.ncpu)
+else
+NPROC=$(shell nproc)
+endif
+
 LDFLAGS_vmlinux += -r
 LKL_ENTRY_POINTS := lkl_start_kernel lkl_sys_halt lkl_syscall lkl_trigger_irq \
 	lkl_get_free_irq lkl_put_irq
@@ -27,7 +33,7 @@ install: lkl.o __headers
 	@echo "  INSTALL	$(INSTALL_PATH)/lib/lkl.o"
 	@cp lkl.o $(INSTALL_PATH)/lib/
 	@arch/lkl/scripts/headers_install.py \
-		$(subst -j,-j$(shell nproc),$(findstring -j,$(MAKEFLAGS))) \
+		$(subst -j,-j$(NPROC),$(findstring -j,$(MAKEFLAGS))) \
 		$(INSTALL_PATH)/include
 
 archclean:
