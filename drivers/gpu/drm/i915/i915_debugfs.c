@@ -2739,6 +2739,8 @@ static const char *power_domain_str(enum intel_display_power_domain domain)
 		return "AUX_D";
 	case POWER_DOMAIN_GMBUS:
 		return "GMBUS";
+	case POWER_DOMAIN_MODESET:
+		return "MODESET";
 	case POWER_DOMAIN_INIT:
 		return "INIT";
 	default:
