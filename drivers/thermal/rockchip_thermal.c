@@ -1,6 +1,9 @@
 /*
  * Copyright (c) 2014, Fuzhou Rockchip Electronics Co., Ltd
  *
+ * Copyright (c) 2015, Fuzhou Rockchip Electronics Co., Ltd
+ * Caesar Wang <wxt@rock-chips.com>
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
  * version 2, as published by the Free Software Foundation.
@@ -153,6 +156,8 @@ struct rockchip_thermal_data {
 #define TSADCV2_INT_PD_CLEAR_MASK		~BIT(8)
 
 #define TSADCV2_DATA_MASK			0xfff
+#define TSADCV3_DATA_MASK			0x3ff
+
 #define TSADCV2_HIGHT_INT_DEBOUNCE_COUNT	4
 #define TSADCV2_HIGHT_TSHUT_DEBOUNCE_COUNT	4
 #define TSADCV2_AUTO_PERIOD_TIME		250 /* msec */
@@ -199,6 +204,45 @@ static const struct tsadc_table v2_code_table[] = {
 	{3452, 115000},
 	{3437, 120000},
 	{3421, 125000},
+};
+
+static const struct tsadc_table v3_code_table[] = {
+	{0, -40000},
+	{106, -40000},
+	{108, -35000},
+	{110, -30000},
+	{112, -25000},
+	{114, -20000},
+	{116, -15000},
+	{118, -10000},
+	{120, -5000},
+	{122, 0},
+	{124, 5000},
+	{126, 10000},
+	{128, 15000},
+	{130, 20000},
+	{132, 25000},
+	{134, 30000},
+	{136, 35000},
+	{138, 40000},
+	{140, 45000},
+	{142, 50000},
+	{144, 55000},
+	{146, 60000},
+	{148, 65000},
+	{150, 70000},
+	{152, 75000},
+	{154, 80000},
+	{156, 85000},
+	{158, 90000},
+	{160, 95000},
+	{162, 100000},
+	{163, 105000},
+	{165, 110000},
+	{167, 115000},
+	{169, 120000},
+	{171, 125000},
+	{TSADCV3_DATA_MASK, 125000},
 };
 
 static u32 rk_tsadcv2_temp_to_code(struct chip_tsadc_table table,
@@ -409,10 +453,38 @@ static const struct rockchip_tsadc_chip rk3288_tsadc_data = {
 	},
 };
 
+static const struct rockchip_tsadc_chip rk3368_tsadc_data = {
+	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
+	.chn_id[SENSOR_GPU] = 1, /* gpu sensor is channel 1 */
+	.chn_num = 2, /* two channels for tsadc */
+
+	.tshut_mode = TSHUT_MODE_GPIO, /* default TSHUT via GPIO give PMIC */
+	.tshut_polarity = TSHUT_LOW_ACTIVE, /* default TSHUT LOW ACTIVE */
+	.tshut_temp = 95000,
+
+	.initialize = rk_tsadcv2_initialize,
+	.irq_ack = rk_tsadcv2_irq_ack,
+	.control = rk_tsadcv2_control,
+	.get_temp = rk_tsadcv2_get_temp,
+	.set_tshut_temp = rk_tsadcv2_tshut_temp,
+	.set_tshut_mode = rk_tsadcv2_tshut_mode,
+
+	.table = {
+		.id = v3_code_table,
+		.length = ARRAY_SIZE(v3_code_table),
+		.data_mask = TSADCV3_DATA_MASK,
+		.mode = ADC_INCREMENT,
+	},
+};
+
 static const struct of_device_id of_rockchip_thermal_match[] = {
 	{
 		.compatible = "rockchip,rk3288-tsadc",
 		.data = (void *)&rk3288_tsadc_data,
+	},
+	{
+		.compatible = "rockchip,rk3368-tsadc",
+		.data = (void *)&rk3368_tsadc_data,
 	},
 	{ /* end */ },
 };
