@@ -3088,6 +3088,7 @@ static inline void update_load_avg(struct sched_entity *se, int update_tg)
 
 	if (entity_is_task(se))
 		trace_sched_load_avg_task(task_of(se), &se->avg);
+	trace_sched_load_avg_cpu(cpu, cfs_rq);
 }
 
 /**
