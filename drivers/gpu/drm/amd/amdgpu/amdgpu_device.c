@@ -55,6 +55,8 @@
 #include <linux/firmware.h>
 #include "amdgpu_vf_error.h"
 
+#include "amdgpu_amdkfd.h"
+
 MODULE_FIRMWARE("amdgpu/vega10_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/raven_gpu_info.bin");
 
@@ -2378,6 +2380,8 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 	}
 	drm_modeset_unlock_all(dev);
 
+	amdgpu_amdkfd_suspend(adev);
+
 	/* unpin the front buffers and cursors */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
@@ -2511,6 +2515,9 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 			}
 		}
 	}
+	r = amdgpu_amdkfd_resume(adev);
+	if (r)
+		return r;
 
 	/* blat the mode back in */
 	if (fbcon) {
