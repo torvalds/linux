@@ -28,6 +28,7 @@
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
 #include <linux/of_device.h>
+#include <linux/of_graph.h>
 
 #include <drm/drm_fourcc.h>
 
@@ -995,8 +996,23 @@ struct ipu_platform_reg {
 	const char *name;
 };
 
+/* These must be in the order of the corresponding device tree port nodes */
 static const struct ipu_platform_reg client_reg[] = {
 	{
+		.pdata = {
+			.csi = 0,
+			.dma[0] = IPUV3_CHANNEL_CSI0,
+			.dma[1] = -EINVAL,
+		},
+		.name = "imx-ipuv3-camera",
+	}, {
+		.pdata = {
+			.csi = 1,
+			.dma[0] = IPUV3_CHANNEL_CSI1,
+			.dma[1] = -EINVAL,
+		},
+		.name = "imx-ipuv3-camera",
+	}, {
 		.pdata = {
 			.di = 0,
 			.dc = 5,
@@ -1014,20 +1030,6 @@ static const struct ipu_platform_reg client_reg[] = {
 			.dma[1] = -EINVAL,
 		},
 		.name = "imx-ipuv3-crtc",
-	}, {
-		.pdata = {
-			.csi = 0,
-			.dma[0] = IPUV3_CHANNEL_CSI0,
-			.dma[1] = -EINVAL,
-		},
-		.name = "imx-ipuv3-camera",
-	}, {
-		.pdata = {
-			.csi = 1,
-			.dma[0] = IPUV3_CHANNEL_CSI1,
-			.dma[1] = -EINVAL,
-		},
-		.name = "imx-ipuv3-camera",
 	},
 };
 
@@ -1049,11 +1051,29 @@ static int ipu_add_client_devices(struct ipu_soc *ipu, unsigned long ipu_base)
 		const struct ipu_platform_reg *reg = &client_reg[i];
 		struct platform_device *pdev;
 
-		pdev = platform_device_register_data(dev, reg->name,
-			id++, &reg->pdata, sizeof(reg->pdata));
+		pdev = platform_device_alloc(reg->name, id++);
+		if (!pdev) {
+			ret = -ENOMEM;
+			goto err_register;
+		}
 
-		if (IS_ERR(pdev)) {
-			ret = PTR_ERR(pdev);
+		pdev->dev.parent = dev;
+
+		/* Associate subdevice with the corresponding port node */
+		pdev->dev.of_node = of_graph_get_port_by_id(dev->of_node, i);
+		if (!pdev->dev.of_node) {
+			dev_err(dev, "missing port@%d node in %s\n", i,
+				dev->of_node->full_name);
+			ret = -ENODEV;
+			goto err_register;
+		}
+
+		ret = platform_device_add_data(pdev, &reg->pdata,
+					       sizeof(reg->pdata));
+		if (!ret)
+			ret = platform_device_add(pdev);
+		if (ret) {
+			platform_device_put(pdev);
 			goto err_register;
 		}
 	}
