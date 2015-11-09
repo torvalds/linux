@@ -235,7 +235,7 @@ LKL_SYSCALL0(sync);
 LKL_SYSCALL5(llseek, unsigned int, fd, unsigned long, offset_high,
 	     unsigned long, offset_low, __lkl__kernel_loff_t *, result,
 	     unsigned int, whence);
-LKL_SYSCALL2(fstat64, unsigned int, fd, struct lkl_stat64 *, statbuf);
+LKL_SYSCALL2(fstat64, unsigned long, fd, struct lkl_stat64 *, statbuf);
 LKL_SYSCALL4(fstatat64, unsigned int, dfd, const char *, filname,
 	     struct lkl_stat64 *, statbuf, int, flag);
 LKL_SYSCALL2(stat64, const char *, filename, struct lkl_stat64 *, statbuf);
