@@ -32,11 +32,6 @@ void kunmap(struct page *page)
 
 EXPORT_SYMBOL(kunmap);
 
-struct page *kmap_atomic_to_page(void *ptr)
-{
-	return virt_to_page(ptr);
-}
-
 void *kmap_atomic(struct page *page)
 {
 	unsigned long paddr;
