@@ -44,6 +44,7 @@ config MVNETA
 	tristate "Marvell Armada 370/38x/XP network interface support"
 	depends on PLAT_ORION
 	select MVMDIO
+	select FIXED_PHY
 	---help---
 	  This driver supports the network interface units in the
 	  Marvell ARMADA XP, ARMADA 370 and ARMADA 38x SoC family.
