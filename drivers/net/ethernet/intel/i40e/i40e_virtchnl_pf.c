@@ -1633,9 +1633,10 @@ static int i40e_vc_add_mac_addr_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	spin_unlock_bh(&vsi->mac_filter_list_lock);
 
 	/* program the updated filter list */
-	if (i40e_sync_vsi_filters(vsi))
-		dev_err(&pf->pdev->dev, "Unable to program VF %d MAC filters\n",
-			vf->vf_id);
+	ret = i40e_sync_vsi_filters(vsi);
+	if (ret)
+		dev_err(&pf->pdev->dev, "Unable to program VF %d MAC filters, error %d\n",
+			vf->vf_id, ret);
 
 error_param:
 	/* send the response to the VF */
@@ -1687,9 +1688,10 @@ static int i40e_vc_del_mac_addr_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	spin_unlock_bh(&vsi->mac_filter_list_lock);
 
 	/* program the updated filter list */
-	if (i40e_sync_vsi_filters(vsi))
-		dev_err(&pf->pdev->dev, "Unable to program VF %d MAC filters\n",
-			vf->vf_id);
+	ret = i40e_sync_vsi_filters(vsi);
+	if (ret)
+		dev_err(&pf->pdev->dev, "Unable to program VF %d MAC filters, error %d\n",
+			vf->vf_id, ret);
 
 error_param:
 	/* send the response to the VF */

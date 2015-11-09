@@ -1553,11 +1553,8 @@ static int i40e_set_mac(struct net_device *netdev, void *p)
 	}
 
 	ether_addr_copy(netdev->dev_addr, addr->sa_data);
-	/* schedule our worker thread which will take care of
-	 * applying the new filter changes
-	 */
-	i40e_service_event_schedule(vsi->back);
-	return 0;
+
+	return i40e_sync_vsi_filters(vsi);
 }
 
 /**
@@ -1872,8 +1869,9 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 	bool add_happened = false;
 	int filter_list_len = 0;
 	u32 changed_flags = 0;
+	i40e_status aq_ret = 0;
 	bool err_cond = false;
-	i40e_status ret = 0;
+	int retval = 0;
 	struct i40e_pf *pf;
 	int num_add = 0;
 	int num_del = 0;
@@ -1936,8 +1934,11 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 		}
 		spin_unlock_bh(&vsi->mac_filter_list_lock);
 
-		if (err_cond)
+		if (err_cond) {
 			i40e_cleanup_add_list(&tmp_add_list);
+			retval = -ENOMEM;
+			goto out;
+		}
 	}
 
 	/* Now process 'del_list' outside the lock */
@@ -1955,7 +1956,8 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 			i40e_undo_del_filter_entries(vsi, &tmp_del_list);
 			i40e_undo_add_filter_entries(vsi);
 			spin_unlock_bh(&vsi->mac_filter_list_lock);
-			return -ENOMEM;
+			retval = -ENOMEM;
+			goto out;
 		}
 
 		list_for_each_entry_safe(f, ftmp, &tmp_del_list, list) {
@@ -1973,18 +1975,22 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 
 			/* flush a full buffer */
 			if (num_del == filter_list_len) {
-				ret = i40e_aq_remove_macvlan(&pf->hw,
-						  vsi->seid, del_list, num_del,
-						  NULL);
+				aq_ret = i40e_aq_remove_macvlan(&pf->hw,
+								vsi->seid,
+								del_list,
+								num_del,
+								NULL);
 				aq_err = pf->hw.aq.asq_last_status;
 				num_del = 0;
 				memset(del_list, 0, sizeof(*del_list));
 
-				if (ret && aq_err != I40E_AQ_RC_ENOENT)
+				if (aq_ret && aq_err != I40E_AQ_RC_ENOENT) {
+					retval = -EIO;
 					dev_err(&pf->pdev->dev,
 						"ignoring delete macvlan error, err %s, aq_err %s while flushing a full buffer\n",
-						i40e_stat_str(&pf->hw, ret),
+						i40e_stat_str(&pf->hw, aq_ret),
 						i40e_aq_str(&pf->hw, aq_err));
+				}
 			}
 			/* Release memory for MAC filter entries which were
 			 * synced up with HW.
@@ -1994,15 +2000,16 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 		}
 
 		if (num_del) {
-			ret = i40e_aq_remove_macvlan(&pf->hw, vsi->seid,
-						     del_list, num_del, NULL);
+			aq_ret = i40e_aq_remove_macvlan(&pf->hw, vsi->seid,
+							del_list, num_del,
+							NULL);
 			aq_err = pf->hw.aq.asq_last_status;
 			num_del = 0;
 
-			if (ret && aq_err != I40E_AQ_RC_ENOENT)
+			if (aq_ret && aq_err != I40E_AQ_RC_ENOENT)
 				dev_info(&pf->pdev->dev,
 					 "ignoring delete macvlan error, err %s aq_err %s\n",
-					 i40e_stat_str(&pf->hw, ret),
+					 i40e_stat_str(&pf->hw, aq_ret),
 					 i40e_aq_str(&pf->hw, aq_err));
 		}
 
@@ -2026,7 +2033,8 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 			spin_lock_bh(&vsi->mac_filter_list_lock);
 			i40e_undo_add_filter_entries(vsi);
 			spin_unlock_bh(&vsi->mac_filter_list_lock);
-			return -ENOMEM;
+			retval = -ENOMEM;
+			goto out;
 		}
 
 		list_for_each_entry_safe(f, ftmp, &tmp_add_list, list) {
@@ -2047,13 +2055,13 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 
 			/* flush a full buffer */
 			if (num_add == filter_list_len) {
-				ret = i40e_aq_add_macvlan(&pf->hw, vsi->seid,
-							  add_list, num_add,
-							  NULL);
+				aq_ret = i40e_aq_add_macvlan(&pf->hw, vsi->seid,
+							     add_list, num_add,
+							     NULL);
 				aq_err = pf->hw.aq.asq_last_status;
 				num_add = 0;
 
-				if (ret)
+				if (aq_ret)
 					break;
 				memset(add_list, 0, sizeof(*add_list));
 			}
@@ -2065,18 +2073,19 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 		}
 
 		if (num_add) {
-			ret = i40e_aq_add_macvlan(&pf->hw, vsi->seid,
-						  add_list, num_add, NULL);
+			aq_ret = i40e_aq_add_macvlan(&pf->hw, vsi->seid,
+						     add_list, num_add, NULL);
 			aq_err = pf->hw.aq.asq_last_status;
 			num_add = 0;
 		}
 		kfree(add_list);
 		add_list = NULL;
 
-		if (add_happened && ret && aq_err != I40E_AQ_RC_EINVAL) {
+		if (add_happened && aq_ret && aq_err != I40E_AQ_RC_EINVAL) {
+			retval = i40e_aq_rc_to_posix(aq_ret, aq_err);
 			dev_info(&pf->pdev->dev,
 				 "add filter failed, err %s aq_err %s\n",
-				 i40e_stat_str(&pf->hw, ret),
+				 i40e_stat_str(&pf->hw, aq_ret),
 				 i40e_aq_str(&pf->hw, aq_err));
 			if ((pf->hw.aq.asq_last_status == I40E_AQ_RC_ENOSPC) &&
 			    !test_bit(__I40E_FILTER_OVERFLOW_PROMISC,
@@ -2094,16 +2103,19 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 		bool cur_multipromisc;
 
 		cur_multipromisc = !!(vsi->current_netdev_flags & IFF_ALLMULTI);
-		ret = i40e_aq_set_vsi_multicast_promiscuous(&vsi->back->hw,
-							    vsi->seid,
-							    cur_multipromisc,
-							    NULL);
-		if (ret)
+		aq_ret = i40e_aq_set_vsi_multicast_promiscuous(&vsi->back->hw,
+							       vsi->seid,
+							       cur_multipromisc,
+							       NULL);
+		if (aq_ret) {
+			retval = i40e_aq_rc_to_posix(aq_ret,
+						     pf->hw.aq.asq_last_status);
 			dev_info(&pf->pdev->dev,
 				 "set multi promisc failed, err %s aq_err %s\n",
-				 i40e_stat_str(&pf->hw, ret),
+				 i40e_stat_str(&pf->hw, aq_ret),
 				 i40e_aq_str(&pf->hw,
 					     pf->hw.aq.asq_last_status));
+		}
 	}
 	if ((changed_flags & IFF_PROMISC) || promisc_forced_on) {
 		bool cur_promisc;
@@ -2122,36 +2134,47 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 				set_bit(__I40E_PF_RESET_REQUESTED, &pf->state);
 			}
 		} else {
-			ret = i40e_aq_set_vsi_unicast_promiscuous(
+			aq_ret = i40e_aq_set_vsi_unicast_promiscuous(
 							  &vsi->back->hw,
 							  vsi->seid,
 							  cur_promisc, NULL);
-			if (ret)
+			if (aq_ret) {
+				retval =
+				i40e_aq_rc_to_posix(aq_ret,
+						    pf->hw.aq.asq_last_status);
 				dev_info(&pf->pdev->dev,
 					 "set unicast promisc failed, err %d, aq_err %d\n",
-					 ret, pf->hw.aq.asq_last_status);
-			ret = i40e_aq_set_vsi_multicast_promiscuous(
+					 aq_ret, pf->hw.aq.asq_last_status);
+			}
+			aq_ret = i40e_aq_set_vsi_multicast_promiscuous(
 							  &vsi->back->hw,
 							  vsi->seid,
 							  cur_promisc, NULL);
-			if (ret)
+			if (aq_ret) {
+				retval =
+				i40e_aq_rc_to_posix(aq_ret,
+						    pf->hw.aq.asq_last_status);
 				dev_info(&pf->pdev->dev,
 					 "set multicast promisc failed, err %d, aq_err %d\n",
-					 ret, pf->hw.aq.asq_last_status);
+					 aq_ret, pf->hw.aq.asq_last_status);
+			}
 		}
-		ret = i40e_aq_set_vsi_broadcast(&vsi->back->hw,
-						vsi->seid,
-						cur_promisc, NULL);
-		if (ret)
+		aq_ret = i40e_aq_set_vsi_broadcast(&vsi->back->hw,
+						   vsi->seid,
+						   cur_promisc, NULL);
+		if (aq_ret) {
+			retval = i40e_aq_rc_to_posix(aq_ret,
+						     pf->hw.aq.asq_last_status);
 			dev_info(&pf->pdev->dev,
 				 "set brdcast promisc failed, err %s, aq_err %s\n",
-				 i40e_stat_str(&pf->hw, ret),
+				 i40e_stat_str(&pf->hw, aq_ret),
 				 i40e_aq_str(&pf->hw,
 					     pf->hw.aq.asq_last_status));
+		}
 	}
-
+out:
 	clear_bit(__I40E_CONFIG_BUSY, &vsi->state);
-	return 0;
+	return retval;
 }
 
 /**
