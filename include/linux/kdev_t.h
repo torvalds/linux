@@ -54,11 +54,6 @@ static inline dev_t new_decode_dev(u32 dev)
 	return MKDEV(major, minor);
 }
 
-static inline int huge_valid_dev(dev_t dev)
-{
-	return 1;
-}
-
 static inline u64 huge_encode_dev(dev_t dev)
 {
 	return new_encode_dev(dev);
