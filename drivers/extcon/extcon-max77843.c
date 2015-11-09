@@ -122,6 +122,7 @@ enum max77843_muic_charger_type {
 static const unsigned int max77843_extcon_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
+	EXTCON_CHG_USB_SDP,
 	EXTCON_CHG_USB_DCP,
 	EXTCON_CHG_USB_CDP,
 	EXTCON_CHG_USB_FAST,
@@ -486,6 +487,8 @@ static int max77843_muic_chg_handler(struct max77843_muic_info *info)
 			return ret;
 
 		extcon_set_cable_state_(info->edev, EXTCON_USB, attached);
+		extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_SDP,
+					attached);
 		break;
 	case MAX77843_MUIC_CHG_DOWNSTREAM:
 		ret = max77843_muic_set_path(info,
