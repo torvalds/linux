@@ -5141,15 +5141,15 @@ static enum intel_display_power_domain port_to_power_domain(enum port port)
 {
 	switch (port) {
 	case PORT_A:
-		return POWER_DOMAIN_PORT_DDI_A_4_LANES;
+		return POWER_DOMAIN_PORT_DDI_A_LANES;
 	case PORT_B:
-		return POWER_DOMAIN_PORT_DDI_B_4_LANES;
+		return POWER_DOMAIN_PORT_DDI_B_LANES;
 	case PORT_C:
-		return POWER_DOMAIN_PORT_DDI_C_4_LANES;
+		return POWER_DOMAIN_PORT_DDI_C_LANES;
 	case PORT_D:
-		return POWER_DOMAIN_PORT_DDI_D_4_LANES;
+		return POWER_DOMAIN_PORT_DDI_D_LANES;
 	case PORT_E:
-		return POWER_DOMAIN_PORT_DDI_E_2_LANES;
+		return POWER_DOMAIN_PORT_DDI_E_LANES;
 	default:
 		WARN_ON_ONCE(1);
 		return POWER_DOMAIN_PORT_OTHER;
