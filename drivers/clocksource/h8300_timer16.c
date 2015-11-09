@@ -14,29 +14,11 @@
 #include <linux/of_irq.h>
 
 #define TSTR	0
-#define TSNC	1
-#define TMDR	2
-#define TOLR	3
 #define TISRA	4
-#define TISRB	5
 #define TISRC	6
 
 #define TCR	0
-#define TIOR	1
 #define TCNT	2
-#define GRA	4
-#define GRB	6
-
-#define FLAG_REPROGRAM (1 << 0)
-#define FLAG_SKIPEVENT (1 << 1)
-#define FLAG_IRQCONTEXT (1 << 2)
-#define FLAG_STARTED (1 << 3)
-
-#define ONESHOT  0
-#define PERIODIC 1
-
-#define RELATIVE 0
-#define ABSOLUTE 1
 
 struct timer16_priv {
 	struct clocksource cs;
