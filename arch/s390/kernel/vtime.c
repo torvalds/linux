@@ -25,7 +25,7 @@ static DEFINE_SPINLOCK(virt_timer_lock);
 static atomic64_t virt_timer_current;
 static atomic64_t virt_timer_elapsed;
 
-static DEFINE_PER_CPU(u64, mt_cycles[32]);
+DEFINE_PER_CPU(u64, mt_cycles[8]);
 static DEFINE_PER_CPU(u64, mt_scaling_mult) = { 1 };
 static DEFINE_PER_CPU(u64, mt_scaling_div) = { 1 };
 static DEFINE_PER_CPU(u64, mt_scaling_jiffies);
@@ -60,6 +60,34 @@ static inline int virt_timer_forward(u64 elapsed)
 	return elapsed >= atomic64_read(&virt_timer_current);
 }
 
+static void update_mt_scaling(void)
+{
+	u64 cycles_new[8], *cycles_old;
+	u64 delta, fac, mult, div;
+	int i;
+
+	stcctm5(smp_cpu_mtid + 1, cycles_new);
+	cycles_old = this_cpu_ptr(mt_cycles);
+	fac = 1;
+	mult = div = 0;
+	for (i = 0; i <= smp_cpu_mtid; i++) {
+		delta = cycles_new[i] - cycles_old[i];
+		div += delta;
+		mult *= i + 1;
+		mult += delta * fac;
+		fac *= i + 1;
+	}
+	div *= fac;
+	if (div > 0) {
+		/* Update scaling factor */
+		__this_cpu_write(mt_scaling_mult, mult);
+		__this_cpu_write(mt_scaling_div, div);
+		memcpy(cycles_old, cycles_new,
+		       sizeof(u64) * (smp_cpu_mtid + 1));
+	}
+	__this_cpu_write(mt_scaling_jiffies, jiffies_64);
+}
+
 /*
  * Update process times based on virtual cpu times stored by entry.S
  * to the lowcore fields user_timer, system_timer & steal_clock.
@@ -69,7 +97,6 @@ static int do_account_vtime(struct task_struct *tsk, int hardirq_offset)
 	struct thread_info *ti = task_thread_info(tsk);
 	u64 timer, clock, user, system, steal;
 	u64 user_scaled, system_scaled;
-	int i;
 
 	timer = S390_lowcore.last_update_timer;
 	clock = S390_lowcore.last_update_clock;
@@ -85,34 +112,10 @@ static int do_account_vtime(struct task_struct *tsk, int hardirq_offset)
 	S390_lowcore.system_timer += timer - S390_lowcore.last_update_timer;
 	S390_lowcore.steal_timer += S390_lowcore.last_update_clock - clock;
 
-	/* Do MT utilization calculation */
+	/* Update MT utilization calculation */
 	if (smp_cpu_mtid &&
-	    time_after64(jiffies_64, __this_cpu_read(mt_scaling_jiffies))) {
-		u64 cycles_new[32], *cycles_old;
-		u64 delta, fac, mult, div;
-
-		cycles_old = this_cpu_ptr(mt_cycles);
-		if (stcctm5(smp_cpu_mtid + 1, cycles_new) < 2) {
-			fac = 1;
-			mult = div = 0;
-			for (i = 0; i <= smp_cpu_mtid; i++) {
-				delta = cycles_new[i] - cycles_old[i];
-				div += delta;
-				mult *= i + 1;
-				mult += delta * fac;
-				fac *= i + 1;
-			}
-			div *= fac;
-			if (div > 0) {
-				/* Update scaling factor */
-				__this_cpu_write(mt_scaling_mult, mult);
-				__this_cpu_write(mt_scaling_div, div);
-				memcpy(cycles_old, cycles_new,
-				       sizeof(u64) * (smp_cpu_mtid + 1));
-			}
-		}
-		__this_cpu_write(mt_scaling_jiffies, jiffies_64);
-	}
+	    time_after64(jiffies_64, this_cpu_read(mt_scaling_jiffies)))
+		update_mt_scaling();
 
 	user = S390_lowcore.user_timer - ti->user_timer;
 	S390_lowcore.steal_timer -= user;
@@ -180,6 +183,11 @@ void vtime_account_irq_enter(struct task_struct *tsk)
 	timer = S390_lowcore.last_update_timer;
 	S390_lowcore.last_update_timer = get_vtimer();
 	S390_lowcore.system_timer += timer - S390_lowcore.last_update_timer;
+
+	/* Update MT utilization calculation */
+	if (smp_cpu_mtid &&
+	    time_after64(jiffies_64, this_cpu_read(mt_scaling_jiffies)))
+		update_mt_scaling();
 
 	system = S390_lowcore.system_timer - ti->system_timer;
 	S390_lowcore.steal_timer -= system;

@@ -255,6 +255,24 @@ static u32 dce_v10_0_vblank_get_counter(struct amdgpu_device *adev, int crtc)
 		return RREG32(mmCRTC_STATUS_FRAME_COUNT + crtc_offsets[crtc]);
 }
 
+static void dce_v10_0_pageflip_interrupt_init(struct amdgpu_device *adev)
+{
+	unsigned i;
+
+	/* Enable pflip interrupts */
+	for (i = 0; i < adev->mode_info.num_crtc; i++)
+		amdgpu_irq_get(adev, &adev->pageflip_irq, i);
+}
+
+static void dce_v10_0_pageflip_interrupt_fini(struct amdgpu_device *adev)
+{
+	unsigned i;
+
+	/* Disable pflip interrupts */
+	for (i = 0; i < adev->mode_info.num_crtc; i++)
+		amdgpu_irq_put(adev, &adev->pageflip_irq, i);
+}
+
 /**
  * dce_v10_0_page_flip - pageflip callback.
  *
@@ -2663,9 +2681,10 @@ static void dce_v10_0_crtc_dpms(struct drm_crtc *crtc, int mode)
 		dce_v10_0_vga_enable(crtc, true);
 		amdgpu_atombios_crtc_blank(crtc, ATOM_DISABLE);
 		dce_v10_0_vga_enable(crtc, false);
-		/* Make sure VBLANK interrupt is still enabled */
+		/* Make sure VBLANK and PFLIP interrupts are still enabled */
 		type = amdgpu_crtc_idx_to_irq_type(adev, amdgpu_crtc->crtc_id);
 		amdgpu_irq_update(adev, &adev->crtc_irq, type);
+		amdgpu_irq_update(adev, &adev->pageflip_irq, type);
 		drm_vblank_post_modeset(dev, amdgpu_crtc->crtc_id);
 		dce_v10_0_crtc_load_lut(crtc);
 		break;
@@ -3025,6 +3044,8 @@ static int dce_v10_0_hw_init(void *handle)
 		dce_v10_0_audio_enable(adev, &adev->mode_info.audio.pin[i], false);
 	}
 
+	dce_v10_0_pageflip_interrupt_init(adev);
+
 	return 0;
 }
 
@@ -3039,6 +3060,8 @@ static int dce_v10_0_hw_fini(void *handle)
 		dce_v10_0_audio_enable(adev, &adev->mode_info.audio.pin[i], false);
 	}
 
+	dce_v10_0_pageflip_interrupt_fini(adev);
+
 	return 0;
 }
 
@@ -3049,6 +3072,8 @@ static int dce_v10_0_suspend(void *handle)
 	amdgpu_atombios_scratch_regs_save(adev);
 
 	dce_v10_0_hpd_fini(adev);
+
+	dce_v10_0_pageflip_interrupt_fini(adev);
 
 	return 0;
 }
@@ -3074,6 +3099,8 @@ static int dce_v10_0_resume(void *handle)
 
 	/* initialize hpd */
 	dce_v10_0_hpd_init(adev);
+
+	dce_v10_0_pageflip_interrupt_init(adev);
 
 	return 0;
 }
@@ -3369,7 +3396,6 @@ static int dce_v10_0_pageflip_irq(struct amdgpu_device *adev,
 	spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
 
 	drm_vblank_put(adev->ddev, amdgpu_crtc->crtc_id);
-	amdgpu_irq_put(adev, &adev->pageflip_irq, crtc_id);
 	queue_work(amdgpu_crtc->pflip_queue, &works->unpin_work);
 
 	return 0;

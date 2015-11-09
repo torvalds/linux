@@ -202,9 +202,9 @@ typedef u64 arm_lpae_iopte;
 
 static bool selftest_running = false;
 
-static dma_addr_t __arm_lpae_dma_addr(struct device *dev, void *pages)
+static dma_addr_t __arm_lpae_dma_addr(void *pages)
 {
-	return phys_to_dma(dev, virt_to_phys(pages));
+	return (dma_addr_t)virt_to_phys(pages);
 }
 
 static void *__arm_lpae_alloc_pages(size_t size, gfp_t gfp,
@@ -223,10 +223,10 @@ static void *__arm_lpae_alloc_pages(size_t size, gfp_t gfp,
 			goto out_free;
 		/*
 		 * We depend on the IOMMU being able to work with any physical
-		 * address directly, so if the DMA layer suggests it can't by
-		 * giving us back some translation, that bodes very badly...
+		 * address directly, so if the DMA layer suggests otherwise by
+		 * translating or truncating them, that bodes very badly...
 		 */
-		if (dma != __arm_lpae_dma_addr(dev, pages))
+		if (dma != virt_to_phys(pages))
 			goto out_unmap;
 	}
 
@@ -243,10 +243,8 @@ out_free:
 static void __arm_lpae_free_pages(void *pages, size_t size,
 				  struct io_pgtable_cfg *cfg)
 {
-	struct device *dev = cfg->iommu_dev;
-
 	if (!selftest_running)
-		dma_unmap_single(dev, __arm_lpae_dma_addr(dev, pages),
+		dma_unmap_single(cfg->iommu_dev, __arm_lpae_dma_addr(pages),
 				 size, DMA_TO_DEVICE);
 	free_pages_exact(pages, size);
 }
@@ -254,12 +252,11 @@ static void __arm_lpae_free_pages(void *pages, size_t size,
 static void __arm_lpae_set_pte(arm_lpae_iopte *ptep, arm_lpae_iopte pte,
 			       struct io_pgtable_cfg *cfg)
 {
-	struct device *dev = cfg->iommu_dev;
-
 	*ptep = pte;
 
 	if (!selftest_running)
-		dma_sync_single_for_device(dev, __arm_lpae_dma_addr(dev, ptep),
+		dma_sync_single_for_device(cfg->iommu_dev,
+					   __arm_lpae_dma_addr(ptep),
 					   sizeof(pte), DMA_TO_DEVICE);
 }
 
@@ -628,6 +625,11 @@ arm_lpae_alloc_pgtable(struct io_pgtable_cfg *cfg)
 
 	if (cfg->oas > ARM_LPAE_MAX_ADDR_BITS)
 		return NULL;
+
+	if (!selftest_running && cfg->iommu_dev->dma_pfn_offset) {
+		dev_err(cfg->iommu_dev, "Cannot accommodate DMA offset for IOMMU page tables\n");
+		return NULL;
+	}
 
 	data = kmalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)

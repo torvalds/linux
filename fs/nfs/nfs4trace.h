@@ -409,7 +409,7 @@ DECLARE_EVENT_CLASS(nfs4_open_event,
 			__entry->flags = flags;
 			__entry->fmode = (__force unsigned int)ctx->mode;
 			__entry->dev = ctx->dentry->d_sb->s_dev;
-			if (!IS_ERR(state))
+			if (!IS_ERR_OR_NULL(state))
 				inode = state->inode;
 			if (inode != NULL) {
 				__entry->fileid = NFS_FILEID(inode);

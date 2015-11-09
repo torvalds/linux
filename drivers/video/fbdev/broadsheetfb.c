@@ -752,7 +752,7 @@ static ssize_t broadsheet_loadstore_waveform(struct device *dev,
 	if ((fw_entry->size < 8*1024) || (fw_entry->size > 64*1024)) {
 		dev_err(dev, "Invalid waveform\n");
 		err = -EINVAL;
-		goto err_failed;
+		goto err_fw;
 	}
 
 	mutex_lock(&(par->io_lock));
@@ -762,13 +762,15 @@ static ssize_t broadsheet_loadstore_waveform(struct device *dev,
 	mutex_unlock(&(par->io_lock));
 	if (err < 0) {
 		dev_err(dev, "Failed to store broadsheet waveform\n");
-		goto err_failed;
+		goto err_fw;
 	}
 
 	dev_info(dev, "Stored broadsheet waveform, size %zd\n", fw_entry->size);
 
-	return len;
+	err = len;
 
+err_fw:
+	release_firmware(fw_entry);
 err_failed:
 	return err;
 }

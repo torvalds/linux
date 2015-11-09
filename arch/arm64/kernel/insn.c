@@ -85,7 +85,7 @@ bool aarch64_insn_is_branch_imm(u32 insn)
 		aarch64_insn_is_bcond(insn));
 }
 
-static DEFINE_SPINLOCK(patch_lock);
+static DEFINE_RAW_SPINLOCK(patch_lock);
 
 static void __kprobes *patch_map(void *addr, int fixmap)
 {
@@ -131,13 +131,13 @@ static int __kprobes __aarch64_insn_write(void *addr, u32 insn)
 	unsigned long flags = 0;
 	int ret;
 
-	spin_lock_irqsave(&patch_lock, flags);
+	raw_spin_lock_irqsave(&patch_lock, flags);
 	waddr = patch_map(addr, FIX_TEXT_POKE0);
 
 	ret = probe_kernel_write(waddr, &insn, AARCH64_INSN_SIZE);
 
 	patch_unmap(FIX_TEXT_POKE0);
-	spin_unlock_irqrestore(&patch_lock, flags);
+	raw_spin_unlock_irqrestore(&patch_lock, flags);
 
 	return ret;
 }

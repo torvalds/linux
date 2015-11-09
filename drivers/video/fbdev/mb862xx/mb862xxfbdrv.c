@@ -831,6 +831,7 @@ static struct of_device_id of_platform_mb862xx_tbl[] = {
 	{ .compatible = "fujitsu,coral", },
 	{ /* end */ }
 };
+MODULE_DEVICE_TABLE(of, of_platform_mb862xx_tbl);
 
 static struct platform_driver of_platform_mb862xxfb_driver = {
 	.driver = {

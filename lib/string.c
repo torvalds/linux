@@ -203,12 +203,13 @@ ssize_t strscpy(char *dest, const char *src, size_t count)
 		unsigned long c, data;
 
 		c = *(unsigned long *)(src+res);
-		*(unsigned long *)(dest+res) = c;
 		if (has_zero(c, &data, &constants)) {
 			data = prep_zero_mask(c, data, &constants);
 			data = create_zero_mask(data);
+			*(unsigned long *)(dest+res) = c & zero_bytemask(data);
 			return res + find_zero(data);
 		}
+		*(unsigned long *)(dest+res) = c;
 		res += sizeof(unsigned long);
 		count -= sizeof(unsigned long);
 		max -= sizeof(unsigned long);

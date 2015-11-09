@@ -48,6 +48,7 @@ enum {
 struct nfit_spa {
 	struct acpi_nfit_system_address *spa;
 	struct list_head list;
+	int is_registered;
 };
 
 struct nfit_dcr {
@@ -97,6 +98,7 @@ struct acpi_nfit_desc {
 	struct nvdimm_bus_descriptor nd_desc;
 	struct acpi_table_nfit *nfit;
 	struct mutex spa_map_mutex;
+	struct mutex init_mutex;
 	struct list_head spa_maps;
 	struct list_head memdevs;
 	struct list_head flushes;

@@ -275,6 +275,9 @@ static void reclaim_ctx(struct rcu_head *rcu)
 	if (ctx->kernelapi)
 		kfree(ctx->mapping);
 
+	if (ctx->irq_bitmap)
+		kfree(ctx->irq_bitmap);
+
 	kfree(ctx);
 }
 

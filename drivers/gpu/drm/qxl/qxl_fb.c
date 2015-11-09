@@ -144,14 +144,17 @@ static void qxl_dirty_update(struct qxl_fbdev *qfbdev,
 
 	spin_lock_irqsave(&qfbdev->dirty.lock, flags);
 
-	if (qfbdev->dirty.y1 < y)
-		y = qfbdev->dirty.y1;
-	if (qfbdev->dirty.y2 > y2)
-		y2 = qfbdev->dirty.y2;
-	if (qfbdev->dirty.x1 < x)
-		x = qfbdev->dirty.x1;
-	if (qfbdev->dirty.x2 > x2)
-		x2 = qfbdev->dirty.x2;
+	if ((qfbdev->dirty.y2 - qfbdev->dirty.y1) &&
+	    (qfbdev->dirty.x2 - qfbdev->dirty.x1)) {
+		if (qfbdev->dirty.y1 < y)
+			y = qfbdev->dirty.y1;
+		if (qfbdev->dirty.y2 > y2)
+			y2 = qfbdev->dirty.y2;
+		if (qfbdev->dirty.x1 < x)
+			x = qfbdev->dirty.x1;
+		if (qfbdev->dirty.x2 > x2)
+			x2 = qfbdev->dirty.x2;
+	}
 
 	qfbdev->dirty.x1 = x;
 	qfbdev->dirty.x2 = x2;
