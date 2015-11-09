@@ -74,6 +74,11 @@ enum fm10k_pf_tlv_attr_id_v1 {
 #define FM10K_MSG_UPDATE_PVID_PVID_SHIFT	16
 #define FM10K_MSG_UPDATE_PVID_PVID_SIZE		16
 
+/* The following data structures are overlayed directly onto TLV mailbox
+ * messages, and must not break 4 byte alignment. Ensure the structures line
+ * up correctly as per their TLV definition.
+ */
+
 struct fm10k_mac_update {
 	__le32	mac_lower;
 	__le16	mac_upper;
@@ -81,26 +86,26 @@ struct fm10k_mac_update {
 	__le16	glort;
 	u8	flags;
 	u8	action;
-} __packed;
+} __aligned(4) __packed;
 
 struct fm10k_global_table_data {
 	__le32	used;
 	__le32	avail;
-} __packed;
+} __aligned(4) __packed;
 
 struct fm10k_swapi_error {
 	__le32				status;
 	struct fm10k_global_table_data	mac;
 	struct fm10k_global_table_data	nexthop;
 	struct fm10k_global_table_data	ffu;
-} __packed;
+} __aligned(4) __packed;
 
 struct fm10k_swapi_1588_timestamp {
 	__le64 egress;
 	__le64 ingress;
 	__le16 dglort;
 	__le16 sglort;
-} __packed;
+} __aligned(4) __packed;
 
 s32 fm10k_msg_lport_map_pf(struct fm10k_hw *, u32 **, struct fm10k_mbx_info *);
 extern const struct fm10k_tlv_attr fm10k_lport_map_msg_attr[];
