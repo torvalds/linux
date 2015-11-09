@@ -49,6 +49,7 @@
 #include <linux/etherdevice.h>
 #include <linux/net_tstamp.h>
 #include <asm/io.h>
+#include "t4_chip_type.h"
 #include "cxgb4_uld.h"
 
 #define CH_WARN(adap, fmt, ...) dev_warn(adap->pdev_dev, fmt, ## __VA_ARGS__)
@@ -289,31 +290,6 @@ struct vpd_params {
 struct pci_params {
 	unsigned char speed;
 	unsigned char width;
-};
-
-#define CHELSIO_CHIP_CODE(version, revision) (((version) << 4) | (revision))
-#define CHELSIO_CHIP_FPGA          0x100
-#define CHELSIO_CHIP_VERSION(code) (((code) >> 4) & 0xf)
-#define CHELSIO_CHIP_RELEASE(code) ((code) & 0xf)
-
-#define CHELSIO_T4		0x4
-#define CHELSIO_T5		0x5
-#define CHELSIO_T6		0x6
-
-enum chip_type {
-	T4_A1 = CHELSIO_CHIP_CODE(CHELSIO_T4, 1),
-	T4_A2 = CHELSIO_CHIP_CODE(CHELSIO_T4, 2),
-	T4_FIRST_REV	= T4_A1,
-	T4_LAST_REV	= T4_A2,
-
-	T5_A0 = CHELSIO_CHIP_CODE(CHELSIO_T5, 0),
-	T5_A1 = CHELSIO_CHIP_CODE(CHELSIO_T5, 1),
-	T5_FIRST_REV	= T5_A0,
-	T5_LAST_REV	= T5_A1,
-
-	T6_A0 = CHELSIO_CHIP_CODE(CHELSIO_T6, 0),
-	T6_FIRST_REV    = T6_A0,
-	T6_LAST_REV     = T6_A0,
 };
 
 struct devlog_params {
@@ -907,21 +883,6 @@ enum {
 static inline int is_offload(const struct adapter *adap)
 {
 	return adap->params.offload;
-}
-
-static inline int is_t6(enum chip_type chip)
-{
-	return CHELSIO_CHIP_VERSION(chip) == CHELSIO_T6;
-}
-
-static inline int is_t5(enum chip_type chip)
-{
-	return CHELSIO_CHIP_VERSION(chip) == CHELSIO_T5;
-}
-
-static inline int is_t4(enum chip_type chip)
-{
-	return CHELSIO_CHIP_VERSION(chip) == CHELSIO_T4;
 }
 
 static inline u32 t4_read_reg(struct adapter *adap, u32 reg_addr)

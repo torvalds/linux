@@ -426,7 +426,8 @@ int snd_hdac_stream_setup_periods(struct hdac_stream *azx_dev)
 }
 EXPORT_SYMBOL_GPL(snd_hdac_stream_setup_periods);
 
-/* snd_hdac_stream_set_params - set stream parameters
+/**
+ * snd_hdac_stream_set_params - set stream parameters
  * @azx_dev: HD-audio core stream for which parameters are to be set
  * @format_val: format value parameter
  *

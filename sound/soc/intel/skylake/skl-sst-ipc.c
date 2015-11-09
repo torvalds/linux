@@ -464,6 +464,18 @@ void skl_ipc_op_int_enable(struct sst_dsp *ctx)
 		SKL_ADSP_REG_HIPCCTL_BUSY, SKL_ADSP_REG_HIPCCTL_BUSY);
 }
 
+void skl_ipc_op_int_disable(struct sst_dsp *ctx)
+{
+	/* disable IPC DONE interrupt */
+	sst_dsp_shim_update_bits_unlocked(ctx, SKL_ADSP_REG_HIPCCTL,
+					SKL_ADSP_REG_HIPCCTL_DONE, 0);
+
+	/* Disable IPC BUSY interrupt */
+	sst_dsp_shim_update_bits_unlocked(ctx, SKL_ADSP_REG_HIPCCTL,
+					SKL_ADSP_REG_HIPCCTL_BUSY, 0);
+
+}
+
 bool skl_ipc_int_status(struct sst_dsp *ctx)
 {
 	return sst_dsp_shim_read_unlocked(ctx,

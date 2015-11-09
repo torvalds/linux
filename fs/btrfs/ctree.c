@@ -1011,7 +1011,7 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 			return ret;
 		if (refs == 0) {
 			ret = -EROFS;
-			btrfs_std_error(root->fs_info, ret);
+			btrfs_std_error(root->fs_info, ret, NULL);
 			return ret;
 		}
 	} else {
@@ -1927,7 +1927,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		child = read_node_slot(root, mid, 0);
 		if (!child) {
 			ret = -EROFS;
-			btrfs_std_error(root->fs_info, ret);
+			btrfs_std_error(root->fs_info, ret, NULL);
 			goto enospc;
 		}
 
@@ -2030,7 +2030,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		 */
 		if (!left) {
 			ret = -EROFS;
-			btrfs_std_error(root->fs_info, ret);
+			btrfs_std_error(root->fs_info, ret, NULL);
 			goto enospc;
 		}
 		wret = balance_node_right(trans, root, mid, left);
@@ -4940,8 +4940,8 @@ int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 {
 	struct extent_buffer *leaf;
 	struct btrfs_item *item;
-	int last_off;
-	int dsize = 0;
+	u32 last_off;
+	u32 dsize = 0;
 	int ret = 0;
 	int wret;
 	int i;

@@ -73,7 +73,7 @@ proc_read_meters(struct snd_info_entry *entry,
 		 struct snd_info_buffer *buffer)
 {
 	struct snd_bebob *bebob = entry->private_data;
-	struct snd_bebob_meter_spec *spec = bebob->spec->meter;
+	const struct snd_bebob_meter_spec *spec = bebob->spec->meter;
 	u32 *buf;
 	unsigned int i, c, channels, size;
 
@@ -138,8 +138,8 @@ proc_read_clock(struct snd_info_entry *entry,
 		"SYT-Match",
 	};
 	struct snd_bebob *bebob = entry->private_data;
-	struct snd_bebob_rate_spec *rate_spec = bebob->spec->rate;
-	struct snd_bebob_clock_spec *clk_spec = bebob->spec->clock;
+	const struct snd_bebob_rate_spec *rate_spec = bebob->spec->rate;
+	const struct snd_bebob_clock_spec *clk_spec = bebob->spec->clock;
 	enum snd_bebob_clock_type src;
 	unsigned int rate;
 

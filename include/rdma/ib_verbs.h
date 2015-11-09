@@ -137,6 +137,8 @@ enum ib_device_cap_flags {
 	IB_DEVICE_BLOCK_MULTICAST_LOOPBACK = (1<<22),
 	IB_DEVICE_MEM_WINDOW_TYPE_2A	= (1<<23),
 	IB_DEVICE_MEM_WINDOW_TYPE_2B	= (1<<24),
+	IB_DEVICE_RC_IP_CSUM		= (1<<25),
+	IB_DEVICE_RAW_IP_CSUM		= (1<<26),
 	IB_DEVICE_MANAGED_FLOW_STEERING = (1<<29),
 	IB_DEVICE_SIGNATURE_HANDOVER	= (1<<30),
 	IB_DEVICE_ON_DEMAND_PAGING	= (1<<31),
@@ -474,7 +476,7 @@ enum ib_event_type {
 	IB_EVENT_GID_CHANGE,
 };
 
-__attribute_const__ const char *ib_event_msg(enum ib_event_type event);
+const char *__attribute_const__ ib_event_msg(enum ib_event_type event);
 
 struct ib_event {
 	struct ib_device	*device;
@@ -697,7 +699,6 @@ struct ib_ah_attr {
 	u8			ah_flags;
 	u8			port_num;
 	u8			dmac[ETH_ALEN];
-	u16			vlan_id;
 };
 
 enum ib_wc_status {
@@ -725,7 +726,7 @@ enum ib_wc_status {
 	IB_WC_GENERAL_ERR
 };
 
-__attribute_const__ const char *ib_wc_status_msg(enum ib_wc_status status);
+const char *__attribute_const__ ib_wc_status_msg(enum ib_wc_status status);
 
 enum ib_wc_opcode {
 	IB_WC_SEND,
@@ -736,7 +737,7 @@ enum ib_wc_opcode {
 	IB_WC_BIND_MW,
 	IB_WC_LSO,
 	IB_WC_LOCAL_INV,
-	IB_WC_FAST_REG_MR,
+	IB_WC_REG_MR,
 	IB_WC_MASKED_COMP_SWAP,
 	IB_WC_MASKED_FETCH_ADD,
 /*
@@ -873,7 +874,6 @@ enum ib_qp_create_flags {
 	IB_QP_CREATE_RESERVED_END		= 1 << 31,
 };
 
-
 /*
  * Note: users may not call ib_close_qp or ib_destroy_qp from the event_handler
  * callback to destroy the passed in QP.
@@ -957,10 +957,10 @@ enum ib_qp_attr_mask {
 	IB_QP_PATH_MIG_STATE		= (1<<18),
 	IB_QP_CAP			= (1<<19),
 	IB_QP_DEST_QPN			= (1<<20),
-	IB_QP_SMAC			= (1<<21),
-	IB_QP_ALT_SMAC			= (1<<22),
-	IB_QP_VID			= (1<<23),
-	IB_QP_ALT_VID			= (1<<24),
+	IB_QP_RESERVED1			= (1<<21),
+	IB_QP_RESERVED2			= (1<<22),
+	IB_QP_RESERVED3			= (1<<23),
+	IB_QP_RESERVED4			= (1<<24),
 };
 
 enum ib_qp_state {
@@ -1010,10 +1010,6 @@ struct ib_qp_attr {
 	u8			rnr_retry;
 	u8			alt_port_num;
 	u8			alt_timeout;
-	u8			smac[ETH_ALEN];
-	u8			alt_smac[ETH_ALEN];
-	u16			vlan_id;
-	u16			alt_vlan_id;
 };
 
 enum ib_wr_opcode {
@@ -1028,7 +1024,7 @@ enum ib_wr_opcode {
 	IB_WR_SEND_WITH_INV,
 	IB_WR_RDMA_READ_WITH_INV,
 	IB_WR_LOCAL_INV,
-	IB_WR_FAST_REG_MR,
+	IB_WR_REG_MR,
 	IB_WR_MASKED_ATOMIC_CMP_AND_SWP,
 	IB_WR_MASKED_ATOMIC_FETCH_AND_ADD,
 	IB_WR_BIND_MW,
@@ -1066,12 +1062,6 @@ struct ib_sge {
 	u32	lkey;
 };
 
-struct ib_fast_reg_page_list {
-	struct ib_device       *device;
-	u64		       *page_list;
-	unsigned int		max_page_list_len;
-};
-
 /**
  * struct ib_mw_bind_info - Parameters for a memory window bind operation.
  * @mr: A memory region to bind the memory window to.
@@ -1100,53 +1090,88 @@ struct ib_send_wr {
 		__be32		imm_data;
 		u32		invalidate_rkey;
 	} ex;
-	union {
-		struct {
-			u64	remote_addr;
-			u32	rkey;
-		} rdma;
-		struct {
-			u64	remote_addr;
-			u64	compare_add;
-			u64	swap;
-			u64	compare_add_mask;
-			u64	swap_mask;
-			u32	rkey;
-		} atomic;
-		struct {
-			struct ib_ah *ah;
-			void   *header;
-			int     hlen;
-			int     mss;
-			u32	remote_qpn;
-			u32	remote_qkey;
-			u16	pkey_index; /* valid for GSI only */
-			u8	port_num;   /* valid for DR SMPs on switch only */
-		} ud;
-		struct {
-			u64				iova_start;
-			struct ib_fast_reg_page_list   *page_list;
-			unsigned int			page_shift;
-			unsigned int			page_list_len;
-			u32				length;
-			int				access_flags;
-			u32				rkey;
-		} fast_reg;
-		struct {
-			struct ib_mw            *mw;
-			/* The new rkey for the memory window. */
-			u32                      rkey;
-			struct ib_mw_bind_info   bind_info;
-		} bind_mw;
-		struct {
-			struct ib_sig_attrs    *sig_attrs;
-			struct ib_mr	       *sig_mr;
-			int			access_flags;
-			struct ib_sge	       *prot;
-		} sig_handover;
-	} wr;
-	u32			xrc_remote_srq_num;	/* XRC TGT QPs only */
 };
+
+struct ib_rdma_wr {
+	struct ib_send_wr	wr;
+	u64			remote_addr;
+	u32			rkey;
+};
+
+static inline struct ib_rdma_wr *rdma_wr(struct ib_send_wr *wr)
+{
+	return container_of(wr, struct ib_rdma_wr, wr);
+}
+
+struct ib_atomic_wr {
+	struct ib_send_wr	wr;
+	u64			remote_addr;
+	u64			compare_add;
+	u64			swap;
+	u64			compare_add_mask;
+	u64			swap_mask;
+	u32			rkey;
+};
+
+static inline struct ib_atomic_wr *atomic_wr(struct ib_send_wr *wr)
+{
+	return container_of(wr, struct ib_atomic_wr, wr);
+}
+
+struct ib_ud_wr {
+	struct ib_send_wr	wr;
+	struct ib_ah		*ah;
+	void			*header;
+	int			hlen;
+	int			mss;
+	u32			remote_qpn;
+	u32			remote_qkey;
+	u16			pkey_index; /* valid for GSI only */
+	u8			port_num;   /* valid for DR SMPs on switch only */
+};
+
+static inline struct ib_ud_wr *ud_wr(struct ib_send_wr *wr)
+{
+	return container_of(wr, struct ib_ud_wr, wr);
+}
+
+struct ib_reg_wr {
+	struct ib_send_wr	wr;
+	struct ib_mr		*mr;
+	u32			key;
+	int			access;
+};
+
+static inline struct ib_reg_wr *reg_wr(struct ib_send_wr *wr)
+{
+	return container_of(wr, struct ib_reg_wr, wr);
+}
+
+struct ib_bind_mw_wr {
+	struct ib_send_wr	wr;
+	struct ib_mw		*mw;
+	/* The new rkey for the memory window. */
+	u32			rkey;
+	struct ib_mw_bind_info	bind_info;
+};
+
+static inline struct ib_bind_mw_wr *bind_mw_wr(struct ib_send_wr *wr)
+{
+	return container_of(wr, struct ib_bind_mw_wr, wr);
+}
+
+struct ib_sig_handover_wr {
+	struct ib_send_wr	wr;
+	struct ib_sig_attrs    *sig_attrs;
+	struct ib_mr	       *sig_mr;
+	int			access_flags;
+	struct ib_sge	       *prot;
+};
+
+static inline struct ib_sig_handover_wr *sig_handover_wr(struct ib_send_wr *wr)
+{
+	return container_of(wr, struct ib_sig_handover_wr, wr);
+}
 
 struct ib_recv_wr {
 	struct ib_recv_wr      *next;
@@ -1334,6 +1359,9 @@ struct ib_mr {
 	struct ib_uobject *uobject;
 	u32		   lkey;
 	u32		   rkey;
+	u64		   iova;
+	u32		   length;
+	unsigned int	   page_size;
 	atomic_t	   usecnt; /* count number of MWs */
 };
 
@@ -1718,9 +1746,9 @@ struct ib_device {
 	struct ib_mr *		   (*alloc_mr)(struct ib_pd *pd,
 					       enum ib_mr_type mr_type,
 					       u32 max_num_sg);
-	struct ib_fast_reg_page_list * (*alloc_fast_reg_page_list)(struct ib_device *device,
-								   int page_list_len);
-	void			   (*free_fast_reg_page_list)(struct ib_fast_reg_page_list *page_list);
+	int                        (*map_mr_sg)(struct ib_mr *mr,
+						struct scatterlist *sg,
+						int sg_nents);
 	int                        (*rereg_phys_mr)(struct ib_mr *mr,
 						    int mr_rereg_mask,
 						    struct ib_pd *pd,
@@ -2176,7 +2204,8 @@ static inline bool rdma_cap_roce_gid_table(const struct ib_device *device,
 }
 
 int ib_query_gid(struct ib_device *device,
-		 u8 port_num, int index, union ib_gid *gid);
+		 u8 port_num, int index, union ib_gid *gid,
+		 struct ib_gid_attr *attr);
 
 int ib_query_pkey(struct ib_device *device,
 		  u8 port_num, u16 index, u16 *pkey);
@@ -2190,7 +2219,7 @@ int ib_modify_port(struct ib_device *device,
 		   struct ib_port_modify *port_modify);
 
 int ib_find_gid(struct ib_device *device, union ib_gid *gid,
-		u8 *port_num, u16 *index);
+		struct net_device *ndev, u8 *port_num, u16 *index);
 
 int ib_find_pkey(struct ib_device *device,
 		 u8 port_num, u16 pkey, u16 *index);
@@ -2829,33 +2858,6 @@ struct ib_mr *ib_alloc_mr(struct ib_pd *pd,
 			  u32 max_num_sg);
 
 /**
- * ib_alloc_fast_reg_page_list - Allocates a page list array
- * @device - ib device pointer.
- * @page_list_len - size of the page list array to be allocated.
- *
- * This allocates and returns a struct ib_fast_reg_page_list * and a
- * page_list array that is at least page_list_len in size.  The actual
- * size is returned in max_page_list_len.  The caller is responsible
- * for initializing the contents of the page_list array before posting
- * a send work request with the IB_WC_FAST_REG_MR opcode.
- *
- * The page_list array entries must be translated using one of the
- * ib_dma_*() functions just like the addresses passed to
- * ib_map_phys_fmr().  Once the ib_post_send() is issued, the struct
- * ib_fast_reg_page_list must not be modified by the caller until the
- * IB_WC_FAST_REG_MR work request completes.
- */
-struct ib_fast_reg_page_list *ib_alloc_fast_reg_page_list(
-				struct ib_device *device, int page_list_len);
-
-/**
- * ib_free_fast_reg_page_list - Deallocates a previously allocated
- *   page list array.
- * @page_list - struct ib_fast_reg_page_list pointer to be deallocated.
- */
-void ib_free_fast_reg_page_list(struct ib_fast_reg_page_list *page_list);
-
-/**
  * ib_update_fast_reg_key - updates the key portion of the fast_reg MR
  *   R_Key and L_Key.
  * @mr - struct ib_mr pointer to be updated.
@@ -3022,5 +3024,29 @@ int ib_check_mr_status(struct ib_mr *mr, u32 check_mask,
 struct net_device *ib_get_net_dev_by_params(struct ib_device *dev, u8 port,
 					    u16 pkey, const union ib_gid *gid,
 					    const struct sockaddr *addr);
+
+int ib_map_mr_sg(struct ib_mr *mr,
+		 struct scatterlist *sg,
+		 int sg_nents,
+		 unsigned int page_size);
+
+static inline int
+ib_map_mr_sg_zbva(struct ib_mr *mr,
+		  struct scatterlist *sg,
+		  int sg_nents,
+		  unsigned int page_size)
+{
+	int n;
+
+	n = ib_map_mr_sg(mr, sg, sg_nents, page_size);
+	mr->iova = 0;
+
+	return n;
+}
+
+int ib_sg_to_pages(struct ib_mr *mr,
+		   struct scatterlist *sgl,
+		   int sg_nents,
+		   int (*set_page)(struct ib_mr *, u64));
 
 #endif /* IB_VERBS_H */

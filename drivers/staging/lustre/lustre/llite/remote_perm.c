@@ -82,7 +82,7 @@ static struct hlist_head *alloc_rmtperm_hash(void)
 	struct hlist_head *hash;
 	int i;
 
-	hash = kmem_cache_alloc(ll_rmtperm_hash_cachep, GFP_IOFS | __GFP_ZERO);
+	hash = kmem_cache_alloc(ll_rmtperm_hash_cachep, GFP_NOFS | __GFP_ZERO);
 	if (!hash)
 		return NULL;
 

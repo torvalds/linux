@@ -777,23 +777,23 @@ int rds_ib_xmit_atomic(struct rds_connection *conn, struct rm_atomic_op *op)
 	send->s_queued = jiffies;
 
 	if (op->op_type == RDS_ATOMIC_TYPE_CSWP) {
-		send->s_wr.opcode = IB_WR_MASKED_ATOMIC_CMP_AND_SWP;
-		send->s_wr.wr.atomic.compare_add = op->op_m_cswp.compare;
-		send->s_wr.wr.atomic.swap = op->op_m_cswp.swap;
-		send->s_wr.wr.atomic.compare_add_mask = op->op_m_cswp.compare_mask;
-		send->s_wr.wr.atomic.swap_mask = op->op_m_cswp.swap_mask;
+		send->s_atomic_wr.wr.opcode = IB_WR_MASKED_ATOMIC_CMP_AND_SWP;
+		send->s_atomic_wr.compare_add = op->op_m_cswp.compare;
+		send->s_atomic_wr.swap = op->op_m_cswp.swap;
+		send->s_atomic_wr.compare_add_mask = op->op_m_cswp.compare_mask;
+		send->s_atomic_wr.swap_mask = op->op_m_cswp.swap_mask;
 	} else { /* FADD */
-		send->s_wr.opcode = IB_WR_MASKED_ATOMIC_FETCH_AND_ADD;
-		send->s_wr.wr.atomic.compare_add = op->op_m_fadd.add;
-		send->s_wr.wr.atomic.swap = 0;
-		send->s_wr.wr.atomic.compare_add_mask = op->op_m_fadd.nocarry_mask;
-		send->s_wr.wr.atomic.swap_mask = 0;
+		send->s_atomic_wr.wr.opcode = IB_WR_MASKED_ATOMIC_FETCH_AND_ADD;
+		send->s_atomic_wr.compare_add = op->op_m_fadd.add;
+		send->s_atomic_wr.swap = 0;
+		send->s_atomic_wr.compare_add_mask = op->op_m_fadd.nocarry_mask;
+		send->s_atomic_wr.swap_mask = 0;
 	}
 	nr_sig = rds_ib_set_wr_signal_state(ic, send, op->op_notify);
-	send->s_wr.num_sge = 1;
-	send->s_wr.next = NULL;
-	send->s_wr.wr.atomic.remote_addr = op->op_remote_addr;
-	send->s_wr.wr.atomic.rkey = op->op_rkey;
+	send->s_atomic_wr.wr.num_sge = 1;
+	send->s_atomic_wr.wr.next = NULL;
+	send->s_atomic_wr.remote_addr = op->op_remote_addr;
+	send->s_atomic_wr.rkey = op->op_rkey;
 	send->s_op = op;
 	rds_message_addref(container_of(send->s_op, struct rds_message, atomic));
 
@@ -818,11 +818,11 @@ int rds_ib_xmit_atomic(struct rds_connection *conn, struct rm_atomic_op *op)
 	if (nr_sig)
 		atomic_add(nr_sig, &ic->i_signaled_sends);
 
-	failed_wr = &send->s_wr;
-	ret = ib_post_send(ic->i_cm_id->qp, &send->s_wr, &failed_wr);
+	failed_wr = &send->s_atomic_wr.wr;
+	ret = ib_post_send(ic->i_cm_id->qp, &send->s_atomic_wr.wr, &failed_wr);
 	rdsdebug("ic %p send %p (wr %p) ret %d wr %p\n", ic,
-		 send, &send->s_wr, ret, failed_wr);
-	BUG_ON(failed_wr != &send->s_wr);
+		 send, &send->s_atomic_wr, ret, failed_wr);
+	BUG_ON(failed_wr != &send->s_atomic_wr.wr);
 	if (ret) {
 		printk(KERN_WARNING "RDS/IB: atomic ib_post_send to %pI4 "
 		       "returned %d\n", &conn->c_faddr, ret);
@@ -831,9 +831,9 @@ int rds_ib_xmit_atomic(struct rds_connection *conn, struct rm_atomic_op *op)
 		goto out;
 	}
 
-	if (unlikely(failed_wr != &send->s_wr)) {
+	if (unlikely(failed_wr != &send->s_atomic_wr.wr)) {
 		printk(KERN_WARNING "RDS/IB: atomic ib_post_send() rc=%d, but failed_wqe updated!\n", ret);
-		BUG_ON(failed_wr != &send->s_wr);
+		BUG_ON(failed_wr != &send->s_atomic_wr.wr);
 	}
 
 out:
@@ -904,22 +904,23 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 		nr_sig += rds_ib_set_wr_signal_state(ic, send, op->op_notify);
 
 		send->s_wr.opcode = op->op_write ? IB_WR_RDMA_WRITE : IB_WR_RDMA_READ;
-		send->s_wr.wr.rdma.remote_addr = remote_addr;
-		send->s_wr.wr.rdma.rkey = op->op_rkey;
+		send->s_rdma_wr.remote_addr = remote_addr;
+		send->s_rdma_wr.rkey = op->op_rkey;
 
 		if (num_sge > max_sge) {
-			send->s_wr.num_sge = max_sge;
+			send->s_rdma_wr.wr.num_sge = max_sge;
 			num_sge -= max_sge;
 		} else {
-			send->s_wr.num_sge = num_sge;
+			send->s_rdma_wr.wr.num_sge = num_sge;
 		}
 
-		send->s_wr.next = NULL;
+		send->s_rdma_wr.wr.next = NULL;
 
 		if (prev)
-			prev->s_wr.next = &send->s_wr;
+			prev->s_rdma_wr.wr.next = &send->s_rdma_wr.wr;
 
-		for (j = 0; j < send->s_wr.num_sge && scat != &op->op_sg[op->op_count]; j++) {
+		for (j = 0; j < send->s_rdma_wr.wr.num_sge &&
+		     scat != &op->op_sg[op->op_count]; j++) {
 			len = ib_sg_dma_len(ic->i_cm_id->device, scat);
 			send->s_sge[j].addr =
 				 ib_sg_dma_address(ic->i_cm_id->device, scat);
@@ -934,7 +935,9 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 		}
 
 		rdsdebug("send %p wr %p num_sge %u next %p\n", send,
-			&send->s_wr, send->s_wr.num_sge, send->s_wr.next);
+			&send->s_rdma_wr.wr,
+			send->s_rdma_wr.wr.num_sge,
+			send->s_rdma_wr.wr.next);
 
 		prev = send;
 		if (++send == &ic->i_sends[ic->i_send_ring.w_nr])
@@ -955,11 +958,11 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 	if (nr_sig)
 		atomic_add(nr_sig, &ic->i_signaled_sends);
 
-	failed_wr = &first->s_wr;
-	ret = ib_post_send(ic->i_cm_id->qp, &first->s_wr, &failed_wr);
+	failed_wr = &first->s_rdma_wr.wr;
+	ret = ib_post_send(ic->i_cm_id->qp, &first->s_rdma_wr.wr, &failed_wr);
 	rdsdebug("ic %p first %p (wr %p) ret %d wr %p\n", ic,
-		 first, &first->s_wr, ret, failed_wr);
-	BUG_ON(failed_wr != &first->s_wr);
+		 first, &first->s_rdma_wr.wr, ret, failed_wr);
+	BUG_ON(failed_wr != &first->s_rdma_wr.wr);
 	if (ret) {
 		printk(KERN_WARNING "RDS/IB: rdma ib_post_send to %pI4 "
 		       "returned %d\n", &conn->c_faddr, ret);
@@ -968,9 +971,9 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 		goto out;
 	}
 
-	if (unlikely(failed_wr != &first->s_wr)) {
+	if (unlikely(failed_wr != &first->s_rdma_wr.wr)) {
 		printk(KERN_WARNING "RDS/IB: ib_post_send() rc=%d, but failed_wqe updated!\n", ret);
-		BUG_ON(failed_wr != &first->s_wr);
+		BUG_ON(failed_wr != &first->s_rdma_wr.wr);
 	}
 
 

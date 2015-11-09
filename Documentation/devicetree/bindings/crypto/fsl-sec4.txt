@@ -441,7 +441,7 @@ EXAMPLE:
 		regmap = <&snvs>;
 		interrupts = <0 4 0x4>
 	        linux,keycode = <116>; /* KEY_POWER */
-		wakeup;
+		wakeup-source;
 	};
 
 =====================================================================
@@ -530,7 +530,7 @@ FULL EXAMPLE
 			regmap = <&sec_mon>;
 			interrupts = <0 4 0x4>;
 			linux,keycode = <116>; /* KEY_POWER */
-			wakeup;
+			wakeup-source;
 		};
 	};
 

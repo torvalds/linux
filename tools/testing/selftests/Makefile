@@ -6,6 +6,7 @@ TARGETS += firmware
 TARGETS += ftrace
 TARGETS += futex
 TARGETS += kcmp
+TARGETS += lib
 TARGETS += membarrier
 TARGETS += memfd
 TARGETS += memory-hotplug

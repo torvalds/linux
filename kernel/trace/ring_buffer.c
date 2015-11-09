@@ -829,7 +829,7 @@ rb_is_head_page(struct ring_buffer_per_cpu *cpu_buffer,
  * writer is ever on it, the previous pointer never points
  * back to the reader page.
  */
-static int rb_is_reader_page(struct buffer_page *page)
+static bool rb_is_reader_page(struct buffer_page *page)
 {
 	struct list_head *list = page->list.prev;
 
@@ -2270,7 +2270,7 @@ rb_add_time_stamp(struct ring_buffer_event *event, u64 delta)
 	return skip_time_extend(event);
 }
 
-static inline int rb_event_is_commit(struct ring_buffer_per_cpu *cpu_buffer,
+static inline bool rb_event_is_commit(struct ring_buffer_per_cpu *cpu_buffer,
 				     struct ring_buffer_event *event);
 
 /**
@@ -2498,7 +2498,7 @@ static inline void rb_event_discard(struct ring_buffer_event *event)
 		event->time_delta = 1;
 }
 
-static inline int
+static inline bool
 rb_event_is_commit(struct ring_buffer_per_cpu *cpu_buffer,
 		   struct ring_buffer_event *event)
 {
@@ -3039,7 +3039,7 @@ int ring_buffer_write(struct ring_buffer *buffer,
 }
 EXPORT_SYMBOL_GPL(ring_buffer_write);
 
-static int rb_per_cpu_empty(struct ring_buffer_per_cpu *cpu_buffer)
+static bool rb_per_cpu_empty(struct ring_buffer_per_cpu *cpu_buffer)
 {
 	struct buffer_page *reader = cpu_buffer->reader_page;
 	struct buffer_page *head = rb_set_head_page(cpu_buffer);
@@ -3047,7 +3047,7 @@ static int rb_per_cpu_empty(struct ring_buffer_per_cpu *cpu_buffer)
 
 	/* In case of error, head will be NULL */
 	if (unlikely(!head))
-		return 1;
+		return true;
 
 	return reader->read == rb_page_commit(reader) &&
 		(commit == reader ||
@@ -4267,7 +4267,7 @@ EXPORT_SYMBOL_GPL(ring_buffer_reset);
  * rind_buffer_empty - is the ring buffer empty?
  * @buffer: The ring buffer to test
  */
-int ring_buffer_empty(struct ring_buffer *buffer)
+bool ring_buffer_empty(struct ring_buffer *buffer)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
 	unsigned long flags;
@@ -4285,10 +4285,10 @@ int ring_buffer_empty(struct ring_buffer *buffer)
 		local_irq_restore(flags);
 
 		if (!ret)
-			return 0;
+			return false;
 	}
 
-	return 1;
+	return true;
 }
 EXPORT_SYMBOL_GPL(ring_buffer_empty);
 
@@ -4297,7 +4297,7 @@ EXPORT_SYMBOL_GPL(ring_buffer_empty);
  * @buffer: The ring buffer
  * @cpu: The CPU buffer to test
  */
-int ring_buffer_empty_cpu(struct ring_buffer *buffer, int cpu)
+bool ring_buffer_empty_cpu(struct ring_buffer *buffer, int cpu)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
 	unsigned long flags;
@@ -4305,7 +4305,7 @@ int ring_buffer_empty_cpu(struct ring_buffer *buffer, int cpu)
 	int ret;
 
 	if (!cpumask_test_cpu(cpu, buffer->cpumask))
-		return 1;
+		return true;
 
 	cpu_buffer = buffer->buffers[cpu];
 	local_irq_save(flags);

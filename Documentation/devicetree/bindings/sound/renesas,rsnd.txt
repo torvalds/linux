@@ -4,10 +4,12 @@ Required properties:
 - compatible			: "renesas,rcar_sound-<soctype>", fallbacks
 				  "renesas,rcar_sound-gen1" if generation1, and
 				  "renesas,rcar_sound-gen2" if generation2
+				  "renesas,rcar_sound-gen3" if generation3
 				  Examples with soctypes are:
 				    - "renesas,rcar_sound-r8a7778" (R-Car M1A)
 				    - "renesas,rcar_sound-r8a7790" (R-Car H2)
 				    - "renesas,rcar_sound-r8a7791" (R-Car M2-W)
+				    - "renesas,rcar_sound-r8a7795" (R-Car H3)
 - reg				: Should contain the register physical address.
 				  required register is
 				   SRU/ADG/SSI      if generation1
@@ -30,6 +32,11 @@ Required properties:
 - rcar_sound,dai		: DAI contents.
 				  The number of DAI subnode should be same as HW.
 				  see below for detail.
+- #sound-dai-cells		: it must be 0 if your system is using single DAI
+				  it must be 1 if your system is using multi  DAI
+- #clock-cells			: it must be 0 if your system has audio_clkout
+				  it must be 1 if your system has audio_clkout0/1/2/3
+- clock-frequency		: for all audio_clkout0/1/2/3
 
 SSI subnode properties:
 - interrupts			: Should contain SSI interrupt for PIO transfer

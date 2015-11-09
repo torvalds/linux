@@ -962,12 +962,12 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 		devp->rdev.lldi.sge_egrstatuspagesize;
 
 	/*
-	 * For T5 devices, we map all of BAR2 with WC.
+	 * For T5/T6 devices, we map all of BAR2 with WC.
 	 * For T4 devices with onchip qp mem, we map only that part
 	 * of BAR2 with WC.
 	 */
 	devp->rdev.bar2_pa = pci_resource_start(devp->rdev.lldi.pdev, 2);
-	if (is_t5(devp->rdev.lldi.adapter_type)) {
+	if (!is_t4(devp->rdev.lldi.adapter_type)) {
 		devp->rdev.bar2_kva = ioremap_wc(devp->rdev.bar2_pa,
 			pci_resource_len(devp->rdev.lldi.pdev, 2));
 		if (!devp->rdev.bar2_kva) {
@@ -1267,11 +1267,9 @@ static int enable_qp_db(int id, void *p, void *data)
 static void resume_rc_qp(struct c4iw_qp *qp)
 {
 	spin_lock(&qp->lock);
-	t4_ring_sq_db(&qp->wq, qp->wq.sq.wq_pidx_inc,
-		      is_t5(qp->rhp->rdev.lldi.adapter_type), NULL);
+	t4_ring_sq_db(&qp->wq, qp->wq.sq.wq_pidx_inc, NULL);
 	qp->wq.sq.wq_pidx_inc = 0;
-	t4_ring_rq_db(&qp->wq, qp->wq.rq.wq_pidx_inc,
-		      is_t5(qp->rhp->rdev.lldi.adapter_type), NULL);
+	t4_ring_rq_db(&qp->wq, qp->wq.rq.wq_pidx_inc, NULL);
 	qp->wq.rq.wq_pidx_inc = 0;
 	spin_unlock(&qp->lock);
 }

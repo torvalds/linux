@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/cpumask.h>
 #include <linux/pci-aspm.h>
+#include <linux/aer.h>
 #include <asm-generic/pci-bridge.h>
 #include "pci.h"
 
@@ -1597,6 +1598,9 @@ static struct pci_dev *pci_scan_device(struct pci_bus *bus, int devfn)
 
 static void pci_init_capabilities(struct pci_dev *dev)
 {
+	/* Enhanced Allocation */
+	pci_ea_init(dev);
+
 	/* MSI/MSI-X list */
 	pci_msi_init_pci_dev(dev);
 
@@ -1620,6 +1624,8 @@ static void pci_init_capabilities(struct pci_dev *dev)
 
 	/* Enable ACS P2P upstream forwarding */
 	pci_enable_acs(dev);
+
+	pci_cleanup_aer_error_status_regs(dev);
 }
 
 /*

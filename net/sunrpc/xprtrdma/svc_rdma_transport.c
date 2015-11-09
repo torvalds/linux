@@ -692,8 +692,8 @@ static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 	if (!cma_xprt)
 		return ERR_PTR(-ENOMEM);
 
-	listen_id = rdma_create_id(rdma_listen_handler, cma_xprt, RDMA_PS_TCP,
-				   IB_QPT_RC);
+	listen_id = rdma_create_id(&init_net, rdma_listen_handler, cma_xprt,
+				   RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(listen_id)) {
 		ret = PTR_ERR(listen_id);
 		dprintk("svcrdma: rdma_create_id failed = %d\n", ret);
@@ -732,7 +732,7 @@ static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 static struct svc_rdma_fastreg_mr *rdma_alloc_frmr(struct svcxprt_rdma *xprt)
 {
 	struct ib_mr *mr;
-	struct ib_fast_reg_page_list *pl;
+	struct scatterlist *sg;
 	struct svc_rdma_fastreg_mr *frmr;
 	u32 num_sg;
 
@@ -745,13 +745,14 @@ static struct svc_rdma_fastreg_mr *rdma_alloc_frmr(struct svcxprt_rdma *xprt)
 	if (IS_ERR(mr))
 		goto err_free_frmr;
 
-	pl = ib_alloc_fast_reg_page_list(xprt->sc_cm_id->device,
-					 num_sg);
-	if (IS_ERR(pl))
+	sg = kcalloc(RPCSVC_MAXPAGES, sizeof(*sg), GFP_KERNEL);
+	if (!sg)
 		goto err_free_mr;
 
+	sg_init_table(sg, RPCSVC_MAXPAGES);
+
 	frmr->mr = mr;
-	frmr->page_list = pl;
+	frmr->sg = sg;
 	INIT_LIST_HEAD(&frmr->frmr_list);
 	return frmr;
 
@@ -771,8 +772,8 @@ static void rdma_dealloc_frmr_q(struct svcxprt_rdma *xprt)
 		frmr = list_entry(xprt->sc_frmr_q.next,
 				  struct svc_rdma_fastreg_mr, frmr_list);
 		list_del_init(&frmr->frmr_list);
+		kfree(frmr->sg);
 		ib_dereg_mr(frmr->mr);
-		ib_free_fast_reg_page_list(frmr->page_list);
 		kfree(frmr);
 	}
 }
@@ -786,8 +787,7 @@ struct svc_rdma_fastreg_mr *svc_rdma_get_frmr(struct svcxprt_rdma *rdma)
 		frmr = list_entry(rdma->sc_frmr_q.next,
 				  struct svc_rdma_fastreg_mr, frmr_list);
 		list_del_init(&frmr->frmr_list);
-		frmr->map_len = 0;
-		frmr->page_list_len = 0;
+		frmr->sg_nents = 0;
 	}
 	spin_unlock_bh(&rdma->sc_frmr_q_lock);
 	if (frmr)
@@ -796,25 +796,13 @@ struct svc_rdma_fastreg_mr *svc_rdma_get_frmr(struct svcxprt_rdma *rdma)
 	return rdma_alloc_frmr(rdma);
 }
 
-static void frmr_unmap_dma(struct svcxprt_rdma *xprt,
-			   struct svc_rdma_fastreg_mr *frmr)
-{
-	int page_no;
-	for (page_no = 0; page_no < frmr->page_list_len; page_no++) {
-		dma_addr_t addr = frmr->page_list->page_list[page_no];
-		if (ib_dma_mapping_error(frmr->mr->device, addr))
-			continue;
-		atomic_dec(&xprt->sc_dma_used);
-		ib_dma_unmap_page(frmr->mr->device, addr, PAGE_SIZE,
-				  frmr->direction);
-	}
-}
-
 void svc_rdma_put_frmr(struct svcxprt_rdma *rdma,
 		       struct svc_rdma_fastreg_mr *frmr)
 {
 	if (frmr) {
-		frmr_unmap_dma(rdma, frmr);
+		ib_dma_unmap_sg(rdma->sc_cm_id->device,
+				frmr->sg, frmr->sg_nents, frmr->direction);
+		atomic_dec(&rdma->sc_dma_used);
 		spin_lock_bh(&rdma->sc_frmr_q_lock);
 		WARN_ON_ONCE(!list_empty(&frmr->frmr_list));
 		list_add(&frmr->frmr_list, &rdma->sc_frmr_q);

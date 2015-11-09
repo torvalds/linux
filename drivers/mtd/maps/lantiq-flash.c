@@ -160,7 +160,7 @@ ltq_mtd_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	ltq_mtd->mtd->owner = THIS_MODULE;
+	ltq_mtd->mtd->dev.parent = &pdev->dev;
 
 	cfi = ltq_mtd->map->fldrv_priv;
 	cfi->addr_unlock1 ^= 1;

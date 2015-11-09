@@ -588,16 +588,16 @@ EXPORT_SYMBOL_GPL(snd_soc_get_volsw_range);
 /**
  * snd_soc_limit_volume - Set new limit to an existing volume control.
  *
- * @codec: where to look for the control
+ * @card: where to look for the control
  * @name: Name of the control
  * @max: new maximum limit
  *
  * Return 0 for success, else error.
  */
-int snd_soc_limit_volume(struct snd_soc_codec *codec,
+int snd_soc_limit_volume(struct snd_soc_card *card,
 	const char *name, int max)
 {
-	struct snd_card *card = codec->component.card->snd_card;
+	struct snd_card *snd_card = card->snd_card;
 	struct snd_kcontrol *kctl;
 	struct soc_mixer_control *mc;
 	int found = 0;
@@ -607,7 +607,7 @@ int snd_soc_limit_volume(struct snd_soc_codec *codec,
 	if (unlikely(!name || max <= 0))
 		return -EINVAL;
 
-	list_for_each_entry(kctl, &card->controls, list) {
+	list_for_each_entry(kctl, &snd_card->controls, list) {
 		if (!strncmp(kctl->id.name, name, sizeof(kctl->id.name))) {
 			found = 1;
 			break;

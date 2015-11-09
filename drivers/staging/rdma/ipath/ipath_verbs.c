@@ -374,7 +374,7 @@ static int ipath_post_one_send(struct ipath_qp *qp, struct ib_send_wr *wr)
 		    wr->opcode != IB_WR_SEND_WITH_IMM)
 			goto bail_inval;
 		/* Check UD destination address PD */
-		if (qp->ibqp.pd != wr->wr.ud.ah->pd)
+		if (qp->ibqp.pd != ud_wr(wr)->ah->pd)
 			goto bail_inval;
 	} else if ((unsigned) wr->opcode > IB_WR_ATOMIC_FETCH_AND_ADD)
 		goto bail_inval;
@@ -395,7 +395,20 @@ static int ipath_post_one_send(struct ipath_qp *qp, struct ib_send_wr *wr)
 	}
 
 	wqe = get_swqe_ptr(qp, qp->s_head);
-	wqe->wr = *wr;
+
+	if (qp->ibqp.qp_type != IB_QPT_UC &&
+	    qp->ibqp.qp_type != IB_QPT_RC)
+		memcpy(&wqe->ud_wr, ud_wr(wr), sizeof(wqe->ud_wr));
+	else if (wr->opcode == IB_WR_RDMA_WRITE_WITH_IMM ||
+		 wr->opcode == IB_WR_RDMA_WRITE ||
+		 wr->opcode == IB_WR_RDMA_READ)
+		memcpy(&wqe->rdma_wr, rdma_wr(wr), sizeof(wqe->rdma_wr));
+	else if (wr->opcode == IB_WR_ATOMIC_CMP_AND_SWP ||
+		 wr->opcode == IB_WR_ATOMIC_FETCH_AND_ADD)
+		memcpy(&wqe->atomic_wr, atomic_wr(wr), sizeof(wqe->atomic_wr));
+	else
+		memcpy(&wqe->wr, wr, sizeof(wqe->wr));
+
 	wqe->length = 0;
 	if (wr->num_sge) {
 		acc = wr->opcode >= IB_WR_RDMA_READ ?

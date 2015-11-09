@@ -106,9 +106,12 @@ void __weak arch_teardown_msi_irq(unsigned int irq)
 
 int __weak arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
+	struct msi_controller *chip = dev->bus->msi;
 	struct msi_desc *entry;
 	int ret;
 
+	if (chip && chip->setup_irqs)
+		return chip->setup_irqs(chip, dev, nvec, type);
 	/*
 	 * If an architecture wants to support multiple MSI, it needs to
 	 * override arch_setup_msi_irqs()
@@ -476,10 +479,11 @@ static int populate_msi_sysfs(struct pci_dev *pdev)
 	int ret = -ENOMEM;
 	int num_msi = 0;
 	int count = 0;
+	int i;
 
 	/* Determine how many msi entries we have */
 	for_each_pci_msi_entry(entry, pdev)
-		++num_msi;
+		num_msi += entry->nvec_used;
 	if (!num_msi)
 		return 0;
 
@@ -488,19 +492,21 @@ static int populate_msi_sysfs(struct pci_dev *pdev)
 	if (!msi_attrs)
 		return -ENOMEM;
 	for_each_pci_msi_entry(entry, pdev) {
-		msi_dev_attr = kzalloc(sizeof(*msi_dev_attr), GFP_KERNEL);
-		if (!msi_dev_attr)
-			goto error_attrs;
-		msi_attrs[count] = &msi_dev_attr->attr;
+		for (i = 0; i < entry->nvec_used; i++) {
+			msi_dev_attr = kzalloc(sizeof(*msi_dev_attr), GFP_KERNEL);
+			if (!msi_dev_attr)
+				goto error_attrs;
+			msi_attrs[count] = &msi_dev_attr->attr;
 
-		sysfs_attr_init(&msi_dev_attr->attr);
-		msi_dev_attr->attr.name = kasprintf(GFP_KERNEL, "%d",
-						    entry->irq);
-		if (!msi_dev_attr->attr.name)
-			goto error_attrs;
-		msi_dev_attr->attr.mode = S_IRUGO;
-		msi_dev_attr->show = msi_mode_show;
-		++count;
+			sysfs_attr_init(&msi_dev_attr->attr);
+			msi_dev_attr->attr.name = kasprintf(GFP_KERNEL, "%d",
+							    entry->irq + i);
+			if (!msi_dev_attr->attr.name)
+				goto error_attrs;
+			msi_dev_attr->attr.mode = S_IRUGO;
+			msi_dev_attr->show = msi_mode_show;
+			++count;
+		}
 	}
 
 	msi_irq_group = kzalloc(sizeof(*msi_irq_group), GFP_KERNEL);

@@ -90,7 +90,7 @@ int read_cache_pages(struct address_space *mapping, struct list_head *pages,
 		page = list_to_page(pages);
 		list_del(&page->lru);
 		if (add_to_page_cache_lru(page, mapping, page->index,
-				GFP_KERNEL & mapping_gfp_mask(mapping))) {
+				mapping_gfp_constraint(mapping, GFP_KERNEL))) {
 			read_cache_pages_invalidate_page(mapping, page);
 			continue;
 		}
@@ -128,7 +128,7 @@ static int read_pages(struct address_space *mapping, struct file *filp,
 		struct page *page = list_to_page(pages);
 		list_del(&page->lru);
 		if (!add_to_page_cache_lru(page, mapping, page->index,
-				GFP_KERNEL & mapping_gfp_mask(mapping))) {
+				mapping_gfp_constraint(mapping, GFP_KERNEL))) {
 			mapping->a_ops->readpage(filp, page);
 		}
 		page_cache_release(page);

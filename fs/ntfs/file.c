@@ -525,8 +525,8 @@ static inline int __ntfs_grab_cache_pages(struct address_space *mapping,
 				}
 			}
 			err = add_to_page_cache_lru(*cached_page, mapping,
-					index,
-					GFP_KERNEL & mapping_gfp_mask(mapping));
+				   index,
+				   mapping_gfp_constraint(mapping, GFP_KERNEL));
 			if (unlikely(err)) {
 				if (err == -EEXIST)
 					continue;

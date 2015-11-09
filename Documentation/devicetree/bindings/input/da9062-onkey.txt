@@ -1,0 +1,32 @@
+* Dialog DA9062/63 OnKey Module
+
+This module is part of the DA9062/DA9063. For more details about entire
+chips see Documentation/devicetree/bindings/mfd/da9062.txt and
+Documentation/devicetree/bindings/mfd/da9063.txt
+
+This module provides KEY_POWER, KEY_SLEEP and events.
+
+Required properties:
+
+- compatible: should be one of:
+	dlg,da9062-onkey
+	dlg,da9063-onkey
+
+Optional properties:
+
+  - dlg,disable-key-power : Disable power-down using a long key-press. If this
+    entry exists the OnKey driver will remove support for the KEY_POWER key
+    press. If this entry does not exist then by default the key-press
+    triggered power down is enabled and the OnKey will support both KEY_POWER
+    and KEY_SLEEP.
+
+Example:
+
+	pmic0: da9062@58 {
+
+		onkey {
+			compatible = "dlg,da9063-onkey";
+			dlg,disable-key-power;
+		};
+
+	};

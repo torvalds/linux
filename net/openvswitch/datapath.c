@@ -1175,7 +1175,7 @@ static int ovs_flow_cmd_set(struct sk_buff *skb, struct genl_info *info)
 						info, OVS_FLOW_CMD_NEW, false,
 						ufid_flags);
 
-		if (unlikely(IS_ERR(reply))) {
+		if (IS_ERR(reply)) {
 			error = PTR_ERR(reply);
 			goto err_unlock_ovs;
 		}

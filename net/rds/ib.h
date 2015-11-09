@@ -75,7 +75,11 @@ struct rds_ib_connect_private {
 
 struct rds_ib_send_work {
 	void			*s_op;
-	struct ib_send_wr	s_wr;
+	union {
+		struct ib_send_wr	s_wr;
+		struct ib_rdma_wr	s_rdma_wr;
+		struct ib_atomic_wr	s_atomic_wr;
+	};
 	struct ib_sge		s_sge[RDS_IB_MAX_SGE];
 	unsigned long		s_queued;
 };

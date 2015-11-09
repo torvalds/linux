@@ -118,6 +118,15 @@ found:
 	return t;
 }
 
+/*
+ * order == -1 means the oom kill is required by sysrq, otherwise only
+ * for display purposes.
+ */
+static inline bool is_sysrq_oom(struct oom_control *oc)
+{
+	return oc->order == -1;
+}
+
 /* return true if the task is not adequate as candidate victim task. */
 static bool oom_unkillable_task(struct task_struct *p,
 		struct mem_cgroup *memcg, const nodemask_t *nodemask)
@@ -265,7 +274,7 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
 	 * Don't allow any other task to have access to the reserves.
 	 */
 	if (test_tsk_thread_flag(task, TIF_MEMDIE)) {
-		if (oc->order != -1)
+		if (!is_sysrq_oom(oc))
 			return OOM_SCAN_ABORT;
 	}
 	if (!task->mm)
@@ -278,7 +287,7 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
 	if (oom_task_origin(task))
 		return OOM_SCAN_SELECT;
 
-	if (task_will_free_mem(task) && oc->order != -1)
+	if (task_will_free_mem(task) && !is_sysrq_oom(oc))
 		return OOM_SCAN_ABORT;
 
 	return OOM_SCAN_OK;
@@ -629,7 +638,7 @@ void check_panic_on_oom(struct oom_control *oc, enum oom_constraint constraint,
 			return;
 	}
 	/* Do not panic for oom kills triggered by sysrq */
-	if (oc->order == -1)
+	if (is_sysrq_oom(oc))
 		return;
 	dump_header(oc, NULL, memcg);
 	panic("Out of memory: %s panic_on_oom is enabled\n",
@@ -709,7 +718,7 @@ bool out_of_memory(struct oom_control *oc)
 
 	p = select_bad_process(oc, &points, totalpages);
 	/* Found nothing?!?! Either we hang forever, or we panic. */
-	if (!p && oc->order != -1) {
+	if (!p && !is_sysrq_oom(oc)) {
 		dump_header(oc, NULL, NULL);
 		panic("Out of memory and no killable processes...\n");
 	}

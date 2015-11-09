@@ -110,8 +110,7 @@ static int imx_snvs_pwrkey_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENOMEM;
 
-	pdata->snvs = syscon_regmap_lookup_by_phandle(np, "regmap");;
-
+	pdata->snvs = syscon_regmap_lookup_by_phandle(np, "regmap");
 	if (!pdata->snvs) {
 		dev_err(&pdev->dev, "Can't get snvs syscon\n");
 		return -ENODEV;

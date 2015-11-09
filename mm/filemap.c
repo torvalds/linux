@@ -1722,7 +1722,7 @@ no_cached_page:
 			goto out;
 		}
 		error = add_to_page_cache_lru(page, mapping, index,
-					GFP_KERNEL & mapping_gfp_mask(mapping));
+				mapping_gfp_constraint(mapping, GFP_KERNEL));
 		if (error) {
 			page_cache_release(page);
 			if (error == -EEXIST) {
@@ -1824,7 +1824,7 @@ static int page_cache_read(struct file *file, pgoff_t offset)
 			return -ENOMEM;
 
 		ret = add_to_page_cache_lru(page, mapping, offset,
-				GFP_KERNEL & mapping_gfp_mask(mapping));
+				mapping_gfp_constraint(mapping, GFP_KERNEL));
 		if (ret == 0)
 			ret = mapping->a_ops->readpage(file, page);
 		else if (ret == -EEXIST)
@@ -2713,7 +2713,7 @@ EXPORT_SYMBOL(generic_file_write_iter);
  * page is known to the local caching routines.
  *
  * The @gfp_mask argument specifies whether I/O may be performed to release
- * this page (__GFP_IO), and whether the call may block (__GFP_WAIT & __GFP_FS).
+ * this page (__GFP_IO), and whether the call may block (__GFP_RECLAIM & __GFP_FS).
  *
  */
 int try_to_release_page(struct page *page, gfp_t gfp_mask)

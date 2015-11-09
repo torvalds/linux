@@ -2345,7 +2345,6 @@ static void fsg_disable(struct usb_function *f)
 
 static void handle_exception(struct fsg_common *common)
 {
-	siginfo_t		info;
 	int			i;
 	struct fsg_buffhd	*bh;
 	enum fsg_state		old_state;
@@ -2357,8 +2356,7 @@ static void handle_exception(struct fsg_common *common)
 	 * into a high-priority EXIT exception.
 	 */
 	for (;;) {
-		int sig =
-			dequeue_signal_lock(current, &current->blocked, &info);
+		int sig = kernel_dequeue_signal(NULL);
 		if (!sig)
 			break;
 		if (sig != SIGUSR1) {

@@ -198,7 +198,7 @@ static int da9062_clear_fault_log(struct da9062 *chip)
 	return ret;
 }
 
-int get_device_type(struct da9062 *chip)
+static int da9062_get_device_type(struct da9062 *chip)
 {
 	int device_id, variant_id, variant_mrc;
 	int ret;
@@ -466,7 +466,7 @@ static int da9062_i2c_probe(struct i2c_client *i2c,
 	if (ret < 0)
 		dev_warn(chip->dev, "Cannot clear fault log\n");
 
-	ret = get_device_type(chip);
+	ret = da9062_get_device_type(chip);
 	if (ret)
 		return ret;
 

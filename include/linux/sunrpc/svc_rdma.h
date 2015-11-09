@@ -105,11 +105,9 @@ struct svc_rdma_chunk_sge {
 };
 struct svc_rdma_fastreg_mr {
 	struct ib_mr *mr;
-	void *kva;
-	struct ib_fast_reg_page_list *page_list;
-	int page_list_len;
+	struct scatterlist *sg;
+	int sg_nents;
 	unsigned long access_flags;
-	unsigned long map_len;
 	enum dma_data_direction direction;
 	struct list_head frmr_list;
 };

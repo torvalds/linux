@@ -710,9 +710,7 @@ static int omap2_onenand_probe(struct platform_device *pdev)
 		 c->onenand.base, c->freq);
 
 	c->pdev = pdev;
-	c->mtd.name = dev_name(&pdev->dev);
 	c->mtd.priv = &c->onenand;
-	c->mtd.owner = THIS_MODULE;
 
 	c->mtd.dev.parent = &pdev->dev;
 

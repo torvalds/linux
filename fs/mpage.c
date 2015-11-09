@@ -361,7 +361,7 @@ mpage_readpages(struct address_space *mapping, struct list_head *pages,
 	sector_t last_block_in_bio = 0;
 	struct buffer_head map_bh;
 	unsigned long first_logical_block = 0;
-	gfp_t gfp = GFP_KERNEL & mapping_gfp_mask(mapping);
+	gfp_t gfp = mapping_gfp_constraint(mapping, GFP_KERNEL);
 
 	map_bh.b_state = 0;
 	map_bh.b_size = 0;
@@ -397,7 +397,7 @@ int mpage_readpage(struct page *page, get_block_t get_block)
 	sector_t last_block_in_bio = 0;
 	struct buffer_head map_bh;
 	unsigned long first_logical_block = 0;
-	gfp_t gfp = GFP_KERNEL & mapping_gfp_mask(page->mapping);
+	gfp_t gfp = mapping_gfp_constraint(page->mapping, GFP_KERNEL);
 
 	map_bh.b_state = 0;
 	map_bh.b_size = 0;

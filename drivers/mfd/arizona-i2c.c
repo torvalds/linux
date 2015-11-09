@@ -27,7 +27,7 @@ static int arizona_i2c_probe(struct i2c_client *i2c,
 			     const struct i2c_device_id *id)
 {
 	struct arizona *arizona;
-	const struct regmap_config *regmap_config;
+	const struct regmap_config *regmap_config = NULL;
 	unsigned long type;
 	int ret;
 
@@ -37,31 +37,32 @@ static int arizona_i2c_probe(struct i2c_client *i2c,
 		type = id->driver_data;
 
 	switch (type) {
-#ifdef CONFIG_MFD_WM5102
 	case WM5102:
-		regmap_config = &wm5102_i2c_regmap;
+		if (IS_ENABLED(CONFIG_MFD_WM5102))
+			regmap_config = &wm5102_i2c_regmap;
 		break;
-#endif
-#ifdef CONFIG_MFD_WM5110
 	case WM5110:
 	case WM8280:
-		regmap_config = &wm5110_i2c_regmap;
+		if (IS_ENABLED(CONFIG_MFD_WM5110))
+			regmap_config = &wm5110_i2c_regmap;
 		break;
-#endif
-#ifdef CONFIG_MFD_WM8997
 	case WM8997:
-		regmap_config = &wm8997_i2c_regmap;
+		if (IS_ENABLED(CONFIG_MFD_WM8997))
+			regmap_config = &wm8997_i2c_regmap;
 		break;
-#endif
-#ifdef CONFIG_MFD_WM8998
 	case WM8998:
 	case WM1814:
-		regmap_config = &wm8998_i2c_regmap;
+		if (IS_ENABLED(CONFIG_MFD_WM8998))
+			regmap_config = &wm8998_i2c_regmap;
 		break;
-#endif
 	default:
-		dev_err(&i2c->dev, "Unknown device type %ld\n",
-			id->driver_data);
+		dev_err(&i2c->dev, "Unknown device type %ld\n", type);
+		return -EINVAL;
+	}
+
+	if (!regmap_config) {
+		dev_err(&i2c->dev,
+			"No kernel support for device type %ld\n", type);
 		return -EINVAL;
 	}
 
@@ -77,7 +78,7 @@ static int arizona_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	arizona->type = id->driver_data;
+	arizona->type = type;
 	arizona->dev = &i2c->dev;
 	arizona->irq = i2c->irq;
 

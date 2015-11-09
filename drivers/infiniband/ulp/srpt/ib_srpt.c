@@ -546,7 +546,8 @@ static int srpt_refresh_port(struct srpt_port *sport)
 	sport->sm_lid = port_attr.sm_lid;
 	sport->lid = port_attr.lid;
 
-	ret = ib_query_gid(sport->sdev->device, sport->port, 0, &sport->gid);
+	ret = ib_query_gid(sport->sdev->device, sport->port, 0, &sport->gid,
+			   NULL);
 	if (ret)
 		goto err_query_port;
 
@@ -2822,7 +2823,7 @@ static int srpt_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 static int srpt_perform_rdmas(struct srpt_rdma_ch *ch,
 			      struct srpt_send_ioctx *ioctx)
 {
-	struct ib_send_wr wr;
+	struct ib_rdma_wr wr;
 	struct ib_send_wr *bad_wr;
 	struct rdma_iu *riu;
 	int i;
@@ -2850,29 +2851,29 @@ static int srpt_perform_rdmas(struct srpt_rdma_ch *ch,
 
 	for (i = 0; i < n_rdma; ++i, ++riu) {
 		if (dir == DMA_FROM_DEVICE) {
-			wr.opcode = IB_WR_RDMA_WRITE;
-			wr.wr_id = encode_wr_id(i == n_rdma - 1 ?
+			wr.wr.opcode = IB_WR_RDMA_WRITE;
+			wr.wr.wr_id = encode_wr_id(i == n_rdma - 1 ?
 						SRPT_RDMA_WRITE_LAST :
 						SRPT_RDMA_MID,
 						ioctx->ioctx.index);
 		} else {
-			wr.opcode = IB_WR_RDMA_READ;
-			wr.wr_id = encode_wr_id(i == n_rdma - 1 ?
+			wr.wr.opcode = IB_WR_RDMA_READ;
+			wr.wr.wr_id = encode_wr_id(i == n_rdma - 1 ?
 						SRPT_RDMA_READ_LAST :
 						SRPT_RDMA_MID,
 						ioctx->ioctx.index);
 		}
-		wr.next = NULL;
-		wr.wr.rdma.remote_addr = riu->raddr;
-		wr.wr.rdma.rkey = riu->rkey;
-		wr.num_sge = riu->sge_cnt;
-		wr.sg_list = riu->sge;
+		wr.wr.next = NULL;
+		wr.remote_addr = riu->raddr;
+		wr.rkey = riu->rkey;
+		wr.wr.num_sge = riu->sge_cnt;
+		wr.wr.sg_list = riu->sge;
 
 		/* only get completion event for the last rdma write */
 		if (i == (n_rdma - 1) && dir == DMA_TO_DEVICE)
-			wr.send_flags = IB_SEND_SIGNALED;
+			wr.wr.send_flags = IB_SEND_SIGNALED;
 
-		ret = ib_post_send(ch->qp, &wr, &bad_wr);
+		ret = ib_post_send(ch->qp, &wr.wr, &bad_wr);
 		if (ret)
 			break;
 	}
@@ -2881,11 +2882,11 @@ static int srpt_perform_rdmas(struct srpt_rdma_ch *ch,
 		pr_err("%s[%d]: ib_post_send() returned %d for %d/%d\n",
 				 __func__, __LINE__, ret, i, n_rdma);
 	if (ret && i > 0) {
-		wr.num_sge = 0;
-		wr.wr_id = encode_wr_id(SRPT_RDMA_ABORT, ioctx->ioctx.index);
-		wr.send_flags = IB_SEND_SIGNALED;
+		wr.wr.num_sge = 0;
+		wr.wr.wr_id = encode_wr_id(SRPT_RDMA_ABORT, ioctx->ioctx.index);
+		wr.wr.send_flags = IB_SEND_SIGNALED;
 		while (ch->state == CH_LIVE &&
-			ib_post_send(ch->qp, &wr, &bad_wr) != 0) {
+			ib_post_send(ch->qp, &wr.wr, &bad_wr) != 0) {
 			pr_info("Trying to abort failed RDMA transfer [%d]\n",
 				ioctx->ioctx.index);
 			msleep(1000);

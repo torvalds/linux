@@ -289,7 +289,7 @@ static ssize_t show_port_gid(struct ib_port *p, struct port_attribute *attr,
 	union ib_gid gid;
 	ssize_t ret;
 
-	ret = ib_query_gid(p->ibdev, p->port_num, tab_attr->index, &gid);
+	ret = ib_query_gid(p->ibdev, p->port_num, tab_attr->index, &gid, NULL);
 	if (ret)
 		return ret;
 

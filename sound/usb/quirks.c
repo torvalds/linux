@@ -115,6 +115,9 @@ static int create_standard_audio_quirk(struct snd_usb_audio *chip,
 	struct usb_interface_descriptor *altsd;
 	int err;
 
+	if (chip->usb_id == USB_ID(0x1686, 0x00dd)) /* Zoom R16/24 */
+		chip->tx_length_quirk = 1;
+
 	alts = &iface->altsetting[0];
 	altsd = get_iface_desc(alts);
 	err = snd_usb_parse_audio_interface(chip, altsd->bInterfaceNumber);

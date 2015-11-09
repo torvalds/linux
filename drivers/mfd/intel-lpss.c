@@ -25,6 +25,7 @@
 #include <linux/pm_qos.h>
 #include <linux/pm_runtime.h>
 #include <linux/seq_file.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 
 #include "intel-lpss.h"
 
@@ -52,8 +53,7 @@
 #define LPSS_PRIV_SSP_REG		0x20
 #define LPSS_PRIV_SSP_REG_DIS_DMA_FIN	BIT(0)
 
-#define LPSS_PRIV_REMAP_ADDR_LO		0x40
-#define LPSS_PRIV_REMAP_ADDR_HI		0x44
+#define LPSS_PRIV_REMAP_ADDR		0x40
 
 #define LPSS_PRIV_CAPS			0xfc
 #define LPSS_PRIV_CAPS_NO_IDMA		BIT(8)
@@ -250,12 +250,7 @@ static void intel_lpss_set_remap_addr(const struct intel_lpss *lpss)
 {
 	resource_size_t addr = lpss->info->mem->start;
 
-	writel(addr, lpss->priv + LPSS_PRIV_REMAP_ADDR_LO);
-#if BITS_PER_LONG > 32
-	writel(addr >> 32, lpss->priv + LPSS_PRIV_REMAP_ADDR_HI);
-#else
-	writel(0, lpss->priv + LPSS_PRIV_REMAP_ADDR_HI);
-#endif
+	lo_hi_writeq(addr, lpss->priv + LPSS_PRIV_REMAP_ADDR);
 }
 
 static void intel_lpss_deassert_reset(const struct intel_lpss *lpss)

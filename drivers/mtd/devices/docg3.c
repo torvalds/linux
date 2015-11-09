@@ -1620,20 +1620,30 @@ static struct device_attribute doc_sys_attrs[DOC_MAX_NBFLOORS][4] = {
 static int doc_register_sysfs(struct platform_device *pdev,
 			      struct docg3_cascade *cascade)
 {
-	int ret = 0, floor, i = 0;
 	struct device *dev = &pdev->dev;
+	int floor;
+	int ret;
+	int i;
 
-	for (floor = 0; !ret && floor < DOC_MAX_NBFLOORS &&
-		     cascade->floors[floor]; floor++)
-		for (i = 0; !ret && i < 4; i++)
+	for (floor = 0;
+	     floor < DOC_MAX_NBFLOORS && cascade->floors[floor];
+	     floor++) {
+		for (i = 0; i < 4; i++) {
 			ret = device_create_file(dev, &doc_sys_attrs[floor][i]);
-	if (!ret)
-		return 0;
+			if (ret)
+				goto remove_files;
+		}
+	}
+
+	return 0;
+
+remove_files:
 	do {
 		while (--i >= 0)
 			device_remove_file(dev, &doc_sys_attrs[floor][i]);
 		i = 4;
 	} while (--floor >= 0);
+
 	return ret;
 }
 
@@ -1843,7 +1853,6 @@ static int __init doc_set_driver_info(int chip_id, struct mtd_info *mtd)
 		mtd->erasesize /= 2;
 	mtd->writebufsize = mtd->writesize = DOC_LAYOUT_PAGE_SIZE;
 	mtd->oobsize = DOC_LAYOUT_OOB_SIZE;
-	mtd->owner = THIS_MODULE;
 	mtd->_erase = doc_erase;
 	mtd->_read = doc_read;
 	mtd->_write = doc_write;
@@ -1885,6 +1894,7 @@ doc_probe_device(struct docg3_cascade *cascade, int floor, struct device *dev)
 	if (!mtd)
 		goto nomem2;
 	mtd->priv = docg3;
+	mtd->dev.parent = dev;
 	bbt_nbpages = DIV_ROUND_UP(docg3->max_block + 1,
 				   8 * DOC_LAYOUT_PAGE_SIZE);
 	docg3->bbt = kzalloc(bbt_nbpages * DOC_LAYOUT_PAGE_SIZE, GFP_KERNEL);

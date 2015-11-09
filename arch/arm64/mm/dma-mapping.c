@@ -100,7 +100,7 @@ static void *__dma_alloc_coherent(struct device *dev, size_t size,
 	if (IS_ENABLED(CONFIG_ZONE_DMA) &&
 	    dev->coherent_dma_mask <= DMA_BIT_MASK(32))
 		flags |= GFP_DMA;
-	if (dev_get_cma_area(dev) && (flags & __GFP_WAIT)) {
+	if (dev_get_cma_area(dev) && gfpflags_allow_blocking(flags)) {
 		struct page *page;
 		void *addr;
 
@@ -148,7 +148,7 @@ static void *__dma_alloc(struct device *dev, size_t size,
 
 	size = PAGE_ALIGN(size);
 
-	if (!coherent && !(flags & __GFP_WAIT)) {
+	if (!coherent && !gfpflags_allow_blocking(flags)) {
 		struct page *page = NULL;
 		void *addr = __alloc_from_pool(size, &page, flags);
 
@@ -562,7 +562,7 @@ static void *__iommu_alloc_attrs(struct device *dev, size_t size,
 	 */
 	gfp |= __GFP_ZERO;
 
-	if (gfp & __GFP_WAIT) {
+	if (gfpflags_allow_blocking(gfp)) {
 		struct page **pages;
 		pgprot_t prot = __get_dma_pgprot(attrs, PAGE_KERNEL, coherent);
 
