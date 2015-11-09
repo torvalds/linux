@@ -146,7 +146,7 @@ static void alloc_init_pte(pmd_t *pmd, unsigned long addr,
 		if (((addr | next | phys) & ~CONT_MASK) == 0) {
 			/* a block of CONT_PTES  */
 			__populate_init_pte(pte, addr, next, phys,
-					    prot | __pgprot(PTE_CONT));
+					    __pgprot(pgprot_val(prot) | PTE_CONT));
 		} else {
 			/*
 			 * If the range being split is already inside of a
