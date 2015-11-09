@@ -574,6 +574,44 @@ static bool hist_browser__check_dump_full(struct hist_browser *browser __maybe_u
 
 #define LEVEL_OFFSET_STEP 3
 
+static int hist_browser__show_callchain_list(struct hist_browser *browser,
+					     struct callchain_node *node,
+					     struct callchain_list *chain,
+					     unsigned short row, u64 total,
+					     bool need_percent, int offset,
+					     print_callchain_entry_fn print,
+					     struct callchain_print_arg *arg)
+{
+	char bf[1024], *alloc_str;
+	const char *str;
+
+	if (arg->row_offset != 0) {
+		arg->row_offset--;
+		return 0;
+	}
+
+	alloc_str = NULL;
+	str = callchain_list__sym_name(chain, bf, sizeof(bf),
+				       browser->show_dso);
+
+	if (need_percent) {
+		char buf[64];
+
+		callchain_node__scnprintf_value(node, buf, sizeof(buf),
+						total);
+
+		if (asprintf(&alloc_str, "%s %s", buf, str) < 0)
+			str = "Not enough memory!";
+		else
+			str = alloc_str;
+	}
+
+	print(browser, chain, str, offset, row, arg);
+
+	free(alloc_str);
+	return 1;
+}
+
 static int hist_browser__show_callchain(struct hist_browser *browser,
 					struct rb_root *root, int level,
 					unsigned short row, u64 total,
@@ -598,8 +636,6 @@ static int hist_browser__show_callchain(struct hist_browser *browser,
 		int extra_offset = 0;
 
 		list_for_each_entry(chain, &child->val, list) {
-			char bf[1024], *alloc_str;
-			const char *str;
 			bool was_first = first;
 
 			if (first)
@@ -608,34 +644,16 @@ static int hist_browser__show_callchain(struct hist_browser *browser,
 				extra_offset = LEVEL_OFFSET_STEP;
 
 			folded_sign = callchain_list__folded(chain);
-			if (arg->row_offset != 0) {
-				arg->row_offset--;
-				goto do_next;
-			}
 
-			alloc_str = NULL;
-			str = callchain_list__sym_name(chain, bf, sizeof(bf),
-						       browser->show_dso);
+			row += hist_browser__show_callchain_list(browser, child,
+							chain, row, total,
+							was_first && need_percent,
+							offset + extra_offset,
+							print, arg);
 
-			if (was_first && need_percent) {
-				char buf[64];
-
-				callchain_node__scnprintf_value(child, buf, sizeof(buf),
-								total);
-
-				if (asprintf(&alloc_str, "%s %s", buf, str) < 0)
-					str = "Not enough memory!";
-				else
-					str = alloc_str;
-			}
-
-			print(browser, chain, str, offset + extra_offset, row, arg);
-
-			free(alloc_str);
-
-			if (is_output_full(browser, ++row))
+			if (is_output_full(browser, row))
 				goto out;
-do_next:
+
 			if (folded_sign == '+')
 				break;
 		}
