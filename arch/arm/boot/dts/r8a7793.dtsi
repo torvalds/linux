@@ -122,6 +122,12 @@
 		power-domains = <&cpg_clocks>;
 	};
 
+	pfc: pfc@e6060000 {
+		compatible = "renesas,pfc-r8a7793";
+		reg = <0 0xe6060000 0 0x250>;
+		#gpio-range-cells = <3>;
+	};
+
 	scif0: serial@e6e60000 {
 		compatible = "renesas,scif-r8a7793", "renesas,scif";
 		reg = <0 0xe6e60000 0 64>;
