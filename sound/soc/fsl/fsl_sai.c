@@ -370,13 +370,25 @@ static int fsl_sai_set_bclk(struct snd_soc_dai *dai, bool tx, u32 freq)
 		return -EINVAL;
 	}
 
-	if ((tx && sai->synchronous[TX]) || (!tx && !sai->synchronous[RX])) {
+	/*
+	 * 1) For Asynchronous mode, we must set RCR2 register for capture, and
+	 *    set TCR2 register for playback.
+	 * 2) For Tx sync with Rx clock, we must set RCR2 register for playback
+	 *    and capture.
+	 * 3) For Rx sync with Tx clock, we must set TCR2 register for playback
+	 *    and capture.
+	 * 4) For Tx and Rx are both Synchronous with another SAI, we just
+	 *    ignore it.
+	 */
+	if ((sai->synchronous[TX] && !sai->synchronous[RX]) ||
+	    (!tx && !sai->synchronous[RX])) {
 		regmap_update_bits(sai->regmap, FSL_SAI_RCR2,
 				   FSL_SAI_CR2_MSEL_MASK,
 				   FSL_SAI_CR2_MSEL(sai->mclk_id[tx]));
 		regmap_update_bits(sai->regmap, FSL_SAI_RCR2,
 				   FSL_SAI_CR2_DIV_MASK, savediv - 1);
-	} else {
+	} else if ((sai->synchronous[RX] && !sai->synchronous[TX]) ||
+		   (tx && !sai->synchronous[TX])) {
 		regmap_update_bits(sai->regmap, FSL_SAI_TCR2,
 				   FSL_SAI_CR2_MSEL_MASK,
 				   FSL_SAI_CR2_MSEL(sai->mclk_id[tx]));
