@@ -477,7 +477,6 @@ MODULE_DEVICE_TABLE(of, rk3036_codec_of_match);
 static struct platform_driver rk3036_codec_platform_driver = {
 	.driver = {
 		.name = "rk3036-codec-platform",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(rk3036_codec_of_match),
 	},
 	.probe = rk3036_codec_platform_probe,
