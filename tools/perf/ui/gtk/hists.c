@@ -152,6 +152,66 @@ static void perf_gtk__add_callchain_flat(struct rb_root *root, GtkTreeStore *sto
 	}
 }
 
+static void perf_gtk__add_callchain_folded(struct rb_root *root, GtkTreeStore *store,
+					   GtkTreeIter *parent, int col, u64 total)
+{
+	struct rb_node *nd;
+
+	for (nd = rb_first(root); nd; nd = rb_next(nd)) {
+		struct callchain_node *node;
+		struct callchain_list *chain;
+		GtkTreeIter iter;
+		char buf[64];
+		char *str, *str_alloc = NULL;
+		bool first = true;
+
+		node = rb_entry(nd, struct callchain_node, rb_node);
+
+		callchain_node__make_parent_list(node);
+
+		list_for_each_entry(chain, &node->parent_val, list) {
+			char name[1024];
+
+			callchain_list__sym_name(chain, name, sizeof(name), false);
+
+			if (asprintf(&str, "%s%s%s",
+				     first ? "" : str_alloc,
+				     first ? "" : symbol_conf.field_sep ?: "; ",
+				     name) < 0)
+				return;
+
+			first = false;
+			free(str_alloc);
+			str_alloc = str;
+		}
+
+		list_for_each_entry(chain, &node->val, list) {
+			char name[1024];
+
+			callchain_list__sym_name(chain, name, sizeof(name), false);
+
+			if (asprintf(&str, "%s%s%s",
+				     first ? "" : str_alloc,
+				     first ? "" : symbol_conf.field_sep ?: "; ",
+				     name) < 0)
+				return;
+
+			first = false;
+			free(str_alloc);
+			str_alloc = str;
+		}
+
+		gtk_tree_store_append(store, &iter, parent);
+
+		callchain_node__scnprintf_value(node, buf, sizeof(buf), total);
+		gtk_tree_store_set(store, &iter, 0, buf, -1);
+
+		gtk_tree_store_set(store, &iter, col, str, -1);
+
+		free(str_alloc);
+	}
+}
+
 static void perf_gtk__add_callchain_graph(struct rb_root *root, GtkTreeStore *store,
 					  GtkTreeIter *parent, int col, u64 total)
 {
@@ -207,6 +267,8 @@ static void perf_gtk__add_callchain(struct rb_root *root, GtkTreeStore *store,
 {
 	if (callchain_param.mode == CHAIN_FLAT)
 		perf_gtk__add_callchain_flat(root, store, parent, col, total);
+	else if (callchain_param.mode == CHAIN_FOLDED)
+		perf_gtk__add_callchain_folded(root, store, parent, col, total);
 	else
 		perf_gtk__add_callchain_graph(root, store, parent, col, total);
 }
