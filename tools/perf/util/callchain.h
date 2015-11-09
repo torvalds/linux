@@ -56,6 +56,7 @@ enum chain_order {
 struct callchain_node {
 	struct callchain_node	*parent;
 	struct list_head	val;
+	struct list_head	parent_val;
 	struct rb_node		rb_node_in; /* to insert nodes in an rbtree */
 	struct rb_node		rb_node;    /* to sort nodes in an output tree */
 	struct rb_root		rb_root_in; /* input tree of children */
@@ -251,5 +252,6 @@ int callchain_node__fprintf_value(struct callchain_node *node,
 				  FILE *fp, u64 total);
 
 void free_callchain(struct callchain_root *root);
+int callchain_node__make_parent_list(struct callchain_node *node);
 
 #endif	/* __PERF_CALLCHAIN_H */

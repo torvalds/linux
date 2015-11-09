@@ -178,11 +178,43 @@ static int callchain_node__count_rows_rb_tree(struct callchain_node *node)
 	return n;
 }
 
+static int callchain_node__count_flat_rows(struct callchain_node *node)
+{
+	struct callchain_list *chain;
+	char folded_sign = 0;
+	int n = 0;
+
+	list_for_each_entry(chain, &node->parent_val, list) {
+		if (!folded_sign) {
+			/* only check first chain list entry */
+			folded_sign = callchain_list__folded(chain);
+			if (folded_sign == '+')
+				return 1;
+		}
+		n++;
+	}
+
+	list_for_each_entry(chain, &node->val, list) {
+		if (!folded_sign) {
+			/* node->parent_val list might be empty */
+			folded_sign = callchain_list__folded(chain);
+			if (folded_sign == '+')
+				return 1;
+		}
+		n++;
+	}
+
+	return n;
+}
+
 static int callchain_node__count_rows(struct callchain_node *node)
 {
 	struct callchain_list *chain;
 	bool unfolded = false;
 	int n = 0;
+
+	if (callchain_param.mode == CHAIN_FLAT)
+		return callchain_node__count_flat_rows(node);
 
 	list_for_each_entry(chain, &node->val, list) {
 		++n;
@@ -263,7 +295,7 @@ static void callchain_node__init_have_children(struct callchain_node *node,
 	chain = list_entry(node->val.next, struct callchain_list, list);
 	chain->has_children = has_sibling;
 
-	if (!list_empty(&node->val)) {
+	if (node->val.next != node->val.prev) {
 		chain = list_entry(node->val.prev, struct callchain_list, list);
 		chain->has_children = !RB_EMPTY_ROOT(&node->rb_root);
 	}
@@ -279,6 +311,8 @@ static void callchain__init_have_children(struct rb_root *root)
 	for (nd = rb_first(root); nd; nd = rb_next(nd)) {
 		struct callchain_node *node = rb_entry(nd, struct callchain_node, rb_node);
 		callchain_node__init_have_children(node, has_sibling);
+		if (callchain_param.mode == CHAIN_FLAT)
+			callchain_node__make_parent_list(node);
 	}
 }
 
@@ -612,6 +646,83 @@ static int hist_browser__show_callchain_list(struct hist_browser *browser,
 	return 1;
 }
 
+static int hist_browser__show_callchain_flat(struct hist_browser *browser,
+					     struct rb_root *root,
+					     unsigned short row, u64 total,
+					     print_callchain_entry_fn print,
+					     struct callchain_print_arg *arg,
+					     check_output_full_fn is_output_full)
+{
+	struct rb_node *node;
+	int first_row = row, offset = LEVEL_OFFSET_STEP;
+	bool need_percent;
+
+	node = rb_first(root);
+	need_percent = node && rb_next(node);
+
+	while (node) {
+		struct callchain_node *child = rb_entry(node, struct callchain_node, rb_node);
+		struct rb_node *next = rb_next(node);
+		struct callchain_list *chain;
+		char folded_sign = ' ';
+		int first = true;
+		int extra_offset = 0;
+
+		list_for_each_entry(chain, &child->parent_val, list) {
+			bool was_first = first;
+
+			if (first)
+				first = false;
+			else if (need_percent)
+				extra_offset = LEVEL_OFFSET_STEP;
+
+			folded_sign = callchain_list__folded(chain);
+
+			row += hist_browser__show_callchain_list(browser, child,
+							chain, row, total,
+							was_first && need_percent,
+							offset + extra_offset,
+							print, arg);
+
+			if (is_output_full(browser, row))
+				goto out;
+
+			if (folded_sign == '+')
+				goto next;
+		}
+
+		list_for_each_entry(chain, &child->val, list) {
+			bool was_first = first;
+
+			if (first)
+				first = false;
+			else if (need_percent)
+				extra_offset = LEVEL_OFFSET_STEP;
+
+			folded_sign = callchain_list__folded(chain);
+
+			row += hist_browser__show_callchain_list(browser, child,
+							chain, row, total,
+							was_first && need_percent,
+							offset + extra_offset,
+							print, arg);
+
+			if (is_output_full(browser, row))
+				goto out;
+
+			if (folded_sign == '+')
+				break;
+		}
+
+next:
+		if (is_output_full(browser, row))
+			break;
+		node = next;
+	}
+out:
+	return row - first_row;
+}
+
 static int hist_browser__show_callchain(struct hist_browser *browser,
 					struct rb_root *root, int level,
 					unsigned short row, u64 total,
@@ -864,10 +975,17 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 				total = entry->stat.period;
 		}
 
-		printed += hist_browser__show_callchain(browser,
+		if (callchain_param.mode == CHAIN_FLAT) {
+			printed += hist_browser__show_callchain_flat(browser,
+					&entry->sorted_chain, row, total,
+					hist_browser__show_callchain_entry, &arg,
+					hist_browser__check_output_full);
+		} else {
+			printed += hist_browser__show_callchain(browser,
 					&entry->sorted_chain, 1, row, total,
 					hist_browser__show_callchain_entry, &arg,
 					hist_browser__check_output_full);
+		}
 
 		if (arg.is_current_entry)
 			browser->he_selection = entry;

@@ -387,6 +387,7 @@ create_child(struct callchain_node *parent, bool inherit_children)
 	}
 	new->parent = parent;
 	INIT_LIST_HEAD(&new->val);
+	INIT_LIST_HEAD(&new->parent_val);
 
 	if (inherit_children) {
 		struct rb_node *n;
@@ -894,6 +895,11 @@ static void free_callchain_node(struct callchain_node *node)
 	struct callchain_node *child;
 	struct rb_node *n;
 
+	list_for_each_entry_safe(list, tmp, &node->parent_val, list) {
+		list_del(&list->list);
+		free(list);
+	}
+
 	list_for_each_entry_safe(list, tmp, &node->val, list) {
 		list_del(&list->list);
 		free(list);
@@ -916,4 +922,42 @@ void free_callchain(struct callchain_root *root)
 		return;
 
 	free_callchain_node(&root->node);
+}
+
+int callchain_node__make_parent_list(struct callchain_node *node)
+{
+	struct callchain_node *parent = node->parent;
+	struct callchain_list *chain, *new;
+	LIST_HEAD(head);
+
+	while (parent) {
+		list_for_each_entry_reverse(chain, &parent->val, list) {
+			new = malloc(sizeof(*new));
+			if (new == NULL)
+				goto out;
+			*new = *chain;
+			new->has_children = false;
+			list_add_tail(&new->list, &head);
+		}
+		parent = parent->parent;
+	}
+
+	list_for_each_entry_safe_reverse(chain, new, &head, list)
+		list_move_tail(&chain->list, &node->parent_val);
+
+	if (!list_empty(&node->parent_val)) {
+		chain = list_first_entry(&node->parent_val, struct callchain_list, list);
+		chain->has_children = rb_prev(&node->rb_node) || rb_next(&node->rb_node);
+
+		chain = list_first_entry(&node->val, struct callchain_list, list);
+		chain->has_children = false;
+	}
+	return 0;
+
+out:
+	list_for_each_entry_safe(chain, new, &head, list) {
+		list_del(&chain->list);
+		free(chain);
+	}
+	return -ENOMEM;
 }
