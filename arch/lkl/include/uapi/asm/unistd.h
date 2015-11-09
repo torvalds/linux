@@ -240,7 +240,8 @@ LKL_SYSCALL4(fstatat64, unsigned int, dfd, const char *, filname,
 	     struct lkl_stat64 *, statbuf, int, flag);
 LKL_SYSCALL2(stat64, const char *, filename, struct lkl_stat64 *, statbuf);
 LKL_SYSCALL2(lstat64, const char *, filename, struct lkl_stat64 *, statbuf);
-LKL_SYSCALL2(statfs64, const char *, path, struct lkl_statfs64 *, buf);
+LKL_SYSCALL3(statfs64, const char *, path, __lkl__kernel_size_t, sz,
+	     struct lkl_statfs64 *, buf);
 LKL_SYSCALL3(readlink, const char *, path, char *, buf, int, bufsiz);
 LKL_SYSCALL3(listxattr, const char *, path, char *, list, int, bufsiz);
 LKL_SYSCALL3(llistxattr, const char *, path, char *, list, int, bufsiz);

@@ -259,7 +259,7 @@ static int lklfuse_statfs(const char *path, struct statvfs *stat)
 	long ret;
 	struct lkl_statfs64 lkl_statfs;
 
-	ret = lkl_sys_statfs64(path, &lkl_statfs);
+	ret = lkl_sys_statfs64(path, sizeof(lkl_statfs), &lkl_statfs);
 	if (ret < 0)
 		return ret;
 
