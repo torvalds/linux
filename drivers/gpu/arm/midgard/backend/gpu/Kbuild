@@ -56,3 +56,7 @@ ifeq ($(CONFIG_MALI_NO_MALI),y)
 	# HW error simulation
 	BACKEND += backend/gpu/mali_kbase_model_error_generator.c
 endif
+
+ifeq ($(CONFIG_DEVFREQ_THERMAL),y)
+	BACKEND += backend/gpu/mali_kbase_power_model_simple.c
+endif

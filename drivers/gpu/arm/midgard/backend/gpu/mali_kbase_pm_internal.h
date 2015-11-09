@@ -155,17 +155,6 @@ bool kbase_pm_clock_off(struct kbase_device *kbdev, bool is_suspend);
 void kbase_pm_enable_interrupts(struct kbase_device *kbdev);
 
 /**
- * kbase_pm_enable_interrupts_mmu_mask - Enable interrupts on the device, using
- *                                       the provided mask to set MMU_IRQ_MASK.
- *
- * Interrupts are also enabled after a call to kbase_pm_clock_on().
- *
- * @kbdev: The kbase device structure for the device (must be a valid pointer)
- * @mask:  The mask to use for MMU_IRQ_MASK
- */
-void kbase_pm_enable_interrupts_mmu_mask(struct kbase_device *kbdev, u32 mask);
-
-/**
  * kbase_pm_disable_interrupts - Disable interrupts on the device.
  *
  * This prevents delivery of Power Management interrupts to the CPU so that

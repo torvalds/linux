@@ -1730,7 +1730,6 @@ static kbasep_js_release_result kbasep_js_runpool_release_ctx_internal(
 #endif
 #if defined(CONFIG_MALI_MIPE_ENABLED)
 		kbase_tlstream_tl_nret_as_ctx(&kbdev->as[kctx->as_nr], kctx);
-		kbase_tlstream_tl_nret_gpu_ctx(kbdev, kctx);
 #endif
 
 		kbase_backend_release_ctx_irq(kbdev, kctx);
@@ -2077,7 +2076,6 @@ static bool kbasep_js_schedule_ctx(struct kbase_device *kbdev,
 	kbase_trace_mali_mmu_as_in_use(kctx->as_nr);
 #endif
 #if defined(CONFIG_MALI_MIPE_ENABLED)
-	kbase_tlstream_tl_ret_gpu_ctx(kbdev, kctx);
 	kbase_tlstream_tl_ret_as_ctx(&kbdev->as[kctx->as_nr], kctx);
 #endif
 
@@ -2781,6 +2779,10 @@ void kbase_js_complete_atom(struct kbase_jd_atom *katom, ktime_t *end_timestamp)
 			&kbdev->gpu_props.props.raw_props.js_features[
 				katom->slot_nr]);
 	kbase_tlstream_tl_nret_atom_as(katom, &kbdev->as[kctx->as_nr]);
+	kbase_tlstream_tl_nret_ctx_lpu(
+			kctx,
+			&kbdev->gpu_props.props.raw_props.js_features[
+				katom->slot_nr]);
 #endif
 	/* Calculate the job's time used */
 	if (end_timestamp != NULL) {

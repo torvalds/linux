@@ -46,6 +46,8 @@ typedef u64 base_mem_handle;
 
 #include "mali_base_mem_priv.h"
 #include "mali_kbase_profiling_gator_api.h"
+#include "mali_midg_coherency.h"
+#include "mali_kbase_gpu_id.h"
 
 /*
  * Dependency stuff, keep it private for now. May want to expose it if
@@ -184,7 +186,13 @@ enum {
 
 
 /**
- * @brief Memory types supported by @a base_mem_import
+ * enum base_mem_import_type - Memory types supported by @a base_mem_import
+ *
+ * @BASE_MEM_IMPORT_TYPE_INVALID: Invalid type
+ * @BASE_MEM_IMPORT_TYPE_UMP: UMP import. Handle type is ump_secure_id.
+ * @BASE_MEM_IMPORT_TYPE_UMM: UMM import. Handle type is a file descriptor (int)
+ * @BASE_MEM_IMPORT_TYPE_USER_BUFFER: User buffer import. Handle is a
+ * base_mem_import_user_buffer
  *
  * Each type defines what the supported handle type is.
  *
@@ -196,11 +204,24 @@ enum {
  */
 typedef enum base_mem_import_type {
 	BASE_MEM_IMPORT_TYPE_INVALID = 0,
-	/** UMP import. Handle type is ump_secure_id. */
 	BASE_MEM_IMPORT_TYPE_UMP = 1,
-	/** UMM import. Handle type is a file descriptor (int) */
-	BASE_MEM_IMPORT_TYPE_UMM = 2
+	BASE_MEM_IMPORT_TYPE_UMM = 2,
+	BASE_MEM_IMPORT_TYPE_USER_BUFFER = 3
 } base_mem_import_type;
+
+/**
+ * struct base_mem_import_user_buffer - Handle of an imported user buffer
+ *
+ * @ptr:	kbase_pointer to imported user buffer
+ * @length:	length of imported user buffer in bytes
+ *
+ * This structure is used to represent a handle of an imported user buffer.
+ */
+
+struct base_mem_import_user_buffer {
+	kbase_pointer ptr;
+	u64 length;
+};
 
 /**
  * @brief Invalid memory handle type.
@@ -463,9 +484,6 @@ typedef u16 base_jd_core_req;
  *
  * In contrast to @ref BASE_JD_REQ_CS, this does \b not indicate that the Job
  * Chain contains 'Geometry Shader' or 'Vertex Shader' jobs.
- *
- * @note This is a more flexible variant of the @ref BASE_CONTEXT_HINT_ONLY_COMPUTE flag,
- * allowing specific jobs to be marked as 'Only Compute' instead of the entire context
  */
 #define BASE_JD_REQ_ONLY_COMPUTE    (1U << 10)
 
@@ -1365,8 +1383,7 @@ struct gpu_raw_gpu_props {
 	u64 shader_present;
 	u64 tiler_present;
 	u64 l2_present;
-	u32 coherency_enabled;
-	u32 unused_1; /* keep for backward compatibility */
+	u64 unused_1; /* keep for backward compatibility */
 
 	u32 l2_features;
 	u32 suspend_size; /* API 8.2+ */
@@ -1387,7 +1404,11 @@ struct gpu_raw_gpu_props {
 	u32 thread_max_barrier_size;
 	u32 thread_features;
 
-	u32 coherency_features;
+	/*
+	 * Note: This is the _selected_ coherency mode rather than the
+	 * available modes as exposed in the coherency_features register.
+	 */
+	u32 coherency_mode;
 };
 
 /**
@@ -1441,28 +1462,7 @@ enum base_context_create_flags {
 	/** Base context is a 'System Monitor' context for Hardware counters.
 	 *
 	 * One important side effect of this is that job submission is disabled. */
-	BASE_CONTEXT_SYSTEM_MONITOR_SUBMIT_DISABLED = (1u << 1),
-
-	/** Base context flag indicating a 'hint' that this context uses Compute
-	 * Jobs only.
-	 *
-	 * Specifially, this means that it only sends atoms that <b>do not</b>
-	 * contain the following @ref base_jd_core_req :
-	 * - BASE_JD_REQ_FS
-	 * - BASE_JD_REQ_T
-	 *
-	 * Violation of these requirements will cause the Job-Chains to be rejected.
-	 *
-	 * In addition, it is inadvisable for the atom's Job-Chains to contain Jobs
-	 * of the following @ref gpu_job_type (whilst it may work now, it may not
-	 * work in future) :
-	 * - @ref GPU_JOB_VERTEX
-	 * - @ref GPU_JOB_GEOMETRY
-	 *
-	 * @note An alternative to using this is to specify the BASE_JD_REQ_ONLY_COMPUTE
-	 * requirement in atoms.
-	 */
-	BASE_CONTEXT_HINT_ONLY_COMPUTE = (1u << 2)
+	BASE_CONTEXT_SYSTEM_MONITOR_SUBMIT_DISABLED = (1u << 1)
 };
 
 /**
@@ -1470,15 +1470,13 @@ enum base_context_create_flags {
  */
 #define BASE_CONTEXT_CREATE_ALLOWED_FLAGS \
 	(((u32)BASE_CONTEXT_CCTX_EMBEDDED) | \
-	  ((u32)BASE_CONTEXT_SYSTEM_MONITOR_SUBMIT_DISABLED) | \
-	  ((u32)BASE_CONTEXT_HINT_ONLY_COMPUTE))
+	  ((u32)BASE_CONTEXT_SYSTEM_MONITOR_SUBMIT_DISABLED))
 
 /**
  * Bitpattern describing the ::base_context_create_flags that can be passed to the kernel
  */
 #define BASE_CONTEXT_CREATE_KERNEL_FLAGS \
-	(((u32)BASE_CONTEXT_SYSTEM_MONITOR_SUBMIT_DISABLED) | \
-	  ((u32)BASE_CONTEXT_HINT_ONLY_COMPUTE))
+	((u32)BASE_CONTEXT_SYSTEM_MONITOR_SUBMIT_DISABLED)
 
 /**
  * Private flags used on the base context

@@ -15,17 +15,12 @@
 
 
 
-#include <mali_kbase_config.h>
+#ifndef _MIDG_COHERENCY_H_
+#define _MIDG_COHERENCY_H_
 
-int kbase_platform_early_init(void)
-{
-	/* Nothing needed at this stage */
-	return 0;
-}
+#define COHERENCY_ACE_LITE 0
+#define COHERENCY_ACE      1
+#define COHERENCY_NONE     31
+#define COHERENCY_FEATURE_BIT(x) (1 << (x))
 
-static struct kbase_platform_config dummy_platform_config;
-
-struct kbase_platform_config *kbase_get_platform_config(void)
-{
-	return &dummy_platform_config;
-}
+#endif /* _MIDG_COHERENCY_H_ */

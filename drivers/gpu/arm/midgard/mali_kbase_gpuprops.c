@@ -87,7 +87,6 @@ int kbase_gpuprops_uk_get_props(struct kbase_context *kctx, struct kbase_uk_gpup
 	if (kctx->api_version < KBASE_API_VERSION(8, 2))
 		kbase_props->props.raw_props.suspend_size = 0;
 
-
 	return 0;
 }
 
@@ -200,7 +199,6 @@ static void kbase_gpuprops_get_props(base_gpu_props * const gpu_props, struct kb
 	gpu_props->raw_props.thread_max_threads = regdump.thread_max_threads;
 	gpu_props->raw_props.thread_max_workgroup_size = regdump.thread_max_workgroup_size;
 	gpu_props->raw_props.thread_features = regdump.thread_features;
-
 }
 
 /**
@@ -296,4 +294,21 @@ void kbase_gpuprops_set(struct kbase_device *kbdev)
 	gpu_props->num_core_groups = hweight64(raw->l2_present);
 	gpu_props->num_address_spaces = hweight32(raw->as_present);
 	gpu_props->num_job_slots = hweight32(raw->js_present);
+}
+
+void kbase_gpuprops_set_features(struct kbase_device *kbdev)
+{
+	base_gpu_props *gpu_props;
+	struct kbase_gpuprops_regdump regdump;
+
+	gpu_props = &kbdev->gpu_props.props;
+
+	/* Dump relevant registers */
+	kbase_backend_gpuprops_get_features(kbdev, &regdump);
+
+	/*
+	 * Copy the raw value from the register, later this will get turned
+	 * into the selected coherency mode.
+	 */
+	gpu_props->raw_props.coherency_mode = regdump.coherency_features;
 }

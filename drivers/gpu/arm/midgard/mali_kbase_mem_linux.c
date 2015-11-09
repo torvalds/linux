@@ -26,12 +26,13 @@
 #include <linux/kernel.h>
 #include <linux/bug.h>
 #include <linux/mm.h>
+#include <linux/mman.h>
 #include <linux/fs.h>
 #include <linux/version.h>
 #include <linux/dma-mapping.h>
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0))
 	#include <linux/dma-attrs.h>
-#endif
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)  */
 #ifdef CONFIG_DMA_SHARED_BUFFER
 #include <linux/dma-buf.h>
 #endif				/* defined(CONFIG_DMA_SHARED_BUFFER) */
@@ -89,12 +90,12 @@ struct kbase_va_region *kbase_mem_alloc(struct kbase_context *kctx, u64 va_pages
 	}
 
 	if ((*flags & BASE_MEM_COHERENT_SYSTEM_REQUIRED) != 0 &&
-			kctx->kbdev->system_coherency != COHERENCY_ACE) {
+			!kbase_device_is_cpu_coherent(kctx->kbdev)) {
 		dev_warn(dev, "kbase_mem_alloc call required coherent mem when unavailable");
 		goto bad_flags;
 	}
 	if ((*flags & BASE_MEM_COHERENT_SYSTEM) != 0 &&
-			kctx->kbdev->system_coherency != COHERENCY_ACE) {
+			!kbase_device_is_cpu_coherent(kctx->kbdev)) {
 		/* Remove COHERENT_SYSTEM flag if coherent mem is unavailable */
 		*flags &= ~BASE_MEM_COHERENT_SYSTEM;
 	}
@@ -141,20 +142,29 @@ struct kbase_va_region *kbase_mem_alloc(struct kbase_context *kctx, u64 va_pages
 
 	/* mmap needed to setup VA? */
 	if (*flags & BASE_MEM_SAME_VA) {
+		unsigned long prot = PROT_NONE;
+		unsigned long va_size = va_pages << PAGE_SHIFT;
+		unsigned long va_map = va_size;
+		unsigned long cookie;
+		unsigned long cpu_addr;
+
 		/* Bind to a cookie */
 		if (!kctx->cookies) {
 			dev_err(dev, "No cookies available for allocation!");
+			kbase_gpu_vm_unlock(kctx);
 			goto no_cookie;
 		}
 		/* return a cookie */
-		*gpu_va = __ffs(kctx->cookies);
-		kctx->cookies &= ~(1UL << *gpu_va);
-		BUG_ON(kctx->pending_regions[*gpu_va]);
-		kctx->pending_regions[*gpu_va] = reg;
+		cookie = __ffs(kctx->cookies);
+		kctx->cookies &= ~(1UL << cookie);
+		BUG_ON(kctx->pending_regions[cookie]);
+		kctx->pending_regions[cookie] = reg;
+
+		kbase_gpu_vm_unlock(kctx);
 
 		/* relocate to correct base */
-		*gpu_va += PFN_DOWN(BASE_MEM_COOKIE_BASE);
-		*gpu_va <<= PAGE_SHIFT;
+		cookie += PFN_DOWN(BASE_MEM_COOKIE_BASE);
+		cookie <<= PAGE_SHIFT;
 
 		/* See if we must align memory due to GPU PC bits vs CPU VA */
 		if ((*flags & BASE_MEM_PROT_GPU_EX) &&
@@ -162,21 +172,97 @@ struct kbase_va_region *kbase_mem_alloc(struct kbase_context *kctx, u64 va_pages
 			*va_alignment = gpu_pc_bits;
 			reg->flags |= KBASE_REG_ALIGNED;
 		}
+
+		/*
+		 * Pre-10.1 UKU userland calls mmap for us so return the
+		 * unaligned address and skip the map.
+		 */
+		if (kctx->api_version < KBASE_API_VERSION(10, 1)) {
+			*gpu_va = (u64) cookie;
+			return reg;
+		}
+
+		/*
+		 * GPUCORE-2190:
+		 *
+		 * We still need to return alignment for old userspace.
+		 */
+		if (*va_alignment)
+			va_map += 3 * (1UL << *va_alignment);
+
+		if (*flags & BASE_MEM_PROT_CPU_RD)
+			prot |= PROT_READ;
+		if (*flags & BASE_MEM_PROT_CPU_WR)
+			prot |= PROT_WRITE;
+
+		cpu_addr = vm_mmap(kctx->filp, 0, va_map, prot, MAP_SHARED,
+				cookie);
+		if (IS_ERR_VALUE(cpu_addr))
+			goto no_mmap;
+
+		/*
+		 * If we had to allocate extra VA space to force the
+		 * alignment release it.
+		 */
+		if (*va_alignment) {
+			unsigned long alignment = 1UL << *va_alignment;
+			unsigned long align_mask = alignment - 1;
+			unsigned long addr;
+			unsigned long addr_end;
+			unsigned long aligned_addr;
+			unsigned long aligned_addr_end;
+
+			addr = cpu_addr;
+			addr_end = addr + va_map;
+
+			aligned_addr = (addr + align_mask) &
+					~((u64) align_mask);
+			aligned_addr_end = aligned_addr + va_size;
+
+			if ((aligned_addr_end & BASE_MEM_MASK_4GB) == 0) {
+				/*
+				 * Can't end at 4GB boundary on some GPUs as
+				 * it will halt the shader.
+				 */
+				aligned_addr += 2 * alignment;
+				aligned_addr_end += 2 * alignment;
+			} else if ((aligned_addr & BASE_MEM_MASK_4GB) == 0) {
+				/*
+				 * Can't start at 4GB boundary on some GPUs as
+				 * it will halt the shader.
+				 */
+				aligned_addr += alignment;
+				aligned_addr_end += alignment;
+			}
+
+			/* anything to chop off at the start? */
+			if (addr != aligned_addr)
+				vm_munmap(addr, aligned_addr - addr);
+
+			/* anything at the end? */
+			if (addr_end != aligned_addr_end)
+				vm_munmap(aligned_addr_end,
+						addr_end - aligned_addr_end);
+
+			*gpu_va = (u64) aligned_addr;
+		} else
+			*gpu_va = (u64) cpu_addr;
 	} else /* we control the VA */ {
 		if (kbase_gpu_mmap(kctx, reg, 0, va_pages, 1) != 0) {
 			dev_warn(dev, "Failed to map memory on GPU");
+			kbase_gpu_vm_unlock(kctx);
 			goto no_mmap;
 		}
 		/* return real GPU VA */
 		*gpu_va = reg->start_pfn << PAGE_SHIFT;
+
+		kbase_gpu_vm_unlock(kctx);
 	}
 
-	kbase_gpu_vm_unlock(kctx);
 	return reg;
 
 no_mmap:
 no_cookie:
-	kbase_gpu_vm_unlock(kctx);
 no_mem:
 	kbase_mem_phy_alloc_put(reg->cpu_alloc);
 	kbase_mem_phy_alloc_put(reg->gpu_alloc);
@@ -351,10 +437,6 @@ static struct kbase_va_region *kbase_mem_from_ump(struct kbase_context *kctx, um
 	ump_alloc_flags ump_flags;
 	ump_alloc_flags cpu_flags;
 	ump_alloc_flags gpu_flags;
-
-	KBASE_DEBUG_ASSERT(kctx);
-	KBASE_DEBUG_ASSERT(va_pages);
-	KBASE_DEBUG_ASSERT(flags);
 
 	if (*flags & BASE_MEM_SECURE)
 		goto bad_flags;
@@ -554,6 +636,106 @@ no_buf:
 }
 #endif  /* CONFIG_DMA_SHARED_BUFFER */
 
+
+static struct kbase_va_region *kbase_mem_from_user_buffer(
+		struct kbase_context *kctx, unsigned long address,
+		unsigned long size, u64 *va_pages, u64 *flags)
+{
+	struct kbase_va_region *reg;
+	long faulted_pages;
+	int zone = KBASE_REG_ZONE_CUSTOM_VA;
+
+	*va_pages = (PAGE_ALIGN(address + size) >> PAGE_SHIFT) -
+		PFN_DOWN(address);
+	if (!*va_pages)
+		goto bad_size;
+
+	if (*va_pages > (UINT64_MAX / PAGE_SIZE))
+		/* 64-bit address range is the max */
+		goto bad_size;
+
+	/* SAME_VA generally not supported with imported memory (no known use cases) */
+	*flags &= ~BASE_MEM_SAME_VA;
+
+#ifdef CONFIG_64BIT
+	if (!kctx->is_compat) {
+		/* 64-bit tasks must MMAP anyway, but not expose this address to
+		 * clients */
+		*flags |= BASE_MEM_NEED_MMAP;
+		zone = KBASE_REG_ZONE_SAME_VA;
+	}
+#endif
+	reg = kbase_alloc_free_region(kctx, 0, *va_pages, zone);
+
+	if (!reg)
+		goto no_region;
+
+	reg->gpu_alloc = kbase_alloc_create(*va_pages,
+			KBASE_MEM_TYPE_IMPORTED_USER_BUF);
+	if (IS_ERR_OR_NULL(reg->gpu_alloc))
+		goto no_alloc_obj;
+
+	reg->cpu_alloc = kbase_mem_phy_alloc_get(reg->gpu_alloc);
+
+	reg->flags &= ~KBASE_REG_FREE;
+	reg->flags |= KBASE_REG_GPU_NX; /* User-buffers are always No eXecute */
+	reg->flags &= ~KBASE_REG_GROWABLE; /* Cannot be grown */
+
+	if (*flags & BASE_MEM_PROT_CPU_WR)
+		reg->flags |= KBASE_REG_CPU_WR;
+
+	if (*flags & BASE_MEM_PROT_CPU_RD)
+		reg->flags |= KBASE_REG_CPU_RD;
+
+	if (*flags & BASE_MEM_PROT_GPU_WR)
+		reg->flags |= KBASE_REG_GPU_WR;
+
+	if (*flags & BASE_MEM_PROT_GPU_RD)
+		reg->flags |= KBASE_REG_GPU_RD;
+
+	down_read(&current->mm->mmap_sem);
+
+	/* A sanity check that get_user_pages will work on the memory */
+	/* (so the initial import fails on weird memory regions rather than */
+	/* the job failing when we try to handle the external resources). */
+	/* It doesn't take a reference to the pages (because the page list is NULL). */
+	/* We can't really store the page list because that would involve */
+	/* keeping the pages pinned - instead we pin/unpin around the job */
+	/* (as part of the external resources handling code) */
+	faulted_pages = get_user_pages(current, current->mm, address, *va_pages,
+			reg->flags & KBASE_REG_GPU_WR, 0, NULL, NULL);
+	up_read(&current->mm->mmap_sem);
+
+	if (faulted_pages != *va_pages)
+		goto fault_mismatch;
+
+	reg->gpu_alloc->imported.user_buf.size = size;
+	reg->gpu_alloc->imported.user_buf.address = address;
+	reg->gpu_alloc->imported.user_buf.nr_pages = faulted_pages;
+	reg->gpu_alloc->imported.user_buf.pages = kmalloc_array(faulted_pages,
+			sizeof(struct page *), GFP_KERNEL);
+	reg->gpu_alloc->imported.user_buf.owner = current;
+
+	if (!reg->gpu_alloc->imported.user_buf.pages)
+		goto no_page_array;
+
+	reg->gpu_alloc->nents = 0;
+	reg->extent = 0;
+
+	return reg;
+
+no_page_array:
+fault_mismatch:
+	kbase_mem_phy_alloc_put(reg->gpu_alloc);
+no_alloc_obj:
+	kfree(reg);
+no_region:
+bad_size:
+	return NULL;
+
+}
+
+
 u64 kbase_mem_alias(struct kbase_context *kctx, u64 *flags, u64 stride,
 		    u64 nents, struct base_mem_aliasing_info *ai,
 		    u64 *num_pages)
@@ -736,7 +918,9 @@ bad_flags:
 	return 0;
 }
 
-int kbase_mem_import(struct kbase_context *kctx, enum base_mem_import_type type, int handle, u64 *gpu_va, u64 *va_pages, u64 *flags)
+int kbase_mem_import(struct kbase_context *kctx, enum base_mem_import_type type,
+		void __user *phandle, u64 *gpu_va, u64 *va_pages,
+		u64 *flags)
 {
 	struct kbase_va_region *reg;
 
@@ -759,18 +943,52 @@ int kbase_mem_import(struct kbase_context *kctx, enum base_mem_import_type type,
 
 	switch (type) {
 #ifdef CONFIG_UMP
-	case BASE_MEM_IMPORT_TYPE_UMP:
-		reg = kbase_mem_from_ump(kctx, (ump_secure_id)handle, va_pages, flags);
-		break;
+	case BASE_MEM_IMPORT_TYPE_UMP: {
+		ump_secure_id id;
+
+		if (get_user(id, (ump_secure_id __user *)phandle))
+			reg = NULL;
+		else
+			reg = kbase_mem_from_ump(kctx, id, va_pages, flags);
+	}
+	break;
 #endif /* CONFIG_UMP */
 #ifdef CONFIG_DMA_SHARED_BUFFER
-	case BASE_MEM_IMPORT_TYPE_UMM:
-		reg = kbase_mem_from_umm(kctx, handle, va_pages, flags);
-		break;
+	case BASE_MEM_IMPORT_TYPE_UMM: {
+		int fd;
+
+		if (get_user(fd, (int __user *)phandle))
+			reg = NULL;
+		else
+			reg = kbase_mem_from_umm(kctx, fd, va_pages, flags);
+	}
+	break;
 #endif /* CONFIG_DMA_SHARED_BUFFER */
-	default:
+	case BASE_MEM_IMPORT_TYPE_USER_BUFFER: {
+		struct base_mem_import_user_buffer user_buffer;
+		void __user *uptr;
+
+		if (copy_from_user(&user_buffer, phandle,
+				sizeof(user_buffer))) {
+			reg = NULL;
+		} else {
+#ifdef CONFIG_COMPAT
+			if (kctx->is_compat)
+				uptr = compat_ptr(user_buffer.ptr.compat_value);
+			else
+#endif
+				uptr = user_buffer.ptr.value;
+
+			reg = kbase_mem_from_user_buffer(kctx,
+					(unsigned long)uptr, user_buffer.length,
+					va_pages, flags);
+		}
+		break;
+	}
+	default: {
 		reg = NULL;
 		break;
+	}
 	}
 
 	if (!reg)

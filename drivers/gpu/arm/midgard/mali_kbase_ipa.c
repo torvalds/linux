@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -21,48 +21,37 @@
 
 #define NR_IPA_GROUPS 8
 
+struct kbase_ipa_context;
+
 /**
  * struct ipa_group - represents a single IPA group
  * @name:               name of the IPA group
  * @capacitance:        capacitance constant for IPA group
+ * @calc_power:         function to calculate power for IPA group
  */
 struct ipa_group {
 	const char *name;
 	u32 capacitance;
+	u32 (*calc_power)(struct kbase_ipa_context *,
+			struct ipa_group *);
 };
+
+#include <mali_kbase_ipa_tables.h>
 
 /**
  * struct kbase_ipa_context - IPA context per device
- * @kbdev:      pointer to kbase device
- * @groups:     array of IPA groups for this context
- * @ipa_lock:   protects the entire IPA context
+ * @kbdev:              pointer to kbase device
+ * @groups:             array of IPA groups for this context
+ * @vinstr_cli:         vinstr client handle
+ * @vinstr_buffer:      buffer to dump hardware counters onto
+ * @ipa_lock:           protects the entire IPA context
  */
 struct kbase_ipa_context {
 	struct kbase_device *kbdev;
 	struct ipa_group groups[NR_IPA_GROUPS];
+	struct kbase_vinstr_client *vinstr_cli;
+	void *vinstr_buffer;
 	struct mutex ipa_lock;
-};
-
-static struct ipa_group ipa_groups_def_v4[] = {
-	{ .name = "group0", .capacitance = 0 },
-	{ .name = "group1", .capacitance = 0 },
-	{ .name = "group2", .capacitance = 0 },
-	{ .name = "group3", .capacitance = 0 },
-	{ .name = "group4", .capacitance = 0 },
-	{ .name = "group5", .capacitance = 0 },
-	{ .name = "group6", .capacitance = 0 },
-	{ .name = "group7", .capacitance = 0 },
-};
-
-static struct ipa_group ipa_groups_def_v5[] = {
-	{ .name = "group0", .capacitance = 0 },
-	{ .name = "group1", .capacitance = 0 },
-	{ .name = "group2", .capacitance = 0 },
-	{ .name = "group3", .capacitance = 0 },
-	{ .name = "group4", .capacitance = 0 },
-	{ .name = "group5", .capacitance = 0 },
-	{ .name = "group6", .capacitance = 0 },
-	{ .name = "group7", .capacitance = 0 },
 };
 
 static ssize_t show_ipa_group(struct device *dev,
@@ -143,22 +132,7 @@ static struct attribute_group kbase_ipa_attr_group = {
 
 static void init_ipa_groups(struct kbase_ipa_context *ctx)
 {
-	struct kbase_device *kbdev = ctx->kbdev;
-	struct ipa_group *defs;
-	size_t i, len;
-
-	if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_V4)) {
-		defs = ipa_groups_def_v4;
-		len = ARRAY_SIZE(ipa_groups_def_v4);
-	} else {
-		defs = ipa_groups_def_v5;
-		len = ARRAY_SIZE(ipa_groups_def_v5);
-	}
-
-	for (i = 0; i < len; i++) {
-		ctx->groups[i].name = defs[i].name;
-		ctx->groups[i].capacitance = defs[i].capacitance;
-	}
+	memcpy(ctx->groups, ipa_groups_def, sizeof(ctx->groups));
 }
 
 #if defined(CONFIG_OF) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0))
@@ -229,6 +203,172 @@ static int reset_ipa_groups(struct kbase_ipa_context *ctx)
 	return update_ipa_groups_from_dt(ctx);
 }
 
+static inline u32 read_hwcnt(struct kbase_ipa_context *ctx,
+	u32 offset)
+{
+	u8 *p = ctx->vinstr_buffer;
+
+	return *(u32 *)&p[offset];
+}
+
+static inline u32 add_saturate(u32 a, u32 b)
+{
+	if (U32_MAX - a < b)
+		return U32_MAX;
+	return a + b;
+}
+
+/*
+ * Calculate power estimation based on hardware counter `c'
+ * across all shader cores.
+ */
+static u32 calc_power_sc_single(struct kbase_ipa_context *ctx,
+	struct ipa_group *group, u32 c)
+{
+	struct kbase_device *kbdev = ctx->kbdev;
+	u64 core_mask;
+	u32 base = 0, r = 0;
+
+	core_mask = kbdev->gpu_props.props.coherency_info.group[0].core_mask;
+	while (core_mask != 0ull) {
+		if ((core_mask & 1ull) != 0ull) {
+			u64 n = read_hwcnt(ctx, base + c);
+			u32 d = read_hwcnt(ctx, GPU_ACTIVE);
+			u32 s = group->capacitance;
+
+			r = add_saturate(r, div_u64(n * s, d));
+		}
+		base += NR_CNT_PER_BLOCK * NR_BYTES_PER_CNT;
+		core_mask >>= 1;
+	}
+	return r;
+}
+
+/*
+ * Calculate power estimation based on hardware counter `c1'
+ * and `c2' across all shader cores.
+ */
+static u32 calc_power_sc_double(struct kbase_ipa_context *ctx,
+	struct ipa_group *group, u32 c1, u32 c2)
+{
+	struct kbase_device *kbdev = ctx->kbdev;
+	u64 core_mask;
+	u32 base = 0, r = 0;
+
+	core_mask = kbdev->gpu_props.props.coherency_info.group[0].core_mask;
+	while (core_mask != 0ull) {
+		if ((core_mask & 1ull) != 0ull) {
+			u64 n = read_hwcnt(ctx, base + c1);
+			u32 d = read_hwcnt(ctx, GPU_ACTIVE);
+			u32 s = group->capacitance;
+
+			r = add_saturate(r, div_u64(n * s, d));
+			n = read_hwcnt(ctx, base + c2);
+			r = add_saturate(r, div_u64(n * s, d));
+		}
+		base += NR_CNT_PER_BLOCK * NR_BYTES_PER_CNT;
+		core_mask >>= 1;
+	}
+	return r;
+}
+
+static u32 calc_power_single(struct kbase_ipa_context *ctx,
+	struct ipa_group *group, u32 c)
+{
+	u64 n = read_hwcnt(ctx, c);
+	u32 d = read_hwcnt(ctx, GPU_ACTIVE);
+	u32 s = group->capacitance;
+
+	return div_u64(n * s, d);
+}
+
+static u32 calc_power_group0(struct kbase_ipa_context *ctx,
+		struct ipa_group *group)
+{
+	return calc_power_single(ctx, group, L2_ANY_LOOKUP);
+}
+
+static u32 calc_power_group1(struct kbase_ipa_context *ctx,
+		struct ipa_group *group)
+{
+	return calc_power_single(ctx, group, TILER_ACTIVE);
+}
+
+static u32 calc_power_group2(struct kbase_ipa_context *ctx,
+		struct ipa_group *group)
+{
+	return calc_power_sc_single(ctx, group, FRAG_ACTIVE);
+}
+
+static u32 calc_power_group3(struct kbase_ipa_context *ctx,
+		struct ipa_group *group)
+{
+	return calc_power_sc_double(ctx, group, VARY_SLOT_32,
+			VARY_SLOT_16);
+}
+
+static u32 calc_power_group4(struct kbase_ipa_context *ctx,
+		struct ipa_group *group)
+{
+	return calc_power_sc_single(ctx, group, TEX_COORD_ISSUE);
+}
+
+static u32 calc_power_group5(struct kbase_ipa_context *ctx,
+		struct ipa_group *group)
+{
+	return calc_power_sc_single(ctx, group, EXEC_INSTR_COUNT);
+}
+
+static u32 calc_power_group6(struct kbase_ipa_context *ctx,
+		struct ipa_group *group)
+{
+	return calc_power_sc_double(ctx, group, BEATS_RD_LSC,
+			BEATS_WR_LSC);
+}
+
+static u32 calc_power_group7(struct kbase_ipa_context *ctx,
+		struct ipa_group *group)
+{
+	return calc_power_sc_single(ctx, group, EXEC_CORE_ACTIVE);
+}
+
+static int attach_vinstr(struct kbase_ipa_context *ctx)
+{
+	struct kbase_device *kbdev = ctx->kbdev;
+	struct kbase_uk_hwcnt_reader_setup setup;
+	size_t dump_size;
+
+	dump_size = kbase_vinstr_dump_size(kbdev);
+	ctx->vinstr_buffer = kzalloc(dump_size, GFP_KERNEL);
+	if (!ctx->vinstr_buffer) {
+		dev_err(kbdev->dev, "Failed to allocate IPA dump buffer");
+		return -1;
+	}
+
+	setup.jm_bm = ~0u;
+	setup.shader_bm = ~0u;
+	setup.tiler_bm = ~0u;
+	setup.mmu_l2_bm = ~0u;
+	ctx->vinstr_cli = kbase_vinstr_hwcnt_kernel_setup(kbdev->vinstr_ctx,
+			&setup, ctx->vinstr_buffer);
+	if (!ctx->vinstr_cli) {
+		dev_err(kbdev->dev, "Failed to register IPA with vinstr core");
+		kfree(ctx->vinstr_buffer);
+		ctx->vinstr_buffer = NULL;
+		return -1;
+	}
+	return 0;
+}
+
+static void detach_vinstr(struct kbase_ipa_context *ctx)
+{
+	if (ctx->vinstr_cli)
+		kbase_vinstr_detach_client(ctx->vinstr_cli);
+	ctx->vinstr_cli = NULL;
+	kfree(ctx->vinstr_buffer);
+	ctx->vinstr_buffer = NULL;
+}
+
 struct kbase_ipa_context *kbase_ipa_init(struct kbase_device *kbdev)
 {
 	struct kbase_ipa_context *ctx;
@@ -259,6 +399,33 @@ void kbase_ipa_term(struct kbase_ipa_context *ctx)
 {
 	struct kbase_device *kbdev = ctx->kbdev;
 
+	detach_vinstr(ctx);
 	sysfs_remove_group(&kbdev->dev->kobj, &kbase_ipa_attr_group);
 	kfree(ctx);
 }
+
+u32 kbase_ipa_dynamic_power(struct kbase_ipa_context *ctx, int *err)
+{
+	struct ipa_group *group;
+	u32 power = 0;
+	size_t i;
+
+	mutex_lock(&ctx->ipa_lock);
+	if (!ctx->vinstr_cli) {
+		*err = attach_vinstr(ctx);
+		if (*err < 0)
+			goto err0;
+	}
+	*err = kbase_vinstr_hwc_dump(ctx->vinstr_cli,
+			BASE_HWCNT_READER_EVENT_MANUAL);
+	if (*err)
+		goto err0;
+	for (i = 0; i < ARRAY_SIZE(ctx->groups); i++) {
+		group = &ctx->groups[i];
+		power = add_saturate(power, group->calc_power(ctx, group));
+	}
+err0:
+	mutex_unlock(&ctx->ipa_lock);
+	return power;
+}
+KBASE_EXPORT_TEST_API(kbase_ipa_dynamic_power);

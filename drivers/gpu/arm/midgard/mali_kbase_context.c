@@ -262,9 +262,6 @@ int kbase_context_set_create_flags(struct kbase_context *kctx, u32 flags)
 	if ((flags & BASE_CONTEXT_SYSTEM_MONITOR_SUBMIT_DISABLED) == 0)
 		js_kctx_info->ctx.flags &= ~((u32) KBASE_CTX_FLAG_SUBMIT_DISABLED);
 
-	if ((flags & BASE_CONTEXT_HINT_ONLY_COMPUTE) != 0)
-		js_kctx_info->ctx.flags |= (u32) KBASE_CTX_FLAG_HINT_ONLY_COMPUTE;
-
 	/* Latch the initial attributes into the Job Scheduler */
 	kbasep_js_ctx_attr_set_initial_attrs(kctx->kbdev, kctx);
 

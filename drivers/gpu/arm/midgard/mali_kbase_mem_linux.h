@@ -34,7 +34,9 @@ struct kbase_hwc_dma_mapping {
 
 struct kbase_va_region *kbase_mem_alloc(struct kbase_context *kctx, u64 va_pages, u64 commit_pages, u64 extent, u64 *flags, u64 *gpu_va, u16 *va_alignment);
 int kbase_mem_query(struct kbase_context *kctx, u64 gpu_addr, int query, u64 *const pages);
-int kbase_mem_import(struct kbase_context *kctx, enum base_mem_import_type type, int handle, u64 *gpu_va, u64 *va_pages, u64 *flags);
+int kbase_mem_import(struct kbase_context *kctx, enum base_mem_import_type type,
+		void __user *phandle, u64 *gpu_va, u64 *va_pages,
+		u64 *flags);
 u64 kbase_mem_alias(struct kbase_context *kctx, u64 *flags, u64 stride, u64 nents, struct base_mem_aliasing_info *ai, u64 *num_pages);
 int kbase_mem_flags_change(struct kbase_context *kctx, u64 gpu_addr, unsigned int flags, unsigned int mask);
 int kbase_mem_commit(struct kbase_context *kctx, u64 gpu_addr, u64 new_pages, enum base_backing_threshold_status *failure_reason);

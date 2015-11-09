@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2013-2014 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2013-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -25,7 +25,7 @@
 #include <linux/list.h>
 #include <linux/file.h>
 
-#if CONFIG_DEBUG_FS
+#ifdef CONFIG_DEBUG_FS
 
 struct debug_mem_mapping {
 	struct list_head node;

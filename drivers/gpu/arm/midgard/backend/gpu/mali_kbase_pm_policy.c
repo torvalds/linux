@@ -183,9 +183,12 @@ static enum hrtimer_restart
 kbasep_pm_do_gpu_poweroff_callback(struct hrtimer *timer)
 {
 	struct kbase_device *kbdev;
+	unsigned long flags;
 
 	kbdev = container_of(timer, struct kbase_device,
 						pm.backend.gpu_poweroff_timer);
+
+	spin_lock_irqsave(&kbdev->pm.power_change_lock, flags);
 
 	/* It is safe for this call to do nothing if the work item is already
 	 * queued. The worker function will read the must up-to-date state of
@@ -200,29 +203,26 @@ kbasep_pm_do_gpu_poweroff_callback(struct hrtimer *timer)
 					&kbdev->pm.backend.gpu_poweroff_work);
 
 	if (kbdev->pm.backend.shader_poweroff_pending) {
-		unsigned long flags;
+		kbdev->pm.backend.shader_poweroff_pending_time--;
 
-		spin_lock_irqsave(&kbdev->pm.power_change_lock, flags);
-
-		if (kbdev->pm.backend.shader_poweroff_pending) {
-			kbdev->pm.backend.shader_poweroff_pending_time--;
-
-			KBASE_DEBUG_ASSERT(
+		KBASE_DEBUG_ASSERT(
 				kbdev->pm.backend.shader_poweroff_pending_time
 									>= 0);
 
-			if (!kbdev->pm.backend.shader_poweroff_pending_time)
-				kbasep_pm_do_poweroff_cores(kbdev);
-		}
-
-		spin_unlock_irqrestore(&kbdev->pm.power_change_lock, flags);
+		if (!kbdev->pm.backend.shader_poweroff_pending_time)
+			kbasep_pm_do_poweroff_cores(kbdev);
 	}
 
 	if (kbdev->pm.backend.poweroff_timer_needed) {
+		spin_unlock_irqrestore(&kbdev->pm.power_change_lock, flags);
+
 		hrtimer_add_expires(timer, kbdev->pm.gpu_poweroff_time);
 
 		return HRTIMER_RESTART;
 	}
+
+	kbdev->pm.backend.poweroff_timer_running = false;
+	spin_unlock_irqrestore(&kbdev->pm.power_change_lock, flags);
 
 	return HRTIMER_NORESTART;
 }
@@ -263,10 +263,13 @@ static void kbasep_pm_do_gpu_poweroff_wq(struct work_struct *data)
 	if (do_poweroff) {
 		kbdev->pm.backend.poweroff_timer_needed = false;
 		hrtimer_cancel(&kbdev->pm.backend.gpu_poweroff_timer);
+		kbdev->pm.backend.poweroff_timer_running = false;
+
 		/* Power off the GPU */
 		if (!kbase_pm_do_poweroff(kbdev, false)) {
 			/* GPU can not be powered off at present */
 			kbdev->pm.backend.poweroff_timer_needed = true;
+			kbdev->pm.backend.poweroff_timer_running = true;
 			hrtimer_start(&kbdev->pm.backend.gpu_poweroff_timer,
 					kbdev->pm.gpu_poweroff_time,
 					HRTIMER_MODE_REL);
@@ -316,12 +319,12 @@ void kbase_pm_cancel_deferred_poweroff(struct kbase_device *kbdev)
 
 	kbdev->pm.backend.poweroff_timer_needed = false;
 	hrtimer_cancel(&kbdev->pm.backend.gpu_poweroff_timer);
+	spin_lock_irqsave(&kbdev->pm.power_change_lock, flags);
+	kbdev->pm.backend.poweroff_timer_running = false;
 
 	/* If wq is already running but is held off by pm.lock, make sure it has
 	 * no effect */
 	kbdev->pm.backend.gpu_poweroff_pending = 0;
-
-	spin_lock_irqsave(&kbdev->pm.power_change_lock, flags);
 
 	kbdev->pm.backend.shader_poweroff_pending = 0;
 	kbdev->pm.backend.shader_poweroff_pending_time = 0;
@@ -331,87 +334,106 @@ void kbase_pm_cancel_deferred_poweroff(struct kbase_device *kbdev)
 
 void kbase_pm_update_active(struct kbase_device *kbdev)
 {
+	struct kbase_pm_device_data *pm = &kbdev->pm;
+	struct kbase_pm_backend_data *backend = &pm->backend;
 	unsigned long flags;
 	bool active;
 
-	lockdep_assert_held(&kbdev->pm.lock);
+	lockdep_assert_held(&pm->lock);
 
 	/* pm_current_policy will never be NULL while pm.lock is held */
-	KBASE_DEBUG_ASSERT(kbdev->pm.backend.pm_current_policy);
+	KBASE_DEBUG_ASSERT(backend->pm_current_policy);
 
-	spin_lock_irqsave(&kbdev->pm.power_change_lock, flags);
+	spin_lock_irqsave(&pm->power_change_lock, flags);
 
-	active = kbdev->pm.backend.pm_current_policy->get_core_active(kbdev);
+	active = backend->pm_current_policy->get_core_active(kbdev);
 
 	if (active) {
-		spin_unlock_irqrestore(&kbdev->pm.power_change_lock, flags);
-
-		if (kbdev->pm.backend.gpu_poweroff_pending) {
+		if (backend->gpu_poweroff_pending) {
 			/* Cancel any pending power off request */
-			kbdev->pm.backend.gpu_poweroff_pending = 0;
+			backend->gpu_poweroff_pending = 0;
 
 			/* If a request was pending then the GPU was still
 			 * powered, so no need to continue */
-			if (!kbdev->poweroff_pending)
+			if (!kbdev->poweroff_pending) {
+				spin_unlock_irqrestore(&pm->power_change_lock,
+						flags);
 				return;
+			}
 		}
 
-		if (!kbdev->pm.backend.poweroff_timer_needed &&
-				!kbdev->pm.backend.gpu_powered &&
-				(kbdev->pm.poweroff_gpu_ticks ||
-				kbdev->pm.poweroff_shader_ticks)) {
-			kbdev->pm.backend.poweroff_timer_needed = true;
-			hrtimer_start(&kbdev->pm.backend.gpu_poweroff_timer,
-					kbdev->pm.gpu_poweroff_time,
+		if (!backend->poweroff_timer_running && !backend->gpu_powered &&
+				(pm->poweroff_gpu_ticks ||
+				pm->poweroff_shader_ticks)) {
+			backend->poweroff_timer_needed = true;
+			backend->poweroff_timer_running = true;
+			hrtimer_start(&backend->gpu_poweroff_timer,
+					pm->gpu_poweroff_time,
 					HRTIMER_MODE_REL);
 		}
+
+		spin_unlock_irqrestore(&pm->power_change_lock, flags);
 
 		/* Power on the GPU and any cores requested by the policy */
 		kbase_pm_do_poweron(kbdev, false);
 	} else {
 		/* It is an error for the power policy to power off the GPU
 		 * when there are contexts active */
-		KBASE_DEBUG_ASSERT(kbdev->pm.active_count == 0);
+		KBASE_DEBUG_ASSERT(pm->active_count == 0);
 
-		if (kbdev->pm.backend.shader_poweroff_pending) {
-			kbdev->pm.backend.shader_poweroff_pending = 0;
-			kbdev->pm.backend.shader_poweroff_pending_time = 0;
+		if (backend->shader_poweroff_pending) {
+			backend->shader_poweroff_pending = 0;
+			backend->shader_poweroff_pending_time = 0;
 		}
 
-		spin_unlock_irqrestore(&kbdev->pm.power_change_lock, flags);
-
-
 		/* Request power off */
-		if (kbdev->pm.backend.gpu_powered) {
-			if (kbdev->pm.poweroff_gpu_ticks) {
-				kbdev->pm.backend.gpu_poweroff_pending =
-						kbdev->pm.poweroff_gpu_ticks;
-				if (!kbdev->pm.backend.poweroff_timer_needed) {
+		if (pm->backend.gpu_powered) {
+			if (pm->poweroff_gpu_ticks) {
+				backend->gpu_poweroff_pending =
+						pm->poweroff_gpu_ticks;
+				backend->poweroff_timer_needed = true;
+				if (!backend->poweroff_timer_running) {
 					/* Start timer if not running (eg if
 					 * power policy has been changed from
 					 * always_on to something else). This
 					 * will ensure the GPU is actually
 					 * powered off */
-					kbdev->pm.backend.poweroff_timer_needed
+					backend->poweroff_timer_running
 							= true;
 					hrtimer_start(
-					&kbdev->pm.backend.gpu_poweroff_timer,
-						kbdev->pm.gpu_poweroff_time,
+						&backend->gpu_poweroff_timer,
+						pm->gpu_poweroff_time,
 						HRTIMER_MODE_REL);
 				}
+				spin_unlock_irqrestore(&pm->power_change_lock,
+						flags);
 			} else {
+				spin_unlock_irqrestore(&pm->power_change_lock,
+						flags);
+
 				/* Power off the GPU immediately */
 				if (!kbase_pm_do_poweroff(kbdev, false)) {
 					/* GPU can not be powered off at present
 					 */
-					kbdev->pm.backend.poweroff_timer_needed
-							= true;
-					hrtimer_start(
-					&kbdev->pm.backend.gpu_poweroff_timer,
-						kbdev->pm.gpu_poweroff_time,
-						HRTIMER_MODE_REL);
+					spin_lock_irqsave(
+							&pm->power_change_lock,
+							flags);
+					backend->poweroff_timer_needed = true;
+					if (!backend->poweroff_timer_running) {
+						backend->poweroff_timer_running
+								= true;
+						hrtimer_start(
+						&backend->gpu_poweroff_timer,
+							pm->gpu_poweroff_time,
+							HRTIMER_MODE_REL);
+					}
+					spin_unlock_irqrestore(
+							&pm->power_change_lock,
+							flags);
 				}
 			}
+		} else {
+			spin_unlock_irqrestore(&pm->power_change_lock, flags);
 		}
 	}
 }
@@ -478,7 +500,6 @@ void kbase_pm_update_cores_state_nolock(struct kbase_device *kbdev)
 		 * Only reset poweroff_timer_needed if we're not in the middle
 		 * of the power off callback */
 		kbdev->pm.backend.poweroff_timer_needed = false;
-		hrtimer_try_to_cancel(&kbdev->pm.backend.gpu_poweroff_timer);
 	}
 
 	/* Ensure timer does not power off wanted cores and make sure to power

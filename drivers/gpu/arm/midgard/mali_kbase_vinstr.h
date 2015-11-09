@@ -67,6 +67,22 @@ int kbase_vinstr_legacy_hwc_setup(
 		struct kbase_uk_hwcnt_setup *setup);
 
 /**
+ * kbase_vinstr_hwcnt_kernel_setup - configure hw counters for kernel side
+ *                                   client
+ * @vinstr_ctx:    vinstr context
+ * @setup:         reader's configuration
+ * @kernel_buffer: pointer to dump buffer
+ *
+ * setup->buffer_count and setup->fd are not used for kernel side clients.
+ *
+ * Return: pointer to client structure, or NULL on failure
+ */
+struct kbase_vinstr_client *kbase_vinstr_hwcnt_kernel_setup(
+		struct kbase_vinstr_context *vinstr_ctx,
+		struct kbase_uk_hwcnt_reader_setup *setup,
+		void *kernel_buffer);
+
+/**
  * kbase_vinstr_hwc_dump - issue counter dump for vinstr client
  * @cli:      pointer to vinstr client
  * @event_id: id of event that triggered hwcnt dump
@@ -99,6 +115,20 @@ void kbase_vinstr_hwc_suspend(struct kbase_vinstr_context *vinstr_ctx);
  * @vinstr_ctx: vinstr context
  */
 void kbase_vinstr_hwc_resume(struct kbase_vinstr_context *vinstr_ctx);
+
+/**
+ * kbase_vinstr_dump_size - Return required size of dump buffer
+ * @kbdev: device pointer
+ *
+ * Return : buffer size in bytes
+ */
+size_t kbase_vinstr_dump_size(struct kbase_device *kbdev);
+
+/**
+ * kbase_vinstr_detach_client - Detach a client from the vinstr core
+ * @cli: Pointer to vinstr client
+ */
+void kbase_vinstr_detach_client(struct kbase_vinstr_client *cli);
 
 #endif /* _KBASE_VINSTR_H_ */
 

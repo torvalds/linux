@@ -261,7 +261,7 @@ void page_fault_worker(struct work_struct *data)
 #endif
 #if defined(CONFIG_MALI_MIPE_ENABLED)
 		kbase_tlstream_aux_pagefault(
-				as_no,
+				kctx->id,
 				atomic_read(&kctx->used_pages));
 #endif
 

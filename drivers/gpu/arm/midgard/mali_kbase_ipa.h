@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -30,3 +30,12 @@ struct kbase_ipa_context *kbase_ipa_init(struct kbase_device *kbdev);
  * @ctx:        pointer to the IPA context
  */
 void kbase_ipa_term(struct kbase_ipa_context *ctx);
+
+/**
+ * kbase_ipa_dynamic_power - calculate power
+ * @ctx:        pointer to the IPA context
+ * @err:        0 on success, negative on failure
+ *
+ * Return:      returns power consumption as mw @ 1GHz @ 1V
+ */
+u32 kbase_ipa_dynamic_power(struct kbase_ipa_context *ctx, int *err);

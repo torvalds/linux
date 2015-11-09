@@ -35,6 +35,9 @@
 #include "mali_kbase_debug_mem_view.h"
 #include "mali_kbase_mem.h"
 #include "mali_kbase_mem_pool_debugfs.h"
+#if !MALI_CUSTOMER_RELEASE
+#include "mali_kbase_regs_dump_debugfs.h"
+#endif /* !MALI_CUSTOMER_RELEASE */
 #include <mali_kbase_hwaccess_backend.h>
 #include <mali_kbase_hwaccess_jm.h>
 #include <backend/gpu/mali_kbase_device_internal.h>
@@ -317,8 +320,10 @@ static int kbase_external_buffer_lock(struct kbase_context *kctx,
 					resource_list_data.kds_resources,
 					KDS_WAIT_BLOCKING);
 
-			if (IS_ERR_OR_NULL(lock)) {
+			if (!lock) {
 				ret = -EINVAL;
+			} else if (IS_ERR(lock)) {
+				ret = PTR_ERR(lock);
 			} else {
 				ret = 0;
 				fdata->lock = lock;
@@ -487,6 +492,7 @@ static int kbase_dispatch(struct kbase_context *kctx, void * const args, u32 arg
 	struct kbase_device *kbdev;
 	union uk_header *ukh = args;
 	u32 id;
+	int ret = 0;
 
 	KBASE_DEBUG_ASSERT(ukh != NULL);
 
@@ -567,11 +573,9 @@ static int kbase_dispatch(struct kbase_context *kctx, void * const args, u32 arg
 				ukh->ret = MALI_ERROR_FUNCTION_FAILED;
 			break;
 		}
-	case KBASE_FUNC_MEM_IMPORT:
-		{
+	case KBASE_FUNC_MEM_IMPORT: {
 			struct kbase_uk_mem_import *mem_import = args;
-			int __user *phandle;
-			int handle;
+			void __user *phandle;
 
 			if (sizeof(*mem_import) != args_size)
 				goto bad_size;
@@ -582,26 +586,20 @@ static int kbase_dispatch(struct kbase_context *kctx, void * const args, u32 arg
 #endif
 				phandle = mem_import->phandle.value;
 
-			switch (mem_import->type) {
-			case BASE_MEM_IMPORT_TYPE_UMP:
-				get_user(handle, phandle);
-				break;
-			case BASE_MEM_IMPORT_TYPE_UMM:
-				get_user(handle, phandle);
-				break;
-			default:
-				mem_import->type = BASE_MEM_IMPORT_TYPE_INVALID;
+			if (mem_import->type == BASE_MEM_IMPORT_TYPE_INVALID) {
+				ukh->ret = MALI_ERROR_FUNCTION_FAILED;
 				break;
 			}
 
-			if (mem_import->type == BASE_MEM_IMPORT_TYPE_INVALID ||
-					kbase_mem_import(kctx, mem_import->type,
-					handle, &mem_import->gpu_va,
-					&mem_import->va_pages,
-					&mem_import->flags))
+			if (kbase_mem_import(kctx, mem_import->type, phandle,
+						&mem_import->gpu_va,
+						&mem_import->va_pages,
+						&mem_import->flags)) {
+				mem_import->type = BASE_MEM_IMPORT_TYPE_INVALID;
 				ukh->ret = MALI_ERROR_FUNCTION_FAILED;
+			}
 			break;
-		}
+	}
 	case KBASE_FUNC_MEM_ALIAS: {
 			struct kbase_uk_mem_alias *alias = args;
 			struct base_mem_aliasing_info __user *user_ai;
@@ -811,17 +809,9 @@ copy_failed:
 	case KBASE_FUNC_HWCNT_SETUP:
 		{
 			struct kbase_uk_hwcnt_setup *setup = args;
-			bool access_allowed;
 
 			if (sizeof(*setup) != args_size)
 				goto bad_size;
-
-			access_allowed = kbase_security_has_capability(
-					kctx,
-					KBASE_SEC_INSTR_HW_COUNTERS_COLLECT,
-					KBASE_SEC_FLAG_NOAUDIT);
-			if (!access_allowed)
-				goto out_bad;
 
 			mutex_lock(&kctx->vinstr_cli_lock);
 			if (kbase_vinstr_legacy_hwc_setup(kbdev->vinstr_ctx,
@@ -855,17 +845,9 @@ copy_failed:
 	case KBASE_FUNC_HWCNT_READER_SETUP:
 		{
 			struct kbase_uk_hwcnt_reader_setup *setup = args;
-			bool access_allowed;
 
 			if (sizeof(*setup) != args_size)
 				goto bad_size;
-
-			access_allowed = kbase_security_has_capability(
-					kctx,
-					KBASE_SEC_INSTR_HW_COUNTERS_COLLECT,
-					KBASE_SEC_FLAG_NOAUDIT);
-			if (!access_allowed)
-				goto out_bad;
 
 			mutex_lock(&kctx->vinstr_cli_lock);
 			if (kbase_vinstr_hwcnt_reader_setup(kbdev->vinstr_ctx,
@@ -971,9 +953,10 @@ copy_failed:
 	case KBASE_FUNC_EXT_BUFFER_LOCK:
 		{
 #ifdef CONFIG_KDS
-			switch (kbase_external_buffer_lock(kctx,
+			ret = kbase_external_buffer_lock(kctx,
 				(struct kbase_uk_ext_buff_kds_data *)args,
-				args_size)) {
+				args_size);
+			switch (ret) {
 			case 0:
 				ukh->ret = MALI_ERROR_NONE;
 				break;
@@ -1108,11 +1091,30 @@ copy_failed:
 				kfree(buf);
 				goto out_bad;
 			}
-			kbasep_mem_profile_debugfs_insert(kctx, buf,
-					add_data->len);
+
+			if (kbasep_mem_profile_debugfs_insert(kctx, buf,
+							add_data->len)) {
+				ukh->ret = MALI_ERROR_FUNCTION_FAILED;
+				kfree(buf);
+				goto out_bad;
+			}
 
 			break;
 		}
+
+#ifdef CONFIG_MALI_NO_MALI
+	case KBASE_FUNC_SET_PRFCNT_VALUES:
+		{
+
+			struct kbase_uk_prfcnt_values *params =
+			  ((struct kbase_uk_prfcnt_values *)args);
+			gpu_model_set_dummy_prfcnt_sample(params->data,
+					params->size);
+
+			break;
+		}
+#endif /* CONFIG_MALI_NO_MALI */
+
 #ifdef CONFIG_MALI_MIPE_ENABLED
 	case KBASE_FUNC_TLSTREAM_ACQUIRE:
 		{
@@ -1188,7 +1190,7 @@ copy_failed:
 		goto out_bad;
 	}
 
-	return 0;
+	return ret;
 
  bad_size:
 	dev_err(kbdev->dev, "Wrong syscall size (%d) for %08x\n", args_size, id);
@@ -1270,6 +1272,7 @@ static int kbase_open(struct inode *inode, struct file *filp)
 
 	init_waitqueue_head(&kctx->event_queue);
 	filp->private_data = kctx;
+	kctx->filp = filp;
 
 	kctx->infinite_cache_active = kbdev->infinite_cache_active_default;
 
@@ -1292,7 +1295,8 @@ static int kbase_open(struct inode *inode, struct file *filp)
 	debugfs_create_bool("infinite_cache", 0644, kctx->kctx_dentry,
 			&kctx->infinite_cache_active);
 #endif /* CONFIG_MALI_COH_USER */
-	kbasep_mem_profile_debugfs_add(kctx);
+
+	mutex_init(&kctx->mem_profile_lock);
 
 	kbasep_jd_debugfs_ctx_add(kctx);
 	kbase_debug_mem_view_init(filp);
@@ -1345,7 +1349,7 @@ static int kbase_release(struct inode *inode, struct file *filp)
 #ifdef CONFIG_DEBUG_FS
 	debugfs_remove_recursive(kctx->kctx_dentry);
 	kbasep_mem_profile_debugfs_remove(kctx);
-	kbase_debug_job_fault_context_exit(kctx);
+	kbase_debug_job_fault_context_term(kctx);
 #endif
 
 	mutex_lock(&kbdev->kctx_list_lock);
@@ -1822,7 +1826,15 @@ static ssize_t show_core_mask(struct device *dev, struct device_attribute *attr,
 	if (!kbdev)
 		return -ENODEV;
 
-	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "Current core mask : 0x%llX\n", kbdev->pm.debug_core_mask);
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret,
+			"Current core mask (JS0) : 0x%llX\n",
+			kbdev->pm.debug_core_mask[0]);
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret,
+			"Current core mask (JS1) : 0x%llX\n",
+			kbdev->pm.debug_core_mask[1]);
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret,
+			"Current core mask (JS2) : 0x%llX\n",
+			kbdev->pm.debug_core_mask[2]);
 	ret += scnprintf(buf + ret, PAGE_SIZE - ret,
 			"Available core mask : 0x%llX\n",
 			kbdev->gpu_props.props.raw_props.shader_present);
@@ -1844,36 +1856,63 @@ static ssize_t show_core_mask(struct device *dev, struct device_attribute *attr,
 static ssize_t set_core_mask(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct kbase_device *kbdev;
-	u64 new_core_mask;
-	int rc;
+	u64 new_core_mask[3];
+	int items;
 
 	kbdev = to_kbase_device(dev);
 
 	if (!kbdev)
 		return -ENODEV;
 
-	rc = kstrtoull(buf, 16, &new_core_mask);
-	if (rc)
-		return rc;
+	items = sscanf(buf, "%llx %llx %llx",
+			&new_core_mask[0], &new_core_mask[1],
+			&new_core_mask[2]);
 
-	if ((new_core_mask & kbdev->gpu_props.props.raw_props.shader_present)
-			!= new_core_mask ||
-	    !(new_core_mask & kbdev->gpu_props.props.coherency_info.group[0].core_mask)) {
-		dev_err(dev, "power_policy: invalid core specification\n");
-		return -EINVAL;
+	if (items == 1)
+		new_core_mask[1] = new_core_mask[2] = new_core_mask[0];
+
+	if (items == 1 || items == 3) {
+		u64 shader_present =
+				kbdev->gpu_props.props.raw_props.shader_present;
+		u64 group0_core_mask =
+				kbdev->gpu_props.props.coherency_info.group[0].
+				core_mask;
+
+		if ((new_core_mask[0] & shader_present) != new_core_mask[0] ||
+				!(new_core_mask[0] & group0_core_mask) ||
+			(new_core_mask[1] & shader_present) !=
+						new_core_mask[1] ||
+				!(new_core_mask[1] & group0_core_mask) ||
+			(new_core_mask[2] & shader_present) !=
+						new_core_mask[2] ||
+				!(new_core_mask[2] & group0_core_mask)) {
+			dev_err(dev, "power_policy: invalid core specification\n");
+			return -EINVAL;
+		}
+
+		if (kbdev->pm.debug_core_mask[0] != new_core_mask[0] ||
+				kbdev->pm.debug_core_mask[1] !=
+						new_core_mask[1] ||
+				kbdev->pm.debug_core_mask[2] !=
+						new_core_mask[2]) {
+			unsigned long flags;
+
+			spin_lock_irqsave(&kbdev->pm.power_change_lock, flags);
+
+			kbase_pm_set_debug_core_mask(kbdev, new_core_mask[0],
+					new_core_mask[1], new_core_mask[2]);
+
+			spin_unlock_irqrestore(&kbdev->pm.power_change_lock,
+					flags);
+		}
+
+		return count;
 	}
 
-	if (kbdev->pm.debug_core_mask != new_core_mask) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&kbdev->pm.power_change_lock, flags);
-
-		kbase_pm_set_debug_core_mask(kbdev, new_core_mask);
-
-		spin_unlock_irqrestore(&kbdev->pm.power_change_lock, flags);
-	}
-
-	return count;
+	dev_err(kbdev->dev, "Couldn't process set_core_mask write operation.\n"
+		"Use format <core_mask>\n"
+		"or <core_mask_js0> <core_mask_js1> <core_mask_js2>\n");
+	return -EINVAL;
 }
 
 /** The sysfs file @c core_mask.
@@ -1883,122 +1922,6 @@ static ssize_t set_core_mask(struct device *dev, struct device_attribute *attr, 
  * Writing to it will set the current core mask.
  */
 static DEVICE_ATTR(core_mask, S_IRUGO | S_IWUSR, show_core_mask, set_core_mask);
-
-#ifdef CONFIG_MALI_DEBUG_SHADER_SPLIT_FS
-/**
- * struct sc_split_config
- * @tag: Short name
- * @human_readable: Long name
- * @js0_mask: Mask for job slot 0
- * @js1_mask: Mask for job slot 1
- * @js2_mask: Mask for job slot 2
- *
- * Structure containing a single shader affinity split configuration.
- */
-struct sc_split_config {
-	char const *tag;
-	char const *human_readable;
-	u64          js0_mask;
-	u64          js1_mask;
-	u64          js2_mask;
-};
-
-/*
- * Array of available shader affinity split configurations.
- */
-static struct sc_split_config const sc_split_configs[] = {
-	/* All must be the first config (default). */
-	{
-		"all", "All cores",
-		0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL
-	},
-	{
-		"mp1", "MP1 shader core",
-		0x1, 0x1, 0x1
-	},
-	{
-		"mp2", "MP2 shader core",
-		0x3, 0x3, 0x3
-	},
-	{
-		"mp4", "MP4 shader core",
-		0xF, 0xF, 0xF
-	},
-	{
-		"mp1_vf", "MP1 vertex + MP1 fragment shader core",
-		0x2, 0x1, 0xFFFFFFFFFFFFFFFFULL
-	},
-	{
-		"mp2_vf", "MP2 vertex + MP2 fragment shader core",
-		0xA, 0x5, 0xFFFFFFFFFFFFFFFFULL
-	},
-	/* This must be the last config. */
-	{
-		NULL, NULL,
-		0x0, 0x0, 0x0
-	},
-};
-
-/* Pointer to the currently active shader split configuration. */
-static struct sc_split_config const *current_sc_split_config = &sc_split_configs[0];
-
-/** Show callback for the @c sc_split sysfs file
- *
- * Returns the current shader core affinity policy.
- */
-static ssize_t show_split(struct device *dev, struct device_attribute *attr, char * const buf)
-{
-	ssize_t ret;
-	/* We know we are given a buffer which is PAGE_SIZE long. Our strings are all guaranteed
-	 * to be shorter than that at this time so no length check needed. */
-	ret = scnprintf(buf, PAGE_SIZE, "Current sc_split: '%s'\n", current_sc_split_config->tag);
-	return ret;
-}
-
-/** Store callback for the @c sc_split sysfs file.
- *
- * This function is called when the @c sc_split sysfs file is written to
- * It modifies the system shader core affinity configuration to allow
- * system profiling with different hardware configurations.
- *
- * @param dev	The device with sysfs file is for
- * @param attr	The attributes of the sysfs file
- * @param buf	The value written to the sysfs file
- * @param count	The number of bytes written to the sysfs file
- *
- * @return @c count if the function succeeded. An error code on failure.
- */
-static ssize_t set_split(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct sc_split_config const *config = &sc_split_configs[0];
-
-	/* Try to match: loop until we hit the last "NULL" entry */
-	while (config->tag) {
-		if (sysfs_streq(config->tag, buf)) {
-			current_sc_split_config = config;
-			mali_js0_affinity_mask  = config->js0_mask;
-			mali_js1_affinity_mask  = config->js1_mask;
-			mali_js2_affinity_mask  = config->js2_mask;
-			dev_dbg(dev, "Setting sc_split: '%s'\n", config->tag);
-			return count;
-		}
-		config++;
-	}
-
-	/* No match found in config list */
-	dev_err(dev, "sc_split: invalid value\n");
-	dev_err(dev, "  Possible settings: mp[1|2|4], mp[1|2]_vf\n");
-	return -ENOENT;
-}
-
-/** The sysfs file @c sc_split
- *
- * This is used for configuring/querying the current shader core work affinity
- * configuration.
- */
-static DEVICE_ATTR(sc_split, S_IRUGO|S_IWUSR, show_split, set_split);
-#endif /* CONFIG_MALI_DEBUG_SHADER_SPLIT_FS */
-
 
 /** Store callback for the @c js_timeouts sysfs file.
  *
@@ -2735,8 +2658,9 @@ static ssize_t kbase_show_gpuinfo(struct device *dev,
 	const char *product_name = "(Unknown Mali GPU)";
 	struct kbase_device *kbdev;
 	u32 gpu_id;
-	unsigned product_id;
+	unsigned product_id, product_id_mask;
 	unsigned i;
+	bool is_new_format;
 
 	kbdev = to_kbase_device(dev);
 	if (!kbdev)
@@ -2744,10 +2668,20 @@ static ssize_t kbase_show_gpuinfo(struct device *dev,
 
 	gpu_id = kbdev->gpu_props.props.raw_props.gpu_id;
 	product_id = gpu_id >> GPU_ID_VERSION_PRODUCT_ID_SHIFT;
+	is_new_format = GPU_ID_IS_NEW_FORMAT(product_id);
+	product_id_mask =
+		(is_new_format ?
+			GPU_ID2_PRODUCT_MODEL :
+			GPU_ID_VERSION_PRODUCT_ID) >>
+		GPU_ID_VERSION_PRODUCT_ID_SHIFT;
 
 	for (i = 0; i < ARRAY_SIZE(gpu_product_id_names); ++i) {
-		if (gpu_product_id_names[i].id == product_id) {
-			product_name = gpu_product_id_names[i].name;
+		const struct gpu_product_id_name *p = &gpu_product_id_names[i];
+
+		if ((GPU_ID_IS_NEW_FORMAT(p->id) == is_new_format) &&
+		    (p->id & product_id_mask) ==
+		    (product_id & product_id_mask)) {
+			product_name = p->name;
 			break;
 		}
 	}
@@ -3202,7 +3136,12 @@ static int kbase_device_debugfs_init(struct kbase_device *kbdev)
 		err = -ENOMEM;
 		goto out;
 	}
-	kbase_debug_job_fault_dev_init(kbdev);
+
+#if !MALI_CUSTOMER_RELEASE
+	kbasep_regs_dump_debugfs_add(kbdev);
+#endif /* !MALI_CUSTOMER_RELEASE */
+
+	kbase_debug_job_fault_debugfs_init(kbdev);
 	kbasep_gpu_memory_debugfs_init(kbdev);
 #if KBASE_GPU_RESET_EN
 	debugfs_create_file("quirks_sc", 0644,
@@ -3261,21 +3200,19 @@ static inline void kbase_device_debugfs_term(struct kbase_device *kbdev) { }
 
 static void kbase_device_coherency_init(struct kbase_device *kbdev, u32 gpu_id)
 {
-	u32 selected_coherency = COHERENCY_NONE;
-	/* COHERENCY_NONE is always supported */
-	u32 supported_coherency_bitmap = COHERENCY_FEATURE_BIT(COHERENCY_NONE);
-
 #ifdef CONFIG_OF
+	u32 supported_coherency_bitmap =
+		kbdev->gpu_props.props.raw_props.coherency_mode;
 	const void *coherency_override_dts;
 	u32 override_coherency;
 #endif /* CONFIG_OF */
 
-	kbdev->system_coherency = selected_coherency;
+	kbdev->system_coherency = COHERENCY_NONE;
 
 	/* device tree may override the coherency */
 #ifdef CONFIG_OF
 	coherency_override_dts = of_get_property(kbdev->dev->of_node,
-						"override-coherency",
+						"system-coherency",
 						NULL);
 	if (coherency_override_dts) {
 
@@ -3288,17 +3225,17 @@ static void kbase_device_coherency_init(struct kbase_device *kbdev, u32 gpu_id)
 			kbdev->system_coherency = override_coherency;
 
 			dev_info(kbdev->dev,
-				"Using coherency override, mode %u set from dtb",
+				"Using coherency mode %u set from dtb",
 				override_coherency);
 		} else
 			dev_warn(kbdev->dev,
-				"Ignoring invalid coherency override, mode %u set from dtb",
+				"Ignoring unsupported coherency mode %u set from dtb",
 				override_coherency);
 	}
 
 #endif /* CONFIG_OF */
 
-	kbdev->gpu_props.props.raw_props.coherency_features =
+	kbdev->gpu_props.props.raw_props.coherency_mode =
 		kbdev->system_coherency;
 }
 
@@ -3337,7 +3274,8 @@ static int kbase_common_device_init(struct kbase_device *kbdev)
 		inited_backend_late = (1u << 12),
 		inited_device = (1u << 13),
 		inited_vinstr = (1u << 19),
-		inited_ipa = (1u << 20)
+		inited_ipa = (1u << 20),
+		inited_job_fault = (1u << 21)
 	};
 
 	int inited = 0;
@@ -3354,7 +3292,7 @@ static int kbase_common_device_init(struct kbase_device *kbdev)
 	inited |= inited_backend_early;
 
 	scnprintf(kbdev->devname, DEVNAME_SIZE, "%s%d", kbase_drv_name,
-			kbase_dev_nr++);
+			kbase_dev_nr);
 
 	kbase_disjoint_init(kbdev);
 
@@ -3404,22 +3342,6 @@ static int kbase_common_device_init(struct kbase_device *kbdev)
 	}
 
 	inited |= inited_device;
-
-	kbdev->vinstr_ctx = kbase_vinstr_init(kbdev);
-	if (!kbdev->vinstr_ctx) {
-		dev_err(kbdev->dev, "Can't initialize virtual instrumentation core\n");
-		goto out_partial;
-	}
-
-	inited |= inited_vinstr;
-
-	kbdev->ipa_ctx = kbase_ipa_init(kbdev);
-	if (!kbdev->ipa_ctx) {
-		dev_err(kbdev->dev, "Can't initialize IPA\n");
-		goto out_partial;
-	}
-
-	inited |= inited_ipa;
 
 	if (kbdev->pm.callback_power_runtime_init) {
 		err = kbdev->pm.callback_power_runtime_init(kbdev);
@@ -3474,6 +3396,28 @@ static int kbase_common_device_init(struct kbase_device *kbdev)
 	inited |= inited_devfreq;
 #endif /* CONFIG_MALI_DEVFREQ */
 
+	kbdev->vinstr_ctx = kbase_vinstr_init(kbdev);
+	if (!kbdev->vinstr_ctx) {
+		dev_err(kbdev->dev, "Can't initialize virtual instrumentation core\n");
+		goto out_partial;
+	}
+
+	inited |= inited_vinstr;
+
+	kbdev->ipa_ctx = kbase_ipa_init(kbdev);
+	if (!kbdev->ipa_ctx) {
+		dev_err(kbdev->dev, "Can't initialize IPA\n");
+		goto out_partial;
+	}
+
+	inited |= inited_ipa;
+
+	err = kbase_debug_job_fault_dev_init(kbdev);
+	if (err)
+		goto out_partial;
+
+	inited |= inited_job_fault;
+
 	err = kbase_device_debugfs_init(kbdev);
 	if (err)
 		goto out_partial;
@@ -3502,12 +3446,16 @@ static int kbase_common_device_init(struct kbase_device *kbdev)
 
 	dev_info(kbdev->dev, "Probed as %s\n", dev_name(kbdev->mdev.this_device));
 
+	kbase_dev_nr++;
+
 	return 0;
 
 out_misc:
 	put_device(kbdev->dev);
 	kbase_device_debugfs_term(kbdev);
 out_partial:
+	if (inited & inited_job_fault)
+		kbase_debug_job_fault_dev_term(kbdev);
 	if (inited & inited_ipa)
 		kbase_ipa_term(kbdev->ipa_ctx);
 	if (inited & inited_vinstr)
@@ -3551,9 +3499,6 @@ out_partial:
 
 
 static struct attribute *kbase_attrs[] = {
-#ifdef CONFIG_MALI_DEBUG_SHADER_SPLIT_FS
-	&dev_attr_sc_split.attr,
-#endif
 #ifdef CONFIG_MALI_DEBUG
 	&dev_attr_debug_command.attr,
 	&dev_attr_js_softstop_always.attr,
@@ -3668,8 +3613,12 @@ static int kbase_platform_device_probe(struct platform_device *pdev)
 			&& defined(CONFIG_REGULATOR)
 	kbdev->regulator = regulator_get_optional(kbdev->dev, "mali");
 	if (IS_ERR_OR_NULL(kbdev->regulator)) {
-		dev_info(kbdev->dev, "Continuing without Mali regulator control\n");
+		err = PTR_ERR(kbdev->regulator);
+
 		kbdev->regulator = NULL;
+		if (err == -EPROBE_DEFER)
+			goto out_regulator;
+		dev_info(kbdev->dev, "Continuing without Mali regulator control\n");
 		/* Allow probe to continue without regulator */
 	}
 #endif /* LINUX_VERSION_CODE >= 3, 12, 0 */
@@ -3677,10 +3626,15 @@ static int kbase_platform_device_probe(struct platform_device *pdev)
 #ifdef CONFIG_MALI_PLATFORM_DEVICETREE
 	pm_runtime_enable(kbdev->dev);
 #endif
+
 	kbdev->clock = clk_get(kbdev->dev, "clk_mali");
 	if (IS_ERR_OR_NULL(kbdev->clock)) {
-		dev_info(kbdev->dev, "Continuing without Mali clock control\n");
+		err = PTR_ERR(kbdev->clock);
+
 		kbdev->clock = NULL;
+		if (err == -EPROBE_DEFER)
+			goto out_clock_prepare;
+		dev_info(kbdev->dev, "Continuing without Mali clock control\n");
 		/* Allow probe to continue without clock. */
 	} else {
 		err = clk_prepare_enable(kbdev->clock);
@@ -3744,6 +3698,7 @@ out_clock_prepare:
 #endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0)) && defined(CONFIG_OF) \
 			&& defined(CONFIG_REGULATOR)
+out_regulator:
 	regulator_put(kbdev->regulator);
 #endif /* LINUX_VERSION_CODE >= 3, 12, 0 */
 		kbase_common_reg_unmap(kbdev);
@@ -3764,6 +3719,7 @@ out:
 
 static int kbase_common_device_remove(struct kbase_device *kbdev)
 {
+	kbase_debug_job_fault_dev_term(kbdev);
 	kbase_ipa_term(kbdev->ipa_ctx);
 	kbase_vinstr_term(kbdev->vinstr_ctx);
 	sysfs_remove_group(&kbdev->dev->kobj, &kbase_attr_group);
@@ -3946,21 +3902,30 @@ int kbase_device_runtime_resume(struct device *dev)
 }
 #endif /* KBASE_PM_RUNTIME */
 
-/** Runtime idle callback from the OS.
- *
- * This is called by Linux when the device appears to be inactive and it might be
- * placed into a low power state
- *
- * @param dev  The device to suspend
- *
- * @return A standard Linux error code
- */
 
 #ifdef KBASE_PM_RUNTIME
+/**
+ * kbase_device_runtime_idle - Runtime idle callback from the OS.
+ * @dev: The device to suspend
+ *
+ * This is called by Linux when the device appears to be inactive and it might
+ * be placed into a low power state.
+ *
+ * Return: 0 if device can be suspended, non-zero to avoid runtime autosuspend,
+ * otherwise a standard Linux error code
+ */
 static int kbase_device_runtime_idle(struct device *dev)
 {
-	/* Avoid pm_runtime_suspend being called */
-	return 1;
+	struct kbase_device *kbdev = to_kbase_device(dev);
+
+	if (!kbdev)
+		return -ENODEV;
+
+	/* Use platform specific implementation if it exists. */
+	if (kbdev->pm.backend.callback_power_runtime_idle)
+		return kbdev->pm.backend.callback_power_runtime_idle(kbdev);
+
+	return 0;
 }
 #endif /* KBASE_PM_RUNTIME */
 

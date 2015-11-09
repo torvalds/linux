@@ -1100,24 +1100,10 @@ void kbase_backend_reset(struct kbase_device *kbdev, ktime_t *end_timestamp)
 									js, 0);
 
 			if (katom) {
-				enum kbase_atom_gpu_rb_state gpu_rb_state =
-							katom->gpu_rb_state;
-
 				kbase_gpu_release_atom(kbdev, katom, NULL);
 				kbase_gpu_dequeue_atom(kbdev, js, NULL);
-
-				if (gpu_rb_state ==
-						KBASE_ATOM_GPU_RB_SUBMITTED) {
-					katom->event_code =
-						BASE_JD_EVENT_JOB_CANCELLED;
-					kbase_jm_complete(kbdev, katom,
-								end_timestamp);
-				} else {
-					katom->event_code =
-							BASE_JD_EVENT_STOPPED;
-					kbase_jm_return_atom_to_js(kbdev,
-							katom);
-				}
+				katom->event_code = BASE_JD_EVENT_JOB_CANCELLED;
+				kbase_jm_complete(kbdev, katom, end_timestamp);
 			}
 		}
 	}
@@ -1165,6 +1151,12 @@ static int should_stop_x_dep_slot(struct kbase_jd_atom *katom)
 			return dep_atom->slot_nr;
 	}
 	return -1;
+}
+
+static void kbase_job_evicted(struct kbase_jd_atom *katom)
+{
+	kbase_timeline_job_slot_done(katom->kctx->kbdev, katom->kctx, katom,
+			katom->slot_nr, KBASE_JS_ATOM_DONE_EVICTED_FROM_NEXT);
 }
 
 bool kbase_backend_soft_hard_stop_slot(struct kbase_device *kbdev,
@@ -1265,6 +1257,7 @@ bool kbase_backend_soft_hard_stop_slot(struct kbase_device *kbdev,
 									!= 0) {
 						/* idx1 removed successfully,
 						 * will be handled in IRQ */
+						kbase_job_evicted(katom_idx1);
 						kbase_gpu_remove_atom(kbdev,
 								katom_idx1,
 								action, true);
@@ -1336,6 +1329,7 @@ bool kbase_backend_soft_hard_stop_slot(struct kbase_device *kbdev,
 						JS_HEAD_NEXT_HI), NULL) != 0) {
 					/* idx1 removed successfully, will be
 					 * handled in IRQ once idx0 completes */
+					kbase_job_evicted(katom_idx1);
 					kbase_gpu_remove_atom(kbdev, katom_idx1,
 									action,
 									false);

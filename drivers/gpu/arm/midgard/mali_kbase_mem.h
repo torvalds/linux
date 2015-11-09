@@ -75,6 +75,7 @@ enum kbase_memory_type {
 	KBASE_MEM_TYPE_NATIVE,
 	KBASE_MEM_TYPE_IMPORTED_UMP,
 	KBASE_MEM_TYPE_IMPORTED_UMM,
+	KBASE_MEM_TYPE_IMPORTED_USER_BUF,
 	KBASE_MEM_TYPE_ALIAS,
 	KBASE_MEM_TYPE_TB,
 	KBASE_MEM_TYPE_RAW
@@ -136,6 +137,14 @@ struct kbase_mem_phy_alloc {
 		} alias;
 		/* Used by type = (KBASE_MEM_TYPE_NATIVE, KBASE_MEM_TYPE_TB) */
 		struct kbase_context *kctx;
+		struct {
+			unsigned long address;
+			unsigned long size;
+			unsigned long nr_pages;
+			struct page **pages;
+			unsigned int current_mapping_usage_count;
+			struct task_struct *owner;
+		} user_buf;
 	} imported;
 };
 

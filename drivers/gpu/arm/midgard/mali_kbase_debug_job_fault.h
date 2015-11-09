@@ -25,11 +25,26 @@
 #define REGISTER_DUMP_TERMINATION_FLAG 0xFFFFFFFF
 
 /**
- * kbase_debug_job_fault_dev_init - Initialize job fault debug sysfs
- *		and create the fault event wait queue per device
+ * kbase_debug_job_fault_dev_init - Create the fault event wait queue
+ *		per device and initialize the required lists.
+ * @kbdev:	Device pointer
+ *
+ * Return: Zero on success or a negative error code.
+ */
+int kbase_debug_job_fault_dev_init(struct kbase_device *kbdev);
+
+/**
+ * kbase_debug_job_fault_debugfs_init - Initialize job fault debug sysfs
  * @kbdev:	Device pointer
  */
-void kbase_debug_job_fault_dev_init(struct kbase_device *kbdev);
+void kbase_debug_job_fault_debugfs_init(struct kbase_device *kbdev);
+
+/**
+ * kbase_debug_job_fault_dev_term - Clean up resources created in
+ *		kbase_debug_job_fault_dev_init.
+ * @kbdev:	Device pointer
+ */
+void kbase_debug_job_fault_dev_term(struct kbase_device *kbdev);
 
 /**
  * kbase_debug_job_fault_context_init - Initialize the relevant
@@ -39,11 +54,11 @@ void kbase_debug_job_fault_dev_init(struct kbase_device *kbdev);
 void kbase_debug_job_fault_context_init(struct kbase_context *kctx);
 
 /**
- * kbase_debug_job_fault_context_exit - Release the relevant
+ * kbase_debug_job_fault_context_term - Release the relevant
  *		resource per context
  * @kctx: KBase context pointer
  */
-void kbase_debug_job_fault_context_exit(struct kbase_context *kctx);
+void kbase_debug_job_fault_context_term(struct kbase_context *kctx);
 
 /**
  * kbase_debug_job_fault_process - Process the failed job.

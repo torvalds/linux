@@ -209,13 +209,6 @@ void kbasep_js_ctx_attr_set_initial_attrs(struct kbase_device *kbdev, struct kba
 
 	/* Transfer attributes held in the context flags for contexts that have submit enabled */
 
-	if ((js_kctx_info->ctx.flags & KBASE_CTX_FLAG_HINT_ONLY_COMPUTE) != false) {
-		/* Compute context */
-		runpool_state_changed |= kbasep_js_ctx_attr_ctx_retain_attr(kbdev, kctx, KBASEP_JS_CTX_ATTR_COMPUTE);
-	}
-	/* NOTE: Whether this is a non-compute context depends on the jobs being
-	 * run, e.g. it might be submitting jobs with BASE_JD_REQ_ONLY_COMPUTE */
-
 	/* ... More attributes can be added here ... */
 
 	/* The context should not have been scheduled yet, so ASSERT if this caused

@@ -1236,6 +1236,9 @@ void kbase_mem_kref_free(struct kref *kref)
 		dma_buf_put(alloc->imported.umm.dma_buf);
 		break;
 #endif
+	case KBASE_MEM_TYPE_IMPORTED_USER_BUF:
+		kfree(alloc->imported.user_buf.pages);
+		break;
 	case KBASE_MEM_TYPE_TB:{
 		void *tb;
 

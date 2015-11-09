@@ -126,10 +126,13 @@ void kbase_hwaccess_pm_gpu_idle(struct kbase_device *kbdev);
  *
  * @param kbdev         The kbase device structure for the device (must be a
  *                      valid pointer)
- * @param new_core_mask The core mask to use
+ * @param new_core_mask_js0 The core mask to use for job slot 0
+ * @param new_core_mask_js0 The core mask to use for job slot 1
+ * @param new_core_mask_js0 The core mask to use for job slot 2
  */
 void kbase_pm_set_debug_core_mask(struct kbase_device *kbdev,
-							u64 new_core_mask);
+		u64 new_core_mask_js0, u64 new_core_mask_js1,
+		u64 new_core_mask_js2);
 
 
 /**

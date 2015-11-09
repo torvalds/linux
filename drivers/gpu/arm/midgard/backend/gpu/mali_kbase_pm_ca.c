@@ -136,14 +136,14 @@ u64 kbase_pm_ca_get_core_mask(struct kbase_device *kbdev)
 	/* All cores must be enabled when instrumentation is in use */
 	if (kbdev->pm.backend.instr_enabled)
 		return kbdev->gpu_props.props.raw_props.shader_present &
-				kbdev->pm.debug_core_mask;
+				kbdev->pm.debug_core_mask_all;
 
 	if (kbdev->pm.backend.ca_current_policy == NULL)
 		return kbdev->gpu_props.props.raw_props.shader_present &
-				kbdev->pm.debug_core_mask;
+				kbdev->pm.debug_core_mask_all;
 
 	return kbdev->pm.backend.ca_current_policy->get_core_mask(kbdev) &
-						kbdev->pm.debug_core_mask;
+						kbdev->pm.debug_core_mask_all;
 }
 
 KBASE_EXPORT_TEST_API(kbase_pm_ca_get_core_mask);

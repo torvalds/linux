@@ -203,10 +203,7 @@ void kbase_mmu_hw_configure(struct kbase_device *kbdev, struct kbase_as *as,
 		struct kbase_context *kctx)
 {
 	struct kbase_mmu_setup *current_setup = &as->current_setup;
-#if defined(CONFIG_MALI_MIPE_ENABLED) || \
-	(defined(MALI_INCLUDE_TMIX) &&      \
-	 defined(CONFIG_MALI_COH_PAGES) &&   \
-	 defined(CONFIG_MALI_GPU_MMU_AARCH64))
+#ifdef CONFIG_MALI_MIPE_ENABLED
 	u32 transcfg = 0;
 #endif
 
@@ -282,7 +279,17 @@ int kbase_mmu_hw_do_operation(struct kbase_device *kbdev, struct kbase_as *as,
 void kbase_mmu_hw_clear_fault(struct kbase_device *kbdev, struct kbase_as *as,
 		struct kbase_context *kctx, enum kbase_mmu_fault_type type)
 {
+	unsigned long flags;
 	u32 pf_bf_mask;
+
+	spin_lock_irqsave(&kbdev->mmu_mask_change, flags);
+
+	/*
+	 * A reset is in-flight and we're flushing the IRQ + bottom half
+	 * so don't update anything as it could race with the reset code.
+	 */
+	if (kbdev->irq_reset_flush)
+		goto unlock;
 
 	/* Clear the page (and bus fault IRQ as well in case one occurred) */
 	pf_bf_mask = MMU_PAGE_FAULT(as->number);
@@ -291,6 +298,9 @@ void kbase_mmu_hw_clear_fault(struct kbase_device *kbdev, struct kbase_as *as,
 		pf_bf_mask |= MMU_BUS_ERROR(as->number);
 
 	kbase_reg_write(kbdev, MMU_REG(MMU_IRQ_CLEAR), pf_bf_mask, kctx);
+
+unlock:
+	spin_unlock_irqrestore(&kbdev->mmu_mask_change, flags);
 }
 
 void kbase_mmu_hw_enable_fault(struct kbase_device *kbdev, struct kbase_as *as,
@@ -303,6 +313,13 @@ void kbase_mmu_hw_enable_fault(struct kbase_device *kbdev, struct kbase_as *as,
 	 * occurred) */
 	spin_lock_irqsave(&kbdev->mmu_mask_change, flags);
 
+	/*
+	 * A reset is in-flight and we're flushing the IRQ + bottom half
+	 * so don't update anything as it could race with the reset code.
+	 */
+	if (kbdev->irq_reset_flush)
+		goto unlock;
+
 	irq_mask = kbase_reg_read(kbdev, MMU_REG(MMU_IRQ_MASK), kctx) |
 			MMU_PAGE_FAULT(as->number);
 
@@ -312,5 +329,6 @@ void kbase_mmu_hw_enable_fault(struct kbase_device *kbdev, struct kbase_as *as,
 
 	kbase_reg_write(kbdev, MMU_REG(MMU_IRQ_MASK), irq_mask, kctx);
 
+unlock:
 	spin_unlock_irqrestore(&kbdev->mmu_mask_change, flags);
 }

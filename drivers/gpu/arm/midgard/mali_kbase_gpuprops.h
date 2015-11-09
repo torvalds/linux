@@ -40,6 +40,16 @@ struct kbase_device;
 void kbase_gpuprops_set(struct kbase_device *kbdev);
 
 /**
+ * kbase_gpuprops_set_features - Set up Kbase GPU properties
+ * @kbdev:   Device pointer
+ *
+ * This function sets up GPU properties that are dependent on the hardware
+ * features bitmask. This function must be preceeded by a call to
+ * kbase_hw_set_features_mask().
+ */
+void kbase_gpuprops_set_features(struct kbase_device *kbdev);
+
+/**
  * @brief Provide GPU properties to userside through UKU call.
  *
  * Fill the struct kbase_uk_gpuprops with values from GPU configuration registers.

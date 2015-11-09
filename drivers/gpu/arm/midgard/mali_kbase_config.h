@@ -189,6 +189,32 @@ struct kbase_pm_callback_conf {
 	 * Note: for linux the kernel must have CONFIG_PM_RUNTIME enabled to use this feature.
 	 */
 	int (*power_runtime_on_callback)(struct kbase_device *kbdev);
+
+	/*
+	 * Optional callback for checking if GPU can be suspended when idle
+	 *
+	 * This callback will be called by the runtime power management core
+	 * when the reference count goes to 0 to provide notification that the
+	 * GPU now seems idle.
+	 *
+	 * If this callback finds that the GPU can't be powered off, or handles
+	 * suspend by powering off directly or queueing up a power off, a
+	 * non-zero value must be returned to prevent the runtime PM core from
+	 * also triggering a suspend.
+	 *
+	 * Returning 0 will cause the runtime PM core to conduct a regular
+	 * autosuspend.
+	 *
+	 * This callback is optional and if not provided regular ausosuspend
+	 * will triggered.
+	 *
+	 * Note: The Linux kernel must have CONFIG_PM_RUNTIME enabled to use
+	 * this feature.
+	 *
+	 * Return 0 if GPU can be suspended, positive value if it can not be
+	 * suspeneded by runtime PM, else OS error code
+	 */
+	int (*power_runtime_idle_callback)(struct kbase_device *kbdev);
 };
 
 /**

@@ -81,12 +81,6 @@
  */
 #define PLATFORM_FUNCS (NULL)
 
-/** Power model for IPA
- *
- * Attached value: pointer to @ref mali_pa_model_ops
- */
-#define POWER_MODEL_CALLBACKS (NULL)
-
 /**
  * Secure mode switch
  *

@@ -840,30 +840,6 @@ void kbase_pm_enable_interrupts(struct kbase_device *kbdev)
 
 KBASE_EXPORT_TEST_API(kbase_pm_enable_interrupts);
 
-void kbase_pm_enable_interrupts_mmu_mask(struct kbase_device *kbdev, u32 mask)
-{
-	unsigned long flags;
-
-	KBASE_DEBUG_ASSERT(NULL != kbdev);
-	/*
-	 * Clear all interrupts,
-	 * and unmask them all.
-	 */
-	spin_lock_irqsave(&kbdev->pm.power_change_lock, flags);
-	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_CLEAR), GPU_IRQ_REG_ALL,
-									NULL);
-	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK), GPU_IRQ_REG_ALL,
-									NULL);
-	spin_unlock_irqrestore(&kbdev->pm.power_change_lock, flags);
-
-	kbase_reg_write(kbdev, JOB_CONTROL_REG(JOB_IRQ_CLEAR), 0xFFFFFFFF,
-									NULL);
-	kbase_reg_write(kbdev, JOB_CONTROL_REG(JOB_IRQ_MASK), 0xFFFFFFFF, NULL);
-
-	kbase_reg_write(kbdev, MMU_REG(MMU_IRQ_CLEAR), 0xFFFFFFFF, NULL);
-	kbase_reg_write(kbdev, MMU_REG(MMU_IRQ_MASK), mask, NULL);
-}
-
 void kbase_pm_disable_interrupts(struct kbase_device *kbdev)
 {
 	unsigned long flags;
@@ -921,6 +897,7 @@ void kbase_pm_clock_on(struct kbase_device *kbdev, bool is_resume)
 
 	if (is_resume && kbdev->pm.backend.callback_power_resume) {
 		kbdev->pm.backend.callback_power_resume(kbdev);
+		return;
 	} else if (kbdev->pm.backend.callback_power_on) {
 		kbdev->pm.backend.callback_power_on(kbdev);
 		/* If your platform properly keeps the GPU state you may use the

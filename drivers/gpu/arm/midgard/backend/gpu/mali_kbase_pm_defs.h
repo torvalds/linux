@@ -198,8 +198,13 @@ union kbase_pm_ca_policy_data {
  * @gpu_poweroff_work: Workitem used on @gpu_poweroff_wq
  * @shader_poweroff_pending: Bit mask of shaders to be powered off on next
  *                           timer callback
- * @poweroff_timer_needed: true if the poweroff timer is currently running,
+ * @poweroff_timer_needed: true if the poweroff timer is currently required,
  *                         false otherwise
+ * @poweroff_timer_running: true if the poweroff timer is currently running,
+ *                          false otherwise
+ *                          power_change_lock should be held when accessing,
+ *                          unless there is no way the timer can be running (eg
+ *                          hrtimer_cancel() was called immediately before)
  * @callback_power_on: Callback when the GPU needs to be turned on. See
  *                     &struct kbase_pm_callback_conf
  * @callback_power_off: Callback when the GPU may be turned off. See
@@ -211,6 +216,8 @@ union kbase_pm_ca_policy_data {
  * @callback_power_runtime_on: Callback when the GPU needs to be turned on. See
  *                             &struct kbase_pm_callback_conf
  * @callback_power_runtime_off: Callback when the GPU may be turned off. See
+ *                              &struct kbase_pm_callback_conf
+ * @callback_power_runtime_idle: Optional callback when the GPU may be idle. See
  *                              &struct kbase_pm_callback_conf
  * @callback_cci_snoop_ctrl: Callback when the GPU L2 power may transition.
  *                           If enable is set then snoops should be enabled
@@ -272,6 +279,7 @@ struct kbase_pm_backend_data {
 	u64 shader_poweroff_pending;
 
 	bool poweroff_timer_needed;
+	bool poweroff_timer_running;
 
 	int (*callback_power_on)(struct kbase_device *kbdev);
 	void (*callback_power_off)(struct kbase_device *kbdev);
@@ -279,6 +287,7 @@ struct kbase_pm_backend_data {
 	void (*callback_power_resume)(struct kbase_device *kbdev);
 	int (*callback_power_runtime_on)(struct kbase_device *kbdev);
 	void (*callback_power_runtime_off)(struct kbase_device *kbdev);
+	int (*callback_power_runtime_idle)(struct kbase_device *kbdev);
 
 };
 

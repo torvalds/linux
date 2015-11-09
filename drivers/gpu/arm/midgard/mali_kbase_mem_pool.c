@@ -24,7 +24,13 @@
 #include <linux/atomic.h>
 #include <linux/version.h>
 
-/* Backwards compatibility with kernels using the old carveout allocator */
+/* This function is only provided for backwards compatibility with kernels
+ * which use the old carveout allocator.
+ *
+ * The forward declaration is to keep sparse happy.
+ */
+int __init kbase_carveout_mem_reserve(
+		phys_addr_t size);
 int __init kbase_carveout_mem_reserve(phys_addr_t size)
 {
 	return 0;
@@ -73,6 +79,8 @@ static void kbase_mem_pool_add_locked(struct kbase_mem_pool *pool,
 	list_add(&p->lru, &pool->page_list);
 	pool->cur_size++;
 
+	zone_page_state_add(1, page_zone(p), NR_SLAB_RECLAIMABLE);
+
 	pool_dbg(pool, "added page\n");
 }
 
@@ -86,7 +94,13 @@ static void kbase_mem_pool_add(struct kbase_mem_pool *pool, struct page *p)
 static void kbase_mem_pool_add_list_locked(struct kbase_mem_pool *pool,
 		struct list_head *page_list, size_t nr_pages)
 {
+	struct page *p;
+
 	lockdep_assert_held(&pool->pool_lock);
+
+	list_for_each_entry(p, page_list, lru) {
+		zone_page_state_add(1, page_zone(p), NR_SLAB_RECLAIMABLE);
+	}
 
 	list_splice(page_list, &pool->page_list);
 	pool->cur_size += nr_pages;
@@ -114,6 +128,8 @@ static struct page *kbase_mem_pool_remove_locked(struct kbase_mem_pool *pool)
 	p = list_first_entry(&pool->page_list, struct page, lru);
 	list_del_init(&p->lru);
 	pool->cur_size--;
+
+	zone_page_state_add(-1, page_zone(p), NR_SLAB_RECLAIMABLE);
 
 	pool_dbg(pool, "removed page\n");
 

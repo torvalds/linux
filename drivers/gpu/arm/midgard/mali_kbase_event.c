@@ -52,15 +52,10 @@ static struct base_jd_udata kbase_event_process(struct kbase_context *kctx, stru
 
 int kbase_event_pending(struct kbase_context *ctx)
 {
-	int ret;
-
 	KBASE_DEBUG_ASSERT(ctx);
 
-	mutex_lock(&ctx->event_mutex);
-	ret = (!list_empty(&ctx->event_list)) || (true == ctx->event_closed);
-	mutex_unlock(&ctx->event_mutex);
-
-	return ret;
+	return (atomic_read(&ctx->event_count) != 0) ||
+			(atomic_read(&ctx->event_closed) != 0);
 }
 
 KBASE_EXPORT_TEST_API(kbase_event_pending);
@@ -74,7 +69,7 @@ int kbase_event_dequeue(struct kbase_context *ctx, struct base_jd_event_v2 *ueve
 	mutex_lock(&ctx->event_mutex);
 
 	if (list_empty(&ctx->event_list)) {
-		if (!ctx->event_closed) {
+		if (!atomic_read(&ctx->event_closed)) {
 			mutex_unlock(&ctx->event_mutex);
 			return -1;
 		}
@@ -90,6 +85,7 @@ int kbase_event_dequeue(struct kbase_context *ctx, struct base_jd_event_v2 *ueve
 	}
 
 	/* normal event processing */
+	atomic_dec(&ctx->event_count);
 	atom = list_entry(ctx->event_list.next, struct kbase_jd_atom, dep_item[0]);
 	list_del(ctx->event_list.next);
 
@@ -168,6 +164,7 @@ void kbase_event_post(struct kbase_context *ctx, struct kbase_jd_atom *atom)
 	}
 
 	mutex_lock(&ctx->event_mutex);
+	atomic_inc(&ctx->event_count);
 	list_add_tail(&atom->dep_item[0], &ctx->event_list);
 	mutex_unlock(&ctx->event_mutex);
 
@@ -178,7 +175,7 @@ KBASE_EXPORT_TEST_API(kbase_event_post);
 void kbase_event_close(struct kbase_context *kctx)
 {
 	mutex_lock(&kctx->event_mutex);
-	kctx->event_closed = true;
+	atomic_set(&kctx->event_closed, true);
 	mutex_unlock(&kctx->event_mutex);
 	kbase_event_wakeup(kctx);
 }
@@ -189,7 +186,8 @@ int kbase_event_init(struct kbase_context *kctx)
 
 	INIT_LIST_HEAD(&kctx->event_list);
 	mutex_init(&kctx->event_mutex);
-	kctx->event_closed = false;
+	atomic_set(&kctx->event_count, 0);
+	atomic_set(&kctx->event_closed, false);
 	kctx->event_workq = alloc_workqueue("kbase_event", WQ_MEM_RECLAIM, 1);
 
 	if (NULL == kctx->event_workq)

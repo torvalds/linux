@@ -159,6 +159,8 @@ int kbase_device_init(struct kbase_device * const kbdev)
 	 */
 	kbase_hw_set_features_mask(kbdev);
 
+	kbase_gpuprops_set_features(kbdev);
+
 	/* On Linux 4.0+, dma coherency is determined from device tree */
 #if defined(CONFIG_ARM64) && LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
 	set_dma_ops(kbdev->dev, &noncoherent_swiotlb_dma_ops);
@@ -206,7 +208,7 @@ int kbase_device_init(struct kbase_device * const kbdev)
 	for (i = 0; i < FBDUMP_CONTROL_MAX; i++)
 		kbdev->kbase_profiling_controls[i] = 0;
 
-		kbase_debug_assert_register_hook(&kbasep_trace_hook_wrapper, kbdev);
+	kbase_debug_assert_register_hook(&kbasep_trace_hook_wrapper, kbdev);
 
 	atomic_set(&kbdev->ctx_num, 0);
 

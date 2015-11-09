@@ -57,17 +57,17 @@ config MALI_MIPE_ENABLED
 endchoice
 
 config MALI_MIDGARD_DVFS
-	bool "Enable DVFS"
-	depends on MALI_MIDGARD
+	bool "Enable legacy DVFS"
+	depends on MALI_MIDGARD && !MALI_DEVFREQ && !MALI_PLATFORM_DEVICETREE
 	default n
 	help
-	  Choose this option to enable DVFS in the Mali Midgard DDK.
+	  Choose this option to enable legacy DVFS in the Mali Midgard DDK.
 
 config MALI_MIDGARD_RT_PM
 	bool "Enable Runtime power management"
 	depends on MALI_MIDGARD
 	depends on PM_RUNTIME
-	default n
+	default y
 	help
 	  Choose this option to enable runtime power management in the Mali Midgard DDK.
 
@@ -128,9 +128,23 @@ config MALI_PLATFORM_FAKE
 choice
 	prompt "Platform configuration"
 	depends on MALI_MIDGARD && MALI_EXPERT
-	default MALI_PLATFORM_VEXPRESS
+	default MALI_PLATFORM_DEVICETREE
 	help
 	  Select the SOC platform that contains a Mali Midgard GPU
+
+config MALI_PLATFORM_DEVICETREE
+	bool "Device Tree platform"
+	depends on OF
+	help
+	  Select this option to use Device Tree with the Mali driver.
+
+	  When using this option the Mali driver will get the details of the
+	  GPU hardware from the Device Tree. This means that the same driver
+	  binary can run on multiple platforms as long as all the GPU hardware
+	  details are described in the device tree.
+
+	  Device Tree is the recommended method for the Mali driver platform
+	  integration.
 
 config MALI_PLATFORM_VEXPRESS
 	depends on ARCH_VEXPRESS && (ARCH_VEXPRESS_CA9X4 || ARCH_VEXPRESS_CA15X4)

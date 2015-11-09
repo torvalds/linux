@@ -66,17 +66,9 @@ int kbase_instr_hwcnt_enable(struct kbase_context *kctx,
 		struct kbase_uk_hwcnt_setup *setup)
 {
 	struct kbase_device *kbdev;
-	bool access_allowed;
 	int err;
 
 	kbdev = kctx->kbdev;
-
-	/* Determine if the calling task has access to this capability */
-	access_allowed = kbase_security_has_capability(kctx,
-					KBASE_SEC_INSTR_HW_COUNTERS_COLLECT,
-					KBASE_SEC_FLAG_NOAUDIT);
-	if (!access_allowed)
-		return -EINVAL;
 
 	/* Mark the context as active so the GPU is kept turned on */
 	/* A suspend won't happen here, because we're in a syscall from a

@@ -83,3 +83,11 @@ void kbase_backend_gpuprops_get(struct kbase_device *kbdev,
 				GPU_CONTROL_REG(L2_PRESENT_HI), NULL);
 }
 
+void kbase_backend_gpuprops_get_features(struct kbase_device *kbdev,
+					struct kbase_gpuprops_regdump *regdump)
+{
+		regdump->coherency_features =
+				COHERENCY_FEATURE_BIT(COHERENCY_NONE) |
+				COHERENCY_FEATURE_BIT(COHERENCY_ACE_LITE);
+}
+

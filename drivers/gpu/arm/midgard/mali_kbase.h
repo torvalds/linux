@@ -51,7 +51,6 @@
 #include "mali_kbase_trace_timeline.h"
 #include "mali_kbase_js.h"
 #include "mali_kbase_mem.h"
-#include "mali_kbase_security.h"
 #include "mali_kbase_utility.h"
 #include "mali_kbase_gpu_memory_debugfs.h"
 #include "mali_kbase_mem_profile_debugfs.h"
@@ -82,7 +81,7 @@ struct kbase_device *kbase_device_alloc(void);
 */
 
 /*
-* API to acquire device list semaphone and return pointer
+* API to acquire device list semaphore and return pointer
 * to the device list head
 */
 const struct list_head *kbase_dev_list_get(void);
@@ -345,6 +344,10 @@ void kbase_disjoint_state_down(struct kbase_device *kbdev);
  * it is reported as a disjoint event
  */
 #define KBASE_DISJOINT_STATE_INTERLEAVED_CONTEXT_COUNT_THRESHOLD 2
+
+#if !defined(UINT64_MAX)
+	#define UINT64_MAX ((uint64_t)0xFFFFFFFFFFFFFFFFULL)
+#endif
 
 #if KBASE_TRACE_ENABLE
 void kbasep_trace_debugfs_init(struct kbase_device *kbdev);
