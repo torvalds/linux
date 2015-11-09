@@ -440,7 +440,7 @@ static int cport_reset(struct gb_host_device *hd, u16 cport_id)
 	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				 REQUEST_RESET_CPORT,
 				 USB_DIR_OUT | USB_TYPE_VENDOR |
-				 USB_RECIP_INTERFACE, 0, cport_id,
+				 USB_RECIP_INTERFACE, cport_id, 0,
 				 NULL, 0, ES2_TIMEOUT);
 	if (retval < 0) {
 		dev_err(&udev->dev, "failed to reset cport %hu: %d\n", cport_id,
