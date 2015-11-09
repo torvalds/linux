@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
@@ -96,6 +97,40 @@ static int lklfuse_opt_proc(void *data, const char *arg, int key,
 	}
 }
 
+static void lklfuse_xlat_stat(const struct lkl_stat64 *in, struct stat *st)
+{
+	st->st_dev = in->st_dev;
+	st->st_ino = in->st_ino;
+	st->st_mode = in->st_mode;
+	st->st_nlink = in->st_nlink;
+	st->st_uid = in->st_uid;
+	st->st_gid = in->st_gid;
+	st->st_rdev = in->st_rdev;
+	st->st_size = in->st_size;
+	st->st_blksize = in->st_blksize;
+	st->st_blocks = in->st_blocks;
+	st->st_atim.tv_sec = in->st_atime;
+	st->st_atim.tv_nsec = in->st_atime_nsec;
+	st->st_mtim.tv_sec = in->st_mtime;
+	st->st_mtim.tv_nsec = in->st_mtime_nsec;
+	st->st_ctim.tv_sec = in->st_ctime;
+	st->st_ctim.tv_nsec = in->st_ctime_nsec;
+}
+
+static int lklfuse_fgetattr(const char *path, struct stat *st,
+	                    struct fuse_file_info *fi)
+{
+	long ret;
+	struct lkl_stat64 lkl_stat;
+
+	ret = lkl_sys_fstat64(fi->fh, &lkl_stat);
+	if (ret)
+		return ret;
+
+	lklfuse_xlat_stat(&lkl_stat, st);
+	return 0;
+}
+
 static int lklfuse_getattr(const char *path, struct stat *st)
 {
 	long ret;
@@ -105,23 +140,7 @@ static int lklfuse_getattr(const char *path, struct stat *st)
 	if (ret)
 		return ret;
 
-	st->st_dev = lkl_stat.st_dev;
-	st->st_ino = lkl_stat.st_ino;
-	st->st_mode = lkl_stat.st_mode;
-	st->st_nlink = lkl_stat.st_nlink;
-	st->st_uid = lkl_stat.st_uid;
-	st->st_gid = lkl_stat.st_gid;
-	st->st_rdev = lkl_stat.st_rdev;
-	st->st_size = lkl_stat.st_size;
-	st->st_blksize = lkl_stat.st_blksize;
-	st->st_blocks = lkl_stat.st_blocks;
-	st->st_atim.tv_sec = lkl_stat.st_atime;
-	st->st_atim.tv_nsec = lkl_stat.st_atime_nsec;
-	st->st_mtim.tv_sec = lkl_stat.st_mtime;
-	st->st_mtim.tv_nsec = lkl_stat.st_mtime_nsec;
-	st->st_ctim.tv_sec = lkl_stat.st_ctime;
-	st->st_ctim.tv_nsec = lkl_stat.st_ctime_nsec;
-
+	lklfuse_xlat_stat(&lkl_stat, st);
 	return 0;
 }
 
@@ -193,7 +212,8 @@ static int lklfuse_truncate(const char *path, off_t off)
 	return lkl_sys_truncate(path, off);
 }
 
-static int lklfuse_open(const char *path, struct fuse_file_info *fi)
+static int lklfuse_open3(const char *path, bool create, mode_t mode,
+	                 struct fuse_file_info *fi)
 {
 	long ret;
 	int flags;
@@ -205,15 +225,29 @@ static int lklfuse_open(const char *path, struct fuse_file_info *fi)
 	else if ((fi->flags & O_ACCMODE) == O_RDWR)
 		flags = LKL_O_RDWR;
 	else
-		return -LKL_EINVAL;
+		return -EINVAL;
 
-	ret = lkl_sys_open(path, flags, 0);
+	if (create)
+		flags |= LKL_O_CREAT;
+
+	ret = lkl_sys_open(path, flags, mode);
 	if (ret < 0)
 		return ret;
 
 	fi->fh = ret;
 
 	return 0;
+}
+
+static int lklfuse_create(const char *path, mode_t mode,
+	                  struct fuse_file_info *fi)
+{
+	return lklfuse_open3(path, true, mode, fi);
+}
+
+static int lklfuse_open(const char *path, struct fuse_file_info *fi)
+{
+	return lklfuse_open3(path, false, 0, fi);
 }
 
 static int lklfuse_read(const char *path, char *buf, size_t size, off_t offset,
@@ -451,7 +485,16 @@ const struct fuse_operations lklfuse_ops = {
 	.releasedir = lklfuse_releasedir,
 	.fsyncdir = lklfuse_fsyncdir,
 	.access = lklfuse_access,
+	.create = lklfuse_create,
+	.fgetattr = lklfuse_fgetattr,
+	/* .lock, */
 	.utimens = lklfuse_utimens,
+	/* .bmap, */
+	/* .ioctl, */
+	/* .poll, */
+	/* .write_buf, (SG io) */
+	/* .read_buf, (SG io) */
+	/* .flock, */
 	.fallocate = lklfuse_fallocate,
 };
 
