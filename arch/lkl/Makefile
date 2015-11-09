@@ -2,12 +2,14 @@ include arch/lkl/auto.conf
 
 KBUILD_CFLAGS += -fno-builtin
 
-ifeq ($(OUTPUT_FORMAT),elf64-x86-64)
+ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64 elf64-x86-64-freebsd))
 KBUILD_CFLAGS += -fPIC
 else ifeq ($(OUTPUT_FORMAT),pe-i386)
 prefix=_
 # workaround for #include_next<stdarg.h> errors
 LINUXINCLUDE := -isystem arch/lkl/include/system $(LINUXINCLUDE)
+else
+$(error Unrecognized platform: $(OUTPUT_FORMAT))
 endif
 
 LDFLAGS_vmlinux += -r
