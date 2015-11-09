@@ -23,13 +23,13 @@ ifeq ($(shell $(LD) -r -print-output-format),elf64-x86-64)
 CFLAGS += -D_FILE_OFFSET_BITS=64
 endif
 
-lib_objs = $(patsubst %.c,%.o, $(lib_source)) lib/lkl.o
+lib_objs = $(patsubst %.c,%.o, $(lib_source))
 objs = $(patsubst %.c,%.o, $(source))
 execs += $(patsubst %.c,%, $(source))
 
 all: lib/liblkl.a $(execs)
 
-lib/liblkl.a: $(lib_objs)
+lib/liblkl.a: $(lib_objs) lib/lkl.o
 	$(AR) -rc $@ $^
 
 lib/lkl.o:
@@ -44,7 +44,7 @@ $(objs): lib/lkl.o
 $(execs): lib/liblkl.a
 
 clean:
-	-rm -rf include/lkl/ lib/liblkl.a $(lib_objs) $(objs) $(execs)
+	-rm -rf include/lkl/ lib/liblkl.a $(lib_objs) lib/lkl.o $(objs) $(execs)
 
 fs2tar: LDFLAGS += -larchive
 lklfuse: LDFLAGS += -lfuse
