@@ -140,8 +140,8 @@ int wep_change_key(wlandevice_t *wlandev, int keynum, u8 *key, int keylen)
 }
 
 /*
-  4-byte IV at start of buffer, 4-byte ICV at end of buffer.
-  if successful, buf start is payload begin, length -= 8;
+ * 4-byte IV at start of buffer, 4-byte ICV at end of buffer.
+ * if successful, buf start is payload begin, length -= 8;
  */
 int wep_decrypt(wlandevice_t *wlandev, u8 *buf, u32 len, int key_override,
 		u8 *iv, u8 *icv)
