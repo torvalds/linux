@@ -164,7 +164,7 @@ static int parkbd_getport(struct parport *pp)
 	return 0;
 }
 
-static struct serio * __init parkbd_allocate_serio(void)
+static struct serio *parkbd_allocate_serio(void)
 {
 	struct serio *serio;
 
