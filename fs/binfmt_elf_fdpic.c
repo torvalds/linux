@@ -103,17 +103,34 @@ static void __exit exit_elf_fdpic_binfmt(void)
 core_initcall(init_elf_fdpic_binfmt);
 module_exit(exit_elf_fdpic_binfmt);
 
-static int is_elf_fdpic(struct elfhdr *hdr, struct file *file)
+static int is_elf(struct elfhdr *hdr, struct file *file)
 {
 	if (memcmp(hdr->e_ident, ELFMAG, SELFMAG) != 0)
 		return 0;
 	if (hdr->e_type != ET_EXEC && hdr->e_type != ET_DYN)
 		return 0;
-	if (!elf_check_arch(hdr) || !elf_check_fdpic(hdr))
+	if (!elf_check_arch(hdr))
 		return 0;
 	if (!file->f_op->mmap)
 		return 0;
 	return 1;
+}
+
+#ifndef elf_check_fdpic
+#define elf_check_fdpic(x) 0
+#endif
+
+#ifndef elf_check_const_displacement
+#define elf_check_const_displacement(x) 0
+#endif
+
+static int is_constdisp(struct elfhdr *hdr)
+{
+	if (!elf_check_fdpic(hdr))
+		return 1;
+	if (elf_check_const_displacement(hdr))
+		return 1;
+	return 0;
 }
 
 /*****************************************************************************/
@@ -191,8 +208,18 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 
 	/* check that this is a binary we know how to deal with */
 	retval = -ENOEXEC;
-	if (!is_elf_fdpic(&exec_params.hdr, bprm->file))
+	if (!is_elf(&exec_params.hdr, bprm->file))
 		goto error;
+	if (!elf_check_fdpic(&exec_params.hdr)) {
+#ifdef CONFIG_MMU
+		/* binfmt_elf handles non-fdpic elf except on nommu */
+		goto error;
+#else
+		/* nommu can only load ET_DYN (PIE) ELF */
+		if (exec_params.hdr.e_type != ET_DYN)
+			goto error;
+#endif
+	}
 
 	/* read the program header table */
 	retval = elf_fdpic_fetch_phdrs(&exec_params, bprm->file);
@@ -269,13 +296,13 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 
 	}
 
-	if (elf_check_const_displacement(&exec_params.hdr))
+	if (is_constdisp(&exec_params.hdr))
 		exec_params.flags |= ELF_FDPIC_FLAG_CONSTDISP;
 
 	/* perform insanity checks on the interpreter */
 	if (interpreter_name) {
 		retval = -ELIBBAD;
-		if (!is_elf_fdpic(&interp_params.hdr, interpreter))
+		if (!is_elf(&interp_params.hdr, interpreter))
 			goto error;
 
 		interp_params.flags = ELF_FDPIC_FLAG_PRESENT;
@@ -306,9 +333,9 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 
 	retval = -ENOEXEC;
 	if (stack_size == 0)
-		goto error;
+		stack_size = 131072UL; /* same as exec.c's default commit */
 
-	if (elf_check_const_displacement(&interp_params.hdr))
+	if (is_constdisp(&interp_params.hdr))
 		interp_params.flags |= ELF_FDPIC_FLAG_CONSTDISP;
 
 	/* flush all traces of the currently running executable */
@@ -319,7 +346,10 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 	/* there's now no turning back... the old userspace image is dead,
 	 * defunct, deceased, etc.
 	 */
-	set_personality(PER_LINUX_FDPIC);
+	if (elf_check_fdpic(&exec_params.hdr))
+		set_personality(PER_LINUX_FDPIC);
+	else
+		set_personality(PER_LINUX);
 	if (elf_read_implies_exec(&exec_params.hdr, executable_stack))
 		current->personality |= READ_IMPLIES_EXEC;
 
