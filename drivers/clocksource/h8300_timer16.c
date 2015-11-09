@@ -25,8 +25,6 @@ struct timer16_priv {
 	unsigned long total_cycles;
 	unsigned long mapbase;
 	unsigned long mapcommon;
-	unsigned long flags;
-	unsigned short gra;
 	unsigned short cs_enabled;
 	unsigned char enb;
 	unsigned char imfa;
