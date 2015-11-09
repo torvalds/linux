@@ -92,8 +92,10 @@ struct snd_soc_tplg_kcontrol_ops {
 /* Bytes ext operations, for TLV byte controls */
 struct snd_soc_tplg_bytes_ext_ops {
 	u32 id;
-	int (*get)(unsigned int __user *bytes, unsigned int size);
-	int (*put)(const unsigned int __user *bytes, unsigned int size);
+	int (*get)(struct snd_kcontrol *kcontrol, unsigned int __user *bytes,
+							unsigned int size);
+	int (*put)(struct snd_kcontrol *kcontrol,
+			const unsigned int __user *bytes, unsigned int size);
 };
 
 /*

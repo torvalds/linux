@@ -1225,8 +1225,10 @@ struct soc_bytes_ext {
 	struct snd_soc_dobj dobj;
 
 	/* used for TLV byte control */
-	int (*get)(unsigned int __user *bytes, unsigned int size);
-	int (*put)(const unsigned int __user *bytes, unsigned int size);
+	int (*get)(struct snd_kcontrol *kcontrol, unsigned int __user *bytes,
+			unsigned int size);
+	int (*put)(struct snd_kcontrol *kcontrol, const unsigned int __user *bytes,
+			unsigned int size);
 };
 
 /* multi register control */
