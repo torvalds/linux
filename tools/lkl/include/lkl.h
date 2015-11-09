@@ -57,7 +57,7 @@ int lkl_disk_add(union lkl_disk_backstore backstore);
  * @returns - 0 on success, a negative value on error
  */
 long lkl_mount_dev(unsigned int disk_id, const char *fs_type, int flags,
-		   void *data, char *mnt_str, int mnt_str_len);
+		   void *data, char *mnt_str, unsigned int mnt_str_len);
 
 /**
  * lkl_umount_dev - umount a disk

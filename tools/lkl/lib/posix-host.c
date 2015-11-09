@@ -17,7 +17,9 @@
 
 static void print(const char *str, int len)
 {
-	write(STDOUT_FILENO, str, len);
+	int ret __attribute__((unused));
+
+	ret = write(STDOUT_FILENO, str, len);
 }
 
 struct pthread_sem {
