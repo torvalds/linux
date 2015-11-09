@@ -437,6 +437,8 @@ add_child(struct callchain_node *parent,
 
 	new->children_hit = 0;
 	new->hit = period;
+	new->children_count = 0;
+	new->count = 1;
 	return new;
 }
 
@@ -484,6 +486,9 @@ split_add_child(struct callchain_node *parent,
 	parent->children_hit = callchain_cumul_hits(new);
 	new->val_nr = parent->val_nr - idx_local;
 	parent->val_nr = idx_local;
+	new->count = parent->count;
+	new->children_count = parent->children_count;
+	parent->children_count = callchain_cumul_counts(new);
 
 	/* create a new child for the new branch if any */
 	if (idx_total < cursor->nr) {
@@ -494,6 +499,8 @@ split_add_child(struct callchain_node *parent,
 
 		parent->hit = 0;
 		parent->children_hit += period;
+		parent->count = 0;
+		parent->children_count += 1;
 
 		node = callchain_cursor_current(cursor);
 		new = add_child(parent, cursor, period);
@@ -516,6 +523,7 @@ split_add_child(struct callchain_node *parent,
 		rb_insert_color(&new->rb_node_in, &parent->rb_root_in);
 	} else {
 		parent->hit = period;
+		parent->count = 1;
 	}
 }
 
@@ -562,6 +570,7 @@ append_chain_children(struct callchain_node *root,
 
 inc_children_hit:
 	root->children_hit += period;
+	root->children_count++;
 }
 
 static int
@@ -614,6 +623,7 @@ append_chain(struct callchain_node *root,
 	/* we match 100% of the path, increment the hit */
 	if (matches == root->val_nr && cursor->pos == cursor->nr) {
 		root->hit += period;
+		root->count++;
 		return 0;
 	}
 
