@@ -1,9 +1,12 @@
-CFLAGS := -Iinclude -Wall -g
+CFLAGS := -Iinclude -Wall -g -O2 -Wextra -Wno-unused-parameter \
+	  -Wno-missing-field-initializers -fno-strict-aliasing
 
 ifdef CROSS_COMPILE
 CC=$(CROSS_COMPILE)gcc
 AR=$(CROSS_COMPILE)ar
 LD=$(CROSS_COMPILE)ld
+else
+CC=gcc
 endif
 
 OUTPUT_FORMAT=$(shell $(LD) -r -print-output-format)
