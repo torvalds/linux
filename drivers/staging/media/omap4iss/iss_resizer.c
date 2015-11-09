@@ -158,8 +158,8 @@ static void resizer_set_outaddr(struct iss_resizer_device *resizer, u32 addr)
 	/* Program UV buffer address... Hardcoded to be contiguous! */
 	if ((informat->code == MEDIA_BUS_FMT_UYVY8_1X16) &&
 	    (outformat->code == MEDIA_BUS_FMT_YUYV8_1_5X8)) {
-		u32 c_addr = addr + (resizer->video_out.bpl_value *
-				     (outformat->height - 1));
+		u32 c_addr = addr + resizer->video_out.bpl_value
+			   * outformat->height;
 
 		/* Ensure Y_BAD_L[6:0] = C_BAD_L[6:0]*/
 		if ((c_addr ^ addr) & 0x7f) {
