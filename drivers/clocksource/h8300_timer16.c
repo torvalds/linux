@@ -4,24 +4,14 @@
  *  Copyright 2015 Yoshinori Sato <ysato@users.sourcefoge.jp>
  */
 
-#include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/param.h>
-#include <linux/string.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
-#include <linux/platform_device.h>
 #include <linux/clocksource.h>
-#include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-
-#include <asm/segment.h>
-#include <asm/irq.h>
 
 #define TSTR	0
 #define TSNC	1
