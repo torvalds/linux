@@ -133,18 +133,24 @@ gk20a_instobj_size(struct nvkm_memory *memory)
 static void __iomem *
 gk20a_instobj_cpu_map_dma(struct nvkm_memory *memory)
 {
+#if defined(CONFIG_ARM) || defined(CONFIG_ARM64)
 	struct gk20a_instobj_dma *node = gk20a_instobj_dma(memory);
 	struct device *dev = node->base.imem->base.subdev.device->dev;
 	int npages = nvkm_memory_size(memory) >> 12;
 	struct page *pages[npages];
 	int i;
 
+	/* we shouldn't see a gk20a on anything but arm/arm64 anyways */
 	/* phys_to_page does not exist on all platforms... */
 	pages[0] = pfn_to_page(dma_to_phys(dev, node->handle) >> PAGE_SHIFT);
 	for (i = 1; i < npages; i++)
 		pages[i] = pages[0] + i;
 
 	return vmap(pages, npages, VM_MAP, pgprot_writecombine(PAGE_KERNEL));
+#else
+	BUG();
+	return NULL;
+#endif
 }
 
 static void __iomem *
