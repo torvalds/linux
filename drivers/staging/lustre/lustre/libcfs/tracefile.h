@@ -39,7 +39,12 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 
-#include "linux/linux-tracefile.h"
+typedef enum {
+	CFS_TCD_TYPE_PROC = 0,
+	CFS_TCD_TYPE_SOFTIRQ,
+	CFS_TCD_TYPE_IRQ,
+	CFS_TCD_TYPE_MAX
+} cfs_trace_buf_type_t;
 
 /* trace file lock routines */
 
