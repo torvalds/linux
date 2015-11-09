@@ -256,13 +256,6 @@ void cfs_print_to_console(struct ptldebug_header *hdr, int mask,
 int cfs_trace_lock_tcd(struct cfs_trace_cpu_data *tcd, int walking);
 void cfs_trace_unlock_tcd(struct cfs_trace_cpu_data *tcd, int walking);
 
-/**
- * trace_buf_type_t, trace_buf_idx_get() and trace_console_buffers[][]
- * are not public libcfs API; they should be defined in
- * platform-specific tracefile include files
- * (see, for example, linux-tracefile.h).
- */
-
 extern char *cfs_trace_console_buffers[NR_CPUS][CFS_TCD_TYPE_MAX];
 cfs_trace_buf_type_t cfs_trace_buf_idx_get(void);
 
