@@ -592,7 +592,6 @@ static int hist_browser__show_callchain(struct hist_browser *browser,
 	while (node) {
 		struct callchain_node *child = rb_entry(node, struct callchain_node, rb_node);
 		struct rb_node *next = rb_next(node);
-		u64 cumul = callchain_cumul_hits(child);
 		struct callchain_list *chain;
 		char folded_sign = ' ';
 		int first = true;
@@ -619,9 +618,12 @@ static int hist_browser__show_callchain(struct hist_browser *browser,
 						       browser->show_dso);
 
 			if (was_first && need_percent) {
-				double percent = cumul * 100.0 / total;
+				char buf[64];
 
-				if (asprintf(&alloc_str, "%2.2f%% %s", percent, str) < 0)
+				callchain_node__scnprintf_value(child, buf, sizeof(buf),
+								total);
+
+				if (asprintf(&alloc_str, "%s %s", buf, str) < 0)
 					str = "Not enough memory!";
 				else
 					str = alloc_str;

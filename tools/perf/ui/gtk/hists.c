@@ -100,13 +100,9 @@ static void perf_gtk__add_callchain(struct rb_root *root, GtkTreeStore *store,
 		struct callchain_list *chain;
 		GtkTreeIter iter, new_parent;
 		bool need_new_parent;
-		double percent;
-		u64 hits, child_total;
+		u64 child_total;
 
 		node = rb_entry(nd, struct callchain_node, rb_node);
-
-		hits = callchain_cumul_hits(node);
-		percent = 100.0 * hits / total;
 
 		new_parent = *parent;
 		need_new_parent = !has_single_node && (node->val_nr > 1);
@@ -116,7 +112,7 @@ static void perf_gtk__add_callchain(struct rb_root *root, GtkTreeStore *store,
 
 			gtk_tree_store_append(store, &iter, &new_parent);
 
-			scnprintf(buf, sizeof(buf), "%5.2f%%", percent);
+			callchain_node__scnprintf_value(node, buf, sizeof(buf), total);
 			gtk_tree_store_set(store, &iter, 0, buf, -1);
 
 			callchain_list__sym_name(chain, buf, sizeof(buf), false);

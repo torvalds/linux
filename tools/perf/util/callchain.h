@@ -230,6 +230,10 @@ static inline int arch_skip_callchain_idx(struct thread *thread __maybe_unused,
 
 char *callchain_list__sym_name(struct callchain_list *cl,
 			       char *bf, size_t bfsize, bool show_dso);
+char *callchain_node__scnprintf_value(struct callchain_node *node,
+				      char *bf, size_t bfsize, u64 total);
+int callchain_node__fprintf_value(struct callchain_node *node,
+				  FILE *fp, u64 total);
 
 void free_callchain(struct callchain_root *root);
 
