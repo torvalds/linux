@@ -3431,7 +3431,7 @@ xlog_recover_add_to_cont_trans(
 	 * previous record. Copy the rest of the header.
 	 */
 	if (list_empty(&trans->r_itemq)) {
-		ASSERT(len < sizeof(struct xfs_trans_header));
+		ASSERT(len <= sizeof(struct xfs_trans_header));
 		if (len > sizeof(struct xfs_trans_header)) {
 			xfs_warn(log->l_mp, "%s: bad header length", __func__);
 			return -EIO;
