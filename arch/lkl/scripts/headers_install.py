@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 import re, os, sys, argparse, multiprocessing
 
 header_paths = [ "include/uapi/", "arch/lkl/include/uapi/",
