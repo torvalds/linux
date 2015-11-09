@@ -1411,8 +1411,9 @@ config SERIAL_PCH_UART_CONSOLE
 	  warnings and which allows logins in single user mode).
 
 config SERIAL_MXS_AUART
-	depends on ARCH_MXS || COMPILE_TEST
 	tristate "MXS AUART support"
+	depends on HAS_DMA
+	depends on ARCH_MXS || COMPILE_TEST
 	select SERIAL_CORE
 	select SERIAL_MCTRL_GPIO if GPIOLIB
 	help
