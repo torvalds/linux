@@ -691,7 +691,7 @@ void __set_fixmap(enum fixed_addresses idx,
 void *__init fixmap_remap_fdt(phys_addr_t dt_phys)
 {
 	const u64 dt_virt_base = __fix_to_virt(FIX_FDT);
-	pgprot_t prot = PAGE_KERNEL | PTE_RDONLY;
+	pgprot_t prot = PAGE_KERNEL_RO;
 	int size, offset;
 	void *dt_virt;
 
