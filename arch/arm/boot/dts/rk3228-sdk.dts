@@ -11,6 +11,98 @@
 	fiq-debugger {
 		status = "disabled";
 	};
+
+	wireless-wlan {
+		compatible = "wlan-platdata";
+		/* wifi_chip_type - wifi chip define
+		* bcmwifi ==> like ap6xxx, rk90x;
+		* rtkwifi ==> like rtl8188xx, rtl8723xx,rtl8812auv;
+		* esp8089 ==> esp8089;
+		* other   ==> for other wifi;
+		*/
+		wifi_chip_type = "bcmwifi";
+		sdio_vref = <1800>; //1800mv or 3300mv
+		//keep_wifi_power_on;
+		//power_ctrl_by_pmu;
+		power_pmu_regulator = "act_ldo3";
+		power_pmu_enable_level = <1>; //1->HIGH, 0->LOW
+		//vref_ctrl_enable;
+		//vref_ctrl_gpio = <&gpio0 GPIO_A2 GPIO_ACTIVE_HIGH>;
+		vref_pmu_regulator = "act_ldo3";
+		vref_pmu_enable_level = <1>; //1->HIGH, 0->LOW
+		WIFI,poweren_gpio = <&gpio2 GPIO_D2 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake_irq = <&gpio0 GPIO_D4 GPIO_ACTIVE_HIGH>;
+		//WIFI,reset_gpio = <&gpio0 GPIO_A2 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
+
+	wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		//wifi-bt-power-toggle;
+		//uart_rts_gpios = <&gpio2 GPIO_D5 GPIO_ACTIVE_LOW>;
+		//pinctrl-names = "default","rts_gpio";
+		//pinctrl-0 = <&uart1_rts>;
+		//pinctrl-1 = <&uart1_rts_gpio>;
+		//BT,power_gpio = <&gpio4 GPIO_D3 GPIO_ACTIVE_HIGH>;
+		BT,reset_gpio = <&gpio2 GPIO_D5 GPIO_ACTIVE_HIGH>;
+		BT,wake_gpio = <&gpio3 GPIO_D3 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio3 GPIO_D2 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	pwm-regulator1  {
+		compatible = "rockchip_pwm_regulator";
+		pwms = <&pwm1 0 2000>;
+		rockchip,pwm_id= <1>;
+		rockchip,pwm_voltage_map= <950000 975000 1000000 1025000 1050000 1075000 1100000 1125000 1150000 1175000 1200000 1225000 1250000 1275000 1300000 1325000 1350000 1375000 1400000>;
+		rockchip,pwm_voltage= <1100000>;
+		rockchip,pwm_min_voltage= <950000>;
+		rockchip,pwm_max_voltage= <1450000>;
+		rockchip,pwm_suspend_voltage= <950000>;
+		rockchip,pwm_coefficient= <475>;
+		status = "okay";
+		regulators {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pwm_reg0: regulator@0 {
+				regulator-compatible = "pwm_dcdc1";
+				regulator-name= "vdd_arm";
+				regulator-min-microvolt = <950000>;
+				regulator-max-microvolt = <1450000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+		};
+	};
+
+	pwm-regulator2 {
+		compatible = "rockchip_pwm_regulator";
+		pwms = <&pwm2 0 25000>;
+		rockchip,pwm_id= <2>;
+		rockchip,pwm_voltage_map= <1000000 1025000 1050000 1075000 1100000 1125000 1150000 1175000 1200000 1225000 1250000 1275000 1300000>;
+		rockchip,pwm_voltage= <1200000>;
+		rockchip,pwm_min_voltage= <1000000>;
+		rockchip,pwm_max_voltage= <1300000>;
+		rockchip,pwm_suspend_voltage= <1250000>;
+		rockchip,pwm_coefficient= <475>;
+		status = "okay";
+		regulators {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pwm_reg1: regulator@1 {
+				regulator-compatible = "pwm_dcdc2";
+				regulator-name= "vdd_logic";
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+		};
+	};
+};
+
+&nandc {
+	status = "okay"; //used nand set "okay" ,used emmc set "disabled"
 };
 
 &emmc {
@@ -48,7 +140,38 @@
 	status = "okay";
 };
 
-&nandc {
+&uart1{
+	status = "okay";
+	dma-names = "!tx", "!rx";
+	//pinctrl-0 = <&uart1_xfer &uart1_cts>;
+};
+
+&i2c0 {
+	status = "okay";
+	rtc@51 {
+		compatible = "rtc,hym8563";
+		reg = <0x51>;
+		irq_gpio = <&gpio0 GPIO_A4 IRQ_TYPE_EDGE_FALLING>;
+	};
+};
+
+&i2c1 {
+	status = "okay";
+};
+
+&i2c2 {
+	status = "okay";
+};
+
+&i2c3 {
+	status = "okay";
+};
+
+&pwm1 {
+	status = "okay";
+};
+
+&pwm2 {
 	status = "okay";
 };
 
