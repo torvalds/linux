@@ -170,11 +170,11 @@ OPTIONS
         Dump raw trace in ASCII.
 
 -g::
---call-graph=<print_type,threshold[,print_limit],order,sort_key,branch>::
+--call-graph=<print_type,threshold[,print_limit],order,sort_key[,branch],value>::
         Display call chains using type, min percent threshold, print limit,
-	call order, sort key and branch.  Note that ordering of parameters is not
-	fixed so any parement can be given in an arbitraty order.  One exception
-	is the print_limit which should be preceded by threshold.
+	call order, sort key, optional branch and value.  Note that ordering of
+	parameters is not fixed so any parement can be given in an arbitraty order.
+	One exception is the print_limit which should be preceded by threshold.
 
 	print_type can be either:
 	- flat: single column, linear exposure of call chains.
@@ -204,6 +204,11 @@ OPTIONS
 	branch can be:
 	- branch: include last branch information in callgraph when available.
 	          Usually more convenient to use --branch-history for this.
+
+	value can be:
+	- percent: diplay overhead percent (default)
+	- period: display event period
+	- count: display event count
 
 --children::
 	Accumulate callchain of children to parent entry so that then can

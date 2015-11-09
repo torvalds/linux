@@ -83,6 +83,23 @@ static int parse_callchain_sort_key(const char *value)
 	return -1;
 }
 
+static int parse_callchain_value(const char *value)
+{
+	if (!strncmp(value, "percent", strlen(value))) {
+		callchain_param.value = CCVAL_PERCENT;
+		return 0;
+	}
+	if (!strncmp(value, "period", strlen(value))) {
+		callchain_param.value = CCVAL_PERIOD;
+		return 0;
+	}
+	if (!strncmp(value, "count", strlen(value))) {
+		callchain_param.value = CCVAL_COUNT;
+		return 0;
+	}
+	return -1;
+}
+
 static int
 __parse_callchain_report_opt(const char *arg, bool allow_record_opt)
 {
@@ -106,7 +123,8 @@ __parse_callchain_report_opt(const char *arg, bool allow_record_opt)
 
 		if (!parse_callchain_mode(tok) ||
 		    !parse_callchain_order(tok) ||
-		    !parse_callchain_sort_key(tok)) {
+		    !parse_callchain_sort_key(tok) ||
+		    !parse_callchain_value(tok)) {
 			/* parsing ok - move on to the next */
 			try_stack_size = false;
 			goto next;
@@ -820,13 +838,27 @@ char *callchain_node__scnprintf_value(struct callchain_node *node,
 {
 	double percent = 0.0;
 	u64 period = callchain_cumul_hits(node);
+	unsigned count = callchain_cumul_counts(node);
 
-	if (callchain_param.mode == CHAIN_FOLDED)
+	if (callchain_param.mode == CHAIN_FOLDED) {
 		period = node->hit;
-	if (total)
-		percent = period * 100.0 / total;
+		count = node->count;
+	}
 
-	scnprintf(bf, bfsize, "%.2f%%", percent);
+	switch (callchain_param.value) {
+	case CCVAL_PERIOD:
+		scnprintf(bf, bfsize, "%"PRIu64, period);
+		break;
+	case CCVAL_COUNT:
+		scnprintf(bf, bfsize, "%u", count);
+		break;
+	case CCVAL_PERCENT:
+	default:
+		if (total)
+			percent = period * 100.0 / total;
+		scnprintf(bf, bfsize, "%.2f%%", percent);
+		break;
+	}
 	return bf;
 }
 
@@ -835,13 +867,25 @@ int callchain_node__fprintf_value(struct callchain_node *node,
 {
 	double percent = 0.0;
 	u64 period = callchain_cumul_hits(node);
+	unsigned count = callchain_cumul_counts(node);
 
-	if (callchain_param.mode == CHAIN_FOLDED)
+	if (callchain_param.mode == CHAIN_FOLDED) {
 		period = node->hit;
-	if (total)
-		percent = period * 100.0 / total;
+		count = node->count;
+	}
 
-	return percent_color_fprintf(fp, "%.2f%%", percent);
+	switch (callchain_param.value) {
+	case CCVAL_PERIOD:
+		return fprintf(fp, "%"PRIu64, period);
+	case CCVAL_COUNT:
+		return fprintf(fp, "%u", count);
+	case CCVAL_PERCENT:
+	default:
+		if (total)
+			percent = period * 100.0 / total;
+		return percent_color_fprintf(fp, "%.2f%%", percent);
+	}
+	return 0;
 }
 
 static void free_callchain_node(struct callchain_node *node)

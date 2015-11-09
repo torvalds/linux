@@ -81,13 +81,14 @@ static size_t __callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 					 int depth_mask, int left_margin)
 {
 	struct rb_node *node, *next;
-	struct callchain_node *child;
+	struct callchain_node *child = NULL;
 	struct callchain_list *chain;
 	int new_depth_mask = depth_mask;
 	u64 remaining;
 	size_t ret = 0;
 	int i;
 	uint entries_printed = 0;
+	int cumul_count = 0;
 
 	remaining = total_samples;
 
@@ -99,6 +100,7 @@ static size_t __callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 		child = rb_entry(node, struct callchain_node, rb_node);
 		cumul = callchain_cumul_hits(child);
 		remaining -= cumul;
+		cumul_count += callchain_cumul_counts(child);
 
 		/*
 		 * The depth mask manages the output of pipes that show
@@ -147,6 +149,12 @@ static size_t __callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 
 		if (!rem_sq_bracket)
 			return ret;
+
+		if (callchain_param.value == CCVAL_COUNT && child && child->parent) {
+			rem_node.count = child->parent->children_count - cumul_count;
+			if (rem_node.count <= 0)
+				return ret;
+		}
 
 		new_depth_mask &= ~(1 << (depth - 1));
 		ret += ipchain__fprintf_graph(fp, &rem_node, &rem_hits, depth,

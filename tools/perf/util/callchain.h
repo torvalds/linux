@@ -29,7 +29,8 @@
 	HELP_PAD "print_limit:\tmaximum number of call graph entry (<number>)\n" \
 	HELP_PAD "order:\t\tcall graph order (caller|callee)\n" \
 	HELP_PAD "sort_key:\tcall graph sort key (function|address)\n"	\
-	HELP_PAD "branch:\t\tinclude last branch info to call graph (branch)\n"
+	HELP_PAD "branch:\t\tinclude last branch info to call graph (branch)\n" \
+	HELP_PAD "value:\t\tcall graph value (percent|period|count)\n"
 
 enum perf_call_graph_mode {
 	CALLCHAIN_NONE,
@@ -81,6 +82,12 @@ enum chain_key {
 	CCKEY_ADDRESS
 };
 
+enum chain_value {
+	CCVAL_PERCENT,
+	CCVAL_PERIOD,
+	CCVAL_COUNT,
+};
+
 struct callchain_param {
 	bool			enabled;
 	enum perf_call_graph_mode record_mode;
@@ -93,6 +100,7 @@ struct callchain_param {
 	bool			order_set;
 	enum chain_key		key;
 	bool			branch_callstack;
+	enum chain_value	value;
 };
 
 extern struct callchain_param callchain_param;
