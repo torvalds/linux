@@ -20,7 +20,7 @@
 	})
 
 /* acceptable for old filesystems */
-static inline int old_valid_dev(dev_t dev)
+static inline bool old_valid_dev(dev_t dev)
 {
 	return MAJOR(dev) < 256 && MINOR(dev) < 256;
 }
@@ -35,7 +35,7 @@ static inline dev_t old_decode_dev(u16 val)
 	return MKDEV((val >> 8) & 255, val & 255);
 }
 
-static inline int new_valid_dev(dev_t dev)
+static inline bool new_valid_dev(dev_t dev)
 {
 	return 1;
 }
