@@ -67,6 +67,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_ES8328_I2C if I2C
 	select SND_SOC_GTM601
 	select SND_SOC_ICS43432
+	select SND_SOC_INNO_RK3036
 	select SND_SOC_ISABELLE if I2C
 	select SND_SOC_JZ4740_CODEC
 	select SND_SOC_LM4857 if I2C
@@ -470,6 +471,9 @@ config SND_SOC_GTM601
 
 config SND_SOC_ICS43432
 	tristate
+
+config SND_SOC_INNO_RK3036
+	tristate "Inno codec driver for RK3036 SoC"
 
 config SND_SOC_ISABELLE
         tristate
