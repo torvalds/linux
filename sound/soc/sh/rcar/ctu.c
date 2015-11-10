@@ -77,8 +77,7 @@ struct rsnd_mod *rsnd_ctu_mod_get(struct rsnd_priv *priv, int id)
 	return rsnd_mod_get(rsnd_ctu_get(priv, id));
 }
 
-int rsnd_ctu_probe(struct platform_device *pdev,
-		   struct rsnd_priv *priv)
+int rsnd_ctu_probe(struct rsnd_priv *priv)
 {
 	struct device_node *node;
 	struct device_node *np;
@@ -143,8 +142,7 @@ rsnd_ctu_probe_done:
 	return ret;
 }
 
-void rsnd_ctu_remove(struct platform_device *pdev,
-		     struct rsnd_priv *priv)
+void rsnd_ctu_remove(struct rsnd_priv *priv)
 {
 	struct rsnd_ctu *ctu;
 	int i;

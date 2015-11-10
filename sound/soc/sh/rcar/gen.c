@@ -211,8 +211,7 @@ static int _rsnd_gen_regmap_init(struct rsnd_priv *priv,
 /*
  *		Gen2
  */
-static int rsnd_gen2_probe(struct platform_device *pdev,
-			   struct rsnd_priv *priv)
+static int rsnd_gen2_probe(struct rsnd_priv *priv)
 {
 	struct rsnd_regmap_field_conf conf_ssiu[] = {
 		RSND_GEN_S_REG(SSI_MODE0,	0x800),
@@ -317,8 +316,7 @@ static int rsnd_gen2_probe(struct platform_device *pdev,
  *		Gen1
  */
 
-static int rsnd_gen1_probe(struct platform_device *pdev,
-			   struct rsnd_priv *priv)
+static int rsnd_gen1_probe(struct rsnd_priv *priv)
 {
 	struct rsnd_regmap_field_conf conf_adg[] = {
 		RSND_GEN_S_REG(BRRA,		0x00),
@@ -349,8 +347,7 @@ static int rsnd_gen1_probe(struct platform_device *pdev,
 /*
  *		Gen
  */
-int rsnd_gen_probe(struct platform_device *pdev,
-		   struct rsnd_priv *priv)
+int rsnd_gen_probe(struct rsnd_priv *priv)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_gen *gen;
@@ -366,9 +363,9 @@ int rsnd_gen_probe(struct platform_device *pdev,
 
 	ret = -ENODEV;
 	if (rsnd_is_gen1(priv))
-		ret = rsnd_gen1_probe(pdev, priv);
+		ret = rsnd_gen1_probe(priv);
 	else if (rsnd_is_gen2(priv))
-		ret = rsnd_gen2_probe(pdev, priv);
+		ret = rsnd_gen2_probe(priv);
 
 	if (ret < 0)
 		dev_err(dev, "unknown generation R-Car sound device\n");

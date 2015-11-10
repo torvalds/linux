@@ -723,8 +723,7 @@ int __rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod)
 	return !!(rsnd_ssi_mode_flags(ssi) & RSND_SSI_CLK_PIN_SHARE);
 }
 
-int rsnd_ssi_probe(struct platform_device *pdev,
-		   struct rsnd_priv *priv)
+int rsnd_ssi_probe(struct rsnd_priv *priv)
 {
 	struct device_node *node;
 	struct device_node *np;
@@ -801,8 +800,7 @@ rsnd_ssi_probe_done:
 	return ret;
 }
 
-void rsnd_ssi_remove(struct platform_device *pdev,
-		     struct rsnd_priv *priv)
+void rsnd_ssi_remove(struct rsnd_priv *priv)
 {
 	struct rsnd_ssi *ssi;
 	int i;

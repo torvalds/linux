@@ -553,8 +553,7 @@ struct rsnd_mod *rsnd_src_mod_get(struct rsnd_priv *priv, int id)
 	return rsnd_mod_get(rsnd_src_get(priv, id));
 }
 
-int rsnd_src_probe(struct platform_device *pdev,
-		   struct rsnd_priv *priv)
+int rsnd_src_probe(struct rsnd_priv *priv)
 {
 	struct device_node *node;
 	struct device_node *np;
@@ -622,8 +621,7 @@ rsnd_src_probe_done:
 	return ret;
 }
 
-void rsnd_src_remove(struct platform_device *pdev,
-		     struct rsnd_priv *priv)
+void rsnd_src_remove(struct rsnd_priv *priv)
 {
 	struct rsnd_src *src;
 	int i;

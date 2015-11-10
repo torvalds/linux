@@ -116,8 +116,7 @@ struct rsnd_mod *rsnd_mix_mod_get(struct rsnd_priv *priv, int id)
 	return rsnd_mod_get(rsnd_mix_get(priv, id));
 }
 
-int rsnd_mix_probe(struct platform_device *pdev,
-		   struct rsnd_priv *priv)
+int rsnd_mix_probe(struct rsnd_priv *priv)
 {
 	struct device_node *node;
 	struct device_node *np;
@@ -177,8 +176,7 @@ rsnd_mix_probe_done:
 	return ret;
 }
 
-void rsnd_mix_remove(struct platform_device *pdev,
-		     struct rsnd_priv *priv)
+void rsnd_mix_remove(struct rsnd_priv *priv)
 {
 	struct rsnd_mix *mix;
 	int i;

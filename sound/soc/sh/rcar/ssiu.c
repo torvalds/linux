@@ -136,8 +136,7 @@ int rsnd_ssiu_attach(struct rsnd_dai_stream *io,
 	return rsnd_dai_connect(mod, io, mod->type);
 }
 
-int rsnd_ssiu_probe(struct platform_device *pdev,
-		    struct rsnd_priv *priv)
+int rsnd_ssiu_probe(struct rsnd_priv *priv)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_ssiu *ssiu;
@@ -168,8 +167,7 @@ int rsnd_ssiu_probe(struct platform_device *pdev,
 	return 0;
 }
 
-void rsnd_ssiu_remove(struct platform_device *pdev,
-		     struct rsnd_priv *priv)
+void rsnd_ssiu_remove(struct rsnd_priv *priv)
 {
 	struct rsnd_ssiu *ssiu;
 	int i;

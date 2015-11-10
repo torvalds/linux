@@ -127,8 +127,7 @@ struct rsnd_mod *rsnd_cmd_mod_get(struct rsnd_priv *priv, int id)
 	return rsnd_mod_get((struct rsnd_cmd *)(priv->cmd) + id);
 }
 
-int rsnd_cmd_probe(struct platform_device *pdev,
-		   struct rsnd_priv *priv)
+int rsnd_cmd_probe(struct rsnd_priv *priv)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_cmd *cmd;
@@ -160,8 +159,7 @@ int rsnd_cmd_probe(struct platform_device *pdev,
 	return 0;
 }
 
-void rsnd_cmd_remove(struct platform_device *pdev,
-		     struct rsnd_priv *priv)
+void rsnd_cmd_remove(struct rsnd_priv *priv)
 {
 	struct rsnd_cmd *cmd;
 	int i;

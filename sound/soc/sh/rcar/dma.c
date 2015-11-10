@@ -701,9 +701,9 @@ struct rsnd_mod *rsnd_dma_attach(struct rsnd_dai_stream *io,
 	return rsnd_mod_get(dma);
 }
 
-int rsnd_dma_probe(struct platform_device *pdev,
-		   struct rsnd_priv *priv)
+int rsnd_dma_probe(struct rsnd_priv *priv)
 {
+	struct platform_device *pdev = rsnd_priv_to_pdev(priv);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_dma_ctrl *dmac;
 	struct resource *res;

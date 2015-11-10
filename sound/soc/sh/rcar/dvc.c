@@ -304,8 +304,7 @@ struct rsnd_mod *rsnd_dvc_mod_get(struct rsnd_priv *priv, int id)
 	return rsnd_mod_get(rsnd_dvc_get(priv, id));
 }
 
-int rsnd_dvc_probe(struct platform_device *pdev,
-		   struct rsnd_priv *priv)
+int rsnd_dvc_probe(struct rsnd_priv *priv)
 {
 	struct device_node *node;
 	struct device_node *np;
@@ -365,8 +364,7 @@ rsnd_dvc_probe_done:
 	return ret;
 }
 
-void rsnd_dvc_remove(struct platform_device *pdev,
-		     struct rsnd_priv *priv)
+void rsnd_dvc_remove(struct rsnd_priv *priv)
 {
 	struct rsnd_dvc *dvc;
 	int i;

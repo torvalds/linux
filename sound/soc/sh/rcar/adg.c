@@ -515,8 +515,7 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 		ckr, rbga, rbgb);
 }
 
-int rsnd_adg_probe(struct platform_device *pdev,
-		   struct rsnd_priv *priv)
+int rsnd_adg_probe(struct rsnd_priv *priv)
 {
 	struct rsnd_adg *adg;
 	struct device *dev = rsnd_priv_to_dev(priv);
@@ -543,8 +542,7 @@ int rsnd_adg_probe(struct platform_device *pdev,
 	return 0;
 }
 
-void rsnd_adg_remove(struct platform_device *pdev,
-		     struct rsnd_priv *priv)
+void rsnd_adg_remove(struct rsnd_priv *priv)
 {
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
 	struct clk *clk;

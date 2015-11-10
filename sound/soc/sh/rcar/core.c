@@ -546,8 +546,7 @@ static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 	.set_fmt	= rsnd_soc_dai_set_fmt,
 };
 
-static int rsnd_dai_probe(struct platform_device *pdev,
-			  struct rsnd_priv *priv)
+static int rsnd_dai_probe(struct rsnd_priv *priv)
 {
 	struct device_node *dai_node;
 	struct device_node *dai_np, *np, *node;
@@ -556,7 +555,7 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 	struct rsnd_dai_stream *io_capture;
 	struct snd_soc_dai_driver *drv;
 	struct rsnd_dai *rdai;
-	struct device *dev = &pdev->dev;
+	struct device *dev = rsnd_priv_to_dev(priv);
 	int nr, dai_i, io_i, np_i;
 	int ret;
 
@@ -975,8 +974,7 @@ static int rsnd_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rsnd_dai *rdai;
 	const struct of_device_id *of_id = of_match_device(rsnd_of_match, dev);
-	int (*probe_func[])(struct platform_device *pdev,
-			    struct rsnd_priv *priv) = {
+	int (*probe_func[])(struct rsnd_priv *priv) = {
 		rsnd_gen_probe,
 		rsnd_dma_probe,
 		rsnd_ssi_probe,
@@ -1008,7 +1006,7 @@ static int rsnd_probe(struct platform_device *pdev)
 	 *	init each module
 	 */
 	for (i = 0; i < ARRAY_SIZE(probe_func); i++) {
-		ret = probe_func[i](pdev, priv);
+		ret = probe_func[i](priv);
 		if (ret)
 			return ret;
 	}
@@ -1061,8 +1059,7 @@ static int rsnd_remove(struct platform_device *pdev)
 {
 	struct rsnd_priv *priv = dev_get_drvdata(&pdev->dev);
 	struct rsnd_dai *rdai;
-	void (*remove_func[])(struct platform_device *pdev,
-			      struct rsnd_priv *priv) = {
+	void (*remove_func[])(struct rsnd_priv *priv) = {
 		rsnd_ssi_remove,
 		rsnd_ssiu_remove,
 		rsnd_src_remove,
@@ -1082,7 +1079,7 @@ static int rsnd_remove(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(remove_func); i++)
-		remove_func[i](pdev, priv);
+		remove_func[i](priv);
 
 	snd_soc_unregister_component(&pdev->dev);
 	snd_soc_unregister_platform(&pdev->dev);
