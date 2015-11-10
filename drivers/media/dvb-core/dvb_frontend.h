@@ -687,12 +687,49 @@ struct dvb_frontend {
 	unsigned int exit;
 };
 
-extern int dvb_register_frontend(struct dvb_adapter *dvb,
+/**
+ * dvb_register_frontend() - Registers a DVB frontend at the adapter
+ *
+ * @dvb: pointer to the dvb adapter
+ * @fe: pointer to the frontend struct
+ *
+ * Allocate and initialize the private data needed by the frontend core to
+ * manage the frontend and calls dvb_register_device() to register a new
+ * frontend. It also cleans the property cache that stores the frontend
+ * parameters and selects the first available delivery system.
+ */
+int dvb_register_frontend(struct dvb_adapter *dvb,
 				 struct dvb_frontend *fe);
 
-extern int dvb_unregister_frontend(struct dvb_frontend *fe);
+/**
+ * dvb_unregister_frontend() - Unregisters a DVB frontend
+ *
+ * @fe: pointer to the frontend struct
+ *
+ * Stops the frontend kthread, calls dvb_unregister_device() and frees the
+ * private frontend data allocated by dvb_register_frontend().
+ *
+ * NOTE: This function doesn't frees the memory allocated by the demod,
+ * by the SEC driver and by the tuner. In order to free it, an explicit call to
+ * dvb_frontend_detach() is needed, after calling this function.
+ */
+int dvb_unregister_frontend(struct dvb_frontend *fe);
 
-extern void dvb_frontend_detach(struct dvb_frontend *fe);
+/**
+ * dvb_frontend_detach() - Detaches and frees frontend specific data
+ *
+ * @fe: pointer to the frontend struct
+ *
+ * This function should be called after dvb_unregister_frontend(). It
+ * calls the SEC, tuner and demod release functions:
+ * &dvb_frontend_ops.release_sec, &dvb_frontend_ops.tuner_ops.release,
+ * &dvb_frontend_ops.analog_ops.release and &dvb_frontend_ops.release.
+ *
+ * If the driver is compiled with CONFIG_MEDIA_ATTACH, it also decreases
+ * the module reference count, needed to allow userspace to remove the
+ * previously used DVB frontend modules.
+ */
+void dvb_frontend_detach(struct dvb_frontend *fe);
 
 extern int dvb_frontend_suspend(struct dvb_frontend *fe);
 extern int dvb_frontend_resume(struct dvb_frontend *fe);
