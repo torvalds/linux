@@ -622,6 +622,7 @@ static void mali_unmap_soc_addr(void)
 int mali_platform_device_init(struct platform_device *pdev)
 {
 	int stat;
+	int irq, i;
 
 #if HISI6220_USE_ION
 	stat = mali_ion_mem_init();
@@ -647,6 +648,17 @@ int mali_platform_device_init(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	/*
+	 * We need to use DT to get the irq domain, so rewrite the static
+	 * table with the irq given from platform_get_irq().
+	 */
+	irq = platform_get_irq(pdev, 0);
+	for (i = 0; i < ARRAY_SIZE(mali_gpu_resources_m450_mp4); i++) {
+		if (IORESOURCE_IRQ & mali_gpu_resources_m450_mp4[i].flags) {
+			mali_gpu_resources_m450_mp4[i].start = irq;
+			mali_gpu_resources_m450_mp4[i].end = irq;
+		}
+	}
 	pdev->num_resources = ARRAY_SIZE(mali_gpu_resources_m450_mp4);
 	pdev->resource = mali_gpu_resources_m450_mp4;
 
