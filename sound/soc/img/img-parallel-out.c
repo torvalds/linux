@@ -154,7 +154,7 @@ static int img_prl_out_hw_params(struct snd_pcm_substream *substream,
 static int img_prl_out_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct img_prl_out *prl = snd_soc_dai_get_drvdata(dai);
-	u32 reg, control_set;
+	u32 reg, control_set = 0;
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
