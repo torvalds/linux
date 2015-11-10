@@ -151,9 +151,9 @@ gk104_fifo_gpfifo_fini(struct nvkm_fifo_chan *base)
 	u32 coff = chan->base.chid * 8;
 
 	if (!list_empty(&chan->head)) {
-		list_del_init(&chan->head);
+		gk104_fifo_runlist_remove(fifo, chan);
 		nvkm_mask(device, 0x800004 + coff, 0x00000800, 0x00000800);
-		gk104_fifo_runlist_update(fifo, chan->engine);
+		gk104_fifo_runlist_commit(fifo, chan->engine);
 	}
 
 	nvkm_wr32(device, 0x800000 + coff, 0x00000000);
@@ -172,9 +172,9 @@ gk104_fifo_gpfifo_init(struct nvkm_fifo_chan *base)
 	nvkm_wr32(device, 0x800000 + coff, 0x80000000 | addr);
 
 	if (list_empty(&chan->head) && !chan->killed) {
-		list_add_tail(&chan->head, &fifo->engine[chan->engine].chan);
+		gk104_fifo_runlist_insert(fifo, chan);
 		nvkm_mask(device, 0x800004 + coff, 0x00000400, 0x00000400);
-		gk104_fifo_runlist_update(fifo, chan->engine);
+		gk104_fifo_runlist_commit(fifo, chan->engine);
 		nvkm_mask(device, 0x800004 + coff, 0x00000400, 0x00000400);
 	}
 }
