@@ -779,6 +779,9 @@ static int iwl_mvm_switch_to_d3(struct iwl_mvm *mvm)
 	 */
 	set_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
 
+	/* the fw is reset, so all the keys are cleared */
+	memset(mvm->fw_key_table, 0, sizeof(mvm->fw_key_table));
+
 	mvm->ptk_ivlen = 0;
 	mvm->ptk_icvlen = 0;
 	mvm->ptk_ivlen = 0;

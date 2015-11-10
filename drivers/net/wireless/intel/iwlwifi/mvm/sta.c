@@ -1198,8 +1198,6 @@ static int iwl_mvm_set_fw_key_idx(struct iwl_mvm *mvm)
 	if (max_offs < 0)
 		return STA_KEY_IDX_INVALID;
 
-	__set_bit(max_offs, mvm->fw_key_table);
-
 	return max_offs;
 }
 
@@ -1507,10 +1505,8 @@ int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 	}
 
 	ret = __iwl_mvm_set_sta_key(mvm, vif, sta, keyconf, key_offset, mcast);
-	if (ret) {
-		__clear_bit(keyconf->hw_key_idx, mvm->fw_key_table);
+	if (ret)
 		goto end;
-	}
 
 	/*
 	 * For WEP, the same key is used for multicast and unicast. Upload it
@@ -1523,10 +1519,12 @@ int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 		ret = __iwl_mvm_set_sta_key(mvm, vif, sta, keyconf,
 					    key_offset, !mcast);
 		if (ret) {
-			__clear_bit(keyconf->hw_key_idx, mvm->fw_key_table);
 			__iwl_mvm_remove_sta_key(mvm, sta_id, keyconf, mcast);
+			goto end;
 		}
 	}
+
+	__set_bit(key_offset, mvm->fw_key_table);
 
 end:
 	IWL_DEBUG_WEP(mvm, "key: cipher=%x len=%d idx=%d sta=%pM ret=%d\n",
