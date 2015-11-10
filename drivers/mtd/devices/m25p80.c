@@ -152,22 +152,6 @@ static int m25p80_read(struct spi_nor *nor, loff_t from, size_t len,
 	return 0;
 }
 
-static int m25p80_erase(struct spi_nor *nor, loff_t offset)
-{
-	struct m25p *flash = nor->priv;
-
-	dev_dbg(nor->dev, "%dKiB at 0x%08x\n",
-		flash->spi_nor.mtd.erasesize / 1024, (u32)offset);
-
-	/* Set up command buffer. */
-	flash->command[0] = nor->erase_opcode;
-	m25p_addr2cmd(nor, offset, flash->command);
-
-	spi_write(flash->spi, flash->command, m25p_cmdsz(nor));
-
-	return 0;
-}
-
 /*
  * board specific setup should have ensured the SPI clock used here
  * matches what the READ command supports, at least until this driver
@@ -193,7 +177,6 @@ static int m25p_probe(struct spi_device *spi)
 	/* install the hooks */
 	nor->read = m25p80_read;
 	nor->write = m25p80_write;
-	nor->erase = m25p80_erase;
 	nor->write_reg = m25p80_write_reg;
 	nor->read_reg = m25p80_read_reg;
 
