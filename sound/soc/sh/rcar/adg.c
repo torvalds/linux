@@ -242,68 +242,6 @@ int rsnd_adg_set_convert_timing_gen2(struct rsnd_mod *src_mod,
 	return rsnd_adg_set_src_timsel_gen2(src_mod, io, val);
 }
 
-int rsnd_adg_set_convert_clk_gen1(struct rsnd_priv *priv,
-				  struct rsnd_mod *mod,
-				  unsigned int src_rate,
-				  unsigned int dst_rate)
-{
-	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
-	struct rsnd_mod *adg_mod = rsnd_mod_get(adg);
-	struct device *dev = rsnd_priv_to_dev(priv);
-	int idx, sel, div, shift;
-	u32 mask, val;
-	int id = rsnd_mod_id(mod);
-	unsigned int sel_rate [] = {
-		clk_get_rate(adg->clk[CLKA]),	/* 000: CLKA */
-		clk_get_rate(adg->clk[CLKB]),	/* 001: CLKB */
-		clk_get_rate(adg->clk[CLKC]),	/* 010: CLKC */
-		0,				/* 011: MLBCLK (not used) */
-		adg->rbga_rate_for_441khz,	/* 100: RBGA */
-		adg->rbgb_rate_for_48khz,	/* 101: RBGB */
-	};
-
-	/* find div (= 1/128, 1/256, 1/512, 1/1024, 1/2048 */
-	for (sel = 0; sel < ARRAY_SIZE(sel_rate); sel++) {
-		for (div  = 128,	idx = 0;
-		     div <= 2048;
-		     div *= 2,		idx++) {
-			if (src_rate == sel_rate[sel] / div) {
-				val = (idx << 4) | sel;
-				goto find_rate;
-			}
-		}
-	}
-	dev_err(dev, "can't find convert src clk\n");
-	return -EINVAL;
-
-find_rate:
-	shift	= (id % 4) * 8;
-	mask	= 0xFF << shift;
-	val	= val << shift;
-
-	dev_dbg(dev, "adg convert src clk = %02x\n", val);
-
-	switch (id / 4) {
-	case 0:
-		rsnd_mod_bset(adg_mod, AUDIO_CLK_SEL3, mask, val);
-		break;
-	case 1:
-		rsnd_mod_bset(adg_mod, AUDIO_CLK_SEL4, mask, val);
-		break;
-	case 2:
-		rsnd_mod_bset(adg_mod, AUDIO_CLK_SEL5, mask, val);
-		break;
-	}
-
-	/*
-	 * Gen1 doesn't need dst_rate settings,
-	 * since it uses SSI WS pin.
-	 * see also rsnd_src_set_route_if_gen1()
-	 */
-
-	return 0;
-}
-
 static void rsnd_adg_set_ssi_clk(struct rsnd_mod *ssi_mod, u32 val)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(ssi_mod);

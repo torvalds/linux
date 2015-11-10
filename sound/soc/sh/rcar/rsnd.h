@@ -117,17 +117,6 @@ enum rsnd_reg {
 	RSND_REG_MAX,
 };
 
-/* Gen1 only */
-#define RSND_REG_SRC_ROUTE_SEL		RSND_REG_SHARE01
-#define RSND_REG_SRC_TMG_SEL0		RSND_REG_SHARE02
-#define RSND_REG_SRC_TMG_SEL1		RSND_REG_SHARE03
-#define RSND_REG_SRC_TMG_SEL2		RSND_REG_SHARE04
-#define RSND_REG_SRC_ROUTE_CTRL		RSND_REG_SHARE05
-#define RSND_REG_SRC_MNFSR		RSND_REG_SHARE06
-#define RSND_REG_AUDIO_CLK_SEL3		RSND_REG_SHARE07
-#define RSND_REG_AUDIO_CLK_SEL4		RSND_REG_SHARE08
-#define RSND_REG_AUDIO_CLK_SEL5		RSND_REG_SHARE09
-
 /* Gen2 only */
 #define RSND_REG_SRC_CTRL		RSND_REG_SHARE01
 #define RSND_REG_SSI_CTRL		RSND_REG_SHARE02
@@ -407,10 +396,6 @@ int rsnd_adg_probe(struct platform_device *pdev,
 		   struct rsnd_priv *priv);
 void rsnd_adg_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv);
-int rsnd_adg_set_convert_clk_gen1(struct rsnd_priv *priv,
-				  struct rsnd_mod *mod,
-				  unsigned int src_rate,
-				  unsigned int dst_rate);
 int rsnd_adg_set_convert_clk_gen2(struct rsnd_mod *mod,
 				  struct rsnd_dai_stream *io,
 				  unsigned int src_rate,

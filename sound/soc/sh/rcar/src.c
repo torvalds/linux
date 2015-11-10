@@ -310,187 +310,6 @@ static int rsnd_src_stop(struct rsnd_mod *mod)
 }
 
 /*
- *		Gen1 functions
- */
-static int rsnd_src_set_route_gen1(struct rsnd_dai_stream *io,
-				   struct rsnd_mod *mod)
-{
-	struct src_route_config {
-		u32 mask;
-		int shift;
-	} routes[] = {
-		{ 0xF,  0, }, /* 0 */
-		{ 0xF,  4, }, /* 1 */
-		{ 0xF,  8, }, /* 2 */
-		{ 0x7, 12, }, /* 3 */
-		{ 0x7, 16, }, /* 4 */
-		{ 0x7, 20, }, /* 5 */
-		{ 0x7, 24, }, /* 6 */
-		{ 0x3, 28, }, /* 7 */
-		{ 0x3, 30, }, /* 8 */
-	};
-	u32 mask;
-	u32 val;
-	int id;
-
-	id = rsnd_mod_id(mod);
-	if (id < 0 || id >= ARRAY_SIZE(routes))
-		return -EIO;
-
-	/*
-	 * SRC_ROUTE_SELECT
-	 */
-	val = rsnd_io_is_play(io) ? 0x1 : 0x2;
-	val = val		<< routes[id].shift;
-	mask = routes[id].mask	<< routes[id].shift;
-
-	rsnd_mod_bset(mod, SRC_ROUTE_SEL, mask, val);
-
-	return 0;
-}
-
-static int rsnd_src_set_convert_timing_gen1(struct rsnd_dai_stream *io,
-					    struct rsnd_mod *mod)
-{
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct rsnd_src *src = rsnd_mod_to_src(mod);
-	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
-	u32 convert_rate = rsnd_src_convert_rate(io, src);
-	u32 mask;
-	u32 val;
-	int shift;
-	int id = rsnd_mod_id(mod);
-	int ret;
-
-	/*
-	 * SRC_TIMING_SELECT
-	 */
-	shift	= (id % 4) * 8;
-	mask	= 0x1F << shift;
-
-	/*
-	 * ADG is used as source clock if SRC was used,
-	 * then, SSI WS is used as destination clock.
-	 * SSI WS is used as source clock if SRC is not used
-	 * (when playback, source/destination become reverse when capture)
-	 */
-	ret = 0;
-	if (convert_rate) {
-		/* use ADG */
-		val = 0;
-		ret = rsnd_adg_set_convert_clk_gen1(priv, mod,
-						    runtime->rate,
-						    convert_rate);
-	} else if (8 == id) {
-		/* use SSI WS, but SRU8 is special */
-		val = id << shift;
-	} else {
-		/* use SSI WS */
-		val = (id + 1) << shift;
-	}
-
-	if (ret < 0)
-		return ret;
-
-	switch (id / 4) {
-	case 0:
-		rsnd_mod_bset(mod, SRC_TMG_SEL0, mask, val);
-		break;
-	case 1:
-		rsnd_mod_bset(mod, SRC_TMG_SEL1, mask, val);
-		break;
-	case 2:
-		rsnd_mod_bset(mod, SRC_TMG_SEL2, mask, val);
-		break;
-	}
-
-	return 0;
-}
-
-static int rsnd_src_set_convert_rate_gen1(struct rsnd_mod *mod,
-					  struct rsnd_dai_stream *io)
-{
-	struct rsnd_src *src = rsnd_mod_to_src(mod);
-	int ret;
-
-	ret = rsnd_src_set_convert_rate(mod, io);
-	if (ret < 0)
-		return ret;
-
-	/* Select SRC mode (fixed value) */
-	rsnd_mod_write(mod, SRC_SRCCR, 0x00010110);
-
-	/* Set the restriction value of the FS ratio (98%) */
-	rsnd_mod_write(mod, SRC_MNFSR,
-		       rsnd_mod_read(mod, SRC_IFSVR) / 100 * 98);
-
-	/* Gen1/Gen2 are not compatible */
-	if (rsnd_src_convert_rate(io, src))
-		rsnd_mod_write(mod, SRC_ROUTE_MODE0, 1);
-
-	/* no SRC_BFSSR settings, since SRC_SRCCR::BUFMD is 0 */
-
-	return 0;
-}
-
-static int rsnd_src_init_gen1(struct rsnd_mod *mod,
-			      struct rsnd_dai_stream *io,
-			      struct rsnd_priv *priv)
-{
-	int ret;
-
-	ret = rsnd_src_init(mod, priv);
-	if (ret < 0)
-		return ret;
-
-	ret = rsnd_src_set_route_gen1(io, mod);
-	if (ret < 0)
-		return ret;
-
-	ret = rsnd_src_set_convert_rate_gen1(mod, io);
-	if (ret < 0)
-		return ret;
-
-	ret = rsnd_src_set_convert_timing_gen1(io, mod);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
-static int rsnd_src_start_gen1(struct rsnd_mod *mod,
-			       struct rsnd_dai_stream *io,
-			       struct rsnd_priv *priv)
-{
-	int id = rsnd_mod_id(mod);
-
-	rsnd_mod_bset(mod, SRC_ROUTE_CTRL, (1 << id), (1 << id));
-
-	return rsnd_src_start(mod);
-}
-
-static int rsnd_src_stop_gen1(struct rsnd_mod *mod,
-			      struct rsnd_dai_stream *io,
-			      struct rsnd_priv *priv)
-{
-	int id = rsnd_mod_id(mod);
-
-	rsnd_mod_bset(mod, SRC_ROUTE_CTRL, (1 << id), 0);
-
-	return rsnd_src_stop(mod);
-}
-
-static struct rsnd_mod_ops rsnd_src_gen1_ops = {
-	.name	= SRC_NAME,
-	.dma_req = rsnd_src_dma_req,
-	.init	= rsnd_src_init_gen1,
-	.quit	= rsnd_src_quit,
-	.start	= rsnd_src_start_gen1,
-	.stop	= rsnd_src_stop_gen1,
-	.hw_params = rsnd_src_hw_params,
-};
-
-/*
  *		Gen2 functions
  */
 #define rsnd_src_irq_enable_gen2(mod)  rsnd_src_irq_ctrol_gen2(mod, 1)
@@ -927,22 +746,13 @@ int rsnd_src_probe(struct platform_device *pdev,
 	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_src *src;
-	struct rsnd_mod_ops *ops;
 	struct clk *clk;
 	char name[RSND_SRC_NAME_SIZE];
 	int i, nr, ret;
 
-	ops = NULL;
-	if (rsnd_is_gen1(priv)) {
-		ops = &rsnd_src_gen1_ops;
-		dev_warn(dev, "Gen1 support will be removed soon\n");
-	}
-	if (rsnd_is_gen2(priv))
-		ops = &rsnd_src_gen2_ops;
-	if (!ops) {
-		dev_err(dev, "unknown Generation\n");
-		return -EIO;
-	}
+	/* This driver doesn't support Gen1 at this point */
+	if (rsnd_is_gen1(priv))
+		return 0;
 
 	rsnd_of_parse_src(pdev, of_data, priv);
 
@@ -970,7 +780,8 @@ int rsnd_src_probe(struct platform_device *pdev,
 
 		src->info = &info->src_info[i];
 
-		ret = rsnd_mod_init(priv, rsnd_mod_get(src), ops, clk, RSND_MOD_SRC, i);
+		ret = rsnd_mod_init(priv, rsnd_mod_get(src),
+				    &rsnd_src_gen2_ops, clk, RSND_MOD_SRC, i);
 		if (ret)
 			return ret;
 	}
