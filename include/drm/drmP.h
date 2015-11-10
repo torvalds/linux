@@ -953,6 +953,10 @@ extern void drm_send_vblank_event(struct drm_device *dev, unsigned int pipe,
 				  struct drm_pending_vblank_event *e);
 extern void drm_crtc_send_vblank_event(struct drm_crtc *crtc,
 				       struct drm_pending_vblank_event *e);
+extern void drm_arm_vblank_event(struct drm_device *dev, unsigned int pipe,
+				 struct drm_pending_vblank_event *e);
+extern void drm_crtc_arm_vblank_event(struct drm_crtc *crtc,
+				      struct drm_pending_vblank_event *e);
 extern bool drm_handle_vblank(struct drm_device *dev, unsigned int pipe);
 extern bool drm_crtc_handle_vblank(struct drm_crtc *crtc);
 extern int drm_vblank_get(struct drm_device *dev, unsigned int pipe);
