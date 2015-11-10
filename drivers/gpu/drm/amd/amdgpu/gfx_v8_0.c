@@ -66,6 +66,27 @@
 #define MACRO_TILE_ASPECT(x)				((x) << GB_MACROTILE_MODE0__MACRO_TILE_ASPECT__SHIFT)
 #define NUM_BANKS(x)					((x) << GB_MACROTILE_MODE0__NUM_BANKS__SHIFT)
 
+#define RLC_CGTT_MGCG_OVERRIDE__CPF_MASK            0x00000001L
+#define RLC_CGTT_MGCG_OVERRIDE__RLC_MASK            0x00000002L
+#define RLC_CGTT_MGCG_OVERRIDE__MGCG_MASK           0x00000004L
+#define RLC_CGTT_MGCG_OVERRIDE__CGCG_MASK           0x00000008L
+#define RLC_CGTT_MGCG_OVERRIDE__CGLS_MASK           0x00000010L
+#define RLC_CGTT_MGCG_OVERRIDE__GRBM_MASK           0x00000020L
+
+/* BPM SERDES CMD */
+#define SET_BPM_SERDES_CMD    1
+#define CLE_BPM_SERDES_CMD    0
+
+/* BPM Register Address*/
+enum {
+	BPM_REG_CGLS_EN = 0,        /* Enable/Disable CGLS */
+	BPM_REG_CGLS_ON,            /* ON/OFF CGLS: shall be controlled by RLC FW */
+	BPM_REG_CGCG_OVERRIDE,      /* Set/Clear CGCG Override */
+	BPM_REG_MGCG_OVERRIDE,      /* Set/Clear MGCG Override */
+	BPM_REG_FGCG_OVERRIDE,      /* Set/Clear FGCG Override */
+	BPM_REG_FGCG_MAX
+};
+
 MODULE_FIRMWARE("amdgpu/carrizo_ce.bin");
 MODULE_FIRMWARE("amdgpu/carrizo_pfp.bin");
 MODULE_FIRMWARE("amdgpu/carrizo_me.bin");
@@ -4301,9 +4322,242 @@ static int gfx_v8_0_set_powergating_state(void *handle,
 	return 0;
 }
 
+static void fiji_send_serdes_cmd(struct amdgpu_device *adev,
+		uint32_t reg_addr, uint32_t cmd)
+{
+	uint32_t data;
+
+	gfx_v8_0_select_se_sh(adev, 0xffffffff, 0xffffffff);
+
+	WREG32(mmRLC_SERDES_WR_CU_MASTER_MASK, 0xffffffff);
+	WREG32(mmRLC_SERDES_WR_NONCU_MASTER_MASK, 0xffffffff);
+
+	data = RREG32(mmRLC_SERDES_WR_CTRL);
+	data &= ~(RLC_SERDES_WR_CTRL__WRITE_COMMAND_MASK |
+			RLC_SERDES_WR_CTRL__READ_COMMAND_MASK |
+			RLC_SERDES_WR_CTRL__P1_SELECT_MASK |
+			RLC_SERDES_WR_CTRL__P2_SELECT_MASK |
+			RLC_SERDES_WR_CTRL__RDDATA_RESET_MASK |
+			RLC_SERDES_WR_CTRL__POWER_DOWN_MASK |
+			RLC_SERDES_WR_CTRL__POWER_UP_MASK |
+			RLC_SERDES_WR_CTRL__SHORT_FORMAT_MASK |
+			RLC_SERDES_WR_CTRL__BPM_DATA_MASK |
+			RLC_SERDES_WR_CTRL__REG_ADDR_MASK |
+			RLC_SERDES_WR_CTRL__SRBM_OVERRIDE_MASK);
+	data |= (RLC_SERDES_WR_CTRL__RSVD_BPM_ADDR_MASK |
+			(cmd << RLC_SERDES_WR_CTRL__BPM_DATA__SHIFT) |
+			(reg_addr << RLC_SERDES_WR_CTRL__REG_ADDR__SHIFT) |
+			(0xff << RLC_SERDES_WR_CTRL__BPM_ADDR__SHIFT));
+
+	WREG32(mmRLC_SERDES_WR_CTRL, data);
+}
+
+static void fiji_update_medium_grain_clock_gating(struct amdgpu_device *adev,
+		bool enable)
+{
+	uint32_t temp, data;
+
+	/* It is disabled by HW by default */
+	if (enable) {
+		/* 1 - RLC memory Light sleep */
+		temp = data = RREG32(mmRLC_MEM_SLP_CNTL);
+		data |= RLC_MEM_SLP_CNTL__RLC_MEM_LS_EN_MASK;
+		if (temp != data)
+			WREG32(mmRLC_MEM_SLP_CNTL, data);
+
+		/* 2 - CP memory Light sleep */
+		temp = data = RREG32(mmCP_MEM_SLP_CNTL);
+		data |= CP_MEM_SLP_CNTL__CP_MEM_LS_EN_MASK;
+		if (temp != data)
+			WREG32(mmCP_MEM_SLP_CNTL, data);
+
+		/* 3 - RLC_CGTT_MGCG_OVERRIDE */
+		temp = data = RREG32(mmRLC_CGTT_MGCG_OVERRIDE);
+		data &= ~(RLC_CGTT_MGCG_OVERRIDE__CPF_MASK |
+				RLC_CGTT_MGCG_OVERRIDE__RLC_MASK |
+				RLC_CGTT_MGCG_OVERRIDE__MGCG_MASK |
+				RLC_CGTT_MGCG_OVERRIDE__GRBM_MASK);
+
+		if (temp != data)
+			WREG32(mmRLC_CGTT_MGCG_OVERRIDE, data);
+
+		/* 4 - wait for RLC_SERDES_CU_MASTER & RLC_SERDES_NONCU_MASTER idle */
+		gfx_v8_0_wait_for_rlc_serdes(adev);
+
+		/* 5 - clear mgcg override */
+		fiji_send_serdes_cmd(adev, BPM_REG_MGCG_OVERRIDE, CLE_BPM_SERDES_CMD);
+
+		/* 6 - Enable CGTS(Tree Shade) MGCG /MGLS */
+		temp = data = RREG32(mmCGTS_SM_CTRL_REG);
+		data &= ~(CGTS_SM_CTRL_REG__SM_MODE_MASK);
+		data |= (0x2 << CGTS_SM_CTRL_REG__SM_MODE__SHIFT);
+		data |= CGTS_SM_CTRL_REG__SM_MODE_ENABLE_MASK;
+		data &= ~CGTS_SM_CTRL_REG__OVERRIDE_MASK;
+		data &= ~CGTS_SM_CTRL_REG__LS_OVERRIDE_MASK;
+		data |= CGTS_SM_CTRL_REG__ON_MONITOR_ADD_EN_MASK;
+		data |= (0x96 << CGTS_SM_CTRL_REG__ON_MONITOR_ADD__SHIFT);
+		if (temp != data)
+			WREG32(mmCGTS_SM_CTRL_REG, data);
+		udelay(50);
+
+		/* 7 - wait for RLC_SERDES_CU_MASTER & RLC_SERDES_NONCU_MASTER idle */
+		gfx_v8_0_wait_for_rlc_serdes(adev);
+	} else {
+		/* 1 - MGCG_OVERRIDE[0] for CP and MGCG_OVERRIDE[1] for RLC */
+		temp = data = RREG32(mmRLC_CGTT_MGCG_OVERRIDE);
+		data |= (RLC_CGTT_MGCG_OVERRIDE__CPF_MASK |
+				RLC_CGTT_MGCG_OVERRIDE__RLC_MASK |
+				RLC_CGTT_MGCG_OVERRIDE__MGCG_MASK |
+				RLC_CGTT_MGCG_OVERRIDE__GRBM_MASK);
+		if (temp != data)
+			WREG32(mmRLC_CGTT_MGCG_OVERRIDE, data);
+
+		/* 2 - disable MGLS in RLC */
+		data = RREG32(mmRLC_MEM_SLP_CNTL);
+		if (data & RLC_MEM_SLP_CNTL__RLC_MEM_LS_EN_MASK) {
+			data &= ~RLC_MEM_SLP_CNTL__RLC_MEM_LS_EN_MASK;
+			WREG32(mmRLC_MEM_SLP_CNTL, data);
+		}
+
+		/* 3 - disable MGLS in CP */
+		data = RREG32(mmCP_MEM_SLP_CNTL);
+		if (data & CP_MEM_SLP_CNTL__CP_MEM_LS_EN_MASK) {
+			data &= ~CP_MEM_SLP_CNTL__CP_MEM_LS_EN_MASK;
+			WREG32(mmCP_MEM_SLP_CNTL, data);
+		}
+
+		/* 4 - Disable CGTS(Tree Shade) MGCG and MGLS */
+		temp = data = RREG32(mmCGTS_SM_CTRL_REG);
+		data |= (CGTS_SM_CTRL_REG__OVERRIDE_MASK |
+				CGTS_SM_CTRL_REG__LS_OVERRIDE_MASK);
+		if (temp != data)
+			WREG32(mmCGTS_SM_CTRL_REG, data);
+
+		/* 5 - wait for RLC_SERDES_CU_MASTER & RLC_SERDES_NONCU_MASTER idle */
+		gfx_v8_0_wait_for_rlc_serdes(adev);
+
+		/* 6 - set mgcg override */
+		fiji_send_serdes_cmd(adev, BPM_REG_MGCG_OVERRIDE, SET_BPM_SERDES_CMD);
+
+		udelay(50);
+
+		/* 7- wait for RLC_SERDES_CU_MASTER & RLC_SERDES_NONCU_MASTER idle */
+		gfx_v8_0_wait_for_rlc_serdes(adev);
+	}
+}
+
+static void fiji_update_coarse_grain_clock_gating(struct amdgpu_device *adev,
+		bool enable)
+{
+	uint32_t temp, temp1, data, data1;
+
+	temp = data = RREG32(mmRLC_CGCG_CGLS_CTRL);
+
+	if (enable) {
+		/* 1 enable cntx_empty_int_enable/cntx_busy_int_enable/
+		 * Cmp_busy/GFX_Idle interrupts
+		 */
+		gfx_v8_0_enable_gui_idle_interrupt(adev, true);
+
+		temp1 = data1 =	RREG32(mmRLC_CGTT_MGCG_OVERRIDE);
+		data1 &= ~RLC_CGTT_MGCG_OVERRIDE__CGCG_MASK;
+		if (temp1 != data1)
+			WREG32(mmRLC_CGTT_MGCG_OVERRIDE, data1);
+
+		/* 2 wait for RLC_SERDES_CU_MASTER & RLC_SERDES_NONCU_MASTER idle */
+		gfx_v8_0_wait_for_rlc_serdes(adev);
+
+		/* 3 - clear cgcg override */
+		fiji_send_serdes_cmd(adev, BPM_REG_CGCG_OVERRIDE, CLE_BPM_SERDES_CMD);
+
+		/* wait for RLC_SERDES_CU_MASTER & RLC_SERDES_NONCU_MASTER idle */
+		gfx_v8_0_wait_for_rlc_serdes(adev);
+
+		/* 4 - write cmd to set CGLS */
+		fiji_send_serdes_cmd(adev, BPM_REG_CGLS_EN, SET_BPM_SERDES_CMD);
+
+		/* 5 - enable cgcg */
+		data |= RLC_CGCG_CGLS_CTRL__CGCG_EN_MASK;
+
+		/* enable cgls*/
+		data |= RLC_CGCG_CGLS_CTRL__CGLS_EN_MASK;
+
+		temp1 = data1 =	RREG32(mmRLC_CGTT_MGCG_OVERRIDE);
+		data1 &= ~RLC_CGTT_MGCG_OVERRIDE__CGLS_MASK;
+
+		if (temp1 != data1)
+			WREG32(mmRLC_CGTT_MGCG_OVERRIDE, data1);
+
+		if (temp != data)
+			WREG32(mmRLC_CGCG_CGLS_CTRL, data);
+	} else {
+		/* disable cntx_empty_int_enable & GFX Idle interrupt */
+		gfx_v8_0_enable_gui_idle_interrupt(adev, false);
+
+		/* TEST CGCG */
+		temp1 = data1 =	RREG32(mmRLC_CGTT_MGCG_OVERRIDE);
+		data1 |= (RLC_CGTT_MGCG_OVERRIDE__CGCG_MASK |
+				RLC_CGTT_MGCG_OVERRIDE__CGLS_MASK);
+		if (temp1 != data1)
+			WREG32(mmRLC_CGTT_MGCG_OVERRIDE, data1);
+
+		/* read gfx register to wake up cgcg */
+		RREG32(mmCB_CGTT_SCLK_CTRL);
+		RREG32(mmCB_CGTT_SCLK_CTRL);
+		RREG32(mmCB_CGTT_SCLK_CTRL);
+		RREG32(mmCB_CGTT_SCLK_CTRL);
+
+		/* wait for RLC_SERDES_CU_MASTER & RLC_SERDES_NONCU_MASTER idle */
+		gfx_v8_0_wait_for_rlc_serdes(adev);
+
+		/* write cmd to Set CGCG Overrride */
+		fiji_send_serdes_cmd(adev, BPM_REG_CGCG_OVERRIDE, SET_BPM_SERDES_CMD);
+
+		/* wait for RLC_SERDES_CU_MASTER & RLC_SERDES_NONCU_MASTER idle */
+		gfx_v8_0_wait_for_rlc_serdes(adev);
+
+		/* write cmd to Clear CGLS */
+		fiji_send_serdes_cmd(adev, BPM_REG_CGLS_EN, CLE_BPM_SERDES_CMD);
+
+		/* disable cgcg, cgls should be disabled too. */
+		data &= ~(RLC_CGCG_CGLS_CTRL__CGCG_EN_MASK |
+				RLC_CGCG_CGLS_CTRL__CGLS_EN_MASK);
+		if (temp != data)
+			WREG32(mmRLC_CGCG_CGLS_CTRL, data);
+	}
+}
+static int fiji_update_gfx_clock_gating(struct amdgpu_device *adev,
+		bool enable)
+{
+	if (enable) {
+		/* CGCG/CGLS should be enabled after MGCG/MGLS/TS(CG/LS)
+		 * ===  MGCG + MGLS + TS(CG/LS) ===
+		 */
+		fiji_update_medium_grain_clock_gating(adev, enable);
+		fiji_update_coarse_grain_clock_gating(adev, enable);
+	} else {
+		/* CGCG/CGLS should be disabled before MGCG/MGLS/TS(CG/LS)
+		 * ===  CGCG + CGLS ===
+		 */
+		fiji_update_coarse_grain_clock_gating(adev, enable);
+		fiji_update_medium_grain_clock_gating(adev, enable);
+	}
+	return 0;
+}
+
 static int gfx_v8_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	switch (adev->asic_type) {
+	case CHIP_FIJI:
+		fiji_update_gfx_clock_gating(adev,
+				state == AMD_CG_STATE_GATE ? true : false);
+		break;
+	default:
+		break;
+	}
 	return 0;
 }
 
