@@ -102,7 +102,7 @@ static int mv88e6060_switch_reset(struct dsa_switch *ds)
 	timeout = jiffies + 1 * HZ;
 	while (time_before(jiffies, timeout)) {
 		ret = REG_READ(REG_GLOBAL, 0x00);
-		if ((ret & 0x8000) == 0x0000)
+		if (ret & 0x800)
 			break;
 
 		usleep_range(1000, 2000);
