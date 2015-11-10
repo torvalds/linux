@@ -661,7 +661,8 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 
 	pending_snapshot->root_item = kzalloc(sizeof(struct btrfs_root_item),
 			GFP_NOFS);
-	if (!pending_snapshot->root_item) {
+	pending_snapshot->path = btrfs_alloc_path();
+	if (!pending_snapshot->root_item || !pending_snapshot->path) {
 		ret = -ENOMEM;
 		goto free_pending;
 	}
@@ -747,6 +748,7 @@ dec_and_free:
 		wake_up_atomic_t(&root->will_be_snapshoted);
 free_pending:
 	kfree(pending_snapshot->root_item);
+	btrfs_free_path(pending_snapshot->path);
 	kfree(pending_snapshot);
 
 	return ret;
