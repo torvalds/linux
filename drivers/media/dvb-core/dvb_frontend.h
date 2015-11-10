@@ -42,6 +42,29 @@
 
 #include "dvbdev.h"
 
+/**
+ * DOC: Digital TV Frontend
+ *
+ * The Digital TV Frontend kABI defines a driver-internal interface for
+ * registering low-level, hardware specific driver to a hardware independent
+ * frontend layer. It is only of interest for Digital TV device driver writers.
+ * The header file for this API is named dvb_frontend.h and located in
+ * drivers/media/dvb-core.
+ *
+ * Before using the Digital TV frontend core, the bridge driver should attach
+ * the frontend demod, tuner and SEC devices and call dvb_register_frontend(),
+ * in order to register the new frontend at the subsystem. At device
+ * detach/removal, the bridge driver should call dvb_unregister_frontend() to
+ * remove the frontend from the core and then dvb_frontend_detach() to free the
+ * memory allocated by the frontend drivers.
+ *
+ * The drivers should also call dvb_frontend_suspend() as part of their
+ * handler for the &device_driver.suspend(), and dvb_frontend_resume() as
+ * part of their handler for &device_driver.resume().
+ *
+ * A few other optional functions are provided to handle some special cases.
+ */
+
 /*
  * Maximum number of Delivery systems per frontend. It
  * should be smaller or equal to 32
