@@ -186,7 +186,13 @@ static void fm10k_reinit(struct fm10k_intfc *interface)
 	}
 
 	/* reassociate interrupts */
-	fm10k_mbx_request_irq(interface);
+	err = fm10k_mbx_request_irq(interface);
+	if (err)
+		goto err_mbx_irq;
+
+	err = fm10k_hw_ready(interface);
+	if (err)
+		goto err_open;
 
 	/* update hardware address for VFs if perm_addr has changed */
 	if (hw->mac.type == fm10k_mac_vf) {
@@ -206,14 +212,23 @@ static void fm10k_reinit(struct fm10k_intfc *interface)
 	/* reset clock */
 	fm10k_ts_reset(interface);
 
-	if (netif_running(netdev))
-		fm10k_open(netdev);
+	err = netif_running(netdev) ? fm10k_open(netdev) : 0;
+	if (err)
+		goto err_open;
 
 	fm10k_iov_resume(interface->pdev);
 
+	rtnl_unlock();
+
+	clear_bit(__FM10K_RESETTING, &interface->state);
+
+	return;
+err_open:
+	fm10k_mbx_free_irq(interface);
+err_mbx_irq:
+	fm10k_clear_queueing_scheme(interface);
 reinit_err:
-	if (err)
-		netif_device_detach(netdev);
+	netif_device_detach(netdev);
 
 	rtnl_unlock();
 
@@ -2131,16 +2146,22 @@ static int fm10k_resume(struct pci_dev *pdev)
 	rtnl_lock();
 
 	err = fm10k_init_queueing_scheme(interface);
-	if (!err) {
-		fm10k_mbx_request_irq(interface);
-		if (netif_running(netdev))
-			err = fm10k_open(netdev);
-	}
+	if (err)
+		goto err_queueing_scheme;
+
+	err = fm10k_mbx_request_irq(interface);
+	if (err)
+		goto err_mbx_irq;
+
+	err = fm10k_hw_ready(interface);
+	if (err)
+		goto err_open;
+
+	err = netif_running(netdev) ? fm10k_open(netdev) : 0;
+	if (err)
+		goto err_open;
 
 	rtnl_unlock();
-
-	if (err)
-		return err;
 
 	/* assume host is not ready, to prevent race with watchdog in case we
 	 * actually don't have connection to the switch
@@ -2158,6 +2179,14 @@ static int fm10k_resume(struct pci_dev *pdev)
 	netif_device_attach(netdev);
 
 	return 0;
+err_open:
+	fm10k_mbx_free_irq(interface);
+err_mbx_irq:
+	fm10k_clear_queueing_scheme(interface);
+err_queueing_scheme:
+	rtnl_unlock();
+
+	return err;
 }
 
 /**
