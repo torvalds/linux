@@ -3,6 +3,7 @@ config BE2ISCSI
 	depends on PCI && SCSI && NET
 	select SCSI_ISCSI_ATTRS
 	select ISCSI_BOOT_SYSFS
+	select IRQ_POLL
 
 	help
 	This driver implements the iSCSI functionality for Emulex
