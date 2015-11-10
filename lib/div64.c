@@ -162,7 +162,7 @@ s64 div64_s64(s64 dividend, s64 divisor)
 {
 	s64 quot, t;
 
-	quot = div64_u64(abs64(dividend), abs64(divisor));
+	quot = div64_u64(abs(dividend), abs(divisor));
 	t = (dividend ^ divisor) >> 63;
 
 	return (quot ^ t) - t;

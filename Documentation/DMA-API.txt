@@ -142,19 +142,6 @@ Part Ic - DMA addressing limitations
 ------------------------------------
 
 int
-dma_supported(struct device *dev, u64 mask)
-
-Checks to see if the device can support DMA to the memory described by
-mask.
-
-Returns: 1 if it can and 0 if it can't.
-
-Notes: This routine merely tests to see if the mask is possible.  It
-won't change the current mask settings.  It is more intended as an
-internal API for use by the platform than an external API for use by
-driver writers.
-
-int
 dma_set_mask_and_coherent(struct device *dev, u64 mask)
 
 Checks to see if the mask is possible and updates the device
