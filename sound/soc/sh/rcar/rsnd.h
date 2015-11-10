@@ -24,7 +24,16 @@
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
 
-#include "rcar_snd.h"
+#define RSND_GEN1_SRU	0
+#define RSND_GEN1_ADG	1
+#define RSND_GEN1_SSI	2
+
+#define RSND_GEN2_SCU	0
+#define RSND_GEN2_ADG	1
+#define RSND_GEN2_SSIU	2
+#define RSND_GEN2_SSI	3
+
+#define RSND_BASE_MAX	4
 
 /*
  *	pseudo register
@@ -373,9 +382,11 @@ int rsnd_adg_set_cmd_timsel_gen2(struct rsnd_mod *mod,
 struct rsnd_priv {
 
 	struct platform_device *pdev;
-	struct rcar_snd_info *info;
 	spinlock_t lock;
 	u32 flags;
+#define RSND_GEN_MASK	(0xF << 0)
+#define RSND_GEN1	(1 << 0)
+#define RSND_GEN2	(2 << 0)
 
 	/*
 	 * below value will be filled on rsnd_gen_probe()
@@ -444,7 +455,6 @@ struct rsnd_priv {
 
 #define rsnd_priv_to_pdev(priv)	((priv)->pdev)
 #define rsnd_priv_to_dev(priv)	(&(rsnd_priv_to_pdev(priv)->dev))
-#define rsnd_priv_to_info(priv)	((priv)->info)
 
 #define rsnd_is_gen1(priv)	(((priv)->flags & RSND_GEN_MASK) == RSND_GEN1)
 #define rsnd_is_gen2(priv)	(((priv)->flags & RSND_GEN_MASK) == RSND_GEN2)

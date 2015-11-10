@@ -108,13 +108,6 @@ static const struct of_device_id rsnd_of_match[] = {
 MODULE_DEVICE_TABLE(of, rsnd_of_match);
 
 /*
- *	rsnd_platform functions
- */
-#define rsnd_platform_call(priv, dai, func, param...)	\
-	(!(priv->info->func) ? 0 :		\
-	 priv->info->func(param))
-
-/*
  *	rsnd_mod functions
  */
 void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type)
@@ -457,7 +450,6 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	struct rsnd_priv *priv = rsnd_dai_to_priv(dai);
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
 	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
-	int ssi_id = rsnd_mod_id(rsnd_io_to_mod_ssi(io));
 	int ret;
 	unsigned long flags;
 
@@ -466,10 +458,6 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		rsnd_dai_stream_init(io, substream);
-
-		ret = rsnd_platform_call(priv, dai, start, ssi_id);
-		if (ret < 0)
-			goto dai_trigger_end;
 
 		ret = rsnd_dai_call(init, io, priv);
 		if (ret < 0)
@@ -483,8 +471,6 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 		ret = rsnd_dai_call(stop, io, priv);
 
 		ret |= rsnd_dai_call(quit, io, priv);
-
-		ret |= rsnd_platform_call(priv, dai, stop, ssi_id);
 
 		rsnd_dai_stream_quit(io);
 		break;
@@ -985,7 +971,6 @@ static int rsnd_rdai_continuance_probe(struct rsnd_priv *priv,
  */
 static int rsnd_probe(struct platform_device *pdev)
 {
-	struct rcar_snd_info *info;
 	struct rsnd_priv *priv;
 	struct device *dev = &pdev->dev;
 	struct rsnd_dai *rdai;
@@ -1006,11 +991,6 @@ static int rsnd_probe(struct platform_device *pdev)
 	};
 	int ret, i;
 
-	info = devm_kzalloc(&pdev->dev, sizeof(struct rcar_snd_info),
-			    GFP_KERNEL);
-	if (!info)
-		return -ENOMEM;
-
 	/*
 	 *	init priv data
 	 */
@@ -1021,7 +1001,6 @@ static int rsnd_probe(struct platform_device *pdev)
 	}
 
 	priv->pdev	= pdev;
-	priv->info	= info;
 	priv->flags	= (u32)of_id->data;
 	spin_lock_init(&priv->lock);
 
