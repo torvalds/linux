@@ -2614,42 +2614,27 @@ static int sci_remove(struct platform_device *dev)
 	return 0;
 }
 
-struct sci_port_info {
-	unsigned int type;
-	unsigned int regtype;
-};
+
+#define SCI_OF_DATA(type, regtype)	(void *)((type) << 16 | (regtype))
+#define SCI_OF_TYPE(data)		((unsigned long)(data) >> 16)
+#define SCI_OF_REGTYPE(data)		((unsigned long)(data) & 0xffff)
 
 static const struct of_device_id of_sci_match[] = {
 	{
 		.compatible = "renesas,scif",
-		.data = &(const struct sci_port_info) {
-			.type = PORT_SCIF,
-			.regtype = SCIx_SH4_SCIF_REGTYPE,
-		},
+		.data = SCI_OF_DATA(PORT_SCIF, SCIx_SH4_SCIF_REGTYPE),
 	}, {
 		.compatible = "renesas,scifa",
-		.data = &(const struct sci_port_info) {
-			.type = PORT_SCIFA,
-			.regtype = SCIx_SCIFA_REGTYPE,
-		},
+		.data = SCI_OF_DATA(PORT_SCIFA, SCIx_SCIFA_REGTYPE),
 	}, {
 		.compatible = "renesas,scifb",
-		.data = &(const struct sci_port_info) {
-			.type = PORT_SCIFB,
-			.regtype = SCIx_SCIFB_REGTYPE,
-		},
+		.data = SCI_OF_DATA(PORT_SCIFB, SCIx_SCIFB_REGTYPE),
 	}, {
 		.compatible = "renesas,hscif",
-		.data = &(const struct sci_port_info) {
-			.type = PORT_HSCIF,
-			.regtype = SCIx_HSCIF_REGTYPE,
-		},
+		.data = SCI_OF_DATA(PORT_HSCIF, SCIx_HSCIF_REGTYPE),
 	}, {
 		.compatible = "renesas,sci",
-		.data = &(const struct sci_port_info) {
-			.type = PORT_SCI,
-			.regtype = SCIx_SCI_REGTYPE,
-		},
+		.data = SCI_OF_DATA(PORT_SCI, SCIx_SCI_REGTYPE),
 	}, {
 		/* Terminator */
 	},
@@ -2661,7 +2646,6 @@ sci_parse_dt(struct platform_device *pdev, unsigned int *dev_id)
 {
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *match;
-	const struct sci_port_info *info;
 	struct plat_sci_port *p;
 	int id;
 
@@ -2671,8 +2655,6 @@ sci_parse_dt(struct platform_device *pdev, unsigned int *dev_id)
 	match = of_match_node(of_sci_match, np);
 	if (!match)
 		return NULL;
-
-	info = match->data;
 
 	p = devm_kzalloc(&pdev->dev, sizeof(struct plat_sci_port), GFP_KERNEL);
 	if (!p)
@@ -2688,8 +2670,8 @@ sci_parse_dt(struct platform_device *pdev, unsigned int *dev_id)
 	*dev_id = id;
 
 	p->flags = UPF_IOREMAP | UPF_BOOT_AUTOCONF;
-	p->type = info->type;
-	p->regtype = info->regtype;
+	p->type = SCI_OF_TYPE(match->data);
+	p->regtype = SCI_OF_REGTYPE(match->data);
 	p->scscr = SCSCR_RE | SCSCR_TE;
 
 	return p;
