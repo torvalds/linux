@@ -50,27 +50,32 @@
  * co-operation between the graphics and audio drivers is handled via audio
  * related registers. (The notable exception is the power management, not
  * covered here.)
+ *
+ * The struct i915_audio_component is used to interact between the graphics
+ * and audio drivers. The struct i915_audio_component_ops *ops in it is
+ * defined in graphics driver and called in audio driver. The
+ * struct i915_audio_component_audio_ops *audio_ops is called from i915 driver.
  */
 
 static const struct {
 	int clock;
 	u32 config;
 } hdmi_audio_clock[] = {
-	{ DIV_ROUND_UP(25200 * 1000, 1001), AUD_CONFIG_PIXEL_CLOCK_HDMI_25175 },
+	{ 25175, AUD_CONFIG_PIXEL_CLOCK_HDMI_25175 },
 	{ 25200, AUD_CONFIG_PIXEL_CLOCK_HDMI_25200 }, /* default per bspec */
 	{ 27000, AUD_CONFIG_PIXEL_CLOCK_HDMI_27000 },
-	{ 27000 * 1001 / 1000, AUD_CONFIG_PIXEL_CLOCK_HDMI_27027 },
+	{ 27027, AUD_CONFIG_PIXEL_CLOCK_HDMI_27027 },
 	{ 54000, AUD_CONFIG_PIXEL_CLOCK_HDMI_54000 },
-	{ 54000 * 1001 / 1000, AUD_CONFIG_PIXEL_CLOCK_HDMI_54054 },
-	{ DIV_ROUND_UP(74250 * 1000, 1001), AUD_CONFIG_PIXEL_CLOCK_HDMI_74176 },
+	{ 54054, AUD_CONFIG_PIXEL_CLOCK_HDMI_54054 },
+	{ 74176, AUD_CONFIG_PIXEL_CLOCK_HDMI_74176 },
 	{ 74250, AUD_CONFIG_PIXEL_CLOCK_HDMI_74250 },
-	{ DIV_ROUND_UP(148500 * 1000, 1001), AUD_CONFIG_PIXEL_CLOCK_HDMI_148352 },
+	{ 148352, AUD_CONFIG_PIXEL_CLOCK_HDMI_148352 },
 	{ 148500, AUD_CONFIG_PIXEL_CLOCK_HDMI_148500 },
 };
 
 /* HDMI N/CTS table */
 #define TMDS_297M 297000
-#define TMDS_296M DIV_ROUND_UP(297000 * 1000, 1001)
+#define TMDS_296M 296703
 static const struct {
 	int sample_rate;
 	int clock;
@@ -94,17 +99,18 @@ static const struct {
 };
 
 /* get AUD_CONFIG_PIXEL_CLOCK_HDMI_* value for mode */
-static u32 audio_config_hdmi_pixel_clock(struct drm_display_mode *mode)
+static u32 audio_config_hdmi_pixel_clock(const struct drm_display_mode *adjusted_mode)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(hdmi_audio_clock); i++) {
-		if (mode->clock == hdmi_audio_clock[i].clock)
+		if (adjusted_mode->crtc_clock == hdmi_audio_clock[i].clock)
 			break;
 	}
 
 	if (i == ARRAY_SIZE(hdmi_audio_clock)) {
-		DRM_DEBUG_KMS("HDMI audio pixel clock setting for %d not found, falling back to defaults\n", mode->clock);
+		DRM_DEBUG_KMS("HDMI audio pixel clock setting for %d not found, falling back to defaults\n",
+			      adjusted_mode->crtc_clock);
 		i = 1;
 	}
 
@@ -202,7 +208,7 @@ static void g4x_audio_codec_disable(struct intel_encoder *encoder)
 
 static void g4x_audio_codec_enable(struct drm_connector *connector,
 				   struct intel_encoder *encoder,
-				   struct drm_display_mode *mode)
+				   const struct drm_display_mode *adjusted_mode)
 {
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 	uint8_t *eld = connector->eld;
@@ -271,7 +277,7 @@ static void hsw_audio_codec_disable(struct intel_encoder *encoder)
 
 static void hsw_audio_codec_enable(struct drm_connector *connector,
 				   struct intel_encoder *encoder,
-				   struct drm_display_mode *mode)
+				   const struct drm_display_mode *adjusted_mode)
 {
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
@@ -325,10 +331,10 @@ static void hsw_audio_codec_enable(struct drm_connector *connector,
 	if (intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DISPLAYPORT))
 		tmp |= AUD_CONFIG_N_VALUE_INDEX;
 	else
-		tmp |= audio_config_hdmi_pixel_clock(mode);
+		tmp |= audio_config_hdmi_pixel_clock(adjusted_mode);
 
 	tmp &= ~AUD_CONFIG_N_PROG_ENABLE;
-	if (audio_rate_need_prog(intel_crtc, mode)) {
+	if (audio_rate_need_prog(intel_crtc, adjusted_mode)) {
 		if (!acomp)
 			rate = 0;
 		else if (port >= PORT_A && port <= PORT_E)
@@ -337,7 +343,7 @@ static void hsw_audio_codec_enable(struct drm_connector *connector,
 			DRM_ERROR("invalid port: %d\n", port);
 			rate = 0;
 		}
-		n = audio_config_get_n(mode, rate);
+		n = audio_config_get_n(adjusted_mode, rate);
 		if (n != 0)
 			tmp = audio_config_setup_n_reg(n, tmp);
 		else
@@ -398,7 +404,7 @@ static void ilk_audio_codec_disable(struct intel_encoder *encoder)
 
 static void ilk_audio_codec_enable(struct drm_connector *connector,
 				   struct intel_encoder *encoder,
-				   struct drm_display_mode *mode)
+				   const struct drm_display_mode *adjusted_mode)
 {
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
@@ -475,7 +481,7 @@ static void ilk_audio_codec_enable(struct drm_connector *connector,
 	if (intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DISPLAYPORT))
 		tmp |= AUD_CONFIG_N_VALUE_INDEX;
 	else
-		tmp |= audio_config_hdmi_pixel_clock(mode);
+		tmp |= audio_config_hdmi_pixel_clock(adjusted_mode);
 	I915_WRITE(aud_config, tmp);
 }
 
@@ -490,7 +496,7 @@ void intel_audio_codec_enable(struct intel_encoder *intel_encoder)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct intel_crtc *crtc = to_intel_crtc(encoder->crtc);
-	struct drm_display_mode *mode = &crtc->config->base.adjusted_mode;
+	const struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
 	struct drm_connector *connector;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -498,7 +504,7 @@ void intel_audio_codec_enable(struct intel_encoder *intel_encoder)
 	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
 	enum port port = intel_dig_port->port;
 
-	connector = drm_select_eld(encoder, mode);
+	connector = drm_select_eld(encoder);
 	if (!connector)
 		return;
 
@@ -513,10 +519,11 @@ void intel_audio_codec_enable(struct intel_encoder *intel_encoder)
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT))
 		connector->eld[5] |= (1 << 2);
 
-	connector->eld[6] = drm_av_sync_delay(connector, mode) / 2;
+	connector->eld[6] = drm_av_sync_delay(connector, adjusted_mode) / 2;
 
 	if (dev_priv->display.audio_codec_enable)
-		dev_priv->display.audio_codec_enable(connector, intel_encoder, mode);
+		dev_priv->display.audio_codec_enable(connector, intel_encoder,
+						     adjusted_mode);
 
 	if (acomp && acomp->audio_ops && acomp->audio_ops->pin_eld_notify)
 		acomp->audio_ops->pin_eld_notify(acomp->audio_ops->audio_ptr, (int) port);

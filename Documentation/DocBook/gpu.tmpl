@@ -2,9 +2,9 @@
 <!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN"
 	"http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd" []>
 
-<book id="drmDevelopersGuide">
+<book id="gpuDevelopersGuide">
   <bookinfo>
-    <title>Linux DRM Developer's Guide</title>
+    <title>Linux GPU Driver Developer's Guide</title>
 
     <authorgroup>
       <author>
@@ -40,6 +40,16 @@
 	  </address>
 	</affiliation>
       </author>
+      <author>
+	<firstname>Lukas</firstname>
+	<surname>Wunner</surname>
+	<contrib>vga_switcheroo documentation</contrib>
+	<affiliation>
+	  <address>
+	    <email>lukas@wunner.de</email>
+	  </address>
+	</affiliation>
+      </author>
     </authorgroup>
 
     <copyright>
@@ -50,6 +60,10 @@
     <copyright>
       <year>2012</year>
       <holder>Laurent Pinchart</holder>
+    </copyright>
+    <copyright>
+      <year>2015</year>
+      <holder>Lukas Wunner</holder>
     </copyright>
 
     <legalnotice>
@@ -69,6 +83,13 @@
 	<revremark>Added extensive documentation about driver internals.
 	</revremark>
       </revision>
+      <revision>
+	<revnumber>1.1</revnumber>
+	<date>2015-10-11</date>
+	<authorinitials>LW</authorinitials>
+	<revremark>Added vga_switcheroo documentation.
+	</revremark>
+      </revision>
     </revhistory>
   </bookinfo>
 
@@ -78,9 +99,9 @@
   <title>DRM Core</title>
   <partintro>
     <para>
-      This first part of the DRM Developer's Guide documents core DRM code,
-      helper libraries for writing drivers and generic userspace interfaces
-      exposed by DRM drivers.
+      This first part of the GPU Driver Developer's Guide documents core DRM
+      code, helper libraries for writing drivers and generic userspace
+      interfaces exposed by DRM drivers.
     </para>
   </partintro>
 
@@ -138,14 +159,10 @@
     <para>
       At the core of every DRM driver is a <structname>drm_driver</structname>
       structure. Drivers typically statically initialize a drm_driver structure,
-      and then pass it to one of the <function>drm_*_init()</function> functions
-      to register it with the DRM subsystem.
-    </para>
-    <para>
-      Newer drivers that no longer require a <structname>drm_bus</structname>
-      structure can alternatively use the low-level device initialization and
-      registration functions such as <function>drm_dev_alloc()</function> and
-      <function>drm_dev_register()</function> directly.
+      and then pass it to <function>drm_dev_alloc()</function> to allocate a
+      device instance. After the device instance is fully initialized it can be
+      registered (which makes it accessible from userspace) using
+      <function>drm_dev_register()</function>.
     </para>
     <para>
       The <structname>drm_driver</structname> structure contains static
@@ -296,83 +313,12 @@ char *date;</synopsis>
       </sect3>
     </sect2>
     <sect2>
-      <title>Device Registration</title>
-      <para>
-        A number of functions are provided to help with device registration.
-        The functions deal with PCI and platform devices, respectively.
-      </para>
-!Edrivers/gpu/drm/drm_pci.c
-!Edrivers/gpu/drm/drm_platform.c
-      <para>
-        New drivers that no longer rely on the services provided by the
-        <structname>drm_bus</structname> structure can call the low-level
-        device registration functions directly. The
-        <function>drm_dev_alloc()</function> function can be used to allocate
-        and initialize a new <structname>drm_device</structname> structure.
-        Drivers will typically want to perform some additional setup on this
-        structure, such as allocating driver-specific data and storing a
-        pointer to it in the DRM device's <structfield>dev_private</structfield>
-        field. Drivers should also set the device's unique name using the
-        <function>drm_dev_set_unique()</function> function. After it has been
-        set up a device can be registered with the DRM subsystem by calling
-        <function>drm_dev_register()</function>. This will cause the device to
-        be exposed to userspace and will call the driver's
-        <structfield>.load()</structfield> implementation. When a device is
-        removed, the DRM device can safely be unregistered and freed by calling
-        <function>drm_dev_unregister()</function> followed by a call to
-        <function>drm_dev_unref()</function>.
-      </para>
+      <title>Device Instance and Driver Handling</title>
+!Pdrivers/gpu/drm/drm_drv.c driver instance overview
 !Edrivers/gpu/drm/drm_drv.c
     </sect2>
     <sect2>
       <title>Driver Load</title>
-      <para>
-        The <methodname>load</methodname> method is the driver and device
-        initialization entry point. The method is responsible for allocating and
-	initializing driver private data, performing resource allocation and
-	mapping (e.g. acquiring
-        clocks, mapping registers or allocating command buffers), initializing
-        the memory manager (<xref linkend="drm-memory-management"/>), installing
-        the IRQ handler (<xref linkend="drm-irq-registration"/>), setting up
-        vertical blanking handling (<xref linkend="drm-vertical-blank"/>), mode
-	setting (<xref linkend="drm-mode-setting"/>) and initial output
-	configuration (<xref linkend="drm-kms-init"/>).
-      </para>
-      <note><para>
-        If compatibility is a concern (e.g. with drivers converted over from
-        User Mode Setting to Kernel Mode Setting), care must be taken to prevent
-        device initialization and control that is incompatible with currently
-        active userspace drivers. For instance, if user level mode setting
-        drivers are in use, it would be problematic to perform output discovery
-        &amp; configuration at load time. Likewise, if user-level drivers
-        unaware of memory management are in use, memory management and command
-        buffer setup may need to be omitted. These requirements are
-        driver-specific, and care needs to be taken to keep both old and new
-        applications and libraries working.
-      </para></note>
-      <synopsis>int (*load) (struct drm_device *, unsigned long flags);</synopsis>
-      <para>
-        The method takes two arguments, a pointer to the newly created
-	<structname>drm_device</structname> and flags. The flags are used to
-	pass the <structfield>driver_data</structfield> field of the device id
-	corresponding to the device passed to <function>drm_*_init()</function>.
-	Only PCI devices currently use this, USB and platform DRM drivers have
-	their <methodname>load</methodname> method called with flags to 0.
-      </para>
-      <sect3>
-        <title>Driver Private Data</title>
-        <para>
-          The driver private hangs off the main
-          <structname>drm_device</structname> structure and can be used for
-          tracking various device-specific bits of information, like register
-          offsets, command buffer status, register state for suspend/resume, etc.
-          At load time, a driver may simply allocate one and set
-          <structname>drm_device</structname>.<structfield>dev_priv</structfield>
-          appropriately; it should be freed and
-          <structname>drm_device</structname>.<structfield>dev_priv</structfield>
-          set to NULL when the driver is unloaded.
-        </para>
-      </sect3>
       <sect3 id="drm-irq-registration">
         <title>IRQ Registration</title>
         <para>
@@ -464,6 +410,18 @@ char *date;</synopsis>
   <!--!Fdrivers/pci/rom.c pci_map_rom-->
         </para>
       </sect3>
+    </sect2>
+    <sect2>
+      <title>Bus-specific Device Registration and PCI Support</title>
+      <para>
+        A number of functions are provided to help with device registration.
+	The functions deal with PCI and platform devices respectively and are
+	only provided for historical reasons. These are all deprecated and
+	shouldn't be used in new drivers. Besides that there's a few
+	helpers for pci drivers.
+      </para>
+!Edrivers/gpu/drm/drm_pci.c
+!Edrivers/gpu/drm/drm_platform.c
     </sect2>
   </sect1>
 
@@ -3646,10 +3604,11 @@ void (*postclose) (struct drm_device *, struct drm_file *);</synopsis>
 	plane properties to default value, so that a subsequent open of the
 	device will not inherit state from the previous user. It can also be
 	used to execute delayed power switching state changes, e.g. in
-	conjunction with the vga-switcheroo infrastructure. Beyond that KMS
-	drivers should not do any further cleanup. Only legacy UMS drivers might
-	need to clean up device state so that the vga console or an independent
-	fbdev driver could take over.
+	conjunction with the vga_switcheroo infrastructure (see
+	<xref linkend="vga_switcheroo"/>). Beyond that KMS drivers should not
+	do any further cleanup. Only legacy UMS drivers might need to clean up
+	device state so that the vga console or an independent fbdev driver
+	could take over.
       </para>
     </sect2>
     <sect2>
@@ -3747,11 +3706,14 @@ int num_ioctls;</synopsis>
 	    </para></listitem>
             <listitem><para>
 	      DRM_UNLOCKED - The ioctl handler will be called without locking
-	      the DRM global mutex
+	      the DRM global mutex. This is the enforced default for kms drivers
+	      (i.e. using the DRIVER_MODESET flag) and hence shouldn't be used
+	      any more for new drivers.
 	    </para></listitem>
 	  </itemizedlist>
 	</para>
       </para>
+!Edrivers/gpu/drm/drm_ioctl.c
     </sect2>
   </sect1>
   <sect1>
@@ -3949,8 +3911,8 @@ int num_ioctls;</synopsis>
 
   <partintro>
     <para>
-      This second part of the DRM Developer's Guide documents driver code,
-      implementation details and also all the driver-specific userspace
+      This second part of the GPU Driver Developer's Guide documents driver
+      code, implementation details and also all the driver-specific userspace
       interfaces. Especially since all hardware-acceleration interfaces to
       userspace are driver specific for efficiency and other reasons these
       interfaces can be rather substantial. Hence every driver has its own
@@ -4051,6 +4013,7 @@ int num_ioctls;</synopsis>
 	<title>High Definition Audio</title>
 !Pdrivers/gpu/drm/i915/intel_audio.c High Definition Audio over HDMI and Display Port
 !Idrivers/gpu/drm/i915/intel_audio.c
+!Iinclude/drm/i915_component.h
       </sect2>
       <sect2>
 	<title>Panel Self Refresh PSR (PSR/SRD)</title>
@@ -4238,6 +4201,20 @@ int num_ioctls;</synopsis>
       </sect2>
     </sect1>
     <sect1>
+      <title>GuC-based Command Submission</title>
+      <sect2>
+        <title>GuC</title>
+!Pdrivers/gpu/drm/i915/intel_guc_loader.c GuC-specific firmware loader
+!Idrivers/gpu/drm/i915/intel_guc_loader.c
+      </sect2>
+      <sect2>
+        <title>GuC Client</title>
+!Pdrivers/gpu/drm/i915/i915_guc_submission.c GuC-based command submissison
+!Idrivers/gpu/drm/i915/i915_guc_submission.c
+      </sect2>
+    </sect1>
+
+    <sect1>
       <title> Tracing </title>
       <para>
     This sections covers all things related to the tracepoints implemented in
@@ -4260,4 +4237,50 @@ int num_ioctls;</synopsis>
   </chapter>
 !Cdrivers/gpu/drm/i915/i915_irq.c
 </part>
+
+<part id="vga_switcheroo">
+  <title>vga_switcheroo</title>
+  <partintro>
+!Pdrivers/gpu/vga/vga_switcheroo.c Overview
+  </partintro>
+
+  <chapter id="modes_of_use">
+    <title>Modes of Use</title>
+  <sect1>
+    <title>Manual switching and manual power control</title>
+!Pdrivers/gpu/vga/vga_switcheroo.c Manual switching and manual power control
+  </sect1>
+  <sect1>
+    <title>Driver power control</title>
+!Pdrivers/gpu/vga/vga_switcheroo.c Driver power control
+  </sect1>
+  </chapter>
+
+  <chapter id="pubfunctions">
+    <title>Public functions</title>
+!Edrivers/gpu/vga/vga_switcheroo.c
+  </chapter>
+
+  <chapter id="pubstructures">
+    <title>Public structures</title>
+!Finclude/linux/vga_switcheroo.h vga_switcheroo_handler
+!Finclude/linux/vga_switcheroo.h vga_switcheroo_client_ops
+  </chapter>
+
+  <chapter id="pubconstants">
+    <title>Public constants</title>
+!Finclude/linux/vga_switcheroo.h vga_switcheroo_client_id
+!Finclude/linux/vga_switcheroo.h vga_switcheroo_state
+  </chapter>
+
+  <chapter id="privstructures">
+    <title>Private structures</title>
+!Fdrivers/gpu/vga/vga_switcheroo.c vgasr_priv
+!Fdrivers/gpu/vga/vga_switcheroo.c vga_switcheroo_client
+  </chapter>
+
+!Cdrivers/gpu/vga/vga_switcheroo.c
+!Cinclude/linux/vga_switcheroo.h
+</part>
+
 </book>

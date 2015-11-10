@@ -377,6 +377,13 @@ intel_ring_sync_index(struct intel_engine_cs *ring,
 	return idx;
 }
 
+static inline void
+intel_flush_status_page(struct intel_engine_cs *ring, int reg)
+{
+	drm_clflush_virt_range(&ring->status_page.page_addr[reg],
+			       sizeof(uint32_t));
+}
+
 static inline u32
 intel_read_status_page(struct intel_engine_cs *ring,
 		       int reg)
@@ -413,12 +420,12 @@ intel_write_status_page(struct intel_engine_cs *ring,
 #define I915_GEM_HWS_SCRATCH_INDEX	0x40
 #define I915_GEM_HWS_SCRATCH_ADDR (I915_GEM_HWS_SCRATCH_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
 
-void intel_unpin_ringbuffer_obj(struct intel_ringbuffer *ringbuf);
+struct intel_ringbuffer *
+intel_engine_create_ringbuffer(struct intel_engine_cs *engine, int size);
 int intel_pin_and_map_ringbuffer_obj(struct drm_device *dev,
 				     struct intel_ringbuffer *ringbuf);
-void intel_destroy_ringbuffer_obj(struct intel_ringbuffer *ringbuf);
-int intel_alloc_ringbuffer_obj(struct drm_device *dev,
-			       struct intel_ringbuffer *ringbuf);
+void intel_unpin_ringbuffer_obj(struct intel_ringbuffer *ringbuf);
+void intel_ringbuffer_free(struct intel_ringbuffer *ring);
 
 void intel_stop_ring_buffer(struct intel_engine_cs *ring);
 void intel_cleanup_ring_buffer(struct intel_engine_cs *ring);

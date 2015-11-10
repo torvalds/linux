@@ -128,15 +128,14 @@ static int exynos_plane_atomic_check(struct drm_plane *plane,
 
 	nr = drm_format_num_planes(state->fb->pixel_format);
 	for (i = 0; i < nr; i++) {
-		struct exynos_drm_gem_obj *obj =
-					exynos_drm_fb_gem_obj(state->fb, i);
-
-		if (!obj) {
+		struct exynos_drm_gem *exynos_gem =
+					exynos_drm_fb_gem(state->fb, i);
+		if (!exynos_gem) {
 			DRM_DEBUG_KMS("gem object is null\n");
 			return -EFAULT;
 		}
 
-		exynos_plane->dma_addr[i] = obj->dma_addr +
+		exynos_plane->dma_addr[i] = exynos_gem->dma_addr +
 					    state->fb->offsets[i];
 
 		DRM_DEBUG_KMS("buffer: %d, dma_addr = 0x%lx\n",
@@ -206,6 +205,17 @@ static void exynos_plane_attach_zpos_property(struct drm_plane *plane,
 	}
 
 	drm_object_attach_property(&plane->base, prop, zpos);
+}
+
+enum drm_plane_type exynos_plane_get_type(unsigned int zpos,
+					  unsigned int cursor_win)
+{
+		if (zpos == DEFAULT_WIN)
+			return DRM_PLANE_TYPE_PRIMARY;
+		else if (zpos == cursor_win)
+			return DRM_PLANE_TYPE_CURSOR;
+		else
+			return DRM_PLANE_TYPE_OVERLAY;
 }
 
 int exynos_plane_init(struct drm_device *dev,

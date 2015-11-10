@@ -40,6 +40,7 @@
 #define MIN_FB_WIDTH_FOR_16WORD_BURST 128
 
 #define WINDOWS_NR	2
+#define CURSOR_WIN	1
 
 struct decon_context {
 	struct device			*dev;
@@ -51,7 +52,6 @@ struct decon_context {
 	struct clk			*eclk;
 	struct clk			*vclk;
 	void __iomem			*regs;
-	unsigned int			default_win;
 	unsigned long			irq_flags;
 	bool				i80_if;
 	bool				suspended;
@@ -690,8 +690,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	for (zpos = 0; zpos < WINDOWS_NR; zpos++) {
-		type = (zpos == ctx->default_win) ? DRM_PLANE_TYPE_PRIMARY :
-						DRM_PLANE_TYPE_OVERLAY;
+		type = exynos_plane_get_type(zpos, CURSOR_WIN);
 		ret = exynos_plane_init(drm_dev, &ctx->planes[zpos],
 					1 << ctx->pipe, type, decon_formats,
 					ARRAY_SIZE(decon_formats), zpos);
@@ -699,7 +698,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 			return ret;
 	}
 
-	exynos_plane = &ctx->planes[ctx->default_win];
+	exynos_plane = &ctx->planes[DEFAULT_WIN];
 	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,
 					   ctx->pipe, EXYNOS_DISPLAY_TYPE_LCD,
 					   &decon_crtc_ops, ctx);

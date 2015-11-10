@@ -266,6 +266,9 @@ void drm_pci_agp_destroy(struct drm_device *dev)
  * then register the character device and inter module information.
  * Try and register, if we fail to register, backout previous work.
  *
+ * NOTE: This function is deprecated, please use drm_dev_alloc() and
+ * drm_dev_register() instead and remove your ->load() callback.
+ *
  * Return: 0 on success or a negative error code on failure.
  */
 int drm_get_pci_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
@@ -325,6 +328,10 @@ EXPORT_SYMBOL(drm_get_pci_dev);
  *
  * Initializes a drm_device structures, registering the stubs and initializing
  * the AGP device.
+ *
+ * NOTE: This function is deprecated. Modern modesetting drm drivers should use
+ * pci_register_driver() directly, this function only provides shadow-binding
+ * support for old legacy drivers on top of that core pci function.
  *
  * Return: 0 on success or a negative error code on failure.
  */
@@ -435,6 +442,10 @@ EXPORT_SYMBOL(drm_pci_init);
  *
  * Unregisters one or more devices matched by a PCI driver from the DRM
  * subsystem.
+ *
+ * NOTE: This function is deprecated. Modern modesetting drm drivers should use
+ * pci_unregister_driver() directly, this function only provides shadow-binding
+ * support for old legacy drivers on top of that core pci function.
  */
 void drm_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver)
 {

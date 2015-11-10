@@ -42,8 +42,7 @@ struct nouveau_channel {
 
 
 int  nouveau_channel_new(struct nouveau_drm *, struct nvif_device *,
-			 u32 handle, u32 arg0, u32 arg1,
-			 struct nouveau_channel **);
+			 u32 arg0, u32 arg1, struct nouveau_channel **);
 void nouveau_channel_del(struct nouveau_channel **);
 int  nouveau_channel_idle(struct nouveau_channel *);
 

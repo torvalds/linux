@@ -59,7 +59,7 @@ static void sti_atomic_complete(struct sti_private *private,
 	 */
 
 	drm_atomic_helper_commit_modeset_disables(drm, state);
-	drm_atomic_helper_commit_planes(drm, state);
+	drm_atomic_helper_commit_planes(drm, state, false);
 	drm_atomic_helper_commit_modeset_enables(drm, state);
 
 	drm_atomic_helper_wait_for_vblanks(drm, state);
@@ -201,7 +201,7 @@ static struct drm_driver sti_driver = {
 	.dumb_destroy = drm_gem_dumb_destroy,
 	.fops = &sti_driver_fops,
 
-	.get_vblank_counter = drm_vblank_count,
+	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.enable_vblank = sti_crtc_enable_vblank,
 	.disable_vblank = sti_crtc_disable_vblank,
 
