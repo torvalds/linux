@@ -399,14 +399,14 @@ static inline void dio_bio_submit(struct dio *dio, struct dio_submit *sdio)
 	if (dio->is_async && dio->rw == READ && dio->should_dirty)
 		bio_set_pages_dirty(bio);
 
+	dio->bio_bdev = bio->bi_bdev;
+
 	if (sdio->submit_io) {
 		sdio->submit_io(dio->rw, bio, dio->inode,
 			       sdio->logical_offset_in_bio);
 		dio->bio_cookie = BLK_QC_T_NONE;
-	} else {
+	} else
 		dio->bio_cookie = submit_bio(dio->rw, bio);
-		dio->bio_bdev = bio->bi_bdev;
-	}
 
 	sdio->bio = NULL;
 	sdio->boundary = 0;
