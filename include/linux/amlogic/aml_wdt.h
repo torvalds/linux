@@ -36,7 +36,6 @@ struct aml_wdt_dev {
 	unsigned int firmware_timeout,suspend_timeout,timeout;
 	unsigned int one_second;
 	struct device *dev;
-	struct mutex	lock;
 	unsigned int reset_watchdog_method;
 	struct delayed_work boot_queue;
 };

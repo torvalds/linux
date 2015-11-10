@@ -21,6 +21,7 @@
 #include <linux/moduleparam.h>
 #include <linux/timer.h>
 #include <linux/watchdog.h>
+#include <linux/spinlock.h>
 #include <linux/of.h>
 #include <linux/amlogic/aml_wdt.h>
 #include <uapi/linux/reboot.h>
@@ -28,6 +29,7 @@
 #include <linux/suspend.h>
 #include <linux/reboot.h>
 
+static DEFINE_SPINLOCK(wdt_lock);
 struct aml_wdt_dev *awdtv=NULL;
 
 static unsigned int read_watchdog_time(void)
@@ -39,12 +41,12 @@ static unsigned int read_watchdog_time(void)
 static int aml_wdt_start(struct watchdog_device *wdog)
 {
 	struct aml_wdt_dev *wdev = watchdog_get_drvdata(wdog);
-	mutex_lock(&wdev->lock);
+	spin_lock(&wdt_lock);
 	if(wdog->timeout==0xffffffff)
 		enable_watchdog(wdev->default_timeout * wdev->one_second);
 	else
 		enable_watchdog(wdog->timeout* wdev->one_second);
-	mutex_unlock(&wdev->lock);
+	spin_unlock(&wdt_lock);
 #if 0
 	if(wdev->boot_queue)
 		cancel_delayed_work(&wdev->boot_queue);
@@ -54,19 +56,18 @@ static int aml_wdt_start(struct watchdog_device *wdog)
 
 static int aml_wdt_stop(struct watchdog_device *wdog)
 {
-	struct aml_wdt_dev *wdev = watchdog_get_drvdata(wdog);
-	mutex_lock(&wdev->lock);
+	spin_lock(&wdt_lock);
 	disable_watchdog();
-	mutex_unlock(&wdev->lock);
+	spin_unlock(&wdt_lock);
+
 	return 0;
 }
 
 static int aml_wdt_ping(struct watchdog_device *wdog)
 {
-	struct aml_wdt_dev *wdev = watchdog_get_drvdata(wdog);
-	mutex_lock(&wdev->lock);
+	spin_lock(&wdt_lock);
 	reset_watchdog();
-	mutex_unlock(&wdev->lock);
+	spin_unlock(&wdt_lock);
 
 	return 0;
 }
@@ -76,20 +77,23 @@ static int aml_wdt_set_timeout(struct watchdog_device *wdog,
 {
 	struct aml_wdt_dev *wdev = watchdog_get_drvdata(wdog);
 
-	mutex_lock(&wdev->lock);
+	spin_lock(&wdt_lock);
 	wdog->timeout = timeout;
 	wdev->timeout = timeout;
-	mutex_unlock(&wdev->lock);
+	spin_unlock(&wdt_lock);
 
 	return 0;
 }
+
 unsigned int aml_wdt_get_timeleft(struct watchdog_device *wdog)
 {
 	struct aml_wdt_dev *wdev = watchdog_get_drvdata(wdog);
 	unsigned int timeleft;
-	mutex_lock(&wdev->lock);
+
+	spin_lock(&wdt_lock);
 	timeleft=read_watchdog_time();
-	mutex_unlock(&wdev->lock);
+	spin_unlock(&wdt_lock);
+
 	return timeleft/wdev->one_second;
 }
 
@@ -102,7 +106,7 @@ static void boot_moniter_work(struct work_struct *work)
 }
 
 static const struct watchdog_info aml_wdt_info = {
-	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
+	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 	.identity = "aml Watchdog",
 };
 
@@ -114,6 +118,7 @@ static const struct watchdog_ops aml_wdt_ops = {
 	.set_timeout	= aml_wdt_set_timeout,
 	.get_timeleft   = aml_wdt_get_timeleft,
 };
+
 void aml_init_pdata(struct aml_wdt_dev *wdev)
 {
 	int ret;
@@ -180,21 +185,21 @@ static int aml_wtd_pm_notify(struct notifier_block *nb, unsigned long event,
 	}
 	return NOTIFY_OK;
 }
+
 static int aml_wtd_reboot_notify(struct notifier_block *nb, unsigned long event,
 	void *dummy)
 {
 	if (event == SYS_POWER_OFF) {
 		printk("set watch dog shut down timeout %d seconds\n",awdtv->suspend_timeout);
-		enable_watchdog(awdtv->shutdown_timeout*awdtv->one_second);
 		aml_write_reg32(P_AO_RTI_STATUS_REG1, MESON_CHARGING_REBOOT);
 	} 
 	return NOTIFY_OK;
 }
 
-
 static struct notifier_block aml_wdt_pm_notifier = {
 	.notifier_call = aml_wtd_pm_notify,
 };
+
 static struct notifier_block aml_wdt_reboot_notifier = {
 	.notifier_call = aml_wtd_reboot_notify,
 };
@@ -204,6 +209,7 @@ static int aml_wdt_probe(struct platform_device *pdev)
 	struct watchdog_device *aml_wdt;
 	struct aml_wdt_dev *wdev;
 	int ret;
+
 	aml_wdt = devm_kzalloc(&pdev->dev, sizeof(*aml_wdt), GFP_KERNEL);
 	if (!aml_wdt)
 		return -ENOMEM;
@@ -212,7 +218,6 @@ static int aml_wdt_probe(struct platform_device *pdev)
 	if (!wdev)
 		return -ENOMEM;
 	wdev->dev		= &pdev->dev;
-	mutex_init(&wdev->lock);
 	aml_init_pdata(wdev);
 
 	aml_wdt->info	      = &aml_wdt_info;
@@ -226,7 +231,6 @@ static int aml_wdt_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, aml_wdt);
 	if(wdev->reset_watchdog_method==1)
 	{
-		
 		INIT_DELAYED_WORK(&wdev->boot_queue, boot_moniter_work);
 		mod_delayed_work(system_freezable_wq, &wdev->boot_queue,
 					 round_jiffies(msecs_to_jiffies(wdev->reset_watchdog_time*1000)));
@@ -296,20 +300,20 @@ static struct platform_driver aml_wdt_driver = {
 		.of_match_table = aml_wdt_of_match,
 	},
 };
+
 static int __init aml_wdt_driver_init(void) 
 {
 	printk("%s,%d\n",__func__,__LINE__);
 	disable_watchdog();
 	return platform_driver_register(&(aml_wdt_driver)); 
 } 
-module_init(aml_wdt_driver_init); 
-static void __exit aml_wdt_driver_exit(void) 
-{ 
-	platform_driver_unregister(&(aml_wdt_driver) ); 
-} 
+module_init(aml_wdt_driver_init);
+
+static void __exit aml_wdt_driver_exit(void)
+{
+	platform_driver_unregister(&(aml_wdt_driver) );
+}
 module_exit(aml_wdt_driver_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:aml_wdt");
-
-
