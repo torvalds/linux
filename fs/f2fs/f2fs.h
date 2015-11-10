@@ -257,8 +257,9 @@ static inline bool __has_cursum_space(struct f2fs_summary_block *sum, int size,
 /*
  * ioctl commands in 32 bit emulation
  */
-#define F2FS_IOC32_GETFLAGS             FS_IOC32_GETFLAGS
-#define F2FS_IOC32_SETFLAGS             FS_IOC32_SETFLAGS
+#define F2FS_IOC32_GETFLAGS		FS_IOC32_GETFLAGS
+#define F2FS_IOC32_SETFLAGS		FS_IOC32_SETFLAGS
+#define F2FS_IOC32_GETVERSION		FS_IOC32_GETVERSION
 #endif
 
 struct f2fs_defragment {
