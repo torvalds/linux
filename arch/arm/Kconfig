@@ -621,28 +621,6 @@ config ARCH_PXA
 	help
 	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.
 
-config ARCH_SHMOBILE_LEGACY
-	bool "Renesas ARM SoCs (non-multiplatform)"
-	select ARCH_SHMOBILE
-	select ARM_PATCH_PHYS_VIRT if MMU
-	select CLKDEV_LOOKUP
-	select CPU_V7
-	select GENERIC_CLOCKEVENTS
-	select HAVE_ARM_SCU if SMP
-	select HAVE_ARM_TWD if SMP
-	select HAVE_SMP
-	select MIGHT_HAVE_CACHE_L2X0
-	select MULTI_IRQ_HANDLER
-	select NO_IOPORT_MAP
-	select PINCTRL
-	select PM_GENERIC_DOMAINS if PM
-	select SH_CLK_CPG
-	select SPARSE_IRQ
-	help
-	  Support for Renesas ARM SoC platforms using a non-multiplatform
-	  kernel. This includes the SH-Mobile, R-Mobile, EMMA-Mobile, R-Car
-	  and RZ families.
-
 config ARCH_RPC
 	bool "RiscPC"
 	depends on MMU
@@ -1537,7 +1515,6 @@ config HZ_FIXED
 	default 200 if ARCH_EBSA110 || ARCH_S3C24XX || \
 		ARCH_S5PV210 || ARCH_EXYNOS4
 	default 128 if SOC_AT91RM9200
-	default SHMOBILE_TIMER_HZ if ARCH_SHMOBILE_LEGACY
 	default 0
 
 choice
@@ -1756,8 +1733,7 @@ config ARM_MODULE_PLTS
 source "mm/Kconfig"
 
 config FORCE_MAX_ZONEORDER
-	int "Maximum zone order" if ARCH_SHMOBILE_LEGACY
-	range 11 64 if ARCH_SHMOBILE_LEGACY
+	int "Maximum zone order"
 	default "12" if SOC_AM33XX
 	default "9" if SA1111 || ARCH_EFM32
 	default "11"

@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/z2_battery.h>
 #include <linux/dma-mapping.h>
@@ -199,21 +200,24 @@ static inline void z2_nor_init(void) {}
  * Backlight
  ******************************************************************************/
 #if defined(CONFIG_BACKLIGHT_PWM) || defined(CONFIG_BACKLIGHT_PWM_MODULE)
+static struct pwm_lookup z2_pwm_lookup[] = {
+	PWM_LOOKUP("pxa27x-pwm.1", 0, "pwm-backlight.0", NULL, 1260320,
+		   PWM_POLARITY_NORMAL),
+	PWM_LOOKUP("pxa27x-pwm.0", 1, "pwm-backlight.1", NULL, 1260320,
+		   PWM_POLARITY_NORMAL),
+};
+
 static struct platform_pwm_backlight_data z2_backlight_data[] = {
 	[0] = {
 		/* Keypad Backlight */
-		.pwm_id		= 1,
 		.max_brightness	= 1023,
 		.dft_brightness	= 0,
-		.pwm_period_ns	= 1260320,
 		.enable_gpio	= -1,
 	},
 	[1] = {
 		/* LCD Backlight */
-		.pwm_id		= 2,
 		.max_brightness	= 1023,
 		.dft_brightness	= 512,
-		.pwm_period_ns	= 1260320,
 		.enable_gpio	= -1,
 	},
 };
@@ -236,6 +240,7 @@ static struct platform_device z2_backlight_devices[2] = {
 };
 static void __init z2_pwm_init(void)
 {
+	pwm_add_table(z2_pwm_lookup, ARRAY_SIZE(z2_pwm_lookup));
 	platform_device_register(&z2_backlight_devices[0]);
 	platform_device_register(&z2_backlight_devices[1]);
 }
@@ -595,13 +600,11 @@ static struct spi_board_info spi_board_info[] __initdata = {
 };
 
 static struct pxa2xx_spi_master pxa_ssp1_master_info = {
-	.clock_enable	= CKEN_SSP,
 	.num_chipselect	= 1,
 	.enable_dma	= 1,
 };
 
 static struct pxa2xx_spi_master pxa_ssp2_master_info = {
-	.clock_enable	= CKEN_SSP2,
 	.num_chipselect	= 1,
 };
 

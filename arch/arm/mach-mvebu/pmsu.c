@@ -296,11 +296,11 @@ int armada_370_xp_pmsu_idle_enter(unsigned long deepidle)
 	/* Test the CR_C bit and set it if it was cleared */
 	asm volatile(
 	"mrc	p15, 0, r0, c1, c0, 0 \n\t"
-	"tst	r0, #(1 << 2) \n\t"
+	"tst	r0, %0 \n\t"
 	"orreq	r0, r0, #(1 << 2) \n\t"
 	"mcreq	p15, 0, r0, c1, c0, 0 \n\t"
 	"isb	"
-	: : : "r0");
+	: : "Ir" (CR_C) : "r0");
 
 	pr_debug("Failed to suspend the system\n");
 
