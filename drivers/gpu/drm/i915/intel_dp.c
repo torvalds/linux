@@ -1551,23 +1551,18 @@ static void ironlake_set_pll_cpu_edp(struct intel_dp *intel_dp)
 	struct intel_crtc *crtc = to_intel_crtc(dig_port->base.base.crtc);
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 dpa_ctl;
 
 	DRM_DEBUG_KMS("eDP PLL enable for clock %d\n",
 		      crtc->config->port_clock);
-	dpa_ctl = I915_READ(DP_A);
-	dpa_ctl &= ~DP_PLL_FREQ_MASK;
 
-	if (crtc->config->port_clock == 162000) {
-		dpa_ctl |= DP_PLL_FREQ_162MHZ;
+	intel_dp->DP &= ~DP_PLL_FREQ_MASK;
+
+	if (crtc->config->port_clock == 162000)
 		intel_dp->DP |= DP_PLL_FREQ_162MHZ;
-	} else {
-		dpa_ctl |= DP_PLL_FREQ_270MHZ;
+	else
 		intel_dp->DP |= DP_PLL_FREQ_270MHZ;
-	}
 
-	I915_WRITE(DP_A, dpa_ctl);
-
+	I915_WRITE(DP_A, intel_dp->DP);
 	POSTING_READ(DP_A);
 	udelay(500);
 }
@@ -1615,9 +1610,6 @@ static void intel_dp_prepare(struct intel_encoder *encoder)
 	/* Handle DP bits in common between all three register formats */
 	intel_dp->DP |= DP_VOLTAGE_0_4 | DP_PRE_EMPHASIS_0;
 	intel_dp->DP |= DP_PORT_WIDTH(crtc->config->lane_count);
-
-	if (crtc->config->has_audio)
-		intel_dp->DP |= DP_AUDIO_OUTPUT_ENABLE;
 
 	/* Split out the IBX/CPU vs CPT settings */
 
@@ -2179,20 +2171,14 @@ static void ironlake_edp_pll_on(struct intel_dp *intel_dp)
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct intel_crtc *crtc = to_intel_crtc(intel_dig_port->base.base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	u32 dpa_ctl;
 
 	assert_pipe_disabled(dev_priv, crtc->pipe);
 	assert_dp_port_disabled(intel_dp);
 	assert_edp_pll_disabled(dev_priv);
 
 	DRM_DEBUG_KMS("\n");
-	dpa_ctl = I915_READ(DP_A);
-
-	/* We don't adjust intel_dp->DP while tearing down the link, to
-	 * facilitate link retraining (e.g. after hotplug). Hence clear all
-	 * enable bits here to ensure that we don't enable too much. */
-	intel_dp->DP &= ~(DP_PORT_EN | DP_AUDIO_OUTPUT_ENABLE);
 	intel_dp->DP |= DP_PLL_ENABLE;
+
 	I915_WRITE(DP_A, intel_dp->DP);
 	POSTING_READ(DP_A);
 	udelay(200);
@@ -2203,19 +2189,14 @@ static void ironlake_edp_pll_off(struct intel_dp *intel_dp)
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct intel_crtc *crtc = to_intel_crtc(intel_dig_port->base.base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	u32 dpa_ctl;
 
 	assert_pipe_disabled(dev_priv, crtc->pipe);
 	assert_dp_port_disabled(intel_dp);
 	assert_edp_pll_enabled(dev_priv);
 
-	dpa_ctl = I915_READ(DP_A);
+	intel_dp->DP &= ~DP_PLL_ENABLE;
 
-	/* We can't rely on the value tracked for the DP register in
-	 * intel_dp->DP because link_down must not change that (otherwise link
-	 * re-training will fail. */
-	dpa_ctl &= ~DP_PLL_ENABLE;
-	I915_WRITE(DP_A, dpa_ctl);
+	I915_WRITE(DP_A, intel_dp->DP);
 	POSTING_READ(DP_A);
 	udelay(200);
 }
@@ -2571,6 +2552,8 @@ static void intel_dp_enable_port(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *crtc =
+		to_intel_crtc(dp_to_dig_port(intel_dp)->base.base.crtc);
 
 	/* enable with pattern 1 (as per spec) */
 	_intel_dp_set_link_train(intel_dp, &intel_dp->DP,
@@ -2586,6 +2569,8 @@ static void intel_dp_enable_port(struct intel_dp *intel_dp)
 	 * fail when the power sequencer is freshly used for this port.
 	 */
 	intel_dp->DP |= DP_PORT_EN;
+	if (crtc->config->has_audio)
+		intel_dp->DP |= DP_AUDIO_OUTPUT_ENABLE;
 
 	I915_WRITE(intel_dp->output_reg, intel_dp->DP);
 	POSTING_READ(intel_dp->output_reg);
@@ -3726,6 +3711,8 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 	}
 
 	msleep(intel_dp->panel_power_down_delay);
+
+	intel_dp->DP = DP;
 }
 
 static bool
