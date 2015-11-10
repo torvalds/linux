@@ -154,6 +154,20 @@ struct kvm_s390_skeys {
 	__u32 flags;
 	__u32 reserved[9];
 };
+
+struct kvm_hyperv_exit {
+#define KVM_EXIT_HYPERV_SYNIC          1
+	__u32 type;
+	union {
+		struct {
+			__u32 msr;
+			__u64 control;
+			__u64 evt_page;
+			__u64 msg_page;
+		} synic;
+	} u;
+};
+
 #define KVM_S390_GET_SKEYS_NONE   1
 #define KVM_S390_SKEYS_MAX        1048576
 
@@ -184,6 +198,7 @@ struct kvm_s390_skeys {
 #define KVM_EXIT_SYSTEM_EVENT     24
 #define KVM_EXIT_S390_STSI        25
 #define KVM_EXIT_IOAPIC_EOI       26
+#define KVM_EXIT_HYPERV           27
 
 /* For KVM_EXIT_INTERNAL_ERROR */
 /* Emulate instruction failed. */
@@ -338,6 +353,8 @@ struct kvm_run {
 		struct {
 			__u8 vector;
 		} eoi;
+		/* KVM_EXIT_HYPERV */
+		struct kvm_hyperv_exit hyperv;
 		/* Fix the size of the union. */
 		char padding[256];
 	};

@@ -393,6 +393,7 @@ struct kvm_vcpu_hv {
 	u64 hv_vapic;
 	s64 runtime_offset;
 	struct kvm_vcpu_hv_synic synic;
+	struct kvm_hyperv_exit exit;
 };
 
 struct kvm_vcpu_arch {

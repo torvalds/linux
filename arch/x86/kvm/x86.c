@@ -6482,6 +6482,12 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			r = 0;
 			goto out;
 		}
+		if (kvm_check_request(KVM_REQ_HV_EXIT, vcpu)) {
+			vcpu->run->exit_reason = KVM_EXIT_HYPERV;
+			vcpu->run->hyperv = vcpu->arch.hyperv.exit;
+			r = 0;
+			goto out;
+		}
 	}
 
 	/*

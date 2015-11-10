@@ -130,6 +130,20 @@ static void kvm_hv_notify_acked_sint(struct kvm_vcpu *vcpu, u32 sint)
 	srcu_read_unlock(&kvm->irq_srcu, idx);
 }
 
+static void synic_exit(struct kvm_vcpu_hv_synic *synic, u32 msr)
+{
+	struct kvm_vcpu *vcpu = synic_to_vcpu(synic);
+	struct kvm_vcpu_hv *hv_vcpu = &vcpu->arch.hyperv;
+
+	hv_vcpu->exit.type = KVM_EXIT_HYPERV_SYNIC;
+	hv_vcpu->exit.u.synic.msr = msr;
+	hv_vcpu->exit.u.synic.control = synic->control;
+	hv_vcpu->exit.u.synic.evt_page = synic->evt_page;
+	hv_vcpu->exit.u.synic.msg_page = synic->msg_page;
+
+	kvm_make_request(KVM_REQ_HV_EXIT, vcpu);
+}
+
 static int synic_set_msr(struct kvm_vcpu_hv_synic *synic,
 			 u32 msr, u64 data, bool host)
 {
@@ -145,6 +159,8 @@ static int synic_set_msr(struct kvm_vcpu_hv_synic *synic,
 	switch (msr) {
 	case HV_X64_MSR_SCONTROL:
 		synic->control = data;
+		if (!host)
+			synic_exit(synic, msr);
 		break;
 	case HV_X64_MSR_SVERSION:
 		if (!host) {
@@ -161,6 +177,8 @@ static int synic_set_msr(struct kvm_vcpu_hv_synic *synic,
 				break;
 			}
 		synic->evt_page = data;
+		if (!host)
+			synic_exit(synic, msr);
 		break;
 	case HV_X64_MSR_SIMP:
 		if (data & HV_SYNIC_SIMP_ENABLE)
@@ -170,6 +188,8 @@ static int synic_set_msr(struct kvm_vcpu_hv_synic *synic,
 				break;
 			}
 		synic->msg_page = data;
+		if (!host)
+			synic_exit(synic, msr);
 		break;
 	case HV_X64_MSR_EOM: {
 		int i;
