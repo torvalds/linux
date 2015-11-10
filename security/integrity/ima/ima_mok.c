@@ -47,7 +47,9 @@ __init int ima_mok_init(void)
 	if (IS_ERR(ima_mok_keyring) || IS_ERR(ima_blacklist_keyring))
 		panic("Can't allocate IMA MOK or blacklist keyrings.");
 	set_bit(KEY_FLAG_TRUSTED_ONLY, &ima_mok_keyring->flags);
+
 	set_bit(KEY_FLAG_TRUSTED_ONLY, &ima_blacklist_keyring->flags);
+	set_bit(KEY_FLAG_KEEP, &ima_blacklist_keyring->flags);
 	return 0;
 }
 
