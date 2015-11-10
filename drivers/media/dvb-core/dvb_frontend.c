@@ -891,10 +891,11 @@ static void dvb_frontend_stop(struct dvb_frontend *fe)
 }
 
 /*
- * Sleep until gettimeofday() > waketime + add_usec
- * This needs to be as precise as possible, but as the delay is
- * usually between 2ms and 32ms, it is done using a scheduled msleep
- * followed by usleep (normally a busy-wait loop) for the remainder
+ * Sleep for the amount of time given by add_usec parameter
+ *
+ * This needs to be as precise as possible, as it affects the detection of
+ * the dish tone command at the satellite subsystem. The precision is improved
+ * by using a scheduled msleep followed by udelay for the remainder.
  */
 void dvb_frontend_sleep_until(ktime_t *waketime, u32 add_usec)
 {

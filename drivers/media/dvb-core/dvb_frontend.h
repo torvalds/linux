@@ -404,6 +404,11 @@ struct dtv_frontend_properties;
  *			FE_ENABLE_HIGH_LNB_VOLTAGE ioctl (only Satellite).
  * @dishnetwork_send_legacy_command: callback function to implement the
  *			FE_DISHNETWORK_SEND_LEGACY_CMD ioctl (only Satellite).
+ *			Drivers should not use this, except when the DVB
+ *			core emulation fails to provide proper support (e.g.
+ *			if set_voltage() takes more than 8ms to work), and
+ *			when backward compatibility with this legacy API is
+ *			required.
  * @i2c_gate_ctrl:	controls the I2C gate. Newer drivers should use I2C
  *			mux support instead.
  * @ts_bus_ctrl:	callback function used to take control of the TS bus.
@@ -693,6 +698,29 @@ extern void dvb_frontend_reinitialise(struct dvb_frontend *fe);
 extern int dvb_frontend_suspend(struct dvb_frontend *fe);
 extern int dvb_frontend_resume(struct dvb_frontend *fe);
 
-extern void dvb_frontend_sleep_until(ktime_t *waketime, u32 add_usec);
+/**
+ * dvb_frontend_sleep_until() - Sleep for the amount of time given by
+ *                      add_usec parameter
+ *
+ * @waketime: pointer to a struct ktime_t
+ * @add_usec: time to sleep, in microseconds
+ *
+ * This function is used to measure the time required for the
+ * %FE_DISHNETWORK_SEND_LEGACY_CMD ioctl to work. It needs to be as precise
+ * as possible, as it affects the detection of the dish tone command at the
+ * satellite subsystem.
+ *
+ * Its used internally by the DVB frontend core, in order to emulate
+ * %FE_DISHNETWORK_SEND_LEGACY_CMD using the &dvb_frontend_ops.set_voltage()
+ * callback.
+ *
+ * NOTE: it should not be used at the drivers, as the emulation for the
+ * legacy callback is provided by the Kernel. The only situation where this
+ * should be at the drivers is when there are some bugs at the hardware that
+ * would prevent the core emulation to work. On such cases, the driver would
+ * be writing a &dvb_frontend_ops.dishnetwork_send_legacy_command() and
+ * calling this function directly.
+ */
+void dvb_frontend_sleep_until(ktime_t *waketime, u32 add_usec);
 
 #endif
