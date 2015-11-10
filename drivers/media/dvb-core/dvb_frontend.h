@@ -754,8 +754,44 @@ int dvb_unregister_frontend(struct dvb_frontend *fe);
  */
 void dvb_frontend_detach(struct dvb_frontend *fe);
 
-extern int dvb_frontend_suspend(struct dvb_frontend *fe);
-extern int dvb_frontend_resume(struct dvb_frontend *fe);
+/**
+ * dvb_frontend_suspend() - Suspends a Digital TV frontend
+ *
+ * @fe: pointer to the frontend struct
+ *
+ * This function prepares a Digital TV frontend to suspend.
+ *
+ * In order to prepare the tuner to suspend, if
+ * &dvb_frontend_ops.tuner_ops.suspend() is available, it calls it. Otherwise,
+ * it will call &dvb_frontend_ops.tuner_ops.sleep(), if available.
+ *
+ * It will also call &dvb_frontend_ops.sleep() to put the demod to suspend.
+ *
+ * The drivers should also call dvb_frontend_suspend() as part of their
+ * handler for the &device_driver.suspend().
+ */
+int dvb_frontend_suspend(struct dvb_frontend *fe);
+
+/**
+ * dvb_frontend_resume() - Resumes a Digital TV frontend
+ *
+ * @fe: pointer to the frontend struct
+ *
+ * This function resumes the usual operation of the tuner after resume.
+ *
+ * In order to resume the frontend, it calls the demod &dvb_frontend_ops.init().
+ *
+ * If &dvb_frontend_ops.tuner_ops.resume() is available, It, it calls it.
+ * Otherwise,t will call &dvb_frontend_ops.tuner_ops.init(), if available.
+ *
+ * Once tuner and demods are resumed, it will enforce that the SEC voltage and
+ * tone are restored to their previous values and wake up the frontend's
+ * kthread in order to retune the frontend.
+ *
+ * The drivers should also call dvb_frontend_resume() as part of their
+ * handler for the &device_driver.resume().
+ */
+int dvb_frontend_resume(struct dvb_frontend *fe);
 
 /**
  * dvb_frontend_reinitialise() - forces a reinitialisation at the frontend
