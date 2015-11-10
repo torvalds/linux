@@ -298,9 +298,9 @@ static int gfs2_set_flags(struct file *filp, u32 __user *ptr)
 		gfsflags &= ~GFS2_DIF_TOPDIR;
 		if (gfsflags & GFS2_DIF_INHERIT_JDATA)
 			gfsflags ^= (GFS2_DIF_JDATA | GFS2_DIF_INHERIT_JDATA);
-		return do_gfs2_set_flags(filp, gfsflags, ~0);
+		return do_gfs2_set_flags(filp, gfsflags, ~GFS2_DIF_SYSTEM);
 	}
-	return do_gfs2_set_flags(filp, gfsflags, ~GFS2_DIF_JDATA);
+	return do_gfs2_set_flags(filp, gfsflags, ~(GFS2_DIF_SYSTEM | GFS2_DIF_JDATA));
 }
 
 static long gfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
