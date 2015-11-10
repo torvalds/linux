@@ -5266,6 +5266,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
 
 static void __init_refok alloc_node_mem_map(struct pglist_data *pgdat)
 {
+	unsigned long __maybe_unused start = 0;
 	unsigned long __maybe_unused offset = 0;
 
 	/* Skip empty nodes */
@@ -5273,9 +5274,11 @@ static void __init_refok alloc_node_mem_map(struct pglist_data *pgdat)
 		return;
 
 #ifdef CONFIG_FLAT_NODE_MEM_MAP
+	start = pgdat->node_start_pfn & ~(MAX_ORDER_NR_PAGES - 1);
+	offset = pgdat->node_start_pfn - start;
 	/* ia64 gets its own node_mem_map, before this, without bootmem */
 	if (!pgdat->node_mem_map) {
-		unsigned long size, start, end;
+		unsigned long size, end;
 		struct page *map;
 
 		/*
@@ -5283,8 +5286,6 @@ static void __init_refok alloc_node_mem_map(struct pglist_data *pgdat)
 		 * aligned but the node_mem_map endpoints must be in order
 		 * for the buddy allocator to function correctly.
 		 */
-		start = pgdat->node_start_pfn & ~(MAX_ORDER_NR_PAGES - 1);
-		offset = pgdat->node_start_pfn - start;
 		end = pgdat_end_pfn(pgdat);
 		end = ALIGN(end, MAX_ORDER_NR_PAGES);
 		size =  (end - start) * sizeof(struct page);
