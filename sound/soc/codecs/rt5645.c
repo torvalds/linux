@@ -572,14 +572,12 @@ static int rt5645_spk_put_volsw(struct snd_kcontrol *kcontrol,
 	struct rt5645_priv *rt5645 = snd_soc_component_get_drvdata(component);
 	int ret;
 
-	cancel_delayed_work_sync(&rt5645->rcclock_work);
-
 	regmap_update_bits(rt5645->regmap, RT5645_MICBIAS,
 		RT5645_PWR_CLK25M_MASK, RT5645_PWR_CLK25M_PU);
 
 	ret = snd_soc_put_volsw(kcontrol, ucontrol);
 
-	queue_delayed_work(system_power_efficient_wq, &rt5645->rcclock_work,
+	mod_delayed_work(system_power_efficient_wq, &rt5645->rcclock_work,
 		msecs_to_jiffies(200));
 
 	return ret;
