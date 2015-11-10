@@ -251,15 +251,16 @@ static __always_inline void __pv_init_node(struct mcs_spinlock *node) { }
 static __always_inline void __pv_wait_node(struct mcs_spinlock *node) { }
 static __always_inline void __pv_kick_node(struct qspinlock *lock,
 					   struct mcs_spinlock *node) { }
-static __always_inline void __pv_wait_head(struct qspinlock *lock,
-					   struct mcs_spinlock *node) { }
+static __always_inline u32  __pv_wait_head_or_lock(struct qspinlock *lock,
+						   struct mcs_spinlock *node)
+						   { return 0; }
 
 #define pv_enabled()		false
 
 #define pv_init_node		__pv_init_node
 #define pv_wait_node		__pv_wait_node
 #define pv_kick_node		__pv_kick_node
-#define pv_wait_head		__pv_wait_head
+#define pv_wait_head_or_lock	__pv_wait_head_or_lock
 
 #ifdef CONFIG_PARAVIRT_SPINLOCKS
 #define queued_spin_lock_slowpath	native_queued_spin_lock_slowpath
@@ -431,10 +432,22 @@ queue:
 	 * sequentiality; this is because the set_locked() function below
 	 * does not imply a full barrier.
 	 *
+	 * The PV pv_wait_head_or_lock function, if active, will acquire
+	 * the lock and return a non-zero value. So we have to skip the
+	 * smp_load_acquire() call. As the next PV queue head hasn't been
+	 * designated yet, there is no way for the locked value to become
+	 * _Q_SLOW_VAL. So both the set_locked() and the
+	 * atomic_cmpxchg_relaxed() calls will be safe.
+	 *
+	 * If PV isn't active, 0 will be returned instead.
+	 *
 	 */
-	pv_wait_head(lock, node);
+	if ((val = pv_wait_head_or_lock(lock, node)))
+		goto locked;
+
 	smp_cond_acquire(!((val = atomic_read(&lock->val)) & _Q_LOCKED_PENDING_MASK));
 
+locked:
 	/*
 	 * claim the lock:
 	 *
@@ -446,7 +459,8 @@ queue:
 	 * to grab the lock.
 	 */
 	for (;;) {
-		if (val != tail) {
+		/* In the PV case we might already have _Q_LOCKED_VAL set */
+		if ((val & _Q_TAIL_MASK) != tail) {
 			set_locked(lock);
 			break;
 		}
@@ -493,7 +507,7 @@ EXPORT_SYMBOL(queued_spin_lock_slowpath);
 #undef pv_init_node
 #undef pv_wait_node
 #undef pv_kick_node
-#undef pv_wait_head
+#undef pv_wait_head_or_lock
 
 #undef  queued_spin_lock_slowpath
 #define queued_spin_lock_slowpath	__pv_queued_spin_lock_slowpath
