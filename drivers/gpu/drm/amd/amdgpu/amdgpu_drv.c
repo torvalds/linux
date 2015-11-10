@@ -82,7 +82,7 @@ int amdgpu_enable_scheduler = 1;
 int amdgpu_sched_jobs = 32;
 int amdgpu_sched_hw_submission = 2;
 int amdgpu_enable_semaphores = 0;
-int amdgpu_powerplay = 0;
+int amdgpu_powerplay = -1;
 
 MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
 module_param_named(vramlimit, amdgpu_vram_limit, int, 0600);
@@ -166,7 +166,7 @@ MODULE_PARM_DESC(enable_semaphores, "Enable semaphores (1 = enable, 0 = disable 
 module_param_named(enable_semaphores, amdgpu_enable_semaphores, int, 0644);
 
 #ifdef CONFIG_DRM_AMD_POWERPLAY
-MODULE_PARM_DESC(powerplay, "Powerplay component (1 = enable, 0 = disable (default))");
+MODULE_PARM_DESC(powerplay, "Powerplay component (1 = enable, 0 = disable, -1 = auto (default))");
 module_param_named(powerplay, amdgpu_powerplay, int, 0444);
 #endif
 

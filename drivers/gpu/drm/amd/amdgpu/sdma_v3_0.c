@@ -727,7 +727,7 @@ static int sdma_v3_0_start(struct amdgpu_device *adev)
 {
 	int r, i;
 
-	if (!amdgpu_powerplay) {
+	if (!adev->pp_enabled) {
 		if (!adev->firmware.smu_load) {
 			r = sdma_v3_0_load_microcode(adev);
 			if (r)

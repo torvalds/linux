@@ -40,7 +40,7 @@ static int amdgpu_powerplay_init(struct amdgpu_device *adev)
 
 	amd_pp = &(adev->powerplay);
 
-	if (amdgpu_powerplay) {
+	if (adev->pp_enabled) {
 #ifdef CONFIG_DRM_AMD_POWERPLAY
 		struct amd_pp_init *pp_init;
 
@@ -100,11 +100,14 @@ static int amdgpu_pp_early_init(void *handle)
 	switch (adev->asic_type) {
 		case CHIP_TONGA:
 		case CHIP_FIJI:
-			amdgpu_powerplay = 1;
+			adev->pp_enabled = (amdgpu_powerplay == 0) ? false : true;
 			break;
 		default:
+			adev->pp_enabled = (amdgpu_powerplay > 0) ? true : false;
 			break;
 	}
+#else
+	adev->pp_enabled = false;
 #endif
 
 	ret = amdgpu_powerplay_init(adev);
@@ -127,7 +130,7 @@ static int amdgpu_pp_sw_init(void *handle)
 					adev->powerplay.pp_handle);
 
 #ifdef CONFIG_DRM_AMD_POWERPLAY
-	if (amdgpu_powerplay) {
+	if (adev->pp_enabled) {
 		adev->pm.dpm_enabled = true;
 		amdgpu_pm_sysfs_init(adev);
 	}
@@ -148,7 +151,7 @@ static int amdgpu_pp_sw_fini(void *handle)
 		return ret;
 
 #ifdef CONFIG_DRM_AMD_POWERPLAY
-	if (amdgpu_powerplay) {
+	if (adev->pp_enabled) {
 		amdgpu_pm_sysfs_fini(adev);
 		amd_powerplay_fini(adev->powerplay.pp_handle);
 	}
@@ -162,7 +165,7 @@ static int amdgpu_pp_hw_init(void *handle)
 	int ret = 0;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (amdgpu_powerplay && adev->firmware.smu_load)
+	if (adev->pp_enabled && adev->firmware.smu_load)
 		amdgpu_ucode_init_bo(adev);
 
 	if (adev->powerplay.ip_funcs->hw_init)
@@ -181,7 +184,7 @@ static int amdgpu_pp_hw_fini(void *handle)
 		ret = adev->powerplay.ip_funcs->hw_fini(
 					adev->powerplay.pp_handle);
 
-	if (amdgpu_powerplay && adev->firmware.smu_load)
+	if (adev->pp_enabled && adev->firmware.smu_load)
 		amdgpu_ucode_fini_bo(adev);
 
 	return ret;

@@ -36,7 +36,7 @@ static int amdgpu_debugfs_pm_init(struct amdgpu_device *adev);
 
 void amdgpu_pm_acpi_event_handler(struct amdgpu_device *adev)
 {
-	if (amdgpu_powerplay)
+	if (adev->pp_enabled)
 		/* TODO */
 		return;
 
@@ -60,7 +60,7 @@ static ssize_t amdgpu_get_dpm_state(struct device *dev,
 	struct amdgpu_device *adev = ddev->dev_private;
 	enum amd_pm_state_type pm;
 
-	if (amdgpu_powerplay) {
+	if (adev->pp_enabled) {
 		pm = amdgpu_dpm_get_current_power_state(adev);
 	} else
 		pm = adev->pm.dpm.user_state;
@@ -90,7 +90,7 @@ static ssize_t amdgpu_set_dpm_state(struct device *dev,
 		goto fail;
 	}
 
-	if (amdgpu_powerplay) {
+	if (adev->pp_enabled) {
 		amdgpu_dpm_dispatch_task(adev, AMD_PP_EVENT_ENABLE_USER_STATE, &state, NULL);
 	} else {
 		mutex_lock(&adev->pm.mutex);
@@ -113,7 +113,7 @@ static ssize_t amdgpu_get_dpm_forced_performance_level(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 
-	if (amdgpu_powerplay) {
+	if (adev->pp_enabled) {
 		enum amd_dpm_forced_level level;
 
 		level = amdgpu_dpm_get_performance_level(adev);
@@ -151,7 +151,7 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 		goto fail;
 	}
 
-	if (amdgpu_powerplay)
+	if (adev->pp_enabled)
 		amdgpu_dpm_force_performance_level(adev, level);
 	else {
 		mutex_lock(&adev->pm.mutex);
@@ -184,7 +184,7 @@ static ssize_t amdgpu_hwmon_show_temp(struct device *dev,
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	int temp;
 
-	if (!amdgpu_powerplay && !adev->pm.funcs->get_temperature)
+	if (!adev->pp_enabled && !adev->pm.funcs->get_temperature)
 		temp = 0;
 	else
 		temp = amdgpu_dpm_get_temperature(adev);
@@ -215,7 +215,7 @@ static ssize_t amdgpu_hwmon_get_pwm1_enable(struct device *dev,
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	u32 pwm_mode = 0;
 
-	if (!amdgpu_powerplay && !adev->pm.funcs->get_fan_control_mode)
+	if (!adev->pp_enabled && !adev->pm.funcs->get_fan_control_mode)
 		return -EINVAL;
 
 	pwm_mode = amdgpu_dpm_get_fan_control_mode(adev);
@@ -233,7 +233,7 @@ static ssize_t amdgpu_hwmon_set_pwm1_enable(struct device *dev,
 	int err;
 	int value;
 
-	if (!amdgpu_powerplay && !adev->pm.funcs->set_fan_control_mode)
+	if (!adev->pp_enabled && !adev->pm.funcs->set_fan_control_mode)
 		return -EINVAL;
 
 	err = kstrtoint(buf, 10, &value);
@@ -340,7 +340,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	     attr == &sensor_dev_attr_pwm1_min.dev_attr.attr))
 		return 0;
 
-	if (amdgpu_powerplay)
+	if (adev->pp_enabled)
 		return effective_mode;
 
 	/* Skip fan attributes if fan is not present */
@@ -674,7 +674,7 @@ done:
 
 void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable)
 {
-	if (amdgpu_powerplay)
+	if (adev->pp_enabled)
 		amdgpu_dpm_powergate_uvd(adev, !enable);
 	else {
 		if (adev->pm.funcs->powergate_uvd) {
@@ -701,7 +701,7 @@ void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable)
 
 void amdgpu_dpm_enable_vce(struct amdgpu_device *adev, bool enable)
 {
-	if (amdgpu_powerplay)
+	if (adev->pp_enabled)
 		amdgpu_dpm_powergate_vce(adev, !enable);
 	else {
 		if (adev->pm.funcs->powergate_vce) {
@@ -729,7 +729,7 @@ void amdgpu_pm_print_power_states(struct amdgpu_device *adev)
 {
 	int i;
 
-	if (amdgpu_powerplay)
+	if (adev->pp_enabled)
 		/* TO DO */
 		return;
 
@@ -745,7 +745,7 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 	if (adev->pm.sysfs_initialized)
 		return 0;
 
-	if (!amdgpu_powerplay) {
+	if (!adev->pp_enabled) {
 		if (adev->pm.funcs->get_temperature == NULL)
 			return 0;
 	}
@@ -798,7 +798,7 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 	if (!adev->pm.dpm_enabled)
 		return;
 
-	if (amdgpu_powerplay) {
+	if (adev->pp_enabled) {
 		int i = 0;
 
 		amdgpu_display_bandwidth_update(adev);
@@ -852,7 +852,7 @@ static int amdgpu_debugfs_pm_info(struct seq_file *m, void *data)
 		seq_printf(m, "dpm not enabled\n");
 		return 0;
 	}
-	if (amdgpu_powerplay) {
+	if (adev->pp_enabled) {
 		amdgpu_dpm_debugfs_print_current_performance_level(adev, m);
 	} else {
 		mutex_lock(&adev->pm.mutex);
