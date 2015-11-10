@@ -694,9 +694,22 @@ extern int dvb_unregister_frontend(struct dvb_frontend *fe);
 
 extern void dvb_frontend_detach(struct dvb_frontend *fe);
 
-extern void dvb_frontend_reinitialise(struct dvb_frontend *fe);
 extern int dvb_frontend_suspend(struct dvb_frontend *fe);
 extern int dvb_frontend_resume(struct dvb_frontend *fe);
+
+/**
+ * dvb_frontend_reinitialise() - forces a reinitialisation at the frontend
+ *
+ * @fe: pointer to the frontend struct
+ *
+ * Calls &dvb_frontend_ops.init() and &dvb_frontend_ops.tuner_ops.init(),
+ * and resets SEC tone and voltage (for Satellite systems).
+ *
+ * NOTE: Currently, this function is used only by one driver (budget-av).
+ * It seems to be due to address some special issue with that specific
+ * frontend.
+ */
+void dvb_frontend_reinitialise(struct dvb_frontend *fe);
 
 /**
  * dvb_frontend_sleep_until() - Sleep for the amount of time given by
