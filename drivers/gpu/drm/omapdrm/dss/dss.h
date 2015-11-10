@@ -373,8 +373,6 @@ void dispc_set_tv_pclk(unsigned long pclk);
 u32 dispc_wb_get_framedone_irq(void);
 bool dispc_wb_go_busy(void);
 void dispc_wb_go(void);
-void dispc_wb_enable(bool enable);
-bool dispc_wb_is_enabled(void);
 void dispc_wb_set_channel_in(enum dss_writeback_channel channel);
 int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
 		bool mem_to_mem, const struct videomode *vm);

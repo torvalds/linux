@@ -2933,16 +2933,6 @@ static enum omap_dss_output_id dispc_mgr_get_supported_outputs(enum omap_channel
 	return dss_feat_get_supported_outputs(channel);
 }
 
-void dispc_wb_enable(bool enable)
-{
-	dispc_ovl_enable(OMAP_DSS_WB, enable);
-}
-
-bool dispc_wb_is_enabled(void)
-{
-	return dispc_ovl_enabled(OMAP_DSS_WB);
-}
-
 static void dispc_lcd_enable_signal_polarity(bool act_high)
 {
 	if (!dss_has_feature(FEAT_LCDENABLEPOL))
