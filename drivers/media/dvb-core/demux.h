@@ -35,31 +35,31 @@
 /**
  * DOC: Digital TV Demux
  *
- * The kernel demux API defines a driver-internal interface for registering
- * low-level, hardware specific driver to a hardware independent demux layer.
- * It is only of interest for Digital TV device driver writers.
- * The header file for this API is named demux.h and located in
+ * The Kernel Digital TV Demux kABI defines a driver-internal interface for
+ * registering low-level, hardware specific driver to a hardware independent
+ * demux layer. It is only of interest for Digital TV device driver writers.
+ * The header file for this kABI is named demux.h and located in
  * drivers/media/dvb-core.
  *
- * The demux API should be implemented for each demux in the system. It is
+ * The demux kABI should be implemented for each demux in the system. It is
  * used to select the TS source of a demux and to manage the demux resources.
- * When the demux client allocates a resource via the demux API, it receives
- * a pointer to the API of that	resource.
+ * When the demux client allocates a resource via the demux kABI, it receives
+ * a pointer to the kABI of that resource.
  *
  * Each demux receives its TS input from a DVB front-end or from memory, as
- * set via this demux API. In a system with more than one front-end, the API
+ * set via this demux kABI. In a system with more than one front-end, the kABI
  * can be used to select one of the DVB front-ends as a TS source for a demux,
  * unless this is fixed in the HW platform.
  *
- * The demux API only controls front-ends regarding to their connections with
- * demuxes; the APIs used to set the other front-end parameters, such as
- * tuning, are not defined in this document.
+ * The demux kABI only controls front-ends regarding to their connections with
+ * demuxes; the kABI used to set the other front-end parameters, such as
+ * tuning, are devined via the Digital TV Frontend kABI.
  *
  * The functions that implement the abstract interface demux should be defined
  * static or module private and registered to the Demux core for external
  * access. It is not necessary to implement every function in the struct
  * &dmx_demux. For example, a demux interface might support Section filtering,
- * but not PES filtering. The API client is expected to check the value of any
+ * but not PES filtering. The kABI client is expected to check the value of any
  * function pointer before calling the function: the value of NULL means
  * that the function is not available.
  *
@@ -71,7 +71,7 @@
  * Even a simple memory allocation without using %GFP_ATOMIC can result in a
  * kernel thread being put to sleep if swapping is needed. For example, the
  * Linux Kernel calls the functions of a network device interface from a
- * bottom half context. Thus, if a demux API function is called from network
+ * bottom half context. Thus, if a demux kABI function is called from network
  * device code, the function must not sleep.
  */
 
