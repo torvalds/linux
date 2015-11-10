@@ -32,8 +32,6 @@
  * A : clock sharing settings
  * B : SSI direction
  */
-#define RSND_SSI_CLK_PIN_SHARE		(1 << 31)
-#define RSND_SSI_NO_BUSIF		(1 << 30) /* SSI+DMA without BUSIF */
 
 #define RSND_SSI(_dma_id, _irq, _flags)		\
 { .dma_id = _dma_id, .irq = _irq, .flags = _flags }
