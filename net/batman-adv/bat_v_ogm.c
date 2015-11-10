@@ -339,7 +339,7 @@ static u32 batadv_v_forward_penalty(struct batadv_priv *bat_priv,
 	 */
 	if ((throughput > 10) &&
 	    (if_incoming == if_outgoing) &&
-	    (batadv_is_wifi_netdev(if_incoming->net_dev)))
+	    !(if_incoming->bat_v.flags & BATADV_FULL_DUPLEX))
 		return throughput / 2;
 
 	/* hop penalty of 255 equals 100% */

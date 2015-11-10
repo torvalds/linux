@@ -87,12 +87,25 @@ struct batadv_hard_iface_bat_iv {
 };
 
 /**
+ * enum batadv_v_hard_iface_flags - interface flags useful to B.A.T.M.A.N. V
+ * @BATADV_FULL_DUPLEX: tells if the connection over this link is full-duplex
+ * @BATADV_WARNING_DEFAULT: tells whether we have warned the user that no
+ *  throughput data is available for this interface and that default values are
+ *  assumed.
+ */
+enum batadv_v_hard_iface_flags {
+	BATADV_FULL_DUPLEX	= BIT(0),
+	BATADV_WARNING_DEFAULT	= BIT(1),
+};
+
+/**
  * struct batadv_hard_iface_bat_v - per hard-interface B.A.T.M.A.N. V data
  * @elp_interval: time interval between two ELP transmissions
  * @elp_seqno: current ELP sequence number
  * @elp_skb: base skb containing the ELP message to send
  * @elp_wq: workqueue used to schedule ELP transmissions
  * @throughput_override: throughput override to disable link auto-detection
+ * @flags: interface specific flags
  */
 struct batadv_hard_iface_bat_v {
 	atomic_t elp_interval;
@@ -100,6 +113,7 @@ struct batadv_hard_iface_bat_v {
 	struct sk_buff *elp_skb;
 	struct delayed_work elp_wq;
 	atomic_t throughput_override;
+	u8 flags;
 };
 
 /**
@@ -378,12 +392,14 @@ DECLARE_EWMA(throughput, 1024, 8)
  * @elp_interval: time interval between two ELP transmissions
  * @elp_latest_seqno: latest and best known ELP sequence number
  * @last_unicast_tx: when the last unicast packet has been sent to this neighbor
+ * @metric_work: work queue callback item for metric update
  */
 struct batadv_hardif_neigh_node_bat_v {
 	struct ewma_throughput throughput;
 	u32 elp_interval;
 	u32 elp_latest_seqno;
 	unsigned long last_unicast_tx;
+	struct work_struct metric_work;
 };
 
 /**
