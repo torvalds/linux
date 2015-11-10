@@ -303,12 +303,6 @@ static inline struct usb_request *ss_alloc_ep_req(struct usb_ep *ep, int len)
 	return alloc_ep_req(ep, len, ss->buflen);
 }
 
-void free_ep_req(struct usb_ep *ep, struct usb_request *req)
-{
-	kfree(req->buf);
-	usb_ep_free_request(ep, req);
-}
-
 static void disable_ep(struct usb_composite_dev *cdev, struct usb_ep *ep)
 {
 	int			value;
