@@ -1435,11 +1435,9 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 		memcpy(trans_pcie->no_reclaim_cmds, trans_cfg->no_reclaim_cmds,
 		       trans_pcie->n_no_reclaim_cmds * sizeof(u8));
 
-	trans_pcie->rx_buf_size_8k = trans_cfg->rx_buf_size_8k;
-	if (trans_pcie->rx_buf_size_8k)
-		trans_pcie->rx_page_order = get_order(8 * 1024);
-	else
-		trans_pcie->rx_page_order = get_order(4 * 1024);
+	trans_pcie->rx_buf_size = trans_cfg->rx_buf_size;
+	trans_pcie->rx_page_order =
+		iwl_trans_get_rb_size_order(trans_pcie->rx_buf_size);
 
 	trans_pcie->wide_cmd_header = trans_cfg->wide_cmd_header;
 	trans_pcie->command_names = trans_cfg->command_names;

@@ -602,10 +602,20 @@ static void iwl_pcie_rx_hw_init(struct iwl_trans *trans, struct iwl_rxq *rxq)
 	u32 rb_size;
 	const u32 rfdnlog = RX_QUEUE_SIZE_LOG; /* 256 RBDs */
 
-	if (trans_pcie->rx_buf_size_8k)
-		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_8K;
-	else
+	switch (trans_pcie->rx_buf_size) {
+	case IWL_AMSDU_4K:
 		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_4K;
+		break;
+	case IWL_AMSDU_8K:
+		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_8K;
+		break;
+	case IWL_AMSDU_12K:
+		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_12K;
+		break;
+	default:
+		WARN_ON(1);
+		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_4K;
+	}
 
 	/* Stop Rx DMA */
 	iwl_write_direct32(trans, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
@@ -629,7 +639,7 @@ static void iwl_pcie_rx_hw_init(struct iwl_trans *trans, struct iwl_rxq *rxq)
 	 * FH_RCSR_CHNL0_RX_IGNORE_RXF_EMPTY is set because of HW bug in
 	 *      the credit mechanism in 5000 HW RX FIFO
 	 * Direct rx interrupts to hosts
-	 * Rx buffer size 4 or 8k
+	 * Rx buffer size 4 or 8k or 12k
 	 * RB timeout 0x10
 	 * 256 RBDs
 	 */

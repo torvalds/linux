@@ -86,6 +86,12 @@ enum iwl_disable_11n {
 	IWL_ENABLE_HT_TXAGG	 = BIT(3),
 };
 
+enum iwl_amsdu_size {
+	IWL_AMSDU_4K = 0,
+	IWL_AMSDU_8K = 1,
+	IWL_AMSDU_12K = 2,
+};
+
 /**
  * struct iwl_mod_params
  *
@@ -94,7 +100,7 @@ enum iwl_disable_11n {
  * @sw_crypto: using hardware encryption, default = 0
  * @disable_11n: disable 11n capabilities, default = 0,
  *	use IWL_[DIS,EN]ABLE_HT_* constants
- * @amsdu_size_8K: enable 8K amsdu size, default = 0
+ * @amsdu_size: enable 8K amsdu size, default = 4K. enum iwl_amsdu_size.
  * @restart_fw: restart firmware, default = 1
  * @bt_coex_active: enable bt coex, default = true
  * @led_mode: system default, default = 0
@@ -109,7 +115,7 @@ enum iwl_disable_11n {
 struct iwl_mod_params {
 	int sw_crypto;
 	unsigned int disable_11n;
-	int amsdu_size_8K;
+	int amsdu_size;
 	bool restart_fw;
 	bool bt_coex_active;
 	int led_mode;
