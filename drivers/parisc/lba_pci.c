@@ -693,6 +693,7 @@ lba_fixup_bus(struct pci_bus *bus)
 	if (bus->parent) {
 		int i;
 		/* PCI-PCI Bridge */
+		pci_read_bridge_bases(bus);
 		for (i = PCI_BRIDGE_RESOURCES; i < PCI_NUM_RESOURCES; i++)
 			pci_claim_bridge_resource(bus->self, i);
 	} else {

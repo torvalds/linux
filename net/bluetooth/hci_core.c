@@ -2861,13 +2861,6 @@ struct hci_conn_params *hci_explicit_connect_lookup(struct hci_dev *hdev,
 			return param;
 	}
 
-	list_for_each_entry(param, &hdev->pend_le_reports, action) {
-		if (bacmp(&param->addr, addr) == 0 &&
-		    param->addr_type == addr_type &&
-		    param->explicit_connect)
-			return param;
-	}
-
 	return NULL;
 }
 

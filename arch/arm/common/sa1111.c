@@ -196,10 +196,8 @@ static struct sa1111_dev_info sa1111_devices[] = {
  * active IRQs causes the interrupt output to pulse, the upper levels
  * will call us again if there are more interrupts to process.
  */
-static void
-sa1111_irq_handler(unsigned int __irq, struct irq_desc *desc)
+static void sa1111_irq_handler(struct irq_desc *desc)
 {
-	unsigned int irq = irq_desc_get_irq(desc);
 	unsigned int stat0, stat1, i;
 	struct sa1111 *sachip = irq_desc_get_handler_data(desc);
 	void __iomem *mapbase = sachip->base + SA1111_INTC;
@@ -214,7 +212,7 @@ sa1111_irq_handler(unsigned int __irq, struct irq_desc *desc)
 	sa1111_writel(stat1, mapbase + SA1111_INTSTATCLR1);
 
 	if (stat0 == 0 && stat1 == 0) {
-		do_bad_IRQ(irq, desc);
+		do_bad_IRQ(desc);
 		return;
 	}
 

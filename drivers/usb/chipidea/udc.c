@@ -656,6 +656,44 @@ __acquires(hwep->lock)
 	return 0;
 }
 
+static int _ep_set_halt(struct usb_ep *ep, int value, bool check_transfer)
+{
+	struct ci_hw_ep *hwep = container_of(ep, struct ci_hw_ep, ep);
+	int direction, retval = 0;
+	unsigned long flags;
+
+	if (ep == NULL || hwep->ep.desc == NULL)
+		return -EINVAL;
+
+	if (usb_endpoint_xfer_isoc(hwep->ep.desc))
+		return -EOPNOTSUPP;
+
+	spin_lock_irqsave(hwep->lock, flags);
+
+	if (value && hwep->dir == TX && check_transfer &&
+		!list_empty(&hwep->qh.queue) &&
+			!usb_endpoint_xfer_control(hwep->ep.desc)) {
+		spin_unlock_irqrestore(hwep->lock, flags);
+		return -EAGAIN;
+	}
+
+	direction = hwep->dir;
+	do {
+		retval |= hw_ep_set_halt(hwep->ci, hwep->num, hwep->dir, value);
+
+		if (!value)
+			hwep->wedge = 0;
+
+		if (hwep->type == USB_ENDPOINT_XFER_CONTROL)
+			hwep->dir = (hwep->dir == TX) ? RX : TX;
+
+	} while (hwep->dir != direction);
+
+	spin_unlock_irqrestore(hwep->lock, flags);
+	return retval;
+}
+
+
 /**
  * _gadget_stop_activity: stops all USB activity, flushes & disables all endpts
  * @gadget: gadget
@@ -1051,7 +1089,7 @@ __acquires(ci->lock)
 				num += ci->hw_ep_max / 2;
 
 			spin_unlock(&ci->lock);
-			err = usb_ep_set_halt(&ci->ci_hw_ep[num].ep);
+			err = _ep_set_halt(&ci->ci_hw_ep[num].ep, 1, false);
 			spin_lock(&ci->lock);
 			if (!err)
 				isr_setup_status_phase(ci);
@@ -1117,8 +1155,8 @@ delegate:
 
 	if (err < 0) {
 		spin_unlock(&ci->lock);
-		if (usb_ep_set_halt(&hwep->ep))
-			dev_err(ci->dev, "error: ep_set_halt\n");
+		if (_ep_set_halt(&hwep->ep, 1, false))
+			dev_err(ci->dev, "error: _ep_set_halt\n");
 		spin_lock(&ci->lock);
 	}
 }
@@ -1149,9 +1187,9 @@ __acquires(ci->lock)
 					err = isr_setup_status_phase(ci);
 				if (err < 0) {
 					spin_unlock(&ci->lock);
-					if (usb_ep_set_halt(&hwep->ep))
+					if (_ep_set_halt(&hwep->ep, 1, false))
 						dev_err(ci->dev,
-							"error: ep_set_halt\n");
+						"error: _ep_set_halt\n");
 					spin_lock(&ci->lock);
 				}
 			}
@@ -1397,41 +1435,7 @@ static int ep_dequeue(struct usb_ep *ep, struct usb_request *req)
  */
 static int ep_set_halt(struct usb_ep *ep, int value)
 {
-	struct ci_hw_ep *hwep = container_of(ep, struct ci_hw_ep, ep);
-	int direction, retval = 0;
-	unsigned long flags;
-
-	if (ep == NULL || hwep->ep.desc == NULL)
-		return -EINVAL;
-
-	if (usb_endpoint_xfer_isoc(hwep->ep.desc))
-		return -EOPNOTSUPP;
-
-	spin_lock_irqsave(hwep->lock, flags);
-
-#ifndef STALL_IN
-	/* g_file_storage MS compliant but g_zero fails chapter 9 compliance */
-	if (value && hwep->type == USB_ENDPOINT_XFER_BULK && hwep->dir == TX &&
-	    !list_empty(&hwep->qh.queue)) {
-		spin_unlock_irqrestore(hwep->lock, flags);
-		return -EAGAIN;
-	}
-#endif
-
-	direction = hwep->dir;
-	do {
-		retval |= hw_ep_set_halt(hwep->ci, hwep->num, hwep->dir, value);
-
-		if (!value)
-			hwep->wedge = 0;
-
-		if (hwep->type == USB_ENDPOINT_XFER_CONTROL)
-			hwep->dir = (hwep->dir == TX) ? RX : TX;
-
-	} while (hwep->dir != direction);
-
-	spin_unlock_irqrestore(hwep->lock, flags);
-	return retval;
+	return _ep_set_halt(ep, value, true);
 }
 
 /**

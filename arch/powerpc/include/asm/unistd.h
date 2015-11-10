@@ -12,7 +12,7 @@
 #include <uapi/asm/unistd.h>
 
 
-#define __NR_syscalls		364
+#define __NR_syscalls		366
 
 #define __NR__exit __NR_exit
 #define NR_syscalls	__NR_syscalls

@@ -2221,7 +2221,7 @@ static irqreturn_t octeon_irq_cib_handler(int my_irq, void *data)
 			if (irqd_get_trigger_type(irq_data) &
 				IRQ_TYPE_EDGE_BOTH)
 				cvmx_write_csr(host_data->raw_reg, 1ull << i);
-			generic_handle_irq_desc(irq, desc);
+			generic_handle_irq_desc(desc);
 		}
 	}
 

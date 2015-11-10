@@ -22,13 +22,15 @@
 #include "rsnd.h"
 
 struct rsnd_gen {
-	void __iomem *base[RSND_BASE_MAX];
-
 	struct rsnd_gen_ops *ops;
 
+	/* RSND_BASE_MAX base */
+	void __iomem *base[RSND_BASE_MAX];
+	phys_addr_t res[RSND_BASE_MAX];
 	struct regmap *regmap[RSND_BASE_MAX];
+
+	/* RSND_REG_MAX base */
 	struct regmap_field *regs[RSND_REG_MAX];
-	phys_addr_t res[RSND_REG_MAX];
 };
 
 #define rsnd_priv_to_gen(p)	((struct rsnd_gen *)(p)->gen)
@@ -79,10 +81,10 @@ u32 rsnd_read(struct rsnd_priv *priv,
 	if (!rsnd_is_accessible_reg(priv, gen, reg))
 		return 0;
 
+	regmap_fields_read(gen->regs[reg], rsnd_mod_id(mod), &val);
+
 	dev_dbg(dev, "r %s[%d] - %4d : %08x\n",
 		rsnd_mod_name(mod), rsnd_mod_id(mod), reg, val);
-
-	regmap_fields_read(gen->regs[reg], rsnd_mod_id(mod), &val);
 
 	return val;
 }
@@ -182,6 +184,7 @@ static int _rsnd_gen_regmap_init(struct rsnd_priv *priv,
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
+	/* RSND_BASE_MAX base */
 	gen->base[reg_id] = base;
 	gen->regmap[reg_id] = regmap;
 	gen->res[reg_id] = res->start;
@@ -198,6 +201,7 @@ static int _rsnd_gen_regmap_init(struct rsnd_priv *priv,
 		if (IS_ERR(regs))
 			return PTR_ERR(regs);
 
+		/* RSND_REG_MAX base */
 		gen->regs[conf[i].idx] = regs;
 	}
 

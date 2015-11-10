@@ -186,17 +186,19 @@ static int mgag200fb_create(struct drm_fb_helper *helper,
 
 	sysram = vmalloc(size);
 	if (!sysram)
-		return -ENOMEM;
+		goto err_sysram;
 
 	info = drm_fb_helper_alloc_fbi(helper);
-	if (IS_ERR(info))
-		return PTR_ERR(info);
+	if (IS_ERR(info)) {
+		ret = PTR_ERR(info);
+		goto err_alloc_fbi;
+	}
 
 	info->par = mfbdev;
 
 	ret = mgag200_framebuffer_init(dev, &mfbdev->mfb, &mode_cmd, gobj);
 	if (ret)
-		return ret;
+		goto err_framebuffer_init;
 
 	mfbdev->sysram = sysram;
 	mfbdev->size = size;
@@ -225,7 +227,17 @@ static int mgag200fb_create(struct drm_fb_helper *helper,
 
 	DRM_DEBUG_KMS("allocated %dx%d\n",
 		      fb->width, fb->height);
+
 	return 0;
+
+err_framebuffer_init:
+	drm_fb_helper_release_fbi(helper);
+err_alloc_fbi:
+	vfree(sysram);
+err_sysram:
+	drm_gem_object_unreference_unlocked(gobj);
+
+	return ret;
 }
 
 static int mga_fbdev_destroy(struct drm_device *dev,
@@ -276,23 +288,26 @@ int mgag200_fbdev_init(struct mga_device *mdev)
 	ret = drm_fb_helper_init(mdev->dev, &mfbdev->helper,
 				 mdev->num_crtc, MGAG200FB_CONN_LIMIT);
 	if (ret)
-		return ret;
+		goto err_fb_helper;
 
 	ret = drm_fb_helper_single_add_all_connectors(&mfbdev->helper);
 	if (ret)
-		goto fini;
+		goto err_fb_setup;
 
 	/* disable all the possible outputs/crtcs before entering KMS mode */
 	drm_helper_disable_unused_functions(mdev->dev);
 
 	ret = drm_fb_helper_initial_config(&mfbdev->helper, bpp_sel);
 	if (ret)
-		goto fini;
+		goto err_fb_setup;
 
 	return 0;
 
-fini:
+err_fb_setup:
 	drm_fb_helper_fini(&mfbdev->helper);
+err_fb_helper:
+	mdev->mfbdev = NULL;
+
 	return ret;
 }
 

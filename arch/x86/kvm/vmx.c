@@ -4105,17 +4105,13 @@ static void seg_setup(int seg)
 static int alloc_apic_access_page(struct kvm *kvm)
 {
 	struct page *page;
-	struct kvm_userspace_memory_region kvm_userspace_mem;
 	int r = 0;
 
 	mutex_lock(&kvm->slots_lock);
 	if (kvm->arch.apic_access_page_done)
 		goto out;
-	kvm_userspace_mem.slot = APIC_ACCESS_PAGE_PRIVATE_MEMSLOT;
-	kvm_userspace_mem.flags = 0;
-	kvm_userspace_mem.guest_phys_addr = APIC_DEFAULT_PHYS_BASE;
-	kvm_userspace_mem.memory_size = PAGE_SIZE;
-	r = __x86_set_memory_region(kvm, &kvm_userspace_mem);
+	r = __x86_set_memory_region(kvm, APIC_ACCESS_PAGE_PRIVATE_MEMSLOT,
+				    APIC_DEFAULT_PHYS_BASE, PAGE_SIZE);
 	if (r)
 		goto out;
 
@@ -4140,17 +4136,12 @@ static int alloc_identity_pagetable(struct kvm *kvm)
 {
 	/* Called with kvm->slots_lock held. */
 
-	struct kvm_userspace_memory_region kvm_userspace_mem;
 	int r = 0;
 
 	BUG_ON(kvm->arch.ept_identity_pagetable_done);
 
-	kvm_userspace_mem.slot = IDENTITY_PAGETABLE_PRIVATE_MEMSLOT;
-	kvm_userspace_mem.flags = 0;
-	kvm_userspace_mem.guest_phys_addr =
-		kvm->arch.ept_identity_map_addr;
-	kvm_userspace_mem.memory_size = PAGE_SIZE;
-	r = __x86_set_memory_region(kvm, &kvm_userspace_mem);
+	r = __x86_set_memory_region(kvm, IDENTITY_PAGETABLE_PRIVATE_MEMSLOT,
+				    kvm->arch.ept_identity_map_addr, PAGE_SIZE);
 
 	return r;
 }
@@ -4949,14 +4940,9 @@ static int vmx_interrupt_allowed(struct kvm_vcpu *vcpu)
 static int vmx_set_tss_addr(struct kvm *kvm, unsigned int addr)
 {
 	int ret;
-	struct kvm_userspace_memory_region tss_mem = {
-		.slot = TSS_PRIVATE_MEMSLOT,
-		.guest_phys_addr = addr,
-		.memory_size = PAGE_SIZE * 3,
-		.flags = 0,
-	};
 
-	ret = x86_set_memory_region(kvm, &tss_mem);
+	ret = x86_set_memory_region(kvm, TSS_PRIVATE_MEMSLOT, addr,
+				    PAGE_SIZE * 3);
 	if (ret)
 		return ret;
 	kvm->arch.tss_addr = addr;
@@ -6063,6 +6049,8 @@ static __init int hardware_setup(void)
 			vmx_msr_bitmap_legacy, PAGE_SIZE);
 	memcpy(vmx_msr_bitmap_longmode_x2apic,
 			vmx_msr_bitmap_longmode, PAGE_SIZE);
+
+	set_bit(0, vmx_vpid_bitmap); /* 0 is reserved for host */
 
 	if (enable_apicv) {
 		for (msr = 0x800; msr <= 0x8ff; msr++)
@@ -8615,17 +8603,22 @@ static u64 vmx_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 	u64 ipat = 0;
 
 	/* For VT-d and EPT combination
-	 * 1. MMIO: guest may want to apply WC, trust it.
+	 * 1. MMIO: always map as UC
 	 * 2. EPT with VT-d:
 	 *   a. VT-d without snooping control feature: can't guarantee the
-	 *	result, try to trust guest.  So the same as item 1.
+	 *	result, try to trust guest.
 	 *   b. VT-d with snooping control feature: snooping control feature of
 	 *	VT-d engine can guarantee the cache correctness. Just set it
 	 *	to WB to keep consistent with host. So the same as item 3.
 	 * 3. EPT without VT-d: always map as WB and set IPAT=1 to keep
 	 *    consistent with host MTRR
 	 */
-	if (!is_mmio && !kvm_arch_has_noncoherent_dma(vcpu->kvm)) {
+	if (is_mmio) {
+		cache = MTRR_TYPE_UNCACHABLE;
+		goto exit;
+	}
+
+	if (!kvm_arch_has_noncoherent_dma(vcpu->kvm)) {
 		ipat = VMX_EPT_IPAT_BIT;
 		cache = MTRR_TYPE_WRBACK;
 		goto exit;

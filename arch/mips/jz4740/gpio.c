@@ -28,6 +28,7 @@
 #include <linux/seq_file.h>
 
 #include <asm/mach-jz4740/base.h>
+#include <asm/mach-jz4740/gpio.h>
 
 #define JZ4740_GPIO_BASE_A (32*0)
 #define JZ4740_GPIO_BASE_B (32*1)
@@ -291,7 +292,7 @@ static void jz_gpio_check_trigger_both(struct jz_gpio_chip *chip, unsigned int i
 	writel(mask, reg);
 }
 
-static void jz_gpio_irq_demux_handler(unsigned int irq, struct irq_desc *desc)
+static void jz_gpio_irq_demux_handler(struct irq_desc *desc)
 {
 	uint32_t flag;
 	unsigned int gpio_irq;

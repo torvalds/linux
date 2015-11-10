@@ -129,12 +129,14 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 			    unsigned long size, int byte_align,
 			    bool kernel, u32 domain, u64 flags,
 			    struct sg_table *sg,
+			    struct reservation_object *resv,
 			    struct amdgpu_bo **bo_ptr);
 int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 				unsigned long size, int byte_align,
 				bool kernel, u32 domain, u64 flags,
 				struct sg_table *sg,
 				struct ttm_placement *placement,
+			        struct reservation_object *resv,
 				struct amdgpu_bo **bo_ptr);
 int amdgpu_bo_kmap(struct amdgpu_bo *bo, void **ptr);
 void amdgpu_bo_kunmap(struct amdgpu_bo *bo);

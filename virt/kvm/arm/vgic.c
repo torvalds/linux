@@ -531,6 +531,34 @@ bool vgic_handle_set_pending_reg(struct kvm *kvm,
 	return false;
 }
 
+/*
+ * If a mapped interrupt's state has been modified by the guest such that it
+ * is no longer active or pending, without it have gone through the sync path,
+ * then the map->active field must be cleared so the interrupt can be taken
+ * again.
+ */
+static void vgic_handle_clear_mapped_irq(struct kvm_vcpu *vcpu)
+{
+	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
+	struct list_head *root;
+	struct irq_phys_map_entry *entry;
+	struct irq_phys_map *map;
+
+	rcu_read_lock();
+
+	/* Check for PPIs */
+	root = &vgic_cpu->irq_phys_map_list;
+	list_for_each_entry_rcu(entry, root, entry) {
+		map = &entry->map;
+
+		if (!vgic_dist_irq_is_pending(vcpu, map->virt_irq) &&
+		    !vgic_irq_is_active(vcpu, map->virt_irq))
+			map->active = false;
+	}
+
+	rcu_read_unlock();
+}
+
 bool vgic_handle_clear_pending_reg(struct kvm *kvm,
 				   struct kvm_exit_mmio *mmio,
 				   phys_addr_t offset, int vcpu_id)
@@ -561,6 +589,7 @@ bool vgic_handle_clear_pending_reg(struct kvm *kvm,
 					  vcpu_id, offset);
 		vgic_reg_access(mmio, reg, offset, mode);
 
+		vgic_handle_clear_mapped_irq(kvm_get_vcpu(kvm, vcpu_id));
 		vgic_update_state(kvm);
 		return true;
 	}
@@ -598,6 +627,7 @@ bool vgic_handle_clear_active_reg(struct kvm *kvm,
 			ACCESS_READ_VALUE | ACCESS_WRITE_CLEARBIT);
 
 	if (mmio->is_write) {
+		vgic_handle_clear_mapped_irq(kvm_get_vcpu(kvm, vcpu_id));
 		vgic_update_state(kvm);
 		return true;
 	}
@@ -982,6 +1012,12 @@ static int compute_pending_for_cpu(struct kvm_vcpu *vcpu)
 	pend_percpu = vcpu->arch.vgic_cpu.pending_percpu;
 	pend_shared = vcpu->arch.vgic_cpu.pending_shared;
 
+	if (!dist->enabled) {
+		bitmap_zero(pend_percpu, VGIC_NR_PRIVATE_IRQS);
+		bitmap_zero(pend_shared, nr_shared);
+		return 0;
+	}
+
 	pending = vgic_bitmap_get_cpu_map(&dist->irq_pending, vcpu_id);
 	enabled = vgic_bitmap_get_cpu_map(&dist->irq_enabled, vcpu_id);
 	bitmap_and(pend_percpu, pending, enabled, VGIC_NR_PRIVATE_IRQS);
@@ -1008,11 +1044,6 @@ void vgic_update_state(struct kvm *kvm)
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	struct kvm_vcpu *vcpu;
 	int c;
-
-	if (!dist->enabled) {
-		set_bit(0, dist->irq_pending_on_cpu);
-		return;
-	}
 
 	kvm_for_each_vcpu(c, vcpu, kvm) {
 		if (compute_pending_for_cpu(vcpu))
@@ -1092,6 +1123,15 @@ static void vgic_retire_lr(int lr_nr, int irq, struct kvm_vcpu *vcpu)
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 	struct vgic_lr vlr = vgic_get_lr(vcpu, lr_nr);
 
+	/*
+	 * We must transfer the pending state back to the distributor before
+	 * retiring the LR, otherwise we may loose edge-triggered interrupts.
+	 */
+	if (vlr.state & LR_STATE_PENDING) {
+		vgic_dist_irq_set_pending(vcpu, irq);
+		vlr.hwirq = 0;
+	}
+
 	vlr.state = 0;
 	vgic_set_lr(vcpu, lr_nr, vlr);
 	clear_bit(lr_nr, vgic_cpu->lr_used);
@@ -1132,7 +1172,8 @@ static void vgic_queue_irq_to_lr(struct kvm_vcpu *vcpu, int irq,
 		kvm_debug("Set active, clear distributor: 0x%x\n", vlr.state);
 		vgic_irq_clear_active(vcpu, irq);
 		vgic_update_state(vcpu->kvm);
-	} else if (vgic_dist_irq_is_pending(vcpu, irq)) {
+	} else {
+		WARN_ON(!vgic_dist_irq_is_pending(vcpu, irq));
 		vlr.state |= LR_STATE_PENDING;
 		kvm_debug("Set pending: 0x%x\n", vlr.state);
 	}
@@ -1144,25 +1185,10 @@ static void vgic_queue_irq_to_lr(struct kvm_vcpu *vcpu, int irq,
 		struct irq_phys_map *map;
 		map = vgic_irq_map_search(vcpu, irq);
 
-		/*
-		 * If we have a mapping, and the virtual interrupt is
-		 * being injected, then we must set the state to
-		 * active in the physical world. Otherwise the
-		 * physical interrupt will fire and the guest will
-		 * exit before processing the virtual interrupt.
-		 */
 		if (map) {
-			int ret;
-
-			BUG_ON(!map->active);
 			vlr.hwirq = map->phys_irq;
 			vlr.state |= LR_HW;
 			vlr.state &= ~LR_EOI_INT;
-
-			ret = irq_set_irqchip_state(map->irq,
-						    IRQCHIP_STATE_ACTIVE,
-						    true);
-			WARN_ON(ret);
 
 			/*
 			 * Make sure we're not going to sample this
@@ -1411,7 +1437,7 @@ static int vgic_sync_hwirq(struct kvm_vcpu *vcpu, struct vgic_lr vlr)
 		return 0;
 
 	map = vgic_irq_map_search(vcpu, vlr.irq);
-	BUG_ON(!map || !map->active);
+	BUG_ON(!map);
 
 	ret = irq_get_irqchip_state(map->irq,
 				    IRQCHIP_STATE_ACTIVE,
@@ -1419,13 +1445,8 @@ static int vgic_sync_hwirq(struct kvm_vcpu *vcpu, struct vgic_lr vlr)
 
 	WARN_ON(ret);
 
-	if (map->active) {
-		ret = irq_set_irqchip_state(map->irq,
-					    IRQCHIP_STATE_ACTIVE,
-					    false);
-		WARN_ON(ret);
+	if (map->active)
 		return 0;
-	}
 
 	return 1;
 }
@@ -1597,8 +1618,12 @@ static int vgic_update_irq_pending(struct kvm *kvm, int cpuid,
 	} else {
 		if (level_triggered) {
 			vgic_dist_irq_clear_level(vcpu, irq_num);
-			if (!vgic_dist_irq_soft_pend(vcpu, irq_num))
+			if (!vgic_dist_irq_soft_pend(vcpu, irq_num)) {
 				vgic_dist_irq_clear_pending(vcpu, irq_num);
+				vgic_cpu_irq_clear(vcpu, irq_num);
+				if (!compute_pending_for_cpu(vcpu))
+					clear_bit(cpuid, dist->irq_pending_on_cpu);
+			}
 		}
 
 		ret = false;

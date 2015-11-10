@@ -222,7 +222,7 @@ int xilinx_intc_get_irq(void)
 /*
  * Support code for cascading to 8259 interrupt controllers
  */
-static void xilinx_i8259_cascade(unsigned int irq, struct irq_desc *desc)
+static void xilinx_i8259_cascade(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int cascade_irq = i8259_irq();

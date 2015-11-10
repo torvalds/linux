@@ -3705,16 +3705,14 @@ out:
 
 void bnx2x_update_mfw_dump(struct bnx2x *bp)
 {
-	struct timeval epoc;
 	u32 drv_ver;
 	u32 valid_dump;
 
 	if (!SHMEM2_HAS(bp, drv_info))
 		return;
 
-	/* Update Driver load time */
-	do_gettimeofday(&epoc);
-	SHMEM2_WR(bp, drv_info.epoc, epoc.tv_sec);
+	/* Update Driver load time, possibly broken in y2038 */
+	SHMEM2_WR(bp, drv_info.epoc, (u32)ktime_get_real_seconds());
 
 	drv_ver = bnx2x_update_mng_version_utility(DRV_MODULE_VERSION, true);
 	SHMEM2_WR(bp, drv_info.drv_ver, drv_ver);
@@ -10110,12 +10108,18 @@ static void __bnx2x_add_vxlan_port(struct bnx2x *bp, u16 port)
 	if (!netif_running(bp->dev))
 		return;
 
-	if (bp->vxlan_dst_port || !IS_PF(bp)) {
+	if (bp->vxlan_dst_port_count && bp->vxlan_dst_port == port) {
+		bp->vxlan_dst_port_count++;
+		return;
+	}
+
+	if (bp->vxlan_dst_port_count || !IS_PF(bp)) {
 		DP(BNX2X_MSG_SP, "Vxlan destination port limit reached\n");
 		return;
 	}
 
 	bp->vxlan_dst_port = port;
+	bp->vxlan_dst_port_count = 1;
 	bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_ADD_VXLAN_PORT, 0);
 }
 
@@ -10130,10 +10134,14 @@ static void bnx2x_add_vxlan_port(struct net_device *netdev,
 
 static void __bnx2x_del_vxlan_port(struct bnx2x *bp, u16 port)
 {
-	if (!bp->vxlan_dst_port || bp->vxlan_dst_port != port || !IS_PF(bp)) {
+	if (!bp->vxlan_dst_port_count || bp->vxlan_dst_port != port ||
+	    !IS_PF(bp)) {
 		DP(BNX2X_MSG_SP, "Invalid vxlan port\n");
 		return;
 	}
+	bp->vxlan_dst_port--;
+	if (bp->vxlan_dst_port)
+		return;
 
 	if (netif_running(bp->dev)) {
 		bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_DEL_VXLAN_PORT, 0);

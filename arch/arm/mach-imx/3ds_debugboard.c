@@ -85,7 +85,7 @@ static struct platform_device smsc_lan9217_device = {
 	.resource = smsc911x_resources,
 };
 
-static void mxc_expio_irq_handler(u32 irq, struct irq_desc *desc)
+static void mxc_expio_irq_handler(struct irq_desc *desc)
 {
 	u32 imr_val;
 	u32 int_valid;

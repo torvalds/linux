@@ -99,6 +99,7 @@ void pnv_teardown_msi_irqs(struct pci_dev *pdev)
 	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
 	struct pnv_phb *phb = hose->private_data;
 	struct msi_desc *entry;
+	irq_hw_number_t hwirq;
 
 	if (WARN_ON(!phb))
 		return;
@@ -106,10 +107,10 @@ void pnv_teardown_msi_irqs(struct pci_dev *pdev)
 	for_each_pci_msi_entry(entry, pdev) {
 		if (entry->irq == NO_IRQ)
 			continue;
+		hwirq = virq_to_hw(entry->irq);
 		irq_set_msi_desc(entry->irq, NULL);
-		msi_bitmap_free_hwirqs(&phb->msi_bmp,
-			virq_to_hw(entry->irq) - phb->msi_base, 1);
 		irq_dispose_mapping(entry->irq);
+		msi_bitmap_free_hwirqs(&phb->msi_bmp, hwirq - phb->msi_base, 1);
 	}
 }
 #endif /* CONFIG_PCI_MSI */

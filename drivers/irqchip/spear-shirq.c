@@ -182,7 +182,7 @@ static struct spear_shirq *spear320_shirq_blocks[] = {
 	&spear320_shirq_intrcomm_ras,
 };
 
-static void shirq_handler(unsigned __irq, struct irq_desc *desc)
+static void shirq_handler(struct irq_desc *desc)
 {
 	struct spear_shirq *shirq = irq_desc_get_handler_data(desc);
 	u32 pend;
@@ -211,7 +211,6 @@ static void __init spear_shirq_register(struct spear_shirq *shirq,
 	for (i = 0; i < shirq->nr_irqs; i++) {
 		irq_set_chip_and_handler(shirq->virq_base + i,
 					 shirq->irq_chip, handle_simple_irq);
-		set_irq_flags(shirq->virq_base + i, IRQF_VALID);
 		irq_set_chip_data(shirq->virq_base + i, shirq);
 	}
 }

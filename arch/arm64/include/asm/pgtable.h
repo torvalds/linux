@@ -26,13 +26,9 @@
  * Software defined PTE bits definition.
  */
 #define PTE_VALID		(_AT(pteval_t, 1) << 0)
+#define PTE_WRITE		(PTE_DBM)		 /* same as DBM (51) */
 #define PTE_DIRTY		(_AT(pteval_t, 1) << 55)
 #define PTE_SPECIAL		(_AT(pteval_t, 1) << 56)
-#ifdef CONFIG_ARM64_HW_AFDBM
-#define PTE_WRITE		(PTE_DBM)		 /* same as DBM */
-#else
-#define PTE_WRITE		(_AT(pteval_t, 1) << 57)
-#endif
 #define PTE_PROT_NONE		(_AT(pteval_t, 1) << 58) /* only when !PTE_VALID */
 
 /*
@@ -83,7 +79,7 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
 #define PAGE_S2			__pgprot(PROT_DEFAULT | PTE_S2_MEMATTR(MT_S2_NORMAL) | PTE_S2_RDONLY)
 #define PAGE_S2_DEVICE		__pgprot(PROT_DEFAULT | PTE_S2_MEMATTR(MT_S2_DEVICE_nGnRE) | PTE_S2_RDONLY | PTE_UXN)
 
-#define PAGE_NONE		__pgprot(((_PAGE_DEFAULT) & ~PTE_TYPE_MASK) | PTE_PROT_NONE | PTE_PXN | PTE_UXN)
+#define PAGE_NONE		__pgprot(((_PAGE_DEFAULT) & ~PTE_VALID) | PTE_PROT_NONE | PTE_PXN | PTE_UXN)
 #define PAGE_SHARED		__pgprot(_PAGE_DEFAULT | PTE_USER | PTE_NG | PTE_PXN | PTE_UXN | PTE_WRITE)
 #define PAGE_SHARED_EXEC	__pgprot(_PAGE_DEFAULT | PTE_USER | PTE_NG | PTE_PXN | PTE_WRITE)
 #define PAGE_COPY		__pgprot(_PAGE_DEFAULT | PTE_USER | PTE_NG | PTE_PXN | PTE_UXN)
@@ -146,7 +142,7 @@ extern struct page *empty_zero_page;
 #define pte_exec(pte)		(!(pte_val(pte) & PTE_UXN))
 
 #ifdef CONFIG_ARM64_HW_AFDBM
-#define pte_hw_dirty(pte)	(!(pte_val(pte) & PTE_RDONLY))
+#define pte_hw_dirty(pte)	(pte_write(pte) && !(pte_val(pte) & PTE_RDONLY))
 #else
 #define pte_hw_dirty(pte)	(0)
 #endif
@@ -238,7 +234,7 @@ extern void __sync_icache_dcache(pte_t pteval, unsigned long addr);
  * When hardware DBM is not present, the sofware PTE_DIRTY bit is updated via
  * the page fault mechanism. Checking the dirty status of a pte becomes:
  *
- *   PTE_DIRTY || !PTE_RDONLY
+ *   PTE_DIRTY || (PTE_WRITE && !PTE_RDONLY)
  */
 static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t pte)
@@ -500,10 +496,10 @@ static inline pud_t *pud_offset(pgd_t *pgd, unsigned long addr)
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
 	const pteval_t mask = PTE_USER | PTE_PXN | PTE_UXN | PTE_RDONLY |
-			      PTE_PROT_NONE | PTE_WRITE | PTE_TYPE_MASK;
+			      PTE_PROT_NONE | PTE_VALID | PTE_WRITE;
 	/* preserve the hardware dirty information */
 	if (pte_hw_dirty(pte))
-		newprot |= PTE_DIRTY;
+		pte = pte_mkdirty(pte);
 	pte_val(pte) = (pte_val(pte) & ~mask) | (pgprot_val(newprot) & mask);
 	return pte;
 }

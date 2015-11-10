@@ -137,6 +137,8 @@ bool kvm_timer_should_fire(struct kvm_vcpu *vcpu)
 void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+	bool phys_active;
+	int ret;
 
 	/*
 	 * We're about to run this vcpu again, so there is no need to
@@ -151,6 +153,23 @@ void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu)
 	 */
 	if (kvm_timer_should_fire(vcpu))
 		kvm_timer_inject_irq(vcpu);
+
+	/*
+	 * We keep track of whether the edge-triggered interrupt has been
+	 * signalled to the vgic/guest, and if so, we mask the interrupt and
+	 * the physical distributor to prevent the timer from raising a
+	 * physical interrupt whenever we run a guest, preventing forward
+	 * VCPU progress.
+	 */
+	if (kvm_vgic_get_phys_irq_active(timer->map))
+		phys_active = true;
+	else
+		phys_active = false;
+
+	ret = irq_set_irqchip_state(timer->map->irq,
+				    IRQCHIP_STATE_ACTIVE,
+				    phys_active);
+	WARN_ON(ret);
 }
 
 /**
@@ -198,6 +217,14 @@ int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu,
 	 * vcpu timer irq number when the vcpu is reset.
 	 */
 	timer->irq = irq;
+
+	/*
+	 * The bits in CNTV_CTL are architecturally reset to UNKNOWN for ARMv8
+	 * and to 0 for ARMv7.  We provide an implementation that always
+	 * resets the timer to be disabled and unmasked and is compliant with
+	 * the ARMv7 architecture.
+	 */
+	timer->cntv_ctl = 0;
 
 	/*
 	 * Tell the VGIC that the virtual interrupt is tied to a

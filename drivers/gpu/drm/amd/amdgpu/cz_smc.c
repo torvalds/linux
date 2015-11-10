@@ -814,7 +814,8 @@ int cz_smu_init(struct amdgpu_device *adev)
 	* 3. map kernel virtual address
 	*/
 	ret = amdgpu_bo_create(adev, priv->toc_buffer.data_size, PAGE_SIZE,
-				true, AMDGPU_GEM_DOMAIN_GTT, 0, NULL, toc_buf);
+			       true, AMDGPU_GEM_DOMAIN_GTT, 0, NULL, NULL,
+			       toc_buf);
 
 	if (ret) {
 		dev_err(adev->dev, "(%d) SMC TOC buffer allocation failed\n", ret);
@@ -822,7 +823,8 @@ int cz_smu_init(struct amdgpu_device *adev)
 	}
 
 	ret = amdgpu_bo_create(adev, priv->smu_buffer.data_size, PAGE_SIZE,
-				true, AMDGPU_GEM_DOMAIN_GTT, 0, NULL, smu_buf);
+			       true, AMDGPU_GEM_DOMAIN_GTT, 0, NULL, NULL,
+			       smu_buf);
 
 	if (ret) {
 		dev_err(adev->dev, "(%d) SMC Internal buffer allocation failed\n", ret);

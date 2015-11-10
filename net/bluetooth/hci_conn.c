@@ -91,10 +91,50 @@ static void hci_connect_le_scan_cleanup(struct hci_conn *conn)
 	 * autoconnect action, remove them completely. If they are, just unmark
 	 * them as waiting for connection, by clearing explicit_connect field.
 	 */
-	if (params->auto_connect == HCI_AUTO_CONN_EXPLICIT)
+	params->explicit_connect = false;
+
+	list_del_init(&params->action);
+
+	switch (params->auto_connect) {
+	case HCI_AUTO_CONN_EXPLICIT:
 		hci_conn_params_del(conn->hdev, bdaddr, bdaddr_type);
-	else
-		params->explicit_connect = false;
+		/* return instead of break to avoid duplicate scan update */
+		return;
+	case HCI_AUTO_CONN_DIRECT:
+	case HCI_AUTO_CONN_ALWAYS:
+		list_add(&params->action, &conn->hdev->pend_le_conns);
+		break;
+	case HCI_AUTO_CONN_REPORT:
+		list_add(&params->action, &conn->hdev->pend_le_reports);
+		break;
+	default:
+		break;
+	}
+
+	hci_update_background_scan(conn->hdev);
+}
+
+static void hci_conn_cleanup(struct hci_conn *conn)
+{
+	struct hci_dev *hdev = conn->hdev;
+
+	if (test_bit(HCI_CONN_PARAM_REMOVAL_PEND, &conn->flags))
+		hci_conn_params_del(conn->hdev, &conn->dst, conn->dst_type);
+
+	hci_chan_list_flush(conn);
+
+	hci_conn_hash_del(hdev, conn);
+
+	if (hdev->notify)
+		hdev->notify(hdev, HCI_NOTIFY_CONN_DEL);
+
+	hci_conn_del_sysfs(conn);
+
+	debugfs_remove_recursive(conn->debugfs);
+
+	hci_dev_put(hdev);
+
+	hci_conn_put(conn);
 }
 
 /* This function requires the caller holds hdev->lock */
@@ -102,8 +142,13 @@ static void hci_connect_le_scan_remove(struct hci_conn *conn)
 {
 	hci_connect_le_scan_cleanup(conn);
 
-	hci_conn_hash_del(conn->hdev, conn);
-	hci_update_background_scan(conn->hdev);
+	/* We can't call hci_conn_del here since that would deadlock
+	 * with trying to call cancel_delayed_work_sync(&conn->disc_work).
+	 * Instead, call just hci_conn_cleanup() which contains the bare
+	 * minimum cleanup operations needed for a connection in this
+	 * state.
+	 */
+	hci_conn_cleanup(conn);
 }
 
 static void hci_acl_create_connection(struct hci_conn *conn)
@@ -581,27 +626,17 @@ int hci_conn_del(struct hci_conn *conn)
 		}
 	}
 
-	hci_chan_list_flush(conn);
-
 	if (conn->amp_mgr)
 		amp_mgr_put(conn->amp_mgr);
 
-	hci_conn_hash_del(hdev, conn);
-	if (hdev->notify)
-		hdev->notify(hdev, HCI_NOTIFY_CONN_DEL);
-
 	skb_queue_purge(&conn->data_q);
 
-	hci_conn_del_sysfs(conn);
-
-	debugfs_remove_recursive(conn->debugfs);
-
-	if (test_bit(HCI_CONN_PARAM_REMOVAL_PEND, &conn->flags))
-		hci_conn_params_del(conn->hdev, &conn->dst, conn->dst_type);
-
-	hci_dev_put(hdev);
-
-	hci_conn_put(conn);
+	/* Remove the connection from the list and cleanup its remaining
+	 * state. This is a separate function since for some cases like
+	 * BT_CONNECT_SCAN we *only* want the cleanup part without the
+	 * rest of hci_conn_del.
+	 */
+	hci_conn_cleanup(conn);
 
 	return 0;
 }
@@ -973,15 +1008,23 @@ static int hci_explicit_conn_params_set(struct hci_request *req,
 	if (is_connected(hdev, addr, addr_type))
 		return -EISCONN;
 
-	params = hci_conn_params_add(hdev, addr, addr_type);
-	if (!params)
-		return -EIO;
+	params = hci_conn_params_lookup(hdev, addr, addr_type);
+	if (!params) {
+		params = hci_conn_params_add(hdev, addr, addr_type);
+		if (!params)
+			return -ENOMEM;
 
-	/* If we created new params, or existing params were marked as disabled,
-	 * mark them to be used just once to connect.
-	 */
-	if (params->auto_connect == HCI_AUTO_CONN_DISABLED) {
+		/* If we created new params, mark them to be deleted in
+		 * hci_connect_le_scan_cleanup. It's different case than
+		 * existing disabled params, those will stay after cleanup.
+		 */
 		params->auto_connect = HCI_AUTO_CONN_EXPLICIT;
+	}
+
+	/* We're trying to connect, so make sure params are at pend_le_conns */
+	if (params->auto_connect == HCI_AUTO_CONN_DISABLED ||
+	    params->auto_connect == HCI_AUTO_CONN_REPORT ||
+	    params->auto_connect == HCI_AUTO_CONN_EXPLICIT) {
 		list_del_init(&params->action);
 		list_add(&params->action, &hdev->pend_le_conns);
 	}

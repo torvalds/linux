@@ -653,8 +653,12 @@ void __init dra7xxx_check_revision(void)
 			omap_revision = DRA752_REV_ES1_0;
 			break;
 		case 1:
-		default:
 			omap_revision = DRA752_REV_ES1_1;
+			break;
+		case 2:
+		default:
+			omap_revision = DRA752_REV_ES2_0;
+			break;
 		}
 		break;
 
@@ -674,7 +678,7 @@ void __init dra7xxx_check_revision(void)
 		/* Unknown default to latest silicon rev as default*/
 		pr_warn("%s: unknown idcode=0x%08x (hawkeye=0x%08x,rev=0x%x)\n",
 			__func__, idcode, hawkeye, rev);
-		omap_revision = DRA752_REV_ES1_1;
+		omap_revision = DRA752_REV_ES2_0;
 	}
 
 	sprintf(soc_name, "DRA%03x", omap_rev() >> 16);

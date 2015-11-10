@@ -331,7 +331,7 @@ static void aat1290_led_validate_mm_current(struct aat1290_led *led,
 	cfg->max_brightness = b + 1;
 }
 
-int init_mm_current_scale(struct aat1290_led *led,
+static int init_mm_current_scale(struct aat1290_led *led,
 			struct aat1290_led_config_data *cfg)
 {
 	int max_mm_current_percent[] = { 20, 22, 25, 28, 32, 36, 40, 45, 50, 56,
@@ -559,6 +559,7 @@ static const struct of_device_id aat1290_led_dt_match[] = {
 	{ .compatible = "skyworks,aat1290" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, aat1290_led_dt_match);
 
 static struct platform_driver aat1290_led_driver = {
 	.probe		= aat1290_led_probe,

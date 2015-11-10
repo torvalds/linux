@@ -426,6 +426,7 @@ static const struct of_device_id ktd2692_match[] = {
 	{ .compatible = "kinetic,ktd2692", },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, ktd2692_match);
 
 static struct platform_driver ktd2692_driver = {
 	.driver = {

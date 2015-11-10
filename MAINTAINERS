@@ -615,9 +615,8 @@ F:	Documentation/hwmon/fam15h_power
 F:	drivers/hwmon/fam15h_power.c
 
 AMD GEODE CS5536 USB DEVICE CONTROLLER DRIVER
-M:	Thomas Dahlmann <dahlmann.thomas@arcor.de>
 L:	linux-geode@lists.infradead.org (moderated for non-subscribers)
-S:	Supported
+S:	Orphan
 F:	drivers/usb/gadget/udc/amd5536udc.*
 
 AMD GEODE PROCESSOR/CHIPSET SUPPORT
@@ -808,6 +807,13 @@ S:	Maintained
 F:	drivers/video/fbdev/arcfb.c
 F:	drivers/video/fbdev/core/fb_defio.c
 
+ARCNET NETWORK LAYER
+M:	Michael Grzeschik <m.grzeschik@pengutronix.de>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/arcnet/
+F:	include/uapi/linux/if_arcnet.h
+
 ARM MFM AND FLOPPY DRIVERS
 M:	Ian Molton <spyro@f2s.com>
 S:	Maintained
@@ -888,11 +894,12 @@ M:	Lennert Buytenhek <kernel@wantstofly.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 
-ARM/Allwinner A1X SoC support
+ARM/Allwinner sunXi SoC support
 M:	Maxime Ripard <maxime.ripard@free-electrons.com>
+M:	Chen-Yu Tsai <wens@csie.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-N:	sun[x4567]i
+N:	sun[x456789]i
 
 ARM/Allwinner SoC Clock Support
 M:	Emilio López <emilio@elopez.com.ar>
@@ -3361,6 +3368,7 @@ M:	Support Opensource <support.opensource@diasemi.com>
 W:	http://www.dialog-semiconductor.com/products
 S:	Supported
 F:	Documentation/hwmon/da90??
+F:	Documentation/devicetree/bindings/sound/da[79]*.txt
 F:	drivers/gpio/gpio-da90??.c
 F:	drivers/hwmon/da90??-hwmon.c
 F:	drivers/iio/adc/da91??-*.c
@@ -3394,7 +3402,6 @@ F:	drivers/staging/dgnc/
 
 DIGI EPCA PCI PRODUCTS
 M:	Lidza Louina <lidza.louina@gmail.com>
-M:	Mark Hounschell <markh@compro.net>
 M:	Daeseok Youn <daeseok.youn@gmail.com>
 L:	driverdev-devel@linuxdriverproject.org
 S:	Maintained
@@ -3586,6 +3593,13 @@ F:	drivers/gpu/drm/i915/
 F:	include/drm/i915*
 F:	include/uapi/drm/i915*
 
+DRM DRIVERS FOR ATMEL HLCDC
+M:	Boris Brezillon <boris.brezillon@free-electrons.com>
+L:	dri-devel@lists.freedesktop.org
+S:	Supported
+F:	drivers/gpu/drm/atmel-hlcdc/
+F:	Documentation/devicetree/bindings/drm/atmel/
+
 DRM DRIVERS FOR EXYNOS
 M:	Inki Dae <inki.dae@samsung.com>
 M:	Joonyoung Shim <jy0922.shim@samsung.com>
@@ -3613,6 +3627,14 @@ L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 F:	drivers/gpu/drm/imx/
 F:	Documentation/devicetree/bindings/drm/imx/
+
+DRM DRIVERS FOR GMA500 (Poulsbo, Moorestown and derivative chipsets)
+M:	Patrik Jakobsson <patrik.r.jakobsson@gmail.com>
+L:	dri-devel@lists.freedesktop.org
+T:	git git://github.com/patjak/drm-gma500
+S:	Maintained
+F:	drivers/gpu/drm/gma500
+F:	include/drm/gma500*
 
 DRM DRIVERS FOR NVIDIA TEGRA
 M:	Thierry Reding <thierry.reding@gmail.com>
@@ -3998,7 +4020,7 @@ S:	Maintained
 F:	sound/usb/misc/ua101.c
 
 EXTENSIBLE FIRMWARE INTERFACE (EFI)
-M:	Matt Fleming <matt.fleming@intel.com>
+M:	Matt Fleming <matt@codeblueprint.co.uk>
 L:	linux-efi@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mfleming/efi.git
 S:	Maintained
@@ -4013,7 +4035,7 @@ F:	include/linux/efi*.h
 EFI VARIABLE FILESYSTEM
 M:	Matthew Garrett <matthew.garrett@nebula.com>
 M:	Jeremy Kerr <jk@ozlabs.org>
-M:	Matt Fleming <matt.fleming@intel.com>
+M:	Matt Fleming <matt@codeblueprint.co.uk>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mfleming/efi.git
 L:	linux-efi@vger.kernel.org
 S:	Maintained
@@ -5952,7 +5974,7 @@ F:	virt/kvm/
 KERNEL VIRTUAL MACHINE (KVM) FOR AMD-V
 M:	Joerg Roedel <joro@8bytes.org>
 L:	kvm@vger.kernel.org
-W:	http://kvm.qumranet.com
+W:	http://www.linux-kvm.org/
 S:	Maintained
 F:	arch/x86/include/asm/svm.h
 F:	arch/x86/kvm/svm.c
@@ -5960,7 +5982,7 @@ F:	arch/x86/kvm/svm.c
 KERNEL VIRTUAL MACHINE (KVM) FOR POWERPC
 M:	Alexander Graf <agraf@suse.com>
 L:	kvm-ppc@vger.kernel.org
-W:	http://kvm.qumranet.com
+W:	http://www.linux-kvm.org/
 T:	git git://github.com/agraf/linux-2.6.git
 S:	Supported
 F:	arch/powerpc/include/asm/kvm*
@@ -6452,11 +6474,11 @@ F:	drivers/hwmon/ltc4261.c
 LTP (Linux Test Project)
 M:	Mike Frysinger <vapier@gentoo.org>
 M:	Cyril Hrubis <chrubis@suse.cz>
-M:	Wanlong Gao <gaowanlong@cn.fujitsu.com>
+M:	Wanlong Gao <wanlong.gao@gmail.com>
 M:	Jan Stancek <jstancek@redhat.com>
 M:	Stanislav Kholmanskikh <stanislav.kholmanskikh@oracle.com>
 M:	Alexey Kodanev <alexey.kodanev@oracle.com>
-L:	ltp-list@lists.sourceforge.net (subscribers-only)
+L:	ltp@lists.linux.it (subscribers-only)
 W:	http://linux-test-project.github.io/
 T:	git git://github.com/linux-test-project/ltp.git
 S:	Maintained
@@ -6773,7 +6795,6 @@ F:	drivers/scsi/megaraid/
 
 MELLANOX ETHERNET DRIVER (mlx4_en)
 M:	Amir Vadai <amirv@mellanox.com>
-M:	Ido Shamay <idos@mellanox.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 W:	http://www.mellanox.com
@@ -8500,7 +8521,6 @@ F:	Documentation/networking/LICENSE.qla3xxx
 F:	drivers/net/ethernet/qlogic/qla3xxx.*
 
 QLOGIC QLCNIC (1/10)Gb ETHERNET DRIVER
-M:	Shahed Shaikh <shahed.shaikh@qlogic.com>
 M:	Dept-GELinuxNICDev@qlogic.com
 L:	netdev@vger.kernel.org
 S:	Supported
@@ -9096,6 +9116,15 @@ L: netdev@vger.kernel.org
 S: Supported
 F: Documentation/devicetree/bindings/net/snps,dwc-qos-ethernet.txt
 F: drivers/net/ethernet/synopsys/dwc_eth_qos.c
+
+SYNOPSYS DESIGNWARE I2C DRIVER
+M:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+M:	Jarkko Nikula <jarkko.nikula@linux.intel.com>
+M:	Mika Westerberg <mika.westerberg@linux.intel.com>
+L:	linux-i2c@vger.kernel.org
+S:	Maintained
+F:	drivers/i2c/busses/i2c-designware-*
+F:	include/linux/platform_data/i2c-designware.h
 
 SYNOPSYS DESIGNWARE MMC/SD/SDIO DRIVER
 M:	Seungwon Jeon <tgih.jun@samsung.com>
@@ -9904,13 +9933,12 @@ F:	drivers/staging/media/lirc/
 STAGING - LUSTRE PARALLEL FILESYSTEM
 M:	Oleg Drokin <oleg.drokin@intel.com>
 M:	Andreas Dilger <andreas.dilger@intel.com>
-L:	HPDD-discuss@lists.01.org (moderated for non-subscribers)
-W:	http://lustre.opensfs.org/
+L:	lustre-devel@lists.lustre.org (moderated for non-subscribers)
+W:	http://wiki.lustre.org/
 S:	Maintained
 F:	drivers/staging/lustre
 
 STAGING - NVIDIA COMPLIANT EMBEDDED CONTROLLER INTERFACE (nvec)
-M:	Julian Andres Klode <jak@jak-linux.org>
 M:	Marc Dietrich <marvin24@gmx.de>
 L:	ac100@lists.launchpad.net (moderated for non-subscribers)
 L:	linux-tegra@vger.kernel.org
@@ -10337,6 +10365,16 @@ F:	include/linux/thermal.h
 F:	include/uapi/linux/thermal.h
 F:	include/linux/cpu_cooling.h
 F:	Documentation/devicetree/bindings/thermal/
+
+THERMAL/CPU_COOLING
+M:	Amit Daniel Kachhap <amit.kachhap@gmail.com>
+M:	Viresh Kumar <viresh.kumar@linaro.org>
+M:	Javi Merino <javi.merino@arm.com>
+L:	linux-pm@vger.kernel.org
+S:	Supported
+F:	Documentation/thermal/cpu-cooling-api.txt
+F:	drivers/thermal/cpu_cooling.c
+F:	include/linux/cpu_cooling.h
 
 THINGM BLINK(1) USB RGB LED DRIVER
 M:	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
@@ -11187,7 +11225,7 @@ F:	drivers/vlynq/vlynq.c
 F:	include/linux/vlynq.h
 
 VME SUBSYSTEM
-M:	Martyn Welch <martyn.welch@ge.com>
+M:	Martyn Welch <martyn@welchs.me.uk>
 M:	Manohar Vanga <manohar.vanga@gmail.com>
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 L:	devel@driverdev.osuosl.org
@@ -11239,7 +11277,6 @@ VOLTAGE AND CURRENT REGULATOR FRAMEWORK
 M:	Liam Girdwood <lgirdwood@gmail.com>
 M:	Mark Brown <broonie@kernel.org>
 L:	linux-kernel@vger.kernel.org
-W:	http://opensource.wolfsonmicro.com/node/15
 W:	http://www.slimlogic.co.uk/?p=48
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/broonie/regulator.git
 S:	Supported
@@ -11253,6 +11290,7 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/vrf.c
 F:	include/net/vrf.h
+F:	Documentation/networking/vrf.txt
 
 VT1211 HARDWARE MONITOR DRIVER
 M:	Juerg Haefliger <juergh@gmail.com>
@@ -11364,21 +11402,10 @@ W:	http://oops.ghostprotocols.net:81/blog
 S:	Maintained
 F:	drivers/net/wireless/wl3501*
 
-WM97XX TOUCHSCREEN DRIVERS
-M:	Mark Brown <broonie@kernel.org>
-M:	Liam Girdwood <lrg@slimlogic.co.uk>
-L:	linux-input@vger.kernel.org
-T:	git git://opensource.wolfsonmicro.com/linux-2.6-touch
-W:	http://opensource.wolfsonmicro.com/node/7
-S:	Supported
-F:	drivers/input/touchscreen/*wm97*
-F:	include/linux/wm97xx.h
-
 WOLFSON MICROELECTRONICS DRIVERS
 L:	patches@opensource.wolfsonmicro.com
-T:	git git://opensource.wolfsonmicro.com/linux-2.6-asoc
-T:	git git://opensource.wolfsonmicro.com/linux-2.6-audioplus
-W:	http://opensource.wolfsonmicro.com/content/linux-drivers-wolfson-devices
+T:	git https://github.com/CirrusLogic/linux-drivers.git
+W:	https://github.com/CirrusLogic/linux-drivers/wiki
 S:	Supported
 F:	Documentation/hwmon/wm83??
 F:	arch/arm/mach-s3c64xx/mach-crag6410*
@@ -11649,6 +11676,7 @@ F:	drivers/tty/serial/zs.*
 ZSMALLOC COMPRESSED SLAB MEMORY ALLOCATOR
 M:	Minchan Kim <minchan@kernel.org>
 M:	Nitin Gupta <ngupta@vflare.org>
+R:	Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 L:	linux-mm@kvack.org
 S:	Maintained
 F:	mm/zsmalloc.c

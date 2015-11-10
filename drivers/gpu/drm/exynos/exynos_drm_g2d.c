@@ -1059,7 +1059,6 @@ int exynos_g2d_get_ver_ioctl(struct drm_device *drm_dev, void *data,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(exynos_g2d_get_ver_ioctl);
 
 int exynos_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 				 struct drm_file *file)
@@ -1230,7 +1229,6 @@ err:
 	g2d_put_cmdlist(g2d, node);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(exynos_g2d_set_cmdlist_ioctl);
 
 int exynos_g2d_exec_ioctl(struct drm_device *drm_dev, void *data,
 			  struct drm_file *file)
@@ -1293,7 +1291,6 @@ int exynos_g2d_exec_ioctl(struct drm_device *drm_dev, void *data,
 out:
 	return 0;
 }
-EXPORT_SYMBOL_GPL(exynos_g2d_exec_ioctl);
 
 static int g2d_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 {

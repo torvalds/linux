@@ -644,12 +644,14 @@ mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_zone *mctz)
 }
 
 /*
+ * Return page count for single (non recursive) @memcg.
+ *
  * Implementation Note: reading percpu statistics for memcg.
  *
  * Both of vmstat[] and percpu_counter has threshold and do periodic
  * synchronization to implement "quick" read. There are trade-off between
  * reading cost and precision of value. Then, we may have a chance to implement
- * a periodic synchronizion of counter in memcg's counter.
+ * a periodic synchronization of counter in memcg's counter.
  *
  * But this _read() function is used for user interface now. The user accounts
  * memory usage by memory cgroup and he _always_ requires exact value because
@@ -659,17 +661,24 @@ mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_zone *mctz)
  *
  * If there are kernel internal actions which can make use of some not-exact
  * value, and reading all cpu value can be performance bottleneck in some
- * common workload, threashold and synchonization as vmstat[] should be
+ * common workload, threshold and synchronization as vmstat[] should be
  * implemented.
  */
-static long mem_cgroup_read_stat(struct mem_cgroup *memcg,
-				 enum mem_cgroup_stat_index idx)
+static unsigned long
+mem_cgroup_read_stat(struct mem_cgroup *memcg, enum mem_cgroup_stat_index idx)
 {
 	long val = 0;
 	int cpu;
 
+	/* Per-cpu values can be negative, use a signed accumulator */
 	for_each_possible_cpu(cpu)
 		val += per_cpu(memcg->stat->count[idx], cpu);
+	/*
+	 * Summing races with updates, so val may be negative.  Avoid exposing
+	 * transient negative values.
+	 */
+	if (val < 0)
+		val = 0;
 	return val;
 }
 
@@ -1254,7 +1263,7 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
 		for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
 			if (i == MEM_CGROUP_STAT_SWAP && !do_swap_account)
 				continue;
-			pr_cont(" %s:%ldKB", mem_cgroup_stat_names[i],
+			pr_cont(" %s:%luKB", mem_cgroup_stat_names[i],
 				K(mem_cgroup_read_stat(iter, i)));
 		}
 
@@ -2819,14 +2828,11 @@ static unsigned long tree_stat(struct mem_cgroup *memcg,
 			       enum mem_cgroup_stat_index idx)
 {
 	struct mem_cgroup *iter;
-	long val = 0;
+	unsigned long val = 0;
 
-	/* Per-cpu values can be negative, use a signed accumulator */
 	for_each_mem_cgroup_tree(iter, memcg)
 		val += mem_cgroup_read_stat(iter, idx);
 
-	if (val < 0) /* race ? */
-		val = 0;
 	return val;
 }
 
@@ -3169,7 +3175,7 @@ static int memcg_stat_show(struct seq_file *m, void *v)
 	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
 		if (i == MEM_CGROUP_STAT_SWAP && !do_swap_account)
 			continue;
-		seq_printf(m, "%s %ld\n", mem_cgroup_stat_names[i],
+		seq_printf(m, "%s %lu\n", mem_cgroup_stat_names[i],
 			   mem_cgroup_read_stat(memcg, i) * PAGE_SIZE);
 	}
 
@@ -3194,13 +3200,13 @@ static int memcg_stat_show(struct seq_file *m, void *v)
 			   (u64)memsw * PAGE_SIZE);
 
 	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
-		long long val = 0;
+		unsigned long long val = 0;
 
 		if (i == MEM_CGROUP_STAT_SWAP && !do_swap_account)
 			continue;
 		for_each_mem_cgroup_tree(mi, memcg)
 			val += mem_cgroup_read_stat(mi, i) * PAGE_SIZE;
-		seq_printf(m, "total_%s %lld\n", mem_cgroup_stat_names[i], val);
+		seq_printf(m, "total_%s %llu\n", mem_cgroup_stat_names[i], val);
 	}
 
 	for (i = 0; i < MEM_CGROUP_EVENTS_NSTATS; i++) {
@@ -3381,6 +3387,7 @@ static int __mem_cgroup_usage_register_event(struct mem_cgroup *memcg,
 	ret = page_counter_memparse(args, "-1", &threshold);
 	if (ret)
 		return ret;
+	threshold <<= PAGE_SHIFT;
 
 	mutex_lock(&memcg->thresholds_lock);
 
@@ -3734,44 +3741,43 @@ struct wb_domain *mem_cgroup_wb_domain(struct bdi_writeback *wb)
 /**
  * mem_cgroup_wb_stats - retrieve writeback related stats from its memcg
  * @wb: bdi_writeback in question
- * @pavail: out parameter for number of available pages
+ * @pfilepages: out parameter for number of file pages
+ * @pheadroom: out parameter for number of allocatable pages according to memcg
  * @pdirty: out parameter for number of dirty pages
  * @pwriteback: out parameter for number of pages under writeback
  *
- * Determine the numbers of available, dirty, and writeback pages in @wb's
- * memcg.  Dirty and writeback are self-explanatory.  Available is a bit
- * more involved.
+ * Determine the numbers of file, headroom, dirty, and writeback pages in
+ * @wb's memcg.  File, dirty and writeback are self-explanatory.  Headroom
+ * is a bit more involved.
  *
- * A memcg's headroom is "min(max, high) - used".  The available memory is
- * calculated as the lowest headroom of itself and the ancestors plus the
- * number of pages already being used for file pages.  Note that this
- * doesn't consider the actual amount of available memory in the system.
- * The caller should further cap *@pavail accordingly.
+ * A memcg's headroom is "min(max, high) - used".  In the hierarchy, the
+ * headroom is calculated as the lowest headroom of itself and the
+ * ancestors.  Note that this doesn't consider the actual amount of
+ * available memory in the system.  The caller should further cap
+ * *@pheadroom accordingly.
  */
-void mem_cgroup_wb_stats(struct bdi_writeback *wb, unsigned long *pavail,
-			 unsigned long *pdirty, unsigned long *pwriteback)
+void mem_cgroup_wb_stats(struct bdi_writeback *wb, unsigned long *pfilepages,
+			 unsigned long *pheadroom, unsigned long *pdirty,
+			 unsigned long *pwriteback)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(wb->memcg_css);
 	struct mem_cgroup *parent;
-	unsigned long head_room = PAGE_COUNTER_MAX;
-	unsigned long file_pages;
 
 	*pdirty = mem_cgroup_read_stat(memcg, MEM_CGROUP_STAT_DIRTY);
 
 	/* this should eventually include NR_UNSTABLE_NFS */
 	*pwriteback = mem_cgroup_read_stat(memcg, MEM_CGROUP_STAT_WRITEBACK);
+	*pfilepages = mem_cgroup_nr_lru_pages(memcg, (1 << LRU_INACTIVE_FILE) |
+						     (1 << LRU_ACTIVE_FILE));
+	*pheadroom = PAGE_COUNTER_MAX;
 
-	file_pages = mem_cgroup_nr_lru_pages(memcg, (1 << LRU_INACTIVE_FILE) |
-						    (1 << LRU_ACTIVE_FILE));
 	while ((parent = parent_mem_cgroup(memcg))) {
 		unsigned long ceiling = min(memcg->memory.limit, memcg->high);
 		unsigned long used = page_counter_read(&memcg->memory);
 
-		head_room = min(head_room, ceiling - min(ceiling, used));
+		*pheadroom = min(*pheadroom, ceiling - min(ceiling, used));
 		memcg = parent;
 	}
-
-	*pavail = file_pages + head_room;
 }
 
 #else	/* CONFIG_CGROUP_WRITEBACK */
@@ -4179,7 +4185,6 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
 	if (memcg_wb_domain_init(memcg, GFP_KERNEL))
 		goto out_free_stat;
 
-	spin_lock_init(&memcg->pcp_counter_lock);
 	return memcg;
 
 out_free_stat:

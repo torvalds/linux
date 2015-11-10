@@ -42,7 +42,7 @@ find_section(const void *_bdb, int section_id)
 	const struct bdb_header *bdb = _bdb;
 	const u8 *base = _bdb;
 	int index = 0;
-	u16 total, current_size;
+	u32 total, current_size;
 	u8 current_id;
 
 	/* skip to first section */
@@ -56,6 +56,10 @@ find_section(const void *_bdb, int section_id)
 
 		current_size = *((const u16 *)(base + index));
 		index += 2;
+
+		/* The MIPI Sequence Block v3+ has a separate size field. */
+		if (current_id == BDB_MIPI_SEQUENCE && *(base + index) >= 3)
+			current_size = *((const u32 *)(base + index + 1));
 
 		if (index + current_size > total)
 			return NULL;
@@ -796,6 +800,12 @@ parse_mipi(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 	sequence = find_section(bdb, BDB_MIPI_SEQUENCE);
 	if (!sequence) {
 		DRM_DEBUG_KMS("No MIPI Sequence found, parsing complete\n");
+		return;
+	}
+
+	/* Fail gracefully for forward incompatible sequence block. */
+	if (sequence->version >= 3) {
+		DRM_ERROR("Unable to parse MIPI Sequence Block v3+\n");
 		return;
 	}
 

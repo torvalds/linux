@@ -80,6 +80,7 @@ struct aic3x_priv {
 	unsigned int sysclk;
 	unsigned int dai_fmt;
 	unsigned int tdm_delay;
+	unsigned int slot_width;
 	struct list_head list;
 	int master;
 	int gpio_reset;
@@ -1025,10 +1026,14 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 	u8 data, j, r, p, pll_q, pll_p = 1, pll_r = 1, pll_j = 1;
 	u16 d, pll_d = 1;
 	int clk;
+	int width = aic3x->slot_width;
+
+	if (!width)
+		width = params_width(params);
 
 	/* select data word length */
 	data = snd_soc_read(codec, AIC3X_ASD_INTF_CTRLB) & (~(0x3 << 4));
-	switch (params_width(params)) {
+	switch (width) {
 	case 16:
 		break;
 	case 20:
@@ -1170,12 +1175,16 @@ static int aic3x_prepare(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 	struct aic3x_priv *aic3x = snd_soc_codec_get_drvdata(codec);
 	int delay = 0;
+	int width = aic3x->slot_width;
+
+	if (!width)
+		width = substream->runtime->sample_bits;
 
 	/* TDM slot selection only valid in DSP_A/_B mode */
 	if (aic3x->dai_fmt == SND_SOC_DAIFMT_DSP_A)
-		delay += (aic3x->tdm_delay + 1);
+		delay += (aic3x->tdm_delay*width + 1);
 	else if (aic3x->dai_fmt == SND_SOC_DAIFMT_DSP_B)
-		delay += aic3x->tdm_delay;
+		delay += aic3x->tdm_delay*width;
 
 	/* Configure data delay */
 	snd_soc_write(codec, AIC3X_ASD_INTF_CTRLC, delay);
@@ -1296,7 +1305,20 @@ static int aic3x_set_dai_tdm_slot(struct snd_soc_dai *codec_dai,
 		return -EINVAL;
 	}
 
-	aic3x->tdm_delay = lsb * slot_width;
+	switch (slot_width) {
+	case 16:
+	case 20:
+	case 24:
+	case 32:
+		break;
+	default:
+		dev_err(codec->dev, "Unsupported slot width %d\n", slot_width);
+		return -EINVAL;
+	}
+
+
+	aic3x->tdm_delay = lsb;
+	aic3x->slot_width = slot_width;
 
 	/* DOUT in high-impedance on inactive bit clocks */
 	snd_soc_update_bits(codec, AIC3X_ASD_INTF_CTRLA,
@@ -1509,14 +1531,17 @@ static int aic3x_init(struct snd_soc_codec *codec)
 	snd_soc_write(codec, PGAL_2_LLOPM_VOL, DEFAULT_VOL);
 	snd_soc_write(codec, PGAR_2_RLOPM_VOL, DEFAULT_VOL);
 
-	/* Line2 to HP Bypass default volume, disconnect from Output Mixer */
-	snd_soc_write(codec, LINE2L_2_HPLOUT_VOL, DEFAULT_VOL);
-	snd_soc_write(codec, LINE2R_2_HPROUT_VOL, DEFAULT_VOL);
-	snd_soc_write(codec, LINE2L_2_HPLCOM_VOL, DEFAULT_VOL);
-	snd_soc_write(codec, LINE2R_2_HPRCOM_VOL, DEFAULT_VOL);
-	/* Line2 Line Out default volume, disconnect from Output Mixer */
-	snd_soc_write(codec, LINE2L_2_LLOPM_VOL, DEFAULT_VOL);
-	snd_soc_write(codec, LINE2R_2_RLOPM_VOL, DEFAULT_VOL);
+	/* On tlv320aic3104, these registers are reserved and must not be written */
+	if (aic3x->model != AIC3X_MODEL_3104) {
+		/* Line2 to HP Bypass default volume, disconnect from Output Mixer */
+		snd_soc_write(codec, LINE2L_2_HPLOUT_VOL, DEFAULT_VOL);
+		snd_soc_write(codec, LINE2R_2_HPROUT_VOL, DEFAULT_VOL);
+		snd_soc_write(codec, LINE2L_2_HPLCOM_VOL, DEFAULT_VOL);
+		snd_soc_write(codec, LINE2R_2_HPRCOM_VOL, DEFAULT_VOL);
+		/* Line2 Line Out default volume, disconnect from Output Mixer */
+		snd_soc_write(codec, LINE2L_2_LLOPM_VOL, DEFAULT_VOL);
+		snd_soc_write(codec, LINE2R_2_RLOPM_VOL, DEFAULT_VOL);
+	}
 
 	switch (aic3x->model) {
 	case AIC3X_MODEL_3X:

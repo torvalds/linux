@@ -151,7 +151,9 @@ static int __asoc_simple_card_dai_init(struct snd_soc_dai *dai,
 	}
 
 	if (set->slots) {
-		ret = snd_soc_dai_set_tdm_slot(dai, 0, 0,
+		ret = snd_soc_dai_set_tdm_slot(dai,
+					       set->tx_slot_mask,
+					       set->rx_slot_mask,
 						set->slots,
 						set->slot_width);
 		if (ret && ret != -ENOTSUPP) {
@@ -243,7 +245,9 @@ asoc_simple_card_sub_parse_of(struct device_node *np,
 		return ret;
 
 	/* Parse TDM slot */
-	ret = snd_soc_of_parse_tdm_slot(np, &dai->slots, &dai->slot_width);
+	ret = snd_soc_of_parse_tdm_slot(np, &dai->tx_slot_mask,
+					&dai->rx_slot_mask,
+					&dai->slots, &dai->slot_width);
 	if (ret)
 		return ret;
 

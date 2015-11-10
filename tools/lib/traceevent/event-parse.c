@@ -3795,7 +3795,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 	struct format_field *field;
 	struct printk_map *printk;
 	long long val, fval;
-	unsigned long addr;
+	unsigned long long addr;
 	char *str;
 	unsigned char *hex;
 	int print;
@@ -3828,13 +3828,30 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		 */
 		if (!(field->flags & FIELD_IS_ARRAY) &&
 		    field->size == pevent->long_size) {
-			addr = *(unsigned long *)(data + field->offset);
+
+			/* Handle heterogeneous recording and processing
+			 * architectures
+			 *
+			 * CASE I:
+			 * Traces recorded on 32-bit devices (32-bit
+			 * addressing) and processed on 64-bit devices:
+			 * In this case, only 32 bits should be read.
+			 *
+			 * CASE II:
+			 * Traces recorded on 64 bit devices and processed
+			 * on 32-bit devices:
+			 * In this case, 64 bits must be read.
+			 */
+			addr = (pevent->long_size == 8) ?
+				*(unsigned long long *)(data + field->offset) :
+				(unsigned long long)*(unsigned int *)(data + field->offset);
+
 			/* Check if it matches a print format */
 			printk = find_printk(pevent, addr);
 			if (printk)
 				trace_seq_puts(s, printk->printk);
 			else
-				trace_seq_printf(s, "%lx", addr);
+				trace_seq_printf(s, "%llx", addr);
 			break;
 		}
 		str = malloc(len + 1);

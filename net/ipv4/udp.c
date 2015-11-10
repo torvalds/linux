@@ -1024,7 +1024,8 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		if (netif_index_is_vrf(net, ipc.oif)) {
 			flowi4_init_output(fl4, ipc.oif, sk->sk_mark, tos,
 					   RT_SCOPE_UNIVERSE, sk->sk_protocol,
-					   (flow_flags | FLOWI_FLAG_VRFSRC),
+					   (flow_flags | FLOWI_FLAG_VRFSRC |
+					    FLOWI_FLAG_SKIP_NH_OIF),
 					   faddr, saddr, dport,
 					   inet->inet_sport);
 

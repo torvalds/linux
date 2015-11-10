@@ -1251,7 +1251,7 @@ void __init timekeeping_init(void)
 	set_normalized_timespec64(&tmp, -boot.tv_sec, -boot.tv_nsec);
 	tk_set_wall_to_mono(tk, tmp);
 
-	timekeeping_update(tk, TK_MIRROR);
+	timekeeping_update(tk, TK_MIRROR | TK_CLOCK_WAS_SET);
 
 	write_seqcount_end(&tk_core.seq);
 	raw_spin_unlock_irqrestore(&timekeeper_lock, flags);
@@ -1614,7 +1614,7 @@ static __always_inline void timekeeping_freqadjust(struct timekeeper *tk,
 	negative = (tick_error < 0);
 
 	/* Sort out the magnitude of the correction */
-	tick_error = abs(tick_error);
+	tick_error = abs64(tick_error);
 	for (adj = 0; tick_error > interval; adj++)
 		tick_error >>= 1;
 

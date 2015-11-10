@@ -220,7 +220,7 @@ static int metag_internal_irq_set_affinity(struct irq_data *data,
  *	occurred. It is this function's job to demux this irq and
  *	figure out exactly which trigger needs servicing.
  */
-static void metag_internal_irq_demux(unsigned int irq, struct irq_desc *desc)
+static void metag_internal_irq_demux(struct irq_desc *desc)
 {
 	struct metag_internal_irq_priv *priv = irq_desc_get_handler_data(desc);
 	irq_hw_number_t hw;

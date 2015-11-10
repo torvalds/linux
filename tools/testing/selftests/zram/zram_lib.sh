@@ -23,8 +23,9 @@ trap INT
 check_prereqs()
 {
 	local msg="skip all tests:"
+	local uid=$(id -u)
 
-	if [ $UID != 0 ]; then
+	if [ $uid -ne 0 ]; then
 		echo $msg must be run as root >&2
 		exit 0
 	fi

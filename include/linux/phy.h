@@ -19,6 +19,7 @@
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
+#include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/mod_devicetable.h>
@@ -153,6 +154,7 @@ struct sk_buff;
  * PHYs should register using this structure
  */
 struct mii_bus {
+	struct module *owner;
 	const char *name;
 	char id[MII_BUS_ID_SIZE];
 	void *priv;
@@ -198,7 +200,8 @@ static inline struct mii_bus *mdiobus_alloc(void)
 	return mdiobus_alloc_size(0);
 }
 
-int mdiobus_register(struct mii_bus *bus);
+int __mdiobus_register(struct mii_bus *bus, struct module *owner);
+#define mdiobus_register(bus) __mdiobus_register(bus, THIS_MODULE)
 void mdiobus_unregister(struct mii_bus *bus);
 void mdiobus_free(struct mii_bus *bus);
 struct mii_bus *devm_mdiobus_alloc_size(struct device *dev, int sizeof_priv);
@@ -742,6 +745,7 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 				     struct phy_c45_device_ids *c45_ids);
 struct phy_device *get_phy_device(struct mii_bus *bus, int addr, bool is_c45);
 int phy_device_register(struct phy_device *phy);
+void phy_device_remove(struct phy_device *phydev);
 int phy_init_hw(struct phy_device *phydev);
 int phy_suspend(struct phy_device *phydev);
 int phy_resume(struct phy_device *phydev);

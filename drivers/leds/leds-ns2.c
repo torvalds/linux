@@ -337,6 +337,7 @@ static const struct of_device_id of_ns2_leds_match[] = {
 	{ .compatible = "lacie,ns2-leds", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, of_ns2_leds_match);
 #endif /* CONFIG_OF_GPIO */
 
 struct ns2_led_priv {

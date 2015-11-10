@@ -552,6 +552,7 @@ static const struct of_device_id moxart_mac_match[] = {
 	{ .compatible = "moxa,moxart-mac" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, moxart_mac_match);
 
 static struct platform_driver moxart_mac_driver = {
 	.probe	= moxart_mac_probe,

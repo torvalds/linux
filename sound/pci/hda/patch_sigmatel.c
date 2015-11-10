@@ -4520,7 +4520,11 @@ static int patch_stac92hd73xx(struct hda_codec *codec)
 		return err;
 
 	spec = codec->spec;
-	codec->power_save_node = 1;
+	/* enable power_save_node only for new 92HD89xx chips, as it causes
+	 * click noises on old 92HD73xx chips.
+	 */
+	if ((codec->core.vendor_id & 0xfffffff0) != 0x111d7670)
+		codec->power_save_node = 1;
 	spec->linear_tone_beep = 0;
 	spec->gen.mixer_nid = 0x1d;
 	spec->have_spdif_mux = 1;

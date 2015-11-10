@@ -386,7 +386,6 @@ static i40e_status i40e_init_asq(struct i40e_hw *hw)
 
 	hw->aq.asq.next_to_use = 0;
 	hw->aq.asq.next_to_clean = 0;
-	hw->aq.asq.count = hw->aq.num_asq_entries;
 
 	/* allocate the ring memory */
 	ret_code = i40e_alloc_adminq_asq_ring(hw);
@@ -404,6 +403,7 @@ static i40e_status i40e_init_asq(struct i40e_hw *hw)
 		goto init_adminq_free_rings;
 
 	/* success! */
+	hw->aq.asq.count = hw->aq.num_asq_entries;
 	goto init_adminq_exit;
 
 init_adminq_free_rings:
@@ -445,7 +445,6 @@ static i40e_status i40e_init_arq(struct i40e_hw *hw)
 
 	hw->aq.arq.next_to_use = 0;
 	hw->aq.arq.next_to_clean = 0;
-	hw->aq.arq.count = hw->aq.num_arq_entries;
 
 	/* allocate the ring memory */
 	ret_code = i40e_alloc_adminq_arq_ring(hw);
@@ -463,6 +462,7 @@ static i40e_status i40e_init_arq(struct i40e_hw *hw)
 		goto init_adminq_free_rings;
 
 	/* success! */
+	hw->aq.arq.count = hw->aq.num_arq_entries;
 	goto init_adminq_exit;
 
 init_adminq_free_rings:
@@ -946,6 +946,13 @@ i40e_status i40e_clean_arq_element(struct i40e_hw *hw,
 	/* take the lock before we start messing with the ring */
 	mutex_lock(&hw->aq.arq_mutex);
 
+	if (hw->aq.arq.count == 0) {
+		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
+			   "AQRX: Admin queue not initialized.\n");
+		ret_code = I40E_ERR_QUEUE_EMPTY;
+		goto clean_arq_element_err;
+	}
+
 	/* set next_to_use to head */
 	ntu = (rd32(hw, hw->aq.arq.head) & I40E_PF_ARQH_ARQH_MASK);
 	if (ntu == ntc) {
@@ -1007,6 +1014,8 @@ clean_arq_element_out:
 	/* Set pending if needed, unlock and return */
 	if (pending != NULL)
 		*pending = (ntc > ntu ? hw->aq.arq.count : 0) + (ntu - ntc);
+
+clean_arq_element_err:
 	mutex_unlock(&hw->aq.arq_mutex);
 
 	if (i40e_is_nvm_update_op(&e->desc)) {

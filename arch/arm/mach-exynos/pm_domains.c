@@ -200,15 +200,15 @@ no_clk:
 		args.args_count = 0;
 		child_domain = of_genpd_get_from_provider(&args);
 		if (IS_ERR(child_domain))
-			goto next_pd;
+			continue;
 
 		if (of_parse_phandle_with_args(np, "power-domains",
 					 "#power-domain-cells", 0, &args) != 0)
-			goto next_pd;
+			continue;
 
 		parent_domain = of_genpd_get_from_provider(&args);
 		if (IS_ERR(parent_domain))
-			goto next_pd;
+			continue;
 
 		if (pm_genpd_add_subdomain(parent_domain, child_domain))
 			pr_warn("%s failed to add subdomain: %s\n",
@@ -216,8 +216,6 @@ no_clk:
 		else
 			pr_info("%s has as child subdomain: %s.\n",
 				parent_domain->name, child_domain->name);
-next_pd:
-		of_node_put(np);
 	}
 
 	return 0;

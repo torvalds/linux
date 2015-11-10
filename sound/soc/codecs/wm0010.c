@@ -577,7 +577,6 @@ static int wm0010_boot(struct snd_soc_codec *codec)
 	struct wm0010_priv *wm0010 = snd_soc_codec_get_drvdata(codec);
 	unsigned long flags;
 	int ret;
-	const struct firmware *fw;
 	struct spi_message m;
 	struct spi_transfer t;
 	struct dfw_pllrec pll_rec;
@@ -623,14 +622,6 @@ static int wm0010_boot(struct snd_soc_codec *codec)
 	wm0010->state = WM0010_OUT_OF_RESET;
 	spin_unlock_irqrestore(&wm0010->irq_lock, flags);
 
-	/* First the bootloader */
-	ret = request_firmware(&fw, "wm0010_stage2.bin", codec->dev);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to request stage2 loader: %d\n",
-			ret);
-		goto abort;
-	}
-
 	if (!wait_for_completion_timeout(&wm0010->boot_completion,
 					 msecs_to_jiffies(20)))
 		dev_err(codec->dev, "Failed to get interrupt from DSP\n");
@@ -673,7 +664,7 @@ static int wm0010_boot(struct snd_soc_codec *codec)
 
 		img_swap = kzalloc(len, GFP_KERNEL | GFP_DMA);
 		if (!img_swap)
-			goto abort;
+			goto abort_out;
 
 		/* We need to re-order for 0010 */
 		byte_swap_64((u64 *)&pll_rec, img_swap, len);
@@ -688,16 +679,16 @@ static int wm0010_boot(struct snd_soc_codec *codec)
 		spi_message_add_tail(&t, &m);
 
 		ret = spi_sync(spi, &m);
-		if (ret != 0) {
+		if (ret) {
 			dev_err(codec->dev, "First PLL write failed: %d\n", ret);
-			goto abort;
+			goto abort_swap;
 		}
 
 		/* Use a second send of the message to get the return status */
 		ret = spi_sync(spi, &m);
-		if (ret != 0) {
+		if (ret) {
 			dev_err(codec->dev, "Second PLL write failed: %d\n", ret);
-			goto abort;
+			goto abort_swap;
 		}
 
 		p = (u32 *)out;
@@ -730,6 +721,10 @@ static int wm0010_boot(struct snd_soc_codec *codec)
 
 	return 0;
 
+abort_swap:
+	kfree(img_swap);
+abort_out:
+	kfree(out);
 abort:
 	/* Put the chip back into reset */
 	wm0010_halt(codec);

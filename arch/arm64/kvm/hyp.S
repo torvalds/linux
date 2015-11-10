@@ -433,20 +433,13 @@
 	mrs	x5, ifsr32_el2
 	stp	x4, x5, [x3]
 
-	skip_fpsimd_state x8, 3f
+	skip_fpsimd_state x8, 2f
 	mrs	x6, fpexc32_el2
 	str	x6, [x3, #16]
-3:
-	skip_debug_state x8, 2f
+2:
+	skip_debug_state x8, 1f
 	mrs	x7, dbgvcr32_el2
 	str	x7, [x3, #24]
-2:
-	skip_tee_state x8, 1f
-
-	add	x3, x2, #CPU_SYSREG_OFFSET(TEECR32_EL1)
-	mrs	x4, teecr32_el1
-	mrs	x5, teehbr32_el1
-	stp	x4, x5, [x3]
 1:
 .endm
 
@@ -466,16 +459,9 @@
 	msr	dacr32_el2, x4
 	msr	ifsr32_el2, x5
 
-	skip_debug_state x8, 2f
+	skip_debug_state x8, 1f
 	ldr	x7, [x3, #24]
 	msr	dbgvcr32_el2, x7
-2:
-	skip_tee_state x8, 1f
-
-	add	x3, x2, #CPU_SYSREG_OFFSET(TEECR32_EL1)
-	ldp	x4, x5, [x3]
-	msr	teecr32_el1, x4
-	msr	teehbr32_el1, x5
 1:
 .endm
 
@@ -570,8 +556,6 @@ alternative_endif
 	mrs	x3, cntv_ctl_el0
 	and	x3, x3, #3
 	str	w3, [x0, #VCPU_TIMER_CNTV_CTL]
-	bic	x3, x3, #1		// Clear Enable
-	msr	cntv_ctl_el0, x3
 
 	isb
 
@@ -579,6 +563,9 @@ alternative_endif
 	str	x3, [x0, #VCPU_TIMER_CNTV_CVAL]
 
 1:
+	// Disable the virtual timer
+	msr	cntv_ctl_el0, xzr
+
 	// Allow physical timer/counter access for the host
 	mrs	x2, cnthctl_el2
 	orr	x2, x2, #3
@@ -753,6 +740,9 @@ ENTRY(__kvm_vcpu_run)
 	// Guest context
 	add	x2, x0, #VCPU_CONTEXT
 
+	// We must restore the 32-bit state before the sysregs, thanks
+	// to Cortex-A57 erratum #852523.
+	restore_guest_32bit_state
 	bl __restore_sysregs
 
 	skip_debug_state x3, 1f
@@ -760,7 +750,6 @@ ENTRY(__kvm_vcpu_run)
 	kern_hyp_va x3
 	bl	__restore_debug
 1:
-	restore_guest_32bit_state
 	restore_guest_regs
 
 	// That's it, no more messing around.

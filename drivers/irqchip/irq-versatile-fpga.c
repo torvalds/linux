@@ -65,19 +65,19 @@ static void fpga_irq_unmask(struct irq_data *d)
 	writel(mask, f->base + IRQ_ENABLE_SET);
 }
 
-static void fpga_irq_handle(unsigned int __irq, struct irq_desc *desc)
+static void fpga_irq_handle(struct irq_desc *desc)
 {
 	struct fpga_irq_data *f = irq_desc_get_handler_data(desc);
-	unsigned int irq = irq_desc_get_irq(desc);
 	u32 status = readl(f->base + IRQ_STATUS);
 
 	if (status == 0) {
-		do_bad_IRQ(irq, desc);
+		do_bad_IRQ(desc);
 		return;
 	}
 
 	do {
-		irq = ffs(status) - 1;
+		unsigned int irq = ffs(status) - 1;
+
 		status &= ~(1 << irq);
 		generic_handle_irq(irq_find_mapping(f->domain, irq));
 	} while (status);
@@ -128,7 +128,7 @@ static int fpga_irqdomain_map(struct irq_domain *d, unsigned int irq,
 	irq_set_chip_data(irq, f);
 	irq_set_chip_and_handler(irq, &f->chip,
 				handle_level_irq);
-	set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+	irq_set_probe(irq);
 	return 0;
 }
 

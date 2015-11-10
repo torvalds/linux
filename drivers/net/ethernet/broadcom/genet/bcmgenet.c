@@ -1683,6 +1683,24 @@ static void bcmgenet_intr_disable(struct bcmgenet_priv *priv)
 	bcmgenet_intrl2_1_writel(priv, 0, INTRL2_CPU_MASK_CLEAR);
 }
 
+static void bcmgenet_link_intr_enable(struct bcmgenet_priv *priv)
+{
+	u32 int0_enable = 0;
+
+	/* Monitor cable plug/unplugged event for internal PHY, external PHY
+	 * and MoCA PHY
+	 */
+	if (priv->internal_phy) {
+		int0_enable |= UMAC_IRQ_LINK_EVENT;
+	} else if (priv->ext_phy) {
+		int0_enable |= UMAC_IRQ_LINK_EVENT;
+	} else if (priv->phy_interface == PHY_INTERFACE_MODE_MOCA) {
+		if (priv->hw_params->flags & GENET_HAS_MOCA_LINK_DET)
+			int0_enable |= UMAC_IRQ_LINK_EVENT;
+	}
+	bcmgenet_intrl2_0_writel(priv, int0_enable, INTRL2_CPU_MASK_CLEAR);
+}
+
 static int init_umac(struct bcmgenet_priv *priv)
 {
 	struct device *kdev = &priv->pdev->dev;
@@ -1723,15 +1741,8 @@ static int init_umac(struct bcmgenet_priv *priv)
 	/* Enable Tx default queue 16 interrupts */
 	int0_enable |= UMAC_IRQ_TXDMA_DONE;
 
-	/* Monitor cable plug/unplugged event for internal PHY */
-	if (priv->internal_phy) {
-		int0_enable |= UMAC_IRQ_LINK_EVENT;
-	} else if (priv->ext_phy) {
-		int0_enable |= UMAC_IRQ_LINK_EVENT;
-	} else if (priv->phy_interface == PHY_INTERFACE_MODE_MOCA) {
-		if (priv->hw_params->flags & GENET_HAS_MOCA_LINK_DET)
-			int0_enable |= UMAC_IRQ_LINK_EVENT;
-
+	/* Configure backpressure vectors for MoCA */
+	if (priv->phy_interface == PHY_INTERFACE_MODE_MOCA) {
 		reg = bcmgenet_bp_mc_get(priv);
 		reg |= BIT(priv->hw_params->bp_in_en_shift);
 
@@ -2645,6 +2656,9 @@ static void bcmgenet_netif_start(struct net_device *dev)
 
 	netif_tx_start_all_queues(dev);
 
+	/* Monitor link interrupts now */
+	bcmgenet_link_intr_enable(priv);
+
 	phy_start(priv->phydev);
 }
 
@@ -3155,6 +3169,7 @@ static const struct of_device_id bcmgenet_match[] = {
 	{ .compatible = "brcm,genet-v4", .data = (void *)GENET_V4 },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, bcmgenet_match);
 
 static int bcmgenet_probe(struct platform_device *pdev)
 {

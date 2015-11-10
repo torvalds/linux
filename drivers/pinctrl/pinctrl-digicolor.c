@@ -337,9 +337,9 @@ static int dc_pinctrl_probe(struct platform_device *pdev)
 	pmap->dev = &pdev->dev;
 
 	pmap->pctl = pinctrl_register(pctl_desc, &pdev->dev, pmap);
-	if (!pmap->pctl) {
+	if (IS_ERR(pmap->pctl)) {
 		dev_err(&pdev->dev, "pinctrl driver registration failed\n");
-		return -EINVAL;
+		return PTR_ERR(pmap->pctl);
 	}
 
 	ret = dc_gpiochip_add(pmap, pdev->dev.of_node);

@@ -200,7 +200,6 @@ static int armada_370_xp_msi_map(struct irq_domain *domain, unsigned int virq,
 {
 	irq_set_chip_and_handler(virq, &armada_370_xp_msi_irq_chip,
 				 handle_simple_irq);
-	set_irq_flags(virq, IRQF_VALID);
 
 	return 0;
 }
@@ -317,7 +316,7 @@ static int armada_370_xp_mpic_irq_map(struct irq_domain *h,
 		irq_set_chip_and_handler(virq, &armada_370_xp_irq_chip,
 					handle_level_irq);
 	}
-	set_irq_flags(virq, IRQF_VALID | IRQF_PROBE);
+	irq_set_probe(virq);
 
 	return 0;
 }
@@ -447,8 +446,7 @@ static void armada_370_xp_handle_msi_irq(struct pt_regs *regs, bool is_chained)
 static void armada_370_xp_handle_msi_irq(struct pt_regs *r, bool b) {}
 #endif
 
-static void armada_370_xp_mpic_handle_cascade_irq(unsigned int irq,
-						  struct irq_desc *desc)
+static void armada_370_xp_mpic_handle_cascade_irq(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned long irqmap, irqn, irqsrc, cpuid;

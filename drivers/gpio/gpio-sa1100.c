@@ -172,8 +172,7 @@ static struct irq_domain *sa1100_gpio_irqdomain;
  * irq_controller_lock held, and IRQs disabled.  Decode the IRQ
  * and call the handler.
  */
-static void
-sa1100_gpio_handler(unsigned int __irq, struct irq_desc *desc)
+static void sa1100_gpio_handler(struct irq_desc *desc)
 {
 	unsigned int irq, mask;
 

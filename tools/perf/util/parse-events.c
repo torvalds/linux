@@ -287,8 +287,8 @@ __add_event(struct list_head *list, int *idx,
 	if (!evsel)
 		return NULL;
 
-	if (cpus)
-		evsel->cpus = cpu_map__get(cpus);
+	evsel->cpus     = cpu_map__get(cpus);
+	evsel->own_cpus = cpu_map__get(cpus);
 
 	if (name)
 		evsel->name = strdup(name);
@@ -1140,10 +1140,9 @@ int parse_events(struct perf_evlist *evlist, const char *str,
 	ret = parse_events__scanner(str, &data, PE_START_EVENTS);
 	perf_pmu__parse_cleanup();
 	if (!ret) {
-		int entries = data.idx - evlist->nr_entries;
 		struct perf_evsel *last;
 
-		perf_evlist__splice_list_tail(evlist, &data.list, entries);
+		perf_evlist__splice_list_tail(evlist, &data.list);
 		evlist->nr_groups += data.nr_groups;
 		last = perf_evlist__last(evlist);
 		last->cmdline_group_boundary = true;

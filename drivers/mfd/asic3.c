@@ -138,7 +138,7 @@ static void asic3_irq_flip_edge(struct asic3 *asic,
 	spin_unlock_irqrestore(&asic->lock, flags);
 }
 
-static void asic3_irq_demux(unsigned int irq, struct irq_desc *desc)
+static void asic3_irq_demux(struct irq_desc *desc)
 {
 	struct asic3 *asic = irq_desc_get_handler_data(desc);
 	struct irq_data *data = irq_desc_get_irq_data(desc);

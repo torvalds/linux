@@ -573,9 +573,14 @@ ifndef NO_LIBNUMA
     msg := $(warning No numa.h found, disables 'perf bench numa mem' benchmark, please install numactl-devel/libnuma-devel/libnuma-dev);
     NO_LIBNUMA := 1
   else
-    CFLAGS += -DHAVE_LIBNUMA_SUPPORT
-    EXTLIBS += -lnuma
-    $(call detected,CONFIG_NUMA)
+    ifeq ($(feature-numa_num_possible_cpus), 0)
+      msg := $(warning Old numa library found, disables 'perf bench numa mem' benchmark, please install numactl-devel/libnuma-devel/libnuma-dev >= 2.0.8);
+      NO_LIBNUMA := 1
+    else
+      CFLAGS += -DHAVE_LIBNUMA_SUPPORT
+      EXTLIBS += -lnuma
+      $(call detected,CONFIG_NUMA)
+    endif
   endif
 endif
 
@@ -621,8 +626,13 @@ ifdef LIBBABELTRACE
 endif
 
 ifndef NO_AUXTRACE
-  $(call detected,CONFIG_AUXTRACE)
-  CFLAGS += -DHAVE_AUXTRACE_SUPPORT
+  ifeq ($(feature-get_cpuid), 0)
+    msg := $(warning Your gcc lacks the __get_cpuid() builtin, disables support for auxtrace/Intel PT, please install a newer gcc);
+    NO_AUXTRACE := 1
+  else
+    $(call detected,CONFIG_AUXTRACE)
+    CFLAGS += -DHAVE_AUXTRACE_SUPPORT
+  endif
 endif
 
 # Among the variables below, these:

@@ -446,7 +446,7 @@ static int kvm_vcpu_first_run_init(struct kvm_vcpu *vcpu)
 	 * Map the VGIC hardware resources before running a vcpu the first
 	 * time on this VM.
 	 */
-	if (unlikely(!vgic_ready(kvm))) {
+	if (unlikely(irqchip_in_kernel(kvm) && !vgic_ready(kvm))) {
 		ret = kvm_vgic_map_resources(kvm);
 		if (ret)
 			return ret;
@@ -1080,7 +1080,7 @@ static int init_hyp_mode(void)
 	 */
 	err = kvm_timer_hyp_init();
 	if (err)
-		goto out_free_mappings;
+		goto out_free_context;
 
 #ifndef CONFIG_HOTPLUG_CPU
 	free_boot_hyp_pgd();

@@ -12,7 +12,6 @@
 #ifndef RCAR_SND_H
 #define RCAR_SND_H
 
-#include <linux/sh_clk.h>
 
 #define RSND_GEN1_SRU	0
 #define RSND_GEN1_ADG	1

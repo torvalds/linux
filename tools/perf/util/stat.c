@@ -196,7 +196,8 @@ static void zero_per_pkg(struct perf_evsel *counter)
 		memset(counter->per_pkg_mask, 0, MAX_NR_CPUS);
 }
 
-static int check_per_pkg(struct perf_evsel *counter, int cpu, bool *skip)
+static int check_per_pkg(struct perf_evsel *counter,
+			 struct perf_counts_values *vals, int cpu, bool *skip)
 {
 	unsigned long *mask = counter->per_pkg_mask;
 	struct cpu_map *cpus = perf_evsel__cpus(counter);
@@ -218,6 +219,17 @@ static int check_per_pkg(struct perf_evsel *counter, int cpu, bool *skip)
 		counter->per_pkg_mask = mask;
 	}
 
+	/*
+	 * we do not consider an event that has not run as a good
+	 * instance to mark a package as used (skip=1). Otherwise
+	 * we may run into a situation where the first CPU in a package
+	 * is not running anything, yet the second is, and this function
+	 * would mark the package as used after the first CPU and would
+	 * not read the values from the second CPU.
+	 */
+	if (!(vals->run && vals->ena))
+		return 0;
+
 	s = cpu_map__get_socket(cpus, cpu);
 	if (s < 0)
 		return -1;
@@ -235,7 +247,7 @@ process_counter_values(struct perf_stat_config *config, struct perf_evsel *evsel
 	static struct perf_counts_values zero;
 	bool skip = false;
 
-	if (check_per_pkg(evsel, cpu, &skip)) {
+	if (check_per_pkg(evsel, count, cpu, &skip)) {
 		pr_err("failed to read per-pkg counter\n");
 		return -1;
 	}

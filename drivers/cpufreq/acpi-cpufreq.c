@@ -149,6 +149,9 @@ static ssize_t show_freqdomain_cpus(struct cpufreq_policy *policy, char *buf)
 {
 	struct acpi_cpufreq_data *data = policy->driver_data;
 
+	if (unlikely(!data))
+		return -ENODEV;
+
 	return cpufreq_show_cpus(data->freqdomain_cpus, buf);
 }
 
@@ -375,12 +378,11 @@ static unsigned int get_cur_freq_on_cpu(unsigned int cpu)
 
 	pr_debug("get_cur_freq_on_cpu (%d)\n", cpu);
 
-	policy = cpufreq_cpu_get(cpu);
+	policy = cpufreq_cpu_get_raw(cpu);
 	if (unlikely(!policy))
 		return 0;
 
 	data = policy->driver_data;
-	cpufreq_cpu_put(policy);
 	if (unlikely(!data || !data->freq_table))
 		return 0;
 

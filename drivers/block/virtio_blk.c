@@ -144,7 +144,7 @@ static void virtblk_done(struct virtqueue *vq)
 	do {
 		virtqueue_disable_cb(vq);
 		while ((vbr = virtqueue_get_buf(vblk->vqs[qid].vq, &len)) != NULL) {
-			blk_mq_complete_request(vbr->req);
+			blk_mq_complete_request(vbr->req, vbr->req->errors);
 			req_done = true;
 		}
 		if (unlikely(virtqueue_is_broken(vq)))

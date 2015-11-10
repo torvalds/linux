@@ -25,7 +25,6 @@
 struct task_struct;
 
 #include <asm/types.h>
-#include <asm/domain.h>
 
 typedef unsigned long mm_segment_t;
 

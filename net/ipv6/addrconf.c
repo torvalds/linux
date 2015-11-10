@@ -3119,6 +3119,8 @@ static void addrconf_gre_config(struct net_device *dev)
 	}
 
 	addrconf_addr_gen(idev, true);
+	if (dev->flags & IFF_POINTOPOINT)
+		addrconf_add_mroute(dev);
 }
 #endif
 
@@ -5127,13 +5129,12 @@ static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 
 			rt = addrconf_get_prefix_route(&ifp->peer_addr, 128,
 						       ifp->idev->dev, 0, 0);
-			if (rt && ip6_del_rt(rt))
-				dst_free(&rt->dst);
+			if (rt)
+				ip6_del_rt(rt);
 		}
 		dst_hold(&ifp->rt->dst);
 
-		if (ip6_del_rt(ifp->rt))
-			dst_free(&ifp->rt->dst);
+		ip6_del_rt(ifp->rt);
 
 		rt_genid_bump_ipv6(net);
 		break;

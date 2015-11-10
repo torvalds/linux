@@ -640,6 +640,32 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 		position = __raw_i915_read32(dev_priv, PIPEDSL(pipe)) & DSL_LINEMASK_GEN3;
 
 	/*
+	 * On HSW, the DSL reg (0x70000) appears to return 0 if we
+	 * read it just before the start of vblank.  So try it again
+	 * so we don't accidentally end up spanning a vblank frame
+	 * increment, causing the pipe_update_end() code to squak at us.
+	 *
+	 * The nature of this problem means we can't simply check the ISR
+	 * bit and return the vblank start value; nor can we use the scanline
+	 * debug register in the transcoder as it appears to have the same
+	 * problem.  We may need to extend this to include other platforms,
+	 * but so far testing only shows the problem on HSW.
+	 */
+	if (IS_HASWELL(dev) && !position) {
+		int i, temp;
+
+		for (i = 0; i < 100; i++) {
+			udelay(1);
+			temp = __raw_i915_read32(dev_priv, PIPEDSL(pipe)) &
+				DSL_LINEMASK_GEN3;
+			if (temp != position) {
+				position = temp;
+				break;
+			}
+		}
+	}
+
+	/*
 	 * See update_scanline_offset() for the details on the
 	 * scanline_offset adjustment.
 	 */

@@ -805,7 +805,12 @@ static void solos_bh(unsigned long card_arg)
 					continue;
 				}
 
-				skb = alloc_skb(size + 1, GFP_ATOMIC);
+				/* Use netdev_alloc_skb() because it adds NET_SKB_PAD of
+				 * headroom, and ensures we can route packets back out an
+				 * Ethernet interface (for example) without having to
+				 * reallocate. Adding NET_IP_ALIGN also ensures that both
+				 * PPPoATM and PPPoEoBR2684 packets end up aligned. */
+				skb = netdev_alloc_skb_ip_align(NULL, size + 1);
 				if (!skb) {
 					if (net_ratelimit())
 						dev_warn(&card->dev->dev, "Failed to allocate sk_buff for RX\n");
@@ -869,7 +874,10 @@ static void solos_bh(unsigned long card_arg)
 		/* Allocate RX skbs for any ports which need them */
 		if (card->using_dma && card->atmdev[port] &&
 		    !card->rx_skb[port]) {
-			struct sk_buff *skb = alloc_skb(RX_DMA_SIZE, GFP_ATOMIC);
+			/* Unlike the MMIO case (qv) we can't add NET_IP_ALIGN
+			 * here; the FPGA can only DMA to addresses which are
+			 * aligned to 4 bytes. */
+			struct sk_buff *skb = dev_alloc_skb(RX_DMA_SIZE);
 			if (skb) {
 				SKB_CB(skb)->dma_addr =
 					dma_map_single(&card->dev->dev, skb->data,

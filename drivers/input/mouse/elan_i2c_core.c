@@ -40,7 +40,7 @@
 #include "elan_i2c.h"
 
 #define DRIVER_NAME		"elan_i2c"
-#define ELAN_DRIVER_VERSION	"1.6.0"
+#define ELAN_DRIVER_VERSION	"1.6.1"
 #define ETP_MAX_PRESSURE	255
 #define ETP_FWIDTH_REDUCE	90
 #define ETP_FINGER_WIDTH	15
@@ -76,7 +76,7 @@ struct elan_tp_data {
 	unsigned int		x_res;
 	unsigned int		y_res;
 
-	u8			product_id;
+	u16			product_id;
 	u8			fw_version;
 	u8			sm_version;
 	u8			iap_version;
@@ -98,14 +98,24 @@ static int elan_get_fwinfo(u8 iap_version, u16 *validpage_count,
 			   u16 *signature_address)
 {
 	switch (iap_version) {
+	case 0x00:
+	case 0x06:
 	case 0x08:
 		*validpage_count = 512;
 		break;
+	case 0x03:
+	case 0x07:
 	case 0x09:
+	case 0x0A:
+	case 0x0B:
+	case 0x0C:
 		*validpage_count = 768;
 		break;
 	case 0x0D:
 		*validpage_count = 896;
+		break;
+	case 0x0E:
+		*validpage_count = 640;
 		break;
 	default:
 		/* unknown ic type clear value */
@@ -266,11 +276,10 @@ static int elan_query_device_info(struct elan_tp_data *data)
 
 	error = elan_get_fwinfo(data->iap_version, &data->fw_validpage_count,
 				&data->fw_signature_address);
-	if (error) {
-		dev_err(&data->client->dev,
-			"unknown iap version %d\n", data->iap_version);
-		return error;
-	}
+	if (error)
+		dev_warn(&data->client->dev,
+			 "unexpected iap version %#04x (ic type: %#04x), firmware update will not work\n",
+			 data->iap_version, data->ic_type);
 
 	return 0;
 }
@@ -485,6 +494,9 @@ static ssize_t elan_sysfs_update_fw(struct device *dev,
 	int error;
 	const u8 *fw_signature;
 	static const u8 signature[] = {0xAA, 0x55, 0xCC, 0x33, 0xFF, 0xFF};
+
+	if (data->fw_validpage_count == 0)
+		return -EINVAL;
 
 	/* Look for a firmware with the product id appended. */
 	fw_name = kasprintf(GFP_KERNEL, ETP_FW_NAME, data->product_id);

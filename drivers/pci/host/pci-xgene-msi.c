@@ -295,7 +295,7 @@ static int xgene_msi_init_allocator(struct xgene_msi *xgene_msi)
 	return 0;
 }
 
-static void xgene_msi_isr(unsigned int irq, struct irq_desc *desc)
+static void xgene_msi_isr(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct xgene_msi_group *msi_groups;

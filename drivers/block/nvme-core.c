@@ -603,31 +603,34 @@ static void req_completion(struct nvme_queue *nvmeq, void *ctx,
 	struct nvme_iod *iod = ctx;
 	struct request *req = iod_get_private(iod);
 	struct nvme_cmd_info *cmd_rq = blk_mq_rq_to_pdu(req);
-
 	u16 status = le16_to_cpup(&cqe->status) >> 1;
+	bool requeue = false;
+	int error = 0;
 
 	if (unlikely(status)) {
 		if (!(status & NVME_SC_DNR || blk_noretry_request(req))
 		    && (jiffies - req->start_time) < req->timeout) {
 			unsigned long flags;
 
+			requeue = true;
 			blk_mq_requeue_request(req);
 			spin_lock_irqsave(req->q->queue_lock, flags);
 			if (!blk_queue_stopped(req->q))
 				blk_mq_kick_requeue_list(req->q);
 			spin_unlock_irqrestore(req->q->queue_lock, flags);
-			return;
+			goto release_iod;
 		}
+
 		if (req->cmd_type == REQ_TYPE_DRV_PRIV) {
 			if (cmd_rq->ctx == CMD_CTX_CANCELLED)
-				req->errors = -EINTR;
+				error = -EINTR;
 			else
-				req->errors = status;
+				error = status;
 		} else {
-			req->errors = nvme_error_status(status);
+			error = nvme_error_status(status);
 		}
-	} else
-		req->errors = 0;
+	}
+
 	if (req->cmd_type == REQ_TYPE_DRV_PRIV) {
 		u32 result = le32_to_cpup(&cqe->result);
 		req->special = (void *)(uintptr_t)result;
@@ -636,8 +639,9 @@ static void req_completion(struct nvme_queue *nvmeq, void *ctx,
 	if (cmd_rq->aborted)
 		dev_warn(nvmeq->dev->dev,
 			"completing aborted command with status:%04x\n",
-			status);
+			error);
 
+release_iod:
 	if (iod->nents) {
 		dma_unmap_sg(nvmeq->dev->dev, iod->sg, iod->nents,
 			rq_data_dir(req) ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
@@ -650,7 +654,8 @@ static void req_completion(struct nvme_queue *nvmeq, void *ctx,
 	}
 	nvme_free_iod(nvmeq->dev, iod);
 
-	blk_mq_complete_request(req);
+	if (likely(!requeue))
+		blk_mq_complete_request(req, error);
 }
 
 /* length is in bytes.  gfp flags indicates whether we may sleep. */
@@ -863,8 +868,7 @@ static int nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (ns && ns->ms && !blk_integrity_rq(req)) {
 		if (!(ns->pi_type && ns->ms == 8) &&
 					req->cmd_type != REQ_TYPE_DRV_PRIV) {
-			req->errors = -EFAULT;
-			blk_mq_complete_request(req);
+			blk_mq_complete_request(req, -EFAULT);
 			return BLK_MQ_RQ_QUEUE_OK;
 		}
 	}
@@ -1806,7 +1810,7 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 
 	length = (io.nblocks + 1) << ns->lba_shift;
 	meta_len = (io.nblocks + 1) * ns->ms;
-	metadata = (void __user *)(unsigned long)io.metadata;
+	metadata = (void __user *)(uintptr_t)io.metadata;
 	write = io.opcode & 1;
 
 	if (ns->ext) {
@@ -1846,7 +1850,7 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	c.rw.metadata = cpu_to_le64(meta_dma);
 
 	status = __nvme_submit_sync_cmd(ns->queue, &c, NULL,
-			(void __user *)io.addr, length, NULL, 0);
+			(void __user *)(uintptr_t)io.addr, length, NULL, 0);
  unmap:
 	if (meta) {
 		if (status == NVME_SC_SUCCESS && !write) {
@@ -1888,7 +1892,7 @@ static int nvme_user_cmd(struct nvme_dev *dev, struct nvme_ns *ns,
 		timeout = msecs_to_jiffies(cmd.timeout_ms);
 
 	status = __nvme_submit_sync_cmd(ns ? ns->queue : dev->admin_q, &c,
-			NULL, (void __user *)cmd.addr, cmd.data_len,
+			NULL, (void __user *)(uintptr_t)cmd.addr, cmd.data_len,
 			&cmd.result, timeout);
 	if (status >= 0) {
 		if (put_user(cmd.result, &ucmd->result))
@@ -2439,6 +2443,22 @@ static void nvme_scan_namespaces(struct nvme_dev *dev, unsigned nn)
 	list_sort(NULL, &dev->namespaces, ns_cmp);
 }
 
+static void nvme_set_irq_hints(struct nvme_dev *dev)
+{
+	struct nvme_queue *nvmeq;
+	int i;
+
+	for (i = 0; i < dev->online_queues; i++) {
+		nvmeq = dev->queues[i];
+
+		if (!nvmeq->tags || !(*nvmeq->tags))
+			continue;
+
+		irq_set_affinity_hint(dev->entry[nvmeq->cq_vector].vector,
+					blk_mq_tags_cpumask(*nvmeq->tags));
+	}
+}
+
 static void nvme_dev_scan(struct work_struct *work)
 {
 	struct nvme_dev *dev = container_of(work, struct nvme_dev, scan_work);
@@ -2450,6 +2470,7 @@ static void nvme_dev_scan(struct work_struct *work)
 		return;
 	nvme_scan_namespaces(dev, le32_to_cpup(&ctrl->nn));
 	kfree(ctrl);
+	nvme_set_irq_hints(dev);
 }
 
 /*
@@ -2953,22 +2974,6 @@ static const struct file_operations nvme_dev_fops = {
 	.compat_ioctl	= nvme_dev_ioctl,
 };
 
-static void nvme_set_irq_hints(struct nvme_dev *dev)
-{
-	struct nvme_queue *nvmeq;
-	int i;
-
-	for (i = 0; i < dev->online_queues; i++) {
-		nvmeq = dev->queues[i];
-
-		if (!nvmeq->tags || !(*nvmeq->tags))
-			continue;
-
-		irq_set_affinity_hint(dev->entry[nvmeq->cq_vector].vector,
-					blk_mq_tags_cpumask(*nvmeq->tags));
-	}
-}
-
 static int nvme_dev_start(struct nvme_dev *dev)
 {
 	int result;
@@ -3009,8 +3014,6 @@ static int nvme_dev_start(struct nvme_dev *dev)
 	result = nvme_setup_io_queues(dev);
 	if (result)
 		goto free_tags;
-
-	nvme_set_irq_hints(dev);
 
 	dev->event_limit = 1;
 	return result;
@@ -3062,7 +3065,6 @@ static int nvme_dev_resume(struct nvme_dev *dev)
 	} else {
 		nvme_unfreeze_queues(dev);
 		nvme_dev_add(dev);
-		nvme_set_irq_hints(dev);
 	}
 	return 0;
 }

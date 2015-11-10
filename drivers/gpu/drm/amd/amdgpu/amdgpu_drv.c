@@ -79,6 +79,7 @@ int amdgpu_exp_hw_support = 0;
 int amdgpu_enable_scheduler = 0;
 int amdgpu_sched_jobs = 16;
 int amdgpu_sched_hw_submission = 2;
+int amdgpu_enable_semaphores = 1;
 
 MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
 module_param_named(vramlimit, amdgpu_vram_limit, int, 0600);
@@ -151,6 +152,9 @@ module_param_named(sched_jobs, amdgpu_sched_jobs, int, 0444);
 
 MODULE_PARM_DESC(sched_hw_submission, "the max number of HW submissions (default 2)");
 module_param_named(sched_hw_submission, amdgpu_sched_hw_submission, int, 0444);
+
+MODULE_PARM_DESC(enable_semaphores, "Enable semaphores (1 = enable (default), 0 = disable)");
+module_param_named(enable_semaphores, amdgpu_enable_semaphores, int, 0644);
 
 static struct pci_device_id pciidlist[] = {
 #ifdef CONFIG_DRM_AMDGPU_CIK
@@ -238,11 +242,11 @@ static struct pci_device_id pciidlist[] = {
 	{0x1002, 0x985F, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_MULLINS|AMD_IS_MOBILITY|AMD_IS_APU},
 #endif
 	/* topaz */
-	{0x1002, 0x6900, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TOPAZ},
-	{0x1002, 0x6901, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TOPAZ},
-	{0x1002, 0x6902, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TOPAZ},
-	{0x1002, 0x6903, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TOPAZ},
-	{0x1002, 0x6907, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TOPAZ},
+	{0x1002, 0x6900, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TOPAZ|AMD_EXP_HW_SUPPORT},
+	{0x1002, 0x6901, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TOPAZ|AMD_EXP_HW_SUPPORT},
+	{0x1002, 0x6902, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TOPAZ|AMD_EXP_HW_SUPPORT},
+	{0x1002, 0x6903, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TOPAZ|AMD_EXP_HW_SUPPORT},
+	{0x1002, 0x6907, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TOPAZ|AMD_EXP_HW_SUPPORT},
 	/* tonga */
 	{0x1002, 0x6920, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TONGA},
 	{0x1002, 0x6921, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TONGA},

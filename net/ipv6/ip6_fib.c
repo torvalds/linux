@@ -155,6 +155,11 @@ static void node_free(struct fib6_node *fn)
 	kmem_cache_free(fib6_node_kmem, fn);
 }
 
+static void rt6_rcu_free(struct rt6_info *rt)
+{
+	call_rcu(&rt->dst.rcu_head, dst_rcu_free);
+}
+
 static void rt6_free_pcpu(struct rt6_info *non_pcpu_rt)
 {
 	int cpu;
@@ -169,7 +174,7 @@ static void rt6_free_pcpu(struct rt6_info *non_pcpu_rt)
 		ppcpu_rt = per_cpu_ptr(non_pcpu_rt->rt6i_pcpu, cpu);
 		pcpu_rt = *ppcpu_rt;
 		if (pcpu_rt) {
-			dst_free(&pcpu_rt->dst);
+			rt6_rcu_free(pcpu_rt);
 			*ppcpu_rt = NULL;
 		}
 	}
@@ -181,7 +186,7 @@ static void rt6_release(struct rt6_info *rt)
 {
 	if (atomic_dec_and_test(&rt->rt6i_ref)) {
 		rt6_free_pcpu(rt);
-		dst_free(&rt->dst);
+		rt6_rcu_free(rt);
 	}
 }
 
@@ -846,7 +851,7 @@ add:
 		*ins = rt;
 		rt->rt6i_node = fn;
 		atomic_inc(&rt->rt6i_ref);
-		inet6_rt_notify(RTM_NEWROUTE, rt, info);
+		inet6_rt_notify(RTM_NEWROUTE, rt, info, 0);
 		info->nl_net->ipv6.rt6_stats->fib_rt_entries++;
 
 		if (!(fn->fn_flags & RTN_RTINFO)) {
@@ -872,7 +877,7 @@ add:
 		rt->rt6i_node = fn;
 		rt->dst.rt6_next = iter->dst.rt6_next;
 		atomic_inc(&rt->rt6i_ref);
-		inet6_rt_notify(RTM_NEWROUTE, rt, info);
+		inet6_rt_notify(RTM_NEWROUTE, rt, info, NLM_F_REPLACE);
 		if (!(fn->fn_flags & RTN_RTINFO)) {
 			info->nl_net->ipv6.rt6_stats->fib_route_nodes++;
 			fn->fn_flags |= RTN_RTINFO;
@@ -932,6 +937,10 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 	int allow_create = 1;
 	int replace_required = 0;
 	int sernum = fib6_new_sernum(info->nl_net);
+
+	if (WARN_ON_ONCE((rt->dst.flags & DST_NOCACHE) &&
+			 !atomic_read(&rt->dst.__refcnt)))
+		return -EINVAL;
 
 	if (info->nlh) {
 		if (!(info->nlh->nlmsg_flags & NLM_F_CREATE))
@@ -1025,6 +1034,7 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 		fib6_start_gc(info->nl_net, rt);
 		if (!(rt->rt6i_flags & RTF_CACHE))
 			fib6_prune_clones(info->nl_net, pn);
+		rt->dst.flags &= ~DST_NOCACHE;
 	}
 
 out:
@@ -1049,7 +1059,8 @@ out:
 			atomic_inc(&pn->leaf->rt6i_ref);
 		}
 #endif
-		dst_free(&rt->dst);
+		if (!(rt->dst.flags & DST_NOCACHE))
+			dst_free(&rt->dst);
 	}
 	return err;
 
@@ -1060,7 +1071,8 @@ out:
 st_failure:
 	if (fn && !(fn->fn_flags & (RTN_RTINFO|RTN_ROOT)))
 		fib6_repair_tree(info->nl_net, fn);
-	dst_free(&rt->dst);
+	if (!(rt->dst.flags & DST_NOCACHE))
+		dst_free(&rt->dst);
 	return err;
 #endif
 }
@@ -1410,7 +1422,7 @@ static void fib6_del_route(struct fib6_node *fn, struct rt6_info **rtp,
 
 	fib6_purge_rt(rt, fn, net);
 
-	inet6_rt_notify(RTM_DELROUTE, rt, info);
+	inet6_rt_notify(RTM_DELROUTE, rt, info, 0);
 	rt6_release(rt);
 }
 

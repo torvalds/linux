@@ -2522,6 +2522,7 @@ void __init setup_ioapic_dest(void)
 	int pin, ioapic, irq, irq_entry;
 	const struct cpumask *mask;
 	struct irq_data *idata;
+	struct irq_chip *chip;
 
 	if (skip_ioapic_setup == 1)
 		return;
@@ -2545,9 +2546,9 @@ void __init setup_ioapic_dest(void)
 		else
 			mask = apic->target_cpus();
 
-		irq_set_affinity(irq, mask);
+		chip = irq_data_get_irq_chip(idata);
+		chip->irq_set_affinity(idata, mask, false);
 	}
-
 }
 #endif
 
@@ -2906,6 +2907,7 @@ int mp_irqdomain_alloc(struct irq_domain *domain, unsigned int virq,
 	struct irq_data *irq_data;
 	struct mp_chip_data *data;
 	struct irq_alloc_info *info = arg;
+	unsigned long flags;
 
 	if (!info || nr_irqs > 1)
 		return -EINVAL;
@@ -2938,11 +2940,14 @@ int mp_irqdomain_alloc(struct irq_domain *domain, unsigned int virq,
 
 	cfg = irqd_cfg(irq_data);
 	add_pin_to_irq_node(data, ioapic_alloc_attr_node(info), ioapic, pin);
+
+	local_irq_save(flags);
 	if (info->ioapic_entry)
 		mp_setup_entry(cfg, data, info->ioapic_entry);
 	mp_register_handler(virq, data->trigger);
 	if (virq < nr_legacy_irqs())
 		legacy_pic->mask(virq);
+	local_irq_restore(flags);
 
 	apic_printk(APIC_VERBOSE, KERN_DEBUG
 		    "IOAPIC[%d]: Set routing entry (%d-%d -> 0x%x -> IRQ %d Mode:%i Active:%i Dest:%d)\n",

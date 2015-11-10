@@ -40,6 +40,7 @@
 
 #define KVM_PIO_PAGE_OFFSET 1
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 2
+#define KVM_HALT_POLL_NS_DEFAULT 500000
 
 #define KVM_IRQCHIP_NUM_PINS  KVM_IOAPIC_NUM_PINS
 
@@ -711,6 +712,7 @@ struct kvm_vcpu_stat {
 	u32 nmi_window_exits;
 	u32 halt_exits;
 	u32 halt_successful_poll;
+	u32 halt_attempted_poll;
 	u32 halt_wakeup;
 	u32 request_irq_exits;
 	u32 irq_exits;
@@ -1224,10 +1226,8 @@ void kvm_complete_insn_gp(struct kvm_vcpu *vcpu, int err);
 
 int kvm_is_in_guest(void);
 
-int __x86_set_memory_region(struct kvm *kvm,
-			    const struct kvm_userspace_memory_region *mem);
-int x86_set_memory_region(struct kvm *kvm,
-			  const struct kvm_userspace_memory_region *mem);
+int __x86_set_memory_region(struct kvm *kvm, int id, gpa_t gpa, u32 size);
+int x86_set_memory_region(struct kvm *kvm, int id, gpa_t gpa, u32 size);
 bool kvm_vcpu_is_reset_bsp(struct kvm_vcpu *vcpu);
 bool kvm_vcpu_is_bsp(struct kvm_vcpu *vcpu);
 

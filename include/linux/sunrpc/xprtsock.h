@@ -42,6 +42,7 @@ struct sock_xprt {
 	/*
 	 * Connection of transports
 	 */
+	unsigned long		sock_state;
 	struct delayed_work	connect_worker;
 	struct sockaddr_storage	srcaddr;
 	unsigned short		srcport;
@@ -75,6 +76,8 @@ struct sock_xprt {
  * TCP RPC flags
  */
 #define TCP_RPC_REPLY		(1UL << 6)
+
+#define XPRT_SOCK_CONNECTING	1U
 
 #endif /* __KERNEL__ */
 

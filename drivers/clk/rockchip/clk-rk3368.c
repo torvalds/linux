@@ -818,6 +818,10 @@ static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
 	GATE(0, "sclk_timer00", "xin24m", CLK_IGNORE_UNUSED, RK3368_CLKGATE_CON(24), 0, GFLAGS),
 };
 
+static const char *const rk3368_critical_clocks[] __initconst = {
+	"pclk_pd_pmu",
+};
+
 static void __init rk3368_clk_init(struct device_node *np)
 {
 	void __iomem *reg_base;
@@ -862,6 +866,8 @@ static void __init rk3368_clk_init(struct device_node *np)
 				   RK3368_GRF_SOC_STATUS0);
 	rockchip_clk_register_branches(rk3368_clk_branches,
 				  ARRAY_SIZE(rk3368_clk_branches));
+	rockchip_clk_protect_critical(rk3368_critical_clocks,
+				      ARRAY_SIZE(rk3368_critical_clocks));
 
 	rockchip_clk_register_armclk(ARMCLKB, "armclkb",
 			mux_armclkb_p, ARRAY_SIZE(mux_armclkb_p),

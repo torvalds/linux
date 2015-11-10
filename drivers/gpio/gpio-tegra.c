@@ -266,7 +266,7 @@ static void tegra_gpio_irq_shutdown(struct irq_data *d)
 	gpiochip_unlock_as_irq(&tegra_gpio_chip, gpio);
 }
 
-static void tegra_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void tegra_gpio_irq_handler(struct irq_desc *desc)
 {
 	int port;
 	int pin;

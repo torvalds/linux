@@ -194,6 +194,7 @@ static int __init parkbd_init(void)
 	parkbd_port = parkbd_allocate_serio();
 	if (!parkbd_port) {
 		parport_release(parkbd_dev);
+		parport_unregister_device(parkbd_dev);
 		return -ENOMEM;
 	}
 

@@ -676,15 +676,20 @@ static struct irq_domain *pci_host_bridge_msi_domain(struct pci_bus *bus)
 static void pci_set_bus_msi_domain(struct pci_bus *bus)
 {
 	struct irq_domain *d;
+	struct pci_bus *b;
 
 	/*
-	 * Either bus is the root, and we must obtain it from the
-	 * firmware, or we inherit it from the bridge device.
+	 * The bus can be a root bus, a subordinate bus, or a virtual bus
+	 * created by an SR-IOV device.  Walk up to the first bridge device
+	 * found or derive the domain from the host bridge.
 	 */
-	if (pci_is_root_bus(bus))
-		d = pci_host_bridge_msi_domain(bus);
-	else
-		d = dev_get_msi_domain(&bus->self->dev);
+	for (b = bus, d = NULL; !d && !pci_is_root_bus(b); b = b->parent) {
+		if (b->self)
+			d = dev_get_msi_domain(&b->self->dev);
+	}
+
+	if (!d)
+		d = pci_host_bridge_msi_domain(b);
 
 	dev_set_msi_domain(&bus->dev, d);
 }
@@ -855,9 +860,6 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max, int pass)
 			child->bridge_ctl = bctl;
 		}
 
-		/* Read and initialize bridge resources */
-		pci_read_bridge_bases(child);
-
 		cmax = pci_scan_child_bus(child);
 		if (cmax > subordinate)
 			dev_warn(&dev->dev, "bridge has subordinate %02x but max busn %02x\n",
@@ -918,9 +920,6 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max, int pass)
 
 		if (!is_cardbus) {
 			child->bridge_ctl = bctl;
-
-			/* Read and initialize bridge resources */
-			pci_read_bridge_bases(child);
 			max = pci_scan_child_bus(child);
 		} else {
 			/*

@@ -246,7 +246,8 @@ static void skl_power_well_post_enable(struct drm_i915_private *dev_priv,
 	}
 
 	if (power_well->data == SKL_DISP_PW_1) {
-		intel_prepare_ddi(dev);
+		if (!dev_priv->power_domains.initializing)
+			intel_prepare_ddi(dev);
 		gen8_irq_power_well_post_enable(dev_priv, 1 << PIPE_A);
 	}
 }

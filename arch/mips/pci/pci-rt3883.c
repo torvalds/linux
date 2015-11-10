@@ -129,7 +129,7 @@ static void rt3883_pci_write_cfg32(struct rt3883_pci_controller *rpc,
 	rt3883_pci_w32(rpc, val, RT3883_PCI_REG_CFGDATA);
 }
 
-static void rt3883_pci_irq_handler(unsigned int __irq, struct irq_desc *desc)
+static void rt3883_pci_irq_handler(struct irq_desc *desc)
 {
 	struct rt3883_pci_controller *rpc;
 	u32 pending;

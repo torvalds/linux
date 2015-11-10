@@ -462,11 +462,17 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 	drm_object_attach_property(&connector->base, dev->mode_config.tile_property, 0);
 
 	drm_mode_connector_set_path_property(connector, pathprop);
+	return connector;
+}
+
+static void intel_dp_register_mst_connector(struct drm_connector *connector)
+{
+	struct intel_connector *intel_connector = to_intel_connector(connector);
+	struct drm_device *dev = connector->dev;
 	drm_modeset_lock_all(dev);
 	intel_connector_add_to_fbdev(intel_connector);
 	drm_modeset_unlock_all(dev);
 	drm_connector_register(&intel_connector->base);
-	return connector;
 }
 
 static void intel_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
@@ -512,6 +518,7 @@ static void intel_dp_mst_hotplug(struct drm_dp_mst_topology_mgr *mgr)
 
 static struct drm_dp_mst_topology_cbs mst_cbs = {
 	.add_connector = intel_dp_add_mst_connector,
+	.register_connector = intel_dp_register_mst_connector,
 	.destroy_connector = intel_dp_destroy_mst_connector,
 	.hotplug = intel_dp_mst_hotplug,
 };

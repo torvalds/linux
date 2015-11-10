@@ -142,6 +142,9 @@ static void rt6_uncached_list_flush_dev(struct net *net, struct net_device *dev)
 	struct net_device *loopback_dev = net->loopback_dev;
 	int cpu;
 
+	if (dev == loopback_dev)
+		return;
+
 	for_each_possible_cpu(cpu) {
 		struct uncached_list *ul = per_cpu_ptr(&rt6_uncached_list, cpu);
 		struct rt6_info *rt;
@@ -151,14 +154,12 @@ static void rt6_uncached_list_flush_dev(struct net *net, struct net_device *dev)
 			struct inet6_dev *rt_idev = rt->rt6i_idev;
 			struct net_device *rt_dev = rt->dst.dev;
 
-			if (rt_idev && (rt_idev->dev == dev || !dev) &&
-			    rt_idev->dev != loopback_dev) {
+			if (rt_idev->dev == dev) {
 				rt->rt6i_idev = in6_dev_get(loopback_dev);
 				in6_dev_put(rt_idev);
 			}
 
-			if (rt_dev && (rt_dev == dev || !dev) &&
-			    rt_dev != loopback_dev) {
+			if (rt_dev == dev) {
 				rt->dst.dev = loopback_dev;
 				dev_hold(rt->dst.dev);
 				dev_put(rt_dev);
@@ -247,12 +248,6 @@ static void ip6_rt_blackhole_redirect(struct dst_entry *dst, struct sock *sk,
 {
 }
 
-static u32 *ip6_rt_blackhole_cow_metrics(struct dst_entry *dst,
-					 unsigned long old)
-{
-	return NULL;
-}
-
 static struct dst_ops ip6_dst_blackhole_ops = {
 	.family			=	AF_INET6,
 	.destroy		=	ip6_dst_destroy,
@@ -261,7 +256,7 @@ static struct dst_ops ip6_dst_blackhole_ops = {
 	.default_advmss		=	ip6_default_advmss,
 	.update_pmtu		=	ip6_rt_blackhole_update_pmtu,
 	.redirect		=	ip6_rt_blackhole_redirect,
-	.cow_metrics		=	ip6_rt_blackhole_cow_metrics,
+	.cow_metrics		=	dst_cow_metrics_generic,
 	.neigh_lookup		=	ip6_neigh_lookup,
 };
 
@@ -318,6 +313,15 @@ static const struct rt6_info ip6_blk_hole_entry_template = {
 
 #endif
 
+static void rt6_info_init(struct rt6_info *rt)
+{
+	struct dst_entry *dst = &rt->dst;
+
+	memset(dst + 1, 0, sizeof(*rt) - sizeof(*dst));
+	INIT_LIST_HEAD(&rt->rt6i_siblings);
+	INIT_LIST_HEAD(&rt->rt6i_uncached);
+}
+
 /* allocate dst with ip6_dst_ops */
 static struct rt6_info *__ip6_dst_alloc(struct net *net,
 					struct net_device *dev,
@@ -326,13 +330,9 @@ static struct rt6_info *__ip6_dst_alloc(struct net *net,
 	struct rt6_info *rt = dst_alloc(&net->ipv6.ip6_dst_ops, dev,
 					0, DST_OBSOLETE_FORCE_CHK, flags);
 
-	if (rt) {
-		struct dst_entry *dst = &rt->dst;
+	if (rt)
+		rt6_info_init(rt);
 
-		memset(dst + 1, 0, sizeof(*rt) - sizeof(*dst));
-		INIT_LIST_HEAD(&rt->rt6i_siblings);
-		INIT_LIST_HEAD(&rt->rt6i_uncached);
-	}
 	return rt;
 }
 
@@ -1193,7 +1193,8 @@ struct dst_entry *ip6_route_output(struct net *net, const struct sock *sk,
 
 	fl6->flowi6_iif = LOOPBACK_IFINDEX;
 
-	if ((sk && sk->sk_bound_dev_if) || rt6_need_strict(&fl6->daddr))
+	if ((sk && sk->sk_bound_dev_if) || rt6_need_strict(&fl6->daddr) ||
+	    fl6->flowi6_oif)
 		flags |= RT6_LOOKUP_F_IFACE;
 
 	if (!ipv6_addr_any(&fl6->saddr))
@@ -1212,24 +1213,20 @@ struct dst_entry *ip6_blackhole_route(struct net *net, struct dst_entry *dst_ori
 
 	rt = dst_alloc(&ip6_dst_blackhole_ops, ort->dst.dev, 1, DST_OBSOLETE_NONE, 0);
 	if (rt) {
+		rt6_info_init(rt);
+
 		new = &rt->dst;
-
-		memset(new + 1, 0, sizeof(*rt) - sizeof(*new));
-
 		new->__use = 1;
 		new->input = dst_discard;
 		new->output = dst_discard_sk;
 
-		if (dst_metrics_read_only(&ort->dst))
-			new->_metrics = ort->dst._metrics;
-		else
-			dst_copy_metrics(new, &ort->dst);
+		dst_copy_metrics(new, &ort->dst);
 		rt->rt6i_idev = ort->rt6i_idev;
 		if (rt->rt6i_idev)
 			in6_dev_hold(rt->rt6i_idev);
 
 		rt->rt6i_gateway = ort->rt6i_gateway;
-		rt->rt6i_flags = ort->rt6i_flags;
+		rt->rt6i_flags = ort->rt6i_flags & ~RTF_PCPU;
 		rt->rt6i_metric = 0;
 
 		memcpy(&rt->rt6i_dst, &ort->rt6i_dst, sizeof(struct rt6key));
@@ -1322,8 +1319,7 @@ static void ip6_link_failure(struct sk_buff *skb)
 	if (rt) {
 		if (rt->rt6i_flags & RTF_CACHE) {
 			dst_hold(&rt->dst);
-			if (ip6_del_rt(rt))
-				dst_free(&rt->dst);
+			ip6_del_rt(rt);
 		} else if (rt->rt6i_node && (rt->rt6i_flags & RTF_DEFAULT)) {
 			rt->rt6i_node->fn_sernum = -1;
 		}
@@ -1886,9 +1882,11 @@ int ip6_route_info_create(struct fib6_config *cfg, struct rt6_info **rt_ret)
 			rt->dst.input = ip6_pkt_prohibit;
 			break;
 		case RTN_THROW:
+		case RTN_UNREACHABLE:
 		default:
 			rt->dst.error = (cfg->fc_type == RTN_THROW) ? -EAGAIN
-					: -ENETUNREACH;
+					: (cfg->fc_type == RTN_UNREACHABLE)
+					? -EHOSTUNREACH : -ENETUNREACH;
 			rt->dst.output = ip6_pkt_discard_out;
 			rt->dst.input = ip6_pkt_discard;
 			break;
@@ -2028,7 +2026,8 @@ static int __ip6_del_rt(struct rt6_info *rt, struct nl_info *info)
 	struct fib6_table *table;
 	struct net *net = dev_net(rt->dst.dev);
 
-	if (rt == net->ipv6.ip6_null_entry) {
+	if (rt == net->ipv6.ip6_null_entry ||
+	    rt->dst.flags & DST_NOCACHE) {
 		err = -ENOENT;
 		goto out;
 	}
@@ -2515,6 +2514,7 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 	rt->rt6i_dst.addr = *addr;
 	rt->rt6i_dst.plen = 128;
 	rt->rt6i_table = fib6_get_table(net, RT6_TABLE_LOCAL);
+	rt->dst.flags |= DST_NOCACHE;
 
 	atomic_set(&rt->dst.__refcnt, 1);
 
@@ -2618,7 +2618,8 @@ void rt6_ifdown(struct net *net, struct net_device *dev)
 
 	fib6_clean_all(net, fib6_ifdown, &adn);
 	icmp6_clean_all(fib6_ifdown, &adn);
-	rt6_uncached_list_flush_dev(net, dev);
+	if (dev)
+		rt6_uncached_list_flush_dev(net, dev);
 }
 
 struct rt6_mtu_change_arg {
@@ -3303,7 +3304,8 @@ errout:
 	return err;
 }
 
-void inet6_rt_notify(int event, struct rt6_info *rt, struct nl_info *info)
+void inet6_rt_notify(int event, struct rt6_info *rt, struct nl_info *info,
+		     unsigned int nlm_flags)
 {
 	struct sk_buff *skb;
 	struct net *net = info->nl_net;
@@ -3318,7 +3320,7 @@ void inet6_rt_notify(int event, struct rt6_info *rt, struct nl_info *info)
 		goto errout;
 
 	err = rt6_fill_node(net, skb, rt, NULL, NULL, 0,
-				event, info->portid, seq, 0, 0, 0);
+				event, info->portid, seq, 0, 0, nlm_flags);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in rt6_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);

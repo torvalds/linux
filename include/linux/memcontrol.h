@@ -242,7 +242,6 @@ struct mem_cgroup {
 	 * percpu counter.
 	 */
 	struct mem_cgroup_stat_cpu __percpu *stat;
-	spinlock_t pcp_counter_lock;
 
 #if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_INET)
 	struct cg_proto tcp_mem;
@@ -677,8 +676,9 @@ enum {
 
 struct list_head *mem_cgroup_cgwb_list(struct mem_cgroup *memcg);
 struct wb_domain *mem_cgroup_wb_domain(struct bdi_writeback *wb);
-void mem_cgroup_wb_stats(struct bdi_writeback *wb, unsigned long *pavail,
-			 unsigned long *pdirty, unsigned long *pwriteback);
+void mem_cgroup_wb_stats(struct bdi_writeback *wb, unsigned long *pfilepages,
+			 unsigned long *pheadroom, unsigned long *pdirty,
+			 unsigned long *pwriteback);
 
 #else	/* CONFIG_CGROUP_WRITEBACK */
 
@@ -688,7 +688,8 @@ static inline struct wb_domain *mem_cgroup_wb_domain(struct bdi_writeback *wb)
 }
 
 static inline void mem_cgroup_wb_stats(struct bdi_writeback *wb,
-				       unsigned long *pavail,
+				       unsigned long *pfilepages,
+				       unsigned long *pheadroom,
 				       unsigned long *pdirty,
 				       unsigned long *pwriteback)
 {

@@ -1353,11 +1353,12 @@ static void prepare_write_keepalive(struct ceph_connection *con)
 	dout("prepare_write_keepalive %p\n", con);
 	con_out_kvec_reset(con);
 	if (con->peer_features & CEPH_FEATURE_MSGR_KEEPALIVE2) {
-		struct timespec ts = CURRENT_TIME;
-		struct ceph_timespec ceph_ts;
-		ceph_encode_timespec(&ceph_ts, &ts);
+		struct timespec now = CURRENT_TIME;
+
 		con_out_kvec_add(con, sizeof(tag_keepalive2), &tag_keepalive2);
-		con_out_kvec_add(con, sizeof(ceph_ts), &ceph_ts);
+		ceph_encode_timespec(&con->out_temp_keepalive2, &now);
+		con_out_kvec_add(con, sizeof(con->out_temp_keepalive2),
+				 &con->out_temp_keepalive2);
 	} else {
 		con_out_kvec_add(con, sizeof(tag_keepalive), &tag_keepalive);
 	}

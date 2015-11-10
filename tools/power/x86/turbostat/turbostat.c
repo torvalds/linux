@@ -71,8 +71,11 @@ unsigned int extra_msr_offset32;
 unsigned int extra_msr_offset64;
 unsigned int extra_delta_offset32;
 unsigned int extra_delta_offset64;
+unsigned int aperf_mperf_multiplier = 1;
 int do_smi;
 double bclk;
+double base_hz;
+double tsc_tweak = 1.0;
 unsigned int show_pkg;
 unsigned int show_core;
 unsigned int show_cpu;
@@ -502,7 +505,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	/* %Busy */
 	if (has_aperf) {
 		if (!skip_c0)
-			outp += sprintf(outp, "%8.2f", 100.0 * t->mperf/t->tsc);
+			outp += sprintf(outp, "%8.2f", 100.0 * t->mperf/t->tsc/tsc_tweak);
 		else
 			outp += sprintf(outp, "********");
 	}
@@ -510,7 +513,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	/* Bzy_MHz */
 	if (has_aperf)
 		outp += sprintf(outp, "%8.0f",
-			1.0 * t->tsc / units * t->aperf / t->mperf / interval_float);
+			1.0 * t->tsc * tsc_tweak / units * t->aperf / t->mperf / interval_float);
 
 	/* TSC_MHz */
 	outp += sprintf(outp, "%8.0f", 1.0 * t->tsc/units/interval_float);
@@ -984,6 +987,8 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 			return -3;
 		if (get_msr(cpu, MSR_IA32_MPERF, &t->mperf))
 			return -4;
+		t->aperf = t->aperf * aperf_mperf_multiplier;
+		t->mperf = t->mperf * aperf_mperf_multiplier;
 	}
 
 	if (do_smi) {
@@ -1148,6 +1153,19 @@ int hsw_pkg_cstate_limits[16] = {PCL__0, PCL__2, PCL__3, PCL__6, PCL__7, PCL_7S,
 int slv_pkg_cstate_limits[16] = {PCL__0, PCL__1, PCLRSV, PCLRSV, PCL__4, PCLRSV, PCL__6, PCL__7, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
 int amt_pkg_cstate_limits[16] = {PCL__0, PCL__1, PCL__2, PCLRSV, PCLRSV, PCLRSV, PCL__6, PCL__7, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
 int phi_pkg_cstate_limits[16] = {PCL__0, PCL__2, PCL_6N, PCL_6R, PCLRSV, PCLRSV, PCLRSV, PCLUNL, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
+
+
+static void
+calculate_tsc_tweak()
+{
+	unsigned long long msr;
+	unsigned int base_ratio;
+
+	get_msr(base_cpu, MSR_NHM_PLATFORM_INFO, &msr);
+	base_ratio = (msr >> 8) & 0xFF;
+	base_hz = base_ratio * bclk * 1000000;
+	tsc_tweak = base_hz / tsc_hz;
+}
 
 static void
 dump_nhm_platform_info(void)
@@ -1926,8 +1944,6 @@ int has_config_tdp(unsigned int family, unsigned int model)
 
 	switch (model) {
 	case 0x3A:	/* IVB */
-	case 0x3E:	/* IVB Xeon */
-
 	case 0x3C:	/* HSW */
 	case 0x3F:	/* HSX */
 	case 0x45:	/* HSW */
@@ -2543,6 +2559,13 @@ int is_knl(unsigned int family, unsigned int model)
 	return 0;
 }
 
+unsigned int get_aperf_mperf_multiplier(unsigned int family, unsigned int model)
+{
+	if (is_knl(family, model))
+		return 1024;
+	return 1;
+}
+
 #define SLM_BCLK_FREQS 5
 double slm_freq_table[SLM_BCLK_FREQS] = { 83.3, 100.0, 133.3, 116.7, 80.0};
 
@@ -2744,6 +2767,9 @@ void process_cpuid()
 		}
 	}
 
+	if (has_aperf)
+		aperf_mperf_multiplier = get_aperf_mperf_multiplier(family, model);
+
 	do_nhm_platform_info = do_nhm_cstates = do_smi = probe_nhm_msrs(family, model);
 	do_snb_cstates = has_snb_msrs(family, model);
 	do_pc2 = do_snb_cstates && (pkg_cstate_limit >= PCL__2);
@@ -2761,6 +2787,9 @@ void process_cpuid()
 
 	if (debug)
 		dump_cstate_pstate_config_info();
+
+	if (has_skl_msrs(family, model))
+		calculate_tsc_tweak();
 
 	return;
 }
@@ -3090,7 +3119,7 @@ int get_and_dump_counters(void)
 }
 
 void print_version() {
-	fprintf(stderr, "turbostat version 4.7 17-June, 2015"
+	fprintf(stderr, "turbostat version 4.8 26-Sep, 2015"
 		" - Len Brown <lenb@kernel.org>\n");
 }
 

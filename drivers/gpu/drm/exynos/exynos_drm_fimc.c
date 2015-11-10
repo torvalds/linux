@@ -1206,23 +1206,6 @@ static struct exynos_drm_ipp_ops fimc_dst_ops = {
 	.set_addr = fimc_dst_set_addr,
 };
 
-static int fimc_clk_ctrl(struct fimc_context *ctx, bool enable)
-{
-	DRM_DEBUG_KMS("enable[%d]\n", enable);
-
-	if (enable) {
-		clk_prepare_enable(ctx->clocks[FIMC_CLK_GATE]);
-		clk_prepare_enable(ctx->clocks[FIMC_CLK_WB_A]);
-		ctx->suspended = false;
-	} else {
-		clk_disable_unprepare(ctx->clocks[FIMC_CLK_GATE]);
-		clk_disable_unprepare(ctx->clocks[FIMC_CLK_WB_A]);
-		ctx->suspended = true;
-	}
-
-	return 0;
-}
-
 static irqreturn_t fimc_irq_handler(int irq, void *dev_id)
 {
 	struct fimc_context *ctx = dev_id;
@@ -1780,6 +1763,24 @@ static int fimc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int fimc_clk_ctrl(struct fimc_context *ctx, bool enable)
+{
+	DRM_DEBUG_KMS("enable[%d]\n", enable);
+
+	if (enable) {
+		clk_prepare_enable(ctx->clocks[FIMC_CLK_GATE]);
+		clk_prepare_enable(ctx->clocks[FIMC_CLK_WB_A]);
+		ctx->suspended = false;
+	} else {
+		clk_disable_unprepare(ctx->clocks[FIMC_CLK_GATE]);
+		clk_disable_unprepare(ctx->clocks[FIMC_CLK_WB_A]);
+		ctx->suspended = true;
+	}
+
+	return 0;
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int fimc_suspend(struct device *dev)
 {
@@ -1806,7 +1807,6 @@ static int fimc_resume(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM
 static int fimc_runtime_suspend(struct device *dev)
 {
 	struct fimc_context *ctx = get_fimc_context(dev);

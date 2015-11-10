@@ -2000,6 +2000,7 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 		 */
 		reg = _mv88e6xxx_reg_read(ds, REG_PORT(port), PORT_PCS_CTRL);
 		if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port)) {
+			reg &= ~PORT_PCS_CTRL_UNFORCED;
 			reg |= PORT_PCS_CTRL_FORCE_LINK |
 				PORT_PCS_CTRL_LINK_UP |
 				PORT_PCS_CTRL_DUPLEX_FULL |
@@ -2050,6 +2051,8 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 				reg |= PORT_CONTROL_FRAME_ETHER_TYPE_DSA;
 			else
 				reg |= PORT_CONTROL_FRAME_MODE_DSA;
+			reg |= PORT_CONTROL_FORWARD_UNKNOWN |
+				PORT_CONTROL_FORWARD_UNKNOWN_MC;
 		}
 
 		if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||

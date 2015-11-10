@@ -228,11 +228,7 @@ static void msi_domain_update_chip_ops(struct msi_domain_info *info)
 {
 	struct irq_chip *chip = info->chip;
 
-	BUG_ON(!chip);
-	if (!chip->irq_mask)
-		chip->irq_mask = pci_msi_mask_irq;
-	if (!chip->irq_unmask)
-		chip->irq_unmask = pci_msi_unmask_irq;
+	BUG_ON(!chip || !chip->irq_mask || !chip->irq_unmask);
 	if (!chip->irq_set_affinity)
 		chip->irq_set_affinity = msi_domain_set_affinity;
 }

@@ -83,7 +83,7 @@ static void keystone_irq_ack(struct irq_data *d)
 	/* nothing to do here */
 }
 
-static void keystone_irq_handler(unsigned __irq, struct irq_desc *desc)
+static void keystone_irq_handler(struct irq_desc *desc)
 {
 	unsigned int irq = irq_desc_get_irq(desc);
 	struct keystone_irq_device *kirq = irq_desc_get_handler_data(desc);
@@ -127,7 +127,7 @@ static int keystone_irq_map(struct irq_domain *h, unsigned int virq,
 
 	irq_set_chip_data(virq, kirq);
 	irq_set_chip_and_handler(virq, &kirq->chip, handle_level_irq);
-	set_irq_flags(virq, IRQF_VALID | IRQF_PROBE);
+	irq_set_probe(virq);
 	return 0;
 }
 

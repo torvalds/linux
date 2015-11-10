@@ -53,9 +53,7 @@
 #define	IFSR32_EL2	25	/* Instruction Fault Status Register */
 #define	FPEXC32_EL2	26	/* Floating-Point Exception Control Register */
 #define	DBGVCR32_EL2	27	/* Debug Vector Catch Register */
-#define	TEECR32_EL1	28	/* ThumbEE Configuration Register */
-#define	TEEHBR32_EL1	29	/* ThumbEE Handler Base Register */
-#define	NR_SYS_REGS	30
+#define	NR_SYS_REGS	28
 
 /* 32bit mapping */
 #define c0_MPIDR	(MPIDR_EL1 * 2)	/* MultiProcessor ID Register */

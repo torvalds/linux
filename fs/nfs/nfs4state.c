@@ -1481,7 +1481,7 @@ restart:
 					spin_unlock(&state->state_lock);
 				}
 				nfs4_put_open_state(state);
-				clear_bit(NFS4CLNT_RECLAIM_NOGRACE,
+				clear_bit(NFS_STATE_RECLAIM_NOGRACE,
 					&state->flags);
 				spin_lock(&sp->so_lock);
 				goto restart;
@@ -1725,7 +1725,8 @@ restart:
 			if (!test_and_clear_bit(ops->owner_flag_bit,
 							&sp->so_flags))
 				continue;
-			atomic_inc(&sp->so_count);
+			if (!atomic_inc_not_zero(&sp->so_count))
+				continue;
 			spin_unlock(&clp->cl_lock);
 			rcu_read_unlock();
 

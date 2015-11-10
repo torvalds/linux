@@ -455,6 +455,15 @@ static struct at_xdmac_desc *at_xdmac_alloc_desc(struct dma_chan *chan,
 	return desc;
 }
 
+void at_xdmac_init_used_desc(struct at_xdmac_desc *desc)
+{
+	memset(&desc->lld, 0, sizeof(desc->lld));
+	INIT_LIST_HEAD(&desc->descs_list);
+	desc->direction = DMA_TRANS_NONE;
+	desc->xfer_size = 0;
+	desc->active_xfer = false;
+}
+
 /* Call must be protected by lock. */
 static struct at_xdmac_desc *at_xdmac_get_desc(struct at_xdmac_chan *atchan)
 {
@@ -466,7 +475,7 @@ static struct at_xdmac_desc *at_xdmac_get_desc(struct at_xdmac_chan *atchan)
 		desc = list_first_entry(&atchan->free_descs_list,
 					struct at_xdmac_desc, desc_node);
 		list_del(&desc->desc_node);
-		desc->active_xfer = false;
+		at_xdmac_init_used_desc(desc);
 	}
 
 	return desc;
@@ -875,14 +884,14 @@ at_xdmac_interleaved_queue_desc(struct dma_chan *chan,
 
 	if (xt->src_inc) {
 		if (xt->src_sgl)
-			chan_cc |=  AT_XDMAC_CC_SAM_UBS_DS_AM;
+			chan_cc |=  AT_XDMAC_CC_SAM_UBS_AM;
 		else
 			chan_cc |=  AT_XDMAC_CC_SAM_INCREMENTED_AM;
 	}
 
 	if (xt->dst_inc) {
 		if (xt->dst_sgl)
-			chan_cc |=  AT_XDMAC_CC_DAM_UBS_DS_AM;
+			chan_cc |=  AT_XDMAC_CC_DAM_UBS_AM;
 		else
 			chan_cc |=  AT_XDMAC_CC_DAM_INCREMENTED_AM;
 	}

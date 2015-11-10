@@ -261,6 +261,7 @@ static const struct of_device_id mdio_gpio_of_match[] = {
 	{ .compatible = "virtual,mdio-gpio", },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, mdio_gpio_of_match);
 
 static struct platform_driver mdio_gpio_driver = {
 	.probe = mdio_gpio_probe,

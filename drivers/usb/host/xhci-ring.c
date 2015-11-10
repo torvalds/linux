@@ -302,6 +302,15 @@ static int xhci_abort_cmd_ring(struct xhci_hcd *xhci)
 	ret = xhci_handshake(&xhci->op_regs->cmd_ring,
 			CMD_RING_RUNNING, 0, 5 * 1000 * 1000);
 	if (ret < 0) {
+		/* we are about to kill xhci, give it one more chance */
+		xhci_write_64(xhci, temp_64 | CMD_RING_ABORT,
+			      &xhci->op_regs->cmd_ring);
+		udelay(1000);
+		ret = xhci_handshake(&xhci->op_regs->cmd_ring,
+				     CMD_RING_RUNNING, 0, 3 * 1000 * 1000);
+		if (ret == 0)
+			return 0;
+
 		xhci_err(xhci, "Stopped the command ring failed, "
 				"maybe the host is dead\n");
 		xhci->xhc_state |= XHCI_STATE_DYING;
@@ -2182,6 +2191,10 @@ static int process_bulk_intr_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		}
 	/* Fast path - was this the last TRB in the TD for this URB? */
 	} else if (event_trb == td->last_trb) {
+		if (td->urb_length_set && trb_comp_code == COMP_SHORT_TX)
+			return finish_td(xhci, td, event_trb, event, ep,
+					 status, false);
+
 		if (EVENT_TRB_LEN(le32_to_cpu(event->transfer_len)) != 0) {
 			td->urb->actual_length =
 				td->urb->transfer_buffer_length -
@@ -2233,6 +2246,12 @@ static int process_bulk_intr_td(struct xhci_hcd *xhci, struct xhci_td *td,
 			td->urb->actual_length +=
 				TRB_LEN(le32_to_cpu(cur_trb->generic.field[2])) -
 				EVENT_TRB_LEN(le32_to_cpu(event->transfer_len));
+
+		if (trb_comp_code == COMP_SHORT_TX) {
+			xhci_dbg(xhci, "mid bulk/intr SP, wait for last TRB event\n");
+			td->urb_length_set = true;
+			return 0;
+		}
 	}
 
 	return finish_td(xhci, td, event_trb, event, ep, status, false);
@@ -2265,6 +2284,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	u32 trb_comp_code;
 	int ret = 0;
 	int td_num = 0;
+	bool handling_skipped_tds = false;
 
 	slot_id = TRB_TO_SLOT_ID(le32_to_cpu(event->flags));
 	xdev = xhci->devs[slot_id];
@@ -2400,6 +2420,10 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		 */
 		ep->skip = true;
 		xhci_dbg(xhci, "Miss service interval error, set skip flag\n");
+		goto cleanup;
+	case COMP_PING_ERR:
+		ep->skip = true;
+		xhci_dbg(xhci, "No Ping response error, Skip one Isoc TD\n");
 		goto cleanup;
 	default:
 		if (xhci_is_vendor_info_code(xhci, trb_comp_code)) {
@@ -2537,13 +2561,18 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 						 ep, &status);
 
 cleanup:
+
+
+		handling_skipped_tds = ep->skip &&
+			trb_comp_code != COMP_MISSED_INT &&
+			trb_comp_code != COMP_PING_ERR;
+
 		/*
-		 * Do not update event ring dequeue pointer if ep->skip is set.
-		 * Will roll back to continue process missed tds.
+		 * Do not update event ring dequeue pointer if we're in a loop
+		 * processing missed tds.
 		 */
-		if (trb_comp_code == COMP_MISSED_INT || !ep->skip) {
+		if (!handling_skipped_tds)
 			inc_deq(xhci, xhci->event_ring);
-		}
 
 		if (ret) {
 			urb = td->urb;
@@ -2578,7 +2607,7 @@ cleanup:
 	 * Process them as short transfer until reach the td pointed by
 	 * the event.
 	 */
-	} while (ep->skip && trb_comp_code != COMP_MISSED_INT);
+	} while (handling_skipped_tds);
 
 	return 0;
 }
@@ -3461,8 +3490,8 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	if (start_cycle == 0)
 		field |= 0x1;
 
-	/* xHCI 1.0 6.4.1.2.1: Transfer Type field */
-	if (xhci->hci_version == 0x100) {
+	/* xHCI 1.0/1.1 6.4.1.2.1: Transfer Type field */
+	if (xhci->hci_version >= 0x100) {
 		if (urb->transfer_buffer_length > 0) {
 			if (setup->bRequestType & USB_DIR_IN)
 				field |= TRB_TX_TYPE(TRB_DATA_IN);
