@@ -352,9 +352,6 @@ void __iomem *rsnd_gen_reg_get(struct rsnd_priv *priv,
 			       enum rsnd_reg reg);
 phys_addr_t rsnd_gen_get_phy_addr(struct rsnd_priv *priv, int reg_id);
 
-#define rsnd_is_gen1(s)		(((s)->info->flags & RSND_GEN_MASK) == RSND_GEN1)
-#define rsnd_is_gen2(s)		(((s)->info->flags & RSND_GEN_MASK) == RSND_GEN2)
-
 /*
  *	R-Car ADG
  */
@@ -386,6 +383,7 @@ struct rsnd_priv {
 	struct platform_device *pdev;
 	struct rcar_snd_info *info;
 	spinlock_t lock;
+	u32 flags;
 
 	/*
 	 * below value will be filled on rsnd_gen_probe()
@@ -455,6 +453,9 @@ struct rsnd_priv {
 #define rsnd_priv_to_pdev(priv)	((priv)->pdev)
 #define rsnd_priv_to_dev(priv)	(&(rsnd_priv_to_pdev(priv)->dev))
 #define rsnd_priv_to_info(priv)	((priv)->info)
+
+#define rsnd_is_gen1(priv)	(((priv)->flags & RSND_GEN_MASK) == RSND_GEN1)
+#define rsnd_is_gen2(priv)	(((priv)->flags & RSND_GEN_MASK) == RSND_GEN2)
 
 /*
  *	rsnd_kctrl

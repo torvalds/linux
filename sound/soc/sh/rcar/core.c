@@ -1037,6 +1037,7 @@ static int rsnd_probe(struct platform_device *pdev)
 
 	priv->pdev	= pdev;
 	priv->info	= info;
+	priv->flags	= of_data->flags;
 	spin_lock_init(&priv->lock);
 
 	/*
