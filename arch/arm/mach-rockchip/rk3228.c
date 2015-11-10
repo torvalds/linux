@@ -104,6 +104,22 @@ static void __init rk3228_init_late(void)
 
 static void rk3228_restart(char mode, const char *cmd)
 {
+	u32 boot_flag, boot_mode;
+
+	rockchip_restart_get_boot_mode(cmd, &boot_flag, &boot_mode);
+
+	/* for loader */
+	writel_relaxed(boot_flag, RK_PMU_VIRT + RK3228_GRF_OS_REG0);
+	/* for linux */
+	writel_relaxed(boot_mode, RK_PMU_VIRT + RK3228_GRF_OS_REG1);
+
+	dsb();
+
+	/* pll enter slow mode */
+	writel_relaxed(0x11010000, RK_CRU_VIRT + RK3228_CRU_MODE_CON);
+	dsb();
+	writel_relaxed(0xeca8, RK_CRU_VIRT + RK3228_CRU_GLB_SRST_SND_VALUE);
+	dsb();
 }
 
 DT_MACHINE_START(RK3228_DT, "Rockchip RK3228")
