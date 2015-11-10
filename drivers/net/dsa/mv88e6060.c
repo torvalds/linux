@@ -119,7 +119,7 @@ static int mv88e6060_setup_global(struct dsa_switch *ds)
 	 * set the maximum frame size to 1536 bytes, and mask all
 	 * interrupt sources.
 	 */
-	REG_WRITE(REG_GLOBAL, 0x04, 0x0800);
+	REG_WRITE(REG_GLOBAL, 0x04, 0x400);
 
 	/* Enable automatic address learning, set the address
 	 * database size to 1024 entries, and set the default aging
