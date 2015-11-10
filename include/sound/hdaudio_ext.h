@@ -186,9 +186,15 @@ struct hdac_ext_device {
 	/* codec ops */
 	struct hdac_ext_codec_ops ops;
 
+	struct snd_card *card;
+	void *scodec;
 	void *private_data;
 };
 
+struct hdac_ext_dma_params {
+	u32 format;
+	u8 stream_tag;
+};
 #define to_ehdac_device(dev) (container_of((dev), \
 				 struct hdac_ext_device, hdac))
 /*
