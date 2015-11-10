@@ -184,10 +184,10 @@ static ssize_t amdgpu_hwmon_show_temp(struct device *dev,
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	int temp;
 
-	if (adev->pm.funcs->get_temperature)
-		temp = amdgpu_dpm_get_temperature(adev);
-	else
+	if (!amdgpu_powerplay && !adev->pm.funcs->get_temperature)
 		temp = 0;
+	else
+		temp = amdgpu_dpm_get_temperature(adev);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", temp);
 }
@@ -215,8 +215,10 @@ static ssize_t amdgpu_hwmon_get_pwm1_enable(struct device *dev,
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	u32 pwm_mode = 0;
 
-	if (adev->pm.funcs->get_fan_control_mode)
-		pwm_mode = amdgpu_dpm_get_fan_control_mode(adev);
+	if (!amdgpu_powerplay && !adev->pm.funcs->get_fan_control_mode)
+		return -EINVAL;
+
+	pwm_mode = amdgpu_dpm_get_fan_control_mode(adev);
 
 	/* never 0 (full-speed), fuse or smc-controlled always */
 	return sprintf(buf, "%i\n", pwm_mode == FDO_PWM_MODE_STATIC ? 1 : 2);
@@ -231,7 +233,7 @@ static ssize_t amdgpu_hwmon_set_pwm1_enable(struct device *dev,
 	int err;
 	int value;
 
-	if (!adev->pm.funcs->set_fan_control_mode)
+	if (!amdgpu_powerplay && !adev->pm.funcs->set_fan_control_mode)
 		return -EINVAL;
 
 	err = kstrtoint(buf, 10, &value);
@@ -328,9 +330,6 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	umode_t effective_mode = attr->mode;
 
-	if (amdgpu_powerplay)
-		return 0;  /* to do */
-
 	/* Skip limit attributes if DPM is not enabled */
 	if (!adev->pm.dpm_enabled &&
 	    (attr == &sensor_dev_attr_temp1_crit.dev_attr.attr ||
@@ -340,6 +339,9 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	     attr == &sensor_dev_attr_pwm1_max.dev_attr.attr ||
 	     attr == &sensor_dev_attr_pwm1_min.dev_attr.attr))
 		return 0;
+
+	if (amdgpu_powerplay)
+		return effective_mode;
 
 	/* Skip fan attributes if fan is not present */
 	if (adev->pm.no_fan &&
