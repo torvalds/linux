@@ -1209,7 +1209,7 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		 * after the host receives the enum_resp
 		 * message clients may be added or removed
 		 */
-		if (dev->hbm_state <= MEI_HBM_ENUM_CLIENTS &&
+		if (dev->hbm_state <= MEI_HBM_ENUM_CLIENTS ||
 		    dev->hbm_state >= MEI_HBM_STOPPED) {
 			dev_err(dev->dev, "hbm: add client: state mismatch, [%d, %d]\n",
 				dev->dev_state, dev->hbm_state);

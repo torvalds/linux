@@ -992,11 +992,12 @@ static int davinci_spi_probe(struct platform_device *pdev)
 		goto free_master;
 	}
 
-	dspi->irq = platform_get_irq(pdev, 0);
-	if (dspi->irq <= 0) {
+	ret = platform_get_irq(pdev, 0);
+	if (ret == 0)
 		ret = -EINVAL;
+	if (ret < 0)
 		goto free_master;
-	}
+	dspi->irq = ret;
 
 	ret = devm_request_threaded_irq(&pdev->dev, dspi->irq, davinci_spi_irq,
 				dummy_thread_fn, 0, dev_name(&pdev->dev), dspi);
