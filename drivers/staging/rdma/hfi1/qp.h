@@ -128,7 +128,6 @@ static inline void clear_ahg(struct hfi1_qp *qp)
 	if (qp->s_sde && qp->s_ahgidx >= 0)
 		sdma_ahg_free(qp->s_sde, qp->s_ahgidx);
 	qp->s_ahgidx = -1;
-	qp->s_sde = NULL;
 }
 
 /**

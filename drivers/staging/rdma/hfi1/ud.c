@@ -383,6 +383,7 @@ int hfi1_make_ud_req(struct hfi1_qp *qp)
 		lrh0 |= (sc5 & 0xf) << 12;
 		qp->s_sc = sc5;
 	}
+	qp->s_sde = qp_to_sdma_engine(qp, qp->s_sc);
 	qp->s_hdr->ibh.lrh[0] = cpu_to_be16(lrh0);
 	qp->s_hdr->ibh.lrh[1] = cpu_to_be16(ah_attr->dlid);  /* DEST LID */
 	qp->s_hdr->ibh.lrh[2] =

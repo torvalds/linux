@@ -441,7 +441,8 @@ struct hfi1_qp {
 	struct hfi1_swqe *s_wq;  /* send work queue */
 	struct hfi1_mmap_info *ip;
 	struct ahg_ib_header *s_hdr;     /* next packet header to send */
-	u8 s_sc;			/* SC[0..4] for next packet */
+	/* sc for UC/RC QPs - based on ah for UD */
+	u8 s_sc;
 	unsigned long timeout_jiffies;  /* computed from timeout */
 
 	enum ib_mtu path_mtu;

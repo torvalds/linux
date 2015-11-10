@@ -1011,7 +1011,6 @@ int hfi1_verbs_send_dma(struct hfi1_qp *qp, struct ahg_ib_header *ahdr,
 	struct verbs_txreq *tx;
 	struct sdma_txreq *stx;
 	u64 pbc_flags = 0;
-	struct sdma_engine *sde;
 	u8 sc5 = qp->s_sc;
 	int ret;
 
@@ -1032,12 +1031,7 @@ int hfi1_verbs_send_dma(struct hfi1_qp *qp, struct ahg_ib_header *ahdr,
 	if (IS_ERR(tx))
 		goto bail_tx;
 
-	if (!qp->s_hdr->sde) {
-		tx->sde = sde = qp_to_sdma_engine(qp, sc5);
-		if (!sde)
-			goto bail_no_sde;
-	} else
-		tx->sde = sde = qp->s_hdr->sde;
+	tx->sde = qp->s_sde;
 
 	if (likely(pbc == 0)) {
 		u32 vl = sc_to_vlt(dd_from_ibdev(qp->ibqp.device), sc5);
@@ -1052,17 +1046,15 @@ int hfi1_verbs_send_dma(struct hfi1_qp *qp, struct ahg_ib_header *ahdr,
 	if (qp->s_rdma_mr)
 		qp->s_rdma_mr = NULL;
 	tx->hdr_dwords = hdrwords + 2;
-	ret = build_verbs_tx_desc(sde, ss, len, tx, ahdr, pbc);
+	ret = build_verbs_tx_desc(tx->sde, ss, len, tx, ahdr, pbc);
 	if (unlikely(ret))
 		goto bail_build;
 	trace_output_ibhdr(dd_from_ibdev(qp->ibqp.device), &ahdr->ibh);
-	ret =  sdma_send_txreq(sde, &qp->s_iowait, &tx->txreq);
+	ret =  sdma_send_txreq(tx->sde, &qp->s_iowait, &tx->txreq);
 	if (unlikely(ret == -ECOMM))
 		goto bail_ecomm;
 	return ret;
 
-bail_no_sde:
-	hfi1_put_txreq(tx);
 bail_ecomm:
 	/* The current one got "sent" */
 	return 0;

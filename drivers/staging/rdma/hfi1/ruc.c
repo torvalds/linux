@@ -694,11 +694,8 @@ static inline void build_ahg(struct hfi1_qp *qp, u32 npsn)
 		clear_ahg(qp);
 	if (!(qp->s_flags & HFI1_S_AHG_VALID)) {
 		/* first middle that needs copy  */
-		if (qp->s_ahgidx < 0) {
-			if (!qp->s_sde)
-				qp->s_sde = qp_to_sdma_engine(qp, qp->s_sc);
+		if (qp->s_ahgidx < 0)
 			qp->s_ahgidx = sdma_ahg_alloc(qp->s_sde);
-		}
 		if (qp->s_ahgidx >= 0) {
 			qp->s_ahgpsn = npsn;
 			qp->s_hdr->tx_flags |= SDMA_TXREQ_F_AHG_COPY;
@@ -741,7 +738,6 @@ void hfi1_make_ruc_header(struct hfi1_qp *qp, struct hfi1_other_headers *ohdr,
 	u16 lrh0;
 	u32 nwords;
 	u32 extra_bytes;
-	u8 sc5;
 	u32 bth1;
 
 	/* Construct the header. */
@@ -755,9 +751,7 @@ void hfi1_make_ruc_header(struct hfi1_qp *qp, struct hfi1_other_headers *ohdr,
 		lrh0 = HFI1_LRH_GRH;
 		middle = 0;
 	}
-	sc5 = ibp->sl_to_sc[qp->remote_ah_attr.sl];
-	lrh0 |= (sc5 & 0xf) << 12 | (qp->remote_ah_attr.sl & 0xf) << 4;
-	qp->s_sc = sc5;
+	lrh0 |= (qp->s_sc & 0xf) << 12 | (qp->remote_ah_attr.sl & 0xf) << 4;
 	/*
 	 * reset s_hdr/AHG fields
 	 *
