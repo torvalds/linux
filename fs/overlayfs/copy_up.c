@@ -54,7 +54,7 @@ int ovl_copy_xattr(struct dentry *old, struct dentry *new)
 
 	for (name = buf; name < (buf + list_size); name += strlen(name) + 1) {
 		size = vfs_getxattr(old, name, value, XATTR_SIZE_MAX);
-		if (size <= 0) {
+		if (size < 0) {
 			error = size;
 			goto out_free_value;
 		}
