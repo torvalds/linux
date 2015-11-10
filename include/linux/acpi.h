@@ -514,6 +514,11 @@ static inline bool has_acpi_companion(struct device *dev)
 	return false;
 }
 
+static inline void acpi_preset_companion(struct device *dev,
+					 struct acpi_device *parent, u64 addr)
+{
+}
+
 static inline const char *acpi_dev_name(struct acpi_device *adev)
 {
 	return NULL;
