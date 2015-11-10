@@ -13,17 +13,16 @@
 #define MIX_NAME "mix"
 
 struct rsnd_mix {
-	struct rsnd_mix_platform_info *info; /* rcar_snd.h */
 	struct rsnd_mod mod;
 };
 
+#define rsnd_mix_get(priv, id) ((struct rsnd_mix *)(priv->mix) + id)
 #define rsnd_mix_nr(priv) ((priv)->mix_nr)
 #define for_each_rsnd_mix(pos, priv, i)					\
 	for ((i) = 0;							\
 	     ((i) < rsnd_mix_nr(priv)) &&				\
 		     ((pos) = (struct rsnd_mix *)(priv)->mix + i);	\
 	     i++)
-
 
 static void rsnd_mix_soft_reset(struct rsnd_mod *mod)
 {
@@ -114,51 +113,15 @@ struct rsnd_mod *rsnd_mix_mod_get(struct rsnd_priv *priv, int id)
 	if (WARN_ON(id < 0 || id >= rsnd_mix_nr(priv)))
 		id = 0;
 
-	return rsnd_mod_get((struct rsnd_mix *)(priv->mix) + id);
-}
-
-static void rsnd_of_parse_mix(struct platform_device *pdev,
-			      const struct rsnd_of_data *of_data,
-			      struct rsnd_priv *priv)
-{
-	struct device_node *node;
-	struct rsnd_mix_platform_info *mix_info;
-	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
-	struct device *dev = &pdev->dev;
-	int nr;
-
-	if (!of_data)
-		return;
-
-	node = rsnd_mix_of_node(priv);
-	if (!node)
-		return;
-
-	nr = of_get_child_count(node);
-	if (!nr)
-		goto rsnd_of_parse_mix_end;
-
-	mix_info = devm_kzalloc(dev,
-				sizeof(struct rsnd_mix_platform_info) * nr,
-				GFP_KERNEL);
-	if (!mix_info) {
-		dev_err(dev, "mix info allocation error\n");
-		goto rsnd_of_parse_mix_end;
-	}
-
-	info->mix_info		= mix_info;
-	info->mix_info_nr	= nr;
-
-rsnd_of_parse_mix_end:
-	of_node_put(node);
-
+	return rsnd_mod_get(rsnd_mix_get(priv, id));
 }
 
 int rsnd_mix_probe(struct platform_device *pdev,
 		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv)
 {
-	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
+	struct device_node *node;
+	struct device_node *np;
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_mix *mix;
 	struct clk *clk;
@@ -169,36 +132,50 @@ int rsnd_mix_probe(struct platform_device *pdev,
 	if (rsnd_is_gen1(priv))
 		return 0;
 
-	rsnd_of_parse_mix(pdev, of_data, priv);
+	node = rsnd_mix_of_node(priv);
+	if (!node)
+		return 0; /* not used is not error */
 
-	nr = info->mix_info_nr;
-	if (!nr)
-		return 0;
+	nr = of_get_child_count(node);
+	if (!nr) {
+		ret = -EINVAL;
+		goto rsnd_mix_probe_done;
+	}
 
 	mix	= devm_kzalloc(dev, sizeof(*mix) * nr, GFP_KERNEL);
-	if (!mix)
-		return -ENOMEM;
+	if (!mix) {
+		ret = -ENOMEM;
+		goto rsnd_mix_probe_done;
+	}
 
 	priv->mix_nr	= nr;
 	priv->mix	= mix;
 
-	for_each_rsnd_mix(mix, priv, i) {
+	i = 0;
+	for_each_child_of_node(node, np) {
+		mix = rsnd_mix_get(priv, i);
+
 		snprintf(name, MIX_NAME_SIZE, "%s.%d",
 			 MIX_NAME, i);
 
 		clk = devm_clk_get(dev, name);
-		if (IS_ERR(clk))
-			return PTR_ERR(clk);
-
-		mix->info = &info->mix_info[i];
+		if (IS_ERR(clk)) {
+			ret = PTR_ERR(clk);
+			goto rsnd_mix_probe_done;
+		}
 
 		ret = rsnd_mod_init(priv, rsnd_mod_get(mix), &rsnd_mix_ops,
 				    clk, RSND_MOD_MIX, i);
 		if (ret)
-			return ret;
+			goto rsnd_mix_probe_done;
+
+		i++;
 	}
 
-	return 0;
+rsnd_mix_probe_done:
+	of_node_put(node);
+
+	return ret;
 }
 
 void rsnd_mix_remove(struct platform_device *pdev,
