@@ -681,9 +681,10 @@ static uint32_t fw_type_convert(struct cgs_device *cgs_device, uint32_t fw_type)
 		result = AMDGPU_UCODE_ID_CP_MEC1;
 		break;
 	case CGS_UCODE_ID_CP_MEC_JT2:
-		if (adev->asic_type == CHIP_TONGA)
+		if (adev->asic_type == CHIP_TONGA || adev->asic_type == CHIP_BAFFIN
+		  || adev->asic_type == CHIP_ELLESMERE)
 			result = AMDGPU_UCODE_ID_CP_MEC2;
-		else if (adev->asic_type == CHIP_CARRIZO)
+		else
 			result = AMDGPU_UCODE_ID_CP_MEC1;
 		break;
 	case CGS_UCODE_ID_RLC_G:
@@ -740,6 +741,12 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 			break;
 		case CHIP_FIJI:
 			strcpy(fw_name, "amdgpu/fiji_smc.bin");
+			break;
+		case CHIP_BAFFIN:
+			strcpy(fw_name, "amdgpu/baffin_smc.bin");
+			break;
+		case CHIP_ELLESMERE:
+			strcpy(fw_name, "amdgpu/ellesmere_smc.bin");
 			break;
 		default:
 			DRM_ERROR("SMC firmware not supported\n");
