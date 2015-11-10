@@ -1045,6 +1045,9 @@ static int play_iframe(struct av7110 *av7110, char __user *buf, unsigned int len
 
 	dprintk(2, "av7110:%p, \n", av7110);
 
+	if (len == 0)
+		return 0;
+
 	if (!(av7110->playing & RP_VIDEO)) {
 		if (av7110_av_start_play(av7110, RP_VIDEO) < 0)
 			return -EBUSY;
