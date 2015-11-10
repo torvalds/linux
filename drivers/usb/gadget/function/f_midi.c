@@ -324,7 +324,6 @@ static int f_midi_start_ep(struct f_midi *midi,
 static int f_midi_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 {
 	struct f_midi *midi = func_to_midi(f);
-	struct usb_composite_dev *cdev = f->config->cdev;
 	unsigned i;
 	int err;
 
@@ -339,24 +338,6 @@ static int f_midi_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	err = f_midi_start_ep(midi, f, midi->out_ep);
 	if (err)
 		return err;
-
-	usb_ep_disable(midi->out_ep);
-
-	err = config_ep_by_speed(midi->gadget, f, midi->out_ep);
-	if (err) {
-		ERROR(cdev, "can't configure %s: %d\n",
-		      midi->out_ep->name, err);
-		return err;
-	}
-
-	err = usb_ep_enable(midi->out_ep);
-	if (err) {
-		ERROR(cdev, "can't start %s: %d\n",
-		      midi->out_ep->name, err);
-		return err;
-	}
-
-	midi->out_ep->driver_data = midi;
 
 	/* allocate a bunch of read buffers and queue them all at once. */
 	for (i = 0; i < midi->qlen && err == 0; i++) {
