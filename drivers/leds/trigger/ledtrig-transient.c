@@ -85,7 +85,7 @@ static ssize_t transient_activate_store(struct device *dev,
 		transient_data->restore_state =
 		    (transient_data->state == LED_FULL) ? LED_OFF : LED_FULL;
 		mod_timer(&transient_data->timer,
-			  jiffies + transient_data->duration);
+			  jiffies + msecs_to_jiffies(transient_data->duration));
 	}
 
 	/* state == 0 && transient_data->activate == 0
