@@ -643,6 +643,7 @@ struct iwl_mvm {
 	unsigned int scan_status;
 	void *scan_cmd;
 	struct iwl_mcast_filter_cmd *mcast_filter_cmd;
+	bool scan_fragmented;
 
 	/* max number of simultaneous scans the FW supports */
 	unsigned int max_scans;
