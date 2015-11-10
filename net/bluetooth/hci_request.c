@@ -100,7 +100,7 @@ static void hci_req_sync_complete(struct hci_dev *hdev, u8 result, u16 opcode,
 	}
 }
 
-void hci_req_cancel(struct hci_dev *hdev, int err)
+void hci_req_sync_cancel(struct hci_dev *hdev, int err)
 {
 	BT_DBG("%s err 0x%2.2x", hdev->name, err);
 
@@ -259,9 +259,9 @@ int hci_req_sync(struct hci_dev *hdev, void (*req)(struct hci_request *req,
 		return -ENETDOWN;
 
 	/* Serialize all requests */
-	hci_req_lock(hdev);
+	hci_req_sync_lock(hdev);
 	ret = __hci_req_sync(hdev, req, opt, timeout);
-	hci_req_unlock(hdev);
+	hci_req_sync_unlock(hdev);
 
 	return ret;
 }

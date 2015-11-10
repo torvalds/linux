@@ -20,8 +20,8 @@
    SOFTWARE IS DISCLAIMED.
 */
 
-#define hci_req_lock(d)		mutex_lock(&d->req_lock)
-#define hci_req_unlock(d)	mutex_unlock(&d->req_lock)
+#define hci_req_sync_lock(hdev)   mutex_lock(&hdev->req_lock)
+#define hci_req_sync_unlock(hdev) mutex_unlock(&hdev->req_lock)
 
 struct hci_request {
 	struct hci_dev		*hdev;
@@ -50,7 +50,7 @@ int hci_req_sync(struct hci_dev *hdev, void (*req)(struct hci_request *req,
 int __hci_req_sync(struct hci_dev *hdev, void (*func)(struct hci_request *req,
 						      unsigned long opt),
 		   unsigned long opt, __u32 timeout);
-void hci_req_cancel(struct hci_dev *hdev, int err);
+void hci_req_sync_cancel(struct hci_dev *hdev, int err);
 
 struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode, u32 plen,
 				const void *param);

@@ -92,14 +92,14 @@ static ssize_t dut_mode_write(struct file *file, const char __user *user_buf,
 	if (enable == hci_dev_test_flag(hdev, HCI_DUT_MODE))
 		return -EALREADY;
 
-	hci_req_lock(hdev);
+	hci_req_sync_lock(hdev);
 	if (enable)
 		skb = __hci_cmd_sync(hdev, HCI_OP_ENABLE_DUT_MODE, 0, NULL,
 				     HCI_CMD_TIMEOUT);
 	else
 		skb = __hci_cmd_sync(hdev, HCI_OP_RESET, 0, NULL,
 				     HCI_CMD_TIMEOUT);
-	hci_req_unlock(hdev);
+	hci_req_sync_unlock(hdev);
 
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
@@ -156,9 +156,9 @@ static ssize_t vendor_diag_write(struct file *file, const char __user *user_buf,
 	    !test_bit(HCI_RUNNING, &hdev->flags))
 		goto done;
 
-	hci_req_lock(hdev);
+	hci_req_sync_lock(hdev);
 	err = hdev->set_diag(hdev, enable);
-	hci_req_unlock(hdev);
+	hci_req_sync_unlock(hdev);
 
 	if (err < 0)
 		return err;
@@ -1257,7 +1257,7 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 
 	BT_DBG("%s %p", hdev->name, hdev);
 
-	hci_req_lock(hdev);
+	hci_req_sync_lock(hdev);
 
 	if (hci_dev_test_flag(hdev, HCI_UNREGISTER)) {
 		ret = -ENODEV;
@@ -1410,7 +1410,7 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 	}
 
 done:
-	hci_req_unlock(hdev);
+	hci_req_sync_unlock(hdev);
 	return ret;
 }
 
@@ -1504,12 +1504,12 @@ int hci_dev_do_close(struct hci_dev *hdev)
 
 	cancel_delayed_work(&hdev->power_off);
 
-	hci_req_cancel(hdev, ENODEV);
-	hci_req_lock(hdev);
+	hci_req_sync_cancel(hdev, ENODEV);
+	hci_req_sync_lock(hdev);
 
 	if (!test_and_clear_bit(HCI_UP, &hdev->flags)) {
 		cancel_delayed_work_sync(&hdev->cmd_timer);
-		hci_req_unlock(hdev);
+		hci_req_sync_unlock(hdev);
 		return 0;
 	}
 
@@ -1607,7 +1607,7 @@ int hci_dev_do_close(struct hci_dev *hdev)
 	memset(hdev->dev_class, 0, sizeof(hdev->dev_class));
 	bacpy(&hdev->random_addr, BDADDR_ANY);
 
-	hci_req_unlock(hdev);
+	hci_req_sync_unlock(hdev);
 
 	hci_dev_put(hdev);
 	return 0;
@@ -1643,7 +1643,7 @@ static int hci_dev_do_reset(struct hci_dev *hdev)
 
 	BT_DBG("%s %p", hdev->name, hdev);
 
-	hci_req_lock(hdev);
+	hci_req_sync_lock(hdev);
 
 	/* Drop queues */
 	skb_queue_purge(&hdev->rx_q);
@@ -1667,7 +1667,7 @@ static int hci_dev_do_reset(struct hci_dev *hdev)
 
 	ret = __hci_req_sync(hdev, hci_reset_req, 0, HCI_INIT_TIMEOUT);
 
-	hci_req_unlock(hdev);
+	hci_req_sync_unlock(hdev);
 	return ret;
 }
 
@@ -3537,9 +3537,9 @@ struct sk_buff *hci_cmd_sync(struct hci_dev *hdev, u16 opcode, u32 plen,
 
 	bt_dev_dbg(hdev, "opcode 0x%4.4x plen %d", opcode, plen);
 
-	hci_req_lock(hdev);
+	hci_req_sync_lock(hdev);
 	skb = __hci_cmd_sync(hdev, opcode, plen, param, timeout);
-	hci_req_unlock(hdev);
+	hci_req_sync_unlock(hdev);
 
 	return skb;
 }
