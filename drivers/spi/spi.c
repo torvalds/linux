@@ -376,6 +376,7 @@ static void spi_drv_shutdown(struct device *dev)
 
 /**
  * __spi_register_driver - register a SPI driver
+ * @owner: owner module of the driver to register
  * @sdrv: the driver to register
  * Context: can sleep
  *
