@@ -62,6 +62,10 @@ static struct dw_mci_rockchip_compatible {
 		.compatible     = "rockchip,rk3368-sdmmc",
 		.ctrl_type      = DW_MCI_TYPE_RK3368,
 	},
+	{
+		.compatible	= "rockchip,rk3228-sdmmc",
+		.ctrl_type	= DW_MCI_TYPE_RK3228,
+	},
 };
 
 #define syscon_find(np, property) \
@@ -111,7 +115,8 @@ static int dw_mci_rockchip_setup_clock(struct dw_mci *host)
 	if ((priv->ctrl_type == DW_MCI_TYPE_RK3288) ||
 	    (priv->ctrl_type == DW_MCI_TYPE_RK3036) ||
 	    (priv->ctrl_type == DW_MCI_TYPE_RK312X) ||
-	    (priv->ctrl_type == DW_MCI_TYPE_RK3368))
+	    (priv->ctrl_type == DW_MCI_TYPE_RK3368) ||
+	    (priv->ctrl_type == DW_MCI_TYPE_RK3228))
 		host->bus_hz /= (priv->ciu_div + 1);
 
 	return 0;

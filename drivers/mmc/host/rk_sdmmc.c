@@ -3566,6 +3566,8 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 			regmap_write(host->grf, 0x43c, (1<<13)<<16 | (0 << 13));
 	} else if (cpu_is_rk3288()) {
 		grf_writel(((1 << 12) << 16) | (0 << 12), RK3288_GRF_SOC_CON0);
+	} else if (host->cid == DW_MCI_TYPE_RK3228) {
+		grf_writel(((1 << 8) << 16) | (0 << 8), RK3228_GRF_SOC_CON6);
 	}
 
 	/* We assume only low-level chip use gpio_cd */
