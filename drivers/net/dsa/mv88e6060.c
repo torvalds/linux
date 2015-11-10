@@ -188,7 +188,8 @@ static int mv88e6060_setup(struct dsa_switch *ds)
 
 static int mv88e6060_set_addr(struct dsa_switch *ds, u8 *addr)
 {
-	REG_WRITE(REG_GLOBAL, 0x01, (addr[0] << 8) | addr[1]);
+	/* Use the same MAC Address as FD Pause frames for all ports */
+	REG_WRITE(REG_GLOBAL, 0x01, (addr[0] << 9) | addr[1]);
 	REG_WRITE(REG_GLOBAL, 0x02, (addr[2] << 8) | addr[3]);
 	REG_WRITE(REG_GLOBAL, 0x03, (addr[4] << 8) | addr[5]);
 
