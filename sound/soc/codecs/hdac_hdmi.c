@@ -21,6 +21,7 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/hdmi.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/hdaudio_ext.h>
@@ -89,6 +90,60 @@ static int hdac_hdmi_setup_stream(struct hdac_ext_device *hdac,
 	return 0;
 }
 
+static void
+hdac_hdmi_set_dip_index(struct hdac_ext_device *hdac, hda_nid_t pin_nid,
+				int packet_index, int byte_index)
+{
+	int val;
+
+	val = (packet_index << 5) | (byte_index & 0x1f);
+
+	snd_hdac_codec_write(&hdac->hdac, pin_nid, 0,
+				AC_VERB_SET_HDMI_DIP_INDEX, val);
+}
+
+static int hdac_hdmi_setup_audio_infoframe(struct hdac_ext_device *hdac,
+				hda_nid_t cvt_nid, hda_nid_t pin_nid)
+{
+	uint8_t buffer[HDMI_INFOFRAME_HEADER_SIZE + HDMI_AUDIO_INFOFRAME_SIZE];
+	struct hdmi_audio_infoframe frame;
+	u8 *dip = (u8 *)&frame;
+	int ret;
+	int i;
+
+	hdmi_audio_infoframe_init(&frame);
+
+	/* Default stereo for now */
+	frame.channels = 2;
+
+	/* setup channel count */
+	snd_hdac_codec_write(&hdac->hdac, cvt_nid, 0,
+			    AC_VERB_SET_CVT_CHAN_COUNT, frame.channels - 1);
+
+	ret = hdmi_audio_infoframe_pack(&frame, buffer, sizeof(buffer));
+	if (ret < 0)
+		return ret;
+
+	/* stop infoframe transmission */
+	hdac_hdmi_set_dip_index(hdac, pin_nid, 0x0, 0x0);
+	snd_hdac_codec_write(&hdac->hdac, pin_nid, 0,
+			AC_VERB_SET_HDMI_DIP_XMIT, AC_DIPXMIT_DISABLE);
+
+
+	/*  Fill infoframe. Index auto-incremented */
+	hdac_hdmi_set_dip_index(hdac, pin_nid, 0x0, 0x0);
+	for (i = 0; i < sizeof(frame); i++)
+		snd_hdac_codec_write(&hdac->hdac, pin_nid, 0,
+				AC_VERB_SET_HDMI_DIP_DATA, dip[i]);
+
+	/* Start infoframe */
+	hdac_hdmi_set_dip_index(hdac, pin_nid, 0x0, 0x0);
+	snd_hdac_codec_write(&hdac->hdac, pin_nid, 0,
+			AC_VERB_SET_HDMI_DIP_XMIT, AC_DIPXMIT_BEST);
+
+	return 0;
+}
+
 static void hdac_hdmi_set_power_state(struct hdac_ext_device *edev,
 		struct hdac_hdmi_dai_pin_map *dai_map, unsigned int pwr_state)
 {
@@ -110,6 +165,7 @@ static int hdac_hdmi_playback_prepare(struct snd_pcm_substream *substream,
 	struct hdac_hdmi_priv *hdmi = hdac->private_data;
 	struct hdac_hdmi_dai_pin_map *dai_map;
 	struct hdac_ext_dma_params *dd;
+	int ret;
 
 	if (dai->id > 0) {
 		dev_err(&hdac->hdac.dev, "Only one dai supported as of now\n");
@@ -121,6 +177,11 @@ static int hdac_hdmi_playback_prepare(struct snd_pcm_substream *substream,
 	dd = (struct hdac_ext_dma_params *)snd_soc_dai_get_dma_data(dai, substream);
 	dev_dbg(&hdac->hdac.dev, "stream tag from cpu dai %d format in cvt 0x%x\n",
 			dd->stream_tag,	dd->format);
+
+	ret = hdac_hdmi_setup_audio_infoframe(hdac, dai_map->cvt.nid,
+						dai_map->pin.nid);
+	if (ret < 0)
+		return ret;
 
 	return hdac_hdmi_setup_stream(hdac, dai_map->cvt.nid, dai_map->pin.nid,
 					dd->stream_tag, dd->format);
