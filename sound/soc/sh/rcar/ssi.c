@@ -724,7 +724,6 @@ int __rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod)
 }
 
 int rsnd_ssi_probe(struct platform_device *pdev,
-		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv)
 {
 	struct device_node *node;

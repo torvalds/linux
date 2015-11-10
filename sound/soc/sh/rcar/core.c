@@ -99,18 +99,10 @@
 #define RSND_RATES SNDRV_PCM_RATE_8000_96000
 #define RSND_FMTS (SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S16_LE)
 
-static const struct rsnd_of_data rsnd_of_data_gen1 = {
-	.flags = RSND_GEN1,
-};
-
-static const struct rsnd_of_data rsnd_of_data_gen2 = {
-	.flags = RSND_GEN2,
-};
-
 static const struct of_device_id rsnd_of_match[] = {
-	{ .compatible = "renesas,rcar_sound-gen1", .data = &rsnd_of_data_gen1 },
-	{ .compatible = "renesas,rcar_sound-gen2", .data = &rsnd_of_data_gen2 },
-	{ .compatible = "renesas,rcar_sound-gen3", .data = &rsnd_of_data_gen2 }, /* gen2 compatible */
+	{ .compatible = "renesas,rcar_sound-gen1", .data = (void *)RSND_GEN1 },
+	{ .compatible = "renesas,rcar_sound-gen2", .data = (void *)RSND_GEN2 },
+	{ .compatible = "renesas,rcar_sound-gen3", .data = (void *)RSND_GEN2 }, /* gen2 compatible */
 	{},
 };
 MODULE_DEVICE_TABLE(of, rsnd_of_match);
@@ -569,7 +561,6 @@ static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 };
 
 static int rsnd_dai_probe(struct platform_device *pdev,
-			  const struct rsnd_of_data *of_data,
 			  struct rsnd_priv *priv)
 {
 	struct device_node *dai_node;
@@ -582,9 +573,6 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 	struct device *dev = &pdev->dev;
 	int nr, dai_i, io_i, np_i;
 	int ret;
-
-	if (!of_data)
-		return 0;
 
 	dai_node = rsnd_dai_of_node(priv);
 	nr = of_get_child_count(dai_node);
@@ -1002,9 +990,7 @@ static int rsnd_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rsnd_dai *rdai;
 	const struct of_device_id *of_id = of_match_device(rsnd_of_match, dev);
-	const struct rsnd_of_data *of_data;
 	int (*probe_func[])(struct platform_device *pdev,
-			    const struct rsnd_of_data *of_data,
 			    struct rsnd_priv *priv) = {
 		rsnd_gen_probe,
 		rsnd_dma_probe,
@@ -1024,7 +1010,6 @@ static int rsnd_probe(struct platform_device *pdev)
 			    GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
-	of_data = of_id->data;
 
 	/*
 	 *	init priv data
@@ -1037,14 +1022,14 @@ static int rsnd_probe(struct platform_device *pdev)
 
 	priv->pdev	= pdev;
 	priv->info	= info;
-	priv->flags	= of_data->flags;
+	priv->flags	= (u32)of_id->data;
 	spin_lock_init(&priv->lock);
 
 	/*
 	 *	init each module
 	 */
 	for (i = 0; i < ARRAY_SIZE(probe_func); i++) {
-		ret = probe_func[i](pdev, of_data, priv);
+		ret = probe_func[i](pdev, priv);
 		if (ret)
 			return ret;
 	}

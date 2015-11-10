@@ -554,7 +554,6 @@ struct rsnd_mod *rsnd_src_mod_get(struct rsnd_priv *priv, int id)
 }
 
 int rsnd_src_probe(struct platform_device *pdev,
-		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv)
 {
 	struct device_node *node;

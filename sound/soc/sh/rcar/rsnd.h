@@ -115,7 +115,6 @@ enum rsnd_reg {
 	RSND_REG_MAX,
 };
 
-struct rsnd_of_data;
 struct rsnd_priv;
 struct rsnd_mod;
 struct rsnd_dai;
@@ -150,7 +149,6 @@ u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io);
 struct rsnd_mod *rsnd_dma_attach(struct rsnd_dai_stream *io,
 			       struct rsnd_mod *mod, int id);
 int rsnd_dma_probe(struct platform_device *pdev,
-		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv);
 struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node,
 					  struct rsnd_mod *mod, char *name);
@@ -345,7 +343,6 @@ int rsnd_dai_connect(struct rsnd_mod *mod,
  *	R-Car Gen1/Gen2
  */
 int rsnd_gen_probe(struct platform_device *pdev,
-		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv);
 void __iomem *rsnd_gen_reg_get(struct rsnd_priv *priv,
 			       struct rsnd_mod *mod,
@@ -358,7 +355,6 @@ phys_addr_t rsnd_gen_get_phy_addr(struct rsnd_priv *priv, int reg_id);
 int rsnd_adg_ssi_clk_stop(struct rsnd_mod *mod);
 int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *mod, unsigned int rate);
 int rsnd_adg_probe(struct platform_device *pdev,
-		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv);
 void rsnd_adg_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv);
@@ -374,10 +370,6 @@ int rsnd_adg_set_cmd_timsel_gen2(struct rsnd_mod *mod,
 /*
  *	R-Car sound priv
  */
-struct rsnd_of_data {
-	u32 flags;
-};
-
 struct rsnd_priv {
 
 	struct platform_device *pdev;
@@ -515,7 +507,6 @@ int rsnd_kctrl_new_e(struct rsnd_mod *mod,
  *	R-Car SSI
  */
 int rsnd_ssi_probe(struct platform_device *pdev,
-		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv);
 void rsnd_ssi_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv);
@@ -536,7 +527,6 @@ int __rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod);
 int rsnd_ssiu_attach(struct rsnd_dai_stream *io,
 		     struct rsnd_mod *mod);
 int rsnd_ssiu_probe(struct platform_device *pdev,
-		    const struct rsnd_of_data *of_data,
 		    struct rsnd_priv *priv);
 void rsnd_ssiu_remove(struct platform_device *pdev,
 		      struct rsnd_priv *priv);
@@ -545,7 +535,6 @@ void rsnd_ssiu_remove(struct platform_device *pdev,
  *	R-Car SRC
  */
 int rsnd_src_probe(struct platform_device *pdev,
-		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv);
 void rsnd_src_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv);
@@ -560,7 +549,6 @@ unsigned int rsnd_src_get_ssi_rate(struct rsnd_priv *priv,
  *	R-Car CTU
  */
 int rsnd_ctu_probe(struct platform_device *pdev,
-		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv);
 
 void rsnd_ctu_remove(struct platform_device *pdev,
@@ -573,7 +561,6 @@ struct rsnd_mod *rsnd_ctu_mod_get(struct rsnd_priv *priv, int id);
  *	R-Car MIX
  */
 int rsnd_mix_probe(struct platform_device *pdev,
-		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv);
 
 void rsnd_mix_remove(struct platform_device *pdev,
@@ -586,7 +573,6 @@ struct rsnd_mod *rsnd_mix_mod_get(struct rsnd_priv *priv, int id);
  *	R-Car DVC
  */
 int rsnd_dvc_probe(struct platform_device *pdev,
-		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv);
 void rsnd_dvc_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv);
@@ -598,7 +584,6 @@ struct rsnd_mod *rsnd_dvc_mod_get(struct rsnd_priv *priv, int id);
  *	R-Car CMD
  */
 int rsnd_cmd_probe(struct platform_device *pdev,
-		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv);
 void rsnd_cmd_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv);

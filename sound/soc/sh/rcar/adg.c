@@ -516,7 +516,6 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 }
 
 int rsnd_adg_probe(struct platform_device *pdev,
-		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv)
 {
 	struct rsnd_adg *adg;

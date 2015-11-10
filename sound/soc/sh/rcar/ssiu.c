@@ -137,7 +137,6 @@ int rsnd_ssiu_attach(struct rsnd_dai_stream *io,
 }
 
 int rsnd_ssiu_probe(struct platform_device *pdev,
-		    const struct rsnd_of_data *of_data,
 		    struct rsnd_priv *priv)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);

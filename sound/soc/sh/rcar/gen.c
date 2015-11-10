@@ -350,7 +350,6 @@ static int rsnd_gen1_probe(struct platform_device *pdev,
  *		Gen
  */
 int rsnd_gen_probe(struct platform_device *pdev,
-		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
