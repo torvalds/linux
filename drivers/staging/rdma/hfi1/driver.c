@@ -714,8 +714,8 @@ static inline void process_rcv_qp_work(struct hfi1_packet *packet)
 	 */
 	list_for_each_entry_safe(qp, nqp, &rcd->qp_wait_list, rspwait) {
 		list_del_init(&qp->rspwait);
-		if (qp->r_flags & HFI1_R_RSP_NAK) {
-			qp->r_flags &= ~HFI1_R_RSP_NAK;
+		if (qp->r_flags & HFI1_R_RSP_DEFERED_ACK) {
+			qp->r_flags &= ~HFI1_R_RSP_DEFERED_ACK;
 			hfi1_send_rc_ack(rcd, qp, 0);
 		}
 		if (qp->r_flags & HFI1_R_RSP_SEND) {

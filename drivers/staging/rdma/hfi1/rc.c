@@ -1608,6 +1608,16 @@ bail:
 	return;
 }
 
+static inline void rc_defered_ack(struct hfi1_ctxtdata *rcd,
+				  struct hfi1_qp *qp)
+{
+	if (list_empty(&qp->rspwait)) {
+		qp->r_flags |= HFI1_R_RSP_DEFERED_ACK;
+		atomic_inc(&qp->refcount);
+		list_add_tail(&qp->rspwait, &rcd->qp_wait_list);
+	}
+}
+
 /**
  * rc_rcv_error - process an incoming duplicate or error RC packet
  * @ohdr: the other headers for this packet
@@ -1650,11 +1660,7 @@ static noinline int rc_rcv_error(struct hfi1_other_headers *ohdr, void *data,
 			 * in the receive queue have been processed.
 			 * Otherwise, we end up propagating congestion.
 			 */
-			if (list_empty(&qp->rspwait)) {
-				qp->r_flags |= HFI1_R_RSP_NAK;
-				atomic_inc(&qp->refcount);
-				list_add_tail(&qp->rspwait, &rcd->qp_wait_list);
-			}
+			rc_defered_ack(rcd, qp);
 		}
 		goto done;
 	}
@@ -2337,11 +2343,7 @@ rnr_nak:
 	qp->r_nak_state = IB_RNR_NAK | qp->r_min_rnr_timer;
 	qp->r_ack_psn = qp->r_psn;
 	/* Queue RNR NAK for later */
-	if (list_empty(&qp->rspwait)) {
-		qp->r_flags |= HFI1_R_RSP_NAK;
-		atomic_inc(&qp->refcount);
-		list_add_tail(&qp->rspwait, &rcd->qp_wait_list);
-	}
+	rc_defered_ack(rcd, qp);
 	return;
 
 nack_op_err:
@@ -2349,11 +2351,7 @@ nack_op_err:
 	qp->r_nak_state = IB_NAK_REMOTE_OPERATIONAL_ERROR;
 	qp->r_ack_psn = qp->r_psn;
 	/* Queue NAK for later */
-	if (list_empty(&qp->rspwait)) {
-		qp->r_flags |= HFI1_R_RSP_NAK;
-		atomic_inc(&qp->refcount);
-		list_add_tail(&qp->rspwait, &rcd->qp_wait_list);
-	}
+	rc_defered_ack(rcd, qp);
 	return;
 
 nack_inv_unlck:
@@ -2363,11 +2361,7 @@ nack_inv:
 	qp->r_nak_state = IB_NAK_INVALID_REQUEST;
 	qp->r_ack_psn = qp->r_psn;
 	/* Queue NAK for later */
-	if (list_empty(&qp->rspwait)) {
-		qp->r_flags |= HFI1_R_RSP_NAK;
-		atomic_inc(&qp->refcount);
-		list_add_tail(&qp->rspwait, &rcd->qp_wait_list);
-	}
+	rc_defered_ack(rcd, qp);
 	return;
 
 nack_acc_unlck:
@@ -2421,13 +2415,7 @@ void hfi1_rc_hdrerr(
 			 * Otherwise, we end up
 			 * propagating congestion.
 			 */
-			if (list_empty(&qp->rspwait)) {
-				qp->r_flags |= HFI1_R_RSP_NAK;
-				atomic_inc(&qp->refcount);
-				list_add_tail(
-					&qp->rspwait,
-					&rcd->qp_wait_list);
-				}
+			rc_defered_ack(rcd, qp);
 		} /* Out of sequence NAK */
 	} /* QP Request NAKs */
 }

@@ -553,11 +553,13 @@ struct hfi1_qp {
 /*
  * Bit definitions for r_flags.
  */
-#define HFI1_R_REUSE_SGE 0x01
-#define HFI1_R_RDMAR_SEQ 0x02
-#define HFI1_R_RSP_NAK   0x04
-#define HFI1_R_RSP_SEND  0x08
-#define HFI1_R_COMM_EST  0x10
+#define HFI1_R_REUSE_SGE       0x01
+#define HFI1_R_RDMAR_SEQ       0x02
+/* defer ack until end of interrupt session */
+#define HFI1_R_RSP_DEFERED_ACK 0x04
+/* relay ack to send engine */
+#define HFI1_R_RSP_SEND        0x08
+#define HFI1_R_COMM_EST        0x10
 
 /*
  * Bit definitions for s_flags.
