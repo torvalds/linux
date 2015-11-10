@@ -100,6 +100,15 @@
 		clock-frequency = <19200000>;
 	};
 
+	smem {
+		compatible = "qcom,smem";
+
+		memory-region = <&smem_region>;
+		qcom,rpm-msg-ram = <&rpm_msg_ram>;
+
+		hwlocks = <&tcsr_mutex 3>;
+	};
+
 	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -250,13 +259,9 @@
 			#hwlock-cells = <1>;
 		};
 
-		smem@fa00000 {
-			compatible = "qcom,smem";
-
-			memory-region = <&smem_region>;
+		rpm_msg_ram: memory@fc428000 {
+			compatible = "qcom,rpm-msg-ram";
 			reg = <0xfc428000 0x4000>;
-
-			hwlocks = <&tcsr_mutex 3>;
 		};
 
 		blsp1_uart2: serial@f991e000 {
