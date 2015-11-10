@@ -2620,6 +2620,12 @@ static int sci_remove(struct platform_device *dev)
 #define SCI_OF_REGTYPE(data)		((unsigned long)(data) & 0xffff)
 
 static const struct of_device_id of_sci_match[] = {
+	/* SoC-specific types */
+	{
+		.compatible = "renesas,scif-r7s72100",
+		.data = SCI_OF_DATA(PORT_SCIF, SCIx_SH2_SCIF_FIFODATA_REGTYPE),
+	},
+	/* Generic types */
 	{
 		.compatible = "renesas,scif",
 		.data = SCI_OF_DATA(PORT_SCIF, SCIx_SH4_SCIF_REGTYPE),
