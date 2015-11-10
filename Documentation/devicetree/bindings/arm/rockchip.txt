@@ -17,6 +17,10 @@ Rockchip platforms device tree bindings
     Required root node properties:
       - compatible = "radxa,rock", "rockchip,rk3188";
 
+- Radxa Rock2 Square board:
+    Required root node properties:
+      - compatible = "radxa,rock2-square", "rockchip,rk3288";
+
 - Firefly Firefly-RK3288 board:
     Required root node properties:
       - compatible = "firefly,firefly-rk3288", "rockchip,rk3288";
@@ -30,6 +34,13 @@ Rockchip platforms device tree bindings
 - Netxeon R89 board:
     Required root node properties:
       - compatible = "netxeon,r89", "rockchip,rk3288";
+
+- Google Jaq (Haier Chromebook 11 and more):
+    Required root node properties:
+      - compatible = "google,veyron-jaq-rev5", "google,veyron-jaq-rev4",
+		     "google,veyron-jaq-rev3", "google,veyron-jaq-rev2",
+		     "google,veyron-jaq-rev1", "google,veyron-jaq",
+		     "google,veyron", "rockchip,rk3288";
 
 - Google Jerry (Hisense Chromebook C11 and more):
     Required root node properties:

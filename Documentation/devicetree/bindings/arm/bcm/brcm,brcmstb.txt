@@ -20,6 +20,25 @@ system control is required:
     - compatible: "brcm,bcm<chip_id>-hif-cpubiuctrl", "syscon"
     - compatible: "brcm,bcm<chip_id>-hif-continuation", "syscon"
 
+hif-cpubiuctrl node
+-------------------
+SoCs with Broadcom Brahma15 ARM-based CPUs have a specific Bus Interface Unit
+(BIU) block which controls and interfaces the CPU complex to the different
+Memory Controller Ports (MCP), one per memory controller (MEMC). This BIU block
+offers a feature called Write Pairing which consists in collapsing two adjacent
+cache lines into a single (bursted) write transaction towards the memory
+controller (MEMC) to maximize write bandwidth.
+
+Required properties:
+
+    - compatible: must be "brcm,bcm7445-hif-cpubiuctrl", "syscon"
+
+Optional properties:
+
+    - brcm,write-pairing:
+	Boolean property, which when present indicates that the chip
+	supports write-pairing.
+
 example:
     rdb {
         #address-cells = <1>;
@@ -35,6 +54,7 @@ example:
         hif_cpubiuctrl: syscon@3e2400 {
             compatible = "brcm,bcm7445-hif-cpubiuctrl", "syscon";
             reg = <0x3e2400 0x5b4>;
+            brcm,write-pairing;
         };
 
         hif_continuation: syscon@452000 {
@@ -43,8 +63,7 @@ example:
         };
     };
 
-Lastly, nodes that allow for support of SMP initialization and reboot are
-required:
+Nodes that allow for support of SMP initialization and reboot are required:
 
 smpboot
 -------
@@ -95,3 +114,142 @@ example:
         compatible = "brcm,brcmstb-reboot";
         syscon = <&sun_top_ctrl 0x304 0x308>;
     };
+
+
+
+Power management
+----------------
+
+For power management (particularly, S2/S3/S5 system suspend), the following SoC
+components are needed:
+
+= Always-On control block (AON CTRL)
+
+This hardware provides control registers for the "always-on" (even in low-power
+modes) hardware, such as the Power Management State Machine (PMSM).
+
+Required properties:
+- compatible     : should contain "brcm,brcmstb-aon-ctrl"
+- reg            : the register start and length for the AON CTRL block
+
+Example:
+
+aon-ctrl@410000 {
+	compatible = "brcm,brcmstb-aon-ctrl";
+	reg = <0x410000 0x400>;
+};
+
+= Memory controllers
+
+A Broadcom STB SoC typically has a number of independent memory controllers,
+each of which may have several associated hardware blocks, which are versioned
+independently (control registers, DDR PHYs, etc.). One might consider
+describing these controllers as a parent "memory controllers" block, which
+contains N sub-nodes (one for each controller in the system), each of which is
+associated with a number of hardware register resources (e.g., its PHY). See
+the example device tree snippet below.
+
+== MEMC (MEMory Controller)
+
+Represents a single memory controller instance.
+
+Required properties:
+- compatible     : should contain "brcm,brcmstb-memc" and "simple-bus"
+
+Should contain subnodes for any of the following relevant hardware resources:
+
+== DDR PHY control
+
+Control registers for this memory controller's DDR PHY.
+
+Required properties:
+- compatible     : should contain one of these
+	"brcm,brcmstb-ddr-phy-v225.1"
+	"brcm,brcmstb-ddr-phy-v240.1"
+	"brcm,brcmstb-ddr-phy-v240.2"
+
+- reg            : the DDR PHY register range
+
+== DDR SHIMPHY
+
+Control registers for this memory controller's DDR SHIMPHY.
+
+Required properties:
+- compatible     : should contain "brcm,brcmstb-ddr-shimphy-v1.0"
+- reg            : the DDR SHIMPHY register range
+
+== MEMC DDR control
+
+Sequencer DRAM parameters and control registers. Used for Self-Refresh
+Power-Down (SRPD), among other things.
+
+Required properties:
+- compatible     : should contain "brcm,brcmstb-memc-ddr"
+- reg            : the MEMC DDR register range
+
+Example:
+
+memory_controllers {
+	ranges;
+	compatible = "simple-bus";
+
+	memc@0 {
+		compatible = "brcm,brcmstb-memc", "simple-bus";
+		ranges;
+
+		ddr-phy@f1106000 {
+			compatible = "brcm,brcmstb-ddr-phy-v240.1";
+			reg = <0xf1106000 0x21c>;
+		};
+
+		shimphy@f1108000 {
+			compatible = "brcm,brcmstb-ddr-shimphy-v1.0";
+			reg = <0xf1108000 0xe4>;
+		};
+
+		memc-ddr@f1102000 {
+			reg = <0xf1102000 0x800>;
+			compatible = "brcm,brcmstb-memc-ddr";
+		};
+	};
+
+	memc@1 {
+		compatible = "brcm,brcmstb-memc", "simple-bus";
+		ranges;
+
+		ddr-phy@f1186000 {
+			compatible = "brcm,brcmstb-ddr-phy-v240.1";
+			reg = <0xf1186000 0x21c>;
+		};
+
+		shimphy@f1188000 {
+			compatible = "brcm,brcmstb-ddr-shimphy-v1.0";
+			reg = <0xf1188000 0xe4>;
+		};
+
+		memc-ddr@f1182000 {
+			reg = <0xf1182000 0x800>;
+			compatible = "brcm,brcmstb-memc-ddr";
+		};
+	};
+
+	memc@2 {
+		compatible = "brcm,brcmstb-memc", "simple-bus";
+		ranges;
+
+		ddr-phy@f1206000 {
+			compatible = "brcm,brcmstb-ddr-phy-v240.1";
+			reg = <0xf1206000 0x21c>;
+		};
+
+		shimphy@f1208000 {
+			compatible = "brcm,brcmstb-ddr-shimphy-v1.0";
+			reg = <0xf1208000 0xe4>;
+		};
+
+		memc-ddr@f1202000 {
+			reg = <0xf1202000 0x800>;
+			compatible = "brcm,brcmstb-memc-ddr";
+		};
+	};
+};

@@ -1,0 +1,54 @@
+/*
+ * Copyright (C) 2013 ISEE 2007 SL - http://www.isee.biz/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+/dts-v1/;
+
+#include "omap5-board-common.dtsi"
+
+/ {
+	model = "IGEPv5";
+	compatible = "isee,omap5-igep0050", "ti,omap5";
+
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x7f000000>; /* 2032 MB */
+	};
+};
+
+&hdmi {
+	vdda-supply = <&ldo7_reg>;
+};
+
+&i2c4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4_pins>;
+
+	tca6416: tca6416@21 {
+		compatible = "ti,tca6416";
+		reg = <0x21>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+};
+
+&omap5_pmx_core {
+	i2c4_pins: pinmux_i2c4_pins {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x0f8, PIN_INPUT | MUX_MODE0)	/* i2c4_scl */
+			OMAP5_IOPAD(0x0fa, PIN_INPUT | MUX_MODE0)	/* i2c4_sda */
+		>;
+	};
+};
+
+&tpd12s015 {
+	gpios = <&tca6416 11 0>,	/* TCA6416 P01, CT_CP_HDP */
+		<&tca6416 12 0>,	/* TCA6416 P00, LS_OE*/
+		<&gpio7 1 0>,		/* 193, HPD */
+		<&gpio7 2 0>,		/* 194, SCL */
+		<&gpio7 3 0>;		/* 195, SDA */
+};
+

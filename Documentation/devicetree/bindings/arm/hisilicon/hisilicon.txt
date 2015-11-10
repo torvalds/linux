@@ -20,6 +20,10 @@ HiKey Board
 Required root node properties:
 	- compatible = "hisilicon,hi6220-hikey", "hisilicon,hi6220";
 
+HiP05 D02 Board
+Required root node properties:
+	- compatible = "hisilicon,hip05-d02";
+
 Hisilicon system controller
 
 Required properties:

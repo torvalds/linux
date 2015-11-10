@@ -127,10 +127,31 @@
 				};
 			};
 
-			uart_pins: uart_pins {
+			gsbi6_uart_2pins: gsbi6_uart_2pins {
+				mux {
+					pins = "gpio14", "gpio15";
+					function = "gsbi6";
+				};
+			};
+
+			gsbi6_uart_4pins: gsbi6_uart_4pins {
 				mux {
 					pins = "gpio14", "gpio15", "gpio16", "gpio17";
 					function = "gsbi6";
+				};
+			};
+
+			gsbi7_uart_2pins: gsbi7_uart_2pins {
+				mux {
+					pins = "gpio82", "gpio83";
+					function = "gsbi7";
+				};
+			};
+
+			gsbi7_uart_4pins: gsbi7_uart_4pins {
+				mux {
+					pins = "gpio82", "gpio83", "gpio84", "gpio85";
+					function = "gsbi7";
 				};
 			};
 		};
@@ -213,6 +234,8 @@
 
 			i2c1: i2c@12460000 {
 				compatible = "qcom,i2c-qup-v1.1.1";
+				pinctrl-0 = <&i2c1_pins>;
+				pinctrl-names = "default";
 				reg = <0x12460000 0x1000>;
 				interrupts = <0 194 IRQ_TYPE_NONE>;
 				clocks = <&gcc GSBI1_QUP_CLK>, <&gcc GSBI1_H_CLK>;
@@ -258,6 +281,8 @@
 			ranges;
 			i2c3: i2c@16280000 {
 				compatible = "qcom,i2c-qup-v1.1.1";
+				pinctrl-0 = <&i2c3_pins>;
+				pinctrl-names = "default";
 				reg = <0x16280000 0x1000>;
 				interrupts = <GIC_SPI 151 IRQ_TYPE_NONE>;
 				clocks = <&gcc GSBI3_QUP_CLK>,
@@ -361,6 +386,22 @@
 					<136 1>, <137 1>, <138 1>, <139 1>;
 				};
 
+				rtc@11d {
+					compatible = "qcom,pm8921-rtc";
+					interrupt-parent = <&pmicintc>;
+					interrupts = <39 1>;
+					reg = <0x11d>;
+					allow-set-time;
+				};
+
+				pwrkey@1c {
+					compatible = "qcom,pm8921-pwrkey";
+					reg = <0x1c>;
+					interrupt-parent = <&pmicintc>;
+					interrupts = <50 1>, <51 1>;
+					debounce = <15625>;
+					pull-up;
+				};
 			};
 		};
 
