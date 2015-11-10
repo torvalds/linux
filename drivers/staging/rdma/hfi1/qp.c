@@ -378,6 +378,7 @@ static void reset_qp(struct hfi1_qp *qp, enum ib_qp_type type)
 	}
 	qp->s_ack_state = IB_OPCODE_RC_ACKNOWLEDGE;
 	qp->r_nak_state = 0;
+	qp->r_adefered = 0;
 	qp->r_aflags = 0;
 	qp->r_flags = 0;
 	qp->s_head = 0;

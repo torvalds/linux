@@ -1618,6 +1618,17 @@ static inline void rc_defered_ack(struct hfi1_ctxtdata *rcd,
 	}
 }
 
+static inline void rc_cancel_ack(struct hfi1_qp *qp)
+{
+	qp->r_adefered = 0;
+	if (list_empty(&qp->rspwait))
+		return;
+	list_del_init(&qp->rspwait);
+	qp->r_flags &= ~HFI1_R_RSP_DEFERED_ACK;
+	if (atomic_dec_and_test(&qp->refcount))
+		wake_up(&qp->wait);
+}
+
 /**
  * rc_rcv_error - process an incoming duplicate or error RC packet
  * @ohdr: the other headers for this packet
@@ -2335,8 +2346,22 @@ send_last:
 	qp->r_ack_psn = psn;
 	qp->r_nak_state = 0;
 	/* Send an ACK if requested or required. */
-	if (psn & (1 << 31))
-		goto send_ack;
+	if (psn & IB_BTH_REQ_ACK) {
+		if (packet->numpkt == 0) {
+			rc_cancel_ack(qp);
+			goto send_ack;
+		}
+		if (qp->r_adefered >= HFI1_PSN_CREDIT) {
+			rc_cancel_ack(qp);
+			goto send_ack;
+		}
+		if (unlikely(is_fecn)) {
+			rc_cancel_ack(qp);
+			goto send_ack;
+		}
+		qp->r_adefered++;
+		rc_defered_ack(rcd, qp);
+	}
 	return;
 
 rnr_nak:
