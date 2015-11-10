@@ -27,6 +27,10 @@
 #include "smp.h"
 #include "hci_request.h"
 
+#define HCI_REQ_DONE	  0
+#define HCI_REQ_PEND	  1
+#define HCI_REQ_CANCELED  2
+
 void hci_req_init(struct hci_request *req, struct hci_dev *hdev)
 {
 	skb_queue_head_init(&req->cmd_q);
@@ -80,6 +84,186 @@ int hci_req_run(struct hci_request *req, hci_req_complete_t complete)
 int hci_req_run_skb(struct hci_request *req, hci_req_complete_skb_t complete)
 {
 	return req_run(req, NULL, complete);
+}
+
+static void hci_req_sync_complete(struct hci_dev *hdev, u8 result, u16 opcode,
+				  struct sk_buff *skb)
+{
+	BT_DBG("%s result 0x%2.2x", hdev->name, result);
+
+	if (hdev->req_status == HCI_REQ_PEND) {
+		hdev->req_result = result;
+		hdev->req_status = HCI_REQ_DONE;
+		if (skb)
+			hdev->req_skb = skb_get(skb);
+		wake_up_interruptible(&hdev->req_wait_q);
+	}
+}
+
+void hci_req_cancel(struct hci_dev *hdev, int err)
+{
+	BT_DBG("%s err 0x%2.2x", hdev->name, err);
+
+	if (hdev->req_status == HCI_REQ_PEND) {
+		hdev->req_result = err;
+		hdev->req_status = HCI_REQ_CANCELED;
+		wake_up_interruptible(&hdev->req_wait_q);
+	}
+}
+
+struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
+				  const void *param, u8 event, u32 timeout)
+{
+	DECLARE_WAITQUEUE(wait, current);
+	struct hci_request req;
+	struct sk_buff *skb;
+	int err = 0;
+
+	BT_DBG("%s", hdev->name);
+
+	hci_req_init(&req, hdev);
+
+	hci_req_add_ev(&req, opcode, plen, param, event);
+
+	hdev->req_status = HCI_REQ_PEND;
+
+	add_wait_queue(&hdev->req_wait_q, &wait);
+	set_current_state(TASK_INTERRUPTIBLE);
+
+	err = hci_req_run_skb(&req, hci_req_sync_complete);
+	if (err < 0) {
+		remove_wait_queue(&hdev->req_wait_q, &wait);
+		set_current_state(TASK_RUNNING);
+		return ERR_PTR(err);
+	}
+
+	schedule_timeout(timeout);
+
+	remove_wait_queue(&hdev->req_wait_q, &wait);
+
+	if (signal_pending(current))
+		return ERR_PTR(-EINTR);
+
+	switch (hdev->req_status) {
+	case HCI_REQ_DONE:
+		err = -bt_to_errno(hdev->req_result);
+		break;
+
+	case HCI_REQ_CANCELED:
+		err = -hdev->req_result;
+		break;
+
+	default:
+		err = -ETIMEDOUT;
+		break;
+	}
+
+	hdev->req_status = hdev->req_result = 0;
+	skb = hdev->req_skb;
+	hdev->req_skb = NULL;
+
+	BT_DBG("%s end: err %d", hdev->name, err);
+
+	if (err < 0) {
+		kfree_skb(skb);
+		return ERR_PTR(err);
+	}
+
+	if (!skb)
+		return ERR_PTR(-ENODATA);
+
+	return skb;
+}
+EXPORT_SYMBOL(__hci_cmd_sync_ev);
+
+struct sk_buff *__hci_cmd_sync(struct hci_dev *hdev, u16 opcode, u32 plen,
+			       const void *param, u32 timeout)
+{
+	return __hci_cmd_sync_ev(hdev, opcode, plen, param, 0, timeout);
+}
+EXPORT_SYMBOL(__hci_cmd_sync);
+
+/* Execute request and wait for completion. */
+int __hci_req_sync(struct hci_dev *hdev, void (*func)(struct hci_request *req,
+						      unsigned long opt),
+		   unsigned long opt, __u32 timeout)
+{
+	struct hci_request req;
+	DECLARE_WAITQUEUE(wait, current);
+	int err = 0;
+
+	BT_DBG("%s start", hdev->name);
+
+	hci_req_init(&req, hdev);
+
+	hdev->req_status = HCI_REQ_PEND;
+
+	func(&req, opt);
+
+	add_wait_queue(&hdev->req_wait_q, &wait);
+	set_current_state(TASK_INTERRUPTIBLE);
+
+	err = hci_req_run_skb(&req, hci_req_sync_complete);
+	if (err < 0) {
+		hdev->req_status = 0;
+
+		remove_wait_queue(&hdev->req_wait_q, &wait);
+		set_current_state(TASK_RUNNING);
+
+		/* ENODATA means the HCI request command queue is empty.
+		 * This can happen when a request with conditionals doesn't
+		 * trigger any commands to be sent. This is normal behavior
+		 * and should not trigger an error return.
+		 */
+		if (err == -ENODATA)
+			return 0;
+
+		return err;
+	}
+
+	schedule_timeout(timeout);
+
+	remove_wait_queue(&hdev->req_wait_q, &wait);
+
+	if (signal_pending(current))
+		return -EINTR;
+
+	switch (hdev->req_status) {
+	case HCI_REQ_DONE:
+		err = -bt_to_errno(hdev->req_result);
+		break;
+
+	case HCI_REQ_CANCELED:
+		err = -hdev->req_result;
+		break;
+
+	default:
+		err = -ETIMEDOUT;
+		break;
+	}
+
+	hdev->req_status = hdev->req_result = 0;
+
+	BT_DBG("%s end: err %d", hdev->name, err);
+
+	return err;
+}
+
+int hci_req_sync(struct hci_dev *hdev, void (*req)(struct hci_request *req,
+						   unsigned long opt),
+		 unsigned long opt, __u32 timeout)
+{
+	int ret;
+
+	if (!test_bit(HCI_UP, &hdev->flags))
+		return -ENETDOWN;
+
+	/* Serialize all requests */
+	hci_req_lock(hdev);
+	ret = __hci_req_sync(hdev, req, opt, timeout);
+	hci_req_unlock(hdev);
+
+	return ret;
 }
 
 struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode, u32 plen,

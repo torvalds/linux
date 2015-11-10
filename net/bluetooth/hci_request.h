@@ -20,6 +20,9 @@
    SOFTWARE IS DISCLAIMED.
 */
 
+#define hci_req_lock(d)		mutex_lock(&d->req_lock)
+#define hci_req_unlock(d)	mutex_unlock(&d->req_lock)
+
 struct hci_request {
 	struct hci_dev		*hdev;
 	struct sk_buff_head	cmd_q;
@@ -40,6 +43,14 @@ void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen,
 void hci_req_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 status,
 			  hci_req_complete_t *req_complete,
 			  hci_req_complete_skb_t *req_complete_skb);
+
+int hci_req_sync(struct hci_dev *hdev, void (*req)(struct hci_request *req,
+						   unsigned long opt),
+		 unsigned long opt, __u32 timeout);
+int __hci_req_sync(struct hci_dev *hdev, void (*func)(struct hci_request *req,
+						      unsigned long opt),
+		   unsigned long opt, __u32 timeout);
+void hci_req_cancel(struct hci_dev *hdev, int err);
 
 struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode, u32 plen,
 				const void *param);
