@@ -379,6 +379,16 @@ static struct notifier_block mvebu_v7_cpu_pm_notifier = {
 
 static struct platform_device mvebu_v7_cpuidle_device;
 
+static int broken_idle(struct device_node *np)
+{
+	if (of_property_read_bool(np, "broken-idle")) {
+		pr_warn("CPU idle is currently broken: disabling\n");
+		return 1;
+	}
+
+	return 0;
+}
+
 static __init int armada_370_cpuidle_init(void)
 {
 	struct device_node *np;
@@ -387,7 +397,9 @@ static __init int armada_370_cpuidle_init(void)
 	np = of_find_compatible_node(NULL, NULL, "marvell,coherency-fabric");
 	if (!np)
 		return -ENODEV;
-	of_node_put(np);
+
+	if (broken_idle(np))
+		goto end;
 
 	/*
 	 * On Armada 370, there is "a slow exit process from the deep
@@ -406,6 +418,8 @@ static __init int armada_370_cpuidle_init(void)
 	mvebu_v7_cpuidle_device.dev.platform_data = armada_370_xp_cpu_suspend;
 	mvebu_v7_cpuidle_device.name = "cpuidle-armada-370";
 
+end:
+	of_node_put(np);
 	return 0;
 }
 
@@ -422,6 +436,10 @@ static __init int armada_38x_cpuidle_init(void)
 				     "marvell,armada-380-coherency-fabric");
 	if (!np)
 		return -ENODEV;
+
+	if (broken_idle(np))
+		goto end;
+
 	of_node_put(np);
 
 	np = of_find_compatible_node(NULL, NULL,
@@ -430,7 +448,6 @@ static __init int armada_38x_cpuidle_init(void)
 		return -ENODEV;
 	mpsoc_base = of_iomap(np, 0);
 	BUG_ON(!mpsoc_base);
-	of_node_put(np);
 
 	/* Set up reset mask when powering down the cpus */
 	reg = readl(mpsoc_base + MPCORE_RESET_CTL);
@@ -450,6 +467,8 @@ static __init int armada_38x_cpuidle_init(void)
 	mvebu_v7_cpuidle_device.dev.platform_data = armada_38x_cpu_suspend;
 	mvebu_v7_cpuidle_device.name = "cpuidle-armada-38x";
 
+end:
+	of_node_put(np);
 	return 0;
 }
 
@@ -460,12 +479,16 @@ static __init int armada_xp_cpuidle_init(void)
 	np = of_find_compatible_node(NULL, NULL, "marvell,coherency-fabric");
 	if (!np)
 		return -ENODEV;
-	of_node_put(np);
+
+	if (broken_idle(np))
+		goto end;
 
 	mvebu_cpu_resume = armada_370_xp_cpu_resume;
 	mvebu_v7_cpuidle_device.dev.platform_data = armada_370_xp_cpu_suspend;
 	mvebu_v7_cpuidle_device.name = "cpuidle-armada-xp";
 
+end:
+	of_node_put(np);
 	return 0;
 }
 
