@@ -21,19 +21,12 @@
 /* #define VERBOSE_DEBUG */
 
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/device.h>
 
-#include <sound/core.h>
 #include <sound/initval.h>
-#include <sound/rawmidi.h>
 
-#include <linux/usb/ch9.h>
 #include <linux/usb/composite.h>
 #include <linux/usb/gadget.h>
-#include <linux/usb/audio.h>
-#include <linux/usb/midi.h>
 
 #include "u_midi.h"
 
@@ -42,7 +35,6 @@
 MODULE_AUTHOR("Ben Williamson");
 MODULE_LICENSE("GPL v2");
 
-static const char shortname[] = "g_midi";
 static const char longname[] = "MIDI Gadget";
 
 USB_GADGET_COMPOSITE_OPTIONS();
