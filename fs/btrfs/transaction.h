@@ -137,6 +137,7 @@ struct btrfs_pending_snapshot {
 	struct dentry *dentry;
 	struct inode *dir;
 	struct btrfs_root *root;
+	struct btrfs_root_item *root_item;
 	struct btrfs_root *snap;
 	struct btrfs_qgroup_inherit *inherit;
 	/* block reservation for the operation */
