@@ -241,26 +241,6 @@ bail:
 	return ret;
 }
 
-/*
- * Switch to alternate path.
- * The QP s_lock should be held and interrupts disabled.
- */
-void hfi1_migrate_qp(struct hfi1_qp *qp)
-{
-	struct ib_event ev;
-
-	qp->s_mig_state = IB_MIG_MIGRATED;
-	qp->remote_ah_attr = qp->alt_ah_attr;
-	qp->port_num = qp->alt_ah_attr.port_num;
-	qp->s_pkey_index = qp->s_alt_pkey_index;
-	qp->s_flags |= HFI1_S_AHG_CLEAR;
-
-	ev.device = qp->ibqp.device;
-	ev.element.qp = &qp->ibqp;
-	ev.event = IB_EVENT_PATH_MIG;
-	qp->ibqp.event_handler(&ev, qp->ibqp.qp_context);
-}
-
 static __be64 get_sguid(struct hfi1_ibport *ibp, unsigned index)
 {
 	if (!index) {

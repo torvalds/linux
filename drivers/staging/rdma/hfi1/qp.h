@@ -247,4 +247,6 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter);
  */
 void qp_comm_est(struct hfi1_qp *qp);
 
+void hfi1_migrate_qp(struct hfi1_qp *qp);
+
 #endif /* _QP_H */

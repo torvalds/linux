@@ -1069,8 +1069,6 @@ int hfi1_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
 
 int hfi1_get_rwqe(struct hfi1_qp *qp, int wr_id_only);
 
-void hfi1_migrate_qp(struct hfi1_qp *qp);
-
 int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct hfi1_ib_header *hdr,
 		       int has_grh, struct hfi1_qp *qp, u32 bth0);
 
