@@ -9044,6 +9044,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 		if (handler == sdma_interrupt) {
 			dd_dev_info(dd, "sdma engine %d cpu %d\n",
 				sde->this_idx, sdma_cpu);
+			sde->cpu = sdma_cpu;
 			cpumask_set_cpu(sdma_cpu, dd->msix_entries[i].mask);
 			sdma_cpu = cpumask_next(sdma_cpu, def);
 			if (sdma_cpu >= nr_cpu_ids)

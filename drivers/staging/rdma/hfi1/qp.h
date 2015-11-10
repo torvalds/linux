@@ -247,6 +247,41 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter);
  */
 void qp_comm_est(struct hfi1_qp *qp);
 
+/**
+ * _hfi1_schedule_send - schedule progress
+ * @qp: the QP
+ *
+ * This schedules qp progress w/o regard to the s_flags.
+ *
+ * It is only used in the post send, which doesn't hold
+ * the s_lock.
+ */
+static inline void _hfi1_schedule_send(struct hfi1_qp *qp)
+{
+	struct hfi1_ibport *ibp =
+		to_iport(qp->ibqp.device, qp->port_num);
+	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
+	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
+
+	iowait_schedule(&qp->s_iowait, ppd->hfi1_wq,
+			qp->s_sde ?
+			qp->s_sde->cpu :
+			cpumask_first(cpumask_of_node(dd->assigned_node_id)));
+}
+
+/**
+ * hfi1_schedule_send - schedule progress
+ * @qp: the QP
+ *
+ * This schedules qp progress and caller should hold
+ * the s_lock.
+ */
+static inline void hfi1_schedule_send(struct hfi1_qp *qp)
+{
+	if (hfi1_send_ok(qp))
+		_hfi1_schedule_send(qp);
+}
+
 void hfi1_migrate_qp(struct hfi1_qp *qp);
 
 #endif /* _QP_H */

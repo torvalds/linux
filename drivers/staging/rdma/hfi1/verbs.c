@@ -162,6 +162,8 @@ static inline struct hfi1_ucontext *to_iucontext(struct ib_ucontext
 	return container_of(ibucontext, struct hfi1_ucontext, ibucontext);
 }
 
+static inline void _hfi1_schedule_send(struct hfi1_qp *qp);
+
 /*
  * Translate ib_wr_opcode into ib_wc_opcode.
  */
@@ -509,9 +511,9 @@ static int post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		nreq++;
 	}
 bail:
-	if (nreq && !call_send)
-		hfi1_schedule_send(qp);
 	spin_unlock_irqrestore(&qp->s_lock, flags);
+	if (nreq && !call_send)
+		_hfi1_schedule_send(qp);
 	if (nreq && call_send)
 		hfi1_do_send(&qp->s_iowait.iowork);
 	return err;
@@ -2133,20 +2135,6 @@ void hfi1_unregister_ib_device(struct hfi1_devdata *dd)
 	del_timer_sync(&dev->mem_timer);
 	kmem_cache_destroy(dev->verbs_txreq_cache);
 	vfree(dev->lk_table.table);
-}
-
-/*
- * This must be called with s_lock held.
- */
-void hfi1_schedule_send(struct hfi1_qp *qp)
-{
-	if (hfi1_send_ok(qp)) {
-		struct hfi1_ibport *ibp =
-			to_iport(qp->ibqp.device, qp->port_num);
-		struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
-
-		iowait_schedule(&qp->s_iowait, ppd->hfi1_wq);
-	}
 }
 
 void hfi1_cnp_rcv(struct hfi1_packet *packet)
