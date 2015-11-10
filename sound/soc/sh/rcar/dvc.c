@@ -15,7 +15,6 @@
 #define DVC_NAME "dvc"
 
 struct rsnd_dvc {
-	struct rsnd_dvc_platform_info *info; /* rcar_snd.h */
 	struct rsnd_mod mod;
 	struct rsnd_kctrl_cfg_m volume;
 	struct rsnd_kctrl_cfg_m mute;
@@ -24,6 +23,7 @@ struct rsnd_dvc {
 	struct rsnd_kctrl_cfg_s rdown;	/* Ramp Rate Down */
 };
 
+#define rsnd_dvc_get(priv, id) ((struct rsnd_dvc *)(priv->dvc) + id)
 #define rsnd_dvc_nr(priv) ((priv)->dvc_nr)
 #define rsnd_dvc_of_node(priv) \
 	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,dvc")
@@ -301,50 +301,15 @@ struct rsnd_mod *rsnd_dvc_mod_get(struct rsnd_priv *priv, int id)
 	if (WARN_ON(id < 0 || id >= rsnd_dvc_nr(priv)))
 		id = 0;
 
-	return rsnd_mod_get((struct rsnd_dvc *)(priv->dvc) + id);
-}
-
-static void rsnd_of_parse_dvc(struct platform_device *pdev,
-			      const struct rsnd_of_data *of_data,
-			      struct rsnd_priv *priv)
-{
-	struct device_node *node;
-	struct rsnd_dvc_platform_info *dvc_info;
-	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
-	struct device *dev = &pdev->dev;
-	int nr;
-
-	if (!of_data)
-		return;
-
-	node = rsnd_dvc_of_node(priv);
-	if (!node)
-		return;
-
-	nr = of_get_child_count(node);
-	if (!nr)
-		goto rsnd_of_parse_dvc_end;
-
-	dvc_info = devm_kzalloc(dev,
-				sizeof(struct rsnd_dvc_platform_info) * nr,
-				GFP_KERNEL);
-	if (!dvc_info) {
-		dev_err(dev, "dvc info allocation error\n");
-		goto rsnd_of_parse_dvc_end;
-	}
-
-	info->dvc_info		= dvc_info;
-	info->dvc_info_nr	= nr;
-
-rsnd_of_parse_dvc_end:
-	of_node_put(node);
+	return rsnd_mod_get(rsnd_dvc_get(priv, id));
 }
 
 int rsnd_dvc_probe(struct platform_device *pdev,
 		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv)
 {
-	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
+	struct device_node *node;
+	struct device_node *np;
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_dvc *dvc;
 	struct clk *clk;
@@ -355,36 +320,50 @@ int rsnd_dvc_probe(struct platform_device *pdev,
 	if (rsnd_is_gen1(priv))
 		return 0;
 
-	rsnd_of_parse_dvc(pdev, of_data, priv);
+	node = rsnd_dvc_of_node(priv);
+	if (!node)
+		return 0; /* not used is not error */
 
-	nr = info->dvc_info_nr;
-	if (!nr)
-		return 0;
+	nr = of_get_child_count(node);
+	if (!nr) {
+		ret = -EINVAL;
+		goto rsnd_dvc_probe_done;
+	}
 
 	dvc	= devm_kzalloc(dev, sizeof(*dvc) * nr, GFP_KERNEL);
-	if (!dvc)
-		return -ENOMEM;
+	if (!dvc) {
+		ret = -ENOMEM;
+		goto rsnd_dvc_probe_done;
+	}
 
 	priv->dvc_nr	= nr;
 	priv->dvc	= dvc;
 
-	for_each_rsnd_dvc(dvc, priv, i) {
+	i = 0;
+	for_each_child_of_node(node, np) {
+		dvc = rsnd_dvc_get(priv, i);
+
 		snprintf(name, RSND_DVC_NAME_SIZE, "%s.%d",
 			 DVC_NAME, i);
 
 		clk = devm_clk_get(dev, name);
-		if (IS_ERR(clk))
-			return PTR_ERR(clk);
-
-		dvc->info = &info->dvc_info[i];
+		if (IS_ERR(clk)) {
+			ret = PTR_ERR(clk);
+			goto rsnd_dvc_probe_done;
+		}
 
 		ret = rsnd_mod_init(priv, rsnd_mod_get(dvc), &rsnd_dvc_ops,
 			      clk, RSND_MOD_DVC, i);
 		if (ret)
-			return ret;
+			goto rsnd_dvc_probe_done;
+
+		i++;
 	}
 
-	return 0;
+rsnd_dvc_probe_done:
+	of_node_put(node);
+
+	return ret;
 }
 
 void rsnd_dvc_remove(struct platform_device *pdev,
