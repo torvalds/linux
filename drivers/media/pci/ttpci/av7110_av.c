@@ -280,9 +280,11 @@ int av7110_pes_play(void *dest, struct dvb_ringbuffer *buf, int dlen)
 }
 
 
-int av7110_set_volume(struct av7110 *av7110, int volleft, int volright)
+int av7110_set_volume(struct av7110 *av7110, unsigned int volleft,
+		      unsigned int volright)
 {
-	int err, vol, val, balance = 0;
+	unsigned int vol, val, balance = 0;
+	int err;
 
 	dprintk(2, "av7110:%p, \n", av7110);
 
