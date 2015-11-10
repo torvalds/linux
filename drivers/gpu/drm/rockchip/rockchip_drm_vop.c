@@ -959,8 +959,8 @@ static int vop_update_plane_event(struct drm_plane *plane,
 	val = (dest.y2 - dest.y1 - 1) << 16;
 	val |= (dest.x2 - dest.x1 - 1) & 0xffff;
 	VOP_WIN_SET(vop, win, dsp_info, val);
-	val = (dsp_sty - 1) << 16;
-	val |= (dsp_stx - 1) & 0xffff;
+	val = dsp_sty << 16;
+	val |= dsp_stx & 0xffff;
 	VOP_WIN_SET(vop, win, dsp_st, val);
 	VOP_WIN_SET(vop, win, rb_swap, rb_swap);
 
