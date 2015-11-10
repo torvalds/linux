@@ -474,6 +474,7 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
 	struct rk_i2s_dev *i2s;
+	struct snd_soc_dai_driver *soc_dai;
 	struct resource *res;
 	void __iomem *regs;
 	int ret;
@@ -534,17 +535,26 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 			goto err_pm_disable;
 	}
 
-	/* refine capture channels */
+	soc_dai = devm_kzalloc(&pdev->dev,
+			       sizeof(*soc_dai), GFP_KERNEL);
+	if (!soc_dai)
+		return -ENOMEM;
+
+	memcpy(soc_dai, &rockchip_i2s_dai, sizeof(*soc_dai));
+	if (!of_property_read_u32(node, "rockchip,playback-channels", &val)) {
+		if (val >= 2 && val <= 8)
+			soc_dai->playback.channels_max = val;
+	}
+
 	if (!of_property_read_u32(node, "rockchip,capture-channels", &val)) {
 		if (val >= 2 && val <= 8)
-			rockchip_i2s_dai.capture.channels_max = val;
-		else
-			rockchip_i2s_dai.capture.channels_max = 2;
+			soc_dai->capture.channels_max = val;
 	}
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &rockchip_i2s_component,
-					      &rockchip_i2s_dai, 1);
+					      soc_dai, 1);
+
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register DAI\n");
 		goto err_suspend;
