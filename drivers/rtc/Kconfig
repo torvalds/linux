@@ -593,6 +593,15 @@ config RTC_DRV_RV3029C2
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-rv3029c2.
 
+config RTC_DRV_RV8803
+	tristate "Micro Crystal RV8803"
+	help
+	  If you say yes here you get support for the Micro Crystal
+	  RV8803 RTC chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-rv8803.
+
 config RTC_DRV_S5M
 	tristate "Samsung S2M/S5M series"
 	depends on MFD_SEC_CORE
@@ -666,8 +675,8 @@ config RTC_DRV_DS1390
 	  If you say yes here you get support for the
 	  Dallas/Maxim DS1390/93/94 chips.
 
-	  This driver only supports the RTC feature, and not other chip
-	  features such as alarms and trickle charging.
+	  This driver supports the RTC feature and trickle charging but not
+	  other chip features such as alarms.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1390.
