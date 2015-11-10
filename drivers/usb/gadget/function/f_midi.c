@@ -545,7 +545,7 @@ static void f_midi_transmit(struct f_midi *midi, struct usb_request *req)
 		}
 	}
 
-	if (req->length > 0) {
+	if (req->length > 0 && ep->enabled) {
 		int err;
 
 		err = usb_ep_queue(ep, req, GFP_ATOMIC);
