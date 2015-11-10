@@ -58,8 +58,6 @@ _SetupMMU:
 	wsr	a0, ps
 	rsync
 
-	Offset = _SetupMMU - _ResetVector
-
 #ifndef CONFIG_INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
 	initialize_mmu
 #endif
@@ -74,29 +72,3 @@ reset:
 	movi	a3, 0
 	movi	a4, 0
 	jx      a0
-
-#ifdef CONFIG_MMU
-	.align 4
-
-	.section	.ResetVector.remapped_text, "x"
-	.global         _RemappedResetVector
-
-	/* Do org before literals */
-	.org 0
-
-_RemappedResetVector:
-	.begin  no-absolute-literals
-	.literal_position
-
-	_j	_RemappedSetupMMU
-
-	/* Position Remapped code at the same location as the original code */
-	. = _RemappedResetVector + Offset
-
-_RemappedSetupMMU:
-#ifndef CONFIG_INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
-	initialize_mmu
-#endif
-
-	.end    no-absolute-literals
-#endif
