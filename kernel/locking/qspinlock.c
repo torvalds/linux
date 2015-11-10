@@ -248,7 +248,8 @@ static __always_inline void set_locked(struct qspinlock *lock)
  */
 
 static __always_inline void __pv_init_node(struct mcs_spinlock *node) { }
-static __always_inline void __pv_wait_node(struct mcs_spinlock *node) { }
+static __always_inline void __pv_wait_node(struct mcs_spinlock *node,
+					   struct mcs_spinlock *prev) { }
 static __always_inline void __pv_kick_node(struct qspinlock *lock,
 					   struct mcs_spinlock *node) { }
 static __always_inline u32  __pv_wait_head_or_lock(struct qspinlock *lock,
@@ -407,7 +408,7 @@ queue:
 		prev = decode_tail(old);
 		WRITE_ONCE(prev->next, node);
 
-		pv_wait_node(node);
+		pv_wait_node(node, prev);
 		arch_mcs_spin_lock_contended(&node->locked);
 
 		/*
