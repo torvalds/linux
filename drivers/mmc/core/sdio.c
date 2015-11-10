@@ -22,6 +22,7 @@
 
 #include "core.h"
 #include "bus.h"
+#include "host.h"
 #include "sd.h"
 #include "sdio_bus.h"
 #include "mmc_ops.h"
@@ -1225,6 +1226,8 @@ int sdio_reset_comm(struct mmc_card *card)
 
 	printk("%s():\n", __func__);
 	mmc_claim_host(host);
+
+	mmc_retune_disable(host);
 
 	mmc_go_idle(host);
 
