@@ -2105,7 +2105,7 @@ static struct dma_chan *sdma_xlate(struct of_phandle_args *dma_spec,
 	return dma_request_channel(mask, sdma_filter_fn, &data);
 }
 
-static int sdma_probe(struct platform_device *pdev)
+static int __init sdma_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
 			of_match_device(sdma_dt_ids, &pdev->dev);
