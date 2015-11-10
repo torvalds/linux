@@ -97,7 +97,9 @@ int clk_enable(struct clk *clk)
 {
 	unsigned long flags;
 
-	if (clk == NULL || IS_ERR(clk))
+	if (!clk)
+		return 0;
+	else if (IS_ERR(clk))
 		return -EINVAL;
 
 	spin_lock_irqsave(&clockfw_lock, flags);
@@ -124,7 +126,7 @@ EXPORT_SYMBOL(clk_disable);
 unsigned long clk_get_rate(struct clk *clk)
 {
 	if (clk == NULL || IS_ERR(clk))
-		return -EINVAL;
+		return 0;
 
 	return clk->rate;
 }
@@ -159,8 +161,10 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	unsigned long flags;
 	int ret = -EINVAL;
 
-	if (clk == NULL || IS_ERR(clk))
-		return ret;
+	if (!clk)
+		return 0;
+	else if (IS_ERR(clk))
+		return -EINVAL;
 
 	if (clk->set_rate)
 		ret = clk->set_rate(clk, rate);
@@ -181,7 +185,9 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 {
 	unsigned long flags;
 
-	if (clk == NULL || IS_ERR(clk))
+	if (!clk)
+		return 0;
+	else if (IS_ERR(clk))
 		return -EINVAL;
 
 	/* Cannot change parent on enabled clock */
