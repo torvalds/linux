@@ -122,11 +122,6 @@ MODULE_DEVICE_TABLE(of, rsnd_of_match);
 	(!(priv->info->func) ? 0 :		\
 	 priv->info->func(param))
 
-#define rsnd_is_enable_path(io, name) \
-	((io)->info ? (io)->info->name : NULL)
-#define rsnd_info_id(priv, io, name) \
-	((io)->info->name - priv->info->name##_info)
-
 /*
  *	rsnd_mod functions
  */
@@ -573,140 +568,96 @@ static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 	.set_fmt	= rsnd_soc_dai_set_fmt,
 };
 
-#define rsnd_path_add(priv, io, _type)				\
-({								\
-	struct rsnd_mod *mod;					\
-	int ret = 0;						\
-	int id = -1;						\
-								\
-	if (rsnd_is_enable_path(io, _type)) {			\
-		id = rsnd_info_id(priv, io, _type);		\
-		if (id >= 0) {					\
-			mod = rsnd_##_type##_mod_get(priv, id);	\
-			ret = rsnd_dai_connect(mod, io, mod->type);\
-		}						\
-	}							\
-	ret;							\
-})
-
-static int rsnd_path_init(struct rsnd_priv *priv,
-			  struct rsnd_dai *rdai,
-			  struct rsnd_dai_stream *io)
+static int rsnd_dai_probe(struct platform_device *pdev,
+			  const struct rsnd_of_data *of_data,
+			  struct rsnd_priv *priv)
 {
+	struct device_node *dai_node;
+	struct device_node *dai_np, *np, *node;
+	struct device_node *playback, *capture;
+	struct rsnd_dai_stream *io_playback;
+	struct rsnd_dai_stream *io_capture;
+	struct snd_soc_dai_driver *drv;
+	struct rsnd_dai *rdai;
+	struct device *dev = &pdev->dev;
+	int nr, dai_i, io_i, np_i;
 	int ret;
 
-	/*
-	 * Gen1 is created by SRU/SSI, and this SRU is base module of
-	 * Gen2's SCU/SSIU/SSI. (Gen2 SCU/SSIU came from SRU)
-	 *
-	 * Easy image is..
-	 *	Gen1 SRU = Gen2 SCU + SSIU + etc
-	 *
-	 * Gen2 SCU path is very flexible, but, Gen1 SRU (SCU parts) is
-	 * using fixed path.
-	 */
-
-	/* SSI */
-	ret = rsnd_path_add(priv, io, ssi);
-	if (ret < 0)
-		return ret;
-
-	/* SRC */
-	ret = rsnd_path_add(priv, io, src);
-	if (ret < 0)
-		return ret;
-
-	/* CTU */
-	ret = rsnd_path_add(priv, io, ctu);
-	if (ret < 0)
-		return ret;
-
-	/* MIX */
-	ret = rsnd_path_add(priv, io, mix);
-	if (ret < 0)
-		return ret;
-
-	/* DVC */
-	ret = rsnd_path_add(priv, io, dvc);
-	if (ret < 0)
-		return ret;
-
-	return ret;
-}
-
-static void rsnd_of_parse_dai(struct platform_device *pdev,
-			      const struct rsnd_of_data *of_data,
-			      struct rsnd_priv *priv)
-{
-	struct device_node *dai_node,	*dai_np;
-	struct device_node *ssi_node,	*ssi_np;
-	struct device_node *src_node,	*src_np;
-	struct device_node *ctu_node,	*ctu_np;
-	struct device_node *mix_node,	*mix_np;
-	struct device_node *dvc_node,	*dvc_np;
-	struct device_node *playback, *capture;
-	struct rsnd_dai_platform_info *dai_info;
-	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
-	struct device *dev = &pdev->dev;
-	int nr, i;
-	int dai_i, ssi_i, src_i, ctu_i, mix_i, dvc_i;
-
 	if (!of_data)
-		return;
+		return 0;
 
-	dai_node = of_get_child_by_name(dev->of_node, "rcar_sound,dai");
-	if (!dai_node)
-		return;
-
+	dai_node = rsnd_dai_of_node(priv);
 	nr = of_get_child_count(dai_node);
-	if (!nr)
-		return;
-
-	dai_info = devm_kzalloc(dev,
-				sizeof(struct rsnd_dai_platform_info) * nr,
-				GFP_KERNEL);
-	if (!dai_info) {
-		dev_err(dev, "dai info allocation error\n");
-		return;
+	if (!nr) {
+		ret = -EINVAL;
+		goto rsnd_dai_probe_done;
 	}
 
-	info->dai_info_nr	= nr;
-	info->dai_info		= dai_info;
+	drv  = devm_kzalloc(dev, sizeof(*drv)  * nr, GFP_KERNEL);
+	rdai = devm_kzalloc(dev, sizeof(*rdai) * nr, GFP_KERNEL);
+	if (!drv || !rdai) {
+		ret = -ENOMEM;
+		goto rsnd_dai_probe_done;
+	}
 
-	ssi_node = of_get_child_by_name(dev->of_node, "rcar_sound,ssi");
-	src_node = of_get_child_by_name(dev->of_node, "rcar_sound,src");
-	ctu_node = of_get_child_by_name(dev->of_node, "rcar_sound,ctu");
-	mix_node = of_get_child_by_name(dev->of_node, "rcar_sound,mix");
-	dvc_node = of_get_child_by_name(dev->of_node, "rcar_sound,dvc");
-
-#define mod_parse(name)							\
-if (name##_node) {							\
-	struct rsnd_##name##_platform_info *name##_info;		\
-									\
-	name##_i = 0;							\
-	for_each_child_of_node(name##_node, name##_np) {		\
-		name##_info = info->name##_info + name##_i;		\
-									\
-		if (name##_np == playback)				\
-			dai_info->playback.name = name##_info;		\
-		if (name##_np == capture)				\
-			dai_info->capture.name = name##_info;		\
-									\
-		name##_i++;						\
-	}								\
-}
+	priv->rdai_nr	= nr;
+	priv->daidrv	= drv;
+	priv->rdai	= rdai;
 
 	/*
 	 * parse all dai
 	 */
 	dai_i = 0;
 	for_each_child_of_node(dai_node, dai_np) {
-		dai_info = info->dai_info + dai_i;
+		rdai		= rsnd_rdai_get(priv, dai_i);
+		drv		= drv + dai_i;
+		io_playback	= &rdai->playback;
+		io_capture	= &rdai->capture;
 
-		for (i = 0;; i++) {
+		snprintf(rdai->name, RSND_DAI_NAME_SIZE, "rsnd-dai.%d", dai_i);
 
-			playback = of_parse_phandle(dai_np, "playback", i);
-			capture  = of_parse_phandle(dai_np, "capture", i);
+		rdai->priv	= priv;
+		drv->name	= rdai->name;
+		drv->ops	= &rsnd_soc_dai_ops;
+
+		snprintf(rdai->playback.name, RSND_DAI_NAME_SIZE,
+			 "DAI%d Playback", dai_i);
+		drv->playback.rates		= RSND_RATES;
+		drv->playback.formats		= RSND_FMTS;
+		drv->playback.channels_min	= 2;
+		drv->playback.channels_max	= 2;
+		drv->playback.stream_name	= rdai->playback.name;
+
+		snprintf(rdai->capture.name, RSND_DAI_NAME_SIZE,
+			 "DAI%d Capture", dai_i);
+		drv->capture.rates		= RSND_RATES;
+		drv->capture.formats		= RSND_FMTS;
+		drv->capture.channels_min	= 2;
+		drv->capture.channels_max	= 2;
+		drv->capture.stream_name	= rdai->capture.name;
+
+		rdai->playback.rdai		= rdai;
+		rdai->capture.rdai		= rdai;
+
+#define mod_parse(name)							\
+node = rsnd_##name##_of_node(priv);					\
+if (node) {								\
+	struct rsnd_mod *mod;						\
+	np_i = 0;							\
+	for_each_child_of_node(node, np) {				\
+		mod = rsnd_##name##_mod_get(priv, np_i);		\
+		if (np == playback)					\
+			rsnd_dai_connect(mod, io_playback, mod->type);	\
+		if (np == capture)					\
+			rsnd_dai_connect(mod, io_capture, mod->type);	\
+		np_i++;							\
+	}								\
+	of_node_put(node);						\
+}
+
+		for (io_i = 0;; io_i++) {
+			playback = of_parse_phandle(dai_np, "playback", io_i);
+			capture  = of_parse_phandle(dai_np, "capture", io_i);
 
 			if (!playback && !capture)
 				break;
@@ -722,91 +673,18 @@ if (name##_node) {							\
 		}
 
 		dai_i++;
-	}
-}
 
-static int rsnd_dai_probe(struct platform_device *pdev,
-			  const struct rsnd_of_data *of_data,
-			  struct rsnd_priv *priv)
-{
-	struct snd_soc_dai_driver *drv;
-	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
-	struct rsnd_dai *rdai;
-	struct rsnd_ssi_platform_info *pmod, *cmod;
-	struct device *dev = rsnd_priv_to_dev(priv);
-	int dai_nr;
-	int i;
-
-	rsnd_of_parse_dai(pdev, of_data, priv);
-
-	dai_nr = info->dai_info_nr;
-	if (!dai_nr) {
-		dev_err(dev, "no dai\n");
-		return -EIO;
+		dev_dbg(dev, "%s (%s/%s)\n", rdai->name,
+			rsnd_io_to_mod_ssi(io_playback) ? "play"    : " -- ",
+			rsnd_io_to_mod_ssi(io_capture) ? "capture" : "  --   ");
 	}
 
-	drv  = devm_kzalloc(dev, sizeof(*drv)  * dai_nr, GFP_KERNEL);
-	rdai = devm_kzalloc(dev, sizeof(*rdai) * dai_nr, GFP_KERNEL);
-	if (!drv || !rdai) {
-		dev_err(dev, "dai allocate failed\n");
-		return -ENOMEM;
-	}
+	ret = 0;
 
-	priv->rdai_nr	= dai_nr;
-	priv->daidrv	= drv;
-	priv->rdai	= rdai;
+rsnd_dai_probe_done:
+	of_node_put(dai_node);
 
-	for (i = 0; i < dai_nr; i++) {
-
-		pmod = info->dai_info[i].playback.ssi;
-		cmod = info->dai_info[i].capture.ssi;
-
-		/*
-		 *	init rsnd_dai
-		 */
-		snprintf(rdai[i].name, RSND_DAI_NAME_SIZE, "rsnd-dai.%d", i);
-		rdai[i].priv = priv;
-
-		/*
-		 *	init snd_soc_dai_driver
-		 */
-		drv[i].name	= rdai[i].name;
-		drv[i].ops	= &rsnd_soc_dai_ops;
-		if (pmod) {
-			snprintf(rdai[i].playback.name, RSND_DAI_NAME_SIZE,
-				 "DAI%d Playback", i);
-
-			drv[i].playback.rates		= RSND_RATES;
-			drv[i].playback.formats		= RSND_FMTS;
-			drv[i].playback.channels_min	= 2;
-			drv[i].playback.channels_max	= 2;
-			drv[i].playback.stream_name	= rdai[i].playback.name;
-
-			rdai[i].playback.info = &info->dai_info[i].playback;
-			rdai[i].playback.rdai = rdai + i;
-			rsnd_path_init(priv, &rdai[i], &rdai[i].playback);
-		}
-		if (cmod) {
-			snprintf(rdai[i].capture.name, RSND_DAI_NAME_SIZE,
-				 "DAI%d Capture", i);
-
-			drv[i].capture.rates		= RSND_RATES;
-			drv[i].capture.formats		= RSND_FMTS;
-			drv[i].capture.channels_min	= 2;
-			drv[i].capture.channels_max	= 2;
-			drv[i].capture.stream_name	= rdai[i].capture.name;
-
-			rdai[i].capture.info = &info->dai_info[i].capture;
-			rdai[i].capture.rdai = rdai + i;
-			rsnd_path_init(priv, &rdai[i], &rdai[i].capture);
-		}
-
-		dev_dbg(dev, "%s (%s/%s)\n", rdai[i].name,
-			pmod ? "play"    : " -- ",
-			cmod ? "capture" : "  --   ");
-	}
-
-	return 0;
+	return ret;
 }
 
 /*

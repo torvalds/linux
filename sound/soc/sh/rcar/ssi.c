@@ -88,8 +88,6 @@ struct rsnd_ssi {
 #define rsnd_ssi_mode_flags(p) ((p)->info->flags)
 #define rsnd_ssi_dai_id(ssi) ((ssi)->info->dai_id)
 #define rsnd_ssi_is_parent(ssi, io) ((ssi) == rsnd_io_to_mod_ssip(io))
-#define rsnd_ssi_of_node(priv) \
-	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,ssi")
 
 int rsnd_ssi_use_busif(struct rsnd_dai_stream *io)
 {

@@ -34,8 +34,6 @@ struct rsnd_src {
 #define rsnd_src_to_dma(src) ((src)->dma)
 #define rsnd_src_nr(priv) ((priv)->src_nr)
 #define rsnd_enable_sync_convert(src) ((src)->sen.val)
-#define rsnd_src_of_node(priv) \
-	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,src")
 
 #define rsnd_mod_to_src(_mod)				\
 	container_of((_mod), struct rsnd_src, mod)

@@ -90,7 +90,7 @@ static void rsnd_of_parse_ctu(struct platform_device *pdev,
 	if (!of_data)
 		return;
 
-	node = of_get_child_by_name(dev->of_node, "rcar_sound,ctu");
+	node = rsnd_ctu_of_node(priv);
 	if (!node)
 		return;
 

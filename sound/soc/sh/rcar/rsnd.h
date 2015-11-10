@@ -338,6 +338,8 @@ int rsnd_dai_pointer_offset(struct rsnd_dai_stream *io, int additional);
 int rsnd_dai_connect(struct rsnd_mod *mod,
 		     struct rsnd_dai_stream *io,
 		     enum rsnd_mod_type type);
+#define rsnd_dai_of_node(priv)						\
+	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,dai")
 
 /*
  *	R-Car Gen1/Gen2
@@ -524,6 +526,9 @@ int rsnd_ssi_use_busif(struct rsnd_dai_stream *io);
 	__rsnd_ssi_is_pin_sharing(rsnd_io_to_mod_ssi(io))
 int __rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod);
 
+#define rsnd_ssi_of_node(priv)						\
+	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,ssi")
+
 /*
  *	R-Car SSIU
  */
@@ -547,6 +552,8 @@ struct rsnd_mod *rsnd_src_mod_get(struct rsnd_priv *priv, int id);
 unsigned int rsnd_src_get_ssi_rate(struct rsnd_priv *priv,
 				   struct rsnd_dai_stream *io,
 				   struct snd_pcm_runtime *runtime);
+#define rsnd_src_of_node(priv)						\
+	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,src")
 
 /*
  *	R-Car CTU
@@ -558,6 +565,8 @@ int rsnd_ctu_probe(struct platform_device *pdev,
 void rsnd_ctu_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_ctu_mod_get(struct rsnd_priv *priv, int id);
+#define rsnd_ctu_of_node(priv)						\
+	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,ctu")
 
 /*
  *	R-Car MIX
@@ -569,6 +578,8 @@ int rsnd_mix_probe(struct platform_device *pdev,
 void rsnd_mix_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_mix_mod_get(struct rsnd_priv *priv, int id);
+#define rsnd_mix_of_node(priv)						\
+	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,mix")
 
 /*
  *	R-Car DVC
@@ -579,6 +590,8 @@ int rsnd_dvc_probe(struct platform_device *pdev,
 void rsnd_dvc_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_dvc_mod_get(struct rsnd_priv *priv, int id);
+#define rsnd_dvc_of_node(priv)						\
+	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,dvc")
 
 /*
  *	R-Car CMD

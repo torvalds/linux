@@ -130,7 +130,7 @@ static void rsnd_of_parse_mix(struct platform_device *pdev,
 	if (!of_data)
 		return;
 
-	node = of_get_child_by_name(dev->of_node, "rcar_sound,mix");
+	node = rsnd_mix_of_node(priv);
 	if (!node)
 		return;
 

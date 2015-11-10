@@ -317,7 +317,7 @@ static void rsnd_of_parse_dvc(struct platform_device *pdev,
 	if (!of_data)
 		return;
 
-	node = of_get_child_by_name(dev->of_node, "rcar_sound,dvc");
+	node = rsnd_dvc_of_node(priv);
 	if (!node)
 		return;
 
