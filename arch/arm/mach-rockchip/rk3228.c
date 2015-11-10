@@ -54,6 +54,7 @@ static struct map_desc rk3228_io_desc[] __initdata = {
 	RK3228_DEVICE(CRU),
 	RK3228_DEVICE(GRF),
 	RK3228_DEVICE(TIMER),
+	RK3228_DEVICE(EFUSE),
 	RK3228_DEVICE(CPU_AXI_BUS),
 	RK_DEVICE(RK_DEBUG_UART_VIRT, RK3228_UART2_PHYS, RK3228_UART_SIZE),
 	RK_DEVICE(RK_DDR_VIRT, RK3228_DDR_PCTL_PHYS, RK3228_DDR_PCTL_SIZE),
@@ -75,6 +76,8 @@ void __init rk3228_dt_map_io(void)
 
 	iotable_init(rk3228_io_desc, ARRAY_SIZE(rk3228_io_desc));
 	debug_ll_io_init();
+
+	rockchip_efuse_init();
 }
 
 static void __init rk3228_dt_init_timer(void)
