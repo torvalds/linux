@@ -626,6 +626,17 @@ omapdss_of_find_source_for_first_ep(struct device_node *node);
 struct device_node *dss_of_port_get_parent_device(struct device_node *port);
 u32 dss_of_port_get_port_number(struct device_node *port);
 
+enum dss_writeback_channel {
+	DSS_WB_LCD1_MGR =	0,
+	DSS_WB_LCD2_MGR =	1,
+	DSS_WB_TV_MGR =		2,
+	DSS_WB_OVL0 =		3,
+	DSS_WB_OVL1 =		4,
+	DSS_WB_OVL2 =		5,
+	DSS_WB_OVL3 =		6,
+	DSS_WB_LCD3_MGR =	7,
+};
+
 struct dss_mgr_ops {
 	int (*connect)(struct omap_drm_private *priv,
 		       enum omap_channel channel,
@@ -732,6 +743,15 @@ struct dispc_ops {
 
 	const u32 *(*ovl_get_color_modes)(struct dispc_device *dispc,
 					  enum omap_plane_id plane);
+
+	u32 (*wb_get_framedone_irq)(struct dispc_device *dispc);
+	int (*wb_setup)(struct dispc_device *dispc,
+		const struct omap_dss_writeback_info *wi,
+		bool mem_to_mem, const struct videomode *vm,
+		enum dss_writeback_channel channel_in);
+	bool (*has_writeback)(struct dispc_device *dispc);
+	bool (*wb_go_busy)(struct dispc_device *dispc);
+	void (*wb_go)(struct dispc_device *dispc);
 };
 
 struct dispc_device *dispc_get_dispc(struct dss_device *dss);

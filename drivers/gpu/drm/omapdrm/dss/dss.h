@@ -102,17 +102,6 @@ enum dss_dsi_content_type {
 	DSS_DSI_CONTENT_GENERIC,
 };
 
-enum dss_writeback_channel {
-	DSS_WB_LCD1_MGR =	0,
-	DSS_WB_LCD2_MGR =	1,
-	DSS_WB_TV_MGR =		2,
-	DSS_WB_OVL0 =		3,
-	DSS_WB_OVL1 =		4,
-	DSS_WB_OVL2 =		5,
-	DSS_WB_OVL3 =		6,
-	DSS_WB_LCD3_MGR =	7,
-};
-
 enum dss_clk_source {
 	DSS_CLK_SRC_FCK = 0,
 
@@ -447,16 +436,6 @@ int dispc_mgr_get_clock_div(struct dispc_device *dispc,
 			    enum omap_channel channel,
 			    struct dispc_clock_info *cinfo);
 void dispc_set_tv_pclk(struct dispc_device *dispc, unsigned long pclk);
-
-u32 dispc_wb_get_framedone_irq(struct dispc_device *dispc);
-bool dispc_wb_go_busy(struct dispc_device *dispc);
-void dispc_wb_go(struct dispc_device *dispc);
-void dispc_wb_set_channel_in(struct dispc_device *dispc,
-			     enum dss_writeback_channel channel);
-int dispc_wb_setup(struct dispc_device *dispc,
-		   const struct omap_dss_writeback_info *wi,
-		   bool mem_to_mem, const struct videomode *vm,
-		   enum dss_writeback_channel channel_in);
 
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
 static inline void dss_collect_irq_stats(u32 irqstatus, unsigned int *irq_arr)
