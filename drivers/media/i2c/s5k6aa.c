@@ -28,7 +28,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-mediabus.h>
-#include <media/s5k6aa.h>
+#include <media/i2c/s5k6aa.h>
 
 static int debug;
 module_param(debug, int, 0644);

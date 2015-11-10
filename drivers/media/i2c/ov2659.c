@@ -37,7 +37,7 @@
 #include <linux/videodev2.h>
 
 #include <media/media-entity.h>
-#include <media/ov2659.h>
+#include <media/i2c/ov2659.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>

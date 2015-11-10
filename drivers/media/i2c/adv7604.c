@@ -39,7 +39,7 @@
 #include <linux/workqueue.h>
 #include <linux/regmap.h>
 
-#include <media/adv7604.h>
+#include <media/i2c/adv7604.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>

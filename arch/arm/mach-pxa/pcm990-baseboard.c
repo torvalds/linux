@@ -27,7 +27,7 @@
 #include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 
-#include <media/mt9v022.h>
+#include <media/i2c/mt9v022.h>
 #include <media/soc_camera.h>
 
 #include <linux/platform_data/camera-pxa.h>

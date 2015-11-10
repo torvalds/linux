@@ -28,7 +28,7 @@
 #include <media/saa7146_vv.h>
 #include <media/tuner.h>
 #include <media/v4l2-common.h>
-#include <media/saa7115.h>
+#include <media/i2c/saa7115.h>
 #include <linux/module.h>
 
 #include "tea6415c.h"

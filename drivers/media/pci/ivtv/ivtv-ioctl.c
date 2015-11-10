@@ -32,7 +32,7 @@
 #include "ivtv-gpio.h"
 #include "ivtv-controls.h"
 #include "ivtv-cards.h"
-#include <media/saa7127.h>
+#include <media/i2c/saa7127.h>
 #include <media/tveeprom.h>
 #include <media/v4l2-event.h>
 #include <linux/dvb/audio.h>

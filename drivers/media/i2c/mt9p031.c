@@ -26,7 +26,7 @@
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 
-#include <media/mt9p031.h>
+#include <media/i2c/mt9p031.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>

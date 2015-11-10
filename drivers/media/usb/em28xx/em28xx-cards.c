@@ -31,9 +31,9 @@
 #include <linux/usb.h>
 #include <media/tuner.h>
 #include <media/msp3400.h>
-#include <media/saa7115.h>
-#include <media/tvp5150.h>
-#include <media/tvaudio.h>
+#include <media/i2c/saa7115.h>
+#include <media/i2c/tvp5150.h>
+#include <media/i2c/tvaudio.h>
 #include <media/i2c-addr.h>
 #include <media/tveeprom.h>
 #include <media/v4l2-common.h>

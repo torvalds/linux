@@ -35,7 +35,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-dv-timings.h>
 #include <media/v4l2-ctrls.h>
-#include <media/ad9389b.h>
+#include <media/i2c/ad9389b.h>
 
 static int debug;
 module_param(debug, int, 0644);

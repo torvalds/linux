@@ -42,7 +42,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-of.h>
-#include <media/tc358743.h>
+#include <media/i2c/tc358743.h>
 
 #include "tc358743_regs.h"
 

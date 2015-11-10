@@ -34,7 +34,7 @@
 #include <linux/usb.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
-#include <media/saa7115.h>
+#include <media/i2c/saa7115.h>
 
 #include "stk1160.h"
 #include "stk1160-reg.h"

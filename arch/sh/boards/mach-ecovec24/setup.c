@@ -40,8 +40,8 @@
 #include <sound/simple_card.h>
 #include <media/sh_mobile_ceu.h>
 #include <media/soc_camera.h>
-#include <media/tw9910.h>
-#include <media/mt9t112.h>
+#include <media/i2c/tw9910.h>
+#include <media/i2c/mt9t112.h>
 #include <asm/heartbeat.h>
 #include <asm/clock.h>
 #include <asm/suspend.h>
@@ -900,7 +900,7 @@ static struct platform_device irda_device = {
 	.resource       = irda_resources,
 };
 
-#include <media/ak881x.h>
+#include <media/i2c/ak881x.h>
 #include <media/sh_vou.h>
 
 static struct ak881x_pdata ak881x_pdata = {

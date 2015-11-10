@@ -534,7 +534,7 @@ static struct platform_device irda_device = {
 	.resource       = irda_resources,
 };
 
-#include <media/ak881x.h>
+#include <media/i2c/ak881x.h>
 #include <media/sh_vou.h>
 
 static struct ak881x_pdata ak881x_pdata = {

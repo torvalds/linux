@@ -26,7 +26,7 @@
 #include "ivtv-ioctl.h"
 #include "ivtv-cards.h"
 #include <linux/firmware.h>
-#include <media/saa7127.h>
+#include <media/i2c/saa7127.h>
 
 #define IVTV_MASK_SPU_ENABLE 		0xFFFFFFFE
 #define IVTV_MASK_VPU_ENABLE15 		0xFFFFFFF6

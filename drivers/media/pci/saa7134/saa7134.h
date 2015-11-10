@@ -42,7 +42,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/tuner.h>
 #include <media/rc-core.h>
-#include <media/ir-kbd-i2c.h>
+#include <media/i2c/ir-kbd-i2c.h>
 #include <media/videobuf2-dma-sg.h>
 #include <sound/core.h>
 #include <sound/pcm.h>

@@ -395,7 +395,7 @@ M:	Sakari Ailus <sakari.ailus@iki.fi>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/i2c/adp1653.c
-F:	include/media/adp1653.h
+F:	include/media/i2c/adp1653.h
 
 ADP5520 BACKLIGHT DRIVER WITH IO EXPANDER (ADP5520/ADP5501)
 M:	Michael Hennerich <michael.hennerich@analog.com>
@@ -1773,7 +1773,7 @@ L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/i2c/as3645a.c
-F:	include/media/as3645a.h
+F:	include/media/i2c/as3645a.h
 
 ASC7621 HARDWARE MONITOR DRIVER
 M:	George Joseph <george.joseph@fairview5.com>
@@ -4596,7 +4596,7 @@ M:	Heungjun Kim <riverful.kim@samsung.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/i2c/m5mols/
-F:	include/media/m5mols.h
+F:	include/media/i2c/m5mols.h
 
 FUJITSU TABLET EXTRAS
 M:	Robert Gerlach <khnz@gmx.de>
@@ -7169,7 +7169,7 @@ L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/i2c/mt9m032.c
-F:	include/media/mt9m032.h
+F:	include/media/i2c/mt9m032.h
 
 MT9P031 APTINA CAMERA SENSOR
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
@@ -7177,7 +7177,7 @@ L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/i2c/mt9p031.c
-F:	include/media/mt9p031.h
+F:	include/media/i2c/mt9p031.h
 
 MT9T001 APTINA CAMERA SENSOR
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
@@ -7185,7 +7185,7 @@ L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/i2c/mt9t001.c
-F:	include/media/mt9t001.h
+F:	include/media/i2c/mt9t001.h
 
 MT9V032 APTINA CAMERA SENSOR
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
@@ -7194,7 +7194,7 @@ T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	Documentation/devicetree/bindings/media/i2c/mt9v032.txt
 F:	drivers/media/i2c/mt9v032.c
-F:	include/media/mt9v032.h
+F:	include/media/i2c/mt9v032.h
 
 MULTIFUNCTION DEVICES (MFD)
 M:	Lee Jones <lee.jones@linaro.org>
@@ -9751,7 +9751,7 @@ Q:	http://patchwork.linuxtv.org/project/linux-media/list/
 T:	git git://linuxtv.org/mhadli/v4l-dvb-davinci_devices.git
 S:	Maintained
 F:	drivers/media/i2c/ov2659.c
-F:	include/media/ov2659.h
+F:	include/media/i2c/ov2659.h
 
 SILICON MOTION SM712 FRAME BUFFER DRIVER
 M:	Sudip Mukherjee <sudipm.mukherjee@gmail.com>
@@ -9840,7 +9840,7 @@ M:	Sakari Ailus <sakari.ailus@iki.fi>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/i2c/smiapp/
-F:	include/media/smiapp.h
+F:	include/media/i2c/smiapp.h
 F:	drivers/media/i2c/smiapp-pll.c
 F:	drivers/media/i2c/smiapp-pll.h
 F:	include/uapi/linux/smiapp.h
@@ -10781,7 +10781,7 @@ M:	Mats Randgaard <matrandg@cisco.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/i2c/tc358743*
-F:	include/media/tc358743.h
+F:	include/media/i2c/tc358743.h
 
 TMIO MMC DRIVER
 M:	Ian Molton <ian@mnementh.co.uk>

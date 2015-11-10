@@ -24,7 +24,7 @@
 #include <linux/v4l2-mediabus.h>
 #include <linux/videodev2.h>
 
-#include <media/ov772x.h>
+#include <media/i2c/ov772x.h>
 #include <media/soc_camera.h>
 #include <media/v4l2-clk.h>
 #include <media/v4l2-ctrls.h>

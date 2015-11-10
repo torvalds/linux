@@ -15,7 +15,7 @@
 #include <linux/videodev2.h>
 #include <linux/module.h>
 
-#include <media/rj54n1cb0c.h>
+#include <media/i2c/rj54n1cb0c.h>
 #include <media/soc_camera.h>
 #include <media/v4l2-clk.h>
 #include <media/v4l2-subdev.h>

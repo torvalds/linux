@@ -13,7 +13,7 @@
 #include <asm/div64.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
-#include <media/mt9v011.h>
+#include <media/i2c/mt9v011.h>
 
 MODULE_DESCRIPTION("Micron mt9v011 sensor driver");
 MODULE_AUTHOR("Mauro Carvalho Chehab");

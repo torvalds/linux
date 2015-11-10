@@ -25,7 +25,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
-#include <media/m5mols.h>
+#include <media/i2c/m5mols.h>
 
 #include "m5mols.h"
 #include "m5mols_reg.h"

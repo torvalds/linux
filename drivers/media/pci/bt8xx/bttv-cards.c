@@ -41,7 +41,7 @@
 
 #include "bttvp.h"
 #include <media/v4l2-common.h>
-#include <media/tvaudio.h>
+#include <media/i2c/tvaudio.h>
 #include "bttv-audio-hook.h"
 
 /* fwd decl */

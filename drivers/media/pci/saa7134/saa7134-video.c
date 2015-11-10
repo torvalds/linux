@@ -32,7 +32,7 @@
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-event.h>
-#include <media/saa6588.h>
+#include <media/i2c/saa6588.h>
 
 /* ------------------------------------------------------------------ */
 

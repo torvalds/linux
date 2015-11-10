@@ -25,7 +25,7 @@
 #include <linux/v4l2-mediabus.h>
 #include <linux/module.h>
 
-#include <media/mt9v032.h>
+#include <media/i2c/mt9v032.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-of.h>

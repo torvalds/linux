@@ -1,5 +1,5 @@
 /*
- * include/media/lm3646.h
+ * include/media/i2c/lm3646.h
  *
  * Copyright (C) 2014 Texas Instruments
  *

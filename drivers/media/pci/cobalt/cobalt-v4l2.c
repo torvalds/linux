@@ -29,8 +29,8 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-dv-timings.h>
-#include <media/adv7604.h>
-#include <media/adv7842.h>
+#include <media/i2c/adv7604.h>
+#include <media/i2c/adv7842.h>
 
 #include "cobalt-alsa.h"
 #include "cobalt-cpld.h"

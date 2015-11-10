@@ -21,7 +21,7 @@
 
 #include <linux/i2c.h>
 #include <media/soc_camera.h>
-#include <media/mt9v011.h>
+#include <media/i2c/mt9v011.h>
 #include <media/v4l2-clk.h>
 #include <media/v4l2-common.h>
 

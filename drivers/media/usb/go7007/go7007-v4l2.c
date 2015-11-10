@@ -30,7 +30,7 @@
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-event.h>
 #include <media/videobuf2-vmalloc.h>
-#include <media/saa7115.h>
+#include <media/i2c/saa7115.h>
 
 #include "go7007-priv.h"
 

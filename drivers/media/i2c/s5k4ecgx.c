@@ -27,7 +27,7 @@
 #include <asm/unaligned.h>
 
 #include <media/media-entity.h>
-#include <media/s5k4ecgx.h>
+#include <media/i2c/s5k4ecgx.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mediabus.h>

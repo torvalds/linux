@@ -18,7 +18,7 @@
  *  SOFTWARE.
  */
 
-#include <media/adv7604.h>
+#include <media/i2c/adv7604.h>
 
 #include "cobalt-driver.h"
 #include "cobalt-irq.h"

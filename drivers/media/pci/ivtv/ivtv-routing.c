@@ -25,9 +25,9 @@
 #include "ivtv-routing.h"
 
 #include <media/msp3400.h>
-#include <media/m52790.h>
-#include <media/upd64031a.h>
-#include <media/upd64083.h>
+#include <media/i2c/m52790.h>
+#include <media/i2c/upd64031a.h>
+#include <media/i2c/upd64083.h>
 
 /* Selects the audio input and output according to the current
    settings. */

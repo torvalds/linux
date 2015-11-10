@@ -32,8 +32,8 @@
 #include <media/videobuf2-dma-sg.h>
 #include <media/cx2341x.h>
 #include <media/videobuf2-dvb.h>
-#include <media/ir-kbd-i2c.h>
-#include <media/wm8775.h>
+#include <media/i2c/ir-kbd-i2c.h>
+#include <media/i2c/wm8775.h>
 
 #include "cx88-reg.h"
 #include "tuner-xc2028.h"
