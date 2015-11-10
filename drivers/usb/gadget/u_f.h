@@ -16,6 +16,8 @@
 #ifndef __U_F_H__
 #define __U_F_H__
 
+#include <linux/usb/gadget.h>
+
 /* Variable Length Array Macros **********************************************/
 #define vla_group(groupname) size_t groupname##__next = 0
 #define vla_group_size(groupname) groupname##__next
@@ -45,8 +47,12 @@
 struct usb_ep;
 struct usb_request;
 
+/* Requests allocated via alloc_ep_req() must be freed by free_ep_req(). */
 struct usb_request *alloc_ep_req(struct usb_ep *ep, int len, int default_len);
+static inline void free_ep_req(struct usb_ep *ep, struct usb_request *req)
+{
+	kfree(req->buf);
+	usb_ep_free_request(ep, req);
+}
 
 #endif /* __U_F_H__ */
-
-
