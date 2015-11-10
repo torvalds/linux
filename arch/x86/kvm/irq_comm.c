@@ -33,6 +33,8 @@
 
 #include "lapic.h"
 
+#include "hyperv.h"
+
 static int kvm_set_pic_irq(struct kvm_kernel_irq_routing_entry *e,
 			   struct kvm *kvm, int irq_source_id, int level,
 			   bool line_status)
@@ -219,6 +221,16 @@ void kvm_fire_mask_notifiers(struct kvm *kvm, unsigned irqchip, unsigned pin,
 	srcu_read_unlock(&kvm->irq_srcu, idx);
 }
 
+static int kvm_hv_set_sint(struct kvm_kernel_irq_routing_entry *e,
+		    struct kvm *kvm, int irq_source_id, int level,
+		    bool line_status)
+{
+	if (!level)
+		return -1;
+
+	return kvm_hv_synic_set_irq(kvm, e->hv_sint.vcpu, e->hv_sint.sint);
+}
+
 int kvm_set_routing_entry(struct kvm_kernel_irq_routing_entry *e,
 			  const struct kvm_irq_routing_entry *ue)
 {
@@ -256,6 +268,11 @@ int kvm_set_routing_entry(struct kvm_kernel_irq_routing_entry *e,
 		e->msi.address_lo = ue->u.msi.address_lo;
 		e->msi.address_hi = ue->u.msi.address_hi;
 		e->msi.data = ue->u.msi.data;
+		break;
+	case KVM_IRQ_ROUTING_HV_SINT:
+		e->set = kvm_hv_set_sint;
+		e->hv_sint.vcpu = ue->u.hv_sint.vcpu;
+		e->hv_sint.sint = ue->u.hv_sint.sint;
 		break;
 	default:
 		goto out;
@@ -375,4 +392,21 @@ void kvm_scan_ioapic_routes(struct kvm_vcpu *vcpu,
 		}
 	}
 	srcu_read_unlock(&kvm->irq_srcu, idx);
+}
+
+int kvm_arch_set_irq(struct kvm_kernel_irq_routing_entry *irq, struct kvm *kvm,
+		     int irq_source_id, int level, bool line_status)
+{
+	switch (irq->type) {
+	case KVM_IRQ_ROUTING_HV_SINT:
+		return kvm_hv_set_sint(irq, kvm, irq_source_id, level,
+				       line_status);
+	default:
+		return -EWOULDBLOCK;
+	}
+}
+
+void kvm_arch_irq_routing_update(struct kvm *kvm)
+{
+	kvm_hv_irq_routing_update(kvm);
 }

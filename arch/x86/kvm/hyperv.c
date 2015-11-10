@@ -23,12 +23,313 @@
 
 #include "x86.h"
 #include "lapic.h"
+#include "ioapic.h"
 #include "hyperv.h"
 
 #include <linux/kvm_host.h>
+#include <asm/apicdef.h>
 #include <trace/events/kvm.h>
 
 #include "trace.h"
+
+static inline u64 synic_read_sint(struct kvm_vcpu_hv_synic *synic, int sint)
+{
+	return atomic64_read(&synic->sint[sint]);
+}
+
+static inline int synic_get_sint_vector(u64 sint_value)
+{
+	if (sint_value & HV_SYNIC_SINT_MASKED)
+		return -1;
+	return sint_value & HV_SYNIC_SINT_VECTOR_MASK;
+}
+
+static bool synic_has_vector_connected(struct kvm_vcpu_hv_synic *synic,
+				      int vector)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(synic->sint); i++) {
+		if (synic_get_sint_vector(synic_read_sint(synic, i)) == vector)
+			return true;
+	}
+	return false;
+}
+
+static bool synic_has_vector_auto_eoi(struct kvm_vcpu_hv_synic *synic,
+				     int vector)
+{
+	int i;
+	u64 sint_value;
+
+	for (i = 0; i < ARRAY_SIZE(synic->sint); i++) {
+		sint_value = synic_read_sint(synic, i);
+		if (synic_get_sint_vector(sint_value) == vector &&
+		    sint_value & HV_SYNIC_SINT_AUTO_EOI)
+			return true;
+	}
+	return false;
+}
+
+static int synic_set_sint(struct kvm_vcpu_hv_synic *synic, int sint, u64 data)
+{
+	int vector;
+
+	vector = data & HV_SYNIC_SINT_VECTOR_MASK;
+	if (vector < 16)
+		return 1;
+	/*
+	 * Guest may configure multiple SINTs to use the same vector, so
+	 * we maintain a bitmap of vectors handled by synic, and a
+	 * bitmap of vectors with auto-eoi behavior.  The bitmaps are
+	 * updated here, and atomically queried on fast paths.
+	 */
+
+	atomic64_set(&synic->sint[sint], data);
+
+	if (synic_has_vector_connected(synic, vector))
+		__set_bit(vector, synic->vec_bitmap);
+	else
+		__clear_bit(vector, synic->vec_bitmap);
+
+	if (synic_has_vector_auto_eoi(synic, vector))
+		__set_bit(vector, synic->auto_eoi_bitmap);
+	else
+		__clear_bit(vector, synic->auto_eoi_bitmap);
+
+	/* Load SynIC vectors into EOI exit bitmap */
+	kvm_make_request(KVM_REQ_SCAN_IOAPIC, synic_to_vcpu(synic));
+	return 0;
+}
+
+static struct kvm_vcpu_hv_synic *synic_get(struct kvm *kvm, u32 vcpu_id)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_vcpu_hv_synic *synic;
+
+	if (vcpu_id >= atomic_read(&kvm->online_vcpus))
+		return NULL;
+	vcpu = kvm_get_vcpu(kvm, vcpu_id);
+	if (!vcpu)
+		return NULL;
+	synic = vcpu_to_synic(vcpu);
+	return (synic->active) ? synic : NULL;
+}
+
+static void kvm_hv_notify_acked_sint(struct kvm_vcpu *vcpu, u32 sint)
+{
+	struct kvm *kvm = vcpu->kvm;
+	int gsi, idx;
+
+	vcpu_debug(vcpu, "Hyper-V SynIC acked sint %d\n", sint);
+
+	idx = srcu_read_lock(&kvm->irq_srcu);
+	gsi = atomic_read(&vcpu_to_synic(vcpu)->sint_to_gsi[sint]);
+	if (gsi != -1)
+		kvm_notify_acked_gsi(kvm, gsi);
+	srcu_read_unlock(&kvm->irq_srcu, idx);
+}
+
+static int synic_set_msr(struct kvm_vcpu_hv_synic *synic,
+			 u32 msr, u64 data, bool host)
+{
+	struct kvm_vcpu *vcpu = synic_to_vcpu(synic);
+	int ret;
+
+	if (!synic->active)
+		return 1;
+
+	vcpu_debug(vcpu, "Hyper-V SynIC set msr 0x%x 0x%llx host %d\n",
+		   msr, data, host);
+	ret = 0;
+	switch (msr) {
+	case HV_X64_MSR_SCONTROL:
+		synic->control = data;
+		break;
+	case HV_X64_MSR_SVERSION:
+		if (!host) {
+			ret = 1;
+			break;
+		}
+		synic->version = data;
+		break;
+	case HV_X64_MSR_SIEFP:
+		if (data & HV_SYNIC_SIEFP_ENABLE)
+			if (kvm_clear_guest(vcpu->kvm,
+					    data & PAGE_MASK, PAGE_SIZE)) {
+				ret = 1;
+				break;
+			}
+		synic->evt_page = data;
+		break;
+	case HV_X64_MSR_SIMP:
+		if (data & HV_SYNIC_SIMP_ENABLE)
+			if (kvm_clear_guest(vcpu->kvm,
+					    data & PAGE_MASK, PAGE_SIZE)) {
+				ret = 1;
+				break;
+			}
+		synic->msg_page = data;
+		break;
+	case HV_X64_MSR_EOM: {
+		int i;
+
+		for (i = 0; i < ARRAY_SIZE(synic->sint); i++)
+			kvm_hv_notify_acked_sint(vcpu, i);
+		break;
+	}
+	case HV_X64_MSR_SINT0 ... HV_X64_MSR_SINT15:
+		ret = synic_set_sint(synic, msr - HV_X64_MSR_SINT0, data);
+		break;
+	default:
+		ret = 1;
+		break;
+	}
+	return ret;
+}
+
+static int synic_get_msr(struct kvm_vcpu_hv_synic *synic, u32 msr, u64 *pdata)
+{
+	int ret;
+
+	if (!synic->active)
+		return 1;
+
+	ret = 0;
+	switch (msr) {
+	case HV_X64_MSR_SCONTROL:
+		*pdata = synic->control;
+		break;
+	case HV_X64_MSR_SVERSION:
+		*pdata = synic->version;
+		break;
+	case HV_X64_MSR_SIEFP:
+		*pdata = synic->evt_page;
+		break;
+	case HV_X64_MSR_SIMP:
+		*pdata = synic->msg_page;
+		break;
+	case HV_X64_MSR_EOM:
+		*pdata = 0;
+		break;
+	case HV_X64_MSR_SINT0 ... HV_X64_MSR_SINT15:
+		*pdata = atomic64_read(&synic->sint[msr - HV_X64_MSR_SINT0]);
+		break;
+	default:
+		ret = 1;
+		break;
+	}
+	return ret;
+}
+
+int synic_set_irq(struct kvm_vcpu_hv_synic *synic, u32 sint)
+{
+	struct kvm_vcpu *vcpu = synic_to_vcpu(synic);
+	struct kvm_lapic_irq irq;
+	int ret, vector;
+
+	if (sint >= ARRAY_SIZE(synic->sint))
+		return -EINVAL;
+
+	vector = synic_get_sint_vector(synic_read_sint(synic, sint));
+	if (vector < 0)
+		return -ENOENT;
+
+	memset(&irq, 0, sizeof(irq));
+	irq.dest_id = kvm_apic_id(vcpu->arch.apic);
+	irq.dest_mode = APIC_DEST_PHYSICAL;
+	irq.delivery_mode = APIC_DM_FIXED;
+	irq.vector = vector;
+	irq.level = 1;
+
+	ret = kvm_irq_delivery_to_apic(vcpu->kvm, NULL, &irq, NULL);
+	vcpu_debug(vcpu, "Hyper-V SynIC set irq ret %d\n", ret);
+	return ret;
+}
+
+int kvm_hv_synic_set_irq(struct kvm *kvm, u32 vcpu_id, u32 sint)
+{
+	struct kvm_vcpu_hv_synic *synic;
+
+	synic = synic_get(kvm, vcpu_id);
+	if (!synic)
+		return -EINVAL;
+
+	return synic_set_irq(synic, sint);
+}
+
+void kvm_hv_synic_send_eoi(struct kvm_vcpu *vcpu, int vector)
+{
+	struct kvm_vcpu_hv_synic *synic = vcpu_to_synic(vcpu);
+	int i;
+
+	vcpu_debug(vcpu, "Hyper-V SynIC send eoi vec %d\n", vector);
+
+	for (i = 0; i < ARRAY_SIZE(synic->sint); i++)
+		if (synic_get_sint_vector(synic_read_sint(synic, i)) == vector)
+			kvm_hv_notify_acked_sint(vcpu, i);
+}
+
+static int kvm_hv_set_sint_gsi(struct kvm *kvm, u32 vcpu_id, u32 sint, int gsi)
+{
+	struct kvm_vcpu_hv_synic *synic;
+
+	synic = synic_get(kvm, vcpu_id);
+	if (!synic)
+		return -EINVAL;
+
+	if (sint >= ARRAY_SIZE(synic->sint_to_gsi))
+		return -EINVAL;
+
+	atomic_set(&synic->sint_to_gsi[sint], gsi);
+	return 0;
+}
+
+void kvm_hv_irq_routing_update(struct kvm *kvm)
+{
+	struct kvm_irq_routing_table *irq_rt;
+	struct kvm_kernel_irq_routing_entry *e;
+	u32 gsi;
+
+	irq_rt = srcu_dereference_check(kvm->irq_routing, &kvm->irq_srcu,
+					lockdep_is_held(&kvm->irq_lock));
+
+	for (gsi = 0; gsi < irq_rt->nr_rt_entries; gsi++) {
+		hlist_for_each_entry(e, &irq_rt->map[gsi], link) {
+			if (e->type == KVM_IRQ_ROUTING_HV_SINT)
+				kvm_hv_set_sint_gsi(kvm, e->hv_sint.vcpu,
+						    e->hv_sint.sint, gsi);
+		}
+	}
+}
+
+static void synic_init(struct kvm_vcpu_hv_synic *synic)
+{
+	int i;
+
+	memset(synic, 0, sizeof(*synic));
+	synic->version = HV_SYNIC_VERSION_1;
+	for (i = 0; i < ARRAY_SIZE(synic->sint); i++) {
+		atomic64_set(&synic->sint[i], HV_SYNIC_SINT_MASKED);
+		atomic_set(&synic->sint_to_gsi[i], -1);
+	}
+}
+
+void kvm_hv_vcpu_init(struct kvm_vcpu *vcpu)
+{
+	synic_init(vcpu_to_synic(vcpu));
+}
+
+int kvm_hv_activate_synic(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * Hyper-V SynIC auto EOI SINT's are
+	 * not compatible with APICV, so deactivate APICV
+	 */
+	kvm_vcpu_deactivate_apicv(vcpu);
+	vcpu_to_synic(vcpu)->active = true;
+	return 0;
+}
 
 static bool kvm_hv_msr_partition_wide(u32 msr)
 {
@@ -226,6 +527,13 @@ static int kvm_hv_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host)
 			return 1;
 		hv->runtime_offset = data - current_task_runtime_100ns();
 		break;
+	case HV_X64_MSR_SCONTROL:
+	case HV_X64_MSR_SVERSION:
+	case HV_X64_MSR_SIEFP:
+	case HV_X64_MSR_SIMP:
+	case HV_X64_MSR_EOM:
+	case HV_X64_MSR_SINT0 ... HV_X64_MSR_SINT15:
+		return synic_set_msr(vcpu_to_synic(vcpu), msr, data, host);
 	default:
 		vcpu_unimpl(vcpu, "Hyper-V uhandled wrmsr: 0x%x data 0x%llx\n",
 			    msr, data);
@@ -304,6 +612,13 @@ static int kvm_hv_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	case HV_X64_MSR_VP_RUNTIME:
 		data = current_task_runtime_100ns() + hv->runtime_offset;
 		break;
+	case HV_X64_MSR_SCONTROL:
+	case HV_X64_MSR_SVERSION:
+	case HV_X64_MSR_SIEFP:
+	case HV_X64_MSR_SIMP:
+	case HV_X64_MSR_EOM:
+	case HV_X64_MSR_SINT0 ... HV_X64_MSR_SINT15:
+		return synic_get_msr(vcpu_to_synic(vcpu), msr, pdata);
 	default:
 		vcpu_unimpl(vcpu, "Hyper-V unhandled rdmsr: 0x%x\n", msr);
 		return 1;
