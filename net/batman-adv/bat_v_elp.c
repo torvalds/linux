@@ -165,6 +165,69 @@ void batadv_v_elp_throughput_metric_update(struct work_struct *work)
 }
 
 /**
+ * batadv_v_elp_wifi_neigh_probe - send link probing packets to a neighbour
+ * @neigh: the neighbour to probe
+ *
+ * Sends a predefined number of unicast wifi packets to a given neighbour in
+ * order to trigger the throughput estimation on this link by the RC algorithm.
+ * Packets are sent only if there there is not enough payload unicast traffic
+ * towards this neighbour..
+ *
+ * Return: True on success and false in case of error during skb preparation.
+ */
+static bool
+batadv_v_elp_wifi_neigh_probe(struct batadv_hardif_neigh_node *neigh)
+{
+	struct batadv_hard_iface *hard_iface = neigh->if_incoming;
+	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
+	unsigned long last_tx_diff;
+	struct sk_buff *skb;
+	int probe_len, i;
+	int elp_skb_len;
+
+	/* this probing routine is for Wifi neighbours only */
+	if (!batadv_is_wifi_netdev(hard_iface->net_dev))
+		return true;
+
+	/* probe the neighbor only if no unicast packets have been sent
+	 * to it in the last 100 milliseconds: this is the rate control
+	 * algorithm sampling interval (minstrel). In this way, if not
+	 * enough traffic has been sent to the neighbor, batman-adv can
+	 * generate 2 probe packets and push the RC algorithm to perform
+	 * the sampling
+	 */
+	last_tx_diff = jiffies_to_msecs(jiffies - neigh->bat_v.last_unicast_tx);
+	if (last_tx_diff <= BATADV_ELP_PROBE_MAX_TX_DIFF)
+		return true;
+
+	probe_len = max_t(int, sizeof(struct batadv_elp_packet),
+			  BATADV_ELP_MIN_PROBE_SIZE);
+
+	for (i = 0; i < BATADV_ELP_PROBES_PER_NODE; i++) {
+		elp_skb_len = hard_iface->bat_v.elp_skb->len;
+		skb = skb_copy_expand(hard_iface->bat_v.elp_skb, 0,
+				      probe_len - elp_skb_len,
+				      GFP_ATOMIC);
+		if (!skb)
+			return false;
+
+		/* Tell the skb to get as big as the allocated space (we want
+		 * the packet to be exactly of that size to make the link
+		 * throughput estimation effective.
+		 */
+		skb_put(skb, probe_len - hard_iface->bat_v.elp_skb->len);
+
+		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
+			   "Sending unicast (probe) ELP packet on interface %s to %pM\n",
+			   hard_iface->net_dev->name, neigh->addr);
+
+		batadv_send_skb_packet(skb, hard_iface, neigh->addr);
+	}
+
+	return true;
+}
+
+/**
  * batadv_v_elp_periodic_work - ELP periodic task per interface
  * @work: work queue item
  *
@@ -227,6 +290,12 @@ static void batadv_v_elp_periodic_work(struct work_struct *work)
 	 */
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(hardif_neigh, &hard_iface->neigh_list, list) {
+		if (!batadv_v_elp_wifi_neigh_probe(hardif_neigh))
+			/* if something goes wrong while probing, better to stop
+			 * sending packets immediately and reschedule the task
+			 */
+			break;
+
 		if (!kref_get_unless_zero(&hardif_neigh->refcount))
 			continue;
 
