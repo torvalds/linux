@@ -6301,15 +6301,16 @@ static void vcpu_scan_ioapic(struct kvm_vcpu *vcpu)
 	if (!kvm_apic_hw_enabled(vcpu->arch.apic))
 		return;
 
-	memset(vcpu->arch.eoi_exit_bitmap, 0, 256 / 8);
+	bitmap_zero(vcpu->arch.ioapic_handled_vectors, 256);
 
 	if (irqchip_split(vcpu->kvm))
-		kvm_scan_ioapic_routes(vcpu, vcpu->arch.eoi_exit_bitmap);
+		kvm_scan_ioapic_routes(vcpu, vcpu->arch.ioapic_handled_vectors);
 	else {
 		kvm_x86_ops->sync_pir_to_irr(vcpu);
-		kvm_ioapic_scan_entry(vcpu, vcpu->arch.eoi_exit_bitmap);
+		kvm_ioapic_scan_entry(vcpu, vcpu->arch.ioapic_handled_vectors);
 	}
-	kvm_x86_ops->load_eoi_exitmap(vcpu);
+	kvm_x86_ops->load_eoi_exitmap(vcpu,
+				      (u64 *)vcpu->arch.ioapic_handled_vectors);
 }
 
 static void kvm_vcpu_flush_tlb(struct kvm_vcpu *vcpu)
@@ -6417,7 +6418,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		if (kvm_check_request(KVM_REQ_IOAPIC_EOI_EXIT, vcpu)) {
 			BUG_ON(vcpu->arch.pending_ioapic_eoi > 255);
 			if (test_bit(vcpu->arch.pending_ioapic_eoi,
-				     (void *) vcpu->arch.eoi_exit_bitmap)) {
+				     vcpu->arch.ioapic_handled_vectors)) {
 				vcpu->run->exit_reason = KVM_EXIT_IOAPIC_EOI;
 				vcpu->run->eoi.vector =
 						vcpu->arch.pending_ioapic_eoi;

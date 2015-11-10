@@ -932,7 +932,7 @@ int kvm_apic_compare_prio(struct kvm_vcpu *vcpu1, struct kvm_vcpu *vcpu2)
 
 static bool kvm_ioapic_handles_vector(struct kvm_lapic *apic, int vector)
 {
-	return test_bit(vector, (ulong *)apic->vcpu->arch.eoi_exit_bitmap);
+	return test_bit(vector, apic->vcpu->arch.ioapic_handled_vectors);
 }
 
 static void kvm_ioapic_send_eoi(struct kvm_lapic *apic, int vector)

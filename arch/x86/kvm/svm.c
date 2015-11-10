@@ -3564,7 +3564,7 @@ static int svm_cpu_uses_apicv(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static void svm_load_eoi_exitmap(struct kvm_vcpu *vcpu)
+static void svm_load_eoi_exitmap(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap)
 {
 	return;
 }
