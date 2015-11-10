@@ -55,10 +55,10 @@ int omapdss_default_get_recommended_bpp(struct omap_dss_device *dssdev)
 		else
 			return 16;
 	case OMAP_DISPLAY_TYPE_DSI:
-		if (dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt) > 16)
-			return 24;
-		else
+		if (dssdev->panel.dsi_pix_fmt == OMAP_DSS_DSI_FMT_RGB565)
 			return 16;
+		else
+			return 24;
 	case OMAP_DISPLAY_TYPE_VENC:
 	case OMAP_DISPLAY_TYPE_SDI:
 	case OMAP_DISPLAY_TYPE_HDMI:

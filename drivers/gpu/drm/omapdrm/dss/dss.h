@@ -315,15 +315,7 @@ void dsi_uninit_platform_driver(void);
 void dsi_dump_clocks(struct seq_file *s);
 
 void dsi_irq_handler(void);
-u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt);
 
-#else
-static inline u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt)
-{
-	WARN(1, "%s: DSI not compiled in, returning pixel_size as 0\n",
-	     __func__);
-	return 0;
-}
 #endif
 
 /* DPI */
