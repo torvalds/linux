@@ -26,6 +26,7 @@
 #include <linux/sched.h>
 #include <drm/drmP.h>
 #include "amdgpu.h"
+#include "amdgpu_trace.h"
 
 static struct fence *amdgpu_sched_dependency(struct amd_sched_job *sched_job)
 {
@@ -45,6 +46,7 @@ static struct fence *amdgpu_sched_run_job(struct amd_sched_job *sched_job)
 	}
 	job = to_amdgpu_job(sched_job);
 	mutex_lock(&job->job_lock);
+	trace_amdgpu_sched_run_job(job);
 	r = amdgpu_ib_schedule(job->adev,
 			       job->num_ibs,
 			       job->ibs,

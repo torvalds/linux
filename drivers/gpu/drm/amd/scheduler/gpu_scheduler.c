@@ -346,6 +346,7 @@ static void amd_sched_process_job(struct fence *f, struct fence_cb *cb)
 		list_del_init(&s_fence->list);
 		spin_unlock_irqrestore(&sched->fence_list_lock, flags);
 	}
+	trace_amd_sched_process_job(s_fence);
 	fence_put(&s_fence->base);
 	wake_up_interruptible(&sched->wake_up_worker);
 }

@@ -888,7 +888,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		ttm_eu_fence_buffer_objects(&parser.ticket,
 				&parser.validated,
 				&job->base.s_fence->base);
-
+		trace_amdgpu_cs_ioctl(job);
 		mutex_unlock(&job->job_lock);
 		amdgpu_cs_parser_fini_late(&parser);
 		mutex_unlock(&vm->mutex);

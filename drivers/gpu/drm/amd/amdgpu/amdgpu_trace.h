@@ -48,6 +48,57 @@ TRACE_EVENT(amdgpu_cs,
 		      __entry->fences)
 );
 
+TRACE_EVENT(amdgpu_cs_ioctl,
+	    TP_PROTO(struct amdgpu_job *job),
+	    TP_ARGS(job),
+	    TP_STRUCT__entry(
+			     __field(struct amdgpu_device *, adev)
+			     __field(struct amd_sched_job *, sched_job)
+			     __field(struct amdgpu_ib *, ib)
+			     __field(struct fence *, fence)
+			     __field(char *, ring_name)
+			     __field(u32, num_ibs)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->adev = job->adev;
+			   __entry->sched_job = &job->base;
+			   __entry->ib = job->ibs;
+			   __entry->fence = &job->base.s_fence->base;
+			   __entry->ring_name = job->ibs[0].ring->name;
+			   __entry->num_ibs = job->num_ibs;
+			   ),
+	    TP_printk("adev=%p, sched_job=%p, first ib=%p, sched fence=%p, ring name:%s, num_ibs:%u",
+		      __entry->adev, __entry->sched_job, __entry->ib,
+		      __entry->fence, __entry->ring_name, __entry->num_ibs)
+);
+
+TRACE_EVENT(amdgpu_sched_run_job,
+	    TP_PROTO(struct amdgpu_job *job),
+	    TP_ARGS(job),
+	    TP_STRUCT__entry(
+			     __field(struct amdgpu_device *, adev)
+			     __field(struct amd_sched_job *, sched_job)
+			     __field(struct amdgpu_ib *, ib)
+			     __field(struct fence *, fence)
+			     __field(char *, ring_name)
+			     __field(u32, num_ibs)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->adev = job->adev;
+			   __entry->sched_job = &job->base;
+			   __entry->ib = job->ibs;
+			   __entry->fence = &job->base.s_fence->base;
+			   __entry->ring_name = job->ibs[0].ring->name;
+			   __entry->num_ibs = job->num_ibs;
+			   ),
+	    TP_printk("adev=%p, sched_job=%p, first ib=%p, sched fence=%p, ring name:%s, num_ibs:%u",
+		      __entry->adev, __entry->sched_job, __entry->ib,
+		      __entry->fence, __entry->ring_name, __entry->num_ibs)
+);
+
+
 TRACE_EVENT(amdgpu_vm_grab_id,
 	    TP_PROTO(unsigned vmid, int ring),
 	    TP_ARGS(vmid, ring),
