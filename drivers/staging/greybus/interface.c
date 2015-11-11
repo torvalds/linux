@@ -60,6 +60,9 @@ static void gb_interface_release(struct device *dev)
 {
 	struct gb_interface *intf = to_gb_interface(dev);
 
+	kfree(intf->product_string);
+	kfree(intf->vendor_string);
+
 	kfree(intf);
 }
 
@@ -190,9 +193,6 @@ void gb_interface_remove(struct gb_interface *intf)
 
 	list_for_each_entry_safe(bundle, next, &intf->bundles, links)
 		gb_bundle_destroy(bundle);
-
-	kfree(intf->product_string);
-	kfree(intf->vendor_string);
 
 	module = intf->module;
 	device_unregister(&intf->dev);
