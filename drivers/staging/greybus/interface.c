@@ -176,7 +176,7 @@ put_module:
 }
 
 /*
- * Tear down a previously set up module.
+ * Tear down a previously set up interface.
  */
 void gb_interface_remove(struct gb_interface *intf)
 {
