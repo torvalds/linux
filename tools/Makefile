@@ -101,7 +101,7 @@ freefall_install:
 install: acpi_install cgroup_install cpupower_install hv_install firewire_install lguest_install \
 		perf_install selftests_install turbostat_install usb_install \
 		virtio_install vm_install net_install x86_energy_perf_policy_install \
-		tmon freefall_install
+		tmon_install freefall_install
 
 acpi_clean:
 	$(call descend,power/acpi,clean)
