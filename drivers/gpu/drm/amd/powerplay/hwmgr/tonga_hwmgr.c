@@ -3279,7 +3279,7 @@ int tonga_force_dpm_highest(struct pp_hwmgr *hwmgr)
 				if (PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 					TARGET_AND_CURRENT_PROFILE_INDEX, CURR_MCLK_INDEX) != level)
 					printk(KERN_ERR "[ powerplay ] Target_and_current_Profile_Index. \
-						Curr_Sclk_Index does not match the level \n");
+						Curr_Mclk_Index does not match the level \n");
 			}
 		}
 	}
@@ -3424,21 +3424,47 @@ static uint32_t tonga_get_lowest_enable_level(
 
 static int tonga_force_dpm_lowest(struct pp_hwmgr *hwmgr)
 {
-	uint32_t level = 0;
+	uint32_t level;
 	tonga_hwmgr *data = (tonga_hwmgr *)(hwmgr->backend);
 
-	/* for now force only sclk */
-	if (0 != data->dpm_level_enable_mask.sclk_dpm_enable_mask) {
-		level = tonga_get_lowest_enable_level(hwmgr,
-					data->dpm_level_enable_mask.sclk_dpm_enable_mask);
+	if (0 == data->pcie_dpm_key_disabled) {
+		/* PCIE */
+		if (data->dpm_level_enable_mask.pcie_dpm_enable_mask != 0) {
+			level = tonga_get_lowest_enable_level(hwmgr,
+							      data->dpm_level_enable_mask.pcie_dpm_enable_mask);
+			PP_ASSERT_WITH_CODE((0 == tonga_dpm_force_state_pcie(hwmgr, level)),
+					    "force lowest pcie dpm state failed!", return -1);
+		}
+	}
 
-		PP_ASSERT_WITH_CODE((0 == tonga_dpm_force_state(hwmgr, level)),
-			"force sclk dpm state failed!", return -1);
+	if (0 == data->sclk_dpm_key_disabled) {
+		/* SCLK */
+		if (0 != data->dpm_level_enable_mask.sclk_dpm_enable_mask) {
+			level = tonga_get_lowest_enable_level(hwmgr,
+							      data->dpm_level_enable_mask.sclk_dpm_enable_mask);
 
-		if (PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
-			CGS_IND_REG__SMC, TARGET_AND_CURRENT_PROFILE_INDEX, CURR_SCLK_INDEX) != level)
-			printk(KERN_ERR "[ powerplay ] Target_and_current_Profile_Index.	\
+			PP_ASSERT_WITH_CODE((0 == tonga_dpm_force_state(hwmgr, level)),
+					    "force sclk dpm state failed!", return -1);
+
+			if (PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
+							 CGS_IND_REG__SMC, TARGET_AND_CURRENT_PROFILE_INDEX, CURR_SCLK_INDEX) != level)
+				printk(KERN_ERR "[ powerplay ] Target_and_current_Profile_Index.	\
 				Curr_Sclk_Index does not match the level \n");
+		}
+	}
+
+	if (0 == data->mclk_dpm_key_disabled) {
+		/* MCLK */
+		if (data->dpm_level_enable_mask.mclk_dpm_enable_mask != 0) {
+			level = tonga_get_lowest_enable_level(hwmgr,
+							      data->dpm_level_enable_mask.mclk_dpm_enable_mask);
+			PP_ASSERT_WITH_CODE((0 == tonga_dpm_force_state_mclk(hwmgr, level)),
+					    "force lowest mclk dpm state failed!", return -1);
+			if (PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+							 TARGET_AND_CURRENT_PROFILE_INDEX, CURR_MCLK_INDEX) != level)
+				printk(KERN_ERR "[ powerplay ] Target_and_current_Profile_Index. \
+						Curr_Mclk_Index does not match the level \n");
+		}
 	}
 
 	return 0;
