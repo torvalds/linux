@@ -123,6 +123,26 @@ Optional properties:
 - opp-suspend: Marks the OPP to be used during device suspend. Only one OPP in
   the table should have this.
 
+- opp-supported-hw: This enables us to select only a subset of OPPs from the
+  larger OPP table, based on what version of the hardware we are running on. We
+  still can't have multiple nodes with the same opp-hz value in OPP table.
+
+  It's an user defined array containing a hierarchy of hardware version numbers,
+  supported by the OPP. For example: a platform with hierarchy of three levels
+  of versions (A, B and C), this field should be like <X Y Z>, where X
+  corresponds to Version hierarchy A, Y corresponds to version hierarchy B and Z
+  corresponds to version hierarchy C.
+
+  Each level of hierarchy is represented by a 32 bit value, and so there can be
+  only 32 different supported version per hierarchy. i.e. 1 bit per version. A
+  value of 0xFFFFFFFF will enable the OPP for all versions for that hierarchy
+  level. And a value of 0x00000000 will disable the OPP completely, and so we
+  never want that to happen.
+
+  If 32 values aren't sufficient for a version hierarchy, than that version
+  hierarchy can be contained in multiple 32 bit values. i.e. <X Y Z1 Z2> in the
+  above example, Z1 & Z2 refer to the version hierarchy Z.
+
 - status: Marks the node enabled/disabled.
 
 Example 1: Single cluster Dual-core ARM cortex A9, switch DVFS states together.
@@ -459,6 +479,51 @@ Example 5: Multiple OPP tables
 
 		opp11 {
 			opp-hz = /bits/ 64 <1100000000>;
+			...
+		};
+	};
+};
+
+Example 6: opp-supported-hw
+(example: three level hierarchy of versions: cuts, substrate and process)
+
+/ {
+	cpus {
+		cpu@0 {
+			compatible = "arm,cortex-a7";
+			...
+
+			cpu-supply = <&cpu_supply>
+			operating-points-v2 = <&cpu0_opp_table_slow>;
+		};
+	};
+
+	opp_table {
+		compatible = "operating-points-v2";
+		status = "okay";
+		opp-shared;
+
+		opp00 {
+			/*
+			 * Supports all substrate and process versions for 0xF
+			 * cuts, i.e. only first four cuts.
+			 */
+			opp-supported-hw = <0xF 0xFFFFFFFF 0xFFFFFFFF>
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <900000 915000 925000>;
+			...
+		};
+
+		opp01 {
+			/*
+			 * Supports:
+			 * - cuts: only one, 6th cut (represented by 6th bit).
+			 * - substrate: supports 16 different substrate versions
+			 * - process: supports 9 different process versions
+			 */
+			opp-supported-hw = <0x20 0xff0000ff 0x0000f4f0>
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <900000 915000 925000>;
 			...
 		};
 	};
