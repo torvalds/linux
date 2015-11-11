@@ -86,10 +86,6 @@ struct zfcp_reqlist;
 #define ZFCP_STATUS_PORT_PHYS_OPEN		0x00000001
 #define ZFCP_STATUS_PORT_LINK_TEST		0x00000002
 
-/* logical unit status */
-#define ZFCP_STATUS_LUN_SHARED			0x00000004
-#define ZFCP_STATUS_LUN_READONLY		0x00000008
-
 /* FSF request status (this does not have a common part) */
 #define ZFCP_STATUS_FSFREQ_ERROR		0x00000008
 #define ZFCP_STATUS_FSFREQ_CLEANUP		0x00000010
@@ -190,12 +186,13 @@ struct zfcp_adapter {
 	struct fc_host_statistics *fc_stats;
 	struct fsf_qtcb_bottom_port *stats_reset_data;
 	unsigned long		stats_reset;
-	struct work_struct	scan_work;
+	struct delayed_work	scan_work;
 	struct work_struct	ns_up_work;
 	struct service_level	service_level;
 	struct workqueue_struct	*work_queue;
 	struct device_dma_parameters dma_parms;
 	struct zfcp_fc_events events;
+	unsigned long		next_port_scan;
 };
 
 struct zfcp_port {

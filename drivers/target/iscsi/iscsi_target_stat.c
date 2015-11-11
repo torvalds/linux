@@ -2,9 +2,7 @@
  * Modern ConfigFS group context specific iSCSI statistics based on original
  * iscsi_target_mib.c code
  *
- * Copyright (c) 2011 Rising Tide Systems
- *
- * Licensed to the Linux Foundation under the General Public License (GPL) version 2.
+ * Copyright (c) 2011-2013 Datera, Inc.
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
@@ -25,12 +23,12 @@
 #include <target/target_core_base.h>
 #include <target/configfs_macros.h>
 
-#include "iscsi_target_core.h"
+#include <target/iscsi/iscsi_target_core.h>
 #include "iscsi_target_parameters.h"
 #include "iscsi_target_device.h"
 #include "iscsi_target_tpg.h"
 #include "iscsi_target_util.h"
-#include "iscsi_target_stat.h"
+#include <target/iscsi/iscsi_target_stat.h>
 
 #ifndef INITIAL_JIFFIES
 #define INITIAL_JIFFIES ((unsigned long)(unsigned int) (-300*HZ))
@@ -177,7 +175,7 @@ ISCSI_STAT_INSTANCE_ATTR_RO(description);
 static ssize_t iscsi_stat_instance_show_attr_vendor(
 	struct iscsi_wwn_stat_grps *igrps, char *page)
 {
-	return snprintf(page, PAGE_SIZE, "RisingTide Systems iSCSI-Target\n");
+	return snprintf(page, PAGE_SIZE, "Datera, Inc. iSCSI-Target\n");
 }
 ISCSI_STAT_INSTANCE_ATTR_RO(vendor);
 
@@ -432,13 +430,7 @@ static ssize_t iscsi_stat_tgt_attr_show_attr_fail_intr_addr(
 	int ret;
 
 	spin_lock(&lstat->lock);
-	if (lstat->last_intr_fail_ip_family == AF_INET6) {
-		ret = snprintf(page, PAGE_SIZE, "[%s]\n",
-			       lstat->last_intr_fail_ip_addr);
-	} else {
-		ret = snprintf(page, PAGE_SIZE, "%s\n",
-			       lstat->last_intr_fail_ip_addr);
-	}
+	ret = snprintf(page, PAGE_SIZE, "%pISc\n", &lstat->last_intr_fail_sockaddr);
 	spin_unlock(&lstat->lock);
 
 	return ret;
@@ -800,7 +792,8 @@ static ssize_t iscsi_stat_sess_show_attr_cmd_pdus(
 	if (se_sess) {
 		sess = se_sess->fabric_sess_ptr;
 		if (sess)
-			ret = snprintf(page, PAGE_SIZE, "%u\n", sess->cmd_pdus);
+			ret = snprintf(page, PAGE_SIZE, "%lu\n",
+				       atomic_long_read(&sess->cmd_pdus));
 	}
 	spin_unlock_bh(&se_nacl->nacl_sess_lock);
 
@@ -823,7 +816,8 @@ static ssize_t iscsi_stat_sess_show_attr_rsp_pdus(
 	if (se_sess) {
 		sess = se_sess->fabric_sess_ptr;
 		if (sess)
-			ret = snprintf(page, PAGE_SIZE, "%u\n", sess->rsp_pdus);
+			ret = snprintf(page, PAGE_SIZE, "%lu\n",
+				       atomic_long_read(&sess->rsp_pdus));
 	}
 	spin_unlock_bh(&se_nacl->nacl_sess_lock);
 
@@ -846,8 +840,8 @@ static ssize_t iscsi_stat_sess_show_attr_txdata_octs(
 	if (se_sess) {
 		sess = se_sess->fabric_sess_ptr;
 		if (sess)
-			ret = snprintf(page, PAGE_SIZE, "%llu\n",
-				(unsigned long long)sess->tx_data_octets);
+			ret = snprintf(page, PAGE_SIZE, "%lu\n",
+				       atomic_long_read(&sess->tx_data_octets));
 	}
 	spin_unlock_bh(&se_nacl->nacl_sess_lock);
 
@@ -870,8 +864,8 @@ static ssize_t iscsi_stat_sess_show_attr_rxdata_octs(
 	if (se_sess) {
 		sess = se_sess->fabric_sess_ptr;
 		if (sess)
-			ret = snprintf(page, PAGE_SIZE, "%llu\n",
-				(unsigned long long)sess->rx_data_octets);
+			ret = snprintf(page, PAGE_SIZE, "%lu\n",
+				       atomic_long_read(&sess->rx_data_octets));
 	}
 	spin_unlock_bh(&se_nacl->nacl_sess_lock);
 
@@ -894,8 +888,8 @@ static ssize_t iscsi_stat_sess_show_attr_conn_digest_errors(
 	if (se_sess) {
 		sess = se_sess->fabric_sess_ptr;
 		if (sess)
-			ret = snprintf(page, PAGE_SIZE, "%u\n",
-					sess->conn_digest_errors);
+			ret = snprintf(page, PAGE_SIZE, "%lu\n",
+				       atomic_long_read(&sess->conn_digest_errors));
 	}
 	spin_unlock_bh(&se_nacl->nacl_sess_lock);
 
@@ -918,8 +912,8 @@ static ssize_t iscsi_stat_sess_show_attr_conn_timeout_errors(
 	if (se_sess) {
 		sess = se_sess->fabric_sess_ptr;
 		if (sess)
-			ret = snprintf(page, PAGE_SIZE, "%u\n",
-					sess->conn_timeout_errors);
+			ret = snprintf(page, PAGE_SIZE, "%lu\n",
+				       atomic_long_read(&sess->conn_timeout_errors));
 	}
 	spin_unlock_bh(&se_nacl->nacl_sess_lock);
 

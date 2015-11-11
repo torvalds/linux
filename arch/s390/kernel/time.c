@@ -58,13 +58,17 @@ EXPORT_SYMBOL_GPL(sched_clock_base_cc);
 
 static DEFINE_PER_CPU(struct clock_event_device, comparators);
 
+ATOMIC_NOTIFIER_HEAD(s390_epoch_delta_notifier);
+EXPORT_SYMBOL(s390_epoch_delta_notifier);
+
 /*
  * Scheduler clock - returns current time in nanosec units.
  */
-unsigned long long notrace __kprobes sched_clock(void)
+unsigned long long notrace sched_clock(void)
 {
 	return tod_to_ns(get_tod_clock_monotonic());
 }
+NOKPROBE_SYMBOL(sched_clock);
 
 /*
  * Monotonic_clock - returns # of nanoseconds passed since time_init()
@@ -75,7 +79,7 @@ unsigned long long monotonic_clock(void)
 }
 EXPORT_SYMBOL(monotonic_clock);
 
-void tod_to_timeval(__u64 todval, struct timespec *xt)
+void tod_to_timeval(__u64 todval, struct timespec64 *xt)
 {
 	unsigned long long sec;
 
@@ -92,8 +96,7 @@ void clock_comparator_work(void)
 	struct clock_event_device *cd;
 
 	S390_lowcore.clock_comparator = -1ULL;
-	set_clock_comparator(S390_lowcore.clock_comparator);
-	cd = &__get_cpu_var(comparators);
+	cd = this_cpu_ptr(&comparators);
 	cd->event_handler(cd);
 }
 
@@ -109,27 +112,12 @@ static void fixup_clock_comparator(unsigned long long delta)
 	set_clock_comparator(S390_lowcore.clock_comparator);
 }
 
-static int s390_next_ktime(ktime_t expires,
+static int s390_next_event(unsigned long delta,
 			   struct clock_event_device *evt)
 {
-	struct timespec ts;
-	u64 nsecs;
-
-	ts.tv_sec = ts.tv_nsec = 0;
-	monotonic_to_bootbased(&ts);
-	nsecs = ktime_to_ns(ktime_add(timespec_to_ktime(ts), expires));
-	do_div(nsecs, 125);
-	S390_lowcore.clock_comparator = sched_clock_base_cc + (nsecs << 9);
-	/* Program the maximum value if we have an overflow (== year 2042) */
-	if (unlikely(S390_lowcore.clock_comparator < sched_clock_base_cc))
-		S390_lowcore.clock_comparator = -1ULL;
+	S390_lowcore.clock_comparator = get_tod_clock() + delta;
 	set_clock_comparator(S390_lowcore.clock_comparator);
 	return 0;
-}
-
-static void s390_set_mode(enum clock_event_mode mode,
-			  struct clock_event_device *evt)
-{
 }
 
 /*
@@ -147,16 +135,14 @@ void init_cpu_timer(void)
 	cpu = smp_processor_id();
 	cd = &per_cpu(comparators, cpu);
 	cd->name		= "comparator";
-	cd->features		= CLOCK_EVT_FEAT_ONESHOT |
-				  CLOCK_EVT_FEAT_KTIME;
+	cd->features		= CLOCK_EVT_FEAT_ONESHOT;
 	cd->mult		= 16777;
 	cd->shift		= 12;
 	cd->min_delta_ns	= 1;
 	cd->max_delta_ns	= LONG_MAX;
 	cd->rating		= 400;
 	cd->cpumask		= cpumask_of(cpu);
-	cd->set_next_ktime	= s390_next_ktime;
-	cd->set_mode		= s390_set_mode;
+	cd->set_next_event	= s390_next_event;
 
 	clockevents_register_device(cd);
 
@@ -192,12 +178,12 @@ static void timing_alert_interrupt(struct ext_code ext_code,
 static void etr_reset(void);
 static void stp_reset(void);
 
-void read_persistent_clock(struct timespec *ts)
+void read_persistent_clock64(struct timespec64 *ts)
 {
 	tod_to_timeval(get_tod_clock() - TOD_UNIX_EPOCH, ts);
 }
 
-void read_boot_clock(struct timespec *ts)
+void read_boot_clock64(struct timespec64 *ts)
 {
 	tod_to_timeval(sched_clock_base_cc - TOD_UNIX_EPOCH, ts);
 }
@@ -222,21 +208,43 @@ struct clocksource * __init clocksource_default_clock(void)
 	return &clocksource_tod;
 }
 
-void update_vsyscall_old(struct timespec *wall_time, struct timespec *wtm,
-			struct clocksource *clock, u32 mult)
+void update_vsyscall(struct timekeeper *tk)
 {
-	if (clock != &clocksource_tod)
+	u64 nsecps;
+
+	if (tk->tkr_mono.clock != &clocksource_tod)
 		return;
 
 	/* Make userspace gettimeofday spin until we're done. */
 	++vdso_data->tb_update_count;
 	smp_wmb();
-	vdso_data->xtime_tod_stamp = clock->cycle_last;
-	vdso_data->xtime_clock_sec = wall_time->tv_sec;
-	vdso_data->xtime_clock_nsec = wall_time->tv_nsec;
-	vdso_data->wtom_clock_sec = wtm->tv_sec;
-	vdso_data->wtom_clock_nsec = wtm->tv_nsec;
-	vdso_data->ntp_mult = mult;
+	vdso_data->xtime_tod_stamp = tk->tkr_mono.cycle_last;
+	vdso_data->xtime_clock_sec = tk->xtime_sec;
+	vdso_data->xtime_clock_nsec = tk->tkr_mono.xtime_nsec;
+	vdso_data->wtom_clock_sec =
+		tk->xtime_sec + tk->wall_to_monotonic.tv_sec;
+	vdso_data->wtom_clock_nsec = tk->tkr_mono.xtime_nsec +
+		+ ((u64) tk->wall_to_monotonic.tv_nsec << tk->tkr_mono.shift);
+	nsecps = (u64) NSEC_PER_SEC << tk->tkr_mono.shift;
+	while (vdso_data->wtom_clock_nsec >= nsecps) {
+		vdso_data->wtom_clock_nsec -= nsecps;
+		vdso_data->wtom_clock_sec++;
+	}
+
+	vdso_data->xtime_coarse_sec = tk->xtime_sec;
+	vdso_data->xtime_coarse_nsec =
+		(long)(tk->tkr_mono.xtime_nsec >> tk->tkr_mono.shift);
+	vdso_data->wtom_coarse_sec =
+		vdso_data->xtime_coarse_sec + tk->wall_to_monotonic.tv_sec;
+	vdso_data->wtom_coarse_nsec =
+		vdso_data->xtime_coarse_nsec + tk->wall_to_monotonic.tv_nsec;
+	while (vdso_data->wtom_coarse_nsec >= NSEC_PER_SEC) {
+		vdso_data->wtom_coarse_nsec -= NSEC_PER_SEC;
+		vdso_data->wtom_coarse_sec++;
+	}
+
+	vdso_data->tk_mult = tk->tkr_mono.mult;
+	vdso_data->tk_shift = tk->tkr_mono.shift;
 	smp_wmb();
 	++vdso_data->tb_update_count;
 }
@@ -265,14 +273,14 @@ void __init time_init(void)
 	stp_reset();
 
 	/* request the clock comparator external interrupt */
-	if (register_external_interrupt(0x1004, clock_comparator_interrupt))
-                panic("Couldn't request external interrupt 0x1004");
+	if (register_external_irq(EXT_IRQ_CLK_COMP, clock_comparator_interrupt))
+		panic("Couldn't request external interrupt 0x1004");
 
 	/* request the timing alert external interrupt */
-	if (register_external_interrupt(0x1406, timing_alert_interrupt))
+	if (register_external_irq(EXT_IRQ_TIMING_ALERT, timing_alert_interrupt))
 		panic("Couldn't request external interrupt 0x1406");
 
-	if (clocksource_register(&clocksource_tod) != 0)
+	if (__clocksource_register(&clocksource_tod) != 0)
 		panic("Could not register TOD clock source");
 
 	/* Enable TOD clock interrupts on the boot cpu. */
@@ -363,14 +371,14 @@ EXPORT_SYMBOL(get_sync_clock);
  */
 static void disable_sync_clock(void *dummy)
 {
-	atomic_t *sw_ptr = &__get_cpu_var(clock_sync_word);
+	atomic_t *sw_ptr = this_cpu_ptr(&clock_sync_word);
 	/*
 	 * Clear the in-sync bit 2^31. All get_sync_clock calls will
 	 * fail until the sync bit is turned back on. In addition
 	 * increase the "sequence" counter to avoid the race of an
 	 * etr event and the complete recovery against get_sync_clock.
 	 */
-	atomic_clear_mask(0x80000000, sw_ptr);
+	atomic_andnot(0x80000000, sw_ptr);
 	atomic_inc(sw_ptr);
 }
 
@@ -380,8 +388,8 @@ static void disable_sync_clock(void *dummy)
  */
 static void enable_sync_clock(void)
 {
-	atomic_t *sw_ptr = &__get_cpu_var(clock_sync_word);
-	atomic_set_mask(0x80000000, sw_ptr);
+	atomic_t *sw_ptr = this_cpu_ptr(&clock_sync_word);
+	atomic_or(0x80000000, sw_ptr);
 }
 
 /*
@@ -534,16 +542,17 @@ arch_initcall(etr_init);
  * Switch to local machine check. This is called when the last usable
  * ETR port goes inactive. After switch to local the clock is not in sync.
  */
-void etr_switch_to_local(void)
+int etr_switch_to_local(void)
 {
 	if (!etr_eacr.sl)
-		return;
+		return 0;
 	disable_sync_clock(NULL);
 	if (!test_and_set_bit(ETR_EVENT_SWITCH_LOCAL, &etr_events)) {
 		etr_eacr.es = etr_eacr.sl = 0;
 		etr_setr(&etr_eacr);
-		queue_work(time_sync_wq, &etr_work);
+		return 1;
 	}
+	return 0;
 }
 
 /*
@@ -552,16 +561,22 @@ void etr_switch_to_local(void)
  * After a ETR sync check the clock is not in sync. The machine check
  * is broadcasted to all cpus at the same time.
  */
-void etr_sync_check(void)
+int etr_sync_check(void)
 {
 	if (!etr_eacr.es)
-		return;
+		return 0;
 	disable_sync_clock(NULL);
 	if (!test_and_set_bit(ETR_EVENT_SYNC_CHECK, &etr_events)) {
 		etr_eacr.es = 0;
 		etr_setr(&etr_eacr);
-		queue_work(time_sync_wq, &etr_work);
+		return 1;
 	}
+	return 0;
+}
+
+void etr_queue_work(void)
+{
+	queue_work(time_sync_wq, &etr_work);
 }
 
 /*
@@ -741,7 +756,7 @@ static void clock_sync_cpu(struct clock_sync_data *sync)
 static int etr_sync_clock(void *data)
 {
 	static int first;
-	unsigned long long clock, old_clock, delay, delta;
+	unsigned long long clock, old_clock, clock_delta, delay, delta;
 	struct clock_sync_data *etr_sync;
 	struct etr_aib *sync_port, *aib;
 	int port;
@@ -778,6 +793,9 @@ static int etr_sync_clock(void *data)
 		delay = (unsigned long long)
 			(aib->edf2.etv - sync_port->edf2.etv) << 32;
 		delta = adjust_time(old_clock, clock, delay);
+		clock_delta = clock - old_clock;
+		atomic_notifier_call_chain(&s390_epoch_delta_notifier, 0,
+					   &clock_delta);
 		etr_sync->fixup_cc = delta;
 		fixup_clock_comparator(delta);
 		/* Verify that the clock is properly set. */
@@ -1493,10 +1511,10 @@ static void stp_timing_alert(struct stp_irq_parm *intparm)
  * After a STP sync check the clock is not in sync. The machine check
  * is broadcasted to all cpus at the same time.
  */
-void stp_sync_check(void)
+int stp_sync_check(void)
 {
 	disable_sync_clock(NULL);
-	queue_work(time_sync_wq, &stp_work);
+	return 1;
 }
 
 /*
@@ -1505,17 +1523,21 @@ void stp_sync_check(void)
  * have matching CTN ids and have a valid stratum-1 configuration
  * but the configurations do not match.
  */
-void stp_island_check(void)
+int stp_island_check(void)
 {
 	disable_sync_clock(NULL);
-	queue_work(time_sync_wq, &stp_work);
+	return 1;
 }
 
+void stp_queue_work(void)
+{
+	queue_work(time_sync_wq, &stp_work);
+}
 
 static int stp_sync_clock(void *data)
 {
 	static int first;
-	unsigned long long old_clock, delta;
+	unsigned long long old_clock, delta, new_clock, clock_delta;
 	struct clock_sync_data *stp_sync;
 	int rc;
 
@@ -1540,7 +1562,11 @@ static int stp_sync_clock(void *data)
 		old_clock = get_tod_clock();
 		rc = chsc_sstpc(stp_page, STP_OP_SYNC, 0);
 		if (rc == 0) {
-			delta = adjust_time(old_clock, get_tod_clock(), 0);
+			new_clock = get_tod_clock();
+			delta = adjust_time(old_clock, new_clock, 0);
+			clock_delta = new_clock - old_clock;
+			atomic_notifier_call_chain(&s390_epoch_delta_notifier,
+						   0, &clock_delta);
 			fixup_clock_comparator(delta);
 			rc = chsc_sstpi(stp_page, &stp_info,
 					sizeof(struct stp_sstpi));

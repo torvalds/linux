@@ -26,11 +26,11 @@
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
+#include <linux/io.h>
 #include <sound/core.h>
 #include <sound/sb.h>
 #include <sound/initval.h>
 
-#include <asm/io.h>
 #include <asm/dma.h>
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
@@ -184,8 +184,7 @@ static int snd_sbdsp_probe(struct snd_sb * chip)
 
 static int snd_sbdsp_free(struct snd_sb *chip)
 {
-	if (chip->res_port)
-		release_and_free_resource(chip->res_port);
+	release_and_free_resource(chip->res_port);
 	if (chip->irq >= 0)
 		free_irq(chip->irq, (void *) chip);
 #ifdef CONFIG_ISA

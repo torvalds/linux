@@ -4,12 +4,15 @@ dm-crypt
 Device-Mapper's "crypt" target provides transparent encryption of block devices
 using the kernel crypto API.
 
+For a more detailed description of supported parameters see:
+https://gitlab.com/cryptsetup/cryptsetup/wikis/DMCrypt
+
 Parameters: <cipher> <key> <iv_offset> <device path> \
 	      <offset> [<#opt_params> <opt_params>]
 
 <cipher>
     Encryption cipher and an optional IV generation mode.
-    (In format cipher[:keycount]-chainmode-ivopts:ivmode).
+    (In format cipher[:keycount]-chainmode-ivmode[:ivopts]).
     Examples:
        des
        aes-cbc-essiv:sha256
@@ -19,7 +22,11 @@ Parameters: <cipher> <key> <iv_offset> <device path> \
 
 <key>
     Key used for encryption. It is encoded as a hexadecimal number.
-    You can only use key sizes that are valid for the selected cipher.
+    You can only use key sizes that are valid for the selected cipher
+    in combination with the selected iv mode.
+    Note that for some iv modes the key string can contain additional
+    keys (for example IV seed) so the key contains more parts concatenated
+    into a single string.
 
 <keycount>
     Multi-key compatibility mode. You can define <keycount> keys and
@@ -44,7 +51,7 @@ Parameters: <cipher> <key> <iv_offset> <device path> \
     Otherwise #opt_params is the number of following arguments.
 
     Example of optional parameters section:
-        1 allow_discards
+        3 allow_discards same_cpu_crypt submit_from_crypt_cpus
 
 allow_discards
     Block discard requests (a.k.a. TRIM) are passed through the crypt device.
@@ -56,11 +63,24 @@ allow_discards
     used space etc.) if the discarded blocks can be located easily on the
     device later.
 
+same_cpu_crypt
+    Perform encryption using the same cpu that IO was submitted on.
+    The default is to use an unbound workqueue so that encryption work
+    is automatically balanced between available CPUs.
+
+submit_from_crypt_cpus
+    Disable offloading writes to a separate thread after encryption.
+    There are some situations where offloading write bios from the
+    encryption threads to a single thread degrades performance
+    significantly.  The default is to offload write bios to the same
+    thread because it benefits CFQ to have writes submitted using the
+    same context.
+
 Example scripts
 ===============
 LUKS (Linux Unified Key Setup) is now the preferred way to set up disk
 encryption with dm-crypt using the 'cryptsetup' utility, see
-http://code.google.com/p/cryptsetup/
+https://gitlab.com/cryptsetup/cryptsetup
 
 [[
 #!/bin/sh

@@ -73,9 +73,14 @@ bfa_cb_ioim_done(void *drv, struct bfad_ioim_s *dio,
 
 		break;
 
-	case BFI_IOIM_STS_ABORTED:
 	case BFI_IOIM_STS_TIMEDOUT:
+		host_status = DID_TIME_OUT;
+		cmnd->result = ScsiResult(host_status, 0);
+		break;
 	case BFI_IOIM_STS_PATHTOV:
+		host_status = DID_TRANSPORT_DISRUPTED;
+		cmnd->result = ScsiResult(host_status, 0);
+		break;
 	default:
 		host_status = DID_ERROR;
 		cmnd->result = ScsiResult(host_status, 0);
@@ -206,7 +211,7 @@ bfad_im_abort_handler(struct scsi_cmnd *cmnd)
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	hal_io = (struct bfa_ioim_s *) cmnd->host_scribble;
 	if (!hal_io) {
-		/* IO has been completed, retrun success */
+		/* IO has been completed, return success */
 		rc = SUCCESS;
 		goto out;
 	}
@@ -771,11 +776,7 @@ bfad_thread_workq(struct bfad_s *bfad)
 static int
 bfad_im_slave_configure(struct scsi_device *sdev)
 {
-	if (sdev->tagged_supported)
-		scsi_activate_tcq(sdev, bfa_lun_queue_depth);
-	else
-		scsi_deactivate_tcq(sdev, bfa_lun_queue_depth);
-
+	scsi_change_queue_depth(sdev, bfa_lun_queue_depth);
 	return 0;
 }
 
@@ -799,6 +800,7 @@ struct scsi_host_template bfad_im_scsi_host_template = {
 	.shost_attrs = bfad_im_host_attrs,
 	.max_sectors = BFAD_MAX_SECTORS,
 	.vendor_id = BFA_PCI_VENDOR_ID_BROCADE,
+	.use_blk_tags = 1,
 };
 
 struct scsi_host_template bfad_im_vport_template = {
@@ -820,6 +822,7 @@ struct scsi_host_template bfad_im_vport_template = {
 	.use_clustering = ENABLE_CLUSTERING,
 	.shost_attrs = bfad_im_vport_attrs,
 	.max_sectors = BFAD_MAX_SECTORS,
+	.use_blk_tags = 1,
 };
 
 bfa_status_t
@@ -848,6 +851,8 @@ bfad_im_module_exit(void)
 
 	if (bfad_im_scsi_vport_transport_template)
 		fc_release_transport(bfad_im_scsi_vport_transport_template);
+
+	idr_destroy(&bfad_im_port_index);
 }
 
 void
@@ -863,14 +868,8 @@ bfad_ramp_up_qdepth(struct bfad_itnim_s *itnim, struct scsi_device *sdev)
 			if (bfa_lun_queue_depth > tmp_sdev->queue_depth) {
 				if (tmp_sdev->id != sdev->id)
 					continue;
-				if (tmp_sdev->ordered_tags)
-					scsi_adjust_queue_depth(tmp_sdev,
-						MSG_ORDERED_TAG,
-						tmp_sdev->queue_depth + 1);
-				else
-					scsi_adjust_queue_depth(tmp_sdev,
-						MSG_SIMPLE_TAG,
-						tmp_sdev->queue_depth + 1);
+				scsi_change_queue_depth(tmp_sdev,
+					tmp_sdev->queue_depth + 1);
 
 				itnim->last_ramp_up_time = jiffies;
 			}
@@ -944,12 +943,14 @@ static int
 bfad_im_slave_alloc(struct scsi_device *sdev)
 {
 	struct fc_rport *rport = starget_to_rport(scsi_target(sdev));
-	struct bfad_itnim_data_s *itnim_data =
-				(struct bfad_itnim_data_s *) rport->dd_data;
-	struct bfa_s *bfa = itnim_data->itnim->bfa_itnim->bfa;
+	struct bfad_itnim_data_s *itnim_data;
+	struct bfa_s *bfa;
 
 	if (!rport || fc_remote_port_chkready(rport))
 		return -ENXIO;
+
+	itnim_data = (struct bfad_itnim_data_s *) rport->dd_data;
+	bfa = itnim_data->itnim->bfa_itnim->bfa;
 
 	if (bfa_get_lun_mask_status(bfa) == BFA_LUNMASK_ENABLED) {
 		/*
@@ -1035,7 +1036,7 @@ bfad_fc_host_init(struct bfad_im_port_s *im_port)
 	/* For fibre channel services type 0x20 */
 	fc_host_supported_fc4s(host)[7] = 1;
 
-	strncpy(symname, bfad->bfa_fcs.fabric.bport.port_cfg.sym_name.symname,
+	strlcpy(symname, bfad->bfa_fcs.fabric.bport.port_cfg.sym_name.symname,
 		BFA_SYMNAME_MAXLEN);
 	sprintf(fc_host_symbolic_name(host), "%s", symname);
 

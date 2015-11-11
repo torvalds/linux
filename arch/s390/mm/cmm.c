@@ -253,12 +253,12 @@ static int cmm_skip_blanks(char *cp, char **endp)
 
 static struct ctl_table cmm_table[];
 
-static int cmm_pages_handler(ctl_table *ctl, int write, void __user *buffer,
-			     size_t *lenp, loff_t *ppos)
+static int cmm_pages_handler(struct ctl_table *ctl, int write,
+			     void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	char buf[16], *p;
+	unsigned int len;
 	long nr;
-	int len;
 
 	if (!*lenp || (*ppos && !write)) {
 		*lenp = 0;
@@ -293,12 +293,12 @@ static int cmm_pages_handler(ctl_table *ctl, int write, void __user *buffer,
 	return 0;
 }
 
-static int cmm_timeout_handler(ctl_table *ctl, int write,  void __user *buffer,
-			       size_t *lenp, loff_t *ppos)
+static int cmm_timeout_handler(struct ctl_table *ctl, int write,
+			       void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	char buf[64], *p;
 	long nr, seconds;
-	int len;
+	unsigned int len;
 
 	if (!*lenp || (*ppos && !write)) {
 		*lenp = 0;

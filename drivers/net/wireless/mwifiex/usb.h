@@ -1,7 +1,7 @@
 /*
  * This file contains definitions for mwifiex USB interface driver.
  *
- * Copyright (C) 2012, Marvell International Ltd.
+ * Copyright (C) 2012-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -22,19 +22,31 @@
 
 #include <linux/usb.h>
 
-#define USB8797_VID		0x1286
+#define USB8XXX_VID		0x1286
+
+#define USB8766_PID_1		0x2041
+#define USB8766_PID_2		0x2042
 #define USB8797_PID_1		0x2043
 #define USB8797_PID_2		0x2044
+#define USB8801_PID_1		0x2049
+#define USB8801_PID_2		0x204a
+#define USB8997_PID_1		0x2052
+#define USB8997_PID_2		0x204e
 
-#define USB8797_FW_DNLD		1
-#define USB8797_FW_READY	2
-#define USB8797_FW_MAX_RETRY	3
 
+#define USB8XXX_FW_DNLD		1
+#define USB8XXX_FW_READY	2
+#define USB8XXX_FW_MAX_RETRY	3
+
+#define MWIFIEX_TX_DATA_PORT	2
 #define MWIFIEX_TX_DATA_URB	6
 #define MWIFIEX_RX_DATA_URB	6
 #define MWIFIEX_USB_TIMEOUT	100
 
+#define USB8766_DEFAULT_FW_NAME	"mrvl/usb8766_uapsta.bin"
 #define USB8797_DEFAULT_FW_NAME	"mrvl/usb8797_uapsta.bin"
+#define USB8801_DEFAULT_FW_NAME	"mrvl/usb8801_uapsta.bin"
+#define USB8997_DEFAULT_FW_NAME	"mrvl/usb8997_uapsta.bin"
 
 #define FW_DNLD_TX_BUF_SIZE	620
 #define FW_DNLD_RX_BUF_SIZE	2048
@@ -50,6 +62,14 @@ struct urb_context {
 	u8 ep;
 };
 
+struct usb_tx_data_port {
+	u8 tx_data_ep;
+	u8 block_status;
+	atomic_t tx_data_urb_pending;
+	int tx_data_ix;
+	struct urb_context tx_data_list[MWIFIEX_TX_DATA_URB];
+};
+
 struct usb_card_rec {
 	struct mwifiex_adapter *adapter;
 	struct usb_device *udev;
@@ -61,14 +81,12 @@ struct usb_card_rec {
 	u8 usb_boot_state;
 	u8 rx_data_ep;
 	atomic_t rx_data_urb_pending;
-	u8 tx_data_ep;
 	u8 tx_cmd_ep;
-	atomic_t tx_data_urb_pending;
 	atomic_t tx_cmd_urb_pending;
 	int bulk_out_maxpktsize;
 	struct urb_context tx_cmd;
-	int tx_data_ix;
-	struct urb_context tx_data_list[MWIFIEX_TX_DATA_URB];
+	u8 mc_resync_flag;
+	struct usb_tx_data_port port[MWIFIEX_TX_DATA_PORT];
 };
 
 struct fw_header {
@@ -88,12 +106,5 @@ struct fw_data {
 	__le32 seq_num;
 	u8 data[1];
 };
-
-/* This function is called after the card has woken up. */
-static inline int
-mwifiex_pm_wakeup_card_complete(struct mwifiex_adapter *adapter)
-{
-	return 0;
-}
 
 #endif /*_MWIFIEX_USB_H */

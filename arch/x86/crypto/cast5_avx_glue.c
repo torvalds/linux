@@ -26,13 +26,12 @@
 #include <linux/types.h>
 #include <linux/crypto.h>
 #include <linux/err.h>
+#include <crypto/ablk_helper.h>
 #include <crypto/algapi.h>
 #include <crypto/cast5.h>
 #include <crypto/cryptd.h>
 #include <crypto/ctr.h>
-#include <asm/xcr.h>
-#include <asm/xsave.h>
-#include <asm/crypto/ablk_helper.h>
+#include <asm/fpu/api.h>
 #include <asm/crypto/glue_helper.h>
 
 #define CAST5_PARALLEL_BLOCKS 16
@@ -203,9 +202,6 @@ static unsigned int __cbc_decrypt(struct blkcipher_desc *desc,
 			src -= 1;
 			dst -= 1;
 		} while (nbytes >= bsize * CAST5_PARALLEL_BLOCKS);
-
-		if (nbytes < bsize)
-			goto done;
 	}
 
 	/* Handle leftovers */
@@ -344,7 +340,8 @@ static struct crypto_alg cast5_algs[6] = { {
 	.cra_name		= "__ecb-cast5-avx",
 	.cra_driver_name	= "__driver-ecb-cast5-avx",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= CAST5_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct cast5_ctx),
 	.cra_alignmask		= 0,
@@ -363,7 +360,8 @@ static struct crypto_alg cast5_algs[6] = { {
 	.cra_name		= "__cbc-cast5-avx",
 	.cra_driver_name	= "__driver-cbc-cast5-avx",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= CAST5_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct cast5_ctx),
 	.cra_alignmask		= 0,
@@ -382,7 +380,8 @@ static struct crypto_alg cast5_algs[6] = { {
 	.cra_name		= "__ctr-cast5-avx",
 	.cra_driver_name	= "__driver-ctr-cast5-avx",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= 1,
 	.cra_ctxsize		= sizeof(struct cast5_ctx),
 	.cra_alignmask		= 0,
@@ -468,16 +467,11 @@ static struct crypto_alg cast5_algs[6] = { {
 
 static int __init cast5_init(void)
 {
-	u64 xcr0;
+	const char *feature_name;
 
-	if (!cpu_has_avx || !cpu_has_osxsave) {
-		pr_info("AVX instructions are not detected.\n");
-		return -ENODEV;
-	}
-
-	xcr0 = xgetbv(XCR_XFEATURE_ENABLED_MASK);
-	if ((xcr0 & (XSTATE_SSE | XSTATE_YMM)) != (XSTATE_SSE | XSTATE_YMM)) {
-		pr_info("AVX detected but unusable.\n");
+	if (!cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM,
+				&feature_name)) {
+		pr_info("CPU feature '%s' is not supported.\n", feature_name);
 		return -ENODEV;
 	}
 
@@ -494,4 +488,4 @@ module_exit(cast5_exit);
 
 MODULE_DESCRIPTION("Cast5 Cipher Algorithm, AVX optimized");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("cast5");
+MODULE_ALIAS_CRYPTO("cast5");

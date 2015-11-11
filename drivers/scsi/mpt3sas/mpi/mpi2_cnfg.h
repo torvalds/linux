@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2000-2011 LSI Corporation.
+ * Copyright (c) 2000-2014 LSI Corporation.
  *
  *
  *          Name:  mpi2_cnfg.h
  *         Title:  MPI Configuration messages and pages
  * Creation Date:  November 10, 2006
  *
- *   mpi2_cnfg.h Version:  02.00.22
+ *   mpi2_cnfg.h Version:  02.00.29
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *       prefix are for use only on MPI v2.5 products, and must not be used
@@ -155,6 +155,30 @@
  *                     Added UEFIVersion field to BIOS Page 1 and defined new
  *                     BiosOptions bits.
  *                     Incorporating additions for MPI v2.5.
+ * 11-27-12  02.00.23  Added MPI2_MANPAGE7_FLAG_EVENTREPLAY_SLOT_ORDER.
+ *                     Added MPI2_BIOSPAGE1_OPTIONS_MASK_OEM_ID.
+ * 12-20-12  02.00.24  Marked MPI2_SASIOUNIT1_CONTROL_CLEAR_AFFILIATION as
+ *                     obsolete for MPI v2.5 and later.
+ *                     Added some defines for 12G SAS speeds.
+ * 04-09-13  02.00.25  Added MPI2_IOUNITPAGE1_ATA_SECURITY_FREEZE_LOCK.
+ *                     Fixed MPI2_IOUNITPAGE5_DMA_CAP_MASK_MAX_REQUESTS to
+ *                     match the specification.
+ * 08-19-13  02.00.26  Added reserved words to MPI2_CONFIG_PAGE_IO_UNIT_7 for
+ *			future use.
+ * 12-05-13  02.00.27  Added MPI2_MANPAGE7_FLAG_BASE_ENCLOSURE_LEVEL for
+ *		       MPI2_CONFIG_PAGE_MAN_7.
+ *		       Added EnclosureLevel and ConnectorName fields to
+ *		       MPI2_CONFIG_PAGE_SAS_DEV_0.
+ *		       Added MPI2_SAS_DEVICE0_FLAGS_ENCL_LEVEL_VALID for
+ *		       MPI2_CONFIG_PAGE_SAS_DEV_0.
+ *		       Added EnclosureLevel field to
+ *		       MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0.
+ *		       Added MPI2_SAS_ENCLS0_FLAGS_ENCL_LEVEL_VALID for
+ *		       MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0.
+ * 01-08-14  02.00.28  Added more defines for the BiosOptions field of
+ *		       MPI2_CONFIG_PAGE_BIOS_1.
+ * 06-13-14  02.00.29  Added SSUTimeout field to MPI2_CONFIG_PAGE_BIOS_1, and
+ *		       more defines for the BiosOptions field..
  * --------------------------------------------------------------------------
  */
 
@@ -714,6 +738,8 @@ typedef struct _MPI2_CONFIG_PAGE_MAN_7 {
 #define MPI2_MANUFACTURING7_PAGEVERSION                 (0x01)
 
 /*defines for the Flags field */
+#define MPI2_MANPAGE7_FLAG_BASE_ENCLOSURE_LEVEL         (0x00000008)
+#define MPI2_MANPAGE7_FLAG_EVENTREPLAY_SLOT_ORDER       (0x00000002)
 #define MPI2_MANPAGE7_FLAG_USE_SLOT_INFO                (0x00000001)
 
 
@@ -786,6 +812,7 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_1 {
 #define MPI2_IOUNITPAGE1_PAGEVERSION                    (0x04)
 
 /*IO Unit Page 1 Flags defines */
+#define MPI2_IOUNITPAGE1_ATA_SECURITY_FREEZE_LOCK       (0x00004000)
 #define MPI25_IOUNITPAGE1_NEW_DEVICE_FAST_PATH_DISABLE  (0x00002000)
 #define MPI25_IOUNITPAGE1_DISABLE_FAST_PATH             (0x00001000)
 #define MPI2_IOUNITPAGE1_ENABLE_HOST_BASED_DISCOVERY    (0x00000800)
@@ -864,7 +891,7 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_5 {
 #define MPI2_IOUNITPAGE5_PAGEVERSION                    (0x00)
 
 /*defines for IO Unit Page 5 DmaEngineCapabilities field */
-#define MPI2_IOUNITPAGE5_DMA_CAP_MASK_MAX_REQUESTS      (0xFF00)
+#define MPI2_IOUNITPAGE5_DMA_CAP_MASK_MAX_REQUESTS      (0xFFFF0000)
 #define MPI2_IOUNITPAGE5_DMA_CAP_SHIFT_MAX_REQUESTS     (16)
 
 #define MPI2_IOUNITPAGE5_DMA_CAP_EEDP                   (0x0008)
@@ -914,11 +941,15 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_7 {
 	U8
 		BoardTemperatureUnits;                  /*0x16 */
 	U8                      Reserved3;              /*0x17 */
+	U32			Reserved4;		/* 0x18 */
+	U32			Reserved5;		/* 0x1C */
+	U32			Reserved6;		/* 0x20 */
+	U32			Reserved7;		/* 0x24 */
 } MPI2_CONFIG_PAGE_IO_UNIT_7,
 	*PTR_MPI2_CONFIG_PAGE_IO_UNIT_7,
 	Mpi2IOUnitPage7_t, *pMpi2IOUnitPage7_t;
 
-#define MPI2_IOUNITPAGE7_PAGEVERSION                    (0x02)
+#define MPI2_IOUNITPAGE7_PAGEVERSION			(0x04)
 
 /*defines for IO Unit Page 7 CurrentPowerMode and PreviousPowerMode fields */
 #define MPI25_IOUNITPAGE7_PM_INIT_MASK              (0xC0)
@@ -1295,7 +1326,9 @@ typedef struct _MPI2_CONFIG_PAGE_BIOS_1 {
 	MPI2_CONFIG_PAGE_HEADER Header;                     /*0x00 */
 	U32                     BiosOptions;                /*0x04 */
 	U32                     IOCSettings;                /*0x08 */
-	U32                     Reserved1;                  /*0x0C */
+	U8                      SSUTimeout;                 /*0x0C */
+	U8                      Reserved1;                  /*0x0D */
+	U16                     Reserved2;                  /*0x0E */
 	U32                     DeviceSettings;             /*0x10 */
 	U16                     NumberOfDevices;            /*0x14 */
 	U16                     UEFIVersion;                /*0x16 */
@@ -1307,9 +1340,27 @@ typedef struct _MPI2_CONFIG_PAGE_BIOS_1 {
 	*PTR_MPI2_CONFIG_PAGE_BIOS_1,
 	Mpi2BiosPage1_t, *pMpi2BiosPage1_t;
 
-#define MPI2_BIOSPAGE1_PAGEVERSION                      (0x05)
+#define MPI2_BIOSPAGE1_PAGEVERSION                      (0x07)
 
 /*values for BIOS Page 1 BiosOptions field */
+#define MPI2_BIOSPAGE1_OPTIONS_PNS_MASK                         (0x00003800)
+#define MPI2_BIOSPAGE1_OPTIONS_PNS_PBDHL                        (0x00000000)
+#define MPI2_BIOSPAGE1_OPTIONS_PNS_ENCSLOSURE                   (0x00000800)
+#define MPI2_BIOSPAGE1_OPTIONS_PNS_LWWID                        (0x00001000)
+#define MPI2_BIOSPAGE1_OPTIONS_PNS_PSENS                        (0x00001800)
+#define MPI2_BIOSPAGE1_OPTIONS_PNS_ESPHY                        (0x00002000)
+
+#define MPI2_BIOSPAGE1_OPTIONS_X86_DISABLE_BIOS		(0x00000400)
+
+#define MPI2_BIOSPAGE1_OPTIONS_MASK_REGISTRATION_UEFI_BSD	(0x00000300)
+#define MPI2_BIOSPAGE1_OPTIONS_USE_BIT0_REGISTRATION_UEFI_BSD	(0x00000000)
+#define MPI2_BIOSPAGE1_OPTIONS_FULL_REGISTRATION_UEFI_BSD	(0x00000100)
+#define MPI2_BIOSPAGE1_OPTIONS_ADAPTER_REGISTRATION_UEFI_BSD	(0x00000200)
+#define MPI2_BIOSPAGE1_OPTIONS_DISABLE_REGISTRATION_UEFI_BSD	(0x00000300)
+
+#define MPI2_BIOSPAGE1_OPTIONS_MASK_OEM_ID                  (0x000000F0)
+#define MPI2_BIOSPAGE1_OPTIONS_LSI_OEM_ID                   (0x00000000)
+
 #define MPI2_BIOSPAGE1_OPTIONS_MASK_UEFI_HII_REGISTRATION   (0x00000006)
 #define MPI2_BIOSPAGE1_OPTIONS_ENABLE_UEFI_HII              (0x00000000)
 #define MPI2_BIOSPAGE1_OPTIONS_DISABLE_UEFI_HII             (0x00000002)
@@ -1884,6 +1935,7 @@ typedef struct _MPI2_CONFIG_PAGE_RD_PDISK_1 {
 #define MPI2_SAS_PRATE_MAX_RATE_1_5                     (0x80)
 #define MPI2_SAS_PRATE_MAX_RATE_3_0                     (0x90)
 #define MPI2_SAS_PRATE_MAX_RATE_6_0                     (0xA0)
+#define MPI25_SAS_PRATE_MAX_RATE_12_0                   (0xB0)
 #define MPI2_SAS_PRATE_MIN_RATE_MASK                    (0x0F)
 #define MPI2_SAS_PRATE_MIN_RATE_NOT_PROGRAMMABLE        (0x00)
 #define MPI2_SAS_PRATE_MIN_RATE_1_5                     (0x08)
@@ -1897,6 +1949,7 @@ typedef struct _MPI2_CONFIG_PAGE_RD_PDISK_1 {
 #define MPI2_SAS_HWRATE_MAX_RATE_1_5                    (0x80)
 #define MPI2_SAS_HWRATE_MAX_RATE_3_0                    (0x90)
 #define MPI2_SAS_HWRATE_MAX_RATE_6_0                    (0xA0)
+#define MPI25_SAS_HWRATE_MAX_RATE_12_0                  (0xB0)
 #define MPI2_SAS_HWRATE_MIN_RATE_MASK                   (0x0F)
 #define MPI2_SAS_HWRATE_MIN_RATE_1_5                    (0x08)
 #define MPI2_SAS_HWRATE_MIN_RATE_3_0                    (0x09)
@@ -2612,9 +2665,9 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_DEV_0 {
 	U8
 		ControlGroup;           /*0x2E */
 	U8
-		Reserved1;              /*0x2F */
+		EnclosureLevel;		/*0x2F */
 	U32
-		Reserved2;              /*0x30 */
+		ConnectorName[4];	/*0x30 */
 	U32
 		Reserved3;              /*0x34 */
 } MPI2_CONFIG_PAGE_SAS_DEV_0,
@@ -2622,7 +2675,7 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_DEV_0 {
 	Mpi2SasDevicePage0_t,
 	*pMpi2SasDevicePage0_t;
 
-#define MPI2_SASDEVICE0_PAGEVERSION         (0x08)
+#define MPI2_SASDEVICE0_PAGEVERSION         (0x09)
 
 /*values for SAS Device Page 0 AccessStatus field */
 #define MPI2_SAS_DEVICE0_ASTATUS_NO_ERRORS                  (0x00)
@@ -2662,6 +2715,7 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_DEV_0 {
 #define MPI2_SAS_DEVICE0_FLAGS_SATA_NCQ_SUPPORTED           (0x0020)
 #define MPI2_SAS_DEVICE0_FLAGS_SATA_FUA_SUPPORTED           (0x0010)
 #define MPI2_SAS_DEVICE0_FLAGS_PORT_SELECTOR_ATTACH         (0x0008)
+#define MPI2_SAS_DEVICE0_FLAGS_ENCL_LEVEL_VALID             (0x0002)
 #define MPI2_SAS_DEVICE0_FLAGS_DEVICE_PRESENT               (0x0001)
 
 
@@ -2998,8 +3052,10 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0 {
 		NumSlots;                   /*0x18 */
 	U16
 		StartSlot;                  /*0x1A */
-	U16
+	U8
 		Reserved2;                  /*0x1C */
+	U8
+		EnclosureLevel;		    /*0x1D */
 	U16
 		SEPDevHandle;               /*0x1E */
 	U32
@@ -3010,9 +3066,10 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0 {
 	*PTR_MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0,
 	Mpi2SasEnclosurePage0_t, *pMpi2SasEnclosurePage0_t;
 
-#define MPI2_SASENCLOSURE0_PAGEVERSION      (0x03)
+#define MPI2_SASENCLOSURE0_PAGEVERSION      (0x04)
 
 /*values for SAS Enclosure Page 0 Flags field */
+#define MPI2_SAS_ENCLS0_FLAGS_ENCL_LEVEL_VALID      (0x0010)
 #define MPI2_SAS_ENCLS0_FLAGS_MNG_MASK              (0x000F)
 #define MPI2_SAS_ENCLS0_FLAGS_MNG_UNKNOWN           (0x0000)
 #define MPI2_SAS_ENCLS0_FLAGS_MNG_IOC_SES           (0x0001)

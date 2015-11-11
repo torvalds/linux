@@ -3,7 +3,6 @@
  * Copyright (C) 2006, 2007 David S. Miller (davem@davemloft.net)
  */
 
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/tty.h>
@@ -268,6 +267,9 @@ static void sunhv_send_xchar(struct uart_port *port, char ch)
 	unsigned long flags;
 	int limit = 10000;
 
+	if (ch == __DISABLED_CHAR)
+		return;
+
 	spin_lock_irqsave(&port->lock, flags);
 
 	while (limit-- > 0) {
@@ -282,11 +284,6 @@ static void sunhv_send_xchar(struct uart_port *port, char ch)
 
 /* port->lock held by caller.  */
 static void sunhv_stop_rx(struct uart_port *port)
-{
-}
-
-/* port->lock held by caller.  */
-static void sunhv_enable_ms(struct uart_port *port)
 {
 }
 
@@ -379,7 +376,6 @@ static struct uart_ops sunhv_pops = {
 	.start_tx	= sunhv_start_tx,
 	.send_xchar	= sunhv_send_xchar,
 	.stop_rx	= sunhv_stop_rx,
-	.enable_ms	= sunhv_enable_ms,
 	.break_ctl	= sunhv_break_ctl,
 	.startup	= sunhv_startup,
 	.shutdown	= sunhv_shutdown,
@@ -433,13 +429,10 @@ static void sunhv_console_write_paged(struct console *con, const char *s, unsign
 	unsigned long flags;
 	int locked = 1;
 
-	local_irq_save(flags);
-	if (port->sysrq) {
-		locked = 0;
-	} else if (oops_in_progress) {
-		locked = spin_trylock(&port->lock);
-	} else
-		spin_lock(&port->lock);
+	if (port->sysrq || oops_in_progress)
+		locked = spin_trylock_irqsave(&port->lock, flags);
+	else
+		spin_lock_irqsave(&port->lock, flags);
 
 	while (n > 0) {
 		unsigned long ra = __pa(con_write_page);
@@ -470,8 +463,7 @@ static void sunhv_console_write_paged(struct console *con, const char *s, unsign
 	}
 
 	if (locked)
-		spin_unlock(&port->lock);
-	local_irq_restore(flags);
+		spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static inline void sunhv_console_putchar(struct uart_port *port, char c)
@@ -492,7 +484,10 @@ static void sunhv_console_write_bychar(struct console *con, const char *s, unsig
 	unsigned long flags;
 	int i, locked = 1;
 
-	local_irq_save(flags);
+	if (port->sysrq || oops_in_progress)
+		locked = spin_trylock_irqsave(&port->lock, flags);
+	else
+		spin_lock_irqsave(&port->lock, flags);
 	if (port->sysrq) {
 		locked = 0;
 	} else if (oops_in_progress) {
@@ -507,8 +502,7 @@ static void sunhv_console_write_bychar(struct console *con, const char *s, unsig
 	}
 
 	if (locked)
-		spin_unlock(&port->lock);
-	local_irq_restore(flags);
+		spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static struct console sunhv_console = {
@@ -577,7 +571,7 @@ static int hv_probe(struct platform_device *op)
 	if (err)
 		goto out_remove_port;
 
-	dev_set_drvdata(&op->dev, port);
+	platform_set_drvdata(op, port);
 
 	return 0;
 
@@ -601,7 +595,7 @@ out_free_port:
 
 static int hv_remove(struct platform_device *dev)
 {
-	struct uart_port *port = dev_get_drvdata(&dev->dev);
+	struct uart_port *port = platform_get_drvdata(dev);
 
 	free_irq(port->irq, port);
 
@@ -611,8 +605,6 @@ static int hv_remove(struct platform_device *dev)
 
 	kfree(port);
 	sunhv_port = NULL;
-
-	dev_set_drvdata(&dev->dev, NULL);
 
 	return 0;
 }
@@ -628,12 +620,10 @@ static const struct of_device_id hv_match[] = {
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(of, hv_match);
 
 static struct platform_driver hv_driver = {
 	.driver = {
 		.name = "hv",
-		.owner = THIS_MODULE,
 		.of_match_table = hv_match,
 	},
 	.probe		= hv_probe,
@@ -647,16 +637,11 @@ static int __init sunhv_init(void)
 
 	return platform_driver_register(&hv_driver);
 }
+device_initcall(sunhv_init);
 
-static void __exit sunhv_exit(void)
-{
-	platform_driver_unregister(&hv_driver);
-}
-
-module_init(sunhv_init);
-module_exit(sunhv_exit);
-
+#if 0 /* ...def MODULE ; never supported as such */
 MODULE_AUTHOR("David S. Miller");
 MODULE_DESCRIPTION("SUN4V Hypervisor console driver");
 MODULE_VERSION("2.0");
 MODULE_LICENSE("GPL");
+#endif

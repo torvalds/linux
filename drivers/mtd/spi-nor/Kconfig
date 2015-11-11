@@ -1,0 +1,44 @@
+menuconfig MTD_SPI_NOR
+	tristate "SPI-NOR device support"
+	depends on MTD
+	help
+	  This is the framework for the SPI NOR which can be used by the SPI
+	  device drivers and the SPI-NOR device driver.
+
+if MTD_SPI_NOR
+
+config MTD_SPI_NOR_USE_4K_SECTORS
+	bool "Use small 4096 B erase sectors"
+	default y
+	help
+	  Many flash memories support erasing small (4096 B) sectors. Depending
+	  on the usage this feature may provide performance gain in comparison
+	  to erasing whole blocks (32/64 KiB).
+	  Changing a small part of the flash's contents is usually faster with
+	  small sectors. On the other hand erasing should be faster when using
+	  64 KiB block instead of 16 × 4 KiB sectors.
+
+	  Please note that some tools/drivers/filesystems may not work with
+	  4096 B erase size (e.g. UBIFS requires 15 KiB as a minimum).
+
+config SPI_FSL_QUADSPI
+	tristate "Freescale Quad SPI controller"
+	depends on ARCH_MXC || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This enables support for the Quad SPI controller in master mode.
+	  This controller does not support generic SPI. It only supports
+	  SPI NOR.
+
+config SPI_NXP_SPIFI
+	tristate "NXP SPI Flash Interface (SPIFI)"
+	depends on OF && (ARCH_LPC18XX || COMPILE_TEST)
+	depends on HAS_IOMEM
+	help
+	  Enable support for the NXP LPC SPI Flash Interface controller.
+
+	  SPIFI is a specialized controller for connecting serial SPI
+	  Flash. Enable this option if you have a device with a SPIFI
+	  controller and want to access the Flash as a mtd device.
+
+endif # MTD_SPI_NOR

@@ -176,8 +176,8 @@ static irqreturn_t tx4939_rtc_interrupt(int irq, void *dev_id)
 		tx4939_rtc_cmd(rtcreg, TX4939_RTCCTL_COMMAND_NOP);
 	}
 	spin_unlock(&pdata->lock);
-	if (likely(pdata->rtc))
-		rtc_update_irq(pdata->rtc, 1, events);
+	rtc_update_irq(pdata->rtc, 1, events);
+
 	return IRQ_HANDLED;
 }
 
@@ -199,8 +199,7 @@ static ssize_t tx4939_rtc_nvram_read(struct file *filp, struct kobject *kobj,
 	ssize_t count;
 
 	spin_lock_irq(&pdata->lock);
-	for (count = 0; size > 0 && pos < TX4939_RTC_REG_RAMSIZE;
-	     count++, size--) {
+	for (count = 0; count < size; count++) {
 		__raw_writel(pos++, &rtcreg->adr);
 		*buf++ = __raw_readl(&rtcreg->dat);
 	}
@@ -218,8 +217,7 @@ static ssize_t tx4939_rtc_nvram_write(struct file *filp, struct kobject *kobj,
 	ssize_t count;
 
 	spin_lock_irq(&pdata->lock);
-	for (count = 0; size > 0 && pos < TX4939_RTC_REG_RAMSIZE;
-	     count++, size--) {
+	for (count = 0; count < size; count++) {
 		__raw_writel(pos++, &rtcreg->adr);
 		__raw_writel(*buf++, &rtcreg->dat);
 	}
@@ -244,9 +242,6 @@ static int __init tx4939_rtc_probe(struct platform_device *pdev)
 	struct resource *res;
 	int irq, ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return -ENODEV;
@@ -255,13 +250,10 @@ static int __init tx4939_rtc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, pdata);
 
-	if (!devm_request_mem_region(&pdev->dev, res->start,
-				     resource_size(res), pdev->name))
-		return -EBUSY;
-	pdata->rtcreg = devm_ioremap(&pdev->dev, res->start,
-				     resource_size(res));
-	if (!pdata->rtcreg)
-		return -EBUSY;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	pdata->rtcreg = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(pdata->rtcreg))
+		return PTR_ERR(pdata->rtcreg);
 
 	spin_lock_init(&pdata->lock);
 	tx4939_rtc_cmd(pdata->rtcreg, TX4939_RTCCTL_COMMAND_NOP);
@@ -293,7 +285,6 @@ static struct platform_driver tx4939_rtc_driver = {
 	.remove		= __exit_p(tx4939_rtc_remove),
 	.driver		= {
 		.name	= "tx4939rtc",
-		.owner	= THIS_MODULE,
 	},
 };
 

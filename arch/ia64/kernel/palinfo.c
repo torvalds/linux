@@ -932,7 +932,7 @@ static const struct file_operations proc_palinfo_fops = {
 	.release	= single_release,
 };
 
-static void __cpuinit
+static void
 create_palinfo_proc_entries(unsigned int cpu)
 {
 	pal_func_cpu_u_t f;
@@ -962,7 +962,7 @@ remove_palinfo_proc_entries(unsigned int hcpu)
 	remove_proc_subtree(cpustr, palinfo_dir);
 }
 
-static int __cpuinit palinfo_cpu_callback(struct notifier_block *nfb,
+static int palinfo_cpu_callback(struct notifier_block *nfb,
 					unsigned long action, void *hcpu)
 {
 	unsigned int hotcpu = (unsigned long)hcpu;
@@ -996,13 +996,17 @@ palinfo_init(void)
 	if (!palinfo_dir)
 		return -ENOMEM;
 
+	cpu_notifier_register_begin();
+
 	/* Create palinfo dirs in /proc for all online cpus */
 	for_each_online_cpu(i) {
 		create_palinfo_proc_entries(i);
 	}
 
 	/* Register for future delivery via notify registration */
-	register_hotcpu_notifier(&palinfo_cpu_notifier);
+	__register_hotcpu_notifier(&palinfo_cpu_notifier);
+
+	cpu_notifier_register_done();
 
 	return 0;
 }

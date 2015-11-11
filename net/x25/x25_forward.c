@@ -8,6 +8,9 @@
  *	History
  *	03-01-2007	Added forwarding for x.25	Andrew Hendry
  */
+
+#define pr_fmt(fmt) "X25: " fmt
+
 #include <linux/if_arp.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -51,7 +54,7 @@ int x25_forward_call(struct x25_address *dest_addr, struct x25_neigh *from,
 	list_for_each(entry, &x25_forward_list) {
 		x25_frwd = list_entry(entry, struct x25_forward, node);
 		if (x25_frwd->lci == lci) {
-			printk(KERN_WARNING "X.25: call request for lci which is already registered!, transmitting but not registering new pair\n");
+			pr_warn("call request for lci which is already registered!, transmitting but not registering new pair\n");
 			same_lci = 1;
 		}
 	}

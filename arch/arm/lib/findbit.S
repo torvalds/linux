@@ -35,7 +35,7 @@ ENTRY(_find_first_zero_bit_le)
 2:		cmp	r2, r1			@ any more?
 		blo	1b
 3:		mov	r0, r1			@ no free bits
-		mov	pc, lr
+		ret	lr
 ENDPROC(_find_first_zero_bit_le)
 
 /*
@@ -76,7 +76,7 @@ ENTRY(_find_first_bit_le)
 2:		cmp	r2, r1			@ any more?
 		blo	1b
 3:		mov	r0, r1			@ no free bits
-		mov	pc, lr
+		ret	lr
 ENDPROC(_find_first_bit_le)
 
 /*
@@ -114,7 +114,7 @@ ENTRY(_find_first_zero_bit_be)
 2:		cmp	r2, r1			@ any more?
 		blo	1b
 3:		mov	r0, r1			@ no free bits
-		mov	pc, lr
+		ret	lr
 ENDPROC(_find_first_zero_bit_be)
 
 ENTRY(_find_next_zero_bit_be)
@@ -148,7 +148,7 @@ ENTRY(_find_first_bit_be)
 2:		cmp	r2, r1			@ any more?
 		blo	1b
 3:		mov	r0, r1			@ no free bits
-		mov	pc, lr
+		ret	lr
 ENDPROC(_find_first_bit_be)
 
 ENTRY(_find_next_bit_be)
@@ -192,5 +192,5 @@ ENDPROC(_find_next_bit_be)
 #endif
 		cmp	r1, r0			@ Clamp to maxbit
 		movlo	r0, r1
-		mov	pc, lr
+		ret	lr
 

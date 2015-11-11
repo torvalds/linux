@@ -48,8 +48,8 @@ do {	save_and_clear_fpu();						\
 	"wrpr	%%g0, 14, %%pil\n\t"					\
 	"brz,pt %%o7, switch_to_pc\n\t"					\
 	" mov	%%g7, %0\n\t"						\
-	"sethi	%%hi(ret_from_syscall), %%g1\n\t"			\
-	"jmpl	%%g1 + %%lo(ret_from_syscall), %%g0\n\t"		\
+	"sethi	%%hi(ret_from_fork), %%g1\n\t"				\
+	"jmpl	%%g1 + %%lo(ret_from_fork), %%g0\n\t"			\
 	" nop\n\t"							\
 	".globl switch_to_pc\n\t"					\
 	"switch_to_pc:\n\t"						\
@@ -65,7 +65,7 @@ do {	save_and_clear_fpu();						\
 	  "o0", "o1", "o2", "o3", "o4", "o5",       "o7");		\
 } while(0)
 
-extern void synchronize_user_stack(void);
-extern void fault_in_user_windows(void);
+void synchronize_user_stack(void);
+void fault_in_user_windows(void);
 
 #endif /* __SPARC64_SWITCH_TO_64_H */

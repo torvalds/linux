@@ -34,7 +34,6 @@
 #include <asm/uaccess.h>
 
 #include "signal32.h"
-#include "sys32.h"
 
 #define DEBUG_COMPAT_SIG 0 
 #define DEBUG_COMPAT_SIG_LEVEL 2
@@ -320,7 +319,7 @@ copy_siginfo_from_user32 (siginfo_t *to, compat_siginfo_t __user *from)
 }
 
 int
-copy_siginfo_to_user32 (compat_siginfo_t __user *to, siginfo_t *from)
+copy_siginfo_to_user32 (compat_siginfo_t __user *to, const siginfo_t *from)
 {
 	compat_uptr_t addr;
 	compat_int_t val;

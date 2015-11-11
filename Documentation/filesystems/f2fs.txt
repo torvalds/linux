@@ -18,8 +18,8 @@ according to its internal geometry or flash memory management scheme, namely FTL
 F2FS and its tools support various parameters not only for configuring on-disk
 layout, but also for selecting allocation and cleaning algorithms.
 
-The file system formatting tool, "mkfs.f2fs", is available from the following
-git tree:
+The following git tree provides the file system formatting tool (mkfs.f2fs),
+a consistency checking tool (fsck.f2fs), and a debugging tool (dump.f2fs).
 >> git://git.kernel.org/pub/scm/linux/kernel/git/jaegeuk/f2fs-tools.git
 
 For reporting bugs and sending patches, please use the following mailing list:
@@ -98,9 +98,17 @@ Cleaning Overhead
 MOUNT OPTIONS
 ================================================================================
 
-background_gc_off      Turn off cleaning operations, namely garbage collection,
-		       triggered in background when I/O subsystem is idle.
+background_gc=%s       Turn on/off cleaning operations, namely garbage
+                       collection, triggered in background when I/O subsystem is
+                       idle. If background_gc=on, it will turn on the garbage
+                       collection and if background_gc=off, garbage collection
+                       will be truned off. If background_gc=sync, it will turn
+                       on synchronous garbage collection running in background.
+                       Default value for this option is on. So garbage
+                       collection is on by default.
 disable_roll_forward   Disable the roll-forward recovery routine
+norecovery             Disable the roll-forward recovery routine, mounted read-
+                       only (i.e., -o ro,disable_roll_forward)
 discard                Issue discard/TRIM commands when a segment is cleaned.
 no_heap                Disable heap-style segment allocation which finds free
                        segments for data from the beginning of main area, while
@@ -114,6 +122,33 @@ active_logs=%u         Support configuring the number of active logs. In the
                        Default number is 6.
 disable_ext_identify   Disable the extension list configured by mkfs, so f2fs
                        does not aware of cold files such as media files.
+inline_xattr           Enable the inline xattrs feature.
+inline_data            Enable the inline data feature: New created small(<~3.4k)
+                       files can be written into inode block.
+inline_dentry          Enable the inline dir feature: data in new created
+                       directory entries can be written into inode block. The
+                       space of inode block which is used to store inline
+                       dentries is limited to ~3.4k.
+flush_merge	       Merge concurrent cache_flush commands as much as possible
+                       to eliminate redundant command issues. If the underlying
+		       device handles the cache_flush command relatively slowly,
+		       recommend to enable this option.
+nobarrier              This option can be used if underlying storage guarantees
+                       its cached data should be written to the novolatile area.
+		       If this option is set, no cache_flush commands are issued
+		       but f2fs still guarantees the write ordering of all the
+		       data writes.
+fastboot               This option is used when a system wants to reduce mount
+                       time as much as possible, even though normal performance
+		       can be sacrificed.
+extent_cache           Enable an extent cache based on rb-tree, it can cache
+                       as many as extent which map between contiguous logical
+                       address and physical address per inode, resulting in
+                       increasing the cache hit ratio. Set by default.
+noextent_cache         Diable an extent cache based on rb-tree explicitly, see
+                       the above extent_cache mount option.
+noinline_data          Disable the inline data feature, inline data feature is
+                       enabled by default.
 
 ================================================================================
 DEBUGFS ENTRIES
@@ -126,6 +161,90 @@ f2fs. Each file shows the whole f2fs information.
  - major file system information managed by f2fs currently
  - average SIT information about whole segments
  - current memory footprint consumed by f2fs.
+
+================================================================================
+SYSFS ENTRIES
+================================================================================
+
+Information about mounted f2f2 file systems can be found in
+/sys/fs/f2fs.  Each mounted filesystem will have a directory in
+/sys/fs/f2fs based on its device name (i.e., /sys/fs/f2fs/sda).
+The files in each per-device directory are shown in table below.
+
+Files in /sys/fs/f2fs/<devname>
+(see also Documentation/ABI/testing/sysfs-fs-f2fs)
+..............................................................................
+ File                         Content
+
+ gc_max_sleep_time            This tuning parameter controls the maximum sleep
+                              time for the garbage collection thread. Time is
+                              in milliseconds.
+
+ gc_min_sleep_time            This tuning parameter controls the minimum sleep
+                              time for the garbage collection thread. Time is
+                              in milliseconds.
+
+ gc_no_gc_sleep_time          This tuning parameter controls the default sleep
+                              time for the garbage collection thread. Time is
+                              in milliseconds.
+
+ gc_idle                      This parameter controls the selection of victim
+                              policy for garbage collection. Setting gc_idle = 0
+                              (default) will disable this option. Setting
+                              gc_idle = 1 will select the Cost Benefit approach
+                              & setting gc_idle = 2 will select the greedy aproach.
+
+ reclaim_segments             This parameter controls the number of prefree
+                              segments to be reclaimed. If the number of prefree
+			      segments is larger than the number of segments
+			      in the proportion to the percentage over total
+			      volume size, f2fs tries to conduct checkpoint to
+			      reclaim the prefree segments to free segments.
+			      By default, 5% over total # of segments.
+
+ max_small_discards	      This parameter controls the number of discard
+			      commands that consist small blocks less than 2MB.
+			      The candidates to be discarded are cached until
+			      checkpoint is triggered, and issued during the
+			      checkpoint. By default, it is disabled with 0.
+
+ trim_sections                This parameter controls the number of sections
+                              to be trimmed out in batch mode when FITRIM
+                              conducts. 32 sections is set by default.
+
+ ipu_policy                   This parameter controls the policy of in-place
+                              updates in f2fs. There are five policies:
+                               0x01: F2FS_IPU_FORCE, 0x02: F2FS_IPU_SSR,
+                               0x04: F2FS_IPU_UTIL,  0x08: F2FS_IPU_SSR_UTIL,
+                               0x10: F2FS_IPU_FSYNC.
+
+ min_ipu_util                 This parameter controls the threshold to trigger
+                              in-place-updates. The number indicates percentage
+                              of the filesystem utilization, and used by
+                              F2FS_IPU_UTIL and F2FS_IPU_SSR_UTIL policies.
+
+ min_fsync_blocks             This parameter controls the threshold to trigger
+                              in-place-updates when F2FS_IPU_FSYNC mode is set.
+			      The number indicates the number of dirty pages
+			      when fsync needs to flush on its call path. If
+			      the number is less than this value, it triggers
+			      in-place-updates.
+
+ max_victim_search	      This parameter controls the number of trials to
+			      find a victim segment when conducting SSR and
+			      cleaning operations. The default value is 4096
+			      which covers 8GB block address range.
+
+ dir_level                    This parameter controls the directory level to
+			      support large directory. If a directory has a
+			      number of files, it can reduce the file lookup
+			      latency by increasing this dir_level value.
+			      Otherwise, it needs to decrease this value to
+			      reduce the space overhead. The default value is 0.
+
+ ram_thresh                   This parameter controls the memory footprint used
+			      by free nids and cached nat entries. By default,
+			      10 is set, which indicates 10 MB / 1 GB RAM.
 
 ================================================================================
 USAGE
@@ -144,8 +263,12 @@ USAGE
  # mkfs.f2fs -l label /dev/block_device
  # mount -t f2fs /dev/block_device /mnt/f2fs
 
-Format options
---------------
+mkfs.f2fs
+---------
+The mkfs.f2fs is for the use of formatting a partition as the f2fs filesystem,
+which builds a basic on-disk layout.
+
+The options consist of:
 -l [label]   : Give a volume label, up to 512 unicode name.
 -a [0 or 1]  : Split start location of each area for heap-based allocation.
                1 is set by default, which performs this.
@@ -158,6 +281,37 @@ Format options
 -e [str]     : Set basic extension list. e.g. "mp3,gif,mov"
 -t [0 or 1]  : Disable discard command or not.
                1 is set by default, which conducts discard.
+
+fsck.f2fs
+---------
+The fsck.f2fs is a tool to check the consistency of an f2fs-formatted
+partition, which examines whether the filesystem metadata and user-made data
+are cross-referenced correctly or not.
+Note that, initial version of the tool does not fix any inconsistency.
+
+The options consist of:
+  -d debug level [default:0]
+
+dump.f2fs
+---------
+The dump.f2fs shows the information of specific inode and dumps SSA and SIT to
+file. Each file is dump_ssa and dump_sit.
+
+The dump.f2fs is used to debug on-disk data structures of the f2fs filesystem.
+It shows on-disk inode information reconized by a given inode number, and is
+able to dump all the SSA and SIT entries into predefined files, ./dump_ssa and
+./dump_sit respectively.
+
+The options consist of:
+  -d debug level [default:0]
+  -i inode no (hex)
+  -s [SIT dump segno from #1~#2 (decimal), for all 0~-1]
+  -a [SSA dump segno from #1~#2 (decimal), for all 0~-1]
+
+Examples:
+# dump.f2fs -i [ino] /dev/sdx
+# dump.f2fs -s 0~-1 /dev/sdx (SIT dump)
+# dump.f2fs -a 0~-1 /dev/sdx (SSA dump)
 
 ================================================================================
 DESIGN
@@ -341,9 +495,11 @@ The number of blocks and buckets are determined by,
   # of blocks in level #n = |
                             `- 4, Otherwise
 
-                             ,- 2^n, if n < MAX_DIR_HASH_DEPTH / 2,
+                             ,- 2^(n + dir_level),
+			     |        if n + dir_level < MAX_DIR_HASH_DEPTH / 2,
   # of buckets in level #n = |
-                             `- 2^((MAX_DIR_HASH_DEPTH / 2) - 1), Otherwise
+                             `- 2^((MAX_DIR_HASH_DEPTH / 2) - 1),
+			              Otherwise
 
 When F2FS finds a file name in a directory, at first a hash value of the file
 name is calculated. Then, F2FS scans the hash table in level #0 to find the

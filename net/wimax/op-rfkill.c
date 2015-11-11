@@ -135,8 +135,7 @@ EXPORT_SYMBOL_GPL(wimax_report_rfkill_hw);
  * @state: New state of the RF kill switch. %WIMAX_RF_ON radio on,
  *     %WIMAX_RF_OFF radio off.
  *
- * Reports changes in the software RF switch state to the the WiMAX
- * stack.
+ * Reports changes in the software RF switch state to the WiMAX stack.
  *
  * The main use is during initialization, so the driver can query the
  * device for its current software radio kill switch state and feed it
@@ -411,17 +410,6 @@ void wimax_rfkill_rm(struct wimax_dev *wimax_dev)
  * just query).
  */
 
-static const struct nla_policy wimax_gnl_rfkill_policy[WIMAX_GNL_ATTR_MAX + 1] = {
-	[WIMAX_GNL_RFKILL_IFIDX] = {
-		.type = NLA_U32,
-	},
-	[WIMAX_GNL_RFKILL_STATE] = {
-		.type = NLA_U32		/* enum wimax_rf_state */
-	},
-};
-
-
-static
 int wimax_gnl_doit_rfkill(struct sk_buff *skb, struct genl_info *info)
 {
 	int result, ifindex;
@@ -432,8 +420,7 @@ int wimax_gnl_doit_rfkill(struct sk_buff *skb, struct genl_info *info)
 	d_fnstart(3, NULL, "(skb %p info %p)\n", skb, info);
 	result = -ENODEV;
 	if (info->attrs[WIMAX_GNL_RFKILL_IFIDX] == NULL) {
-		printk(KERN_ERR "WIMAX_GNL_OP_RFKILL: can't find IFIDX "
-			"attribute\n");
+		pr_err("WIMAX_GNL_OP_RFKILL: can't find IFIDX attribute\n");
 		goto error_no_wimax_dev;
 	}
 	ifindex = nla_get_u32(info->attrs[WIMAX_GNL_RFKILL_IFIDX]);
@@ -457,13 +444,3 @@ error_no_wimax_dev:
 	d_fnend(3, NULL, "(skb %p info %p) = %d\n", skb, info, result);
 	return result;
 }
-
-
-struct genl_ops wimax_gnl_rfkill = {
-	.cmd = WIMAX_GNL_OP_RFKILL,
-	.flags = GENL_ADMIN_PERM,
-	.policy = wimax_gnl_rfkill_policy,
-	.doit = wimax_gnl_doit_rfkill,
-	.dumpit = NULL,
-};
-

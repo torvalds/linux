@@ -33,7 +33,7 @@
  * outer cache operations into the kernel image if the kernel has been
  * configured to support a pre-v7 CPU.
  */
-#if __LINUX_ARM_ARCH__ < 7
+#ifdef CONFIG_CPU_32v5
 /*
  * Low-level cache maintenance operations.
  */
@@ -185,7 +185,7 @@ static void enable_extra_feature(unsigned int features)
 		u &= ~0x01000000;
 	else
 		u |= 0x01000000;
-	printk(KERN_INFO "Tauros2: %s L2 prefetch.\n",
+	pr_info("Tauros2: %s L2 prefetch.\n",
 			(features & CACHE_TAUROS2_PREFETCH_ON)
 			? "Enabling" : "Disabling");
 
@@ -193,7 +193,7 @@ static void enable_extra_feature(unsigned int features)
 		u |= 0x00100000;
 	else
 		u &= ~0x00100000;
-	printk(KERN_INFO "Tauros2: %s line fill burt8.\n",
+	pr_info("Tauros2: %s line fill burt8.\n",
 			(features & CACHE_TAUROS2_LINEFILL_BURST8)
 			? "Enabling" : "Disabling");
 
@@ -216,38 +216,11 @@ static void __init tauros2_internal_init(unsigned int features)
 		 */
 		feat = read_extra_features();
 		if (!(feat & 0x00400000)) {
-			printk(KERN_INFO "Tauros2: Enabling L2 cache.\n");
+			pr_info("Tauros2: Enabling L2 cache.\n");
 			write_extra_features(feat | 0x00400000);
 		}
 
 		mode = "ARMv5";
-		outer_cache.inv_range = tauros2_inv_range;
-		outer_cache.clean_range = tauros2_clean_range;
-		outer_cache.flush_range = tauros2_flush_range;
-		outer_cache.disable = tauros2_disable;
-		outer_cache.resume = tauros2_resume;
-	}
-#endif
-
-#ifdef CONFIG_CPU_32v6
-	/*
-	 * Check whether this CPU lacks support for the v7 hierarchical
-	 * cache ops.  (PJ4 is in its v6 personality mode if the MMFR3
-	 * register indicates no support for the v7 hierarchical cache
-	 * ops.)
-	 */
-	if (cpuid_scheme() && (read_mmfr3() & 0xf) == 0) {
-		/*
-		 * When Tauros2 is used in an ARMv6 system, the L2
-		 * enable bit is in the ARMv6 ARM-mandated position
-		 * (bit [26] of the System Control Register).
-		 */
-		if (!(get_cr() & 0x04000000)) {
-			printk(KERN_INFO "Tauros2: Enabling L2 cache.\n");
-			adjust_cr(0x04000000, 0x04000000);
-		}
-
-		mode = "ARMv6";
 		outer_cache.inv_range = tauros2_inv_range;
 		outer_cache.clean_range = tauros2_clean_range;
 		outer_cache.flush_range = tauros2_flush_range;
@@ -280,7 +253,7 @@ static void __init tauros2_internal_init(unsigned int features)
 		 */
 		actlr = read_actlr();
 		if (!(actlr & 0x00000002)) {
-			printk(KERN_INFO "Tauros2: Enabling L2 cache.\n");
+			pr_info("Tauros2: Enabling L2 cache.\n");
 			write_actlr(actlr | 0x00000002);
 		}
 
@@ -289,11 +262,11 @@ static void __init tauros2_internal_init(unsigned int features)
 #endif
 
 	if (mode == NULL) {
-		printk(KERN_CRIT "Tauros2: Unable to detect CPU mode.\n");
+		pr_crit("Tauros2: Unable to detect CPU mode.\n");
 		return;
 	}
 
-	printk(KERN_INFO "Tauros2: L2 cache support initialised "
+	pr_info("Tauros2: L2 cache support initialised "
 			 "in %s mode.\n", mode);
 }
 

@@ -24,7 +24,7 @@ static ssize_t amd64_inject_section_store(struct device *dev,
 	unsigned long value;
 	int ret;
 
-	ret = strict_strtoul(data, 10, &value);
+	ret = kstrtoul(data, 10, &value);
 	if (ret < 0)
 		return ret;
 
@@ -61,7 +61,7 @@ static ssize_t amd64_inject_word_store(struct device *dev,
 	unsigned long value;
 	int ret;
 
-	ret = strict_strtoul(data, 10, &value);
+	ret = kstrtoul(data, 10, &value);
 	if (ret < 0)
 		return ret;
 
@@ -97,7 +97,7 @@ static ssize_t amd64_inject_ecc_vector_store(struct device *dev,
 	unsigned long value;
 	int ret;
 
-	ret = strict_strtoul(data, 16, &value);
+	ret = kstrtoul(data, 16, &value);
 	if (ret < 0)
 		return ret;
 
@@ -124,7 +124,7 @@ static ssize_t amd64_inject_read_store(struct device *dev,
 	u32 section, word_bits;
 	int ret;
 
-	ret = strict_strtoul(data, 10, &value);
+	ret = kstrtoul(data, 10, &value);
 	if (ret < 0)
 		return ret;
 
@@ -157,7 +157,7 @@ static ssize_t amd64_inject_write_store(struct device *dev,
 	unsigned long value;
 	int ret;
 
-	ret = strict_strtoul(data, 10, &value);
+	ret = kstrtoul(data, 10, &value);
 	if (ret < 0)
 		return ret;
 
@@ -207,35 +207,28 @@ static DEVICE_ATTR(inject_write, S_IWUSR,
 static DEVICE_ATTR(inject_read,  S_IWUSR,
 		   NULL, amd64_inject_read_store);
 
+static struct attribute *amd64_edac_inj_attrs[] = {
+	&dev_attr_inject_section.attr,
+	&dev_attr_inject_word.attr,
+	&dev_attr_inject_ecc_vector.attr,
+	&dev_attr_inject_write.attr,
+	&dev_attr_inject_read.attr,
+	NULL
+};
 
-int amd64_create_sysfs_inject_files(struct mem_ctl_info *mci)
+static umode_t amd64_edac_inj_is_visible(struct kobject *kobj,
+					 struct attribute *attr, int idx)
 {
-	int rc;
+	struct device *dev = kobj_to_dev(kobj);
+	struct mem_ctl_info *mci = container_of(dev, struct mem_ctl_info, dev);
+	struct amd64_pvt *pvt = mci->pvt_info;
 
-	rc = device_create_file(&mci->dev, &dev_attr_inject_section);
-	if (rc < 0)
-		return rc;
-	rc = device_create_file(&mci->dev, &dev_attr_inject_word);
-	if (rc < 0)
-		return rc;
-	rc = device_create_file(&mci->dev, &dev_attr_inject_ecc_vector);
-	if (rc < 0)
-		return rc;
-	rc = device_create_file(&mci->dev, &dev_attr_inject_write);
-	if (rc < 0)
-		return rc;
-	rc = device_create_file(&mci->dev, &dev_attr_inject_read);
-	if (rc < 0)
-		return rc;
-
-	return 0;
+	if (pvt->fam < 0x10)
+		return 0;
+	return attr->mode;
 }
 
-void amd64_remove_sysfs_inject_files(struct mem_ctl_info *mci)
-{
-	device_remove_file(&mci->dev, &dev_attr_inject_section);
-	device_remove_file(&mci->dev, &dev_attr_inject_word);
-	device_remove_file(&mci->dev, &dev_attr_inject_ecc_vector);
-	device_remove_file(&mci->dev, &dev_attr_inject_write);
-	device_remove_file(&mci->dev, &dev_attr_inject_read);
-}
+const struct attribute_group amd64_edac_inj_group = {
+	.attrs = amd64_edac_inj_attrs,
+	.is_visible = amd64_edac_inj_is_visible,
+};

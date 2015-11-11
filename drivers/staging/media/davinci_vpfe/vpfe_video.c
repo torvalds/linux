@@ -27,9 +27,6 @@
 #include "vpfe.h"
 #include "vpfe_mc_capture.h"
 
-/* minimum number of buffers needed in cont-mode */
-#define MIN_NUM_BUFFERS			3
-
 static int debug;
 
 /* get v4l2 subdev pointer to external subdev which is active */
@@ -39,7 +36,7 @@ static struct media_entity *vpfe_get_input_entity
 	struct vpfe_device *vpfe_dev = video->vpfe_dev;
 	struct media_pad *remote;
 
-	remote = media_entity_remote_source(&vpfe_dev->vpfe_isif.pads[0]);
+	remote = media_entity_remote_pad(&vpfe_dev->vpfe_isif.pads[0]);
 	if (remote == NULL) {
 		pr_err("Invalid media connection to isif/ccdc\n");
 		return NULL;
@@ -56,7 +53,7 @@ static int vpfe_update_current_ext_subdev(struct vpfe_video_device *video)
 	struct media_pad *remote;
 	int i;
 
-	remote = media_entity_remote_source(&vpfe_dev->vpfe_isif.pads[0]);
+	remote = media_entity_remote_pad(&vpfe_dev->vpfe_isif.pads[0]);
 	if (remote == NULL) {
 		pr_err("Invalid media connection to isif/ccdc\n");
 		return -EINVAL;
@@ -89,7 +86,7 @@ static int vpfe_update_current_ext_subdev(struct vpfe_video_device *video)
 static struct v4l2_subdev *
 vpfe_video_remote_subdev(struct vpfe_video_device *video, u32 *pad)
 {
-	struct media_pad *remote = media_entity_remote_source(&video->pad);
+	struct media_pad *remote = media_entity_remote_pad(&video->pad);
 
 	if (remote == NULL || remote->entity->type != MEDIA_ENT_T_V4L2_SUBDEV)
 		return NULL;
@@ -114,7 +111,7 @@ __vpfe_video_get_format(struct vpfe_video_device *video,
 		return -EINVAL;
 
 	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	remote = media_entity_remote_source(&video->pad);
+	remote = media_entity_remote_pad(&video->pad);
 	fmt.pad = remote->index;
 
 	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt);
@@ -245,7 +242,7 @@ static int vpfe_video_validate_pipeline(struct vpfe_pipeline *pipe)
 			return -EPIPE;
 
 		/* Retrieve the source format */
-		pad = media_entity_remote_source(pad);
+		pad = media_entity_remote_pad(pad);
 		if (pad == NULL ||
 			pad->entity->type != MEDIA_ENT_T_V4L2_SUBDEV)
 			break;
@@ -346,7 +343,7 @@ static int vpfe_pipeline_disable(struct vpfe_pipeline *pipe)
 	}
 	mutex_unlock(&mdev->graph_mutex);
 
-	return (ret == 0) ? ret : -ETIMEDOUT ;
+	return ret ? -ETIMEDOUT : 0;
 }
 
 /*
@@ -415,7 +412,6 @@ static int vpfe_open(struct file *file)
 	video->usrs++;
 	/* Set io_allowed member to false */
 	handle->io_allowed = 0;
-	v4l2_prio_open(&video->prio, &handle->prio);
 	handle->video = video;
 	file->private_data = &handle->vfh;
 	mutex_unlock(&video->lock);
@@ -432,8 +428,8 @@ vpfe_video_get_next_buffer(struct vpfe_video_device *video)
 			   struct vpfe_cap_buffer, list);
 
 	list_del(&video->next_frm->list);
-	video->next_frm->vb.state = VB2_BUF_STATE_ACTIVE;
-	return vb2_dma_contig_plane_dma_addr(&video->next_frm->vb, 0);
+	video->next_frm->vb.vb2_buf.state = VB2_BUF_STATE_ACTIVE;
+	return vb2_dma_contig_plane_dma_addr(&video->next_frm->vb.vb2_buf, 0);
 }
 
 /* schedule the next buffer which is available on dma queue */
@@ -452,8 +448,8 @@ void vpfe_video_schedule_next_buffer(struct vpfe_video_device *video)
 		video->cur_frm = video->next_frm;
 
 	list_del(&video->next_frm->list);
-	video->next_frm->vb.state = VB2_BUF_STATE_ACTIVE;
-	addr = vb2_dma_contig_plane_dma_addr(&video->next_frm->vb, 0);
+	video->next_frm->vb.vb2_buf.state = VB2_BUF_STATE_ACTIVE;
+	addr = vb2_dma_contig_plane_dma_addr(&video->next_frm->vb.vb2_buf, 0);
 	video->ops->queue(vpfe_dev, addr);
 	video->state = VPFE_VIDEO_BUFFER_QUEUED;
 }
@@ -464,7 +460,7 @@ void vpfe_video_schedule_bottom_field(struct vpfe_video_device *video)
 	struct vpfe_device *vpfe_dev = video->vpfe_dev;
 	unsigned long addr;
 
-	addr = vb2_dma_contig_plane_dma_addr(&video->cur_frm->vb, 0);
+	addr = vb2_dma_contig_plane_dma_addr(&video->cur_frm->vb.vb2_buf, 0);
 	addr += video->field_off;
 	video->ops->queue(vpfe_dev, addr);
 }
@@ -474,8 +470,8 @@ void vpfe_video_process_buffer_complete(struct vpfe_video_device *video)
 {
 	struct vpfe_pipeline *pipe = &video->pipe;
 
-	do_gettimeofday(&video->cur_frm->vb.v4l2_buf.timestamp);
-	vb2_buffer_done(&video->cur_frm->vb, VB2_BUF_STATE_DONE);
+	v4l2_get_timestamp(&video->cur_frm->vb.timestamp);
+	vb2_buffer_done(&video->cur_frm->vb.vb2_buf, VB2_BUF_STATE_DONE);
 	if (pipe->state == VPFE_PIPELINE_STREAM_CONTINUOUS)
 		video->cur_frm = video->next_frm;
 }
@@ -532,8 +528,8 @@ static int vpfe_release(struct file *file)
 	}
 	/* Decrement device users counter */
 	video->usrs--;
-	/* Close the priority */
-	v4l2_prio_close(&video->prio, fh->prio);
+	v4l2_fh_del(&fh->vfh);
+	v4l2_fh_exit(&fh->vfh);
 	/* If this is the last file handle */
 	if (!video->usrs)
 		video->initialized = 0;
@@ -601,11 +597,11 @@ static int vpfe_querycap(struct file *file, void  *priv,
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_querycap\n");
 
 	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
+		cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	else
-		cap->capabilities = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_STREAMING;
-	cap->device_caps = cap->capabilities;
-	cap->version = VPFE_CAPTURE_VERSION_CODE;
+		cap->device_caps = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_STREAMING;
+	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OUTPUT |
+			    V4L2_CAP_STREAMING | V4L2_CAP_DEVICE_CAPS;
 	strlcpy(cap->driver, CAPTURE_DRV_NAME, sizeof(cap->driver));
 	strlcpy(cap->bus_info, "VPFE", sizeof(cap->bus_info));
 	strlcpy(cap->card, vpfe_dev->cfg->card_name, sizeof(cap->card));
@@ -667,7 +663,7 @@ static int vpfe_enum_fmt(struct file *file, void  *priv,
 		return -EINVAL;
 	}
 	/* get the remote pad */
-	remote = media_entity_remote_source(&video->pad);
+	remote = media_entity_remote_pad(&video->pad);
 	if (remote == NULL) {
 		v4l2_err(&vpfe_dev->v4l2_dev,
 			 "invalid remote pad for video node\n");
@@ -945,7 +941,7 @@ static int vpfe_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 		goto unlock_out;
 	}
 	ret = v4l2_device_call_until_err(&vpfe_dev->v4l2_dev, sdinfo->grp_id,
-					 core, s_std, std_id);
+					 video, s_std, std_id);
 	if (ret < 0) {
 		v4l2_err(&vpfe_dev->v4l2_dev, "Failed to set standard\n");
 		video->stdid = V4L2_STD_UNKNOWN;
@@ -987,8 +983,10 @@ vpfe_enum_dv_timings(struct file *file, void *fh,
 	struct vpfe_device *vpfe_dev = video->vpfe_dev;
 	struct v4l2_subdev *subdev = video->current_ext_subdev->subdev;
 
+	timings->pad = 0;
+
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_enum_dv_timings\n");
-	return v4l2_subdev_call(subdev, video, enum_dv_timings, timings);
+	return v4l2_subdev_call(subdev, pad, enum_dv_timings, timings);
 }
 
 /*
@@ -1080,27 +1078,21 @@ vpfe_g_dv_timings(struct file *file, void *fh,
  * the buffer nbuffers and buffer size
  */
 static int
-vpfe_buffer_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+vpfe_buffer_queue_setup(struct vb2_queue *vq, const void *parg,
 			unsigned int *nbuffers, unsigned int *nplanes,
 			unsigned int sizes[], void *alloc_ctxs[])
 {
 	struct vpfe_fh *fh = vb2_get_drv_priv(vq);
 	struct vpfe_video_device *video = fh->video;
 	struct vpfe_device *vpfe_dev = video->vpfe_dev;
-	struct vpfe_pipeline *pipe = &video->pipe;
 	unsigned long size;
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_buffer_queue_setup\n");
 	size = video->fmt.fmt.pix.sizeimage;
 
-	if (vpfe_dev->video_limit) {
-		while (size * *nbuffers > vpfe_dev->video_limit)
-			(*nbuffers)--;
-	}
-	if (pipe->state == VPFE_PIPELINE_STREAM_CONTINUOUS) {
-		if (*nbuffers < MIN_NUM_BUFFERS)
-			*nbuffers = MIN_NUM_BUFFERS;
-	}
+	if (vq->num_buffers + *nbuffers < 3)
+		*nbuffers = 3 - vq->num_buffers;
+
 	*nplanes = 1;
 	sizes[0] = size;
 	alloc_ctxs[0] = video->alloc_ctx;
@@ -1146,12 +1138,13 @@ static int vpfe_buffer_prepare(struct vb2_buffer *vb)
 
 static void vpfe_buffer_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	/* Get the file handle object and device object */
 	struct vpfe_fh *fh = vb2_get_drv_priv(vb->vb2_queue);
 	struct vpfe_video_device *video = fh->video;
 	struct vpfe_device *vpfe_dev = video->vpfe_dev;
 	struct vpfe_pipeline *pipe = &video->pipe;
-	struct vpfe_cap_buffer *buf = container_of(vb,
+	struct vpfe_cap_buffer *buf = container_of(vbuf,
 				struct vpfe_cap_buffer, vb);
 	unsigned long flags;
 	unsigned long empty;
@@ -1211,16 +1204,26 @@ static int vpfe_start_streaming(struct vb2_queue *vq, unsigned int count)
 	/* Remove buffer from the buffer queue */
 	list_del(&video->cur_frm->list);
 	/* Mark state of the current frame to active */
-	video->cur_frm->vb.state = VB2_BUF_STATE_ACTIVE;
+	video->cur_frm->vb.vb2_buf.state = VB2_BUF_STATE_ACTIVE;
 	/* Initialize field_id and started member */
 	video->field_id = 0;
-	addr = vb2_dma_contig_plane_dma_addr(&video->cur_frm->vb, 0);
+	addr = vb2_dma_contig_plane_dma_addr(&video->cur_frm->vb.vb2_buf, 0);
 	video->ops->queue(vpfe_dev, addr);
 	video->state = VPFE_VIDEO_BUFFER_QUEUED;
 
 	ret = vpfe_start_capture(video);
-	if (ret)
+	if (ret) {
+		struct vpfe_cap_buffer *buf, *tmp;
+
+		vb2_buffer_done(&video->cur_frm->vb.vb2_buf,
+				VB2_BUF_STATE_QUEUED);
+		list_for_each_entry_safe(buf, tmp, &video->dma_queue, list) {
+			list_del(&buf->list);
+			vb2_buffer_done(&buf->vb.vb2_buf,
+					VB2_BUF_STATE_QUEUED);
+		}
 		goto unlock_out;
+	}
 
 	mutex_unlock(&video->lock);
 
@@ -1234,7 +1237,8 @@ streamoff:
 
 static int vpfe_buffer_init(struct vb2_buffer *vb)
 {
-	struct vpfe_cap_buffer *buf = container_of(vb,
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct vpfe_cap_buffer *buf = container_of(vbuf,
 						   struct vpfe_cap_buffer, vb);
 
 	INIT_LIST_HEAD(&buf->list);
@@ -1242,29 +1246,40 @@ static int vpfe_buffer_init(struct vb2_buffer *vb)
 }
 
 /* abort streaming and wait for last buffer */
-static int vpfe_stop_streaming(struct vb2_queue *vq)
+static void vpfe_stop_streaming(struct vb2_queue *vq)
 {
 	struct vpfe_fh *fh = vb2_get_drv_priv(vq);
 	struct vpfe_video_device *video = fh->video;
 
-	if (!vb2_is_streaming(vq))
-		return 0;
 	/* release all active buffers */
+	if (video->cur_frm == video->next_frm) {
+		vb2_buffer_done(&video->cur_frm->vb.vb2_buf,
+				VB2_BUF_STATE_ERROR);
+	} else {
+		if (video->cur_frm != NULL)
+			vb2_buffer_done(&video->cur_frm->vb.vb2_buf,
+					VB2_BUF_STATE_ERROR);
+		if (video->next_frm != NULL)
+			vb2_buffer_done(&video->next_frm->vb.vb2_buf,
+					VB2_BUF_STATE_ERROR);
+	}
+
 	while (!list_empty(&video->dma_queue)) {
 		video->next_frm = list_entry(video->dma_queue.next,
 						struct vpfe_cap_buffer, list);
 		list_del(&video->next_frm->list);
-		vb2_buffer_done(&video->next_frm->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&video->next_frm->vb.vb2_buf,
+				VB2_BUF_STATE_ERROR);
 	}
-	return 0;
 }
 
 static void vpfe_buf_cleanup(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vpfe_fh *fh = vb2_get_drv_priv(vb->vb2_queue);
 	struct vpfe_video_device *video = fh->video;
 	struct vpfe_device *vpfe_dev = video->vpfe_dev;
-	struct vpfe_cap_buffer *buf = container_of(vb,
+	struct vpfe_cap_buffer *buf = container_of(vbuf,
 					struct vpfe_cap_buffer, vb);
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_buf_cleanup\n");
@@ -1325,9 +1340,11 @@ static int vpfe_reqbufs(struct file *file, void *priv,
 	q->type = req_buf->type;
 	q->io_modes = VB2_MMAP | VB2_USERPTR;
 	q->drv_priv = fh;
+	q->min_buffers_needed = 1;
 	q->ops = &video_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct vpfe_cap_buffer);
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
 	ret = vb2_queue_init(q);
 	if (ret) {
@@ -1580,8 +1597,6 @@ int vpfe_video_init(struct vpfe_video_device *video, const char *name)
 	snprintf(video->video_dev.name, sizeof(video->video_dev.name),
 		 "DAVINCI VIDEO %s %s", name, direction);
 
-	/* Initialize prio member of device object */
-	v4l2_prio_init(&video->prio);
 	spin_lock_init(&video->irqlock);
 	spin_lock_init(&video->dma_queue_lock);
 	mutex_init(&video->lock);
@@ -1614,7 +1629,7 @@ int vpfe_video_register(struct vpfe_video_device *video,
 void vpfe_video_unregister(struct vpfe_video_device *video)
 {
 	if (video_is_registered(&video->video_dev)) {
-		media_entity_cleanup(&video->video_dev.entity);
 		video_unregister_device(&video->video_dev);
+		media_entity_cleanup(&video->video_dev.entity);
 	}
 }

@@ -1,33 +1,50 @@
 <title>DVB Demux Device</title>
 
 <para>The DVB demux device controls the filters of the DVB hardware/software. It can be
-accessed through <emphasis role="tt">/dev/adapter0/demux0</emphasis>. Data types and and ioctl definitions can be
-accessed by including <emphasis role="tt">linux/dvb/dmx.h</emphasis> in your application.
+accessed through <constant>/dev/adapter?/demux?</constant>. Data types and and ioctl definitions can be
+accessed by including <constant>linux/dvb/dmx.h</constant> in your application.
 </para>
 <section id="dmx_types">
 <title>Demux Data Types</title>
 
 <section id="dmx-output-t">
-<title>dmx_output_t</title>
-<programlisting>
-typedef enum
-{
-	DMX_OUT_DECODER, /&#x22C6; Streaming directly to decoder. &#x22C6;/
-	DMX_OUT_TAP,     /&#x22C6; Output going to a memory buffer &#x22C6;/
-			 /&#x22C6; (to be retrieved via the read command).&#x22C6;/
-	DMX_OUT_TS_TAP,  /&#x22C6; Output multiplexed into a new TS  &#x22C6;/
-			 /&#x22C6; (to be retrieved by reading from the &#x22C6;/
-			 /&#x22C6; logical DVR device).                 &#x22C6;/
-	DMX_OUT_TSDEMUX_TAP /&#x22C6; Like TS_TAP but retrieved from the DMX device &#x22C6;/
-} dmx_output_t;
-</programlisting>
-<para><emphasis role="tt">DMX_OUT_TAP</emphasis> delivers the stream output to the demux device on which the ioctl is
-called.
-</para>
-<para><emphasis role="tt">DMX_OUT_TS_TAP</emphasis> routes output to the logical DVR device <emphasis role="tt">/dev/dvb/adapter0/dvr0</emphasis>,
-which delivers a TS multiplexed from all filters for which <emphasis role="tt">DMX_OUT_TS_TAP</emphasis> was
-specified.
-</para>
+<title>Output for the demux</title>
+
+<table pgwide="1" frame="none" id="dmx-output">
+    <title>enum dmx_output</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+		<entry align="char" id="DMX-OUT-DECODER">DMX_OUT_DECODER</entry>
+		<entry>Streaming directly to decoder.</entry>
+	</row><row>
+		<entry align="char" id="DMX-OUT-TAP">DMX_OUT_TAP</entry>
+		<entry>Output going to a memory buffer (to be retrieved via the
+		    read command). Delivers the stream output to the demux
+		    device on which the ioctl is called.</entry>
+	</row><row>
+		<entry align="char" id="DMX-OUT-TS-TAP">DMX_OUT_TS_TAP</entry>
+		<entry>Output multiplexed into a new TS (to be retrieved by
+		    reading from the logical DVR device). Routes output to the
+		    logical DVR device <constant>/dev/dvb/adapter?/dvr?</constant>,
+		    which delivers a TS multiplexed from all filters for which
+		    <constant>DMX_OUT_TS_TAP</constant> was specified.</entry>
+	</row><row>
+		<entry align="char" id="DMX-OUT-TSDEMUX-TAP">DMX_OUT_TSDEMUX_TAP</entry>
+		<entry>Like &DMX-OUT-TS-TAP; but retrieved from the DMX
+		    device.</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
+
 </section>
 
 <section id="dmx-input-t">
@@ -1042,7 +1059,14 @@ role="subsection"><title>DMX_ADD_PID</title>
 </para>
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
-<para>This ioctl is undocumented. Documentation is welcome.</para>
+<para>This ioctl call allows to add multiple PIDs to a transport stream filter
+previously set up with DMX_SET_PES_FILTER and output equal to DMX_OUT_TSDEMUX_TAP.
+</para></entry></row><row><entry align="char"><para>
+It is used by readers of /dev/dvb/adapterX/demuxY.
+</para></entry></row><row><entry align="char"><para>
+It may be called at any time, i.e. before or after the first filter on the
+shared file descriptor was started. It makes it possible to record multiple
+services without the need to de-multiplex or re-multiplex TS packets.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
 <para>SYNOPSIS
@@ -1075,7 +1099,7 @@ role="subsection"><title>DMX_ADD_PID</title>
 </para>
 </entry><entry
  align="char">
-<para>Undocumented.</para>
+<para>PID number to be filtered.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
 &return-value-dvb;
@@ -1087,7 +1111,15 @@ role="subsection"><title>DMX_REMOVE_PID</title>
 </para>
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
-<para>This ioctl is undocumented. Documentation is welcome.</para>
+<para>This ioctl call allows to remove a PID when multiple PIDs are set on a
+transport stream filter, e. g. a filter previously set up with output equal to
+DMX_OUT_TSDEMUX_TAP, created via either DMX_SET_PES_FILTER or DMX_ADD_PID.
+</para></entry></row><row><entry align="char"><para>
+It is used by readers of /dev/dvb/adapterX/demuxY.
+</para></entry></row><row><entry align="char"><para>
+It may be called at any time, i.e. before or after the first filter on the
+shared file descriptor was started. It makes it possible to record multiple
+services without the need to de-multiplex or re-multiplex TS packets.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
 <para>SYNOPSIS
@@ -1120,7 +1152,7 @@ role="subsection"><title>DMX_REMOVE_PID</title>
 </para>
 </entry><entry
  align="char">
-<para>Undocumented.</para>
+<para>PID of the PES filter to be removed.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
 &return-value-dvb;

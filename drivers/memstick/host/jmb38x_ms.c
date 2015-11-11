@@ -419,10 +419,10 @@ static int jmb38x_ms_issue_cmd(struct memstick_host *msh)
 	}
 
 	if (host->cmd_flags & DMA_DATA) {
-		if (1 != pci_map_sg(host->chip->pdev, &host->req->sg, 1,
+		if (1 != dma_map_sg(&host->chip->pdev->dev, &host->req->sg, 1,
 				    host->req->data_dir == READ
-				    ? PCI_DMA_FROMDEVICE
-				    : PCI_DMA_TODEVICE)) {
+				    ? DMA_FROM_DEVICE
+				    : DMA_TO_DEVICE)) {
 			host->req->error = -ENOMEM;
 			return host->req->error;
 		}
@@ -487,9 +487,9 @@ static void jmb38x_ms_complete_cmd(struct memstick_host *msh, int last)
 	writel(0, host->addr + DMA_CONTROL);
 
 	if (host->cmd_flags & DMA_DATA) {
-		pci_unmap_sg(host->chip->pdev, &host->req->sg, 1,
+		dma_unmap_sg(&host->chip->pdev->dev, &host->req->sg, 1,
 			     host->req->data_dir == READ
-			     ? PCI_DMA_FROMDEVICE : PCI_DMA_TODEVICE);
+			     ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
 	} else {
 		t_val = readl(host->addr + INT_STATUS_ENABLE);
 		if (host->req->data_dir == READ)
@@ -925,7 +925,7 @@ static int jmb38x_ms_probe(struct pci_dev *pdev,
 	int pci_dev_busy = 0;
 	int rc, cnt;
 
-	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+	rc = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (rc)
 		return rc;
 
@@ -1046,20 +1046,9 @@ static struct pci_driver jmb38x_ms_driver = {
 	.resume = jmb38x_ms_resume
 };
 
-static int __init jmb38x_ms_init(void)
-{
-	return pci_register_driver(&jmb38x_ms_driver);
-}
-
-static void __exit jmb38x_ms_exit(void)
-{
-	pci_unregister_driver(&jmb38x_ms_driver);
-}
+module_pci_driver(jmb38x_ms_driver);
 
 MODULE_AUTHOR("Alex Dubov");
 MODULE_DESCRIPTION("JMicron jmb38x MemoryStick driver");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, jmb38x_ms_id_tbl);
-
-module_init(jmb38x_ms_init);
-module_exit(jmb38x_ms_exit);

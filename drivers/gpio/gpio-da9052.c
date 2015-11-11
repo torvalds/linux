@@ -200,7 +200,7 @@ static struct gpio_chip reference_gp = {
 	.direction_input = da9052_gpio_direction_input,
 	.direction_output = da9052_gpio_direction_output,
 	.to_irq = da9052_gpio_to_irq,
-	.can_sleep = 1,
+	.can_sleep = true,
 	.ngpio = 16,
 	.base = -1,
 };
@@ -212,11 +212,11 @@ static int da9052_gpio_probe(struct platform_device *pdev)
 	int ret;
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
-	if (gpio == NULL)
+	if (!gpio)
 		return -ENOMEM;
 
 	gpio->da9052 = dev_get_drvdata(pdev->dev.parent);
-	pdata = gpio->da9052->dev->platform_data;
+	pdata = dev_get_platdata(gpio->da9052->dev);
 
 	gpio->gp = reference_gp;
 	if (pdata && pdata->gpio_base)
@@ -237,7 +237,8 @@ static int da9052_gpio_remove(struct platform_device *pdev)
 {
 	struct da9052_gpio *gpio = platform_get_drvdata(pdev);
 
-	return gpiochip_remove(&gpio->gp);
+	gpiochip_remove(&gpio->gp);
+	return 0;
 }
 
 static struct platform_driver da9052_gpio_driver = {
@@ -245,7 +246,6 @@ static struct platform_driver da9052_gpio_driver = {
 	.remove = da9052_gpio_remove,
 	.driver = {
 		.name	= "da9052-gpio",
-		.owner	= THIS_MODULE,
 	},
 };
 

@@ -477,7 +477,7 @@ void fw_send_phy_config(struct fw_card *card,
 	phy_config_packet.header[1] = data;
 	phy_config_packet.header[2] = ~data;
 	phy_config_packet.generation = generation;
-	INIT_COMPLETION(phy_config_done);
+	reinit_completion(&phy_config_done);
 
 	card->driver->send_request(card, &phy_config_packet);
 	wait_for_completion_timeout(&phy_config_done, timeout);
@@ -523,11 +523,11 @@ static DEFINE_SPINLOCK(address_handler_list_lock);
 static LIST_HEAD(address_handler_list);
 
 const struct fw_address_region fw_high_memory_region =
-	{ .start = 0x000100000000ULL, .end = 0xffffe0000000ULL,  };
+	{ .start = FW_MAX_PHYSICAL_RANGE, .end = 0xffffe0000000ULL, };
 EXPORT_SYMBOL(fw_high_memory_region);
 
 static const struct fw_address_region low_memory_region =
-	{ .start = 0x000000000000ULL, .end = 0x000100000000ULL,  };
+	{ .start = 0x000000000000ULL, .end = FW_MAX_PHYSICAL_RANGE, };
 
 #if 0
 const struct fw_address_region fw_private_region =
@@ -1217,7 +1217,7 @@ static void handle_low_memory(struct fw_card *card, struct fw_request *request,
 }
 
 static struct fw_address_handler low_memory = {
-	.length			= 0x000100000000ULL,
+	.length			= FW_MAX_PHYSICAL_RANGE,
 	.address_callback	= handle_low_memory,
 };
 
@@ -1246,14 +1246,14 @@ static const u32 model_textual_descriptor[] = {
 
 static struct fw_descriptor vendor_id_descriptor = {
 	.length = ARRAY_SIZE(vendor_textual_descriptor),
-	.immediate = 0x03d00d1e,
+	.immediate = 0x03001f11,
 	.key = 0x81000000,
 	.data = vendor_textual_descriptor,
 };
 
 static struct fw_descriptor model_id_descriptor = {
 	.length = ARRAY_SIZE(model_textual_descriptor),
-	.immediate = 0x17000001,
+	.immediate = 0x17023901,
 	.key = 0x81000000,
 	.data = model_textual_descriptor,
 };
@@ -1262,8 +1262,7 @@ static int __init fw_core_init(void)
 {
 	int ret;
 
-	fw_workqueue = alloc_workqueue("firewire",
-				       WQ_NON_REENTRANT | WQ_MEM_RECLAIM, 0);
+	fw_workqueue = alloc_workqueue("firewire", WQ_MEM_RECLAIM, 0);
 	if (!fw_workqueue)
 		return -ENOMEM;
 

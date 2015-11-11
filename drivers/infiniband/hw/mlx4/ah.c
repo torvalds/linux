@@ -36,27 +36,9 @@
 #include <linux/slab.h>
 #include <linux/inet.h>
 #include <linux/string.h>
+#include <linux/mlx4/driver.h>
 
 #include "mlx4_ib.h"
-
-int mlx4_ib_resolve_grh(struct mlx4_ib_dev *dev, const struct ib_ah_attr *ah_attr,
-			u8 *mac, int *is_mcast, u8 port)
-{
-	struct in6_addr in6;
-
-	*is_mcast = 0;
-
-	memcpy(&in6, ah_attr->grh.dgid.raw, sizeof in6);
-	if (rdma_link_local_addr(&in6))
-		rdma_get_ll_mac(&in6, mac);
-	else if (rdma_is_multicast_addr(&in6)) {
-		rdma_get_mcast_mac(&in6, mac);
-		*is_mcast = 1;
-	} else
-		return -EINVAL;
-
-	return 0;
-}
 
 static struct ib_ah *create_ib_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
 				  struct mlx4_ib_ah *ah)
@@ -92,25 +74,35 @@ static struct ib_ah *create_iboe_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr
 {
 	struct mlx4_ib_dev *ibdev = to_mdev(pd->device);
 	struct mlx4_dev *dev = ibdev->dev;
+	int is_mcast = 0;
+	struct in6_addr in6;
+	u16 vlan_tag = 0xffff;
 	union ib_gid sgid;
-	u8 mac[6];
-	int err;
-	int is_mcast;
-	u16 vlan_tag;
+	struct ib_gid_attr gid_attr;
+	int ret;
 
-	err = mlx4_ib_resolve_grh(ibdev, ah_attr, mac, &is_mcast, ah_attr->port_num);
-	if (err)
-		return ERR_PTR(err);
-
-	memcpy(ah->av.eth.mac, mac, 6);
-	err = ib_get_cached_gid(pd->device, ah_attr->port_num, ah_attr->grh.sgid_index, &sgid);
-	if (err)
-		return ERR_PTR(err);
-	vlan_tag = rdma_get_vlan_id(&sgid);
+	memcpy(&in6, ah_attr->grh.dgid.raw, sizeof(in6));
+	if (rdma_is_multicast_addr(&in6)) {
+		is_mcast = 1;
+		rdma_get_mcast_mac(&in6, ah->av.eth.mac);
+	} else {
+		memcpy(ah->av.eth.mac, ah_attr->dmac, ETH_ALEN);
+	}
+	ret = ib_get_cached_gid(pd->device, ah_attr->port_num,
+				ah_attr->grh.sgid_index, &sgid, &gid_attr);
+	if (ret)
+		return ERR_PTR(ret);
+	memset(ah->av.eth.s_mac, 0, ETH_ALEN);
+	if (gid_attr.ndev) {
+		if (is_vlan_dev(gid_attr.ndev))
+			vlan_tag = vlan_dev_vlan_id(gid_attr.ndev);
+		memcpy(ah->av.eth.s_mac, gid_attr.ndev->dev_addr, ETH_ALEN);
+		dev_put(gid_attr.ndev);
+	}
 	if (vlan_tag < 0x1000)
 		vlan_tag |= (ah_attr->sl & 7) << 13;
 	ah->av.eth.port_pd = cpu_to_be32(to_mpd(pd)->pdn | (ah_attr->port_num << 24));
-	ah->av.eth.gid_index = ah_attr->grh.sgid_index;
+	ah->av.eth.gid_index = mlx4_ib_gid_index_to_real_index(ibdev, ah_attr->port_num, ah_attr->grh.sgid_index);
 	ah->av.eth.vlan = cpu_to_be16(vlan_tag);
 	if (ah_attr->static_rate) {
 		ah->av.eth.stat_rate = ah_attr->static_rate + MLX4_STAT_RATE_OFFSET;
@@ -169,9 +161,13 @@ int mlx4_ib_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr)
 	enum rdma_link_layer ll;
 
 	memset(ah_attr, 0, sizeof *ah_attr);
-	ah_attr->sl = be32_to_cpu(ah->av.ib.sl_tclass_flowlabel) >> 28;
 	ah_attr->port_num = be32_to_cpu(ah->av.ib.port_pd) >> 24;
 	ll = rdma_port_get_link_layer(ibah->device, ah_attr->port_num);
+	if (ll == IB_LINK_LAYER_ETHERNET)
+		ah_attr->sl = be32_to_cpu(ah->av.eth.sl_tclass_flowlabel) >> 29;
+	else
+		ah_attr->sl = be32_to_cpu(ah->av.ib.sl_tclass_flowlabel) >> 28;
+
 	ah_attr->dlid = ll == IB_LINK_LAYER_INFINIBAND ? be16_to_cpu(ah->av.ib.dlid) : 0;
 	if (ah->av.ib.stat_rate)
 		ah_attr->static_rate = ah->av.ib.stat_rate - MLX4_STAT_RATE_OFFSET;

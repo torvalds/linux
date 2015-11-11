@@ -49,21 +49,20 @@ static const struct nla_policy cttimeout_nla_policy[CTA_TIMEOUT_MAX+1] = {
 };
 
 static int
-ctnl_timeout_parse_policy(struct ctnl_timeout *timeout,
-			  struct nf_conntrack_l4proto *l4proto,
-			  struct net *net,
-			  const struct nlattr *attr)
+ctnl_timeout_parse_policy(void *timeouts, struct nf_conntrack_l4proto *l4proto,
+			  struct net *net, const struct nlattr *attr)
 {
 	int ret = 0;
 
 	if (likely(l4proto->ctnl_timeout.nlattr_to_obj)) {
 		struct nlattr *tb[l4proto->ctnl_timeout.nlattr_max+1];
 
-		nla_parse_nested(tb, l4proto->ctnl_timeout.nlattr_max,
-				 attr, l4proto->ctnl_timeout.nla_policy);
+		ret = nla_parse_nested(tb, l4proto->ctnl_timeout.nlattr_max,
+				       attr, l4proto->ctnl_timeout.nla_policy);
+		if (ret < 0)
+			return ret;
 
-		ret = l4proto->ctnl_timeout.nlattr_to_obj(tb, net,
-							  &timeout->data);
+		ret = l4proto->ctnl_timeout.nlattr_to_obj(tb, net, timeouts);
 	}
 	return ret;
 }
@@ -121,7 +120,8 @@ cttimeout_new_timeout(struct sock *ctnl, struct sk_buff *skb,
 				goto err_proto_put;
 			}
 
-			ret = ctnl_timeout_parse_policy(matching, l4proto, net,
+			ret = ctnl_timeout_parse_policy(&matching->data,
+							l4proto, net,
 							cda[CTA_TIMEOUT_DATA]);
 			return ret;
 		}
@@ -136,7 +136,7 @@ cttimeout_new_timeout(struct sock *ctnl, struct sk_buff *skb,
 		goto err_proto_put;
 	}
 
-	ret = ctnl_timeout_parse_policy(timeout, l4proto, net,
+	ret = ctnl_timeout_parse_policy(&timeout->data, l4proto, net,
 					cda[CTA_TIMEOUT_DATA]);
 	if (ret < 0)
 		goto err;
@@ -291,6 +291,34 @@ cttimeout_get_timeout(struct sock *ctnl, struct sk_buff *skb,
 	return ret;
 }
 
+static void untimeout(struct nf_conntrack_tuple_hash *i,
+		      struct ctnl_timeout *timeout)
+{
+	struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(i);
+	struct nf_conn_timeout *timeout_ext = nf_ct_timeout_find(ct);
+
+	if (timeout_ext && (!timeout || timeout_ext->timeout == timeout))
+		RCU_INIT_POINTER(timeout_ext->timeout, NULL);
+}
+
+static void ctnl_untimeout(struct ctnl_timeout *timeout)
+{
+	struct nf_conntrack_tuple_hash *h;
+	const struct hlist_nulls_node *nn;
+	int i;
+
+	local_bh_disable();
+	for (i = 0; i < init_net.ct.htable_size; i++) {
+		spin_lock(&nf_conntrack_locks[i % CONNTRACK_LOCKS]);
+		if (i < init_net.ct.htable_size) {
+			hlist_nulls_for_each_entry(h, nn, &init_net.ct.hash[i], hnnode)
+				untimeout(h, timeout);
+		}
+		spin_unlock(&nf_conntrack_locks[i % CONNTRACK_LOCKS]);
+	}
+	local_bh_enable();
+}
+
 /* try to delete object, fail if it is still in use. */
 static int ctnl_timeout_try_del(struct ctnl_timeout *timeout)
 {
@@ -301,6 +329,7 @@ static int ctnl_timeout_try_del(struct ctnl_timeout *timeout)
 		/* We are protected by nfnl mutex. */
 		list_del_rcu(&timeout->head);
 		nf_ct_l4proto_put(timeout->l4proto);
+		ctnl_untimeout(timeout);
 		kfree_rcu(timeout, rcu_head);
 	} else {
 		/* still in use, restore reference counter. */
@@ -338,6 +367,147 @@ cttimeout_del_timeout(struct sock *ctnl, struct sk_buff *skb,
 		break;
 	}
 	return ret;
+}
+
+static int
+cttimeout_default_set(struct sock *ctnl, struct sk_buff *skb,
+		      const struct nlmsghdr *nlh,
+		      const struct nlattr * const cda[])
+{
+	__u16 l3num;
+	__u8 l4num;
+	struct nf_conntrack_l4proto *l4proto;
+	struct net *net = sock_net(skb->sk);
+	unsigned int *timeouts;
+	int ret;
+
+	if (!cda[CTA_TIMEOUT_L3PROTO] ||
+	    !cda[CTA_TIMEOUT_L4PROTO] ||
+	    !cda[CTA_TIMEOUT_DATA])
+		return -EINVAL;
+
+	l3num = ntohs(nla_get_be16(cda[CTA_TIMEOUT_L3PROTO]));
+	l4num = nla_get_u8(cda[CTA_TIMEOUT_L4PROTO]);
+	l4proto = nf_ct_l4proto_find_get(l3num, l4num);
+
+	/* This protocol is not supported, skip. */
+	if (l4proto->l4proto != l4num) {
+		ret = -EOPNOTSUPP;
+		goto err;
+	}
+
+	timeouts = l4proto->get_timeouts(net);
+
+	ret = ctnl_timeout_parse_policy(timeouts, l4proto, net,
+					cda[CTA_TIMEOUT_DATA]);
+	if (ret < 0)
+		goto err;
+
+	nf_ct_l4proto_put(l4proto);
+	return 0;
+err:
+	nf_ct_l4proto_put(l4proto);
+	return ret;
+}
+
+static int
+cttimeout_default_fill_info(struct net *net, struct sk_buff *skb, u32 portid,
+			    u32 seq, u32 type, int event,
+			    struct nf_conntrack_l4proto *l4proto)
+{
+	struct nlmsghdr *nlh;
+	struct nfgenmsg *nfmsg;
+	unsigned int flags = portid ? NLM_F_MULTI : 0;
+
+	event |= NFNL_SUBSYS_CTNETLINK_TIMEOUT << 8;
+	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*nfmsg), flags);
+	if (nlh == NULL)
+		goto nlmsg_failure;
+
+	nfmsg = nlmsg_data(nlh);
+	nfmsg->nfgen_family = AF_UNSPEC;
+	nfmsg->version = NFNETLINK_V0;
+	nfmsg->res_id = 0;
+
+	if (nla_put_be16(skb, CTA_TIMEOUT_L3PROTO, htons(l4proto->l3proto)) ||
+	    nla_put_u8(skb, CTA_TIMEOUT_L4PROTO, l4proto->l4proto))
+		goto nla_put_failure;
+
+	if (likely(l4proto->ctnl_timeout.obj_to_nlattr)) {
+		struct nlattr *nest_parms;
+		unsigned int *timeouts = l4proto->get_timeouts(net);
+		int ret;
+
+		nest_parms = nla_nest_start(skb,
+					    CTA_TIMEOUT_DATA | NLA_F_NESTED);
+		if (!nest_parms)
+			goto nla_put_failure;
+
+		ret = l4proto->ctnl_timeout.obj_to_nlattr(skb, timeouts);
+		if (ret < 0)
+			goto nla_put_failure;
+
+		nla_nest_end(skb, nest_parms);
+	}
+
+	nlmsg_end(skb, nlh);
+	return skb->len;
+
+nlmsg_failure:
+nla_put_failure:
+	nlmsg_cancel(skb, nlh);
+	return -1;
+}
+
+static int cttimeout_default_get(struct sock *ctnl, struct sk_buff *skb,
+				 const struct nlmsghdr *nlh,
+				 const struct nlattr * const cda[])
+{
+	__u16 l3num;
+	__u8 l4num;
+	struct nf_conntrack_l4proto *l4proto;
+	struct net *net = sock_net(skb->sk);
+	struct sk_buff *skb2;
+	int ret, err;
+
+	if (!cda[CTA_TIMEOUT_L3PROTO] || !cda[CTA_TIMEOUT_L4PROTO])
+		return -EINVAL;
+
+	l3num = ntohs(nla_get_be16(cda[CTA_TIMEOUT_L3PROTO]));
+	l4num = nla_get_u8(cda[CTA_TIMEOUT_L4PROTO]);
+	l4proto = nf_ct_l4proto_find_get(l3num, l4num);
+
+	/* This protocol is not supported, skip. */
+	if (l4proto->l4proto != l4num) {
+		err = -EOPNOTSUPP;
+		goto err;
+	}
+
+	skb2 = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (skb2 == NULL) {
+		err = -ENOMEM;
+		goto err;
+	}
+
+	ret = cttimeout_default_fill_info(net, skb2, NETLINK_CB(skb).portid,
+					  nlh->nlmsg_seq,
+					  NFNL_MSG_TYPE(nlh->nlmsg_type),
+					  IPCTNL_MSG_TIMEOUT_DEFAULT_SET,
+					  l4proto);
+	if (ret <= 0) {
+		kfree_skb(skb2);
+		err = -ENOMEM;
+		goto err;
+	}
+	ret = netlink_unicast(ctnl, skb2, NETLINK_CB(skb).portid, MSG_DONTWAIT);
+	if (ret > 0)
+		ret = 0;
+
+	/* this avoids a loop in nfnetlink. */
+	return ret == -EAGAIN ? -ENOBUFS : ret;
+err:
+	nf_ct_l4proto_put(l4proto);
+	return err;
 }
 
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
@@ -382,6 +552,12 @@ static const struct nfnl_callback cttimeout_cb[IPCTNL_MSG_TIMEOUT_MAX] = {
 	[IPCTNL_MSG_TIMEOUT_DELETE]	= { .call = cttimeout_del_timeout,
 					    .attr_count = CTA_TIMEOUT_MAX,
 					    .policy = cttimeout_nla_policy },
+	[IPCTNL_MSG_TIMEOUT_DEFAULT_SET]= { .call = cttimeout_default_set,
+					    .attr_count = CTA_TIMEOUT_MAX,
+					    .policy = cttimeout_nla_policy },
+	[IPCTNL_MSG_TIMEOUT_DEFAULT_GET]= { .call = cttimeout_default_get,
+					    .attr_count = CTA_TIMEOUT_MAX,
+					    .policy = cttimeout_nla_policy },
 };
 
 static const struct nfnetlink_subsystem cttimeout_subsys = {
@@ -420,6 +596,10 @@ static void __exit cttimeout_exit(void)
 	pr_info("cttimeout: unregistering from nfnetlink.\n");
 
 	nfnetlink_subsys_unregister(&cttimeout_subsys);
+
+	/* Make sure no conntrack objects refer to custom timeouts anymore. */
+	ctnl_untimeout(NULL);
+
 	list_for_each_entry_safe(cur, tmp, &cttimeout_list, head) {
 		list_del_rcu(&cur->head);
 		/* We are sure that our objects have no clients at this point,
@@ -432,6 +612,7 @@ static void __exit cttimeout_exit(void)
 	RCU_INIT_POINTER(nf_ct_timeout_find_get_hook, NULL);
 	RCU_INIT_POINTER(nf_ct_timeout_put_hook, NULL);
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
+	rcu_barrier();
 }
 
 module_init(cttimeout_init);

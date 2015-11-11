@@ -50,6 +50,7 @@
 #include <linux/ptrace.h>
 #include <linux/security.h>
 #include <linux/task_work.h>
+#include <linux/memcontrol.h>
 struct linux_binprm;
 
 /*
@@ -133,10 +134,6 @@ static inline void tracehook_report_syscall_exit(struct pt_regs *regs, int step)
 
 /**
  * tracehook_signal_handler - signal handler setup is complete
- * @sig:		number of signal being delivered
- * @info:		siginfo_t of signal being delivered
- * @ka:			sigaction setting that chose the handler
- * @regs:		user register state
  * @stepping:		nonzero if debugger single-step or block-step in use
  *
  * Called by the arch code after a signal handler has been set up.
@@ -146,9 +143,7 @@ static inline void tracehook_report_syscall_exit(struct pt_regs *regs, int step)
  * Called without locks, shortly before returning to user mode
  * (or handling more signals).
  */
-static inline void tracehook_signal_handler(int sig, siginfo_t *info,
-					    const struct k_sigaction *ka,
-					    struct pt_regs *regs, int stepping)
+static inline void tracehook_signal_handler(int stepping)
 {
 	if (stepping)
 		ptrace_notify(SIGTRAP);
@@ -191,9 +186,11 @@ static inline void tracehook_notify_resume(struct pt_regs *regs)
 	 * pairs with task_work_add()->set_notify_resume() after
 	 * hlist_add_head(task->task_works);
 	 */
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 	if (unlikely(current->task_works))
 		task_work_run();
+
+	mem_cgroup_handle_over_high();
 }
 
 #endif	/* <linux/tracehook.h> */

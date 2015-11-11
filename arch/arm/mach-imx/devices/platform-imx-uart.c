@@ -47,18 +47,6 @@ const struct imx_imx_uart_1irq_data imx21_imx_uart_data[] __initconst = {
 };
 #endif
 
-#ifdef CONFIG_SOC_IMX25
-const struct imx_imx_uart_1irq_data imx25_imx_uart_data[] __initconst = {
-#define imx25_imx_uart_data_entry(_id, _hwid)				\
-	imx_imx_uart_1irq_data_entry(MX25, _id, _hwid, SZ_16K)
-	imx25_imx_uart_data_entry(0, 1),
-	imx25_imx_uart_data_entry(1, 2),
-	imx25_imx_uart_data_entry(2, 3),
-	imx25_imx_uart_data_entry(3, 4),
-	imx25_imx_uart_data_entry(4, 5),
-};
-#endif /* ifdef CONFIG_SOC_IMX25 */
-
 #ifdef CONFIG_SOC_IMX27
 const struct imx_imx_uart_1irq_data imx27_imx_uart_data[] __initconst = {
 #define imx27_imx_uart_data_entry(_id, _hwid)				\
@@ -93,28 +81,6 @@ const struct imx_imx_uart_1irq_data imx35_imx_uart_data[] __initconst = {
 	imx35_imx_uart_data_entry(2, 3),
 };
 #endif /* ifdef CONFIG_SOC_IMX35 */
-
-#ifdef CONFIG_SOC_IMX51
-const struct imx_imx_uart_1irq_data imx51_imx_uart_data[] __initconst = {
-#define imx51_imx_uart_data_entry(_id, _hwid)				\
-	imx_imx_uart_1irq_data_entry(MX51, _id, _hwid, SZ_4K)
-	imx51_imx_uart_data_entry(0, 1),
-	imx51_imx_uart_data_entry(1, 2),
-	imx51_imx_uart_data_entry(2, 3),
-};
-#endif /* ifdef CONFIG_SOC_IMX51 */
-
-#ifdef CONFIG_SOC_IMX53
-const struct imx_imx_uart_1irq_data imx53_imx_uart_data[] __initconst = {
-#define imx53_imx_uart_data_entry(_id, _hwid)				\
-	imx_imx_uart_1irq_data_entry(MX53, _id, _hwid, SZ_4K)
-	imx53_imx_uart_data_entry(0, 1),
-	imx53_imx_uart_data_entry(1, 2),
-	imx53_imx_uart_data_entry(2, 3),
-	imx53_imx_uart_data_entry(3, 4),
-	imx53_imx_uart_data_entry(4, 5),
-};
-#endif /* ifdef CONFIG_SOC_IMX53 */
 
 struct platform_device *__init imx_add_imx_uart_3irq(
 		const struct imx_imx_uart_3irq_data *data,

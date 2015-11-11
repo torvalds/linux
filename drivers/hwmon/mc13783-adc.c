@@ -37,7 +37,7 @@
 struct mc13783_adc_priv {
 	struct mc13xxx *mc13xxx;
 	struct device *hwmon_dev;
-	char name[10];
+	char name[PLATFORM_NAME_SIZE];
 };
 
 static ssize_t mc13783_adc_show_name(struct device *dev, struct device_attribute
@@ -267,7 +267,6 @@ MODULE_DEVICE_TABLE(platform, mc13783_adc_idtable);
 static struct platform_driver mc13783_adc_driver = {
 	.remove		= mc13783_adc_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= DRIVER_NAME,
 	},
 	.id_table	= mc13783_adc_idtable,

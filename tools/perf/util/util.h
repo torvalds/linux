@@ -39,6 +39,8 @@
 
 #define _ALL_SOURCE 1
 #define _BSD_SOURCE 1
+/* glibc 2.20 deprecates _BSD_SOURCE in favour of _DEFAULT_SOURCE */
+#define _DEFAULT_SOURCE 1
 #define HAS_BOOL
 
 #include <unistd.h>
@@ -64,21 +66,22 @@
 #include <regex.h>
 #include <utime.h>
 #include <sys/wait.h>
-#include <sys/poll.h>
+#include <poll.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <inttypes.h>
+#include <linux/kernel.h>
 #include <linux/magic.h>
-#include "types.h"
+#include <linux/types.h>
 #include <sys/ttydefaults.h>
-#include <lk/debugfs.h>
+#include <api/fs/tracing_path.h>
+#include <termios.h>
+#include <linux/bitops.h>
+#include <termios.h>
 
 extern const char *graph_line;
 extern const char *graph_dotted_line;
 extern char buildid_dir[];
-extern char tracing_events_path[];
-extern void perf_debugfs_set_path(const char *mountpoint);
-const char *perf_debugfs_mount(const char *mountpoint);
 
 /* On most systems <limits.h> would have given us this, but
  * not on some systems (e.g. GNU/Hurd).
@@ -124,6 +127,8 @@ const char *perf_debugfs_mount(const char *mountpoint);
 #endif
 #endif
 
+#define PERF_GTK_DSO  "libperf-gtk.so"
+
 /* General helper functions */
 extern void usage(const char *err) NORETURN;
 extern void die(const char *err, ...) NORETURN __attribute__((format (printf, 1, 2)));
@@ -140,10 +145,10 @@ extern void warning(const char *err, ...) __attribute__((format (printf, 1, 2)))
 
 
 extern void set_die_routine(void (*routine)(const char *err, va_list params) NORETURN);
+extern void set_warning_routine(void (*routine)(const char *err, va_list params));
 
 extern int prefixcmp(const char *str, const char *prefix);
-extern void set_buildid_dir(void);
-extern void disable_buildid_cache(void);
+extern void set_buildid_dir(const char *dir);
 
 static inline const char *skip_prefix(const char *str, const char *prefix)
 {
@@ -179,6 +184,8 @@ static inline void *zalloc(size_t size)
 	return calloc(1, size);
 }
 
+#define zfree(ptr) ({ free(*ptr); *ptr = NULL; })
+
 static inline int has_extension(const char *filename, const char *ext)
 {
 	size_t len = strlen(filename);
@@ -204,6 +211,8 @@ static inline int has_extension(const char *filename, const char *ext)
 #define NSEC_PER_MSEC	1000000L
 #endif
 
+int parse_nsec_time(const char *str, u64 *ptime);
+
 extern unsigned char sane_ctype[256];
 #define GIT_SPACE		0x01
 #define GIT_DIGIT		0x02
@@ -221,8 +230,8 @@ extern unsigned char sane_ctype[256];
 #define isalpha(x) sane_istest(x,GIT_ALPHA)
 #define isalnum(x) sane_istest(x,GIT_ALPHA | GIT_DIGIT)
 #define isprint(x) sane_istest(x,GIT_PRINT)
-#define islower(x) (sane_istest(x,GIT_ALPHA) && sane_istest(x,0x20))
-#define isupper(x) (sane_istest(x,GIT_ALPHA) && !sane_istest(x,0x20))
+#define islower(x) (sane_istest(x,GIT_ALPHA) && (x & 0x20))
+#define isupper(x) (sane_istest(x,GIT_ALPHA) && !(x & 0x20))
 #define tolower(x) sane_case((unsigned char)(x), 0x20)
 #define toupper(x) sane_case((unsigned char)(x), 0)
 
@@ -234,17 +243,25 @@ static inline int sane_case(int x, int high)
 }
 
 int mkdir_p(char *path, mode_t mode);
+int rm_rf(char *path);
 int copyfile(const char *from, const char *to);
+int copyfile_mode(const char *from, const char *to, mode_t mode);
+int copyfile_offset(int fromfd, loff_t from_ofs, int tofd, loff_t to_ofs, u64 size);
 
 s64 perf_atoll(const char *str);
 char **argv_split(const char *str, int *argcp);
 void argv_free(char **argv);
 bool strglobmatch(const char *str, const char *pat);
 bool strlazymatch(const char *str, const char *pat);
+static inline bool strisglob(const char *str)
+{
+	return strpbrk(str, "*?[") != NULL;
+}
 int strtailcmp(const char *s1, const char *s2);
 char *strxfrchar(char *s, char from, char to);
 unsigned long convert_unit(unsigned long value, char *unit);
-int readn(int fd, void *buf, size_t size);
+ssize_t readn(int fd, void *buf, size_t n);
+ssize_t writen(int fd, void *buf, size_t n);
 
 struct perf_event_attr;
 
@@ -253,17 +270,6 @@ void event_attr_init(struct perf_event_attr *attr);
 #define _STR(x) #x
 #define STR(x) _STR(x)
 
-/*
- *  Determine whether some value is a power of two, where zero is
- * *not* considered a power of two.
- */
-
-static inline __attribute__((const))
-bool is_power_of_2(unsigned long n)
-{
-	return (n != 0 && ((n & (n - 1)) == 0));
-}
-
 size_t hex_width(u64 v);
 int hex2u64(const char *ptr, u64 *val);
 
@@ -271,9 +277,77 @@ char *ltrim(char *s);
 char *rtrim(char *s);
 
 void dump_stack(void);
+void sighandler_dump_stack(int sig);
 
 extern unsigned int page_size;
+extern int cacheline_size;
 
-struct winsize;
 void get_term_dimensions(struct winsize *ws);
+void set_term_quiet_input(struct termios *old);
+
+struct parse_tag {
+	char tag;
+	int mult;
+};
+
+unsigned long parse_tag_value(const char *str, struct parse_tag *tags);
+
+#define SRCLINE_UNKNOWN  ((char *) "??:0")
+
+static inline int path__join(char *bf, size_t size,
+			     const char *path1, const char *path2)
+{
+	return scnprintf(bf, size, "%s%s%s", path1, path1[0] ? "/" : "", path2);
+}
+
+static inline int path__join3(char *bf, size_t size,
+			      const char *path1, const char *path2,
+			      const char *path3)
+{
+	return scnprintf(bf, size, "%s%s%s%s%s",
+			 path1, path1[0] ? "/" : "",
+			 path2, path2[0] ? "/" : "", path3);
+}
+
+struct dso;
+struct symbol;
+
+extern bool srcline_full_filename;
+char *get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
+		  bool show_sym);
+char *__get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
+		  bool show_sym, bool unwind_inlines);
+void free_srcline(char *srcline);
+
+int filename__read_str(const char *filename, char **buf, size_t *sizep);
+int perf_event_paranoid(void);
+
+void mem_bswap_64(void *src, int byte_size);
+void mem_bswap_32(void *src, int byte_size);
+
+const char *get_filename_for_perf_kvm(void);
+bool find_process(const char *name);
+
+#ifdef HAVE_ZLIB_SUPPORT
+int gzip_decompress_to_file(const char *input, int output_fd);
+#endif
+
+#ifdef HAVE_LZMA_SUPPORT
+int lzma_decompress_to_file(const char *input, int output_fd);
+#endif
+
+char *asprintf_expr_inout_ints(const char *var, bool in, size_t nints, int *ints);
+
+static inline char *asprintf_expr_in_ints(const char *var, size_t nints, int *ints)
+{
+	return asprintf_expr_inout_ints(var, true, nints, ints);
+}
+
+static inline char *asprintf_expr_not_in_ints(const char *var, size_t nints, int *ints)
+{
+	return asprintf_expr_inout_ints(var, false, nints, ints);
+}
+
+int get_stack_size(const char *str, unsigned long *_size);
+
 #endif /* GIT_COMPAT_UTIL_H */

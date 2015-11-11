@@ -115,6 +115,9 @@ static int textual_leaf_to_string(const u32 *block, char *buf, size_t size)
  *
  * The string is taken from a minimal ASCII text descriptor leaf after
  * the immediate entry with @key.  The string is zero-terminated.
+ * An overlong string is silently truncated such that it and the
+ * zero byte fit into @size.
+ *
  * Returns strlen(buf) or a negative error code.
  */
 int fw_csr_string(const u32 *directory, int key, char *buf, size_t size)
@@ -165,25 +168,44 @@ static bool match_ids(const struct ieee1394_device_id *id_table, int *id)
 	return (match & id_table->match_flags) == id_table->match_flags;
 }
 
-static bool is_fw_unit(struct device *dev);
-
-static int fw_unit_match(struct device *dev, struct device_driver *drv)
+static const struct ieee1394_device_id *unit_match(struct device *dev,
+						   struct device_driver *drv)
 {
 	const struct ieee1394_device_id *id_table =
 			container_of(drv, struct fw_driver, driver)->id_table;
 	int id[] = {0, 0, 0, 0};
 
-	/* We only allow binding to fw_units. */
-	if (!is_fw_unit(dev))
-		return 0;
-
 	get_modalias_ids(fw_unit(dev), id);
 
 	for (; id_table->match_flags != 0; id_table++)
 		if (match_ids(id_table, id))
-			return 1;
+			return id_table;
 
-	return 0;
+	return NULL;
+}
+
+static bool is_fw_unit(struct device *dev);
+
+static int fw_unit_match(struct device *dev, struct device_driver *drv)
+{
+	/* We only allow binding to fw_units. */
+	return is_fw_unit(dev) && unit_match(dev, drv) != NULL;
+}
+
+static int fw_unit_probe(struct device *dev)
+{
+	struct fw_driver *driver =
+			container_of(dev->driver, struct fw_driver, driver);
+
+	return driver->probe(fw_unit(dev), unit_match(dev, dev->driver));
+}
+
+static int fw_unit_remove(struct device *dev)
+{
+	struct fw_driver *driver =
+			container_of(dev->driver, struct fw_driver, driver);
+
+	return driver->remove(fw_unit(dev)), 0;
 }
 
 static int get_modalias(struct fw_unit *unit, char *buffer, size_t buffer_size)
@@ -213,6 +235,8 @@ static int fw_unit_uevent(struct device *dev, struct kobj_uevent_env *env)
 struct bus_type fw_bus_type = {
 	.name = "firewire",
 	.match = fw_unit_match,
+	.probe = fw_unit_probe,
+	.remove = fw_unit_remove,
 };
 EXPORT_SYMBOL(fw_bus_type);
 
@@ -895,7 +919,7 @@ static int lookup_existing_device(struct device *dev, void *data)
 		old->config_rom_retries = 0;
 		fw_notice(card, "rediscovered device %s\n", dev_name(dev));
 
-		PREPARE_DELAYED_WORK(&old->work, fw_device_update);
+		old->workfn = fw_device_update;
 		fw_schedule_device_work(old, 0);
 
 		if (current_node == card->root_node)
@@ -1054,7 +1078,7 @@ static void fw_device_init(struct work_struct *work)
 	if (atomic_cmpxchg(&device->state,
 			   FW_DEVICE_INITIALIZING,
 			   FW_DEVICE_RUNNING) == FW_DEVICE_GONE) {
-		PREPARE_DELAYED_WORK(&device->work, fw_device_shutdown);
+		device->workfn = fw_device_shutdown;
 		fw_schedule_device_work(device, SHUTDOWN_DELAY);
 	} else {
 		fw_notice(card, "created device %s: GUID %08x%08x, S%d00\n",
@@ -1175,11 +1199,18 @@ static void fw_device_refresh(struct work_struct *work)
 		  dev_name(&device->device), fw_rcode_string(ret));
  gone:
 	atomic_set(&device->state, FW_DEVICE_GONE);
-	PREPARE_DELAYED_WORK(&device->work, fw_device_shutdown);
+	device->workfn = fw_device_shutdown;
 	fw_schedule_device_work(device, SHUTDOWN_DELAY);
  out:
 	if (node_id == card->root_node->node_id)
 		fw_schedule_bm_work(card, 0);
+}
+
+static void fw_device_workfn(struct work_struct *work)
+{
+	struct fw_device *device = container_of(to_delayed_work(work),
+						struct fw_device, work);
+	device->workfn(work);
 }
 
 void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
@@ -1231,7 +1262,8 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		 * power-up after getting plugged in.  We schedule the
 		 * first config rom scan half a second after bus reset.
 		 */
-		INIT_DELAYED_WORK(&device->work, fw_device_init);
+		device->workfn = fw_device_init;
+		INIT_DELAYED_WORK(&device->work, fw_device_workfn);
 		fw_schedule_device_work(device, INITIAL_DELAY);
 		break;
 
@@ -1247,7 +1279,7 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		if (atomic_cmpxchg(&device->state,
 			    FW_DEVICE_RUNNING,
 			    FW_DEVICE_INITIALIZING) == FW_DEVICE_RUNNING) {
-			PREPARE_DELAYED_WORK(&device->work, fw_device_refresh);
+			device->workfn = fw_device_refresh;
 			fw_schedule_device_work(device,
 				device->is_local ? 0 : INITIAL_DELAY);
 		}
@@ -1262,7 +1294,7 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		smp_wmb();  /* update node_id before generation */
 		device->generation = card->generation;
 		if (atomic_read(&device->state) == FW_DEVICE_RUNNING) {
-			PREPARE_DELAYED_WORK(&device->work, fw_device_update);
+			device->workfn = fw_device_update;
 			fw_schedule_device_work(device, 0);
 		}
 		break;
@@ -1287,7 +1319,7 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		device = node->data;
 		if (atomic_xchg(&device->state,
 				FW_DEVICE_GONE) == FW_DEVICE_RUNNING) {
-			PREPARE_DELAYED_WORK(&device->work, fw_device_shutdown);
+			device->workfn = fw_device_shutdown;
 			fw_schedule_device_work(device,
 				list_empty(&card->link) ? 0 : SHUTDOWN_DELAY);
 		}

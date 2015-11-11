@@ -15,10 +15,13 @@
     GNU General Public License for more details.
 *******************************************************************************/
 
-extern struct sk_buff *dn_alloc_skb(struct sock *sk, int size, gfp_t pri);
-extern int dn_route_output_sock(struct dst_entry __rcu **pprt, struct flowidn *, struct sock *sk, int flags);
-extern int dn_cache_dump(struct sk_buff *skb, struct netlink_callback *cb);
-extern void dn_rt_cache_flush(int delay);
+struct sk_buff *dn_alloc_skb(struct sock *sk, int size, gfp_t pri);
+int dn_route_output_sock(struct dst_entry __rcu **pprt, struct flowidn *,
+			 struct sock *sk, int flags);
+int dn_cache_dump(struct sk_buff *skb, struct netlink_callback *cb);
+void dn_rt_cache_flush(int delay);
+int dn_route_rcv(struct sk_buff *skb, struct net_device *dev,
+		 struct packet_type *pt, struct net_device *orig_dev);
 
 /* Masks for flags field */
 #define DN_RT_F_PID 0x07 /* Mask for packet type                      */
@@ -92,8 +95,8 @@ static inline bool dn_is_output_route(struct dn_route *rt)
 	return rt->fld.flowidn_iif == 0;
 }
 
-extern void dn_route_init(void);
-extern void dn_route_cleanup(void);
+void dn_route_init(void);
+void dn_route_cleanup(void);
 
 #include <net/sock.h>
 #include <linux/if_arp.h>

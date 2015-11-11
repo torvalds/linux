@@ -75,7 +75,7 @@ MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>");
 static int debug;
 module_param(debug, int, 0644);
 #define verbose_debug(fmt, args...)			\
-	do { if (debug > 1) printk(KERN_DEBUG SFX fmt, ##args); } while (0)
+	do { if (debug > 1) pr_debug(SFX fmt, ##args); } while (0)
 #else
 #define verbose_debug(fmt, args...)
 #endif
@@ -168,7 +168,7 @@ static int rirb_get_response(struct lola *chip, unsigned int *val,
 			verbose_debug("get_response: %x, %x\n",
 				      chip->res, chip->res_ex);
 			if (chip->res_ex & LOLA_RIRB_EX_ERROR) {
-				printk(KERN_WARNING SFX "RIRB ERROR: "
+				dev_warn(chip->card->dev, "RIRB ERROR: "
 				       "NID=%x, verb=%x, data=%x, ext=%x\n",
 				       chip->last_cmd_nid,
 				       chip->last_verb, chip->last_data,
@@ -182,9 +182,9 @@ static int rirb_get_response(struct lola *chip, unsigned int *val,
 		udelay(20);
 		cond_resched();
 	}
-	printk(KERN_WARNING SFX "RIRB response error\n");
+	dev_warn(chip->card->dev, "RIRB response error\n");
 	if (!chip->polling_mode) {
-		printk(KERN_WARNING SFX "switching to polling mode\n");
+		dev_warn(chip->card->dev, "switching to polling mode\n");
 		chip->polling_mode = 1;
 		goto again;
 	}
@@ -327,7 +327,7 @@ static int reset_controller(struct lola *chip)
 			break;
 	} while (time_before(jiffies, end_time));
 	if (!gctl) {
-		printk(KERN_ERR SFX "cannot reset controller\n");
+		dev_err(chip->card->dev, "cannot reset controller\n");
 		return -EIO;
 	}
 	return 0;
@@ -452,40 +452,40 @@ static int lola_parse_tree(struct lola *chip)
 
 	err = lola_read_param(chip, 0, LOLA_PAR_VENDOR_ID, &val);
 	if (err < 0) {
-		printk(KERN_ERR SFX "Can't read VENDOR_ID\n");
+		dev_err(chip->card->dev, "Can't read VENDOR_ID\n");
 		return err;
 	}
 	val >>= 16;
 	if (val != 0x1369) {
-		printk(KERN_ERR SFX "Unknown codec vendor 0x%x\n", val);
+		dev_err(chip->card->dev, "Unknown codec vendor 0x%x\n", val);
 		return -EINVAL;
 	}
 
 	err = lola_read_param(chip, 1, LOLA_PAR_FUNCTION_TYPE, &val);
 	if (err < 0) {
-		printk(KERN_ERR SFX "Can't read FUNCTION_TYPE for 0x%x\n", nid);
+		dev_err(chip->card->dev, "Can't read FUNCTION_TYPE\n");
 		return err;
 	}
 	if (val != 1) {
-		printk(KERN_ERR SFX "Unknown function type %d\n", val);
+		dev_err(chip->card->dev, "Unknown function type %d\n", val);
 		return -EINVAL;
 	}
 
 	err = lola_read_param(chip, 1, LOLA_PAR_SPECIFIC_CAPS, &val);
 	if (err < 0) {
-		printk(KERN_ERR SFX "Can't read SPECCAPS\n");
+		dev_err(chip->card->dev, "Can't read SPECCAPS\n");
 		return err;
 	}
 	chip->lola_caps = val;
 	chip->pin[CAPT].num_pins = LOLA_AFG_INPUT_PIN_COUNT(chip->lola_caps);
 	chip->pin[PLAY].num_pins = LOLA_AFG_OUTPUT_PIN_COUNT(chip->lola_caps);
-	snd_printdd(SFX "speccaps=0x%x, pins in=%d, out=%d\n",
+	dev_dbg(chip->card->dev, "speccaps=0x%x, pins in=%d, out=%d\n",
 		    chip->lola_caps,
 		    chip->pin[CAPT].num_pins, chip->pin[PLAY].num_pins);
 
 	if (chip->pin[CAPT].num_pins > MAX_AUDIO_INOUT_COUNT ||
 	    chip->pin[PLAY].num_pins > MAX_AUDIO_INOUT_COUNT) {
-		printk(KERN_ERR SFX "Invalid Lola-spec caps 0x%x\n", val);
+		dev_err(chip->card->dev, "Invalid Lola-spec caps 0x%x\n", val);
 		return -EINVAL;
 	}
 
@@ -551,10 +551,8 @@ static void lola_free(struct lola *chip)
 	lola_free_mixer(chip);
 	if (chip->irq >= 0)
 		free_irq(chip->irq, (void *)chip);
-	if (chip->bar[0].remap_addr)
-		iounmap(chip->bar[0].remap_addr);
-	if (chip->bar[1].remap_addr)
-		iounmap(chip->bar[1].remap_addr);
+	iounmap(chip->bar[0].remap_addr);
+	iounmap(chip->bar[1].remap_addr);
 	if (chip->rb.area)
 		snd_dma_free_pages(&chip->rb);
 	pci_release_regions(chip->pci);
@@ -586,7 +584,6 @@ static int lola_create(struct snd_card *card, struct pci_dev *pci,
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (!chip) {
-		snd_printk(KERN_ERR SFX "cannot allocate chip\n");
 		pci_disable_device(pci);
 		return -ENOMEM;
 	}
@@ -609,7 +606,7 @@ static int lola_create(struct snd_card *card, struct pci_dev *pci,
 		chip->sample_rate_max = 192000;
 		break;
 	default:
-		snd_printk(KERN_WARNING SFX
+		dev_warn(chip->card->dev,
 			   "Invalid granularity %d, reset to %d\n",
 			   chip->granularity, LOLA_GRANULARITY_MAX);
 		chip->granularity = LOLA_GRANULARITY_MAX;
@@ -618,7 +615,7 @@ static int lola_create(struct snd_card *card, struct pci_dev *pci,
 	}
 	chip->sample_rate_min = sample_rate_min[dev];
 	if (chip->sample_rate_min > chip->sample_rate_max) {
-		snd_printk(KERN_WARNING SFX
+		dev_warn(chip->card->dev,
 			   "Invalid sample_rate_min %d, reset to 16000\n",
 			   chip->sample_rate_min);
 		chip->sample_rate_min = 16000;
@@ -636,7 +633,7 @@ static int lola_create(struct snd_card *card, struct pci_dev *pci,
 	chip->bar[1].addr = pci_resource_start(pci, 2);
 	chip->bar[1].remap_addr = pci_ioremap_bar(pci, 2);
 	if (!chip->bar[0].remap_addr || !chip->bar[1].remap_addr) {
-		snd_printk(KERN_ERR SFX "ioremap error\n");
+		dev_err(chip->card->dev, "ioremap error\n");
 		err = -ENXIO;
 		goto errout;
 	}
@@ -649,7 +646,7 @@ static int lola_create(struct snd_card *card, struct pci_dev *pci,
 
 	if (request_irq(pci->irq, lola_interrupt, IRQF_SHARED,
 			KBUILD_MODNAME, chip)) {
-		printk(KERN_ERR SFX "unable to grab IRQ %d\n", pci->irq);
+		dev_err(chip->card->dev, "unable to grab IRQ %d\n", pci->irq);
 		err = -EBUSY;
 		goto errout;
 	}
@@ -660,7 +657,7 @@ static int lola_create(struct snd_card *card, struct pci_dev *pci,
 	chip->pcm[CAPT].num_streams = (dever >> 0) & 0x3ff;
 	chip->pcm[PLAY].num_streams = (dever >> 10) & 0x3ff;
 	chip->version = (dever >> 24) & 0xff;
-	snd_printdd(SFX "streams in=%d, out=%d, version=0x%x\n",
+	dev_dbg(chip->card->dev, "streams in=%d, out=%d, version=0x%x\n",
 		    chip->pcm[CAPT].num_streams, chip->pcm[PLAY].num_streams,
 		    chip->version);
 
@@ -669,7 +666,7 @@ static int lola_create(struct snd_card *card, struct pci_dev *pci,
 	    chip->pcm[PLAY].num_streams > MAX_STREAM_OUT_COUNT ||
 	    (!chip->pcm[CAPT].num_streams &&
 	     !chip->pcm[PLAY].num_streams)) {
-		printk(KERN_ERR SFX "invalid DEVER = %x\n", dever);
+		dev_err(chip->card->dev, "invalid DEVER = %x\n", dever);
 		err = -EINVAL;
 		goto errout;
 	}
@@ -680,7 +677,7 @@ static int lola_create(struct snd_card *card, struct pci_dev *pci,
 
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
 	if (err < 0) {
-		snd_printk(KERN_ERR SFX "Error creating device [card]!\n");
+		dev_err(chip->card->dev, "Error creating device [card]!\n");
 		goto errout;
 	}
 
@@ -717,13 +714,12 @@ static int lola_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+			   0, &card);
 	if (err < 0) {
-		snd_printk(KERN_ERR SFX "Error creating card!\n");
+		dev_err(&pci->dev, "Error creating card!\n");
 		return err;
 	}
-
-	snd_card_set_dev(card, &pci->dev);
 
 	err = lola_create(card, pci, dev, &chip);
 	if (err < 0)
@@ -759,11 +755,10 @@ out_free:
 static void lola_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 /* PCI IDs */
-static DEFINE_PCI_DEVICE_TABLE(lola_ids) = {
+static const struct pci_device_id lola_ids[] = {
 	{ PCI_VDEVICE(DIGIGRAM, 0x0001) },
 	{ 0, }
 };

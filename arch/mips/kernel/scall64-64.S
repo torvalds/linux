@@ -39,25 +39,29 @@ NESTED(handle_sys64, PT_SIZE, sp)
 	.set	at
 #endif
 
-	dsubu	t0, v0, __NR_64_Linux	# check syscall number
-	sltiu	t0, t0, __NR_64_Linux_syscalls + 1
 #if !defined(CONFIG_MIPS32_O32) && !defined(CONFIG_MIPS32_N32)
 	ld	t1, PT_EPC(sp)		# skip syscall on return
 	daddiu	t1, 4			# skip to next instruction
 	sd	t1, PT_EPC(sp)
 #endif
-	beqz	t0, illegal_syscall
-
-	dsll	t0, v0, 3		# offset into table
-	ld	t2, (sys_call_table - (__NR_64_Linux * 8))(t0)
-					# syscall routine
 
 	sd	a3, PT_R26(sp)		# save a3 for syscall restarting
 
-	li	t1, _TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT
+	li	t1, _TIF_WORK_SYSCALL_ENTRY
 	LONG_L	t0, TI_FLAGS($28)	# syscall tracing enabled?
 	and	t0, t1, t0
 	bnez	t0, syscall_trace_entry
+
+syscall_common:
+	dsubu	t2, v0, __NR_64_Linux
+	sltiu   t0, t2, __NR_64_Linux_syscalls + 1
+	beqz	t0, illegal_syscall
+
+	dsll	t0, t2, 3		# offset into table
+	dla	t2, sys_call_table
+	daddu	t0, t2, t0
+	ld	t2, (t0)		# syscall routine
+	beqz	t2, illegal_syscall
 
 	jalr	t2			# Do The Real Thing (TM)
 
@@ -78,11 +82,14 @@ n64_syscall_exit:
 
 syscall_trace_entry:
 	SAVE_STATIC
-	move	s0, t2
+	move	s0, v0
 	move	a0, sp
+	move	a1, v0
 	jal	syscall_trace_enter
 
-	move	t0, s0
+	bltz	v0, 1f			# seccomp failed? Skip syscall
+
+	move	v0, s0
 	RESTORE_STATIC
 	ld	a0, PT_R4(sp)		# Restore argument registers
 	ld	a1, PT_R5(sp)
@@ -90,19 +97,9 @@ syscall_trace_entry:
 	ld	a3, PT_R7(sp)
 	ld	a4, PT_R8(sp)
 	ld	a5, PT_R9(sp)
-	jalr	t0
+	j	syscall_common
 
-	li	t0, -EMAXERRNO - 1	# error?
-	sltu	t0, t0, v0
-	sd	t0, PT_R7(sp)		# set error flag
-	beqz	t0, 1f
-
-	ld	t1, PT_R2(sp)		# syscall number
-	dnegu	v0			# error
-	sd	t1, PT_R0(sp)		# save it for syscall restarting
-1:	sd	v0, PT_R2(sp)		# result
-
-	j	syscall_exit
+1:	j	syscall_exit
 
 illegal_syscall:
 	/* This also isn't a 64-bit syscall, throw an error.  */
@@ -114,7 +111,8 @@ illegal_syscall:
 	END(handle_sys64)
 
 	.align	3
-sys_call_table:
+	.type	sys_call_table, @object
+EXPORT(sys_call_table)
 	PTR	sys_read			/* 5000 */
 	PTR	sys_write
 	PTR	sys_open
@@ -343,8 +341,8 @@ sys_call_table:
 	PTR	sys_tgkill			/* 5225 */
 	PTR	sys_utimes
 	PTR	sys_mbind
-	PTR	sys_ni_syscall			/* sys_get_mempolicy */
-	PTR	sys_ni_syscall			/* sys_set_mempolicy */
+	PTR	sys_get_mempolicy
+	PTR	sys_set_mempolicy
 	PTR	sys_mq_open			/* 5230 */
 	PTR	sys_mq_unlink
 	PTR	sys_mq_timedsend
@@ -424,4 +422,15 @@ sys_call_table:
 	PTR	sys_kcmp
 	PTR	sys_finit_module
 	PTR	sys_getdents64
+	PTR	sys_sched_setattr
+	PTR	sys_sched_getattr		/* 5310 */
+	PTR	sys_renameat2
+	PTR	sys_seccomp
+	PTR	sys_getrandom
+	PTR	sys_memfd_create
+	PTR	sys_bpf				/* 5315 */
+	PTR	sys_execveat
+	PTR	sys_userfaultfd
+	PTR	sys_membarrier
+	PTR	sys_mlock2
 	.size	sys_call_table,.-sys_call_table

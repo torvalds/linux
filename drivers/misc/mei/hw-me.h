@@ -19,22 +19,64 @@
 #ifndef _MEI_INTERFACE_H_
 #define _MEI_INTERFACE_H_
 
+#include <linux/irqreturn.h>
+#include <linux/pci.h>
 #include <linux/mei.h>
+
 #include "mei_dev.h"
 #include "client.h"
 
+/*
+ * mei_cfg - mei device configuration
+ *
+ * @fw_status: FW status
+ * @quirk_probe: device exclusion quirk
+ */
+struct mei_cfg {
+	const struct mei_fw_status fw_status;
+	bool (*quirk_probe)(struct pci_dev *pdev);
+};
+
+
+#define MEI_PCI_DEVICE(dev, cfg) \
+	.vendor = PCI_VENDOR_ID_INTEL, .device = (dev), \
+	.subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID, \
+	.driver_data = (kernel_ulong_t)&(cfg)
+
+
+#define MEI_ME_RPM_TIMEOUT    500 /* ms */
+
+/**
+ * struct mei_me_hw - me hw specific data
+ *
+ * @cfg: per device generation config and ops
+ * @mem_addr: io memory address
+ * @intr_source: interrupt source
+ * @pg_state: power gating state
+ * @d0i3_supported: di03 support
+ */
 struct mei_me_hw {
+	const struct mei_cfg *cfg;
 	void __iomem *mem_addr;
-	/*
-	 * hw states of host and fw(ME)
-	 */
-	u32 host_hw_state;
-	u32 me_hw_state;
+	u32 intr_source;
+	enum mei_pg_state pg_state;
+	bool d0i3_supported;
 };
 
 #define to_me_hw(dev) (struct mei_me_hw *)((dev)->hw)
 
-struct mei_device *mei_me_dev_init(struct pci_dev *pdev);
+extern const struct mei_cfg mei_me_legacy_cfg;
+extern const struct mei_cfg mei_me_ich_cfg;
+extern const struct mei_cfg mei_me_pch_cfg;
+extern const struct mei_cfg mei_me_pch_cpt_pbg_cfg;
+extern const struct mei_cfg mei_me_pch8_cfg;
+extern const struct mei_cfg mei_me_pch8_sps_cfg;
+
+struct mei_device *mei_me_dev_init(struct pci_dev *pdev,
+				   const struct mei_cfg *cfg);
+
+int mei_me_pg_enter_sync(struct mei_device *dev);
+int mei_me_pg_exit_sync(struct mei_device *dev);
 
 irqreturn_t mei_me_irq_quick_handler(int irq, void *dev_id);
 irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id);

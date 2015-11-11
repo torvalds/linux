@@ -1789,7 +1789,7 @@ static u32 expo_adjust(struct gspca_dev *gspca_dev,
 
 		if (expo > 0x03ff)
 			expo = 0x03ff;
-		 if (expo < 0x0001)
+		if (expo < 0x0001)
 			expo = 0x0001;
 		gainOm[3] = expo >> 2;
 		i2c_w8(gspca_dev, gainOm);
@@ -2204,7 +2204,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 				{ 0x14, 0xe7, 0x1e, 0xdd };
 
 	/* create the JPEG header */
-	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
+	jpeg_define(sd->jpeg_hdr, gspca_dev->pixfmt.height,
+			gspca_dev->pixfmt.width,
 			0x21);		/* JPEG 422 */
 
 	/* initialize the bridge */

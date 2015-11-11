@@ -15,11 +15,11 @@
 #include <linux/ata_platform.h>
 #include <linux/clk-provider.h>
 #include <linux/ethtool.h>
+#include <asm/hardware/cache-feroceon-l2.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <mach/mv78xx0.h>
 #include <mach/bridge-regs.h>
-#include <plat/cache-feroceon-l2.h>
 #include <linux/platform_data/usb-ehci-orion.h>
 #include <linux/platform_data/mtd-orion_nand.h>
 #include <plat/time.h>
@@ -413,7 +413,7 @@ void __init mv78xx0_init(void)
 	clk_init();
 }
 
-void mv78xx0_restart(char mode, const char *cmd)
+void mv78xx0_restart(enum reboot_mode mode, const char *cmd)
 {
 	/*
 	 * Enable soft reset to assert RSTOUTn.

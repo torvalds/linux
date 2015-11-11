@@ -48,7 +48,7 @@ int __init setup_profiling_timer(unsigned int multiplier) /* not supported */
 	return -EINVAL;
 }
 
-void __cpuinit platform_secondary_init(unsigned int cpu)
+void platform_secondary_init(unsigned int cpu)
 {
 	/* Clone setup for peripheral interrupt sources from CoreA. */
 	bfin_write_SICB_IMASK0(bfin_read_SIC_IMASK0());
@@ -69,12 +69,11 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	SSYNC();
 
 	/* We are done with local CPU inits, unblock the boot CPU. */
-	set_cpu_online(cpu, true);
 	spin_lock(&boot_lock);
 	spin_unlock(&boot_lock);
 }
 
-int __cpuinit platform_boot_secondary(unsigned int cpu, struct task_struct *idle)
+int platform_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long timeout;
 
@@ -91,7 +90,9 @@ int __cpuinit platform_boot_secondary(unsigned int cpu, struct task_struct *idle
 		SSYNC();
 	}
 
-	timeout = jiffies + 1 * HZ;
+	timeout = jiffies + HZ;
+	/* release the lock and let coreb run */
+	spin_unlock(&boot_lock);
 	while (time_before(jiffies, timeout)) {
 		if (cpu_online(cpu))
 			break;
@@ -100,8 +101,6 @@ int __cpuinit platform_boot_secondary(unsigned int cpu, struct task_struct *idle
 	}
 
 	if (cpu_online(cpu)) {
-		/* release the lock and let coreb run */
-		spin_unlock(&boot_lock);
 		return 0;
 	} else
 		panic("CPU%u: processor failed to boot\n", cpu);
@@ -125,7 +124,7 @@ void platform_send_ipi(cpumask_t callmap, int irq)
 	unsigned int cpu;
 	int offset = (irq == IRQ_SUPPLE_0) ? 6 : 8;
 
-	for_each_cpu_mask(cpu, callmap) {
+	for_each_cpu(cpu, &callmap) {
 		BUG_ON(cpu >= 2);
 		SSYNC();
 		bfin_write_SICB_SYSCR(bfin_read_SICB_SYSCR() | (1 << (offset + cpu)));
@@ -155,7 +154,7 @@ void platform_clear_ipi(unsigned int cpu, int irq)
  * Setup core B's local core timer.
  * In SMP, core timer is used for clock event device.
  */
-void __cpuinit bfin_local_timer_setup(void)
+void bfin_local_timer_setup(void)
 {
 #if defined(CONFIG_TICKSOURCE_CORETMR)
 	struct irq_data *data = irq_get_irq_data(IRQ_CORETMR);

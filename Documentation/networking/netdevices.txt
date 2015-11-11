@@ -10,12 +10,12 @@ network devices.
 struct net_device allocation rules
 ==================================
 Network device structures need to persist even after module is unloaded and
-must be allocated with kmalloc.  If device has registered successfully,
-it will be freed on last use by free_netdev.  This is required to handle the
-pathologic case cleanly (example: rmmod mydriver </sys/class/net/myeth/mtu )
+must be allocated with alloc_netdev_mqs() and friends.
+If device has registered successfully, it will be freed on last use
+by free_netdev(). This is required to handle the pathologic case cleanly
+(example: rmmod mydriver </sys/class/net/myeth/mtu )
 
-There are routines in net_init.c to handle the common cases of
-alloc_etherdev, alloc_netdev.  These reserve extra space for driver
+alloc_netdev_mqs()/alloc_netdev() reserve extra space for driver
 private data which gets freed when the network device is freed. If
 separately allocated data is attached to the network device
 (netdev_priv(dev)) then it is up to the module exit handler to free that.

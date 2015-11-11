@@ -81,8 +81,7 @@ static inline int skcipher_enqueue_givcrypt(
 static inline struct skcipher_givcrypt_request *skcipher_dequeue_givcrypt(
 	struct crypto_queue *queue)
 {
-	return __crypto_dequeue_request(
-		queue, offsetof(struct skcipher_givcrypt_request, creq.base));
+	return skcipher_givcrypt_cast(crypto_dequeue_request(queue));
 }
 
 static inline void *skcipher_givcrypt_reqctx(
@@ -104,6 +103,21 @@ static inline void skcipher_givcrypt_complete(
 }
 
 static inline u32 ablkcipher_request_flags(struct ablkcipher_request *req)
+{
+	return req->base.flags;
+}
+
+static inline void *crypto_skcipher_ctx(struct crypto_skcipher *tfm)
+{
+	return crypto_tfm_ctx(&tfm->base);
+}
+
+static inline void *skcipher_request_ctx(struct skcipher_request *req)
+{
+	return req->__ctx;
+}
+
+static inline u32 skcipher_request_flags(struct skcipher_request *req)
 {
 	return req->base.flags;
 }

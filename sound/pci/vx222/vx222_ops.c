@@ -24,11 +24,11 @@
 #include <linux/device.h>
 #include <linux/firmware.h>
 #include <linux/mutex.h>
+#include <linux/io.h>
 
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/tlv.h>
-#include <asm/io.h>
 #include "vx222.h"
 
 
@@ -92,6 +92,7 @@ static inline unsigned long vx2_reg_addr(struct vx_core *_chip, int reg)
 
 /**
  * snd_vx_inb - read a byte from the register
+ * @chip: VX core instance
  * @offset: register enum
  */
 static unsigned char vx2_inb(struct vx_core *chip, int offset)
@@ -101,6 +102,7 @@ static unsigned char vx2_inb(struct vx_core *chip, int offset)
 
 /**
  * snd_vx_outb - write a byte on the register
+ * @chip: VX core instance
  * @offset: the register offset
  * @val: the value to write
  */
@@ -108,12 +110,13 @@ static void vx2_outb(struct vx_core *chip, int offset, unsigned char val)
 {
 	outb(val, vx2_reg_addr(chip, offset));
 	/*
-	printk(KERN_DEBUG "outb: %x -> %x\n", val, vx2_reg_addr(chip, offset));
+	dev_dbg(chip->card->dev, "outb: %x -> %x\n", val, vx2_reg_addr(chip, offset));
 	*/
 }
 
 /**
  * snd_vx_inl - read a 32bit word from the register
+ * @chip: VX core instance
  * @offset: register enum
  */
 static unsigned int vx2_inl(struct vx_core *chip, int offset)
@@ -123,13 +126,14 @@ static unsigned int vx2_inl(struct vx_core *chip, int offset)
 
 /**
  * snd_vx_outl - write a 32bit word on the register
+ * @chip: VX core instance
  * @offset: the register enum
  * @val: the value to write
  */
 static void vx2_outl(struct vx_core *chip, int offset, unsigned int val)
 {
 	/*
-	printk(KERN_DEBUG "outl: %x -> %x\n", val, vx2_reg_addr(chip, offset));
+	dev_dbg(chip->card->dev, "outl: %x -> %x\n", val, vx2_reg_addr(chip, offset));
 	*/
 	outl(val, vx2_reg_addr(chip, offset));
 }
@@ -173,7 +177,7 @@ static int vx2_test_xilinx(struct vx_core *_chip)
 	struct snd_vx222 *chip = (struct snd_vx222 *)_chip;
 	unsigned int data;
 
-	snd_printdd("testing xilinx...\n");
+	dev_dbg(_chip->card->dev, "testing xilinx...\n");
 	/* This test uses several write/read sequences on TEST0 and TEST1 bits
 	 * to figure out whever or not the xilinx was correctly loaded
 	 */
@@ -183,7 +187,7 @@ static int vx2_test_xilinx(struct vx_core *_chip)
 	vx_inl(chip, ISR);
 	data = vx_inl(chip, STATUS);
 	if ((data & VX_STATUS_VAL_TEST0_MASK) == VX_STATUS_VAL_TEST0_MASK) {
-		snd_printdd("bad!\n");
+		dev_dbg(_chip->card->dev, "bad!\n");
 		return -ENODEV;
 	}
 
@@ -192,7 +196,7 @@ static int vx2_test_xilinx(struct vx_core *_chip)
 	vx_inl(chip, ISR);
 	data = vx_inl(chip, STATUS);
 	if (! (data & VX_STATUS_VAL_TEST0_MASK)) {
-		snd_printdd("bad! #2\n");
+		dev_dbg(_chip->card->dev, "bad! #2\n");
 		return -ENODEV;
 	}
 
@@ -203,7 +207,7 @@ static int vx2_test_xilinx(struct vx_core *_chip)
 		vx_inl(chip, ISR);
 		data = vx_inl(chip, STATUS);
 		if ((data & VX_STATUS_VAL_TEST1_MASK) == VX_STATUS_VAL_TEST1_MASK) {
-			snd_printdd("bad! #3\n");
+			dev_dbg(_chip->card->dev, "bad! #3\n");
 			return -ENODEV;
 		}
 
@@ -212,17 +216,18 @@ static int vx2_test_xilinx(struct vx_core *_chip)
 		vx_inl(chip, ISR);
 		data = vx_inl(chip, STATUS);
 		if (! (data & VX_STATUS_VAL_TEST1_MASK)) {
-			snd_printdd("bad! #4\n");
+			dev_dbg(_chip->card->dev, "bad! #4\n");
 			return -ENODEV;
 		}
 	}
-	snd_printdd("ok, xilinx fine.\n");
+	dev_dbg(_chip->card->dev, "ok, xilinx fine.\n");
 	return 0;
 }
 
 
 /**
  * vx_setup_pseudo_dma - set up the pseudo dma read/write mode.
+ * @chip: VX core instance
  * @do_write: 0 = read, 1 = set up for DMA write
  */
 static void vx2_setup_pseudo_dma(struct vx_core *chip, int do_write)
@@ -397,7 +402,8 @@ static int vx2_load_xilinx_binary(struct vx_core *chip, const struct firmware *x
 		i = vx_inl(chip, GPIOC);
 		if (i & 0x0100)
 			return 0;
-		snd_printk(KERN_ERR "vx222: xilinx test failed after load, GPIOC=0x%x\n", i);
+		dev_err(chip->card->dev,
+			"xilinx test failed after load, GPIOC=0x%x\n", i);
 		return -EINVAL;
 	}
 

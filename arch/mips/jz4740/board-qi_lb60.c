@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
@@ -25,6 +26,7 @@
 #include <linux/power/jz4740-battery.h>
 #include <linux/power/gpio-charger.h>
 
+#include <asm/mach-jz4740/gpio.h>
 #include <asm/mach-jz4740/jz4740_fb.h>
 #include <asm/mach-jz4740/jz4740_mmc.h>
 #include <asm/mach-jz4740/jz4740_nand.h>
@@ -139,9 +141,17 @@ static void qi_lb60_nand_ident(struct platform_device *pdev,
 
 static struct jz_nand_platform_data qi_lb60_nand_pdata = {
 	.ident_callback = qi_lb60_nand_ident,
-	.busy_gpio = 94,
 	.banks = { 1 },
 };
+
+static struct gpiod_lookup_table qi_lb60_nand_gpio_table = {
+	.dev_id = "jz4740-nand.0",
+	.table = {
+		GPIO_LOOKUP("Bank C", 30, "busy", 0),
+		{ },
+	},
+};
+
 
 /* Keyboard*/
 
@@ -425,8 +435,18 @@ static struct platform_device qi_lb60_audio_device = {
 	.id = -1,
 };
 
+static struct gpiod_lookup_table qi_lb60_audio_gpio_table = {
+	.dev_id = "qi-lb60-audio",
+	.table = {
+		GPIO_LOOKUP("Bank B", 29, "snd", 0),
+		GPIO_LOOKUP("Bank D", 4, "amp", 0),
+		{ },
+	},
+};
+
 static struct platform_device *jz_platform_devices[] __initdata = {
 	&jz4740_udc_device,
+	&jz4740_udc_xceiv_device,
 	&jz4740_mmc_device,
 	&jz4740_nand_device,
 	&qi_lb60_keypad,
@@ -438,6 +458,7 @@ static struct platform_device *jz_platform_devices[] __initdata = {
 	&jz4740_rtc_device,
 	&jz4740_adc_device,
 	&jz4740_pwm_device,
+	&jz4740_dma_device,
 	&qi_lb60_gpio_keys,
 	&qi_lb60_pwm_beeper,
 	&qi_lb60_charger_device,
@@ -459,7 +480,8 @@ static int __init qi_lb60_init_platform_devices(void)
 	jz4740_adc_device.dev.platform_data = &qi_lb60_battery_pdata;
 	jz4740_mmc_device.dev.platform_data = &qi_lb60_mmc_pdata;
 
-	jz4740_serial_device_register();
+	gpiod_add_lookup_table(&qi_lb60_audio_gpio_table);
+	gpiod_add_lookup_table(&qi_lb60_nand_gpio_table);
 
 	spi_register_board_info(qi_lb60_spi_board_info,
 				ARRAY_SIZE(qi_lb60_spi_board_info));
@@ -473,11 +495,6 @@ static int __init qi_lb60_init_platform_devices(void)
 					ARRAY_SIZE(jz_platform_devices));
 
 }
-
-struct jz4740_clock_board_data jz4740_clock_bdata = {
-	.ext_rate = 12000000,
-	.rtc_rate = 32768,
-};
 
 static __init int board_avt2(char *str)
 {

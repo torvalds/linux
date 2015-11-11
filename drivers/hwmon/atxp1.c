@@ -12,10 +12,9 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
+ * The ATXP1 can reside on I2C addresses 0x37 or 0x4e. The chip is
+ * not auto-detected by the driver and must be instantiated explicitly.
+ * See Documentation/i2c/instantiating-devices for more information.
  */
 
 #include <linux/kernel.h>
@@ -43,34 +42,8 @@ MODULE_AUTHOR("Sebastian Witt <se.witt@gmx.net>");
 #define ATXP1_VIDMASK	0x1f
 #define ATXP1_GPIO1MASK	0x0f
 
-static const unsigned short normal_i2c[] = { 0x37, 0x4e, I2C_CLIENT_END };
-
-static int atxp1_probe(struct i2c_client *client,
-		       const struct i2c_device_id *id);
-static int atxp1_remove(struct i2c_client *client);
-static struct atxp1_data *atxp1_update_device(struct device *dev);
-static int atxp1_detect(struct i2c_client *client, struct i2c_board_info *info);
-
-static const struct i2c_device_id atxp1_id[] = {
-	{ "atxp1", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, atxp1_id);
-
-static struct i2c_driver atxp1_driver = {
-	.class		= I2C_CLASS_HWMON,
-	.driver = {
-		.name	= "atxp1",
-	},
-	.probe		= atxp1_probe,
-	.remove		= atxp1_remove,
-	.id_table	= atxp1_id,
-	.detect		= atxp1_detect,
-	.address_list	= normal_i2c,
-};
-
 struct atxp1_data {
-	struct device *hwmon_dev;
+	struct i2c_client *client;
 	struct mutex update_lock;
 	unsigned long last_updated;
 	u8 valid;
@@ -85,11 +58,8 @@ struct atxp1_data {
 
 static struct atxp1_data *atxp1_update_device(struct device *dev)
 {
-	struct i2c_client *client;
-	struct atxp1_data *data;
-
-	client = to_i2c_client(dev);
-	data = i2c_get_clientdata(client);
+	struct atxp1_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 
 	mutex_lock(&data->update_lock);
 
@@ -129,14 +99,11 @@ static ssize_t atxp1_storevcore(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
-	struct atxp1_data *data;
-	struct i2c_client *client;
+	struct atxp1_data *data = atxp1_update_device(dev);
+	struct i2c_client *client = data->client;
 	int vid, cvid;
 	unsigned long vcore;
 	int err;
-
-	client = to_i2c_client(dev);
-	data = atxp1_update_device(dev);
 
 	err = kstrtoul(buf, 10, &vcore);
 	if (err)
@@ -147,10 +114,9 @@ static ssize_t atxp1_storevcore(struct device *dev,
 
 	/* Calculate VID */
 	vid = vid_to_reg(vcore, data->vrm);
-
 	if (vid < 0) {
 		dev_err(dev, "VID calculation failed.\n");
-		return -1;
+		return vid;
 	}
 
 	/*
@@ -209,13 +175,10 @@ static ssize_t atxp1_storegpio1(struct device *dev,
 				struct device_attribute *attr, const char *buf,
 				size_t count)
 {
-	struct atxp1_data *data;
-	struct i2c_client *client;
+	struct atxp1_data *data = atxp1_update_device(dev);
+	struct i2c_client *client = data->client;
 	unsigned long value;
 	int err;
-
-	client = to_i2c_client(dev);
-	data = atxp1_update_device(dev);
 
 	err = kstrtoul(buf, 16, &value);
 	if (err)
@@ -259,7 +222,7 @@ static ssize_t atxp1_storegpio2(struct device *dev,
 				const char *buf, size_t count)
 {
 	struct atxp1_data *data = atxp1_update_device(dev);
-	struct i2c_client *client = to_i2c_client(dev);
+	struct i2c_client *client = data->client;
 	unsigned long value;
 	int err;
 
@@ -285,108 +248,60 @@ static ssize_t atxp1_storegpio2(struct device *dev,
  */
 static DEVICE_ATTR(gpio2, S_IRUGO | S_IWUSR, atxp1_showgpio2, atxp1_storegpio2);
 
-static struct attribute *atxp1_attributes[] = {
+static struct attribute *atxp1_attrs[] = {
 	&dev_attr_gpio1.attr,
 	&dev_attr_gpio2.attr,
 	&dev_attr_cpu0_vid.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(atxp1);
 
-static const struct attribute_group atxp1_group = {
-	.attrs = atxp1_attributes,
-};
-
-
-/* Return 0 if detection is successful, -ENODEV otherwise */
-static int atxp1_detect(struct i2c_client *new_client,
-			struct i2c_board_info *info)
-{
-	struct i2c_adapter *adapter = new_client->adapter;
-
-	u8 temp;
-
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
-
-	/* Detect ATXP1, checking if vendor ID registers are all zero */
-	if (!((i2c_smbus_read_byte_data(new_client, 0x3e) == 0) &&
-	     (i2c_smbus_read_byte_data(new_client, 0x3f) == 0) &&
-	     (i2c_smbus_read_byte_data(new_client, 0xfe) == 0) &&
-	     (i2c_smbus_read_byte_data(new_client, 0xff) == 0)))
-		return -ENODEV;
-
-	/*
-	 * No vendor ID, now checking if registers 0x10,0x11 (non-existent)
-	 * showing the same as register 0x00
-	 */
-	temp = i2c_smbus_read_byte_data(new_client, 0x00);
-
-	if (!((i2c_smbus_read_byte_data(new_client, 0x10) == temp) &&
-	      (i2c_smbus_read_byte_data(new_client, 0x11) == temp)))
-		return -ENODEV;
-
-	/* Get VRM */
-	temp = vid_which_vrm();
-
-	if ((temp != 90) && (temp != 91)) {
-		dev_err(&adapter->dev, "atxp1: Not supporting VRM %d.%d\n",
-				temp / 10, temp % 10);
-		return -ENODEV;
-	}
-
-	strlcpy(info->type, "atxp1", I2C_NAME_SIZE);
-
-	return 0;
-}
-
-static int atxp1_probe(struct i2c_client *new_client,
+static int atxp1_probe(struct i2c_client *client,
 		       const struct i2c_device_id *id)
 {
+	struct device *dev = &client->dev;
 	struct atxp1_data *data;
-	int err;
+	struct device *hwmon_dev;
 
-	data = devm_kzalloc(&new_client->dev, sizeof(struct atxp1_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc(dev, sizeof(struct atxp1_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
 	/* Get VRM */
 	data->vrm = vid_which_vrm();
-
-	i2c_set_clientdata(new_client, data);
-	data->valid = 0;
-
-	mutex_init(&data->update_lock);
-
-	/* Register sysfs hooks */
-	err = sysfs_create_group(&new_client->dev.kobj, &atxp1_group);
-	if (err)
-		return err;
-
-	data->hwmon_dev = hwmon_device_register(&new_client->dev);
-	if (IS_ERR(data->hwmon_dev)) {
-		err = PTR_ERR(data->hwmon_dev);
-		goto exit_remove_files;
+	if (data->vrm != 90 && data->vrm != 91) {
+		dev_err(dev, "atxp1: Not supporting VRM %d.%d\n",
+			data->vrm / 10, data->vrm % 10);
+		return -ENODEV;
 	}
 
-	dev_info(&new_client->dev, "Using VRM: %d.%d\n",
-			 data->vrm / 10, data->vrm % 10);
+	data->client = client;
+	mutex_init(&data->update_lock);
+
+	hwmon_dev = devm_hwmon_device_register_with_groups(dev, client->name,
+							   data,
+							   atxp1_groups);
+	if (IS_ERR(hwmon_dev))
+		return PTR_ERR(hwmon_dev);
+
+	dev_info(dev, "Using VRM: %d.%d\n", data->vrm / 10, data->vrm % 10);
 
 	return 0;
-
-exit_remove_files:
-	sysfs_remove_group(&new_client->dev.kobj, &atxp1_group);
-	return err;
 };
 
-static int atxp1_remove(struct i2c_client *client)
-{
-	struct atxp1_data *data = i2c_get_clientdata(client);
+static const struct i2c_device_id atxp1_id[] = {
+	{ "atxp1", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, atxp1_id);
 
-	hwmon_device_unregister(data->hwmon_dev);
-	sysfs_remove_group(&client->dev.kobj, &atxp1_group);
-
-	return 0;
+static struct i2c_driver atxp1_driver = {
+	.class		= I2C_CLASS_HWMON,
+	.driver = {
+		.name	= "atxp1",
+	},
+	.probe		= atxp1_probe,
+	.id_table	= atxp1_id,
 };
 
 module_i2c_driver(atxp1_driver);

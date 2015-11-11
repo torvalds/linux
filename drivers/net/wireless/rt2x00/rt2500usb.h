@@ -13,9 +13,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -56,7 +54,7 @@
 #define CSR_REG_BASE			0x0400
 #define CSR_REG_SIZE			0x0100
 #define EEPROM_BASE			0x0000
-#define EEPROM_SIZE			0x006a
+#define EEPROM_SIZE			0x006e
 #define BBP_BASE			0x0000
 #define BBP_SIZE			0x0060
 #define RF_BASE				0x0004

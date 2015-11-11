@@ -138,16 +138,16 @@ static struct dentry *jffs2_get_parent(struct dentry *child)
 	struct jffs2_inode_info *f;
 	uint32_t pino;
 
-	BUG_ON(!S_ISDIR(child->d_inode->i_mode));
+	BUG_ON(!d_is_dir(child));
 
-	f = JFFS2_INODE_INFO(child->d_inode);
+	f = JFFS2_INODE_INFO(d_inode(child));
 
 	pino = f->inocache->pino_nlink;
 
 	JFFS2_DEBUG("Parent of directory ino #%u is #%u\n",
 		    f->inocache->ino, pino);
 
-	return d_obtain_alias(jffs2_iget(child->d_inode->i_sb, pino));
+	return d_obtain_alias(jffs2_iget(d_inode(child)->i_sb, pino));
 }
 
 static const struct export_operations jffs2_export_ops = {
@@ -243,6 +243,7 @@ static int jffs2_remount_fs(struct super_block *sb, int *flags, char *data)
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
 	int err;
 
+	sync_filesystem(sb);
 	err = jffs2_parse_options(c, data);
 	if (err)
 		return -EINVAL;

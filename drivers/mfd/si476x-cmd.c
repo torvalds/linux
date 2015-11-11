@@ -1228,8 +1228,8 @@ static int si476x_core_cmd_fm_rsq_status_a10(struct si476x_core *core,
 }
 
 static int si476x_core_cmd_fm_rsq_status_a20(struct si476x_core *core,
-					     struct si476x_rsq_status_args *rsqargs,
-					     struct si476x_rsq_status_report *report)
+				     struct si476x_rsq_status_args *rsqargs,
+				     struct si476x_rsq_status_report *report)
 {
 	int err;
 	u8       resp[CMD_FM_RSQ_STATUS_A10_NRESP];
@@ -1434,10 +1434,10 @@ typedef int (*tune_freq_func_t) (struct si476x_core *core,
 				 struct si476x_tune_freq_args *tuneargs);
 
 static struct {
-	int (*power_up) (struct si476x_core *,
-			 struct si476x_power_up_args *);
-	int (*power_down) (struct si476x_core *,
-			   struct si476x_power_down_args *);
+	int (*power_up)(struct si476x_core *,
+			struct si476x_power_up_args *);
+	int (*power_down)(struct si476x_core *,
+			  struct si476x_power_down_args *);
 
 	tune_freq_func_t fm_tune_freq;
 	tune_freq_func_t am_tune_freq;

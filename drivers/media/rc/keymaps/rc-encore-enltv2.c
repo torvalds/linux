@@ -2,7 +2,7 @@
  *
  * keymap imported from ir-keymaps.c
  *
- * Copyright (c) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -88,4 +88,4 @@ module_init(init_rc_map_encore_enltv2)
 module_exit(exit_rc_map_encore_enltv2)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");

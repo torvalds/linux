@@ -21,35 +21,21 @@ extern void disable_TSC(void);
 
 static inline cycles_t get_cycles(void)
 {
-	unsigned long long ret = 0;
-
 #ifndef CONFIG_X86_TSC
 	if (!cpu_has_tsc)
 		return 0;
 #endif
-	rdtscll(ret);
 
-	return ret;
-}
-
-static __always_inline cycles_t vget_cycles(void)
-{
-	/*
-	 * We only do VDSOs on TSC capable CPUs, so this shouldn't
-	 * access boot_cpu_data (which is not VDSO-safe):
-	 */
-#ifndef CONFIG_X86_TSC
-	if (!cpu_has_tsc)
-		return 0;
-#endif
-	return (cycles_t)__native_read_tsc();
+	return rdtsc();
 }
 
 extern void tsc_init(void);
 extern void mark_tsc_unstable(char *reason);
 extern int unsynchronized_tsc(void);
 extern int check_tsc_unstable(void);
+extern int check_tsc_disabled(void);
 extern unsigned long native_calibrate_tsc(void);
+extern unsigned long long native_sched_clock_from_tsc(u64 tsc);
 
 extern int tsc_clocksource_reliable;
 
@@ -63,5 +49,8 @@ extern void check_tsc_sync_target(void);
 extern int notsc_setup(char *);
 extern void tsc_save_sched_clock_state(void);
 extern void tsc_restore_sched_clock_state(void);
+
+/* MSR based TSC calibration for Intel Atom SoC platforms */
+unsigned long try_msr_calibrate_tsc(void);
 
 #endif /* _ASM_X86_TSC_H */

@@ -1,0 +1,10 @@
+config OVERLAY_FS
+	tristate "Overlay filesystem support"
+	help
+	  An overlay filesystem combines two filesystems - an 'upper' filesystem
+	  and a 'lower' filesystem.  When a name exists in both filesystems, the
+	  object in the 'upper' filesystem is visible while the object in the
+	  'lower' filesystem is either hidden or, in the case of directories,
+	  merged with the 'upper' object.
+
+	  For more information see Documentation/filesystems/overlayfs.txt

@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -310,6 +310,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(unsigned int chnl)
 #define FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE	(0x01000000)
 
 #define FH_MEM_TFDIB_REG1_ADDR_BITSHIFT	28
+#define FH_MEM_TB_MAX_LENGTH			(0x00020000)
 
 /* TFDB  Area - TFDs buffer table */
 #define FH_MEM_TFDIB_DRAM_ADDR_LSB_MSK      (0xFFFFFFFF)
@@ -437,14 +438,8 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(unsigned int chnl)
 #define RX_QUEUE_MASK                         255
 #define RX_QUEUE_SIZE_LOG                     8
 
-/*
- * RX related structures and functions
- */
-#define RX_FREE_BUFFERS 64
-#define RX_LOW_WATERMARK 8
-
 /**
- * struct iwl_rb_status - reseve buffer status
+ * struct iwl_rb_status - reserve buffer status
  * 	host memory mapped FH registers
  * @closed_rb_num [0:11] - Indicates the index of the RB which was closed
  * @closed_fr_num [0:11] - Indicates the index of the RX Frame which was closed

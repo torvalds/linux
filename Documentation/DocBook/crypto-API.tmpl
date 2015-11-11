@@ -1,0 +1,2124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN"
+	"http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd" []>
+
+<book id="KernelCryptoAPI">
+ <bookinfo>
+  <title>Linux Kernel Crypto API</title>
+
+  <authorgroup>
+   <author>
+    <firstname>Stephan</firstname>
+    <surname>Mueller</surname>
+    <affiliation>
+     <address>
+      <email>smueller@chronox.de</email>
+     </address>
+    </affiliation>
+   </author>
+   <author>
+    <firstname>Marek</firstname>
+    <surname>Vasut</surname>
+    <affiliation>
+     <address>
+      <email>marek@denx.de</email>
+     </address>
+    </affiliation>
+   </author>
+  </authorgroup>
+
+  <copyright>
+   <year>2014</year>
+   <holder>Stephan Mueller</holder>
+  </copyright>
+
+
+  <legalnotice>
+   <para>
+     This documentation is free software; you can redistribute
+     it and/or modify it under the terms of the GNU General Public
+     License as published by the Free Software Foundation; either
+     version 2 of the License, or (at your option) any later
+     version.
+   </para>
+
+   <para>
+     This program is distributed in the hope that it will be
+     useful, but WITHOUT ANY WARRANTY; without even the implied
+     warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+     See the GNU General Public License for more details.
+   </para>
+
+   <para>
+     You should have received a copy of the GNU General Public
+     License along with this program; if not, write to the Free
+     Software Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+     MA 02111-1307 USA
+   </para>
+
+   <para>
+     For more details see the file COPYING in the source
+     distribution of Linux.
+   </para>
+  </legalnotice>
+ </bookinfo>
+
+ <toc></toc>
+
+ <chapter id="Intro">
+  <title>Kernel Crypto API Interface Specification</title>
+
+   <sect1><title>Introduction</title>
+
+    <para>
+     The kernel crypto API offers a rich set of cryptographic ciphers as
+     well as other data transformation mechanisms and methods to invoke
+     these. This document contains a description of the API and provides
+     example code.
+    </para>
+
+    <para>
+     To understand and properly use the kernel crypto API a brief
+     explanation of its structure is given. Based on the architecture,
+     the API can be separated into different components. Following the
+     architecture specification, hints to developers of ciphers are
+     provided. Pointers to the API function call  documentation are
+     given at the end.
+    </para>
+
+    <para>
+     The kernel crypto API refers to all algorithms as "transformations".
+     Therefore, a cipher handle variable usually has the name "tfm".
+     Besides cryptographic operations, the kernel crypto API also knows
+     compression transformations and handles them the same way as ciphers.
+    </para>
+
+    <para>
+     The kernel crypto API serves the following entity types:
+
+     <itemizedlist>
+      <listitem>
+       <para>consumers requesting cryptographic services</para>
+      </listitem>
+      <listitem>
+      <para>data transformation implementations (typically ciphers)
+       that can be called by consumers using the kernel crypto
+       API</para>
+      </listitem>
+     </itemizedlist>
+    </para>
+
+    <para>
+     This specification is intended for consumers of the kernel crypto
+     API as well as for developers implementing ciphers. This API
+     specification, however, does not discuss all API calls available
+     to data transformation implementations (i.e. implementations of
+     ciphers and other transformations (such as CRC or even compression
+     algorithms) that can register with the kernel crypto API).
+    </para>
+
+    <para>
+     Note: The terms "transformation" and cipher algorithm are used
+     interchangeably.
+    </para>
+   </sect1>
+
+   <sect1><title>Terminology</title>
+    <para>
+     The transformation implementation is an actual code or interface
+     to hardware which implements a certain transformation with precisely
+     defined behavior.
+    </para>
+
+    <para>
+     The transformation object (TFM) is an instance of a transformation
+     implementation. There can be multiple transformation objects
+     associated with a single transformation implementation. Each of
+     those transformation objects is held by a crypto API consumer or
+     another transformation. Transformation object is allocated when a
+     crypto API consumer requests a transformation implementation.
+     The consumer is then provided with a structure, which contains
+     a transformation object (TFM).
+    </para>
+
+    <para>
+     The structure that contains transformation objects may also be
+     referred to as a "cipher handle". Such a cipher handle is always
+     subject to the following phases that are reflected in the API calls
+     applicable to such a cipher handle:
+    </para>
+
+    <orderedlist>
+     <listitem>
+      <para>Initialization of a cipher handle.</para>
+     </listitem>
+     <listitem>
+      <para>Execution of all intended cipher operations applicable
+      for the handle where the cipher handle must be furnished to
+      every API call.</para>
+     </listitem>
+     <listitem>
+      <para>Destruction of a cipher handle.</para>
+     </listitem>
+    </orderedlist>
+
+    <para>
+     When using the initialization API calls, a cipher handle is
+     created and returned to the consumer. Therefore, please refer
+     to all initialization API calls that refer to the data
+     structure type a consumer is expected to receive and subsequently
+     to use. The initialization API calls have all the same naming
+     conventions of crypto_alloc_*.
+    </para>
+
+    <para>
+     The transformation context is private data associated with
+     the transformation object.
+    </para>
+   </sect1>
+  </chapter>
+
+  <chapter id="Architecture"><title>Kernel Crypto API Architecture</title>
+   <sect1><title>Cipher algorithm types</title>
+    <para>
+     The kernel crypto API provides different API calls for the
+     following cipher types:
+
+     <itemizedlist>
+      <listitem><para>Symmetric ciphers</para></listitem>
+      <listitem><para>AEAD ciphers</para></listitem>
+      <listitem><para>Message digest, including keyed message digest</para></listitem>
+      <listitem><para>Random number generation</para></listitem>
+      <listitem><para>User space interface</para></listitem>
+     </itemizedlist>
+    </para>
+   </sect1>
+
+   <sect1><title>Ciphers And Templates</title>
+    <para>
+     The kernel crypto API provides implementations of single block
+     ciphers and message digests. In addition, the kernel crypto API
+     provides numerous "templates" that can be used in conjunction
+     with the single block ciphers and message digests. Templates
+     include all types of block chaining mode, the HMAC mechanism, etc.
+    </para>
+
+    <para>
+     Single block ciphers and message digests can either be directly
+     used by a caller or invoked together with a template to form
+     multi-block ciphers or keyed message digests.
+    </para>
+
+    <para>
+     A single block cipher may even be called with multiple templates.
+     However, templates cannot be used without a single cipher.
+    </para>
+
+    <para>
+     See /proc/crypto and search for "name". For example:
+
+     <itemizedlist>
+      <listitem><para>aes</para></listitem>
+      <listitem><para>ecb(aes)</para></listitem>
+      <listitem><para>cmac(aes)</para></listitem>
+      <listitem><para>ccm(aes)</para></listitem>
+      <listitem><para>rfc4106(gcm(aes))</para></listitem>
+      <listitem><para>sha1</para></listitem>
+      <listitem><para>hmac(sha1)</para></listitem>
+      <listitem><para>authenc(hmac(sha1),cbc(aes))</para></listitem>
+     </itemizedlist>
+    </para>
+
+    <para>
+     In these examples, "aes" and "sha1" are the ciphers and all
+     others are the templates.
+    </para>
+   </sect1>
+
+   <sect1><title>Synchronous And Asynchronous Operation</title>
+    <para>
+     The kernel crypto API provides synchronous and asynchronous
+     API operations.
+    </para>
+
+    <para>
+     When using the synchronous API operation, the caller invokes
+     a cipher operation which is performed synchronously by the
+     kernel crypto API. That means, the caller waits until the
+     cipher operation completes. Therefore, the kernel crypto API
+     calls work like regular function calls. For synchronous
+     operation, the set of API calls is small and conceptually
+     similar to any other crypto library.
+    </para>
+
+    <para>
+     Asynchronous operation is provided by the kernel crypto API
+     which implies that the invocation of a cipher operation will
+     complete almost instantly. That invocation triggers the
+     cipher operation but it does not signal its completion. Before
+     invoking a cipher operation, the caller must provide a callback
+     function the kernel crypto API can invoke to signal the
+     completion of the cipher operation. Furthermore, the caller
+     must ensure it can handle such asynchronous events by applying
+     appropriate locking around its data. The kernel crypto API
+     does not perform any special serialization operation to protect
+     the caller's data integrity.
+    </para>
+   </sect1>
+
+   <sect1><title>Crypto API Cipher References And Priority</title>
+    <para>
+     A cipher is referenced by the caller with a string. That string
+     has the following semantics:
+
+     <programlisting>
+	template(single block cipher)
+     </programlisting>
+
+     where "template" and "single block cipher" is the aforementioned
+     template and single block cipher, respectively. If applicable,
+     additional templates may enclose other templates, such as
+
+      <programlisting>
+	template1(template2(single block cipher)))
+      </programlisting>
+    </para>
+
+    <para>
+     The kernel crypto API may provide multiple implementations of a
+     template or a single block cipher. For example, AES on newer
+     Intel hardware has the following implementations: AES-NI,
+     assembler implementation, or straight C. Now, when using the
+     string "aes" with the kernel crypto API, which cipher
+     implementation is used? The answer to that question is the
+     priority number assigned to each cipher implementation by the
+     kernel crypto API. When a caller uses the string to refer to a
+     cipher during initialization of a cipher handle, the kernel
+     crypto API looks up all implementations providing an
+     implementation with that name and selects the implementation
+     with the highest priority.
+    </para>
+
+    <para>
+     Now, a caller may have the need to refer to a specific cipher
+     implementation and thus does not want to rely on the
+     priority-based selection. To accommodate this scenario, the
+     kernel crypto API allows the cipher implementation to register
+     a unique name in addition to common names. When using that
+     unique name, a caller is therefore always sure to refer to
+     the intended cipher implementation.
+    </para>
+
+    <para>
+     The list of available ciphers is given in /proc/crypto. However,
+     that list does not specify all possible permutations of
+     templates and ciphers. Each block listed in /proc/crypto may
+     contain the following information -- if one of the components
+     listed as follows are not applicable to a cipher, it is not
+     displayed:
+    </para>
+
+    <itemizedlist>
+     <listitem>
+      <para>name: the generic name of the cipher that is subject
+       to the priority-based selection -- this name can be used by
+       the cipher allocation API calls (all names listed above are
+       examples for such generic names)</para>
+     </listitem>
+     <listitem>
+      <para>driver: the unique name of the cipher -- this name can
+       be used by the cipher allocation API calls</para>
+     </listitem>
+     <listitem>
+      <para>module: the kernel module providing the cipher
+       implementation (or "kernel" for statically linked ciphers)</para>
+     </listitem>
+     <listitem>
+      <para>priority: the priority value of the cipher implementation</para>
+     </listitem>
+     <listitem>
+      <para>refcnt: the reference count of the respective cipher
+       (i.e. the number of current consumers of this cipher)</para>
+     </listitem>
+     <listitem>
+      <para>selftest: specification whether the self test for the
+       cipher passed</para>
+     </listitem>
+     <listitem>
+      <para>type:
+       <itemizedlist>
+        <listitem>
+         <para>blkcipher for synchronous block ciphers</para>
+        </listitem>
+        <listitem>
+         <para>ablkcipher for asynchronous block ciphers</para>
+        </listitem>
+        <listitem>
+         <para>cipher for single block ciphers that may be used with
+          an additional template</para>
+        </listitem>
+        <listitem>
+         <para>shash for synchronous message digest</para>
+        </listitem>
+        <listitem>
+         <para>ahash for asynchronous message digest</para>
+        </listitem>
+        <listitem>
+         <para>aead for AEAD cipher type</para>
+        </listitem>
+        <listitem>
+         <para>compression for compression type transformations</para>
+        </listitem>
+        <listitem>
+         <para>rng for random number generator</para>
+        </listitem>
+        <listitem>
+         <para>givcipher for cipher with associated IV generator
+          (see the geniv entry below for the specification of the
+          IV generator type used by the cipher implementation)</para>
+        </listitem>
+       </itemizedlist>
+      </para>
+     </listitem>
+     <listitem>
+      <para>blocksize: blocksize of cipher in bytes</para>
+     </listitem>
+     <listitem>
+      <para>keysize: key size in bytes</para>
+     </listitem>
+     <listitem>
+      <para>ivsize: IV size in bytes</para>
+     </listitem>
+     <listitem>
+      <para>seedsize: required size of seed data for random number
+       generator</para>
+     </listitem>
+     <listitem>
+      <para>digestsize: output size of the message digest</para>
+     </listitem>
+     <listitem>
+      <para>geniv: IV generation type:
+       <itemizedlist>
+        <listitem>
+         <para>eseqiv for encrypted sequence number based IV
+          generation</para>
+        </listitem>
+        <listitem>
+         <para>seqiv for sequence number based IV generation</para>
+        </listitem>
+        <listitem>
+         <para>chainiv for chain iv generation</para>
+        </listitem>
+        <listitem>
+         <para>&lt;builtin&gt; is a marker that the cipher implements
+          IV generation and handling as it is specific to the given
+          cipher</para>
+        </listitem>
+       </itemizedlist>
+      </para>
+     </listitem>
+    </itemizedlist>
+   </sect1>
+
+   <sect1><title>Key Sizes</title>
+    <para>
+     When allocating a cipher handle, the caller only specifies the
+     cipher type. Symmetric ciphers, however, typically support
+     multiple key sizes (e.g. AES-128 vs. AES-192 vs. AES-256).
+     These key sizes are determined with the length of the provided
+     key. Thus, the kernel crypto API does not provide a separate
+     way to select the particular symmetric cipher key size.
+    </para>
+   </sect1>
+
+   <sect1><title>Cipher Allocation Type And Masks</title>
+    <para>
+     The different cipher handle allocation functions allow the
+     specification of a type and mask flag. Both parameters have
+     the following meaning (and are therefore not covered in the
+     subsequent sections).
+    </para>
+
+    <para>
+     The type flag specifies the type of the cipher algorithm.
+     The caller usually provides a 0 when the caller wants the
+     default handling. Otherwise, the caller may provide the
+     following selections which match the the aforementioned
+     cipher types:
+    </para>
+
+    <itemizedlist>
+     <listitem>
+      <para>CRYPTO_ALG_TYPE_CIPHER Single block cipher</para>
+     </listitem>
+     <listitem>
+      <para>CRYPTO_ALG_TYPE_COMPRESS Compression</para>
+     </listitem>
+     <listitem>
+     <para>CRYPTO_ALG_TYPE_AEAD Authenticated Encryption with
+      Associated Data (MAC)</para>
+     </listitem>
+     <listitem>
+      <para>CRYPTO_ALG_TYPE_BLKCIPHER Synchronous multi-block cipher</para>
+     </listitem>
+     <listitem>
+      <para>CRYPTO_ALG_TYPE_ABLKCIPHER Asynchronous multi-block cipher</para>
+     </listitem>
+     <listitem>
+      <para>CRYPTO_ALG_TYPE_GIVCIPHER Asynchronous multi-block
+       cipher packed together with an IV generator (see geniv field
+       in the /proc/crypto listing for the known IV generators)</para>
+     </listitem>
+     <listitem>
+      <para>CRYPTO_ALG_TYPE_DIGEST Raw message digest</para>
+     </listitem>
+     <listitem>
+      <para>CRYPTO_ALG_TYPE_HASH Alias for CRYPTO_ALG_TYPE_DIGEST</para>
+     </listitem>
+     <listitem>
+      <para>CRYPTO_ALG_TYPE_SHASH Synchronous multi-block hash</para>
+     </listitem>
+     <listitem>
+      <para>CRYPTO_ALG_TYPE_AHASH Asynchronous multi-block hash</para>
+     </listitem>
+     <listitem>
+      <para>CRYPTO_ALG_TYPE_RNG Random Number Generation</para>
+     </listitem>
+     <listitem>
+      <para>CRYPTO_ALG_TYPE_PCOMPRESS Enhanced version of
+       CRYPTO_ALG_TYPE_COMPRESS allowing for segmented compression /
+       decompression instead of performing the operation on one
+       segment only. CRYPTO_ALG_TYPE_PCOMPRESS is intended to replace
+       CRYPTO_ALG_TYPE_COMPRESS once existing consumers are converted.</para>
+     </listitem>
+    </itemizedlist>
+
+    <para>
+     The mask flag restricts the type of cipher. The only allowed
+     flag is CRYPTO_ALG_ASYNC to restrict the cipher lookup function
+     to asynchronous ciphers. Usually, a caller provides a 0 for the
+     mask flag.
+    </para>
+
+    <para>
+     When the caller provides a mask and type specification, the
+     caller limits the search the kernel crypto API can perform for
+     a suitable cipher implementation for the given cipher name.
+     That means, even when a caller uses a cipher name that exists
+     during its initialization call, the kernel crypto API may not
+     select it due to the used type and mask field.
+    </para>
+   </sect1>
+
+   <sect1><title>Internal Structure of Kernel Crypto API</title>
+
+    <para>
+     The kernel crypto API has an internal structure where a cipher
+     implementation may use many layers and indirections. This section
+     shall help to clarify how the kernel crypto API uses
+     various components to implement the complete cipher.
+    </para>
+
+    <para>
+     The following subsections explain the internal structure based
+     on existing cipher implementations. The first section addresses
+     the most complex scenario where all other scenarios form a logical
+     subset.
+    </para>
+
+    <sect2><title>Generic AEAD Cipher Structure</title>
+
+     <para>
+      The following ASCII art decomposes the kernel crypto API layers
+      when using the AEAD cipher with the automated IV generation. The
+      shown example is used by the IPSEC layer.
+     </para>
+
+     <para>
+      For other use cases of AEAD ciphers, the ASCII art applies as
+      well, but the caller may not use the AEAD cipher with a separate
+      IV generator. In this case, the caller must generate the IV.
+     </para>
+
+     <para>
+      The depicted example decomposes the AEAD cipher of GCM(AES) based
+      on the generic C implementations (gcm.c, aes-generic.c, ctr.c,
+      ghash-generic.c, seqiv.c). The generic implementation serves as an
+      example showing the complete logic of the kernel crypto API.
+     </para>
+
+     <para>
+      It is possible that some streamlined cipher implementations (like
+      AES-NI) provide implementations merging aspects which in the view
+      of the kernel crypto API cannot be decomposed into layers any more.
+      In case of the AES-NI implementation, the CTR mode, the GHASH
+      implementation and the AES cipher are all merged into one cipher
+      implementation registered with the kernel crypto API. In this case,
+      the concept described by the following ASCII art applies too. However,
+      the decomposition of GCM into the individual sub-components
+      by the kernel crypto API is not done any more.
+     </para>
+
+     <para>
+      Each block in the following ASCII art is an independent cipher
+      instance obtained from the kernel crypto API. Each block
+      is accessed by the caller or by other blocks using the API functions
+      defined by the kernel crypto API for the cipher implementation type.
+     </para>
+
+     <para>
+      The blocks below indicate the cipher type as well as the specific
+      logic implemented in the cipher.
+     </para>
+
+     <para>
+      The ASCII art picture also indicates the call structure, i.e. who
+      calls which component. The arrows point to the invoked block
+      where the caller uses the API applicable to the cipher type
+      specified for the block.
+     </para>
+
+     <programlisting>
+<![CDATA[
+kernel crypto API                                |   IPSEC Layer
+                                                 |
++-----------+                                    |
+|           |            (1)
+|   aead    | <-----------------------------------  esp_output
+|  (seqiv)  | ---+
++-----------+    |
+                 | (2)
++-----------+    |
+|           | <--+                (2)
+|   aead    | <-----------------------------------  esp_input
+|   (gcm)   | ------------+
++-----------+             |
+      | (3)               | (5)
+      v                   v
++-----------+       +-----------+
+|           |       |           |
+| ablkcipher|       |   ahash   |
+|   (ctr)   | ---+  |  (ghash)  |
++-----------+    |  +-----------+
+                 |
++-----------+    | (4)
+|           | <--+
+|   cipher  |
+|   (aes)   |
++-----------+
+]]>
+     </programlisting>
+
+     <para>
+      The following call sequence is applicable when the IPSEC layer
+      triggers an encryption operation with the esp_output function. During
+      configuration, the administrator set up the use of rfc4106(gcm(aes)) as
+      the cipher for ESP. The following call sequence is now depicted in the
+      ASCII art above:
+     </para>
+
+     <orderedlist>
+      <listitem>
+       <para>
+        esp_output() invokes crypto_aead_encrypt() to trigger an encryption
+        operation of the AEAD cipher with IV generator.
+       </para>
+
+       <para>
+        In case of GCM, the SEQIV implementation is registered as GIVCIPHER
+        in crypto_rfc4106_alloc().
+       </para>
+
+       <para>
+        The SEQIV performs its operation to generate an IV where the core
+        function is seqiv_geniv().
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+        Now, SEQIV uses the AEAD API function calls to invoke the associated
+        AEAD cipher. In our case, during the instantiation of SEQIV, the
+        cipher handle for GCM is provided to SEQIV. This means that SEQIV
+        invokes AEAD cipher operations with the GCM cipher handle.
+       </para>
+
+       <para>
+        During instantiation of the GCM handle, the CTR(AES) and GHASH
+        ciphers are instantiated. The cipher handles for CTR(AES) and GHASH
+        are retained for later use.
+       </para>
+
+       <para>
+        The GCM implementation is responsible to invoke the CTR mode AES and
+        the GHASH cipher in the right manner to implement the GCM
+        specification.
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+        The GCM AEAD cipher type implementation now invokes the ABLKCIPHER API
+        with the instantiated CTR(AES) cipher handle.
+       </para>
+
+       <para>
+	During instantiation of the CTR(AES) cipher, the CIPHER type
+	implementation of AES is instantiated. The cipher handle for AES is
+	retained.
+       </para>
+
+       <para>
+        That means that the ABLKCIPHER implementation of CTR(AES) only
+        implements the CTR block chaining mode. After performing the block
+        chaining operation, the CIPHER implementation of AES is invoked.
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+        The ABLKCIPHER of CTR(AES) now invokes the CIPHER API with the AES
+        cipher handle to encrypt one block.
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+        The GCM AEAD implementation also invokes the GHASH cipher
+        implementation via the AHASH API.
+       </para>
+      </listitem>
+     </orderedlist>
+
+     <para>
+      When the IPSEC layer triggers the esp_input() function, the same call
+      sequence is followed with the only difference that the operation starts
+      with step (2).
+     </para>
+    </sect2>
+
+    <sect2><title>Generic Block Cipher Structure</title>
+     <para>
+      Generic block ciphers follow the same concept as depicted with the ASCII
+      art picture above.
+     </para>
+
+     <para>
+      For example, CBC(AES) is implemented with cbc.c, and aes-generic.c. The
+      ASCII art picture above applies as well with the difference that only
+      step (4) is used and the ABLKCIPHER block chaining mode is CBC.
+     </para>
+    </sect2>
+
+    <sect2><title>Generic Keyed Message Digest Structure</title>
+     <para>
+      Keyed message digest implementations again follow the same concept as
+      depicted in the ASCII art picture above.
+     </para>
+
+     <para>
+      For example, HMAC(SHA256) is implemented with hmac.c and
+      sha256_generic.c. The following ASCII art illustrates the
+      implementation:
+     </para>
+
+     <programlisting>
+<![CDATA[
+kernel crypto API            |       Caller
+                             |
++-----------+         (1)    |
+|           | <------------------  some_function
+|   ahash   |
+|   (hmac)  | ---+
++-----------+    |
+                 | (2)
++-----------+    |
+|           | <--+
+|   shash   |
+|  (sha256) |
++-----------+
+]]>
+     </programlisting>
+
+     <para>
+      The following call sequence is applicable when a caller triggers
+      an HMAC operation:
+     </para>
+
+     <orderedlist>
+      <listitem>
+       <para>
+        The AHASH API functions are invoked by the caller. The HMAC
+        implementation performs its operation as needed.
+       </para>
+
+       <para>
+        During initialization of the HMAC cipher, the SHASH cipher type of
+        SHA256 is instantiated. The cipher handle for the SHA256 instance is
+        retained.
+       </para>
+
+       <para>
+        At one time, the HMAC implementation requires a SHA256 operation
+        where the SHA256 cipher handle is used.
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+        The HMAC instance now invokes the SHASH API with the SHA256
+        cipher handle to calculate the message digest.
+       </para>
+      </listitem>
+     </orderedlist>
+    </sect2>
+   </sect1>
+  </chapter>
+
+  <chapter id="Development"><title>Developing Cipher Algorithms</title>
+   <sect1><title>Registering And Unregistering Transformation</title>
+    <para>
+     There are three distinct types of registration functions in
+     the Crypto API. One is used to register a generic cryptographic
+     transformation, while the other two are specific to HASH
+     transformations and COMPRESSion. We will discuss the latter
+     two in a separate chapter, here we will only look at the
+     generic ones.
+    </para>
+
+    <para>
+     Before discussing the register functions, the data structure
+     to be filled with each, struct crypto_alg, must be considered
+     -- see below for a description of this data structure.
+    </para>
+
+    <para>
+     The generic registration functions can be found in
+     include/linux/crypto.h and their definition can be seen below.
+     The former function registers a single transformation, while
+     the latter works on an array of transformation descriptions.
+     The latter is useful when registering transformations in bulk.
+    </para>
+
+    <programlisting>
+   int crypto_register_alg(struct crypto_alg *alg);
+   int crypto_register_algs(struct crypto_alg *algs, int count);
+    </programlisting>
+
+    <para>
+     The counterparts to those functions are listed below.
+    </para>
+
+    <programlisting>
+   int crypto_unregister_alg(struct crypto_alg *alg);
+   int crypto_unregister_algs(struct crypto_alg *algs, int count);
+    </programlisting>
+
+    <para>
+     Notice that both registration and unregistration functions
+     do return a value, so make sure to handle errors. A return
+     code of zero implies success. Any return code &lt; 0 implies
+     an error.
+    </para>
+
+    <para>
+     The bulk registration / unregistration functions require
+     that struct crypto_alg is an array of count size. These
+     functions simply loop over that array and register /
+     unregister each individual algorithm. If an error occurs,
+     the loop is terminated at the offending algorithm definition.
+     That means, the algorithms prior to the offending algorithm
+     are successfully registered. Note, the caller has no way of
+     knowing which cipher implementations have successfully
+     registered. If this is important to know, the caller should
+     loop through the different implementations using the single
+     instance *_alg functions for each individual implementation.
+    </para>
+   </sect1>
+
+   <sect1><title>Single-Block Symmetric Ciphers [CIPHER]</title>
+    <para>
+     Example of transformations: aes, arc4, ...
+    </para>
+
+    <para>
+     This section describes the simplest of all transformation
+     implementations, that being the CIPHER type used for symmetric
+     ciphers. The CIPHER type is used for transformations which
+     operate on exactly one block at a time and there are no
+     dependencies between blocks at all.
+    </para>
+
+    <sect2><title>Registration specifics</title>
+     <para>
+      The registration of [CIPHER] algorithm is specific in that
+      struct crypto_alg field .cra_type is empty. The .cra_u.cipher
+      has to be filled in with proper callbacks to implement this
+      transformation.
+     </para>
+
+     <para>
+      See struct cipher_alg below.
+     </para>
+    </sect2>
+
+    <sect2><title>Cipher Definition With struct cipher_alg</title>
+     <para>
+      Struct cipher_alg defines a single block cipher.
+     </para>
+
+     <para>
+      Here are schematics of how these functions are called when
+      operated from other part of the kernel. Note that the
+      .cia_setkey() call might happen before or after any of these
+      schematics happen, but must not happen during any of these
+      are in-flight.
+     </para>
+
+     <para>
+      <programlisting>
+         KEY ---.    PLAINTEXT ---.
+                v                 v
+          .cia_setkey() -&gt; .cia_encrypt()
+                                  |
+                                  '-----&gt; CIPHERTEXT
+      </programlisting>
+     </para>
+
+     <para>
+      Please note that a pattern where .cia_setkey() is called
+      multiple times is also valid:
+     </para>
+
+     <para>
+      <programlisting>
+
+  KEY1 --.    PLAINTEXT1 --.         KEY2 --.    PLAINTEXT2 --.
+         v                 v                v                 v
+   .cia_setkey() -&gt; .cia_encrypt() -&gt; .cia_setkey() -&gt; .cia_encrypt()
+                           |                                  |
+                           '---&gt; CIPHERTEXT1                  '---&gt; CIPHERTEXT2
+      </programlisting>
+     </para>
+
+    </sect2>
+   </sect1>
+
+   <sect1><title>Multi-Block Ciphers [BLKCIPHER] [ABLKCIPHER]</title>
+    <para>
+     Example of transformations: cbc(aes), ecb(arc4), ...
+    </para>
+
+    <para>
+     This section describes the multi-block cipher transformation
+     implementations for both synchronous [BLKCIPHER] and
+     asynchronous [ABLKCIPHER] case. The multi-block ciphers are
+     used for transformations which operate on scatterlists of
+     data supplied to the transformation functions. They output
+     the result into a scatterlist of data as well.
+    </para>
+
+    <sect2><title>Registration Specifics</title>
+
+     <para>
+      The registration of [BLKCIPHER] or [ABLKCIPHER] algorithms
+      is one of the most standard procedures throughout the crypto API.
+     </para>
+
+     <para>
+      Note, if a cipher implementation requires a proper alignment
+      of data, the caller should use the functions of
+      crypto_blkcipher_alignmask() or crypto_ablkcipher_alignmask()
+      respectively to identify a memory alignment mask. The kernel
+      crypto API is able to process requests that are unaligned.
+      This implies, however, additional overhead as the kernel
+      crypto API needs to perform the realignment of the data which
+      may imply moving of data.
+     </para>
+    </sect2>
+
+    <sect2><title>Cipher Definition With struct blkcipher_alg and ablkcipher_alg</title>
+     <para>
+      Struct blkcipher_alg defines a synchronous block cipher whereas
+      struct ablkcipher_alg defines an asynchronous block cipher.
+     </para>
+
+     <para>
+      Please refer to the single block cipher description for schematics
+      of the block cipher usage. The usage patterns are exactly the same
+      for [ABLKCIPHER] and [BLKCIPHER] as they are for plain [CIPHER].
+     </para>
+    </sect2>
+
+    <sect2><title>Specifics Of Asynchronous Multi-Block Cipher</title>
+     <para>
+      There are a couple of specifics to the [ABLKCIPHER] interface.
+     </para>
+
+     <para>
+      First of all, some of the drivers will want to use the
+      Generic ScatterWalk in case the hardware needs to be fed
+      separate chunks of the scatterlist which contains the
+      plaintext and will contain the ciphertext. Please refer
+      to the ScatterWalk interface offered by the Linux kernel
+      scatter / gather list implementation.
+     </para>
+    </sect2>
+   </sect1>
+
+   <sect1><title>Hashing [HASH]</title>
+
+    <para>
+     Example of transformations: crc32, md5, sha1, sha256,...
+    </para>
+
+    <sect2><title>Registering And Unregistering The Transformation</title>
+
+     <para>
+      There are multiple ways to register a HASH transformation,
+      depending on whether the transformation is synchronous [SHASH]
+      or asynchronous [AHASH] and the amount of HASH transformations
+      we are registering. You can find the prototypes defined in
+      include/crypto/internal/hash.h:
+     </para>
+
+     <programlisting>
+   int crypto_register_ahash(struct ahash_alg *alg);
+
+   int crypto_register_shash(struct shash_alg *alg);
+   int crypto_register_shashes(struct shash_alg *algs, int count);
+     </programlisting>
+
+     <para>
+      The respective counterparts for unregistering the HASH
+      transformation are as follows:
+     </para>
+
+     <programlisting>
+   int crypto_unregister_ahash(struct ahash_alg *alg);
+
+   int crypto_unregister_shash(struct shash_alg *alg);
+   int crypto_unregister_shashes(struct shash_alg *algs, int count);
+     </programlisting>
+    </sect2>
+
+    <sect2><title>Cipher Definition With struct shash_alg and ahash_alg</title>
+     <para>
+      Here are schematics of how these functions are called when
+      operated from other part of the kernel. Note that the .setkey()
+      call might happen before or after any of these schematics happen,
+      but must not happen during any of these are in-flight. Please note
+      that calling .init() followed immediately by .finish() is also a
+      perfectly valid transformation.
+     </para>
+
+     <programlisting>
+   I)   DATA -----------.
+                        v
+         .init() -&gt; .update() -&gt; .final()      ! .update() might not be called
+                     ^    |         |            at all in this scenario.
+                     '----'         '---&gt; HASH
+
+   II)  DATA -----------.-----------.
+                        v           v
+         .init() -&gt; .update() -&gt; .finup()      ! .update() may not be called
+                     ^    |         |            at all in this scenario.
+                     '----'         '---&gt; HASH
+
+   III) DATA -----------.
+                        v
+                    .digest()                  ! The entire process is handled
+                        |                        by the .digest() call.
+                        '---------------&gt; HASH
+     </programlisting>
+
+     <para>
+      Here is a schematic of how the .export()/.import() functions are
+      called when used from another part of the kernel.
+     </para>
+
+     <programlisting>
+   KEY--.                 DATA--.
+        v                       v                  ! .update() may not be called
+    .setkey() -&gt; .init() -&gt; .update() -&gt; .export()   at all in this scenario.
+                             ^     |         |
+                             '-----'         '--&gt; PARTIAL_HASH
+
+   ----------- other transformations happen here -----------
+
+   PARTIAL_HASH--.   DATA1--.
+                 v          v
+             .import -&gt; .update() -&gt; .final()     ! .update() may not be called
+                         ^    |         |           at all in this scenario.
+                         '----'         '--&gt; HASH1
+
+   PARTIAL_HASH--.   DATA2-.
+                 v         v
+             .import -&gt; .finup()
+                           |
+                           '---------------&gt; HASH2
+     </programlisting>
+    </sect2>
+
+    <sect2><title>Specifics Of Asynchronous HASH Transformation</title>
+     <para>
+      Some of the drivers will want to use the Generic ScatterWalk
+      in case the implementation needs to be fed separate chunks of the
+      scatterlist which contains the input data. The buffer containing
+      the resulting hash will always be properly aligned to
+      .cra_alignmask so there is no need to worry about this.
+     </para>
+    </sect2>
+   </sect1>
+  </chapter>
+
+  <chapter id="User"><title>User Space Interface</title>
+   <sect1><title>Introduction</title>
+    <para>
+     The concepts of the kernel crypto API visible to kernel space is fully
+     applicable to the user space interface as well. Therefore, the kernel
+     crypto API high level discussion for the in-kernel use cases applies
+     here as well.
+    </para>
+
+    <para>
+     The major difference, however, is that user space can only act as a
+     consumer and never as a provider of a transformation or cipher algorithm.
+    </para>
+
+    <para>
+     The following covers the user space interface exported by the kernel
+     crypto API. A working example of this description is libkcapi that
+     can be obtained from [1]. That library can be used by user space
+     applications that require cryptographic services from the kernel.
+    </para>
+
+    <para>
+     Some details of the in-kernel kernel crypto API aspects do not
+     apply to user space, however. This includes the difference between
+     synchronous and asynchronous invocations. The user space API call
+     is fully synchronous.
+    </para>
+
+    <para>
+     [1] <ulink url="http://www.chronox.de/libkcapi.html">http://www.chronox.de/libkcapi.html</ulink>
+    </para>
+
+   </sect1>
+
+   <sect1><title>User Space API General Remarks</title>
+    <para>
+     The kernel crypto API is accessible from user space. Currently,
+     the following ciphers are accessible:
+    </para>
+
+    <itemizedlist>
+     <listitem>
+      <para>Message digest including keyed message digest (HMAC, CMAC)</para>
+     </listitem>
+
+     <listitem>
+      <para>Symmetric ciphers</para>
+     </listitem>
+
+     <listitem>
+      <para>AEAD ciphers</para>
+     </listitem>
+
+     <listitem>
+      <para>Random Number Generators</para>
+     </listitem>
+    </itemizedlist>
+
+    <para>
+     The interface is provided via socket type using the type AF_ALG.
+     In addition, the setsockopt option type is SOL_ALG. In case the
+     user space header files do not export these flags yet, use the
+     following macros:
+    </para>
+
+    <programlisting>
+#ifndef AF_ALG
+#define AF_ALG 38
+#endif
+#ifndef SOL_ALG
+#define SOL_ALG 279
+#endif
+    </programlisting>
+
+    <para>
+     A cipher is accessed with the same name as done for the in-kernel
+     API calls. This includes the generic vs. unique naming schema for
+     ciphers as well as the enforcement of priorities for generic names.
+    </para>
+
+    <para>
+     To interact with the kernel crypto API, a socket must be
+     created by the user space application. User space invokes the cipher
+     operation with the send()/write() system call family. The result of the
+     cipher operation is obtained with the read()/recv() system call family.
+    </para>
+
+    <para>
+     The following API calls assume that the socket descriptor
+     is already opened by the user space application and discusses only
+     the kernel crypto API specific invocations.
+    </para>
+
+    <para>
+     To initialize the socket interface, the following sequence has to
+     be performed by the consumer:
+    </para>
+
+    <orderedlist>
+     <listitem>
+      <para>
+       Create a socket of type AF_ALG with the struct sockaddr_alg
+       parameter specified below for the different cipher types.
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       Invoke bind with the socket descriptor
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       Invoke accept with the socket descriptor. The accept system call
+       returns a new file descriptor that is to be used to interact with
+       the particular cipher instance. When invoking send/write or recv/read
+       system calls to send data to the kernel or obtain data from the
+       kernel, the file descriptor returned by accept must be used.
+      </para>
+     </listitem>
+    </orderedlist>
+   </sect1>
+
+   <sect1><title>In-place Cipher operation</title>
+    <para>
+     Just like the in-kernel operation of the kernel crypto API, the user
+     space interface allows the cipher operation in-place. That means that
+     the input buffer used for the send/write system call and the output
+     buffer used by the read/recv system call may be one and the same.
+     This is of particular interest for symmetric cipher operations where a
+     copying of the output data to its final destination can be avoided.
+    </para>
+
+    <para>
+     If a consumer on the other hand wants to maintain the plaintext and
+     the ciphertext in different memory locations, all a consumer needs
+     to do is to provide different memory pointers for the encryption and
+     decryption operation.
+    </para>
+   </sect1>
+
+   <sect1><title>Message Digest API</title>
+    <para>
+     The message digest type to be used for the cipher operation is
+     selected when invoking the bind syscall. bind requires the caller
+     to provide a filled struct sockaddr data structure. This data
+     structure must be filled as follows:
+    </para>
+
+    <programlisting>
+struct sockaddr_alg sa = {
+	.salg_family = AF_ALG,
+	.salg_type = "hash", /* this selects the hash logic in the kernel */
+	.salg_name = "sha1" /* this is the cipher name */
+};
+    </programlisting>
+
+    <para>
+     The salg_type value "hash" applies to message digests and keyed
+     message digests. Though, a keyed message digest is referenced by
+     the appropriate salg_name. Please see below for the setsockopt
+     interface that explains how the key can be set for a keyed message
+     digest.
+    </para>
+
+    <para>
+     Using the send() system call, the application provides the data that
+     should be processed with the message digest. The send system call
+     allows the following flags to be specified:
+    </para>
+
+    <itemizedlist>
+     <listitem>
+      <para>
+       MSG_MORE: If this flag is set, the send system call acts like a
+       message digest update function where the final hash is not
+       yet calculated. If the flag is not set, the send system call
+       calculates the final message digest immediately.
+      </para>
+     </listitem>
+    </itemizedlist>
+
+    <para>
+     With the recv() system call, the application can read the message
+     digest from the kernel crypto API. If the buffer is too small for the
+     message digest, the flag MSG_TRUNC is set by the kernel.
+    </para>
+
+    <para>
+     In order to set a message digest key, the calling application must use
+     the setsockopt() option of ALG_SET_KEY. If the key is not set the HMAC
+     operation is performed without the initial HMAC state change caused by
+     the key.
+    </para>
+   </sect1>
+
+   <sect1><title>Symmetric Cipher API</title>
+    <para>
+     The operation is very similar to the message digest discussion.
+     During initialization, the struct sockaddr data structure must be
+     filled as follows:
+    </para>
+
+    <programlisting>
+struct sockaddr_alg sa = {
+	.salg_family = AF_ALG,
+	.salg_type = "skcipher", /* this selects the symmetric cipher */
+	.salg_name = "cbc(aes)" /* this is the cipher name */
+};
+    </programlisting>
+
+    <para>
+     Before data can be sent to the kernel using the write/send system
+     call family, the consumer must set the key. The key setting is
+     described with the setsockopt invocation below.
+    </para>
+
+    <para>
+     Using the sendmsg() system call, the application provides the data that should be processed for encryption or decryption. In addition, the IV is
+     specified with the data structure provided by the sendmsg() system call.
+    </para>
+
+    <para>
+     The sendmsg system call parameter of struct msghdr is embedded into the
+     struct cmsghdr data structure. See recv(2) and cmsg(3) for more
+     information on how the cmsghdr data structure is used together with the
+     send/recv system call family. That cmsghdr data structure holds the
+     following information specified with a separate header instances:
+    </para>
+
+    <itemizedlist>
+     <listitem>
+      <para>
+       specification of the cipher operation type with one of these flags:
+      </para>
+      <itemizedlist>
+       <listitem>
+        <para>ALG_OP_ENCRYPT - encryption of data</para>
+       </listitem>
+       <listitem>
+        <para>ALG_OP_DECRYPT - decryption of data</para>
+       </listitem>
+      </itemizedlist>
+     </listitem>
+
+     <listitem>
+      <para>
+       specification of the IV information marked with the flag ALG_SET_IV
+      </para>
+     </listitem>
+    </itemizedlist>
+
+    <para>
+     The send system call family allows the following flag to be specified:
+    </para>
+
+    <itemizedlist>
+     <listitem>
+      <para>
+       MSG_MORE: If this flag is set, the send system call acts like a
+       cipher update function where more input data is expected
+       with a subsequent invocation of the send system call.
+      </para>
+     </listitem>
+    </itemizedlist>
+
+    <para>
+     Note: The kernel reports -EINVAL for any unexpected data. The caller
+     must make sure that all data matches the constraints given in
+     /proc/crypto for the selected cipher.
+    </para>
+
+    <para>
+     With the recv() system call, the application can read the result of
+     the cipher operation from the kernel crypto API. The output buffer
+     must be at least as large as to hold all blocks of the encrypted or
+     decrypted data. If the output data size is smaller, only as many
+     blocks are returned that fit into that output buffer size.
+    </para>
+   </sect1>
+
+   <sect1><title>AEAD Cipher API</title>
+    <para>
+     The operation is very similar to the symmetric cipher discussion.
+     During initialization, the struct sockaddr data structure must be
+     filled as follows:
+    </para>
+
+    <programlisting>
+struct sockaddr_alg sa = {
+	.salg_family = AF_ALG,
+	.salg_type = "aead", /* this selects the symmetric cipher */
+	.salg_name = "gcm(aes)" /* this is the cipher name */
+};
+    </programlisting>
+
+    <para>
+     Before data can be sent to the kernel using the write/send system
+     call family, the consumer must set the key. The key setting is
+     described with the setsockopt invocation below.
+    </para>
+
+    <para>
+     In addition, before data can be sent to the kernel using the
+     write/send system call family, the consumer must set the authentication
+     tag size. To set the authentication tag size, the caller must use the
+     setsockopt invocation described below.
+    </para>
+
+    <para>
+     Using the sendmsg() system call, the application provides the data that should be processed for encryption or decryption. In addition, the IV is
+     specified with the data structure provided by the sendmsg() system call.
+    </para>
+
+    <para>
+     The sendmsg system call parameter of struct msghdr is embedded into the
+     struct cmsghdr data structure. See recv(2) and cmsg(3) for more
+     information on how the cmsghdr data structure is used together with the
+     send/recv system call family. That cmsghdr data structure holds the
+     following information specified with a separate header instances:
+    </para>
+
+    <itemizedlist>
+     <listitem>
+      <para>
+       specification of the cipher operation type with one of these flags:
+      </para>
+      <itemizedlist>
+       <listitem>
+        <para>ALG_OP_ENCRYPT - encryption of data</para>
+       </listitem>
+       <listitem>
+        <para>ALG_OP_DECRYPT - decryption of data</para>
+       </listitem>
+      </itemizedlist>
+     </listitem>
+
+     <listitem>
+      <para>
+       specification of the IV information marked with the flag ALG_SET_IV
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       specification of the associated authentication data (AAD) with the
+       flag ALG_SET_AEAD_ASSOCLEN. The AAD is sent to the kernel together
+       with the plaintext / ciphertext. See below for the memory structure.
+      </para>
+     </listitem>
+    </itemizedlist>
+
+    <para>
+     The send system call family allows the following flag to be specified:
+    </para>
+
+    <itemizedlist>
+     <listitem>
+      <para>
+       MSG_MORE: If this flag is set, the send system call acts like a
+       cipher update function where more input data is expected
+       with a subsequent invocation of the send system call.
+      </para>
+     </listitem>
+    </itemizedlist>
+
+    <para>
+     Note: The kernel reports -EINVAL for any unexpected data. The caller
+     must make sure that all data matches the constraints given in
+     /proc/crypto for the selected cipher.
+    </para>
+
+    <para>
+     With the recv() system call, the application can read the result of
+     the cipher operation from the kernel crypto API. The output buffer
+     must be at least as large as defined with the memory structure below.
+     If the output data size is smaller, the cipher operation is not performed.
+    </para>
+
+    <para>
+     The authenticated decryption operation may indicate an integrity error.
+     Such breach in integrity is marked with the -EBADMSG error code.
+    </para>
+
+    <sect2><title>AEAD Memory Structure</title>
+     <para>
+      The AEAD cipher operates with the following information that
+      is communicated between user and kernel space as one data stream:
+     </para>
+
+     <itemizedlist>
+      <listitem>
+       <para>plaintext or ciphertext</para>
+      </listitem>
+
+      <listitem>
+       <para>associated authentication data (AAD)</para>
+      </listitem>
+
+      <listitem>
+       <para>authentication tag</para>
+      </listitem>
+     </itemizedlist>
+
+     <para>
+      The sizes of the AAD and the authentication tag are provided with
+      the sendmsg and setsockopt calls (see there). As the kernel knows
+      the size of the entire data stream, the kernel is now able to
+      calculate the right offsets of the data components in the data
+      stream.
+     </para>
+
+     <para>
+      The user space caller must arrange the aforementioned information
+      in the following order:
+     </para>
+
+     <itemizedlist>
+      <listitem>
+       <para>
+        AEAD encryption input: AAD || plaintext
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+        AEAD decryption input: AAD || ciphertext || authentication tag
+       </para>
+      </listitem>
+     </itemizedlist>
+
+     <para>
+      The output buffer the user space caller provides must be at least as
+      large to hold the following data:
+     </para>
+
+     <itemizedlist>
+      <listitem>
+       <para>
+        AEAD encryption output: ciphertext || authentication tag
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+        AEAD decryption output: plaintext
+       </para>
+      </listitem>
+     </itemizedlist>
+    </sect2>
+   </sect1>
+
+   <sect1><title>Random Number Generator API</title>
+    <para>
+     Again, the operation is very similar to the other APIs.
+     During initialization, the struct sockaddr data structure must be
+     filled as follows:
+    </para>
+
+    <programlisting>
+struct sockaddr_alg sa = {
+	.salg_family = AF_ALG,
+	.salg_type = "rng", /* this selects the symmetric cipher */
+	.salg_name = "drbg_nopr_sha256" /* this is the cipher name */
+};
+    </programlisting>
+
+    <para>
+     Depending on the RNG type, the RNG must be seeded. The seed is provided
+     using the setsockopt interface to set the key. For example, the
+     ansi_cprng requires a seed. The DRBGs do not require a seed, but
+     may be seeded.
+    </para>
+
+    <para>
+     Using the read()/recvmsg() system calls, random numbers can be obtained.
+     The kernel generates at most 128 bytes in one call. If user space
+     requires more data, multiple calls to read()/recvmsg() must be made.
+    </para>
+
+    <para>
+     WARNING: The user space caller may invoke the initially mentioned
+     accept system call multiple times. In this case, the returned file
+     descriptors have the same state.
+    </para>
+
+   </sect1>
+
+   <sect1><title>Zero-Copy Interface</title>
+    <para>
+     In addition to the send/write/read/recv system call family, the AF_ALG
+     interface can be accessed with the zero-copy interface of splice/vmsplice.
+     As the name indicates, the kernel tries to avoid a copy operation into
+     kernel space.
+    </para>
+
+    <para>
+     The zero-copy operation requires data to be aligned at the page boundary.
+     Non-aligned data can be used as well, but may require more operations of
+     the kernel which would defeat the speed gains obtained from the zero-copy
+     interface.
+    </para>
+
+    <para>
+     The system-interent limit for the size of one zero-copy operation is
+     16 pages. If more data is to be sent to AF_ALG, user space must slice
+     the input into segments with a maximum size of 16 pages.
+    </para>
+
+    <para>
+     Zero-copy can be used with the following code example (a complete working
+     example is provided with libkcapi):
+    </para>
+
+    <programlisting>
+int pipes[2];
+
+pipe(pipes);
+/* input data in iov */
+vmsplice(pipes[1], iov, iovlen, SPLICE_F_GIFT);
+/* opfd is the file descriptor returned from accept() system call */
+splice(pipes[0], NULL, opfd, NULL, ret, 0);
+read(opfd, out, outlen);
+    </programlisting>
+
+   </sect1>
+
+   <sect1><title>Setsockopt Interface</title>
+    <para>
+     In addition to the read/recv and send/write system call handling
+     to send and retrieve data subject to the cipher operation, a consumer
+     also needs to set the additional information for the cipher operation.
+     This additional information is set using the setsockopt system call
+     that must be invoked with the file descriptor of the open cipher
+     (i.e. the file descriptor returned by the accept system call).
+    </para>
+
+    <para>
+     Each setsockopt invocation must use the level SOL_ALG.
+    </para>
+
+    <para>
+     The setsockopt interface allows setting the following data using
+     the mentioned optname:
+    </para>
+
+    <itemizedlist>
+     <listitem>
+      <para>
+       ALG_SET_KEY -- Setting the key. Key setting is applicable to:
+      </para>
+      <itemizedlist>
+       <listitem>
+        <para>the skcipher cipher type (symmetric ciphers)</para>
+       </listitem>
+       <listitem>
+        <para>the hash cipher type (keyed message digests)</para>
+       </listitem>
+       <listitem>
+        <para>the AEAD cipher type</para>
+       </listitem>
+       <listitem>
+        <para>the RNG cipher type to provide the seed</para>
+       </listitem>
+      </itemizedlist>
+     </listitem>
+
+     <listitem>
+      <para>
+       ALG_SET_AEAD_AUTHSIZE -- Setting the authentication tag size
+       for AEAD ciphers. For a encryption operation, the authentication
+       tag of the given size will be generated. For a decryption operation,
+       the provided ciphertext is assumed to contain an authentication tag
+       of the given size (see section about AEAD memory layout below).
+      </para>
+     </listitem>
+    </itemizedlist>
+
+   </sect1>
+
+   <sect1><title>User space API example</title>
+    <para>
+     Please see [1] for libkcapi which provides an easy-to-use wrapper
+     around the aforementioned Netlink kernel interface. [1] also contains
+     a test application that invokes all libkcapi API calls.
+    </para>
+
+    <para>
+     [1] <ulink url="http://www.chronox.de/libkcapi.html">http://www.chronox.de/libkcapi.html</ulink>
+    </para>
+
+   </sect1>
+
+  </chapter>
+
+  <chapter id="API"><title>Programming Interface</title>
+   <para>
+    Please note that the kernel crypto API contains the AEAD givcrypt
+    API (crypto_aead_giv* and aead_givcrypt_* function calls in
+    include/crypto/aead.h). This API is obsolete and will be removed
+    in the future. To obtain the functionality of an AEAD cipher with
+    internal IV generation, use the IV generator as a regular cipher.
+    For example, rfc4106(gcm(aes)) is the AEAD cipher with external
+    IV generation and seqniv(rfc4106(gcm(aes))) implies that the kernel
+    crypto API generates the IV. Different IV generators are available.
+   </para>
+   <sect1><title>Block Cipher Context Data Structures</title>
+!Pinclude/linux/crypto.h Block Cipher Context Data Structures
+!Finclude/crypto/aead.h aead_request
+   </sect1>
+   <sect1><title>Block Cipher Algorithm Definitions</title>
+!Pinclude/linux/crypto.h Block Cipher Algorithm Definitions
+!Finclude/linux/crypto.h crypto_alg
+!Finclude/linux/crypto.h ablkcipher_alg
+!Finclude/crypto/aead.h aead_alg
+!Finclude/linux/crypto.h blkcipher_alg
+!Finclude/linux/crypto.h cipher_alg
+!Finclude/crypto/rng.h rng_alg
+   </sect1>
+   <sect1><title>Asynchronous Block Cipher API</title>
+!Pinclude/linux/crypto.h Asynchronous Block Cipher API
+!Finclude/linux/crypto.h crypto_alloc_ablkcipher
+!Finclude/linux/crypto.h crypto_free_ablkcipher
+!Finclude/linux/crypto.h crypto_has_ablkcipher
+!Finclude/linux/crypto.h crypto_ablkcipher_ivsize
+!Finclude/linux/crypto.h crypto_ablkcipher_blocksize
+!Finclude/linux/crypto.h crypto_ablkcipher_setkey
+!Finclude/linux/crypto.h crypto_ablkcipher_reqtfm
+!Finclude/linux/crypto.h crypto_ablkcipher_encrypt
+!Finclude/linux/crypto.h crypto_ablkcipher_decrypt
+   </sect1>
+   <sect1><title>Asynchronous Cipher Request Handle</title>
+!Pinclude/linux/crypto.h Asynchronous Cipher Request Handle
+!Finclude/linux/crypto.h crypto_ablkcipher_reqsize
+!Finclude/linux/crypto.h ablkcipher_request_set_tfm
+!Finclude/linux/crypto.h ablkcipher_request_alloc
+!Finclude/linux/crypto.h ablkcipher_request_free
+!Finclude/linux/crypto.h ablkcipher_request_set_callback
+!Finclude/linux/crypto.h ablkcipher_request_set_crypt
+   </sect1>
+   <sect1><title>Authenticated Encryption With Associated Data (AEAD) Cipher API</title>
+!Pinclude/crypto/aead.h Authenticated Encryption With Associated Data (AEAD) Cipher API
+!Finclude/crypto/aead.h crypto_alloc_aead
+!Finclude/crypto/aead.h crypto_free_aead
+!Finclude/crypto/aead.h crypto_aead_ivsize
+!Finclude/crypto/aead.h crypto_aead_authsize
+!Finclude/crypto/aead.h crypto_aead_blocksize
+!Finclude/crypto/aead.h crypto_aead_setkey
+!Finclude/crypto/aead.h crypto_aead_setauthsize
+!Finclude/crypto/aead.h crypto_aead_encrypt
+!Finclude/crypto/aead.h crypto_aead_decrypt
+   </sect1>
+   <sect1><title>Asynchronous AEAD Request Handle</title>
+!Pinclude/crypto/aead.h Asynchronous AEAD Request Handle
+!Finclude/crypto/aead.h crypto_aead_reqsize
+!Finclude/crypto/aead.h aead_request_set_tfm
+!Finclude/crypto/aead.h aead_request_alloc
+!Finclude/crypto/aead.h aead_request_free
+!Finclude/crypto/aead.h aead_request_set_callback
+!Finclude/crypto/aead.h aead_request_set_crypt
+!Finclude/crypto/aead.h aead_request_set_assoc
+!Finclude/crypto/aead.h aead_request_set_ad
+   </sect1>
+   <sect1><title>Synchronous Block Cipher API</title>
+!Pinclude/linux/crypto.h Synchronous Block Cipher API
+!Finclude/linux/crypto.h crypto_alloc_blkcipher
+!Finclude/linux/crypto.h crypto_free_blkcipher
+!Finclude/linux/crypto.h crypto_has_blkcipher
+!Finclude/linux/crypto.h crypto_blkcipher_name
+!Finclude/linux/crypto.h crypto_blkcipher_ivsize
+!Finclude/linux/crypto.h crypto_blkcipher_blocksize
+!Finclude/linux/crypto.h crypto_blkcipher_setkey
+!Finclude/linux/crypto.h crypto_blkcipher_encrypt
+!Finclude/linux/crypto.h crypto_blkcipher_encrypt_iv
+!Finclude/linux/crypto.h crypto_blkcipher_decrypt
+!Finclude/linux/crypto.h crypto_blkcipher_decrypt_iv
+!Finclude/linux/crypto.h crypto_blkcipher_set_iv
+!Finclude/linux/crypto.h crypto_blkcipher_get_iv
+   </sect1>
+   <sect1><title>Single Block Cipher API</title>
+!Pinclude/linux/crypto.h Single Block Cipher API
+!Finclude/linux/crypto.h crypto_alloc_cipher
+!Finclude/linux/crypto.h crypto_free_cipher
+!Finclude/linux/crypto.h crypto_has_cipher
+!Finclude/linux/crypto.h crypto_cipher_blocksize
+!Finclude/linux/crypto.h crypto_cipher_setkey
+!Finclude/linux/crypto.h crypto_cipher_encrypt_one
+!Finclude/linux/crypto.h crypto_cipher_decrypt_one
+   </sect1>
+   <sect1><title>Synchronous Message Digest API</title>
+!Pinclude/linux/crypto.h Synchronous Message Digest API
+!Finclude/linux/crypto.h crypto_alloc_hash
+!Finclude/linux/crypto.h crypto_free_hash
+!Finclude/linux/crypto.h crypto_has_hash
+!Finclude/linux/crypto.h crypto_hash_blocksize
+!Finclude/linux/crypto.h crypto_hash_digestsize
+!Finclude/linux/crypto.h crypto_hash_init
+!Finclude/linux/crypto.h crypto_hash_update
+!Finclude/linux/crypto.h crypto_hash_final
+!Finclude/linux/crypto.h crypto_hash_digest
+!Finclude/linux/crypto.h crypto_hash_setkey
+   </sect1>
+   <sect1><title>Message Digest Algorithm Definitions</title>
+!Pinclude/crypto/hash.h Message Digest Algorithm Definitions
+!Finclude/crypto/hash.h hash_alg_common
+!Finclude/crypto/hash.h ahash_alg
+!Finclude/crypto/hash.h shash_alg
+   </sect1>
+   <sect1><title>Asynchronous Message Digest API</title>
+!Pinclude/crypto/hash.h Asynchronous Message Digest API
+!Finclude/crypto/hash.h crypto_alloc_ahash
+!Finclude/crypto/hash.h crypto_free_ahash
+!Finclude/crypto/hash.h crypto_ahash_init
+!Finclude/crypto/hash.h crypto_ahash_digestsize
+!Finclude/crypto/hash.h crypto_ahash_reqtfm
+!Finclude/crypto/hash.h crypto_ahash_reqsize
+!Finclude/crypto/hash.h crypto_ahash_setkey
+!Finclude/crypto/hash.h crypto_ahash_finup
+!Finclude/crypto/hash.h crypto_ahash_final
+!Finclude/crypto/hash.h crypto_ahash_digest
+!Finclude/crypto/hash.h crypto_ahash_export
+!Finclude/crypto/hash.h crypto_ahash_import
+   </sect1>
+   <sect1><title>Asynchronous Hash Request Handle</title>
+!Pinclude/crypto/hash.h Asynchronous Hash Request Handle
+!Finclude/crypto/hash.h ahash_request_set_tfm
+!Finclude/crypto/hash.h ahash_request_alloc
+!Finclude/crypto/hash.h ahash_request_free
+!Finclude/crypto/hash.h ahash_request_set_callback
+!Finclude/crypto/hash.h ahash_request_set_crypt
+   </sect1>
+   <sect1><title>Synchronous Message Digest API</title>
+!Pinclude/crypto/hash.h Synchronous Message Digest API
+!Finclude/crypto/hash.h crypto_alloc_shash
+!Finclude/crypto/hash.h crypto_free_shash
+!Finclude/crypto/hash.h crypto_shash_blocksize
+!Finclude/crypto/hash.h crypto_shash_digestsize
+!Finclude/crypto/hash.h crypto_shash_descsize
+!Finclude/crypto/hash.h crypto_shash_setkey
+!Finclude/crypto/hash.h crypto_shash_digest
+!Finclude/crypto/hash.h crypto_shash_export
+!Finclude/crypto/hash.h crypto_shash_import
+!Finclude/crypto/hash.h crypto_shash_init
+!Finclude/crypto/hash.h crypto_shash_update
+!Finclude/crypto/hash.h crypto_shash_final
+!Finclude/crypto/hash.h crypto_shash_finup
+   </sect1>
+   <sect1><title>Crypto API Random Number API</title>
+!Pinclude/crypto/rng.h Random number generator API
+!Finclude/crypto/rng.h crypto_alloc_rng
+!Finclude/crypto/rng.h crypto_rng_alg
+!Finclude/crypto/rng.h crypto_free_rng
+!Finclude/crypto/rng.h crypto_rng_get_bytes
+!Finclude/crypto/rng.h crypto_rng_reset
+!Finclude/crypto/rng.h crypto_rng_seedsize
+!Cinclude/crypto/rng.h
+   </sect1>
+  </chapter>
+
+  <chapter id="Code"><title>Code Examples</title>
+   <sect1><title>Code Example For Asynchronous Block Cipher Operation</title>
+    <programlisting>
+
+struct tcrypt_result {
+	struct completion completion;
+	int err;
+};
+
+/* tie all data structures together */
+struct ablkcipher_def {
+	struct scatterlist sg;
+	struct crypto_ablkcipher *tfm;
+	struct ablkcipher_request *req;
+	struct tcrypt_result result;
+};
+
+/* Callback function */
+static void test_ablkcipher_cb(struct crypto_async_request *req, int error)
+{
+	struct tcrypt_result *result = req-&gt;data;
+
+	if (error == -EINPROGRESS)
+		return;
+	result-&gt;err = error;
+	complete(&amp;result-&gt;completion);
+	pr_info("Encryption finished successfully\n");
+}
+
+/* Perform cipher operation */
+static unsigned int test_ablkcipher_encdec(struct ablkcipher_def *ablk,
+					   int enc)
+{
+	int rc = 0;
+
+	if (enc)
+		rc = crypto_ablkcipher_encrypt(ablk-&gt;req);
+	else
+		rc = crypto_ablkcipher_decrypt(ablk-&gt;req);
+
+	switch (rc) {
+	case 0:
+		break;
+	case -EINPROGRESS:
+	case -EBUSY:
+		rc = wait_for_completion_interruptible(
+			&amp;ablk-&gt;result.completion);
+		if (!rc &amp;&amp; !ablk-&gt;result.err) {
+			reinit_completion(&amp;ablk-&gt;result.completion);
+			break;
+		}
+	default:
+		pr_info("ablkcipher encrypt returned with %d result %d\n",
+		       rc, ablk-&gt;result.err);
+		break;
+	}
+	init_completion(&amp;ablk-&gt;result.completion);
+
+	return rc;
+}
+
+/* Initialize and trigger cipher operation */
+static int test_ablkcipher(void)
+{
+	struct ablkcipher_def ablk;
+	struct crypto_ablkcipher *ablkcipher = NULL;
+	struct ablkcipher_request *req = NULL;
+	char *scratchpad = NULL;
+	char *ivdata = NULL;
+	unsigned char key[32];
+	int ret = -EFAULT;
+
+	ablkcipher = crypto_alloc_ablkcipher("cbc-aes-aesni", 0, 0);
+	if (IS_ERR(ablkcipher)) {
+		pr_info("could not allocate ablkcipher handle\n");
+		return PTR_ERR(ablkcipher);
+	}
+
+	req = ablkcipher_request_alloc(ablkcipher, GFP_KERNEL);
+	if (IS_ERR(req)) {
+		pr_info("could not allocate request queue\n");
+		ret = PTR_ERR(req);
+		goto out;
+	}
+
+	ablkcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+					test_ablkcipher_cb,
+					&amp;ablk.result);
+
+	/* AES 256 with random key */
+	get_random_bytes(&amp;key, 32);
+	if (crypto_ablkcipher_setkey(ablkcipher, key, 32)) {
+		pr_info("key could not be set\n");
+		ret = -EAGAIN;
+		goto out;
+	}
+
+	/* IV will be random */
+	ivdata = kmalloc(16, GFP_KERNEL);
+	if (!ivdata) {
+		pr_info("could not allocate ivdata\n");
+		goto out;
+	}
+	get_random_bytes(ivdata, 16);
+
+	/* Input data will be random */
+	scratchpad = kmalloc(16, GFP_KERNEL);
+	if (!scratchpad) {
+		pr_info("could not allocate scratchpad\n");
+		goto out;
+	}
+	get_random_bytes(scratchpad, 16);
+
+	ablk.tfm = ablkcipher;
+	ablk.req = req;
+
+	/* We encrypt one block */
+	sg_init_one(&amp;ablk.sg, scratchpad, 16);
+	ablkcipher_request_set_crypt(req, &amp;ablk.sg, &amp;ablk.sg, 16, ivdata);
+	init_completion(&amp;ablk.result.completion);
+
+	/* encrypt data */
+	ret = test_ablkcipher_encdec(&amp;ablk, 1);
+	if (ret)
+		goto out;
+
+	pr_info("Encryption triggered successfully\n");
+
+out:
+	if (ablkcipher)
+		crypto_free_ablkcipher(ablkcipher);
+	if (req)
+		ablkcipher_request_free(req);
+	if (ivdata)
+		kfree(ivdata);
+	if (scratchpad)
+		kfree(scratchpad);
+	return ret;
+}
+    </programlisting>
+   </sect1>
+
+   <sect1><title>Code Example For Synchronous Block Cipher Operation</title>
+    <programlisting>
+
+static int test_blkcipher(void)
+{
+	struct crypto_blkcipher *blkcipher = NULL;
+	char *cipher = "cbc(aes)";
+	// AES 128
+	charkey =
+"\x12\x34\x56\x78\x90\xab\xcd\xef\x12\x34\x56\x78\x90\xab\xcd\xef";
+	chariv =
+"\x12\x34\x56\x78\x90\xab\xcd\xef\x12\x34\x56\x78\x90\xab\xcd\xef";
+	unsigned int ivsize = 0;
+	char *scratchpad = NULL; // holds plaintext and ciphertext
+	struct scatterlist sg;
+	struct blkcipher_desc desc;
+	int ret = -EFAULT;
+
+	blkcipher = crypto_alloc_blkcipher(cipher, 0, 0);
+	if (IS_ERR(blkcipher)) {
+		printk("could not allocate blkcipher handle for %s\n", cipher);
+		return -PTR_ERR(blkcipher);
+	}
+
+	if (crypto_blkcipher_setkey(blkcipher, key, strlen(key))) {
+		printk("key could not be set\n");
+		ret = -EAGAIN;
+		goto out;
+	}
+
+	ivsize = crypto_blkcipher_ivsize(blkcipher);
+	if (ivsize) {
+		if (ivsize != strlen(iv))
+			printk("IV length differs from expected length\n");
+		crypto_blkcipher_set_iv(blkcipher, iv, ivsize);
+	}
+
+	scratchpad = kmalloc(crypto_blkcipher_blocksize(blkcipher), GFP_KERNEL);
+	if (!scratchpad) {
+		printk("could not allocate scratchpad for %s\n", cipher);
+		goto out;
+	}
+	/* get some random data that we want to encrypt */
+	get_random_bytes(scratchpad, crypto_blkcipher_blocksize(blkcipher));
+
+	desc.flags = 0;
+	desc.tfm = blkcipher;
+	sg_init_one(&amp;sg, scratchpad, crypto_blkcipher_blocksize(blkcipher));
+
+	/* encrypt data in place */
+	crypto_blkcipher_encrypt(&amp;desc, &amp;sg, &amp;sg,
+				 crypto_blkcipher_blocksize(blkcipher));
+
+	/* decrypt data in place
+	 * crypto_blkcipher_decrypt(&amp;desc, &amp;sg, &amp;sg,
+	 */			 crypto_blkcipher_blocksize(blkcipher));
+
+
+	printk("Cipher operation completed\n");
+	return 0;
+
+out:
+	if (blkcipher)
+		crypto_free_blkcipher(blkcipher);
+	if (scratchpad)
+		kzfree(scratchpad);
+	return ret;
+}
+    </programlisting>
+   </sect1>
+
+   <sect1><title>Code Example For Use of Operational State Memory With SHASH</title>
+    <programlisting>
+
+struct sdesc {
+	struct shash_desc shash;
+	char ctx[];
+};
+
+static struct sdescinit_sdesc(struct crypto_shash *alg)
+{
+	struct sdescsdesc;
+	int size;
+
+	size = sizeof(struct shash_desc) + crypto_shash_descsize(alg);
+	sdesc = kmalloc(size, GFP_KERNEL);
+	if (!sdesc)
+		return ERR_PTR(-ENOMEM);
+	sdesc-&gt;shash.tfm = alg;
+	sdesc-&gt;shash.flags = 0x0;
+	return sdesc;
+}
+
+static int calc_hash(struct crypto_shashalg,
+		     const unsigned chardata, unsigned int datalen,
+		     unsigned chardigest) {
+	struct sdescsdesc;
+	int ret;
+
+	sdesc = init_sdesc(alg);
+	if (IS_ERR(sdesc)) {
+		pr_info("trusted_key: can't alloc %s\n", hash_alg);
+		return PTR_ERR(sdesc);
+	}
+
+	ret = crypto_shash_digest(&amp;sdesc-&gt;shash, data, datalen, digest);
+	kfree(sdesc);
+	return ret;
+}
+    </programlisting>
+   </sect1>
+
+   <sect1><title>Code Example For Random Number Generator Usage</title>
+    <programlisting>
+
+static int get_random_numbers(u8 *buf, unsigned int len)
+{
+	struct crypto_rngrng = NULL;
+	chardrbg = "drbg_nopr_sha256"; /* Hash DRBG with SHA-256, no PR */
+	int ret;
+
+	if (!buf || !len) {
+		pr_debug("No output buffer provided\n");
+		return -EINVAL;
+	}
+
+	rng = crypto_alloc_rng(drbg, 0, 0);
+	if (IS_ERR(rng)) {
+		pr_debug("could not allocate RNG handle for %s\n", drbg);
+		return -PTR_ERR(rng);
+	}
+
+	ret = crypto_rng_get_bytes(rng, buf, len);
+	if (ret &lt; 0)
+		pr_debug("generation of random numbers failed\n");
+	else if (ret == 0)
+		pr_debug("RNG returned no data");
+	else
+		pr_debug("RNG returned %d bytes of data\n", ret);
+
+out:
+	crypto_free_rng(rng);
+	return ret;
+}
+    </programlisting>
+   </sect1>
+  </chapter>
+ </book>

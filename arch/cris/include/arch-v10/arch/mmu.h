@@ -58,7 +58,6 @@ typedef struct
 /* Bits the HW doesn't care about but the kernel uses them in SW */
 
 #define _PAGE_PRESENT   (1<<4)  /* page present in memory */
-#define _PAGE_FILE      (1<<5)  /* set: pagecache, unset: swap (when !PRESENT) */
 #define _PAGE_ACCESSED	(1<<5)  /* simulated in software using valid bit */
 #define _PAGE_MODIFIED	(1<<6)  /* simulated in software using we bit */
 #define _PAGE_READ      (1<<7)  /* read-enabled */
@@ -104,7 +103,5 @@ typedef struct
 #define __S101	PAGE_READONLY
 #define __S110	PAGE_SHARED
 #define __S111	PAGE_SHARED
-
-#define PTE_FILE_MAX_BITS	26
 
 #endif

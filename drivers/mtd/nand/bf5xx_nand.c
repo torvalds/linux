@@ -37,7 +37,6 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/ioport.h>
@@ -171,7 +170,7 @@ static struct bf5xx_nand_info *to_nand_info(struct platform_device *pdev)
 
 static struct bf5xx_nand_platform *to_nand_plat(struct platform_device *pdev)
 {
-	return pdev->dev.platform_data;
+	return dev_get_platdata(&pdev->dev);
 }
 
 /*
@@ -567,7 +566,8 @@ static int bf5xx_nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip
 }
 
 static int bf5xx_nand_write_page_raw(struct mtd_info *mtd,
-		struct nand_chip *chip,	const uint8_t *buf, int oob_required)
+		struct nand_chip *chip,	const uint8_t *buf, int oob_required,
+		int page)
 {
 	bf5xx_nand_write_buf(mtd, buf, mtd->writesize);
 	bf5xx_nand_write_buf(mtd, chip->oob_poi, mtd->oobsize);
@@ -671,8 +671,6 @@ static int bf5xx_nand_remove(struct platform_device *pdev)
 {
 	struct bf5xx_nand_info *info = to_nand_info(pdev);
 
-	platform_set_drvdata(pdev, NULL);
-
 	/* first thing we need to do is release all our mtds
 	 * and their partitions, then go through freeing the
 	 * resources used
@@ -681,9 +679,6 @@ static int bf5xx_nand_remove(struct platform_device *pdev)
 
 	peripheral_free_list(bfin_nfc_pin_req);
 	bf5xx_nand_dma_remove(info);
-
-	/* free the common resources */
-	kfree(info);
 
 	return 0;
 }
@@ -745,11 +740,10 @@ static int bf5xx_nand_probe(struct platform_device *pdev)
 		return -EFAULT;
 	}
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (info == NULL) {
-		dev_err(&pdev->dev, "no memory for flash info\n");
 		err = -ENOMEM;
-		goto out_err_kzalloc;
+		goto out_err;
 	}
 
 	platform_set_drvdata(pdev, info);
@@ -789,12 +783,12 @@ static int bf5xx_nand_probe(struct platform_device *pdev)
 	/* initialise mtd info data struct */
 	mtd 		= &info->mtd;
 	mtd->priv	= chip;
-	mtd->owner	= THIS_MODULE;
+	mtd->dev.parent = &pdev->dev;
 
 	/* initialise the hardware */
 	err = bf5xx_nand_hw_init(info);
 	if (err)
-		goto out_err_hw_init;
+		goto out_err;
 
 	/* setup hardware ECC data struct */
 	if (hardware_ecc) {
@@ -831,46 +825,18 @@ static int bf5xx_nand_probe(struct platform_device *pdev)
 
 out_err_nand_scan:
 	bf5xx_nand_dma_remove(info);
-out_err_hw_init:
-	platform_set_drvdata(pdev, NULL);
-	kfree(info);
-out_err_kzalloc:
+out_err:
 	peripheral_free_list(bfin_nfc_pin_req);
 
 	return err;
 }
 
-/* PM Support */
-#ifdef CONFIG_PM
-
-static int bf5xx_nand_suspend(struct platform_device *dev, pm_message_t pm)
-{
-	struct bf5xx_nand_info *info = platform_get_drvdata(dev);
-
-	return 0;
-}
-
-static int bf5xx_nand_resume(struct platform_device *dev)
-{
-	struct bf5xx_nand_info *info = platform_get_drvdata(dev);
-
-	return 0;
-}
-
-#else
-#define bf5xx_nand_suspend NULL
-#define bf5xx_nand_resume NULL
-#endif
-
 /* driver device registration */
 static struct platform_driver bf5xx_nand_driver = {
 	.probe		= bf5xx_nand_probe,
 	.remove		= bf5xx_nand_remove,
-	.suspend	= bf5xx_nand_suspend,
-	.resume		= bf5xx_nand_resume,
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 

@@ -22,7 +22,7 @@
  * and usb-storage.
  *
  * TODO:
- * - usb suspend/resume triggered by sl811 (with PM_RUNTIME)
+ * - usb suspend/resume triggered by sl811
  * - various issues noted in the code
  * - performance work; use both register banks; ...
  * - use urb->iso_frame_desc[] with ISO transfers
@@ -39,7 +39,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
@@ -48,6 +47,8 @@
 #include <linux/usb/hcd.h>
 #include <linux/platform_device.h>
 #include <linux/prefetch.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -62,11 +63,6 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:sl811-hcd");
 
 #define DRIVER_VERSION	"19 May 2005"
-
-
-#ifndef DEBUG
-#	define	STUB_DEBUG_FILE
-#endif
 
 /* for now, use only one transfer register bank */
 #undef	USE_B
@@ -100,7 +96,8 @@ static void port_power(struct sl811 *sl811, int is_on)
 
 	if (sl811->board && sl811->board->port_power) {
 		/* switch VBUS, at 500mA unless hub power budget gets set */
-		DBG("power %s\n", is_on ? "on" : "off");
+		dev_dbg(hcd->self.controller, "power %s\n",
+			is_on ? "on" : "off");
 		sl811->board->port_power(hcd->self.controller, is_on);
 	}
 
@@ -282,7 +279,7 @@ static inline void sofirq_on(struct sl811 *sl811)
 {
 	if (sl811->irq_enable & SL11H_INTMASK_SOFINTR)
 		return;
-	VDBG("sof irq on\n");
+	dev_dbg(sl811_to_hcd(sl811)->self.controller, "sof irq on\n");
 	sl811->irq_enable |= SL11H_INTMASK_SOFINTR;
 }
 
@@ -290,7 +287,7 @@ static inline void sofirq_off(struct sl811 *sl811)
 {
 	if (!(sl811->irq_enable & SL11H_INTMASK_SOFINTR))
 		return;
-	VDBG("sof irq off\n");
+	dev_dbg(sl811_to_hcd(sl811)->self.controller, "sof irq off\n");
 	sl811->irq_enable &= ~SL11H_INTMASK_SOFINTR;
 }
 
@@ -338,7 +335,8 @@ static struct sl811h_ep	*start(struct sl811 *sl811, u8 bank)
 	}
 
 	if (unlikely(list_empty(&ep->hep->urb_list))) {
-		DBG("empty %p queue?\n", ep);
+		dev_dbg(sl811_to_hcd(sl811)->self.controller,
+			"empty %p queue?\n", ep);
 		return NULL;
 	}
 
@@ -391,7 +389,8 @@ static struct sl811h_ep	*start(struct sl811 *sl811, u8 bank)
 		status_packet(sl811, ep, urb, bank, control);
 		break;
 	default:
-		DBG("bad ep%p pid %02x\n", ep, ep->nextpid);
+		dev_dbg(sl811_to_hcd(sl811)->self.controller,
+			"bad ep%p pid %02x\n", ep, ep->nextpid);
 		ep = NULL;
 	}
 	return ep;
@@ -447,7 +446,8 @@ static void finish_request(
 	}
 
 	/* periodic deschedule */
-	DBG("deschedule qh%d/%p branch %d\n", ep->period, ep, ep->branch);
+	dev_dbg(sl811_to_hcd(sl811)->self.controller,
+		"deschedule qh%d/%p branch %d\n", ep->period, ep, ep->branch);
 	for (i = ep->branch; i < PERIODIC_SIZE; i += ep->period) {
 		struct sl811h_ep	*temp;
 		struct sl811h_ep	**prev = &sl811->periodic[i];
@@ -593,7 +593,8 @@ static inline u8 checkdone(struct sl811 *sl811)
 		ctl = sl811_read(sl811, SL811_EP_A(SL11H_HOSTCTLREG));
 		if (ctl & SL11H_HCTLMASK_ARM)
 			sl811_write(sl811, SL811_EP_A(SL11H_HOSTCTLREG), 0);
-		DBG("%s DONE_A: ctrl %02x sts %02x\n",
+		dev_dbg(sl811_to_hcd(sl811)->self.controller,
+			"%s DONE_A: ctrl %02x sts %02x\n",
 			(ctl & SL11H_HCTLMASK_ARM) ? "timeout" : "lost",
 			ctl,
 			sl811_read(sl811, SL811_EP_A(SL11H_PKTSTATREG)));
@@ -604,7 +605,8 @@ static inline u8 checkdone(struct sl811 *sl811)
 		ctl = sl811_read(sl811, SL811_EP_B(SL11H_HOSTCTLREG));
 		if (ctl & SL11H_HCTLMASK_ARM)
 			sl811_write(sl811, SL811_EP_B(SL11H_HOSTCTLREG), 0);
-		DBG("%s DONE_B: ctrl %02x sts %02x\n",
+		dev_dbg(sl811_to_hcd(sl811)->self.controller,
+			"%s DONE_B: ctrl %02x sts %02x\n",
 			(ctl & SL11H_HCTLMASK_ARM) ? "timeout" : "lost",
 			ctl,
 			sl811_read(sl811, SL811_EP_B(SL11H_PKTSTATREG)));
@@ -665,14 +667,14 @@ retry:
 		 * this one has nothing scheduled.
 		 */
 		if (sl811->next_periodic) {
-			// ERR("overrun to slot %d\n", index);
+			// dev_err(hcd->self.controller, "overrun to slot %d\n", index);
 			sl811->stat_overrun++;
 		}
 		if (sl811->periodic[index])
 			sl811->next_periodic = sl811->periodic[index];
 	}
 
-	/* khubd manages debouncing and wakeup */
+	/* hub_wq manages debouncing and wakeup */
 	if (irqstat & SL11H_INTMASK_INSRMV) {
 		sl811->stat_insrmv++;
 
@@ -712,7 +714,7 @@ retry:
 #endif
 
 		/* port status seems weird until after reset, so
-		 * force the reset and make khubd clean up later.
+		 * force the reset and make hub_wq clean up later.
 		 */
 		if (irqstat & SL11H_INTMASK_RD)
 			sl811->port1 &= ~USB_PORT_STAT_CONNECTION;
@@ -723,7 +725,7 @@ retry:
 
 	} else if (irqstat & SL11H_INTMASK_RD) {
 		if (sl811->port1 & USB_PORT_STAT_SUSPEND) {
-			DBG("wakeup\n");
+			dev_dbg(hcd->self.controller, "wakeup\n");
 			sl811->port1 |= USB_PORT_STAT_C_SUSPEND << 16;
 			sl811->stat_wake++;
 		} else
@@ -852,8 +854,9 @@ static int sl811h_urb_enqueue(
 
 		if (ep->maxpacket > H_MAXPACKET) {
 			/* iso packets up to 240 bytes could work... */
-			DBG("dev %d ep%d maxpacket %d\n",
-				udev->devnum, epnum, ep->maxpacket);
+			dev_dbg(hcd->self.controller,
+				"dev %d ep%d maxpacket %d\n", udev->devnum,
+				epnum, ep->maxpacket);
 			retval = -EINVAL;
 			kfree(ep);
 			goto fail;
@@ -917,7 +920,8 @@ static int sl811h_urb_enqueue(
 		 * to share the faster parts of the tree without needing
 		 * dummy/placeholder nodes
 		 */
-		DBG("schedule qh%d/%p branch %d\n", ep->period, ep, ep->branch);
+		dev_dbg(hcd->self.controller, "schedule qh%d/%p branch %d\n",
+			ep->period, ep, ep->branch);
 		for (i = ep->branch; i < PERIODIC_SIZE; i += ep->period) {
 			struct sl811h_ep	**prev = &sl811->periodic[i];
 			struct sl811h_ep	*here = *prev;
@@ -976,7 +980,8 @@ static int sl811h_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		} else if (sl811->active_a == ep) {
 			if (time_before_eq(sl811->jiffies_a, jiffies)) {
 				/* happens a lot with lowspeed?? */
-				DBG("giveup on DONE_A: ctrl %02x sts %02x\n",
+				dev_dbg(hcd->self.controller,
+					"giveup on DONE_A: ctrl %02x sts %02x\n",
 					sl811_read(sl811,
 						SL811_EP_A(SL11H_HOSTCTLREG)),
 					sl811_read(sl811,
@@ -990,7 +995,8 @@ static int sl811h_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		} else if (sl811->active_b == ep) {
 			if (time_before_eq(sl811->jiffies_a, jiffies)) {
 				/* happens a lot with lowspeed?? */
-				DBG("giveup on DONE_B: ctrl %02x sts %02x\n",
+				dev_dbg(hcd->self.controller,
+					"giveup on DONE_B: ctrl %02x sts %02x\n",
 					sl811_read(sl811,
 						SL811_EP_B(SL11H_HOSTCTLREG)),
 					sl811_read(sl811,
@@ -1008,7 +1014,8 @@ static int sl811h_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		if (urb)
 			finish_request(sl811, ep, urb, 0);
 		else
-			VDBG("dequeue, urb %p active %s; wait4irq\n", urb,
+			dev_dbg(sl811_to_hcd(sl811)->self.controller,
+				"dequeue, urb %p active %s; wait4irq\n", urb,
 				(sl811->active_a == ep) ? "A" : "B");
 	} else
 		retval = -EINVAL;
@@ -1029,7 +1036,7 @@ sl811h_endpoint_disable(struct usb_hcd *hcd, struct usb_host_endpoint *hep)
 	if (!list_empty(&hep->urb_list))
 		msleep(3);
 	if (!list_empty(&hep->urb_list))
-		WARNING("ep %p not empty?\n", ep);
+		dev_warn(hcd->self.controller, "ep %p not empty?\n", ep);
 
 	kfree(ep);
 	hep->hcpriv = NULL;
@@ -1072,7 +1079,7 @@ sl811h_hub_status_data(struct usb_hcd *hcd, char *buf)
 	if (!(sl811->port1 & (0xffff << 16)))
 		return 0;
 
-	/* tell khubd port 1 changed */
+	/* tell hub_wq port 1 changed */
 	*buf = (1 << 1);
 	return 1;
 }
@@ -1084,7 +1091,7 @@ sl811h_hub_descriptor (
 ) {
 	u16		temp = 0;
 
-	desc->bDescriptorType = 0x29;
+	desc->bDescriptorType = USB_DT_HUB;
 	desc->bHubContrCurrent = 0;
 
 	desc->bNbrPorts = 1;
@@ -1096,12 +1103,12 @@ sl811h_hub_descriptor (
 		desc->bPwrOn2PwrGood = sl811->board->potpg;
 		if (!desc->bPwrOn2PwrGood)
 			desc->bPwrOn2PwrGood = 10;
-		temp = 0x0001;
+		temp = HUB_CHAR_INDV_PORT_LPSM;
 	} else
-		temp = 0x0002;
+		temp = HUB_CHAR_NO_LPSM;
 
 	/* no overcurrent errors detection/handling */
-	temp |= 0x0010;
+	temp |= HUB_CHAR_NO_OCPM;
 
 	desc->wHubCharacteristics = cpu_to_le16(temp);
 
@@ -1132,7 +1139,7 @@ sl811h_timer(unsigned long _sl811)
 
 	switch (signaling) {
 	case SL11H_CTL1MASK_SE0:
-		DBG("end reset\n");
+		dev_dbg(sl811_to_hcd(sl811)->self.controller, "end reset\n");
 		sl811->port1 = (USB_PORT_STAT_C_RESET << 16)
 				 | USB_PORT_STAT_POWER;
 		sl811->ctrl1 = 0;
@@ -1141,11 +1148,12 @@ sl811h_timer(unsigned long _sl811)
 			irqstat &= ~SL11H_INTMASK_RD;
 		break;
 	case SL11H_CTL1MASK_K:
-		DBG("end resume\n");
+		dev_dbg(sl811_to_hcd(sl811)->self.controller, "end resume\n");
 		sl811->port1 &= ~USB_PORT_STAT_SUSPEND;
 		break;
 	default:
-		DBG("odd timer signaling: %02x\n", signaling);
+		dev_dbg(sl811_to_hcd(sl811)->self.controller,
+			"odd timer signaling: %02x\n", signaling);
 		break;
 	}
 	sl811_write(sl811, SL11H_IRQ_STATUS, irqstat);
@@ -1188,7 +1196,7 @@ sl811h_timer(unsigned long _sl811)
 		sl811_write(sl811, SL811_EP_A(SL11H_HOSTCTLREG),
 				SL11H_HCTLMASK_ARM);
 
-		/* khubd provides debounce delay */
+		/* hub_wq provides debounce delay */
 	} else {
 		sl811->ctrl1 = 0;
 	}
@@ -1243,7 +1251,7 @@ sl811h_hub_control(
 				break;
 
 			/* 20 msec of resume/K signaling, other irqs blocked */
-			DBG("start resume...\n");
+			dev_dbg(hcd->self.controller, "start resume...\n");
 			sl811->irq_enable = 0;
 			sl811_write(sl811, SL11H_IRQ_ENABLE,
 						sl811->irq_enable);
@@ -1251,7 +1259,7 @@ sl811h_hub_control(
 			sl811_write(sl811, SL11H_CTLREG1, sl811->ctrl1);
 
 			mod_timer(&sl811->timer, jiffies
-					+ msecs_to_jiffies(20));
+					+ msecs_to_jiffies(USB_RESUME_TIMEOUT));
 			break;
 		case USB_PORT_FEAT_POWER:
 			port_power(sl811, 0);
@@ -1281,7 +1289,8 @@ sl811h_hub_control(
 #ifndef	VERBOSE
 	if (*(u16*)(buf+2))	/* only if wPortChange is interesting */
 #endif
-		DBG("GetPortStatus %08x\n", sl811->port1);
+		dev_dbg(hcd->self.controller, "GetPortStatus %08x\n",
+			sl811->port1);
 		break;
 	case SetPortFeature:
 		if (wIndex != 1 || wLength != 0)
@@ -1293,7 +1302,7 @@ sl811h_hub_control(
 			if (!(sl811->port1 & USB_PORT_STAT_ENABLE))
 				goto error;
 
-			DBG("suspend...\n");
+			dev_dbg(hcd->self.controller,"suspend...\n");
 			sl811->ctrl1 &= ~SL11H_CTL1MASK_SOF_ENA;
 			sl811_write(sl811, SL11H_CTLREG1, sl811->ctrl1);
 			break;
@@ -1338,7 +1347,7 @@ static int
 sl811h_bus_suspend(struct usb_hcd *hcd)
 {
 	// SOFs off
-	DBG("%s\n", __func__);
+	dev_dbg(hcd->self.controller, "%s\n", __func__);
 	return 0;
 }
 
@@ -1346,7 +1355,7 @@ static int
 sl811h_bus_resume(struct usb_hcd *hcd)
 {
 	// SOFs on
-	DBG("%s\n", __func__);
+	dev_dbg(hcd->self.controller, "%s\n", __func__);
 	return 0;
 }
 
@@ -1360,16 +1369,6 @@ sl811h_bus_resume(struct usb_hcd *hcd)
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef STUB_DEBUG_FILE
-
-static inline void create_debug_file(struct sl811 *sl811) { }
-static inline void remove_debug_file(struct sl811 *sl811) { }
-
-#else
-
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-
 static void dump_irq(struct seq_file *s, char *label, u8 mask)
 {
 	seq_printf(s, "%s %02x%s%s%s%s%s%s\n", label, mask,
@@ -1381,7 +1380,7 @@ static void dump_irq(struct seq_file *s, char *label, u8 mask)
 		(mask & SL11H_INTMASK_DP) ? " dp" : "");
 }
 
-static int proc_sl811h_show(struct seq_file *s, void *unused)
+static int sl811h_show(struct seq_file *s, void *unused)
 {
 	struct sl811		*sl811 = s->private;
 	struct sl811h_ep	*ep;
@@ -1413,7 +1412,7 @@ static int proc_sl811h_show(struct seq_file *s, void *unused)
 			case SL11H_CTL1MASK_SE0: s = " se0/reset"; break;
 			case SL11H_CTL1MASK_K: s = " k/resume"; break;
 			default: s = "j"; break;
-			}; s; }),
+			} s; }),
 			(t & SL11H_CTL1MASK_LSPD) ? " lowspeed" : "",
 			(t & SL11H_CTL1MASK_SUSPEND) ? " suspend" : "");
 
@@ -1446,7 +1445,7 @@ static int proc_sl811h_show(struct seq_file *s, void *unused)
 			case USB_PID_SETUP: s = "setup"; break;
 			case USB_PID_ACK: s = "status"; break;
 			default: s = "?"; break;
-			}; s;}),
+			} s;}),
 			ep->maxpacket,
 			ep->nak_count, ep->error_count);
 		list_for_each_entry (urb, &ep->hep->urb_list, urb_list) {
@@ -1492,33 +1491,30 @@ static int proc_sl811h_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int proc_sl811h_open(struct inode *inode, struct file *file)
+static int sl811h_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, proc_sl811h_show, PDE_DATA(inode));
+	return single_open(file, sl811h_show, inode->i_private);
 }
 
-static const struct file_operations proc_ops = {
-	.open		= proc_sl811h_open,
+static const struct file_operations debug_ops = {
+	.open		= sl811h_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
 
 /* expect just one sl811 per system */
-static const char proc_filename[] = "driver/sl811h";
-
 static void create_debug_file(struct sl811 *sl811)
 {
-	sl811->pde = proc_create_data(proc_filename, 0, NULL, &proc_ops, sl811);
+	sl811->debug_file = debugfs_create_file("sl811h", S_IRUGO,
+						usb_debug_root, sl811,
+						&debug_ops);
 }
 
 static void remove_debug_file(struct sl811 *sl811)
 {
-	if (sl811->pde)
-		remove_proc_entry(proc_filename, NULL);
+	debugfs_remove(sl811->debug_file);
 }
-
-#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -1648,7 +1644,7 @@ sl811h_probe(struct platform_device *dev)
 
 	/* refuse to confuse usbcore */
 	if (dev->dev.dma_mask) {
-		DBG("no we won't dma\n");
+		dev_dbg(&dev->dev, "no we won't dma\n");
 		return -EINVAL;
 	}
 
@@ -1694,10 +1690,8 @@ sl811h_probe(struct platform_device *dev)
 
 	spin_lock_init(&sl811->lock);
 	INIT_LIST_HEAD(&sl811->async);
-	sl811->board = dev->dev.platform_data;
-	init_timer(&sl811->timer);
-	sl811->timer.function = sl811h_timer;
-	sl811->timer.data = (unsigned long) sl811;
+	sl811->board = dev_get_platdata(&dev->dev);
+	setup_timer(&sl811->timer, sl811h_timer, (unsigned long)sl811);
 	sl811->addr_reg = addr_reg;
 	sl811->data_reg = data_reg;
 
@@ -1716,7 +1710,7 @@ sl811h_probe(struct platform_device *dev)
 		break;
 	default:
 		/* reject case 0, SL11S is less functional */
-		DBG("chiprev %02x\n", tmp);
+		dev_dbg(&dev->dev, "chiprev %02x\n", tmp);
 		retval = -ENXIO;
 		goto err6;
 	}
@@ -1735,6 +1729,8 @@ sl811h_probe(struct platform_device *dev)
 	if (retval != 0)
 		goto err6;
 
+	device_wakeup_enable(hcd->self.controller);
+
 	create_debug_file(sl811);
 	return retval;
 
@@ -1747,15 +1743,14 @@ sl811h_probe(struct platform_device *dev)
 	if (!ioaddr)
 		iounmap(addr_reg);
  err2:
-	DBG("init error, %d\n", retval);
+	dev_dbg(&dev->dev, "init error, %d\n", retval);
 	return retval;
 }
 
 #ifdef	CONFIG_PM
 
 /* for this device there's no useful distinction between the controller
- * and its root hub, except that the root hub only gets direct PM calls
- * when CONFIG_PM_RUNTIME is enabled.
+ * and its root hub.
  */
 
 static int
@@ -1814,7 +1809,6 @@ struct platform_driver sl811h_driver = {
 	.resume =	sl811h_resume,
 	.driver = {
 		.name =	(char *) hcd_name,
-		.owner = THIS_MODULE,
 	},
 };
 EXPORT_SYMBOL(sl811h_driver);

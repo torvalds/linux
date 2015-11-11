@@ -55,7 +55,7 @@ static int init_qib_mregion(struct qib_mregion *mr, struct ib_pd *pd,
 
 	m = (count + QIB_SEGSZ - 1) / QIB_SEGSZ;
 	for (; i < m; i++) {
-		mr->map[i] = kzalloc(sizeof *mr->map[0], GFP_KERNEL);
+		mr->map[i] = kzalloc(sizeof(*mr->map[0]), GFP_KERNEL);
 		if (!mr->map[i])
 			goto bail;
 	}
@@ -104,7 +104,7 @@ struct ib_mr *qib_get_dma_mr(struct ib_pd *pd, int acc)
 		goto bail;
 	}
 
-	mr = kzalloc(sizeof *mr, GFP_KERNEL);
+	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr) {
 		ret = ERR_PTR(-ENOMEM);
 		goto bail;
@@ -143,7 +143,7 @@ static struct qib_mr *alloc_mr(int count, struct ib_pd *pd)
 
 	/* Allocate struct plus pointers to first level page tables. */
 	m = (count + QIB_SEGSZ - 1) / QIB_SEGSZ;
-	mr = kzalloc(sizeof *mr + m * sizeof mr->mr.map[0], GFP_KERNEL);
+	mr = kzalloc(sizeof(*mr) + m * sizeof(mr->mr.map[0]), GFP_KERNEL);
 	if (!mr)
 		goto bail;
 
@@ -232,8 +232,8 @@ struct ib_mr *qib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 {
 	struct qib_mr *mr;
 	struct ib_umem *umem;
-	struct ib_umem_chunk *chunk;
-	int n, m, i;
+	struct scatterlist *sg;
+	int n, m, entry;
 	struct ib_mr *ret;
 
 	if (length == 0) {
@@ -246,9 +246,7 @@ struct ib_mr *qib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (IS_ERR(umem))
 		return (void *) umem;
 
-	n = 0;
-	list_for_each_entry(chunk, &umem->chunk_list, list)
-		n += chunk->nents;
+	n = umem->nmap;
 
 	mr = alloc_mr(n, pd);
 	if (IS_ERR(mr)) {
@@ -260,7 +258,7 @@ struct ib_mr *qib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	mr->mr.user_base = start;
 	mr->mr.iova = virt_addr;
 	mr->mr.length = length;
-	mr->mr.offset = umem->offset;
+	mr->mr.offset = ib_umem_offset(umem);
 	mr->mr.access_flags = mr_access_flags;
 	mr->umem = umem;
 
@@ -268,11 +266,10 @@ struct ib_mr *qib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 		mr->mr.page_shift = ilog2(umem->page_size);
 	m = 0;
 	n = 0;
-	list_for_each_entry(chunk, &umem->chunk_list, list) {
-		for (i = 0; i < chunk->nents; i++) {
+	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
 			void *vaddr;
 
-			vaddr = page_address(sg_page(&chunk->page_list[i]));
+			vaddr = page_address(sg_page(sg));
 			if (!vaddr) {
 				ret = ERR_PTR(-EINVAL);
 				goto bail;
@@ -284,7 +281,6 @@ struct ib_mr *qib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				m++;
 				n = 0;
 			}
-		}
 	}
 	ret = &mr->ibmr;
 
@@ -307,6 +303,7 @@ int qib_dereg_mr(struct ib_mr *ibmr)
 	int ret = 0;
 	unsigned long timeout;
 
+	kfree(mr->pages);
 	qib_free_lkey(&mr->mr);
 
 	qib_put_mr(&mr->mr); /* will set completion if last */
@@ -327,49 +324,55 @@ out:
 
 /*
  * Allocate a memory region usable with the
- * IB_WR_FAST_REG_MR send work request.
+ * IB_WR_REG_MR send work request.
  *
  * Return the memory region on success, otherwise return an errno.
  */
-struct ib_mr *qib_alloc_fast_reg_mr(struct ib_pd *pd, int max_page_list_len)
+struct ib_mr *qib_alloc_mr(struct ib_pd *pd,
+			   enum ib_mr_type mr_type,
+			   u32 max_num_sg)
 {
 	struct qib_mr *mr;
 
-	mr = alloc_mr(max_page_list_len, pd);
+	if (mr_type != IB_MR_TYPE_MEM_REG)
+		return ERR_PTR(-EINVAL);
+
+	mr = alloc_mr(max_num_sg, pd);
 	if (IS_ERR(mr))
 		return (struct ib_mr *)mr;
 
+	mr->pages = kcalloc(max_num_sg, sizeof(u64), GFP_KERNEL);
+	if (!mr->pages)
+		goto err;
+
 	return &mr->ibmr;
-}
 
-struct ib_fast_reg_page_list *
-qib_alloc_fast_reg_page_list(struct ib_device *ibdev, int page_list_len)
-{
-	unsigned size = page_list_len * sizeof(u64);
-	struct ib_fast_reg_page_list *pl;
-
-	if (size > PAGE_SIZE)
-		return ERR_PTR(-EINVAL);
-
-	pl = kzalloc(sizeof *pl, GFP_KERNEL);
-	if (!pl)
-		return ERR_PTR(-ENOMEM);
-
-	pl->page_list = kzalloc(size, GFP_KERNEL);
-	if (!pl->page_list)
-		goto err_free;
-
-	return pl;
-
-err_free:
-	kfree(pl);
+err:
+	qib_dereg_mr(&mr->ibmr);
 	return ERR_PTR(-ENOMEM);
 }
 
-void qib_free_fast_reg_page_list(struct ib_fast_reg_page_list *pl)
+static int qib_set_page(struct ib_mr *ibmr, u64 addr)
 {
-	kfree(pl->page_list);
-	kfree(pl);
+	struct qib_mr *mr = to_imr(ibmr);
+
+	if (unlikely(mr->npages == mr->mr.max_segs))
+		return -ENOMEM;
+
+	mr->pages[mr->npages++] = addr;
+
+	return 0;
+}
+
+int qib_map_mr_sg(struct ib_mr *ibmr,
+		  struct scatterlist *sg,
+		  int sg_nents)
+{
+	struct qib_mr *mr = to_imr(ibmr);
+
+	mr->npages = 0;
+
+	return ib_sg_to_pages(ibmr, sg, sg_nents, qib_set_page);
 }
 
 /**
@@ -390,7 +393,7 @@ struct ib_fmr *qib_alloc_fmr(struct ib_pd *pd, int mr_access_flags,
 
 	/* Allocate struct plus pointers to first level page tables. */
 	m = (fmr_attr->max_pages + QIB_SEGSZ - 1) / QIB_SEGSZ;
-	fmr = kzalloc(sizeof *fmr + m * sizeof fmr->mr.map[0], GFP_KERNEL);
+	fmr = kzalloc(sizeof(*fmr) + m * sizeof(fmr->mr.map[0]), GFP_KERNEL);
 	if (!fmr)
 		goto bail;
 

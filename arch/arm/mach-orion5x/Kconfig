@@ -5,6 +5,11 @@ menu "Orion Implementations"
 config ARCH_ORION5X_DT
 	bool "Marvell Orion5x Flattened Device Tree"
 	select USE_OF
+	select ORION_CLK
+	select ORION_IRQCHIP
+	select ORION_TIMER
+	select PINCTRL
+	select PINCTRL_ORION
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  Marvell Orion5x using flattened device tree.
@@ -23,6 +28,14 @@ config MACH_RD88F5182
 	  Say 'Y' here if you want your kernel to support the
 	  Marvell Orion-NAS (88F5182) RD2
 
+config MACH_RD88F5182_DT
+	bool "Marvell Orion-NAS Reference Design (Flattened Device Tree)"
+	select ARCH_ORION5X_DT
+	select I2C_BOARDINFO
+	help
+	  Say 'Y' here if you want your kernel to support the Marvell
+	  Orion-NAS (88F5182) RD2, Flattened Device Tree.
+
 config MACH_KUROBOX_PRO
 	bool "KuroBox Pro"
 	select I2C_BOARDINFO
@@ -32,14 +45,15 @@ config MACH_KUROBOX_PRO
 
 config MACH_DNS323
 	bool "D-Link DNS-323"
+	select GENERIC_NET_UTILS
 	select I2C_BOARDINFO
-	select PHYLIB
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  D-Link DNS-323 platform.
 
 config MACH_TS209
 	bool "QNAP TS-109/TS-209"
+	select GENERIC_NET_UTILS
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  QNAP TS-109/TS-209 platform.
@@ -66,11 +80,11 @@ config MACH_LINKSTATION_LSCHL
 	  Buffalo Linkstation Live v3 (LS-CHL) platform.
 
 config MACH_LINKSTATION_MINI
-	bool "Buffalo Linkstation Mini"
-	select I2C_BOARDINFO
+	bool "Buffalo Linkstation Mini (Flattened Device Tree)"
+	select ARCH_ORION5X_DT
 	help
 	  Say 'Y' here if you want your kernel to support the
-	  Buffalo Linkstation Mini platform.
+	  Buffalo Linkstation Mini (LS-WSGL) platform.
 
 config MACH_LINKSTATION_LS_HGL
 	bool "Buffalo Linkstation LS-HGL"
@@ -81,6 +95,7 @@ config MACH_LINKSTATION_LS_HGL
 
 config MACH_TS409
 	bool "QNAP TS-409"
+	select GENERIC_NET_UTILS
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  QNAP TS-409 platform.
@@ -103,27 +118,12 @@ config MACH_MV2120
 	  Say 'Y' here if you want your kernel to support the
 	  HP Media Vault mv2120 or mv5100.
 
-config MACH_EDMINI_V2_DT
-	bool "LaCie Ethernet Disk mini V2 (Flattened Device Tree)"
-	select I2C_BOARDINFO
+config MACH_D2NET_DT
+	bool "LaCie d2 Network / Big Disk Network (Flattened Device Tree)"
 	select ARCH_ORION5X_DT
 	help
 	  Say 'Y' here if you want your kernel to support the
-	  LaCie Ethernet Disk mini V2 (Flattened Device Tree).
-
-config MACH_D2NET
-	bool "LaCie d2 Network"
-	select I2C_BOARDINFO
-	help
-	  Say 'Y' here if you want your kernel to support the
 	  LaCie d2 Network NAS.
-
-config MACH_BIGDISK
-	bool "LaCie Big Disk Network"
-	select I2C_BOARDINFO
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  LaCie Big Disk Network NAS.
 
 config MACH_NET2BIG
 	bool "LaCie 2Big Network"
@@ -132,8 +132,9 @@ config MACH_NET2BIG
 	  Say 'Y' here if you want your kernel to support the
 	  LaCie 2Big Network NAS.
 
-config MACH_MSS2
-	bool "Maxtor Shared Storage II"
+config MACH_MSS2_DT
+	bool "Maxtor Shared Storage II (Flattened Device Tree)"
+	select ARCH_ORION5X_DT
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  Maxtor Shared Storage II platform.

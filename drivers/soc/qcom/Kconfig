@@ -1,0 +1,51 @@
+#
+# QCOM Soc drivers
+#
+config QCOM_GSBI
+        tristate "QCOM General Serial Bus Interface"
+        depends on ARCH_QCOM
+        select MFD_SYSCON
+        help
+          Say y here to enable GSBI support.  The GSBI provides control
+          functions for connecting the underlying serial UART, SPI, and I2C
+          devices to the output pins.
+
+config QCOM_PM
+	bool "Qualcomm Power Management"
+	depends on ARCH_QCOM && !ARM64
+	select QCOM_SCM
+	help
+	  QCOM Platform specific power driver to manage cores and L2 low power
+	  modes. It interface with various system drivers to put the cores in
+	  low power modes.
+
+config QCOM_SMEM
+	tristate "Qualcomm Shared Memory Manager (SMEM)"
+	depends on ARCH_QCOM
+	depends on HWSPINLOCK
+	help
+	  Say y here to enable support for the Qualcomm Shared Memory Manager.
+	  The driver provides an interface to items in a heap shared among all
+	  processors in a Qualcomm platform.
+
+config QCOM_SMD
+	tristate "Qualcomm Shared Memory Driver (SMD)"
+	depends on QCOM_SMEM
+	help
+	  Say y here to enable support for the Qualcomm Shared Memory Driver
+	  providing communication channels to remote processors in Qualcomm
+	  platforms.
+
+config QCOM_SMD_RPM
+	tristate "Qualcomm Resource Power Manager (RPM) over SMD"
+	depends on QCOM_SMD && OF
+	help
+	  If you say yes to this option, support will be included for the
+	  Resource Power Manager system found in the Qualcomm 8974 based
+	  devices.
+
+	  This is required to access many regulators, clocks and bus
+	  frequencies controlled by the RPM on these devices.
+
+	  Say M here if you want to include support for the Qualcomm RPM as a
+	  module. This will build a module called "qcom-smd-rpm".

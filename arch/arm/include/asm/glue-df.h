@@ -31,14 +31,6 @@
 #undef CPU_DABORT_HANDLER
 #undef MULTI_DABORT
 
-#if defined(CONFIG_CPU_ARM710)
-# ifdef CPU_DABORT_HANDLER
-#  define MULTI_DABORT 1
-# else
-#  define CPU_DABORT_HANDLER cpu_arm7_data_abort
-# endif
-#endif
-
 #ifdef CONFIG_CPU_ABRT_EV4
 # ifdef CPU_DABORT_HANDLER
 #  define MULTI_DABORT 1
@@ -92,6 +84,14 @@
 #  define MULTI_DABORT 1
 # else
 #  define CPU_DABORT_HANDLER v7_early_abort
+# endif
+#endif
+
+#ifdef CONFIG_CPU_ABRT_NOMMU
+# ifdef CPU_DABORT_HANDLER
+#  define MULTI_DABORT 1
+# else
+#  define CPU_DABORT_HANDLER nommu_early_abort
 # endif
 #endif
 

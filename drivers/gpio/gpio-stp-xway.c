@@ -58,7 +58,7 @@
 #define XWAY_STP_ADSL_MASK	0x3
 
 /* 2 groups of 3 bits can be driven by the phys */
-#define XWAY_STP_PHY_MASK	0x3
+#define XWAY_STP_PHY_MASK	0x7
 #define XWAY_STP_PHY1_SHIFT	27
 #define XWAY_STP_PHY2_SHIFT	15
 
@@ -199,21 +199,17 @@ static int xway_stp_hw_init(struct xway_stp *chip)
 
 static int xway_stp_probe(struct platform_device *pdev)
 {
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	const __be32 *shadow, *groups, *dsl, *phy;
+	struct resource *res;
+	u32 shadow, groups, dsl, phy;
 	struct xway_stp *chip;
 	struct clk *clk;
 	int ret = 0;
-
-	if (!res) {
-		dev_err(&pdev->dev, "failed to request STP resource\n");
-		return -ENOENT;
-	}
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	chip->virt = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(chip->virt))
 		return PTR_ERR(chip->virt);
@@ -227,33 +223,28 @@ static int xway_stp_probe(struct platform_device *pdev)
 	chip->gc.owner = THIS_MODULE;
 
 	/* store the shadow value if one was passed by the devicetree */
-	shadow = of_get_property(pdev->dev.of_node, "lantiq,shadow", NULL);
-	if (shadow)
-		chip->shadow = be32_to_cpu(*shadow);
+	if (!of_property_read_u32(pdev->dev.of_node, "lantiq,shadow", &shadow))
+		chip->shadow = shadow;
 
 	/* find out which gpio groups should be enabled */
-	groups = of_get_property(pdev->dev.of_node, "lantiq,groups", NULL);
-	if (groups)
-		chip->groups = be32_to_cpu(*groups) & XWAY_STP_GROUP_MASK;
+	if (!of_property_read_u32(pdev->dev.of_node, "lantiq,groups", &groups))
+		chip->groups = groups & XWAY_STP_GROUP_MASK;
 	else
 		chip->groups = XWAY_STP_GROUP0;
 	chip->gc.ngpio = fls(chip->groups) * 8;
 
 	/* find out which gpios are controlled by the dsl core */
-	dsl = of_get_property(pdev->dev.of_node, "lantiq,dsl", NULL);
-	if (dsl)
-		chip->dsl = be32_to_cpu(*dsl) & XWAY_STP_ADSL_MASK;
+	if (!of_property_read_u32(pdev->dev.of_node, "lantiq,dsl", &dsl))
+		chip->dsl = dsl & XWAY_STP_ADSL_MASK;
 
 	/* find out which gpios are controlled by the phys */
 	if (of_machine_is_compatible("lantiq,ar9") ||
 			of_machine_is_compatible("lantiq,gr9") ||
 			of_machine_is_compatible("lantiq,vr9")) {
-		phy = of_get_property(pdev->dev.of_node, "lantiq,phy1", NULL);
-		if (phy)
-			chip->phy1 = be32_to_cpu(*phy) & XWAY_STP_PHY_MASK;
-		phy = of_get_property(pdev->dev.of_node, "lantiq,phy2", NULL);
-		if (phy)
-			chip->phy2 = be32_to_cpu(*phy) & XWAY_STP_PHY_MASK;
+		if (!of_property_read_u32(pdev->dev.of_node, "lantiq,phy1", &phy))
+			chip->phy1 = phy & XWAY_STP_PHY_MASK;
+		if (!of_property_read_u32(pdev->dev.of_node, "lantiq,phy2", &phy))
+			chip->phy2 = phy & XWAY_STP_PHY_MASK;
 	}
 
 	/* check which edge trigger we should use, default to a falling edge */
@@ -287,12 +278,11 @@ static struct platform_driver xway_stp_driver = {
 	.probe = xway_stp_probe,
 	.driver = {
 		.name = "gpio-stp-xway",
-		.owner = THIS_MODULE,
 		.of_match_table = xway_stp_match,
 	},
 };
 
-int __init xway_stp_init(void)
+static int __init xway_stp_init(void)
 {
 	return platform_driver_register(&xway_stp_driver);
 }

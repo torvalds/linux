@@ -15,6 +15,7 @@
 #define UDL_DRV_H
 
 #include <linux/usb.h>
+#include <drm/drm_gem.h>
 
 #define DRIVER_NAME		"udl"
 #define DRIVER_DESC		"DisplayLink"
@@ -23,6 +24,9 @@
 #define DRIVER_MAJOR		0
 #define DRIVER_MINOR		0
 #define DRIVER_PATCHLEVEL	1
+
+#define UDL_BO_CACHEABLE		(1 << 0)
+#define UDL_BO_WC		(1 << 1)
 
 struct udl_device;
 
@@ -47,6 +51,7 @@ struct udl_fbdev;
 struct udl_device {
 	struct device *dev;
 	struct drm_device *ddev;
+	struct usb_device *udev;
 
 	int sku_pixel_limit;
 
@@ -67,6 +72,7 @@ struct udl_gem_object {
 	struct page **pages;
 	void *vmapping;
 	struct sg_table *sg;
+	unsigned int flags;
 };
 
 #define to_udl_bo(x) container_of(x, struct udl_gem_object, base)
@@ -114,16 +120,17 @@ int udl_dumb_create(struct drm_file *file_priv,
 		    struct drm_mode_create_dumb *args);
 int udl_gem_mmap(struct drm_file *file_priv, struct drm_device *dev,
 		 uint32_t handle, uint64_t *offset);
-int udl_dumb_destroy(struct drm_file *file_priv, struct drm_device *dev,
-		     uint32_t handle);
 
-int udl_gem_init_object(struct drm_gem_object *obj);
 void udl_gem_free_object(struct drm_gem_object *gem_obj);
 struct udl_gem_object *udl_gem_alloc_object(struct drm_device *dev,
 					    size_t size);
+struct dma_buf *udl_gem_prime_export(struct drm_device *dev,
+				     struct drm_gem_object *obj, int flags);
 struct drm_gem_object *udl_gem_prime_import(struct drm_device *dev,
 				struct dma_buf *dma_buf);
 
+int udl_gem_get_pages(struct udl_gem_object *obj);
+void udl_gem_put_pages(struct udl_gem_object *obj);
 int udl_gem_vmap(struct udl_gem_object *obj);
 void udl_gem_vunmap(struct udl_gem_object *obj);
 int udl_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma);

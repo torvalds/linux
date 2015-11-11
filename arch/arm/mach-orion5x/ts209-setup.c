@@ -106,7 +106,7 @@ static struct platform_device qnap_ts209_nor_flash = {
 #define QNAP_TS209_PCI_SLOT0_IRQ_PIN	6
 #define QNAP_TS209_PCI_SLOT1_IRQ_PIN	7
 
-void __init qnap_ts209_pci_preinit(void)
+static void __init qnap_ts209_pci_preinit(void)
 {
 	int pin;
 
@@ -286,8 +286,10 @@ static void __init qnap_ts209_init(void)
 	/*
 	 * Configure peripherals.
 	 */
-	mvebu_mbus_add_window("devbus-boot", QNAP_TS209_NOR_BOOT_BASE,
-			      QNAP_TS209_NOR_BOOT_SIZE);
+	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_BOOT_TARGET,
+				    ORION_MBUS_DEVBUS_BOOT_ATTR,
+				    QNAP_TS209_NOR_BOOT_BASE,
+				    QNAP_TS209_NOR_BOOT_SIZE);
 	platform_device_register(&qnap_ts209_nor_flash);
 
 	orion5x_ehci0_init();
@@ -312,7 +314,7 @@ static void __init qnap_ts209_init(void)
 			gpio_free(TS209_RTC_GPIO);
 	}
 	if (qnap_ts209_i2c_rtc.irq == 0)
-		pr_warning("qnap_ts209_init: failed to get RTC IRQ\n");
+		pr_warn("qnap_ts209_init: failed to get RTC IRQ\n");
 	i2c_register_board_info(0, &qnap_ts209_i2c_rtc, 1);
 
 	/* register tsx09 specific power-off method */

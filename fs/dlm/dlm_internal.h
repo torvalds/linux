@@ -65,6 +65,8 @@ struct dlm_mhandle;
 	printk(KERN_ERR "dlm: "fmt"\n" , ##args)
 #define log_error(ls, fmt, args...) \
 	printk(KERN_ERR "dlm: %s: " fmt "\n", (ls)->ls_name , ##args)
+#define log_rinfo(ls, fmt, args...) \
+	printk(KERN_INFO "dlm: %s: " fmt "\n", (ls)->ls_name , ##args);
 
 #define log_debug(ls, fmt, args...) \
 do { \

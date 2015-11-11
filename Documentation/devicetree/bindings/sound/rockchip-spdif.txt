@@ -1,32 +1,40 @@
-* Rockchip SPDIF controller
+* Rockchip SPDIF transceiver
 
-Required SoC Specific Properties:
+The S/PDIF audio block is a stereo transceiver that allows the
+processor to receive and transmit digital audio via an coaxial cable or
+a fibre cable.
 
-- compatible : "rockchip-spdif"
+Required properties:
+
+- compatible: should be one of the following:
+   - "rockchip,rk3288-spdif", "rockchip,rk3188-spdif" or
+     "rockchip,rk3066-spdif"
 - reg: physical base address of the controller and length of memory mapped
   region.
-- clocks: must include clock specifiers corresponding to entries in the
-  clock-names property.
-- clocks-names: list of clock names sorted in the same order as the clocks
-  property. Must contain "spdif_mclk" and "spdif_hclk".
-- interrupts: interrupt number to the cpu.
-- dmas: list of DMA controller phandle and DMA request line ordered pairs.
-- dma-names: identifier string for each DMA request line in the dmas property.
-  These strings correspond 1:1 with the ordered pairs in dmas.
-- pinctrl-names: must contain a "default" entry.
-- pinctrl-0: pin control group to be used for this controller.
-- pinctrl-1: pin control group to be used for gpio.
+- interrupts: should contain the SPDIF interrupt.
+- dmas: DMA specifiers for tx dma. See the DMA client binding,
+  Documentation/devicetree/bindings/dma/dma.txt
+- dma-names: should be "tx"
+- clocks: a list of phandle + clock-specifier pairs, one for each entry
+  in clock-names.
+- clock-names: should contain following:
+   - "hclk": clock for SPDIF controller
+   - "mclk" : clock for SPDIF bus
 
-Example:
+Required properties on RK3288:
+  - rockchip,grf: the phandle of the syscon node for the general register
+                   file (GRF)
 
-spdif: spdif@10204000 {
-	compatible = "rockchip-spdif";
-	reg = <0x10204000 0x1000>;
-	clocks = <&clk_spdif>, <&clk_gates10 8>;
-	clock-names = "spdif_mclk", "spdif_hclk";
-	interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
-	dmas = <&pdma 13>;
+Example for the rk3188 SPDIF controller:
+
+spdif: spdif@0x1011e000 {
+	compatible = "rockchip,rk3188-spdif", "rockchip,rk3066-spdif";
+	reg = <0x1011e000 0x2000>;
+	interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+	dmas = <&dmac1_s 8>;
 	dma-names = "tx";
-	pinctrl-names = "default";
-	pinctrl-0 = <&spdif_tx>;
+	clock-names = "hclk", "mclk";
+	clocks = <&cru HCLK_SPDIF>, <&cru SCLK_SPDIF>;
+	status = "disabled";
+	#sound-dai-cells = <0>;
 };

@@ -14,6 +14,10 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/utsname.h>
+#ifdef CONFIG_KALLSYMS
+#include <linux/kallsyms.h>
+#endif
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
@@ -34,25 +38,24 @@ static int kstack_depth_to_print = 24;
 
 void (*nmi_handler)(struct pt_regs *);
 
-void
-show_trace(unsigned long *stack)
+void show_trace(unsigned long *stack)
 {
 	unsigned long addr, module_start, module_end;
 	extern char _stext, _etext;
 	int i;
 
-	printk("\nCall Trace: ");
+	pr_err("\nCall Trace: ");
 
 	i = 1;
 	module_start = VMALLOC_START;
 	module_end = VMALLOC_END;
 
-	while (((long)stack & (THREAD_SIZE-1)) != 0) {
+	while (((long)stack & (THREAD_SIZE - 1)) != 0) {
 		if (__get_user(addr, stack)) {
 			/* This message matches "failing address" marked
 			   s390 in ksymoops, so lines containing it will
 			   not be filtered out by ksymoops.  */
-			printk("Failing address 0x%lx\n", (unsigned long)stack);
+			pr_err("Failing address 0x%lx\n", (unsigned long)stack);
 			break;
 		}
 		stack++;
@@ -68,10 +71,14 @@ show_trace(unsigned long *stack)
 		if (((addr >= (unsigned long)&_stext) &&
 		     (addr <= (unsigned long)&_etext)) ||
 		    ((addr >= module_start) && (addr <= module_end))) {
+#ifdef CONFIG_KALLSYMS
+			print_ip_sym(addr);
+#else
 			if (i && ((i % 8) == 0))
-				printk("\n       ");
-			printk("[<%08lx>] ", addr);
+				pr_err("\n       ");
+			pr_err("[<%08lx>] ", addr);
 			i++;
+#endif
 		}
 	}
 }
@@ -111,21 +118,21 @@ show_stack(struct task_struct *task, unsigned long *sp)
 
 	stack = sp;
 
-	printk("\nStack from %08lx:\n       ", (unsigned long)stack);
+	pr_err("\nStack from %08lx:\n       ", (unsigned long)stack);
 	for (i = 0; i < kstack_depth_to_print; i++) {
 		if (((long)stack & (THREAD_SIZE-1)) == 0)
 			break;
 		if (i && ((i % 8) == 0))
-			printk("\n       ");
+			pr_err("\n       ");
 		if (__get_user(addr, stack)) {
 			/* This message matches "failing address" marked
 			   s390 in ksymoops, so lines containing it will
 			   not be filtered out by ksymoops.  */
-			printk("Failing address 0x%lx\n", (unsigned long)stack);
+			pr_err("Failing address 0x%lx\n", (unsigned long)stack);
 			break;
 		}
 		stack++;
-		printk("%08lx ", addr);
+		pr_err("%08lx ", addr);
 	}
 	show_trace(sp);
 }
@@ -139,33 +146,32 @@ show_stack(void)
 	unsigned long *sp = (unsigned long *)rdusp();
 	int i;
 
-	printk("Stack dump [0x%08lx]:\n", (unsigned long)sp);
+	pr_err("Stack dump [0x%08lx]:\n", (unsigned long)sp);
 	for (i = 0; i < 16; i++)
-		printk("sp + %d: 0x%08lx\n", i*4, sp[i]);
+		pr_err("sp + %d: 0x%08lx\n", i*4, sp[i]);
 	return 0;
 }
 #endif
 
-void
-set_nmi_handler(void (*handler)(struct pt_regs *))
+void set_nmi_handler(void (*handler)(struct pt_regs *))
 {
 	nmi_handler = handler;
 	arch_enable_nmi();
 }
 
 #ifdef CONFIG_DEBUG_NMI_OOPS
-void
-oops_nmi_handler(struct pt_regs *regs)
+void oops_nmi_handler(struct pt_regs *regs)
 {
 	stop_watchdog();
 	oops_in_progress = 1;
-	printk("NMI!\n");
+	pr_err("NMI!\n");
 	show_registers(regs);
 	oops_in_progress = 0;
+	oops_exit();
+	pr_err("\n"); /* Flush mtdoops.  */
 }
 
-static int __init
-oops_nmi_register(void)
+static int __init oops_nmi_register(void)
 {
 	set_nmi_handler(oops_nmi_handler);
 	return 0;
@@ -180,8 +186,7 @@ __initcall(oops_nmi_register);
  * similar to an Oops dump, and if the kernel is configured to be a nice
  * doggy, then halt instead of reboot.
  */
-void
-watchdog_bite_hook(struct pt_regs *regs)
+void watchdog_bite_hook(struct pt_regs *regs)
 {
 #ifdef CONFIG_ETRAX_WATCHDOG_NICE_DOGGY
 	local_irq_disable();
@@ -196,8 +201,7 @@ watchdog_bite_hook(struct pt_regs *regs)
 }
 
 /* This is normally the Oops function. */
-void
-die_if_kernel(const char *str, struct pt_regs *regs, long err)
+void die_if_kernel(const char *str, struct pt_regs *regs, long err)
 {
 	if (user_mode(regs))
 		return;
@@ -211,13 +215,17 @@ die_if_kernel(const char *str, struct pt_regs *regs, long err)
 	stop_watchdog();
 #endif
 
+	oops_enter();
 	handle_BUG(regs);
 
-	printk("%s: %04lx\n", str, err & 0xffff);
+	pr_err("Linux %s %s\n", utsname()->release, utsname()->version);
+	pr_err("%s: %04lx\n", str, err & 0xffff);
 
 	show_registers(regs);
 
+	oops_exit();
 	oops_in_progress = 0;
+	pr_err("\n"); /* Flush mtdoops.  */
 
 #ifdef CONFIG_ETRAX_WATCHDOG_NICE_DOGGY
 	reset_watchdog();
@@ -225,8 +233,7 @@ die_if_kernel(const char *str, struct pt_regs *regs, long err)
 	do_exit(SIGSEGV);
 }
 
-void __init
-trap_init(void)
+void __init trap_init(void)
 {
 	/* Nothing needs to be done */
 }

@@ -131,12 +131,12 @@ static inline struct pppoe_net *pppoe_pernet(struct net *net)
 
 static inline int cmp_2_addr(struct pppoe_addr *a, struct pppoe_addr *b)
 {
-	return a->sid == b->sid && !memcmp(a->remote, b->remote, ETH_ALEN);
+	return a->sid == b->sid && ether_addr_equal(a->remote, b->remote);
 }
 
 static inline int cmp_addr(struct pppoe_addr *a, __be16 sid, char *addr)
 {
-	return a->sid == sid && !memcmp(a->remote, addr, ETH_ALEN);
+	return a->sid == sid && ether_addr_equal(a->remote, addr);
 }
 
 #if 8 % PPPOE_HASH_BITS
@@ -313,7 +313,6 @@ static void pppoe_flush_dev(struct net_device *dev)
 			if (po->pppoe_dev == dev &&
 			    sk->sk_state & (PPPOX_CONNECTED | PPPOX_BOUND | PPPOX_ZOMBIE)) {
 				pppox_unbind_sock(sk);
-				sk->sk_state = PPPOX_ZOMBIE;
 				sk->sk_state_change(sk);
 				po->pppoe_dev = NULL;
 				dev_put(dev);
@@ -338,7 +337,7 @@ static void pppoe_flush_dev(struct net_device *dev)
 static int pppoe_device_event(struct notifier_block *this,
 			      unsigned long event, void *ptr)
 {
-	struct net_device *dev = (struct net_device *)ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
 	/* Only look at sockets that are using this specific device. */
 	switch (event) {
@@ -379,6 +378,9 @@ static int pppoe_rcv_core(struct sock *sk, struct sk_buff *skb)
 	 * executing in lock_sock()/release_sock() bounds; meaning sk->sk_state
 	 * can't change.
 	 */
+
+	if (skb->pkt_type == PACKET_OTHERHOST)
+		goto abort_kfree;
 
 	if (sk->sk_state & PPPOX_BOUND) {
 		ppp_input(&po->chan, skb);
@@ -455,6 +457,22 @@ out:
 	return NET_RX_DROP;
 }
 
+static void pppoe_unbind_sock_work(struct work_struct *work)
+{
+	struct pppox_sock *po = container_of(work, struct pppox_sock,
+					     proto.pppoe.padt_work);
+	struct sock *sk = sk_pppox(po);
+
+	lock_sock(sk);
+	if (po->pppoe_dev) {
+		dev_put(po->pppoe_dev);
+		po->pppoe_dev = NULL;
+	}
+	pppox_unbind_sock(sk);
+	release_sock(sk);
+	sock_put(sk);
+}
+
 /************************************************************************
  *
  * Receive a PPPoE Discovery frame.
@@ -500,7 +518,8 @@ static int pppoe_disc_rcv(struct sk_buff *skb, struct net_device *dev,
 		}
 
 		bh_unlock_sock(sk);
-		sock_put(sk);
+		if (!schedule_work(&po->proto.pppoe.padt_work))
+			sock_put(sk);
 	}
 
 abort:
@@ -530,11 +549,11 @@ static struct proto pppoe_sk_proto __read_mostly = {
  * Initialize a new struct sock.
  *
  **********************************************************************/
-static int pppoe_create(struct net *net, struct socket *sock)
+static int pppoe_create(struct net *net, struct socket *sock, int kern)
 {
 	struct sock *sk;
 
-	sk = sk_alloc(net, PF_PPPOX, GFP_KERNEL, &pppoe_sk_proto);
+	sk = sk_alloc(net, PF_PPPOX, GFP_KERNEL, &pppoe_sk_proto, kern);
 	if (!sk)
 		return -ENOMEM;
 
@@ -570,7 +589,7 @@ static int pppoe_release(struct socket *sock)
 
 	po = pppox_sk(sk);
 
-	if (sk->sk_state & (PPPOX_CONNECTED | PPPOX_BOUND | PPPOX_ZOMBIE)) {
+	if (po->pppoe_dev) {
 		dev_put(po->pppoe_dev);
 		po->pppoe_dev = NULL;
 	}
@@ -612,6 +631,8 @@ static int pppoe_connect(struct socket *sock, struct sockaddr *uservaddr,
 	int error;
 
 	lock_sock(sk);
+
+	INIT_WORK(&po->proto.pppoe.padt_work, pppoe_unbind_sock_work);
 
 	error = -EINVAL;
 	if (sp->sa_protocol != PX_PROTO_OE)
@@ -675,7 +696,7 @@ static int pppoe_connect(struct socket *sock, struct sockaddr *uservaddr,
 		po->chan.hdrlen = (sizeof(struct pppoe_hdr) +
 				   dev->hard_header_len);
 
-		po->chan.mtu = dev->mtu - sizeof(struct pppoe_hdr);
+		po->chan.mtu = dev->mtu - sizeof(struct pppoe_hdr) - 2;
 		po->chan.private = sk;
 		po->chan.ops = &pppoe_chan_ops;
 
@@ -820,8 +841,8 @@ static int pppoe_ioctl(struct socket *sock, unsigned int cmd,
 	return err;
 }
 
-static int pppoe_sendmsg(struct kiocb *iocb, struct socket *sock,
-		  struct msghdr *m, size_t total_len)
+static int pppoe_sendmsg(struct socket *sock, struct msghdr *m,
+			 size_t total_len)
 {
 	struct sk_buff *skb;
 	struct sock *sk = sock->sk;
@@ -869,7 +890,7 @@ static int pppoe_sendmsg(struct kiocb *iocb, struct socket *sock,
 	ph = (struct pppoe_hdr *)skb_put(skb, total_len + sizeof(struct pppoe_hdr));
 	start = (char *)&ph->tag[0];
 
-	error = memcpy_fromiovec(start, m->msg_iov, total_len);
+	error = memcpy_from_msg(start, m, total_len);
 	if (error < 0) {
 		kfree_skb(skb);
 		goto end;
@@ -962,8 +983,8 @@ static const struct ppp_channel_ops pppoe_chan_ops = {
 	.start_xmit = pppoe_xmit,
 };
 
-static int pppoe_recvmsg(struct kiocb *iocb, struct socket *sock,
-		  struct msghdr *m, size_t total_len, int flags)
+static int pppoe_recvmsg(struct socket *sock, struct msghdr *m,
+			 size_t total_len, int flags)
 {
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb;
@@ -979,11 +1000,9 @@ static int pppoe_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (error < 0)
 		goto end;
 
-	m->msg_namelen = 0;
-
 	if (skb) {
 		total_len = min_t(size_t, total_len, skb->len);
-		error = skb_copy_datagram_iovec(skb, 0, m->msg_iov, total_len);
+		error = skb_copy_datagram_msg(skb, 0, m, total_len);
 		if (error == 0) {
 			consume_skb(skb);
 			return total_len;

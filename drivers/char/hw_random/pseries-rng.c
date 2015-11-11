@@ -17,19 +17,29 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/hw_random.h>
 #include <asm/vio.h>
 
-#define MODULE_NAME "pseries-rng"
 
-static int pseries_rng_data_read(struct hwrng *rng, u32 *data)
+static int pseries_rng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 {
-	if (plpar_hcall(H_RANDOM, (unsigned long *)data) != H_SUCCESS) {
-		printk(KERN_ERR "pseries rng hcall error\n");
-		return 0;
+	u64 buffer[PLPAR_HCALL_BUFSIZE];
+	size_t size = max < 8 ? max : 8;
+	int rc;
+
+	rc = plpar_hcall(H_RANDOM, (unsigned long *)buffer);
+	if (rc != H_SUCCESS) {
+		pr_err_ratelimited("H_RANDOM call failed %d\n", rc);
+		return -EIO;
 	}
-	return 8;
+	memcpy(data, buffer, size);
+
+	/* The hypervisor interface returns 64 bits */
+	return size;
 }
 
 /**
@@ -47,17 +57,17 @@ static unsigned long pseries_rng_get_desired_dma(struct vio_dev *vdev)
 };
 
 static struct hwrng pseries_rng = {
-	.name		= MODULE_NAME,
-	.data_read	= pseries_rng_data_read,
+	.name		= KBUILD_MODNAME,
+	.read		= pseries_rng_read,
 };
 
-static int __init pseries_rng_probe(struct vio_dev *dev,
+static int pseries_rng_probe(struct vio_dev *dev,
 		const struct vio_device_id *id)
 {
 	return hwrng_register(&pseries_rng);
 }
 
-static int __exit pseries_rng_remove(struct vio_dev *dev)
+static int pseries_rng_remove(struct vio_dev *dev)
 {
 	hwrng_unregister(&pseries_rng);
 	return 0;
@@ -70,7 +80,7 @@ static struct vio_device_id pseries_rng_driver_ids[] = {
 MODULE_DEVICE_TABLE(vio, pseries_rng_driver_ids);
 
 static struct vio_driver pseries_rng_driver = {
-	.name = MODULE_NAME,
+	.name = KBUILD_MODNAME,
 	.probe = pseries_rng_probe,
 	.remove = pseries_rng_remove,
 	.get_desired_dma = pseries_rng_get_desired_dma,
@@ -79,7 +89,7 @@ static struct vio_driver pseries_rng_driver = {
 
 static int __init rng_init(void)
 {
-	printk(KERN_INFO "Registering IBM pSeries RNG driver\n");
+	pr_info("Registering IBM pSeries RNG driver\n");
 	return vio_register_driver(&pseries_rng_driver);
 }
 

@@ -236,6 +236,7 @@ static int tifm_7xx1_resume(struct pci_dev *dev)
 {
 	struct tifm_adapter *fm = pci_get_drvdata(dev);
 	int rc;
+	unsigned long timeout;
 	unsigned int good_sockets = 0, bad_sockets = 0;
 	unsigned long flags;
 	unsigned char new_ids[fm->num_sockets];
@@ -272,8 +273,8 @@ static int tifm_7xx1_resume(struct pci_dev *dev)
 	if (good_sockets) {
 		fm->finish_me = &finish_resume;
 		spin_unlock_irqrestore(&fm->lock, flags);
-		rc = wait_for_completion_timeout(&finish_resume, HZ);
-		dev_dbg(&dev->dev, "wait returned %d\n", rc);
+		timeout = wait_for_completion_timeout(&finish_resume, HZ);
+		dev_dbg(&dev->dev, "wait returned %lu\n", timeout);
 		writel(TIFM_IRQ_FIFOMASK(good_sockets)
 		       | TIFM_IRQ_CARDMASK(good_sockets),
 		       fm->addr + FM_CLEAR_INTERRUPT_ENABLE);
@@ -356,8 +357,10 @@ static int tifm_7xx1_probe(struct pci_dev *dev,
 	pci_set_drvdata(dev, fm);
 
 	fm->addr = pci_ioremap_bar(dev, 0);
-	if (!fm->addr)
+	if (!fm->addr) {
+		rc = -ENODEV;
 		goto err_out_free;
+	}
 
 	rc = request_irq(dev->irq, tifm_7xx1_isr, IRQF_SHARED, DRIVER_NAME, fm);
 	if (rc)
@@ -378,7 +381,6 @@ err_out_irq:
 err_out_unmap:
 	iounmap(fm->addr);
 err_out_free:
-	pci_set_drvdata(dev, NULL);
 	tifm_free_adapter(fm);
 err_out_int:
 	pci_intx(dev, 0);
@@ -404,8 +406,6 @@ static void tifm_7xx1_remove(struct pci_dev *dev)
 
 	for (cnt = 0; cnt < fm->num_sockets; cnt++)
 		tifm_7xx1_sock_power_off(tifm_7xx1_sock_addr(fm->addr, cnt));
-
-	pci_set_drvdata(dev, NULL);
 
 	iounmap(fm->addr);
 	pci_intx(dev, 0);

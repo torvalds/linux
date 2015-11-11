@@ -81,7 +81,7 @@ static int add_cgroup(struct perf_evlist *evlist, char *str)
 	/*
 	 * check if cgrp is already defined, if so we reuse it
 	 */
-	list_for_each_entry(counter, &evlist->entries, node) {
+	evlist__for_each(evlist, counter) {
 		cgrp = counter->cgrp;
 		if (!cgrp)
 			continue;
@@ -110,30 +110,26 @@ static int add_cgroup(struct perf_evlist *evlist, char *str)
 	 * if add cgroup N, then need to find event N
 	 */
 	n = 0;
-	list_for_each_entry(counter, &evlist->entries, node) {
+	evlist__for_each(evlist, counter) {
 		if (n == nr_cgroups)
 			goto found;
 		n++;
 	}
-	if (cgrp->refcnt == 0)
+	if (atomic_read(&cgrp->refcnt) == 0)
 		free(cgrp);
 
 	return -1;
 found:
-	cgrp->refcnt++;
+	atomic_inc(&cgrp->refcnt);
 	counter->cgrp = cgrp;
 	return 0;
 }
 
 void close_cgroup(struct cgroup_sel *cgrp)
 {
-	if (!cgrp)
-		return;
-
-	/* XXX: not reentrant */
-	if (--cgrp->refcnt == 0) {
+	if (cgrp && atomic_dec_and_test(&cgrp->refcnt)) {
 		close(cgrp->fd);
-		free(cgrp->name);
+		zfree(&cgrp->name);
 		free(cgrp);
 	}
 }

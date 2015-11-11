@@ -67,7 +67,7 @@ static int adis16060_spi_read(struct iio_dev *indio_dev, u16 *val)
 	 * starts to place data MSB first on the DOUT line at
 	 * the 6th falling edge of SCLK
 	 */
-	if (ret == 0)
+	if (!ret)
 		*val = ((st->buf[0] & 0x3) << 12) |
 			(st->buf[1] << 4) |
 			((st->buf[2] >> 4) & 0xF);
@@ -89,11 +89,13 @@ static int adis16060_read_raw(struct iio_dev *indio_dev,
 		/* Take the iio_dev status lock */
 		mutex_lock(&indio_dev->mlock);
 		ret = adis16060_spi_write(indio_dev, chan->address);
-		if (ret < 0) {
-			mutex_unlock(&indio_dev->mlock);
-			return ret;
-		}
+		if (ret < 0)
+			goto out_unlock;
+
 		ret = adis16060_spi_read(indio_dev, &tval);
+		if (ret < 0)
+			goto out_unlock;
+
 		mutex_unlock(&indio_dev->mlock);
 		*val = tval;
 		return IIO_VAL_INT;
@@ -108,6 +110,10 @@ static int adis16060_read_raw(struct iio_dev *indio_dev,
 	}
 
 	return -EINVAL;
+
+out_unlock:
+	mutex_unlock(&indio_dev->mlock);
+	return ret;
 }
 
 static const struct iio_info adis16060_info = {
@@ -151,11 +157,9 @@ static int adis16060_r_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 
 	/* setup the industrialio driver allocated elements */
-	indio_dev = iio_device_alloc(sizeof(*st));
-	if (indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	if (!indio_dev)
+		return -ENOMEM;
 	/* this is only used for removal purposes */
 	spi_set_drvdata(spi, indio_dev);
 	st = iio_priv(indio_dev);
@@ -169,25 +173,11 @@ static int adis16060_r_probe(struct spi_device *spi)
 	indio_dev->channels = adis16060_channels;
 	indio_dev->num_channels = ARRAY_SIZE(adis16060_channels);
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(&spi->dev, indio_dev);
 	if (ret)
-		goto error_free_dev;
+		return ret;
 
 	adis16060_iio_dev = indio_dev;
-	return 0;
-
-error_free_dev:
-	iio_device_free(indio_dev);
-error_ret:
-	return ret;
-}
-
-/* fixme, confirm ordering in this function */
-static int adis16060_r_remove(struct spi_device *spi)
-{
-	iio_device_unregister(spi_get_drvdata(spi));
-	iio_device_free(spi_get_drvdata(spi));
-
 	return 0;
 }
 
@@ -196,6 +186,7 @@ static int adis16060_w_probe(struct spi_device *spi)
 	int ret;
 	struct iio_dev *indio_dev = adis16060_iio_dev;
 	struct adis16060_state *st;
+
 	if (!indio_dev) {
 		ret =  -ENODEV;
 		goto error_ret;
@@ -217,16 +208,13 @@ static int adis16060_w_remove(struct spi_device *spi)
 static struct spi_driver adis16060_r_driver = {
 	.driver = {
 		.name = "adis16060_r",
-		.owner = THIS_MODULE,
 	},
 	.probe = adis16060_r_probe,
-	.remove = adis16060_r_remove,
 };
 
 static struct spi_driver adis16060_w_driver = {
 	.driver = {
 		.name = "adis16060_w",
-		.owner = THIS_MODULE,
 	},
 	.probe = adis16060_w_probe,
 	.remove = adis16060_w_remove,

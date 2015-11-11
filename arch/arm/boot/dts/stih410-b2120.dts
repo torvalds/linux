@@ -1,0 +1,64 @@
+/*
+ * Copyright (C) 2014 STMicroelectronics (R&D) Limited.
+ * Author: Peter Griffin <peter.griffin@linaro.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+/dts-v1/;
+#include "stih410.dtsi"
+#include "stihxxx-b2120.dtsi"
+/ {
+	model = "STiH410 B2120";
+	compatible = "st,stih410-b2120", "st,stih410";
+
+	chosen {
+		bootargs = "console=ttyAS0,115200 clk_ignore_unused";
+		linux,stdout-path = &sbc_serial0;
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x40000000 0x80000000>;
+	};
+
+	aliases {
+		ttyAS0 = &sbc_serial0;
+		ethernet0 = &ethernet0;
+	};
+
+	soc {
+
+		mmc0: sdhci@09060000 {
+			max-frequency = <200000000>;
+			sd-uhs-sdr50;
+			sd-uhs-sdr104;
+			sd-uhs-ddr50;
+		};
+
+		usb2_picophy1: phy2 {
+			status = "okay";
+		};
+
+		usb2_picophy2: phy3 {
+			status = "okay";
+		};
+
+		ohci0: usb@9a03c00 {
+			status = "okay";
+		};
+
+		ehci0: usb@9a03e00 {
+			status = "okay";
+		};
+
+		ohci1: usb@9a83c00 {
+			status = "okay";
+		};
+
+		ehci1: usb@9a83e00 {
+			status = "okay";
+		};
+	};
+};

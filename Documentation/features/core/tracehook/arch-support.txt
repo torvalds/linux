@@ -1,0 +1,40 @@
+#
+# Feature name:          tracehook
+#         Kconfig:       HAVE_ARCH_TRACEHOOK
+#         description:   arch supports tracehook (ptrace) register handling APIs
+#
+    -----------------------
+    |         arch |status|
+    -----------------------
+    |       alpha: | TODO |
+    |         arc: |  ok  |
+    |         arm: |  ok  |
+    |       arm64: |  ok  |
+    |       avr32: | TODO |
+    |    blackfin: |  ok  |
+    |         c6x: |  ok  |
+    |        cris: | TODO |
+    |         frv: |  ok  |
+    |       h8300: | TODO |
+    |     hexagon: |  ok  |
+    |        ia64: |  ok  |
+    |        m32r: | TODO |
+    |        m68k: | TODO |
+    |       metag: |  ok  |
+    |  microblaze: | TODO |
+    |        mips: |  ok  |
+    |     mn10300: |  ok  |
+    |       nios2: |  ok  |
+    |    openrisc: |  ok  |
+    |      parisc: | TODO |
+    |     powerpc: |  ok  |
+    |        s390: |  ok  |
+    |       score: | TODO |
+    |          sh: |  ok  |
+    |       sparc: |  ok  |
+    |        tile: |  ok  |
+    |          um: | TODO |
+    |   unicore32: | TODO |
+    |         x86: |  ok  |
+    |      xtensa: | TODO |
+    -----------------------

@@ -101,7 +101,6 @@ eledcr:
 	while (i--)
 		led_classdev_unregister(&dac->leds[i].ldev);
 
-	spi_set_drvdata(spi, NULL);
 	return ret;
 }
 
@@ -115,8 +114,6 @@ static int dac124s085_remove(struct spi_device *spi)
 		cancel_work_sync(&dac->leds[i].work);
 	}
 
-	spi_set_drvdata(spi, NULL);
-
 	return 0;
 }
 
@@ -125,7 +122,6 @@ static struct spi_driver dac124s085_driver = {
 	.remove		= dac124s085_remove,
 	.driver = {
 		.name	= "dac124s085",
-		.owner	= THIS_MODULE,
 	},
 };
 

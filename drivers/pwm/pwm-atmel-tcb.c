@@ -76,7 +76,7 @@ static int atmel_tcb_pwm_request(struct pwm_chip *chip,
 	if (!tcbpwm)
 		return -ENOMEM;
 
-	ret = clk_enable(tc->clk[group]);
+	ret = clk_prepare_enable(tc->clk[group]);
 	if (ret) {
 		devm_kfree(chip->dev, tcbpwm);
 		return ret;
@@ -124,7 +124,7 @@ static void atmel_tcb_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 	struct atmel_tcb_pwm_device *tcbpwm = pwm_get_chip_data(pwm);
 	struct atmel_tc *tc = tcbpwmc->tc;
 
-	clk_disable(tc->clk[pwm->hwpwm / 2]);
+	clk_disable_unprepare(tc->clk[pwm->hwpwm / 2]);
 	tcbpwmc->pwms[pwm->hwpwm] = NULL;
 	devm_kfree(chip->dev, tcbpwm);
 }
@@ -249,6 +249,8 @@ static int atmel_tcb_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 		}
 	}
 
+	cmr |= (tcbpwm->div & ATMEL_TC_TCCLKS);
+
 	__raw_writel(cmr, regs + ATMEL_TC_REG(group, CMR));
 
 	if (index == 0)
@@ -303,9 +305,9 @@ static int atmel_tcb_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 */
 	if (i == 5) {
 		i = slowclk;
-		rate = 32768;
+		rate = clk_get_rate(tc->slow_clk);
 		min = div_u64(NSEC_PER_SEC, rate);
-		max = min << 16;
+		max = min << tc->tcb_config->counter_width;
 
 		/* If period is too big return ERANGE error */
 		if (max < period_ns)
@@ -345,7 +347,7 @@ static int atmel_tcb_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	tcbpwm->duty = duty;
 
 	/* If the PWM is enabled, call enable to apply the new conf */
-	if (test_bit(PWMF_ENABLED, &pwm->flags))
+	if (pwm_is_enabled(pwm))
 		atmel_tcb_pwm_enable(chip, pwm);
 
 	return 0;
@@ -377,7 +379,7 @@ static int atmel_tcb_pwm_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	tc = atmel_tc_alloc(tcblock, "tcb-pwm");
+	tc = atmel_tc_alloc(tcblock);
 	if (tc == NULL) {
 		dev_err(&pdev->dev, "failed to allocate Timer Counter Block\n");
 		return -ENOMEM;
@@ -385,9 +387,9 @@ static int atmel_tcb_pwm_probe(struct platform_device *pdev)
 
 	tcbpwm = devm_kzalloc(&pdev->dev, sizeof(*tcbpwm), GFP_KERNEL);
 	if (tcbpwm == NULL) {
-		atmel_tc_free(tc);
+		err = -ENOMEM;
 		dev_err(&pdev->dev, "failed to allocate memory\n");
-		return -ENOMEM;
+		goto err_free_tc;
 	}
 
 	tcbpwm->chip.dev = &pdev->dev;
@@ -398,23 +400,35 @@ static int atmel_tcb_pwm_probe(struct platform_device *pdev)
 	tcbpwm->chip.npwm = NPWM;
 	tcbpwm->tc = tc;
 
+	err = clk_prepare_enable(tc->slow_clk);
+	if (err)
+		goto err_free_tc;
+
 	spin_lock_init(&tcbpwm->lock);
 
 	err = pwmchip_add(&tcbpwm->chip);
-	if (err < 0) {
-		atmel_tc_free(tc);
-		return err;
-	}
+	if (err < 0)
+		goto err_disable_clk;
 
 	platform_set_drvdata(pdev, tcbpwm);
 
 	return 0;
+
+err_disable_clk:
+	clk_disable_unprepare(tcbpwm->tc->slow_clk);
+
+err_free_tc:
+	atmel_tc_free(tc);
+
+	return err;
 }
 
 static int atmel_tcb_pwm_remove(struct platform_device *pdev)
 {
 	struct atmel_tcb_pwm_chip *tcbpwm = platform_get_drvdata(pdev);
 	int err;
+
+	clk_disable_unprepare(tcbpwm->tc->slow_clk);
 
 	err = pwmchip_remove(&tcbpwm->chip);
 	if (err < 0)

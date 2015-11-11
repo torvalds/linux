@@ -1,0 +1,40 @@
+* NXP PCA953x I2C GPIO multiplexer
+
+Required properties:
+ - compatible: Has to contain one of the following:
+	nxp,pca9505
+	nxp,pca9534
+	nxp,pca9535
+	nxp,pca9536
+	nxp,pca9537
+	nxp,pca9538
+	nxp,pca9539
+	nxp,pca9554
+	nxp,pca9555
+	nxp,pca9556
+	nxp,pca9557
+	nxp,pca9574
+	nxp,pca9575
+	nxp,pca9698
+	maxim,max7310
+	maxim,max7312
+	maxim,max7313
+	maxim,max7315
+	ti,pca6107
+	ti,tca6408
+	ti,tca6416
+	ti,tca6424
+	ti,tca9539
+	exar,xra1202
+
+Example:
+
+
+	gpio@20 {
+		compatible = "nxp,pca9505";
+		reg = <0x20>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pca9505>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <23 IRQ_TYPE_LEVEL_LOW>;
+	};

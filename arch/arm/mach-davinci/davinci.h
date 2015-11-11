@@ -23,9 +23,9 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/platform_data/davinci_asp.h>
+#include <linux/platform_data/edma.h>
 #include <linux/platform_data/keyscan-davinci.h>
 #include <mach/hardware.h>
-#include <mach/edma.h>
 
 #include <media/davinci/vpfe_capture.h>
 #include <media/davinci/vpif_types.h>
@@ -53,6 +53,9 @@ extern void __iomem *davinci_sysmod_base;
 #define DAVINCI_SYSMOD_VIRT(x)	(davinci_sysmod_base + (x))
 void davinci_map_sysmod(void);
 
+#define DAVINCI_GPIO_BASE 0x01C67000
+int davinci_gpio_register(struct resource *res, int size, void *pdata);
+
 /* DM355 base addresses */
 #define DM355_ASYNC_EMIF_CONTROL_BASE	0x01e10000
 #define DM355_ASYNC_EMIF_DATA_CE0_BASE	0x02000000
@@ -76,34 +79,45 @@ void davinci_map_sysmod(void);
 #define DM646X_ASYNC_EMIF_CONTROL_BASE	0x20008000
 #define DM646X_ASYNC_EMIF_CS2_SPACE_BASE 0x42000000
 
+int davinci_init_wdt(void);
+
 /* DM355 function declarations */
-void __init dm355_init(void);
+void dm355_init(void);
 void dm355_init_spi0(unsigned chipselect_mask,
 		const struct spi_board_info *info, unsigned len);
-void __init dm355_init_asp1(u32 evt_enable, struct snd_platform_data *pdata);
+void dm355_init_asp1(u32 evt_enable, struct snd_platform_data *pdata);
 int dm355_init_video(struct vpfe_config *, struct vpbe_config *);
+int dm355_gpio_register(void);
 
 /* DM365 function declarations */
-void __init dm365_init(void);
-void __init dm365_init_asp(struct snd_platform_data *pdata);
-void __init dm365_init_vc(struct snd_platform_data *pdata);
-void __init dm365_init_ks(struct davinci_ks_platform_data *pdata);
-void __init dm365_init_rtc(void);
+void dm365_init(void);
+void dm365_init_asp(struct snd_platform_data *pdata);
+void dm365_init_vc(struct snd_platform_data *pdata);
+void dm365_init_ks(struct davinci_ks_platform_data *pdata);
+void dm365_init_rtc(void);
 void dm365_init_spi0(unsigned chipselect_mask,
 			const struct spi_board_info *info, unsigned len);
 int dm365_init_video(struct vpfe_config *, struct vpbe_config *);
+int dm365_gpio_register(void);
 
 /* DM644x function declarations */
-void __init dm644x_init(void);
-void __init dm644x_init_asp(struct snd_platform_data *pdata);
-int __init dm644x_init_video(struct vpfe_config *, struct vpbe_config *);
+void dm644x_init(void);
+void dm644x_init_asp(struct snd_platform_data *pdata);
+int dm644x_init_video(struct vpfe_config *, struct vpbe_config *);
+int dm644x_gpio_register(void);
 
 /* DM646x function declarations */
-void __init dm646x_init(void);
-void __init dm646x_init_mcasp0(struct snd_platform_data *pdata);
-void __init dm646x_init_mcasp1(struct snd_platform_data *pdata);
-int __init dm646x_init_edma(struct edma_rsv_info *rsv);
+void dm646x_init(void);
+void dm646x_init_mcasp0(struct snd_platform_data *pdata);
+void dm646x_init_mcasp1(struct snd_platform_data *pdata);
+int dm646x_init_edma(struct edma_rsv_info *rsv);
 void dm646x_video_init(void);
 void dm646x_setup_vpif(struct vpif_display_config *,
 		       struct vpif_capture_config *);
+int dm646x_gpio_register(void);
+
+extern struct platform_device dm365_serial_device[];
+extern struct platform_device dm355_serial_device[];
+extern struct platform_device dm644x_serial_device[];
+extern struct platform_device dm646x_serial_device[];
 #endif /*__DAVINCI_H */

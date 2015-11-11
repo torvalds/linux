@@ -28,10 +28,15 @@
 
 #include <linux/mtd/mtd.h>
 #include <linux/i2c-omap.h>
+#include <linux/reboot.h>
+
+#include <asm/exception.h>
 
 #include <plat/i2c.h>
 
 #include <mach/irqs.h>
+
+#include "soc.h"
 
 #if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
 void omap7xx_map_io(void);
@@ -45,6 +50,9 @@ static inline void omap7xx_map_io(void)
 void omap1510_fpga_init_irq(void);
 void omap15xx_map_io(void);
 #else
+static inline void omap1510_fpga_init_irq(void)
+{
+}
 static inline void omap15xx_map_io(void)
 {
 }
@@ -69,8 +77,9 @@ static inline int omap_serial_wakeup_init(void)
 
 void omap1_init_early(void);
 void omap1_init_irq(void);
+void __exception_irq_entry omap1_handle_irq(struct pt_regs *regs);
 void omap1_init_late(void);
-void omap1_restart(char, const char *);
+void omap1_restart(enum reboot_mode, const char *);
 
 extern void __init omap_check_revision(void);
 
@@ -86,8 +95,6 @@ static inline int __init omap_32k_timer_init(void)
 	return -ENODEV;
 }
 #endif
-
-extern u32 omap_irq_flags;
 
 #ifdef CONFIG_ARCH_OMAP16XX
 extern int ocpi_enable(void);

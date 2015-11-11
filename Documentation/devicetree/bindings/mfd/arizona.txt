@@ -1,0 +1,97 @@
+Wolfson Arizona class audio SoCs
+
+These devices are audio SoCs with extensive digital capabilites and a range
+of analogue I/O.
+
+Required properties:
+
+  - compatible : One of the following chip-specific strings:
+        "wlf,wm5102"
+        "wlf,wm5110"
+        "wlf,wm8280"
+        "wlf,wm8997"
+        "wlf,wm8998"
+        "wlf,wm1814"
+
+  - reg : I2C slave address when connected using I2C, chip select number when
+    using SPI.
+
+  - interrupts : The interrupt line the /IRQ signal for the device is
+    connected to.
+  - interrupt-controller : Arizona class devices contain interrupt controllers
+    and may provide interrupt services to other devices.
+  - interrupt-parent : The parent interrupt controller.
+  - #interrupt-cells: the number of cells to describe an IRQ, this should be 2.
+    The first cell is the IRQ number.
+    The second cell is the flags, encoded as the trigger masks from
+    Documentation/devicetree/bindings/interrupts.txt
+
+  - gpio-controller : Indicates this device is a GPIO controller.
+  - #gpio-cells : Must be 2. The first cell is the pin number and the
+    second cell is used to specify optional parameters (currently unused).
+
+  - AVDD-supply, DBVDD1-supply, CPVDD-supply : Power supplies for the device,
+    as covered in Documentation/devicetree/bindings/regulator/regulator.txt
+
+  - DBVDD2-supply, DBVDD3-supply : Additional databus power supplies (wm5102,
+    wm5110, wm8280, wm8998, wm1814)
+
+  - SPKVDDL-supply, SPKVDDR-supply : Speaker driver power supplies (wm5102,
+    wm5110, wm8280, wm8998, wm1814)
+
+  - SPKVDD-supply : Speaker driver power supply (wm8997)
+
+Optional properties:
+
+  - wlf,reset : GPIO specifier for the GPIO controlling /RESET
+
+  - wlf,gpio-defaults : A list of GPIO configuration register values. Defines
+    for the appropriate values can found in <dt-bindings/mfd/arizona.txt>. If
+    absent, no configuration of these registers is performed. If any entry has
+    a value that is out of range for a 16 bit register then the chip default
+    will be used. If present exactly five values must be specified.
+
+  - wlf,inmode : A list of INn_MODE register values, where n is the number
+    of input signals. Valid values are 0 (Differential), 1 (Single-ended) and
+    2 (Digital Microphone). If absent, INn_MODE registers set to 0 by default.
+    If present, values must be specified less than or equal to the number of
+    input signals. If values less than the number of input signals, elements
+    that have not been specified are set to 0 by default. Entries are:
+    <IN1, IN2, IN3, IN4> (wm5102, wm5110, wm8280, wm8997)
+    <IN1A, IN2A, IN1B, IN2B> (wm8998, wm1814)
+
+  - wlf,dmic-ref : DMIC reference voltage source for each input, can be
+    selected from either MICVDD or one of the MICBIAS's, defines
+    (ARIZONA_DMIC_xxxx) are provided in <dt-bindings/mfd/arizona.txt>. If
+    present, the number of values should be less than or equal to the
+    number of inputs, unspecified inputs will use the chip default.
+
+  - DCVDD-supply, MICVDD-supply : Power supplies, only need to be specified if
+    they are being externally supplied. As covered in
+    Documentation/devicetree/bindings/regulator/regulator.txt
+
+Also see child specific device properties:
+  Regulator - ../regulator/arizona-regulator.txt
+  Extcon    - ../extcon/extcon-arizona.txt
+
+Example:
+
+codec: wm5102@1a {
+	compatible = "wlf,wm5102";
+	reg = <0x1a>;
+	interrupts = <347>;
+	interrupt-controller;
+	#interrupt-cells = <2>;
+        interrupt-parent = <&gic>;
+
+	gpio-controller;
+	#gpio-cells = <2>;
+
+	wlf,gpio-defaults = <
+		ARIZONA_GP_FN_TXLRCLK
+		ARIZONA_GP_DEFAULT
+		ARIZONA_GP_DEFAULT
+		ARIZONA_GP_DEFAULT
+		ARIZONA_GP_DEFAULT
+	>;
+};

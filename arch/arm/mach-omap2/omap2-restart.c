@@ -15,7 +15,7 @@
 
 #include "soc.h"
 #include "common.h"
-#include "prm2xxx.h"
+#include "prm.h"
 
 /*
  * reset_virt_prcm_set_ck, reset_sys_ck: pointers to the virt_prcm_set
@@ -31,7 +31,7 @@ static struct clk *reset_virt_prcm_set_ck, *reset_sys_ck;
  * Set the DPLL to bypass so that reboot completes successfully.  No
  * return value.
  */
-void omap2xxx_restart(char mode, const char *cmd)
+void omap2xxx_restart(enum reboot_mode mode, const char *cmd)
 {
 	u32 rate;
 
@@ -40,8 +40,7 @@ void omap2xxx_restart(char mode, const char *cmd)
 
 	/* XXX Should save the cmd argument for use after the reboot */
 
-	omap2xxx_prm_dpll_reset(); /* never returns */
-	while (1);
+	omap_prm_reset_system();
 }
 
 /**

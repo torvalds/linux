@@ -157,10 +157,10 @@ static const struct v4l2_ctrl_ops tw9906_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops tw9906_core_ops = {
 	.log_status = tw9906_log_status,
-	.s_std = tw9906_s_std,
 };
 
 static const struct v4l2_subdev_video_ops tw9906_video_ops = {
+	.s_std = tw9906_s_std,
 	.s_routing = tw9906_s_video_routing,
 };
 
@@ -183,7 +183,7 @@ static int tw9906_probe(struct i2c_client *client,
 	v4l_info(client, "chip found @ 0x%02x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	dec = kzalloc(sizeof(struct tw9906), GFP_KERNEL);
+	dec = devm_kzalloc(&client->dev, sizeof(*dec), GFP_KERNEL);
 	if (dec == NULL)
 		return -ENOMEM;
 	sd = &dec->sd;
@@ -201,7 +201,6 @@ static int tw9906_probe(struct i2c_client *client,
 		int err = hdl->error;
 
 		v4l2_ctrl_handler_free(hdl);
-		kfree(dec);
 		return err;
 	}
 
@@ -210,7 +209,6 @@ static int tw9906_probe(struct i2c_client *client,
 
 	if (write_regs(sd, initial_registers) < 0) {
 		v4l2_err(client, "error initializing TW9906\n");
-		kfree(dec);
 		return -EINVAL;
 	}
 
@@ -223,7 +221,6 @@ static int tw9906_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&to_state(sd)->hdl);
-	kfree(to_state(sd));
 	return 0;
 }
 
@@ -237,7 +234,6 @@ MODULE_DEVICE_TABLE(i2c, tw9906_id);
 
 static struct i2c_driver tw9906_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "tw9906",
 	},
 	.probe = tw9906_probe,

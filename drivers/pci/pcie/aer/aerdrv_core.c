@@ -74,6 +74,34 @@ int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev)
 }
 EXPORT_SYMBOL_GPL(pci_cleanup_aer_uncorrect_error_status);
 
+int pci_cleanup_aer_error_status_regs(struct pci_dev *dev)
+{
+	int pos;
+	u32 status;
+	int port_type;
+
+	if (!pci_is_pcie(dev))
+		return -ENODEV;
+
+	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
+	if (!pos)
+		return -EIO;
+
+	port_type = pci_pcie_type(dev);
+	if (port_type == PCI_EXP_TYPE_ROOT_PORT) {
+		pci_read_config_dword(dev, pos + PCI_ERR_ROOT_STATUS, &status);
+		pci_write_config_dword(dev, pos + PCI_ERR_ROOT_STATUS, status);
+	}
+
+	pci_read_config_dword(dev, pos + PCI_ERR_COR_STATUS, &status);
+	pci_write_config_dword(dev, pos + PCI_ERR_COR_STATUS, status);
+
+	pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_STATUS, &status);
+	pci_write_config_dword(dev, pos + PCI_ERR_UNCOR_STATUS, status);
+
+	return 0;
+}
+
 /**
  * add_error_device - list device to be handled
  * @e_info: pointer to error info
@@ -367,49 +395,16 @@ static pci_ers_result_t broadcast_error_message(struct pci_dev *dev,
 }
 
 /**
- * aer_do_secondary_bus_reset - perform secondary bus reset
- * @dev: pointer to bridge's pci_dev data structure
+ * default_reset_link - default reset function
+ * @dev: pointer to pci_dev data structure
  *
- * Invoked when performing link reset at Root Port or Downstream Port.
+ * Invoked when performing link reset on a Downstream Port or a
+ * Root Port with no aer driver.
  */
-void aer_do_secondary_bus_reset(struct pci_dev *dev)
+static pci_ers_result_t default_reset_link(struct pci_dev *dev)
 {
-	u16 p2p_ctrl;
-
-	/* Assert Secondary Bus Reset */
-	pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &p2p_ctrl);
-	p2p_ctrl |= PCI_BRIDGE_CTL_BUS_RESET;
-	pci_write_config_word(dev, PCI_BRIDGE_CONTROL, p2p_ctrl);
-
-	/*
-	 * we should send hot reset message for 2ms to allow it time to
-	 * propagate to all downstream ports
-	 */
-	msleep(2);
-
-	/* De-assert Secondary Bus Reset */
-	p2p_ctrl &= ~PCI_BRIDGE_CTL_BUS_RESET;
-	pci_write_config_word(dev, PCI_BRIDGE_CONTROL, p2p_ctrl);
-
-	/*
-	 * System software must wait for at least 100ms from the end
-	 * of a reset of one or more device before it is permitted
-	 * to issue Configuration Requests to those devices.
-	 */
-	msleep(200);
-}
-
-/**
- * default_downstream_reset_link - default reset function for Downstream Port
- * @dev: pointer to downstream port's pci_dev data structure
- *
- * Invoked when performing link reset at Downstream Port w/ no aer driver.
- */
-static pci_ers_result_t default_downstream_reset_link(struct pci_dev *dev)
-{
-	aer_do_secondary_bus_reset(dev);
-	dev_printk(KERN_DEBUG, &dev->dev,
-		"Downstream Port link has been reset\n");
+	pci_reset_bridge_secondary_bus(dev);
+	dev_printk(KERN_DEBUG, &dev->dev, "downstream link has been reset\n");
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
@@ -458,8 +453,8 @@ static pci_ers_result_t reset_link(struct pci_dev *dev)
 
 	if (driver && driver->reset_link) {
 		status = driver->reset_link(udev);
-	} else if (pci_pcie_type(udev) == PCI_EXP_TYPE_DOWNSTREAM) {
-		status = default_downstream_reset_link(udev);
+	} else if (udev->has_secondary_link) {
+		status = default_reset_link(udev);
 	} else {
 		dev_printk(KERN_DEBUG, &dev->dev,
 			"no link-reset support at upstream device %s\n",
@@ -557,7 +552,7 @@ static void handle_error_source(struct pcie_device *aerdev,
 
 	if (info->severity == AER_CORRECTABLE) {
 		/*
-		 * Correctable error does not need software intevention.
+		 * Correctable error does not need software intervention.
 		 * No need to go through error recovery process.
 		 */
 		pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
@@ -574,8 +569,7 @@ static void aer_recover_work_func(struct work_struct *work);
 #define AER_RECOVER_RING_ORDER		4
 #define AER_RECOVER_RING_SIZE		(1 << AER_RECOVER_RING_ORDER)
 
-struct aer_recover_entry
-{
+struct aer_recover_entry {
 	u8	bus;
 	u8	devfn;
 	u16	domain;
@@ -606,7 +600,7 @@ void aer_recover_queue(int domain, unsigned int bus, unsigned int devfn,
 	};
 
 	spin_lock_irqsave(&aer_recover_ring_lock, flags);
-	if (kfifo_put(&aer_recover_ring, &entry))
+	if (kfifo_put(&aer_recover_ring, entry))
 		schedule_work(&aer_recover_work);
 	else
 		pr_err("AER recover: Buffer overflow when recovering AER for %04x:%02x:%02x:%x\n",

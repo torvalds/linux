@@ -17,7 +17,6 @@
 #include <linux/export.h>
 #include <linux/crash_dump.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/types.h>
 
@@ -82,7 +81,7 @@ void crash_ipi_callback(struct pt_regs *regs)
 	}
 
 	atomic_inc(&cpus_in_crash);
-	smp_mb__after_atomic_inc();
+	smp_mb__after_atomic();
 
 	/*
 	 * Starting the kdump boot.
@@ -222,8 +221,8 @@ void crash_kexec_secondary(struct pt_regs *regs)
 #endif	/* CONFIG_SMP */
 
 /* wait for all the CPUs to hit real mode but timeout if they don't come in */
-#if defined(CONFIG_SMP) && defined(CONFIG_PPC_STD_MMU_64)
-static void crash_kexec_wait_realmode(int cpu)
+#if defined(CONFIG_SMP) && defined(CONFIG_PPC64)
+static void __maybe_unused crash_kexec_wait_realmode(int cpu)
 {
 	unsigned int msecs;
 	int i;
@@ -245,7 +244,7 @@ static void crash_kexec_wait_realmode(int cpu)
 }
 #else
 static inline void crash_kexec_wait_realmode(int cpu) {}
-#endif	/* CONFIG_SMP && CONFIG_PPC_STD_MMU_64 */
+#endif	/* CONFIG_SMP && CONFIG_PPC64 */
 
 /*
  * Register a function to be called on shutdown.  Only use this if you

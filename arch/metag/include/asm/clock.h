@@ -19,12 +19,20 @@
  *			core frequency will be determined like this:
  *			Meta 1: based on loops_per_jiffy.
  *			Meta 2: (EXPAND_TIMER_DIV + 1) MHz.
+ *			If a "core" clock is provided by the device tree, it
+ *			will override this function.
  */
 struct meta_clock_desc {
 	unsigned long		(*get_core_freq)(void);
 };
 
 extern struct meta_clock_desc _meta_clock;
+
+/*
+ * Perform platform clock initialisation, reading clocks from device tree etc.
+ * Only accessible during boot.
+ */
+void init_metag_clocks(void);
 
 /*
  * Set up the default clock, ensuring all callbacks are valid - only accessible

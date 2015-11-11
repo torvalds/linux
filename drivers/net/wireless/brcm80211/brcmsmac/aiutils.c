@@ -679,27 +679,6 @@ bool ai_clkctl_cc(struct si_pub *sih, enum bcma_clkmode mode)
 	return mode == BCMA_CLKMODE_FAST;
 }
 
-void ai_pci_up(struct si_pub *sih)
-{
-	struct si_info *sii;
-
-	sii = container_of(sih, struct si_info, pub);
-
-	if (sii->icbus->hosttype == BCMA_HOSTTYPE_PCI)
-		bcma_core_pci_extend_L1timer(&sii->icbus->drv_pci[0], true);
-}
-
-/* Unconfigure and/or apply various WARs when going down */
-void ai_pci_down(struct si_pub *sih)
-{
-	struct si_info *sii;
-
-	sii = container_of(sih, struct si_info, pub);
-
-	if (sii->icbus->hosttype == BCMA_HOSTTYPE_PCI)
-		bcma_core_pci_extend_L1timer(&sii->icbus->drv_pci[0], false);
-}
-
 /* Enable BT-COEX & Ex-PA for 4313 */
 void ai_epa_4313war(struct si_pub *sih)
 {

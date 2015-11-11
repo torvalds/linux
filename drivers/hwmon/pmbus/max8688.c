@@ -18,6 +18,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -30,15 +31,15 @@
 #define MAX8688_MFR_TEMPERATURE_PEAK	0xd6
 #define MAX8688_MFG_STATUS		0xd8
 
-#define MAX8688_STATUS_OC_FAULT		(1 << 4)
-#define MAX8688_STATUS_OV_FAULT		(1 << 5)
-#define MAX8688_STATUS_OV_WARNING	(1 << 8)
-#define MAX8688_STATUS_UV_FAULT		(1 << 9)
-#define MAX8688_STATUS_UV_WARNING	(1 << 10)
-#define MAX8688_STATUS_UC_FAULT		(1 << 11)
-#define MAX8688_STATUS_OC_WARNING	(1 << 12)
-#define MAX8688_STATUS_OT_FAULT		(1 << 13)
-#define MAX8688_STATUS_OT_WARNING	(1 << 14)
+#define MAX8688_STATUS_OC_FAULT		BIT(4)
+#define MAX8688_STATUS_OV_FAULT		BIT(5)
+#define MAX8688_STATUS_OV_WARNING	BIT(8)
+#define MAX8688_STATUS_UV_FAULT		BIT(9)
+#define MAX8688_STATUS_UV_WARNING	BIT(10)
+#define MAX8688_STATUS_UC_FAULT		BIT(11)
+#define MAX8688_STATUS_OC_WARNING	BIT(12)
+#define MAX8688_STATUS_OT_FAULT		BIT(13)
+#define MAX8688_STATUS_OT_WARNING	BIT(14)
 
 static int max8688_read_word_data(struct i2c_client *client, int page, int reg)
 {

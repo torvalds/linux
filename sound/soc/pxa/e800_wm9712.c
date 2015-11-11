@@ -71,19 +71,6 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"MIC2", NULL, "Mic (Internal2)"},
 };
 
-static int e800_ac97_init(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_new_controls(dapm, e800_dapm_widgets,
-					ARRAY_SIZE(e800_dapm_widgets));
-
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-
-	return 0;
-}
-
 static struct snd_soc_dai_link e800_dai[] = {
 	{
 		.name = "AC97",
@@ -92,7 +79,6 @@ static struct snd_soc_dai_link e800_dai[] = {
 		.codec_dai_name = "wm9712-hifi",
 		.platform_name = "pxa-pcm-audio",
 		.codec_name = "wm9712-codec",
-		.init = e800_ac97_init,
 	},
 	{
 		.name = "AC97 Aux",
@@ -109,6 +95,11 @@ static struct snd_soc_card e800 = {
 	.owner = THIS_MODULE,
 	.dai_link = e800_dai,
 	.num_links = ARRAY_SIZE(e800_dai),
+
+	.dapm_widgets = e800_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(e800_dapm_widgets),
+	.dapm_routes = audio_map,
+	.num_dapm_routes = ARRAY_SIZE(audio_map),
 };
 
 static struct gpio e800_audio_gpios[] = {
@@ -128,7 +119,7 @@ static int e800_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	ret = snd_soc_register_card(card);
+	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
 			ret);
@@ -139,17 +130,14 @@ static int e800_probe(struct platform_device *pdev)
 
 static int e800_remove(struct platform_device *pdev)
 {
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-
 	gpio_free_array(e800_audio_gpios, ARRAY_SIZE(e800_audio_gpios));
-	snd_soc_unregister_card(card);
 	return 0;
 }
 
 static struct platform_driver e800_driver = {
 	.driver		= {
 		.name	= "e800-audio",
-		.owner	= THIS_MODULE,
+		.pm     = &snd_soc_pm_ops,
 	},
 	.probe		= e800_probe,
 	.remove		= e800_remove,

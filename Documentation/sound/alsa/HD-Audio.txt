@@ -454,6 +454,8 @@ The generic parser supports the following hints:
 - need_dac_fix (bool): limits the DACs depending on the channel count
 - primary_hp (bool): probe headphone jacks as the primary outputs;
   default true
+- multi_io (bool): try probing multi-I/O config (e.g. shared
+  line-in/surround, mic/clfe jacks)
 - multi_cap_vol (bool): provide multiple capture volumes
 - inv_dmic_split (bool): provide split internal mic volume/switch for
   phase-inverted digital mics
@@ -464,7 +466,11 @@ The generic parser supports the following hints:
 - add_jack_modes (bool): add "xxx Jack Mode" enum controls to each
   I/O jack for allowing to change the headphone amp and mic bias VREF
   capabilities
-- power_down_unused (bool): power down the unused widgets
+- power_save_node (bool): advanced power management for each widget,
+  controlling the power sate (D0/D3) of each widget node depending on
+  the actual pin and stream states
+- power_down_unused (bool): power down the unused widgets, a subset of
+  power_save_node, and will be dropped in future
 - add_hp_mic (bool): add the headphone to capture source if possible
 - hp_mic_detect (bool): enable/disable the hp/mic shared input for a
   single built-in mic case; default true

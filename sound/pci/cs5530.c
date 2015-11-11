@@ -66,7 +66,7 @@ struct snd_cs5530 {
 	unsigned long pci_base;
 };
 
-static DEFINE_PCI_DEVICE_TABLE(snd_cs5530_ids) = {
+static const struct pci_device_id snd_cs5530_ids[] = {
 	{PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5530_AUDIO, PCI_ANY_ID,
 							PCI_ANY_ID, 0, 0},
 	{0,}
@@ -91,7 +91,6 @@ static int snd_cs5530_dev_free(struct snd_device *device)
 static void snd_cs5530_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 static u8 snd_cs5530_mixer_read(unsigned long io, u8 reg)
@@ -161,17 +160,17 @@ static int snd_cs5530_create(struct snd_card *card,
 	sb_base = 0x220 + 0x20 * (map & 3);
 
 	if (map & (1<<2))
-		printk(KERN_INFO "CS5530: XpressAudio at 0x%lx\n", sb_base);
+		dev_info(card->dev, "XpressAudio at 0x%lx\n", sb_base);
 	else {
-		printk(KERN_ERR "Could not find XpressAudio!\n");
+		dev_err(card->dev, "Could not find XpressAudio!\n");
 		snd_cs5530_free(chip);
 		return -ENODEV;
 	}
 
 	if (map & (1<<5))
-		printk(KERN_INFO "CS5530: MPU at 0x300\n");
+		dev_info(card->dev, "MPU at 0x300\n");
 	else if (map & (1<<6))
-		printk(KERN_INFO "CS5530: MPU at 0x330\n");
+		dev_info(card->dev, "MPU at 0x330\n");
 
 	irq = snd_cs5530_mixer_read(sb_base, 0x80) & 0x0F;
 	dma8 = snd_cs5530_mixer_read(sb_base, 0x81);
@@ -183,7 +182,7 @@ static int snd_cs5530_create(struct snd_card *card,
 	else if (dma8 & 0x80)
 		dma16 = 7;
 	else {
-		printk(KERN_ERR "CS5530: No 16bit DMA enabled\n");
+		dev_err(card->dev, "No 16bit DMA enabled\n");
 		snd_cs5530_free(chip);
 		return -ENODEV;
 	}
@@ -195,7 +194,7 @@ static int snd_cs5530_create(struct snd_card *card,
 	else if (dma8 & 0x08)
 		dma8 = 3;
 	else {
-		printk(KERN_ERR "CS5530: No 8bit DMA enabled\n");
+		dev_err(card->dev, "No 8bit DMA enabled\n");
 		snd_cs5530_free(chip);
 		return -ENODEV;
 	}
@@ -209,32 +208,31 @@ static int snd_cs5530_create(struct snd_card *card,
 	else if (irq & 8)
 		irq = 10;
 	else {
-		printk(KERN_ERR "CS5530: SoundBlaster IRQ not set\n");
+		dev_err(card->dev, "SoundBlaster IRQ not set\n");
 		snd_cs5530_free(chip);
 		return -ENODEV;
 	}
 
-	printk(KERN_INFO "CS5530: IRQ: %d DMA8: %d DMA16: %d\n", irq, dma8, 
-									dma16);
+	dev_info(card->dev, "IRQ: %d DMA8: %d DMA16: %d\n", irq, dma8, dma16);
 
 	err = snd_sbdsp_create(card, sb_base, irq, snd_sb16dsp_interrupt, dma8,
 						dma16, SB_HW_CS5530, &chip->sb);
 	if (err < 0) {
-		printk(KERN_ERR "CS5530: Could not create SoundBlaster\n");
+		dev_err(card->dev, "Could not create SoundBlaster\n");
 		snd_cs5530_free(chip);
 		return err;
 	}
 
-	err = snd_sb16dsp_pcm(chip->sb, 0, &chip->sb->pcm);
+	err = snd_sb16dsp_pcm(chip->sb, 0);
 	if (err < 0) {
-		printk(KERN_ERR "CS5530: Could not create PCM\n");
+		dev_err(card->dev, "Could not create PCM\n");
 		snd_cs5530_free(chip);
 		return err;
 	}
 
 	err = snd_sbmixer_new(chip->sb);
 	if (err < 0) {
-		printk(KERN_ERR "CS5530: Could not create Mixer\n");
+		dev_err(card->dev, "Could not create Mixer\n");
 		snd_cs5530_free(chip);
 		return err;
 	}
@@ -245,7 +243,6 @@ static int snd_cs5530_create(struct snd_card *card,
 		return err;
 	}
 
-	snd_card_set_dev(card, &pci->dev);
 	*rchip = chip;
 	return 0;
 }
@@ -265,7 +262,8 @@ static int snd_cs5530_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+			   0, &card);
 
 	if (err < 0)
 		return err;

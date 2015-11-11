@@ -6,9 +6,9 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/scatterlist.h>
 
 #include <asm/io.h>
-#include <asm/scatterlist.h>
 #include <asm/hw_irq.h>
 
 struct pci_vector_struct {
@@ -50,32 +50,7 @@ struct pci_dev;
 extern unsigned long ia64_max_iommu_merge_mask;
 #define PCI_DMA_BUS_IS_PHYS	(ia64_max_iommu_merge_mask == ~0UL)
 
-static inline void
-pcibios_penalize_isa_irq (int irq, int active)
-{
-	/* We don't do dynamic PCI IRQ allocation */
-}
-
 #include <asm-generic/pci-dma-compat.h>
-
-#ifdef CONFIG_PCI
-static inline void pci_dma_burst_advice(struct pci_dev *pdev,
-					enum pci_dma_burst_strategy *strat,
-					unsigned long *strategy_parameter)
-{
-	unsigned long cacheline_size;
-	u8 byte;
-
-	pci_read_config_byte(pdev, PCI_CACHE_LINE_SIZE, &byte);
-	if (byte == 0)
-		cacheline_size = 1024;
-	else
-		cacheline_size = (int) byte * 4;
-
-	*strat = PCI_DMA_BURST_MULTIPLE;
-	*strategy_parameter = cacheline_size;
-}
-#endif
 
 #define HAVE_PCI_MMAP
 extern int pci_mmap_page_range (struct pci_dev *dev, struct vm_area_struct *vma,
@@ -89,22 +64,15 @@ extern int pci_mmap_legacy_page_range(struct pci_bus *bus,
 #define pci_legacy_read platform_pci_legacy_read
 #define pci_legacy_write platform_pci_legacy_write
 
-struct pci_window {
-	struct resource resource;
-	u64 offset;
-};
-
 struct pci_controller {
-	void *acpi_handle;
+	struct acpi_device *companion;
 	void *iommu;
 	int segment;
-	int node;		/* nearest node with memory or -1 for global allocation */
-
-	unsigned int windows;
-	struct pci_window *window;
+	int node;		/* nearest node with memory or NUMA_NO_NODE for global allocation */
 
 	void *platform_data;
 };
+
 
 #define PCI_CONTROLLER(busdev) ((struct pci_controller *) busdev->sysdata)
 #define pci_domain_nr(busdev)    (PCI_CONTROLLER(busdev)->segment)
@@ -114,19 +82,6 @@ extern struct pci_ops pci_root_ops;
 static inline int pci_proc_domain(struct pci_bus *bus)
 {
 	return (pci_domain_nr(bus) != 0);
-}
-
-static inline struct resource *
-pcibios_select_root(struct pci_dev *pdev, struct resource *res)
-{
-	struct resource *root = NULL;
-
-	if (res->flags & IORESOURCE_IO)
-		root = &ioport_resource;
-	if (res->flags & IORESOURCE_MEM)
-		root = &iomem_resource;
-
-	return root;
 }
 
 #define HAVE_ARCH_PCI_GET_LEGACY_IDE_IRQ

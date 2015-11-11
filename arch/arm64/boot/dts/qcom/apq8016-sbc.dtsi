@@ -1,0 +1,117 @@
+/*
+ * Copyright (c) 2015, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include "msm8916.dtsi"
+#include "pm8916.dtsi"
+#include "apq8016-sbc-soc-pins.dtsi"
+#include "apq8016-sbc-pmic-pins.dtsi"
+
+/ {
+	aliases {
+		serial0 = &blsp1_uart2;
+		serial1 = &blsp1_uart1;
+	};
+
+	chosen {
+		stdout-path = "serial0";
+	};
+
+	soc {
+		serial@78b0000 {
+			status = "okay";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp1_uart2_default>;
+			pinctrl-1 = <&blsp1_uart2_sleep>;
+		};
+
+		i2c@78b6000 {
+		/* On Low speed expansion */
+			status = "okay";
+		};
+
+		i2c@78b8000 {
+		/* On High speed expansion */
+			status = "okay";
+		};
+
+		i2c@78ba000 {
+		/* On Low speed expansion */
+			status = "okay";
+		};
+
+		spi@78b7000 {
+		/* On High speed expansion */
+			status = "okay";
+		};
+
+		spi@78b9000 {
+		/* On Low speed expansion */
+			status = "okay";
+		};
+
+		leds {
+			pinctrl-names = "default";
+			pinctrl-0 = <&msmgpio_leds>,
+				    <&pm8916_gpios_leds>,
+				    <&pm8916_mpps_leds>;
+
+			compatible = "gpio-leds";
+
+			led@1 {
+				label = "apq8016-sbc:green:user1";
+				gpios = <&msmgpio 21 GPIO_ACTIVE_HIGH>;
+				linux,default-trigger = "heartbeat";
+				default-state = "off";
+			};
+
+			led@2 {
+				label = "apq8016-sbc:green:user2";
+				gpios = <&msmgpio 120 GPIO_ACTIVE_HIGH>;
+				linux,default-trigger = "mmc0";
+				default-state = "off";
+			};
+
+			led@3 {
+				label = "apq8016-sbc:green:user3";
+				gpios = <&pm8916_gpios 1 GPIO_ACTIVE_HIGH>;
+				linux,default-trigger = "mmc1";
+				default-state = "off";
+			};
+
+			led@4 {
+				label = "apq8016-sbc:green:user4";
+				gpios = <&pm8916_gpios 2 GPIO_ACTIVE_HIGH>;
+				linux,default-trigger = "none";
+				default-state = "off";
+			};
+
+			led@5 {
+				label = "apq8016-sbc:yellow:wlan";
+				gpios = <&pm8916_mpps 2 GPIO_ACTIVE_HIGH>;
+				linux,default-trigger = "wlan";
+				default-state = "off";
+			};
+
+			led@6 {
+				label = "apq8016-sbc:blue:bt";
+				gpios = <&pm8916_mpps 3 GPIO_ACTIVE_HIGH>;
+				linux,default-trigger = "bt";
+				default-state = "off";
+			};
+		};
+	};
+};
+
+&sdhc_1 {
+	status = "okay";
+};

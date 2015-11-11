@@ -1,13 +1,15 @@
-/* 57xx_iscsi_hsi.h: Broadcom NetXtreme II iSCSI HSI.
+/* 57xx_iscsi_hsi.h: QLogic NetXtreme II iSCSI HSI.
  *
- * Copyright (c) 2006 - 2012 Broadcom Corporation
+ * Copyright (c) 2006 - 2013 Broadcom Corporation
+ * Copyright (c) 2014, QLogic Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation.
  *
  * Written by: Anil Veerabhadrappa (anilgv@broadcom.com)
- * Maintained by: Eddie Wai (eddie.wai@broadcom.com)
+ * Previously Maintained by: Eddie Wai (eddie.wai@broadcom.com)
+ * Maintained by: QLogic-Storage-Upstream@qlogic.com
  */
 #ifndef __57XX_ISCSI_HSI_LINUX_LE__
 #define __57XX_ISCSI_HSI_LINUX_LE__
@@ -581,8 +583,10 @@ struct iscsi_kwqe_init1 {
 #define ISCSI_KWQE_INIT1_DELAYED_ACK_ENABLE_SHIFT 4
 #define ISCSI_KWQE_INIT1_KEEP_ALIVE_ENABLE (0x1<<5)
 #define ISCSI_KWQE_INIT1_KEEP_ALIVE_ENABLE_SHIFT 5
-#define ISCSI_KWQE_INIT1_RESERVED1 (0x3<<6)
-#define ISCSI_KWQE_INIT1_RESERVED1_SHIFT 6
+#define ISCSI_KWQE_INIT1_TIME_STAMPS_ENABLE (0x1<<6)
+#define ISCSI_KWQE_INIT1_TIME_STAMPS_ENABLE_SHIFT 6
+#define ISCSI_KWQE_INIT1_RESERVED1 (0x1<<7)
+#define ISCSI_KWQE_INIT1_RESERVED1_SHIFT 7
 	u16 cq_num_wqes;
 #elif defined(__LITTLE_ENDIAN)
 	u16 cq_num_wqes;
@@ -593,8 +597,10 @@ struct iscsi_kwqe_init1 {
 #define ISCSI_KWQE_INIT1_DELAYED_ACK_ENABLE_SHIFT 4
 #define ISCSI_KWQE_INIT1_KEEP_ALIVE_ENABLE (0x1<<5)
 #define ISCSI_KWQE_INIT1_KEEP_ALIVE_ENABLE_SHIFT 5
-#define ISCSI_KWQE_INIT1_RESERVED1 (0x3<<6)
-#define ISCSI_KWQE_INIT1_RESERVED1_SHIFT 6
+#define ISCSI_KWQE_INIT1_TIME_STAMPS_ENABLE (0x1<<6)
+#define ISCSI_KWQE_INIT1_TIME_STAMPS_ENABLE_SHIFT 6
+#define ISCSI_KWQE_INIT1_RESERVED1 (0x1<<7)
+#define ISCSI_KWQE_INIT1_RESERVED1_SHIFT 7
 	u8 cq_log_wqes_per_page;
 #endif
 #if defined(__BIG_ENDIAN)

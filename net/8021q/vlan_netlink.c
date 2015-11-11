@@ -56,8 +56,8 @@ static int vlan_validate(struct nlattr *tb[], struct nlattr *data[])
 
 	if (data[IFLA_VLAN_PROTOCOL]) {
 		switch (nla_get_be16(data[IFLA_VLAN_PROTOCOL])) {
-		case __constant_htons(ETH_P_8021Q):
-		case __constant_htons(ETH_P_8021AD):
+		case htons(ETH_P_8021Q):
+		case htons(ETH_P_8021AD):
 			break;
 		default:
 			return -EPROTONOSUPPORT;
@@ -171,7 +171,7 @@ static size_t vlan_get_size(const struct net_device *dev)
 
 	return nla_total_size(2) +	/* IFLA_VLAN_PROTOCOL */
 	       nla_total_size(2) +	/* IFLA_VLAN_ID */
-	       sizeof(struct ifla_vlan_flags) + /* IFLA_VLAN_FLAGS */
+	       nla_total_size(sizeof(struct ifla_vlan_flags)) + /* IFLA_VLAN_FLAGS */
 	       vlan_qos_map_size(vlan->nr_ingress_mappings) +
 	       vlan_qos_map_size(vlan->nr_egress_mappings);
 }
@@ -238,6 +238,13 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static struct net *vlan_get_link_net(const struct net_device *dev)
+{
+	struct net_device *real_dev = vlan_dev_priv(dev)->real_dev;
+
+	return dev_net(real_dev);
+}
+
 struct rtnl_link_ops vlan_link_ops __read_mostly = {
 	.kind		= "vlan",
 	.maxtype	= IFLA_VLAN_MAX,
@@ -250,6 +257,7 @@ struct rtnl_link_ops vlan_link_ops __read_mostly = {
 	.dellink	= unregister_vlan_dev,
 	.get_size	= vlan_get_size,
 	.fill_info	= vlan_fill_info,
+	.get_link_net	= vlan_get_link_net,
 };
 
 int __init vlan_netlink_init(void)

@@ -90,7 +90,7 @@ asm volatile ("\n"					\
 		__put_user_asm(__pu_err, __pu_val, ptr, b, d, -EFAULT);	\
 		break;							\
 	case 2:								\
-		__put_user_asm(__pu_err, __pu_val, ptr, w, d, -EFAULT);	\
+		__put_user_asm(__pu_err, __pu_val, ptr, w, r, -EFAULT);	\
 		break;							\
 	case 4:								\
 		__put_user_asm(__pu_err, __pu_val, ptr, l, r, -EFAULT);	\
@@ -128,25 +128,25 @@ asm volatile ("\n"					\
 #define put_user(x, ptr)	__put_user(x, ptr)
 
 
-#define __get_user_asm(res, x, ptr, type, bwl, reg, err) ({	\
-	type __gu_val;						\
-	asm volatile ("\n"					\
-		"1:	"MOVES"."#bwl"	%2,%1\n"		\
-		"2:\n"						\
-		"	.section .fixup,\"ax\"\n"		\
-		"	.even\n"				\
-		"10:	move.l	%3,%0\n"			\
-		"	sub.l	%1,%1\n"			\
-		"	jra	2b\n"				\
-		"	.previous\n"				\
-		"\n"						\
-		"	.section __ex_table,\"a\"\n"		\
-		"	.align	4\n"				\
-		"	.long	1b,10b\n"			\
-		"	.previous"				\
-		: "+d" (res), "=&" #reg (__gu_val)		\
-		: "m" (*(ptr)), "i" (err));			\
-	(x) = (typeof(*(ptr)))(unsigned long)__gu_val;		\
+#define __get_user_asm(res, x, ptr, type, bwl, reg, err) ({		\
+	type __gu_val;							\
+	asm volatile ("\n"						\
+		"1:	"MOVES"."#bwl"	%2,%1\n"			\
+		"2:\n"							\
+		"	.section .fixup,\"ax\"\n"			\
+		"	.even\n"					\
+		"10:	move.l	%3,%0\n"				\
+		"	sub.l	%1,%1\n"				\
+		"	jra	2b\n"					\
+		"	.previous\n"					\
+		"\n"							\
+		"	.section __ex_table,\"a\"\n"			\
+		"	.align	4\n"					\
+		"	.long	1b,10b\n"				\
+		"	.previous"					\
+		: "+d" (res), "=&" #reg (__gu_val)			\
+		: "m" (*(ptr)), "i" (err));				\
+	(x) = (__force typeof(*(ptr)))(__force unsigned long)__gu_val;	\
 })
 
 #define __get_user(x, ptr)						\
@@ -158,7 +158,7 @@ asm volatile ("\n"					\
 		__get_user_asm(__gu_err, x, ptr, u8, b, d, -EFAULT);	\
 		break;							\
 	case 2:								\
-		__get_user_asm(__gu_err, x, ptr, u16, w, d, -EFAULT);	\
+		__get_user_asm(__gu_err, x, ptr, u16, w, r, -EFAULT);	\
 		break;							\
 	case 4:								\
 		__get_user_asm(__gu_err, x, ptr, u32, l, r, -EFAULT);	\
@@ -188,7 +188,7 @@ asm volatile ("\n"					\
 			  "+a" (__gu_ptr)				\
 			: "i" (-EFAULT)					\
 			: "memory");					\
-		(x) = (typeof(*(ptr)))__gu_val;				\
+		(x) = (__force typeof(*(ptr)))__gu_val;			\
 		break;							\
 	    }	*/							\
 	default:							\
@@ -245,7 +245,7 @@ __constant_copy_from_user(void *to, const void __user *from, unsigned long n)
 		__get_user_asm(res, *(u8 *)to, (u8 __user *)from, u8, b, d, 1);
 		break;
 	case 2:
-		__get_user_asm(res, *(u16 *)to, (u16 __user *)from, u16, w, d, 2);
+		__get_user_asm(res, *(u16 *)to, (u16 __user *)from, u16, w, r, 2);
 		break;
 	case 3:
 		__constant_copy_from_user_asm(res, to, from, tmp, 3, w, b,);
@@ -326,7 +326,7 @@ __constant_copy_to_user(void __user *to, const void *from, unsigned long n)
 		__put_user_asm(res, *(u8 *)from, (u8 __user *)to, b, d, 1);
 		break;
 	case 2:
-		__put_user_asm(res, *(u16 *)from, (u16 __user *)to, w, d, 2);
+		__put_user_asm(res, *(u16 *)from, (u16 __user *)to, w, r, 2);
 		break;
 	case 3:
 		__constant_copy_to_user_asm(res, to, from, tmp, 3, w, b,);

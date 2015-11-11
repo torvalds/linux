@@ -14,6 +14,7 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/interrupt.h>
 #include <linux/irqreturn.h>
 #include <linux/init.h>
 #include <linux/spi/spi.h>
@@ -143,7 +144,7 @@ static const struct snd_soc_dapm_route wm0010_dapm_routes[] = {
 
 static const char *wm0010_state_to_str(enum wm0010_state state)
 {
-	const char *state_to_str[] = {
+	static const char * const state_to_str[] = {
 		"Power off",
 		"Out of reset",
 		"Boot ROM",
@@ -371,7 +372,8 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_codec *codec)
 	offset = 0;
 	dsp = inforec->dsp_target;
 	wm0010->boot_failed = false;
-	BUG_ON(!list_empty(&xfer_list));
+	if (WARN_ON(!list_empty(&xfer_list)))
+		return -EINVAL;
 	init_completion(&done);
 
 	/* First record should be INFO */
@@ -409,39 +411,34 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_codec *codec)
 			rec->command, rec->length);
 		len = rec->length + 8;
 
-		out = kzalloc(len, GFP_KERNEL);
-		if (!out) {
-			dev_err(codec->dev,
-				"Failed to allocate RX buffer\n");
-			ret = -ENOMEM;
-			goto abort1;
-		}
-
-		img = kzalloc(len, GFP_KERNEL);
-		if (!img) {
-			dev_err(codec->dev,
-				"Failed to allocate image buffer\n");
-			ret = -ENOMEM;
-			goto abort1;
-		}
-
-		byte_swap_64((u64 *)&rec->command, img, len);
-
 		xfer = kzalloc(sizeof(*xfer), GFP_KERNEL);
 		if (!xfer) {
-			dev_err(codec->dev, "Failed to allocate xfer\n");
 			ret = -ENOMEM;
-			goto abort1;
+			goto abort;
 		}
 
 		xfer->codec = codec;
 		list_add_tail(&xfer->list, &xfer_list);
 
+		out = kzalloc(len, GFP_KERNEL | GFP_DMA);
+		if (!out) {
+			ret = -ENOMEM;
+			goto abort1;
+		}
+		xfer->t.rx_buf = out;
+
+		img = kzalloc(len, GFP_KERNEL | GFP_DMA);
+		if (!img) {
+			ret = -ENOMEM;
+			goto abort1;
+		}
+		xfer->t.tx_buf = img;
+
+		byte_swap_64((u64 *)&rec->command, img, len);
+
 		spi_message_init(&xfer->m);
 		xfer->m.complete = wm0010_boot_xfer_complete;
 		xfer->m.context = xfer;
-		xfer->t.tx_buf = img;
-		xfer->t.rx_buf = out;
 		xfer->t.len = len;
 		xfer->t.bits_per_word = 8;
 
@@ -522,16 +519,14 @@ static int wm0010_stage2_load(struct snd_soc_codec *codec)
 	dev_dbg(codec->dev, "Downloading %zu byte stage 2 loader\n", fw->size);
 
 	/* Copy to local buffer first as vmalloc causes problems for dma */
-	img = kzalloc(fw->size, GFP_KERNEL);
+	img = kzalloc(fw->size, GFP_KERNEL | GFP_DMA);
 	if (!img) {
-		dev_err(codec->dev, "Failed to allocate image buffer\n");
 		ret = -ENOMEM;
 		goto abort2;
 	}
 
-	out = kzalloc(fw->size, GFP_KERNEL);
+	out = kzalloc(fw->size, GFP_KERNEL | GFP_DMA);
 	if (!out) {
-		dev_err(codec->dev, "Failed to allocate output buffer\n");
 		ret = -ENOMEM;
 		goto abort1;
 	}
@@ -582,7 +577,6 @@ static int wm0010_boot(struct snd_soc_codec *codec)
 	struct wm0010_priv *wm0010 = snd_soc_codec_get_drvdata(codec);
 	unsigned long flags;
 	int ret;
-	const struct firmware *fw;
 	struct spi_message m;
 	struct spi_transfer t;
 	struct dfw_pllrec pll_rec;
@@ -628,14 +622,6 @@ static int wm0010_boot(struct snd_soc_codec *codec)
 	wm0010->state = WM0010_OUT_OF_RESET;
 	spin_unlock_irqrestore(&wm0010->irq_lock, flags);
 
-	/* First the bootloader */
-	ret = request_firmware(&fw, "wm0010_stage2.bin", codec->dev);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to request stage2 loader: %d\n",
-			ret);
-		goto abort;
-	}
-
 	if (!wait_for_completion_timeout(&wm0010->boot_completion,
 					 msecs_to_jiffies(20)))
 		dev_err(codec->dev, "Failed to get interrupt from DSP\n");
@@ -669,19 +655,16 @@ static int wm0010_boot(struct snd_soc_codec *codec)
 
 		ret = -ENOMEM;
 		len = pll_rec.length + 8;
-		out = kzalloc(len, GFP_KERNEL);
+		out = kzalloc(len, GFP_KERNEL | GFP_DMA);
 		if (!out) {
 			dev_err(codec->dev,
 				"Failed to allocate RX buffer\n");
 			goto abort;
 		}
 
-		img_swap = kzalloc(len, GFP_KERNEL);
-		if (!img_swap) {
-			dev_err(codec->dev,
-				"Failed to allocate image buffer\n");
-			goto abort;
-		}
+		img_swap = kzalloc(len, GFP_KERNEL | GFP_DMA);
+		if (!img_swap)
+			goto abort_out;
 
 		/* We need to re-order for 0010 */
 		byte_swap_64((u64 *)&pll_rec, img_swap, len);
@@ -696,16 +679,16 @@ static int wm0010_boot(struct snd_soc_codec *codec)
 		spi_message_add_tail(&t, &m);
 
 		ret = spi_sync(spi, &m);
-		if (ret != 0) {
+		if (ret) {
 			dev_err(codec->dev, "First PLL write failed: %d\n", ret);
-			goto abort;
+			goto abort_swap;
 		}
 
 		/* Use a second send of the message to get the return status */
 		ret = spi_sync(spi, &m);
-		if (ret != 0) {
+		if (ret) {
 			dev_err(codec->dev, "Second PLL write failed: %d\n", ret);
-			goto abort;
+			goto abort_swap;
 		}
 
 		p = (u32 *)out;
@@ -738,6 +721,10 @@ static int wm0010_boot(struct snd_soc_codec *codec)
 
 	return 0;
 
+abort_swap:
+	kfree(img_swap);
+abort_out:
+	kfree(out);
 abort:
 	/* Put the chip back into reset */
 	wm0010_halt(codec);
@@ -759,13 +746,13 @@ static int wm0010_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_PREPARE)
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_PREPARE)
 			wm0010_boot(codec);
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_PREPARE) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_PREPARE) {
 			mutex_lock(&wm0010->lock);
 			wm0010_halt(codec);
 			mutex_unlock(&wm0010->lock);
@@ -774,8 +761,6 @@ static int wm0010_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_OFF:
 		break;
 	}
-
-	codec->dapm.bias_level = level;
 
 	return 0;
 }
@@ -792,11 +777,11 @@ static int wm0010_set_sysclk(struct snd_soc_codec *codec, int source,
 		wm0010->max_spi_freq = 0;
 	} else {
 		for (i = 0; i < ARRAY_SIZE(pll_clock_map); i++)
-			if (freq >= pll_clock_map[i].max_sysclk)
+			if (freq >= pll_clock_map[i].max_sysclk) {
+				wm0010->max_spi_freq = pll_clock_map[i].max_pll_spi_speed;
+				wm0010->pll_clkctrl1 = pll_clock_map[i].pll_clkctrl1;
 				break;
-
-		wm0010->max_spi_freq = pll_clock_map[i].max_pll_spi_speed;
-		wm0010->pll_clkctrl1 = pll_clock_map[i].pll_clkctrl1;
+			}
 	}
 
 	return 0;
@@ -963,7 +948,7 @@ static int wm0010_spi_probe(struct spi_device *spi)
 		trigger = IRQF_TRIGGER_FALLING;
 	trigger |= IRQF_ONESHOT;
 
-	ret = request_threaded_irq(irq, NULL, wm0010_irq, trigger | IRQF_ONESHOT,
+	ret = request_threaded_irq(irq, NULL, wm0010_irq, trigger,
 				   "wm0010", wm0010);
 	if (ret) {
 		dev_err(wm0010->dev, "Failed to request IRQ %d: %d\n",
@@ -971,6 +956,13 @@ static int wm0010_spi_probe(struct spi_device *spi)
 		return ret;
 	}
 	wm0010->irq = irq;
+
+	ret = irq_set_irq_wake(irq, 1);
+	if (ret) {
+		dev_err(wm0010->dev, "Failed to set IRQ %d as wake source: %d\n",
+			irq, ret);
+		return ret;
+	}
 
 	if (spi->max_speed_hz)
 		wm0010->board_max_spi_speed = spi->max_speed_hz;
@@ -995,6 +987,8 @@ static int wm0010_spi_remove(struct spi_device *spi)
 	gpio_set_value_cansleep(wm0010->gpio_reset,
 				wm0010->gpio_reset_value);
 
+	irq_set_irq_wake(wm0010->irq, 0);
+
 	if (wm0010->irq)
 		free_irq(wm0010->irq, wm0010);
 
@@ -1004,8 +998,6 @@ static int wm0010_spi_remove(struct spi_device *spi)
 static struct spi_driver wm0010_spi_driver = {
 	.driver = {
 		.name	= "wm0010",
-		.bus 	= &spi_bus_type,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= wm0010_spi_probe,
 	.remove		= wm0010_spi_remove,

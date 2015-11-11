@@ -34,6 +34,18 @@
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 
+/* Defaulting to pixel clock defined on AM335x */
+#define TILCDC_DEFAULT_MAX_PIXELCLOCK  126000
+/* Defaulting to max width as defined on AM335x */
+#define TILCDC_DEFAULT_MAX_WIDTH  2048
+/*
+ * This may need some tweaking, but want to allow at least 1280x1024@60
+ * with optimized DDR & EMIF settings tweaked 1920x1080@24 appears to
+ * be supportable
+ */
+#define TILCDC_DEFAULT_MAX_BANDWIDTH  (1280*1024*60)
+
+
 struct tilcdc_drm_private {
 	void __iomem *mmio;
 
@@ -43,6 +55,16 @@ struct tilcdc_drm_private {
 
 	/* don't attempt resolutions w/ higher W * H * Hz: */
 	uint32_t max_bandwidth;
+	/*
+	 * Pixel Clock will be restricted to some value as
+	 * defined in the device datasheet measured in KHz
+	 */
+	uint32_t max_pixelclock;
+	/*
+	 * Max allowable width is limited on a per device basis
+	 * measured in pixels
+	 */
+	uint32_t max_width;
 
 	/* register contents saved across suspend/resume: */
 	u32 saved_register[12];
@@ -63,6 +85,9 @@ struct tilcdc_drm_private {
 
 	unsigned int num_connectors;
 	struct drm_connector *connectors[8];
+	const struct drm_connector_helper_funcs *connector_funcs[8];
+
+	bool is_componentized;
 };
 
 /* Sub-module for display.  Since we don't know at compile time what panels
@@ -76,7 +101,6 @@ struct tilcdc_module;
 struct tilcdc_module_ops {
 	/* create appropriate encoders/connectors: */
 	int (*modeset_init)(struct tilcdc_module *mod, struct drm_device *dev);
-	void (*destroy)(struct tilcdc_module *mod);
 #ifdef CONFIG_DEBUG_FS
 	/* create debugfs nodes (can be NULL): */
 	int (*debugfs_init)(struct tilcdc_module *mod, struct drm_minor *minor);
@@ -89,12 +113,12 @@ struct tilcdc_module {
 	const char *name;
 	struct list_head list;
 	const struct tilcdc_module_ops *funcs;
+	unsigned int preferred_bpp;
 };
 
 void tilcdc_module_init(struct tilcdc_module *mod, const char *name,
 		const struct tilcdc_module_ops *funcs);
 void tilcdc_module_cleanup(struct tilcdc_module *mod);
-
 
 /* Panel config that needs to be set in the crtc, but is not coming from
  * the mode timings.  The display module is expected to call
@@ -144,6 +168,8 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc);
 void tilcdc_crtc_update_clk(struct drm_crtc *crtc);
 void tilcdc_crtc_set_panel_info(struct drm_crtc *crtc,
 		const struct tilcdc_panel_info *info);
+void tilcdc_crtc_set_simulate_vesa_sync(struct drm_crtc *crtc,
+					bool simulate_vesa_sync);
 int tilcdc_crtc_mode_valid(struct drm_crtc *crtc, struct drm_display_mode *mode);
 int tilcdc_crtc_max_width(struct drm_crtc *crtc);
 

@@ -89,6 +89,7 @@
 #include <asm/cacheflush.h>
 #include <asm/processor.h>
 #include <asm/bugs.h>
+#include <asm/kasan.h>
 
 #include <asm/vsyscall.h>
 #include <asm/cpu.h>
@@ -110,6 +111,7 @@
 #include <asm/mce.h>
 #include <asm/alternative.h>
 #include <asm/prom.h>
+#include <asm/microcode.h>
 
 /*
  * max_low_pfn_mapped: highest direct mapped pfn under 4GB
@@ -170,7 +172,7 @@ static struct resource bss_resource = {
 
 #ifdef CONFIG_X86_32
 /* cpu data as detected by the assembly code in head.S */
-struct cpuinfo_x86 new_cpu_data __cpuinitdata = {
+struct cpuinfo_x86 new_cpu_data = {
 	.wp_works_ok = -1,
 };
 /* common cpu data for all cpus */
@@ -206,9 +208,9 @@ EXPORT_SYMBOL(boot_cpu_data);
 
 
 #if !defined(CONFIG_X86_PAE) || defined(CONFIG_X86_64)
-unsigned long mmu_cr4_features;
+__visible unsigned long mmu_cr4_features;
 #else
-unsigned long mmu_cr4_features = X86_CR4_PAE;
+__visible unsigned long mmu_cr4_features = X86_CR4_PAE;
 #endif
 
 /* Boot loader ID and version as integers, for the benefit of proc_dointvec */
@@ -295,6 +297,8 @@ static void __init reserve_brk(void)
 	_brk_start = 0;
 }
 
+u64 relocated_ramdisk;
+
 #ifdef CONFIG_BLK_DEV_INITRD
 
 static u64 __init get_ramdisk_image(void)
@@ -314,56 +318,35 @@ static u64 __init get_ramdisk_size(void)
 	return ramdisk_size;
 }
 
-#define MAX_MAP_CHUNK	(NR_FIX_BTMAPS << PAGE_SHIFT)
 static void __init relocate_initrd(void)
 {
 	/* Assume only end is not page aligned */
 	u64 ramdisk_image = get_ramdisk_image();
 	u64 ramdisk_size  = get_ramdisk_size();
 	u64 area_size     = PAGE_ALIGN(ramdisk_size);
-	u64 ramdisk_here;
-	unsigned long slop, clen, mapaddr;
-	char *p, *q;
 
 	/* We need to move the initrd down into directly mapped mem */
-	ramdisk_here = memblock_find_in_range(0, PFN_PHYS(max_pfn_mapped),
-						 area_size, PAGE_SIZE);
+	relocated_ramdisk = memblock_find_in_range(0, PFN_PHYS(max_pfn_mapped),
+						   area_size, PAGE_SIZE);
 
-	if (!ramdisk_here)
+	if (!relocated_ramdisk)
 		panic("Cannot find place for new RAMDISK of size %lld\n",
-			 ramdisk_size);
+		      ramdisk_size);
 
 	/* Note: this includes all the mem currently occupied by
 	   the initrd, we rely on that fact to keep the data intact. */
-	memblock_reserve(ramdisk_here, area_size);
-	initrd_start = ramdisk_here + PAGE_OFFSET;
+	memblock_reserve(relocated_ramdisk, area_size);
+	initrd_start = relocated_ramdisk + PAGE_OFFSET;
 	initrd_end   = initrd_start + ramdisk_size;
 	printk(KERN_INFO "Allocated new RAMDISK: [mem %#010llx-%#010llx]\n",
-			 ramdisk_here, ramdisk_here + ramdisk_size - 1);
+	       relocated_ramdisk, relocated_ramdisk + ramdisk_size - 1);
 
-	q = (char *)initrd_start;
+	copy_from_early_mem((void *)initrd_start, ramdisk_image, ramdisk_size);
 
-	/* Copy the initrd */
-	while (ramdisk_size) {
-		slop = ramdisk_image & ~PAGE_MASK;
-		clen = ramdisk_size;
-		if (clen > MAX_MAP_CHUNK-slop)
-			clen = MAX_MAP_CHUNK-slop;
-		mapaddr = ramdisk_image & PAGE_MASK;
-		p = early_memremap(mapaddr, clen+slop);
-		memcpy(q, p+slop, clen);
-		early_iounmap(p, clen+slop);
-		q += clen;
-		ramdisk_image += clen;
-		ramdisk_size  -= clen;
-	}
-
-	ramdisk_image = get_ramdisk_image();
-	ramdisk_size  = get_ramdisk_size();
 	printk(KERN_INFO "Move RAMDISK from [mem %#010llx-%#010llx] to"
 		" [mem %#010llx-%#010llx]\n",
 		ramdisk_image, ramdisk_image + ramdisk_size - 1,
-		ramdisk_here, ramdisk_here + ramdisk_size - 1);
+		relocated_ramdisk, relocated_ramdisk + ramdisk_size - 1);
 }
 
 static void __init early_reserve_initrd(void)
@@ -426,34 +409,32 @@ static void __init reserve_initrd(void)
 static void __init parse_setup_data(void)
 {
 	struct setup_data *data;
-	u64 pa_data;
+	u64 pa_data, pa_next;
 
 	pa_data = boot_params.hdr.setup_data;
 	while (pa_data) {
-		u32 data_len, map_len;
+		u32 data_len, data_type;
 
-		map_len = max(PAGE_SIZE - (pa_data & ~PAGE_MASK),
-			      (u64)sizeof(struct setup_data));
-		data = early_memremap(pa_data, map_len);
+		data = early_memremap(pa_data, sizeof(*data));
 		data_len = data->len + sizeof(struct setup_data);
-		if (data_len > map_len) {
-			early_iounmap(data, map_len);
-			data = early_memremap(pa_data, data_len);
-			map_len = data_len;
-		}
+		data_type = data->type;
+		pa_next = data->next;
+		early_memunmap(data, sizeof(*data));
 
-		switch (data->type) {
+		switch (data_type) {
 		case SETUP_E820_EXT:
-			parse_e820_ext(data);
+			parse_e820_ext(pa_data, data_len);
 			break;
 		case SETUP_DTB:
 			add_dtb(pa_data);
 			break;
+		case SETUP_EFI:
+			parse_efi_setup(pa_data, data_len);
+			break;
 		default:
 			break;
 		}
-		pa_data = data->next;
-		early_iounmap(data, map_len);
+		pa_data = pa_next;
 	}
 }
 
@@ -461,19 +442,18 @@ static void __init e820_reserve_setup_data(void)
 {
 	struct setup_data *data;
 	u64 pa_data;
-	int found = 0;
 
 	pa_data = boot_params.hdr.setup_data;
+	if (!pa_data)
+		return;
+
 	while (pa_data) {
 		data = early_memremap(pa_data, sizeof(*data));
 		e820_update_range(pa_data, sizeof(*data)+data->len,
 			 E820_RAM, E820_RESERVED_KERN);
-		found = 1;
 		pa_data = data->next;
-		early_iounmap(data, sizeof(*data));
+		early_memunmap(data, sizeof(*data));
 	}
-	if (!found)
-		return;
 
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
 	memcpy(&e820_saved, &e820, sizeof(struct e820map));
@@ -491,7 +471,7 @@ static void __init memblock_x86_reserve_range_setup_data(void)
 		data = early_memremap(pa_data, sizeof(*data));
 		memblock_reserve(pa_data, sizeof(*data) + data->len);
 		pa_data = data->next;
-		early_iounmap(data, sizeof(*data));
+		early_memunmap(data, sizeof(*data));
 	}
 }
 
@@ -499,7 +479,10 @@ static void __init memblock_x86_reserve_range_setup_data(void)
  * --------- Crashkernel reservation ------------------------------
  */
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
+
+/* 16M alignment for crash kernel regions */
+#define CRASH_ALIGN		(16 << 20)
 
 /*
  * Keep the crash kernel below this limit.  On 32 bits earlier kernels
@@ -507,81 +490,80 @@ static void __init memblock_x86_reserve_range_setup_data(void)
  * On 64bit, old kexec-tools need to under 896MiB.
  */
 #ifdef CONFIG_X86_32
-# define CRASH_KERNEL_ADDR_LOW_MAX	(512 << 20)
-# define CRASH_KERNEL_ADDR_HIGH_MAX	(512 << 20)
+# define CRASH_ADDR_LOW_MAX	(512 << 20)
+# define CRASH_ADDR_HIGH_MAX	(512 << 20)
 #else
-# define CRASH_KERNEL_ADDR_LOW_MAX	(896UL<<20)
-# define CRASH_KERNEL_ADDR_HIGH_MAX	MAXMEM
+# define CRASH_ADDR_LOW_MAX	(896UL << 20)
+# define CRASH_ADDR_HIGH_MAX	MAXMEM
 #endif
 
-static void __init reserve_crashkernel_low(void)
+static int __init reserve_crashkernel_low(void)
 {
 #ifdef CONFIG_X86_64
-	const unsigned long long alignment = 16<<20;	/* 16M */
-	unsigned long long low_base = 0, low_size = 0;
+	unsigned long long base, low_base = 0, low_size = 0;
 	unsigned long total_low_mem;
-	unsigned long long base;
-	bool auto_set = false;
 	int ret;
 
-	total_low_mem = memblock_mem_size(1UL<<(32-PAGE_SHIFT));
+	total_low_mem = memblock_mem_size(1UL << (32 - PAGE_SHIFT));
+
 	/* crashkernel=Y,low */
-	ret = parse_crashkernel_low(boot_command_line, total_low_mem,
-						&low_size, &base);
-	if (ret != 0) {
+	ret = parse_crashkernel_low(boot_command_line, total_low_mem, &low_size, &base);
+	if (ret) {
 		/*
 		 * two parts from lib/swiotlb.c:
-		 *	swiotlb size: user specified with swiotlb= or default.
-		 *	swiotlb overflow buffer: now is hardcoded to 32k.
-		 *		We round it to 8M for other buffers that
-		 *		may need to stay low too.
+		 * -swiotlb size: user-specified with swiotlb= or default.
+		 *
+		 * -swiotlb overflow buffer: now hardcoded to 32k. We round it
+		 * to 8M for other buffers that may need to stay low too. Also
+		 * make sure we allocate enough extra low memory so that we
+		 * don't run out of DMA buffers for 32-bit devices.
 		 */
-		low_size = swiotlb_size_or_default() + (8UL<<20);
-		auto_set = true;
+		low_size = max(swiotlb_size_or_default() + (8UL << 20), 256UL << 20);
 	} else {
 		/* passed with crashkernel=0,low ? */
 		if (!low_size)
-			return;
+			return 0;
 	}
 
-	low_base = memblock_find_in_range(low_size, (1ULL<<32),
-					low_size, alignment);
-
+	low_base = memblock_find_in_range(low_size, 1ULL << 32, low_size, CRASH_ALIGN);
 	if (!low_base) {
-		if (!auto_set)
-			pr_info("crashkernel low reservation failed - No suitable area found.\n");
-
-		return;
+		pr_err("Cannot reserve %ldMB crashkernel low memory, please try smaller size.\n",
+		       (unsigned long)(low_size >> 20));
+		return -ENOMEM;
 	}
 
-	memblock_reserve(low_base, low_size);
+	ret = memblock_reserve(low_base, low_size);
+	if (ret) {
+		pr_err("%s: Error reserving crashkernel low memblock.\n", __func__);
+		return ret;
+	}
+
 	pr_info("Reserving %ldMB of low memory at %ldMB for crashkernel (System low RAM: %ldMB)\n",
-			(unsigned long)(low_size >> 20),
-			(unsigned long)(low_base >> 20),
-			(unsigned long)(total_low_mem >> 20));
+		(unsigned long)(low_size >> 20),
+		(unsigned long)(low_base >> 20),
+		(unsigned long)(total_low_mem >> 20));
+
 	crashk_low_res.start = low_base;
 	crashk_low_res.end   = low_base + low_size - 1;
 	insert_resource(&iomem_resource, &crashk_low_res);
 #endif
+	return 0;
 }
 
 static void __init reserve_crashkernel(void)
 {
-	const unsigned long long alignment = 16<<20;	/* 16M */
-	unsigned long long total_mem;
-	unsigned long long crash_size, crash_base;
+	unsigned long long crash_size, crash_base, total_mem;
 	bool high = false;
 	int ret;
 
 	total_mem = memblock_phys_mem_size();
 
 	/* crashkernel=XM */
-	ret = parse_crashkernel(boot_command_line, total_mem,
-			&crash_size, &crash_base);
+	ret = parse_crashkernel(boot_command_line, total_mem, &crash_size, &crash_base);
 	if (ret != 0 || crash_size <= 0) {
 		/* crashkernel=X,high */
 		ret = parse_crashkernel_high(boot_command_line, total_mem,
-				&crash_size, &crash_base);
+					     &crash_size, &crash_base);
 		if (ret != 0 || crash_size <= 0)
 			return;
 		high = true;
@@ -592,11 +574,10 @@ static void __init reserve_crashkernel(void)
 		/*
 		 *  kexec want bzImage is below CRASH_KERNEL_ADDR_MAX
 		 */
-		crash_base = memblock_find_in_range(alignment,
-					high ? CRASH_KERNEL_ADDR_HIGH_MAX :
-					       CRASH_KERNEL_ADDR_LOW_MAX,
-					crash_size, alignment);
-
+		crash_base = memblock_find_in_range(CRASH_ALIGN,
+						    high ? CRASH_ADDR_HIGH_MAX
+							 : CRASH_ADDR_LOW_MAX,
+						    crash_size, CRASH_ALIGN);
 		if (!crash_base) {
 			pr_info("crashkernel reservation failed - No suitable area found.\n");
 			return;
@@ -606,26 +587,32 @@ static void __init reserve_crashkernel(void)
 		unsigned long long start;
 
 		start = memblock_find_in_range(crash_base,
-				 crash_base + crash_size, crash_size, 1<<20);
+					       crash_base + crash_size,
+					       crash_size, 1 << 20);
 		if (start != crash_base) {
 			pr_info("crashkernel reservation failed - memory is in use.\n");
 			return;
 		}
 	}
-	memblock_reserve(crash_base, crash_size);
+	ret = memblock_reserve(crash_base, crash_size);
+	if (ret) {
+		pr_err("%s: Error reserving crashkernel memblock.\n", __func__);
+		return;
+	}
 
-	printk(KERN_INFO "Reserving %ldMB of memory at %ldMB "
-			"for crashkernel (System RAM: %ldMB)\n",
-			(unsigned long)(crash_size >> 20),
-			(unsigned long)(crash_base >> 20),
-			(unsigned long)(total_mem >> 20));
+	if (crash_base >= (1ULL << 32) && reserve_crashkernel_low()) {
+		memblock_free(crash_base, crash_size);
+		return;
+	}
+
+	pr_info("Reserving %ldMB of memory at %ldMB for crashkernel (System RAM: %ldMB)\n",
+		(unsigned long)(crash_size >> 20),
+		(unsigned long)(crash_base >> 20),
+		(unsigned long)(total_mem >> 20));
 
 	crashk_res.start = crash_base;
 	crashk_res.end   = crash_base + crash_size - 1;
 	insert_resource(&iomem_resource, &crashk_res);
-
-	if (crash_base >= (1ULL<<32))
-		reserve_crashkernel_low();
 }
 #else
 static void __init reserve_crashkernel(void)
@@ -827,6 +814,25 @@ static void __init trim_low_memory_range(void)
 }
 	
 /*
+ * Dump out kernel offset information on panic.
+ */
+static int
+dump_kernel_offset(struct notifier_block *self, unsigned long v, void *p)
+{
+	if (kaslr_enabled()) {
+		pr_emerg("Kernel Offset: 0x%lx from 0x%lx (relocation range: 0x%lx-0x%lx)\n",
+			 kaslr_offset(),
+			 __START_KERNEL,
+			 __START_KERNEL_map,
+			 MODULES_VADDR-1);
+	} else {
+		pr_emerg("Kernel Offset: disabled\n");
+	}
+
+	return 0;
+}
+
+/*
  * Determine if we were loaded by an EFI loader.  If so, then we have also been
  * passed the efi memmap, systab, etc., so we should use these data structures
  * for initialization.  Note, the efi init code path is determined by the
@@ -854,7 +860,6 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_X86_32
 	memcpy(&boot_cpu_data, &new_cpu_data, sizeof(new_cpu_data));
-	visws_early_detect();
 
 	/*
 	 * copy kernel address range established so far and switch
@@ -865,6 +870,15 @@ void __init setup_arch(char **cmdline_p)
 			KERNEL_PGD_PTRS);
 
 	load_cr3(swapper_pg_dir);
+	/*
+	 * Note: Quark X1000 CPUs advertise PGE incorrectly and require
+	 * a cr3 based tlb flush, so the following __flush_tlb_all()
+	 * will not flush anything because the cpu quirk which clears
+	 * X86_FEATURE_PGE has not been invoked yet. Though due to the
+	 * load_cr3() above the TLB has been flushed already. The
+	 * quirk is invoked before subsequent calls to __flush_tlb_all()
+	 * so proper operation is guaranteed.
+	 */
 	__flush_tlb_all();
 #else
 	printk(KERN_INFO "Command line: %s\n", boot_command_line);
@@ -888,11 +902,6 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_X86_32
 	apm_info.bios = boot_params.apm_bios_info;
 	ist_info = boot_params.ist_info;
-	if (boot_params.sys_desc_table.length != 0) {
-		machine_id = boot_params.sys_desc_table.table[0];
-		machine_submodel_id = boot_params.sys_desc_table.table[1];
-		BIOS_revision = boot_params.sys_desc_table.table[2];
-	}
 #endif
 	saved_video_mode = boot_params.hdr.vid_mode;
 	bootloader_type = boot_params.hdr.type_of_loader;
@@ -910,12 +919,12 @@ void __init setup_arch(char **cmdline_p)
 #endif
 #ifdef CONFIG_EFI
 	if (!strncmp((char *)&boot_params.efi_info.efi_loader_signature,
-		     "EL32", 4)) {
-		set_bit(EFI_BOOT, &x86_efi_facility);
+		     EFI32_LOADER_SIGNATURE, 4)) {
+		set_bit(EFI_BOOT, &efi.flags);
 	} else if (!strncmp((char *)&boot_params.efi_info.efi_loader_signature,
-		     "EL64", 4)) {
-		set_bit(EFI_BOOT, &x86_efi_facility);
-		set_bit(EFI_64BIT, &x86_efi_facility);
+		     EFI64_LOADER_SIGNATURE, 4)) {
+		set_bit(EFI_BOOT, &efi.flags);
+		set_bit(EFI_64BIT, &efi.flags);
 	}
 
 	if (efi_enabled(EFI_BOOT))
@@ -927,8 +936,6 @@ void __init setup_arch(char **cmdline_p)
 	iomem_resource.end = (1ULL << boot_cpu_data.x86_phys_bits) - 1;
 	setup_memory_map();
 	parse_setup_data();
-	/* update the e820_saved too */
-	e820_reserve_setup_data();
 
 	copy_edd();
 
@@ -938,6 +945,8 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.end_code = (unsigned long) _etext;
 	init_mm.end_data = (unsigned long) _edata;
 	init_mm.brk = _brk_end;
+
+	mpx_mm_init(&init_mm);
 
 	code_resource.start = __pa_symbol(_text);
 	code_resource.end = __pa_symbol(_etext)-1;
@@ -990,12 +999,15 @@ void __init setup_arch(char **cmdline_p)
 		early_dump_pci_devices();
 #endif
 
+	/* update the e820_saved too */
+	e820_reserve_setup_data();
 	finish_e820_parsing();
 
 	if (efi_enabled(EFI_BOOT))
 		efi_init();
 
 	dmi_scan_machine();
+	dmi_memdev_walk();
 	dmi_set_dump_stack_arch_desc();
 
 	/*
@@ -1040,8 +1052,6 @@ void __init setup_arch(char **cmdline_p)
 	/* max_low_pfn get updated here */
 	find_low_pfn_range();
 #else
-	num_physpages = max_pfn;
-
 	check_x2apic();
 
 	/* How many end-of-memory variables you have, grandma! */
@@ -1072,8 +1082,13 @@ void __init setup_arch(char **cmdline_p)
 
 	cleanup_highmap();
 
-	memblock.current_limit = ISA_END_ADDRESS;
+	memblock_set_current_limit(ISA_END_ADDRESS);
 	memblock_x86_fill();
+
+	if (efi_enabled(EFI_BOOT)) {
+		efi_fake_memmap();
+		efi_find_mirror();
+	}
 
 	/*
 	 * The EFI specification says that boot service code won't be called
@@ -1105,8 +1120,7 @@ void __init setup_arch(char **cmdline_p)
 
 	setup_real_mode();
 
-	memblock.current_limit = get_max_mapped();
-	dma_contiguous_reserve(0);
+	memblock_set_current_limit(get_max_mapped());
 
 	/*
 	 * NOTE: On x86-32, only from this point on, fixmaps are ready for use.
@@ -1125,8 +1139,6 @@ void __init setup_arch(char **cmdline_p)
 	acpi_initrd_override((void *)initrd_start, initrd_end - initrd_start);
 #endif
 
-	reserve_crashkernel();
-
 	vsmp_init();
 
 	io_delay_init();
@@ -1139,6 +1151,14 @@ void __init setup_arch(char **cmdline_p)
 	early_acpi_boot_init();
 
 	initmem_init();
+	dma_contiguous_reserve(max_pfn_mapped << PAGE_SHIFT);
+
+	/*
+	 * Reserve memory for crash kernel after SRAT is parsed so that it
+	 * won't consume hotpluggable memory.
+	 */
+	reserve_crashkernel();
+
 	memblock_find_dma_reserve();
 
 #ifdef CONFIG_KVM_GUEST
@@ -1147,9 +1167,11 @@ void __init setup_arch(char **cmdline_p)
 
 	x86_init.paging.pagetable_init();
 
+	kasan_init();
+
 	if (boot_cpu_data.cpuid_level >= 0) {
 		/* A CPU has %cr4 if and only if it has CPUID */
-		mmu_cr4_features = read_cr4();
+		mmu_cr4_features = __read_cr4();
 		if (trampoline_cr4_features)
 			*trampoline_cr4_features = mmu_cr4_features;
 	}
@@ -1159,13 +1181,19 @@ void __init setup_arch(char **cmdline_p)
 	clone_pgd_range(initial_page_table + KERNEL_PGD_BOUNDARY,
 			swapper_pg_dir     + KERNEL_PGD_BOUNDARY,
 			KERNEL_PGD_PTRS);
+
+	/*
+	 * sync back low identity map too.  It is used for example
+	 * in the 32-bit EFI stub.
+	 */
+	clone_pgd_range(initial_page_table,
+			swapper_pg_dir     + KERNEL_PGD_BOUNDARY,
+			KERNEL_PGD_PTRS);
 #endif
 
 	tboot_probe();
 
-#ifdef CONFIG_X86_64
 	map_vsyscall();
-#endif
 
 	generic_apic_probe();
 
@@ -1189,8 +1217,7 @@ void __init setup_arch(char **cmdline_p)
 	init_cpu_to_node();
 
 	init_apic_mappings();
-	if (x86_io_apic_ops.init)
-		x86_io_apic_ops.init();
+	io_apic_init_mappings();
 
 	kvm_guest_init();
 
@@ -1220,15 +1247,11 @@ void __init setup_arch(char **cmdline_p)
 	register_refined_jiffies(CLOCK_TICK_RATE);
 
 #ifdef CONFIG_EFI
-	/* Once setup is done above, unmap the EFI memory map on
-	 * mismatched firmware/kernel archtectures since there is no
-	 * support for runtime services.
-	 */
-	if (efi_enabled(EFI_BOOT) && !efi_is_native()) {
-		pr_info("efi: Setup done, disabling due to 32/64-bit mismatch\n");
-		efi_unmap_memmap();
-	}
+	if (efi_enabled(EFI_BOOT))
+		efi_apply_memmap_quirks();
 #endif
+
+	microcode_init();
 }
 
 #ifdef CONFIG_X86_32
@@ -1247,3 +1270,15 @@ void __init i386_reserve_resources(void)
 }
 
 #endif /* CONFIG_X86_32 */
+
+static struct notifier_block kernel_offset_notifier = {
+	.notifier_call = dump_kernel_offset
+};
+
+static int __init register_kernel_offset_dumper(void)
+{
+	atomic_notifier_chain_register(&panic_notifier_list,
+					&kernel_offset_notifier);
+	return 0;
+}
+__initcall(register_kernel_offset_dumper);

@@ -1,8 +1,8 @@
-Linux* Base Driver for the Intel(R) PRO/1000 Family of Adapters
-===============================================================
+Linux* Base Driver for Intel(R) Ethernet Network Connection
+===========================================================
 
 Intel Gigabit Linux driver.
-Copyright(c) 1999 - 2010 Intel Corporation.
+Copyright(c) 1999 - 2013 Intel Corporation.
 
 Contents
 ========
@@ -420,15 +420,15 @@ Additional Configurations
   - The maximum MTU setting for Jumbo Frames is 16110.  This value coincides
     with the maximum Jumbo Frames size of 16128.
 
-  - Using Jumbo Frames at 10 or 100 Mbps may result in poor performance or
-    loss of link.
+  - Using Jumbo frames at 10 or 100 Mbps is not supported and may result in
+    poor performance or loss of link.
 
   - Adapters based on the Intel(R) 82542 and 82573V/E controller do not
     support Jumbo Frames. These correspond to the following product names:
      Intel(R) PRO/1000 Gigabit Server Adapter
      Intel(R) PRO/1000 PM Network Connection
 
-  Ethtool
+  ethtool
   -------
   The driver utilizes the ethtool interface for driver configuration and
   diagnostics, as well as displaying statistical information.  The ethtool

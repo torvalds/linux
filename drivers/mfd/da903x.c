@@ -494,7 +494,7 @@ failed:
 static int da903x_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
-	struct da903x_platform_data *pdata = client->dev.platform_data;
+	struct da903x_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct da903x_chip *chip;
 	unsigned int tmp;
 	int ret;
@@ -532,11 +532,7 @@ static int da903x_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	ret = da903x_add_subdevs(chip, pdata);
-	if (ret)
-		return ret;
-
-	return 0;
+	return da903x_add_subdevs(chip, pdata);
 }
 
 static int da903x_remove(struct i2c_client *client)
@@ -550,7 +546,6 @@ static int da903x_remove(struct i2c_client *client)
 static struct i2c_driver da903x_driver = {
 	.driver	= {
 		.name	= "da903x",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= da903x_probe,
 	.remove		= da903x_remove,

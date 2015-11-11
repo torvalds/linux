@@ -1,0 +1,71 @@
+What:           /sys/class/genwqe/genwqe<n>_card/version
+Date:           Oct 2013
+Contact:        haver@linux.vnet.ibm.com
+Description:    Unique bitstream identification e.g.
+                '0000000330336283.00000000475a4950'.
+
+What:           /sys/class/genwqe/genwqe<n>_card/appid
+Date:           Oct 2013
+Contact:        haver@linux.vnet.ibm.com
+Description:    Identifies the currently active card application e.g. 'GZIP'
+                for compression/decompression.
+
+What:           /sys/class/genwqe/genwqe<n>_card/type
+Date:           Oct 2013
+Contact:        haver@linux.vnet.ibm.com
+Description:    Type of the card e.g. 'GenWQE5-A7'.
+
+What:           /sys/class/genwqe/genwqe<n>_card/curr_bitstream
+Date:           Oct 2013
+Contact:        haver@linux.vnet.ibm.com
+Description:    Currently active bitstream. 1 is default, 0 is backup.
+
+What:           /sys/class/genwqe/genwqe<n>_card/next_bitstream
+Date:           Oct 2013
+Contact:        haver@linux.vnet.ibm.com
+Description:    Interface to set the next bitstream to be used.
+
+What:           /sys/class/genwqe/genwqe<n>_card/reload_bitstream
+Date:           May 2014
+Contact:        klebers@linux.vnet.ibm.com
+Description:    Interface to trigger a PCIe card reset to reload the bitstream.
+                  sudo sh -c 'echo 1 > \
+                    /sys/class/genwqe/genwqe0_card/reload_bitstream'
+                If successfully, the card will come back with the bitstream set
+                on 'next_bitstream'.
+
+What:           /sys/class/genwqe/genwqe<n>_card/tempsens
+Date:           Oct 2013
+Contact:        haver@linux.vnet.ibm.com
+Description:    Interface to read the cards temperature sense register.
+
+What:           /sys/class/genwqe/genwqe<n>_card/freerunning_timer
+Date:           Oct 2013
+Contact:        haver@linux.vnet.ibm.com
+Description:    Interface to read the cards free running timer.
+                Used for performance and utilization measurements.
+
+What:           /sys/class/genwqe/genwqe<n>_card/queue_working_time
+Date:           Oct 2013
+Contact:        haver@linux.vnet.ibm.com
+Description:    Interface to read queue working time.
+                Used for performance and utilization measurements.
+
+What:           /sys/class/genwqe/genwqe<n>_card/state
+Date:           Oct 2013
+Contact:        haver@linux.vnet.ibm.com
+Description:    State of the card: "unused", "used", "error".
+
+What:           /sys/class/genwqe/genwqe<n>_card/base_clock
+Date:           Oct 2013
+Contact:        haver@linux.vnet.ibm.com
+Description:    Base clock frequency of the card.
+
+What:           /sys/class/genwqe/genwqe<n>_card/device/sriov_numvfs
+Date:           Oct 2013
+Contact:        haver@linux.vnet.ibm.com
+Description:    Enable VFs (1..15):
+                  sudo sh -c 'echo 15 > \
+                    /sys/bus/pci/devices/0000\:1b\:00.0/sriov_numvfs'
+                Disable VFs:
+                  Write a 0 into the same sysfs entry.

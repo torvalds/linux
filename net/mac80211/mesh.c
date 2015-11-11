@@ -12,6 +12,7 @@
 #include <asm/unaligned.h>
 #include "ieee80211_i.h"
 #include "mesh.h"
+#include "driver-ops.h"
 
 static int mesh_allocated;
 static struct kmem_cache *rm_cache;
@@ -62,7 +63,6 @@ bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 			struct ieee802_11_elems *ie)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-	struct ieee80211_local *local = sdata->local;
 	u32 basic_rates = 0;
 	struct cfg80211_chan_def sta_chan_def;
 
@@ -85,7 +85,7 @@ bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 	     (ifmsh->mesh_auth_id == ie->mesh_config->meshconf_auth)))
 		return false;
 
-	ieee80211_sta_get_rates(local, ie, ieee80211_get_sdata_band(sdata),
+	ieee80211_sta_get_rates(sdata, ie, ieee80211_get_sdata_band(sdata),
 				&basic_rates);
 
 	if (sdata->vif.bss_conf.basic_rates != basic_rates)
@@ -93,6 +93,9 @@ bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_ht_oper_to_chandef(sdata->vif.bss_conf.chandef.chan,
 				     ie->ht_operation, &sta_chan_def);
+
+	ieee80211_vht_oper_to_chandef(sdata->vif.bss_conf.chandef.chan,
+				      ie->vht_operation, &sta_chan_def);
 
 	if (!cfg80211_chandef_compatible(&sdata->vif.bss_conf.chandef,
 					 &sta_chan_def))
@@ -158,7 +161,7 @@ void mesh_sta_cleanup(struct sta_info *sta)
 	changed = mesh_accept_plinks_update(sdata);
 	if (!sdata->u.mesh.user_mpm) {
 		changed |= mesh_plink_deactivate(sta);
-		del_timer_sync(&sta->plink_timer);
+		del_timer_sync(&sta->mesh->plink_timer);
 	}
 
 	if (changed)
@@ -259,6 +262,9 @@ int mesh_add_meshconf_ie(struct ieee80211_sub_if_data *sdata,
 	*pos++ = WLAN_EID_MESH_CONFIG;
 	*pos++ = meshconf_len;
 
+	/* save a pointer for quick updates in pre-tbtt */
+	ifmsh->meshconf_offset = pos - skb->data;
+
 	/* Active path selection protocol ID */
 	*pos++ = ifmsh->mesh_pp_id;
 	/* Active path selection metric ID   */
@@ -271,11 +277,12 @@ int mesh_add_meshconf_ie(struct ieee80211_sub_if_data *sdata,
 	*pos++ = ifmsh->mesh_auth_id;
 	/* Mesh Formation Info - number of neighbors */
 	neighbors = atomic_read(&ifmsh->estab_plinks);
-	/* Number of neighbor mesh STAs or 15 whichever is smaller */
-	neighbors = (neighbors > 15) ? 15 : neighbors;
+	neighbors = min_t(int, neighbors, IEEE80211_MAX_MESH_PEERINGS);
 	*pos++ = neighbors << 1;
 	/* Mesh capability */
-	*pos = IEEE80211_MESHCONF_CAPAB_FORWARDING;
+	*pos = 0x00;
+	*pos |= ifmsh->mshcfg.dot11MeshForwarding ?
+			IEEE80211_MESHCONF_CAPAB_FORWARDING : 0x00;
 	*pos |= ifmsh->accepting_plinks ?
 			IEEE80211_MESHCONF_CAPAB_ACCEPT_PLINKS : 0x00;
 	/* Mesh PS mode. See IEEE802.11-2012 8.4.2.100.8 */
@@ -362,20 +369,15 @@ int mesh_add_rsn_ie(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 		return 0;
 
 	/* find RSN IE */
-	data = ifmsh->ie;
-	while (data < ifmsh->ie + ifmsh->ie_len) {
-		if (*data == WLAN_EID_RSN) {
-			len = data[1] + 2;
-			break;
-		}
-		data++;
-	}
+	data = cfg80211_find_ie(WLAN_EID_RSN, ifmsh->ie, ifmsh->ie_len);
+	if (!data)
+		return 0;
 
-	if (len) {
-		if (skb_tailroom(skb) < len)
-			return -ENOMEM;
-		memcpy(skb_put(skb, len), data, len);
-	}
+	len = data[1] + 2;
+
+	if (skb_tailroom(skb) < len)
+		return -ENOMEM;
+	memcpy(skb_put(skb, len), data, len);
 
 	return 0;
 }
@@ -417,7 +419,9 @@ int mesh_add_ht_cap_ie(struct ieee80211_sub_if_data *sdata,
 
 	sband = local->hw.wiphy->bands[band];
 	if (!sband->ht_cap.ht_supported ||
-	    sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT)
+	    sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT ||
+	    sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_5 ||
+	    sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_10)
 		return 0;
 
 	if (skb_tailroom(skb) < 2 + sizeof(struct ieee80211_ht_cap))
@@ -435,8 +439,6 @@ int mesh_add_ht_oper_ie(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_channel *channel;
-	enum nl80211_channel_type channel_type =
-		cfg80211_get_chandef_type(&sdata->vif.bss_conf.chandef);
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_sta_ht_cap *ht_cap;
 	u8 *pos;
@@ -453,7 +455,10 @@ int mesh_add_ht_oper_ie(struct ieee80211_sub_if_data *sdata,
 	sband = local->hw.wiphy->bands[channel->band];
 	ht_cap = &sband->ht_cap;
 
-	if (!ht_cap->ht_supported || channel_type == NL80211_CHAN_NO_HT)
+	if (!ht_cap->ht_supported ||
+	    sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT ||
+	    sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_5 ||
+	    sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_10)
 		return 0;
 
 	if (skb_tailroom(skb) < 2 + sizeof(struct ieee80211_ht_operation))
@@ -461,7 +466,70 @@ int mesh_add_ht_oper_ie(struct ieee80211_sub_if_data *sdata,
 
 	pos = skb_put(skb, 2 + sizeof(struct ieee80211_ht_operation));
 	ieee80211_ie_build_ht_oper(pos, ht_cap, &sdata->vif.bss_conf.chandef,
-				   sdata->vif.bss_conf.ht_operation_mode);
+				   sdata->vif.bss_conf.ht_operation_mode,
+				   false);
+
+	return 0;
+}
+
+int mesh_add_vht_cap_ie(struct ieee80211_sub_if_data *sdata,
+			struct sk_buff *skb)
+{
+	struct ieee80211_local *local = sdata->local;
+	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
+	struct ieee80211_supported_band *sband;
+	u8 *pos;
+
+	sband = local->hw.wiphy->bands[band];
+	if (!sband->vht_cap.vht_supported ||
+	    sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT ||
+	    sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_5 ||
+	    sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_10)
+		return 0;
+
+	if (skb_tailroom(skb) < 2 + sizeof(struct ieee80211_vht_cap))
+		return -ENOMEM;
+
+	pos = skb_put(skb, 2 + sizeof(struct ieee80211_vht_cap));
+	ieee80211_ie_build_vht_cap(pos, &sband->vht_cap, sband->vht_cap.cap);
+
+	return 0;
+}
+
+int mesh_add_vht_oper_ie(struct ieee80211_sub_if_data *sdata,
+			 struct sk_buff *skb)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	struct ieee80211_channel *channel;
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_sta_vht_cap *vht_cap;
+	u8 *pos;
+
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	if (WARN_ON(!chanctx_conf)) {
+		rcu_read_unlock();
+		return -EINVAL;
+	}
+	channel = chanctx_conf->def.chan;
+	rcu_read_unlock();
+
+	sband = local->hw.wiphy->bands[channel->band];
+	vht_cap = &sband->vht_cap;
+
+	if (!vht_cap->vht_supported ||
+	    sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT ||
+	    sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_5 ||
+	    sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_10)
+		return 0;
+
+	if (skb_tailroom(skb) < 2 + sizeof(struct ieee80211_vht_operation))
+		return -ENOMEM;
+
+	pos = skb_put(skb, 2 + sizeof(struct ieee80211_vht_operation));
+	ieee80211_ie_build_vht_oper(pos, vht_cap,
+				    &sdata->vif.bss_conf.chandef);
 
 	return 0;
 }
@@ -519,7 +587,7 @@ int ieee80211_fill_mesh_addresses(struct ieee80211_hdr *hdr, __le16 *fc,
 	} else {
 		*fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS);
 		/* RA TA DA SA */
-		memset(hdr->addr1, 0, ETH_ALEN);   /* RA is resolved later */
+		eth_zero_addr(hdr->addr1);   /* RA is resolved later */
 		memcpy(hdr->addr2, meshsa, ETH_ALEN);
 		memcpy(hdr->addr3, meshda, ETH_ALEN);
 		memcpy(hdr->addr4, meshsa, ETH_ALEN);
@@ -539,9 +607,9 @@ int ieee80211_fill_mesh_addresses(struct ieee80211_hdr *hdr, __le16 *fc,
  *
  * Return the header length.
  */
-int ieee80211_new_mesh_header(struct ieee80211_sub_if_data *sdata,
-			      struct ieee80211s_hdr *meshhdr,
-			      const char *addr4or5, const char *addr6)
+unsigned int ieee80211_new_mesh_header(struct ieee80211_sub_if_data *sdata,
+				       struct ieee80211s_hdr *meshhdr,
+				       const char *addr4or5, const char *addr6)
 {
 	if (WARN_ON(!addr4or5 && addr6))
 		return 0;
@@ -573,7 +641,8 @@ static void ieee80211_mesh_housekeeping(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	u32 changed;
 
-	ieee80211_sta_expire(sdata, IEEE80211_MESH_PEER_INACTIVITY_LIMIT);
+	if (ifmsh->mshcfg.plink_timeout > 0)
+		ieee80211_sta_expire(sdata, ifmsh->mshcfg.plink_timeout * HZ);
 	mesh_path_expire(sdata);
 
 	changed = mesh_accept_plinks_update(sdata);
@@ -608,6 +677,7 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
 	struct ieee80211_chanctx_conf *chanctx_conf;
+	struct mesh_csa_settings *csa;
 	enum ieee80211_band band;
 	u8 *pos;
 	struct ieee80211_sub_if_data *sdata;
@@ -622,6 +692,10 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 
 	head_len = hdr_len +
 		   2 + /* NULL SSID */
+		   /* Channel Switch Announcement */
+		   2 + sizeof(struct ieee80211_channel_sw_ie) +
+		   /* Mesh Channel Swith Parameters */
+		   2 + sizeof(struct ieee80211_mesh_chansw_params_ie) +
 		   2 + 8 + /* supported rates */
 		   2 + 3; /* DS params */
 	tail_len = 2 + (IEEE80211_MAX_SUPP_RATES - 8) +
@@ -630,6 +704,8 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 		   2 + ifmsh->mesh_id_len +
 		   2 + sizeof(struct ieee80211_meshconf_ie) +
 		   2 + sizeof(__le16) + /* awake window */
+		   2 + sizeof(struct ieee80211_vht_cap) +
+		   2 + sizeof(struct ieee80211_vht_operation) +
 		   ifmsh->ie_len;
 
 	bcn = kzalloc(sizeof(*bcn) + head_len + tail_len, GFP_KERNEL);
@@ -663,6 +739,36 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 	*pos++ = WLAN_EID_SSID;
 	*pos++ = 0x0;
 
+	rcu_read_lock();
+	csa = rcu_dereference(ifmsh->csa);
+	if (csa) {
+		pos = skb_put(skb, 13);
+		memset(pos, 0, 13);
+		*pos++ = WLAN_EID_CHANNEL_SWITCH;
+		*pos++ = 3;
+		*pos++ = 0x0;
+		*pos++ = ieee80211_frequency_to_channel(
+				csa->settings.chandef.chan->center_freq);
+		bcn->csa_current_counter = csa->settings.count;
+		bcn->csa_counter_offsets[0] = hdr_len + 6;
+		*pos++ = csa->settings.count;
+		*pos++ = WLAN_EID_CHAN_SWITCH_PARAM;
+		*pos++ = 6;
+		if (ifmsh->csa_role == IEEE80211_MESH_CSA_ROLE_INIT) {
+			*pos++ = ifmsh->mshcfg.dot11MeshTTL;
+			*pos |= WLAN_EID_CHAN_SWITCH_PARAM_INITIATOR;
+		} else {
+			*pos++ = ifmsh->chsw_ttl;
+		}
+		*pos++ |= csa->settings.block_tx ?
+			  WLAN_EID_CHAN_SWITCH_PARAM_TX_RESTRICT : 0x00;
+		put_unaligned_le16(WLAN_REASON_MESH_CHAN, pos);
+		pos += 2;
+		put_unaligned_le16(ifmsh->pre_value, pos);
+		pos += 2;
+	}
+	rcu_read_unlock();
+
 	if (ieee80211_add_srates_ie(sdata, skb, true, band) ||
 	    mesh_add_ds_params_ie(sdata, skb))
 		goto out_free;
@@ -681,11 +787,15 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 	    mesh_add_meshid_ie(sdata, skb) ||
 	    mesh_add_meshconf_ie(sdata, skb) ||
 	    mesh_add_awake_window_ie(sdata, skb) ||
+	    mesh_add_vht_cap_ie(sdata, skb) ||
+	    mesh_add_vht_oper_ie(sdata, skb) ||
 	    mesh_add_vendor_ies(sdata, skb))
 		goto out_free;
 
 	bcn->tail_len = skb->len;
 	memcpy(bcn->tail, skb->data, bcn->tail_len);
+	bcn->meshconf = (struct ieee80211_meshconf_ie *)
+					(bcn->tail + ifmsh->meshconf_offset);
 
 	dev_kfree_skb(skb);
 	rcu_assign_pointer(ifmsh->beacon, bcn);
@@ -697,38 +807,38 @@ out_free:
 }
 
 static int
-ieee80211_mesh_rebuild_beacon(struct ieee80211_if_mesh *ifmsh)
+ieee80211_mesh_rebuild_beacon(struct ieee80211_sub_if_data *sdata)
 {
 	struct beacon_data *old_bcn;
 	int ret;
 
-	mutex_lock(&ifmsh->mtx);
-
-	old_bcn = rcu_dereference_protected(ifmsh->beacon,
-					    lockdep_is_held(&ifmsh->mtx));
-	ret = ieee80211_mesh_build_beacon(ifmsh);
+	old_bcn = rcu_dereference_protected(sdata->u.mesh.beacon,
+					    lockdep_is_held(&sdata->wdev.mtx));
+	ret = ieee80211_mesh_build_beacon(&sdata->u.mesh);
 	if (ret)
 		/* just reuse old beacon */
-		goto out;
+		return ret;
 
 	if (old_bcn)
 		kfree_rcu(old_bcn, rcu_head);
-out:
-	mutex_unlock(&ifmsh->mtx);
-	return ret;
+	return 0;
 }
 
 void ieee80211_mbss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 				       u32 changed)
 {
-	if (sdata->vif.bss_conf.enable_beacon &&
-	    (changed & (BSS_CHANGED_BEACON |
-			BSS_CHANGED_HT |
-			BSS_CHANGED_BASIC_RATES |
-			BSS_CHANGED_BEACON_INT)))
-		if (ieee80211_mesh_rebuild_beacon(&sdata->u.mesh))
-			return;
-	ieee80211_bss_info_change_notify(sdata, changed);
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	unsigned long bits = changed;
+	u32 bit;
+
+	if (!bits)
+		return;
+
+	/* if we race with running work, worst case this work becomes a noop */
+	for_each_set_bit(bit, &bits, sizeof(changed) * BITS_PER_BYTE)
+		set_bit(bit, &ifmsh->mbss_changed);
+	set_bit(MESH_WORK_MBSS_CHANGED, &ifmsh->wrkq_flags);
+	ieee80211_queue_work(&sdata->local->hw, &sdata->work);
 }
 
 int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
@@ -740,7 +850,6 @@ int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 		      BSS_CHANGED_HT |
 		      BSS_CHANGED_BASIC_RATES |
 		      BSS_CHANGED_BEACON_INT;
-	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
 
 	local->fif_other_bss++;
 	/* mesh ifaces must set allmulti to forward mcast traffic */
@@ -748,7 +857,6 @@ int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 	ieee80211_configure_filter(local);
 
 	ifmsh->mesh_cc_id = 0;	/* Disabled */
-	ifmsh->mesh_auth_id = 0;	/* Disabled */
 	/* register sync ops from extensible synchronization framework */
 	ifmsh->sync_ops = ieee80211_mesh_sync_ops_get(ifmsh->mesh_sp_id);
 	ifmsh->adjusting_tbtt = false;
@@ -759,8 +867,6 @@ int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 	sdata->vif.bss_conf.ht_operation_mode =
 				ifmsh->mshcfg.ht_opmode;
 	sdata->vif.bss_conf.enable_beacon = true;
-	sdata->vif.bss_conf.basic_rates =
-		ieee80211_mandatory_rates(local, band);
 
 	changed |= ieee80211_mps_local_status_update(sdata);
 
@@ -769,6 +875,7 @@ int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 		return -ENOMEM;
 	}
 
+	ieee80211_recalc_dtim(local, sdata);
 	ieee80211_bss_info_change_notify(sdata, changed);
 
 	netif_carrier_on(sdata->dev);
@@ -788,12 +895,10 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	sdata->vif.bss_conf.enable_beacon = false;
 	clear_bit(SDATA_STATE_OFFCHANNEL_BEACON_STOPPED, &sdata->state);
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED);
-	mutex_lock(&ifmsh->mtx);
 	bcn = rcu_dereference_protected(ifmsh->beacon,
-					lockdep_is_held(&ifmsh->mtx));
-	rcu_assign_pointer(ifmsh->beacon, NULL);
+					lockdep_is_held(&sdata->wdev.mtx));
+	RCU_INIT_POINTER(ifmsh->beacon, NULL);
 	kfree_rcu(bcn, rcu_head);
-	mutex_unlock(&ifmsh->mtx);
 
 	/* flush STAs and mpaths on this iface */
 	sta_info_flush(sdata);
@@ -806,18 +911,105 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	del_timer_sync(&sdata->u.mesh.housekeeping_timer);
 	del_timer_sync(&sdata->u.mesh.mesh_path_root_timer);
 	del_timer_sync(&sdata->u.mesh.mesh_path_timer);
-	/*
-	 * If the timer fired while we waited for it, it will have
-	 * requeued the work. Now the work will be running again
-	 * but will not rearm the timer again because it checks
-	 * whether the interface is running, which, at this point,
-	 * it no longer is.
-	 */
-	cancel_work_sync(&sdata->work);
+
+	/* clear any mesh work (for next join) we may have accrued */
+	ifmsh->wrkq_flags = 0;
+	ifmsh->mbss_changed = 0;
 
 	local->fif_other_bss--;
 	atomic_dec(&local->iff_allmultis);
 	ieee80211_configure_filter(local);
+}
+
+static bool
+ieee80211_mesh_process_chnswitch(struct ieee80211_sub_if_data *sdata,
+				 struct ieee802_11_elems *elems, bool beacon)
+{
+	struct cfg80211_csa_settings params;
+	struct ieee80211_csa_ie csa_ie;
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
+	int err;
+	u32 sta_flags;
+
+	sdata_assert_lock(sdata);
+
+	sta_flags = IEEE80211_STA_DISABLE_VHT;
+	switch (sdata->vif.bss_conf.chandef.width) {
+	case NL80211_CHAN_WIDTH_20_NOHT:
+		sta_flags |= IEEE80211_STA_DISABLE_HT;
+	case NL80211_CHAN_WIDTH_20:
+		sta_flags |= IEEE80211_STA_DISABLE_40MHZ;
+		break;
+	default:
+		break;
+	}
+
+	memset(&params, 0, sizeof(params));
+	memset(&csa_ie, 0, sizeof(csa_ie));
+	err = ieee80211_parse_ch_switch_ie(sdata, elems, band,
+					   sta_flags, sdata->vif.addr,
+					   &csa_ie);
+	if (err < 0)
+		return false;
+	if (err)
+		return false;
+
+	params.chandef = csa_ie.chandef;
+	params.count = csa_ie.count;
+
+	if (!cfg80211_chandef_usable(sdata->local->hw.wiphy, &params.chandef,
+				     IEEE80211_CHAN_DISABLED)) {
+		sdata_info(sdata,
+			   "mesh STA %pM switches to unsupported channel (%d MHz, width:%d, CF1/2: %d/%d MHz), aborting\n",
+			   sdata->vif.addr,
+			   params.chandef.chan->center_freq,
+			   params.chandef.width,
+			   params.chandef.center_freq1,
+			   params.chandef.center_freq2);
+		return false;
+	}
+
+	err = cfg80211_chandef_dfs_required(sdata->local->hw.wiphy,
+					    &params.chandef,
+					    NL80211_IFTYPE_MESH_POINT);
+	if (err < 0)
+		return false;
+	if (err > 0)
+		/* TODO: DFS not (yet) supported */
+		return false;
+
+	params.radar_required = err;
+
+	if (cfg80211_chandef_identical(&params.chandef,
+				       &sdata->vif.bss_conf.chandef)) {
+		mcsa_dbg(sdata,
+			 "received csa with an identical chandef, ignoring\n");
+		return true;
+	}
+
+	mcsa_dbg(sdata,
+		 "received channel switch announcement to go to channel %d MHz\n",
+		 params.chandef.chan->center_freq);
+
+	params.block_tx = csa_ie.mode & WLAN_EID_CHAN_SWITCH_PARAM_TX_RESTRICT;
+	if (beacon) {
+		ifmsh->chsw_ttl = csa_ie.ttl - 1;
+		if (ifmsh->pre_value >= csa_ie.pre_value)
+			return false;
+		ifmsh->pre_value = csa_ie.pre_value;
+	}
+
+	if (ifmsh->chsw_ttl >= ifmsh->mshcfg.dot11MeshTTL)
+		return false;
+
+	ifmsh->csa_role = IEEE80211_MESH_CSA_ROLE_REPEATER;
+
+	if (ieee80211_channel_switch(sdata->local->hw.wiphy, sdata->dev,
+				     &params) < 0)
+		return false;
+
+	return true;
 }
 
 static void
@@ -839,6 +1031,9 @@ ieee80211_mesh_rx_probe_req(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	ieee802_11_parse_elems(pos, len - baselen, false, &elems);
+
+	if (!elems.mesh_id)
+		return;
 
 	/* 802.11-2012 10.1.4.3.2 */
 	if ((!ether_addr_equal(mgmt->da, sdata->vif.addr) &&
@@ -923,6 +1118,139 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	if (ifmsh->sync_ops)
 		ifmsh->sync_ops->rx_bcn_presp(sdata,
 			stype, mgmt, &elems, rx_status);
+
+	if (ifmsh->csa_role != IEEE80211_MESH_CSA_ROLE_INIT &&
+	    !sdata->vif.csa_active)
+		ieee80211_mesh_process_chnswitch(sdata, &elems, true);
+}
+
+int ieee80211_mesh_finish_csa(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	struct mesh_csa_settings *tmp_csa_settings;
+	int ret = 0;
+	int changed = 0;
+
+	/* Reset the TTL value and Initiator flag */
+	ifmsh->csa_role = IEEE80211_MESH_CSA_ROLE_NONE;
+	ifmsh->chsw_ttl = 0;
+
+	/* Remove the CSA and MCSP elements from the beacon */
+	tmp_csa_settings = rcu_dereference(ifmsh->csa);
+	RCU_INIT_POINTER(ifmsh->csa, NULL);
+	if (tmp_csa_settings)
+		kfree_rcu(tmp_csa_settings, rcu_head);
+	ret = ieee80211_mesh_rebuild_beacon(sdata);
+	if (ret)
+		return -EINVAL;
+
+	changed |= BSS_CHANGED_BEACON;
+
+	mcsa_dbg(sdata, "complete switching to center freq %d MHz",
+		 sdata->vif.bss_conf.chandef.chan->center_freq);
+	return changed;
+}
+
+int ieee80211_mesh_csa_beacon(struct ieee80211_sub_if_data *sdata,
+			      struct cfg80211_csa_settings *csa_settings)
+{
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	struct mesh_csa_settings *tmp_csa_settings;
+	int ret = 0;
+
+	tmp_csa_settings = kmalloc(sizeof(*tmp_csa_settings),
+				   GFP_ATOMIC);
+	if (!tmp_csa_settings)
+		return -ENOMEM;
+
+	memcpy(&tmp_csa_settings->settings, csa_settings,
+	       sizeof(struct cfg80211_csa_settings));
+
+	rcu_assign_pointer(ifmsh->csa, tmp_csa_settings);
+
+	ret = ieee80211_mesh_rebuild_beacon(sdata);
+	if (ret) {
+		tmp_csa_settings = rcu_dereference(ifmsh->csa);
+		RCU_INIT_POINTER(ifmsh->csa, NULL);
+		kfree_rcu(tmp_csa_settings, rcu_head);
+		return ret;
+	}
+
+	return BSS_CHANGED_BEACON;
+}
+
+static int mesh_fwd_csa_frame(struct ieee80211_sub_if_data *sdata,
+			       struct ieee80211_mgmt *mgmt, size_t len)
+{
+	struct ieee80211_mgmt *mgmt_fwd;
+	struct sk_buff *skb;
+	struct ieee80211_local *local = sdata->local;
+	u8 *pos = mgmt->u.action.u.chan_switch.variable;
+	size_t offset_ttl;
+
+	skb = dev_alloc_skb(local->tx_headroom + len);
+	if (!skb)
+		return -ENOMEM;
+	skb_reserve(skb, local->tx_headroom);
+	mgmt_fwd = (struct ieee80211_mgmt *) skb_put(skb, len);
+
+	/* offset_ttl is based on whether the secondary channel
+	 * offset is available or not. Subtract 1 from the mesh TTL
+	 * and disable the initiator flag before forwarding.
+	 */
+	offset_ttl = (len < 42) ? 7 : 10;
+	*(pos + offset_ttl) -= 1;
+	*(pos + offset_ttl + 1) &= ~WLAN_EID_CHAN_SWITCH_PARAM_INITIATOR;
+
+	memcpy(mgmt_fwd, mgmt, len);
+	eth_broadcast_addr(mgmt_fwd->da);
+	memcpy(mgmt_fwd->sa, sdata->vif.addr, ETH_ALEN);
+	memcpy(mgmt_fwd->bssid, sdata->vif.addr, ETH_ALEN);
+
+	ieee80211_tx_skb(sdata, skb);
+	return 0;
+}
+
+static void mesh_rx_csa_frame(struct ieee80211_sub_if_data *sdata,
+			      struct ieee80211_mgmt *mgmt, size_t len)
+{
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	struct ieee802_11_elems elems;
+	u16 pre_value;
+	bool fwd_csa = true;
+	size_t baselen;
+	u8 *pos;
+
+	if (mgmt->u.action.u.measurement.action_code !=
+	    WLAN_ACTION_SPCT_CHL_SWITCH)
+		return;
+
+	pos = mgmt->u.action.u.chan_switch.variable;
+	baselen = offsetof(struct ieee80211_mgmt,
+			   u.action.u.chan_switch.variable);
+	ieee802_11_parse_elems(pos, len - baselen, false, &elems);
+
+	ifmsh->chsw_ttl = elems.mesh_chansw_params_ie->mesh_ttl;
+	if (!--ifmsh->chsw_ttl)
+		fwd_csa = false;
+
+	pre_value = le16_to_cpu(elems.mesh_chansw_params_ie->mesh_pre_value);
+	if (ifmsh->pre_value >= pre_value)
+		return;
+
+	ifmsh->pre_value = pre_value;
+
+	if (!sdata->vif.csa_active &&
+	    !ieee80211_mesh_process_chnswitch(sdata, &elems, false)) {
+		mcsa_dbg(sdata, "Failed to process CSA action frame");
+		return;
+	}
+
+	/* forward or re-broadcast the CSA frame */
+	if (fwd_csa) {
+		if (mesh_fwd_csa_frame(sdata, mgmt, len) < 0)
+			mcsa_dbg(sdata, "Failed to forward the CSA frame");
+	}
 }
 
 static void ieee80211_mesh_rx_mgmt_action(struct ieee80211_sub_if_data *sdata,
@@ -944,6 +1272,9 @@ static void ieee80211_mesh_rx_mgmt_action(struct ieee80211_sub_if_data *sdata,
 		if (mesh_action_is_path_sel(mgmt))
 			mesh_rx_path_sel_frame(sdata, mgmt, len);
 		break;
+	case WLAN_CATEGORY_SPECTRUM_MGMT:
+		mesh_rx_csa_frame(sdata, mgmt, len);
+		break;
 	}
 }
 
@@ -953,6 +1284,12 @@ void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_rx_status *rx_status;
 	struct ieee80211_mgmt *mgmt;
 	u16 stype;
+
+	sdata_lock(sdata);
+
+	/* mesh already went down */
+	if (!sdata->u.mesh.mesh_id_len)
+		goto out;
 
 	rx_status = IEEE80211_SKB_RXCB(skb);
 	mgmt = (struct ieee80211_mgmt *) skb->data;
@@ -971,11 +1308,41 @@ void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		ieee80211_mesh_rx_mgmt_action(sdata, mgmt, skb->len, rx_status);
 		break;
 	}
+out:
+	sdata_unlock(sdata);
+}
+
+static void mesh_bss_info_changed(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	u32 bit, changed = 0;
+
+	for_each_set_bit(bit, &ifmsh->mbss_changed,
+			 sizeof(changed) * BITS_PER_BYTE) {
+		clear_bit(bit, &ifmsh->mbss_changed);
+		changed |= BIT(bit);
+	}
+
+	if (sdata->vif.bss_conf.enable_beacon &&
+	    (changed & (BSS_CHANGED_BEACON |
+			BSS_CHANGED_HT |
+			BSS_CHANGED_BASIC_RATES |
+			BSS_CHANGED_BEACON_INT)))
+		if (ieee80211_mesh_rebuild_beacon(sdata))
+			return;
+
+	ieee80211_bss_info_change_notify(sdata, changed);
 }
 
 void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+
+	sdata_lock(sdata);
+
+	/* mesh already went down */
+	if (!sdata->u.mesh.mesh_id_len)
+		goto out;
 
 	if (ifmsh->preq_queue_len &&
 	    time_after(jiffies,
@@ -996,6 +1363,11 @@ void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata)
 
 	if (test_and_clear_bit(MESH_WORK_DRIFT_ADJUST, &ifmsh->wrkq_flags))
 		mesh_sync_adjust_tbtt(sdata);
+
+	if (test_and_clear_bit(MESH_WORK_MBSS_CHANGED, &ifmsh->wrkq_flags))
+		mesh_bss_info_changed(sdata);
+out:
+	sdata_unlock(sdata);
 }
 
 void ieee80211_mesh_notify_scan_completed(struct ieee80211_local *local)
@@ -1020,13 +1392,11 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 		    (unsigned long) sdata);
 
 	ifmsh->accepting_plinks = true;
-	ifmsh->preq_id = 0;
-	ifmsh->sn = 0;
-	ifmsh->num_gates = 0;
 	atomic_set(&ifmsh->mpaths, 0);
 	mesh_rmc_init(sdata);
 	ifmsh->last_preq = jiffies;
 	ifmsh->next_perr = jiffies;
+	ifmsh->csa_role = IEEE80211_MESH_CSA_ROLE_NONE;
 	/* Allocate all mesh structures when creating the first mesh interface. */
 	if (!mesh_allocated)
 		ieee80211s_init();
@@ -1041,7 +1411,6 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 	spin_lock_init(&ifmsh->mesh_preq_queue_lock);
 	spin_lock_init(&ifmsh->sync_offset_lock);
 	RCU_INIT_POINTER(ifmsh->beacon, NULL);
-	mutex_init(&ifmsh->mtx);
 
 	sdata->vif.bss_conf.bssid = zero_addr;
 }

@@ -36,8 +36,6 @@
 #include <crypto/algapi.h>
 #include <crypto/des.h>
 
-#include <asm/kmap_types.h>
-
 //#define HIFN_DEBUG
 
 #ifdef HIFN_DEBUG
@@ -2617,14 +2615,13 @@ static int hifn_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		}
 	}
 
-	dev->desc_virt = pci_alloc_consistent(pdev, sizeof(struct hifn_dma),
-			&dev->desc_dma);
+	dev->desc_virt = pci_zalloc_consistent(pdev, sizeof(struct hifn_dma),
+					       &dev->desc_dma);
 	if (!dev->desc_virt) {
 		dprintk("Failed to allocate descriptor rings.\n");
 		err = -ENOMEM;
 		goto err_out_unmap_bars;
 	}
-	memset(dev->desc_virt, 0, sizeof(struct hifn_dma));
 
 	dev->pdev = pdev;
 	dev->irq = pdev->irq;
@@ -2676,7 +2673,7 @@ err_out_stop_device:
 	hifn_reset_dma(dev, 1);
 	hifn_stop_device(dev);
 err_out_free_irq:
-	free_irq(dev->irq, dev->name);
+	free_irq(dev->irq, dev);
 	tasklet_kill(&dev->tasklet);
 err_out_free_desc:
 	pci_free_consistent(pdev, sizeof(struct hifn_dma),
@@ -2711,7 +2708,7 @@ static void hifn_remove(struct pci_dev *pdev)
 		hifn_reset_dma(dev, 1);
 		hifn_stop_device(dev);
 
-		free_irq(dev->irq, dev->name);
+		free_irq(dev->irq, dev);
 		tasklet_kill(&dev->tasklet);
 
 		hifn_flush(dev);

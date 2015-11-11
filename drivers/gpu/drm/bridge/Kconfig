@@ -1,0 +1,44 @@
+config DRM_BRIDGE
+	def_bool y
+	depends on DRM
+	help
+	  Bridge registration and lookup framework.
+
+menu "Display Interface Bridges"
+	depends on DRM && DRM_BRIDGE
+
+config DRM_DW_HDMI
+	tristate
+	select DRM_KMS_HELPER
+
+config DRM_DW_HDMI_AHB_AUDIO
+	tristate "Synopsis Designware AHB Audio interface"
+	depends on DRM_DW_HDMI && SND
+	select SND_PCM
+	select SND_PCM_ELD
+	select SND_PCM_IEC958
+	help
+	  Support the AHB Audio interface which is part of the Synopsis
+	  Designware HDMI block.  This is used in conjunction with
+	  the i.MX6 HDMI driver.
+
+
+config DRM_NXP_PTN3460
+	tristate "NXP PTN3460 DP/LVDS bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	select DRM_PANEL
+	---help---
+	  NXP PTN3460 eDP-LVDS bridge chip driver.
+
+config DRM_PARADE_PS8622
+	tristate "Parade eDP/LVDS bridge"
+	depends on OF
+	select DRM_PANEL
+	select DRM_KMS_HELPER
+	select BACKLIGHT_LCD_SUPPORT
+	select BACKLIGHT_CLASS_DEVICE
+	---help---
+	  Parade eDP-LVDS bridge chip driver.
+
+endmenu

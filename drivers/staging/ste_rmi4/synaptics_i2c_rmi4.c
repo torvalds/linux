@@ -209,7 +209,7 @@ static int synaptics_rmi4_set_page(struct synaptics_rmi4_data *pdata,
 		txbuf[1]	= page;
 		retval	= i2c_master_send(i2c, txbuf, PAGE_LEN);
 		if (retval != PAGE_LEN)
-			dev_err(&i2c->dev, "%s:failed:%d\n", __func__, retval);
+			dev_err(&i2c->dev, "failed:%d\n", retval);
 		else
 			pdata->current_page = page;
 	} else
@@ -283,7 +283,7 @@ static int synaptics_rmi4_i2c_byte_write(struct synaptics_rmi4_data *pdata,
 	retval		= i2c_master_send(pdata->i2c_client, txbuf, 2);
 	/* Add in retry on writes only in certain error return values */
 	if (retval != 2) {
-		dev_err(&i2c->dev, "%s:failed:%d\n", __func__, retval);
+		dev_err(&i2c->dev, "failed:%d\n", retval);
 		retval = -EIO;
 	} else
 		retval = 1;
@@ -415,6 +415,7 @@ static int synaptics_rmi4_report_device(struct synaptics_rmi4_data *pdata,
 	int touch = 0;
 	struct	i2c_client *client = pdata->i2c_client;
 	static int num_error_reports;
+
 	if (rfi->fn_number != SYNAPTICS_RMI4_TOUCHPAD_FUNC_NUM) {
 		num_error_reports++;
 		if (num_error_reports < MAX_ERROR_REPORT)
@@ -485,6 +486,7 @@ static irqreturn_t synaptics_rmi4_irq(int irq, void *data)
 {
 	struct synaptics_rmi4_data *pdata = data;
 	int touch_count;
+
 	do {
 		touch_count = synaptics_rmi4_sensor_report(pdata);
 		if (touch_count)
@@ -828,8 +830,8 @@ static int synaptics_rmi4_i2c_query_device(struct synaptics_rmi4_data *pdata)
 
 	/* Check if this is a Synaptics device - report if not. */
 	if (pdata->rmi4_mod_info.manufacturer_id != 1)
-		dev_err(&client->dev, "%s: non-Synaptics mfg id:%d\n",
-			__func__, pdata->rmi4_mod_info.manufacturer_id);
+		dev_err(&client->dev, "non-Synaptics mfg id:%d\n",
+			pdata->rmi4_mod_info.manufacturer_id);
 
 	list_for_each_entry(rfi, &pdata->rmi4_mod_info.support_fn_list, link)
 		data_sources += rfi->num_of_data_sources;
@@ -911,8 +913,6 @@ static int synaptics_rmi4_probe
 
 	rmi4_data->input_dev = input_allocate_device();
 	if (rmi4_data->input_dev == NULL) {
-		dev_err(&client->dev, "%s:input device alloc failed\n",
-						__func__);
 		retval = -ENOMEM;
 		goto err_input;
 	}
@@ -990,8 +990,8 @@ static int synaptics_rmi4_probe
 					platformdata->irq_type,
 					DRIVER_NAME, rmi4_data);
 	if (retval) {
-		dev_err(&client->dev, "%s:Unable to get attn irq %d\n",
-				__func__, client->irq);
+		dev_err(&client->dev, "Unable to get attn irq %d\n",
+			client->irq);
 		goto err_query_dev;
 	}
 
@@ -1112,11 +1112,10 @@ static int synaptics_rmi4_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops synaptics_rmi4_dev_pm_ops = {
-	.suspend = synaptics_rmi4_suspend,
-	.resume  = synaptics_rmi4_resume,
-};
 #endif
+
+static SIMPLE_DEV_PM_OPS(synaptics_rmi4_dev_pm_ops, synaptics_rmi4_suspend,
+			 synaptics_rmi4_resume);
 
 static const struct i2c_device_id synaptics_rmi4_id_table[] = {
 	{ DRIVER_NAME, 0 },
@@ -1127,10 +1126,7 @@ MODULE_DEVICE_TABLE(i2c, synaptics_rmi4_id_table);
 static struct i2c_driver synaptics_rmi4_driver = {
 	.driver = {
 		.name	=	DRIVER_NAME,
-		.owner	=	THIS_MODULE,
-#ifdef CONFIG_PM
 		.pm	=	&synaptics_rmi4_dev_pm_ops,
-#endif
 	},
 	.probe		=	synaptics_rmi4_probe,
 	.remove		=	synaptics_rmi4_remove,
@@ -1142,4 +1138,3 @@ module_i2c_driver(synaptics_rmi4_driver);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("naveen.gaddipati@stericsson.com, js.ha@stericsson.com");
 MODULE_DESCRIPTION("synaptics rmi4 i2c touch Driver");
-MODULE_ALIAS("i2c:synaptics_rmi4_ts");

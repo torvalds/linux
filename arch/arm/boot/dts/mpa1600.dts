@@ -6,7 +6,7 @@
  * Licensed under GPLv2 only
  */
 /dts-v1/;
-/include/ "at91rm9200.dtsi"
+#include "at91rm9200.dtsi"
 
 / {
 	model = "Phontech MPA 1600";
@@ -23,6 +23,14 @@
 
 		main_clock: clock@0 {
 			compatible = "atmel,osc", "fixed-clock";
+			clock-frequency = <18432000>;
+		};
+
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+
+		main_xtal {
 			clock-frequency = <18432000>;
 		};
 	};
@@ -62,7 +70,7 @@
 
 		monitor_mute {
 			label = "Monitor mute";
-			gpios = <&pioC 1 1>;
+			gpios = <&pioC 1 GPIO_ACTIVE_LOW>;
 			linux,code = <113>;
 		};
 	};

@@ -74,13 +74,6 @@ KBUILD_CFLAGS	+= -mno-fdpic -mgpr-32 -msoft-float -mno-media
 KBUILD_CFLAGS	+= -ffixed-fcc3 -ffixed-cc3 -ffixed-gr15 -ffixed-icc2
 KBUILD_AFLAGS	+= -mno-fdpic
 
-# make sure the .S files get compiled with debug info
-# and disable optimisations that are unhelpful whilst debugging
-ifdef CONFIG_DEBUG_INFO
-#KBUILD_CFLAGS	+= -O1
-KBUILD_AFLAGS	+= -Wa,--gdwarf2
-endif
-
 head-y		:= arch/frv/kernel/head.o
 
 core-y		+= arch/frv/kernel/ arch/frv/mm/

@@ -101,31 +101,25 @@ static void simdisk_transfer(struct simdisk *dev, unsigned long sector,
 	spin_unlock(&dev->lock);
 }
 
-static int simdisk_xfer_bio(struct simdisk *dev, struct bio *bio)
+static void simdisk_make_request(struct request_queue *q, struct bio *bio)
 {
-	int i;
-	struct bio_vec *bvec;
-	sector_t sector = bio->bi_sector;
+	struct simdisk *dev = q->queuedata;
+	struct bio_vec bvec;
+	struct bvec_iter iter;
+	sector_t sector = bio->bi_iter.bi_sector;
 
-	bio_for_each_segment(bvec, bio, i) {
-		char *buffer = __bio_kmap_atomic(bio, i, KM_USER0);
-		unsigned len = bvec->bv_len >> SECTOR_SHIFT;
+	bio_for_each_segment(bvec, bio, iter) {
+		char *buffer = __bio_kmap_atomic(bio, iter);
+		unsigned len = bvec.bv_len >> SECTOR_SHIFT;
 
 		simdisk_transfer(dev, sector, len, buffer,
 				bio_data_dir(bio) == WRITE);
 		sector += len;
-		__bio_kunmap_atomic(bio, KM_USER0);
+		__bio_kunmap_atomic(buffer);
 	}
-	return 0;
-}
 
-static void simdisk_make_request(struct request_queue *q, struct bio *bio)
-{
-	struct simdisk *dev = q->queuedata;
-	int status = simdisk_xfer_bio(dev, bio);
-	bio_endio(bio, status);
+	bio_endio(bio);
 }
-
 
 static int simdisk_open(struct block_device *bdev, fmode_t mode)
 {

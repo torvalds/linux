@@ -67,7 +67,7 @@ static void wl1271_stop_ba_event(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		u8 hlid;
 		struct wl1271_link *lnk;
 		for_each_set_bit(hlid, wlvif->ap.sta_hlid_map,
-				 WL12XX_MAX_LINKS) {
+				 wl->num_links) {
 			lnk = &wl->links[hlid];
 			if (!lnk->ba_bitmap)
 				continue;
@@ -139,7 +139,7 @@ void wlcore_event_channel_switch(struct wl1271 *wl,
 	wl1271_debug(DEBUG_EVENT, "%s: roles=0x%lx success=%d",
 		     __func__, roles_bitmap, success);
 
-	wl12xx_for_each_wlvif_sta(wl, wlvif) {
+	wl12xx_for_each_wlvif(wl, wlvif) {
 		if (wlvif->role_id == WL12XX_INVALID_ROLE_ID ||
 		    !test_bit(wlvif->role_id , &roles_bitmap))
 			continue;
@@ -150,14 +150,24 @@ void wlcore_event_channel_switch(struct wl1271 *wl,
 
 		vif = wl12xx_wlvif_to_vif(wlvif);
 
-		ieee80211_chswitch_done(vif, success);
-		cancel_delayed_work(&wlvif->channel_switch_work);
+		if (wlvif->bss_type == BSS_TYPE_STA_BSS) {
+			ieee80211_chswitch_done(vif, success);
+			cancel_delayed_work(&wlvif->channel_switch_work);
+		} else {
+			set_bit(WLVIF_FLAG_BEACON_DISABLED, &wlvif->flags);
+			ieee80211_csa_finish(vif);
+		}
 	}
 }
 EXPORT_SYMBOL_GPL(wlcore_event_channel_switch);
 
 void wlcore_event_dummy_packet(struct wl1271 *wl)
 {
+	if (wl->plt) {
+		wl1271_info("Got DUMMY_PACKET event in PLT mode.  FW bug, ignoring.");
+		return;
+	}
+
 	wl1271_debug(DEBUG_EVENT, "DUMMY_PACKET_ID_EVENT_ID");
 	wl1271_tx_dummy_packet(wl);
 }
@@ -172,7 +182,7 @@ static void wlcore_disconnect_sta(struct wl1271 *wl, unsigned long sta_bitmap)
 	const u8 *addr;
 	int h;
 
-	for_each_set_bit(h, &sta_bitmap, WL12XX_MAX_LINKS) {
+	for_each_set_bit(h, &sta_bitmap, wl->num_links) {
 		bool found = false;
 		/* find the ap vif connected to this sta */
 		wl12xx_for_each_wlvif_ap(wl, wlvif) {
@@ -254,10 +264,7 @@ void wlcore_event_beacon_loss(struct wl1271 *wl, unsigned long roles_bitmap)
 					     &wlvif->connection_loss_work,
 					     msecs_to_jiffies(delay));
 
-		ieee80211_cqm_rssi_notify(
-				vif,
-				NL80211_CQM_RSSI_BEACON_LOSS_EVENT,
-				GFP_KERNEL);
+		ieee80211_cqm_beacon_loss_notify(vif, GFP_KERNEL);
 	}
 }
 EXPORT_SYMBOL_GPL(wlcore_event_beacon_loss);
@@ -266,6 +273,7 @@ int wl1271_event_unmask(struct wl1271 *wl)
 {
 	int ret;
 
+	wl1271_debug(DEBUG_EVENT, "unmasking event_mask 0x%x", wl->event_mask);
 	ret = wl1271_acx_event_mbox_mask(wl, ~(wl->event_mask));
 	if (ret < 0)
 		return ret;

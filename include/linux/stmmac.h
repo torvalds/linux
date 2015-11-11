@@ -80,6 +80,10 @@ struct stmmac_mdio_bus_data {
 	unsigned int phy_mask;
 	int *irqs;
 	int probed_phy_irq;
+#ifdef CONFIG_OF
+	int reset_gpio, active_low;
+	u32 delays[3];
+#endif
 };
 
 struct stmmac_dma_cfg {
@@ -95,6 +99,7 @@ struct plat_stmmacenet_data {
 	int phy_addr;
 	int interface;
 	struct stmmac_mdio_bus_data *mdio_bus_data;
+	struct device_node *phy_node;
 	struct stmmac_dma_cfg *dma_cfg;
 	int clk_csr;
 	int has_gmac;
@@ -104,13 +109,18 @@ struct plat_stmmacenet_data {
 	int bugged_jumbo;
 	int pmt;
 	int force_sf_dma_mode;
+	int force_thresh_dma_mode;
 	int riwt_off;
+	int max_speed;
+	int maxmtu;
+	int multicast_filter_bins;
+	int unicast_filter_entries;
+	int tx_fifo_size;
+	int rx_fifo_size;
 	void (*fix_mac_speed)(void *priv, unsigned int speed);
 	void (*bus_setup)(void __iomem *ioaddr);
-	int (*init)(struct platform_device *pdev);
-	void (*exit)(struct platform_device *pdev);
-	void *custom_cfg;
-	void *custom_data;
+	int (*init)(struct platform_device *pdev, void *priv);
+	void (*exit)(struct platform_device *pdev, void *priv);
 	void *bsp_priv;
 };
 #endif

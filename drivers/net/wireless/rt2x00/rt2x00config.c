@@ -13,9 +13,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -242,7 +240,7 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 		rt2x00dev->rf_channel = libconf.rf.channel;
 	}
 
-	if (test_bit(REQUIRE_PS_AUTOWAKE, &rt2x00dev->cap_flags) &&
+	if (rt2x00_has_cap_flag(rt2x00dev, REQUIRE_PS_AUTOWAKE) &&
 	    (ieee80211_flags & IEEE80211_CONF_CHANGE_PS))
 		cancel_delayed_work_sync(&rt2x00dev->autowakeup_work);
 
@@ -259,7 +257,7 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 		rt2x00link_reset_tuner(rt2x00dev, false);
 
 	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) &&
-	    test_bit(REQUIRE_PS_AUTOWAKE, &rt2x00dev->cap_flags) &&
+	    rt2x00_has_cap_flag(rt2x00dev, REQUIRE_PS_AUTOWAKE) &&
 	    (ieee80211_flags & IEEE80211_CONF_CHANGE_PS) &&
 	    (conf->flags & IEEE80211_CONF_PS)) {
 		beacon_diff = (long)jiffies - (long)rt2x00dev->last_beacon;
@@ -268,7 +266,7 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 		if (beacon_diff > beacon_int)
 			beacon_diff = 0;
 
-		autowake_timeout = (conf->max_sleep_period * beacon_int) - beacon_diff;
+		autowake_timeout = (conf->ps_dtim_period * beacon_int) - beacon_diff;
 		queue_delayed_work(rt2x00dev->workqueue,
 				   &rt2x00dev->autowakeup_work,
 				   autowake_timeout - 15);

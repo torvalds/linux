@@ -77,9 +77,9 @@ pcibios_align_resource(void *data, const struct resource *res,
 
 	if (res->flags & IORESOURCE_IO) {
 		if (size > 0x100) {
-			printk(KERN_ERR "PCI: I/O Region %s/%d too large"
-			       " (%ld bytes)\n", pci_name(dev),
-			       dev->resource - res, size);
+			pr_err("PCI: I/O Region %s/%d too large (%u bytes)\n",
+					pci_name(dev), dev->resource - res,
+					size);
 		}
 
 		if (start & 0x300)
@@ -174,7 +174,7 @@ static int __init pcibios_init(void)
 	struct pci_controller *pci_ctrl;
 	struct list_head resources;
 	struct pci_bus *bus;
-	int next_busno = 0, i;
+	int next_busno = 0, ret;
 
 	printk("PCI: Probing PCI hardware\n");
 
@@ -185,19 +185,30 @@ static int __init pcibios_init(void)
 		pci_controller_apertures(pci_ctrl, &resources);
 		bus = pci_scan_root_bus(NULL, pci_ctrl->first_busno,
 					pci_ctrl->ops, pci_ctrl, &resources);
+		if (!bus)
+			continue;
+
 		pci_ctrl->bus = bus;
 		pci_ctrl->last_busno = bus->busn_res.end;
 		if (next_busno <= pci_ctrl->last_busno)
 			next_busno = pci_ctrl->last_busno+1;
 	}
 	pci_bus_count = next_busno;
+	ret = platform_pcibios_fixup();
+	if (ret)
+		return ret;
 
-	return platform_pcibios_fixup();
+	for (pci_ctrl = pci_ctrl_head; pci_ctrl; pci_ctrl = pci_ctrl->next) {
+		if (pci_ctrl->bus)
+			pci_bus_add_devices(pci_ctrl->bus);
+	}
+
+	return 0;
 }
 
 subsys_initcall(pcibios_init);
 
-void __init pcibios_fixup_bus(struct pci_bus *bus)
+void pcibios_fixup_bus(struct pci_bus *bus)
 {
 	if (bus->parent) {
 		/* This is a subordinate bridge */

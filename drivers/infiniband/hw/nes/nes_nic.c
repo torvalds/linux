@@ -373,11 +373,11 @@ static int nes_nic_send(struct sk_buff *skb, struct net_device *netdev)
 	wqe_fragment_length = (__le16 *)&nic_sqe->wqe_words[NES_NIC_SQ_WQE_LENGTH_0_TAG_IDX];
 
 	/* setup the VLAN tag if present */
-	if (vlan_tx_tag_present(skb)) {
+	if (skb_vlan_tag_present(skb)) {
 		nes_debug(NES_DBG_NIC_TX, "%s: VLAN packet to send... VLAN = %08X\n",
-				netdev->name, vlan_tx_tag_get(skb));
+				netdev->name, skb_vlan_tag_get(skb));
 		wqe_misc = NES_NIC_SQ_WQE_TAGVALUE_ENABLE;
-		wqe_fragment_length[0] = (__force __le16) vlan_tx_tag_get(skb);
+		wqe_fragment_length[0] = (__force __le16) skb_vlan_tag_get(skb);
 	} else
 		wqe_misc = 0;
 
@@ -576,11 +576,12 @@ tso_sq_no_longer_full:
 				wqe_fragment_length =
 						(__le16 *)&nic_sqe->wqe_words[NES_NIC_SQ_WQE_LENGTH_0_TAG_IDX];
 				/* setup the VLAN tag if present */
-				if (vlan_tx_tag_present(skb)) {
+				if (skb_vlan_tag_present(skb)) {
 					nes_debug(NES_DBG_NIC_TX, "%s: VLAN packet to send... VLAN = %08X\n",
-							netdev->name, vlan_tx_tag_get(skb) );
+							netdev->name,
+						  skb_vlan_tag_get(skb));
 					wqe_misc = NES_NIC_SQ_WQE_TAGVALUE_ENABLE;
-					wqe_fragment_length[0] = (__force __le16) vlan_tx_tag_get(skb);
+					wqe_fragment_length[0] = (__force __le16) skb_vlan_tag_get(skb);
 				} else
 					wqe_misc = 0;
 
@@ -1324,9 +1325,6 @@ static void nes_netdev_get_drvinfo(struct net_device *netdev,
 		 "%u.%u", nesadapter->firmware_version >> 16,
 		 nesadapter->firmware_version & 0x000000ff);
 	strlcpy(drvinfo->version, DRV_VERSION, sizeof(drvinfo->version));
-	drvinfo->testinfo_len = 0;
-	drvinfo->eedump_len = 0;
-	drvinfo->regdump_len = 0;
 }
 
 

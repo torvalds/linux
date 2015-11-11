@@ -260,7 +260,6 @@ static void pci200_pci_remove_one(struct pci_dev *pdev)
 
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	if (card->ports[0].netdev)
 		free_netdev(card->ports[0].netdev);
 	if (card->ports[1].netdev)
@@ -415,7 +414,7 @@ static int pci200_pci_init_one(struct pci_dev *pdev,
 
 
 
-static DEFINE_PCI_DEVICE_TABLE(pci200_pci_tbl) = {
+static const struct pci_device_id pci200_pci_tbl[] = {
 	{ PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9050, PCI_VENDOR_ID_PLX,
 	  PCI_DEVICE_ID_PLX_PCI200SYN, 0, 0, 0 },
 	{ 0, }

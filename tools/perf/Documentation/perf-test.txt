@@ -25,7 +25,7 @@ OPTIONS
 -------
 -s::
 --skip::
-	Tests to skip (comma separater numeric list).
+	Tests to skip (comma separated numeric list).
 
 -v::
 --verbose::

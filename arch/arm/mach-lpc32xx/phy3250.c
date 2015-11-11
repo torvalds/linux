@@ -36,6 +36,7 @@
 #include <linux/clk.h>
 #include <linux/mtd/lpc32xx_slc.h>
 #include <linux/mtd/lpc32xx_mlc.h>
+#include <linux/platform_data/gpio-lpc32xx.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -44,7 +45,6 @@
 #include <mach/hardware.h>
 #include <mach/platform.h>
 #include <mach/board.h>
-#include <mach/gpio-lpc32xx.h>
 #include "common.h"
 
 /*
@@ -182,8 +182,8 @@ static void pl08x_put_signal(const struct pl08x_channel_data *cd, int ch)
 static struct pl08x_platform_data pl08x_pd = {
 	.slave_channels = &pl08x_slave_channels[0],
 	.num_slave_channels = ARRAY_SIZE(pl08x_slave_channels),
-	.get_signal = pl08x_get_signal,
-	.put_signal = pl08x_put_signal,
+	.get_xfer_signal = pl08x_get_signal,
+	.put_xfer_signal = pl08x_put_signal,
 	.lli_buses = PL08X_AHB1,
 	.mem_buses = PL08X_AHB1,
 };
@@ -202,9 +202,6 @@ static struct mmci_platform_data lpc32xx_mmci_data = {
 	.ocr_mask	= MMC_VDD_30_31 | MMC_VDD_31_32 |
 			  MMC_VDD_32_33 | MMC_VDD_33_34,
 	.ios_handler	= mmc_handle_ios,
-	.dma_filter	= NULL,
-	/* No DMA for now since AMBA PL080 dmaengine driver only does scatter
-	 * gather, and the MMCI driver doesn't do it this way */
 };
 
 static struct lpc32xx_slc_platform_data lpc32xx_slc_data = {
@@ -215,7 +212,7 @@ static struct lpc32xx_mlc_platform_data lpc32xx_mlc_data = {
 	.dma_filter = pl08x_filter_id,
 };
 
-static const struct of_dev_auxdata lpc32xx_auxdata_lookup[] __initconst = {
+static const struct of_dev_auxdata const lpc32xx_auxdata_lookup[] __initconst = {
 	OF_DEV_AUXDATA("arm,pl022", 0x20084000, "dev:ssp0", NULL),
 	OF_DEV_AUXDATA("arm,pl022", 0x2008C000, "dev:ssp1", NULL),
 	OF_DEV_AUXDATA("arm,pl110", 0x31040000, "dev:clcd", &lpc32xx_clcd_data),
@@ -251,7 +248,7 @@ static void __init lpc3250_machine_init(void)
 			     lpc32xx_auxdata_lookup, NULL);
 }
 
-static char const *lpc32xx_dt_compat[] __initdata = {
+static const char *const lpc32xx_dt_compat[] __initconst = {
 	"nxp,lpc3220",
 	"nxp,lpc3230",
 	"nxp,lpc3240",

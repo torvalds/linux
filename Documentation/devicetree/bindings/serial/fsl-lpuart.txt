@@ -1,0 +1,31 @@
+* Freescale low power universal asynchronous receiver/transmitter (lpuart)
+
+Required properties:
+- compatible :
+  - "fsl,vf610-lpuart" for lpuart compatible with the one integrated
+    on Vybrid vf610 SoC with 8-bit register organization
+  - "fsl,ls1021a-lpuart" for lpuart compatible with the one integrated
+    on LS1021A SoC with 32-bit big-endian register organization
+- reg : Address and length of the register set for the device
+- interrupts : Should contain uart interrupt
+- clocks : phandle + clock specifier pairs, one for each entry in clock-names
+- clock-names : should contain: "ipg" - the uart clock
+
+Optional properties:
+- dmas: A list of two dma specifiers, one for each entry in dma-names.
+- dma-names: should contain "tx" and "rx".
+
+Note: Optional properties for DMA support. Write them both or both not.
+
+Example:
+
+uart0: serial@40027000 {
+		compatible = "fsl,vf610-lpuart";
+		reg = <0x40027000 0x1000>;
+		interrupts = <0 61 0x00>;
+		clocks = <&clks VF610_CLK_UART0>;
+		clock-names = "ipg";
+		dmas = <&edma0 0 2>,
+			<&edma0 0 3>;
+		dma-names = "rx","tx";
+	};

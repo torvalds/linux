@@ -45,9 +45,7 @@ void arch_gnttab_unmap(void *shared, unsigned long nr_gframes)
 	return;
 }
 
-int arch_gnttab_map_status(uint64_t *frames, unsigned long nr_gframes,
-			   unsigned long max_nr_gframes,
-			   grant_status_t **__shared)
+int arch_gnttab_init(unsigned long nr_shared)
 {
-	return -ENOSYS;
+	return 0;
 }

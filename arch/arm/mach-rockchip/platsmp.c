@@ -1,5 +1,4 @@
 /*
- * Copyright (C) 2013-2014 ROCKCHIP, Inc.
  * Copyright (c) 2013 MundoReader S.L.
  * Author: Heiko Stuebner <heiko@sntech.de>
  *
@@ -20,156 +19,334 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/rockchip/common.h>
-#include <linux/rockchip/pmu.h>
+#include <linux/regmap.h>
+#include <linux/mfd/syscon.h>
 
+#include <linux/reset.h>
+#include <linux/cpu.h>
 #include <asm/cacheflush.h>
+#include <asm/cp15.h>
 #include <asm/smp_scu.h>
 #include <asm/smp_plat.h>
 #include <asm/mach/map.h>
 
+#include "core.h"
 
-#define SCU_CTRL		0x00
-#define   SCU_STANDBY_EN	(1 << 5)
-
+static void __iomem *scu_base_addr;
+static void __iomem *sram_base_addr;
 static int ncores;
 
-extern void secondary_startup(void);
-extern void v7_invalidate_l1(void);
+#define PMU_PWRDN_CON		0x08
+#define PMU_PWRDN_ST		0x0c
 
-static void __naked rockchip_a9_secondary_startup(void)
+#define PMU_PWRDN_SCU		4
+
+static struct regmap *pmu;
+
+static int pmu_power_domain_is_on(int pd)
 {
-	v7_invalidate_l1();
-	secondary_startup();
+	u32 val;
+	int ret;
+
+	ret = regmap_read(pmu, PMU_PWRDN_ST, &val);
+	if (ret < 0)
+		return ret;
+
+	return !(val & BIT(pd));
 }
 
-static void __naked rockchip_secondary_trampoline(void)
+static struct reset_control *rockchip_get_core_reset(int cpu)
 {
-	asm volatile (
-		"ldr	pc, 1f\n"
-		".globl	rockchip_boot_fn\n"
-		"rockchip_boot_fn:\n"
-		"1:	.space	4\n"
-	);
+	struct device *dev = get_cpu_device(cpu);
+	struct device_node *np;
+
+	/* The cpu device is only available after the initial core bringup */
+	if (dev)
+		np = dev->of_node;
+	else
+		np = of_get_cpu_node(cpu, 0);
+
+	return of_reset_control_get(np, NULL);
+}
+
+static int pmu_set_power_domain(int pd, bool on)
+{
+	u32 val = (on) ? 0 : BIT(pd);
+	struct reset_control *rstc = rockchip_get_core_reset(pd);
+	int ret;
+
+	if (IS_ERR(rstc) && read_cpuid_part() != ARM_CPU_PART_CORTEX_A9) {
+		pr_err("%s: could not get reset control for core %d\n",
+		       __func__, pd);
+		return PTR_ERR(rstc);
+	}
+
+	/*
+	 * We need to soft reset the cpu when we turn off the cpu power domain,
+	 * or else the active processors might be stalled when the individual
+	 * processor is powered down.
+	 */
+	if (!IS_ERR(rstc) && !on)
+		reset_control_assert(rstc);
+
+	ret = regmap_update_bits(pmu, PMU_PWRDN_CON, BIT(pd), val);
+	if (ret < 0) {
+		pr_err("%s: could not update power domain\n", __func__);
+		return ret;
+	}
+
+	ret = -1;
+	while (ret != on) {
+		ret = pmu_power_domain_is_on(pd);
+		if (ret < 0) {
+			pr_err("%s: could not read power domain state\n",
+			       __func__);
+			return ret;
+		}
+	}
+
+	if (!IS_ERR(rstc)) {
+		if (on)
+			reset_control_deassert(rstc);
+		reset_control_put(rstc);
+	}
+
+	return 0;
 }
 
 /*
  * Handling of CPU cores
  */
 
-static int __cpuinit rockchip_boot_secondary(unsigned int cpu,
-					     struct task_struct *idle)
+static int rockchip_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
+	int ret;
+
+	if (!sram_base_addr || !pmu) {
+		pr_err("%s: sram or pmu missing for cpu boot\n", __func__);
+		return -ENXIO;
+	}
+
 	if (cpu >= ncores) {
 		pr_err("%s: cpu %d outside maximum number of cpus %d\n",
-							__func__, cpu, ncores);
-		return -EINVAL;
+		       __func__, cpu, ncores);
+		return -ENXIO;
 	}
 
 	/* start the core */
-	rockchip_pmu_ops.set_power_domain(PD_CPU_0 + cpu, true);
+	ret = pmu_set_power_domain(0 + cpu, true);
+	if (ret < 0)
+		return ret;
+
+	if (read_cpuid_part() != ARM_CPU_PART_CORTEX_A9) {
+		/*
+		 * We communicate with the bootrom to active the cpus other
+		 * than cpu0, after a blob of initialize code, they will
+		 * stay at wfe state, once they are actived, they will check
+		 * the mailbox:
+		 * sram_base_addr + 4: 0xdeadbeaf
+		 * sram_base_addr + 8: start address for pc
+		 * The cpu0 need to wait the other cpus other than cpu0 entering
+		 * the wfe state.The wait time is affected by many aspects.
+		 * (e.g: cpu frequency, bootrom frequency, sram frequency, ...)
+		 */
+		mdelay(1); /* ensure the cpus other than cpu0 to startup */
+
+		writel(virt_to_phys(secondary_startup), sram_base_addr + 8);
+		writel(0xDEADBEAF, sram_base_addr + 4);
+		dsb_sev();
+	}
 
 	return 0;
 }
 
 /**
- * rockchip_smp_prepare_bootram - populate necessary bootram block
- * Starting cores execute the code residing at the start of the on-chip bootram
+ * rockchip_smp_prepare_sram - populate necessary sram block
+ * Starting cores execute the code residing at the start of the on-chip sram
  * after power-on. Therefore make sure, this sram region is reserved and
  * big enough. After this check, copy the trampoline code that directs the
  * core to the real startup code in ram into the sram-region.
+ * @node: mmio-sram device node
  */
-static int __init rockchip_smp_prepare_bootram(void)
+static int __init rockchip_smp_prepare_sram(struct device_node *node)
 {
-	struct device_node *node;
-	void __iomem *bootram_base_addr;
+	unsigned int trampoline_sz = &rockchip_secondary_trampoline_end -
+					    &rockchip_secondary_trampoline;
+	struct resource res;
+	unsigned int rsize;
+	int ret;
 
-	node = of_find_compatible_node(NULL, NULL, "rockchip,bootram");
-	if (!node) {
-		pr_err("%s: could not find bootram dt node\n", __func__);
-		return -ENODEV;
+	ret = of_address_to_resource(node, 0, &res);
+	if (ret < 0) {
+		pr_err("%s: could not get address for node %s\n",
+		       __func__, node->full_name);
+		return ret;
 	}
 
-	bootram_base_addr = of_iomap(node, 0);
-	if (!bootram_base_addr) {
-		pr_err("%s: could not map bootram\n", __func__);
-		BUG();
+	rsize = resource_size(&res);
+	if (rsize < trampoline_sz) {
+		pr_err("%s: reserved block with size 0x%x is to small for trampoline size 0x%x\n",
+		       __func__, rsize, trampoline_sz);
+		return -EINVAL;
 	}
 
-	/* set the boot function for the bootram code */
-	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9)
-		rockchip_boot_fn = virt_to_phys(rockchip_a9_secondary_startup);
-	else
-		rockchip_boot_fn = virt_to_phys(secondary_startup);
+	/* set the boot function for the sram code */
+	rockchip_boot_fn = virt_to_phys(secondary_startup);
 
-	/* copy the trampoline to bootram, that runs during startup of the core */
-	memcpy(bootram_base_addr, &rockchip_secondary_trampoline, 8);
+	/* copy the trampoline to sram, that runs during startup of the core */
+	memcpy(sram_base_addr, &rockchip_secondary_trampoline, trampoline_sz);
+	flush_cache_all();
+	outer_clean_range(0, trampoline_sz);
 
-	iounmap(bootram_base_addr);
+	dsb_sev();
 
 	return 0;
 }
 
-static void __init rockchip_a9_smp_prepare_cpus(unsigned int max_cpus)
+static const struct regmap_config rockchip_pmu_regmap_config = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+};
+
+static int __init rockchip_smp_prepare_pmu(void)
 {
-	void __iomem *scu_base_addr;
-	unsigned int i, cpu;
-
-	scu_base_addr = ioremap(scu_a9_get_base(), 0x100);
-
-	if (!scu_base_addr) {
-		pr_err("%s: could not map scu registers\n", __func__);
-		BUG();
-	}
-
-	if (rockchip_smp_prepare_bootram())
-		return;
+	struct device_node *node;
+	void __iomem *pmu_base;
 
 	/*
-	 * While the number of cpus is gathered from dt, also get the number
-	 * of cores from the scu to verify this value when booting the cores.
+	 * This function is only called via smp_ops->smp_prepare_cpu().
+	 * That only happens if a "/cpus" device tree node exists
+	 * and has an "enable-method" property that selects the SMP
+	 * operations defined herein.
 	 */
-	ncores = scu_get_core_count(scu_base_addr);
+	node = of_find_node_by_path("/cpus");
 
-	writel_relaxed(readl_relaxed(scu_base_addr + SCU_CTRL) | SCU_STANDBY_EN, scu_base_addr + SCU_CTRL);
-	scu_enable(scu_base_addr);
+	pmu = syscon_regmap_lookup_by_phandle(node, "rockchip,pmu");
+	of_node_put(node);
+	if (!IS_ERR(pmu))
+		return 0;
 
-	cpu = MPIDR_AFFINITY_LEVEL(read_cpuid_mpidr(), 0);
-	/* Make sure that all cores except myself are really off */
-	for (i = 0; i < ncores; i++) {
-		if (i == cpu)
-			continue;
-		rockchip_pmu_ops.set_power_domain(PD_CPU_0 + i, false);
+	pmu = syscon_regmap_lookup_by_compatible("rockchip,rk3066-pmu");
+	if (!IS_ERR(pmu))
+		return 0;
+
+	/* fallback, create our own regmap for the pmu area */
+	pmu = NULL;
+	node = of_find_compatible_node(NULL, NULL, "rockchip,rk3066-pmu");
+	if (!node) {
+		pr_err("%s: could not find pmu dt node\n", __func__);
+		return -ENODEV;
 	}
 
-	iounmap(scu_base_addr);
+	pmu_base = of_iomap(node, 0);
+	if (!pmu_base) {
+		pr_err("%s: could not map pmu registers\n", __func__);
+		return -ENOMEM;
+	}
+
+	pmu = regmap_init_mmio(NULL, pmu_base, &rockchip_pmu_regmap_config);
+	if (IS_ERR(pmu)) {
+		int ret = PTR_ERR(pmu);
+
+		iounmap(pmu_base);
+		pmu = NULL;
+		pr_err("%s: regmap init failed\n", __func__);
+		return ret;
+	}
+
+	return 0;
 }
 
 static void __init rockchip_smp_prepare_cpus(unsigned int max_cpus)
 {
-	unsigned int i, cpu;
-	unsigned long l2ctlr;
+	struct device_node *node;
+	unsigned int i;
 
-	if (scu_a9_has_base())
-		return rockchip_a9_smp_prepare_cpus(max_cpus);
-
-	asm("mrc p15, 1, %0, c9, c0, 2" : "=r" (l2ctlr));
-	ncores = ((l2ctlr >> 24) & 3) + 1;
-	cpu = MPIDR_AFFINITY_LEVEL(read_cpuid_mpidr(), 0);
-	/* Make sure that all cores except myself are really off */
-	for (i = 0; i < ncores; i++) {
-		if (i == cpu)
-			continue;
-		rockchip_pmu_ops.set_power_domain(PD_CPU_0 + i, false);
+	node = of_find_compatible_node(NULL, NULL, "rockchip,rk3066-smp-sram");
+	if (!node) {
+		pr_err("%s: could not find sram dt node\n", __func__);
+		return;
 	}
+
+	sram_base_addr = of_iomap(node, 0);
+	if (!sram_base_addr) {
+		pr_err("%s: could not map sram registers\n", __func__);
+		return;
+	}
+
+	if (rockchip_smp_prepare_pmu())
+		return;
+
+	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9) {
+		if (rockchip_smp_prepare_sram(node))
+			return;
+
+		/* enable the SCU power domain */
+		pmu_set_power_domain(PMU_PWRDN_SCU, true);
+
+		node = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-scu");
+		if (!node) {
+			pr_err("%s: missing scu\n", __func__);
+			return;
+		}
+
+		scu_base_addr = of_iomap(node, 0);
+		if (!scu_base_addr) {
+			pr_err("%s: could not map scu registers\n", __func__);
+			return;
+		}
+
+		/*
+		 * While the number of cpus is gathered from dt, also get the
+		 * number of cores from the scu to verify this value when
+		 * booting the cores.
+		 */
+		ncores = scu_get_core_count(scu_base_addr);
+		pr_err("%s: ncores %d\n", __func__, ncores);
+
+		scu_enable(scu_base_addr);
+	} else {
+		unsigned int l2ctlr;
+
+		asm ("mrc p15, 1, %0, c9, c0, 2\n" : "=r" (l2ctlr));
+		ncores = ((l2ctlr >> 24) & 0x3) + 1;
+	}
+
+	/* Make sure that all cores except the first are really off */
+	for (i = 1; i < ncores; i++)
+		pmu_set_power_domain(0 + i, false);
 }
 
-struct smp_operations rockchip_smp_ops __initdata = {
+#ifdef CONFIG_HOTPLUG_CPU
+static int rockchip_cpu_kill(unsigned int cpu)
+{
+	/*
+	 * We need a delay here to ensure that the dying CPU can finish
+	 * executing v7_coherency_exit() and reach the WFI/WFE state
+	 * prior to having the power domain disabled.
+	 */
+	mdelay(1);
+
+	pmu_set_power_domain(0 + cpu, false);
+	return 1;
+}
+
+static void rockchip_cpu_die(unsigned int cpu)
+{
+	v7_exit_coherency_flush(louis);
+	while (1)
+		cpu_do_idle();
+}
+#endif
+
+static struct smp_operations rockchip_smp_ops __initdata = {
 	.smp_prepare_cpus	= rockchip_smp_prepare_cpus,
 	.smp_boot_secondary	= rockchip_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_kill		= rockchip_cpu_kill,
 	.cpu_die		= rockchip_cpu_die,
-	.cpu_disable		= rockchip_cpu_disable,
 #endif
 };
+
+CPU_METHOD_OF_DECLARE(rk3066_smp, "rockchip,rk3066-smp", &rockchip_smp_ops);

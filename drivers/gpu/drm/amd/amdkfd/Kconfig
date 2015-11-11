@@ -1,0 +1,9 @@
+#
+# Heterogenous system architecture configuration
+#
+
+config HSA_AMD
+	tristate "HSA kernel driver for AMD GPU devices"
+	depends on (DRM_RADEON || DRM_AMDGPU) && AMD_IOMMU_V2 && X86_64
+	help
+	  Enable this if you want to use HSA features on AMD GPU devices.

@@ -42,6 +42,7 @@ static const struct omap_vc_common omap4_vc_common = {
 	.cmd_ret_shift = OMAP4430_RET_SHIFT,
 	.cmd_off_shift = OMAP4430_OFF_SHIFT,
 	.i2c_cfg_reg = OMAP4_PRM_VC_CFG_I2C_MODE_OFFSET,
+	.i2c_cfg_clear_mask = OMAP4430_SRMODEEN_MASK | OMAP4430_HSMODEEN_MASK,
 	.i2c_cfg_hsen_mask = OMAP4430_HSMODEEN_MASK,
 	.i2c_mcode_mask	 = OMAP4430_HSMCODE_MASK,
 };

@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  */
 
 #include <linux/kernel.h>
@@ -52,5 +48,31 @@ const struct nla_policy ieee802154_policy[IEEE802154_ATTR_MAX + 1] = {
 	[IEEE802154_ATTR_DURATION] = { .type = NLA_U8, },
 	[IEEE802154_ATTR_ED_LIST] = { .len = 27 },
 	[IEEE802154_ATTR_CHANNEL_PAGE_LIST] = { .len = 32 * 4, },
+
+	[IEEE802154_ATTR_TXPOWER] = { .type = NLA_S8, },
+	[IEEE802154_ATTR_LBT_ENABLED] = { .type = NLA_U8, },
+	[IEEE802154_ATTR_CCA_MODE] = { .type = NLA_U8, },
+	[IEEE802154_ATTR_CCA_ED_LEVEL] = { .type = NLA_S32, },
+	[IEEE802154_ATTR_CSMA_RETRIES] = { .type = NLA_U8, },
+	[IEEE802154_ATTR_CSMA_MIN_BE] = { .type = NLA_U8, },
+	[IEEE802154_ATTR_CSMA_MAX_BE] = { .type = NLA_U8, },
+
+	[IEEE802154_ATTR_FRAME_RETRIES] = { .type = NLA_S8, },
+
+	[IEEE802154_ATTR_LLSEC_ENABLED] = { .type = NLA_U8, },
+	[IEEE802154_ATTR_LLSEC_SECLEVEL] = { .type = NLA_U8, },
+	[IEEE802154_ATTR_LLSEC_KEY_MODE] = { .type = NLA_U8, },
+	[IEEE802154_ATTR_LLSEC_KEY_SOURCE_SHORT] = { .type = NLA_U32, },
+	[IEEE802154_ATTR_LLSEC_KEY_SOURCE_EXTENDED] = { .type = NLA_HW_ADDR, },
+	[IEEE802154_ATTR_LLSEC_KEY_ID] = { .type = NLA_U8, },
+	[IEEE802154_ATTR_LLSEC_FRAME_COUNTER] = { .type = NLA_U32 },
+	[IEEE802154_ATTR_LLSEC_KEY_BYTES] = { .len = 16, },
+	[IEEE802154_ATTR_LLSEC_KEY_USAGE_FRAME_TYPES] = { .type = NLA_U8, },
+	[IEEE802154_ATTR_LLSEC_KEY_USAGE_COMMANDS] = { .len = 258 / 8 },
+	[IEEE802154_ATTR_LLSEC_FRAME_TYPE] = { .type = NLA_U8, },
+	[IEEE802154_ATTR_LLSEC_CMD_FRAME_ID] = { .type = NLA_U8, },
+	[IEEE802154_ATTR_LLSEC_SECLEVELS] = { .type = NLA_U8, },
+	[IEEE802154_ATTR_LLSEC_DEV_OVERRIDE] = { .type = NLA_U8, },
+	[IEEE802154_ATTR_LLSEC_DEV_KEY_MODE] = { .type = NLA_U8, },
 };
 

@@ -172,7 +172,6 @@ static struct platform_driver viper_pcmcia_driver = {
 	.remove		= viper_pcmcia_remove,
 	.driver		= {
 		.name	= "arcom-pcmcia",
-		.owner	= THIS_MODULE,
 	},
 	.id_table	= viper_pcmcia_id_table,
 };

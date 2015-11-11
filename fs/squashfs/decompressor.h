@@ -24,32 +24,30 @@
  */
 
 struct squashfs_decompressor {
-	void	*(*init)(struct squashfs_sb_info *, void *, int);
+	void	*(*init)(struct squashfs_sb_info *, void *);
+	void	*(*comp_opts)(struct squashfs_sb_info *, void *, int);
 	void	(*free)(void *);
-	int	(*decompress)(struct squashfs_sb_info *, void **,
-		struct buffer_head **, int, int, int, int, int);
+	int	(*decompress)(struct squashfs_sb_info *, void *,
+		struct buffer_head **, int, int, int,
+		struct squashfs_page_actor *);
 	int	id;
 	char	*name;
 	int	supported;
 };
 
-static inline void squashfs_decompressor_free(struct squashfs_sb_info *msblk,
-	void *s)
+static inline void *squashfs_comp_opts(struct squashfs_sb_info *msblk,
+							void *buff, int length)
 {
-	if (msblk->decompressor)
-		msblk->decompressor->free(s);
-}
-
-static inline int squashfs_decompress(struct squashfs_sb_info *msblk,
-	void **buffer, struct buffer_head **bh, int b, int offset, int length,
-	int srclength, int pages)
-{
-	return msblk->decompressor->decompress(msblk, buffer, bh, b, offset,
-		length, srclength, pages);
+	return msblk->decompressor->comp_opts ?
+		msblk->decompressor->comp_opts(msblk, buff, length) : NULL;
 }
 
 #ifdef CONFIG_SQUASHFS_XZ
 extern const struct squashfs_decompressor squashfs_xz_comp_ops;
+#endif
+
+#ifdef CONFIG_SQUASHFS_LZ4
+extern const struct squashfs_decompressor squashfs_lz4_comp_ops;
 #endif
 
 #ifdef CONFIG_SQUASHFS_LZO

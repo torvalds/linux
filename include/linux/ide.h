@@ -18,14 +18,10 @@
 #include <linux/completion.h>
 #include <linux/pm.h>
 #include <linux/mutex.h>
-#ifdef CONFIG_BLK_DEV_IDEACPI
-#include <acpi/acpi.h>
-#endif
-#include <asm/byteorder.h>
-#include <asm/io.h>
-
 /* for request_sense */
 #include <linux/cdrom.h>
+#include <asm/byteorder.h>
+#include <asm/io.h>
 
 #if defined(CONFIG_CRIS) || defined(CONFIG_FRV) || defined(CONFIG_MN10300)
 # define SUPPORT_VLB_SYNC 0
@@ -42,6 +38,19 @@
 #define ERROR_RECAL	1	/* Recalibrate every 2nd retry */
 
 struct device;
+
+/* IDE-specific values for req->cmd_type */
+enum ata_cmd_type_bits {
+	REQ_TYPE_ATA_TASKFILE = REQ_TYPE_DRV_PRIV + 1,
+	REQ_TYPE_ATA_PC,
+	REQ_TYPE_ATA_SENSE,	/* sense request */
+	REQ_TYPE_ATA_PM_SUSPEND,/* suspend request */
+	REQ_TYPE_ATA_PM_RESUME,	/* resume request */
+};
+
+#define ata_pm_request(rq)	\
+	((rq)->cmd_type == REQ_TYPE_ATA_PM_SUSPEND || \
+	 (rq)->cmd_type == REQ_TYPE_ATA_PM_RESUME)
 
 /* Error codes returned in rq->errors to the higher part of the driver. */
 enum {
@@ -1318,6 +1327,19 @@ struct ide_port_info {
 	u8			udma_mask;
 };
 
+/*
+ * State information carried for REQ_TYPE_ATA_PM_SUSPEND and REQ_TYPE_ATA_PM_RESUME
+ * requests.
+ */
+struct ide_pm_state {
+	/* PM state machine step value, currently driver specific */
+	int	pm_step;
+	/* requested PM state value (S1, S2, S3, S4, ...) */
+	u32	pm_state;
+	void*	data;		/* for driver use */
+};
+
+
 int ide_pci_init_one(struct pci_dev *, const struct ide_port_info *, void *);
 int ide_pci_init_two(struct pci_dev *, struct pci_dev *,
 		     const struct ide_port_info *, void *);
@@ -1514,7 +1536,7 @@ static inline void ide_set_max_pio(ide_drive_t *drive)
 
 char *ide_media_string(ide_drive_t *);
 
-extern struct device_attribute ide_dev_attrs[];
+extern const struct attribute_group *ide_dev_groups[];
 extern struct bus_type ide_bus_type;
 extern struct class *ide_port_class;
 
@@ -1554,5 +1576,6 @@ static inline void ide_set_drivedata(ide_drive_t *drive, void *data)
 
 #define ide_host_for_each_port(i, port, host) \
 	for ((i) = 0; ((port) = (host)->ports[i]) || (i) < MAX_HOST_PORTS; (i)++)
+
 
 #endif /* _IDE_H */

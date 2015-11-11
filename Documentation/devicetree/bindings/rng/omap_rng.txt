@@ -1,0 +1,22 @@
+OMAP SoC HWRNG Module
+
+Required properties:
+
+- compatible : Should contain entries for this and backward compatible
+  RNG versions:
+  - "ti,omap2-rng" for OMAP2.
+  - "ti,omap4-rng" for OMAP4, OMAP5 and AM33XX.
+  Note that these two versions are incompatible.
+- ti,hwmods: Name of the hwmod associated with the RNG module
+- reg : Offset and length of the register set for the module
+- interrupts : the interrupt number for the RNG module.
+		Only used for "ti,omap4-rng".
+
+Example:
+/* AM335x */
+rng: rng@48310000 {
+	compatible = "ti,omap4-rng";
+	ti,hwmods = "rng";
+	reg = <0x48310000 0x2000>;
+	interrupts = <111>;
+};

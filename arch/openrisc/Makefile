@@ -24,7 +24,7 @@ OBJCOPYFLAGS    := -O binary -R .note -R .comment -S
 LDFLAGS_vmlinux :=
 LIBGCC 		:= $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 
-KBUILD_CFLAGS	+= -pipe -ffixed-r10
+KBUILD_CFLAGS	+= -pipe -ffixed-r10 -D__linux__
 
 ifeq ($(CONFIG_OPENRISC_HAVE_INST_MUL),y)
 	KBUILD_CFLAGS += $(call cc-option,-mhard-mul)

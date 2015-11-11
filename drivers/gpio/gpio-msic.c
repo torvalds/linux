@@ -232,7 +232,7 @@ static struct irq_chip msic_irqchip = {
 	.irq_bus_sync_unlock	= msic_bus_sync_unlock,
 };
 
-static void msic_gpio_irq_handler(unsigned irq, struct irq_desc *desc)
+static void msic_gpio_irq_handler(struct irq_desc *desc)
 {
 	struct irq_data *data = irq_desc_get_irq_data(desc);
 	struct msic_gpio *mg = irq_data_get_irq_handler_data(data);
@@ -259,7 +259,7 @@ static void msic_gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 static int platform_msic_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct intel_msic_gpio_pdata *pdata = dev->platform_data;
+	struct intel_msic_gpio_pdata *pdata = dev_get_platdata(dev);
 	struct msic_gpio *mg;
 	int irq = platform_get_irq(pdev, 0);
 	int retval;
@@ -292,7 +292,7 @@ static int platform_msic_gpio_probe(struct platform_device *pdev)
 	mg->chip.to_irq = msic_gpio_to_irq;
 	mg->chip.base = pdata->gpio_base;
 	mg->chip.ngpio = MSIC_NUM_GPIO;
-	mg->chip.can_sleep = 1;
+	mg->chip.can_sleep = true;
 	mg->chip.dev = dev;
 
 	mutex_init(&mg->buslock);
@@ -305,13 +305,11 @@ static int platform_msic_gpio_probe(struct platform_device *pdev)
 
 	for (i = 0; i < mg->chip.ngpio; i++) {
 		irq_set_chip_data(i + mg->irq_base, mg);
-		irq_set_chip_and_handler_name(i + mg->irq_base,
-					      &msic_irqchip,
-					      handle_simple_irq,
-					      "demux");
+		irq_set_chip_and_handler(i + mg->irq_base,
+					 &msic_irqchip,
+					 handle_simple_irq);
 	}
-	irq_set_chained_handler(mg->irq, msic_gpio_irq_handler);
-	irq_set_handler_data(mg->irq, mg);
+	irq_set_chained_handler_and_data(mg->irq, msic_gpio_irq_handler, mg);
 
 	return 0;
 err:
@@ -322,7 +320,6 @@ err:
 static struct platform_driver platform_msic_gpio_driver = {
 	.driver = {
 		.name		= "msic_gpio",
-		.owner		= THIS_MODULE,
 	},
 	.probe		= platform_msic_gpio_probe,
 };

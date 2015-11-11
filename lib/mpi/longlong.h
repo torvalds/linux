@@ -19,7 +19,7 @@
  * the Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  * MA 02111-1307, USA. */
 
-#include <asm-generic/bitops/count_zeros.h>
+#include <linux/count_zeros.h>
 
 /* You have to define the following before including this file:
  *
@@ -151,15 +151,12 @@ do { \
 #endif /* __a29k__ */
 
 #if defined(__alpha) && W_TYPE_SIZE == 64
-#define umul_ppmm(ph, pl, m0, m1) \
-do { \
-		UDItype __m0 = (m0), __m1 = (m1); \
-		__asm__ ("umulh %r1,%2,%0" \
-		: "=r" ((UDItype) ph) \
-		: "%rJ" (__m0), \
-			"rI" (__m1)); \
-		(pl) = __m0 * __m1; \
-	} while (0)
+#define umul_ppmm(ph, pl, m0, m1)			\
+do {							\
+	UDItype __m0 = (m0), __m1 = (m1);		\
+	(ph) = __builtin_alpha_umulh(__m0, __m1);	\
+	(pl) = __m0 * __m1;                             \
+} while (0)
 #define UMUL_TIME 46
 #ifndef LONGLONG_STANDALONE
 #define udiv_qrnnd(q, r, n1, n0, d) \
@@ -167,7 +164,7 @@ do { UDItype __r; \
 	(q) = __udiv_qrnnd(&__r, (n1), (n0), (d)); \
 	(r) = __r; \
 } while (0)
-extern UDItype __udiv_qrnnd();
+extern UDItype __udiv_qrnnd(UDItype *, UDItype, UDItype, UDItype);
 #define UDIV_TIME 220
 #endif /* LONGLONG_STANDALONE */
 #endif /* __alpha */
@@ -642,7 +639,7 @@ do { \
 	**************  MIPS  *****************
 	***************************************/
 #if defined(__mips__) && W_TYPE_SIZE == 32
-#if __GNUC__ >= 4 && __GNUC_MINOR__ >= 4
+#if (__GNUC__ >= 5) || (__GNUC__ >= 4 && __GNUC_MINOR__ >= 4)
 #define umul_ppmm(w1, w0, u, v)			\
 do {						\
 	UDItype __ll = (UDItype)(u) * (v);	\
@@ -674,7 +671,7 @@ do {						\
 	**************  MIPS/64  **************
 	***************************************/
 #if (defined(__mips) && __mips >= 3) && W_TYPE_SIZE == 64
-#if __GNUC__ >= 4 && __GNUC_MINOR__ >= 4
+#if (__GNUC__ >= 5) || (__GNUC__ >= 4 && __GNUC_MINOR__ >= 4)
 #define umul_ppmm(w1, w0, u, v) \
 do {									\
 	typedef unsigned int __ll_UTItype __attribute__((mode(TI)));	\

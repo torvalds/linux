@@ -20,15 +20,11 @@ DEFINE_RWLOCK(ipx_routes_lock);
 
 extern struct ipx_interface *ipx_internal_net;
 
-extern __be16 ipx_cksum(struct ipxhdr *packet, int length);
 extern struct ipx_interface *ipxitf_find_using_net(__be32 net);
 extern int ipxitf_demux_socket(struct ipx_interface *intrfc,
 			       struct sk_buff *skb, int copy);
 extern int ipxitf_demux_socket(struct ipx_interface *intrfc,
 			       struct sk_buff *skb, int copy);
-extern int ipxitf_send(struct ipx_interface *intrfc, struct sk_buff *skb,
-		       char *node);
-extern struct ipx_interface *ipxitf_find_using_net(__be32 net);
 
 struct ipx_route *ipxrtr_lookup(__be32 net)
 {
@@ -169,7 +165,7 @@ int ipxrtr_route_skb(struct sk_buff *skb)
  * Route an outgoing frame from a socket.
  */
 int ipxrtr_route_packet(struct sock *sk, struct sockaddr_ipx *usipx,
-			struct iovec *iov, size_t len, int noblock)
+			struct msghdr *msg, size_t len, int noblock)
 {
 	struct sk_buff *skb;
 	struct ipx_sock *ipxs = ipx_sk(sk);
@@ -233,14 +229,15 @@ int ipxrtr_route_packet(struct sock *sk, struct sockaddr_ipx *usipx,
 	memcpy(ipx->ipx_dest.node, usipx->sipx_node, IPX_NODE_LEN);
 	ipx->ipx_dest.sock		= usipx->sipx_port;
 
-	rc = memcpy_fromiovec(skb_put(skb, len), iov, len);
+	rc = memcpy_from_msg(skb_put(skb, len), msg, len);
 	if (rc) {
 		kfree_skb(skb);
 		goto out_put;
 	}
 
 	/* Apply checksum. Not allowed on 802.3 links. */
-	if (sk->sk_no_check || intrfc->if_dlink_type == htons(IPX_FRAME_8023))
+	if (sk->sk_no_check_tx ||
+	    intrfc->if_dlink_type == htons(IPX_FRAME_8023))
 		ipx->ipx_checksum = htons(0xFFFF);
 	else
 		ipx->ipx_checksum = ipx_cksum(ipx, len + sizeof(struct ipxhdr));

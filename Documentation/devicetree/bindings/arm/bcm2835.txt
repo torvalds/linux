@@ -1,8 +1,0 @@
-Broadcom BCM2835 device tree bindings
--------------------------------------------
-
-Boards with the BCM2835 SoC shall have the following properties:
-
-Required root node property:
-
-compatible = "brcm,bcm2835";

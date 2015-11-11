@@ -195,6 +195,7 @@ int wusbhc_start(struct wusbhc *wusbhc)
 	struct device *dev = wusbhc->dev;
 
 	WARN_ON(wusbhc->wuie_host_info != NULL);
+	BUG_ON(wusbhc->uwb_rc == NULL);
 
 	result = wusbhc_rsv_establish(wusbhc);
 	if (result < 0) {
@@ -205,18 +206,20 @@ int wusbhc_start(struct wusbhc *wusbhc)
 
 	result = wusbhc_devconnect_start(wusbhc);
 	if (result < 0) {
-		dev_err(dev, "error enabling device connections: %d\n", result);
+		dev_err(dev, "error enabling device connections: %d\n",
+			result);
 		goto error_devconnect_start;
 	}
 
 	result = wusbhc_sec_start(wusbhc);
 	if (result < 0) {
-		dev_err(dev, "error starting security in the HC: %d\n", result);
+		dev_err(dev, "error starting security in the HC: %d\n",
+			result);
 		goto error_sec_start;
 	}
-	/* FIXME: the choice of the DNTS parameters is somewhat
-	 * arbitrary */
-	result = wusbhc->set_num_dnts(wusbhc, 0, 15);
+
+	result = wusbhc->set_num_dnts(wusbhc, wusbhc->dnts_interval,
+		wusbhc->dnts_num_slots);
 	if (result < 0) {
 		dev_err(dev, "Cannot set DNTS parameters: %d\n", result);
 		goto error_set_num_dnts;
@@ -276,12 +279,39 @@ int wusbhc_chid_set(struct wusbhc *wusbhc, const struct wusb_ckhdid *chid)
 		}
 		wusbhc->chid = *chid;
 	}
+
+	/* register with UWB if we haven't already since we are about to start
+	    the radio. */
+	if ((chid) && (wusbhc->uwb_rc == NULL)) {
+		wusbhc->uwb_rc = uwb_rc_get_by_grandpa(wusbhc->dev->parent);
+		if (wusbhc->uwb_rc == NULL) {
+			result = -ENODEV;
+			dev_err(wusbhc->dev,
+				"Cannot get associated UWB Host Controller\n");
+			goto error_rc_get;
+		}
+
+		result = wusbhc_pal_register(wusbhc);
+		if (result < 0) {
+			dev_err(wusbhc->dev, "Cannot register as a UWB PAL\n");
+			goto error_pal_register;
+		}
+	}
 	mutex_unlock(&wusbhc->mutex);
 
 	if (chid)
 		result = uwb_radio_start(&wusbhc->pal);
-	else
+	else if (wusbhc->uwb_rc)
 		uwb_radio_stop(&wusbhc->pal);
+
+	return result;
+
+error_pal_register:
+	uwb_rc_put(wusbhc->uwb_rc);
+	wusbhc->uwb_rc = NULL;
+error_rc_get:
+	mutex_unlock(&wusbhc->mutex);
+
 	return result;
 }
 EXPORT_SYMBOL_GPL(wusbhc_chid_set);

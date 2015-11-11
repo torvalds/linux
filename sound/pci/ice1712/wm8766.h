@@ -155,8 +155,6 @@ struct snd_wm8766 {
 void snd_wm8766_init(struct snd_wm8766 *wm);
 void snd_wm8766_resume(struct snd_wm8766 *wm);
 void snd_wm8766_set_if(struct snd_wm8766 *wm, u16 dac);
-void snd_wm8766_set_master_mode(struct snd_wm8766 *wm, u16 mode);
-void snd_wm8766_set_power(struct snd_wm8766 *wm, u16 power);
 void snd_wm8766_volume_restore(struct snd_wm8766 *wm);
 int snd_wm8766_build_controls(struct snd_wm8766 *wm);
 

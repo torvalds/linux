@@ -19,6 +19,7 @@
 #include <linux/string.h>
 #include <linux/ioport.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 
 #include <asm/io.h>
 #include <asm/mmu.h>

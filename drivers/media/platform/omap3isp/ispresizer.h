@@ -12,30 +12,21 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #ifndef OMAP3_ISP_RESIZER_H
 #define OMAP3_ISP_RESIZER_H
 
+#include <linux/spinlock.h>
 #include <linux/types.h>
 
 /*
- * Constants for filter coefficents count
+ * Constants for filter coefficients count
  */
 #define COEFF_CNT		32
 
 /*
- * struct isprsz_coef - Structure for resizer filter coeffcients.
+ * struct isprsz_coef - Structure for resizer filter coefficients.
  * @h_filter_coef_4tap: Horizontal filter coefficients for 8-phase/4-tap
  *			mode (.5x-4x)
  * @v_filter_coef_4tap: Vertical filter coefficients for 8-phase/4-tap
@@ -96,6 +87,7 @@ enum resizer_input_entity {
 
 /*
  * struct isp_res_device - OMAP3 ISP resizer module
+ * @lock: Protects formats and crop rectangles between set_selection and IRQ
  * @crop.request: Crop rectangle requested by the user
  * @crop.active: Active crop rectangle (based on hardware requirements)
  */
@@ -116,6 +108,7 @@ struct isp_res_device {
 	enum isp_pipeline_stream_state state;
 	wait_queue_head_t wait;
 	atomic_t stopping;
+	spinlock_t lock;
 
 	struct {
 		struct v4l2_rect request;

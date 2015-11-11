@@ -36,11 +36,11 @@ Contents:
 1. What Is A CPUFreq Governor?
 ==============================
 
-Most cpufreq drivers (in fact, all except one, longrun) or even most
+Most cpufreq drivers (except the intel_pstate and longrun) or even most
 cpu frequency scaling algorithms only offer the CPU to be set to one
 frequency. In order to offer dynamic frequency scaling, the cpufreq
 core must be able to tell these drivers of a "target frequency". So
-these specific drivers will be transformed to offer a "->target"
+these specific drivers will be transformed to offer a "->target/target_index"
 call instead of the existing "->setpolicy" call. For "longrun", all
 stays the same, though.
 
@@ -71,7 +71,7 @@ CPU can be set to switch independently	 |	   CPU can only be set
 		    /			       the limits of policy->{min,max}
 		   /			            \
 		  /				     \
-	Using the ->setpolicy call,		 Using the ->target call,
+	Using the ->setpolicy call,		 Using the ->target/target_index call,
 	    the limits and the			  the frequency closest
 	     "policy" is set.			  to target_freq is set.
 						  It is assured that it

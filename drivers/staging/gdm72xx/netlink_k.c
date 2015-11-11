@@ -56,7 +56,7 @@ static void netlink_rcv_cb(struct sk_buff *skb)
 		nlh = (struct nlmsghdr *)skb->data;
 
 		if (skb->len < nlh->nlmsg_len ||
-		nlh->nlmsg_len > ND_MAX_MSG_LEN) {
+		    nlh->nlmsg_len > ND_MAX_MSG_LEN) {
 			netdev_err(skb->dev, "Invalid length (%d,%d)\n",
 				   skb->len, nlh->nlmsg_len);
 			return;
@@ -75,8 +75,9 @@ static void netlink_rcv_cb(struct sk_buff *skb)
 				netdev_err(skb->dev,
 					   "dev_get_by_index(%d) is not found.\n",
 					   ifindex);
-		} else
+		} else {
 			netdev_err(skb->dev, "Unregistered Callback\n");
+		}
 	}
 }
 
@@ -88,7 +89,7 @@ static void netlink_rcv(struct sk_buff *skb)
 }
 
 struct sock *netlink_init(int unit, void (*cb)(struct net_device *dev, u16 type,
-						void *msg, int len))
+					       void *msg, int len))
 {
 	struct sock *sock;
 	struct netlink_kernel_cfg cfg = {
@@ -120,7 +121,7 @@ int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len)
 	int ret = 0;
 
 	if (group > ND_MAX_GROUP) {
-		pr_err("Group %d is invalied.\n", group);
+		pr_err("Group %d is invalid.\n", group);
 		pr_err("Valid group is 0 ~ %d.\n", ND_MAX_GROUP);
 		return -EINVAL;
 	}
@@ -146,12 +147,10 @@ int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len)
 
 	if (!ret)
 		return len;
-	else {
-		if (ret != -ESRCH) {
-			pr_err("netlink_broadcast g=%d, t=%d, l=%d, r=%d\n",
-			       group, type, len, ret);
-		}
-		ret = 0;
+	if (ret != -ESRCH) {
+		pr_err("netlink_broadcast g=%d, t=%d, l=%d, r=%d\n",
+		       group, type, len, ret);
 	}
+	ret = 0;
 	return ret;
 }

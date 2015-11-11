@@ -360,7 +360,7 @@ struct ibmasr_id {
 	int type;
 };
 
-static struct ibmasr_id __initdata ibmasr_id_table[] = {
+static struct ibmasr_id ibmasr_id_table[] __initdata = {
 	{ "IBM Automatic Server Restart - eserver xSeries 220", ASMTYPE_TOPAZ },
 	{ "IBM Automatic Server Restart - Machine Type 8673", ASMTYPE_PEARL },
 	{ "IBM Automatic Server Restart - Machine Type 8480", ASMTYPE_JASPER },
@@ -419,4 +419,3 @@ MODULE_PARM_DESC(nowayout,
 MODULE_DESCRIPTION("IBM Automatic Server Restart driver");
 MODULE_AUTHOR("Andrey Panin");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

@@ -1,4 +1,4 @@
-/* Copyright (C) 2011-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2011-2015 B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich
  *
@@ -12,26 +12,46 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
-#include "hash.h"
-#include "hard-interface.h"
-#include "originator.h"
 #include "bridge_loop_avoidance.h"
-#include "translation-table.h"
-#include "send.h"
+#include "main.h"
 
-#include <linux/etherdevice.h>
+#include <linux/atomic.h>
+#include <linux/byteorder/generic.h>
+#include <linux/compiler.h>
 #include <linux/crc16.h>
+#include <linux/errno.h>
+#include <linux/etherdevice.h>
+#include <linux/fs.h>
 #include <linux/if_arp.h>
-#include <net/arp.h>
+#include <linux/if_ether.h>
 #include <linux/if_vlan.h>
+#include <linux/jhash.h>
+#include <linux/jiffies.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/lockdep.h>
+#include <linux/netdevice.h>
+#include <linux/rculist.h>
+#include <linux/rcupdate.h>
+#include <linux/seq_file.h>
+#include <linux/skbuff.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/stddef.h>
+#include <linux/string.h>
+#include <linux/workqueue.h>
+#include <net/arp.h>
 
-static const uint8_t batadv_announce_mac[4] = {0x43, 0x05, 0x43, 0x05};
+#include "hard-interface.h"
+#include "hash.h"
+#include "originator.h"
+#include "packet.h"
+#include "translation-table.h"
+
+static const u8 batadv_announce_mac[4] = {0x43, 0x05, 0x43, 0x05};
 
 static void batadv_bla_periodic_work(struct work_struct *work);
 static void
@@ -39,38 +59,28 @@ batadv_bla_send_announce(struct batadv_priv *bat_priv,
 			 struct batadv_bla_backbone_gw *backbone_gw);
 
 /* return the index of the claim */
-static inline uint32_t batadv_choose_claim(const void *data, uint32_t size)
+static inline u32 batadv_choose_claim(const void *data, u32 size)
 {
 	struct batadv_bla_claim *claim = (struct batadv_bla_claim *)data;
-	uint32_t hash = 0;
+	u32 hash = 0;
 
-	hash = batadv_hash_bytes(hash, &claim->addr, sizeof(claim->addr));
-	hash = batadv_hash_bytes(hash, &claim->vid, sizeof(claim->vid));
-
-	hash += (hash << 3);
-	hash ^= (hash >> 11);
-	hash += (hash << 15);
+	hash = jhash(&claim->addr, sizeof(claim->addr), hash);
+	hash = jhash(&claim->vid, sizeof(claim->vid), hash);
 
 	return hash % size;
 }
 
 /* return the index of the backbone gateway */
-static inline uint32_t batadv_choose_backbone_gw(const void *data,
-						 uint32_t size)
+static inline u32 batadv_choose_backbone_gw(const void *data, u32 size)
 {
 	const struct batadv_bla_claim *claim = (struct batadv_bla_claim *)data;
-	uint32_t hash = 0;
+	u32 hash = 0;
 
-	hash = batadv_hash_bytes(hash, &claim->addr, sizeof(claim->addr));
-	hash = batadv_hash_bytes(hash, &claim->vid, sizeof(claim->vid));
-
-	hash += (hash << 3);
-	hash ^= (hash >> 11);
-	hash += (hash << 15);
+	hash = jhash(&claim->addr, sizeof(claim->addr), hash);
+	hash = jhash(&claim->vid, sizeof(claim->vid), hash);
 
 	return hash % size;
 }
-
 
 /* compares address and vid of two backbone gws */
 static int batadv_compare_backbone_gw(const struct hlist_node *node,
@@ -78,7 +88,8 @@ static int batadv_compare_backbone_gw(const struct hlist_node *node,
 {
 	const void *data1 = container_of(node, struct batadv_bla_backbone_gw,
 					 hash_entry);
-	const struct batadv_bla_backbone_gw *gw1 = data1, *gw2 = data2;
+	const struct batadv_bla_backbone_gw *gw1 = data1;
+	const struct batadv_bla_backbone_gw *gw2 = data2;
 
 	if (!batadv_compare_eth(gw1->orig, gw2->orig))
 		return 0;
@@ -95,7 +106,8 @@ static int batadv_compare_claim(const struct hlist_node *node,
 {
 	const void *data1 = container_of(node, struct batadv_bla_claim,
 					 hash_entry);
-	const struct batadv_bla_claim *cl1 = data1, *cl2 = data2;
+	const struct batadv_bla_claim *cl1 = data1;
+	const struct batadv_bla_claim *cl2 = data2;
 
 	if (!batadv_compare_eth(cl1->addr, cl2->addr))
 		return 0;
@@ -132,7 +144,9 @@ static void batadv_claim_free_ref(struct batadv_bla_claim *claim)
 		call_rcu(&claim->rcu, batadv_claim_free_rcu);
 }
 
-/* @bat_priv: the bat priv with all the soft interface information
+/**
+ * batadv_claim_hash_find
+ * @bat_priv: the bat priv with all the soft interface information
  * @data: search data (may be local/static data)
  *
  * looks for a claim in the hash, and returns it if found
@@ -179,8 +193,8 @@ static struct batadv_bla_claim
  * Returns claim if found or NULL otherwise.
  */
 static struct batadv_bla_backbone_gw *
-batadv_backbone_hash_find(struct batadv_priv *bat_priv,
-			  uint8_t *addr, short vid)
+batadv_backbone_hash_find(struct batadv_priv *bat_priv, u8 *addr,
+			  unsigned short vid)
 {
 	struct batadv_hashtable *hash = bat_priv->bla.backbone_hash;
 	struct hlist_head *head;
@@ -191,7 +205,7 @@ batadv_backbone_hash_find(struct batadv_priv *bat_priv,
 	if (!hash)
 		return NULL;
 
-	memcpy(search_entry.orig, addr, ETH_ALEN);
+	ether_addr_copy(search_entry.orig, addr);
 	search_entry.vid = vid;
 
 	index = batadv_choose_backbone_gw(&search_entry, hash->size);
@@ -245,25 +259,25 @@ batadv_bla_del_backbone_claims(struct batadv_bla_backbone_gw *backbone_gw)
 		spin_unlock_bh(list_lock);
 	}
 
-	/* all claims gone, intialize CRC */
+	/* all claims gone, initialize CRC */
 	backbone_gw->crc = BATADV_BLA_CRC_INIT;
 }
 
 /**
  * batadv_bla_send_claim - sends a claim frame according to the provided info
  * @bat_priv: the bat priv with all the soft interface information
- * @orig: the mac address to be announced within the claim
+ * @mac: the mac address to be announced within the claim
  * @vid: the VLAN ID
  * @claimtype: the type of the claim (CLAIM, UNCLAIM, ANNOUNCE, ...)
  */
-static void batadv_bla_send_claim(struct batadv_priv *bat_priv, uint8_t *mac,
-				  short vid, int claimtype)
+static void batadv_bla_send_claim(struct batadv_priv *bat_priv, u8 *mac,
+				  unsigned short vid, int claimtype)
 {
 	struct sk_buff *skb;
 	struct ethhdr *ethhdr;
 	struct batadv_hard_iface *primary_if;
 	struct net_device *soft_iface;
-	uint8_t *hw_src;
+	u8 *hw_src;
 	struct batadv_bla_claim_dst local_claim_dest;
 	__be32 zeroip = 0;
 
@@ -291,13 +305,13 @@ static void batadv_bla_send_claim(struct batadv_priv *bat_priv, uint8_t *mac,
 			  * with XX   = claim type
 			  * and YY:YY = group id
 			  */
-			 (uint8_t *)&local_claim_dest);
+			 (u8 *)&local_claim_dest);
 
 	if (!skb)
 		goto out;
 
 	ethhdr = (struct ethhdr *)skb->data;
-	hw_src = (uint8_t *)ethhdr + ETH_HLEN + sizeof(struct arphdr);
+	hw_src = (u8 *)ethhdr + ETH_HLEN + sizeof(struct arphdr);
 
 	/* now we pretend that the client would have sent this ... */
 	switch (claimtype) {
@@ -305,43 +319,46 @@ static void batadv_bla_send_claim(struct batadv_priv *bat_priv, uint8_t *mac,
 		/* normal claim frame
 		 * set Ethernet SRC to the clients mac
 		 */
-		memcpy(ethhdr->h_source, mac, ETH_ALEN);
+		ether_addr_copy(ethhdr->h_source, mac);
 		batadv_dbg(BATADV_DBG_BLA, bat_priv,
-			   "bla_send_claim(): CLAIM %pM on vid %d\n", mac, vid);
+			   "bla_send_claim(): CLAIM %pM on vid %d\n", mac,
+			   BATADV_PRINT_VID(vid));
 		break;
 	case BATADV_CLAIM_TYPE_UNCLAIM:
 		/* unclaim frame
 		 * set HW SRC to the clients mac
 		 */
-		memcpy(hw_src, mac, ETH_ALEN);
+		ether_addr_copy(hw_src, mac);
 		batadv_dbg(BATADV_DBG_BLA, bat_priv,
 			   "bla_send_claim(): UNCLAIM %pM on vid %d\n", mac,
-			   vid);
+			   BATADV_PRINT_VID(vid));
 		break;
 	case BATADV_CLAIM_TYPE_ANNOUNCE:
 		/* announcement frame
 		 * set HW SRC to the special mac containg the crc
 		 */
-		memcpy(hw_src, mac, ETH_ALEN);
+		ether_addr_copy(hw_src, mac);
 		batadv_dbg(BATADV_DBG_BLA, bat_priv,
 			   "bla_send_claim(): ANNOUNCE of %pM on vid %d\n",
-			   ethhdr->h_source, vid);
+			   ethhdr->h_source, BATADV_PRINT_VID(vid));
 		break;
 	case BATADV_CLAIM_TYPE_REQUEST:
 		/* request frame
 		 * set HW SRC and header destination to the receiving backbone
 		 * gws mac
 		 */
-		memcpy(hw_src, mac, ETH_ALEN);
-		memcpy(ethhdr->h_dest, mac, ETH_ALEN);
+		ether_addr_copy(hw_src, mac);
+		ether_addr_copy(ethhdr->h_dest, mac);
 		batadv_dbg(BATADV_DBG_BLA, bat_priv,
-			   "bla_send_claim(): REQUEST of %pM to %pMon vid %d\n",
-			   ethhdr->h_source, ethhdr->h_dest, vid);
+			   "bla_send_claim(): REQUEST of %pM to %pM on vid %d\n",
+			   ethhdr->h_source, ethhdr->h_dest,
+			   BATADV_PRINT_VID(vid));
 		break;
 	}
 
-	if (vid != -1)
-		skb = vlan_insert_tag(skb, htons(ETH_P_8021Q), vid);
+	if (vid & BATADV_VLAN_HAS_TAG)
+		skb = vlan_insert_tag(skb, htons(ETH_P_8021Q),
+				      vid & VLAN_VID_MASK);
 
 	skb_reset_mac_header(skb);
 	skb->protocol = eth_type_trans(skb, soft_iface);
@@ -361,13 +378,14 @@ out:
  * @bat_priv: the bat priv with all the soft interface information
  * @orig: the mac address of the originator
  * @vid: the VLAN ID
+ * @own_backbone: set if the requested backbone is local
  *
  * searches for the backbone gw or creates a new one if it could not
  * be found.
  */
 static struct batadv_bla_backbone_gw *
-batadv_bla_get_backbone_gw(struct batadv_priv *bat_priv, uint8_t *orig,
-			   short vid, bool own_backbone)
+batadv_bla_get_backbone_gw(struct batadv_priv *bat_priv, u8 *orig,
+			   unsigned short vid, bool own_backbone)
 {
 	struct batadv_bla_backbone_gw *entry;
 	struct batadv_orig_node *orig_node;
@@ -380,7 +398,7 @@ batadv_bla_get_backbone_gw(struct batadv_priv *bat_priv, uint8_t *orig,
 
 	batadv_dbg(BATADV_DBG_BLA, bat_priv,
 		   "bla_get_backbone_gw(): not found (%pM, %d), creating new entry\n",
-		   orig, vid);
+		   orig, BATADV_PRINT_VID(vid));
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 	if (!entry)
@@ -392,7 +410,7 @@ batadv_bla_get_backbone_gw(struct batadv_priv *bat_priv, uint8_t *orig,
 	entry->bat_priv = bat_priv;
 	atomic_set(&entry->request_sent, 0);
 	atomic_set(&entry->wait_periods, 0);
-	memcpy(entry->orig, orig, ETH_ALEN);
+	ether_addr_copy(entry->orig, orig);
 
 	/* one for the hash, one for returning */
 	atomic_set(&entry->refcount, 2);
@@ -408,10 +426,10 @@ batadv_bla_get_backbone_gw(struct batadv_priv *bat_priv, uint8_t *orig,
 		return NULL;
 	}
 
-	/* this is a gateway now, remove any tt entries */
+	/* this is a gateway now, remove any TT entry on this VLAN */
 	orig_node = batadv_orig_hash_find(bat_priv, orig);
 	if (orig_node) {
-		batadv_tt_global_del_orig(bat_priv, orig_node,
+		batadv_tt_global_del_orig(bat_priv, orig_node, vid,
 					  "became a backbone gateway");
 		batadv_orig_node_free_ref(orig_node);
 	}
@@ -434,7 +452,7 @@ batadv_bla_get_backbone_gw(struct batadv_priv *bat_priv, uint8_t *orig,
 static void
 batadv_bla_update_own_backbone_gw(struct batadv_priv *bat_priv,
 				  struct batadv_hard_iface *primary_if,
-				  short vid)
+				  unsigned short vid)
 {
 	struct batadv_bla_backbone_gw *backbone_gw;
 
@@ -448,7 +466,10 @@ batadv_bla_update_own_backbone_gw(struct batadv_priv *bat_priv,
 	batadv_backbone_gw_free_ref(backbone_gw);
 }
 
-/* @bat_priv: the bat priv with all the soft interface information
+/**
+ * batadv_bla_answer_request - answer a bla request by sending own claims
+ * @bat_priv: the bat priv with all the soft interface information
+ * @primary_if: interface where the request came on
  * @vid: the vid where the request came on
  *
  * Repeat all of our own claims, and finally send an ANNOUNCE frame
@@ -456,7 +477,7 @@ batadv_bla_update_own_backbone_gw(struct batadv_priv *bat_priv,
  */
 static void batadv_bla_answer_request(struct batadv_priv *bat_priv,
 				      struct batadv_hard_iface *primary_if,
-				      short vid)
+				      unsigned short vid)
 {
 	struct hlist_head *head;
 	struct batadv_hashtable *hash;
@@ -494,7 +515,9 @@ static void batadv_bla_answer_request(struct batadv_priv *bat_priv,
 	batadv_backbone_gw_free_ref(backbone_gw);
 }
 
-/* @backbone_gw: the backbone gateway from whom we are out of sync
+/**
+ * batadv_bla_send_request - send a request to repeat claims
+ * @backbone_gw: the backbone gateway from whom we are out of sync
  *
  * When the crc is wrong, ask the backbone gateway for a full table update.
  * After the request, it will repeat all of his own claims and finally
@@ -519,7 +542,9 @@ static void batadv_bla_send_request(struct batadv_bla_backbone_gw *backbone_gw)
 	}
 }
 
-/* @bat_priv: the bat priv with all the soft interface information
+/**
+ * batadv_bla_send_announce
+ * @bat_priv: the bat priv with all the soft interface information
  * @backbone_gw: our backbone gateway which should be announced
  *
  * This function sends an announcement. It is called from multiple
@@ -528,7 +553,7 @@ static void batadv_bla_send_request(struct batadv_bla_backbone_gw *backbone_gw)
 static void batadv_bla_send_announce(struct batadv_priv *bat_priv,
 				     struct batadv_bla_backbone_gw *backbone_gw)
 {
-	uint8_t mac[ETH_ALEN];
+	u8 mac[ETH_ALEN];
 	__be16 crc;
 
 	memcpy(mac, batadv_announce_mac, 4);
@@ -547,14 +572,14 @@ static void batadv_bla_send_announce(struct batadv_priv *bat_priv,
  * @backbone_gw: the backbone gateway which claims it
  */
 static void batadv_bla_add_claim(struct batadv_priv *bat_priv,
-				 const uint8_t *mac, const short vid,
+				 const u8 *mac, const unsigned short vid,
 				 struct batadv_bla_backbone_gw *backbone_gw)
 {
 	struct batadv_bla_claim *claim;
 	struct batadv_bla_claim search_claim;
 	int hash_added;
 
-	memcpy(search_claim.addr, mac, ETH_ALEN);
+	ether_addr_copy(search_claim.addr, mac);
 	search_claim.vid = vid;
 	claim = batadv_claim_hash_find(bat_priv, &search_claim);
 
@@ -564,7 +589,7 @@ static void batadv_bla_add_claim(struct batadv_priv *bat_priv,
 		if (!claim)
 			return;
 
-		memcpy(claim->addr, mac, ETH_ALEN);
+		ether_addr_copy(claim->addr, mac);
 		claim->vid = vid;
 		claim->lasttime = jiffies;
 		claim->backbone_gw = backbone_gw;
@@ -572,7 +597,7 @@ static void batadv_bla_add_claim(struct batadv_priv *bat_priv,
 		atomic_set(&claim->refcount, 2);
 		batadv_dbg(BATADV_DBG_BLA, bat_priv,
 			   "bla_add_claim(): adding new entry %pM, vid %d to hash ...\n",
-			   mac, vid);
+			   mac, BATADV_PRINT_VID(vid));
 		hash_added = batadv_hash_add(bat_priv->bla.claim_hash,
 					     batadv_compare_claim,
 					     batadv_choose_claim, claim,
@@ -591,7 +616,7 @@ static void batadv_bla_add_claim(struct batadv_priv *bat_priv,
 
 		batadv_dbg(BATADV_DBG_BLA, bat_priv,
 			   "bla_add_claim(): changing ownership for %pM, vid %d\n",
-			   mac, vid);
+			   mac, BATADV_PRINT_VID(vid));
 
 		claim->backbone_gw->crc ^= crc16(0, claim->addr, ETH_ALEN);
 		batadv_backbone_gw_free_ref(claim->backbone_gw);
@@ -611,18 +636,18 @@ claim_free_ref:
  * given mac address and vid.
  */
 static void batadv_bla_del_claim(struct batadv_priv *bat_priv,
-				 const uint8_t *mac, const short vid)
+				 const u8 *mac, const unsigned short vid)
 {
 	struct batadv_bla_claim search_claim, *claim;
 
-	memcpy(search_claim.addr, mac, ETH_ALEN);
+	ether_addr_copy(search_claim.addr, mac);
 	search_claim.vid = vid;
 	claim = batadv_claim_hash_find(bat_priv, &search_claim);
 	if (!claim)
 		return;
 
 	batadv_dbg(BATADV_DBG_BLA, bat_priv, "bla_del_claim(): %pM, vid %d\n",
-		   mac, vid);
+		   mac, BATADV_PRINT_VID(vid));
 
 	batadv_hash_remove(bat_priv->bla.claim_hash, batadv_compare_claim,
 			   batadv_choose_claim, claim);
@@ -635,12 +660,11 @@ static void batadv_bla_del_claim(struct batadv_priv *bat_priv,
 }
 
 /* check for ANNOUNCE frame, return 1 if handled */
-static int batadv_handle_announce(struct batadv_priv *bat_priv,
-				  uint8_t *an_addr, uint8_t *backbone_addr,
-				  short vid)
+static int batadv_handle_announce(struct batadv_priv *bat_priv, u8 *an_addr,
+				  u8 *backbone_addr, unsigned short vid)
 {
 	struct batadv_bla_backbone_gw *backbone_gw;
-	uint16_t crc;
+	u16 crc;
 
 	if (memcmp(an_addr, batadv_announce_mac, 4) != 0)
 		return 0;
@@ -651,19 +675,19 @@ static int batadv_handle_announce(struct batadv_priv *bat_priv,
 	if (unlikely(!backbone_gw))
 		return 1;
 
-
 	/* handle as ANNOUNCE frame */
 	backbone_gw->lasttime = jiffies;
 	crc = ntohs(*((__be16 *)(&an_addr[4])));
 
 	batadv_dbg(BATADV_DBG_BLA, bat_priv,
 		   "handle_announce(): ANNOUNCE vid %d (sent by %pM)... CRC = %#.4x\n",
-		   vid, backbone_gw->orig, crc);
+		   BATADV_PRINT_VID(vid), backbone_gw->orig, crc);
 
 	if (backbone_gw->crc != crc) {
 		batadv_dbg(BATADV_DBG_BLA, backbone_gw->bat_priv,
 			   "handle_announce(): CRC FAILED for %pM/%d (my = %#.4x, sent = %#.4x)\n",
-			   backbone_gw->orig, backbone_gw->vid,
+			   backbone_gw->orig,
+			   BATADV_PRINT_VID(backbone_gw->vid),
 			   backbone_gw->crc, crc);
 
 		batadv_bla_send_request(backbone_gw);
@@ -684,8 +708,8 @@ static int batadv_handle_announce(struct batadv_priv *bat_priv,
 /* check for REQUEST frame, return 1 if handled */
 static int batadv_handle_request(struct batadv_priv *bat_priv,
 				 struct batadv_hard_iface *primary_if,
-				 uint8_t *backbone_addr,
-				 struct ethhdr *ethhdr, short vid)
+				 u8 *backbone_addr, struct ethhdr *ethhdr,
+				 unsigned short vid)
 {
 	/* check for REQUEST frame */
 	if (!batadv_compare_eth(backbone_addr, ethhdr->h_dest))
@@ -699,7 +723,7 @@ static int batadv_handle_request(struct batadv_priv *bat_priv,
 
 	batadv_dbg(BATADV_DBG_BLA, bat_priv,
 		   "handle_request(): REQUEST vid %d (sent by %pM)...\n",
-		   vid, ethhdr->h_source);
+		   BATADV_PRINT_VID(vid), ethhdr->h_source);
 
 	batadv_bla_answer_request(bat_priv, primary_if, vid);
 	return 1;
@@ -708,8 +732,8 @@ static int batadv_handle_request(struct batadv_priv *bat_priv,
 /* check for UNCLAIM frame, return 1 if handled */
 static int batadv_handle_unclaim(struct batadv_priv *bat_priv,
 				 struct batadv_hard_iface *primary_if,
-				 uint8_t *backbone_addr,
-				 uint8_t *claim_addr, short vid)
+				 u8 *backbone_addr, u8 *claim_addr,
+				 unsigned short vid)
 {
 	struct batadv_bla_backbone_gw *backbone_gw;
 
@@ -727,7 +751,7 @@ static int batadv_handle_unclaim(struct batadv_priv *bat_priv,
 	/* this must be an UNCLAIM frame */
 	batadv_dbg(BATADV_DBG_BLA, bat_priv,
 		   "handle_unclaim(): UNCLAIM %pM on vid %d (sent by %pM)...\n",
-		   claim_addr, vid, backbone_gw->orig);
+		   claim_addr, BATADV_PRINT_VID(vid), backbone_gw->orig);
 
 	batadv_bla_del_claim(bat_priv, claim_addr, vid);
 	batadv_backbone_gw_free_ref(backbone_gw);
@@ -737,8 +761,8 @@ static int batadv_handle_unclaim(struct batadv_priv *bat_priv,
 /* check for CLAIM frame, return 1 if handled */
 static int batadv_handle_claim(struct batadv_priv *bat_priv,
 			       struct batadv_hard_iface *primary_if,
-			       uint8_t *backbone_addr, uint8_t *claim_addr,
-			       short vid)
+			       u8 *backbone_addr, u8 *claim_addr,
+			       unsigned short vid)
 {
 	struct batadv_bla_backbone_gw *backbone_gw;
 
@@ -765,6 +789,7 @@ static int batadv_handle_claim(struct batadv_priv *bat_priv,
 /**
  * batadv_check_claim_group
  * @bat_priv: the bat priv with all the soft interface information
+ * @primary_if: the primary interface of this batman interface
  * @hw_src: the Hardware source in the ARP Header
  * @hw_dst: the Hardware destination in the ARP Header
  * @ethhdr: pointer to the Ethernet header of the claim frame
@@ -780,20 +805,15 @@ static int batadv_handle_claim(struct batadv_priv *bat_priv,
  */
 static int batadv_check_claim_group(struct batadv_priv *bat_priv,
 				    struct batadv_hard_iface *primary_if,
-				    uint8_t *hw_src, uint8_t *hw_dst,
+				    u8 *hw_src, u8 *hw_dst,
 				    struct ethhdr *ethhdr)
 {
-	uint8_t *backbone_addr;
+	u8 *backbone_addr;
 	struct batadv_orig_node *orig_node;
 	struct batadv_bla_claim_dst *bla_dst, *bla_dst_own;
 
 	bla_dst = (struct batadv_bla_claim_dst *)hw_dst;
 	bla_dst_own = &bat_priv->bla.claim_dest;
-
-	/* check if it is a claim packet in general */
-	if (memcmp(bla_dst->magic, bla_dst_own->magic,
-		   sizeof(bla_dst->magic)) != 0)
-		return 0;
 
 	/* if announcement packet, use the source,
 	 * otherwise assume it is in the hw_src
@@ -841,8 +861,10 @@ static int batadv_check_claim_group(struct batadv_priv *bat_priv,
 	return 2;
 }
 
-
-/* @bat_priv: the bat priv with all the soft interface information
+/**
+ * batadv_bla_process_claim
+ * @bat_priv: the bat priv with all the soft interface information
+ * @primary_if: the primary hard interface of this batman soft interface
  * @skb: the frame to be checked
  *
  * Check if this is a claim frame, and process it accordingly.
@@ -854,29 +876,44 @@ static int batadv_bla_process_claim(struct batadv_priv *bat_priv,
 				    struct batadv_hard_iface *primary_if,
 				    struct sk_buff *skb)
 {
+	struct batadv_bla_claim_dst *bla_dst, *bla_dst_own;
+	u8 *hw_src, *hw_dst;
+	struct vlan_hdr *vhdr, vhdr_buf;
 	struct ethhdr *ethhdr;
-	struct vlan_ethhdr *vhdr;
 	struct arphdr *arphdr;
-	uint8_t *hw_src, *hw_dst;
-	struct batadv_bla_claim_dst *bla_dst;
-	uint16_t proto;
+	unsigned short vid;
+	int vlan_depth = 0;
+	__be16 proto;
 	int headlen;
-	short vid = -1;
 	int ret;
 
-	ethhdr = (struct ethhdr *)skb_mac_header(skb);
+	vid = batadv_get_vid(skb, 0);
+	ethhdr = eth_hdr(skb);
 
-	if (ntohs(ethhdr->h_proto) == ETH_P_8021Q) {
-		vhdr = (struct vlan_ethhdr *)ethhdr;
-		vid = ntohs(vhdr->h_vlan_TCI) & VLAN_VID_MASK;
-		proto = ntohs(vhdr->h_vlan_encapsulated_proto);
-		headlen = sizeof(*vhdr);
-	} else {
-		proto = ntohs(ethhdr->h_proto);
-		headlen = ETH_HLEN;
+	proto = ethhdr->h_proto;
+	headlen = ETH_HLEN;
+	if (vid & BATADV_VLAN_HAS_TAG) {
+		/* Traverse the VLAN/Ethertypes.
+		 *
+		 * At this point it is known that the first protocol is a VLAN
+		 * header, so start checking at the encapsulated protocol.
+		 *
+		 * The depth of the VLAN headers is recorded to drop BLA claim
+		 * frames encapsulated into multiple VLAN headers (QinQ).
+		 */
+		do {
+			vhdr = skb_header_pointer(skb, headlen, VLAN_HLEN,
+						  &vhdr_buf);
+			if (!vhdr)
+				return 0;
+
+			proto = vhdr->h_vlan_encapsulated_proto;
+			headlen += VLAN_HLEN;
+			vlan_depth++;
+		} while (proto == htons(ETH_P_8021Q));
 	}
 
-	if (proto != ETH_P_ARP)
+	if (proto != htons(ETH_P_ARP))
 		return 0; /* not a claim frame */
 
 	/* this must be a ARP frame. check if it is a claim. */
@@ -885,8 +922,8 @@ static int batadv_bla_process_claim(struct batadv_priv *bat_priv,
 		return 0;
 
 	/* pskb_may_pull() may have modified the pointers, get ethhdr again */
-	ethhdr = (struct ethhdr *)skb_mac_header(skb);
-	arphdr = (struct arphdr *)((uint8_t *)ethhdr + headlen);
+	ethhdr = eth_hdr(skb);
+	arphdr = (struct arphdr *)((u8 *)ethhdr + headlen);
 
 	/* Check whether the ARP frame carries a valid
 	 * IP information
@@ -900,9 +937,22 @@ static int batadv_bla_process_claim(struct batadv_priv *bat_priv,
 	if (arphdr->ar_pln != 4)
 		return 0;
 
-	hw_src = (uint8_t *)arphdr + sizeof(struct arphdr);
+	hw_src = (u8 *)arphdr + sizeof(struct arphdr);
 	hw_dst = hw_src + ETH_ALEN + 4;
 	bla_dst = (struct batadv_bla_claim_dst *)hw_dst;
+	bla_dst_own = &bat_priv->bla.claim_dest;
+
+	/* check if it is a claim frame in general */
+	if (memcmp(bla_dst->magic, bla_dst_own->magic,
+		   sizeof(bla_dst->magic)) != 0)
+		return 0;
+
+	/* check if there is a claim frame encapsulated deeper in (QinQ) and
+	 * drop that, as this is not supported by BLA but should also not be
+	 * sent via the mesh.
+	 */
+	if (vlan_depth > 1)
+		return 1;
 
 	/* check if it is a claim frame. */
 	ret = batadv_check_claim_group(bat_priv, primary_if, hw_src, hw_dst,
@@ -910,7 +960,8 @@ static int batadv_bla_process_claim(struct batadv_priv *bat_priv,
 	if (ret == 1)
 		batadv_dbg(BATADV_DBG_BLA, bat_priv,
 			   "bla_process_claim(): received a claim frame from another group. From: %pM on vid %d ...(hw_src %pM, hw_dst %pM)\n",
-			   ethhdr->h_source, vid, hw_src, hw_dst);
+			   ethhdr->h_source, BATADV_PRINT_VID(vid), hw_src,
+			   hw_dst);
 
 	if (ret < 2)
 		return ret;
@@ -945,7 +996,7 @@ static int batadv_bla_process_claim(struct batadv_priv *bat_priv,
 
 	batadv_dbg(BATADV_DBG_BLA, bat_priv,
 		   "bla_process_claim(): ERROR - this looks like a claim frame, but is useless. eth src %pM on vid %d ...(hw_src %pM, hw_dst %pM)\n",
-		   ethhdr->h_source, vid, hw_src, hw_dst);
+		   ethhdr->h_source, BATADV_PRINT_VID(vid), hw_src, hw_dst);
 	return 1;
 }
 
@@ -1091,8 +1142,8 @@ void batadv_bla_update_orig_address(struct batadv_priv *bat_priv,
 						oldif->net_dev->dev_addr))
 				continue;
 
-			memcpy(backbone_gw->orig,
-			       primary_if->net_dev->dev_addr, ETH_ALEN);
+			ether_addr_copy(backbone_gw->orig,
+					primary_if->net_dev->dev_addr);
 			/* send an announce frame so others will ask for our
 			 * claims and update their tables.
 			 */
@@ -1187,9 +1238,9 @@ static struct lock_class_key batadv_backbone_hash_lock_class_key;
 int batadv_bla_init(struct batadv_priv *bat_priv)
 {
 	int i;
-	uint8_t claim_dest[ETH_ALEN] = {0xff, 0x43, 0x05, 0x00, 0x00, 0x00};
+	u8 claim_dest[ETH_ALEN] = {0xff, 0x43, 0x05, 0x00, 0x00, 0x00};
 	struct batadv_hard_iface *primary_if;
-	uint16_t crc;
+	u16 crc;
 	unsigned long entrytime;
 
 	spin_lock_init(&bat_priv->bla.bcast_duplist_lock);
@@ -1291,14 +1342,14 @@ int batadv_bla_check_bcast_duplist(struct batadv_priv *bat_priv,
 		goto out;
 	}
 	/* not found, add a new entry (overwrite the oldest entry)
-	 * and allow it, its the first occurence.
+	 * and allow it, its the first occurrence.
 	 */
 	curr = (bat_priv->bla.bcast_duplist_curr + BATADV_DUPLIST_SIZE - 1);
 	curr %= BATADV_DUPLIST_SIZE;
 	entry = &bat_priv->bla.bcast_duplist[curr];
 	entry->crc = crc;
 	entry->entrytime = jiffies;
-	memcpy(entry->orig, bcast_packet->orig, ETH_ALEN);
+	ether_addr_copy(entry->orig, bcast_packet->orig);
 	bat_priv->bla.bcast_duplist_curr = curr;
 
 out:
@@ -1307,16 +1358,18 @@ out:
 	return ret;
 }
 
-
-
-/* @bat_priv: the bat priv with all the soft interface information
+/**
+ * batadv_bla_is_backbone_gw_orig
+ * @bat_priv: the bat priv with all the soft interface information
  * @orig: originator mac address
+ * @vid: VLAN identifier
  *
- * check if the originator is a gateway for any VLAN ID.
+ * Check if the originator is a gateway for the VLAN identified by vid.
  *
- * returns 1 if it is found, 0 otherwise
+ * Returns true if orig is a backbone for this vid, false otherwise.
  */
-int batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv, uint8_t *orig)
+bool batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv, u8 *orig,
+				    unsigned short vid)
 {
 	struct batadv_hashtable *hash = bat_priv->bla.backbone_hash;
 	struct hlist_head *head;
@@ -1324,27 +1377,27 @@ int batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv, uint8_t *orig)
 	int i;
 
 	if (!atomic_read(&bat_priv->bridge_loop_avoidance))
-		return 0;
+		return false;
 
 	if (!hash)
-		return 0;
+		return false;
 
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(backbone_gw, head, hash_entry) {
-			if (batadv_compare_eth(backbone_gw->orig, orig)) {
+			if (batadv_compare_eth(backbone_gw->orig, orig) &&
+			    backbone_gw->vid == vid) {
 				rcu_read_unlock();
-				return 1;
+				return true;
 			}
 		}
 		rcu_read_unlock();
 	}
 
-	return 0;
+	return false;
 }
-
 
 /**
  * batadv_bla_is_backbone_gw
@@ -1359,10 +1412,8 @@ int batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv, uint8_t *orig)
 int batadv_bla_is_backbone_gw(struct sk_buff *skb,
 			      struct batadv_orig_node *orig_node, int hdr_size)
 {
-	struct ethhdr *ethhdr;
-	struct vlan_ethhdr *vhdr;
 	struct batadv_bla_backbone_gw *backbone_gw;
-	short vid = -1;
+	unsigned short vid;
 
 	if (!atomic_read(&orig_node->bat_priv->bridge_loop_avoidance))
 		return 0;
@@ -1371,15 +1422,7 @@ int batadv_bla_is_backbone_gw(struct sk_buff *skb,
 	if (!pskb_may_pull(skb, hdr_size + ETH_HLEN))
 		return 0;
 
-	ethhdr = (struct ethhdr *)(((uint8_t *)skb->data) + hdr_size);
-
-	if (ntohs(ethhdr->h_proto) == ETH_P_8021Q) {
-		if (!pskb_may_pull(skb, hdr_size + sizeof(struct vlan_ethhdr)))
-			return 0;
-
-		vhdr = (struct vlan_ethhdr *)(skb->data + hdr_size);
-		vid = ntohs(vhdr->h_vlan_TCI) & VLAN_VID_MASK;
-	}
+	vid = batadv_get_vid(skb, hdr_size);
 
 	/* see if this originator is a backbone gw for this VLAN */
 	backbone_gw = batadv_backbone_hash_find(orig_node->bat_priv,
@@ -1428,15 +1471,15 @@ void batadv_bla_free(struct batadv_priv *bat_priv)
  * returns 1, otherwise it returns 0 and the caller shall further
  * process the skb.
  */
-int batadv_bla_rx(struct batadv_priv *bat_priv, struct sk_buff *skb, short vid,
-		  bool is_bcast)
+int batadv_bla_rx(struct batadv_priv *bat_priv, struct sk_buff *skb,
+		  unsigned short vid, bool is_bcast)
 {
 	struct ethhdr *ethhdr;
 	struct batadv_bla_claim search_claim, *claim = NULL;
 	struct batadv_hard_iface *primary_if;
 	int ret;
 
-	ethhdr = (struct ethhdr *)skb_mac_header(skb);
+	ethhdr = eth_hdr(skb);
 
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
@@ -1445,13 +1488,12 @@ int batadv_bla_rx(struct batadv_priv *bat_priv, struct sk_buff *skb, short vid,
 	if (!atomic_read(&bat_priv->bridge_loop_avoidance))
 		goto allow;
 
-
 	if (unlikely(atomic_read(&bat_priv->bla.num_requests)))
 		/* don't allow broadcasts while requests are in flight */
 		if (is_multicast_ether_addr(ethhdr->h_dest) && is_bcast)
 			goto handled;
 
-	memcpy(search_claim.addr, ethhdr->h_source, ETH_ALEN);
+	ether_addr_copy(search_claim.addr, ethhdr->h_source);
 	search_claim.vid = vid;
 	claim = batadv_claim_hash_find(bat_priv, &search_claim);
 
@@ -1522,8 +1564,11 @@ out:
  * in these cases, the skb is further handled by this function and
  * returns 1, otherwise it returns 0 and the caller shall further
  * process the skb.
+ *
+ * This call might reallocate skb data.
  */
-int batadv_bla_tx(struct batadv_priv *bat_priv, struct sk_buff *skb, short vid)
+int batadv_bla_tx(struct batadv_priv *bat_priv, struct sk_buff *skb,
+		  unsigned short vid)
 {
 	struct ethhdr *ethhdr;
 	struct batadv_bla_claim search_claim, *claim = NULL;
@@ -1537,20 +1582,17 @@ int batadv_bla_tx(struct batadv_priv *bat_priv, struct sk_buff *skb, short vid)
 	if (!atomic_read(&bat_priv->bridge_loop_avoidance))
 		goto allow;
 
-	/* in VLAN case, the mac header might not be set. */
-	skb_reset_mac_header(skb);
-
 	if (batadv_bla_process_claim(bat_priv, primary_if, skb))
 		goto handled;
 
-	ethhdr = (struct ethhdr *)skb_mac_header(skb);
+	ethhdr = eth_hdr(skb);
 
 	if (unlikely(atomic_read(&bat_priv->bla.num_requests)))
 		/* don't allow broadcasts while requests are in flight */
 		if (is_multicast_ether_addr(ethhdr->h_dest))
 			goto handled;
 
-	memcpy(search_claim.addr, ethhdr->h_source, ETH_ALEN);
+	ether_addr_copy(search_claim.addr, ethhdr->h_source);
 	search_claim.vid = vid;
 
 	claim = batadv_claim_hash_find(bat_priv, &search_claim);
@@ -1605,9 +1647,9 @@ int batadv_bla_claim_table_seq_print_text(struct seq_file *seq, void *offset)
 	struct batadv_bla_claim *claim;
 	struct batadv_hard_iface *primary_if;
 	struct hlist_head *head;
-	uint32_t i;
+	u32 i;
 	bool is_own;
-	uint8_t *primary_addr;
+	u8 *primary_addr;
 
 	primary_if = batadv_seq_print_text_primary_if_get(seq);
 	if (!primary_if)
@@ -1627,8 +1669,8 @@ int batadv_bla_claim_table_seq_print_text(struct seq_file *seq, void *offset)
 		hlist_for_each_entry_rcu(claim, head, hash_entry) {
 			is_own = batadv_compare_eth(claim->backbone_gw->orig,
 						    primary_addr);
-			seq_printf(seq,	" * %pM on % 5d by %pM [%c] (%#.4x)\n",
-				   claim->addr, claim->vid,
+			seq_printf(seq, " * %pM on %5d by %pM [%c] (%#.4x)\n",
+				   claim->addr, BATADV_PRINT_VID(claim->vid),
 				   claim->backbone_gw->orig,
 				   (is_own ? 'x' : ' '),
 				   claim->backbone_gw->crc);
@@ -1650,9 +1692,9 @@ int batadv_bla_backbone_table_seq_print_text(struct seq_file *seq, void *offset)
 	struct batadv_hard_iface *primary_if;
 	struct hlist_head *head;
 	int secs, msecs;
-	uint32_t i;
+	u32 i;
 	bool is_own;
-	uint8_t *primary_addr;
+	u8 *primary_addr;
 
 	primary_if = batadv_seq_print_text_primary_if_get(seq);
 	if (!primary_if)
@@ -1680,10 +1722,10 @@ int batadv_bla_backbone_table_seq_print_text(struct seq_file *seq, void *offset)
 			if (is_own)
 				continue;
 
-			seq_printf(seq,
-				   " * %pM on % 5d % 4i.%03is (%#.4x)\n",
-				   backbone_gw->orig, backbone_gw->vid,
-				   secs, msecs, backbone_gw->crc);
+			seq_printf(seq, " * %pM on %5d %4i.%03is (%#.4x)\n",
+				   backbone_gw->orig,
+				   BATADV_PRINT_VID(backbone_gw->vid), secs,
+				   msecs, backbone_gw->crc);
 		}
 		rcu_read_unlock();
 	}

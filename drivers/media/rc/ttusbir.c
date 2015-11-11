@@ -302,6 +302,7 @@ static int ttusbir_probe(struct usb_interface *intf,
 						ttusbir_bulk_complete, tt);
 
 	tt->led.name = "ttusbir:green:power";
+	tt->led.default_trigger = "rc-feedback";
 	tt->led.brightness_set = ttusbir_brightness_set;
 	tt->led.brightness_get = ttusbir_brightness_get;
 	tt->is_led_on = tt->led_on = true;
@@ -317,7 +318,7 @@ static int ttusbir_probe(struct usb_interface *intf,
 	usb_to_input_id(tt->udev, &rc->input_id);
 	rc->dev.parent = &intf->dev;
 	rc->driver_type = RC_DRIVER_IR_RAW;
-	rc->allowed_protos = RC_BIT_ALL;
+	rc->allowed_protocols = RC_BIT_ALL;
 	rc->priv = tt;
 	rc->driver_name = DRIVER_NAME;
 	rc->map_name = RC_MAP_TT_1500;

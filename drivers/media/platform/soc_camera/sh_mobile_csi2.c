@@ -36,7 +36,6 @@
 
 struct sh_csi2 {
 	struct v4l2_subdev		subdev;
-	struct list_head		list;
 	unsigned int			irq;
 	unsigned long			mipi_flags;
 	void __iomem			*base;
@@ -44,11 +43,19 @@ struct sh_csi2 {
 	struct sh_csi2_client_config	*client;
 };
 
-static int sh_csi2_try_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_mbus_framefmt *mf)
+static void sh_csi2_hwinit(struct sh_csi2 *priv);
+
+static int sh_csi2_set_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
 	struct sh_csi2 *priv = container_of(sd, struct sh_csi2, subdev);
 	struct sh_csi2_pdata *pdata = priv->pdev->dev.platform_data;
+	struct v4l2_mbus_framefmt *mf = &format->format;
+	u32 tmp = (priv->client->channel & 3) << 8;
+
+	if (format->pad)
+		return -EINVAL;
 
 	if (mf->width > 8188)
 		mf->width = 8188;
@@ -58,66 +65,56 @@ static int sh_csi2_try_fmt(struct v4l2_subdev *sd,
 	switch (pdata->type) {
 	case SH_CSI2C:
 		switch (mf->code) {
-		case V4L2_MBUS_FMT_UYVY8_2X8:		/* YUV422 */
-		case V4L2_MBUS_FMT_YUYV8_1_5X8:		/* YUV420 */
-		case V4L2_MBUS_FMT_Y8_1X8:		/* RAW8 */
-		case V4L2_MBUS_FMT_SBGGR8_1X8:
-		case V4L2_MBUS_FMT_SGRBG8_1X8:
+		case MEDIA_BUS_FMT_UYVY8_2X8:		/* YUV422 */
+		case MEDIA_BUS_FMT_YUYV8_1_5X8:		/* YUV420 */
+		case MEDIA_BUS_FMT_Y8_1X8:		/* RAW8 */
+		case MEDIA_BUS_FMT_SBGGR8_1X8:
+		case MEDIA_BUS_FMT_SGRBG8_1X8:
 			break;
 		default:
 			/* All MIPI CSI-2 devices must support one of primary formats */
-			mf->code = V4L2_MBUS_FMT_YUYV8_2X8;
+			mf->code = MEDIA_BUS_FMT_YUYV8_2X8;
 		}
 		break;
 	case SH_CSI2I:
 		switch (mf->code) {
-		case V4L2_MBUS_FMT_Y8_1X8:		/* RAW8 */
-		case V4L2_MBUS_FMT_SBGGR8_1X8:
-		case V4L2_MBUS_FMT_SGRBG8_1X8:
-		case V4L2_MBUS_FMT_SBGGR10_1X10:	/* RAW10 */
-		case V4L2_MBUS_FMT_SBGGR12_1X12:	/* RAW12 */
+		case MEDIA_BUS_FMT_Y8_1X8:		/* RAW8 */
+		case MEDIA_BUS_FMT_SBGGR8_1X8:
+		case MEDIA_BUS_FMT_SGRBG8_1X8:
+		case MEDIA_BUS_FMT_SBGGR10_1X10:	/* RAW10 */
+		case MEDIA_BUS_FMT_SBGGR12_1X12:	/* RAW12 */
 			break;
 		default:
 			/* All MIPI CSI-2 devices must support one of primary formats */
-			mf->code = V4L2_MBUS_FMT_SBGGR8_1X8;
+			mf->code = MEDIA_BUS_FMT_SBGGR8_1X8;
 		}
 		break;
 	}
 
-	return 0;
-}
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
+		cfg->try_fmt = *mf;
+		return 0;
+	}
 
-/*
- * We have done our best in try_fmt to try and tell the sensor, which formats
- * we support. If now the configuration is unsuitable for us we can only
- * error out.
- */
-static int sh_csi2_s_fmt(struct v4l2_subdev *sd,
-			 struct v4l2_mbus_framefmt *mf)
-{
-	struct sh_csi2 *priv = container_of(sd, struct sh_csi2, subdev);
-	u32 tmp = (priv->client->channel & 3) << 8;
-
-	dev_dbg(sd->v4l2_dev->dev, "%s(%u)\n", __func__, mf->code);
 	if (mf->width > 8188 || mf->width & 1)
 		return -EINVAL;
 
 	switch (mf->code) {
-	case V4L2_MBUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
 		tmp |= 0x1e;	/* YUV422 8 bit */
 		break;
-	case V4L2_MBUS_FMT_YUYV8_1_5X8:
+	case MEDIA_BUS_FMT_YUYV8_1_5X8:
 		tmp |= 0x18;	/* YUV420 8 bit */
 		break;
-	case V4L2_MBUS_FMT_RGB555_2X8_PADHI_BE:
+	case MEDIA_BUS_FMT_RGB555_2X8_PADHI_BE:
 		tmp |= 0x21;	/* RGB555 */
 		break;
-	case V4L2_MBUS_FMT_RGB565_2X8_BE:
+	case MEDIA_BUS_FMT_RGB565_2X8_BE:
 		tmp |= 0x22;	/* RGB565 */
 		break;
-	case V4L2_MBUS_FMT_Y8_1X8:
-	case V4L2_MBUS_FMT_SBGGR8_1X8:
-	case V4L2_MBUS_FMT_SGRBG8_1X8:
+	case MEDIA_BUS_FMT_Y8_1X8:
+	case MEDIA_BUS_FMT_SBGGR8_1X8:
+	case MEDIA_BUS_FMT_SGRBG8_1X8:
 		tmp |= 0x2a;	/* RAW8 */
 		break;
 	default:
@@ -132,10 +129,58 @@ static int sh_csi2_s_fmt(struct v4l2_subdev *sd,
 static int sh_csi2_g_mbus_config(struct v4l2_subdev *sd,
 				 struct v4l2_mbus_config *cfg)
 {
-	cfg->flags = V4L2_MBUS_PCLK_SAMPLE_RISING |
-		V4L2_MBUS_HSYNC_ACTIVE_HIGH | V4L2_MBUS_VSYNC_ACTIVE_HIGH |
-		V4L2_MBUS_MASTER | V4L2_MBUS_DATA_ACTIVE_HIGH;
-	cfg->type = V4L2_MBUS_PARALLEL;
+	struct sh_csi2 *priv = container_of(sd, struct sh_csi2, subdev);
+
+	if (!priv->mipi_flags) {
+		struct soc_camera_device *icd = v4l2_get_subdev_hostdata(sd);
+		struct v4l2_subdev *client_sd = soc_camera_to_subdev(icd);
+		struct sh_csi2_pdata *pdata = priv->pdev->dev.platform_data;
+		unsigned long common_flags, csi2_flags;
+		struct v4l2_mbus_config client_cfg = {.type = V4L2_MBUS_CSI2,};
+		int ret;
+
+		/* Check if we can support this camera */
+		csi2_flags = V4L2_MBUS_CSI2_CONTINUOUS_CLOCK |
+			V4L2_MBUS_CSI2_1_LANE;
+
+		switch (pdata->type) {
+		case SH_CSI2C:
+			if (priv->client->lanes != 1)
+				csi2_flags |= V4L2_MBUS_CSI2_2_LANE;
+			break;
+		case SH_CSI2I:
+			switch (priv->client->lanes) {
+			default:
+				csi2_flags |= V4L2_MBUS_CSI2_4_LANE;
+			case 3:
+				csi2_flags |= V4L2_MBUS_CSI2_3_LANE;
+			case 2:
+				csi2_flags |= V4L2_MBUS_CSI2_2_LANE;
+			}
+		}
+
+		ret = v4l2_subdev_call(client_sd, video, g_mbus_config, &client_cfg);
+		if (ret == -ENOIOCTLCMD)
+			common_flags = csi2_flags;
+		else if (!ret)
+			common_flags = soc_mbus_config_compatible(&client_cfg,
+								  csi2_flags);
+		else
+			common_flags = 0;
+
+		if (!common_flags)
+			return -EINVAL;
+
+		/* All good: camera MIPI configuration supported */
+		priv->mipi_flags = common_flags;
+	}
+
+	if (cfg) {
+		cfg->flags = V4L2_MBUS_PCLK_SAMPLE_RISING |
+			V4L2_MBUS_HSYNC_ACTIVE_HIGH | V4L2_MBUS_VSYNC_ACTIVE_HIGH |
+			V4L2_MBUS_MASTER | V4L2_MBUS_DATA_ACTIVE_HIGH;
+		cfg->type = V4L2_MBUS_PARALLEL;
+	}
 
 	return 0;
 }
@@ -146,17 +191,28 @@ static int sh_csi2_s_mbus_config(struct v4l2_subdev *sd,
 	struct sh_csi2 *priv = container_of(sd, struct sh_csi2, subdev);
 	struct soc_camera_device *icd = v4l2_get_subdev_hostdata(sd);
 	struct v4l2_subdev *client_sd = soc_camera_to_subdev(icd);
-	struct v4l2_mbus_config client_cfg = {.type = V4L2_MBUS_CSI2,
-					      .flags = priv->mipi_flags};
+	struct v4l2_mbus_config client_cfg = {.type = V4L2_MBUS_CSI2,};
+	int ret = sh_csi2_g_mbus_config(sd, NULL);
+
+	if (ret < 0)
+		return ret;
+
+	pm_runtime_get_sync(&priv->pdev->dev);
+
+	sh_csi2_hwinit(priv);
+
+	client_cfg.flags = priv->mipi_flags;
 
 	return v4l2_subdev_call(client_sd, video, s_mbus_config, &client_cfg);
 }
 
 static struct v4l2_subdev_video_ops sh_csi2_subdev_video_ops = {
-	.s_mbus_fmt	= sh_csi2_s_fmt,
-	.try_mbus_fmt	= sh_csi2_try_fmt,
 	.g_mbus_config	= sh_csi2_g_mbus_config,
 	.s_mbus_config	= sh_csi2_s_mbus_config,
+};
+
+static struct v4l2_subdev_pad_ops sh_csi2_subdev_pad_ops = {
+	.set_fmt	= sh_csi2_set_fmt,
 };
 
 static void sh_csi2_hwinit(struct sh_csi2 *priv)
@@ -202,19 +258,19 @@ static void sh_csi2_hwinit(struct sh_csi2 *priv)
 
 static int sh_csi2_client_connect(struct sh_csi2 *priv)
 {
-	struct sh_csi2_pdata *pdata = priv->pdev->dev.platform_data;
-	struct soc_camera_device *icd = v4l2_get_subdev_hostdata(&priv->subdev);
-	struct v4l2_subdev *client_sd = soc_camera_to_subdev(icd);
 	struct device *dev = v4l2_get_subdevdata(&priv->subdev);
-	struct v4l2_mbus_config cfg;
-	unsigned long common_flags, csi2_flags;
-	int i, ret;
+	struct sh_csi2_pdata *pdata = dev->platform_data;
+	struct soc_camera_device *icd = v4l2_get_subdev_hostdata(&priv->subdev);
+	int i;
 
 	if (priv->client)
 		return -EBUSY;
 
 	for (i = 0; i < pdata->num_clients; i++)
-		if (&pdata->clients[i].pdev->dev == icd->pdev)
+		if ((pdata->clients[i].pdev &&
+		     &pdata->clients[i].pdev->dev == icd->pdev) ||
+		    (icd->control &&
+		     strcmp(pdata->clients[i].name, dev_name(icd->control))))
 			break;
 
 	dev_dbg(dev, "%s(%p): found #%d\n", __func__, dev, i);
@@ -222,45 +278,7 @@ static int sh_csi2_client_connect(struct sh_csi2 *priv)
 	if (i == pdata->num_clients)
 		return -ENODEV;
 
-	/* Check if we can support this camera */
-	csi2_flags = V4L2_MBUS_CSI2_CONTINUOUS_CLOCK | V4L2_MBUS_CSI2_1_LANE;
-
-	switch (pdata->type) {
-	case SH_CSI2C:
-		if (pdata->clients[i].lanes != 1)
-			csi2_flags |= V4L2_MBUS_CSI2_2_LANE;
-		break;
-	case SH_CSI2I:
-		switch (pdata->clients[i].lanes) {
-		default:
-			csi2_flags |= V4L2_MBUS_CSI2_4_LANE;
-		case 3:
-			csi2_flags |= V4L2_MBUS_CSI2_3_LANE;
-		case 2:
-			csi2_flags |= V4L2_MBUS_CSI2_2_LANE;
-		}
-	}
-
-	cfg.type = V4L2_MBUS_CSI2;
-	ret = v4l2_subdev_call(client_sd, video, g_mbus_config, &cfg);
-	if (ret == -ENOIOCTLCMD)
-		common_flags = csi2_flags;
-	else if (!ret)
-		common_flags = soc_mbus_config_compatible(&cfg,
-							  csi2_flags);
-	else
-		common_flags = 0;
-
-	if (!common_flags)
-		return -EINVAL;
-
-	/* All good: camera MIPI configuration supported */
-	priv->mipi_flags = common_flags;
 	priv->client = pdata->clients + i;
-
-	pm_runtime_get_sync(dev);
-
-	sh_csi2_hwinit(priv);
 
 	return 0;
 }
@@ -293,6 +311,7 @@ static struct v4l2_subdev_core_ops sh_csi2_subdev_core_ops = {
 static struct v4l2_subdev_ops sh_csi2_subdev_ops = {
 	.core	= &sh_csi2_subdev_core_ops,
 	.video	= &sh_csi2_subdev_video_ops,
+	.pad	= &sh_csi2_subdev_pad_ops,
 };
 
 static int sh_csi2_probe(struct platform_device *pdev)
@@ -304,11 +323,18 @@ static int sh_csi2_probe(struct platform_device *pdev)
 	/* Platform data specify the PHY, lanes, ECC, CRC */
 	struct sh_csi2_pdata *pdata = pdev->dev.platform_data;
 
+	if (!pdata)
+		return -EINVAL;
+
+	priv = devm_kzalloc(&pdev->dev, sizeof(struct sh_csi2), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	/* Interrupt unused so far */
 	irq = platform_get_irq(pdev, 0);
 
-	if (!res || (int)irq <= 0 || !pdata) {
+	if (!res || (int)irq <= 0) {
 		dev_err(&pdev->dev, "Not enough CSI2 platform resources.\n");
 		return -ENODEV;
 	}
@@ -319,10 +345,6 @@ static int sh_csi2_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(struct sh_csi2), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
 	priv->irq = irq;
 
 	priv->base = devm_ioremap_resource(&pdev->dev, res);
@@ -330,37 +352,34 @@ static int sh_csi2_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->base);
 
 	priv->pdev = pdev;
-	platform_set_drvdata(pdev, priv);
+	priv->subdev.owner = THIS_MODULE;
+	priv->subdev.dev = &pdev->dev;
+	platform_set_drvdata(pdev, &priv->subdev);
 
 	v4l2_subdev_init(&priv->subdev, &sh_csi2_subdev_ops);
 	v4l2_set_subdevdata(&priv->subdev, &pdev->dev);
 
 	snprintf(priv->subdev.name, V4L2_SUBDEV_NAME_SIZE, "%s.mipi-csi",
-		 dev_name(pdata->v4l2_dev->dev));
-	ret = v4l2_device_register_subdev(pdata->v4l2_dev, &priv->subdev);
-	dev_dbg(&pdev->dev, "%s(%p): ret(register_subdev) = %d\n", __func__, priv, ret);
+		 dev_name(&pdev->dev));
+
+	ret = v4l2_async_register_subdev(&priv->subdev);
 	if (ret < 0)
-		goto esdreg;
+		return ret;
 
 	pm_runtime_enable(&pdev->dev);
 
 	dev_dbg(&pdev->dev, "CSI2 probed.\n");
 
 	return 0;
-
-esdreg:
-	platform_set_drvdata(pdev, NULL);
-
-	return ret;
 }
 
 static int sh_csi2_remove(struct platform_device *pdev)
 {
-	struct sh_csi2 *priv = platform_get_drvdata(pdev);
+	struct v4l2_subdev *subdev = platform_get_drvdata(pdev);
+	struct sh_csi2 *priv = container_of(subdev, struct sh_csi2, subdev);
 
-	v4l2_device_unregister_subdev(&priv->subdev);
+	v4l2_async_unregister_subdev(&priv->subdev);
 	pm_runtime_disable(&pdev->dev);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
@@ -370,7 +389,6 @@ static struct platform_driver __refdata sh_csi2_pdrv = {
 	.probe	= sh_csi2_probe,
 	.driver	= {
 		.name	= "sh-mobile-csi2",
-		.owner	= THIS_MODULE,
 	},
 };
 

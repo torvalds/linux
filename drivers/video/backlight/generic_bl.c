@@ -52,24 +52,6 @@ static int genericbl_get_intensity(struct backlight_device *bd)
 	return genericbl_intensity;
 }
 
-/*
- * Called when the battery is low to limit the backlight intensity.
- * If limit==0 clear any limit, otherwise limit the intensity
- */
-void genericbl_limit_intensity(int limit)
-{
-	struct backlight_device *bd = generic_backlight_device;
-
-	mutex_lock(&bd->ops_lock);
-	if (limit)
-		bd->props.state |= GENERICBL_BATTLOW;
-	else
-		bd->props.state &= ~GENERICBL_BATTLOW;
-	backlight_update_status(generic_backlight_device);
-	mutex_unlock(&bd->ops_lock);
-}
-EXPORT_SYMBOL(genericbl_limit_intensity);
-
 static const struct backlight_ops genericbl_ops = {
 	.options = BL_CORE_SUSPENDRESUME,
 	.get_brightness = genericbl_get_intensity,
@@ -79,7 +61,7 @@ static const struct backlight_ops genericbl_ops = {
 static int genericbl_probe(struct platform_device *pdev)
 {
 	struct backlight_properties props;
-	struct generic_bl_info *machinfo = pdev->dev.platform_data;
+	struct generic_bl_info *machinfo = dev_get_platdata(&pdev->dev);
 	const char *name = "generic-bl";
 	struct backlight_device *bd;
 
@@ -93,8 +75,8 @@ static int genericbl_probe(struct platform_device *pdev)
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = machinfo->max_intensity;
-	bd = backlight_device_register(name, &pdev->dev, NULL, &genericbl_ops,
-				       &props);
+	bd = devm_backlight_device_register(&pdev->dev, name, &pdev->dev,
+					NULL, &genericbl_ops, &props);
 	if (IS_ERR(bd))
 		return PTR_ERR(bd);
 
@@ -117,8 +99,6 @@ static int genericbl_remove(struct platform_device *pdev)
 	bd->props.power = 0;
 	bd->props.brightness = 0;
 	backlight_update_status(bd);
-
-	backlight_device_unregister(bd);
 
 	dev_info(&pdev->dev, "Generic Backlight Driver Unloaded\n");
 	return 0;

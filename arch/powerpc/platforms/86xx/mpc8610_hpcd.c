@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/seq_file.h>
 #include <linux/of.h>
+#include <linux/fsl/guts.h>
 
 #include <asm/time.h>
 #include <asm/machdep.h>
@@ -38,7 +39,6 @@
 #include <sysdev/fsl_pci.h>
 #include <sysdev/fsl_soc.h>
 #include <sysdev/simple_gpio.h>
-#include <asm/fsl_guts.h>
 
 #include "mpc86xx.h"
 
@@ -85,7 +85,7 @@ static void __init mpc8610_suspend_init(void)
 static inline void mpc8610_suspend_init(void) { }
 #endif /* CONFIG_SUSPEND */
 
-static struct of_device_id __initdata mpc8610_ids[] = {
+static const struct of_device_id mpc8610_ids[] __initconst = {
 	{ .compatible = "fsl,mpc8610-immr", },
 	{ .compatible = "fsl,mpc8610-guts", },
 	{ .compatible = "simple-bus", },

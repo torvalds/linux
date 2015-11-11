@@ -1348,14 +1348,6 @@ struct il_rx_mpdu_res_start {
 #define TX_CMD_SEC_KEY128	0x08
 
 /*
- * security overhead sizes
- */
-#define WEP_IV_LEN 4
-#define WEP_ICV_LEN 4
-#define CCMP_MIC_LEN 8
-#define TKIP_ICV_LEN 4
-
-/*
  * C_TX = 0x1c (command)
  */
 
@@ -2278,7 +2270,8 @@ struct il_spectrum_notification {
  */
 #define IL_POWER_VEC_SIZE 5
 
-#define IL_POWER_DRIVER_ALLOW_SLEEP_MSK	cpu_to_le16(BIT(0))
+#define IL_POWER_DRIVER_ALLOW_SLEEP_MSK		cpu_to_le16(BIT(0))
+#define IL_POWER_SLEEP_OVER_DTIM_MSK		cpu_to_le16(BIT(2))
 #define IL_POWER_PCI_PM_MSK			cpu_to_le16(BIT(3))
 
 struct il3945_powertable_cmd {

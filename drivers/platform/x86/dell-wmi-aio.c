@@ -24,7 +24,6 @@
 #include <linux/types.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
-#include <acpi/acpi_drivers.h>
 #include <linux/acpi.h>
 #include <linux/string.h>
 

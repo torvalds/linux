@@ -25,6 +25,7 @@
 #define PACA_IRQ_EE		0x04
 #define PACA_IRQ_DEC		0x08 /* Or FIT */
 #define PACA_IRQ_EE_EDGE	0x10 /* BookE only */
+#define PACA_IRQ_HMI		0x20
 
 #endif /* CONFIG_PPC64 */
 
@@ -96,10 +97,11 @@ static inline bool arch_irqs_disabled(void)
 #endif
 
 #define hard_irq_disable()	do {			\
-	u8 _was_enabled = get_paca()->soft_enabled;	\
+	u8 _was_enabled;				\
 	__hard_irq_disable();				\
-	get_paca()->soft_enabled = 0;			\
-	get_paca()->irq_happened |= PACA_IRQ_HARD_DIS;	\
+	_was_enabled = local_paca->soft_enabled;	\
+	local_paca->soft_enabled = 0;			\
+	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;	\
 	if (_was_enabled)				\
 		trace_hardirqs_off();			\
 } while(0)

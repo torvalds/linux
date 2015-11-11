@@ -732,10 +732,10 @@ static int ftmac100_alloc_buffers(struct ftmac100 *priv)
 {
 	int i;
 
-	priv->descs = dma_alloc_coherent(priv->dev,
-					 sizeof(struct ftmac100_descs),
-					 &priv->descs_dma_addr,
-					 GFP_KERNEL | __GFP_ZERO);
+	priv->descs = dma_zalloc_coherent(priv->dev,
+					  sizeof(struct ftmac100_descs),
+					  &priv->descs_dma_addr,
+					  GFP_KERNEL);
 	if (!priv->descs)
 		return -ENOMEM;
 
@@ -1085,7 +1085,7 @@ static int ftmac100_probe(struct platform_device *pdev)
 	}
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
-	SET_ETHTOOL_OPS(netdev, &ftmac100_ethtool_ops);
+	netdev->ethtool_ops = &ftmac100_ethtool_ops;
 	netdev->netdev_ops = &ftmac100_netdev_ops;
 
 	platform_set_drvdata(pdev, netdev);
@@ -1149,7 +1149,6 @@ err_ioremap:
 	release_resource(priv->res);
 err_req_mem:
 	netif_napi_del(&priv->napi);
-	platform_set_drvdata(pdev, NULL);
 	free_netdev(netdev);
 err_alloc_etherdev:
 	return err;
@@ -1169,7 +1168,6 @@ static int __exit ftmac100_remove(struct platform_device *pdev)
 	release_resource(priv->res);
 
 	netif_napi_del(&priv->napi);
-	platform_set_drvdata(pdev, NULL);
 	free_netdev(netdev);
 	return 0;
 }
@@ -1179,7 +1177,6 @@ static struct platform_driver ftmac100_driver = {
 	.remove		= __exit_p(ftmac100_remove),
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 

@@ -39,6 +39,7 @@
 #include <linux/compiler.h>
 
 #include <linux/atomic.h>
+#include <linux/netdevice.h>
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_mad.h>
@@ -154,7 +155,17 @@ struct ib_sa_path_rec {
 	u8           packet_life_time_selector;
 	u8           packet_life_time;
 	u8           preference;
+	u8           dmac[ETH_ALEN];
+	/* ignored in IB */
+	int	     ifindex;
+	/* ignored in IB */
+	struct net  *net;
 };
+
+static inline struct net_device *ib_get_ndev_from_path(struct ib_sa_path_rec *rec)
+{
+	return rec->net ? dev_get_by_index(rec->net, rec->ifindex) : NULL;
+}
 
 #define IB_SA_MCMEMBER_REC_MGID				IB_SA_COMP_MASK( 0)
 #define IB_SA_MCMEMBER_REC_PORT_GID			IB_SA_COMP_MASK( 1)
@@ -402,6 +413,12 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 			 struct ib_ah_attr *ah_attr);
 
 /**
+ * ib_sa_pack_path - Conert a path record from struct ib_sa_path_rec
+ * to IB MAD wire format.
+ */
+void ib_sa_pack_path(struct ib_sa_path_rec *rec, void *attribute);
+
+/**
  * ib_sa_unpack_path - Convert a path record from MAD format to struct
  * ib_sa_path_rec.
  */
@@ -418,4 +435,5 @@ int ib_sa_guid_info_rec_query(struct ib_sa_client *client,
 					       void *context),
 			      void *context,
 			      struct ib_sa_query **sa_query);
+
 #endif /* IB_SA_H */

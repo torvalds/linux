@@ -1,0 +1,64 @@
+Kernel driver tps40422
+======================
+
+Supported chips:
+  * TI TPS40422
+    Prefix: 'tps40422'
+    Addresses scanned: -
+    Datasheet: http://www.ti.com/lit/gpn/tps40422
+
+Author: Zhu Laiwen <richard.zhu@nsn.com>
+
+
+Description
+-----------
+
+This driver supports TI TPS40422 Dual-Output or Two-Phase Synchronous Buck
+Controller with PMBus
+
+The driver is a client driver to the core PMBus driver.
+Please see Documentation/hwmon/pmbus for details on PMBus client drivers.
+
+
+Usage Notes
+-----------
+
+This driver does not auto-detect devices. You will have to instantiate the
+devices explicitly. Please see Documentation/i2c/instantiating-devices for
+details.
+
+
+Platform data support
+---------------------
+
+The driver supports standard PMBus driver platform data.
+
+
+Sysfs entries
+-------------
+
+The following attributes are supported.
+
+in[1-2]_label		"vout[1-2]"
+in[1-2]_input		Measured voltage. From READ_VOUT register.
+in[1-2]_alarm		voltage alarm.
+
+curr[1-2]_input		Measured current. From READ_IOUT register.
+curr[1-2]_label		"iout[1-2]"
+curr1_max		Maximum current. From IOUT_OC_WARN_LIMIT register.
+curr1_crit		Critical maximum current. From IOUT_OC_FAULT_LIMIT register.
+curr1_max_alarm		Current high alarm. From IOUT_OC_WARN_LIMIT status.
+curr1_crit_alarm	Current critical high alarm. From IOUT_OC_FAULT status.
+curr2_alarm		Current high alarm. From IOUT_OC_WARNING status.
+
+temp1_input		Measured temperature. From READ_TEMPERATURE_2 register on page 0.
+temp1_max		Maximum temperature. From OT_WARN_LIMIT register.
+temp1_crit		Critical high temperature. From OT_FAULT_LIMIT register.
+temp1_max_alarm		Chip temperature high alarm. Set by comparing
+			READ_TEMPERATURE_2 on page 0 with OT_WARN_LIMIT if TEMP_OT_WARNING
+			status is set.
+temp1_crit_alarm	Chip temperature critical high alarm. Set by comparing
+			READ_TEMPERATURE_2 on page 0 with OT_FAULT_LIMIT if TEMP_OT_FAULT
+			status is set.
+temp2_input		Measured temperature. From READ_TEMPERATURE_2 register on page 1.
+temp2_alarm		Chip temperature alarm on page 1.

@@ -1,0 +1,67 @@
+Renesas AHB to PCI bridge
+-------------------------
+
+This is the bridge used internally to connect the USB controllers to the
+AHB. There is one bridge instance per USB port connected to the internal
+OHCI and EHCI controllers.
+
+Required properties:
+- compatible: "renesas,pci-r8a7790" for the R8A7790 SoC;
+	      "renesas,pci-r8a7791" for the R8A7791 SoC;
+	      "renesas,pci-r8a7794" for the R8A7794 SoC.
+- reg:	A list of physical regions to access the device: the first is
+	the operational registers for the OHCI/EHCI controllers and the
+	second is for the bridge configuration and control registers.
+- interrupts: interrupt for the device.
+- clocks: The reference to the device clock.
+- bus-range: The PCI bus number range; as this is a single bus, the range
+	     should be specified as the same value twice.
+- #address-cells: must be 3.
+- #size-cells: must be 2.
+- #interrupt-cells: must be 1.
+- interrupt-map: standard property used to define the mapping of the PCI
+  interrupts to the GIC interrupts.
+- interrupt-map-mask: standard property that helps to define the interrupt
+  mapping.
+
+Example SoC configuration:
+
+	pci0: pci@ee090000  {
+		compatible = "renesas,pci-r8a7790";
+		clocks = <&mstp7_clks R8A7790_CLK_EHCI>;
+		reg = <0x0 0xee090000 0x0 0xc00>,
+		      <0x0 0xee080000 0x0 0x1100>;
+		interrupts = <0 108 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+
+		bus-range = <0 0>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0xff00 0 0 0x7>;
+		interrupt-map = <0x0000 0 0 1 &gic 0 108 IRQ_TYPE_LEVEL_HIGH
+				 0x0800 0 0 1 &gic 0 108 IRQ_TYPE_LEVEL_HIGH
+				 0x1000 0 0 2 &gic 0 108 IRQ_TYPE_LEVEL_HIGH>;
+
+		pci@0,1 {
+			reg = <0x800 0 0 0 0>;
+			device_type = "pci";
+			phys = <&usbphy 0 0>;
+			phy-names = "usb";
+		};
+
+		pci@0,2 {
+			reg = <0x1000 0 0 0 0>;
+			device_type = "pci";
+			phys = <&usbphy 0 0>;
+			phy-names = "usb";
+		};
+	};
+
+Example board setup:
+
+&pci0 {
+	status = "okay";
+	pinctrl-0 = <&usb0_pins>;
+	pinctrl-names = "default";
+};

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/export.h>
+#define EXPORT_ACPI_INTERFACES
+
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acevents.h"
@@ -51,6 +52,9 @@
 
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utxfinit")
+
+/* For acpi_exec only */
+void ae_do_object_overrides(void);
 
 /*******************************************************************************
  *
@@ -64,7 +68,8 @@ ACPI_MODULE_NAME("utxfinit")
  *              called, so any early initialization belongs here.
  *
  ******************************************************************************/
-acpi_status acpi_initialize_subsystem(void)
+
+acpi_status __init acpi_initialize_subsystem(void)
 {
 	acpi_status status;
 
@@ -119,12 +124,10 @@ acpi_status acpi_initialize_subsystem(void)
 		return_ACPI_STATUS(status);
 	}
 
-	/* If configured, initialize the AML debugger */
-
-	ACPI_DEBUGGER_EXEC(status = acpi_db_initialize());
-	return_ACPI_STATUS(status);
+	return_ACPI_STATUS(AE_OK);
 }
-ACPI_EXPORT_SYMBOL(acpi_initialize_subsystem)
+
+ACPI_EXPORT_SYMBOL_INIT(acpi_initialize_subsystem)
 
 /*******************************************************************************
  *
@@ -138,7 +141,7 @@ ACPI_EXPORT_SYMBOL(acpi_initialize_subsystem)
  *              Puts system into ACPI mode if it isn't already.
  *
  ******************************************************************************/
-acpi_status acpi_enable_subsystem(u32 flags)
+acpi_status __init acpi_enable_subsystem(u32 flags)
 {
 	acpi_status status = AE_OK;
 
@@ -165,10 +168,12 @@ acpi_status acpi_enable_subsystem(u32 flags)
 	 * Obtain a permanent mapping for the FACS. This is required for the
 	 * Global Lock and the Firmware Waking Vector
 	 */
-	status = acpi_tb_initialize_facs();
-	if (ACPI_FAILURE(status)) {
-		ACPI_WARNING((AE_INFO, "Could not map the FACS table"));
-		return_ACPI_STATUS(status);
+	if (!(flags & ACPI_NO_FACS_INIT)) {
+		status = acpi_tb_initialize_facs();
+		if (ACPI_FAILURE(status)) {
+			ACPI_WARNING((AE_INFO, "Could not map the FACS table"));
+			return_ACPI_STATUS(status);
+		}
 	}
 #endif				/* !ACPI_REDUCED_HARDWARE */
 
@@ -228,7 +233,8 @@ acpi_status acpi_enable_subsystem(u32 flags)
 
 	return_ACPI_STATUS(status);
 }
-ACPI_EXPORT_SYMBOL(acpi_enable_subsystem)
+
+ACPI_EXPORT_SYMBOL_INIT(acpi_enable_subsystem)
 
 /*******************************************************************************
  *
@@ -242,7 +248,7 @@ ACPI_EXPORT_SYMBOL(acpi_enable_subsystem)
  *              objects and executing AML code for Regions, buffers, etc.
  *
  ******************************************************************************/
-acpi_status acpi_initialize_objects(u32 flags)
+acpi_status __init acpi_initialize_objects(u32 flags)
 {
 	acpi_status status = AE_OK;
 
@@ -264,6 +270,13 @@ acpi_status acpi_initialize_objects(u32 flags)
 			return_ACPI_STATUS(status);
 		}
 	}
+#ifdef ACPI_EXEC_APP
+	/*
+	 * This call implements the "initialization file" option for acpi_exec.
+	 * This is the precise point that we want to perform the overrides.
+	 */
+	ae_do_object_overrides();
+#endif
 
 	/*
 	 * Execute any module-level code that was detected during the table load
@@ -314,4 +327,5 @@ acpi_status acpi_initialize_objects(u32 flags)
 	acpi_gbl_startup_flags |= ACPI_INITIALIZED_OK;
 	return_ACPI_STATUS(status);
 }
-ACPI_EXPORT_SYMBOL(acpi_initialize_objects)
+
+ACPI_EXPORT_SYMBOL_INIT(acpi_initialize_objects)

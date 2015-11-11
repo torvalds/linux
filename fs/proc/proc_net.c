@@ -113,9 +113,11 @@ static struct net *get_proc_task_net(struct inode *dir)
 	rcu_read_lock();
 	task = pid_task(proc_pid(dir), PIDTYPE_PID);
 	if (task != NULL) {
-		ns = task_nsproxy(task);
+		task_lock(task);
+		ns = task->nsproxy;
 		if (ns != NULL)
 			net = get_net(ns->net_ns);
+		task_unlock(task);
 	}
 	rcu_read_unlock();
 
@@ -140,7 +142,7 @@ static struct dentry *proc_tgid_net_lookup(struct inode *dir,
 static int proc_tgid_net_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		struct kstat *stat)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct net *net;
 
 	net = get_proc_task_net(inode);
@@ -160,16 +162,15 @@ const struct inode_operations proc_net_inode_operations = {
 	.getattr	= proc_tgid_net_getattr,
 };
 
-static int proc_tgid_net_readdir(struct file *filp, void *dirent,
-		filldir_t filldir)
+static int proc_tgid_net_readdir(struct file *file, struct dir_context *ctx)
 {
 	int ret;
 	struct net *net;
 
 	ret = -EINVAL;
-	net = get_proc_task_net(file_inode(filp));
+	net = get_proc_task_net(file_inode(file));
 	if (net != NULL) {
-		ret = proc_readdir_de(net->proc_net, filp, dirent, filldir);
+		ret = proc_readdir_de(net->proc_net, file, ctx);
 		put_net(net);
 	}
 	return ret;
@@ -178,7 +179,7 @@ static int proc_tgid_net_readdir(struct file *filp, void *dirent,
 const struct file_operations proc_net_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.readdir	= proc_tgid_net_readdir,
+	.iterate	= proc_tgid_net_readdir,
 };
 
 static __net_init int proc_net_ns_init(struct net *net)
@@ -191,6 +192,7 @@ static __net_init int proc_net_ns_init(struct net *net)
 	if (!netd)
 		goto out;
 
+	netd->subdir = RB_ROOT;
 	netd->data = net;
 	netd->nlink = 2;
 	netd->namelen = 3;

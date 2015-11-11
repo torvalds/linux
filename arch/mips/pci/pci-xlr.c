@@ -214,14 +214,8 @@ static int get_irq_vector(const struct pci_dev *dev)
 }
 
 #ifdef CONFIG_PCI_MSI
-void destroy_irq(unsigned int irq)
-{
-	    /* nothing to do yet */
-}
-
 void arch_teardown_msi_irq(unsigned int irq)
 {
-	destroy_irq(irq);
 }
 
 int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
@@ -263,12 +257,10 @@ int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
 		MSI_DATA_DELIVERY_FIXED;
 
 	ret = irq_set_msi_desc(irq, desc);
-	if (ret < 0) {
-		destroy_irq(irq);
+	if (ret < 0)
 		return ret;
-	}
 
-	write_msi_msg(irq, &msg);
+	pci_write_msi_msg(irq, &msg);
 	return 0;
 }
 #endif

@@ -7,12 +7,9 @@
  * License terms: GNU General Public License (GPL) version 2
  */
 
-#include <linux/clk.h>
-#include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/mfd/dbx500-prcmu.h>
 #include <linux/platform_data/clk-ux500.h>
-
 #include "clk.h"
 
 void u9540_clk_init(void)

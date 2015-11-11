@@ -156,7 +156,7 @@ int v9fs_acl_chmod(struct inode *inode, struct p9_fid *fid)
 		return -EOPNOTSUPP;
 	acl = v9fs_get_cached_acl(inode, ACL_TYPE_ACCESS);
 	if (acl) {
-		retval = posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
+		retval = __posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
 		if (retval)
 			return retval;
 		set_cached_acl(inode, ACL_TYPE_ACCESS, acl);
@@ -200,7 +200,7 @@ int v9fs_acl_mode(struct inode *dir, umode_t *modep,
 	if (acl) {
 		if (S_ISDIR(mode))
 			*dpacl = posix_acl_dup(acl);
-		retval = posix_acl_create(&acl, GFP_NOFS, &mode);
+		retval = __posix_acl_create(&acl, GFP_NOFS, &mode);
 		if (retval < 0)
 			return retval;
 		if (retval > 0)
@@ -247,7 +247,7 @@ static int v9fs_xattr_get_acl(struct dentry *dentry, const char *name,
 	if ((v9ses->flags & V9FS_ACCESS_MASK) != V9FS_ACCESS_CLIENT)
 		return v9fs_remote_get_acl(dentry, name, buffer, size, type);
 
-	acl = v9fs_get_cached_acl(dentry->d_inode, type);
+	acl = v9fs_get_cached_acl(d_inode(dentry), type);
 	if (IS_ERR(acl))
 		return PTR_ERR(acl);
 	if (acl == NULL)
@@ -285,7 +285,7 @@ static int v9fs_xattr_set_acl(struct dentry *dentry, const char *name,
 	int retval;
 	struct posix_acl *acl;
 	struct v9fs_session_info *v9ses;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 
 	if (strcmp(name, "") != 0)
 		return -EINVAL;

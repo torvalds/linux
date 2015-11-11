@@ -55,8 +55,10 @@
  * The bits we set in HCR:
  * TAC:		Trap ACTLR
  * TSC:		Trap SMC
+ * TVM:		Trap VM ops (until MMU and caches are on)
  * TSW:		Trap cache operations by set/way
  * TWI:		Trap WFI
+ * TWE:		Trap WFE
  * TIDCP:	Trap L2CTLR/L2ECTLR
  * BSU_IS:	Upgrade barriers to the inner shareable domain
  * FB:		Force broadcast of all maintainance operations
@@ -67,8 +69,7 @@
  */
 #define HCR_GUEST_MASK (HCR_TSC | HCR_TSW | HCR_TWI | HCR_VM | HCR_BSU_IS | \
 			HCR_FB | HCR_TAC | HCR_AMO | HCR_IMO | HCR_FMO | \
-			HCR_SWIO | HCR_TIDCP)
-#define HCR_VIRT_EXCP_MASK (HCR_VA | HCR_VI | HCR_VF)
+			HCR_TVM | HCR_TWE | HCR_SWIO | HCR_TIDCP)
 
 /* System Control Register (SCTLR) bits */
 #define SCTLR_TE	(1 << 30)
@@ -95,12 +96,12 @@
 #define TTBCR_IRGN1	(3 << 24)
 #define TTBCR_EPD1	(1 << 23)
 #define TTBCR_A1	(1 << 22)
-#define TTBCR_T1SZ	(3 << 16)
+#define TTBCR_T1SZ	(7 << 16)
 #define TTBCR_SH0	(3 << 12)
 #define TTBCR_ORGN0	(3 << 10)
 #define TTBCR_IRGN0	(3 << 8)
 #define TTBCR_EPD0	(1 << 7)
-#define TTBCR_T0SZ	3
+#define TTBCR_T0SZ	(7 << 0)
 #define HTCR_MASK	(TTBCR_T0SZ | TTBCR_IRGN0 | TTBCR_ORGN0 | TTBCR_SH0)
 
 /* Hyp System Trap Register */
@@ -135,7 +136,6 @@
 #define KVM_PHYS_MASK	(KVM_PHYS_SIZE - 1ULL)
 #define PTRS_PER_S2_PGD	(1ULL << (KVM_PHYS_SHIFT - 30))
 #define S2_PGD_ORDER	get_order(PTRS_PER_S2_PGD * sizeof(pgd_t))
-#define S2_PGD_SIZE	(1 << S2_PGD_ORDER)
 
 /* Virtualization Translation Control Register (VTCR) bits */
 #define VTCR_SH0	(3 << 12)
@@ -185,6 +185,7 @@
 #define HSR_COND	(0xfU << HSR_COND_SHIFT)
 
 #define FSC_FAULT	(0x04)
+#define FSC_ACCESS	(0x08)
 #define FSC_PERM	(0x0c)
 
 /* Hyp Prefetch Fault Address Register (HPFAR/HDFAR) */
@@ -209,10 +210,32 @@
 #define HSR_EC_DABT	(0x24)
 #define HSR_EC_DABT_HYP	(0x25)
 
+#define HSR_WFI_IS_WFE		(1U << 0)
+
 #define HSR_HVC_IMM_MASK	((1UL << 16) - 1)
 
 #define HSR_DABT_S1PTW		(1U << 7)
 #define HSR_DABT_CM		(1U << 8)
 #define HSR_DABT_EA		(1U << 9)
+
+#define kvm_arm_exception_type	\
+	{0, "RESET" }, 		\
+	{1, "UNDEFINED" },	\
+	{2, "SOFTWARE" },	\
+	{3, "PREF_ABORT" },	\
+	{4, "DATA_ABORT" },	\
+	{5, "IRQ" },		\
+	{6, "FIQ" },		\
+	{7, "HVC" }
+
+#define HSRECN(x) { HSR_EC_##x, #x }
+
+#define kvm_arm_exception_class \
+	HSRECN(UNKNOWN), HSRECN(WFI), HSRECN(CP15_32), HSRECN(CP15_64), \
+	HSRECN(CP14_MR), HSRECN(CP14_LS), HSRECN(CP_0_13), HSRECN(CP10_ID), \
+	HSRECN(JAZELLE), HSRECN(BXJ), HSRECN(CP14_64), HSRECN(SVC_HYP), \
+	HSRECN(HVC), HSRECN(SMC), HSRECN(IABT), HSRECN(IABT_HYP), \
+	HSRECN(DABT), HSRECN(DABT_HYP)
+
 
 #endif /* __ARM_KVM_ARM_H__ */

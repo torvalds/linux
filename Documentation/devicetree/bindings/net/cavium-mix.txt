@@ -18,12 +18,7 @@ Properties:
 - interrupts: Two interrupt specifiers.  The first is the MIX
   interrupt routing and the second the routing for the AGL interrupts.
 
-- mac-address: Optional, the MAC address to assign to the device.
-
-- local-mac-address: Optional, the MAC address to assign to the device
-  if mac-address is not specified.
-
-- phy-handle: Optional, a phandle for the PHY device connected to this device.
+- phy-handle: Optional, see ethernet.txt file in the same directory.
 
 Example:
 	ethernet@1070000100800 {

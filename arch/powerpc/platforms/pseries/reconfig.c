@@ -12,7 +12,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/kref.h>
 #include <linux/notifier.h>
 #include <linux/proc_fs.h>
 #include <linux/slab.h>
@@ -23,37 +22,7 @@
 #include <asm/uaccess.h>
 #include <asm/mmu.h>
 
-/**
- *	derive_parent - basically like dirname(1)
- *	@path:  the full_name of a node to be added to the tree
- *
- *	Returns the node which should be the parent of the node
- *	described by path.  E.g., for path = "/foo/bar", returns
- *	the node with full_name = "/foo".
- */
-static struct device_node *derive_parent(const char *path)
-{
-	struct device_node *parent = NULL;
-	char *parent_path = "/";
-	size_t parent_path_len = strrchr(path, '/') - path + 1;
-
-	/* reject if path is "/" */
-	if (!strcmp(path, "/"))
-		return ERR_PTR(-EINVAL);
-
-	if (strrchr(path, '/') != path) {
-		parent_path = kmalloc(parent_path_len, GFP_KERNEL);
-		if (!parent_path)
-			return ERR_PTR(-ENOMEM);
-		strlcpy(parent_path, path, parent_path_len);
-	}
-	parent = of_find_node_by_path(parent_path);
-	if (!parent)
-		return ERR_PTR(-EINVAL);
-	if (strcmp(parent_path, "/"))
-		kfree(parent_path);
-	return parent;
-}
+#include "of_helpers.h"
 
 static int pSeries_reconfig_add_node(const char *path, struct property *proplist)
 {
@@ -70,9 +39,9 @@ static int pSeries_reconfig_add_node(const char *path, struct property *proplist
 
 	np->properties = proplist;
 	of_node_set_flag(np, OF_DYNAMIC);
-	kref_init(&np->kref);
+	of_node_init(np);
 
-	np->parent = derive_parent(path);
+	np->parent = pseries_of_derive_parent(path);
 	if (IS_ERR(np->parent)) {
 		err = PTR_ERR(np->parent);
 		goto out_err;
@@ -447,13 +416,10 @@ static int proc_ppc64_create_ofdt(void)
 {
 	struct proc_dir_entry *ent;
 
-	if (!machine_is(pseries))
-		return 0;
-
 	ent = proc_create("powerpc/ofdt", S_IWUSR, NULL, &ofdt_fops);
 	if (ent)
 		proc_set_size(ent, 0);
 
 	return 0;
 }
-__initcall(proc_ppc64_create_ofdt);
+machine_device_initcall(pseries, proc_ppc64_create_ofdt);

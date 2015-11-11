@@ -1,0 +1,124 @@
+AXP family PMIC device tree bindings
+
+The axp20x family current members :
+axp152 (X-Powers)
+axp202 (X-Powers)
+axp209 (X-Powers)
+axp221 (X-Powers)
+
+Required properties:
+- compatible: "x-powers,axp152", "x-powers,axp202", "x-powers,axp209",
+	      "x-powers,axp221"
+- reg: The I2C slave address for the AXP chip
+- interrupt-parent: The parent interrupt controller
+- interrupts: SoC NMI / GPIO interrupt connected to the PMIC's IRQ pin
+- interrupt-controller: The PMIC has its own internal IRQs
+- #interrupt-cells: Should be set to 1
+
+Optional properties:
+- x-powers,dcdc-freq: defines the work frequency of DC-DC in KHz
+		      (range: 750-1875). Default: 1.5MHz
+- <input>-supply: a phandle to the regulator supply node. May be omitted if
+		  inputs are unregulated, such as using the IPSOUT output
+		  from the PMIC.
+
+- regulators: A node that houses a sub-node for each regulator. Regulators
+	      not used but preferred to be managed by the OS should be
+	      listed as well.
+	      See Documentation/devicetree/bindings/regulator/regulator.txt
+	      for more information on standard regulator bindings.
+
+Optional properties for DCDC regulators:
+- x-powers,dcdc-workmode: 1 for PWM mode, 0 for AUTO (PWM/PFM) mode
+			  Default: Current hardware setting
+			  The DCDC regulators work in a mixed PWM/PFM mode,
+			  using PFM under light loads and switching to PWM
+			  for heavier loads. Forcing PWM mode trades efficiency
+			  under light loads for lower output noise. This
+			  probably makes sense for HiFi audio related
+			  applications that aren't battery constrained.
+
+
+AXP202/AXP209 regulators, type, and corresponding input supply names:
+
+Regulator	  Type		  Supply Name		  Notes
+---------	  ----		  -----------		  -----
+DCDC2		: DC-DC buck	: vin2-supply
+DCDC3		: DC-DC	buck	: vin3-supply
+LDO1		: LDO		: acin-supply		: always on
+LDO2		: LDO		: ldo24in-supply	: shared supply
+LDO3		: LDO		: ldo3in-supply
+LDO4		: LDO		: ldo24in-supply	: shared supply
+LDO5		: LDO		: ldo5in-supply
+
+AXP221 regulators, type, and corresponding input supply names:
+
+Regulator	  Type		  Supply Name		  Notes
+---------	  ----		  -----------		  -----
+DCDC1		: DC-DC buck	: vin1-supply
+DCDC2		: DC-DC buck	: vin2-supply
+DCDC3		: DC-DC	buck	: vin3-supply
+DCDC4		: DC-DC	buck	: vin4-supply
+DCDC5		: DC-DC	buck	: vin5-supply
+DC1SW		: On/Off Switch	:			: DCDC1 secondary output
+DC5LDO		: LDO		:			: input from DCDC5
+ALDO1		: LDO		: aldoin-supply		: shared supply
+ALDO2		: LDO		: aldoin-supply		: shared supply
+ALDO3		: LDO		: aldoin-supply		: shared supply
+DLDO1		: LDO		: dldoin-supply		: shared supply
+DLDO2		: LDO		: dldoin-supply		: shared supply
+DLDO3		: LDO		: dldoin-supply		: shared supply
+DLDO4		: LDO		: dldoin-supply		: shared supply
+ELDO1		: LDO		: eldoin-supply		: shared supply
+ELDO2		: LDO		: eldoin-supply		: shared supply
+ELDO3		: LDO		: eldoin-supply		: shared supply
+LDO_IO0		: LDO		: ips-supply		: GPIO 0
+LDO_IO1		: LDO		: ips-supply		: GPIO 1
+RTC_LDO		: LDO		: ips-supply		: always on
+
+Example:
+
+axp209: pmic@34 {
+	compatible = "x-powers,axp209";
+	reg = <0x34>;
+	interrupt-parent = <&nmi_intc>;
+	interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+	interrupt-controller;
+	#interrupt-cells = <1>;
+
+	regulators {
+		x-powers,dcdc-freq = <1500>;
+
+		vdd_cpu: dcdc2 {
+			regulator-always-on;
+			regulator-min-microvolt = <1000000>;
+			regulator-max-microvolt = <1450000>;
+			regulator-name = "vdd-cpu";
+		};
+
+		vdd_int_dll: dcdc3 {
+			regulator-always-on;
+			regulator-min-microvolt = <1000000>;
+			regulator-max-microvolt = <1400000>;
+			regulator-name = "vdd-int-dll";
+		};
+
+		vdd_rtc: ldo1 {
+			regulator-always-on;
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1400000>;
+			regulator-name = "vdd-rtc";
+		};
+
+		avcc: ldo2 {
+			regulator-always-on;
+			regulator-min-microvolt = <2700000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-name = "avcc";
+		};
+
+		ldo3 {
+			/* unused but preferred to be managed by OS */
+		};
+	};
+};

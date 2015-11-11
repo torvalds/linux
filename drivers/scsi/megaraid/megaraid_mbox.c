@@ -332,27 +332,6 @@ static struct device_attribute *megaraid_sdev_attrs[] = {
 	NULL,
 };
 
-/**
- * megaraid_change_queue_depth - Change the device's queue depth
- * @sdev:	scsi device struct
- * @qdepth:	depth to set
- * @reason:	calling context
- *
- * Return value:
- * 	actual depth set
- */
-static int megaraid_change_queue_depth(struct scsi_device *sdev, int qdepth,
-				       int reason)
-{
-	if (reason != SCSI_QDEPTH_DEFAULT)
-		return -EOPNOTSUPP;
-
-	if (qdepth > MBOX_MAX_SCSI_CMDS)
-		qdepth = MBOX_MAX_SCSI_CMDS;
-	scsi_adjust_queue_depth(sdev, 0, qdepth);
-	return sdev->queue_depth;
-}
-
 /*
  * Scsi host template for megaraid unified driver
  */
@@ -365,8 +344,9 @@ static struct scsi_host_template megaraid_template_g = {
 	.eh_device_reset_handler	= megaraid_reset_handler,
 	.eh_bus_reset_handler		= megaraid_reset_handler,
 	.eh_host_reset_handler		= megaraid_reset_handler,
-	.change_queue_depth		= megaraid_change_queue_depth,
+	.change_queue_depth		= scsi_change_queue_depth,
 	.use_clustering			= ENABLE_CLUSTERING,
+	.no_write_same			= 1,
 	.sdev_attrs			= megaraid_sdev_attrs,
 	.shost_attrs			= megaraid_shost_attrs,
 };
@@ -534,7 +514,6 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 out_cmm_unreg:
-	pci_set_drvdata(pdev, NULL);
 	megaraid_cmm_unregister(adapter);
 out_fini_mbox:
 	megaraid_fini_mbox(adapter);
@@ -549,7 +528,7 @@ out_probe_one:
 
 /**
  * megaraid_detach_one - release framework resources and call LLD release routine
- * @pdev	: handle for our PCI cofiguration space
+ * @pdev	: handle for our PCI configuration space
  *
  * This routine is called during driver unload. We free all the allocated
  * resources and call the corresponding LLD so that it can also release all
@@ -593,11 +572,6 @@ megaraid_detach_one(struct pci_dev *pdev)
 
 	// detach from the IO sub-system
 	megaraid_io_detach(adapter);
-
-	// reset the device state in the PCI structure. We check this
-	// condition when we enter here. If the device state is NULL,
-	// that would mean the device has already been removed
-	pci_set_drvdata(pdev, NULL);
 
 	// Unregister from common management module
 	//
@@ -979,7 +953,7 @@ megaraid_fini_mbox(adapter_t *adapter)
  * @adapter		: soft state of the raid controller
  *
  * Allocate and align the shared mailbox. This maibox is used to issue
- * all the commands. For IO based controllers, the mailbox is also regsitered
+ * all the commands. For IO based controllers, the mailbox is also registered
  * with the FW. Allocate memory for all commands as well.
  * This is our big allocator.
  */
@@ -1003,8 +977,9 @@ megaraid_alloc_cmd_packets(adapter_t *adapter)
 	 * Allocate the common 16-byte aligned memory for the handshake
 	 * mailbox.
 	 */
-	raid_dev->una_mbox64 = pci_alloc_consistent(adapter->pdev,
-			sizeof(mbox64_t), &raid_dev->una_mbox64_dma);
+	raid_dev->una_mbox64 = pci_zalloc_consistent(adapter->pdev,
+						     sizeof(mbox64_t),
+						     &raid_dev->una_mbox64_dma);
 
 	if (!raid_dev->una_mbox64) {
 		con_log(CL_ANN, (KERN_WARNING
@@ -1012,7 +987,6 @@ megaraid_alloc_cmd_packets(adapter_t *adapter)
 			__LINE__));
 		return -1;
 	}
-	memset(raid_dev->una_mbox64, 0, sizeof(mbox64_t));
 
 	/*
 	 * Align the mailbox at 16-byte boundary
@@ -1031,8 +1005,8 @@ megaraid_alloc_cmd_packets(adapter_t *adapter)
 			align;
 
 	// Allocate memory for commands issued internally
-	adapter->ibuf = pci_alloc_consistent(pdev, MBOX_IBUF_SIZE,
-				&adapter->ibuf_dma_h);
+	adapter->ibuf = pci_zalloc_consistent(pdev, MBOX_IBUF_SIZE,
+					      &adapter->ibuf_dma_h);
 	if (!adapter->ibuf) {
 
 		con_log(CL_ANN, (KERN_WARNING
@@ -1041,7 +1015,6 @@ megaraid_alloc_cmd_packets(adapter_t *adapter)
 
 		goto out_free_common_mbox;
 	}
-	memset(adapter->ibuf, 0, MBOX_IBUF_SIZE);
 
 	// Allocate memory for our SCSI Command Blocks and their associated
 	// memory
@@ -2027,7 +2000,7 @@ megaraid_mbox_prepare_pthru(adapter_t *adapter, scb_t *scb,
  * @scb		: scsi control block
  * @scp		: scsi command from the mid-layer
  *
- * Prepare a command for the scsi physical devices. This rountine prepares
+ * Prepare a command for the scsi physical devices. This routine prepares
  * commands for devices which can take extended CDBs (>10 bytes).
  */
 static void
@@ -2586,7 +2559,7 @@ megaraid_abort_handler(struct scsi_cmnd *scp)
 }
 
 /**
- * megaraid_reset_handler - device reset hadler for mailbox based driver
+ * megaraid_reset_handler - device reset handler for mailbox based driver
  * @scp		: reference command
  *
  * Reset handler for the mailbox based controller. First try to find out if
@@ -2977,8 +2950,8 @@ megaraid_mbox_product_info(adapter_t *adapter)
 	 * Issue an ENQUIRY3 command to find out certain adapter parameters,
 	 * e.g., max channels, max commands etc.
 	 */
-	pinfo = pci_alloc_consistent(adapter->pdev, sizeof(mraid_pinfo_t),
-			&pinfo_dma_h);
+	pinfo = pci_zalloc_consistent(adapter->pdev, sizeof(mraid_pinfo_t),
+				      &pinfo_dma_h);
 
 	if (pinfo == NULL) {
 		con_log(CL_ANN, (KERN_WARNING
@@ -2987,7 +2960,6 @@ megaraid_mbox_product_info(adapter_t *adapter)
 
 		return -1;
 	}
-	memset(pinfo, 0, sizeof(mraid_pinfo_t));
 
 	mbox->xferaddr = (uint32_t)adapter->ibuf_dma_h;
 	memset((void *)adapter->ibuf, 0, MBOX_IBUF_SIZE);
@@ -3446,7 +3418,7 @@ megaraid_mbox_display_scb(adapter_t *adapter, scb_t *scb)
  * megaraid_mbox_setup_device_map - manage device ids
  * @adapter	: Driver's soft state
  *
- * Manange the device ids to have an appropriate mapping between the kernel
+ * Manage the device ids to have an appropriate mapping between the kernel
  * scsi addresses and megaraid scsi and logical drive addresses. We export
  * scsi devices on their actual addresses, whereas the logical drives are
  * exported on a virtual scsi channel.

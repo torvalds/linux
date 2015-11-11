@@ -29,10 +29,9 @@
 #include <linux/sysrq.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
-
-#include <bcm63xx_irq.h>
-#include <bcm63xx_regs.h>
-#include <bcm63xx_io.h>
+#include <linux/serial_bcm63xx.h>
+#include <linux/io.h>
+#include <linux/of.h>
 
 #define BCM63XX_NR_UARTS	2
 
@@ -81,13 +80,13 @@ static struct uart_port ports[BCM63XX_NR_UARTS];
 static inline unsigned int bcm_uart_readl(struct uart_port *port,
 					 unsigned int offset)
 {
-	return bcm_readl(port->membase + offset);
+	return __raw_readl(port->membase + offset);
 }
 
 static inline void bcm_uart_writel(struct uart_port *port,
 				  unsigned int value, unsigned int offset)
 {
-	bcm_writel(value, port->membase + offset);
+	__raw_writel(value, port->membase + offset);
 }
 
 /*
@@ -302,7 +301,9 @@ static void bcm_uart_do_rx(struct uart_port *port)
 
 	} while (--max_count);
 
+	spin_unlock(&port->lock);
 	tty_flip_buffer_push(tty_port);
+	spin_lock(&port->lock);
 }
 
 /*
@@ -566,7 +567,7 @@ static void bcm_uart_set_termios(struct uart_port *port,
 		port->read_status_mask |= UART_FIFO_FRAMEERR_MASK;
 		port->read_status_mask |= UART_FIFO_PARERR_MASK;
 	}
-	if (new->c_iflag & (BRKINT))
+	if (new->c_iflag & (IGNBRK | BRKINT))
 		port->read_status_mask |= UART_FIFO_BRKDET_MASK;
 
 	port->ignore_status_mask = 0;
@@ -587,20 +588,7 @@ static void bcm_uart_set_termios(struct uart_port *port,
  */
 static int bcm_uart_request_port(struct uart_port *port)
 {
-	unsigned int size;
-
-	size = RSET_UART_SIZE;
-	if (!request_mem_region(port->mapbase, size, "bcm63xx")) {
-		dev_err(port->dev, "Memory region busy\n");
-		return -EBUSY;
-	}
-
-	port->membase = ioremap(port->mapbase, size);
-	if (!port->membase) {
-		dev_err(port->dev, "Unable to map registers\n");
-		release_mem_region(port->mapbase, size);
-		return -EBUSY;
-	}
+	/* UARTs always present */
 	return 0;
 }
 
@@ -609,8 +597,7 @@ static int bcm_uart_request_port(struct uart_port *port)
  */
 static void bcm_uart_release_port(struct uart_port *port)
 {
-	release_mem_region(port->mapbase, RSET_UART_SIZE);
-	iounmap(port->membase);
+	/* Nothing to release ... */
 }
 
 /*
@@ -781,6 +768,26 @@ static int __init bcm63xx_console_init(void)
 
 console_initcall(bcm63xx_console_init);
 
+static void bcm_early_write(struct console *con, const char *s, unsigned n)
+{
+	struct earlycon_device *dev = con->data;
+
+	uart_console_write(&dev->port, s, n, bcm_console_putchar);
+	wait_for_xmitr(&dev->port);
+}
+
+static int __init bcm_early_console_setup(struct earlycon_device *device,
+					  const char *opt)
+{
+	if (!device->port.membase)
+		return -ENODEV;
+
+	device->con->write = bcm_early_write;
+	return 0;
+}
+
+OF_EARLYCON_DECLARE(bcm63xx_uart, "brcm,bcm6345-uart", bcm_early_console_setup);
+
 #define BCM63XX_CONSOLE	(&bcm63xx_console)
 #else
 #define BCM63XX_CONSOLE	NULL
@@ -806,28 +813,36 @@ static int bcm_uart_probe(struct platform_device *pdev)
 	struct clk *clk;
 	int ret;
 
+	if (pdev->dev.of_node)
+		pdev->id = of_alias_get_id(pdev->dev.of_node, "uart");
+
 	if (pdev->id < 0 || pdev->id >= BCM63XX_NR_UARTS)
 		return -EINVAL;
 
-	if (ports[pdev->id].membase)
+	port = &ports[pdev->id];
+	if (port->membase)
 		return -EBUSY;
+	memset(port, 0, sizeof(*port));
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res_mem)
 		return -ENODEV;
 
+	port->mapbase = res_mem->start;
+	port->membase = devm_ioremap_resource(&pdev->dev, res_mem);
+	if (IS_ERR(port->membase))
+		return PTR_ERR(port->membase);
+
 	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res_irq)
 		return -ENODEV;
 
-	clk = clk_get(&pdev->dev, "periph");
+	clk = pdev->dev.of_node ? of_clk_get(pdev->dev.of_node, 0) :
+				  clk_get(&pdev->dev, "periph");
 	if (IS_ERR(clk))
 		return -ENODEV;
 
-	port = &ports[pdev->id];
-	memset(port, 0, sizeof(*port));
 	port->iotype = UPIO_MEM;
-	port->mapbase = res_mem->start;
 	port->irq = res_irq->start;
 	port->ops = &bcm_uart_ops;
 	port->flags = UPF_BOOT_AUTOCONF;
@@ -839,7 +854,7 @@ static int bcm_uart_probe(struct platform_device *pdev)
 
 	ret = uart_add_one_port(&bcm_uart_driver, port);
 	if (ret) {
-		ports[pdev->id].membase = 0;
+		ports[pdev->id].membase = NULL;
 		return ret;
 	}
 	platform_set_drvdata(pdev, port);
@@ -852,11 +867,16 @@ static int bcm_uart_remove(struct platform_device *pdev)
 
 	port = platform_get_drvdata(pdev);
 	uart_remove_one_port(&bcm_uart_driver, port);
-	platform_set_drvdata(pdev, NULL);
 	/* mark port as free */
-	ports[pdev->id].membase = 0;
+	ports[pdev->id].membase = NULL;
 	return 0;
 }
+
+static const struct of_device_id bcm63xx_of_match[] = {
+	{ .compatible = "brcm,bcm6345-uart" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, bcm63xx_of_match);
 
 /*
  * platform driver stuff
@@ -865,8 +885,8 @@ static struct platform_driver bcm_uart_platform_driver = {
 	.probe	= bcm_uart_probe,
 	.remove	= bcm_uart_remove,
 	.driver	= {
-		.owner = THIS_MODULE,
 		.name  = "bcm63xx_uart",
+		.of_match_table = bcm63xx_of_match,
 	},
 };
 
@@ -895,5 +915,5 @@ module_init(bcm_uart_init);
 module_exit(bcm_uart_exit);
 
 MODULE_AUTHOR("Maxime Bizon <mbizon@freebox.fr>");
-MODULE_DESCRIPTION("Broadcom 63<xx integrated uart driver");
+MODULE_DESCRIPTION("Broadcom 63xx integrated uart driver");
 MODULE_LICENSE("GPL");

@@ -32,6 +32,10 @@ Optional properties:
     The second cell is the flags, encoded as the trigger masks from
     Documentation/devicetree/bindings/interrupts.txt
 
+  - clocks : A list of up to two phandle and clock specifier pairs
+  - clock-names : A list of clock names sorted in the same order as clocks.
+                  Valid clock names are "MCLK1" and "MCLK2".
+
   - wlf,gpio-cfg : A list of GPIO configuration register values. If absent,
     no configuration of these registers is performed. If any value is
     over 0xffff then the register will be left as default. If present 11

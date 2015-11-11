@@ -117,22 +117,6 @@ void clk_put(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_put);
 
-/* GPIO support */
-
-#ifdef CONFIG_GPIOLIB
-int gpio_to_irq(unsigned gpio)
-{
-	return -EINVAL;
-}
-EXPORT_SYMBOL(gpio_to_irq);
-
-int irq_to_gpio(unsigned irq)
-{
-	return -EINVAL;
-}
-EXPORT_SYMBOL(irq_to_gpio);
-#endif
-
 #define BOARD_VEC(board)	extern struct txx9_board_vec board;
 #include <asm/txx9/boards.h>
 #undef BOARD_VEC
@@ -309,8 +293,8 @@ static void __init preprocess_cmdline(void)
 			txx9_board_vec = find_board_byname(str + 6);
 			continue;
 		} else if (strncmp(str, "masterclk=", 10) == 0) {
-			unsigned long val;
-			if (strict_strtoul(str + 10, 10, &val) == 0)
+			unsigned int val;
+			if (kstrtouint(str + 10, 10, &val) == 0)
 				txx9_master_clock = val;
 			continue;
 		} else if (strcmp(str, "icdisable") == 0) {
@@ -350,7 +334,7 @@ static void __init select_board(void)
 	}
 
 	/* select "default" board */
-#ifdef CONFIG_CPU_TX39XX
+#ifdef CONFIG_TOSHIBA_JMR3927
 	txx9_board_vec = &jmr3927_vec;
 #endif
 #ifdef CONFIG_CPU_TX49XX
@@ -789,11 +773,11 @@ void __init txx9_iocled_init(unsigned long baseaddr,
 	if (platform_device_add(pdev))
 		goto out_pdev;
 	return;
+
 out_pdev:
 	platform_device_put(pdev);
 out_gpio:
-	if (gpiochip_remove(&iocled->chip))
-		return;
+	gpiochip_remove(&iocled->chip);
 out_unmap:
 	iounmap(iocled->mmioaddr);
 out_free:
@@ -937,6 +921,14 @@ static ssize_t txx9_sram_write(struct file *filp, struct kobject *kobj,
 	return size;
 }
 
+static void txx9_device_release(struct device *dev)
+{
+	struct txx9_sramc_dev *tdev;
+
+	tdev = container_of(dev, struct txx9_sramc_dev, dev);
+	kfree(tdev);
+}
+
 void __init txx9_sramc_init(struct resource *r)
 {
 	struct txx9_sramc_dev *dev;
@@ -951,8 +943,11 @@ void __init txx9_sramc_init(struct resource *r)
 		return;
 	size = resource_size(r);
 	dev->base = ioremap(r->start, size);
-	if (!dev->base)
-		goto exit;
+	if (!dev->base) {
+		kfree(dev);
+		return;
+	}
+	dev->dev.release = &txx9_device_release;
 	dev->dev.bus = &txx9_sramc_subsys;
 	sysfs_bin_attr_init(&dev->bindata_attr);
 	dev->bindata_attr.attr.name = "bindata";
@@ -963,17 +958,15 @@ void __init txx9_sramc_init(struct resource *r)
 	dev->bindata_attr.private = dev;
 	err = device_register(&dev->dev);
 	if (err)
-		goto exit;
+		goto exit_put;
 	err = sysfs_create_bin_file(&dev->dev.kobj, &dev->bindata_attr);
 	if (err) {
 		device_unregister(&dev->dev);
-		goto exit;
-	}
-	return;
-exit:
-	if (dev) {
-		if (dev->base)
-			iounmap(dev->base);
+		iounmap(dev->base);
 		kfree(dev);
 	}
+	return;
+exit_put:
+	put_device(&dev->dev);
+	return;
 }

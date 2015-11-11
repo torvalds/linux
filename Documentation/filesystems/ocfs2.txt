@@ -8,8 +8,8 @@ also make it attractive for non-clustered use.
 You'll want to install the ocfs2-tools package in order to at least
 get "mount.ocfs2" and "ocfs2_hb_ctl".
 
-Project web page:    http://oss.oracle.com/projects/ocfs2
-Tools web page:      http://oss.oracle.com/projects/ocfs2-tools
+Project web page:    http://ocfs2.wiki.kernel.org
+Tools git tree:      https://github.com/markfasheh/ocfs2-tools
 OCFS2 mailing lists: http://oss.oracle.com/projects/ocfs2/mailman/
 
 All code copyright 2005 Oracle except when otherwise noted.
@@ -100,3 +100,7 @@ coherency=full  (*)	Disallow concurrent O_DIRECT writes, cluster inode
 coherency=buffered	Allow concurrent O_DIRECT writes without EX lock among
 			nodes, which gains high performance at risk of getting
 			stale data on other nodes.
+journal_async_commit	Commit block can be written to disk without waiting
+			for descriptor blocks. If enabled older kernels cannot
+			mount the device. This will enable 'journal_checksum'
+			internally.

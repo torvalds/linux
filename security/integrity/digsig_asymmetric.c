@@ -13,22 +13,12 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/err.h>
+#include <linux/ratelimit.h>
 #include <linux/key-type.h>
 #include <crypto/public_key.h>
 #include <keys/asymmetric-type.h>
 
 #include "integrity.h"
-
-/*
- * signature format v2 - for using with asymmetric keys
- */
-struct signature_v2_hdr {
-	uint8_t version;	/* signature format version */
-	uint8_t	hash_algo;	/* Digest algorithm [enum pkey_hash_algo] */
-	uint32_t keyid;		/* IMA key identifier - not X509/PGP specific*/
-	uint16_t sig_size;	/* signature size */
-	uint8_t sig[0];		/* signature payload */
-} __packed;
 
 /*
  * Request an asymmetric key.
@@ -38,7 +28,7 @@ static struct key *request_asymmetric_key(struct key *keyring, uint32_t keyid)
 	struct key *key;
 	char name[12];
 
-	sprintf(name, "id:%x", keyid);
+	sprintf(name, "id:%08x", keyid);
 
 	pr_debug("key search: \"%s\"\n", name);
 
@@ -56,8 +46,8 @@ static struct key *request_asymmetric_key(struct key *keyring, uint32_t keyid)
 	}
 
 	if (IS_ERR(key)) {
-		pr_warn("Request for unknown key '%s' err %ld\n",
-			name, PTR_ERR(key));
+		pr_err_ratelimited("Request for unknown key '%s' err %ld\n",
+				   name, PTR_ERR(key));
 		switch (PTR_ERR(key)) {
 			/* Hide some search errors */
 		case -EACCES:

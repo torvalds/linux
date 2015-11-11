@@ -44,7 +44,7 @@ static int lifebook_set_6byte_proto(const struct dmi_system_id *d)
 	return 1;
 }
 
-static const struct dmi_system_id __initconst lifebook_dmi_table[] = {
+static const struct dmi_system_id lifebook_dmi_table[] __initconst = {
 	{
 		/* FLORA-ie 55mi */
 		.matches = {
@@ -256,8 +256,8 @@ static void lifebook_disconnect(struct psmouse *psmouse)
 
 int lifebook_detect(struct psmouse *psmouse, bool set_properties)
 {
-        if (!lifebook_present)
-                return -1;
+	if (!lifebook_present)
+		return -1;
 
 	if (desired_serio_phys &&
 	    strcmp(psmouse->ps2dev.serio->phys, desired_serio_phys))
@@ -268,7 +268,7 @@ int lifebook_detect(struct psmouse *psmouse, bool set_properties)
 		psmouse->name = "Lifebook TouchScreen";
 	}
 
-        return 0;
+	return 0;
 }
 
 static int lifebook_create_relative_device(struct psmouse *psmouse)

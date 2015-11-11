@@ -1,44 +1,27 @@
 config DRM_ROCKCHIP
-	tristate "DRM Support for  ROCKCHIP "
-	depends on DRM && ARCH_MULTIPLATFORM
+	tristate "DRM Support for Rockchip"
+	depends on DRM && ROCKCHIP_IOMMU
+	depends on RESET_CONTROLLER
 	select DRM_KMS_HELPER
+	select DRM_KMS_FB_HELPER
+	select DRM_PANEL
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	select VT_HW_CONSOLE_BINDING if FRAMEBUFFER_CONSOLE
+	select VIDEOMODE_HELPERS
 	help
-	  Choose this option if you have a  ROCKCHIP soc chipset.
-	  If M is selected the module will be called rockchipdrm.
+	  Choose this option if you have a Rockchip soc chipset.
+	  This driver provides kernel mode setting and buffer
+	  management to userspace. This driver does not provide
+	  2D or 3D acceleration; acceleration is performed by other
+	  IP found on the SoC.
 
-config DRM_ROCKCHIP_IOMMU
-	bool "ROCKCHIP DRM IOMMU Support"
-	depends on DRM_ROCKCHIP && ARM_DMA_USE_IOMMU
-	help
-	  Choose this option if you want to use IOMMU feature for DRM.
-
-config DRM_ROCKCHIP_DMABUF
-	bool "ROCKCHIP DRM DMABUF"
-	depends on DRM_ROCKCHIP
-	help
-	  Choose this option if you want to use DMABUF feature for DRM.
-
-config DRM_ROCKCHIP_PRIMARY
-	  bool "RK DRM PRIMARY"
-	  depends on OF && DRM_ROCKCHIP 
-	  select FB_MODE_HELPERS
-	  select VIDEOMODE_HELPERS
-	  help
-	  Choose this option if you want to use Rockchip PRIMARY DISPLAY for DRM.
-
-config DRM_ROCKCHIP_HDMI
-	bool "Rockchip DRM HDMI"
-	depends on DRM_ROCKCHIP 
-	help
-	  Choose this option if you want to use Rockchip HDMI for DRM.
-
-config DRM_ROCKCHIP_VIDI
-	bool "Rockchip DRM Virtual Display"
-	depends on DRM_ROCKCHIP
-	help
-	  Choose this option if you want to use rockchip VIDI for DRM.
-
+config ROCKCHIP_DW_HDMI
+        tristate "Rockchip specific extensions for Synopsys DW HDMI"
+        depends on DRM_ROCKCHIP
+        select DRM_DW_HDMI
+        help
+	  This selects support for Rockchip SoC specific extensions
+	  for the Synopsys DesignWare HDMI driver. If you want to
+	  enable HDMI on RK3288 based SoC, you should selet this
+	  option.

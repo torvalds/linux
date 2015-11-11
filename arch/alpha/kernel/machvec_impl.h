@@ -43,10 +43,7 @@
 #define CAT1(x,y)  x##y
 #define CAT(x,y)   CAT1(x,y)
 
-#define DO_DEFAULT_RTC \
-	.rtc_port = 0x70, \
-	.rtc_get_time = common_get_rtc_time, \
-	.rtc_set_time = common_set_rtc_time
+#define DO_DEFAULT_RTC			.rtc_port = 0x70
 
 #define DO_EV4_MMU							\
 	.max_asn =			EV4_MAX_ASN,			\

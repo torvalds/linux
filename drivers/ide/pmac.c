@@ -416,8 +416,7 @@ static int pmac_ide_init_dma(ide_hwif_t *, const struct ide_port_info *);
 static void pmac_ide_apply_timings(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	pmac_ide_hwif_t *pmif =
-		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
+	pmac_ide_hwif_t *pmif = dev_get_drvdata(hwif->gendev.parent);
 
 	if (drive->dn & 1)
 		writel(pmif->timings[1], PMAC_IDE_REG(IDE_TIMING_CONFIG));
@@ -434,8 +433,7 @@ static void pmac_ide_apply_timings(ide_drive_t *drive)
 static void pmac_ide_kauai_apply_timings(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	pmac_ide_hwif_t *pmif =
-		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
+	pmac_ide_hwif_t *pmif = dev_get_drvdata(hwif->gendev.parent);
 
 	if (drive->dn & 1) {
 		writel(pmif->timings[1], PMAC_IDE_REG(IDE_KAUAI_PIO_CONFIG));
@@ -454,8 +452,7 @@ static void
 pmac_ide_do_update_timings(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	pmac_ide_hwif_t *pmif =
-		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
+	pmac_ide_hwif_t *pmif = dev_get_drvdata(hwif->gendev.parent);
 
 	if (pmif->kind == controller_sh_ata6 ||
 	    pmif->kind == controller_un_ata6 ||
@@ -500,8 +497,7 @@ static void pmac_write_devctl(ide_hwif_t *hwif, u8 ctl)
  */
 static void pmac_ide_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	pmac_ide_hwif_t *pmif =
-		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
+	pmac_ide_hwif_t *pmif = dev_get_drvdata(hwif->gendev.parent);
 	const u8 pio = drive->pio_mode - XFER_PIO_0;
 	struct ide_timing *tim = ide_timing_find_mode(XFER_PIO_0 + pio);
 	u32 *timings, t;
@@ -781,8 +777,7 @@ set_timings_mdma(ide_drive_t *drive, int intf_type, u32 *timings, u32 *timings2,
 
 static void pmac_ide_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	pmac_ide_hwif_t *pmif =
-		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
+	pmac_ide_hwif_t *pmif = dev_get_drvdata(hwif->gendev.parent);
 	int ret = 0;
 	u32 *timings, *timings2, tl[2];
 	u8 unit = drive->dn & 1;
@@ -919,8 +914,7 @@ static int pmac_ide_do_resume(pmac_ide_hwif_t *pmif)
 
 static u8 pmac_ide_cable_detect(ide_hwif_t *hwif)
 {
-	pmac_ide_hwif_t *pmif =
-		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
+	pmac_ide_hwif_t *pmif = dev_get_drvdata(hwif->gendev.parent);
 	struct device_node *np = pmif->node;
 	const char *cable = of_get_property(np, "cable-type", NULL);
 	struct device_node *root = of_find_node_by_path("/");
@@ -951,8 +945,7 @@ static u8 pmac_ide_cable_detect(ide_hwif_t *hwif)
 static void pmac_ide_init_dev(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	pmac_ide_hwif_t *pmif =
-		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
+	pmac_ide_hwif_t *pmif = dev_get_drvdata(hwif->gendev.parent);
 
 	if (on_media_bay(pmif)) {
 		if (check_media_bay(pmif->mdev->media_bay) == MB_CD) {
@@ -1228,8 +1221,7 @@ out_free_pmif:
 static int
 pmac_ide_macio_suspend(struct macio_dev *mdev, pm_message_t mesg)
 {
-	pmac_ide_hwif_t *pmif =
-		(pmac_ide_hwif_t *)dev_get_drvdata(&mdev->ofdev.dev);
+	pmac_ide_hwif_t *pmif = dev_get_drvdata(&mdev->ofdev.dev);
 	int rc = 0;
 
 	if (mesg.event != mdev->ofdev.dev.power.power_state.event
@@ -1245,8 +1237,7 @@ pmac_ide_macio_suspend(struct macio_dev *mdev, pm_message_t mesg)
 static int
 pmac_ide_macio_resume(struct macio_dev *mdev)
 {
-	pmac_ide_hwif_t *pmif =
-		(pmac_ide_hwif_t *)dev_get_drvdata(&mdev->ofdev.dev);
+	pmac_ide_hwif_t *pmif = dev_get_drvdata(&mdev->ofdev.dev);
 	int rc = 0;
 
 	if (mdev->ofdev.dev.power.power_state.event != PM_EVENT_ON) {
@@ -1318,7 +1309,6 @@ static int pmac_ide_pci_attach(struct pci_dev *pdev,
 	rc = pmac_ide_setup_device(pmif, &hw);
 	if (rc != 0) {
 		/* The inteface is released to the common IDE layer */
-		pci_set_drvdata(pdev, NULL);
 		iounmap(base);
 		pci_release_regions(pdev);
 		kfree(pmif);
@@ -1365,8 +1355,7 @@ pmac_ide_pci_resume(struct pci_dev *pdev)
 #ifdef CONFIG_PMAC_MEDIABAY
 static void pmac_ide_macio_mb_event(struct macio_dev* mdev, int mb_state)
 {
-	pmac_ide_hwif_t *pmif =
-		(pmac_ide_hwif_t *)dev_get_drvdata(&mdev->ofdev.dev);
+	pmac_ide_hwif_t *pmif = dev_get_drvdata(&mdev->ofdev.dev);
 
 	switch(mb_state) {
 	case MB_CD:
@@ -1468,8 +1457,7 @@ out:
 static int pmac_ide_build_dmatable(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	pmac_ide_hwif_t *pmif =
-		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
+	pmac_ide_hwif_t *pmif = dev_get_drvdata(hwif->gendev.parent);
 	struct dbdma_cmd *table;
 	volatile struct dbdma_regs __iomem *dma = pmif->dma_regs;
 	struct scatterlist *sg;
@@ -1509,9 +1497,9 @@ static int pmac_ide_build_dmatable(ide_drive_t *drive, struct ide_cmd *cmd)
 				       drive->name);
 				return 0;
 			}
-			st_le16(&table->command, wr? OUTPUT_MORE: INPUT_MORE);
-			st_le16(&table->req_count, tc);
-			st_le32(&table->phy_addr, cur_addr);
+			table->command = cpu_to_le16(wr? OUTPUT_MORE: INPUT_MORE);
+			table->req_count = cpu_to_le16(tc);
+			table->phy_addr = cpu_to_le32(cur_addr);
 			table->cmd_dep = 0;
 			table->xfer_status = 0;
 			table->res_count = 0;
@@ -1525,10 +1513,10 @@ static int pmac_ide_build_dmatable(ide_drive_t *drive, struct ide_cmd *cmd)
 
 	/* convert the last command to an input/output last command */
 	if (count) {
-		st_le16(&table[-1].command, wr? OUTPUT_LAST: INPUT_LAST);
+		table[-1].command = cpu_to_le16(wr? OUTPUT_LAST: INPUT_LAST);
 		/* add the stop command to the end of the list */
 		memset(table, 0, sizeof(struct dbdma_cmd));
-		st_le16(&table->command, DBDMA_STOP);
+		table->command = cpu_to_le16(DBDMA_STOP);
 		mb();
 		writel(hwif->dmatable_dma, &dma->cmdptr);
 		return 1;
@@ -1546,8 +1534,7 @@ static int pmac_ide_build_dmatable(ide_drive_t *drive, struct ide_cmd *cmd)
 static int pmac_ide_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	pmac_ide_hwif_t *pmif =
-		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
+	pmac_ide_hwif_t *pmif = dev_get_drvdata(hwif->gendev.parent);
 	u8 unit = drive->dn & 1, ata4 = (pmif->kind == controller_kl_ata4);
 	u8 write = !!(cmd->tf_flags & IDE_TFLAG_WRITE);
 
@@ -1572,8 +1559,7 @@ static void
 pmac_ide_dma_start(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	pmac_ide_hwif_t *pmif =
-		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
+	pmac_ide_hwif_t *pmif = dev_get_drvdata(hwif->gendev.parent);
 	volatile struct dbdma_regs __iomem *dma;
 
 	dma = pmif->dma_regs;
@@ -1590,8 +1576,7 @@ static int
 pmac_ide_dma_end (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	pmac_ide_hwif_t *pmif =
-		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
+	pmac_ide_hwif_t *pmif = dev_get_drvdata(hwif->gendev.parent);
 	volatile struct dbdma_regs __iomem *dma = pmif->dma_regs;
 	u32 dstat;
 
@@ -1615,8 +1600,7 @@ static int
 pmac_ide_dma_test_irq (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	pmac_ide_hwif_t *pmif =
-		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
+	pmac_ide_hwif_t *pmif = dev_get_drvdata(hwif->gendev.parent);
 	volatile struct dbdma_regs __iomem *dma = pmif->dma_regs;
 	unsigned long status, timeout;
 
@@ -1670,8 +1654,7 @@ static void
 pmac_ide_dma_lost_irq (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	pmac_ide_hwif_t *pmif =
-		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
+	pmac_ide_hwif_t *pmif = dev_get_drvdata(hwif->gendev.parent);
 	volatile struct dbdma_regs __iomem *dma = pmif->dma_regs;
 	unsigned long status = readl(&dma->status);
 
@@ -1693,8 +1676,7 @@ static const struct ide_dma_ops pmac_dma_ops = {
  */
 static int pmac_ide_init_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
 {
-	pmac_ide_hwif_t *pmif =
-		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
+	pmac_ide_hwif_t *pmif = dev_get_drvdata(hwif->gendev.parent);
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 
 	/* We won't need pci_dev if we switch to generic consistent
@@ -1707,10 +1689,9 @@ static int pmac_ide_init_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
 	 * The +2 is +1 for the stop command and +1 to allow for
 	 * aligning the start address to a multiple of 16 bytes.
 	 */
-	pmif->dma_table_cpu = pci_alloc_consistent(
-		dev,
+	pmif->dma_table_cpu = dma_alloc_coherent(&dev->dev,
 		(MAX_DCMDS + 2) * sizeof(struct dbdma_cmd),
-		&hwif->dmatable_dma);
+		&hwif->dmatable_dma, GFP_KERNEL);
 	if (pmif->dma_table_cpu == NULL) {
 		printk(KERN_ERR "%s: unable to allocate DMA command list\n",
 		       hwif->name);

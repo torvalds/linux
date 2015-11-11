@@ -33,8 +33,12 @@
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
 /* Bits to mask out from a PMD to get to the PTE page */
-#define PMD_MASKED_BITS		0x1ff
+/* PMDs point to PTE table fragments which are 4K aligned.  */
+#define PMD_MASKED_BITS		0xfff
 /* Bits to mask out from a PGD/PUD to get to the PMD page */
 #define PUD_MASKED_BITS		0x1ff
+
+#define pgd_pte(pgd)	(pud_pte(((pud_t){ pgd })))
+#define pte_pgd(pte)	((pgd_t)pte_pud(pte))
 
 #endif /* _ASM_POWERPC_PGTABLE_PPC64_64K_H */

@@ -144,11 +144,13 @@ ath5k_hw_get_frame_duration(struct ath5k_hw *ah, enum ieee80211_band band,
 		sifs = AR5K_INIT_SIFS_HALF_RATE;
 		preamble *= 2;
 		sym_time *= 2;
+		bitrate = DIV_ROUND_UP(bitrate, 2);
 		break;
 	case AR5K_BWMODE_5MHZ:
 		sifs = AR5K_INIT_SIFS_QUARTER_RATE;
 		preamble *= 4;
 		sym_time *= 4;
+		bitrate = DIV_ROUND_UP(bitrate, 4);
 		break;
 	default:
 		sifs = AR5K_INIT_SIFS_DEFAULT_BG;
@@ -910,6 +912,7 @@ ath5k_hw_set_opmode(struct ath5k_hw *ah, enum nl80211_iftype op_mode)
 		pcu_reg |= AR5K_STA_ID1_KEYSRCH_MODE
 			| (ah->ah_version == AR5K_AR5210 ?
 				AR5K_STA_ID1_PWR_SV : 0);
+		/* fall through */
 	case NL80211_IFTYPE_MONITOR:
 		pcu_reg |= AR5K_STA_ID1_KEYSRCH_MODE
 			| (ah->ah_version == AR5K_AR5210 ?

@@ -2,7 +2,7 @@
  * max1619.c - Part of lm_sensors, Linux kernel modules for hardware
  *             monitoring
  * Copyright (C) 2003-2004 Oleksij Rempel <bug-track@fisher-privat.net>
- *                         Jean Delvare <khali@linux-fr.org>
+ *                         Jean Delvare <jdelvare@suse.de>
  *
  * Based on the lm90 driver. The MAX1619 is a sensor chip made by Maxim.
  * It reports up to two temperatures (its own plus up to
@@ -19,12 +19,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
-
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -76,38 +71,14 @@ static int temp_to_reg(int val)
 	return (val < 0 ? val+0x100*1000 : val) / 1000;
 }
 
-/*
- * Functions declaration
- */
-
-static int max1619_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id);
-static int max1619_detect(struct i2c_client *client,
-			  struct i2c_board_info *info);
-static void max1619_init_client(struct i2c_client *client);
-static int max1619_remove(struct i2c_client *client);
-static struct max1619_data *max1619_update_device(struct device *dev);
-
-/*
- * Driver data (common to all clients)
- */
-
-static const struct i2c_device_id max1619_id[] = {
-	{ "max1619", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, max1619_id);
-
-static struct i2c_driver max1619_driver = {
-	.class		= I2C_CLASS_HWMON,
-	.driver = {
-		.name	= "max1619",
-	},
-	.probe		= max1619_probe,
-	.remove		= max1619_remove,
-	.id_table	= max1619_id,
-	.detect		= max1619_detect,
-	.address_list	= normal_i2c,
+enum temp_index {
+	t_input1 = 0,
+	t_input2,
+	t_low2,
+	t_high2,
+	t_crit2,
+	t_hyst2,
+	t_num_regs
 };
 
 /*
@@ -115,60 +86,92 @@ static struct i2c_driver max1619_driver = {
  */
 
 struct max1619_data {
-	struct device *hwmon_dev;
+	struct i2c_client *client;
 	struct mutex update_lock;
 	char valid; /* zero until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
 
 	/* registers values */
-	u8 temp_input1; /* local */
-	u8 temp_input2, temp_low2, temp_high2; /* remote */
-	u8 temp_crit2;
-	u8 temp_hyst2;
+	u8 temp[t_num_regs];	/* index with enum temp_index */
 	u8 alarms;
 };
+
+static const u8 regs_read[t_num_regs] = {
+	[t_input1] = MAX1619_REG_R_LOCAL_TEMP,
+	[t_input2] = MAX1619_REG_R_REMOTE_TEMP,
+	[t_low2] = MAX1619_REG_R_REMOTE_LOW,
+	[t_high2] = MAX1619_REG_R_REMOTE_HIGH,
+	[t_crit2] = MAX1619_REG_R_REMOTE_CRIT,
+	[t_hyst2] = MAX1619_REG_R_TCRIT_HYST,
+};
+
+static const u8 regs_write[t_num_regs] = {
+	[t_low2] = MAX1619_REG_W_REMOTE_LOW,
+	[t_high2] = MAX1619_REG_W_REMOTE_HIGH,
+	[t_crit2] = MAX1619_REG_W_REMOTE_CRIT,
+	[t_hyst2] = MAX1619_REG_W_TCRIT_HYST,
+};
+
+static struct max1619_data *max1619_update_device(struct device *dev)
+{
+	struct max1619_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
+	int config, i;
+
+	mutex_lock(&data->update_lock);
+
+	if (time_after(jiffies, data->last_updated + HZ * 2) || !data->valid) {
+		dev_dbg(&client->dev, "Updating max1619 data.\n");
+		for (i = 0; i < t_num_regs; i++)
+			data->temp[i] = i2c_smbus_read_byte_data(client,
+					regs_read[i]);
+		data->alarms = i2c_smbus_read_byte_data(client,
+					MAX1619_REG_R_STATUS);
+		/* If OVERT polarity is low, reverse alarm bit */
+		config = i2c_smbus_read_byte_data(client, MAX1619_REG_R_CONFIG);
+		if (!(config & 0x20))
+			data->alarms ^= 0x02;
+
+		data->last_updated = jiffies;
+		data->valid = 1;
+	}
+
+	mutex_unlock(&data->update_lock);
+
+	return data;
+}
 
 /*
  * Sysfs stuff
  */
 
-#define show_temp(value) \
-static ssize_t show_##value(struct device *dev, struct device_attribute *attr, \
-			    char *buf) \
-{ \
-	struct max1619_data *data = max1619_update_device(dev); \
-	return sprintf(buf, "%d\n", temp_from_reg(data->value)); \
-}
-show_temp(temp_input1);
-show_temp(temp_input2);
-show_temp(temp_low2);
-show_temp(temp_high2);
-show_temp(temp_crit2);
-show_temp(temp_hyst2);
+static ssize_t show_temp(struct device *dev, struct device_attribute *devattr,
+			 char *buf)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct max1619_data *data = max1619_update_device(dev);
 
-#define set_temp2(value, reg) \
-static ssize_t set_##value(struct device *dev, struct device_attribute *attr, \
-			   const char *buf, \
-	size_t count) \
-{ \
-	struct i2c_client *client = to_i2c_client(dev); \
-	struct max1619_data *data = i2c_get_clientdata(client); \
-	long val; \
-	int err = kstrtol(buf, 10, &val); \
-	if (err) \
-		return err; \
-\
-	mutex_lock(&data->update_lock); \
-	data->value = temp_to_reg(val); \
-	i2c_smbus_write_byte_data(client, reg, data->value); \
-	mutex_unlock(&data->update_lock); \
-	return count; \
+	return sprintf(buf, "%d\n", temp_from_reg(data->temp[attr->index]));
 }
 
-set_temp2(temp_low2, MAX1619_REG_W_REMOTE_LOW);
-set_temp2(temp_high2, MAX1619_REG_W_REMOTE_HIGH);
-set_temp2(temp_crit2, MAX1619_REG_W_REMOTE_CRIT);
-set_temp2(temp_hyst2, MAX1619_REG_W_TCRIT_HYST);
+static ssize_t set_temp(struct device *dev, struct device_attribute *devattr,
+			   const char *buf, size_t count)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct max1619_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
+	long val;
+	int err = kstrtol(buf, 10, &val);
+	if (err)
+		return err;
+
+	mutex_lock(&data->update_lock);
+	data->temp[attr->index] = temp_to_reg(val);
+	i2c_smbus_write_byte_data(client, regs_write[attr->index],
+				  data->temp[attr->index]);
+	mutex_unlock(&data->update_lock);
+	return count;
+}
 
 static ssize_t show_alarms(struct device *dev, struct device_attribute *attr,
 			   char *buf)
@@ -185,29 +188,30 @@ static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", (data->alarms >> bitnr) & 1);
 }
 
-static DEVICE_ATTR(temp1_input, S_IRUGO, show_temp_input1, NULL);
-static DEVICE_ATTR(temp2_input, S_IRUGO, show_temp_input2, NULL);
-static DEVICE_ATTR(temp2_min, S_IWUSR | S_IRUGO, show_temp_low2,
-	set_temp_low2);
-static DEVICE_ATTR(temp2_max, S_IWUSR | S_IRUGO, show_temp_high2,
-	set_temp_high2);
-static DEVICE_ATTR(temp2_crit, S_IWUSR | S_IRUGO, show_temp_crit2,
-	set_temp_crit2);
-static DEVICE_ATTR(temp2_crit_hyst, S_IWUSR | S_IRUGO, show_temp_hyst2,
-	set_temp_hyst2);
+static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, t_input1);
+static SENSOR_DEVICE_ATTR(temp2_input, S_IRUGO, show_temp, NULL, t_input2);
+static SENSOR_DEVICE_ATTR(temp2_min, S_IWUSR | S_IRUGO, show_temp, set_temp,
+			  t_low2);
+static SENSOR_DEVICE_ATTR(temp2_max, S_IWUSR | S_IRUGO, show_temp, set_temp,
+			  t_high2);
+static SENSOR_DEVICE_ATTR(temp2_crit, S_IWUSR | S_IRUGO, show_temp, set_temp,
+			  t_crit2);
+static SENSOR_DEVICE_ATTR(temp2_crit_hyst, S_IWUSR | S_IRUGO, show_temp,
+			  set_temp, t_hyst2);
+
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 static SENSOR_DEVICE_ATTR(temp2_crit_alarm, S_IRUGO, show_alarm, NULL, 1);
 static SENSOR_DEVICE_ATTR(temp2_fault, S_IRUGO, show_alarm, NULL, 2);
 static SENSOR_DEVICE_ATTR(temp2_min_alarm, S_IRUGO, show_alarm, NULL, 3);
 static SENSOR_DEVICE_ATTR(temp2_max_alarm, S_IRUGO, show_alarm, NULL, 4);
 
-static struct attribute *max1619_attributes[] = {
-	&dev_attr_temp1_input.attr,
-	&dev_attr_temp2_input.attr,
-	&dev_attr_temp2_min.attr,
-	&dev_attr_temp2_max.attr,
-	&dev_attr_temp2_crit.attr,
-	&dev_attr_temp2_crit_hyst.attr,
+static struct attribute *max1619_attrs[] = {
+	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	&sensor_dev_attr_temp2_input.dev_attr.attr,
+	&sensor_dev_attr_temp2_min.dev_attr.attr,
+	&sensor_dev_attr_temp2_max.dev_attr.attr,
+	&sensor_dev_attr_temp2_crit.dev_attr.attr,
+	&sensor_dev_attr_temp2_crit_hyst.dev_attr.attr,
 
 	&dev_attr_alarms.attr,
 	&sensor_dev_attr_temp2_crit_alarm.dev_attr.attr,
@@ -216,14 +220,7 @@ static struct attribute *max1619_attributes[] = {
 	&sensor_dev_attr_temp2_max_alarm.dev_attr.attr,
 	NULL
 };
-
-static const struct attribute_group max1619_group = {
-	.attrs = max1619_attributes,
-};
-
-/*
- * Real code
- */
+ATTRIBUTE_GROUPS(max1619);
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
 static int max1619_detect(struct i2c_client *client,
@@ -261,42 +258,6 @@ static int max1619_detect(struct i2c_client *client,
 	return 0;
 }
 
-static int max1619_probe(struct i2c_client *new_client,
-			 const struct i2c_device_id *id)
-{
-	struct max1619_data *data;
-	int err;
-
-	data = devm_kzalloc(&new_client->dev, sizeof(struct max1619_data),
-			    GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	i2c_set_clientdata(new_client, data);
-	data->valid = 0;
-	mutex_init(&data->update_lock);
-
-	/* Initialize the MAX1619 chip */
-	max1619_init_client(new_client);
-
-	/* Register sysfs hooks */
-	err = sysfs_create_group(&new_client->dev.kobj, &max1619_group);
-	if (err)
-		return err;
-
-	data->hwmon_dev = hwmon_device_register(&new_client->dev);
-	if (IS_ERR(data->hwmon_dev)) {
-		err = PTR_ERR(data->hwmon_dev);
-		goto exit_remove_files;
-	}
-
-	return 0;
-
-exit_remove_files:
-	sysfs_remove_group(&new_client->dev.kobj, &max1619_group);
-	return err;
-}
-
 static void max1619_init_client(struct i2c_client *client)
 {
 	u8 config;
@@ -312,52 +273,49 @@ static void max1619_init_client(struct i2c_client *client)
 					  config & 0xBF); /* run */
 }
 
-static int max1619_remove(struct i2c_client *client)
+static int max1619_probe(struct i2c_client *new_client,
+			 const struct i2c_device_id *id)
 {
-	struct max1619_data *data = i2c_get_clientdata(client);
+	struct max1619_data *data;
+	struct device *hwmon_dev;
 
-	hwmon_device_unregister(data->hwmon_dev);
-	sysfs_remove_group(&client->dev.kobj, &max1619_group);
+	data = devm_kzalloc(&new_client->dev, sizeof(struct max1619_data),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
-	return 0;
+	data->client = new_client;
+	mutex_init(&data->update_lock);
+
+	/* Initialize the MAX1619 chip */
+	max1619_init_client(new_client);
+
+	hwmon_dev = devm_hwmon_device_register_with_groups(&new_client->dev,
+							   new_client->name,
+							   data,
+							   max1619_groups);
+	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
-static struct max1619_data *max1619_update_device(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct max1619_data *data = i2c_get_clientdata(client);
+static const struct i2c_device_id max1619_id[] = {
+	{ "max1619", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, max1619_id);
 
-	mutex_lock(&data->update_lock);
-
-	if (time_after(jiffies, data->last_updated + HZ * 2) || !data->valid) {
-		dev_dbg(&client->dev, "Updating max1619 data.\n");
-		data->temp_input1 = i2c_smbus_read_byte_data(client,
-					MAX1619_REG_R_LOCAL_TEMP);
-		data->temp_input2 = i2c_smbus_read_byte_data(client,
-					MAX1619_REG_R_REMOTE_TEMP);
-		data->temp_high2 = i2c_smbus_read_byte_data(client,
-					MAX1619_REG_R_REMOTE_HIGH);
-		data->temp_low2 = i2c_smbus_read_byte_data(client,
-					MAX1619_REG_R_REMOTE_LOW);
-		data->temp_crit2 = i2c_smbus_read_byte_data(client,
-					MAX1619_REG_R_REMOTE_CRIT);
-		data->temp_hyst2 = i2c_smbus_read_byte_data(client,
-					MAX1619_REG_R_TCRIT_HYST);
-		data->alarms = i2c_smbus_read_byte_data(client,
-					MAX1619_REG_R_STATUS);
-
-		data->last_updated = jiffies;
-		data->valid = 1;
-	}
-
-	mutex_unlock(&data->update_lock);
-
-	return data;
-}
+static struct i2c_driver max1619_driver = {
+	.class		= I2C_CLASS_HWMON,
+	.driver = {
+		.name	= "max1619",
+	},
+	.probe		= max1619_probe,
+	.id_table	= max1619_id,
+	.detect		= max1619_detect,
+	.address_list	= normal_i2c,
+};
 
 module_i2c_driver(max1619_driver);
 
-MODULE_AUTHOR("Oleksij Rempel <bug-track@fisher-privat.net> and "
-	"Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Oleksij Rempel <bug-track@fisher-privat.net>, Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("MAX1619 sensor driver");
 MODULE_LICENSE("GPL");

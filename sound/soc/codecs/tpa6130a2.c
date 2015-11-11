@@ -30,6 +30,8 @@
 #include <sound/tpa6130a2-plat.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 
 #include "tpa6130a2.h"
 
@@ -55,7 +57,8 @@ static int tpa6130a2_i2c_read(int reg)
 	struct tpa6130a2_data *data;
 	int val;
 
-	BUG_ON(tpa6130a2_client == NULL);
+	if (WARN_ON(!tpa6130a2_client))
+		return -EINVAL;
 	data = i2c_get_clientdata(tpa6130a2_client);
 
 	/* If powered off, return the cached value */
@@ -77,7 +80,8 @@ static int tpa6130a2_i2c_write(int reg, u8 value)
 	struct tpa6130a2_data *data;
 	int val = 0;
 
-	BUG_ON(tpa6130a2_client == NULL);
+	if (WARN_ON(!tpa6130a2_client))
+		return -EINVAL;
 	data = i2c_get_clientdata(tpa6130a2_client);
 
 	if (data->power_state) {
@@ -98,7 +102,8 @@ static u8 tpa6130a2_read(int reg)
 {
 	struct tpa6130a2_data *data;
 
-	BUG_ON(tpa6130a2_client == NULL);
+	if (WARN_ON(!tpa6130a2_client))
+		return 0;
 	data = i2c_get_clientdata(tpa6130a2_client);
 
 	return data->regs[reg];
@@ -109,7 +114,8 @@ static int tpa6130a2_initialize(void)
 	struct tpa6130a2_data *data;
 	int i, ret = 0;
 
-	BUG_ON(tpa6130a2_client == NULL);
+	if (WARN_ON(!tpa6130a2_client))
+		return -EINVAL;
 	data = i2c_get_clientdata(tpa6130a2_client);
 
 	for (i = 1; i < TPA6130A2_REG_VERSION; i++) {
@@ -127,7 +133,8 @@ static int tpa6130a2_power(u8 power)
 	u8	val;
 	int	ret = 0;
 
-	BUG_ON(tpa6130a2_client == NULL);
+	if (WARN_ON(!tpa6130a2_client))
+		return -EINVAL;
 	data = i2c_get_clientdata(tpa6130a2_client);
 
 	mutex_lock(&data->mutex);
@@ -193,7 +200,8 @@ static int tpa6130a2_get_volsw(struct snd_kcontrol *kcontrol,
 	unsigned int mask = (1 << fls(max)) - 1;
 	unsigned int invert = mc->invert;
 
-	BUG_ON(tpa6130a2_client == NULL);
+	if (WARN_ON(!tpa6130a2_client))
+		return -EINVAL;
 	data = i2c_get_clientdata(tpa6130a2_client);
 
 	mutex_lock(&data->mutex);
@@ -223,7 +231,8 @@ static int tpa6130a2_put_volsw(struct snd_kcontrol *kcontrol,
 	unsigned int val = (ucontrol->value.integer.value[0] & mask);
 	unsigned int val_reg;
 
-	BUG_ON(tpa6130a2_client == NULL);
+	if (WARN_ON(!tpa6130a2_client))
+		return -EINVAL;
 	data = i2c_get_clientdata(tpa6130a2_client);
 
 	if (invert)
@@ -250,8 +259,7 @@ static int tpa6130a2_put_volsw(struct snd_kcontrol *kcontrol,
  * TPA6130 volume. From -59.5 to 4 dB with increasing step size when going
  * down in gain.
  */
-static const unsigned int tpa6130_tlv[] = {
-	TLV_DB_RANGE_HEAD(10),
+static const DECLARE_TLV_DB_RANGE(tpa6130_tlv,
 	0, 1, TLV_DB_SCALE_ITEM(-5950, 600, 0),
 	2, 3, TLV_DB_SCALE_ITEM(-5000, 250, 0),
 	4, 5, TLV_DB_SCALE_ITEM(-4550, 160, 0),
@@ -261,8 +269,8 @@ static const unsigned int tpa6130_tlv[] = {
 	12, 13, TLV_DB_SCALE_ITEM(-3040, 180, 0),
 	14, 20, TLV_DB_SCALE_ITEM(-2710, 110, 0),
 	21, 37, TLV_DB_SCALE_ITEM(-1960, 74, 0),
-	38, 63, TLV_DB_SCALE_ITEM(-720, 45, 0),
-};
+	38, 63, TLV_DB_SCALE_ITEM(-720, 45, 0)
+);
 
 static const struct snd_kcontrol_new tpa6130a2_controls[] = {
 	SOC_SINGLE_EXT_TLV("TPA6130A2 Headphone Playback Volume",
@@ -271,12 +279,11 @@ static const struct snd_kcontrol_new tpa6130a2_controls[] = {
 		       tpa6130_tlv),
 };
 
-static const unsigned int tpa6140_tlv[] = {
-	TLV_DB_RANGE_HEAD(3),
+static const DECLARE_TLV_DB_RANGE(tpa6140_tlv,
 	0, 8, TLV_DB_SCALE_ITEM(-5900, 400, 0),
 	9, 16, TLV_DB_SCALE_ITEM(-2500, 200, 0),
-	17, 31, TLV_DB_SCALE_ITEM(-1000, 100, 0),
-};
+	17, 31, TLV_DB_SCALE_ITEM(-1000, 100, 0)
+);
 
 static const struct snd_kcontrol_new tpa6140a2_controls[] = {
 	SOC_SINGLE_EXT_TLV("TPA6140A2 Headphone Playback Volume",
@@ -364,30 +371,31 @@ static int tpa6130a2_probe(struct i2c_client *client,
 {
 	struct device *dev;
 	struct tpa6130a2_data *data;
-	struct tpa6130a2_platform_data *pdata;
+	struct tpa6130a2_platform_data *pdata = client->dev.platform_data;
+	struct device_node *np = client->dev.of_node;
 	const char *regulator;
 	int ret;
 
 	dev = &client->dev;
 
-	if (client->dev.platform_data == NULL) {
+	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	if (pdata) {
+		data->power_gpio = pdata->power_gpio;
+	} else if (np) {
+		data->power_gpio = of_get_named_gpio(np, "power-gpio", 0);
+	} else {
 		dev_err(dev, "Platform data not set\n");
 		dump_stack();
 		return -ENODEV;
-	}
-
-	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
-	if (data == NULL) {
-		dev_err(dev, "Can not allocate memory\n");
-		return -ENOMEM;
 	}
 
 	tpa6130a2_client = client;
 
 	i2c_set_clientdata(tpa6130a2_client, data);
 
-	pdata = client->dev.platform_data;
-	data->power_gpio = pdata->power_gpio;
 	data->id = id->driver_data;
 
 	mutex_init(&data->mutex);
@@ -466,10 +474,19 @@ static const struct i2c_device_id tpa6130a2_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tpa6130a2_id);
 
+#if IS_ENABLED(CONFIG_OF)
+static const struct of_device_id tpa6130a2_of_match[] = {
+	{ .compatible = "ti,tpa6130a2", },
+	{ .compatible = "ti,tpa6140a2" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, tpa6130a2_of_match);
+#endif
+
 static struct i2c_driver tpa6130a2_i2c_driver = {
 	.driver = {
 		.name = "tpa6130a2",
-		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(tpa6130a2_of_match),
 	},
 	.probe = tpa6130a2_probe,
 	.remove = tpa6130a2_remove,

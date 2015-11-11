@@ -133,7 +133,7 @@ config MTD_OF_PARTS
 	help
 	  This provides a partition parsing function which derives
 	  the partition map from the children of the flash node,
-	  as described in Documentation/devicetree/booting-without-of.txt.
+	  as described in Documentation/devicetree/bindings/mtd/partition.txt.
 
 config MTD_AR7_PARTS
 	tristate "TI AR7 partitioning support"
@@ -150,17 +150,18 @@ config MTD_BCM63XX_PARTS
 
 config MTD_BCM47XX_PARTS
 	tristate "BCM47XX partitioning support"
-	depends on BCM47XX
+	depends on BCM47XX || ARCH_BCM_5301X
 	help
 	  This provides partitions parser for devices based on BCM47xx
 	  boards.
 
 comment "User Modules And Translation Layers"
 
+#
+# MTD block device support is select'ed if needed
+#
 config MTD_BLKDEVS
-	tristate "Common interface to block layer for MTD 'translation layers'"
-	depends on BLOCK
-	default n
+	tristate
 
 config MTD_BLOCK
 	tristate "Caching block device access to MTD devices"
@@ -308,6 +309,19 @@ config MTD_SWAP
 	  The driver provides wear leveling by storing erase counter into the
 	  OOB.
 
+config MTD_PARTITIONED_MASTER
+	bool "Retain master device when partitioned"
+	default n
+	depends on MTD
+	help
+	  For historical reasons, by default, either a master is present or
+	  several partitions are present, but not both. The concern was that
+	  data listed in multiple partitions was dangerous; however, SCSI does
+	  this and it is frequently useful for applications. This config option
+	  leaves the master in even if the device is partitioned. It also makes
+	  the parent of the partition device be the master device, rather than
+	  what lies behind the master.
+
 source "drivers/mtd/chips/Kconfig"
 
 source "drivers/mtd/maps/Kconfig"
@@ -319,6 +333,8 @@ source "drivers/mtd/nand/Kconfig"
 source "drivers/mtd/onenand/Kconfig"
 
 source "drivers/mtd/lpddr/Kconfig"
+
+source "drivers/mtd/spi-nor/Kconfig"
 
 source "drivers/mtd/ubi/Kconfig"
 

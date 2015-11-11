@@ -20,7 +20,7 @@
 
 #include "types.h"
 
-extern u16 si_pmu_fast_pwrup_delay(struct si_pub *sih);
-extern u32 si_pmu_measure_alpclk(struct si_pub *sih);
+u16 si_pmu_fast_pwrup_delay(struct si_pub *sih);
+u32 si_pmu_measure_alpclk(struct si_pub *sih);
 
 #endif /* _BRCM_PMU_H_ */

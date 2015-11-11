@@ -1,0 +1,39 @@
+* Synopsys ARC EMAC 10/100 Ethernet driver (EMAC)
+
+Required properties:
+- compatible: Should be "snps,arc-emac"
+- reg: Address and length of the register set for the device
+- interrupts: Should contain the EMAC interrupts
+- max-speed: see ethernet.txt file in the same directory.
+- phy: see ethernet.txt file in the same directory.
+
+Clock handling:
+The clock frequency is needed to calculate and set polling period of EMAC.
+It must be provided by one of:
+- clock-frequency: CPU frequency.
+- clocks: reference to the clock supplying the EMAC.
+
+Child nodes of the driver are the individual PHY devices connected to the
+MDIO bus. They must have a "reg" property given the PHY address on the MDIO bus.
+
+Examples:
+
+	ethernet@c0fc2000 {
+		compatible = "snps,arc-emac";
+		reg = <0xc0fc2000 0x3c>;
+		interrupts = <6>;
+		mac-address = [ 00 11 22 33 44 55 ];
+
+		clock-frequency = <80000000>;
+		/* or */
+		clocks = <&emac_clock>;
+
+		max-speed = <100>;
+		phy = <&phy0>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+		phy0: ethernet-phy@0 {
+			reg = <1>;
+		};
+	};

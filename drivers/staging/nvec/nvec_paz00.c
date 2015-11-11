@@ -35,6 +35,7 @@ static void nvec_led_brightness_set(struct led_classdev *led_cdev,
 {
 	struct nvec_led *led = to_nvec_led(led_cdev);
 	unsigned char buf[] = NVEC_LED_REQ;
+
 	buf[4] = value;
 
 	nvec_write_async(led->nvec, buf, sizeof(buf));
@@ -50,7 +51,7 @@ static int nvec_paz00_probe(struct platform_device *pdev)
 	int ret = 0;
 
 	led = devm_kzalloc(&pdev->dev, sizeof(*led), GFP_KERNEL);
-	if (led == NULL)
+	if (!led)
 		return -ENOMEM;
 
 	led->cdev.max_brightness = NVEC_LED_MAX;
@@ -86,7 +87,6 @@ static struct platform_driver nvec_paz00_driver = {
 	.remove = nvec_paz00_remove,
 	.driver = {
 		.name  = "nvec-paz00",
-		.owner = THIS_MODULE,
 	},
 };
 

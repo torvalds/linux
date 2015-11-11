@@ -1577,15 +1577,6 @@ static int cy_open(struct tty_struct *tty, struct file *filp)
 #endif
 
 	/*
-	 * If the port is the middle of closing, bail out now
-	 */
-	if (tty_hung_up_p(filp) || (info->port.flags & ASYNC_CLOSING)) {
-		wait_event_interruptible_tty(tty, info->port.close_wait,
-				!(info->port.flags & ASYNC_CLOSING));
-		return (info->port.flags & ASYNC_HUP_NOTIFY) ? -EAGAIN: -ERESTARTSYS;
-	}
-
-	/*
 	 * Start up serial port
 	 */
 	retval = cy_startup(info, tty);
@@ -2709,6 +2700,8 @@ cy_ioctl(struct tty_struct *tty,
 		break;
 #ifndef CONFIG_CYZ_INTR
 	case CYZSETPOLLCYCLE:
+		if (arg > LONG_MAX / HZ)
+			return -ENODEV;
 		cyz_polling_cycle = (arg * HZ) / 1000;
 		break;
 	case CYZGETPOLLCYCLE:
@@ -2859,9 +2852,7 @@ static void cy_throttle(struct tty_struct *tty)
 	unsigned long flags;
 
 #ifdef CY_DEBUG_THROTTLE
-	char buf[64];
-
-	printk(KERN_DEBUG "cyc:throttle %s: %ld...ttyC%d\n", tty_name(tty, buf),
+	printk(KERN_DEBUG "cyc:throttle %s: %ld...ttyC%d\n", tty_name(tty),
 			tty->ldisc.chars_in_buffer(tty), info->line);
 #endif
 
@@ -2900,10 +2891,8 @@ static void cy_unthrottle(struct tty_struct *tty)
 	unsigned long flags;
 
 #ifdef CY_DEBUG_THROTTLE
-	char buf[64];
-
 	printk(KERN_DEBUG "cyc:unthrottle %s: %ld...ttyC%d\n",
-		tty_name(tty, buf), tty_chars_in_buffer(tty), info->line);
+		tty_name(tty), tty_chars_in_buffer(tty), info->line);
 #endif
 
 	if (serial_paranoia_check(info, tty->name, "cy_unthrottle"))

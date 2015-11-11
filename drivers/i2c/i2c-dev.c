@@ -14,11 +14,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-    MA 02110-1301 USA.
 */
 
 /* Note that this is a complete rewrite of Simon Vogl's i2c-dev module.
@@ -102,8 +97,8 @@ static void return_i2c_dev(struct i2c_dev *i2c_dev)
 	kfree(i2c_dev);
 }
 
-static ssize_t show_adapter_name(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+static ssize_t name_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
 {
 	struct i2c_dev *i2c_dev = i2c_dev_get_by_minor(MINOR(dev->devt));
 
@@ -111,7 +106,13 @@ static ssize_t show_adapter_name(struct device *dev,
 		return -ENODEV;
 	return sprintf(buf, "%s\n", i2c_dev->adap->name);
 }
-static DEVICE_ATTR(name, S_IRUGO, show_adapter_name, NULL);
+static DEVICE_ATTR_RO(name);
+
+static struct attribute *i2c_attrs[] = {
+	&dev_attr_name.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(i2c);
 
 /* ------------------------------------------------------------------------- */
 
@@ -234,7 +235,7 @@ static int i2cdev_check_addr(struct i2c_adapter *adapter, unsigned int addr)
 	return result;
 }
 
-static noinline int i2cdev_ioctl_rdrw(struct i2c_client *client,
+static noinline int i2cdev_ioctl_rdwr(struct i2c_client *client,
 		unsigned long arg)
 {
 	struct i2c_rdwr_ioctl_data rdwr_arg;
@@ -249,7 +250,7 @@ static noinline int i2cdev_ioctl_rdrw(struct i2c_client *client,
 
 	/* Put an arbitrary limit on the number of messages that can
 	 * be sent at once */
-	if (rdwr_arg.nmsgs > I2C_RDRW_IOCTL_MAX_MSGS)
+	if (rdwr_arg.nmsgs > I2C_RDWR_IOCTL_MAX_MSGS)
 		return -EINVAL;
 
 	rdwr_pa = memdup_user(rdwr_arg.msgs,
@@ -420,16 +421,6 @@ static long i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case I2C_SLAVE:
 	case I2C_SLAVE_FORCE:
-		/* NOTE:  devices set up to work with "new style" drivers
-		 * can't use I2C_SLAVE, even when the device node is not
-		 * bound to a driver.  Only I2C_SLAVE_FORCE will work.
-		 *
-		 * Setting the PEC flag here won't affect kernel drivers,
-		 * which will be using the i2c_client node registered with
-		 * the driver model core.  Likewise, when that client has
-		 * the PEC flag already set, the i2c-dev driver won't see
-		 * (or use) this setting.
-		 */
 		if ((arg > 0x3ff) ||
 		    (((client->flags & I2C_M_TEN) == 0) && arg > 0x7f))
 			return -EINVAL;
@@ -445,6 +436,13 @@ static long i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			client->flags &= ~I2C_M_TEN;
 		return 0;
 	case I2C_PEC:
+		/*
+		 * Setting the PEC flag here won't affect kernel drivers,
+		 * which will be using the i2c_client node registered with
+		 * the driver model core.  Likewise, when that client has
+		 * the PEC flag already set, the i2c-dev driver won't see
+		 * (or use) this setting.
+		 */
 		if (arg)
 			client->flags |= I2C_CLIENT_PEC;
 		else
@@ -455,7 +453,7 @@ static long i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return put_user(funcs, (unsigned long __user *)arg);
 
 	case I2C_RDWR:
-		return i2cdev_ioctl_rdrw(client, arg);
+		return i2cdev_ioctl_rdwr(client, arg);
 
 	case I2C_SMBUS:
 		return i2cdev_ioctl_smbus(client, arg);
@@ -562,15 +560,10 @@ static int i2cdev_attach_adapter(struct device *dev, void *dummy)
 		res = PTR_ERR(i2c_dev->dev);
 		goto error;
 	}
-	res = device_create_file(i2c_dev->dev, &dev_attr_name);
-	if (res)
-		goto error_destroy;
 
 	pr_debug("i2c-dev: adapter [%s] registered as minor %d\n",
 		 adap->name, adap->nr);
 	return 0;
-error_destroy:
-	device_destroy(i2c_dev_class, MKDEV(I2C_MAJOR, adap->nr));
 error:
 	return_i2c_dev(i2c_dev);
 	return res;
@@ -589,7 +582,6 @@ static int i2cdev_detach_adapter(struct device *dev, void *dummy)
 	if (!i2c_dev) /* attach_adapter must have failed */
 		return 0;
 
-	device_remove_file(i2c_dev->dev, &dev_attr_name);
 	return_i2c_dev(i2c_dev);
 	device_destroy(i2c_dev_class, MKDEV(I2C_MAJOR, adap->nr));
 
@@ -637,6 +629,7 @@ static int __init i2c_dev_init(void)
 		res = PTR_ERR(i2c_dev_class);
 		goto out_unreg_chrdev;
 	}
+	i2c_dev_class->dev_groups = i2c_groups;
 
 	/* Keep track of adapters which will be added or removed later */
 	res = bus_register_notifier(&i2c_bus_type, &i2cdev_notifier);

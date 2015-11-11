@@ -1019,11 +1019,11 @@ static int __logfs_is_valid_block(struct inode *inode, u64 bix, u64 ofs)
 /**
  * logfs_is_valid_block - check whether this block is still valid
  *
- * @sb	- superblock
- * @ofs	- block physical offset
- * @ino	- block inode number
- * @bix	- block index
- * @level - block level
+ * @sb:		superblock
+ * @ofs:	block physical offset
+ * @ino:	block inode number
+ * @bix:	block index
+ * @gc_level:	block level
  *
  * Returns 0 if the block is invalid, 1 if it is valid and 2 if it will
  * become invalid once the journal is written.
@@ -2180,7 +2180,7 @@ void logfs_evict_inode(struct inode *inode)
 			do_delete_inode(inode);
 		}
 	}
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
 
 	/* Cheaper version of write_inode.  All changes are concealed in
@@ -2226,10 +2226,9 @@ void btree_write_block(struct logfs_block *block)
  *
  * @inode:		parent inode (ifile or directory)
  * @buf:		object to write (inode or dentry)
- * @n:			object size
- * @_pos:		object number (file position in blocks/objects)
+ * @count:		object size
+ * @bix:		block index
  * @flags:		write flags
- * @lock:		0 if write lock is already taken, 1 otherwise
  * @shadow_tree:	shadow below this inode
  *
  * FIXME: All caller of this put a 200-300 byte variable on the stack,

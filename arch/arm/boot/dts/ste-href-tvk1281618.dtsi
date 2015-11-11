@@ -1,0 +1,181 @@
+/*
+ * Copyright 2012 ST-Ericsson AB
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ *
+ * Device Tree for the TVK1281618 UIB
+ */
+
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		vdd-supply = <&ab8500_ldo_aux1_reg>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&prox_tvk_mode>, <&hall_tvk_mode>;
+
+		button@139 {
+			/* Proximity sensor */
+			gpios = <&gpio6 25 0x4>;
+			linux,code = <11>; /* SW_FRONT_PROXIMITY */
+			label = "SFH7741 Proximity Sensor";
+		};
+		button@145 {
+			/* Hall sensor */
+			gpios = <&gpio4 17 0x4>;
+			linux,code = <0>; /* SW_LID */
+			label = "HED54XXU11 Hall Effect Sensor";
+		};
+	};
+
+	soc {
+		/* Add Synaptics touch screen, TC35893 keypad etc here */
+		i2c@80004000 {
+			tc35893@44 {
+				compatible = "toshiba,tc35893";
+				reg = <0x44>;
+				interrupt-parent = <&gpio6>;
+				interrupts = <26 IRQ_TYPE_EDGE_RISING>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&tc35893_tvk_mode>;
+
+				interrupt-controller;
+				#interrupt-cells = <1>;
+
+				tc3589x_gpio {
+					compatible = "toshiba,tc3589x-gpio";
+					interrupts = <0>;
+
+					interrupt-controller;
+					#interrupt-cells = <2>;
+					gpio-controller;
+					#gpio-cells = <2>;
+				};
+				tc3589x_keypad {
+					compatible = "toshiba,tc3589x-keypad";
+					interrupts = <6>;
+					debounce-delay-ms = <4>;
+					keypad,num-columns = <8>;
+					keypad,num-rows = <8>;
+					linux,no-autorepeat;
+					linux,wakeup;
+					linux,keymap = <0x0301006b
+						        0x04010066
+							0x06040072
+							0x040200d7
+							0x0303006a
+							0x0205000e
+							0x0607008b
+							0x0500001c
+							0x0403000b
+							0x03040034
+							0x05020067
+							0x0305006c
+							0x040500e7
+							0x0005009e
+							0x06020073
+							0x01030039
+							0x07060069
+							0x050500d9>;
+				};
+			};
+		};
+		/* Sensors mounted on this board variant */
+		i2c@80128000 {
+			lsm303dlh@18 {
+				/* Accelerometer */
+				compatible = "st,lsm303dlh-accel";
+				st,drdy-int-pin = <1>;
+				reg = <0x18>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&accel_tvk_mode>;
+				interrupt-parent = <&gpio2>;
+				interrupts = <18 IRQ_TYPE_EDGE_RISING>,
+					     <19 IRQ_TYPE_EDGE_RISING>;
+			};
+			lsm303dlh@1e {
+				/* Magnetometer */
+				compatible = "st,lsm303dlh-magn";
+				reg = <0x1e>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&magneto_tvk_mode>;
+			};
+			l3g4200d@68 {
+				/* Gyroscope */
+				compatible = "st,l3g4200d-gyro";
+				st,drdy-int-pin = <2>;
+				reg = <0x68>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+			};
+			lsp001wm@5c {
+				/* Barometer/pressure sensor */
+				compatible = "st,lps001wp-press";
+				reg = <0x5c>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+			};
+		};
+		pinctrl {
+			/* Pull up this GPIO pin */
+			tc35893 {
+				tc35893_tvk_mode: tc35893_tvk {
+					tvk_cfg {
+						pins = "GPIO218_AH11";
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			prox {
+				prox_tvk_mode: prox_tvk {
+					tvk_cfg {
+						pins = "GPIO217_AH12";
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			hall {
+				hall_tvk_mode: hall_tvk {
+					tvk_cfg {
+						pins = "GPIO145_C13";
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			accelerometer {
+				accel_tvk_mode: accel_tvk {
+					/* Accelerometer interrupt lines 1 & 2 */
+					tvk_cfg {
+						pins = "GPIO82_C1", "GPIO83_D3";
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			magnetometer {
+				magneto_tvk_mode: magneto_tvk {
+					/* Magnetometer uses GPIO 31 and 32, pull these up/down respectively */
+					tvk_cfg1 {
+						pins = "GPIO31_V3";
+						ste,config = <&gpio_in_pu>;
+					};
+					tvk_cfg2 {
+						pins = "GPIO32_V2";
+						ste,config = <&gpio_in_pd>;
+					};
+				};
+			};
+		};
+	};
+};

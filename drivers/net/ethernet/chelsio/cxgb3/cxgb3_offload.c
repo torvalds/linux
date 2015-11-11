@@ -182,10 +182,10 @@ static struct net_device *get_iff_from_mac(struct adapter *adapter,
 	for_each_port(adapter, i) {
 		struct net_device *dev = adapter->port[i];
 
-		if (!memcmp(dev->dev_addr, mac, ETH_ALEN)) {
+		if (ether_addr_equal(dev->dev_addr, mac)) {
 			rcu_read_lock();
 			if (vlan && vlan != VLAN_VID_MASK) {
-				dev = __vlan_find_dev_deep(dev, htons(ETH_P_8021Q), vlan);
+				dev = __vlan_find_dev_deep_rcu(dev, htons(ETH_P_8021Q), vlan);
 			} else if (netif_is_bond_slave(dev)) {
 				struct net_device *upper_dev;
 
@@ -1157,7 +1157,7 @@ static void cxgb_redirect(struct dst_entry *old, struct dst_entry *new,
  */
 void *cxgb_alloc_mem(unsigned long size)
 {
-	void *p = kzalloc(size, GFP_KERNEL);
+	void *p = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
 
 	if (!p)
 		p = vzalloc(size);
@@ -1169,10 +1169,7 @@ void *cxgb_alloc_mem(unsigned long size)
  */
 void cxgb_free_mem(void *addr)
 {
-	if (is_vmalloc_addr(addr))
-		vfree(addr);
-	else
-		kfree(addr);
+	kvfree(addr);
 }
 
 /*
@@ -1246,6 +1243,7 @@ int cxgb3_offload_activate(struct adapter *adapter)
 	struct tid_range stid_range, tid_range;
 	struct mtutab mtutab;
 	unsigned int l2t_capacity;
+	struct l2t_data *l2td;
 
 	t = kzalloc(sizeof(*t), GFP_KERNEL);
 	if (!t)
@@ -1261,8 +1259,8 @@ int cxgb3_offload_activate(struct adapter *adapter)
 		goto out_free;
 
 	err = -ENOMEM;
-	RCU_INIT_POINTER(dev->l2opt, t3_init_l2t(l2t_capacity));
-	if (!L2DATA(dev))
+	l2td = t3_init_l2t(l2t_capacity);
+	if (!l2td)
 		goto out_free;
 
 	natids = min(tid_range.num / 2, MAX_ATIDS);
@@ -1279,6 +1277,7 @@ int cxgb3_offload_activate(struct adapter *adapter)
 	INIT_LIST_HEAD(&t->list_node);
 	t->dev = dev;
 
+	RCU_INIT_POINTER(dev->l2opt, l2td);
 	T3C_DATA(dev) = t;
 	dev->recv = process_rx;
 	dev->neigh_update = t3_l2t_update;
@@ -1294,8 +1293,7 @@ int cxgb3_offload_activate(struct adapter *adapter)
 	return 0;
 
 out_free_l2t:
-	t3_free_l2t(L2DATA(dev));
-	RCU_INIT_POINTER(dev->l2opt, NULL);
+	t3_free_l2t(l2td);
 out_free:
 	kfree(t);
 	return err;

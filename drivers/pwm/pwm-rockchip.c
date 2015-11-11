@@ -1,748 +1,303 @@
+/*
+ * PWM driver for Rockchip SoCs
+ *
+ * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
+ * Copyright (C) 2014 ROCKCHIP, Inc.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * version 2 as published by the Free Software Foundation.
+ */
 
 #include <linux/clk.h>
-#include <linux/err.h>
 #include <linux/io.h>
-#include <linux/ioport.h>
-#include <linux/kernel.h>
-#include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
-#include <linux/slab.h>
-#include <linux/types.h>
-#include <linux/spinlock.h>
-#include <linux/of_device.h>
-#include <linux/of_address.h>
-#include <linux/rockchip/grf.h>
-#include <linux/rockchip/iomap.h>
+#include <linux/time.h>
 
+#define PWM_CTRL_TIMER_EN	(1 << 0)
+#define PWM_CTRL_OUTPUT_EN	(1 << 3)
 
-static int pwm_dbg_level = 0;
-module_param_named(dbg_level, pwm_dbg_level, int, 0644);
-#define DBG( args...) \
-	do { \
-		if (pwm_dbg_level) { \
-			pr_info(args); \
-		} \
-	} while (0)
+#define PWM_ENABLE		(1 << 0)
+#define PWM_CONTINUOUS		(1 << 1)
+#define PWM_DUTY_POSITIVE	(1 << 3)
+#define PWM_DUTY_NEGATIVE	(0 << 3)
+#define PWM_INACTIVE_NEGATIVE	(0 << 4)
+#define PWM_INACTIVE_POSITIVE	(1 << 4)
+#define PWM_OUTPUT_LEFT		(0 << 5)
+#define PWM_LP_DISABLE		(0 << 8)
 
-#define PWM_CLK                                 1
-#define NUM_PWM		                  1
-
-/* PWM registers  */
-#define PWM_REG_CNTR    			0x00
-#define PWM_REG_HRC    				0x04
-#define PWM_REG_LRC    				0x08   
-#define PWM_REG_CTRL    				0x0c  /* PWM Control Register */
-
-#define PWM_REG_PERIOD				PWM_REG_HRC  /* Period Register */
-#define PWM_REG_DUTY        			PWM_REG_LRC  /* Duty Cycle Register */
-
-#define VOP_REG_CNTR       			0x0C
-#define VOP_REG_CTRL    				0x00  /* VOP-PWM Control Register */
-
-//#define PWM_REG_CTRL                   0x0c /* Control Register */
-
-#define PWM_DIV_MASK    			(0xf << 9)
-#define PWM_CAPTURE     				(1 << 8)
-#define PWM_RESET      				(1 << 7)
-#define PWM_INTCLR      				(1 << 6)
-#define PWM_INTEN       				(1 << 5)
-#define PWM_SINGLE      				(1 << 4)
-
-#define PWM_ENABLE      				(1 << 3)
-#define PWM_TIMER_EN    				(1 << 0)
-
-#define RK_PWM_DISABLE                     (0 << 0) 
-#define RK_PWM_ENABLE                       (1 << 0)
-
-#define PWM_SHOT                                 (0 << 1)
-#define PWM_CONTINUMOUS                 (1 << 1)
-#define RK_PWM_CAPTURE                    (1 << 2)
-
-#define PWM_DUTY_POSTIVE                (1 << 3)
-#define PWM_DUTY_NEGATIVE              (0 << 3)
-
-#define PWM_INACTIVE_POSTIVE         (1 << 4)
-#define PWM_INACTIVE_NEGATIVE       (0 << 4)
-
-#define PWM_OUTPUT_LEFT                 (0 << 5)
-#define PWM_OUTPUT_ENTER               (1 << 5)
-
-#define PWM_LP_ENABLE                     (1<<8)
-#define PWM_LP_DISABLE                    (0<<8)
-
-#define DW_PWM_PRESCALE		9
-#define RK_PWM_PRESCALE		16
-
-#define PWMCR_MIN_PRESCALE	0x00
-
-#define PWMCR_MIN_PRESCALE	0x00
-#define PWMCR_MAX_PRESCALE	0x07
-
-#define PWMDCR_MIN_DUTY		0x0000
-#define PWMDCR_MAX_DUTY		0xFFFFFFFF
-
-#define PWMPCR_MIN_PERIOD		0x0001
-#define PWMPCR_MAX_PERIOD		0xFFFFFFFF
-
-/********************************************
- * struct rk_pwm_chip - struct representing pwm chip
-
- * @base: base address of pwm chip
- * @clk: pointer to clk structure of pwm chip
- * @chip: linux pwm chip representation
- *********************************************/
- struct rk_pwm_chip {
-	void __iomem *base;
-	struct clk *clk;
-	struct clk *aclk_lcdc;
-	struct clk *hclk_lcdc;
+struct rockchip_pwm_chip {
 	struct pwm_chip chip;
-	unsigned int pwm_id;
-	spinlock_t		lock;
-	int				pwm_ctrl;
-	int				pwm_duty;
-	int				pwm_period;
-	int				pwm_count;
-	int (*config)(struct pwm_chip *chip,
-		struct pwm_device *pwm, int duty_ns, int period_ns);
-	void (*set_enable)(struct pwm_chip *chip, struct pwm_device *pwm,bool enable);	
-	void (*pwm_suspend)(struct pwm_chip *chip, struct pwm_device *pwm);
-	void (*pwm_resume)(struct pwm_chip *chip, struct pwm_device *pwm);
-
+	struct clk *clk;
+	const struct rockchip_pwm_data *data;
+	void __iomem *base;
 };
 
-#ifdef CONFIG_ARM64
-extern int rk3368_lcdc_update_pwm(int bl_pwm_period, int bl_pwm_duty);
-extern int rk3368_lcdc_cabc_status(void);
-#else
-static inline int rk3368_lcdc_update_pwm(int bl_pwm_period, int bl_pwm_duty)
-{
-	return 0;
-}
-static inline int rk3368_lcdc_cabc_status(void) { return 0; }
-#endif
+struct rockchip_pwm_regs {
+	unsigned long duty;
+	unsigned long period;
+	unsigned long cntr;
+	unsigned long ctrl;
+};
 
-static inline void rk_pwm_writel(struct rk_pwm_chip *chip,
-				    unsigned int num, unsigned long offset,
-				    unsigned long val);
-static inline u32 rk_pwm_readl(struct rk_pwm_chip *chip, unsigned int num,
-				  unsigned long offset);
-static struct rk_pwm_chip* s_rk_pwm_chip = NULL;
-static struct rk_pwm_chip* rk_pwm_get_chip(void)
+struct rockchip_pwm_data {
+	struct rockchip_pwm_regs regs;
+	unsigned int prescaler;
+	const struct pwm_ops *ops;
+
+	void (*set_enable)(struct pwm_chip *chip,
+			   struct pwm_device *pwm, bool enable);
+};
+
+static inline struct rockchip_pwm_chip *to_rockchip_pwm_chip(struct pwm_chip *c)
 {
-	BUG_ON(!s_rk_pwm_chip);
-	return s_rk_pwm_chip;
-}
-void rk_pwm_set(int bl_pwm_period, int bl_pwm_duty)
-{
-	struct rk_pwm_chip* pc = rk_pwm_get_chip();
-	rk_pwm_writel(pc, pc->chip.pwms->hwpwm, PWM_REG_DUTY, bl_pwm_duty);
-	rk_pwm_writel(pc, pc->chip.pwms->hwpwm, PWM_REG_PERIOD, bl_pwm_period);
+	return container_of(c, struct rockchip_pwm_chip, chip);
 }
 
-void rk_pwm_get(int* bl_pwm_period, int* bl_pwm_duty)
+static void rockchip_pwm_set_enable_v1(struct pwm_chip *chip,
+				       struct pwm_device *pwm, bool enable)
 {
-	struct rk_pwm_chip* pc = rk_pwm_get_chip();
-	*bl_pwm_duty = rk_pwm_readl(pc, pc->chip.pwms->hwpwm, PWM_REG_DUTY);
-	*bl_pwm_period = rk_pwm_readl(pc, pc->chip.pwms->hwpwm, PWM_REG_PERIOD);
-}
-
-static inline struct rk_pwm_chip *to_rk_pwm_chip(struct pwm_chip *chip)
-{
-	return container_of(chip, struct rk_pwm_chip, chip);
-}
-
-static inline u32 rk_pwm_readl(struct rk_pwm_chip *chip, unsigned int num,
-				  unsigned long offset)
-{
-	return readl_relaxed(chip->base + (num << 4) + offset);
-}
-
-static inline void rk_pwm_writel(struct rk_pwm_chip *chip,
-				    unsigned int num, unsigned long offset,
-				    unsigned long val)
-{
-	writel_relaxed(val, chip->base + (num << 4) + offset);
-}
-
-/* config for rockchip,pwm*/
-static int  rk_pwm_config_v1(struct pwm_chip *chip, struct pwm_device *pwm,
-			    int duty_ns, int period_ns)
-{
-	struct rk_pwm_chip *pc = to_rk_pwm_chip(chip);
-	u64 val, div, clk_rate;
-	unsigned long prescale = PWMCR_MIN_PRESCALE, pv, dc;
-	u32 off, on;
-	int conf=0;
-       unsigned long flags;
-       spinlock_t *lock;
-
-       lock =(&pc->lock);// &pwm_lock[pwm->hwpwm];
-	off =  PWM_RESET;
-	on =  PWM_ENABLE | PWM_TIMER_EN;
-	/*
-	 * Find pv, dc and prescale to suit duty_ns and period_ns. This is done
-	 * according to formulas described below:
-	 *
-	 * period_ns = 10^9 * (PRESCALE ) * PV / PWM_CLK_RATE
-	 * duty_ns = 10^9 * (PRESCALE + 1) * DC / PWM_CLK_RATE
-	 *
-	 * PV = (PWM_CLK_RATE * period_ns) / (10^9 * (PRESCALE + 1))
-	 * DC = (PWM_CLK_RATE * duty_ns) / (10^9 * (PRESCALE + 1))
-	 */
-#if PWM_CLK
-	clk_rate = clk_get_rate(pc->clk);
-#else
-	clk_rate = 24000000;
-#endif
-	while (1) {
-		div = 1000000000;
-		div *= 1 + prescale;
-		val = clk_rate * period_ns;
-		pv = div64_u64(val, div);
-		val = clk_rate * duty_ns;
-		dc = div64_u64(val, div);
-
-		/* if duty_ns and period_ns are not achievable then return */
-		if (pv < PWMPCR_MIN_PERIOD || dc < PWMDCR_MIN_DUTY)
-			return -EINVAL;
-
-		/*
-		 * if pv and dc have crossed their upper limit, then increase
-		 * prescale and recalculate pv and dc.
-		 */
-		if (pv > PWMPCR_MAX_PERIOD || dc > PWMDCR_MAX_DUTY) {
-			if (++prescale > PWMCR_MAX_PRESCALE)
-				return -EINVAL;
-			continue;
-		}
-		break;
-	}
-
-	/* NOTE: the clock to PWM has to be enabled first before writing to the registers. */
-
-        spin_lock_irqsave(lock, flags);
-
-	conf |= (prescale << DW_PWM_PRESCALE);
-	barrier();
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,off);
-	dsb(sy);
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_HRC,dc);//0x1900);// dc);
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_LRC, pv);//0x5dc0);//pv);
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CNTR,0);
-	dsb(sy);
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,on|conf);
-	
-       spin_unlock_irqrestore(lock, flags);	
-	return 0;
-}
-static void rk_pwm_set_enable_v1(struct pwm_chip *chip, struct pwm_device *pwm, bool enable)
-{
-	struct rk_pwm_chip *pc = to_rk_pwm_chip(chip);
+	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
+	u32 enable_conf = PWM_CTRL_OUTPUT_EN | PWM_CTRL_TIMER_EN;
 	u32 val;
 
-	val = rk_pwm_readl(pc, pwm->hwpwm, PWM_REG_CTRL);
+	val = readl_relaxed(pc->base + pc->data->regs.ctrl);
+
 	if (enable)
-		val |= PWM_ENABLE;
+		val |= enable_conf;
 	else
-		val &= ~PWM_ENABLE;
+		val &= ~enable_conf;
 
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL, val);
-
-}
-static void rk_pwm_suspend_v1(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	struct rk_pwm_chip *pc = to_rk_pwm_chip(chip);
-	pc->pwm_ctrl = rk_pwm_readl(pc, pwm->hwpwm, PWM_REG_CTRL);
-	pc->pwm_duty=  rk_pwm_readl(pc, pwm->hwpwm, PWM_REG_HRC);//0x1900);// dc);
-	pc->pwm_period = rk_pwm_readl(pc, pwm->hwpwm, PWM_REG_LRC );//0x5dc0);//pv);
-	pc->pwm_count=  rk_pwm_readl(pc, pwm->hwpwm, PWM_REG_CNTR);
-}
-static void rk_pwm_resume_v1(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	struct rk_pwm_chip *pc = to_rk_pwm_chip(chip);
-	int 	off =  PWM_RESET;
-
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,off);
-	dsb(sy);
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_HRC,pc->pwm_duty);//0x1900);// dc);
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_LRC, pc->pwm_period);//0x5dc0);//pv);
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CNTR,pc->pwm_count);
-	dsb(sy);
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,pc->pwm_ctrl);
+	writel_relaxed(val, pc->base + pc->data->regs.ctrl);
 }
 
-/* config for rockchip,pwm*/
-static int  rk_pwm_config_v2(struct pwm_chip *chip, struct pwm_device *pwm,
-			    int duty_ns, int period_ns)
+static void rockchip_pwm_set_enable_v2(struct pwm_chip *chip,
+				       struct pwm_device *pwm, bool enable)
 {
-	struct rk_pwm_chip *pc = to_rk_pwm_chip(chip);
-	u64 val, div, clk_rate;
-	unsigned long prescale = PWMCR_MIN_PRESCALE, pv, dc;
-	u32  on;
-	int conf=0;
-       unsigned long flags;
-       spinlock_t *lock;
-
-       lock = (&pc->lock);//&pwm_lock[pwm->hwpwm];
-	on   =  RK_PWM_ENABLE ;
-	conf = PWM_OUTPUT_LEFT|PWM_LP_DISABLE|
-	                    PWM_CONTINUMOUS|PWM_DUTY_POSTIVE|PWM_INACTIVE_NEGATIVE;
-	/*
-	 * Find pv, dc and prescale to suit duty_ns and period_ns. This is done
-	 * according to formulas described below:
-	 *
-	 * period_ns = 10^9 * (PRESCALE ) * PV / PWM_CLK_RATE
-	 * duty_ns = 10^9 * (PRESCALE + 1) * DC / PWM_CLK_RATE
-	 *
-	 * PV = (PWM_CLK_RATE * period_ns) / (10^9 * (PRESCALE + 1))
-	 * DC = (PWM_CLK_RATE * duty_ns) / (10^9 * (PRESCALE + 1))
-	 */
-#if PWM_CLK
-	clk_rate = clk_get_rate(pc->clk);
-#else
-	clk_rate = 24000000;
-#endif
-	while (1) {
-		div = 1000000000;
-		div *= 1 + prescale;
-		val = clk_rate * period_ns;
-		pv = div64_u64(val, div);
-		val = clk_rate * duty_ns;
-		dc = div64_u64(val, div);
-
-		/* if duty_ns and period_ns are not achievable then return */
-		if (pv < PWMPCR_MIN_PERIOD || dc < PWMDCR_MIN_DUTY)
-			return -EINVAL;
-
-		/*
-		 * if pv and dc have crossed their upper limit, then increase
-		 * prescale and recalculate pv and dc.
-		 */
-		if (pv > PWMPCR_MAX_PERIOD || dc > PWMDCR_MAX_DUTY) {
-			if (++prescale > PWMCR_MAX_PRESCALE)
-				return -EINVAL;
-			continue;
-		}
-		break;
-	}
-
-	/*
-	 * NOTE: the clock to PWM has to be enabled first before writing to the
-	 * registers.
-	 */
-        spin_lock_irqsave(lock, flags);
-
-	conf |= (prescale << RK_PWM_PRESCALE);	
-	barrier();
-	//rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,off);
-	//dsb(sy);
-	if (!rk3368_lcdc_cabc_status()) {
-	    rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_DUTY,dc);//0x1900);// dc);
-	    rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_PERIOD,pv);//0x5dc0);//pv);
-	} else {
-	    rk3368_lcdc_update_pwm(pv,dc);
-	}
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CNTR,0);
-	dsb(sy);
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,on|conf);
-       spin_unlock_irqrestore(lock, flags);	
-
-	return 0;
-}
-
-static void rk_pwm_set_enable_v2(struct pwm_chip *chip, struct pwm_device *pwm,bool enable)
-{
-	struct rk_pwm_chip *pc = to_rk_pwm_chip(chip);
+	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
+	u32 enable_conf = PWM_OUTPUT_LEFT | PWM_LP_DISABLE | PWM_ENABLE |
+			  PWM_CONTINUOUS;
 	u32 val;
 
-	val = rk_pwm_readl(pc, pwm->hwpwm, PWM_REG_CTRL);
-	if (enable)
-		val |= RK_PWM_ENABLE;
+	if (pwm_get_polarity(pwm) == PWM_POLARITY_INVERSED)
+		enable_conf |= PWM_DUTY_NEGATIVE | PWM_INACTIVE_POSITIVE;
 	else
-		val &= ~RK_PWM_ENABLE;
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL, val);
-	DBG("%s %d \n", __FUNCTION__, rk_pwm_readl(pc, pwm->hwpwm, PWM_REG_CTRL));
-}
+		enable_conf |= PWM_DUTY_POSITIVE | PWM_INACTIVE_NEGATIVE;
 
-static void rk_pwm_suspend_v2(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	struct rk_pwm_chip *pc = to_rk_pwm_chip(chip);
-	pc->pwm_ctrl      = rk_pwm_readl(pc, pwm->hwpwm, 	PWM_REG_CTRL);
-	pc->pwm_duty    =  rk_pwm_readl(pc, pwm->hwpwm, PWM_REG_DUTY);//0x1900);// dc);
-	pc->pwm_period = rk_pwm_readl(pc, pwm->hwpwm,  PWM_REG_PERIOD );//0x5dc0);//pv);
-	pc->pwm_count  =  rk_pwm_readl(pc, pwm->hwpwm, PWM_REG_CNTR);
-}
-static void rk_pwm_resume_v2(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	struct rk_pwm_chip *pc = to_rk_pwm_chip(chip);
+	val = readl_relaxed(pc->base + pc->data->regs.ctrl);
 
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_DUTY,    pc->pwm_duty);//0x1900);// dc);
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_PERIOD, pc->pwm_period);//0x5dc0);//pv);
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CNTR,pc->pwm_count);
-	dsb(sy);
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,pc->pwm_ctrl);
-}
-
-/* config for rockchip,pwm*/
-static int  rk_pwm_config_v3(struct pwm_chip *chip, struct pwm_device *pwm,
-			    int duty_ns, int period_ns)
-{
-	struct rk_pwm_chip *pc = to_rk_pwm_chip(chip);
-	u64 val, div, clk_rate;
-	unsigned long prescale = PWMCR_MIN_PRESCALE, pv, dc;
-	u32 on;
-	int conf=0;
-       unsigned long flags;
-       spinlock_t *lock;
-
-       lock = (&pc->lock);//&pwm_lock[pwm->hwpwm];
-	on   =  RK_PWM_ENABLE ;
-	conf = PWM_OUTPUT_LEFT|PWM_LP_DISABLE|
-	                    PWM_CONTINUMOUS|PWM_DUTY_POSTIVE|PWM_INACTIVE_NEGATIVE;
-	/*
-	 * Find pv, dc and prescale to suit duty_ns and period_ns. This is done
-	 * according to formulas described below:
-	 *
-	 * period_ns = 10^9 * (PRESCALE ) * PV / PWM_CLK_RATE
-	 * duty_ns = 10^9 * (PRESCALE + 1) * DC / PWM_CLK_RATE
-	 *
-	 * PV = (PWM_CLK_RATE * period_ns) / (10^9 * (PRESCALE + 1))
-	 * DC = (PWM_CLK_RATE * duty_ns) / (10^9 * (PRESCALE + 1))
-	 */
-#if PWM_CLK
-	clk_rate = clk_get_rate(pc->clk);
-#else
-	clk_rate = 24000000;
-#endif
-	while (1) {
-		div = 1000000000;
-		div *= 1 + prescale;
-		val = clk_rate * period_ns;
-		pv = div64_u64(val, div);
-		val = clk_rate * duty_ns;
-		dc = div64_u64(val, div);
-
-		/* if duty_ns and period_ns are not achievable then return */
-		if (pv < PWMPCR_MIN_PERIOD || dc < PWMDCR_MIN_DUTY)
-			return -EINVAL;
-
-		/*
-		 * if pv and dc have crossed their upper limit, then increase
-		 * prescale and recalculate pv and dc.
-		 */
-		if (pv > PWMPCR_MAX_PERIOD || dc > PWMDCR_MAX_DUTY) {
-			if (++prescale > PWMCR_MAX_PRESCALE)
-				return -EINVAL;
-			continue;
-		}
-		break;
-	}
-
-	/*
-	 * NOTE: the clock to PWM has to be enabled first before writing to the
-	 * registers.
-	 */
-#if 0
-	ret = clk_enable(pc->clk);
-	if (ret)
-		return ret;
-#endif
-        spin_lock_irqsave(lock, flags);
-
-	conf |= (prescale << RK_PWM_PRESCALE);
-	
-	barrier();
-//	rk_pwm_writel(pc, pwm->hwpwm, VOP_REG_CTRL,off);
-	
-//	dsb(sy);
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_DUTY,dc);   //   2    0x1900);// dc);
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_PERIOD,pv);   // 4 0x5dc0);//pv);
-	rk_pwm_writel(pc, pwm->hwpwm, VOP_REG_CNTR,0);
-	dsb(sy);
-	rk_pwm_writel(pc, pwm->hwpwm, VOP_REG_CTRL,on|conf);
-
-       spin_unlock_irqrestore(lock, flags);	
-
-	return 0;
-}
-static void rk_pwm_set_enable_v3(struct pwm_chip *chip, struct pwm_device *pwm,bool enable)
-{
-	struct rk_pwm_chip *pc = to_rk_pwm_chip(chip);
-	u32 val;
-	
-	val = rk_pwm_readl(pc, pwm->hwpwm, VOP_REG_CTRL);
 	if (enable)
-		val |= RK_PWM_ENABLE;
+		val |= enable_conf;
 	else
-		val &= ~RK_PWM_ENABLE;
-	rk_pwm_writel(pc, pwm->hwpwm, VOP_REG_CTRL, val);
+		val &= ~enable_conf;
 
-}
-static void rk_pwm_suspend_v3(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	struct rk_pwm_chip *pc = to_rk_pwm_chip(chip);
-	pc->pwm_ctrl      = rk_pwm_readl(pc, pwm->hwpwm, 	VOP_REG_CTRL);
-	pc->pwm_duty    =  rk_pwm_readl(pc, pwm->hwpwm, PWM_REG_DUTY);//0x1900);// dc);
-	pc->pwm_period = rk_pwm_readl(pc, pwm->hwpwm,  PWM_REG_PERIOD );//0x5dc0);//pv);
-	pc->pwm_count  =  rk_pwm_readl(pc, pwm->hwpwm, VOP_REG_CNTR);
-}
-static void rk_pwm_resume_v3(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	struct rk_pwm_chip *pc = to_rk_pwm_chip(chip);
-
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_DUTY,    pc->pwm_duty);//0x1900);// dc);
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_PERIOD, pc->pwm_period);//0x5dc0);//pv);
-	rk_pwm_writel(pc, pwm->hwpwm, VOP_REG_CNTR,pc->pwm_count);
-	dsb(sy);
-	rk_pwm_writel(pc, pwm->hwpwm, VOP_REG_CTRL,pc->pwm_ctrl);
+	writel_relaxed(val, pc->base + pc->data->regs.ctrl);
 }
 
-
-static int  rk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
-			    int duty_ns, int period_ns)
+static int rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
+			       int duty_ns, int period_ns)
 {
-	struct rk_pwm_chip *pc = to_rk_pwm_chip(chip);
+	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
+	unsigned long period, duty;
+	u64 clk_rate, div;
 	int ret;
-	
-	ret = clk_enable(pc->clk);
-	if (ret)
-		return ret;
 
-	if (pc->aclk_lcdc) {
-		ret = clk_enable(pc->aclk_lcdc);
-		if (ret)
-			return ret;
-	}
-	if (pc->hclk_lcdc) {
-		ret = clk_enable(pc->hclk_lcdc);
-		if (ret)
-			return ret;
-	}
+	clk_rate = clk_get_rate(pc->clk);
 
-	ret = pc->config(chip, pwm, duty_ns, period_ns);
+	/*
+	 * Since period and duty cycle registers have a width of 32
+	 * bits, every possible input period can be obtained using the
+	 * default prescaler value for all practical clock rate values.
+	 */
+	div = clk_rate * period_ns;
+	do_div(div, pc->data->prescaler * NSEC_PER_SEC);
+	period = div;
 
-	if (pc->aclk_lcdc)
-		clk_disable(pc->aclk_lcdc);
-	if (pc->hclk_lcdc)
-		clk_disable(pc->hclk_lcdc);
-
-	clk_disable(pc->clk);
-
-	return 0;
-}
-static int rk_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	struct rk_pwm_chip *pc = to_rk_pwm_chip(chip);
-	int ret = 0;
+	div = clk_rate * duty_ns;
+	do_div(div, pc->data->prescaler * NSEC_PER_SEC);
+	duty = div;
 
 	ret = clk_enable(pc->clk);
 	if (ret)
 		return ret;
 
-	if (pc->aclk_lcdc) {
-		ret = clk_enable(pc->aclk_lcdc);
-		if (ret)
-			return ret;
-	}
-	if (pc->hclk_lcdc) {
-		ret = clk_enable(pc->hclk_lcdc);
-		if (ret)
-			return ret;
-	}
-
-	pc->set_enable(chip, pwm,true);
-	return 0;
-}
-
-static void rk_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	struct rk_pwm_chip *pc = to_rk_pwm_chip(chip);
-
-	pc->set_enable(chip, pwm,false);
-
-	if (pc->aclk_lcdc)
-		clk_disable(pc->aclk_lcdc);
-	if (pc->hclk_lcdc)
-		clk_disable(pc->hclk_lcdc);
+	writel(period, pc->base + pc->data->regs.period);
+	writel(duty, pc->base + pc->data->regs.duty);
+	writel(0, pc->base + pc->data->regs.cntr);
 
 	clk_disable(pc->clk);
 
+	return 0;
 }
 
-static const struct pwm_ops rk_pwm_ops = {
-	.config = rk_pwm_config,
-	.enable = rk_pwm_enable,
-	.disable = rk_pwm_disable,
+static int rockchip_pwm_set_polarity(struct pwm_chip *chip,
+				     struct pwm_device *pwm,
+				     enum pwm_polarity polarity)
+{
+	/*
+	 * No action needed here because pwm->polarity will be set by the core
+	 * and the core will only change polarity when the PWM is not enabled.
+	 * We'll handle things in set_enable().
+	 */
+
+	return 0;
+}
+
+static int rockchip_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
+{
+	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
+	int ret;
+
+	ret = clk_enable(pc->clk);
+	if (ret)
+		return ret;
+
+	pc->data->set_enable(chip, pwm, true);
+
+	return 0;
+}
+
+static void rockchip_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
+{
+	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
+
+	pc->data->set_enable(chip, pwm, false);
+
+	clk_disable(pc->clk);
+}
+
+static const struct pwm_ops rockchip_pwm_ops_v1 = {
+	.config = rockchip_pwm_config,
+	.enable = rockchip_pwm_enable,
+	.disable = rockchip_pwm_disable,
 	.owner = THIS_MODULE,
 };
 
-struct rk_pwm_data{
-	int   (*config)(struct pwm_chip *chip,	struct pwm_device *pwm, int duty_ns, int period_ns);
-	void (*set_enable)(struct pwm_chip *chip, struct pwm_device *pwm,bool enable);	
-	void (*pwm_suspend)(struct pwm_chip *chip, struct pwm_device *pwm);
-	void (*pwm_resume)(struct pwm_chip *chip, struct pwm_device *pwm);
-
-	
+static const struct pwm_ops rockchip_pwm_ops_v2 = {
+	.config = rockchip_pwm_config,
+	.set_polarity = rockchip_pwm_set_polarity,
+	.enable = rockchip_pwm_enable,
+	.disable = rockchip_pwm_disable,
+	.owner = THIS_MODULE,
 };
 
-static struct rk_pwm_data rk_pwm_data_v1={
-	.config = rk_pwm_config_v1,
-	.set_enable = rk_pwm_set_enable_v1,
-	.pwm_suspend = rk_pwm_suspend_v1,
-	.pwm_resume = rk_pwm_resume_v1,
-	
+static const struct rockchip_pwm_data pwm_data_v1 = {
+	.regs = {
+		.duty = 0x04,
+		.period = 0x08,
+		.cntr = 0x00,
+		.ctrl = 0x0c,
+	},
+	.prescaler = 2,
+	.ops = &rockchip_pwm_ops_v1,
+	.set_enable = rockchip_pwm_set_enable_v1,
 };
 
-static struct rk_pwm_data rk_pwm_data_v2={
-	.config = rk_pwm_config_v2,
-	.set_enable = rk_pwm_set_enable_v2,	
-	.pwm_suspend = rk_pwm_suspend_v2,
-	.pwm_resume = rk_pwm_resume_v2,
-
+static const struct rockchip_pwm_data pwm_data_v2 = {
+	.regs = {
+		.duty = 0x08,
+		.period = 0x04,
+		.cntr = 0x00,
+		.ctrl = 0x0c,
+	},
+	.prescaler = 1,
+	.ops = &rockchip_pwm_ops_v2,
+	.set_enable = rockchip_pwm_set_enable_v2,
 };
 
-static struct rk_pwm_data rk_pwm_data_v3={
-	.config = rk_pwm_config_v3,
-	.set_enable = rk_pwm_set_enable_v3,	
-	.pwm_suspend = rk_pwm_suspend_v3,
-	.pwm_resume = rk_pwm_resume_v3,
-
+static const struct rockchip_pwm_data pwm_data_vop = {
+	.regs = {
+		.duty = 0x08,
+		.period = 0x04,
+		.cntr = 0x0c,
+		.ctrl = 0x00,
+	},
+	.prescaler = 1,
+	.ops = &rockchip_pwm_ops_v2,
+	.set_enable = rockchip_pwm_set_enable_v2,
 };
 
-static const struct of_device_id rk_pwm_of_match[] = {
-	{ .compatible = "rockchip,pwm",          .data = &rk_pwm_data_v1,},
-	{ .compatible =  "rockchip,rk-pwm",    .data = &rk_pwm_data_v2,},
-	{ .compatible =  "rockchip,vop-pwm",  .data = &rk_pwm_data_v3,},
-	{ }
+static const struct of_device_id rockchip_pwm_dt_ids[] = {
+	{ .compatible = "rockchip,rk2928-pwm", .data = &pwm_data_v1},
+	{ .compatible = "rockchip,rk3288-pwm", .data = &pwm_data_v2},
+	{ .compatible = "rockchip,vop-pwm", .data = &pwm_data_vop},
+	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, rockchip_pwm_dt_ids);
 
-MODULE_DEVICE_TABLE(of, rk_pwm_of_match);
-static int rk_pwm_probe(struct platform_device *pdev)
+static int rockchip_pwm_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id =
-		of_match_device(rk_pwm_of_match, &pdev->dev);
-	struct device_node *np = pdev->dev.of_node;
-	const struct rk_pwm_data *data;
-	struct rk_pwm_chip *pc;
+	const struct of_device_id *id;
+	struct rockchip_pwm_chip *pc;
+	struct resource *r;
 	int ret;
 
-	if (!of_id){
-		dev_err(&pdev->dev, "failed to match device\n");
-		return -ENODEV;
-	}
-	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
-	if (!pc) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
-		return -ENOMEM;
-	}
+	id = of_match_device(rockchip_pwm_dt_ids, &pdev->dev);
+	if (!id)
+		return -EINVAL;
 
-	s_rk_pwm_chip = pc;
-	pc->base = of_iomap(np, 0);
-	if (IS_ERR(pc->base)) {
-		printk("PWM base ERR \n");
+	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
+	if (!pc)
+		return -ENOMEM;
+
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	pc->base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(pc->base))
 		return PTR_ERR(pc->base);
-	}
-	pc->clk = devm_clk_get(&pdev->dev, "pclk_pwm");
+
+	pc->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pc->clk))
 		return PTR_ERR(pc->clk);
 
-	if (of_device_is_compatible(np, "rockchip,vop-pwm")) {
-		pc->aclk_lcdc = devm_clk_get(&pdev->dev, "aclk_lcdc");
-		if (IS_ERR(pc->aclk_lcdc))
-			return PTR_ERR(pc->aclk_lcdc);
-
-		pc->hclk_lcdc = devm_clk_get(&pdev->dev, "hclk_lcdc");
-		if (IS_ERR(pc->hclk_lcdc))
-			return PTR_ERR(pc->hclk_lcdc);
-
-		ret = clk_prepare(pc->aclk_lcdc);
-		if (ret)
-			return ret;
-		clk_prepare(pc->hclk_lcdc);
-		if (ret)
-			return ret;
-	}
-
-	platform_set_drvdata(pdev, pc);
-	data = of_id->data;
-	pc->config = data->config;
-	pc->set_enable = data->set_enable;
-	pc->pwm_suspend = data->pwm_suspend;
-	pc->pwm_resume = data->pwm_resume;
-	pc->chip.dev = &pdev->dev;
-	pc->chip.ops = &rk_pwm_ops;  
-	pc->chip.base = -1;
-	pc->chip.npwm = NUM_PWM;
-	spin_lock_init(&pc->lock);
 	ret = clk_prepare(pc->clk);
 	if (ret)
 		return ret;
 
-	/* Following enables PWM chip, channels would still
-	be enabled individually through their control register */
-	DBG("npwm = %d, of_pwm_ncells =%d \n"
-		, pc->chip.npwm, pc->chip.of_pwm_n_cells);
-	ret = pwmchip_add(&pc->chip);
-	if (ret < 0){
-		printk("failed to add pwm\n");
-		return ret;
+	platform_set_drvdata(pdev, pc);
+
+	pc->data = id->data;
+	pc->chip.dev = &pdev->dev;
+	pc->chip.ops = pc->data->ops;
+	pc->chip.base = -1;
+	pc->chip.npwm = 1;
+
+	if (pc->data->ops->set_polarity) {
+		pc->chip.of_xlate = of_pwm_xlate_with_flags;
+		pc->chip.of_pwm_n_cells = 3;
 	}
 
-	DBG("%s end \n",__FUNCTION__);
+	ret = pwmchip_add(&pc->chip);
+	if (ret < 0) {
+		clk_unprepare(pc->clk);
+		dev_err(&pdev->dev, "pwmchip_add() failed: %d\n", ret);
+	}
+
 	return ret;
 }
-#if 0
-//(struct platform_device *, pm_message_t state);
-static int rk_pwm_suspend(struct platform_device *pdev, pm_message_t state)
+
+static int rockchip_pwm_remove(struct platform_device *pdev)
 {
-	struct pwm_device *pwm;
-	struct rk_pwm_chip *pc;
-	struct pwm_chip *chip;
+	struct rockchip_pwm_chip *pc = platform_get_drvdata(pdev);
 
-	pc = platform_get_drvdata(pdev);
-	chip = &(pc->chip);
-	pwm = chip->pwms;
+	clk_unprepare(pc->clk);
 
-	pc->pwm_suspend(chip,pwm);
-
- 	return 0;//pwmchip_remove(&pc->chip);
-}
-static int rk_pwm_resume(struct platform_device *pdev)
-{
-	struct pwm_device *pwm;
-	struct rk_pwm_chip *pc;
-	struct pwm_chip *chip;
-
-	pc = platform_get_drvdata(pdev);
-	chip = &(pc->chip);
-	pwm = chip->pwms;
-
-	pc->pwm_resume(chip,pwm);
-	return 0;//pwmchip_remove(&pc->chip);
-}
-#endif
-static int rk_pwm_remove(struct platform_device *pdev)
-{
-	return 0;//pwmchip_remove(&pc->chip);
+	return pwmchip_remove(&pc->chip);
 }
 
-static struct platform_driver rk_pwm_driver = {
+static struct platform_driver rockchip_pwm_driver = {
 	.driver = {
-		.name = "rk-pwm",
-		.of_match_table = rk_pwm_of_match,
+		.name = "rockchip-pwm",
+		.of_match_table = rockchip_pwm_dt_ids,
 	},
-	.probe = rk_pwm_probe,
- 	.remove = rk_pwm_remove,
+	.probe = rockchip_pwm_probe,
+	.remove = rockchip_pwm_remove,
 };
+module_platform_driver(rockchip_pwm_driver);
 
-module_platform_driver(rk_pwm_driver);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("<xsf@rock-chips.com>");
-MODULE_ALIAS("platform:rk-pwm");
-
-
+MODULE_AUTHOR("Beniamino Galvani <b.galvani@gmail.com>");
+MODULE_DESCRIPTION("Rockchip SoC PWM driver");
+MODULE_LICENSE("GPL v2");

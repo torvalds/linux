@@ -6,13 +6,10 @@
  * This file is released under the GPLv2.
  */
 
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_qos.h>
 #include <linux/hrtimer.h>
-
-#ifdef CONFIG_PM_RUNTIME
 
 static int dev_update_qos_constraint(struct device *dev, void *data)
 {
@@ -43,7 +40,7 @@ static int dev_update_qos_constraint(struct device *dev, void *data)
  * default_stop_ok - Default PM domain governor routine for stopping devices.
  * @dev: Device to check.
  */
-bool default_stop_ok(struct device *dev)
+static bool default_stop_ok(struct device *dev)
 {
 	struct gpd_timing_data *td = &dev_gpd_data(dev)->td;
 	unsigned long flags;
@@ -80,13 +77,14 @@ bool default_stop_ok(struct device *dev)
 				      dev_update_qos_constraint);
 
 	if (constraint_ns > 0) {
-		constraint_ns -= td->start_latency_ns;
+		constraint_ns -= td->suspend_latency_ns +
+				td->resume_latency_ns;
 		if (constraint_ns == 0)
 			return false;
 	}
 	td->effective_constraint_ns = constraint_ns;
-	td->cached_stop_ok = constraint_ns > td->stop_latency_ns ||
-				constraint_ns == 0;
+	td->cached_stop_ok = constraint_ns >= 0;
+
 	/*
 	 * The children have been suspended already, so we don't need to take
 	 * their stop latencies into account here.
@@ -129,18 +127,6 @@ static bool default_power_down_ok(struct dev_pm_domain *pd)
 
 	off_on_time_ns = genpd->power_off_latency_ns +
 				genpd->power_on_latency_ns;
-	/*
-	 * It doesn't make sense to remove power from the domain if saving
-	 * the state of all devices in it and the power off/power on operations
-	 * take too much time.
-	 *
-	 * All devices in this domain have been stopped already at this point.
-	 */
-	list_for_each_entry(pdd, &genpd->dev_list, list_node) {
-		if (pdd->dev->driver)
-			off_on_time_ns +=
-				to_gpd_data(pdd)->td.save_state_latency_ns;
-	}
 
 	min_off_time_ns = -1;
 	/*
@@ -196,7 +182,6 @@ static bool default_power_down_ok(struct dev_pm_domain *pd)
 		 * constraint_ns cannot be negative here, because the device has
 		 * been suspended.
 		 */
-		constraint_ns -= td->restore_state_latency_ns;
 		if (constraint_ns <= off_on_time_ns)
 			return false;
 
@@ -227,18 +212,6 @@ static bool always_on_power_down_ok(struct dev_pm_domain *domain)
 {
 	return false;
 }
-
-#else /* !CONFIG_PM_RUNTIME */
-
-bool default_stop_ok(struct device *dev)
-{
-	return false;
-}
-
-#define default_power_down_ok	NULL
-#define always_on_power_down_ok	NULL
-
-#endif /* !CONFIG_PM_RUNTIME */
 
 struct dev_power_governor simple_qos_governor = {
 	.stop_ok = default_stop_ok,

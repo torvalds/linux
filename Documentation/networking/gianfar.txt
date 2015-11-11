@@ -1,38 +1,8 @@
 The Gianfar Ethernet Driver
-Sysfs File description
 
 Author: Andy Fleming <afleming@freescale.com>
 Updated: 2005-07-28
 
-SYSFS
-
-Several of the features of the gianfar driver are controlled
-through sysfs files.  These are:
-
-bd_stash:
-To stash RX Buffer Descriptors in the L2, echo 'on' or '1' to
-bd_stash, echo 'off' or '0' to disable
-
-rx_stash_len:
-To stash the first n bytes of the packet in L2, echo the number
-of bytes to buf_stash_len.  echo 0 to disable.
-
-WARNING: You could really screw these up if you set them too low or high!
-fifo_threshold:
-To change the number of bytes the controller needs in the
-fifo before it starts transmission, echo the number of bytes to 
-fifo_thresh.  Range should be 0-511.
-
-fifo_starve:
-When the FIFO has less than this many bytes during a transmit, it
-enters starve mode, and increases the priority of TX memory
-transactions.  To change, echo the number of bytes to
-fifo_starve.  Range should be 0-511.
-
-fifo_starve_off:
-Once in starve mode, the FIFO remains there until it has this
-many bytes.  To change, echo the number of bytes to
-fifo_starve_off.  Range should be 0-511.
 
 CHECKSUM OFFLOADING
 

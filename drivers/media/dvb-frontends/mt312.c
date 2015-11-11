@@ -36,6 +36,8 @@
 #include "mt312_priv.h"
 #include "mt312.h"
 
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
 
 struct mt312_state {
 	struct i2c_adapter *i2c;
@@ -96,8 +98,14 @@ static int mt312_write(struct mt312_state *state, const enum mt312_reg_addr reg,
 		       const u8 *src, const size_t count)
 {
 	int ret;
-	u8 buf[count + 1];
+	u8 buf[MAX_XFER_SIZE];
 	struct i2c_msg msg;
+
+	if (1 + count > sizeof(buf)) {
+		printk(KERN_WARNING
+		       "mt312: write: len=%zu is too big!\n", count);
+		return -EINVAL;
+	}
 
 	if (debug) {
 		int i;
@@ -148,7 +156,7 @@ static int mt312_reset(struct mt312_state *state, const u8 full)
 }
 
 static int mt312_get_inversion(struct mt312_state *state,
-			       fe_spectral_inversion_t *i)
+			       enum fe_spectral_inversion *i)
 {
 	int ret;
 	u8 vit_mode;
@@ -217,9 +225,9 @@ static int mt312_get_symbol_rate(struct mt312_state *state, u32 *sr)
 	return 0;
 }
 
-static int mt312_get_code_rate(struct mt312_state *state, fe_code_rate_t *cr)
+static int mt312_get_code_rate(struct mt312_state *state, enum fe_code_rate *cr)
 {
-	const fe_code_rate_t fec_tab[8] =
+	const enum fe_code_rate fec_tab[8] =
 	    { FEC_1_2, FEC_2_3, FEC_3_4, FEC_5_6, FEC_6_7, FEC_7_8,
 		FEC_AUTO, FEC_AUTO };
 
@@ -372,7 +380,8 @@ static int mt312_send_master_cmd(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int mt312_send_burst(struct dvb_frontend *fe, const fe_sec_mini_cmd_t c)
+static int mt312_send_burst(struct dvb_frontend *fe,
+			    const enum fe_sec_mini_cmd c)
 {
 	struct mt312_state *state = fe->demodulator_priv;
 	const u8 mini_tab[2] = { 0x02, 0x03 };
@@ -395,7 +404,8 @@ static int mt312_send_burst(struct dvb_frontend *fe, const fe_sec_mini_cmd_t c)
 	return 0;
 }
 
-static int mt312_set_tone(struct dvb_frontend *fe, const fe_sec_tone_mode_t t)
+static int mt312_set_tone(struct dvb_frontend *fe,
+			  const enum fe_sec_tone_mode t)
 {
 	struct mt312_state *state = fe->demodulator_priv;
 	const u8 tone_tab[2] = { 0x01, 0x00 };
@@ -418,7 +428,8 @@ static int mt312_set_tone(struct dvb_frontend *fe, const fe_sec_tone_mode_t t)
 	return 0;
 }
 
-static int mt312_set_voltage(struct dvb_frontend *fe, const fe_sec_voltage_t v)
+static int mt312_set_voltage(struct dvb_frontend *fe,
+			     const enum fe_sec_voltage v)
 {
 	struct mt312_state *state = fe->demodulator_priv;
 	const u8 volt_tab[3] = { 0x00, 0x40, 0x00 };
@@ -434,7 +445,7 @@ static int mt312_set_voltage(struct dvb_frontend *fe, const fe_sec_voltage_t v)
 	return mt312_writereg(state, DISEQC_MODE, val);
 }
 
-static int mt312_read_status(struct dvb_frontend *fe, fe_status_t *s)
+static int mt312_read_status(struct dvb_frontend *fe, enum fe_status *s)
 {
 	struct mt312_state *state = fe->demodulator_priv;
 	int ret;

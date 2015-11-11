@@ -42,6 +42,16 @@ fqs_holdoff	Holdoff time (in microseconds) between consecutive calls
 fqs_stutter	Wait time (in seconds) between consecutive bursts
 		of calls to force_quiescent_state().
 
+gp_normal	Make the fake writers use normal synchronous grace-period
+		primitives.
+
+gp_exp		Make the fake writers use expedited synchronous grace-period
+		primitives.  If both gp_normal and gp_exp are set, or
+		if neither gp_normal nor gp_exp are set, then randomly
+		choose the primitive so that about 50% are normal and
+		50% expedited.  By default, neither are set, which
+		gives best overall test coverage.
+
 irqreader	Says to invoke RCU readers from irq level.  This is currently
 		done via timers.  Defaults to "1" for variants of RCU that
 		permit this.  (Or, more accurately, variants of RCU that do
@@ -156,46 +166,27 @@ test_no_idle_hz	Whether or not to test the ability of RCU to operate in
 
 torture_type	The type of RCU to test, with string values as follows:
 
-		"rcu":  rcu_read_lock(), rcu_read_unlock() and call_rcu().
-
-		"rcu_sync":  rcu_read_lock(), rcu_read_unlock(), and
-			synchronize_rcu().
-
-		"rcu_expedited": rcu_read_lock(), rcu_read_unlock(), and
-			synchronize_rcu_expedited().
+		"rcu":  rcu_read_lock(), rcu_read_unlock() and call_rcu(),
+			along with expedited, synchronous, and polling
+			variants.
 
 		"rcu_bh": rcu_read_lock_bh(), rcu_read_unlock_bh(), and
-			call_rcu_bh().
+			call_rcu_bh(), along with expedited and synchronous
+			variants.
 
-		"rcu_bh_sync": rcu_read_lock_bh(), rcu_read_unlock_bh(),
-			and synchronize_rcu_bh().
-
-		"rcu_bh_expedited": rcu_read_lock_bh(), rcu_read_unlock_bh(),
-			and synchronize_rcu_bh_expedited().
+		"rcu_busted": This tests an intentionally incorrect version
+			of RCU in order to help test rcutorture itself.
 
 		"srcu": srcu_read_lock(), srcu_read_unlock() and
-			call_srcu().
-
-		"srcu_sync": srcu_read_lock(), srcu_read_unlock() and
-			synchronize_srcu().
-
-		"srcu_expedited": srcu_read_lock(), srcu_read_unlock() and
-			synchronize_srcu_expedited().
-
-		"srcu_raw": srcu_read_lock_raw(), srcu_read_unlock_raw(),
-			and call_srcu().
-
-		"srcu_raw_sync": srcu_read_lock_raw(), srcu_read_unlock_raw(),
-			and synchronize_srcu().
+			call_srcu(), along with expedited and
+			synchronous variants.
 
 		"sched": preempt_disable(), preempt_enable(), and
-			call_rcu_sched().
+			call_rcu_sched(), along with expedited,
+			synchronous, and polling variants.
 
-		"sched_sync": preempt_disable(), preempt_enable(), and
-			synchronize_sched().
-
-		"sched_expedited": preempt_disable(), preempt_enable(), and
-			synchronize_sched_expedited().
+		"tasks": voluntary context switch and call_rcu_tasks(),
+			along with expedited and synchronous variants.
 
 		Defaults to "rcu".
 

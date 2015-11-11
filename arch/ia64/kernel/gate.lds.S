@@ -6,7 +6,6 @@
  */
 
 #include <asm/page.h>
-#include "paravirt_patchlist.h"
 
 SECTIONS
 {
@@ -33,21 +32,21 @@ SECTIONS
 	. = GATE_ADDR + 0x600;
 
 	.data..patch		: {
-		__paravirt_start_gate_mckinley_e9_patchlist = .;
+		__start_gate_mckinley_e9_patchlist = .;
 		*(.data..patch.mckinley_e9)
-		__paravirt_end_gate_mckinley_e9_patchlist = .;
+		__end_gate_mckinley_e9_patchlist = .;
 
-		__paravirt_start_gate_vtop_patchlist = .;
+		__start_gate_vtop_patchlist = .;
 		*(.data..patch.vtop)
-		__paravirt_end_gate_vtop_patchlist = .;
+		__end_gate_vtop_patchlist = .;
 
-		__paravirt_start_gate_fsyscall_patchlist = .;
+		__start_gate_fsyscall_patchlist = .;
 		*(.data..patch.fsyscall_table)
-		__paravirt_end_gate_fsyscall_patchlist = .;
+		__end_gate_fsyscall_patchlist = .;
 
-		__paravirt_start_gate_brl_fsys_bubble_down_patchlist = .;
+		__start_gate_brl_fsys_bubble_down_patchlist = .;
 		*(.data..patch.brl_fsys_bubble_down)
-		__paravirt_end_gate_brl_fsys_bubble_down_patchlist = .;
+		__end_gate_brl_fsys_bubble_down_patchlist = .;
 	}						:readable
 
 	.IA_64.unwind_info	: { *(.IA_64.unwind_info*) }

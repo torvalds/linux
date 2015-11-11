@@ -199,7 +199,7 @@ IVc. Errata
 #define USE_IO_OPS 1
 #endif
 
-static DEFINE_PCI_DEVICE_TABLE(sundance_pci_tbl) = {
+static const struct pci_device_id sundance_pci_tbl[] = {
 	{ 0x1186, 0x1002, 0x1186, 0x1002, 0, 0, 0 },
 	{ 0x1186, 0x1002, 0x1186, 0x1003, 0, 0, 1 },
 	{ 0x1186, 0x1002, 0x1186, 0x1012, 0, 0, 2 },
@@ -469,6 +469,17 @@ static void sundance_reset(struct net_device *dev, unsigned long reset_cmd)
 	}
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void sundance_poll_controller(struct net_device *dev)
+{
+	struct netdev_private *np = netdev_priv(dev);
+
+	disable_irq(np->pci_dev->irq);
+	intr_handler(np->pci_dev->irq, dev);
+	enable_irq(np->pci_dev->irq);
+}
+#endif
+
 static const struct net_device_ops netdev_ops = {
 	.ndo_open		= netdev_open,
 	.ndo_stop		= netdev_close,
@@ -480,6 +491,9 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_change_mtu		= change_mtu,
 	.ndo_set_mac_address 	= sundance_set_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller 	= sundance_poll_controller,
+#endif
 };
 
 static int sundance_probe1(struct pci_dev *pdev,
@@ -563,7 +577,7 @@ static int sundance_probe1(struct pci_dev *pdev,
 
 	/* The chip-specific entries in the device structure. */
 	dev->netdev_ops = &netdev_ops;
-	SET_ETHTOOL_OPS(dev, &ethtool_ops);
+	dev->ethtool_ops = &ethtool_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
 	pci_set_drvdata(pdev, dev);
@@ -689,7 +703,6 @@ err_out_unmap_tx:
 	dma_free_coherent(&pdev->dev, TX_TOTAL_SIZE,
 		np->tx_ring, np->tx_ring_dma);
 err_out_cleardev:
-	pci_set_drvdata(pdev, NULL);
 	pci_iounmap(pdev, ioaddr);
 err_out_res:
 	pci_release_regions(pdev);
@@ -1124,7 +1137,7 @@ start_tx (struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 
 drop_frame:
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	np->tx_skbuff[entry] = NULL;
 	dev->stats.tx_dropped++;
 	return NETDEV_TX_OK;
@@ -1927,7 +1940,6 @@ static void sundance_remove1(struct pci_dev *pdev)
 	    pci_iounmap(pdev, np->base);
 	    pci_release_regions(pdev);
 	    free_netdev(dev);
-	    pci_set_drvdata(pdev, NULL);
 	}
 }
 

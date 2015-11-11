@@ -6,7 +6,6 @@
  * version 2 as published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -754,14 +753,13 @@ static int rtl8150_open(struct net_device *netdev)
 static int rtl8150_close(struct net_device *netdev)
 {
 	rtl8150_t *dev = netdev_priv(netdev);
-	int res = 0;
 
 	netif_stop_queue(netdev);
 	if (!test_bit(RTL8150_UNPLUG, &dev->flags))
 		disable_net_traffic(dev);
 	unlink_all_urbs(dev);
 
-	return res;
+	return 0;
 }
 
 static void rtl8150_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *info)
@@ -879,7 +877,7 @@ static int rtl8150_probe(struct usb_interface *intf,
 	dev->netdev = netdev;
 	netdev->netdev_ops = &rtl8150_netdev_ops;
 	netdev->watchdog_timeo = RTL8150_TX_TIMEOUT;
-	SET_ETHTOOL_OPS(netdev, &ops);
+	netdev->ethtool_ops = &ops;
 	dev->intr_interval = 100;	/* 100ms */
 
 	if (!alloc_all_urbs(dev)) {

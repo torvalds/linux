@@ -15,17 +15,8 @@
 #include <linux/sched.h>
 #include <asm/processor.h>
 #include <asm/debug.h>
+#include <asm/dis.h>
 #include <asm/ipl.h>
-
-#ifndef CONFIG_64BIT
-#define LONG "%08lx "
-#define FOURLONG "%08lx %08lx %08lx %08lx\n"
-static int kstack_depth_to_print = 12;
-#else /* CONFIG_64BIT */
-#define LONG "%016lx "
-#define FOURLONG "%016lx %016lx %016lx %016lx\n"
-static int kstack_depth_to_print = 20;
-#endif /* CONFIG_64BIT */
 
 /*
  * For show_trace we have tree different stack to consider:
@@ -40,14 +31,15 @@ __show_trace(unsigned long sp, unsigned long low, unsigned long high)
 {
 	struct stack_frame *sf;
 	struct pt_regs *regs;
+	unsigned long addr;
 
 	while (1) {
 		sp = sp & PSW_ADDR_INSN;
 		if (sp < low || sp > high - sizeof(*sf))
 			return sp;
 		sf = (struct stack_frame *) sp;
-		printk("([<%016lx>] ", sf->gprs[8] & PSW_ADDR_INSN);
-		print_symbol("%s)\n", sf->gprs[8] & PSW_ADDR_INSN);
+		addr = sf->gprs[8] & PSW_ADDR_INSN;
+		printk("([<%016lx>] %pSR)\n", addr, (void *)addr);
 		/* Follow the backchain. */
 		while (1) {
 			low = sp;
@@ -57,16 +49,16 @@ __show_trace(unsigned long sp, unsigned long low, unsigned long high)
 			if (sp <= low || sp > high - sizeof(*sf))
 				return sp;
 			sf = (struct stack_frame *) sp;
-			printk(" [<%016lx>] ", sf->gprs[8] & PSW_ADDR_INSN);
-			print_symbol("%s\n", sf->gprs[8] & PSW_ADDR_INSN);
+			addr = sf->gprs[8] & PSW_ADDR_INSN;
+			printk(" [<%016lx>] %pSR\n", addr, (void *)addr);
 		}
 		/* Zero backchain detected, check for interrupt frame. */
 		sp = (unsigned long) (sf + 1);
 		if (sp <= low || sp > high - sizeof(*regs))
 			return sp;
 		regs = (struct pt_regs *) sp;
-		printk(" [<%016lx>] ", regs->psw.addr & PSW_ADDR_INSN);
-		print_symbol("%s\n", regs->psw.addr & PSW_ADDR_INSN);
+		addr = regs->psw.addr & PSW_ADDR_INSN;
+		printk(" [<%016lx>] %pSR\n", addr, (void *)addr);
 		low = sp;
 		sp = regs->gprs[15];
 	}
@@ -113,12 +105,12 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	else
 		stack = sp;
 
-	for (i = 0; i < kstack_depth_to_print; i++) {
+	for (i = 0; i < 20; i++) {
 		if (((addr_t) stack & (THREAD_SIZE-1)) == 0)
 			break;
 		if ((i * sizeof(long) % 32) == 0)
 			printk("%s       ", i == 0 ? "" : "\n");
-		printk(LONG, *stack++);
+		printk("%016lx ", *stack++);
 	}
 	printk("\n");
 	show_trace(task, sp);
@@ -126,11 +118,8 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 
 static void show_last_breaking_event(struct pt_regs *regs)
 {
-#ifdef CONFIG_64BIT
 	printk("Last Breaking-Event-Address:\n");
-	printk(" [<%016lx>] ", regs->args[0] & PSW_ADDR_INSN);
-	print_symbol("%s\n", regs->args[0] & PSW_ADDR_INSN);
-#endif
+	printk(" [<%016lx>] %pSR\n", regs->args[0], (void *)regs->args[0]);
 }
 
 static inline int mask_bits(struct pt_regs *regs, unsigned long bits)
@@ -143,10 +132,10 @@ void show_registers(struct pt_regs *regs)
 	char *mode;
 
 	mode = user_mode(regs) ? "User" : "Krnl";
-	printk("%s PSW : %p %p",
-	       mode, (void *) regs->psw.mask,
-	       (void *) regs->psw.addr);
-	print_symbol(" (%s)\n", regs->psw.addr & PSW_ADDR_INSN);
+	printk("%s PSW : %p %p", mode, (void *)regs->psw.mask, (void *)regs->psw.addr);
+	if (!user_mode(regs))
+		printk(" (%pSR)", (void *)regs->psw.addr);
+	printk("\n");
 	printk("           R:%x T:%x IO:%x EX:%x Key:%x M:%x W:%x "
 	       "P:%x AS:%x CC:%x PM:%x", mask_bits(regs, PSW_MASK_PER),
 	       mask_bits(regs, PSW_MASK_DAT), mask_bits(regs, PSW_MASK_IO),
@@ -154,16 +143,14 @@ void show_registers(struct pt_regs *regs)
 	       mask_bits(regs, PSW_MASK_MCHECK), mask_bits(regs, PSW_MASK_WAIT),
 	       mask_bits(regs, PSW_MASK_PSTATE), mask_bits(regs, PSW_MASK_ASC),
 	       mask_bits(regs, PSW_MASK_CC), mask_bits(regs, PSW_MASK_PM));
-#ifdef CONFIG_64BIT
 	printk(" EA:%x", mask_bits(regs, PSW_MASK_EA | PSW_MASK_BA));
-#endif
-	printk("\n%s GPRS: " FOURLONG, mode,
+	printk("\n%s GPRS: %016lx %016lx %016lx %016lx\n", mode,
 	       regs->gprs[0], regs->gprs[1], regs->gprs[2], regs->gprs[3]);
-	printk("           " FOURLONG,
+	printk("           %016lx %016lx %016lx %016lx\n",
 	       regs->gprs[4], regs->gprs[5], regs->gprs[6], regs->gprs[7]);
-	printk("           " FOURLONG,
+	printk("           %016lx %016lx %016lx %016lx\n",
 	       regs->gprs[8], regs->gprs[9], regs->gprs[10], regs->gprs[11]);
-	printk("           " FOURLONG,
+	printk("           %016lx %016lx %016lx %016lx\n",
 	       regs->gprs[12], regs->gprs[13], regs->gprs[14], regs->gprs[15]);
 	show_code(regs);
 }
@@ -190,7 +177,8 @@ void die(struct pt_regs *regs, const char *str)
 	console_verbose();
 	spin_lock_irq(&die_lock);
 	bust_spinlocks(1);
-	printk("%s: %04x [#%d] ", str, regs->int_code & 0xffff, ++die_counter);
+	printk("%s: %04x ilc:%d [#%d] ", str, regs->int_code & 0xffff,
+	       regs->int_code >> 17, ++die_counter);
 #ifdef CONFIG_PREEMPT
 	printk("PREEMPT ");
 #endif

@@ -134,7 +134,8 @@ static void sh2a__flush_invalidate_region(void *start, int size)
 
 	/* If there are too many pages then just blow the cache */
 	if (((end - begin) >> PAGE_SHIFT) >= MAX_OCACHE_PAGES) {
-		__raw_writel(__raw_readl(CCR) | CCR_OCACHE_INVALIDATE, CCR);
+		__raw_writel(__raw_readl(SH_CCR) | CCR_OCACHE_INVALIDATE,
+			     SH_CCR);
 	} else {
 		for (v = begin; v < end; v += L1_CACHE_BYTES)
 			sh2a_invalidate_line(CACHE_OC_ADDRESS_ARRAY, v);
@@ -167,7 +168,8 @@ static void sh2a_flush_icache_range(void *args)
 	/* I-Cache invalidate */
 	/* If there are too many pages then just blow the cache */
 	if (((end - start) >> PAGE_SHIFT) >= MAX_ICACHE_PAGES) {
-		__raw_writel(__raw_readl(CCR) | CCR_ICACHE_INVALIDATE, CCR);
+		__raw_writel(__raw_readl(SH_CCR) | CCR_ICACHE_INVALIDATE,
+			     SH_CCR);
 	} else {
 		for (v = start; v < end; v += L1_CACHE_BYTES)
 			sh2a_invalidate_line(CACHE_IC_ADDRESS_ARRAY, v);

@@ -49,7 +49,7 @@ static int bmp085_i2c_probe(struct i2c_client *client,
 		return err;
 	}
 
-	return bmp085_probe(&client->dev, regmap);
+	return bmp085_probe(&client->dev, regmap, client->irq);
 }
 
 static int bmp085_i2c_remove(struct i2c_client *client)
@@ -66,7 +66,6 @@ MODULE_DEVICE_TABLE(i2c, bmp085_id);
 
 static struct i2c_driver bmp085_i2c_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= BMP085_NAME,
 	},
 	.id_table	= bmp085_id,

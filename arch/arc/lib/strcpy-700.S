@@ -16,9 +16,9 @@
    there, but the it is not likely to be taken often, and it
    would also be likey to cost an unaligned mispredict at the next call.  */
 
-#include <asm/linkage.h>
+#include <linux/linkage.h>
 
-ARC_ENTRY strcpy
+ENTRY(strcpy)
 	or	r2,r0,r1
 	bmsk_s	r2,r2,1
 	brne.d	r2,0,charloop
@@ -67,4 +67,4 @@ charloop:
 	brne.d	r3,0,charloop
 	stb.ab	r3,[r10,1]
 	j	[blink]
-ARC_EXIT strcpy
+END(strcpy)

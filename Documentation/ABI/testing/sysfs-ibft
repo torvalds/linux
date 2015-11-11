@@ -20,4 +20,4 @@ Date:		November 2007
 Contact:	Konrad Rzeszutek <ketuzsezr@darnok.org>
 Description:	The /sys/firmware/ibft/ethernetX directory will contain
 		files that expose the iSCSI Boot Firmware Table NIC data.
-		This can this can the IP address, MAC, and gateway of the NIC.
+		Usually this contains the IP address, MAC, and gateway of the NIC.

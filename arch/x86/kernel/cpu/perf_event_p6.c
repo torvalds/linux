@@ -231,31 +231,49 @@ static __initconst const struct x86_pmu p6_pmu = {
 
 };
 
+static __init void p6_pmu_rdpmc_quirk(void)
+{
+	if (boot_cpu_data.x86_mask < 9) {
+		/*
+		 * PPro erratum 26; fixed in stepping 9 and above.
+		 */
+		pr_warn("Userspace RDPMC support disabled due to a CPU erratum\n");
+		x86_pmu.attr_rdpmc_broken = 1;
+		x86_pmu.attr_rdpmc = 0;
+	}
+}
+
 __init int p6_pmu_init(void)
 {
+	x86_pmu = p6_pmu;
+
 	switch (boot_cpu_data.x86_model) {
-	case 1:
-	case 3:  /* Pentium Pro */
-	case 5:
-	case 6:  /* Pentium II */
-	case 7:
-	case 8:
-	case 11: /* Pentium III */
-	case 9:
-	case 13:
-		/* Pentium M */
+	case  1: /* Pentium Pro */
+		x86_add_quirk(p6_pmu_rdpmc_quirk);
 		break;
+
+	case  3: /* Pentium II - Klamath */
+	case  5: /* Pentium II - Deschutes */
+	case  6: /* Pentium II - Mendocino */
+		break;
+
+	case  7: /* Pentium III - Katmai */
+	case  8: /* Pentium III - Coppermine */
+	case 10: /* Pentium III Xeon */
+	case 11: /* Pentium III - Tualatin */
+		break;
+
+	case  9: /* Pentium M - Banias */
+	case 13: /* Pentium M - Dothan */
+		break;
+
 	default:
-		pr_cont("unsupported p6 CPU model %d ",
-			boot_cpu_data.x86_model);
+		pr_cont("unsupported p6 CPU model %d ", boot_cpu_data.x86_model);
 		return -ENODEV;
 	}
 
-	x86_pmu = p6_pmu;
-
 	memcpy(hw_cache_event_ids, p6_hw_cache_event_ids,
 		sizeof(hw_cache_event_ids));
-
 
 	return 0;
 }

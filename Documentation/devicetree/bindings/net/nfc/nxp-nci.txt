@@ -1,0 +1,35 @@
+* NXP Semiconductors NXP NCI NFC Controllers
+
+Required properties:
+- compatible: Should be "nxp,nxp-nci-i2c".
+- clock-frequency: I²C work frequency.
+- reg: address on the bus
+- interrupt-parent: phandle for the interrupt gpio controller
+- interrupts: GPIO interrupt to which the chip is connected
+- enable-gpios: Output GPIO pin used for enabling/disabling the chip
+- firmware-gpios: Output GPIO pin used to enter firmware download mode
+
+Optional SoC Specific Properties:
+- pinctrl-names: Contains only one value - "default".
+- pintctrl-0: Specifies the pin control groups used for this controller.
+
+Example (for ARM-based BeagleBone with NPC100 NFC controller on I2C2):
+
+&i2c2 {
+
+	status = "okay";
+
+	npc100: npc100@29 {
+
+		compatible = "nxp,nxp-nci-i2c";
+
+		reg = <0x29>;
+		clock-frequency = <100000>;
+
+		interrupt-parent = <&gpio1>;
+		interrupts = <29 GPIO_ACTIVE_HIGH>;
+
+		enable-gpios = <&gpio0 30 GPIO_ACTIVE_HIGH>;
+		firmware-gpios = <&gpio0 31 GPIO_ACTIVE_HIGH>;
+	};
+};

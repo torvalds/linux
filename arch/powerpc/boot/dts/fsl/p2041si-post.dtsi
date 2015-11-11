@@ -1,7 +1,7 @@
 /*
  * P2041/P2040 Silicon/SoC Device Tree Source (post include)
  *
- * Copyright 2011 Freescale Semiconductor Inc.
+ * Copyright 2011 - 2015 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -31,6 +31,21 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+&bman_fbpr {
+	compatible = "fsl,bman-fbpr";
+	alloc-ranges = <0 0 0x10 0>;
+};
+
+&qman_fqd {
+	compatible = "fsl,qman-fqd";
+	alloc-ranges = <0 0 0x10 0>;
+};
+
+&qman_pfdr {
+	compatible = "fsl,qman-pfdr";
+	alloc-ranges = <0 0 0x10 0>;
+};
 
 &lbc {
 	compatible = "fsl,p2041-elbc", "fsl,elbc", "simple-bus";
@@ -216,6 +231,10 @@
 	};
 };
 
+/include/ "qoriq-bman1-portals.dtsi"
+
+/include/ "qoriq-qman1-portals.dtsi"
+
 &soc {
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -246,7 +265,7 @@
 	};
 
 	corenet-cf@18000 {
-		compatible = "fsl,corenet-cf";
+		compatible = "fsl,corenet1-cf", "fsl,corenet-cf";
 		reg = <0x18000 0x1000>;
 		interrupts = <16 2 1 31>;
 		fsl,ccf-num-csdids = <32>;
@@ -262,6 +281,7 @@
 		interrupts = <
 			24 2 0 0
 			16 2 1 30>;
+		fsl,portid-mapping = <0x0f000000>;
 
 		pamu0: pamu@0 {
 			reg = <0 0x1000>;
@@ -304,10 +324,27 @@
 		#sleep-cells = <2>;
 	};
 
-	clockgen: global-utilities@e1000 {
+/include/ "qoriq-clockgen1.dtsi"
+	global-utilities@e1000 {
 		compatible = "fsl,p2041-clockgen", "fsl,qoriq-clockgen-1.0";
-		reg = <0xe1000 0x1000>;
-		clock-frequency = <0>;
+
+		mux2: mux2@40 {
+			#clock-cells = <0>;
+			reg = <0x40 0x4>;
+			compatible = "fsl,qoriq-core-mux-1.0";
+			clocks = <&pll0 0>, <&pll0 1>, <&pll1 0>, <&pll1 1>;
+			clock-names = "pll0", "pll0-div2", "pll1", "pll1-div2";
+			clock-output-names = "cmux2";
+		};
+
+		mux3: mux3@60 {
+			#clock-cells = <0>;
+			reg = <0x60 0x4>;
+			compatible = "fsl,qoriq-core-mux-1.0";
+			clocks = <&pll0 0>, <&pll0 1>, <&pll1 0>, <&pll1 1>;
+			clock-names = "pll0", "pll0-div2", "pll1", "pll1-div2";
+			clock-output-names = "cmux3";
+		};
 	};
 
 	rcpm: global-utilities@e2000 {
@@ -345,6 +382,7 @@
 
 /include/ "qoriq-esdhc-0.dtsi"
 	sdhc@114000 {
+		compatible = "fsl,p2041-esdhc", "fsl,esdhc";
 		fsl,iommu-parent = <&pamu1>;
 		fsl,liodn-reg = <&guts 0x530>; /* eSDHCLIODNR */
 		sdhci,auto-cmd12;
@@ -388,5 +426,35 @@
 /include/ "qoriq-sec4.2-0.dtsi"
 crypto: crypto@300000 {
 		fsl,iommu-parent = <&pamu1>;
+	};
+
+/include/ "qoriq-qman1.dtsi"
+/include/ "qoriq-bman1.dtsi"
+
+/include/ "qoriq-fman-0.dtsi"
+/include/ "qoriq-fman-0-1g-0.dtsi"
+/include/ "qoriq-fman-0-1g-1.dtsi"
+/include/ "qoriq-fman-0-1g-2.dtsi"
+/include/ "qoriq-fman-0-1g-3.dtsi"
+/include/ "qoriq-fman-0-1g-4.dtsi"
+/include/ "qoriq-fman-0-10g-0.dtsi"
+	fman@400000 {
+		enet0: ethernet@e0000 {
+		};
+
+		enet1: ethernet@e2000 {
+		};
+
+		enet2: ethernet@e4000 {
+		};
+
+		enet3: ethernet@e6000 {
+		};
+
+		enet4: ethernet@e8000 {
+		};
+
+		enet5: ethernet@f0000 {
+		};
 	};
 };

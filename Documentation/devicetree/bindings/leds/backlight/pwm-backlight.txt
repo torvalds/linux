@@ -1,0 +1,35 @@
+pwm-backlight bindings
+
+Required properties:
+  - compatible: "pwm-backlight"
+  - pwms: OF device-tree PWM specification (see PWM binding[0])
+  - brightness-levels: Array of distinct brightness levels. Typically these
+      are in the range from 0 to 255, but any range starting at 0 will do.
+      The actual brightness level (PWM duty cycle) will be interpolated
+      from these values. 0 means a 0% duty cycle (darkest/off), while the
+      last value in the array represents a 100% duty cycle (brightest).
+  - default-brightness-level: the default brightness level (index into the
+      array defined by the "brightness-levels" property)
+  - power-supply: regulator for supply voltage
+
+Optional properties:
+  - pwm-names: a list of names for the PWM devices specified in the
+               "pwms" property (see PWM binding[0])
+  - enable-gpios: contains a single GPIO specifier for the GPIO which enables
+                  and disables the backlight (see GPIO binding[1])
+
+[0]: Documentation/devicetree/bindings/pwm/pwm.txt
+[1]: Documentation/devicetree/bindings/gpio/gpio.txt
+
+Example:
+
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm 0 5000000>;
+
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <6>;
+
+		power-supply = <&vdd_bl_reg>;
+		enable-gpios = <&gpio 58 0>;
+	};

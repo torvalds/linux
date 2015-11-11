@@ -16,7 +16,12 @@
 
 __HEAD
 ENTRY(startup_continue)
-	larl	%r1,sched_clock_base_cc
+	tm	__LC_STFL_FAC_LIST+6,0x80	# LPP available ?
+	jz	0f
+	xc	__LC_LPP+1(7,0),__LC_LPP+1	# clear lpp and current_pid
+	mvi	__LC_LPP,0x80			#   and set LPP_MAGIC
+	.insn	s,0xb2800000,__LC_LPP		# load program parameter
+0:	larl	%r1,sched_clock_base_cc
 	mvc	0(8,%r1),__LC_LAST_UPDATE_CLOCK
 	larl	%r13,.LPG1		# get base
 	lctlg	%c0,%c15,.Lctl-.LPG1(%r13)	# load control registers
@@ -59,7 +64,7 @@ ENTRY(startup_continue)
 	.quad	0			# cr12: tracing off
 	.quad	0			# cr13: home space segment table
 	.quad	0xc0000000		# cr14: machine check handling off
-	.quad	0			# cr15: linkage stack operations
+	.quad	.Llinkage_stack		# cr15: linkage stack operations
 .Lpcmsk:.quad	0x0000000180000000
 .L4malign:.quad 0xffffffffffc00000
 .Lscan2g:.quad	0x80000000 + 0x20000 - 8	# 2GB + 128K - 8
@@ -67,12 +72,15 @@ ENTRY(startup_continue)
 .Lparmaddr:
 	.quad	PARMAREA
 	.align	64
-.Lduct: .long	0,0,0,0,.Lduald,0,0,0
+.Lduct: .long	0,.Laste,.Laste,0,.Lduald,0,0,0
 	.long	0,0,0,0,0,0,0,0
+.Laste:	.quad	0,0xffffffffffffffff,0,0,0,0,0,0
 	.align	128
 .Lduald:.rept	8
 	.long	0x80000000,0,0,0	# invalid access-list entries
 	.endr
+.Llinkage_stack:
+	.long	0,0,0x89000000,0,0,0,0x8a000000,0
 
 ENTRY(_ehead)
 

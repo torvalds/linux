@@ -35,7 +35,7 @@
 
 #include <asm/cpufeature.h>
 #include <asm/cpu_device_id.h>
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 
 #define CHKSUM_BLOCK_SIZE	1
 #define CHKSUM_DIGEST_SIZE	4
@@ -197,5 +197,5 @@ module_exit(crc32_pclmul_mod_fini);
 MODULE_AUTHOR("Alexander Boyko <alexander_boyko@xyratex.com>");
 MODULE_LICENSE("GPL");
 
-MODULE_ALIAS("crc32");
-MODULE_ALIAS("crc32-pclmul");
+MODULE_ALIAS_CRYPTO("crc32");
+MODULE_ALIAS_CRYPTO("crc32-pclmul");

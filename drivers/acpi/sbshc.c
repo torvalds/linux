@@ -8,13 +8,13 @@
  * the Free Software Foundation version 2.
  */
 
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 #include <linux/wait.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/dmi.h>
 #include "sbshc.h"
 
 #define PREFIX "ACPI: "
@@ -88,6 +88,8 @@ enum acpi_smb_offset {
 	ACPI_SMB_ALARM_DATA = 0x26,	/* 2 bytes alarm data */
 };
 
+static bool macbook;
+
 static inline int smb_hc_read(struct acpi_smb_hc *hc, u8 address, u8 *data)
 {
 	return ec_read(hc->offset + address, data);
@@ -133,6 +135,8 @@ static int acpi_smbus_transaction(struct acpi_smb_hc *hc, u8 protocol,
 	}
 
 	mutex_lock(&hc->lock);
+	if (macbook)
+		udelay(5);
 	if (smb_hc_read(hc, ACPI_SMB_PROTOCOL, &temp))
 		goto end;
 	if (temp) {
@@ -258,11 +262,28 @@ extern int acpi_ec_add_query_handler(struct acpi_ec *ec, u8 query_bit,
 			      acpi_handle handle, acpi_ec_query_func func,
 			      void *data);
 
+static int macbook_dmi_match(const struct dmi_system_id *d)
+{
+	pr_debug("Detected MacBook, enabling workaround\n");
+	macbook = true;
+	return 0;
+}
+
+static struct dmi_system_id acpi_smbus_dmi_table[] = {
+	{ macbook_dmi_match, "Apple MacBook", {
+	  DMI_MATCH(DMI_BOARD_VENDOR, "Apple"),
+	  DMI_MATCH(DMI_PRODUCT_NAME, "MacBook") },
+	},
+	{ },
+};
+
 static int acpi_smbus_hc_add(struct acpi_device *device)
 {
 	int status;
 	unsigned long long val;
 	struct acpi_smb_hc *hc;
+
+	dmi_check_system(acpi_smbus_dmi_table);
 
 	if (!device)
 		return -EINVAL;

@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,7 +86,7 @@ acpi_ds_execute_arguments(struct acpi_namespace_node *node,
 
 	/* Allocate a new parser op to be the root of the parsed tree */
 
-	op = acpi_ps_alloc_op(AML_INT_EVAL_SUBTREE_OP);
+	op = acpi_ps_alloc_op(AML_INT_EVAL_SUBTREE_OP, aml_start);
 	if (!op) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
@@ -129,7 +129,7 @@ acpi_ds_execute_arguments(struct acpi_namespace_node *node,
 
 	/* Evaluate the deferred arguments */
 
-	op = acpi_ps_alloc_op(AML_INT_EVAL_SUBTREE_OP);
+	op = acpi_ps_alloc_op(AML_INT_EVAL_SUBTREE_OP, aml_start);
 	if (!op) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
@@ -158,7 +158,7 @@ acpi_ds_execute_arguments(struct acpi_namespace_node *node,
 	walk_state->deferred_node = node;
 	status = acpi_ps_parse_aml(walk_state);
 
-      cleanup:
+cleanup:
 	acpi_ps_delete_parse_tree(op);
 	return_ACPI_STATUS(status);
 }

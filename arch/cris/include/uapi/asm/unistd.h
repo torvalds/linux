@@ -340,5 +340,29 @@
 #define __NR_preadv		333
 #define __NR_pwritev		334
 #define __NR_setns		335
+#define __NR_name_to_handle_at	336
+#define __NR_open_by_handle_at	337
+#define __NR_rt_tgsigqueueinfo 338
+#define __NR_perf_event_open	339
+#define __NR_recvmmsg		340
+#define __NR_accept4		341
+#define __NR_fanotify_init	342
+#define __NR_fanotify_mark	343
+#define __NR_prlimit64		344
+#define __NR_clock_adjtime	345
+#define __NR_syncfs		346
+#define __NR_sendmmsg		347
+#define __NR_process_vm_readv	348
+#define __NR_process_vm_writev	349
+#define __NR_kcmp		350
+#define __NR_finit_module	351
+#define __NR_sched_setattr	352
+#define __NR_sched_getattr	353
+#define __NR_renameat2		354
+#define __NR_seccomp		355
+#define __NR_getrandom		356
+#define __NR_memfd_create	357
+#define __NR_bpf		358
+#define __NR_execveat		359
 
 #endif /* _UAPI_ASM_CRIS_UNISTD_H_ */

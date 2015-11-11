@@ -186,23 +186,14 @@ out:
 
 }
 
-static int bq4802_remove(struct platform_device *pdev)
-{
-	platform_set_drvdata(pdev, NULL);
-
-	return 0;
-}
-
 /* work with hotplug and coldplug */
 MODULE_ALIAS("platform:rtc-bq4802");
 
 static struct platform_driver bq4802_driver = {
 	.driver		= {
 		.name	= "rtc-bq4802",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= bq4802_probe,
-	.remove		= bq4802_remove,
 };
 
 module_platform_driver(bq4802_driver);

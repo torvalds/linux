@@ -7,7 +7,7 @@ Supported chips:
     Addresses scanned: none, address read from Super I/O config space
     Datasheets: No longer available
 
-Authors: Jean Delvare <khali@linux-fr.org>
+Authors: Jean Delvare <jdelvare@suse.de>
 
 Thanks to Sandeep Mehta, Tonko de Rooy and Daniel Ceregatti for testing.
 Thanks to Rudolf Marek for helping me investigate conversion issues.

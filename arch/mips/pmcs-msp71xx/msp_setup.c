@@ -27,7 +27,6 @@
 #endif
 
 extern void msp_serial_setup(void);
-extern void pmctwiled_setup(void);
 
 #if defined(CONFIG_PMC_MSP7120_EVAL) || \
     defined(CONFIG_PMC_MSP7120_GW) || \
@@ -49,7 +48,7 @@ void msp7120_reset(void)
 	/* Cache the reset code of this function */
 	__asm__ __volatile__ (
 		"	.set	push				\n"
-		"	.set	mips3				\n"
+		"	.set	arch=r4000			\n"
 		"	la	%0,startpoint			\n"
 		"	la	%1,endpoint			\n"
 		"	.set	pop				\n"
@@ -148,8 +147,6 @@ void __init plat_mem_setup(void)
 	pm_power_off = msp_power_off;
 }
 
-extern struct plat_smp_ops msp_smtc_smp_ops;
-
 void __init prom_init(void)
 {
 	unsigned long family;
@@ -230,17 +227,5 @@ void __init prom_init(void)
 	 */
 	msp_serial_setup();
 
-	if (register_vsmp_smp_ops()) {
-#ifdef CONFIG_MIPS_MT_SMTC
-		register_smp_ops(&msp_smtc_smp_ops);
-#endif
-	}
-
-#ifdef CONFIG_PMCTWILED
-	/*
-	 * Setup LED states before the subsys_initcall loads other
-	 * dependent drivers/modules.
-	 */
-	pmctwiled_setup();
-#endif
+	register_vsmp_smp_ops();
 }

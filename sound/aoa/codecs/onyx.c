@@ -241,15 +241,9 @@ static struct snd_kcontrol_new inputgain_control = {
 static int onyx_snd_capture_source_info(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = { "Line-In", "Microphone" };
+	static const char * const texts[] = { "Line-In", "Microphone" };
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 2;
-	if (uinfo->value.enumerated.item > 1)
-		uinfo->value.enumerated.item = 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 2, texts);
 }
 
 static int onyx_snd_capture_source_get(struct snd_kcontrol *kcontrol,
@@ -889,7 +883,7 @@ static int onyx_init_codec(struct aoa_codec *codec)
 		return -ENODEV;
 	}
 
-	if (aoa_snd_device_new(SNDRV_DEV_LOWLEVEL, onyx, &ops)) {
+	if (aoa_snd_device_new(SNDRV_DEV_CODEC, onyx, &ops)) {
 		printk(KERN_ERR PFX "failed to create onyx snd device!\n");
 		return -ENODEV;
 	}
@@ -1056,7 +1050,6 @@ MODULE_DEVICE_TABLE(i2c,onyx_i2c_id);
 static struct i2c_driver onyx_driver = {
 	.driver = {
 		.name = "aoa_codec_onyx",
-		.owner = THIS_MODULE,
 	},
 	.probe = onyx_i2c_probe,
 	.remove = onyx_i2c_remove,

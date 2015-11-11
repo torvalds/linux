@@ -1,5 +1,5 @@
 /*
- * Linux network driver for Brocade Converged Network Adapter.
+ * Linux network driver for QLogic BR-series Converged Network Adapter.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License (GPL) Version 2 as
@@ -11,9 +11,10 @@
  * General Public License for more details.
  */
 /*
- * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
+ * Copyright (c) 2014-2015 QLogic Corporation
  * All rights reserved
- * www.brocade.com
+ * www.qlogic.com
  */
 
 #ifndef __BFA_IOC_H__
@@ -215,6 +216,13 @@ struct bfa_ioc_hwif {
 	void		(*ioc_sync_ack)		(struct bfa_ioc *ioc);
 	bool		(*ioc_sync_complete)	(struct bfa_ioc *ioc);
 	bool		(*ioc_lpu_read_stat)	(struct bfa_ioc *ioc);
+	void		(*ioc_set_fwstate)	(struct bfa_ioc *ioc,
+					enum bfi_ioc_state fwstate);
+	enum bfi_ioc_state (*ioc_get_fwstate) (struct bfa_ioc *ioc);
+	void		(*ioc_set_alt_fwstate)	(struct bfa_ioc *ioc,
+					enum bfi_ioc_state fwstate);
+	enum bfi_ioc_state (*ioc_get_alt_fwstate) (struct bfa_ioc *ioc);
+
 };
 
 #define bfa_ioc_pcifn(__ioc)		((__ioc)->pcidev.pci_func)
@@ -222,12 +230,8 @@ struct bfa_ioc_hwif {
 #define bfa_ioc_bar0(__ioc)		((__ioc)->pcidev.pci_bar_kva)
 #define bfa_ioc_portid(__ioc)		((__ioc)->port_id)
 #define bfa_ioc_asic_gen(__ioc)		((__ioc)->asic_gen)
-#define bfa_ioc_fetch_stats(__ioc, __stats) \
-		(((__stats)->drv_stats) = (__ioc)->stats)
-#define bfa_ioc_clr_stats(__ioc)	\
-		memset(&(__ioc)->stats, 0, sizeof((__ioc)->stats))
-#define bfa_ioc_maxfrsize(__ioc)	((__ioc)->attr->maxfrsize)
-#define bfa_ioc_rx_bbcredit(__ioc)	((__ioc)->attr->rx_bbcredit)
+#define bfa_ioc_is_default(__ioc)	\
+	(bfa_ioc_pcifn(__ioc) == bfa_ioc_portid(__ioc))
 #define bfa_ioc_speed_sup(__ioc)	\
 	BFI_ADAPTER_GETP(SPEED, (__ioc)->attr->adapter_prop)
 #define bfa_ioc_get_nports(__ioc)	\
@@ -258,13 +262,6 @@ void bfa_nw_ioc_mbox_regisr(struct bfa_ioc *ioc, enum bfi_mclass mc,
 	((__ioc)->ioc_hwif->ioc_pll_init((__ioc)->pcidev.pci_bar_kva, \
 			   (__ioc)->asic_mode))
 
-#define	bfa_ioc_isr_mode_set(__ioc, __msix) do {			\
-	if ((__ioc)->ioc_hwif->ioc_isr_mode_set)			\
-		((__ioc)->ioc_hwif->ioc_isr_mode_set(__ioc, __msix));	\
-} while (0)
-#define	bfa_ioc_ownership_reset(__ioc)				\
-			((__ioc)->ioc_hwif->ioc_ownership_reset(__ioc))
-
 #define bfa_ioc_lpu_read_stat(__ioc) do {				\
 		if ((__ioc)->ioc_hwif->ioc_lpu_read_stat)		\
 			((__ioc)->ioc_hwif->ioc_lpu_read_stat(__ioc));	\
@@ -289,6 +286,7 @@ void bfa_nw_ioc_error_isr(struct bfa_ioc *ioc);
 bool bfa_nw_ioc_is_disabled(struct bfa_ioc *ioc);
 bool bfa_nw_ioc_is_operational(struct bfa_ioc *ioc);
 void bfa_nw_ioc_get_attr(struct bfa_ioc *ioc, struct bfa_ioc_attr *ioc_attr);
+enum bfa_status bfa_nw_ioc_fwsig_invalidate(struct bfa_ioc *ioc);
 void bfa_nw_ioc_notify_register(struct bfa_ioc *ioc,
 	struct bfa_ioc_notify *notify);
 bool bfa_nw_ioc_sem_get(void __iomem *sem_reg);
@@ -298,7 +296,7 @@ void bfa_nw_ioc_fwver_get(struct bfa_ioc *ioc,
 			struct bfi_ioc_image_hdr *fwhdr);
 bool bfa_nw_ioc_fwver_cmp(struct bfa_ioc *ioc,
 			struct bfi_ioc_image_hdr *fwhdr);
-mac_t bfa_nw_ioc_get_mac(struct bfa_ioc *ioc);
+void bfa_nw_ioc_get_mac(struct bfa_ioc *ioc, u8 *mac);
 void bfa_nw_ioc_debug_memclaim(struct bfa_ioc *ioc, void *dbg_fwsave);
 int bfa_nw_ioc_debug_fwtrc(struct bfa_ioc *ioc, void *trcdata, int *trclen);
 int bfa_nw_ioc_debug_fwsave(struct bfa_ioc *ioc, void *trcdata, int *trclen);
@@ -306,10 +304,10 @@ int bfa_nw_ioc_debug_fwsave(struct bfa_ioc *ioc, void *trcdata, int *trclen);
 /*
  * Timeout APIs
  */
-void bfa_nw_ioc_timeout(void *ioc);
-void bfa_nw_ioc_hb_check(void *ioc);
-void bfa_nw_iocpf_timeout(void *ioc);
-void bfa_nw_iocpf_sem_timeout(void *ioc);
+void bfa_nw_ioc_timeout(struct bfa_ioc *ioc);
+void bfa_nw_ioc_hb_check(struct bfa_ioc *ioc);
+void bfa_nw_iocpf_timeout(struct bfa_ioc *ioc);
+void bfa_nw_iocpf_sem_timeout(struct bfa_ioc *ioc);
 
 /*
  * F/W Image Size & Chunk

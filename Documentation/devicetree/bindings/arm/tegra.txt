@@ -30,5 +30,12 @@ board-specific compatible values:
   nvidia,seaboard
   nvidia,ventana
   nvidia,whistler
+  toradex,apalis_t30
+  toradex,apalis_t30-eval
   toradex,colibri_t20-512
   toradex,iris
+
+Trusted Foundations
+-------------------------------------------
+Tegra supports the Trusted Foundation secure monitor. See the
+"tlm,trusted-foundations" binding's documentation for more details.

@@ -21,14 +21,11 @@
 #include <linux/swap.h>
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
-#include "time.h"
 #include "kmem.h"
 #include "xfs_message.h"
 
 /*
  * Greedy allocation.  May fail and may return vmalloced memory.
- *
- * Must be freed using kmem_free_large.
  */
 void *
 kmem_zalloc_greedy(size_t *size, size_t minsize, size_t maxsize)
@@ -36,7 +33,7 @@ kmem_zalloc_greedy(size_t *size, size_t minsize, size_t maxsize)
 	void		*ptr;
 	size_t		kmsize = maxsize;
 
-	while (!(ptr = kmem_zalloc_large(kmsize))) {
+	while (!(ptr = vzalloc(kmsize))) {
 		if ((kmsize >>= 1) <= minsize)
 			kmsize = minsize;
 	}
@@ -65,24 +62,33 @@ kmem_alloc(size_t size, xfs_km_flags_t flags)
 }
 
 void *
-kmem_zalloc(size_t size, xfs_km_flags_t flags)
+kmem_zalloc_large(size_t size, xfs_km_flags_t flags)
 {
+	unsigned noio_flag = 0;
 	void	*ptr;
+	gfp_t	lflags;
 
-	ptr = kmem_alloc(size, flags);
+	ptr = kmem_zalloc(size, flags | KM_MAYFAIL);
 	if (ptr)
-		memset((char *)ptr, 0, (int)size);
-	return ptr;
-}
+		return ptr;
 
-void
-kmem_free(const void *ptr)
-{
-	if (!is_vmalloc_addr(ptr)) {
-		kfree(ptr);
-	} else {
-		vfree(ptr);
-	}
+	/*
+	 * __vmalloc() will allocate data pages and auxillary structures (e.g.
+	 * pagetables) with GFP_KERNEL, yet we may be under GFP_NOFS context
+	 * here. Hence we need to tell memory reclaim that we are in such a
+	 * context via PF_MEMALLOC_NOIO to prevent memory reclaim re-entering
+	 * the filesystem here and potentially deadlocking.
+	 */
+	if ((current->flags & PF_FSTRANS) || (flags & KM_NOFS))
+		noio_flag = memalloc_noio_save();
+
+	lflags = kmem_flags_convert(flags);
+	ptr = __vmalloc(size, lflags | __GFP_HIGHMEM | __GFP_ZERO, PAGE_KERNEL);
+
+	if ((current->flags & PF_FSTRANS) || (flags & KM_NOFS))
+		memalloc_noio_restore(noio_flag);
+
+	return ptr;
 }
 
 void *
@@ -118,15 +124,4 @@ kmem_zone_alloc(kmem_zone_t *zone, xfs_km_flags_t flags)
 					__func__, lflags);
 		congestion_wait(BLK_RW_ASYNC, HZ/50);
 	} while (1);
-}
-
-void *
-kmem_zone_zalloc(kmem_zone_t *zone, xfs_km_flags_t flags)
-{
-	void	*ptr;
-
-	ptr = kmem_zone_alloc(zone, flags);
-	if (ptr)
-		memset((char *)ptr, 0, kmem_cache_size(zone));
-	return ptr;
 }

@@ -25,11 +25,11 @@ static struct ctl_table_header *xfs_table_header;
 #ifdef CONFIG_PROC_FS
 STATIC int
 xfs_stats_clear_proc_handler(
-	ctl_table	*ctl,
-	int		write,
-	void		__user *buffer,
-	size_t		*lenp,
-	loff_t		*ppos)
+	struct ctl_table	*ctl,
+	int			write,
+	void			__user *buffer,
+	size_t			*lenp,
+	loff_t			*ppos)
 {
 	int		c, ret, *valp = ctl->data;
 	__uint32_t	vn_active;
@@ -55,11 +55,11 @@ xfs_stats_clear_proc_handler(
 
 STATIC int
 xfs_panic_mask_proc_handler(
-	ctl_table	*ctl,
-	int		write,
-	void		__user *buffer,
-	size_t		*lenp,
-	loff_t		*ppos)
+	struct ctl_table	*ctl,
+	int			write,
+	void			__user *buffer,
+	size_t			*lenp,
+	loff_t			*ppos)
 {
 	int		ret, *valp = ctl->data;
 
@@ -74,7 +74,7 @@ xfs_panic_mask_proc_handler(
 }
 #endif /* CONFIG_PROC_FS */
 
-static ctl_table xfs_table[] = {
+static struct ctl_table xfs_table[] = {
 	{
 		.procname	= "irix_sgid_inherit",
 		.data		= &xfs_params.sgid_inherit.val,
@@ -149,24 +149,6 @@ static ctl_table xfs_table[] = {
 		.extra2		= &xfs_params.inherit_noatim.max
 	},
 	{
-		.procname	= "xfsbufd_centisecs",
-		.data		= &xfs_params.xfs_buf_timer.val,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &xfs_params.xfs_buf_timer.min,
-		.extra2		= &xfs_params.xfs_buf_timer.max
-	},
-	{
-		.procname	= "age_buffer_centisecs",
-		.data		= &xfs_params.xfs_buf_age.val,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &xfs_params.xfs_buf_age.min,
-		.extra2		= &xfs_params.xfs_buf_age.max
-	},
-	{
 		.procname	= "inherit_nosymlinks",
 		.data		= &xfs_params.inherit_nosym.val,
 		.maxlen		= sizeof(int),
@@ -227,7 +209,7 @@ static ctl_table xfs_table[] = {
 	{}
 };
 
-static ctl_table xfs_dir_table[] = {
+static struct ctl_table xfs_dir_table[] = {
 	{
 		.procname	= "xfs",
 		.mode		= 0555,
@@ -236,7 +218,7 @@ static ctl_table xfs_dir_table[] = {
 	{}
 };
 
-static ctl_table xfs_root_table[] = {
+static struct ctl_table xfs_root_table[] = {
 	{
 		.procname	= "fs",
 		.mode		= 0555,

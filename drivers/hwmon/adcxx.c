@@ -203,7 +203,6 @@ out_err:
 	for (i--; i >= 0; i--)
 		device_remove_file(&spi->dev, &ad_input[i].dev_attr);
 
-	spi_set_drvdata(spi, NULL);
 	mutex_unlock(&adc->lock);
 	return status;
 }
@@ -218,7 +217,6 @@ static int adcxx_remove(struct spi_device *spi)
 	for (i = 0; i < 3 + adc->channels; i++)
 		device_remove_file(&spi->dev, &ad_input[i].dev_attr);
 
-	spi_set_drvdata(spi, NULL);
 	mutex_unlock(&adc->lock);
 
 	return 0;
@@ -236,7 +234,6 @@ MODULE_DEVICE_TABLE(spi, adcxx_ids);
 static struct spi_driver adcxx_driver = {
 	.driver = {
 		.name	= "adcxx",
-		.owner	= THIS_MODULE,
 	},
 	.id_table = adcxx_ids,
 	.probe	= adcxx_probe,

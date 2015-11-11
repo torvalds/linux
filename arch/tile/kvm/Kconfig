@@ -21,6 +21,7 @@ config KVM
 	depends on HAVE_KVM && MODULES
 	select PREEMPT_NOTIFIERS
 	select ANON_INODES
+	select SRCU
 	---help---
 	  Support hosting paravirtualized guest machines.
 

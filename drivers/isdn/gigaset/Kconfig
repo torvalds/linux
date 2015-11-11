@@ -20,7 +20,7 @@ if ISDN_DRV_GIGASET
 config GIGASET_CAPI
 	bool "Gigaset CAPI support"
 	depends on ISDN_CAPI='y'||(ISDN_CAPI='m'&&ISDN_DRV_GIGASET='m')
-	default ISDN_I4L='n'
+	default 'y'
 	help
 	  Build the Gigaset driver as a CAPI 2.0 driver interfacing with
 	  the Kernel CAPI subsystem. To use it with the old ISDN4Linux

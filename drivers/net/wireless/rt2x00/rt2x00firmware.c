@@ -14,9 +14,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -98,7 +96,7 @@ int rt2x00lib_load_firmware(struct rt2x00_dev *rt2x00dev)
 {
 	int retval;
 
-	if (!test_bit(REQUIRE_FIRMWARE, &rt2x00dev->cap_flags))
+	if (!rt2x00_has_cap_flag(rt2x00dev, REQUIRE_FIRMWARE))
 		return 0;
 
 	if (!rt2x00dev->fw) {

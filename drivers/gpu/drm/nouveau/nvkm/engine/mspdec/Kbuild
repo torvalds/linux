@@ -1,0 +1,5 @@
+nvkm-y += nvkm/engine/mspdec/base.o
+nvkm-y += nvkm/engine/mspdec/g98.o
+nvkm-y += nvkm/engine/mspdec/gt215.o
+nvkm-y += nvkm/engine/mspdec/gf100.o
+nvkm-y += nvkm/engine/mspdec/gk104.o

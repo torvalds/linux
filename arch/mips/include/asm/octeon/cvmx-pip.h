@@ -37,7 +37,7 @@
 #include <asm/octeon/cvmx-fpa.h>
 #include <asm/octeon/cvmx-pip-defs.h>
 
-#define CVMX_PIP_NUM_INPUT_PORTS		40
+#define CVMX_PIP_NUM_INPUT_PORTS		48
 #define CVMX_PIP_NUM_WATCHERS			4
 
 /*
@@ -192,13 +192,13 @@ typedef struct {
 	/* Number of packets processed by PIP */
 	uint32_t packets;
 	/*
-	 * Number of indentified L2 multicast packets.	Does not
+	 * Number of identified L2 multicast packets.	Does not
 	 * include broadcast packets.  Only includes packets whose
 	 * parse mode is SKIP_TO_L2
 	 */
 	uint32_t multicast_packets;
 	/*
-	 * Number of indentified L2 broadcast packets.	Does not
+	 * Number of identified L2 broadcast packets.	Does not
 	 * include multicast packets.  Only includes packets whose
 	 * parse mode is SKIP_TO_L2
 	 */

@@ -12,9 +12,27 @@
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
+#include <linux/mutex.h>
 
 #include "internals.h"
 
+/*
+ * Access rules:
+ *
+ * procfs protects read/write of /proc/irq/N/ files against a
+ * concurrent free of the interrupt descriptor. remove_proc_entry()
+ * immediately prevents new read/writes to happen and waits for
+ * already running read/write functions to complete.
+ *
+ * We remove the proc entries first and then delete the interrupt
+ * descriptor from the radix tree and free it. So it is guaranteed
+ * that irq_to_desc(N) is valid as long as the read/writes are
+ * permitted by procfs.
+ *
+ * The read from /proc/interrupts is a different problem because there
+ * is no protection. So the lookup and the access to irqdesc
+ * information must be protected by sparse_irq_lock.
+ */
 static struct proc_dir_entry *root_irq_dir;
 
 #ifdef CONFIG_SMP
@@ -22,17 +40,16 @@ static struct proc_dir_entry *root_irq_dir;
 static int show_irq_affinity(int type, struct seq_file *m, void *v)
 {
 	struct irq_desc *desc = irq_to_desc((long)m->private);
-	const struct cpumask *mask = desc->irq_data.affinity;
+	const struct cpumask *mask = desc->irq_common_data.affinity;
 
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 	if (irqd_is_setaffinity_pending(&desc->irq_data))
 		mask = desc->pending_mask;
 #endif
 	if (type)
-		seq_cpumask_list(m, mask);
+		seq_printf(m, "%*pbl\n", cpumask_pr_args(mask));
 	else
-		seq_cpumask(m, mask);
-	seq_putc(m, '\n');
+		seq_printf(m, "%*pb\n", cpumask_pr_args(mask));
 	return 0;
 }
 
@@ -50,8 +67,7 @@ static int irq_affinity_hint_proc_show(struct seq_file *m, void *v)
 		cpumask_copy(mask, desc->affinity_hint);
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 
-	seq_cpumask(m, mask);
-	seq_putc(m, '\n');
+	seq_printf(m, "%*pb\n", cpumask_pr_args(mask));
 	free_cpumask_var(mask);
 
 	return 0;
@@ -169,8 +185,7 @@ static const struct file_operations irq_affinity_list_proc_fops = {
 
 static int default_affinity_show(struct seq_file *m, void *v)
 {
-	seq_cpumask(m, irq_default_affinity);
-	seq_putc(m, '\n');
+	seq_printf(m, "%*pb\n", cpumask_pr_args(irq_default_affinity));
 	return 0;
 }
 
@@ -227,7 +242,7 @@ static int irq_node_proc_show(struct seq_file *m, void *v)
 {
 	struct irq_desc *desc = irq_to_desc((long) m->private);
 
-	seq_printf(m, "%d\n", desc->irq_data.node);
+	seq_printf(m, "%d\n", irq_desc_get_node(desc));
 	return 0;
 }
 
@@ -309,10 +324,21 @@ void register_handler_proc(unsigned int irq, struct irqaction *action)
 
 void register_irq_proc(unsigned int irq, struct irq_desc *desc)
 {
+	static DEFINE_MUTEX(register_lock);
 	char name [MAX_NAMELEN];
 
-	if (!root_irq_dir || (desc->irq_data.chip == &no_irq_chip) || desc->dir)
+	if (!root_irq_dir || (desc->irq_data.chip == &no_irq_chip))
 		return;
+
+	/*
+	 * irq directories are registered only when a handler is
+	 * added, not when the descriptor is created, so multiple
+	 * tasks might try to register at the same time.
+	 */
+	mutex_lock(&register_lock);
+
+	if (desc->dir)
+		goto out_unlock;
 
 	memset(name, 0, MAX_NAMELEN);
 	sprintf(name, "%d", irq);
@@ -320,19 +346,19 @@ void register_irq_proc(unsigned int irq, struct irq_desc *desc)
 	/* create /proc/irq/1234 */
 	desc->dir = proc_mkdir(name, root_irq_dir);
 	if (!desc->dir)
-		return;
+		goto out_unlock;
 
 #ifdef CONFIG_SMP
 	/* create /proc/irq/<irq>/smp_affinity */
-	proc_create_data("smp_affinity", 0600, desc->dir,
+	proc_create_data("smp_affinity", 0644, desc->dir,
 			 &irq_affinity_proc_fops, (void *)(long)irq);
 
 	/* create /proc/irq/<irq>/affinity_hint */
-	proc_create_data("affinity_hint", 0400, desc->dir,
+	proc_create_data("affinity_hint", 0444, desc->dir,
 			 &irq_affinity_hint_proc_fops, (void *)(long)irq);
 
 	/* create /proc/irq/<irq>/smp_affinity_list */
-	proc_create_data("smp_affinity_list", 0600, desc->dir,
+	proc_create_data("smp_affinity_list", 0644, desc->dir,
 			 &irq_affinity_list_proc_fops, (void *)(long)irq);
 
 	proc_create_data("node", 0444, desc->dir,
@@ -341,6 +367,9 @@ void register_irq_proc(unsigned int irq, struct irq_desc *desc)
 
 	proc_create_data("spurious", 0444, desc->dir,
 			 &irq_spurious_proc_fops, (void *)(long)irq);
+
+out_unlock:
+	mutex_unlock(&register_lock);
 }
 
 void unregister_irq_proc(unsigned int irq, struct irq_desc *desc)
@@ -372,7 +401,7 @@ void unregister_handler_proc(unsigned int irq, struct irqaction *action)
 static void register_default_affinity_proc(void)
 {
 #ifdef CONFIG_SMP
-	proc_create("irq/default_smp_affinity", 0600, NULL,
+	proc_create("irq/default_smp_affinity", 0644, NULL,
 		    &default_affinity_proc_fops);
 #endif
 }
@@ -437,15 +466,16 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_putc(p, '\n');
 	}
 
+	irq_lock_sparse();
 	desc = irq_to_desc(i);
 	if (!desc)
-		return 0;
+		goto outsparse;
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
 	for_each_online_cpu(j)
 		any_count |= kstat_irqs_cpu(i, j);
 	action = desc->action;
-	if (!action && !any_count)
+	if ((!action || action == &chained_action) && !any_count)
 		goto out;
 
 	seq_printf(p, "%*d: ", prec, i);
@@ -462,6 +492,8 @@ int show_interrupts(struct seq_file *p, void *v)
 	} else {
 		seq_printf(p, " %8s", "None");
 	}
+	if (desc->irq_data.domain)
+		seq_printf(p, " %*d", prec, (int) desc->irq_data.hwirq);
 #ifdef CONFIG_GENERIC_IRQ_SHOW_LEVEL
 	seq_printf(p, " %-8s", irqd_is_level_type(&desc->irq_data) ? "Level" : "Edge");
 #endif
@@ -477,6 +509,8 @@ int show_interrupts(struct seq_file *p, void *v)
 	seq_putc(p, '\n');
 out:
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
+outsparse:
+	irq_unlock_sparse();
 	return 0;
 }
 #endif

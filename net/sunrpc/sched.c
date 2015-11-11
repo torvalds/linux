@@ -24,7 +24,7 @@
 
 #include "sunrpc.h"
 
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 #define RPCDBG_FACILITY		RPCDBG_SCHED
 #endif
 
@@ -89,8 +89,8 @@ __rpc_add_timer(struct rpc_wait_queue *queue, struct rpc_task *task)
 	if (!task->tk_timeout)
 		return;
 
-	dprintk("RPC: %5u setting alarm for %lu ms\n",
-			task->tk_pid, task->tk_timeout * 1000 / HZ);
+	dprintk("RPC: %5u setting alarm for %u ms\n",
+		task->tk_pid, jiffies_to_msecs(task->tk_timeout));
 
 	task->u.tk_wait.expires = jiffies + task->tk_timeout;
 	if (list_empty(&queue->timer_list.list) || time_before(task->u.tk_wait.expires, queue->timer_list.expires))
@@ -250,15 +250,15 @@ void rpc_destroy_wait_queue(struct rpc_wait_queue *queue)
 }
 EXPORT_SYMBOL_GPL(rpc_destroy_wait_queue);
 
-static int rpc_wait_bit_killable(void *word)
+static int rpc_wait_bit_killable(struct wait_bit_key *key)
 {
 	if (fatal_signal_pending(current))
 		return -ERESTARTSYS;
-	freezable_schedule();
+	freezable_schedule_unsafe();
 	return 0;
 }
 
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG) || IS_ENABLED(CONFIG_TRACEPOINTS)
 static void rpc_task_set_debuginfo(struct rpc_task *task)
 {
 	static atomic_t rpc_pid;
@@ -309,7 +309,7 @@ static int rpc_complete_task(struct rpc_task *task)
  * to enforce taking of the wq->lock and hence avoid races with
  * rpc_complete_task().
  */
-int __rpc_wait_for_completion_task(struct rpc_task *task, int (*action)(void *))
+int __rpc_wait_for_completion_task(struct rpc_task *task, wait_bit_action_f *action)
 {
 	if (action == NULL)
 		action = rpc_wait_bit_killable;
@@ -444,20 +444,6 @@ static void rpc_wake_up_task_queue_locked(struct rpc_wait_queue *queue, struct r
 			__rpc_do_wake_up_task(queue, task);
 	}
 }
-
-/*
- * Tests whether rpc queue is empty
- */
-int rpc_queue_empty(struct rpc_wait_queue *queue)
-{
-	int res;
-
-	spin_lock_bh(&queue->lock);
-	res = queue->qlen;
-	spin_unlock_bh(&queue->lock);
-	return res == 0;
-}
-EXPORT_SYMBOL_GPL(rpc_queue_empty);
 
 /*
  * Wake up a task on a specific queue
@@ -651,7 +637,8 @@ static void __rpc_queue_timer_fn(unsigned long ptr)
 
 static void __rpc_atrun(struct rpc_task *task)
 {
-	task->tk_status = 0;
+	if (task->tk_status == -ETIMEDOUT)
+		task->tk_status = 0;
 }
 
 /*
@@ -804,7 +791,6 @@ static void __rpc_execute(struct rpc_task *task)
 			task->tk_flags |= RPC_TASK_KILLED;
 			rpc_exit(task, -ERESTARTSYS);
 		}
-		rpc_set_running(task);
 		dprintk("RPC: %5u sync task resuming\n", task->tk_pid);
 	}
 
@@ -825,17 +811,17 @@ static void __rpc_execute(struct rpc_task *task)
  */
 void rpc_execute(struct rpc_task *task)
 {
+	bool is_async = RPC_IS_ASYNC(task);
+
 	rpc_set_active(task);
 	rpc_make_runnable(task);
-	if (!RPC_IS_ASYNC(task))
+	if (!is_async)
 		__rpc_execute(task);
 }
 
 static void rpc_async_schedule(struct work_struct *work)
 {
-	current->flags |= PF_FSTRANS;
 	__rpc_execute(container_of(work, struct rpc_task, u.tk_work));
-	current->flags &= ~PF_FSTRANS;
 }
 
 /**
@@ -844,7 +830,8 @@ static void rpc_async_schedule(struct work_struct *work)
  * @size: requested byte size
  *
  * To prevent rpciod from hanging, this allocator never sleeps,
- * returning NULL if the request cannot be serviced immediately.
+ * returning NULL and suppressing warning if the request cannot be serviced
+ * immediately.
  * The caller can arrange to sleep in a way that is safe for rpciod.
  *
  * Most requests are 'small' (under 2KiB) and can be serviced from a
@@ -857,10 +844,10 @@ static void rpc_async_schedule(struct work_struct *work)
 void *rpc_malloc(struct rpc_task *task, size_t size)
 {
 	struct rpc_buffer *buf;
-	gfp_t gfp = GFP_NOWAIT;
+	gfp_t gfp = GFP_NOIO | __GFP_NOWARN;
 
 	if (RPC_IS_SWAPPER(task))
-		gfp |= __GFP_MEMALLOC;
+		gfp = __GFP_MEMALLOC | GFP_NOWAIT | __GFP_NOWARN;
 
 	size += sizeof(struct rpc_buffer);
 	if (size <= RPC_BUFFER_MAXSIZE)
@@ -1082,7 +1069,8 @@ static int rpciod_start(void)
 	 * Create the rpciod thread and wait for it to start.
 	 */
 	dprintk("RPC:       creating workqueue rpciod\n");
-	wq = alloc_workqueue("rpciod", WQ_MEM_RECLAIM, 1);
+	/* Note: highpri because network receive is latency sensitive */
+	wq = alloc_workqueue("rpciod", WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
 	rpciod_workqueue = wq;
 	return rpciod_workqueue != NULL;
 }
@@ -1104,14 +1092,10 @@ void
 rpc_destroy_mempool(void)
 {
 	rpciod_stop();
-	if (rpc_buffer_mempool)
-		mempool_destroy(rpc_buffer_mempool);
-	if (rpc_task_mempool)
-		mempool_destroy(rpc_task_mempool);
-	if (rpc_task_slabp)
-		kmem_cache_destroy(rpc_task_slabp);
-	if (rpc_buffer_slabp)
-		kmem_cache_destroy(rpc_buffer_slabp);
+	mempool_destroy(rpc_buffer_mempool);
+	mempool_destroy(rpc_task_mempool);
+	kmem_cache_destroy(rpc_task_slabp);
+	kmem_cache_destroy(rpc_buffer_slabp);
 	rpc_destroy_wait_queue(&delay_queue);
 }
 

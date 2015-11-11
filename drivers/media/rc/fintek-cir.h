@@ -76,8 +76,8 @@ struct fintek_dev {
 	} tx;
 
 	/* Config register index/data port pair */
-	u8 cr_ip;
-	u8 cr_dp;
+	u32 cr_ip;
+	u32 cr_dp;
 
 	/* hardware I/O settings */
 	unsigned long cir_addr;

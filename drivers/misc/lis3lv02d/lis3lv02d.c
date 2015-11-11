@@ -23,7 +23,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/dmi.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -116,7 +115,7 @@ static int param_set_axis(const char *val, const struct kernel_param *kp)
 	return ret;
 }
 
-static struct kernel_param_ops param_ops_axis = {
+static const struct kernel_param_ops param_ops_axis = {
 	.set = param_set_axis,
 	.get = param_get_int,
 };
@@ -831,9 +830,11 @@ static ssize_t lis3lv02d_rate_set(struct device *dev,
 {
 	struct lis3lv02d *lis3 = dev_get_drvdata(dev);
 	unsigned long rate;
+	int ret;
 
-	if (strict_strtoul(buf, 0, &rate))
-		return -EINVAL;
+	ret = kstrtoul(buf, 0, &rate);
+	if (ret)
+		return ret;
 
 	lis3lv02d_sysfs_poweron(lis3);
 	if (lis3lv02d_set_odr(lis3, rate))
@@ -949,6 +950,7 @@ int lis3lv02d_init_dt(struct lis3lv02d *lis3)
 	struct lis3lv02d_platform_data *pdata;
 	struct device_node *np = lis3->of_node;
 	u32 val;
+	s32 sval;
 
 	if (!lis3->of_node)
 		return 0;
@@ -1030,6 +1032,23 @@ int lis3lv02d_init_dt(struct lis3lv02d *lis3)
 		pdata->wakeup_flags |= LIS3_WAKEUP_Z_LO;
 	if (of_get_property(np, "st,wakeup-z-hi", NULL))
 		pdata->wakeup_flags |= LIS3_WAKEUP_Z_HI;
+	if (of_get_property(np, "st,wakeup-threshold", &val))
+		pdata->wakeup_thresh = val;
+
+	if (of_get_property(np, "st,wakeup2-x-lo", NULL))
+		pdata->wakeup_flags2 |= LIS3_WAKEUP_X_LO;
+	if (of_get_property(np, "st,wakeup2-x-hi", NULL))
+		pdata->wakeup_flags2 |= LIS3_WAKEUP_X_HI;
+	if (of_get_property(np, "st,wakeup2-y-lo", NULL))
+		pdata->wakeup_flags2 |= LIS3_WAKEUP_Y_LO;
+	if (of_get_property(np, "st,wakeup2-y-hi", NULL))
+		pdata->wakeup_flags2 |= LIS3_WAKEUP_Y_HI;
+	if (of_get_property(np, "st,wakeup2-z-lo", NULL))
+		pdata->wakeup_flags2 |= LIS3_WAKEUP_Z_LO;
+	if (of_get_property(np, "st,wakeup2-z-hi", NULL))
+		pdata->wakeup_flags2 |= LIS3_WAKEUP_Z_HI;
+	if (of_get_property(np, "st,wakeup2-threshold", &val))
+		pdata->wakeup_thresh2 = val;
 
 	if (!of_property_read_u32(np, "st,highpass-cutoff-hz", &val)) {
 		switch (val) {
@@ -1053,29 +1072,29 @@ int lis3lv02d_init_dt(struct lis3lv02d *lis3)
 	if (of_get_property(np, "st,hipass2-disable", NULL))
 		pdata->hipass_ctrl |= LIS3_HIPASS2_DISABLE;
 
-	if (of_get_property(np, "st,axis-x", &val))
-		pdata->axis_x = val;
-	if (of_get_property(np, "st,axis-y", &val))
-		pdata->axis_y = val;
-	if (of_get_property(np, "st,axis-z", &val))
-		pdata->axis_z = val;
+	if (of_property_read_s32(np, "st,axis-x", &sval) == 0)
+		pdata->axis_x = sval;
+	if (of_property_read_s32(np, "st,axis-y", &sval) == 0)
+		pdata->axis_y = sval;
+	if (of_property_read_s32(np, "st,axis-z", &sval) == 0)
+		pdata->axis_z = sval;
 
 	if (of_get_property(np, "st,default-rate", NULL))
 		pdata->default_rate = val;
 
-	if (of_get_property(np, "st,min-limit-x", &val))
-		pdata->st_min_limits[0] = val;
-	if (of_get_property(np, "st,min-limit-y", &val))
-		pdata->st_min_limits[1] = val;
-	if (of_get_property(np, "st,min-limit-z", &val))
-		pdata->st_min_limits[2] = val;
+	if (of_property_read_s32(np, "st,min-limit-x", &sval) == 0)
+		pdata->st_min_limits[0] = sval;
+	if (of_property_read_s32(np, "st,min-limit-y", &sval) == 0)
+		pdata->st_min_limits[1] = sval;
+	if (of_property_read_s32(np, "st,min-limit-z", &sval) == 0)
+		pdata->st_min_limits[2] = sval;
 
-	if (of_get_property(np, "st,max-limit-x", &val))
-		pdata->st_max_limits[0] = val;
-	if (of_get_property(np, "st,max-limit-y", &val))
-		pdata->st_max_limits[1] = val;
-	if (of_get_property(np, "st,max-limit-z", &val))
-		pdata->st_max_limits[2] = val;
+	if (of_property_read_s32(np, "st,max-limit-x", &sval) == 0)
+		pdata->st_max_limits[0] = sval;
+	if (of_property_read_s32(np, "st,max-limit-y", &sval) == 0)
+		pdata->st_max_limits[1] = sval;
+	if (of_property_read_s32(np, "st,max-limit-z", &sval) == 0)
+		pdata->st_max_limits[2] = sval;
 
 
 	lis3->pdata = pdata;

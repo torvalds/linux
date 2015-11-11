@@ -124,7 +124,7 @@ extern void aes_sparc64_ctr_crypt_256(const u64 *key, const u64 *input,
 				      u64 *output, unsigned int len,
 				      u64 *iv);
 
-struct aes_ops aes128_ops = {
+static struct aes_ops aes128_ops = {
 	.encrypt		= aes_sparc64_encrypt_128,
 	.decrypt		= aes_sparc64_decrypt_128,
 	.load_encrypt_keys	= aes_sparc64_load_encrypt_keys_128,
@@ -136,7 +136,7 @@ struct aes_ops aes128_ops = {
 	.ctr_crypt		= aes_sparc64_ctr_crypt_128,
 };
 
-struct aes_ops aes192_ops = {
+static struct aes_ops aes192_ops = {
 	.encrypt		= aes_sparc64_encrypt_192,
 	.decrypt		= aes_sparc64_decrypt_192,
 	.load_encrypt_keys	= aes_sparc64_load_encrypt_keys_192,
@@ -148,7 +148,7 @@ struct aes_ops aes192_ops = {
 	.ctr_crypt		= aes_sparc64_ctr_crypt_192,
 };
 
-struct aes_ops aes256_ops = {
+static struct aes_ops aes256_ops = {
 	.encrypt		= aes_sparc64_encrypt_256,
 	.decrypt		= aes_sparc64_decrypt_256,
 	.load_encrypt_keys	= aes_sparc64_load_encrypt_keys_256,
@@ -433,6 +433,7 @@ static struct crypto_alg algs[] = { {
 		.blkcipher = {
 			.min_keysize	= AES_MIN_KEY_SIZE,
 			.max_keysize	= AES_MAX_KEY_SIZE,
+			.ivsize		= AES_BLOCK_SIZE,
 			.setkey		= aes_set_key,
 			.encrypt	= cbc_encrypt,
 			.decrypt	= cbc_decrypt,
@@ -452,6 +453,7 @@ static struct crypto_alg algs[] = { {
 		.blkcipher = {
 			.min_keysize	= AES_MIN_KEY_SIZE,
 			.max_keysize	= AES_MAX_KEY_SIZE,
+			.ivsize		= AES_BLOCK_SIZE,
 			.setkey		= aes_set_key,
 			.encrypt	= ctr_crypt,
 			.decrypt	= ctr_crypt,
@@ -497,8 +499,8 @@ module_init(aes_sparc64_mod_init);
 module_exit(aes_sparc64_mod_fini);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("AES Secure Hash Algorithm, sparc64 aes opcode accelerated");
+MODULE_DESCRIPTION("Rijndael (AES) Cipher Algorithm, sparc64 aes opcode accelerated");
 
-MODULE_ALIAS("aes");
+MODULE_ALIAS_CRYPTO("aes");
 
 #include "crop_devid.c"

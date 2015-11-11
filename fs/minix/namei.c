@@ -54,6 +54,18 @@ static int minix_mknod(struct inode * dir, struct dentry *dentry, umode_t mode, 
 	return error;
 }
 
+static int minix_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
+{
+	int error;
+	struct inode *inode = minix_new_inode(dir, mode, &error);
+	if (inode) {
+		minix_set_inode(inode, 0);
+		mark_inode_dirty(inode);
+		d_tmpfile(dentry, inode);
+	}
+	return error;
+}
+
 static int minix_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		bool excl)
 {
@@ -92,7 +104,7 @@ out_fail:
 static int minix_link(struct dentry * old_dentry, struct inode * dir,
 	struct dentry *dentry)
 {
-	struct inode *inode = old_dentry->d_inode;
+	struct inode *inode = d_inode(old_dentry);
 
 	inode->i_ctime = CURRENT_TIME_SEC;
 	inode_inc_link_count(inode);
@@ -139,7 +151,7 @@ out_dir:
 static int minix_unlink(struct inode * dir, struct dentry *dentry)
 {
 	int err = -ENOENT;
-	struct inode * inode = dentry->d_inode;
+	struct inode * inode = d_inode(dentry);
 	struct page * page;
 	struct minix_dir_entry * de;
 
@@ -159,7 +171,7 @@ end_unlink:
 
 static int minix_rmdir(struct inode * dir, struct dentry *dentry)
 {
-	struct inode * inode = dentry->d_inode;
+	struct inode * inode = d_inode(dentry);
 	int err = -ENOTEMPTY;
 
 	if (minix_empty_dir(inode)) {
@@ -175,8 +187,8 @@ static int minix_rmdir(struct inode * dir, struct dentry *dentry)
 static int minix_rename(struct inode * old_dir, struct dentry *old_dentry,
 			   struct inode * new_dir, struct dentry *new_dentry)
 {
-	struct inode * old_inode = old_dentry->d_inode;
-	struct inode * new_inode = new_dentry->d_inode;
+	struct inode * old_inode = d_inode(old_dentry);
+	struct inode * new_inode = d_inode(new_dentry);
 	struct page * dir_page = NULL;
 	struct minix_dir_entry * dir_de = NULL;
 	struct page * old_page;
@@ -254,4 +266,5 @@ const struct inode_operations minix_dir_inode_operations = {
 	.mknod		= minix_mknod,
 	.rename		= minix_rename,
 	.getattr	= minix_getattr,
+	.tmpfile	= minix_tmpfile,
 };

@@ -1,6 +1,6 @@
 /dts-v1/;
 
-/include/ "kirkwood-ns2-common.dtsi"
+#include "kirkwood-ns2-common.dtsi"
 
 / {
 	model = "LaCie Network Space Lite v2";
@@ -13,6 +13,8 @@
 
 	ocp@f1000000 {
 		sata@80000 {
+			pinctrl-0 = <&pmx_ns2_sata0>;
+			pinctrl-names = "default";
 			status = "okay";
 			nr-ports = <1>;
 		};
@@ -23,8 +25,10 @@
 
 		blue-sata {
 			label = "ns2:blue:sata";
-			gpios = <&gpio0 30 1>;
-			linux,default-trigger = "default-on";
+			gpios = <&gpio0 30 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "ide-disk";
 		};
 	};
 };
+
+&ethphy0 { reg = <0>; };

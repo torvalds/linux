@@ -51,10 +51,20 @@
 #include <asm/e820.h>
 #include <asm/mtrr.h>
 #include <asm/msr.h>
+#include <asm/pat.h>
 
 #include "mtrr.h"
 
+/* arch_phys_wc_add returns an MTRR register index plus this offset. */
+#define MTRR_TO_PHYS_WC_OFFSET 1000
+
 u32 num_var_ranges;
+static bool __mtrr_enabled;
+
+static bool mtrr_enabled(void)
+{
+	return __mtrr_enabled;
+}
 
 unsigned int mtrr_usage_table[MTRR_MAX_VAR_RANGES];
 static DEFINE_MUTEX(mtrr_mutex);
@@ -282,7 +292,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 	int i, replace, error;
 	mtrr_type ltype;
 
-	if (!mtrr_if)
+	if (!mtrr_enabled())
 		return -ENXIO;
 
 	error = mtrr_if->validate_add_page(base, size, type);
@@ -305,7 +315,8 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 		return -EINVAL;
 	}
 
-	if (base & size_or_mask || size & size_or_mask) {
+	if ((base | (base + size - 1)) >>
+	    (boot_cpu_data.x86_phys_bits - PAGE_SHIFT)) {
 		pr_warning("mtrr: base or size exceeds the MTRR width\n");
 		return -EINVAL;
 	}
@@ -430,12 +441,13 @@ static int mtrr_check(unsigned long base, unsigned long size)
 int mtrr_add(unsigned long base, unsigned long size, unsigned int type,
 	     bool increment)
 {
+	if (!mtrr_enabled())
+		return -ENODEV;
 	if (mtrr_check(base, size))
 		return -EINVAL;
 	return mtrr_add_page(base >> PAGE_SHIFT, size >> PAGE_SHIFT, type,
 			     increment);
 }
-EXPORT_SYMBOL(mtrr_add);
 
 /**
  * mtrr_del_page - delete a memory type region
@@ -458,8 +470,8 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 	unsigned long lbase, lsize;
 	int error = -EINVAL;
 
-	if (!mtrr_if)
-		return -ENXIO;
+	if (!mtrr_enabled())
+		return -ENODEV;
 
 	max = num_var_ranges;
 	/* No CPU hotplug when we change MTRR entries */
@@ -518,11 +530,82 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
  */
 int mtrr_del(int reg, unsigned long base, unsigned long size)
 {
+	if (!mtrr_enabled())
+		return -ENODEV;
 	if (mtrr_check(base, size))
 		return -EINVAL;
 	return mtrr_del_page(reg, base >> PAGE_SHIFT, size >> PAGE_SHIFT);
 }
-EXPORT_SYMBOL(mtrr_del);
+
+/**
+ * arch_phys_wc_add - add a WC MTRR and handle errors if PAT is unavailable
+ * @base: Physical base address
+ * @size: Size of region
+ *
+ * If PAT is available, this does nothing.  If PAT is unavailable, it
+ * attempts to add a WC MTRR covering size bytes starting at base and
+ * logs an error if this fails.
+ *
+ * The called should provide a power of two size on an equivalent
+ * power of two boundary.
+ *
+ * Drivers must store the return value to pass to mtrr_del_wc_if_needed,
+ * but drivers should not try to interpret that return value.
+ */
+int arch_phys_wc_add(unsigned long base, unsigned long size)
+{
+	int ret;
+
+	if (pat_enabled() || !mtrr_enabled())
+		return 0;  /* Success!  (We don't need to do anything.) */
+
+	ret = mtrr_add(base, size, MTRR_TYPE_WRCOMB, true);
+	if (ret < 0) {
+		pr_warn("Failed to add WC MTRR for [%p-%p]; performance may suffer.",
+			(void *)base, (void *)(base + size - 1));
+		return ret;
+	}
+	return ret + MTRR_TO_PHYS_WC_OFFSET;
+}
+EXPORT_SYMBOL(arch_phys_wc_add);
+
+/*
+ * arch_phys_wc_del - undoes arch_phys_wc_add
+ * @handle: Return value from arch_phys_wc_add
+ *
+ * This cleans up after mtrr_add_wc_if_needed.
+ *
+ * The API guarantees that mtrr_del_wc_if_needed(error code) and
+ * mtrr_del_wc_if_needed(0) do nothing.
+ */
+void arch_phys_wc_del(int handle)
+{
+	if (handle >= 1) {
+		WARN_ON(handle < MTRR_TO_PHYS_WC_OFFSET);
+		mtrr_del(handle - MTRR_TO_PHYS_WC_OFFSET, 0, 0);
+	}
+}
+EXPORT_SYMBOL(arch_phys_wc_del);
+
+/*
+ * arch_phys_wc_index - translates arch_phys_wc_add's return value
+ * @handle: Return value from arch_phys_wc_add
+ *
+ * This will turn the return value from arch_phys_wc_add into an mtrr
+ * index suitable for debugging.
+ *
+ * Note: There is no legitimate use for this function, except possibly
+ * in printk line.  Alas there is an illegitimate use in some ancient
+ * drm ioctls.
+ */
+int arch_phys_wc_index(int handle)
+{
+	if (handle < MTRR_TO_PHYS_WC_OFFSET)
+		return -1;
+	else
+		return handle - MTRR_TO_PHYS_WC_OFFSET;
+}
+EXPORT_SYMBOL_GPL(arch_phys_wc_index);
 
 /*
  * HACK ALERT!
@@ -583,6 +666,7 @@ static struct syscore_ops mtrr_syscore_ops = {
 
 int __initdata changed_by_mtrr_cleanup;
 
+#define SIZE_OR_MASK_BITS(n)  (~((1ULL << ((n) - PAGE_SHIFT)) - 1))
 /**
  * mtrr_bp_init - initialize mtrrs on the boot CPU
  *
@@ -600,7 +684,7 @@ void __init mtrr_bp_init(void)
 
 	if (cpu_has_mtrr) {
 		mtrr_if = &generic_mtrr_ops;
-		size_or_mask = 0xff000000;			/* 36 bits */
+		size_or_mask = SIZE_OR_MASK_BITS(36);
 		size_and_mask = 0x00f00000;
 		phys_addr = 36;
 
@@ -619,7 +703,7 @@ void __init mtrr_bp_init(void)
 			     boot_cpu_data.x86_mask == 0x4))
 				phys_addr = 36;
 
-			size_or_mask = ~((1ULL << (phys_addr - PAGE_SHIFT)) - 1);
+			size_or_mask = SIZE_OR_MASK_BITS(phys_addr);
 			size_and_mask = ~size_or_mask & 0xfffff00000ULL;
 		} else if (boot_cpu_data.x86_vendor == X86_VENDOR_CENTAUR &&
 			   boot_cpu_data.x86 == 6) {
@@ -627,31 +711,31 @@ void __init mtrr_bp_init(void)
 			 * VIA C* family have Intel style MTRRs,
 			 * but don't support PAE
 			 */
-			size_or_mask = 0xfff00000;		/* 32 bits */
+			size_or_mask = SIZE_OR_MASK_BITS(32);
 			size_and_mask = 0;
 			phys_addr = 32;
 		}
 	} else {
 		switch (boot_cpu_data.x86_vendor) {
 		case X86_VENDOR_AMD:
-			if (cpu_has_k6_mtrr) {
+			if (cpu_feature_enabled(X86_FEATURE_K6_MTRR)) {
 				/* Pre-Athlon (K6) AMD CPU MTRRs */
 				mtrr_if = mtrr_ops[X86_VENDOR_AMD];
-				size_or_mask = 0xfff00000;	/* 32 bits */
+				size_or_mask = SIZE_OR_MASK_BITS(32);
 				size_and_mask = 0;
 			}
 			break;
 		case X86_VENDOR_CENTAUR:
-			if (cpu_has_centaur_mcr) {
+			if (cpu_feature_enabled(X86_FEATURE_CENTAUR_MCR)) {
 				mtrr_if = mtrr_ops[X86_VENDOR_CENTAUR];
-				size_or_mask = 0xfff00000;	/* 32 bits */
+				size_or_mask = SIZE_OR_MASK_BITS(32);
 				size_and_mask = 0;
 			}
 			break;
 		case X86_VENDOR_CYRIX:
-			if (cpu_has_cyrix_arr) {
+			if (cpu_feature_enabled(X86_FEATURE_CYRIX_ARR)) {
 				mtrr_if = mtrr_ops[X86_VENDOR_CYRIX];
-				size_or_mask = 0xfff00000;	/* 32 bits */
+				size_or_mask = SIZE_OR_MASK_BITS(32);
 				size_and_mask = 0;
 			}
 			break;
@@ -661,10 +745,12 @@ void __init mtrr_bp_init(void)
 	}
 
 	if (mtrr_if) {
+		__mtrr_enabled = true;
 		set_num_var_ranges();
 		init_table();
 		if (use_intel()) {
-			get_mtrr_state();
+			/* BIOS may override */
+			__mtrr_enabled = get_mtrr_state();
 
 			if (mtrr_cleanup(phys_addr)) {
 				changed_by_mtrr_cleanup = 1;
@@ -672,10 +758,16 @@ void __init mtrr_bp_init(void)
 			}
 		}
 	}
+
+	if (!mtrr_enabled())
+		pr_info("MTRR: Disabled\n");
 }
 
 void mtrr_ap_init(void)
 {
+	if (!mtrr_enabled())
+		return;
+
 	if (!use_intel() || mtrr_aps_delayed_init)
 		return;
 	/*
@@ -701,6 +793,9 @@ void mtrr_save_state(void)
 {
 	int first_cpu;
 
+	if (!mtrr_enabled())
+		return;
+
 	get_online_cpus();
 	first_cpu = cpumask_first(cpu_online_mask);
 	smp_call_function_single(first_cpu, mtrr_save_fixed_ranges, NULL, 1);
@@ -709,6 +804,8 @@ void mtrr_save_state(void)
 
 void set_mtrr_aps_delayed_init(void)
 {
+	if (!mtrr_enabled())
+		return;
 	if (!use_intel())
 		return;
 
@@ -720,7 +817,7 @@ void set_mtrr_aps_delayed_init(void)
  */
 void mtrr_aps_init(void)
 {
-	if (!use_intel())
+	if (!use_intel() || !mtrr_enabled())
 		return;
 
 	/*
@@ -737,7 +834,7 @@ void mtrr_aps_init(void)
 
 void mtrr_bp_restore(void)
 {
-	if (!use_intel())
+	if (!use_intel() || !mtrr_enabled())
 		return;
 
 	mtrr_if->set_all();
@@ -745,7 +842,7 @@ void mtrr_bp_restore(void)
 
 static int __init mtrr_init_finialize(void)
 {
-	if (!mtrr_if)
+	if (!mtrr_enabled())
 		return 0;
 
 	if (use_intel()) {

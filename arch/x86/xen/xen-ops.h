@@ -10,6 +10,12 @@
 extern const char xen_hypervisor_callback[];
 extern const char xen_failsafe_callback[];
 
+void xen_sysenter_target(void);
+#ifdef CONFIG_X86_64
+void xen_syscall_target(void);
+void xen_syscall32_target(void);
+#endif
+
 extern void *xen_initial_gdt;
 
 struct trap_info;
@@ -29,11 +35,22 @@ void xen_build_mfn_list_list(void);
 void xen_setup_machphys_mapping(void);
 void xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn);
 void xen_reserve_top(void);
-extern unsigned long xen_max_p2m_pfn;
+void __init xen_reserve_special_pages(void);
+void __init xen_pt_check_e820(void);
 
-void xen_set_pat(u64);
+void xen_mm_pin_all(void);
+void xen_mm_unpin_all(void);
+#ifdef CONFIG_X86_64
+void __init xen_relocate_p2m(void);
+#endif
 
+bool __init xen_is_e820_reserved(phys_addr_t start, phys_addr_t size);
+unsigned long __ref xen_chk_extra_mem(unsigned long pfn);
+void __init xen_inv_extra_mem(void);
+void __init xen_remap_memory(void);
+phys_addr_t __init xen_find_free_area(phys_addr_t size);
 char * __init xen_memory_setup(void);
+char * xen_auto_xlated_memory_setup(void);
 void __init xen_arch_setup(void);
 void xen_enable_sysenter(void);
 void xen_enable_syscall(void);
@@ -44,7 +61,7 @@ void xen_hvm_init_shared_info(void);
 void xen_unplug_emulated_devices(void);
 
 void __init xen_build_dynamic_phys_to_machine(void);
-unsigned long __init xen_revector_p2m_tree(void);
+void __init xen_vmalloc_p2m_tree(void);
 
 void xen_init_irq_ops(void);
 void xen_setup_timer(int cpu);
@@ -73,7 +90,7 @@ static inline void xen_hvm_smp_init(void) {}
 
 #ifdef CONFIG_PARAVIRT_SPINLOCKS
 void __init xen_init_spinlocks(void);
-void __cpuinit xen_init_lock_cpu(int cpu);
+void xen_init_lock_cpu(int cpu);
 void xen_uninit_lock_cpu(int cpu);
 #else
 static inline void xen_init_spinlocks(void)
@@ -91,13 +108,19 @@ struct dom0_vga_console_info;
 
 #ifdef CONFIG_XEN_DOM0
 void __init xen_init_vga(const struct dom0_vga_console_info *, size_t size);
-void __init xen_init_apic(void);
 #else
 static inline void __init xen_init_vga(const struct dom0_vga_console_info *info,
 				       size_t size)
 {
 }
-static inline void __init xen_init_apic(void)
+#endif
+
+void __init xen_init_apic(void);
+
+#ifdef CONFIG_XEN_EFI
+extern void xen_efi_init(void);
+#else
+static inline void __init xen_efi_init(void)
 {
 }
 #endif
@@ -105,9 +128,9 @@ static inline void __init xen_init_apic(void)
 /* Declare an asm function, along with symbols needed to make it
    inlineable */
 #define DECL_ASM(ret, name, ...)		\
-	ret name(__VA_ARGS__);			\
-	extern char name##_end[];		\
-	extern char name##_reloc[]		\
+	__visible ret name(__VA_ARGS__);	\
+	extern char name##_end[] __visible;	\
+	extern char name##_reloc[] __visible
 
 DECL_ASM(void, xen_irq_enable_direct, void);
 DECL_ASM(void, xen_irq_disable_direct, void);
@@ -115,12 +138,15 @@ DECL_ASM(unsigned long, xen_save_fl_direct, void);
 DECL_ASM(void, xen_restore_fl_direct, unsigned long);
 
 /* These are not functions, and cannot be called normally */
-void xen_iret(void);
-void xen_sysexit(void);
-void xen_sysret32(void);
-void xen_sysret64(void);
-void xen_adjust_exception_frame(void);
+__visible void xen_iret(void);
+#ifdef CONFIG_X86_32
+__visible void xen_sysexit(void);
+#endif
+__visible void xen_sysret32(void);
+__visible void xen_sysret64(void);
+__visible void xen_adjust_exception_frame(void);
 
 extern int xen_panic_handler_init(void);
 
+void xen_pvh_secondary_vcpu_init(int cpu);
 #endif /* XEN_OPS_H */

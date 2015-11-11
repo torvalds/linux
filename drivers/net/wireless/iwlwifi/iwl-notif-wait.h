@@ -5,7 +5,8 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2015 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +31,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -105,7 +106,7 @@ struct iwl_notification_wait {
 		   struct iwl_rx_packet *pkt, void *data);
 	void *fn_data;
 
-	u8 cmds[MAX_NOTIF_CMDS];
+	u16 cmds[MAX_NOTIF_CMDS];
 	u8 n_cmds;
 	bool triggered, aborted;
 };
@@ -121,7 +122,7 @@ void iwl_abort_notification_waits(struct iwl_notif_wait_data *notif_data);
 void __acquires(wait_entry)
 iwl_init_notification_wait(struct iwl_notif_wait_data *notif_data,
 			   struct iwl_notification_wait *wait_entry,
-			   const u8 *cmds, int n_cmds,
+			   const u16 *cmds, int n_cmds,
 			   bool (*fn)(struct iwl_notif_wait_data *notif_data,
 				      struct iwl_rx_packet *pkt, void *data),
 			   void *fn_data);

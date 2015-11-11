@@ -31,32 +31,12 @@
 #define MAX_NR_RX_BUF	4
 
 #define SDU_TX_BUF_SIZE	2048
-#define TX_BUF_SIZE		2048
+#define TX_BUF_SIZE	2048
 #define TX_CHUNK_SIZE	(2048 - TYPE_A_HEADER_SIZE)
-#define RX_BUF_SIZE		(25*1024)
+#define RX_BUF_SIZE	(25*1024)
 
-#define TX_HZ	2000
+#define TX_HZ		2000
 #define TX_INTERVAL	(1000000/TX_HZ)
-
-/*#define DEBUG*/
-
-static int init_sdio(struct sdiowm_dev *sdev);
-static void release_sdio(struct sdiowm_dev *sdev);
-
-#ifdef DEBUG
-static void hexdump(char *title, u8 *data, int len)
-{
-	int i;
-
-	printk(KERN_DEBUG "%s: length = %d\n", title, len);
-	for (i = 0; i < len; i++) {
-		printk(KERN_DEBUG "%02x ", data[i]);
-		if ((i & 0xf) == 0xf)
-			printk(KERN_DEBUG "\n");
-	}
-	printk(KERN_DEBUG "\n");
-}
-#endif
 
 static struct sdio_tx *alloc_tx_struct(struct tx_cxt *tx)
 {
@@ -141,58 +121,6 @@ static void put_rx_struct(struct rx_cxt *rx, struct sdio_rx *r)
 	list_add_tail(&r->list, &rx->free_list);
 }
 
-static int init_sdio(struct sdiowm_dev *sdev)
-{
-	int ret = 0, i;
-	struct tx_cxt	*tx = &sdev->tx;
-	struct rx_cxt	*rx = &sdev->rx;
-	struct sdio_tx	*t;
-	struct sdio_rx	*r;
-
-	INIT_LIST_HEAD(&tx->free_list);
-	INIT_LIST_HEAD(&tx->sdu_list);
-	INIT_LIST_HEAD(&tx->hci_list);
-
-	spin_lock_init(&tx->lock);
-
-	tx->sdu_buf = kmalloc(SDU_TX_BUF_SIZE, GFP_KERNEL);
-	if (tx->sdu_buf == NULL)
-		goto fail;
-
-	for (i = 0; i < MAX_NR_SDU_BUF; i++) {
-		t = alloc_tx_struct(tx);
-		if (t == NULL) {
-			ret = -ENOMEM;
-			goto fail;
-		}
-		list_add(&t->list, &tx->free_list);
-	}
-
-	INIT_LIST_HEAD(&rx->free_list);
-	INIT_LIST_HEAD(&rx->req_list);
-
-	spin_lock_init(&rx->lock);
-
-	for (i = 0; i < MAX_NR_RX_BUF; i++) {
-		r = alloc_rx_struct(rx);
-		if (r == NULL) {
-			ret = -ENOMEM;
-			goto fail;
-		}
-		list_add(&r->list, &rx->free_list);
-	}
-
-	rx->rx_buf = kmalloc(RX_BUF_SIZE, GFP_KERNEL);
-	if (rx->rx_buf == NULL)
-		goto fail;
-
-	return 0;
-
-fail:
-	release_sdio(sdev);
-	return ret;
-}
-
 static void release_sdio(struct sdiowm_dev *sdev)
 {
 	struct tx_cxt	*tx = &sdev->tx;
@@ -230,6 +158,58 @@ static void release_sdio(struct sdiowm_dev *sdev)
 	}
 }
 
+static int init_sdio(struct sdiowm_dev *sdev)
+{
+	int ret = 0, i;
+	struct tx_cxt *tx = &sdev->tx;
+	struct rx_cxt *rx = &sdev->rx;
+	struct sdio_tx *t;
+	struct sdio_rx *r;
+
+	INIT_LIST_HEAD(&tx->free_list);
+	INIT_LIST_HEAD(&tx->sdu_list);
+	INIT_LIST_HEAD(&tx->hci_list);
+
+	spin_lock_init(&tx->lock);
+
+	tx->sdu_buf = kmalloc(SDU_TX_BUF_SIZE, GFP_KERNEL);
+	if (!tx->sdu_buf)
+		goto fail;
+
+	for (i = 0; i < MAX_NR_SDU_BUF; i++) {
+		t = alloc_tx_struct(tx);
+		if (!t) {
+			ret = -ENOMEM;
+			goto fail;
+		}
+		list_add(&t->list, &tx->free_list);
+	}
+
+	INIT_LIST_HEAD(&rx->free_list);
+	INIT_LIST_HEAD(&rx->req_list);
+
+	spin_lock_init(&rx->lock);
+
+	for (i = 0; i < MAX_NR_RX_BUF; i++) {
+		r = alloc_rx_struct(rx);
+		if (!r) {
+			ret = -ENOMEM;
+			goto fail;
+		}
+		list_add(&r->list, &rx->free_list);
+	}
+
+	rx->rx_buf = kmalloc(RX_BUF_SIZE, GFP_KERNEL);
+	if (!rx->rx_buf)
+		goto fail;
+
+	return 0;
+
+fail:
+	release_sdio(sdev);
+	return ret;
+}
+
 static void send_sdio_pkt(struct sdio_func *func, u8 *data, int len)
 {
 	int n, blocks, ret, remain;
@@ -243,8 +223,7 @@ static void send_sdio_pkt(struct sdio_func *func, u8 *data, int len)
 		if (ret < 0) {
 			if (ret != -ENOMEDIUM)
 				dev_err(&func->dev,
-					"gdmwms: %s error: ret = %d\n",
-					__func__, ret);
+					"gdmwms:  error: ret = %d\n", ret);
 			goto end_io;
 		}
 	}
@@ -257,8 +236,7 @@ static void send_sdio_pkt(struct sdio_func *func, u8 *data, int len)
 		if (ret < 0) {
 			if (ret != -ENOMEDIUM)
 				dev_err(&func->dev,
-					"gdmwms: %s error: ret = %d\n",
-					__func__, ret);
+					"gdmwms:  error: ret = %d\n", ret);
 			goto end_io;
 		}
 	}
@@ -292,15 +270,14 @@ static void send_sdu(struct sdio_func *func, struct tx_cxt *tx)
 	aggr_len = pos;
 
 	hci = (struct hci_s *)(tx->sdu_buf + TYPE_A_HEADER_SIZE);
-	hci->cmd_evt = H2B(WIMAX_TX_SDU_AGGR);
-	hci->length = H2B(aggr_len - TYPE_A_HEADER_SIZE - HCI_HEADER_SIZE);
+	hci->cmd_evt = cpu_to_be16(WIMAX_TX_SDU_AGGR);
+	hci->length = cpu_to_be16(aggr_len - TYPE_A_HEADER_SIZE -
+				  HCI_HEADER_SIZE);
 
 	spin_unlock_irqrestore(&tx->lock, flags);
 
-#ifdef DEBUG
-	hexdump("sdio_send", tx->sdu_buf + TYPE_A_HEADER_SIZE,
-		aggr_len - TYPE_A_HEADER_SIZE);
-#endif
+	dev_dbg(&func->dev, "sdio_send: %*ph\n", aggr_len - TYPE_A_HEADER_SIZE,
+		tx->sdu_buf + TYPE_A_HEADER_SIZE);
 
 	for (pos = TYPE_A_HEADER_SIZE; pos < aggr_len; pos += TX_CHUNK_SIZE) {
 		len = aggr_len - pos;
@@ -331,14 +308,13 @@ static void send_sdu(struct sdio_func *func, struct tx_cxt *tx)
 }
 
 static void send_hci(struct sdio_func *func, struct tx_cxt *tx,
-			struct sdio_tx *t)
+		     struct sdio_tx *t)
 {
 	unsigned long flags;
 
-#ifdef DEBUG
-	hexdump("sdio_send", t->buf + TYPE_A_HEADER_SIZE,
-		t->len - TYPE_A_HEADER_SIZE);
-#endif
+	dev_dbg(&func->dev, "sdio_send: %*ph\n", t->len - TYPE_A_HEADER_SIZE,
+		t->buf + TYPE_A_HEADER_SIZE);
+
 	send_sdio_pkt(func, t->buf, t->len);
 
 	spin_lock_irqsave(&tx->lock, flags);
@@ -383,7 +359,7 @@ static void do_tx(struct work_struct *work)
 		is_sdu = 1;
 	}
 
-	if (!is_sdu && t == NULL) {
+	if (!is_sdu && !t) {
 		spin_unlock_irqrestore(&tx->lock, flags);
 		return;
 	}
@@ -399,7 +375,7 @@ static void do_tx(struct work_struct *work)
 }
 
 static int gdm_sdio_send(void *priv_dev, void *data, int len,
-			void (*cb)(void *data), void *cb_data)
+			 void (*cb)(void *data), void *cb_data)
 {
 	struct sdiowm_dev *sdev = priv_dev;
 	struct tx_cxt *tx = &sdev->tx;
@@ -409,14 +385,15 @@ static int gdm_sdio_send(void *priv_dev, void *data, int len,
 	u16 cmd_evt;
 	unsigned long flags;
 
-	BUG_ON(len > TX_BUF_SIZE - TYPE_A_HEADER_SIZE);
+	if (len > TX_BUF_SIZE - TYPE_A_HEADER_SIZE)
+		return -EINVAL;
 
 	spin_lock_irqsave(&tx->lock, flags);
 
 	cmd_evt = (pkt[0] << 8) | pkt[1];
 	if (cmd_evt == WIMAX_TX_SDU) {
 		t = get_tx_struct(tx, &no_spc);
-		if (t == NULL) {
+		if (!t) {
 			/* This case must not happen. */
 			spin_unlock_irqrestore(&tx->lock, flags);
 			return -ENOSPC;
@@ -430,7 +407,7 @@ static int gdm_sdio_send(void *priv_dev, void *data, int len,
 		t->cb_data = cb_data;
 	} else {
 		t = alloc_tx_struct(tx);
-		if (t == NULL) {
+		if (!t) {
 			spin_unlock_irqrestore(&tx->lock, flags);
 			return -ENOMEM;
 		}
@@ -458,9 +435,7 @@ static int gdm_sdio_send(void *priv_dev, void *data, int len,
 	return 0;
 }
 
-/*
- * Handle the HCI, WIMAX_SDU_TX_FLOW.
- */
+/* Handle the HCI, WIMAX_SDU_TX_FLOW. */
 static int control_sdu_tx_flow(struct sdiowm_dev *sdev, u8 *hci_data, int len)
 {
 	struct tx_cxt *tx = &sdev->tx;
@@ -474,19 +449,14 @@ static int control_sdu_tx_flow(struct sdiowm_dev *sdev, u8 *hci_data, int len)
 		goto out;
 
 	if (hci_data[4] == 0) {
-#ifdef DEBUG
-		printk(KERN_DEBUG "WIMAX ==> STOP SDU TX\n");
-#endif
+		dev_dbg(&sdev->func->dev, "WIMAX ==> STOP SDU TX\n");
 		tx->stop_sdu_tx = 1;
 	} else if (hci_data[4] == 1) {
-#ifdef DEBUG
-		printk(KERN_DEBUG "WIMAX ==> START SDU TX\n");
-#endif
+		dev_dbg(&sdev->func->dev, "WIMAX ==> START SDU TX\n");
 		tx->stop_sdu_tx = 0;
 		if (tx->can_send)
 			schedule_work(&sdev->ws);
-		/*
-		 * If free buffer for sdu tx doesn't exist, then tx queue
+		/* If free buffer for sdu tx doesn't exist, then tx queue
 		 * should not be woken. For this reason, don't pass the command,
 		 * START_SDU_TX.
 		 */
@@ -532,23 +502,20 @@ static void gdm_sdio_irq(struct sdio_func *func)
 	}
 
 	if (hdr[3] == 1) {	/* Ack */
-#ifdef DEBUG
 		u32 *ack_seq = (u32 *)&hdr[4];
-#endif
+
 		spin_lock_irqsave(&tx->lock, flags);
 		tx->can_send = 1;
 
 		if (!list_empty(&tx->sdu_list) || !list_empty(&tx->hci_list))
 			schedule_work(&sdev->ws);
 		spin_unlock_irqrestore(&tx->lock, flags);
-#ifdef DEBUG
-		printk(KERN_DEBUG "Ack... %0x\n", ntohl(*ack_seq));
-#endif
+		dev_dbg(&func->dev, "Ack... %0x\n", ntohl(*ack_seq));
 		goto done;
 	}
 
 	memcpy(rx->rx_buf, hdr + TYPE_A_HEADER_SIZE,
-			TYPE_A_LOOKAHEAD_SIZE - TYPE_A_HEADER_SIZE);
+	       TYPE_A_LOOKAHEAD_SIZE - TYPE_A_HEADER_SIZE);
 
 	buf = rx->rx_buf + TYPE_A_LOOKAHEAD_SIZE - TYPE_A_HEADER_SIZE;
 	remain = len - TYPE_A_LOOKAHEAD_SIZE + TYPE_A_HEADER_SIZE;
@@ -579,9 +546,8 @@ static void gdm_sdio_irq(struct sdio_func *func)
 	}
 
 end_io:
-#ifdef DEBUG
-	hexdump("sdio_receive", rx->rx_buf, len);
-#endif
+	dev_dbg(&func->dev, "sdio_receive: %*ph\n", len, rx->rx_buf);
+
 	len = control_sdu_tx_flow(sdev, rx->rx_buf, len);
 
 	spin_lock_irqsave(&rx->lock, flags);
@@ -605,8 +571,8 @@ done:
 }
 
 static int gdm_sdio_receive(void *priv_dev,
-				void (*cb)(void *cb_data, void *data, int len),
-				void *cb_data)
+			    void (*cb)(void *cb_data, void *data, int len),
+			    void *cb_data)
 {
 	struct sdiowm_dev *sdev = priv_dev;
 	struct rx_cxt *rx = &sdev->rx;
@@ -615,7 +581,7 @@ static int gdm_sdio_receive(void *priv_dev,
 
 	spin_lock_irqsave(&rx->lock, flags);
 	r = get_rx_struct(rx);
-	if (r == NULL) {
+	if (!r) {
 		spin_unlock_irqrestore(&rx->lock, flags);
 		return -ENOMEM;
 	}
@@ -630,7 +596,7 @@ static int gdm_sdio_receive(void *priv_dev,
 }
 
 static int sdio_wimax_probe(struct sdio_func *func,
-				const struct sdio_device_id *id)
+			    const struct sdio_device_id *id)
 {
 	int ret;
 	struct phy_dev *phy_dev = NULL;
@@ -649,12 +615,12 @@ static int sdio_wimax_probe(struct sdio_func *func,
 		return ret;
 
 	phy_dev = kzalloc(sizeof(*phy_dev), GFP_KERNEL);
-	if (phy_dev == NULL) {
+	if (!phy_dev) {
 		ret = -ENOMEM;
 		goto out;
 	}
 	sdev = kzalloc(sizeof(*sdev), GFP_KERNEL);
-	if (sdev == NULL) {
+	if (!sdev) {
 		ret = -ENOMEM;
 		goto out;
 	}

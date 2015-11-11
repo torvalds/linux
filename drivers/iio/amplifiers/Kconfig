@@ -1,6 +1,8 @@
 #
 # Gain Amplifiers, etc.
 #
+# When adding new entries keep the list in alphabetical order
+
 menu "Amplifiers"
 
 config AD8366

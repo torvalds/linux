@@ -16,32 +16,16 @@
  *
  */
 
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
-#include <linux/platform_data/omap_ocp2scp.h>
 
-/**
- * _count_resources - count for the number of resources
- * @res: struct resource *
- *
- * Count and return the number of resources populated for the device that is
- * connected to ocp2scp.
- */
-static unsigned _count_resources(struct resource *res)
-{
-	int cnt	= 0;
-
-	while (res->start != res->end) {
-		cnt++;
-		res++;
-	}
-
-	return cnt;
-}
+#define OCP2SCP_TIMING 0x18
+#define SYNC2_MASK 0xf
 
 static int ocp2scp_remove_devices(struct device *dev, void *c)
 {
@@ -55,11 +39,10 @@ static int ocp2scp_remove_devices(struct device *dev, void *c)
 static int omap_ocp2scp_probe(struct platform_device *pdev)
 {
 	int ret;
-	unsigned res_cnt, i;
+	u32 reg;
+	void __iomem *regs;
+	struct resource *res;
 	struct device_node *np = pdev->dev.of_node;
-	struct platform_device *pdev_child;
-	struct omap_ocp2scp_platform_data *pdata = pdev->dev.platform_data;
-	struct omap_ocp2scp_dev *dev;
 
 	if (np) {
 		ret = of_platform_populate(np, NULL, NULL, &pdev->dev);
@@ -68,47 +51,37 @@ static int omap_ocp2scp_probe(struct platform_device *pdev)
 			    "failed to add resources for ocp2scp child\n");
 			goto err0;
 		}
-	} else if (pdata) {
-		for (i = 0, dev = *pdata->devices; i < pdata->dev_cnt; i++,
-		    dev++) {
-			res_cnt = _count_resources(dev->res);
-
-			pdev_child = platform_device_alloc(dev->drv_name,
-			    PLATFORM_DEVID_AUTO);
-			if (!pdev_child) {
-				dev_err(&pdev->dev,
-				  "failed to allocate mem for ocp2scp child\n");
-				goto err0;
-			}
-
-			ret = platform_device_add_resources(pdev_child,
-			    dev->res, res_cnt);
-			if (ret) {
-				dev_err(&pdev->dev,
-				 "failed to add resources for ocp2scp child\n");
-				goto err1;
-			}
-
-			pdev_child->dev.parent	= &pdev->dev;
-
-			ret = platform_device_add(pdev_child);
-			if (ret) {
-				dev_err(&pdev->dev,
-				   "failed to register ocp2scp child device\n");
-				goto err1;
-			}
-		}
-	} else {
-		dev_err(&pdev->dev, "OCP2SCP initialized without plat data\n");
-		return -EINVAL;
 	}
 
 	pm_runtime_enable(&pdev->dev);
+	/*
+	 * As per AM572x TRM: http://www.ti.com/lit/ug/spruhz6/spruhz6.pdf
+	 * under section 26.3.2.2, table 26-26 OCP2SCP TIMING Caution;
+	 * As per OMAP4430 TRM: http://www.ti.com/lit/ug/swpu231ap/swpu231ap.pdf
+	 * under section 23.12.6.2.2 , Table 23-1213 OCP2SCP TIMING Caution;
+	 * As per OMAP4460 TRM: http://www.ti.com/lit/ug/swpu235ab/swpu235ab.pdf
+	 * under section 23.12.6.2.2, Table 23-1213 OCP2SCP TIMING Caution;
+	 * As per OMAP543x TRM http://www.ti.com/lit/pdf/swpu249
+	 * under section 27.3.2.2, Table 27-27 OCP2SCP TIMING Caution;
+	 *
+	 * Read path of OCP2SCP is not working properly due to low reset value
+	 * of SYNC2 parameter in OCP2SCP. Suggested reset value is 0x6 or more.
+	 */
+	if (!of_device_is_compatible(np, "ti,am437x-ocp2scp")) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		regs = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(regs))
+			goto err0;
+
+		pm_runtime_get_sync(&pdev->dev);
+		reg = readl_relaxed(regs + OCP2SCP_TIMING);
+		reg &= ~(SYNC2_MASK);
+		reg |= 0x6;
+		writel_relaxed(reg, regs + OCP2SCP_TIMING);
+		pm_runtime_put_sync(&pdev->dev);
+	}
 
 	return 0;
-
-err1:
-	platform_device_put(pdev_child);
 
 err0:
 	device_for_each_child(&pdev->dev, NULL, ocp2scp_remove_devices);
@@ -127,6 +100,7 @@ static int omap_ocp2scp_remove(struct platform_device *pdev)
 #ifdef CONFIG_OF
 static const struct of_device_id omap_ocp2scp_id_table[] = {
 	{ .compatible = "ti,omap-ocp2scp" },
+	{ .compatible = "ti,am437x-ocp2scp" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, omap_ocp2scp_id_table);
@@ -137,7 +111,6 @@ static struct platform_driver omap_ocp2scp_driver = {
 	.remove		= omap_ocp2scp_remove,
 	.driver		= {
 		.name	= "omap-ocp2scp",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(omap_ocp2scp_id_table),
 	},
 };

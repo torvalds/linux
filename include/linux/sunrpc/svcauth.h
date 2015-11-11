@@ -14,6 +14,7 @@
 #include <linux/string.h>
 #include <linux/sunrpc/msg_prot.h>
 #include <linux/sunrpc/cache.h>
+#include <linux/sunrpc/gss_api.h>
 #include <linux/hash.h>
 #include <linux/cred.h>
 
@@ -23,13 +24,23 @@ struct svc_cred {
 	struct group_info	*cr_group_info;
 	u32			cr_flavor; /* pseudoflavor */
 	char			*cr_principal; /* for gss */
+	struct gss_api_mech	*cr_gss_mech;
 };
+
+static inline void init_svc_cred(struct svc_cred *cred)
+{
+	cred->cr_group_info = NULL;
+	cred->cr_principal = NULL;
+	cred->cr_gss_mech = NULL;
+}
 
 static inline void free_svc_cred(struct svc_cred *cred)
 {
 	if (cred->cr_group_info)
 		put_group_info(cred->cr_group_info);
 	kfree(cred->cr_principal);
+	gss_mech_put(cred->cr_gss_mech);
+	init_svc_cred(cred);
 }
 
 struct svc_rqst;		/* forward decl */

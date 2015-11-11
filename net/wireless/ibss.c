@@ -14,7 +14,8 @@
 #include "rdev-ops.h"
 
 
-void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid)
+void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
+			    struct ieee80211_channel *channel)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_bss *bss;
@@ -28,9 +29,8 @@ void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid)
 	if (!wdev->ssid_len)
 		return;
 
-	bss = cfg80211_get_bss(wdev->wiphy, NULL, bssid,
-			       wdev->ssid, wdev->ssid_len,
-			       WLAN_CAPABILITY_IBSS, WLAN_CAPABILITY_IBSS);
+	bss = cfg80211_get_bss(wdev->wiphy, channel, bssid, NULL, 0,
+			       IEEE80211_BSS_TYPE_IBSS, IEEE80211_PRIVACY_ANY);
 
 	if (WARN_ON(!bss))
 		return;
@@ -43,10 +43,9 @@ void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid)
 	cfg80211_hold_bss(bss_from_pub(bss));
 	wdev->current_bss = bss_from_pub(bss);
 
-	wdev->sme_state = CFG80211_SME_CONNECTED;
 	cfg80211_upload_connect_keys(wdev);
 
-	nl80211_send_ibss_bssid(wiphy_to_dev(wdev->wiphy), dev, bssid,
+	nl80211_send_ibss_bssid(wiphy_to_rdev(wdev->wiphy), dev, bssid,
 				GFP_KERNEL);
 #ifdef CONFIG_CFG80211_WEXT
 	memset(&wrqu, 0, sizeof(wrqu));
@@ -55,23 +54,26 @@ void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid)
 #endif
 }
 
-void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid, gfp_t gfp)
+void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
+			  struct ieee80211_channel *channel, gfp_t gfp)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	struct cfg80211_event *ev;
 	unsigned long flags;
 
-	trace_cfg80211_ibss_joined(dev, bssid);
+	trace_cfg80211_ibss_joined(dev, bssid, channel);
 
-	CFG80211_DEV_WARN_ON(wdev->sme_state != CFG80211_SME_CONNECTING);
+	if (WARN_ON(!channel))
+		return;
 
 	ev = kzalloc(sizeof(*ev), gfp);
 	if (!ev)
 		return;
 
 	ev->type = EVENT_IBSS_JOINED;
-	memcpy(ev->cr.bssid, bssid, ETH_ALEN);
+	memcpy(ev->ij.bssid, bssid, ETH_ALEN);
+	ev->ij.channel = channel;
 
 	spin_lock_irqsave(&wdev->event_lock, flags);
 	list_add_tail(&ev->list, &wdev->event_list);
@@ -80,10 +82,10 @@ void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid, gfp_t gfp)
 }
 EXPORT_SYMBOL(cfg80211_ibss_joined);
 
-int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
-			 struct net_device *dev,
-			 struct cfg80211_ibss_params *params,
-			 struct cfg80211_cached_keys *connkeys)
+static int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
+				struct net_device *dev,
+				struct cfg80211_ibss_params *params,
+				struct cfg80211_cached_keys *connkeys)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
@@ -113,28 +115,18 @@ int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 	}
 
 	if (WARN_ON(wdev->connect_keys))
-		kfree(wdev->connect_keys);
+		kzfree(wdev->connect_keys);
 	wdev->connect_keys = connkeys;
 
 	wdev->ibss_fixed = params->channel_fixed;
+	wdev->ibss_dfs_possible = params->userspace_handles_dfs;
+	wdev->chandef = params->chandef;
 #ifdef CONFIG_CFG80211_WEXT
 	wdev->wext.ibss.chandef = params->chandef;
 #endif
-	wdev->sme_state = CFG80211_SME_CONNECTING;
-
-	err = cfg80211_can_use_chan(rdev, wdev, params->chandef.chan,
-				    params->channel_fixed
-				    ? CHAN_MODE_SHARED
-				    : CHAN_MODE_EXCLUSIVE);
-	if (err) {
-		wdev->connect_keys = NULL;
-		return err;
-	}
-
 	err = rdev_join_ibss(rdev, dev, params);
 	if (err) {
 		wdev->connect_keys = NULL;
-		wdev->sme_state = CFG80211_SME_IDLE;
 		return err;
 	}
 
@@ -152,11 +144,11 @@ int cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
 
-	mutex_lock(&rdev->devlist_mtx);
+	ASSERT_RTNL();
+
 	wdev_lock(wdev);
 	err = __cfg80211_join_ibss(rdev, dev, params, connkeys);
 	wdev_unlock(wdev);
-	mutex_unlock(&rdev->devlist_mtx);
 
 	return err;
 }
@@ -164,13 +156,15 @@ int cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 static void __cfg80211_clear_ibss(struct net_device *dev, bool nowext)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	int i;
 
 	ASSERT_WDEV_LOCK(wdev);
 
-	kfree(wdev->connect_keys);
+	kzfree(wdev->connect_keys);
 	wdev->connect_keys = NULL;
+
+	rdev_set_qos_map(rdev, dev, NULL);
 
 	/*
 	 * Delete all the keys ... pairwise keys can't really
@@ -186,8 +180,8 @@ static void __cfg80211_clear_ibss(struct net_device *dev, bool nowext)
 	}
 
 	wdev->current_bss = NULL;
-	wdev->sme_state = CFG80211_SME_IDLE;
 	wdev->ssid_len = 0;
+	memset(&wdev->chandef, 0, sizeof(wdev->chandef));
 #ifdef CONFIG_CFG80211_WEXT
 	if (!nowext)
 		wdev->wext.ibss.ssid_len = 0;
@@ -252,7 +246,7 @@ int cfg80211_ibss_wext_join(struct cfg80211_registered_device *rdev,
 
 	/* try to find an IBSS channel if none requested ... */
 	if (!wdev->wext.ibss.chandef.chan) {
-		wdev->wext.ibss.chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
+		struct ieee80211_channel *new_chan = NULL;
 
 		for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 			struct ieee80211_supported_band *sband;
@@ -264,20 +258,23 @@ int cfg80211_ibss_wext_join(struct cfg80211_registered_device *rdev,
 
 			for (i = 0; i < sband->n_channels; i++) {
 				chan = &sband->channels[i];
-				if (chan->flags & IEEE80211_CHAN_NO_IBSS)
+				if (chan->flags & IEEE80211_CHAN_NO_IR)
 					continue;
 				if (chan->flags & IEEE80211_CHAN_DISABLED)
 					continue;
-				wdev->wext.ibss.chandef.chan = chan;
+				new_chan = chan;
 				break;
 			}
 
-			if (wdev->wext.ibss.chandef.chan)
+			if (new_chan)
 				break;
 		}
 
-		if (!wdev->wext.ibss.chandef.chan)
+		if (!new_chan)
 			return -EINVAL;
+
+		cfg80211_chandef_create(&wdev->wext.ibss.chandef, new_chan,
+					NL80211_CHAN_NO_HT);
 	}
 
 	/* don't join -- SSID is not there */
@@ -314,7 +311,7 @@ int cfg80211_ibss_wext_siwfreq(struct net_device *dev,
 			       struct iw_freq *wextfreq, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	struct ieee80211_channel *chan = NULL;
 	int err, freq;
 
@@ -325,7 +322,7 @@ int cfg80211_ibss_wext_siwfreq(struct net_device *dev,
 	if (!rdev->ops->join_ibss)
 		return -EOPNOTSUPP;
 
-	freq = cfg80211_wext_freq(wdev->wiphy, wextfreq);
+	freq = cfg80211_wext_freq(wextfreq);
 	if (freq < 0)
 		return freq;
 
@@ -333,7 +330,7 @@ int cfg80211_ibss_wext_siwfreq(struct net_device *dev,
 		chan = ieee80211_get_channel(wdev->wiphy, freq);
 		if (!chan)
 			return -EINVAL;
-		if (chan->flags & IEEE80211_CHAN_NO_IBSS ||
+		if (chan->flags & IEEE80211_CHAN_NO_IR ||
 		    chan->flags & IEEE80211_CHAN_DISABLED)
 			return -EINVAL;
 	}
@@ -351,19 +348,17 @@ int cfg80211_ibss_wext_siwfreq(struct net_device *dev,
 		return err;
 
 	if (chan) {
-		wdev->wext.ibss.chandef.chan = chan;
-		wdev->wext.ibss.chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
+		cfg80211_chandef_create(&wdev->wext.ibss.chandef, chan,
+					NL80211_CHAN_NO_HT);
 		wdev->wext.ibss.channel_fixed = true;
 	} else {
 		/* cfg80211_ibss_wext_join will pick one if needed */
 		wdev->wext.ibss.channel_fixed = false;
 	}
 
-	mutex_lock(&rdev->devlist_mtx);
 	wdev_lock(wdev);
 	err = cfg80211_ibss_wext_join(rdev, wdev);
 	wdev_unlock(wdev);
-	mutex_unlock(&rdev->devlist_mtx);
 
 	return err;
 }
@@ -401,7 +396,7 @@ int cfg80211_ibss_wext_siwessid(struct net_device *dev,
 				struct iw_point *data, char *ssid)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	size_t len = data->length;
 	int err;
 
@@ -425,15 +420,13 @@ int cfg80211_ibss_wext_siwessid(struct net_device *dev,
 	if (len > 0 && ssid[len - 1] == '\0')
 		len--;
 
+	memcpy(wdev->ssid, ssid, len);
 	wdev->wext.ibss.ssid = wdev->ssid;
-	memcpy(wdev->wext.ibss.ssid, ssid, len);
 	wdev->wext.ibss.ssid_len = len;
 
-	mutex_lock(&rdev->devlist_mtx);
 	wdev_lock(wdev);
 	err = cfg80211_ibss_wext_join(rdev, wdev);
 	wdev_unlock(wdev);
-	mutex_unlock(&rdev->devlist_mtx);
 
 	return err;
 }
@@ -470,7 +463,7 @@ int cfg80211_ibss_wext_siwap(struct net_device *dev,
 			     struct sockaddr *ap_addr, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	u8 *bssid = ap_addr->sa_data;
 	int err;
 
@@ -487,6 +480,9 @@ int cfg80211_ibss_wext_siwap(struct net_device *dev,
 	/* automatic mode */
 	if (is_zero_ether_addr(bssid) || is_broadcast_ether_addr(bssid))
 		bssid = NULL;
+
+	if (bssid && !is_valid_ether_addr(bssid))
+		return -EINVAL;
 
 	/* both automatic */
 	if (!bssid && !wdev->wext.ibss.bssid)
@@ -512,11 +508,9 @@ int cfg80211_ibss_wext_siwap(struct net_device *dev,
 	} else
 		wdev->wext.ibss.bssid = NULL;
 
-	mutex_lock(&rdev->devlist_mtx);
 	wdev_lock(wdev);
 	err = cfg80211_ibss_wext_join(rdev, wdev);
 	wdev_unlock(wdev);
-	mutex_unlock(&rdev->devlist_mtx);
 
 	return err;
 }
@@ -539,7 +533,7 @@ int cfg80211_ibss_wext_giwap(struct net_device *dev,
 	else if (wdev->wext.ibss.bssid)
 		memcpy(ap_addr->sa_data, wdev->wext.ibss.bssid, ETH_ALEN);
 	else
-		memset(ap_addr->sa_data, 0, ETH_ALEN);
+		eth_zero_addr(ap_addr->sa_data);
 
 	wdev_unlock(wdev);
 

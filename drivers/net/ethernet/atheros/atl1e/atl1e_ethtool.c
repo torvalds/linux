@@ -57,8 +57,8 @@ static int atl1e_get_settings(struct net_device *netdev,
 		else
 			ecmd->duplex = DUPLEX_HALF;
 	} else {
-		ethtool_cmd_speed_set(ecmd, -1);
-		ecmd->duplex = -1;
+		ethtool_cmd_speed_set(ecmd, SPEED_UNKNOWN);
+		ecmd->duplex = DUPLEX_UNKNOWN;
 	}
 
 	ecmd->autoneg = AUTONEG_ENABLE;
@@ -316,10 +316,6 @@ static void atl1e_get_drvinfo(struct net_device *netdev,
 	strlcpy(drvinfo->fw_version, "L1e", sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
-	drvinfo->n_stats = 0;
-	drvinfo->testinfo_len = 0;
-	drvinfo->regdump_len = atl1e_get_regs_len(netdev);
-	drvinfo->eedump_len = atl1e_get_eeprom_len(netdev);
 }
 
 static void atl1e_get_wol(struct net_device *netdev,
@@ -388,5 +384,5 @@ static const struct ethtool_ops atl1e_ethtool_ops = {
 
 void atl1e_set_ethtool_ops(struct net_device *netdev)
 {
-	SET_ETHTOOL_OPS(netdev, &atl1e_ethtool_ops);
+	netdev->ethtool_ops = &atl1e_ethtool_ops;
 }

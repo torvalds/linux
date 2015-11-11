@@ -59,6 +59,10 @@ __copy_to_user_inatomic(void __user *to, const void *from, unsigned long n)
 			__put_user_size(*(u32 *)from, (u32 __user *)to,
 					4, ret, 4);
 			return ret;
+		case 8:
+			__put_user_size(*(u64 *)from, (u64 __user *)to,
+					8, ret, 8);
+			return ret;
 		}
 	}
 	return __copy_to_user_ll(to, from, n);
@@ -70,7 +74,8 @@ __copy_to_user_inatomic(void __user *to, const void *from, unsigned long n)
  * @from: Source address, in kernel space.
  * @n:    Number of bytes to copy.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only. This function may sleep if pagefaults are
+ *          enabled.
  *
  * Copy data from kernel space to user space.  Caller must check
  * the specified block with access_ok() before calling this function.
@@ -117,7 +122,8 @@ __copy_from_user_inatomic(void *to, const void __user *from, unsigned long n)
  * @from: Source address, in user space.
  * @n:    Number of bytes to copy.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only. This function may sleep if pagefaults are
+ *          enabled.
  *
  * Copy data from user space to kernel space.  Caller must check
  * the specified block with access_ok() before calling this function.
@@ -182,35 +188,6 @@ __copy_from_user_inatomic_nocache(void *to, const void __user *from,
 				  unsigned long n)
 {
        return __copy_from_user_ll_nocache_nozero(to, from, n);
-}
-
-unsigned long __must_check copy_to_user(void __user *to,
-					const void *from, unsigned long n);
-unsigned long __must_check _copy_from_user(void *to,
-					  const void __user *from,
-					  unsigned long n);
-
-
-extern void copy_from_user_overflow(void)
-#ifdef CONFIG_DEBUG_STRICT_USER_COPY_CHECKS
-	__compiletime_error("copy_from_user() buffer size is not provably correct")
-#else
-	__compiletime_warning("copy_from_user() buffer size is not provably correct")
-#endif
-;
-
-static inline unsigned long __must_check copy_from_user(void *to,
-					  const void __user *from,
-					  unsigned long n)
-{
-	int sz = __compiletime_object_size(to);
-
-	if (likely(sz == -1 || sz >= n))
-		n = _copy_from_user(to, from, n);
-	else
-		copy_from_user_overflow();
-
-	return n;
 }
 
 #endif /* _ASM_X86_UACCESS_32_H */

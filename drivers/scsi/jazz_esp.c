@@ -226,7 +226,6 @@ static struct platform_driver esp_jazz_driver = {
 	.remove		= esp_jazz_remove,
 	.driver	= {
 		.name	= "jazz_esp",
-		.owner	= THIS_MODULE,
 	},
 };
 

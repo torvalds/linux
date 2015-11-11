@@ -190,17 +190,29 @@ static u8 lis3l02dq_axis_map[3][3] = {
 };
 
 static int lis3l02dq_read_thresh(struct iio_dev *indio_dev,
-				 u64 e,
-				 int *val)
+				 const struct iio_chan_spec *chan,
+				 enum iio_event_type type,
+				 enum iio_event_direction dir,
+				 enum iio_event_info info,
+				 int *val, int *val2)
 {
-	return lis3l02dq_read_reg_s16(indio_dev, LIS3L02DQ_REG_THS_L_ADDR, val);
+	int ret;
+
+	ret = lis3l02dq_read_reg_s16(indio_dev, LIS3L02DQ_REG_THS_L_ADDR, val);
+	if (ret)
+		return ret;
+	return IIO_VAL_INT;
 }
 
 static int lis3l02dq_write_thresh(struct iio_dev *indio_dev,
-				  u64 event_code,
-				  int val)
+				  const struct iio_chan_spec *chan,
+				  enum iio_event_type type,
+				  enum iio_event_direction dir,
+				  enum iio_event_info info,
+				  int val, int val2)
 {
 	u16 value = val;
+
 	return lis3l02dq_spi_write_reg_s16(indio_dev,
 					   LIS3L02DQ_REG_THS_L_ADDR,
 					   value);
@@ -215,6 +227,7 @@ static int lis3l02dq_write_raw(struct iio_dev *indio_dev,
 	int ret = -EINVAL, reg;
 	u8 uval;
 	s8 sval;
+
 	switch (mask) {
 	case IIO_CHAN_INFO_CALIBBIAS:
 		if (val > 255 || val < -256)
@@ -257,6 +270,8 @@ static int lis3l02dq_read_raw(struct iio_dev *indio_dev,
 			ret = lis3l02dq_read_reg_s16(indio_dev, reg, val);
 		}
 		mutex_unlock(&indio_dev->mlock);
+		if (ret < 0)
+			goto error_ret;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
@@ -289,6 +304,7 @@ static ssize_t lis3l02dq_read_frequency(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	int ret, len = 0;
 	s8 t;
+
 	ret = lis3l02dq_spi_read_reg_8(indio_dev,
 				       LIS3L02DQ_REG_CTRL_1_ADDR,
 				       (u8 *)&t);
@@ -390,8 +406,10 @@ static int lis3l02dq_initial_setup(struct iio_dev *indio_dev)
 		goto err_ret;
 	}
 
-	/* Read back to check this has worked acts as loose test of correct
-	 * chip */
+	/*
+	 * Read back to check this has worked acts as loose test of correct
+	 * chip
+	 */
 	ret = lis3l02dq_spi_read_reg_8(indio_dev,
 				       LIS3L02DQ_REG_CTRL_1_ADDR,
 				       &valtest);
@@ -501,9 +519,19 @@ static irqreturn_t lis3l02dq_event_handler(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
-#define LIS3L02DQ_EVENT_MASK					\
-	(IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING) |	\
-	 IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_FALLING))
+static const struct iio_event_spec lis3l02dq_event[] = {
+	{
+		.type = IIO_EV_TYPE_THRESH,
+		.dir = IIO_EV_DIR_RISING,
+		.mask_separate = BIT(IIO_EV_INFO_ENABLE),
+		.mask_shared_by_type = BIT(IIO_EV_INFO_VALUE),
+	}, {
+		.type = IIO_EV_TYPE_THRESH,
+		.dir = IIO_EV_DIR_FALLING,
+		.mask_separate = BIT(IIO_EV_INFO_ENABLE),
+		.mask_shared_by_type = BIT(IIO_EV_INFO_VALUE),
+	}
+};
 
 #define LIS3L02DQ_CHAN(index, mod)				\
 	{							\
@@ -521,7 +549,8 @@ static irqreturn_t lis3l02dq_event_handler(int irq, void *private)
 			.realbits = 12,				\
 			.storagebits = 16,			\
 		},						\
-		.event_mask = LIS3L02DQ_EVENT_MASK,		\
+		.event_spec = lis3l02dq_event,			\
+		.num_event_specs = ARRAY_SIZE(lis3l02dq_event),	\
 	 }
 
 static const struct iio_chan_spec lis3l02dq_channels[] = {
@@ -531,16 +560,15 @@ static const struct iio_chan_spec lis3l02dq_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(3)
 };
 
-
 static int lis3l02dq_read_event_config(struct iio_dev *indio_dev,
-					   u64 event_code)
+				       const struct iio_chan_spec *chan,
+				       enum iio_event_type type,
+				       enum iio_event_direction dir)
 {
-
 	u8 val;
 	int ret;
-	u8 mask = (1 << (IIO_EVENT_CODE_EXTRACT_MODIFIER(event_code)*2 +
-			 (IIO_EVENT_CODE_EXTRACT_DIR(event_code) ==
-			  IIO_EV_DIR_RISING)));
+	u8 mask = (1 << (chan->channel2 * 2 + (dir == IIO_EV_DIR_RISING)));
+
 	ret = lis3l02dq_spi_read_reg_8(indio_dev,
 				       LIS3L02DQ_REG_WAKE_UP_CFG_ADDR,
 				       &val);
@@ -585,16 +613,16 @@ error_ret:
 }
 
 static int lis3l02dq_write_event_config(struct iio_dev *indio_dev,
-					u64 event_code,
+					const struct iio_chan_spec *chan,
+					enum iio_event_type type,
+					enum iio_event_direction dir,
 					int state)
 {
 	int ret = 0;
 	u8 val, control;
 	u8 currentlyset;
 	bool changed = false;
-	u8 mask = (1 << (IIO_EVENT_CODE_EXTRACT_MODIFIER(event_code)*2 +
-			 (IIO_EVENT_CODE_EXTRACT_DIR(event_code) ==
-			  IIO_EV_DIR_RISING)));
+	u8 mask = (1 << (chan->channel2 * 2 + (dir == IIO_EV_DIR_RISING)));
 
 	mutex_lock(&indio_dev->mlock);
 	/* read current control */
@@ -628,8 +656,8 @@ static int lis3l02dq_write_event_config(struct iio_dev *indio_dev,
 			(control | LIS3L02DQ_REG_CTRL_2_ENABLE_INTERRUPT) :
 			(control & ~LIS3L02DQ_REG_CTRL_2_ENABLE_INTERRUPT);
 		ret = lis3l02dq_spi_write_reg_8(indio_dev,
-					       LIS3L02DQ_REG_CTRL_2_ADDR,
-					       control);
+						LIS3L02DQ_REG_CTRL_2_ADDR,
+						control);
 		if (ret)
 			goto error_ret;
 	}
@@ -666,11 +694,9 @@ static int lis3l02dq_probe(struct spi_device *spi)
 	struct lis3l02dq_state *st;
 	struct iio_dev *indio_dev;
 
-	indio_dev = iio_device_alloc(sizeof *st);
-	if (indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	if (!indio_dev)
+		return -ENOMEM;
 	st = iio_priv(indio_dev);
 	/* this is only used for removal purposes */
 	spi_set_drvdata(spi, indio_dev);
@@ -688,15 +714,7 @@ static int lis3l02dq_probe(struct spi_device *spi)
 
 	ret = lis3l02dq_configure_buffer(indio_dev);
 	if (ret)
-		goto error_free_dev;
-
-	ret = iio_buffer_register(indio_dev,
-				  lis3l02dq_channels,
-				  ARRAY_SIZE(lis3l02dq_channels));
-	if (ret) {
-		printk(KERN_ERR "failed to initialize the buffer\n");
-		goto error_unreg_buffer_funcs;
-	}
+		return ret;
 
 	if (spi->irq) {
 		ret = request_threaded_irq(st->us->irq,
@@ -706,7 +724,7 @@ static int lis3l02dq_probe(struct spi_device *spi)
 					   "lis3l02dq",
 					   indio_dev);
 		if (ret)
-			goto error_uninitialize_buffer;
+			goto error_unreg_buffer_funcs;
 
 		ret = lis3l02dq_probe_trigger(indio_dev);
 		if (ret)
@@ -730,13 +748,8 @@ error_remove_trigger:
 error_free_interrupt:
 	if (spi->irq)
 		free_irq(st->us->irq, indio_dev);
-error_uninitialize_buffer:
-	iio_buffer_unregister(indio_dev);
 error_unreg_buffer_funcs:
 	lis3l02dq_unconfigure_buffer(indio_dev);
-error_free_dev:
-	iio_device_free(indio_dev);
-error_ret:
 	return ret;
 }
 
@@ -781,10 +794,7 @@ static int lis3l02dq_remove(struct spi_device *spi)
 		free_irq(st->us->irq, indio_dev);
 
 	lis3l02dq_remove_trigger(indio_dev);
-	iio_buffer_unregister(indio_dev);
 	lis3l02dq_unconfigure_buffer(indio_dev);
-
-	iio_device_free(indio_dev);
 
 	return 0;
 }
@@ -792,7 +802,6 @@ static int lis3l02dq_remove(struct spi_device *spi)
 static struct spi_driver lis3l02dq_driver = {
 	.driver = {
 		.name = "lis3l02dq",
-		.owner = THIS_MODULE,
 	},
 	.probe = lis3l02dq_probe,
 	.remove = lis3l02dq_remove,

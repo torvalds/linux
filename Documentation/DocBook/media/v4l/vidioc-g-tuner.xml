@@ -80,6 +80,12 @@ if the requested mode is invalid or unsupported. Since this is a
 <!-- FIXME -->write-only ioctl, it does not return the actually
 selected audio mode.</para>
 
+    <para><link linkend="sdr">SDR</link> specific tuner types are
+<constant>V4L2_TUNER_SDR</constant> and <constant>V4L2_TUNER_RF</constant>.
+For SDR devices <structfield>audmode</structfield> field must be
+initialized to zero.
+The term 'tuner' means SDR receiver in this context.</para>
+
     <para>To change the radio frequency the &VIDIOC-S-FREQUENCY; ioctl
 is available.</para>
 
@@ -134,7 +140,9 @@ the structure refers to a radio tuner the
 	    <entry spanname="hspan">The lowest tunable frequency in
 units of 62.5 kHz, or if the <structfield>capability</structfield>
 flag <constant>V4L2_TUNER_CAP_LOW</constant> is set, in units of 62.5
-Hz. If multiple frequency bands are supported, then
+Hz, or if the <structfield>capability</structfield> flag
+<constant>V4L2_TUNER_CAP_1HZ</constant> is set, in units of 1 Hz.
+If multiple frequency bands are supported, then
 <structfield>rangelow</structfield> is the lowest frequency
 of all the frequency bands.</entry>
 	  </row>
@@ -144,7 +152,9 @@ of all the frequency bands.</entry>
 	    <entry spanname="hspan">The highest tunable frequency in
 units of 62.5 kHz, or if the <structfield>capability</structfield>
 flag <constant>V4L2_TUNER_CAP_LOW</constant> is set, in units of 62.5
-Hz. If multiple frequency bands are supported, then
+Hz, or if the <structfield>capability</structfield> flag
+<constant>V4L2_TUNER_CAP_1HZ</constant> is set, in units of 1 Hz.
+If multiple frequency bands are supported, then
 <structfield>rangehigh</structfield> is the highest frequency
 of all the frequency bands.</entry>
 	  </row>
@@ -257,6 +267,16 @@ applications must set the array to zero.</entry>
 	    <entry>2</entry>
 	    <entry></entry>
 	  </row>
+	  <row>
+	    <entry><constant>V4L2_TUNER_SDR</constant></entry>
+	    <entry>4</entry>
+	    <entry></entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_TUNER_RF</constant></entry>
+	    <entry>5</entry>
+	    <entry></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>
@@ -270,7 +290,7 @@ applications must set the array to zero.</entry>
 	    <entry><constant>V4L2_TUNER_CAP_LOW</constant></entry>
 	    <entry>0x0001</entry>
 	    <entry>When set, tuning frequencies are expressed in units of
-62.5&nbsp;Hz, otherwise in units of 62.5&nbsp;kHz.</entry>
+62.5 Hz instead of 62.5 kHz.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_TUNER_CAP_NORM</constant></entry>
@@ -359,6 +379,11 @@ radio tuners.</entry>
 	<entry>0x0800</entry>
 	<entry>The range to search when using the hardware seek functionality
 	is programmable, see &VIDIOC-S-HW-FREQ-SEEK; for details.</entry>
+	  </row>
+	  <row>
+	<entry><constant>V4L2_TUNER_CAP_1HZ</constant></entry>
+	<entry>0x1000</entry>
+	<entry>When set, tuning frequencies are expressed in units of 1 Hz instead of 62.5 kHz.</entry>
 	  </row>
 	</tbody>
       </tgroup>

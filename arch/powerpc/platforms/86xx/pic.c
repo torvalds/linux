@@ -10,13 +10,14 @@
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
 #include <asm/mpic.h>
 #include <asm/i8259.h>
 
 #ifdef CONFIG_PPC_I8259
-static void mpc86xx_8259_cascade(unsigned int irq, struct irq_desc *desc)
+static void mpc86xx_8259_cascade(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int cascade_irq = i8259_irq();

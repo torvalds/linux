@@ -137,7 +137,7 @@ my $ksource = ($ARGV[0] ? $ARGV[0] : '.');
 my $kconfig = $ARGV[1];
 my $lsmod_file = $ENV{'LSMOD'};
 
-my @makefiles = `find $ksource -name Makefile 2>/dev/null`;
+my @makefiles = `find $ksource -name Makefile -or -name Kbuild 2>/dev/null`;
 chomp @makefiles;
 
 my %depends;
@@ -219,6 +219,13 @@ sub read_kconfig {
 	    $depends{$config} = $1;
 	} elsif ($state eq "DEP" && /^\s*depends\s+on\s+(.*)$/) {
 	    $depends{$config} .= " " . $1;
+	} elsif ($state eq "DEP" && /^\s*def(_(bool|tristate)|ault)\s+(\S.*)$/) {
+	    my $dep = $3;
+	    if ($dep !~ /^\s*(y|m|n)\s*$/) {
+		$dep =~ s/.*\sif\s+//;
+		$depends{$config} .= " " . $dep;
+		dprint "Added default depends $dep to $config\n";
+	    }
 
 	# Get the configs that select this config
 	} elsif ($state ne "NONE" && /^\s*select\s+(\S+)/) {
@@ -582,7 +589,7 @@ while ($repeat) {
 
     # Now we need to see if we have to check selects;
     loop_select;
-}	    
+}
 
 my %setconfigs;
 

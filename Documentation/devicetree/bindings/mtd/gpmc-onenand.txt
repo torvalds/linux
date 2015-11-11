@@ -17,7 +17,7 @@ Optional properties:
 
  - dma-channel:		DMA Channel index
 
-For inline partiton table parsing (optional):
+For inline partition table parsing (optional):
 
  - #address-cells: should be set to 1
  - #size-cells: should be set to 1

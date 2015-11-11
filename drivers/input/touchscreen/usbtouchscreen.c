@@ -51,7 +51,6 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/usb.h>
 #include <linux/usb/input.h>
 #include <linux/hid.h>
@@ -106,6 +105,7 @@ struct usbtouch_device_info {
 struct usbtouch_usb {
 	unsigned char *data;
 	dma_addr_t data_dma;
+	int data_size;
 	unsigned char *buffer;
 	int buf_len;
 	struct urb *irq;
@@ -132,6 +132,7 @@ enum {
 	DEVTYPE_GUNZE,
 	DEVTYPE_DMC_TSC10,
 	DEVTYPE_IRTOUCH,
+	DEVTYPE_IRTOUCH_HIRES,
 	DEVTYPE_IDEALTEK,
 	DEVTYPE_GENERAL_TOUCH,
 	DEVTYPE_GOTOP,
@@ -146,12 +147,10 @@ enum {
 
 #define USB_DEVICE_HID_CLASS(vend, prod) \
 	.match_flags = USB_DEVICE_ID_MATCH_INT_CLASS \
-		| USB_DEVICE_ID_MATCH_INT_PROTOCOL \
 		| USB_DEVICE_ID_MATCH_DEVICE, \
 	.idVendor = (vend), \
 	.idProduct = (prod), \
-	.bInterfaceClass = USB_INTERFACE_CLASS_HID, \
-	.bInterfaceProtocol = USB_INTERFACE_PROTOCOL_MOUSE
+	.bInterfaceClass = USB_INTERFACE_CLASS_HID
 
 static const struct usb_device_id usbtouch_devices[] = {
 #ifdef CONFIG_TOUCHSCREEN_USB_EGALAX
@@ -200,6 +199,7 @@ static const struct usb_device_id usbtouch_devices[] = {
 #ifdef CONFIG_TOUCHSCREEN_USB_IRTOUCH
 	{USB_DEVICE(0x595a, 0x0001), .driver_info = DEVTYPE_IRTOUCH},
 	{USB_DEVICE(0x6615, 0x0001), .driver_info = DEVTYPE_IRTOUCH},
+	{USB_DEVICE(0x6615, 0x0012), .driver_info = DEVTYPE_IRTOUCH_HIRES},
 #endif
 
 #ifdef CONFIG_TOUCHSCREEN_USB_IDEALTEK
@@ -626,6 +626,9 @@ static int dmc_tsc10_init(struct usbtouch_usb *usbtouch)
 		ret = -ENODEV;
 		goto err_out;
 	}
+
+	/* TSC-25 data sheet specifies a delay after the RESET command */
+	msleep(150);
 
 	/* set coordinate output rate */
 	buf[0] = buf[1] = 0xFF;
@@ -1179,6 +1182,15 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 		.rept_size	= 8,
 		.read_data	= irtouch_read_data,
 	},
+
+	[DEVTYPE_IRTOUCH_HIRES] = {
+		.min_xc		= 0x0,
+		.max_xc		= 0x7fff,
+		.min_yc		= 0x0,
+		.max_yc		= 0x7fff,
+		.rept_size	= 8,
+		.read_data	= irtouch_read_data,
+	},
 #endif
 
 #ifdef CONFIG_TOUCHSCREEN_USB_IDEALTEK
@@ -1523,7 +1535,7 @@ static int usbtouch_reset_resume(struct usb_interface *intf)
 static void usbtouch_free_buffers(struct usb_device *udev,
 				  struct usbtouch_usb *usbtouch)
 {
-	usb_free_coherent(udev, usbtouch->type->rept_size,
+	usb_free_coherent(udev, usbtouch->data_size,
 			  usbtouch->data, usbtouch->data_dma);
 	kfree(usbtouch->buffer);
 }
@@ -1568,7 +1580,20 @@ static int usbtouch_probe(struct usb_interface *intf,
 	if (!type->process_pkt)
 		type->process_pkt = usbtouch_process_pkt;
 
-	usbtouch->data = usb_alloc_coherent(udev, type->rept_size,
+	usbtouch->data_size = type->rept_size;
+	if (type->get_pkt_len) {
+		/*
+		 * When dealing with variable-length packets we should
+		 * not request more than wMaxPacketSize bytes at once
+		 * as we do not know if there is more data coming or
+		 * we filled exactly wMaxPacketSize bytes and there is
+		 * nothing else.
+		 */
+		usbtouch->data_size = min(usbtouch->data_size,
+					  usb_endpoint_maxp(endpoint));
+	}
+
+	usbtouch->data = usb_alloc_coherent(udev, usbtouch->data_size,
 					    GFP_KERNEL, &usbtouch->data_dma);
 	if (!usbtouch->data)
 		goto out_free;
@@ -1628,12 +1653,12 @@ static int usbtouch_probe(struct usb_interface *intf,
 	if (usb_endpoint_type(endpoint) == USB_ENDPOINT_XFER_INT)
 		usb_fill_int_urb(usbtouch->irq, udev,
 			 usb_rcvintpipe(udev, endpoint->bEndpointAddress),
-			 usbtouch->data, type->rept_size,
+			 usbtouch->data, usbtouch->data_size,
 			 usbtouch_irq, usbtouch, endpoint->bInterval);
 	else
 		usb_fill_bulk_urb(usbtouch->irq, udev,
 			 usb_rcvbulkpipe(udev, endpoint->bEndpointAddress),
-			 usbtouch->data, type->rept_size,
+			 usbtouch->data, usbtouch->data_size,
 			 usbtouch_irq, usbtouch);
 
 	usbtouch->irq->dev = udev;

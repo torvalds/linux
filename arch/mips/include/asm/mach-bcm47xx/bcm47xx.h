@@ -22,6 +22,7 @@
 #include <linux/ssb/ssb.h>
 #include <linux/bcma/bcma.h>
 #include <linux/bcma/bcma_soc.h>
+#include <linux/bcm47xx_nvram.h>
 
 enum bcm47xx_bus_type {
 #ifdef CONFIG_BCM47XX_SSB
@@ -51,9 +52,7 @@ void bcm47xx_fill_sprom(struct ssb_sprom *sprom, const char *prefix,
 void bcm47xx_fill_ssb_boardinfo(struct ssb_boardinfo *boardinfo,
 				const char *prefix);
 #endif
-#ifdef CONFIG_BCM47XX_BCMA
-void bcm47xx_fill_bcma_boardinfo(struct bcma_boardinfo *boardinfo,
-				 const char *prefix);
-#endif
+
+void bcm47xx_set_system_type(u16 chip_id);
 
 #endif /* __ASM_BCM47XX_H */

@@ -83,7 +83,7 @@ struct	evt_priv {
 
 #define init_h2fwcmd_w_parm_no_rsp(pcmd, pparm, code) \
 do {\
-	_init_listhead(&pcmd->list);\
+	INIT_LIST_HEAD(&pcmd->list);\
 	pcmd->cmdcode = code;\
 	pcmd->parmbuf = (u8 *)(pparm);\
 	pcmd->cmdsz = sizeof(*pparm);\
@@ -123,30 +123,12 @@ struct usb_suspend_parm {
 };
 
 /*
- * Caller Mode: Infra, Ad-Hoc
- * Notes: To join the specified bss
- * Command Event Mode
- */
-struct joinbss_parm {
-	struct ndis_wlan_bssid_ex network;
-};
-
-/*
  * Caller Mode: Infra, Ad-HoC(C)
  * Notes: To disconnect the current associated BSS
  * Command Mode
  */
 struct disconnect_parm {
 	u32 rsvd;
-};
-
-/*
- * Caller Mode: AP, Ad-HoC(M)
- * Notes: To create a BSS
- * Command Mode
- */
-struct createbss_parm {
-	struct ndis_wlan_bssid_ex network;
 };
 
 /*

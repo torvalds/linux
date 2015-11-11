@@ -30,11 +30,11 @@ typedef sigset_t compat_sigset_t;
 #endif /* __ASSEMBLY__ */
 #include <uapi/asm/signal.h>
 #ifndef __ASSEMBLY__
-extern void do_notify_resume(struct pt_regs *, void *, __u32);
+extern void do_signal(struct pt_regs *regs);
 
 #define __ARCH_HAS_SA_RESTORER
 
-#include <asm/sigcontext.h>
+#include <uapi/asm/sigcontext.h>
 
 #ifdef __i386__
 
@@ -91,12 +91,6 @@ static inline int __gen_sigismember(sigset_t *set, int _sig)
 	(__builtin_constant_p(sig)		\
 	 ? __const_sigismember((set), (sig))	\
 	 : __gen_sigismember((set), (sig)))
-
-static inline int sigfindinword(unsigned long word)
-{
-	asm("bsfl %1,%0" : "=r"(word) : "rm"(word) : "cc");
-	return word;
-}
 
 struct pt_regs;
 

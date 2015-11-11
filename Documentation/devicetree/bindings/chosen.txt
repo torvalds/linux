@@ -1,0 +1,54 @@
+The chosen node
+---------------
+
+The chosen node does not represent a real device, but serves as a place
+for passing data between firmware and the operating system, like boot
+arguments. Data in the chosen node does not represent the hardware.
+
+
+stdout-path property
+--------------------
+
+Device trees may specify the device to be used for boot console output
+with a stdout-path property under /chosen, as described in ePAPR, e.g.
+
+/ {
+	chosen {
+		stdout-path = "/serial@f00:115200";
+	};
+
+	serial@f00 {
+		compatible = "vendor,some-uart";
+		reg = <0xf00 0x10>;
+	};
+};
+
+If the character ":" is present in the value, this terminates the path.
+The meaning of any characters following the ":" is device-specific, and
+must be specified in the relevant binding documentation.
+
+For UART devices, the preferred binding is a string in the form:
+
+	<baud>{<parity>{<bits>{<flow>}}}
+
+where
+
+	baud	- baud rate in decimal
+	parity	- 'n' (none), 'o', (odd) or 'e' (even)
+	bits	- number of data bits
+	flow	- 'r' (rts)
+
+For example: 115200n8r
+
+Implementation note: Linux will look for the property "linux,stdout-path" or
+on PowerPC "stdout" if "stdout-path" is not found.  However, the
+"linux,stdout-path" and "stdout" properties are deprecated. New platforms
+should only use the "stdout-path" property.
+
+linux,booted-from-kexec
+-----------------------
+
+This property is set (currently only on PowerPC, and only needed on
+book3e) by some versions of kexec-tools to tell the new kernel that it
+is being booted by kexec, as the booting environment may differ (e.g.
+a different secondary CPU release mechanism)

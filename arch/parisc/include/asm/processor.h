@@ -30,6 +30,8 @@
 #endif
 #define current_text_addr() ({ void *pc; current_ia(pc); pc; })
 
+#define HAVE_ARCH_PICK_MMAP_LAYOUT
+
 #define TASK_SIZE_OF(tsk)       ((tsk)->thread.task_size)
 #define TASK_SIZE	        TASK_SIZE_OF(current)
 #define TASK_UNMAPPED_BASE      (current->thread.map_base)
@@ -52,6 +54,11 @@
 
 #define STACK_TOP	TASK_SIZE
 #define STACK_TOP_MAX	DEFAULT_TASK_SIZE
+
+/* Allow bigger stacks for 64-bit processes */
+#define STACK_SIZE_MAX	(USER_WIDE_MODE					\
+			 ? (1 << 30)	/* 1 GB */			\
+			 : (CONFIG_MAX_STACK_SIZE_MB*1024*1024))
 
 #endif
 
@@ -323,14 +330,13 @@ struct mm_struct;
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
 
-extern void map_hpux_gateway_page(struct task_struct *tsk, struct mm_struct *mm);
-
 extern unsigned long get_wchan(struct task_struct *p);
 
 #define KSTK_EIP(tsk)	((tsk)->thread.regs.iaoq[0])
 #define KSTK_ESP(tsk)	((tsk)->thread.regs.gr[30])
 
 #define cpu_relax()	barrier()
+#define cpu_relax_lowlatency() cpu_relax()
 
 /* Used as a macro to identify the combined VIPT/PIPT cached
  * CPUs which require a guarantee of coherency (no inequivalent

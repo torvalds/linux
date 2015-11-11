@@ -35,7 +35,7 @@
  * ntfs_lookup - find the inode represented by a dentry in a directory inode
  * @dir_ino:	directory inode in which to look for the inode
  * @dent:	dentry representing the inode to look for
- * @nd:		lookup nameidata
+ * @flags:	lookup flags
  *
  * In short, ntfs_lookup() looks for the inode represented by the dentry @dent
  * in the directory inode @dir_ino and if found attaches the inode to the
@@ -111,8 +111,8 @@ static struct dentry *ntfs_lookup(struct inode *dir_ino, struct dentry *dent,
 	unsigned long dent_ino;
 	int uname_len;
 
-	ntfs_debug("Looking up %s in directory inode 0x%lx.",
-			dent->d_name.name, dir_ino->i_ino);
+	ntfs_debug("Looking up %pd in directory inode 0x%lx.",
+			dent, dir_ino->i_ino);
 	/* Convert the name of the dentry to Unicode. */
 	uname_len = ntfs_nlstoucs(vol, dent->d_name.name, dent->d_name.len,
 			&uname);
@@ -292,14 +292,14 @@ const struct inode_operations ntfs_dir_inode_ops = {
  * The code is based on the ext3 ->get_parent() implementation found in
  * fs/ext3/namei.c::ext3_get_parent().
  *
- * Note: ntfs_get_parent() is called with @child_dent->d_inode->i_mutex down.
+ * Note: ntfs_get_parent() is called with @d_inode(child_dent)->i_mutex down.
  *
  * Return the dentry of the parent directory on success or the error code on
  * error (IS_ERR() is true).
  */
 static struct dentry *ntfs_get_parent(struct dentry *child_dent)
 {
-	struct inode *vi = child_dent->d_inode;
+	struct inode *vi = d_inode(child_dent);
 	ntfs_inode *ni = NTFS_I(vi);
 	MFT_RECORD *mrec;
 	ntfs_attr_search_ctx *ctx;

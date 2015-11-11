@@ -20,6 +20,8 @@
 #include <asm/chpid.h>
 #include <asm/chsc.h>
 #include <asm/crw.h>
+#include <asm/isc.h>
+#include <asm/ebcdic.h>
 
 #include "css.h"
 #include "cio.h"
@@ -54,6 +56,7 @@ int chsc_error_from_response(int response)
 	case 0x0004:
 		return -EOPNOTSUPP;
 	case 0x000b:
+	case 0x0107:		/* "Channel busy" for the op 0x003d */
 		return -EBUSY;
 	case 0x0100:
 	case 0x0102:
@@ -144,6 +147,65 @@ out:
 	return ret;
 }
 
+/**
+ * chsc_ssqd() - store subchannel QDIO data (SSQD)
+ * @schid: id of the subchannel on which SSQD is performed
+ * @ssqd: request and response block for SSQD
+ *
+ * Returns 0 on success.
+ */
+int chsc_ssqd(struct subchannel_id schid, struct chsc_ssqd_area *ssqd)
+{
+	memset(ssqd, 0, sizeof(*ssqd));
+	ssqd->request.length = 0x0010;
+	ssqd->request.code = 0x0024;
+	ssqd->first_sch = schid.sch_no;
+	ssqd->last_sch = schid.sch_no;
+	ssqd->ssid = schid.ssid;
+
+	if (chsc(ssqd))
+		return -EIO;
+
+	return chsc_error_from_response(ssqd->response.code);
+}
+EXPORT_SYMBOL_GPL(chsc_ssqd);
+
+/**
+ * chsc_sadc() - set adapter device controls (SADC)
+ * @schid: id of the subchannel on which SADC is performed
+ * @scssc: request and response block for SADC
+ * @summary_indicator_addr: summary indicator address
+ * @subchannel_indicator_addr: subchannel indicator address
+ *
+ * Returns 0 on success.
+ */
+int chsc_sadc(struct subchannel_id schid, struct chsc_scssc_area *scssc,
+	      u64 summary_indicator_addr, u64 subchannel_indicator_addr)
+{
+	memset(scssc, 0, sizeof(*scssc));
+	scssc->request.length = 0x0fe0;
+	scssc->request.code = 0x0021;
+	scssc->operation_code = 0;
+
+	scssc->summary_indicator_addr = summary_indicator_addr;
+	scssc->subchannel_indicator_addr = subchannel_indicator_addr;
+
+	scssc->ks = PAGE_DEFAULT_KEY >> 4;
+	scssc->kc = PAGE_DEFAULT_KEY >> 4;
+	scssc->isc = QDIO_AIRQ_ISC;
+	scssc->schid = schid;
+
+	/* enable the time delay disablement facility */
+	if (css_general_characteristics.aif_tdd)
+		scssc->word_with_d_bit = 0x10000000;
+
+	if (chsc(scssc))
+		return -EIO;
+
+	return chsc_error_from_response(scssc->response.code);
+}
+EXPORT_SYMBOL_GPL(chsc_sadc);
+
 static int s390_subchannel_remove_chpid(struct subchannel *sch, void *data)
 {
 	spin_lock_irq(sch->lock);
@@ -177,26 +239,6 @@ void chsc_chp_offline(struct chp_id chpid)
 	for_each_subchannel_staged(s390_subchannel_remove_chpid, NULL, &link);
 }
 
-static int s390_process_res_acc_new_sch(struct subchannel_id schid, void *data)
-{
-	struct schib schib;
-	/*
-	 * We don't know the device yet, but since a path
-	 * may be available now to the device we'll have
-	 * to do recognition again.
-	 * Since we don't have any idea about which chpid
-	 * that beast may be on we'll have to do a stsch
-	 * on all devices, grr...
-	 */
-	if (stsch_err(schid, &schib))
-		/* We're through */
-		return -ENXIO;
-
-	/* Put it on the slow path. */
-	css_schedule_eval(schid);
-	return 0;
-}
-
 static int __s390_process_res_acc(struct subchannel *sch, void *data)
 {
 	spin_lock_irq(sch->lock);
@@ -227,38 +269,8 @@ static void s390_process_res_acc(struct chp_link *link)
 	 * The more information we have (info), the less scanning
 	 * will we have to do.
 	 */
-	for_each_subchannel_staged(__s390_process_res_acc,
-				   s390_process_res_acc_new_sch, link);
-}
-
-static int
-__get_chpid_from_lir(void *data)
-{
-	struct lir {
-		u8  iq;
-		u8  ic;
-		u16 sci;
-		/* incident-node descriptor */
-		u32 indesc[28];
-		/* attached-node descriptor */
-		u32 andesc[28];
-		/* incident-specific information */
-		u32 isinfo[28];
-	} __attribute__ ((packed)) *lir;
-
-	lir = data;
-	if (!(lir->iq&0x80))
-		/* NULL link incident record */
-		return -EINVAL;
-	if (!(lir->indesc[0]&0xc0000000))
-		/* node descriptor not valid */
-		return -EINVAL;
-	if (!(lir->indesc[0]&0x10000000))
-		/* don't handle device-type nodes - FIXME */
-		return -EINVAL;
-	/* Byte 3 contains the chpid. Could also be CTCA, but we don't care */
-
-	return (u16) (lir->indesc[0]&0x000000ff);
+	for_each_subchannel_staged(__s390_process_res_acc, NULL, link);
+	css_schedule_reprobe();
 }
 
 struct chsc_sei_nt0_area {
@@ -300,22 +312,132 @@ struct chsc_sei {
 	} u;
 } __packed;
 
+/*
+ * Node Descriptor as defined in SA22-7204, "Common I/O-Device Commands"
+ */
+
+#define ND_VALIDITY_VALID	0
+#define ND_VALIDITY_OUTDATED	1
+#define ND_VALIDITY_INVALID	2
+
+struct node_descriptor {
+	/* Flags. */
+	union {
+		struct {
+			u32 validity:3;
+			u32 reserved:5;
+		} __packed;
+		u8 byte0;
+	} __packed;
+
+	/* Node parameters. */
+	u32 params:24;
+
+	/* Node ID. */
+	char type[6];
+	char model[3];
+	char manufacturer[3];
+	char plant[2];
+	char seq[12];
+	u16 tag;
+} __packed;
+
+/*
+ * Link Incident Record as defined in SA22-7202, "ESCON I/O Interface"
+ */
+
+#define LIR_IQ_CLASS_INFO		0
+#define LIR_IQ_CLASS_DEGRADED		1
+#define LIR_IQ_CLASS_NOT_OPERATIONAL	2
+
+struct lir {
+	struct {
+		u32 null:1;
+		u32 reserved:3;
+		u32 class:2;
+		u32 reserved2:2;
+	} __packed iq;
+	u32 ic:8;
+	u32 reserved:16;
+	struct node_descriptor incident_node;
+	struct node_descriptor attached_node;
+	u8 reserved2[32];
+} __packed;
+
+#define PARAMS_LEN	10	/* PARAMS=xx,xxxxxx */
+#define NODEID_LEN	35	/* NODEID=tttttt/mdl,mmm.ppssssssssssss,xxxx */
+
+/* Copy EBCIDC text, convert to ASCII and optionally add delimiter. */
+static char *store_ebcdic(char *dest, const char *src, unsigned long len,
+			  char delim)
+{
+	memcpy(dest, src, len);
+	EBCASC(dest, len);
+
+	if (delim)
+		dest[len++] = delim;
+
+	return dest + len;
+}
+
+/* Format node ID and parameters for output in LIR log message. */
+static void format_node_data(char *params, char *id, struct node_descriptor *nd)
+{
+	memset(params, 0, PARAMS_LEN);
+	memset(id, 0, NODEID_LEN);
+
+	if (nd->validity != ND_VALIDITY_VALID) {
+		strncpy(params, "n/a", PARAMS_LEN - 1);
+		strncpy(id, "n/a", NODEID_LEN - 1);
+		return;
+	}
+
+	/* PARAMS=xx,xxxxxx */
+	snprintf(params, PARAMS_LEN, "%02x,%06x", nd->byte0, nd->params);
+	/* NODEID=tttttt/mdl,mmm.ppssssssssssss,xxxx */
+	id = store_ebcdic(id, nd->type, sizeof(nd->type), '/');
+	id = store_ebcdic(id, nd->model, sizeof(nd->model), ',');
+	id = store_ebcdic(id, nd->manufacturer, sizeof(nd->manufacturer), '.');
+	id = store_ebcdic(id, nd->plant, sizeof(nd->plant), 0);
+	id = store_ebcdic(id, nd->seq, sizeof(nd->seq), ',');
+	sprintf(id, "%04X", nd->tag);
+}
+
 static void chsc_process_sei_link_incident(struct chsc_sei_nt0_area *sei_area)
 {
-	struct chp_id chpid;
-	int id;
+	struct lir *lir = (struct lir *) &sei_area->ccdf;
+	char iuparams[PARAMS_LEN], iunodeid[NODEID_LEN], auparams[PARAMS_LEN],
+	     aunodeid[NODEID_LEN];
 
-	CIO_CRW_EVENT(4, "chsc: link incident (rs=%02x, rs_id=%04x)\n",
-		      sei_area->rs, sei_area->rsid);
-	if (sei_area->rs != 4)
+	CIO_CRW_EVENT(4, "chsc: link incident (rs=%02x, rs_id=%04x, iq=%02x)\n",
+		      sei_area->rs, sei_area->rsid, sei_area->ccdf[0]);
+
+	/* Ignore NULL Link Incident Records. */
+	if (lir->iq.null)
 		return;
-	id = __get_chpid_from_lir(sei_area->ccdf);
-	if (id < 0)
-		CIO_CRW_EVENT(4, "chsc: link incident - invalid LIR\n");
-	else {
-		chp_id_init(&chpid);
-		chpid.id = id;
-		chsc_chp_offline(chpid);
+
+	/* Inform user that a link requires maintenance actions because it has
+	 * become degraded or not operational. Note that this log message is
+	 * the primary intention behind a Link Incident Record. */
+
+	format_node_data(iuparams, iunodeid, &lir->incident_node);
+	format_node_data(auparams, aunodeid, &lir->attached_node);
+
+	switch (lir->iq.class) {
+	case LIR_IQ_CLASS_DEGRADED:
+		pr_warn("Link degraded: RS=%02x RSID=%04x IC=%02x "
+			"IUPARAMS=%s IUNODEID=%s AUPARAMS=%s AUNODEID=%s\n",
+			sei_area->rs, sei_area->rsid, lir->ic, iuparams,
+			iunodeid, auparams, aunodeid);
+		break;
+	case LIR_IQ_CLASS_NOT_OPERATIONAL:
+		pr_err("Link stopped: RS=%02x RSID=%04x IC=%02x "
+		       "IUPARAMS=%s IUNODEID=%s AUPARAMS=%s AUNODEID=%s\n",
+		       sei_area->rs, sei_area->rsid, lir->ic, iuparams,
+		       iunodeid, auparams, aunodeid);
+		break;
+	default:
+		break;
 	}
 }
 
@@ -500,18 +622,27 @@ static void chsc_process_sei_nt0(struct chsc_sei_nt0_area *sei_area)
 
 static void chsc_process_event_information(struct chsc_sei *sei, u64 ntsm)
 {
-	do {
+	static int ntsm_unsupported;
+
+	while (true) {
 		memset(sei, 0, sizeof(*sei));
 		sei->request.length = 0x0010;
 		sei->request.code = 0x000e;
-		sei->ntsm = ntsm;
+		if (!ntsm_unsupported)
+			sei->ntsm = ntsm;
 
 		if (chsc(sei))
 			break;
 
 		if (sei->response.code != 0x0001) {
-			CIO_CRW_EVENT(2, "chsc: sei failed (rc=%04x)\n",
-				      sei->response.code);
+			CIO_CRW_EVENT(2, "chsc: sei failed (rc=%04x, ntsm=%llx)\n",
+				      sei->response.code, sei->ntsm);
+
+			if (sei->response.code == 3 && sei->ntsm) {
+				/* Fallback for old firmware. */
+				ntsm_unsupported = 1;
+				continue;
+			}
 			break;
 		}
 
@@ -527,7 +658,10 @@ static void chsc_process_event_information(struct chsc_sei *sei, u64 ntsm)
 			CIO_CRW_EVENT(2, "chsc: unhandled nt: %d\n", sei->nt);
 			break;
 		}
-	} while (sei->u.nt0_area.flags & 0x80);
+
+		if (!(sei->u.nt0_area.flags & 0x80))
+			break;
+	}
 }
 
 /*
@@ -569,6 +703,7 @@ void chsc_chp_online(struct chp_id chpid)
 		css_wait_for_slow_path();
 		for_each_subchannel_staged(__s390_process_res_acc, NULL,
 					   &link);
+		css_schedule_reprobe();
 	}
 }
 
@@ -603,19 +738,6 @@ static int s390_subchannel_vary_chpid_on(struct subchannel *sch, void *data)
 	return 0;
 }
 
-static int
-__s390_vary_chpid_on(struct subchannel_id schid, void *data)
-{
-	struct schib schib;
-
-	if (stsch_err(schid, &schib))
-		/* We're through */
-		return -ENXIO;
-	/* Put it on the slow path. */
-	css_schedule_eval(schid);
-	return 0;
-}
-
 /**
  * chsc_chp_vary - propagate channel-path vary operation to subchannels
  * @chpid: channl-path ID
@@ -634,7 +756,8 @@ int chsc_chp_vary(struct chp_id chpid, int on)
 		/* Try to update the channel path description. */
 		chp_update_desc(chp);
 		for_each_subchannel_staged(s390_subchannel_vary_chpid_on,
-					   __s390_vary_chpid_on, &chpid);
+					   NULL, &chpid);
+		css_schedule_reprobe();
 	} else
 		for_each_subchannel_staged(s390_subchannel_vary_chpid_off,
 					   NULL, &chpid);
@@ -1174,3 +1297,35 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(chsc_scm_info);
+
+/**
+ * chsc_pnso_brinfo() - Perform Network-Subchannel Operation, Bridge Info.
+ * @schid:		id of the subchannel on which PNSO is performed
+ * @brinfo_area:	request and response block for the operation
+ * @resume_token:	resume token for multiblock response
+ * @cnc:		Boolean change-notification control
+ *
+ * brinfo_area must be allocated by the caller with get_zeroed_page(GFP_KERNEL)
+ *
+ * Returns 0 on success.
+ */
+int chsc_pnso_brinfo(struct subchannel_id schid,
+		struct chsc_pnso_area *brinfo_area,
+		struct chsc_brinfo_resume_token resume_token,
+		int cnc)
+{
+	memset(brinfo_area, 0, sizeof(*brinfo_area));
+	brinfo_area->request.length = 0x0030;
+	brinfo_area->request.code = 0x003d; /* network-subchannel operation */
+	brinfo_area->m	   = schid.m;
+	brinfo_area->ssid  = schid.ssid;
+	brinfo_area->sch   = schid.sch_no;
+	brinfo_area->cssid = schid.cssid;
+	brinfo_area->oc    = 0; /* Store-network-bridging-information list */
+	brinfo_area->resume_token = resume_token;
+	brinfo_area->n	   = (cnc != 0);
+	if (chsc(brinfo_area))
+		return -EIO;
+	return chsc_error_from_response(brinfo_area->response.code);
+}
+EXPORT_SYMBOL_GPL(chsc_pnso_brinfo);

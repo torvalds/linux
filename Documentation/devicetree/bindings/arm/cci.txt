@@ -1,0 +1,229 @@
+=======================================================
+ARM CCI cache coherent interconnect binding description
+=======================================================
+
+ARM multi-cluster systems maintain intra-cluster coherency through a
+cache coherent interconnect (CCI) that is capable of monitoring bus
+transactions and manage coherency, TLB invalidations and memory barriers.
+
+It allows snooping and distributed virtual memory message broadcast across
+clusters, through memory mapped interface, with a global control register
+space and multiple sets of interface control registers, one per slave
+interface.
+
+Bindings for the CCI node follow the ePAPR standard, available from:
+
+www.power.org/documentation/epapr-version-1-1/
+
+with the addition of the bindings described in this document which are
+specific to ARM.
+
+* CCI interconnect node
+
+	Description: Describes a CCI cache coherent Interconnect component
+
+	Node name must be "cci".
+	Node's parent must be the root node /, and the address space visible
+	through the CCI interconnect is the same as the one seen from the
+	root node (ie from CPUs perspective as per DT standard).
+	Every CCI node has to define the following properties:
+
+	- compatible
+		Usage: required
+		Value type: <string>
+		Definition: must contain one of the following:
+			    "arm,cci-400"
+			    "arm,cci-500"
+
+	- reg
+		Usage: required
+		Value type: Integer cells. A register entry, expressed as a pair
+			    of cells, containing base and size.
+		Definition: A standard property. Specifies base physical
+			    address of CCI control registers common to all
+			    interfaces.
+
+	- ranges:
+		Usage: required
+		Value type: Integer cells. An array of range entries, expressed
+			    as a tuple of cells, containing child address,
+			    parent address and the size of the region in the
+			    child address space.
+		Definition: A standard property. Follow rules in the ePAPR for
+			    hierarchical bus addressing. CCI interfaces
+			    addresses refer to the parent node addressing
+			    scheme to declare their register bases.
+
+	CCI interconnect node can define the following child nodes:
+
+	- CCI control interface nodes
+
+		Node name must be "slave-if".
+		Parent node must be CCI interconnect node.
+
+		A CCI control interface node must contain the following
+		properties:
+
+		- compatible
+			Usage: required
+			Value type: <string>
+			Definition: must be set to
+				    "arm,cci-400-ctrl-if"
+
+		- interface-type:
+			Usage: required
+			Value type: <string>
+			Definition: must be set to one of {"ace", "ace-lite"}
+				    depending on the interface type the node
+				    represents.
+
+		- reg:
+			Usage: required
+			Value type: Integer cells. A register entry, expressed
+				    as a pair of cells, containing base and
+				    size.
+			Definition: the base address and size of the
+				    corresponding interface programming
+				    registers.
+
+	- CCI PMU node
+
+		Parent node must be CCI interconnect node.
+
+		A CCI pmu node must contain the following properties:
+
+		- compatible
+			Usage: required
+			Value type: <string>
+			Definition: Must contain one of:
+				 "arm,cci-400-pmu,r0"
+				 "arm,cci-400-pmu,r1"
+				 "arm,cci-400-pmu"  - DEPRECATED, permitted only where OS has
+						      secure acces to CCI registers
+				 "arm,cci-500-pmu,r0"
+		- reg:
+			Usage: required
+			Value type: Integer cells. A register entry, expressed
+				    as a pair of cells, containing base and
+				    size.
+			Definition: the base address and size of the
+				    corresponding interface programming
+				    registers.
+
+		- interrupts:
+			Usage: required
+			Value type: Integer cells. Array of interrupt specifier
+				    entries, as defined in
+				    ../interrupt-controller/interrupts.txt.
+			Definition: list of counter overflow interrupts, one per
+				    counter. The interrupts must be specified
+				    starting with the cycle counter overflow
+				    interrupt, followed by counter0 overflow
+				    interrupt, counter1 overflow interrupt,...
+				    ,counterN overflow interrupt.
+
+				    The CCI PMU has an interrupt signal for each
+				    counter. The number of interrupts must be
+				    equal to the number of counters.
+
+* CCI interconnect bus masters
+
+	Description: masters in the device tree connected to a CCI port
+		     (inclusive of CPUs and their cpu nodes).
+
+	A CCI interconnect bus master node must contain the following
+	properties:
+
+	- cci-control-port:
+		Usage: required
+		Value type: <phandle>
+		Definition: a phandle containing the CCI control interface node
+			    the master is connected to.
+
+Example:
+
+	cpus {
+		#size-cells = <0>;
+		#address-cells = <1>;
+
+		CPU0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			cci-control-port = <&cci_control1>;
+			reg = <0x0>;
+		};
+
+		CPU1: cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			cci-control-port = <&cci_control1>;
+			reg = <0x1>;
+		};
+
+		CPU2: cpu@100 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a7";
+			cci-control-port = <&cci_control2>;
+			reg = <0x100>;
+		};
+
+		CPU3: cpu@101 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a7";
+			cci-control-port = <&cci_control2>;
+			reg = <0x101>;
+		};
+
+	};
+
+	dma0: dma@3000000 {
+		compatible = "arm,pl330", "arm,primecell";
+		cci-control-port = <&cci_control0>;
+		reg = <0x0 0x3000000 0x0 0x1000>;
+		interrupts = <10>;
+		#dma-cells = <1>;
+		#dma-channels = <8>;
+		#dma-requests = <32>;
+	};
+
+	cci@2c090000 {
+		compatible = "arm,cci-400";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x0 0x2c090000 0 0x1000>;
+		ranges = <0x0 0x0 0x2c090000 0x10000>;
+
+		cci_control0: slave-if@1000 {
+			compatible = "arm,cci-400-ctrl-if";
+			interface-type = "ace-lite";
+			reg = <0x1000 0x1000>;
+		};
+
+		cci_control1: slave-if@4000 {
+			compatible = "arm,cci-400-ctrl-if";
+			interface-type = "ace";
+			reg = <0x4000 0x1000>;
+		};
+
+		cci_control2: slave-if@5000 {
+			compatible = "arm,cci-400-ctrl-if";
+			interface-type = "ace";
+			reg = <0x5000 0x1000>;
+		};
+
+		pmu@9000 {
+			 compatible = "arm,cci-400-pmu";
+			 reg = <0x9000 0x5000>;
+			 interrupts = <0 101 4>,
+				      <0 102 4>,
+				      <0 103 4>,
+				      <0 104 4>,
+				      <0 105 4>;
+		};
+	};
+
+This CCI node corresponds to a CCI component whose control registers sits
+at address 0x000000002c090000.
+CCI slave interface @0x000000002c091000 is connected to dma controller dma0.
+CCI slave interface @0x000000002c094000 is connected to CPUs {CPU0, CPU1};
+CCI slave interface @0x000000002c095000 is connected to CPUs {CPU2, CPU3};

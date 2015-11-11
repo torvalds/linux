@@ -1,7 +1,7 @@
 /*
- * Device Tree Source for IGEP Technology devices
+ * Common device tree for IGEP boards based on AM/DM37x
  *
- * Copyright (C) 2012 Javier Martinez Canillas <javier@collabora.co.uk>
+ * Copyright (C) 2012 Javier Martinez Canillas <javier@osg.samsung.com>
  * Copyright (C) 2012 Enric Balletbo i Serra <eballetbo@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -10,7 +10,7 @@
  */
 /dts-v1/;
 
-/include/ "omap34xx.dtsi"
+#include "omap36xx.dtsi"
 
 / {
 	memory {
@@ -22,49 +22,129 @@
 		compatible = "ti,omap-twl4030";
 		ti,model = "igep2";
 		ti,mcbsp = <&mcbsp2>;
-		ti,codec = <&twl_audio>;
 	};
+
+	vdd33: regulator-vdd33 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd33";
+		regulator-always-on;
+	};
+
 };
 
 &omap3_pmx_core {
 	uart1_pins: pinmux_uart1_pins {
 		pinctrl-single,pins = <
-			0x152 0x100	/* uart1_rx.uart1_rx INPUT | MODE0 */
-			0x14c 0		/* uart1_tx.uart1_tx OUTPUT | MODE0 */
-		>;
-	};
-
-	uart2_pins: pinmux_uart2_pins {
-		pinctrl-single,pins = <
-			0x14a 0x100	/* uart2_rx.uart2_rx INPUT | MODE0 */
-			0x148 0		/* uart2_tx.uart2_tx OUTPUT | MODE0 */
+			OMAP3_CORE1_IOPAD(0x2182, PIN_INPUT | MUX_MODE0)	/* uart1_rx.uart1_rx */
+			OMAP3_CORE1_IOPAD(0x217c, PIN_OUTPUT | MUX_MODE0)	/* uart1_tx.uart1_tx */
 		>;
 	};
 
 	uart3_pins: pinmux_uart3_pins {
 		pinctrl-single,pins = <
-			0x16e 0x100	/* uart3_rx.uart3_rx INPUT | MODE0 */
-			0x170 0		/* uart3_tx.uart3_tx OUTPUT | MODE0 */
+			OMAP3_CORE1_IOPAD(0x219e, PIN_INPUT | MUX_MODE0)	/* uart3_rx.uart3_rx */
+			OMAP3_CORE1_IOPAD(0x21a0, PIN_OUTPUT | MUX_MODE0)	/* uart3_tx.uart3_tx */
+		>;
+	};
+
+	mcbsp2_pins: pinmux_mcbsp2_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x213c, PIN_INPUT | MUX_MODE0)	/* mcbsp2_fsx.mcbsp2_fsx */
+			OMAP3_CORE1_IOPAD(0x213e, PIN_INPUT | MUX_MODE0)	/* mcbsp2_clkx.mcbsp2_clkx */
+			OMAP3_CORE1_IOPAD(0x2140, PIN_INPUT | MUX_MODE0)	/* mcbsp2_dr.mcbsp2.dr */
+			OMAP3_CORE1_IOPAD(0x2142, PIN_OUTPUT | MUX_MODE0)	/* mcbsp2_dx.mcbsp2_dx */
 		>;
 	};
 
 	mmc1_pins: pinmux_mmc1_pins {
 		pinctrl-single,pins = <
-			0x114 0x0118    /* sdmmc1_clk.sdmmc1_clk INPUT PULLUP | MODE 0 */
-			0x116 0x0118    /* sdmmc1_cmd.sdmmc1_cmd INPUT PULLUP | MODE 0 */
-			0x118 0x0118 	/* sdmmc1_dat0.sdmmc1_dat0 INPUT PULLUP | MODE 0 */
-			0x11a 0x0118	/* sdmmc1_dat1.sdmmc1_dat1 INPUT PULLUP | MODE 0 */
-			0x11c 0x0118	/* sdmmc1_dat2.sdmmc1_dat2 INPUT PULLUP | MODE 0 */
-			0x11e 0x0118	/* sdmmc1_dat3.sdmmc1_dat3 INPUT PULLUP | MODE 0 */
-			0x120 0x0100	/* sdmmc1_dat4.sdmmc1_dat4 INPUT | MODE 0 */
-			0x122 0x0100	/* sdmmc1_dat5.sdmmc1_dat5 INPUT | MODE 0 */
-			0x124 0x0100	/* sdmmc1_dat6.sdmmc1_dat6 INPUT | MODE 0 */
-			0x126 0x0100	/* sdmmc1_dat7.sdmmc1_dat7 INPUT | MODE 0 */
+			OMAP3_CORE1_IOPAD(0x2144, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc1_clk.sdmmc1_clk */
+			OMAP3_CORE1_IOPAD(0x2146, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc1_cmd.sdmmc1_cmd */
+			OMAP3_CORE1_IOPAD(0x2148, PIN_INPUT_PULLUP | MUX_MODE0) /* sdmmc1_dat0.sdmmc1_dat0 */
+			OMAP3_CORE1_IOPAD(0x214a, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc1_dat1.sdmmc1_dat1 */
+			OMAP3_CORE1_IOPAD(0x214c, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc1_dat2.sdmmc1_dat2 */
+			OMAP3_CORE1_IOPAD(0x214e, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc1_dat3.sdmmc1_dat3 */
+		>;
+	};
+
+	mmc2_pins: pinmux_mmc2_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x2158, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc2_clk.sdmmc2_clk */
+			OMAP3_CORE1_IOPAD(0x215a, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc2_cmd.sdmmc2_cmd */
+			OMAP3_CORE1_IOPAD(0x215c, PIN_INPUT_PULLUP | MUX_MODE0) /* sdmmc2_dat0.sdmmc2_dat0 */
+			OMAP3_CORE1_IOPAD(0x215e, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc2_dat1.sdmmc2_dat1 */
+			OMAP3_CORE1_IOPAD(0x2160, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc2_dat2.sdmmc2_dat2 */
+			OMAP3_CORE1_IOPAD(0x2162, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc2_dat3.sdmmc2_dat3 */
+		>;
+	};
+
+	i2c1_pins: pinmux_i2c1_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x21ba, PIN_INPUT | MUX_MODE0)	/* i2c1_scl.i2c1_scl */
+			OMAP3_CORE1_IOPAD(0x21bc, PIN_INPUT | MUX_MODE0)	/* i2c1_sda.i2c1_sda */
+		>;
+	};
+
+	i2c3_pins: pinmux_i2c3_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x21c2, PIN_INPUT | MUX_MODE0)	/* i2c3_scl.i2c3_scl */
+			OMAP3_CORE1_IOPAD(0x21c4, PIN_INPUT | MUX_MODE0)	/* i2c3_sda.i2c3_sda */
 		>;
 	};
 };
 
+&gpmc {
+	nand@0,0 {
+		linux,mtd-name= "micron,mt29c4g96maz";
+		reg = <0 0 4>;	/* CS0, offset 0, IO size 4 */
+		nand-bus-width = <16>;
+		gpmc,device-width = <2>;
+		ti,nand-ecc-opt = "bch8";
+
+		gpmc,sync-clk-ps = <0>;
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <44>;
+		gpmc,cs-wr-off-ns = <44>;
+		gpmc,adv-on-ns = <6>;
+		gpmc,adv-rd-off-ns = <34>;
+		gpmc,adv-wr-off-ns = <44>;
+		gpmc,we-off-ns = <40>;
+		gpmc,oe-off-ns = <54>;
+		gpmc,access-ns = <64>;
+		gpmc,rd-cycle-ns = <82>;
+		gpmc,wr-cycle-ns = <82>;
+		gpmc,wr-access-ns = <40>;
+		gpmc,wr-data-mux-bus-ns = <0>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "SPL";
+			reg = <0 0x100000>;
+		};
+		partition@80000 {
+			label = "U-Boot";
+			reg = <0x100000 0x180000>;
+		};
+		partition@1c0000 {
+			label = "Environment";
+			reg = <0x280000 0x100000>;
+		};
+		partition@280000 {
+			label = "Kernel";
+			reg = <0x380000 0x300000>;
+		};
+		partition@780000 {
+			label = "Filesystem";
+			reg = <0x680000 0x1f980000>;
+		};
+	};
+};
+
 &i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins>;
 	clock-frequency = <2600000>;
 
 	twl: twl@48 {
@@ -75,27 +155,31 @@
 		twl_audio: audio {
 			compatible = "ti,twl4030-audio";
 			codec {
-			      };
+			};
 		};
 	};
 };
 
-/include/ "twl4030.dtsi"
+#include "twl4030.dtsi"
+#include "twl4030_omap3.dtsi"
 
-&i2c2 {
-	clock-frequency = <400000>;
+&i2c3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3_pins>;
+};
+
+&mcbsp2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcbsp2_pins>;
+	status = "okay";
 };
 
 &mmc1 {
-      pinctrl-names = "default";
-      pinctrl-0 = <&mmc1_pins>;
-      vmmc-supply = <&vmmc1>;
-      vmmc_aux-supply = <&vsim>;
-      bus-width = <8>;
-};
-
-&mmc2 {
-	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins>;
+	vmmc-supply = <&vmmc1>;
+	vmmc_aux-supply = <&vsim>;
+	bus-width = <4>;
 };
 
 &mmc3 {
@@ -103,20 +187,24 @@
 };
 
 &uart1 {
-       pinctrl-names = "default";
-       pinctrl-0 = <&uart1_pins>;
-};
-
-&uart2 {
-       pinctrl-names = "default";
-       pinctrl-0 = <&uart2_pins>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins>;
 };
 
 &uart3 {
-       pinctrl-names = "default";
-       pinctrl-0 = <&uart3_pins>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3_pins>;
 };
 
 &twl_gpio {
 	ti,use-leds;
+};
+
+&usb_otg_hs {
+	interface-type = <0>;
+	usb-phy = <&usb2_phy>;
+	phys = <&usb2_phy>;
+	phy-names = "usb2-phy";
+	mode = <3>;
+	power = <50>;
 };

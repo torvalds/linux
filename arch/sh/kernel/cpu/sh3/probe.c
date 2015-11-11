@@ -16,7 +16,7 @@
 #include <asm/cache.h>
 #include <asm/io.h>
 
-void __cpuinit cpu_probe(void)
+void cpu_probe(void)
 {
 	unsigned long addr0, addr1, data0, data1, data2, data3;
 

@@ -158,7 +158,7 @@ static int ds1305_alarm_irq_enable(struct device *dev, unsigned int enabled)
 			goto done;
 		buf[1] &= ~DS1305_AEI0;
 	}
-	err = spi_write_then_read(ds1305->spi, buf, sizeof buf, NULL, 0);
+	err = spi_write_then_read(ds1305->spi, buf, sizeof(buf), NULL, 0);
 	if (err >= 0)
 		ds1305->ctrl[0] = buf[1];
 done:
@@ -181,8 +181,8 @@ static int ds1305_get_time(struct device *dev, struct rtc_time *time)
 	/* Use write-then-read to get all the date/time registers
 	 * since dma from stack is nonportable
 	 */
-	status = spi_write_then_read(ds1305->spi, &addr, sizeof addr,
-			buf, sizeof buf);
+	status = spi_write_then_read(ds1305->spi, &addr, sizeof(addr),
+			buf, sizeof(buf));
 	if (status < 0)
 		return status;
 
@@ -237,7 +237,7 @@ static int ds1305_set_time(struct device *dev, struct rtc_time *time)
 		buf[4], buf[5], buf[6], buf[7]);
 
 	/* use write-then-read since dma from stack is nonportable */
-	return spi_write_then_read(ds1305->spi, buf, sizeof buf,
+	return spi_write_then_read(ds1305->spi, buf, sizeof(buf),
 			NULL, 0);
 }
 
@@ -286,8 +286,8 @@ static int ds1305_get_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	 * of EFI status is at best fragile anyway (given IRQ handlers).
 	 */
 	addr = DS1305_CONTROL;
-	status = spi_write_then_read(spi, &addr, sizeof addr,
-			ds1305->ctrl, sizeof ds1305->ctrl);
+	status = spi_write_then_read(spi, &addr, sizeof(addr),
+			ds1305->ctrl, sizeof(ds1305->ctrl));
 	if (status < 0)
 		return status;
 
@@ -296,8 +296,8 @@ static int ds1305_get_alarm(struct device *dev, struct rtc_wkalrm *alm)
 
 	/* get and check ALM0 registers */
 	addr = DS1305_ALM0(DS1305_SEC);
-	status = spi_write_then_read(spi, &addr, sizeof addr,
-			buf, sizeof buf);
+	status = spi_write_then_read(spi, &addr, sizeof(addr),
+			buf, sizeof(buf));
 	if (status < 0)
 		return status;
 
@@ -381,7 +381,7 @@ static int ds1305_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 		"alm0 write", buf[1 + DS1305_SEC], buf[1 + DS1305_MIN],
 		buf[1 + DS1305_HOUR], buf[1 + DS1305_WDAY]);
 
-	status = spi_write_then_read(spi, buf, sizeof buf, NULL, 0);
+	status = spi_write_then_read(spi, buf, sizeof(buf), NULL, 0);
 	if (status < 0)
 		return status;
 
@@ -434,9 +434,9 @@ static int ds1305_proc(struct device *dev, struct seq_file *seq)
 	}
 
 done:
-	return seq_printf(seq,
-			"trickle_charge\t: %s%s\n",
-			diodes, resistors);
+	seq_printf(seq, "trickle_charge\t: %s%s\n", diodes, resistors);
+
+	return 0;
 }
 
 #else
@@ -474,7 +474,7 @@ static void ds1305_work(struct work_struct *work)
 	buf[1] = ds1305->ctrl[0];
 	buf[2] = 0;
 
-	status = spi_write_then_read(spi, buf, sizeof buf,
+	status = spi_write_then_read(spi, buf, sizeof(buf),
 			NULL, 0);
 	if (status < 0)
 		dev_dbg(&spi->dev, "clear irq --> %d\n", status);
@@ -538,15 +538,6 @@ ds1305_nvram_read(struct file *filp, struct kobject *kobj,
 
 	spi = container_of(kobj, struct spi_device, dev.kobj);
 
-	if (unlikely(off >= DS1305_NVRAM_LEN))
-		return 0;
-	if (count >= DS1305_NVRAM_LEN)
-		count = DS1305_NVRAM_LEN;
-	if ((off + count) > DS1305_NVRAM_LEN)
-		count = DS1305_NVRAM_LEN - off;
-	if (unlikely(!count))
-		return count;
-
 	addr = DS1305_NVRAM + off;
 	msg_init(&m, x, &addr, count, NULL, buf);
 
@@ -568,15 +559,6 @@ ds1305_nvram_write(struct file *filp, struct kobject *kobj,
 	int			status;
 
 	spi = container_of(kobj, struct spi_device, dev.kobj);
-
-	if (unlikely(off >= DS1305_NVRAM_LEN))
-		return -EFBIG;
-	if (count >= DS1305_NVRAM_LEN)
-		count = DS1305_NVRAM_LEN;
-	if ((off + count) > DS1305_NVRAM_LEN)
-		count = DS1305_NVRAM_LEN - off;
-	if (unlikely(!count))
-		return count;
 
 	addr = (DS1305_WRITE | DS1305_NVRAM) + off;
 	msg_init(&m, x, &addr, count, buf, NULL);
@@ -606,7 +588,7 @@ static int ds1305_probe(struct spi_device *spi)
 	struct ds1305			*ds1305;
 	int				status;
 	u8				addr, value;
-	struct ds1305_platform_data	*pdata = spi->dev.platform_data;
+	struct ds1305_platform_data	*pdata = dev_get_platdata(&spi->dev);
 	bool				write_ctrl = false;
 
 	/* Sanity check board setup data.  This may be hooked up
@@ -627,8 +609,8 @@ static int ds1305_probe(struct spi_device *spi)
 
 	/* read and cache control registers */
 	addr = DS1305_CONTROL;
-	status = spi_write_then_read(spi, &addr, sizeof addr,
-			ds1305->ctrl, sizeof ds1305->ctrl);
+	status = spi_write_then_read(spi, &addr, sizeof(addr),
+			ds1305->ctrl, sizeof(ds1305->ctrl));
 	if (status < 0) {
 		dev_dbg(&spi->dev, "can't %s, %d\n",
 				"read", status);
@@ -659,7 +641,7 @@ static int ds1305_probe(struct spi_device *spi)
 
 		buf[0] = DS1305_WRITE | DS1305_CONTROL;
 		buf[1] = ds1305->ctrl[0];
-		status = spi_write_then_read(spi, buf, sizeof buf, NULL, 0);
+		status = spi_write_then_read(spi, buf, sizeof(buf), NULL, 0);
 
 		dev_dbg(&spi->dev, "clear WP --> %d\n", status);
 		if (status < 0)
@@ -713,7 +695,7 @@ static int ds1305_probe(struct spi_device *spi)
 		buf[1] = ds1305->ctrl[0];
 		buf[2] = ds1305->ctrl[1];
 		buf[3] = ds1305->ctrl[2];
-		status = spi_write_then_read(spi, buf, sizeof buf, NULL, 0);
+		status = spi_write_then_read(spi, buf, sizeof(buf), NULL, 0);
 		if (status < 0) {
 			dev_dbg(&spi->dev, "can't %s, %d\n",
 					"write", status);
@@ -725,8 +707,8 @@ static int ds1305_probe(struct spi_device *spi)
 
 	/* see if non-Linux software set up AM/PM mode */
 	addr = DS1305_HOUR;
-	status = spi_write_then_read(spi, &addr, sizeof addr,
-				&value, sizeof value);
+	status = spi_write_then_read(spi, &addr, sizeof(addr),
+				&value, sizeof(value));
 	if (status < 0) {
 		dev_dbg(&spi->dev, "read HOUR --> %d\n", status);
 		return status;
@@ -756,19 +738,17 @@ static int ds1305_probe(struct spi_device *spi)
 		status = devm_request_irq(&spi->dev, spi->irq, ds1305_irq,
 				0, dev_name(&ds1305->rtc->dev), ds1305);
 		if (status < 0) {
-			dev_dbg(&spi->dev, "request_irq %d --> %d\n",
+			dev_err(&spi->dev, "request_irq %d --> %d\n",
 					spi->irq, status);
-			return status;
+		} else {
+			device_set_wakeup_capable(&spi->dev, 1);
 		}
-
-		device_set_wakeup_capable(&spi->dev, 1);
 	}
 
 	/* export NVRAM */
 	status = sysfs_create_bin_file(&spi->dev.kobj, &nvram);
 	if (status < 0) {
-		dev_dbg(&spi->dev, "register nvram --> %d\n", status);
-		return status;
+		dev_err(&spi->dev, "register nvram --> %d\n", status);
 	}
 
 	return 0;
@@ -787,13 +767,11 @@ static int ds1305_remove(struct spi_device *spi)
 		cancel_work_sync(&ds1305->work);
 	}
 
-	spi_set_drvdata(spi, NULL);
 	return 0;
 }
 
 static struct spi_driver ds1305_driver = {
 	.driver.name	= "rtc-ds1305",
-	.driver.owner	= THIS_MODULE,
 	.probe		= ds1305_probe,
 	.remove		= ds1305_remove,
 	/* REVISIT add suspend/resume */

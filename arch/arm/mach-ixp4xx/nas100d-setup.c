@@ -184,11 +184,8 @@ static void nas100d_power_off(void)
 {
 	/* This causes the box to drop the power and go dead. */
 
-	/* enable the pwr cntl gpio */
-	gpio_line_config(NAS100D_PO_GPIO, IXP4XX_GPIO_OUT);
-
-	/* do the deed */
-	gpio_line_set(NAS100D_PO_GPIO, IXP4XX_GPIO_HIGH);
+	/* enable the pwr cntl gpio and assert power off */
+	gpio_direction_output(NAS100D_PO_GPIO, 1);
 }
 
 /* This is used to make sure the power-button pusher is serious.  The button
@@ -225,7 +222,7 @@ static void nas100d_power_handler(unsigned long data)
 			ctrl_alt_del();
 
 			/* Change the state of the power LED to "blink" */
-			gpio_line_set(NAS100D_LED_PWR_GPIO, IXP4XX_GPIO_LOW);
+			gpio_set_value(NAS100D_LED_PWR_GPIO, 0);
 		} else {
 			power_button_countdown = PBUTTON_HOLDDOWN_COUNT;
 		}
@@ -241,6 +238,33 @@ static irqreturn_t nas100d_reset_handler(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
+
+static int __init nas100d_gpio_init(void)
+{
+	if (!machine_is_nas100d())
+		return 0;
+
+	/*
+	 * The power button on the Iomega NAS100d is on GPIO 14, but
+	 * it cannot handle interrupts on that GPIO line.  So we'll
+	 * have to poll it with a kernel timer.
+	 */
+
+	/* Request the power off GPIO */
+	gpio_request(NAS100D_PO_GPIO, "power off");
+
+	/* Make sure that the power button GPIO is set up as an input */
+	gpio_request(NAS100D_PB_GPIO, "power button");
+	gpio_direction_input(NAS100D_PB_GPIO);
+
+	/* Set the initial value for the power button IRQ handler */
+	power_button_countdown = PBUTTON_HOLDDOWN_COUNT;
+
+	mod_timer(&nas100d_power_timer, jiffies + msecs_to_jiffies(500));
+
+	return 0;
+}
+device_initcall(nas100d_gpio_init);
 
 static void __init nas100d_init(void)
 {
@@ -271,25 +295,11 @@ static void __init nas100d_init(void)
 	pm_power_off = nas100d_power_off;
 
 	if (request_irq(gpio_to_irq(NAS100D_RB_GPIO), &nas100d_reset_handler,
-		IRQF_DISABLED | IRQF_TRIGGER_LOW,
-		"NAS100D reset button", NULL) < 0) {
+		IRQF_TRIGGER_LOW, "NAS100D reset button", NULL) < 0) {
 
 		printk(KERN_DEBUG "Reset Button IRQ %d not available\n",
 			gpio_to_irq(NAS100D_RB_GPIO));
 	}
-
-	/* The power button on the Iomega NAS100d is on GPIO 14, but
-	 * it cannot handle interrupts on that GPIO line.  So we'll
-	 * have to poll it with a kernel timer.
-	 */
-
-	/* Make sure that the power button GPIO is set up as an input */
-	gpio_line_config(NAS100D_PB_GPIO, IXP4XX_GPIO_IN);
-
-	/* Set the initial value for the power button IRQ handler */
-	power_button_countdown = PBUTTON_HOLDDOWN_COUNT;
-
-	mod_timer(&nas100d_power_timer, jiffies + msecs_to_jiffies(500));
 
 	/*
 	 * Map in a portion of the flash and read the MAC address.

@@ -71,7 +71,7 @@ static int orinoco_tmd_cor_reset(struct orinoco_private *priv)
 	mdelay(1);
 
 	/* Just in case, wait more until the card is no longer busy */
-	timeout = jiffies + (TMD_RESET_TIME * HZ / 1000);
+	timeout = jiffies + msecs_to_jiffies(TMD_RESET_TIME);
 	reg = hermes_read_regn(hw, CMD);
 	while (time_before(jiffies, timeout) && (reg & HERMES_CMD_BUSY)) {
 		mdelay(1);
@@ -170,7 +170,6 @@ static int orinoco_tmd_init_one(struct pci_dev *pdev,
 	free_irq(pdev->irq, priv);
 
  fail_irq:
-	pci_set_drvdata(pdev, NULL);
 	free_orinocodev(priv);
 
  fail_alloc:
@@ -195,7 +194,6 @@ static void orinoco_tmd_remove_one(struct pci_dev *pdev)
 
 	orinoco_if_del(priv);
 	free_irq(pdev->irq, priv);
-	pci_set_drvdata(pdev, NULL);
 	free_orinocodev(priv);
 	pci_iounmap(pdev, priv->hw.iobase);
 	pci_iounmap(pdev, card->bridge_io);
@@ -203,7 +201,7 @@ static void orinoco_tmd_remove_one(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(orinoco_tmd_id_table) = {
+static const struct pci_device_id orinoco_tmd_id_table[] = {
 	{0x15e8, 0x0131, PCI_ANY_ID, PCI_ANY_ID,},      /* NDC and OEMs, e.g. pheecom */
 	{0,},
 };

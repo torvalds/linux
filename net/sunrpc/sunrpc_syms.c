@@ -44,12 +44,17 @@ static __net_init int sunrpc_init_net(struct net *net)
 	if (err)
 		goto err_unixgid;
 
-	rpc_pipefs_init_net(net);
+	err = rpc_pipefs_init_net(net);
+	if (err)
+		goto err_pipefs;
+
 	INIT_LIST_HEAD(&sn->all_clients);
 	spin_lock_init(&sn->rpc_client_lock);
 	spin_lock_init(&sn->rpcb_clnt_lock);
 	return 0;
 
+err_pipefs:
+	unix_gid_cache_destroy(net);
 err_unixgid:
 	ip_map_cache_destroy(net);
 err_ipmap:
@@ -60,6 +65,7 @@ err_proc:
 
 static __net_exit void sunrpc_exit_net(struct net *net)
 {
+	rpc_pipefs_exit_net(net);
 	unix_gid_cache_destroy(net);
 	ip_map_cache_destroy(net);
 	rpc_proc_exit(net);
@@ -91,7 +97,9 @@ init_sunrpc(void)
 	err = register_rpc_pipefs();
 	if (err)
 		goto out4;
-#ifdef RPC_DEBUG
+
+	sunrpc_debugfs_init();
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 	rpc_register_sysctl();
 #endif
 	svc_init_xprt_sock();	/* svc sock transport */
@@ -114,10 +122,11 @@ cleanup_sunrpc(void)
 	rpcauth_remove_module();
 	cleanup_socket_xprt();
 	svc_cleanup_xprt_sock();
+	sunrpc_debugfs_exit();
 	unregister_rpc_pipefs();
 	rpc_destroy_mempool();
 	unregister_pernet_subsys(&sunrpc_net_ops);
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 	rpc_unregister_sysctl();
 #endif
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */

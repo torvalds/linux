@@ -455,7 +455,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	sd->cap_mode = gspca_dev->cam.cam_mode;
 
-	switch (gspca_dev->width) {
+	switch (gspca_dev->pixfmt.width) {
 	case 640:
 		PDEBUG(D_STREAM, "Start streaming at vga resolution");
 		jl2005c_stream_start_vga_lg(gspca_dev);

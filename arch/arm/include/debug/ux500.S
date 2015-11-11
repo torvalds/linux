@@ -45,4 +45,4 @@
 	ldr	\rv, =UART_VIRT_BASE		@ yes, virtual address
 	.endm
 
-#include <asm/hardware/debug-pl01x.S>
+#include <debug/pl01x.S>

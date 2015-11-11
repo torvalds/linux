@@ -29,9 +29,12 @@ can suspend execution until the driver has captured data or is ready
 to accept data for output.</para>
 
     <para>When streaming I/O has been negotiated this function waits
-until a buffer has been filled or displayed and can be dequeued with
-the &VIDIOC-DQBUF; ioctl. When buffers are already in the outgoing
-queue of the driver the function returns immediately.</para>
+until a buffer has been filled by the capture device and can be dequeued
+with the &VIDIOC-DQBUF; ioctl. For output devices this function waits
+until the device is ready to accept a new buffer to be queued up with
+the &VIDIOC-QBUF; ioctl for display. When buffers are already in the outgoing
+queue of the driver (capture) or the incoming queue isn't full (display)
+the function returns immediately.</para>
 
     <para>On success <function>poll()</function> returns the number of
 file descriptors that have been selected (that is, file descriptors
@@ -44,10 +47,22 @@ Capture devices set the <constant>POLLIN</constant> and
 flags. When the function timed out it returns a value of zero, on
 failure it returns <returnvalue>-1</returnvalue> and the
 <varname>errno</varname> variable is set appropriately. When the
-application did not call &VIDIOC-QBUF; or &VIDIOC-STREAMON; yet the
+application did not call &VIDIOC-STREAMON; the
 <function>poll()</function> function succeeds, but sets the
 <constant>POLLERR</constant> flag in the
-<structfield>revents</structfield> field.</para>
+<structfield>revents</structfield> field. When the
+application has called &VIDIOC-STREAMON; for a capture device but hasn't
+yet called &VIDIOC-QBUF;, the <function>poll()</function> function
+succeeds and sets the <constant>POLLERR</constant> flag in the
+<structfield>revents</structfield> field. For output devices this
+same situation will cause <function>poll()</function> to succeed
+as well, but it sets the <constant>POLLOUT</constant> and
+<constant>POLLWRNORM</constant> flags in the <structfield>revents</structfield>
+field.</para>
+
+    <para>If an event occurred (see &VIDIOC-DQEVENT;) then
+<constant>POLLPRI</constant> will be set in the <structfield>revents</structfield>
+field and <function>poll()</function> will return.</para>
 
     <para>When use of the <function>read()</function> function has
 been negotiated and the driver does not capture yet, the
@@ -58,9 +73,17 @@ continuously (as opposed to, for example, still images) the function
 may return immediately.</para>
 
     <para>When use of the <function>write()</function> function has
-been negotiated the <function>poll</function> function just waits
+been negotiated and the driver does not stream yet, the
+<function>poll</function> function starts streaming. When that fails
+it returns a <constant>POLLERR</constant> as above. Otherwise it waits
 until the driver is ready for a non-blocking
 <function>write()</function> call.</para>
+
+    <para>If the caller is only interested in events (just
+<constant>POLLPRI</constant> is set in the <structfield>events</structfield>
+field), then <function>poll()</function> will <emphasis>not</emphasis>
+start streaming if the driver does not stream yet. This makes it
+possible to just poll for events and not for buffers.</para>
 
     <para>All drivers implementing the <function>read()</function> or
 <function>write()</function> function or streaming I/O must also

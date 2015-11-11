@@ -1,0 +1,73 @@
+Freescale Synchronous Audio Interface (SAI).
+
+The SAI is based on I2S module that used communicating with audio codecs,
+which provides a synchronous audio interface that supports fullduplex
+serial interfaces with frame synchronization such as I2S, AC97, TDM, and
+codec/DSP interfaces.
+
+Required properties:
+
+  - compatible		: Compatible list, contains "fsl,vf610-sai" or
+			  "fsl,imx6sx-sai".
+
+  - reg			: Offset and length of the register set for the device.
+
+  - clocks		: Must contain an entry for each entry in clock-names.
+
+  - clock-names		: Must include the "bus" for register access and
+			  "mclk1", "mclk2", "mclk3" for bit clock and frame
+			  clock providing.
+  - dmas		: Generic dma devicetree binding as described in
+			  Documentation/devicetree/bindings/dma/dma.txt.
+
+  - dma-names		: Two dmas have to be defined, "tx" and "rx".
+
+  - pinctrl-names	: Must contain a "default" entry.
+
+  - pinctrl-NNN		: One property must exist for each entry in
+			  pinctrl-names. See ../pinctrl/pinctrl-bindings.txt
+			  for details of the property values.
+
+  - big-endian		: Boolean property, required if all the FTM_PWM
+			  registers are big-endian rather than little-endian.
+
+  - lsb-first		: Configures whether the LSB or the MSB is transmitted
+			  first for the fifo data. If this property is absent,
+			  the MSB is transmitted first as default, or the LSB
+			  is transmitted first.
+
+  - fsl,sai-synchronous-rx: This is a boolean property. If present, indicating
+			  that SAI will work in the synchronous mode (sync Tx
+			  with Rx) which means both the transimitter and the
+			  receiver will send and receive data by following
+			  receiver's bit clocks and frame sync clocks.
+
+  - fsl,sai-asynchronous: This is a boolean property. If present, indicating
+			  that SAI will work in the asynchronous mode, which
+			  means both transimitter and receiver will send and
+			  receive data by following their own bit clocks and
+			  frame sync clocks separately.
+
+Note:
+- If both fsl,sai-asynchronous and fsl,sai-synchronous-rx are absent, the
+  default synchronous mode (sync Rx with Tx) will be used, which means both
+  transimitter and receiver will send and receive data by following clocks
+  of transimitter.
+- fsl,sai-asynchronous and fsl,sai-synchronous-rx are exclusive.
+
+Example:
+sai2: sai@40031000 {
+	      compatible = "fsl,vf610-sai";
+	      reg = <0x40031000 0x1000>;
+	      pinctrl-names = "default";
+	      pinctrl-0 = <&pinctrl_sai2_1>;
+	      clocks = <&clks VF610_CLK_PLATFORM_BUS>,
+		     <&clks VF610_CLK_SAI2>,
+		     <&clks 0>, <&clks 0>;
+	      clock-names = "bus", "mclk1", "mclk2", "mclk3";
+	      dma-names = "tx", "rx";
+	      dmas = <&edma0 0 VF610_EDMA_MUXID0_SAI2_TX>,
+		   <&edma0 0 VF610_EDMA_MUXID0_SAI2_RX>;
+	      big-endian;
+	      lsb-first;
+};

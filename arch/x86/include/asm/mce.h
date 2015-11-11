@@ -16,11 +16,17 @@
 #define MCG_EXT_CNT_SHIFT	16
 #define MCG_EXT_CNT(c)		(((c) & MCG_EXT_CNT_MASK) >> MCG_EXT_CNT_SHIFT)
 #define MCG_SER_P		(1ULL<<24)   /* MCA recovery/new status bits */
+#define MCG_ELOG_P		(1ULL<<26)   /* Extended error log supported */
+#define MCG_LMCE_P		(1ULL<<27)   /* Local machine check supported */
 
 /* MCG_STATUS register defines */
 #define MCG_STATUS_RIPV  (1ULL<<0)   /* restart ip valid */
 #define MCG_STATUS_EIPV  (1ULL<<1)   /* ip points to correct instruction */
 #define MCG_STATUS_MCIP  (1ULL<<2)   /* machine check in progress */
+#define MCG_STATUS_LMCES (1ULL<<3)   /* LMCE signaled */
+
+/* MCG_EXT_CTL register defines */
+#define MCG_EXT_CTL_LMCE_EN (1ULL<<0) /* Enable LMCE */
 
 /* MCi_STATUS register defines */
 #define MCI_STATUS_VAL   (1ULL<<63)  /* valid error */
@@ -32,11 +38,24 @@
 #define MCI_STATUS_PCC   (1ULL<<57)  /* processor context corrupt */
 #define MCI_STATUS_S	 (1ULL<<56)  /* Signaled machine check */
 #define MCI_STATUS_AR	 (1ULL<<55)  /* Action required */
-#define MCACOD		  0xffff     /* MCA Error Code */
+
+/* AMD-specific bits */
+#define MCI_STATUS_DEFERRED	(1ULL<<44)  /* declare an uncorrected error */
+#define MCI_STATUS_POISON	(1ULL<<43)  /* access poisonous data */
+
+/*
+ * Note that the full MCACOD field of IA32_MCi_STATUS MSR is
+ * bits 15:0.  But bit 12 is the 'F' bit, defined for corrected
+ * errors to indicate that errors are being filtered by hardware.
+ * We should mask out bit 12 when looking for specific signatures
+ * of uncorrected errors - so the F bit is deliberately skipped
+ * in this #define.
+ */
+#define MCACOD		  0xefff     /* MCA Error Code */
 
 /* Architecturally defined codes from SDM Vol. 3B Chapter 15 */
 #define MCACOD_SCRUB	0x00C0	/* 0xC0-0xCF Memory Scrubbing */
-#define MCACOD_SCRUBMSK	0xfff0
+#define MCACOD_SCRUBMSK	0xeff0	/* Skip bit 12 ('F' bit) */
 #define MCACOD_L3WB	0x017A	/* L3 Explicit Writeback */
 #define MCACOD_DATA	0x0134	/* Data Load */
 #define MCACOD_INSTR	0x0150	/* Instruction Fetch */
@@ -61,14 +80,13 @@
 #define MCJ_CTX_IRQ		0x2  /* inject context: IRQ */
 #define MCJ_NMI_BROADCAST	0x4  /* do NMI broadcasting */
 #define MCJ_EXCEPTION		0x8  /* raise as exception */
-#define MCJ_IRQ_BRAODCAST	0x10 /* do IRQ broadcasting */
+#define MCJ_IRQ_BROADCAST	0x10 /* do IRQ broadcasting */
 
 #define MCE_OVERFLOW 0		/* bit 0 in flags means overflow */
 
 /* Software defined banks */
 #define MCE_EXTENDED_BANK	128
 #define MCE_THERMAL_BANK	(MCE_EXTENDED_BANK + 0)
-#define K8_MCE_THRESHOLD_BASE   (MCE_EXTENDED_BANK + 1)
 
 #define MCE_LOG_LEN 32
 #define MCE_LOG_SIGNATURE	"MACHINECHECK"
@@ -91,6 +109,7 @@ struct mce_log {
 struct mca_config {
 	bool dont_log_ce;
 	bool cmci_disabled;
+	bool lmce_disabled;
 	bool ignore_ce;
 	bool disabled;
 	bool ser;
@@ -103,12 +122,36 @@ struct mca_config {
 	u32 rip_msr;
 };
 
+struct mce_vendor_flags {
+	/*
+	 * Indicates that overflow conditions are not fatal, when set.
+	 */
+	__u64 overflow_recov	: 1,
+
+	/*
+	 * (AMD) SUCCOR stands for S/W UnCorrectable error COntainment and
+	 * Recovery. It indicates support for data poisoning in HW and deferred
+	 * error interrupts.
+	 */
+	      succor		: 1,
+
+	/*
+	 * (AMD) SMCA: This bit indicates support for Scalable MCA which expands
+	 * the register space for each MCA bank and also increases number of
+	 * banks. Also, to accommodate the new banks and registers, the MCA
+	 * register space is moved to a new MSR range.
+	 */
+	      smca		: 1,
+
+	      __reserved_0	: 61;
+};
+extern struct mce_vendor_flags mce_flags;
+
 extern struct mca_config mca_cfg;
 extern void mce_register_decode_chain(struct notifier_block *nb);
 extern void mce_unregister_decode_chain(struct notifier_block *nb);
 
 #include <linux/percpu.h>
-#include <linux/init.h>
 #include <linux/atomic.h>
 
 extern int mce_p5_enabled;
@@ -116,9 +159,13 @@ extern int mce_p5_enabled;
 #ifdef CONFIG_X86_MCE
 int mcheck_init(void);
 void mcheck_cpu_init(struct cpuinfo_x86 *c);
+void mcheck_cpu_clear(struct cpuinfo_x86 *c);
+void mcheck_vendor_init_severity(void);
 #else
 static inline int mcheck_init(void) { return 0; }
 static inline void mcheck_cpu_init(struct cpuinfo_x86 *c) {}
+static inline void mcheck_cpu_clear(struct cpuinfo_x86 *c) {}
+static inline void mcheck_vendor_init_severity(void) {}
 #endif
 
 #ifdef CONFIG_X86_ANCIENT_MCE
@@ -144,12 +191,14 @@ DECLARE_PER_CPU(struct device *, mce_device);
 
 #ifdef CONFIG_X86_MCE_INTEL
 void mce_intel_feature_init(struct cpuinfo_x86 *c);
+void mce_intel_feature_clear(struct cpuinfo_x86 *c);
 void cmci_clear(void);
 void cmci_reenable(void);
 void cmci_rediscover(void);
 void cmci_recheck(void);
 #else
 static inline void mce_intel_feature_init(struct cpuinfo_x86 *c) { }
+static inline void mce_intel_feature_clear(struct cpuinfo_x86 *c) { }
 static inline void cmci_clear(void) {}
 static inline void cmci_reenable(void) {}
 static inline void cmci_rediscover(void) {}
@@ -167,26 +216,26 @@ int mce_available(struct cpuinfo_x86 *c);
 DECLARE_PER_CPU(unsigned, mce_exception_count);
 DECLARE_PER_CPU(unsigned, mce_poll_count);
 
-extern atomic_t mce_entry;
-
 typedef DECLARE_BITMAP(mce_banks_t, MAX_NR_BANKS);
 DECLARE_PER_CPU(mce_banks_t, mce_poll_banks);
 
 enum mcp_flags {
-	MCP_TIMESTAMP = (1 << 0),	/* log time stamp */
-	MCP_UC = (1 << 1),		/* log uncorrected errors */
-	MCP_DONTLOG = (1 << 2),		/* only clear, don't log */
+	MCP_TIMESTAMP	= BIT(0),	/* log time stamp */
+	MCP_UC		= BIT(1),	/* log uncorrected errors */
+	MCP_DONTLOG	= BIT(2),	/* only clear, don't log */
 };
-void machine_check_poll(enum mcp_flags flags, mce_banks_t *b);
+bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b);
 
 int mce_notify_irq(void);
-void mce_notify_process(void);
 
 DECLARE_PER_CPU(struct mce, injectm);
 
 extern void register_mce_write_callback(ssize_t (*)(struct file *filp,
 				    const char __user *ubuf,
 				    size_t usize, loff_t *off));
+
+/* Disable CMCI/polling for MCA bank claimed by firmware */
+extern void mce_disable_bank(int bank);
 
 /*
  * Exception handler
@@ -203,6 +252,9 @@ void do_machine_check(struct pt_regs *, long);
 extern void (*mce_threshold_vector)(void);
 extern void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
 
+/* Deferred error interrupt handler */
+extern void (*deferred_error_int_vector)(void);
+
 /*
  * Thermal handler
  */
@@ -213,6 +265,13 @@ void mce_log_therm_throt_event(__u64 status);
 
 /* Interrupt Handler for core thermal thresholds */
 extern int (*platform_thermal_notify)(__u64 msr_val);
+
+/* Interrupt Handler for package thermal thresholds */
+extern int (*platform_thermal_package_notify)(__u64 msr_val);
+
+/* Callback support of rate control, return true, if
+ * callback has rate control */
+extern bool (*platform_thermal_package_rate_control)(void);
 
 #ifdef CONFIG_X86_THERMAL_VECTOR
 extern void mcheck_intel_therm_init(void);

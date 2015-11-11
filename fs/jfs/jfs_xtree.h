@@ -29,13 +29,11 @@
  *	extent allocation descriptor (xad)
  */
 typedef struct xad {
-	unsigned flag:8;	/* 1: flag */
-	unsigned rsvrd:16;	/* 2: reserved */
-	unsigned off1:8;	/* 1: offset in unit of fsblksize */
-	__le32 off2;		/* 4: offset in unit of fsblksize */
-	unsigned len:24;	/* 3: length in unit of fsblksize */
-	unsigned addr1:8;	/* 1: address in unit of fsblksize */
-	__le32 addr2;		/* 4: address in unit of fsblksize */
+	__u8 flag;	/* 1: flag */
+	__u8 rsvrd[2];	/* 2: reserved */
+	__u8 off1;	/* 1: offset in unit of fsblksize */
+	__le32 off2;	/* 4: offset in unit of fsblksize */
+	pxd_t loc;	/* 8: length and address in unit of fsblksize */
 } xad_t;			/* (16) */
 
 #define MAXXLEN		((1 << 24) - 1)
@@ -49,19 +47,14 @@ typedef struct xad {
 	(xad)->off1 = ((u64)offset64) >> 32;\
 	(xad)->off2 = __cpu_to_le32((offset64) & 0xffffffff);\
 }
-#define XADaddress(xad, address64)\
-{\
-	(xad)->addr1 = ((u64)address64) >> 32;\
-	(xad)->addr2 = __cpu_to_le32((address64) & 0xffffffff);\
-}
-#define XADlength(xad, length32)	(xad)->len = __cpu_to_le24(length32)
+#define XADaddress(xad, address64) PXDaddress(&(xad)->loc, address64)
+#define XADlength(xad, length32) PXDlength(&(xad)->loc, length32)
 
 /* xad_t field extraction */
 #define offsetXAD(xad)\
 	( ((s64)((xad)->off1)) << 32 | __le32_to_cpu((xad)->off2))
-#define addressXAD(xad)\
-	( ((s64)((xad)->addr1)) << 32 | __le32_to_cpu((xad)->addr2))
-#define lengthXAD(xad)	__le24_to_cpu((xad)->len)
+#define addressXAD(xad) addressPXD(&(xad)->loc)
+#define lengthXAD(xad) lengthPXD(&(xad)->loc)
 
 /* xad list */
 struct xadlist {

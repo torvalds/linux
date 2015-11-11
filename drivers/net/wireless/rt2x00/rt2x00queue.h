@@ -13,9 +13,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -355,6 +353,7 @@ struct txentry_desc {
  */
 enum queue_entry_flags {
 	ENTRY_BCN_ASSIGNED,
+	ENTRY_BCN_ENABLED,
 	ENTRY_OWNER_DEVICE_DATA,
 	ENTRY_DATA_PENDING,
 	ENTRY_DATA_IO_FAILED,
@@ -453,6 +452,7 @@ enum data_queue_flags {
  * @cw_max: The cw max value for outgoing frames (field ignored in RX queue).
  * @data_size: Maximum data size for the frames in this queue.
  * @desc_size: Hardware descriptor size for the data in this queue.
+ * @priv_size: Size of per-queue_entry private data.
  * @usb_endpoint: Device endpoint used for communication (USB only)
  * @usb_maxpacket: Max packet size for given endpoint (USB only)
  */
@@ -481,28 +481,10 @@ struct data_queue {
 	unsigned short data_size;
 	unsigned char  desc_size;
 	unsigned char  winfo_size;
+	unsigned short priv_size;
 
 	unsigned short usb_endpoint;
 	unsigned short usb_maxpacket;
-};
-
-/**
- * struct data_queue_desc: Data queue description
- *
- * The information in this structure is used by drivers
- * to inform rt2x00lib about the creation of the data queue.
- *
- * @entry_num: Maximum number of entries for a queue.
- * @data_size: Maximum data size for the frames in this queue.
- * @desc_size: Hardware descriptor size for the data in this queue.
- * @priv_size: Size of per-queue_entry private data.
- */
-struct data_queue_desc {
-	unsigned short entry_num;
-	unsigned short data_size;
-	unsigned char  desc_size;
-	unsigned char  winfo_size;
-	unsigned short priv_size;
 };
 
 /**

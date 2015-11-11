@@ -36,7 +36,9 @@
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <sound/pcm.h>
@@ -83,6 +85,14 @@
 #define TAS5086_SPLIT_CAP_CHARGE	0x1a	/* Split cap charge period register */
 #define TAS5086_OSC_TRIM		0x1b	/* Oscillator trim register */
 #define TAS5086_BKNDERR 		0x1c
+#define TAS5086_INPUT_MUX		0x20
+#define TAS5086_PWM_OUTPUT_MUX		0x25
+
+#define TAS5086_MAX_REGISTER		TAS5086_PWM_OUTPUT_MUX
+
+#define TAS5086_PWM_START_MIDZ_FOR_START_1	(1 << 7)
+#define TAS5086_PWM_START_MIDZ_FOR_START_2	(1 << 6)
+#define TAS5086_PWM_START_CHANNEL_MASK		(0x3f)
 
 /*
  * Default TAS5086 power-up configuration
@@ -119,9 +129,30 @@ static const struct reg_default tas5086_reg_defaults[] = {
 	{ 0x1c,	0x05 },
 };
 
+static int tas5086_register_size(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case TAS5086_CLOCK_CONTROL ... TAS5086_BKNDERR:
+		return 1;
+	case TAS5086_INPUT_MUX:
+	case TAS5086_PWM_OUTPUT_MUX:
+		return 4;
+	}
+
+	dev_err(dev, "Unsupported register address: %d\n", reg);
+	return 0;
+}
+
 static bool tas5086_accessible_reg(struct device *dev, unsigned int reg)
 {
-	return !((reg == 0x0f) || (reg >= 0x11 && reg <= 0x17));
+	switch (reg) {
+	case 0x0f:
+	case 0x11 ... 0x17:
+	case 0x1d ... 0x1f:
+		return false;
+	default:
+		return true;
+	}
 }
 
 static bool tas5086_volatile_reg(struct device *dev, unsigned int reg)
@@ -140,15 +171,92 @@ static bool tas5086_writeable_reg(struct device *dev, unsigned int reg)
 	return tas5086_accessible_reg(dev, reg) && (reg != TAS5086_DEV_ID);
 }
 
+static int tas5086_reg_write(void *context, unsigned int reg,
+			      unsigned int value)
+{
+	struct i2c_client *client = context;
+	unsigned int i, size;
+	uint8_t buf[5];
+	int ret;
+
+	size = tas5086_register_size(&client->dev, reg);
+	if (size == 0)
+		return -EINVAL;
+
+	buf[0] = reg;
+
+	for (i = size; i >= 1; --i) {
+		buf[i] = value;
+		value >>= 8;
+	}
+
+	ret = i2c_master_send(client, buf, size + 1);
+	if (ret == size + 1)
+		return 0;
+	else if (ret < 0)
+		return ret;
+	else
+		return -EIO;
+}
+
+static int tas5086_reg_read(void *context, unsigned int reg,
+			     unsigned int *value)
+{
+	struct i2c_client *client = context;
+	uint8_t send_buf, recv_buf[4];
+	struct i2c_msg msgs[2];
+	unsigned int size;
+	unsigned int i;
+	int ret;
+
+	size = tas5086_register_size(&client->dev, reg);
+	if (size == 0)
+		return -EINVAL;
+
+	send_buf = reg;
+
+	msgs[0].addr = client->addr;
+	msgs[0].len = sizeof(send_buf);
+	msgs[0].buf = &send_buf;
+	msgs[0].flags = 0;
+
+	msgs[1].addr = client->addr;
+	msgs[1].len = size;
+	msgs[1].buf = recv_buf;
+	msgs[1].flags = I2C_M_RD;
+
+	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
+	if (ret < 0)
+		return ret;
+	else if (ret != ARRAY_SIZE(msgs))
+		return -EIO;
+
+	*value = 0;
+
+	for (i = 0; i < size; i++) {
+		*value <<= 8;
+		*value |= recv_buf[i];
+	}
+
+	return 0;
+}
+
+static const char * const supply_names[] = {
+	"dvdd", "avdd"
+};
+
 struct tas5086_private {
 	struct regmap	*regmap;
 	unsigned int	mclk, sclk;
 	unsigned int	format;
 	bool		deemph;
+	unsigned int	charge_period;
+	unsigned int	pwm_start_mid_z;
 	/* Current sample rate for de-emphasis control */
 	int		rate;
 	/* GPIO driving Reset pin, if any */
 	int		gpio_nreset;
+	struct		regulator_bulk_data supplies[ARRAY_SIZE(supply_names)];
 };
 
 static int tas5086_deemph[] = { 0, 32000, 44100, 48000 };
@@ -158,10 +266,14 @@ static int tas5086_set_deemph(struct snd_soc_codec *codec)
 	struct tas5086_private *priv = snd_soc_codec_get_drvdata(codec);
 	int i, val = 0;
 
-	if (priv->deemph)
-		for (i = 0; i < ARRAY_SIZE(tas5086_deemph); i++)
-			if (tas5086_deemph[i] == priv->rate)
+	if (priv->deemph) {
+		for (i = 0; i < ARRAY_SIZE(tas5086_deemph); i++) {
+			if (tas5086_deemph[i] == priv->rate) {
 				val = i;
+				break;
+			}
+		}
+	}
 
 	return regmap_update_bits(priv->regmap, TAS5086_SYS_CONTROL_1,
 				  TAS5086_DEEMPH_MASK, val);
@@ -170,10 +282,10 @@ static int tas5086_set_deemph(struct snd_soc_codec *codec)
 static int tas5086_get_deemph(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct tas5086_private *priv = snd_soc_codec_get_drvdata(codec);
 
-	ucontrol->value.enumerated.item[0] = priv->deemph;
+	ucontrol->value.integer.value[0] = priv->deemph;
 
 	return 0;
 }
@@ -181,10 +293,10 @@ static int tas5086_get_deemph(struct snd_kcontrol *kcontrol,
 static int tas5086_put_deemph(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct tas5086_private *priv = snd_soc_codec_get_drvdata(codec);
 
-	priv->deemph = ucontrol->value.enumerated.item[0];
+	priv->deemph = ucontrol->value.integer.value[0];
 
 	return tas5086_set_deemph(codec);
 }
@@ -317,20 +429,20 @@ static int tas5086_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* ... then add the offset for the sample bit depth. */
-	switch (params_format(params)) {
-        case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+        case 16:
 		val += 0;
                 break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		val += 1;
 		break;
-	case SNDRV_PCM_FORMAT_S24_3LE:
+	case 24:
 		val += 2;
 		break;
 	default:
 		dev_err(codec->dev, "Invalid bit width\n");
 		return -EINVAL;
-	};
+	}
 
 	ret = regmap_write(priv->regmap, TAS5086_SERIAL_DATA_IF, val);
 	if (ret < 0)
@@ -357,6 +469,75 @@ static int tas5086_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 	return regmap_write(priv->regmap, TAS5086_SOFT_MUTE, val);
 }
 
+static void tas5086_reset(struct tas5086_private *priv)
+{
+	if (gpio_is_valid(priv->gpio_nreset)) {
+		/* Reset codec - minimum assertion time is 400ns */
+		gpio_direction_output(priv->gpio_nreset, 0);
+		udelay(1);
+		gpio_set_value(priv->gpio_nreset, 1);
+
+		/* Codec needs ~15ms to wake up */
+		msleep(15);
+	}
+}
+
+/* charge period values in microseconds */
+static const int tas5086_charge_period[] = {
+	  13000,  16900,   23400,   31200,   41600,   54600,   72800,   96200,
+	 130000, 156000,  234000,  312000,  416000,  546000,  728000,  962000,
+	1300000, 169000, 2340000, 3120000, 4160000, 5460000, 7280000, 9620000,
+};
+
+static int tas5086_init(struct device *dev, struct tas5086_private *priv)
+{
+	int ret, i;
+
+	/*
+	 * If any of the channels is configured to start in Mid-Z mode,
+	 * configure 'part 1' of the PWM starts to use Mid-Z, and tell
+	 * all configured mid-z channels to start start under 'part 1'.
+	 */
+	if (priv->pwm_start_mid_z)
+		regmap_write(priv->regmap, TAS5086_PWM_START,
+			     TAS5086_PWM_START_MIDZ_FOR_START_1 |
+				priv->pwm_start_mid_z);
+
+	/* lookup and set split-capacitor charge period */
+	if (priv->charge_period == 0) {
+		regmap_write(priv->regmap, TAS5086_SPLIT_CAP_CHARGE, 0);
+	} else {
+		i = index_in_array(tas5086_charge_period,
+				   ARRAY_SIZE(tas5086_charge_period),
+				   priv->charge_period);
+		if (i >= 0)
+			regmap_write(priv->regmap, TAS5086_SPLIT_CAP_CHARGE,
+				     i + 0x08);
+		else
+			dev_warn(dev,
+				 "Invalid split-cap charge period of %d ns.\n",
+				 priv->charge_period);
+	}
+
+	/* enable factory trim */
+	ret = regmap_write(priv->regmap, TAS5086_OSC_TRIM, 0x00);
+	if (ret < 0)
+		return ret;
+
+	/* start all channels */
+	ret = regmap_write(priv->regmap, TAS5086_SYS_CONTROL_2, 0x20);
+	if (ret < 0)
+		return ret;
+
+	/* mute all channels for now */
+	ret = regmap_write(priv->regmap, TAS5086_SOFT_MUTE,
+			   TAS5086_SOFT_MUTE_ALL);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 /* TAS5086 controls */
 static const DECLARE_TLV_DB_SCALE(tas5086_dac_tlv, -10350, 50, 1);
 
@@ -374,6 +555,202 @@ static const struct snd_kcontrol_new tas5086_controls[] = {
 			 0, 0xff, 1, tas5086_dac_tlv),
 	SOC_SINGLE_BOOL_EXT("De-emphasis Switch", 0,
 			    tas5086_get_deemph, tas5086_put_deemph),
+};
+
+/* Input mux controls */
+static const char *tas5086_dapm_sdin_texts[] =
+{
+	"SDIN1-L", "SDIN1-R", "SDIN2-L", "SDIN2-R",
+	"SDIN3-L", "SDIN3-R", "Ground (0)", "nc"
+};
+
+static const struct soc_enum tas5086_dapm_input_mux_enum[] = {
+	SOC_ENUM_SINGLE(TAS5086_INPUT_MUX, 20, 8, tas5086_dapm_sdin_texts),
+	SOC_ENUM_SINGLE(TAS5086_INPUT_MUX, 16, 8, tas5086_dapm_sdin_texts),
+	SOC_ENUM_SINGLE(TAS5086_INPUT_MUX, 12, 8, tas5086_dapm_sdin_texts),
+	SOC_ENUM_SINGLE(TAS5086_INPUT_MUX, 8,  8, tas5086_dapm_sdin_texts),
+	SOC_ENUM_SINGLE(TAS5086_INPUT_MUX, 4,  8, tas5086_dapm_sdin_texts),
+	SOC_ENUM_SINGLE(TAS5086_INPUT_MUX, 0,  8, tas5086_dapm_sdin_texts),
+};
+
+static const struct snd_kcontrol_new tas5086_dapm_input_mux_controls[] = {
+	SOC_DAPM_ENUM("Channel 1 input", tas5086_dapm_input_mux_enum[0]),
+	SOC_DAPM_ENUM("Channel 2 input", tas5086_dapm_input_mux_enum[1]),
+	SOC_DAPM_ENUM("Channel 3 input", tas5086_dapm_input_mux_enum[2]),
+	SOC_DAPM_ENUM("Channel 4 input", tas5086_dapm_input_mux_enum[3]),
+	SOC_DAPM_ENUM("Channel 5 input", tas5086_dapm_input_mux_enum[4]),
+	SOC_DAPM_ENUM("Channel 6 input", tas5086_dapm_input_mux_enum[5]),
+};
+
+/* Output mux controls */
+static const char *tas5086_dapm_channel_texts[] =
+	{ "Channel 1 Mux", "Channel 2 Mux", "Channel 3 Mux",
+	  "Channel 4 Mux", "Channel 5 Mux", "Channel 6 Mux" };
+
+static const struct soc_enum tas5086_dapm_output_mux_enum[] = {
+	SOC_ENUM_SINGLE(TAS5086_PWM_OUTPUT_MUX, 20, 6, tas5086_dapm_channel_texts),
+	SOC_ENUM_SINGLE(TAS5086_PWM_OUTPUT_MUX, 16, 6, tas5086_dapm_channel_texts),
+	SOC_ENUM_SINGLE(TAS5086_PWM_OUTPUT_MUX, 12, 6, tas5086_dapm_channel_texts),
+	SOC_ENUM_SINGLE(TAS5086_PWM_OUTPUT_MUX, 8,  6, tas5086_dapm_channel_texts),
+	SOC_ENUM_SINGLE(TAS5086_PWM_OUTPUT_MUX, 4,  6, tas5086_dapm_channel_texts),
+	SOC_ENUM_SINGLE(TAS5086_PWM_OUTPUT_MUX, 0,  6, tas5086_dapm_channel_texts),
+};
+
+static const struct snd_kcontrol_new tas5086_dapm_output_mux_controls[] = {
+	SOC_DAPM_ENUM("PWM1 Output", tas5086_dapm_output_mux_enum[0]),
+	SOC_DAPM_ENUM("PWM2 Output", tas5086_dapm_output_mux_enum[1]),
+	SOC_DAPM_ENUM("PWM3 Output", tas5086_dapm_output_mux_enum[2]),
+	SOC_DAPM_ENUM("PWM4 Output", tas5086_dapm_output_mux_enum[3]),
+	SOC_DAPM_ENUM("PWM5 Output", tas5086_dapm_output_mux_enum[4]),
+	SOC_DAPM_ENUM("PWM6 Output", tas5086_dapm_output_mux_enum[5]),
+};
+
+static const struct snd_soc_dapm_widget tas5086_dapm_widgets[] = {
+	SND_SOC_DAPM_INPUT("SDIN1-L"),
+	SND_SOC_DAPM_INPUT("SDIN1-R"),
+	SND_SOC_DAPM_INPUT("SDIN2-L"),
+	SND_SOC_DAPM_INPUT("SDIN2-R"),
+	SND_SOC_DAPM_INPUT("SDIN3-L"),
+	SND_SOC_DAPM_INPUT("SDIN3-R"),
+	SND_SOC_DAPM_INPUT("SDIN4-L"),
+	SND_SOC_DAPM_INPUT("SDIN4-R"),
+
+	SND_SOC_DAPM_OUTPUT("PWM1"),
+	SND_SOC_DAPM_OUTPUT("PWM2"),
+	SND_SOC_DAPM_OUTPUT("PWM3"),
+	SND_SOC_DAPM_OUTPUT("PWM4"),
+	SND_SOC_DAPM_OUTPUT("PWM5"),
+	SND_SOC_DAPM_OUTPUT("PWM6"),
+
+	SND_SOC_DAPM_MUX("Channel 1 Mux", SND_SOC_NOPM, 0, 0,
+			 &tas5086_dapm_input_mux_controls[0]),
+	SND_SOC_DAPM_MUX("Channel 2 Mux", SND_SOC_NOPM, 0, 0,
+			 &tas5086_dapm_input_mux_controls[1]),
+	SND_SOC_DAPM_MUX("Channel 3 Mux", SND_SOC_NOPM, 0, 0,
+			 &tas5086_dapm_input_mux_controls[2]),
+	SND_SOC_DAPM_MUX("Channel 4 Mux", SND_SOC_NOPM, 0, 0,
+			 &tas5086_dapm_input_mux_controls[3]),
+	SND_SOC_DAPM_MUX("Channel 5 Mux", SND_SOC_NOPM, 0, 0,
+			 &tas5086_dapm_input_mux_controls[4]),
+	SND_SOC_DAPM_MUX("Channel 6 Mux", SND_SOC_NOPM, 0, 0,
+			 &tas5086_dapm_input_mux_controls[5]),
+
+	SND_SOC_DAPM_MUX("PWM1 Mux", SND_SOC_NOPM, 0, 0,
+			 &tas5086_dapm_output_mux_controls[0]),
+	SND_SOC_DAPM_MUX("PWM2 Mux", SND_SOC_NOPM, 0, 0,
+			 &tas5086_dapm_output_mux_controls[1]),
+	SND_SOC_DAPM_MUX("PWM3 Mux", SND_SOC_NOPM, 0, 0,
+			 &tas5086_dapm_output_mux_controls[2]),
+	SND_SOC_DAPM_MUX("PWM4 Mux", SND_SOC_NOPM, 0, 0,
+			 &tas5086_dapm_output_mux_controls[3]),
+	SND_SOC_DAPM_MUX("PWM5 Mux", SND_SOC_NOPM, 0, 0,
+			 &tas5086_dapm_output_mux_controls[4]),
+	SND_SOC_DAPM_MUX("PWM6 Mux", SND_SOC_NOPM, 0, 0,
+			 &tas5086_dapm_output_mux_controls[5]),
+};
+
+static const struct snd_soc_dapm_route tas5086_dapm_routes[] = {
+	/* SDIN inputs -> channel muxes */
+	{ "Channel 1 Mux", "SDIN1-L", "SDIN1-L" },
+	{ "Channel 1 Mux", "SDIN1-R", "SDIN1-R" },
+	{ "Channel 1 Mux", "SDIN2-L", "SDIN2-L" },
+	{ "Channel 1 Mux", "SDIN2-R", "SDIN2-R" },
+	{ "Channel 1 Mux", "SDIN3-L", "SDIN3-L" },
+	{ "Channel 1 Mux", "SDIN3-R", "SDIN3-R" },
+
+	{ "Channel 2 Mux", "SDIN1-L", "SDIN1-L" },
+	{ "Channel 2 Mux", "SDIN1-R", "SDIN1-R" },
+	{ "Channel 2 Mux", "SDIN2-L", "SDIN2-L" },
+	{ "Channel 2 Mux", "SDIN2-R", "SDIN2-R" },
+	{ "Channel 2 Mux", "SDIN3-L", "SDIN3-L" },
+	{ "Channel 2 Mux", "SDIN3-R", "SDIN3-R" },
+
+	{ "Channel 2 Mux", "SDIN1-L", "SDIN1-L" },
+	{ "Channel 2 Mux", "SDIN1-R", "SDIN1-R" },
+	{ "Channel 2 Mux", "SDIN2-L", "SDIN2-L" },
+	{ "Channel 2 Mux", "SDIN2-R", "SDIN2-R" },
+	{ "Channel 2 Mux", "SDIN3-L", "SDIN3-L" },
+	{ "Channel 2 Mux", "SDIN3-R", "SDIN3-R" },
+
+	{ "Channel 3 Mux", "SDIN1-L", "SDIN1-L" },
+	{ "Channel 3 Mux", "SDIN1-R", "SDIN1-R" },
+	{ "Channel 3 Mux", "SDIN2-L", "SDIN2-L" },
+	{ "Channel 3 Mux", "SDIN2-R", "SDIN2-R" },
+	{ "Channel 3 Mux", "SDIN3-L", "SDIN3-L" },
+	{ "Channel 3 Mux", "SDIN3-R", "SDIN3-R" },
+
+	{ "Channel 4 Mux", "SDIN1-L", "SDIN1-L" },
+	{ "Channel 4 Mux", "SDIN1-R", "SDIN1-R" },
+	{ "Channel 4 Mux", "SDIN2-L", "SDIN2-L" },
+	{ "Channel 4 Mux", "SDIN2-R", "SDIN2-R" },
+	{ "Channel 4 Mux", "SDIN3-L", "SDIN3-L" },
+	{ "Channel 4 Mux", "SDIN3-R", "SDIN3-R" },
+
+	{ "Channel 5 Mux", "SDIN1-L", "SDIN1-L" },
+	{ "Channel 5 Mux", "SDIN1-R", "SDIN1-R" },
+	{ "Channel 5 Mux", "SDIN2-L", "SDIN2-L" },
+	{ "Channel 5 Mux", "SDIN2-R", "SDIN2-R" },
+	{ "Channel 5 Mux", "SDIN3-L", "SDIN3-L" },
+	{ "Channel 5 Mux", "SDIN3-R", "SDIN3-R" },
+
+	{ "Channel 6 Mux", "SDIN1-L", "SDIN1-L" },
+	{ "Channel 6 Mux", "SDIN1-R", "SDIN1-R" },
+	{ "Channel 6 Mux", "SDIN2-L", "SDIN2-L" },
+	{ "Channel 6 Mux", "SDIN2-R", "SDIN2-R" },
+	{ "Channel 6 Mux", "SDIN3-L", "SDIN3-L" },
+	{ "Channel 6 Mux", "SDIN3-R", "SDIN3-R" },
+
+	/* Channel muxes -> PWM muxes */
+	{ "PWM1 Mux", "Channel 1 Mux", "Channel 1 Mux" },
+	{ "PWM2 Mux", "Channel 1 Mux", "Channel 1 Mux" },
+	{ "PWM3 Mux", "Channel 1 Mux", "Channel 1 Mux" },
+	{ "PWM4 Mux", "Channel 1 Mux", "Channel 1 Mux" },
+	{ "PWM5 Mux", "Channel 1 Mux", "Channel 1 Mux" },
+	{ "PWM6 Mux", "Channel 1 Mux", "Channel 1 Mux" },
+
+	{ "PWM1 Mux", "Channel 2 Mux", "Channel 2 Mux" },
+	{ "PWM2 Mux", "Channel 2 Mux", "Channel 2 Mux" },
+	{ "PWM3 Mux", "Channel 2 Mux", "Channel 2 Mux" },
+	{ "PWM4 Mux", "Channel 2 Mux", "Channel 2 Mux" },
+	{ "PWM5 Mux", "Channel 2 Mux", "Channel 2 Mux" },
+	{ "PWM6 Mux", "Channel 2 Mux", "Channel 2 Mux" },
+
+	{ "PWM1 Mux", "Channel 3 Mux", "Channel 3 Mux" },
+	{ "PWM2 Mux", "Channel 3 Mux", "Channel 3 Mux" },
+	{ "PWM3 Mux", "Channel 3 Mux", "Channel 3 Mux" },
+	{ "PWM4 Mux", "Channel 3 Mux", "Channel 3 Mux" },
+	{ "PWM5 Mux", "Channel 3 Mux", "Channel 3 Mux" },
+	{ "PWM6 Mux", "Channel 3 Mux", "Channel 3 Mux" },
+
+	{ "PWM1 Mux", "Channel 4 Mux", "Channel 4 Mux" },
+	{ "PWM2 Mux", "Channel 4 Mux", "Channel 4 Mux" },
+	{ "PWM3 Mux", "Channel 4 Mux", "Channel 4 Mux" },
+	{ "PWM4 Mux", "Channel 4 Mux", "Channel 4 Mux" },
+	{ "PWM5 Mux", "Channel 4 Mux", "Channel 4 Mux" },
+	{ "PWM6 Mux", "Channel 4 Mux", "Channel 4 Mux" },
+
+	{ "PWM1 Mux", "Channel 5 Mux", "Channel 5 Mux" },
+	{ "PWM2 Mux", "Channel 5 Mux", "Channel 5 Mux" },
+	{ "PWM3 Mux", "Channel 5 Mux", "Channel 5 Mux" },
+	{ "PWM4 Mux", "Channel 5 Mux", "Channel 5 Mux" },
+	{ "PWM5 Mux", "Channel 5 Mux", "Channel 5 Mux" },
+	{ "PWM6 Mux", "Channel 5 Mux", "Channel 5 Mux" },
+
+	{ "PWM1 Mux", "Channel 6 Mux", "Channel 6 Mux" },
+	{ "PWM2 Mux", "Channel 6 Mux", "Channel 6 Mux" },
+	{ "PWM3 Mux", "Channel 6 Mux", "Channel 6 Mux" },
+	{ "PWM4 Mux", "Channel 6 Mux", "Channel 6 Mux" },
+	{ "PWM5 Mux", "Channel 6 Mux", "Channel 6 Mux" },
+	{ "PWM6 Mux", "Channel 6 Mux", "Channel 6 Mux" },
+
+	/* The PWM muxes are directly connected to the PWM outputs */
+	{ "PWM1", NULL, "PWM1 Mux" },
+	{ "PWM2", NULL, "PWM2 Mux" },
+	{ "PWM3", NULL, "PWM3 Mux" },
+	{ "PWM4", NULL, "PWM4 Mux" },
+	{ "PWM5", NULL, "PWM5 Mux" },
+	{ "PWM6", NULL, "PWM6 Mux" },
+
 };
 
 static const struct snd_soc_dai_ops tas5086_dai_ops = {
@@ -396,14 +773,45 @@ static struct snd_soc_dai_driver tas5086_dai = {
 };
 
 #ifdef CONFIG_PM
+static int tas5086_soc_suspend(struct snd_soc_codec *codec)
+{
+	struct tas5086_private *priv = snd_soc_codec_get_drvdata(codec);
+	int ret;
+
+	/* Shut down all channels */
+	ret = regmap_write(priv->regmap, TAS5086_SYS_CONTROL_2, 0x60);
+	if (ret < 0)
+		return ret;
+
+	regulator_bulk_disable(ARRAY_SIZE(priv->supplies), priv->supplies);
+
+	return 0;
+}
+
 static int tas5086_soc_resume(struct snd_soc_codec *codec)
 {
 	struct tas5086_private *priv = snd_soc_codec_get_drvdata(codec);
+	int ret;
 
-	/* Restore codec state */
-	return regcache_sync(priv->regmap);
+	ret = regulator_bulk_enable(ARRAY_SIZE(priv->supplies), priv->supplies);
+	if (ret < 0)
+		return ret;
+
+	tas5086_reset(priv);
+	regcache_mark_dirty(priv->regmap);
+
+	ret = tas5086_init(codec->dev, priv);
+	if (ret < 0)
+		return ret;
+
+	ret = regcache_sync(priv->regmap);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 #else
+#define tas5086_soc_suspend	NULL
 #define tas5086_soc_resume	NULL
 #endif /* CONFIG_PM */
 
@@ -415,62 +823,53 @@ static const struct of_device_id tas5086_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, tas5086_dt_ids);
 #endif
 
-/* charge period values in microseconds */
-static const int tas5086_charge_period[] = {
-	  13000,  16900,   23400,   31200,   41600,   54600,   72800,   96200,
-	 130000, 156000,  234000,  312000,  416000,  546000,  728000,  962000,
-	1300000, 169000, 2340000, 3120000, 4160000, 5460000, 7280000, 9620000,
-};
-
 static int tas5086_probe(struct snd_soc_codec *codec)
 {
 	struct tas5086_private *priv = snd_soc_codec_get_drvdata(codec);
-	int charge_period = 1300000; /* hardware default is 1300 ms */
 	int i, ret;
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(priv->supplies), priv->supplies);
+	if (ret < 0) {
+		dev_err(codec->dev, "Failed to enable regulators: %d\n", ret);
+		return ret;
+	}
+
+	priv->pwm_start_mid_z = 0;
+	priv->charge_period = 1300000; /* hardware default is 1300 ms */
 
 	if (of_match_device(of_match_ptr(tas5086_dt_ids), codec->dev)) {
 		struct device_node *of_node = codec->dev->of_node;
-		of_property_read_u32(of_node, "ti,charge-period", &charge_period);
+
+		of_property_read_u32(of_node, "ti,charge-period",
+				     &priv->charge_period);
+
+		for (i = 0; i < 6; i++) {
+			char name[25];
+
+			snprintf(name, sizeof(name),
+				 "ti,mid-z-channel-%d", i + 1);
+
+			if (of_get_property(of_node, name, NULL) != NULL)
+				priv->pwm_start_mid_z |= 1 << i;
+		}
 	}
 
-	/* lookup and set split-capacitor charge period */
-	if (charge_period == 0) {
-		regmap_write(priv->regmap, TAS5086_SPLIT_CAP_CHARGE, 0);
-	} else {
-		i = index_in_array(tas5086_charge_period,
-				   ARRAY_SIZE(tas5086_charge_period),
-				   charge_period);
-		if (i >= 0)
-			regmap_write(priv->regmap, TAS5086_SPLIT_CAP_CHARGE,
-				     i + 0x08);
-		else
-			dev_warn(codec->dev,
-				 "Invalid split-cap charge period of %d ns.\n",
-				 charge_period);
-	}
-
-	/* enable factory trim */
-	ret = regmap_write(priv->regmap, TAS5086_OSC_TRIM, 0x00);
+	tas5086_reset(priv);
+	ret = tas5086_init(codec->dev, priv);
 	if (ret < 0)
-		return ret;
-
-	/* start all channels */
-	ret = regmap_write(priv->regmap, TAS5086_SYS_CONTROL_2, 0x20);
-	if (ret < 0)
-		return ret;
+		goto exit_disable_regulators;
 
 	/* set master volume to 0 dB */
 	ret = regmap_write(priv->regmap, TAS5086_MASTER_VOL, 0x30);
 	if (ret < 0)
-		return ret;
-
-	/* mute all channels for now */
-	ret = regmap_write(priv->regmap, TAS5086_SOFT_MUTE,
-			   TAS5086_SOFT_MUTE_ALL);
-	if (ret < 0)
-		return ret;
+		goto exit_disable_regulators;
 
 	return 0;
+
+exit_disable_regulators:
+	regulator_bulk_disable(ARRAY_SIZE(priv->supplies), priv->supplies);
+
+	return ret;
 }
 
 static int tas5086_remove(struct snd_soc_codec *codec)
@@ -481,15 +880,22 @@ static int tas5086_remove(struct snd_soc_codec *codec)
 		/* Set codec to the reset state */
 		gpio_set_value(priv->gpio_nreset, 0);
 
+	regulator_bulk_disable(ARRAY_SIZE(priv->supplies), priv->supplies);
+
 	return 0;
 };
 
 static struct snd_soc_codec_driver soc_codec_dev_tas5086 = {
 	.probe			= tas5086_probe,
 	.remove			= tas5086_remove,
+	.suspend		= tas5086_soc_suspend,
 	.resume			= tas5086_soc_resume,
 	.controls		= tas5086_controls,
 	.num_controls		= ARRAY_SIZE(tas5086_controls),
+	.dapm_widgets		= tas5086_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(tas5086_dapm_widgets),
+	.dapm_routes		= tas5086_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(tas5086_dapm_routes),
 };
 
 static const struct i2c_device_id tas5086_i2c_id[] = {
@@ -500,14 +906,16 @@ MODULE_DEVICE_TABLE(i2c, tas5086_i2c_id);
 
 static const struct regmap_config tas5086_regmap = {
 	.reg_bits		= 8,
-	.val_bits		= 8,
-	.max_register		= ARRAY_SIZE(tas5086_reg_defaults),
+	.val_bits		= 32,
+	.max_register		= TAS5086_MAX_REGISTER,
 	.reg_defaults		= tas5086_reg_defaults,
 	.num_reg_defaults	= ARRAY_SIZE(tas5086_reg_defaults),
 	.cache_type		= REGCACHE_RBTREE,
 	.volatile_reg		= tas5086_volatile_reg,
 	.writeable_reg		= tas5086_writeable_reg,
 	.readable_reg		= tas5086_accessible_reg,
+	.reg_read		= tas5086_reg_read,
+	.reg_write		= tas5086_reg_write,
 };
 
 static int tas5086_i2c_probe(struct i2c_client *i2c,
@@ -522,7 +930,17 @@ static int tas5086_i2c_probe(struct i2c_client *i2c,
 	if (!priv)
 		return -ENOMEM;
 
-	priv->regmap = devm_regmap_init_i2c(i2c, &tas5086_regmap);
+	for (i = 0; i < ARRAY_SIZE(supply_names); i++)
+		priv->supplies[i].supply = supply_names[i];
+
+	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(priv->supplies),
+				      priv->supplies);
+	if (ret < 0) {
+		dev_err(dev, "Failed to get regulators: %d\n", ret);
+		return ret;
+	}
+
+	priv->regmap = devm_regmap_init(dev, NULL, i2c, &tas5086_regmap);
 	if (IS_ERR(priv->regmap)) {
 		ret = PTR_ERR(priv->regmap);
 		dev_err(&i2c->dev, "Failed to create regmap: %d\n", ret);
@@ -540,31 +958,35 @@ static int tas5086_i2c_probe(struct i2c_client *i2c,
 		if (devm_gpio_request(dev, gpio_nreset, "TAS5086 Reset"))
 			gpio_nreset = -EINVAL;
 
-	if (gpio_is_valid(gpio_nreset)) {
-		/* Reset codec - minimum assertion time is 400ns */
-		gpio_direction_output(gpio_nreset, 0);
-		udelay(1);
-		gpio_set_value(gpio_nreset, 1);
+	priv->gpio_nreset = gpio_nreset;
 
-		/* Codec needs ~15ms to wake up */
-		msleep(15);
+	ret = regulator_bulk_enable(ARRAY_SIZE(priv->supplies), priv->supplies);
+	if (ret < 0) {
+		dev_err(dev, "Failed to enable regulators: %d\n", ret);
+		return ret;
 	}
 
-	priv->gpio_nreset = gpio_nreset;
+	tas5086_reset(priv);
 
 	/* The TAS5086 always returns 0x03 in its TAS5086_DEV_ID register */
 	ret = regmap_read(priv->regmap, TAS5086_DEV_ID, &i);
-	if (ret < 0)
-		return ret;
-
-	if (i != 0x3) {
+	if (ret == 0 && i != 0x3) {
 		dev_err(dev,
 			"Failed to identify TAS5086 codec (got %02x)\n", i);
-		return -ENODEV;
+		ret = -ENODEV;
 	}
 
-	return snd_soc_register_codec(&i2c->dev, &soc_codec_dev_tas5086,
-		&tas5086_dai, 1);
+	/*
+	 * The chip has been identified, so we can turn off the power
+	 * again until the dai link is set up.
+	 */
+	regulator_bulk_disable(ARRAY_SIZE(priv->supplies), priv->supplies);
+
+	if (ret == 0)
+		ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_tas5086,
+					     &tas5086_dai, 1);
+
+	return ret;
 }
 
 static int tas5086_i2c_remove(struct i2c_client *i2c)
@@ -576,7 +998,6 @@ static int tas5086_i2c_remove(struct i2c_client *i2c)
 static struct i2c_driver tas5086_i2c_driver = {
 	.driver = {
 		.name	= "tas5086",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(tas5086_dt_ids),
 	},
 	.id_table	= tas5086_i2c_id,

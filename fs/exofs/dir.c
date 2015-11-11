@@ -2,7 +2,7 @@
  * Copyright (C) 2005, 2006
  * Avishay Traeger (avishay@gmail.com)
  * Copyright (C) 2008, 2009
- * Boaz Harrosh <bharrosh@panasas.com>
+ * Boaz Harrosh <ooo@electrozaur.com>
  *
  * Copyrights for code taken from ext2:
  *     Copyright (C) 1992, 1993, 1994, 1995
@@ -42,12 +42,6 @@ static inline void exofs_put_page(struct page *page)
 {
 	kunmap(page);
 	page_cache_release(page);
-}
-
-/* Accesses dir's inode->i_size must be called under inode lock */
-static inline unsigned long dir_pages(struct inode *inode)
-{
-	return (inode->i_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 }
 
 static unsigned exofs_last_byte(struct inode *inode, unsigned long page_nr)
@@ -239,21 +233,18 @@ void exofs_set_de_type(struct exofs_dir_entry *de, struct inode *inode)
 }
 
 static int
-exofs_readdir(struct file *filp, void *dirent, filldir_t filldir)
+exofs_readdir(struct file *file, struct dir_context *ctx)
 {
-	loff_t pos = filp->f_pos;
-	struct inode *inode = file_inode(filp);
+	loff_t pos = ctx->pos;
+	struct inode *inode = file_inode(file);
 	unsigned int offset = pos & ~PAGE_CACHE_MASK;
 	unsigned long n = pos >> PAGE_CACHE_SHIFT;
 	unsigned long npages = dir_pages(inode);
 	unsigned chunk_mask = ~(exofs_chunk_size(inode)-1);
-	unsigned char *types = NULL;
-	int need_revalidate = (filp->f_version != inode->i_version);
+	int need_revalidate = (file->f_version != inode->i_version);
 
 	if (pos > inode->i_size - EXOFS_DIR_REC_LEN(1))
 		return 0;
-
-	types = exofs_filetype_table;
 
 	for ( ; n < npages; n++, offset = 0) {
 		char *kaddr, *limit;
@@ -263,7 +254,7 @@ exofs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		if (IS_ERR(page)) {
 			EXOFS_ERR("ERROR: bad page in directory(0x%lx)\n",
 				  inode->i_ino);
-			filp->f_pos += PAGE_CACHE_SIZE - offset;
+			ctx->pos += PAGE_CACHE_SIZE - offset;
 			return PTR_ERR(page);
 		}
 		kaddr = page_address(page);
@@ -271,9 +262,9 @@ exofs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			if (offset) {
 				offset = exofs_validate_entry(kaddr, offset,
 								chunk_mask);
-				filp->f_pos = (n<<PAGE_CACHE_SHIFT) + offset;
+				ctx->pos = (n<<PAGE_CACHE_SHIFT) + offset;
 			}
-			filp->f_version = inode->i_version;
+			file->f_version = inode->i_version;
 			need_revalidate = 0;
 		}
 		de = (struct exofs_dir_entry *)(kaddr + offset);
@@ -288,27 +279,24 @@ exofs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 				return -EIO;
 			}
 			if (de->inode_no) {
-				int over;
-				unsigned char d_type = DT_UNKNOWN;
+				unsigned char t;
 
-				if (types && de->file_type < EXOFS_FT_MAX)
-					d_type = types[de->file_type];
+				if (de->file_type < EXOFS_FT_MAX)
+					t = exofs_filetype_table[de->file_type];
+				else
+					t = DT_UNKNOWN;
 
-				offset = (char *)de - kaddr;
-				over = filldir(dirent, de->name, de->name_len,
-						(n<<PAGE_CACHE_SHIFT) | offset,
+				if (!dir_emit(ctx, de->name, de->name_len,
 						le64_to_cpu(de->inode_no),
-						d_type);
-				if (over) {
+						t)) {
 					exofs_put_page(page);
 					return 0;
 				}
 			}
-			filp->f_pos += le16_to_cpu(de->rec_len);
+			ctx->pos += le16_to_cpu(de->rec_len);
 		}
 		exofs_put_page(page);
 	}
-
 	return 0;
 }
 
@@ -385,7 +373,7 @@ ino_t exofs_parent_ino(struct dentry *child)
 	struct exofs_dir_entry *de;
 	ino_t ino;
 
-	de = exofs_dotdot(child->d_inode, &page);
+	de = exofs_dotdot(d_inode(child), &page);
 	if (!de)
 		return 0;
 
@@ -435,7 +423,7 @@ int exofs_set_link(struct inode *dir, struct exofs_dir_entry *de,
 
 int exofs_add_link(struct dentry *dentry, struct inode *inode)
 {
-	struct inode *dir = dentry->d_parent->d_inode;
+	struct inode *dir = d_inode(dentry->d_parent);
 	const unsigned char *name = dentry->d_name.name;
 	int namelen = dentry->d_name.len;
 	unsigned chunk_size = exofs_chunk_size(dir);
@@ -669,5 +657,5 @@ not_empty:
 const struct file_operations exofs_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.readdir	= exofs_readdir,
+	.iterate	= exofs_readdir,
 };

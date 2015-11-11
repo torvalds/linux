@@ -104,7 +104,7 @@ struct xt_hashlimit_htable {
 	spinlock_t lock;		/* lock for list_head */
 	u_int32_t rnd;			/* random seed for hash */
 	unsigned int count;		/* number entries in table */
-	struct timer_list timer;	/* timer for gc */
+	struct delayed_work gc_work;
 
 	/* seq_file stuff */
 	struct proc_dir_entry *pde;
@@ -135,7 +135,7 @@ hash_dst(const struct xt_hashlimit_htable *ht, const struct dsthash_dst *dst)
 	 * give results between [0 and cfg.size-1] and same hash distribution,
 	 * but using a multiply, less expensive than a divide
 	 */
-	return ((u64)hash * ht->cfg.size) >> 32;
+	return reciprocal_scale(hash, ht->cfg.size);
 }
 
 static struct dsthash_ent *
@@ -213,7 +213,7 @@ dsthash_free(struct xt_hashlimit_htable *ht, struct dsthash_ent *ent)
 	call_rcu_bh(&ent->rcu, dsthash_free_rcu);
 	ht->count--;
 }
-static void htable_gc(unsigned long htlong);
+static void htable_gc(struct work_struct *work);
 
 static int htable_create(struct net *net, struct xt_hashlimit_mtinfo1 *minfo,
 			 u_int8_t family)
@@ -273,9 +273,9 @@ static int htable_create(struct net *net, struct xt_hashlimit_mtinfo1 *minfo,
 	}
 	hinfo->net = net;
 
-	setup_timer(&hinfo->timer, htable_gc, (unsigned long)hinfo);
-	hinfo->timer.expires = jiffies + msecs_to_jiffies(hinfo->cfg.gc_interval);
-	add_timer(&hinfo->timer);
+	INIT_DEFERRABLE_WORK(&hinfo->gc_work, htable_gc);
+	queue_delayed_work(system_power_efficient_wq, &hinfo->gc_work,
+			   msecs_to_jiffies(hinfo->cfg.gc_interval));
 
 	hlist_add_head(&hinfo->node, &hashlimit_net->htables);
 
@@ -300,46 +300,50 @@ static void htable_selective_cleanup(struct xt_hashlimit_htable *ht,
 {
 	unsigned int i;
 
-	/* lock hash table and iterate over it */
-	spin_lock_bh(&ht->lock);
 	for (i = 0; i < ht->cfg.size; i++) {
 		struct dsthash_ent *dh;
 		struct hlist_node *n;
+
+		spin_lock_bh(&ht->lock);
 		hlist_for_each_entry_safe(dh, n, &ht->hash[i], node) {
 			if ((*select)(ht, dh))
 				dsthash_free(ht, dh);
 		}
+		spin_unlock_bh(&ht->lock);
+		cond_resched();
 	}
-	spin_unlock_bh(&ht->lock);
 }
 
-/* hash table garbage collector, run by timer */
-static void htable_gc(unsigned long htlong)
+static void htable_gc(struct work_struct *work)
 {
-	struct xt_hashlimit_htable *ht = (struct xt_hashlimit_htable *)htlong;
+	struct xt_hashlimit_htable *ht;
+
+	ht = container_of(work, struct xt_hashlimit_htable, gc_work.work);
 
 	htable_selective_cleanup(ht, select_gc);
 
-	/* re-add the timer accordingly */
-	ht->timer.expires = jiffies + msecs_to_jiffies(ht->cfg.gc_interval);
-	add_timer(&ht->timer);
+	queue_delayed_work(system_power_efficient_wq,
+			   &ht->gc_work, msecs_to_jiffies(ht->cfg.gc_interval));
 }
 
-static void htable_destroy(struct xt_hashlimit_htable *hinfo)
+static void htable_remove_proc_entry(struct xt_hashlimit_htable *hinfo)
 {
 	struct hashlimit_net *hashlimit_net = hashlimit_pernet(hinfo->net);
 	struct proc_dir_entry *parent;
-
-	del_timer_sync(&hinfo->timer);
 
 	if (hinfo->family == NFPROTO_IPV4)
 		parent = hashlimit_net->ipt_hashlimit;
 	else
 		parent = hashlimit_net->ip6t_hashlimit;
 
-	if(parent != NULL)
+	if (parent != NULL)
 		remove_proc_entry(hinfo->name, parent);
+}
 
+static void htable_destroy(struct xt_hashlimit_htable *hinfo)
+{
+	cancel_delayed_work_sync(&hinfo->gc_work);
+	htable_remove_proc_entry(hinfo);
 	htable_selective_cleanup(hinfo, select_all);
 	kfree(hinfo->name);
 	vfree(hinfo);
@@ -785,7 +789,6 @@ static void dl_seq_stop(struct seq_file *s, void *v)
 static int dl_seq_real_show(struct dsthash_ent *ent, u_int8_t family,
 				   struct seq_file *s)
 {
-	int res;
 	const struct xt_hashlimit_htable *ht = s->private;
 
 	spin_lock(&ent->lock);
@@ -794,33 +797,32 @@ static int dl_seq_real_show(struct dsthash_ent *ent, u_int8_t family,
 
 	switch (family) {
 	case NFPROTO_IPV4:
-		res = seq_printf(s, "%ld %pI4:%u->%pI4:%u %u %u %u\n",
-				 (long)(ent->expires - jiffies)/HZ,
-				 &ent->dst.ip.src,
-				 ntohs(ent->dst.src_port),
-				 &ent->dst.ip.dst,
-				 ntohs(ent->dst.dst_port),
-				 ent->rateinfo.credit, ent->rateinfo.credit_cap,
-				 ent->rateinfo.cost);
+		seq_printf(s, "%ld %pI4:%u->%pI4:%u %u %u %u\n",
+			   (long)(ent->expires - jiffies)/HZ,
+			   &ent->dst.ip.src,
+			   ntohs(ent->dst.src_port),
+			   &ent->dst.ip.dst,
+			   ntohs(ent->dst.dst_port),
+			   ent->rateinfo.credit, ent->rateinfo.credit_cap,
+			   ent->rateinfo.cost);
 		break;
 #if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
 	case NFPROTO_IPV6:
-		res = seq_printf(s, "%ld %pI6:%u->%pI6:%u %u %u %u\n",
-				 (long)(ent->expires - jiffies)/HZ,
-				 &ent->dst.ip6.src,
-				 ntohs(ent->dst.src_port),
-				 &ent->dst.ip6.dst,
-				 ntohs(ent->dst.dst_port),
-				 ent->rateinfo.credit, ent->rateinfo.credit_cap,
-				 ent->rateinfo.cost);
+		seq_printf(s, "%ld %pI6:%u->%pI6:%u %u %u %u\n",
+			   (long)(ent->expires - jiffies)/HZ,
+			   &ent->dst.ip6.src,
+			   ntohs(ent->dst.src_port),
+			   &ent->dst.ip6.dst,
+			   ntohs(ent->dst.dst_port),
+			   ent->rateinfo.credit, ent->rateinfo.credit_cap,
+			   ent->rateinfo.cost);
 		break;
 #endif
 	default:
 		BUG();
-		res = 0;
 	}
 	spin_unlock(&ent->lock);
-	return res;
+	return seq_has_overflowed(s);
 }
 
 static int dl_seq_show(struct seq_file *s, void *v)
@@ -883,21 +885,15 @@ static int __net_init hashlimit_proc_net_init(struct net *net)
 static void __net_exit hashlimit_proc_net_exit(struct net *net)
 {
 	struct xt_hashlimit_htable *hinfo;
-	struct proc_dir_entry *pde;
 	struct hashlimit_net *hashlimit_net = hashlimit_pernet(net);
 
-	/* recent_net_exit() is called before recent_mt_destroy(). Make sure
-	 * that the parent xt_recent proc entry is is empty before trying to
-	 * remove it.
+	/* hashlimit_net_exit() is called before hashlimit_mt_destroy().
+	 * Make sure that the parent ipt_hashlimit and ip6t_hashlimit proc
+	 * entries is empty before trying to remove it.
 	 */
 	mutex_lock(&hashlimit_mutex);
-	pde = hashlimit_net->ipt_hashlimit;
-	if (pde == NULL)
-		pde = hashlimit_net->ip6t_hashlimit;
-
 	hlist_for_each_entry(hinfo, &hashlimit_net->htables, node)
-		remove_proc_entry(hinfo->name, pde);
-
+		htable_remove_proc_entry(hinfo);
 	hashlimit_net->ipt_hashlimit = NULL;
 	hashlimit_net->ip6t_hashlimit = NULL;
 	mutex_unlock(&hashlimit_mutex);
@@ -945,7 +941,7 @@ static int __init hashlimit_mt_init(void)
 					    sizeof(struct dsthash_ent), 0, 0,
 					    NULL);
 	if (!hashlimit_cachep) {
-		pr_warning("unable to create slab cache\n");
+		pr_warn("unable to create slab cache\n");
 		goto err2;
 	}
 	return 0;

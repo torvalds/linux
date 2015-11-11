@@ -1,14 +1,29 @@
 # Makefile for vm selftests
 
-CC = $(CROSS_COMPILE)gcc
-CFLAGS = -Wall
+CFLAGS = -Wall -I ../../../../usr/include $(EXTRA_CFLAGS)
+BINARIES = compaction_test
+BINARIES += hugepage-mmap
+BINARIES += hugepage-shm
+BINARIES += map_hugetlb
+BINARIES += mlock2-tests
+BINARIES += on-fault-limit
+BINARIES += thuge-gen
+BINARIES += transhuge-stress
+BINARIES += userfaultfd
 
-all: hugepage-mmap hugepage-shm  map_hugetlb thuge-gen
+all: $(BINARIES)
 %: %.c
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ -lrt
+userfaultfd: userfaultfd.c ../../../../usr/include/linux/kernel.h
+	$(CC) $(CFLAGS) -O2 -o $@ $< -lpthread
 
-run_tests: all
-	@/bin/sh ./run_vmtests || echo "vmtests: [FAIL]"
+../../../../usr/include/linux/kernel.h:
+	make -C ../../../.. headers_install
+
+TEST_PROGS := run_vmtests
+TEST_FILES := $(BINARIES)
+
+include ../lib.mk
 
 clean:
-	$(RM) hugepage-mmap hugepage-shm  map_hugetlb
+	$(RM) $(BINARIES)

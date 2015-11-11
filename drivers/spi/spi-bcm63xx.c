@@ -13,14 +13,9 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -30,14 +25,118 @@
 #include <linux/spi/spi.h>
 #include <linux/completion.h>
 #include <linux/err.h>
-#include <linux/workqueue.h>
 #include <linux/pm_runtime.h>
 
-#include <bcm63xx_dev_spi.h>
+/* BCM 6338/6348 SPI core */
+#define SPI_6348_RSET_SIZE		64
+#define SPI_6348_CMD			0x00	/* 16-bits register */
+#define SPI_6348_INT_STATUS		0x02
+#define SPI_6348_INT_MASK_ST		0x03
+#define SPI_6348_INT_MASK		0x04
+#define SPI_6348_ST			0x05
+#define SPI_6348_CLK_CFG		0x06
+#define SPI_6348_FILL_BYTE		0x07
+#define SPI_6348_MSG_TAIL		0x09
+#define SPI_6348_RX_TAIL		0x0b
+#define SPI_6348_MSG_CTL		0x40	/* 8-bits register */
+#define SPI_6348_MSG_CTL_WIDTH		8
+#define SPI_6348_MSG_DATA		0x41
+#define SPI_6348_MSG_DATA_SIZE		0x3f
+#define SPI_6348_RX_DATA		0x80
+#define SPI_6348_RX_DATA_SIZE		0x3f
 
-#define PFX		KBUILD_MODNAME
+/* BCM 3368/6358/6262/6368 SPI core */
+#define SPI_6358_RSET_SIZE		1804
+#define SPI_6358_MSG_CTL		0x00	/* 16-bits register */
+#define SPI_6358_MSG_CTL_WIDTH		16
+#define SPI_6358_MSG_DATA		0x02
+#define SPI_6358_MSG_DATA_SIZE		0x21e
+#define SPI_6358_RX_DATA		0x400
+#define SPI_6358_RX_DATA_SIZE		0x220
+#define SPI_6358_CMD			0x700	/* 16-bits register */
+#define SPI_6358_INT_STATUS		0x702
+#define SPI_6358_INT_MASK_ST		0x703
+#define SPI_6358_INT_MASK		0x704
+#define SPI_6358_ST			0x705
+#define SPI_6358_CLK_CFG		0x706
+#define SPI_6358_FILL_BYTE		0x707
+#define SPI_6358_MSG_TAIL		0x709
+#define SPI_6358_RX_TAIL		0x70B
+
+/* Shared SPI definitions */
+
+/* Message configuration */
+#define SPI_FD_RW			0x00
+#define SPI_HD_W			0x01
+#define SPI_HD_R			0x02
+#define SPI_BYTE_CNT_SHIFT		0
+#define SPI_6348_MSG_TYPE_SHIFT		6
+#define SPI_6358_MSG_TYPE_SHIFT		14
+
+/* Command */
+#define SPI_CMD_NOOP			0x00
+#define SPI_CMD_SOFT_RESET		0x01
+#define SPI_CMD_HARD_RESET		0x02
+#define SPI_CMD_START_IMMEDIATE		0x03
+#define SPI_CMD_COMMAND_SHIFT		0
+#define SPI_CMD_COMMAND_MASK		0x000f
+#define SPI_CMD_DEVICE_ID_SHIFT		4
+#define SPI_CMD_PREPEND_BYTE_CNT_SHIFT	8
+#define SPI_CMD_ONE_BYTE_SHIFT		11
+#define SPI_CMD_ONE_WIRE_SHIFT		12
+#define SPI_DEV_ID_0			0
+#define SPI_DEV_ID_1			1
+#define SPI_DEV_ID_2			2
+#define SPI_DEV_ID_3			3
+
+/* Interrupt mask */
+#define SPI_INTR_CMD_DONE		0x01
+#define SPI_INTR_RX_OVERFLOW		0x02
+#define SPI_INTR_TX_UNDERFLOW		0x04
+#define SPI_INTR_TX_OVERFLOW		0x08
+#define SPI_INTR_RX_UNDERFLOW		0x10
+#define SPI_INTR_CLEAR_ALL		0x1f
+
+/* Status */
+#define SPI_RX_EMPTY			0x02
+#define SPI_CMD_BUSY			0x04
+#define SPI_SERIAL_BUSY			0x08
+
+/* Clock configuration */
+#define SPI_CLK_20MHZ			0x00
+#define SPI_CLK_0_391MHZ		0x01
+#define SPI_CLK_0_781MHZ		0x02	/* default */
+#define SPI_CLK_1_563MHZ		0x03
+#define SPI_CLK_3_125MHZ		0x04
+#define SPI_CLK_6_250MHZ		0x05
+#define SPI_CLK_12_50MHZ		0x06
+#define SPI_CLK_MASK			0x07
+#define SPI_SSOFFTIME_MASK		0x38
+#define SPI_SSOFFTIME_SHIFT		3
+#define SPI_BYTE_SWAP			0x80
+
+enum bcm63xx_regs_spi {
+	SPI_CMD,
+	SPI_INT_STATUS,
+	SPI_INT_MASK_ST,
+	SPI_INT_MASK,
+	SPI_ST,
+	SPI_CLK_CFG,
+	SPI_FILL_BYTE,
+	SPI_MSG_TAIL,
+	SPI_RX_TAIL,
+	SPI_MSG_CTL,
+	SPI_MSG_DATA,
+	SPI_RX_DATA,
+	SPI_MSG_TYPE_SHIFT,
+	SPI_MSG_CTL_WIDTH,
+	SPI_MSG_DATA_SIZE,
+};
 
 #define BCM63XX_SPI_MAX_PREPEND		15
+
+#define BCM63XX_SPI_MAX_CS		8
+#define BCM63XX_SPI_BUS_NUM		0
 
 struct bcm63xx_spi {
 	struct completion	done;
@@ -46,6 +145,7 @@ struct bcm63xx_spi {
 	int			irq;
 
 	/* Platform data */
+	const unsigned long	*reg_offsets;
 	unsigned		fifo_size;
 	unsigned int		msg_type_shift;
 	unsigned int		msg_ctl_width;
@@ -59,27 +159,35 @@ struct bcm63xx_spi {
 };
 
 static inline u8 bcm_spi_readb(struct bcm63xx_spi *bs,
-				unsigned int offset)
+			       unsigned int offset)
 {
-	return bcm_readb(bs->regs + bcm63xx_spireg(offset));
+	return readb(bs->regs + bs->reg_offsets[offset]);
 }
 
 static inline u16 bcm_spi_readw(struct bcm63xx_spi *bs,
 				unsigned int offset)
 {
-	return bcm_readw(bs->regs + bcm63xx_spireg(offset));
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	return ioread16be(bs->regs + bs->reg_offsets[offset]);
+#else
+	return readw(bs->regs + bs->reg_offsets[offset]);
+#endif
 }
 
 static inline void bcm_spi_writeb(struct bcm63xx_spi *bs,
 				  u8 value, unsigned int offset)
 {
-	bcm_writeb(value, bs->regs + bcm63xx_spireg(offset));
+	writeb(value, bs->regs + bs->reg_offsets[offset]);
 }
 
 static inline void bcm_spi_writew(struct bcm63xx_spi *bs,
 				  u16 value, unsigned int offset)
 {
-	bcm_writew(value, bs->regs + bcm63xx_spireg(offset));
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	iowrite16be(value, bs->regs + bs->reg_offsets[offset]);
+#else
+	writew(value, bs->regs + bs->reg_offsets[offset]);
+#endif
 }
 
 static const unsigned bcm63xx_spi_freq_table[SPI_CLK_MASK][2] = {
@@ -124,24 +232,12 @@ static void bcm63xx_spi_setup_transfer(struct spi_device *spi,
 /* the spi->mode bits understood by this driver: */
 #define MODEBITS (SPI_CPOL | SPI_CPHA)
 
-static int bcm63xx_spi_setup(struct spi_device *spi)
-{
-	if (spi->bits_per_word != 8) {
-		dev_err(&spi->dev, "%s, unsupported bits_per_word=%d\n",
-			__func__, spi->bits_per_word);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int bcm63xx_txrx_bufs(struct spi_device *spi, struct spi_transfer *first,
 				unsigned int num_transfers)
 {
 	struct bcm63xx_spi *bs = spi_master_get_devdata(spi->master);
 	u16 msg_ctl;
 	u16 cmd;
-	u8 rx_tail;
 	unsigned int i, timeout = 0, prepend_len = 0, len = 0;
 	struct spi_transfer *t = first;
 	bool do_rx = false;
@@ -180,9 +276,7 @@ static int bcm63xx_txrx_bufs(struct spi_device *spi, struct spi_transfer *first,
 			       transfer_list);
 	}
 
-	len -= prepend_len;
-
-	init_completion(&bs->done);
+	reinit_completion(&bs->done);
 
 	/* Fill in the Message control register */
 	msg_ctl = (len << SPI_BYTE_CNT_SHIFT);
@@ -216,13 +310,7 @@ static int bcm63xx_txrx_bufs(struct spi_device *spi, struct spi_transfer *first,
 	if (!timeout)
 		return -ETIMEDOUT;
 
-	/* read out all data */
-	rx_tail = bcm_spi_readb(bs, SPI_RX_TAIL);
-
-	if (do_rx && rx_tail != len)
-		return -EIO;
-
-	if (!rx_tail)
+	if (!do_rx)
 		return 0;
 
 	len = 0;
@@ -238,24 +326,6 @@ static int bcm63xx_txrx_bufs(struct spi_device *spi, struct spi_transfer *first,
 		t = list_entry(t->transfer_list.next, struct spi_transfer,
 			       transfer_list);
 	}
-
-	return 0;
-}
-
-static int bcm63xx_spi_prepare_transfer(struct spi_master *master)
-{
-	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
-
-	pm_runtime_get_sync(&bs->pdev->dev);
-
-	return 0;
-}
-
-static int bcm63xx_spi_unprepare_transfer(struct spi_master *master)
-{
-	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
-
-	pm_runtime_put(&bs->pdev->dev);
 
 	return 0;
 }
@@ -277,13 +347,6 @@ static int bcm63xx_spi_transfer_one(struct spi_master *master,
 	 * full-duplex transfers.
 	 */
 	list_for_each_entry(t, &m->transfers, transfer_list) {
-		if (t->bits_per_word != 8) {
-			dev_err(&spi->dev, "%s, unsupported bits_per_word=%d\n",
-				__func__, t->bits_per_word);
-			status = -EINVAL;
-			goto exit;
-		}
-
 		if (!first)
 			first = t;
 
@@ -366,51 +429,96 @@ static irqreturn_t bcm63xx_spi_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static const unsigned long bcm6348_spi_reg_offsets[] = {
+	[SPI_CMD]		= SPI_6348_CMD,
+	[SPI_INT_STATUS]	= SPI_6348_INT_STATUS,
+	[SPI_INT_MASK_ST]	= SPI_6348_INT_MASK_ST,
+	[SPI_INT_MASK]		= SPI_6348_INT_MASK,
+	[SPI_ST]		= SPI_6348_ST,
+	[SPI_CLK_CFG]		= SPI_6348_CLK_CFG,
+	[SPI_FILL_BYTE]		= SPI_6348_FILL_BYTE,
+	[SPI_MSG_TAIL]		= SPI_6348_MSG_TAIL,
+	[SPI_RX_TAIL]		= SPI_6348_RX_TAIL,
+	[SPI_MSG_CTL]		= SPI_6348_MSG_CTL,
+	[SPI_MSG_DATA]		= SPI_6348_MSG_DATA,
+	[SPI_RX_DATA]		= SPI_6348_RX_DATA,
+	[SPI_MSG_TYPE_SHIFT]	= SPI_6348_MSG_TYPE_SHIFT,
+	[SPI_MSG_CTL_WIDTH]	= SPI_6348_MSG_CTL_WIDTH,
+	[SPI_MSG_DATA_SIZE]	= SPI_6348_MSG_DATA_SIZE,
+};
+
+static const unsigned long bcm6358_spi_reg_offsets[] = {
+	[SPI_CMD]		= SPI_6358_CMD,
+	[SPI_INT_STATUS]	= SPI_6358_INT_STATUS,
+	[SPI_INT_MASK_ST]	= SPI_6358_INT_MASK_ST,
+	[SPI_INT_MASK]		= SPI_6358_INT_MASK,
+	[SPI_ST]		= SPI_6358_ST,
+	[SPI_CLK_CFG]		= SPI_6358_CLK_CFG,
+	[SPI_FILL_BYTE]		= SPI_6358_FILL_BYTE,
+	[SPI_MSG_TAIL]		= SPI_6358_MSG_TAIL,
+	[SPI_RX_TAIL]		= SPI_6358_RX_TAIL,
+	[SPI_MSG_CTL]		= SPI_6358_MSG_CTL,
+	[SPI_MSG_DATA]		= SPI_6358_MSG_DATA,
+	[SPI_RX_DATA]		= SPI_6358_RX_DATA,
+	[SPI_MSG_TYPE_SHIFT]	= SPI_6358_MSG_TYPE_SHIFT,
+	[SPI_MSG_CTL_WIDTH]	= SPI_6358_MSG_CTL_WIDTH,
+	[SPI_MSG_DATA_SIZE]	= SPI_6358_MSG_DATA_SIZE,
+};
+
+static const struct platform_device_id bcm63xx_spi_dev_match[] = {
+	{
+		.name = "bcm6348-spi",
+		.driver_data = (unsigned long)bcm6348_spi_reg_offsets,
+	},
+	{
+		.name = "bcm6358-spi",
+		.driver_data = (unsigned long)bcm6358_spi_reg_offsets,
+	},
+	{
+	},
+};
 
 static int bcm63xx_spi_probe(struct platform_device *pdev)
 {
 	struct resource *r;
+	const unsigned long *bcm63xx_spireg;
 	struct device *dev = &pdev->dev;
-	struct bcm63xx_spi_pdata *pdata = pdev->dev.platform_data;
 	int irq;
 	struct spi_master *master;
 	struct clk *clk;
 	struct bcm63xx_spi *bs;
 	int ret;
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
-		dev_err(dev, "no iomem\n");
-		ret = -ENXIO;
-		goto out;
-	}
+	if (!pdev->id_entry->driver_data)
+		return -EINVAL;
+
+	bcm63xx_spireg = (const unsigned long *)pdev->id_entry->driver_data;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(dev, "no irq\n");
-		ret = -ENXIO;
-		goto out;
+		return -ENXIO;
 	}
 
-	clk = clk_get(dev, "spi");
+	clk = devm_clk_get(dev, "spi");
 	if (IS_ERR(clk)) {
 		dev_err(dev, "no clock for device\n");
-		ret = PTR_ERR(clk);
-		goto out;
+		return PTR_ERR(clk);
 	}
 
 	master = spi_alloc_master(dev, sizeof(*bs));
 	if (!master) {
 		dev_err(dev, "out of memory\n");
-		ret = -ENOMEM;
-		goto out_clk;
+		return -ENOMEM;
 	}
 
 	bs = spi_master_get_devdata(master);
+	init_completion(&bs->done);
 
 	platform_set_drvdata(pdev, master);
 	bs->pdev = pdev;
 
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	bs->regs = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(bs->regs)) {
 		ret = PTR_ERR(bs->regs);
@@ -419,7 +527,8 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 
 	bs->irq = irq;
 	bs->clk = clk;
-	bs->fifo_size = pdata->fifo_size;
+	bs->reg_offsets = bcm63xx_spireg;
+	bs->fifo_size = bs->reg_offsets[SPI_MSG_DATA_SIZE];
 
 	ret = devm_request_irq(&pdev->dev, irq, bcm63xx_spi_interrupt, 0,
 							pdev->name, master);
@@ -428,34 +537,26 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 		goto out_err;
 	}
 
-	master->bus_num = pdata->bus_num;
-	master->num_chipselect = pdata->num_chipselect;
-	master->setup = bcm63xx_spi_setup;
-	master->prepare_transfer_hardware = bcm63xx_spi_prepare_transfer;
-	master->unprepare_transfer_hardware = bcm63xx_spi_unprepare_transfer;
+	master->bus_num = BCM63XX_SPI_BUS_NUM;
+	master->num_chipselect = BCM63XX_SPI_MAX_CS;
 	master->transfer_one_message = bcm63xx_spi_transfer_one;
 	master->mode_bits = MODEBITS;
-	bs->msg_type_shift = pdata->msg_type_shift;
-	bs->msg_ctl_width = pdata->msg_ctl_width;
-	bs->tx_io = (u8 *)(bs->regs + bcm63xx_spireg(SPI_MSG_DATA));
-	bs->rx_io = (const u8 *)(bs->regs + bcm63xx_spireg(SPI_RX_DATA));
-
-	switch (bs->msg_ctl_width) {
-	case 8:
-	case 16:
-		break;
-	default:
-		dev_err(dev, "unsupported MSG_CTL width: %d\n",
-			 bs->msg_ctl_width);
-		goto out_err;
-	}
+	master->bits_per_word_mask = SPI_BPW_MASK(8);
+	master->auto_runtime_pm = true;
+	bs->msg_type_shift = bs->reg_offsets[SPI_MSG_TYPE_SHIFT];
+	bs->msg_ctl_width = bs->reg_offsets[SPI_MSG_CTL_WIDTH];
+	bs->tx_io = (u8 *)(bs->regs + bs->reg_offsets[SPI_MSG_DATA]);
+	bs->rx_io = (const u8 *)(bs->regs + bs->reg_offsets[SPI_RX_DATA]);
 
 	/* Initialize hardware */
-	clk_prepare_enable(bs->clk);
+	ret = clk_prepare_enable(bs->clk);
+	if (ret)
+		goto out_err;
+
 	bcm_spi_writeb(bs, SPI_INTR_CLEAR_ALL, SPI_INT_STATUS);
 
 	/* register and we are done */
-	ret = spi_register_master(master);
+	ret = devm_spi_register_master(dev, master);
 	if (ret) {
 		dev_err(dev, "spi register failed\n");
 		goto out_clk_disable;
@@ -469,40 +570,28 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 out_clk_disable:
 	clk_disable_unprepare(clk);
 out_err:
-	platform_set_drvdata(pdev, NULL);
 	spi_master_put(master);
-out_clk:
-	clk_put(clk);
-out:
 	return ret;
 }
 
 static int bcm63xx_spi_remove(struct platform_device *pdev)
 {
-	struct spi_master *master = spi_master_get(platform_get_drvdata(pdev));
+	struct spi_master *master = platform_get_drvdata(pdev);
 	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
-
-	spi_unregister_master(master);
 
 	/* reset spi block */
 	bcm_spi_writeb(bs, 0, SPI_INT_MASK);
 
 	/* HW shutdown */
 	clk_disable_unprepare(bs->clk);
-	clk_put(bs->clk);
-
-	platform_set_drvdata(pdev, 0);
-
-	spi_master_put(master);
 
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int bcm63xx_spi_suspend(struct device *dev)
 {
-	struct spi_master *master =
-			platform_get_drvdata(to_platform_device(dev));
+	struct spi_master *master = dev_get_drvdata(dev);
 	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
 
 	spi_master_suspend(master);
@@ -514,33 +603,30 @@ static int bcm63xx_spi_suspend(struct device *dev)
 
 static int bcm63xx_spi_resume(struct device *dev)
 {
-	struct spi_master *master =
-			platform_get_drvdata(to_platform_device(dev));
+	struct spi_master *master = dev_get_drvdata(dev);
 	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
+	int ret;
 
-	clk_prepare_enable(bs->clk);
+	ret = clk_prepare_enable(bs->clk);
+	if (ret)
+		return ret;
 
 	spi_master_resume(master);
 
 	return 0;
 }
+#endif
 
 static const struct dev_pm_ops bcm63xx_spi_pm_ops = {
-	.suspend	= bcm63xx_spi_suspend,
-	.resume		= bcm63xx_spi_resume,
+	SET_SYSTEM_SLEEP_PM_OPS(bcm63xx_spi_suspend, bcm63xx_spi_resume)
 };
-
-#define BCM63XX_SPI_PM_OPS	(&bcm63xx_spi_pm_ops)
-#else
-#define BCM63XX_SPI_PM_OPS	NULL
-#endif
 
 static struct platform_driver bcm63xx_spi_driver = {
 	.driver = {
 		.name	= "bcm63xx-spi",
-		.owner	= THIS_MODULE,
-		.pm	= BCM63XX_SPI_PM_OPS,
+		.pm	= &bcm63xx_spi_pm_ops,
 	},
+	.id_table	= bcm63xx_spi_dev_match,
 	.probe		= bcm63xx_spi_probe,
 	.remove		= bcm63xx_spi_remove,
 };

@@ -146,24 +146,6 @@ VMCI_QP_PAGESTORE_IS_WELLFORMED(struct vmci_qp_page_store *page_store)
 	return page_store->len >= 2;
 }
 
-/*
- * Helper function to check if the non-blocking flag
- * is set for a given queue pair.
- */
-static inline bool vmci_can_block(u32 flags)
-{
-	return !(flags & VMCI_QPFLAG_NONBLOCK);
-}
-
-/*
- * Helper function to check if the queue pair is pinned
- * into memory.
- */
-static inline bool vmci_qp_pinned(u32 flags)
-{
-	return flags & VMCI_QPFLAG_PINNED;
-}
-
 void vmci_qp_broker_exit(void);
 int vmci_qp_broker_alloc(struct vmci_handle handle, u32 peer,
 			 u32 flags, u32 priv_flags,

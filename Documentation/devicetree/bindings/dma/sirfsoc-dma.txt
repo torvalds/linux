@@ -1,0 +1,44 @@
+* CSR SiRFSoC DMA controller
+
+See dma.txt first
+
+Required properties:
+- compatible: Should be "sirf,prima2-dmac", "sirf,atlas7-dmac" or
+  "sirf,atlas7-dmac-v2"
+- reg: Should contain DMA registers location and length.
+- interrupts: Should contain one interrupt shared by all channel
+- #dma-cells: must be <1>. used to represent the number of integer
+    cells in the dmas property of client device.
+- clocks: clock required
+
+Example:
+
+Controller:
+dmac0: dma-controller@b00b0000 {
+	compatible = "sirf,prima2-dmac";
+	reg = <0xb00b0000 0x10000>;
+	interrupts = <12>;
+	clocks = <&clks 24>;
+	#dma-cells = <1>;
+};
+
+
+Client:
+Fill the specific dma request line in dmas. In the below example, spi0 read
+channel request line is 9 of the 2nd dma controller, while write channel uses
+4 of the 2nd dma controller; spi1 read channel request line is 12 of the 1st
+dma controller, while write channel uses 13 of the 1st dma controller:
+
+spi0: spi@b00d0000 {
+	compatible = "sirf,prima2-spi";
+	dmas = <&dmac1 9>,
+		<&dmac1 4>;
+	dma-names = "rx", "tx";
+};
+
+spi1: spi@b0170000 {
+	compatible = "sirf,prima2-spi";
+	dmas = <&dmac0 12>,
+		<&dmac0 13>;
+	dma-names = "rx", "tx";
+};

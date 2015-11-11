@@ -15,7 +15,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-fh.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 
 /* --------------------------------------------------------------------------
  * UVC constants
@@ -94,9 +94,24 @@
 #define UVC_GUID_FORMAT_BY8 \
 	{ 'B',  'Y',  '8',  ' ', 0x00, 0x00, 0x10, 0x00, \
 	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
+#define UVC_GUID_FORMAT_BA81 \
+	{ 'B',  'A',  '8',  '1', 0x00, 0x00, 0x10, 0x00, \
+	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
+#define UVC_GUID_FORMAT_GBRG \
+	{ 'G',  'B',  'R',  'G', 0x00, 0x00, 0x10, 0x00, \
+	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
+#define UVC_GUID_FORMAT_GRBG \
+	{ 'G',  'R',  'B',  'G', 0x00, 0x00, 0x10, 0x00, \
+	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
+#define UVC_GUID_FORMAT_RGGB \
+	{ 'R',  'G',  'G',  'B', 0x00, 0x00, 0x10, 0x00, \
+	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
 #define UVC_GUID_FORMAT_RGBP \
 	{ 'R',  'G',  'B',  'P', 0x00, 0x00, 0x10, 0x00, \
 	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
+#define UVC_GUID_FORMAT_BGR3 \
+	{ 0x7d, 0xeb, 0x36, 0xe4, 0x4f, 0x52, 0xce, 0x11, \
+	 0x9f, 0x53, 0x00, 0x20, 0xaf, 0x0b, 0xa7, 0x70}
 #define UVC_GUID_FORMAT_M420 \
 	{ 'M',  '4',  '2',  '0', 0x00, 0x00, 0x10, 0x00, \
 	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
@@ -115,8 +130,6 @@
 #define UVC_URBS		5
 /* Maximum number of packets per URB. */
 #define UVC_MAX_PACKETS		32
-/* Maximum number of video buffers. */
-#define UVC_MAX_VIDEO_BUFFERS	32
 /* Maximum status buffer size in bytes of interrupt URB. */
 #define UVC_MAX_STATUS_SIZE	16
 
@@ -137,6 +150,8 @@
 #define UVC_QUIRK_FIX_BANDWIDTH		0x00000080
 #define UVC_QUIRK_PROBE_DEF		0x00000100
 #define UVC_QUIRK_RESTRICT_FRAME_RATE	0x00000200
+#define UVC_QUIRK_RESTORE_CTRLS_ON_INIT	0x00000400
+#define UVC_QUIRK_FORCE_Y8		0x00000800
 
 /* Format flags */
 #define UVC_FMT_FLAG_COMPRESSED		0x00000001
@@ -339,7 +354,7 @@ enum uvc_buffer_state {
 };
 
 struct uvc_buffer {
-	struct vb2_buffer buf;
+	struct vb2_v4l2_buffer buf;
 	struct list_head queue;
 
 	enum uvc_buffer_state state;
@@ -428,7 +443,7 @@ struct uvc_stats_stream {
 struct uvc_streaming {
 	struct list_head list;
 	struct uvc_device *dev;
-	struct video_device *vdev;
+	struct video_device vdev;
 	struct uvc_video_chain *chain;
 	atomic_t active;
 
@@ -446,6 +461,7 @@ struct uvc_streaming {
 	struct uvc_format *def_format;
 	struct uvc_format *cur_format;
 	struct uvc_frame *cur_frame;
+
 	/* Protect access to ctrl, cur_format, cur_frame and hardware video
 	 * probe control.
 	 */
@@ -501,10 +517,6 @@ struct uvc_streaming {
 	} clock;
 };
 
-enum uvc_device_state {
-	UVC_DEV_DISCONNECTED = 1,
-};
-
 struct uvc_device {
 	struct usb_device *udev;
 	struct usb_interface *intf;
@@ -513,8 +525,8 @@ struct uvc_device {
 	int intfnum;
 	char name[32];
 
-	enum uvc_device_state state;
-	atomic_t users;
+	struct mutex lock;		/* Protects users */
+	unsigned int users;
 	atomic_t nmappings;
 
 	/* Video control interface */
@@ -566,7 +578,6 @@ struct uvc_driver {
 #define UVC_TRACE_FORMAT	(1 << 3)
 #define UVC_TRACE_CAPTURE	(1 << 4)
 #define UVC_TRACE_CALLS		(1 << 5)
-#define UVC_TRACE_IOCTL		(1 << 6)
 #define UVC_TRACE_FRAME		(1 << 7)
 #define UVC_TRACE_SUSPEND	(1 << 8)
 #define UVC_TRACE_STATUS	(1 << 9)
@@ -582,6 +593,7 @@ extern unsigned int uvc_clock_param;
 extern unsigned int uvc_no_drop_param;
 extern unsigned int uvc_trace_param;
 extern unsigned int uvc_timeout_param;
+extern unsigned int uvc_hw_timestamps_param;
 
 #define uvc_trace(flag, msg...) \
 	do { \
@@ -610,16 +622,23 @@ extern struct uvc_entity *uvc_entity_by_id(struct uvc_device *dev, int id);
 /* Video buffers queue management. */
 extern int uvc_queue_init(struct uvc_video_queue *queue,
 		enum v4l2_buf_type type, int drop_corrupted);
-extern int uvc_alloc_buffers(struct uvc_video_queue *queue,
+extern void uvc_queue_release(struct uvc_video_queue *queue);
+extern int uvc_request_buffers(struct uvc_video_queue *queue,
 		struct v4l2_requestbuffers *rb);
-extern void uvc_free_buffers(struct uvc_video_queue *queue);
 extern int uvc_query_buffer(struct uvc_video_queue *queue,
 		struct v4l2_buffer *v4l2_buf);
+extern int uvc_create_buffers(struct uvc_video_queue *queue,
+		struct v4l2_create_buffers *v4l2_cb);
 extern int uvc_queue_buffer(struct uvc_video_queue *queue,
 		struct v4l2_buffer *v4l2_buf);
+extern int uvc_export_buffer(struct uvc_video_queue *queue,
+		struct v4l2_exportbuffer *exp);
 extern int uvc_dequeue_buffer(struct uvc_video_queue *queue,
 		struct v4l2_buffer *v4l2_buf, int nonblocking);
-extern int uvc_queue_enable(struct uvc_video_queue *queue, int enable);
+extern int uvc_queue_streamon(struct uvc_video_queue *queue,
+			      enum v4l2_buf_type type);
+extern int uvc_queue_streamoff(struct uvc_video_queue *queue,
+			       enum v4l2_buf_type type);
 extern void uvc_queue_cancel(struct uvc_video_queue *queue, int disconnect);
 extern struct uvc_buffer *uvc_queue_next_buffer(struct uvc_video_queue *queue,
 		struct uvc_buffer *buf);
@@ -638,6 +657,7 @@ static inline int uvc_queue_streaming(struct uvc_video_queue *queue)
 }
 
 /* V4L2 interface */
+extern const struct v4l2_ioctl_ops uvc_ioctl_ops;
 extern const struct v4l2_file_operations uvc_fops;
 
 /* Media controller */
@@ -654,16 +674,14 @@ extern int uvc_probe_video(struct uvc_streaming *stream,
 extern int uvc_query_ctrl(struct uvc_device *dev, __u8 query, __u8 unit,
 		__u8 intfnum, __u8 cs, void *data, __u16 size);
 void uvc_video_clock_update(struct uvc_streaming *stream,
-			    struct v4l2_buffer *v4l2_buf,
+			    struct vb2_v4l2_buffer *vbuf,
 			    struct uvc_buffer *buf);
 
 /* Status */
 extern int uvc_status_init(struct uvc_device *dev);
 extern void uvc_status_cleanup(struct uvc_device *dev);
-extern int uvc_status_start(struct uvc_device *dev);
+extern int uvc_status_start(struct uvc_device *dev, gfp_t flags);
 extern void uvc_status_stop(struct uvc_device *dev);
-extern int uvc_status_suspend(struct uvc_device *dev);
-extern int uvc_status_resume(struct uvc_device *dev);
 
 /* Controls */
 extern const struct v4l2_subscribed_event_ops uvc_ctrl_sub_ev_ops;
@@ -677,7 +695,7 @@ extern int uvc_ctrl_add_mapping(struct uvc_video_chain *chain,
 		const struct uvc_control_mapping *mapping);
 extern int uvc_ctrl_init_device(struct uvc_device *dev);
 extern void uvc_ctrl_cleanup_device(struct uvc_device *dev);
-extern int uvc_ctrl_resume_device(struct uvc_device *dev);
+extern int uvc_ctrl_restore_values(struct uvc_device *dev);
 
 extern int uvc_ctrl_begin(struct uvc_video_chain *chain);
 extern int __uvc_ctrl_commit(struct uvc_fh *handle, int rollback,

@@ -1,0 +1,756 @@
+/*
+ * Copyright (C) 2013 STMicroelectronics R&D Limited
+ * <stlinux-devel@stlinux.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include <dt-bindings/clock/stih416-clks.h>
+
+/ {
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		/*
+		 * Fixed 30MHz oscillator inputs to SoC
+		 */
+		clk_sysin: clk-sysin {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <30000000>;
+		};
+
+		/*
+		 * ClockGenAs on SASG2
+		 */
+		clockgen-a@fee62000 {
+			reg = <0xfee62000 0xb48>;
+
+			clk_s_a0_pll: clk-s-a0-pll {
+				#clock-cells = <1>;
+				compatible = "st,clkgena-plls-c65";
+
+				clocks = <&clk_sysin>;
+
+				clock-output-names = "clk-s-a0-pll0-hs",
+						     "clk-s-a0-pll0-ls",
+						     "clk-s-a0-pll1";
+			};
+
+			clk_s_a0_osc_prediv: clk-s-a0-osc-prediv {
+				#clock-cells = <0>;
+				compatible = "st,clkgena-prediv-c65",
+					     "st,clkgena-prediv";
+
+				clocks = <&clk_sysin>;
+
+				clock-output-names = "clk-s-a0-osc-prediv";
+			};
+
+			clk_s_a0_hs: clk-s-a0-hs {
+				#clock-cells = <1>;
+				compatible = "st,clkgena-divmux-c65-hs",
+					     "st,clkgena-divmux";
+
+				clocks = <&clk_s_a0_osc_prediv>,
+					 <&clk_s_a0_pll 0>, /* PLL0 HS */
+					 <&clk_s_a0_pll 2>; /* PLL1 */
+
+				clock-output-names = "clk-s-fdma-0",
+						     "clk-s-fdma-1",
+						     ""; /* clk-s-jit-sense */
+						     /* Fourth output unused */
+			};
+
+			clk_s_a0_ls: clk-s-a0-ls {
+				#clock-cells = <1>;
+				compatible = "st,clkgena-divmux-c65-ls",
+					     "st,clkgena-divmux";
+
+				clocks = <&clk_s_a0_osc_prediv>,
+					 <&clk_s_a0_pll 1>, /* PLL0 LS */
+					 <&clk_s_a0_pll 2>; /* PLL1 */
+
+				clock-output-names = "clk-s-icn-reg-0",
+						     "clk-s-icn-if-0",
+						     "clk-s-icn-reg-lp-0",
+						     "clk-s-emiss",
+						     "clk-s-eth1-phy",
+						     "clk-s-mii-ref-out";
+						     /* Remaining outputs unused */
+			};
+		};
+
+		clockgen-a@fee81000 {
+			reg = <0xfee81000 0xb48>;
+
+			clk_s_a1_pll: clk-s-a1-pll {
+				#clock-cells = <1>;
+				compatible = "st,clkgena-plls-c65";
+
+				clocks = <&clk_sysin>;
+
+				clock-output-names = "clk-s-a1-pll0-hs",
+						     "clk-s-a1-pll0-ls",
+						     "clk-s-a1-pll1";
+			};
+
+			clk_s_a1_osc_prediv: clk-s-a1-osc-prediv {
+				#clock-cells = <0>;
+				compatible = "st,clkgena-prediv-c65",
+					     "st,clkgena-prediv";
+
+				clocks = <&clk_sysin>;
+
+				clock-output-names = "clk-s-a1-osc-prediv";
+			};
+
+			clk_s_a1_hs: clk-s-a1-hs {
+				#clock-cells = <1>;
+				compatible = "st,clkgena-divmux-c65-hs",
+					     "st,clkgena-divmux";
+
+				clocks = <&clk_s_a1_osc_prediv>,
+					 <&clk_s_a1_pll 0>, /* PLL0 HS */
+					 <&clk_s_a1_pll 2>; /* PLL1 */
+
+				clock-output-names = "", /* Reserved */
+						     "", /* Reserved */
+						     "clk-s-stac-phy",
+						     "clk-s-vtac-tx-phy";
+			};
+
+			clk_s_a1_ls: clk-s-a1-ls {
+				#clock-cells = <1>;
+				compatible = "st,clkgena-divmux-c65-ls",
+					     "st,clkgena-divmux";
+
+				clocks = <&clk_s_a1_osc_prediv>,
+					 <&clk_s_a1_pll 1>, /* PLL0 LS */
+					 <&clk_s_a1_pll 2>; /* PLL1 */
+
+				clock-output-names = "clk-s-icn-if-2",
+						     "clk-s-card-mmc-0",
+						     "clk-s-icn-if-1",
+						     "clk-s-gmac0-phy",
+						     "clk-s-nand-ctrl",
+						     "", /* Reserved */
+						     "clk-s-mii0-ref-out",
+						     "clk-s-stac-sys",
+						     "clk-s-card-mmc-1";
+						     /* Remaining outputs unused */
+			};
+		};
+
+		/*
+		 * ClockGenAs on MPE42
+		 */
+		clockgen-a@fde12000 {
+			reg = <0xfde12000 0xb50>;
+
+			clk_m_a0_pll0: clk-m-a0-pll0 {
+				#clock-cells = <1>;
+				compatible = "st,plls-c32-a1x-0", "st,clkgen-plls-c32";
+
+				clocks = <&clk_sysin>;
+
+				clock-output-names = "clk-m-a0-pll0-phi0",
+						     "clk-m-a0-pll0-phi1",
+						     "clk-m-a0-pll0-phi2",
+						     "clk-m-a0-pll0-phi3";
+			};
+
+			clk_m_a0_pll1: clk-m-a0-pll1 {
+				#clock-cells = <1>;
+				compatible = "st,plls-c32-a1x-1", "st,clkgen-plls-c32";
+
+				clocks = <&clk_sysin>;
+
+				clock-output-names = "clk-m-a0-pll1-phi0",
+						     "clk-m-a0-pll1-phi1",
+						     "clk-m-a0-pll1-phi2",
+						     "clk-m-a0-pll1-phi3";
+			};
+
+			clk_m_a0_osc_prediv: clk-m-a0-osc-prediv {
+				#clock-cells = <0>;
+				compatible = "st,clkgena-prediv-c32",
+					     "st,clkgena-prediv";
+
+				clocks = <&clk_sysin>;
+
+				clock-output-names = "clk-m-a0-osc-prediv";
+			};
+
+			clk_m_a0_div0: clk-m-a0-div0 {
+				#clock-cells = <1>;
+				compatible = "st,clkgena-divmux-c32-odf0",
+					     "st,clkgena-divmux";
+
+				clocks = <&clk_m_a0_osc_prediv>,
+					 <&clk_m_a0_pll0 0>, /* PLL0 PHI0 */
+					 <&clk_m_a0_pll1 0>; /* PLL1 PHI0 */
+
+				clock-output-names = "", /* Unused */
+						     "", /* Unused */
+						     "clk-m-fdma-12",
+						     "", /* Unused */
+						     "clk-m-pp-dmu-0",
+						     "clk-m-pp-dmu-1",
+						     "clk-m-icm-lmi",
+						     "clk-m-vid-dmu-0";
+			};
+
+			clk_m_a0_div1: clk-m-a0-div1 {
+				#clock-cells = <1>;
+				compatible = "st,clkgena-divmux-c32-odf1",
+					     "st,clkgena-divmux";
+
+				clocks = <&clk_m_a0_osc_prediv>,
+					 <&clk_m_a0_pll0 1>, /* PLL0 PHI1 */
+					 <&clk_m_a0_pll1 1>; /* PLL1 PHI1 */
+
+				clock-output-names = "clk-m-vid-dmu-1",
+						     "", /* Unused */
+						     "clk-m-a9-ext2f",
+						     "clk-m-st40rt",
+						     "clk-m-st231-dmu-0",
+						     "clk-m-st231-dmu-1",
+						     "clk-m-st231-aud",
+						     "clk-m-st231-gp-0";
+			};
+
+			clk_m_a0_div2: clk-m-a0-div2 {
+				#clock-cells = <1>;
+				compatible = "st,clkgena-divmux-c32-odf2",
+					     "st,clkgena-divmux";
+
+				clocks = <&clk_m_a0_osc_prediv>,
+					 <&clk_m_a0_pll0 2>, /* PLL0 PHI2 */
+					 <&clk_m_a0_pll1 2>; /* PLL1 PHI2 */
+
+				clock-output-names = "clk-m-st231-gp-1",
+						     "clk-m-icn-cpu",
+						     "clk-m-icn-stac",
+						     "clk-m-tx-icn-dmu-0",
+						     "clk-m-tx-icn-dmu-1",
+						     "clk-m-tx-icn-ts",
+						     "clk-m-icn-vdp-0",
+						     "clk-m-icn-vdp-1";
+			};
+
+			clk_m_a0_div3: clk-m-a0-div3 {
+				#clock-cells = <1>;
+				compatible = "st,clkgena-divmux-c32-odf3",
+					     "st,clkgena-divmux";
+
+				clocks = <&clk_m_a0_osc_prediv>,
+					 <&clk_m_a0_pll0 3>, /* PLL0 PHI3 */
+					 <&clk_m_a0_pll1 3>; /* PLL1 PHI3 */
+
+				clock-output-names = "", /* Unused */
+						     "", /* Unused */
+						     "", /* Unused */
+						     "", /* Unused */
+						     "clk-m-icn-vp8",
+						     "", /* Unused */
+						     "clk-m-icn-reg-11",
+						     "clk-m-a9-trace";
+			};
+		};
+
+		clockgen-a@fd6db000 {
+			reg = <0xfd6db000 0xb50>;
+
+			clk_m_a1_pll0: clk-m-a1-pll0 {
+				#clock-cells = <1>;
+				compatible = "st,plls-c32-a1x-0", "st,clkgen-plls-c32";
+
+				clocks = <&clk_sysin>;
+
+				clock-output-names = "clk-m-a1-pll0-phi0",
+						     "clk-m-a1-pll0-phi1",
+						     "clk-m-a1-pll0-phi2",
+						     "clk-m-a1-pll0-phi3";
+			};
+
+			clk_m_a1_pll1: clk-m-a1-pll1 {
+				#clock-cells = <1>;
+				compatible = "st,plls-c32-a1x-1", "st,clkgen-plls-c32";
+
+				clocks = <&clk_sysin>;
+
+				clock-output-names = "clk-m-a1-pll1-phi0",
+						     "clk-m-a1-pll1-phi1",
+						     "clk-m-a1-pll1-phi2",
+						     "clk-m-a1-pll1-phi3";
+			};
+
+			clk_m_a1_osc_prediv: clk-m-a1-osc-prediv {
+				#clock-cells = <0>;
+				compatible = "st,clkgena-prediv-c32",
+					     "st,clkgena-prediv";
+
+				clocks = <&clk_sysin>;
+
+				clock-output-names = "clk-m-a1-osc-prediv";
+			};
+
+			clk_m_a1_div0: clk-m-a1-div0 {
+				#clock-cells = <1>;
+				compatible = "st,clkgena-divmux-c32-odf0",
+					     "st,clkgena-divmux";
+
+				clocks = <&clk_m_a1_osc_prediv>,
+					 <&clk_m_a1_pll0 0>, /* PLL0 PHI0 */
+					 <&clk_m_a1_pll1 0>; /* PLL1 PHI0 */
+
+				clock-output-names = "", /* Unused */
+						     "clk-m-fdma-10",
+						     "clk-m-fdma-11",
+						     "clk-m-hva-alt",
+						     "clk-m-proc-sc",
+						     "clk-m-tp",
+						     "clk-m-rx-icn-dmu-0",
+						     "clk-m-rx-icn-dmu-1";
+			};
+
+			clk_m_a1_div1: clk-m-a1-div1 {
+				#clock-cells = <1>;
+				compatible = "st,clkgena-divmux-c32-odf1",
+					     "st,clkgena-divmux";
+
+				clocks = <&clk_m_a1_osc_prediv>,
+					 <&clk_m_a1_pll0 1>, /* PLL0 PHI1 */
+					 <&clk_m_a1_pll1 1>; /* PLL1 PHI1 */
+
+				clock-output-names = "clk-m-rx-icn-ts",
+						     "clk-m-rx-icn-vdp-0",
+						     "", /* Unused */
+						     "clk-m-prv-t1-bus",
+						     "clk-m-icn-reg-12",
+						     "clk-m-icn-reg-10",
+						     "", /* Unused */
+						     "clk-m-icn-st231";
+			};
+
+			clk_m_a1_div2: clk-m-a1-div2 {
+				#clock-cells = <1>;
+				compatible = "st,clkgena-divmux-c32-odf2",
+					     "st,clkgena-divmux";
+
+				clocks = <&clk_m_a1_osc_prediv>,
+					 <&clk_m_a1_pll0 2>, /* PLL0 PHI2 */
+					 <&clk_m_a1_pll1 2>; /* PLL1 PHI2 */
+
+				clock-output-names = "clk-m-fvdp-proc-alt",
+						     "clk-m-icn-reg-13",
+						     "clk-m-tx-icn-gpu",
+						     "clk-m-rx-icn-gpu",
+						     "", /* Unused */
+						     "", /* Unused */
+						     "", /* clk-m-apb-pm-12 */
+						     ""; /* Unused */
+			};
+
+			clk_m_a1_div3: clk-m-a1-div3 {
+				#clock-cells = <1>;
+				compatible = "st,clkgena-divmux-c32-odf3",
+					     "st,clkgena-divmux";
+
+				clocks = <&clk_m_a1_osc_prediv>,
+					 <&clk_m_a1_pll0 3>, /* PLL0 PHI3 */
+					 <&clk_m_a1_pll1 3>; /* PLL1 PHI3 */
+
+				clock-output-names = "", /* Unused */
+						     "", /* Unused */
+						     "", /* Unused */
+						     "", /* Unused */
+						     "", /* Unused */
+						     "", /* Unused */
+						     "", /* Unused */
+						     ""; /* clk-m-gpu-alt */
+			};
+		};
+
+		clk_m_a9_ext2f_div2: clk-m-a9-ext2f-div2 {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			clocks = <&clk_m_a0_div1 2>;
+			clock-div = <2>;
+			clock-mult = <1>;
+		};
+
+		clockgen-a@fd345000 {
+			reg = <0xfd345000 0xb50>;
+
+			clk_m_a2_pll0: clk-m-a2-pll0 {
+				#clock-cells = <1>;
+				compatible = "st,plls-c32-a1x-0", "st,clkgen-plls-c32";
+
+				clocks = <&clk_sysin>;
+
+				clock-output-names = "clk-m-a2-pll0-phi0",
+						     "clk-m-a2-pll0-phi1",
+						     "clk-m-a2-pll0-phi2",
+						     "clk-m-a2-pll0-phi3";
+			};
+
+			clk_m_a2_pll1: clk-m-a2-pll1 {
+				#clock-cells = <1>;
+				compatible = "st,plls-c32-a1x-1", "st,clkgen-plls-c32";
+
+				clocks = <&clk_sysin>;
+
+				clock-output-names = "clk-m-a2-pll1-phi0",
+						     "clk-m-a2-pll1-phi1",
+						     "clk-m-a2-pll1-phi2",
+						     "clk-m-a2-pll1-phi3";
+			};
+
+			clk_m_a2_osc_prediv: clk-m-a2-osc-prediv {
+				#clock-cells = <0>;
+				compatible = "st,clkgena-prediv-c32",
+					     "st,clkgena-prediv";
+
+				clocks = <&clk_sysin>;
+
+				clock-output-names = "clk-m-a2-osc-prediv";
+			};
+
+			clk_m_a2_div0: clk-m-a2-div0 {
+				#clock-cells = <1>;
+				compatible = "st,clkgena-divmux-c32-odf0",
+					     "st,clkgena-divmux";
+
+				clocks = <&clk_m_a2_osc_prediv>,
+					 <&clk_m_a2_pll0 0>, /* PLL0 PHI0 */
+					 <&clk_m_a2_pll1 0>; /* PLL1 PHI0 */
+
+				clock-output-names = "clk-m-vtac-main-phy",
+						     "clk-m-vtac-aux-phy",
+						     "clk-m-stac-phy",
+						     "clk-m-stac-sys",
+						     "", /* clk-m-mpestac-pg */
+						     "", /* clk-m-mpestac-wc */
+						     "", /* clk-m-mpevtacaux-pg*/
+						     ""; /* clk-m-mpevtacmain-pg*/
+			};
+
+			clk_m_a2_div1: clk-m-a2-div1 {
+				#clock-cells = <1>;
+				compatible = "st,clkgena-divmux-c32-odf1",
+					     "st,clkgena-divmux";
+
+				clocks = <&clk_m_a2_osc_prediv>,
+					 <&clk_m_a2_pll0 1>, /* PLL0 PHI1 */
+					 <&clk_m_a2_pll1 1>; /* PLL1 PHI1 */
+
+				clock-output-names = "", /* clk-m-mpevtacrx0-wc */
+						     "", /* clk-m-mpevtacrx1-wc */
+						     "clk-m-compo-main",
+						     "clk-m-compo-aux",
+						     "clk-m-bdisp-0",
+						     "clk-m-bdisp-1",
+						     "clk-m-icn-bdisp",
+						     "clk-m-icn-compo";
+			};
+
+			clk_m_a2_div2: clk-m-a2-div2 {
+				#clock-cells = <1>;
+				compatible = "st,clkgena-divmux-c32-odf2",
+					     "st,clkgena-divmux";
+
+				clocks = <&clk_m_a2_osc_prediv>,
+					 <&clk_m_a2_pll0 2>, /* PLL0 PHI2 */
+					 <&clk_m_a2_pll1 2>; /* PLL1 PHI2 */
+
+				clock-output-names = "clk-m-icn-vdp-2",
+						     "", /* Unused */
+						     "clk-m-icn-reg-14",
+						     "clk-m-mdtp",
+						     "clk-m-jpegdec",
+						     "", /* Unused */
+						     "clk-m-dcephy-impctrl",
+						     ""; /* Unused */
+			};
+
+			clk_m_a2_div3: clk-m-a2-div3 {
+				#clock-cells = <1>;
+				compatible = "st,clkgena-divmux-c32-odf3",
+					     "st,clkgena-divmux";
+
+				clocks = <&clk_m_a2_osc_prediv>,
+					 <&clk_m_a2_pll0 3>, /* PLL0 PHI3 */
+					 <&clk_m_a2_pll1 3>; /* PLL1 PHI3 */
+
+				clock-output-names = "", /* Unused */
+						     ""; /* clk-m-apb-pm-11 */
+						     /* Remaining outputs unused */
+			};
+		};
+
+		/*
+		 * A9 PLL
+		 */
+		clockgen-a9@fdde08b0 {
+			reg = <0xfdde08b0 0x70>;
+
+			clockgen_a9_pll: clockgen-a9-pll {
+				#clock-cells = <1>;
+				compatible = "st,stih416-plls-c32-a9", "st,clkgen-plls-c32";
+
+				clocks = <&clk_sysin>;
+				clock-output-names = "clockgen-a9-pll-odf";
+			};
+		};
+
+		/*
+		 * ARM CPU related clocks
+		 */
+		clk_m_a9: clk-m-a9@fdde08ac {
+			#clock-cells = <0>;
+			compatible = "st,stih416-clkgen-a9-mux", "st,clkgen-mux";
+			reg = <0xfdde08ac 0x4>;
+			clocks = <&clockgen_a9_pll 0>,
+				 <&clockgen_a9_pll 0>,
+				 <&clk_m_a0_div1 2>,
+				 <&clk_m_a9_ext2f_div2>;
+		};
+
+		/*
+		 * ARM Peripheral clock for timers
+		 */
+		arm_periph_clk: clk-m-a9-periphs {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			clocks = <&clk_m_a9>;
+			clock-div = <2>;
+			clock-mult = <1>;
+		};
+
+		/*
+		 * Frequency synthesizers on the SASG2
+		 */
+		clockgen_b0: clockgen-b0@fee108b4 {
+			#clock-cells = <1>;
+			compatible = "st,stih416-quadfs216", "st,quadfs";
+			reg = <0xfee108b4 0x44>;
+
+			clocks = <&clk_sysin>;
+			clock-output-names = "clk-s-usb48",
+					     "clk-s-dss",
+					     "clk-s-stfe-frc-2",
+					     "clk-s-thsens-scard";
+		};
+
+		clockgen_b1: clockgen-b1@fe8308c4 {
+			#clock-cells = <1>;
+			compatible = "st,stih416-quadfs216", "st,quadfs";
+			reg = <0xfe8308c4 0x44>;
+
+			clocks = <&clk_sysin>;
+			clock-output-names = "clk-s-pcm-0",
+					     "clk-s-pcm-1",
+					     "clk-s-pcm-2",
+					     "clk-s-pcm-3";
+		};
+
+		clockgen_c: clockgen-c@fe8307d0 {
+			#clock-cells = <1>;
+			compatible = "st,stih416-quadfs432", "st,quadfs";
+			reg = <0xfe8307d0 0x44>;
+
+			clocks = <&clk_sysin>;
+			clock-output-names = "clk-s-c-fs0-ch0",
+					     "clk-s-c-vcc-sd",
+					     "clk-s-c-fs0-ch2";
+		};
+
+		clk_s_vcc_hd: clk-s-vcc-hd@fe8308b8 {
+			#clock-cells = <0>;
+			compatible = "st,stih416-clkgenc-vcc-hd", "st,clkgen-mux";
+			reg = <0xfe8308b8 0x4>; /* SYSCFG2558 */
+
+			clocks = <&clk_sysin>,
+				 <&clockgen_c 0>;
+		};
+
+		/*
+		 * Add a dummy clock for the HDMI PHY for the VCC input mux
+		 */
+		clk_s_tmds_fromphy: clk-s-tmds-fromphy {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <0>;
+		};
+
+		clockgen_c_vcc: clockgen-c-vcc@fe8308ac {
+			#clock-cells = <1>;
+			compatible = "st,stih416-clkgenc", "st,clkgen-vcc";
+			reg = <0xfe8308ac 0xc>; /* SYSCFG2555,2556,2557 */
+
+			clocks = <&clk_s_vcc_hd>,
+				 <&clockgen_c 1>,
+				 <&clk_s_tmds_fromphy>,
+				 <&clockgen_c 2>;
+
+			clock-output-names  = "clk-s-pix-hdmi",
+					      "clk-s-pix-dvo",
+					      "clk-s-out-dvo",
+					      "clk-s-pix-hd",
+					      "clk-s-hddac",
+					      "clk-s-denc",
+					      "clk-s-sddac",
+					      "clk-s-pix-main",
+					      "clk-s-pix-aux",
+					      "clk-s-stfe-frc-0",
+					      "clk-s-ref-mcru",
+					      "clk-s-slave-mcru",
+					      "clk-s-tmds-hdmi",
+					      "clk-s-hdmi-reject-pll",
+					      "clk-s-thsens";
+		};
+
+		clockgen_d: clockgen-d@fee107e0 {
+			#clock-cells = <1>;
+			compatible = "st,stih416-quadfs216", "st,quadfs";
+			reg = <0xfee107e0 0x44>;
+
+			clocks = <&clk_sysin>;
+			clock-output-names = "clk-s-ccsc",
+					     "clk-s-stfe-frc-1",
+					     "clk-s-tsout-1",
+					     "clk-s-mchi";
+		};
+
+		/*
+		 * Frequency synthesizers on the MPE42
+		 */
+		clockgen_e: clockgen-e@fd3208bc {
+			#clock-cells = <1>;
+			compatible = "st,stih416-quadfs660-E", "st,quadfs";
+			reg = <0xfd3208bc 0xb0>;
+
+			clocks = <&clk_sysin>;
+			clock-output-names = "clk-m-pix-mdtp-0",
+					     "clk-m-pix-mdtp-1",
+					     "clk-m-pix-mdtp-2",
+					     "clk-m-mpelpc";
+		};
+
+		clockgen_f: clockgen-f@fd320878 {
+			#clock-cells = <1>;
+			compatible = "st,stih416-quadfs660-F", "st,quadfs";
+			reg = <0xfd320878 0xf0>;
+
+			clocks = <&clk_sysin>;
+			clock-output-names = "clk-m-main-vidfs",
+					     "clk-m-hva-fs",
+					     "clk-m-fvdp-vcpu",
+					     "clk-m-fvdp-proc-fs";
+		};
+
+		clk_m_fvdp_proc: clk-m-fvdp-proc@fd320910 {
+			#clock-cells = <0>;
+			compatible = "st,stih416-clkgenf-vcc-fvdp", "st,clkgen-mux";
+			reg = <0xfd320910 0x4>; /* SYSCFG8580 */
+
+			clocks = <&clk_m_a1_div2 0>,
+				 <&clockgen_f 3>;
+		};
+
+		clk_m_hva: clk-m-hva@fd690868 {
+			#clock-cells = <0>;
+			compatible = "st,stih416-clkgenf-vcc-hva", "st,clkgen-mux";
+			reg = <0xfd690868 0x4>; /* SYSCFG9538 */
+
+			clocks = <&clockgen_f 1>,
+				 <&clk_m_a1_div0 3>;
+		};
+
+		clk_m_f_vcc_hd: clk-m-f-vcc-hd@fd32086c {
+			#clock-cells = <0>;
+			compatible = "st,stih416-clkgenf-vcc-hd", "st,clkgen-mux";
+			reg = <0xfd32086c 0x4>; /* SYSCFG8539 */
+
+			clocks = <&clockgen_c_vcc 7>,
+				 <&clockgen_f 0>;
+		};
+
+		clk_m_f_vcc_sd: clk-m-f-vcc-sd@fd32086c {
+			#clock-cells = <0>;
+			compatible = "st,stih416-clkgenf-vcc-sd", "st,clkgen-mux";
+			reg = <0xfd32086c 0x4>; /* SYSCFG8539 */
+
+			clocks = <&clockgen_c_vcc 8>,
+				 <&clockgen_f 1>;
+		};
+
+		/*
+		 * Add a dummy clock for the HDMIRx external signal clock
+		 */
+		clk_m_pix_hdmirx_sas: clk-m-pix-hdmirx-sas {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <0>;
+		};
+
+		clockgen_f_vcc: clockgen-f-vcc@fd32086c {
+			#clock-cells = <1>;
+			compatible = "st,stih416-clkgenf", "st,clkgen-vcc";
+			reg = <0xfd32086c 0xc>; /* SYSCFG8539,8540,8541 */
+
+			clocks = <&clk_m_f_vcc_hd>,
+				 <&clk_m_f_vcc_sd>,
+				 <&clockgen_f 0>,
+				 <&clk_m_pix_hdmirx_sas>;
+
+			clock-output-names  = "clk-m-pix-main-pipe",
+					      "clk-m-pix-aux-pipe",
+					      "clk-m-pix-main-cru",
+					      "clk-m-pix-aux-cru",
+					      "clk-m-xfer-be-compo",
+					      "clk-m-xfer-pip-compo",
+					      "clk-m-xfer-aux-compo",
+					      "clk-m-vsens",
+					      "clk-m-pix-hdmirx-0",
+					      "clk-m-pix-hdmirx-1";
+		};
+
+		/*
+		 * DDR PLL
+		 */
+		clockgen-ddr@0xfdde07d8 {
+			reg = <0xfdde07d8 0x110>;
+
+			clockgen_ddr_pll: clockgen-ddr-pll {
+				#clock-cells = <1>;
+				compatible = "st,stih416-plls-c32-ddr", "st,clkgen-plls-c32";
+
+				clocks = <&clk_sysin>;
+				clock-output-names = "clockgen-ddr0",
+						     "clockgen-ddr1";
+			};
+		};
+
+		/*
+		 * GPU PLL
+		 */
+		clockgen-gpu@fd68ff00 {
+			reg = <0xfd68ff00 0x910>;
+
+			clockgen_gpu_pll: clockgen-gpu-pll {
+				#clock-cells = <1>;
+				compatible = "st,stih416-gpu-pll-c32", "st,clkgengpu-pll-c32";
+
+				clocks = <&clk_sysin>;
+				clock-output-names = "clockgen-gpu-pll";
+			};
+		};
+	};
+};

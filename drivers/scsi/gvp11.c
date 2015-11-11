@@ -310,7 +310,7 @@ static int gvp11_probe(struct zorro_dev *z, const struct zorro_device_id *ent)
 	if (!request_mem_region(address, 256, "wd33c93"))
 		return -EBUSY;
 
-	regs = (struct gvp11_scsiregs *)(ZTWO_VADDR(address));
+	regs = ZTWO_VADDR(address);
 
 	error = check_wd33c93(regs);
 	if (error)

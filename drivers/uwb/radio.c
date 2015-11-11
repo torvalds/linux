@@ -62,6 +62,10 @@ static void uwb_radio_channel_changed(struct uwb_rc *rc, int channel)
 static int uwb_radio_change_channel(struct uwb_rc *rc, int channel)
 {
 	int ret = 0;
+	struct device *dev = &rc->uwb_dev.dev;
+
+	dev_dbg(dev, "%s: channel = %d, rc->beaconing = %d\n", __func__,
+		channel, rc->beaconing);
 
 	if (channel == -1)
 		uwb_radio_channel_changed(rc, channel);
@@ -89,7 +93,7 @@ static int uwb_radio_change_channel(struct uwb_rc *rc, int channel)
  * uwb_radio_start - request that the radio be started
  * @pal: the PAL making the request.
  *
- * If the radio is not already active, aa suitable channel is selected
+ * If the radio is not already active, a suitable channel is selected
  * and beacons are started.
  */
 int uwb_radio_start(struct uwb_pal *pal)
@@ -111,7 +115,7 @@ int uwb_radio_start(struct uwb_pal *pal)
 EXPORT_SYMBOL_GPL(uwb_radio_start);
 
 /**
- * uwb_radio_stop - request tha the radio be stopped.
+ * uwb_radio_stop - request that the radio be stopped.
  * @pal: the PAL making the request.
  *
  * Stops the radio if no other PAL is making use of it.

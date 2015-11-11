@@ -35,17 +35,20 @@
 #include <linux/syscore_ops.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/reboot.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
+#include <mach/gpio-samsung.h>
 #include <asm/proc-fns.h>
 #include <asm/irq.h>
 #include <asm/system_misc.h>
 
 #include <mach/regs-s3c2443-clock.h>
+#include <mach/rtc-core.h>
 
 #include <plat/gpio-core.h>
 #include <plat/gpio-cfg.h>
@@ -56,13 +59,12 @@
 #include <plat/pm.h>
 
 #include <plat/iic-core.h>
-#include <plat/fb-core.h>
-#include <plat/nand-core.h>
 #include <plat/adc-core.h>
-#include <plat/rtc-core.h>
-#include <plat/spi-core.h>
 
 #include "common.h"
+#include "fb-core.h"
+#include "nand-core.h"
+#include "spi-core.h"
 
 static struct map_desc s3c2416_iodesc[] __initdata = {
 	IODESC_ENT(WATCHDOG),
@@ -78,14 +80,6 @@ struct bus_type s3c2416_subsys = {
 static struct device s3c2416_dev = {
 	.bus		= &s3c2416_subsys,
 };
-
-void s3c2416_restart(char mode, const char *cmd)
-{
-	if (mode == 's')
-		soft_restart(0);
-
-	__raw_writel(S3C2443_SWRST_RESET, S3C2443_SWRST);
-}
 
 int __init s3c2416_init(void)
 {
@@ -104,7 +98,7 @@ int __init s3c2416_init(void)
 	s3c_adc_setname("s3c2416-adc");
 	s3c_rtc_setname("s3c2416-rtc");
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	register_syscore_ops(&s3c2416_pm_syscore_ops);
 	register_syscore_ops(&s3c24xx_irq_syscore_ops);
 	register_syscore_ops(&s3c2416_irq_syscore_ops);

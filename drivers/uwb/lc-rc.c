@@ -119,10 +119,109 @@ struct uwb_rc *uwb_rc_alloc(void)
 }
 EXPORT_SYMBOL_GPL(uwb_rc_alloc);
 
+/*
+ * Show the ASIE that is broadcast in the UWB beacon by this uwb_rc device.
+ */
+static ssize_t ASIE_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct uwb_dev *uwb_dev = to_uwb_dev(dev);
+	struct uwb_rc *rc = uwb_dev->rc;
+	struct uwb_ie_hdr *ie;
+	void *ptr;
+	size_t len;
+	int result = 0;
+
+	/* init empty buffer. */
+	result = scnprintf(buf, PAGE_SIZE, "\n");
+	mutex_lock(&rc->ies_mutex);
+	/* walk IEData looking for an ASIE. */
+	ptr = rc->ies->IEData;
+	len = le16_to_cpu(rc->ies->wIELength);
+	for (;;) {
+		ie = uwb_ie_next(&ptr, &len);
+		if (!ie)
+			break;
+		if (ie->element_id == UWB_APP_SPEC_IE) {
+			result = uwb_ie_dump_hex(ie,
+					ie->length + sizeof(struct uwb_ie_hdr),
+					buf, PAGE_SIZE);
+			break;
+		}
+	}
+	mutex_unlock(&rc->ies_mutex);
+
+	return result;
+}
+
+/*
+ * Update the ASIE that is broadcast in the UWB beacon by this uwb_rc device.
+ */
+static ssize_t ASIE_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t size)
+{
+	struct uwb_dev *uwb_dev = to_uwb_dev(dev);
+	struct uwb_rc *rc = uwb_dev->rc;
+	char ie_buf[255];
+	int result, ie_len = 0;
+	const char *cur_ptr = buf;
+	struct uwb_ie_hdr *ie;
+
+	/* empty string means clear the ASIE. */
+	if (strlen(buf) <= 1) {
+		uwb_rc_ie_rm(rc, UWB_APP_SPEC_IE);
+		return size;
+	}
+
+	/* if non-empty string, convert string of hex chars to binary. */
+	while (ie_len < sizeof(ie_buf)) {
+		int char_count;
+
+		if (sscanf(cur_ptr, " %02hhX %n",
+				&(ie_buf[ie_len]), &char_count) > 0) {
+			++ie_len;
+			/* skip chars read from cur_ptr. */
+			cur_ptr += char_count;
+		} else {
+			break;
+		}
+	}
+
+	/* validate IE length and type. */
+	if (ie_len < sizeof(struct uwb_ie_hdr)) {
+		dev_err(dev, "%s: Invalid ASIE size %d.\n", __func__, ie_len);
+		return -EINVAL;
+	}
+
+	ie = (struct uwb_ie_hdr *)ie_buf;
+	if (ie->element_id != UWB_APP_SPEC_IE) {
+		dev_err(dev, "%s: Invalid IE element type size = 0x%02X.\n",
+				__func__, ie->element_id);
+		return -EINVAL;
+	}
+
+	/* bounds check length field from user. */
+	if (ie->length > (ie_len - sizeof(struct uwb_ie_hdr)))
+		ie->length = ie_len - sizeof(struct uwb_ie_hdr);
+
+	/*
+	 * Valid ASIE received. Remove current ASIE then add the new one using
+	 * uwb_rc_ie_add.
+	 */
+	uwb_rc_ie_rm(rc, UWB_APP_SPEC_IE);
+
+	result = uwb_rc_ie_add(rc, ie, ie->length + sizeof(struct uwb_ie_hdr));
+
+	return result >= 0 ? size : result;
+}
+static DEVICE_ATTR_RW(ASIE);
+
 static struct attribute *rc_attrs[] = {
 		&dev_attr_mac_address.attr,
 		&dev_attr_scan.attr,
 		&dev_attr_beacon.attr,
+		&dev_attr_ASIE.attr,
 		NULL,
 };
 

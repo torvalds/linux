@@ -91,11 +91,11 @@ void it8152_init_irq(void)
 	for (irq = IT8152_IRQ(0); irq <= IT8152_LAST_IRQ; irq++) {
 		irq_set_chip_and_handler(irq, &it8152_irq_chip,
 					 handle_level_irq);
-		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+		irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
 }
 
-void it8152_irq_demux(unsigned int irq, struct irq_desc *desc)
+void it8152_irq_demux(struct irq_desc *desc)
 {
        int bits_pd, bits_lp, bits_ld;
        int i;
@@ -257,7 +257,7 @@ static int it8152_needs_bounce(struct device *dev, dma_addr_t dma_addr, size_t s
  */
 static int it8152_pci_platform_notify(struct device *dev)
 {
-	if (dev->bus == &pci_bus_type) {
+	if (dev_is_pci(dev)) {
 		if (dev->dma_mask)
 			*dev->dma_mask = (SZ_64M - 1) | PHYS_OFFSET;
 		dev->coherent_dma_mask = (SZ_64M - 1) | PHYS_OFFSET;
@@ -268,7 +268,7 @@ static int it8152_pci_platform_notify(struct device *dev)
 
 static int it8152_pci_platform_notify_remove(struct device *dev)
 {
-	if (dev->bus == &pci_bus_type)
+	if (dev_is_pci(dev))
 		dmabounce_unregister_dev(dev);
 
 	return 0;

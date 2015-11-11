@@ -68,7 +68,7 @@ int dlm_recover_directory(struct dlm_ls *ls)
 	uint16_t namelen;
 	unsigned int count = 0, count_match = 0, count_bad = 0, count_add = 0;
 
-	log_debug(ls, "dlm_recover_directory");
+	log_rinfo(ls, "dlm_recover_directory");
 
 	if (dlm_no_directory(ls))
 		goto out_status;
@@ -189,7 +189,7 @@ int dlm_recover_directory(struct dlm_ls *ls)
 	error = 0;
 	dlm_set_recover_status(ls, DLM_RS_DIR);
 
-	log_debug(ls, "dlm_recover_directory %u in %u new",
+	log_rinfo(ls, "dlm_recover_directory %u in %u new",
 		  count, count_add);
  out_free:
 	kfree(last_name);

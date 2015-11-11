@@ -19,8 +19,8 @@ extern long hpte_insert_repeating(unsigned long hash, unsigned long vpn,
 				  unsigned long vflags, int psize, int ssize);
 
 int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
-		     pte_t *ptep, unsigned long trap, int local, int ssize,
-		     unsigned int shift, unsigned int mmu_psize)
+		     pte_t *ptep, unsigned long trap, unsigned long flags,
+		     int ssize, unsigned int shift, unsigned int mmu_psize)
 {
 	unsigned long vpn;
 	unsigned long old_pte, new_pte;
@@ -81,7 +81,7 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		slot += (old_pte & _PAGE_F_GIX) >> 12;
 
 		if (ppc_md.hpte_updatepp(slot, rflags, vpn, mmu_psize,
-					 ssize, local) == -1)
+					 mmu_psize, ssize, flags) == -1)
 			old_pte &= ~_PAGE_HPTEFLAGS;
 	}
 
@@ -99,6 +99,10 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		/* Add in WIMG bits */
 		rflags |= (new_pte & (_PAGE_WRITETHRU | _PAGE_NO_CACHE |
 				      _PAGE_COHERENT | _PAGE_GUARDED));
+		/*
+		 * enable the memory coherence always
+		 */
+		rflags |= HPTE_R_M;
 
 		slot = hpte_insert_repeating(hash, vpn, pa, rflags, 0,
 					     mmu_psize, ssize);

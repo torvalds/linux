@@ -30,7 +30,7 @@
 #include <asm/machdep.h>
 #include <asm/mpc52xx.h>
 
-static struct of_device_id mpc5200_gpio_ids[] __initdata = {
+static const struct of_device_id mpc5200_gpio_ids[] __initconst = {
 	{ .compatible = "fsl,mpc5200-gpio", },
 	{ .compatible = "mpc5200-gpio", },
 	{}
@@ -80,7 +80,7 @@ static struct irq_chip media5200_irq_chip = {
 	.irq_mask_ack = media5200_irq_mask,
 };
 
-void media5200_irq_cascade(unsigned int virq, struct irq_desc *desc)
+static void media5200_irq_cascade(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	int sub_virq, val;

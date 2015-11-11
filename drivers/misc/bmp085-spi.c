@@ -41,7 +41,7 @@ static int bmp085_spi_probe(struct spi_device *client)
 		return err;
 	}
 
-	return bmp085_probe(&client->dev, regmap);
+	return bmp085_probe(&client->dev, regmap, client->irq);
 }
 
 static int bmp085_spi_remove(struct spi_device *client)
@@ -64,7 +64,6 @@ MODULE_DEVICE_TABLE(spi, bmp085_id);
 
 static struct spi_driver bmp085_spi_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= BMP085_NAME,
 		.of_match_table = bmp085_of_match
 	},

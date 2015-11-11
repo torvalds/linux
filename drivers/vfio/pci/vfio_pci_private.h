@@ -13,6 +13,7 @@
 
 #include <linux/mutex.h>
 #include <linux/pci.h>
+#include <linux/irqbypass.h>
 
 #ifndef VFIO_PCI_PRIVATE_H
 #define VFIO_PCI_PRIVATE_H
@@ -29,6 +30,7 @@ struct vfio_pci_irq_ctx {
 	struct virqfd		*mask;
 	char			*name;
 	bool			masked;
+	struct irq_bypass_producer	producer;
 };
 
 struct vfio_pci_device {
@@ -54,9 +56,11 @@ struct vfio_pci_device {
 	bool			extended_caps;
 	bool			bardirty;
 	bool			has_vga;
+	bool			needs_reset;
 	struct pci_saved_state	*pci_saved_state;
-	atomic_t		refcnt;
+	int			refcnt;
 	struct eventfd_ctx	*err_trigger;
+	struct eventfd_ctx	*req_trigger;
 };
 
 #define is_intx(vdev) (vdev->irq_type == VFIO_PCI_INTX_IRQ_INDEX)
@@ -84,9 +88,6 @@ extern ssize_t vfio_pci_vga_rw(struct vfio_pci_device *vdev, char __user *buf,
 
 extern int vfio_pci_init_perm_bits(void);
 extern void vfio_pci_uninit_perm_bits(void);
-
-extern int vfio_pci_virqfd_init(void);
-extern void vfio_pci_virqfd_exit(void);
 
 extern int vfio_config_init(struct vfio_pci_device *vdev);
 extern void vfio_config_free(struct vfio_pci_device *vdev);

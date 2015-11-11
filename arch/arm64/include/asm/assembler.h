@@ -20,7 +20,11 @@
 #error "Only include this from assembly code"
 #endif
 
+#ifndef __ASM_ASSEMBLER_H
+#define __ASM_ASSEMBLER_H
+
 #include <asm/ptrace.h>
+#include <asm/thread_info.h>
 
 /*
  * Stack pushing/popping (register pairs only). Equivalent to store decrement
@@ -46,18 +50,6 @@
 	.endm
 
 /*
- * Save/disable and restore interrupts.
- */
-	.macro	save_and_disable_irqs, olddaif
-	mrs	\olddaif, daif
-	disable_irq
-	.endm
-
-	.macro	restore_irqs, olddaif
-	msr	daif, \olddaif
-	.endm
-
-/*
  * Enable and disable debug exceptions.
  */
 	.macro	disable_dbg
@@ -68,32 +60,38 @@
 	msr	daifclr, #8
 	.endm
 
-	.macro	disable_step, tmp
+	.macro	disable_step_tsk, flgs, tmp
+	tbz	\flgs, #TIF_SINGLESTEP, 9990f
 	mrs	\tmp, mdscr_el1
 	bic	\tmp, \tmp, #1
 	msr	mdscr_el1, \tmp
+	isb	// Synchronise with enable_dbg
+9990:
 	.endm
 
-	.macro	enable_step, tmp
+	.macro	enable_step_tsk, flgs, tmp
+	tbz	\flgs, #TIF_SINGLESTEP, 9990f
+	disable_dbg
 	mrs	\tmp, mdscr_el1
 	orr	\tmp, \tmp, #1
 	msr	mdscr_el1, \tmp
+9990:
 	.endm
 
-	.macro	enable_dbg_if_not_stepping, tmp
-	mrs	\tmp, mdscr_el1
-	tbnz	\tmp, #0, 9990f
-	enable_dbg
-9990:
+/*
+ * Enable both debug exceptions and interrupts. This is likely to be
+ * faster than two daifclr operations, since writes to this register
+ * are self-synchronising.
+ */
+	.macro	enable_dbg_and_irq
+	msr	daifclr, #(8 | 2)
 	.endm
 
 /*
  * SMP data memory barrier
  */
 	.macro	smp_dmb, opt
-#ifdef CONFIG_SMP
 	dmb	\opt
-#endif
 	.endm
 
 #define USER(l, x...)				\
@@ -115,3 +113,95 @@ lr	.req	x30		// link register
 	.align	7
 	b	\label
 	.endm
+
+/*
+ * Select code when configured for BE.
+ */
+#ifdef CONFIG_CPU_BIG_ENDIAN
+#define CPU_BE(code...) code
+#else
+#define CPU_BE(code...)
+#endif
+
+/*
+ * Select code when configured for LE.
+ */
+#ifdef CONFIG_CPU_BIG_ENDIAN
+#define CPU_LE(code...)
+#else
+#define CPU_LE(code...) code
+#endif
+
+/*
+ * Define a macro that constructs a 64-bit value by concatenating two
+ * 32-bit registers. Note that on big endian systems the order of the
+ * registers is swapped.
+ */
+#ifndef CONFIG_CPU_BIG_ENDIAN
+	.macro	regs_to_64, rd, lbits, hbits
+#else
+	.macro	regs_to_64, rd, hbits, lbits
+#endif
+	orr	\rd, \lbits, \hbits, lsl #32
+	.endm
+
+/*
+ * Pseudo-ops for PC-relative adr/ldr/str <reg>, <symbol> where
+ * <symbol> is within the range +/- 4 GB of the PC.
+ */
+	/*
+	 * @dst: destination register (64 bit wide)
+	 * @sym: name of the symbol
+	 * @tmp: optional scratch register to be used if <dst> == sp, which
+	 *       is not allowed in an adrp instruction
+	 */
+	.macro	adr_l, dst, sym, tmp=
+	.ifb	\tmp
+	adrp	\dst, \sym
+	add	\dst, \dst, :lo12:\sym
+	.else
+	adrp	\tmp, \sym
+	add	\dst, \tmp, :lo12:\sym
+	.endif
+	.endm
+
+	/*
+	 * @dst: destination register (32 or 64 bit wide)
+	 * @sym: name of the symbol
+	 * @tmp: optional 64-bit scratch register to be used if <dst> is a
+	 *       32-bit wide register, in which case it cannot be used to hold
+	 *       the address
+	 */
+	.macro	ldr_l, dst, sym, tmp=
+	.ifb	\tmp
+	adrp	\dst, \sym
+	ldr	\dst, [\dst, :lo12:\sym]
+	.else
+	adrp	\tmp, \sym
+	ldr	\dst, [\tmp, :lo12:\sym]
+	.endif
+	.endm
+
+	/*
+	 * @src: source register (32 or 64 bit wide)
+	 * @sym: name of the symbol
+	 * @tmp: mandatory 64-bit scratch register to calculate the address
+	 *       while <src> needs to be preserved.
+	 */
+	.macro	str_l, src, sym, tmp
+	adrp	\tmp, \sym
+	str	\src, [\tmp, :lo12:\sym]
+	.endm
+
+/*
+ * Annotate a function as position independent, i.e., safe to be called before
+ * the kernel virtual mapping is activated.
+ */
+#define ENDPIPROC(x)			\
+	.globl	__pi_##x;		\
+	.type 	__pi_##x, %function;	\
+	.set	__pi_##x, x;		\
+	.size	__pi_##x, . - x;	\
+	ENDPROC(x)
+
+#endif	/* __ASM_ASSEMBLER_H */

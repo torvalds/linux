@@ -46,17 +46,28 @@ static const unsigned int fullscale_table[8] = {
 	6144, 4096, 2048, 1024, 512, 256, 256, 256 };
 
 /* Data rates in samples per second */
-static const unsigned int data_rate_table[8] = {
-	128, 250, 490, 920, 1600, 2400, 3300, 3300 };
+static const unsigned int data_rate_table_1015[8] = {
+	128, 250, 490, 920, 1600, 2400, 3300, 3300
+};
+
+static const unsigned int data_rate_table_1115[8] = {
+	8, 16, 32, 64, 128, 250, 475, 860
+};
 
 #define ADS1015_DEFAULT_CHANNELS 0xff
 #define ADS1015_DEFAULT_PGA 2
 #define ADS1015_DEFAULT_DATA_RATE 4
 
+enum ads1015_chips {
+	ads1015,
+	ads1115,
+};
+
 struct ads1015_data {
 	struct device *hwmon_dev;
 	struct mutex update_lock; /* mutex protect updates */
 	struct ads1015_channel_data channel_data[ADS1015_CHANNELS];
+	enum ads1015_chips id;
 };
 
 static int ads1015_read_adc(struct i2c_client *client, unsigned int channel)
@@ -66,6 +77,8 @@ static int ads1015_read_adc(struct i2c_client *client, unsigned int channel)
 	unsigned int pga = data->channel_data[channel].pga;
 	unsigned int data_rate = data->channel_data[channel].data_rate;
 	unsigned int conversion_time_ms;
+	const unsigned int * const rate_table = data->id == ads1115 ?
+		data_rate_table_1115 : data_rate_table_1015;
 	int res;
 
 	mutex_lock(&data->update_lock);
@@ -75,7 +88,7 @@ static int ads1015_read_adc(struct i2c_client *client, unsigned int channel)
 	if (res < 0)
 		goto err_unlock;
 	config = res;
-	conversion_time_ms = DIV_ROUND_UP(1000, data_rate_table[data_rate]);
+	conversion_time_ms = DIV_ROUND_UP(1000, rate_table[data_rate]);
 
 	/* setup and start single conversion */
 	config &= 0x001f;
@@ -113,8 +126,9 @@ static int ads1015_reg_to_mv(struct i2c_client *client, unsigned int channel,
 	struct ads1015_data *data = i2c_get_clientdata(client);
 	unsigned int pga = data->channel_data[channel].pga;
 	int fullscale = fullscale_table[pga];
+	const unsigned mask = data->id == ads1115 ? 0x7fff : 0x7ff0;
 
-	return DIV_ROUND_CLOSEST(reg * fullscale, 0x7ff0);
+	return DIV_ROUND_CLOSEST(reg * fullscale, mask);
 }
 
 /* sysfs callback function */
@@ -170,44 +184,41 @@ static int ads1015_get_channels_config_of(struct i2c_client *client)
 		return -EINVAL;
 
 	for_each_child_of_node(client->dev.of_node, node) {
-		const __be32 *property;
-		int len;
+		u32 pval;
 		unsigned int channel;
 		unsigned int pga = ADS1015_DEFAULT_PGA;
 		unsigned int data_rate = ADS1015_DEFAULT_DATA_RATE;
 
-		property = of_get_property(node, "reg", &len);
-		if (!property || len != sizeof(int)) {
+		if (of_property_read_u32(node, "reg", &pval)) {
 			dev_err(&client->dev, "invalid reg on %s\n",
 				node->full_name);
 			continue;
 		}
 
-		channel = be32_to_cpup(property);
-		if (channel > ADS1015_CHANNELS) {
+		channel = pval;
+		if (channel >= ADS1015_CHANNELS) {
 			dev_err(&client->dev,
 				"invalid channel index %d on %s\n",
 				channel, node->full_name);
 			continue;
 		}
 
-		property = of_get_property(node, "ti,gain", &len);
-		if (property && len == sizeof(int)) {
-			pga = be32_to_cpup(property);
+		if (!of_property_read_u32(node, "ti,gain", &pval)) {
+			pga = pval;
 			if (pga > 6) {
-				dev_err(&client->dev,
-					"invalid gain on %s\n",
+				dev_err(&client->dev, "invalid gain on %s\n",
 					node->full_name);
+				return -EINVAL;
 			}
 		}
 
-		property = of_get_property(node, "ti,datarate", &len);
-		if (property && len == sizeof(int)) {
-			data_rate = be32_to_cpup(property);
+		if (!of_property_read_u32(node, "ti,datarate", &pval)) {
+			data_rate = pval;
 			if (data_rate > 7) {
 				dev_err(&client->dev,
 					"invalid data_rate on %s\n",
 					node->full_name);
+				return -EINVAL;
 			}
 		}
 
@@ -257,7 +268,7 @@ static int ads1015_probe(struct i2c_client *client,
 			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
-
+	data->id = id->driver_data;
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
 
@@ -286,7 +297,8 @@ exit_remove:
 }
 
 static const struct i2c_device_id ads1015_id[] = {
-	{ "ads1015", 0 },
+	{ "ads1015",  ads1015},
+	{ "ads1115",  ads1115},
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ads1015_id);

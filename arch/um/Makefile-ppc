@@ -1,9 +1,0 @@
-ifeq ($(CONFIG_HOST_2G_2G), y)
-START_ADDR = 0x80000000
-else
-START_ADDR = 0xc0000000
-endif
-ARCH_CFLAGS = -U__powerpc__ -D__UM_PPC__
-
-# The arch is ppc, but the elf32 name is powerpc
-ELF_SUBARCH = powerpc

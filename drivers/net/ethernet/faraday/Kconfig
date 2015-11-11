@@ -7,9 +7,7 @@ config NET_VENDOR_FARADAY
 	default y
 	depends on ARM
 	---help---
-	  If you have a network (Ethernet) card belonging to this class, say Y
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
@@ -21,7 +19,6 @@ if NET_VENDOR_FARADAY
 config FTMAC100
 	tristate "Faraday FTMAC100 10/100 Ethernet support"
 	depends on ARM
-	select NET_CORE
 	select MII
 	---help---
 	  This driver supports the FTMAC100 10/100 Ethernet controller

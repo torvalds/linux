@@ -431,9 +431,9 @@ static int alloc_ringmemory(struct b43_dmaring *ring)
 	u16 ring_mem_size = (ring->type == B43_DMA_64BIT) ?
 				B43_DMA64_RINGMEMSIZE : B43_DMA32_RINGMEMSIZE;
 
-	ring->descbase = dma_alloc_coherent(ring->dev->dev->dma_dev,
-					    ring_mem_size, &(ring->dmabase),
-					    GFP_KERNEL | __GFP_ZERO);
+	ring->descbase = dma_zalloc_coherent(ring->dev->dev->dma_dev,
+					     ring_mem_size, &(ring->dmabase),
+					     GFP_KERNEL);
 	if (!ring->descbase)
 		return -ENOMEM;
 
@@ -553,7 +553,7 @@ static bool b43_dma_mapping_error(struct b43_dmaring *ring,
 				  size_t buffersize, bool dma_to_device)
 {
 	if (unlikely(dma_mapping_error(ring->dev->dev->dma_dev, addr)))
-		return 1;
+		return true;
 
 	switch (ring->type) {
 	case B43_DMA_30BIT:
@@ -571,13 +571,13 @@ static bool b43_dma_mapping_error(struct b43_dmaring *ring,
 	}
 
 	/* The address is OK. */
-	return 0;
+	return false;
 
 address_error:
 	/* We can't support this address. Unmap it again. */
 	unmap_descbuffer(ring, addr, buffersize, dma_to_device);
 
-	return 1;
+	return true;
 }
 
 static bool b43_rx_buffer_is_poisoned(struct b43_dmaring *ring, struct sk_buff *skb)
@@ -1065,12 +1065,9 @@ static int b43_dma_set_mask(struct b43_wldev *dev, u64 mask)
 	/* Try to set the DMA mask. If it fails, try falling back to a
 	 * lower mask, as we can always also support a lower one. */
 	while (1) {
-		err = dma_set_mask(dev->dev->dma_dev, mask);
-		if (!err) {
-			err = dma_set_coherent_mask(dev->dev->dma_dev, mask);
-			if (!err)
-				break;
-		}
+		err = dma_set_mask_and_coherent(dev->dev->dma_dev, mask);
+		if (!err)
+			break;
 		if (mask == DMA_BIT_MASK(64)) {
 			mask = DMA_BIT_MASK(32);
 			fallback = true;
@@ -1102,16 +1099,16 @@ static bool b43_dma_translation_in_low_word(struct b43_wldev *dev,
 					    enum b43_dmatype type)
 {
 	if (type != B43_DMA_64BIT)
-		return 1;
+		return true;
 
 #ifdef CONFIG_B43_SSB
 	if (dev->dev->bus_type == B43_BUS_SSB &&
 	    dev->dev->sdev->bus->bustype == SSB_BUSTYPE_PCI &&
 	    !(pci_is_pcie(dev->dev->sdev->bus->host_pci) &&
 	      ssb_read32(dev->dev->sdev, SSB_TMSHIGH) & SSB_TMSHIGH_DMA64))
-			return 1;
+			return true;
 #endif
-	return 0;
+	return false;
 }
 
 int b43_dma_init(struct b43_wldev *dev)

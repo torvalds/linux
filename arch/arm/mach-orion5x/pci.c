@@ -157,11 +157,10 @@ static int __init pcie_setup(struct pci_sys_data *sys)
 	if (dev == MV88F5181_DEV_ID || dev == MV88F5182_DEV_ID) {
 		printk(KERN_NOTICE "Applying Orion-1/Orion-NAS PCIe config "
 				   "read transaction workaround\n");
-		mvebu_mbus_add_window_remap_flags("pcie0.0",
-						  ORION5X_PCIE_WA_PHYS_BASE,
-						  ORION5X_PCIE_WA_SIZE,
-						  MVEBU_MBUS_NO_REMAP,
-						  MVEBU_MBUS_PCI_WA);
+		mvebu_mbus_add_window_by_id(ORION_MBUS_PCIE_WA_TARGET,
+					    ORION_MBUS_PCIE_WA_ATTR,
+					    ORION5X_PCIE_WA_PHYS_BASE,
+					    ORION5X_PCIE_WA_SIZE);
 		pcie_ops.read = pcie_rd_conf_wa;
 	}
 
@@ -241,11 +240,11 @@ static int __init pcie_setup(struct pci_sys_data *sys)
 #define PCI_BAR_SIZE_DDR_CS(n)	(((n) == 0) ? ORION5X_PCI_REG(0xc08) : \
 				 ((n) == 1) ? ORION5X_PCI_REG(0xd08) : \
 				 ((n) == 2) ? ORION5X_PCI_REG(0xc0c) : \
-				 ((n) == 3) ? ORION5X_PCI_REG(0xd0c) : 0)
+				 ((n) == 3) ? ORION5X_PCI_REG(0xd0c) : NULL)
 #define PCI_BAR_REMAP_DDR_CS(n)	(((n) == 0) ? ORION5X_PCI_REG(0xc48) : \
 				 ((n) == 1) ? ORION5X_PCI_REG(0xd48) : \
 				 ((n) == 2) ? ORION5X_PCI_REG(0xc4c) : \
-				 ((n) == 3) ? ORION5X_PCI_REG(0xd4c) : 0)
+				 ((n) == 3) ? ORION5X_PCI_REG(0xd4c) : NULL)
 #define PCI_BAR_ENABLE		ORION5X_PCI_REG(0xc3c)
 #define PCI_ADDR_DECODE_CTRL	ORION5X_PCI_REG(0xd3c)
 
@@ -541,37 +540,33 @@ void __init orion5x_pci_set_cardbus_mode(void)
 
 int __init orion5x_pci_sys_setup(int nr, struct pci_sys_data *sys)
 {
-	int ret = 0;
-
 	vga_base = ORION5X_PCIE_MEM_PHYS_BASE;
 
 	if (nr == 0) {
 		orion_pcie_set_local_bus_nr(PCIE_BASE, sys->busnr);
-		ret = pcie_setup(sys);
-	} else if (nr == 1 && !orion5x_pci_disabled) {
-		orion5x_pci_set_bus_nr(sys->busnr);
-		ret = pci_setup(sys);
+		return pcie_setup(sys);
 	}
 
-	return ret;
+	if (nr == 1 && !orion5x_pci_disabled) {
+		orion5x_pci_set_bus_nr(sys->busnr);
+		return pci_setup(sys);
+	}
+
+	return 0;
 }
 
 struct pci_bus __init *orion5x_pci_sys_scan_bus(int nr, struct pci_sys_data *sys)
 {
-	struct pci_bus *bus;
+	if (nr == 0)
+		return pci_scan_root_bus(NULL, sys->busnr, &pcie_ops, sys,
+					 &sys->resources);
 
-	if (nr == 0) {
-		bus = pci_scan_root_bus(NULL, sys->busnr, &pcie_ops, sys,
-					&sys->resources);
-	} else if (nr == 1 && !orion5x_pci_disabled) {
-		bus = pci_scan_root_bus(NULL, sys->busnr, &pci_ops, sys,
-					&sys->resources);
-	} else {
-		bus = NULL;
-		BUG();
-	}
+	if (nr == 1 && !orion5x_pci_disabled)
+		return pci_scan_root_bus(NULL, sys->busnr, &pci_ops, sys,
+					 &sys->resources);
 
-	return bus;
+	BUG();
+	return NULL;
 }
 
 int __init orion5x_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)

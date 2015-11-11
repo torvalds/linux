@@ -128,7 +128,6 @@ config USB_IDMOUSE
 
 config USB_FTDI_ELAN
 	tristate "Elan PCMCIA CardBus Adapter USB Client"
-	default M
 	help
 	  ELAN's Uxxx series of adapters are USB to PCMCIA CardBus adapters.
 	  Currently only the U132 adapter is available.
@@ -200,6 +199,19 @@ config USB_TEST
 	  See <http://www.linux-usb.org/usbtest/> for more information,
 	  including sample test device firmware and "how to use it".
 
+config USB_EHSET_TEST_FIXTURE
+        tristate "USB EHSET Test Fixture driver"
+        help
+	  Say Y here if you want to support the special test fixture device
+	  used for the USB-IF Embedded Host High-Speed Electrical Test procedure.
+
+	  When the test fixture is connected, it can enumerate as one of several
+	  VID/PID pairs. This driver then initiates a corresponding test mode on
+	  the downstream port to which the test fixture is attached.
+
+	  See <http://www.usb.org/developers/onthego/EHSET_v1.01.pdf> for more
+	  information.
+
 config USB_ISIGHTFW
 	tristate "iSight firmware loading support"
 	select FW_LOADER
@@ -233,5 +245,26 @@ config USB_EZUSB_FX2
 config USB_HSIC_USB3503
        tristate "USB3503 HSIC to USB20 Driver"
        depends on I2C
+       select REGMAP_I2C
        help
          This option enables support for SMSC USB3503 HSIC to USB 2.0 Driver.
+
+config USB_LINK_LAYER_TEST
+	tristate "USB Link Layer Test driver"
+	help
+	  This driver is for generating specific traffic for Super Speed Link
+	  Layer Test Device. Say Y only when you want to conduct USB Super Speed
+	  Link Layer Test for host controllers.
+
+config USB_CHAOSKEY
+	tristate "ChaosKey random number generator driver support"
+	depends on HW_RANDOM
+	help
+	  Say Y here if you want to connect an AltusMetrum ChaosKey to
+	  your computer's USB port. The ChaosKey is a hardware random
+	  number generator which hooks into the kernel entropy pool to
+	  ensure a large supply of entropy for /dev/random and
+	  /dev/urandom and also provides direct access via /dev/chaoskeyX
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called chaoskey.

@@ -478,7 +478,7 @@ extern unsigned long smu_cmdbuf_abs;
 
 
 /*
- * Kenrel asynchronous i2c interface
+ * Kernel asynchronous i2c interface
  */
 
 #define SMU_I2C_READ_MAX	0x1d

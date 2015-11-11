@@ -19,18 +19,23 @@
 #include <asm/smp.h>
 #include <asm/smp_plat.h>
 
-static void __init simple_smp_init_cpus(void)
+static void cpu_to_pcpu(unsigned int cpu,
+			unsigned int *pcpu, unsigned int *pcluster)
 {
-}
-
-static int __cpuinit mcpm_boot_secondary(unsigned int cpu, struct task_struct *idle)
-{
-	unsigned int mpidr, pcpu, pcluster, ret;
-	extern void secondary_startup(void);
+	unsigned int mpidr;
 
 	mpidr = cpu_logical_map(cpu);
-	pcpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
-	pcluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
+	*pcpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
+	*pcluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
+}
+
+static int mcpm_boot_secondary(unsigned int cpu, struct task_struct *idle)
+{
+	unsigned int pcpu, pcluster, ret;
+	extern void secondary_startup(void);
+
+	cpu_to_pcpu(cpu, &pcpu, &pcluster);
+
 	pr_debug("%s: logical CPU %d is physical CPU %d cluster %d\n",
 		 __func__, cpu, pcpu, pcluster);
 
@@ -44,21 +49,26 @@ static int __cpuinit mcpm_boot_secondary(unsigned int cpu, struct task_struct *i
 	return 0;
 }
 
-static void __cpuinit mcpm_secondary_init(unsigned int cpu)
+static void mcpm_secondary_init(unsigned int cpu)
 {
 	mcpm_cpu_powered_up();
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
 
-static int mcpm_cpu_disable(unsigned int cpu)
+static int mcpm_cpu_kill(unsigned int cpu)
 {
-	/*
-	 * We assume all CPUs may be shut down.
-	 * This would be the hook to use for eventual Secure
-	 * OS migration requests as described in the PSCI spec.
-	 */
-	return 0;
+	unsigned int pcpu, pcluster;
+
+	cpu_to_pcpu(cpu, &pcpu, &pcluster);
+
+	return !mcpm_wait_for_cpu_powerdown(pcpu, pcluster);
+}
+
+static bool mcpm_cpu_can_disable(unsigned int cpu)
+{
+	/* We assume all CPUs may be shut down. */
+	return true;
 }
 
 static void mcpm_cpu_die(unsigned int cpu)
@@ -74,11 +84,11 @@ static void mcpm_cpu_die(unsigned int cpu)
 #endif
 
 static struct smp_operations __initdata mcpm_smp_ops = {
-	.smp_init_cpus		= simple_smp_init_cpus,
 	.smp_boot_secondary	= mcpm_boot_secondary,
 	.smp_secondary_init	= mcpm_secondary_init,
 #ifdef CONFIG_HOTPLUG_CPU
-	.cpu_disable		= mcpm_cpu_disable,
+	.cpu_kill		= mcpm_cpu_kill,
+	.cpu_can_disable	= mcpm_cpu_can_disable,
 	.cpu_die		= mcpm_cpu_die,
 #endif
 };

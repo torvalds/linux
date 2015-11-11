@@ -867,7 +867,7 @@ static inline void
 debug_finish_entry(debug_info_t * id, debug_entry_t* active, int level,
 			int exception)
 {
-	active->id.stck = get_tod_clock();
+	active->id.stck = get_tod_clock_fast();
 	active->id.fields.cpuid = smp_processor_id();
 	active->caller = __builtin_return_address(0);
 	active->id.fields.exception = exception;
@@ -889,7 +889,7 @@ static int debug_active=1;
  * if debug_active is already off
  */
 static int
-s390dbf_procactive(ctl_table *table, int write,
+s390dbf_procactive(struct ctl_table *table, int write,
                      void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	if (!write || debug_stoppable || !debug_active)
@@ -1019,7 +1019,7 @@ debug_count_numargs(char *string)
  */
 
 debug_entry_t*
-debug_sprintf_event(debug_info_t* id, int level,char *string,...)
+__debug_sprintf_event(debug_info_t *id, int level, char *string, ...)
 {
 	va_list   ap;
 	int numargs,idx;
@@ -1027,8 +1027,6 @@ debug_sprintf_event(debug_info_t* id, int level,char *string,...)
 	debug_sprintf_entry_t *curr_event;
 	debug_entry_t *active;
 
-	if((!id) || (level > id->level))
-		return NULL;
 	if (!debug_active || !id->areas)
 		return NULL;
 	numargs=debug_count_numargs(string);
@@ -1050,14 +1048,14 @@ debug_sprintf_event(debug_info_t* id, int level,char *string,...)
 
 	return active;
 }
-EXPORT_SYMBOL(debug_sprintf_event);
+EXPORT_SYMBOL(__debug_sprintf_event);
 
 /*
  * debug_sprintf_exception:
  */
 
 debug_entry_t*
-debug_sprintf_exception(debug_info_t* id, int level,char *string,...)
+__debug_sprintf_exception(debug_info_t *id, int level, char *string, ...)
 {
 	va_list   ap;
 	int numargs,idx;
@@ -1065,8 +1063,6 @@ debug_sprintf_exception(debug_info_t* id, int level,char *string,...)
 	debug_sprintf_entry_t *curr_event;
 	debug_entry_t *active;
 
-	if((!id) || (level > id->level))
-		return NULL;
 	if (!debug_active || !id->areas)
 		return NULL;
 
@@ -1089,7 +1085,7 @@ debug_sprintf_exception(debug_info_t* id, int level,char *string,...)
 
 	return active;
 }
-EXPORT_SYMBOL(debug_sprintf_exception);
+EXPORT_SYMBOL(__debug_sprintf_exception);
 
 /*
  * debug_register_view:
@@ -1461,23 +1457,24 @@ int
 debug_dflt_header_fn(debug_info_t * id, struct debug_view *view,
 			 int area, debug_entry_t * entry, char *out_buf)
 {
-	struct timespec time_spec;
+	struct timespec64 time_spec;
 	char *except_str;
 	unsigned long caller;
 	int rc = 0;
 	unsigned int level;
 
 	level = entry->id.fields.level;
-	stck_to_timespec(entry->id.stck, &time_spec);
+	stck_to_timespec64(entry->id.stck, &time_spec);
 
 	if (entry->id.fields.exception)
 		except_str = "*";
 	else
 		except_str = "-";
 	caller = ((unsigned long) entry->caller) & PSW_ADDR_INSN;
-	rc += sprintf(out_buf, "%02i %011lu:%06lu %1u %1s %02i %p  ",
-		      area, time_spec.tv_sec, time_spec.tv_nsec / 1000, level,
-		      except_str, entry->id.fields.cpuid, (void *) caller);
+	rc += sprintf(out_buf, "%02i %011lld:%06lu %1u %1s %02i %p  ",
+		      area, (long long)time_spec.tv_sec,
+		      time_spec.tv_nsec / 1000, level, except_str,
+		      entry->id.fields.cpuid, (void *)caller);
 	return rc;
 }
 EXPORT_SYMBOL(debug_dflt_header_fn);

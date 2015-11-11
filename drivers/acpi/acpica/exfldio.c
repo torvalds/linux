@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -121,12 +121,6 @@ acpi_ex_setup_region(union acpi_operand_object *obj_desc,
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
-	}
-
-	/* Exit if Address/Length have been disallowed by the host OS */
-
-	if (rgn_desc->common.flags & AOPOBJ_INVALID) {
-		return_ACPI_STATUS(AE_AML_ILLEGAL_ADDRESS);
 	}
 
 	/*
@@ -269,17 +263,15 @@ acpi_ex_access_region(union acpi_operand_object *obj_desc,
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_BFIELD,
-			      " Region [%s:%X], Width %X, ByteBase %X, Offset %X at %p\n",
+			      " Region [%s:%X], Width %X, ByteBase %X, Offset %X at %8.8X%8.8X\n",
 			      acpi_ut_get_region_name(rgn_desc->region.
 						      space_id),
 			      rgn_desc->region.space_id,
 			      obj_desc->common_field.access_byte_width,
 			      obj_desc->common_field.base_byte_offset,
-			      field_datum_byte_offset, ACPI_CAST_PTR(void,
-								     (rgn_desc->
-								      region.
-								      address +
-								      region_offset))));
+			      field_datum_byte_offset,
+			      ACPI_FORMAT_UINT64(rgn_desc->region.address +
+						 region_offset)));
 
 	/* Invoke the appropriate address_space/op_region handler */
 
@@ -424,29 +416,28 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 			 * Copy the data from the source buffer.
 			 * Length is the field width in bytes.
 			 */
-			ACPI_MEMCPY(value,
-				    (obj_desc->buffer_field.buffer_obj)->buffer.
-				    pointer +
-				    obj_desc->buffer_field.base_byte_offset +
-				    field_datum_byte_offset,
-				    obj_desc->common_field.access_byte_width);
+			memcpy(value,
+			       (obj_desc->buffer_field.buffer_obj)->buffer.
+			       pointer +
+			       obj_desc->buffer_field.base_byte_offset +
+			       field_datum_byte_offset,
+			       obj_desc->common_field.access_byte_width);
 		} else {
 			/*
 			 * Copy the data to the target buffer.
 			 * Length is the field width in bytes.
 			 */
-			ACPI_MEMCPY((obj_desc->buffer_field.buffer_obj)->buffer.
-				    pointer +
-				    obj_desc->buffer_field.base_byte_offset +
-				    field_datum_byte_offset, value,
-				    obj_desc->common_field.access_byte_width);
+			memcpy((obj_desc->buffer_field.buffer_obj)->buffer.
+			       pointer +
+			       obj_desc->buffer_field.base_byte_offset +
+			       field_datum_byte_offset, value,
+			       obj_desc->common_field.access_byte_width);
 		}
 
 		status = AE_OK;
 		break;
 
 	case ACPI_TYPE_LOCAL_BANK_FIELD:
-
 		/*
 		 * Ensure that the bank_value is not beyond the capacity of
 		 * the register
@@ -488,7 +479,6 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 		break;
 
 	case ACPI_TYPE_LOCAL_INDEX_FIELD:
-
 		/*
 		 * Ensure that the index_value is not beyond the capacity of
 		 * the register
@@ -713,7 +703,7 @@ acpi_ex_extract_from_field(union acpi_operand_object *obj_desc,
 		return_ACPI_STATUS(AE_BUFFER_OVERFLOW);
 	}
 
-	ACPI_MEMSET(buffer, 0, buffer_length);
+	memset(buffer, 0, buffer_length);
 	access_bit_width = ACPI_MUL_8(obj_desc->common_field.access_byte_width);
 
 	/* Handle the simple case here */
@@ -730,7 +720,7 @@ acpi_ex_extract_from_field(union acpi_operand_object *obj_desc,
 			status =
 			    acpi_ex_field_datum_io(obj_desc, 0, &raw_datum,
 						   ACPI_READ);
-			ACPI_MEMCPY(buffer, &raw_datum, buffer_length);
+			memcpy(buffer, &raw_datum, buffer_length);
 		}
 
 		return_ACPI_STATUS(status);
@@ -803,9 +793,9 @@ acpi_ex_extract_from_field(union acpi_operand_object *obj_desc,
 
 		/* Write merged datum to target buffer */
 
-		ACPI_MEMCPY(((char *)buffer) + buffer_offset, &merged_datum,
-			    ACPI_MIN(obj_desc->common_field.access_byte_width,
-				     buffer_length - buffer_offset));
+		memcpy(((char *)buffer) + buffer_offset, &merged_datum,
+		       ACPI_MIN(obj_desc->common_field.access_byte_width,
+				buffer_length - buffer_offset));
 
 		buffer_offset += obj_desc->common_field.access_byte_width;
 		merged_datum =
@@ -821,9 +811,9 @@ acpi_ex_extract_from_field(union acpi_operand_object *obj_desc,
 
 	/* Write the last datum to the buffer */
 
-	ACPI_MEMCPY(((char *)buffer) + buffer_offset, &merged_datum,
-		    ACPI_MIN(obj_desc->common_field.access_byte_width,
-			     buffer_length - buffer_offset));
+	memcpy(((char *)buffer) + buffer_offset, &merged_datum,
+	       ACPI_MIN(obj_desc->common_field.access_byte_width,
+			buffer_length - buffer_offset));
 
 	return_ACPI_STATUS(AE_OK);
 }
@@ -888,7 +878,7 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 		 * at Byte zero. All unused (upper) bytes of the
 		 * buffer will be 0.
 		 */
-		ACPI_MEMCPY((char *)new_buffer, (char *)buffer, buffer_length);
+		memcpy((char *)new_buffer, (char *)buffer, buffer_length);
 		buffer = new_buffer;
 		buffer_length = required_length;
 	}
@@ -928,9 +918,9 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 
 	/* Get initial Datum from the input buffer */
 
-	ACPI_MEMCPY(&raw_datum, buffer,
-		    ACPI_MIN(obj_desc->common_field.access_byte_width,
-			     buffer_length - buffer_offset));
+	memcpy(&raw_datum, buffer,
+	       ACPI_MIN(obj_desc->common_field.access_byte_width,
+			buffer_length - buffer_offset));
 
 	merged_datum =
 	    raw_datum << obj_desc->common_field.start_field_bit_offset;
@@ -980,9 +970,9 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 		/* Get the next input datum from the buffer */
 
 		buffer_offset += obj_desc->common_field.access_byte_width;
-		ACPI_MEMCPY(&raw_datum, ((char *)buffer) + buffer_offset,
-			    ACPI_MIN(obj_desc->common_field.access_byte_width,
-				     buffer_length - buffer_offset));
+		memcpy(&raw_datum, ((char *)buffer) + buffer_offset,
+		       ACPI_MIN(obj_desc->common_field.access_byte_width,
+				buffer_length - buffer_offset));
 
 		merged_datum |=
 		    raw_datum << obj_desc->common_field.start_field_bit_offset;
@@ -1004,7 +994,7 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 						mask, merged_datum,
 						field_offset);
 
-      exit:
+exit:
 	/* Free temporary buffer if we used one */
 
 	if (new_buffer) {

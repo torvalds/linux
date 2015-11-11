@@ -981,7 +981,7 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 		goto err_node;
 
 	/* We're done ! */
-	dev_set_drvdata(&op->dev, ndev);
+	platform_set_drvdata(op, ndev);
 	netdev_info(ndev, "%s MAC %pM\n",
 		    op->dev.of_node->full_name, ndev->dev_addr);
 
@@ -1010,13 +1010,12 @@ mpc52xx_fec_remove(struct platform_device *op)
 	struct net_device *ndev;
 	struct mpc52xx_fec_priv *priv;
 
-	ndev = dev_get_drvdata(&op->dev);
+	ndev = platform_get_drvdata(op);
 	priv = netdev_priv(ndev);
 
 	unregister_netdev(ndev);
 
-	if (priv->phy_node)
-		of_node_put(priv->phy_node);
+	of_node_put(priv->phy_node);
 	priv->phy_node = NULL;
 
 	irq_dispose_mapping(ndev->irq);
@@ -1030,14 +1029,13 @@ mpc52xx_fec_remove(struct platform_device *op)
 
 	free_netdev(ndev);
 
-	dev_set_drvdata(&op->dev, NULL);
 	return 0;
 }
 
 #ifdef CONFIG_PM
 static int mpc52xx_fec_of_suspend(struct platform_device *op, pm_message_t state)
 {
-	struct net_device *dev = dev_get_drvdata(&op->dev);
+	struct net_device *dev = platform_get_drvdata(op);
 
 	if (netif_running(dev))
 		mpc52xx_fec_close(dev);
@@ -1047,7 +1045,7 @@ static int mpc52xx_fec_of_suspend(struct platform_device *op, pm_message_t state
 
 static int mpc52xx_fec_of_resume(struct platform_device *op)
 {
-	struct net_device *dev = dev_get_drvdata(&op->dev);
+	struct net_device *dev = platform_get_drvdata(op);
 
 	mpc52xx_fec_hw_init(dev);
 	mpc52xx_fec_reset_stats(dev);
@@ -1059,7 +1057,7 @@ static int mpc52xx_fec_of_resume(struct platform_device *op)
 }
 #endif
 
-static struct of_device_id mpc52xx_fec_match[] = {
+static const struct of_device_id mpc52xx_fec_match[] = {
 	{ .compatible = "fsl,mpc5200b-fec", },
 	{ .compatible = "fsl,mpc5200-fec", },
 	{ .compatible = "mpc5200-fec", },
@@ -1071,7 +1069,6 @@ MODULE_DEVICE_TABLE(of, mpc52xx_fec_match);
 static struct platform_driver mpc52xx_fec_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = mpc52xx_fec_match,
 	},
 	.probe		= mpc52xx_fec_probe,

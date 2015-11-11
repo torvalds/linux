@@ -125,14 +125,15 @@ static void nlmclnt_setlockargs(struct nlm_rqst *req, struct file_lock *fl)
 {
 	struct nlm_args	*argp = &req->a_args;
 	struct nlm_lock	*lock = &argp->lock;
+	char *nodename = req->a_host->h_rpcclnt->cl_nodename;
 
 	nlmclnt_next_cookie(&argp->cookie);
 	memcpy(&lock->fh, NFS_FH(file_inode(fl->fl_file)), sizeof(struct nfs_fh));
-	lock->caller  = utsname()->nodename;
+	lock->caller  = nodename;
 	lock->oh.data = req->a_owner;
 	lock->oh.len  = snprintf(req->a_owner, sizeof(req->a_owner), "%u@%s",
 				(unsigned int)fl->fl_u.nfs_fl.owner->pid,
-				utsname()->nodename);
+				nodename);
 	lock->svid = fl->fl_u.nfs_fl.owner->pid;
 	lock->fl.fl_start = fl->fl_start;
 	lock->fl.fl_end = fl->fl_end;
@@ -473,18 +474,7 @@ static void nlmclnt_locks_init_private(struct file_lock *fl, struct nlm_host *ho
 
 static int do_vfs_lock(struct file_lock *fl)
 {
-	int res = 0;
-	switch (fl->fl_flags & (FL_POSIX|FL_FLOCK)) {
-		case FL_POSIX:
-			res = posix_lock_file_wait(fl->fl_file, fl);
-			break;
-		case FL_FLOCK:
-			res = flock_lock_file_wait(fl->fl_file, fl);
-			break;
-		default:
-			BUG();
-	}
-	return res;
+	return locks_lock_file_wait(fl->fl_file, fl);
 }
 
 /*

@@ -23,6 +23,7 @@
 #include <linux/kprobes.h>
 #include <linux/random.h>
 #include <linux/module.h>
+#include <linux/init_task.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/vtimer.h>
@@ -35,6 +36,9 @@
 #include "entry.h"
 
 asmlinkage void ret_from_fork(void) asm ("ret_from_fork");
+
+/* FPU save area for the init task */
+__vector128 init_task_fpu_regs[__NUM_VXRS] __init_task_data;
 
 /*
  * Return saved PC of a blocked thread. used in kernel/sched.
@@ -61,30 +65,7 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 	return sf->gprs[8];
 }
 
-void arch_cpu_idle(void)
-{
-	local_mcck_disable();
-	if (test_thread_flag(TIF_MCCK_PENDING)) {
-		local_mcck_enable();
-		local_irq_enable();
-		return;
-	}
-	/* Halt the cpu and keep track of cpu time accounting. */
-	vtime_stop_cpu();
-}
-
-void arch_cpu_idle_exit(void)
-{
-	if (test_thread_flag(TIF_MCCK_PENDING))
-		s390_handle_mcck();
-}
-
-void arch_cpu_idle_dead(void)
-{
-	cpu_die();
-}
-
-extern void __kprobes kernel_thread_starter(void);
+extern void kernel_thread_starter(void);
 
 /*
  * Free current thread data structures etc..
@@ -100,6 +81,40 @@ void flush_thread(void)
 
 void release_thread(struct task_struct *dead_task)
 {
+}
+
+void arch_release_task_struct(struct task_struct *tsk)
+{
+	/* Free either the floating-point or the vector register save area */
+	kfree(tsk->thread.fpu.regs);
+}
+
+int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
+{
+	size_t fpu_regs_size;
+
+	*dst = *src;
+
+	/*
+	 * If the vector extension is available, it is enabled for all tasks,
+	 * and, thus, the FPU register save area must be allocated accordingly.
+	 */
+	fpu_regs_size = MACHINE_HAS_VX ? sizeof(__vector128) * __NUM_VXRS
+				       : sizeof(freg_t) * __NUM_FPRS;
+	dst->thread.fpu.regs = kzalloc(fpu_regs_size, GFP_KERNEL|__GFP_REPEAT);
+	if (!dst->thread.fpu.regs)
+		return -ENOMEM;
+
+	/*
+	 * Save the floating-point or vector register state of the current
+	 * task and set the CIF_FPU flag to lazy restore the FPU register
+	 * state when returning to user space.
+	 */
+	save_fpu_regs();
+	dst->thread.fpu.fpc = current->thread.fpu.fpc;
+	memcpy(dst->thread.fpu.regs, current->thread.fpu.regs, fpu_regs_size);
+
+	return 0;
 }
 
 int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
@@ -122,7 +137,6 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 	memset(&p->thread.per_user, 0, sizeof(p->thread.per_user));
 	memset(&p->thread.per_event, 0, sizeof(p->thread.per_event));
 	clear_tsk_thread_flag(p, TIF_SINGLE_STEP);
-	clear_tsk_thread_flag(p, TIF_PER_TRAP);
 	/* Initialize per thread user and system timer values */
 	ti = task_thread_info(p);
 	ti->user_timer = 0;
@@ -138,7 +152,7 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 	if (unlikely(p->flags & PF_KTHREAD)) {
 		/* kernel thread */
 		memset(&frame->childregs, 0, sizeof(struct pt_regs));
-		frame->childregs.psw.mask = psw_kernel_bits | PSW_MASK_DAT |
+		frame->childregs.psw.mask = PSW_KERNEL_BITS | PSW_MASK_DAT |
 				PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
 		frame->childregs.psw.addr = PSW_ADDR_AMODE |
 				(unsigned long) kernel_thread_starter;
@@ -151,28 +165,14 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 	}
 	frame->childregs = *current_pt_regs();
 	frame->childregs.gprs[2] = 0;	/* child returns 0 on fork. */
+	frame->childregs.flags = 0;
 	if (new_stackp)
 		frame->childregs.gprs[15] = new_stackp;
 
 	/* Don't copy runtime instrumentation info */
 	p->thread.ri_cb = NULL;
-	p->thread.ri_signum = 0;
 	frame->childregs.psw.mask &= ~PSW_MASK_RI;
 
-#ifndef CONFIG_64BIT
-	/*
-	 * save fprs to current->thread.fp_regs to merge them with
-	 * the emulated registers and then copy the result to the child.
-	 */
-	save_fp_regs(&current->thread.fp_regs);
-	memcpy(&p->thread.fp_regs, &current->thread.fp_regs,
-	       sizeof(s390_fp_regs));
-	/* Set a new TLS ?  */
-	if (clone_flags & CLONE_SETTLS)
-		p->thread.acrs[0] = frame->childregs.gprs[6];
-#else /* CONFIG_64BIT */
-	/* Save the fpu registers to new thread structure. */
-	save_fp_regs(&p->thread.fp_regs);
 	/* Set a new TLS ?  */
 	if (clone_flags & CLONE_SETTLS) {
 		unsigned long tls = frame->childregs.gprs[6];
@@ -183,15 +183,13 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 			p->thread.acrs[1] = (unsigned int)tls;
 		}
 	}
-#endif /* CONFIG_64BIT */
 	return 0;
 }
 
 asmlinkage void execve_tail(void)
 {
-	current->thread.fp_regs.fpc = 0;
-	if (MACHINE_HAS_IEEE)
-		asm volatile("sfpc %0,%0" : : "d" (0));
+	current->thread.fpu.fpc = 0;
+	asm volatile("sfpc %0" : : "d" (0));
 }
 
 /*
@@ -199,16 +197,15 @@ asmlinkage void execve_tail(void)
  */
 int dump_fpu (struct pt_regs * regs, s390_fp_regs *fpregs)
 {
-#ifndef CONFIG_64BIT
-	/*
-	 * save fprs to current->thread.fp_regs to merge them with
-	 * the emulated registers and then copy the result to the dump.
-	 */
-	save_fp_regs(&current->thread.fp_regs);
-	memcpy(fpregs, &current->thread.fp_regs, sizeof(s390_fp_regs));
-#else /* CONFIG_64BIT */
-	save_fp_regs(fpregs);
-#endif /* CONFIG_64BIT */
+	save_fpu_regs();
+	fpregs->fpc = current->thread.fpu.fpc;
+	fpregs->pad = 0;
+	if (MACHINE_HAS_VX)
+		convert_vx_to_fp((freg_t *)&fpregs->fprs,
+				 current->thread.fpu.vxrs);
+	else
+		memcpy(&fpregs->fprs, current->thread.fpu.fprs,
+		       sizeof(fpregs->fprs));
 	return 1;
 }
 EXPORT_SYMBOL(dump_fpu);
@@ -255,20 +252,8 @@ static inline unsigned long brk_rnd(void)
 
 unsigned long arch_randomize_brk(struct mm_struct *mm)
 {
-	unsigned long ret = PAGE_ALIGN(mm->brk + brk_rnd());
+	unsigned long ret;
 
-	if (ret < mm->brk)
-		return mm->brk;
-	return ret;
-}
-
-unsigned long randomize_et_dyn(unsigned long base)
-{
-	unsigned long ret = PAGE_ALIGN(base + brk_rnd());
-
-	if (!(current->flags & PF_RANDOMIZE))
-		return base;
-	if (ret < base)
-		return base;
-	return ret;
+	ret = PAGE_ALIGN(mm->brk + brk_rnd());
+	return (ret > mm->brk) ? ret : mm->brk;
 }

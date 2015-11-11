@@ -131,7 +131,7 @@ static int c67x00_drv_probe(struct platform_device *pdev)
 	if (!res2)
 		return -ENODEV;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata)
 		return -ENODEV;
 
@@ -154,7 +154,7 @@ static int c67x00_drv_probe(struct platform_device *pdev)
 
 	spin_lock_init(&c67x00->hpi.lock);
 	c67x00->hpi.regstep = pdata->hpi_regstep;
-	c67x00->pdata = pdev->dev.platform_data;
+	c67x00->pdata = dev_get_platdata(&pdev->dev);
 	c67x00->pdev = pdev;
 
 	c67x00_ll_init(c67x00);
@@ -221,7 +221,6 @@ static struct platform_driver c67x00_driver = {
 	.probe	= c67x00_drv_probe,
 	.remove	= c67x00_drv_remove,
 	.driver	= {
-		.owner = THIS_MODULE,
 		.name = "c67x00",
 	},
 };

@@ -31,7 +31,6 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-fh.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/videobuf2-vmalloc.h>
 
 #include <media/saa7115.h>
@@ -39,13 +38,20 @@
 #include "stk1160.h"
 #include "stk1160-reg.h"
 
-static unsigned int vidioc_debug;
-module_param(vidioc_debug, int, 0644);
-MODULE_PARM_DESC(vidioc_debug, "enable debug messages [vidioc]");
-
 static bool keep_buffers;
 module_param(keep_buffers, bool, 0644);
 MODULE_PARM_DESC(keep_buffers, "don't release buffers upon stop streaming");
+
+enum stk1160_decimate_mode {
+	STK1160_DECIMATE_MORE_THAN_HALF,
+	STK1160_DECIMATE_LESS_THAN_HALF,
+};
+
+struct stk1160_decimate_ctrl {
+	bool col_en, row_en;
+	enum stk1160_decimate_mode col_mode, row_mode;
+	unsigned int col_n, row_n;
+};
 
 /* supported video standards */
 static struct stk1160_fmt format[] = {
@@ -55,6 +61,19 @@ static struct stk1160_fmt format[] = {
 		.depth    = 16,
 	}
 };
+
+/*
+ * Helper to find the next divisor that results in modulo being zero.
+ * This is required to guarantee valid decimation unit counts.
+ */
+static unsigned int
+div_round_integer(unsigned int x, unsigned int y)
+{
+	for (;; y++) {
+		if (x % y == 0)
+			return x / y;
+	}
+}
 
 static void stk1160_set_std(struct stk1160 *dev)
 {
@@ -111,6 +130,41 @@ static void stk1160_set_std(struct stk1160 *dev)
 
 }
 
+static void stk1160_set_fmt(struct stk1160 *dev,
+			    struct stk1160_decimate_ctrl *ctrl)
+{
+	u32 val = 0;
+
+	if (ctrl) {
+		/*
+		 * Since the format is UYVY, the device must skip or send
+		 * a number of rows/columns multiple of four. This way, the
+		 * colour format is preserved. The STK1160_DEC_UNIT_SIZE bit
+		 * does exactly this.
+		 */
+		val |= STK1160_DEC_UNIT_SIZE;
+		val |= ctrl->col_en ? STK1160_H_DEC_EN : 0;
+		val |= ctrl->row_en ? STK1160_V_DEC_EN : 0;
+		val |= ctrl->col_mode ==
+			STK1160_DECIMATE_MORE_THAN_HALF ?
+			STK1160_H_DEC_MODE : 0;
+		val |= ctrl->row_mode ==
+			STK1160_DECIMATE_MORE_THAN_HALF ?
+			STK1160_V_DEC_MODE : 0;
+
+		/* Horizontal count units */
+		stk1160_write_reg(dev, STK1160_DMCTRL_H_UNITS, ctrl->col_n);
+		/* Vertical count units */
+		stk1160_write_reg(dev, STK1160_DMCTRL_V_UNITS, ctrl->row_n);
+
+		stk1160_dbg("decimate 0x%x, column units %d, row units %d\n",
+			    val, ctrl->col_n, ctrl->row_n);
+	}
+
+	/* Decimation control */
+	stk1160_write_reg(dev, STK1160_DMCTRL, val);
+}
+
 /*
  * Set a new alternate setting.
  * Returns true is dev->max_pkt_size has changed, false otherwise.
@@ -141,7 +195,7 @@ static bool stk1160_set_alternate(struct stk1160 *dev)
 			dev->alt = i;
 	}
 
-	stk1160_info("setting alternate %d\n", dev->alt);
+	stk1160_dbg("setting alternate %d\n", dev->alt);
 
 	if (dev->alt != prev_alt) {
 		stk1160_dbg("minimum isoc packet size: %u (alt=%d)\n",
@@ -199,6 +253,8 @@ static int stk1160_start_streaming(struct stk1160 *dev)
 	/* Start saa711x */
 	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_stream, 1);
 
+	dev->sequence = 0;
+
 	/* Start stk1160 */
 	stk1160_write_reg(dev, STK1160_DCTRL, 0xb3);
 	stk1160_write_reg(dev, STK1160_DCTRL+3, 0x00);
@@ -229,7 +285,7 @@ static void stk1160_stop_hw(struct stk1160 *dev)
 
 	/* set alternate 0 */
 	dev->alt = 0;
-	stk1160_info("setting alternate %d\n", dev->alt);
+	stk1160_dbg("setting alternate %d\n", dev->alt);
 	usb_set_interface(dev->udev, 0, 0);
 
 	/* Stop stk1160 */
@@ -245,6 +301,11 @@ static int stk1160_stop_streaming(struct stk1160 *dev)
 	if (mutex_lock_interruptible(&dev->v4l_lock))
 		return -ERESTARTSYS;
 
+	/*
+	 * Once URBs are cancelled, the URB complete handler
+	 * won't be running. This is required to safely release the
+	 * current buffer (dev->isoc_ctl.buf).
+	 */
 	stk1160_cancel_isoc(dev);
 
 	/*
@@ -321,27 +382,115 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
+static int stk1160_try_fmt(struct stk1160 *dev, struct v4l2_format *f,
+			    struct stk1160_decimate_ctrl *ctrl)
+{
+	unsigned int width, height;
+	unsigned int base_width, base_height;
+	unsigned int col_n, row_n;
+	enum stk1160_decimate_mode col_mode, row_mode;
+	bool col_en, row_en;
+
+	base_width = 720;
+	base_height = (dev->norm & V4L2_STD_525_60) ? 480 : 576;
+
+	/* Minimum width and height is 5% the frame size */
+	width = clamp_t(unsigned int, f->fmt.pix.width,
+			base_width / 20, base_width);
+	height = clamp_t(unsigned int, f->fmt.pix.height,
+			base_height / 20, base_height);
+
+	/* Let's set default no decimation values */
+	col_n = 0;
+	row_n = 0;
+	col_en = false;
+	row_en = false;
+	f->fmt.pix.width = base_width;
+	f->fmt.pix.height = base_height;
+	row_mode = STK1160_DECIMATE_LESS_THAN_HALF;
+	col_mode = STK1160_DECIMATE_LESS_THAN_HALF;
+
+	if (width < base_width && width > base_width / 2) {
+		/*
+		 * The device will send count units for each
+		 * unit skipped. This means count unit is:
+		 *
+		 * n = width / (frame width - width)
+		 *
+		 * And the width is:
+		 *
+		 * width = (n / n + 1) * frame width
+		 */
+		col_n = div_round_integer(width, base_width - width);
+		if (col_n > 0 && col_n <= 255) {
+			col_en = true;
+			col_mode = STK1160_DECIMATE_LESS_THAN_HALF;
+			f->fmt.pix.width = (base_width * col_n) / (col_n + 1);
+		}
+
+	} else if (width <= base_width / 2) {
+
+		/*
+		 * The device will skip count units for each
+		 * unit sent. This means count is:
+		 *
+		 * n = (frame width / width) - 1
+		 *
+		 * And the width is:
+		 *
+		 * width = frame width / (n + 1)
+		 */
+		col_n = div_round_integer(base_width, width) - 1;
+		if (col_n > 0 && col_n <= 255) {
+			col_en = true;
+			col_mode = STK1160_DECIMATE_MORE_THAN_HALF;
+			f->fmt.pix.width = base_width / (col_n + 1);
+		}
+	}
+
+	if (height < base_height && height > base_height / 2) {
+		row_n = div_round_integer(height, base_height - height);
+		if (row_n > 0 && row_n <= 255) {
+			row_en = true;
+			row_mode = STK1160_DECIMATE_LESS_THAN_HALF;
+			f->fmt.pix.height = (base_height * row_n) / (row_n + 1);
+		}
+
+	} else if (height <= base_height / 2) {
+		row_n = div_round_integer(base_height, height) - 1;
+		if (row_n > 0 && row_n <= 255) {
+			row_en = true;
+			row_mode = STK1160_DECIMATE_MORE_THAN_HALF;
+			f->fmt.pix.height = base_height / (row_n + 1);
+		}
+	}
+
+	f->fmt.pix.pixelformat = dev->fmt->fourcc;
+	f->fmt.pix.field = V4L2_FIELD_INTERLACED;
+	f->fmt.pix.bytesperline = f->fmt.pix.width * 2;
+	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
+	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
+
+	if (ctrl) {
+		ctrl->col_en = col_en;
+		ctrl->col_n = col_n;
+		ctrl->col_mode = col_mode;
+		ctrl->row_en = row_en;
+		ctrl->row_n = row_n;
+		ctrl->row_mode = row_mode;
+	}
+
+	stk1160_dbg("width %d, height %d\n",
+		    f->fmt.pix.width, f->fmt.pix.height);
+	return 0;
+}
+
 static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
-			struct v4l2_format *f)
+				  struct v4l2_format *f)
 {
 	struct stk1160 *dev = video_drvdata(file);
 
-	/*
-	 * User can't choose size at his own will,
-	 * so we just return him the current size chosen
-	 * at standard selection.
-	 * TODO: Implement frame scaling?
-	 */
-
-	f->fmt.pix.pixelformat = dev->fmt->fourcc;
-	f->fmt.pix.width = dev->width;
-	f->fmt.pix.height = dev->height;
-	f->fmt.pix.field = V4L2_FIELD_INTERLACED;
-	f->fmt.pix.bytesperline = dev->width * 2;
-	f->fmt.pix.sizeimage = dev->height * f->fmt.pix.bytesperline;
-	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
-
-	return 0;
+	return stk1160_try_fmt(dev, f, NULL);
 }
 
 static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
@@ -349,13 +498,18 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct stk1160 *dev = video_drvdata(file);
 	struct vb2_queue *q = &dev->vb_vidq;
+	struct stk1160_decimate_ctrl ctrl;
+	int rc;
 
 	if (vb2_is_busy(q))
 		return -EBUSY;
 
-	vidioc_try_fmt_vid_cap(file, priv, f);
-
-	/* We don't support any format changes */
+	rc = stk1160_try_fmt(dev, f, &ctrl);
+	if (rc < 0)
+		return rc;
+	dev->width = f->fmt.pix.width;
+	dev->height = f->fmt.pix.height;
+	stk1160_set_fmt(dev, &ctrl);
 
 	return 0;
 }
@@ -380,6 +534,9 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 	struct stk1160 *dev = video_drvdata(file);
 	struct vb2_queue *q = &dev->vb_vidq;
 
+	if (dev->norm == norm)
+		return 0;
+
 	if (vb2_is_busy(q))
 		return -EBUSY;
 
@@ -388,23 +545,16 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 		return -ENODEV;
 
 	/* We need to set this now, before we call stk1160_set_std */
+	dev->width = 720;
+	dev->height = (norm & V4L2_STD_525_60) ? 480 : 576;
 	dev->norm = norm;
-
-	/* This is taken from saa7115 video decoder */
-	if (dev->norm & V4L2_STD_525_60) {
-		dev->width = 720;
-		dev->height = 480;
-	} else if (dev->norm & V4L2_STD_625_50) {
-		dev->width = 720;
-		dev->height = 576;
-	} else {
-		stk1160_err("invalid standard\n");
-		return -EINVAL;
-	}
 
 	stk1160_set_std(dev);
 
-	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std,
+	/* Calling with NULL disables frame decimation */
+	stk1160_set_fmt(dev, NULL);
+
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_std,
 			dev->norm);
 
 	return 0;
@@ -441,9 +591,6 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 {
 	struct stk1160 *dev = video_drvdata(file);
 
-	if (vb2_is_busy(&dev->vb_vidq))
-		return -EBUSY;
-
 	if (i > STK1160_MAX_INPUT)
 		return -EINVAL;
 
@@ -454,19 +601,6 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	return 0;
 }
 
-static int vidioc_g_chip_ident(struct file *file, void *priv,
-	       struct v4l2_dbg_chip_ident *chip)
-{
-	switch (chip->match.type) {
-	case V4L2_CHIP_MATCH_BRIDGE:
-		chip->ident = V4L2_IDENT_NONE;
-		chip->revision = 0;
-		return 0;
-	default:
-		return -EINVAL;
-	}
-}
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int vidioc_g_register(struct file *file, void *priv,
 			     struct v4l2_dbg_register *reg)
@@ -474,19 +608,6 @@ static int vidioc_g_register(struct file *file, void *priv,
 	struct stk1160 *dev = video_drvdata(file);
 	int rc;
 	u8 val;
-
-	switch (reg->match.type) {
-	case V4L2_CHIP_MATCH_I2C_DRIVER:
-		v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_register, reg);
-		return 0;
-	case V4L2_CHIP_MATCH_I2C_ADDR:
-		/* TODO: is this correct? */
-		v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_register, reg);
-		return 0;
-	default:
-		if (!v4l2_chip_match_host(&reg->match))
-			return -EINVAL;
-	}
 
 	/* Match host */
 	rc = stk1160_read_reg(dev, reg->reg, &val);
@@ -501,21 +622,8 @@ static int vidioc_s_register(struct file *file, void *priv,
 {
 	struct stk1160 *dev = video_drvdata(file);
 
-	switch (reg->match.type) {
-	case V4L2_CHIP_MATCH_I2C_DRIVER:
-		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_register, reg);
-		return 0;
-	case V4L2_CHIP_MATCH_I2C_ADDR:
-		/* TODO: is this correct? */
-		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_register, reg);
-		return 0;
-	default:
-		if (!v4l2_chip_match_host(&reg->match))
-			return -EINVAL;
-	}
-
 	/* Match host */
-	return stk1160_write_reg(dev, reg->reg, cpu_to_le16(reg->val));
+	return stk1160_write_reg(dev, reg->reg, reg->val);
 }
 #endif
 
@@ -539,11 +647,11 @@ static const struct v4l2_ioctl_ops stk1160_ioctl_ops = {
 	.vidioc_dqbuf         = vb2_ioctl_dqbuf,
 	.vidioc_streamon      = vb2_ioctl_streamon,
 	.vidioc_streamoff     = vb2_ioctl_streamoff,
+	.vidioc_expbuf        = vb2_ioctl_expbuf,
 
 	.vidioc_log_status  = v4l2_ctrl_log_status,
 	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
-	.vidioc_g_chip_ident = vidioc_g_chip_ident,
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register = vidioc_g_register,
@@ -556,7 +664,7 @@ static const struct v4l2_ioctl_ops stk1160_ioctl_ops = {
 /*
  * Videobuf2 operations
  */
-static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *v4l_fmt,
+static int queue_setup(struct vb2_queue *vq, const void *parg,
 				unsigned int *nbuffers, unsigned int *nplanes,
 				unsigned int sizes[], void *alloc_ctxs[])
 {
@@ -577,8 +685,8 @@ static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *v4l_fmt,
 
 	sizes[0] = size;
 
-	stk1160_info("%s: buffer count %d, each %ld bytes\n",
-			__func__, *nbuffers, size);
+	stk1160_dbg("%s: buffer count %d, each %ld bytes\n",
+		    __func__, *nbuffers, size);
 
 	return 0;
 }
@@ -587,8 +695,9 @@ static void buffer_queue(struct vb2_buffer *vb)
 {
 	unsigned long flags;
 	struct stk1160 *dev = vb2_get_drv_priv(vb->vb2_queue);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct stk1160_buffer *buf =
-		container_of(vb, struct stk1160_buffer, vb);
+		container_of(vbuf, struct stk1160_buffer, vb);
 
 	spin_lock_irqsave(&dev->buf_lock, flags);
 	if (!dev->udev) {
@@ -596,7 +705,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 		 * If the device is disconnected return the buffer to userspace
 		 * directly. The next QBUF call will fail with -ENODEV.
 		 */
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	} else {
 
 		buf->mem = vb2_plane_vaddr(vb, 0);
@@ -609,7 +718,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 		 * the buffer to userspace directly.
 		 */
 		if (buf->length < dev->width * dev->height * 2)
-			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 		else
 			list_add_tail(&buf->list, &dev->avail_bufs);
 
@@ -624,10 +733,10 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 }
 
 /* abort streaming and wait for last buffer */
-static int stop_streaming(struct vb2_queue *vq)
+static void stop_streaming(struct vb2_queue *vq)
 {
 	struct stk1160 *dev = vb2_get_drv_priv(vq);
-	return stk1160_stop_streaming(dev);
+	stk1160_stop_streaming(dev);
 }
 
 static struct vb2_ops stk1160_video_qops = {
@@ -661,12 +770,20 @@ void stk1160_clear_queue(struct stk1160 *dev)
 		buf = list_first_entry(&dev->avail_bufs,
 			struct stk1160_buffer, list);
 		list_del(&buf->list);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
-		stk1160_info("buffer [%p/%d] aborted\n",
-				buf, buf->vb.v4l2_buf.index);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
+		stk1160_dbg("buffer [%p/%d] aborted\n",
+			    buf, buf->vb.vb2_buf.index);
 	}
-	/* It's important to clear current buffer */
-	dev->isoc_ctl.buf = NULL;
+
+	/* It's important to release the current buffer */
+	if (dev->isoc_ctl.buf) {
+		buf = dev->isoc_ctl.buf;
+		dev->isoc_ctl.buf = NULL;
+
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
+		stk1160_dbg("buffer [%p/%d] aborted\n",
+			    buf, buf->vb.vb2_buf.index);
+	}
 	spin_unlock_irqrestore(&dev->buf_lock, flags);
 }
 
@@ -677,12 +794,12 @@ int stk1160_vb2_setup(struct stk1160 *dev)
 
 	q = &dev->vb_vidq;
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	q->io_modes = VB2_READ | VB2_MMAP | VB2_USERPTR;
+	q->io_modes = VB2_READ | VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
 	q->drv_priv = dev;
 	q->buf_struct_size = sizeof(struct stk1160_buffer);
 	q->ops = &stk1160_video_qops;
 	q->mem_ops = &vb2_vmalloc_memops;
-	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
 	rc = vb2_queue_init(q);
 	if (rc < 0)
@@ -700,7 +817,6 @@ int stk1160_video_register(struct stk1160 *dev)
 
 	/* Initialize video_device with a template structure */
 	dev->vdev = v4l_template;
-	dev->vdev.debug = vidioc_debug;
 	dev->vdev.queue = &dev->vb_vidq;
 
 	/*
@@ -712,7 +828,6 @@ int stk1160_video_register(struct stk1160 *dev)
 
 	/* This will be used to set video_device parent */
 	dev->vdev.v4l2_dev = &dev->v4l2_dev;
-	set_bit(V4L2_FL_USE_FH_PRIO, &dev->vdev.flags);
 
 	/* NTSC is default */
 	dev->norm = V4L2_STD_NTSC_M;
@@ -723,7 +838,7 @@ int stk1160_video_register(struct stk1160 *dev)
 	dev->fmt = &format[0];
 	stk1160_set_std(dev);
 
-	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std,
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_std,
 			dev->norm);
 
 	video_set_drvdata(&dev->vdev, dev);

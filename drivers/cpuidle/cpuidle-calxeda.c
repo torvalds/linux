@@ -21,67 +21,35 @@
  */
 
 #include <linux/cpuidle.h>
+#include <linux/cpu_pm.h>
 #include <linux/init.h>
-#include <linux/io.h>
-#include <linux/of.h>
-#include <linux/time.h>
-#include <linux/delay.h>
-#include <linux/suspend.h>
+#include <linux/mm.h>
+#include <linux/platform_device.h>
+#include <linux/psci.h>
+
 #include <asm/cpuidle.h>
-#include <asm/proc-fns.h>
-#include <asm/smp_scu.h>
 #include <asm/suspend.h>
-#include <asm/cacheflush.h>
-#include <asm/cp15.h>
 
-extern void highbank_set_cpu_jump(int cpu, void *jump_addr);
-extern void *scu_base_addr;
+#include <uapi/linux/psci.h>
 
-static inline unsigned int get_auxcr(void)
-{
-	unsigned int val;
-	asm("mrc p15, 0, %0, c1, c0, 1	@ get AUXCR" : "=r" (val) : : "cc");
-	return val;
-}
-
-static inline void set_auxcr(unsigned int val)
-{
-	asm volatile("mcr p15, 0, %0, c1, c0, 1	@ set AUXCR"
-	  : : "r" (val) : "cc");
-	isb();
-}
-
-static noinline void calxeda_idle_restore(void)
-{
-	set_cr(get_cr() | CR_C);
-	set_auxcr(get_auxcr() | 0x40);
-	scu_power_mode(scu_base_addr, SCU_PM_NORMAL);
-}
+#define CALXEDA_IDLE_PARAM \
+	((0 << PSCI_0_2_POWER_STATE_ID_SHIFT) | \
+	 (0 << PSCI_0_2_POWER_STATE_AFFL_SHIFT) | \
+	 (PSCI_POWER_STATE_TYPE_POWER_DOWN << PSCI_0_2_POWER_STATE_TYPE_SHIFT))
 
 static int calxeda_idle_finish(unsigned long val)
 {
-	/* Already flushed cache, but do it again as the outer cache functions
-	 * dirty the cache with spinlocks */
-	flush_cache_all();
-
-	set_auxcr(get_auxcr() & ~0x40);
-	set_cr(get_cr() & ~CR_C);
-
-	scu_power_mode(scu_base_addr, SCU_PM_DORMANT);
-
-	cpu_do_idle();
-
-	/* Restore things if we didn't enter power-gating */
-	calxeda_idle_restore();
-	return 1;
+	return psci_ops.cpu_suspend(CALXEDA_IDLE_PARAM, __pa(cpu_resume));
 }
 
 static int calxeda_pwrdown_idle(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv,
 				int index)
 {
-	highbank_set_cpu_jump(smp_processor_id(), cpu_resume);
+	cpu_pm_enter();
 	cpu_suspend(0, calxeda_idle_finish);
+	cpu_pm_exit();
+
 	return index;
 }
 
@@ -92,7 +60,6 @@ static struct cpuidle_driver calxeda_idle_driver = {
 		{
 			.name = "PG",
 			.desc = "Power Gate",
-			.flags = CPUIDLE_FLAG_TIME_VALID,
 			.exit_latency = 30,
 			.power_usage = 50,
 			.target_residency = 200,
@@ -102,11 +69,15 @@ static struct cpuidle_driver calxeda_idle_driver = {
 	.state_count = 2,
 };
 
-static int __init calxeda_cpuidle_init(void)
+static int calxeda_cpuidle_probe(struct platform_device *pdev)
 {
-	if (!of_machine_is_compatible("calxeda,highbank"))
-		return -ENODEV;
-
 	return cpuidle_register(&calxeda_idle_driver, NULL);
 }
-module_init(calxeda_cpuidle_init);
+
+static struct platform_driver calxeda_cpuidle_plat_driver = {
+        .driver = {
+                .name = "cpuidle-calxeda",
+        },
+        .probe = calxeda_cpuidle_probe,
+};
+builtin_platform_driver(calxeda_cpuidle_plat_driver);

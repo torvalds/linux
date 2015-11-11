@@ -1,13 +1,13 @@
 /*
  * NOTE: This example is works on x86 and powerpc.
  * Here's a sample kernel module showing the use of kprobes to dump a
- * stack trace and selected registers when do_fork() is called.
+ * stack trace and selected registers when _do_fork() is called.
  *
  * For more information on theory of operation of kprobes, see
  * Documentation/kprobes.txt
  *
  * You will see the trace data in /var/log/messages and on the console
- * whenever do_fork() is invoked to create a new process.
+ * whenever _do_fork() is invoked to create a new process.
  */
 
 #include <linux/kernel.h>
@@ -16,7 +16,7 @@
 
 /* For each probe you need to allocate a kprobe structure */
 static struct kprobe kp = {
-	.symbol_name	= "do_fork",
+	.symbol_name	= "_do_fork",
 };
 
 /* kprobe pre_handler: called just before the probed instruction is executed */
@@ -36,6 +36,11 @@ static int handler_pre(struct kprobe *p, struct pt_regs *regs)
 	printk(KERN_INFO "pre_handler: p->addr = 0x%p, epc = 0x%lx,"
 			" status = 0x%lx\n",
 		p->addr, regs->cp0_epc, regs->cp0_status);
+#endif
+#ifdef CONFIG_TILEGX
+	printk(KERN_INFO "pre_handler: p->addr = 0x%p, pc = 0x%lx,"
+			" ex1 = 0x%lx\n",
+		p->addr, regs->pc, regs->ex1);
 #endif
 
 	/* A dump_stack() here will give a stack backtrace */
@@ -57,6 +62,10 @@ static void handler_post(struct kprobe *p, struct pt_regs *regs,
 #ifdef CONFIG_MIPS
 	printk(KERN_INFO "post_handler: p->addr = 0x%p, status = 0x%lx\n",
 		p->addr, regs->cp0_status);
+#endif
+#ifdef CONFIG_TILEGX
+	printk(KERN_INFO "post_handler: p->addr = 0x%p, ex1 = 0x%lx\n",
+		p->addr, regs->ex1);
 #endif
 }
 

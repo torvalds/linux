@@ -141,7 +141,7 @@ static int at32_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 	spin_lock_irq(&rtc->lock);
 
-	if(enabled) {
+	if (enabled) {
 		if (rtc_readl(rtc, VAL) > rtc->alarm_time) {
 			ret = -EINVAL;
 			goto out;
@@ -204,31 +204,26 @@ static int __init at32_rtc_probe(struct platform_device *pdev)
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(struct rtc_at32ap700x),
 			   GFP_KERNEL);
-	if (!rtc) {
-		dev_dbg(&pdev->dev, "out of memory\n");
+	if (!rtc)
 		return -ENOMEM;
-	}
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs) {
 		dev_dbg(&pdev->dev, "no mmio resource defined\n");
-		ret = -ENXIO;
-		goto out;
+		return -ENXIO;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
 		dev_dbg(&pdev->dev, "could not get irq\n");
-		ret = -ENXIO;
-		goto out;
+		return -ENXIO;
 	}
 
 	rtc->irq = irq;
 	rtc->regs = devm_ioremap(&pdev->dev, regs->start, resource_size(regs));
 	if (!rtc->regs) {
-		ret = -ENOMEM;
 		dev_dbg(&pdev->dev, "could not map I/O memory\n");
-		goto out;
+		return -ENOMEM;
 	}
 	spin_lock_init(&rtc->lock);
 
@@ -249,7 +244,7 @@ static int __init at32_rtc_probe(struct platform_device *pdev)
 				"rtc", rtc);
 	if (ret) {
 		dev_dbg(&pdev->dev, "could not request irq %d\n", irq);
-		goto out;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, rtc);
@@ -258,8 +253,7 @@ static int __init at32_rtc_probe(struct platform_device *pdev)
 				&at32_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc->rtc)) {
 		dev_dbg(&pdev->dev, "could not register rtc device\n");
-		ret = PTR_ERR(rtc->rtc);
-		goto out;
+		return PTR_ERR(rtc->rtc);
 	}
 
 	device_init_wakeup(&pdev->dev, 1);
@@ -268,17 +262,11 @@ static int __init at32_rtc_probe(struct platform_device *pdev)
 			(unsigned long)rtc->regs, rtc->irq);
 
 	return 0;
-
-out:
-	platform_set_drvdata(pdev, NULL);
-	return ret;
 }
 
 static int __exit at32_rtc_remove(struct platform_device *pdev)
 {
 	device_init_wakeup(&pdev->dev, 0);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
@@ -289,12 +277,11 @@ static struct platform_driver at32_rtc_driver = {
 	.remove		= __exit_p(at32_rtc_remove),
 	.driver		= {
 		.name	= "at32ap700x_rtc",
-		.owner	= THIS_MODULE,
 	},
 };
 
 module_platform_driver_probe(at32_rtc_driver, at32_rtc_probe);
 
-MODULE_AUTHOR("Hans-Christian Egtvedt <hcegtvedt@atmel.com>");
+MODULE_AUTHOR("Hans-Christian Egtvedt <egtvedt@samfundet.no>");
 MODULE_DESCRIPTION("Real time clock for AVR32 AT32AP700x");
 MODULE_LICENSE("GPL");

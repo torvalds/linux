@@ -150,7 +150,7 @@
 MODULE_AUTHOR("Karsten Wiese <annabellesgarden@yahoo.de>");
 MODULE_DESCRIPTION("TASCAM "NAME_ALLCAPS" Version 0.8.7.2");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{TASCAM(0x1604), "NAME_ALLCAPS"(0x8001)(0x8005)(0x8007) }}");
+MODULE_SUPPORTED_DEVICE("{{TASCAM(0x1604),"NAME_ALLCAPS"(0x8001)(0x8005)(0x8007)}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX; /* Index 0-max */
 static char* id[SNDRV_CARDS] = SNDRV_DEFAULT_STR; /* Id for this card */
@@ -305,11 +305,9 @@ static void usX2Y_unlinkSeq(struct snd_usX2Y_AsyncSeq *S)
 {
 	int	i;
 	for (i = 0; i < URBS_AsyncSeq; ++i) {
-		if (S[i].urb) {
-			usb_kill_urb(S->urb[i]);
-			usb_free_urb(S->urb[i]);
-			S->urb[i] = NULL;
-		}
+		usb_kill_urb(S->urb[i]);
+		usb_free_urb(S->urb[i]);
+		S->urb[i] = NULL;
 	}
 	kfree(S->buffer);
 }
@@ -334,7 +332,9 @@ static struct usb_device_id snd_usX2Y_usb_id_table[] = {
 	{ /* terminator */ }
 };
 
-static int usX2Y_create_card(struct usb_device *device, struct snd_card **cardp)
+static int usX2Y_create_card(struct usb_device *device,
+			     struct usb_interface *intf,
+			     struct snd_card **cardp)
 {
 	int		dev;
 	struct snd_card *	card;
@@ -345,15 +345,15 @@ static int usX2Y_create_card(struct usb_device *device, struct snd_card **cardp)
 			break;
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
-			      sizeof(struct usX2Ydev), &card);
+	err = snd_card_new(&intf->dev, index[dev], id[dev], THIS_MODULE,
+			   sizeof(struct usX2Ydev), &card);
 	if (err < 0)
 		return err;
 	snd_usX2Y_card_used[usX2Y(card)->card_index = dev] = 1;
 	card->private_free = snd_usX2Y_card_private_free;
 	usX2Y(card)->dev = device;
 	init_waitqueue_head(&usX2Y(card)->prepare_wait_queue);
-	mutex_init(&usX2Y(card)->prepare_mutex);
+	mutex_init(&usX2Y(card)->pcm_mutex);
 	INIT_LIST_HEAD(&usX2Y(card)->midi_list);
 	strcpy(card->driver, "USB "NAME_ALLCAPS"");
 	sprintf(card->shortname, "TASCAM "NAME_ALLCAPS"");
@@ -384,10 +384,9 @@ static int usX2Y_usb_probe(struct usb_device *device,
 	     le16_to_cpu(device->descriptor.idProduct) != USB_ID_US428))
 		return -EINVAL;
 
-	err = usX2Y_create_card(device, &card);
+	err = usX2Y_create_card(device, intf, &card);
 	if (err < 0)
 		return err;
-	snd_card_set_dev(card, &intf->dev);
 	if ((err = usX2Y_hwdep_new(card, device)) < 0  ||
 	    (err = snd_card_register(card)) < 0) {
 		snd_card_free(card);

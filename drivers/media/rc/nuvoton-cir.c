@@ -229,7 +229,6 @@ static int nvt_hw_detect(struct nvt_dev *nvt)
 {
 	unsigned long flags;
 	u8 chip_major, chip_minor;
-	int ret = 0;
 	char chip_id[12];
 	bool chip_unknown = false;
 
@@ -285,7 +284,7 @@ static int nvt_hw_detect(struct nvt_dev *nvt)
 	nvt->chip_minor = chip_minor;
 	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
 
-	return ret;
+	return 0;
 }
 
 static void nvt_cir_ldev_init(struct nvt_dev *nvt)
@@ -329,9 +328,6 @@ static void nvt_cir_wake_ldev_init(struct nvt_dev *nvt)
 
 	/* Enable CIR Wake via PSOUT# (Pin60) */
 	nvt_set_reg_bit(nvt, CIR_WAKE_ENABLE_BIT, CR_ACPI_CIR_WAKE);
-
-	/* enable cir interrupt of mouse/keyboard IRQ event */
-	nvt_set_reg_bit(nvt, CIR_INTR_MOUSE_IRQ_BIT, CR_ACPI_IRQ_EVENTS);
 
 	/* enable pme interrupt of cir wakeup event */
 	nvt_set_reg_bit(nvt, PME_INTR_CIR_PASS_BIT, CR_ACPI_IRQ_EVENTS2);
@@ -456,7 +452,6 @@ static void nvt_enable_wake(struct nvt_dev *nvt)
 
 	nvt_select_logical_dev(nvt, LOGICAL_DEV_ACPI);
 	nvt_set_reg_bit(nvt, CIR_WAKE_ENABLE_BIT, CR_ACPI_CIR_WAKE);
-	nvt_set_reg_bit(nvt, CIR_INTR_MOUSE_IRQ_BIT, CR_ACPI_IRQ_EVENTS);
 	nvt_set_reg_bit(nvt, PME_INTR_CIR_PASS_BIT, CR_ACPI_IRQ_EVENTS2);
 
 	nvt_select_logical_dev(nvt, LOGICAL_DEV_CIR_WAKE);
@@ -989,6 +984,12 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 		goto exit_free_dev_rdev;
 
 	ret = -ENODEV;
+	/* activate pnp device */
+	if (pnp_activate_dev(pdev) < 0) {
+		dev_err(&pdev->dev, "Could not activate PNP device!\n");
+		goto exit_free_dev_rdev;
+	}
+
 	/* validate pnp resources */
 	if (!pnp_port_valid(pdev, 0) ||
 	    pnp_port_len(pdev, 0) < CIR_IOREG_LENGTH) {
@@ -1042,7 +1043,7 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	/* Set up the rc device */
 	rdev->priv = nvt;
 	rdev->driver_type = RC_DRIVER_IR_RAW;
-	rdev->allowed_protos = RC_BIT_ALL;
+	rdev->allowed_protocols = RC_BIT_ALL;
 	rdev->open = nvt_open;
 	rdev->close = nvt_close;
 	rdev->tx_ir = nvt_tx_ir;
@@ -1175,7 +1176,6 @@ static int nvt_suspend(struct pnp_dev *pdev, pm_message_t state)
 
 static int nvt_resume(struct pnp_dev *pdev)
 {
-	int ret = 0;
 	struct nvt_dev *nvt = pnp_get_drvdata(pdev);
 
 	nvt_dbg("%s called", __func__);
@@ -1193,7 +1193,7 @@ static int nvt_resume(struct pnp_dev *pdev)
 	nvt_cir_regs_init(nvt);
 	nvt_cir_wake_regs_init(nvt);
 
-	return ret;
+	return 0;
 }
 
 static void nvt_shutdown(struct pnp_dev *pdev)
@@ -1219,16 +1219,6 @@ static struct pnp_driver nvt_driver = {
 	.shutdown	= nvt_shutdown,
 };
 
-static int nvt_init(void)
-{
-	return pnp_register_driver(&nvt_driver);
-}
-
-static void nvt_exit(void)
-{
-	pnp_unregister_driver(&nvt_driver);
-}
-
 module_param(debug, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Enable debugging output");
 
@@ -1238,5 +1228,4 @@ MODULE_DESCRIPTION("Nuvoton W83667HG-A & W83677HG-I CIR driver");
 MODULE_AUTHOR("Jarod Wilson <jarod@redhat.com>");
 MODULE_LICENSE("GPL");
 
-module_init(nvt_init);
-module_exit(nvt_exit);
+module_pnp_driver(nvt_driver);

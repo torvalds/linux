@@ -1,7 +1,7 @@
 /*
  * Nvidia AGPGART routines.
  * Based upon a 2.4 agpgart diff by the folks from NVIDIA, and hacked up
- * to work in 2.5 by Dave Jones <davej@redhat.com>
+ * to work in 2.5 by Dave Jones.
  */
 
 #include <linux/module.h>
@@ -106,6 +106,7 @@ static int nvidia_configure(void)
 {
 	int i, rc, num_dirs;
 	u32 apbase, aplimit;
+	phys_addr_t apbase_phys;
 	struct aper_size_info_8 *current_size;
 	u32 temp;
 
@@ -115,9 +116,8 @@ static int nvidia_configure(void)
 	pci_write_config_byte(agp_bridge->dev, NVIDIA_0_APSIZE,
 		current_size->size_value);
 
-    /* address to map to */
-	pci_read_config_dword(agp_bridge->dev, AGP_APBASE, &apbase);
-	apbase &= PCI_BASE_ADDRESS_MEM_MASK;
+	/* address to map to */
+	apbase = pci_bus_address(agp_bridge->dev, AGP_APERTURE_BAR);
 	agp_bridge->gart_bus_addr = apbase;
 	aplimit = apbase + (current_size->size * 1024 * 1024) - 1;
 	pci_write_config_dword(nvidia_private.dev_2, NVIDIA_2_APBASE, apbase);
@@ -153,8 +153,9 @@ static int nvidia_configure(void)
 	pci_write_config_dword(agp_bridge->dev, NVIDIA_0_APSIZE, temp | 0x100);
 
 	/* map aperture */
+	apbase_phys = pci_resource_start(agp_bridge->dev, AGP_APERTURE_BAR);
 	nvidia_private.aperture =
-		(volatile u32 __iomem *) ioremap(apbase, 33 * PAGE_SIZE);
+		(volatile u32 __iomem *) ioremap(apbase_phys, 33 * PAGE_SIZE);
 
 	if (!nvidia_private.aperture)
 		return -ENOMEM;
@@ -399,8 +400,8 @@ static void agp_nvidia_remove(struct pci_dev *pdev)
 #ifdef CONFIG_PM
 static int agp_nvidia_suspend(struct pci_dev *pdev, pm_message_t state)
 {
-	pci_save_state (pdev);
-	pci_set_power_state (pdev, 3);
+	pci_save_state(pdev);
+	pci_set_power_state(pdev, PCI_D3hot);
 
 	return 0;
 }
@@ -408,7 +409,7 @@ static int agp_nvidia_suspend(struct pci_dev *pdev, pm_message_t state)
 static int agp_nvidia_resume(struct pci_dev *pdev)
 {
 	/* set power state 0 and restore PCI space */
-	pci_set_power_state (pdev, 0);
+	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 
 	/* reconfigure AGP hardware again */

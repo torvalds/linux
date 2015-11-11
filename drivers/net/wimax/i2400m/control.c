@@ -1061,7 +1061,7 @@ int i2400m_firmware_check(struct i2400m *i2400m)
 		goto error_bad_major;
 	}
 	result = 0;
-	if (minor < I2400M_HDIv_MINOR_2 && minor > I2400M_HDIv_MINOR)
+	if (minor > I2400M_HDIv_MINOR_2 || minor < I2400M_HDIv_MINOR)
 		dev_warn(dev, "untested minor fw version %u.%u.%u\n",
 			 major, minor, branch);
 	/* Yes, we ignore the branch -- we don't have to track it */

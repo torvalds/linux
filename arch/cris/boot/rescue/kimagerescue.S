@@ -50,7 +50,6 @@
 
 	nop
 	di
-#ifndef CONFIG_SVINTO_SIM
 	;; setup port PA and PB default initial directions and data
 	;; (so we can flash LEDs, and so that DTR and others are set)
 
@@ -67,7 +66,6 @@
 	;; We need to setup the bus registers before we start using the DRAM
 #include "../../lib/dram_init.S"
 
-#endif
 	;; Setup the stack to a suitably high address.
 	;; We assume 8 MB is the minimum DRAM in an eLinux
 	;; product and put the sp at the top for now.

@@ -6,6 +6,7 @@
 
 #include <linux/bcma/bcma_driver_chipcommon.h>
 #include <linux/bcma/bcma_driver_pci.h>
+#include <linux/bcma/bcma_driver_pcie2.h>
 #include <linux/bcma/bcma_driver_mips.h>
 #include <linux/bcma/bcma_driver_gmac_cmn.h>
 #include <linux/ssb/ssb.h> /* SPROM sharing */
@@ -72,7 +73,19 @@ struct bcma_host_ops {
 /* Core-ID values. */
 #define BCMA_CORE_OOB_ROUTER		0x367	/* Out of band */
 #define BCMA_CORE_4706_CHIPCOMMON	0x500
+#define BCMA_CORE_NS_PCIEG2		0x501
+#define BCMA_CORE_NS_DMA		0x502
+#define BCMA_CORE_NS_SDIO3		0x503
+#define BCMA_CORE_NS_USB20		0x504
+#define BCMA_CORE_NS_USB30		0x505
+#define BCMA_CORE_NS_A9JTAG		0x506
+#define BCMA_CORE_NS_DDR23		0x507
+#define BCMA_CORE_NS_ROM		0x508
+#define BCMA_CORE_NS_NAND		0x509
+#define BCMA_CORE_NS_QSPI		0x50A
+#define BCMA_CORE_NS_CHIPCOMMON_B	0x50B
 #define BCMA_CORE_4706_SOC_RAM		0x50E
+#define BCMA_CORE_ARMCA9		0x510
 #define BCMA_CORE_4706_MAC_GBIT		0x52D
 #define BCMA_CORE_AMEMC			0x52E	/* DDR1/2 memory controller core */
 #define BCMA_CORE_ALTA			0x534	/* I2S core */
@@ -138,12 +151,18 @@ struct bcma_host_ops {
 #define BCMA_CORE_PCIE2			0x83C	/* PCI Express Gen2 */
 #define BCMA_CORE_USB30_DEV		0x83D
 #define BCMA_CORE_ARM_CR4		0x83E
+#define BCMA_CORE_ARM_CA7		0x847
+#define BCMA_CORE_SYS_MEM		0x849
 #define BCMA_CORE_DEFAULT		0xFFF
 
 #define BCMA_MAX_NR_CORES		16
 
 /* Chip IDs of PCIe devices */
 #define BCMA_CHIP_ID_BCM4313	0x4313
+#define BCMA_CHIP_ID_BCM43142	43142
+#define BCMA_CHIP_ID_BCM43131	43131
+#define BCMA_CHIP_ID_BCM43217	43217
+#define BCMA_CHIP_ID_BCM43222	43222
 #define BCMA_CHIP_ID_BCM43224	43224
 #define  BCMA_PKG_ID_BCM43224_FAB_CSM	0x8
 #define  BCMA_PKG_ID_BCM43224_FAB_SMIC	0xa
@@ -176,6 +195,11 @@ struct bcma_host_ops {
 #define  BCMA_PKG_ID_BCM5357	11
 #define BCMA_CHIP_ID_BCM53572	53572
 #define  BCMA_PKG_ID_BCM47188	9
+#define BCMA_CHIP_ID_BCM4707	53010
+#define  BCMA_PKG_ID_BCM4707	1
+#define  BCMA_PKG_ID_BCM4708	2
+#define  BCMA_PKG_ID_BCM4709	0
+#define BCMA_CHIP_ID_BCM53018	53018
 
 /* Board types (on PCI usually equals to the subsystem dev id) */
 /* BCM4313 */
@@ -245,7 +269,7 @@ struct bcma_device {
 	u8 core_unit;
 
 	u32 addr;
-	u32 addr1;
+	u32 addr_s[8];
 	u32 wrap;
 
 	void __iomem *io_addr;
@@ -283,6 +307,15 @@ int __bcma_driver_register(struct bcma_driver *drv, struct module *owner);
 
 extern void bcma_driver_unregister(struct bcma_driver *drv);
 
+/* module_bcma_driver() - Helper macro for drivers that don't do
+ * anything special in module init/exit.  This eliminates a lot of
+ * boilerplate.  Each module may only use this macro once, and
+ * calling it replaces module_init() and module_exit()
+ */
+#define module_bcma_driver(__bcma_driver) \
+	module_driver(__bcma_driver, bcma_driver_register, \
+			bcma_driver_unregister)
+
 /* Set a fallback SPROM.
  * See kdoc at the function definition for complete documentation. */
 extern int bcma_arch_register_fallback_sprom(
@@ -296,11 +329,14 @@ struct bcma_bus {
 	const struct bcma_host_ops *ops;
 
 	enum bcma_hosttype hosttype;
+	bool host_is_pcie2; /* Used for BCMA_HOSTTYPE_PCI only */
 	union {
 		/* Pointer to the PCI bus (only for BCMA_HOSTTYPE_PCI) */
 		struct pci_dev *host_pci;
 		/* Pointer to the SDIO device (only for BCMA_HOSTTYPE_SDIO) */
 		struct sdio_func *host_sdio;
+		/* Pointer to platform device (only for BCMA_HOSTTYPE_SOC) */
+		struct platform_device *host_pdev;
 	};
 
 	struct bcma_chipinfo chipinfo;
@@ -310,11 +346,12 @@ struct bcma_bus {
 	struct bcma_device *mapped_core;
 	struct list_head cores;
 	u8 nr_cores;
-	u8 init_done:1;
 	u8 num;
 
 	struct bcma_drv_cc drv_cc;
+	struct bcma_drv_cc_b drv_cc_b;
 	struct bcma_drv_pci drv_pci[2];
+	struct bcma_drv_pcie2 drv_pcie2;
 	struct bcma_drv_mips drv_mips;
 	struct bcma_drv_gmac_cmn drv_gmac_cmn;
 
@@ -400,7 +437,35 @@ static inline void bcma_maskset16(struct bcma_device *cc,
 	bcma_write16(cc, offset, (bcma_read16(cc, offset) & mask) | set);
 }
 
-extern struct bcma_device *bcma_find_core(struct bcma_bus *bus, u16 coreid);
+extern struct bcma_device *bcma_find_core_unit(struct bcma_bus *bus, u16 coreid,
+					       u8 unit);
+static inline struct bcma_device *bcma_find_core(struct bcma_bus *bus,
+						 u16 coreid)
+{
+	return bcma_find_core_unit(bus, coreid, 0);
+}
+
+#ifdef CONFIG_BCMA_HOST_PCI
+extern void bcma_host_pci_up(struct bcma_bus *bus);
+extern void bcma_host_pci_down(struct bcma_bus *bus);
+extern int bcma_host_pci_irq_ctl(struct bcma_bus *bus,
+				 struct bcma_device *core, bool enable);
+#else
+static inline void bcma_host_pci_up(struct bcma_bus *bus)
+{
+}
+static inline void bcma_host_pci_down(struct bcma_bus *bus)
+{
+}
+static inline int bcma_host_pci_irq_ctl(struct bcma_bus *bus,
+					struct bcma_device *core, bool enable)
+{
+	if (bus->hosttype == BCMA_HOSTTYPE_PCI)
+		return -ENOTSUPP;
+	return 0;
+}
+#endif
+
 extern bool bcma_core_is_enabled(struct bcma_device *core);
 extern void bcma_core_disable(struct bcma_device *core, u32 flags);
 extern int bcma_core_enable(struct bcma_device *core, u32 flags);
@@ -414,5 +479,7 @@ extern u32 bcma_chipco_pll_read(struct bcma_drv_cc *cc, u32 offset);
 #define  BCMA_DMA_TRANSLATION_DMA32_CMT	0x40000000 /* Client Mode Translation for 32-bit DMA */
 #define  BCMA_DMA_TRANSLATION_DMA64_CMT	0x80000000 /* Client Mode Translation for 64-bit DMA */
 extern u32 bcma_core_dma_translation(struct bcma_device *core);
+
+extern unsigned int bcma_core_irq(struct bcma_device *core, int num);
 
 #endif /* LINUX_BCMA_H_ */

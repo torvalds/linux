@@ -6,7 +6,7 @@
 struct pt_regs;
 
 extern const char *trap_name(int trapno);
-extern void die(const char *str, struct pt_regs *regs, long err,
-		unsigned long addr) __attribute__ ((noreturn));
+extern void __noreturn die(const char *str, struct pt_regs *regs, long err,
+		unsigned long addr);
 
 #endif

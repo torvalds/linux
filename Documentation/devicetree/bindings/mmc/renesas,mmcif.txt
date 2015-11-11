@@ -1,0 +1,36 @@
+* Renesas Multi Media Card Interface (MMCIF) Controller
+
+This file documents differences between the core properties in mmc.txt
+and the properties used by the MMCIF device.
+
+
+Required properties:
+
+- compatible: should be "renesas,mmcif-<soctype>", "renesas,sh-mmcif" as a
+  fallback. Examples with <soctype> are:
+	- "renesas,mmcif-r8a7740" for the MMCIF found in r8a7740 SoCs
+	- "renesas,mmcif-r8a7790" for the MMCIF found in r8a7790 SoCs
+	- "renesas,mmcif-r8a7791" for the MMCIF found in r8a7791 SoCs
+	- "renesas,mmcif-r8a7794" for the MMCIF found in r8a7794 SoCs
+
+- clocks: reference to the functional clock
+
+- dmas: reference to the DMA channels, one per channel name listed in the
+  dma-names property.
+- dma-names: must contain "tx" for the transmit DMA channel and "rx" for the
+  receive DMA channel.
+- max-frequency: Maximum operating clock frequency, driver uses default clock
+  frequency if it is not set.
+
+
+Example: R8A7790 (R-Car H2) MMCIF0
+
+	mmcif0: mmc@ee200000 {
+		compatible = "renesas,mmcif-r8a7790", "renesas,sh-mmcif";
+		reg = <0 0xee200000 0 0x80>;
+		interrupts = <0 169 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp3_clks R8A7790_CLK_MMCIF0>;
+		dmas = <&dmac0 0xd1>, <&dmac0 0xd2>;
+		dma-names = "tx", "rx";
+		max-frequency = <97500000>;
+	};

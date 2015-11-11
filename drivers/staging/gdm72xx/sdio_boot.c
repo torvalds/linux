@@ -13,7 +13,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/uaccess.h>
 #include <linux/fs.h>
@@ -42,11 +41,11 @@ static u8 *tx_buf;
 
 static int ack_ready(struct sdio_func *func)
 {
-	unsigned long start = jiffies;
+	unsigned long wait = jiffies + HZ;
 	u8 val;
 	int ret;
 
-	while ((jiffies - start) < HZ) {
+	while (time_before(jiffies, wait)) {
 		val = sdio_readb(func, 0x13, &ret);
 		if (val & 0x01)
 			return 1;
@@ -73,7 +72,7 @@ static int download_image(struct sdio_func *func, const char *img_name)
 	}
 
 	buf = kmalloc(DOWNLOAD_SIZE + TYPE_A_HEADER_SIZE, GFP_KERNEL);
-	if (buf == NULL)
+	if (!buf)
 		return -ENOMEM;
 
 	img_len = firm->size;
@@ -140,7 +139,7 @@ int sdio_boot(struct sdio_func *func)
 	const char *rfs_name = FW_DIR FW_RFS;
 
 	tx_buf = kmalloc(YMEM0_SIZE, GFP_KERNEL);
-	if (tx_buf == NULL)
+	if (!tx_buf)
 		return -ENOMEM;
 
 	ret = download_image(func, krn_name);

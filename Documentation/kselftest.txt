@@ -1,0 +1,85 @@
+Linux Kernel Selftests
+
+The kernel contains a set of "self tests" under the tools/testing/selftests/
+directory. These are intended to be small unit tests to exercise individual
+code paths in the kernel.
+
+On some systems, hot-plug tests could hang forever waiting for cpu and
+memory to be ready to be offlined. A special hot-plug target is created
+to run full range of hot-plug tests. In default mode, hot-plug tests run
+in safe mode with a limited scope. In limited mode, cpu-hotplug test is
+run on a single cpu as opposed to all hotplug capable cpus, and memory
+hotplug test is run on 2% of hotplug capable memory instead of 10%.
+
+Running the selftests (hotplug tests are run in limited mode)
+=============================================================
+
+To build the tests:
+  $ make -C tools/testing/selftests
+
+
+To run the tests:
+  $ make -C tools/testing/selftests run_tests
+
+To build and run the tests with a single command, use:
+  $ make kselftest
+
+- note that some tests will require root privileges.
+
+
+Running a subset of selftests
+========================================
+You can use the "TARGETS" variable on the make command line to specify
+single test to run, or a list of tests to run.
+
+To run only tests targeted for a single subsystem:
+  $  make -C tools/testing/selftests TARGETS=ptrace run_tests
+
+You can specify multiple tests to build and run:
+  $  make TARGETS="size timers" kselftest
+
+See the top-level tools/testing/selftests/Makefile for the list of all
+possible targets.
+
+
+Running the full range hotplug selftests
+========================================
+
+To build the hotplug tests:
+  $ make -C tools/testing/selftests hotplug
+
+To run the hotplug tests:
+  $ make -C tools/testing/selftests run_hotplug
+
+- note that some tests will require root privileges.
+
+
+Install selftests
+=================
+
+You can use kselftest_install.sh tool installs selftests in default
+location which is tools/testing/selftests/kselftest or an user specified
+location.
+
+To install selftests in default location:
+   $ cd tools/testing/selftests
+   $ ./kselftest_install.sh
+
+To install selftests in an user specified location:
+   $ cd tools/testing/selftests
+   $ ./kselftest_install.sh install_dir
+
+
+Contributing new tests
+======================
+
+In general, the rules for for selftests are
+
+ * Do as much as you can if you're not root;
+
+ * Don't take too long;
+
+ * Don't break the build on any architecture, and
+
+ * Don't cause the top-level "make run_tests" to fail if your feature is
+   unconfigured.

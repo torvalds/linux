@@ -13,15 +13,8 @@ config BCACHE_DEBUG
 	---help---
 	Don't select this option unless you're a developer
 
-	Enables extra debugging tools (primarily a fuzz tester)
-
-config BCACHE_EDEBUG
-	bool "Extended runtime checks"
-	depends on BCACHE
-	---help---
-	Don't select this option unless you're a developer
-
-	Enables extra runtime checks which significantly affect performance
+	Enables extra debugging tools, allows expensive runtime checks to be
+	turned on.
 
 config BCACHE_CLOSURES_DEBUG
 	bool "Debug closures"
@@ -31,11 +24,3 @@ config BCACHE_CLOSURES_DEBUG
 	Keeps all active closures in a linked list and provides a debugfs
 	interface to list them, which makes it possible to see asynchronous
 	operations that get stuck.
-
-# cgroup code needs to be updated:
-#
-#config CGROUP_BCACHE
-#	bool "Cgroup controls for bcache"
-#	depends on BCACHE && BLK_CGROUP
-#	---help---
-#	TODO

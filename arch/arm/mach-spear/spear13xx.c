@@ -4,7 +4,7 @@
  * SPEAr13XX machines common source file
  *
  * Copyright (C) 2012 ST Microelectronics
- * Viresh Kumar <viresh.linux@gmail.com>
+ * Viresh Kumar <vireshk@kernel.org>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -38,26 +38,26 @@ void __init spear13xx_l2x0_init(void)
 	if (!IS_ENABLED(CONFIG_CACHE_L2X0))
 		return;
 
-	writel_relaxed(0x06, VA_L2CC_BASE + L2X0_PREFETCH_CTRL);
+	writel_relaxed(0x06, VA_L2CC_BASE + L310_PREFETCH_CTRL);
 
 	/*
 	 * Program following latencies in order to make
 	 * SPEAr1340 work at 600 MHz
 	 */
-	writel_relaxed(0x221, VA_L2CC_BASE + L2X0_TAG_LATENCY_CTRL);
-	writel_relaxed(0x441, VA_L2CC_BASE + L2X0_DATA_LATENCY_CTRL);
-	l2x0_init(VA_L2CC_BASE, 0x70A60001, 0xfe00ffff);
+	writel_relaxed(0x221, VA_L2CC_BASE + L310_TAG_LATENCY_CTRL);
+	writel_relaxed(0x441, VA_L2CC_BASE + L310_DATA_LATENCY_CTRL);
+	l2x0_init(VA_L2CC_BASE, 0x30a00001, 0xfe0fffff);
 }
 
 /*
  * Following will create 16MB static virtual/physical mappings
  * PHYSICAL		VIRTUAL
- * 0xB3000000		0xFE000000
+ * 0xB3000000		0xF9000000
  * 0xE0000000		0xFD000000
  * 0xEC000000		0xFC000000
  * 0xED000000		0xFB000000
  */
-struct map_desc spear13xx_io_desc[] __initdata = {
+static struct map_desc spear13xx_io_desc[] __initdata = {
 	{
 		.virtual	= (unsigned long)VA_PERIP_GRP2_BASE,
 		.pfn		= __phys_to_pfn(PERIP_GRP2_BASE),
@@ -124,5 +124,5 @@ void __init spear13xx_timer_init(void)
 	clk_put(pclk);
 
 	spear_setup_of_timer();
-	clocksource_of_init();
+	clocksource_probe();
 }

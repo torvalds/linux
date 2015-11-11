@@ -1,0 +1,158 @@
+libperf-y += abspath.o
+libperf-y += alias.o
+libperf-y += annotate.o
+libperf-y += build-id.o
+libperf-y += config.o
+libperf-y += ctype.o
+libperf-y += db-export.o
+libperf-y += env.o
+libperf-y += environment.o
+libperf-y += event.o
+libperf-y += evlist.o
+libperf-y += evsel.o
+libperf-y += exec_cmd.o
+libperf-y += find_next_bit.o
+libperf-y += help.o
+libperf-y += kallsyms.o
+libperf-y += levenshtein.o
+libperf-y += llvm-utils.o
+libperf-y += parse-options.o
+libperf-y += parse-events.o
+libperf-y += perf_regs.o
+libperf-y += path.o
+libperf-y += rbtree.o
+libperf-y += bitmap.o
+libperf-y += hweight.o
+libperf-y += run-command.o
+libperf-y += quote.o
+libperf-y += strbuf.o
+libperf-y += string.o
+libperf-y += strlist.o
+libperf-y += strfilter.o
+libperf-y += top.o
+libperf-y += usage.o
+libperf-y += wrapper.o
+libperf-y += sigchain.o
+libperf-y += dso.o
+libperf-y += symbol.o
+libperf-y += color.o
+libperf-y += pager.o
+libperf-y += header.o
+libperf-y += callchain.o
+libperf-y += values.o
+libperf-y += debug.o
+libperf-y += machine.o
+libperf-y += map.o
+libperf-y += pstack.o
+libperf-y += session.o
+libperf-y += ordered-events.o
+libperf-y += comm.o
+libperf-y += thread.o
+libperf-y += thread_map.o
+libperf-y += trace-event-parse.o
+libperf-y += parse-events-flex.o
+libperf-y += parse-events-bison.o
+libperf-y += pmu.o
+libperf-y += pmu-flex.o
+libperf-y += pmu-bison.o
+libperf-y += trace-event-read.o
+libperf-y += trace-event-info.o
+libperf-y += trace-event-scripting.o
+libperf-y += trace-event.o
+libperf-y += svghelper.o
+libperf-y += sort.o
+libperf-y += hist.o
+libperf-y += util.o
+libperf-y += xyarray.o
+libperf-y += cpumap.o
+libperf-y += cgroup.o
+libperf-y += target.o
+libperf-y += rblist.o
+libperf-y += intlist.o
+libperf-y += vdso.o
+libperf-y += counts.o
+libperf-y += stat.o
+libperf-y += stat-shadow.o
+libperf-y += record.o
+libperf-y += srcline.o
+libperf-y += data.o
+libperf-$(CONFIG_X86) += tsc.o
+libperf-$(CONFIG_AUXTRACE) += tsc.o
+libperf-y += cloexec.o
+libperf-y += thread-stack.o
+libperf-$(CONFIG_AUXTRACE) += auxtrace.o
+libperf-$(CONFIG_AUXTRACE) += intel-pt-decoder/
+libperf-$(CONFIG_AUXTRACE) += intel-pt.o
+libperf-$(CONFIG_AUXTRACE) += intel-bts.o
+libperf-y += parse-branch-options.o
+libperf-y += parse-regs-options.o
+
+libperf-$(CONFIG_LIBBPF) += bpf-loader.o
+libperf-$(CONFIG_LIBELF) += symbol-elf.o
+libperf-$(CONFIG_LIBELF) += probe-file.o
+libperf-$(CONFIG_LIBELF) += probe-event.o
+
+ifndef CONFIG_LIBELF
+libperf-y += symbol-minimal.o
+endif
+
+libperf-$(CONFIG_DWARF) += probe-finder.o
+libperf-$(CONFIG_DWARF) += dwarf-aux.o
+
+libperf-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o
+libperf-$(CONFIG_LIBUNWIND)          += unwind-libunwind.o
+
+libperf-$(CONFIG_LIBBABELTRACE) += data-convert-bt.o
+
+libperf-y += scripting-engines/
+
+libperf-$(CONFIG_ZLIB) += zlib.o
+libperf-$(CONFIG_LZMA) += lzma.o
+
+CFLAGS_config.o   += -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
+CFLAGS_exec_cmd.o += -DPERF_EXEC_PATH="BUILD_STR($(perfexecdir_SQ))" -DPREFIX="BUILD_STR($(prefix_SQ))"
+
+$(OUTPUT)util/parse-events-flex.c: util/parse-events.l $(OUTPUT)util/parse-events-bison.c
+	$(call rule_mkdir)
+	$(Q)$(call echo-cmd,flex)$(FLEX) -o $@ --header-file=$(OUTPUT)util/parse-events-flex.h $(PARSER_DEBUG_FLEX) util/parse-events.l
+
+$(OUTPUT)util/parse-events-bison.c: util/parse-events.y
+	$(call rule_mkdir)
+	$(Q)$(call echo-cmd,bison)$(BISON) -v util/parse-events.y -d $(PARSER_DEBUG_BISON) -o $@ -p parse_events_
+
+$(OUTPUT)util/pmu-flex.c: util/pmu.l $(OUTPUT)util/pmu-bison.c
+	$(call rule_mkdir)
+	$(Q)$(call echo-cmd,flex)$(FLEX) -o $@ --header-file=$(OUTPUT)util/pmu-flex.h util/pmu.l
+
+$(OUTPUT)util/pmu-bison.c: util/pmu.y
+	$(call rule_mkdir)
+	$(Q)$(call echo-cmd,bison)$(BISON) -v util/pmu.y -d -o $@ -p perf_pmu_
+
+CFLAGS_parse-events-flex.o  += -w
+CFLAGS_pmu-flex.o           += -w
+CFLAGS_parse-events-bison.o += -DYYENABLE_NLS=0 -w
+CFLAGS_pmu-bison.o          += -DYYENABLE_NLS=0 -DYYLTYPE_IS_TRIVIAL=0 -w
+
+$(OUTPUT)util/parse-events.o: $(OUTPUT)util/parse-events-flex.c $(OUTPUT)util/parse-events-bison.c
+$(OUTPUT)util/pmu.o: $(OUTPUT)util/pmu-flex.c $(OUTPUT)util/pmu-bison.c
+
+CFLAGS_find_next_bit.o += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
+CFLAGS_rbtree.o        += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
+CFLAGS_hweight.o       += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
+CFLAGS_parse-events.o  += -Wno-redundant-decls
+
+$(OUTPUT)util/kallsyms.o: ../lib/symbol/kallsyms.c FORCE
+	$(call rule_mkdir)
+	$(call if_changed_dep,cc_o_c)
+
+$(OUTPUT)util/find_next_bit.o: ../lib/util/find_next_bit.c FORCE
+	$(call rule_mkdir)
+	$(call if_changed_dep,cc_o_c)
+
+$(OUTPUT)util/rbtree.o: ../lib/rbtree.c FORCE
+	$(call rule_mkdir)
+	$(call if_changed_dep,cc_o_c)
+
+$(OUTPUT)util/hweight.o: ../lib/hweight.c FORCE
+	$(call rule_mkdir)
+	$(call if_changed_dep,cc_o_c)

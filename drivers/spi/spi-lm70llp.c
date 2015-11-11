@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/init.h>
@@ -222,7 +218,7 @@ static void spi_lm70llp_attach(struct parport *p)
 	/*
 	 * SPI and bitbang hookup.
 	 */
-	pp->bitbang.master = spi_master_get(master);
+	pp->bitbang.master = master;
 	pp->bitbang.chipselect = lm70_chipselect;
 	pp->bitbang.txrx_word[SPI_MODE_0] = lm70_txrx;
 	pp->bitbang.flags = SPI_3WIRE;

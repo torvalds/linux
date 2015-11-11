@@ -60,14 +60,15 @@ static inline void debug_percpu_counter_deactivate(struct percpu_counter *fbc)
 void percpu_counter_set(struct percpu_counter *fbc, s64 amount)
 {
 	int cpu;
+	unsigned long flags;
 
-	raw_spin_lock(&fbc->lock);
+	raw_spin_lock_irqsave(&fbc->lock, flags);
 	for_each_possible_cpu(cpu) {
 		s32 *pcount = per_cpu_ptr(fbc->counters, cpu);
 		*pcount = 0;
 	}
 	fbc->count = amount;
-	raw_spin_unlock(&fbc->lock);
+	raw_spin_unlock_irqrestore(&fbc->lock, flags);
 }
 EXPORT_SYMBOL(percpu_counter_set);
 
@@ -78,12 +79,13 @@ void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch)
 	preempt_disable();
 	count = __this_cpu_read(*fbc->counters) + amount;
 	if (count >= batch || count <= -batch) {
-		raw_spin_lock(&fbc->lock);
+		unsigned long flags;
+		raw_spin_lock_irqsave(&fbc->lock, flags);
 		fbc->count += count;
-		__this_cpu_write(*fbc->counters, 0);
-		raw_spin_unlock(&fbc->lock);
+		__this_cpu_sub(*fbc->counters, count - amount);
+		raw_spin_unlock_irqrestore(&fbc->lock, flags);
 	} else {
-		__this_cpu_write(*fbc->counters, count);
+		this_cpu_add(*fbc->counters, amount);
 	}
 	preempt_enable();
 }
@@ -97,25 +99,28 @@ s64 __percpu_counter_sum(struct percpu_counter *fbc)
 {
 	s64 ret;
 	int cpu;
+	unsigned long flags;
 
-	raw_spin_lock(&fbc->lock);
+	raw_spin_lock_irqsave(&fbc->lock, flags);
 	ret = fbc->count;
 	for_each_online_cpu(cpu) {
 		s32 *pcount = per_cpu_ptr(fbc->counters, cpu);
 		ret += *pcount;
 	}
-	raw_spin_unlock(&fbc->lock);
+	raw_spin_unlock_irqrestore(&fbc->lock, flags);
 	return ret;
 }
 EXPORT_SYMBOL(__percpu_counter_sum);
 
-int __percpu_counter_init(struct percpu_counter *fbc, s64 amount,
+int __percpu_counter_init(struct percpu_counter *fbc, s64 amount, gfp_t gfp,
 			  struct lock_class_key *key)
 {
+	unsigned long flags __maybe_unused;
+
 	raw_spin_lock_init(&fbc->lock);
 	lockdep_set_class(&fbc->lock, key);
 	fbc->count = amount;
-	fbc->counters = alloc_percpu(s32);
+	fbc->counters = alloc_percpu_gfp(s32, gfp);
 	if (!fbc->counters)
 		return -ENOMEM;
 
@@ -123,9 +128,9 @@ int __percpu_counter_init(struct percpu_counter *fbc, s64 amount,
 
 #ifdef CONFIG_HOTPLUG_CPU
 	INIT_LIST_HEAD(&fbc->list);
-	spin_lock(&percpu_counters_lock);
+	spin_lock_irqsave(&percpu_counters_lock, flags);
 	list_add(&fbc->list, &percpu_counters);
-	spin_unlock(&percpu_counters_lock);
+	spin_unlock_irqrestore(&percpu_counters_lock, flags);
 #endif
 	return 0;
 }
@@ -133,15 +138,17 @@ EXPORT_SYMBOL(__percpu_counter_init);
 
 void percpu_counter_destroy(struct percpu_counter *fbc)
 {
+	unsigned long flags __maybe_unused;
+
 	if (!fbc->counters)
 		return;
 
 	debug_percpu_counter_deactivate(fbc);
 
 #ifdef CONFIG_HOTPLUG_CPU
-	spin_lock(&percpu_counters_lock);
+	spin_lock_irqsave(&percpu_counters_lock, flags);
 	list_del(&fbc->list);
-	spin_unlock(&percpu_counters_lock);
+	spin_unlock_irqrestore(&percpu_counters_lock, flags);
 #endif
 	free_percpu(fbc->counters);
 	fbc->counters = NULL;
@@ -158,7 +165,7 @@ static void compute_batch_value(void)
 	percpu_counter_batch = max(32, nr*2);
 }
 
-static int __cpuinit percpu_counter_hotcpu_callback(struct notifier_block *nb,
+static int percpu_counter_hotcpu_callback(struct notifier_block *nb,
 					unsigned long action, void *hcpu)
 {
 #ifdef CONFIG_HOTPLUG_CPU
@@ -166,11 +173,11 @@ static int __cpuinit percpu_counter_hotcpu_callback(struct notifier_block *nb,
 	struct percpu_counter *fbc;
 
 	compute_batch_value();
-	if (action != CPU_DEAD)
+	if (action != CPU_DEAD && action != CPU_DEAD_FROZEN)
 		return NOTIFY_OK;
 
 	cpu = (unsigned long)hcpu;
-	spin_lock(&percpu_counters_lock);
+	spin_lock_irq(&percpu_counters_lock);
 	list_for_each_entry(fbc, &percpu_counters, list) {
 		s32 *pcount;
 		unsigned long flags;
@@ -181,7 +188,7 @@ static int __cpuinit percpu_counter_hotcpu_callback(struct notifier_block *nb,
 		*pcount = 0;
 		raw_spin_unlock_irqrestore(&fbc->lock, flags);
 	}
-	spin_unlock(&percpu_counters_lock);
+	spin_unlock_irq(&percpu_counters_lock);
 #endif
 	return NOTIFY_OK;
 }
@@ -190,13 +197,13 @@ static int __cpuinit percpu_counter_hotcpu_callback(struct notifier_block *nb,
  * Compare counter against given value.
  * Return 1 if greater, 0 if equal and -1 if less
  */
-int percpu_counter_compare(struct percpu_counter *fbc, s64 rhs)
+int __percpu_counter_compare(struct percpu_counter *fbc, s64 rhs, s32 batch)
 {
 	s64	count;
 
 	count = percpu_counter_read(fbc);
 	/* Check to see if rough count will be sufficient for comparison */
-	if (abs(count - rhs) > (percpu_counter_batch*num_online_cpus())) {
+	if (abs(count - rhs) > (batch * num_online_cpus())) {
 		if (count > rhs)
 			return 1;
 		else
@@ -211,7 +218,7 @@ int percpu_counter_compare(struct percpu_counter *fbc, s64 rhs)
 	else
 		return 0;
 }
-EXPORT_SYMBOL(percpu_counter_compare);
+EXPORT_SYMBOL(__percpu_counter_compare);
 
 static int __init percpu_counter_startup(void)
 {

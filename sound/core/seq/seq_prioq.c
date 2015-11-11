@@ -59,10 +59,8 @@ struct snd_seq_prioq *snd_seq_prioq_new(void)
 	struct snd_seq_prioq *f;
 
 	f = kzalloc(sizeof(*f), GFP_KERNEL);
-	if (f == NULL) {
-		snd_printd("oops: malloc failed for snd_seq_prioq_new()\n");
+	if (!f)
 		return NULL;
-	}
 	
 	spin_lock_init(&f->lock);
 	f->head = NULL;
@@ -79,7 +77,7 @@ void snd_seq_prioq_delete(struct snd_seq_prioq **fifo)
 	*fifo = NULL;
 
 	if (f == NULL) {
-		snd_printd("oops: snd_seq_prioq_delete() called with NULL prioq\n");
+		pr_debug("ALSA: seq: snd_seq_prioq_delete() called with NULL prioq\n");
 		return;
 	}
 
@@ -197,7 +195,7 @@ int snd_seq_prioq_cell_in(struct snd_seq_prioq * f,
 		cur = cur->next;
 		if (! --count) {
 			spin_unlock_irqrestore(&f->lock, flags);
-			snd_printk(KERN_ERR "cannot find a pointer.. infinite loop?\n");
+			pr_err("ALSA: seq: cannot find a pointer.. infinite loop?\n");
 			return -EINVAL;
 		}
 	}
@@ -223,7 +221,7 @@ struct snd_seq_event_cell *snd_seq_prioq_cell_out(struct snd_seq_prioq *f)
 	unsigned long flags;
 
 	if (f == NULL) {
-		snd_printd("oops: snd_seq_prioq_cell_in() called with NULL prioq\n");
+		pr_debug("ALSA: seq: snd_seq_prioq_cell_in() called with NULL prioq\n");
 		return NULL;
 	}
 	spin_lock_irqsave(&f->lock, flags);
@@ -248,7 +246,7 @@ struct snd_seq_event_cell *snd_seq_prioq_cell_out(struct snd_seq_prioq *f)
 int snd_seq_prioq_avail(struct snd_seq_prioq * f)
 {
 	if (f == NULL) {
-		snd_printd("oops: snd_seq_prioq_cell_in() called with NULL prioq\n");
+		pr_debug("ALSA: seq: snd_seq_prioq_cell_in() called with NULL prioq\n");
 		return 0;
 	}
 	return f->cells;
@@ -259,7 +257,7 @@ int snd_seq_prioq_avail(struct snd_seq_prioq * f)
 struct snd_seq_event_cell *snd_seq_prioq_cell_peek(struct snd_seq_prioq * f)
 {
 	if (f == NULL) {
-		snd_printd("oops: snd_seq_prioq_cell_in() called with NULL prioq\n");
+		pr_debug("ALSA: seq: snd_seq_prioq_cell_in() called with NULL prioq\n");
 		return NULL;
 	}
 	return f->head;
@@ -321,7 +319,7 @@ void snd_seq_prioq_leave(struct snd_seq_prioq * f, int client, int timestamp)
 			freeprev = cell;
 		} else {
 #if 0
-			printk(KERN_DEBUG "type = %i, source = %i, dest = %i, "
+			pr_debug("ALSA: seq: type = %i, source = %i, dest = %i, "
 			       "client = %i\n",
 				cell->event.type,
 				cell->event.source.client,

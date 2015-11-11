@@ -92,7 +92,7 @@ vmci_transport_handle_wrote(struct sock *sk,
 			    bool bottom_half,
 			    struct sockaddr_vm *dst, struct sockaddr_vm *src)
 {
-	sk->sk_data_ready(sk, 0);
+	sk->sk_data_ready(sk);
 }
 
 static void vsock_block_update_write_window(struct sock *sk)
@@ -290,7 +290,7 @@ vmci_transport_notify_pkt_recv_post_dequeue(
 		/* See the comment in
 		 * vmci_transport_notify_pkt_send_post_enqueue().
 		 */
-		sk->sk_data_ready(sk, 0);
+		sk->sk_data_ready(sk);
 	}
 
 	return err;

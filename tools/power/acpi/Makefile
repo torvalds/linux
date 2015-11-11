@@ -1,18 +1,27 @@
-PROG= acpidump
-SRCS=	acpidump.c
-KERNEL_INCLUDE := ../../../include
-CFLAGS += -Wall -Wstrict-prototypes -Wdeclaration-after-statement -Os -s -D_LINUX -DDEFINE_ALTERNATE_TYPES -I$(KERNEL_INCLUDE) 
+# tools/power/acpi/Makefile - ACPI tool Makefile
+#
+# Copyright (c) 2013, Intel Corporation
+#   Author: Lv Zheng <lv.zheng@intel.com>
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; version 2
+# of the License.
 
-all: acpidump
-$(PROG) : $(SRCS)
-	$(CC) $(CFLAGS) $(SRCS) -o $(PROG)
+include ../../scripts/Makefile.include
 
-CLEANFILES= $(PROG)
+all: acpidump ec
+clean: acpidump_clean ec_clean
+install: acpidump_install ec_install
+uninstall: acpidump_uninstall ec_uninstall
 
-clean : 
-	rm -f $(CLEANFILES) $(patsubst %.c,%.o, $(SRCS)) *~
+acpidump ec: FORCE
+	$(call descend,tools/$@,all)
+acpidump_clean ec_clean:
+	$(call descend,tools/$(@:_clean=),clean)
+acpidump_install ec_install:
+	$(call descend,tools/$(@:_install=),install)
+acpidump_uninstall ec_uninstall:
+	$(call descend,tools/$(@:_uninstall=),uninstall)
 
-install :
-	install acpidump /usr/sbin/acpidump
-	install acpidump.8 /usr/share/man/man8
-
+.PHONY: FORCE

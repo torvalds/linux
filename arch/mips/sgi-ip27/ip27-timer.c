@@ -7,6 +7,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched_clock.h>
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 #include <linux/param.h>
@@ -63,12 +64,6 @@ static int rt_next_event(unsigned long delta, struct clock_event_device *evt)
 	return LOCAL_HUB_L(PI_RT_COUNT) >= cnt ? -ETIME : 0;
 }
 
-static void rt_set_mode(enum clock_event_mode mode,
-		struct clock_event_device *evt)
-{
-	/* Nothing to do ...  */
-}
-
 unsigned int rt_timer_irq;
 
 static DEFINE_PER_CPU(struct clock_event_device, hub_rt_clockevent);
@@ -106,7 +101,7 @@ struct irqaction hub_rt_irqaction = {
 #define NSEC_PER_CYCLE		800
 #define CYCLES_PER_SEC		(NSEC_PER_SEC / NSEC_PER_CYCLE)
 
-void __cpuinit hub_rt_clock_event_init(void)
+void hub_rt_clock_event_init(void)
 {
 	unsigned int cpu = smp_processor_id();
 	struct clock_event_device *cd = &per_cpu(hub_rt_clockevent, cpu);
@@ -123,7 +118,6 @@ void __cpuinit hub_rt_clock_event_init(void)
 	cd->irq			= irq;
 	cd->cpumask		= cpumask_of(cpu);
 	cd->set_next_event	= rt_next_event;
-	cd->set_mode		= rt_set_mode;
 	clockevents_register_device(cd);
 }
 
@@ -159,11 +153,18 @@ struct clocksource hub_rt_clocksource = {
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
+static u64 notrace hub_rt_read_sched_clock(void)
+{
+	return REMOTE_HUB_L(cputonasid(0), PI_RT_COUNT);
+}
+
 static void __init hub_rt_clocksource_init(void)
 {
 	struct clocksource *cs = &hub_rt_clocksource;
 
 	clocksource_register_hz(cs, CYCLES_PER_SEC);
+
+	sched_clock_register(hub_rt_read_sched_clock, 52, CYCLES_PER_SEC);
 }
 
 void __init plat_time_init(void)
@@ -173,7 +174,7 @@ void __init plat_time_init(void)
 	hub_rt_clock_event_init();
 }
 
-void __cpuinit cpu_time_init(void)
+void cpu_time_init(void)
 {
 	lboard_t *board;
 	klcpu_t *cpu;
@@ -194,7 +195,7 @@ void __cpuinit cpu_time_init(void)
 	set_c0_status(SRB_TIMOCLK);
 }
 
-void __cpuinit hub_rtc_init(cnodeid_t cnode)
+void hub_rtc_init(cnodeid_t cnode)
 {
 
 	/*

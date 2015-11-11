@@ -8,13 +8,14 @@
 #ifndef __ASM_MACH_IP22_CPU_FEATURE_OVERRIDES_H
 #define __ASM_MACH_IP22_CPU_FEATURE_OVERRIDES_H
 
+#include <asm/cpu.h>
+
 /*
  * IP22 with a variety of processors so we can't use defaults for everything.
  */
 #define cpu_has_tlb		1
 #define cpu_has_4kex		1
 #define cpu_has_4k_cache	1
-#define cpu_has_fpu		1
 #define cpu_has_32fpr		1
 #define cpu_has_counter		1
 #define cpu_has_mips16		0
@@ -36,6 +37,10 @@
 
 #define cpu_has_nofpuex		0
 #define cpu_has_64bits		1
+
+#define cpu_has_mips_2		1
+#define cpu_has_mips_3		1
+#define cpu_has_mips_5		0
 
 #define cpu_has_mips32r1	0
 #define cpu_has_mips32r2	0

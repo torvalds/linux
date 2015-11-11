@@ -133,8 +133,6 @@ void change_console(struct vc_data *new_vc);
 void reset_vc(struct vc_data *vc);
 extern int do_unbind_con_driver(const struct consw *csw, int first, int last,
 			     int deflt);
-extern int unbind_con_driver(const struct consw *csw, int first, int last,
-			     int deflt);
 int vty_init(const struct file_operations *console_fops);
 
 static inline bool vt_force_oops_output(struct vc_data *vc)

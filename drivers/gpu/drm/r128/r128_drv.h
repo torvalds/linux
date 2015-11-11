@@ -35,6 +35,9 @@
 #ifndef __R128_DRV_H__
 #define __R128_DRV_H__
 
+#include <drm/ati_pcigart.h>
+#include <drm/drm_legacy.h>
+
 /* General customization:
  */
 #define DRIVER_AUTHOR		"Gareth Hughes, VA Linux Systems Inc."
@@ -131,7 +134,7 @@ typedef struct drm_r128_buf_priv {
 	drm_r128_freelist_t *list_entry;
 } drm_r128_buf_priv_t;
 
-extern struct drm_ioctl_desc r128_ioctls[];
+extern const struct drm_ioctl_desc r128_ioctls[];
 extern int r128_max_ioctl;
 
 				/* r128_cce.c */
@@ -151,10 +154,10 @@ extern int r128_wait_ring(drm_r128_private_t *dev_priv, int n);
 extern int r128_do_cce_idle(drm_r128_private_t *dev_priv);
 extern int r128_do_cleanup_cce(struct drm_device *dev);
 
-extern int r128_enable_vblank(struct drm_device *dev, int crtc);
-extern void r128_disable_vblank(struct drm_device *dev, int crtc);
-extern u32 r128_get_vblank_counter(struct drm_device *dev, int crtc);
-extern irqreturn_t r128_driver_irq_handler(DRM_IRQ_ARGS);
+extern int r128_enable_vblank(struct drm_device *dev, unsigned int pipe);
+extern void r128_disable_vblank(struct drm_device *dev, unsigned int pipe);
+extern u32 r128_get_vblank_counter(struct drm_device *dev, unsigned int pipe);
+extern irqreturn_t r128_driver_irq_handler(int irq, void *arg);
 extern void r128_driver_irq_preinstall(struct drm_device *dev);
 extern int r128_driver_irq_postinstall(struct drm_device *dev);
 extern void r128_driver_irq_uninstall(struct drm_device *dev);
@@ -514,7 +517,7 @@ do {									\
 	if (R128_VERBOSE)						\
 		DRM_INFO("COMMIT_RING() tail=0x%06x\n",			\
 			 dev_priv->ring.tail);				\
-	DRM_MEMORYBARRIER();						\
+	mb();						\
 	R128_WRITE(R128_PM4_BUFFER_DL_WPTR, dev_priv->ring.tail);	\
 	R128_READ(R128_PM4_BUFFER_DL_WPTR);				\
 } while (0)

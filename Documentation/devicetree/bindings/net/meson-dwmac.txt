@@ -1,0 +1,25 @@
+* Amlogic Meson DWMAC Ethernet controller
+
+The device inherits all the properties of the dwmac/stmmac devices
+described in the file net/stmmac.txt with the following changes.
+
+Required properties:
+
+- compatible: should be "amlogic,meson6-dwmac" along with "snps,dwmac"
+	      and any applicable more detailed version number
+	      described in net/stmmac.txt
+
+- reg: should contain a register range for the dwmac controller and
+       another one for the Amlogic specific configuration
+
+Example:
+
+	ethmac: ethernet@c9410000 {
+		compatible = "amlogic,meson6-dwmac", "snps,dwmac";
+		reg = <0xc9410000 0x10000
+		       0xc1108108 0x4>;
+		interrupts = <0 8 1>;
+		interrupt-names = "macirq";
+		clocks = <&clk81>;
+		clock-names = "stmmaceth";
+	}

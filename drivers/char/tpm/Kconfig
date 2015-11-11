@@ -25,13 +25,23 @@ menuconfig TCG_TPM
 if TCG_TPM
 
 config TCG_TIS
-	tristate "TPM Interface Specification 1.2 Interface"
+	tristate "TPM Interface Specification 1.2 Interface / TPM 2.0 FIFO Interface"
 	depends on X86
 	---help---
 	  If you have a TPM security chip that is compliant with the
-	  TCG TIS 1.2 TPM specification say Yes and it will be accessible
-	  from within Linux.  To compile this driver as a module, choose
-	  M here; the module will be called tpm_tis.
+	  TCG TIS 1.2 TPM specification (TPM1.2) or the TCG PTP FIFO
+	  specification (TPM2.0) say Yes and it will be accessible from
+	  within Linux. To compile this driver as a module, choose  M here;
+	  the module will be called tpm_tis.
+
+config TCG_TIS_I2C_ATMEL
+	tristate "TPM Interface Specification 1.2 Interface (I2C - Atmel)"
+	depends on I2C
+	---help---
+	  If you have an Atmel I2C TPM security chip say Yes and it will be
+	  accessible from within Linux.
+	  To compile this driver as a module, choose M here; the module will
+	  be called tpm_tis_i2c_atmel.
 
 config TCG_TIS_I2C_INFINEON
 	tristate "TPM Interface Specification 1.2 Interface (I2C - Infineon)"
@@ -42,7 +52,17 @@ config TCG_TIS_I2C_INFINEON
 	  Specification 0.20 say Yes and it will be accessible from within
 	  Linux.
 	  To compile this driver as a module, choose M here; the module
-	  will be called tpm_tis_i2c_infineon.
+	  will be called tpm_i2c_infineon.
+
+config TCG_TIS_I2C_NUVOTON
+	tristate "TPM Interface Specification 1.2 Interface (I2C - Nuvoton)"
+	depends on I2C
+	---help---
+	  If you have a TPM security chip with an I2C interface from
+	  Nuvoton Technology Corp. say Yes and it will be accessible
+	  from within Linux.
+	  To compile this driver as a module, choose M here; the module
+	  will be called tpm_i2c_nuvoton.
 
 config TCG_NSC
 	tristate "National Semiconductor TPM Interface"
@@ -55,7 +75,7 @@ config TCG_NSC
 
 config TCG_ATMEL
 	tristate "Atmel TPM Interface"
-	depends on PPC64 || HAS_IOPORT
+	depends on PPC64 || HAS_IOPORT_MAP
 	---help---
 	  If you have a TPM security chip from Atmel say Yes and it 
 	  will be accessible from within Linux.  To compile this driver 
@@ -81,14 +101,26 @@ config TCG_IBMVTPM
 	  will be accessible from within Linux.  To compile this driver
 	  as a module, choose M here; the module will be called tpm_ibmvtpm.
 
-config TCG_ST33_I2C
-        tristate "STMicroelectronics ST33 I2C TPM"
-        depends on I2C
-        depends on GPIOLIB
-        ---help---
-        If you have a TPM security chip from STMicroelectronics working with
-        an I2C bus say Yes and it will be accessible from within Linux.
-        To compile this driver as a module, choose M here; the module will be
-        called tpm_stm_st33_i2c.
+config TCG_XEN
+	tristate "XEN TPM Interface"
+	depends on TCG_TPM && XEN
+	select XEN_XENBUS_FRONTEND
+	---help---
+	  If you want to make TPM support available to a Xen user domain,
+	  say Yes and it will be accessible from within Linux. See
+	  the manpages for xl, xl.conf, and docs/misc/vtpm.txt in
+	  the Xen source repository for more details.
+	  To compile this driver as a module, choose M here; the module
+	  will be called xen-tpmfront.
 
+config TCG_CRB
+	tristate "TPM 2.0 CRB Interface"
+	depends on X86 && ACPI
+	---help---
+	  If you have a TPM security chip that is compliant with the
+	  TCG CRB 2.0 TPM specification say Yes and it will be accessible
+	  from within Linux.  To compile this driver as a module, choose
+	  M here; the module will be called tpm_crb.
+
+source "drivers/char/tpm/st33zp24/Kconfig"
 endif # TCG_TPM

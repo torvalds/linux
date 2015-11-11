@@ -91,7 +91,8 @@ static int probe(struct pci_dev *pdev,
 	gdev->info.handler = irqhandler;
 	gdev->pdev = pdev;
 
-	if (uio_register_device(&pdev->dev, &gdev->info))
+	err = uio_register_device(&pdev->dev, &gdev->info);
+	if (err)
 		goto err_register;
 	pci_set_drvdata(pdev, gdev);
 
@@ -113,27 +114,14 @@ static void remove(struct pci_dev *pdev)
 	kfree(gdev);
 }
 
-static struct pci_driver driver = {
+static struct pci_driver uio_pci_driver = {
 	.name = "uio_pci_generic",
 	.id_table = NULL, /* only dynamic id's */
 	.probe = probe,
 	.remove = remove,
 };
 
-static int __init init(void)
-{
-	pr_info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
-	return pci_register_driver(&driver);
-}
-
-static void __exit cleanup(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(init);
-module_exit(cleanup);
-
+module_pci_driver(uio_pci_driver);
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR(DRIVER_AUTHOR);

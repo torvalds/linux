@@ -103,7 +103,7 @@ static void kmap_atomic_register(struct page *page, int type,
 	spin_lock(&amp_lock);
 
 	/* With interrupts disabled, now fill in the per-cpu info. */
-	amp = &__get_cpu_var(amps).per_type[type];
+	amp = this_cpu_ptr(&amps.per_type[type]);
 	amp->page = page;
 	amp->cpu = smp_processor_id();
 	amp->va = va;
@@ -114,7 +114,6 @@ static void kmap_atomic_register(struct page *page, int type,
 
 	list_add(&amp->list, &amp_list);
 	set_pte(ptep, pteval);
-	arch_flush_lazy_mmu_mode();
 
 	spin_unlock(&amp_lock);
 	homecache_kpte_unlock(flags);
@@ -202,7 +201,7 @@ void *kmap_atomic_prot(struct page *page, pgprot_t prot)
 	int idx, type;
 	pte_t *pte;
 
-	/* even !CONFIG_PREEMPT needs this, for in_atomic in do_page_fault */
+	preempt_disable();
 	pagefault_disable();
 
 	/* Avoid icache flushes by disallowing atomic executable mappings. */
@@ -259,8 +258,8 @@ void __kunmap_atomic(void *kvaddr)
 		BUG_ON(vaddr >= (unsigned long)high_memory);
 	}
 
-	arch_flush_lazy_mmu_mode();
 	pagefault_enable();
+	preempt_enable();
 }
 EXPORT_SYMBOL(__kunmap_atomic);
 
@@ -275,16 +274,4 @@ void *kmap_atomic_pfn(unsigned long pfn)
 void *kmap_atomic_prot_pfn(unsigned long pfn, pgprot_t prot)
 {
 	return kmap_atomic_prot(pfn_to_page(pfn), prot);
-}
-
-struct page *kmap_atomic_to_page(void *ptr)
-{
-	pte_t *pte;
-	unsigned long vaddr = (unsigned long)ptr;
-
-	if (vaddr < FIXADDR_START)
-		return virt_to_page(ptr);
-
-	pte = kmap_get_pte(vaddr);
-	return pte_page(*pte);
 }

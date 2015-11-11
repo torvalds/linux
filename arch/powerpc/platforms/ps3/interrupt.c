@@ -678,7 +678,8 @@ static int ps3_host_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static int ps3_host_match(struct irq_domain *h, struct device_node *np)
+static int ps3_host_match(struct irq_domain *h, struct device_node *np,
+			  enum irq_domain_bus_token bus_token)
 {
 	/* Match all */
 	return 1;
@@ -711,7 +712,7 @@ void __init ps3_register_ipi_irq(unsigned int cpu, unsigned int virq)
 
 static unsigned int ps3_get_irq(void)
 {
-	struct ps3_private *pd = &__get_cpu_var(ps3_private);
+	struct ps3_private *pd = this_cpu_ptr(&ps3_private);
 	u64 x = (pd->bmp.status & pd->bmp.mask);
 	unsigned int plug;
 

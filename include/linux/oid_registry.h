@@ -41,7 +41,7 @@ enum OID {
 	OID_signed_data,		/* 1.2.840.113549.1.7.2 */
 	/* PKCS#9 {iso(1) member-body(2) us(840) rsadsi(113549) pkcs(1) pkcs-9(9)} */
 	OID_email_address,		/* 1.2.840.113549.1.9.1 */
-	OID_content_type,		/* 1.2.840.113549.1.9.3 */
+	OID_contentType,		/* 1.2.840.113549.1.9.3 */
 	OID_messageDigest,		/* 1.2.840.113549.1.9.4 */
 	OID_signingTime,		/* 1.2.840.113549.1.9.5 */
 	OID_smimeCapabilites,		/* 1.2.840.113549.1.9.15 */
@@ -52,9 +52,20 @@ enum OID {
 	OID_md4,			/* 1.2.840.113549.2.4 */
 	OID_md5,			/* 1.2.840.113549.2.5 */
 
-	OID_certAuthInfoAccess,		/* 1.3.6.1.5.5.7.1.1 */
+	/* Microsoft Authenticode & Software Publishing */
+	OID_msIndirectData,		/* 1.3.6.1.4.1.311.2.1.4 */
+	OID_msStatementType,		/* 1.3.6.1.4.1.311.2.1.11 */
+	OID_msSpOpusInfo,		/* 1.3.6.1.4.1.311.2.1.12 */
+	OID_msPeImageDataObjId,		/* 1.3.6.1.4.1.311.2.1.15 */
+	OID_msIndividualSPKeyPurpose,	/* 1.3.6.1.4.1.311.2.1.21 */
 	OID_msOutlookExpress,		/* 1.3.6.1.4.1.311.16.4 */
+
+	OID_certAuthInfoAccess,		/* 1.3.6.1.5.5.7.1.1 */
 	OID_sha1,			/* 1.3.14.3.2.26 */
+	OID_sha256,			/* 2.16.840.1.101.3.4.2.1 */
+	OID_sha384,			/* 2.16.840.1.101.3.4.2.2 */
+	OID_sha512,			/* 2.16.840.1.101.3.4.2.3 */
+	OID_sha224,			/* 2.16.840.1.101.3.4.2.4 */
 
 	/* Distinguished Name attribute IDs [RFC 2256] */
 	OID_commonName,			/* 2.5.4.3 */

@@ -1,0 +1,140 @@
+What:		/sys/bus/usb/devices/.../power/persist
+Date:		May 2007
+KernelVersion:	2.6.23
+Contact:	Alan Stern <stern@rowland.harvard.edu>
+Description:
+		USB device directories can contain a file named power/persist.
+		The file holds a boolean value (0 or 1) indicating whether or
+		not the "USB-Persist" facility is enabled for the device.  For
+		hubs this facility is always enabled and their device
+		directories will not contain this file.
+
+		For more information, see Documentation/usb/persist.txt.
+
+What:		/sys/bus/usb/devices/.../power/autosuspend
+Date:		March 2007
+KernelVersion:	2.6.21
+Contact:	Alan Stern <stern@rowland.harvard.edu>
+Description:
+		Each USB device directory will contain a file named
+		power/autosuspend.  This file holds the time (in seconds)
+		the device must be idle before it will be autosuspended.
+		0 means the device will be autosuspended as soon as
+		possible.  Negative values will prevent the device from
+		being autosuspended at all, and writing a negative value
+		will resume the device if it is already suspended.
+
+		The autosuspend delay for newly-created devices is set to
+		the value of the usbcore.autosuspend module parameter.
+
+What:		/sys/bus/usb/device/.../power/connected_duration
+Date:		January 2008
+KernelVersion:	2.6.25
+Contact:	Sarah Sharp <sarah.a.sharp@intel.com>
+Description:
+		If CONFIG_PM is enabled, then this file is present.  When read,
+		it returns the total time (in msec) that the USB device has been
+		connected to the machine.  This file is read-only.
+Users:
+		PowerTOP <powertop@lists.01.org>
+		https://01.org/powertop/
+
+What:		/sys/bus/usb/device/.../power/active_duration
+Date:		January 2008
+KernelVersion:	2.6.25
+Contact:	Sarah Sharp <sarah.a.sharp@intel.com>
+Description:
+		If CONFIG_PM is enabled, then this file is present.  When read,
+		it returns the total time (in msec) that the USB device has been
+		active, i.e. not in a suspended state.  This file is read-only.
+
+		Tools can use this file and the connected_duration file to
+		compute the percentage of time that a device has been active.
+		For example,
+		echo $((100 * `cat active_duration` / `cat connected_duration`))
+		will give an integer percentage.  Note that this does not
+		account for counter wrap.
+Users:
+		PowerTOP <powertop@lists.01.org>
+		https://01.org/powertop/
+
+What:		/sys/bus/usb/devices/<busnum>-<port[.port]>...:<config num>-<interface num>/supports_autosuspend
+Date:		January 2008
+KernelVersion:	2.6.27
+Contact:	Sarah Sharp <sarah.a.sharp@intel.com>
+Description:
+		When read, this file returns 1 if the interface driver
+		for this interface supports autosuspend.  It also
+		returns 1 if no driver has claimed this interface, as an
+		unclaimed interface will not stop the device from being
+		autosuspended if all other interface drivers are idle.
+		The file returns 0 if autosuspend support has not been
+		added to the driver.
+Users:
+		USB PM tool
+		git://git.moblin.org/users/sarah/usb-pm-tool/
+
+What:		/sys/bus/usb/device/.../avoid_reset_quirk
+Date:		December 2009
+Contact:	Oliver Neukum <oliver@neukum.org>
+Description:
+		Writing 1 to this file tells the kernel that this
+		device will morph into another mode when it is reset.
+		Drivers will not use reset for error handling for
+		such devices.
+Users:
+		usb_modeswitch
+
+What:		/sys/bus/usb/devices/.../devnum
+KernelVersion:	since at least 2.6.18
+Description:
+		Device address on the USB bus.
+Users:
+		libusb
+
+What:		/sys/bus/usb/devices/.../bConfigurationValue
+KernelVersion:	since at least 2.6.18
+Description:
+		bConfigurationValue of the *active* configuration for the
+		device. Writing 0 or -1 to bConfigurationValue will reset the
+		active configuration (unconfigure the device). Writing
+		another value will change the active configuration.
+
+		Note that some devices, in violation of the USB spec, have a
+		configuration with a value equal to 0. Writing 0 to
+		bConfigurationValue for these devices will install that
+		configuration, rather then unconfigure the device.
+
+		Writing -1 will always unconfigure the device.
+Users:
+		libusb
+
+What:		/sys/bus/usb/devices/.../busnum
+KernelVersion:	2.6.22
+Description:
+		Bus-number of the USB-bus the device is connected to.
+Users:
+		libusb
+
+What:		/sys/bus/usb/devices/.../descriptors
+KernelVersion:	2.6.26
+Description:
+		Binary file containing cached descriptors of the device. The
+		binary data consists of the device descriptor followed by the
+		descriptors for each configuration of the device.
+		Note that the wTotalLength of the config descriptors can not
+		be trusted, as the device may have a smaller config descriptor
+		than it advertises. The bLength field of each (sub) descriptor
+		can be trusted, and can be used to seek forward one (sub)
+		descriptor at a time until the next config descriptor is found.
+		All descriptors read from this file are in bus-endian format
+Users:
+		libusb
+
+What:		/sys/bus/usb/devices/.../speed
+KernelVersion:	since at least 2.6.18
+Description:
+		Speed the device is connected with to the usb-host in
+		Mbit / second. IE one of 1.5 / 12 / 480 / 5000.
+Users:
+		libusb

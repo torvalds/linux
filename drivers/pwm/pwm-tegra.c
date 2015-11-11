@@ -87,7 +87,7 @@ static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * cycles at the PWM clock rate will take period_ns nanoseconds.
 	 */
 	rate = clk_get_rate(pc->clk) >> PWM_DUTY_WIDTH;
-	hz = 1000000000ul / period_ns;
+	hz = NSEC_PER_SEC / period_ns;
 
 	rate = (rate + (hz / 2)) / hz;
 
@@ -112,7 +112,7 @@ static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * If the PWM channel is disabled, make sure to turn on the clock
 	 * before writing the register. Otherwise, keep it enabled.
 	 */
-	if (!test_bit(PWMF_ENABLED, &pwm->flags)) {
+	if (!pwm_is_enabled(pwm)) {
 		err = clk_prepare_enable(pc->clk);
 		if (err < 0)
 			return err;
@@ -124,7 +124,7 @@ static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	/*
 	 * If the PWM is not enabled, turn the clock off again to save power.
 	 */
-	if (!test_bit(PWMF_ENABLED, &pwm->flags))
+	if (!pwm_is_enabled(pwm))
 		clk_disable_unprepare(pc->clk);
 
 	return 0;
@@ -173,10 +173,8 @@ static int tegra_pwm_probe(struct platform_device *pdev)
 	int ret;
 
 	pwm = devm_kzalloc(&pdev->dev, sizeof(*pwm), GFP_KERNEL);
-	if (!pwm) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (!pwm)
 		return -ENOMEM;
-	}
 
 	pwm->dev = &pdev->dev;
 
@@ -216,7 +214,7 @@ static int tegra_pwm_remove(struct platform_device *pdev)
 	for (i = 0; i < NUM_PWM; i++) {
 		struct pwm_device *pwm = &pc->chip.pwms[i];
 
-		if (!test_bit(PWMF_ENABLED, &pwm->flags))
+		if (!pwm_is_enabled(pwm))
 			if (clk_prepare_enable(pc->clk) < 0)
 				continue;
 

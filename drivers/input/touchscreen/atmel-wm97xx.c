@@ -372,7 +372,6 @@ static int __init atmel_wm97xx_probe(struct platform_device *pdev)
 err_irq:
 	free_irq(atmel_wm97xx->ac97c_irq, atmel_wm97xx);
 err:
-	platform_set_drvdata(pdev, NULL);
 	kfree(atmel_wm97xx);
 	return ret;
 }
@@ -386,14 +385,13 @@ static int __exit atmel_wm97xx_remove(struct platform_device *pdev)
 	free_irq(atmel_wm97xx->ac97c_irq, atmel_wm97xx);
 	del_timer_sync(&atmel_wm97xx->pen_timer);
 	wm97xx_unregister_mach_ops(wm);
-	platform_set_drvdata(pdev, NULL);
 	kfree(atmel_wm97xx);
 
 	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int atmel_wm97xx_suspend(struct *dev)
+static int atmel_wm97xx_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct atmel_wm97xx *atmel_wm97xx = platform_get_drvdata(pdev);
@@ -427,7 +425,6 @@ static struct platform_driver atmel_wm97xx_driver = {
 	.remove		= __exit_p(atmel_wm97xx_remove),
 	.driver		= {
 		.name	= "wm97xx-touch",
-		.owner	= THIS_MODULE,
 		.pm	= &atmel_wm97xx_pm_ops,
 	},
 };

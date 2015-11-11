@@ -133,7 +133,6 @@ static int __exit amimouse_remove(struct platform_device *pdev)
 {
 	struct input_dev *dev = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
 	input_unregister_device(dev);
 	return 0;
 }
@@ -142,7 +141,6 @@ static struct platform_driver amimouse_driver = {
 	.remove = __exit_p(amimouse_remove),
 	.driver   = {
 		.name	= "amiga-mouse",
-		.owner	= THIS_MODULE,
 	},
 };
 

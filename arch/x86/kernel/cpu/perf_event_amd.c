@@ -347,8 +347,7 @@ static struct amd_nb *amd_alloc_nb(int cpu)
 	struct amd_nb *nb;
 	int i;
 
-	nb = kmalloc_node(sizeof(struct amd_nb), GFP_KERNEL | __GFP_ZERO,
-			  cpu_to_node(cpu));
+	nb = kzalloc_node(sizeof(struct amd_nb), GFP_KERNEL, cpu_to_node(cpu));
 	if (!nb)
 		return NULL;
 
@@ -383,6 +382,7 @@ static int amd_pmu_cpu_prepare(int cpu)
 static void amd_pmu_cpu_starting(int cpu)
 {
 	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
+	void **onln = &cpuc->kfree_on_online[X86_PERF_KFREE_SHARED];
 	struct amd_nb *nb;
 	int i, nb_id;
 
@@ -400,7 +400,7 @@ static void amd_pmu_cpu_starting(int cpu)
 			continue;
 
 		if (nb->nb_id == nb_id) {
-			cpuc->kfree_on_online = cpuc->amd_nb;
+			*onln = cpuc->amd_nb;
 			cpuc->amd_nb = nb;
 			break;
 		}
@@ -430,7 +430,8 @@ static void amd_pmu_cpu_dead(int cpu)
 }
 
 static struct event_constraint *
-amd_get_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event)
+amd_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
+			  struct perf_event *event)
 {
 	/*
 	 * if not NB event or no NB, then no constraints
@@ -538,7 +539,8 @@ static struct event_constraint amd_f15_PMC50 = EVENT_CONSTRAINT(0, 0x3F, 0);
 static struct event_constraint amd_f15_PMC53 = EVENT_CONSTRAINT(0, 0x38, 0);
 
 static struct event_constraint *
-amd_get_event_constraints_f15h(struct cpu_hw_events *cpuc, struct perf_event *event)
+amd_get_event_constraints_f15h(struct cpu_hw_events *cpuc, int idx,
+			       struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	unsigned int event_code = amd_get_event_code(hwc);
@@ -648,48 +650,48 @@ static __initconst const struct x86_pmu amd_pmu = {
 	.cpu_dead		= amd_pmu_cpu_dead,
 };
 
-static int setup_event_constraints(void)
+static int __init amd_core_pmu_init(void)
 {
-	if (boot_cpu_data.x86 == 0x15)
-		x86_pmu.get_event_constraints = amd_get_event_constraints_f15h;
-	return 0;
-}
+	if (!cpu_has_perfctr_core)
+		return 0;
 
-static int setup_perfctr_core(void)
-{
-	if (!cpu_has_perfctr_core) {
-		WARN(x86_pmu.get_event_constraints == amd_get_event_constraints_f15h,
-		     KERN_ERR "Odd, counter constraints enabled but no core perfctrs detected!");
+	switch (boot_cpu_data.x86) {
+	case 0x15:
+		pr_cont("Fam15h ");
+		x86_pmu.get_event_constraints = amd_get_event_constraints_f15h;
+		break;
+
+	default:
+		pr_err("core perfctr but no constraints; unknown hardware!\n");
 		return -ENODEV;
 	}
-
-	WARN(x86_pmu.get_event_constraints == amd_get_event_constraints,
-	     KERN_ERR "hw perf events core counters need constraints handler!");
 
 	/*
 	 * If core performance counter extensions exists, we must use
 	 * MSR_F15H_PERF_CTL/MSR_F15H_PERF_CTR msrs. See also
-	 * x86_pmu_addr_offset().
+	 * amd_pmu_addr_offset().
 	 */
 	x86_pmu.eventsel	= MSR_F15H_PERF_CTL;
 	x86_pmu.perfctr		= MSR_F15H_PERF_CTR;
 	x86_pmu.num_counters	= AMD64_NUM_COUNTERS_CORE;
 
-	printk(KERN_INFO "perf: AMD core performance counters detected\n");
-
+	pr_cont("core perfctr, ");
 	return 0;
 }
 
 __init int amd_pmu_init(void)
 {
+	int ret;
+
 	/* Performance-monitoring supported from K7 and later: */
 	if (boot_cpu_data.x86 < 6)
 		return -ENODEV;
 
 	x86_pmu = amd_pmu;
 
-	setup_event_constraints();
-	setup_perfctr_core();
+	ret = amd_core_pmu_init();
+	if (ret)
+		return ret;
 
 	/* Events are common for all AMDs */
 	memcpy(hw_cache_event_ids, amd_hw_cache_event_ids,
@@ -700,7 +702,7 @@ __init int amd_pmu_init(void)
 
 void amd_pmu_enable_virt(void)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 
 	cpuc->perf_ctr_virt_mask = 0;
 
@@ -712,7 +714,7 @@ EXPORT_SYMBOL_GPL(amd_pmu_enable_virt);
 
 void amd_pmu_disable_virt(void)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 
 	/*
 	 * We only mask out the Host-only bit so that host-only counting works

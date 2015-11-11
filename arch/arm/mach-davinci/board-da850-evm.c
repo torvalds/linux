@@ -18,8 +18,8 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/i2c.h>
-#include <linux/i2c/at24.h>
-#include <linux/i2c/pca953x.h>
+#include <linux/platform_data/at24.h>
+#include <linux/platform_data/pca953x.h>
 #include <linux/input.h>
 #include <linux/input/tps6507x-ts.h>
 #include <linux/mfd/tps6507x.h>
@@ -28,16 +28,18 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/gpio-davinci.h>
 #include <linux/platform_data/mtd-davinci.h>
 #include <linux/platform_data/mtd-davinci-aemif.h>
 #include <linux/platform_data/spi-davinci.h>
 #include <linux/platform_data/uio_pruss.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/tps6507x.h>
+#include <linux/regulator/fixed.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
-#include <linux/wl12xx.h>
 
+#include <mach/common.h>
 #include <mach/cp_intc.h>
 #include <mach/da8xx.h>
 #include <mach/mux.h>
@@ -56,9 +58,6 @@
 
 #define DA850_MMCSD_CD_PIN		GPIO_TO_PIN(4, 0)
 #define DA850_MMCSD_WP_PIN		GPIO_TO_PIN(4, 1)
-
-#define DA850_WLAN_EN			GPIO_TO_PIN(6, 9)
-#define DA850_WLAN_IRQ			GPIO_TO_PIN(6, 10)
 
 #define DA850_MII_MDIO_CLKEN_PIN	GPIO_TO_PIN(2, 6)
 
@@ -356,6 +355,9 @@ static inline void da850_evm_setup_nor_nand(void)
 
 		platform_add_devices(da850_evm_devices,
 					ARRAY_SIZE(da850_evm_devices));
+
+		if (davinci_aemif_setup(&da850_evm_nandflash_device))
+			pr_warn("%s: Cannot configure AEMIF.\n", __func__);
 	}
 }
 
@@ -446,8 +448,7 @@ static void da850_evm_ui_keys_init(unsigned gpio)
 	for (i = 0; i < DA850_N_UI_PB; i++) {
 		button = &da850_evm_ui_keys[i];
 		button->code = KEY_F8 - i;
-		button->desc = (char *)
-				da850_evm_ui_exp[DA850_EVM_UI_EXP_PB8 + i];
+		button->desc = da850_evm_ui_exp[DA850_EVM_UI_EXP_PB8 + i];
 		button->gpio = gpio + DA850_EVM_UI_EXP_PB8 + i;
 	}
 }
@@ -622,15 +623,13 @@ static void da850_evm_bb_keys_init(unsigned gpio)
 	struct gpio_keys_button *button;
 
 	button = &da850_evm_bb_keys[0];
-	button->desc = (char *)
-		da850_evm_bb_exp[DA850_EVM_BB_EXP_USER_PB1];
+	button->desc = da850_evm_bb_exp[DA850_EVM_BB_EXP_USER_PB1];
 	button->gpio = gpio + DA850_EVM_BB_EXP_USER_PB1;
 
 	for (i = 0; i < DA850_N_BB_USER_SW; i++) {
 		button = &da850_evm_bb_keys[i + 1];
 		button->code = SW_LID + i;
-		button->desc = (char *)
-				da850_evm_bb_exp[DA850_EVM_BB_EXP_USER_SW1 + i];
+		button->desc = da850_evm_bb_exp[DA850_EVM_BB_EXP_USER_SW1 + i];
 		button->gpio = gpio + DA850_EVM_BB_EXP_USER_SW1 + i;
 	}
 }
@@ -746,10 +745,6 @@ static struct davinci_i2c_platform_data da850_evm_i2c_0_pdata = {
 	.bus_delay	= 0,	/* usec */
 };
 
-static struct davinci_uart_config da850_evm_uart_config __initdata = {
-	.enabled_uarts = 0x7,
-};
-
 /* davinci da850 evm audio machine driver */
 static u8 da850_iis_serializer_direction[] = {
 	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,
@@ -841,6 +836,16 @@ static int da850_lcd_hw_init(void)
 	return 0;
 }
 
+/* Fixed regulator support */
+static struct regulator_consumer_supply fixed_supplies[] = {
+	/* Baseboard 3.3V: 5V -> TPS73701DCQ -> 3.3V */
+	REGULATOR_SUPPLY("AVDD", "1-0018"),
+	REGULATOR_SUPPLY("DRVDD", "1-0018"),
+
+	/* Baseboard 1.8V: 5V -> TPS73701DCQ -> 1.8V */
+	REGULATOR_SUPPLY("DVDD", "1-0018"),
+};
+
 /* TPS65070 voltage regulator support */
 
 /* 3.3V */
@@ -864,6 +869,7 @@ static struct regulator_consumer_supply tps65070_dcdc2_consumers[] = {
 	{
 		.supply = "dvdd3318_c",
 	},
+	REGULATOR_SUPPLY("IOVDD", "1-0018"),
 };
 
 /* 1.2V */
@@ -935,6 +941,7 @@ static struct regulator_init_data tps65070_regulator_data[] = {
 			.valid_ops_mask = (REGULATOR_CHANGE_VOLTAGE |
 				REGULATOR_CHANGE_STATUS),
 			.boot_on = 1,
+			.always_on = 1,
 		},
 		.num_consumer_supplies = ARRAY_SIZE(tps65070_dcdc2_consumers),
 		.consumer_supplies = tps65070_dcdc2_consumers,
@@ -985,7 +992,6 @@ static struct regulator_init_data tps65070_regulator_data[] = {
 static struct touchscreen_init_data tps6507x_touchscreen_data = {
 	.poll_period =  30,	/* ms between touch samples */
 	.min_pressure = 0x30,	/* minimum pressure to trigger touch */
-	.vref = 0,		/* turn off vref when not using A/D */
 	.vendor = 0,		/* /sys/class/input/input?/id/vendor */
 	.product = 65070,	/* /sys/class/input/input?/id/product */
 	.version = 0x100,	/* /sys/class/input/input?/id/version */
@@ -1250,12 +1256,10 @@ static struct vpif_capture_config da850_vpif_capture_config = {
 
 static struct adv7343_platform_data adv7343_pdata = {
 	.mode_config = {
-		.dac_3 = 1,
-		.dac_2 = 1,
-		.dac_1 = 1,
+		.dac = { 1, 1, 1 },
 	},
 	.sd_config = {
-		.sd_dac_out1 = 1,
+		.sd_dac_out = { 1 },
 	},
 };
 
@@ -1335,114 +1339,17 @@ static __init void da850_vpif_init(void)
 static __init void da850_vpif_init(void) {}
 #endif
 
-#ifdef CONFIG_DA850_WL12XX
-
-static void wl12xx_set_power(int index, bool power_on)
-{
-	static bool power_state;
-
-	pr_debug("Powering %s wl12xx", power_on ? "on" : "off");
-
-	if (power_on == power_state)
-		return;
-	power_state = power_on;
-
-	if (power_on) {
-		/* Power up sequence required for wl127x devices */
-		gpio_set_value(DA850_WLAN_EN, 1);
-		usleep_range(15000, 15000);
-		gpio_set_value(DA850_WLAN_EN, 0);
-		usleep_range(1000, 1000);
-		gpio_set_value(DA850_WLAN_EN, 1);
-		msleep(70);
-	} else {
-		gpio_set_value(DA850_WLAN_EN, 0);
-	}
-}
-
-static struct davinci_mmc_config da850_wl12xx_mmc_config = {
-	.set_power	= wl12xx_set_power,
-	.wires		= 4,
-	.max_freq	= 25000000,
-	.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_NONREMOVABLE |
-			  MMC_CAP_POWER_OFF_CARD,
-};
-
-static const short da850_wl12xx_pins[] __initconst = {
-	DA850_MMCSD1_DAT_0, DA850_MMCSD1_DAT_1, DA850_MMCSD1_DAT_2,
-	DA850_MMCSD1_DAT_3, DA850_MMCSD1_CLK, DA850_MMCSD1_CMD,
-	DA850_GPIO6_9, DA850_GPIO6_10,
-	-1
-};
-
-static struct wl12xx_platform_data da850_wl12xx_wlan_data __initdata = {
-	.irq			= -1,
-	.board_ref_clock	= WL12XX_REFCLOCK_38,
-	.platform_quirks	= WL12XX_PLATFORM_QUIRK_EDGE_IRQ,
-};
-
-static __init int da850_wl12xx_init(void)
-{
-	int ret;
-
-	ret = davinci_cfg_reg_list(da850_wl12xx_pins);
-	if (ret) {
-		pr_err("wl12xx/mmc mux setup failed: %d\n", ret);
-		goto exit;
-	}
-
-	ret = da850_register_mmcsd1(&da850_wl12xx_mmc_config);
-	if (ret) {
-		pr_err("wl12xx/mmc registration failed: %d\n", ret);
-		goto exit;
-	}
-
-	ret = gpio_request_one(DA850_WLAN_EN, GPIOF_OUT_INIT_LOW, "wl12xx_en");
-	if (ret) {
-		pr_err("Could not request wl12xx enable gpio: %d\n", ret);
-		goto exit;
-	}
-
-	ret = gpio_request_one(DA850_WLAN_IRQ, GPIOF_IN, "wl12xx_irq");
-	if (ret) {
-		pr_err("Could not request wl12xx irq gpio: %d\n", ret);
-		goto free_wlan_en;
-	}
-
-	da850_wl12xx_wlan_data.irq = gpio_to_irq(DA850_WLAN_IRQ);
-
-	ret = wl12xx_set_platform_data(&da850_wl12xx_wlan_data);
-	if (ret) {
-		pr_err("Could not set wl12xx data: %d\n", ret);
-		goto free_wlan_irq;
-	}
-
-	return 0;
-
-free_wlan_irq:
-	gpio_free(DA850_WLAN_IRQ);
-
-free_wlan_en:
-	gpio_free(DA850_WLAN_EN);
-
-exit:
-	return ret;
-}
-
-#else /* CONFIG_DA850_WL12XX */
-
-static __init int da850_wl12xx_init(void)
-{
-	return 0;
-}
-
-#endif /* CONFIG_DA850_WL12XX */
-
 #define DA850EVM_SATA_REFCLKPN_RATE	(100 * 1000 * 1000)
 
 static __init void da850_evm_init(void)
 {
 	int ret;
+
+	ret = da850_register_gpio();
+	if (ret)
+		pr_warn("%s: GPIO init failed: %d\n", __func__, ret);
+
+	regulator_register_fixed(0, fixed_supplies, ARRAY_SIZE(fixed_supplies));
 
 	ret = pmic_tps65070_init();
 	if (ret)
@@ -1488,14 +1395,9 @@ static __init void da850_evm_init(void)
 		if (ret)
 			pr_warn("%s: MMCSD0 registration failed: %d\n",
 				__func__, ret);
-
-		ret = da850_wl12xx_init();
-		if (ret)
-			pr_warn("%s: WL12xx initialization failed: %d\n",
-				__func__, ret);
 	}
 
-	davinci_serial_init(&da850_evm_uart_config);
+	davinci_serial_init(da8xx_serial_device);
 
 	i2c_register_board_info(1, da850_evm_i2c_devices,
 			ARRAY_SIZE(da850_evm_i2c_devices));

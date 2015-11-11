@@ -22,85 +22,72 @@
 #ifndef __X86_IRQ_REMAPPING_H
 #define __X86_IRQ_REMAPPING_H
 
+#include <asm/irqdomain.h>
+#include <asm/hw_irq.h>
 #include <asm/io_apic.h>
 
-struct IO_APIC_route_entry;
-struct io_apic_irq_attr;
-struct irq_chip;
 struct msi_msg;
-struct pci_dev;
-struct irq_cfg;
+struct irq_alloc_info;
+
+enum irq_remap_cap {
+	IRQ_POSTING_CAP = 0,
+};
+
+struct vcpu_data {
+	u64 pi_desc_addr;	/* Physical address of PI Descriptor */
+	u32 vector;		/* Guest vector of the interrupt */
+};
 
 #ifdef CONFIG_IRQ_REMAP
 
-extern void setup_irq_remapping_ops(void);
-extern int irq_remapping_supported(void);
+extern bool irq_remapping_cap(enum irq_remap_cap cap);
 extern void set_irq_remapping_broken(void);
 extern int irq_remapping_prepare(void);
 extern int irq_remapping_enable(void);
 extern void irq_remapping_disable(void);
 extern int irq_remapping_reenable(int);
 extern int irq_remap_enable_fault_handling(void);
-extern int setup_ioapic_remapped_entry(int irq,
-				       struct IO_APIC_route_entry *entry,
-				       unsigned int destination,
-				       int vector,
-				       struct io_apic_irq_attr *attr);
-extern void free_remapped_irq(int irq);
-extern void compose_remapped_msi_msg(struct pci_dev *pdev,
-				     unsigned int irq, unsigned int dest,
-				     struct msi_msg *msg, u8 hpet_id);
-extern int setup_hpet_msi_remapped(unsigned int irq, unsigned int id);
 extern void panic_if_irq_remap(const char *msg);
-extern bool setup_remapped_irq(int irq,
-			       struct irq_cfg *cfg,
-			       struct irq_chip *chip);
 
-void irq_remap_modify_chip_defaults(struct irq_chip *chip);
+extern struct irq_domain *
+irq_remapping_get_ir_irq_domain(struct irq_alloc_info *info);
+extern struct irq_domain *
+irq_remapping_get_irq_domain(struct irq_alloc_info *info);
+
+/* Create PCI MSI/MSIx irqdomain, use @parent as the parent irqdomain. */
+extern struct irq_domain *arch_create_msi_irq_domain(struct irq_domain *parent);
+
+/* Get parent irqdomain for interrupt remapping irqdomain */
+static inline struct irq_domain *arch_get_ir_parent_domain(void)
+{
+	return x86_vector_domain;
+}
 
 #else  /* CONFIG_IRQ_REMAP */
 
-static inline void setup_irq_remapping_ops(void) { }
-static inline int irq_remapping_supported(void) { return 0; }
+static inline bool irq_remapping_cap(enum irq_remap_cap cap) { return 0; }
 static inline void set_irq_remapping_broken(void) { }
 static inline int irq_remapping_prepare(void) { return -ENODEV; }
 static inline int irq_remapping_enable(void) { return -ENODEV; }
 static inline void irq_remapping_disable(void) { }
 static inline int irq_remapping_reenable(int eim) { return -ENODEV; }
 static inline int irq_remap_enable_fault_handling(void) { return -ENODEV; }
-static inline int setup_ioapic_remapped_entry(int irq,
-					      struct IO_APIC_route_entry *entry,
-					      unsigned int destination,
-					      int vector,
-					      struct io_apic_irq_attr *attr)
-{
-	return -ENODEV;
-}
-static inline void free_remapped_irq(int irq) { }
-static inline void compose_remapped_msi_msg(struct pci_dev *pdev,
-					    unsigned int irq, unsigned int dest,
-					    struct msi_msg *msg, u8 hpet_id)
-{
-}
-static inline int setup_hpet_msi_remapped(unsigned int irq, unsigned int id)
-{
-	return -ENODEV;
-}
 
 static inline void panic_if_irq_remap(const char *msg)
 {
 }
 
-static inline void irq_remap_modify_chip_defaults(struct irq_chip *chip)
+static inline struct irq_domain *
+irq_remapping_get_ir_irq_domain(struct irq_alloc_info *info)
 {
+	return NULL;
 }
 
-static inline bool setup_remapped_irq(int irq,
-				      struct irq_cfg *cfg,
-				      struct irq_chip *chip)
+static inline struct irq_domain *
+irq_remapping_get_irq_domain(struct irq_alloc_info *info)
 {
-	return false;
+	return NULL;
 }
+
 #endif /* CONFIG_IRQ_REMAP */
-
 #endif /* __X86_IRQ_REMAPPING_H */

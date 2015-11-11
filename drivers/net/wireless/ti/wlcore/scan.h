@@ -37,7 +37,7 @@ void wl1271_scan_complete_work(struct work_struct *work);
 int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 				     struct wl12xx_vif *wlvif,
 				     struct cfg80211_sched_scan_request *req,
-				     struct ieee80211_sched_scan_ies *ies);
+				     struct ieee80211_scan_ies *ies);
 int wl1271_scan_sched_scan_start(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 void wlcore_scan_sched_scan_results(struct wl1271 *wl);
 
@@ -83,6 +83,12 @@ struct wl1271_cmd_trigger_scan_to {
 #define MAX_CHANNELS_5GHZ	42
 
 #define SCAN_MAX_CYCLE_INTERVALS 16
+
+/* The FW intervals can take up to 16 entries.
+ * The 1st entry isn't used (scan is immediate). The last
+ * entry should be used for the long_interval
+ */
+#define SCAN_MAX_SHORT_INTERVALS (SCAN_MAX_CYCLE_INTERVALS - 2)
 #define SCAN_MAX_BANDS 3
 
 enum {

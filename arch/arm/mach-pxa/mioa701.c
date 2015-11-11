@@ -26,6 +26,7 @@
 #include <linux/input.h>
 #include <linux/delay.h>
 #include <linux/gpio_keys.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/rtc.h>
 #include <linux/leds.h>
@@ -37,6 +38,8 @@
 #include <linux/wm97xx.h>
 #include <linux/mtd/physmap.h>
 #include <linux/usb/gpio_vbus.h>
+#include <linux/reboot.h>
+#include <linux/regulator/fixed.h>
 #include <linux/regulator/max1586.h>
 #include <linux/slab.h>
 #include <linux/i2c/pxa-i2c.h>
@@ -179,12 +182,16 @@ static unsigned long mioa701_pin_config[] = {
 	MFP_CFG_OUT(GPIO116, AF0, DRIVE_HIGH),
 };
 
+static struct pwm_lookup mioa701_pwm_lookup[] = {
+	PWM_LOOKUP("pxa27x-pwm.0", 0, "pwm-backlight", NULL, 4000 * 1024,
+		   PWM_POLARITY_NORMAL),
+};
+
 /* LCD Screen and Backlight */
 static struct platform_pwm_backlight_data mioa701_backlight_data = {
-	.pwm_id		= 0,
 	.max_brightness	= 100,
 	.dft_brightness	= 50,
-	.pwm_period_ns	= 4000 * 1024,	/* Fl = 250kHz */
+	.enable_gpio	= -1,
 };
 
 /*
@@ -222,7 +229,7 @@ static struct pxafb_mach_info mioa701_pxafb_info = {
 /*
  * Keyboard configuration
  */
-static unsigned int mioa701_matrix_keys[] = {
+static const unsigned int mioa701_matrix_keys[] = {
 	KEY(0, 0, KEY_UP),
 	KEY(0, 1, KEY_RIGHT),
 	KEY(0, 2, KEY_MEDIA),
@@ -233,11 +240,16 @@ static unsigned int mioa701_matrix_keys[] = {
 	KEY(2, 1, KEY_PHONE),	/* Phone Green key */
 	KEY(2, 2, KEY_CAMERA)	/* Camera key */
 };
+
+static struct matrix_keymap_data mioa701_matrix_keymap_data = {
+	.keymap			= mioa701_matrix_keys,
+	.keymap_size		= ARRAY_SIZE(mioa701_matrix_keys),
+};
+
 static struct pxa27x_keypad_platform_data mioa701_keypad_info = {
 	.matrix_key_rows = 3,
 	.matrix_key_cols = 3,
-	.matrix_key_map = mioa701_matrix_keys,
-	.matrix_key_map_size = ARRAY_SIZE(mioa701_matrix_keys),
+	.matrix_keymap_data = &mioa701_matrix_keymap_data,
 };
 
 /*
@@ -670,6 +682,7 @@ MIO_SIMPLE_DEV(mioa701_led,	  "leds-gpio",	    &gpio_led_info)
 MIO_SIMPLE_DEV(pxa2xx_pcm,	  "pxa2xx-pcm",	    NULL)
 MIO_SIMPLE_DEV(mioa701_sound,	  "mioa701-wm9713", NULL)
 MIO_SIMPLE_DEV(mioa701_board,	  "mioa701-board",  NULL)
+MIO_SIMPLE_DEV(wm9713_acodec,	  "wm9713-codec",   NULL);
 MIO_SIMPLE_DEV(gpio_vbus,	  "gpio-vbus",      &gpio_vbus_data);
 MIO_SIMPLE_DEV(mioa701_camera,	  "soc-camera-pdrv",&iclink);
 
@@ -677,6 +690,7 @@ static struct platform_device *devices[] __initdata = {
 	&mioa701_gpio_keys,
 	&mioa701_backlight,
 	&mioa701_led,
+	&wm9713_acodec,
 	&pxa2xx_pcm,
 	&mioa701_sound,
 	&power_dev,
@@ -691,13 +705,13 @@ static void mioa701_machine_exit(void);
 static void mioa701_poweroff(void)
 {
 	mioa701_machine_exit();
-	pxa_restart('s', NULL);
+	pxa_restart(REBOOT_SOFT, NULL);
 }
 
-static void mioa701_restart(char c, const char *cmd)
+static void mioa701_restart(enum reboot_mode c, const char *cmd)
 {
 	mioa701_machine_exit();
-	pxa_restart('s', cmd);
+	pxa_restart(REBOOT_SOFT, cmd);
 }
 
 static struct gpio global_gpios[] = {
@@ -705,6 +719,10 @@ static struct gpio global_gpios[] = {
 	{ GPIO18_POWEROFF, GPIOF_OUT_INIT_LOW, "Power Off" },
 	{ GPIO87_LCD_POWER, GPIOF_OUT_INIT_LOW, "LCD Power" },
 	{ GPIO56_MT9M111_nOE, GPIOF_OUT_INIT_LOW, "Camera nOE" },
+};
+
+static struct regulator_consumer_supply fixed_5v0_consumers[] = {
+	REGULATOR_SUPPLY("power", "pwm-backlight"),
 };
 
 static void __init mioa701_machine_init(void)
@@ -739,6 +757,7 @@ static void __init mioa701_machine_init(void)
 	pxa_set_udc_info(&mioa701_udc_info);
 	pxa_set_ac97_info(&mioa701_ac97_info);
 	pm_power_off = mioa701_poweroff;
+	pwm_add_table(mioa701_pwm_lookup, ARRAY_SIZE(mioa701_pwm_lookup));
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	gsm_init();
 
@@ -746,6 +765,10 @@ static void __init mioa701_machine_init(void)
 	pxa_set_i2c_info(&i2c_pdata);
 	pxa27x_set_i2c_power_info(NULL);
 	pxa_set_camera_info(&mioa701_pxacamera_platform_data);
+
+	regulator_register_always_on(0, "fixed-5.0V", fixed_5v0_consumers,
+				     ARRAY_SIZE(fixed_5v0_consumers),
+				     5000000);
 }
 
 static void mioa701_machine_exit(void)
@@ -756,7 +779,6 @@ static void mioa701_machine_exit(void)
 
 MACHINE_START(MIOA701, "MIO A701")
 	.atag_offset	= 0x100,
-	.restart_mode	= 's',
 	.map_io		= &pxa27x_map_io,
 	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= &pxa27x_init_irq,

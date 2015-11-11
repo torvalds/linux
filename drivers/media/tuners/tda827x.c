@@ -907,11 +907,3 @@ MODULE_DESCRIPTION("DVB TDA827x driver");
 MODULE_AUTHOR("Hartmut Hackmann <hartmut.hackmann@t-online.de>");
 MODULE_AUTHOR("Michael Krufky <mkrufky@linuxtv.org>");
 MODULE_LICENSE("GPL");
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

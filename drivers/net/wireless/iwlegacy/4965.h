@@ -184,11 +184,12 @@ void il4965_mac_update_tkip_key(struct ieee80211_hw *hw,
 int il4965_mac_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    enum ieee80211_ampdu_mlme_action action,
 			    struct ieee80211_sta *sta, u16 tid, u16 * ssn,
-			    u8 buf_size);
+			    u8 buf_size, bool amsdu);
 int il4965_mac_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);
-void il4965_mac_channel_switch(struct ieee80211_hw *hw,
-			       struct ieee80211_channel_switch *ch_switch);
+void
+il4965_mac_channel_switch(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			  struct ieee80211_channel_switch *ch_switch);
 
 void il4965_led_enable(struct il_priv *il);
 
@@ -272,7 +273,7 @@ il4965_hw_valid_rtc_data_addr(u32 addr)
 	((t) < IL_TX_POWER_TEMPERATURE_MIN || \
 	 (t) > IL_TX_POWER_TEMPERATURE_MAX)
 
-extern void il4965_temperature_calib(struct il_priv *il);
+void il4965_temperature_calib(struct il_priv *il);
 /********************* END TEMPERATURE ***************************************/
 
 /********************* START TXPOWER *****************************************/

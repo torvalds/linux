@@ -78,7 +78,7 @@ enum {
 };
 
 /*
- * struct ad7152_chip_info - chip specifc information
+ * struct ad7152_chip_info - chip specific information
  */
 
 struct ad7152_chip_info {
@@ -290,7 +290,7 @@ static int ad7152_write_raw(struct iio_dev *indio_dev,
 		ret = 0;
 		break;
 	case IIO_CHAN_INFO_SCALE:
-		if (val != 0) {
+		if (val) {
 			ret = -EINVAL;
 			goto out;
 		}
@@ -481,11 +481,9 @@ static int ad7152_probe(struct i2c_client *client,
 	struct ad7152_chip_info *chip;
 	struct iio_dev *indio_dev;
 
-	indio_dev = iio_device_alloc(sizeof(*chip));
-	if (indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
+	if (!indio_dev)
+		return -ENOMEM;
 	chip = iio_priv(indio_dev);
 	/* this is only used for device removal purposes */
 	i2c_set_clientdata(client, indio_dev);
@@ -504,26 +502,11 @@ static int ad7152_probe(struct i2c_client *client,
 	indio_dev->num_channels = ARRAY_SIZE(ad7152_channels);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(indio_dev->dev.parent, indio_dev);
 	if (ret)
-		goto error_free_dev;
+		return ret;
 
 	dev_err(&client->dev, "%s capacitive sensor registered\n", id->name);
-
-	return 0;
-
-error_free_dev:
-	iio_device_free(indio_dev);
-error_ret:
-	return ret;
-}
-
-static int ad7152_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-
-	iio_device_unregister(indio_dev);
-	iio_device_free(indio_dev);
 
 	return 0;
 }
@@ -541,7 +524,6 @@ static struct i2c_driver ad7152_driver = {
 		.name = KBUILD_MODNAME,
 	},
 	.probe = ad7152_probe,
-	.remove = ad7152_remove,
 	.id_table = ad7152_id,
 };
 module_i2c_driver(ad7152_driver);

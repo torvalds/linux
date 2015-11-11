@@ -384,17 +384,17 @@ static const struct ov965x_framesize ov965x_framesizes[] = {
 };
 
 struct ov965x_pixfmt {
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	u32 colorspace;
 	/* REG_TSLB value, only bits [3:2] may be set. */
 	u8 tslb_reg;
 };
 
 static const struct ov965x_pixfmt ov965x_formats[] = {
-	{ V4L2_MBUS_FMT_YUYV8_2X8, V4L2_COLORSPACE_JPEG, 0x00},
-	{ V4L2_MBUS_FMT_YVYU8_2X8, V4L2_COLORSPACE_JPEG, 0x04},
-	{ V4L2_MBUS_FMT_UYVY8_2X8, V4L2_COLORSPACE_JPEG, 0x0c},
-	{ V4L2_MBUS_FMT_VYUY8_2X8, V4L2_COLORSPACE_JPEG, 0x08},
+	{ MEDIA_BUS_FMT_YUYV8_2X8, V4L2_COLORSPACE_JPEG, 0x00},
+	{ MEDIA_BUS_FMT_YVYU8_2X8, V4L2_COLORSPACE_JPEG, 0x04},
+	{ MEDIA_BUS_FMT_UYVY8_2X8, V4L2_COLORSPACE_JPEG, 0x0c},
+	{ MEDIA_BUS_FMT_VYUY8_2X8, V4L2_COLORSPACE_JPEG, 0x08},
 };
 
 /*
@@ -1067,7 +1067,7 @@ static void ov965x_get_default_format(struct v4l2_mbus_framefmt *mf)
 }
 
 static int ov965x_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_fh *fh,
+				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index >= ARRAY_SIZE(ov965x_formats))
@@ -1078,12 +1078,12 @@ static int ov965x_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int ov965x_enum_frame_sizes(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_fh *fh,
+				   struct v4l2_subdev_pad_config *cfg,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
 	int i = ARRAY_SIZE(ov965x_formats);
 
-	if (fse->index > ARRAY_SIZE(ov965x_framesizes))
+	if (fse->index >= ARRAY_SIZE(ov965x_framesizes))
 		return -EINVAL;
 
 	while (--i)
@@ -1133,7 +1133,7 @@ static int __ov965x_set_frame_interval(struct ov965x *ov965x,
 		if (mbus_fmt->width != iv->size.width ||
 		    mbus_fmt->height != iv->size.height)
 			continue;
-		err = abs64((u64)(iv->interval.numerator * 10000) /
+		err = abs((u64)(iv->interval.numerator * 10000) /
 			    iv->interval.denominator - req_int);
 		if (err < min_err) {
 			fiv = iv;
@@ -1164,14 +1164,14 @@ static int ov965x_s_frame_interval(struct v4l2_subdev *sd,
 	return ret;
 }
 
-static int ov965x_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+static int ov965x_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct ov965x *ov965x = to_ov965x(sd);
 	struct v4l2_mbus_framefmt *mf;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mf = v4l2_subdev_get_try_format(fh, 0);
+		mf = v4l2_subdev_get_try_format(sd, cfg, 0);
 		fmt->format = *mf;
 		return 0;
 	}
@@ -1208,7 +1208,7 @@ static void __ov965x_try_frame_size(struct v4l2_mbus_framefmt *mf,
 		*size = match;
 }
 
-static int ov965x_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+static int ov965x_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *fmt)
 {
 	unsigned int index = ARRAY_SIZE(ov965x_formats);
@@ -1230,8 +1230,8 @@ static int ov965x_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	mutex_lock(&ov965x->lock);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		if (fh != NULL) {
-			mf = v4l2_subdev_get_try_format(fh, fmt->pad);
+		if (cfg != NULL) {
+			mf = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
 			*mf = fmt->format;
 		}
 	} else {
@@ -1361,7 +1361,7 @@ static int ov965x_s_stream(struct v4l2_subdev *sd, int on)
  */
 static int ov965x_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
-	struct v4l2_mbus_framefmt *mf = v4l2_subdev_get_try_format(fh, 0);
+	struct v4l2_mbus_framefmt *mf = v4l2_subdev_get_try_format(sd, fh->pad, 0);
 
 	ov965x_get_default_format(mf);
 	return 0;
@@ -1436,7 +1436,7 @@ static int ov965x_detect_sensor(struct v4l2_subdev *sd)
 	int ret;
 
 	mutex_lock(&ov965x->lock);
-	 __ov965x_set_power(ov965x, 1);
+	__ov965x_set_power(ov965x, 1);
 	usleep_range(25000, 26000);
 
 	/* Check sensor revision */

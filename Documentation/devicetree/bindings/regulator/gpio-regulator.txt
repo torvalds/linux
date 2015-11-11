@@ -8,8 +8,12 @@ Required properties:
 Optional properties:
 - enable-gpio		: GPIO to use to enable/disable the regulator.
 - gpios			: GPIO group used to control voltage.
+- gpios-states		: gpios pin's initial states array. 0: LOW, 1: HIGH.
+			  defualt is LOW if nothing is specified.
 - startup-delay-us	: Startup time in microseconds.
 - enable-active-high	: Polarity of GPIO is active high (default is low).
+- regulator-type	: Specifies what is being regulated, must be either
+			  "voltage" or "current", defaults to current.
 
 Any property defined as part of the core regulator binding defined in
 regulator.txt can also be used.

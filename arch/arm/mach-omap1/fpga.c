@@ -87,7 +87,7 @@ static void fpga_mask_ack_irq(struct irq_data *d)
 	fpga_ack_irq(d);
 }
 
-static void innovator_fpga_IRQ_demux(unsigned int irq, struct irq_desc *desc)
+static void innovator_fpga_IRQ_demux(struct irq_desc *desc)
 {
 	u32 stat;
 	int fpga_irq;
@@ -135,8 +135,7 @@ static struct irq_chip omap_fpga_irq = {
  * mask_ack routine for all of the FPGA interrupts has been changed from
  * fpga_mask_ack_irq() to fpga_ack_irq() so that the specific FPGA interrupt
  * being serviced is left unmasked.  We can do this because the FPGA cascade
- * interrupt is installed with the IRQF_DISABLED flag, which leaves all
- * interrupts masked at the CPU while an FPGA interrupt handler executes.
+ * interrupt is run with all interrupts masked.
  *
  * Limited testing indicates that this workaround appears to be effective
  * for the smc9194 Ethernet driver used on the Innovator.  It should work
@@ -170,7 +169,7 @@ void omap1510_fpga_init_irq(void)
 		}
 
 		irq_set_handler(i, handle_edge_irq);
-		set_irq_flags(i, IRQF_VALID);
+		irq_clear_status_flags(i, IRQ_NOREQUEST);
 	}
 
 	/*

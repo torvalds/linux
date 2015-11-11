@@ -141,18 +141,26 @@ static int wusbhc_rh_port_reset(struct wusbhc *wusbhc, u8 port_idx)
 int wusbhc_rh_status_data(struct usb_hcd *usb_hcd, char *_buf)
 {
 	struct wusbhc *wusbhc = usb_hcd_to_wusbhc(usb_hcd);
-	size_t cnt, size;
-	unsigned long *buf = (unsigned long *) _buf;
+	size_t cnt, size, bits_set = 0;
 
 	/* WE DON'T LOCK, see comment */
-	size = wusbhc->ports_max + 1 /* hub bit */;
-	size = (size + 8 - 1) / 8;	/* round to bytes */
-	for (cnt = 0; cnt < wusbhc->ports_max; cnt++)
-		if (wusb_port_by_idx(wusbhc, cnt)->change)
-			set_bit(cnt + 1, buf);
-		else
-			clear_bit(cnt + 1, buf);
-	return size;
+	/* round up to bytes.  Hub bit is bit 0 so add 1. */
+	size = DIV_ROUND_UP(wusbhc->ports_max + 1, 8);
+
+	/* clear the output buffer. */
+	memset(_buf, 0, size);
+	/* set the bit for each changed port. */
+	for (cnt = 0; cnt < wusbhc->ports_max; cnt++) {
+
+		if (wusb_port_by_idx(wusbhc, cnt)->change) {
+			const int bitpos = cnt+1;
+
+			_buf[bitpos/8] |= (1 << (bitpos % 8));
+			bits_set++;
+		}
+	}
+
+	return bits_set ? size : 0;
 }
 EXPORT_SYMBOL_GPL(wusbhc_rh_status_data);
 
@@ -174,12 +182,12 @@ static int wusbhc_rh_get_hub_descr(struct wusbhc *wusbhc, u16 wValue,
 	if (wLength < length)
 		return -ENOSPC;
 	descr->bDescLength = 7 + 2 * temp;
-	descr->bDescriptorType = 0x29;	/* HUB type */
+	descr->bDescriptorType = USB_DT_HUB; /* HUB type */
 	descr->bNbrPorts = wusbhc->ports_max;
 	descr->wHubCharacteristics = cpu_to_le16(
-		0x00			/* All ports power at once */
+		HUB_CHAR_COMMON_LPSM	/* All ports power at once */
 		| 0x00			/* not part of compound device */
-		| 0x10			/* No overcurrent protection */
+		| HUB_CHAR_NO_OCPM	/* No overcurrent protection */
 		| 0x00			/* 8 FS think time FIXME ?? */
 		| 0x00);		/* No port indicators */
 	descr->bPwrOn2PwrGood = 0;
@@ -392,26 +400,6 @@ int wusbhc_rh_control(struct usb_hcd *usb_hcd, u16 reqntype, u16 wValue,
 	return result;
 }
 EXPORT_SYMBOL_GPL(wusbhc_rh_control);
-
-int wusbhc_rh_suspend(struct usb_hcd *usb_hcd)
-{
-	struct wusbhc *wusbhc = usb_hcd_to_wusbhc(usb_hcd);
-	dev_err(wusbhc->dev, "%s (%p [%p]) UNIMPLEMENTED\n", __func__,
-		usb_hcd, wusbhc);
-	/* dump_stack(); */
-	return -ENOSYS;
-}
-EXPORT_SYMBOL_GPL(wusbhc_rh_suspend);
-
-int wusbhc_rh_resume(struct usb_hcd *usb_hcd)
-{
-	struct wusbhc *wusbhc = usb_hcd_to_wusbhc(usb_hcd);
-	dev_err(wusbhc->dev, "%s (%p [%p]) UNIMPLEMENTED\n", __func__,
-		usb_hcd, wusbhc);
-	/* dump_stack(); */
-	return -ENOSYS;
-}
-EXPORT_SYMBOL_GPL(wusbhc_rh_resume);
 
 int wusbhc_rh_start_port_reset(struct usb_hcd *usb_hcd, unsigned port_idx)
 {

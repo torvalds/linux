@@ -33,17 +33,17 @@
 #define CMD_ALIVE	BIT(2)
 
 enum Power_Mgnt {
-	PS_MODE_ACTIVE	= 0	,
-	PS_MODE_MIN			,
-	PS_MODE_MAX			,
-	PS_MODE_DTIM			,
-	PS_MODE_VOIP			,
-	PS_MODE_UAPSD_WMM	,
-	PS_MODE_UAPSD			,
-	PS_MODE_IBSS			,
-	PS_MODE_WWLAN		,
-	PM_Radio_Off			,
-	PM_Card_Disable		,
+	PS_MODE_ACTIVE	= 0,
+	PS_MODE_MIN,
+	PS_MODE_MAX,
+	PS_MODE_DTIM,
+	PS_MODE_VOIP,
+	PS_MODE_UAPSD_WMM,
+	PS_MODE_UAPSD,
+	PS_MODE_IBSS,
+	PS_MODE_WWLAN,
+	PM_Radio_Off,
+	PM_Card_Disable,
 	PS_MODE_NUM
 };
 
@@ -107,8 +107,8 @@ struct	pwrctrl_priv {
 	uint ImrContent;	/* used to store original imr. */
 	uint bSleep; /* sleep -> active is different from active -> sleep. */
 
-	_workitem SetPSModeWorkItem;
-	_workitem rpwm_workitem;
+	struct work_struct SetPSModeWorkItem;
+	struct work_struct rpwm_workitem;
 	struct timer_list rpwm_check_timer;
 	u8	rpwm_retry;
 	uint	bSetPSModeWorkItemInProgress;

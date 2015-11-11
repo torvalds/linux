@@ -298,7 +298,8 @@ struct dn_fib_info *dn_fib_create_info(const struct rtmsg *r, struct nlattr *att
 			int type = nla_type(attr);
 
 			if (type) {
-				if (type > RTAX_MAX || nla_len(attr) < 4)
+				if (type > RTAX_MAX || type == RTAX_CC_ALGO ||
+				    nla_len(attr) < 4)
 					goto err_inval;
 
 				fi->fib_metrics[type-1] = nla_get_u32(attr);
@@ -505,7 +506,7 @@ static int dn_fib_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh)
 	struct nlattr *attrs[RTA_MAX+1];
 	int err;
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
 	if (!net_eq(net, &init_net))
@@ -530,7 +531,7 @@ static int dn_fib_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh)
 	struct nlattr *attrs[RTA_MAX+1];
 	int err;
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
 	if (!net_eq(net, &init_net))

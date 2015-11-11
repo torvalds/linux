@@ -31,6 +31,8 @@
  * IN THE SOFTWARE.
  */
 
+#define pr_fmt(fmt) "xen_cpu: " fmt
+
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/cpu.h>
@@ -38,13 +40,13 @@
 #include <linux/capability.h>
 
 #include <xen/xen.h>
+#include <xen/acpi.h>
 #include <xen/xenbus.h>
 #include <xen/events.h>
 #include <xen/interface/platform.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 
-#define XEN_PCPU "xen_cpu: "
 
 /*
  * @cpu_id: Xen physical cpu logic number
@@ -130,6 +132,33 @@ static ssize_t __ref store_online(struct device *dev,
 }
 static DEVICE_ATTR(online, S_IRUGO | S_IWUSR, show_online, store_online);
 
+static struct attribute *pcpu_dev_attrs[] = {
+	&dev_attr_online.attr,
+	NULL
+};
+
+static umode_t pcpu_dev_is_visible(struct kobject *kobj,
+				   struct attribute *attr, int idx)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	/*
+	 * Xen never offline cpu0 due to several restrictions
+	 * and assumptions. This basically doesn't add a sys control
+	 * to user, one cannot attempt to offline BSP.
+	 */
+	return dev->id ? attr->mode : 0;
+}
+
+static const struct attribute_group pcpu_dev_group = {
+	.attrs = pcpu_dev_attrs,
+	.is_visible = pcpu_dev_is_visible,
+};
+
+static const struct attribute_group *pcpu_dev_groups[] = {
+	&pcpu_dev_group,
+	NULL
+};
+
 static bool xen_pcpu_online(uint32_t flags)
 {
 	return !!(flags & XEN_PCPU_FLAGS_ONLINE);
@@ -179,9 +208,6 @@ static void unregister_and_remove_pcpu(struct pcpu *pcpu)
 		return;
 
 	dev = &pcpu->dev;
-	if (dev->id)
-		device_remove_file(dev, &dev_attr_online);
-
 	/* pcpu remove would be implicitly done */
 	device_unregister(dev);
 }
@@ -198,24 +224,12 @@ static int register_pcpu(struct pcpu *pcpu)
 	dev->bus = &xen_pcpu_subsys;
 	dev->id = pcpu->cpu_id;
 	dev->release = pcpu_release;
+	dev->groups = pcpu_dev_groups;
 
 	err = device_register(dev);
 	if (err) {
 		pcpu_release(dev);
 		return err;
-	}
-
-	/*
-	 * Xen never offline cpu0 due to several restrictions
-	 * and assumptions. This basically doesn't add a sys control
-	 * to user, one cannot attempt to offline BSP.
-	 */
-	if (dev->id) {
-		err = device_create_file(dev, &dev_attr_online);
-		if (err) {
-			device_unregister(dev);
-			return err;
-		}
 	}
 
 	return 0;
@@ -242,8 +256,7 @@ static struct pcpu *create_and_register_pcpu(struct xenpf_pcpuinfo *info)
 
 	err = register_pcpu(pcpu);
 	if (err) {
-		pr_warning(XEN_PCPU "Failed to register pcpu%u\n",
-			   info->xen_cpuid);
+		pr_warn("Failed to register pcpu%u\n", info->xen_cpuid);
 		return ERR_PTR(-ENOENT);
 	}
 
@@ -378,19 +391,19 @@ static int __init xen_pcpu_init(void)
 				      xen_pcpu_interrupt, 0,
 				      "xen-pcpu", NULL);
 	if (irq < 0) {
-		pr_warning(XEN_PCPU "Failed to bind pcpu virq\n");
+		pr_warn("Failed to bind pcpu virq\n");
 		return irq;
 	}
 
 	ret = subsys_system_register(&xen_pcpu_subsys, NULL);
 	if (ret) {
-		pr_warning(XEN_PCPU "Failed to register pcpu subsys\n");
+		pr_warn("Failed to register pcpu subsys\n");
 		goto err1;
 	}
 
 	ret = xen_sync_pcpus();
 	if (ret) {
-		pr_warning(XEN_PCPU "Failed to sync pcpu info\n");
+		pr_warn("Failed to sync pcpu info\n");
 		goto err2;
 	}
 

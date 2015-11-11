@@ -20,19 +20,23 @@ static void ftrace_dump_buf(int skip_lines, long cpu_file)
 {
 	/* use static because iter can be a bit big for the stack */
 	static struct trace_iterator iter;
+	static struct ring_buffer_iter *buffer_iter[CONFIG_NR_CPUS];
+	struct trace_array *tr;
 	unsigned int old_userobj;
 	int cnt = 0, cpu;
 
 	trace_init_global_iter(&iter);
+	iter.buffer_iter = buffer_iter;
+	tr = iter.tr;
 
 	for_each_tracing_cpu(cpu) {
 		atomic_inc(&per_cpu_ptr(iter.trace_buffer->data, cpu)->disabled);
 	}
 
-	old_userobj = trace_flags;
+	old_userobj = tr->trace_flags;
 
 	/* don't look at user memory in panic mode */
-	trace_flags &= ~TRACE_ITER_SYM_USEROBJ;
+	tr->trace_flags &= ~TRACE_ITER_SYM_USEROBJ;
 
 	kdb_printf("Dumping ftrace buffer:\n");
 
@@ -57,19 +61,19 @@ static void ftrace_dump_buf(int skip_lines, long cpu_file)
 		ring_buffer_read_start(iter.buffer_iter[cpu_file]);
 		tracing_iter_reset(&iter, cpu_file);
 	}
-	if (!trace_empty(&iter))
-		trace_find_next_entry_inc(&iter);
-	while (!trace_empty(&iter)) {
+
+	while (trace_find_next_entry_inc(&iter)) {
 		if (!cnt)
 			kdb_printf("---------------------------------\n");
 		cnt++;
 
-		if (trace_find_next_entry_inc(&iter) != NULL && !skip_lines)
+		if (!skip_lines) {
 			print_trace_line(&iter);
-		if (!skip_lines)
 			trace_printk_seq(&iter.seq);
-		else
+		} else {
 			skip_lines--;
+		}
+
 		if (KDB_FLAG(CMD_INTERRUPT))
 			goto out;
 	}
@@ -80,15 +84,18 @@ static void ftrace_dump_buf(int skip_lines, long cpu_file)
 		kdb_printf("---------------------------------\n");
 
 out:
-	trace_flags = old_userobj;
+	tr->trace_flags = old_userobj;
 
 	for_each_tracing_cpu(cpu) {
 		atomic_dec(&per_cpu_ptr(iter.trace_buffer->data, cpu)->disabled);
 	}
 
-	for_each_tracing_cpu(cpu)
-		if (iter.buffer_iter[cpu])
+	for_each_tracing_cpu(cpu) {
+		if (iter.buffer_iter[cpu]) {
 			ring_buffer_read_finish(iter.buffer_iter[cpu]);
+			iter.buffer_iter[cpu] = NULL;
+		}
+	}
 }
 
 /*
@@ -127,8 +134,8 @@ static int kdb_ftdump(int argc, const char **argv)
 
 static __init int kdb_ftrace_register(void)
 {
-	kdb_register_repeat("ftdump", kdb_ftdump, "[skip_#lines] [cpu]",
-			    "Dump ftrace log", 0, KDB_REPEAT_NONE);
+	kdb_register_flags("ftdump", kdb_ftdump, "[skip_#lines] [cpu]",
+			    "Dump ftrace log", 0, KDB_ENABLE_ALWAYS_SAFE);
 	return 0;
 }
 

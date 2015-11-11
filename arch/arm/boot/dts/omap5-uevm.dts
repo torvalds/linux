@@ -1,0 +1,53 @@
+/*
+ * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+/dts-v1/;
+
+#include "omap5-board-common.dtsi"
+
+/ {
+	model = "TI OMAP5 uEVM board";
+	compatible = "ti,omap5-uevm", "ti,omap5";
+
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x7F000000>; /* 2032 MB */
+	};
+};
+
+&hdmi {
+	vdda-supply = <&ldo4_reg>;
+};
+
+&i2c5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c5_pins>;
+
+	clock-frequency = <400000>;
+
+	gpio9: gpio@22 {
+		compatible = "ti,tca6424";
+		reg = <0x22>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+};
+
+&omap5_pmx_core {
+	i2c5_pins: pinmux_i2c5_pins {
+		pinctrl-single,pins = <
+			0x186 (PIN_INPUT | MUX_MODE0)		/* i2c5_scl */
+			0x188 (PIN_INPUT | MUX_MODE0)		/* i2c5_sda */
+		>;
+	};
+};
+
+&tpd12s015 {
+	gpios = <&gpio9 0 GPIO_ACTIVE_HIGH>,	/* TCA6424A P01, CT CP HPD */
+		<&gpio9 1 GPIO_ACTIVE_HIGH>,	/* TCA6424A P00, LS OE */
+		<&gpio7 1 GPIO_ACTIVE_HIGH>;	/* GPIO 193, HPD */
+};

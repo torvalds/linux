@@ -17,7 +17,7 @@
 #include <linux/delay.h>
 #include <linux/types.h>
 #include <linux/io.h>
-#include <asm/mach-loongson1/loongson1.h>
+#include <loongson1.h>
 
 #define LS1X_RTC_REG_OFFSET	(LS1X_RTC_BASE + 0x20)
 #define LS1X_RTC_REGS(x) \
@@ -185,19 +185,10 @@ err:
 	return ret;
 }
 
-static int ls1x_rtc_remove(struct platform_device *pdev)
-{
-	platform_set_drvdata(pdev, NULL);
-
-	return 0;
-}
-
 static struct platform_driver  ls1x_rtc_driver = {
 	.driver		= {
 		.name	= "ls1x-rtc",
-		.owner	= THIS_MODULE,
 	},
-	.remove		= ls1x_rtc_remove,
 	.probe		= ls1x_rtc_probe,
 };
 

@@ -77,7 +77,7 @@ static struct platform_device tsp2_nor_flash = {
 #define TSP2_PCI_SLOT0_OFFS		7
 #define TSP2_PCI_SLOT0_IRQ_PIN		11
 
-void __init tsp2_pci_preinit(void)
+static void __init tsp2_pci_preinit(void)
 {
 	int pin;
 
@@ -329,8 +329,10 @@ static void __init tsp2_init(void)
 	/*
 	 * Configure peripherals.
 	 */
-	mvebu_mbus_add_window("devbus-boot", TSP2_NOR_BOOT_BASE,
-			      TSP2_NOR_BOOT_SIZE);
+	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_BOOT_TARGET,
+				    ORION_MBUS_DEVBUS_BOOT_ATTR,
+				    TSP2_NOR_BOOT_BASE,
+				    TSP2_NOR_BOOT_SIZE);
 	platform_device_register(&tsp2_nor_flash);
 
 	orion5x_ehci0_init();
@@ -347,7 +349,7 @@ static void __init tsp2_init(void)
 			gpio_free(TSP2_RTC_GPIO);
 	}
 	if (tsp2_i2c_rtc.irq == 0)
-		pr_warning("tsp2_init: failed to get RTC IRQ\n");
+		pr_warn("tsp2_init: failed to get RTC IRQ\n");
 	i2c_register_board_info(0, &tsp2_i2c_rtc, 1);
 
 	/* register Terastation Pro II specific power-off method */

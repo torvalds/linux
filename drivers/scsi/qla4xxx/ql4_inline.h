@@ -1,6 +1,6 @@
 /*
  * QLogic iSCSI HBA Driver
- * Copyright (c)  2003-2012 QLogic Corporation
+ * Copyright (c)  2003-2013 QLogic Corporation
  *
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
@@ -81,4 +81,16 @@ qla4xxx_disable_intrs(struct scsi_qla_host *ha)
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	__qla4xxx_disable_intrs(ha);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+}
+
+static inline int qla4xxx_get_chap_type(struct ql4_chap_table *chap_entry)
+{
+	int type;
+
+	if (chap_entry->flags & BIT_7)
+		type = LOCAL_CHAP;
+	else
+		type = BIDI_CHAP;
+
+	return type;
 }

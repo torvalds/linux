@@ -28,7 +28,7 @@
 #include <linux/videodev2.h>
 
 #include <media/soc_camera.h>
-#include <media/v4l2-chip-ident.h>
+#include <media/v4l2-clk.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 
@@ -61,7 +61,7 @@ static const struct ov9640_reg ov9640_regs_dflt[] = {
 
 /* Configurations
  * NOTE: for YUV, alter the following registers:
- * 		COM12 |= OV9640_COM12_YUV_AVG
+ *		COM12 |= OV9640_COM12_YUV_AVG
  *
  *	 for RGB, alter the following registers:
  *		COM7  |= OV9640_COM7_RGB
@@ -159,10 +159,10 @@ static const struct ov9640_reg ov9640_regs_rgb[] = {
 	{ OV9640_MTXS,	0x65 },
 };
 
-static enum v4l2_mbus_pixelcode ov9640_codes[] = {
-	V4L2_MBUS_FMT_UYVY8_2X8,
-	V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE,
-	V4L2_MBUS_FMT_RGB565_2X8_LE,
+static u32 ov9640_codes[] = {
+	MEDIA_BUS_FMT_UYVY8_2X8,
+	MEDIA_BUS_FMT_RGB555_2X8_PADHI_LE,
+	MEDIA_BUS_FMT_RGB565_2X8_LE,
 };
 
 /* read a register */
@@ -287,18 +287,6 @@ static int ov9640_s_ctrl(struct v4l2_ctrl *ctrl)
 	return -EINVAL;
 }
 
-/* Get chip identification */
-static int ov9640_g_chip_ident(struct v4l2_subdev *sd,
-				struct v4l2_dbg_chip_ident *id)
-{
-	struct ov9640_priv *priv = to_ov9640_sensor(sd);
-
-	id->ident	= priv->model;
-	id->revision	= priv->revision;
-
-	return 0;
-}
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int ov9640_get_register(struct v4l2_subdev *sd,
 				struct v4l2_dbg_register *reg)
@@ -337,8 +325,9 @@ static int ov9640_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
+	struct ov9640_priv *priv = to_ov9640_sensor(sd);
 
-	return soc_camera_set_power(&client->dev, ssdd, on);
+	return soc_camera_set_power(&client->dev, ssdd, priv->clk, on);
 }
 
 /* select nearest higher resolution for capture */
@@ -362,32 +351,32 @@ static void ov9640_res_roundup(u32 *width, u32 *height)
 }
 
 /* Prepare necessary register changes depending on color encoding */
-static void ov9640_alter_regs(enum v4l2_mbus_pixelcode code,
+static void ov9640_alter_regs(u32 code,
 			      struct ov9640_reg_alt *alt)
 {
 	switch (code) {
 	default:
-	case V4L2_MBUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
 		alt->com12	= OV9640_COM12_YUV_AVG;
 		alt->com13	= OV9640_COM13_Y_DELAY_EN |
 					OV9640_COM13_YUV_DLY(0x01);
 		break;
-	case V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE:
+	case MEDIA_BUS_FMT_RGB555_2X8_PADHI_LE:
 		alt->com7	= OV9640_COM7_RGB;
 		alt->com13	= OV9640_COM13_RGB_AVG;
 		alt->com15	= OV9640_COM15_RGB_555;
 		break;
-	case V4L2_MBUS_FMT_RGB565_2X8_LE:
+	case MEDIA_BUS_FMT_RGB565_2X8_LE:
 		alt->com7	= OV9640_COM7_RGB;
 		alt->com13	= OV9640_COM13_RGB_AVG;
 		alt->com15	= OV9640_COM15_RGB_565;
 		break;
-	};
+	}
 }
 
 /* Setup registers according to resolution and color encoding */
 static int ov9640_write_regs(struct i2c_client *client, u32 width,
-		enum v4l2_mbus_pixelcode code, struct ov9640_reg_alt *alts)
+		u32 code, struct ov9640_reg_alt *alts)
 {
 	const struct ov9640_reg	*ov9640_regs, *matrix_regs;
 	int			ov9640_regs_len, matrix_regs_len;
@@ -430,7 +419,7 @@ static int ov9640_write_regs(struct i2c_client *client, u32 width,
 	}
 
 	/* select color matrix configuration for given color encoding */
-	if (code == V4L2_MBUS_FMT_UYVY8_2X8) {
+	if (code == MEDIA_BUS_FMT_UYVY8_2X8) {
 		matrix_regs	= ov9640_regs_yuv;
 		matrix_regs_len	= ARRAY_SIZE(ov9640_regs_yuv);
 	} else {
@@ -498,7 +487,7 @@ static int ov9640_s_fmt(struct v4l2_subdev *sd,
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov9640_reg_alt alts = {0};
 	enum v4l2_colorspace cspace;
-	enum v4l2_mbus_pixelcode code = mf->code;
+	u32 code = mf->code;
 	int ret;
 
 	ov9640_res_roundup(&mf->width, &mf->height);
@@ -511,13 +500,13 @@ static int ov9640_s_fmt(struct v4l2_subdev *sd,
 		return ret;
 
 	switch (code) {
-	case V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE:
-	case V4L2_MBUS_FMT_RGB565_2X8_LE:
+	case MEDIA_BUS_FMT_RGB555_2X8_PADHI_LE:
+	case MEDIA_BUS_FMT_RGB565_2X8_LE:
 		cspace = V4L2_COLORSPACE_SRGB;
 		break;
 	default:
-		code = V4L2_MBUS_FMT_UYVY8_2X8;
-	case V4L2_MBUS_FMT_UYVY8_2X8:
+		code = MEDIA_BUS_FMT_UYVY8_2X8;
+	case MEDIA_BUS_FMT_UYVY8_2X8:
 		cspace = V4L2_COLORSPACE_JPEG;
 	}
 
@@ -530,34 +519,45 @@ static int ov9640_s_fmt(struct v4l2_subdev *sd,
 	return ret;
 }
 
-static int ov9640_try_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_mbus_framefmt *mf)
+static int ov9640_set_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *mf = &format->format;
+
+	if (format->pad)
+		return -EINVAL;
+
 	ov9640_res_roundup(&mf->width, &mf->height);
 
 	mf->field = V4L2_FIELD_NONE;
 
 	switch (mf->code) {
-	case V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE:
-	case V4L2_MBUS_FMT_RGB565_2X8_LE:
+	case MEDIA_BUS_FMT_RGB555_2X8_PADHI_LE:
+	case MEDIA_BUS_FMT_RGB565_2X8_LE:
 		mf->colorspace = V4L2_COLORSPACE_SRGB;
 		break;
 	default:
-		mf->code = V4L2_MBUS_FMT_UYVY8_2X8;
-	case V4L2_MBUS_FMT_UYVY8_2X8:
+		mf->code = MEDIA_BUS_FMT_UYVY8_2X8;
+	case MEDIA_BUS_FMT_UYVY8_2X8:
 		mf->colorspace = V4L2_COLORSPACE_JPEG;
 	}
 
+	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
+		return ov9640_s_fmt(sd, mf);
+
+	cfg->try_fmt = *mf;
 	return 0;
 }
 
-static int ov9640_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			   enum v4l2_mbus_pixelcode *code)
+static int ov9640_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (index >= ARRAY_SIZE(ov9640_codes))
+	if (code->pad || code->index >= ARRAY_SIZE(ov9640_codes))
 		return -EINVAL;
 
-	*code = ov9640_codes[index];
+	code->code = ov9640_codes[code->index];
 	return 0;
 }
 
@@ -615,12 +615,10 @@ static int ov9640_video_probe(struct i2c_client *client)
 	switch (VERSION(pid, ver)) {
 	case OV9640_V2:
 		devname		= "ov9640";
-		priv->model	= V4L2_IDENT_OV9640;
 		priv->revision	= 2;
 		break;
 	case OV9640_V3:
 		devname		= "ov9640";
-		priv->model	= V4L2_IDENT_OV9640;
 		priv->revision	= 3;
 		break;
 	default:
@@ -644,7 +642,6 @@ static const struct v4l2_ctrl_ops ov9640_ctrl_ops = {
 };
 
 static struct v4l2_subdev_core_ops ov9640_core_ops = {
-	.g_chip_ident		= ov9640_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register		= ov9640_get_register,
 	.s_register		= ov9640_set_register,
@@ -670,17 +667,20 @@ static int ov9640_g_mbus_config(struct v4l2_subdev *sd,
 
 static struct v4l2_subdev_video_ops ov9640_video_ops = {
 	.s_stream	= ov9640_s_stream,
-	.s_mbus_fmt	= ov9640_s_fmt,
-	.try_mbus_fmt	= ov9640_try_fmt,
-	.enum_mbus_fmt	= ov9640_enum_fmt,
 	.cropcap	= ov9640_cropcap,
 	.g_crop		= ov9640_g_crop,
 	.g_mbus_config	= ov9640_g_mbus_config,
 };
 
+static const struct v4l2_subdev_pad_ops ov9640_pad_ops = {
+	.enum_mbus_code = ov9640_enum_mbus_code,
+	.set_fmt	= ov9640_set_fmt,
+};
+
 static struct v4l2_subdev_ops ov9640_subdev_ops = {
 	.core	= &ov9640_core_ops,
 	.video	= &ov9640_video_ops,
+	.pad	= &ov9640_pad_ops,
 };
 
 /*
@@ -716,10 +716,18 @@ static int ov9640_probe(struct i2c_client *client,
 	if (priv->hdl.error)
 		return priv->hdl.error;
 
-	ret = ov9640_video_probe(client);
+	priv->clk = v4l2_clk_get(&client->dev, "mclk");
+	if (IS_ERR(priv->clk)) {
+		ret = PTR_ERR(priv->clk);
+		goto eclkget;
+	}
 
-	if (ret)
+	ret = ov9640_video_probe(client);
+	if (ret) {
+		v4l2_clk_put(priv->clk);
+eclkget:
 		v4l2_ctrl_handler_free(&priv->hdl);
+	}
 
 	return ret;
 }
@@ -729,6 +737,7 @@ static int ov9640_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov9640_priv *priv = to_ov9640_sensor(sd);
 
+	v4l2_clk_put(priv->clk);
 	v4l2_device_unregister_subdev(&priv->subdev);
 	v4l2_ctrl_handler_free(&priv->hdl);
 	return 0;

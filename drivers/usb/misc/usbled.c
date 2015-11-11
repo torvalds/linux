@@ -11,7 +11,6 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/usb.h>
@@ -23,7 +22,26 @@
 enum led_type {
 	DELCOM_VISUAL_SIGNAL_INDICATOR,
 	DREAM_CHEEKY_WEBMAIL_NOTIFIER,
+	RISO_KAGAKU_LED
 };
+
+/* the Webmail LED made by RISO KAGAKU CORP. decodes a color index
+   internally, we want to keep the red+green+blue sysfs api, so we decode
+   from 1-bit RGB to the riso kagaku color index according to this table... */
+
+static unsigned const char riso_kagaku_tbl[] = {
+/* R+2G+4B -> riso kagaku color index */
+	[0] = 0, /* black   */
+	[1] = 2, /* red     */
+	[2] = 1, /* green   */
+	[3] = 5, /* yellow  */
+	[4] = 3, /* blue    */
+	[5] = 6, /* magenta */
+	[6] = 4, /* cyan    */
+	[7] = 7  /* white   */
+};
+
+#define RISO_KAGAKU_IX(r,g,b) riso_kagaku_tbl[((r)?1:0)+((g)?2:0)+((b)?4:0)]
 
 /* table of devices that work with this driver */
 static const struct usb_device_id id_table[] = {
@@ -33,6 +51,8 @@ static const struct usb_device_id id_table[] = {
 			.driver_info = DREAM_CHEEKY_WEBMAIL_NOTIFIER },
 	{ USB_DEVICE(0x1d34, 0x000a),
 			.driver_info = DREAM_CHEEKY_WEBMAIL_NOTIFIER },
+	{ USB_DEVICE(0x1294, 0x1320),
+			.driver_info = RISO_KAGAKU_LED },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, id_table);
@@ -49,6 +69,7 @@ static void change_color(struct usb_led *led)
 {
 	int retval = 0;
 	unsigned char *buffer;
+	int actlength;
 
 	buffer = kmalloc(8, GFP_KERNEL);
 	if (!buffer) {
@@ -103,6 +124,18 @@ static void change_color(struct usb_led *led)
 					buffer,
 					8,
 					2000);
+		break;
+
+	case RISO_KAGAKU_LED:
+		buffer[0] = RISO_KAGAKU_IX(led->red, led->green, led->blue);
+		buffer[1] = 0;
+		buffer[2] = 0;
+		buffer[3] = 0;
+		buffer[4] = 0;
+
+		retval = usb_interrupt_msg(led->udev,
+			usb_sndctrlpipe(led->udev, 2),
+			buffer, 5, &actlength, 1000 /*ms timeout*/);
 		break;
 
 	default:

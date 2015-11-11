@@ -15,11 +15,15 @@
 #ifndef _ASM_TILE_UNALIGNED_H
 #define _ASM_TILE_UNALIGNED_H
 
-#include <linux/unaligned/le_struct.h>
-#include <linux/unaligned/be_byteshift.h>
-#include <linux/unaligned/generic.h>
-#define get_unaligned	__get_unaligned_le
-#define put_unaligned	__put_unaligned_le
+/*
+ * We could implement faster get_unaligned_[be/le]64 using the ldna
+ * instruction on tilegx; however, we need to either copy all of the
+ * other generic functions to here (which is pretty ugly) or else
+ * modify both the generic code and other arch code to allow arch
+ * specific unaligned data access functions.  Given these functions
+ * are not often called, we'll stick with the generic version.
+ */
+#include <asm-generic/unaligned.h>
 
 /*
  * Is the kernel doing fixups of unaligned accesses?  If <0, no kernel

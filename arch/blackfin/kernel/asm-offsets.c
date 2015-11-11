@@ -42,6 +42,12 @@ int main(void)
 	DEFINE(THREAD_PC, offsetof(struct thread_struct, pc));
 	DEFINE(KERNEL_STACK_SIZE, THREAD_SIZE);
 
+	/* offsets in thread_info struct */
+	OFFSET(TI_TASK, thread_info, task);
+	OFFSET(TI_FLAGS, thread_info, flags);
+	OFFSET(TI_CPU, thread_info, cpu);
+	OFFSET(TI_PREEMPT, thread_info, preempt_count);
+
 	/* offsets into the pt_regs */
 	DEFINE(PT_ORIG_R0, offsetof(struct pt_regs, orig_r0));
 	DEFINE(PT_ORIG_P0, offsetof(struct pt_regs, orig_p0));

@@ -259,7 +259,7 @@ struct inode *afs_iget(struct super_block *sb, struct key *key,
 #ifdef CONFIG_AFS_FSCACHE
 	vnode->cache = fscache_acquire_cookie(vnode->volume->cache,
 					      &afs_vnode_cache_index_def,
-					      vnode);
+					      vnode, true);
 #endif
 
 	ret = afs_inode_map_status(vnode, key);
@@ -379,7 +379,7 @@ int afs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 {
 	struct inode *inode;
 
-	inode = dentry->d_inode;
+	inode = d_inode(dentry);
 
 	_enter("{ ino=%lu v=%u }", inode->i_ino, inode->i_generation);
 
@@ -422,7 +422,7 @@ void afs_evict_inode(struct inode *inode)
 
 	ASSERTCMP(inode->i_ino, ==, vnode->fid.vnode);
 
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
 
 	afs_give_up_callback(vnode);
@@ -458,12 +458,12 @@ void afs_evict_inode(struct inode *inode)
  */
 int afs_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct afs_vnode *vnode = AFS_FS_I(dentry->d_inode);
+	struct afs_vnode *vnode = AFS_FS_I(d_inode(dentry));
 	struct key *key;
 	int ret;
 
-	_enter("{%x:%u},{n=%s},%x",
-	       vnode->fid.vid, vnode->fid.vnode, dentry->d_name.name,
+	_enter("{%x:%u},{n=%pd},%x",
+	       vnode->fid.vid, vnode->fid.vnode, dentry,
 	       attr->ia_valid);
 
 	if (!(attr->ia_valid & (ATTR_SIZE | ATTR_MODE | ATTR_UID | ATTR_GID |

@@ -1,39 +1,6 @@
 #ifndef __INC_QOS_TYPE_H
 #define __INC_QOS_TYPE_H
 
-#define BIT0                    0x00000001
-#define BIT1                    0x00000002
-#define BIT2                    0x00000004
-#define BIT3                    0x00000008
-#define BIT4                    0x00000010
-#define BIT5                    0x00000020
-#define BIT6                    0x00000040
-#define BIT7                    0x00000080
-#define BIT8                    0x00000100
-#define BIT9                    0x00000200
-#define BIT10                   0x00000400
-#define BIT11                   0x00000800
-#define BIT12                   0x00001000
-#define BIT13                   0x00002000
-#define BIT14                   0x00004000
-#define BIT15                   0x00008000
-#define BIT16                   0x00010000
-#define BIT17                   0x00020000
-#define BIT18                   0x00040000
-#define BIT19                   0x00080000
-#define BIT20                   0x00100000
-#define BIT21                   0x00200000
-#define BIT22                   0x00400000
-#define BIT23                   0x00800000
-#define BIT24                   0x01000000
-#define BIT25                   0x02000000
-#define BIT26                   0x04000000
-#define BIT27                   0x08000000
-#define BIT28                   0x10000000
-#define BIT29                   0x20000000
-#define BIT30                   0x40000000
-#define BIT31                   0x80000000
-
 #define	MAX_WMMELE_LENGTH	64
 
 //
@@ -66,7 +33,7 @@ typedef u32 QOS_MODE, *PQOS_MODE;
 typedef	enum _ACK_POLICY{
 	eAckPlc0_ACK		= 0x00,
 	eAckPlc1_NoACK		= 0x01,
-}ACK_POLICY,*PACK_POLICY;
+} ACK_POLICY, *PACK_POLICY;
 
 #define WMM_PARAM_ELEMENT_SIZE	(8+(4*AC_PARAM_SIZE))
 
@@ -276,7 +243,7 @@ typedef	union _AC_PARAM{
 typedef	enum _QOS_ELE_SUBTYPE{
 	QOSELE_TYPE_INFO	= 0x00,		// 0x00: Information element
 	QOSELE_TYPE_PARAM	= 0x01,		// 0x01: parameter element
-}QOS_ELE_SUBTYPE,*PQOS_ELE_SUBTYPE;
+} QOS_ELE_SUBTYPE, *PQOS_ELE_SUBTYPE;
 
 
 //
@@ -288,7 +255,7 @@ typedef	enum _DIRECTION_VALUE{
 	DIR_DOWN		= 1,		// 0x01	// DownLink
 	DIR_DIRECT		= 2,		// 0x10	// DirectLink
 	DIR_BI_DIR		= 3,		// 0x11	// Bi-Direction
-}DIRECTION_VALUE,*PDIRECTION_VALUE;
+} DIRECTION_VALUE, *PDIRECTION_VALUE;
 
 
 //
@@ -363,7 +330,7 @@ typedef	enum _ACM_METHOD{
 	eAcmWay0_SwAndHw		= 0,		// By SW and HW.
 	eAcmWay1_HW			= 1,		// By HW.
 	eAcmWay2_SW			= 2,		// By SW.
-}ACM_METHOD,*PACM_METHOD;
+} ACM_METHOD, *PACM_METHOD;
 
 
 typedef struct _ACM{
@@ -375,17 +342,17 @@ typedef struct _ACM{
 
 typedef	u8		AC_UAPSD, *PAC_UAPSD;
 
-#define	GET_VO_UAPSD(_apsd) ((_apsd) & BIT0)
-#define	SET_VO_UAPSD(_apsd) ((_apsd) |= BIT0)
+#define	GET_VO_UAPSD(_apsd) ((_apsd) & BIT(0))
+#define	SET_VO_UAPSD(_apsd) ((_apsd) |= BIT(0))
 
-#define	GET_VI_UAPSD(_apsd) ((_apsd) & BIT1)
-#define	SET_VI_UAPSD(_apsd) ((_apsd) |= BIT1)
+#define	GET_VI_UAPSD(_apsd) ((_apsd) & BIT(1))
+#define	SET_VI_UAPSD(_apsd) ((_apsd) |= BIT(1))
 
-#define	GET_BK_UAPSD(_apsd) ((_apsd) & BIT2)
-#define	SET_BK_UAPSD(_apsd) ((_apsd) |= BIT2)
+#define	GET_BK_UAPSD(_apsd) ((_apsd) & BIT(2))
+#define	SET_BK_UAPSD(_apsd) ((_apsd) |= BIT(2))
 
-#define	GET_BE_UAPSD(_apsd) ((_apsd) & BIT3)
-#define	SET_BE_UAPSD(_apsd) ((_apsd) |= BIT3)
+#define	GET_BE_UAPSD(_apsd) ((_apsd) & BIT(3))
+#define	SET_BE_UAPSD(_apsd) ((_apsd) |= BIT(3))
 
 
 //typedef struct _TCLASS{
@@ -483,7 +450,7 @@ typedef struct _OCTET_STRING{
 typedef struct _STA_QOS{
 	//DECLARE_RT_OBJECT(STA_QOS);
 	u8				WMMIEBuf[MAX_WMMELE_LENGTH];
-	u8*				WMMIE;
+	u8				*WMMIE;
 
 	// Part 1. Self QoS Mode.
 	QOS_MODE			QosCapability; //QoS Capability, 2006-06-14 Isaiah
@@ -498,7 +465,7 @@ typedef struct _STA_QOS{
 	int				NumBcnBeforeTrigger;
 
 	// Part 2. EDCA Parameter (perAC)
-	u8 *				pWMMInfoEle;
+	u8				*pWMMInfoEle;
 	u8				WMMParamEle[WMM_PARAM_ELEMENT_SIZE];
 	u8				WMMPELength;
 
@@ -537,12 +504,12 @@ typedef struct _BSS_QOS{
 	QOS_MODE		bdQoSMode;
 
 	u8			bdWMMIEBuf[MAX_WMMELE_LENGTH];
-	u8*		bdWMMIE;
+	u8		*bdWMMIE;
 
 	QOS_ELE_SUBTYPE		EleSubType;
 
-	u8 *			pWMMInfoEle;
-	u8 *			pWMMParamEle;
+	u8			*pWMMInfoEle;
+	u8			*pWMMParamEle;
 
 	QOS_INFO_FIELD		QosInfoField;
 	AC_PARAM		AcParameter[4];

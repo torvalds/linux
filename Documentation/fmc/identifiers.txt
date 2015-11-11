@@ -1,0 +1,168 @@
+FMC Identification
+******************
+
+The FMC standard requires every compliant mezzanine to carry
+identification information in an I2C EEPROM.  The information must be
+laid out according to the "IPMI Platform Management FRU Information",
+where IPMI is a lie I'd better not expand, and FRU means "Field
+Replaceable Unit".
+
+The FRU information is an intricate unreadable binary blob that must
+live at offset 0 of the EEPROM, and typically extends for a few hundred
+bytes. The standard allows the application to use all the remaining
+storage area of the EEPROM as it wants.
+
+This chapter explains how to create your own EEPROM image and how to
+write it in your mezzanine, as well as how devices and drivers are
+paired at run time.  EEPROM programming uses tools that are part of this
+package and SDB (part of the fpga-config-space package).
+
+The first sections are only interesting for manufacturers who need to
+write the EEPROM. If you are just a software developer writing an FMC
+device or driver, you may jump straight to *note SDB Support::.
+
+
+Building the FRU Structure
+==========================
+
+If you want to know the internals of the FRU structure and despair, you
+can retrieve the document from
+`http://download.intel.com/design/servers/ipmi/FRU1011.pdf' .  The
+standard is awful and difficult without reason, so we only support the
+minimum mandatory subset - we create a simple structure and parse it
+back at run time, but we are not able to either generate or parse more
+arcane features like non-english languages and 6-bit text.  If you need
+more items of the FRU standard for your boards, please submit patches.
+
+This package includes the Python script that Matthieu Cattin wrote to
+generate the FRU binary blob, based on an helper libipmi by Manohar
+Vanga and Matthieu himself.  I changed the test script to receive
+parameters from the command line or from the environment (the command
+line takes precedence)
+
+To make a long story short, in order to build a standard-compliant
+binary file to be burned in your EEPROM, you need the following items:
+
+        Environment    Opt     Official Name          Default
+---------------------------------------------------------------------
+        FRU_VENDOR     -v      "Board Manufacturer"   fmc-example
+        FRU_NAME       -n      "Board Product Name"   mezzanine
+        FRU_SERIAL     -s      `Board Serial Number"  0001
+        FRU_PART       -p      "Board Part Number"    sample-part
+        FRU_OUTPUT     -o      not applicable         /dev/stdout
+
+The "Official Name" above is what you find in the FRU official
+documentation, chapter 11, page 7 ("Board Info Area Format").  The
+output option is used to save the generated binary to a specific file
+name instead of stdout.
+
+You can pass the items to the FRU generator either in the environment
+or on the command line.  This package has currently no support for
+specifying power consumption or such stuff, but I plan to add it as
+soon as I find some time for that.
+
+FIXME: consumption etc for FRU are here or in PTS?
+
+The following example creates a binary image for a specific board:
+
+        ./tools/fru-generator -v CERN -n FmcAdc100m14b4cha \
+               -s HCCFFIA___-CR000003 -p EDA-02063-V5-0 > eeprom.bin
+
+The following example shows a script that builds several binary EEPROM
+images for a series of boards, changing the serial number for each of
+them. The script uses a mix of environment variables and command line
+options, and uses the same string patterns shown above.
+
+        #!/bin/sh
+
+        export FRU_VENDOR="CERN"
+        export FRU_NAME="FmcAdc100m14b4cha"
+        export FRU_PART="EDA-02063-V5-0"
+
+        serial="HCCFFIA___-CR"
+
+        for number in $(seq 1 50); do
+           # build number-string "ns"
+           ns="$(printf %06d $number)"
+           ./fru-generator -s "${serial}${ns}" > eeprom-${ns}.bin
+        done
+
+
+Using SDB-FS in the EEPROM
+==========================
+
+If you want to use SDB as a filesystem in the EEPROM device within the
+mezzanine, you should create one such filesystem using gensdbfs, from
+the fpga-config-space package on OHWR.
+
+By using an SBD filesystem you can cluster several files in a single
+EEPROM, so both the host system and a soft-core running in the FPGA (if
+any) can access extra production-time information.
+
+We chose to use SDB as a storage filesystem because the format is very
+simple, and both the host system and the soft-core will likely already
+include support code for such format. The SDB library offered by the
+fpga-config-space is less than 1kB under LM32, so it proves quite up to
+the task.
+
+The SDB entry point (which acts as a directory listing) cannot live at
+offset zero in the flash device, because the FRU information must live
+there.  To avoid wasting precious storage space while still allowing
+for more-than-minimal FRU structures, the fmc.ko will look for the SDB
+record at address 256, 512 and 1024.
+
+In order to generate the complete EEPROM image you'll need a
+configuration file for gensdbfs: you tell the program where to place
+the sdb entry point, and you must force the FRU data file to be placed
+at the beginning of the storage device. If needed, you can also place
+other files at a special offset (we sometimes do it for backward
+compatibility with drivers we wrote before implementing SDB for flash
+memory).
+
+The directory tools/sdbfs of this package includes a well-commented
+example that you may want to use as a starting point (the comments are
+in the file called -SDB-CONFIG-).  Reading documentation for gensdbfs
+is a suggested first step anyways.
+
+This package (generic FMC bus support) only accesses two files in the
+EEPROM: the FRU information, at offset zero, with a suggested filename
+of IPMI-FRU and the short name for the mezzanine, in a file called
+name. The IPMI-FRU name is not mandatory, but a strongly suggested
+choice; the name filename is mandatory, because this is the preferred
+short name used by the FMC core.  For example, a name of "fdelay" may
+supplement a Product Name like "FmcDelay1ns4cha" - exactly as
+demonstrated in `tools/sdbfs'.
+
+Note: SDB access to flash memory is not yet supported, so the short
+name currently in use is just the "Product Name" FRU string.
+
+The example in tools/sdbfs includes an extra file, that is needed by
+the fine-delay driver, and must live at a known address of 0x1800.  By
+running gensdbfs on that directory you can output your binary EEPROM
+image (here below spusa$ is the shell prompt):
+
+        spusa$ ../fru-generator -v CERN -n FmcDelay1ns4cha -s proto-0 \
+                      -p EDA-02267-V3 > IPMI-FRU
+        spusa$ ls -l
+        total 16
+        -rw-rw-r-- 1 rubini staff 975 Nov 19 18:08 --SDB-CONFIG--
+        -rw-rw-r-- 1 rubini staff 216 Nov 19 18:13 IPMI-FRU
+        -rw-rw-r-- 1 rubini staff  11 Nov 19 18:04 fd-calib
+        -rw-rw-r-- 1 rubini staff   7 Nov 19 18:04 name
+        spusa$ sudo gensdbfs . /lib/firmware/fdelay-eeprom.bin
+        spusa$ sdb-read -l -e 0x100 /lib/firmware/fdelay-eeprom.bin
+        /home/rubini/wip/sdbfs/userspace/sdb-read: listing format is to be defined
+        46696c6544617461:2e202020  00000100-000018ff .
+        46696c6544617461:6e616d65  00000200-00000206 name
+        46696c6544617461:66642d63  00001800-000018ff fd-calib
+        46696c6544617461:49504d49  00000000-000000d7 IPMI-FRU
+        spusa$ ../fru-dump /lib/firmware/fdelay-eeprom.bin
+        /lib/firmware/fdelay-eeprom.bin: manufacturer: CERN
+        /lib/firmware/fdelay-eeprom.bin: product-name: FmcDelay1ns4cha
+        /lib/firmware/fdelay-eeprom.bin: serial-number: proto-0
+        /lib/firmware/fdelay-eeprom.bin: part-number: EDA-02267-V3
+
+As expected, the output file is both a proper sdbfs object and an IPMI
+FRU information blob. The fd-calib file lives at offset 0x1800 and is
+over-allocated to 256 bytes, according to the configuration file for
+gensdbfs.

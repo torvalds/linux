@@ -20,16 +20,9 @@ symbols have been introduced.
 To see a list of new config symbols when using "make oldconfig", use
 
 	cp user/some/old.config .config
-	yes "" | make oldconfig >conf.new
+	make listnewconfig
 
-and the config program will list as (NEW) any new symbols that have
-unknown values.  Of course, the .config file is also updated with
-new (default) values, so you can use:
-
-	grep "(NEW)" conf.new
-
-to see the new config symbols or you can use diffconfig to see the
-differences between the previous and new .config files:
+and the config program will list any new symbols, one per line.
 
 	scripts/diffconfig .config.old .config | less
 
@@ -165,7 +158,7 @@ Searching in menuconfig:
 	Example:
 		/hotplug
 		This lists all config symbols that contain "hotplug",
-		e.g., HOTPLUG, HOTPLUG_CPU, MEMORY_HOTPLUG.
+		e.g., HOTPLUG_CPU, MEMORY_HOTPLUG.
 
 	For search help, enter / followed TAB-TAB-TAB (to highlight
 	<Help>) and Enter.  This will tell you that you can also use
@@ -173,6 +166,17 @@ Searching in menuconfig:
 	are not interested in MEMORY_HOTPLUG, you could try
 
 		/^hotplug
+
+	When searching, symbols are sorted thus:
+	  - first, exact matches, sorted alphabetically (an exact match
+	    is when the search matches the complete symbol name);
+	  - then, other matches, sorted alphabetically.
+	For example: ^ATH.K matches:
+	    ATH5K ATH9K ATH5K_AHB ATH5K_DEBUG [...] ATH6KL ATH6KL_DEBUG
+	    [...] ATH9K_AHB ATH9K_BTCOEX_SUPPORT ATH9K_COMMON [...]
+	of which only ATH5K and ATH9K match exactly and so are sorted
+	first (and in alphabetical order), then come all other symbols,
+	sorted in alphabetical order.
 
 ______________________________________________________________________
 User interface options for 'menuconfig'

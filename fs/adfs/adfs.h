@@ -43,9 +43,12 @@ struct adfs_dir_ops;
  * ADFS file system superblock data in memory
  */
 struct adfs_sb_info {
-	struct adfs_discmap *s_map;	/* bh list containing map		 */
-	struct adfs_dir_ops *s_dir;	/* directory operations			 */
-
+	union { struct {
+		struct adfs_discmap *s_map;	/* bh list containing map	 */
+		struct adfs_dir_ops *s_dir;	/* directory operations		 */
+		};
+		struct rcu_head rcu;		/* used only at shutdown time	 */
+	};
 	kuid_t		s_uid;		/* owner uid				 */
 	kgid_t		s_gid;		/* owner gid				 */
 	umode_t		s_owner_mask;	/* ADFS owner perm -> unix perm		 */
@@ -150,6 +153,7 @@ extern int adfs_map_lookup(struct super_block *sb, unsigned int frag_id, unsigne
 extern unsigned int adfs_map_free(struct super_block *sb);
 
 /* Misc */
+__printf(3, 4)
 void __adfs_error(struct super_block *sb, const char *function,
 		  const char *fmt, ...);
 #define adfs_error(sb, fmt...) __adfs_error(sb, __func__, fmt)

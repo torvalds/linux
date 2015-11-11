@@ -13,8 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/kernel.h>
@@ -102,7 +101,7 @@ struct ems_pci_card {
 
 #define EMS_PCI_BASE_SIZE  4096 /* size of controller area */
 
-static DEFINE_PCI_DEVICE_TABLE(ems_pci_tbl) = {
+static const struct pci_device_id ems_pci_tbl[] = {
 	/* CPC-PCI v1 */
 	{PCI_VENDOR_ID_SIEMENS, 0x2104, PCI_ANY_ID, PCI_ANY_ID,},
 	/* CPC-PCI v2 */
@@ -207,7 +206,6 @@ static void ems_pci_del_card(struct pci_dev *pdev)
 	kfree(card);
 
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 static void ems_pci_card_reset(struct ems_pci_card *card)
@@ -325,6 +323,7 @@ static int ems_pci_add_card(struct pci_dev *pdev,
 			priv->cdr = EMS_PCI_CDR;
 
 			SET_NETDEV_DEV(dev, &pdev->dev);
+			dev->dev_id = i;
 
 			if (card->version == 1)
 				/* reset int flag of pita */

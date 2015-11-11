@@ -203,7 +203,7 @@ functions with the user provided augmentation callback when inserting
 and erasing nodes.
 
 C files implementing augmented rbtree manipulation must include
-<linux/rbtree_augmented.h> instead of <linus/rbtree.h>. Note that
+<linux/rbtree_augmented.h> instead of <linux/rbtree.h>. Note that
 linux/rbtree_augmented.h exposes some rbtree implementations details
 you are not expected to rely on; please stick to the documented APIs
 there and do not include <linux/rbtree_augmented.h> from header files
@@ -255,7 +255,7 @@ However, rbtree can be augmented to store such interval ranges in a structured
 way making it possible to do efficient lookup and exact match.
 
 This "extra information" stored in each node is the maximum hi
-(max_hi) value among all the nodes that are its descendents. This
+(max_hi) value among all the nodes that are its descendants. This
 information can be maintained at each node just be looking at the node
 and its immediate children. And this will be used in O(log n) lookup
 for lowest match (lowest start address among all possible matches)

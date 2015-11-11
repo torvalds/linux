@@ -1,0 +1,30 @@
+/*
+ * Copyright 2014 FEDEVEL, Inc.
+ *
+ * Author: Robert Nelson <robertcnelson@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ */
+/dts-v1/;
+#include "imx6dl.dtsi"
+#include "imx6qdl-rex.dtsi"
+
+/ {
+	model = "Rex Basic i.MX6 Dual Lite Board";
+	compatible = "rex,imx6dl-rex-basic", "fsl,imx6dl";
+
+	memory {
+		reg = <0x10000000 0x20000000>;
+	};
+};
+
+&ecspi3 {
+	flash: m25p80@0 {
+		compatible = "sst,sst25vf016b", "jedec,spi-nor";
+		spi-max-frequency = <20000000>;
+		reg = <0>;
+	};
+};

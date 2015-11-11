@@ -183,7 +183,7 @@ static int dom0_write_console(uint32_t vtermno, const char *str, int len)
 {
 	int rc = HYPERVISOR_console_io(CONSOLEIO_write, len, (char *)str);
 	if (rc < 0)
-		return 0;
+		return rc;
 
 	return len;
 }
@@ -200,7 +200,7 @@ static int xen_hvm_console_init(void)
 {
 	int r;
 	uint64_t v = 0;
-	unsigned long mfn;
+	unsigned long gfn;
 	struct xencons_info *info;
 
 	if (!xen_hvm_domain())
@@ -208,7 +208,7 @@ static int xen_hvm_console_init(void)
 
 	info = vtermno_to_xencons(HVC_COOKIE);
 	if (!info) {
-		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL | __GFP_ZERO);
+		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL);
 		if (!info)
 			return -ENOMEM;
 	} else if (info->intf != NULL) {
@@ -217,7 +217,7 @@ static int xen_hvm_console_init(void)
 	}
 	/*
 	 * If the toolstack (or the hypervisor) hasn't set these values, the
-	 * default value is 0. Even though mfn = 0 and evtchn = 0 are
+	 * default value is 0. Even though gfn = 0 and evtchn = 0 are
 	 * theoretically correct values, in practice they never are and they
 	 * mean that a legacy toolstack hasn't initialized the pv console correctly.
 	 */
@@ -229,8 +229,8 @@ static int xen_hvm_console_init(void)
 	r = hvm_get_parameter(HVM_PARAM_CONSOLE_PFN, &v);
 	if (r < 0 || v == 0)
 		goto err;
-	mfn = v;
-	info->intf = xen_remap(mfn << PAGE_SHIFT, PAGE_SIZE);
+	gfn = v;
+	info->intf = xen_remap(gfn << XEN_PAGE_SHIFT, XEN_PAGE_SIZE);
 	if (info->intf == NULL)
 		goto err;
 	info->vtermno = HVC_COOKIE;
@@ -257,7 +257,7 @@ static int xen_pv_console_init(void)
 
 	info = vtermno_to_xencons(HVC_COOKIE);
 	if (!info) {
-		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL | __GFP_ZERO);
+		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL);
 		if (!info)
 			return -ENOMEM;
 	} else if (info->intf != NULL) {
@@ -265,7 +265,8 @@ static int xen_pv_console_init(void)
 		return 0;
 	}
 	info->evtchn = xen_start_info->console.domU.evtchn;
-	info->intf = mfn_to_virt(xen_start_info->console.domU.mfn);
+	/* GFN == MFN for PV guest */
+	info->intf = gfn_to_virt(xen_start_info->console.domU.mfn);
 	info->vtermno = HVC_COOKIE;
 
 	spin_lock(&xencons_lock);
@@ -284,12 +285,12 @@ static int xen_initial_domain_console_init(void)
 
 	info = vtermno_to_xencons(HVC_COOKIE);
 	if (!info) {
-		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL | __GFP_ZERO);
+		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL);
 		if (!info)
 			return -ENOMEM;
 	}
 
-	info->irq = bind_virq_to_irq(VIRQ_CONSOLE, 0);
+	info->irq = bind_virq_to_irq(VIRQ_CONSOLE, 0, false);
 	info->vtermno = HVC_COOKIE;
 
 	spin_lock(&xencons_lock);
@@ -299,11 +300,27 @@ static int xen_initial_domain_console_init(void)
 	return 0;
 }
 
+static void xen_console_update_evtchn(struct xencons_info *info)
+{
+	if (xen_hvm_domain()) {
+		uint64_t v = 0;
+		int err;
+
+		err = hvm_get_parameter(HVM_PARAM_CONSOLE_EVTCHN, &v);
+		if (!err && v)
+			info->evtchn = v;
+	} else
+		info->evtchn = xen_start_info->console.domU.evtchn;
+}
+
 void xen_console_resume(void)
 {
 	struct xencons_info *info = vtermno_to_xencons(HVC_COOKIE);
-	if (info != NULL && info->irq)
+	if (info != NULL && info->irq) {
+		if (!xen_initial_domain())
+			xen_console_update_evtchn(info);
 		rebind_evtchn_irq(info->evtchn, info->irq);
+	}
 }
 
 static void xencons_disconnect_backend(struct xencons_info *info)
@@ -347,8 +364,6 @@ static int xen_console_remove(struct xencons_info *info)
 }
 
 #ifdef CONFIG_HVC_XEN_FRONTEND
-static struct xenbus_driver xencons_driver;
-
 static int xencons_remove(struct xenbus_device *dev)
 {
 	return xen_console_remove(dev_get_drvdata(&dev->dev));
@@ -360,7 +375,6 @@ static int xencons_connect_backend(struct xenbus_device *dev,
 	int ret, evtchn, devid, ref, irq;
 	struct xenbus_transaction xbt;
 	grant_ref_t gref_head;
-	unsigned long mfn;
 
 	ret = xenbus_alloc_evtchn(dev, &evtchn);
 	if (ret)
@@ -375,10 +389,6 @@ static int xencons_connect_backend(struct xenbus_device *dev,
 			irq, &domU_hvc_ops, 256);
 	if (IS_ERR(info->hvc))
 		return PTR_ERR(info->hvc);
-	if (xen_pv_domain())
-		mfn = virt_to_mfn(info->intf);
-	else
-		mfn = __pa(info->intf) >> PAGE_SHIFT;
 	ret = gnttab_alloc_grant_references(1, &gref_head);
 	if (ret < 0)
 		return ret;
@@ -387,7 +397,7 @@ static int xencons_connect_backend(struct xenbus_device *dev,
 	if (ref < 0)
 		return ref;
 	gnttab_grant_foreign_access_ref(ref, info->xbdev->otherend_id,
-			mfn, 0);
+					virt_to_gfn(info->intf), 0);
 
  again:
 	ret = xenbus_transaction_start(&xbt);
@@ -400,9 +410,6 @@ static int xencons_connect_backend(struct xenbus_device *dev,
 		goto error_xenbus;
 	ret = xenbus_printf(xbt, dev->nodename, "port", "%u",
 			    evtchn);
-	if (ret)
-		goto error_xenbus;
-	ret = xenbus_printf(xbt, dev->nodename, "type", "ioemu");
 	if (ret)
 		goto error_xenbus;
 	ret = xenbus_transaction_end(xbt, 0);
@@ -465,7 +472,7 @@ static int xencons_resume(struct xenbus_device *dev)
 	struct xencons_info *info = dev_get_drvdata(&dev->dev);
 
 	xencons_disconnect_backend(info);
-	memset(info->intf, 0, PAGE_SIZE);
+	memset(info->intf, 0, XEN_PAGE_SIZE);
 	return xencons_connect_backend(dev, info);
 }
 
@@ -502,13 +509,14 @@ static const struct xenbus_device_id xencons_ids[] = {
 	{ "" }
 };
 
-
-static DEFINE_XENBUS_DRIVER(xencons, "xenconsole",
+static struct xenbus_driver xencons_driver = {
+	.name = "xenconsole",
+	.ids = xencons_ids,
 	.probe = xencons_probe,
 	.remove = xencons_remove,
 	.resume = xencons_resume,
 	.otherend_changed = xencons_backend_changed,
-);
+};
 #endif /* CONFIG_HVC_XEN_FRONTEND */
 
 static int __init xen_hvc_init(void)
@@ -561,18 +569,7 @@ static int __init xen_hvc_init(void)
 #endif
 	return r;
 }
-
-static void __exit xen_hvc_fini(void)
-{
-	struct xencons_info *entry, *next;
-
-	if (list_empty(&xenconsoles))
-			return;
-
-	list_for_each_entry_safe(entry, next, &xenconsoles, list) {
-		xen_console_remove(entry);
-	}
-}
+device_initcall(xen_hvc_init);
 
 static int xen_cons_init(void)
 {
@@ -598,10 +595,6 @@ static int xen_cons_init(void)
 	hvc_instantiate(HVC_COOKIE, 0, ops);
 	return 0;
 }
-
-
-module_init(xen_hvc_init);
-module_exit(xen_hvc_fini);
 console_initcall(xen_cons_init);
 
 #ifdef CONFIG_EARLY_PRINTK
@@ -636,12 +629,28 @@ struct console xenboot_console = {
 	.name		= "xenboot",
 	.write		= xenboot_write_console,
 	.flags		= CON_PRINTBUFFER | CON_BOOT | CON_ANYTIME,
+	.index		= -1,
 };
 #endif	/* CONFIG_EARLY_PRINTK */
 
 void xen_raw_console_write(const char *str)
 {
-	dom0_write_console(0, str, strlen(str));
+	ssize_t len = strlen(str);
+	int rc = 0;
+
+	if (xen_domain()) {
+		rc = dom0_write_console(0, str, len);
+#ifdef CONFIG_X86
+		if (rc == -ENOSYS && xen_hvm_domain())
+			goto outb_print;
+
+	} else if (xen_cpuid_base()) {
+		int i;
+outb_print:
+		for (i = 0; i < len; i++)
+			outb(str[i], 0xe9);
+#endif
+	}
 }
 
 void xen_raw_printk(const char *fmt, ...)

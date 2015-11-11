@@ -1,0 +1,53 @@
+* NXP PCA954x I2C bus switch
+
+Required Properties:
+
+  - compatible: Must contain one of the following.
+    "nxp,pca9540", "nxp,pca9542", "nxp,pca9543", "nxp,pca9544",
+    "nxp,pca9545", "nxp,pca9546", "nxp,pca9547", "nxp,pca9548"
+
+  - reg: The I2C address of the device.
+
+  The following required properties are defined externally:
+
+  - Standard I2C mux properties. See i2c-mux.txt in this directory.
+  - I2C child bus nodes. See i2c-mux.txt in this directory.
+
+Optional Properties:
+
+  - reset-gpios: Reference to the GPIO connected to the reset input.
+  - i2c-mux-idle-disconnect: Boolean; if defined, forces mux to disconnect all
+    children in idle state. This is necessary for example, if there are several
+    multiplexers on the bus and the devices behind them use same I2C addresses.
+
+
+Example:
+
+	i2c-switch@74 {
+		compatible = "nxp,pca9548";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x74>;
+
+		i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+
+			eeprom@54 {
+				compatible = "at,24c08";
+				reg = <0x54>;
+			};
+		};
+
+		i2c@4 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <4>;
+
+			rtc@51 {
+				compatible = "nxp,pcf8563";
+				reg = <0x51>;
+			};
+		};
+	};

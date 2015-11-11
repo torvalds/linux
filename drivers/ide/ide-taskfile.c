@@ -186,7 +186,7 @@ static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 	    tf->command == ATA_CMD_CHK_POWER) {
 		struct request *rq = hwif->rq;
 
-		if (blk_pm_request(rq))
+		if (ata_pm_request(rq))
 			ide_complete_pm_rq(drive, rq);
 		else
 			ide_finish_cmd(drive, cmd, stat);
@@ -239,15 +239,14 @@ void ide_pio_bytes(ide_drive_t *drive, struct ide_cmd *cmd,
 		unsigned nr_bytes = min(len, cursg->length - cmd->cursg_ofs);
 		int page_is_high;
 
-		if (nr_bytes > PAGE_SIZE)
-			nr_bytes = PAGE_SIZE;
-
 		page = sg_page(cursg);
 		offset = cursg->offset + cmd->cursg_ofs;
 
 		/* get the current page and offset */
 		page = nth_page(page, (offset >> PAGE_SHIFT));
 		offset %= PAGE_SIZE;
+
+		nr_bytes = min_t(unsigned, nr_bytes, (PAGE_SIZE - offset));
 
 		page_is_high = PageHighMem(page);
 		if (page_is_high)
@@ -431,7 +430,7 @@ int ide_raw_taskfile(ide_drive_t *drive, struct ide_cmd *cmd, u8 *buf,
 	int error;
 	int rw = !(cmd->tf_flags & IDE_TFLAG_WRITE) ? READ : WRITE;
 
-	rq = blk_get_request(drive->queue, rw, __GFP_WAIT);
+	rq = blk_get_request(drive->queue, rw, __GFP_RECLAIM);
 	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
 
 	/*
@@ -442,7 +441,7 @@ int ide_raw_taskfile(ide_drive_t *drive, struct ide_cmd *cmd, u8 *buf,
 	 */
 	if (nsect) {
 		error = blk_rq_map_kern(drive->queue, rq, buf,
-					nsect * SECTOR_SIZE, __GFP_WAIT);
+					nsect * SECTOR_SIZE, __GFP_RECLAIM);
 		if (error)
 			goto put_req;
 	}

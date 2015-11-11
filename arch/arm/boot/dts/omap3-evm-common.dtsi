@@ -1,0 +1,161 @@
+/*
+ * Common support for omap3 EVM boards
+ */
+
+#include <dt-bindings/input/input.h>
+#include "omap-gpmc-smsc911x.dtsi"
+
+/ {
+	cpus {
+		cpu@0 {
+			cpu0-supply = <&vcc>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		ledb {
+			label = "omap3evm::ledb";
+			gpios = <&twl_gpio 19 GPIO_ACTIVE_HIGH>; /* LEDB */
+			linux,default-trigger = "default-on";
+		};
+	};
+
+	wl12xx_vmmc: wl12xx_vmmc {
+		compatible = "regulator-fixed";
+		regulator-name = "vwl1271";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio5 22 GPIO_ACTIVE_HIGH>;	/* gpio150 */
+		startup-delay-us = <70000>;
+		enable-active-high;
+		vin-supply = <&vmmc2>;
+	};
+};
+
+&i2c1 {
+	clock-frequency = <2600000>;
+
+	twl: twl@48 {
+		reg = <0x48>;
+		interrupts = <7>; /* SYS_NIRQ cascaded to intc */
+		interrupt-parent = <&intc>;
+	};
+};
+
+#include "twl4030.dtsi"
+#include "twl4030_omap3.dtsi"
+#include "omap3-panel-sharp-ls037v7dw01.dtsi"
+
+&backlight0 {
+	gpios = <&twl_gpio 18 GPIO_ACTIVE_LOW>;
+};
+
+&twl {
+	twl_power: power {
+		compatible = "ti,twl4030-power-omap3-evm", "ti,twl4030-power-idle";
+		ti,use_poweroff;
+	};
+};
+
+&i2c2 {
+	clock-frequency = <400000>;
+};
+
+&i2c3 {
+	clock-frequency = <400000>;
+
+	/*
+	 * TVP5146 Video decoder-in for analog input support.
+	 */
+	tvp5146@5c {
+		compatible = "ti,tvp5146m2";
+		reg = <0x5c>;
+	};
+};
+
+&lcd_3v3 {
+	gpio = <&gpio5 25 GPIO_ACTIVE_LOW>;	/* gpio153 */
+	enable-active-low;
+};
+
+&lcd0 {
+	enable-gpios = <&gpio5 24 GPIO_ACTIVE_HIGH>;	/* gpio152, lcd INI */
+	reset-gpios = <&gpio5 27 GPIO_ACTIVE_HIGH>;	/* gpio155, lcd RESB */
+	mode-gpios = <&gpio5 26 GPIO_ACTIVE_HIGH	/* gpio154, lcd MO */
+		      &gpio1 2 GPIO_ACTIVE_HIGH		/* gpio2, lcd LR */
+		      &gpio1 3 GPIO_ACTIVE_HIGH>;	/* gpio3, lcd UD */
+};
+
+&mcspi1 {
+	tsc2046@0 {
+		interrupt-parent = <&gpio6>;
+		interrupts = <15 0>;		/* gpio175 */
+		pendown-gpio = <&gpio6 15 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&mmc1 {
+	interrupts-extended = <&intc 83 &omap3_pmx_core 0x11a>;
+	vmmc-supply = <&vmmc1>;
+	vmmc_aux-supply = <&vsim>;
+	bus-width = <8>;
+};
+
+&mmc2 {
+	vmmc-supply = <&wl12xx_vmmc>;
+	non-removable;
+	bus-width = <4>;
+	cap-power-off-card;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	wlcore: wlcore@2 {
+		compatible = "ti,wl1271";
+		reg = <2>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <21 IRQ_TYPE_LEVEL_HIGH>; /* gpio 149 */
+		ref-clock-frequency = <38400000>;
+	};
+};
+
+&twl_gpio {
+	ti,use-leds;
+};
+
+&twl_keypad {
+	linux,keymap = <
+			MATRIX_KEY(2, 2, KEY_1)
+			MATRIX_KEY(1, 1, KEY_2)
+			MATRIX_KEY(0, 0, KEY_3)
+			MATRIX_KEY(3, 2, KEY_4)
+			MATRIX_KEY(2, 1, KEY_5)
+			MATRIX_KEY(1, 0, KEY_6)
+			MATRIX_KEY(1, 3, KEY_7)
+			MATRIX_KEY(3, 1, KEY_8)
+			MATRIX_KEY(2, 0, KEY_9)
+			MATRIX_KEY(2, 3, KEY_KPASTERISK)
+			MATRIX_KEY(0, 2, KEY_0)
+			MATRIX_KEY(3, 0, KEY_KPDOT)
+			/* s4 not wired */
+			MATRIX_KEY(1, 2, KEY_BACKSPACE)
+			MATRIX_KEY(0, 1, KEY_ENTER)
+			>;
+};
+
+&usb_otg_hs {
+	interface-type = <0>;
+	usb-phy = <&usb2_phy>;
+	phys = <&usb2_phy>;
+	phy-names = "usb2-phy";
+	mode = <3>;
+	power = <50>;
+};
+
+&gpmc {
+	ethernet@gpmc {
+		interrupt-parent = <&gpio6>;
+		interrupts = <16 8>;
+		reg = <5 0 0xff>;
+	};
+};

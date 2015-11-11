@@ -293,7 +293,7 @@ static int tda7432_s_ctrl(struct v4l2_ctrl *ctrl)
 		if (t->mute->val) {
 			lf |= TDA7432_MUTE;
 			lr |= TDA7432_MUTE;
-			lf |= TDA7432_MUTE;
+			rf |= TDA7432_MUTE;
 			rr |= TDA7432_MUTE;
 		}
 		/* Mute & update balance*/
@@ -331,13 +331,6 @@ static const struct v4l2_ctrl_ops tda7432_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops tda7432_core_ops = {
 	.log_status = tda7432_log_status,
-	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
-	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
-	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
-	.g_ctrl = v4l2_subdev_g_ctrl,
-	.s_ctrl = v4l2_subdev_s_ctrl,
-	.queryctrl = v4l2_subdev_queryctrl,
-	.querymenu = v4l2_subdev_querymenu,
 };
 
 static const struct v4l2_subdev_ops tda7432_ops = {
@@ -359,7 +352,7 @@ static int tda7432_probe(struct i2c_client *client,
 	v4l_info(client, "chip found @ 0x%02x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	t = kzalloc(sizeof(*t), GFP_KERNEL);
+	t = devm_kzalloc(&client->dev, sizeof(*t), GFP_KERNEL);
 	if (!t)
 		return -ENOMEM;
 	sd = &t->sd;
@@ -380,7 +373,6 @@ static int tda7432_probe(struct i2c_client *client,
 		int err = t->hdl.error;
 
 		v4l2_ctrl_handler_free(&t->hdl);
-		kfree(t);
 		return err;
 	}
 	v4l2_ctrl_cluster(2, &t->bass);
@@ -406,7 +398,6 @@ static int tda7432_remove(struct i2c_client *client)
 	tda7432_set(sd);
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&t->hdl);
-	kfree(t);
 	return 0;
 }
 
@@ -418,7 +409,6 @@ MODULE_DEVICE_TABLE(i2c, tda7432_id);
 
 static struct i2c_driver tda7432_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "tda7432",
 	},
 	.probe		= tda7432_probe,

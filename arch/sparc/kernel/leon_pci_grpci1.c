@@ -80,7 +80,7 @@ struct grpci1_regs {
 
 struct grpci1_priv {
 	struct leon_pci_info	info; /* must be on top of this structure */
-	struct grpci1_regs	*regs;		/* GRPCI register map */
+	struct grpci1_regs __iomem *regs;		/* GRPCI register map */
 	struct device		*dev;
 	int			pci_err_mask;	/* STATUS register error mask */
 	int			irq;		/* LEON irqctrl GRPCI IRQ */
@@ -101,7 +101,7 @@ static struct grpci1_priv *grpci1priv;
 static int grpci1_cfg_w32(struct grpci1_priv *priv, unsigned int bus,
 				unsigned int devfn, int where, u32 val);
 
-int grpci1_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+static int grpci1_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	struct grpci1_priv *priv = dev->bus->sysdata;
 	int irq_group;
@@ -144,7 +144,7 @@ static int grpci1_cfg_r32(struct grpci1_priv *priv, unsigned int bus,
 		grpci1_cfg_w32(priv, TGT, 0, PCI_COMMAND, tmp);
 	} else {
 		/* Bus always little endian (unaffected by byte-swapping) */
-		*val = flip_dword(tmp);
+		*val = swab32(tmp);
 	}
 
 	return 0;
@@ -197,7 +197,7 @@ static int grpci1_cfg_w32(struct grpci1_priv *priv, unsigned int bus,
 
 	pci_conf = (unsigned int *) (priv->pci_conf |
 						(devfn << 8) | (where & 0xfc));
-	LEON3_BYPASS_STORE_PA(pci_conf, flip_dword(val));
+	LEON3_BYPASS_STORE_PA(pci_conf, swab32(val));
 
 	return 0;
 }
@@ -357,7 +357,7 @@ static struct irq_chip grpci1_irq = {
 };
 
 /* Handle one or multiple IRQs from the PCI core */
-static void grpci1_pci_flow_irq(unsigned int irq, struct irq_desc *desc)
+static void grpci1_pci_flow_irq(struct irq_desc *desc)
 {
 	struct grpci1_priv *priv = grpci1priv;
 	int i, ack = 0;
@@ -417,10 +417,10 @@ out:
  *  BAR1: peripheral DMA to host's memory (size at least 256MByte)
  *  BAR2..BAR5: not implemented in hardware
  */
-void grpci1_hw_init(struct grpci1_priv *priv)
+static void grpci1_hw_init(struct grpci1_priv *priv)
 {
 	u32 ahbadr, bar_sz, data, pciadr;
-	struct grpci1_regs *regs = priv->regs;
+	struct grpci1_regs __iomem *regs = priv->regs;
 
 	/* set 1:1 mapping between AHB -> PCI memory space */
 	REGSTORE(regs->cfg_stat, priv->pci_area & 0xf0000000);
@@ -509,7 +509,7 @@ static irqreturn_t grpci1_err_interrupt(int irq, void *arg)
 
 static int grpci1_of_probe(struct platform_device *ofdev)
 {
-	struct grpci1_regs *regs;
+	struct grpci1_regs __iomem *regs;
 	struct grpci1_priv *priv;
 	int err, len;
 	const int *tmp;
@@ -690,7 +690,7 @@ err3:
 err2:
 	release_resource(&priv->info.mem_space);
 err1:
-	iounmap((void *)priv->pci_io_va);
+	iounmap((void __iomem *)priv->pci_io_va);
 	grpci1priv = NULL;
 	return err;
 }
@@ -708,7 +708,6 @@ static struct of_device_id grpci1_of_match[] = {
 static struct platform_driver grpci1_of_driver = {
 	.driver = {
 		.name = "grpci1",
-		.owner = THIS_MODULE,
 		.of_match_table = grpci1_of_match,
 	},
 	.probe = grpci1_of_probe,

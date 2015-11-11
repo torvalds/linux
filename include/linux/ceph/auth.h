@@ -13,6 +13,7 @@
 
 struct ceph_auth_client;
 struct ceph_authorizer;
+struct ceph_msg;
 
 struct ceph_auth_handshake {
 	struct ceph_authorizer *authorizer;
@@ -20,6 +21,10 @@ struct ceph_auth_handshake {
 	size_t authorizer_buf_len;
 	void *authorizer_reply_buf;
 	size_t authorizer_reply_buf_len;
+	int (*sign_message)(struct ceph_auth_handshake *auth,
+			    struct ceph_msg *msg);
+	int (*check_message_signature)(struct ceph_auth_handshake *auth,
+				       struct ceph_msg *msg);
 };
 
 struct ceph_auth_client_ops {
@@ -66,6 +71,11 @@ struct ceph_auth_client_ops {
 	void (*reset)(struct ceph_auth_client *ac);
 
 	void (*destroy)(struct ceph_auth_client *ac);
+
+	int (*sign_message)(struct ceph_auth_handshake *auth,
+			    struct ceph_msg *msg);
+	int (*check_message_signature)(struct ceph_auth_handshake *auth,
+				       struct ceph_msg *msg);
 };
 
 struct ceph_auth_client {
@@ -113,4 +123,20 @@ extern int ceph_auth_verify_authorizer_reply(struct ceph_auth_client *ac,
 extern void ceph_auth_invalidate_authorizer(struct ceph_auth_client *ac,
 					    int peer_type);
 
+static inline int ceph_auth_sign_message(struct ceph_auth_handshake *auth,
+					 struct ceph_msg *msg)
+{
+	if (auth->sign_message)
+		return auth->sign_message(auth, msg);
+	return 0;
+}
+
+static inline
+int ceph_auth_check_message_signature(struct ceph_auth_handshake *auth,
+				      struct ceph_msg *msg)
+{
+	if (auth->check_message_signature)
+		return auth->check_message_signature(auth, msg);
+	return 0;
+}
 #endif

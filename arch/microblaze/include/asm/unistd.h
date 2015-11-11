@@ -19,7 +19,6 @@
 #define __ARCH_WANT_SYS_ALARM
 #define __ARCH_WANT_SYS_GETHOSTNAME
 #define __ARCH_WANT_SYS_PAUSE
-#define __ARCH_WANT_SYS_SGETMASK
 #define __ARCH_WANT_SYS_SIGNAL
 #define __ARCH_WANT_SYS_TIME
 #define __ARCH_WANT_SYS_UTIME
@@ -38,4 +37,7 @@
 #define __ARCH_WANT_SYS_FORK
 
 #endif /* __ASSEMBLY__ */
+
+#define __NR_syscalls         389
+
 #endif /* _ASM_MICROBLAZE_UNISTD_H */

@@ -80,7 +80,7 @@ static int cirrus_ttm_global_init(struct cirrus_device *cirrus)
 	return 0;
 }
 
-void
+static void
 cirrus_ttm_global_release(struct cirrus_device *cirrus)
 {
 	if (cirrus->ttm.mem_global_ref.release == NULL)
@@ -102,7 +102,7 @@ static void cirrus_bo_ttm_destroy(struct ttm_buffer_object *tbo)
 	kfree(bo);
 }
 
-bool cirrus_ttm_bo_is_cirrus_bo(struct ttm_buffer_object *bo)
+static bool cirrus_ttm_bo_is_cirrus_bo(struct ttm_buffer_object *bo)
 {
 	if (bo->destroy == &cirrus_bo_ttm_destroy)
 		return true;
@@ -148,7 +148,9 @@ cirrus_bo_evict_flags(struct ttm_buffer_object *bo, struct ttm_placement *pl)
 
 static int cirrus_bo_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 {
-	return 0;
+	struct cirrus_bo *cirrusbo = cirrus_bo(bo);
+
+	return drm_vma_node_verify_access(&cirrusbo->gem.vma_node, filp);
 }
 
 static int cirrus_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
@@ -206,7 +208,7 @@ static struct ttm_backend_func cirrus_tt_backend_func = {
 };
 
 
-struct ttm_tt *cirrus_ttm_tt_create(struct ttm_bo_device *bdev,
+static struct ttm_tt *cirrus_ttm_tt_create(struct ttm_bo_device *bdev,
 				 unsigned long size, uint32_t page_flags,
 				 struct page *dummy_read_page)
 {
@@ -257,7 +259,9 @@ int cirrus_mm_init(struct cirrus_device *cirrus)
 
 	ret = ttm_bo_device_init(&cirrus->ttm.bdev,
 				 cirrus->ttm.bo_global_ref.ref.object,
-				 &cirrus_bo_driver, DRM_FILE_PAGE_OFFSET,
+				 &cirrus_bo_driver,
+				 dev->anon_inode->i_mapping,
+				 DRM_FILE_PAGE_OFFSET,
 				 true);
 	if (ret) {
 		DRM_ERROR("Error initialising bo driver; %d\n", ret);
@@ -271,9 +275,8 @@ int cirrus_mm_init(struct cirrus_device *cirrus)
 		return ret;
 	}
 
-	cirrus->fb_mtrr = drm_mtrr_add(pci_resource_start(dev->pdev, 0),
-				    pci_resource_len(dev->pdev, 0),
-				    DRM_MTRR_WC);
+	cirrus->fb_mtrr = arch_phys_wc_add(pci_resource_start(dev->pdev, 0),
+					   pci_resource_len(dev->pdev, 0));
 
 	cirrus->mm_inited = true;
 	return 0;
@@ -281,8 +284,6 @@ int cirrus_mm_init(struct cirrus_device *cirrus)
 
 void cirrus_mm_fini(struct cirrus_device *cirrus)
 {
-	struct drm_device *dev = cirrus->dev;
-
 	if (!cirrus->mm_inited)
 		return;
 
@@ -290,47 +291,28 @@ void cirrus_mm_fini(struct cirrus_device *cirrus)
 
 	cirrus_ttm_global_release(cirrus);
 
-	if (cirrus->fb_mtrr >= 0) {
-		drm_mtrr_del(cirrus->fb_mtrr,
-			     pci_resource_start(dev->pdev, 0),
-			     pci_resource_len(dev->pdev, 0), DRM_MTRR_WC);
-		cirrus->fb_mtrr = -1;
-	}
+	arch_phys_wc_del(cirrus->fb_mtrr);
+	cirrus->fb_mtrr = 0;
 }
 
 void cirrus_ttm_placement(struct cirrus_bo *bo, int domain)
 {
 	u32 c = 0;
-	bo->placement.fpfn = 0;
-	bo->placement.lpfn = 0;
+	unsigned i;
 	bo->placement.placement = bo->placements;
 	bo->placement.busy_placement = bo->placements;
 	if (domain & TTM_PL_FLAG_VRAM)
-		bo->placements[c++] = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_VRAM;
+		bo->placements[c++].flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_VRAM;
 	if (domain & TTM_PL_FLAG_SYSTEM)
-		bo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
+		bo->placements[c++].flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
 	if (!c)
-		bo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
+		bo->placements[c++].flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
 	bo->placement.num_placement = c;
 	bo->placement.num_busy_placement = c;
-}
-
-int cirrus_bo_reserve(struct cirrus_bo *bo, bool no_wait)
-{
-	int ret;
-
-	ret = ttm_bo_reserve(&bo->bo, true, no_wait, false, 0);
-	if (ret) {
-		if (ret != -ERESTARTSYS && ret != -EBUSY)
-			DRM_ERROR("reserve failed %p\n", bo);
-		return ret;
+	for (i = 0; i < c; ++i) {
+		bo->placements[i].fpfn = 0;
+		bo->placements[i].lpfn = 0;
 	}
-	return 0;
-}
-
-void cirrus_bo_unreserve(struct cirrus_bo *bo)
-{
-	ttm_bo_unreserve(&bo->bo);
 }
 
 int cirrus_bo_create(struct drm_device *dev, int size, int align,
@@ -351,7 +333,6 @@ int cirrus_bo_create(struct drm_device *dev, int size, int align,
 		return ret;
 	}
 
-	cirrusbo->gem.driver_private = NULL;
 	cirrusbo->bo.bdev = &cirrus->ttm.bdev;
 
 	cirrus_ttm_placement(cirrusbo, TTM_PL_FLAG_VRAM | TTM_PL_FLAG_SYSTEM);
@@ -362,7 +343,7 @@ int cirrus_bo_create(struct drm_device *dev, int size, int align,
 	ret = ttm_bo_init(&cirrus->ttm.bdev, &cirrusbo->bo, size,
 			  ttm_bo_type_device, &cirrusbo->placement,
 			  align >> PAGE_SHIFT, false, NULL, acc_size,
-			  NULL, cirrus_bo_ttm_destroy);
+			  NULL, NULL, cirrus_bo_ttm_destroy);
 	if (ret)
 		return ret;
 
@@ -387,7 +368,7 @@ int cirrus_bo_pin(struct cirrus_bo *bo, u32 pl_flag, u64 *gpu_addr)
 
 	cirrus_ttm_placement(bo, pl_flag);
 	for (i = 0; i < bo->placement.num_placement; i++)
-		bo->placements[i] |= TTM_PL_FLAG_NO_EVICT;
+		bo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
 	ret = ttm_bo_validate(&bo->bo, &bo->placement, false, false);
 	if (ret)
 		return ret;
@@ -395,26 +376,6 @@ int cirrus_bo_pin(struct cirrus_bo *bo, u32 pl_flag, u64 *gpu_addr)
 	bo->pin_count = 1;
 	if (gpu_addr)
 		*gpu_addr = cirrus_bo_gpu_offset(bo);
-	return 0;
-}
-
-int cirrus_bo_unpin(struct cirrus_bo *bo)
-{
-	int i, ret;
-	if (!bo->pin_count) {
-		DRM_ERROR("unpin bad %p\n", bo);
-		return 0;
-	}
-	bo->pin_count--;
-	if (bo->pin_count)
-		return 0;
-
-	for (i = 0; i < bo->placement.num_placement ; i++)
-		bo->placements[i] &= ~TTM_PL_FLAG_NO_EVICT;
-	ret = ttm_bo_validate(&bo->bo, &bo->placement, false, false);
-	if (ret)
-		return ret;
-
 	return 0;
 }
 
@@ -434,7 +395,7 @@ int cirrus_bo_push_sysram(struct cirrus_bo *bo)
 
 	cirrus_ttm_placement(bo, TTM_PL_FLAG_SYSTEM);
 	for (i = 0; i < bo->placement.num_placement ; i++)
-		bo->placements[i] |= TTM_PL_FLAG_NO_EVICT;
+		bo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
 
 	ret = ttm_bo_validate(&bo->bo, &bo->placement, false, false);
 	if (ret) {
@@ -450,7 +411,7 @@ int cirrus_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct cirrus_device *cirrus;
 
 	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET))
-		return drm_mmap(filp, vma);
+		return -EINVAL;
 
 	file_priv = filp->private_data;
 	cirrus = file_priv->minor->dev->dev_private;

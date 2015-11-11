@@ -56,10 +56,8 @@ struct snd_seq_timer *snd_seq_timer_new(void)
 	struct snd_seq_timer *tmr;
 	
 	tmr = kzalloc(sizeof(*tmr), GFP_KERNEL);
-	if (tmr == NULL) {
-		snd_printd("malloc failed for snd_seq_timer_new() \n");
+	if (!tmr)
 		return NULL;
-	}
 	spin_lock_init(&tmr->lock);
 
 	/* reset setup to defaults */
@@ -78,7 +76,7 @@ void snd_seq_timer_delete(struct snd_seq_timer **tmr)
 	*tmr = NULL;
 
 	if (t == NULL) {
-		snd_printd("oops: snd_seq_timer_delete() called with NULL timer\n");
+		pr_debug("ALSA: seq: snd_seq_timer_delete() called with NULL timer\n");
 		return;
 	}
 	t->running = 0;
@@ -199,7 +197,7 @@ int snd_seq_timer_set_ppq(struct snd_seq_timer * tmr, int ppq)
 		/* refuse to change ppq on running timers */
 		/* because it will upset the song position (ticks) */
 		spin_unlock_irqrestore(&tmr->lock, flags);
-		snd_printd("seq: cannot change ppq of a running timer\n");
+		pr_debug("ALSA: seq: cannot change ppq of a running timer\n");
 		return -EBUSY;
 	}
 
@@ -252,7 +250,7 @@ int snd_seq_timer_set_skew(struct snd_seq_timer *tmr, unsigned int skew,
 
 	/* FIXME */
 	if (base != SKEW_BASE) {
-		snd_printd("invalid skew base 0x%x\n", base);
+		pr_debug("ALSA: seq: invalid skew base 0x%x\n", base);
 		return -EINVAL;
 	}
 	spin_lock_irqsave(&tmr->lock, flags);
@@ -292,7 +290,7 @@ int snd_seq_timer_open(struct snd_seq_queue *q)
 		}
 	}
 	if (err < 0) {
-		snd_printk(KERN_ERR "seq fatal error: cannot create timer (%i)\n", err);
+		pr_err("ALSA: seq fatal error: cannot create timer (%i)\n", err);
 		return err;
 	}
 	t->callback = snd_seq_timer_interrupt;
@@ -424,7 +422,7 @@ snd_seq_tick_time_t snd_seq_timer_get_cur_tick(struct snd_seq_timer *tmr)
 }
 
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 /* exported to seq_info.c */
 void snd_seq_info_timer_read(struct snd_info_entry *entry,
 			     struct snd_info_buffer *buffer)
@@ -451,5 +449,5 @@ void snd_seq_info_timer_read(struct snd_info_entry *entry,
 		queuefree(q);
  	}
 }
-#endif /* CONFIG_PROC_FS */
+#endif /* CONFIG_SND_PROC_FS */
 

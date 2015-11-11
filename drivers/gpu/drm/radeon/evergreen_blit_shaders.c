@@ -32,7 +32,7 @@
  * evergreen cards need to use the 3D engine to blit data which requires
  * quite a bit of hw state setup.  Rather than pull the whole 3D driver
  * (which normally generates the 3D state) into the DRM, we opt to use
- * statically generated state tables.  The regsiter state and shaders
+ * statically generated state tables.  The register state and shaders
  * were hand generated to support blitting functionality.  See the 3D
  * driver or documentation for descriptions of the registers and
  * shader instructions.
@@ -300,58 +300,4 @@ const u32 evergreen_default_state[] =
 	0x00000010, /*  */
 };
 
-const u32 evergreen_vs[] =
-{
-	0x00000004,
-	0x80800400,
-	0x0000a03c,
-	0x95000688,
-	0x00004000,
-	0x15200688,
-	0x00000000,
-	0x00000000,
-	0x3c000000,
-	0x67961001,
-#ifdef __BIG_ENDIAN
-	0x000a0000,
-#else
-	0x00080000,
-#endif
-	0x00000000,
-	0x1c000000,
-	0x67961000,
-#ifdef __BIG_ENDIAN
-	0x00020008,
-#else
-	0x00000008,
-#endif
-	0x00000000,
-};
-
-const u32 evergreen_ps[] =
-{
-	0x00000003,
-	0xa00c0000,
-	0x00000008,
-	0x80400000,
-	0x00000000,
-	0x95200688,
-	0x00380400,
-	0x00146b10,
-	0x00380000,
-	0x20146b10,
-	0x00380400,
-	0x40146b00,
-	0x80380000,
-	0x60146b00,
-	0x00000000,
-	0x00000000,
-	0x00000010,
-	0x000d1000,
-	0xb0800000,
-	0x00000000,
-};
-
-const u32 evergreen_ps_size = ARRAY_SIZE(evergreen_ps);
-const u32 evergreen_vs_size = ARRAY_SIZE(evergreen_vs);
 const u32 evergreen_default_size = ARRAY_SIZE(evergreen_default_state);

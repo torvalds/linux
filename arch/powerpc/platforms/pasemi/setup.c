@@ -393,7 +393,7 @@ static inline void pasemi_pcmcia_init(void)
 #endif
 
 
-static struct of_device_id pasemi_bus_ids[] = {
+static const struct of_device_id pasemi_bus_ids[] = {
 	/* Unfortunately needed for legacy firmwares */
 	{ .type = "localbus", },
 	{ .type = "sdc", },

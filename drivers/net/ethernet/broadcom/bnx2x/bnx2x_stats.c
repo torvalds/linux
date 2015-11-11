@@ -1,12 +1,14 @@
-/* bnx2x_stats.c: Broadcom Everest network driver.
+/* bnx2x_stats.c: QLogic Everest network driver.
  *
  * Copyright (c) 2007-2013 Broadcom Corporation
+ * Copyright (c) 2014 QLogic Corporation
+ * All rights reserved
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation.
  *
- * Maintained by: Eilon Greenstein <eilong@broadcom.com>
+ * Maintained by: Ariel Elior <ariel.elior@qlogic.com>
  * Written by: Eliezer Tamir
  * Based on code from Michael Chan's bnx2 driver
  * UDP CSUM errata workaround by Arik Gendelman
@@ -123,36 +125,28 @@ static void bnx2x_dp_stats(struct bnx2x *bp)
  */
 static void bnx2x_storm_stats_post(struct bnx2x *bp)
 {
-	if (!bp->stats_pending) {
-		int rc;
+	int rc;
 
-		spin_lock_bh(&bp->stats_lock);
+	if (bp->stats_pending)
+		return;
 
-		if (bp->stats_pending) {
-			spin_unlock_bh(&bp->stats_lock);
-			return;
-		}
+	bp->fw_stats_req->hdr.drv_stats_counter =
+		cpu_to_le16(bp->stats_counter++);
 
-		bp->fw_stats_req->hdr.drv_stats_counter =
-			cpu_to_le16(bp->stats_counter++);
+	DP(BNX2X_MSG_STATS, "Sending statistics ramrod %d\n",
+	   le16_to_cpu(bp->fw_stats_req->hdr.drv_stats_counter));
 
-		DP(BNX2X_MSG_STATS, "Sending statistics ramrod %d\n",
-			bp->fw_stats_req->hdr.drv_stats_counter);
+	/* adjust the ramrod to include VF queues statistics */
+	bnx2x_iov_adjust_stats_req(bp);
+	bnx2x_dp_stats(bp);
 
-		/* adjust the ramrod to include VF queues statistics */
-		bnx2x_iov_adjust_stats_req(bp);
-		bnx2x_dp_stats(bp);
-
-		/* send FW stats ramrod */
-		rc = bnx2x_sp_post(bp, RAMROD_CMD_ID_COMMON_STAT_QUERY, 0,
-				   U64_HI(bp->fw_stats_req_mapping),
-				   U64_LO(bp->fw_stats_req_mapping),
-				   NONE_CONNECTION_TYPE);
-		if (rc == 0)
-			bp->stats_pending = 1;
-
-		spin_unlock_bh(&bp->stats_lock);
-	}
+	/* send FW stats ramrod */
+	rc = bnx2x_sp_post(bp, RAMROD_CMD_ID_COMMON_STAT_QUERY, 0,
+			   U64_HI(bp->fw_stats_req_mapping),
+			   U64_LO(bp->fw_stats_req_mapping),
+			   NONE_CONNECTION_TYPE);
+	if (rc == 0)
+		bp->stats_pending = 1;
 }
 
 static void bnx2x_hw_stats_post(struct bnx2x *bp)
@@ -196,11 +190,11 @@ static void bnx2x_hw_stats_post(struct bnx2x *bp)
 
 	} else if (bp->func_stx) {
 		*stats_comp = 0;
-		bnx2x_post_dmae(bp, dmae, INIT_DMAE_C(bp));
+		bnx2x_issue_dmae_with_comp(bp, dmae, stats_comp);
 	}
 }
 
-static int bnx2x_stats_comp(struct bnx2x *bp)
+static void bnx2x_stats_comp(struct bnx2x *bp)
 {
 	u32 *stats_comp = bnx2x_sp(bp, stats_comp);
 	int cnt = 10;
@@ -214,13 +208,13 @@ static int bnx2x_stats_comp(struct bnx2x *bp)
 		cnt--;
 		usleep_range(1000, 2000);
 	}
-	return 1;
 }
 
 /*
  * Statistics service functions
  */
 
+/* should be called under stats_sema */
 static void bnx2x_stats_pmf_update(struct bnx2x *bp)
 {
 	struct dmae_command *dmae;
@@ -518,22 +512,19 @@ static void bnx2x_func_stats_init(struct bnx2x *bp)
 	*stats_comp = 0;
 }
 
+/* should be called under stats_sema */
 static void bnx2x_stats_start(struct bnx2x *bp)
 {
-	/* vfs travel through here as part of the statistics FSM, but no action
-	 * is required
-	 */
-	if (IS_VF(bp))
-		return;
+	if (IS_PF(bp)) {
+		if (bp->port.pmf)
+			bnx2x_port_stats_init(bp);
 
-	if (bp->port.pmf)
-		bnx2x_port_stats_init(bp);
+		else if (bp->func_stx)
+			bnx2x_func_stats_init(bp);
 
-	else if (bp->func_stx)
-		bnx2x_func_stats_init(bp);
-
-	bnx2x_hw_stats_post(bp);
-	bnx2x_storm_stats_post(bp);
+		bnx2x_hw_stats_post(bp);
+		bnx2x_storm_stats_post(bp);
+	}
 }
 
 static void bnx2x_stats_pmf_start(struct bnx2x *bp)
@@ -550,6 +541,7 @@ static void bnx2x_stats_restart(struct bnx2x *bp)
 	 */
 	if (IS_VF(bp))
 		return;
+
 	bnx2x_stats_comp(bp);
 	bnx2x_stats_start(bp);
 }
@@ -888,9 +880,7 @@ static int bnx2x_storm_stats_validate_counters(struct bnx2x *bp)
 	/* Make sure we use the value of the counter
 	 * used for sending the last stats ramrod.
 	 */
-	spin_lock_bh(&bp->stats_lock);
 	cur_stats_counter = bp->stats_counter - 1;
-	spin_unlock_bh(&bp->stats_lock);
 
 	/* are storm stats valid? */
 	if (le16_to_cpu(counters->xstats_counter) != cur_stats_counter) {
@@ -1001,7 +991,6 @@ static int bnx2x_storm_stats_update(struct bnx2x *bp)
 					qstats->total_bytes_received_hi;
 		qstats->valid_bytes_received_lo =
 					qstats->total_bytes_received_lo;
-
 
 		UPDATE_EXTEND_TSTAT(rcv_ucast_pkts,
 					total_unicast_packets_received);
@@ -1331,7 +1320,7 @@ static void bnx2x_port_stats_stop(struct bnx2x *bp)
 
 static void bnx2x_stats_stop(struct bnx2x *bp)
 {
-	int update = 0;
+	bool update = false;
 
 	bnx2x_stats_comp(bp);
 
@@ -1376,16 +1365,32 @@ static const struct {
 
 void bnx2x_stats_handle(struct bnx2x *bp, enum bnx2x_stats_event event)
 {
-	enum bnx2x_stats_state state;
+	enum bnx2x_stats_state state = bp->stats_state;
+
 	if (unlikely(bp->panic))
 		return;
 
-	spin_lock_bh(&bp->stats_lock);
-	state = bp->stats_state;
-	bp->stats_state = bnx2x_stats_stm[state][event].next_state;
-	spin_unlock_bh(&bp->stats_lock);
+	/* Statistics update run from timer context, and we don't want to stop
+	 * that context in case someone is in the middle of a transition.
+	 * For other events, wait a bit until lock is taken.
+	 */
+	if (down_trylock(&bp->stats_lock)) {
+		if (event == STATS_EVENT_UPDATE)
+			return;
+
+		DP(BNX2X_MSG_STATS,
+		   "Unlikely stats' lock contention [event %d]\n", event);
+		if (unlikely(down_timeout(&bp->stats_lock, HZ / 10))) {
+			BNX2X_ERR("Failed to take stats lock [event %d]\n",
+				  event);
+			return;
+		}
+	}
 
 	bnx2x_stats_stm[state][event].action(bp);
+	bp->stats_state = bnx2x_stats_stm[state][event].next_state;
+
+	up(&bp->stats_lock);
 
 	if ((event != STATS_EVENT_UPDATE) || netif_msg_timer(bp))
 		DP(BNX2X_MSG_STATS, "state %d -> event %d -> state %d\n",
@@ -1584,7 +1589,7 @@ void bnx2x_memset_stats(struct bnx2x *bp)
 	if (bp->port.pmf && bp->port.port_stx)
 		bnx2x_port_stats_base_init(bp);
 
-	/* mark the end of statistics initializiation */
+	/* mark the end of statistics initialization */
 	bp->stats_init = false;
 }
 
@@ -1592,6 +1597,11 @@ void bnx2x_stats_init(struct bnx2x *bp)
 {
 	int /*abs*/port = BP_PORT(bp);
 	int mb_idx = BP_FW_MB_IDX(bp);
+
+	if (IS_VF(bp)) {
+		bnx2x_memset_stats(bp);
+		return;
+	}
 
 	bp->stats_pending = 0;
 	bp->executer_idx = 0;
@@ -1955,4 +1965,40 @@ void bnx2x_afex_collect_stats(struct bnx2x *bp, void *void_afex_stats,
 		       afex_stats->rx_frames_discarded_lo,
 		       estats->mac_discard);
 	}
+}
+
+int bnx2x_stats_safe_exec(struct bnx2x *bp,
+			  void (func_to_exec)(void *cookie),
+			  void *cookie)
+{
+	int cnt = 10, rc = 0;
+
+	/* Wait for statistics to end [while blocking further requests],
+	 * then run supplied function 'safely'.
+	 */
+	rc = down_timeout(&bp->stats_lock, HZ / 10);
+	if (unlikely(rc)) {
+		BNX2X_ERR("Failed to take statistics lock for safe execution\n");
+		goto out_no_lock;
+	}
+
+	bnx2x_stats_comp(bp);
+	while (bp->stats_pending && cnt--)
+		if (bnx2x_storm_stats_update(bp))
+			usleep_range(1000, 2000);
+	if (bp->stats_pending) {
+		BNX2X_ERR("Failed to wait for stats pending to clear [possibly FW is stuck]\n");
+		rc = -EBUSY;
+		goto out;
+	}
+
+	func_to_exec(cookie);
+
+out:
+	/* No need to restart statistics - if they're enabled, the timer
+	 * will restart the statistics.
+	 */
+	up(&bp->stats_lock);
+out_no_lock:
+	return rc;
 }

@@ -81,7 +81,7 @@ static void ivtv_alsa_announce_pcm_data(struct snd_ivtv_card *itvsc,
 	int period_elapsed = 0;
 	int length;
 
-	dprintk("ivtv alsa announce ptr=%p data=%p num_bytes=%zd\n", itvsc,
+	dprintk("ivtv alsa announce ptr=%p data=%p num_bytes=%zu\n", itvsc,
 		pcm_data, num_bytes);
 
 	substream = itvsc->capture_pcm_substream;
@@ -159,9 +159,15 @@ static int snd_ivtv_pcm_capture_open(struct snd_pcm_substream *substream)
 
 	/* Instruct the CX2341[56] to start sending packets */
 	snd_ivtv_lock(itvsc);
+
+	if (ivtv_init_on_first_open(itv)) {
+		snd_ivtv_unlock(itvsc);
+		return -ENXIO;
+	}
+
 	s = &itv->streams[IVTV_ENC_STREAM_TYPE_PCM];
 
-	v4l2_fh_init(&item.fh, s->vdev);
+	v4l2_fh_init(&item.fh, &s->vdev);
 	item.itv = itv;
 	item.type = s->type;
 

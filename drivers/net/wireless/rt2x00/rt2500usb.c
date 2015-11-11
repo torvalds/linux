@@ -13,9 +13,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -26,7 +24,6 @@
 
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -50,7 +47,7 @@ MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
  * BBP and RF register require indirect register access,
  * and use the CSR registers BBPCSR and RFCSR to achieve this.
  * These indirect registers work with busy bits,
- * and we will try maximal REGISTER_BUSY_COUNT times to access
+ * and we will try maximal REGISTER_USB_BUSY_COUNT times to access
  * the register while taking a REGISTER_BUSY_DELAY us delay
  * between each attampt. When the busy bit is still set at that time,
  * the access attempt is considered to have failed,
@@ -65,7 +62,7 @@ static inline void rt2500usb_register_read(struct rt2x00_dev *rt2x00dev,
 	__le16 reg;
 	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_READ,
 				      USB_VENDOR_REQUEST_IN, offset,
-				      &reg, sizeof(reg), REGISTER_TIMEOUT);
+				      &reg, sizeof(reg));
 	*value = le16_to_cpu(reg);
 }
 
@@ -86,8 +83,7 @@ static inline void rt2500usb_register_multiread(struct rt2x00_dev *rt2x00dev,
 {
 	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_READ,
 				      USB_VENDOR_REQUEST_IN, offset,
-				      value, length,
-				      REGISTER_TIMEOUT16(length));
+				      value, length);
 }
 
 static inline void rt2500usb_register_write(struct rt2x00_dev *rt2x00dev,
@@ -97,7 +93,7 @@ static inline void rt2500usb_register_write(struct rt2x00_dev *rt2x00dev,
 	__le16 reg = cpu_to_le16(value);
 	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_WRITE,
 				      USB_VENDOR_REQUEST_OUT, offset,
-				      &reg, sizeof(reg), REGISTER_TIMEOUT);
+				      &reg, sizeof(reg));
 }
 
 static inline void rt2500usb_register_write_lock(struct rt2x00_dev *rt2x00dev,
@@ -116,8 +112,7 @@ static inline void rt2500usb_register_multiwrite(struct rt2x00_dev *rt2x00dev,
 {
 	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_WRITE,
 				      USB_VENDOR_REQUEST_OUT, offset,
-				      value, length,
-				      REGISTER_TIMEOUT16(length));
+				      value, length);
 }
 
 static int rt2500usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
@@ -127,7 +122,7 @@ static int rt2500usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
 {
 	unsigned int i;
 
-	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
+	for (i = 0; i < REGISTER_USB_BUSY_COUNT; i++) {
 		rt2500usb_register_read_lock(rt2x00dev, offset, reg);
 		if (!rt2x00_get_field16(*reg, field))
 			return 1;
@@ -439,10 +434,8 @@ static void rt2500usb_config_filter(struct rt2x00_dev *rt2x00dev,
 			   !(filter_flags & FIF_PLCPFAIL));
 	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_CONTROL,
 			   !(filter_flags & FIF_CONTROL));
-	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_NOT_TO_ME,
-			   !(filter_flags & FIF_PROMISC_IN_BSS));
+	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_NOT_TO_ME, 1);
 	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_TODS,
-			   !(filter_flags & FIF_PROMISC_IN_BSS) &&
 			   !rt2x00dev->intf_ap_count);
 	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_VERSION_ERROR, 1);
 	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_MULTICAST,
@@ -909,7 +902,7 @@ static int rt2500usb_wait_bbp_ready(struct rt2x00_dev *rt2x00dev)
 	unsigned int i;
 	u8 value;
 
-	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
+	for (i = 0; i < REGISTER_USB_BUSY_COUNT; i++) {
 		rt2500usb_bbp_read(rt2x00dev, 0, &value);
 		if ((value != 0xff) && (value != 0x00))
 			return 0;
@@ -1028,7 +1021,7 @@ static int rt2500usb_set_state(struct rt2x00_dev *rt2x00dev,
 	 * We must wait until the register indicates that the
 	 * device has entered the correct state.
 	 */
-	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
+	for (i = 0; i < REGISTER_USB_BUSY_COUNT; i++) {
 		rt2500usb_register_read(rt2x00dev, MAC_CSR17, &reg2);
 		bbp_state = rt2x00_get_field16(reg2, MAC_CSR17_BBP_CURR_STATE);
 		rf_state = rt2x00_get_field16(reg2, MAC_CSR17_RF_CURR_STATE);
@@ -1703,11 +1696,15 @@ static int rt2500usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	 * multicast and broadcast traffic immediately instead of buffering it
 	 * infinitly and thus dropping it after some time.
 	 */
-	rt2x00dev->hw->flags =
-	    IEEE80211_HW_RX_INCLUDES_FCS |
-	    IEEE80211_HW_SIGNAL_DBM |
-	    IEEE80211_HW_SUPPORTS_PS |
-	    IEEE80211_HW_PS_NULLFUNC_STACK;
+	ieee80211_hw_set(rt2x00dev->hw, PS_NULLFUNC_STACK);
+	ieee80211_hw_set(rt2x00dev->hw, SUPPORTS_PS);
+	ieee80211_hw_set(rt2x00dev->hw, RX_INCLUDES_FCS);
+	ieee80211_hw_set(rt2x00dev->hw, SIGNAL_DBM);
+
+	/*
+	 * Disable powersaving as default.
+	 */
+	rt2x00dev->hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	SET_IEEE80211_DEV(rt2x00dev->hw, rt2x00dev->dev);
 	SET_IEEE80211_PERM_ADDR(rt2x00dev->hw,
@@ -1867,33 +1864,45 @@ static const struct rt2x00lib_ops rt2500usb_rt2x00_ops = {
 	.config			= rt2500usb_config,
 };
 
-static const struct data_queue_desc rt2500usb_queue_rx = {
-	.entry_num		= 32,
-	.data_size		= DATA_FRAME_SIZE,
-	.desc_size		= RXD_DESC_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_usb),
-};
+static void rt2500usb_queue_init(struct data_queue *queue)
+{
+	switch (queue->qid) {
+	case QID_RX:
+		queue->limit = 32;
+		queue->data_size = DATA_FRAME_SIZE;
+		queue->desc_size = RXD_DESC_SIZE;
+		queue->priv_size = sizeof(struct queue_entry_priv_usb);
+		break;
 
-static const struct data_queue_desc rt2500usb_queue_tx = {
-	.entry_num		= 32,
-	.data_size		= DATA_FRAME_SIZE,
-	.desc_size		= TXD_DESC_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_usb),
-};
+	case QID_AC_VO:
+	case QID_AC_VI:
+	case QID_AC_BE:
+	case QID_AC_BK:
+		queue->limit = 32;
+		queue->data_size = DATA_FRAME_SIZE;
+		queue->desc_size = TXD_DESC_SIZE;
+		queue->priv_size = sizeof(struct queue_entry_priv_usb);
+		break;
 
-static const struct data_queue_desc rt2500usb_queue_bcn = {
-	.entry_num		= 1,
-	.data_size		= MGMT_FRAME_SIZE,
-	.desc_size		= TXD_DESC_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_usb_bcn),
-};
+	case QID_BEACON:
+		queue->limit = 1;
+		queue->data_size = MGMT_FRAME_SIZE;
+		queue->desc_size = TXD_DESC_SIZE;
+		queue->priv_size = sizeof(struct queue_entry_priv_usb_bcn);
+		break;
 
-static const struct data_queue_desc rt2500usb_queue_atim = {
-	.entry_num		= 8,
-	.data_size		= DATA_FRAME_SIZE,
-	.desc_size		= TXD_DESC_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_usb),
-};
+	case QID_ATIM:
+		queue->limit = 8;
+		queue->data_size = DATA_FRAME_SIZE;
+		queue->desc_size = TXD_DESC_SIZE;
+		queue->priv_size = sizeof(struct queue_entry_priv_usb);
+		break;
+
+	default:
+		BUG();
+		break;
+	}
+}
 
 static const struct rt2x00_ops rt2500usb_ops = {
 	.name			= KBUILD_MODNAME,
@@ -1901,11 +1910,7 @@ static const struct rt2x00_ops rt2500usb_ops = {
 	.eeprom_size		= EEPROM_SIZE,
 	.rf_size		= RF_SIZE,
 	.tx_queues		= NUM_TX_QUEUES,
-	.extra_tx_headroom	= TXD_DESC_SIZE,
-	.rx			= &rt2500usb_queue_rx,
-	.tx			= &rt2500usb_queue_tx,
-	.bcn			= &rt2500usb_queue_bcn,
-	.atim			= &rt2500usb_queue_atim,
+	.queue_init		= rt2500usb_queue_init,
 	.lib			= &rt2500usb_rt2x00_ops,
 	.hw			= &rt2500usb_mac80211_ops,
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS

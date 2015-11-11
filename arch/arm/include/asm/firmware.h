@@ -22,13 +22,21 @@
  */
 struct firmware_ops {
 	/*
+	 * Inform the firmware we intend to enter CPU idle mode
+	 */
+	int (*prepare_idle)(void);
+	/*
 	 * Enters CPU idle mode
 	 */
-	int (*do_idle)(void);
+	int (*do_idle)(unsigned long mode);
 	/*
 	 * Sets boot address of specified physical CPU
 	 */
 	int (*set_cpu_boot_addr)(int cpu, unsigned long boot_addr);
+	/*
+	 * Gets boot address of specified physical CPU
+	 */
+	int (*get_cpu_boot_addr)(int cpu, unsigned long *boot_addr);
 	/*
 	 * Boots specified physical CPU
 	 */
@@ -37,6 +45,14 @@ struct firmware_ops {
 	 * Initializes L2 cache
 	 */
 	int (*l2x0_init)(void);
+	/*
+	 * Enter system-wide suspend.
+	 */
+	int (*suspend)(void);
+	/*
+	 * Restore state of privileged hardware after system-wide suspend.
+	 */
+	int (*resume)(void);
 };
 
 /* Global pointer for current firmware_ops structure, can't be NULL. */

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -28,7 +28,6 @@
  *****************************************************************************/
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
@@ -76,29 +75,6 @@ static const struct ieee80211_iface_limit iwlagn_2sta_limits[] = {
 	},
 };
 
-static const struct ieee80211_iface_limit iwlagn_p2p_sta_go_limits[] = {
-	{
-		.max = 1,
-		.types = BIT(NL80211_IFTYPE_STATION),
-	},
-	{
-		.max = 1,
-		.types = BIT(NL80211_IFTYPE_P2P_GO) |
-			 BIT(NL80211_IFTYPE_AP),
-	},
-};
-
-static const struct ieee80211_iface_limit iwlagn_p2p_2sta_limits[] = {
-	{
-		.max = 2,
-		.types = BIT(NL80211_IFTYPE_STATION),
-	},
-	{
-		.max = 1,
-		.types = BIT(NL80211_IFTYPE_P2P_CLIENT),
-	},
-};
-
 static const struct ieee80211_iface_combination
 iwlagn_iface_combinations_dualmode[] = {
 	{ .num_different_channels = 1,
@@ -111,21 +87,6 @@ iwlagn_iface_combinations_dualmode[] = {
 	  .max_interfaces = 2,
 	  .limits = iwlagn_2sta_limits,
 	  .n_limits = ARRAY_SIZE(iwlagn_2sta_limits),
-	},
-};
-
-static const struct ieee80211_iface_combination
-iwlagn_iface_combinations_p2p[] = {
-	{ .num_different_channels = 1,
-	  .max_interfaces = 2,
-	  .beacon_int_infra_match = true,
-	  .limits = iwlagn_p2p_sta_go_limits,
-	  .n_limits = ARRAY_SIZE(iwlagn_p2p_sta_go_limits),
-	},
-	{ .num_different_channels = 1,
-	  .max_interfaces = 2,
-	  .limits = iwlagn_p2p_2sta_limits,
-	  .n_limits = ARRAY_SIZE(iwlagn_p2p_2sta_limits),
 	},
 };
 
@@ -143,15 +104,16 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 	hw->rate_control_algorithm = "iwl-agn-rs";
 
 	/* Tell mac80211 our characteristics */
-	hw->flags = IEEE80211_HW_SIGNAL_DBM |
-		    IEEE80211_HW_AMPDU_AGGREGATION |
-		    IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC |
-		    IEEE80211_HW_SPECTRUM_MGMT |
-		    IEEE80211_HW_REPORTS_TX_ACK_STATUS |
-		    IEEE80211_HW_QUEUE_CONTROL |
-		    IEEE80211_HW_SUPPORTS_PS |
-		    IEEE80211_HW_SUPPORTS_DYNAMIC_PS |
-		    IEEE80211_HW_WANT_MONITOR_VIF;
+	ieee80211_hw_set(hw, SIGNAL_DBM);
+	ieee80211_hw_set(hw, AMPDU_AGGREGATION);
+	ieee80211_hw_set(hw, NEED_DTIM_BEFORE_ASSOC);
+	ieee80211_hw_set(hw, SPECTRUM_MGMT);
+	ieee80211_hw_set(hw, REPORTS_TX_ACK_STATUS);
+	ieee80211_hw_set(hw, QUEUE_CONTROL);
+	ieee80211_hw_set(hw, SUPPORTS_PS);
+	ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
+	ieee80211_hw_set(hw, SUPPORT_FAST_XMIT);
+	ieee80211_hw_set(hw, WANT_MONITOR_VIF);
 
 	hw->offchannel_tx_hw_queue = IWL_AUX_QUEUE;
 	hw->radiotap_mcs_details |= IEEE80211_RADIOTAP_MCS_HAVE_FMT;
@@ -164,8 +126,8 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 	 */
 
 	if (priv->nvm_data->sku_cap_11n_enable)
-		hw->flags |= IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
-			     IEEE80211_HW_SUPPORTS_STATIC_SMPS;
+		hw->wiphy->features |= NL80211_FEATURE_DYNAMIC_SMPS |
+				       NL80211_FEATURE_STATIC_SMPS;
 
 	/*
 	 * Enable 11w if advertised by firmware and software crypto
@@ -174,7 +136,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 	 */
 	if (priv->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_MFP &&
 	    !iwlwifi_mod_params.sw_crypto)
-		hw->flags |= IEEE80211_HW_MFP_CAPABLE;
+		ieee80211_hw_set(hw, MFP_CAPABLE);
 
 	hw->sta_data_size = sizeof(struct iwl_station_priv);
 	hw->vif_data_size = sizeof(struct iwl_vif_priv);
@@ -186,42 +148,37 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 
 	BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
 
-	if (hw->wiphy->interface_modes & BIT(NL80211_IFTYPE_P2P_CLIENT)) {
-		hw->wiphy->iface_combinations = iwlagn_iface_combinations_p2p;
-		hw->wiphy->n_iface_combinations =
-			ARRAY_SIZE(iwlagn_iface_combinations_p2p);
-	} else if (hw->wiphy->interface_modes & BIT(NL80211_IFTYPE_AP)) {
+	if (hw->wiphy->interface_modes & BIT(NL80211_IFTYPE_AP)) {
 		hw->wiphy->iface_combinations =
 			iwlagn_iface_combinations_dualmode;
 		hw->wiphy->n_iface_combinations =
 			ARRAY_SIZE(iwlagn_iface_combinations_dualmode);
 	}
 
-	hw->wiphy->max_remain_on_channel_duration = 500;
-
-	hw->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY |
-			    WIPHY_FLAG_DISABLE_BEACON_HINTS |
-			    WIPHY_FLAG_IBSS_RSN;
+	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
+	hw->wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG |
+				       REGULATORY_DISABLE_BEACON_HINTS;
 
 #ifdef CONFIG_PM_SLEEP
 	if (priv->fw->img[IWL_UCODE_WOWLAN].sec[0].len &&
 	    priv->trans->ops->d3_suspend &&
 	    priv->trans->ops->d3_resume &&
 	    device_can_wakeup(priv->trans->dev)) {
-		hw->wiphy->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT |
-					  WIPHY_WOWLAN_DISCONNECT |
-					  WIPHY_WOWLAN_EAP_IDENTITY_REQ |
-					  WIPHY_WOWLAN_RFKILL_RELEASE;
+		priv->wowlan_support.flags = WIPHY_WOWLAN_MAGIC_PKT |
+					     WIPHY_WOWLAN_DISCONNECT |
+					     WIPHY_WOWLAN_EAP_IDENTITY_REQ |
+					     WIPHY_WOWLAN_RFKILL_RELEASE;
 		if (!iwlwifi_mod_params.sw_crypto)
-			hw->wiphy->wowlan.flags |=
+			priv->wowlan_support.flags |=
 				WIPHY_WOWLAN_SUPPORTS_GTK_REKEY |
 				WIPHY_WOWLAN_GTK_REKEY_FAILURE;
 
-		hw->wiphy->wowlan.n_patterns = IWLAGN_WOWLAN_MAX_PATTERNS;
-		hw->wiphy->wowlan.pattern_min_len =
+		priv->wowlan_support.n_patterns = IWLAGN_WOWLAN_MAX_PATTERNS;
+		priv->wowlan_support.pattern_min_len =
 					IWLAGN_WOWLAN_MIN_PATTERN_LEN;
-		hw->wiphy->wowlan.pattern_max_len =
+		priv->wowlan_support.pattern_max_len =
 					IWLAGN_WOWLAN_MAX_PATTERN_LEN;
+		hw->wiphy->wowlan = &priv->wowlan_support;
 	}
 #endif
 
@@ -293,9 +250,21 @@ static int __iwl_up(struct iwl_priv *priv)
 		}
 	}
 
+	ret = iwl_trans_start_hw(priv->trans);
+	if (ret) {
+		IWL_ERR(priv, "Failed to start HW: %d\n", ret);
+		goto error;
+	}
+
 	ret = iwl_run_init_ucode(priv);
 	if (ret) {
 		IWL_ERR(priv, "Failed to run INIT ucode: %d\n", ret);
+		goto error;
+	}
+
+	ret = iwl_trans_start_hw(priv->trans);
+	if (ret) {
+		IWL_ERR(priv, "Failed to start HW: %d\n", ret);
 		goto error;
 	}
 
@@ -365,12 +334,6 @@ static void iwlagn_mac_stop(struct ieee80211_hw *hw)
 
 	flush_workqueue(priv->workqueue);
 
-	/* User space software may expect getting rfkill changes
-	 * even if interface is down, trans->down will leave the RF
-	 * kill interrupt enabled
-	 */
-	iwl_trans_stop_hw(priv->trans, false);
-
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
@@ -426,7 +389,11 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 	if (ret)
 		goto error;
 
-	iwl_trans_d3_suspend(priv->trans);
+	/* let the ucode operate on its own */
+	iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_SET,
+		    CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
+
+	iwl_trans_d3_suspend(priv->trans, false);
 
 	goto out;
 
@@ -452,9 +419,8 @@ static bool iwl_resume_status_fn(struct iwl_notif_wait_data *notif_wait,
 {
 	struct iwl_resume_data *resume_data = data;
 	struct iwl_priv *priv = resume_data->priv;
-	u32 len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
 
-	if (len - 4 != sizeof(*resume_data->cmd)) {
+	if (iwl_rx_packet_payload_len(pkt) != sizeof(*resume_data->cmd)) {
 		IWL_ERR(priv, "rx wrong size data\n");
 		return true;
 	}
@@ -478,7 +444,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 		u32 error_id;
 	} err_info;
 	struct iwl_notification_wait status_wait;
-	static const u8 status_cmd[] = {
+	static const u16 status_cmd[] = {
 		REPLY_WOWLAN_GET_STATUS,
 	};
 	struct iwlagn_wowlan_status status_data = {};
@@ -500,7 +466,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	/* we'll clear ctx->vif during iwlagn_prepare_restart() */
 	vif = ctx->vif;
 
-	ret = iwl_trans_d3_resume(priv->trans, &d3_status);
+	ret = iwl_trans_d3_resume(priv->trans, &d3_status, false);
 	if (ret)
 		goto out_unlock;
 
@@ -508,6 +474,10 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 		IWL_INFO(priv, "Device was reset during suspend\n");
 		goto out_unlock;
 	}
+
+	/* uCode is no longer operating by itself */
+	iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_CLR,
+		    CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
 
 	base = priv->device_pointers.error_event_table;
 	if (!iwlagn_hw_valid_rtc_data_addr(base)) {
@@ -739,11 +709,29 @@ static int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	return ret;
 }
 
+static inline bool iwl_enable_rx_ampdu(const struct iwl_cfg *cfg)
+{
+	if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_RXAGG)
+		return false;
+	return true;
+}
+
+static inline bool iwl_enable_tx_ampdu(const struct iwl_cfg *cfg)
+{
+	if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_TXAGG)
+		return false;
+	if (iwlwifi_mod_params.disable_11n & IWL_ENABLE_HT_TXAGG)
+		return true;
+
+	/* disabled by default */
+	return false;
+}
+
 static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
 				   enum ieee80211_ampdu_mlme_action action,
 				   struct ieee80211_sta *sta, u16 tid, u16 *ssn,
-				   u8 buf_size)
+				   u8 buf_size, bool amsdu)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	int ret = -EINVAL;
@@ -760,7 +748,7 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
-		if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_RXAGG)
+		if (!iwl_enable_rx_ampdu(priv->cfg))
 			break;
 		IWL_DEBUG_HT(priv, "start Rx\n");
 		ret = iwl_sta_rx_agg_start(priv, sta, tid, *ssn);
@@ -772,7 +760,7 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_START:
 		if (!priv->trans->ops->txq_enable)
 			break;
-		if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_TXAGG)
+		if (!iwl_enable_tx_ampdu(priv->cfg))
 			break;
 		IWL_DEBUG_HT(priv, "start Tx\n");
 		ret = iwlagn_tx_agg_start(priv, vif, sta, tid, ssn);
@@ -966,6 +954,7 @@ static int iwlagn_mac_sta_state(struct ieee80211_hw *hw,
 }
 
 static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
 				      struct ieee80211_channel_switch *ch_switch)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
@@ -1059,7 +1048,10 @@ void iwl_chswitch_done(struct iwl_priv *priv, bool is_success)
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
-	if (test_and_clear_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status))
+	if (!test_and_clear_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status))
+		return;
+
+	if (ctx->vif)
 		ieee80211_chswitch_done(ctx->vif, is_success);
 }
 
@@ -1082,7 +1074,7 @@ static void iwlagn_configure_filter(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "Enter: changed: 0x%x, total: 0x%x\n",
 			changed_flags, *total_flags);
 
-	CHK(FIF_OTHER_BSS | FIF_PROMISC_IN_BSS, RXON_FILTER_PROMISC_MSK);
+	CHK(FIF_OTHER_BSS, RXON_FILTER_PROMISC_MSK);
 	/* Setting _just_ RXON_FILTER_CTL2HOST_MSK causes FH errors */
 	CHK(FIF_CONTROL, RXON_FILTER_CTL2HOST_MSK | RXON_FILTER_PROMISC_MSK);
 	CHK(FIF_BCN_PRBRESP_PROMISC, RXON_FILTER_BCON_AWARE_MSK);
@@ -1109,13 +1101,15 @@ static void iwlagn_configure_filter(struct ieee80211_hw *hw,
 	 * since we currently do not support programming multicast
 	 * filters into the device.
 	 */
-	*total_flags &= FIF_OTHER_BSS | FIF_ALLMULTI | FIF_PROMISC_IN_BSS |
+	*total_flags &= FIF_OTHER_BSS | FIF_ALLMULTI |
 			FIF_BCN_PRBRESP_PROMISC | FIF_CONTROL;
 }
 
-static void iwlagn_mac_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
+static void iwlagn_mac_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			     u32 queues, bool drop)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
+	u32 scd_queues;
 
 	mutex_lock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "enter\n");
@@ -1129,167 +1123,50 @@ static void iwlagn_mac_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 		goto done;
 	}
 
-	/*
-	 * mac80211 will not push any more frames for transmit
-	 * until the flush is completed
-	 */
+	scd_queues = BIT(priv->cfg->base_params->num_of_queues) - 1;
+	scd_queues &= ~(BIT(IWL_IPAN_CMD_QUEUE_NUM) |
+			BIT(IWL_DEFAULT_CMD_QUEUE_NUM));
+
 	if (drop) {
-		IWL_DEBUG_MAC80211(priv, "send flush command\n");
-		if (iwlagn_txfifo_flush(priv, 0)) {
+		IWL_DEBUG_TX_QUEUES(priv, "Flushing SCD queues: 0x%x\n",
+				    scd_queues);
+		if (iwlagn_txfifo_flush(priv, scd_queues)) {
 			IWL_ERR(priv, "flush request fail\n");
 			goto done;
 		}
 	}
-	IWL_DEBUG_MAC80211(priv, "wait transmit/flush all frames\n");
-	iwl_trans_wait_tx_queue_empty(priv->trans);
+
+	IWL_DEBUG_TX_QUEUES(priv, "wait transmit/flush all frames\n");
+	iwl_trans_wait_tx_queue_empty(priv->trans, scd_queues);
 done:
 	mutex_unlock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
-static int iwlagn_mac_remain_on_channel(struct ieee80211_hw *hw,
-				     struct ieee80211_vif *vif,
-				     struct ieee80211_channel *channel,
-				     int duration,
-				     enum ieee80211_roc_type type)
-{
-	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
-	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_PAN];
-	int err = 0;
-
-	if (!(priv->valid_contexts & BIT(IWL_RXON_CTX_PAN)))
-		return -EOPNOTSUPP;
-
-	if (!(ctx->interface_modes & BIT(NL80211_IFTYPE_P2P_CLIENT)))
-		return -EOPNOTSUPP;
-
-	IWL_DEBUG_MAC80211(priv, "enter\n");
-	mutex_lock(&priv->mutex);
-
-	if (test_bit(STATUS_SCAN_HW, &priv->status)) {
-		/* mac80211 should not scan while ROC or ROC while scanning */
-		if (WARN_ON_ONCE(priv->scan_type != IWL_SCAN_RADIO_RESET)) {
-			err = -EBUSY;
-			goto out;
-		}
-
-		iwl_scan_cancel_timeout(priv, 100);
-
-		if (test_bit(STATUS_SCAN_HW, &priv->status)) {
-			err = -EBUSY;
-			goto out;
-		}
-	}
-
-	priv->hw_roc_channel = channel;
-	/* convert from ms to TU */
-	priv->hw_roc_duration = DIV_ROUND_UP(1000 * duration, 1024);
-	priv->hw_roc_start_notified = false;
-	cancel_delayed_work(&priv->hw_roc_disable_work);
-
-	if (!ctx->is_active) {
-		static const struct iwl_qos_info default_qos_data = {
-			.def_qos_parm = {
-				.ac[0] = {
-					.cw_min = cpu_to_le16(3),
-					.cw_max = cpu_to_le16(7),
-					.aifsn = 2,
-					.edca_txop = cpu_to_le16(1504),
-				},
-				.ac[1] = {
-					.cw_min = cpu_to_le16(7),
-					.cw_max = cpu_to_le16(15),
-					.aifsn = 2,
-					.edca_txop = cpu_to_le16(3008),
-				},
-				.ac[2] = {
-					.cw_min = cpu_to_le16(15),
-					.cw_max = cpu_to_le16(1023),
-					.aifsn = 3,
-				},
-				.ac[3] = {
-					.cw_min = cpu_to_le16(15),
-					.cw_max = cpu_to_le16(1023),
-					.aifsn = 7,
-				},
-			},
-		};
-
-		ctx->is_active = true;
-		ctx->qos_data = default_qos_data;
-		ctx->staging.dev_type = RXON_DEV_TYPE_P2P;
-		memcpy(ctx->staging.node_addr,
-		       priv->contexts[IWL_RXON_CTX_BSS].staging.node_addr,
-		       ETH_ALEN);
-		memcpy(ctx->staging.bssid_addr,
-		       priv->contexts[IWL_RXON_CTX_BSS].staging.node_addr,
-		       ETH_ALEN);
-		err = iwlagn_commit_rxon(priv, ctx);
-		if (err)
-			goto out;
-		ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK |
-					     RXON_FILTER_PROMISC_MSK |
-					     RXON_FILTER_CTL2HOST_MSK;
-
-		err = iwlagn_commit_rxon(priv, ctx);
-		if (err) {
-			iwlagn_disable_roc(priv);
-			goto out;
-		}
-		priv->hw_roc_setup = true;
-	}
-
-	err = iwl_scan_initiate(priv, ctx->vif, IWL_SCAN_ROC, channel->band);
-	if (err)
-		iwlagn_disable_roc(priv);
-
- out:
-	mutex_unlock(&priv->mutex);
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-
-	return err;
-}
-
-static int iwlagn_mac_cancel_remain_on_channel(struct ieee80211_hw *hw)
+static void iwlagn_mac_event_callback(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      const struct ieee80211_event *event)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 
-	if (!(priv->valid_contexts & BIT(IWL_RXON_CTX_PAN)))
-		return -EOPNOTSUPP;
+	if (event->type != RSSI_EVENT)
+		return;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
-	mutex_lock(&priv->mutex);
-	iwl_scan_cancel_timeout(priv, priv->hw_roc_duration);
-	iwlagn_disable_roc(priv);
-	mutex_unlock(&priv->mutex);
-	IWL_DEBUG_MAC80211(priv, "leave\n");
 
-	return 0;
-}
-
-static void iwlagn_mac_rssi_callback(struct ieee80211_hw *hw,
-				     struct ieee80211_vif *vif,
-				     enum ieee80211_rssi_event rssi_event)
-{
-	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
-
-	IWL_DEBUG_MAC80211(priv, "enter\n");
-	mutex_lock(&priv->mutex);
-
-	if (priv->cfg->bt_params &&
-			priv->cfg->bt_params->advanced_bt_coexist) {
-		if (rssi_event == RSSI_EVENT_LOW)
+	if (priv->lib->bt_params &&
+	    priv->lib->bt_params->advanced_bt_coexist) {
+		if (event->u.rssi.data == RSSI_EVENT_LOW)
 			priv->bt_enable_pspoll = true;
-		else if (rssi_event == RSSI_EVENT_HIGH)
+		else if (event->u.rssi.data == RSSI_EVENT_HIGH)
 			priv->bt_enable_pspoll = false;
 
-		iwlagn_send_advance_bt_config(priv);
+		queue_work(priv->workqueue, &priv->bt_runtime_config);
 	} else {
 		IWL_DEBUG_MAC80211(priv, "Advanced BT coex disabled,"
 				"ignoring RSSI callback\n");
 	}
 
-	mutex_unlock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
@@ -1387,7 +1264,7 @@ static int iwl_setup_interface(struct iwl_priv *priv,
 		return err;
 	}
 
-	if (priv->cfg->bt_params && priv->cfg->bt_params->advanced_bt_coexist &&
+	if (priv->lib->bt_params && priv->lib->bt_params->advanced_bt_coexist &&
 	    vif->type == NL80211_IFTYPE_ADHOC) {
 		/*
 		 * pretend to have high BT traffic as long as we
@@ -1422,11 +1299,7 @@ static int iwlagn_mac_add_interface(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "enter: type %d, addr %pM\n",
 			   viftype, vif->addr);
 
-	cancel_delayed_work_sync(&priv->hw_roc_disable_work);
-
 	mutex_lock(&priv->mutex);
-
-	iwlagn_disable_roc(priv);
 
 	if (!iwl_is_ready_rf(priv)) {
 		IWL_WARN(priv, "Try to add interface when device not ready\n");
@@ -1481,9 +1354,9 @@ static int iwlagn_mac_add_interface(struct ieee80211_hw *hw,
 	 * other interfaces are added, this is safe.
 	 */
 	if (vif->type == NL80211_IFTYPE_MONITOR)
-		priv->hw->flags |= IEEE80211_HW_RX_INCLUDES_FCS;
+		ieee80211_hw_set(priv->hw, RX_INCLUDES_FCS);
 	else
-		priv->hw->flags &= ~IEEE80211_HW_RX_INCLUDES_FCS;
+		__clear_bit(IEEE80211_HW_RX_INCLUDES_FCS, priv->hw->flags);
 
 	err = iwl_setup_interface(priv, ctx);
 	if (!err || reset)
@@ -1640,9 +1513,10 @@ static int iwlagn_mac_change_interface(struct ieee80211_hw *hw,
 
 static int iwlagn_mac_hw_scan(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
-			      struct cfg80211_scan_request *req)
+			      struct ieee80211_scan_request *hw_req)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
+	struct cfg80211_scan_request *req = &hw_req->req;
 	int ret;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
@@ -1728,7 +1602,7 @@ static void iwlagn_mac_sta_notify(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
-struct ieee80211_ops iwlagn_hw_ops = {
+const struct ieee80211_ops iwlagn_hw_ops = {
 	.tx = iwlagn_mac_tx,
 	.start = iwlagn_mac_start,
 	.stop = iwlagn_mac_stop,
@@ -1754,11 +1628,7 @@ struct ieee80211_ops iwlagn_hw_ops = {
 	.channel_switch = iwlagn_mac_channel_switch,
 	.flush = iwlagn_mac_flush,
 	.tx_last_beacon = iwlagn_mac_tx_last_beacon,
-	.remain_on_channel = iwlagn_mac_remain_on_channel,
-	.cancel_remain_on_channel = iwlagn_mac_cancel_remain_on_channel,
-	.rssi_callback = iwlagn_mac_rssi_callback,
-	CFG80211_TESTMODE_CMD(iwlagn_mac_testmode_cmd)
-	CFG80211_TESTMODE_DUMP(iwlagn_mac_testmode_dump)
+	.event_callback = iwlagn_mac_event_callback,
 	.set_tim = iwlagn_mac_set_tim,
 };
 

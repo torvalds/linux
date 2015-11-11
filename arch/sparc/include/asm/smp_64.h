@@ -32,31 +32,36 @@
 
 DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
 extern cpumask_t cpu_core_map[NR_CPUS];
-extern int sparc64_multi_core;
 
-extern void arch_send_call_function_single_ipi(int cpu);
-extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
+void arch_send_call_function_single_ipi(int cpu);
+void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 
 /*
  *	General functions that each host system must provide.
  */
 
-extern int hard_smp_processor_id(void);
+int hard_smp_processor_id(void);
 #define raw_smp_processor_id() (current_thread_info()->cpu)
 
-extern void smp_fill_in_sib_core_maps(void);
-extern void cpu_play_dead(void);
+void smp_fill_in_sib_core_maps(void);
+void cpu_play_dead(void);
 
-extern void smp_fetch_global_regs(void);
-extern void smp_fetch_global_pmu(void);
+void smp_fetch_global_regs(void);
+void smp_fetch_global_pmu(void);
 
 struct seq_file;
 void smp_bogo(struct seq_file *);
 void smp_info(struct seq_file *);
 
+void smp_callin(void);
+void cpu_panic(void);
+void smp_synchronize_tick_client(void);
+void smp_capture(void);
+void smp_release(void);
+
 #ifdef CONFIG_HOTPLUG_CPU
-extern int __cpu_disable(void);
-extern void __cpu_die(unsigned int cpu);
+int __cpu_disable(void);
+void __cpu_die(unsigned int cpu);
 #endif
 
 #endif /* !(__ASSEMBLY__) */

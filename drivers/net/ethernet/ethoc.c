@@ -13,6 +13,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/etherdevice.h>
+#include <linux/clk.h>
 #include <linux/crc32.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -51,6 +52,7 @@ MODULE_PARM_DESC(buffer_size, "DMA buffer allocation size");
 #define	ETH_HASH0	0x48
 #define	ETH_HASH1	0x4c
 #define	ETH_TXCTRL	0x50
+#define	ETH_END		0x54
 
 /* mode register */
 #define	MODER_RXEN	(1 <<  0) /* receive enable */
@@ -179,6 +181,7 @@ MODULE_PARM_DESC(buffer_size, "DMA buffer allocation size");
  * @membase:	pointer to buffer memory region
  * @dma_alloc:	dma allocated buffer size
  * @io_region_size:	I/O memory region size
+ * @num_bd:	number of buffer descriptors
  * @num_tx:	number of send buffers
  * @cur_tx:	last send buffer written
  * @dty_tx:	last buffer actually sent
@@ -198,7 +201,9 @@ struct ethoc {
 	void __iomem *membase;
 	int dma_alloc;
 	resource_size_t io_region_size;
+	bool big_endian;
 
+	unsigned int num_bd;
 	unsigned int num_tx;
 	unsigned int cur_tx;
 	unsigned int dty_tx;
@@ -216,6 +221,7 @@ struct ethoc {
 
 	struct phy_device *phy;
 	struct mii_bus *mdio;
+	struct clk *clk;
 	s8 phy_id;
 };
 
@@ -231,12 +237,18 @@ struct ethoc_bd {
 
 static inline u32 ethoc_read(struct ethoc *dev, loff_t offset)
 {
-	return ioread32(dev->iobase + offset);
+	if (dev->big_endian)
+		return ioread32be(dev->iobase + offset);
+	else
+		return ioread32(dev->iobase + offset);
 }
 
 static inline void ethoc_write(struct ethoc *dev, loff_t offset, u32 data)
 {
-	iowrite32(data, dev->iobase + offset);
+	if (dev->big_endian)
+		iowrite32be(data, dev->iobase + offset);
+	else
+		iowrite32(data, dev->iobase + offset);
 }
 
 static inline void ethoc_read_bd(struct ethoc *dev, int index,
@@ -655,11 +667,6 @@ static int ethoc_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val)
 	return -EBUSY;
 }
 
-static int ethoc_mdio_reset(struct mii_bus *bus)
-{
-	return 0;
-}
-
 static void ethoc_mdio_poll(struct net_device *dev)
 {
 }
@@ -688,6 +695,11 @@ static int ethoc_mdio_probe(struct net_device *dev)
 	}
 
 	priv->phy = phy;
+	phy->advertising &= ~(ADVERTISED_1000baseT_Full |
+			      ADVERTISED_1000baseT_Half);
+	phy->supported &= ~(SUPPORTED_1000baseT_Full |
+			    SUPPORTED_1000baseT_Half);
+
 	return 0;
 }
 
@@ -762,11 +774,6 @@ static int ethoc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	}
 
 	return phy_mii_ioctl(phy, ifr, cmd);
-}
-
-static int ethoc_config(struct net_device *dev, struct ifmap *map)
-{
-	return -ENOSYS;
 }
 
 static void ethoc_do_set_mac_address(struct net_device *dev)
@@ -890,11 +897,106 @@ out:
 	return NETDEV_TX_OK;
 }
 
+static int ethoc_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	struct ethoc *priv = netdev_priv(dev);
+	struct phy_device *phydev = priv->phy;
+
+	if (!phydev)
+		return -EOPNOTSUPP;
+
+	return phy_ethtool_gset(phydev, cmd);
+}
+
+static int ethoc_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	struct ethoc *priv = netdev_priv(dev);
+	struct phy_device *phydev = priv->phy;
+
+	if (!phydev)
+		return -EOPNOTSUPP;
+
+	return phy_ethtool_sset(phydev, cmd);
+}
+
+static int ethoc_get_regs_len(struct net_device *netdev)
+{
+	return ETH_END;
+}
+
+static void ethoc_get_regs(struct net_device *dev, struct ethtool_regs *regs,
+			   void *p)
+{
+	struct ethoc *priv = netdev_priv(dev);
+	u32 *regs_buff = p;
+	unsigned i;
+
+	regs->version = 0;
+	for (i = 0; i < ETH_END / sizeof(u32); ++i)
+		regs_buff[i] = ethoc_read(priv, i * sizeof(u32));
+}
+
+static void ethoc_get_ringparam(struct net_device *dev,
+				struct ethtool_ringparam *ring)
+{
+	struct ethoc *priv = netdev_priv(dev);
+
+	ring->rx_max_pending = priv->num_bd - 1;
+	ring->rx_mini_max_pending = 0;
+	ring->rx_jumbo_max_pending = 0;
+	ring->tx_max_pending = priv->num_bd - 1;
+
+	ring->rx_pending = priv->num_rx;
+	ring->rx_mini_pending = 0;
+	ring->rx_jumbo_pending = 0;
+	ring->tx_pending = priv->num_tx;
+}
+
+static int ethoc_set_ringparam(struct net_device *dev,
+			       struct ethtool_ringparam *ring)
+{
+	struct ethoc *priv = netdev_priv(dev);
+
+	if (ring->tx_pending < 1 || ring->rx_pending < 1 ||
+	    ring->tx_pending + ring->rx_pending > priv->num_bd)
+		return -EINVAL;
+	if (ring->rx_mini_pending || ring->rx_jumbo_pending)
+		return -EINVAL;
+
+	if (netif_running(dev)) {
+		netif_tx_disable(dev);
+		ethoc_disable_rx_and_tx(priv);
+		ethoc_disable_irq(priv, INT_MASK_TX | INT_MASK_RX);
+		synchronize_irq(dev->irq);
+	}
+
+	priv->num_tx = rounddown_pow_of_two(ring->tx_pending);
+	priv->num_rx = ring->rx_pending;
+	ethoc_init_ring(priv, dev->mem_start);
+
+	if (netif_running(dev)) {
+		ethoc_enable_irq(priv, INT_MASK_TX | INT_MASK_RX);
+		ethoc_enable_rx_and_tx(priv);
+		netif_wake_queue(dev);
+	}
+	return 0;
+}
+
+const struct ethtool_ops ethoc_ethtool_ops = {
+	.get_settings = ethoc_get_settings,
+	.set_settings = ethoc_set_settings,
+	.get_regs_len = ethoc_get_regs_len,
+	.get_regs = ethoc_get_regs,
+	.get_link = ethtool_op_get_link,
+	.get_ringparam = ethoc_get_ringparam,
+	.set_ringparam = ethoc_set_ringparam,
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 static const struct net_device_ops ethoc_netdev_ops = {
 	.ndo_open = ethoc_open,
 	.ndo_stop = ethoc_stop,
 	.ndo_do_ioctl = ethoc_ioctl,
-	.ndo_set_config = ethoc_config,
 	.ndo_set_mac_address = ethoc_set_mac_address,
 	.ndo_set_rx_mode = ethoc_set_multicast_list,
 	.ndo_change_mtu = ethoc_change_mtu,
@@ -917,6 +1019,8 @@ static int ethoc_probe(struct platform_device *pdev)
 	int num_bd;
 	int ret = 0;
 	bool random_mac = false;
+	struct ethoc_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	u32 eth_clkfreq = pdata ? pdata->eth_clkfreq : 0;
 
 	/* allocate networking device */
 	netdev = alloc_etherdev(sizeof(struct ethoc));
@@ -1009,6 +1113,9 @@ static int ethoc_probe(struct platform_device *pdev)
 		priv->dma_alloc = buffer_size;
 	}
 
+	priv->big_endian = pdata ? pdata->big_endian :
+		of_device_is_big_endian(pdev->dev.of_node);
+
 	/* calculate the number of TX/RX buffers, maximum 128 supported */
 	num_bd = min_t(unsigned int,
 		128, (netdev->mem_end - netdev->mem_start + 1) / ETHOC_BUFSIZ);
@@ -1016,6 +1123,7 @@ static int ethoc_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto error;
 	}
+	priv->num_bd = num_bd;
 	/* num_tx must be a power of two */
 	priv->num_tx = rounddown_pow_of_two(num_bd >> 1);
 	priv->num_rx = num_bd - priv->num_tx;
@@ -1030,15 +1138,10 @@ static int ethoc_probe(struct platform_device *pdev)
 	}
 
 	/* Allow the platform setup code to pass in a MAC address. */
-	if (pdev->dev.platform_data) {
-		struct ethoc_platform_data *pdata = pdev->dev.platform_data;
+	if (pdata) {
 		memcpy(netdev->dev_addr, pdata->hwaddr, IFHWADDRLEN);
 		priv->phy_id = pdata->phy_id;
 	} else {
-		priv->phy_id = -1;
-
-#ifdef CONFIG_OF
-		{
 		const uint8_t *mac;
 
 		mac = of_get_property(pdev->dev.of_node,
@@ -1046,8 +1149,7 @@ static int ethoc_probe(struct platform_device *pdev)
 				      NULL);
 		if (mac)
 			memcpy(netdev->dev_addr, mac, IFHWADDRLEN);
-		}
-#endif
+		priv->phy_id = -1;
 	}
 
 	/* Check that the given MAC address is valid. If it isn't, read the
@@ -1069,6 +1171,27 @@ static int ethoc_probe(struct platform_device *pdev)
 	if (random_mac)
 		netdev->addr_assign_type = NET_ADDR_RANDOM;
 
+	/* Allow the platform setup code to adjust MII management bus clock. */
+	if (!eth_clkfreq) {
+		struct clk *clk = devm_clk_get(&pdev->dev, NULL);
+
+		if (!IS_ERR(clk)) {
+			priv->clk = clk;
+			clk_prepare_enable(clk);
+			eth_clkfreq = clk_get_rate(clk);
+		}
+	}
+	if (eth_clkfreq) {
+		u32 clkdiv = MIIMODER_CLKDIV(eth_clkfreq / 2500000 + 1);
+
+		if (!clkdiv)
+			clkdiv = 2;
+		dev_dbg(&pdev->dev, "setting MII clkdiv to %u\n", clkdiv);
+		ethoc_write(priv, MIIMODER,
+			    (ethoc_read(priv, MIIMODER) & MIIMODER_NOPRE) |
+			    clkdiv);
+	}
+
 	/* register MII bus */
 	priv->mdio = mdiobus_alloc();
 	if (!priv->mdio) {
@@ -1081,7 +1204,6 @@ static int ethoc_probe(struct platform_device *pdev)
 			priv->mdio->name, pdev->id);
 	priv->mdio->read = ethoc_mdio_read;
 	priv->mdio->write = ethoc_mdio_write;
-	priv->mdio->reset = ethoc_mdio_reset;
 	priv->mdio->priv = priv;
 
 	priv->mdio->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
@@ -1105,12 +1227,11 @@ static int ethoc_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	ether_setup(netdev);
-
 	/* setup the net_device structure */
 	netdev->netdev_ops = &ethoc_netdev_ops;
 	netdev->watchdog_timeo = ETHOC_TIMEOUT;
 	netdev->features |= 0;
+	netdev->ethtool_ops = &ethoc_ethtool_ops;
 
 	/* setup NAPI */
 	netif_napi_add(netdev, &priv->napi, ethoc_poll, 64);
@@ -1133,6 +1254,8 @@ free_mdio:
 	kfree(priv->mdio->irq);
 	mdiobus_free(priv->mdio);
 free:
+	if (priv->clk)
+		clk_disable_unprepare(priv->clk);
 	free_netdev(netdev);
 out:
 	return ret;
@@ -1147,8 +1270,6 @@ static int ethoc_remove(struct platform_device *pdev)
 	struct net_device *netdev = platform_get_drvdata(pdev);
 	struct ethoc *priv = netdev_priv(netdev);
 
-	platform_set_drvdata(pdev, NULL);
-
 	if (netdev) {
 		netif_napi_del(&priv->napi);
 		phy_disconnect(priv->phy);
@@ -1159,6 +1280,8 @@ static int ethoc_remove(struct platform_device *pdev)
 			kfree(priv->mdio->irq);
 			mdiobus_free(priv->mdio);
 		}
+		if (priv->clk)
+			clk_disable_unprepare(priv->clk);
 		unregister_netdev(netdev);
 		free_netdev(netdev);
 	}
@@ -1181,7 +1304,7 @@ static int ethoc_resume(struct platform_device *pdev)
 # define ethoc_resume  NULL
 #endif
 
-static struct of_device_id ethoc_match[] = {
+static const struct of_device_id ethoc_match[] = {
 	{ .compatible = "opencores,ethoc", },
 	{},
 };
@@ -1194,7 +1317,6 @@ static struct platform_driver ethoc_driver = {
 	.resume  = ethoc_resume,
 	.driver  = {
 		.name = "ethoc",
-		.owner = THIS_MODULE,
 		.of_match_table = ethoc_match,
 	},
 };

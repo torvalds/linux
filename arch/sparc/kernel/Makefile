@@ -1,3 +1,4 @@
+
 #
 # Makefile for the linux kernel.
 #
@@ -41,7 +42,6 @@ obj-y                   += time_$(BITS).o
 obj-$(CONFIG_SPARC32)   += windows.o
 obj-y                   += cpu.o
 obj-$(CONFIG_SPARC32)   += devices.o
-obj-$(CONFIG_SPARC32)   += tadpole.o
 obj-y                   += ptrace_$(BITS).o
 obj-y                   += unaligned_$(BITS).o
 obj-y                   += una_asm_$(BITS).o
@@ -99,7 +99,7 @@ obj-$(CONFIG_STACKTRACE)     += stacktrace.o
 obj-$(CONFIG_SPARC64_PCI)    += pci.o pci_common.o psycho_common.o
 obj-$(CONFIG_SPARC64_PCI)    += pci_psycho.o pci_sabre.o pci_schizo.o
 obj-$(CONFIG_SPARC64_PCI)    += pci_sun4v.o pci_sun4v_asm.o pci_fire.o
-obj-$(CONFIG_PCI_MSI)        += pci_msi.o
+obj-$(CONFIG_SPARC64_PCI_MSI) += pci_msi.o
 
 obj-$(CONFIG_COMPAT)         += sys32.o sys_sparc32.o signal32.o
 

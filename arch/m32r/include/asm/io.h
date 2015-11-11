@@ -67,6 +67,9 @@ static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
 
 extern void iounmap(volatile void __iomem *addr);
 #define ioremap_nocache(off,size) ioremap(off,size)
+#define ioremap_wc ioremap_nocache
+#define ioremap_wt ioremap_nocache
+#define ioremap_uc ioremap_nocache
 
 /*
  * IO bus memory addresses are also 1:1 with the physical address
@@ -161,6 +164,9 @@ static inline void _writel(unsigned long l, unsigned long addr)
 #define __raw_writeb writeb
 #define __raw_writew writew
 #define __raw_writel writel
+#define writeb_relaxed writeb
+#define writew_relaxed writew
+#define writel_relaxed writel
 
 #define ioread8 read
 #define ioread16 readw
@@ -168,6 +174,11 @@ static inline void _writel(unsigned long l, unsigned long addr)
 #define iowrite8 writeb
 #define iowrite16 writew
 #define iowrite32 writel
+
+#define ioread16be(addr)	be16_to_cpu(readw(addr))
+#define ioread32be(addr)	be32_to_cpu(readl(addr))
+#define iowrite16be(v, addr)	writew(cpu_to_be16(v), (addr))
+#define iowrite32be(v, addr)	writel(cpu_to_be32(v), (addr))
 
 #define mmiowb()
 

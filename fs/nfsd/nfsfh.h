@@ -1,9 +1,58 @@
-/* Copyright (C) 1995, 1996, 1997 Olaf Kirch <okir@monad.swb.de> */
+/*
+ * Copyright (C) 1995, 1996, 1997 Olaf Kirch <okir@monad.swb.de>
+ *
+ * This file describes the layout of the file handles as passed
+ * over the wire.
+ */
+#ifndef _LINUX_NFSD_NFSFH_H
+#define _LINUX_NFSD_NFSFH_H
 
-#ifndef _LINUX_NFSD_FH_INT_H
-#define _LINUX_NFSD_FH_INT_H
+#include <linux/sunrpc/svc.h>
+#include <uapi/linux/nfsd/nfsfh.h>
 
-#include <linux/nfsd/nfsfh.h>
+static inline __u32 ino_t_to_u32(ino_t ino)
+{
+	return (__u32) ino;
+}
+
+static inline ino_t u32_to_ino_t(__u32 uino)
+{
+	return (ino_t) uino;
+}
+
+/*
+ * This is the internal representation of an NFS handle used in knfsd.
+ * pre_mtime/post_version will be used to support wcc_attr's in NFSv3.
+ */
+typedef struct svc_fh {
+	struct knfsd_fh		fh_handle;	/* FH data */
+	struct dentry *		fh_dentry;	/* validated dentry */
+	struct svc_export *	fh_export;	/* export pointer */
+	int			fh_maxsize;	/* max size for fh_handle */
+
+	unsigned char		fh_locked;	/* inode locked by us */
+	unsigned char		fh_want_write;	/* remount protection taken */
+
+#ifdef CONFIG_NFSD_V3
+	unsigned char		fh_post_saved;	/* post-op attrs saved */
+	unsigned char		fh_pre_saved;	/* pre-op attrs saved */
+
+	/* Pre-op attributes saved during fh_lock */
+	__u64			fh_pre_size;	/* size before operation */
+	struct timespec		fh_pre_mtime;	/* mtime before oper */
+	struct timespec		fh_pre_ctime;	/* ctime before oper */
+	/*
+	 * pre-op nfsv4 change attr: note must check IS_I_VERSION(inode)
+	 *  to find out if it is valid.
+	 */
+	u64			fh_pre_change;
+
+	/* Post-op attributes saved in fh_unlock */
+	struct kstat		fh_post_attr;	/* full attrs after operation */
+	u64			fh_post_change; /* nfsv4 change; see above */
+#endif /* CONFIG_NFSD_V3 */
+
+} svc_fh;
 
 enum nfsd_fsid {
 	FSID_DEV = 0,
@@ -24,8 +73,15 @@ enum fsid_source {
 extern enum fsid_source fsid_source(struct svc_fh *fhp);
 
 
-/* This might look a little large to "inline" but in all calls except
+/*
+ * This might look a little large to "inline" but in all calls except
  * one, 'vers' is constant so moste of the function disappears.
+ *
+ * In some cases the values are considered to be host endian and in
+ * others, net endian. fsidv is always considered to be u32 as the
+ * callers don't know which it will be. So we must use __force to keep
+ * sparse from complaining. Since these values are opaque to the
+ * client, that shouldn't be a problem.
  */
 static inline void mk_fsid(int vers, u32 *fsidv, dev_t dev, ino_t ino,
 			   u32 fsid, unsigned char *uuid)
@@ -33,7 +89,7 @@ static inline void mk_fsid(int vers, u32 *fsidv, dev_t dev, ino_t ino,
 	u32 *up;
 	switch(vers) {
 	case FSID_DEV:
-		fsidv[0] = htonl((MAJOR(dev)<<16) |
+		fsidv[0] = (__force __u32)htonl((MAJOR(dev)<<16) |
 				 MINOR(dev));
 		fsidv[1] = ino_t_to_u32(ino);
 		break;
@@ -41,8 +97,8 @@ static inline void mk_fsid(int vers, u32 *fsidv, dev_t dev, ino_t ino,
 		fsidv[0] = fsid;
 		break;
 	case FSID_MAJOR_MINOR:
-		fsidv[0] = htonl(MAJOR(dev));
-		fsidv[1] = htonl(MINOR(dev));
+		fsidv[0] = (__force __u32)htonl(MAJOR(dev));
+		fsidv[1] = (__force __u32)htonl(MINOR(dev));
 		fsidv[2] = ino_t_to_u32(ino);
 		break;
 
@@ -131,7 +187,36 @@ fh_init(struct svc_fh *fhp, int maxsize)
 	return fhp;
 }
 
+static inline bool fh_match(struct knfsd_fh *fh1, struct knfsd_fh *fh2)
+{
+	if (fh1->fh_size != fh2->fh_size)
+		return false;
+	if (memcmp(fh1->fh_base.fh_pad, fh2->fh_base.fh_pad, fh1->fh_size) != 0)
+		return false;
+	return true;
+}
+
+static inline bool fh_fsid_match(struct knfsd_fh *fh1, struct knfsd_fh *fh2)
+{
+	if (fh1->fh_fsid_type != fh2->fh_fsid_type)
+		return false;
+	if (memcmp(fh1->fh_fsid, fh2->fh_fsid, key_len(fh1->fh_fsid_type)) != 0)
+		return false;
+	return true;
+}
+
 #ifdef CONFIG_NFSD_V3
+/*
+ * The wcc data stored in current_fh should be cleared
+ * between compound ops.
+ */
+static inline void
+fh_clear_wcc(struct svc_fh *fhp)
+{
+	fhp->fh_post_saved = 0;
+	fhp->fh_pre_saved = 0;
+}
+
 /*
  * Fill in the pre_op attr for the wcc data
  */
@@ -140,7 +225,7 @@ fill_pre_wcc(struct svc_fh *fhp)
 {
 	struct inode    *inode;
 
-	inode = fhp->fh_dentry->d_inode;
+	inode = d_inode(fhp->fh_dentry);
 	if (!fhp->fh_pre_saved) {
 		fhp->fh_pre_mtime = inode->i_mtime;
 		fhp->fh_pre_ctime = inode->i_ctime;
@@ -152,7 +237,8 @@ fill_pre_wcc(struct svc_fh *fhp)
 
 extern void fill_post_wcc(struct svc_fh *);
 #else
-#define	fill_pre_wcc(ignored)
+#define fh_clear_wcc(ignored)
+#define fill_pre_wcc(ignored)
 #define fill_post_wcc(notused)
 #endif /* CONFIG_NFSD_V3 */
 
@@ -173,12 +259,12 @@ fh_lock_nested(struct svc_fh *fhp, unsigned int subclass)
 	BUG_ON(!dentry);
 
 	if (fhp->fh_locked) {
-		printk(KERN_WARNING "fh_lock: %s/%s already locked!\n",
-			dentry->d_parent->d_name.name, dentry->d_name.name);
+		printk(KERN_WARNING "fh_lock: %pd2 already locked!\n",
+			dentry);
 		return;
 	}
 
-	inode = dentry->d_inode;
+	inode = d_inode(dentry);
 	mutex_lock_nested(&inode->i_mutex, subclass);
 	fill_pre_wcc(fhp);
 	fhp->fh_locked = 1;
@@ -198,9 +284,9 @@ fh_unlock(struct svc_fh *fhp)
 {
 	if (fhp->fh_locked) {
 		fill_post_wcc(fhp);
-		mutex_unlock(&fhp->fh_dentry->d_inode->i_mutex);
+		mutex_unlock(&d_inode(fhp->fh_dentry)->i_mutex);
 		fhp->fh_locked = 0;
 	}
 }
 
-#endif /* _LINUX_NFSD_FH_INT_H */
+#endif /* _LINUX_NFSD_NFSFH_H */

@@ -110,8 +110,8 @@ struct ndisc_options {
 
 #define NDISC_OPT_SPACE(len) (((len)+2+7)&~7)
 
-extern struct ndisc_options *ndisc_parse_options(u8 *opt, int opt_len,
-						 struct ndisc_options *ndopts);
+struct ndisc_options *ndisc_parse_options(u8 *opt, int opt_len,
+					  struct ndisc_options *ndopts);
 
 /*
  * Return the padding between the option length and the start of the
@@ -119,7 +119,7 @@ extern struct ndisc_options *ndisc_parse_options(u8 *opt, int opt_len,
  * if RFC 3831 IPv6-over-Fibre Channel is ever implemented it may
  * also need a pad of 2.
  */
-static int ndisc_addr_option_pad(unsigned short type)
+static inline int ndisc_addr_option_pad(unsigned short type)
 {
 	switch (type) {
 	case ARPHRD_INFINIBAND: return 2;
@@ -156,24 +156,7 @@ static inline u32 ndisc_hashfn(const void *pkey, const struct net_device *dev, _
 
 static inline struct neighbour *__ipv6_neigh_lookup_noref(struct net_device *dev, const void *pkey)
 {
-	struct neigh_hash_table *nht;
-	const u32 *p32 = pkey;
-	struct neighbour *n;
-	u32 hash_val;
-
-	nht = rcu_dereference_bh(nd_tbl.nht);
-	hash_val = ndisc_hashfn(pkey, dev, nht->hash_rnd) >> (32 - nht->hash_shift);
-	for (n = rcu_dereference_bh(nht->hash_buckets[hash_val]);
-	     n != NULL;
-	     n = rcu_dereference_bh(n->next)) {
-		u32 *n32 = (u32 *) n->primary_key;
-		if (n->dev == dev &&
-		    ((n32[0] ^ p32[0]) | (n32[1] ^ p32[1]) |
-		     (n32[2] ^ p32[2]) | (n32[3] ^ p32[3])) == 0)
-			return n;
-	}
-
-	return NULL;
+	return ___neigh_lookup_noref(&nd_tbl, neigh_key_eq128, ndisc_hashfn, pkey, dev);
 }
 
 static inline struct neighbour *__ipv6_neigh_lookup(struct net_device *dev, const void *pkey)
@@ -189,53 +172,50 @@ static inline struct neighbour *__ipv6_neigh_lookup(struct net_device *dev, cons
 	return n;
 }
 
-extern int			ndisc_init(void);
+int ndisc_init(void);
+int ndisc_late_init(void);
 
-extern void			ndisc_cleanup(void);
+void ndisc_late_cleanup(void);
+void ndisc_cleanup(void);
 
-extern int			ndisc_rcv(struct sk_buff *skb);
+int ndisc_rcv(struct sk_buff *skb);
 
-extern void			ndisc_send_ns(struct net_device *dev,
-					      struct neighbour *neigh,
-					      const struct in6_addr *solicit,
-					      const struct in6_addr *daddr,
-					      const struct in6_addr *saddr);
+void ndisc_send_ns(struct net_device *dev, const struct in6_addr *solicit,
+		   const struct in6_addr *daddr, const struct in6_addr *saddr,
+		   struct sk_buff *oskb);
 
-extern void			ndisc_send_rs(struct net_device *dev,
-					      const struct in6_addr *saddr,
-					      const struct in6_addr *daddr);
+void ndisc_send_rs(struct net_device *dev,
+		   const struct in6_addr *saddr, const struct in6_addr *daddr);
+void ndisc_send_na(struct net_device *dev, const struct in6_addr *daddr,
+		   const struct in6_addr *solicited_addr,
+		   bool router, bool solicited, bool override, bool inc_opt);
 
-extern void			ndisc_send_redirect(struct sk_buff *skb,
-						    const struct in6_addr *target);
+void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target);
 
-extern int			ndisc_mc_map(const struct in6_addr *addr, char *buf,
-					     struct net_device *dev, int dir);
+int ndisc_mc_map(const struct in6_addr *addr, char *buf, struct net_device *dev,
+		 int dir);
 
 
 /*
  *	IGMP
  */
-extern int			igmp6_init(void);
+int igmp6_init(void);
 
-extern void			igmp6_cleanup(void);
+void igmp6_cleanup(void);
 
-extern int			igmp6_event_query(struct sk_buff *skb);
+int igmp6_event_query(struct sk_buff *skb);
 
-extern int			igmp6_event_report(struct sk_buff *skb);
+int igmp6_event_report(struct sk_buff *skb);
 
 
 #ifdef CONFIG_SYSCTL
-extern int 			ndisc_ifinfo_sysctl_change(struct ctl_table *ctl,
-							   int write,
-							   void __user *buffer,
-							   size_t *lenp,
-							   loff_t *ppos);
-int ndisc_ifinfo_sysctl_strategy(ctl_table *ctl,
+int ndisc_ifinfo_sysctl_change(struct ctl_table *ctl, int write,
+			       void __user *buffer, size_t *lenp, loff_t *ppos);
+int ndisc_ifinfo_sysctl_strategy(struct ctl_table *ctl,
 				 void __user *oldval, size_t __user *oldlenp,
 				 void __user *newval, size_t newlen);
 #endif
 
-extern void 			inet6_ifinfo_notify(int event,
-						    struct inet6_dev *idev);
+void inet6_ifinfo_notify(int event, struct inet6_dev *idev);
 
 #endif

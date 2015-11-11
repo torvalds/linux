@@ -22,6 +22,7 @@
 #include <asm/cpufeature.h>
 #include <asm/percpu.h>
 #include <asm/nops.h>
+#include <asm/bootparam.h>
 
 /* Physical address */
 #define pa(X) ((X) - __PAGE_OFFSET)
@@ -61,9 +62,16 @@
 #define PAGE_TABLE_SIZE(pages) ((pages) / PTRS_PER_PGD)
 #endif
 
-/* Number of possible pages in the lowmem region */
-LOWMEM_PAGES = (((1<<32) - __PAGE_OFFSET) >> PAGE_SHIFT)
-	
+/*
+ * Number of possible pages in the lowmem region.
+ *
+ * We shift 2 by 31 instead of 1 by 32 to the left in order to avoid a
+ * gas warning about overflowing shift count when gas has been compiled
+ * with only a host target support using a 32-bit type for internal
+ * representation.
+ */
+LOWMEM_PAGES = (((2<<31) - __PAGE_OFFSET) >> PAGE_SHIFT)
+
 /* Enough space to fit pagetables for the low memory linear map */
 MAPPING_BEYOND_END = PAGE_TABLE_SIZE(LOWMEM_PAGES) << PAGE_SHIFT
 
@@ -90,7 +98,7 @@ ENTRY(startup_32)
 	
 	/* test KEEP_SEGMENTS flag to see if the bootloader is asking
 		us to not reload segments */
-	testb $(1<<6), BP_loadflags(%esi)
+	testb $KEEP_SEGMENTS, BP_loadflags(%esi)
 	jnz 2f
 
 /*
@@ -144,7 +152,7 @@ ENTRY(startup_32)
 	movl %eax, pa(olpc_ofw_pgd)
 #endif
 
-#ifdef CONFIG_MICROCODE_EARLY
+#ifdef CONFIG_MICROCODE
 	/* Early load ucode on BSP. */
 	call load_ucode_bsp
 #endif
@@ -292,7 +300,6 @@ ENDPROC(start_cpu0)
  * If cpu hotplug is not supported then this code can go in init section
  * which will be freed later
  */
-__CPUINIT
 ENTRY(startup_32_smp)
 	cld
 	movl $(__BOOT_DS),%eax
@@ -304,11 +311,10 @@ ENTRY(startup_32_smp)
 	movl %eax,%ss
 	leal -__PAGE_OFFSET(%ecx),%esp
 
-#ifdef CONFIG_MICROCODE_EARLY
+#ifdef CONFIG_MICROCODE
 	/* Early load ucode on AP. */
 	call load_ucode_ap
 #endif
-
 
 default_entry:
 #define CR0_STATE	(X86_CR0_PE | X86_CR0_MP | X86_CR0_ET | \
@@ -410,6 +416,7 @@ enable_paging:
 /*
  * Check if it is 486
  */
+	movb $4,X86			# at least 486
 	cmpl $-1,X86_CPUID
 	je is486
 
@@ -437,14 +444,12 @@ enable_paging:
 	movl %edx,X86_CAPABILITY
 
 is486:
-	movb $4,X86
 	movl $0x50022,%ecx	# set AM, WP, NE and MP
 	movl %cr0,%eax
 	andl $0x80000011,%eax	# Save PG,PE,ET
 	orl %ecx,%eax
 	movl %eax,%cr0
 
-	call check_x87
 	lgdt early_gdt_descr
 	lidt idt_descr
 	ljmp $(__KERNEL_CS),$1f
@@ -467,26 +472,6 @@ is486:
 	pushl $0		# fake return address for unwinder
 	jmp *(initial_code)
 
-/*
- * We depend on ET to be correct. This checks for 287/387.
- */
-check_x87:
-	movb $0,X86_HARD_MATH
-	clts
-	fninit
-	fstsw %ax
-	cmpb $0,%al
-	je 1f
-	movl %cr0,%eax		/* no coprocessor: have to set bits */
-	xorl $4,%eax		/* set EM */
-	movl %eax,%cr0
-	ret
-	ALIGN
-1:	movb $1,X86_HARD_MATH
-	.byte 0xDB,0xE4		/* fsetpm for 287, ignored by 387 */
-	ret
-
-	
 #include "verify_cpu.S"
 
 /*
@@ -499,21 +484,22 @@ check_x87:
 __INIT
 setup_once:
 	/*
-	 * Set up a idt with 256 entries pointing to ignore_int,
-	 * interrupt gates. It doesn't actually load idt - that needs
-	 * to be done on each CPU. Interrupts are enabled elsewhere,
-	 * when we can be relatively sure everything is ok.
+	 * Set up a idt with 256 interrupt gates that push zero if there
+	 * is no error code and then jump to early_idt_handler_common.
+	 * It doesn't actually load the idt - that needs to be done on
+	 * each CPU. Interrupts are enabled elsewhere, when we can be
+	 * relatively sure everything is ok.
 	 */
 
 	movl $idt_table,%edi
-	movl $early_idt_handlers,%eax
+	movl $early_idt_handler_array,%eax
 	movl $NUM_EXCEPTION_VECTORS,%ecx
 1:
 	movl %eax,(%edi)
 	movl %eax,4(%edi)
 	/* interrupt gate, dpl=0, present */
 	movl $(0x8E000000 + __KERNEL_CS),2(%edi)
-	addl $9,%eax
+	addl $EARLY_IDT_HANDLER_SIZE,%eax
 	addl $8,%edi
 	loop 1b
 
@@ -545,27 +531,33 @@ setup_once:
 	andl $0,setup_once_ref	/* Once is enough, thanks */
 	ret
 
-ENTRY(early_idt_handlers)
+ENTRY(early_idt_handler_array)
 	# 36(%esp) %eflags
 	# 32(%esp) %cs
 	# 28(%esp) %eip
 	# 24(%rsp) error code
 	i = 0
 	.rept NUM_EXCEPTION_VECTORS
-	.if (EXCEPTION_ERRCODE_MASK >> i) & 1
-	ASM_NOP2
-	.else
+	.ifeq (EXCEPTION_ERRCODE_MASK >> i) & 1
 	pushl $0		# Dummy error code, to make stack frame uniform
 	.endif
 	pushl $i		# 20(%esp) Vector number
-	jmp early_idt_handler
+	jmp early_idt_handler_common
 	i = i + 1
+	.fill early_idt_handler_array + i*EARLY_IDT_HANDLER_SIZE - ., 1, 0xcc
 	.endr
-ENDPROC(early_idt_handlers)
+ENDPROC(early_idt_handler_array)
 	
-	/* This is global to keep gas from relaxing the jumps */
-ENTRY(early_idt_handler)
+early_idt_handler_common:
+	/*
+	 * The stack is the hardware frame, an error code or zero, and the
+	 * vector number.
+	 */
 	cld
+
+	cmpl $2,(%esp)		# X86_TRAP_NMI
+	je .Lis_nmi		# Ignore NMI
+
 	cmpl $2,%ss:early_recursion_flag
 	je hlt_loop
 	incl %ss:early_recursion_flag
@@ -616,10 +608,11 @@ ex_entry:
 	pop %edx
 	pop %ecx
 	pop %eax
-	addl $8,%esp		/* drop vector number and error code */
 	decl %ss:early_recursion_flag
+.Lis_nmi:
+	addl $8,%esp		/* drop vector number and error code */
 	iret
-ENDPROC(early_idt_handler)
+ENDPROC(early_idt_handler_common)
 
 /* This is the default interrupt "handler" :-) */
 	ALIGN

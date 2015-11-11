@@ -37,15 +37,20 @@ void rxrpc_UDP_error_report(struct sock *sk)
 
 	_enter("%p{%d}", sk, local->debug_id);
 
-	skb = skb_dequeue(&sk->sk_error_queue);
+	skb = sock_dequeue_err_skb(sk);
 	if (!skb) {
 		_leave("UDP socket errqueue empty");
+		return;
+	}
+	serr = SKB_EXT_ERR(skb);
+	if (!skb->len && serr->ee.ee_origin == SO_EE_ORIGIN_TIMESTAMPING) {
+		_leave("UDP empty message");
+		kfree_skb(skb);
 		return;
 	}
 
 	rxrpc_new_skb(skb);
 
-	serr = SKB_EXT_ERR(skb);
 	addr = *(__be32 *)(skb_network_header(skb) + serr->addr_offset);
 	port = serr->port;
 
@@ -83,6 +88,7 @@ void rxrpc_UDP_error_report(struct sock *sk)
 
 		if (mtu == 0) {
 			/* they didn't give us a size, estimate one */
+			mtu = peer->if_mtu;
 			if (mtu > 1500) {
 				mtu >>= 1;
 				if (mtu < 1500)
@@ -109,18 +115,6 @@ void rxrpc_UDP_error_report(struct sock *sk)
 	/* pass the transport ref to error_handler to release */
 	skb_queue_tail(&trans->error_queue, skb);
 	rxrpc_queue_work(&trans->error_handler);
-
-	/* reset and regenerate socket error */
-	spin_lock_bh(&sk->sk_error_queue.lock);
-	sk->sk_err = 0;
-	skb = skb_peek(&sk->sk_error_queue);
-	if (skb) {
-		sk->sk_err = SKB_EXT_ERR(skb)->ee.ee_errno;
-		spin_unlock_bh(&sk->sk_error_queue.lock);
-		sk->sk_error_report(sk);
-	} else {
-		spin_unlock_bh(&sk->sk_error_queue.lock);
-	}
 
 	_leave("");
 }

@@ -59,14 +59,13 @@
 #include <linux/gfp.h>
 
 #include <net/bluetooth/bluetooth.h>
-#include <net/bluetooth/hci.h>
+#include <net/bluetooth/hci_sock.h>
 #include <net/bluetooth/rfcomm.h>
 
 #include <linux/capi.h>
 #include <linux/gigaset_dev.h>
 
 #ifdef CONFIG_BLOCK
-#include <linux/loop.h>
 #include <linux/cdrom.h>
 #include <linux/fd.h>
 #include <scsi/scsi.h>
@@ -571,6 +570,7 @@ static int mt_ioctl_trans(unsigned int fd, unsigned int cmd, void __user *argp)
 #define BNEPCONNDEL	_IOW('B', 201, int)
 #define BNEPGETCONNLIST	_IOR('B', 210, int)
 #define BNEPGETCONNINFO	_IOR('B', 211, int)
+#define BNEPGETSUPPFEAT	_IOR('B', 212, int)
 
 #define CMTPCONNADD	_IOW('C', 200, int)
 #define CMTPCONNDEL	_IOW('C', 201, int)
@@ -681,11 +681,12 @@ static int do_i2c_rdwr_ioctl(unsigned int fd, unsigned int cmd,
 	struct i2c_msg			__user *tmsgs;
 	struct i2c_msg32		__user *umsgs;
 	compat_caddr_t			datap;
-	int				nmsgs, i;
+	u32				nmsgs;
+	int				i;
 
 	if (get_user(nmsgs, &udata->nmsgs))
 		return -EFAULT;
-	if (nmsgs > I2C_RDRW_IOCTL_MAX_MSGS)
+	if (nmsgs > I2C_RDWR_IOCTL_MAX_MSGS)
 		return -EINVAL;
 
 	if (get_user(datap, &udata->msgs))
@@ -895,6 +896,7 @@ COMPATIBLE_IOCTL(FIGETBSZ)
 /* 'X' - originally XFS but some now in the VFS */
 COMPATIBLE_IOCTL(FIFREEZE)
 COMPATIBLE_IOCTL(FITHAW)
+COMPATIBLE_IOCTL(FITRIM)
 COMPATIBLE_IOCTL(KDGETKEYCODE)
 COMPATIBLE_IOCTL(KDSETKEYCODE)
 COMPATIBLE_IOCTL(KDGKBTYPE)
@@ -954,8 +956,6 @@ COMPATIBLE_IOCTL(MTIOCTOP)
 /* Socket level stuff */
 COMPATIBLE_IOCTL(FIOQSIZE)
 #ifdef CONFIG_BLOCK
-/* loop */
-IGNORE_IOCTL(LOOP_CLR_FD)
 /* md calls this on random blockdevs */
 IGNORE_IOCTL(RAID_VERSION)
 /* qemu/qemu-img might call these two on plain files for probing */
@@ -1249,6 +1249,7 @@ COMPATIBLE_IOCTL(BNEPCONNADD)
 COMPATIBLE_IOCTL(BNEPCONNDEL)
 COMPATIBLE_IOCTL(BNEPGETCONNLIST)
 COMPATIBLE_IOCTL(BNEPGETCONNINFO)
+COMPATIBLE_IOCTL(BNEPGETSUPPFEAT)
 COMPATIBLE_IOCTL(CMTPCONNADD)
 COMPATIBLE_IOCTL(CMTPCONNDEL)
 COMPATIBLE_IOCTL(CMTPGETCONNLIST)
@@ -1540,9 +1541,10 @@ static int compat_ioctl_check_table(unsigned int xcmd)
 	return ioctl_pointer[i] == xcmd;
 }
 
-asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
-				unsigned long arg)
+COMPAT_SYSCALL_DEFINE3(ioctl, unsigned int, fd, unsigned int, cmd,
+		       compat_ulong_t, arg32)
 {
+	unsigned long arg = arg32;
 	struct fd f = fdget(fd);
 	int error = -EBADF;
 	if (!f.file)
@@ -1586,13 +1588,13 @@ asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 		/*FALL THROUGH*/
 
 	default:
-		if (f.file->f_op && f.file->f_op->compat_ioctl) {
+		if (f.file->f_op->compat_ioctl) {
 			error = f.file->f_op->compat_ioctl(f.file, cmd, arg);
 			if (error != -ENOIOCTLCMD)
 				goto out_fput;
 		}
 
-		if (!f.file->f_op || !f.file->f_op->unlocked_ioctl)
+		if (!f.file->f_op->unlocked_ioctl)
 			goto do_ioctl;
 		break;
 	}

@@ -82,8 +82,8 @@ menu to even appear in "menuconfig". These are:
 
   o CONFIG_DEBUG_PAGEALLOC=n
 
-	This option is located under "Kernel hacking" / "Debug page memory
-	allocations".
+	This option is located under "Kernel hacking" / "Memory Debugging"
+	 / "Debug page memory allocations".
 
 In addition, I highly recommend turning on CONFIG_DEBUG_INFO=y. This is also
 located under "Kernel hacking". With this, you will be able to get line number
@@ -91,9 +91,9 @@ information from the kmemcheck warnings, which is extremely valuable in
 debugging a problem. This option is not mandatory, however, because it slows
 down the compilation process and produces a much bigger kernel image.
 
-Now the kmemcheck menu should be visible (under "Kernel hacking" / "kmemcheck:
-trap use of uninitialized memory"). Here follows a description of the
-kmemcheck configuration variables:
+Now the kmemcheck menu should be visible (under "Kernel hacking" / "Memory
+Debugging" / "kmemcheck: trap use of uninitialized memory"). Here follows
+a description of the kmemcheck configuration variables:
 
   o CONFIG_KMEMCHECK
 
@@ -541,7 +541,7 @@ initialized. This is the beginning of the struct:
 92         } _sifields;
 93 } siginfo_t;
 
-On 64-bit, the int is 4 bytes long, so it must the the union member that has
+On 64-bit, the int is 4 bytes long, so it must the union member that has
 not been initialized. We can verify this using gdb:
 
 	$ gdb vmlinux

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -335,7 +335,7 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 
 		/* Create a new op */
 
-		op = acpi_ps_alloc_op(walk_state->opcode);
+		op = acpi_ps_alloc_op(walk_state->opcode, walk_state->aml);
 		if (!op) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
@@ -509,6 +509,7 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 			break;
 
 		default:
+
 			/* All NAMED_FIELD opcodes must be handled above */
 			break;
 		}
@@ -548,6 +549,7 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 			break;
 
 		default:
+
 			/* Unknown opcode */
 
 			status = AE_OK;
@@ -674,6 +676,7 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 #endif				/* ACPI_NO_METHOD_EXECUTION */
 
 		default:
+
 			/* All NAMED_COMPLEX opcodes must be handled above */
 			break;
 		}
@@ -721,10 +724,11 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 		break;
 
 	default:
+
 		break;
 	}
 
-      cleanup:
+cleanup:
 
 	/* Remove the Node pushed at the very beginning */
 

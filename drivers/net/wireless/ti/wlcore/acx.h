@@ -824,7 +824,8 @@ struct wl1271_acx_inconnection_sta {
 	struct acx_header header;
 
 	u8 addr[ETH_ALEN];
-	u8 padding1[2];
+	u8 role_id;
+	u8 padding;
 } __packed;
 
 /*
@@ -1118,7 +1119,8 @@ int wl1271_acx_ps_rx_streaming(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			       bool enable);
 int wl1271_acx_ap_max_tx_retry(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 int wl12xx_acx_config_ps(struct wl1271 *wl, struct wl12xx_vif *wlvif);
-int wl1271_acx_set_inconnection_sta(struct wl1271 *wl, u8 *addr);
+int wl1271_acx_set_inconnection_sta(struct wl1271 *wl,
+				    struct wl12xx_vif *wlvif, u8 *addr);
 int wl1271_acx_fm_coex(struct wl1271 *wl);
 int wl12xx_acx_set_rate_mgmt_params(struct wl1271 *wl);
 int wl12xx_acx_config_hangover(struct wl1271 *wl);

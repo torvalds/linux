@@ -9,6 +9,7 @@
 #include <net/netlink.h>
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ipv6.h>
+#include <net/addrconf.h>
 #endif
 
 #include "br_private.h"
@@ -61,7 +62,8 @@ static int br_mdb_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 
 	for (i = 0; i < mdb->max; i++) {
 		struct net_bridge_mdb_entry *mp;
-		struct net_bridge_port_group *p, **pp;
+		struct net_bridge_port_group *p;
+		struct net_bridge_port_group __rcu **pp;
 		struct net_bridge_port *port;
 
 		hlist_for_each_entry_rcu(mp, &mdb->mhash[i], hlist[mdb->ver]) {
@@ -83,6 +85,7 @@ static int br_mdb_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 					memset(&e, 0, sizeof(e));
 					e.ifindex = port->dev->ifindex;
 					e.state = p->state;
+					e.vid = p->addr.vid;
 					if (p->addr.proto == htons(ETH_P_IP))
 						e.addr.u.ip4 = p->addr.u.ip4;
 #if IS_ENABLED(CONFIG_IPV6)
@@ -168,7 +171,7 @@ static int nlmsg_populate_mdb_fill(struct sk_buff *skb,
 	struct br_port_msg *bpm;
 	struct nlattr *nest, *nest2;
 
-	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*bpm), NLM_F_MULTI);
+	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*bpm), 0);
 	if (!nlh)
 		return -EMSGSIZE;
 
@@ -188,7 +191,8 @@ static int nlmsg_populate_mdb_fill(struct sk_buff *skb,
 
 	nla_nest_end(skb, nest2);
 	nla_nest_end(skb, nest);
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 end:
 	nla_nest_end(skb, nest);
@@ -227,7 +231,7 @@ errout:
 }
 
 void br_mdb_notify(struct net_device *dev, struct net_bridge_port *port,
-		   struct br_ip *group, int type)
+		   struct br_ip *group, int type, u8 state)
 {
 	struct br_mdb_entry entry;
 
@@ -238,7 +242,76 @@ void br_mdb_notify(struct net_device *dev, struct net_bridge_port *port,
 #if IS_ENABLED(CONFIG_IPV6)
 	entry.addr.u.ip6 = group->u.ip6;
 #endif
+	entry.state = state;
+	entry.vid = group->vid;
 	__br_mdb_notify(dev, &entry, type);
+}
+
+static int nlmsg_populate_rtr_fill(struct sk_buff *skb,
+				   struct net_device *dev,
+				   int ifindex, u32 pid,
+				   u32 seq, int type, unsigned int flags)
+{
+	struct br_port_msg *bpm;
+	struct nlmsghdr *nlh;
+	struct nlattr *nest;
+
+	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*bpm), NLM_F_MULTI);
+	if (!nlh)
+		return -EMSGSIZE;
+
+	bpm = nlmsg_data(nlh);
+	memset(bpm, 0, sizeof(*bpm));
+	bpm->family = AF_BRIDGE;
+	bpm->ifindex = dev->ifindex;
+	nest = nla_nest_start(skb, MDBA_ROUTER);
+	if (!nest)
+		goto cancel;
+
+	if (nla_put_u32(skb, MDBA_ROUTER_PORT, ifindex))
+		goto end;
+
+	nla_nest_end(skb, nest);
+	nlmsg_end(skb, nlh);
+	return 0;
+
+end:
+	nla_nest_end(skb, nest);
+cancel:
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
+}
+
+static inline size_t rtnl_rtr_nlmsg_size(void)
+{
+	return NLMSG_ALIGN(sizeof(struct br_port_msg))
+		+ nla_total_size(sizeof(__u32));
+}
+
+void br_rtr_notify(struct net_device *dev, struct net_bridge_port *port,
+		   int type)
+{
+	struct net *net = dev_net(dev);
+	struct sk_buff *skb;
+	int err = -ENOBUFS;
+	int ifindex;
+
+	ifindex = port ? port->dev->ifindex : 0;
+	skb = nlmsg_new(rtnl_rtr_nlmsg_size(), GFP_ATOMIC);
+	if (!skb)
+		goto errout;
+
+	err = nlmsg_populate_rtr_fill(skb, dev, ifindex, 0, 0, type, NTF_SELF);
+	if (err < 0) {
+		kfree_skb(skb);
+		goto errout;
+	}
+
+	rtnl_notify(skb, net, 0, RTNLGRP_MDB, NULL, GFP_ATOMIC);
+	return;
+
+errout:
+	rtnl_set_sk_err(net, RTNLGRP_MDB, err);
 }
 
 static bool is_valid_mdb_entry(struct br_mdb_entry *entry)
@@ -253,12 +326,14 @@ static bool is_valid_mdb_entry(struct br_mdb_entry *entry)
 			return false;
 #if IS_ENABLED(CONFIG_IPV6)
 	} else if (entry->addr.proto == htons(ETH_P_IPV6)) {
-		if (!ipv6_is_transient_multicast(&entry->addr.u.ip6))
+		if (ipv6_addr_is_ll_all_nodes(&entry->addr.u.ip6))
 			return false;
 #endif
 	} else
 		return false;
 	if (entry->state != MDB_PERMANENT && entry->state != MDB_TEMPORARY)
+		return false;
+	if (entry->vid >= VLAN_VID_MASK)
 		return false;
 
 	return true;
@@ -274,7 +349,7 @@ static int br_mdb_parse(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct net_device *dev;
 	int err;
 
-	err = nlmsg_parse(nlh, sizeof(*bpm), tb, MDBA_SET_ENTRY, NULL);
+	err = nlmsg_parse(nlh, sizeof(*bpm), tb, MDBA_SET_ENTRY_MAX, NULL);
 	if (err < 0)
 		return err;
 
@@ -320,6 +395,7 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 	struct net_bridge_port_group *p;
 	struct net_bridge_port_group __rcu **pp;
 	struct net_bridge_mdb_htable *mdb;
+	unsigned long now = jiffies;
 	int err;
 
 	mdb = mlock_dereference(br->mdb, br);
@@ -344,8 +420,9 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 	if (unlikely(!p))
 		return -ENOMEM;
 	rcu_assign_pointer(*pp, p);
+	if (state == MDB_TEMPORARY)
+		mod_timer(&p->timer, now + br->multicast_membership_interval);
 
-	br_mdb_notify(br->dev, port, group, RTM_NEWMDB);
 	return 0;
 }
 
@@ -368,6 +445,8 @@ static int __br_mdb_add(struct net *net, struct net_bridge *br,
 	if (!p || p->br != br || p->state == BR_STATE_DISABLED)
 		return -EINVAL;
 
+	memset(&ip, 0, sizeof(ip));
+	ip.vid = entry->vid;
 	ip.proto = entry->addr.proto;
 	if (ip.proto == htons(ETH_P_IP))
 		ip.u.ip4 = entry->addr.u.ip4;
@@ -385,8 +464,11 @@ static int __br_mdb_add(struct net *net, struct net_bridge *br,
 static int br_mdb_add(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
+	struct net_bridge_vlan_group *vg;
+	struct net_device *dev, *pdev;
 	struct br_mdb_entry *entry;
-	struct net_device *dev;
+	struct net_bridge_port *p;
+	struct net_bridge_vlan *v;
 	struct net_bridge *br;
 	int err;
 
@@ -396,9 +478,32 @@ static int br_mdb_add(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	br = netdev_priv(dev);
 
-	err = __br_mdb_add(net, br, entry);
-	if (!err)
-		__br_mdb_notify(dev, entry, RTM_NEWMDB);
+	/* If vlan filtering is enabled and VLAN is not specified
+	 * install mdb entry on all vlans configured on the port.
+	 */
+	pdev = __dev_get_by_index(net, entry->ifindex);
+	if (!pdev)
+		return -ENODEV;
+
+	p = br_port_get_rtnl(pdev);
+	if (!p || p->br != br || p->state == BR_STATE_DISABLED)
+		return -EINVAL;
+
+	vg = nbp_vlan_group(p);
+	if (br_vlan_enabled(br) && vg && entry->vid == 0) {
+		list_for_each_entry(v, &vg->vlan_list, vlist) {
+			entry->vid = v->vid;
+			err = __br_mdb_add(net, br, entry);
+			if (err)
+				break;
+			__br_mdb_notify(dev, entry, RTM_NEWMDB);
+		}
+	} else {
+		err = __br_mdb_add(net, br, entry);
+		if (!err)
+			__br_mdb_notify(dev, entry, RTM_NEWMDB);
+	}
+
 	return err;
 }
 
@@ -414,9 +519,8 @@ static int __br_mdb_del(struct net_bridge *br, struct br_mdb_entry *entry)
 	if (!netif_running(br->dev) || br->multicast_disabled)
 		return -EINVAL;
 
-	if (timer_pending(&br->multicast_querier_timer))
-		return -EBUSY;
-
+	memset(&ip, 0, sizeof(ip));
+	ip.vid = entry->vid;
 	ip.proto = entry->addr.proto;
 	if (ip.proto == htons(ETH_P_IP))
 		ip.u.ip4 = entry->addr.u.ip4;
@@ -441,6 +545,7 @@ static int __br_mdb_del(struct net_bridge *br, struct br_mdb_entry *entry)
 		if (p->port->state == BR_STATE_DISABLED)
 			goto unlock;
 
+		entry->state = p->state;
 		rcu_assign_pointer(*pp, p->next);
 		hlist_del_init(&p->mglist);
 		del_timer(&p->timer);
@@ -460,8 +565,12 @@ unlock:
 
 static int br_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
-	struct net_device *dev;
+	struct net *net = sock_net(skb->sk);
+	struct net_bridge_vlan_group *vg;
+	struct net_device *dev, *pdev;
 	struct br_mdb_entry *entry;
+	struct net_bridge_port *p;
+	struct net_bridge_vlan *v;
 	struct net_bridge *br;
 	int err;
 
@@ -471,9 +580,31 @@ static int br_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	br = netdev_priv(dev);
 
-	err = __br_mdb_del(br, entry);
-	if (!err)
-		__br_mdb_notify(dev, entry, RTM_DELMDB);
+	/* If vlan filtering is enabled and VLAN is not specified
+	 * delete mdb entry on all vlans configured on the port.
+	 */
+	pdev = __dev_get_by_index(net, entry->ifindex);
+	if (!pdev)
+		return -ENODEV;
+
+	p = br_port_get_rtnl(pdev);
+	if (!p || p->br != br || p->state == BR_STATE_DISABLED)
+		return -EINVAL;
+
+	vg = nbp_vlan_group(p);
+	if (br_vlan_enabled(br) && vg && entry->vid == 0) {
+		list_for_each_entry(v, &vg->vlan_list, vlist) {
+			entry->vid = v->vid;
+			err = __br_mdb_del(br, entry);
+			if (!err)
+				__br_mdb_notify(dev, entry, RTM_DELMDB);
+		}
+	} else {
+		err = __br_mdb_del(br, entry);
+		if (!err)
+			__br_mdb_notify(dev, entry, RTM_DELMDB);
+	}
+
 	return err;
 }
 

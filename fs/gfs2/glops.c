@@ -28,15 +28,19 @@
 #include "trans.h"
 #include "dir.h"
 
+struct workqueue_struct *gfs2_freeze_wq;
+
 static void gfs2_ail_error(struct gfs2_glock *gl, const struct buffer_head *bh)
 {
-	fs_err(gl->gl_sbd, "AIL buffer %p: blocknr %llu state 0x%08lx mapping %p page state 0x%lx\n",
+	fs_err(gl->gl_name.ln_sbd,
+	       "AIL buffer %p: blocknr %llu state 0x%08lx mapping %p page "
+	       "state 0x%lx\n",
 	       bh, (unsigned long long)bh->b_blocknr, bh->b_state,
 	       bh->b_page->mapping, bh->b_page->flags);
-	fs_err(gl->gl_sbd, "AIL glock %u:%llu mapping %p\n",
+	fs_err(gl->gl_name.ln_sbd, "AIL glock %u:%llu mapping %p\n",
 	       gl->gl_name.ln_type, gl->gl_name.ln_number,
 	       gfs2_glock2aspace(gl));
-	gfs2_lm_withdraw(gl->gl_sbd, "AIL error\n");
+	gfs2_lm_withdraw(gl->gl_name.ln_sbd, "AIL error\n");
 }
 
 /**
@@ -47,32 +51,28 @@ static void gfs2_ail_error(struct gfs2_glock *gl, const struct buffer_head *bh)
  * None of the buffers should be dirty, locked, or pinned.
  */
 
-static void __gfs2_ail_flush(struct gfs2_glock *gl, bool fsync)
+static void __gfs2_ail_flush(struct gfs2_glock *gl, bool fsync,
+			     unsigned int nr_revokes)
 {
-	struct gfs2_sbd *sdp = gl->gl_sbd;
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct list_head *head = &gl->gl_ail_list;
 	struct gfs2_bufdata *bd, *tmp;
 	struct buffer_head *bh;
 	const unsigned long b_state = (1UL << BH_Dirty)|(1UL << BH_Pinned)|(1UL << BH_Lock);
-	sector_t blocknr;
 
 	gfs2_log_lock(sdp);
 	spin_lock(&sdp->sd_ail_lock);
-	list_for_each_entry_safe(bd, tmp, head, bd_ail_gl_list) {
+	list_for_each_entry_safe_reverse(bd, tmp, head, bd_ail_gl_list) {
+		if (nr_revokes == 0)
+			break;
 		bh = bd->bd_bh;
 		if (bh->b_state & b_state) {
 			if (fsync)
 				continue;
 			gfs2_ail_error(gl, bh);
 		}
-		blocknr = bh->b_blocknr;
-		bh->b_private = NULL;
-		gfs2_remove_from_ail(bd); /* drops ref on bh */
-
-		bd->bd_bh = NULL;
-		bd->bd_blkno = blocknr;
-
 		gfs2_trans_add_revoke(sdp, bd);
+		nr_revokes--;
 	}
 	GLOCK_BUG_ON(gl, !fsync && atomic_read(&gl->gl_ail_count));
 	spin_unlock(&sdp->sd_ail_lock);
@@ -82,44 +82,52 @@ static void __gfs2_ail_flush(struct gfs2_glock *gl, bool fsync)
 
 static void gfs2_ail_empty_gl(struct gfs2_glock *gl)
 {
-	struct gfs2_sbd *sdp = gl->gl_sbd;
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct gfs2_trans tr;
 
 	memset(&tr, 0, sizeof(tr));
+	INIT_LIST_HEAD(&tr.tr_buf);
+	INIT_LIST_HEAD(&tr.tr_databuf);
 	tr.tr_revokes = atomic_read(&gl->gl_ail_count);
 
 	if (!tr.tr_revokes)
 		return;
 
-	/* A shortened, inline version of gfs2_trans_begin() */
+	/* A shortened, inline version of gfs2_trans_begin()
+         * tr->alloced is not set since the transaction structure is
+         * on the stack */
 	tr.tr_reserved = 1 + gfs2_struct2blk(sdp, tr.tr_revokes, sizeof(u64));
-	tr.tr_ip = (unsigned long)__builtin_return_address(0);
-	sb_start_intwrite(sdp->sd_vfs);
-	gfs2_log_reserve(sdp, tr.tr_reserved);
+	tr.tr_ip = _RET_IP_;
+	if (gfs2_log_reserve(sdp, tr.tr_reserved) < 0)
+		return;
 	WARN_ON_ONCE(current->journal_info);
 	current->journal_info = &tr;
 
-	__gfs2_ail_flush(gl, 0);
+	__gfs2_ail_flush(gl, 0, tr.tr_revokes);
 
 	gfs2_trans_end(sdp);
-	gfs2_log_flush(sdp, NULL);
+	gfs2_log_flush(sdp, NULL, NORMAL_FLUSH);
 }
 
 void gfs2_ail_flush(struct gfs2_glock *gl, bool fsync)
 {
-	struct gfs2_sbd *sdp = gl->gl_sbd;
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	unsigned int revokes = atomic_read(&gl->gl_ail_count);
+	unsigned int max_revokes = (sdp->sd_sb.sb_bsize - sizeof(struct gfs2_log_descriptor)) / sizeof(u64);
 	int ret;
 
 	if (!revokes)
 		return;
 
-	ret = gfs2_trans_begin(sdp, 0, revokes);
+	while (revokes > max_revokes)
+		max_revokes += (sdp->sd_sb.sb_bsize - sizeof(struct gfs2_meta_header)) / sizeof(u64);
+
+	ret = gfs2_trans_begin(sdp, 0, max_revokes);
 	if (ret)
 		return;
-	__gfs2_ail_flush(gl, fsync);
+	__gfs2_ail_flush(gl, fsync, max_revokes);
 	gfs2_trans_end(sdp);
-	gfs2_log_flush(sdp, NULL);
+	gfs2_log_flush(sdp, NULL, NORMAL_FLUSH);
 }
 
 /**
@@ -133,25 +141,32 @@ void gfs2_ail_flush(struct gfs2_glock *gl, bool fsync)
 
 static void rgrp_go_sync(struct gfs2_glock *gl)
 {
-	struct address_space *metamapping = gfs2_glock2aspace(gl);
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
+	struct address_space *mapping = &sdp->sd_aspace;
 	struct gfs2_rgrpd *rgd;
 	int error;
+
+	spin_lock(&gl->gl_lockref.lock);
+	rgd = gl->gl_object;
+	if (rgd)
+		gfs2_rgrp_brelse(rgd);
+	spin_unlock(&gl->gl_lockref.lock);
 
 	if (!test_and_clear_bit(GLF_DIRTY, &gl->gl_flags))
 		return;
 	GLOCK_BUG_ON(gl, gl->gl_state != LM_ST_EXCLUSIVE);
 
-	gfs2_log_flush(gl->gl_sbd, gl);
-	filemap_fdatawrite(metamapping);
-	error = filemap_fdatawait(metamapping);
-        mapping_set_error(metamapping, error);
+	gfs2_log_flush(sdp, gl, NORMAL_FLUSH);
+	filemap_fdatawrite_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
+	error = filemap_fdatawait_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
+	mapping_set_error(mapping, error);
 	gfs2_ail_empty_gl(gl);
 
-	spin_lock(&gl->gl_spin);
+	spin_lock(&gl->gl_lockref.lock);
 	rgd = gl->gl_object;
 	if (rgd)
 		gfs2_free_clones(rgd);
-	spin_unlock(&gl->gl_spin);
+	spin_unlock(&gl->gl_lockref.lock);
 }
 
 /**
@@ -166,16 +181,19 @@ static void rgrp_go_sync(struct gfs2_glock *gl)
 
 static void rgrp_go_inval(struct gfs2_glock *gl, int flags)
 {
-	struct address_space *mapping = gfs2_glock2aspace(gl);
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
+	struct address_space *mapping = &sdp->sd_aspace;
+	struct gfs2_rgrpd *rgd = gl->gl_object;
+
+	if (rgd)
+		gfs2_rgrp_brelse(rgd);
 
 	WARN_ON_ONCE(!(flags & DIO_METADATA));
-	gfs2_assert_withdraw(gl->gl_sbd, !atomic_read(&gl->gl_ail_count));
-	truncate_inode_pages(mapping, 0);
+	gfs2_assert_withdraw(sdp, !atomic_read(&gl->gl_ail_count));
+	truncate_inode_pages_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
 
-	if (gl->gl_object) {
-		struct gfs2_rgrpd *rgd = (struct gfs2_rgrpd *)gl->gl_object;
+	if (rgd)
 		rgd->rd_flags &= ~GFS2_RDF_UPTODATE;
-	}
 }
 
 /**
@@ -192,14 +210,17 @@ static void inode_go_sync(struct gfs2_glock *gl)
 
 	if (ip && !S_ISREG(ip->i_inode.i_mode))
 		ip = NULL;
-	if (ip && test_and_clear_bit(GIF_SW_PAGED, &ip->i_flags))
-		unmap_shared_mapping_range(ip->i_inode.i_mapping, 0, 0);
+	if (ip) {
+		if (test_and_clear_bit(GIF_SW_PAGED, &ip->i_flags))
+			unmap_shared_mapping_range(ip->i_inode.i_mapping, 0, 0);
+		inode_dio_wait(&ip->i_inode);
+	}
 	if (!test_and_clear_bit(GLF_DIRTY, &gl->gl_flags))
 		return;
 
 	GLOCK_BUG_ON(gl, gl->gl_state != LM_ST_EXCLUSIVE);
 
-	gfs2_log_flush(gl->gl_sbd, gl);
+	gfs2_log_flush(gl->gl_name.ln_sbd, gl, NORMAL_FLUSH);
 	filemap_fdatawrite(metamapping);
 	if (ip) {
 		struct address_space *mapping = ip->i_inode.i_mapping;
@@ -214,7 +235,7 @@ static void inode_go_sync(struct gfs2_glock *gl)
 	 * Writeback of the data mapping may cause the dirty flag to be set
 	 * so we have to clear it again here.
 	 */
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit(GLF_DIRTY, &gl->gl_flags);
 }
 
@@ -222,8 +243,8 @@ static void inode_go_sync(struct gfs2_glock *gl)
  * inode_go_inval - prepare a inode glock to be released
  * @gl: the glock
  * @flags:
- * 
- * Normally we invlidate everything, but if we are moving into
+ *
+ * Normally we invalidate everything, but if we are moving into
  * LM_ST_DEFERRED from LM_ST_SHARED or LM_ST_EXCLUSIVE then we
  * can keep hold of the metadata, since it won't have changed.
  *
@@ -233,7 +254,7 @@ static void inode_go_inval(struct gfs2_glock *gl, int flags)
 {
 	struct gfs2_inode *ip = gl->gl_object;
 
-	gfs2_assert_withdraw(gl->gl_sbd, !atomic_read(&gl->gl_ail_count));
+	gfs2_assert_withdraw(gl->gl_name.ln_sbd, !atomic_read(&gl->gl_ail_count));
 
 	if (flags & DIO_METADATA) {
 		struct address_space *mapping = gfs2_glock2aspace(gl);
@@ -245,9 +266,9 @@ static void inode_go_inval(struct gfs2_glock *gl, int flags)
 		}
 	}
 
-	if (ip == GFS2_I(gl->gl_sbd->sd_rindex)) {
-		gfs2_log_flush(gl->gl_sbd, NULL);
-		gl->gl_sbd->sd_rindex_uptodate = 0;
+	if (ip == GFS2_I(gl->gl_name.ln_sbd->sd_rindex)) {
+		gfs2_log_flush(gl->gl_name.ln_sbd, NULL, NORMAL_FLUSH);
+		gl->gl_name.ln_sbd->sd_rindex_uptodate = 0;
 	}
 	if (ip && S_ISREG(ip->i_inode.i_mode))
 		truncate_inode_pages(ip->i_inode.i_mapping, 0);
@@ -262,7 +283,7 @@ static void inode_go_inval(struct gfs2_glock *gl, int flags)
 
 static int inode_go_demote_ok(const struct gfs2_glock *gl)
 {
-	struct gfs2_sbd *sdp = gl->gl_sbd;
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct gfs2_holder *gh;
 
 	if (sdp->sd_jindex == gl->gl_object || sdp->sd_rindex == gl->gl_object)
@@ -397,7 +418,7 @@ int gfs2_inode_refresh(struct gfs2_inode *ip)
 static int inode_go_lock(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
-	struct gfs2_sbd *sdp = gl->gl_sbd;
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct gfs2_inode *ip = gl->gl_object;
 	int error = 0;
 
@@ -409,6 +430,9 @@ static int inode_go_lock(struct gfs2_holder *gh)
 		if (error)
 			return error;
 	}
+
+	if (gh->gh_state != LM_ST_DEFERRED)
+		inode_dio_wait(&ip->i_inode);
 
 	if ((ip->i_diskflags & GFS2_DIF_TRUNC_IN_PROG) &&
 	    (gl->gl_state == LM_ST_EXCLUSIVE) &&
@@ -429,51 +453,56 @@ static int inode_go_lock(struct gfs2_holder *gh)
  * @seq: The iterator
  * @ip: the inode
  *
- * Returns: 0 on success, -ENOBUFS when we run out of space
  */
 
-static int inode_go_dump(struct seq_file *seq, const struct gfs2_glock *gl)
+static void inode_go_dump(struct seq_file *seq, const struct gfs2_glock *gl)
 {
 	const struct gfs2_inode *ip = gl->gl_object;
 	if (ip == NULL)
-		return 0;
+		return;
 	gfs2_print_dbg(seq, " I: n:%llu/%llu t:%u f:0x%02lx d:0x%08x s:%llu\n",
 		  (unsigned long long)ip->i_no_formal_ino,
 		  (unsigned long long)ip->i_no_addr,
 		  IF2DT(ip->i_inode.i_mode), ip->i_flags,
 		  (unsigned int)ip->i_diskflags,
 		  (unsigned long long)i_size_read(&ip->i_inode));
-	return 0;
 }
 
 /**
- * trans_go_sync - promote/demote the transaction glock
+ * freeze_go_sync - promote/demote the freeze glock
  * @gl: the glock
  * @state: the requested state
  * @flags:
  *
  */
 
-static void trans_go_sync(struct gfs2_glock *gl)
+static void freeze_go_sync(struct gfs2_glock *gl)
 {
-	struct gfs2_sbd *sdp = gl->gl_sbd;
+	int error = 0;
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 
-	if (gl->gl_state != LM_ST_UNLOCKED &&
+	if (gl->gl_state == LM_ST_SHARED &&
 	    test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags)) {
-		gfs2_meta_syncfs(sdp);
-		gfs2_log_shutdown(sdp);
+		atomic_set(&sdp->sd_freeze_state, SFS_STARTING_FREEZE);
+		error = freeze_super(sdp->sd_vfs);
+		if (error) {
+			printk(KERN_INFO "GFS2: couldn't freeze filesystem: %d\n", error);
+			gfs2_assert_withdraw(sdp, 0);
+		}
+		queue_work(gfs2_freeze_wq, &sdp->sd_freeze_work);
+		gfs2_log_flush(sdp, NULL, FREEZE_FLUSH);
 	}
 }
 
 /**
- * trans_go_xmote_bh - After promoting/demoting the transaction glock
+ * freeze_go_xmote_bh - After promoting/demoting the freeze glock
  * @gl: the glock
  *
  */
 
-static int trans_go_xmote_bh(struct gfs2_glock *gl, struct gfs2_holder *gh)
+static int freeze_go_xmote_bh(struct gfs2_glock *gl, struct gfs2_holder *gh)
 {
-	struct gfs2_sbd *sdp = gl->gl_sbd;
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct gfs2_inode *ip = GFS2_I(sdp->sd_jdesc->jd_inode);
 	struct gfs2_glock *j_gl = ip->i_gl;
 	struct gfs2_log_header_host head;
@@ -504,7 +533,7 @@ static int trans_go_xmote_bh(struct gfs2_glock *gl, struct gfs2_holder *gh)
  * Always returns 0
  */
 
-static int trans_go_demote_ok(const struct gfs2_glock *gl)
+static int freeze_go_demote_ok(const struct gfs2_glock *gl)
 {
 	return 0;
 }
@@ -513,21 +542,21 @@ static int trans_go_demote_ok(const struct gfs2_glock *gl)
  * iopen_go_callback - schedule the dcache entry for the inode to be deleted
  * @gl: the glock
  *
- * gl_spin lock is held while calling this
+ * gl_lockref.lock lock is held while calling this
  */
 static void iopen_go_callback(struct gfs2_glock *gl, bool remote)
 {
 	struct gfs2_inode *ip = (struct gfs2_inode *)gl->gl_object;
-	struct gfs2_sbd *sdp = gl->gl_sbd;
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 
 	if (!remote || (sdp->sd_vfs->s_flags & MS_RDONLY))
 		return;
 
 	if (gl->gl_demote_state == LM_ST_UNLOCKED &&
 	    gl->gl_state == LM_ST_SHARED && ip) {
-		gfs2_glock_hold(gl);
+		gl->gl_lockref.count++;
 		if (queue_work(gfs2_delete_workqueue, &gl->gl_delete) == 0)
-			gfs2_glock_put_nolock(gl);
+			gl->gl_lockref.count--;
 	}
 }
 
@@ -542,7 +571,7 @@ const struct gfs2_glock_operations gfs2_inode_glops = {
 	.go_lock = inode_go_lock,
 	.go_dump = inode_go_dump,
 	.go_type = LM_TYPE_INODE,
-	.go_flags = GLOF_ASPACE,
+	.go_flags = GLOF_ASPACE | GLOF_LRU,
 };
 
 const struct gfs2_glock_operations gfs2_rgrp_glops = {
@@ -552,23 +581,25 @@ const struct gfs2_glock_operations gfs2_rgrp_glops = {
 	.go_unlock = gfs2_rgrp_go_unlock,
 	.go_dump = gfs2_rgrp_dump,
 	.go_type = LM_TYPE_RGRP,
-	.go_flags = GLOF_ASPACE | GLOF_LVB,
+	.go_flags = GLOF_LVB,
 };
 
-const struct gfs2_glock_operations gfs2_trans_glops = {
-	.go_sync = trans_go_sync,
-	.go_xmote_bh = trans_go_xmote_bh,
-	.go_demote_ok = trans_go_demote_ok,
+const struct gfs2_glock_operations gfs2_freeze_glops = {
+	.go_sync = freeze_go_sync,
+	.go_xmote_bh = freeze_go_xmote_bh,
+	.go_demote_ok = freeze_go_demote_ok,
 	.go_type = LM_TYPE_NONDISK,
 };
 
 const struct gfs2_glock_operations gfs2_iopen_glops = {
 	.go_type = LM_TYPE_IOPEN,
 	.go_callback = iopen_go_callback,
+	.go_flags = GLOF_LRU,
 };
 
 const struct gfs2_glock_operations gfs2_flock_glops = {
 	.go_type = LM_TYPE_FLOCK,
+	.go_flags = GLOF_LRU,
 };
 
 const struct gfs2_glock_operations gfs2_nondisk_glops = {
@@ -577,7 +608,7 @@ const struct gfs2_glock_operations gfs2_nondisk_glops = {
 
 const struct gfs2_glock_operations gfs2_quota_glops = {
 	.go_type = LM_TYPE_QUOTA,
-	.go_flags = GLOF_LVB,
+	.go_flags = GLOF_LVB | GLOF_LRU,
 };
 
 const struct gfs2_glock_operations gfs2_journal_glops = {

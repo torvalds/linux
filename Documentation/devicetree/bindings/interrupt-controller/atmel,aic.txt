@@ -1,0 +1,42 @@
+* Advanced Interrupt Controller (AIC)
+
+Required properties:
+- compatible: Should be "atmel,<chip>-aic"
+  <chip> can be "at91rm9200", "sama5d2", "sama5d3" or "sama5d4"
+- interrupt-controller: Identifies the node as an interrupt controller.
+- interrupt-parent: For single AIC system, it is an empty property.
+- #interrupt-cells: The number of cells to define the interrupts. It should be 3.
+  The first cell is the IRQ number (aka "Peripheral IDentifier" on datasheet).
+  The second cell is used to specify flags:
+    bits[3:0] trigger type and level flags:
+      1 = low-to-high edge triggered.
+      2 = high-to-low edge triggered.
+      4 = active high level-sensitive.
+      8 = active low level-sensitive.
+      Valid combinations are 1, 2, 3, 4, 8.
+      Default flag for internal sources should be set to 4 (active high).
+  The third cell is used to specify the irq priority from 0 (lowest) to 7
+  (highest).
+- reg: Should contain AIC registers location and length
+- atmel,external-irqs: u32 array of external irqs.
+
+Examples:
+	/*
+	 * AIC
+	 */
+	aic: interrupt-controller@fffff000 {
+		compatible = "atmel,at91rm9200-aic";
+		interrupt-controller;
+		interrupt-parent;
+		#interrupt-cells = <3>;
+		reg = <0xfffff000 0x200>;
+	};
+
+	/*
+	 * An interrupt generating device that is wired to an AIC.
+	 */
+	dma: dma-controller@ffffec00 {
+		compatible = "atmel,at91sam9g45-dma";
+		reg = <0xffffec00 0x200>;
+		interrupts = <21 4 5>;
+	};

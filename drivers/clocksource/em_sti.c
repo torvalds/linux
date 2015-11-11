@@ -78,7 +78,7 @@ static int em_sti_enable(struct em_sti_priv *p)
 	int ret;
 
 	/* enable clock */
-	ret = clk_enable(p->clk);
+	ret = clk_prepare_enable(p->clk);
 	if (ret) {
 		dev_err(&p->pdev->dev, "cannot enable clock\n");
 		return ret;
@@ -107,7 +107,7 @@ static void em_sti_disable(struct em_sti_priv *p)
 	em_sti_write(p, STI_INTENCLR, 3);
 
 	/* stop clock */
-	clk_disable(p->clk);
+	clk_disable_unprepare(p->clk);
 }
 
 static cycle_t em_sti_count(struct em_sti_priv *p)
@@ -210,7 +210,7 @@ static int em_sti_clocksource_enable(struct clocksource *cs)
 
 	ret = em_sti_start(p, USER_CLOCKSOURCE);
 	if (!ret)
-		__clocksource_updatefreq_hz(cs, p->rate);
+		__clocksource_update_freq_hz(cs, p->rate);
 	return ret;
 }
 
@@ -228,7 +228,6 @@ static int em_sti_register_clocksource(struct em_sti_priv *p)
 {
 	struct clocksource *cs = &p->cs;
 
-	memset(cs, 0, sizeof(*cs));
 	cs->name = dev_name(&p->pdev->dev);
 	cs->rating = 200;
 	cs->read = em_sti_clocksource_read;
@@ -251,33 +250,21 @@ static struct em_sti_priv *ced_to_em_sti(struct clock_event_device *ced)
 	return container_of(ced, struct em_sti_priv, ced);
 }
 
-static void em_sti_clock_event_mode(enum clock_event_mode mode,
-				    struct clock_event_device *ced)
+static int em_sti_clock_event_shutdown(struct clock_event_device *ced)
+{
+	struct em_sti_priv *p = ced_to_em_sti(ced);
+	em_sti_stop(p, USER_CLOCKEVENT);
+	return 0;
+}
+
+static int em_sti_clock_event_set_oneshot(struct clock_event_device *ced)
 {
 	struct em_sti_priv *p = ced_to_em_sti(ced);
 
-	/* deal with old setting first */
-	switch (ced->mode) {
-	case CLOCK_EVT_MODE_ONESHOT:
-		em_sti_stop(p, USER_CLOCKEVENT);
-		break;
-	default:
-		break;
-	}
-
-	switch (mode) {
-	case CLOCK_EVT_MODE_ONESHOT:
-		dev_info(&p->pdev->dev, "used for oneshot clock events\n");
-		em_sti_start(p, USER_CLOCKEVENT);
-		clockevents_config(&p->ced, p->rate);
-		break;
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	case CLOCK_EVT_MODE_UNUSED:
-		em_sti_stop(p, USER_CLOCKEVENT);
-		break;
-	default:
-		break;
-	}
+	dev_info(&p->pdev->dev, "used for oneshot clock events\n");
+	em_sti_start(p, USER_CLOCKEVENT);
+	clockevents_config(&p->ced, p->rate);
+	return 0;
 }
 
 static int em_sti_clock_event_next(unsigned long delta,
@@ -297,17 +284,17 @@ static void em_sti_register_clockevent(struct em_sti_priv *p)
 {
 	struct clock_event_device *ced = &p->ced;
 
-	memset(ced, 0, sizeof(*ced));
 	ced->name = dev_name(&p->pdev->dev);
 	ced->features = CLOCK_EVT_FEAT_ONESHOT;
 	ced->rating = 200;
-	ced->cpumask = cpumask_of(0);
+	ced->cpumask = cpu_possible_mask;
 	ced->set_next_event = em_sti_clock_event_next;
-	ced->set_mode = em_sti_clock_event_mode;
+	ced->set_state_shutdown = em_sti_clock_event_shutdown;
+	ced->set_state_oneshot = em_sti_clock_event_set_oneshot;
 
 	dev_info(&p->pdev->dev, "used for clock events\n");
 
-	/* Register with dummy 1 Hz value, gets updated in ->set_mode() */
+	/* Register with dummy 1 Hz value, gets updated in ->set_state_oneshot() */
 	clockevents_config_and_register(ced, 1, 2, 0xffffffff);
 }
 
@@ -315,68 +302,45 @@ static int em_sti_probe(struct platform_device *pdev)
 {
 	struct em_sti_priv *p;
 	struct resource *res;
-	int irq, ret;
+	int irq;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
-	if (p == NULL) {
-		dev_err(&pdev->dev, "failed to allocate driver data\n");
-		ret = -ENOMEM;
-		goto err0;
-	}
+	p = devm_kzalloc(&pdev->dev, sizeof(*p), GFP_KERNEL);
+	if (p == NULL)
+		return -ENOMEM;
 
 	p->pdev = pdev;
 	platform_set_drvdata(pdev, p);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "failed to get I/O memory\n");
-		ret = -EINVAL;
-		goto err0;
-	}
-
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "failed to get irq\n");
-		ret = -EINVAL;
-		goto err0;
+		return -EINVAL;
 	}
 
 	/* map memory, let base point to the STI instance */
-	p->base = ioremap_nocache(res->start, resource_size(res));
-	if (p->base == NULL) {
-		dev_err(&pdev->dev, "failed to remap I/O memory\n");
-		ret = -ENXIO;
-		goto err0;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	p->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(p->base))
+		return PTR_ERR(p->base);
 
 	/* get hold of clock */
-	p->clk = clk_get(&pdev->dev, "sclk");
+	p->clk = devm_clk_get(&pdev->dev, "sclk");
 	if (IS_ERR(p->clk)) {
 		dev_err(&pdev->dev, "cannot get clock\n");
-		ret = PTR_ERR(p->clk);
-		goto err1;
+		return PTR_ERR(p->clk);
 	}
 
-	if (request_irq(irq, em_sti_interrupt,
-			IRQF_TIMER | IRQF_IRQPOLL | IRQF_NOBALANCING,
-			dev_name(&pdev->dev), p)) {
+	if (devm_request_irq(&pdev->dev, irq, em_sti_interrupt,
+			     IRQF_TIMER | IRQF_IRQPOLL | IRQF_NOBALANCING,
+			     dev_name(&pdev->dev), p)) {
 		dev_err(&pdev->dev, "failed to request low IRQ\n");
-		ret = -ENOENT;
-		goto err2;
+		return -ENOENT;
 	}
 
 	raw_spin_lock_init(&p->lock);
 	em_sti_register_clockevent(p);
 	em_sti_register_clocksource(p);
 	return 0;
-
-err2:
-	clk_put(p->clk);
-err1:
-	iounmap(p->base);
-err0:
-	kfree(p);
-	return ret;
 }
 
 static int em_sti_remove(struct platform_device *pdev)

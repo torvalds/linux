@@ -26,10 +26,10 @@
 #include <linux/buffer_head.h>
 #include <linux/journal-head.h>
 #include <linux/stddef.h>
-#include <linux/bit_spinlock.h>
 #include <linux/mutex.h>
 #include <linux/timer.h>
 #include <linux/slab.h>
+#include <linux/bit_spinlock.h>
 #include <crypto/hash.h>
 #endif
 
@@ -57,17 +57,13 @@
  */
 #define JBD2_EXPENSIVE_CHECKING
 extern ushort jbd2_journal_enable_debug;
+void __jbd2_debug(int level, const char *file, const char *func,
+		  unsigned int line, const char *fmt, ...);
 
-#define jbd_debug(n, f, a...)						\
-	do {								\
-		if ((n) <= jbd2_journal_enable_debug) {			\
-			printk (KERN_DEBUG "(%s, %d): %s: ",		\
-				__FILE__, __LINE__, __func__);	\
-			printk (f, ## a);				\
-		}							\
-	} while (0)
+#define jbd_debug(n, fmt, a...) \
+	__jbd2_debug((n), __FILE__, __func__, __LINE__, (fmt), ##a)
 #else
-#define jbd_debug(f, a...)	/**/
+#define jbd_debug(n, fmt, a...)    /**/
 #endif
 
 extern void *jbd2_alloc(size_t size, gfp_t flags);
@@ -164,7 +160,11 @@ typedef struct journal_header_s
  * journal_block_tag (in the descriptor).  The other h_chksum* fields are
  * not used.
  *
- * Checksum v1 and v2 are mutually exclusive features.
+ * If FEATURE_INCOMPAT_CSUM_V3 is set, the descriptor block uses
+ * journal_block_tag3_t to store a full 32-bit checksum.  Everything else
+ * is the same as v2.
+ *
+ * Checksum v1, v2, and v3 are mutually exclusive features.
  */
 struct commit_header {
 	__be32		h_magic;
@@ -184,6 +184,14 @@ struct commit_header {
  * raw struct shouldn't be used for pointer math or sizeof() - use
  * journal_tag_bytes(journal) instead to compute this.
  */
+typedef struct journal_block_tag3_s
+{
+	__be32		t_blocknr;	/* The on-disk block number */
+	__be32		t_flags;	/* See below */
+	__be32		t_blocknr_high; /* most-significant high 32bits. */
+	__be32		t_checksum;	/* crc32c(uuid+seq+block) */
+} journal_block_tag3_t;
+
 typedef struct journal_block_tag_s
 {
 	__be32		t_blocknr;	/* The on-disk block number */
@@ -191,9 +199,6 @@ typedef struct journal_block_tag_s
 	__be16		t_flags;	/* See below */
 	__be32		t_blocknr_high; /* most-significant high 32bits. */
 } journal_block_tag_t;
-
-#define JBD2_TAG_SIZE32 (offsetof(journal_block_tag_t, t_blocknr_high))
-#define JBD2_TAG_SIZE64 (sizeof(journal_block_tag_t))
 
 /* Tail of descriptor block, for checksumming */
 struct jbd2_journal_block_tail {
@@ -273,6 +278,7 @@ typedef struct journal_superblock_s
 /* 0x0400 */
 } journal_superblock_t;
 
+/* Use the jbd2_{has,set,clear}_feature_* helpers; these will be removed */
 #define JBD2_HAS_COMPAT_FEATURE(j,mask)					\
 	((j)->j_format_version >= 2 &&					\
 	 ((j)->j_superblock->s_feature_compat & cpu_to_be32((mask))))
@@ -283,12 +289,15 @@ typedef struct journal_superblock_s
 	((j)->j_format_version >= 2 &&					\
 	 ((j)->j_superblock->s_feature_incompat & cpu_to_be32((mask))))
 
-#define JBD2_FEATURE_COMPAT_CHECKSUM	0x00000001
+#define JBD2_FEATURE_COMPAT_CHECKSUM		0x00000001
 
 #define JBD2_FEATURE_INCOMPAT_REVOKE		0x00000001
 #define JBD2_FEATURE_INCOMPAT_64BIT		0x00000002
 #define JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT	0x00000004
 #define JBD2_FEATURE_INCOMPAT_CSUM_V2		0x00000008
+#define JBD2_FEATURE_INCOMPAT_CSUM_V3		0x00000010
+
+/* See "journal feature predicate functions" below */
 
 /* Features known to this kernel version: */
 #define JBD2_KNOWN_COMPAT_FEATURES	JBD2_FEATURE_COMPAT_CHECKSUM
@@ -296,13 +305,80 @@ typedef struct journal_superblock_s
 #define JBD2_KNOWN_INCOMPAT_FEATURES	(JBD2_FEATURE_INCOMPAT_REVOKE | \
 					JBD2_FEATURE_INCOMPAT_64BIT | \
 					JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT | \
-					JBD2_FEATURE_INCOMPAT_CSUM_V2)
+					JBD2_FEATURE_INCOMPAT_CSUM_V2 | \
+					JBD2_FEATURE_INCOMPAT_CSUM_V3)
 
 #ifdef __KERNEL__
 
 #include <linux/fs.h>
 #include <linux/sched.h>
-#include <linux/jbd_common.h>
+
+enum jbd_state_bits {
+	BH_JBD			/* Has an attached ext3 journal_head */
+	  = BH_PrivateStart,
+	BH_JWrite,		/* Being written to log (@@@ DEBUGGING) */
+	BH_Freed,		/* Has been freed (truncated) */
+	BH_Revoked,		/* Has been revoked from the log */
+	BH_RevokeValid,		/* Revoked flag is valid */
+	BH_JBDDirty,		/* Is dirty but journaled */
+	BH_State,		/* Pins most journal_head state */
+	BH_JournalHead,		/* Pins bh->b_private and jh->b_bh */
+	BH_Shadow,		/* IO on shadow buffer is running */
+	BH_Verified,		/* Metadata block has been verified ok */
+	BH_JBDPrivateStart,	/* First bit available for private use by FS */
+};
+
+BUFFER_FNS(JBD, jbd)
+BUFFER_FNS(JWrite, jwrite)
+BUFFER_FNS(JBDDirty, jbddirty)
+TAS_BUFFER_FNS(JBDDirty, jbddirty)
+BUFFER_FNS(Revoked, revoked)
+TAS_BUFFER_FNS(Revoked, revoked)
+BUFFER_FNS(RevokeValid, revokevalid)
+TAS_BUFFER_FNS(RevokeValid, revokevalid)
+BUFFER_FNS(Freed, freed)
+BUFFER_FNS(Shadow, shadow)
+BUFFER_FNS(Verified, verified)
+
+static inline struct buffer_head *jh2bh(struct journal_head *jh)
+{
+	return jh->b_bh;
+}
+
+static inline struct journal_head *bh2jh(struct buffer_head *bh)
+{
+	return bh->b_private;
+}
+
+static inline void jbd_lock_bh_state(struct buffer_head *bh)
+{
+	bit_spin_lock(BH_State, &bh->b_state);
+}
+
+static inline int jbd_trylock_bh_state(struct buffer_head *bh)
+{
+	return bit_spin_trylock(BH_State, &bh->b_state);
+}
+
+static inline int jbd_is_locked_bh_state(struct buffer_head *bh)
+{
+	return bit_spin_is_locked(BH_State, &bh->b_state);
+}
+
+static inline void jbd_unlock_bh_state(struct buffer_head *bh)
+{
+	bit_spin_unlock(BH_State, &bh->b_state);
+}
+
+static inline void jbd_lock_bh_journal_head(struct buffer_head *bh)
+{
+	bit_spin_lock(BH_JournalHead, &bh->b_state);
+}
+
+static inline void jbd_unlock_bh_journal_head(struct buffer_head *bh)
+{
+	bit_spin_unlock(BH_JournalHead, &bh->b_state);
+}
 
 #define J_ASSERT(assert)	BUG_ON(!(assert))
 
@@ -382,8 +458,15 @@ struct jbd2_revoke_table_s;
 
 struct jbd2_journal_handle
 {
-	/* Which compound transaction is this update a part of? */
-	transaction_t		*h_transaction;
+	union {
+		/* Which compound transaction is this update a part of? */
+		transaction_t	*h_transaction;
+		/* Which journal handle belongs to - used iff h_reserved set */
+		journal_t	*h_journal;
+	};
+
+	/* Handle reserved for finishing the logical operation */
+	handle_t		*h_rsv_handle;
 
 	/* Number of remaining buffers we are allowed to dirty: */
 	int			h_buffer_credits;
@@ -398,6 +481,7 @@ struct jbd2_journal_handle
 	/* Flags [no locking] */
 	unsigned int	h_sync:		1;	/* sync-on-close */
 	unsigned int	h_jdata:	1;	/* force data journaling */
+	unsigned int	h_reserved:	1;	/* handle with reserved credits */
 	unsigned int	h_aborted:	1;	/* fatal error on handle */
 	unsigned int	h_type:		8;	/* for handle statistics */
 	unsigned int	h_line_no:	16;	/* for handle statistics */
@@ -524,23 +608,11 @@ struct transaction_s
 	struct journal_head	*t_checkpoint_io_list;
 
 	/*
-	 * Doubly-linked circular list of temporary buffers currently undergoing
-	 * IO in the log [j_list_lock]
-	 */
-	struct journal_head	*t_iobuf_list;
-
-	/*
 	 * Doubly-linked circular list of metadata buffers being shadowed by log
 	 * IO.  The IO buffers on the iobuf list and the shadow buffers on this
 	 * list match each other one for one at all times. [j_list_lock]
 	 */
 	struct journal_head	*t_shadow_list;
-
-	/*
-	 * Doubly-linked circular list of control buffers being written to the
-	 * log. [j_list_lock]
-	 */
-	struct journal_head	*t_log_list;
 
 	/*
 	 * List of inodes whose data we've modified in data=ordered mode.
@@ -671,11 +743,10 @@ jbd2_time_diff(unsigned long start, unsigned long end)
  *  waiting for checkpointing
  * @j_wait_transaction_locked: Wait queue for waiting for a locked transaction
  *  to start committing, or for a barrier lock to be released
- * @j_wait_logspace: Wait queue for waiting for checkpointing to complete
  * @j_wait_done_commit: Wait queue for waiting for commit to complete
- * @j_wait_checkpoint:  Wait queue to trigger checkpointing
  * @j_wait_commit: Wait queue to trigger commit
  * @j_wait_updates: Wait queue to wait for updates to complete
+ * @j_wait_reserved: Wait queue to wait for reserved buffer credits to drop
  * @j_checkpoint_mutex: Mutex for locking against concurrent checkpoints
  * @j_head: Journal head - identifies the first unused block in the journal
  * @j_tail: Journal tail - identifies the oldest still-used block in the
@@ -689,6 +760,7 @@ jbd2_time_diff(unsigned long start, unsigned long end)
  *     journal
  * @j_fs_dev: Device which holds the client fs.  For internal journal this will
  *     be equal to j_dev
+ * @j_reserved_credits: Number of buffers reserved from the running transaction
  * @j_maxlen: Total maximum capacity of the journal region on disk.
  * @j_list_lock: Protects the buffer lists and internal buffer state.
  * @j_inode: Optional inode where we store the journal.  If present, all journal
@@ -778,20 +850,17 @@ struct journal_s
 	 */
 	wait_queue_head_t	j_wait_transaction_locked;
 
-	/* Wait queue for waiting for checkpointing to complete */
-	wait_queue_head_t	j_wait_logspace;
-
 	/* Wait queue for waiting for commit to complete */
 	wait_queue_head_t	j_wait_done_commit;
-
-	/* Wait queue to trigger checkpointing */
-	wait_queue_head_t	j_wait_checkpoint;
 
 	/* Wait queue to trigger commit */
 	wait_queue_head_t	j_wait_commit;
 
 	/* Wait queue to wait for updates to complete */
 	wait_queue_head_t	j_wait_updates;
+
+	/* Wait queue to wait for reserved buffer credits to drop */
+	wait_queue_head_t	j_wait_reserved;
 
 	/* Semaphore for locking against concurrent checkpoints */
 	struct mutex		j_checkpoint_mutex;
@@ -846,6 +915,9 @@ struct journal_s
 
 	/* Total maximum capacity of the journal region on disk. */
 	unsigned int		j_maxlen;
+
+	/* Number of buffers reserved from the running transaction */
+	atomic_t		j_reserved_credits;
 
 	/*
 	 * Protects the buffer lists and internal buffer state.
@@ -965,6 +1037,69 @@ struct journal_s
 	__u32 j_csum_seed;
 };
 
+/* journal feature predicate functions */
+#define JBD2_FEATURE_COMPAT_FUNCS(name, flagname) \
+static inline bool jbd2_has_feature_##name(journal_t *j) \
+{ \
+	return ((j)->j_format_version >= 2 && \
+		((j)->j_superblock->s_feature_compat & \
+		 cpu_to_be32(JBD2_FEATURE_COMPAT_##flagname)) != 0); \
+} \
+static inline void jbd2_set_feature_##name(journal_t *j) \
+{ \
+	(j)->j_superblock->s_feature_compat |= \
+		cpu_to_be32(JBD2_FEATURE_COMPAT_##flagname); \
+} \
+static inline void jbd2_clear_feature_##name(journal_t *j) \
+{ \
+	(j)->j_superblock->s_feature_compat &= \
+		~cpu_to_be32(JBD2_FEATURE_COMPAT_##flagname); \
+}
+
+#define JBD2_FEATURE_RO_COMPAT_FUNCS(name, flagname) \
+static inline bool jbd2_has_feature_##name(journal_t *j) \
+{ \
+	return ((j)->j_format_version >= 2 && \
+		((j)->j_superblock->s_feature_ro_compat & \
+		 cpu_to_be32(JBD2_FEATURE_RO_COMPAT_##flagname)) != 0); \
+} \
+static inline void jbd2_set_feature_##name(journal_t *j) \
+{ \
+	(j)->j_superblock->s_feature_ro_compat |= \
+		cpu_to_be32(JBD2_FEATURE_RO_COMPAT_##flagname); \
+} \
+static inline void jbd2_clear_feature_##name(journal_t *j) \
+{ \
+	(j)->j_superblock->s_feature_ro_compat &= \
+		~cpu_to_be32(JBD2_FEATURE_RO_COMPAT_##flagname); \
+}
+
+#define JBD2_FEATURE_INCOMPAT_FUNCS(name, flagname) \
+static inline bool jbd2_has_feature_##name(journal_t *j) \
+{ \
+	return ((j)->j_format_version >= 2 && \
+		((j)->j_superblock->s_feature_incompat & \
+		 cpu_to_be32(JBD2_FEATURE_INCOMPAT_##flagname)) != 0); \
+} \
+static inline void jbd2_set_feature_##name(journal_t *j) \
+{ \
+	(j)->j_superblock->s_feature_incompat |= \
+		cpu_to_be32(JBD2_FEATURE_INCOMPAT_##flagname); \
+} \
+static inline void jbd2_clear_feature_##name(journal_t *j) \
+{ \
+	(j)->j_superblock->s_feature_incompat &= \
+		~cpu_to_be32(JBD2_FEATURE_INCOMPAT_##flagname); \
+}
+
+JBD2_FEATURE_COMPAT_FUNCS(checksum,		CHECKSUM)
+
+JBD2_FEATURE_INCOMPAT_FUNCS(revoke,		REVOKE)
+JBD2_FEATURE_INCOMPAT_FUNCS(64bit,		64BIT)
+JBD2_FEATURE_INCOMPAT_FUNCS(async_commit,	ASYNC_COMMIT)
+JBD2_FEATURE_INCOMPAT_FUNCS(csum2,		CSUM_V2)
+JBD2_FEATURE_INCOMPAT_FUNCS(csum3,		CSUM_V3)
+
 /*
  * Journal flag definitions
  */
@@ -977,6 +1112,7 @@ struct journal_s
 #define JBD2_ABORT_ON_SYNCDATA_ERR	0x040	/* Abort the journal on file
 						 * data write error in ordered
 						 * mode */
+#define JBD2_REC_ERR	0x080	/* The errno in the sb has been recorded */
 
 /*
  * Function declarations for the journaling transaction and buffer
@@ -991,21 +1127,30 @@ extern void __jbd2_journal_file_buffer(struct journal_head *, transaction_t *, i
 extern void __journal_free_buffer(struct journal_head *bh);
 extern void jbd2_journal_file_buffer(struct journal_head *, transaction_t *, int);
 extern void __journal_clean_data_list(transaction_t *transaction);
+static inline void jbd2_file_log_bh(struct list_head *head, struct buffer_head *bh)
+{
+	list_add_tail(&bh->b_assoc_buffers, head);
+}
+static inline void jbd2_unfile_log_bh(struct buffer_head *bh)
+{
+	list_del_init(&bh->b_assoc_buffers);
+}
 
 /* Log buffer allocation */
-extern struct journal_head * jbd2_journal_get_descriptor_buffer(journal_t *);
+struct buffer_head *jbd2_journal_get_descriptor_buffer(journal_t *journal);
 int jbd2_journal_next_log_block(journal_t *, unsigned long long *);
 int jbd2_journal_get_log_tail(journal_t *journal, tid_t *tid,
 			      unsigned long *block);
-void __jbd2_update_log_tail(journal_t *journal, tid_t tid, unsigned long block);
+int __jbd2_update_log_tail(journal_t *journal, tid_t tid, unsigned long block);
 void jbd2_update_log_tail(journal_t *journal, tid_t tid, unsigned long block);
 
 /* Commit management */
 extern void jbd2_journal_commit_transaction(journal_t *);
 
 /* Checkpoint list management */
-int __jbd2_journal_clean_checkpoint_list(journal_t *journal);
+void __jbd2_journal_clean_checkpoint_list(journal_t *journal, bool destroy);
 int __jbd2_journal_remove_checkpoint(struct journal_head *);
+void jbd2_journal_destroy_checkpoint(journal_t *journal);
 void __jbd2_journal_insert_checkpoint(struct journal_head *, transaction_t *);
 
 
@@ -1039,11 +1184,10 @@ extern void jbd2_buffer_abort_trigger(struct journal_head *jh,
 				      struct jbd2_buffer_trigger_type *triggers);
 
 /* Buffer IO */
-extern int
-jbd2_journal_write_metadata_buffer(transaction_t	  *transaction,
-			      struct journal_head  *jh_in,
-			      struct journal_head **jh_out,
-			      unsigned long long   blocknr);
+extern int jbd2_journal_write_metadata_buffer(transaction_t *transaction,
+					      struct journal_head *jh_in,
+					      struct buffer_head **bh_out,
+					      sector_t blocknr);
 
 /* Transaction locking */
 extern void		__wait_on_journal (journal_t *);
@@ -1076,10 +1220,14 @@ static inline handle_t *journal_current_handle(void)
  */
 
 extern handle_t *jbd2_journal_start(journal_t *, int nblocks);
-extern handle_t *jbd2__journal_start(journal_t *, int nblocks, gfp_t gfp_mask,
-				     unsigned int type, unsigned int line_no);
+extern handle_t *jbd2__journal_start(journal_t *, int blocks, int rsv_blocks,
+				     gfp_t gfp_mask, unsigned int type,
+				     unsigned int line_no);
 extern int	 jbd2_journal_restart(handle_t *, int nblocks);
 extern int	 jbd2__journal_restart(handle_t *, int nblocks, gfp_t gfp_mask);
+extern int	 jbd2_journal_start_reserved(handle_t *handle,
+				unsigned int type, unsigned int line_no);
+extern void	 jbd2_journal_free_reserved(handle_t *handle);
 extern int	 jbd2_journal_extend (handle_t *, int nblocks);
 extern int	 jbd2_journal_get_write_access(handle_t *, struct buffer_head *);
 extern int	 jbd2_journal_get_create_access (handle_t *, struct buffer_head *);
@@ -1090,7 +1238,7 @@ extern int	 jbd2_journal_dirty_metadata (handle_t *, struct buffer_head *);
 extern int	 jbd2_journal_forget (handle_t *, struct buffer_head *);
 extern void	 journal_sync_buffer (struct buffer_head *);
 extern int	 jbd2_journal_invalidatepage(journal_t *,
-				struct page *, unsigned long);
+				struct page *, unsigned int, unsigned int);
 extern int	 jbd2_journal_try_to_free_buffers(journal_t *, struct page *, gfp_t);
 extern int	 jbd2_journal_stop(handle_t *);
 extern int	 jbd2_journal_flush (journal_t *);
@@ -1116,7 +1264,7 @@ extern int	   jbd2_journal_recover    (journal_t *journal);
 extern int	   jbd2_journal_wipe       (journal_t *, int);
 extern int	   jbd2_journal_skip_recovery	(journal_t *);
 extern void	   jbd2_journal_update_sb_errno(journal_t *);
-extern void	   jbd2_journal_update_sb_log_tail	(journal_t *, tid_t,
+extern int	   jbd2_journal_update_sb_log_tail	(journal_t *, tid_t,
 				unsigned long, int);
 extern void	   __jbd2_journal_abort_hard	(journal_t *);
 extern void	   jbd2_journal_abort      (journal_t *, int);
@@ -1125,6 +1273,7 @@ extern void	   jbd2_journal_ack_err    (journal_t *);
 extern int	   jbd2_journal_clear_err  (journal_t *);
 extern int	   jbd2_journal_bmap(journal_t *, unsigned long, unsigned long long *);
 extern int	   jbd2_journal_force_commit(journal_t *);
+extern int	   jbd2_journal_force_commit_nested(journal_t *);
 extern int	   jbd2_journal_file_inode(handle_t *handle, struct jbd2_inode *inode);
 extern int	   jbd2_journal_begin_ordered_truncate(journal_t *journal,
 				struct jbd2_inode *inode, loff_t new_size);
@@ -1178,8 +1327,10 @@ extern int	   jbd2_journal_init_revoke_caches(void);
 extern void	   jbd2_journal_destroy_revoke(journal_t *);
 extern int	   jbd2_journal_revoke (handle_t *, unsigned long long, struct buffer_head *);
 extern int	   jbd2_journal_cancel_revoke(handle_t *, struct journal_head *);
-extern void	   jbd2_journal_write_revoke_records(journal_t *,
-						     transaction_t *, int);
+extern void	   jbd2_journal_write_revoke_records(journal_t *journal,
+						     transaction_t *transaction,
+						     struct list_head *log_bufs,
+						     int write_op);
 
 /* Recovery revoke support */
 extern int	jbd2_journal_set_revoke(journal_t *, unsigned long long, tid_t);
@@ -1195,11 +1346,9 @@ extern void	jbd2_clear_buffer_revoked_flags(journal_t *journal);
  * transitions on demand.
  */
 
-int __jbd2_log_space_left(journal_t *); /* Called with journal locked */
 int jbd2_log_start_commit(journal_t *journal, tid_t tid);
 int __jbd2_log_start_commit(journal_t *journal, tid_t tid);
 int jbd2_journal_start_commit(journal_t *journal, tid_t *tid);
-int jbd2_journal_force_commit_nested(journal_t *journal);
 int jbd2_log_wait_commit(journal_t *journal, tid_t tid);
 int jbd2_complete_transaction(journal_t *journal, tid_t tid);
 int jbd2_log_do_checkpoint(journal_t *journal);
@@ -1208,15 +1357,6 @@ int jbd2_trans_will_send_data_barrier(journal_t *journal, tid_t tid);
 void __jbd2_log_wait_for_space(journal_t *journal);
 extern void __jbd2_journal_drop_transaction(journal_t *, transaction_t *);
 extern int jbd2_cleanup_journal_tail(journal_t *);
-
-/* Debugging code only: */
-
-#define jbd_ENOSYS() \
-do {								           \
-	printk (KERN_ERR "JBD unimplemented function %s\n", __func__); \
-	current->state = TASK_UNINTERRUPTIBLE;			           \
-	schedule();						           \
-} while (1)
 
 /*
  * is_journal_abort
@@ -1235,7 +1375,7 @@ static inline int is_journal_aborted(journal_t *journal)
 
 static inline int is_handle_aborted(handle_t *handle)
 {
-	if (handle->h_aborted)
+	if (handle->h_aborted || !handle->h_transaction)
 		return 1;
 	return is_journal_aborted(handle->h_transaction->t_journal);
 }
@@ -1265,17 +1405,51 @@ static inline int tid_geq(tid_t x, tid_t y)
 extern int jbd2_journal_blocks_per_page(struct inode *inode);
 extern size_t journal_tag_bytes(journal_t *journal);
 
+static inline bool jbd2_journal_has_csum_v2or3_feature(journal_t *j)
+{
+	return jbd2_has_feature_csum2(j) || jbd2_has_feature_csum3(j);
+}
+
+static inline int jbd2_journal_has_csum_v2or3(journal_t *journal)
+{
+	WARN_ON_ONCE(jbd2_journal_has_csum_v2or3_feature(journal) &&
+		     journal->j_chksum_driver == NULL);
+
+	return journal->j_chksum_driver != NULL;
+}
+
+/*
+ * We reserve t_outstanding_credits >> JBD2_CONTROL_BLOCKS_SHIFT for
+ * transaction control blocks.
+ */
+#define JBD2_CONTROL_BLOCKS_SHIFT 5
+
 /*
  * Return the minimum number of blocks which must be free in the journal
  * before a new transaction may be started.  Must be called under j_state_lock.
  */
-static inline int jbd_space_needed(journal_t *journal)
+static inline int jbd2_space_needed(journal_t *journal)
 {
 	int nblocks = journal->j_max_transaction_buffers;
-	if (journal->j_committing_transaction)
-		nblocks += atomic_read(&journal->j_committing_transaction->
-				       t_outstanding_credits);
-	return nblocks;
+	return nblocks + (nblocks >> JBD2_CONTROL_BLOCKS_SHIFT);
+}
+
+/*
+ * Return number of free blocks in the log. Must be called under j_state_lock.
+ */
+static inline unsigned long jbd2_log_space_left(journal_t *journal)
+{
+	/* Allow for rounding errors */
+	unsigned long free = journal->j_free - 32;
+
+	if (journal->j_committing_transaction) {
+		unsigned long committing = atomic_read(&journal->
+			j_committing_transaction->t_outstanding_credits);
+
+		/* Transaction + control blocks */
+		free -= committing + (committing >> JBD2_CONTROL_BLOCKS_SHIFT);
+	}
+	return free;
 }
 
 /*
@@ -1286,11 +1460,9 @@ static inline int jbd_space_needed(journal_t *journal)
 #define BJ_None		0	/* Not journaled */
 #define BJ_Metadata	1	/* Normal journaled metadata */
 #define BJ_Forget	2	/* Buffer superseded by this transaction */
-#define BJ_IO		3	/* Buffer is for temporary IO use */
-#define BJ_Shadow	4	/* Buffer contents being shadowed to the log */
-#define BJ_LogCtl	5	/* Buffer contains log descriptors */
-#define BJ_Reserved	6	/* Buffer is reserved for access by journal */
-#define BJ_Types	7
+#define BJ_Shadow	3	/* Buffer contents being shadowed to the log */
+#define BJ_Reserved	4	/* Buffer is reserved for access by journal */
+#define BJ_Types	5
 
 extern int jbd_blocks_per_page(struct inode *inode);
 
@@ -1319,6 +1491,19 @@ static inline u32 jbd2_chksum(journal_t *journal, u32 crc,
 	return *(u32 *)desc.ctx;
 }
 
+/* Return most recent uncommitted transaction */
+static inline tid_t  jbd2_get_latest_transaction(journal_t *journal)
+{
+	tid_t tid;
+
+	read_lock(&journal->j_state_lock);
+	tid = journal->j_commit_request;
+	if (journal->j_running_transaction)
+		tid = journal->j_running_transaction->t_tid;
+	read_unlock(&journal->j_state_lock);
+	return tid;
+}
+
 #ifdef __KERNEL__
 
 #define buffer_trace_init(bh)	do {} while (0)
@@ -1329,5 +1514,8 @@ static inline u32 jbd2_chksum(journal_t *journal, u32 crc,
 #define JBUFFER_TRACE(jh, info)	do {} while (0)
 
 #endif	/* __KERNEL__ */
+
+#define EFSBADCRC	EBADMSG		/* Bad CRC detected */
+#define EFSCORRUPTED	EUCLEAN		/* Filesystem is corrupted */
 
 #endif	/* _LINUX_JBD2_H */

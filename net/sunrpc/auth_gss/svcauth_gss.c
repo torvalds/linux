@@ -51,7 +51,7 @@
 #include "gss_rpc_upcall.h"
 
 
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
 
@@ -377,8 +377,7 @@ rsc_init(struct cache_head *cnew, struct cache_head *ctmp)
 	new->handle.data = tmp->handle.data;
 	tmp->handle.data = NULL;
 	new->mechctx = NULL;
-	new->cred.cr_group_info = NULL;
-	new->cred.cr_principal = NULL;
+	init_svc_cred(&new->cred);
 }
 
 static void
@@ -392,9 +391,7 @@ update_rsc(struct cache_head *cnew, struct cache_head *ctmp)
 	memset(&new->seqdata, 0, sizeof(new->seqdata));
 	spin_lock_init(&new->seqdata.sd_lock);
 	new->cred = tmp->cred;
-	tmp->cred.cr_group_info = NULL;
-	new->cred.cr_principal = tmp->cred.cr_principal;
-	tmp->cred.cr_principal = NULL;
+	init_svc_cred(&tmp->cred);
 }
 
 static struct cache_head *
@@ -466,6 +463,8 @@ static int rsc_parse(struct cache_detail *cd,
 		/* number of additional gid's */
 		if (get_int(&mesg, &N))
 			goto out;
+		if (N < 0 || N > NGROUPS_MAX)
+			goto out;
 		status = -ENOMEM;
 		rsci.cred.cr_group_info = groups_alloc(N);
 		if (rsci.cred.cr_group_info == NULL)
@@ -487,7 +486,7 @@ static int rsc_parse(struct cache_detail *cd,
 		len = qword_get(&mesg, buf, mlen);
 		if (len < 0)
 			goto out;
-		gm = gss_mech_get_by_name(buf);
+		gm = rsci.cred.cr_gss_mech = gss_mech_get_by_name(buf);
 		status = -EOPNOTSUPP;
 		if (!gm)
 			goto out;
@@ -517,7 +516,6 @@ static int rsc_parse(struct cache_detail *cd,
 	rscp = rsc_update(cd, &rsci, rscp);
 	status = 0;
 out:
-	gss_mech_put(gm);
 	rsc_free(&rsci);
 	if (rscp)
 		cache_put(&rscp->h, cd);
@@ -890,7 +888,7 @@ unwrap_priv_data(struct svc_rqst *rqstp, struct xdr_buf *buf, u32 seq, struct gs
 	u32 priv_len, maj_stat;
 	int pad, saved_len, remaining_len, offset;
 
-	rqstp->rq_splice_ok = 0;
+	clear_bit(RQ_SPLICE_OK, &rqstp->rq_flags);
 
 	priv_len = svc_getnl(&buf->head[0]);
 	if (rqstp->rq_deferred) {
@@ -1171,8 +1169,8 @@ static int gss_proxy_save_rsc(struct cache_detail *cd,
 	if (!ud->found_creds) {
 		/* userspace seem buggy, we should always get at least a
 		 * mapping to nobody */
-		dprintk("RPC:       No creds found, marking Negative!\n");
-		set_bit(CACHE_NEGATIVE, &rsci.h.flags);
+		dprintk("RPC:       No creds found!\n");
+		goto out;
 	} else {
 
 		/* steal creds */
@@ -1184,6 +1182,7 @@ static int gss_proxy_save_rsc(struct cache_detail *cd,
 		gm = gss_mech_get_by_OID(&ud->mech_oid);
 		if (!gm)
 			goto out;
+		rsci.cred.cr_gss_mech = gm;
 
 		status = -EINVAL;
 		/* mech-specific data: */
@@ -1199,7 +1198,6 @@ static int gss_proxy_save_rsc(struct cache_detail *cd,
 	rscp = rsc_update(cd, &rsci, rscp);
 	status = 0;
 out:
-	gss_mech_put(gm);
 	rsc_free(&rsci);
 	if (rscp)
 		cache_put(&rscp->h, cd);
@@ -1267,70 +1265,39 @@ out:
 	return ret;
 }
 
-DEFINE_SPINLOCK(use_gssp_lock);
+/*
+ * Try to set the sn->use_gss_proxy variable to a new value. We only allow
+ * it to be changed if it's currently undefined (-1). If it's any other value
+ * then return -EBUSY unless the type wouldn't have changed anyway.
+ */
+static int set_gss_proxy(struct net *net, int type)
+{
+	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
+	int ret;
+
+	WARN_ON_ONCE(type != 0 && type != 1);
+	ret = cmpxchg(&sn->use_gss_proxy, -1, type);
+	if (ret != -1 && ret != type)
+		return -EBUSY;
+	return 0;
+}
 
 static bool use_gss_proxy(struct net *net)
 {
 	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 
-	if (sn->use_gss_proxy != -1)
-		return sn->use_gss_proxy;
-	spin_lock(&use_gssp_lock);
-	/*
-	 * If you wanted gss-proxy, you should have said so before
-	 * starting to accept requests:
-	 */
-	sn->use_gss_proxy = 0;
-	spin_unlock(&use_gssp_lock);
-	return 0;
+	/* If use_gss_proxy is still undefined, then try to disable it */
+	if (sn->use_gss_proxy == -1)
+		set_gss_proxy(net, 0);
+	return sn->use_gss_proxy;
 }
 
 #ifdef CONFIG_PROC_FS
 
-static int set_gss_proxy(struct net *net, int type)
-{
-	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
-	int ret = 0;
-
-	WARN_ON_ONCE(type != 0 && type != 1);
-	spin_lock(&use_gssp_lock);
-	if (sn->use_gss_proxy == -1 || sn->use_gss_proxy == type)
-		sn->use_gss_proxy = type;
-	else
-		ret = -EBUSY;
-	spin_unlock(&use_gssp_lock);
-	wake_up(&sn->gssp_wq);
-	return ret;
-}
-
-static inline bool gssp_ready(struct sunrpc_net *sn)
-{
-	switch (sn->use_gss_proxy) {
-		case -1:
-			return false;
-		case 0:
-			return true;
-		case 1:
-			return sn->gssp_clnt;
-	}
-	WARN_ON_ONCE(1);
-	return false;
-}
-
-static int wait_for_gss_proxy(struct net *net, struct file *file)
-{
-	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
-
-	if (file->f_flags & O_NONBLOCK && !gssp_ready(sn))
-		return -EAGAIN;
-	return wait_event_interruptible(sn->gssp_wq, gssp_ready(sn));
-}
-
-
 static ssize_t write_gssp(struct file *file, const char __user *buf,
 			 size_t count, loff_t *ppos)
 {
-	struct net *net = PDE_DATA(file->f_path.dentry->d_inode);
+	struct net *net = PDE_DATA(file_inode(file));
 	char tbuf[20];
 	unsigned long i;
 	int res;
@@ -1346,10 +1313,10 @@ static ssize_t write_gssp(struct file *file, const char __user *buf,
 		return res;
 	if (i != 1)
 		return -EINVAL;
-	res = set_gss_proxy(net, 1);
+	res = set_gssp_clnt(net);
 	if (res)
 		return res;
-	res = set_gssp_clnt(net);
+	res = set_gss_proxy(net, 1);
 	if (res)
 		return res;
 	return count;
@@ -1358,17 +1325,13 @@ static ssize_t write_gssp(struct file *file, const char __user *buf,
 static ssize_t read_gssp(struct file *file, char __user *buf,
 			 size_t count, loff_t *ppos)
 {
-	struct net *net = PDE_DATA(file->f_path.dentry->d_inode);
+	struct net *net = PDE_DATA(file_inode(file));
+	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 	unsigned long p = *ppos;
 	char tbuf[10];
 	size_t len;
-	int ret;
 
-	ret = wait_for_gss_proxy(net, file);
-	if (ret)
-		return ret;
-
-	snprintf(tbuf, sizeof(tbuf), "%d\n", use_gss_proxy(net));
+	snprintf(tbuf, sizeof(tbuf), "%d\n", sn->use_gss_proxy);
 	len = strlen(tbuf);
 	if (p >= len)
 		return 0;
@@ -1542,6 +1505,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 			if (unwrap_integ_data(rqstp, &rqstp->rq_arg,
 					gc->gc_seq, rsci->mechctx))
 				goto garbage_args;
+			rqstp->rq_auth_slack = RPC_MAX_AUTH_SIZE;
 			break;
 		case RPC_GSS_SVC_PRIVACY:
 			/* placeholders for length and seq. number: */
@@ -1550,6 +1514,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 			if (unwrap_priv_data(rqstp, &rqstp->rq_arg,
 					gc->gc_seq, rsci->mechctx))
 				goto garbage_args;
+			rqstp->rq_auth_slack = RPC_MAX_AUTH_SIZE * 2;
 			break;
 		default:
 			goto auth_err;
@@ -1630,8 +1595,7 @@ svcauth_gss_wrap_resp_integ(struct svc_rqst *rqstp)
 	BUG_ON(integ_len % 4);
 	*p++ = htonl(integ_len);
 	*p++ = htonl(gc->gc_seq);
-	if (xdr_buf_subsegment(resbuf, &integ_buf, integ_offset,
-				integ_len))
+	if (xdr_buf_subsegment(resbuf, &integ_buf, integ_offset, integ_len))
 		BUG();
 	if (resbuf->tail[0].iov_base == NULL) {
 		if (resbuf->head[0].iov_len + RPC_MAX_AUTH_SIZE > PAGE_SIZE)
@@ -1639,10 +1603,8 @@ svcauth_gss_wrap_resp_integ(struct svc_rqst *rqstp)
 		resbuf->tail[0].iov_base = resbuf->head[0].iov_base
 						+ resbuf->head[0].iov_len;
 		resbuf->tail[0].iov_len = 0;
-		resv = &resbuf->tail[0];
-	} else {
-		resv = &resbuf->tail[0];
 	}
+	resv = &resbuf->tail[0];
 	mic.data = (u8 *)resv->iov_base + resv->iov_len + 4;
 	if (gss_get_mic(gsd->rsci->mechctx, &integ_buf, &mic))
 		goto out_err;

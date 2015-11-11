@@ -34,67 +34,42 @@
 #include "fscache.h"
 #include "smb2proto.h"
 
-void
-smb2_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock)
-{
-	oplock &= 0xFF;
-	if (oplock == SMB2_OPLOCK_LEVEL_NOCHANGE)
-		return;
-	if (oplock == SMB2_OPLOCK_LEVEL_EXCLUSIVE) {
-		cinode->clientCanCacheAll = true;
-		cinode->clientCanCacheRead = true;
-		cifs_dbg(FYI, "Exclusive Oplock granted on inode %p\n",
-			 &cinode->vfs_inode);
-	} else if (oplock == SMB2_OPLOCK_LEVEL_II) {
-		cinode->clientCanCacheAll = false;
-		cinode->clientCanCacheRead = true;
-		cifs_dbg(FYI, "Level II Oplock granted on inode %p\n",
-			 &cinode->vfs_inode);
-	} else {
-		cinode->clientCanCacheAll = false;
-		cinode->clientCanCacheRead = false;
-	}
-}
-
 int
-smb2_open_file(const unsigned int xid, struct cifs_tcon *tcon, const char *path,
-	       int disposition, int desired_access, int create_options,
-	       struct cifs_fid *fid, __u32 *oplock, FILE_ALL_INFO *buf,
-	       struct cifs_sb_info *cifs_sb)
+smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
+	       __u32 *oplock, FILE_ALL_INFO *buf)
 {
 	int rc;
 	__le16 *smb2_path;
 	struct smb2_file_all_info *smb2_data = NULL;
 	__u8 smb2_oplock[17];
+	struct cifs_fid *fid = oparms->fid;
 
-	smb2_path = cifs_convert_path_to_utf16(path, cifs_sb);
+	smb2_path = cifs_convert_path_to_utf16(oparms->path, oparms->cifs_sb);
 	if (smb2_path == NULL) {
 		rc = -ENOMEM;
 		goto out;
 	}
 
-	smb2_data = kzalloc(sizeof(struct smb2_file_all_info) + MAX_NAME * 2,
+	smb2_data = kzalloc(sizeof(struct smb2_file_all_info) + PATH_MAX * 2,
 			    GFP_KERNEL);
 	if (smb2_data == NULL) {
 		rc = -ENOMEM;
 		goto out;
 	}
 
-	desired_access |= FILE_READ_ATTRIBUTES;
-	*smb2_oplock = SMB2_OPLOCK_LEVEL_EXCLUSIVE;
+	oparms->desired_access |= FILE_READ_ATTRIBUTES;
+	*smb2_oplock = SMB2_OPLOCK_LEVEL_BATCH;
 
-	if (tcon->ses->server->capabilities & SMB2_GLOBAL_CAP_LEASING)
+	if (oparms->tcon->ses->server->capabilities & SMB2_GLOBAL_CAP_LEASING)
 		memcpy(smb2_oplock + 1, fid->lease_key, SMB2_LEASE_KEY_SIZE);
 
-	rc = SMB2_open(xid, tcon, smb2_path, &fid->persistent_fid,
-		       &fid->volatile_fid, desired_access, disposition,
-		       0, 0, smb2_oplock, smb2_data);
+	rc = SMB2_open(xid, oparms, smb2_path, smb2_oplock, smb2_data, NULL);
 	if (rc)
 		goto out;
 
 	if (buf) {
 		/* open response does not have IndexNumber field - get it */
-		rc = SMB2_get_srv_num(xid, tcon, fid->persistent_fid,
+		rc = SMB2_get_srv_num(xid, oparms->tcon, fid->persistent_fid,
 				      fid->volatile_fid,
 				      &smb2_data->IndexNumber);
 		if (rc) {
@@ -120,7 +95,7 @@ smb2_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 	unsigned int max_num, num = 0, max_buf;
 	struct smb2_lock_element *buf, *cur;
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
-	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
+	struct cifsInodeInfo *cinode = CIFS_I(d_inode(cfile->dentry));
 	struct cifsLockInfo *li, *tmp;
 	__u64 length = 1 + flock->fl_end - flock->fl_start;
 	struct list_head tmp_llist;
@@ -136,7 +111,7 @@ smb2_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 		return -EINVAL;
 
 	max_num = max_buf / sizeof(struct smb2_lock_element);
-	buf = kzalloc(max_num * sizeof(struct smb2_lock_element), GFP_KERNEL);
+	buf = kcalloc(max_num, sizeof(struct smb2_lock_element), GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -256,7 +231,7 @@ smb2_push_mandatory_locks(struct cifsFileInfo *cfile)
 	unsigned int xid;
 	unsigned int max_num, max_buf;
 	struct smb2_lock_element *buf;
-	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
+	struct cifsInodeInfo *cinode = CIFS_I(d_inode(cfile->dentry));
 	struct cifs_fid_locks *fdlocks;
 
 	xid = get_xid();
@@ -272,7 +247,7 @@ smb2_push_mandatory_locks(struct cifsFileInfo *cfile)
 	}
 
 	max_num = max_buf / sizeof(struct smb2_lock_element);
-	buf = kzalloc(max_num * sizeof(struct smb2_lock_element), GFP_KERNEL);
+	buf = kcalloc(max_num, sizeof(struct smb2_lock_element), GFP_KERNEL);
 	if (!buf) {
 		free_xid(xid);
 		return -ENOMEM;

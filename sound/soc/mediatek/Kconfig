@@ -1,0 +1,30 @@
+config SND_SOC_MEDIATEK
+	tristate "ASoC support for Mediatek chip"
+	depends on ARCH_MEDIATEK
+	help
+	  This adds ASoC platform driver support for Mediatek chip
+	  that can be used with other codecs.
+	  Select Y if you have such device.
+	  Ex: MT8173
+
+config SND_SOC_MT8173_MAX98090
+	tristate "ASoC Audio driver for MT8173 with MAX98090 codec"
+	depends on SND_SOC_MEDIATEK
+	select SND_SOC_MAX98090
+	help
+	  This adds ASoC driver for Mediatek MT8173 boards
+	  with the MAX98090 audio codec.
+	  Select Y if you have such device.
+	  If unsure select "N".
+
+config SND_SOC_MT8173_RT5650_RT5676
+	tristate "ASoC Audio driver for MT8173 with RT5650 RT5676 codecs"
+	depends on SND_SOC_MEDIATEK
+	select SND_SOC_RT5645
+	select SND_SOC_RT5677
+	help
+	  This adds ASoC driver for Mediatek MT8173 boards
+	  with the RT5650 and RT5676 codecs.
+	  Select Y if you have such device.
+	  If unsure select "N".
+

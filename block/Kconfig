@@ -77,6 +77,7 @@ config BLK_DEV_BSGLIB
 
 config BLK_DEV_INTEGRITY
 	bool "Block layer data integrity support"
+	select CRC_T10DIF if BLK_DEV_INTEGRITY
 	---help---
 	Some storage devices allow extra information to be
 	stored/retrieved to help protect the data.  The block layer
@@ -98,6 +99,17 @@ config BLK_DEV_THROTTLING
 	cgroups and specifying per device IO rate policies.
 
 	See Documentation/cgroups/blkio-controller.txt for more information.
+
+config BLK_CMDLINE_PARSER
+	bool "Block device command line partition parser"
+	default n
+	---help---
+	Enabling this option allows you to specify the partition layout from
+	the kernel boot args.  This is typically of use for embedded devices
+	which don't otherwise have any standardized method for listing the
+	partitions on a block device.
+
+	See Documentation/block/cmdline-partition.txt for more information.
 
 menu "Partition Types"
 

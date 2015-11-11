@@ -124,7 +124,7 @@ static int i82860_process_error_info(struct mem_ctl_info *mci,
 				     dimm->location[0], dimm->location[1], -1,
 				     "i82860 UE", "");
 	else
-		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
 				     info->eap, 0, info->derrsyn,
 				     dimm->location[0], dimm->location[1], -1,
 				     "i82860 CE", "");
@@ -288,7 +288,7 @@ static void i82860_remove_one(struct pci_dev *pdev)
 	edac_mc_free(mci);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(i82860_pci_tbl) = {
+static const struct pci_device_id i82860_pci_tbl[] = {
 	{
 	 PCI_VEND_DEV(INTEL, 82860_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	 I82860},
@@ -343,20 +343,15 @@ fail1:
 	pci_unregister_driver(&i82860_driver);
 
 fail0:
-	if (mci_pdev != NULL)
-		pci_dev_put(mci_pdev);
-
+	pci_dev_put(mci_pdev);
 	return pci_rc;
 }
 
 static void __exit i82860_exit(void)
 {
 	edac_dbg(3, "\n");
-
 	pci_unregister_driver(&i82860_driver);
-
-	if (mci_pdev != NULL)
-		pci_dev_put(mci_pdev);
+	pci_dev_put(mci_pdev);
 }
 
 module_init(i82860_init);

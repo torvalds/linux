@@ -4,6 +4,33 @@
 
 comment "HSI clients"
 
+config NOKIA_MODEM
+	tristate "Nokia Modem"
+	depends on HSI && SSI_PROTOCOL && CMT_SPEECH
+	help
+	Say Y here if you want to add support for the modem on Nokia
+	N900 (Nokia RX-51) hardware.
+
+	If unsure, say N.
+
+config CMT_SPEECH
+	tristate "CMT speech"
+	depends on HSI && SSI_PROTOCOL
+	help
+	If you say Y here, you will enable the CMT speech protocol used
+	by Nokia modems. If you say M the protocol will be available as
+	module named cmt_speech.
+
+	If unsure, say N.
+
+config SSI_PROTOCOL
+	tristate "SSI protocol"
+	depends on HSI && PHONET && OMAP_SSI
+	help
+	If you say Y here, you will enable the SSI protocol aka McSAAB.
+
+	If unsure, say N.
+
 config HSI_CHAR
 	tristate "HSI/SSI character driver"
 	depends on HSI

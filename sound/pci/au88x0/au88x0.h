@@ -17,9 +17,8 @@
 #ifndef __SOUND_AU88X0_H
 #define __SOUND_AU88X0_H
 
-#ifdef __KERNEL__
 #include <linux/pci.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/rawmidi.h>
@@ -27,7 +26,6 @@
 #include <sound/hwdep.h>
 #include <sound/ac97_codec.h>
 #include <sound/tlv.h>
-#endif
 
 #ifndef CHIP_AU8820
 #include "au88x0_eq.h"
@@ -243,7 +241,7 @@ static int vortex_core_init(vortex_t * card);
 static int vortex_core_shutdown(vortex_t * card);
 static void vortex_enable_int(vortex_t * card);
 static irqreturn_t vortex_interrupt(int irq, void *dev_id);
-static int vortex_alsafmt_aspfmt(int alsafmt);
+static int vortex_alsafmt_aspfmt(int alsafmt, vortex_t *v);
 
 /* Connection  stuff. */
 static void vortex_connect_default(vortex_t * vortex, int en);
@@ -278,7 +276,7 @@ static void vortex_mix_setvolumebyte(vortex_t * vortex, unsigned char mix,
 static void vortex_Vort3D_enable(vortex_t * v);
 static void vortex_Vort3D_disable(vortex_t * v);
 static void vortex_Vort3D_connect(vortex_t * vortex, int en);
-static void vortex_Vort3D_InitializeSource(a3dsrc_t * a, int en);
+static void vortex_Vort3D_InitializeSource(a3dsrc_t *a, int en, vortex_t *v);
 #endif
 
 /* Driver stuff. */

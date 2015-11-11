@@ -1,7 +1,7 @@
 /*
  *  mxl111sf-demod.h - driver for the MaxLinear MXL111SF DVB-T demodulator
  *
- *  Copyright (C) 2010 Michael Krufky <mkrufky@kernellabs.com>
+ *  Copyright (C) 2010-2014 Michael Krufky <mkrufky@linuxtv.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -47,9 +47,3 @@ struct dvb_frontend *mxl111sf_demod_attach(struct mxl111sf_state *mxl_state,
 #endif /* CONFIG_DVB_USB_MXL111SF */
 
 #endif /* __MXL111SF_DEMOD_H__ */
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

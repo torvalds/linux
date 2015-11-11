@@ -67,17 +67,25 @@ int stk1160_read_reg(struct stk1160 *dev, u16 reg, u8 *value)
 {
 	int ret;
 	int pipe = usb_rcvctrlpipe(dev->udev, 0);
+	u8 *buf;
 
 	*value = 0;
+
+	buf = kmalloc(sizeof(u8), GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
 	ret = usb_control_msg(dev->udev, pipe, 0x00,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			0x00, reg, value, sizeof(u8), HZ);
+			0x00, reg, buf, sizeof(u8), HZ);
 	if (ret < 0) {
 		stk1160_err("read failed on reg 0x%x (%d)\n",
 			reg, ret);
+		kfree(buf);
 		return ret;
 	}
 
+	*value = *buf;
+	kfree(buf);
 	return 0;
 }
 
@@ -154,7 +162,7 @@ static void stk1160_release(struct v4l2_device *v4l2_dev)
 {
 	struct stk1160 *dev = container_of(v4l2_dev, struct stk1160, v4l2_dev);
 
-	stk1160_info("releasing all resources\n");
+	stk1160_dbg("releasing all resources\n");
 
 	stk1160_i2c_unregister(dev);
 
@@ -354,9 +362,6 @@ static int stk1160_probe(struct usb_interface *interface,
 	 */
 	dev->sd_saa7115 = v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
 		"saa7115_auto", 0, saa7113_addrs);
-
-	stk1160_info("driver ver %s successfully loaded\n",
-		STK1160_VERSION);
 
 	/* i2c reset saa711x */
 	v4l2_device_call_all(&dev->v4l2_dev, 0, core, reset, 0);

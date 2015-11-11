@@ -4,6 +4,7 @@ config PPC_PSERIES
 	select HAVE_PCSPKR_PLATFORM
 	select MPIC
 	select OF_DYNAMIC
+	select PCI
 	select PCI_MSI
 	select PPC_XICS
 	select PPC_ICP_NATIVE
@@ -15,12 +16,11 @@ config PPC_PSERIES
 	select RTAS_ERROR_LOGGING
 	select PPC_UDBG_16550
 	select PPC_NATIVE
-	select PPC_PCI_CHOICE if EXPERT
-	select ZLIB_DEFLATE
 	select PPC_DOORBELL
 	select HAVE_CONTEXT_TRACKING
-	select HOTPLUG if SMP
 	select HOTPLUG_CPU if SMP
+	select ARCH_RANDOM
+	select PPC_DOORBELL
 	default y
 
 config PPC_SPLPAR
@@ -33,15 +33,15 @@ config PPC_SPLPAR
 	  processors, that is, which share physical processors between
 	  two or more partitions.
 
-config EEH
-	bool
-	depends on PPC_PSERIES && PCI
-	default y
+config DTL
+	bool "Dispatch Trace Log"
+	depends on PPC_SPLPAR && DEBUG_FS
+	help
+	  SPLPAR machines can log hypervisor preempt & dispatch events to a
+	  kernel buffer. Saying Y here will enable logging these events,
+	  which are accessible through a debugfs file.
 
-config PSERIES_MSI
-       bool
-       depends on PCI_MSI && EEH
-       default y
+	  Say N if you are unsure.
 
 config PSERIES_ENERGY
 	tristate "pSeries energy management capabilities driver"
@@ -116,21 +116,14 @@ config CMM
 	  will be reused for other LPARs. The interface allows firmware to
 	  balance memory across many LPARs.
 
-config DTL
-	bool "Dispatch Trace Log"
-	depends on PPC_SPLPAR && DEBUG_FS
-	help
-	  SPLPAR machines can log hypervisor preempt & dispatch events to a
-	  kernel buffer. Saying Y here will enable logging these events,
-	  which are accessible through a debugfs file.
+config HV_PERF_CTRS
+       bool "Hypervisor supplied PMU events (24x7 & GPCI)"
+       default y
+       depends on PERF_EVENTS && PPC_PSERIES
+       help
+	  Enable access to hypervisor supplied counters in perf. Currently,
+	  this enables code that uses the hcall GetPerfCounterInfo and 24x7
+	  interfaces to retrieve counters. GPCI exists on Power 6 and later
+	  systems. 24x7 is available on Power 8 systems.
 
-	  Say N if you are unsure.
-
-config PSERIES_IDLE
-	bool "Cpuidle driver for pSeries platforms"
-	depends on CPU_IDLE
-	depends on PPC_PSERIES
-	default y
-	help
-	  Select this option to enable processor idle state management
-	  through cpuidle subsystem.
+          If unsure, select Y.

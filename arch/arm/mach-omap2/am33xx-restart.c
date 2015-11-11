@@ -6,10 +6,10 @@
  * published by the Free Software Foundation.
  */
 #include <linux/kernel.h>
+#include <linux/reboot.h>
 
 #include "common.h"
-#include "prm-regbits-33xx.h"
-#include "prm33xx.h"
+#include "prm.h"
 
 /**
  * am3xx_restart - trigger a software restart of the SoC
@@ -19,16 +19,9 @@
  * Resets the SoC.  For @cmd, see the 'reboot' syscall in
  * kernel/sys.c.  No return value.
  */
-void am33xx_restart(char mode, const char *cmd)
+void am33xx_restart(enum reboot_mode mode, const char *cmd)
 {
 	/* TODO: Handle mode and cmd if necessary */
 
-	am33xx_prm_rmw_reg_bits(AM33XX_GLOBAL_WARM_SW_RST_MASK,
-				AM33XX_GLOBAL_WARM_SW_RST_MASK,
-				AM33XX_PRM_DEVICE_MOD,
-				AM33XX_PRM_RSTCTRL_OFFSET);
-
-	/* OCP barrier */
-	(void)am33xx_prm_read_reg(AM33XX_PRM_DEVICE_MOD,
-				  AM33XX_PRM_RSTCTRL_OFFSET);
+	omap_prm_reset_system();
 }

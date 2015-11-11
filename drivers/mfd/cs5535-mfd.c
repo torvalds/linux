@@ -23,7 +23,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/mfd/core.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -172,7 +171,7 @@ static void cs5535_mfd_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(cs5535_mfd_pci_tbl) = {
+static const struct pci_device_id cs5535_mfd_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_CS5535_ISA) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_CS5536_ISA) },
 	{ 0, }

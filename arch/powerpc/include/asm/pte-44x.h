@@ -44,9 +44,6 @@
  *   - PRESENT *must* be in the bottom three bits because swap cache
  *     entries use the top 29 bits for TLB2.
  *
- *   - FILE *must* be in the bottom three bits because swap cache
- *     entries use the top 29 bits for TLB2.
- *
  *   - CACHE COHERENT bit (M) has no effect on original PPC440 cores,
  *     because it doesn't support SMP. However, some later 460 variants
  *     have -some- form of SMP support and so I keep the bit there for
@@ -68,7 +65,6 @@
  *
  * There are three protection bits available for SWAP entry:
  *	_PAGE_PRESENT
- *	_PAGE_FILE
  *	_PAGE_HASHPTE (if HW has)
  *
  * So those three bits have to be inside of 0-2nd LSB of PTE.
@@ -77,7 +73,6 @@
 
 #define _PAGE_PRESENT	0x00000001		/* S: PTE valid */
 #define _PAGE_RW	0x00000002		/* S: Write permission */
-#define _PAGE_FILE	0x00000004		/* S: nonlinear file mapping */
 #define _PAGE_EXEC	0x00000004		/* H: Execute permission */
 #define _PAGE_ACCESSED	0x00000008		/* S: Page referenced */
 #define _PAGE_DIRTY	0x00000010		/* S: Page dirty */

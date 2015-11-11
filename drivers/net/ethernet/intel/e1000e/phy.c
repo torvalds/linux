@@ -1,30 +1,23 @@
-/*******************************************************************************
-
-  Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2013 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  Linux NICS <linux.nics@intel.com>
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* Intel PRO/1000 Linux driver
+ * Copyright(c) 1999 - 2015 Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
+ *
+ * Contact Information:
+ * Linux NICS <linux.nics@intel.com>
+ * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ */
 
 #include "e1000.h"
 
@@ -1583,13 +1576,13 @@ s32 e1000e_check_downshift(struct e1000_hw *hw)
 	case e1000_phy_gg82563:
 	case e1000_phy_bm:
 	case e1000_phy_82578:
-		offset	= M88E1000_PHY_SPEC_STATUS;
-		mask	= M88E1000_PSSR_DOWNSHIFT;
+		offset = M88E1000_PHY_SPEC_STATUS;
+		mask = M88E1000_PSSR_DOWNSHIFT;
 		break;
 	case e1000_phy_igp_2:
 	case e1000_phy_igp_3:
-		offset	= IGP01E1000_PHY_LINK_HEALTH;
-		mask	= IGP01E1000_PLHR_SS_DOWNGRADE;
+		offset = IGP01E1000_PHY_LINK_HEALTH;
+		mask = IGP01E1000_PLHR_SS_DOWNGRADE;
 		break;
 	default:
 		/* speed downshift not supported */
@@ -1653,14 +1646,14 @@ s32 e1000_check_polarity_igp(struct e1000_hw *hw)
 
 	if ((data & IGP01E1000_PSSR_SPEED_MASK) ==
 	    IGP01E1000_PSSR_SPEED_1000MBPS) {
-		offset	= IGP01E1000_PHY_PCS_INIT_REG;
-		mask	= IGP01E1000_PHY_POLARITY_MASK;
+		offset = IGP01E1000_PHY_PCS_INIT_REG;
+		mask = IGP01E1000_PHY_POLARITY_MASK;
 	} else {
 		/* This really only applies to 10Mbps since
 		 * there is no polarity for 100Mbps (always 0).
 		 */
-		offset	= IGP01E1000_PHY_PORT_STATUS;
-		mask	= IGP01E1000_PSSR_POLARITY_REVERSED;
+		offset = IGP01E1000_PHY_PORT_STATUS;
+		mask = IGP01E1000_PSSR_POLARITY_REVERSED;
 	}
 
 	ret_val = e1e_rphy(hw, offset, &data);
@@ -1757,19 +1750,23 @@ s32 e1000e_phy_has_link_generic(struct e1000_hw *hw, u32 iterations,
 		 * it across the board.
 		 */
 		ret_val = e1e_rphy(hw, MII_BMSR, &phy_status);
-		if (ret_val)
+		if (ret_val) {
 			/* If the first read fails, another entity may have
 			 * ownership of the resources, wait and try again to
 			 * see if they have relinquished the resources yet.
 			 */
-			udelay(usec_interval);
+			if (usec_interval >= 1000)
+				msleep(usec_interval / 1000);
+			else
+				udelay(usec_interval);
+		}
 		ret_val = e1e_rphy(hw, MII_BMSR, &phy_status);
 		if (ret_val)
 			break;
 		if (phy_status & BMSR_LSTATUS)
 			break;
 		if (usec_interval >= 1000)
-			mdelay(usec_interval / 1000);
+			msleep(usec_interval / 1000);
 		else
 			udelay(usec_interval);
 	}
@@ -1900,7 +1897,7 @@ s32 e1000e_get_cable_length_igp_2(struct e1000_hw *hw)
 s32 e1000e_get_phy_info_m88(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
-	s32  ret_val;
+	s32 ret_val;
 	u16 phy_data;
 	bool link;
 
@@ -2253,7 +2250,7 @@ enum e1000_phy_type e1000e_get_phy_type_from_id(u32 phy_id)
 	case M88E1011_I_PHY_ID:
 		phy_type = e1000_phy_m88;
 		break;
-	case IGP01E1000_I_PHY_ID: /* IGP 1 & 2 share this */
+	case IGP01E1000_I_PHY_ID:	/* IGP 1 & 2 share this */
 		phy_type = e1000_phy_igp_2;
 		break;
 	case GG82563_E_PHY_ID:
@@ -2317,7 +2314,7 @@ s32 e1000e_determine_phy_address(struct e1000_hw *hw)
 			/* If phy_type is valid, break - we found our
 			 * PHY address
 			 */
-			if (phy_type  != e1000_phy_unknown)
+			if (phy_type != e1000_phy_unknown)
 				return 0;
 
 			usleep_range(1000, 2000);
@@ -2899,6 +2896,7 @@ static s32 __e1000_write_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 data,
 		    (hw->phy.addr == 2) &&
 		    !(MAX_PHY_REG_ADDRESS & reg) && (data & (1 << 11))) {
 			u16 data2 = 0x7EFF;
+
 			ret_val = e1000_access_phy_debug_regs_hv(hw,
 								 (1 << 6) | 0x3,
 								 &data2, false);

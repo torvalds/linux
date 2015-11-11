@@ -41,7 +41,7 @@ u16 capi20_get_manufacturer(u32 contr, u8 buf[CAPI_MANUFACTURER_LEN]);
 u16 capi20_get_version(u32 contr, struct capi_version *verp);
 u16 capi20_get_serial(u32 contr, u8 serial[CAPI_SERIAL_LEN]);
 u16 capi20_get_profile(u32 contr, struct capi_profile *profp);
-int capi20_manufacturer(unsigned int cmd, void __user *data);
+int capi20_manufacturer(unsigned long cmd, void __user *data);
 
 #define CAPICTR_UP			0
 #define CAPICTR_DOWN			1

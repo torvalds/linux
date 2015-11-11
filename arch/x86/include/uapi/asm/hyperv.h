@@ -27,6 +27,24 @@
 #define HV_X64_MSR_VP_RUNTIME_AVAILABLE		(1 << 0)
 /* Partition Reference Counter (HV_X64_MSR_TIME_REF_COUNT) available*/
 #define HV_X64_MSR_TIME_REF_COUNT_AVAILABLE	(1 << 1)
+/* Partition reference TSC MSR is available */
+#define HV_X64_MSR_REFERENCE_TSC_AVAILABLE              (1 << 9)
+
+/* A partition's reference time stamp counter (TSC) page */
+#define HV_X64_MSR_REFERENCE_TSC		0x40000021
+
+/*
+ * There is a single feature flag that signifies the presence of the MSR
+ * that can be used to retrieve both the local APIC Timer frequency as
+ * well as the TSC frequency.
+ */
+
+/* Local APIC timer frequency MSR (HV_X64_MSR_APIC_FREQUENCY) is available */
+#define HV_X64_MSR_APIC_FREQUENCY_AVAILABLE (1 << 11)
+
+/* TSC frequency MSR (HV_X64_MSR_TSC_FREQUENCY) is available */
+#define HV_X64_MSR_TSC_FREQUENCY_AVAILABLE (1 << 11)
+
 /*
  * Basic SynIC MSRs (HV_X64_MSR_SCONTROL through HV_X64_MSR_EOM
  * and HV_X64_MSR_SINT0 through HV_X64_MSR_SINT15) available
@@ -92,6 +110,8 @@
 #define HV_X64_HYPERCALL_PARAMS_XMM_AVAILABLE		(1 << 4)
 /* Support for a virtual guest idle state is available */
 #define HV_X64_GUEST_IDLE_STATE_AVAILABLE		(1 << 5)
+/* Guest crash data handler available */
+#define HV_X64_GUEST_CRASH_MSR_AVAILABLE		(1 << 10)
 
 /*
  * Implementation recommendations. Indicates which behaviors the hypervisor
@@ -133,8 +153,20 @@
 /* MSR used to provide vcpu index */
 #define HV_X64_MSR_VP_INDEX			0x40000002
 
+/* MSR used to reset the guest OS. */
+#define HV_X64_MSR_RESET			0x40000003
+
+/* MSR used to provide vcpu runtime in 100ns units */
+#define HV_X64_MSR_VP_RUNTIME			0x40000010
+
 /* MSR used to read the per-partition time reference counter */
 #define HV_X64_MSR_TIME_REF_COUNT		0x40000020
+
+/* MSR used to retrieve the TSC frequency */
+#define HV_X64_MSR_TSC_FREQUENCY		0x40000022
+
+/* MSR used to retrieve the local APIC timer frequency */
+#define HV_X64_MSR_APIC_FREQUENCY		0x40000023
 
 /* Define the virtual APIC registers */
 #define HV_X64_MSR_EOI				0x40000070
@@ -165,6 +197,28 @@
 #define HV_X64_MSR_SINT14			0x4000009E
 #define HV_X64_MSR_SINT15			0x4000009F
 
+/*
+ * Synthetic Timer MSRs. Four timers per vcpu.
+ */
+#define HV_X64_MSR_STIMER0_CONFIG		0x400000B0
+#define HV_X64_MSR_STIMER0_COUNT		0x400000B1
+#define HV_X64_MSR_STIMER1_CONFIG		0x400000B2
+#define HV_X64_MSR_STIMER1_COUNT		0x400000B3
+#define HV_X64_MSR_STIMER2_CONFIG		0x400000B4
+#define HV_X64_MSR_STIMER2_COUNT		0x400000B5
+#define HV_X64_MSR_STIMER3_CONFIG		0x400000B6
+#define HV_X64_MSR_STIMER3_COUNT		0x400000B7
+
+/* Hyper-V guest crash notification MSR's */
+#define HV_X64_MSR_CRASH_P0			0x40000100
+#define HV_X64_MSR_CRASH_P1			0x40000101
+#define HV_X64_MSR_CRASH_P2			0x40000102
+#define HV_X64_MSR_CRASH_P3			0x40000103
+#define HV_X64_MSR_CRASH_P4			0x40000104
+#define HV_X64_MSR_CRASH_CTL			0x40000105
+#define HV_X64_MSR_CRASH_CTL_NOTIFY		(1ULL << 63)
+#define HV_X64_MSR_CRASH_PARAMS		\
+		(1 + (HV_X64_MSR_CRASH_P4 - HV_X64_MSR_CRASH_P0))
 
 #define HV_X64_MSR_HYPERCALL_ENABLE		0x00000001
 #define HV_X64_MSR_HYPERCALL_PAGE_ADDRESS_SHIFT	12
@@ -179,6 +233,9 @@
 #define HV_X64_MSR_APIC_ASSIST_PAGE_ADDRESS_MASK	\
 		(~((1ull << HV_X64_MSR_APIC_ASSIST_PAGE_ADDRESS_SHIFT) - 1))
 
+#define HV_X64_MSR_TSC_REFERENCE_ENABLE		0x00000001
+#define HV_X64_MSR_TSC_REFERENCE_ADDRESS_SHIFT	12
+
 #define HV_PROCESSOR_POWER_STATE_C0		0
 #define HV_PROCESSOR_POWER_STATE_C1		1
 #define HV_PROCESSOR_POWER_STATE_C2		2
@@ -189,6 +246,27 @@
 #define HV_STATUS_INVALID_HYPERCALL_CODE	2
 #define HV_STATUS_INVALID_HYPERCALL_INPUT	3
 #define HV_STATUS_INVALID_ALIGNMENT		4
+#define HV_STATUS_INSUFFICIENT_MEMORY		11
+#define HV_STATUS_INVALID_CONNECTION_ID		18
 #define HV_STATUS_INSUFFICIENT_BUFFERS		19
+
+typedef struct _HV_REFERENCE_TSC_PAGE {
+	__u32 tsc_sequence;
+	__u32 res1;
+	__u64 tsc_scale;
+	__s64 tsc_offset;
+} HV_REFERENCE_TSC_PAGE, *PHV_REFERENCE_TSC_PAGE;
+
+/* Define the number of synthetic interrupt sources. */
+#define HV_SYNIC_SINT_COUNT		(16)
+/* Define the expected SynIC version. */
+#define HV_SYNIC_VERSION_1		(0x1)
+
+#define HV_SYNIC_CONTROL_ENABLE		(1ULL << 0)
+#define HV_SYNIC_SIMP_ENABLE		(1ULL << 0)
+#define HV_SYNIC_SIEFP_ENABLE		(1ULL << 0)
+#define HV_SYNIC_SINT_MASKED		(1ULL << 16)
+#define HV_SYNIC_SINT_AUTO_EOI		(1ULL << 17)
+#define HV_SYNIC_SINT_VECTOR_MASK	(0xFF)
 
 #endif

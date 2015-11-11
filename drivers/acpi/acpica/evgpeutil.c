@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -101,56 +101,9 @@ acpi_ev_walk_gpe_list(acpi_gpe_callback gpe_walk_callback, void *context)
 		gpe_xrupt_info = gpe_xrupt_info->next;
 	}
 
-      unlock_and_exit:
+unlock_and_exit:
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 	return_ACPI_STATUS(status);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ev_valid_gpe_event
- *
- * PARAMETERS:  gpe_event_info              - Info for this GPE
- *
- * RETURN:      TRUE if the gpe_event is valid
- *
- * DESCRIPTION: Validate a GPE event. DO NOT CALL FROM INTERRUPT LEVEL.
- *              Should be called only when the GPE lists are semaphore locked
- *              and not subject to change.
- *
- ******************************************************************************/
-
-u8 acpi_ev_valid_gpe_event(struct acpi_gpe_event_info *gpe_event_info)
-{
-	struct acpi_gpe_xrupt_info *gpe_xrupt_block;
-	struct acpi_gpe_block_info *gpe_block;
-
-	ACPI_FUNCTION_ENTRY();
-
-	/* No need for spin lock since we are not changing any list elements */
-
-	/* Walk the GPE interrupt levels */
-
-	gpe_xrupt_block = acpi_gbl_gpe_xrupt_list_head;
-	while (gpe_xrupt_block) {
-		gpe_block = gpe_xrupt_block->gpe_block_list_head;
-
-		/* Walk the GPE blocks on this interrupt level */
-
-		while (gpe_block) {
-			if ((&gpe_block->event_info[0] <= gpe_event_info) &&
-			    (&gpe_block->event_info[gpe_block->gpe_count] >
-			     gpe_event_info)) {
-				return (TRUE);
-			}
-
-			gpe_block = gpe_block->next;
-		}
-
-		gpe_xrupt_block = gpe_xrupt_block->next;
-	}
-
-	return (FALSE);
 }
 
 /*******************************************************************************
@@ -196,9 +149,10 @@ acpi_ev_get_gpe_device(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
  *
  * FUNCTION:    acpi_ev_get_gpe_xrupt_block
  *
- * PARAMETERS:  interrupt_number     - Interrupt for a GPE block
+ * PARAMETERS:  interrupt_number            - Interrupt for a GPE block
+ *              gpe_xrupt_block             - Where the block is returned
  *
- * RETURN:      A GPE interrupt block
+ * RETURN:      Status
  *
  * DESCRIPTION: Get or Create a GPE interrupt block. There is one interrupt
  *              block per unique interrupt level used for GPEs. Should be
@@ -207,7 +161,9 @@ acpi_ev_get_gpe_device(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
  *
  ******************************************************************************/
 
-struct acpi_gpe_xrupt_info *acpi_ev_get_gpe_xrupt_block(u32 interrupt_number)
+acpi_status
+acpi_ev_get_gpe_xrupt_block(u32 interrupt_number,
+			    struct acpi_gpe_xrupt_info ** gpe_xrupt_block)
 {
 	struct acpi_gpe_xrupt_info *next_gpe_xrupt;
 	struct acpi_gpe_xrupt_info *gpe_xrupt;
@@ -221,7 +177,8 @@ struct acpi_gpe_xrupt_info *acpi_ev_get_gpe_xrupt_block(u32 interrupt_number)
 	next_gpe_xrupt = acpi_gbl_gpe_xrupt_list_head;
 	while (next_gpe_xrupt) {
 		if (next_gpe_xrupt->interrupt_number == interrupt_number) {
-			return_PTR(next_gpe_xrupt);
+			*gpe_xrupt_block = next_gpe_xrupt;
+			return_ACPI_STATUS(AE_OK);
 		}
 
 		next_gpe_xrupt = next_gpe_xrupt->next;
@@ -231,7 +188,7 @@ struct acpi_gpe_xrupt_info *acpi_ev_get_gpe_xrupt_block(u32 interrupt_number)
 
 	gpe_xrupt = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_gpe_xrupt_info));
 	if (!gpe_xrupt) {
-		return_PTR(NULL);
+		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
 	gpe_xrupt->interrupt_number = interrupt_number;
@@ -250,6 +207,7 @@ struct acpi_gpe_xrupt_info *acpi_ev_get_gpe_xrupt_block(u32 interrupt_number)
 	} else {
 		acpi_gbl_gpe_xrupt_list_head = gpe_xrupt;
 	}
+
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 
 	/* Install new interrupt handler if not SCI_INT */
@@ -259,14 +217,15 @@ struct acpi_gpe_xrupt_info *acpi_ev_get_gpe_xrupt_block(u32 interrupt_number)
 							   acpi_ev_gpe_xrupt_handler,
 							   gpe_xrupt);
 		if (ACPI_FAILURE(status)) {
-			ACPI_ERROR((AE_INFO,
-				    "Could not install GPE interrupt handler at level 0x%X",
-				    interrupt_number));
-			return_PTR(NULL);
+			ACPI_EXCEPTION((AE_INFO, status,
+					"Could not install GPE interrupt handler at level 0x%X",
+					interrupt_number));
+			return_ACPI_STATUS(status);
 		}
 	}
 
-	return_PTR(gpe_xrupt);
+	*gpe_xrupt_block = gpe_xrupt;
+	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************
@@ -365,8 +324,10 @@ acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 								 ACPI_GPE_REGISTER_WIDTH)
 								+ j];
 
-			if ((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) ==
-			    ACPI_GPE_DISPATCH_HANDLER) {
+			if ((ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) ==
+			     ACPI_GPE_DISPATCH_HANDLER) ||
+			    (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) ==
+			     ACPI_GPE_DISPATCH_RAW_HANDLER)) {
 
 				/* Delete an installed handler block */
 
@@ -374,10 +335,8 @@ acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 				gpe_event_info->dispatch.handler = NULL;
 				gpe_event_info->flags &=
 				    ~ACPI_GPE_DISPATCH_MASK;
-			} else
-			    if ((gpe_event_info->
-				 flags & ACPI_GPE_DISPATCH_MASK) ==
-				ACPI_GPE_DISPATCH_NOTIFY) {
+			} else if (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags)
+				   == ACPI_GPE_DISPATCH_NOTIFY) {
 
 				/* Delete the implicit notification device list */
 

@@ -1,0 +1,198 @@
+menuconfig FB_TFT
+	tristate "Support for small TFT LCD display modules"
+	depends on FB && SPI
+	depends on GPIOLIB || COMPILE_TEST
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	select FB_SYS_FOPS
+	select FB_DEFERRED_IO
+	select FB_BACKLIGHT
+
+config FB_TFT_AGM1264K_FL
+	tristate "FB driver for the AGM1264K-FL LCD display"
+	depends on FB_TFT
+	help
+	  Framebuffer support for the AGM1264K-FL LCD display (two Samsung KS0108 compatible chips)
+
+config FB_TFT_BD663474
+	tristate "FB driver for the BD663474 LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for BD663474
+
+config FB_TFT_HX8340BN
+	tristate "FB driver for the HX8340BN LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for HX8340BN
+
+config FB_TFT_HX8347D
+	tristate "FB driver for the HX8347D LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for HX8347D
+
+config FB_TFT_HX8353D
+	tristate "FB driver for the HX8353D LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for HX8353D
+
+config FB_TFT_HX8357D
+	tristate "FB driver for the HX8357D LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for HX8357D
+
+config FB_TFT_ILI9163
+	tristate "FB driver for the ILI9163 LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for ILI9163
+
+config FB_TFT_ILI9320
+	tristate "FB driver for the ILI9320 LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for ILI9320
+
+config FB_TFT_ILI9325
+	tristate "FB driver for the ILI9325 LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for ILI9325
+
+config FB_TFT_ILI9340
+	tristate "FB driver for the ILI9340 LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for ILI9340
+
+config FB_TFT_ILI9341
+	tristate "FB driver for the ILI9341 LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for ILI9341
+
+config FB_TFT_ILI9481
+	tristate "FB driver for the ILI9481 LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for ILI9481
+
+config FB_TFT_ILI9486
+	tristate "FB driver for the ILI9486 LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for ILI9486
+
+config FB_TFT_PCD8544
+	tristate "FB driver for the PCD8544 LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for PCD8544
+
+config FB_TFT_RA8875
+        tristate "FB driver for the RA8875 LCD Controller"
+        depends on FB_TFT
+	help
+	  Generic Framebuffer support for RA8875
+
+config FB_TFT_S6D02A1
+	tristate "FB driver for the S6D02A1 LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for S6D02A1
+
+config FB_TFT_S6D1121
+	tristate "FB driver for the S6D1211 LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for S6D1121
+
+config FB_TFT_SSD1289
+	tristate "FB driver for the SSD1289 LCD Controller"
+	depends on FB_TFT
+	help
+	  Framebuffer support for SSD1289
+
+config FB_TFT_SSD1306
+	tristate "FB driver for the SSD1306 OLED Controller"
+	depends on FB_TFT
+	help
+	  Framebuffer support for SSD1306
+
+config FB_TFT_SSD1331
+	tristate "FB driver for the SSD1331 LCD Controller"
+	depends on FB_TFT
+	help
+	  Framebuffer support for SSD1331
+
+config FB_TFT_SSD1351
+	tristate "FB driver for the SSD1351 LCD Controller"
+	depends on FB_TFT
+	help
+	  Framebuffer support for SSD1351
+
+config FB_TFT_ST7735R
+	tristate "FB driver for the ST7735R LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for ST7735R
+
+config FB_TFT_ST7789V
+	tristate "FB driver for the ST7789V LCD Controller"
+	depends on FB_TFT
+	help
+	  This enables generic framebuffer support for the Sitronix ST7789V
+	  display controller. The controller is intended for small color
+	  displays with a resolution of up to 320x240 pixels.
+
+	  Say Y if you have such a display that utilizes this controller.
+
+config FB_TFT_TINYLCD
+	tristate "FB driver for tinylcd.com display"
+	depends on FB_TFT
+	help
+	  Custom Framebuffer support for tinylcd.com display
+
+config FB_TFT_TLS8204
+	tristate "FB driver for the TLS8204 LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for TLS8204
+
+config FB_TFT_UC1611
+	tristate "FB driver for the UC1611 LCD controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for UC1611
+
+config FB_TFT_UC1701
+	tristate "FB driver for the UC1701 LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for UC1701
+
+config FB_TFT_UPD161704
+	tristate "FB driver for the uPD161704 LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for uPD161704
+
+config FB_TFT_WATTEROTT
+	tristate "FB driver for the WATTEROTT LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for WATTEROTT
+
+config FB_FLEX
+	tristate "Generic FB driver for TFT LCD displays"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for TFT LCD displays.
+
+config FB_TFT_FBTFT_DEVICE
+	tristate "Module to for adding FBTFT devices"
+	depends on FB_TFT

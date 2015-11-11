@@ -7,6 +7,8 @@
  * of the GNU General Public License version 2.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
@@ -94,13 +96,16 @@ static ssize_t freeze_show(struct gfs2_sbd *sdp, char *buf)
 	struct super_block *sb = sdp->sd_vfs;
 	int frozen = (sb->s_writers.frozen == SB_UNFROZEN) ? 0 : 1;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", frozen);
+	return snprintf(buf, PAGE_SIZE, "%d\n", frozen);
 }
 
 static ssize_t freeze_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 {
-	int error;
-	int n = simple_strtol(buf, NULL, 0);
+	int error, n;
+
+	error = kstrtoint(buf, 0, &n);
+	if (error)
+		return error;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -132,25 +137,36 @@ static ssize_t withdraw_show(struct gfs2_sbd *sdp, char *buf)
 
 static ssize_t withdraw_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 {
+	int error, val;
+
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (simple_strtol(buf, NULL, 0) != 1)
+	error = kstrtoint(buf, 0, &val);
+	if (error)
+		return error;
+
+	if (val != 1)
 		return -EINVAL;
 
-	gfs2_lm_withdraw(sdp,
-		"GFS2: fsid=%s: withdrawing from cluster at user's request\n",
-		sdp->sd_fsname);
+	gfs2_lm_withdraw(sdp, "withdrawing from cluster at user's request\n");
+
 	return len;
 }
 
 static ssize_t statfs_sync_store(struct gfs2_sbd *sdp, const char *buf,
 				 size_t len)
 {
+	int error, val;
+
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (simple_strtol(buf, NULL, 0) != 1)
+	error = kstrtoint(buf, 0, &val);
+	if (error)
+		return error;
+
+	if (val != 1)
 		return -EINVAL;
 
 	gfs2_statfs_sync(sdp->sd_vfs, 0);
@@ -160,10 +176,16 @@ static ssize_t statfs_sync_store(struct gfs2_sbd *sdp, const char *buf,
 static ssize_t quota_sync_store(struct gfs2_sbd *sdp, const char *buf,
 				size_t len)
 {
+	int error, val;
+
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (simple_strtol(buf, NULL, 0) != 1)
+	error = kstrtoint(buf, 0, &val);
+	if (error)
+		return error;
+
+	if (val != 1)
 		return -EINVAL;
 
 	gfs2_quota_sync(sdp->sd_vfs, 0);
@@ -180,7 +202,9 @@ static ssize_t quota_refresh_user_store(struct gfs2_sbd *sdp, const char *buf,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	id = simple_strtoul(buf, NULL, 0);
+	error = kstrtou32(buf, 0, &id);
+	if (error)
+		return error;
 
 	qid = make_kqid(current_user_ns(), USRQUOTA, id);
 	if (!qid_valid(qid))
@@ -200,7 +224,9 @@ static ssize_t quota_refresh_group_store(struct gfs2_sbd *sdp, const char *buf,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	id = simple_strtoul(buf, NULL, 0);
+	error = kstrtou32(buf, 0, &id);
+	if (error)
+		return error;
 
 	qid = make_kqid(current_user_ns(), GRPQUOTA, id);
 	if (!qid_valid(qid))
@@ -239,8 +265,8 @@ static ssize_t demote_rq_store(struct gfs2_sbd *sdp, const char *buf, size_t len
 
 	if (gltype > LM_TYPE_JOURNAL)
 		return -EINVAL;
-	if (gltype == LM_TYPE_NONDISK && glnum == GFS2_TRANS_LOCK)
-		glops = &gfs2_trans_glops;
+	if (gltype == LM_TYPE_NONDISK && glnum == GFS2_FREEZE_LOCK)
+		glops = &gfs2_freeze_glops;
 	else
 		glops = gfs2_glops_list[gltype];
 	if (glops == NULL)
@@ -323,21 +349,22 @@ static ssize_t block_show(struct gfs2_sbd *sdp, char *buf)
 static ssize_t block_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 {
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
-	ssize_t ret = len;
-	int val;
+	int ret, val;
 
-	val = simple_strtol(buf, NULL, 0);
+	ret = kstrtoint(buf, 0, &val);
+	if (ret)
+		return ret;
 
 	if (val == 1)
 		set_bit(DFL_BLOCK_LOCKS, &ls->ls_recover_flags);
 	else if (val == 0) {
 		clear_bit(DFL_BLOCK_LOCKS, &ls->ls_recover_flags);
-		smp_mb__after_clear_bit();
+		smp_mb__after_atomic();
 		gfs2_glock_thaw(sdp);
 	} else {
-		ret = -EINVAL;
+		return -EINVAL;
 	}
-	return ret;
+	return len;
 }
 
 static ssize_t wdack_show(struct gfs2_sbd *sdp, char *buf)
@@ -349,17 +376,18 @@ static ssize_t wdack_show(struct gfs2_sbd *sdp, char *buf)
 
 static ssize_t wdack_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 {
-	ssize_t ret = len;
-	int val;
+	int ret, val;
 
-	val = simple_strtol(buf, NULL, 0);
+	ret = kstrtoint(buf, 0, &val);
+	if (ret)
+		return ret;
 
 	if ((val == 1) &&
 	    !strcmp(sdp->sd_lockstruct.ls_ops->lm_proto_name, "lock_dlm"))
 		complete(&sdp->sd_wdack);
 	else
-		ret = -EINVAL;
-	return ret;
+		return -EINVAL;
+	return len;
 }
 
 static ssize_t lkfirst_show(struct gfs2_sbd *sdp, char *buf)
@@ -405,6 +433,9 @@ int gfs2_recover_set(struct gfs2_sbd *sdp, unsigned jid)
 {
 	struct gfs2_jdesc *jd;
 	int rv;
+
+	/* Wait for our primary journal to be initialized */
+	wait_for_completion(&sdp->sd_journal_ready);
 
 	spin_lock(&sdp->sd_jindex_spin);
 	rv = -EBUSY;
@@ -481,7 +512,7 @@ static ssize_t jid_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 		rv = jid = -EINVAL;
 	sdp->sd_lockstruct.ls_jid = jid;
 	clear_bit(SDF_NOJOURNALID, &sdp->sd_flags);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 	wake_up_bit(&sdp->sd_flags, SDF_NOJOURNALID);
 out:
 	spin_unlock(&sdp->sd_jindex_spin);
@@ -549,11 +580,14 @@ static ssize_t tune_set(struct gfs2_sbd *sdp, unsigned int *field,
 {
 	struct gfs2_tune *gt = &sdp->sd_tune;
 	unsigned int x;
+	int error;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	x = simple_strtoul(buf, NULL, 0);
+	error = kstrtouint(buf, 0, &x);
+	if (error)
+		return error;
 
 	if (check_zero && !x)
 		return -EINVAL;
@@ -587,7 +621,6 @@ TUNE_ATTR(max_readahead, 0);
 TUNE_ATTR(complain_secs, 0);
 TUNE_ATTR(statfs_slow, 0);
 TUNE_ATTR(new_files_jdata, 0);
-TUNE_ATTR(quota_simul_sync, 1);
 TUNE_ATTR(statfs_quantum, 1);
 TUNE_ATTR_3(quota_scale, quota_scale_show, quota_scale_store);
 
@@ -597,7 +630,6 @@ static struct attribute *tune_attrs[] = {
 	&tune_attr_max_readahead.attr,
 	&tune_attr_complain_secs.attr,
 	&tune_attr_statfs_slow.attr,
-	&tune_attr_quota_simul_sync.attr,
 	&tune_attr_statfs_quantum.attr,
 	&tune_attr_quota_scale.attr,
 	&tune_attr_new_files_jdata.attr,

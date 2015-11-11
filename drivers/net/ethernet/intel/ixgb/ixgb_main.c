@@ -53,7 +53,7 @@ MODULE_PARM_DESC(copybreak,
  * { Vendor ID, Device ID, SubVendor ID, SubDevice ID,
  *   Class, Class Mask, private data (not used) }
  */
-static DEFINE_PCI_DEVICE_TABLE(ixgb_pci_tbl) = {
+static const struct pci_device_id ixgb_pci_tbl[] = {
 	{PCI_VENDOR_ID_INTEL, IXGB_DEVICE_ID_82597EX,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_INTEL, IXGB_DEVICE_ID_82597EX_CX4,
@@ -285,6 +285,8 @@ ixgb_down(struct ixgb_adapter *adapter, bool kill_watchdog)
 	/* prevent the interrupt handler from restarting watchdog */
 	set_bit(__IXGB_DOWN, &adapter->flags);
 
+	netif_carrier_off(netdev);
+
 	napi_disable(&adapter->napi);
 	/* waiting for NAPI to complete can re-enable interrupts */
 	ixgb_irq_disable(adapter);
@@ -298,7 +300,6 @@ ixgb_down(struct ixgb_adapter *adapter, bool kill_watchdog)
 
 	adapter->link_speed = 0;
 	adapter->link_duplex = 0;
-	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
 
 	ixgb_reset(adapter);
@@ -408,20 +409,14 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return err;
 
 	pci_using_dac = 0;
-	err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (!err) {
-		err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
-		if (!err)
-			pci_using_dac = 1;
+		pci_using_dac = 1;
 	} else {
-		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
-			err = dma_set_coherent_mask(&pdev->dev,
-						    DMA_BIT_MASK(32));
-			if (err) {
-				pr_err("No usable DMA configuration, aborting\n");
-				goto err_dma_mask;
-			}
+			pr_err("No usable DMA configuration, aborting\n");
+			goto err_dma_mask;
 		}
 	}
 
@@ -718,8 +713,8 @@ ixgb_setup_tx_resources(struct ixgb_adapter *adapter)
 	txdr->size = txdr->count * sizeof(struct ixgb_tx_desc);
 	txdr->size = ALIGN(txdr->size, 4096);
 
-	txdr->desc = dma_alloc_coherent(&pdev->dev, txdr->size, &txdr->dma,
-					GFP_KERNEL | __GFP_ZERO);
+	txdr->desc = dma_zalloc_coherent(&pdev->dev, txdr->size, &txdr->dma,
+					 GFP_KERNEL);
 	if (!txdr->desc) {
 		vfree(txdr->buffer_info);
 		return -ENOMEM;
@@ -1226,17 +1221,15 @@ ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 	unsigned int i;
 	u8 ipcss, ipcso, tucss, tucso, hdr_len;
 	u16 ipcse, tucse, mss;
-	int err;
 
 	if (likely(skb_is_gso(skb))) {
 		struct ixgb_buffer *buffer_info;
 		struct iphdr *iph;
+		int err;
 
-		if (skb_header_cloned(skb)) {
-			err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
-			if (err)
-				return err;
-		}
+		err = skb_cow_head(skb, 0);
+		if (err < 0)
+			return err;
 
 		hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
 		mss = skb_shinfo(skb)->gso_size;
@@ -1527,12 +1520,12 @@ ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	int tso;
 
 	if (test_bit(__IXGB_DOWN, &adapter->flags)) {
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 
 	if (skb->len <= 0) {
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 
@@ -1540,16 +1533,16 @@ ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
                      DESC_NEEDED)))
 		return NETDEV_TX_BUSY;
 
-	if (vlan_tx_tag_present(skb)) {
+	if (skb_vlan_tag_present(skb)) {
 		tx_flags |= IXGB_TX_FLAGS_VLAN;
-		vlan_id = vlan_tx_tag_get(skb);
+		vlan_id = skb_vlan_tag_get(skb);
 	}
 
 	first = adapter->tx_ring.next_to_use;
 
 	tso = ixgb_tso(adapter, skb);
 	if (tso < 0) {
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 
@@ -1971,7 +1964,7 @@ ixgb_rx_checksum(struct ixgb_adapter *adapter,
  * this should improve performance for small packets with large amounts
  * of reassembly being done in the stack
  */
-static void ixgb_check_copybreak(struct net_device *netdev,
+static void ixgb_check_copybreak(struct napi_struct *napi,
 				 struct ixgb_buffer *buffer_info,
 				 u32 length, struct sk_buff **skb)
 {
@@ -1980,7 +1973,7 @@ static void ixgb_check_copybreak(struct net_device *netdev,
 	if (length > copybreak)
 		return;
 
-	new_skb = netdev_alloc_skb_ip_align(netdev, length);
+	new_skb = napi_alloc_skb(napi, length);
 	if (!new_skb)
 		return;
 
@@ -2072,7 +2065,7 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter, int *work_done, int work_to_do)
 			goto rxdesc_done;
 		}
 
-		ixgb_check_copybreak(netdev, buffer_info, length, &skb);
+		ixgb_check_copybreak(&adapter->napi, buffer_info, length, &skb);
 
 		/* Good Receive */
 		skb_put(skb, length);

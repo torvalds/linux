@@ -20,13 +20,26 @@ II. Known problems
 
   None.
 
-III. To do
+III. DMA Engine Support
 
- Add DMA data transfers (non-messaging).
- Add inbound region (SRIO-to-PCIe) mapping.
+Tsi721 mport driver supports DMA data transfers between local system memory and
+remote RapidIO devices. This functionality is implemented according to SLAVE
+mode API defined by common Linux kernel DMA Engine framework.
+
+Depending on system requirements RapidIO DMA operations can be included/excluded
+by setting CONFIG_RAPIDIO_DMA_ENGINE option. Tsi721 miniport driver uses seven
+out of eight available BDMA channels to support DMA data transfers.
+One BDMA channel is reserved for generation of maintenance read/write requests.
+
+If Tsi721 mport driver have been built with RAPIDIO_DMA_ENGINE support included,
+this driver will accept DMA-specific module parameter:
+  "dma_desc_per_channel" - defines number of hardware buffer descriptors used by
+                           each BDMA channel of Tsi721 (by default - 128).
 
 IV. Version History
 
+  1.1.0 - DMA operations re-worked to support data scatter/gather lists larger
+          than hardware buffer descriptors ring.
   1.0.0 - Initial driver release.
 
 V.  License

@@ -10,6 +10,7 @@
 
 #include <stdarg.h>
 
+#include <linux/elfcore.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -22,8 +23,8 @@
 #include <linux/reboot.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
-#include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/cpu.h>
 
 #include <asm/auxio.h>
 #include <asm/oplib.h>
@@ -38,6 +39,8 @@
 #include <asm/prom.h>
 #include <asm/unistd.h>
 #include <asm/setup.h>
+
+#include "kernel.h"
 
 /* 
  * Power management idle function 
@@ -103,8 +106,12 @@ void machine_restart(char * cmd)
 void machine_power_off(void)
 {
 	if (auxio_power_register &&
-	    (strcmp(of_console_device->type, "serial") || scons_pwroff))
-		*auxio_power_register |= AUXIO_POWER_OFF;
+	    (strcmp(of_console_device->type, "serial") || scons_pwroff)) {
+		u8 power_register = sbus_readb(auxio_power_register);
+		power_register |= AUXIO_POWER_OFF;
+		sbus_writeb(power_register, auxio_power_register);
+	}
+
 	machine_halt();
 }
 
@@ -326,11 +333,11 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	childregs = (struct pt_regs *) (new_stack + STACKFRAME_SZ);
 
 	/*
-	 * A new process must start with interrupts closed in 2.5,
-	 * because this is how Mingo's scheduler works (see schedule_tail
-	 * and finish_arch_switch). If we do not do it, a timer interrupt hits
-	 * before we unlock, attempts to re-take the rq->lock, and then we die.
-	 * Thus, kpsr|=PSR_PIL.
+	 * A new process must start with interrupts disabled, see schedule_tail()
+	 * and finish_task_switch(). (If we do not do it and if a timer interrupt
+	 * hits before we unlock and attempts to take the rq->lock, we deadlock.)
+	 *
+	 * Thus, kpsr |= PSR_PIL.
 	 */
 	ti->ksp = (unsigned long) new_stack;
 	p->thread.kregs = childregs;

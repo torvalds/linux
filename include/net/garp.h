@@ -112,19 +112,18 @@ struct garp_port {
 	struct rcu_head			rcu;
 };
 
-extern int	garp_register_application(struct garp_application *app);
-extern void	garp_unregister_application(struct garp_application *app);
+int garp_register_application(struct garp_application *app);
+void garp_unregister_application(struct garp_application *app);
 
-extern int	garp_init_applicant(struct net_device *dev,
-				    struct garp_application *app);
-extern void	garp_uninit_applicant(struct net_device *dev,
-				      struct garp_application *app);
+int garp_init_applicant(struct net_device *dev, struct garp_application *app);
+void garp_uninit_applicant(struct net_device *dev,
+			   struct garp_application *app);
 
-extern int	garp_request_join(const struct net_device *dev,
-				  const struct garp_application *app,
-				  const void *data, u8 len, u8 type);
-extern void	garp_request_leave(const struct net_device *dev,
-				   const struct garp_application *app,
-				   const void *data, u8 len, u8 type);
+int garp_request_join(const struct net_device *dev,
+		      const struct garp_application *app, const void *data,
+		      u8 len, u8 type);
+void garp_request_leave(const struct net_device *dev,
+			const struct garp_application *app,
+			const void *data, u8 len, u8 type);
 
 #endif /* _NET_GARP_H */

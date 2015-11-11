@@ -24,24 +24,33 @@
 #include "dvb_frontend.h"
 #include "tda10071.h"
 #include <linux/firmware.h>
+#include <linux/regmap.h>
 
-struct tda10071_priv {
-	struct i2c_adapter *i2c;
+struct tda10071_dev {
 	struct dvb_frontend fe;
-	struct tda10071_config cfg;
+	struct i2c_client *client;
+	struct regmap *regmap;
+	struct mutex cmd_execute_mutex;
+	u32 clk;
+	u16 i2c_wr_max;
+	u8 ts_mode;
+	bool spec_inv;
+	u8 pll_multiplier;
+	u8 tuner_i2c_addr;
 
-	u8 meas_count[2];
-	u32 ber;
-	u32 ucb;
-	fe_status_t fe_status;
-	fe_delivery_system_t delivery_system;
+	u8 meas_count;
+	u32 dvbv3_ber;
+	enum fe_status fe_status;
+	enum fe_delivery_system delivery_system;
 	bool warm; /* FW running */
+	u64 post_bit_error;
+	u64 block_error;
 };
 
 static struct tda10071_modcod {
-	fe_delivery_system_t delivery_system;
-	fe_modulation_t modulation;
-	fe_code_rate_t fec;
+	enum fe_delivery_system delivery_system;
+	enum fe_modulation modulation;
+	enum fe_code_rate fec;
 	u8 val;
 } TDA10071_MODCOD[] = {
 	/* NBC-QPSK */
@@ -55,6 +64,7 @@ static struct tda10071_modcod {
 	{ SYS_DVBS2, QPSK,  FEC_8_9,  0x0a },
 	{ SYS_DVBS2, QPSK,  FEC_9_10, 0x0b },
 	/* 8PSK */
+	{ SYS_DVBS2, PSK_8, FEC_AUTO, 0x00 },
 	{ SYS_DVBS2, PSK_8, FEC_3_5,  0x0c },
 	{ SYS_DVBS2, PSK_8, FEC_2_3,  0x0d },
 	{ SYS_DVBS2, PSK_8, FEC_3_4,  0x0e },
@@ -98,7 +108,7 @@ struct tda10071_reg_val_mask {
 #define CMD_BER_CONTROL         0x3e
 #define CMD_BER_UPDATE_COUNTERS 0x3f
 
-/* firmare command struct */
+/* firmware command struct */
 #define TDA10071_ARGLEN      30
 struct tda10071_cmd {
 	u8 args[TDA10071_ARGLEN];

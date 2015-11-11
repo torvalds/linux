@@ -41,7 +41,7 @@ struct cx24116_config {
 	u16 i2c_wr_max;
 };
 
-#if IS_ENABLED(CONFIG_DVB_CX24116)
+#if IS_REACHABLE(CONFIG_DVB_CX24116)
 extern struct dvb_frontend *cx24116_attach(
 	const struct cx24116_config *config,
 	struct i2c_adapter *i2c);

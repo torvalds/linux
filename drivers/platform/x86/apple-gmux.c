@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/vga_switcheroo.h>
+#include <linux/vgaarb.h>
 #include <acpi/video.h>
 #include <asm/io.h>
 
@@ -31,6 +32,7 @@ struct apple_gmux_data {
 	bool indexed;
 	struct mutex index_lock;
 
+	struct pci_dev *pdev;
 	struct backlight_device *bdev;
 
 	/* switcheroo data */
@@ -289,7 +291,7 @@ static int gmux_switchto(enum vga_switcheroo_client_id id)
 static int gmux_set_discrete_state(struct apple_gmux_data *gmux_data,
 				   enum vga_switcheroo_state state)
 {
-	INIT_COMPLETION(gmux_data->powerchange_done);
+	reinit_completion(&gmux_data->powerchange_done);
 
 	if (state == VGA_SWITCHEROO_ON) {
 		gmux_write8(gmux_data, GMUX_PORT_DISCRETE_POWER, 1);
@@ -344,7 +346,7 @@ gmux_active_client(struct apple_gmux_data *gmux_data)
 	return VGA_SWITCHEROO_DIS;
 }
 
-static struct vga_switcheroo_handler gmux_handler = {
+static const struct vga_switcheroo_handler gmux_handler = {
 	.switchto = gmux_switchto,
 	.power_state = gmux_set_power_state,
 	.get_client_id = gmux_get_client_id,
@@ -393,22 +395,43 @@ static void gmux_notify_handler(acpi_handle device, u32 value, void *context)
 		complete(&gmux_data->powerchange_done);
 }
 
-static int gmux_suspend(struct pnp_dev *pnp, pm_message_t state)
+static int gmux_suspend(struct device *dev)
 {
+	struct pnp_dev *pnp = to_pnp_dev(dev);
 	struct apple_gmux_data *gmux_data = pnp_get_drvdata(pnp);
+
 	gmux_data->resume_client_id = gmux_active_client(gmux_data);
 	gmux_disable_interrupts(gmux_data);
 	return 0;
 }
 
-static int gmux_resume(struct pnp_dev *pnp)
+static int gmux_resume(struct device *dev)
 {
+	struct pnp_dev *pnp = to_pnp_dev(dev);
 	struct apple_gmux_data *gmux_data = pnp_get_drvdata(pnp);
+
 	gmux_enable_interrupts(gmux_data);
 	gmux_switchto(gmux_data->resume_client_id);
 	if (gmux_data->power_state == VGA_SWITCHEROO_OFF)
 		gmux_set_discrete_state(gmux_data, gmux_data->power_state);
 	return 0;
+}
+
+static struct pci_dev *gmux_get_io_pdev(void)
+{
+	struct pci_dev *pdev = NULL;
+
+	while ((pdev = pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, pdev))) {
+		u16 cmd;
+
+		pci_read_config_word(pdev, PCI_COMMAND, &cmd);
+		if (!(cmd & PCI_COMMAND_IO))
+			continue;
+
+		return pdev;
+	}
+
+	return NULL;
 }
 
 static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
@@ -421,6 +444,7 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 	int ret = -ENXIO;
 	acpi_status status;
 	unsigned long long gpe;
+	struct pci_dev *pdev = NULL;
 
 	if (apple_gmux_data)
 		return -EBUSY;
@@ -471,13 +495,30 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 			ver_minor = (version >> 16) & 0xff;
 			ver_release = (version >> 8) & 0xff;
 		} else {
-			pr_info("gmux device not present\n");
+			pr_info("gmux device not present or IO disabled\n");
 			ret = -ENODEV;
 			goto err_release;
 		}
 	}
 	pr_info("Found gmux version %d.%d.%d [%s]\n", ver_major, ver_minor,
 		ver_release, (gmux_data->indexed ? "indexed" : "classic"));
+
+	/*
+	 * Apple systems with gmux are EFI based and normally don't use
+	 * VGA. In addition changing IO+MEM ownership between IGP and dGPU
+	 * disables IO/MEM used for backlight control on some systems.
+	 * Lock IO+MEM to GPU with active IO to prevent switch.
+	 */
+	pdev = gmux_get_io_pdev();
+	if (pdev && vga_tryget(pdev,
+			       VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM)) {
+		pr_err("IO+MEM vgaarb-locking for PCI:%s failed\n",
+			pci_name(pdev));
+		ret = -EBUSY;
+		goto err_release;
+	} else if (pdev)
+		pr_info("locked IO for PCI:%s\n", pci_name(pdev));
+	gmux_data->pdev = pdev;
 
 	memset(&props, 0, sizeof(props));
 	props.type = BACKLIGHT_PLATFORM;
@@ -509,13 +550,12 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 	 * backlight control and supports more levels than other options.
 	 * Disable the other backlight choices.
 	 */
-	acpi_video_dmi_promote_vendor();
-	acpi_video_unregister();
+	acpi_video_set_dmi_backlight_type(acpi_backlight_vendor);
 	apple_bl_unregister();
 
 	gmux_data->power_state = VGA_SWITCHEROO_ON;
 
-	gmux_data->dhandle = DEVICE_ACPI_HANDLE(&pnp->dev);
+	gmux_data->dhandle = ACPI_HANDLE(&pnp->dev);
 	if (!gmux_data->dhandle) {
 		pr_err("Cannot find acpi handle for pnp device %s\n",
 		       dev_name(&pnp->dev));
@@ -570,6 +610,10 @@ err_enable_gpe:
 err_notify:
 	backlight_device_unregister(bdev);
 err_release:
+	if (gmux_data->pdev)
+		vga_put(gmux_data->pdev,
+			VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM);
+	pci_dev_put(pdev);
 	release_region(gmux_data->iostart, gmux_data->iolen);
 err_free:
 	kfree(gmux_data);
@@ -589,13 +633,17 @@ static void gmux_remove(struct pnp_dev *pnp)
 					   &gmux_notify_handler);
 	}
 
+	if (gmux_data->pdev) {
+		vga_put(gmux_data->pdev,
+			VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM);
+		pci_dev_put(gmux_data->pdev);
+	}
 	backlight_device_unregister(gmux_data->bdev);
 
 	release_region(gmux_data->iostart, gmux_data->iolen);
 	apple_gmux_data = NULL;
 	kfree(gmux_data);
 
-	acpi_video_dmi_demote_vendor();
 	acpi_video_register();
 	apple_bl_register();
 }
@@ -605,28 +653,22 @@ static const struct pnp_device_id gmux_device_ids[] = {
 	{"", 0}
 };
 
+static const struct dev_pm_ops gmux_dev_pm_ops = {
+	.suspend = gmux_suspend,
+	.resume = gmux_resume,
+};
+
 static struct pnp_driver gmux_pnp_driver = {
 	.name		= "apple-gmux",
 	.probe		= gmux_probe,
 	.remove		= gmux_remove,
 	.id_table	= gmux_device_ids,
-	.suspend	= gmux_suspend,
-	.resume		= gmux_resume
+	.driver		= {
+			.pm = &gmux_dev_pm_ops,
+	},
 };
 
-static int __init apple_gmux_init(void)
-{
-	return pnp_register_driver(&gmux_pnp_driver);
-}
-
-static void __exit apple_gmux_exit(void)
-{
-	pnp_unregister_driver(&gmux_pnp_driver);
-}
-
-module_init(apple_gmux_init);
-module_exit(apple_gmux_exit);
-
+module_pnp_driver(gmux_pnp_driver);
 MODULE_AUTHOR("Seth Forshee <seth.forshee@canonical.com>");
 MODULE_DESCRIPTION("Apple Gmux Driver");
 MODULE_LICENSE("GPL");

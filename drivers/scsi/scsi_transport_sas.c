@@ -1222,13 +1222,6 @@ show_sas_rphy_enclosure_identifier(struct device *dev,
 	u64 identifier;
 	int error;
 
-	/*
-	 * Only devices behind an expander are supported, because the
-	 * enclosure identifier is a SMP feature.
-	 */
-	if (scsi_is_sas_phy_local(phy))
-		return -EINVAL;
-
 	error = i->f->get_enclosure_identifier(rphy, &identifier);
 	if (error)
 		return error;
@@ -1247,9 +1240,6 @@ show_sas_rphy_bay_identifier(struct device *dev,
 	struct Scsi_Host *shost = dev_to_shost(phy->dev.parent);
 	struct sas_internal *i = to_sas_internal(shost->transportt);
 	int val;
-
-	if (scsi_is_sas_phy_local(phy))
-		return -EINVAL;
 
 	val = i->f->get_bay_identifier(rphy);
 	if (val < 0)
@@ -1621,8 +1611,6 @@ void sas_rphy_free(struct sas_rphy *rphy)
 	list_del(&rphy->list);
 	mutex_unlock(&sas_host->lock);
 
-	sas_bsg_remove(shost, rphy);
-
 	transport_destroy_device(dev);
 
 	put_device(dev);
@@ -1681,6 +1669,7 @@ sas_rphy_remove(struct sas_rphy *rphy)
 	}
 
 	sas_rphy_unlink(rphy);
+	sas_bsg_remove(NULL, rphy);
 	transport_remove_device(dev);
 	device_del(dev);
 }
@@ -1706,7 +1695,7 @@ EXPORT_SYMBOL(scsi_is_sas_rphy);
  */
 
 static int sas_user_scan(struct Scsi_Host *shost, uint channel,
-		uint id, uint lun)
+		uint id, u64 lun)
 {
 	struct sas_host_attrs *sas_host = to_sas_host_attrs(shost);
 	struct sas_rphy *rphy;

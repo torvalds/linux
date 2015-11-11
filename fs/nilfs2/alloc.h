@@ -48,6 +48,8 @@ int nilfs_palloc_get_entry_block(struct inode *, __u64, int,
 void *nilfs_palloc_block_get_entry(const struct inode *, __u64,
 				   const struct buffer_head *, void *);
 
+int nilfs_palloc_count_max_entries(struct inode *, u64, u64 *);
+
 /**
  * nilfs_palloc_req - persistent allocator request and reply
  * @pr_entry_nr: entry number (vblocknr or inode number)
@@ -75,6 +77,7 @@ int nilfs_palloc_freev(struct inode *, __u64 *, size_t);
 #define nilfs_set_bit_atomic		ext2_set_bit_atomic
 #define nilfs_clear_bit_atomic		ext2_clear_bit_atomic
 #define nilfs_find_next_zero_bit	find_next_zero_bit_le
+#define nilfs_find_next_bit		find_next_bit_le
 
 /**
  * struct nilfs_bh_assoc - block offset and buffer head association

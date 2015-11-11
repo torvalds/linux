@@ -1,0 +1,74 @@
+/*
+ * sama5d3_can.dtsi - Device Tree Include file for SAMA5D3 SoC with
+ * CAN support
+ *
+ * Copyright (C) 2013 Boris BREZILLON <b.brezillon@overkiz.com>
+ *
+ * Licensed under GPLv2.
+ */
+
+#include <dt-bindings/pinctrl/at91.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	ahb {
+		apb {
+			pinctrl@fffff200 {
+				can0 {
+					pinctrl_can0_rx_tx: can0_rx_tx {
+						atmel,pins =
+							<AT91_PIOD 14 AT91_PERIPH_C AT91_PINCTRL_NONE	/* PD14 periph C RX, conflicts with SCK0, SPI0_NPCS1 */
+							 AT91_PIOD 15 AT91_PERIPH_C AT91_PINCTRL_NONE>;	/* PD15 periph C TX, conflicts with CTS0, SPI0_NPCS2 */
+					};
+				};
+
+				can1 {
+					pinctrl_can1_rx_tx: can1_rx_tx {
+						atmel,pins =
+							<AT91_PIOB 14 AT91_PERIPH_B AT91_PINCTRL_NONE	/* PB14 periph B RX, conflicts with GCRS */
+							 AT91_PIOB 15 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* PB15 periph B TX, conflicts with GCOL */
+					};
+				};
+
+			};
+
+			pmc: pmc@fffffc00 {
+				periphck {
+					can0_clk: can0_clk {
+						#clock-cells = <0>;
+						reg = <40>;
+						atmel,clk-output-range = <0 66000000>;
+					};
+
+					can1_clk: can1_clk {
+						#clock-cells = <0>;
+						reg = <41>;
+						atmel,clk-output-range = <0 66000000>;
+					};
+				};
+			};
+
+			can0: can@f000c000 {
+				compatible = "atmel,at91sam9x5-can";
+				reg = <0xf000c000 0x300>;
+				interrupts = <40 IRQ_TYPE_LEVEL_HIGH 3>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_can0_rx_tx>;
+				clocks = <&can0_clk>;
+				clock-names = "can_clk";
+				status = "disabled";
+			};
+
+			can1: can@f8010000 {
+				compatible = "atmel,at91sam9x5-can";
+				reg = <0xf8010000 0x300>;
+				interrupts = <41 IRQ_TYPE_LEVEL_HIGH 3>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_can1_rx_tx>;
+				clocks = <&can1_clk>;
+				clock-names = "can_clk";
+				status = "disabled";
+			};
+		};
+	};
+};

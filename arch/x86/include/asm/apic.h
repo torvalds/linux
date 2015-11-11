@@ -12,6 +12,7 @@
 #include <asm/fixmap.h>
 #include <asm/mpspec.h>
 #include <asm/msr.h>
+#include <asm/idle.h>
 
 #define ARCH_APICTIMER_STOPS_ON_C3	1
 
@@ -84,24 +85,13 @@ static inline bool apic_from_smp_config(void)
 #include <asm/paravirt.h>
 #endif
 
-#ifdef CONFIG_X86_64
-extern int is_vsmp_box(void);
-#else
-static inline int is_vsmp_box(void)
-{
-	return 0;
-}
-#endif
-extern void xapic_wait_icr_idle(void);
-extern u32 safe_xapic_wait_icr_idle(void);
-extern void xapic_icr_write(u32, u32);
 extern int setup_profiling_timer(unsigned int);
 
 static inline void native_apic_mem_write(u32 reg, u32 v)
 {
 	volatile u32 *addr = (volatile u32 *)(APIC_BASE + reg);
 
-	alternative_io("movl %0, %1", "xchgl %0, %1", X86_FEATURE_11AP,
+	alternative_io("movl %0, %P1", "xchgl %0, %P1", X86_BUG_11AP,
 		       ASM_OUTPUT2("=r" (v), "=m" (*addr)),
 		       ASM_OUTPUT2("0" (v), "m" (*addr)));
 }
@@ -116,7 +106,67 @@ extern u32 native_safe_apic_wait_icr_idle(void);
 extern void native_apic_icr_write(u32 low, u32 id);
 extern u64 native_apic_icr_read(void);
 
-extern int x2apic_mode;
+static inline bool apic_is_x2apic_enabled(void)
+{
+	u64 msr;
+
+	if (rdmsrl_safe(MSR_IA32_APICBASE, &msr))
+		return false;
+	return msr & X2APIC_ENABLE;
+}
+
+extern void enable_IR_x2apic(void);
+
+extern int get_physical_broadcast(void);
+
+extern int lapic_get_maxlvt(void);
+extern void clear_local_APIC(void);
+extern void disconnect_bsp_APIC(int virt_wire_setup);
+extern void disable_local_APIC(void);
+extern void lapic_shutdown(void);
+extern void sync_Arb_IDs(void);
+extern void init_bsp_APIC(void);
+extern void setup_local_APIC(void);
+extern void init_apic_mappings(void);
+void register_lapic_address(unsigned long address);
+extern void setup_boot_APIC_clock(void);
+extern void setup_secondary_APIC_clock(void);
+extern int APIC_init_uniprocessor(void);
+
+#ifdef CONFIG_X86_64
+static inline int apic_force_enable(unsigned long addr)
+{
+	return -1;
+}
+#else
+extern int apic_force_enable(unsigned long addr);
+#endif
+
+extern int apic_bsp_setup(bool upmode);
+extern void apic_ap_setup(void);
+
+/*
+ * On 32bit this is mach-xxx local
+ */
+#ifdef CONFIG_X86_64
+extern int apic_is_clustered_box(void);
+#else
+static inline int apic_is_clustered_box(void)
+{
+	return 0;
+}
+#endif
+
+extern int setup_APIC_eilvt(u8 lvt_off, u8 vector, u8 msg_type, u8 mask);
+
+#else /* !CONFIG_X86_LOCAL_APIC */
+static inline void lapic_shutdown(void) { }
+#define local_apic_timer_c2_ok		1
+static inline void init_apic_mappings(void) { }
+static inline void disable_local_APIC(void) { }
+# define setup_boot_APIC_clock x86_init_noop
+# define setup_secondary_APIC_clock x86_init_noop
+#endif /* !CONFIG_X86_LOCAL_APIC */
 
 #ifdef CONFIG_X86_X2APIC
 /*
@@ -179,97 +229,24 @@ static inline u64 native_x2apic_icr_read(void)
 	return val;
 }
 
+extern int x2apic_mode;
 extern int x2apic_phys;
-extern int x2apic_preenabled;
-extern void check_x2apic(void);
-extern void enable_x2apic(void);
-extern void x2apic_icr_write(u32 low, u32 id);
+extern void __init check_x2apic(void);
+extern void x2apic_setup(void);
 static inline int x2apic_enabled(void)
 {
-	u64 msr;
-
-	if (!cpu_has_x2apic)
-		return 0;
-
-	rdmsrl(MSR_IA32_APICBASE, msr);
-	if (msr & X2APIC_ENABLE)
-		return 1;
-	return 0;
+	return cpu_has_x2apic && apic_is_x2apic_enabled();
 }
 
 #define x2apic_supported()	(cpu_has_x2apic)
-static inline void x2apic_force_phys(void)
-{
-	x2apic_phys = 1;
-}
-#else
-static inline void disable_x2apic(void)
-{
-}
-static inline void check_x2apic(void)
-{
-}
-static inline void enable_x2apic(void)
-{
-}
-static inline int x2apic_enabled(void)
-{
-	return 0;
-}
-static inline void x2apic_force_phys(void)
-{
-}
+#else /* !CONFIG_X86_X2APIC */
+static inline void check_x2apic(void) { }
+static inline void x2apic_setup(void) { }
+static inline int x2apic_enabled(void) { return 0; }
 
-#define	nox2apic	0
-#define	x2apic_preenabled 0
-#define	x2apic_supported()	0
-#endif
-
-extern void enable_IR_x2apic(void);
-
-extern int get_physical_broadcast(void);
-
-extern int lapic_get_maxlvt(void);
-extern void clear_local_APIC(void);
-extern void connect_bsp_APIC(void);
-extern void disconnect_bsp_APIC(int virt_wire_setup);
-extern void disable_local_APIC(void);
-extern void lapic_shutdown(void);
-extern int verify_local_APIC(void);
-extern void sync_Arb_IDs(void);
-extern void init_bsp_APIC(void);
-extern void setup_local_APIC(void);
-extern void end_local_APIC_setup(void);
-extern void bsp_end_local_APIC_setup(void);
-extern void init_apic_mappings(void);
-void register_lapic_address(unsigned long address);
-extern void setup_boot_APIC_clock(void);
-extern void setup_secondary_APIC_clock(void);
-extern int APIC_init_uniprocessor(void);
-extern int apic_force_enable(unsigned long addr);
-
-/*
- * On 32bit this is mach-xxx local
- */
-#ifdef CONFIG_X86_64
-extern int apic_is_clustered_box(void);
-#else
-static inline int apic_is_clustered_box(void)
-{
-	return 0;
-}
-#endif
-
-extern int setup_APIC_eilvt(u8 lvt_off, u8 vector, u8 msg_type, u8 mask);
-
-#else /* !CONFIG_X86_LOCAL_APIC */
-static inline void lapic_shutdown(void) { }
-#define local_apic_timer_c2_ok		1
-static inline void init_apic_mappings(void) { }
-static inline void disable_local_APIC(void) { }
-# define setup_boot_APIC_clock x86_init_noop
-# define setup_secondary_APIC_clock x86_init_noop
-#endif /* !CONFIG_X86_LOCAL_APIC */
+#define x2apic_mode		(0)
+#define	x2apic_supported()	(0)
+#endif /* !CONFIG_X86_X2APIC */
 
 #ifdef CONFIG_X86_64
 #define	SET_APIC_ID(x)		(apic->set_apic_id(x))
@@ -304,7 +281,6 @@ struct apic {
 
 	int dest_logical;
 	unsigned long (*check_apicid_used)(physid_mask_t *map, int apicid);
-	unsigned long (*check_apicid_present)(int apicid);
 
 	void (*vector_allocation_domain)(int cpu, struct cpumask *retmask,
 					 const struct cpumask *mask);
@@ -313,20 +289,10 @@ struct apic {
 	void (*ioapic_phys_id_map)(physid_mask_t *phys_map, physid_mask_t *retmap);
 
 	void (*setup_apic_routing)(void);
-	int (*multi_timer_check)(int apic, int irq);
 	int (*cpu_present_to_apicid)(int mps_cpu);
 	void (*apicid_to_cpu_present)(int phys_apicid, physid_mask_t *retmap);
-	void (*setup_portio_remap)(void);
 	int (*check_phys_apicid_present)(int phys_apicid);
-	void (*enable_apic_mode)(void);
 	int (*phys_pkg_id)(int cpuid_apic, int index_msb);
-
-	/*
-	 * When one of the next two hooks returns 1 the apic
-	 * is switched to this. Essentially they are additional
-	 * probe functions:
-	 */
-	int (*mps_oem_check)(struct mpc_table *mpc, char *oem, char *productid);
 
 	unsigned int (*get_apic_id)(unsigned long x);
 	unsigned long (*set_apic_id)(unsigned int id);
@@ -347,11 +313,6 @@ struct apic {
 	/* wakeup_secondary_cpu */
 	int (*wakeup_secondary_cpu)(int apicid, unsigned long start_eip);
 
-	int trampoline_phys_low;
-	int trampoline_phys_high;
-
-	void (*wait_for_init_deassert)(atomic_t *deassert);
-	void (*smp_callin_clear_local_apic)(void);
 	void (*inquire_remote_apic)(int apicid);
 
 	/* apic ops */
@@ -382,14 +343,6 @@ struct apic {
 	 * won't be applied properly during early boot in this case.
 	 */
 	int (*x86_32_early_logical_apicid)(int cpu);
-
-	/*
-	 * Optional method called from setup_local_APIC() after logical
-	 * apicid is guaranteed to be known to initialize apicid -> node
-	 * mapping if NUMA initialization hasn't done so already.  Don't
-	 * add new users.
-	 */
-	int (*x86_32_numa_cpu_node)(int cpu);
 #endif
 };
 
@@ -424,7 +377,6 @@ extern struct apic *__apicdrivers[], *__apicdrivers_end[];
  * APIC functionality to boot other CPUs - only used on SMP:
  */
 #ifdef CONFIG_SMP
-extern atomic_t init_deasserted;
 extern int wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip);
 #endif
 
@@ -500,14 +452,12 @@ static inline unsigned default_get_apic_id(unsigned long x)
 }
 
 /*
- * Warm reset vector default position:
+ * Warm reset vector position:
  */
-#define DEFAULT_TRAMPOLINE_PHYS_LOW		0x467
-#define DEFAULT_TRAMPOLINE_PHYS_HIGH		0x469
+#define TRAMPOLINE_PHYS_LOW		0x467
+#define TRAMPOLINE_PHYS_HIGH		0x469
 
 #ifdef CONFIG_X86_64
-extern int default_acpi_madt_oem_check(char *, char *);
-
 extern void apic_send_IPI_self(int vector);
 
 DECLARE_PER_CPU(int, x2apic_extra_bits);
@@ -515,13 +465,6 @@ DECLARE_PER_CPU(int, x2apic_extra_bits);
 extern int default_cpu_present_to_apicid(int mps_cpu);
 extern int default_check_phys_apicid_present(int phys_apicid);
 #endif
-
-static inline void default_wait_for_init_deassert(atomic_t *deassert)
-{
-	while (!atomic_read(deassert))
-		cpu_relax();
-	return;
-}
 
 extern void generic_bigsmp_probe(void);
 
@@ -562,6 +505,8 @@ static inline int default_apic_id_valid(int apicid)
 {
 	return (apicid < 255);
 }
+
+extern int default_acpi_madt_oem_check(char *, char *);
 
 extern void default_setup_apic_routing(void);
 
@@ -646,11 +591,6 @@ static inline unsigned long default_check_apicid_used(physid_mask_t *map, int ap
 	return physid_isset(apicid, *map);
 }
 
-static inline unsigned long default_check_apicid_present(int bit)
-{
-	return physid_isset(bit, phys_cpu_present_map);
-}
-
 static inline void default_ioapic_phys_id_map(physid_mask_t *phys_map, physid_mask_t *retmap)
 {
 	*retmap = *phys_map;
@@ -687,5 +627,39 @@ extern int default_check_phys_apicid_present(int phys_apicid);
 #endif
 
 #endif /* CONFIG_X86_LOCAL_APIC */
+extern void irq_enter(void);
+extern void irq_exit(void);
+
+static inline void entering_irq(void)
+{
+	irq_enter();
+	exit_idle();
+}
+
+static inline void entering_ack_irq(void)
+{
+	ack_APIC_irq();
+	entering_irq();
+}
+
+static inline void ipi_entering_ack_irq(void)
+{
+	ack_APIC_irq();
+	irq_enter();
+}
+
+static inline void exiting_irq(void)
+{
+	irq_exit();
+}
+
+static inline void exiting_ack_irq(void)
+{
+	irq_exit();
+	/* Ack only at the end to avoid potential reentry */
+	ack_APIC_irq();
+}
+
+extern void ioapic_zap_locks(void);
 
 #endif /* _ASM_X86_APIC_H */

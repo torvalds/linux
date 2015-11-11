@@ -200,7 +200,7 @@ static long __init mpc86xx_time_init(void)
 	return 0;
 }
 
-static __initdata struct of_device_id of_bus_ids[] = {
+static const struct of_device_id of_bus_ids[] __initconst = {
 	{ .compatible = "simple-bus", },
 	{ .compatible = "gianfar", },
 	{ .compatible = "fsl,mpc8641-pcie", },

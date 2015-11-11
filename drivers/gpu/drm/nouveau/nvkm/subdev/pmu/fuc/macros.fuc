@@ -1,0 +1,272 @@
+/*
+ * Copyright 2013 Red Hat Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Authors: Ben Skeggs
+ */
+
+#define GT215 0xa3
+#define GF100 0xc0
+#define GF119 0xd9
+#define GK208 0x108
+
+#include "os.h"
+
+// IO addresses
+#define NV_PPWR_INTR_TRIGGER                                             0x0000
+#define NV_PPWR_INTR_TRIGGER_USER1                                   0x00000080
+#define NV_PPWR_INTR_TRIGGER_USER0                                   0x00000040
+#define NV_PPWR_INTR_ACK                                                 0x0004
+#define NV_PPWR_INTR_ACK_SUBINTR                                     0x00000800
+#define NV_PPWR_INTR_ACK_WATCHDOG                                    0x00000002
+#define NV_PPWR_INTR                                                     0x0008
+#define NV_PPWR_INTR_SUBINTR                                         0x00000800
+#define NV_PPWR_INTR_USER1                                           0x00000080
+#define NV_PPWR_INTR_USER0                                           0x00000040
+#define NV_PPWR_INTR_PAUSE                                           0x00000020
+#define NV_PPWR_INTR_WATCHDOG                                        0x00000002
+#define NV_PPWR_INTR_EN_SET                                              0x0010
+#define NV_PPWR_INTR_EN_SET_SUBINTR                                  0x00000800
+#define NV_PPWR_INTR_EN_SET_WATCHDOG                                 0x00000002
+#define NV_PPWR_INTR_EN_CLR                                              0x0014
+#define NV_PPWR_INTR_EN_CLR_MASK                    /* fuck i hate envyas */ -1
+#define NV_PPWR_INTR_ROUTE                                               0x001c
+#define NV_PPWR_TIMER_LOW                                                0x002c
+#define NV_PPWR_WATCHDOG_TIME                                            0x0034
+#define NV_PPWR_WATCHDOG_ENABLE                                          0x0038
+#define NV_PPWR_CAPS                                                     0x0108
+#define NV_PPWR_UAS_CONFIG                                               0x0164
+#define NV_PPWR_UAS_CONFIG_ENABLE                                    0x00010000
+#if NVKM_PPWR_CHIPSET >= GK208
+#define NV_PPWR_DSCRATCH(i)                                   (4 * (i) + 0x0450)
+#endif
+#define NV_PPWR_FIFO_PUT(i)                                   (4 * (i) + 0x04a0)
+#define NV_PPWR_FIFO_GET(i)                                   (4 * (i) + 0x04b0)
+#define NV_PPWR_FIFO_INTR                                                0x04c0
+#define NV_PPWR_FIFO_INTR_EN                                             0x04c4
+#define NV_PPWR_RFIFO_PUT                                                0x04c8
+#define NV_PPWR_RFIFO_GET                                                0x04cc
+#define NV_PPWR_H2D                                                      0x04d0
+#define NV_PPWR_D2H                                                      0x04dc
+#if NVKM_PPWR_CHIPSET < GK208
+#define NV_PPWR_DSCRATCH(i)                                   (4 * (i) + 0x05d0)
+#endif
+#define NV_PPWR_SUBINTR                                                  0x0688
+#define NV_PPWR_SUBINTR_FIFO                                         0x00000002
+#define NV_PPWR_MMIO_ADDR                                                0x07a0
+#define NV_PPWR_MMIO_DATA                                                0x07a4
+#define NV_PPWR_MMIO_CTRL                                                0x07ac
+#define NV_PPWR_MMIO_CTRL_TRIGGER                                    0x00010000
+#define NV_PPWR_MMIO_CTRL_STATUS                                     0x00007000
+#define NV_PPWR_MMIO_CTRL_STATUS_IDLE                                0x00000000
+#define NV_PPWR_MMIO_CTRL_MASK                                       0x000000f0
+#define NV_PPWR_MMIO_CTRL_MASK_B32_0                                 0x000000f0
+#define NV_PPWR_MMIO_CTRL_OP                                         0x00000003
+#define NV_PPWR_MMIO_CTRL_OP_RD                                      0x00000001
+#define NV_PPWR_MMIO_CTRL_OP_WR                                      0x00000002
+#define NV_PPWR_OUTPUT                                                   0x07c0
+#define NV_PPWR_OUTPUT_FB_PAUSE                                      0x00000004
+#if NVKM_PPWR_CHIPSET < GF119
+#define NV_PPWR_OUTPUT_I2C_3_SCL                                     0x00000100
+#define NV_PPWR_OUTPUT_I2C_3_SDA                                     0x00000200
+#define NV_PPWR_OUTPUT_I2C_0_SCL                                     0x00001000
+#define NV_PPWR_OUTPUT_I2C_0_SDA                                     0x00002000
+#define NV_PPWR_OUTPUT_I2C_1_SCL                                     0x00004000
+#define NV_PPWR_OUTPUT_I2C_1_SDA                                     0x00008000
+#define NV_PPWR_OUTPUT_I2C_2_SCL                                     0x00010000
+#define NV_PPWR_OUTPUT_I2C_2_SDA                                     0x00020000
+#define NV_PPWR_OUTPUT_I2C_4_SCL                                     0x00040000
+#define NV_PPWR_OUTPUT_I2C_4_SDA                                     0x00080000
+#define NV_PPWR_OUTPUT_I2C_5_SCL                                     0x00100000
+#define NV_PPWR_OUTPUT_I2C_5_SDA                                     0x00200000
+#define NV_PPWR_OUTPUT_I2C_6_SCL                                     0x00400000
+#define NV_PPWR_OUTPUT_I2C_6_SDA                                     0x00800000
+#define NV_PPWR_OUTPUT_I2C_7_SCL                                     0x01000000
+#define NV_PPWR_OUTPUT_I2C_7_SDA                                     0x02000000
+#define NV_PPWR_OUTPUT_I2C_8_SCL                                     0x04000000
+#define NV_PPWR_OUTPUT_I2C_8_SDA                                     0x08000000
+#define NV_PPWR_OUTPUT_I2C_9_SCL                                     0x10000000
+#define NV_PPWR_OUTPUT_I2C_9_SDA                                     0x20000000
+#else
+#define NV_PPWR_OUTPUT_I2C_0_SCL                                     0x00000400
+#define NV_PPWR_OUTPUT_I2C_1_SCL                                     0x00000800
+#define NV_PPWR_OUTPUT_I2C_2_SCL                                     0x00001000
+#define NV_PPWR_OUTPUT_I2C_3_SCL                                     0x00002000
+#define NV_PPWR_OUTPUT_I2C_4_SCL                                     0x00004000
+#define NV_PPWR_OUTPUT_I2C_5_SCL                                     0x00008000
+#define NV_PPWR_OUTPUT_I2C_6_SCL                                     0x00010000
+#define NV_PPWR_OUTPUT_I2C_7_SCL                                     0x00020000
+#define NV_PPWR_OUTPUT_I2C_8_SCL                                     0x00040000
+#define NV_PPWR_OUTPUT_I2C_9_SCL                                     0x00080000
+#define NV_PPWR_OUTPUT_I2C_0_SDA                                     0x00100000
+#define NV_PPWR_OUTPUT_I2C_1_SDA                                     0x00200000
+#define NV_PPWR_OUTPUT_I2C_2_SDA                                     0x00400000
+#define NV_PPWR_OUTPUT_I2C_3_SDA                                     0x00800000
+#define NV_PPWR_OUTPUT_I2C_4_SDA                                     0x01000000
+#define NV_PPWR_OUTPUT_I2C_5_SDA                                     0x02000000
+#define NV_PPWR_OUTPUT_I2C_6_SDA                                     0x04000000
+#define NV_PPWR_OUTPUT_I2C_7_SDA                                     0x08000000
+#define NV_PPWR_OUTPUT_I2C_8_SDA                                     0x10000000
+#define NV_PPWR_OUTPUT_I2C_9_SDA                                     0x20000000
+#endif
+#define NV_PPWR_INPUT                                                    0x07c4
+#define NV_PPWR_OUTPUT_SET                                               0x07e0
+#define NV_PPWR_OUTPUT_SET_FB_PAUSE                                  0x00000004
+#define NV_PPWR_OUTPUT_CLR                                               0x07e4
+#define NV_PPWR_OUTPUT_CLR_FB_PAUSE                                  0x00000004
+
+// Inter-process message format
+.equ #msg_process 0x00 /* send() target, recv() sender */
+.equ #msg_message 0x04
+.equ #msg_data0   0x08
+.equ #msg_data1   0x0c
+
+// Kernel message IDs
+#define KMSG_FIFO  0x00000000
+#define KMSG_ALARM 0x00000001
+
+// Process message queue description
+.equ #proc_qlen 4 // log2(size of queue entry in bytes)
+.equ #proc_qnum 2 // log2(max number of entries in queue)
+.equ #proc_qmaskb (1 << #proc_qnum) // max number of entries in queue
+.equ #proc_qmaskp (#proc_qmaskb - 1)
+.equ #proc_qmaskf ((#proc_qmaskb << 1) - 1)
+.equ #proc_qsize  (1 << (#proc_qlen + #proc_qnum))
+
+// Process table entry
+.equ #proc_id    0x00
+.equ #proc_init  0x04
+.equ #proc_recv  0x08
+.equ #proc_time  0x0c
+.equ #proc_qput  0x10
+.equ #proc_qget  0x14
+.equ #proc_queue 0x18
+.equ #proc_size (0x18 + #proc_qsize)
+
+#define process(id,init,recv) /*
+*/	.b32 id /*
+*/	.b32 init /*
+*/	.b32 recv /*
+*/	.b32 0 /*
+*/	.b32 0 /*
+*/	.b32 0 /*
+*/	.skip 64
+
+#if NV_PPWR_CHIPSET < GK208
+#define imm32(reg,val) /*
+*/	movw reg  ((val) & 0x0000ffff) /*
+*/	sethi reg ((val) & 0xffff0000)
+#else
+#define imm32(reg,val) /*
+*/	mov reg (val)
+#endif
+
+#ifndef NVKM_FALCON_UNSHIFTED_IO
+#define nv_iord(reg,ior) /*
+*/	mov reg ior /*
+*/ 	shl b32 reg 6 /*
+*/ 	iord reg I[reg + 0x000]
+#else
+#define nv_iord(reg,ior) /*
+*/	mov reg ior /*
+*/ 	iord reg I[reg + 0x000]
+#endif
+
+#ifndef NVKM_FALCON_UNSHIFTED_IO
+#define nv_iowr(ior,reg) /*
+*/	mov $r0 ior /*
+*/ 	shl b32 $r0 6 /*
+*/ 	iowr I[$r0 + 0x000] reg /*
+*/	clear b32 $r0
+#else
+#define nv_iowr(ior,reg) /*
+*/	mov $r0 ior /*
+*/ 	iowr I[$r0 + 0x000] reg /*
+*/	clear b32 $r0
+#endif
+
+#ifndef NVKM_FALCON_UNSHIFTED_IO
+#define nv_iowrs(ior,reg) /*
+*/	mov $r0 ior /*
+*/ 	shl b32 $r0 6 /*
+*/ 	iowrs I[$r0 + 0x000] reg /*
+*/	clear b32 $r0
+#else
+#define nv_iowrs(ior,reg) /*
+*/	mov $r0 ior /*
+*/ 	iowrs I[$r0 + 0x000] reg /*
+*/	clear b32 $r0
+#endif
+
+#define hash #
+#define fn(a) a
+#ifndef NVKM_FALCON_PC24
+#define call(a) call fn(hash)a
+#else
+#define call(a) lcall fn(hash)a
+#endif
+
+#ifndef NVKM_FALCON_MMIO_UAS
+#define nv_rd32(reg,addr) /*
+*/	mov b32 $r14 addr /*
+*/	call(rd32) /*
+*/	mov b32 reg $r13
+#else
+#define nv_rd32(reg,addr) /*
+*/ 	sethi $r0 0x14000000 /*
+*/	or $r0 addr /*
+*/	ld b32 reg D[$r0] /*
+*/	clear b32 $r0
+#endif
+
+#if !defined(NVKM_FALCON_MMIO_UAS) || defined(NVKM_FALCON_MMIO_TRAP)
+#define nv_wr32(addr,reg) /*
+*/	push addr /*
+*/	push reg /*
+*/	pop $r13 /*
+*/	pop $r14 /*
+*/	call(wr32)
+#else
+#define nv_wr32(addr,reg) /*
+*/ 	sethi $r0 0x14000000 /*
+*/	or $r0 addr /*
+*/	st b32 D[$r0] reg /*
+*/	clear b32 $r0
+#endif
+
+#define st(size, addr, reg) /*
+*/	movw $r0 addr /*
+*/	st size D[$r0] reg /*
+*/	clear b32 $r0
+
+#define ld(size, reg, addr) /*
+*/	movw $r0 addr /*
+*/	ld size reg D[$r0] /*
+*/	clear b32 $r0
+
+// does a 64+64 -> 64 unsigned addition (C = A + B)
+#define addu64(reg_a_c_hi, reg_a_c_lo, b_hi, b_lo) /*
+*/    add b32 reg_a_c_lo b_lo /*
+*/    adc b32 reg_a_c_hi b_hi
+
+// does a 64+64 -> 64 substraction (C = A - B)
+#define subu64(reg_a_c_hi, reg_a_c_lo, b_hi, b_lo) /*
+*/    sub b32 reg_a_c_lo b_lo /*
+*/    sbb b32 reg_a_c_hi b_hi

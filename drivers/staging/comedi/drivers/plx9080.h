@@ -29,13 +29,13 @@
 
 /*  descriptor block used for chained dma transfers */
 struct plx_dma_desc {
-	volatile uint32_t pci_start_addr;
-	volatile uint32_t local_start_addr;
+	__le32 pci_start_addr;
+	__le32 local_start_addr;
 	/* transfer_size is in bytes, only first 23 bits of register are used */
-	volatile uint32_t transfer_size;
+	__le32 transfer_size;
 	/* address of next descriptor (quad word aligned), plus some
 	 * additional bits (see PLX_DMA0_DESCRIPTOR_REG) */
-	volatile uint32_t next;
+	__le32 next;
 };
 
 /**********************************************************************
@@ -402,12 +402,9 @@ static inline int plx9080_abort_dma(void __iomem *iobase, unsigned int channel)
 		udelay(1);
 		dma_status = readb(dma_cs_addr);
 	}
-	if (i == timeout) {
-		printk
-		    ("plx9080: cancel() timed out waiting for dma %i done clear\n",
-		     channel);
+	if (i == timeout)
 		return -ETIMEDOUT;
-	}
+
 	/*  disable and abort channel */
 	writeb(PLX_DMA_ABORT_BIT, dma_cs_addr);
 	/*  wait for dma done bit */
@@ -416,12 +413,8 @@ static inline int plx9080_abort_dma(void __iomem *iobase, unsigned int channel)
 		udelay(1);
 		dma_status = readb(dma_cs_addr);
 	}
-	if (i == timeout) {
-		printk
-		    ("plx9080: cancel() timed out waiting for dma %i done set\n",
-		     channel);
+	if (i == timeout)
 		return -ETIMEDOUT;
-	}
 
 	return 0;
 }

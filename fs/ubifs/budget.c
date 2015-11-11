@@ -437,7 +437,6 @@ static int calc_dd_growth(const struct ubifs_info *c,
  */
 int ubifs_budget_space(struct ubifs_info *c, struct ubifs_budget_req *req)
 {
-	int uninitialized_var(cmt_retries), uninitialized_var(wb_retries);
 	int err, idx_growth, data_growth, dd_growth, retried = 0;
 
 	ubifs_assert(req->new_page <= 1);
@@ -510,7 +509,7 @@ again:
 			c->bi.nospace_rp = 1;
 		smp_wmb();
 	} else
-		ubifs_err("cannot budget space, error %d", err);
+		ubifs_err(c, "cannot budget space, error %d", err);
 	return err;
 }
 

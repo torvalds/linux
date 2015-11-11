@@ -1,0 +1,28 @@
+* HID over I2C Device-Tree bindings
+
+HID over I2C provides support for various Human Interface Devices over the
+I2C bus. These devices can be for example touchpads, keyboards, touch screens
+or sensors.
+
+The specification has been written by Microsoft and is currently available here:
+http://msdn.microsoft.com/en-us/library/windows/hardware/hh852380.aspx
+
+If this binding is used, the kernel module i2c-hid will handle the communication
+with the device and the generic hid core layer will handle the protocol.
+
+Required properties:
+- compatible: must be "hid-over-i2c"
+- reg: i2c slave address
+- hid-descr-addr: HID descriptor address
+- interrupt-parent: the phandle for the interrupt controller
+- interrupts: interrupt line
+
+Example:
+
+	i2c-hid-dev@2c {
+		compatible = "hid-over-i2c";
+		reg = <0x2c>;
+		hid-descr-addr = <0x0020>;
+		interrupt-parent = <&gpx3>;
+		interrupts = <3 2>;
+	};

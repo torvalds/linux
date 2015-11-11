@@ -20,7 +20,7 @@ checkflags-$(CONFIG_METAG_META12)	+= -DMETAC_1_2
 checkflags-$(CONFIG_METAG_META21)	+= -DMETAC_2_1
 CHECKFLAGS				+= -D__metag__ $(checkflags-y)
 
-KBUILD_DEFCONFIG			:= meta2_defconfig
+KBUILD_DEFCONFIG			:= tz1090_defconfig
 
 sflags-$(CONFIG_METAG_META12)		+= -mmetac=1.2
 ifeq ($(CONFIG_METAG_META12),y)
@@ -72,7 +72,7 @@ $(boot_targets): vmlinux
 	$(Q)$(MAKE) $(build)=$(boot)/dts $(boot)/dts/$@
 
 dtbs: scripts
-	$(Q)$(MAKE) $(build)=$(boot)/dts dtbs
+	$(Q)$(MAKE) $(build)=$(boot)/dts
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)

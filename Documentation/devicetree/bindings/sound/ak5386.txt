@@ -10,10 +10,14 @@ Optional properties:
 
   - reset-gpio : a GPIO spec for the reset/power down pin.
 		 If specified, it will be deasserted at probe time.
+  - va-supply : a regulator spec, providing 5.0V
+  - vd-supply : a regulator spec, providing 3.3V
 
 Example:
 
 spdif: ak5386@0 {
 	compatible = "asahi-kasei,ak5386";
 	reset-gpio = <&gpio0 23>;
+	va-supply = <&vdd_5v0_reg>;
+	vd-supply = <&vdd_3v3_reg>;
 };

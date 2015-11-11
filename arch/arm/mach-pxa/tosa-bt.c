@@ -129,20 +129,6 @@ static struct platform_driver tosa_bt_driver = {
 
 	.driver = {
 		.name = "tosa-bt",
-		.owner = THIS_MODULE,
 	},
 };
-
-
-static int __init tosa_bt_init(void)
-{
-	return platform_driver_register(&tosa_bt_driver);
-}
-
-static void __exit tosa_bt_exit(void)
-{
-	platform_driver_unregister(&tosa_bt_driver);
-}
-
-module_init(tosa_bt_init);
-module_exit(tosa_bt_exit);
+module_platform_driver(tosa_bt_driver);

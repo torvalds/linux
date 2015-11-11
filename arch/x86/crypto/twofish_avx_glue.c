@@ -28,6 +28,7 @@
 #include <linux/types.h>
 #include <linux/crypto.h>
 #include <linux/err.h>
+#include <crypto/ablk_helper.h>
 #include <crypto/algapi.h>
 #include <crypto/twofish.h>
 #include <crypto/cryptd.h>
@@ -35,11 +36,8 @@
 #include <crypto/ctr.h>
 #include <crypto/lrw.h>
 #include <crypto/xts.h>
-#include <asm/i387.h>
-#include <asm/xcr.h>
-#include <asm/xsave.h>
+#include <asm/fpu/api.h>
 #include <asm/crypto/twofish.h>
-#include <asm/crypto/ablk_helper.h>
 #include <asm/crypto/glue_helper.h>
 #include <crypto/scatterwalk.h>
 #include <linux/workqueue.h>
@@ -50,26 +48,18 @@
 /* 8-way parallel cipher functions */
 asmlinkage void twofish_ecb_enc_8way(struct twofish_ctx *ctx, u8 *dst,
 				     const u8 *src);
-EXPORT_SYMBOL_GPL(twofish_ecb_enc_8way);
-
 asmlinkage void twofish_ecb_dec_8way(struct twofish_ctx *ctx, u8 *dst,
 				     const u8 *src);
-EXPORT_SYMBOL_GPL(twofish_ecb_dec_8way);
 
 asmlinkage void twofish_cbc_dec_8way(struct twofish_ctx *ctx, u8 *dst,
 				     const u8 *src);
-EXPORT_SYMBOL_GPL(twofish_cbc_dec_8way);
-
 asmlinkage void twofish_ctr_8way(struct twofish_ctx *ctx, u8 *dst,
 				 const u8 *src, le128 *iv);
-EXPORT_SYMBOL_GPL(twofish_ctr_8way);
 
 asmlinkage void twofish_xts_enc_8way(struct twofish_ctx *ctx, u8 *dst,
 				     const u8 *src, le128 *iv);
-EXPORT_SYMBOL_GPL(twofish_xts_enc_8way);
 asmlinkage void twofish_xts_dec_8way(struct twofish_ctx *ctx, u8 *dst,
 				     const u8 *src, le128 *iv);
-EXPORT_SYMBOL_GPL(twofish_xts_dec_8way);
 
 static inline void twofish_enc_blk_3way(struct twofish_ctx *ctx, u8 *dst,
 					const u8 *src)
@@ -77,19 +67,17 @@ static inline void twofish_enc_blk_3way(struct twofish_ctx *ctx, u8 *dst,
 	__twofish_enc_blk_3way(ctx, dst, src, false);
 }
 
-void twofish_xts_enc(void *ctx, u128 *dst, const u128 *src, le128 *iv)
+static void twofish_xts_enc(void *ctx, u128 *dst, const u128 *src, le128 *iv)
 {
 	glue_xts_crypt_128bit_one(ctx, dst, src, iv,
 				  GLUE_FUNC_CAST(twofish_enc_blk));
 }
-EXPORT_SYMBOL_GPL(twofish_xts_enc);
 
-void twofish_xts_dec(void *ctx, u128 *dst, const u128 *src, le128 *iv)
+static void twofish_xts_dec(void *ctx, u128 *dst, const u128 *src, le128 *iv)
 {
 	glue_xts_crypt_128bit_one(ctx, dst, src, iv,
 				  GLUE_FUNC_CAST(twofish_dec_blk));
 }
-EXPORT_SYMBOL_GPL(twofish_xts_dec);
 
 
 static const struct common_glue_ctx twofish_enc = {
@@ -350,7 +338,8 @@ static struct crypto_alg twofish_algs[10] = { {
 	.cra_name		= "__ecb-twofish-avx",
 	.cra_driver_name	= "__driver-ecb-twofish-avx",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= TF_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct twofish_ctx),
 	.cra_alignmask		= 0,
@@ -369,7 +358,8 @@ static struct crypto_alg twofish_algs[10] = { {
 	.cra_name		= "__cbc-twofish-avx",
 	.cra_driver_name	= "__driver-cbc-twofish-avx",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= TF_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct twofish_ctx),
 	.cra_alignmask		= 0,
@@ -388,7 +378,8 @@ static struct crypto_alg twofish_algs[10] = { {
 	.cra_name		= "__ctr-twofish-avx",
 	.cra_driver_name	= "__driver-ctr-twofish-avx",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= 1,
 	.cra_ctxsize		= sizeof(struct twofish_ctx),
 	.cra_alignmask		= 0,
@@ -408,7 +399,8 @@ static struct crypto_alg twofish_algs[10] = { {
 	.cra_name		= "__lrw-twofish-avx",
 	.cra_driver_name	= "__driver-lrw-twofish-avx",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= TF_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct twofish_lrw_ctx),
 	.cra_alignmask		= 0,
@@ -431,7 +423,8 @@ static struct crypto_alg twofish_algs[10] = { {
 	.cra_name		= "__xts-twofish-avx",
 	.cra_driver_name	= "__driver-xts-twofish-avx",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= TF_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct twofish_xts_ctx),
 	.cra_alignmask		= 0,
@@ -563,16 +556,10 @@ static struct crypto_alg twofish_algs[10] = { {
 
 static int __init twofish_init(void)
 {
-	u64 xcr0;
+	const char *feature_name;
 
-	if (!cpu_has_avx || !cpu_has_osxsave) {
-		printk(KERN_INFO "AVX instructions are not detected.\n");
-		return -ENODEV;
-	}
-
-	xcr0 = xgetbv(XCR_XFEATURE_ENABLED_MASK);
-	if ((xcr0 & (XSTATE_SSE | XSTATE_YMM)) != (XSTATE_SSE | XSTATE_YMM)) {
-		printk(KERN_INFO "AVX detected but unusable.\n");
+	if (!cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, &feature_name)) {
+		pr_info("CPU feature '%s' is not supported.\n", feature_name);
 		return -ENODEV;
 	}
 
@@ -589,4 +576,4 @@ module_exit(twofish_exit);
 
 MODULE_DESCRIPTION("Twofish Cipher Algorithm, AVX optimized");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("twofish");
+MODULE_ALIAS_CRYPTO("twofish");

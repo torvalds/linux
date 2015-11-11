@@ -1,0 +1,545 @@
+/*
+ * Copyright (C) 2013 STMicroelectronics (R&D) Limited.
+ * Author: Srinivas Kandagatla <srinivas.kandagatla@st.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * publishhed by the Free Software Foundation.
+ */
+#include "st-pincfg.h"
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+/ {
+
+	aliases {
+		gpio0	= &pio0;
+		gpio1	= &pio1;
+		gpio2	= &pio2;
+		gpio3	= &pio3;
+		gpio4	= &pio4;
+		gpio5	= &pio5;
+		gpio6	= &pio6;
+		gpio7	= &pio7;
+		gpio8	= &pio8;
+		gpio9	= &pio9;
+		gpio10	= &pio10;
+		gpio11	= &pio11;
+		gpio12	= &pio12;
+		gpio13	= &pio13;
+		gpio14	= &pio14;
+		gpio15	= &pio15;
+		gpio16	= &pio16;
+		gpio17	= &pio17;
+		gpio18	= &pio18;
+		gpio19	= &pio100;
+		gpio20	= &pio101;
+		gpio21	= &pio102;
+		gpio22	= &pio103;
+		gpio23	= &pio104;
+		gpio24	= &pio105;
+		gpio25	= &pio106;
+		gpio26	= &pio107;
+	};
+
+	soc {
+		pin-controller-sbc {
+			#address-cells	= <1>;
+			#size-cells	= <1>;
+			compatible	= "st,stih415-sbc-pinctrl";
+			st,syscfg	= <&syscfg_sbc>;
+			reg 		= <0xfe61f080 0x4>;
+			reg-names	= "irqmux";
+			interrupts 	= <GIC_SPI 180 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names	= "irqmux";
+			ranges 		= <0 0xfe610000 0x5000>;
+
+			pio0: gpio@fe610000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0 0x100>;
+				st,bank-name	= "PIO0";
+			};
+			pio1: gpio@fe611000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0x1000 0x100>;
+				st,bank-name	= "PIO1";
+			};
+			pio2: gpio@fe612000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0x2000 0x100>;
+				st,bank-name	= "PIO2";
+			};
+			pio3: gpio@fe613000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0x3000 0x100>;
+				st,bank-name	= "PIO3";
+			};
+			pio4: gpio@fe614000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0x4000 0x100>;
+				st,bank-name	= "PIO4";
+			};
+
+			sbc_serial1 {
+				pinctrl_sbc_serial1:sbc_serial1 {
+					st,pins {
+						tx	= <&pio2 6 ALT3 OUT>;
+						rx	= <&pio2 7 ALT3 IN>;
+					};
+				};
+			};
+
+			keyscan {
+				pinctrl_keyscan: keyscan {
+					st,pins {
+						keyin0 = <&pio0 2 ALT2 IN>;
+						keyin1 = <&pio0 3 ALT2 IN>;
+						keyin2 = <&pio0 4 ALT2 IN>;
+						keyin3 = <&pio2 6 ALT2 IN>;
+
+						keyout0 = <&pio1 6 ALT2 OUT>;
+						keyout1 = <&pio1 7 ALT2 OUT>;
+						keyout2 = <&pio0 6 ALT2 OUT>;
+						keyout3 = <&pio2 7 ALT2 OUT>;
+					};
+				};
+			};
+
+			sbc_i2c0 {
+				pinctrl_sbc_i2c0_default: sbc_i2c0-default {
+					st,pins {
+						sda = <&pio4 6 ALT1 BIDIR>;
+						scl = <&pio4 5 ALT1 BIDIR>;
+					};
+				};
+			};
+
+			sbc_i2c1 {
+				pinctrl_sbc_i2c1_default: sbc_i2c1-default {
+					st,pins {
+						sda = <&pio3 2 ALT2 BIDIR>;
+						scl = <&pio3 1 ALT2 BIDIR>;
+					};
+				};
+			};
+
+			rc{
+				pinctrl_ir: ir0 {
+					st,pins {
+						ir = <&pio4 0 ALT2 IN>;
+					};
+				};
+			};
+
+			gmac1 {
+				pinctrl_mii1: mii1 {
+						st,pins {
+						 txd0   = <&pio0 0 ALT1 OUT  SE_NICLK_IO	0	CLK_A>;
+						 txd1   = <&pio0 1 ALT1 OUT  SE_NICLK_IO	0	CLK_A>;
+						 txd2   = <&pio0 2 ALT1 OUT  SE_NICLK_IO	0	CLK_A>;
+						 txd3   = <&pio0 3 ALT1 OUT  SE_NICLK_IO	0	CLK_A>;
+						 txer   = <&pio0 4 ALT1 OUT  SE_NICLK_IO	0	CLK_A>;
+						 txen   = <&pio0 5 ALT1 OUT  SE_NICLK_IO	0	CLK_A>;
+						 txclk  = <&pio0 6 ALT1 IN   NICLK	0	CLK_A>;
+						 col    = <&pio0 7 ALT1 IN   BYPASS	1000>;
+						 mdio   = <&pio1 0 ALT1 OUT  BYPASS	0>;
+						 mdc    = <&pio1 1 ALT1 OUT  NICLK	0	CLK_A>;
+						 crs    = <&pio1 2 ALT1 IN   BYPASS	1000>;
+						 mdint  = <&pio1 3 ALT1 IN   BYPASS	0>;
+						 rxd0   = <&pio1 4 ALT1 IN   SE_NICLK_IO	0	CLK_A>;
+						 rxd1   = <&pio1 5 ALT1 IN   SE_NICLK_IO	0	CLK_A>;
+						 rxd2   = <&pio1 6 ALT1 IN   SE_NICLK_IO	0	CLK_A>;
+						 rxd3   = <&pio1 7 ALT1 IN   SE_NICLK_IO	0	CLK_A>;
+						 rxdv   = <&pio2 0 ALT1 IN   SE_NICLK_IO	0	CLK_A>;
+						 rx_er  = <&pio2 1 ALT1 IN   SE_NICLK_IO	0	CLK_A>;
+						 rxclk  = <&pio2 2 ALT1 IN   NICLK	0	CLK_A>;
+						 phyclk = <&pio2 3 ALT1 IN   NICLK	1000	CLK_A>;
+					};
+				};
+
+				pinctrl_rgmii1: rgmii1-0 {
+					st,pins {
+						 txd0 =	 <&pio0 0 ALT1 OUT DE_IO	1000	CLK_A>;
+						 txd1 =	 <&pio0 1 ALT1 OUT DE_IO	1000	CLK_A>;
+						 txd2 =	 <&pio0 2 ALT1 OUT DE_IO	1000	CLK_A>;
+						 txd3 =	 <&pio0 3 ALT1 OUT DE_IO	1000	CLK_A>;
+						 txen =	 <&pio0 5 ALT1 OUT DE_IO	0	CLK_A>;
+						 txclk = <&pio0 6 ALT1 IN	NICLK	0	CLK_A>;
+						 mdio =	 <&pio1 0 ALT1 OUT	BYPASS	0>;
+						 mdc =	 <&pio1 1 ALT1 OUT	NICLK	0	CLK_A>;
+						 rxd0 =	 <&pio1 4 ALT1 IN DE_IO	0	CLK_A>;
+						 rxd1 =	 <&pio1 5 ALT1 IN DE_IO	0	CLK_A>;
+						 rxd2 =	 <&pio1 6 ALT1 IN DE_IO	0	CLK_A>;
+						 rxd3 =	 <&pio1 7 ALT1 IN DE_IO	0	CLK_A>;
+
+						 rxdv =	  <&pio2 0 ALT1 IN DE_IO	500	CLK_A>;
+						 rxclk =  <&pio2 2 ALT1 IN	NICLK	0	CLK_A>;
+						 phyclk = <&pio2 3 ALT4 OUT	NICLK	0	CLK_B>;
+
+						 clk125= <&pio3 7 ALT4 IN 	NICLK	0	CLK_A>;
+					};
+				};
+			};
+		};
+
+		pin-controller-front {
+			#address-cells	= <1>;
+			#size-cells	= <1>;
+			compatible	= "st,stih415-front-pinctrl";
+			st,syscfg	= <&syscfg_front>;
+			reg 		= <0xfee0f080 0x4>;
+			reg-names	= "irqmux";
+			interrupts 	= <GIC_SPI 181 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names	= "irqmux";
+			ranges		= <0 0xfee00000 0x8000>;
+
+			pio5: gpio@fee00000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0 0x100>;
+				st,bank-name	= "PIO5";
+			};
+			pio6: gpio@fee01000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0x1000 0x100>;
+				st,bank-name	= "PIO6";
+			};
+			pio7: gpio@fee02000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0x2000 0x100>;
+				st,bank-name	= "PIO7";
+			};
+			pio8: gpio@fee03000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0x3000 0x100>;
+				st,bank-name	= "PIO8";
+			};
+			pio9: gpio@fee04000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0x4000 0x100>;
+				st,bank-name	= "PIO9";
+			};
+			pio10: gpio@fee05000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0x5000 0x100>;
+				st,bank-name	= "PIO10";
+			};
+			pio11: gpio@fee06000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0x6000 0x100>;
+				st,bank-name	= "PIO11";
+			};
+			pio12: gpio@fee07000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0x7000 0x100>;
+				st,bank-name	= "PIO12";
+			};
+
+			i2c0 {
+				pinctrl_i2c0_default: i2c0-default {
+					st,pins {
+						sda = <&pio9 3 ALT1 BIDIR>;
+						scl = <&pio9 2 ALT1 BIDIR>;
+					};
+				};
+			};
+
+			i2c1 {
+				pinctrl_i2c1_default: i2c1-default {
+					st,pins {
+						sda = <&pio12 1 ALT1 BIDIR>;
+						scl = <&pio12 0 ALT1 BIDIR>;
+					};
+				};
+			};
+		};
+
+		pin-controller-rear {
+			#address-cells	= <1>;
+			#size-cells	= <1>;
+			compatible	= "st,stih415-rear-pinctrl";
+			st,syscfg	= <&syscfg_rear>;
+			reg 		= <0xfe82f080 0x4>;
+			reg-names	= "irqmux";
+			interrupts 	= <GIC_SPI 182 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names	= "irqmux";
+			ranges		= <0 0xfe820000 0x8000>;
+
+			pio13: gpio@fe820000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0 0x100>;
+				st,bank-name	= "PIO13";
+			};
+			pio14: gpio@fe821000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0x1000 0x100>;
+				st,bank-name	= "PIO14";
+			};
+			pio15: gpio@fe822000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0x2000 0x100>;
+				st,bank-name	= "PIO15";
+			};
+			pio16: gpio@fe823000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0x3000 0x100>;
+				st,bank-name	= "PIO16";
+			};
+			pio17: gpio@fe824000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0x4000 0x100>;
+				st,bank-name	= "PIO17";
+			};
+			pio18: gpio@fe825000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0x5000 0x100>;
+				st,bank-name	= "PIO18";
+			};
+
+			serial2 {
+				pinctrl_serial2: serial2-0 {
+					st,pins {
+						tx	= <&pio17 4 ALT2 OUT>;
+						rx	= <&pio17 5 ALT2 IN>;
+					};
+				};
+			};
+
+			gmac0{
+				pinctrl_mii0: mii0 {
+					st,pins {
+					 mdint =	<&pio13 6 ALT2	IN	BYPASS		0>;
+					 txen =		<&pio13 7 ALT2	OUT	SE_NICLK_IO	0	CLK_A>;
+
+					 txd0 =		<&pio14 0 ALT2	OUT	SE_NICLK_IO	0	CLK_A>;
+					 txd1 =		<&pio14 1 ALT2	OUT	SE_NICLK_IO	0	CLK_A>;
+					 txd2 =		<&pio14 2 ALT2	OUT	SE_NICLK_IO	0	CLK_B>;
+					 txd3 =		<&pio14 3 ALT2	OUT	SE_NICLK_IO	0	CLK_B>;
+
+					 txclk =	<&pio15 0 ALT2	IN	NICLK		0	CLK_A>;
+					 txer =		<&pio15 1 ALT2	OUT	SE_NICLK_IO	0	CLK_A>;
+					 crs =		<&pio15 2 ALT2	IN	BYPASS		1000>;
+					 col =		<&pio15 3 ALT2	IN	BYPASS		1000>;
+					 mdio  =        <&pio15 4 ALT2	OUT	BYPASS 	3000>;
+					 mdc   =        <&pio15 5 ALT2	OUT     NICLK  	0    	CLK_B>;
+
+					 rxd0 =		<&pio16 0 ALT2	IN	SE_NICLK_IO	0	CLK_A>;
+					 rxd1 =		<&pio16 1 ALT2	IN	SE_NICLK_IO	0	CLK_A>;
+					 rxd2 =		<&pio16 2 ALT2	IN	SE_NICLK_IO	0	CLK_A>;
+					 rxd3 =		<&pio16 3 ALT2	IN	SE_NICLK_IO	0	CLK_A>;
+					 rxdv =		<&pio15 6 ALT2	IN	SE_NICLK_IO	0	CLK_A>;
+					 rx_er =	<&pio15 7 ALT2	IN	SE_NICLK_IO	0	CLK_A>;
+					 rxclk =	<&pio17 0 ALT2	IN	NICLK		0	CLK_A>;
+					 phyclk =	<&pio13 5 ALT2	OUT	NICLK	1000	CLK_A>;
+
+					};
+				};
+
+			pinctrl_gmii0: gmii0 {
+				st,pins {
+					 mdint =	<&pio13 6	ALT2 IN		BYPASS	0>;
+					 mdio  =        <&pio15 4 	ALT2 OUT	BYPASS 	3000>;
+					 mdc   =        <&pio15 5 	ALT2 OUT    	NICLK  	0    	CLK_B>;
+					 txen =		<&pio13 7	ALT2 OUT	SE_NICLK_IO	3000	CLK_A>;
+
+					 txd0 =		<&pio14 0	ALT2 OUT	SE_NICLK_IO	3000	CLK_A>;
+					 txd1 =		<&pio14 1	ALT2 OUT	SE_NICLK_IO	3000	CLK_A>;
+					 txd2 =		<&pio14 2	ALT2 OUT	SE_NICLK_IO	3000	CLK_B>;
+					 txd3 =		<&pio14 3	ALT2 OUT	SE_NICLK_IO	3000	CLK_B>;
+					 txd4 =		<&pio14 4	ALT2 OUT	SE_NICLK_IO	3000	CLK_B>;
+					 txd5 =		<&pio14 5	ALT2 OUT	SE_NICLK_IO	3000	CLK_B>;
+					 txd6 =		<&pio14 6	ALT2 OUT	SE_NICLK_IO	3000	CLK_B>;
+					 txd7 =		<&pio14 7	ALT2 OUT	SE_NICLK_IO	3000	CLK_B>;
+
+					 txclk =	<&pio15 0	ALT2 IN		NICLK	0	CLK_A>;
+					 txer =		<&pio15 1	ALT2 OUT 	SE_NICLK_IO	3000	CLK_A>;
+					 crs =		<&pio15 2	ALT2 IN		BYPASS	1000>;
+					 col =		<&pio15 3	ALT2 IN		BYPASS	1000>;
+					 rxdv =		<&pio15 6	ALT2 IN		SE_NICLK_IO	1500	CLK_A>;
+					 rx_er =	<&pio15 7	ALT2 IN		SE_NICLK_IO	1500	CLK_A>;
+
+					 rxd0 =		<&pio16 0	ALT2 IN		SE_NICLK_IO	1500	CLK_A>;
+					 rxd1 =		<&pio16 1	ALT2 IN		SE_NICLK_IO	1500	CLK_A>;
+					 rxd2 =		<&pio16 2	ALT2 IN		SE_NICLK_IO	1500	CLK_A>;
+					 rxd3 =		<&pio16 3	ALT2 IN		SE_NICLK_IO	1500	CLK_A>;
+					 rxd4 =		<&pio16 4	ALT2 IN		SE_NICLK_IO	1500	CLK_A>;
+					 rxd5 =		<&pio16 5	ALT2 IN		SE_NICLK_IO	1500	CLK_A>;
+					 rxd6 =		<&pio16 6	ALT2 IN		SE_NICLK_IO	1500	CLK_A>;
+					 rxd7 =		<&pio16 7	ALT2 IN		SE_NICLK_IO	1500	CLK_A>;
+
+					 rxclk =	<&pio17 0	ALT2 IN	NICLK	0	CLK_A>;
+					 clk125 =	<&pio17 6	ALT1 IN	NICLK	0	CLK_A>;
+                                         phyclk =       <&pio13 5       ALT4 OUT NICLK   0       CLK_B>;
+
+
+					};
+				};
+			};
+
+			mmc0 {
+				pinctrl_mmc0: mmc0 {
+					st,pins {
+						mmcclk = <&pio13 4 ALT4 BIDIR_PU NICLK 0 CLK_B>;
+						data0  = <&pio14 4 ALT4 BIDIR_PU BYPASS 0>;
+						data1  = <&pio14 5 ALT4 BIDIR_PU BYPASS 0>;
+						data2  = <&pio14 6 ALT4 BIDIR_PU BYPASS 0>;
+						data3  = <&pio14 7 ALT4 BIDIR_PU BYPASS 0>;
+						cmd    = <&pio15 1 ALT4 BIDIR_PU BYPASS 0>;
+						wp     = <&pio15 3 ALT4 IN>;
+						data4  = <&pio16 4 ALT4 BIDIR_PU BYPASS 0>;
+						data5  = <&pio16 5 ALT4 BIDIR_PU BYPASS 0>;
+						data6  = <&pio16 6 ALT4 BIDIR_PU BYPASS 0>;
+						data7  = <&pio16 7 ALT4 BIDIR_PU BYPASS 0>;
+						pwr    = <&pio17 1 ALT4 OUT>;
+						cd     = <&pio17 2 ALT4 IN>;
+						led    = <&pio17 3 ALT4 OUT>;
+					};
+				};
+			};
+		};
+
+		pin-controller-left {
+			#address-cells	= <1>;
+			#size-cells	= <1>;
+			compatible	= "st,stih415-left-pinctrl";
+			st,syscfg	= <&syscfg_left>;
+			reg 		= <0xfd6bf080 0x4>;
+			reg-names	= "irqmux";
+			interrupts 	= <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names	= "irqmux";
+			ranges		= <0 0xfd6b0000 0x3000>;
+
+			pio100: gpio@fd6b0000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0 0x100>;
+				st,bank-name	= "PIO100";
+			};
+			pio101: gpio@fd6b1000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0x1000 0x100>;
+				st,bank-name	= "PIO101";
+			};
+			pio102: gpio@fd6b2000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0x2000 0x100>;
+				st,bank-name	= "PIO102";
+			};
+		};
+
+		pin-controller-right {
+			#address-cells	= <1>;
+			#size-cells	= <1>;
+			compatible	= "st,stih415-right-pinctrl";
+			st,syscfg	= <&syscfg_right>;
+			reg 		= <0xfd33f080 0x4>;
+			reg-names	= "irqmux";
+			interrupts 	= <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names	= "irqmux";
+			ranges		= <0 0xfd330000 0x5000>;
+
+			pio103: gpio@fd330000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0 0x100>;
+				st,bank-name	= "PIO103";
+			};
+			pio104: gpio@fd331000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0x1000 0x100>;
+				st,bank-name	= "PIO104";
+			};
+			pio105: gpio@fd332000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0x2000 0x100>;
+				st,bank-name	= "PIO105";
+			};
+			pio106: gpio@fd333000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0x3000 0x100>;
+				st,bank-name	= "PIO106";
+			};
+			pio107: gpio@fd334000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg		= <0x4000 0x100>;
+				st,bank-name	= "PIO107";
+			};
+		};
+	};
+};

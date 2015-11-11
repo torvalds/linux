@@ -159,10 +159,10 @@ static __le32 *cx25821_risc_field_upstream(struct cx25821_channel *chan, __le32 
 		 * For the upstream video channel, the risc engine will enable
 		 * the FIFO. */
 		if (fifo_enable && line == 3) {
-			*(rp++) = RISC_WRITECR;
-			*(rp++) = sram_ch->dma_ctl;
-			*(rp++) = FLD_VID_FIFO_EN;
-			*(rp++) = 0x00000001;
+			*(rp++) = cpu_to_le32(RISC_WRITECR);
+			*(rp++) = cpu_to_le32(sram_ch->dma_ctl);
+			*(rp++) = cpu_to_le32(FLD_VID_FIFO_EN);
+			*(rp++) = cpu_to_le32(0x00000001);
 		}
 	}
 
@@ -330,8 +330,9 @@ int cx25821_write_frame(struct cx25821_channel *chan,
 
 	if (frame_size - curpos < count)
 		count = frame_size - curpos;
-	memcpy((char *)out->_data_buf_virt_addr + frame_offset + curpos,
-			data, count);
+	if (copy_from_user((__force char *)out->_data_buf_virt_addr + frame_offset + curpos,
+				data, count))
+		return -EFAULT;
 	curpos += count;
 	if (curpos == frame_size) {
 		out->_frame_count++;

@@ -32,8 +32,29 @@ MODULE_PARM_DESC(erase_size, "Device erase block size in KiB");
 // We could store these in the mtd structure, but we only support 1 device..
 static struct mtd_info *mtd_info;
 
+static int check_offs_len(struct mtd_info *mtd, loff_t ofs, uint64_t len)
+{
+	int ret = 0;
+
+	/* Start address must align on block boundary */
+	if (mtd_mod_by_eb(ofs, mtd)) {
+		pr_debug("%s: unaligned address\n", __func__);
+		ret = -EINVAL;
+	}
+
+	/* Length must align on block boundary */
+	if (mtd_mod_by_eb(len, mtd)) {
+		pr_debug("%s: length not block aligned\n", __func__);
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
 static int ram_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
+	if (check_offs_len(mtd, instr->addr, instr->len))
+		return -EINVAL;
 	memset((char *)mtd->priv + instr->addr, 0xff, instr->len);
 	instr->state = MTD_ERASE_DONE;
 	mtd_erase_callback(instr);
@@ -92,7 +113,7 @@ static void __exit cleanup_mtdram(void)
 }
 
 int mtdram_init_device(struct mtd_info *mtd, void *mapped_address,
-		unsigned long size, char *name)
+		unsigned long size, const char *name)
 {
 	memset(mtd, 0, sizeof(*mtd));
 

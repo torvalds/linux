@@ -30,7 +30,7 @@ static inline struct nf_icmp_net *icmp_pernet(struct net *net)
 }
 
 static bool icmp_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
-			      struct nf_conntrack_tuple *tuple)
+			      struct net *net, struct nf_conntrack_tuple *tuple)
 {
 	const struct icmphdr *hp;
 	struct icmphdr _hdr;
@@ -72,13 +72,13 @@ static bool icmp_invert_tuple(struct nf_conntrack_tuple *tuple,
 }
 
 /* Print out the per-protocol part of the tuple. */
-static int icmp_print_tuple(struct seq_file *s,
+static void icmp_print_tuple(struct seq_file *s,
 			    const struct nf_conntrack_tuple *tuple)
 {
-	return seq_printf(s, "type=%u code=%u id=%u ",
-			  tuple->dst.u.icmp.type,
-			  tuple->dst.u.icmp.code,
-			  ntohs(tuple->src.u.icmp.id));
+	seq_printf(s, "type=%u code=%u id=%u ",
+		   tuple->dst.u.icmp.type,
+		   tuple->dst.u.icmp.code,
+		   ntohs(tuple->src.u.icmp.id));
 }
 
 static unsigned int *icmp_get_timeouts(struct net *net)
@@ -134,15 +134,17 @@ icmp_error_message(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 	struct nf_conntrack_tuple innertuple, origtuple;
 	const struct nf_conntrack_l4proto *innerproto;
 	const struct nf_conntrack_tuple_hash *h;
-	u16 zone = tmpl ? nf_ct_zone(tmpl) : NF_CT_DEFAULT_ZONE;
+	const struct nf_conntrack_zone *zone;
+	struct nf_conntrack_zone tmp;
 
 	NF_CT_ASSERT(skb->nfct == NULL);
+	zone = nf_ct_zone_tmpl(tmpl, skb, &tmp);
 
 	/* Are they talking about one of our connections? */
 	if (!nf_ct_get_tuplepr(skb,
 			       skb_network_offset(skb) + ip_hdrlen(skb)
 						       + sizeof(struct icmphdr),
-			       PF_INET, &origtuple)) {
+			       PF_INET, net, &origtuple)) {
 		pr_debug("icmp_error_message: failed to get tuple\n");
 		return -NF_ACCEPT;
 	}
@@ -226,7 +228,7 @@ icmp_error(struct net *net, struct nf_conn *tmpl,
 	return icmp_error_message(net, tmpl, skb, ctinfo, hooknum);
 }
 
-#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_conntrack.h>
@@ -408,7 +410,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp __read_mostly =
 	.error			= icmp_error,
 	.destroy		= NULL,
 	.me			= NULL,
-#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= icmp_tuple_to_nlattr,
 	.nlattr_tuple_size	= icmp_nlattr_tuple_size,
 	.nlattr_to_tuple	= icmp_nlattr_to_tuple,

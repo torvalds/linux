@@ -1184,7 +1184,7 @@ static int old_capi_manufacturer(unsigned int cmd, void __user *data)
  * Return value: CAPI result code
  */
 
-int capi20_manufacturer(unsigned int cmd, void __user *data)
+int capi20_manufacturer(unsigned long cmd, void __user *data)
 {
 	struct capi_ctr *ctr;
 	int retval;
@@ -1259,7 +1259,7 @@ int capi20_manufacturer(unsigned int cmd, void __user *data)
 	}
 
 	default:
-		printk(KERN_ERR "kcapi: manufacturer command %d unknown.\n",
+		printk(KERN_ERR "kcapi: manufacturer command %lu unknown.\n",
 		       cmd);
 		break;
 

@@ -1,0 +1,40 @@
+* Broadcom SATA3 PHY for STB
+
+Required properties:
+- compatible: should be one or more of
+     "brcm,bcm7445-sata-phy"
+     "brcm,phy-sata3"
+- address-cells: should be 1
+- size-cells: should be 0
+- reg: register range for the PHY PCB interface
+- reg-names: should be "phy"
+
+Sub-nodes:
+  Each port's PHY should be represented as a sub-node.
+
+Sub-nodes required properties:
+- reg: the PHY number
+- phy-cells: generic PHY binding; must be 0
+Optional:
+- brcm,enable-ssc: use spread spectrum clocking (SSC) on this port
+
+
+Example:
+
+	sata-phy@f0458100 {
+		compatible = "brcm,bcm7445-sata-phy", "brcm,phy-sata3";
+		reg = <0xf0458100 0x1e00>, <0xf045804c 0x10>;
+		reg-names = "phy";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		sata-phy@0 {
+			reg = <0>;
+			#phy-cells = <0>;
+		};
+
+		sata-phy@1 {
+			reg = <1>;
+			#phy-cells = <0>;
+		};
+	};

@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2008 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -387,6 +387,9 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 	/* Create binary sysfs attribute for vport */
 	lpfc_alloc_sysfs_attr(vport);
 
+	/* Set the DFT_LUN_Q_DEPTH accordingly */
+	vport->cfg_lun_queue_depth  = phba->pport->cfg_lun_queue_depth;
+
 	*(struct lpfc_vport **)fc_vport->dd_data = vport;
 	vport->fc_vport = fc_vport;
 
@@ -564,8 +567,8 @@ int
 lpfc_vport_delete(struct fc_vport *fc_vport)
 {
 	struct lpfc_nodelist *ndlp = NULL;
-	struct Scsi_Host *shost = (struct Scsi_Host *) fc_vport->shost;
 	struct lpfc_vport *vport = *(struct lpfc_vport **)fc_vport->dd_data;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba   *phba = vport->phba;
 	long timeout;
 	bool ns_ndlp_referenced = false;
@@ -642,8 +645,8 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 	}
 
 	/* Remove FC host and then SCSI host with the vport */
-	fc_remove_host(lpfc_shost_from_vport(vport));
-	scsi_remove_host(lpfc_shost_from_vport(vport));
+	fc_remove_host(shost);
+	scsi_remove_host(shost);
 
 	ndlp = lpfc_findnode_did(phba->pport, Fabric_DID);
 
@@ -769,7 +772,8 @@ skip_logo:
 		 * Completion of unreg_vpi (lpfc_mbx_cmpl_unreg_vpi)
 		 * does the scsi_host_put() to release the vport.
 		 */
-		if (lpfc_mbx_unreg_vpi(vport))
+		if (!(vport->vpi_state & LPFC_VPI_REGISTERED) ||
+				lpfc_mbx_unreg_vpi(vport))
 			scsi_host_put(shost);
 	} else
 		scsi_host_put(shost);

@@ -37,8 +37,10 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 			IRQF_TRIGGER_RISING,
 			sdata->trig->name,
 			sdata->trig);
-	if (err)
+	if (err) {
+		dev_err(&indio_dev->dev, "failed to request trigger IRQ.\n");
 		goto request_irq_error;
+	}
 
 	iio_trigger_set_drvdata(sdata->trig, indio_dev);
 	sdata->trig->ops = trigger_ops;
@@ -49,7 +51,7 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 		dev_err(&indio_dev->dev, "failed to register iio trigger.\n");
 		goto iio_trigger_register_error;
 	}
-	indio_dev->trig = sdata->trig;
+	indio_dev->trig = iio_trigger_get(sdata->trig);
 
 	return 0;
 

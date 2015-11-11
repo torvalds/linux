@@ -166,6 +166,7 @@ static void sel_netnode_insert(struct sel_netnode *node)
 		break;
 	default:
 		BUG();
+		return;
 	}
 
 	/* we need to impose a limit on the growth of the hash table so check
@@ -225,6 +226,7 @@ static int sel_netnode_sid_slow(void *addr, u16 family, u32 *sid)
 		break;
 	default:
 		BUG();
+		ret = -EINVAL;
 	}
 	if (ret != 0)
 		goto out;
@@ -281,7 +283,7 @@ int sel_netnode_sid(void *addr, u16 family, u32 *sid)
  * Remove all entries from the network address table.
  *
  */
-static void sel_netnode_flush(void)
+void sel_netnode_flush(void)
 {
 	unsigned int idx;
 	struct sel_netnode *node, *node_tmp;
@@ -298,19 +300,9 @@ static void sel_netnode_flush(void)
 	spin_unlock_bh(&sel_netnode_lock);
 }
 
-static int sel_netnode_avc_callback(u32 event)
-{
-	if (event == AVC_CALLBACK_RESET) {
-		sel_netnode_flush();
-		synchronize_net();
-	}
-	return 0;
-}
-
 static __init int sel_netnode_init(void)
 {
 	int iter;
-	int ret;
 
 	if (!selinux_enabled)
 		return 0;
@@ -320,11 +312,7 @@ static __init int sel_netnode_init(void)
 		sel_netnode_hash[iter].size = 0;
 	}
 
-	ret = avc_add_callback(sel_netnode_avc_callback, AVC_CALLBACK_RESET);
-	if (ret != 0)
-		panic("avc_add_callback() failed, error %d\n", ret);
-
-	return ret;
+	return 0;
 }
 
 __initcall(sel_netnode_init);

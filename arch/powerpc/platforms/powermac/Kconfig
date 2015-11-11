@@ -1,6 +1,6 @@
 config PPC_PMAC
 	bool "Apple PowerMac based machines"
-	depends on PPC_BOOK3S
+	depends on PPC_BOOK3S && CPU_BIG_ENDIAN
 	select MPIC
 	select PCI
 	select PPC_INDIRECT_PCI if PPC32
@@ -10,7 +10,7 @@ config PPC_PMAC
 
 config PPC_PMAC64
 	bool
-	depends on PPC_PMAC && POWER4
+	depends on PPC_PMAC && PPC64
 	select MPIC
 	select U3_DART
 	select MPIC_U3_HT_IRQS

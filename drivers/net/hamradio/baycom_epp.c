@@ -638,7 +638,7 @@ static int receive(struct net_device *dev, int cnt)
 #define GETTICK(x)                                                \
 ({                                                                \
 	if (cpu_has_tsc)                                          \
-		rdtscl(x);                                        \
+		x = (unsigned int)rdtsc();		  \
 })
 #else /* __i386__ */
 #define GETTICK(x)
@@ -771,6 +771,9 @@ static void epp_bh(struct work_struct *work)
 static int baycom_send_packet(struct sk_buff *skb, struct net_device *dev)
 {
 	struct baycom_state *bc = netdev_priv(dev);
+
+	if (skb->protocol == htons(ETH_P_IP))
+		return ax25_ip_xmit(skb);
 
 	if (skb->data[0] != 0) {
 		do_kiss_params(bc, skb->data, skb->len);
@@ -1206,7 +1209,7 @@ static int __init init_baycomepp(void)
 		struct net_device *dev;
 		
 		dev = alloc_netdev(sizeof(struct baycom_state), "bce%d",
-				   baycom_epp_dev_setup);
+				   NET_NAME_UNKNOWN, baycom_epp_dev_setup);
 
 		if (!dev) {
 			printk(KERN_WARNING "bce%d : out of memory\n", i);

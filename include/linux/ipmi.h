@@ -37,6 +37,7 @@
 
 #include <linux/list.h>
 #include <linux/proc_fs.h>
+#include <linux/acpi.h> /* For acpi_handle */
 
 struct module;
 struct device;
@@ -237,7 +238,7 @@ int ipmi_set_maintenance_mode(ipmi_user_t user, int mode);
  * The first user that sets this to TRUE will receive all events that
  * have been queued while no one was waiting for events.
  */
-int ipmi_set_gets_events(ipmi_user_t user, int val);
+int ipmi_set_gets_events(ipmi_user_t user, bool val);
 
 /*
  * Called when a new SMI is registered.  This will also be called on
@@ -278,15 +279,18 @@ enum ipmi_addr_src {
 	SI_INVALID = 0, SI_HOTMOD, SI_HARDCODED, SI_SPMI, SI_ACPI, SI_SMBIOS,
 	SI_PCI,	SI_DEVICETREE, SI_DEFAULT
 };
+const char *ipmi_addr_src_to_str(enum ipmi_addr_src src);
 
 union ipmi_smi_info_union {
+#ifdef CONFIG_ACPI
 	/*
 	 * the acpi_info element is defined for the SI_ACPI
 	 * address type
 	 */
 	struct {
-		void *acpi_handle;
+		acpi_handle acpi_handle;
 	} acpi_info;
+#endif
 };
 
 struct ipmi_smi_info {

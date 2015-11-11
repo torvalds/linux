@@ -4,6 +4,8 @@ Bosch C_CAN/D_CAN controller Device Tree Bindings
 Required properties:
 - compatible		: Should be "bosch,c_can" for C_CAN controllers and
 			  "bosch,d_can" for D_CAN controllers.
+			  Can be "ti,dra7-d_can", "ti,am3352-d_can" or
+			  "ti,am4372-d_can".
 - reg			: physical base address and size of the C_CAN/D_CAN
 			  registers map
 - interrupts		: property with a value describing the interrupt
@@ -12,6 +14,9 @@ Required properties:
 Optional properties:
 - ti,hwmods		: Must be "d_can<n>" or "c_can<n>", n being the
 			  instance number
+- syscon-raminit	: Handle to system control region that contains the
+			  RAMINIT register, register offset to the RAMINIT
+			  register and the CAN instance number (0 offset).
 
 Note: "ti,hwmods" field is used to fetch the base address and irq
 resources from TI, omap hwmod data base during device registration.

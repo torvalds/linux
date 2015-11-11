@@ -59,17 +59,17 @@
 
 void nlm_send_ipi_single(int logical_cpu, unsigned int action)
 {
-	int cpu, node;
+	unsigned int hwtid;
 	uint64_t picbase;
 
-	cpu = cpu_logical_map(logical_cpu);
-	node = cpu / NLM_CPUS_PER_NODE;
-	picbase = nlm_get_node(node)->picbase;
+	/* node id is part of hwtid, and needed for send_ipi */
+	hwtid = cpu_logical_map(logical_cpu);
+	picbase = nlm_get_node(nlm_hwtid_to_node(hwtid))->picbase;
 
 	if (action & SMP_CALL_FUNCTION)
-		nlm_pic_send_ipi(picbase, cpu, IRQ_IPI_SMP_FUNCTION, 0);
+		nlm_pic_send_ipi(picbase, hwtid, IRQ_IPI_SMP_FUNCTION, 0);
 	if (action & SMP_RESCHEDULE_YOURSELF)
-		nlm_pic_send_ipi(picbase, cpu, IRQ_IPI_SMP_RESCHEDULE, 0);
+		nlm_pic_send_ipi(picbase, hwtid, IRQ_IPI_SMP_RESCHEDULE, 0);
 }
 
 void nlm_send_ipi_mask(const struct cpumask *mask, unsigned int action)
@@ -82,17 +82,19 @@ void nlm_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 }
 
 /* IRQ_IPI_SMP_FUNCTION Handler */
-void nlm_smp_function_ipi_handler(unsigned int irq, struct irq_desc *desc)
+void nlm_smp_function_ipi_handler(struct irq_desc *desc)
 {
+	unsigned int irq = irq_desc_get_irq(desc);
 	clear_c0_eimr(irq);
 	ack_c0_eirr(irq);
-	smp_call_function_interrupt();
+	generic_smp_call_function_interrupt();
 	set_c0_eimr(irq);
 }
 
 /* IRQ_IPI_SMP_RESCHEDULE  handler */
-void nlm_smp_resched_ipi_handler(unsigned int irq, struct irq_desc *desc)
+void nlm_smp_resched_ipi_handler(struct irq_desc *desc)
 {
+	unsigned int irq = irq_desc_get_irq(desc);
 	clear_c0_eimr(irq);
 	ack_c0_eirr(irq);
 	scheduler_ipi();
@@ -106,9 +108,7 @@ void nlm_early_init_secondary(int cpu)
 {
 	change_c0_config(CONF_CM_CMASK, 0x3);
 #ifdef CONFIG_CPU_XLP
-	/* mmu init, once per core */
-	if (cpu % NLM_THREADS_PER_CORE == 0)
-		xlp_mmu_init();
+	xlp_mmu_init();
 #endif
 	write_c0_ebase(nlm_current_node()->ebase);
 }
@@ -116,12 +116,13 @@ void nlm_early_init_secondary(int cpu)
 /*
  * Code to run on secondary just after probing the CPU
  */
-static void __cpuinit nlm_init_secondary(void)
+static void nlm_init_secondary(void)
 {
 	int hwtid;
 
 	hwtid = hard_smp_processor_id();
 	current_cpu_data.core = hwtid / NLM_THREADS_PER_CORE;
+	current_cpu_data.package = nlm_nodeid();
 	nlm_percpu_init(hwtid);
 	nlm_smp_irq_init(hwtid);
 }
@@ -137,38 +138,35 @@ void nlm_smp_finish(void)
 	local_irq_enable();
 }
 
-void nlm_cpus_done(void)
-{
-}
-
 /*
  * Boot all other cpus in the system, initialize them, and bring them into
  * the boot function
  */
-int nlm_cpu_ready[NR_CPUS];
 unsigned long nlm_next_gp;
 unsigned long nlm_next_sp;
 static cpumask_t phys_cpu_present_mask;
 
 void nlm_boot_secondary(int logical_cpu, struct task_struct *idle)
 {
-	int cpu, node;
+	uint64_t picbase;
+	int hwtid;
 
-	cpu = cpu_logical_map(logical_cpu);
-	node = cpu / NLM_CPUS_PER_NODE;
+	hwtid = cpu_logical_map(logical_cpu);
+	picbase = nlm_get_node(nlm_hwtid_to_node(hwtid))->picbase;
+
 	nlm_next_sp = (unsigned long)__KSTK_TOS(idle);
 	nlm_next_gp = (unsigned long)task_thread_info(idle);
 
 	/* barrier for sp/gp store above */
 	__sync();
-	nlm_pic_send_ipi(nlm_get_node(node)->picbase, cpu, 1, 1);  /* NMI */
+	nlm_pic_send_ipi(picbase, hwtid, 1, 1);  /* NMI */
 }
 
 void __init nlm_smp_setup(void)
 {
 	unsigned int boot_cpu;
-	int num_cpus, i, ncore;
-	char buf[64];
+	int num_cpus, i, ncore, node;
+	volatile u32 *cpu_ready = nlm_get_boot_data(BOOT_CPU_READY);
 
 	boot_cpu = hard_smp_processor_id();
 	cpumask_clear(&phys_cpu_present_mask);
@@ -181,24 +179,26 @@ void __init nlm_smp_setup(void)
 	num_cpus = 1;
 	for (i = 0; i < NR_CPUS; i++) {
 		/*
-		 * nlm_cpu_ready array is not set for the boot_cpu,
+		 * cpu_ready array is not set for the boot_cpu,
 		 * it is only set for ASPs (see smpboot.S)
 		 */
-		if (nlm_cpu_ready[i]) {
+		if (cpu_ready[i]) {
 			cpumask_set_cpu(i, &phys_cpu_present_mask);
 			__cpu_number_map[i] = num_cpus;
 			__cpu_logical_map[num_cpus] = i;
 			set_cpu_possible(num_cpus, true);
+			node = nlm_hwtid_to_node(i);
+			cpumask_set_cpu(num_cpus, &nlm_get_node(node)->cpumask);
 			++num_cpus;
 		}
 	}
 
-	cpumask_scnprintf(buf, ARRAY_SIZE(buf), &phys_cpu_present_mask);
-	pr_info("Physical CPU mask: %s\n", buf);
-	cpumask_scnprintf(buf, ARRAY_SIZE(buf), cpu_possible_mask);
-	pr_info("Possible CPU mask: %s\n", buf);
+	pr_info("Physical CPU mask: %*pb\n",
+		cpumask_pr_args(&phys_cpu_present_mask));
+	pr_info("Possible CPU mask: %*pb\n",
+		cpumask_pr_args(cpu_possible_mask));
 
-	/* check with the cores we have worken up */
+	/* check with the cores we have woken up */
 	for (ncore = 0, i = 0; i < NLM_NR_NODES; i++)
 		ncore += hweight32(nlm_get_node(i)->coremask);
 
@@ -247,28 +247,21 @@ static int nlm_parse_cpumask(cpumask_t *wakeup_mask)
 	return threadmode;
 
 unsupp:
-	panic("Unsupported CPU mask %lx\n",
-		(unsigned long)cpumask_bits(wakeup_mask)[0]);
+	panic("Unsupported CPU mask %*pb", cpumask_pr_args(wakeup_mask));
 	return 0;
 }
 
-int __cpuinit nlm_wakeup_secondary_cpus(void)
+int nlm_wakeup_secondary_cpus(void)
 {
-	unsigned long reset_vec;
-	char *reset_data;
+	u32 *reset_data;
 	int threadmode;
-
-	/* Update reset entry point with CPU init code */
-	reset_vec = CKSEG1ADDR(RESET_VEC_PHYS);
-	memcpy((void *)reset_vec, (void *)nlm_reset_entry,
-			(nlm_reset_entry_end - nlm_reset_entry));
 
 	/* verify the mask and setup core config variables */
 	threadmode = nlm_parse_cpumask(&nlm_cpumask);
 
 	/* Setup CPU init parameters */
-	reset_data = (char *)CKSEG1ADDR(RESET_DATA_PHYS);
-	*(int *)(reset_data + BOOT_THREAD_MODE) = threadmode;
+	reset_data = nlm_get_boot_data(BOOT_THREAD_MODE);
+	*reset_data = threadmode;
 
 #ifdef CONFIG_CPU_XLP
 	xlp_wakeup_secondary_cpus();
@@ -283,7 +276,6 @@ struct plat_smp_ops nlm_smp_ops = {
 	.send_ipi_mask		= nlm_send_ipi_mask,
 	.init_secondary		= nlm_init_secondary,
 	.smp_finish		= nlm_smp_finish,
-	.cpus_done		= nlm_cpus_done,
 	.boot_secondary		= nlm_boot_secondary,
 	.smp_setup		= nlm_smp_setup,
 	.prepare_cpus		= nlm_prepare_cpus,

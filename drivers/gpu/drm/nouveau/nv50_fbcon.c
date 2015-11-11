@@ -154,7 +154,6 @@ nv50_fbcon_accel_init(struct fb_info *info)
 	struct drm_device *dev = nfbdev->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_channel *chan = drm->channel;
-	struct nouveau_object *object;
 	int ret, format;
 
 	switch (info->var.bits_per_pixel) {
@@ -184,23 +183,23 @@ nv50_fbcon_accel_init(struct fb_info *info)
 		return -EINVAL;
 	}
 
-	ret = nouveau_object_new(nv_object(chan->cli), NVDRM_CHAN, Nv2D,
-				 0x502d, NULL, 0, &object);
+	ret = nvif_object_init(&chan->user, 0x502d, 0x502d, NULL, 0,
+			       &nfbdev->twod);
 	if (ret)
 		return ret;
 
-	ret = RING_SPACE(chan, 59);
+	ret = RING_SPACE(chan, 58);
 	if (ret) {
 		nouveau_fbcon_gpu_lockup(info);
 		return ret;
 	}
 
 	BEGIN_NV04(chan, NvSub2D, 0x0000, 1);
-	OUT_RING(chan, Nv2D);
+	OUT_RING(chan, nfbdev->twod.handle);
 	BEGIN_NV04(chan, NvSub2D, 0x0184, 3);
-	OUT_RING(chan, NvDmaFB);
-	OUT_RING(chan, NvDmaFB);
-	OUT_RING(chan, NvDmaFB);
+	OUT_RING(chan, chan->vram.handle);
+	OUT_RING(chan, chan->vram.handle);
+	OUT_RING(chan, chan->vram.handle);
 	BEGIN_NV04(chan, NvSub2D, 0x0290, 1);
 	OUT_RING(chan, 0);
 	BEGIN_NV04(chan, NvSub2D, 0x0888, 1);
@@ -253,6 +252,7 @@ nv50_fbcon_accel_init(struct fb_info *info)
 	OUT_RING(chan, info->var.yres_virtual);
 	OUT_RING(chan, upper_32_bits(fb->vma.offset));
 	OUT_RING(chan, lower_32_bits(fb->vma.offset));
+	FIRE_RING(chan);
 
 	return 0;
 }

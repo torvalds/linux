@@ -13,9 +13,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -26,7 +24,6 @@
 
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -276,10 +273,8 @@ static void rt2400pci_config_filter(struct rt2x00_dev *rt2x00dev,
 			   !(filter_flags & FIF_PLCPFAIL));
 	rt2x00_set_field32(&reg, RXCSR0_DROP_CONTROL,
 			   !(filter_flags & FIF_CONTROL));
-	rt2x00_set_field32(&reg, RXCSR0_DROP_NOT_TO_ME,
-			   !(filter_flags & FIF_PROMISC_IN_BSS));
+	rt2x00_set_field32(&reg, RXCSR0_DROP_NOT_TO_ME, 1);
 	rt2x00_set_field32(&reg, RXCSR0_DROP_TODS,
-			   !(filter_flags & FIF_PROMISC_IN_BSS) &&
 			   !rt2x00dev->intf_ap_count);
 	rt2x00_set_field32(&reg, RXCSR0_DROP_VERSION_ERROR, 1);
 	rt2x00mmio_register_write(rt2x00dev, RXCSR0, reg);
@@ -1261,7 +1256,7 @@ static void rt2400pci_fill_rxdone(struct queue_entry *entry,
 	 */
 	rxdesc->timestamp = ((u64)rx_high << 32) | rx_low;
 	rxdesc->signal = rt2x00_get_field32(word2, RXD_W2_SIGNAL) & ~0x08;
-	rxdesc->rssi = rt2x00_get_field32(word2, RXD_W3_RSSI) -
+	rxdesc->rssi = rt2x00_get_field32(word3, RXD_W3_RSSI) -
 	    entry->queue->rt2x00dev->rssi_offset;
 	rxdesc->size = rt2x00_get_field32(word0, RXD_W0_DATABYTE_COUNT);
 
@@ -1579,10 +1574,10 @@ static int rt2400pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize all hw fields.
 	 */
-	rt2x00dev->hw->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
-			       IEEE80211_HW_SIGNAL_DBM |
-			       IEEE80211_HW_SUPPORTS_PS |
-			       IEEE80211_HW_PS_NULLFUNC_STACK;
+	ieee80211_hw_set(rt2x00dev->hw, PS_NULLFUNC_STACK);
+	ieee80211_hw_set(rt2x00dev->hw, SUPPORTS_PS);
+	ieee80211_hw_set(rt2x00dev->hw, HOST_BROADCAST_PS_BUFFERING);
+	ieee80211_hw_set(rt2x00dev->hw, SIGNAL_DBM);
 
 	SET_IEEE80211_DEV(rt2x00dev->hw, rt2x00dev->dev);
 	SET_IEEE80211_PERM_ADDR(rt2x00dev->hw,
@@ -1767,33 +1762,45 @@ static const struct rt2x00lib_ops rt2400pci_rt2x00_ops = {
 	.config			= rt2400pci_config,
 };
 
-static const struct data_queue_desc rt2400pci_queue_rx = {
-	.entry_num		= 24,
-	.data_size		= DATA_FRAME_SIZE,
-	.desc_size		= RXD_DESC_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_mmio),
-};
+static void rt2400pci_queue_init(struct data_queue *queue)
+{
+	switch (queue->qid) {
+	case QID_RX:
+		queue->limit = 24;
+		queue->data_size = DATA_FRAME_SIZE;
+		queue->desc_size = RXD_DESC_SIZE;
+		queue->priv_size = sizeof(struct queue_entry_priv_mmio);
+		break;
 
-static const struct data_queue_desc rt2400pci_queue_tx = {
-	.entry_num		= 24,
-	.data_size		= DATA_FRAME_SIZE,
-	.desc_size		= TXD_DESC_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_mmio),
-};
+	case QID_AC_VO:
+	case QID_AC_VI:
+	case QID_AC_BE:
+	case QID_AC_BK:
+		queue->limit = 24;
+		queue->data_size = DATA_FRAME_SIZE;
+		queue->desc_size = TXD_DESC_SIZE;
+		queue->priv_size = sizeof(struct queue_entry_priv_mmio);
+		break;
 
-static const struct data_queue_desc rt2400pci_queue_bcn = {
-	.entry_num		= 1,
-	.data_size		= MGMT_FRAME_SIZE,
-	.desc_size		= TXD_DESC_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_mmio),
-};
+	case QID_BEACON:
+		queue->limit = 1;
+		queue->data_size = MGMT_FRAME_SIZE;
+		queue->desc_size = TXD_DESC_SIZE;
+		queue->priv_size = sizeof(struct queue_entry_priv_mmio);
+		break;
 
-static const struct data_queue_desc rt2400pci_queue_atim = {
-	.entry_num		= 8,
-	.data_size		= DATA_FRAME_SIZE,
-	.desc_size		= TXD_DESC_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_mmio),
-};
+	case QID_ATIM:
+		queue->limit = 8;
+		queue->data_size = DATA_FRAME_SIZE;
+		queue->desc_size = TXD_DESC_SIZE;
+		queue->priv_size = sizeof(struct queue_entry_priv_mmio);
+		break;
+
+	default:
+		BUG();
+		break;
+	}
+}
 
 static const struct rt2x00_ops rt2400pci_ops = {
 	.name			= KBUILD_MODNAME,
@@ -1801,11 +1808,7 @@ static const struct rt2x00_ops rt2400pci_ops = {
 	.eeprom_size		= EEPROM_SIZE,
 	.rf_size		= RF_SIZE,
 	.tx_queues		= NUM_TX_QUEUES,
-	.extra_tx_headroom	= 0,
-	.rx			= &rt2400pci_queue_rx,
-	.tx			= &rt2400pci_queue_tx,
-	.bcn			= &rt2400pci_queue_bcn,
-	.atim			= &rt2400pci_queue_atim,
+	.queue_init		= rt2400pci_queue_init,
 	.lib			= &rt2400pci_rt2x00_ops,
 	.hw			= &rt2400pci_mac80211_ops,
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
@@ -1816,7 +1819,7 @@ static const struct rt2x00_ops rt2400pci_ops = {
 /*
  * RT2400pci module information.
  */
-static DEFINE_PCI_DEVICE_TABLE(rt2400pci_device_table) = {
+static const struct pci_device_id rt2400pci_device_table[] = {
 	{ PCI_DEVICE(0x1814, 0x0101) },
 	{ 0, }
 };

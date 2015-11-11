@@ -199,20 +199,21 @@ static struct {
 
 char *tx4927_pcibios_setup(char *str)
 {
-	unsigned long val;
-
 	if (!strncmp(str, "trdyto=", 7)) {
-		if (strict_strtoul(str + 7, 0, &val) == 0)
+		u8 val = 0;
+		if (kstrtou8(str + 7, 0, &val) == 0)
 			tx4927_pci_opts.trdyto = val;
 		return NULL;
 	}
 	if (!strncmp(str, "retryto=", 8)) {
-		if (strict_strtoul(str + 8, 0, &val) == 0)
+		u8 val = 0;
+		if (kstrtou8(str + 8, 0, &val) == 0)
 			tx4927_pci_opts.retryto = val;
 		return NULL;
 	}
 	if (!strncmp(str, "gbwc=", 5)) {
-		if (strict_strtoul(str + 5, 0, &val) == 0)
+		u16 val;
+		if (kstrtou16(str + 5, 0, &val) == 0)
 			tx4927_pci_opts.gbwc = val;
 		return NULL;
 	}

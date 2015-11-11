@@ -123,8 +123,10 @@ initialization with a pointer to a structure describing the driver
 
 
 The ID table is an array of struct pci_device_id entries ending with an
-all-zero entry; use of the macro DEFINE_PCI_DEVICE_TABLE is the preferred
-method of declaring the table.  Each entry consists of:
+all-zero entry.  Definitions with static const are generally preferred.
+Use of the deprecated macro DEFINE_PCI_DEVICE_TABLE should be avoided.
+
+Each entry consists of:
 
 	vendor,device	Vendor and device ID to match (or PCI_ANY_ID)
 
@@ -525,8 +527,9 @@ corresponding register block for you.
 6. Other interesting functions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-pci_find_slot()			Find pci_dev corresponding to given bus and
-				slot numbers.
+pci_get_domain_bus_and_slot()	Find pci_dev corresponding to given domain,
+				bus and slot and number. If the device is
+				found, its reference count is increased.
 pci_set_power_state()		Set PCI Power Management state (0=D0 ... 3=D3)
 pci_find_capability()		Find specified capability in device's capability
 				list.
@@ -561,14 +564,14 @@ to be handled by platform and generic code, not individual drivers.
 8. Vendor and device identifications
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-One is not required to add new device ids to include/linux/pci_ids.h.
-Please add PCI_VENDOR_ID_xxx for vendors and a hex constant for device ids.
+Do not add new device or vendor IDs to include/linux/pci_ids.h unless they
+are shared across multiple drivers.  You can add private definitions in
+your driver if they're helpful, or just use plain hex constants.
 
-PCI_VENDOR_ID_xxx constants are re-used. The device ids are arbitrary
-hex numbers (vendor controlled) and normally used only in a single
-location, the pci_device_id table.
+The device IDs are arbitrary hex numbers (vendor controlled) and normally used
+only in a single location, the pci_device_id table.
 
-Please DO submit new vendor/device ids to pciids.sourceforge.net project.
+Please DO submit new vendor/device IDs to http://pciids.sourceforge.net/.
 
 
 
@@ -582,7 +585,8 @@ having sane locking.
 
 pci_find_device()	Superseded by pci_get_device()
 pci_find_subsys()	Superseded by pci_get_subsys()
-pci_find_slot()		Superseded by pci_get_slot()
+pci_find_slot()		Superseded by pci_get_domain_bus_and_slot()
+pci_get_slot()		Superseded by pci_get_domain_bus_and_slot()
 
 
 The alternative is the traditional PCI device driver that walks PCI

@@ -13,13 +13,12 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/onenand.h>
 #include <linux/mtd/partitions.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 /*
  * Note: Driver name and platform data format have been updated!
@@ -38,7 +37,7 @@ struct onenand_info {
 static int generic_onenand_probe(struct platform_device *pdev)
 {
 	struct onenand_info *info;
-	struct onenand_platform_data *pdata = pdev->dev.platform_data;
+	struct onenand_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct resource *res = pdev->resource;
 	unsigned long size = resource_size(res);
 	int err;
@@ -58,12 +57,11 @@ static int generic_onenand_probe(struct platform_device *pdev)
 		goto out_release_mem_region;
 	}
 
-	info->onenand.mmcontrol = pdata ? pdata->mmcontrol : 0;
+	info->onenand.mmcontrol = pdata ? pdata->mmcontrol : NULL;
 	info->onenand.irq = platform_get_irq(pdev, 0);
 
-	info->mtd.name = dev_name(&pdev->dev);
+	info->mtd.dev.parent = &pdev->dev;
 	info->mtd.priv = &info->onenand;
-	info->mtd.owner = THIS_MODULE;
 
 	if (onenand_scan(&info->mtd, 1)) {
 		err = -ENXIO;
@@ -94,8 +92,6 @@ static int generic_onenand_remove(struct platform_device *pdev)
 	struct resource *res = pdev->resource;
 	unsigned long size = resource_size(res);
 
-	platform_set_drvdata(pdev, NULL);
-
 	if (info) {
 		onenand_release(&info->mtd);
 		release_mem_region(res->start, size);
@@ -109,7 +105,6 @@ static int generic_onenand_remove(struct platform_device *pdev)
 static struct platform_driver generic_onenand_driver = {
 	.driver = {
 		.name		= DRIVER_NAME,
-		.owner		= THIS_MODULE,
 	},
 	.probe		= generic_onenand_probe,
 	.remove		= generic_onenand_remove,

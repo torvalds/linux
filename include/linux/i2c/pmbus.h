@@ -40,6 +40,10 @@
 
 struct pmbus_platform_data {
 	u32 flags;		/* Device specific flags */
+
+	/* regulator support */
+	int num_regulators;
+	struct regulator_init_data *reg_init_data;
 };
 
 #endif /* _PMBUS_H_ */

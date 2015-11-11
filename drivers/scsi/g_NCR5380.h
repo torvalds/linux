@@ -9,31 +9,10 @@
  *
  * NCR53C400 extensions (c) 1994,1995,1996, Kevin Lentin
  *    K.Lentin@cs.monash.edu.au
- *
- * ALPHA RELEASE 1. 
- *
- * For more information, please consult 
- *
- * NCR 5380 Family
- * SCSI Protocol Controller
- * Databook
- *
- * NCR Microelectronics
- * 1635 Aeroplaza Drive
- * Colorado Springs, CO 80916
- * 1+ (719) 578-3400
- * 1+ (800) 334-5454
- */
-
-/*
- * $Log: generic_NCR5380.h,v $
  */
 
 #ifndef GENERIC_NCR5380_H
 #define GENERIC_NCR5380_H
-
-
-#define GENERIC_NCR5380_PUBLIC_RELEASE 1
 
 #ifdef NCR53C400
 #define BIOSPARAM
@@ -43,12 +22,6 @@
 #endif
 
 #ifndef ASM
-static int generic_NCR5380_abort(Scsi_Cmnd *);
-static int generic_NCR5380_detect(struct scsi_host_template *);
-static int generic_NCR5380_release_resources(struct Scsi_Host *);
-static int generic_NCR5380_queue_command(struct Scsi_Host *, struct scsi_cmnd *);
-static int generic_NCR5380_bus_reset(Scsi_Cmnd *);
-static const char* generic_NCR5380_info(struct Scsi_Host *);
 
 #ifndef CMD_PER_LUN
 #define CMD_PER_LUN 2
@@ -57,8 +30,6 @@ static const char* generic_NCR5380_info(struct Scsi_Host *);
 #ifndef CAN_QUEUE
 #define CAN_QUEUE 16
 #endif
-
-#ifndef HOSTS_C
 
 #define __STRVAL(x) #x
 #define STRVAL(x) __STRVAL(x)
@@ -124,14 +95,14 @@ static const char* generic_NCR5380_info(struct Scsi_Host *);
 #define NCR5380_bus_reset generic_NCR5380_bus_reset
 #define NCR5380_pread generic_NCR5380_pread
 #define NCR5380_pwrite generic_NCR5380_pwrite
-#define NCR5380_proc_info notyet_generic_proc_info
+#define NCR5380_info generic_NCR5380_info
+#define NCR5380_show_info generic_NCR5380_show_info
 
 #define BOARD_NCR5380	0
 #define BOARD_NCR53C400	1
 #define BOARD_NCR53C400A 2
 #define BOARD_DTC3181E	3
 
-#endif /* else def HOSTS_C */
 #endif /* ndef ASM */
 #endif /* GENERIC_NCR5380_H */
 

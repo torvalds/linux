@@ -267,7 +267,7 @@ static int pca955x_probe(struct i2c_client *client,
 
 	chip = &pca955x_chipdefs[id->driver_data];
 	adapter = to_i2c_adapter(client->dev.parent);
-	pdata = client->dev.platform_data;
+	pdata = dev_get_platdata(&client->dev);
 
 	/* Make sure the slave address / chip type combo given is possible */
 	if ((client->addr & ~((1 << chip->slv_addr_shift) - 1)) !=
@@ -379,7 +379,6 @@ static int pca955x_remove(struct i2c_client *client)
 static struct i2c_driver pca955x_driver = {
 	.driver = {
 		.name	= "leds-pca955x",
-		.owner	= THIS_MODULE,
 	},
 	.probe	= pca955x_probe,
 	.remove	= pca955x_remove,

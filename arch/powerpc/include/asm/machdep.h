@@ -36,13 +36,13 @@ struct machdep_calls {
 #ifdef CONFIG_PPC64
 	void            (*hpte_invalidate)(unsigned long slot,
 					   unsigned long vpn,
-					   int psize, int ssize,
-					   int local);
+					   int bpsize, int apsize,
+					   int ssize, int local);
 	long		(*hpte_updatepp)(unsigned long slot, 
 					 unsigned long newpp, 
 					 unsigned long vpn,
-					 int psize, int ssize,
-					 int local);
+					 int bpsize, int apsize,
+					 int ssize, unsigned long flags);
 	void            (*hpte_updateboltedpp)(unsigned long newpp, 
 					       unsigned long ea,
 					       int psize, int ssize);
@@ -57,23 +57,18 @@ struct machdep_calls {
 	void            (*hpte_removebolted)(unsigned long ea,
 					     int psize, int ssize);
 	void		(*flush_hash_range)(unsigned long number, int local);
-
-	/* special for kexec, to be called in real mode, linear mapping is
-	 * destroyed as well */
+	void		(*hugepage_invalidate)(unsigned long vsid,
+					       unsigned long addr,
+					       unsigned char *hpte_slot_array,
+					       int psize, int ssize, int local);
+	/*
+	 * Special for kexec.
+	 * To be called in real mode with interrupts disabled. No locks are
+	 * taken as such, concurrent access on pre POWER5 hardware could result
+	 * in a deadlock.
+	 * The linear mapping is destroyed as well.
+	 */
 	void		(*hpte_clear_all)(void);
-
-	int		(*tce_build)(struct iommu_table *tbl,
-				     long index,
-				     long npages,
-				     unsigned long uaddr,
-				     enum dma_data_direction direction,
-				     struct dma_attrs *attrs);
-	void		(*tce_free)(struct iommu_table *tbl,
-				    long index,
-				    long npages);
-	unsigned long	(*tce_get)(struct iommu_table *tbl,
-				    long index);
-	void		(*tce_flush)(struct iommu_table *tbl);
 
 	void __iomem *	(*ioremap)(phys_addr_t addr, unsigned long size,
 				   unsigned long flags, void *caller);
@@ -83,10 +78,10 @@ struct machdep_calls {
 	void		(*iommu_save)(void);
 	void		(*iommu_restore)(void);
 #endif
+#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+	unsigned long	(*memory_block_size)(void);
+#endif
 #endif /* CONFIG_PPC64 */
-
-	void		(*pci_dma_dev_setup)(struct pci_dev *dev);
-	void		(*pci_dma_bus_setup)(struct pci_bus *bus);
 
 	/* Platform set_dma_mask and dma_get_required_mask overrides */
 	int		(*dma_set_mask)(struct device *dev, u64 dma_mask);
@@ -98,6 +93,8 @@ struct machdep_calls {
 	/* Optional, may be NULL. */
 	void		(*show_cpuinfo)(struct seq_file *m);
 	void		(*show_percpuinfo)(struct seq_file *m, int i);
+	/* Returns the current operating frequency of "cpu" in Hz */
+	unsigned long  	(*get_proc_freq)(unsigned int cpu);
 
 	void		(*init_IRQ)(void);
 
@@ -105,9 +102,8 @@ struct machdep_calls {
 	unsigned int	(*get_irq)(void);
 
 	/* PCI stuff */
-	/* Called after scanning the bus, before allocating resources */
+	/* Called after allocating resources */
 	void		(*pcibios_fixup)(void);
-	int		(*pci_probe_mode)(struct pci_bus *);
 	void		(*pci_irq_fixup)(struct pci_dev *dev);
 	int		(*pcibios_root_bridge_prepare)(struct pci_host_bridge
 				*bridge);
@@ -115,16 +111,7 @@ struct machdep_calls {
 	/* To setup PHBs when using automatic OF platform driver for PCI */
 	int		(*pci_setup_phb)(struct pci_controller *host);
 
-#ifdef CONFIG_PCI_MSI
-	int		(*msi_check_device)(struct pci_dev* dev,
-					    int nvec, int type);
-	int		(*setup_msi_irqs)(struct pci_dev *dev,
-					  int nvec, int type);
-	void		(*teardown_msi_irqs)(struct pci_dev *dev);
-#endif
-
 	void		(*restart)(char *cmd);
-	void		(*power_off)(void);
 	void		(*halt)(void);
 	void		(*panic)(char *str);
 	void		(*cpu_die)(void);
@@ -154,6 +141,13 @@ struct machdep_calls {
 	/* Exception handlers */
 	int		(*system_reset_exception)(struct pt_regs *regs);
 	int 		(*machine_check_exception)(struct pt_regs *regs);
+	int		(*handle_hmi_exception)(struct pt_regs *regs);
+
+	/* Early exception handlers called in realmode */
+	int		(*hmi_exception_early)(struct pt_regs *regs);
+
+	/* Called during machine check exception to retrive fixup address. */
+	bool		(*mce_check_early_recovery)(struct pt_regs *regs);
 
 	/* Motherboard/chipset features. This is a kind of general purpose
 	 * hook used to control some machine specific features (like reset
@@ -213,15 +207,13 @@ struct machdep_calls {
 	/* Called for each PCI bus in the system when it's probed */
 	void (*pcibios_fixup_bus)(struct pci_bus *);
 
-	/* Called when pci_enable_device() is called. Returns 0 to
-	 * allow assignment/enabling of the device. */
-	int  (*pcibios_enable_device_hook)(struct pci_dev *);
-
 	/* Called after scan and before resource survey */
 	void (*pcibios_fixup_phb)(struct pci_controller *hose);
 
-	/* Called during PCI resource reassignment */
-	resource_size_t (*pcibios_window_alignment)(struct pci_bus *, unsigned long type);
+#ifdef CONFIG_PCI_IOV
+	void (*pcibios_fixup_sriov)(struct pci_dev *pdev);
+	resource_size_t (*pcibios_iov_resource_alignment)(struct pci_dev *, int resno);
+#endif /* CONFIG_PCI_IOV */
 
 	/* Called to shutdown machine specific hardware not already controlled
 	 * by other drivers.
@@ -260,6 +252,10 @@ struct machdep_calls {
 	ssize_t (*cpu_probe)(const char *, size_t);
 	ssize_t (*cpu_release)(const char *, size_t);
 #endif
+
+#ifdef CONFIG_ARCH_RANDOM
+	int (*get_random_seed)(unsigned long *v);
+#endif
 };
 
 extern void e500_idle(void);
@@ -292,8 +288,6 @@ extern struct machdep_calls *machine_id;
 
 extern void probe_machine(void);
 
-extern char cmd_line[COMMAND_LINE_SIZE];
-
 #ifdef CONFIG_PPC_PMAC
 /*
  * Power macintoshes have either a CUDA, PMU or SMU controlling
@@ -309,16 +303,6 @@ extern sys_ctrler_t sys_ctrler;
 
 #endif /* CONFIG_PPC_PMAC */
 
-
-/* Functions to produce codes on the leds.
- * The SRC code should be unique for the message category and should
- * be limited to the lower 24 bits (the upper 8 are set by these funcs),
- * and (for boot & dump) should be sorted numerically in the order
- * the events occur.
- */
-/* Print a boot progress message. */
-void ppc64_boot_msg(unsigned int src, const char *msg);
-
 static inline void log_error(char *buf, unsigned int err_type, int fatal)
 {
 	if (ppc_md.log_error)
@@ -332,6 +316,7 @@ static inline void log_error(char *buf, unsigned int err_type, int fatal)
 	} \
 	__define_initcall(__machine_initcall_##mach##_##fn, id);
 
+#define machine_early_initcall(mach, fn)	__define_machine_initcall(mach, fn, early)
 #define machine_core_initcall(mach, fn)		__define_machine_initcall(mach, fn, 1)
 #define machine_core_initcall_sync(mach, fn)	__define_machine_initcall(mach, fn, 1s)
 #define machine_postcore_initcall(mach, fn)	__define_machine_initcall(mach, fn, 2)

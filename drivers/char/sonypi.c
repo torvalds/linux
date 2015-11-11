@@ -876,11 +876,6 @@ found:
 	if (useinput)
 		sonypi_report_input_event(event);
 
-#ifdef CONFIG_ACPI
-	if (sonypi_acpi_device)
-		acpi_bus_generate_proc_event(sonypi_acpi_device, 1, event);
-#endif
-
 	kfifo_in_locked(&sonypi_device.fifo, (unsigned char *)&event,
 			sizeof(event), &sonypi_device.fifo_lock);
 	kill_fasync(&sonypi_device.fifo_async, SIGIO, POLL_IN);
@@ -1487,7 +1482,6 @@ static void sonypi_shutdown(struct platform_device *dev)
 static struct platform_driver sonypi_driver = {
 	.driver		= {
 		.name	= "sonypi",
-		.owner	= THIS_MODULE,
 		.pm	= SONYPI_PM,
 	},
 	.probe		= sonypi_probe,

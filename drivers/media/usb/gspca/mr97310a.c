@@ -521,7 +521,7 @@ static int start_cif_cam(struct gspca_dev *gspca_dev)
 	if (sd->sensor_type)
 		data[5] = 0xbb;
 
-	switch (gspca_dev->width) {
+	switch (gspca_dev->pixfmt.width) {
 	case 160:
 		data[9] |= 0x04;  /* reg 8, 2:1 scale down from 320 */
 		/* fall thru */
@@ -618,7 +618,7 @@ static int start_vga_cam(struct gspca_dev *gspca_dev)
 		data[10] = 0x18;
 	}
 
-	switch (gspca_dev->width) {
+	switch (gspca_dev->pixfmt.width) {
 	case 160:
 		data[9] |= 0x0c;  /* reg 8, 4:1 scale down */
 		/* fall thru */
@@ -847,7 +847,7 @@ static void setexposure(struct gspca_dev *gspca_dev, s32 expo, s32 min_clockdiv)
 		u8 clockdiv = (60 * expo + 7999) / 8000;
 
 		/* Limit framerate to not exceed usb bandwidth */
-		if (clockdiv < min_clockdiv && gspca_dev->width >= 320)
+		if (clockdiv < min_clockdiv && gspca_dev->pixfmt.width >= 320)
 			clockdiv = min_clockdiv;
 		else if (clockdiv < 2)
 			clockdiv = 2;

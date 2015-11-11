@@ -78,7 +78,7 @@ Peter Beutner <p.beutner@gmx.net>
 Wilson Michaels <wilsonmichaels@earthlink.net>
   for the lgdt330x frontend driver, and various bugfixes
 
-Michael Krufky <mkrufky@m1k.net>
+Michael Krufky <mkrufky@linuxtv.org>
   for maintaining v4l/dvb inter-tree dependencies
 
 Taylor Jacob <rtjacob@earthlink.net>

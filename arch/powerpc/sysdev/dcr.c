@@ -54,7 +54,7 @@ bool dcr_map_ok_generic(dcr_host_t host)
 	else if (host.type == DCR_HOST_MMIO)
 		return dcr_map_ok_mmio(host.host.mmio);
 	else
-		return 0;
+		return false;
 }
 EXPORT_SYMBOL_GPL(dcr_map_ok_generic);
 
@@ -152,9 +152,9 @@ EXPORT_SYMBOL_GPL(dcr_resource_len);
 
 #ifdef CONFIG_PPC_DCR_MMIO
 
-u64 of_translate_dcr_address(struct device_node *dev,
-			     unsigned int dcr_n,
-			     unsigned int *out_stride)
+static u64 of_translate_dcr_address(struct device_node *dev,
+				    unsigned int dcr_n,
+				    unsigned int *out_stride)
 {
 	struct device_node *dp;
 	const u32 *p;
@@ -230,5 +230,6 @@ EXPORT_SYMBOL_GPL(dcr_unmap_mmio);
 
 #ifdef CONFIG_PPC_DCR_NATIVE
 DEFINE_SPINLOCK(dcr_ind_lock);
+EXPORT_SYMBOL_GPL(dcr_ind_lock);
 #endif	/* defined(CONFIG_PPC_DCR_NATIVE) */
 

@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/rtc.h>
 #include <linux/init.h>
+#include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/bcd.h>
 
@@ -175,7 +176,11 @@ static int pcf8583_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	unsigned char ctrl, year[2];
-	struct rtc_mem mem = { CMOS_YEAR, sizeof(year), year };
+	struct rtc_mem mem = {
+		.loc = CMOS_YEAR,
+		.nr = sizeof(year),
+		.data = year
+	};
 	int real_year, year_offset, err;
 
 	/*
@@ -188,7 +193,8 @@ static int pcf8583_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		dev_warn(dev, "resetting control %02x -> %02x\n",
 			ctrl, new_ctrl);
 
-		if ((err = pcf8583_set_ctrl(client, &new_ctrl)) < 0)
+		err = pcf8583_set_ctrl(client, &new_ctrl);
+		if (err < 0)
 			return err;
 	}
 
@@ -220,8 +226,16 @@ static int pcf8583_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	unsigned char year[2], chk;
-	struct rtc_mem cmos_year  = { CMOS_YEAR, sizeof(year), year };
-	struct rtc_mem cmos_check = { CMOS_CHECKSUM, 1, &chk };
+	struct rtc_mem cmos_year  = {
+		.loc = CMOS_YEAR,
+		.nr = sizeof(year),
+		.data = year
+	};
+	struct rtc_mem cmos_check = {
+		.loc = CMOS_CHECKSUM,
+		.nr = 1,
+		.data = &chk
+	};
 	unsigned int proper_year = tm->tm_year + 1900;
 	int ret;
 
@@ -283,15 +297,7 @@ static int pcf8583_probe(struct i2c_client *client,
 				pcf8583_driver.driver.name,
 				&pcf8583_rtc_ops, THIS_MODULE);
 
-	if (IS_ERR(pcf8583->rtc))
-		return PTR_ERR(pcf8583->rtc);
-
-	return 0;
-}
-
-static int pcf8583_remove(struct i2c_client *client)
-{
-	return 0;
+	return PTR_ERR_OR_ZERO(pcf8583->rtc);
 }
 
 static const struct i2c_device_id pcf8583_id[] = {
@@ -303,10 +309,8 @@ MODULE_DEVICE_TABLE(i2c, pcf8583_id);
 static struct i2c_driver pcf8583_driver = {
 	.driver = {
 		.name	= "pcf8583",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= pcf8583_probe,
-	.remove		= pcf8583_remove,
 	.id_table	= pcf8583_id,
 };
 

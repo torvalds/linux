@@ -1,0 +1,65 @@
+/*
+ * Copyright (C) 2014 STMicroelectronics (R&D) Limited.
+ * Author: Lee Jones <lee.jones@linaro.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * publishhed by the Free Software Foundation.
+ */
+/dts-v1/;
+#include "stih416.dtsi"
+#include "stih41x-b2020.dtsi"
+/ {
+	model = "STiH416 B2020 REV-E";
+	compatible = "st,stih416-b2020", "st,stih416";
+
+	soc {
+		leds {
+			compatible = "gpio-leds";
+			red {
+				#gpio-cells		= <1>;
+				label			= "Front Panel LED";
+				gpios			= <&pio4 1>;
+				linux,default-trigger	= "heartbeat";
+			};
+			green {
+				gpios			= <&pio1 3>;
+				default-state 		= "off";
+			};
+		};
+
+		ethernet1: dwmac@fef08000 {
+			snps,reset-gpio = <&pio0 7>;
+		};
+
+		mmc1: sdhci@fe81f000 {
+			status       = "okay";
+			bus-width    = <8>;
+			non-removable;
+		};
+
+		miphy365x_phy: phy@fe382000 {
+			phy_port0: port@fe382000 {
+				st,sata-gen = <3>;
+			};
+
+			phy_port1: port@fe38a000 {
+				st,pcie-tx-pol-inv;
+			};
+		};
+
+		sata0: sata@fe380000{
+			status = "okay";
+		};
+
+		/* SAS PWM Module */
+		pwm0: pwm@fed10000 {
+			status		= "okay";
+		};
+
+		/* SBC PWM Module */
+		pwm1: pwm@fe510000 {
+			status		= "okay";
+		};
+	};
+};

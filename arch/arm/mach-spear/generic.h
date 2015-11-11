@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2009-2012 ST Microelectronics
  * Rajeev Kumar <rajeev-dlh.kumar@st.com>
- * Viresh Kumar <viresh.linux@gmail.com>
+ * Viresh Kumar <vireshk@kernel.org>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -16,6 +16,8 @@
 #include <linux/dmaengine.h>
 #include <linux/amba/pl08x.h>
 #include <linux/init.h>
+#include <linux/reboot.h>
+
 #include <asm/mach/time.h>
 
 extern void spear13xx_timer_init(void);
@@ -32,10 +34,10 @@ void __init spear6xx_clk_init(void __iomem *misc_base);
 void __init spear13xx_map_io(void);
 void __init spear13xx_l2x0_init(void);
 
-void spear_restart(char, const char *);
+void spear_restart(enum reboot_mode, const char *);
 
 void spear13xx_secondary_startup(void);
-void __cpuinit spear13xx_cpu_die(unsigned int cpu);
+void spear13xx_cpu_die(unsigned int cpu);
 
 extern struct smp_operations spear13xx_smp_ops;
 

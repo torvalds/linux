@@ -46,11 +46,15 @@ void mxr_get_mbus_fmt(struct mxr_device *mdev,
 	struct v4l2_mbus_framefmt *mbus_fmt)
 {
 	struct v4l2_subdev *sd;
+	struct v4l2_subdev_format fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	int ret;
 
 	mutex_lock(&mdev->mutex);
 	sd = to_outsd(mdev);
-	ret = v4l2_subdev_call(sd, video, g_mbus_fmt, mbus_fmt);
+	ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &fmt);
+	*mbus_fmt = fmt.format;
 	WARN(ret, "failed to get mbus_fmt for output %s\n", sd->name);
 	mutex_unlock(&mdev->mutex);
 }
@@ -62,7 +66,10 @@ void mxr_streamer_get(struct mxr_device *mdev)
 	mxr_dbg(mdev, "%s(%d)\n", __func__, mdev->n_streamer);
 	if (mdev->n_streamer == 1) {
 		struct v4l2_subdev *sd = to_outsd(mdev);
-		struct v4l2_mbus_framefmt mbus_fmt;
+		struct v4l2_subdev_format fmt = {
+			.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		};
+		struct v4l2_mbus_framefmt *mbus_fmt = &fmt.format;
 		struct mxr_resources *res = &mdev->res;
 		int ret;
 
@@ -72,12 +79,12 @@ void mxr_streamer_get(struct mxr_device *mdev)
 			clk_set_parent(res->sclk_mixer, res->sclk_hdmi);
 		mxr_reg_s_output(mdev, to_output(mdev)->cookie);
 
-		ret = v4l2_subdev_call(sd, video, g_mbus_fmt, &mbus_fmt);
+		ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &fmt);
 		WARN(ret, "failed to get mbus_fmt for output %s\n", sd->name);
 		ret = v4l2_subdev_call(sd, video, s_stream, 1);
 		WARN(ret, "starting stream failed for output %s\n", sd->name);
 
-		mxr_reg_set_mbus_fmt(mdev, &mbus_fmt);
+		mxr_reg_set_mbus_fmt(mdev, mbus_fmt);
 		mxr_reg_streamon(mdev);
 		ret = mxr_reg_wait4vsync(mdev);
 		WARN(ret, "failed to get vsync (%d) from output\n", ret);
@@ -211,6 +218,15 @@ fail:
 	return ret;
 }
 
+static void mxr_resource_clear_clocks(struct mxr_resources *res)
+{
+	res->mixer	= ERR_PTR(-EINVAL);
+	res->vp		= ERR_PTR(-EINVAL);
+	res->sclk_mixer	= ERR_PTR(-EINVAL);
+	res->sclk_hdmi	= ERR_PTR(-EINVAL);
+	res->sclk_dac	= ERR_PTR(-EINVAL);
+}
+
 static void mxr_release_plat_resources(struct mxr_device *mdev)
 {
 	free_irq(mdev->res.irq, mdev);
@@ -222,15 +238,15 @@ static void mxr_release_clocks(struct mxr_device *mdev)
 {
 	struct mxr_resources *res = &mdev->res;
 
-	if (!IS_ERR_OR_NULL(res->sclk_dac))
+	if (!IS_ERR(res->sclk_dac))
 		clk_put(res->sclk_dac);
-	if (!IS_ERR_OR_NULL(res->sclk_hdmi))
+	if (!IS_ERR(res->sclk_hdmi))
 		clk_put(res->sclk_hdmi);
-	if (!IS_ERR_OR_NULL(res->sclk_mixer))
+	if (!IS_ERR(res->sclk_mixer))
 		clk_put(res->sclk_mixer);
-	if (!IS_ERR_OR_NULL(res->vp))
+	if (!IS_ERR(res->vp))
 		clk_put(res->vp);
-	if (!IS_ERR_OR_NULL(res->mixer))
+	if (!IS_ERR(res->mixer))
 		clk_put(res->mixer);
 }
 
@@ -238,6 +254,8 @@ static int mxr_acquire_clocks(struct mxr_device *mdev)
 {
 	struct mxr_resources *res = &mdev->res;
 	struct device *dev = mdev->dev;
+
+	mxr_resource_clear_clocks(res);
 
 	res->mixer = clk_get(dev, "mixer");
 	if (IS_ERR(res->mixer)) {
@@ -299,6 +317,7 @@ static void mxr_release_resources(struct mxr_device *mdev)
 	mxr_release_clocks(mdev);
 	mxr_release_plat_resources(mdev);
 	memset(&mdev->res, 0, sizeof(mdev->res));
+	mxr_resource_clear_clocks(&mdev->res);
 }
 
 static void mxr_release_layers(struct mxr_device *mdev)
@@ -335,19 +354,41 @@ static int mxr_runtime_resume(struct device *dev)
 {
 	struct mxr_device *mdev = to_mdev(dev);
 	struct mxr_resources *res = &mdev->res;
+	int ret;
 
 	mxr_dbg(mdev, "resume - start\n");
 	mutex_lock(&mdev->mutex);
 	/* turn clocks on */
-	clk_enable(res->mixer);
-	clk_enable(res->vp);
-	clk_enable(res->sclk_mixer);
+	ret = clk_prepare_enable(res->mixer);
+	if (ret < 0) {
+		dev_err(mdev->dev, "clk_prepare_enable(mixer) failed\n");
+		goto fail;
+	}
+	ret = clk_prepare_enable(res->vp);
+	if (ret < 0) {
+		dev_err(mdev->dev, "clk_prepare_enable(vp) failed\n");
+		goto fail_mixer;
+	}
+	ret = clk_prepare_enable(res->sclk_mixer);
+	if (ret < 0) {
+		dev_err(mdev->dev, "clk_prepare_enable(sclk_mixer) failed\n");
+		goto fail_vp;
+	}
 	/* apply default configuration */
 	mxr_reg_reset(mdev);
 	mxr_dbg(mdev, "resume - finished\n");
 
 	mutex_unlock(&mdev->mutex);
 	return 0;
+
+fail_vp:
+	clk_disable_unprepare(res->vp);
+fail_mixer:
+	clk_disable_unprepare(res->mixer);
+fail:
+	mutex_unlock(&mdev->mutex);
+	dev_err(mdev->dev, "resume failed\n");
+	return ret;
 }
 
 static int mxr_runtime_suspend(struct device *dev)
@@ -357,9 +398,9 @@ static int mxr_runtime_suspend(struct device *dev)
 	mxr_dbg(mdev, "suspend - start\n");
 	mutex_lock(&mdev->mutex);
 	/* turn clocks off */
-	clk_disable(res->sclk_mixer);
-	clk_disable(res->vp);
-	clk_disable(res->mixer);
+	clk_disable_unprepare(res->sclk_mixer);
+	clk_disable_unprepare(res->vp);
+	clk_disable_unprepare(res->mixer);
 	mutex_unlock(&mdev->mutex);
 	mxr_dbg(mdev, "suspend - finished\n");
 	return 0;
@@ -453,7 +494,6 @@ static struct platform_driver mxr_driver __refdata = {
 	.remove = mxr_remove,
 	.driver = {
 		.name = MXR_DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.pm = &mxr_pm_ops,
 	}
 };

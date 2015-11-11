@@ -183,7 +183,8 @@ void hpfs_write_inode(struct inode *i)
 	struct inode *parent;
 	if (i->i_ino == hpfs_sb(i->i_sb)->sb_root) return;
 	if (hpfs_inode->i_rddir_off && !atomic_read(&i->i_count)) {
-		if (*hpfs_inode->i_rddir_off) printk("HPFS: write_inode: some position still there\n");
+		if (*hpfs_inode->i_rddir_off)
+			pr_err("write_inode: some position still there\n");
 		kfree(hpfs_inode->i_rddir_off);
 		hpfs_inode->i_rddir_off = NULL;
 	}
@@ -256,7 +257,7 @@ void hpfs_write_inode_nolock(struct inode *i)
 
 int hpfs_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int error = -EINVAL;
 
 	hpfs_lock(inode->i_sb);
@@ -304,7 +305,7 @@ void hpfs_write_if_changed(struct inode *inode)
 
 void hpfs_evict_inode(struct inode *inode)
 {
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
 	if (!inode->i_nlink) {
 		hpfs_lock(inode->i_sb);

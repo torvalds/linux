@@ -19,6 +19,28 @@ static const struct inode_operations proc_sys_inode_operations;
 static const struct file_operations proc_sys_dir_file_operations;
 static const struct inode_operations proc_sys_dir_operations;
 
+/* Support for permanently empty directories */
+
+struct ctl_table sysctl_mount_point[] = {
+	{ }
+};
+
+static bool is_empty_dir(struct ctl_table_header *head)
+{
+	return head->ctl_table[0].child == sysctl_mount_point;
+}
+
+static void set_empty_dir(struct ctl_dir *dir)
+{
+	dir->header.ctl_table[0].child = sysctl_mount_point;
+}
+
+static void clear_empty_dir(struct ctl_dir *dir)
+
+{
+	dir->header.ctl_table[0].child = NULL;
+}
+
 void proc_sys_poll_notify(struct ctl_table_poll *poll)
 {
 	if (!poll)
@@ -187,6 +209,17 @@ static int insert_header(struct ctl_dir *dir, struct ctl_table_header *header)
 	struct ctl_table *entry;
 	int err;
 
+	/* Is this a permanently empty directory? */
+	if (is_empty_dir(&dir->header))
+		return -EROFS;
+
+	/* Am I creating a permanently empty directory? */
+	if (header->ctl_table == sysctl_mount_point) {
+		if (!RB_EMPTY_ROOT(&dir->root))
+			return -EINVAL;
+		set_empty_dir(dir);
+	}
+
 	dir->header.nreg++;
 	header->parent = dir;
 	err = insert_links(header);
@@ -202,6 +235,8 @@ fail:
 	erase_header(header);
 	put_links(header);
 fail_links:
+	if (header->ctl_table == sysctl_mount_point)
+		clear_empty_dir(dir);
 	header->parent = NULL;
 	drop_sysctl_table(&dir->header);
 	return err;
@@ -419,6 +454,8 @@ static struct inode *proc_sys_make_inode(struct super_block *sb,
 		inode->i_mode |= S_IFDIR;
 		inode->i_op = &proc_sys_dir_operations;
 		inode->i_fop = &proc_sys_dir_file_operations;
+		if (is_empty_dir(head))
+			make_empty_dir_inode(inode);
 	}
 out:
 	return inode;
@@ -573,12 +610,12 @@ out:
 	return ret;
 }
 
-static int proc_sys_fill_cache(struct file *filp, void *dirent,
-				filldir_t filldir,
+static bool proc_sys_fill_cache(struct file *file,
+				struct dir_context *ctx,
 				struct ctl_table_header *head,
 				struct ctl_table *table)
 {
-	struct dentry *child, *dir = filp->f_path.dentry;
+	struct dentry *child, *dir = file->f_path.dentry;
 	struct inode *inode;
 	struct qstr qname;
 	ino_t ino = 0;
@@ -595,106 +632,89 @@ static int proc_sys_fill_cache(struct file *filp, void *dirent,
 			inode = proc_sys_make_inode(dir->d_sb, head, table);
 			if (!inode) {
 				dput(child);
-				return -ENOMEM;
+				return false;
 			} else {
 				d_set_d_op(child, &proc_sys_dentry_operations);
 				d_add(child, inode);
 			}
 		} else {
-			return -ENOMEM;
+			return false;
 		}
 	}
-	inode = child->d_inode;
+	inode = d_inode(child);
 	ino  = inode->i_ino;
 	type = inode->i_mode >> 12;
 	dput(child);
-	return !!filldir(dirent, qname.name, qname.len, filp->f_pos, ino, type);
+	return dir_emit(ctx, qname.name, qname.len, ino, type);
 }
 
-static int proc_sys_link_fill_cache(struct file *filp, void *dirent,
-				    filldir_t filldir,
+static bool proc_sys_link_fill_cache(struct file *file,
+				    struct dir_context *ctx,
 				    struct ctl_table_header *head,
 				    struct ctl_table *table)
 {
-	int err, ret = 0;
+	bool ret = true;
 	head = sysctl_head_grab(head);
 
 	if (S_ISLNK(table->mode)) {
 		/* It is not an error if we can not follow the link ignore it */
-		err = sysctl_follow_link(&head, &table, current->nsproxy);
+		int err = sysctl_follow_link(&head, &table, current->nsproxy);
 		if (err)
 			goto out;
 	}
 
-	ret = proc_sys_fill_cache(filp, dirent, filldir, head, table);
+	ret = proc_sys_fill_cache(file, ctx, head, table);
 out:
 	sysctl_head_finish(head);
 	return ret;
 }
 
-static int scan(struct ctl_table_header *head, ctl_table *table,
+static int scan(struct ctl_table_header *head, struct ctl_table *table,
 		unsigned long *pos, struct file *file,
-		void *dirent, filldir_t filldir)
+		struct dir_context *ctx)
 {
-	int res;
+	bool res;
 
-	if ((*pos)++ < file->f_pos)
-		return 0;
+	if ((*pos)++ < ctx->pos)
+		return true;
 
 	if (unlikely(S_ISLNK(table->mode)))
-		res = proc_sys_link_fill_cache(file, dirent, filldir, head, table);
+		res = proc_sys_link_fill_cache(file, ctx, head, table);
 	else
-		res = proc_sys_fill_cache(file, dirent, filldir, head, table);
+		res = proc_sys_fill_cache(file, ctx, head, table);
 
-	if (res == 0)
-		file->f_pos = *pos;
+	if (res)
+		ctx->pos = *pos;
 
 	return res;
 }
 
-static int proc_sys_readdir(struct file *filp, void *dirent, filldir_t filldir)
+static int proc_sys_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct dentry *dentry = filp->f_path.dentry;
-	struct inode *inode = dentry->d_inode;
-	struct ctl_table_header *head = grab_header(inode);
+	struct ctl_table_header *head = grab_header(file_inode(file));
 	struct ctl_table_header *h = NULL;
 	struct ctl_table *entry;
 	struct ctl_dir *ctl_dir;
 	unsigned long pos;
-	int ret = -EINVAL;
 
 	if (IS_ERR(head))
 		return PTR_ERR(head);
 
 	ctl_dir = container_of(head, struct ctl_dir, header);
 
-	ret = 0;
-	/* Avoid a switch here: arm builds fail with missing __cmpdi2 */
-	if (filp->f_pos == 0) {
-		if (filldir(dirent, ".", 1, filp->f_pos,
-				inode->i_ino, DT_DIR) < 0)
-			goto out;
-		filp->f_pos++;
-	}
-	if (filp->f_pos == 1) {
-		if (filldir(dirent, "..", 2, filp->f_pos,
-				parent_ino(dentry), DT_DIR) < 0)
-			goto out;
-		filp->f_pos++;
-	}
+	if (!dir_emit_dots(file, ctx))
+		return 0;
+
 	pos = 2;
 
 	for (first_entry(ctl_dir, &h, &entry); h; next_entry(&h, &entry)) {
-		ret = scan(h, entry, &pos, filp, dirent, filldir);
-		if (ret) {
+		if (!scan(h, entry, &pos, file, ctx)) {
 			sysctl_head_finish(h);
 			break;
 		}
 	}
-	ret = 1;
-out:
 	sysctl_head_finish(head);
-	return ret;
+	return 0;
 }
 
 static int proc_sys_permission(struct inode *inode, int mask)
@@ -727,7 +747,7 @@ static int proc_sys_permission(struct inode *inode, int mask)
 
 static int proc_sys_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int error;
 
 	if (attr->ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID))
@@ -744,7 +764,7 @@ static int proc_sys_setattr(struct dentry *dentry, struct iattr *attr)
 
 static int proc_sys_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct ctl_table_header *head = grab_header(inode);
 	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
 
@@ -769,7 +789,7 @@ static const struct file_operations proc_sys_file_operations = {
 
 static const struct file_operations proc_sys_dir_file_operations = {
 	.read		= generic_read_dir,
-	.readdir	= proc_sys_readdir,
+	.iterate	= proc_sys_readdir,
 	.llseek		= generic_file_llseek,
 };
 
@@ -790,12 +810,12 @@ static int proc_sys_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
-	return !PROC_I(dentry->d_inode)->sysctl->unregistering;
+	return !PROC_I(d_inode(dentry))->sysctl->unregistering;
 }
 
 static int proc_sys_delete(const struct dentry *dentry)
 {
-	return !!PROC_I(dentry->d_inode)->sysctl->unregistering;
+	return !!PROC_I(d_inode(dentry))->sysctl->unregistering;
 }
 
 static int sysctl_is_seen(struct ctl_table_header *p)
@@ -813,15 +833,16 @@ static int sysctl_is_seen(struct ctl_table_header *p)
 	return res;
 }
 
-static int proc_sys_compare(const struct dentry *parent,
-		const struct inode *pinode,
-		const struct dentry *dentry, const struct inode *inode,
+static int proc_sys_compare(const struct dentry *parent, const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	struct ctl_table_header *head;
+	struct inode *inode;
+
 	/* Although proc doesn't have negative dentries, rcu-walk means
 	 * that inode here can be NULL */
 	/* AV: can it, indeed? */
+	inode = d_inode_rcu(dentry);
 	if (!inode)
 		return 1;
 	if (name->len != len)
@@ -927,7 +948,7 @@ static struct ctl_dir *get_subdir(struct ctl_dir *dir,
 found:
 	subdir->header.nreg++;
 failed:
-	if (unlikely(IS_ERR(subdir))) {
+	if (IS_ERR(subdir)) {
 		pr_err("sysctl could not get directory: ");
 		sysctl_print_dir(dir);
 		pr_cont("/%*.*s %ld\n",

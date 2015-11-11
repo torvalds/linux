@@ -199,7 +199,6 @@ static int tile_edac_mc_remove(struct platform_device *pdev)
 static struct platform_driver tile_edac_mc_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= tile_edac_mc_probe,
 	.remove		= tile_edac_mc_remove,
@@ -257,7 +256,6 @@ static void __exit tile_edac_exit(void)
 		if (!pdev)
 			continue;
 
-		platform_set_drvdata(pdev, NULL);
 		platform_device_unregister(pdev);
 	}
 	platform_driver_unregister(&tile_edac_mc_driver);

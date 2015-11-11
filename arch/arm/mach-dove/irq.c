@@ -69,13 +69,14 @@ static struct irq_chip pmu_irq_chip = {
 	.irq_ack	= pmu_irq_ack,
 };
 
-static void pmu_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void pmu_irq_handler(struct irq_desc *desc)
 {
 	unsigned long cause = readl(PMU_INTERRUPT_CAUSE);
+	unsigned int irq;
 
 	cause &= readl(PMU_INTERRUPT_MASK);
 	if (cause == 0) {
-		do_bad_IRQ(irq, desc);
+		do_bad_IRQ(desc);
 		return;
 	}
 
@@ -108,12 +109,48 @@ static int __initdata gpio2_irqs[4] = {
 	0,
 };
 
+#ifdef CONFIG_MULTI_IRQ_HANDLER
+/*
+ * Compiling with both non-DT and DT support enabled, will
+ * break asm irq handler used by non-DT boards. Therefore,
+ * we provide a C-style irq handler even for non-DT boards,
+ * if MULTI_IRQ_HANDLER is set.
+ */
+
+static void __iomem *dove_irq_base = IRQ_VIRT_BASE;
+
+static asmlinkage void
+__exception_irq_entry dove_legacy_handle_irq(struct pt_regs *regs)
+{
+	u32 stat;
+
+	stat = readl_relaxed(dove_irq_base + IRQ_CAUSE_LOW_OFF);
+	stat &= readl_relaxed(dove_irq_base + IRQ_MASK_LOW_OFF);
+	if (stat) {
+		unsigned int hwirq = 1 + __fls(stat);
+		handle_IRQ(hwirq, regs);
+		return;
+	}
+	stat = readl_relaxed(dove_irq_base + IRQ_CAUSE_HIGH_OFF);
+	stat &= readl_relaxed(dove_irq_base + IRQ_MASK_HIGH_OFF);
+	if (stat) {
+		unsigned int hwirq = 33 + __fls(stat);
+		handle_IRQ(hwirq, regs);
+		return;
+	}
+}
+#endif
+
 void __init dove_init_irq(void)
 {
 	int i;
 
-	orion_irq_init(0, IRQ_VIRT_BASE + IRQ_MASK_LOW_OFF);
-	orion_irq_init(32, IRQ_VIRT_BASE + IRQ_MASK_HIGH_OFF);
+	orion_irq_init(1, IRQ_VIRT_BASE + IRQ_MASK_LOW_OFF);
+	orion_irq_init(33, IRQ_VIRT_BASE + IRQ_MASK_HIGH_OFF);
+
+#ifdef CONFIG_MULTI_IRQ_HANDLER
+	set_handle_irq(dove_legacy_handle_irq);
+#endif
 
 	/*
 	 * Initialize gpiolib for GPIOs 0-71.
@@ -136,7 +173,7 @@ void __init dove_init_irq(void)
 	for (i = IRQ_DOVE_PMU_START; i < NR_IRQS; i++) {
 		irq_set_chip_and_handler(i, &pmu_irq_chip, handle_level_irq);
 		irq_set_status_flags(i, IRQ_LEVEL);
-		set_irq_flags(i, IRQF_VALID);
+		irq_clear_status_flags(i, IRQ_NOREQUEST);
 	}
 	irq_set_chained_handler(IRQ_DOVE_PMU, pmu_irq_handler);
 }

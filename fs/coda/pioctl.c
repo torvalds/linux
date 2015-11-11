@@ -16,7 +16,7 @@
 #include <linux/string.h>
 #include <linux/namei.h>
 #include <linux/module.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/coda.h>
 #include <linux/coda_psdev.h>
@@ -72,7 +72,7 @@ static long coda_pioctl(struct file *filp, unsigned int cmd,
 	if (error)
 		return error;
 
-	target_inode = path.dentry->d_inode;
+	target_inode = d_inode(path.dentry);
 
 	/* return if it is not a Coda inode */
 	if (target_inode->i_sb != inode->i_sb) {

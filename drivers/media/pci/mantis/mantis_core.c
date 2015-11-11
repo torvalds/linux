@@ -56,29 +56,6 @@ static int read_eeprom_byte(struct mantis_pci *mantis, u8 *data, u8 length)
 	return 0;
 }
 
-static int write_eeprom_byte(struct mantis_pci *mantis, u8 *data, u8 length)
-{
-	int err;
-
-	struct i2c_msg msg = {
-		.addr = 0x50,
-		.flags = 0,
-		.buf = data,
-		.len = length
-	};
-
-	err = i2c_transfer(&mantis->adapter, &msg, 1);
-	if (err < 0) {
-		dprintk(verbose, MANTIS_ERROR, 1,
-			"ERROR: i2c write: < err=%i length=0x%02x d0=0x%02x, d1=0x%02x >",
-			err, length, data[0], data[1]);
-
-		return err;
-	}
-
-	return 0;
-}
-
 static int get_mac_address(struct mantis_pci *mantis)
 {
 	int err;

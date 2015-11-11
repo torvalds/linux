@@ -1,29 +1,25 @@
-/*******************************************************************************
-
-  Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2013 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* Intel(R) Gigabit Ethernet Linux driver
+ * Copyright(c) 2007-2015 Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, see <http://www.gnu.org/licenses/>.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
+ *
+ * Contact Information:
+ * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ */
 
 #include <linux/if_ether.h>
 #include <linux/delay.h>
@@ -40,9 +36,6 @@ static s32  igb_set_master_slave_mode(struct e1000_hw *hw);
 /* Cable length tables */
 static const u16 e1000_m88_cable_length_table[] = {
 	0, 50, 80, 110, 140, 140, E1000_CABLE_LENGTH_UNDEFINED };
-#define M88E1000_CABLE_LENGTH_TABLE_SIZE \
-	(sizeof(e1000_m88_cable_length_table) / \
-	sizeof(e1000_m88_cable_length_table[0]))
 
 static const u16 e1000_igp_2_cable_length_table[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 3, 5, 8, 11, 13, 16, 18, 21,
@@ -53,9 +46,6 @@ static const u16 e1000_igp_2_cable_length_table[] = {
 	60, 66, 72, 77, 82, 87, 92, 96, 100, 104, 108, 111, 114, 117, 119, 121,
 	83, 89, 95, 100, 105, 109, 113, 116, 119, 122, 124,
 	104, 109, 114, 118, 121, 124};
-#define IGP02E1000_CABLE_LENGTH_TABLE_SIZE \
-	(sizeof(e1000_igp_2_cable_length_table) / \
-	 sizeof(e1000_igp_2_cable_length_table[0]))
 
 /**
  *  igb_check_reset_block - Check if PHY reset is blocked
@@ -341,6 +331,59 @@ s32 igb_write_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 data)
 }
 
 /**
+ *  igb_read_sfp_data_byte - Reads SFP module data.
+ *  @hw: pointer to the HW structure
+ *  @offset: byte location offset to be read
+ *  @data: read data buffer pointer
+ *
+ *  Reads one byte from SFP module data stored
+ *  in SFP resided EEPROM memory or SFP diagnostic area.
+ *  Function should be called with
+ *  E1000_I2CCMD_SFP_DATA_ADDR(<byte offset>) for SFP module database access
+ *  E1000_I2CCMD_SFP_DIAG_ADDR(<byte offset>) for SFP diagnostics parameters
+ *  access
+ **/
+s32 igb_read_sfp_data_byte(struct e1000_hw *hw, u16 offset, u8 *data)
+{
+	u32 i = 0;
+	u32 i2ccmd = 0;
+	u32 data_local = 0;
+
+	if (offset > E1000_I2CCMD_SFP_DIAG_ADDR(255)) {
+		hw_dbg("I2CCMD command address exceeds upper limit\n");
+		return -E1000_ERR_PHY;
+	}
+
+	/* Set up Op-code, EEPROM Address,in the I2CCMD
+	 * register. The MAC will take care of interfacing with the
+	 * EEPROM to retrieve the desired data.
+	 */
+	i2ccmd = ((offset << E1000_I2CCMD_REG_ADDR_SHIFT) |
+		  E1000_I2CCMD_OPCODE_READ);
+
+	wr32(E1000_I2CCMD, i2ccmd);
+
+	/* Poll the ready bit to see if the I2C read completed */
+	for (i = 0; i < E1000_I2CCMD_PHY_TIMEOUT; i++) {
+		udelay(50);
+		data_local = rd32(E1000_I2CCMD);
+		if (data_local & E1000_I2CCMD_READY)
+			break;
+	}
+	if (!(data_local & E1000_I2CCMD_READY)) {
+		hw_dbg("I2CCMD Read did not complete\n");
+		return -E1000_ERR_PHY;
+	}
+	if (data_local & E1000_I2CCMD_ERROR) {
+		hw_dbg("I2CCMD Error bit set\n");
+		return -E1000_ERR_PHY;
+	}
+	*data = (u8) data_local & 0xFF;
+
+	return 0;
+}
+
+/**
  *  igb_read_phy_reg_igp - Read igp PHY register
  *  @hw: pointer to the HW structure
  *  @offset: register offset to be read
@@ -584,11 +627,6 @@ s32 igb_copper_link_setup_m88(struct e1000_hw *hw)
 		hw_dbg("Error committing the PHY changes\n");
 		goto out;
 	}
-	if (phy->type == e1000_phy_i210) {
-		ret_val = igb_set_master_slave_mode(hw);
-		if (ret_val)
-			return ret_val;
-	}
 
 out:
 	return ret_val;
@@ -607,15 +645,13 @@ s32 igb_copper_link_setup_m88_gen2(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 phy_data;
 
-	if (phy->reset_disable) {
-		ret_val = 0;
-		goto out;
-	}
+	if (phy->reset_disable)
+		return 0;
 
 	/* Enable CRS on Tx. This must be set for half-duplex operation. */
 	ret_val = phy->ops.read_reg(hw, M88E1000_PHY_SPEC_CTRL, &phy_data);
 	if (ret_val)
-		goto out;
+		return ret_val;
 
 	/* Options:
 	 *   MDI/MDI-X = 0 (default)
@@ -656,23 +692,39 @@ s32 igb_copper_link_setup_m88_gen2(struct e1000_hw *hw)
 		phy_data |= M88E1000_PSCR_POLARITY_REVERSAL;
 
 	/* Enable downshift and setting it to X6 */
+	if (phy->id == M88E1543_E_PHY_ID) {
+		phy_data &= ~I347AT4_PSCR_DOWNSHIFT_ENABLE;
+		ret_val =
+		    phy->ops.write_reg(hw, M88E1000_PHY_SPEC_CTRL, phy_data);
+		if (ret_val)
+			return ret_val;
+
+		ret_val = igb_phy_sw_reset(hw);
+		if (ret_val) {
+			hw_dbg("Error committing the PHY changes\n");
+			return ret_val;
+		}
+	}
+
 	phy_data &= ~I347AT4_PSCR_DOWNSHIFT_MASK;
 	phy_data |= I347AT4_PSCR_DOWNSHIFT_6X;
 	phy_data |= I347AT4_PSCR_DOWNSHIFT_ENABLE;
 
 	ret_val = phy->ops.write_reg(hw, M88E1000_PHY_SPEC_CTRL, phy_data);
 	if (ret_val)
-		goto out;
+		return ret_val;
 
 	/* Commit the changes. */
 	ret_val = igb_phy_sw_reset(hw);
 	if (ret_val) {
 		hw_dbg("Error committing the PHY changes\n");
-		goto out;
+		return ret_val;
 	}
+	ret_val = igb_set_master_slave_mode(hw);
+	if (ret_val)
+		return ret_val;
 
-out:
-	return ret_val;
+	return 0;
 }
 
 /**
@@ -863,8 +915,7 @@ static s32 igb_copper_link_autoneg(struct e1000_hw *hw)
 	if (phy->autoneg_wait_to_complete) {
 		ret_val = igb_wait_autoneg(hw);
 		if (ret_val) {
-			hw_dbg("Error while waiting for "
-			       "autoneg to complete\n");
+			hw_dbg("Error while waiting for autoneg to complete\n");
 			goto out;
 		}
 	}
@@ -1211,6 +1262,8 @@ s32 igb_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 			switch (hw->phy.id) {
 			case I347AT4_E_PHY_ID:
 			case M88E1112_E_PHY_ID:
+			case M88E1543_E_PHY_ID:
+			case M88E1512_E_PHY_ID:
 			case I210_I_PHY_ID:
 				reset_dsp = false;
 				break;
@@ -1219,9 +1272,9 @@ s32 igb_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 					reset_dsp = false;
 				break;
 			}
-			if (!reset_dsp)
+			if (!reset_dsp) {
 				hw_dbg("Link taking longer than expected.\n");
-			else {
+			} else {
 				/* We didn't get link.
 				 * Reset the DSP and cross our fingers.
 				 */
@@ -1246,6 +1299,8 @@ s32 igb_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 	if (hw->phy.type != e1000_phy_m88 ||
 	    hw->phy.id == I347AT4_E_PHY_ID ||
 	    hw->phy.id == M88E1112_E_PHY_ID ||
+	    hw->phy.id == M88E1543_E_PHY_ID ||
+	    hw->phy.id == M88E1512_E_PHY_ID ||
 	    hw->phy.id == I210_I_PHY_ID)
 		goto out;
 
@@ -1595,7 +1650,10 @@ s32 igb_phy_has_link(struct e1000_hw *hw, u32 iterations,
 			 * ownership of the resources, wait and try again to
 			 * see if they have relinquished the resources yet.
 			 */
-			udelay(usec_interval);
+			if (usec_interval >= 1000)
+				mdelay(usec_interval/1000);
+			else
+				udelay(usec_interval);
 		}
 		ret_val = hw->phy.ops.read_reg(hw, PHY_STATUS, &phy_status);
 		if (ret_val)
@@ -1640,7 +1698,7 @@ s32 igb_get_cable_length_m88(struct e1000_hw *hw)
 
 	index = (phy_data & M88E1000_PSSR_CABLE_LENGTH) >>
 		M88E1000_PSSR_CABLE_LENGTH_SHIFT;
-	if (index >= M88E1000_CABLE_LENGTH_TABLE_SIZE - 1) {
+	if (index >= ARRAY_SIZE(e1000_m88_cable_length_table) - 1) {
 		ret_val = -E1000_ERR_PHY;
 		goto out;
 	}
@@ -1682,7 +1740,8 @@ s32 igb_get_cable_length_m88_gen2(struct e1000_hw *hw)
 		phy->max_cable_length = phy_data / (is_cm ? 100 : 1);
 		phy->cable_length = phy_data / (is_cm ? 100 : 1);
 		break;
-	case M88E1545_E_PHY_ID:
+	case M88E1543_E_PHY_ID:
+	case M88E1512_E_PHY_ID:
 	case I347AT4_E_PHY_ID:
 		/* Remember the original page select and set it to 7 */
 		ret_val = phy->ops.read_reg(hw, I347AT4_PAGE_SELECT,
@@ -1736,7 +1795,7 @@ s32 igb_get_cable_length_m88_gen2(struct e1000_hw *hw)
 
 		index = (phy_data & M88E1000_PSSR_CABLE_LENGTH) >>
 			M88E1000_PSSR_CABLE_LENGTH_SHIFT;
-		if (index >= M88E1000_CABLE_LENGTH_TABLE_SIZE - 1) {
+		if (index >= ARRAY_SIZE(e1000_m88_cable_length_table) - 1) {
 			ret_val = -E1000_ERR_PHY;
 			goto out;
 		}
@@ -1780,7 +1839,7 @@ s32 igb_get_cable_length_igp_2(struct e1000_hw *hw)
 	s32 ret_val = 0;
 	u16 phy_data, i, agc_value = 0;
 	u16 cur_agc_index, max_agc_index = 0;
-	u16 min_agc_index = IGP02E1000_CABLE_LENGTH_TABLE_SIZE - 1;
+	u16 min_agc_index = ARRAY_SIZE(e1000_igp_2_cable_length_table) - 1;
 	static const u16 agc_reg_array[IGP02E1000_PHY_CHANNEL_NUM] = {
 		IGP02E1000_PHY_AGC_A,
 		IGP02E1000_PHY_AGC_B,
@@ -1803,7 +1862,7 @@ s32 igb_get_cable_length_igp_2(struct e1000_hw *hw)
 				IGP02E1000_AGC_LENGTH_MASK;
 
 		/* Array index bound check. */
-		if ((cur_agc_index >= IGP02E1000_CABLE_LENGTH_TABLE_SIZE) ||
+		if ((cur_agc_index >= ARRAY_SIZE(e1000_igp_2_cable_length_table)) ||
 		    (cur_agc_index == 0)) {
 			ret_val = -E1000_ERR_PHY;
 			goto out;
@@ -2014,7 +2073,7 @@ out:
  *  Verify the reset block is not blocking us from resetting.  Acquire
  *  semaphore (if necessary) and read/set/write the device control reset
  *  bit in the PHY.  Wait the appropriate delay time for the device to
- *  reset and relase the semaphore (if necessary).
+ *  reset and release the semaphore (if necessary).
  **/
 s32 igb_phy_hw_reset(struct e1000_hw *hw)
 {
@@ -2135,6 +2194,90 @@ s32 igb_phy_init_script_igp3(struct e1000_hw *hw)
 }
 
 /**
+ *  igb_initialize_M88E1512_phy - Initialize M88E1512 PHY
+ *  @hw: pointer to the HW structure
+ *
+ *  Initialize Marvel 1512 to work correctly with Avoton.
+ **/
+s32 igb_initialize_M88E1512_phy(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val = 0;
+
+	/* Switch to PHY page 0xFF. */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1543_PAGE_ADDR, 0x00FF);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_2, 0x214B);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_1, 0x2144);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_2, 0x0C28);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_1, 0x2146);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_2, 0xB233);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_1, 0x214D);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_2, 0xCC0C);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_1, 0x2159);
+	if (ret_val)
+		goto out;
+
+	/* Switch to PHY page 0xFB. */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1543_PAGE_ADDR, 0x00FB);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_3, 0x000D);
+	if (ret_val)
+		goto out;
+
+	/* Switch to PHY page 0x12. */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1543_PAGE_ADDR, 0x12);
+	if (ret_val)
+		goto out;
+
+	/* Change mode to SGMII-to-Copper */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_MODE, 0x8001);
+	if (ret_val)
+		goto out;
+
+	/* Return the PHY to page 0. */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1543_PAGE_ADDR, 0);
+	if (ret_val)
+		goto out;
+
+	ret_val = igb_phy_sw_reset(hw);
+	if (ret_val) {
+		hw_dbg("Error committing the PHY changes\n");
+		return ret_val;
+	}
+
+	/* msec_delay(1000); */
+	usleep_range(1000, 2000);
+out:
+	return ret_val;
+}
+
+/**
  * igb_power_up_phy_copper - Restore copper link in case of PHY power down
  * @hw: pointer to the HW structure
  *
@@ -2144,16 +2287,10 @@ s32 igb_phy_init_script_igp3(struct e1000_hw *hw)
 void igb_power_up_phy_copper(struct e1000_hw *hw)
 {
 	u16 mii_reg = 0;
-	u16 power_reg = 0;
 
 	/* The PHY will retain its settings across a power down/up cycle */
 	hw->phy.ops.read_reg(hw, PHY_CONTROL, &mii_reg);
 	mii_reg &= ~MII_CR_POWER_DOWN;
-	if (hw->phy.type == e1000_phy_i210) {
-		hw->phy.ops.read_reg(hw, GS40G_COPPER_SPEC, &power_reg);
-		power_reg &= ~GS40G_CS_POWER_DOWN;
-		hw->phy.ops.write_reg(hw, GS40G_COPPER_SPEC, power_reg);
-	}
 	hw->phy.ops.write_reg(hw, PHY_CONTROL, mii_reg);
 }
 
@@ -2167,20 +2304,12 @@ void igb_power_up_phy_copper(struct e1000_hw *hw)
 void igb_power_down_phy_copper(struct e1000_hw *hw)
 {
 	u16 mii_reg = 0;
-	u16 power_reg = 0;
 
 	/* The PHY will retain its settings across a power down/up cycle */
 	hw->phy.ops.read_reg(hw, PHY_CONTROL, &mii_reg);
 	mii_reg |= MII_CR_POWER_DOWN;
-
-	/* i210 Phy requires an additional bit for power up/down */
-	if (hw->phy.type == e1000_phy_i210) {
-		hw->phy.ops.read_reg(hw, GS40G_COPPER_SPEC, &power_reg);
-		power_reg |= GS40G_CS_POWER_DOWN;
-		hw->phy.ops.write_reg(hw, GS40G_COPPER_SPEC, power_reg);
-	}
 	hw->phy.ops.write_reg(hw, PHY_CONTROL, mii_reg);
-	msleep(1);
+	usleep_range(1000, 2000);
 }
 
 /**

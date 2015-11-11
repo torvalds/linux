@@ -196,6 +196,7 @@
  *		14 Jun 2005	macro		Use irqreturn_t.
  *		23 Oct 2006	macro		Big-endian host support.
  *		14 Dec 2006	macro		TURBOchannel support.
+ *		01 Jul 2014	macro		Fixes for DMA on 64-bit hosts.
  */
 
 /* Include files */
@@ -206,7 +207,6 @@
 #include <linux/eisa.h>
 #include <linux/errno.h>
 #include <linux/fddidevice.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
@@ -225,8 +225,8 @@
 
 /* Version information string should be updated prior to each new release!  */
 #define DRV_NAME "defxx"
-#define DRV_VERSION "v1.10"
-#define DRV_RELDATE "2006/12/14"
+#define DRV_VERSION "v1.11"
+#define DRV_RELDATE "2014/07/01"
 
 static char version[] =
 	DRV_NAME ": " DRV_VERSION " " DRV_RELDATE
@@ -240,12 +240,6 @@ static char version[] =
  * alignment for compatibility with old EISA boards.
  */
 #define NEW_SKB_SIZE (PI_RCV_DATA_K_SIZE_MAX+128)
-
-#ifdef CONFIG_PCI
-#define DFX_BUS_PCI(dev) (dev->bus == &pci_bus_type)
-#else
-#define DFX_BUS_PCI(dev) 0
-#endif
 
 #ifdef CONFIG_EISA
 #define DFX_BUS_EISA(dev) (dev->bus == &eisa_bus_type)
@@ -298,7 +292,11 @@ static int		dfx_hw_dma_uninit(DFX_board_t *bp, PI_UINT32 type);
 
 static int		dfx_rcv_init(DFX_board_t *bp, int get_buffers);
 static void		dfx_rcv_queue_process(DFX_board_t *bp);
+#ifdef DYNAMIC_BUFFERS
 static void		dfx_rcv_flush(DFX_board_t *bp);
+#else
+static inline void	dfx_rcv_flush(DFX_board_t *bp) {}
+#endif
 
 static netdev_tx_t dfx_xmt_queue_pkt(struct sk_buff *skb,
 				     struct net_device *dev);
@@ -416,7 +414,7 @@ static void dfx_port_read_long(DFX_board_t *bp, int offset, u32 *data)
  * ================
  *
  * Overview:
- *   Retrieves the address range used to access control and status
+ *   Retrieves the address ranges used to access control and status
  *   registers.
  *
  * Returns:
@@ -424,8 +422,8 @@ static void dfx_port_read_long(DFX_board_t *bp, int offset, u32 *data)
  *
  * Arguments:
  *   bdev	- pointer to device information
- *   bar_start	- pointer to store the start address
- *   bar_len	- pointer to store the length of the area
+ *   bar_start	- pointer to store the start addresses
+ *   bar_len	- pointer to store the lengths of the areas
  *
  * Assumptions:
  *   I am sure there are some.
@@ -436,7 +434,7 @@ static void dfx_port_read_long(DFX_board_t *bp, int offset, u32 *data)
 static void dfx_get_bars(struct device *bdev,
 			 resource_size_t *bar_start, resource_size_t *bar_len)
 {
-	int dfx_bus_pci = DFX_BUS_PCI(bdev);
+	int dfx_bus_pci = dev_is_pci(bdev);
 	int dfx_bus_eisa = DFX_BUS_EISA(bdev);
 	int dfx_bus_tc = DFX_BUS_TC(bdev);
 	int dfx_use_mmio = DFX_MMIO || dfx_bus_tc;
@@ -444,37 +442,47 @@ static void dfx_get_bars(struct device *bdev,
 	if (dfx_bus_pci) {
 		int num = dfx_use_mmio ? 0 : 1;
 
-		*bar_start = pci_resource_start(to_pci_dev(bdev), num);
-		*bar_len = pci_resource_len(to_pci_dev(bdev), num);
+		bar_start[0] = pci_resource_start(to_pci_dev(bdev), num);
+		bar_len[0] = pci_resource_len(to_pci_dev(bdev), num);
+		bar_start[2] = bar_start[1] = 0;
+		bar_len[2] = bar_len[1] = 0;
 	}
 	if (dfx_bus_eisa) {
 		unsigned long base_addr = to_eisa_device(bdev)->base_addr;
-		resource_size_t bar;
+		resource_size_t bar_lo;
+		resource_size_t bar_hi;
 
 		if (dfx_use_mmio) {
-			bar = inb(base_addr + PI_ESIC_K_MEM_ADD_CMP_2);
-			bar <<= 8;
-			bar |= inb(base_addr + PI_ESIC_K_MEM_ADD_CMP_1);
-			bar <<= 8;
-			bar |= inb(base_addr + PI_ESIC_K_MEM_ADD_CMP_0);
-			bar <<= 16;
-			*bar_start = bar;
-			bar = inb(base_addr + PI_ESIC_K_MEM_ADD_MASK_2);
-			bar <<= 8;
-			bar |= inb(base_addr + PI_ESIC_K_MEM_ADD_MASK_1);
-			bar <<= 8;
-			bar |= inb(base_addr + PI_ESIC_K_MEM_ADD_MASK_0);
-			bar <<= 16;
-			*bar_len = (bar | PI_MEM_ADD_MASK_M) + 1;
+			bar_lo = inb(base_addr + PI_ESIC_K_MEM_ADD_LO_CMP_2);
+			bar_lo <<= 8;
+			bar_lo |= inb(base_addr + PI_ESIC_K_MEM_ADD_LO_CMP_1);
+			bar_lo <<= 8;
+			bar_lo |= inb(base_addr + PI_ESIC_K_MEM_ADD_LO_CMP_0);
+			bar_lo <<= 8;
+			bar_start[0] = bar_lo;
+			bar_hi = inb(base_addr + PI_ESIC_K_MEM_ADD_HI_CMP_2);
+			bar_hi <<= 8;
+			bar_hi |= inb(base_addr + PI_ESIC_K_MEM_ADD_HI_CMP_1);
+			bar_hi <<= 8;
+			bar_hi |= inb(base_addr + PI_ESIC_K_MEM_ADD_HI_CMP_0);
+			bar_hi <<= 8;
+			bar_len[0] = ((bar_hi - bar_lo) | PI_MEM_ADD_MASK_M) +
+				     1;
 		} else {
-			*bar_start = base_addr;
-			*bar_len = PI_ESIC_K_CSR_IO_LEN;
+			bar_start[0] = base_addr;
+			bar_len[0] = PI_ESIC_K_CSR_IO_LEN;
 		}
+		bar_start[1] = base_addr + PI_DEFEA_K_BURST_HOLDOFF;
+		bar_len[1] = PI_ESIC_K_BURST_HOLDOFF_LEN;
+		bar_start[2] = base_addr + PI_ESIC_K_ESIC_CSR;
+		bar_len[2] = PI_ESIC_K_ESIC_CSR_LEN;
 	}
 	if (dfx_bus_tc) {
-		*bar_start = to_tc_dev(bdev)->resource.start +
-			     PI_TC_K_CSR_OFFSET;
-		*bar_len = PI_TC_K_CSR_LEN;
+		bar_start[0] = to_tc_dev(bdev)->resource.start +
+			       PI_TC_K_CSR_OFFSET;
+		bar_len[0] = PI_TC_K_CSR_LEN;
+		bar_start[2] = bar_start[1] = 0;
+		bar_len[2] = bar_len[1] = 0;
 	}
 }
 
@@ -518,14 +526,15 @@ static const struct net_device_ops dfx_netdev_ops = {
 static int dfx_register(struct device *bdev)
 {
 	static int version_disp;
-	int dfx_bus_pci = DFX_BUS_PCI(bdev);
+	int dfx_bus_pci = dev_is_pci(bdev);
+	int dfx_bus_eisa = DFX_BUS_EISA(bdev);
 	int dfx_bus_tc = DFX_BUS_TC(bdev);
 	int dfx_use_mmio = DFX_MMIO || dfx_bus_tc;
 	const char *print_name = dev_name(bdev);
 	struct net_device *dev;
 	DFX_board_t	  *bp;			/* board pointer */
-	resource_size_t bar_start = 0;		/* pointer to port */
-	resource_size_t bar_len = 0;		/* resource length */
+	resource_size_t bar_start[3];		/* pointers to ports */
+	resource_size_t bar_len[3];		/* resource length */
 	int alloc_size;				/* total buffer size used */
 	struct resource *region;
 	int err = 0;
@@ -543,10 +552,13 @@ static int dfx_register(struct device *bdev)
 	}
 
 	/* Enable PCI device. */
-	if (dfx_bus_pci && pci_enable_device(to_pci_dev(bdev))) {
-		printk(KERN_ERR "%s: Cannot enable PCI device, aborting\n",
-		       print_name);
-		goto err_out;
+	if (dfx_bus_pci) {
+		err = pci_enable_device(to_pci_dev(bdev));
+		if (err) {
+			pr_err("%s: Cannot enable PCI device, aborting\n",
+			       print_name);
+			goto err_out;
+		}
 	}
 
 	SET_NETDEV_DEV(dev, bdev);
@@ -555,31 +567,62 @@ static int dfx_register(struct device *bdev)
 	bp->bus_dev = bdev;
 	dev_set_drvdata(bdev, dev);
 
-	dfx_get_bars(bdev, &bar_start, &bar_len);
+	dfx_get_bars(bdev, bar_start, bar_len);
+	if (dfx_bus_eisa && dfx_use_mmio && bar_start[0] == 0) {
+		pr_err("%s: Cannot use MMIO, no address set, aborting\n",
+		       print_name);
+		pr_err("%s: Run ECU and set adapter's MMIO location\n",
+		       print_name);
+		pr_err("%s: Or recompile driver with \"CONFIG_DEFXX_MMIO=n\""
+		       "\n", print_name);
+		err = -ENXIO;
+		goto err_out;
+	}
 
 	if (dfx_use_mmio)
-		region = request_mem_region(bar_start, bar_len, print_name);
+		region = request_mem_region(bar_start[0], bar_len[0],
+					    print_name);
 	else
-		region = request_region(bar_start, bar_len, print_name);
+		region = request_region(bar_start[0], bar_len[0], print_name);
 	if (!region) {
-		printk(KERN_ERR "%s: Cannot reserve I/O resource "
-		       "0x%lx @ 0x%lx, aborting\n",
-		       print_name, (long)bar_len, (long)bar_start);
+		pr_err("%s: Cannot reserve %s resource 0x%lx @ 0x%lx, "
+		       "aborting\n", dfx_use_mmio ? "MMIO" : "I/O", print_name,
+		       (long)bar_len[0], (long)bar_start[0]);
 		err = -EBUSY;
 		goto err_out_disable;
+	}
+	if (bar_start[1] != 0) {
+		region = request_region(bar_start[1], bar_len[1], print_name);
+		if (!region) {
+			pr_err("%s: Cannot reserve I/O resource "
+			       "0x%lx @ 0x%lx, aborting\n", print_name,
+			       (long)bar_len[1], (long)bar_start[1]);
+			err = -EBUSY;
+			goto err_out_csr_region;
+		}
+	}
+	if (bar_start[2] != 0) {
+		region = request_region(bar_start[2], bar_len[2], print_name);
+		if (!region) {
+			pr_err("%s: Cannot reserve I/O resource "
+			       "0x%lx @ 0x%lx, aborting\n", print_name,
+			       (long)bar_len[2], (long)bar_start[2]);
+			err = -EBUSY;
+			goto err_out_bh_region;
+		}
 	}
 
 	/* Set up I/O base address. */
 	if (dfx_use_mmio) {
-		bp->base.mem = ioremap_nocache(bar_start, bar_len);
+		bp->base.mem = ioremap_nocache(bar_start[0], bar_len[0]);
 		if (!bp->base.mem) {
 			printk(KERN_ERR "%s: Cannot map MMIO\n", print_name);
 			err = -ENOMEM;
-			goto err_out_region;
+			goto err_out_esic_region;
 		}
 	} else {
-		bp->base.port = bar_start;
-		dev->base_addr = bar_start;
+		bp->base.port = bar_start[0];
+		dev->base_addr = bar_start[0];
 	}
 
 	/* Initialize new device structure */
@@ -588,7 +631,7 @@ static int dfx_register(struct device *bdev)
 	if (dfx_bus_pci)
 		pci_set_master(to_pci_dev(bdev));
 
-	if (dfx_driver_init(dev, print_name, bar_start) != DFX_K_SUCCESS) {
+	if (dfx_driver_init(dev, print_name, bar_start[0]) != DFX_K_SUCCESS) {
 		err = -ENODEV;
 		goto err_out_unmap;
 	}
@@ -616,11 +659,19 @@ err_out_unmap:
 	if (dfx_use_mmio)
 		iounmap(bp->base.mem);
 
-err_out_region:
+err_out_esic_region:
+	if (bar_start[2] != 0)
+		release_region(bar_start[2], bar_len[2]);
+
+err_out_bh_region:
+	if (bar_start[1] != 0)
+		release_region(bar_start[1], bar_len[1]);
+
+err_out_csr_region:
 	if (dfx_use_mmio)
-		release_mem_region(bar_start, bar_len);
+		release_mem_region(bar_start[0], bar_len[0]);
 	else
-		release_region(bar_start, bar_len);
+		release_region(bar_start[0], bar_len[0]);
 
 err_out_disable:
 	if (dfx_bus_pci)
@@ -667,7 +718,7 @@ static void dfx_bus_init(struct net_device *dev)
 {
 	DFX_board_t *bp = netdev_priv(dev);
 	struct device *bdev = bp->bus_dev;
-	int dfx_bus_pci = DFX_BUS_PCI(bdev);
+	int dfx_bus_pci = dev_is_pci(bdev);
 	int dfx_bus_eisa = DFX_BUS_EISA(bdev);
 	int dfx_bus_tc = DFX_BUS_TC(bdev);
 	int dfx_use_mmio = DFX_MMIO || dfx_bus_tc;
@@ -684,6 +735,9 @@ static void dfx_bus_init(struct net_device *dev)
 		dev->irq = to_tc_dev(bdev)->interrupt;
 	if (dfx_bus_eisa) {
 		unsigned long base_addr = to_eisa_device(bdev)->base_addr;
+
+		/* Disable the board before fiddling with the decoders.  */
+		outb(0, base_addr + PI_ESIC_K_SLOT_CNTRL);
 
 		/* Get the interrupt level from the ESIC chip.  */
 		val = inb(base_addr + PI_ESIC_K_IO_CONFIG_STAT_0);
@@ -709,40 +763,51 @@ static void dfx_bus_init(struct net_device *dev)
 		}
 
 		/*
-		 * Enable memory decoding (MEMCS0) and/or port decoding
+		 * Enable memory decoding (MEMCS1) and/or port decoding
 		 * (IOCS1/IOCS0) as appropriate in Function Control
-		 * Register.  One of the port chip selects seems to be
-		 * used for the Burst Holdoff register, but this bit of
-		 * documentation is missing and as yet it has not been
-		 * determined which of the two.  This is also the reason
-		 * the size of the decoded port range is twice as large
-		 * as one required by the PDQ.
+		 * Register.  MEMCS1 or IOCS0 is used for PDQ registers,
+		 * taking 16 32-bit words, while IOCS1 is used for the
+		 * Burst Holdoff register, taking a single 32-bit word
+		 * only.  We use the slot-specific I/O range as per the
+		 * ESIC spec, that is set bits 15:12 in the mask registers
+		 * to mask them out.
 		 */
 
 		/* Set the decode range of the board.  */
-		val = ((bp->base.port >> 12) << PI_IO_CMP_V_SLOT);
-		outb(base_addr + PI_ESIC_K_IO_ADD_CMP_0_1, val);
-		outb(base_addr + PI_ESIC_K_IO_ADD_CMP_0_0, 0);
-		outb(base_addr + PI_ESIC_K_IO_ADD_CMP_1_1, val);
-		outb(base_addr + PI_ESIC_K_IO_ADD_CMP_1_0, 0);
-		val = PI_ESIC_K_CSR_IO_LEN - 1;
-		outb(base_addr + PI_ESIC_K_IO_ADD_MASK_0_1, (val >> 8) & 0xff);
-		outb(base_addr + PI_ESIC_K_IO_ADD_MASK_0_0, val & 0xff);
-		outb(base_addr + PI_ESIC_K_IO_ADD_MASK_1_1, (val >> 8) & 0xff);
-		outb(base_addr + PI_ESIC_K_IO_ADD_MASK_1_0, val & 0xff);
+		val = 0;
+		outb(val, base_addr + PI_ESIC_K_IO_ADD_CMP_0_1);
+		val = PI_DEFEA_K_CSR_IO;
+		outb(val, base_addr + PI_ESIC_K_IO_ADD_CMP_0_0);
+
+		val = PI_IO_CMP_M_SLOT;
+		outb(val, base_addr + PI_ESIC_K_IO_ADD_MASK_0_1);
+		val = (PI_ESIC_K_CSR_IO_LEN - 1) & ~3;
+		outb(val, base_addr + PI_ESIC_K_IO_ADD_MASK_0_0);
+
+		val = 0;
+		outb(val, base_addr + PI_ESIC_K_IO_ADD_CMP_1_1);
+		val = PI_DEFEA_K_BURST_HOLDOFF;
+		outb(val, base_addr + PI_ESIC_K_IO_ADD_CMP_1_0);
+
+		val = PI_IO_CMP_M_SLOT;
+		outb(val, base_addr + PI_ESIC_K_IO_ADD_MASK_1_1);
+		val = (PI_ESIC_K_BURST_HOLDOFF_LEN - 1) & ~3;
+		outb(val, base_addr + PI_ESIC_K_IO_ADD_MASK_1_0);
 
 		/* Enable the decoders.  */
-		val = PI_FUNCTION_CNTRL_M_IOCS1 | PI_FUNCTION_CNTRL_M_IOCS0;
+		val = PI_FUNCTION_CNTRL_M_IOCS1;
 		if (dfx_use_mmio)
-			val |= PI_FUNCTION_CNTRL_M_MEMCS0;
-		outb(base_addr + PI_ESIC_K_FUNCTION_CNTRL, val);
+			val |= PI_FUNCTION_CNTRL_M_MEMCS1;
+		else
+			val |= PI_FUNCTION_CNTRL_M_IOCS0;
+		outb(val, base_addr + PI_ESIC_K_FUNCTION_CNTRL);
 
 		/*
 		 * Enable access to the rest of the module
 		 * (including PDQ and packet memory).
 		 */
 		val = PI_SLOT_CNTRL_M_ENB;
-		outb(base_addr + PI_ESIC_K_SLOT_CNTRL, val);
+		outb(val, base_addr + PI_ESIC_K_SLOT_CNTRL);
 
 		/*
 		 * Map PDQ registers into memory or port space.  This is
@@ -750,15 +815,15 @@ static void dfx_bus_init(struct net_device *dev)
 		 */
 		val = inb(base_addr + PI_DEFEA_K_BURST_HOLDOFF);
 		if (dfx_use_mmio)
-			val |= PI_BURST_HOLDOFF_V_MEM_MAP;
+			val |= PI_BURST_HOLDOFF_M_MEM_MAP;
 		else
-			val &= ~PI_BURST_HOLDOFF_V_MEM_MAP;
-		outb(base_addr + PI_DEFEA_K_BURST_HOLDOFF, val);
+			val &= ~PI_BURST_HOLDOFF_M_MEM_MAP;
+		outb(val, base_addr + PI_DEFEA_K_BURST_HOLDOFF);
 
 		/* Enable interrupts at EISA bus interface chip (ESIC) */
 		val = inb(base_addr + PI_ESIC_K_IO_CONFIG_STAT_0);
 		val |= PI_CONFIG_STAT_0_M_INT_ENB;
-		outb(base_addr + PI_ESIC_K_IO_CONFIG_STAT_0, val);
+		outb(val, base_addr + PI_ESIC_K_IO_CONFIG_STAT_0);
 	}
 	if (dfx_bus_pci) {
 		struct pci_dev *pdev = to_pci_dev(bdev);
@@ -813,7 +878,7 @@ static void dfx_bus_uninit(struct net_device *dev)
 {
 	DFX_board_t *bp = netdev_priv(dev);
 	struct device *bdev = bp->bus_dev;
-	int dfx_bus_pci = DFX_BUS_PCI(bdev);
+	int dfx_bus_pci = dev_is_pci(bdev);
 	int dfx_bus_eisa = DFX_BUS_EISA(bdev);
 	u8 val;
 
@@ -827,7 +892,13 @@ static void dfx_bus_uninit(struct net_device *dev)
 		/* Disable interrupts at EISA bus interface chip (ESIC) */
 		val = inb(base_addr + PI_ESIC_K_IO_CONFIG_STAT_0);
 		val &= ~PI_CONFIG_STAT_0_M_INT_ENB;
-		outb(base_addr + PI_ESIC_K_IO_CONFIG_STAT_0, val);
+		outb(val, base_addr + PI_ESIC_K_IO_CONFIG_STAT_0);
+
+		/* Disable the board.  */
+		outb(0, base_addr + PI_ESIC_K_SLOT_CNTRL);
+
+		/* Disable memory and port decoders.  */
+		outb(0, base_addr + PI_ESIC_K_FUNCTION_CNTRL);
 	}
 	if (dfx_bus_pci) {
 		/* Disable interrupts at PCI bus interface chip (PFI) */
@@ -967,7 +1038,7 @@ static int dfx_driver_init(struct net_device *dev, const char *print_name,
 {
 	DFX_board_t *bp = netdev_priv(dev);
 	struct device *bdev = bp->bus_dev;
-	int dfx_bus_pci = DFX_BUS_PCI(bdev);
+	int dfx_bus_pci = dev_is_pci(bdev);
 	int dfx_bus_eisa = DFX_BUS_EISA(bdev);
 	int dfx_bus_tc = DFX_BUS_TC(bdev);
 	int dfx_use_mmio = DFX_MMIO || dfx_bus_tc;
@@ -1051,8 +1122,8 @@ static int dfx_driver_init(struct net_device *dev, const char *print_name,
 		board_name = "DEFEA";
 	if (dfx_bus_pci)
 		board_name = "DEFPA";
-	pr_info("%s: %s at %saddr = 0x%llx, IRQ = %d, Hardware addr = %pMF\n",
-		print_name, board_name, dfx_use_mmio ? "" : "I/O ",
+	pr_info("%s: %s at %s addr = 0x%llx, IRQ = %d, Hardware addr = %pMF\n",
+		print_name, board_name, dfx_use_mmio ? "MMIO" : "I/O",
 		(long long)bar_start, dev->irq, dev->dev_addr);
 
 	/*
@@ -1068,9 +1139,9 @@ static int dfx_driver_init(struct net_device *dev, const char *print_name,
 #endif
 					sizeof(PI_CONSUMER_BLOCK) +
 					(PI_ALIGN_K_DESC_BLK - 1);
-	bp->kmalloced = top_v = dma_alloc_coherent(bp->bus_dev, alloc_size,
-						   &bp->kmalloced_dma,
-						   GFP_ATOMIC | __GFP_ZERO);
+	bp->kmalloced = top_v = dma_zalloc_coherent(bp->bus_dev, alloc_size,
+						    &bp->kmalloced_dma,
+						    GFP_ATOMIC);
 	if (top_v == NULL)
 		return DFX_K_FAILURE;
 
@@ -1129,17 +1200,16 @@ static int dfx_driver_init(struct net_device *dev, const char *print_name,
 
 	/* Display virtual and physical addresses if debug driver */
 
-	DBG_printk("%s: Descriptor block virt = %0lX, phys = %0X\n",
-		   print_name,
-		   (long)bp->descr_block_virt, bp->descr_block_phys);
-	DBG_printk("%s: Command Request buffer virt = %0lX, phys = %0X\n",
-		   print_name, (long)bp->cmd_req_virt, bp->cmd_req_phys);
-	DBG_printk("%s: Command Response buffer virt = %0lX, phys = %0X\n",
-		   print_name, (long)bp->cmd_rsp_virt, bp->cmd_rsp_phys);
-	DBG_printk("%s: Receive buffer block virt = %0lX, phys = %0X\n",
-		   print_name, (long)bp->rcv_block_virt, bp->rcv_block_phys);
-	DBG_printk("%s: Consumer block virt = %0lX, phys = %0X\n",
-		   print_name, (long)bp->cons_block_virt, bp->cons_block_phys);
+	DBG_printk("%s: Descriptor block virt = %p, phys = %pad\n",
+		   print_name, bp->descr_block_virt, &bp->descr_block_phys);
+	DBG_printk("%s: Command Request buffer virt = %p, phys = %pad\n",
+		   print_name, bp->cmd_req_virt, &bp->cmd_req_phys);
+	DBG_printk("%s: Command Response buffer virt = %p, phys = %pad\n",
+		   print_name, bp->cmd_rsp_virt, &bp->cmd_rsp_phys);
+	DBG_printk("%s: Receive buffer block virt = %p, phys = %pad\n",
+		   print_name, bp->rcv_block_virt, &bp->rcv_block_phys);
+	DBG_printk("%s: Consumer block virt = %p, phys = %pad\n",
+		   print_name, bp->cons_block_virt, &bp->cons_block_phys);
 
 	return DFX_K_SUCCESS;
 }
@@ -1877,7 +1947,7 @@ static irqreturn_t dfx_interrupt(int irq, void *dev_id)
 	struct net_device *dev = dev_id;
 	DFX_board_t *bp = netdev_priv(dev);
 	struct device *bdev = bp->bus_dev;
-	int dfx_bus_pci = DFX_BUS_PCI(bdev);
+	int dfx_bus_pci = dev_is_pci(bdev);
 	int dfx_bus_eisa = DFX_BUS_EISA(bdev);
 	int dfx_bus_tc = DFX_BUS_TC(bdev);
 
@@ -1920,7 +1990,7 @@ static irqreturn_t dfx_interrupt(int irq, void *dev_id)
 
 		/* Disable interrupts at the ESIC */
 		status &= ~PI_CONFIG_STAT_0_M_INT_ENB;
-		outb(base_addr + PI_ESIC_K_IO_CONFIG_STAT_0, status);
+		outb(status, base_addr + PI_ESIC_K_IO_CONFIG_STAT_0);
 
 		/* Call interrupt service routine for this adapter */
 		dfx_int_common(dev);
@@ -1928,7 +1998,7 @@ static irqreturn_t dfx_interrupt(int irq, void *dev_id)
 		/* Reenable interrupts at the ESIC */
 		status = inb(base_addr + PI_ESIC_K_IO_CONFIG_STAT_0);
 		status |= PI_CONFIG_STAT_0_M_INT_ENB;
-		outb(base_addr + PI_ESIC_K_IO_CONFIG_STAT_0, status);
+		outb(status, base_addr + PI_ESIC_K_IO_CONFIG_STAT_0);
 
 		spin_unlock(&bp->lock);
 	}
@@ -2856,7 +2926,7 @@ static int dfx_hw_dma_uninit(DFX_board_t *bp, PI_UINT32 type)
  *	Align an sk_buff to a boundary power of 2
  *
  */
-
+#ifdef DYNAMIC_BUFFERS
 static void my_skb_align(struct sk_buff *skb, int n)
 {
 	unsigned long x = (unsigned long)skb->data;
@@ -2866,7 +2936,7 @@ static void my_skb_align(struct sk_buff *skb, int n)
 
 	skb_reserve(skb, v - x);
 }
-
+#endif
 
 /*
  * ================
@@ -2930,21 +3000,35 @@ static int dfx_rcv_init(DFX_board_t *bp, int get_buffers)
 	for (i = 0; i < (int)(bp->rcv_bufs_to_post); i++)
 		for (j = 0; (i + j) < (int)PI_RCV_DATA_K_NUM_ENTRIES; j += bp->rcv_bufs_to_post)
 		{
-			struct sk_buff *newskb = __netdev_alloc_skb(bp->dev, NEW_SKB_SIZE, GFP_NOIO);
+			struct sk_buff *newskb;
+			dma_addr_t dma_addr;
+
+			newskb = __netdev_alloc_skb(bp->dev, NEW_SKB_SIZE,
+						    GFP_NOIO);
 			if (!newskb)
 				return -ENOMEM;
-			bp->descr_block_virt->rcv_data[i+j].long_0 = (u32) (PI_RCV_DESCR_M_SOP |
-				((PI_RCV_DATA_K_SIZE_MAX / PI_ALIGN_K_RCV_DATA_BUFF) << PI_RCV_DESCR_V_SEG_LEN));
 			/*
 			 * align to 128 bytes for compatibility with
 			 * the old EISA boards.
 			 */
 
 			my_skb_align(newskb, 128);
+			dma_addr = dma_map_single(bp->bus_dev,
+						  newskb->data,
+						  PI_RCV_DATA_K_SIZE_MAX,
+						  DMA_FROM_DEVICE);
+			if (dma_mapping_error(bp->bus_dev, dma_addr)) {
+				dev_kfree_skb(newskb);
+				return -ENOMEM;
+			}
+			bp->descr_block_virt->rcv_data[i + j].long_0 =
+				(u32)(PI_RCV_DESCR_M_SOP |
+				      ((PI_RCV_DATA_K_SIZE_MAX /
+					PI_ALIGN_K_RCV_DATA_BUFF) <<
+				       PI_RCV_DESCR_V_SEG_LEN));
 			bp->descr_block_virt->rcv_data[i + j].long_1 =
-				(u32)dma_map_single(bp->bus_dev, newskb->data,
-						    NEW_SKB_SIZE,
-						    DMA_FROM_DEVICE);
+				(u32)dma_addr;
+
 			/*
 			 * p_rcv_buff_va is only used inside the
 			 * kernel so we put the skb pointer here.
@@ -3011,7 +3095,7 @@ static void dfx_rcv_queue_process(
 	PI_TYPE_2_CONSUMER	*p_type_2_cons;		/* ptr to rcv/xmt consumer block register */
 	char				*p_buff;			/* ptr to start of packet receive buffer (FMC descriptor) */
 	u32					descr, pkt_len;		/* FMC descriptor field and packet length */
-	struct sk_buff		*skb;				/* pointer to a sk_buff to hold incoming packet data */
+	struct sk_buff		*skb = NULL;			/* pointer to a sk_buff to hold incoming packet data */
 
 	/* Service all consumed LLC receive frames */
 
@@ -3019,7 +3103,7 @@ static void dfx_rcv_queue_process(
 	while (bp->rcv_xmt_reg.index.rcv_comp != p_type_2_cons->index.rcv_cons)
 		{
 		/* Process any errors */
-
+		dma_addr_t dma_addr;
 		int entry;
 
 		entry = bp->rcv_xmt_reg.index.rcv_comp;
@@ -3028,6 +3112,11 @@ static void dfx_rcv_queue_process(
 #else
 		p_buff = bp->p_rcv_buff_va[entry];
 #endif
+		dma_addr = bp->descr_block_virt->rcv_data[entry].long_1;
+		dma_sync_single_for_cpu(bp->bus_dev,
+					dma_addr + RCV_BUFF_K_DESCR,
+					sizeof(u32),
+					DMA_FROM_DEVICE);
 		memcpy(&descr, p_buff + RCV_BUFF_K_DESCR, sizeof(u32));
 
 		if (descr & PI_FMC_DESCR_M_RCC_FLUSH)
@@ -3049,31 +3138,46 @@ static void dfx_rcv_queue_process(
 				bp->rcv_length_errors++;
 			else{
 #ifdef DYNAMIC_BUFFERS
-				if (pkt_len > SKBUFF_RX_COPYBREAK) {
-					struct sk_buff *newskb;
+				struct sk_buff *newskb = NULL;
 
-					newskb = dev_alloc_skb(NEW_SKB_SIZE);
+				if (pkt_len > SKBUFF_RX_COPYBREAK) {
+					dma_addr_t new_dma_addr;
+
+					newskb = netdev_alloc_skb(bp->dev,
+								  NEW_SKB_SIZE);
 					if (newskb){
+						my_skb_align(newskb, 128);
+						new_dma_addr = dma_map_single(
+								bp->bus_dev,
+								newskb->data,
+								PI_RCV_DATA_K_SIZE_MAX,
+								DMA_FROM_DEVICE);
+						if (dma_mapping_error(
+								bp->bus_dev,
+								new_dma_addr)) {
+							dev_kfree_skb(newskb);
+							newskb = NULL;
+						}
+					}
+					if (newskb) {
 						rx_in_place = 1;
 
-						my_skb_align(newskb, 128);
 						skb = (struct sk_buff *)bp->p_rcv_buff_va[entry];
 						dma_unmap_single(bp->bus_dev,
-							bp->descr_block_virt->rcv_data[entry].long_1,
-							NEW_SKB_SIZE,
+							dma_addr,
+							PI_RCV_DATA_K_SIZE_MAX,
 							DMA_FROM_DEVICE);
 						skb_reserve(skb, RCV_BUFF_K_PADDING);
 						bp->p_rcv_buff_va[entry] = (char *)newskb;
-						bp->descr_block_virt->rcv_data[entry].long_1 =
-							(u32)dma_map_single(bp->bus_dev,
-								newskb->data,
-								NEW_SKB_SIZE,
-								DMA_FROM_DEVICE);
-					} else
-						skb = NULL;
-				} else
+						bp->descr_block_virt->rcv_data[entry].long_1 = (u32)new_dma_addr;
+					}
+				}
+				if (!newskb)
 #endif
-					skb = dev_alloc_skb(pkt_len+3);	/* alloc new buffer to pass up, add room for PRH */
+					/* Alloc new buffer to pass up,
+					 * add room for PRH. */
+					skb = netdev_alloc_skb(bp->dev,
+							       pkt_len + 3);
 				if (skb == NULL)
 					{
 					printk("%s: Could not allocate receive buffer.  Dropping packet.\n", bp->dev->name);
@@ -3081,11 +3185,14 @@ static void dfx_rcv_queue_process(
 					break;
 					}
 				else {
-#ifndef DYNAMIC_BUFFERS
-					if (! rx_in_place)
-#endif
-					{
+					if (!rx_in_place) {
 						/* Receive buffer allocated, pass receive packet up */
+						dma_sync_single_for_cpu(
+							bp->bus_dev,
+							dma_addr +
+							RCV_BUFF_K_PADDING,
+							pkt_len + 3,
+							DMA_FROM_DEVICE);
 
 						skb_copy_to_linear_data(skb,
 							       p_buff + RCV_BUFF_K_PADDING,
@@ -3188,6 +3295,7 @@ static netdev_tx_t dfx_xmt_queue_pkt(struct sk_buff *skb,
 	u8			prod;				/* local transmit producer index */
 	PI_XMT_DESCR		*p_xmt_descr;		/* ptr to transmit descriptor block entry */
 	XMT_DRIVER_DESCR	*p_xmt_drv_descr;	/* ptr to transmit driver descriptor */
+	dma_addr_t		dma_addr;
 	unsigned long		flags;
 
 	netif_stop_queue(dev);
@@ -3235,6 +3343,20 @@ static netdev_tx_t dfx_xmt_queue_pkt(struct sk_buff *skb,
 			}
 		}
 
+	/* Write the three PRH bytes immediately before the FC byte */
+
+	skb_push(skb, 3);
+	skb->data[0] = DFX_PRH0_BYTE;	/* these byte values are defined */
+	skb->data[1] = DFX_PRH1_BYTE;	/* in the Motorola FDDI MAC chip */
+	skb->data[2] = DFX_PRH2_BYTE;	/* specification */
+
+	dma_addr = dma_map_single(bp->bus_dev, skb->data, skb->len,
+				  DMA_TO_DEVICE);
+	if (dma_mapping_error(bp->bus_dev, dma_addr)) {
+		skb_pull(skb, 3);
+		return NETDEV_TX_BUSY;
+	}
+
 	spin_lock_irqsave(&bp->lock, flags);
 
 	/* Get the current producer and the next free xmt data descriptor */
@@ -3254,13 +3376,6 @@ static netdev_tx_t dfx_xmt_queue_pkt(struct sk_buff *skb,
 	 */
 
 	p_xmt_drv_descr = &(bp->xmt_drv_descr_blk[prod++]);	/* also bump producer index */
-
-	/* Write the three PRH bytes immediately before the FC byte */
-
-	skb_push(skb,3);
-	skb->data[0] = DFX_PRH0_BYTE;	/* these byte values are defined */
-	skb->data[1] = DFX_PRH1_BYTE;	/* in the Motorola FDDI MAC chip */
-	skb->data[2] = DFX_PRH2_BYTE;	/* specification */
 
 	/*
 	 * Write the descriptor with buffer info and bump producer
@@ -3290,8 +3405,7 @@ static netdev_tx_t dfx_xmt_queue_pkt(struct sk_buff *skb,
 	 */
 
 	p_xmt_descr->long_0	= (u32) (PI_XMT_DESCR_M_SOP | PI_XMT_DESCR_M_EOP | ((skb->len) << PI_XMT_DESCR_V_SEG_LEN));
-	p_xmt_descr->long_1 = (u32)dma_map_single(bp->bus_dev, skb->data,
-						  skb->len, DMA_TO_DEVICE);
+	p_xmt_descr->long_1 = (u32)dma_addr;
 
 	/*
 	 * Verify that descriptor is actually available
@@ -3454,16 +3568,17 @@ static void dfx_rcv_flush( DFX_board_t *bp )
 		{
 			struct sk_buff *skb;
 			skb = (struct sk_buff *)bp->p_rcv_buff_va[i+j];
-			if (skb)
+			if (skb) {
+				dma_unmap_single(bp->bus_dev,
+						 bp->descr_block_virt->rcv_data[i+j].long_1,
+						 PI_RCV_DATA_K_SIZE_MAX,
+						 DMA_FROM_DEVICE);
 				dev_kfree_skb(skb);
+			}
 			bp->p_rcv_buff_va[i+j] = NULL;
 		}
 
 	}
-#else
-static inline void dfx_rcv_flush( DFX_board_t *bp )
-{
-}
 #endif /* DYNAMIC_BUFFERS */
 
 /*
@@ -3579,11 +3694,11 @@ static void dfx_unregister(struct device *bdev)
 {
 	struct net_device *dev = dev_get_drvdata(bdev);
 	DFX_board_t *bp = netdev_priv(dev);
-	int dfx_bus_pci = DFX_BUS_PCI(bdev);
+	int dfx_bus_pci = dev_is_pci(bdev);
 	int dfx_bus_tc = DFX_BUS_TC(bdev);
 	int dfx_use_mmio = DFX_MMIO || dfx_bus_tc;
-	resource_size_t bar_start = 0;		/* pointer to port */
-	resource_size_t bar_len = 0;		/* resource length */
+	resource_size_t bar_start[3];		/* pointers to ports */
+	resource_size_t bar_len[3];		/* resource lengths */
 	int		alloc_size;		/* total buffer size used */
 
 	unregister_netdev(dev);
@@ -3601,12 +3716,16 @@ static void dfx_unregister(struct device *bdev)
 
 	dfx_bus_uninit(dev);
 
-	dfx_get_bars(bdev, &bar_start, &bar_len);
+	dfx_get_bars(bdev, bar_start, bar_len);
+	if (bar_start[2] != 0)
+		release_region(bar_start[2], bar_len[2]);
+	if (bar_start[1] != 0)
+		release_region(bar_start[1], bar_len[1]);
 	if (dfx_use_mmio) {
 		iounmap(bp->base.mem);
-		release_mem_region(bar_start, bar_len);
+		release_mem_region(bar_start[0], bar_len[0]);
 	} else
-		release_region(bar_start, bar_len);
+		release_region(bar_start[0], bar_len[0]);
 
 	if (dfx_bus_pci)
 		pci_disable_device(to_pci_dev(bdev));
@@ -3622,7 +3741,7 @@ static int __maybe_unused dfx_dev_unregister(struct device *);
 static int dfx_pci_register(struct pci_dev *, const struct pci_device_id *);
 static void dfx_pci_unregister(struct pci_dev *);
 
-static DEFINE_PCI_DEVICE_TABLE(dfx_pci_table) = {
+static const struct pci_device_id dfx_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_FDDI) },
 	{ }
 };

@@ -192,7 +192,7 @@ void __init early_sn_setup(void)
 }
 
 extern int platform_intr_list[];
-static int __cpuinitdata shub_1_1_found;
+static int shub_1_1_found;
 
 /*
  * sn_check_for_wars
@@ -200,7 +200,7 @@ static int __cpuinitdata shub_1_1_found;
  * Set flag for enabling shub specific wars
  */
 
-static inline int __cpuinit is_shub_1_1(int nasid)
+static inline int is_shub_1_1(int nasid)
 {
 	unsigned long id;
 	int rev;
@@ -212,7 +212,7 @@ static inline int __cpuinit is_shub_1_1(int nasid)
 	return rev <= 2;
 }
 
-static void __cpuinit sn_check_for_wars(void)
+static void sn_check_for_wars(void)
 {
 	int cnode;
 
@@ -558,7 +558,7 @@ static void __init sn_init_pdas(char **cmdline_p)
  * Also sets up a few fields in the nodepda.  Also known as
  * platform_cpu_init() by the ia64 machvec code.
  */
-void __cpuinit sn_cpu_init(void)
+void sn_cpu_init(void)
 {
 	int cpuid;
 	int cpuphyid;
@@ -579,7 +579,7 @@ void __cpuinit sn_cpu_init(void)
 		       (sn_prom_type == 1) ? "real" : "fake");
 	}
 
-	memset(pda, 0, sizeof(pda));
+	memset(pda, 0, sizeof(*pda));
 	if (ia64_sn_get_sn_info(0, &sn_hub_info->shub2,
 				&sn_hub_info->nasid_bitmask,
 				&sn_hub_info->nasid_shift,
@@ -629,7 +629,7 @@ void __cpuinit sn_cpu_init(void)
 
 	cnode = nasid_to_cnodeid(nasid);
 
-	sn_nodepda = nodepdaindr[cnode];
+	__this_cpu_write(__sn_nodepda, nodepdaindr[cnode]);
 
 	pda->led_address =
 	    (typeof(pda->led_address)) (LED0 + (slice << LED_CPU_SHIFT));

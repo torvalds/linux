@@ -9,9 +9,7 @@ config NET_VENDOR_FREESCALE
 		   M523x || M527x || M5272 || M528x || M520x || M532x || \
 		   ARCH_MXC || ARCH_MXS || (PPC_MPC52xx && PPC_BESTCOMM)
 	---help---
-	  If you have a network (Ethernet) card belonging to this class, say Y
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
@@ -58,17 +56,17 @@ source "drivers/net/ethernet/freescale/fs_enet/Kconfig"
 
 config FSL_PQ_MDIO
 	tristate "Freescale PQ MDIO"
-	depends on FSL_SOC
 	select PHYLIB
 	---help---
 	  This driver supports the MDIO bus used by the gianfar and UCC drivers.
 
 config FSL_XGMAC_MDIO
 	tristate "Freescale XGMAC MDIO"
-	depends on FSL_SOC
 	select PHYLIB
+	select OF_MDIO
 	---help---
-	  This driver supports the MDIO bus on the Fman 10G Ethernet MACs.
+	  This driver supports the MDIO bus on the Fman 10G Ethernet MACs, and
+	  on the FMan mEMAC (which supports both Clauses 22 and 45)
 
 config UCC_GETH
 	tristate "Freescale QE Gigabit Ethernet"
@@ -85,12 +83,12 @@ config UGETH_TX_ON_DEMAND
 
 config GIANFAR
 	tristate "Gianfar Ethernet"
-	depends on FSL_SOC
 	select FSL_PQ_MDIO
 	select PHYLIB
 	select CRC32
 	---help---
 	  This driver supports the Gigabit TSEC on the MPC83xx, MPC85xx,
-	  and MPC86xx family of chips, and the FEC on the 8540.
+	  and MPC86xx family of chips, the eTSEC on LS1021A and the FEC
+	  on the 8540.
 
 endif # NET_VENDOR_FREESCALE

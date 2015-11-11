@@ -1,0 +1,43 @@
+/*
+ * Suppport for CompuLab SBC-T3730 with CM-T3730
+ */
+
+#include "omap3-cm-t3730.dts"
+#include "omap3-sb-t35.dtsi"
+
+/ {
+	model = "CompuLab SBC-T3730 with CM-T3730";
+	compatible = "compulab,omap3-sbc-t3730", "compulab,omap3-cm-t3730", "ti,omap36xx", "ti,omap3";
+
+	aliases {
+		display0 = &dvi0;
+		display1 = &tv0;
+	};
+};
+
+&omap3_pmx_core {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sb_t35_usb_hub_pins>;
+
+	sb_t35_usb_hub_pins: pinmux_sb_t35_usb_hub_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x2130, PIN_OUTPUT | MUX_MODE4) /* ccdc_wen.gpio_167 - SB-T35 USB HUB RST */
+		>;
+	};
+};
+
+&gpmc {
+	ranges = <5 0 0x2c000000 0x01000000>,	/* CM-T3x30 SMSC9x Eth */
+		 <4 0 0x2d000000 0x01000000>,	/* SB-T35 SMSC9x Eth */
+		 <0 0 0x00000000 0x01000000>;	/* CM-T3x NAND */
+};
+
+&dss {
+	port {
+		dpi_out: endpoint {
+			remote-endpoint = <&tfp410_in>;
+			data-lines = <24>;
+		};
+	};
+};
+

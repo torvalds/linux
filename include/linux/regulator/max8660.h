@@ -39,7 +39,7 @@ enum {
  */
 struct max8660_subdev_data {
 	int				id;
-	char				*name;
+	const char			*name;
 	struct regulator_init_data	*platform_data;
 };
 

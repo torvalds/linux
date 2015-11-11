@@ -16,6 +16,7 @@
 struct zpci_iomap_entry {
 	u32 fh;
 	u8 bar;
+	u16 count;
 };
 
 extern struct zpci_iomap_entry *zpci_iomap_start;
@@ -36,7 +37,7 @@ static inline RETTYPE zpci_read_##RETTYPE(const volatile void __iomem *addr)	\
 	u64 data;								\
 	int rc;									\
 										\
-	rc = s390pci_load(&data, req, ZPCI_OFFSET(addr));			\
+	rc = zpci_load(&data, req, ZPCI_OFFSET(addr));				\
 	if (rc)									\
 		data = -1ULL;							\
 	return (RETTYPE) data;							\
@@ -50,7 +51,7 @@ static inline void zpci_write_##VALTYPE(VALTYPE val,				\
 	u64 req = ZPCI_CREATE_REQ(entry->fh, entry->bar, LENGTH);		\
 	u64 data = (VALTYPE) val;						\
 										\
-	s390pci_store(data, req, ZPCI_OFFSET(addr));				\
+	zpci_store(data, req, ZPCI_OFFSET(addr));				\
 }
 
 zpci_read(8, u64)
@@ -83,7 +84,7 @@ static inline int zpci_write_single(u64 req, const u64 *data, u64 offset, u8 len
 		val = 0;		/* let FW report error */
 		break;
 	}
-	return s390pci_store(val, req, offset);
+	return zpci_store(val, req, offset);
 }
 
 static inline int zpci_read_single(u64 req, u64 *dst, u64 offset, u8 len)
@@ -91,7 +92,7 @@ static inline int zpci_read_single(u64 req, u64 *dst, u64 offset, u8 len)
 	u64 data;
 	int cc;
 
-	cc = s390pci_load(&data, req, offset);
+	cc = zpci_load(&data, req, offset);
 	if (cc)
 		goto out;
 
@@ -115,7 +116,7 @@ out:
 
 static inline int zpci_write_block(u64 req, const u64 *data, u64 offset)
 {
-	return s390pci_store_block(data, req, offset);
+	return zpci_store_block(data, req, offset);
 }
 
 static inline u8 zpci_get_max_write_size(u64 src, u64 dst, int len, int max)
@@ -139,7 +140,8 @@ static inline int zpci_memcpy_fromio(void *dst,
 	int size, rc = 0;
 
 	while (n > 0) {
-		size = zpci_get_max_write_size((u64) src, (u64) dst, n, 8);
+		size = zpci_get_max_write_size((u64 __force) src,
+					       (u64) dst, n, 8);
 		req = ZPCI_CREATE_REQ(entry->fh, entry->bar, size);
 		rc = zpci_read_single(req, dst, offset, size);
 		if (rc)
@@ -162,7 +164,8 @@ static inline int zpci_memcpy_toio(volatile void __iomem *dst,
 		return -EINVAL;
 
 	while (n > 0) {
-		size = zpci_get_max_write_size((u64) dst, (u64) src, n, 128);
+		size = zpci_get_max_write_size((u64 __force) dst,
+					       (u64) src, n, 128);
 		req = ZPCI_CREATE_REQ(entry->fh, entry->bar, size);
 
 		if (size > 8) /* main path */

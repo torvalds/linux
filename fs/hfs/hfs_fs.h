@@ -229,13 +229,10 @@ extern int hfs_part_find(struct super_block *, sector_t *, sector_t *);
 /* string.c */
 extern const struct dentry_operations hfs_dentry_operations;
 
-extern int hfs_hash_dentry(const struct dentry *, const struct inode *,
-		struct qstr *);
+extern int hfs_hash_dentry(const struct dentry *, struct qstr *);
 extern int hfs_strcmp(const unsigned char *, unsigned int,
 		      const unsigned char *, unsigned int);
-extern int hfs_compare_dentry(const struct dentry *parent,
-		const struct inode *pinode,
-		const struct dentry *dentry, const struct inode *inode,
+extern int hfs_compare_dentry(const struct dentry *parent, const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name);
 
 /* trans.c */
@@ -244,8 +241,6 @@ extern int hfs_mac2asc(struct super_block *, char *, const struct hfs_name *);
 
 /* super.c */
 extern void hfs_mark_mdb_dirty(struct super_block *sb);
-
-extern struct timezone sys_tz;
 
 /*
  * There are two time systems.  Both are based on seconds since
@@ -257,7 +252,7 @@ extern struct timezone sys_tz;
 #define __hfs_u_to_mtime(sec)	cpu_to_be32(sec + 2082844800U - sys_tz.tz_minuteswest * 60)
 #define __hfs_m_to_utime(sec)	(be32_to_cpu(sec) - 2082844800U  + sys_tz.tz_minuteswest * 60)
 
-#define HFS_I(inode)	(list_entry(inode, struct hfs_inode_info, vfs_inode))
+#define HFS_I(inode)	(container_of(inode, struct hfs_inode_info, vfs_inode))
 #define HFS_SB(sb)	((struct hfs_sb_info *)(sb)->s_fs_info)
 
 #define hfs_m_to_utime(time)	(struct timespec){ .tv_sec = __hfs_m_to_utime(time) }

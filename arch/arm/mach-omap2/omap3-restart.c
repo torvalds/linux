@@ -12,11 +12,11 @@
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/reboot.h>
 
-#include "iomap.h"
 #include "common.h"
 #include "control.h"
-#include "prm3xxx.h"
+#include "prm.h"
 
 /* Global address base setup code */
 
@@ -28,9 +28,8 @@
  * Resets the SoC.  For @cmd, see the 'reboot' syscall in
  * kernel/sys.c.  No return value.
  */
-void omap3xxx_restart(char mode, const char *cmd)
+void omap3xxx_restart(enum reboot_mode mode, const char *cmd)
 {
 	omap3_ctrl_write_boot_mode((cmd ? (u8)*cmd : 0));
-	omap3xxx_prm_dpll3_reset(); /* never returns */
-	while (1);
+	omap_prm_reset_system();
 }

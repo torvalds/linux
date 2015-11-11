@@ -48,23 +48,10 @@ static inline void rtc_proc_del_device(struct rtc_device *rtc)
 #endif
 
 #ifdef CONFIG_RTC_INTF_SYSFS
-
-extern void __init rtc_sysfs_init(struct class *);
-extern void rtc_sysfs_add_device(struct rtc_device *rtc);
-extern void rtc_sysfs_del_device(struct rtc_device *rtc);
-
+const struct attribute_group **rtc_get_dev_attribute_groups(void);
 #else
-
-static inline void rtc_sysfs_init(struct class *rtc)
+static inline const struct attribute_group **rtc_get_dev_attribute_groups(void)
 {
+	return NULL;
 }
-
-static inline void rtc_sysfs_add_device(struct rtc_device *rtc)
-{
-}
-
-static inline void rtc_sysfs_del_device(struct rtc_device *rtc)
-{
-}
-
 #endif

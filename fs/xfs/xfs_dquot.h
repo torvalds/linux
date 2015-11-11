@@ -52,7 +52,6 @@ typedef struct xfs_dquot {
 	int		 q_bufoffset;	/* off of dq in buffer (# dquots) */
 	xfs_fileoff_t	 q_fileoffset;	/* offset in quotas file */
 
-	struct xfs_dquot*q_gdquot;	/* group dquot, hint only */
 	xfs_disk_dquot_t q_core;	/* actual usage & quotas */
 	xfs_dq_logitem_t q_logitem;	/* dquot log item */
 	xfs_qcnt_t	 q_res_bcount;	/* total regular nblks used+reserved */
@@ -87,7 +86,7 @@ static inline void xfs_dqflock(xfs_dquot_t *dqp)
 	wait_for_completion(&dqp->q_flush);
 }
 
-static inline int xfs_dqflock_nowait(xfs_dquot_t *dqp)
+static inline bool xfs_dqflock_nowait(xfs_dquot_t *dqp)
 {
 	return try_wait_for_completion(&dqp->q_flush);
 }
@@ -118,8 +117,9 @@ static inline int xfs_this_quota_on(struct xfs_mount *mp, int type)
 	case XFS_DQ_USER:
 		return XFS_IS_UQUOTA_ON(mp);
 	case XFS_DQ_GROUP:
+		return XFS_IS_GQUOTA_ON(mp);
 	case XFS_DQ_PROJ:
-		return XFS_IS_OQUOTA_ON(mp);
+		return XFS_IS_PQUOTA_ON(mp);
 	default:
 		return 0;
 	}
@@ -131,11 +131,27 @@ static inline xfs_dquot_t *xfs_inode_dquot(struct xfs_inode *ip, int type)
 	case XFS_DQ_USER:
 		return ip->i_udquot;
 	case XFS_DQ_GROUP:
-	case XFS_DQ_PROJ:
 		return ip->i_gdquot;
+	case XFS_DQ_PROJ:
+		return ip->i_pdquot;
 	default:
 		return NULL;
 	}
+}
+
+/*
+ * Check whether a dquot is under low free space conditions. We assume the quota
+ * is enabled and enforced.
+ */
+static inline bool xfs_dquot_lowsp(struct xfs_dquot *dqp)
+{
+	int64_t freesp;
+
+	freesp = be64_to_cpu(dqp->q_core.d_blk_hardlimit) - dqp->q_res_bcount;
+	if (freesp < dqp->q_low_space[XFS_QLOWSP_1_PCNT])
+		return true;
+
+	return false;
 }
 
 #define XFS_DQ_IS_LOCKED(dqp)	(mutex_is_locked(&((dqp)->q_qlock)))
@@ -143,10 +159,6 @@ static inline xfs_dquot_t *xfs_inode_dquot(struct xfs_inode *ip, int type)
 #define XFS_QM_ISUDQ(dqp)	((dqp)->dq_flags & XFS_DQ_USER)
 #define XFS_QM_ISPDQ(dqp)	((dqp)->dq_flags & XFS_DQ_PROJ)
 #define XFS_QM_ISGDQ(dqp)	((dqp)->dq_flags & XFS_DQ_GROUP)
-#define XFS_DQ_TO_QINF(dqp)	((dqp)->q_mount->m_quotainfo)
-#define XFS_DQ_TO_QIP(dqp)	(XFS_QM_ISUDQ(dqp) ? \
-				 XFS_DQ_TO_QINF(dqp)->qi_uquotaip : \
-				 XFS_DQ_TO_QINF(dqp)->qi_gquotaip)
 
 extern int		xfs_qm_dqread(struct xfs_mount *, xfs_dqid_t, uint,
 					uint, struct xfs_dquot	**);
@@ -172,7 +184,5 @@ static inline struct xfs_dquot *xfs_qm_dqhold(struct xfs_dquot *dqp)
 	xfs_dqunlock(dqp);
 	return dqp;
 }
-
-extern const struct xfs_buf_ops xfs_dquot_buf_ops;
 
 #endif /* __XFS_DQUOT_H__ */

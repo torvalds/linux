@@ -437,7 +437,7 @@ static int mgslpc_device_count = 0;
  * .text section address and breakpoint on module load.
  * This is useful for use with gdb and add-symbol-file command.
  */
-static bool break_on_load=0;
+static bool break_on_load;
 
 /*
  * Driver major number, defaults to zero to get auto
@@ -1182,14 +1182,14 @@ static irqreturn_t mgslpc_isr(int dummy, void *dev_id)
 		}
 		count++;
 
-		if (gis & (BIT1 + BIT0)) {
+		if (gis & (BIT1 | BIT0)) {
 			isr = read_reg16(info, CHB + ISR);
 			if (isr & IRQ_DCD)
 				dcd_change(info, tty);
 			if (isr & IRQ_CTS)
 				cts_change(info, tty);
 		}
-		if (gis & (BIT3 + BIT2))
+		if (gis & (BIT3 | BIT2))
 		{
 			isr = read_reg16(info, CHA + ISR);
 			if (isr & IRQ_TIMER) {
@@ -1210,7 +1210,7 @@ static irqreturn_t mgslpc_isr(int dummy, void *dev_id)
 			if (isr & IRQ_RXTIME) {
 				issue_command(info, CHA, CMD_RXFIFO_READ);
 			}
-			if (isr & (IRQ_RXEOM + IRQ_RXFIFO)) {
+			if (isr & (IRQ_RXEOM | IRQ_RXFIFO)) {
 				if (info->params.mode == MGSL_MODE_HDLC)
 					rx_ready_hdlc(info, isr & IRQ_RXEOM);
 				else
@@ -2347,8 +2347,6 @@ static void mgslpc_close(struct tty_struct *tty, struct file * filp)
 		printk("%s(%d):mgslpc_close(%s) entry, count=%d\n",
 			 __FILE__, __LINE__, info->device_name, port->count);
 
-	WARN_ON(!port->count);
-
 	if (tty_port_close_start(port, tty, filp) == 0)
 		goto cleanup;
 
@@ -2508,15 +2506,6 @@ static int mgslpc_open(struct tty_struct *tty, struct file * filp)
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):mgslpc_open(%s), old ref count = %d\n",
 			 __FILE__, __LINE__, tty->driver->name, port->count);
-
-	/* If port is closing, signal caller to try again */
-	if (tty_hung_up_p(filp) || port->flags & ASYNC_CLOSING){
-		if (port->flags & ASYNC_CLOSING)
-			interruptible_sleep_on(&port->close_wait);
-		retval = ((port->flags & ASYNC_HUP_NOTIFY) ?
-			-EAGAIN : -ERESTARTSYS);
-		goto cleanup;
-	}
 
 	port->low_latency = (port->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
@@ -3031,11 +3020,11 @@ static void loopback_enable(MGSLPC_INFO *info)
 	unsigned char val;
 
 	/* CCR1:02..00  CM[2..0] Clock Mode = 111 (clock mode 7) */
-	val = read_reg(info, CHA + CCR1) | (BIT2 + BIT1 + BIT0);
+	val = read_reg(info, CHA + CCR1) | (BIT2 | BIT1 | BIT0);
 	write_reg(info, CHA + CCR1, val);
 
 	/* CCR2:04 SSEL Clock source select, 1=submode b */
-	val = read_reg(info, CHA + CCR2) | (BIT4 + BIT5);
+	val = read_reg(info, CHA + CCR2) | (BIT4 | BIT5);
 	write_reg(info, CHA + CCR2, val);
 
 	/* set LinkSpeed if available, otherwise default to 2Mbps */
@@ -3125,10 +3114,10 @@ static void hdlc_mode(MGSLPC_INFO *info)
 		val |= BIT4;
 		break;		// FM0
 	case HDLC_ENCODING_BIPHASE_MARK:
-		val |= BIT4 + BIT2;
+		val |= BIT4 | BIT2;
 		break;		// FM1
 	case HDLC_ENCODING_BIPHASE_LEVEL:
-		val |= BIT4 + BIT3;
+		val |= BIT4 | BIT3;
 		break;		// Manchester
 	}
 	write_reg(info, CHA + CCR0, val);
@@ -3185,7 +3174,7 @@ static void hdlc_mode(MGSLPC_INFO *info)
 	 */
 	val = 0x00;
 	if (info->params.crc_type == HDLC_CRC_NONE)
-		val |= BIT2 + BIT1;
+		val |= BIT2 | BIT1;
 	if (info->params.preamble != HDLC_PREAMBLE_PATTERN_NONE)
 		val |= BIT5;
 	switch (info->params.preamble_length)
@@ -3197,7 +3186,7 @@ static void hdlc_mode(MGSLPC_INFO *info)
 		val |= BIT6;
 		break;
 	case HDLC_PREAMBLE_LENGTH_64BITS:
-		val |= BIT7 + BIT6;
+		val |= BIT7 | BIT6;
 		break;
 	}
 	write_reg(info, CHA + CCR3, val);
@@ -3264,8 +3253,8 @@ static void hdlc_mode(MGSLPC_INFO *info)
 		clear_reg_bits(info, CHA + PVR, BIT3);
 
 	irq_enable(info, CHA,
-			 IRQ_RXEOM + IRQ_RXFIFO + IRQ_ALLSENT +
-			 IRQ_UNDERRUN + IRQ_TXFIFO);
+			 IRQ_RXEOM | IRQ_RXFIFO | IRQ_ALLSENT |
+			 IRQ_UNDERRUN | IRQ_TXFIFO);
 	issue_command(info, CHA, CMD_TXRESET + CMD_RXRESET);
 	wait_command_complete(info, CHA);
 	read_reg16(info, CHA + ISR);	/* clear pending IRQs */
@@ -3582,8 +3571,8 @@ static void async_mode(MGSLPC_INFO *info)
 	} else
 		clear_reg_bits(info, CHA + PVR, BIT3);
 	irq_enable(info, CHA,
-			  IRQ_RXEOM + IRQ_RXFIFO + IRQ_BREAK_ON + IRQ_RXTIME +
-			  IRQ_ALLSENT + IRQ_TXFIFO);
+			  IRQ_RXEOM | IRQ_RXFIFO | IRQ_BREAK_ON | IRQ_RXTIME |
+			  IRQ_ALLSENT | IRQ_TXFIFO);
 	issue_command(info, CHA, CMD_TXRESET + CMD_RXRESET);
 	wait_command_complete(info, CHA);
 	read_reg16(info, CHA + ISR);	/* clear pending IRQs */

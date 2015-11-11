@@ -3,6 +3,8 @@
 #ifndef _ASM_PARISC_SYSCALL_H_
 #define _ASM_PARISC_SYSCALL_H_
 
+#include <uapi/linux/audit.h>
+#include <linux/compat.h>
 #include <linux/err.h>
 #include <asm/ptrace.h>
 
@@ -37,4 +39,13 @@ static inline void syscall_get_arguments(struct task_struct *tsk,
 	}
 }
 
+static inline int syscall_get_arch(void)
+{
+	int arch = AUDIT_ARCH_PARISC;
+#ifdef CONFIG_64BIT
+	if (!is_compat_task())
+		arch = AUDIT_ARCH_PARISC64;
+#endif
+	return arch;
+}
 #endif /*_ASM_PARISC_SYSCALL_H_*/

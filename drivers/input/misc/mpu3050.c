@@ -30,7 +30,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
@@ -383,6 +382,7 @@ static int mpu3050_probe(struct i2c_client *client,
 
 	pm_runtime_enable(&client->dev);
 	pm_runtime_set_autosuspend_delay(&client->dev, MPU3050_AUTO_DELAY);
+	i2c_set_clientdata(client, sensor);
 
 	return 0;
 
@@ -466,7 +466,6 @@ MODULE_DEVICE_TABLE(of, mpu3050_of_match);
 static struct i2c_driver mpu3050_i2c_driver = {
 	.driver	= {
 		.name	= "mpu3050",
-		.owner	= THIS_MODULE,
 		.pm	= &mpu3050_pm,
 		.of_match_table = mpu3050_of_match,
 	},

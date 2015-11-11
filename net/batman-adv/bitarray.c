@@ -1,4 +1,4 @@
-/* Copyright (C) 2006-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2006-2015 B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich, Marek Lindner
  *
@@ -12,18 +12,16 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
 #include "bitarray.h"
+#include "main.h"
 
-#include <linux/bitops.h>
+#include <linux/bitmap.h>
 
 /* shift the packet array by n places. */
-static void batadv_bitmap_shift_left(unsigned long *seq_bits, int32_t n)
+static void batadv_bitmap_shift_left(unsigned long *seq_bits, s32 n)
 {
 	if (n <= 0 || n >= BATADV_TQ_LOCAL_WINDOW_SIZE)
 		return;
@@ -31,15 +29,14 @@ static void batadv_bitmap_shift_left(unsigned long *seq_bits, int32_t n)
 	bitmap_shift_left(seq_bits, seq_bits, n, BATADV_TQ_LOCAL_WINDOW_SIZE);
 }
 
-
 /* receive and process one packet within the sequence number window.
  *
  * returns:
  *  1 if the window was moved (either new or very old)
  *  0 if the window was not moved/shifted.
  */
-int batadv_bit_get_packet(void *priv, unsigned long *seq_bits,
-			  int32_t seq_num_diff, int set_mark)
+int batadv_bit_get_packet(void *priv, unsigned long *seq_bits, s32 seq_num_diff,
+			  int set_mark)
 {
 	struct batadv_priv *bat_priv = priv;
 

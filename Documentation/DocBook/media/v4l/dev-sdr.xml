@@ -1,0 +1,132 @@
+  <title>Software Defined Radio Interface (SDR)</title>
+
+  <note>
+    <title>Experimental</title>
+    <para>This is an <link linkend="experimental"> experimental </link>
+    interface and may change in the future.</para>
+  </note>
+
+  <para>
+SDR is an abbreviation of Software Defined Radio, the radio device
+which uses application software for modulation or demodulation. This interface
+is intended for controlling and data streaming of such devices.
+  </para>
+
+  <para>
+SDR devices are accessed through character device special files named
+<filename>/dev/swradio0</filename> to <filename>/dev/swradio255</filename>
+with major number 81 and dynamically allocated minor numbers 0 to 255.
+  </para>
+
+  <section>
+    <title>Querying Capabilities</title>
+
+    <para>
+Devices supporting the SDR receiver interface set the
+<constant>V4L2_CAP_SDR_CAPTURE</constant> and
+<constant>V4L2_CAP_TUNER</constant> flag in the
+<structfield>capabilities</structfield> field of &v4l2-capability;
+returned by the &VIDIOC-QUERYCAP; ioctl. That flag means the device has an
+Analog to Digital Converter (ADC), which is a mandatory element for the SDR receiver.
+    </para>
+    <para>
+Devices supporting the SDR transmitter interface set the
+<constant>V4L2_CAP_SDR_OUTPUT</constant> and
+<constant>V4L2_CAP_MODULATOR</constant> flag in the
+<structfield>capabilities</structfield> field of &v4l2-capability;
+returned by the &VIDIOC-QUERYCAP; ioctl. That flag means the device has an
+Digital to Analog Converter (DAC), which is a mandatory element for the SDR transmitter.
+    </para>
+    <para>
+At least one of the read/write, streaming or asynchronous I/O methods must
+be supported.
+    </para>
+  </section>
+
+  <section>
+    <title>Supplemental Functions</title>
+
+    <para>
+SDR devices can support <link linkend="control">controls</link>, and must
+support the <link linkend="tuner">tuner</link> ioctls. Tuner ioctls are used
+for setting the ADC/DAC sampling rate (sampling frequency) and the possible
+radio frequency (RF).
+    </para>
+
+    <para>
+The <constant>V4L2_TUNER_SDR</constant> tuner type is used for setting SDR
+device ADC/DAC frequency, and the <constant>V4L2_TUNER_RF</constant>
+tuner type is used for setting radio frequency.
+The tuner index of the RF tuner (if any) must always follow the SDR tuner index.
+Normally the SDR tuner is #0 and the RF tuner is #1.
+    </para>
+
+    <para>
+The &VIDIOC-S-HW-FREQ-SEEK; ioctl is not supported.
+    </para>
+  </section>
+
+  <section>
+    <title>Data Format Negotiation</title>
+
+    <para>
+The SDR device uses the <link linkend="format">format</link> ioctls to
+select the capture and output format. Both the sampling resolution and the data
+streaming format are bound to that selectable format. In addition to the basic
+<link linkend="format">format</link> ioctls, the &VIDIOC-ENUM-FMT; ioctl
+must be supported as well.
+    </para>
+
+    <para>
+To use the <link linkend="format">format</link> ioctls applications set the
+<structfield>type</structfield> field of a &v4l2-format; to
+<constant>V4L2_BUF_TYPE_SDR_CAPTURE</constant> or
+<constant>V4L2_BUF_TYPE_SDR_OUTPUT</constant> and use the &v4l2-sdr-format;
+<structfield>sdr</structfield> member of the <structfield>fmt</structfield>
+union as needed per the desired operation.
+Currently there is two fields, <structfield>pixelformat</structfield> and
+<structfield>buffersize</structfield>, of struct &v4l2-sdr-format; which are
+used. Content of the <structfield>pixelformat</structfield> is V4L2 FourCC
+code of the data format. The <structfield>buffersize</structfield> field is
+maximum buffer size in bytes required for data transfer, set by the driver in
+order to inform application.
+    </para>
+
+    <table pgwide="1" frame="none" id="v4l2-sdr-format">
+      <title>struct <structname>v4l2_sdr_format</structname></title>
+      <tgroup cols="3">
+        &cs-str;
+        <tbody valign="top">
+          <row>
+            <entry>__u32</entry>
+            <entry><structfield>pixelformat</structfield></entry>
+            <entry>
+The data format or type of compression, set by the application. This is a
+little endian <link linkend="v4l2-fourcc">four character code</link>.
+V4L2 defines SDR formats in <xref linkend="sdr-formats" />.
+           </entry>
+          </row>
+          <row>
+            <entry>__u32</entry>
+            <entry><structfield>buffersize</structfield></entry>
+            <entry>
+Maximum size in bytes required for data. Value is set by the driver.
+           </entry>
+          </row>
+          <row>
+            <entry>__u8</entry>
+            <entry><structfield>reserved[24]</structfield></entry>
+            <entry>This array is reserved for future extensions.
+Drivers and applications must set it to zero.</entry>
+          </row>
+        </tbody>
+      </tgroup>
+    </table>
+
+    <para>
+An SDR device may support <link linkend="rw">read/write</link>
+and/or streaming (<link linkend="mmap">memory mapping</link>
+or <link linkend="userp">user pointer</link>) I/O.
+    </para>
+
+  </section>

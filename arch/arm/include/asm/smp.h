@@ -49,12 +49,6 @@ extern void smp_init_cpus(void);
 extern void set_smp_cross_call(void (*)(const struct cpumask *, unsigned int));
 
 /*
- * Boot a secondary CPU, and assign it the specified idle task.
- * This also gives us the initial stack to use for this CPU.
- */
-extern int boot_secondary(unsigned int cpu, struct task_struct *);
-
-/*
  * Called from platform specific assembly code, this is the
  * secondary CPU entry point.
  */
@@ -65,21 +59,27 @@ asmlinkage void secondary_start_kernel(void);
  * Initial data for bringing up a secondary CPU.
  */
 struct secondary_data {
-	unsigned long pgdir;
+	union {
+		unsigned long mpu_rgn_szr;
+		u64 pgdir;
+	};
 	unsigned long swapper_pg_dir;
 	void *stack;
 };
 extern struct secondary_data secondary_data;
 extern volatile int pen_release;
+extern void secondary_startup(void);
+extern void secondary_startup_arm(void);
 
 extern int __cpu_disable(void);
 
 extern void __cpu_die(unsigned int cpu);
-extern void cpu_die(void);
 
 extern void arch_send_call_function_single_ipi(int cpu);
 extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 extern void arch_send_wakeup_ipi_mask(const struct cpumask *mask);
+
+extern int register_ipi_completion(struct completion *completion, int cpu);
 
 struct smp_operations {
 #ifdef CONFIG_SMP
@@ -104,14 +104,24 @@ struct smp_operations {
 #ifdef CONFIG_HOTPLUG_CPU
 	int  (*cpu_kill)(unsigned int cpu);
 	void (*cpu_die)(unsigned int cpu);
+	bool  (*cpu_can_disable)(unsigned int cpu);
 	int  (*cpu_disable)(unsigned int cpu);
 #endif
 #endif
 };
 
+struct of_cpu_method {
+	const char *method;
+	const struct smp_operations *ops;
+};
+
+#define CPU_METHOD_OF_DECLARE(name, _method, _ops)			\
+	static const struct of_cpu_method __cpu_method_of_table_##name	\
+		__used __section(__cpu_method_of_table)			\
+		= { .method = _method, .ops = _ops }
 /*
  * set platform specific SMP operations
  */
-extern void smp_set_ops(struct smp_operations *);
+extern void smp_set_ops(const struct smp_operations *);
 
 #endif /* ifndef __ASM_ARM_SMP_H */

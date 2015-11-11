@@ -175,7 +175,6 @@ static struct platform_driver u8500_hsem_driver = {
 	.remove		= u8500_hsem_remove,
 	.driver		= {
 		.name	= "u8500_hsem",
-		.owner	= THIS_MODULE,
 	},
 };
 

@@ -57,7 +57,7 @@ static int twl4030_wdt_set_timeout(struct watchdog_device *wdt,
 }
 
 static const struct watchdog_info twl4030_wdt_info = {
-	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
+	.options = WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE | WDIOF_KEEPALIVEPING,
 	.identity = "TWL4030 Watchdog",
 };
 
@@ -83,6 +83,7 @@ static int twl4030_wdt_probe(struct platform_device *pdev)
 	wdt->timeout		= 30;
 	wdt->min_timeout	= 1;
 	wdt->max_timeout	= 30;
+	wdt->parent = &pdev->dev;
 
 	watchdog_set_nowayout(wdt, nowayout);
 	platform_set_drvdata(pdev, wdt);
@@ -90,10 +91,8 @@ static int twl4030_wdt_probe(struct platform_device *pdev)
 	twl4030_wdt_stop(wdt);
 
 	ret = watchdog_register_device(wdt);
-	if (ret) {
-		platform_set_drvdata(pdev, NULL);
+	if (ret)
 		return ret;
-	}
 
 	return 0;
 }
@@ -103,7 +102,6 @@ static int twl4030_wdt_remove(struct platform_device *pdev)
 	struct watchdog_device *wdt = platform_get_drvdata(pdev);
 
 	watchdog_unregister_device(wdt);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
@@ -143,7 +141,6 @@ static struct platform_driver twl4030_wdt_driver = {
 	.suspend	= twl4030_wdt_suspend,
 	.resume		= twl4030_wdt_resume,
 	.driver		= {
-		.owner		= THIS_MODULE,
 		.name		= "twl4030_wdt",
 		.of_match_table	= twl_wdt_of_match,
 	},

@@ -325,7 +325,7 @@ pci_map_single_1(struct pci_dev *pdev, void *cpu_addr, size_t size,
 /* Helper for generic DMA-mapping functions. */
 static struct pci_dev *alpha_gendev_to_pci(struct device *dev)
 {
-	if (dev && dev->bus == &pci_bus_type)
+	if (dev && dev_is_pci(dev))
 		return to_pci_dev(dev);
 
 	/* Assume that non-PCI devices asking for DMA are either ISA or EISA,
@@ -939,16 +939,6 @@ static int alpha_pci_mapping_error(struct device *dev, dma_addr_t dma_addr)
 	return dma_addr == 0;
 }
 
-static int alpha_pci_set_mask(struct device *dev, u64 mask)
-{
-	if (!dev->dma_mask ||
-	    !pci_dma_supported(alpha_gendev_to_pci(dev), mask))
-		return -EIO;
-
-	*dev->dma_mask = mask;
-	return 0;
-}
-
 struct dma_map_ops alpha_pci_ops = {
 	.alloc			= alpha_pci_alloc_coherent,
 	.free			= alpha_pci_free_coherent,
@@ -958,7 +948,6 @@ struct dma_map_ops alpha_pci_ops = {
 	.unmap_sg		= alpha_pci_unmap_sg,
 	.mapping_error		= alpha_pci_mapping_error,
 	.dma_supported		= alpha_pci_supported,
-	.set_dma_mask		= alpha_pci_set_mask,
 };
 
 struct dma_map_ops *dma_ops = &alpha_pci_ops;

@@ -13,9 +13,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -27,7 +25,6 @@
 #include <linux/crc-itu-t.h>
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -533,10 +530,8 @@ static void rt61pci_config_filter(struct rt2x00_dev *rt2x00dev,
 			   !(filter_flags & FIF_PLCPFAIL));
 	rt2x00_set_field32(&reg, TXRX_CSR0_DROP_CONTROL,
 			   !(filter_flags & (FIF_CONTROL | FIF_PSPOLL)));
-	rt2x00_set_field32(&reg, TXRX_CSR0_DROP_NOT_TO_ME,
-			   !(filter_flags & FIF_PROMISC_IN_BSS));
+	rt2x00_set_field32(&reg, TXRX_CSR0_DROP_NOT_TO_ME, 1);
 	rt2x00_set_field32(&reg, TXRX_CSR0_DROP_TO_DS,
-			   !(filter_flags & FIF_PROMISC_IN_BSS) &&
 			   !rt2x00dev->intf_ap_count);
 	rt2x00_set_field32(&reg, TXRX_CSR0_DROP_VERSION_ERROR, 1);
 	rt2x00_set_field32(&reg, TXRX_CSR0_DROP_MULTICAST,
@@ -685,7 +680,7 @@ static void rt61pci_config_antenna_2x(struct rt2x00_dev *rt2x00dev,
 
 	rt2x00_set_field8(&r3, BBP_R3_SMART_MODE, rt2x00_rf(rt2x00dev, RF2529));
 	rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END,
-			  !test_bit(CAPABILITY_FRAME_TYPE, &rt2x00dev->cap_flags));
+			  !rt2x00_has_cap_frame_type(rt2x00dev));
 
 	/*
 	 * Configure the RX antenna.
@@ -813,10 +808,10 @@ static void rt61pci_config_ant(struct rt2x00_dev *rt2x00dev,
 
 	if (rt2x00dev->curr_band == IEEE80211_BAND_5GHZ) {
 		sel = antenna_sel_a;
-		lna = test_bit(CAPABILITY_EXTERNAL_LNA_A, &rt2x00dev->cap_flags);
+		lna = rt2x00_has_cap_external_lna_a(rt2x00dev);
 	} else {
 		sel = antenna_sel_bg;
-		lna = test_bit(CAPABILITY_EXTERNAL_LNA_BG, &rt2x00dev->cap_flags);
+		lna = rt2x00_has_cap_external_lna_bg(rt2x00dev);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(antenna_sel_a); i++)
@@ -836,7 +831,7 @@ static void rt61pci_config_ant(struct rt2x00_dev *rt2x00dev,
 	else if (rt2x00_rf(rt2x00dev, RF2527))
 		rt61pci_config_antenna_2x(rt2x00dev, ant);
 	else if (rt2x00_rf(rt2x00dev, RF2529)) {
-		if (test_bit(CAPABILITY_DOUBLE_ANTENNA, &rt2x00dev->cap_flags))
+		if (rt2x00_has_cap_double_antenna(rt2x00dev))
 			rt61pci_config_antenna_2x(rt2x00dev, ant);
 		else
 			rt61pci_config_antenna_2529(rt2x00dev, ant);
@@ -850,13 +845,13 @@ static void rt61pci_config_lna_gain(struct rt2x00_dev *rt2x00dev,
 	short lna_gain = 0;
 
 	if (libconf->conf->chandef.chan->band == IEEE80211_BAND_2GHZ) {
-		if (test_bit(CAPABILITY_EXTERNAL_LNA_BG, &rt2x00dev->cap_flags))
+		if (rt2x00_has_cap_external_lna_bg(rt2x00dev))
 			lna_gain += 14;
 
 		rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_OFFSET_BG, &eeprom);
 		lna_gain -= rt2x00_get_field16(eeprom, EEPROM_RSSI_OFFSET_BG_1);
 	} else {
-		if (test_bit(CAPABILITY_EXTERNAL_LNA_A, &rt2x00dev->cap_flags))
+		if (rt2x00_has_cap_external_lna_a(rt2x00dev))
 			lna_gain += 14;
 
 		rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_OFFSET_A, &eeprom);
@@ -1054,14 +1049,14 @@ static void rt61pci_link_tuner(struct rt2x00_dev *rt2x00dev,
 	if (rt2x00dev->curr_band == IEEE80211_BAND_5GHZ) {
 		low_bound = 0x28;
 		up_bound = 0x48;
-		if (test_bit(CAPABILITY_EXTERNAL_LNA_A, &rt2x00dev->cap_flags)) {
+		if (rt2x00_has_cap_external_lna_a(rt2x00dev)) {
 			low_bound += 0x10;
 			up_bound += 0x10;
 		}
 	} else {
 		low_bound = 0x20;
 		up_bound = 0x40;
-		if (test_bit(CAPABILITY_EXTERNAL_LNA_BG, &rt2x00dev->cap_flags)) {
+		if (rt2x00_has_cap_external_lna_bg(rt2x00dev)) {
 			low_bound += 0x10;
 			up_bound += 0x10;
 		}
@@ -2034,13 +2029,14 @@ static void rt61pci_write_beacon(struct queue_entry *entry,
 static void rt61pci_clear_beacon(struct queue_entry *entry)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	u32 reg;
+	u32 orig_reg, reg;
 
 	/*
 	 * Disable beaconing while we are reloading the beacon data,
 	 * otherwise we might be sending out invalid data.
 	 */
-	rt2x00mmio_register_read(rt2x00dev, TXRX_CSR9, &reg);
+	rt2x00mmio_register_read(rt2x00dev, TXRX_CSR9, &orig_reg);
+	reg = orig_reg;
 	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 0);
 	rt2x00mmio_register_write(rt2x00dev, TXRX_CSR9, reg);
 
@@ -2051,10 +2047,9 @@ static void rt61pci_clear_beacon(struct queue_entry *entry)
 				  HW_BEACON_OFFSET(entry->entry_idx), 0);
 
 	/*
-	 * Enable beaconing again.
+	 * Restore global beaconing state.
 	 */
-	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 1);
-	rt2x00mmio_register_write(rt2x00dev, TXRX_CSR9, reg);
+	rt2x00mmio_register_write(rt2x00dev, TXRX_CSR9, orig_reg);
 }
 
 /*
@@ -2175,7 +2170,7 @@ static void rt61pci_txdone(struct rt2x00_dev *rt2x00dev)
 	 * that the TX_STA_FIFO stack has a size of 16. We stick to our
 	 * tx ring size for now.
 	 */
-	for (i = 0; i < rt2x00dev->ops->tx->entry_num; i++) {
+	for (i = 0; i < rt2x00dev->tx->limit; i++) {
 		rt2x00mmio_register_read(rt2x00dev, STA_CSR4, &reg);
 		if (!rt2x00_get_field32(reg, STA_CSR4_VALID))
 			break;
@@ -2578,7 +2573,7 @@ static int rt61pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	 * eeprom word.
 	 */
 	if (rt2x00_rf(rt2x00dev, RF2529) &&
-	    !test_bit(CAPABILITY_DOUBLE_ANTENNA, &rt2x00dev->cap_flags)) {
+	    !rt2x00_has_cap_double_antenna(rt2x00dev)) {
 		rt2x00dev->default_ant.rx =
 		    ANTENNA_A + rt2x00_get_field16(eeprom, EEPROM_NIC_RX_FIXED);
 		rt2x00dev->default_ant.tx =
@@ -2763,11 +2758,10 @@ static int rt61pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize all hw fields.
 	 */
-	rt2x00dev->hw->flags =
-	    IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
-	    IEEE80211_HW_SIGNAL_DBM |
-	    IEEE80211_HW_SUPPORTS_PS |
-	    IEEE80211_HW_PS_NULLFUNC_STACK;
+	ieee80211_hw_set(rt2x00dev->hw, PS_NULLFUNC_STACK);
+	ieee80211_hw_set(rt2x00dev->hw, SUPPORTS_PS);
+	ieee80211_hw_set(rt2x00dev->hw, HOST_BROADCAST_PS_BUFFERING);
+	ieee80211_hw_set(rt2x00dev->hw, SIGNAL_DBM);
 
 	SET_IEEE80211_DEV(rt2x00dev->hw, rt2x00dev->dev);
 	SET_IEEE80211_PERM_ADDR(rt2x00dev->hw,
@@ -2793,7 +2787,7 @@ static int rt61pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	spec->supported_bands = SUPPORT_BAND_2GHZ;
 	spec->supported_rates = SUPPORT_RATE_CCK | SUPPORT_RATE_OFDM;
 
-	if (!test_bit(CAPABILITY_RF_SEQUENCE, &rt2x00dev->cap_flags)) {
+	if (!rt2x00_has_cap_rf_sequence(rt2x00dev)) {
 		spec->num_channels = 14;
 		spec->channels = rf_vals_noseq;
 	} else {
@@ -2825,7 +2819,8 @@ static int rt61pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 		tx_power = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_A_START);
 		for (i = 14; i < spec->num_channels; i++) {
 			info[i].max_power = MAX_TXPOWER;
-			info[i].default_power1 = TXPOWER_FROM_DEV(tx_power[i]);
+			info[i].default_power1 =
+					TXPOWER_FROM_DEV(tx_power[i - 14]);
 		}
 	}
 
@@ -3025,26 +3020,40 @@ static const struct rt2x00lib_ops rt61pci_rt2x00_ops = {
 	.config			= rt61pci_config,
 };
 
-static const struct data_queue_desc rt61pci_queue_rx = {
-	.entry_num		= 32,
-	.data_size		= DATA_FRAME_SIZE,
-	.desc_size		= RXD_DESC_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_mmio),
-};
+static void rt61pci_queue_init(struct data_queue *queue)
+{
+	switch (queue->qid) {
+	case QID_RX:
+		queue->limit = 32;
+		queue->data_size = DATA_FRAME_SIZE;
+		queue->desc_size = RXD_DESC_SIZE;
+		queue->priv_size = sizeof(struct queue_entry_priv_mmio);
+		break;
 
-static const struct data_queue_desc rt61pci_queue_tx = {
-	.entry_num		= 32,
-	.data_size		= DATA_FRAME_SIZE,
-	.desc_size		= TXD_DESC_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_mmio),
-};
+	case QID_AC_VO:
+	case QID_AC_VI:
+	case QID_AC_BE:
+	case QID_AC_BK:
+		queue->limit = 32;
+		queue->data_size = DATA_FRAME_SIZE;
+		queue->desc_size = TXD_DESC_SIZE;
+		queue->priv_size = sizeof(struct queue_entry_priv_mmio);
+		break;
 
-static const struct data_queue_desc rt61pci_queue_bcn = {
-	.entry_num		= 4,
-	.data_size		= 0, /* No DMA required for beacons */
-	.desc_size		= TXINFO_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_mmio),
-};
+	case QID_BEACON:
+		queue->limit = 4;
+		queue->data_size = 0; /* No DMA required for beacons */
+		queue->desc_size = TXINFO_SIZE;
+		queue->priv_size = sizeof(struct queue_entry_priv_mmio);
+		break;
+
+	case QID_ATIM:
+		/* fallthrough */
+	default:
+		BUG();
+		break;
+	}
+}
 
 static const struct rt2x00_ops rt61pci_ops = {
 	.name			= KBUILD_MODNAME,
@@ -3052,10 +3061,7 @@ static const struct rt2x00_ops rt61pci_ops = {
 	.eeprom_size		= EEPROM_SIZE,
 	.rf_size		= RF_SIZE,
 	.tx_queues		= NUM_TX_QUEUES,
-	.extra_tx_headroom	= 0,
-	.rx			= &rt61pci_queue_rx,
-	.tx			= &rt61pci_queue_tx,
-	.bcn			= &rt61pci_queue_bcn,
+	.queue_init		= rt61pci_queue_init,
 	.lib			= &rt61pci_rt2x00_ops,
 	.hw			= &rt61pci_mac80211_ops,
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
@@ -3066,7 +3072,7 @@ static const struct rt2x00_ops rt61pci_ops = {
 /*
  * RT61pci module information.
  */
-static DEFINE_PCI_DEVICE_TABLE(rt61pci_device_table) = {
+static const struct pci_device_id rt61pci_device_table[] = {
 	/* RT2561s */
 	{ PCI_DEVICE(0x1814, 0x0301) },
 	/* RT2561 v2 */

@@ -385,20 +385,28 @@ static int __init nettel_init(void)
 	}
 	rc = mtd_device_register(intel_mtd, nettel_intel_partitions,
 				 num_intel_partitions);
+	if (rc)
+		goto out_map_destroy;
 #endif
 
 	if (amd_mtd) {
 		rc = mtd_device_register(amd_mtd, nettel_amd_partitions,
 					 num_amd_partitions);
+		if (rc)
+			goto out_mtd_unreg;
 	}
 
 #ifdef CONFIG_MTD_CFI_INTELEXT
 	register_reboot_notifier(&nettel_notifier_block);
 #endif
 
-	return(rc);
+	return rc;
 
+out_mtd_unreg:
 #ifdef CONFIG_MTD_CFI_INTELEXT
+	mtd_device_unregister(intel_mtd);
+out_map_destroy:
+	map_destroy(intel_mtd);
 out_unmap1:
 	iounmap(nettel_intel_map.virt);
 #endif
@@ -407,8 +415,7 @@ out_unmap2:
 	iounmap(nettel_mmcrp);
 	iounmap(nettel_amd_map.virt);
 
-	return(rc);
-
+	return rc;
 }
 
 /****************************************************************************/

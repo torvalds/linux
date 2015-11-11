@@ -340,7 +340,7 @@ static void de21041_media_timer (unsigned long data);
 static unsigned int de_ok_to_advertise (struct de_private *de, u32 new_media);
 
 
-static DEFINE_PCI_DEVICE_TABLE(de_pci_tbl) = {
+static const struct pci_device_id de_pci_tbl[] = {
 	{ PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_TULIP,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_TULIP_PLUS,
@@ -1597,7 +1597,6 @@ static void de_get_drvinfo (struct net_device *dev,struct ethtool_drvinfo *info)
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
 	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(de->pdev), sizeof(info->bus_info));
-	info->eedump_len = DE_EEPROM_SIZE;
 }
 
 static int de_get_regs_len(struct net_device *dev)
@@ -2110,7 +2109,6 @@ static void de_remove_one(struct pci_dev *pdev)
 	iounmap(de->regs);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	free_netdev(dev);
 }
 

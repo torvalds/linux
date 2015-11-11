@@ -293,9 +293,10 @@ int cfctrl_linkup_request(struct cflayer *layer,
 
 		count = cfctrl_cancel_req(&cfctrl->serv.layer,
 						user_layer);
-		if (count != 1)
+		if (count != 1) {
 			pr_err("Could not remove request (%d)", count);
 			return -ENODEV;
+		}
 	}
 	return 0;
 }
@@ -546,7 +547,6 @@ static int cfctrl_recv(struct cflayer *layer, struct cfpkt *pkt)
 	default:
 		pr_err("Unrecognized Control Frame\n");
 		goto error;
-		break;
 	}
 	ret = 0;
 error:

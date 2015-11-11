@@ -82,31 +82,22 @@ void *__switch_to(struct task_struct *from, struct task_struct *to)
 	to->thread.prev_sched = from;
 	set_current(to);
 
-	do {
-		current->thread.saved_task = NULL;
-
-		switch_threads(&from->thread.switch_buf,
-			       &to->thread.switch_buf);
-
-		arch_switch_to(current);
-
-		if (current->thread.saved_task)
-			show_regs(&(current->thread.regs));
-		to = current->thread.saved_task;
-		from = current;
-	} while (current->thread.saved_task);
+	switch_threads(&from->thread.switch_buf, &to->thread.switch_buf);
+	arch_switch_to(current);
 
 	return current->thread.prev_sched;
 }
 
 void interrupt_end(void)
 {
+	struct pt_regs *regs = &current->thread.regs;
+
 	if (need_resched())
 		schedule();
 	if (test_thread_flag(TIF_SIGPENDING))
-		do_signal();
+		do_signal(regs);
 	if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME))
-		tracehook_notify_resume(&current->thread.regs);
+		tracehook_notify_resume(regs);
 }
 
 void exit_thread(void)
@@ -270,17 +261,6 @@ int strlen_user_proc(char __user *str)
 	return strlen_user(str);
 }
 
-int smp_sigio_handler(void)
-{
-#ifdef CONFIG_SMP
-	int cpu = current_thread_info()->cpu;
-	IPI_handler(cpu);
-	if (cpu != 0)
-		return 1;
-#endif
-	return 0;
-}
-
 int cpu(void)
 {
 	return current_thread_info()->cpu;
@@ -370,7 +350,7 @@ int singlestepping(void * t)
 /*
  * Only x86 and x86_64 have an arch_align_stack().
  * All other arches have "#define arch_align_stack(x) (x)"
- * in their asm/system.h
+ * in their asm/exec.h
  * As this is included in UML from asm-um/system-generic.h,
  * we can use it to behave as the subarch does.
  */

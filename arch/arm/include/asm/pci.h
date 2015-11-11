@@ -18,23 +18,11 @@ static inline int pcibios_assign_all_busses(void)
 }
 
 #ifdef CONFIG_PCI_DOMAINS
-static inline int pci_domain_nr(struct pci_bus *bus)
-{
-	struct pci_sys_data *root = bus->sysdata;
-
-	return root->domain;
-}
-
 static inline int pci_proc_domain(struct pci_bus *bus)
 {
 	return pci_domain_nr(bus);
 }
 #endif /* CONFIG_PCI_DOMAINS */
-
-static inline void pcibios_penalize_isa_irq(int irq, int active)
-{
-	/* We don't do dynamic PCI IRQ allocation */
-}
 
 /*
  * The PCI address space does equal the physical memory address space.
@@ -43,26 +31,13 @@ static inline void pcibios_penalize_isa_irq(int irq, int active)
  */
 #define PCI_DMA_BUS_IS_PHYS     (1)
 
-#ifdef CONFIG_PCI
-static inline void pci_dma_burst_advice(struct pci_dev *pdev,
-					enum pci_dma_burst_strategy *strat,
-					unsigned long *strategy_parameter)
-{
-	*strat = PCI_DMA_BURST_INFINITY;
-	*strategy_parameter = ~0UL;
-}
-#endif
-
 #define HAVE_PCI_MMAP
 extern int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
                                enum pci_mmap_state mmap_state, int write_combine);
 
-/*
- * Dummy implementation; always return 0.
- */
 static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 {
-	return 0;
+	return channel ? 15 : 14;
 }
 
 #endif /* __KERNEL__ */

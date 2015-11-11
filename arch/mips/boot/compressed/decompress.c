@@ -13,6 +13,7 @@
 
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/string.h>
 
 #include <asm/addrspace.h>
 
@@ -27,8 +28,13 @@ unsigned long free_mem_end_ptr;
 extern unsigned char __image_begin, __image_end;
 
 /* debug interfaces  */
+#ifdef CONFIG_DEBUG_ZBOOT
 extern void puts(const char *s);
 extern void puthex(unsigned long long val);
+#else
+#define puts(s) do {} while (0)
+#define puthex(val) do {} while (0)
+#endif
 
 void error(char *x)
 {
@@ -44,30 +50,15 @@ void error(char *x)
 #define STATIC static
 
 #ifdef CONFIG_KERNEL_GZIP
-void *memcpy(void *dest, const void *src, size_t n)
-{
-	int i;
-	const char *s = src;
-	char *d = dest;
-
-	for (i = 0; i < n; i++)
-		d[i] = s[i];
-	return dest;
-}
 #include "../../../../lib/decompress_inflate.c"
 #endif
 
 #ifdef CONFIG_KERNEL_BZIP2
-void *memset(void *s, int c, size_t n)
-{
-	int i;
-	char *ss = s;
-
-	for (i = 0; i < n; i++)
-		ss[i] = c;
-	return s;
-}
 #include "../../../../lib/decompress_bunzip2.c"
+#endif
+
+#ifdef CONFIG_KERNEL_LZ4
+#include "../../../../lib/decompress_unlz4.c"
 #endif
 
 #ifdef CONFIG_KERNEL_LZMA
@@ -78,9 +69,27 @@ void *memset(void *s, int c, size_t n)
 #include "../../../../lib/decompress_unlzo.c"
 #endif
 
+#ifdef CONFIG_KERNEL_XZ
+#include "../../../../lib/decompress_unxz.c"
+#endif
+
+unsigned long __stack_chk_guard;
+
+void __stack_chk_guard_setup(void)
+{
+	__stack_chk_guard = 0x000a0dff;
+}
+
+void __stack_chk_fail(void)
+{
+	error("stack-protector: Kernel stack is corrupted\n");
+}
+
 void decompress_kernel(unsigned long boot_heap_start)
 {
 	unsigned long zimage_start, zimage_size;
+
+	__stack_chk_guard_setup();
 
 	zimage_start = (unsigned long)(&__image_begin);
 	zimage_size = (unsigned long)(&__image_end) -
@@ -102,8 +111,8 @@ void decompress_kernel(unsigned long boot_heap_start)
 	puts("\n");
 
 	/* Decompress the kernel with according algorithm */
-	decompress((char *)zimage_start, zimage_size, 0, 0,
-		   (void *)VMLINUX_LOAD_ADDRESS_ULL, 0, error);
+	__decompress((char *)zimage_start, zimage_size, 0, 0,
+		   (void *)VMLINUX_LOAD_ADDRESS_ULL, 0, 0, error);
 
 	/* FIXME: should we flush cache here? */
 	puts("Now, booting the kernel...\n");

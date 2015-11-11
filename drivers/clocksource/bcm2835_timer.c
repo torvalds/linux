@@ -28,8 +28,8 @@
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/sched_clock.h>
 
-#include <asm/sched_clock.h>
 #include <asm/irq.h>
 
 #define REG_CONTROL	0x00
@@ -49,24 +49,9 @@ struct bcm2835_timer {
 
 static void __iomem *system_clock __read_mostly;
 
-static u32 notrace bcm2835_sched_read(void)
+static u64 notrace bcm2835_sched_read(void)
 {
 	return readl_relaxed(system_clock);
-}
-
-static void bcm2835_time_set_mode(enum clock_event_mode mode,
-	struct clock_event_device *evt_dev)
-{
-	switch (mode) {
-	case CLOCK_EVT_MODE_ONESHOT:
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	case CLOCK_EVT_MODE_RESUME:
-		break;
-	default:
-		WARN(1, "%s: unhandled event mode %d\n", __func__, mode);
-		break;
-	}
 }
 
 static int bcm2835_time_set_next_event(unsigned long event,
@@ -110,7 +95,7 @@ static void __init bcm2835_timer_init(struct device_node *node)
 		panic("Can't read clock-frequency");
 
 	system_clock = base + REG_COUNTER_LO;
-	setup_sched_clock(bcm2835_sched_read, 32, freq);
+	sched_clock_register(bcm2835_sched_read, 32, freq);
 
 	clocksource_mmio_init(base + REG_COUNTER_LO, node->name,
 		freq, 300, 32, clocksource_mmio_readl_up);
@@ -129,7 +114,6 @@ static void __init bcm2835_timer_init(struct device_node *node)
 	timer->evt.name = node->name;
 	timer->evt.rating = 300;
 	timer->evt.features = CLOCK_EVT_FEAT_ONESHOT;
-	timer->evt.set_mode = bcm2835_time_set_mode;
 	timer->evt.set_next_event = bcm2835_time_set_next_event;
 	timer->evt.cpumask = cpumask_of(0);
 	timer->act.name = node->name;

@@ -11,6 +11,8 @@
  */
 #include <linux/module.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 
 #include "iim.h"
 #include "hardware.h"
@@ -20,8 +22,15 @@ static int mx25_cpu_rev = -1;
 static int mx25_read_cpu_rev(void)
 {
 	u32 rev;
+	void __iomem *iim_base;
+	struct device_node *np;
 
-	rev = __raw_readl(MX25_IO_ADDRESS(MX25_IIM_BASE_ADDR + MXC_IIMSREV));
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx25-iim");
+	iim_base = of_iomap(np, 0);
+	BUG_ON(!iim_base);
+	rev = readl(iim_base + MXC_IIMSREV);
+	iounmap(iim_base);
+
 	switch (rev) {
 	case 0x00:
 		return IMX_CHIP_REVISION_1_0;

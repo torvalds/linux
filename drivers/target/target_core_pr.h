@@ -43,19 +43,24 @@
 #define PR_APTPL_MAX_IPORT_LEN			256
 #define PR_APTPL_MAX_TPORT_LEN			256
 
+/*
+ *  Function defined in target_core_spc.c
+ */
+void spc_parse_naa_6h_vendor_specific(struct se_device *, unsigned char *);
+
 extern struct kmem_cache *t10_pr_reg_cache;
 
-extern int core_pr_dump_initiator_port(struct t10_pr_registration *,
+extern void core_pr_dump_initiator_port(struct t10_pr_registration *,
 			char *, u32);
 extern sense_reason_t target_scsi2_reservation_release(struct se_cmd *);
 extern sense_reason_t target_scsi2_reservation_reserve(struct se_cmd *);
 extern int core_scsi3_alloc_aptpl_registration(
 			struct t10_reservation *, u64,
-			unsigned char *, unsigned char *, u32,
-			unsigned char *, u16, u32, int, int, u8);
+			unsigned char *, unsigned char *, u64,
+			unsigned char *, u16, u64, int, int, u8);
 extern int core_scsi3_check_aptpl_registration(struct se_device *,
 			struct se_portal_group *, struct se_lun *,
-			struct se_lun_acl *);
+			struct se_node_acl *, u64);
 extern void core_scsi3_free_pr_reg_from_nacl(struct se_device *,
 					     struct se_node_acl *);
 extern void core_scsi3_free_all_registrations(struct se_device *);

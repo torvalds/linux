@@ -80,6 +80,8 @@ Userspace can detect that a driver can report more total contacts than slots
 by noting that the largest supported BTN_TOOL_*TAP event is larger than the
 total number of type B slots reported in the absinfo for the ABS_MT_SLOT axis.
 
+The minimum value of the ABS_MT_SLOT axis must be 0.
+
 Protocol Example A
 ------------------
 
@@ -310,9 +312,12 @@ ABS_MT_TOOL_TYPE
 
 The type of approaching tool. A lot of kernel drivers cannot distinguish
 between different tool types, such as a finger or a pen. In such cases, the
-event should be omitted. The protocol currently supports MT_TOOL_FINGER and
-MT_TOOL_PEN [2]. For type B devices, this event is handled by input core;
-drivers should instead use input_mt_report_slot_state().
+event should be omitted. The protocol currently supports MT_TOOL_FINGER,
+MT_TOOL_PEN, and MT_TOOL_PALM [2]. For type B devices, this event is handled
+by input core; drivers should instead use input_mt_report_slot_state().
+A contact's ABS_MT_TOOL_TYPE may change over time while still touching the
+device, because the firmware may not be able to determine which tool is being
+used when it first appears.
 
 ABS_MT_BLOB_ID
 
@@ -356,7 +361,7 @@ For win8 devices with both T and C coordinates, the position mapping is
    ABS_MT_POSITION_X := T_X
    ABS_MT_POSITION_Y := T_Y
    ABS_MT_TOOL_X := C_X
-   ABS_MT_TOOL_X := C_Y
+   ABS_MT_TOOL_Y := C_Y
 
 Unfortunately, there is not enough information to specify both the touching
 ellipse and the tool ellipse, so one has to resort to approximations.  One
@@ -370,7 +375,7 @@ simple scheme, which is compatible with earlier usage, is:
 
 Rationale: We have no information about the orientation of the touching
 ellipse, so approximate it with an inscribed circle instead. The tool
-ellipse should align with the the vector (T - C), so the diameter must
+ellipse should align with the vector (T - C), so the diameter must
 increase with distance(T, C). Finally, assume that the touch diameter is
 equal to the tool thickness, and we arrive at the formulas above.
 

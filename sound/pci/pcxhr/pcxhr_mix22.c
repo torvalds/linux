@@ -22,6 +22,7 @@
 
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/pci.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/tlv.h>
@@ -290,7 +291,8 @@ int hr222_sub_init(struct pcxhr_mgr *mgr)
 	reg = PCXHR_INPB(mgr, PCXHR_XLX_STATUS);
 	if (reg & PCXHR_STAT_MIC_CAPS)
 		mgr->board_has_mic = 1;	/* microphone available */
-	snd_printdd("MIC input available = %d\n", mgr->board_has_mic);
+	dev_dbg(&mgr->pci->dev,
+		"MIC input available = %d\n", mgr->board_has_mic);
 
 	/* reset codec */
 	PCXHR_OUTPB(mgr, PCXHR_DSP_RESET,
@@ -405,7 +407,7 @@ int hr222_sub_set_clock(struct pcxhr_mgr *mgr,
 
 	hr222_config_akm(mgr, AKM_UNMUTE_CMD);
 
-	snd_printdd("set_clock to %dHz (realfreq=%d pllreg=%x)\n",
+	dev_dbg(&mgr->pci->dev, "set_clock to %dHz (realfreq=%d pllreg=%x)\n",
 		    rate, realfreq, pllreg);
 	return 0;
 }
@@ -431,13 +433,15 @@ int hr222_get_external_clock(struct pcxhr_mgr *mgr,
 		reg = PCXHR_STAT_FREQ_UER1_MASK;
 
 	} else {
-		snd_printdd("get_external_clock : type %d not supported\n",
+		dev_dbg(&mgr->pci->dev,
+			"get_external_clock : type %d not supported\n",
 			    clock_type);
 		return -EINVAL; /* other clocks not supported */
 	}
 
 	if ((PCXHR_INPB(mgr, PCXHR_XLX_CSUER) & mask) != mask) {
-		snd_printdd("get_external_clock(%d) = 0 Hz\n", clock_type);
+		dev_dbg(&mgr->pci->dev,
+			"get_external_clock(%d) = 0 Hz\n", clock_type);
 		*sample_rate = 0;
 		return 0; /* no external clock locked */
 	}
@@ -495,7 +499,7 @@ int hr222_get_external_clock(struct pcxhr_mgr *mgr,
 	else
 		rate = 0;
 
-	snd_printdd("External clock is at %d Hz (measured %d Hz)\n",
+	dev_dbg(&mgr->pci->dev, "External clock is at %d Hz (measured %d Hz)\n",
 		    rate, calc_rate);
 	*sample_rate = rate;
 	return 0;
@@ -542,7 +546,8 @@ int hr222_manage_timecode(struct pcxhr_mgr *mgr, int enable)
 int hr222_update_analog_audio_level(struct snd_pcxhr *chip,
 				    int is_capture, int channel)
 {
-	snd_printdd("hr222_update_analog_audio_level(%s chan=%d)\n",
+	dev_dbg(chip->card->dev,
+		"hr222_update_analog_audio_level(%s chan=%d)\n",
 		    is_capture ? "capture" : "playback", channel);
 	if (is_capture) {
 		int level_l, level_r, level_mic;
@@ -642,7 +647,7 @@ int hr222_iec958_capture_byte(struct snd_pcxhr *chip,
 		if (PCXHR_INPB(chip->mgr, PCXHR_XLX_CSUER) & mask)
 			temp |= 1;
 	}
-	snd_printdd("read iec958 AES %d byte %d = 0x%x\n",
+	dev_dbg(chip->card->dev, "read iec958 AES %d byte %d = 0x%x\n",
 		    chip->chip_idx, aes_idx, temp);
 	*aes_bits = temp;
 	return 0;
@@ -684,7 +689,7 @@ static void hr222_micro_boost(struct pcxhr_mgr *mgr, int level)
 
 	PCXHR_OUTPB(mgr, PCXHR_XLX_SELMIC, mgr->xlx_selmic);
 
-	snd_printdd("hr222_micro_boost : set %x\n", boost_mask);
+	dev_dbg(&mgr->pci->dev, "hr222_micro_boost : set %x\n", boost_mask);
 }
 
 static void hr222_phantom_power(struct pcxhr_mgr *mgr, int power)
@@ -696,7 +701,7 @@ static void hr222_phantom_power(struct pcxhr_mgr *mgr, int power)
 
 	PCXHR_OUTPB(mgr, PCXHR_XLX_SELMIC, mgr->xlx_selmic);
 
-	snd_printdd("hr222_phantom_power : set %d\n", power);
+	dev_dbg(&mgr->pci->dev, "hr222_phantom_power : set %d\n", power);
 }
 
 

@@ -20,10 +20,6 @@
 #include <linux/cpumask.h>
 #include <linux/thread_info.h>
 
-#ifndef CONFIG_SMP
-# error "<asm/smp.h> included in non-SMP build"
-#endif
-
 #define raw_smp_processor_id() (current_thread_info()->cpu)
 
 struct seq_file;
@@ -39,7 +35,8 @@ extern void show_ipi_list(struct seq_file *p, int prec);
 extern void handle_IPI(int ipinr, struct pt_regs *regs);
 
 /*
- * Setup the set of possible CPUs (via set_cpu_possible)
+ * Discover the set of possible CPUs and determine their
+ * SMP operations.
  */
 extern void smp_init_cpus(void);
 
@@ -47,6 +44,8 @@ extern void smp_init_cpus(void);
  * Provide a function to raise an IPI cross call on CPUs in callmap.
  */
 extern void set_smp_cross_call(void (*)(const struct cpumask *, unsigned int));
+
+extern void (*__smp_cross_call)(const struct cpumask *, unsigned int);
 
 /*
  * Called from the secondary holding pen, this is the secondary CPU entry point.
@@ -60,21 +59,14 @@ struct secondary_data {
 	void *stack;
 };
 extern struct secondary_data secondary_data;
-extern void secondary_holding_pen(void);
-extern volatile unsigned long secondary_holding_pen_release;
+extern void secondary_entry(void);
 
 extern void arch_send_call_function_single_ipi(int cpu);
 extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 
-struct device_node;
+extern int __cpu_disable(void);
 
-struct smp_enable_ops {
-	const char	*name;
-	int		(*init_cpu)(struct device_node *, int);
-	int		(*prepare_cpu)(int);
-};
-
-extern const struct smp_enable_ops smp_spin_table_ops;
-extern const struct smp_enable_ops smp_psci_ops;
+extern void __cpu_die(unsigned int cpu);
+extern void cpu_die(void);
 
 #endif /* ifndef __ASM_SMP_H */

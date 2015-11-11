@@ -1,0 +1,613 @@
+include ../scripts/Makefile.include
+
+# The default target of this Makefile is...
+all:
+
+include config/utilities.mak
+
+# Define V to have a more verbose compile.
+#
+# Define VF to have a more verbose feature check output.
+#
+# Define O to save output files in a separate directory.
+#
+# Define ARCH as name of target architecture if you want cross-builds.
+#
+# Define CROSS_COMPILE as prefix name of compiler if you want cross-builds.
+#
+# Define NO_LIBPERL to disable perl script extension.
+#
+# Define NO_LIBPYTHON to disable python script extension.
+#
+# Define PYTHON to point to the python binary if the default
+# `python' is not correct; for example: PYTHON=python2
+#
+# Define PYTHON_CONFIG to point to the python-config binary if
+# the default `$(PYTHON)-config' is not correct.
+#
+# Define ASCIIDOC8 if you want to format documentation with AsciiDoc 8
+#
+# Define DOCBOOK_XSL_172 if you want to format man pages with DocBook XSL v1.72.
+#
+# Define LDFLAGS=-static to build a static binary.
+#
+# Define EXTRA_CFLAGS=-m64 or EXTRA_CFLAGS=-m32 as appropriate for cross-builds.
+#
+# Define NO_DWARF if you do not want debug-info analysis feature at all.
+#
+# Define WERROR=0 to disable treating any warnings as errors.
+#
+# Define NO_NEWT if you do not want TUI support. (deprecated)
+#
+# Define NO_SLANG if you do not want TUI support.
+#
+# Define NO_GTK2 if you do not want GTK+ GUI support.
+#
+# Define NO_DEMANGLE if you do not want C++ symbol demangling.
+#
+# Define NO_LIBELF if you do not want libelf dependency (e.g. cross-builds)
+#
+# Define NO_LIBUNWIND if you do not want libunwind dependency for dwarf
+# backtrace post unwind.
+#
+# Define NO_BACKTRACE if you do not want stack backtrace debug feature
+#
+# Define NO_LIBNUMA if you do not want numa perf benchmark
+#
+# Define NO_LIBAUDIT if you do not want libaudit support
+#
+# Define NO_LIBBIONIC if you do not want bionic support
+#
+# Define NO_LIBDW_DWARF_UNWIND if you do not want libdw support
+# for dwarf backtrace post unwind.
+#
+# Define NO_PERF_READ_VDSO32 if you do not want to build perf-read-vdso32
+# for reading the 32-bit compatibility VDSO in 64-bit mode
+#
+# Define NO_PERF_READ_VDSOX32 if you do not want to build perf-read-vdsox32
+# for reading the x32 mode 32-bit compatibility VDSO in 64-bit mode
+#
+# Define NO_ZLIB if you do not want to support compressed kernel modules
+#
+# Define LIBBABELTRACE if you DO want libbabeltrace support
+# for CTF data format.
+#
+# Define NO_LZMA if you do not want to support compressed (xz) kernel modules
+#
+# Define NO_AUXTRACE if you do not want AUX area tracing support
+#
+# Define NO_LIBBPF if you do not want BPF support
+
+# As per kernel Makefile, avoid funny character set dependencies
+unexport LC_ALL
+LC_COLLATE=C
+LC_NUMERIC=C
+export LC_COLLATE LC_NUMERIC
+
+ifeq ($(srctree),)
+srctree := $(patsubst %/,%,$(dir $(shell pwd)))
+srctree := $(patsubst %/,%,$(dir $(srctree)))
+#$(info Determined 'srctree' to be $(srctree))
+endif
+
+ifneq ($(objtree),)
+#$(info Determined 'objtree' to be $(objtree))
+endif
+
+ifneq ($(OUTPUT),)
+#$(info Determined 'OUTPUT' to be $(OUTPUT))
+# Adding $(OUTPUT) as a directory to look for source files,
+# because use generated output files as sources dependency
+# for flex/bison parsers.
+VPATH += $(OUTPUT)
+export VPATH
+endif
+
+ifeq ($(V),1)
+  Q =
+else
+  Q = @
+endif
+
+# Do not use make's built-in rules
+# (this improves performance and avoids hard-to-debug behaviour);
+MAKEFLAGS += -r
+
+$(OUTPUT)PERF-VERSION-FILE: ../../.git/HEAD
+	$(Q)$(SHELL_PATH) util/PERF-VERSION-GEN $(OUTPUT)
+	$(Q)touch $(OUTPUT)PERF-VERSION-FILE
+
+# Makefiles suck: This macro sets a default value of $(2) for the
+# variable named by $(1), unless the variable has been set by
+# environment or command line. This is necessary for CC and AR
+# because make sets default values, so the simpler ?= approach
+# won't work as expected.
+define allow-override
+  $(if $(or $(findstring environment,$(origin $(1))),\
+            $(findstring command line,$(origin $(1)))),,\
+    $(eval $(1) = $(2)))
+endef
+
+# Allow setting CC and AR and LD, or setting CROSS_COMPILE as a prefix.
+$(call allow-override,CC,$(CROSS_COMPILE)gcc)
+$(call allow-override,AR,$(CROSS_COMPILE)ar)
+$(call allow-override,LD,$(CROSS_COMPILE)ld)
+
+PKG_CONFIG = $(CROSS_COMPILE)pkg-config
+
+RM      = rm -f
+LN      = ln -f
+MKDIR   = mkdir
+FIND    = find
+INSTALL = install
+FLEX    = flex
+BISON   = bison
+STRIP   = strip
+AWK     = awk
+
+LIB_DIR          = $(srctree)/tools/lib/api/
+TRACE_EVENT_DIR = $(srctree)/tools/lib/traceevent/
+BPF_DIR = $(srctree)/tools/lib/bpf/
+
+# include config/Makefile by default and rule out
+# non-config cases
+config := 1
+
+NON_CONFIG_TARGETS := clean TAGS tags cscope help
+
+ifdef MAKECMDGOALS
+ifeq ($(filter-out $(NON_CONFIG_TARGETS),$(MAKECMDGOALS)),)
+  config := 0
+endif
+endif
+
+ifeq ($(config),1)
+include config/Makefile
+endif
+
+export prefix bindir sharedir sysconfdir DESTDIR
+
+# sparse is architecture-neutral, which means that we need to tell it
+# explicitly what architecture to check for. Fix this up for yours..
+SPARSE_FLAGS = -D__BIG_ENDIAN__ -D__powerpc__
+
+# Guard against environment variables
+PYRF_OBJS =
+SCRIPT_SH =
+
+SCRIPT_SH += perf-archive.sh
+SCRIPT_SH += perf-with-kcore.sh
+
+grep-libs = $(filter -l%,$(1))
+strip-libs = $(filter-out -l%,$(1))
+
+ifneq ($(OUTPUT),)
+  TE_PATH=$(OUTPUT)
+  BPF_PATH=$(OUTPUT)
+ifneq ($(subdir),)
+  LIB_PATH=$(OUTPUT)/../lib/api/
+else
+  LIB_PATH=$(OUTPUT)
+endif
+else
+  TE_PATH=$(TRACE_EVENT_DIR)
+  LIB_PATH=$(LIB_DIR)
+  BPF_PATH=$(BPF_DIR)
+endif
+
+LIBTRACEEVENT = $(TE_PATH)libtraceevent.a
+export LIBTRACEEVENT
+
+LIBTRACEEVENT_DYNAMIC_LIST = $(TE_PATH)libtraceevent-dynamic-list
+LIBTRACEEVENT_DYNAMIC_LIST_LDFLAGS = -Xlinker --dynamic-list=$(LIBTRACEEVENT_DYNAMIC_LIST)
+
+LIBAPI = $(LIB_PATH)libapi.a
+export LIBAPI
+
+LIBBPF = $(BPF_PATH)libbpf.a
+
+# python extension build directories
+PYTHON_EXTBUILD     := $(OUTPUT)python_ext_build/
+PYTHON_EXTBUILD_LIB := $(PYTHON_EXTBUILD)lib/
+PYTHON_EXTBUILD_TMP := $(PYTHON_EXTBUILD)tmp/
+export PYTHON_EXTBUILD_LIB PYTHON_EXTBUILD_TMP
+
+python-clean := $(call QUIET_CLEAN, python) $(RM) -r $(PYTHON_EXTBUILD) $(OUTPUT)python/perf.so
+
+PYTHON_EXT_SRCS := $(shell grep -v ^\# util/python-ext-sources)
+PYTHON_EXT_DEPS := util/python-ext-sources util/setup.py $(LIBTRACEEVENT) $(LIBAPI)
+
+$(OUTPUT)python/perf.so: $(PYTHON_EXT_SRCS) $(PYTHON_EXT_DEPS) $(LIBTRACEEVENT_DYNAMIC_LIST)
+	$(QUIET_GEN)CFLAGS='$(CFLAGS)' LDFLAGS='$(LDFLAGS) $(LIBTRACEEVENT_DYNAMIC_LIST_LDFLAGS)' \
+	  $(PYTHON_WORD) util/setup.py \
+	  --quiet build_ext; \
+	mkdir -p $(OUTPUT)python && \
+	cp $(PYTHON_EXTBUILD_LIB)perf.so $(OUTPUT)python/
+#
+# No Perl scripts right now:
+#
+
+SCRIPTS = $(patsubst %.sh,%,$(SCRIPT_SH))
+
+PROGRAMS += $(OUTPUT)perf
+
+ifndef NO_PERF_READ_VDSO32
+PROGRAMS += $(OUTPUT)perf-read-vdso32
+endif
+
+ifndef NO_PERF_READ_VDSOX32
+PROGRAMS += $(OUTPUT)perf-read-vdsox32
+endif
+
+# what 'all' will build and 'install' will install, in perfexecdir
+ALL_PROGRAMS = $(PROGRAMS) $(SCRIPTS)
+
+# what 'all' will build but not install in perfexecdir
+OTHER_PROGRAMS = $(OUTPUT)perf
+
+# Set paths to tools early so that they can be used for version tests.
+ifndef SHELL_PATH
+  SHELL_PATH = /bin/sh
+endif
+ifndef PERL_PATH
+  PERL_PATH = /usr/bin/perl
+endif
+
+export PERL_PATH
+
+LIB_FILE=$(OUTPUT)libperf.a
+
+PERFLIBS = $(LIB_FILE) $(LIBAPI) $(LIBTRACEEVENT)
+ifndef NO_LIBBPF
+  PERFLIBS += $(LIBBPF)
+endif
+
+# We choose to avoid "if .. else if .. else .. endif endif"
+# because maintaining the nesting to match is a pain.  If
+# we had "elif" things would have been much nicer...
+
+-include arch/$(ARCH)/Makefile
+
+ifneq ($(OUTPUT),)
+  CFLAGS += -I$(OUTPUT)
+endif
+
+ifndef NO_GTK2
+  ALL_PROGRAMS += $(OUTPUT)libperf-gtk.so
+  GTK_IN := $(OUTPUT)gtk-in.o
+
+install-gtk: $(OUTPUT)libperf-gtk.so
+	$(call QUIET_INSTALL, 'GTK UI') \
+		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(libdir_SQ)'; \
+		$(INSTALL) $(OUTPUT)libperf-gtk.so '$(DESTDIR_SQ)$(libdir_SQ)'
+endif
+
+ifdef ASCIIDOC8
+  export ASCIIDOC8
+endif
+
+LIBS = -Wl,--whole-archive $(PERFLIBS) -Wl,--no-whole-archive -Wl,--start-group $(EXTLIBS) -Wl,--end-group
+
+export INSTALL SHELL_PATH
+
+### Build rules
+
+SHELL = $(SHELL_PATH)
+
+all: shell_compatibility_test $(ALL_PROGRAMS) $(LANG_BINDINGS) $(OTHER_PROGRAMS)
+
+please_set_SHELL_PATH_to_a_more_modern_shell:
+	$(Q)$$(:)
+
+shell_compatibility_test: please_set_SHELL_PATH_to_a_more_modern_shell
+
+strip: $(PROGRAMS) $(OUTPUT)perf
+	$(STRIP) $(STRIP_OPTS) $(PROGRAMS) $(OUTPUT)perf
+
+PERF_IN := $(OUTPUT)perf-in.o
+
+export srctree OUTPUT RM CC LD AR CFLAGS V BISON FLEX AWK
+include $(srctree)/tools/build/Makefile.include
+
+$(PERF_IN): prepare FORCE
+	$(Q)$(MAKE) $(build)=perf
+
+$(OUTPUT)perf: $(PERFLIBS) $(PERF_IN) $(LIBTRACEEVENT_DYNAMIC_LIST)
+	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) $(LIBTRACEEVENT_DYNAMIC_LIST_LDFLAGS) \
+		$(PERF_IN) $(LIBS) -o $@
+
+$(GTK_IN): fixdep FORCE
+	$(Q)$(MAKE) $(build)=gtk
+
+$(OUTPUT)libperf-gtk.so: $(GTK_IN) $(PERFLIBS)
+	$(QUIET_LINK)$(CC) -o $@ -shared $(LDFLAGS) $(filter %.o,$^) $(GTK_LIBS)
+
+$(OUTPUT)common-cmds.h: util/generate-cmdlist.sh command-list.txt
+
+$(OUTPUT)common-cmds.h: $(wildcard Documentation/perf-*.txt)
+	$(QUIET_GEN). util/generate-cmdlist.sh > $@+ && mv $@+ $@
+
+$(SCRIPTS) : % : %.sh
+	$(QUIET_GEN)$(INSTALL) '$@.sh' '$(OUTPUT)$@'
+
+# These can record PERF_VERSION
+perf.spec $(SCRIPTS) \
+	: $(OUTPUT)PERF-VERSION-FILE
+
+.SUFFIXES:
+
+#
+# If a target does not match any of the later rules then prefix it by $(OUTPUT)
+# This makes targets like 'make O=/tmp/perf perf.o' work in a natural way.
+#
+ifneq ($(OUTPUT),)
+%.o: $(OUTPUT)%.o
+	@echo "    # Redirected target $@ => $(OUTPUT)$@"
+util/%.o: $(OUTPUT)util/%.o
+	@echo "    # Redirected target $@ => $(OUTPUT)$@"
+bench/%.o: $(OUTPUT)bench/%.o
+	@echo "    # Redirected target $@ => $(OUTPUT)$@"
+tests/%.o: $(OUTPUT)tests/%.o
+	@echo "    # Redirected target $@ => $(OUTPUT)$@"
+endif
+
+# These two need to be here so that when O= is not used they take precedence
+# over the general rule for .o
+
+# get relative building directory (to $(OUTPUT))
+# and '.' if it's $(OUTPUT) itself
+__build-dir = $(subst $(OUTPUT),,$(dir $@))
+build-dir   = $(if $(__build-dir),$(__build-dir),.)
+
+prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h fixdep
+
+$(OUTPUT)%.o: %.c prepare FORCE
+	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
+
+$(OUTPUT)%.i: %.c prepare FORCE
+	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
+
+$(OUTPUT)%.s: %.c prepare FORCE
+	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
+
+$(OUTPUT)%-bison.o: %.c prepare FORCE
+	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
+
+$(OUTPUT)%-flex.o: %.c prepare FORCE
+	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
+
+$(OUTPUT)%.o: %.S prepare FORCE
+	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
+
+$(OUTPUT)%.i: %.S prepare FORCE
+	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
+
+$(OUTPUT)perf-%: %.o $(PERFLIBS)
+	$(QUIET_LINK)$(CC) $(CFLAGS) -o $@ $(LDFLAGS) $(filter %.o,$^) $(LIBS)
+
+ifndef NO_PERF_READ_VDSO32
+$(OUTPUT)perf-read-vdso32: perf-read-vdso.c util/find-vdso-map.c
+	$(QUIET_CC)$(CC) -m32 $(filter -static,$(LDFLAGS)) -Wall -Werror -o $@ perf-read-vdso.c
+endif
+
+ifndef NO_PERF_READ_VDSOX32
+$(OUTPUT)perf-read-vdsox32: perf-read-vdso.c util/find-vdso-map.c
+	$(QUIET_CC)$(CC) -mx32 $(filter -static,$(LDFLAGS)) -Wall -Werror -o $@ perf-read-vdso.c
+endif
+
+$(patsubst perf-%,%.o,$(PROGRAMS)): $(wildcard */*.h)
+
+LIBPERF_IN := $(OUTPUT)libperf-in.o
+
+$(LIBPERF_IN): fixdep FORCE
+	$(Q)$(MAKE) $(build)=libperf
+
+$(LIB_FILE): $(LIBPERF_IN)
+	$(QUIET_AR)$(RM) $@ && $(AR) rcs $@ $(LIBPERF_IN) $(LIB_OBJS)
+
+LIBTRACEEVENT_FLAGS += plugin_dir=$(plugindir_SQ)
+
+$(LIBTRACEEVENT): fixdep FORCE
+	$(Q)$(MAKE) -C $(TRACE_EVENT_DIR) $(LIBTRACEEVENT_FLAGS) O=$(OUTPUT) $(OUTPUT)libtraceevent.a
+
+libtraceevent_plugins: fixdep FORCE
+	$(Q)$(MAKE) -C $(TRACE_EVENT_DIR) $(LIBTRACEEVENT_FLAGS) O=$(OUTPUT) plugins
+
+$(LIBTRACEEVENT_DYNAMIC_LIST): libtraceevent_plugins
+	$(Q)$(MAKE) -C $(TRACE_EVENT_DIR) $(LIBTRACEEVENT_FLAGS) O=$(OUTPUT) $(OUTPUT)libtraceevent-dynamic-list
+
+$(LIBTRACEEVENT)-clean:
+	$(call QUIET_CLEAN, libtraceevent)
+	$(Q)$(MAKE) -C $(TRACE_EVENT_DIR) O=$(OUTPUT) clean >/dev/null
+
+install-traceevent-plugins: $(LIBTRACEEVENT)
+	$(Q)$(MAKE) -C $(TRACE_EVENT_DIR) $(LIBTRACEEVENT_FLAGS) O=$(OUTPUT) install_plugins
+
+$(LIBAPI): fixdep FORCE
+	$(Q)$(MAKE) -C $(LIB_DIR) O=$(OUTPUT) $(OUTPUT)libapi.a
+
+$(LIBAPI)-clean:
+	$(call QUIET_CLEAN, libapi)
+	$(Q)$(MAKE) -C $(LIB_DIR) O=$(OUTPUT) clean >/dev/null
+
+$(LIBBPF): fixdep FORCE
+	$(Q)$(MAKE) -C $(BPF_DIR) O=$(OUTPUT) $(OUTPUT)libbpf.a
+
+$(LIBBPF)-clean:
+	$(call QUIET_CLEAN, libbpf)
+	$(Q)$(MAKE) -C $(BPF_DIR) O=$(OUTPUT) clean >/dev/null
+
+help:
+	@echo 'Perf make targets:'
+	@echo '  doc		- make *all* documentation (see below)'
+	@echo '  man		- make manpage documentation (access with man <foo>)'
+	@echo '  html		- make html documentation'
+	@echo '  info		- make GNU info documentation (access with info <foo>)'
+	@echo '  pdf		- make pdf documentation'
+	@echo '  TAGS		- use etags to make tag information for source browsing'
+	@echo '  tags		- use ctags to make tag information for source browsing'
+	@echo '  cscope	- use cscope to make interactive browsing database'
+	@echo ''
+	@echo 'Perf install targets:'
+	@echo '  NOTE: documentation build requires asciidoc, xmlto packages to be installed'
+	@echo '  HINT: use "prefix" or "DESTDIR" to install to a particular'
+	@echo '        path like "make prefix=/usr/local install install-doc"'
+	@echo '  install	- install compiled binaries'
+	@echo '  install-doc	- install *all* documentation'
+	@echo '  install-man	- install manpage documentation'
+	@echo '  install-html	- install html documentation'
+	@echo '  install-info	- install GNU info documentation'
+	@echo '  install-pdf	- install pdf documentation'
+	@echo ''
+	@echo '  quick-install-doc	- alias for quick-install-man'
+	@echo '  quick-install-man	- install the documentation quickly'
+	@echo '  quick-install-html	- install the html documentation quickly'
+	@echo ''
+	@echo 'Perf maintainer targets:'
+	@echo '  clean			- clean all binary objects and build output'
+
+
+DOC_TARGETS := doc man html info pdf
+
+INSTALL_DOC_TARGETS := $(patsubst %,install-%,$(DOC_TARGETS)) try-install-man
+INSTALL_DOC_TARGETS += quick-install-doc quick-install-man quick-install-html
+
+# 'make doc' should call 'make -C Documentation all'
+$(DOC_TARGETS):
+	$(QUIET_SUBDIR0)Documentation $(QUIET_SUBDIR1) $(@:doc=all)
+
+TAG_FOLDERS= . ../lib/traceevent ../lib/api ../lib/symbol ../include ../lib/bpf
+TAG_FILES= ../../include/uapi/linux/perf_event.h
+
+TAGS:
+	$(QUIET_GEN)$(RM) TAGS; \
+	$(FIND) $(TAG_FOLDERS) -name '*.[hcS]' -print | xargs etags -a $(TAG_FILES)
+
+tags:
+	$(QUIET_GEN)$(RM) tags; \
+	$(FIND) $(TAG_FOLDERS) -name '*.[hcS]' -print | xargs ctags -a $(TAG_FILES)
+
+cscope:
+	$(QUIET_GEN)$(RM) cscope*; \
+	$(FIND) $(TAG_FOLDERS) -name '*.[hcS]' -print | xargs cscope -b $(TAG_FILES)
+
+### Testing rules
+
+# GNU make supports exporting all variables by "export" without parameters.
+# However, the environment gets quite big, and some programs have problems
+# with that.
+
+check: $(OUTPUT)common-cmds.h
+	if sparse; \
+	then \
+		for i in *.c */*.c; \
+		do \
+			sparse $(CFLAGS) $(SPARSE_FLAGS) $$i || exit; \
+		done; \
+	else \
+		exit 1; \
+	fi
+
+### Installation rules
+
+install-gtk:
+
+install-tools: all install-gtk
+	$(call QUIET_INSTALL, binaries) \
+		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(bindir_SQ)'; \
+		$(INSTALL) $(OUTPUT)perf '$(DESTDIR_SQ)$(bindir_SQ)'; \
+		$(LN) '$(DESTDIR_SQ)$(bindir_SQ)/perf' '$(DESTDIR_SQ)$(bindir_SQ)/trace'
+ifndef NO_PERF_READ_VDSO32
+	$(call QUIET_INSTALL, perf-read-vdso32) \
+		$(INSTALL) $(OUTPUT)perf-read-vdso32 '$(DESTDIR_SQ)$(bindir_SQ)';
+endif
+ifndef NO_PERF_READ_VDSOX32
+	$(call QUIET_INSTALL, perf-read-vdsox32) \
+		$(INSTALL) $(OUTPUT)perf-read-vdsox32 '$(DESTDIR_SQ)$(bindir_SQ)';
+endif
+	$(call QUIET_INSTALL, libexec) \
+		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)'
+	$(call QUIET_INSTALL, perf-archive) \
+		$(INSTALL) $(OUTPUT)perf-archive -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)'
+	$(call QUIET_INSTALL, perf-with-kcore) \
+		$(INSTALL) $(OUTPUT)perf-with-kcore -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)'
+ifndef NO_LIBAUDIT
+	$(call QUIET_INSTALL, strace/groups) \
+		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(STRACE_GROUPS_INSTDIR_SQ)'; \
+		$(INSTALL) trace/strace/groups/* -t '$(DESTDIR_SQ)$(STRACE_GROUPS_INSTDIR_SQ)'
+endif
+ifndef NO_LIBPERL
+	$(call QUIET_INSTALL, perl-scripts) \
+		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/perl/Perf-Trace-Util/lib/Perf/Trace'; \
+		$(INSTALL) scripts/perl/Perf-Trace-Util/lib/Perf/Trace/* -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/perl/Perf-Trace-Util/lib/Perf/Trace'; \
+		$(INSTALL) scripts/perl/*.pl -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/perl'; \
+		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/perl/bin'; \
+		$(INSTALL) scripts/perl/bin/* -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/perl/bin'
+endif
+ifndef NO_LIBPYTHON
+	$(call QUIET_INSTALL, python-scripts) \
+		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/python/Perf-Trace-Util/lib/Perf/Trace'; \
+		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/python/bin'; \
+		$(INSTALL) scripts/python/Perf-Trace-Util/lib/Perf/Trace/* -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/python/Perf-Trace-Util/lib/Perf/Trace'; \
+		$(INSTALL) scripts/python/*.py -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/python'; \
+		$(INSTALL) scripts/python/bin/* -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/python/bin'
+endif
+	$(call QUIET_INSTALL, perf_completion-script) \
+		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(sysconfdir_SQ)/bash_completion.d'; \
+		$(INSTALL) perf-completion.sh '$(DESTDIR_SQ)$(sysconfdir_SQ)/bash_completion.d/perf'
+
+install-tests: all install-gtk
+	$(call QUIET_INSTALL, tests) \
+		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/tests'; \
+		$(INSTALL) tests/attr.py '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/tests'; \
+		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/tests/attr'; \
+		$(INSTALL) tests/attr/* '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/tests/attr'
+
+install-bin: install-tools install-tests
+
+install: install-bin try-install-man install-traceevent-plugins
+
+install-python_ext:
+	$(PYTHON_WORD) util/setup.py --quiet install --root='/$(DESTDIR_SQ)'
+
+# 'make install-doc' should call 'make -C Documentation install'
+$(INSTALL_DOC_TARGETS):
+	$(QUIET_SUBDIR0)Documentation $(QUIET_SUBDIR1) $(@:-doc=)
+
+### Cleaning rules
+
+#
+# This is here, not in config/Makefile, because config/Makefile does
+# not get included for the clean target:
+#
+config-clean:
+	$(call QUIET_CLEAN, config)
+	$(Q)$(MAKE) -C $(srctree)/tools/build/feature/ clean >/dev/null
+
+clean: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean config-clean
+	$(call QUIET_CLEAN, core-objs)  $(RM) $(LIB_FILE) $(OUTPUT)perf-archive $(OUTPUT)perf-with-kcore $(LANG_BINDINGS)
+	$(Q)find . -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
+	$(Q)$(RM) $(OUTPUT).config-detected
+	$(call QUIET_CLEAN, core-progs) $(RM) $(ALL_PROGRAMS) perf perf-read-vdso32 perf-read-vdsox32
+	$(call QUIET_CLEAN, core-gen)   $(RM)  *.spec *.pyc *.pyo */*.pyc */*.pyo $(OUTPUT)common-cmds.h TAGS tags cscope* $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)FEATURE-DUMP $(OUTPUT)util/*-bison* $(OUTPUT)util/*-flex* \
+		$(OUTPUT)util/intel-pt-decoder/inat-tables.c
+	$(QUIET_SUBDIR0)Documentation $(QUIET_SUBDIR1) clean
+	$(python-clean)
+
+#
+# Trick: if ../../.git does not exist - we are building out of tree for example,
+# then force version regeneration:
+#
+ifeq ($(wildcard ../../.git/HEAD),)
+    GIT-HEAD-PHONY = ../../.git/HEAD
+else
+    GIT-HEAD-PHONY =
+endif
+
+FORCE:
+
+.PHONY: all install clean config-clean strip install-gtk
+.PHONY: shell_compatibility_test please_set_SHELL_PATH_to_a_more_modern_shell
+.PHONY: $(GIT-HEAD-PHONY) TAGS tags cscope FORCE prepare
+.PHONY: libtraceevent_plugins
+

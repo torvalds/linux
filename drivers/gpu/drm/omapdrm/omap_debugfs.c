@@ -17,11 +17,11 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <drm/drm_crtc.h>
+#include <drm/drm_fb_helper.h>
+
 #include "omap_drv.h"
 #include "omap_dmm_tiler.h"
-
-#include "drm_fb_helper.h"
-
 
 #ifdef CONFIG_DEBUG_FS
 
@@ -48,7 +48,7 @@ static int mm_show(struct seq_file *m, void *arg)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
-	return drm_mm_dump_table(m, dev->mm_private);
+	return drm_mm_dump_table(m, &dev->vma_offset_manager->vm_addr_space_mm);
 }
 
 static int fb_show(struct seq_file *m, void *arg)

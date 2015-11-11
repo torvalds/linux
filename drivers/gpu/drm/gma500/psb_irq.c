@@ -200,11 +200,64 @@ static void psb_vdc_interrupt(struct drm_device *dev, uint32_t vdc_stat)
 		mid_pipe_event_handler(dev, 1);
 }
 
-irqreturn_t psb_irq_handler(DRM_IRQ_ARGS)
+/*
+ * SGX interrupt handler
+ */
+static void psb_sgx_interrupt(struct drm_device *dev, u32 stat_1, u32 stat_2)
+{
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	u32 val, addr;
+	int error = false;
+
+	if (stat_1 & _PSB_CE_TWOD_COMPLETE)
+		val = PSB_RSGX32(PSB_CR_2D_BLIT_STATUS);
+
+	if (stat_2 & _PSB_CE2_BIF_REQUESTER_FAULT) {
+		val = PSB_RSGX32(PSB_CR_BIF_INT_STAT);
+		addr = PSB_RSGX32(PSB_CR_BIF_FAULT);
+		if (val) {
+			if (val & _PSB_CBI_STAT_PF_N_RW)
+				DRM_ERROR("SGX MMU page fault:");
+			else
+				DRM_ERROR("SGX MMU read / write protection fault:");
+
+			if (val & _PSB_CBI_STAT_FAULT_CACHE)
+				DRM_ERROR("\tCache requestor");
+			if (val & _PSB_CBI_STAT_FAULT_TA)
+				DRM_ERROR("\tTA requestor");
+			if (val & _PSB_CBI_STAT_FAULT_VDM)
+				DRM_ERROR("\tVDM requestor");
+			if (val & _PSB_CBI_STAT_FAULT_2D)
+				DRM_ERROR("\t2D requestor");
+			if (val & _PSB_CBI_STAT_FAULT_PBE)
+				DRM_ERROR("\tPBE requestor");
+			if (val & _PSB_CBI_STAT_FAULT_TSP)
+				DRM_ERROR("\tTSP requestor");
+			if (val & _PSB_CBI_STAT_FAULT_ISP)
+				DRM_ERROR("\tISP requestor");
+			if (val & _PSB_CBI_STAT_FAULT_USSEPDS)
+				DRM_ERROR("\tUSSEPDS requestor");
+			if (val & _PSB_CBI_STAT_FAULT_HOST)
+				DRM_ERROR("\tHost requestor");
+
+			DRM_ERROR("\tMMU failing address is 0x%08x.\n",
+				  (unsigned int)addr);
+			error = true;
+		}
+	}
+
+	/* Clear bits */
+	PSB_WSGX32(stat_1, PSB_CR_EVENT_HOST_CLEAR);
+	PSB_WSGX32(stat_2, PSB_CR_EVENT_HOST_CLEAR2);
+	PSB_RSGX32(PSB_CR_EVENT_HOST_CLEAR2);
+}
+
+irqreturn_t psb_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	uint32_t vdc_stat, dsp_int = 0, sgx_int = 0, hotplug_int = 0;
+	u32 sgx_stat_1, sgx_stat_2;
 	int handled = 0;
 
 	spin_lock(&dev_priv->irqmask_lock);
@@ -233,14 +286,9 @@ irqreturn_t psb_irq_handler(DRM_IRQ_ARGS)
 	}
 
 	if (sgx_int) {
-		/* Not expected - we have it masked, shut it up */
-		u32 s, s2;
-		s = PSB_RSGX32(PSB_CR_EVENT_STATUS);
-		s2 = PSB_RSGX32(PSB_CR_EVENT_STATUS2);
-		PSB_WSGX32(s, PSB_CR_EVENT_HOST_CLEAR);
-		PSB_WSGX32(s2, PSB_CR_EVENT_HOST_CLEAR2);
-		/* if s & _PSB_CE_TWOD_COMPLETE we have 2D done but
-		   we may as well poll even if we add that ! */
+		sgx_stat_1 = PSB_RSGX32(PSB_CR_EVENT_STATUS);
+		sgx_stat_2 = PSB_RSGX32(PSB_CR_EVENT_STATUS2);
+		psb_sgx_interrupt(dev, sgx_stat_1, sgx_stat_2);
 		handled = 1;
 	}
 
@@ -253,7 +301,7 @@ irqreturn_t psb_irq_handler(DRM_IRQ_ARGS)
 
 	PSB_WVDC32(vdc_stat, PSB_INT_IDENTITY_R);
 	(void) PSB_RVDC32(PSB_INT_IDENTITY_R);
-	DRM_READMEMORYBARRIER();
+	rmb();
 
 	if (!handled)
 		return IRQ_NONE;
@@ -269,24 +317,29 @@ void psb_irq_preinstall(struct drm_device *dev)
 
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
 
-	if (gma_power_is_on(dev))
+	if (gma_power_is_on(dev)) {
 		PSB_WVDC32(0xFFFFFFFF, PSB_HWSTAM);
-	if (dev->vblank_enabled[0])
+		PSB_WVDC32(0x00000000, PSB_INT_MASK_R);
+		PSB_WVDC32(0x00000000, PSB_INT_ENABLE_R);
+		PSB_WSGX32(0x00000000, PSB_CR_EVENT_HOST_ENABLE);
+		PSB_RSGX32(PSB_CR_EVENT_HOST_ENABLE);
+	}
+	if (dev->vblank[0].enabled)
 		dev_priv->vdc_irq_mask |= _PSB_VSYNC_PIPEA_FLAG;
-	if (dev->vblank_enabled[1])
+	if (dev->vblank[1].enabled)
 		dev_priv->vdc_irq_mask |= _PSB_VSYNC_PIPEB_FLAG;
 
 	/* FIXME: Handle Medfield irq mask
-	if (dev->vblank_enabled[1])
+	if (dev->vblank[1].enabled)
 		dev_priv->vdc_irq_mask |= _MDFLD_PIPEB_EVENT_FLAG;
-	if (dev->vblank_enabled[2])
+	if (dev->vblank[2].enabled)
 		dev_priv->vdc_irq_mask |= _MDFLD_PIPEC_EVENT_FLAG;
 	*/
 
 	/* Revisit this area - want per device masks ? */
 	if (dev_priv->ops->hotplug)
 		dev_priv->vdc_irq_mask |= _PSB_IRQ_DISP_HOTSYNC;
-	dev_priv->vdc_irq_mask |= _PSB_IRQ_ASLE;
+	dev_priv->vdc_irq_mask |= _PSB_IRQ_ASLE | _PSB_IRQ_SGX_FLAG;
 
 	/* This register is safe even if display island is off */
 	PSB_WVDC32(~dev_priv->vdc_irq_mask, PSB_INT_MASK_R);
@@ -295,27 +348,31 @@ void psb_irq_preinstall(struct drm_device *dev)
 
 int psb_irq_postinstall(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv =
-	    (struct drm_psb_private *) dev->dev_private;
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
+
+	/* Enable 2D and MMU fault interrupts */
+	PSB_WSGX32(_PSB_CE2_BIF_REQUESTER_FAULT, PSB_CR_EVENT_HOST_ENABLE2);
+	PSB_WSGX32(_PSB_CE_TWOD_COMPLETE, PSB_CR_EVENT_HOST_ENABLE);
+	PSB_RSGX32(PSB_CR_EVENT_HOST_ENABLE); /* Post */
 
 	/* This register is safe even if display island is off */
 	PSB_WVDC32(dev_priv->vdc_irq_mask, PSB_INT_ENABLE_R);
 	PSB_WVDC32(0xFFFFFFFF, PSB_HWSTAM);
 
-	if (dev->vblank_enabled[0])
+	if (dev->vblank[0].enabled)
 		psb_enable_pipestat(dev_priv, 0, PIPE_VBLANK_INTERRUPT_ENABLE);
 	else
 		psb_disable_pipestat(dev_priv, 0, PIPE_VBLANK_INTERRUPT_ENABLE);
 
-	if (dev->vblank_enabled[1])
+	if (dev->vblank[1].enabled)
 		psb_enable_pipestat(dev_priv, 1, PIPE_VBLANK_INTERRUPT_ENABLE);
 	else
 		psb_disable_pipestat(dev_priv, 1, PIPE_VBLANK_INTERRUPT_ENABLE);
 
-	if (dev->vblank_enabled[2])
+	if (dev->vblank[2].enabled)
 		psb_enable_pipestat(dev_priv, 2, PIPE_VBLANK_INTERRUPT_ENABLE);
 	else
 		psb_disable_pipestat(dev_priv, 2, PIPE_VBLANK_INTERRUPT_ENABLE);
@@ -339,13 +396,13 @@ void psb_irq_uninstall(struct drm_device *dev)
 
 	PSB_WVDC32(0xFFFFFFFF, PSB_HWSTAM);
 
-	if (dev->vblank_enabled[0])
+	if (dev->vblank[0].enabled)
 		psb_disable_pipestat(dev_priv, 0, PIPE_VBLANK_INTERRUPT_ENABLE);
 
-	if (dev->vblank_enabled[1])
+	if (dev->vblank[1].enabled)
 		psb_disable_pipestat(dev_priv, 1, PIPE_VBLANK_INTERRUPT_ENABLE);
 
-	if (dev->vblank_enabled[2])
+	if (dev->vblank[2].enabled)
 		psb_disable_pipestat(dev_priv, 2, PIPE_VBLANK_INTERRUPT_ENABLE);
 
 	dev_priv->vdc_irq_mask &= _PSB_IRQ_SGX_FLAG |
@@ -450,25 +507,10 @@ int psb_irq_disable_dpst(struct drm_device *dev)
 	return 0;
 }
 
-#ifdef PSB_FIXME
-static int psb_vblank_do_wait(struct drm_device *dev,
-			      unsigned int *sequence, atomic_t *counter)
-{
-	unsigned int cur_vblank;
-	int ret = 0;
-	DRM_WAIT_ON(ret, dev->vbl_queue, 3 * DRM_HZ,
-		    (((cur_vblank = atomic_read(counter))
-		      - *sequence) <= (1 << 23)));
-	*sequence = cur_vblank;
-
-	return ret;
-}
-#endif
-
 /*
  * It is used to enable VBLANK interrupt
  */
-int psb_enable_vblank(struct drm_device *dev, int pipe)
+int psb_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
@@ -507,7 +549,7 @@ int psb_enable_vblank(struct drm_device *dev, int pipe)
 /*
  * It is used to disable VBLANK interrupt
  */
-void psb_disable_vblank(struct drm_device *dev, int pipe)
+void psb_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
@@ -580,7 +622,7 @@ void mdfld_disable_te(struct drm_device *dev, int pipe)
 /* Called from drm generic code, passed a 'crtc', which
  * we use as a pipe index
  */
-u32 psb_get_vblank_counter(struct drm_device *dev, int pipe)
+u32 psb_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 {
 	uint32_t high_frame = PIPEAFRAMEHIGH;
 	uint32_t low_frame = PIPEAFRAMEPIXEL;
@@ -612,7 +654,7 @@ u32 psb_get_vblank_counter(struct drm_device *dev, int pipe)
 	reg_val = REG_READ(pipeconf_reg);
 
 	if (!(reg_val & PIPEACONF_ENABLE)) {
-		dev_err(dev->dev, "trying to get vblank count for disabled pipe %d\n",
+		dev_err(dev->dev, "trying to get vblank count for disabled pipe %u\n",
 								pipe);
 		goto psb_get_vblank_counter_exit;
 	}

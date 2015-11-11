@@ -49,11 +49,19 @@ enum hv_cpuid_function {
 	HVCPUID_IMPLEMENTATION_LIMITS		= 0x40000005,
 };
 
+#define  HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE   0x400
+
+#define HV_X64_MSR_CRASH_P0   0x40000100
+#define HV_X64_MSR_CRASH_P1   0x40000101
+#define HV_X64_MSR_CRASH_P2   0x40000102
+#define HV_X64_MSR_CRASH_P3   0x40000103
+#define HV_X64_MSR_CRASH_P4   0x40000104
+#define HV_X64_MSR_CRASH_CTL  0x40000105
+
+#define HV_CRASH_CTL_CRASH_NOTIFY (1ULL << 63)
+
 /* Define version of the synthetic interrupt controller. */
 #define HV_SYNIC_VERSION		(1)
-
-/* Define the expected SynIC version. */
-#define HV_SYNIC_VERSION_1		(0x1)
 
 /* Define synthetic interrupt controller message constants. */
 #define HV_MESSAGE_SIZE			(256)
@@ -94,8 +102,6 @@ enum hv_message_type {
 	HVMSG_X64_LEGACY_FP_ERROR		= 0x80010005
 };
 
-/* Define the number of synthetic interrupt sources. */
-#define HV_SYNIC_SINT_COUNT		(16)
 #define HV_SYNIC_STIMER_COUNT		(4)
 
 /* Define invalid partition identifier. */
@@ -130,7 +136,7 @@ struct hv_port_info {
 		struct {
 			u32 target_sint;
 			u32 target_vp;
-			u16 base_flag_bumber;
+			u16 base_flag_number;
 			u16 flag_count;
 			u32 rsvdz;
 		} event_port_info;
@@ -177,6 +183,23 @@ struct hv_message_header {
 		union hv_port_id port;
 	};
 };
+
+/*
+ * Timer configuration register.
+ */
+union hv_timer_config {
+	u64 as_uint64;
+	struct {
+		u64 enable:1;
+		u64 periodic:1;
+		u64 lazy:1;
+		u64 auto_enable:1;
+		u64 reserved_z0:12;
+		u64 sintx:4;
+		u64 reserved_z1:44;
+	};
+};
+
 
 /* Define timer message payload structure. */
 struct hv_timer_message_payload {
@@ -489,6 +512,7 @@ struct hv_context {
 	u64 guestid;
 
 	void *hypercall_page;
+	void *tsc_page;
 
 	bool synic_initialized;
 
@@ -510,10 +534,43 @@ struct hv_context {
 	 * basis.
 	 */
 	struct tasklet_struct *event_dpc[NR_CPUS];
+	/*
+	 * To optimize the mapping of relid to channel, maintain
+	 * per-cpu list of the channels based on their CPU affinity.
+	 */
+	struct list_head percpu_list[NR_CPUS];
+	/*
+	 * buffer to post messages to the host.
+	 */
+	void *post_msg_page[NR_CPUS];
+	/*
+	 * Support PV clockevent device.
+	 */
+	struct clock_event_device *clk_evt[NR_CPUS];
+	/*
+	 * To manage allocations in a NUMA node.
+	 * Array indexed by numa node ID.
+	 */
+	struct cpumask *hv_numa_map;
 };
 
 extern struct hv_context hv_context;
 
+struct ms_hyperv_tsc_page {
+	volatile u32 tsc_sequence;
+	u32 reserved1;
+	volatile u64 tsc_scale;
+	volatile s64 tsc_offset;
+	u64 reserved2[509];
+};
+
+struct hv_ring_buffer_debug_info {
+	u32 current_interrupt_mask;
+	u32 current_read_index;
+	u32 current_write_index;
+	u32 bytes_avail_toread;
+	u32 bytes_avail_towrite;
+};
 
 /* Hv Interface */
 
@@ -527,9 +584,15 @@ extern int hv_post_message(union hv_connection_id connection_id,
 
 extern u16 hv_signal_event(void *con_id);
 
+extern int hv_synic_alloc(void);
+
+extern void hv_synic_free(void);
+
 extern void hv_synic_init(void *irqarg);
 
 extern void hv_synic_cleanup(void *arg);
+
+extern void hv_synic_clockevents_cleanup(void);
 
 /*
  * Host version information.
@@ -548,8 +611,8 @@ int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info, void *buffer,
 void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info);
 
 int hv_ringbuffer_write(struct hv_ring_buffer_info *ring_info,
-		    struct scatterlist *sglist,
-		    u32 sgcount, bool *signal);
+		    struct kvec *kv_list,
+		    u32 kv_count, bool *signal);
 
 int hv_ringbuffer_peek(struct hv_ring_buffer_info *ring_info, void *buffer,
 		   u32 buflen);
@@ -593,6 +656,7 @@ struct vmbus_connection {
 
 	atomic_t next_gpadl_handle;
 
+	struct completion  unload_event;
 	/*
 	 * Represents channel interrupts. Each bit position represents a
 	 * channel.  When a channel sends an interrupt via VMBUS, it finds its
@@ -608,7 +672,7 @@ struct vmbus_connection {
 	 * 2 pages - 1st page for parent->child notification and 2nd
 	 * is child->parent notification
 	 */
-	void *monitor_pages;
+	struct hv_monitor_page *monitor_pages[2];
 	struct list_head chn_msg_list;
 	spinlock_t channelmsg_lock;
 
@@ -631,11 +695,28 @@ struct vmbus_msginfo {
 
 extern struct vmbus_connection vmbus_connection;
 
+enum vmbus_message_handler_type {
+	/* The related handler can sleep. */
+	VMHT_BLOCKING = 0,
+
+	/* The related handler must NOT sleep. */
+	VMHT_NON_BLOCKING = 1,
+};
+
+struct vmbus_channel_message_table_entry {
+	enum vmbus_channel_message_type message_type;
+	enum vmbus_message_handler_type handler_type;
+	void (*message_handler)(struct vmbus_channel_message_header *msg);
+};
+
+extern struct vmbus_channel_message_table_entry
+	channel_message_table[CHANNELMSG_COUNT];
+
 /* General vmbus interface */
 
-struct hv_device *vmbus_device_create(uuid_le *type,
-					 uuid_le *instance,
-					 struct vmbus_channel *channel);
+struct hv_device *vmbus_device_create(const uuid_le *type,
+				      const uuid_le *instance,
+				      struct vmbus_channel *channel);
 
 int vmbus_device_register(struct hv_device *child_device_obj);
 void vmbus_device_unregister(struct hv_device *device_obj);
@@ -651,6 +732,7 @@ void vmbus_free_channels(void);
 /* Connection interface */
 
 int vmbus_connect(void);
+void vmbus_disconnect(void);
 
 int vmbus_post_msg(void *buffer, size_t buflen);
 
@@ -658,5 +740,39 @@ int vmbus_set_event(struct vmbus_channel *channel);
 
 void vmbus_on_event(unsigned long data);
 
+int hv_kvp_init(struct hv_util_service *);
+void hv_kvp_deinit(void);
+void hv_kvp_onchannelcallback(void *);
+
+int hv_vss_init(struct hv_util_service *);
+void hv_vss_deinit(void);
+void hv_vss_onchannelcallback(void *);
+
+int hv_fcopy_init(struct hv_util_service *);
+void hv_fcopy_deinit(void);
+void hv_fcopy_onchannelcallback(void *);
+void vmbus_initiate_unload(void);
+
+static inline void hv_poll_channel(struct vmbus_channel *channel,
+				   void (*cb)(void *))
+{
+	if (!channel)
+		return;
+
+	if (channel->target_cpu != smp_processor_id())
+		smp_call_function_single(channel->target_cpu,
+					 cb, channel, true);
+	else
+		cb(channel);
+}
+
+enum hvutil_device_state {
+	HVUTIL_DEVICE_INIT = 0,  /* driver is loaded, waiting for userspace */
+	HVUTIL_READY,            /* userspace is registered */
+	HVUTIL_HOSTMSG_RECEIVED, /* message from the host was received */
+	HVUTIL_USERSPACE_REQ,    /* request to userspace was sent */
+	HVUTIL_USERSPACE_RECV,   /* reply from userspace was received */
+	HVUTIL_DEVICE_DYING,     /* driver unload is in progress */
+};
 
 #endif /* _HYPERV_VMBUS_H */

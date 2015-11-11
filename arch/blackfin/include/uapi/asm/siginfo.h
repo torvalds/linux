@@ -4,8 +4,8 @@
  * Licensed under the GPL-2 or later.
  */
 
-#ifndef _BFIN_SIGINFO_H
-#define _BFIN_SIGINFO_H
+#ifndef _UAPI_BFIN_SIGINFO_H
+#define _UAPI_BFIN_SIGINFO_H
 
 #include <linux/types.h>
 #include <asm-generic/siginfo.h>
@@ -38,4 +38,4 @@
  */
 #define SEGV_STACKFLOW	(__SI_FAULT|3)	/* stack overflow */
 
-#endif
+#endif /* _UAPI_BFIN_SIGINFO_H */

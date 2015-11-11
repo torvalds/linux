@@ -74,10 +74,13 @@ struct rds_iw_send_work {
 	struct rm_rdma_op	*s_op;
 	struct rds_iw_mapping	*s_mapping;
 	struct ib_mr		*s_mr;
-	struct ib_fast_reg_page_list *s_page_list;
 	unsigned char		s_remap_count;
 
-	struct ib_send_wr	s_wr;
+	union {
+		struct ib_send_wr	s_send_wr;
+		struct ib_rdma_wr	s_rdma_wr;
+		struct ib_reg_wr	s_reg_wr;
+	};
 	struct ib_sge		s_sge[RDS_IW_MAX_SGE];
 	unsigned long		s_queued;
 };
@@ -195,7 +198,7 @@ struct rds_iw_device {
 
 /* Magic WR_ID for ACKs */
 #define RDS_IW_ACK_WR_ID	((u64)0xffffffffffffffffULL)
-#define RDS_IW_FAST_REG_WR_ID	((u64)0xefefefefefefefefULL)
+#define RDS_IW_REG_WR_ID	((u64)0xefefefefefefefefULL)
 #define RDS_IW_LOCAL_INV_WR_ID	((u64)0xdfdfdfdfdfdfdfdfULL)
 
 struct rds_iw_statistics {
@@ -325,8 +328,7 @@ int rds_iw_recv(struct rds_connection *conn);
 int rds_iw_recv_refill(struct rds_connection *conn, gfp_t kptr_gfp,
 		       gfp_t page_gfp, int prefill);
 void rds_iw_inc_free(struct rds_incoming *inc);
-int rds_iw_inc_copy_to_user(struct rds_incoming *inc, struct iovec *iov,
-			     size_t size);
+int rds_iw_inc_copy_to_user(struct rds_incoming *inc, struct iov_iter *to);
 void rds_iw_recv_cq_comp_handler(struct ib_cq *cq, void *context);
 void rds_iw_recv_tasklet_fn(unsigned long data);
 void rds_iw_recv_init_ring(struct rds_iw_connection *ic);

@@ -27,11 +27,7 @@
 
 #define AD7746_REG_STATUS		0
 #define AD7746_REG_CAP_DATA_HIGH	1
-#define AD7746_REG_CAP_DATA_MID		2
-#define AD7746_REG_CAP_DATA_LOW		3
 #define AD7746_REG_VT_DATA_HIGH		4
-#define AD7746_REG_VT_DATA_MID		5
-#define AD7746_REG_VT_DATA_LOW		6
 #define AD7746_REG_CAP_SETUP		7
 #define AD7746_REG_VT_SETUP		8
 #define AD7746_REG_EXC_SETUP		9
@@ -39,17 +35,14 @@
 #define AD7746_REG_CAPDACA		11
 #define AD7746_REG_CAPDACB		12
 #define AD7746_REG_CAP_OFFH		13
-#define AD7746_REG_CAP_OFFL		14
 #define AD7746_REG_CAP_GAINH		15
-#define AD7746_REG_CAP_GAINL		16
 #define AD7746_REG_VOLT_GAINH		17
-#define AD7746_REG_VOLT_GAINL		18
 
 /* Status Register Bit Designations (AD7746_REG_STATUS) */
-#define AD7746_STATUS_EXCERR		(1 << 3)
-#define AD7746_STATUS_RDY		(1 << 2)
-#define AD7746_STATUS_RDYVT		(1 << 1)
-#define AD7746_STATUS_RDYCAP		(1 << 0)
+#define AD7746_STATUS_EXCERR		BIT(3)
+#define AD7746_STATUS_RDY		BIT(2)
+#define AD7746_STATUS_RDYVT		BIT(1)
+#define AD7746_STATUS_RDYCAP		BIT(0)
 
 /* Capacitive Channel Setup Register Bit Designations (AD7746_REG_CAP_SETUP) */
 #define AD7746_CAPSETUP_CAPEN		(1 << 7)
@@ -68,12 +61,12 @@
 #define AD7746_VTSETUP_VTCHOP		(1 << 0)
 
 /* Excitation Setup Register Bit Designations (AD7746_REG_EXC_SETUP) */
-#define AD7746_EXCSETUP_CLKCTRL		(1 << 7)
-#define AD7746_EXCSETUP_EXCON		(1 << 6)
-#define AD7746_EXCSETUP_EXCB		(1 << 5)
-#define AD7746_EXCSETUP_NEXCB		(1 << 4)
-#define AD7746_EXCSETUP_EXCA		(1 << 3)
-#define AD7746_EXCSETUP_NEXCA		(1 << 2)
+#define AD7746_EXCSETUP_CLKCTRL		BIT(7)
+#define AD7746_EXCSETUP_EXCON		BIT(6)
+#define AD7746_EXCSETUP_EXCB		BIT(5)
+#define AD7746_EXCSETUP_NEXCB		BIT(4)
+#define AD7746_EXCSETUP_EXCA		BIT(3)
+#define AD7746_EXCSETUP_NEXCA		BIT(2)
 #define AD7746_EXCSETUP_EXCLVL(x)	(((x) & 0x3) << 0)
 
 /* Config Register Bit Designations (AD7746_REG_CFG) */
@@ -91,7 +84,7 @@
 #define AD7746_CAPDAC_DACP(x)		((x) & 0x7F)
 
 /*
- * struct ad7746_chip_info - chip specifc information
+ * struct ad7746_chip_info - chip specific information
  */
 
 struct ad7746_chip_info {
@@ -105,6 +98,11 @@ struct ad7746_chip_info {
 	u8	vt_setup;
 	u8	capdac[2][2];
 	s8	capdac_set;
+
+	union {
+		__be32 d32;
+		u8 d8[4];
+	} data ____cacheline_aligned;
 };
 
 enum ad7746_chan {
@@ -523,10 +521,11 @@ static int ad7746_write_raw(struct iio_dev *indio_dev,
 			goto out;
 		}
 
-		/* CAPDAC Scale = 21pF_typ / 127
+		/*
+		 * CAPDAC Scale = 21pF_typ / 127
 		 * CIN Scale = 8.192pF / 2^24
 		 * Offset Scale = CAPDAC Scale / CIN Scale = 338646
-		 * */
+		 */
 
 		val /= 338646;
 
@@ -566,11 +565,6 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 	int ret, delay;
 	u8 regval, reg;
 
-	union {
-		u32 d32;
-		u8 d8[4];
-	} data;
-
 	mutex_lock(&indio_dev->mlock);
 
 	switch (mask) {
@@ -591,16 +585,17 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 		/* Now read the actual register */
 
 		ret = i2c_smbus_read_i2c_block_data(chip->client,
-			chan->address >> 8, 3, &data.d8[1]);
+			chan->address >> 8, 3, &chip->data.d8[1]);
 
 		if (ret < 0)
 			goto out;
 
-		*val = (be32_to_cpu(data.d32) & 0xFFFFFF) - 0x800000;
+		*val = (be32_to_cpu(chip->data.d32) & 0xFFFFFF) - 0x800000;
 
 		switch (chan->type) {
 		case IIO_TEMP:
-		/* temperature in milli degrees Celsius
+		/*
+		 * temperature in milli degrees Celsius
 		 * T = ((*val / 2048) - 4096) * 1000
 		 */
 			*val = (*val * 125) / 256;
@@ -656,20 +651,21 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 		switch (chan->type) {
 		case IIO_CAPACITANCE:
 			/* 8.192pf / 2^24 */
-			*val2 = 488;
 			*val =  0;
+			*val2 = 488;
+			ret = IIO_VAL_INT_PLUS_NANO;
 			break;
 		case IIO_VOLTAGE:
 			/* 1170mV / 2^23 */
-			*val2 = 139475;
-			*val =  0;
+			*val = 1170;
+			*val2 = 23;
+			ret = IIO_VAL_FRACTIONAL_LOG2;
 			break;
 		default:
-			ret =  -EINVAL;
-			goto out;
+			ret = -EINVAL;
+			break;
 		}
 
-		ret = IIO_VAL_INT_PLUS_NANO;
 		break;
 	default:
 		ret = -EINVAL;
@@ -699,11 +695,9 @@ static int ad7746_probe(struct i2c_client *client,
 	int ret = 0;
 	unsigned char regval = 0;
 
-	indio_dev = iio_device_alloc(sizeof(*chip));
-	if (indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
+	if (!indio_dev)
+		return -ENOMEM;
 	chip = iio_priv(indio_dev);
 	/* this is only used for device removal purposes */
 	i2c_set_clientdata(client, indio_dev);
@@ -748,28 +742,11 @@ static int ad7746_probe(struct i2c_client *client,
 	ret = i2c_smbus_write_byte_data(chip->client,
 					AD7746_REG_EXC_SETUP, regval);
 	if (ret < 0)
-		goto error_free_dev;
+		return ret;
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(indio_dev->dev.parent, indio_dev);
 	if (ret)
-		goto error_free_dev;
-
-	dev_info(&client->dev, "%s capacitive sensor registered\n", id->name);
-
-	return 0;
-
-error_free_dev:
-	iio_device_free(indio_dev);
-error_ret:
-	return ret;
-}
-
-static int ad7746_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-
-	iio_device_unregister(indio_dev);
-	iio_device_free(indio_dev);
+		return ret;
 
 	return 0;
 }
@@ -788,7 +765,6 @@ static struct i2c_driver ad7746_driver = {
 		.name = KBUILD_MODNAME,
 	},
 	.probe = ad7746_probe,
-	.remove = ad7746_remove,
 	.id_table = ad7746_id,
 };
 module_i2c_driver(ad7746_driver);

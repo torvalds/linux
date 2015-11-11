@@ -42,7 +42,7 @@ static int pfifo_tail_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 
 	/* queue full, remove one skb to fulfill the limit */
 	__qdisc_queue_drop_head(sch, &sch->q);
-	sch->qstats.drops++;
+	qdisc_qstats_drop(sch);
 	qdisc_enqueue_tail(skb, sch);
 
 	return NET_XMIT_CN;
@@ -54,7 +54,7 @@ static int fifo_init(struct Qdisc *sch, struct nlattr *opt)
 	bool is_bfifo = sch->ops == &bfifo_qdisc_ops;
 
 	if (opt == NULL) {
-		u32 limit = qdisc_dev(sch)->tx_queue_len ? : 1;
+		u32 limit = qdisc_dev(sch)->tx_queue_len;
 
 		if (is_bfifo)
 			limit *= psched_mtu(qdisc_dev(sch));

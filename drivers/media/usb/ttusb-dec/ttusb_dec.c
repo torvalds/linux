@@ -366,7 +366,7 @@ static int ttusb_dec_get_stb_state (struct ttusb_dec *dec, unsigned int *mode,
 		}
 		return 0;
 	} else {
-		return -1;
+		return -ENOENT;
 	}
 }
 
@@ -375,8 +375,7 @@ static int ttusb_dec_audio_pes2ts_cb(void *priv, unsigned char *data)
 	struct ttusb_dec *dec = priv;
 
 	dec->audio_filter->feed->cb.ts(data, 188, NULL, 0,
-				       &dec->audio_filter->feed->feed.ts,
-				       DMX_OK);
+				       &dec->audio_filter->feed->feed.ts);
 
 	return 0;
 }
@@ -386,8 +385,7 @@ static int ttusb_dec_video_pes2ts_cb(void *priv, unsigned char *data)
 	struct ttusb_dec *dec = priv;
 
 	dec->video_filter->feed->cb.ts(data, 188, NULL, 0,
-				       &dec->video_filter->feed->feed.ts,
-				       DMX_OK);
+				       &dec->video_filter->feed->feed.ts);
 
 	return 0;
 }
@@ -439,7 +437,7 @@ static void ttusb_dec_process_pva(struct ttusb_dec *dec, u8 *pva, int length)
 
 		if (output_pva) {
 			dec->video_filter->feed->cb.ts(pva, length, NULL, 0,
-				&dec->video_filter->feed->feed.ts, DMX_OK);
+				&dec->video_filter->feed->feed.ts);
 			return;
 		}
 
@@ -500,7 +498,7 @@ static void ttusb_dec_process_pva(struct ttusb_dec *dec, u8 *pva, int length)
 	case 0x02:		/* MainAudioStream */
 		if (output_pva) {
 			dec->audio_filter->feed->cb.ts(pva, length, NULL, 0,
-				&dec->audio_filter->feed->feed.ts, DMX_OK);
+				&dec->audio_filter->feed->feed.ts);
 			return;
 		}
 
@@ -538,7 +536,7 @@ static void ttusb_dec_process_filter(struct ttusb_dec *dec, u8 *packet,
 
 	if (filter)
 		filter->feed->cb.sec(&packet[2], length - 2, NULL, 0,
-				     &filter->filter, DMX_OK);
+				     &filter->filter);
 }
 
 static void ttusb_dec_process_packet(struct ttusb_dec *dec)
@@ -593,14 +591,9 @@ static void ttusb_dec_process_packet(struct ttusb_dec *dec)
 
 static void swap_bytes(u8 *b, int length)
 {
-	u8 c;
-
 	length -= length % 2;
-	for (; length; b += 2, length -= 2) {
-		c = *b;
-		*b = *(b + 1);
-		*(b + 1) = c;
-	}
+	for (; length; b += 2, length -= 2)
+		swap(*b, *(b + 1));
 }
 
 static void ttusb_dec_process_urb_frame(struct ttusb_dec *dec, u8 *b,
@@ -1151,20 +1144,15 @@ static int ttusb_dec_alloc_iso_urbs(struct ttusb_dec *dec)
 
 	dprintk("%s\n", __func__);
 
-	dec->iso_buffer = pci_alloc_consistent(NULL,
-					       ISO_FRAME_SIZE *
-					       (FRAMES_PER_ISO_BUF *
-						ISO_BUF_COUNT),
-					       &dec->iso_dma_handle);
+	dec->iso_buffer = pci_zalloc_consistent(NULL,
+						ISO_FRAME_SIZE * (FRAMES_PER_ISO_BUF * ISO_BUF_COUNT),
+						&dec->iso_dma_handle);
 
 	if (!dec->iso_buffer) {
 		dprintk("%s: pci_alloc_consistent - not enough memory\n",
 			__func__);
 		return -ENOMEM;
 	}
-
-	memset(dec->iso_buffer, 0,
-	       ISO_FRAME_SIZE * (FRAMES_PER_ISO_BUF * ISO_BUF_COUNT));
 
 	for (i = 0; i < ISO_BUF_COUNT; i++) {
 		struct urb *urb;
@@ -1241,6 +1229,8 @@ static void ttusb_dec_init_v_pes(struct ttusb_dec *dec)
 
 static int ttusb_dec_init_usb(struct ttusb_dec *dec)
 {
+	int result;
+
 	dprintk("%s\n", __func__);
 
 	mutex_init(&dec->usb_mutex);
@@ -1258,7 +1248,7 @@ static int ttusb_dec_init_usb(struct ttusb_dec *dec)
 			return -ENOMEM;
 		}
 		dec->irq_buffer = usb_alloc_coherent(dec->udev,IRQ_PACKET_SIZE,
-					GFP_ATOMIC, &dec->irq_dma_handle);
+					GFP_KERNEL, &dec->irq_dma_handle);
 		if(!dec->irq_buffer) {
 			usb_free_urb(dec->irq_urb);
 			return -ENOMEM;
@@ -1270,7 +1260,13 @@ static int ttusb_dec_init_usb(struct ttusb_dec *dec)
 		dec->irq_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	}
 
-	return ttusb_dec_alloc_iso_urbs(dec);
+	result = ttusb_dec_alloc_iso_urbs(dec);
+	if (result) {
+		usb_free_urb(dec->irq_urb);
+		usb_free_coherent(dec->udev, IRQ_PACKET_SIZE,
+				  dec->irq_buffer, dec->irq_dma_handle);
+	}
+	return result;
 }
 
 static int ttusb_dec_boot_dsp(struct ttusb_dec *dec)
@@ -1293,10 +1289,11 @@ static int ttusb_dec_boot_dsp(struct ttusb_dec *dec)
 
 	dprintk("%s\n", __func__);
 
-	if (request_firmware(&fw_entry, dec->firmware_name, &dec->udev->dev)) {
+	result = request_firmware(&fw_entry, dec->firmware_name, &dec->udev->dev);
+	if (result) {
 		printk(KERN_ERR "%s: Firmware (%s) unavailable.\n",
 		       __func__, dec->firmware_name);
-		return 1;
+		return result;
 	}
 
 	firmware = fw_entry->data;
@@ -1306,7 +1303,7 @@ static int ttusb_dec_boot_dsp(struct ttusb_dec *dec)
 		printk("%s: firmware size too small for DSP code (%zu < 60).\n",
 			__func__, firmware_size);
 		release_firmware(fw_entry);
-		return -1;
+		return -ENOENT;
 	}
 
 	/* a 32 bit checksum over the first 56 bytes of the DSP Code is stored
@@ -1320,7 +1317,7 @@ static int ttusb_dec_boot_dsp(struct ttusb_dec *dec)
 		       "0x%08x != 0x%08x in file), file invalid.\n",
 			__func__, crc32_csum, crc32_check);
 		release_firmware(fw_entry);
-		return -1;
+		return -ENOENT;
 	}
 	memcpy(idstring, &firmware[36], 20);
 	idstring[20] = '\0';
@@ -1389,55 +1386,48 @@ static int ttusb_dec_init_stb(struct ttusb_dec *dec)
 	dprintk("%s\n", __func__);
 
 	result = ttusb_dec_get_stb_state(dec, &mode, &model, &version);
-
-	if (!result) {
-		if (!mode) {
-			if (version == 0xABCDEFAB)
-				printk(KERN_INFO "ttusb_dec: no version "
-				       "info in Firmware\n");
-			else
-				printk(KERN_INFO "ttusb_dec: Firmware "
-				       "%x.%02x%c%c\n",
-				       version >> 24, (version >> 16) & 0xff,
-				       (version >> 8) & 0xff, version & 0xff);
-
-			result = ttusb_dec_boot_dsp(dec);
-			if (result)
-				return result;
-			else
-				return 1;
-		} else {
-			/* We can't trust the USB IDs that some firmwares
-			   give the box */
-			switch (model) {
-			case 0x00070001:
-			case 0x00070008:
-			case 0x0007000c:
-				ttusb_dec_set_model(dec, TTUSB_DEC3000S);
-				break;
-			case 0x00070009:
-			case 0x00070013:
-				ttusb_dec_set_model(dec, TTUSB_DEC2000T);
-				break;
-			case 0x00070011:
-				ttusb_dec_set_model(dec, TTUSB_DEC2540T);
-				break;
-			default:
-				printk(KERN_ERR "%s: unknown model returned "
-				       "by firmware (%08x) - please report\n",
-				       __func__, model);
-				return -1;
-				break;
-			}
-
-			if (version >= 0x01770000)
-				dec->can_playback = 1;
-
-			return 0;
-		}
-	}
-	else
+	if (result)
 		return result;
+
+	if (!mode) {
+		if (version == 0xABCDEFAB)
+			printk(KERN_INFO "ttusb_dec: no version "
+			       "info in Firmware\n");
+		else
+			printk(KERN_INFO "ttusb_dec: Firmware "
+			       "%x.%02x%c%c\n",
+			       version >> 24, (version >> 16) & 0xff,
+			       (version >> 8) & 0xff, version & 0xff);
+
+		result = ttusb_dec_boot_dsp(dec);
+		if (result)
+			return result;
+	} else {
+		/* We can't trust the USB IDs that some firmwares
+		   give the box */
+		switch (model) {
+		case 0x00070001:
+		case 0x00070008:
+		case 0x0007000c:
+			ttusb_dec_set_model(dec, TTUSB_DEC3000S);
+			break;
+		case 0x00070009:
+		case 0x00070013:
+			ttusb_dec_set_model(dec, TTUSB_DEC2000T);
+			break;
+		case 0x00070011:
+			ttusb_dec_set_model(dec, TTUSB_DEC2540T);
+			break;
+		default:
+			printk(KERN_ERR "%s: unknown model returned "
+			       "by firmware (%08x) - please report\n",
+			       __func__, model);
+			return -ENOENT;
+		}
+		if (version >= 0x01770000)
+			dec->can_playback = 1;
+	}
+	return 0;
 }
 
 static int ttusb_dec_init_dvb(struct ttusb_dec *dec)
@@ -1539,19 +1529,7 @@ static void ttusb_dec_exit_dvb(struct ttusb_dec *dec)
 
 static void ttusb_dec_exit_rc(struct ttusb_dec *dec)
 {
-
 	dprintk("%s\n", __func__);
-	/* we have to check whether the irq URB is already submitted.
-	  * As the irq is submitted after the interface is changed,
-	  * this is the best method i figured out.
-	  * Any others?*/
-	if (dec->interface == TTUSB_DEC_INTERFACE_IN)
-		usb_kill_urb(dec->irq_urb);
-
-	usb_free_urb(dec->irq_urb);
-
-	usb_free_coherent(dec->udev,IRQ_PACKET_SIZE,
-			  dec->irq_buffer, dec->irq_dma_handle);
 
 	if (dec->rc_input_dev) {
 		input_unregister_device(dec->rc_input_dev);
@@ -1565,6 +1543,20 @@ static void ttusb_dec_exit_usb(struct ttusb_dec *dec)
 	int i;
 
 	dprintk("%s\n", __func__);
+
+	if (enable_rc) {
+		/* we have to check whether the irq URB is already submitted.
+		 * As the irq is submitted after the interface is changed,
+		 * this is the best method i figured out.
+		 * Any others?*/
+		if (dec->interface == TTUSB_DEC_INTERFACE_IN)
+			usb_kill_urb(dec->irq_urb);
+
+		usb_free_urb(dec->irq_urb);
+
+		usb_free_coherent(dec->udev, IRQ_PACKET_SIZE,
+				  dec->irq_buffer, dec->irq_dma_handle);
+	}
 
 	dec->iso_stream_count = 0;
 
@@ -1623,6 +1615,7 @@ static int ttusb_dec_probe(struct usb_interface *intf,
 {
 	struct usb_device *udev;
 	struct ttusb_dec *dec;
+	int result;
 
 	dprintk("%s\n", __func__);
 
@@ -1651,13 +1644,15 @@ static int ttusb_dec_probe(struct usb_interface *intf,
 
 	dec->udev = udev;
 
-	if (ttusb_dec_init_usb(dec))
-		return 0;
-	if (ttusb_dec_init_stb(dec)) {
-		ttusb_dec_exit_usb(dec);
-		return 0;
-	}
-	ttusb_dec_init_dvb(dec);
+	result = ttusb_dec_init_usb(dec);
+	if (result)
+		goto err_usb;
+	result = ttusb_dec_init_stb(dec);
+	if (result)
+		goto err_stb;
+	result = ttusb_dec_init_dvb(dec);
+	if (result)
+		goto err_stb;
 
 	dec->adapter.priv = dec;
 	switch (id->idProduct) {
@@ -1696,6 +1691,11 @@ static int ttusb_dec_probe(struct usb_interface *intf,
 		ttusb_init_rc(dec);
 
 	return 0;
+err_stb:
+	ttusb_dec_exit_usb(dec);
+err_usb:
+	kfree(dec);
+	return result;
 }
 
 static void ttusb_dec_disconnect(struct usb_interface *intf)

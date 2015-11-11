@@ -6,12 +6,12 @@
 #include <linux/mutex.h>
 #include <net/sock.h>
 
-extern void unix_inflight(struct file *fp);
-extern void unix_notinflight(struct file *fp);
-extern void unix_gc(void);
-extern void wait_for_unix_gc(void);
-extern struct sock *unix_get_socket(struct file *filp);
-extern struct sock *unix_peer_get(struct sock *);
+void unix_inflight(struct file *fp);
+void unix_notinflight(struct file *fp);
+void unix_gc(void);
+void wait_for_unix_gc(void);
+struct sock *unix_get_socket(struct file *filp);
+struct sock *unix_peer_get(struct sock *);
 
 #define UNIX_HASH_SIZE	256
 #define UNIX_HASH_BITS	8
@@ -35,10 +35,10 @@ struct unix_skb_parms {
 #ifdef CONFIG_SECURITY_NETWORK
 	u32			secid;		/* Security ID		*/
 #endif
+	u32			consumed;
 };
 
 #define UNIXCB(skb) 	(*(struct unix_skb_parms *)&((skb)->cb))
-#define UNIXSID(skb)	(&UNIXCB((skb)).secid)
 
 #define unix_state_lock(s)	spin_lock(&unix_sk(s)->lock)
 #define unix_state_unlock(s)	spin_unlock(&unix_sk(s)->lock)
@@ -63,7 +63,11 @@ struct unix_sock {
 #define UNIX_GC_MAYBE_CYCLE	1
 	struct socket_wq	peer_wq;
 };
-#define unix_sk(__sk) ((struct unix_sock *)__sk)
+
+static inline struct unix_sock *unix_sk(const struct sock *sk)
+{
+	return (struct unix_sock *)sk;
+}
 
 #define peer_wait peer_wq.wait
 
@@ -71,8 +75,8 @@ long unix_inq_len(struct sock *sk);
 long unix_outq_len(struct sock *sk);
 
 #ifdef CONFIG_SYSCTL
-extern int unix_sysctl_register(struct net *net);
-extern void unix_sysctl_unregister(struct net *net);
+int unix_sysctl_register(struct net *net);
+void unix_sysctl_unregister(struct net *net);
 #else
 static inline int unix_sysctl_register(struct net *net) { return 0; }
 static inline void unix_sysctl_unregister(struct net *net) {}

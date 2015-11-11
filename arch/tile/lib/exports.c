@@ -18,21 +18,23 @@
 
 /* arch/tile/lib/usercopy.S */
 #include <linux/uaccess.h>
-EXPORT_SYMBOL(strnlen_user_asm);
-EXPORT_SYMBOL(strncpy_from_user_asm);
 EXPORT_SYMBOL(clear_user_asm);
 EXPORT_SYMBOL(flush_user_asm);
-EXPORT_SYMBOL(inv_user_asm);
 EXPORT_SYMBOL(finv_user_asm);
 
 /* arch/tile/kernel/entry.S */
 #include <linux/kernel.h>
 #include <asm/processor.h>
 EXPORT_SYMBOL(current_text_addr);
-EXPORT_SYMBOL(dump_stack);
 
 /* arch/tile/kernel/head.S */
 EXPORT_SYMBOL(empty_zero_page);
+
+#ifdef CONFIG_FUNCTION_TRACER
+/* arch/tile/kernel/mcount_64.S */
+#include <asm/ftrace.h>
+EXPORT_SYMBOL(__mcount);
+#endif /* CONFIG_FUNCTION_TRACER */
 
 /* arch/tile/lib/, various memcpy files */
 EXPORT_SYMBOL(memcpy);

@@ -173,7 +173,4 @@ static inline __attribute_const__ int __virt_to_node_shift(void)
 
 #endif /* __ASSEMBLY__ */
 
-#define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
-				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
-
 #endif /* _M68K_PAGE_MM_H */

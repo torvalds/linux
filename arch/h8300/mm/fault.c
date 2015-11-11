@@ -2,7 +2,7 @@
  *  linux/arch/h8300/mm/fault.c
  *
  *  Copyright (C) 1998  D. Jeff Dionne <jeff@lineo.ca>,
- *  Copyright (C) 2000  Lineo, Inc.  (www.lineo.com) 
+ *  Copyright (C) 2000  Lineo, Inc.  (www.lineo.com)
  *
  *  Based on:
  *
@@ -19,6 +19,8 @@
 
 #include <asm/pgtable.h>
 
+void die(const char *str, struct pt_regs *fp, unsigned long err);
+
 /*
  * This routine handles page faults.  It determines the problem, and
  * then passes it off to one of the appropriate routines.
@@ -34,23 +36,22 @@ asmlinkage int do_page_fault(struct pt_regs *regs, unsigned long address,
 			      unsigned long error_code)
 {
 #ifdef DEBUG
-	printk ("regs->sr=%#x, regs->pc=%#lx, address=%#lx, %ld\n",
-		regs->sr, regs->pc, address, error_code);
+	pr_debug("regs->sr=%#x, regs->pc=%#lx, address=%#lx, %ld\n",
+		 regs->sr, regs->pc, address, error_code);
 #endif
 
 /*
  * Oops. The kernel tried to access some bad page. We'll have to
  * terminate things with extreme prejudice.
  */
-	if ((unsigned long) address < PAGE_SIZE) {
-		printk(KERN_ALERT "Unable to handle kernel NULL pointer dereference");
-	} else
-		printk(KERN_ALERT "Unable to handle kernel access");
-	printk(" at virtual address %08lx\n",address);
+	if ((unsigned long) address < PAGE_SIZE)
+		pr_alert("Unable to handle kernel NULL pointer dereference");
+	else
+		pr_alert("Unable to handle kernel access");
+	printk(" at virtual address %08lx\n", address);
 	if (!user_mode(regs))
 		die("Oops", regs, error_code);
 	do_exit(SIGKILL);
 
 	return 1;
 }
-

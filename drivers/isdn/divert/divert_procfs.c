@@ -86,12 +86,13 @@ isdn_divert_read(struct file *file, char __user *buf, size_t count, loff_t *off)
 	struct divert_info *inf;
 	int len;
 
-	if (!*((struct divert_info **) file->private_data)) {
+	if (!(inf = *((struct divert_info **) file->private_data))) {
 		if (file->f_flags & O_NONBLOCK)
 			return -EAGAIN;
-		interruptible_sleep_on(&(rd_queue));
+		wait_event_interruptible(rd_queue, (inf =
+			*((struct divert_info **) file->private_data)));
 	}
-	if (!(inf = *((struct divert_info **) file->private_data)))
+	if (!inf)
 		return (0);
 
 	inf->usage_cnt--;	/* new usage count */

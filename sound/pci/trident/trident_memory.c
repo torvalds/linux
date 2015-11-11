@@ -23,7 +23,7 @@
  *
  */
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/pci.h>
 #include <linux/time.h>
 #include <linux/mutex.h>
@@ -139,12 +139,11 @@ static inline void *offset_ptr(struct snd_trident *trident, int offset)
 static struct snd_util_memblk *
 search_empty(struct snd_util_memhdr *hdr, int size)
 {
-	struct snd_util_memblk *blk, *prev;
+	struct snd_util_memblk *blk;
 	int page, psize;
 	struct list_head *p;
 
 	psize = get_aligned_page(size + ALIGN_PAGE_SIZE -1);
-	prev = NULL;
 	page = 0;
 	list_for_each(p, &hdr->block) {
 		blk = list_entry(p, struct snd_util_memblk, list);

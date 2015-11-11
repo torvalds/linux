@@ -157,8 +157,8 @@ static ssize_t zoran_write(struct file *file, const char __user *buffer,
 		return -EFAULT;
 	}
 	string[count] = 0;
-	dprintk(4, KERN_INFO "%s: write_proc: name=%s count=%zu zr=%p\n",
-		ZR_DEVNAME(zr), file->f_path.dentry->d_name.name, count, zr);
+	dprintk(4, KERN_INFO "%s: write_proc: name=%pD count=%zu zr=%p\n",
+		ZR_DEVNAME(zr), file, count, zr);
 	ldelim = " \t\n";
 	tdelim = "=";
 	line = strpbrk(sp, ldelim);

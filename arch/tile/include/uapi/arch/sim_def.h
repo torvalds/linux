@@ -360,19 +360,19 @@
  * @{
  */
 
-/** Use with with SIM_PROFILER_CHIP_xxx to control the memory controllers. */
+/** Use with SIM_PROFILER_CHIP_xxx to control the memory controllers. */
 #define SIM_CHIP_MEMCTL        0x001
 
-/** Use with with SIM_PROFILER_CHIP_xxx to control the XAUI interface. */
+/** Use with SIM_PROFILER_CHIP_xxx to control the XAUI interface. */
 #define SIM_CHIP_XAUI          0x002
 
-/** Use with with SIM_PROFILER_CHIP_xxx to control the PCIe interface. */
+/** Use with SIM_PROFILER_CHIP_xxx to control the PCIe interface. */
 #define SIM_CHIP_PCIE          0x004
 
-/** Use with with SIM_PROFILER_CHIP_xxx to control the MPIPE interface. */
+/** Use with SIM_PROFILER_CHIP_xxx to control the MPIPE interface. */
 #define SIM_CHIP_MPIPE         0x008
 
-/** Use with with SIM_PROFILER_CHIP_xxx to control the TRIO interface. */
+/** Use with SIM_PROFILER_CHIP_xxx to control the TRIO interface. */
 #define SIM_CHIP_TRIO          0x010
 
 /** Reference all chip devices. */

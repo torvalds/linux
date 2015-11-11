@@ -24,9 +24,6 @@ int main(void)
 
 	DEFINE(THREAD_KSP, offsetof(struct thread_struct, ksp));
 	DEFINE(THREAD_CALLEE_REG, offsetof(struct thread_struct, callee_reg));
-#ifdef CONFIG_ARC_CURR_IN_REG
-	DEFINE(THREAD_USER_R25, offsetof(struct thread_struct, user_r25));
-#endif
 	DEFINE(THREAD_FAULT_ADDR,
 	       offsetof(struct thread_struct, fault_address));
 
@@ -40,6 +37,8 @@ int main(void)
 
 	DEFINE(TASK_ACT_MM, offsetof(struct task_struct, active_mm));
 	DEFINE(TASK_TGID, offsetof(struct task_struct, tgid));
+	DEFINE(TASK_PID, offsetof(struct task_struct, pid));
+	DEFINE(TASK_COMM, offsetof(struct task_struct, comm));
 
 	DEFINE(MM_CTXT, offsetof(struct mm_struct, context));
 	DEFINE(MM_PGD, offsetof(struct mm_struct, pgd));
@@ -49,7 +48,7 @@ int main(void)
 	BLANK();
 
 	DEFINE(PT_status32, offsetof(struct pt_regs, status32));
-	DEFINE(PT_orig_r8, offsetof(struct pt_regs, orig_r8_word));
+	DEFINE(PT_event, offsetof(struct pt_regs, event));
 	DEFINE(PT_sp, offsetof(struct pt_regs, sp));
 	DEFINE(PT_r0, offsetof(struct pt_regs, r0));
 	DEFINE(PT_r1, offsetof(struct pt_regs, r1));
@@ -59,6 +58,11 @@ int main(void)
 	DEFINE(PT_r5, offsetof(struct pt_regs, r5));
 	DEFINE(PT_r6, offsetof(struct pt_regs, r6));
 	DEFINE(PT_r7, offsetof(struct pt_regs, r7));
+	DEFINE(PT_ret, offsetof(struct pt_regs, ret));
+
+	DEFINE(SZ_CALLEE_REGS, sizeof(struct callee_regs));
+	DEFINE(SZ_PT_REGS, sizeof(struct pt_regs));
+	DEFINE(PT_user_r25, offsetof(struct pt_regs, user_r25));
 
 	return 0;
 }

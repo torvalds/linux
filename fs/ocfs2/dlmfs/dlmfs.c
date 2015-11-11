@@ -49,7 +49,6 @@
 
 #include "stackglue.h"
 #include "userdlm.h"
-#include "dlmfsver.h"
 
 #define MLOG_MASK_PREFIX ML_DLMFS
 #include "cluster/masklog.h"
@@ -209,7 +208,7 @@ static int dlmfs_file_release(struct inode *inode,
 static int dlmfs_file_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	int error;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 
 	attr->ia_valid &= ~ATTR_SIZE;
 	error = inode_change_ok(inode, attr);
@@ -391,24 +390,14 @@ clear_fields:
 	ip->ip_conn = NULL;
 }
 
-static struct backing_dev_info dlmfs_backing_dev_info = {
-	.name		= "ocfs2-dlmfs",
-	.ra_pages	= 0,	/* No readahead */
-	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
-};
-
 static struct inode *dlmfs_get_root_inode(struct super_block *sb)
 {
 	struct inode *inode = new_inode(sb);
 	umode_t mode = S_IFDIR | 0755;
-	struct dlmfs_inode_private *ip;
 
 	if (inode) {
-		ip = DLMFS_I(inode);
-
 		inode->i_ino = get_next_ino();
 		inode_init_owner(inode, NULL, mode);
-		inode->i_mapping->backing_dev_info = &dlmfs_backing_dev_info;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		inc_nlink(inode);
 
@@ -432,7 +421,6 @@ static struct inode *dlmfs_get_inode(struct inode *parent,
 
 	inode->i_ino = get_next_ino();
 	inode_init_owner(inode, parent, mode);
-	inode->i_mapping->backing_dev_info = &dlmfs_backing_dev_info;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 
 	ip = DLMFS_I(inode);
@@ -561,7 +549,7 @@ static int dlmfs_unlink(struct inode *dir,
 			struct dentry *dentry)
 {
 	int status;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 
 	mlog(0, "unlink inode %lu\n", inode->i_ino);
 
@@ -569,8 +557,8 @@ static int dlmfs_unlink(struct inode *dir,
 	 * to acquire a lock, this basically destroys our lockres. */
 	status = user_dlm_destroy_lock(&DLMFS_I(inode)->ip_lockres);
 	if (status < 0) {
-		mlog(ML_ERROR, "unlink %.*s, error %d from destroy\n",
-		     dentry->d_name.len, dentry->d_name.name, status);
+		mlog(ML_ERROR, "unlink %pd, error %d from destroy\n",
+		     dentry, status);
 		goto bail;
 	}
 	status = simple_unlink(dir, dentry);
@@ -647,12 +635,6 @@ static int __init init_dlmfs_fs(void)
 	int status;
 	int cleanup_inode = 0, cleanup_worker = 0;
 
-	dlmfs_print_version();
-
-	status = bdi_init(&dlmfs_backing_dev_info);
-	if (status)
-		return status;
-
 	dlmfs_inode_cache = kmem_cache_create("dlmfs_inode_cache",
 				sizeof(struct dlmfs_inode_private),
 				0, (SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|
@@ -679,7 +661,6 @@ bail:
 			kmem_cache_destroy(dlmfs_inode_cache);
 		if (cleanup_worker)
 			destroy_workqueue(user_dlm_worker);
-		bdi_destroy(&dlmfs_backing_dev_info);
 	} else
 		printk("OCFS2 User DLM kernel interface loaded\n");
 	return status;
@@ -699,11 +680,11 @@ static void __exit exit_dlmfs_fs(void)
 	rcu_barrier();
 	kmem_cache_destroy(dlmfs_inode_cache);
 
-	bdi_destroy(&dlmfs_backing_dev_info);
 }
 
 MODULE_AUTHOR("Oracle");
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("OCFS2 DLM-Filesystem");
 
 module_init(init_dlmfs_fs)
 module_exit(exit_dlmfs_fs)

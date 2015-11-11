@@ -85,7 +85,7 @@ static int service_tx_status_request(
 
 	switch (recip) {
 	case USB_RECIP_DEVICE:
-		result[0] = musb->is_self_powered << USB_DEVICE_SELF_POWERED;
+		result[0] = musb->g.is_selfpowered << USB_DEVICE_SELF_POWERED;
 		result[0] |= musb->may_wakeup << USB_DEVICE_REMOTE_WAKEUP;
 		if (musb->g.is_otg) {
 			result[0] |= musb->g.b_hnp_enable

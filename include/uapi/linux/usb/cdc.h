@@ -6,8 +6,8 @@
  * firmware based USB peripherals.
  */
 
-#ifndef __LINUX_USB_CDC_H
-#define __LINUX_USB_CDC_H
+#ifndef __UAPI_LINUX_USB_CDC_H
+#define __UAPI_LINUX_USB_CDC_H
 
 #include <linux/types.h>
 
@@ -56,6 +56,7 @@
 #define USB_CDC_OBEX_TYPE		0x15
 #define USB_CDC_NCM_TYPE		0x1a
 #define USB_CDC_MBIM_TYPE		0x1b
+#define USB_CDC_MBIM_EXTENDED_TYPE	0x1c
 
 /* "Header Functional Descriptor" from CDC spec  5.2.3.1 */
 struct usb_cdc_header_desc {
@@ -203,6 +204,17 @@ struct usb_cdc_mbim_desc {
 	__u8    bMaxFilterSize;
 	__le16  wMaxSegmentSize;
 	__u8    bmNetworkCapabilities;
+} __attribute__ ((packed));
+
+/* "MBIM Extended Functional Descriptor" from CDC MBIM spec 1.0 errata-1 */
+struct usb_cdc_mbim_extended_desc {
+	__u8	bLength;
+	__u8	bDescriptorType;
+	__u8	bDescriptorSubType;
+
+	__le16	bcdMBIMExtendedVersion;
+	__u8	bMaxOutstandingCommandMessages;
+	__le16	wMTU;
 } __attribute__ ((packed));
 
 /*-------------------------------------------------------------------------*/
@@ -432,4 +444,4 @@ struct usb_cdc_ncm_ndp_input_size {
 #define USB_CDC_NCM_CRC_NOT_APPENDED			0x00
 #define USB_CDC_NCM_CRC_APPENDED			0x01
 
-#endif /* __LINUX_USB_CDC_H */
+#endif /* __UAPI_LINUX_USB_CDC_H */

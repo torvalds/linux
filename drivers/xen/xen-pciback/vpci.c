@@ -5,6 +5,8 @@
  *   Author: Ryan Wilson <hap9@epoch.ncsc.mil>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
@@ -102,8 +104,7 @@ static int __xen_pcibk_add_pci_dev(struct xen_pcibk_device *pdev,
 				       struct pci_dev_entry, list);
 
 			if (match_slot(dev, t->dev)) {
-				pr_info(DRV_NAME ": vpci: %s: "
-					"assign to virtual slot %d func %d\n",
+				pr_info("vpci: %s: assign to virtual slot %d func %d\n",
 					pci_name(dev), slot,
 					PCI_FUNC(dev->devfn));
 				list_add_tail(&dev_entry->list,
@@ -117,9 +118,8 @@ static int __xen_pcibk_add_pci_dev(struct xen_pcibk_device *pdev,
 	/* Assign to a new slot on the virtual PCI bus */
 	for (slot = 0; slot < PCI_SLOT_MAX; slot++) {
 		if (list_empty(&vpci_dev->dev_list[slot])) {
-			printk(KERN_INFO DRV_NAME
-			       ": vpci: %s: assign to virtual slot %d\n",
-			       pci_name(dev), slot);
+			pr_info("vpci: %s: assign to virtual slot %d\n",
+				pci_name(dev), slot);
 			list_add_tail(&dev_entry->list,
 				      &vpci_dev->dev_list[slot]);
 			func = dev->is_virtfn ? 0 : PCI_FUNC(dev->devfn);
@@ -137,13 +137,15 @@ unlock:
 	/* Publish this device. */
 	if (!err)
 		err = publish_cb(pdev, 0, 0, PCI_DEVFN(slot, func), devid);
+	else
+		kfree(dev_entry);
 
 out:
 	return err;
 }
 
 static void __xen_pcibk_release_pci_dev(struct xen_pcibk_device *pdev,
-					struct pci_dev *dev)
+					struct pci_dev *dev, bool lock)
 {
 	int slot;
 	struct vpci_dev_data *vpci_dev = pdev->pci_dev_data;
@@ -167,8 +169,13 @@ static void __xen_pcibk_release_pci_dev(struct xen_pcibk_device *pdev,
 out:
 	mutex_unlock(&vpci_dev->lock);
 
-	if (found_dev)
+	if (found_dev) {
+		if (lock)
+			device_lock(&found_dev->dev);
 		pcistub_put_pci_dev(found_dev);
+		if (lock)
+			device_unlock(&found_dev->dev);
+	}
 }
 
 static int __xen_pcibk_init_devices(struct xen_pcibk_device *pdev)
@@ -206,8 +213,11 @@ static void __xen_pcibk_release_devices(struct xen_pcibk_device *pdev)
 		struct pci_dev_entry *e, *tmp;
 		list_for_each_entry_safe(e, tmp, &vpci_dev->dev_list[slot],
 					 list) {
+			struct pci_dev *dev = e->dev;
 			list_del(&e->list);
-			pcistub_put_pci_dev(e->dev);
+			device_lock(&dev->dev);
+			pcistub_put_pci_dev(dev);
+			device_unlock(&dev->dev);
 			kfree(e);
 		}
 	}

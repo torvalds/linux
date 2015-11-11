@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
@@ -29,6 +30,7 @@
 #include <linux/smsc911x.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/platform_data/s3c-hsotg.h>
 
@@ -55,22 +57,21 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <plat/regs-serial.h>
 #include <mach/regs-gpio.h>
+#include <mach/gpio-samsung.h>
 #include <linux/platform_data/ata-samsung_cf.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/fb.h>
 #include <plat/gpio-cfg.h>
 
-#include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/adc.h>
 #include <linux/platform_data/touchscreen-s3c2410.h>
 #include <plat/keypad.h>
-#include <plat/backlight.h>
 #include <plat/samsung-time.h>
 
+#include "backlight.h"
 #include "common.h"
 #include "regs-modem.h"
 #include "regs-srom.h"
@@ -209,7 +210,7 @@ static struct platform_device smdk6410_smsc911x = {
 };
 
 #ifdef CONFIG_REGULATOR
-static struct regulator_consumer_supply smdk6410_b_pwr_5v_consumers[] __initdata = {
+static struct regulator_consumer_supply smdk6410_b_pwr_5v_consumers[] = {
 	REGULATOR_SUPPLY("PVDD", "0-001b"),
 	REGULATOR_SUPPLY("AVDD", "0-001b"),
 };
@@ -274,6 +275,7 @@ static struct platform_device *smdk6410_devices[] __initdata = {
 	&s3c_device_i2c1,
 	&s3c_device_fb,
 	&s3c_device_ohci,
+	&samsung_device_pwm,
 	&s3c_device_usb_hsotg,
 	&s3c64xx_device_iisv4,
 	&samsung_device_keypad,
@@ -622,18 +624,23 @@ static struct samsung_bl_gpio_info smdk6410_bl_gpio_info = {
 	.func = S3C_GPIO_SFN(2),
 };
 
-static struct platform_pwm_backlight_data smdk6410_bl_data = {
-	.pwm_id = 1,
+static struct pwm_lookup smdk6410_pwm_lookup[] = {
+	PWM_LOOKUP("samsung-pwm", 1, "pwm-backlight.0", NULL, 78770,
+		   PWM_POLARITY_NORMAL),
 };
 
-static struct s3c_hsotg_plat smdk6410_hsotg_pdata;
+static struct platform_pwm_backlight_data smdk6410_bl_data = {
+	.enable_gpio = -1,
+};
+
+static struct dwc2_hsotg_plat smdk6410_hsotg_pdata;
 
 static void __init smdk6410_map_io(void)
 {
 	u32 tmp;
 
 	s3c64xx_init_io(smdk6410_iodesc, ARRAY_SIZE(smdk6410_iodesc));
-	s3c24xx_init_clocks(12000000);
+	s3c64xx_set_xtal_freq(12000000);
 	s3c24xx_init_uarts(smdk6410_uartcfgs, ARRAY_SIZE(smdk6410_uartcfgs));
 	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 
@@ -657,7 +664,7 @@ static void __init smdk6410_machine_init(void)
 	s3c_i2c0_set_platdata(NULL);
 	s3c_i2c1_set_platdata(NULL);
 	s3c_fb_set_platdata(&smdk6410_lcd_pdata);
-	s3c_hsotg_set_platdata(&smdk6410_hsotg_pdata);
+	dwc2_hsotg_set_platdata(&smdk6410_hsotg_pdata);
 
 	samsung_keypad_set_platdata(&smdk6410_keypad_data);
 
@@ -691,9 +698,10 @@ static void __init smdk6410_machine_init(void)
 
 	s3c_ide_set_platdata(&smdk6410_ide_pdata);
 
-	samsung_bl_set(&smdk6410_bl_gpio_info, &smdk6410_bl_data);
-
 	platform_add_devices(smdk6410_devices, ARRAY_SIZE(smdk6410_devices));
+
+	pwm_add_table(smdk6410_pwm_lookup, ARRAY_SIZE(smdk6410_pwm_lookup));
+	samsung_bl_set(&smdk6410_bl_gpio_info, &smdk6410_bl_data);
 }
 
 MACHINE_START(SMDK6410, "SMDK6410")
@@ -703,7 +711,6 @@ MACHINE_START(SMDK6410, "SMDK6410")
 	.init_irq	= s3c6410_init_irq,
 	.map_io		= smdk6410_map_io,
 	.init_machine	= smdk6410_machine_init,
-	.init_late	= s3c64xx_init_late,
 	.init_time	= samsung_timer_init,
 	.restart	= s3c64xx_restart,
 MACHINE_END

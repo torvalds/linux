@@ -23,6 +23,7 @@
 
 static int da9052_spi_probe(struct spi_device *spi)
 {
+	struct regmap_config config;
 	int ret;
 	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct da9052 *da9052;
@@ -31,7 +32,7 @@ static int da9052_spi_probe(struct spi_device *spi)
 	if (!da9052)
 		return -ENOMEM;
 
-	spi->mode = SPI_MODE_0 | SPI_CPOL;
+	spi->mode = SPI_MODE_0;
 	spi->bits_per_word = 8;
 	spi_setup(spi);
 
@@ -40,10 +41,14 @@ static int da9052_spi_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, da9052);
 
-	da9052_regmap_config.read_flag_mask = 1;
-	da9052_regmap_config.write_flag_mask = 0;
+	config = da9052_regmap_config;
+	config.read_flag_mask = 1;
+	config.reg_bits = 7;
+	config.pad_bits = 1;
+	config.val_bits = 8;
+	config.use_single_rw = 1;
 
-	da9052->regmap = devm_regmap_init_spi(spi, &da9052_regmap_config);
+	da9052->regmap = devm_regmap_init_spi(spi, &config);
 	if (IS_ERR(da9052->regmap)) {
 		ret = PTR_ERR(da9052->regmap);
 		dev_err(&spi->dev, "Failed to allocate register map: %d\n",
@@ -51,11 +56,7 @@ static int da9052_spi_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	ret = da9052_device_init(da9052, id->driver_data);
-	if (ret != 0)
-		return ret;
-
-	return 0;
+	return da9052_device_init(da9052, id->driver_data);
 }
 
 static int da9052_spi_remove(struct spi_device *spi)
@@ -71,6 +72,7 @@ static struct spi_device_id da9052_spi_id[] = {
 	{"da9053-aa", DA9053_AA},
 	{"da9053-ba", DA9053_BA},
 	{"da9053-bb", DA9053_BB},
+	{"da9053-bc", DA9053_BC},
 	{}
 };
 
@@ -80,7 +82,6 @@ static struct spi_driver da9052_spi_driver = {
 	.id_table = da9052_spi_id,
 	.driver = {
 		.name = "da9052",
-		.owner = THIS_MODULE,
 	},
 };
 

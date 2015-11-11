@@ -17,13 +17,15 @@
  */
 
 #include "xfs.h"
-#include "xfs_da_btree.h"
-#include "xfs_bmap_btree.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
+#include "xfs_mount.h"
+#include "xfs_da_format.h"
 #include "xfs_inode.h"
 #include "xfs_attr.h"
 #include "xfs_attr_leaf.h"
 #include "xfs_acl.h"
-#include "xfs_vnodeops.h"
 
 #include <linux/posix_acl_xattr.h>
 #include <linux/xattr.h>
@@ -33,7 +35,7 @@ static int
 xfs_xattr_get(struct dentry *dentry, const char *name,
 		void *value, size_t size, int xflags)
 {
-	struct xfs_inode *ip = XFS_I(dentry->d_inode);
+	struct xfs_inode *ip = XFS_I(d_inode(dentry));
 	int error, asize = size;
 
 	if (strcmp(name, "") == 0)
@@ -45,7 +47,7 @@ xfs_xattr_get(struct dentry *dentry, const char *name,
 		value = NULL;
 	}
 
-	error = -xfs_attr_get(ip, (unsigned char *)name, value, &asize, xflags);
+	error = xfs_attr_get(ip, (unsigned char *)name, value, &asize, xflags);
 	if (error)
 		return error;
 	return asize;
@@ -55,7 +57,7 @@ static int
 xfs_xattr_set(struct dentry *dentry, const char *name, const void *value,
 		size_t size, int flags, int xflags)
 {
-	struct xfs_inode *ip = XFS_I(dentry->d_inode);
+	struct xfs_inode *ip = XFS_I(d_inode(dentry));
 
 	if (strcmp(name, "") == 0)
 		return -EINVAL;
@@ -67,8 +69,8 @@ xfs_xattr_set(struct dentry *dentry, const char *name, const void *value,
 		xflags |= ATTR_REPLACE;
 
 	if (!value)
-		return -xfs_attr_remove(ip, (unsigned char *)name, xflags);
-	return -xfs_attr_set(ip, (unsigned char *)name,
+		return xfs_attr_remove(ip, (unsigned char *)name, xflags);
+	return xfs_attr_set(ip, (unsigned char *)name,
 				(void *)value, size, xflags);
 }
 
@@ -98,8 +100,8 @@ const struct xattr_handler *xfs_xattr_handlers[] = {
 	&xfs_xattr_trusted_handler,
 	&xfs_xattr_security_handler,
 #ifdef CONFIG_XFS_POSIX_ACL
-	&xfs_xattr_acl_access_handler,
-	&xfs_xattr_acl_default_handler,
+	&posix_acl_access_xattr_handler,
+	&posix_acl_default_xattr_handler,
 #endif
 	NULL
 };
@@ -195,7 +197,7 @@ xfs_vn_listxattr(struct dentry *dentry, char *data, size_t size)
 {
 	struct xfs_attr_list_context context;
 	struct attrlist_cursor_kern cursor = { 0 };
-	struct inode		*inode = dentry->d_inode;
+	struct inode		*inode = d_inode(dentry);
 	int			error;
 
 	/*

@@ -1,0 +1,62 @@
+Dialog Semiconductor DA9150 Combined Charger/Fuel-Gauge MFD bindings
+
+DA9150 consists of a group of sub-devices:
+
+Device			 Description
+------			 -----------
+da9150-gpadc		: General Purpose ADC
+da9150-charger		: Battery Charger
+da9150-fg		: Battery Fuel-Gauge
+
+======
+
+Required properties:
+- compatible : Should be "dlg,da9150"
+- reg: Specifies the I2C slave address
+- interrupt-parent: Specifies the phandle of the interrupt controller to which
+  the IRQs from da9150 are delivered to.
+- interrupts: IRQ line info for da9150 chip.
+- interrupt-controller: da9150 has internal IRQs (own IRQ domain).
+  (See ../interrupt-controller/interrupts.txt for
+   further information relating to interrupt properties)
+
+Sub-devices:
+- da9150-gpadc: See ../iio/adc/da9150-gpadc.txt
+- da9150-charger: See ../power/da9150-charger.txt
+- da9150-fg: See ../power/da9150-fg.txt
+
+Example:
+
+	charger_fg: da9150@58 {
+		compatible = "dlg,da9150";
+		reg = <0x58>;
+		interrupt-parent = <&gpio6>;
+		interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+
+		gpadc: da9150-gpadc {
+			compatible = "dlg,da9150-gpadc";
+			#io-channel-cells = <1>;
+		};
+
+		charger {
+			compatible = "dlg,da9150-charger";
+
+			io-channels = <&gpadc 0>,
+				      <&gpadc 2>,
+				      <&gpadc 8>,
+				      <&gpadc 5>;
+			io-channel-names = "CHAN_IBUS",
+					   "CHAN_VBUS",
+					   "CHAN_TJUNC",
+					   "CHAN_VBAT";
+		};
+
+		fuel-gauge {
+			compatible = "dlg,da9150-fuel-gauge";
+
+			dlg,update-interval = <10000>;
+			dlg,warn-soc-level = /bits/ 8 <15>;
+			dlg,crit-soc-level = /bits/ 8 <5>
+		};
+	};

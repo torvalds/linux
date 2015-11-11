@@ -299,6 +299,15 @@ performed on the denizens of the cache.  These are held in a structure of type:
      enough space in the cache to permit this.
 
 
+ (*) Check coherency state of an object [mandatory]:
+
+	int (*check_consistency)(struct fscache_object *object)
+
+     This method is called to have the cache check the saved auxiliary data of
+     the object against the netfs's idea of the state.  0 should be returned
+     if they're consistent and -ESTALE otherwise.  -ENOMEM and -ERESTARTSYS
+     may also be returned.
+
  (*) Update object [mandatory]:
 
 	int (*update_object)(struct fscache_object *object)
@@ -665,6 +674,29 @@ FS-Cache provides some utilities that a cache backend may make use of:
      This marks an object as having encountered a fatal error (usually EIO)
      and causes it to move into a state whereby it will be withdrawn as soon
      as possible.
+
+
+ (*) Indicate that a stale object was found and discarded:
+
+	void fscache_object_retrying_stale(struct fscache_object *object);
+
+     This is called to indicate that the lookup procedure found an object in
+     the cache that the netfs decided was stale.  The object has been
+     discarded from the cache and the lookup will be performed again.
+
+
+ (*) Indicate that the caching backend killed an object:
+
+	void fscache_object_mark_killed(struct fscache_object *object,
+					enum fscache_why_object_killed why);
+
+     This is called to indicate that the cache backend preemptively killed an
+     object.  The why parameter should be set to indicate the reason:
+
+	FSCACHE_OBJECT_IS_STALE - the object was stale and needs discarding.
+	FSCACHE_OBJECT_NO_SPACE - there was insufficient cache space
+	FSCACHE_OBJECT_WAS_RETIRED - the object was retired when relinquished.
+	FSCACHE_OBJECT_WAS_CULLED - the object was culled to make space.
 
 
  (*) Get and release references on a retrieval record:

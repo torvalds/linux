@@ -30,8 +30,7 @@
 /* Copy to userspace.  This is based on the memcpy used for
    kernel-to-kernel copying; see "string.c".  */
 
-unsigned long
-__copy_user (void __user *pdst, const void *psrc, unsigned long pn)
+unsigned long __copy_user(void __user *pdst, const void *psrc, unsigned long pn)
 {
   /* We want the parameters put in special registers.
      Make sure the compiler is able to make something useful of this.
@@ -187,13 +186,14 @@ __copy_user (void __user *pdst, const void *psrc, unsigned long pn)
 
   return retn;
 }
+EXPORT_SYMBOL(__copy_user);
 
 /* Copy from user to kernel, zeroing the bytes that were inaccessible in
    userland.  The return-value is the number of bytes that were
    inaccessible.  */
 
-unsigned long
-__copy_user_zeroing(void *pdst, const void __user *psrc, unsigned long pn)
+unsigned long __copy_user_zeroing(void *pdst, const void __user *psrc,
+				  unsigned long pn)
 {
   /* We want the parameters put in special registers.
      Make sure the compiler is able to make something useful of this.
@@ -369,11 +369,10 @@ copy_exception_bytes:
 
   return retn + n;
 }
+EXPORT_SYMBOL(__copy_user_zeroing);
 
 /* Zero userspace.  */
-
-unsigned long
-__do_clear_user (void __user *pto, unsigned long pn)
+unsigned long __do_clear_user(void __user *pto, unsigned long pn)
 {
   /* We want the parameters put in special registers.
      Make sure the compiler is able to make something useful of this.
@@ -521,3 +520,4 @@ __do_clear_user (void __user *pto, unsigned long pn)
 
   return retn;
 }
+EXPORT_SYMBOL(__do_clear_user);

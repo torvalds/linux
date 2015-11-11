@@ -8,6 +8,8 @@ Required properties:
 
   - reg : The chip select number on the SPI bus
 
+  - vdd-supply : A regulator node, providing 2.7V - 3.6V
+
 Optional properties:
 
   - reset-gpio : a GPIO spec for the reset pin. If specified, it will be
@@ -19,4 +21,5 @@ spdif: ak4104@0 {
 	compatible = "asahi-kasei,ak4104";
 	reg = <0>;
 	spi-max-frequency = <5000000>;
+	vdd-supply = <&vdd_3v3_reg>;
 };

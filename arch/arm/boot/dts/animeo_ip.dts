@@ -7,7 +7,7 @@
  */
 
 /dts-v1/;
-/include/ "at91sam9260.dtsi"
+#include "at91sam9260.dtsi"
 
 / {
 	model = "Somfy Animeo IP";
@@ -38,6 +38,14 @@
 
 		main_clock: clock@0 {
 			compatible = "atmel,osc", "fixed-clock";
+			clock-frequency = <18432000>;
+		};
+
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+
+		main_xtal {
 			clock-frequency = <18432000>;
 		};
 	};
@@ -90,40 +98,25 @@
 			nand-on-flash-bbt;
 			status = "okay";
 
-			at91bootstrap@0 {
-				label = "at91bootstrap";
-				reg = <0x0 0x8000>;
-			};
-
-			barebox@8000 {
+			barebox@0 {
 				label = "barebox";
-				reg = <0x8000 0x40000>;
+				reg = <0x0 0x58000>;
 			};
 
-			bareboxenv@48000 {
-				label = "bareboxenv";
-				reg = <0x48000 0x8000>;
+			u_boot_env@58000 {
+				label = "u_boot_env";
+				reg = <0x58000 0x8000>;
 			};
 
-			user_block@0x50000 {
-				label = "user_block";
-				reg = <0x50000 0xb0000>;
-			};
-
-			kernel@100000 {
-				label = "kernel";
-				reg = <0x100000 0x1b0000>;
-			};
-
-			root@2b0000 {
-				label = "root";
-				reg = <0x2b0000 0x1D50000>;
+			ubi@60000 {
+				label = "ubi";
+				reg = <0x60000 0x1FA0000>;
 			};
 		};
 
 		usb0: ohci@00500000 {
 			num-ports = <2>;
-			atmel,vbus-gpio = <&pioB 15 1>;
+			atmel,vbus-gpio = <&pioB 15 GPIO_ACTIVE_LOW>;
 			status = "okay";
 		};
 	};
@@ -133,23 +126,23 @@
 
 		power_green {
 			label = "power_green";
-			gpios = <&pioC 17 0>;
+			gpios = <&pioC 17 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 
 		power_red {
 			label = "power_red";
-			gpios = <&pioA 2 0>;
+			gpios = <&pioA 2 GPIO_ACTIVE_HIGH>;
 		};
 
 		tx_green {
 			label = "tx_green";
-			gpios = <&pioC 19 0>;
+			gpios = <&pioC 19 GPIO_ACTIVE_HIGH>;
 		};
 
 		tx_red {
 			label = "tx_red";
-			gpios = <&pioC 18 0>;
+			gpios = <&pioC 18 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -160,21 +153,21 @@
 
 		keyswitch_in {
 			label = "keyswitch_in";
-			gpios = <&pioB 1 0>;
+			gpios = <&pioB 1 GPIO_ACTIVE_HIGH>;
 			linux,code = <28>;
 			gpio-key,wakeup;
 		};
 
 		error_in {
 			label = "error_in";
-			gpios = <&pioB 2 0>;
+			gpios = <&pioB 2 GPIO_ACTIVE_HIGH>;
 			linux,code = <29>;
 			gpio-key,wakeup;
 		};
 
 		btn {
 			label = "btn";
-			gpios = <&pioC 23 0>;
+			gpios = <&pioC 23 GPIO_ACTIVE_HIGH>;
 			linux,code = <31>;
 			gpio-key,wakeup;
 		};

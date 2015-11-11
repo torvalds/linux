@@ -1,6 +1,3 @@
-# Guest requires the device configuration and probing code.
-obj-$(CONFIG_LGUEST_GUEST) += lguest_device.o
-
 # Host requires the other files, which can be a module.
 obj-$(CONFIG_LGUEST)	+= lg.o
 lg-y = core.o hypercalls.o page_tables.o interrupts_and_traps.o \

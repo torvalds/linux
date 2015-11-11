@@ -32,7 +32,8 @@
 
 #include <mach/hardware.h>
 
-#define TIMER_FREQ		CLOCK_TICK_RATE
+#include "rtc-sa1100.h"
+
 #define RTC_DEF_DIVIDER		(32768 - 1)
 #define RTC_DEF_TRIM		0
 #define MAXFREQ_PERIODIC	1000
@@ -87,10 +88,9 @@
 	__raw_writel((value), (pxa_rtc)->base + (reg))
 
 struct pxa_rtc {
+	struct sa1100_rtc sa1100_rtc;
 	struct resource	*ress;
 	void __iomem		*base;
-	int			irq_1Hz;
-	int			irq_Alrm;
 	struct rtc_device	*rtc;
 	spinlock_t		lock;		/* Protects this structure */
 };
@@ -185,25 +185,25 @@ static int pxa_rtc_open(struct device *dev)
 	struct pxa_rtc *pxa_rtc = dev_get_drvdata(dev);
 	int ret;
 
-	ret = request_irq(pxa_rtc->irq_1Hz, pxa_rtc_irq, 0,
+	ret = request_irq(pxa_rtc->sa1100_rtc.irq_1hz, pxa_rtc_irq, 0,
 			  "rtc 1Hz", dev);
 	if (ret < 0) {
-		dev_err(dev, "can't get irq %i, err %d\n", pxa_rtc->irq_1Hz,
-			ret);
+		dev_err(dev, "can't get irq %i, err %d\n",
+			pxa_rtc->sa1100_rtc.irq_1hz, ret);
 		goto err_irq_1Hz;
 	}
-	ret = request_irq(pxa_rtc->irq_Alrm, pxa_rtc_irq, 0,
+	ret = request_irq(pxa_rtc->sa1100_rtc.irq_alarm, pxa_rtc_irq, 0,
 			  "rtc Alrm", dev);
 	if (ret < 0) {
-		dev_err(dev, "can't get irq %i, err %d\n", pxa_rtc->irq_Alrm,
-			ret);
+		dev_err(dev, "can't get irq %i, err %d\n",
+			pxa_rtc->sa1100_rtc.irq_alarm, ret);
 		goto err_irq_Alrm;
 	}
 
 	return 0;
 
 err_irq_Alrm:
-	free_irq(pxa_rtc->irq_1Hz, dev);
+	free_irq(pxa_rtc->sa1100_rtc.irq_1hz, dev);
 err_irq_1Hz:
 	return ret;
 }
@@ -216,8 +216,8 @@ static void pxa_rtc_release(struct device *dev)
 	rtsr_clear_bits(pxa_rtc, RTSR_PIALE | RTSR_RDALE1 | RTSR_HZE);
 	spin_unlock_irq(&pxa_rtc->lock);
 
-	free_irq(pxa_rtc->irq_Alrm, dev);
-	free_irq(pxa_rtc->irq_1Hz, dev);
+	free_irq(pxa_rtc->sa1100_rtc.irq_1hz, dev);
+	free_irq(pxa_rtc->sa1100_rtc.irq_alarm, dev);
 }
 
 static int pxa_alarm_irq_enable(struct device *dev, unsigned int enabled)
@@ -321,95 +321,76 @@ static int __init pxa_rtc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct pxa_rtc *pxa_rtc;
+	struct sa1100_rtc *sa1100_rtc;
 	int ret;
-	u32 rttr;
 
-	pxa_rtc = kzalloc(sizeof(struct pxa_rtc), GFP_KERNEL);
+	pxa_rtc = devm_kzalloc(dev, sizeof(*pxa_rtc), GFP_KERNEL);
 	if (!pxa_rtc)
 		return -ENOMEM;
+	sa1100_rtc = &pxa_rtc->sa1100_rtc;
 
 	spin_lock_init(&pxa_rtc->lock);
 	platform_set_drvdata(pdev, pxa_rtc);
 
-	ret = -ENXIO;
 	pxa_rtc->ress = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!pxa_rtc->ress) {
 		dev_err(dev, "No I/O memory resource defined\n");
-		goto err_ress;
+		return -ENXIO;
 	}
 
-	pxa_rtc->irq_1Hz = platform_get_irq(pdev, 0);
-	if (pxa_rtc->irq_1Hz < 0) {
+	sa1100_rtc->irq_1hz = platform_get_irq(pdev, 0);
+	if (sa1100_rtc->irq_1hz < 0) {
 		dev_err(dev, "No 1Hz IRQ resource defined\n");
-		goto err_ress;
+		return -ENXIO;
 	}
-	pxa_rtc->irq_Alrm = platform_get_irq(pdev, 1);
-	if (pxa_rtc->irq_Alrm < 0) {
+	sa1100_rtc->irq_alarm = platform_get_irq(pdev, 1);
+	if (sa1100_rtc->irq_alarm < 0) {
 		dev_err(dev, "No alarm IRQ resource defined\n");
-		goto err_ress;
+		return -ENXIO;
 	}
 	pxa_rtc_open(dev);
-	ret = -ENOMEM;
-	pxa_rtc->base = ioremap(pxa_rtc->ress->start,
+	pxa_rtc->base = devm_ioremap(dev, pxa_rtc->ress->start,
 				resource_size(pxa_rtc->ress));
 	if (!pxa_rtc->base) {
-		dev_err(&pdev->dev, "Unable to map pxa RTC I/O memory\n");
-		goto err_map;
+		dev_err(dev, "Unable to map pxa RTC I/O memory\n");
+		return -ENOMEM;
 	}
 
-	/*
-	 * If the clock divider is uninitialized then reset it to the
-	 * default value to get the 1Hz clock.
-	 */
-	if (rtc_readl(pxa_rtc, RTTR) == 0) {
-		rttr = RTC_DEF_DIVIDER + (RTC_DEF_TRIM << 16);
-		rtc_writel(pxa_rtc, RTTR, rttr);
-		dev_warn(dev, "warning: initializing default clock"
-			 " divider/trim value\n");
+	sa1100_rtc->rcnr = pxa_rtc->base + 0x0;
+	sa1100_rtc->rtsr = pxa_rtc->base + 0x8;
+	sa1100_rtc->rtar = pxa_rtc->base + 0x4;
+	sa1100_rtc->rttr = pxa_rtc->base + 0xc;
+	ret = sa1100_rtc_init(pdev, sa1100_rtc);
+	if (!ret) {
+		dev_err(dev, "Unable to init SA1100 RTC sub-device\n");
+		return ret;
 	}
 
 	rtsr_clear_bits(pxa_rtc, RTSR_PIALE | RTSR_RDALE1 | RTSR_HZE);
 
-	pxa_rtc->rtc = rtc_device_register("pxa-rtc", &pdev->dev, &pxa_rtc_ops,
-					   THIS_MODULE);
-	ret = PTR_ERR(pxa_rtc->rtc);
+	pxa_rtc->rtc = devm_rtc_device_register(&pdev->dev, "pxa-rtc",
+						&pxa_rtc_ops, THIS_MODULE);
 	if (IS_ERR(pxa_rtc->rtc)) {
+		ret = PTR_ERR(pxa_rtc->rtc);
 		dev_err(dev, "Failed to register RTC device -> %d\n", ret);
-		goto err_rtc_reg;
+		return ret;
 	}
 
 	device_init_wakeup(dev, 1);
 
 	return 0;
-
-err_rtc_reg:
-	 iounmap(pxa_rtc->base);
-err_ress:
-err_map:
-	kfree(pxa_rtc);
-	return ret;
 }
 
 static int __exit pxa_rtc_remove(struct platform_device *pdev)
 {
-	struct pxa_rtc *pxa_rtc = platform_get_drvdata(pdev);
-
 	struct device *dev = &pdev->dev;
+
 	pxa_rtc_release(dev);
-
-	rtc_device_unregister(pxa_rtc->rtc);
-
-	spin_lock_irq(&pxa_rtc->lock);
-	iounmap(pxa_rtc->base);
-	spin_unlock_irq(&pxa_rtc->lock);
-
-	kfree(pxa_rtc);
-
 	return 0;
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id pxa_rtc_dt_ids[] = {
+static const struct of_device_id pxa_rtc_dt_ids[] = {
 	{ .compatible = "marvell,pxa-rtc" },
 	{}
 };
@@ -422,7 +403,7 @@ static int pxa_rtc_suspend(struct device *dev)
 	struct pxa_rtc *pxa_rtc = dev_get_drvdata(dev);
 
 	if (device_may_wakeup(dev))
-		enable_irq_wake(pxa_rtc->irq_Alrm);
+		enable_irq_wake(pxa_rtc->sa1100_rtc.irq_alarm);
 	return 0;
 }
 
@@ -431,7 +412,7 @@ static int pxa_rtc_resume(struct device *dev)
 	struct pxa_rtc *pxa_rtc = dev_get_drvdata(dev);
 
 	if (device_may_wakeup(dev))
-		disable_irq_wake(pxa_rtc->irq_Alrm);
+		disable_irq_wake(pxa_rtc->sa1100_rtc.irq_alarm);
 	return 0;
 }
 #endif

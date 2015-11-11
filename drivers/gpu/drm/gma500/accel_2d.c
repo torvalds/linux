@@ -276,12 +276,12 @@ static void psbfb_copyarea_accel(struct fb_info *info,
 		break;
 	default:
 		/* software fallback */
-		cfb_copyarea(info, a);
+		drm_fb_helper_cfb_copyarea(info, a);
 		return;
 	}
 
 	if (!gma_power_begin(dev, false)) {
-		cfb_copyarea(info, a);
+		drm_fb_helper_cfb_copyarea(info, a);
 		return;
 	}
 	psb_accel_2d_copy(dev_priv,
@@ -308,7 +308,7 @@ void psbfb_copyarea(struct fb_info *info,
 	/* Avoid the 8 pixel erratum */
 	if (region->width == 8 || region->height == 8 ||
 		(info->flags & FBINFO_HWACCEL_DISABLED))
-		return cfb_copyarea(info, region);
+		return drm_fb_helper_cfb_copyarea(info, region);
 
 	psbfb_copyarea_accel(info, region);
 }
@@ -326,7 +326,7 @@ int psbfb_sync(struct fb_info *info)
 	struct psb_framebuffer *psbfb = &fbdev->pfb;
 	struct drm_device *dev = psbfb->base.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	unsigned long _end = jiffies + DRM_HZ;
+	unsigned long _end = jiffies + HZ;
 	int busy = 0;
 	unsigned long flags;
 

@@ -25,6 +25,9 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define KMSG_COMPONENT "zcrypt"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -245,7 +248,7 @@ static int ICACRT_msg_to_type50CRT_msg(struct zcrypt_device *zdev,
 	unsigned char *p, *q, *dp, *dq, *u, *inp;
 
 	mod_len = crt->inputdatalength;
-	short_len = mod_len / 2;
+	short_len = (mod_len + 1) / 2;
 
 	/*
 	 * CEX2A and CEX3A w/o FW update can handle requests up to
@@ -332,6 +335,11 @@ static int convert_type80(struct zcrypt_device *zdev,
 	if (t80h->len < sizeof(*t80h) + outputdatalength) {
 		/* The result is too short, the CEX2A card may not do that.. */
 		zdev->online = 0;
+		pr_err("Cryptographic device %x failed and was set offline\n",
+		       zdev->ap_dev->qid);
+		ZCRYPT_DBF_DEV(DBF_ERR, zdev, "dev%04xo%drc%d",
+			       zdev->ap_dev->qid, zdev->online, t80h->code);
+
 		return -EAGAIN;	/* repeat the request on a different device. */
 	}
 	if (zdev->user_space_type == ZCRYPT_CEX2A)
@@ -359,6 +367,10 @@ static int convert_response(struct zcrypt_device *zdev,
 				      outputdata, outputdatalength);
 	default: /* Unknown response type, this should NEVER EVER happen */
 		zdev->online = 0;
+		pr_err("Cryptographic device %x failed and was set offline\n",
+		       zdev->ap_dev->qid);
+		ZCRYPT_DBF_DEV(DBF_ERR, zdev, "dev%04xo%dfail",
+			       zdev->ap_dev->qid, zdev->online);
 		return -EAGAIN;	/* repeat the request on a different device. */
 	}
 }
@@ -383,10 +395,8 @@ static void zcrypt_cex2a_receive(struct ap_device *ap_dev,
 	int length;
 
 	/* Copy the reply message to the request message buffer. */
-	if (IS_ERR(reply)) {
-		memcpy(msg->message, &error_reply, sizeof(error_reply));
-		goto out;
-	}
+	if (!reply)
+		goto out;	/* ap_msg->rc indicates the error */
 	t80h = reply->message;
 	if (t80h->type == TYPE80_RSP_CODE) {
 		if (ap_dev->device_type == AP_DEVICE_TYPE_CEX2A)
@@ -437,10 +447,12 @@ static long zcrypt_cex2a_modexpo(struct zcrypt_device *zdev,
 	init_completion(&work);
 	ap_queue_message(zdev->ap_dev, &ap_msg);
 	rc = wait_for_completion_interruptible(&work);
-	if (rc == 0)
-		rc = convert_response(zdev, &ap_msg, mex->outputdata,
-				      mex->outputdatalength);
-	else
+	if (rc == 0) {
+		rc = ap_msg.rc;
+		if (rc == 0)
+			rc = convert_response(zdev, &ap_msg, mex->outputdata,
+					      mex->outputdatalength);
+	} else
 		/* Signal pending. */
 		ap_cancel_message(zdev->ap_dev, &ap_msg);
 out_free:
@@ -481,10 +493,12 @@ static long zcrypt_cex2a_modexpo_crt(struct zcrypt_device *zdev,
 	init_completion(&work);
 	ap_queue_message(zdev->ap_dev, &ap_msg);
 	rc = wait_for_completion_interruptible(&work);
-	if (rc == 0)
-		rc = convert_response(zdev, &ap_msg, crt->outputdata,
-				      crt->outputdatalength);
-	else
+	if (rc == 0) {
+		rc = ap_msg.rc;
+		if (rc == 0)
+			rc = convert_response(zdev, &ap_msg, crt->outputdata,
+					      crt->outputdatalength);
+	} else
 		/* Signal pending. */
 		ap_cancel_message(zdev->ap_dev, &ap_msg);
 out_free:

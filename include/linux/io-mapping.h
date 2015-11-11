@@ -21,7 +21,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/bug.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/page.h>
 
 /*
@@ -141,6 +141,7 @@ static inline void __iomem *
 io_mapping_map_atomic_wc(struct io_mapping *mapping,
 			 unsigned long offset)
 {
+	preempt_disable();
 	pagefault_disable();
 	return ((char __force __iomem *) mapping) + offset;
 }
@@ -149,6 +150,7 @@ static inline void
 io_mapping_unmap_atomic(void __iomem *vaddr)
 {
 	pagefault_enable();
+	preempt_enable();
 }
 
 /* Non-atomic map/unmap */

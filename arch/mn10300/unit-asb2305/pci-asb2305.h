@@ -20,13 +20,6 @@
 #define DBG(x...)
 #endif
 
-#define PCI_PROBE_BIOS 1
-#define PCI_PROBE_CONF1 2
-#define PCI_PROBE_CONF2 4
-#define PCI_NO_CHECKS 0x400
-#define PCI_ASSIGN_ROMS 0x1000
-#define PCI_BIOS_IRQ_SCAN 0x2000
-
 extern unsigned int pci_probe;
 
 /* pci-asb2305.c */
@@ -35,7 +28,6 @@ extern void pcibios_resource_survey(void);
 
 /* pci.c */
 
-extern int pcibios_last_bus;
 extern struct pci_ops *pci_root_ops;
 
 extern struct irq_routing_table *pcibios_get_irq_routing_table(void);

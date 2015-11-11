@@ -85,6 +85,13 @@ static const struct dmi_system_id amilo_rfkill_id_table[] = {
 	{
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_BOARD_NAME, "AMILO L1310"),
+		},
+		.driver_data = (void *)&amilo_a1655_rfkill_ops
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
 			DMI_MATCH(DMI_BOARD_NAME, "AMILO M7440"),
 		},
 		.driver_data = (void *)&amilo_m7440_rfkill_ops
@@ -131,7 +138,6 @@ static int amilo_rfkill_remove(struct platform_device *device)
 static struct platform_driver amilo_rfkill_driver = {
 	.driver = {
 		.name	= KBUILD_MODNAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe	= amilo_rfkill_probe,
 	.remove	= amilo_rfkill_remove,

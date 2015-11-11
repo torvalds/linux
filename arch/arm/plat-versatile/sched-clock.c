@@ -20,13 +20,13 @@
  */
 #include <linux/kernel.h>
 #include <linux/io.h>
+#include <linux/sched_clock.h>
 
-#include <asm/sched_clock.h>
 #include <plat/sched_clock.h>
 
 static void __iomem *ctr;
 
-static u32 notrace versatile_read_sched_clock(void)
+static u64 notrace versatile_read_sched_clock(void)
 {
 	if (ctr)
 		return readl(ctr);
@@ -37,5 +37,5 @@ static u32 notrace versatile_read_sched_clock(void)
 void __init versatile_sched_clock_init(void __iomem *reg, unsigned long rate)
 {
 	ctr = reg;
-	setup_sched_clock(versatile_read_sched_clock, 32, rate);
+	sched_clock_register(versatile_read_sched_clock, 32, rate);
 }

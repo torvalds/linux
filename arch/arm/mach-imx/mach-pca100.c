@@ -20,7 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
-#include <linux/i2c/at24.h>
+#include <linux/platform_data/at24.h>
 #include <linux/dma-mapping.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/eeprom.h>
@@ -36,6 +36,7 @@
 
 #include "common.h"
 #include "devices-imx27.h"
+#include "ehci.h"
 #include "hardware.h"
 #include "iomux-mx27.h"
 #include "ulpi.h"
@@ -245,11 +246,10 @@ static int pca100_sdhc2_init(struct device *dev, irq_handler_t detect_irq,
 	int ret;
 
 	ret = request_irq(gpio_to_irq(IMX_GPIO_NR(3, 29)), detect_irq,
-			  IRQF_DISABLED | IRQF_TRIGGER_FALLING,
-			  "imx-mmc-detect", data);
+			  IRQF_TRIGGER_FALLING, "imx-mmc-detect", data);
 	if (ret)
 		printk(KERN_ERR
-			"pca100: Failed to reuest irq for sd/mmc detection\n");
+			"pca100: Failed to request irq for sd/mmc detection\n");
 
 	return ret;
 }
@@ -398,8 +398,8 @@ static void __init pca100_init(void)
 		imx27_add_fsl_usb2_udc(&otg_device_pdata);
 	}
 
-	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
+	usbh2_pdata.otg = imx_otg_ulpi_create(
+			ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
 	if (usbh2_pdata.otg)
 		imx27_add_mxc_ehci_hs(2, &usbh2_pdata);
@@ -421,7 +421,6 @@ MACHINE_START(PCA100, "phyCARD-i.MX27")
 	.map_io = mx27_map_io,
 	.init_early = imx27_init_early,
 	.init_irq = mx27_init_irq,
-	.handle_irq = imx27_handle_irq,
 	.init_machine = pca100_init,
 	.init_time	= pca100_timer_init,
 	.restart	= mxc_restart,

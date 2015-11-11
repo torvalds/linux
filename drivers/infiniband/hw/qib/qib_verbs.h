@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2012, 2013 Intel Corporation.  All rights reserved.
  * Copyright (c) 2006 - 2012 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
@@ -41,6 +41,7 @@
 #include <linux/interrupt.h>
 #include <linux/kref.h>
 #include <linux/workqueue.h>
+#include <linux/kthread.h>
 #include <linux/completion.h>
 #include <rdma/ib_pack.h>
 #include <rdma/ib_user_verbs.h>
@@ -149,14 +150,14 @@ struct ib_reth {
 	__be64 vaddr;
 	__be32 rkey;
 	__be32 length;
-} __attribute__ ((packed));
+} __packed;
 
 struct ib_atomic_eth {
 	__be32 vaddr[2];        /* unaligned so access as 2 32-bit words */
 	__be32 rkey;
 	__be64 swap_data;
 	__be64 compare_data;
-} __attribute__ ((packed));
+} __packed;
 
 struct qib_other_headers {
 	__be32 bth[3];
@@ -177,7 +178,7 @@ struct qib_other_headers {
 		__be32 aeth;
 		struct ib_atomic_eth atomic_eth;
 	} u;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * Note that UD packets with a GRH header are 8+40+12+8 = 68 bytes
@@ -194,12 +195,12 @@ struct qib_ib_header {
 		} l;
 		struct qib_other_headers oth;
 	} u;
-} __attribute__ ((packed));
+} __packed;
 
 struct qib_pio_header {
 	__le32 pbc[2];
 	struct qib_ib_header hdr;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * There is one struct qib_mcast for each multicast GID.
@@ -267,7 +268,8 @@ struct qib_cq_wc {
  */
 struct qib_cq {
 	struct ib_cq ibcq;
-	struct work_struct comptask;
+	struct kthread_work comptask;
+	struct qib_devdata *dd;
 	spinlock_t lock; /* protect changes in this struct */
 	u8 notify;
 	u8 triggered;
@@ -328,6 +330,8 @@ struct qib_mr {
 	struct ib_mr ibmr;
 	struct ib_umem *umem;
 	struct qib_mregion mr;  /* must be last */
+	u64 *pages;
+	u32 npages;
 };
 
 /*
@@ -336,7 +340,13 @@ struct qib_mr {
  * in qp->s_max_sge.
  */
 struct qib_swqe {
-	struct ib_send_wr wr;   /* don't use wr.sg_list */
+	union {
+		struct ib_send_wr wr;   /* don't use wr.sg_list */
+		struct ib_ud_wr ud_wr;
+		struct ib_reg_wr reg_wr;
+		struct ib_rdma_wr rdma_wr;
+		struct ib_atomic_wr atomic_wr;
+	};
 	u32 psn;                /* first packet sequence number */
 	u32 lpsn;               /* last packet sequence number */
 	u32 ssn;                /* send sequence number */
@@ -645,6 +655,8 @@ struct qib_qpn_table {
 	struct qpn_map map[QPNMAP_ENTRIES];
 };
 
+#define MAX_LKEY_TABLE_BITS 23
+
 struct qib_lkey_table {
 	spinlock_t lock; /* protect changes in this struct */
 	u32 next;               /* next unused index (speeds search) */
@@ -656,6 +668,17 @@ struct qib_lkey_table {
 struct qib_opcode_stats {
 	u64 n_packets;          /* number of packets */
 	u64 n_bytes;            /* total number of bytes */
+};
+
+struct qib_opcode_stats_perctx {
+	struct qib_opcode_stats stats[128];
+};
+
+struct qib_pma_counters {
+	u64 n_unicast_xmit;     /* total unicast packets sent */
+	u64 n_unicast_rcv;      /* total unicast packets received */
+	u64 n_multicast_xmit;   /* total multicast packets sent */
+	u64 n_multicast_rcv;    /* total multicast packets received */
 };
 
 struct qib_ibport {
@@ -674,10 +697,11 @@ struct qib_ibport {
 	__be64 mkey;
 	__be64 guids[QIB_GUIDS_PER_PORT	- 1];	/* writable GUIDs */
 	u64 tid;		/* TID for traps */
-	u64 n_unicast_xmit;     /* total unicast packets sent */
-	u64 n_unicast_rcv;      /* total unicast packets received */
-	u64 n_multicast_xmit;   /* total multicast packets sent */
-	u64 n_multicast_rcv;    /* total multicast packets received */
+	struct qib_pma_counters __percpu *pmastats;
+	u64 z_unicast_xmit;     /* starting count for PMA */
+	u64 z_unicast_rcv;      /* starting count for PMA */
+	u64 z_multicast_xmit;   /* starting count for PMA */
+	u64 z_multicast_rcv;    /* starting count for PMA */
 	u64 z_symbol_error_counter;             /* starting count for PMA */
 	u64 z_link_error_recovery_counter;      /* starting count for PMA */
 	u64 z_link_downed_counter;              /* starting count for PMA */
@@ -724,7 +748,6 @@ struct qib_ibport {
 	u8 vl_high_limit;
 	u8 sl_to_vl[16];
 
-	struct qib_opcode_stats opstats[128];
 };
 
 
@@ -768,6 +791,10 @@ struct qib_ibdev {
 	spinlock_t n_srqs_lock;
 	u32 n_mcast_grps_allocated; /* number of mcast groups allocated */
 	spinlock_t n_mcast_grps_lock;
+#ifdef CONFIG_DEBUG_FS
+	/* per HCA debugfs */
+	struct dentry *qib_ibdev_dbg;
+#endif
 };
 
 struct qib_verbs_counters {
@@ -832,8 +859,6 @@ static inline int qib_send_ok(struct qib_qp *qp)
 		 !(qp->s_flags & QIB_S_ANY_WAIT_SEND));
 }
 
-extern struct workqueue_struct *qib_cq_wq;
-
 /*
  * This must be called with s_lock held.
  */
@@ -857,8 +882,10 @@ void qib_cap_mask_chg(struct qib_ibport *ibp);
 void qib_sys_guid_chg(struct qib_ibport *ibp);
 void qib_node_desc_chg(struct qib_ibport *ibp);
 int qib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
-		    struct ib_wc *in_wc, struct ib_grh *in_grh,
-		    struct ib_mad *in_mad, struct ib_mad *out_mad);
+		    const struct ib_wc *in_wc, const struct ib_grh *in_grh,
+		    const struct ib_mad_hdr *in, size_t in_mad_size,
+		    struct ib_mad_hdr *out, size_t *out_mad_size,
+		    u16 *out_mad_pkey_index);
 int qib_create_agents(struct qib_ibdev *dev);
 void qib_free_agents(struct qib_ibdev *dev);
 
@@ -909,6 +936,18 @@ unsigned qib_free_all_qps(struct qib_devdata *dd);
 void qib_init_qpn_table(struct qib_devdata *dd, struct qib_qpn_table *qpt);
 
 void qib_free_qpn_table(struct qib_qpn_table *qpt);
+
+#ifdef CONFIG_DEBUG_FS
+
+struct qib_qp_iter;
+
+struct qib_qp_iter *qib_qp_iter_init(struct qib_ibdev *dev);
+
+int qib_qp_iter_next(struct qib_qp_iter *iter);
+
+void qib_qp_iter_print(struct seq_file *s, struct qib_qp_iter *iter);
+
+#endif
 
 void qib_get_credit(struct qib_qp *qp, u32 aeth);
 
@@ -972,12 +1011,17 @@ int qib_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr);
 
 int qib_destroy_srq(struct ib_srq *ibsrq);
 
+int qib_cq_init(struct qib_devdata *dd);
+
+void qib_cq_exit(struct qib_devdata *dd);
+
 void qib_cq_enter(struct qib_cq *cq, struct ib_wc *entry, int sig);
 
 int qib_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry);
 
-struct ib_cq *qib_create_cq(struct ib_device *ibdev, int entries,
-			    int comp_vector, struct ib_ucontext *context,
+struct ib_cq *qib_create_cq(struct ib_device *ibdev,
+			    const struct ib_cq_init_attr *attr,
+			    struct ib_ucontext *context,
 			    struct ib_udata *udata);
 
 int qib_destroy_cq(struct ib_cq *ibcq);
@@ -998,14 +1042,15 @@ struct ib_mr *qib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 int qib_dereg_mr(struct ib_mr *ibmr);
 
-struct ib_mr *qib_alloc_fast_reg_mr(struct ib_pd *pd, int max_page_list_len);
+struct ib_mr *qib_alloc_mr(struct ib_pd *pd,
+			   enum ib_mr_type mr_type,
+			   u32 max_entries);
 
-struct ib_fast_reg_page_list *qib_alloc_fast_reg_page_list(
-				struct ib_device *ibdev, int page_list_len);
+int qib_map_mr_sg(struct ib_mr *ibmr,
+		  struct scatterlist *sg,
+		  int sg_nents);
 
-void qib_free_fast_reg_page_list(struct ib_fast_reg_page_list *pl);
-
-int qib_fast_reg_mr(struct qib_qp *qp, struct ib_send_wr *wr);
+int qib_reg_mr(struct qib_qp *qp, struct ib_reg_wr *wr);
 
 struct ib_fmr *qib_alloc_fmr(struct ib_pd *pd, int mr_access_flags,
 			     struct ib_fmr_attr *fmr_attr);

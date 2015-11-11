@@ -69,6 +69,10 @@ static struct menu *current_menu, *current_entry;
 %token <string> T_WORD
 %token <string> T_WORD_QUOTE
 %token T_UNEQUAL
+%token T_LESS
+%token T_LESS_EQUAL
+%token T_GREATER
+%token T_GREATER_EQUAL
 %token T_CLOSE_PAREN
 %token T_OPEN_PAREN
 %token T_EOL
@@ -76,6 +80,7 @@ static struct menu *current_menu, *current_entry;
 %left T_OR
 %left T_AND
 %left T_EQUAL T_UNEQUAL
+%left T_LESS T_LESS_EQUAL T_GREATER T_GREATER_EQUAL
 %nonassoc T_NOT
 
 %type <string> prompt
@@ -467,6 +472,10 @@ if_expr:  /* empty */			{ $$ = NULL; }
 ;
 
 expr:	  symbol				{ $$ = expr_alloc_symbol($1); }
+	| symbol T_LESS symbol			{ $$ = expr_alloc_comp(E_LTH, $1, $3); }
+	| symbol T_LESS_EQUAL symbol		{ $$ = expr_alloc_comp(E_LEQ, $1, $3); }
+	| symbol T_GREATER symbol		{ $$ = expr_alloc_comp(E_GTH, $1, $3); }
+	| symbol T_GREATER_EQUAL symbol		{ $$ = expr_alloc_comp(E_GEQ, $1, $3); }
 	| symbol T_EQUAL symbol			{ $$ = expr_alloc_comp(E_EQUAL, $1, $3); }
 	| symbol T_UNEQUAL symbol		{ $$ = expr_alloc_comp(E_UNEQUAL, $1, $3); }
 	| T_OPEN_PAREN expr T_CLOSE_PAREN	{ $$ = $2; }
@@ -493,9 +502,6 @@ void conf_parse(const char *name)
 
 	sym_init();
 	_menu_init();
-	modules_sym = sym_lookup(NULL, 0);
-	modules_sym->type = S_BOOLEAN;
-	modules_sym->flags |= SYMBOL_AUTO;
 	rootmenu.prompt = menu_add_prompt(P_MENU, "Linux Kernel Configuration", NULL);
 
 	if (getenv("ZCONF_DEBUG"))
@@ -503,12 +509,8 @@ void conf_parse(const char *name)
 	zconfparse();
 	if (zconfnerrs)
 		exit(1);
-	if (!modules_sym->prop) {
-		struct property *prop;
-
-		prop = prop_alloc(P_DEFAULT, modules_sym);
-		prop->expr = expr_alloc_symbol(sym_lookup("MODULES", 0));
-	}
+	if (!modules_sym)
+		modules_sym = sym_find( "n" );
 
 	rootmenu.prompt->text = _(rootmenu.prompt->text);
 	rootmenu.prompt->text = sym_expand_string_value(rootmenu.prompt->text);
@@ -517,7 +519,7 @@ void conf_parse(const char *name)
 	for_all_symbols(i, sym) {
 		if (sym_check_deps(sym))
 			zconfnerrs++;
-        }
+	}
 	if (zconfnerrs)
 		exit(1);
 	sym_set_change_count(1);

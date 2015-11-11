@@ -1,0 +1,47 @@
+STMicroelectronics STi family Sysconfig Peripheral Powerdown Reset Controller
+=============================================================================
+
+This binding describes a reset controller device that is used to enable and
+disable on-chip peripheral controllers such as USB and SATA, using
+"powerdown" control bits found in the STi family SoC system configuration
+registers. These have been grouped together into a single reset controller
+device for convenience.
+
+The actual action taken when powerdown is asserted is hardware dependent.
+However, when asserted it may not be possible to access the hardware's
+registers and after an assert/deassert sequence the hardware's previous state
+may no longer be valid.
+
+Please refer to reset.txt in this directory for common reset
+controller binding usage.
+
+Required properties:
+- compatible: Should be "st,<chip>-powerdown"
+	ex: "st,stih415-powerdown", "st,stih416-powerdown"
+- #reset-cells: 1, see below
+
+example:
+
+	powerdown: powerdown-controller {
+		#reset-cells = <1>;
+		compatible = "st,stih415-powerdown";
+	};
+
+
+Specifying powerdown control of devices
+=======================================
+
+Device nodes should specify the reset channel required in their "resets"
+property, containing a phandle to the powerdown device node and an
+index specifying which channel to use, as described in reset.txt
+
+example:
+
+	usb1: usb@fe200000 {
+		resets	= <&powerdown STIH41X_USB1_POWERDOWN>;
+	};
+
+Macro definitions for the supported reset channels can be found in:
+
+include/dt-bindings/reset/stih415-resets.h
+include/dt-bindings/reset/stih416-resets.h

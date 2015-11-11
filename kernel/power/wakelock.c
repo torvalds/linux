@@ -17,6 +17,9 @@
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
+
+#include "power.h"
 
 static DEFINE_MUTEX(wakelocks_lock);
 
@@ -81,7 +84,9 @@ static inline void decrement_wakelocks_number(void) {}
 #define WL_GC_COUNT_MAX	100
 #define WL_GC_TIME_SEC	300
 
+static void __wakelocks_gc(struct work_struct *work);
 static LIST_HEAD(wakelocks_lru_list);
+static DECLARE_WORK(wakelock_work, __wakelocks_gc);
 static unsigned int wakelocks_gc_count;
 
 static inline void wakelocks_lru_add(struct wakelock *wl)
@@ -94,13 +99,12 @@ static inline void wakelocks_lru_most_recent(struct wakelock *wl)
 	list_move(&wl->lru, &wakelocks_lru_list);
 }
 
-static void wakelocks_gc(void)
+static void __wakelocks_gc(struct work_struct *work)
 {
 	struct wakelock *wl, *aux;
 	ktime_t now;
 
-	if (++wakelocks_gc_count <= WL_GC_COUNT_MAX)
-		return;
+	mutex_lock(&wakelocks_lock);
 
 	now = ktime_get();
 	list_for_each_entry_safe_reverse(wl, aux, &wakelocks_lru_list, lru) {
@@ -125,6 +129,16 @@ static void wakelocks_gc(void)
 		}
 	}
 	wakelocks_gc_count = 0;
+
+	mutex_unlock(&wakelocks_lock);
+}
+
+static void wakelocks_gc(void)
+{
+	if (++wakelocks_gc_count <= WL_GC_COUNT_MAX)
+		return;
+
+	schedule_work(&wakelock_work);
 }
 #else /* !CONFIG_PM_WAKELOCKS_GC */
 static inline void wakelocks_lru_add(struct wakelock *wl) {}

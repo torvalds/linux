@@ -19,7 +19,7 @@
 #include <linux/sched.h>
 #include <linux/device.h>
 #include <linux/poll.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <asm/sn/io.h>
@@ -108,8 +108,7 @@ scdrv_open(struct inode *inode, struct file *file)
 	/* hook this subchannel up to the system controller interrupt */
 	mutex_lock(&scdrv_mutex);
 	rv = request_irq(SGI_UART_VECTOR, scdrv_interrupt,
-			 IRQF_SHARED | IRQF_DISABLED,
-			 SYSCTL_BASENAME, sd);
+			 IRQF_SHARED, SYSCTL_BASENAME, sd);
 	if (rv) {
 		ia64_sn_irtr_close(sd->sd_nasid, sd->sd_subch);
 		kfree(sd);
@@ -199,7 +198,7 @@ scdrv_read(struct file *file, char __user *buf, size_t count, loff_t *f_pos)
 		add_wait_queue(&sd->sd_rq, &wait);
 		spin_unlock_irqrestore(&sd->sd_rlock, flags);
 
-		schedule_timeout(SCDRV_TIMEOUT);
+		schedule_timeout(msecs_to_jiffies(SCDRV_TIMEOUT));
 
 		remove_wait_queue(&sd->sd_rq, &wait);
 		if (signal_pending(current)) {
@@ -295,7 +294,7 @@ scdrv_write(struct file *file, const char __user *buf,
 		add_wait_queue(&sd->sd_wq, &wait);
 		spin_unlock_irqrestore(&sd->sd_wlock, flags);
 
-		schedule_timeout(SCDRV_TIMEOUT);
+		schedule_timeout(msecs_to_jiffies(SCDRV_TIMEOUT));
 
 		remove_wait_queue(&sd->sd_wq, &wait);
 		if (signal_pending(current)) {
@@ -462,5 +461,4 @@ scdrv_init(void)
 	}
 	return 0;
 }
-
-module_init(scdrv_init);
+device_initcall(scdrv_init);

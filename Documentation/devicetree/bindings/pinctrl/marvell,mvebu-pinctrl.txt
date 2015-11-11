@@ -37,7 +37,7 @@ uart1: serial@12100 {
 
 pinctrl: pinctrl@d0200 {
 	compatible = "marvell,dove-pinctrl";
-	reg = <0xd0200 0x20>;
+	reg = <0xd0200 0x14>, <0xd0440 0x04>, <0xd802c 0x08>;
 
 	pmx_uart1_sw: pmx-uart1-sw {
 		marvell,pins = "mpp_uart1";

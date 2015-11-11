@@ -952,8 +952,8 @@ static int tifm_sd_probe(struct tifm_dev *sock)
 
 	if (!(TIFM_SOCK_STATE_OCCUPIED
 	      & readl(sock->addr + SOCK_PRESENT_STATE))) {
-		pr_warning("%s : card gone, unexpectedly\n",
-		       dev_name(&sock->dev));
+		pr_warn("%s : card gone, unexpectedly\n",
+			dev_name(&sock->dev));
 		return rc;
 	}
 
@@ -1030,7 +1030,7 @@ static void tifm_sd_remove(struct tifm_dev *sock)
 
 static int tifm_sd_suspend(struct tifm_dev *sock, pm_message_t state)
 {
-	return mmc_suspend_host(tifm_get_drvdata(sock));
+	return 0;
 }
 
 static int tifm_sd_resume(struct tifm_dev *sock)
@@ -1044,8 +1044,6 @@ static int tifm_sd_resume(struct tifm_dev *sock)
 
 	if (rc)
 		host->eject = 1;
-	else
-		rc = mmc_resume_host(mmc);
 
 	return rc;
 }

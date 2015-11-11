@@ -57,7 +57,7 @@ udp_manip_pkt(struct sk_buff *skb,
 		l3proto->csum_update(skb, iphdroff, &hdr->check,
 				     tuple, maniptype);
 		inet_proto_csum_replace2(&hdr->check, skb, *portptr, newport,
-					 0);
+					 false);
 		if (!hdr->check)
 			hdr->check = CSUM_MANGLED_0;
 	}
@@ -70,7 +70,7 @@ const struct nf_nat_l4proto nf_nat_l4proto_udp = {
 	.manip_pkt		= udp_manip_pkt,
 	.in_range		= nf_nat_l4proto_in_range,
 	.unique_tuple		= udp_unique_tuple,
-#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.nlattr_to_range	= nf_nat_l4proto_nlattr_to_range,
 #endif
 };

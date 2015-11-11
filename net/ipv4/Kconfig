@@ -9,10 +9,7 @@ config IP_MULTICAST
 	  intend to participate in the MBONE, a high bandwidth network on top
 	  of the Internet which carries audio and video broadcasts. More
 	  information about the MBONE is on the WWW at
-	  <http://www.savetz.com/mbone/>. Information about the multicast
-	  capabilities of the various network cards is contained in
-	  <file:Documentation/networking/multicast.txt>. For most people, it's
-	  safe to say N.
+	  <http://www.savetz.com/mbone/>. For most people, it's safe to say N.
 
 config IP_ADVANCED_ROUTER
 	bool "IP: advanced router"
@@ -223,10 +220,8 @@ config IP_MROUTE
 	  packets that have several destination addresses. It is needed on the
 	  MBONE, a high bandwidth network on top of the Internet which carries
 	  audio and video broadcasts. In order to do that, you would most
-	  likely run the program mrouted. Information about the multicast
-	  capabilities of the various network cards is contained in
-	  <file:Documentation/networking/multicast.txt>. If you haven't heard
-	  about it, you don't need it.
+	  likely run the program mrouted. If you haven't heard about it, you
+	  don't need it.
 
 config IP_MROUTE_MULTIPLE_TABLES
 	bool "IP: multicast policy routing"
@@ -263,22 +258,6 @@ config IP_PIMSM_V2
 	  this, you need an experimental routing daemon supporting it (pimd or
 	  gated-5). This routing protocol is not used widely, so say N unless
 	  you want to play with it.
-
-config ARPD
-	bool "IP: ARP daemon support"
-	---help---
-	  The kernel maintains an internal cache which maps IP addresses to
-	  hardware addresses on the local network, so that Ethernet
-	  frames are sent to the proper address on the physical networking
-	  layer. Normally, kernel uses the ARP protocol to resolve these
-	  mappings.
-
-	  Saying Y here adds support to have an user space daemon to do this
-	  resolution instead. This is useful for implementing an alternate
-	  address resolution protocol (e.g. NHRP on mGRE tunnels) and also for
-	  testing purposes.
-
-	  If unsure, say N.
 
 config SYN_COOKIES
 	bool "IP: TCP syncookie support"
@@ -327,6 +306,30 @@ config NET_IPVTI
 	  encapsulating protocol. This can be used with xfrm mode tunnel to give
 	  the notion of a secure tunnel for IPSEC and then use routing protocol
 	  on top.
+
+config NET_UDP_TUNNEL
+	tristate
+	select NET_IP_TUNNEL
+	default n
+
+config NET_FOU
+	tristate "IP: Foo (IP protocols) over UDP"
+	select XFRM
+	select NET_UDP_TUNNEL
+	---help---
+	  Foo over UDP allows any IP protocol to be directly encapsulated
+	  over UDP include tunnels (IPIP, GRE, SIT). By encapsulating in UDP
+	  network mechanisms and optimizations for UDP (such as ECMP
+	  and RSS) can be leveraged to provide better service.
+
+config NET_FOU_IP_TUNNELS
+	bool "IP: FOU encapsulation of IP tunnels"
+	depends on NET_IPIP || NET_IPGRE || IPV6_SIT
+	select NET_FOU
+	---help---
+	  Allow configuration of FOU or GUE encapsulation for IP tunnels.
+	  When this option is enabled IP tunnels can be configured to use
+	  FOU or GUE encapsulation.
 
 config INET_AH
 	tristate "IP: AH transformation"
@@ -577,6 +580,43 @@ config TCP_CONG_ILLINOIS
 	For further details see:
 	  http://www.ews.uiuc.edu/~shaoliu/tcpillinois/index.html
 
+config TCP_CONG_DCTCP
+	tristate "DataCenter TCP (DCTCP)"
+	default n
+	---help---
+	DCTCP leverages Explicit Congestion Notification (ECN) in the network to
+	provide multi-bit feedback to the end hosts. It is designed to provide:
+
+	- High burst tolerance (incast due to partition/aggregate),
+	- Low latency (short flows, queries),
+	- High throughput (continuous data updates, large file transfers) with
+	  commodity, shallow-buffered switches.
+
+	All switches in the data center network running DCTCP must support
+	ECN marking and be configured for marking when reaching defined switch
+	buffer thresholds. The default ECN marking threshold heuristic for
+	DCTCP on switches is 20 packets (30KB) at 1Gbps, and 65 packets
+	(~100KB) at 10Gbps, but might need further careful tweaking.
+
+	For further details see:
+	  http://simula.stanford.edu/~alizade/Site/DCTCP_files/dctcp-final.pdf
+
+config TCP_CONG_CDG
+	tristate "CAIA Delay-Gradient (CDG)"
+	default n
+	---help---
+	CAIA Delay-Gradient (CDG) is a TCP congestion control that modifies
+	the TCP sender in order to:
+
+	  o Use the delay gradient as a congestion signal.
+	  o Back off with an average probability that is independent of the RTT.
+	  o Coexist with flows that use loss-based congestion control.
+	  o Tolerate packet loss unrelated to congestion.
+
+	For further details see:
+	  D.A. Hayes and G. Armitage. "Revisiting TCP congestion control using
+	  delay gradients." In Networking 2011. Preprint: http://goo.gl/No3vdg
+
 choice
 	prompt "Default TCP congestion control"
 	default DEFAULT_CUBIC
@@ -605,9 +645,14 @@ choice
 	config DEFAULT_WESTWOOD
 		bool "Westwood" if TCP_CONG_WESTWOOD=y
 
+	config DEFAULT_DCTCP
+		bool "DCTCP" if TCP_CONG_DCTCP=y
+
+	config DEFAULT_CDG
+		bool "CDG" if TCP_CONG_CDG=y
+
 	config DEFAULT_RENO
 		bool "Reno"
-
 endchoice
 
 endif
@@ -627,6 +672,8 @@ config DEFAULT_TCP_CONG
 	default "westwood" if DEFAULT_WESTWOOD
 	default "veno" if DEFAULT_VENO
 	default "reno" if DEFAULT_RENO
+	default "dctcp" if DEFAULT_DCTCP
+	default "cdg" if DEFAULT_CDG
 	default "cubic"
 
 config TCP_MD5SIG

@@ -1,0 +1,81 @@
+/*
+ *  Copyright (C) 2014 Steffen Trumtrar <s.trumtrar@pengutronix.de>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "socfpga_cyclone5.dtsi"
+
+/ {
+	model = "EBV SOCrates";
+	compatible = "ebv,socrates", "altr,socfpga-cyclone5", "altr,socfpga";
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+	};
+
+	memory {
+		name = "memory";
+		device_type = "memory";
+		reg = <0x0 0x40000000>; /* 1GB */
+	};
+
+	leds: gpio-leds {
+	};
+};
+
+&gmac1 {
+	status = "okay";
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+
+	rtc: rtc@68 {
+		compatible = "stm,m41t82";
+		reg = <0x68>;
+	};
+};
+
+&leds {
+	compatible = "gpio-leds";
+
+	led@0 {
+		label = "led:green:heartbeat";
+		gpios = <&porta 28 1>;
+		linux,default-trigger = "heartbeat";
+	};
+
+	led@1 {
+		label = "led:green:D7";
+		gpios = <&portb 19 1>;
+	};
+
+	led@2 {
+		label = "led:green:D8";
+		gpios = <&portb 25 1>;
+	};
+};
+
+&mmc {
+	status = "okay";
+};

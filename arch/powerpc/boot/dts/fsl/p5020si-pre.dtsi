@@ -1,7 +1,7 @@
 /*
  * P5020/P5010 Silicon/SoC Device Tree Source (pre include)
  *
- * Copyright 2011 Freescale Semiconductor Inc.
+ * Copyright 2011 - 2015 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -79,6 +79,14 @@
 		raideng_jr1 = &raideng_jr1;
 		raideng_jr2 = &raideng_jr2;
 		raideng_jr3 = &raideng_jr3;
+
+		fman0 = &fman0;
+		ethernet0 = &enet0;
+		ethernet1 = &enet1;
+		ethernet2 = &enet2;
+		ethernet3 = &enet3;
+		ethernet4 = &enet4;
+		ethernet5 = &enet5;
 	};
 
 	cpus {
@@ -88,7 +96,9 @@
 		cpu0: PowerPC,e5500@0 {
 			device_type = "cpu";
 			reg = <0>;
+			clocks = <&mux0>;
 			next-level-cache = <&L2_0>;
+			fsl,portid-mapping = <0x80000000>;
 			L2_0: l2-cache {
 				next-level-cache = <&cpc>;
 			};
@@ -96,7 +106,9 @@
 		cpu1: PowerPC,e5500@1 {
 			device_type = "cpu";
 			reg = <1>;
+			clocks = <&mux1>;
 			next-level-cache = <&L2_1>;
+			fsl,portid-mapping = <0x40000000>;
 			L2_1: l2-cache {
 				next-level-cache = <&cpc>;
 			};

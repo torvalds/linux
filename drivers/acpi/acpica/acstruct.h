@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,11 +68,6 @@
 #define ACPI_WALK_METHOD            0x01
 #define ACPI_WALK_METHOD_RESTART    0x02
 
-/* Flags for iASL compiler only */
-
-#define ACPI_WALK_CONST_REQUIRED    0x10
-#define ACPI_WALK_CONST_OPTIONAL    0x20
-
 struct acpi_walk_state {
 	struct acpi_walk_state *next;	/* Next walk_state in list */
 	u8 descriptor_type;	/* To differentiate various internal objs */
@@ -87,9 +82,10 @@ struct acpi_walk_state {
 	u8 return_used;
 	u8 scope_depth;
 	u8 pass_number;		/* Parse pass during table load */
+	u8 namespace_override;	/* Override existing objects */
 	u8 result_size;		/* Total elements for the result stack */
 	u8 result_count;	/* Current number of occupied elements of result stack */
-	u32 aml_offset;
+	u8 *aml;
 	u32 arg_types;
 	u32 method_breakpoint;	/* For single stepping */
 	u32 user_breakpoint;	/* User AML breakpoint */
@@ -133,6 +129,9 @@ struct acpi_init_walk_info {
 	u32 table_index;
 	u32 object_count;
 	u32 method_count;
+	u32 serial_method_count;
+	u32 non_serial_method_count;
+	u32 serialized_method_count;
 	u32 device_count;
 	u32 op_region_count;
 	u32 field_count;
@@ -178,25 +177,41 @@ union acpi_aml_operands {
 };
 
 /*
- * Structure used to pass object evaluation parameters.
+ * Structure used to pass object evaluation information and parameters.
  * Purpose is to reduce CPU stack use.
  */
 struct acpi_evaluate_info {
-	struct acpi_namespace_node *prefix_node;
-	char *pathname;
-	union acpi_operand_object *obj_desc;
-	union acpi_operand_object **parameters;
-	struct acpi_namespace_node *resolved_node;
-	union acpi_operand_object *return_object;
-	u8 param_count;
-	u8 pass_number;
-	u8 return_object_type;
-	u8 flags;
+	/* The first 3 elements are passed by the caller to acpi_ns_evaluate */
+
+	struct acpi_namespace_node *prefix_node;	/* Input: starting node */
+	char *relative_pathname;	/* Input: path relative to prefix_node */
+	union acpi_operand_object **parameters;	/* Input: argument list */
+
+	struct acpi_namespace_node *node;	/* Resolved node (prefix_node:relative_pathname) */
+	union acpi_operand_object *obj_desc;	/* Object attached to the resolved node */
+	char *full_pathname;	/* Full pathname of the resolved node */
+
+	const union acpi_predefined_info *predefined;	/* Used if Node is a predefined name */
+	union acpi_operand_object *return_object;	/* Object returned from the evaluation */
+	union acpi_operand_object *parent_package;	/* Used if return object is a Package */
+
+	u32 return_flags;	/* Used for return value analysis */
+	u32 return_btype;	/* Bitmapped type of the returned object */
+	u16 param_count;	/* Count of the input argument list */
+	u8 pass_number;		/* Parser pass number */
+	u8 return_object_type;	/* Object type of the returned object */
+	u8 node_flags;		/* Same as Node->Flags */
+	u8 flags;		/* General flags */
 };
 
 /* Values for Flags above */
 
-#define ACPI_IGNORE_RETURN_VALUE        1
+#define ACPI_IGNORE_RETURN_VALUE    1
+
+/* Defines for return_flags field above */
+
+#define ACPI_OBJECT_REPAIRED        1
+#define ACPI_OBJECT_WRAPPED         2
 
 /* Info used by acpi_ns_initialize_devices */
 

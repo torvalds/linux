@@ -142,10 +142,17 @@
 #define PMECC_GF_DIMENSION_13			13
 #define PMECC_GF_DIMENSION_14			14
 
+/* Primitive Polynomial used by PMECC */
+#define PMECC_GF_13_PRIMITIVE_POLY		0x201b
+#define PMECC_GF_14_PRIMITIVE_POLY		0x4443
+
 #define PMECC_LOOKUP_TABLE_SIZE_512		0x2000
 #define PMECC_LOOKUP_TABLE_SIZE_1024		0x4000
 
 /* Time out value for reading PMECC status register */
 #define PMECC_MAX_TIMEOUT_MS			100
+
+/* Reserved bytes in oob area */
+#define PMECC_OOB_RESERVED_BYTES		2
 
 #endif

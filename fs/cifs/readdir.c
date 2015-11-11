@@ -69,7 +69,8 @@ static inline void dump_cifs_file_struct(struct file *file, char *label)
  * Attempt to preload the dcache with the results from the FIND_FIRST/NEXT
  *
  * Find the dentry that matches "name". If there isn't one, create one. If it's
- * a negative dentry or the uniqueid changed, then drop it and recreate it.
+ * a negative dentry or the uniqueid or filetype(mode) changed,
+ * then drop it and recreate it.
  */
 static void
 cifs_prime_dcache(struct dentry *parent, struct qstr *name,
@@ -77,20 +78,20 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 {
 	struct dentry *dentry, *alias;
 	struct inode *inode;
-	struct super_block *sb = parent->d_inode->i_sb;
+	struct super_block *sb = d_inode(parent)->i_sb;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 
 	cifs_dbg(FYI, "%s: for %s\n", __func__, name->name);
 
 	dentry = d_hash_and_lookup(parent, name);
-	if (unlikely(IS_ERR(dentry)))
+	if (IS_ERR(dentry))
 		return;
 
 	if (dentry) {
-		int err;
-
-		inode = dentry->d_inode;
+		inode = d_inode(dentry);
 		if (inode) {
+			if (d_mountpoint(dentry))
+				goto out;
 			/*
 			 * If we're generating inode numbers, then we don't
 			 * want to clobber the existing one with the one that
@@ -99,17 +100,26 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 			if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM))
 				fattr->cf_uniqueid = CIFS_I(inode)->uniqueid;
 
-			/* update inode in place if i_ino didn't change */
-			if (CIFS_I(inode)->uniqueid == fattr->cf_uniqueid) {
+			/* update inode in place
+			 * if both i_ino and i_mode didn't change */
+			if (CIFS_I(inode)->uniqueid == fattr->cf_uniqueid &&
+			    (inode->i_mode & S_IFMT) ==
+			    (fattr->cf_mode & S_IFMT)) {
 				cifs_fattr_to_inode(inode, fattr);
 				goto out;
 			}
 		}
-		err = d_invalidate(dentry);
+		d_invalidate(dentry);
 		dput(dentry);
-		if (err)
-			return;
 	}
+
+	/*
+	 * If we know that the inode will need to be revalidated immediately,
+	 * then don't create a new dentry for it. We'll end up doing an on
+	 * the wire call either way and this spares us an invalidation.
+	 */
+	if (fattr->cf_flags & CIFS_FATTR_NEED_REVAL)
+		return;
 
 	dentry = d_alloc(parent, name);
 	if (!dentry)
@@ -119,7 +129,7 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 	if (!inode)
 		goto out;
 
-	alias = d_materialise_unique(dentry, inode);
+	alias = d_splice_alias(inode, dentry);
 	if (alias && !IS_ERR(alias))
 		dput(alias);
 out:
@@ -139,6 +149,17 @@ cifs_fill_common_info(struct cifs_fattr *fattr, struct cifs_sb_info *cifs_sb)
 		fattr->cf_mode = S_IFREG | cifs_sb->mnt_file_mode;
 		fattr->cf_dtype = DT_REG;
 	}
+
+	/*
+	 * We need to revalidate it further to make a decision about whether it
+	 * is a symbolic link, DFS referral or a reparse point with a direct
+	 * access like junctions, deduplicated files, NFS symlinks.
+	 */
+	if (fattr->cf_cifsattrs & ATTR_REPARSE)
+		fattr->cf_flags |= CIFS_FATTR_NEED_REVAL;
+
+	/* non-unix readdir doesn't provide nlink */
+	fattr->cf_flags |= CIFS_FATTR_UNKNOWN_NLINK;
 
 	if (fattr->cf_cifsattrs & ATTR_READONLY)
 		fattr->cf_mode &= ~S_IWUGO;
@@ -224,7 +245,7 @@ int get_symlink_reparse_path(char *full_path, struct cifs_sb_info *cifs_sb,
 	rc = CIFSSMBOpen(xid, ptcon, full_path, FILE_OPEN, GENERIC_READ,
 			OPEN_REPARSE_POINT, &fid, &oplock, NULL,
 			cifs_sb->local_nls,
-			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+			cifs_remap(cifs_sb);
 	if (!rc) {
 		tmpbuffer = kmalloc(maxpath);
 		rc = CIFSSMBQueryReparseLinkInfo(xid, ptcon, full_path,
@@ -246,7 +267,7 @@ initiate_cifs_search(const unsigned int xid, struct file *file)
 	int rc = 0;
 	char *full_path = NULL;
 	struct cifsFileInfo *cifsFile;
-	struct cifs_sb_info *cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
+	struct cifs_sb_info *cifs_sb = CIFS_FILE_SB(file);
 	struct tcon_link *tlink = NULL;
 	struct cifs_tcon *tcon;
 	struct TCP_Server_Info *server;
@@ -537,16 +558,16 @@ static int cifs_save_resume_key(const char *current_entry,
  * every entry (do not increment for . or .. entry).
  */
 static int
-find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon,
+find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon, loff_t pos,
 		struct file *file, char **current_entry, int *num_to_ret)
 {
 	__u16 search_flags;
 	int rc = 0;
 	int pos_in_buf = 0;
 	loff_t first_entry_in_buffer;
-	loff_t index_to_find = file->f_pos;
+	loff_t index_to_find = pos;
 	struct cifsFileInfo *cfile = file->private_data;
-	struct cifs_sb_info *cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
+	struct cifs_sb_info *cifs_sb = CIFS_FILE_SB(file);
 	struct TCP_Server_Info *server = tcon->ses->server;
 	/* check if index in the buffer */
 
@@ -574,11 +595,11 @@ find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon,
 		/* close and restart search */
 		cifs_dbg(FYI, "search backing up - close and restart search\n");
 		spin_lock(&cifs_file_list_lock);
-		if (!cfile->srch_inf.endOfSearch && !cfile->invalidHandle) {
+		if (server->ops->dir_needs_close(cfile)) {
 			cfile->invalidHandle = true;
 			spin_unlock(&cifs_file_list_lock);
-			if (server->ops->close)
-				server->ops->close(xid, tcon, &cfile->fid);
+			if (server->ops->close_dir)
+				server->ops->close_dir(xid, tcon, &cfile->fid);
 		} else
 			spin_unlock(&cifs_file_list_lock);
 		if (cfile->srch_inf.ntwrk_buf_start) {
@@ -659,11 +680,12 @@ find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
-static int cifs_filldir(char *find_entry, struct file *file, filldir_t filldir,
-		void *dirent, char *scratch_buf, unsigned int max_len)
+static int cifs_filldir(char *find_entry, struct file *file,
+		struct dir_context *ctx,
+		char *scratch_buf, unsigned int max_len)
 {
 	struct cifsFileInfo *file_info = file->private_data;
-	struct super_block *sb = file->f_path.dentry->d_sb;
+	struct super_block *sb = file_inode(file)->i_sb;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifs_dirent de = { NULL, };
 	struct cifs_fattr fattr;
@@ -688,15 +710,15 @@ static int cifs_filldir(char *find_entry, struct file *file, filldir_t filldir,
 
 	if (file_info->srch_inf.unicode) {
 		struct nls_table *nlt = cifs_sb->local_nls;
+		int map_type;
 
+		map_type = cifs_remap(cifs_sb);
 		name.name = scratch_buf;
 		name.len =
 			cifs_from_utf16((char *)name.name, (__le16 *)de.name,
 					UNICODE_NAME_MAX,
 					min_t(size_t, de.namelen,
-					      (size_t)max_len), nlt,
-					cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
+					      (size_t)max_len), nlt, map_type);
 		name.len -= nls_nullsize(nlt);
 	} else {
 		name.name = de.name;
@@ -729,7 +751,7 @@ static int cifs_filldir(char *find_entry, struct file *file, filldir_t filldir,
 	}
 
 	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS) &&
-	    CIFSCouldBeMFSymlink(&fattr))
+	    couldbe_mf_symlink(&fattr))
 		/*
 		 * trying to get the type and mode can be slow,
 		 * so just call those regular files for now, and mark
@@ -737,16 +759,14 @@ static int cifs_filldir(char *find_entry, struct file *file, filldir_t filldir,
 		 */
 		fattr.cf_flags |= CIFS_FATTR_NEED_REVAL;
 
-	cifs_prime_dcache(file->f_dentry, &name, &fattr);
+	cifs_prime_dcache(file->f_path.dentry, &name, &fattr);
 
 	ino = cifs_uniqueid_to_ino_t(fattr.cf_uniqueid);
-	rc = filldir(dirent, name.name, name.len, file->f_pos, ino,
-		     fattr.cf_dtype);
-	return rc;
+	return !dir_emit(ctx, name.name, name.len, ino, fattr.cf_dtype);
 }
 
 
-int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
+int cifs_readdir(struct file *file, struct dir_context *ctx)
 {
 	int rc = 0;
 	unsigned int xid;
@@ -772,103 +792,82 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 			goto rddir2_exit;
 	}
 
-	switch ((int) file->f_pos) {
-	case 0:
-		if (filldir(direntry, ".", 1, file->f_pos,
-		     file_inode(file)->i_ino, DT_DIR) < 0) {
-			cifs_dbg(VFS, "Filldir for current dir failed\n");
-			rc = -ENOMEM;
+	if (!dir_emit_dots(file, ctx))
+		goto rddir2_exit;
+
+	/* 1) If search is active,
+		is in current search buffer?
+		if it before then restart search
+		if after then keep searching till find it */
+
+	cifsFile = file->private_data;
+	if (cifsFile->srch_inf.endOfSearch) {
+		if (cifsFile->srch_inf.emptyDir) {
+			cifs_dbg(FYI, "End of search, empty dir\n");
+			rc = 0;
+			goto rddir2_exit;
+		}
+	} /* else {
+		cifsFile->invalidHandle = true;
+		tcon->ses->server->close(xid, tcon, &cifsFile->fid);
+	} */
+
+	tcon = tlink_tcon(cifsFile->tlink);
+	rc = find_cifs_entry(xid, tcon, ctx->pos, file, &current_entry,
+			     &num_to_fill);
+	if (rc) {
+		cifs_dbg(FYI, "fce error %d\n", rc);
+		goto rddir2_exit;
+	} else if (current_entry != NULL) {
+		cifs_dbg(FYI, "entry %lld found\n", ctx->pos);
+	} else {
+		cifs_dbg(FYI, "could not find entry\n");
+		goto rddir2_exit;
+	}
+	cifs_dbg(FYI, "loop through %d times filling dir for net buf %p\n",
+		 num_to_fill, cifsFile->srch_inf.ntwrk_buf_start);
+	max_len = tcon->ses->server->ops->calc_smb_size(
+			cifsFile->srch_inf.ntwrk_buf_start);
+	end_of_smb = cifsFile->srch_inf.ntwrk_buf_start + max_len;
+
+	tmp_buf = kmalloc(UNICODE_NAME_MAX, GFP_KERNEL);
+	if (tmp_buf == NULL) {
+		rc = -ENOMEM;
+		goto rddir2_exit;
+	}
+
+	for (i = 0; i < num_to_fill; i++) {
+		if (current_entry == NULL) {
+			/* evaluate whether this case is an error */
+			cifs_dbg(VFS, "past SMB end,  num to fill %d i %d\n",
+				 num_to_fill, i);
 			break;
 		}
-		file->f_pos++;
-	case 1:
-		if (filldir(direntry, "..", 2, file->f_pos,
-		     parent_ino(file->f_path.dentry), DT_DIR) < 0) {
-			cifs_dbg(VFS, "Filldir for parent dir failed\n");
-			rc = -ENOMEM;
-			break;
-		}
-		file->f_pos++;
-	default:
-		/* 1) If search is active,
-			is in current search buffer?
-			if it before then restart search
-			if after then keep searching till find it */
-
-		if (file->private_data == NULL) {
-			rc = -EINVAL;
-			free_xid(xid);
-			return rc;
-		}
-		cifsFile = file->private_data;
-		if (cifsFile->srch_inf.endOfSearch) {
-			if (cifsFile->srch_inf.emptyDir) {
-				cifs_dbg(FYI, "End of search, empty dir\n");
-				rc = 0;
-				break;
-			}
-		} /* else {
-			cifsFile->invalidHandle = true;
-			tcon->ses->server->close(xid, tcon, &cifsFile->fid);
-		} */
-
-		tcon = tlink_tcon(cifsFile->tlink);
-		rc = find_cifs_entry(xid, tcon, file, &current_entry,
-				     &num_to_fill);
+		/*
+		 * if buggy server returns . and .. late do we want to
+		 * check for that here?
+		 */
+		rc = cifs_filldir(current_entry, file, ctx,
+				  tmp_buf, max_len);
 		if (rc) {
-			cifs_dbg(FYI, "fce error %d\n", rc);
-			goto rddir2_exit;
-		} else if (current_entry != NULL) {
-			cifs_dbg(FYI, "entry %lld found\n", file->f_pos);
-		} else {
-			cifs_dbg(FYI, "could not find entry\n");
-			goto rddir2_exit;
-		}
-		cifs_dbg(FYI, "loop through %d times filling dir for net buf %p\n",
-			 num_to_fill, cifsFile->srch_inf.ntwrk_buf_start);
-		max_len = tcon->ses->server->ops->calc_smb_size(
-				cifsFile->srch_inf.ntwrk_buf_start);
-		end_of_smb = cifsFile->srch_inf.ntwrk_buf_start + max_len;
-
-		tmp_buf = kmalloc(UNICODE_NAME_MAX, GFP_KERNEL);
-		if (tmp_buf == NULL) {
-			rc = -ENOMEM;
+			if (rc > 0)
+				rc = 0;
 			break;
 		}
 
-		for (i = 0; (i < num_to_fill) && (rc == 0); i++) {
-			if (current_entry == NULL) {
-				/* evaluate whether this case is an error */
-				cifs_dbg(VFS, "past SMB end,  num to fill %d i %d\n",
-					 num_to_fill, i);
-				break;
-			}
-			/*
-			 * if buggy server returns . and .. late do we want to
-			 * check for that here?
-			 */
-			rc = cifs_filldir(current_entry, file, filldir,
-					  direntry, tmp_buf, max_len);
-			if (rc == -EOVERFLOW) {
-				rc = 0;
-				break;
-			}
-
-			file->f_pos++;
-			if (file->f_pos ==
-				cifsFile->srch_inf.index_of_last_entry) {
-				cifs_dbg(FYI, "last entry in buf at pos %lld %s\n",
-					 file->f_pos, tmp_buf);
-				cifs_save_resume_key(current_entry, cifsFile);
-				break;
-			} else
-				current_entry =
-					nxt_dir_entry(current_entry, end_of_smb,
-						cifsFile->srch_inf.info_level);
-		}
-		kfree(tmp_buf);
-		break;
-	} /* end switch */
+		ctx->pos++;
+		if (ctx->pos ==
+			cifsFile->srch_inf.index_of_last_entry) {
+			cifs_dbg(FYI, "last entry in buf at pos %lld %s\n",
+				 ctx->pos, tmp_buf);
+			cifs_save_resume_key(current_entry, cifsFile);
+			break;
+		} else
+			current_entry =
+				nxt_dir_entry(current_entry, end_of_smb,
+					cifsFile->srch_inf.info_level);
+	}
+	kfree(tmp_buf);
 
 rddir2_exit:
 	free_xid(xid);

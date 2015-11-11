@@ -848,14 +848,3 @@ static ssize_t debugcmd_store(struct device *class_dev,
 	return count;
 }
 #endif /* CONFIG_VIDEO_PVRUSB2_DEBUGIFC */
-
-
-/*
-  Stuff for Emacs to see, in order to encourage consistent editing style:
-  *** Local Variables: ***
-  *** mode: c ***
-  *** fill-column: 75 ***
-  *** tab-width: 8 ***
-  *** c-basic-offset: 8 ***
-  *** End: ***
-  */

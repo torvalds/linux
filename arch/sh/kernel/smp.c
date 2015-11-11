@@ -37,7 +37,7 @@ struct plat_smp_ops *mp_ops = NULL;
 /* State of each CPU */
 DEFINE_PER_CPU(int, cpu_state) = { 0 };
 
-void __cpuinit register_smp_ops(struct plat_smp_ops *ops)
+void register_smp_ops(struct plat_smp_ops *ops)
 {
 	if (mp_ops)
 		printk(KERN_WARNING "Overriding previously set SMP ops\n");
@@ -45,7 +45,7 @@ void __cpuinit register_smp_ops(struct plat_smp_ops *ops)
 	mp_ops = ops;
 }
 
-static inline void __cpuinit smp_store_cpu_info(unsigned int cpu)
+static inline void smp_store_cpu_info(unsigned int cpu)
 {
 	struct sh_cpuinfo *c = cpu_data + cpu;
 
@@ -111,7 +111,7 @@ void play_dead_common(void)
 	irq_ctx_exit(raw_smp_processor_id());
 	mb();
 
-	__get_cpu_var(cpu_state) = CPU_DEAD;
+	__this_cpu_write(cpu_state, CPU_DEAD);
 	local_irq_disable();
 }
 
@@ -174,7 +174,7 @@ void native_play_dead(void)
 }
 #endif
 
-asmlinkage void __cpuinit start_secondary(void)
+asmlinkage void start_secondary(void)
 {
 	unsigned int cpu = smp_processor_id();
 	struct mm_struct *mm = &init_mm;
@@ -215,7 +215,7 @@ extern struct {
 	void *thread_info;
 } stack_start;
 
-int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *tsk)
+int __cpu_up(unsigned int cpu, struct task_struct *tsk)
 {
 	unsigned long timeout;
 
@@ -363,7 +363,7 @@ void flush_tlb_mm(struct mm_struct *mm)
 		smp_call_function(flush_tlb_mm_ipi, (void *)mm, 1);
 	} else {
 		int i;
-		for (i = 0; i < num_online_cpus(); i++)
+		for_each_online_cpu(i)
 			if (smp_processor_id() != i)
 				cpu_context(i, mm) = 0;
 	}
@@ -400,7 +400,7 @@ void flush_tlb_range(struct vm_area_struct *vma,
 		smp_call_function(flush_tlb_range_ipi, (void *)&fd, 1);
 	} else {
 		int i;
-		for (i = 0; i < num_online_cpus(); i++)
+		for_each_online_cpu(i)
 			if (smp_processor_id() != i)
 				cpu_context(i, mm) = 0;
 	}
@@ -443,7 +443,7 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 		smp_call_function(flush_tlb_page_ipi, (void *)&fd, 1);
 	} else {
 		int i;
-		for (i = 0; i < num_online_cpus(); i++)
+		for_each_online_cpu(i)
 			if (smp_processor_id() != i)
 				cpu_context(i, vma->vm_mm) = 0;
 	}

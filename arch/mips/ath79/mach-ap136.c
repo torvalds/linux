@@ -132,7 +132,7 @@ static void __init ap136_pci_init(u8 *eeprom)
 	ath79_register_pci();
 }
 #else
-static inline void ap136_pci_init(void) {}
+static inline void ap136_pci_init(u8 *eeprom) {}
 #endif /* CONFIG_PCI */
 
 static void __init ap136_setup(void)

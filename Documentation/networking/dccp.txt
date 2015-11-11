@@ -18,8 +18,8 @@ Introduction
 Datagram Congestion Control Protocol (DCCP) is an unreliable, connection
 oriented protocol designed to solve issues present in UDP and TCP, particularly
 for real-time and multimedia (streaming) traffic.
-It divides into a base protocol (RFC 4340) and plugable congestion control
-modules called CCIDs. Like plugable TCP congestion control, at least one CCID
+It divides into a base protocol (RFC 4340) and pluggable congestion control
+modules called CCIDs. Like pluggable TCP congestion control, at least one CCID
 needs to be enabled in order for the protocol to function properly. In the Linux
 implementation, this is the TCP-like CCID2 (RFC 4341). Additional CCIDs, such as
 the TCP-friendly CCID3 (RFC 4342), are optional.
@@ -86,7 +86,7 @@ built-in CCIDs.
 
 DCCP_SOCKOPT_CCID is write-only and sets both the TX and RX CCIDs at the same
 time, combining the operation of the next two socket options. This option is
-preferrable over the latter two, since often applications will use the same
+preferable over the latter two, since often applications will use the same
 type of CCID for both directions; and mixed use of CCIDs is not currently well
 understood. This socket option takes as argument at least one uint8_t value, or
 an array of uint8_t values, which must match available CCIDS (see above). CCIDs

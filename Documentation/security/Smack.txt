@@ -3,7 +3,7 @@
     "Good for you, you've decided to clean the elevator!"
     - The Elevator, from Dark Star
 
-Smack is the the Simplified Mandatory Access Control Kernel.
+Smack is the Simplified Mandatory Access Control Kernel.
 Smack is a kernel based implementation of mandatory access
 control that includes simplicity in its primary design goals.
 
@@ -28,16 +28,27 @@ Smack kernels use the CIPSO IP option. Some network
 configurations are intolerant of IP options and can impede
 access to systems that use them as Smack does.
 
+Smack is used in the Tizen operating system. Please
+go to http://wiki.tizen.org for information about how
+Smack is used in Tizen.
+
 The current git repository for Smack user space is:
 
 	git://github.com/smack-team/smack.git
 
 This should make and install on most modern distributions.
-There are three commands included in smackutil:
+There are five commands included in smackutil:
 
-smackload  - properly formats data for writing to /smack/load
-smackcipso - properly formats data for writing to /smack/cipso
 chsmack    - display or set Smack extended attribute values
+smackctl   - load the Smack access rules
+smackaccess - report if a process with one label has access
+              to an object with another
+
+These two commands are obsolete with the introduction of
+the smackfs/load2 and smackfs/cipso2 interfaces.
+
+smackload  - properly formats data for writing to smackfs/load
+smackcipso - properly formats data for writing to smackfs/cipso
 
 In keeping with the intent of Smack, configuration data is
 minimal and not strictly required. The most important
@@ -47,9 +58,9 @@ of this, but it can be manually as well.
 
 Add this line to /etc/fstab:
 
-    smackfs /smack smackfs smackfsdef=* 0 0
+    smackfs /sys/fs/smackfs smackfs defaults 0 0
 
-and create the /smack directory for mounting.
+The /sys/fs/smackfs directory is created by the kernel.
 
 Smack uses extended attributes (xattrs) to store labels on filesystem
 objects. The attributes are stored in the extended attribute security
@@ -92,15 +103,17 @@ There are multiple ways to set a Smack label on a file:
     # attr -S -s SMACK64 -V "value" path
     # chsmack -a value path
 
-A process can see the smack label it is running with by
+A process can see the Smack label it is running with by
 reading /proc/self/attr/current. A process with CAP_MAC_ADMIN
-can set the process smack by writing there.
+can set the process Smack by writing there.
 
 Most Smack configuration is accomplished by writing to files
-in the smackfs filesystem. This pseudo-filesystem is usually
-mounted on /smack.
+in the smackfs filesystem. This pseudo-filesystem is mounted
+on /sys/fs/smackfs.
 
 access
+	Provided for backward compatibility. The access2 interface
+	is preferred and should be used instead.
 	This interface reports whether a subject with the specified
 	Smack label has a particular access to an object with a
 	specified Smack label. Write a fixed format access rule to
@@ -129,6 +142,8 @@ change-rule
 	those in the fourth string. If there is no such rule it will be
 	created using the access specified in the third and the fourth strings.
 cipso
+	Provided for backward compatibility. The cipso2 interface
+	is preferred and should be used instead.
 	This interface allows a specific CIPSO header to be assigned
 	to a Smack label. The format accepted on write is:
 		"%24s%4d%4d"["%4d"]...
@@ -150,7 +165,19 @@ direct
 doi
 	This contains the CIPSO domain of interpretation used in
 	network packets.
+ipv6host
+	This interface allows specific IPv6 internet addresses to be
+	treated as single label hosts. Packets are sent to single
+	label hosts only from processes that have Smack write access
+	to the host label. All packets received from single label hosts
+	are given the specified label. The format accepted on write is:
+		"%h:%h:%h:%h:%h:%h:%h:%h label" or
+		"%h:%h:%h:%h:%h:%h:%h:%h/%d label".
+	The "::" address shortcut is not supported.
+	If label is "-DELETE" a matched entry will be deleted.
 load
+	Provided for backward compatibility. The load2 interface
+	is preferred and should be used instead.
 	This interface allows access control rules in addition to
 	the system defined rules to be specified. The format accepted
 	on write is:
@@ -174,6 +201,8 @@ load2
 	permissions that are not allowed. The string "r-x--" would
 	specify read and execute access.
 load-self
+	Provided for backward compatibility. The load-self2 interface
+	is preferred and should be used instead.
 	This interface allows process specific access rules to be
 	defined. These rules are only consulted if access would
 	otherwise be permitted, and are intended to provide additional
@@ -198,21 +227,51 @@ netlabel
 	received from single label hosts are given the specified
 	label. The format accepted on write is:
 		"%d.%d.%d.%d label" or "%d.%d.%d.%d/%d label".
+	If the label specified is "-CIPSO" the address is treated
+	as a host that supports CIPSO headers.
 onlycap
-	This contains the label processes must have for CAP_MAC_ADMIN
+	This contains labels processes must have for CAP_MAC_ADMIN
 	and CAP_MAC_OVERRIDE to be effective. If this file is empty
 	these capabilities are effective at for processes with any
-	label. The value is set by writing the desired label to the
-	file or cleared by writing "-" to the file.
+	label. The values are set by writing the desired labels, separated
+	by spaces, to the file or cleared by writing "-" to the file.
+ptrace
+	This is used to define the current ptrace policy
+	0 - default: this is the policy that relies on Smack access rules.
+	    For the PTRACE_READ a subject needs to have a read access on
+	    object. For the PTRACE_ATTACH a read-write access is required.
+	1 - exact: this is the policy that limits PTRACE_ATTACH. Attach is
+	    only allowed when subject's and object's labels are equal.
+	    PTRACE_READ is not affected. Can be overridden with CAP_SYS_PTRACE.
+	2 - draconian: this policy behaves like the 'exact' above with an
+	    exception that it can't be overridden with CAP_SYS_PTRACE.
 revoke-subject
 	Writing a Smack label here sets the access to '-' for all access
 	rules with that subject label.
+unconfined
+	If the kernel is configured with CONFIG_SECURITY_SMACK_BRINGUP
+	a process with CAP_MAC_ADMIN can write a label into this interface.
+	Thereafter, accesses that involve that label will be logged and
+	the access permitted if it wouldn't be otherwise. Note that this
+	is dangerous and can ruin the proper labeling of your system.
+	It should never be used in production.
+relabel-self
+	This interface contains a list of labels to which the process can
+	transition to, by writing to /proc/self/attr/current.
+	Normally a process can change its own label to any legal value, but only
+	if it has CAP_MAC_ADMIN. This interface allows a process without
+	CAP_MAC_ADMIN to relabel itself to one of labels from predefined list.
+	A process without CAP_MAC_ADMIN can change its label only once. When it
+	does, this list will be cleared.
+	The values are set by writing the desired labels, separated
+	by spaces, to the file or cleared by writing "-" to the file.
 
-You can add access rules in /etc/smack/accesses. They take the form:
+If you are using the smackload utility
+you can add access rules in /etc/smack/accesses. They take the form:
 
     subjectlabel objectlabel access
 
-access is a combination of the letters rwxa which specify the
+access is a combination of the letters rwxatb which specify the
 kind of access permitted a subject with subjectlabel on an
 object with objectlabel. If there is no rule no access is allowed.
 
@@ -308,8 +367,9 @@ each of the subject and the object.
 
 Labels
 
-Smack labels are ASCII character strings, one to twenty-three characters in
-length. Single character labels using special characters, that being anything
+Smack labels are ASCII character strings. They can be up to 255 characters
+long, but keeping them to twenty-three characters is recommended.
+Single character labels using special characters, that being anything
 other than a letter or digit, are reserved for use by the Smack development
 team. Smack labels are unstructured, case sensitive, and the only operation
 ever performed on them is comparison for equality. Smack labels cannot
@@ -325,10 +385,9 @@ There are some predefined labels:
 	? 	Pronounced "huh", a single question mark character.
 	@ 	Pronounced "web", a single at sign character.
 
-Every task on a Smack system is assigned a label. System tasks, such as
-init(8) and systems daemons, are run with the floor ("_") label. User tasks
-are assigned labels according to the specification found in the
-/etc/smack/user configuration file.
+Every task on a Smack system is assigned a label. The Smack label
+of a process will usually be assigned by the system initialization
+mechanism.
 
 Access Rules
 
@@ -383,6 +442,7 @@ describe access modes:
 	w: indicates that write access should be granted.
 	x: indicates that execute access should be granted.
 	t: indicates that the rule requests transmutation.
+	b: indicates that the rule should be reported for bring-up.
 
 Uppercase values for the specification letters are allowed as well.
 Access mode specifications can be in any order. Examples of acceptable rules
@@ -392,6 +452,7 @@ are:
 	Secret    Unclass R
 	Manager   Game    x
 	User      HR      w
+	Snap      Crackle rwxatb
 	New       Old     rRrRr
 	Closed    Off     -
 
@@ -403,7 +464,7 @@ Examples of unacceptable rules are:
 
 Spaces are not allowed in labels. Since a subject always has access to files
 with the same label specifying a rule for that case is pointless. Only
-valid letters (rwxatRWXAT) and the dash ('-') character are allowed in
+valid letters (rwxatbRWXATB) and the dash ('-') character are allowed in
 access specifications. The dash is a placeholder, so "a-r" is the same
 as "ar". A lone dash is used to specify that no access should be allowed.
 
@@ -452,16 +513,11 @@ receiver. The receiver is not required to have read access to the sender.
 Setting Access Rules
 
 The configuration file /etc/smack/accesses contains the rules to be set at
-system startup. The contents are written to the special file /smack/load.
-Rules can be written to /smack/load at any time and take effect immediately.
-For any pair of subject and object labels there can be only one rule, with the
-most recently specified overriding any earlier specification.
-
-The program smackload is provided to ensure data is formatted
-properly when written to /smack/load. This program reads lines
-of the form
-
-    subjectlabel objectlabel mode.
+system startup. The contents are written to the special file
+/sys/fs/smackfs/load2. Rules can be added at any time and take effect
+immediately. For any pair of subject and object labels there can be only
+one rule, with the most recently specified overriding any earlier
+specification.
 
 Task Attribute
 
@@ -478,7 +534,10 @@ only be changed by a process with privilege.
 
 Privilege
 
-A process with CAP_MAC_OVERRIDE is privileged.
+A process with CAP_MAC_OVERRIDE or CAP_MAC_ADMIN is privileged.
+CAP_MAC_OVERRIDE allows the process access to objects it would
+be denied otherwise. CAP_MAC_ADMIN allows a process to change
+Smack data, including rules and attributes.
 
 Smack Networking
 
@@ -500,14 +559,14 @@ intervention. Unlabeled packets that come into the system will be given the
 ambient label.
 
 Smack requires configuration in the case where packets from a system that is
-not smack that speaks CIPSO may be encountered. Usually this will be a Trusted
+not Smack that speaks CIPSO may be encountered. Usually this will be a Trusted
 Solaris system, but there are other, less widely deployed systems out there.
 CIPSO provides 3 important values, a Domain Of Interpretation (DOI), a level,
 and a category set with each packet. The DOI is intended to identify a group
 of systems that use compatible labeling schemes, and the DOI specified on the
-smack system must match that of the remote system or packets will be
-discarded. The DOI is 3 by default. The value can be read from /smack/doi and
-can be changed by writing to /smack/doi.
+Smack system must match that of the remote system or packets will be
+discarded. The DOI is 3 by default. The value can be read from
+/sys/fs/smackfs/doi and can be changed by writing to /sys/fs/smackfs/doi.
 
 The label and category set are mapped to a Smack label as defined in
 /etc/smack/cipso.
@@ -529,15 +588,13 @@ The ":" and "," characters are permitted in a Smack label but have no special
 meaning.
 
 The mapping of Smack labels to CIPSO values is defined by writing to
-/smack/cipso. Again, the format of data written to this special file
-is highly restrictive, so the program smackcipso is provided to
-ensure the writes are done properly. This program takes mappings
-on the standard input and sends them to /smack/cipso properly.
+/sys/fs/smackfs/cipso2.
 
 In addition to explicit mappings Smack supports direct CIPSO mappings. One
 CIPSO level is used to indicate that the category set passed in the packet is
 in fact an encoding of the Smack label. The level used is 250 by default. The
-value can be read from /smack/direct and changed by writing to /smack/direct.
+value can be read from /sys/fs/smackfs/direct and changed by writing to
+/sys/fs/smackfs/direct.
 
 Socket Attributes
 
@@ -555,8 +612,8 @@ sockets.
 Smack Netlabel Exceptions
 
 You will often find that your labeled application has to talk to the outside,
-unlabeled world. To do this there's a special file /smack/netlabel where you can
-add some exceptions in the form of :
+unlabeled world. To do this there's a special file /sys/fs/smackfs/netlabel
+where you can add some exceptions in the form of :
 @IP1	   LABEL1 or
 @IP2/MASK  LABEL2
 
@@ -564,22 +621,22 @@ It means that your application will have unlabeled access to @IP1 if it has
 write access on LABEL1, and access to the subnet @IP2/MASK if it has write
 access on LABEL2.
 
-Entries in the /smack/netlabel file are matched by longest mask first, like in
-classless IPv4 routing.
+Entries in the /sys/fs/smackfs/netlabel file are matched by longest mask
+first, like in classless IPv4 routing.
 
 A special label '@' and an option '-CIPSO' can be used there :
 @      means Internet, any application with any label has access to it
 -CIPSO means standard CIPSO networking
 
 If you don't know what CIPSO is and don't plan to use it, you can just do :
-echo 127.0.0.1 -CIPSO > /smack/netlabel
-echo 0.0.0.0/0 @      > /smack/netlabel
+echo 127.0.0.1 -CIPSO > /sys/fs/smackfs/netlabel
+echo 0.0.0.0/0 @      > /sys/fs/smackfs/netlabel
 
 If you use CIPSO on your 192.168.0.0/16 local network and need also unlabeled
 Internet access, you can have :
-echo 127.0.0.1      -CIPSO > /smack/netlabel
-echo 192.168.0.0/16 -CIPSO > /smack/netlabel
-echo 0.0.0.0/0      @      > /smack/netlabel
+echo 127.0.0.1      -CIPSO > /sys/fs/smackfs/netlabel
+echo 192.168.0.0/16 -CIPSO > /sys/fs/smackfs/netlabel
+echo 0.0.0.0/0      @      > /sys/fs/smackfs/netlabel
 
 
 Writing Applications for Smack
@@ -666,7 +723,7 @@ Smack auditing
 If you want Smack auditing of security events, you need to set CONFIG_AUDIT
 in your kernel configuration.
 By default, all denied events will be audited. You can change this behavior by
-writing a single character to the /smack/logging file :
+writing a single character to the /sys/fs/smackfs/logging file :
 0 : no logging
 1 : log denied (default)
 2 : log accepted
@@ -676,3 +733,20 @@ Events are logged as 'key=value' pairs, for each event you at least will get
 the subject, the object, the rights requested, the action, the kernel function
 that triggered the event, plus other pairs depending on the type of event
 audited.
+
+Bringup Mode
+
+Bringup mode provides logging features that can make application
+configuration and system bringup easier. Configure the kernel with
+CONFIG_SECURITY_SMACK_BRINGUP to enable these features. When bringup
+mode is enabled accesses that succeed due to rules marked with the "b"
+access mode will logged. When a new label is introduced for processes
+rules can be added aggressively, marked with the "b". The logging allows
+tracking of which rules actual get used for that label.
+
+Another feature of bringup mode is the "unconfined" option. Writing
+a label to /sys/fs/smackfs/unconfined makes subjects with that label
+able to access any object, and objects with that label accessible to
+all subjects. Any access that is granted because a label is unconfined
+is logged. This feature is dangerous, as files and directories may
+be created in places they couldn't if the policy were being enforced.

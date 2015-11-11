@@ -45,7 +45,7 @@ static int thumbee_notifier(struct notifier_block *self, unsigned long cmd, void
 
 	switch (cmd) {
 	case THREAD_NOTIFY_FLUSH:
-		thread->thumbee_state = 0;
+		teehbr_write(0);
 		break;
 	case THREAD_NOTIFY_SWITCH:
 		current_thread_info()->thumbee_state = teehbr_read();
@@ -72,7 +72,7 @@ static int __init thumbee_init(void)
 	if ((pfr0 & 0x0000f000) != 0x00001000)
 		return 0;
 
-	printk(KERN_INFO "ThumbEE CPU extension supported.\n");
+	pr_info("ThumbEE CPU extension supported.\n");
 	elf_hwcap |= HWCAP_THUMBEE;
 	thread_register_notifier(&thumbee_notifier_block);
 

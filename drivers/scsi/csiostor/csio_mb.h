@@ -79,14 +79,14 @@ enum csio_dev_state {
 };
 
 #define FW_PARAM_DEV(param) \
-	(FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) | \
-	 FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_##param))
+	(FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) | \
+	 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_##param))
 
 #define FW_PARAM_PFVF(param) \
-	(FW_PARAMS_MNEM(FW_PARAMS_MNEM_PFVF) | \
-	 FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_PFVF_##param)|  \
-	 FW_PARAMS_PARAM_Y(0) | \
-	 FW_PARAMS_PARAM_Z(0))
+	(FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_PFVF) | \
+	 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_PFVF_##param)|  \
+	 FW_PARAMS_PARAM_Y_V(0) | \
+	 FW_PARAMS_PARAM_Z_V(0))
 
 enum {
 	PAUSE_RX      = 1 << 0,
@@ -182,17 +182,6 @@ void csio_mb_ldst(struct csio_hw *hw, struct csio_mb *mbp, uint32_t tmo,
 void csio_mb_caps_config(struct csio_hw *, struct csio_mb *, uint32_t,
 			    bool, bool, bool, bool,
 			    void (*)(struct csio_hw *, struct csio_mb *));
-
-void csio_rss_glb_config(struct csio_hw *, struct csio_mb *,
-			 uint32_t, uint8_t, unsigned int,
-			 void (*)(struct csio_hw *, struct csio_mb *));
-
-void csio_mb_pfvf(struct csio_hw *, struct csio_mb *, uint32_t,
-		  unsigned int, unsigned int, unsigned int,
-		  unsigned int, unsigned int, unsigned int,
-		  unsigned int, unsigned int, unsigned int,
-		  unsigned int, unsigned int, unsigned int,
-		  unsigned int, void (*) (struct csio_hw *, struct csio_mb *));
 
 void csio_mb_port(struct csio_hw *, struct csio_mb *, uint32_t,
 		  uint8_t, bool, uint32_t, uint16_t,

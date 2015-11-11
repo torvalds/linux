@@ -8,6 +8,7 @@
 #include "../builtin.h"
 #include "../util/util.h"
 #include "../util/parse-options.h"
+#include "../util/cloexec.h"
 
 #include "bench.h"
 
@@ -23,6 +24,7 @@
 #include <pthread.h>
 #include <sys/mman.h>
 #include <sys/time.h>
+#include <sys/resource.h>
 #include <sys/wait.h>
 #include <sys/prctl.h>
 #include <sys/types.h>
@@ -51,6 +53,9 @@ struct thread_data {
 	unsigned int		loops_done;
 	u64			val;
 	u64			runtime_ns;
+	u64			system_time_ns;
+	u64			user_time_ns;
+	double			speed_gbs;
 	pthread_mutex_t		*process_lock;
 };
 
@@ -159,8 +164,8 @@ static const struct option options[] = {
 	OPT_STRING('L', "mb_proc_locked", &p0.mb_proc_locked_str,"MB", "process serialized/locked memory access (MBs), <= process_memory"),
 	OPT_STRING('T', "mb_thread"	, &p0.mb_thread_str,	"MB", "thread  memory (MBs)"),
 
-	OPT_UINTEGER('l', "nr_loops"	, &p0.nr_loops,		"max number of loops to run"),
-	OPT_UINTEGER('s', "nr_secs"	, &p0.nr_secs,		"max number of seconds to run"),
+	OPT_UINTEGER('l', "nr_loops"	, &p0.nr_loops,		"max number of loops to run (default: unlimited)"),
+	OPT_UINTEGER('s', "nr_secs"	, &p0.nr_secs,		"max number of seconds to run (default: 5 secs)"),
 	OPT_UINTEGER('u', "usleep"	, &p0.sleep_usecs,	"usecs to sleep per loop iteration"),
 
 	OPT_BOOLEAN('R', "data_reads"	, &p0.data_reads,	"access the data via writes (can be mixed with -W)"),
@@ -180,7 +185,7 @@ static const struct option options[] = {
 	OPT_INTEGER('H', "thp"		, &p0.thp,		"MADV_NOHUGEPAGE < 0 < MADV_HUGEPAGE"),
 	OPT_BOOLEAN('c', "show_convergence", &p0.show_convergence, "show convergence details"),
 	OPT_BOOLEAN('m', "measure_convergence",	&p0.measure_convergence, "measure convergence latency"),
-	OPT_BOOLEAN('q', "quiet"	, &p0.show_quiet,	"bzero the initial allocations"),
+	OPT_BOOLEAN('q', "quiet"	, &p0.show_quiet,	"quiet mode"),
 	OPT_BOOLEAN('S', "serialize-startup", &p0.serialize_startup,"serialize thread startup"),
 
 	/* Special option string parsing callbacks: */
@@ -429,14 +434,14 @@ static int parse_cpu_list(const char *arg)
 	return 0;
 }
 
-static void parse_setup_cpu_list(void)
+static int parse_setup_cpu_list(void)
 {
 	struct thread_data *td;
 	char *str0, *str;
 	int t;
 
 	if (!g->p.cpu_list_str)
-		return;
+		return 0;
 
 	dprintf("g->p.nr_tasks: %d\n", g->p.nr_tasks);
 
@@ -500,8 +505,12 @@ static void parse_setup_cpu_list(void)
 
 		dprintf("CPUs: %d_%d-%d#%dx%d\n", bind_cpu_0, bind_len, bind_cpu_1, step, mul);
 
-		BUG_ON(bind_cpu_0 < 0 || bind_cpu_0 >= g->p.nr_cpus);
-		BUG_ON(bind_cpu_1 < 0 || bind_cpu_1 >= g->p.nr_cpus);
+		if (bind_cpu_0 >= g->p.nr_cpus || bind_cpu_1 >= g->p.nr_cpus) {
+			printf("\nTest not applicable, system has only %d CPUs.\n", g->p.nr_cpus);
+			return -1;
+		}
+
+		BUG_ON(bind_cpu_0 < 0 || bind_cpu_1 < 0);
 		BUG_ON(bind_cpu_0 > bind_cpu_1);
 
 		for (bind_cpu = bind_cpu_0; bind_cpu <= bind_cpu_1; bind_cpu += step) {
@@ -541,6 +550,7 @@ out:
 		printf("# NOTE: %d tasks bound, %d tasks unbound\n", t, g->p.nr_tasks - t);
 
 	free(str0);
+	return 0;
 }
 
 static int parse_cpus_opt(const struct option *opt __maybe_unused,
@@ -561,14 +571,14 @@ static int parse_node_list(const char *arg)
 	return 0;
 }
 
-static void parse_setup_node_list(void)
+static int parse_setup_node_list(void)
 {
 	struct thread_data *td;
 	char *str0, *str;
 	int t;
 
 	if (!g->p.node_list_str)
-		return;
+		return 0;
 
 	dprintf("g->p.nr_tasks: %d\n", g->p.nr_tasks);
 
@@ -619,8 +629,12 @@ static void parse_setup_node_list(void)
 
 		dprintf("NODEs: %d-%d #%d\n", bind_node_0, bind_node_1, step);
 
-		BUG_ON(bind_node_0 < 0 || bind_node_0 >= g->p.nr_nodes);
-		BUG_ON(bind_node_1 < 0 || bind_node_1 >= g->p.nr_nodes);
+		if (bind_node_0 >= g->p.nr_nodes || bind_node_1 >= g->p.nr_nodes) {
+			printf("\nTest not applicable, system has only %d nodes.\n", g->p.nr_nodes);
+			return -1;
+		}
+
+		BUG_ON(bind_node_0 < 0 || bind_node_1 < 0);
 		BUG_ON(bind_node_0 > bind_node_1);
 
 		for (bind_node = bind_node_0; bind_node <= bind_node_1; bind_node += step) {
@@ -651,6 +665,7 @@ out:
 		printf("# NOTE: %d tasks mem-bound, %d tasks unbound\n", t, g->p.nr_tasks - t);
 
 	free(str0);
+	return 0;
 }
 
 static int parse_nodes_opt(const struct option *opt __maybe_unused,
@@ -818,6 +833,9 @@ static int count_process_nodes(int process_nr)
 		td = g->threads + task_nr;
 
 		node = numa_node_of_cpu(td->curr_cpu);
+		if (node < 0) /* curr_cpu was likely still -1 */
+			return 0;
+
 		node_present[node] = 1;
 	}
 
@@ -871,6 +889,11 @@ static void calc_convergence_compression(int *strong)
 
 	for (p = 0; p < g->p.nr_proc; p++) {
 		unsigned int nodes = count_process_nodes(p);
+
+		if (!nodes) {
+			*strong = 0;
+			return;
+		}
 
 		nodes_min = min(nodes, nodes_min);
 		nodes_max = max(nodes, nodes_max);
@@ -1024,6 +1047,7 @@ static void *worker_thread(void *__tdata)
 	u64 bytes_done;
 	long work_done;
 	u32 l;
+	struct rusage rusage;
 
 	bind_to_cpumask(td->bind_cpumask);
 	bind_to_memnode(td->bind_node);
@@ -1110,7 +1134,7 @@ static void *worker_thread(void *__tdata)
 		/* Check whether our max runtime timed out: */
 		if (g->p.nr_secs) {
 			timersub(&stop, &start0, &diff);
-			if (diff.tv_sec >= g->p.nr_secs) {
+			if ((u32)diff.tv_sec >= g->p.nr_secs) {
 				g->stop_work = true;
 				break;
 			}
@@ -1157,7 +1181,7 @@ static void *worker_thread(void *__tdata)
 			runtime_ns_max += diff.tv_usec * 1000;
 
 			if (details >= 0) {
-				printf(" #%2d / %2d: %14.2lf nsecs/op [val: %016lx]\n",
+				printf(" #%2d / %2d: %14.2lf nsecs/op [val: %016"PRIx64"]\n",
 					process_nr, thread_nr, runtime_ns_max / bytes_done, val);
 			}
 			fflush(stdout);
@@ -1176,6 +1200,13 @@ static void *worker_thread(void *__tdata)
 	timersub(&stop, &start0, &diff);
 	td->runtime_ns = diff.tv_sec * 1000000000ULL;
 	td->runtime_ns += diff.tv_usec * 1000ULL;
+	td->speed_gbs = bytes_done / (td->runtime_ns / 1e9) / 1e9;
+
+	getrusage(RUSAGE_THREAD, &rusage);
+	td->system_time_ns = rusage.ru_stime.tv_sec * 1000000000ULL;
+	td->system_time_ns += rusage.ru_stime.tv_usec * 1000ULL;
+	td->user_time_ns = rusage.ru_utime.tv_sec * 1000000000ULL;
+	td->user_time_ns += rusage.ru_utime.tv_usec * 1000ULL;
 
 	free_data(thread_data, g->p.bytes_thread);
 
@@ -1356,8 +1387,8 @@ static int init(void)
 	init_thread_data();
 
 	tprintf("#\n");
-	parse_setup_cpu_list();
-	parse_setup_node_list();
+	if (parse_setup_cpu_list() || parse_setup_node_list())
+		return -1;
 	tprintf("#\n");
 
 	print_summary();
@@ -1385,7 +1416,7 @@ static void print_res(const char *name, double val,
 	if (!name)
 		name = "main,";
 
-	if (g->p.show_quiet)
+	if (!g->p.show_quiet)
 		printf(" %-30s %15.3f, %-15s %s\n", name, val, txt_unit, txt_short);
 	else
 		printf(" %14.3f %s\n", val, txt_long);
@@ -1402,7 +1433,7 @@ static int __bench_numa(const char *name)
 	double runtime_sec_min;
 	int wait_stat;
 	double bytes;
-	int i, t;
+	int i, t, p;
 
 	if (init())
 		return -1;
@@ -1538,6 +1569,24 @@ static int __bench_numa(const char *name)
 	print_res(name, bytes / runtime_sec_max / 1e9,
 		"GB/sec,", "total-speed",	"GB/sec total speed");
 
+	if (g->p.show_details >= 2) {
+		char tname[32];
+		struct thread_data *td;
+		for (p = 0; p < g->p.nr_proc; p++) {
+			for (t = 0; t < g->p.nr_threads; t++) {
+				memset(tname, 0, 32);
+				td = g->threads + p*g->p.nr_threads + t;
+				snprintf(tname, 32, "process%d:thread%d", p, t);
+				print_res(tname, td->speed_gbs,
+					"GB/sec",	"thread-speed", "GB/sec/thread speed");
+				print_res(tname, td->system_time_ns / 1e9,
+					"secs",	"thread-system-time", "system CPU time/thread");
+				print_res(tname, td->user_time_ns / 1e9,
+					"secs",	"thread-user-time", "user CPU time/thread");
+			}
+		}
+	}
+
 	free(pids);
 
 	deinit();
@@ -1583,6 +1632,11 @@ static void init_params(struct params *p, const char *name, int argc, const char
 	p->data_rand_walk		= true;
 	p->nr_loops			= -1;
 	p->init_random			= true;
+	p->mb_global_str		= "1";
+	p->nr_proc			= 1;
+	p->nr_threads			= 1;
+	p->nr_secs			= 5;
+	p->run_all			= argc == 1;
 }
 
 static int run_bench_numa(const char *name, const char **argv)
@@ -1600,7 +1654,6 @@ static int run_bench_numa(const char *name, const char **argv)
 	return 0;
 
 err:
-	usage_with_options(numa_usage, options);
 	return -1;
 }
 
@@ -1701,8 +1754,7 @@ static int bench_all(void)
 	BUG_ON(ret < 0);
 
 	for (i = 0; i < nr; i++) {
-		if (run_bench_numa(tests[i][0], tests[i] + 1))
-			return -1;
+		run_bench_numa(tests[i][0], tests[i] + 1);
 	}
 
 	printf("\n");

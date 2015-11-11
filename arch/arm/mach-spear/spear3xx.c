@@ -4,7 +4,7 @@
  * SPEAr3XX machines common source file
  *
  * Copyright (C) 2009-2012 ST Microelectronics
- * Viresh Kumar <viresh.linux@gmail.com>
+ * Viresh Kumar <vireshk@kernel.org>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -56,8 +56,8 @@ struct pl08x_platform_data pl080_plat_data = {
 	},
 	.lli_buses = PL08X_AHB1,
 	.mem_buses = PL08X_AHB1,
-	.get_signal = pl080_get_signal,
-	.put_signal = pl080_put_signal,
+	.get_xfer_signal = pl080_get_signal,
+	.put_xfer_signal = pl080_put_signal,
 };
 
 /*

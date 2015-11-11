@@ -1,0 +1,2 @@
+obj-$(CONFIG_ZX296702_SPDIF)	+= zx296702-spdif.o
+obj-$(CONFIG_ZX296702_I2S)	+= zx296702-i2s.o

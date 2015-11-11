@@ -723,13 +723,10 @@ static int gelic_wl_get_scan(struct net_device *netdev,
 		/* If a scan in progress, caller should call me again */
 		ret = -EAGAIN;
 		goto out;
-		break;
-
 	case GELIC_WL_SCAN_STAT_INIT:
 		/* last scan request failed or never issued */
 		ret = -ENODEV;
 		goto out;
-		break;
 	case GELIC_WL_SCAN_STAT_GOT_LIST:
 		/* ok, use current list */
 		break;
@@ -1170,7 +1167,7 @@ static int gelic_wl_set_ap(struct net_device *netdev,
 	} else {
 		pr_debug("%s: clear bssid\n", __func__);
 		clear_bit(GELIC_WL_STAT_BSSID_SET, &wl->stat);
-		memset(wl->bssid, 0, ETH_ALEN);
+		eth_zero_addr(wl->bssid);
 	}
 	spin_unlock_irqrestore(&wl->lock, irqflag);
 	pr_debug("%s: ->\n", __func__);
@@ -1192,7 +1189,7 @@ static int gelic_wl_get_ap(struct net_device *netdev,
 		memcpy(data->ap_addr.sa_data, wl->active_bssid,
 		       ETH_ALEN);
 	} else
-		memset(data->ap_addr.sa_data, 0, ETH_ALEN);
+		eth_zero_addr(data->ap_addr.sa_data);
 
 	spin_unlock_irqrestore(&wl->lock, irqflag);
 	mutex_unlock(&wl->assoc_stat_lock);
@@ -1831,25 +1828,18 @@ static const char *wpasecstr(enum gelic_eurus_wpa_security sec)
 	switch (sec) {
 	case GELIC_EURUS_WPA_SEC_NONE:
 		return "NONE";
-		break;
 	case GELIC_EURUS_WPA_SEC_WPA_TKIP_TKIP:
 		return "WPA_TKIP_TKIP";
-		break;
 	case GELIC_EURUS_WPA_SEC_WPA_TKIP_AES:
 		return "WPA_TKIP_AES";
-		break;
 	case GELIC_EURUS_WPA_SEC_WPA_AES_AES:
 		return "WPA_AES_AES";
-		break;
 	case GELIC_EURUS_WPA_SEC_WPA2_TKIP_TKIP:
 		return "WPA2_TKIP_TKIP";
-		break;
 	case GELIC_EURUS_WPA_SEC_WPA2_TKIP_AES:
 		return "WPA2_TKIP_AES";
-		break;
 	case GELIC_EURUS_WPA_SEC_WPA2_AES_AES:
 		return "WPA2_AES_AES";
-		break;
 	}
 	return "";
 };

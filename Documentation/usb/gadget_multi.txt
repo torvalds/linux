@@ -14,7 +14,7 @@ A CDC ECM (Ethernet) function may be turned on via a Kconfig option
 and RNDIS can be turned off.  If they are both enabled the gadget will
 have two configurations -- one with RNDIS and another with CDC ECM[3].
 
-Please not that if you use non-standard configuration (that is enable
+Please note that if you use non-standard configuration (that is enable
 CDC ECM) you may need to change vendor and/or product ID.
 
 * Host drivers

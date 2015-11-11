@@ -12,7 +12,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/jiffies.h>
@@ -136,7 +135,7 @@ static int i2c_pca_pf_probe(struct platform_device *pdev)
 	struct i2c_pca_pf_data *i2c;
 	struct resource *res;
 	struct i2c_pca9564_pf_platform_data *platform_data =
-				pdev->dev.platform_data;
+				dev_get_platdata(&pdev->dev);
 	int ret = 0;
 	int irq;
 
@@ -281,12 +280,11 @@ static struct platform_driver i2c_pca_pf_driver = {
 	.remove = i2c_pca_pf_remove,
 	.driver = {
 		.name = "i2c-pca-platform",
-		.owner = THIS_MODULE,
 	},
 };
 
 module_platform_driver(i2c_pca_pf_driver);
 
-MODULE_AUTHOR("Wolfram Sang <w.sang@pengutronix.de>");
+MODULE_AUTHOR("Wolfram Sang <kernel@pengutronix.de>");
 MODULE_DESCRIPTION("I2C-PCA9564/PCA9665 platform driver");
 MODULE_LICENSE("GPL");

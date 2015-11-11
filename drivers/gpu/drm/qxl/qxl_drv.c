@@ -33,11 +33,12 @@
 
 #include "drmP.h"
 #include "drm/drm.h"
-
+#include "drm_crtc_helper.h"
 #include "qxl_drv.h"
+#include "qxl_object.h"
 
 extern int qxl_max_ioctls;
-static DEFINE_PCI_DEVICE_TABLE(pciidlist) = {
+static const struct pci_device_id pciidlist[] = {
 	{ 0x1b36, 0x100, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_DISPLAY_VGA << 8,
 	  0xffff00, 0 },
 	{ 0x1b36, 0x100, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_DISPLAY_OTHER << 8,
@@ -47,9 +48,13 @@ static DEFINE_PCI_DEVICE_TABLE(pciidlist) = {
 MODULE_DEVICE_TABLE(pci, pciidlist);
 
 static int qxl_modeset = -1;
+int qxl_num_crtc = 4;
 
 MODULE_PARM_DESC(modeset, "Disable/Enable modesetting");
 module_param_named(modeset, qxl_modeset, int, 0400);
+
+MODULE_PARM_DESC(num_heads, "Number of virtual crtcs to expose (default 4)");
+module_param_named(num_heads, qxl_num_crtc, int, 0400);
 
 static struct drm_driver qxl_driver;
 static struct pci_driver qxl_pci_driver;
@@ -73,38 +78,184 @@ qxl_pci_remove(struct pci_dev *pdev)
 	drm_put_dev(dev);
 }
 
-static struct pci_driver qxl_pci_driver = {
-	 .name = DRIVER_NAME,
-	 .id_table = pciidlist,
-	 .probe = qxl_pci_probe,
-	 .remove = qxl_pci_remove,
-};
-
 static const struct file_operations qxl_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_open,
 	.release = drm_release,
 	.unlocked_ioctl = drm_ioctl,
 	.poll = drm_poll,
-	.fasync = drm_fasync,
+	.read = drm_read,
 	.mmap = qxl_mmap,
 };
 
+static int qxl_drm_freeze(struct drm_device *dev)
+{
+	struct pci_dev *pdev = dev->pdev;
+	struct qxl_device *qdev = dev->dev_private;
+	struct drm_crtc *crtc;
+
+	drm_kms_helper_poll_disable(dev);
+
+	console_lock();
+	qxl_fbdev_set_suspend(qdev, 1);
+	console_unlock();
+
+	/* unpin the front buffers */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+		if (crtc->enabled)
+			(*crtc_funcs->disable)(crtc);
+	}
+
+	qxl_destroy_monitors_object(qdev);
+	qxl_surf_evict(qdev);
+	qxl_vram_evict(qdev);
+
+	while (!qxl_check_idle(qdev->command_ring));
+	while (!qxl_check_idle(qdev->release_ring))
+		qxl_queue_garbage_collect(qdev, 1);
+
+	pci_save_state(pdev);
+
+	return 0;
+}
+
+static int qxl_drm_resume(struct drm_device *dev, bool thaw)
+{
+	struct qxl_device *qdev = dev->dev_private;
+
+	qdev->ram_header->int_mask = QXL_INTERRUPT_MASK;
+	if (!thaw) {
+		qxl_reinit_memslots(qdev);
+		qxl_ring_init_hdr(qdev->release_ring);
+	}
+
+	qxl_create_monitors_object(qdev);
+	drm_helper_resume_force_mode(dev);
+
+	console_lock();
+	qxl_fbdev_set_suspend(qdev, 0);
+	console_unlock();
+
+	drm_kms_helper_poll_enable(dev);
+	return 0;
+}
+
+static int qxl_pm_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	int error;
+
+	error = qxl_drm_freeze(drm_dev);
+	if (error)
+		return error;
+
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, PCI_D3hot);
+	return 0;
+}
+
+static int qxl_pm_resume(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+	if (pci_enable_device(pdev)) {
+		return -EIO;
+	}
+
+	return qxl_drm_resume(drm_dev, false);
+}
+
+static int qxl_pm_thaw(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+
+	return qxl_drm_resume(drm_dev, true);
+}
+
+static int qxl_pm_freeze(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+
+	return qxl_drm_freeze(drm_dev);
+}
+
+static int qxl_pm_restore(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct qxl_device *qdev = drm_dev->dev_private;
+
+	qxl_io_reset(qdev);
+	return qxl_drm_resume(drm_dev, false);
+}
+
+static u32 qxl_noop_get_vblank_counter(struct drm_device *dev,
+				       unsigned int pipe)
+{
+	return 0;
+}
+
+static int qxl_noop_enable_vblank(struct drm_device *dev, unsigned int pipe)
+{
+	return 0;
+}
+
+static void qxl_noop_disable_vblank(struct drm_device *dev, unsigned int pipe)
+{
+}
+
+static const struct dev_pm_ops qxl_pm_ops = {
+	.suspend = qxl_pm_suspend,
+	.resume = qxl_pm_resume,
+	.freeze = qxl_pm_freeze,
+	.thaw = qxl_pm_thaw,
+	.poweroff = qxl_pm_freeze,
+	.restore = qxl_pm_restore,
+};
+static struct pci_driver qxl_pci_driver = {
+	 .name = DRIVER_NAME,
+	 .id_table = pciidlist,
+	 .probe = qxl_pci_probe,
+	 .remove = qxl_pci_remove,
+	 .driver.pm = &qxl_pm_ops,
+};
+
 static struct drm_driver qxl_driver = {
-	.driver_features = DRIVER_GEM | DRIVER_MODESET |
+	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
 			   DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED,
-	.dev_priv_size = 0,
 	.load = qxl_driver_load,
 	.unload = qxl_driver_unload,
+	.get_vblank_counter = qxl_noop_get_vblank_counter,
+	.enable_vblank = qxl_noop_enable_vblank,
+	.disable_vblank = qxl_noop_disable_vblank,
+
+	.set_busid = drm_pci_set_busid,
 
 	.dumb_create = qxl_mode_dumb_create,
 	.dumb_map_offset = qxl_mode_dumb_mmap,
-	.dumb_destroy = qxl_mode_dumb_destroy,
+	.dumb_destroy = drm_gem_dumb_destroy,
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = qxl_debugfs_init,
 	.debugfs_cleanup = qxl_debugfs_takedown,
 #endif
-	.gem_init_object = qxl_gem_object_init,
+	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
+	.gem_prime_export = drm_gem_prime_export,
+	.gem_prime_import = drm_gem_prime_import,
+	.gem_prime_pin = qxl_gem_prime_pin,
+	.gem_prime_unpin = qxl_gem_prime_unpin,
+	.gem_prime_get_sg_table = qxl_gem_prime_get_sg_table,
+	.gem_prime_import_sg_table = qxl_gem_prime_import_sg_table,
+	.gem_prime_vmap = qxl_gem_prime_vmap,
+	.gem_prime_vunmap = qxl_gem_prime_vunmap,
+	.gem_prime_mmap = qxl_gem_prime_mmap,
 	.gem_free_object = qxl_gem_object_free,
 	.gem_open_object = qxl_gem_object_open,
 	.gem_close_object = qxl_gem_object_close,

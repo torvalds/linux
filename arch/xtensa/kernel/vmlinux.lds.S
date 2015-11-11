@@ -165,6 +165,11 @@ SECTIONS
 		   .DoubleExceptionVector.text);
     RELOCATE_ENTRY(_DebugInterruptVector_text,
 		   .DebugInterruptVector.text);
+#if defined(CONFIG_SMP)
+    RELOCATE_ENTRY(_SecondaryResetVector_text,
+		   .SecondaryResetVector.text);
+#endif
+
   
     __boot_reloc_table_end = ABSOLUTE(.) ;
 
@@ -262,16 +267,29 @@ SECTIONS
 		  .UserExceptionVector.literal)
   SECTION_VECTOR (_DoubleExceptionVector_literal,
 		  .DoubleExceptionVector.literal,
-		  DOUBLEEXC_VECTOR_VADDR - 16,
+		  DOUBLEEXC_VECTOR_VADDR - 48,
 		  SIZEOF(.UserExceptionVector.text),
 		  .UserExceptionVector.text)
   SECTION_VECTOR (_DoubleExceptionVector_text,
 		  .DoubleExceptionVector.text,
 		  DOUBLEEXC_VECTOR_VADDR,
-		  32,
+		  48,
 		  .DoubleExceptionVector.literal)
 
   . = (LOADADDR( .DoubleExceptionVector.text ) + SIZEOF( .DoubleExceptionVector.text ) + 3) & ~ 3;
+
+#if defined(CONFIG_SMP)
+
+  SECTION_VECTOR (_SecondaryResetVector_text,
+		  .SecondaryResetVector.text,
+		  RESET_VECTOR1_VADDR,
+		  SIZEOF(.DoubleExceptionVector.text),
+		  .DoubleExceptionVector.text)
+
+  . = LOADADDR(.SecondaryResetVector.text)+SIZEOF(.SecondaryResetVector.text);
+
+#endif
+
   . = ALIGN(PAGE_SIZE);
 
   __init_end = .;
@@ -279,31 +297,6 @@ SECTIONS
   BSS_SECTION(0, 8192, 0)
 
   _end = .;
-
-  /* only used by the boot loader  */
-
-  . = ALIGN(0x10);
-  .bootstrap : { *(.bootstrap.literal .bootstrap.text .bootstrap.data) }
-
-  .ResetVector.text RESET_VECTOR_VADDR :
-  {
-    *(.ResetVector.text)
-  }
-
-
-  /*
-   * This is a remapped copy of the Secondary Reset Vector Code.
-   * It keeps gdb in sync with the PC after switching
-   * to the temporary mapping used while setting up
-   * the V2 MMU mappings for Linux.
-   *
-   * Only debug information about this section is put in the kernel image.
-   */
-  .SecondaryResetVector.remapped_text 0x46000000 (INFO):
-  {
-	*(.SecondaryResetVector.remapped_text)
-  }
-
 
   .xt.lit : { *(.xt.lit) }
   .xt.prop : { *(.xt.prop) }

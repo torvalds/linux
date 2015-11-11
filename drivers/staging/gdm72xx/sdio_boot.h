@@ -11,11 +11,11 @@
  * GNU General Public License for more details.
  */
 
-#ifndef __SDIO_BOOT_H__
-#define __SDIO_BOOT_H__
+#ifndef __GDM72XX_SDIO_BOOT_H__
+#define __GDM72XX_SDIO_BOOT_H__
 
 struct sdio_func;
 
-extern int sdio_boot(struct sdio_func *func);
+int sdio_boot(struct sdio_func *func);
 
-#endif /* __SDIO_BOOT_H__ */
+#endif /* __GDM72XX_SDIO_BOOT_H__ */

@@ -14,24 +14,35 @@
 #include <linux/slab.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-#include <bcm47xx_nvram.h>
 
-/* 10 parts were found on sflash on Netgear WNDR4500 */
-#define BCM47XXPART_MAX_PARTS		12
+#include <uapi/linux/magic.h>
+
+/*
+ * NAND flash on Netgear R6250 was verified to contain 15 partitions.
+ * This will result in allocating too big array for some old devices, but the
+ * memory will be freed soon anyway (see mtd_device_parse_register).
+ */
+#define BCM47XXPART_MAX_PARTS		20
 
 /*
  * Amount of bytes we read when analyzing each block of flash memory.
  * Set it big enough to allow detecting partition and reading important data.
  */
-#define BCM47XXPART_BYTES_TO_READ	0x404
+#define BCM47XXPART_BYTES_TO_READ	0x4e8
 
 /* Magics */
 #define BOARD_DATA_MAGIC		0x5246504D	/* MPFR */
+#define BOARD_DATA_MAGIC2		0xBD0D0BBD
+#define CFE_MAGIC			0x43464531	/* 1EFC */
+#define FACTORY_MAGIC			0x59544346	/* FCTY */
+#define NVRAM_HEADER			0x48534C46	/* FLSH */
 #define POT_MAGIC1			0x54544f50	/* POTT */
 #define POT_MAGIC2			0x504f		/* OP */
 #define ML_MAGIC1			0x39685a42
 #define ML_MAGIC2			0x26594131
 #define TRX_MAGIC			0x30524448
+#define SHSQ_MAGIC			0x71736873	/* shsq (weird ZTE H218N endianness) */
+#define UBI_EC_MAGIC			0x23494255	/* UBI# */
 
 struct trx_header {
 	uint32_t magic;
@@ -42,12 +53,32 @@ struct trx_header {
 	uint32_t offset[3];
 } __packed;
 
-static void bcm47xxpart_add_part(struct mtd_partition *part, char *name,
+static void bcm47xxpart_add_part(struct mtd_partition *part, const char *name,
 				 u64 offset, uint32_t mask_flags)
 {
 	part->name = name;
 	part->offset = offset;
 	part->mask_flags = mask_flags;
+}
+
+static const char *bcm47xxpart_trx_data_part_name(struct mtd_info *master,
+						  size_t offset)
+{
+	uint32_t buf;
+	size_t bytes_read;
+
+	if (mtd_read(master, offset, sizeof(buf), &bytes_read,
+		     (uint8_t *)&buf) < 0) {
+		pr_err("mtd_read error while parsing (offset: 0x%X)!\n",
+			offset);
+		goto out_default;
+	}
+
+	if (buf == UBI_EC_MAGIC)
+		return "ubi";
+
+out_default:
+	return "rootfs";
 }
 
 static int bcm47xxpart_parse(struct mtd_info *master,
@@ -65,13 +96,24 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 	int last_trx_part = -1;
 	int possible_nvram_sizes[] = { 0x8000, 0xF000, 0x10000, };
 
-	if (blocksize <= 0x10000)
-		blocksize = 0x10000;
+	/*
+	 * Some really old flashes (like AT45DB*) had smaller erasesize-s, but
+	 * partitions were aligned to at least 0x1000 anyway.
+	 */
+	if (blocksize < 0x1000)
+		blocksize = 0x1000;
 
 	/* Alloc */
 	parts = kzalloc(sizeof(struct mtd_partition) * BCM47XXPART_MAX_PARTS,
 			GFP_KERNEL);
+	if (!parts)
+		return -ENOMEM;
+
 	buf = kzalloc(BCM47XXPART_BYTES_TO_READ, GFP_KERNEL);
+	if (!buf) {
+		kfree(parts);
+		return -ENOMEM;
+	}
 
 	/* Parse block by block looking for magics */
 	for (offset = 0; offset <= master->size - blocksize;
@@ -80,7 +122,7 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 		if (offset >= 0x2000000)
 			break;
 
-		if (curr_part > BCM47XXPART_MAX_PARTS) {
+		if (curr_part >= BCM47XXPART_MAX_PARTS) {
 			pr_warn("Reached maximum number of partitions, scanning stopped!\n");
 			break;
 		}
@@ -93,8 +135,9 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 			continue;
 		}
 
-		/* CFE has small NVRAM at 0x400 */
-		if (buf[0x400 / 4] == NVRAM_HEADER) {
+		/* Magic or small NVRAM at 0x400 */
+		if ((buf[0x4e0 / 4] == CFE_MAGIC && buf[0x4e4 / 4] == CFE_MAGIC) ||
+		    (buf[0x400 / 4] == NVRAM_HEADER)) {
 			bcm47xxpart_add_part(&parts[curr_part++], "boot",
 					     offset, MTD_WRITEABLE);
 			continue;
@@ -106,6 +149,13 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 		 */
 		if (buf[0x100 / 4] == BOARD_DATA_MAGIC) {
 			bcm47xxpart_add_part(&parts[curr_part++], "board_data",
+					     offset, MTD_WRITEABLE);
+			continue;
+		}
+
+		/* Found on Huawei E970 */
+		if (buf[0x000 / 4] == FACTORY_MAGIC) {
+			bcm47xxpart_add_part(&parts[curr_part++], "factory",
 					     offset, MTD_WRITEABLE);
 			continue;
 		}
@@ -128,6 +178,11 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 
 		/* TRX */
 		if (buf[0x000 / 4] == TRX_MAGIC) {
+			if (BCM47XXPART_MAX_PARTS - curr_part < 4) {
+				pr_warn("Not enough partitions left to register trx, scanning stopped!\n");
+				break;
+			}
+
 			trx = (struct trx_header *)buf;
 
 			trx_part = curr_part;
@@ -144,18 +199,29 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 				i++;
 			}
 
-			bcm47xxpart_add_part(&parts[curr_part++], "linux",
-					     offset + trx->offset[i], 0);
-			i++;
+			if (trx->offset[i]) {
+				bcm47xxpart_add_part(&parts[curr_part++],
+						     "linux",
+						     offset + trx->offset[i],
+						     0);
+				i++;
+			}
 
 			/*
 			 * Pure rootfs size is known and can be calculated as:
 			 * trx->length - trx->offset[i]. We don't fill it as
 			 * we want to have jffs2 (overlay) in the same mtd.
 			 */
-			bcm47xxpart_add_part(&parts[curr_part++], "rootfs",
-					     offset + trx->offset[i], 0);
-			i++;
+			if (trx->offset[i]) {
+				const char *name;
+
+				name = bcm47xxpart_trx_data_part_name(master, offset + trx->offset[i]);
+				bcm47xxpart_add_part(&parts[curr_part++],
+						     name,
+						     offset + trx->offset[i],
+						     0);
+				i++;
+			}
 
 			last_trx_part = curr_part - 1;
 
@@ -167,11 +233,45 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 			offset = rounddown(offset + trx->length, blocksize);
 			continue;
 		}
+
+		/* Squashfs on devices not using TRX */
+		if (le32_to_cpu(buf[0x000 / 4]) == SQUASHFS_MAGIC ||
+		    buf[0x000 / 4] == SHSQ_MAGIC) {
+			bcm47xxpart_add_part(&parts[curr_part++], "rootfs",
+					     offset, 0);
+			continue;
+		}
+
+		/*
+		 * New (ARM?) devices may have NVRAM in some middle block. Last
+		 * block will be checked later, so skip it.
+		 */
+		if (offset != master->size - blocksize &&
+		    buf[0x000 / 4] == NVRAM_HEADER) {
+			bcm47xxpart_add_part(&parts[curr_part++], "nvram",
+					     offset, 0);
+			continue;
+		}
+
+		/* Read middle of the block */
+		if (mtd_read(master, offset + 0x8000, 0x4,
+			     &bytes_read, (uint8_t *)buf) < 0) {
+			pr_err("mtd_read error while parsing (offset: 0x%X)!\n",
+			       offset);
+			continue;
+		}
+
+		/* Some devices (ex. WNDR3700v3) don't have a standard 'MPFR' */
+		if (buf[0x000 / 4] == BOARD_DATA_MAGIC2) {
+			bcm47xxpart_add_part(&parts[curr_part++], "board_data",
+					     offset, MTD_WRITEABLE);
+			continue;
+		}
 	}
 
 	/* Look for NVRAM at the end of the last block. */
 	for (i = 0; i < ARRAY_SIZE(possible_nvram_sizes); i++) {
-		if (curr_part > BCM47XXPART_MAX_PARTS) {
+		if (curr_part >= BCM47XXPART_MAX_PARTS) {
 			pr_warn("Reached maximum number of partitions, scanning stopped!\n");
 			break;
 		}
@@ -220,7 +320,8 @@ static struct mtd_part_parser bcm47xxpart_mtd_parser = {
 
 static int __init bcm47xxpart_init(void)
 {
-	return register_mtd_parser(&bcm47xxpart_mtd_parser);
+	register_mtd_parser(&bcm47xxpart_mtd_parser);
+	return 0;
 }
 
 static void __exit bcm47xxpart_exit(void)

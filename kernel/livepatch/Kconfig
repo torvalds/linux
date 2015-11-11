@@ -1,0 +1,18 @@
+config HAVE_LIVEPATCH
+	bool
+	help
+	  Arch supports kernel live patching
+
+config LIVEPATCH
+	bool "Kernel Live Patching"
+	depends on DYNAMIC_FTRACE_WITH_REGS
+	depends on MODULES
+	depends on SYSFS
+	depends on KALLSYMS_ALL
+	depends on HAVE_LIVEPATCH
+	help
+	  Say Y here if you want to support kernel live patching.
+	  This option has no runtime impact until a kernel "patch"
+	  module uses the interface provided by this option to register
+	  a patch, causing calls to patched functions to be redirected
+	  to new function code contained in the patch module.

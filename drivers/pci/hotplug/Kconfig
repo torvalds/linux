@@ -3,15 +3,12 @@
 #
 
 menuconfig HOTPLUG_PCI
-	tristate "Support for PCI Hotplug"
-	depends on PCI && HOTPLUG && SYSFS
+	bool "Support for PCI Hotplug"
+	depends on PCI && SYSFS
 	---help---
 	  Say Y here if you have a motherboard with a PCI Hotplug controller.
 	  This allows you to add and remove PCI cards while the machine is
 	  powered up and running.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called pci_hotplug.
 
 	  When in doubt, say N.
 
@@ -136,8 +133,8 @@ config HOTPLUG_PCI_RPA_DLPAR
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rpadlpar_io.
- 
- 	  When in doubt, say N.
+
+	  When in doubt, say N.
 
 config HOTPLUG_PCI_SGI
 	tristate "SGI PCI Hotplug Support"
@@ -149,7 +146,7 @@ config HOTPLUG_PCI_SGI
 	  When in doubt, say N.
 
 config HOTPLUG_PCI_S390
-	tristate "System z PCI Hotplug Support"
+	bool "System z PCI Hotplug Support"
 	depends on S390 && 64BIT
 	help
 	  Say Y here if you want to use the System z PCI Hotplug

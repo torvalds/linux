@@ -1,3 +1,62 @@
+Release Date    : Thu. Jun 19, 2014 17:00:00 PST 2014 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Adam Radford
+			Kashyap Desai
+			Sumit Saxena
+			Uday Lingala
+Current Version : 06.803.02.00-rc1
+Old Version     : 06.803.01.00-rc1
+    1. Fix reset_mutex leak in megasas_reset_fusion().
+    2. Remove unused variables in megasas_instance.
+    3. Fix LD/VF affiliation parsing.
+    4. Add missing initial call to megasas_get_ld_vf_affiliation().
+    5. Version and Changelog update.
+-------------------------------------------------------------------------------
+Release Date    : Mon. Mar 10, 2014 17:00:00 PST 2014 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Adam Radford
+			Kashyap Desai
+			Sumit Saxena
+Current Version : 06.803.01.00-rc1
+Old Version     : 06.700.06.00-rc1
+    1. Load correct raid context timeout value for multipathing & clustering.
+    2. Fix megasas_ioc_init_fusion to use local stack variable.
+    3. Return leaked MPT frames to MPT command pool.
+    4. Add Dell PowerEdge VRTX SR-IOV VF device support.
+    5. Version and Changelog update.
+-------------------------------------------------------------------------------
+Release Date    : Sat. Aug 31, 2013 17:00:00 PST 2013 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Adam Radford
+			Kashyap Desai
+			Sumit Saxena
+Current Version : 06.700.06.00-rc1
+Old Version     : 06.600.18.00-rc1
+    1. Add High Availability clustering support using shared Logical Disks.
+    2. Version and Changelog update.
+-------------------------------------------------------------------------------
+Release Date    : Wed. May 15, 2013 17:00:00 PST 2013 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Adam Radford
+			Kashyap Desai
+			Sumit Saxena
+Current Version : 06.600.18.00-rc1
+Old Version     : 06.506.00.00-rc1
+    1. Return DID_ERROR for scsi io, when controller is in critical h/w error.
+    2. Fix the interrupt mask for Gen2 controller.
+    3. Update balance count in driver to be in sync of firmware.
+    4. Free event detail memory without device ID check.
+    5. Set IO request timeout value provided by OS timeout for Tape devices.
+    6. Add support for MegaRAID Fury (device ID-0x005f) 12Gb/s controllers.
+    7. Add support to display Customer branding details in syslog.
+    8. Set IoFlags to enable Fast Path for JBODs for Invader/Fury(12 Gb/s)
+    controllers.
+    9. Add support for Extended MSI-x vectors for Invader and Fury(12Gb/s
+    HBA).
+    10.Add support for Uneven Span PRL11.
+    11.Add support to differentiate between iMR and MR Firmware.
+    12.Version and Changelog update.
+-------------------------------------------------------------------------------
 Release Date    : Sat. Feb 9, 2013 17:00:00 PST 2013 -
 			(emaild-id:megaraidlinux@lsi.com)
 			Adam Radford

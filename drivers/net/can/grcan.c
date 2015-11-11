@@ -34,10 +34,7 @@
 #include <linux/io.h>
 #include <linux/can/dev.h>
 #include <linux/spinlock.h>
-
 #include <linux/of_platform.h>
-#include <asm/prom.h>
-
 #include <linux/of_irq.h>
 
 #include <linux/dma-mapping.h>
@@ -1219,11 +1216,12 @@ static int grcan_receive(struct net_device *dev, int budget)
 				cf->data[i] = (u8)(slot[j] >> shift);
 			}
 		}
-		netif_receive_skb(skb);
 
 		/* Update statistics and read pointer */
 		stats->rx_packets++;
 		stats->rx_bytes += cf->can_dlc;
+		netif_receive_skb(skb);
+
 		rd = grcan_ring_add(rd, GRCAN_MSG_SIZE, dma->rx.size);
 	}
 
@@ -1581,6 +1579,7 @@ static const struct net_device_ops grcan_netdev_ops = {
 	.ndo_open	= grcan_open,
 	.ndo_stop	= grcan_close,
 	.ndo_start_xmit	= grcan_start_xmit,
+	.ndo_change_mtu = can_change_mtu,
 };
 
 static int grcan_setup_netdev(struct platform_device *ofdev,
@@ -1646,7 +1645,7 @@ static int grcan_setup_netdev(struct platform_device *ofdev,
 	if (err)
 		goto exit_free_candev;
 
-	dev_set_drvdata(&ofdev->dev, dev);
+	platform_set_drvdata(ofdev, dev);
 
 	/* Reset device to allow bit-timing to be set. No need to call
 	 * grcan_reset at this stage. That is done in grcan_open.
@@ -1683,10 +1682,9 @@ static int grcan_probe(struct platform_device *ofdev)
 	}
 
 	res = platform_get_resource(ofdev, IORESOURCE_MEM, 0);
-	base = devm_request_and_ioremap(&ofdev->dev, res);
-	if (!base) {
-		dev_err(&ofdev->dev, "couldn't map IO resource\n");
-		err = -EADDRNOTAVAIL;
+	base = devm_ioremap_resource(&ofdev->dev, res);
+	if (IS_ERR(base)) {
+		err = PTR_ERR(base);
 		goto exit_error;
 	}
 
@@ -1716,20 +1714,19 @@ exit_error:
 
 static int grcan_remove(struct platform_device *ofdev)
 {
-	struct net_device *dev = dev_get_drvdata(&ofdev->dev);
+	struct net_device *dev = platform_get_drvdata(ofdev);
 	struct grcan_priv *priv = netdev_priv(dev);
 
 	unregister_candev(dev); /* Will in turn call grcan_close */
 
 	irq_dispose_mapping(dev->irq);
-	dev_set_drvdata(&ofdev->dev, NULL);
 	netif_napi_del(&priv->napi);
 	free_candev(dev);
 
 	return 0;
 }
 
-static struct of_device_id grcan_match[] = {
+static const struct of_device_id grcan_match[] = {
 	{.name = "GAISLER_GRCAN"},
 	{.name = "01_03d"},
 	{.name = "GAISLER_GRHCAN"},
@@ -1742,7 +1739,6 @@ MODULE_DEVICE_TABLE(of, grcan_match);
 static struct platform_driver grcan_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = grcan_match,
 	},
 	.probe = grcan_probe,

@@ -83,7 +83,6 @@ static struct timer_list spuloadavg_timer;
 #define MIN_SPU_TIMESLICE	max(5 * HZ / (1000 * SPUSCHED_TICK), 1)
 #define DEF_SPU_TIMESLICE	(100 * HZ / (1000 * SPUSCHED_TICK))
 
-#define MAX_USER_PRIO		(MAX_PRIO - MAX_RT_PRIO)
 #define SCALE_PRIO(x, prio) \
 	max(x * (MAX_PRIO - prio) / (MAX_USER_PRIO / 2), MIN_SPU_TIMESLICE)
 
@@ -1040,13 +1039,11 @@ void spuctx_switch_state(struct spu_context *ctx,
 {
 	unsigned long long curtime;
 	signed long long delta;
-	struct timespec ts;
 	struct spu *spu;
 	enum spu_utilization_state old_state;
 	int node;
 
-	ktime_get_ts(&ts);
-	curtime = timespec_to_ns(&ts);
+	curtime = ktime_get_ns();
 	delta = curtime - ctx->stats.tstamp;
 
 	WARN_ON(!mutex_is_locked(&ctx->state_mutex));

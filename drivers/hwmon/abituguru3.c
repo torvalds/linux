@@ -176,7 +176,7 @@ struct abituguru3_data {
 
 	/*
 	 * The abituguru3 supports up to 48 sensors, and thus has registers
-	 * sets for 48 sensors, for convienence reasons / simplicity of the
+	 * sets for 48 sensors, for convenience reasons / simplicity of the
 	 * code we always read and store all registers for all 48 sensors
 	 */
 
@@ -1079,7 +1079,6 @@ static int abituguru3_remove(struct platform_device *pdev)
 	int i;
 	struct abituguru3_data *data = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
 	hwmon_device_unregister(data->hwmon_dev);
 	for (i = 0; data->sysfs_attr[i].dev_attr.attr.name; i++)
 		device_remove_file(&pdev->dev, &data->sysfs_attr[i].dev_attr);
@@ -1168,7 +1167,6 @@ static SIMPLE_DEV_PM_OPS(abituguru3_pm, abituguru3_suspend, abituguru3_resume);
 
 static struct platform_driver abituguru3_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= ABIT_UGURU3_NAME,
 		.pm	= ABIT_UGURU3_PM
 	},

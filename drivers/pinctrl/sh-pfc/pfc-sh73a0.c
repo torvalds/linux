@@ -20,40 +20,41 @@
  */
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/pinctrl/pinconf-generic.h>
-
-#include <mach/sh73a0.h>
-#include <mach/irqs.h>
+#include <linux/regulator/driver.h>
+#include <linux/regulator/machine.h>
+#include <linux/slab.h>
 
 #include "core.h"
 #include "sh_pfc.h"
 
-#define CPU_ALL_PORT(fn, pfx, sfx)				\
-	PORT_10(fn, pfx,    sfx), PORT_90(fn, pfx, sfx),	\
-	PORT_10(fn, pfx##10, sfx),				\
-	PORT_1(fn, pfx##110, sfx), PORT_1(fn, pfx##111, sfx),	\
-	PORT_1(fn, pfx##112, sfx), PORT_1(fn, pfx##113, sfx),	\
-	PORT_1(fn, pfx##114, sfx), PORT_1(fn, pfx##115, sfx),	\
-	PORT_1(fn, pfx##116, sfx), PORT_1(fn, pfx##117, sfx),	\
-	PORT_1(fn, pfx##118, sfx),				\
-	PORT_1(fn, pfx##128, sfx), PORT_1(fn, pfx##129, sfx),	\
-	PORT_10(fn, pfx##13, sfx), PORT_10(fn, pfx##14, sfx),	\
-	PORT_10(fn, pfx##15, sfx),				\
-	PORT_1(fn, pfx##160, sfx), PORT_1(fn, pfx##161, sfx),	\
-	PORT_1(fn, pfx##162, sfx), PORT_1(fn, pfx##163, sfx),	\
-	PORT_1(fn, pfx##164, sfx),				\
-	PORT_1(fn, pfx##192, sfx), PORT_1(fn, pfx##193, sfx),	\
-	PORT_1(fn, pfx##194, sfx), PORT_1(fn, pfx##195, sfx),	\
-	PORT_1(fn, pfx##196, sfx), PORT_1(fn, pfx##197, sfx),	\
-	PORT_1(fn, pfx##198, sfx), PORT_1(fn, pfx##199, sfx),	\
-	PORT_10(fn, pfx##20, sfx), PORT_10(fn, pfx##21, sfx),	\
-	PORT_10(fn, pfx##22, sfx), PORT_10(fn, pfx##23, sfx),	\
-	PORT_10(fn, pfx##24, sfx), PORT_10(fn, pfx##25, sfx),	\
-	PORT_10(fn, pfx##26, sfx), PORT_10(fn, pfx##27, sfx),	\
-	PORT_1(fn, pfx##280, sfx), PORT_1(fn, pfx##281, sfx),	\
-	PORT_1(fn, pfx##282, sfx),				\
-	PORT_1(fn, pfx##288, sfx), PORT_1(fn, pfx##289, sfx),	\
-	PORT_10(fn, pfx##29, sfx), PORT_10(fn, pfx##30, sfx)
+#define CPU_ALL_PORT(fn, pfx, sfx)					\
+	PORT_10(0,  fn, pfx, sfx), PORT_90(0, fn, pfx, sfx),		\
+	PORT_10(100, fn, pfx##10, sfx),					\
+	PORT_1(110, fn, pfx##110, sfx), PORT_1(111, fn, pfx##111, sfx),	\
+	PORT_1(112, fn, pfx##112, sfx), PORT_1(113, fn, pfx##113, sfx),	\
+	PORT_1(114, fn, pfx##114, sfx), PORT_1(115, fn, pfx##115, sfx),	\
+	PORT_1(116, fn, pfx##116, sfx), PORT_1(117, fn, pfx##117, sfx),	\
+	PORT_1(118, fn, pfx##118, sfx),					\
+	PORT_1(128, fn, pfx##128, sfx), PORT_1(129, fn, pfx##129, sfx),	\
+	PORT_10(130, fn, pfx##13, sfx), PORT_10(140, fn, pfx##14, sfx),	\
+	PORT_10(150, fn, pfx##15, sfx),					\
+	PORT_1(160, fn, pfx##160, sfx), PORT_1(161, fn, pfx##161, sfx),	\
+	PORT_1(162, fn, pfx##162, sfx), PORT_1(163, fn, pfx##163, sfx),	\
+	PORT_1(164, fn, pfx##164, sfx),					\
+	PORT_1(192, fn, pfx##192, sfx), PORT_1(193, fn, pfx##193, sfx),	\
+	PORT_1(194, fn, pfx##194, sfx), PORT_1(195, fn, pfx##195, sfx),	\
+	PORT_1(196, fn, pfx##196, sfx), PORT_1(197, fn, pfx##197, sfx),	\
+	PORT_1(198, fn, pfx##198, sfx), PORT_1(199, fn, pfx##199, sfx),	\
+	PORT_10(200, fn, pfx##20, sfx), PORT_10(210, fn, pfx##21, sfx),	\
+	PORT_10(220, fn, pfx##22, sfx), PORT_10(230, fn, pfx##23, sfx),	\
+	PORT_10(240, fn, pfx##24, sfx), PORT_10(250, fn, pfx##25, sfx),	\
+	PORT_10(260, fn, pfx##26, sfx), PORT_10(270, fn, pfx##27, sfx),	\
+	PORT_1(280, fn, pfx##280, sfx), PORT_1(281, fn, pfx##281, sfx),	\
+	PORT_1(282, fn, pfx##282, sfx),					\
+	PORT_1(288, fn, pfx##288, sfx), PORT_1(289, fn, pfx##289, sfx),	\
+	PORT_10(290, fn, pfx##29, sfx), PORT_10(300, fn, pfx##30, sfx)
 
 enum {
 	PINMUX_RESERVED = 0,
@@ -463,12 +464,9 @@ enum {
 	PINMUX_MARK_END,
 };
 
-#define _PORT_DATA(pfx, sfx)	PORT_DATA_IO(pfx)
-#define PINMUX_DATA_GP_ALL()    CPU_ALL_PORT(_PORT_DATA, , unused)
-
-static const pinmux_enum_t pinmux_data[] = {
+static const u16 pinmux_data[] = {
 	/* specify valid pin states for each pin in GPIO mode */
-	PINMUX_DATA_GP_ALL(),
+	PINMUX_DATA_ALL(),
 
 	/* Table 25-1 (Function 0-7) */
 	PINMUX_DATA(VBUS_0_MARK, PORT0_FN1),
@@ -1157,13 +1155,6 @@ static const pinmux_enum_t pinmux_data[] = {
 	PINMUX_DATA(EDBGREQ_PU_MARK, MSEL4CR_MSEL1_1),
 };
 
-#define SH73A0_PIN(pin, cfgs)						\
-	{								\
-		.name = __stringify(PORT##pin),				\
-		.enum_id = PORT##pin##_DATA,				\
-		.configs = cfgs,					\
-	}
-
 #define __I		(SH_PFC_PIN_CFG_INPUT)
 #define __O		(SH_PFC_PIN_CFG_OUTPUT)
 #define __IO		(SH_PFC_PIN_CFG_INPUT | SH_PFC_PIN_CFG_OUTPUT)
@@ -1171,16 +1162,22 @@ static const pinmux_enum_t pinmux_data[] = {
 #define __PU		(SH_PFC_PIN_CFG_PULL_UP)
 #define __PUD		(SH_PFC_PIN_CFG_PULL_DOWN | SH_PFC_PIN_CFG_PULL_UP)
 
-#define SH73A0_PIN_I_PD(pin)		SH73A0_PIN(pin, __I | __PD)
-#define SH73A0_PIN_I_PU(pin)		SH73A0_PIN(pin, __I | __PU)
-#define SH73A0_PIN_I_PU_PD(pin)		SH73A0_PIN(pin, __I | __PUD)
-#define SH73A0_PIN_IO(pin)		SH73A0_PIN(pin, __IO)
-#define SH73A0_PIN_IO_PD(pin)		SH73A0_PIN(pin, __IO | __PD)
-#define SH73A0_PIN_IO_PU(pin)		SH73A0_PIN(pin, __IO | __PU)
-#define SH73A0_PIN_IO_PU_PD(pin)	SH73A0_PIN(pin, __IO | __PUD)
-#define SH73A0_PIN_O(pin)		SH73A0_PIN(pin, __O)
+#define SH73A0_PIN_I_PD(pin)		SH_PFC_PIN_CFG(pin, __I | __PD)
+#define SH73A0_PIN_I_PU(pin)		SH_PFC_PIN_CFG(pin, __I | __PU)
+#define SH73A0_PIN_I_PU_PD(pin)		SH_PFC_PIN_CFG(pin, __I | __PUD)
+#define SH73A0_PIN_IO(pin)		SH_PFC_PIN_CFG(pin, __IO)
+#define SH73A0_PIN_IO_PD(pin)		SH_PFC_PIN_CFG(pin, __IO | __PD)
+#define SH73A0_PIN_IO_PU(pin)		SH_PFC_PIN_CFG(pin, __IO | __PU)
+#define SH73A0_PIN_IO_PU_PD(pin)	SH_PFC_PIN_CFG(pin, __IO | __PUD)
+#define SH73A0_PIN_O(pin)		SH_PFC_PIN_CFG(pin, __O)
 
-static struct sh_pfc_pin pinmux_pins[] = {
+/* Pin numbers for pins without a corresponding GPIO port number are computed
+ * from the row and column numbers with a 1000 offset to avoid collisions with
+ * GPIO port numbers.
+ */
+#define PIN_NUMBER(row, col)		(1000+((row)-1)*34+(col)-1)
+
+static const struct sh_pfc_pin pinmux_pins[] = {
 	/* Table 25-1 (I/O and Pull U/D) */
 	SH73A0_PIN_I_PD(0),
 	SH73A0_PIN_I_PU(1),
@@ -1451,20 +1448,10 @@ static struct sh_pfc_pin pinmux_pins[] = {
 	SH73A0_PIN_O(307),
 	SH73A0_PIN_I_PU(308),
 	SH73A0_PIN_O(309),
-};
 
-static const struct pinmux_range pinmux_ranges[] = {
-	{.begin = 0, .end = 118,},
-	{.begin = 128, .end = 164,},
-	{.begin = 192, .end = 282,},
-	{.begin = 288, .end = 309,},
+	/* Pins not associated with a GPIO port */
+	SH_PFC_PIN_NAMED(6, 26, F26),
 };
-
-/* Pin numbers for pins without a corresponding GPIO port number are computed
- * from the row and column numbers with a 1000 offset to avoid collisions with
- * GPIO port numbers.
- */
-#define PIN_NUMBER(row, col)		(1000+((row)-1)*34+(col)-1)
 
 /* - BSC -------------------------------------------------------------------- */
 static const unsigned int bsc_data_0_7_pins[] = {
@@ -2538,6 +2525,157 @@ static const unsigned int sdhi2_ctrl_pins[] = {
 static const unsigned int sdhi2_ctrl_mux[] = {
 	SDHICMD2_MARK, SDHICLK2_MARK,
 };
+/* - TPU0 ------------------------------------------------------------------- */
+static const unsigned int tpu0_to0_pins[] = {
+	/* TO */
+	55,
+};
+static const unsigned int tpu0_to0_mux[] = {
+	TPU0TO0_MARK,
+};
+static const unsigned int tpu0_to1_pins[] = {
+	/* TO */
+	59,
+};
+static const unsigned int tpu0_to1_mux[] = {
+	TPU0TO1_MARK,
+};
+static const unsigned int tpu0_to2_pins[] = {
+	/* TO */
+	140,
+};
+static const unsigned int tpu0_to2_mux[] = {
+	TPU0TO2_MARK,
+};
+static const unsigned int tpu0_to3_pins[] = {
+	/* TO */
+	141,
+};
+static const unsigned int tpu0_to3_mux[] = {
+	TPU0TO3_MARK,
+};
+/* - TPU1 ------------------------------------------------------------------- */
+static const unsigned int tpu1_to0_pins[] = {
+	/* TO */
+	246,
+};
+static const unsigned int tpu1_to0_mux[] = {
+	TPU1TO0_MARK,
+};
+static const unsigned int tpu1_to1_0_pins[] = {
+	/* TO */
+	28,
+};
+static const unsigned int tpu1_to1_0_mux[] = {
+	PORT28_TPU1TO1_MARK,
+};
+static const unsigned int tpu1_to1_1_pins[] = {
+	/* TO */
+	29,
+};
+static const unsigned int tpu1_to1_1_mux[] = {
+	PORT29_TPU1TO1_MARK,
+};
+static const unsigned int tpu1_to2_pins[] = {
+	/* TO */
+	153,
+};
+static const unsigned int tpu1_to2_mux[] = {
+	TPU1TO2_MARK,
+};
+static const unsigned int tpu1_to3_pins[] = {
+	/* TO */
+	145,
+};
+static const unsigned int tpu1_to3_mux[] = {
+	TPU1TO3_MARK,
+};
+/* - TPU2 ------------------------------------------------------------------- */
+static const unsigned int tpu2_to0_pins[] = {
+	/* TO */
+	248,
+};
+static const unsigned int tpu2_to0_mux[] = {
+	TPU2TO0_MARK,
+};
+static const unsigned int tpu2_to1_pins[] = {
+	/* TO */
+	197,
+};
+static const unsigned int tpu2_to1_mux[] = {
+	TPU2TO1_MARK,
+};
+static const unsigned int tpu2_to2_pins[] = {
+	/* TO */
+	50,
+};
+static const unsigned int tpu2_to2_mux[] = {
+	TPU2TO2_MARK,
+};
+static const unsigned int tpu2_to3_pins[] = {
+	/* TO */
+	51,
+};
+static const unsigned int tpu2_to3_mux[] = {
+	TPU2TO3_MARK,
+};
+/* - TPU3 ------------------------------------------------------------------- */
+static const unsigned int tpu3_to0_pins[] = {
+	/* TO */
+	163,
+};
+static const unsigned int tpu3_to0_mux[] = {
+	TPU3TO0_MARK,
+};
+static const unsigned int tpu3_to1_pins[] = {
+	/* TO */
+	247,
+};
+static const unsigned int tpu3_to1_mux[] = {
+	TPU3TO1_MARK,
+};
+static const unsigned int tpu3_to2_pins[] = {
+	/* TO */
+	54,
+};
+static const unsigned int tpu3_to2_mux[] = {
+	TPU3TO2_MARK,
+};
+static const unsigned int tpu3_to3_pins[] = {
+	/* TO */
+	53,
+};
+static const unsigned int tpu3_to3_mux[] = {
+	TPU3TO3_MARK,
+};
+/* - TPU4 ------------------------------------------------------------------- */
+static const unsigned int tpu4_to0_pins[] = {
+	/* TO */
+	241,
+};
+static const unsigned int tpu4_to0_mux[] = {
+	TPU4TO0_MARK,
+};
+static const unsigned int tpu4_to1_pins[] = {
+	/* TO */
+	199,
+};
+static const unsigned int tpu4_to1_mux[] = {
+	TPU4TO1_MARK,
+};
+static const unsigned int tpu4_to2_pins[] = {
+	/* TO */
+	58,
+};
+static const unsigned int tpu4_to2_mux[] = {
+	TPU4TO2_MARK,
+};
+static const unsigned int tpu4_to3_pins[] = {
+	/* TO */
+};
+static const unsigned int tpu4_to3_mux[] = {
+	TPU4TO3_MARK,
+};
 /* - USB -------------------------------------------------------------------- */
 static const unsigned int usb_vbus_pins[] = {
 	/* VBUS */
@@ -2689,6 +2827,27 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(sdhi2_data1),
 	SH_PFC_PIN_GROUP(sdhi2_data4),
 	SH_PFC_PIN_GROUP(sdhi2_ctrl),
+	SH_PFC_PIN_GROUP(tpu0_to0),
+	SH_PFC_PIN_GROUP(tpu0_to1),
+	SH_PFC_PIN_GROUP(tpu0_to2),
+	SH_PFC_PIN_GROUP(tpu0_to3),
+	SH_PFC_PIN_GROUP(tpu1_to0),
+	SH_PFC_PIN_GROUP(tpu1_to1_0),
+	SH_PFC_PIN_GROUP(tpu1_to1_1),
+	SH_PFC_PIN_GROUP(tpu1_to2),
+	SH_PFC_PIN_GROUP(tpu1_to3),
+	SH_PFC_PIN_GROUP(tpu2_to0),
+	SH_PFC_PIN_GROUP(tpu2_to1),
+	SH_PFC_PIN_GROUP(tpu2_to2),
+	SH_PFC_PIN_GROUP(tpu2_to3),
+	SH_PFC_PIN_GROUP(tpu3_to0),
+	SH_PFC_PIN_GROUP(tpu3_to1),
+	SH_PFC_PIN_GROUP(tpu3_to2),
+	SH_PFC_PIN_GROUP(tpu3_to3),
+	SH_PFC_PIN_GROUP(tpu4_to0),
+	SH_PFC_PIN_GROUP(tpu4_to1),
+	SH_PFC_PIN_GROUP(tpu4_to2),
+	SH_PFC_PIN_GROUP(tpu4_to3),
 	SH_PFC_PIN_GROUP(usb_vbus),
 };
 
@@ -2908,6 +3067,42 @@ static const char * const usb_groups[] = {
 	"usb_vbus",
 };
 
+static const char * const tpu0_groups[] = {
+	"tpu0_to0",
+	"tpu0_to1",
+	"tpu0_to2",
+	"tpu0_to3",
+};
+
+static const char * const tpu1_groups[] = {
+	"tpu1_to0",
+	"tpu1_to1_0",
+	"tpu1_to1_1",
+	"tpu1_to2",
+	"tpu1_to3",
+};
+
+static const char * const tpu2_groups[] = {
+	"tpu2_to0",
+	"tpu2_to1",
+	"tpu2_to2",
+	"tpu2_to3",
+};
+
+static const char * const tpu3_groups[] = {
+	"tpu3_to0",
+	"tpu3_to1",
+	"tpu3_to2",
+	"tpu3_to3",
+};
+
+static const char * const tpu4_groups[] = {
+	"tpu4_to0",
+	"tpu4_to1",
+	"tpu4_to2",
+	"tpu4_to3",
+};
+
 static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(bsc),
 	SH_PFC_FUNCTION(fsia),
@@ -2933,410 +3128,14 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(sdhi0),
 	SH_PFC_FUNCTION(sdhi1),
 	SH_PFC_FUNCTION(sdhi2),
+	SH_PFC_FUNCTION(tpu0),
+	SH_PFC_FUNCTION(tpu1),
+	SH_PFC_FUNCTION(tpu2),
+	SH_PFC_FUNCTION(tpu3),
+	SH_PFC_FUNCTION(tpu4),
 	SH_PFC_FUNCTION(usb),
 };
 
-#define PINMUX_FN_BASE	GPIO_FN_GPI0
-
-static const struct pinmux_func pinmux_func_gpios[] = {
-	/* Table 25-1 (Functions 0-7) */
-	GPIO_FN(GPI0),
-	GPIO_FN(GPI1),
-	GPIO_FN(GPI2),
-	GPIO_FN(GPI3),
-	GPIO_FN(GPI4),
-	GPIO_FN(GPI5),
-	GPIO_FN(GPI6),
-	GPIO_FN(GPI7),
-	GPIO_FN(GPO7), \
-	GPIO_FN(MFG0_OUT2),
-	GPIO_FN(GPO6), \
-	GPIO_FN(MFG1_OUT2),
-	GPIO_FN(GPO5), \
-	GPIO_FN(PORT16_VIO_CKOR),
-	GPIO_FN(PORT19_VIO_CKO2),
-	GPIO_FN(GPO0),
-	GPIO_FN(GPO1),
-	GPIO_FN(GPO2), \
-	GPIO_FN(STATUS0),
-	GPIO_FN(GPO3), \
-	GPIO_FN(STATUS1),
-	GPIO_FN(GPO4), \
-	GPIO_FN(STATUS2),
-	GPIO_FN(VINT),
-	GPIO_FN(TCKON),
-	GPIO_FN(XDVFS1), \
-	GPIO_FN(MFG0_OUT1), \
-	GPIO_FN(PORT27_IROUT),
-	GPIO_FN(XDVFS2), \
-	GPIO_FN(PORT28_TPU1TO1),
-	GPIO_FN(SIM_RST), \
-	GPIO_FN(PORT29_TPU1TO1),
-	GPIO_FN(SIM_CLK), \
-	GPIO_FN(PORT30_VIO_CKOR),
-	GPIO_FN(SIM_D), \
-	GPIO_FN(PORT31_IROUT),
-	GPIO_FN(XWUP),
-	GPIO_FN(VACK),
-	GPIO_FN(XTAL1L),
-	GPIO_FN(PORT49_IROUT), \
-	GPIO_FN(BBIF2_TSYNC2), \
-	GPIO_FN(TPU2TO2), \
-
-	GPIO_FN(BBIF2_TSCK2), \
-	GPIO_FN(TPU2TO3), \
-	GPIO_FN(BBIF2_TXD2),
-	GPIO_FN(TPU3TO3), \
-	GPIO_FN(TPU3TO2), \
-	GPIO_FN(TPU0TO0),
-	GPIO_FN(A0), \
-	GPIO_FN(BS_),
-	GPIO_FN(A12), \
-	GPIO_FN(TPU4TO2),
-	GPIO_FN(A13), \
-	GPIO_FN(TPU0TO1),
-	GPIO_FN(A14), \
-	GPIO_FN(A15), \
-	GPIO_FN(A16), \
-	GPIO_FN(MSIOF0_SS1),
-	GPIO_FN(A17), \
-	GPIO_FN(MSIOF0_TSYNC),
-	GPIO_FN(A18), \
-	GPIO_FN(MSIOF0_TSCK),
-	GPIO_FN(A19), \
-	GPIO_FN(MSIOF0_TXD),
-	GPIO_FN(A20), \
-	GPIO_FN(MSIOF0_RSCK),
-	GPIO_FN(A21), \
-	GPIO_FN(MSIOF0_RSYNC),
-	GPIO_FN(A22), \
-	GPIO_FN(MSIOF0_MCK0),
-	GPIO_FN(A23), \
-	GPIO_FN(MSIOF0_MCK1),
-	GPIO_FN(A24), \
-	GPIO_FN(MSIOF0_RXD),
-	GPIO_FN(A25), \
-	GPIO_FN(MSIOF0_SS2),
-	GPIO_FN(A26), \
-	GPIO_FN(FCE1_),
-	GPIO_FN(DACK0),
-	GPIO_FN(FCE0_), \
-	GPIO_FN(WAIT_), \
-	GPIO_FN(DREQ0),
-	GPIO_FN(FRB),
-	GPIO_FN(CKO),
-	GPIO_FN(NBRSTOUT_),
-	GPIO_FN(NBRST_),
-	GPIO_FN(BBIF2_TXD),
-	GPIO_FN(BBIF2_RXD),
-	GPIO_FN(BBIF2_SYNC),
-	GPIO_FN(BBIF2_SCK),
-	GPIO_FN(MFG3_IN2),
-	GPIO_FN(MFG3_IN1),
-	GPIO_FN(BBIF1_SS2), \
-	GPIO_FN(MFG3_OUT1),
-	GPIO_FN(HSI_RX_DATA), \
-	GPIO_FN(BBIF1_RXD),
-	GPIO_FN(HSI_TX_WAKE), \
-	GPIO_FN(BBIF1_TSCK),
-	GPIO_FN(HSI_TX_DATA), \
-	GPIO_FN(BBIF1_TSYNC),
-	GPIO_FN(HSI_TX_READY), \
-	GPIO_FN(BBIF1_TXD),
-	GPIO_FN(HSI_RX_READY), \
-	GPIO_FN(BBIF1_RSCK), \
-	GPIO_FN(HSI_RX_WAKE), \
-	GPIO_FN(BBIF1_RSYNC), \
-	GPIO_FN(HSI_RX_FLAG), \
-	GPIO_FN(BBIF1_SS1), \
-	GPIO_FN(BBIF1_FLOW),
-	GPIO_FN(HSI_TX_FLAG),
-	GPIO_FN(VIO_VD), \
-	GPIO_FN(VIO2_VD), \
-
-	GPIO_FN(VIO_HD), \
-	GPIO_FN(VIO2_HD), \
-	GPIO_FN(VIO_D0), \
-	GPIO_FN(PORT130_MSIOF2_RXD), \
-	GPIO_FN(VIO_D1), \
-	GPIO_FN(PORT131_MSIOF2_SS1), \
-	GPIO_FN(VIO_D2), \
-	GPIO_FN(PORT132_MSIOF2_SS2), \
-	GPIO_FN(VIO_D3), \
-	GPIO_FN(MSIOF2_TSYNC), \
-	GPIO_FN(VIO_D4), \
-	GPIO_FN(MSIOF2_TXD), \
-	GPIO_FN(VIO_D5), \
-	GPIO_FN(MSIOF2_TSCK), \
-	GPIO_FN(VIO_D6), \
-	GPIO_FN(VIO_D7), \
-	GPIO_FN(VIO_D8), \
-	GPIO_FN(VIO2_D0), \
-	GPIO_FN(VIO_D9), \
-	GPIO_FN(VIO2_D1), \
-	GPIO_FN(VIO_D10), \
-	GPIO_FN(TPU0TO2), \
-	GPIO_FN(VIO2_D2), \
-	GPIO_FN(VIO_D11), \
-	GPIO_FN(TPU0TO3), \
-	GPIO_FN(VIO2_D3), \
-	GPIO_FN(VIO_D12), \
-	GPIO_FN(VIO2_D4), \
-	GPIO_FN(VIO_D13), \
-	GPIO_FN(VIO2_D5), \
-	GPIO_FN(VIO_D14), \
-	GPIO_FN(VIO2_D6), \
-	GPIO_FN(VIO_D15), \
-	GPIO_FN(TPU1TO3), \
-	GPIO_FN(VIO2_D7), \
-	GPIO_FN(VIO_CLK), \
-	GPIO_FN(VIO2_CLK), \
-	GPIO_FN(VIO_FIELD), \
-	GPIO_FN(VIO2_FIELD), \
-	GPIO_FN(VIO_CKO),
-	GPIO_FN(A27), \
-	GPIO_FN(MFG0_IN1), \
-	GPIO_FN(MFG0_IN2),
-	GPIO_FN(TS_SPSYNC3), \
-	GPIO_FN(MSIOF2_RSCK),
-	GPIO_FN(TS_SDAT3), \
-	GPIO_FN(MSIOF2_RSYNC),
-	GPIO_FN(TPU1TO2), \
-	GPIO_FN(TS_SDEN3), \
-	GPIO_FN(PORT153_MSIOF2_SS1),
-	GPIO_FN(MSIOF2_MCK0),
-	GPIO_FN(MSIOF2_MCK1),
-	GPIO_FN(PORT156_MSIOF2_SS2),
-	GPIO_FN(PORT157_MSIOF2_RXD),
-	GPIO_FN(DINT_), \
-	GPIO_FN(TS_SCK3),
-	GPIO_FN(NMI),
-	GPIO_FN(TPU3TO0),
-	GPIO_FN(BBIF2_TSYNC1),
-	GPIO_FN(BBIF2_TSCK1),
-	GPIO_FN(BBIF2_TXD1),
-	GPIO_FN(MFG2_OUT2), \
-	GPIO_FN(TPU2TO1),
-	GPIO_FN(TPU4TO1), \
-	GPIO_FN(MFG4_OUT2),
-	GPIO_FN(D16),
-	GPIO_FN(D17),
-	GPIO_FN(D18),
-	GPIO_FN(D19),
-	GPIO_FN(D20),
-	GPIO_FN(D21),
-	GPIO_FN(D22),
-	GPIO_FN(PORT207_MSIOF0L_SS1), \
-	GPIO_FN(D23),
-	GPIO_FN(PORT208_MSIOF0L_SS2), \
-	GPIO_FN(D24),
-	GPIO_FN(D25),
-	GPIO_FN(DREQ2), \
-	GPIO_FN(PORT210_MSIOF0L_SS1), \
-	GPIO_FN(D26),
-	GPIO_FN(PORT211_MSIOF0L_SS2), \
-	GPIO_FN(D27),
-	GPIO_FN(TS_SPSYNC1), \
-	GPIO_FN(MSIOF0L_MCK0), \
-	GPIO_FN(D28),
-	GPIO_FN(TS_SDAT1), \
-	GPIO_FN(MSIOF0L_MCK1), \
-	GPIO_FN(D29),
-	GPIO_FN(TS_SDEN1), \
-	GPIO_FN(MSIOF0L_RSCK), \
-	GPIO_FN(D30),
-	GPIO_FN(TS_SCK1), \
-	GPIO_FN(MSIOF0L_RSYNC), \
-	GPIO_FN(D31),
-	GPIO_FN(DACK2), \
-	GPIO_FN(MSIOF0L_TSYNC), \
-	GPIO_FN(VIO2_FIELD3), \
-	GPIO_FN(DACK3), \
-	GPIO_FN(PORT218_VIO_CKOR),
-	GPIO_FN(DREQ3), \
-	GPIO_FN(MSIOF0L_TSCK), \
-	GPIO_FN(VIO2_CLK3), \
-	GPIO_FN(DREQ1), \
-	GPIO_FN(PWEN), \
-	GPIO_FN(MSIOF0L_RXD), \
-	GPIO_FN(VIO2_HD3), \
-	GPIO_FN(DACK1), \
-	GPIO_FN(OVCN), \
-	GPIO_FN(MSIOF0L_TXD), \
-	GPIO_FN(VIO2_VD3), \
-
-	GPIO_FN(OVCN2),
-	GPIO_FN(EXTLP), \
-	GPIO_FN(PORT226_VIO_CKO2),
-	GPIO_FN(IDIN),
-	GPIO_FN(MFG1_IN1),
-	GPIO_FN(MSIOF1_TXD), \
-	GPIO_FN(MSIOF1_TSYNC), \
-	GPIO_FN(MSIOF1_TSCK), \
-	GPIO_FN(MSIOF1_RXD), \
-	GPIO_FN(MSIOF1_RSCK), \
-	GPIO_FN(VIO2_CLK2), \
-	GPIO_FN(MSIOF1_RSYNC), \
-	GPIO_FN(MFG1_IN2), \
-	GPIO_FN(VIO2_VD2), \
-	GPIO_FN(MSIOF1_MCK0), \
-	GPIO_FN(MSIOF1_MCK1), \
-	GPIO_FN(MSIOF1_SS1), \
-	GPIO_FN(VIO2_FIELD2), \
-	GPIO_FN(MSIOF1_SS2), \
-	GPIO_FN(VIO2_HD2), \
-	GPIO_FN(PORT241_IROUT), \
-	GPIO_FN(MFG4_OUT1), \
-	GPIO_FN(TPU4TO0),
-	GPIO_FN(MFG4_IN2),
-	GPIO_FN(PORT243_VIO_CKO2),
-	GPIO_FN(MFG2_IN1), \
-	GPIO_FN(MSIOF2R_RXD),
-	GPIO_FN(MFG2_IN2), \
-	GPIO_FN(MSIOF2R_TXD),
-	GPIO_FN(MFG1_OUT1), \
-	GPIO_FN(TPU1TO0),
-	GPIO_FN(MFG3_OUT2), \
-	GPIO_FN(TPU3TO1),
-	GPIO_FN(MFG2_OUT1), \
-	GPIO_FN(TPU2TO0), \
-	GPIO_FN(MSIOF2R_TSCK),
-	GPIO_FN(PORT249_IROUT), \
-	GPIO_FN(MFG4_IN1), \
-	GPIO_FN(MSIOF2R_TSYNC),
-	GPIO_FN(SDHICLK0),
-	GPIO_FN(SDHICD0),
-	GPIO_FN(SDHID0_0),
-	GPIO_FN(SDHID0_1),
-	GPIO_FN(SDHID0_2),
-	GPIO_FN(SDHID0_3),
-	GPIO_FN(SDHICMD0),
-	GPIO_FN(SDHIWP0),
-	GPIO_FN(SDHICLK1),
-	GPIO_FN(SDHID1_0), \
-	GPIO_FN(TS_SPSYNC2),
-	GPIO_FN(SDHID1_1), \
-	GPIO_FN(TS_SDAT2),
-	GPIO_FN(SDHID1_2), \
-	GPIO_FN(TS_SDEN2),
-	GPIO_FN(SDHID1_3), \
-	GPIO_FN(TS_SCK2),
-	GPIO_FN(SDHICMD1),
-	GPIO_FN(SDHICLK2),
-	GPIO_FN(SDHID2_0), \
-	GPIO_FN(TS_SPSYNC4),
-	GPIO_FN(SDHID2_1), \
-	GPIO_FN(TS_SDAT4),
-	GPIO_FN(SDHID2_2), \
-	GPIO_FN(TS_SDEN4),
-	GPIO_FN(SDHID2_3), \
-	GPIO_FN(TS_SCK4),
-	GPIO_FN(SDHICMD2),
-	GPIO_FN(MMCCLK0),
-	GPIO_FN(MMCD0_0),
-	GPIO_FN(MMCD0_1),
-	GPIO_FN(MMCD0_2),
-	GPIO_FN(MMCD0_3),
-	GPIO_FN(MMCD0_4), \
-	GPIO_FN(TS_SPSYNC5),
-	GPIO_FN(MMCD0_5), \
-	GPIO_FN(TS_SDAT5),
-	GPIO_FN(MMCD0_6), \
-	GPIO_FN(TS_SDEN5),
-	GPIO_FN(MMCD0_7), \
-	GPIO_FN(TS_SCK5),
-	GPIO_FN(MMCCMD0),
-	GPIO_FN(RESETOUTS_), \
-	GPIO_FN(EXTAL2OUT),
-	GPIO_FN(MCP_WAIT__MCP_FRB),
-	GPIO_FN(MCP_CKO), \
-	GPIO_FN(MMCCLK1),
-	GPIO_FN(MCP_D15_MCP_NAF15),
-	GPIO_FN(MCP_D14_MCP_NAF14),
-	GPIO_FN(MCP_D13_MCP_NAF13),
-	GPIO_FN(MCP_D12_MCP_NAF12),
-	GPIO_FN(MCP_D11_MCP_NAF11),
-	GPIO_FN(MCP_D10_MCP_NAF10),
-	GPIO_FN(MCP_D9_MCP_NAF9),
-	GPIO_FN(MCP_D8_MCP_NAF8), \
-	GPIO_FN(MMCCMD1),
-	GPIO_FN(MCP_D7_MCP_NAF7), \
-	GPIO_FN(MMCD1_7),
-
-	GPIO_FN(MCP_D6_MCP_NAF6), \
-	GPIO_FN(MMCD1_6),
-	GPIO_FN(MCP_D5_MCP_NAF5), \
-	GPIO_FN(MMCD1_5),
-	GPIO_FN(MCP_D4_MCP_NAF4), \
-	GPIO_FN(MMCD1_4),
-	GPIO_FN(MCP_D3_MCP_NAF3), \
-	GPIO_FN(MMCD1_3),
-	GPIO_FN(MCP_D2_MCP_NAF2), \
-	GPIO_FN(MMCD1_2),
-	GPIO_FN(MCP_D1_MCP_NAF1), \
-	GPIO_FN(MMCD1_1),
-	GPIO_FN(MCP_D0_MCP_NAF0), \
-	GPIO_FN(MMCD1_0),
-	GPIO_FN(MCP_NBRSTOUT_),
-	GPIO_FN(MCP_WE0__MCP_FWE), \
-	GPIO_FN(MCP_RDWR_MCP_FWE),
-
-	/* MSEL2 special cases */
-	GPIO_FN(TSIF2_TS_XX1),
-	GPIO_FN(TSIF2_TS_XX2),
-	GPIO_FN(TSIF2_TS_XX3),
-	GPIO_FN(TSIF2_TS_XX4),
-	GPIO_FN(TSIF2_TS_XX5),
-	GPIO_FN(TSIF1_TS_XX1),
-	GPIO_FN(TSIF1_TS_XX2),
-	GPIO_FN(TSIF1_TS_XX3),
-	GPIO_FN(TSIF1_TS_XX4),
-	GPIO_FN(TSIF1_TS_XX5),
-	GPIO_FN(TSIF0_TS_XX1),
-	GPIO_FN(TSIF0_TS_XX2),
-	GPIO_FN(TSIF0_TS_XX3),
-	GPIO_FN(TSIF0_TS_XX4),
-	GPIO_FN(TSIF0_TS_XX5),
-	GPIO_FN(MST1_TS_XX1),
-	GPIO_FN(MST1_TS_XX2),
-	GPIO_FN(MST1_TS_XX3),
-	GPIO_FN(MST1_TS_XX4),
-	GPIO_FN(MST1_TS_XX5),
-	GPIO_FN(MST0_TS_XX1),
-	GPIO_FN(MST0_TS_XX2),
-	GPIO_FN(MST0_TS_XX3),
-	GPIO_FN(MST0_TS_XX4),
-	GPIO_FN(MST0_TS_XX5),
-
-	/* MSEL3 special cases */
-	GPIO_FN(SDHI0_VCCQ_MC0_ON),
-	GPIO_FN(SDHI0_VCCQ_MC0_OFF),
-	GPIO_FN(DEBUG_MON_VIO),
-	GPIO_FN(DEBUG_MON_LCDD),
-	GPIO_FN(LCDC_LCDC0),
-	GPIO_FN(LCDC_LCDC1),
-
-	/* MSEL4 special cases */
-	GPIO_FN(IRQ9_MEM_INT),
-	GPIO_FN(IRQ9_MCP_INT),
-	GPIO_FN(A11),
-	GPIO_FN(TPU4TO3),
-	GPIO_FN(RESETA_N_PU_ON),
-	GPIO_FN(RESETA_N_PU_OFF),
-	GPIO_FN(EDBGREQ_PD),
-	GPIO_FN(EDBGREQ_PU),
-};
-
-#undef PORTCR
-#define PORTCR(nr, reg)							\
-	{								\
-		PINMUX_CFG_REG("PORT" nr "CR", reg, 8, 4) {		\
-			_PCRH(PORT##nr##_IN, 0, 0, PORT##nr##_OUT),	\
-				PORT##nr##_FN0, PORT##nr##_FN1,		\
-				PORT##nr##_FN2, PORT##nr##_FN3,		\
-				PORT##nr##_FN4, PORT##nr##_FN5,		\
-				PORT##nr##_FN6, PORT##nr##_FN7 }	\
-	}
 static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	PORTCR(0, 0xe6050000), /* PORT0CR */
 	PORTCR(1, 0xe6050001), /* PORT1CR */
@@ -3849,44 +3648,127 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 	{ },
 };
 
-/* External IRQ pins mapped at IRQPIN_BASE */
-#define EXT_IRQ16L(n) irq_pin(n)
-#define EXT_IRQ16H(n) irq_pin(n)
-
 static const struct pinmux_irq pinmux_irqs[] = {
-	PINMUX_IRQ(EXT_IRQ16H(19), 9),
-	PINMUX_IRQ(EXT_IRQ16L(1), 10),
-	PINMUX_IRQ(EXT_IRQ16L(0), 11),
-	PINMUX_IRQ(EXT_IRQ16H(18), 13),
-	PINMUX_IRQ(EXT_IRQ16H(20), 14),
-	PINMUX_IRQ(EXT_IRQ16H(21), 15),
-	PINMUX_IRQ(EXT_IRQ16H(31), 26),
-	PINMUX_IRQ(EXT_IRQ16H(30), 27),
-	PINMUX_IRQ(EXT_IRQ16H(29), 28),
-	PINMUX_IRQ(EXT_IRQ16H(22), 40),
-	PINMUX_IRQ(EXT_IRQ16H(23), 53),
-	PINMUX_IRQ(EXT_IRQ16L(10), 54),
-	PINMUX_IRQ(EXT_IRQ16L(9), 56),
-	PINMUX_IRQ(EXT_IRQ16H(26), 115),
-	PINMUX_IRQ(EXT_IRQ16H(27), 116),
-	PINMUX_IRQ(EXT_IRQ16H(28), 117),
-	PINMUX_IRQ(EXT_IRQ16H(24), 118),
-	PINMUX_IRQ(EXT_IRQ16L(6), 147),
-	PINMUX_IRQ(EXT_IRQ16L(2), 149),
-	PINMUX_IRQ(EXT_IRQ16L(7), 150),
-	PINMUX_IRQ(EXT_IRQ16L(12), 156),
-	PINMUX_IRQ(EXT_IRQ16L(4), 159),
-	PINMUX_IRQ(EXT_IRQ16H(25), 164),
-	PINMUX_IRQ(EXT_IRQ16L(8), 223),
-	PINMUX_IRQ(EXT_IRQ16L(3), 224),
-	PINMUX_IRQ(EXT_IRQ16L(5), 227),
-	PINMUX_IRQ(EXT_IRQ16H(17), 234),
-	PINMUX_IRQ(EXT_IRQ16L(11), 238),
-	PINMUX_IRQ(EXT_IRQ16L(13), 239),
-	PINMUX_IRQ(EXT_IRQ16H(16), 249),
-	PINMUX_IRQ(EXT_IRQ16L(14), 251),
-	PINMUX_IRQ(EXT_IRQ16L(9), 308),
+	PINMUX_IRQ(11),		/* IRQ0 */
+	PINMUX_IRQ(10),		/* IRQ1 */
+	PINMUX_IRQ(149),	/* IRQ2 */
+	PINMUX_IRQ(224),	/* IRQ3 */
+	PINMUX_IRQ(159),	/* IRQ4 */
+	PINMUX_IRQ(227),	/* IRQ5 */
+	PINMUX_IRQ(147),	/* IRQ6 */
+	PINMUX_IRQ(150),	/* IRQ7 */
+	PINMUX_IRQ(223),	/* IRQ8 */
+	PINMUX_IRQ(56, 308),	/* IRQ9 */
+	PINMUX_IRQ(54),		/* IRQ10 */
+	PINMUX_IRQ(238),	/* IRQ11 */
+	PINMUX_IRQ(156),	/* IRQ12 */
+	PINMUX_IRQ(239),	/* IRQ13 */
+	PINMUX_IRQ(251),	/* IRQ14 */
+	PINMUX_IRQ(0),		/* IRQ15 */
+	PINMUX_IRQ(249),	/* IRQ16 */
+	PINMUX_IRQ(234),	/* IRQ17 */
+	PINMUX_IRQ(13),		/* IRQ18 */
+	PINMUX_IRQ(9),		/* IRQ19 */
+	PINMUX_IRQ(14),		/* IRQ20 */
+	PINMUX_IRQ(15),		/* IRQ21 */
+	PINMUX_IRQ(40),		/* IRQ22 */
+	PINMUX_IRQ(53),		/* IRQ23 */
+	PINMUX_IRQ(118),	/* IRQ24 */
+	PINMUX_IRQ(164),	/* IRQ25 */
+	PINMUX_IRQ(115),	/* IRQ26 */
+	PINMUX_IRQ(116),	/* IRQ27 */
+	PINMUX_IRQ(117),	/* IRQ28 */
+	PINMUX_IRQ(28),		/* IRQ29 */
+	PINMUX_IRQ(27),		/* IRQ30 */
+	PINMUX_IRQ(26),		/* IRQ31 */
 };
+
+/* -----------------------------------------------------------------------------
+ * VCCQ MC0 regulator
+ */
+
+static void sh73a0_vccq_mc0_endisable(struct regulator_dev *reg, bool enable)
+{
+	struct sh_pfc *pfc = reg->reg_data;
+	void __iomem *addr = pfc->windows[1].virt + 4;
+	unsigned long flags;
+	u32 value;
+
+	spin_lock_irqsave(&pfc->lock, flags);
+
+	value = ioread32(addr);
+
+	if (enable)
+		value |= BIT(28);
+	else
+		value &= ~BIT(28);
+
+	iowrite32(value, addr);
+
+	spin_unlock_irqrestore(&pfc->lock, flags);
+}
+
+static int sh73a0_vccq_mc0_enable(struct regulator_dev *reg)
+{
+	sh73a0_vccq_mc0_endisable(reg, true);
+	return 0;
+}
+
+static int sh73a0_vccq_mc0_disable(struct regulator_dev *reg)
+{
+	sh73a0_vccq_mc0_endisable(reg, false);
+	return 0;
+}
+
+static int sh73a0_vccq_mc0_is_enabled(struct regulator_dev *reg)
+{
+	struct sh_pfc *pfc = reg->reg_data;
+	void __iomem *addr = pfc->windows[1].virt + 4;
+	unsigned long flags;
+	u32 value;
+
+	spin_lock_irqsave(&pfc->lock, flags);
+	value = ioread32(addr);
+	spin_unlock_irqrestore(&pfc->lock, flags);
+
+	return !!(value & BIT(28));
+}
+
+static int sh73a0_vccq_mc0_get_voltage(struct regulator_dev *reg)
+{
+	return 3300000;
+}
+
+static struct regulator_ops sh73a0_vccq_mc0_ops = {
+	.enable = sh73a0_vccq_mc0_enable,
+	.disable = sh73a0_vccq_mc0_disable,
+	.is_enabled = sh73a0_vccq_mc0_is_enabled,
+	.get_voltage = sh73a0_vccq_mc0_get_voltage,
+};
+
+static const struct regulator_desc sh73a0_vccq_mc0_desc = {
+	.owner = THIS_MODULE,
+	.name = "vccq_mc0",
+	.type = REGULATOR_VOLTAGE,
+	.ops = &sh73a0_vccq_mc0_ops,
+};
+
+static struct regulator_consumer_supply sh73a0_vccq_mc0_consumers[] = {
+	REGULATOR_SUPPLY("vqmmc", "sh_mobile_sdhi.0"),
+	REGULATOR_SUPPLY("vqmmc", "ee100000.sdhi"),
+};
+
+static const struct regulator_init_data sh73a0_vccq_mc0_init_data = {
+	.constraints = {
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(sh73a0_vccq_mc0_consumers),
+	.consumer_supplies = sh73a0_vccq_mc0_consumers,
+};
+
+/* -----------------------------------------------------------------------------
+ * Pin bias
+ */
 
 #define PORTnCR_PULMD_OFF	(0 << 6)
 #define PORTnCR_PULMD_DOWN	(2 << 6)
@@ -3900,7 +3782,7 @@ static const unsigned int sh73a0_portcr_offsets[] = {
 
 static unsigned int sh73a0_pinmux_get_bias(struct sh_pfc *pfc, unsigned int pin)
 {
-	void __iomem *addr = pfc->window->virt
+	void __iomem *addr = pfc->windows->virt
 			   + sh73a0_portcr_offsets[pin >> 5] + pin;
 	u32 value = ioread8(addr) & PORTnCR_PULMD_MASK;
 
@@ -3918,7 +3800,7 @@ static unsigned int sh73a0_pinmux_get_bias(struct sh_pfc *pfc, unsigned int pin)
 static void sh73a0_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
 				   unsigned int bias)
 {
-	void __iomem *addr = pfc->window->virt
+	void __iomem *addr = pfc->windows->virt
 			   + sh73a0_portcr_offsets[pin >> 5] + pin;
 	u32 value = ioread8(addr) & ~PORTnCR_PULMD_MASK;
 
@@ -3934,14 +3816,40 @@ static void sh73a0_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
 	iowrite8(value, addr);
 }
 
-static const struct sh_pfc_soc_operations sh73a0_pinmux_ops = {
+/* -----------------------------------------------------------------------------
+ * SoC information
+ */
+
+static int sh73a0_pinmux_soc_init(struct sh_pfc *pfc)
+{
+	struct regulator_config cfg = { };
+	struct regulator_dev *vccq;
+	int ret;
+
+	cfg.dev = pfc->dev;
+	cfg.init_data = &sh73a0_vccq_mc0_init_data;
+	cfg.driver_data = pfc;
+
+	vccq = devm_regulator_register(pfc->dev, &sh73a0_vccq_mc0_desc, &cfg);
+	if (IS_ERR(vccq)) {
+		ret = PTR_ERR(vccq);
+		dev_err(pfc->dev, "Failed to register VCCQ MC0 regulator: %d\n",
+			ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static const struct sh_pfc_soc_operations sh73a0_pfc_ops = {
+	.init = sh73a0_pinmux_soc_init,
 	.get_bias = sh73a0_pinmux_get_bias,
 	.set_bias = sh73a0_pinmux_set_bias,
 };
 
 const struct sh_pfc_soc_info sh73a0_pinmux_info = {
 	.name = "sh73a0_pfc",
-	.ops = &sh73a0_pinmux_ops,
+	.ops = &sh73a0_pfc_ops,
 
 	.input = { PINMUX_INPUT_BEGIN, PINMUX_INPUT_END },
 	.output = { PINMUX_OUTPUT_BEGIN, PINMUX_OUTPUT_END },
@@ -3949,21 +3857,16 @@ const struct sh_pfc_soc_info sh73a0_pinmux_info = {
 
 	.pins = pinmux_pins,
 	.nr_pins = ARRAY_SIZE(pinmux_pins),
-	.ranges = pinmux_ranges,
-	.nr_ranges = ARRAY_SIZE(pinmux_ranges),
 	.groups = pinmux_groups,
 	.nr_groups = ARRAY_SIZE(pinmux_groups),
 	.functions = pinmux_functions,
 	.nr_functions = ARRAY_SIZE(pinmux_functions),
 
-	.func_gpios = pinmux_func_gpios,
-	.nr_func_gpios = ARRAY_SIZE(pinmux_func_gpios),
-
 	.cfg_regs = pinmux_config_regs,
 	.data_regs = pinmux_data_regs,
 
-	.gpio_data = pinmux_data,
-	.gpio_data_size = ARRAY_SIZE(pinmux_data),
+	.pinmux_data = pinmux_data,
+	.pinmux_data_size = ARRAY_SIZE(pinmux_data),
 
 	.gpio_irq = pinmux_irqs,
 	.gpio_irq_size = ARRAY_SIZE(pinmux_irqs),

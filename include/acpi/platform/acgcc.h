@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,5 +63,20 @@
  * is unused.
  */
 #define ACPI_UNUSED_VAR __attribute__ ((unused))
+
+/*
+ * Some versions of gcc implement strchr() with a buggy macro. So,
+ * undef it here. Prevents error messages of this form (usually from the
+ * file getopt.c):
+ *
+ * error: logical '&&' with non-zero constant will always evaluate as true
+ */
+#ifdef strchr
+#undef strchr
+#endif
+
+/* GCC supports __VA_ARGS__ in macros */
+
+#define COMPILER_VA_MACRO               1
 
 #endif				/* __ACGCC_H__ */

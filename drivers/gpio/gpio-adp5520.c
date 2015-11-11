@@ -89,7 +89,7 @@ static int adp5520_gpio_direction_output(struct gpio_chip *chip,
 
 static int adp5520_gpio_probe(struct platform_device *pdev)
 {
-	struct adp5520_gpio_platform_data *pdata = pdev->dev.platform_data;
+	struct adp5520_gpio_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct adp5520_gpio *dev;
 	struct gpio_chip *gc;
 	int ret, i, gpios;
@@ -106,10 +106,8 @@ static int adp5520_gpio_probe(struct platform_device *pdev)
 	}
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
-	if (dev == NULL) {
-		dev_err(&pdev->dev, "failed to alloc memory\n");
+	if (dev == NULL)
 		return -ENOMEM;
-	}
 
 	dev->master = pdev->dev.parent;
 
@@ -127,7 +125,7 @@ static int adp5520_gpio_probe(struct platform_device *pdev)
 	gc->direction_output = adp5520_gpio_direction_output;
 	gc->get = adp5520_gpio_get_value;
 	gc->set = adp5520_gpio_set_value;
-	gc->can_sleep = 1;
+	gc->can_sleep = true;
 
 	gc->base = pdata->gpio_start;
 	gc->ngpio = gpios;
@@ -169,15 +167,9 @@ err:
 static int adp5520_gpio_remove(struct platform_device *pdev)
 {
 	struct adp5520_gpio *dev;
-	int ret;
 
 	dev = platform_get_drvdata(pdev);
-	ret = gpiochip_remove(&dev->gpio_chip);
-	if (ret) {
-		dev_err(&pdev->dev, "%s failed, %d\n",
-				"gpiochip_remove()", ret);
-		return ret;
-	}
+	gpiochip_remove(&dev->gpio_chip);
 
 	return 0;
 }
@@ -185,7 +177,6 @@ static int adp5520_gpio_remove(struct platform_device *pdev)
 static struct platform_driver adp5520_gpio_driver = {
 	.driver	= {
 		.name	= "adp5520-gpio",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= adp5520_gpio_probe,
 	.remove		= adp5520_gpio_remove,

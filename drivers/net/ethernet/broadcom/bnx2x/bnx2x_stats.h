@@ -1,12 +1,14 @@
-/* bnx2x_stats.h: Broadcom Everest network driver.
+/* bnx2x_stats.h: QLogic Everest network driver.
  *
  * Copyright (c) 2007-2013 Broadcom Corporation
+ * Copyright (c) 2014 QLogic Corporation
+ * All rights reserved
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation.
  *
- * Maintained by: Eilon Greenstein <eilong@broadcom.com>
+ * Maintained by: Ariel Elior <ariel.elior@qlogic.com>
  * Written by: Eliezer Tamir
  * Based on code from Michael Chan's bnx2 driver
  * UDP CSUM errata workaround by Arik Gendelman
@@ -39,7 +41,6 @@ struct nig_stats {
 	u32 egress_mac_pkt1_lo;
 	u32 egress_mac_pkt1_hi;
 };
-
 
 enum bnx2x_stats_event {
 	STATS_EVENT_PMF = 0,
@@ -208,7 +209,6 @@ struct bnx2x_eth_stats {
 	u32 eee_tx_lpi;
 };
 
-
 struct bnx2x_eth_q_stats {
 	u32 total_unicast_bytes_received_hi;
 	u32 total_unicast_bytes_received_lo;
@@ -330,7 +330,6 @@ struct bnx2x_fw_port_stats_old {
 	 u32 brb_truncate_discard;
 	 u32 mac_discard;
 };
-
 
 /****************************************************************************
 * Macros
@@ -536,13 +535,15 @@ struct bnx2x_fw_port_stats_old {
 		SUB_EXTEND_64(qstats->t##_hi, qstats->t##_lo, diff); \
 	} while (0)
 
-
 /* forward */
 struct bnx2x;
 
 void bnx2x_memset_stats(struct bnx2x *bp);
 void bnx2x_stats_init(struct bnx2x *bp);
 void bnx2x_stats_handle(struct bnx2x *bp, enum bnx2x_stats_event event);
+int bnx2x_stats_safe_exec(struct bnx2x *bp,
+			  void (func_to_exec)(void *cookie),
+			  void *cookie);
 
 /**
  * bnx2x_save_statistics - save statistics when unloading.

@@ -42,7 +42,7 @@ Adding ACPI support for an existing driver should be pretty
 straightforward. Here is the simplest example:
 
 	#ifdef CONFIG_ACPI
-	static struct acpi_device_id mydrv_acpi_match[] = {
+	static const struct acpi_device_id mydrv_acpi_match[] = {
 		/* ACPI IDs here */
 		{ }
 	};
@@ -59,12 +59,6 @@ straightforward. Here is the simplest example:
 If the driver needs to perform more complex initialization like getting and
 configuring GPIOs it can get its ACPI handle and extract this information
 from ACPI tables.
-
-Currently the kernel is not able to automatically determine from which ACPI
-device it should make the corresponding platform device so we need to add
-the ACPI device explicitly to acpi_platform_device_ids list defined in
-drivers/acpi/acpi_platform.c. This limitation is only for the platform
-devices, SPI and I2C devices are created automatically as described below.
 
 DMA support
 ~~~~~~~~~~~
@@ -172,7 +166,7 @@ the platform device drivers. Below is an example where we add ACPI support
 to at25 SPI eeprom driver (this is meant for the above ACPI snippet):
 
 	#ifdef CONFIG_ACPI
-	static struct acpi_device_id at25_acpi_match[] = {
+	static const struct acpi_device_id at25_acpi_match[] = {
 		{ "AT25", 0 },
 		{ },
 	};
@@ -207,7 +201,7 @@ passing those. One idea is to return this in _DSM method like:
 			Return (Local0)
 		}
 
-Then the at25 SPI driver can get this configation by calling _DSM on its
+Then the at25 SPI driver can get this configuration by calling _DSM on its
 ACPI handle like:
 
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -228,25 +222,15 @@ ACPI handle like:
 I2C serial bus support
 ~~~~~~~~~~~~~~~~~~~~~~
 The slaves behind I2C bus controller only need to add the ACPI IDs like
-with the platform and SPI drivers. However the I2C bus controller driver
-needs to call acpi_i2c_register_devices() after it has added the adapter.
-
-An I2C bus (controller) driver does:
-
-	...
-	ret = i2c_add_numbered_adapter(adapter);
-	if (ret)
-		/* handle error */
-
-	of_i2c_register_devices(adapter);
-	/* Enumerate the slave devices behind this bus via ACPI */
-	acpi_i2c_register_devices(adapter);
+with the platform and SPI drivers. The I2C core automatically enumerates
+any slave devices behind the controller device once the adapter is
+registered.
 
 Below is an example of how to add ACPI support to the existing mpu3050
 input driver:
 
 	#ifdef CONFIG_ACPI
-	static struct acpi_device_id mpu3050_acpi_match[] = {
+	static const struct acpi_device_id mpu3050_acpi_match[] = {
 		{ "MPU3050", 0 },
 		{ },
 	};
@@ -259,7 +243,7 @@ input driver:
 			.owner	= THIS_MODULE,
 			.pm	= &mpu3050_pm,
 			.of_match_table = mpu3050_of_match,
-			.acpi_match_table  ACPI_PTR(mpu3050_acpi_match),
+			.acpi_match_table = ACPI_PTR(mpu3050_acpi_match),
 		},
 		.probe		= mpu3050_probe,
 		.remove		= mpu3050_remove,
@@ -269,9 +253,14 @@ input driver:
 GPIO support
 ~~~~~~~~~~~~
 ACPI 5 introduced two new resources to describe GPIO connections: GpioIo
-and GpioInt. These resources are used be used to pass GPIO numbers used by
-the device to the driver. For example:
+and GpioInt. These resources can be used to pass GPIO numbers used by
+the device to the driver. ACPI 5.1 extended this with _DSD (Device
+Specific Data) which made it possible to name the GPIOs among other things.
 
+For example:
+
+Device (DEV)
+{
 	Method (_CRS, 0, NotSerialized)
 	{
 		Name (SBUF, ResourceTemplate()
@@ -301,34 +290,128 @@ the device to the driver. For example:
 		Return (SBUF)
 	}
 
+	// ACPI 5.1 _DSD used for naming the GPIOs
+	Name (_DSD, Package ()
+	{
+		ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+		Package ()
+		{
+			Package () {"power-gpios", Package() {^DEV, 0, 0, 0 }},
+			Package () {"irq-gpios", Package() {^DEV, 1, 0, 0 }},
+		}
+	})
+	...
+
 These GPIO numbers are controller relative and path "\\_SB.PCI0.GPI0"
 specifies the path to the controller. In order to use these GPIOs in Linux
-we need to translate them to the Linux GPIO numbers.
+we need to translate them to the corresponding Linux GPIO descriptors.
 
-The driver can do this by including <linux/acpi_gpio.h> and then calling
-acpi_get_gpio(path, gpio). This will return the Linux GPIO number or
-negative errno if there was no translation found.
+There is a standard GPIO API for that and is documented in
+Documentation/gpio/.
 
-In a simple case of just getting the Linux GPIO number from device
-resources one can use acpi_get_gpio_by_index() helper function. It takes
-pointer to the device and index of the GpioIo/GpioInt descriptor in the
-device resources list. For example:
+In the above example we can get the corresponding two GPIO descriptors with
+a code like this:
 
-	int gpio_irq, gpio_power;
-	int ret;
+	#include <linux/gpio/consumer.h>
+	...
 
-	gpio_irq = acpi_get_gpio_by_index(dev, 1, NULL);
-	if (gpio_irq < 0)
+	struct gpio_desc *irq_desc, *power_desc;
+
+	irq_desc = gpiod_get(dev, "irq");
+	if (IS_ERR(irq_desc))
 		/* handle error */
 
-	gpio_power = acpi_get_gpio_by_index(dev, 0, NULL);
-	if (gpio_power < 0)
+	power_desc = gpiod_get(dev, "power");
+	if (IS_ERR(power_desc))
 		/* handle error */
 
-	/* Now we can use the GPIO numbers */
+	/* Now we can use the GPIO descriptors */
 
-Other GpioIo parameters must be converted first by the driver to be
-suitable to the gpiolib before passing them.
+There are also devm_* versions of these functions which release the
+descriptors once the device is released.
 
-In case of GpioInt resource an additional call to gpio_to_irq() must be
-done before calling request_irq().
+See Documentation/acpi/gpio-properties.txt for more information about the
+_DSD binding related to GPIOs.
+
+MFD devices
+~~~~~~~~~~~
+The MFD devices register their children as platform devices. For the child
+devices there needs to be an ACPI handle that they can use to reference
+parts of the ACPI namespace that relate to them. In the Linux MFD subsystem
+we provide two ways:
+
+	o The children share the parent ACPI handle.
+	o The MFD cell can specify the ACPI id of the device.
+
+For the first case, the MFD drivers do not need to do anything. The
+resulting child platform device will have its ACPI_COMPANION() set to point
+to the parent device.
+
+If the ACPI namespace has a device that we can match using an ACPI id or ACPI
+adr, the cell should be set like:
+
+	static struct mfd_cell_acpi_match my_subdevice_cell_acpi_match = {
+		.pnpid = "XYZ0001",
+		.adr = 0,
+	};
+
+	static struct mfd_cell my_subdevice_cell = {
+		.name = "my_subdevice",
+		/* set the resources relative to the parent */
+		.acpi_match = &my_subdevice_cell_acpi_match,
+	};
+
+The ACPI id "XYZ0001" is then used to lookup an ACPI device directly under
+the MFD device and if found, that ACPI companion device is bound to the
+resulting child platform device.
+
+Device Tree namespace link device ID
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The Device Tree protocol uses device indentification based on the "compatible"
+property whose value is a string or an array of strings recognized as device
+identifiers by drivers and the driver core.  The set of all those strings may be
+regarded as a device indentification namespace analogous to the ACPI/PNP device
+ID namespace.  Consequently, in principle it should not be necessary to allocate
+a new (and arguably redundant) ACPI/PNP device ID for a devices with an existing
+identification string in the Device Tree (DT) namespace, especially if that ID
+is only needed to indicate that a given device is compatible with another one,
+presumably having a matching driver in the kernel already.
+
+In ACPI, the device identification object called _CID (Compatible ID) is used to
+list the IDs of devices the given one is compatible with, but those IDs must
+belong to one of the namespaces prescribed by the ACPI specification (see
+Section 6.1.2 of ACPI 6.0 for details) and the DT namespace is not one of them.
+Moreover, the specification mandates that either a _HID or an _ADR identificaion
+object be present for all ACPI objects representing devices (Section 6.1 of ACPI
+6.0).  For non-enumerable bus types that object must be _HID and its value must
+be a device ID from one of the namespaces prescribed by the specification too.
+
+The special DT namespace link device ID, PRP0001, provides a means to use the
+existing DT-compatible device identification in ACPI and to satisfy the above
+requirements following from the ACPI specification at the same time.  Namely,
+if PRP0001 is returned by _HID, the ACPI subsystem will look for the
+"compatible" property in the device object's _DSD and will use the value of that
+property to identify the corresponding device in analogy with the original DT
+device identification algorithm.  If the "compatible" property is not present
+or its value is not valid, the device will not be enumerated by the ACPI
+subsystem.  Otherwise, it will be enumerated automatically as a platform device
+(except when an I2C or SPI link from the device to its parent is present, in
+which case the ACPI core will leave the device enumeration to the parent's
+driver) and the identification strings from the "compatible" property value will
+be used to find a driver for the device along with the device IDs listed by _CID
+(if present).
+
+Analogously, if PRP0001 is present in the list of device IDs returned by _CID,
+the identification strings listed by the "compatible" property value (if present
+and valid) will be used to look for a driver matching the device, but in that
+case their relative priority with respect to the other device IDs listed by
+_HID and _CID depends on the position of PRP0001 in the _CID return package.
+Specifically, the device IDs returned by _HID and preceding PRP0001 in the _CID
+return package will be checked first.  Also in that case the bus type the device
+will be enumerated to depends on the device ID returned by _HID.
+
+It is valid to define device objects with a _HID returning PRP0001 and without
+the "compatible" property in the _DSD or a _CID as long as one of their
+ancestors provides a _DSD with a valid "compatible" property.  Such device
+objects are then simply regarded as additional "blocks" providing hierarchical
+configuration information to the driver of the composite ancestor device.

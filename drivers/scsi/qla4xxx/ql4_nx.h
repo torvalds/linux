@@ -1,6 +1,6 @@
 /*
  * QLogic iSCSI HBA Driver
- * Copyright (c)  2003-2012 QLogic Corporation
+ * Copyright (c)  2003-2013 QLogic Corporation
  *
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
@@ -858,6 +858,9 @@ struct crb_addr_pair {
 #define QLA83XX_POLLRD	35
 #define QLA83XX_RDMUX2	36
 #define QLA83XX_POLLRDMWR  37
+#define QLA8044_RDDFE	38
+#define QLA8044_RDMDIO	39
+#define QLA8044_POLLWR	40
 #define QLA8XXX_RDROM	71
 #define QLA8XXX_RDMEM	72
 #define QLA8XXX_CNTRL	98

@@ -6,43 +6,24 @@
  * Handler for user extended attributes.
  */
 
+#include <linux/nls.h>
+
 #include "hfsplus_fs.h"
 #include "xattr.h"
 
 static int hfsplus_user_getxattr(struct dentry *dentry, const char *name,
 					void *buffer, size_t size, int type)
 {
-	char xattr_name[HFSPLUS_ATTR_MAX_STRLEN + 1] = {0};
-	size_t len = strlen(name);
 
-	if (!strcmp(name, ""))
-		return -EINVAL;
-
-	if (len + XATTR_USER_PREFIX_LEN > HFSPLUS_ATTR_MAX_STRLEN)
-		return -EOPNOTSUPP;
-
-	strcpy(xattr_name, XATTR_USER_PREFIX);
-	strcpy(xattr_name + XATTR_USER_PREFIX_LEN, name);
-
-	return hfsplus_getxattr(dentry, xattr_name, buffer, size);
+	return hfsplus_getxattr(dentry, name, buffer, size,
+				XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN);
 }
 
 static int hfsplus_user_setxattr(struct dentry *dentry, const char *name,
 		const void *buffer, size_t size, int flags, int type)
 {
-	char xattr_name[HFSPLUS_ATTR_MAX_STRLEN + 1] = {0};
-	size_t len = strlen(name);
-
-	if (!strcmp(name, ""))
-		return -EINVAL;
-
-	if (len + XATTR_USER_PREFIX_LEN > HFSPLUS_ATTR_MAX_STRLEN)
-		return -EOPNOTSUPP;
-
-	strcpy(xattr_name, XATTR_USER_PREFIX);
-	strcpy(xattr_name + XATTR_USER_PREFIX_LEN, name);
-
-	return hfsplus_setxattr(dentry, xattr_name, buffer, size, flags);
+	return hfsplus_setxattr(dentry, name, buffer, size, flags,
+				XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN);
 }
 
 static size_t hfsplus_user_listxattr(struct dentry *dentry, char *list,

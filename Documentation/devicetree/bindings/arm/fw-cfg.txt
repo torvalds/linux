@@ -1,0 +1,72 @@
+* QEMU Firmware Configuration bindings for ARM
+
+QEMU's arm-softmmu and aarch64-softmmu emulation / virtualization targets
+provide the following Firmware Configuration interface on the "virt" machine
+type:
+
+- A write-only, 16-bit wide selector (or control) register,
+- a read-write, 64-bit wide data register.
+
+QEMU exposes the control and data register to ARM guests as memory mapped
+registers; their location is communicated to the guest's UEFI firmware in the
+DTB that QEMU places at the bottom of the guest's DRAM.
+
+The guest writes a selector value (a key) to the selector register, and then
+can read the corresponding data (produced by QEMU) via the data register. If
+the selected entry is writable, the guest can rewrite it through the data
+register.
+
+The selector register takes keys in big endian byte order.
+
+The data register allows accesses with 8, 16, 32 and 64-bit width (only at
+offset 0 of the register). Accesses larger than a byte are interpreted as
+arrays, bundled together only for better performance. The bytes constituting
+such a word, in increasing address order, correspond to the bytes that would
+have been transferred by byte-wide accesses in chronological order.
+
+The interface allows guest firmware to download various parameters and blobs
+that affect how the firmware works and what tables it installs for the guest
+OS. For example, boot order of devices, ACPI tables, SMBIOS tables, kernel and
+initrd images for direct kernel booting, virtual machine UUID, SMP information,
+virtual NUMA topology, and so on.
+
+The authoritative registry of the valid selector values and their meanings is
+the QEMU source code; the structure of the data blobs corresponding to the
+individual key values is also defined in the QEMU source code.
+
+The presence of the registers can be verified by selecting the "signature" blob
+with key 0x0000, and reading four bytes from the data register. The returned
+signature is "QEMU".
+
+The outermost protocol (involving the write / read sequences of the control and
+data registers) is expected to be versioned, and/or described by feature bits.
+The interface revision / feature bitmap can be retrieved with key 0x0001. The
+blob to be read from the data register has size 4, and it is to be interpreted
+as a uint32_t value in little endian byte order. The current value
+(corresponding to the above outer protocol) is zero.
+
+The guest kernel is not expected to use these registers (although it is
+certainly allowed to); the device tree bindings are documented here because
+this is where device tree bindings reside in general.
+
+Required properties:
+
+- compatible: "qemu,fw-cfg-mmio".
+
+- reg: the MMIO region used by the device.
+  * Bytes 0x0 to 0x7 cover the data register.
+  * Bytes 0x8 to 0x9 cover the selector register.
+  * Further registers may be appended to the region in case of future interface
+    revisions / feature bits.
+
+Example:
+
+/ {
+	#size-cells = <0x2>;
+	#address-cells = <0x2>;
+
+	fw-cfg@9020000 {
+		compatible = "qemu,fw-cfg-mmio";
+		reg = <0x0 0x9020000 0x0 0xa>;
+	};
+};

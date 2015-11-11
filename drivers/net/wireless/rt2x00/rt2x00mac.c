@@ -13,9 +13,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -90,7 +88,7 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 				  frag_skb->data, data_length, tx_info,
 				  (struct ieee80211_rts *)(skb->data));
 
-	retval = rt2x00queue_write_tx_frame(queue, skb, true);
+	retval = rt2x00queue_write_tx_frame(queue, skb, NULL, true);
 	if (retval) {
 		dev_kfree_skb_any(skb);
 		rt2x00_warn(rt2x00dev, "Failed to send RTS/CTS frame\n");
@@ -121,7 +119,7 @@ void rt2x00mac_tx(struct ieee80211_hw *hw,
 	 * Use the ATIM queue if appropriate and present.
 	 */
 	if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM &&
-	    test_bit(REQUIRE_ATIM_QUEUE, &rt2x00dev->cap_flags))
+	    rt2x00_has_cap_flag(rt2x00dev, REQUIRE_ATIM_QUEUE))
 		qid = QID_ATIM;
 
 	queue = rt2x00queue_get_tx_queue(rt2x00dev, qid);
@@ -151,7 +149,7 @@ void rt2x00mac_tx(struct ieee80211_hw *hw,
 			goto exit_fail;
 	}
 
-	if (unlikely(rt2x00queue_write_tx_frame(queue, skb, false)))
+	if (unlikely(rt2x00queue_write_tx_frame(queue, skb, control->sta, false)))
 		goto exit_fail;
 
 	/*
@@ -361,8 +359,7 @@ void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 	    FIF_PLCPFAIL |
 	    FIF_CONTROL |
 	    FIF_PSPOLL |
-	    FIF_OTHER_BSS |
-	    FIF_PROMISC_IN_BSS;
+	    FIF_OTHER_BSS;
 
 	/*
 	 * Apply some rules to the filters:
@@ -371,9 +368,6 @@ void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 	 * - Multicast filter seems to kill broadcast traffic so never use it.
 	 */
 	*total_flags |= FIF_ALLMULTI;
-	if (*total_flags & FIF_OTHER_BSS ||
-	    *total_flags & FIF_PROMISC_IN_BSS)
-		*total_flags |= FIF_PROMISC_IN_BSS | FIF_OTHER_BSS;
 
 	/*
 	 * If the device has a single filter for all control frames,
@@ -382,11 +376,11 @@ void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 	 * of different types, but has no a separate filter for PS Poll frames,
 	 * FIF_CONTROL flag implies FIF_PSPOLL.
 	 */
-	if (!test_bit(CAPABILITY_CONTROL_FILTERS, &rt2x00dev->cap_flags)) {
+	if (!rt2x00_has_cap_control_filters(rt2x00dev)) {
 		if (*total_flags & FIF_CONTROL || *total_flags & FIF_PSPOLL)
 			*total_flags |= FIF_CONTROL | FIF_PSPOLL;
 	}
-	if (!test_bit(CAPABILITY_CONTROL_FILTER_PSPOLL, &rt2x00dev->cap_flags)) {
+	if (!rt2x00_has_cap_control_filter_pspoll(rt2x00dev)) {
 		if (*total_flags & FIF_CONTROL)
 			*total_flags |= FIF_PSPOLL;
 	}
@@ -469,7 +463,7 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
 		return 0;
 
-	if (!test_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags))
+	if (!rt2x00_has_cap_hw_crypto(rt2x00dev))
 		return -EOPNOTSUPP;
 
 	/*
@@ -488,6 +482,8 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	crypto.bssidx = rt2x00lib_get_bssidx(rt2x00dev, vif);
 	crypto.cipher = rt2x00crypto_key_to_cipher(key);
 	if (crypto.cipher == CIPHER_NONE)
+		return -EOPNOTSUPP;
+	if (crypto.cipher == CIPHER_TKIP && rt2x00_is_usb(rt2x00dev))
 		return -EOPNOTSUPP;
 
 	crypto.cmd = cmd;
@@ -539,16 +535,8 @@ int rt2x00mac_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		      struct ieee80211_sta *sta)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	struct rt2x00_sta *sta_priv = sta_to_rt2x00_sta(sta);
 
-	/*
-	 * If there's no space left in the device table store
-	 * -1 as wcid but tell mac80211 everything went ok.
-	 */
-	if (rt2x00dev->ops->lib->sta_add(rt2x00dev, vif, sta))
-		sta_priv->wcid = -1;
-
-	return 0;
+	return rt2x00dev->ops->lib->sta_add(rt2x00dev, vif, sta);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_sta_add);
 
@@ -558,17 +546,13 @@ int rt2x00mac_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct rt2x00_sta *sta_priv = sta_to_rt2x00_sta(sta);
 
-	/*
-	 * If we never sent the STA to the device no need to clean it up.
-	 */
-	if (sta_priv->wcid < 0)
-		return 0;
-
 	return rt2x00dev->ops->lib->sta_remove(rt2x00dev, sta_priv->wcid);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_sta_remove);
 
-void rt2x00mac_sw_scan_start(struct ieee80211_hw *hw)
+void rt2x00mac_sw_scan_start(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
+			     const u8 *mac_addr)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	set_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags);
@@ -576,7 +560,8 @@ void rt2x00mac_sw_scan_start(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_sw_scan_start);
 
-void rt2x00mac_sw_scan_complete(struct ieee80211_hw *hw)
+void rt2x00mac_sw_scan_complete(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	clear_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags);
@@ -623,18 +608,11 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 				      bss_conf->bssid);
 
 	/*
-	 * Update the beacon. This is only required on USB devices. PCI
-	 * devices fetch beacons periodically.
-	 */
-	if (changes & BSS_CHANGED_BEACON && rt2x00_is_usb(rt2x00dev))
-		rt2x00queue_update_beacon(rt2x00dev, vif);
-
-	/*
 	 * Start/stop beaconing.
 	 */
 	if (changes & BSS_CHANGED_BEACON_ENABLED) {
+		mutex_lock(&intf->beacon_skb_mutex);
 		if (!bss_conf->enable_beacon && intf->enable_beacon) {
-			rt2x00queue_clear_beacon(rt2x00dev, vif);
 			rt2x00dev->intf_beaconing--;
 			intf->enable_beacon = false;
 
@@ -643,26 +621,33 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 				 * Last beaconing interface disabled
 				 * -> stop beacon queue.
 				 */
-				mutex_lock(&intf->beacon_skb_mutex);
 				rt2x00queue_stop_queue(rt2x00dev->bcn);
-				mutex_unlock(&intf->beacon_skb_mutex);
 			}
-
-
+			/*
+			 * Clear beacon in the H/W for this vif. This is needed
+			 * to disable beaconing on this particular interface
+			 * and keep it running on other interfaces.
+			 */
+			rt2x00queue_clear_beacon(rt2x00dev, vif);
 		} else if (bss_conf->enable_beacon && !intf->enable_beacon) {
 			rt2x00dev->intf_beaconing++;
 			intf->enable_beacon = true;
+			/*
+			 * Upload beacon to the H/W. This is only required on
+			 * USB devices. PCI devices fetch beacons periodically.
+			 */
+			if (rt2x00_is_usb(rt2x00dev))
+				rt2x00queue_update_beacon(rt2x00dev, vif);
 
 			if (rt2x00dev->intf_beaconing == 1) {
 				/*
 				 * First beaconing interface enabled
 				 * -> start beacon queue.
 				 */
-				mutex_lock(&intf->beacon_skb_mutex);
 				rt2x00queue_start_queue(rt2x00dev->bcn);
-				mutex_unlock(&intf->beacon_skb_mutex);
 			}
 		}
+		mutex_unlock(&intf->beacon_skb_mutex);
 	}
 
 	/*
@@ -749,10 +734,14 @@ void rt2x00mac_rfkill_poll(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_rfkill_poll);
 
-void rt2x00mac_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
+void rt2x00mac_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		     u32 queues, bool drop)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct data_queue *queue;
+
+	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
+		return;
 
 	tx_queue_for_each(rt2x00dev, queue)
 		rt2x00queue_flush_queue(queue, drop);
@@ -795,6 +784,8 @@ int rt2x00mac_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 
 	setup.tx = tx_ant;
 	setup.rx = rx_ant;
+	setup.rx_chain_num = 0;
+	setup.tx_chain_num = 0;
 
 	rt2x00lib_config_antenna(rt2x00dev, setup);
 

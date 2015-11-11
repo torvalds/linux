@@ -20,31 +20,31 @@
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>
 
-int indirect_read_config(struct pci_bus *bus, unsigned int devfn,
-			 int offset, int len, u32 *val)
+int __indirect_read_config(struct pci_controller *hose,
+			   unsigned char bus_number, unsigned int devfn,
+			   int offset, int len, u32 *val)
 {
-	struct pci_controller *hose = pci_bus_to_host(bus);
 	volatile void __iomem *cfg_data;
 	u8 cfg_type = 0;
 	u32 bus_no, reg;
 
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_NO_PCIE_LINK) {
-		if (bus->number != hose->first_busno)
+		if (bus_number != hose->first_busno)
 			return PCIBIOS_DEVICE_NOT_FOUND;
 		if (devfn != 0)
 			return PCIBIOS_DEVICE_NOT_FOUND;
 	}
 
 	if (ppc_md.pci_exclude_device)
-		if (ppc_md.pci_exclude_device(hose, bus->number, devfn))
+		if (ppc_md.pci_exclude_device(hose, bus_number, devfn))
 			return PCIBIOS_DEVICE_NOT_FOUND;
 
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_SET_CFG_TYPE)
-		if (bus->number != hose->first_busno)
+		if (bus_number != hose->first_busno)
 			cfg_type = 1;
 
-	bus_no = (bus->number == hose->first_busno) ?
-			hose->self_busno : bus->number;
+	bus_no = (bus_number == hose->first_busno) ?
+			hose->self_busno : bus_number;
 
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_EXT_REG)
 		reg = ((offset & 0xf00) << 16) | (offset & 0xfc);
@@ -75,6 +75,15 @@ int indirect_read_config(struct pci_bus *bus, unsigned int devfn,
 		break;
 	}
 	return PCIBIOS_SUCCESSFUL;
+}
+
+int indirect_read_config(struct pci_bus *bus, unsigned int devfn,
+			 int offset, int len, u32 *val)
+{
+	struct pci_controller *hose = pci_bus_to_host(bus);
+
+	return __indirect_read_config(hose, bus->number, devfn, offset, len,
+				      val);
 }
 
 int indirect_write_config(struct pci_bus *bus, unsigned int devfn,
@@ -152,10 +161,8 @@ static struct pci_ops indirect_pci_ops =
 	.write = indirect_write_config,
 };
 
-void __init
-setup_indirect_pci(struct pci_controller* hose,
-		   resource_size_t cfg_addr,
-		   resource_size_t cfg_data, u32 flags)
+void setup_indirect_pci(struct pci_controller *hose, resource_size_t cfg_addr,
+			resource_size_t cfg_data, u32 flags)
 {
 	resource_size_t base = cfg_addr & PAGE_MASK;
 	void __iomem *mbase;

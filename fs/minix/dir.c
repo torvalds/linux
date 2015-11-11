@@ -16,12 +16,12 @@
 typedef struct minix_dir_entry minix_dirent;
 typedef struct minix3_dir_entry minix3_dirent;
 
-static int minix_readdir(struct file *, void *, filldir_t);
+static int minix_readdir(struct file *, struct dir_context *);
 
 const struct file_operations minix_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.readdir	= minix_readdir,
+	.iterate	= minix_readdir,
 	.fsync		= generic_file_fsync,
 };
 
@@ -43,11 +43,6 @@ minix_last_byte(struct inode *inode, unsigned long page_nr)
 	if (page_nr == (inode->i_size >> PAGE_CACHE_SHIFT))
 		last_byte = inode->i_size & (PAGE_CACHE_SIZE - 1);
 	return last_byte;
-}
-
-static inline unsigned long dir_pages(struct inode *inode)
-{
-	return (inode->i_size+PAGE_CACHE_SIZE-1)>>PAGE_CACHE_SHIFT;
 }
 
 static int dir_commit_chunk(struct page *page, loff_t pos, unsigned len)
@@ -82,22 +77,23 @@ static inline void *minix_next_entry(void *de, struct minix_sb_info *sbi)
 	return (void*)((char*)de + sbi->s_dirsize);
 }
 
-static int minix_readdir(struct file * filp, void * dirent, filldir_t filldir)
+static int minix_readdir(struct file *file, struct dir_context *ctx)
 {
-	unsigned long pos = filp->f_pos;
-	struct inode *inode = file_inode(filp);
+	struct inode *inode = file_inode(file);
 	struct super_block *sb = inode->i_sb;
-	unsigned offset = pos & ~PAGE_CACHE_MASK;
-	unsigned long n = pos >> PAGE_CACHE_SHIFT;
-	unsigned long npages = dir_pages(inode);
 	struct minix_sb_info *sbi = minix_sb(sb);
 	unsigned chunk_size = sbi->s_dirsize;
-	char *name;
-	__u32 inumber;
+	unsigned long npages = dir_pages(inode);
+	unsigned long pos = ctx->pos;
+	unsigned offset;
+	unsigned long n;
 
-	pos = (pos + chunk_size-1) & ~(chunk_size-1);
+	ctx->pos = pos = ALIGN(pos, chunk_size);
 	if (pos >= inode->i_size)
-		goto done;
+		return 0;
+
+	offset = pos & ~PAGE_CACHE_MASK;
+	n = pos >> PAGE_CACHE_SHIFT;
 
 	for ( ; n < npages; n++, offset = 0) {
 		char *p, *kaddr, *limit;
@@ -109,6 +105,8 @@ static int minix_readdir(struct file * filp, void * dirent, filldir_t filldir)
 		p = kaddr+offset;
 		limit = kaddr + minix_last_byte(inode, n) - chunk_size;
 		for ( ; p <= limit; p = minix_next_entry(p, sbi)) {
+			const char *name;
+			__u32 inumber;
 			if (sbi->s_version == MINIX_V3) {
 				minix3_dirent *de3 = (minix3_dirent *)p;
 				name = de3->name;
@@ -119,24 +117,17 @@ static int minix_readdir(struct file * filp, void * dirent, filldir_t filldir)
 				inumber = de->inode;
 			}
 			if (inumber) {
-				int over;
-
 				unsigned l = strnlen(name, sbi->s_namelen);
-				offset = p - kaddr;
-				over = filldir(dirent, name, l,
-					(n << PAGE_CACHE_SHIFT) | offset,
-					inumber, DT_UNKNOWN);
-				if (over) {
+				if (!dir_emit(ctx, name, l,
+					      inumber, DT_UNKNOWN)) {
 					dir_put_page(page);
-					goto done;
+					return 0;
 				}
 			}
+			ctx->pos += chunk_size;
 		}
 		dir_put_page(page);
 	}
-
-done:
-	filp->f_pos = (n << PAGE_CACHE_SHIFT) | offset;
 	return 0;
 }
 
@@ -160,7 +151,7 @@ minix_dirent *minix_find_entry(struct dentry *dentry, struct page **res_page)
 {
 	const char * name = dentry->d_name.name;
 	int namelen = dentry->d_name.len;
-	struct inode * dir = dentry->d_parent->d_inode;
+	struct inode * dir = d_inode(dentry->d_parent);
 	struct super_block * sb = dir->i_sb;
 	struct minix_sb_info * sbi = minix_sb(sb);
 	unsigned long n;
@@ -207,7 +198,7 @@ found:
 
 int minix_add_link(struct dentry *dentry, struct inode *inode)
 {
-	struct inode *dir = dentry->d_parent->d_inode;
+	struct inode *dir = d_inode(dentry->d_parent);
 	const char * name = dentry->d_name.name;
 	int namelen = dentry->d_name.len;
 	struct super_block * sb = dir->i_sb;

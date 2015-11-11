@@ -107,13 +107,21 @@ static int ptp_clock_getres(struct posix_clock *pc, struct timespec *tp)
 static int ptp_clock_settime(struct posix_clock *pc, const struct timespec *tp)
 {
 	struct ptp_clock *ptp = container_of(pc, struct ptp_clock, clock);
-	return ptp->info->settime(ptp->info, tp);
+	struct timespec64 ts = timespec_to_timespec64(*tp);
+
+	return  ptp->info->settime64(ptp->info, &ts);
 }
 
 static int ptp_clock_gettime(struct posix_clock *pc, struct timespec *tp)
 {
 	struct ptp_clock *ptp = container_of(pc, struct ptp_clock, clock);
-	return ptp->info->gettime(ptp->info, tp);
+	struct timespec64 ts;
+	int err;
+
+	err = ptp->info->gettime64(ptp->info, &ts);
+	if (!err)
+		*tp = timespec64_to_timespec(ts);
+	return err;
 }
 
 static int ptp_clock_adjtime(struct posix_clock *pc, struct timex *tx)
@@ -142,7 +150,10 @@ static int ptp_clock_adjtime(struct posix_clock *pc, struct timex *tx)
 		delta = ktime_to_ns(kt);
 		err = ops->adjtime(ops, delta);
 	} else if (tx->modes & ADJ_FREQUENCY) {
-		err = ops->adjfreq(ops, scaled_ppm_to_ppb(tx->freq));
+		s32 ppb = scaled_ppm_to_ppb(tx->freq);
+		if (ppb > ops->max_adj || ppb < -ops->max_adj)
+			return -ERANGE;
+		err = ops->adjfreq(ops, ppb);
 		ptp->dialed_frequency = tx->freq;
 	} else if (tx->modes == 0) {
 		tx->freq = ptp->dialed_frequency;
@@ -169,6 +180,7 @@ static void delete_ptp_clock(struct posix_clock *pc)
 	struct ptp_clock *ptp = container_of(pc, struct ptp_clock, clock);
 
 	mutex_destroy(&ptp->tsevq_mux);
+	mutex_destroy(&ptp->pincfg_mux);
 	ida_simple_remove(&ptp_clocks_map, ptp->index);
 	kfree(ptp);
 }
@@ -203,6 +215,7 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 	ptp->index = index;
 	spin_lock_init(&ptp->tsevq.lock);
 	mutex_init(&ptp->tsevq_mux);
+	mutex_init(&ptp->pincfg_mux);
 	init_waitqueue_head(&ptp->tsev_wq);
 
 	/* Create a new device in our class. */
@@ -249,6 +262,7 @@ no_sysfs:
 	device_destroy(ptp_class, ptp->devid);
 no_device:
 	mutex_destroy(&ptp->tsevq_mux);
+	mutex_destroy(&ptp->pincfg_mux);
 no_slot:
 	kfree(ptp);
 no_memory:
@@ -305,6 +319,26 @@ int ptp_clock_index(struct ptp_clock *ptp)
 }
 EXPORT_SYMBOL(ptp_clock_index);
 
+int ptp_find_pin(struct ptp_clock *ptp,
+		 enum ptp_pin_function func, unsigned int chan)
+{
+	struct ptp_pin_desc *pin = NULL;
+	int i;
+
+	mutex_lock(&ptp->pincfg_mux);
+	for (i = 0; i < ptp->info->n_pins; i++) {
+		if (ptp->info->pin_config[i].func == func &&
+		    ptp->info->pin_config[i].chan == chan) {
+			pin = &ptp->info->pin_config[i];
+			break;
+		}
+	}
+	mutex_unlock(&ptp->pincfg_mux);
+
+	return pin ? i : -1;
+}
+EXPORT_SYMBOL(ptp_find_pin);
+
 /* module operations */
 
 static void __exit ptp_exit(void)
@@ -330,7 +364,7 @@ static int __init ptp_init(void)
 		goto no_region;
 	}
 
-	ptp_class->dev_attrs = ptp_dev_attrs;
+	ptp_class->dev_groups = ptp_groups;
 	pr_info("PTP clock support registered\n");
 	return 0;
 

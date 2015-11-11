@@ -24,16 +24,9 @@
 #include <linux/sched.h>
 #include <asm/cputype.h>
 
-extern void __cpu_flush_user_tlb_range(unsigned long, unsigned long, struct vm_area_struct *);
-extern void __cpu_flush_kern_tlb_range(unsigned long, unsigned long);
-
-extern struct cpu_tlb_fns cpu_tlb;
-
 /*
  *	TLB Management
  *	==============
- *
- *	The arch/arm64/mm/tlb.S files implement these methods.
  *
  *	The TLB specific code is expected to perform whatever tests it needs
  *	to determine if it should invalidate the TLB for each call.  Start
@@ -70,51 +63,108 @@ extern struct cpu_tlb_fns cpu_tlb;
  *		only require the D-TLB to be invalidated.
  *		- kaddr - Kernel virtual memory address
  */
+static inline void local_flush_tlb_all(void)
+{
+	dsb(nshst);
+	asm("tlbi	vmalle1");
+	dsb(nsh);
+	isb();
+}
+
 static inline void flush_tlb_all(void)
 {
-	dsb();
+	dsb(ishst);
 	asm("tlbi	vmalle1is");
-	dsb();
+	dsb(ish);
 	isb();
 }
 
 static inline void flush_tlb_mm(struct mm_struct *mm)
 {
-	unsigned long asid = (unsigned long)ASID(mm) << 48;
+	unsigned long asid = ASID(mm) << 48;
 
-	dsb();
+	dsb(ishst);
 	asm("tlbi	aside1is, %0" : : "r" (asid));
-	dsb();
+	dsb(ish);
 }
 
 static inline void flush_tlb_page(struct vm_area_struct *vma,
 				  unsigned long uaddr)
 {
-	unsigned long addr = uaddr >> 12 |
-		((unsigned long)ASID(vma->vm_mm) << 48);
+	unsigned long addr = uaddr >> 12 | (ASID(vma->vm_mm) << 48);
 
-	dsb();
-	asm("tlbi	vae1is, %0" : : "r" (addr));
-	dsb();
+	dsb(ishst);
+	asm("tlbi	vale1is, %0" : : "r" (addr));
+	dsb(ish);
 }
 
 /*
- * Convert calls to our calling convention.
+ * This is meant to avoid soft lock-ups on large TLB flushing ranges and not
+ * necessarily a performance improvement.
  */
-#define flush_tlb_range(vma,start,end)	__cpu_flush_user_tlb_range(start,end,vma)
-#define flush_tlb_kernel_range(s,e)	__cpu_flush_kern_tlb_range(s,e)
+#define MAX_TLB_RANGE	(1024UL << PAGE_SHIFT)
+
+static inline void __flush_tlb_range(struct vm_area_struct *vma,
+				     unsigned long start, unsigned long end,
+				     bool last_level)
+{
+	unsigned long asid = ASID(vma->vm_mm) << 48;
+	unsigned long addr;
+
+	if ((end - start) > MAX_TLB_RANGE) {
+		flush_tlb_mm(vma->vm_mm);
+		return;
+	}
+
+	start = asid | (start >> 12);
+	end = asid | (end >> 12);
+
+	dsb(ishst);
+	for (addr = start; addr < end; addr += 1 << (PAGE_SHIFT - 12)) {
+		if (last_level)
+			asm("tlbi vale1is, %0" : : "r"(addr));
+		else
+			asm("tlbi vae1is, %0" : : "r"(addr));
+	}
+	dsb(ish);
+}
+
+static inline void flush_tlb_range(struct vm_area_struct *vma,
+				   unsigned long start, unsigned long end)
+{
+	__flush_tlb_range(vma, start, end, false);
+}
+
+static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+{
+	unsigned long addr;
+
+	if ((end - start) > MAX_TLB_RANGE) {
+		flush_tlb_all();
+		return;
+	}
+
+	start >>= 12;
+	end >>= 12;
+
+	dsb(ishst);
+	for (addr = start; addr < end; addr += 1 << (PAGE_SHIFT - 12))
+		asm("tlbi vaae1is, %0" : : "r"(addr));
+	dsb(ish);
+	isb();
+}
 
 /*
- * On AArch64, the cache coherency is handled via the set_pte_at() function.
+ * Used to invalidate the TLB (walk caches) corresponding to intermediate page
+ * table levels (pgd/pud/pmd).
  */
-static inline void update_mmu_cache(struct vm_area_struct *vma,
-				    unsigned long addr, pte_t *ptep)
+static inline void __flush_tlb_pgtable(struct mm_struct *mm,
+				       unsigned long uaddr)
 {
-	/*
-	 * set_pte() does not have a DSB, so make sure that the page table
-	 * write is visible.
-	 */
-	dsb();
+	unsigned long addr = uaddr >> 12 | (ASID(mm) << 48);
+
+	asm("tlbi	vae1is, %0" : : "r" (addr));
+	dsb(ish);
 }
 
 #endif

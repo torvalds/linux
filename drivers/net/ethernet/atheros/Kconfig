@@ -7,9 +7,7 @@ config NET_VENDOR_ATHEROS
 	default y
 	depends on PCI
 	---help---
-	  If you have a network (Ethernet) card belonging to this class, say Y
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
@@ -22,7 +20,6 @@ config ATL2
 	tristate "Atheros L2 Fast Ethernet support"
 	depends on PCI
 	select CRC32
-	select NET_CORE
 	select MII
 	---help---
 	  This driver supports the Atheros L2 fast ethernet adapter.
@@ -34,7 +31,6 @@ config ATL1
 	tristate "Atheros/Attansic L1 Gigabit Ethernet support"
 	depends on PCI
 	select CRC32
-	select NET_CORE
 	select MII
 	---help---
 	  This driver supports the Atheros/Attansic L1 gigabit ethernet
@@ -47,7 +43,6 @@ config ATL1E
 	tristate "Atheros L1E Gigabit Ethernet support"
 	depends on PCI
 	select CRC32
-	select NET_CORE
 	select MII
 	---help---
 	  This driver supports the Atheros L1E gigabit ethernet adapter.
@@ -59,7 +54,6 @@ config ATL1C
 	tristate "Atheros L1C Gigabit Ethernet support"
 	depends on PCI
 	select CRC32
-	select NET_CORE
 	select MII
 	---help---
 	  This driver supports the Atheros L1C gigabit ethernet adapter.
@@ -71,7 +65,6 @@ config ALX
 	tristate "Qualcomm Atheros AR816x/AR817x support"
 	depends on PCI
 	select CRC32
-	select NET_CORE
 	select MDIO
 	help
 	  This driver supports the Qualcomm Atheros L1F ethernet adapter,

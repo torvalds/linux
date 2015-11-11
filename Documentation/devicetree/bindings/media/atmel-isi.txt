@@ -1,0 +1,51 @@
+Atmel Image Sensor Interface (ISI) SoC Camera Subsystem
+----------------------------------------------
+
+Required properties:
+- compatible: must be "atmel,at91sam9g45-isi"
+- reg: physical base address and length of the registers set for the device;
+- interrupts: should contain IRQ line for the ISI;
+- clocks: list of clock specifiers, corresponding to entries in
+          the clock-names property;
+- clock-names: must contain "isi_clk", which is the isi peripherial clock.
+
+ISI supports a single port node with parallel bus. It should contain one
+'port' child node with child 'endpoint' node. Please refer to the bindings
+defined in Documentation/devicetree/bindings/media/video-interfaces.txt.
+
+Example:
+	isi: isi@f0034000 {
+		compatible = "atmel,at91sam9g45-isi";
+		reg = <0xf0034000 0x4000>;
+		interrupts = <37 IRQ_TYPE_LEVEL_HIGH 5>;
+
+		clocks = <&isi_clk>;
+		clock-names = "isi_clk";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_isi>;
+
+		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			isi_0: endpoint {
+				remote-endpoint = <&ov2640_0>;
+				bus-width = <8>;
+			};
+		};
+	};
+
+	i2c1: i2c@f0018000 {
+		ov2640: camera@0x30 {
+			compatible = "ovti,ov2640";
+			reg = <0x30>;
+
+			port {
+				ov2640_0: endpoint {
+					remote-endpoint = <&isi_0>;
+					bus-width = <8>;
+				};
+			};
+		};
+	};

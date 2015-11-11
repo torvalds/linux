@@ -29,21 +29,13 @@ extern void e820_setup_gap(void);
 extern int e820_search_gap(unsigned long *gapstart, unsigned long *gapsize,
 			unsigned long start_addr, unsigned long long end_addr);
 struct setup_data;
-extern void parse_e820_ext(struct setup_data *data);
+extern void parse_e820_ext(u64 phys_addr, u32 data_len);
 
 #if defined(CONFIG_X86_64) || \
 	(defined(CONFIG_X86_32) && defined(CONFIG_HIBERNATION))
 extern void e820_mark_nosave_regions(unsigned long limit_pfn);
 #else
 static inline void e820_mark_nosave_regions(unsigned long limit_pfn)
-{
-}
-#endif
-
-#ifdef CONFIG_MEMTEST
-extern void early_memtest(unsigned long start, unsigned long end);
-#else
-static inline void early_memtest(unsigned long start, unsigned long end)
 {
 }
 #endif

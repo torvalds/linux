@@ -1,326 +1,43 @@
-config SND_RK_SOC
-	tristate "SoC Audio for the Rockchip System-on-Chip"
-	depends on SND_SOC
-	select SND_SOC_GENERIC_DMAENGINE_PCM
+config SND_SOC_ROCKCHIP
+	tristate "ASoC support for Rockchip"
+	depends on COMPILE_TEST || ARCH_ROCKCHIP
 	help
 	  Say Y or M if you want to add support for codecs attached to
-	  the ROCKCHIP IIS interface. You will also need
-	  to select the audio interfaces to support below.
+	  the Rockchip SoCs' Audio interfaces. You will also need to
+	  select the audio interfaces to support below.
 
-config SND_RK_SOC_I2S
-	tristate
-
-config SND_RK_SOC_SPDIF
-	tristate
-
-if SND_RK_SOC
-
-if SND_RK_SOC && RK_HDMI
-choice
-  bool "Set audio support for HDMI"
-  default SND_RK_SOC_HDMI_I2S
-	config SND_RK_SOC_HDMI_I2S
-		depends on !RK616_USE_MCLK_12M || !SND_RK_SOC_RK616
-		select SND_RK_SOC_I2S
-		select SND_SOC_HDMI_I2S
-		tristate  "HDMI use I2S"
-
-	config SND_RK_SOC_HDMI_SPDIF
-		#depends on SND_RK_SOC_RK616
-		select SND_RK_SOC_SPDIF
-		select SND_SOC_HDMI_SPDIF
-		tristate  "HDMI use SPDIF"
-endchoice
-endif #SND_RK_SOC && RK_HDMI
-
-config SND_RK_SOC_SPDIF_CARD
-	tristate "SoC spdif card support for rockchip"
-	depends on !SND_RK_SOC_HDMI_SPDIF
-		select SND_RK_SOC_SPDIF
-		select SND_SOC_HDMI_SPDIF
-
-
-
-config SND_RK_SOC_AK4396
-	tristate "SoC I2S Audio support for rockchip - AK4396"
-	depends on SND_RK_SOC
-	select SND_RK_SOC_I2S
-	select SND_SOC_AK4396
+config SND_SOC_ROCKCHIP_I2S
+	tristate "Rockchip I2S Device Driver"
+	depends on CLKDEV_LOOKUP && SND_SOC_ROCKCHIP
+	select SND_SOC_GENERIC_DMAENGINE_PCM
 	help
-	  Say Y if you want to add support for SoC audio on rockchip
-	  with the AK4396.
+	  Say Y or M if you want to add support for I2S driver for
+	  Rockchip I2S device. The device supports upto maximum of
+	  8 channels each for play and record.
 
-config SND_RK_SOC_ES8323
-	tristate "SoC I2S Audio support for rockchip - ES8323"
-	depends on SND_RK_SOC
-	select SND_RK_SOC_I2S
-	select SND_SOC_ES8323
+config SND_SOC_ROCKCHIP_SPDIF
+	tristate "Rockchip SPDIF Device Driver"
+	depends on CLKDEV_LOOKUP && SND_SOC_ROCKCHIP
+	select SND_SOC_GENERIC_DMAENGINE_PCM
 	help
-	  Say Y if you want to add support for SoC audio on rockchip
-	  with the ES8323.
+	  Say Y or M if you want to add support for SPDIF driver for
+	  Rockchip SPDIF transceiver device.
 
-config SND_RK_SOC_ES8316
-        tristate "SoC I2S Audio support for rockchip - ES8316"
-        depends on SND_RK_SOC
-        select SND_RK_SOC_I2S
-        select SND_SOC_ES8316
-        help
-          Say Y if you want to add support for SoC audio on rockchip
-          with the ES8316.
-
-config SND_SOC_ES8323_PCM
-	tristate "SoC I2S Audio support for rockchip - ES8323 for PCM modem"
-	depends on SND_RK_SOC
+config SND_SOC_ROCKCHIP_MAX98090
+	tristate "ASoC support for Rockchip boards using a MAX98090 codec"
+	depends on SND_SOC_ROCKCHIP && I2C && GPIOLIB && CLKDEV_LOOKUP
+	select SND_SOC_ROCKCHIP_I2S
+	select SND_SOC_MAX98090
+	select SND_SOC_TS3A227E
 	help
-	  Say Y if you want to add support for SoC audio on rockchip
-	  with the ES8323 for PCM modem.
+	  Say Y or M here if you want to add support for SoC audio on Rockchip
+	  boards using the MAX98090 codec, such as Veyron.
 
-config SND_RK_SOC_WM8988
-	tristate "SoC I2S Audio support for rockchip - WM8988"
-	depends on SND_RK_SOC
-	select SND_RK_SOC_I2S
-	select SND_SOC_WM8988
+config SND_SOC_ROCKCHIP_RT5645
+	tristate "ASoC support for Rockchip boards using a RT5645/RT5650 codec"
+	depends on SND_SOC_ROCKCHIP && I2C && GPIOLIB && CLKDEV_LOOKUP
+	select SND_SOC_ROCKCHIP_I2S
+	select SND_SOC_RT5645
 	help
-	  Say Y if you want to add support for SoC audio on rockchip
-	  with the WM8988.
-
-config SND_RK_SOC_WM8900
-	tristate "SoC I2S Audio support for rockchip - WM8900"
-	depends on SND_RK_SOC
-	select SND_RK_SOC_I2S
-	select SND_SOC_WM8900
-	help
-	  Say Y if you want to add support for SoC audio on rockchip
-	  with the WM8900.
-
-config SND_RK_SOC_RT5512
-	tristate "SoC I2S Audio support for rockchip - RICHTEK5512"
-	depends on SND_RK_SOC
-	select SND_SOC_RT5512
-	select SND_RK_SOC_I2S
-	help
-	  Say Y if you want to add support for SoC audio on the rockchip.
-
-config SND_RK_SOC_CX2070X
-	tristate "SoC I2S Audio support for rockchip - CX2070X"
-	depends on SND_RK_SOC
-	select SND_SOC_CX2070X
-	select SND_RK_SOC_I2S
-	help
-	  Say Y if you want to add support for SoC audio on the rockchip.
-
-config SND_RK_SOC_RT5621
-	tristate "SoC I2S Audio support for rockchip - rt5621"
-	depends on SND_RK_SOC
-	select SND_RK_SOC_I2S
-	select SND_SOC_RT5621
-	help
-	  Say Y if you want to add support for SoC audio on rockchip
-	  with the rt5621.
-config SND_RK_SOC_RT5623
-	tristate "SoC I2S Audio support for rockchip - rt5623"
-	depends on SND_RK_SOC
-	select SND_RK_SOC_I2S
-	select SND_SOC_RT5623
-	help
-	  Say Y if you want to add support for SoC audio on rockchip
-	  with the rt5623.
-
-config SND_RK_SOC_RT5631
-	tristate "SoC I2S Audio support for rockchip - RT5631"
-	depends on SND_RK_SOC
-	select SND_RK_SOC_I2S
-	select SND_SOC_RT5631
-	help
-	  Say Y if you want to add support for SoC audio on rockchip
-	  with the RT5631.
-
-config SND_RK_SOC_RT5631_PHONE
-	tristate "SoC I2S Audio support for rockchip(phone) - RT5631"
-	depends on SND_RK_SOC
-	select SND_RK_SOC_I2S
-	select SND_SOC_RT5631_PHONE
-	help
-	  Say Y if you want to add support for SoC audio on rockchip
-	  with the RT5631.
-	  Driver code to use on the phone or voice Tablet.
-
-config SND_RK_SOC_RT5625
-	tristate "SoC I2S Audio support for rockchip - RT5625"
-	depends on SND_RK_SOC
-	select SND_RK_SOC_I2S
-	help
-	  Say Y if you want to add support for SoC audio on rockchip
-	  with the RT5625.
-
-choice
-	depends on SND_RK_SOC_RT5625
-	prompt  "RT5625 hardware select"
-
-	config SND_SOC_RT5625_SPK_FORM_SPKOUT
-	bool "spk from spkout"
-	select SND_SOC_RT5625
-	help
-	  if your codec output hardware connect is spk from spkout, choose it
-
-	config SND_SOC_RT5625_SPK_FORM_HPOUT
-	bool "spk from hpout"
-	select SND_SOC_RT5625
-	help
-	  if your codec output hardware connect is spk from spkout, choose it
-endchoice
-
-config SND_RK_SOC_RT5640
-	tristate "SoC I2S Audio support for rockchip - RT5640(RT5642)"
-	depends on SND_RK_SOC
-	select SND_RK_SOC_I2S
-	select SND_SOC_RT5640
-	help
-	   RT5640 is pin to pin as RT5642, but not have dsp function.
-
-config SND_RK_SOC_RT3224
-	tristate "SoC I2S Audio support for rockchip - RT3224"
-	depends on SND_RK_SOC
-	select SND_RK_SOC_I2S
-	select SND_SOC_RT3224
-	help
-	  RT3224 is pin to pin as RT3261, but not have dsp function.
-
-config SND_RK_SOC_RT5639
-	tristate "SoC I2S Audio support for rockchip - RT5639"
-	depends on SND_RK_SOC
-	select SND_RK_SOC_I2S
-	select SND_SOC_RT5639
-	help
-	  rt5639
-
-config SND_RK_SOC_RT5616
-	tristate "SoC I2S Audio support for rockchip - RT5616"
-	depends on SND_RK_SOC
-	select SND_RK_SOC_I2S
-	select SND_SOC_RT5616
-	help
-	  Say Y if you want to add support for SoC audio on rockchip
-	  with the RT5616.
-
-config SND_RK_SOC_RT3261
-	tristate "SoC I2S Audio support for rockchip - RT3261"
-	depends on SND_RK_SOC
-	select SND_RK_SOC_I2S
-	select SND_SOC_RT3261
-	help
-	  Say Y if you want to add support for SoC audio on rockchip
-	  with the RT3261.
-
-config SND_RK_SOC_WM8994
-	tristate "SoC I2S Audio support for rockchip - WM8994"
-	depends on SND_RK_SOC && MFD_WM8994
-	select SND_RK_SOC_I2S
-	select SND_SOC_WM8994
-	help
-	  Say Y if you want to add support for SoC audio on rockchip
-	  with the WM8994.
-
-config SND_RK_SOC_CS42L52
-	tristate "SoC I2S Audio support for rockchip - CS42L52"
-	depends on SND_RK_SOC
-	select SND_RK_SOC_I2S
-	select SND_SOC_CS42L52
-	help
-	  Say Y if you want to add support for SoC audio on rockchip
-	  with the CS42L52.
-
-config SND_RK_SOC_AIC3111
-	tristate "SoC I2S Audio support for rockchip - AIC3111"
-	depends on SND_RK_SOC
-	select SND_RK_SOC_I2S
-	select SND_SOC_TLV320AIC3111
-	help
-	  Say Y if you want to add support for SoC audio on rockchip
-	  with the AIC3111.
-
-config SND_RK_SOC_AIC3262
-	tristate "SoC I2S Audio support for rockchip - AIC3262"
-	depends on SND_RK_SOC
-	select SND_RK_SOC_I2S
-	select SND_SOC_TLV320AIC326X
-	help
-	  Say Y if you want to add support for SoC audio on rockchip
-	  with the AIC3262.
-
-config SND_RK_SOC_RK1000
-	tristate "SoC I2S Audio support for rockchip - RK1000"
-	depends on SND_RK_SOC
-	select SND_RK_SOC_I2S
-	select SND_SOC_RK1000
-	help
-	  Say Y if you want to add support for SoC audio on rockchip
-	  with the RK1000.
-
-config SND_RK_SOC_RK3036
-	tristate "SoC I2S Audio support for rockchip - RK3036"
-	depends on SND_RK_SOC
-	select SND_RK_SOC_I2S
-	select SND_SOC_RK3036
-	help
-	  Say Y if you want to add support for SoC audio on rockchip
-	  with the RK3036 s40.
-
-config SND_RK_SOC_RK312X
-        tristate "SoC I2S Audio support for rockchip - RK312X"
-        depends on SND_RK_SOC
-        select SND_RK_SOC_I2S
-        select SND_SOC_RK312X
-        help
-          Say Y if you want to add support for SoC audio on rockchip
-          with the rk3128 && rk3126 internal codec.
-
-config SND_RK_SOC_RK610
-	tristate "SoC I2S Audio support for rockchip - RK610"
-	depends on SND_RK_SOC && MFD_RK610
-	select SND_RK_SOC_I2S
-	select SND_SOC_RK610
-	help
-	  Say Y if you want to add support for SoC audio on rockchip
-	  with the RK610(JETTA).
-
-config SND_RK_SOC_RK616
-	tristate "SoC I2S Audio support for rockchip - RK616"
-	depends on SND_RK_SOC && MFD_RK616
-	select SND_RK_SOC_I2S
-	select SND_SOC_RK616
-	help
-	  Say Y if you want to add support for SoC audio on rockchip
-	  with the RK616(JETTA).
-
-config SND_RK_SOC_RK2928
-	tristate "SoC I2S Audio support for rockchip - RK2928"
-	depends on SND_RK_SOC && ARCH_RK2928
-	select SND_RK_SOC_I2S
-	select SND_SOC_RK2928
-	select SND_RK_CODEC_SOC_SLAVE
-	help
-	  Say Y if you want to add support for SoC audio on rockchip
-	  with the RK2928 internal codec.
-
-config SND_RK_SOC_RK3026
-	tristate "SoC I2S Audio support for rockchip - RK3026&R3028A"
-	depends on SND_RK_SOC && ARCH_RK3026
-	select SND_RK_SOC_I2S
-	select SND_SOC_RK3026
-	select SND_RK_CODEC_SOC_SLAVE
-	help
-	  Say Y if you want to add support for SoC audio on rockchip
-	  with the RK3026 internal codec.
-
-config SND_RK_SOC_RK3190
-        tristate "SoC I2S Audio support for rockchip - RK3190"
-        depends on SND_RK_SOC
-        select SND_RK_SOC_I2S
-        select SND_SOC_RK3190
-        select SND_RK_CODEC_SOC_SLAVE
-        help
-          Say Y if you want to add support for SoC audio on rockchip
-          with the RK3190 internal codec.
-
-endif #SND_RK_SOC
+	  Say Y or M here if you want to add support for SoC audio on Rockchip
+	  boards using the RT5645/RT5650 codec, such as Veyron.

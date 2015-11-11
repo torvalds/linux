@@ -34,8 +34,12 @@
 #include <linux/rculist.h>
 #include <linux/interrupt.h>
 #include <linux/genalloc.h>
-#include <linux/of_address.h>
 #include <linux/of_device.h>
+
+static inline size_t chunk_size(const struct gen_pool_chunk *chunk)
+{
+	return chunk->end_addr - chunk->start_addr + 1;
+}
 
 static int set_bits_ll(unsigned long *addr, unsigned long mask_to_set)
 {
@@ -156,6 +160,7 @@ struct gen_pool *gen_pool_create(int min_alloc_order, int nid)
 		pool->min_alloc_order = min_alloc_order;
 		pool->algo = gen_pool_first_fit;
 		pool->data = NULL;
+		pool->name = NULL;
 	}
 	return pool;
 }
@@ -182,13 +187,13 @@ int gen_pool_add_virt(struct gen_pool *pool, unsigned long virt, phys_addr_t phy
 	int nbytes = sizeof(struct gen_pool_chunk) +
 				BITS_TO_LONGS(nbits) * sizeof(long);
 
-	chunk = kmalloc_node(nbytes, GFP_KERNEL | __GFP_ZERO, nid);
+	chunk = kzalloc_node(nbytes, GFP_KERNEL, nid);
 	if (unlikely(chunk == NULL))
 		return -ENOMEM;
 
 	chunk->phys_addr = phys;
 	chunk->start_addr = virt;
-	chunk->end_addr = virt + size;
+	chunk->end_addr = virt + size - 1;
 	atomic_set(&chunk->avail, size);
 
 	spin_lock(&pool->lock);
@@ -213,7 +218,7 @@ phys_addr_t gen_pool_virt_to_phys(struct gen_pool *pool, unsigned long addr)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(chunk, &pool->chunks, next_chunk) {
-		if (addr >= chunk->start_addr && addr < chunk->end_addr) {
+		if (addr >= chunk->start_addr && addr <= chunk->end_addr) {
 			paddr = chunk->phys_addr + (addr - chunk->start_addr);
 			break;
 		}
@@ -242,14 +247,14 @@ void gen_pool_destroy(struct gen_pool *pool)
 		chunk = list_entry(_chunk, struct gen_pool_chunk, next_chunk);
 		list_del(&chunk->next_chunk);
 
-		end_bit = (chunk->end_addr - chunk->start_addr) >> order;
+		end_bit = chunk_size(chunk) >> order;
 		bit = find_next_bit(chunk->bits, end_bit, 0);
 		BUG_ON(bit < end_bit);
 
 		kfree(chunk);
 	}
+	kfree_const(pool->name);
 	kfree(pool);
-	return;
 }
 EXPORT_SYMBOL(gen_pool_destroy);
 
@@ -283,7 +288,7 @@ unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
 		if (size > atomic_read(&chunk->avail))
 			continue;
 
-		end_bit = (chunk->end_addr - chunk->start_addr) >> order;
+		end_bit = chunk_size(chunk) >> order;
 retry:
 		start_bit = pool->algo(chunk->bits, end_bit, start_bit, nbits,
 				pool->data);
@@ -308,6 +313,35 @@ retry:
 EXPORT_SYMBOL(gen_pool_alloc);
 
 /**
+ * gen_pool_dma_alloc - allocate special memory from the pool for DMA usage
+ * @pool: pool to allocate from
+ * @size: number of bytes to allocate from the pool
+ * @dma: dma-view physical address return value.  Use NULL if unneeded.
+ *
+ * Allocate the requested number of bytes from the specified pool.
+ * Uses the pool allocation function (with first-fit algorithm by default).
+ * Can not be used in NMI handler on architectures without
+ * NMI-safe cmpxchg implementation.
+ */
+void *gen_pool_dma_alloc(struct gen_pool *pool, size_t size, dma_addr_t *dma)
+{
+	unsigned long vaddr;
+
+	if (!pool)
+		return NULL;
+
+	vaddr = gen_pool_alloc(pool, size);
+	if (!vaddr)
+		return NULL;
+
+	if (dma)
+		*dma = gen_pool_virt_to_phys(pool, vaddr);
+
+	return (void *)vaddr;
+}
+EXPORT_SYMBOL(gen_pool_dma_alloc);
+
+/**
  * gen_pool_free - free allocated special memory back to the pool
  * @pool: pool to free to
  * @addr: starting address of memory to free back to pool
@@ -330,8 +364,8 @@ void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size)
 	nbits = (size + (1UL << order) - 1) >> order;
 	rcu_read_lock();
 	list_for_each_entry_rcu(chunk, &pool->chunks, next_chunk) {
-		if (addr >= chunk->start_addr && addr < chunk->end_addr) {
-			BUG_ON(addr + size > chunk->end_addr);
+		if (addr >= chunk->start_addr && addr <= chunk->end_addr) {
+			BUG_ON(addr + size - 1 > chunk->end_addr);
 			start_bit = (addr - chunk->start_addr) >> order;
 			remain = bitmap_clear_ll(chunk->bits, start_bit, nbits);
 			BUG_ON(remain);
@@ -369,6 +403,35 @@ void gen_pool_for_each_chunk(struct gen_pool *pool,
 EXPORT_SYMBOL(gen_pool_for_each_chunk);
 
 /**
+ * addr_in_gen_pool - checks if an address falls within the range of a pool
+ * @pool:	the generic memory pool
+ * @start:	start address
+ * @size:	size of the region
+ *
+ * Check if the range of addresses falls within the specified pool. Returns
+ * true if the entire range is contained in the pool and false otherwise.
+ */
+bool addr_in_gen_pool(struct gen_pool *pool, unsigned long start,
+			size_t size)
+{
+	bool found = false;
+	unsigned long end = start + size - 1;
+	struct gen_pool_chunk *chunk;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(chunk, &(pool)->chunks, next_chunk) {
+		if (start >= chunk->start_addr && start <= chunk->end_addr) {
+			if (end <= chunk->end_addr) {
+				found = true;
+				break;
+			}
+		}
+	}
+	rcu_read_unlock();
+	return found;
+}
+
+/**
  * gen_pool_avail - get available free space of the pool
  * @pool: pool to get available free space
  *
@@ -400,7 +463,7 @@ size_t gen_pool_size(struct gen_pool *pool)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(chunk, &pool->chunks, next_chunk)
-		size += chunk->end_addr - chunk->start_addr;
+		size += chunk_size(chunk);
 	rcu_read_unlock();
 	return size;
 }
@@ -447,6 +510,26 @@ unsigned long gen_pool_first_fit(unsigned long *map, unsigned long size,
 EXPORT_SYMBOL(gen_pool_first_fit);
 
 /**
+ * gen_pool_first_fit_order_align - find the first available region
+ * of memory matching the size requirement. The region will be aligned
+ * to the order of the size specified.
+ * @map: The address to base the search on
+ * @size: The bitmap size in bits
+ * @start: The bitnumber to start searching at
+ * @nr: The number of zeroed bits we're looking for
+ * @data: additional data - unused
+ */
+unsigned long gen_pool_first_fit_order_align(unsigned long *map,
+		unsigned long size, unsigned long start,
+		unsigned int nr, void *data)
+{
+	unsigned long align_mask = roundup_pow_of_two(nr) - 1;
+
+	return bitmap_find_next_zero_area(map, size, start, nr, align_mask);
+}
+EXPORT_SYMBOL(gen_pool_first_fit_order_align);
+
+/**
  * gen_pool_best_fit - find the best fitting region of memory
  * macthing the size requirement (no alignment constraint)
  * @map: The address to base the search on
@@ -488,55 +571,92 @@ static void devm_gen_pool_release(struct device *dev, void *res)
 	gen_pool_destroy(*(struct gen_pool **)res);
 }
 
+static int devm_gen_pool_match(struct device *dev, void *res, void *data)
+{
+	struct gen_pool **p = res;
+
+	/* NULL data matches only a pool without an assigned name */
+	if (!data && !(*p)->name)
+		return 1;
+
+	if (!data || !(*p)->name)
+		return 0;
+
+	return !strcmp((*p)->name, data);
+}
+
+/**
+ * gen_pool_get - Obtain the gen_pool (if any) for a device
+ * @dev: device to retrieve the gen_pool from
+ * @name: name of a gen_pool or NULL, identifies a particular gen_pool on device
+ *
+ * Returns the gen_pool for the device if one is present, or NULL.
+ */
+struct gen_pool *gen_pool_get(struct device *dev, const char *name)
+{
+	struct gen_pool **p;
+
+	p = devres_find(dev, devm_gen_pool_release, devm_gen_pool_match,
+			(void *)name);
+	if (!p)
+		return NULL;
+	return *p;
+}
+EXPORT_SYMBOL_GPL(gen_pool_get);
+
 /**
  * devm_gen_pool_create - managed gen_pool_create
  * @dev: device that provides the gen_pool
  * @min_alloc_order: log base 2 of number of bytes each bitmap bit represents
- * @nid: node id of the node the pool structure should be allocated on, or -1
+ * @nid: node selector for allocated gen_pool, %NUMA_NO_NODE for all nodes
+ * @name: name of a gen_pool or NULL, identifies a particular gen_pool on device
  *
  * Create a new special memory pool that can be used to manage special purpose
  * memory not managed by the regular kmalloc/kfree interface. The pool will be
  * automatically destroyed by the device management code.
  */
 struct gen_pool *devm_gen_pool_create(struct device *dev, int min_alloc_order,
-		int nid)
+				      int nid, const char *name)
 {
 	struct gen_pool **ptr, *pool;
+	const char *pool_name = NULL;
 
-	ptr = devres_alloc(devm_gen_pool_release, sizeof(*ptr), GFP_KERNEL);
+	/* Check that genpool to be created is uniquely addressed on device */
+	if (gen_pool_get(dev, name))
+		return ERR_PTR(-EINVAL);
 
-	pool = gen_pool_create(min_alloc_order, nid);
-	if (pool) {
-		*ptr = pool;
-		devres_add(dev, ptr);
-	} else {
-		devres_free(ptr);
+	if (name) {
+		pool_name = kstrdup_const(name, GFP_KERNEL);
+		if (!pool_name)
+			return ERR_PTR(-ENOMEM);
 	}
 
+	ptr = devres_alloc(devm_gen_pool_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		goto free_pool_name;
+
+	pool = gen_pool_create(min_alloc_order, nid);
+	if (!pool)
+		goto free_devres;
+
+	*ptr = pool;
+	pool->name = pool_name;
+	devres_add(dev, ptr);
+
 	return pool;
-}
 
-/**
- * dev_get_gen_pool - Obtain the gen_pool (if any) for a device
- * @dev: device to retrieve the gen_pool from
- * @name: Optional name for the gen_pool, usually NULL
- *
- * Returns the gen_pool for the device if one is present, or NULL.
- */
-struct gen_pool *dev_get_gen_pool(struct device *dev)
-{
-	struct gen_pool **p = devres_find(dev, devm_gen_pool_release, NULL,
-					NULL);
+free_devres:
+	devres_free(ptr);
+free_pool_name:
+	kfree_const(pool_name);
 
-	if (!p)
-		return NULL;
-	return *p;
+	return ERR_PTR(-ENOMEM);
 }
-EXPORT_SYMBOL_GPL(dev_get_gen_pool);
+EXPORT_SYMBOL(devm_gen_pool_create);
 
 #ifdef CONFIG_OF
 /**
- * of_get_named_gen_pool - find a pool by phandle property
+ * of_gen_pool_get - find a pool by phandle property
  * @np: device node
  * @propname: property name containing phandle(s)
  * @index: index into the phandle array
@@ -545,19 +665,34 @@ EXPORT_SYMBOL_GPL(dev_get_gen_pool);
  * address of the device tree node pointed at by the phandle property,
  * or NULL if not found.
  */
-struct gen_pool *of_get_named_gen_pool(struct device_node *np,
+struct gen_pool *of_gen_pool_get(struct device_node *np,
 	const char *propname, int index)
 {
 	struct platform_device *pdev;
-	struct device_node *np_pool;
+	struct device_node *np_pool, *parent;
+	const char *name = NULL;
+	struct gen_pool *pool = NULL;
 
 	np_pool = of_parse_phandle(np, propname, index);
 	if (!np_pool)
 		return NULL;
+
 	pdev = of_find_device_by_node(np_pool);
-	if (!pdev)
-		return NULL;
-	return dev_get_gen_pool(&pdev->dev);
+	if (!pdev) {
+		/* Check if named gen_pool is created by parent node device */
+		parent = of_get_parent(np_pool);
+		pdev = of_find_device_by_node(parent);
+		of_node_put(parent);
+
+		of_property_read_string(np_pool, "label", &name);
+		if (!name)
+			name = np_pool->name;
+	}
+	if (pdev)
+		pool = gen_pool_get(&pdev->dev, name);
+	of_node_put(np_pool);
+
+	return pool;
 }
-EXPORT_SYMBOL_GPL(of_get_named_gen_pool);
+EXPORT_SYMBOL_GPL(of_gen_pool_get);
 #endif /* CONFIG_OF */

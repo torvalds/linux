@@ -48,7 +48,6 @@ typedef unsigned long mm_segment_t;
 
 struct thread_info {
 	struct task_struct	*task;		/* main task structure */
-	struct exec_domain	*exec_domain;	/* execution domain */
 	unsigned long		flags;		/* low level flags */
 	__u32			cpu;		/* current CPU */
 	__s32			preempt_count; /* 0 => preemptable, <0 => BUG */
@@ -57,7 +56,6 @@ struct thread_info {
 					       0-0x7FFFFFFF for user-thead
 					       0-0xFFFFFFFF for kernel-thread
 					     */
-	struct restart_block    restart_block;
 	__u8			supervisor_stack[0];
 
 	/* saved context data */
@@ -74,14 +72,10 @@ struct thread_info {
 #define INIT_THREAD_INFO(tsk)				\
 {							\
 	.task		= &tsk,				\
-	.exec_domain	= &default_exec_domain,		\
 	.flags		= 0,				\
 	.cpu		= 0,				\
 	.preempt_count	= 1,				\
 	.addr_limit	= KERNEL_DS,			\
-	.restart_block  = {				\
-			  .fn = do_no_restart_syscall,	\
-	},						\
 	.ksp            = 0,                            \
 }
 

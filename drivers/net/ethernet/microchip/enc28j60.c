@@ -1593,7 +1593,7 @@ static int enc28j60_probe(struct spi_device *spi)
 	dev->irq = spi->irq;
 	dev->netdev_ops = &enc28j60_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
-	SET_ETHTOOL_OPS(dev, &enc28j60_ethtool_ops);
+	dev->ethtool_ops = &enc28j60_ethtool_ops;
 
 	enc28j60_lowpower(priv, true);
 
@@ -1633,7 +1633,6 @@ static int enc28j60_remove(struct spi_device *spi)
 static struct spi_driver enc28j60_driver = {
 	.driver = {
 		   .name = DRV_NAME,
-		   .owner = THIS_MODULE,
 	 },
 	.probe = enc28j60_probe,
 	.remove = enc28j60_remove,

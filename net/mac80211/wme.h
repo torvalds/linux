@@ -13,8 +13,6 @@
 #include <linux/netdevice.h>
 #include "ieee80211_i.h"
 
-extern const int ieee802_1d_to_ac[8];
-
 u16 ieee80211_select_queue_80211(struct ieee80211_sub_if_data *sdata,
 				 struct sk_buff *skb,
 				 struct ieee80211_hdr *hdr);

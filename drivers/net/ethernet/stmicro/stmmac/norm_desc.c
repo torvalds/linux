@@ -52,10 +52,8 @@ static int ndesc_get_tx_status(void *data, struct stmmac_extra_stats *x,
 		ret = -1;
 	}
 
-	if (p->des01.etx.vlan_frame) {
-		CHIP_DBG(KERN_INFO "GMAC TX status: VLAN frame\n");
+	if (p->des01.etx.vlan_frame)
 		x->tx_vlan++;
-	}
 
 	if (unlikely(p->des01.tx.deferred))
 		x->tx_deferred++;
@@ -125,6 +123,7 @@ static int ndesc_get_rx_status(void *data, struct stmmac_extra_stats *x,
 static void ndesc_init_rx_desc(struct dma_desc *p, int disable_rx_ic, int mode,
 			       int end)
 {
+	p->des01.all_flags = 0;
 	p->des01.rx.own = 1;
 	p->des01.rx.buffer1_size = BUF_SIZE_2KiB - 1;
 
@@ -139,7 +138,7 @@ static void ndesc_init_rx_desc(struct dma_desc *p, int disable_rx_ic, int mode,
 
 static void ndesc_init_tx_desc(struct dma_desc *p, int mode, int end)
 {
-	p->des01.tx.own = 0;
+	p->des01.all_flags = 0;
 	if (mode == STMMAC_CHAIN_MODE)
 		ndesc_tx_set_on_chain(p, end);
 	else

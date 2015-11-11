@@ -23,8 +23,10 @@
 #include <linux/smp.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/timekeeper_internal.h>
 #include <asm/irq_regs.h>
 #include <asm/traps.h>
+#include <asm/vdso.h>
 #include <hv/hypervisor.h>
 #include <arch/interrupts.h>
 #include <arch/spr_def.h>
@@ -96,8 +98,8 @@ void __init calibrate_delay(void)
 {
 	loops_per_jiffy = get_clock_rate() / HZ;
 	pr_info("Clock rate yields %lu.%02lu BogoMIPS (lpj=%lu)\n",
-		loops_per_jiffy/(500000/HZ),
-		(loops_per_jiffy/(5000/HZ)) % 100, loops_per_jiffy);
+		loops_per_jiffy / (500000 / HZ),
+		(loops_per_jiffy / (5000 / HZ)) % 100, loops_per_jiffy);
 }
 
 /* Called fairly late in init/main.c, but before we go smp. */
@@ -109,7 +111,6 @@ void __init time_init(void)
 	/* Start up the tile-timer interrupt source on the boot cpu. */
 	setup_tile_timer();
 }
-
 
 /*
  * Define the tile timer clock event device.  The timer is driven by
@@ -139,10 +140,10 @@ static int tile_timer_set_next_event(unsigned long ticks,
  * Whenever anyone tries to change modes, we just mask interrupts
  * and wait for the next event to get set.
  */
-static void tile_timer_set_mode(enum clock_event_mode mode,
-				struct clock_event_device *evt)
+static int tile_timer_shutdown(struct clock_event_device *evt)
 {
 	arch_local_irq_mask_now(INT_TILE_TIMER);
+	return 0;
 }
 
 /*
@@ -156,12 +157,14 @@ static DEFINE_PER_CPU(struct clock_event_device, tile_timer) = {
 	.rating = 100,
 	.irq = -1,
 	.set_next_event = tile_timer_set_next_event,
-	.set_mode = tile_timer_set_mode,
+	.set_state_shutdown = tile_timer_shutdown,
+	.set_state_oneshot = tile_timer_shutdown,
+	.tick_resume = tile_timer_shutdown,
 };
 
-void __cpuinit setup_tile_timer(void)
+void setup_tile_timer(void)
 {
-	struct clock_event_device *evt = &__get_cpu_var(tile_timer);
+	struct clock_event_device *evt = this_cpu_ptr(&tile_timer);
 
 	/* Fill in fields that are speed-specific. */
 	clockevents_calc_mult_shift(evt, cycles_per_sec, TILE_MINSEC);
@@ -181,7 +184,7 @@ void __cpuinit setup_tile_timer(void)
 void do_timer_interrupt(struct pt_regs *regs, int fault_num)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
-	struct clock_event_device *evt = &__get_cpu_var(tile_timer);
+	struct clock_event_device *evt = this_cpu_ptr(&tile_timer);
 
 	/*
 	 * Mask the timer interrupt here, since we are a oneshot timer
@@ -193,7 +196,7 @@ void do_timer_interrupt(struct pt_regs *regs, int fault_num)
 	irq_enter();
 
 	/* Track interrupt count. */
-	__get_cpu_var(irq_stat).irq_timer_count++;
+	__this_cpu_inc(irq_stat.irq_timer_count);
 
 	/* Call the generic timer handler */
 	evt->event_handler(evt);
@@ -234,6 +237,66 @@ cycles_t ns2cycles(unsigned long nsecs)
 	 * We do not have to disable preemption here as each core has the same
 	 * clock frequency.
 	 */
-	struct clock_event_device *dev = &__raw_get_cpu_var(tile_timer);
-	return ((u64)nsecs * dev->mult) >> dev->shift;
+	struct clock_event_device *dev = raw_cpu_ptr(&tile_timer);
+
+	/*
+	 * as in clocksource.h and x86's timer.h, we split the calculation
+	 * into 2 parts to avoid unecessary overflow of the intermediate
+	 * value. This will not lead to any loss of precision.
+	 */
+	u64 quot = (u64)nsecs >> dev->shift;
+	u64 rem  = (u64)nsecs & ((1ULL << dev->shift) - 1);
+	return quot * dev->mult + ((rem * dev->mult) >> dev->shift);
+}
+
+void update_vsyscall_tz(void)
+{
+	write_seqcount_begin(&vdso_data->tz_seq);
+	vdso_data->tz_minuteswest = sys_tz.tz_minuteswest;
+	vdso_data->tz_dsttime = sys_tz.tz_dsttime;
+	write_seqcount_end(&vdso_data->tz_seq);
+}
+
+void update_vsyscall(struct timekeeper *tk)
+{
+	if (tk->tkr_mono.clock != &cycle_counter_cs)
+		return;
+
+	write_seqcount_begin(&vdso_data->tb_seq);
+
+	vdso_data->cycle_last		= tk->tkr_mono.cycle_last;
+	vdso_data->mask			= tk->tkr_mono.mask;
+	vdso_data->mult			= tk->tkr_mono.mult;
+	vdso_data->shift		= tk->tkr_mono.shift;
+
+	vdso_data->wall_time_sec	= tk->xtime_sec;
+	vdso_data->wall_time_snsec	= tk->tkr_mono.xtime_nsec;
+
+	vdso_data->monotonic_time_sec	= tk->xtime_sec
+					+ tk->wall_to_monotonic.tv_sec;
+	vdso_data->monotonic_time_snsec	= tk->tkr_mono.xtime_nsec
+					+ ((u64)tk->wall_to_monotonic.tv_nsec
+						<< tk->tkr_mono.shift);
+	while (vdso_data->monotonic_time_snsec >=
+					(((u64)NSEC_PER_SEC) << tk->tkr_mono.shift)) {
+		vdso_data->monotonic_time_snsec -=
+					((u64)NSEC_PER_SEC) << tk->tkr_mono.shift;
+		vdso_data->monotonic_time_sec++;
+	}
+
+	vdso_data->wall_time_coarse_sec	= tk->xtime_sec;
+	vdso_data->wall_time_coarse_nsec = (long)(tk->tkr_mono.xtime_nsec >>
+						 tk->tkr_mono.shift);
+
+	vdso_data->monotonic_time_coarse_sec =
+		vdso_data->wall_time_coarse_sec + tk->wall_to_monotonic.tv_sec;
+	vdso_data->monotonic_time_coarse_nsec =
+		vdso_data->wall_time_coarse_nsec + tk->wall_to_monotonic.tv_nsec;
+
+	while (vdso_data->monotonic_time_coarse_nsec >= NSEC_PER_SEC) {
+		vdso_data->monotonic_time_coarse_nsec -= NSEC_PER_SEC;
+		vdso_data->monotonic_time_coarse_sec++;
+	}
+
+	write_seqcount_end(&vdso_data->tb_seq);
 }

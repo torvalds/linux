@@ -104,6 +104,8 @@ struct __fat_dirent {
 /* <linux/videotext.h> has used 0x72 ('r') in collision, so skip a few */
 #define FAT_IOCTL_GET_ATTRIBUTES	_IOR('r', 0x10, __u32)
 #define FAT_IOCTL_SET_ATTRIBUTES	_IOW('r', 0x11, __u32)
+/*Android kernel has used 0x12, so we use 0x13*/
+#define FAT_IOCTL_GET_VOLUME_ID		_IOR('r', 0x13, __u32)
 
 struct fat_boot_sector {
 	__u8	ignored[3];	/* Boot strap short or near jump */
@@ -128,7 +130,11 @@ struct fat_boot_sector {
 			__u8	drive_number;	/* Physical drive number */
 			__u8	state;		/* undocumented, but used
 						   for mount state. */
-			/* other fiealds are not added here */
+			__u8	signature;  /* extended boot signature */
+			__u8	vol_id[4];	/* volume ID */
+			__u8	vol_label[11];	/* volume label */
+			__u8	fs_type[8];		/* file system type */
+			/* other fields are not added here */
 		} fat16;
 
 		struct {
@@ -147,7 +153,11 @@ struct fat_boot_sector {
 			__u8	drive_number;   /* Physical drive number */
 			__u8    state;       	/* undocumented, but used
 						   for mount state. */
-			/* other fiealds are not added here */
+			__u8	signature;  /* extended boot signature */
+			__u8	vol_id[4];	/* volume ID */
+			__u8	vol_label[11];	/* volume label */
+			__u8	fs_type[8];		/* file system type */
+			/* other fields are not added here */
 		} fat32;
 	};
 };
