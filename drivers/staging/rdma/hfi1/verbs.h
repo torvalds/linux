@@ -546,6 +546,16 @@ struct hfi1_qp {
 };
 
 /*
+ * This structure is used to hold commonly lookedup and computed values during
+ * the send engine progress.
+ */
+struct hfi1_pkt_state {
+	struct hfi1_ibdev *dev;
+	struct hfi1_ibport *ibp;
+	struct hfi1_pportdata *ppd;
+};
+
+/*
  * Atomic bit definitions for r_aflags.
  */
 #define HFI1_R_WRID_VALID        0
@@ -930,8 +940,7 @@ int hfi1_mcast_tree_empty(struct hfi1_ibport *ibp);
 struct verbs_txreq;
 void hfi1_put_txreq(struct verbs_txreq *tx);
 
-int hfi1_verbs_send(struct hfi1_qp *qp, struct ahg_ib_header *ahdr,
-		    u32 hdrwords, struct hfi1_sge_state *ss, u32 len);
+int hfi1_verbs_send(struct hfi1_qp *qp, struct hfi1_pkt_state *ps);
 
 void hfi1_copy_sge(struct hfi1_sge_state *ss, void *data, u32 length,
 		   int release);
@@ -1102,13 +1111,11 @@ void hfi1_ib_rcv(struct hfi1_packet *packet);
 
 unsigned hfi1_get_npkeys(struct hfi1_devdata *);
 
-int hfi1_verbs_send_dma(struct hfi1_qp *qp, struct ahg_ib_header *hdr,
-			u32 hdrwords, struct hfi1_sge_state *ss, u32 len,
-			u32 plen, u32 dwords, u64 pbc);
+int hfi1_verbs_send_dma(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
+			u64 pbc);
 
-int hfi1_verbs_send_pio(struct hfi1_qp *qp, struct ahg_ib_header *hdr,
-			u32 hdrwords, struct hfi1_sge_state *ss, u32 len,
-			u32 plen, u32 dwords, u64 pbc);
+int hfi1_verbs_send_pio(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
+			u64 pbc);
 
 struct send_context *qp_to_send_context(struct hfi1_qp *qp, u8 sc5);
 

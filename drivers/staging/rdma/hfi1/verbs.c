@@ -1001,13 +1001,16 @@ bail_txadd:
 	return ret;
 }
 
-int hfi1_verbs_send_dma(struct hfi1_qp *qp, struct ahg_ib_header *ahdr,
-			u32 hdrwords, struct hfi1_sge_state *ss, u32 len,
-			u32 plen, u32 dwords, u64 pbc)
+int hfi1_verbs_send_dma(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
+			u64 pbc)
 {
-	struct hfi1_ibdev *dev = to_idev(qp->ibqp.device);
-	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
-	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
+	struct ahg_ib_header *ahdr = qp->s_hdr;
+	u32 hdrwords = qp->s_hdrwords;
+	struct hfi1_sge_state *ss = qp->s_cur_sge;
+	u32 len = qp->s_cur_size;
+	u32 plen = hdrwords + ((len + 3) >> 2) + 2; /* includes pbc */
+	struct hfi1_ibdev *dev = ps->dev;
+	struct hfi1_pportdata *ppd = ps->ppd;
 	struct verbs_txreq *tx;
 	struct sdma_txreq *stx;
 	u64 pbc_flags = 0;
@@ -1120,12 +1123,16 @@ struct send_context *qp_to_send_context(struct hfi1_qp *qp, u8 sc5)
 	return dd->vld[vl].sc;
 }
 
-int hfi1_verbs_send_pio(struct hfi1_qp *qp, struct ahg_ib_header *ahdr,
-			u32 hdrwords, struct hfi1_sge_state *ss, u32 len,
-			u32 plen, u32 dwords, u64 pbc)
+int hfi1_verbs_send_pio(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
+			u64 pbc)
 {
-	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
-	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
+	struct ahg_ib_header *ahdr = qp->s_hdr;
+	u32 hdrwords = qp->s_hdrwords;
+	struct hfi1_sge_state *ss = qp->s_cur_sge;
+	u32 len = qp->s_cur_size;
+	u32 dwords = (len + 3) >> 2;
+	u32 plen = hdrwords + dwords + 2; /* includes pbc */
+	struct hfi1_pportdata *ppd = ps->ppd;
 	u32 *hdr = (u32 *)&ahdr->ibh;
 	u64 pbc_flags = 0;
 	u32 sc5;
@@ -1297,23 +1304,18 @@ bad:
 /**
  * hfi1_verbs_send - send a packet
  * @qp: the QP to send on
- * @ahdr: the packet header
- * @hdrwords: the number of 32-bit words in the header
- * @ss: the SGE to send
- * @len: the length of the packet in bytes
+ * @ps: the state of the packet to send
  *
  * Return zero if packet is sent or queued OK.
  * Return non-zero and clear qp->s_flags HFI1_S_BUSY otherwise.
  */
-int hfi1_verbs_send(struct hfi1_qp *qp, struct ahg_ib_header *ahdr,
-		    u32 hdrwords, struct hfi1_sge_state *ss, u32 len)
+int hfi1_verbs_send(struct hfi1_qp *qp, struct hfi1_pkt_state *ps)
 {
 	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
-	u32 plen;
+	struct ahg_ib_header *ahdr = qp->s_hdr;
 	int ret;
 	int pio = 0;
 	unsigned long flags = 0;
-	u32 dwords = (len + 3) >> 2;
 
 	/*
 	 * VL15 packets (IB_QPT_SMI) will always use PIO, so we
@@ -1344,23 +1346,16 @@ int hfi1_verbs_send(struct hfi1_qp *qp, struct ahg_ib_header *ahdr,
 		return -EINVAL;
 	}
 
-	/*
-	 * Calculate the send buffer trigger address.
-	 * The +2 counts for the pbc control qword
-	 */
-	plen = hdrwords + dwords + 2;
-
 	if (pio) {
-		ret = dd->process_pio_send(
-			qp, ahdr, hdrwords, ss, len, plen, dwords, 0);
+		ret = dd->process_pio_send(qp, ps, 0);
 	} else {
 #ifdef CONFIG_SDMA_VERBOSITY
 		dd_dev_err(dd, "CONFIG SDMA %s:%d %s()\n",
 			   slashstrip(__FILE__), __LINE__, __func__);
-		dd_dev_err(dd, "SDMA hdrwords = %u, len = %u\n", hdrwords, len);
+		dd_dev_err(dd, "SDMA hdrwords = %u, len = %u\n", qp->s_hdrwords,
+			   qp->s_cur_size);
 #endif
-		ret = dd->process_dma_send(
-			qp, ahdr, hdrwords, ss, len, plen, dwords, 0);
+		ret = dd->process_dma_send(qp, ps, 0);
 	}
 
 	return ret;

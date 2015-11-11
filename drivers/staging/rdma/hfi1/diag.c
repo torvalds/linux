@@ -1618,14 +1618,12 @@ int snoop_recv_handler(struct hfi1_packet *packet)
 /*
  * Handle snooping and capturing packets when sdma is being used.
  */
-int snoop_send_dma_handler(struct hfi1_qp *qp, struct ahg_ib_header *ibhdr,
-			   u32 hdrwords, struct hfi1_sge_state *ss, u32 len,
-			   u32 plen, u32 dwords, u64 pbc)
+int snoop_send_dma_handler(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
+			   u64 pbc)
 {
-	pr_alert("Snooping/Capture of  Send DMA Packets Is Not Supported!\n");
+	pr_alert("Snooping/Capture of Send DMA Packets Is Not Supported!\n");
 	snoop_dbg("Unsupported Operation");
-	return hfi1_verbs_send_dma(qp, ibhdr, hdrwords, ss, len, plen, dwords,
-				  0);
+	return hfi1_verbs_send_dma(qp, ps, 0);
 }
 
 /*
@@ -1633,12 +1631,16 @@ int snoop_send_dma_handler(struct hfi1_qp *qp, struct ahg_ib_header *ibhdr,
  * bypass packets. The only way to send a bypass packet currently is to use the
  * diagpkt interface. When that interface is enable snoop/capture is not.
  */
-int snoop_send_pio_handler(struct hfi1_qp *qp, struct ahg_ib_header *ahdr,
-			   u32 hdrwords, struct hfi1_sge_state *ss, u32 len,
-			   u32 plen, u32 dwords, u64 pbc)
+int snoop_send_pio_handler(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
+			   u64 pbc)
 {
-	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
-	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
+	struct ahg_ib_header *ahdr = qp->s_hdr;
+	u32 hdrwords = qp->s_hdrwords;
+	struct hfi1_sge_state *ss = qp->s_cur_sge;
+	u32 len = qp->s_cur_size;
+	u32 dwords = (len + 3) >> 2;
+	u32 plen = hdrwords + dwords + 2; /* includes pbc */
+	struct hfi1_pportdata *ppd = ps->ppd;
 	struct snoop_packet *s_packet = NULL;
 	u32 *hdr = (u32 *)&ahdr->ibh;
 	u32 length = 0;
@@ -1783,8 +1785,7 @@ int snoop_send_pio_handler(struct hfi1_qp *qp, struct ahg_ib_header *ahdr,
 		break;
 	}
 out:
-	return hfi1_verbs_send_pio(qp, ahdr, hdrwords, ss, len, plen, dwords,
-				  md.u.pbc);
+	return hfi1_verbs_send_pio(qp, ps, md.u.pbc);
 }
 
 /*
