@@ -297,8 +297,8 @@ typedef struct _MPI2_CONFIG_PAGE_MAN_10 {
     U32                     OEMSpecificFlags1;                      /* 20h */
     U32                     Reserved5[18];                          /* 24h-60h*/
 } MPI2_CONFIG_PAGE_MAN_10,
-  MPI2_POINTER PTR_MPI2_CONFIG_PAGE_MAN_10,
-  Mpi2ManufacturingPage10_t, MPI2_POINTER pMpi2ManufacturingPage10_t;
+	*PTR_MPI2_CONFIG_PAGE_MAN_10,
+	Mpi2ManufacturingPage10_t, *pMpi2ManufacturingPage10_t;
 
 #define MFG_PAGE10_HIDE_SSDS_MASK	(0x00000003)
 #define MFG_PAGE10_HIDE_ALL_DISKS	(0x00)
