@@ -1076,6 +1076,7 @@ static void iwl_mvm_cmd_queue_full(struct iwl_op_mode *op_mode)
 
 struct iwl_d0i3_iter_data {
 	struct iwl_mvm *mvm;
+	struct ieee80211_vif *connected_vif;
 	u8 ap_sta_id;
 	u8 vif_count;
 	u8 offloading_tid;
@@ -1167,6 +1168,12 @@ static void iwl_mvm_enter_d0i3_iterator(void *_data, u8 *mac,
 	 */
 	data->ap_sta_id = mvmvif->ap_sta_id;
 	data->vif_count++;
+
+	/*
+	 * no new commands can be sent at this stage, so it's safe
+	 * to save the vif pointer during d0i3 entrance.
+	 */
+	data->connected_vif = vif;
 }
 
 static void iwl_mvm_set_wowlan_data(struct iwl_mvm *mvm,
@@ -1261,6 +1268,10 @@ int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 
 	/* configure wowlan configuration only if needed */
 	if (mvm->d0i3_ap_sta_id != IWL_MVM_STATION_COUNT) {
+		iwl_mvm_wowlan_config_key_params(mvm,
+						 d0i3_iter_data.connected_vif,
+						 true, flags);
+
 		iwl_mvm_set_wowlan_data(mvm, &wowlan_config_cmd,
 					&d0i3_iter_data);
 
@@ -1290,25 +1301,30 @@ static void iwl_mvm_exit_d0i3_iterator(void *_data, u8 *mac,
 	iwl_mvm_update_d0i3_power_mode(mvm, vif, false, flags);
 }
 
-struct iwl_mvm_wakeup_reason_iter_data {
+struct iwl_mvm_d0i3_exit_work_iter_data {
 	struct iwl_mvm *mvm;
+	struct iwl_wowlan_status *status;
 	u32 wakeup_reasons;
 };
 
-static void iwl_mvm_d0i3_wakeup_reason_iter(void *_data, u8 *mac,
-					    struct ieee80211_vif *vif)
+static void iwl_mvm_d0i3_exit_work_iter(void *_data, u8 *mac,
+					struct ieee80211_vif *vif)
 {
-	struct iwl_mvm_wakeup_reason_iter_data *data = _data;
+	struct iwl_mvm_d0i3_exit_work_iter_data *data = _data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	u32 reasons = data->wakeup_reasons;
 
-	if (vif->type == NL80211_IFTYPE_STATION && vif->bss_conf.assoc &&
-	    data->mvm->d0i3_ap_sta_id == mvmvif->ap_sta_id) {
-		if (data->wakeup_reasons &
-		    IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_DEAUTH)
-			iwl_mvm_connection_loss(data->mvm, vif, "D0i3");
-		else
-			ieee80211_beacon_loss(vif);
-	}
+	/* consider only the relevant station interface */
+	if (vif->type != NL80211_IFTYPE_STATION || !vif->bss_conf.assoc ||
+	    data->mvm->d0i3_ap_sta_id != mvmvif->ap_sta_id)
+		return;
+
+	if (reasons & IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_DEAUTH)
+		iwl_mvm_connection_loss(data->mvm, vif, "D0i3");
+	else if (reasons & IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_MISSED_BEACON)
+		ieee80211_beacon_loss(vif);
+	else
+		iwl_mvm_d0i3_update_keys(data->mvm, vif, data->status);
 }
 
 void iwl_mvm_d0i3_enable_tx(struct iwl_mvm *mvm, __le16 *qos_seq)
@@ -1374,9 +1390,13 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 		.id = WOWLAN_GET_STATUSES,
 		.flags = CMD_HIGH_PRIO | CMD_WANT_SKB,
 	};
+	struct iwl_mvm_d0i3_exit_work_iter_data iter_data = {
+		.mvm = mvm,
+	};
+
 	struct iwl_wowlan_status *status;
 	int ret;
-	u32 handled_reasons, wakeup_reasons = 0;
+	u32 wakeup_reasons = 0;
 	__le16 *qos_seq = NULL;
 
 	mutex_lock(&mvm->mutex);
@@ -1393,18 +1413,12 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 
 	IWL_DEBUG_RPM(mvm, "wakeup reasons: 0x%x\n", wakeup_reasons);
 
-	handled_reasons = IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_MISSED_BEACON |
-				IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_DEAUTH;
-	if (wakeup_reasons & handled_reasons) {
-		struct iwl_mvm_wakeup_reason_iter_data data = {
-			.mvm = mvm,
-			.wakeup_reasons = wakeup_reasons,
-		};
-
-		ieee80211_iterate_active_interfaces(
-			mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
-			iwl_mvm_d0i3_wakeup_reason_iter, &data);
-	}
+	iter_data.wakeup_reasons = wakeup_reasons;
+	iter_data.status = status;
+	ieee80211_iterate_active_interfaces(mvm->hw,
+					    IEEE80211_IFACE_ITER_NORMAL,
+					    iwl_mvm_d0i3_exit_work_iter,
+					    &iter_data);
 out:
 	iwl_mvm_d0i3_enable_tx(mvm, qos_seq);
 

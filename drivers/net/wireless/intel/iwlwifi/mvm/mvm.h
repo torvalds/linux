@@ -405,7 +405,7 @@ struct iwl_mvm_vif {
 	 */
 	struct iwl_mvm_phy_ctxt *phy_ctxt;
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 	/* WoWLAN GTK rekey data */
 	struct {
 		u8 kck[NL80211_KCK_LEN], kek[NL80211_KEK_LEN];
@@ -738,7 +738,7 @@ struct iwl_mvm {
 
 	struct ieee80211_vif *p2p_device_vif;
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 	struct wiphy_wowlan_support wowlan;
 	int gtk_ivlen, gtk_icvlen, ptk_ivlen, ptk_icvlen;
 
@@ -1278,10 +1278,6 @@ static inline void iwl_mvm_leds_exit(struct iwl_mvm *mvm)
 /* D3 (WoWLAN, NetDetect) */
 int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan);
 int iwl_mvm_resume(struct ieee80211_hw *hw);
-int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
-				     struct ieee80211_vif *vif,
-				     bool configure_keys,
-				     u32 cmd_flags);
 void iwl_mvm_set_wakeup(struct ieee80211_hw *hw, bool enabled);
 void iwl_mvm_set_rekey_data(struct ieee80211_hw *hw,
 			    struct ieee80211_vif *vif,
@@ -1292,10 +1288,31 @@ void iwl_mvm_ipv6_addr_change(struct ieee80211_hw *hw,
 void iwl_mvm_set_default_unicast_key(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif, int idx);
 extern const struct file_operations iwl_dbgfs_d3_test_ops;
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
+int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
+				     struct ieee80211_vif *vif,
+				     bool host_awake,
+				     u32 cmd_flags);
+void iwl_mvm_d0i3_update_keys(struct iwl_mvm *mvm,
+			      struct ieee80211_vif *vif,
+			      struct iwl_wowlan_status *status);
 void iwl_mvm_set_last_nonqos_seq(struct iwl_mvm *mvm,
 				 struct ieee80211_vif *vif);
 #else
+static inline int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
+						   struct ieee80211_vif *vif,
+						   bool host_awake,
+						   u32 cmd_flags)
+{
+	return 0;
+}
+
+static inline void iwl_mvm_d0i3_update_keys(struct iwl_mvm *mvm,
+					    struct ieee80211_vif *vif,
+					    struct iwl_wowlan_status *status)
+{
+}
+
 static inline void
 iwl_mvm_set_last_nonqos_seq(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
