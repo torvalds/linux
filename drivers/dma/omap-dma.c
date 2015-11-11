@@ -768,7 +768,7 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 	struct scatterlist *sgent;
 	struct omap_desc *d;
 	dma_addr_t dev_addr;
-	unsigned i, j = 0, es, en, frame_bytes;
+	unsigned i, es, en, frame_bytes;
 	u32 burst;
 
 	if (dir == DMA_DEV_TO_MEM) {
@@ -845,13 +845,12 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 	en = burst;
 	frame_bytes = es_bytes[es] * en;
 	for_each_sg(sgl, sgent, sglen, i) {
-		d->sg[j].addr = sg_dma_address(sgent);
-		d->sg[j].en = en;
-		d->sg[j].fn = sg_dma_len(sgent) / frame_bytes;
-		j++;
+		d->sg[i].addr = sg_dma_address(sgent);
+		d->sg[i].en = en;
+		d->sg[i].fn = sg_dma_len(sgent) / frame_bytes;
 	}
 
-	d->sglen = j;
+	d->sglen = sglen;
 
 	return vchan_tx_prep(&c->vc, &d->vd, tx_flags);
 }
