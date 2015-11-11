@@ -89,7 +89,7 @@ static ssize_t ap_intf_id_show(struct device *dev,
 {
 	struct gb_endo *endo = to_gb_endo(dev);
 
-	return sprintf(buf, "0x%02x\n", endo->ap_intf_id);
+	return sprintf(buf, "%u\n", endo->ap_intf_id);
 }
 static DEVICE_ATTR_RO(ap_intf_id);
 

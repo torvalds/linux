@@ -157,8 +157,7 @@ struct gb_interface *gb_interface_create(struct gb_host_device *hd,
 
 	retval = device_add(&intf->dev);
 	if (retval) {
-		pr_err("failed to add interface device for id 0x%02hhx\n",
-		       interface_id);
+		pr_err("failed to add interface %u\n", interface_id);
 		goto free_intf;
 	}
 
