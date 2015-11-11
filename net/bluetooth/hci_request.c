@@ -950,12 +950,35 @@ discov_stopped:
 	hci_dev_unlock(hdev);
 }
 
-static void le_scan_restart_work_complete(struct hci_dev *hdev, u8 status)
+static int le_scan_restart(struct hci_request *req, unsigned long opt)
 {
+	struct hci_dev *hdev = req->hdev;
+	struct hci_cp_le_set_scan_enable cp;
+
+	/* If controller is not scanning we are done. */
+	if (!hci_dev_test_flag(hdev, HCI_LE_SCAN))
+		return 0;
+
+	hci_req_add_le_scan_disable(req);
+
+	memset(&cp, 0, sizeof(cp));
+	cp.enable = LE_SCAN_ENABLE;
+	cp.filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
+	hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(cp), &cp);
+
+	return 0;
+}
+
+static void le_scan_restart_work(struct work_struct *work)
+{
+	struct hci_dev *hdev = container_of(work, struct hci_dev,
+					    le_scan_restart.work);
 	unsigned long timeout, duration, scan_start, now;
+	u8 status;
 
 	BT_DBG("%s", hdev->name);
 
+	hci_req_sync(hdev, le_scan_restart, 0, HCI_CMD_TIMEOUT, &status);
 	if (status) {
 		BT_ERR("Failed to restart LE scan: status %d", status);
 		return;
@@ -993,41 +1016,6 @@ static void le_scan_restart_work_complete(struct hci_dev *hdev, u8 status)
 
 unlock:
 	hci_dev_unlock(hdev);
-}
-
-static int le_scan_restart(struct hci_request *req, unsigned long opt)
-{
-	struct hci_dev *hdev = req->hdev;
-	struct hci_cp_le_set_scan_enable cp;
-
-	/* If controller is not scanning we are done. */
-	if (!hci_dev_test_flag(hdev, HCI_LE_SCAN))
-		return 0;
-
-	hci_req_add_le_scan_disable(req);
-
-	memset(&cp, 0, sizeof(cp));
-	cp.enable = LE_SCAN_ENABLE;
-	cp.filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
-	hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(cp), &cp);
-
-	return 0;
-}
-
-static void le_scan_restart_work(struct work_struct *work)
-{
-	struct hci_dev *hdev = container_of(work, struct hci_dev,
-					    le_scan_restart.work);
-	u8 status;
-	int err;
-
-	BT_DBG("%s", hdev->name);
-
-	err = hci_req_sync(hdev, le_scan_restart, 0, HCI_CMD_TIMEOUT, &status);
-	if (err)
-		return;
-
-	le_scan_restart_work_complete(hdev, status);
 }
 
 static void cancel_adv_timeout(struct hci_dev *hdev)
