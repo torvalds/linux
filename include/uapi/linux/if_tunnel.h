@@ -170,7 +170,7 @@ enum {
 
 #define IFLA_FAN_MAX (__IFLA_FAN_MAX - 1)
 
-struct ip_tunnel_fan_map {
+struct ifla_fan_map {
 	__be32		underlay;
 	__be32		overlay;
 	__u16		underlay_prefix;

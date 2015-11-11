@@ -236,6 +236,8 @@ struct vxlan_dev {
 	struct net	  *net;		/* netns for packet i/o */
 	struct vxlan_rdst default_dst;	/* default destination */
 
+	struct ip_tunnel_fan fan;
+
 	struct timer_list age_timer;
 	spinlock_t	  hash_lock;
 	unsigned int	  addrcnt;
