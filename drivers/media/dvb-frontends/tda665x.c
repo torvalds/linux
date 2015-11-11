@@ -88,6 +88,15 @@ static int tda665x_get_state(struct dvb_frontend *fe,
 	return err;
 }
 
+static int tda665x_get_frequency(struct dvb_frontend *fe, u32 *frequency)
+{
+	struct tda665x_state *state = fe->tuner_priv;
+
+	*frequency = state->frequency;
+
+	return 0;
+}
+
 static int tda665x_get_status(struct dvb_frontend *fe, u32 *status)
 {
 	struct tda665x_state *state = fe->tuner_priv;
@@ -201,6 +210,15 @@ exit:
 	return err;
 }
 
+static int tda665x_set_params(struct dvb_frontend *fe)
+{
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+
+	tda665x_set_frequency(fe, c->frequency);
+
+	return 0;
+}
+
 static int tda665x_set_state(struct dvb_frontend *fe,
 			     enum tuner_param param,
 			     struct tuner_state *tstate)
@@ -226,6 +244,8 @@ static struct dvb_tuner_ops tda665x_ops = {
 	.set_state	= tda665x_set_state,
 	.get_state	= tda665x_get_state,
 	.get_status	= tda665x_get_status,
+	.set_params	= tda665x_set_params,
+	.get_frequency	= tda665x_get_frequency,
 	.release	= tda665x_release
 };
 
