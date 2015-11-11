@@ -981,10 +981,12 @@ static void imx_uart_dma_exit(struct imx_port *sport)
 		dma_release_channel(sport->dma_chan_rx);
 		sport->dma_chan_rx = NULL;
 
-		dma_free_coherent(NULL, IMX_RXBD_NUM * RX_BUF_SIZE,
-					(void *)sport->rx_buf.buf,
-					sport->rx_buf.dmaaddr);
-		sport->rx_buf.buf = NULL;
+		if (sport->rx_buf.buf) {
+			dma_free_coherent(NULL, IMX_RXBD_NUM * RX_BUF_SIZE,
+						(void *)sport->rx_buf.buf,
+						sport->rx_buf.dmaaddr);
+			sport->rx_buf.buf = NULL;
+		}
 	}
 
 	if (sport->dma_chan_tx) {
