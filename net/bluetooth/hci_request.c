@@ -670,7 +670,7 @@ void hci_update_page_scan(struct hci_dev *hdev)
  *
  * This function requires the caller holds hdev->lock.
  */
-void __hci_update_background_scan(struct hci_request *req)
+static void __hci_update_background_scan(struct hci_request *req)
 {
 	struct hci_dev *hdev = req->hdev;
 
