@@ -2085,21 +2085,21 @@ static void skl_ddi_set_iboost(struct drm_device *dev, u32 level,
 			iboost = dp_iboost;
 		} else {
 			ddi_translations = skl_get_buf_trans_dp(dev, &n_entries);
-			iboost = ddi_translations[port].i_boost;
+			iboost = ddi_translations[level].i_boost;
 		}
 	} else if (type == INTEL_OUTPUT_EDP) {
 		if (dp_iboost) {
 			iboost = dp_iboost;
 		} else {
 			ddi_translations = skl_get_buf_trans_edp(dev, &n_entries);
-			iboost = ddi_translations[port].i_boost;
+			iboost = ddi_translations[level].i_boost;
 		}
 	} else if (type == INTEL_OUTPUT_HDMI) {
 		if (hdmi_iboost) {
 			iboost = hdmi_iboost;
 		} else {
 			ddi_translations = skl_get_buf_trans_hdmi(dev, &n_entries);
-			iboost = ddi_translations[port].i_boost;
+			iboost = ddi_translations[level].i_boost;
 		}
 	} else {
 		return;
