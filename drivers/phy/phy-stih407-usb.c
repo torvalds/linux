@@ -22,9 +22,6 @@
 #include <linux/mfd/syscon.h>
 #include <linux/phy/phy.h>
 
-#define PHYPARAM_REG	1
-#define PHYCTRL_REG	2
-
 /* Default PHY_SEL and REFCLKSEL configuration */
 #define STIH407_USB_PICOPHY_CTRL_PORT_CONF	0x6
 #define STIH407_USB_PICOPHY_CTRL_PORT_MASK	0x1f
@@ -96,7 +93,7 @@ static int stih407_usb2_picophy_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct phy_provider *phy_provider;
 	struct phy *phy;
-	int ret;
+	struct resource *res;
 
 	phy_dev = devm_kzalloc(dev, sizeof(*phy_dev), GFP_KERNEL);
 	if (!phy_dev)
@@ -126,21 +123,21 @@ static int stih407_usb2_picophy_probe(struct platform_device *pdev)
 		return PTR_ERR(phy_dev->regmap);
 	}
 
-	ret = of_property_read_u32_index(np, "st,syscfg", PHYPARAM_REG,
-					&phy_dev->param);
-	if (ret) {
-		dev_err(dev, "can't get phyparam offset (%d)\n", ret);
-		return ret;
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ctrl");
+	if (!res) {
+		dev_err(dev, "No ctrl reg found\n");
+		return -ENXIO;
 	}
+	phy_dev->ctrl = res->start;
 
-	ret = of_property_read_u32_index(np, "st,syscfg", PHYCTRL_REG,
-					&phy_dev->ctrl);
-	if (ret) {
-		dev_err(dev, "can't get phyctrl offset (%d)\n", ret);
-		return ret;
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "param");
+	if (!res) {
+		dev_err(dev, "No param reg found\n");
+		return -ENXIO;
 	}
+	phy_dev->param = res->start;
 
-	phy = devm_phy_create(dev, NULL, &stih407_usb2_picophy_data);
+	phy = devm_phy_create(dev, NULL, &stih407_usb2_picophy_data, NULL);
 	if (IS_ERR(phy)) {
 		dev_err(dev, "failed to create Display Port PHY\n");
 		return PTR_ERR(phy);

@@ -37,14 +37,10 @@ static int samsung_usb2_phy_power_on(struct phy *phy)
 		spin_lock(&drv->lock);
 		ret = inst->cfg->power_on(inst);
 		spin_unlock(&drv->lock);
-		if (ret)
-			goto err_power_on;
 	}
 
 	return 0;
 
-err_power_on:
-	clk_disable_unprepare(drv->ref_clk);
 err_instance_clk:
 	clk_disable_unprepare(drv->clk);
 err_main_clk:
@@ -55,7 +51,7 @@ static int samsung_usb2_phy_power_off(struct phy *phy)
 {
 	struct samsung_usb2_phy_instance *inst = phy_get_drvdata(phy);
 	struct samsung_usb2_phy_driver *drv = inst->drv;
-	int ret;
+	int ret = 0;
 
 	dev_dbg(drv->dev, "Request to power_off \"%s\" usb phy\n",
 		inst->cfg->label);
@@ -63,12 +59,10 @@ static int samsung_usb2_phy_power_off(struct phy *phy)
 		spin_lock(&drv->lock);
 		ret = inst->cfg->power_off(inst);
 		spin_unlock(&drv->lock);
-		if (ret)
-			return ret;
 	}
 	clk_disable_unprepare(drv->ref_clk);
 	clk_disable_unprepare(drv->clk);
-	return 0;
+	return ret;
 }
 
 static struct phy_ops samsung_usb2_phy_ops = {
@@ -208,7 +202,8 @@ static int samsung_usb2_phy_probe(struct platform_device *pdev)
 		struct samsung_usb2_phy_instance *p = &drv->instances[i];
 
 		dev_dbg(dev, "Creating phy \"%s\"\n", label);
-		p->phy = devm_phy_create(dev, NULL, &samsung_usb2_phy_ops);
+		p->phy = devm_phy_create(dev, NULL, &samsung_usb2_phy_ops,
+					 NULL);
 		if (IS_ERR(p->phy)) {
 			dev_err(drv->dev, "Failed to create usb2_phy \"%s\"\n",
 				label);
