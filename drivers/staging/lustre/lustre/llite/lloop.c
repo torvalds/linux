@@ -333,7 +333,7 @@ static unsigned int loop_get_bio(struct lloop_device *lo, struct bio **req)
 	return count;
 }
 
-static void loop_make_request(struct request_queue *q, struct bio *old_bio)
+static blk_qc_t loop_make_request(struct request_queue *q, struct bio *old_bio)
 {
 	struct lloop_device *lo = q->queuedata;
 	int rw = bio_rw(old_bio);
@@ -364,9 +364,10 @@ static void loop_make_request(struct request_queue *q, struct bio *old_bio)
 		goto err;
 	}
 	loop_add_bio(lo, old_bio);
-	return;
+	return BLK_QC_T_NONE;
 err:
 	bio_io_error(old_bio);
+	return BLK_QC_T_NONE;
 }
 
 static inline void loop_handle_bio(struct lloop_device *lo, struct bio *bio)

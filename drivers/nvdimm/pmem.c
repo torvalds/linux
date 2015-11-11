@@ -64,7 +64,7 @@ static void pmem_do_bvec(struct pmem_device *pmem, struct page *page,
 	kunmap_atomic(mem);
 }
 
-static void pmem_make_request(struct request_queue *q, struct bio *bio)
+static blk_qc_t pmem_make_request(struct request_queue *q, struct bio *bio)
 {
 	bool do_acct;
 	unsigned long start;
@@ -84,6 +84,7 @@ static void pmem_make_request(struct request_queue *q, struct bio *bio)
 		wmb_pmem();
 
 	bio_endio(bio);
+	return BLK_QC_T_NONE;
 }
 
 static int pmem_rw_page(struct block_device *bdev, sector_t sector,
