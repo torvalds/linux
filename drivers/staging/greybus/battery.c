@@ -244,7 +244,7 @@ static int init_and_register(struct gb_connection *connection,
 	gb->bat.num_properties	= ARRAY_SIZE(battery_props);
 	gb->bat.get_property	= get_property;
 
-	return power_supply_register(&connection->bundle->intf->dev, &gb->bat);
+	return power_supply_register(&connection->bundle->dev, &gb->bat);
 }
 #else
 static int init_and_register(struct gb_connection *connection,
@@ -262,7 +262,7 @@ static int init_and_register(struct gb_connection *connection,
 	gb->desc.num_properties	= ARRAY_SIZE(battery_props);
 	gb->desc.get_property	= get_property;
 
-	gb->bat = power_supply_register(&connection->bundle->intf->dev,
+	gb->bat = power_supply_register(&connection->bundle->dev,
 					&gb->desc, &cfg);
 	if (IS_ERR(gb->bat))
 		return PTR_ERR(gb->bat);
