@@ -12,9 +12,9 @@
 
 #include "greybus.h"
 
-#define CPORT_FLAGS_E2EFC       (1)
-#define CPORT_FLAGS_CSD_N       (2)
-#define CPORT_FLAGS_CSV_N       (4)
+#define CPORT_FLAGS_E2EFC       BIT(0)
+#define CPORT_FLAGS_CSD_N       BIT(1)
+#define CPORT_FLAGS_CSV_N       BIT(2)
 
 enum gb_svc_state {
 	GB_SVC_STATE_RESET,
