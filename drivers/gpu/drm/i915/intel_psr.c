@@ -729,7 +729,6 @@ void intel_psr_flush(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
 	enum pipe pipe;
-	int delay_ms = HAS_DDI(dev) ? 100 : 500;
 
 	mutex_lock(&dev_priv->psr.lock);
 	if (!dev_priv->psr.enabled) {
@@ -766,7 +765,7 @@ void intel_psr_flush(struct drm_device *dev,
 	if (!dev_priv->psr.active && !dev_priv->psr.busy_frontbuffer_bits)
 		if (!work_busy(&dev_priv->psr.work.work))
 			schedule_delayed_work(&dev_priv->psr.work,
-					      msecs_to_jiffies(delay_ms));
+					      msecs_to_jiffies(100));
 	mutex_unlock(&dev_priv->psr.lock);
 }
 
