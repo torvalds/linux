@@ -183,7 +183,6 @@ enum {
 
 #define TUNNEL_OPTIONS_PRESENT \
 		(TUNNEL_GENEVE_OPT | TUNNEL_VXLAN_OPT | TUNNEL_ERSPAN_OPT)
-#define TUNNEL_FAN		__cpu_to_be16(0x8000)
 
 enum {
 	IFLA_FAN_UNSPEC,
@@ -193,7 +192,7 @@ enum {
 
 #define IFLA_FAN_MAX (__IFLA_FAN_MAX - 1)
 
-struct ip_tunnel_fan_map {
+struct ifla_fan_map {
 	__be32		underlay;
 	__be32		overlay;
 	__u16		underlay_prefix;
