@@ -1322,6 +1322,12 @@ static void rt6_do_update_pmtu(struct rt6_info *rt, u32 mtu)
 	rt6_update_expires(rt, net->ipv6.sysctl.ip6_rt_mtu_expires);
 }
 
+static bool rt6_cache_allowed_for_pmtu(const struct rt6_info *rt)
+{
+	return !(rt->rt6i_flags & RTF_CACHE) &&
+		(rt->rt6i_flags & RTF_PCPU || rt->rt6i_node);
+}
+
 static void __ip6_rt_update_pmtu(struct dst_entry *dst, const struct sock *sk,
 				 const struct ipv6hdr *iph, u32 mtu)
 {
@@ -1335,7 +1341,7 @@ static void __ip6_rt_update_pmtu(struct dst_entry *dst, const struct sock *sk,
 	if (mtu >= dst_mtu(dst))
 		return;
 
-	if (rt6->rt6i_flags & RTF_CACHE) {
+	if (!rt6_cache_allowed_for_pmtu(rt6)) {
 		rt6_do_update_pmtu(rt6, mtu);
 	} else {
 		const struct in6_addr *daddr, *saddr;
