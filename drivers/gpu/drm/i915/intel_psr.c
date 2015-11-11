@@ -287,7 +287,6 @@ static void hsw_psr_enable_source(struct intel_dp *intel_dp)
 		   send the minimal TP1 possible and skip TP2. */
 		val |= EDP_PSR_TP1_TIME_100us;
 		val |= EDP_PSR_TP2_TP3_TIME_0us;
-		val |= EDP_PSR_SKIP_AUX_EXIT;
 		/* Sink should be able to train with the 5 or 6 idle patterns */
 		idle_frames += 4;
 	}
