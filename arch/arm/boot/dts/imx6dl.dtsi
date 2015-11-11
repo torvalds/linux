@@ -107,7 +107,7 @@
 };
 
 &gpt {
-	compatible = "fsl,imx6dl-gpt", "fsl,imx6q-gpt";
+	compatible = "fsl,imx6dl-gpt";
 };
 
 &hdmi {
