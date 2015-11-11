@@ -1030,7 +1030,10 @@ _ctl_getiocinfo(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 	strcat(karg.driver_version, "-");
 	switch  (ioc->hba_mpi_version_belonged) {
 	case MPI2_VERSION:
-		karg.adapter_type = MPT2_IOCTL_INTERFACE_SAS2;
+		if (ioc->is_warpdrive)
+			karg.adapter_type = MPT2_IOCTL_INTERFACE_SAS2_SSS6200;
+		else
+			karg.adapter_type = MPT2_IOCTL_INTERFACE_SAS2;
 		strcat(karg.driver_version, MPT2SAS_DRIVER_VERSION);
 		break;
 	case MPI25_VERSION:

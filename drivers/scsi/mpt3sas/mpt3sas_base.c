@@ -593,7 +593,8 @@ _base_display_event_data(struct MPT3SAS_ADAPTER *ioc,
 		desc = "Device Status Change";
 		break;
 	case MPI2_EVENT_IR_OPERATION_STATUS:
-		desc = "IR Operation Status";
+		if (!ioc->hide_ir_msg)
+			desc = "IR Operation Status";
 		break;
 	case MPI2_EVENT_SAS_DISCOVERY:
 	{
@@ -624,16 +625,20 @@ _base_display_event_data(struct MPT3SAS_ADAPTER *ioc,
 		desc = "SAS Enclosure Device Status Change";
 		break;
 	case MPI2_EVENT_IR_VOLUME:
-		desc = "IR Volume";
+		if (!ioc->hide_ir_msg)
+			desc = "IR Volume";
 		break;
 	case MPI2_EVENT_IR_PHYSICAL_DISK:
-		desc = "IR Physical Disk";
+		if (!ioc->hide_ir_msg)
+			desc = "IR Physical Disk";
 		break;
 	case MPI2_EVENT_IR_CONFIGURATION_CHANGE_LIST:
-		desc = "IR Configuration Change List";
+		if (!ioc->hide_ir_msg)
+			desc = "IR Configuration Change List";
 		break;
 	case MPI2_EVENT_LOG_ENTRY_ADDED:
-		desc = "Log Entry Added";
+		if (!ioc->hide_ir_msg)
+			desc = "Log Entry Added";
 		break;
 	case MPI2_EVENT_TEMP_THRESHOLD:
 		desc = "Temperature Threshold";
@@ -689,7 +694,10 @@ _base_sas_log_info(struct MPT3SAS_ADAPTER *ioc , u32 log_info)
 		originator_str = "PL";
 		break;
 	case 2:
-		originator_str = "IR";
+		if (!ioc->hide_ir_msg)
+			originator_str = "IR";
+		else
+			originator_str = "WarpDrive";
 		break;
 	}
 
@@ -1023,6 +1031,12 @@ _base_interrupt(int irq, void *bus_id)
 	}
 
 	wmb();
+	if (ioc->is_warpdrive) {
+		writel(reply_q->reply_post_host_index,
+		ioc->reply_post_host_index[msix_index]);
+		atomic_dec(&reply_q->busy);
+		return IRQ_HANDLED;
+	}
 
 	/* Update Reply Post Host Index.
 	 * For those HBA's which support combined reply queue feature
@@ -2333,6 +2347,7 @@ mpt3sas_base_free_smid(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 		}
 		ioc->scsi_lookup[i].cb_idx = 0xFF;
 		ioc->scsi_lookup[i].scmd = NULL;
+		ioc->scsi_lookup[i].direct_io = 0;
 		list_add(&ioc->scsi_lookup[i].tracker_list, &ioc->free_list);
 		spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
 
@@ -2683,10 +2698,12 @@ _base_display_ioc_capabilities(struct MPT3SAS_ADAPTER *ioc)
 	pr_info("), ");
 	pr_info("Capabilities=(");
 
-	if (ioc->facts.IOCCapabilities &
+	if (!ioc->hide_ir_msg) {
+		if (ioc->facts.IOCCapabilities &
 		    MPI2_IOCFACTS_CAPABILITY_INTEGRATED_RAID) {
 			pr_info("Raid");
 			i++;
+		}
 	}
 
 	if (ioc->facts.IOCCapabilities & MPI2_IOCFACTS_CAPABILITY_TLR) {
@@ -4834,6 +4851,7 @@ _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc, int sleep_flag)
 	u32 reply_address;
 	u16 smid;
 	struct _tr_list *delayed_tr, *delayed_tr_next;
+	u8 hide_flag;
 	struct adapter_reply_queue *reply_q;
 	long reply_post_free;
 	u32 reply_post_free_sz, index = 0;
@@ -4864,6 +4882,7 @@ _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc, int sleep_flag)
 		ioc->scsi_lookup[i].cb_idx = 0xFF;
 		ioc->scsi_lookup[i].smid = smid;
 		ioc->scsi_lookup[i].scmd = NULL;
+		ioc->scsi_lookup[i].direct_io = 0;
 		list_add_tail(&ioc->scsi_lookup[i].tracker_list,
 		    &ioc->free_list);
 	}
@@ -4966,6 +4985,16 @@ _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc, int sleep_flag)
 
 
 	if (ioc->is_driver_loading) {
+
+		if (ioc->is_warpdrive && ioc->manu_pg10.OEMIdentifier
+		    == 0x80) {
+			hide_flag = (u8) (
+			    le32_to_cpu(ioc->manu_pg10.OEMSpecificFlags0) &
+			    MFG_PAGE10_HIDE_SSDS_MASK);
+			if (hide_flag != MFG_PAGE10_HIDE_SSDS_MASK)
+				ioc->mfg_pg10_hide_flag = hide_flag;
+		}
+
 		ioc->wait_for_discovery_to_complete =
 		    _base_determine_wait_on_discovery(ioc);
 
@@ -5032,12 +5061,33 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 		goto out_free_resources;
 	}
 
+	if (ioc->is_warpdrive) {
+		ioc->reply_post_host_index = kcalloc(ioc->cpu_msix_table_sz,
+		    sizeof(resource_size_t *), GFP_KERNEL);
+		if (!ioc->reply_post_host_index) {
+			dfailprintk(ioc, pr_info(MPT3SAS_FMT "allocation "
+				"for cpu_msix_table failed!!!\n", ioc->name));
+			r = -ENOMEM;
+			goto out_free_resources;
+		}
+	}
+
 	ioc->rdpq_array_enable_assigned = 0;
 	ioc->dma_mask = 0;
 	r = mpt3sas_base_map_resources(ioc);
 	if (r)
 		goto out_free_resources;
 
+	if (ioc->is_warpdrive) {
+		ioc->reply_post_host_index[0] = (resource_size_t __iomem *)
+		    &ioc->chip->ReplyPostHostIndex;
+
+		for (i = 1; i < ioc->cpu_msix_table_sz; i++)
+			ioc->reply_post_host_index[i] =
+			(resource_size_t __iomem *)
+			((u8 __iomem *)&ioc->chip->Doorbell + (0x4000 + ((i - 1)
+			* 4)));
+	}
 
 	pci_set_drvdata(ioc->pdev, ioc->shost);
 	r = _base_get_ioc_facts(ioc, CAN_SLEEP);
@@ -5189,6 +5239,8 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 	_base_release_memory_pools(ioc);
 	pci_set_drvdata(ioc->pdev, NULL);
 	kfree(ioc->cpu_msix_table);
+	if (ioc->is_warpdrive)
+		kfree(ioc->reply_post_host_index);
 	kfree(ioc->pd_handles);
 	kfree(ioc->blocking_handles);
 	kfree(ioc->tm_cmds.reply);
@@ -5228,6 +5280,8 @@ mpt3sas_base_detach(struct MPT3SAS_ADAPTER *ioc)
 	_base_release_memory_pools(ioc);
 	pci_set_drvdata(ioc->pdev, NULL);
 	kfree(ioc->cpu_msix_table);
+	if (ioc->is_warpdrive)
+		kfree(ioc->reply_post_host_index);
 	kfree(ioc->pd_handles);
 	kfree(ioc->blocking_handles);
 	kfree(ioc->pfacts);

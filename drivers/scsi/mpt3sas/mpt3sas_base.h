@@ -135,6 +135,16 @@
 #define MPT3SAS_FMT			"%s: "
 
 /*
+ *  WarpDrive Specific Log codes
+ */
+
+#define MPT2_WARPDRIVE_LOGENTRY		(0x8002)
+#define MPT2_WARPDRIVE_LC_SSDT			(0x41)
+#define MPT2_WARPDRIVE_LC_SSDLW		(0x43)
+#define MPT2_WARPDRIVE_LC_SSDLF		(0x44)
+#define MPT2_WARPDRIVE_LC_BRMF			(0x4D)
+
+/*
  * per target private data
  */
 #define MPT_TARGET_FLAGS_RAID_COMPONENT	0x01
@@ -257,6 +267,7 @@ struct Mpi2ManufacturingPage11_t {
  * struct MPT3SAS_TARGET - starget private hostdata
  * @starget: starget object
  * @sas_address: target sas address
+ * @raid_device: raid_device pointer to access volume data
  * @handle: device handle
  * @num_luns: number luns
  * @flags: MPT_TARGET_FLAGS_XXX flags
@@ -266,6 +277,7 @@ struct Mpi2ManufacturingPage11_t {
 struct MPT3SAS_TARGET {
 	struct scsi_target *starget;
 	u64	sas_address;
+	struct _raid_device *raid_device;
 	u16	handle;
 	int	num_luns;
 	u32	flags;
@@ -279,6 +291,11 @@ struct MPT3SAS_TARGET {
  */
 #define MPT_DEVICE_FLAGS_INIT		0x01
 #define MPT_DEVICE_TLR_ON		0x02
+
+#define MFG_PAGE10_HIDE_SSDS_MASK	(0x00000003)
+#define MFG_PAGE10_HIDE_ALL_DISKS	(0x00)
+#define MFG_PAGE10_EXPOSE_ALL_DISKS	(0x01)
+#define MFG_PAGE10_HIDE_IF_VOL_PRESENT	(0x02)
 
 /**
  * struct MPT3SAS_DEVICE - sdev private hostdata
@@ -381,6 +398,7 @@ struct _sas_device {
  * @sdev: scsi device struct (volumes are single lun)
  * @wwid: unique identifier for the volume
  * @handle: device handle
+ * @block_size: Block size of the volume
  * @id: target id
  * @channel: target channel
  * @volume_type: the raid level
@@ -388,6 +406,13 @@ struct _sas_device {
  * @num_pds: number of hidden raid components
  * @responding: used in _scsih_raid_device_mark_responding
  * @percent_complete: resync percent complete
+ * @direct_io_enabled: Whether direct io to PDs are allowed or not
+ * @stripe_exponent: X where 2powX is the stripe sz in blocks
+ * @block_exponent: X where 2powX is the block sz in bytes
+ * @max_lba: Maximum number of LBA in the volume
+ * @stripe_sz: Stripe Size of the volume
+ * @device_info: Device info of the volume member disk
+ * @pd_handle: Array of handles of the physical drives for direct I/O in le16
  */
 #define MPT_MAX_WARPDRIVE_PDS		8
 struct _raid_device {
@@ -396,13 +421,20 @@ struct _raid_device {
 	struct scsi_device *sdev;
 	u64	wwid;
 	u16	handle;
+	u16	block_sz;
 	int	id;
 	int	channel;
 	u8	volume_type;
 	u8	num_pds;
 	u8	responding;
 	u8	percent_complete;
+	u8	direct_io_enabled;
+	u8	stripe_exponent;
+	u8	block_exponent;
+	u64	max_lba;
+	u32	stripe_sz;
 	u32	device_info;
+	u16	pd_handle[MPT_MAX_WARPDRIVE_PDS];
 };
 
 /**
@@ -511,12 +543,14 @@ struct chain_tracker {
  * @smid: system message id
  * @scmd: scsi request pointer
  * @cb_idx: callback index
+ * @direct_io: To indicate whether I/O is direct (WARPDRIVE)
  * @tracker_list: list of free request (ioc->free_list)
  */
 struct scsiio_tracker {
 	u16	smid;
 	struct scsi_cmnd *scmd;
 	u8	cb_idx;
+	u8	direct_io;
 	struct list_head chain_list;
 	struct list_head tracker_list;
 };
@@ -843,6 +877,7 @@ struct MPT3SAS_ADAPTER {
 	u16		msix_vector_count;
 	u8		*cpu_msix_table;
 	u16		cpu_msix_table_sz;
+	resource_size_t __iomem **reply_post_host_index;
 	u32		ioc_reset_count;
 	MPT3SAS_FLUSH_RUNNING_CMDS schedule_dead_ioc_flush_running_cmds;
 	u32             non_operational_loop;
@@ -1014,6 +1049,10 @@ struct MPT3SAS_ADAPTER {
 	u32		diagnostic_flags[MPI2_DIAG_BUF_TYPE_COUNT];
 	u32		ring_buffer_offset;
 	u32		ring_buffer_sz;
+	u8		is_warpdrive;
+	u8		hide_ir_msg;
+	u8		mfg_pg10_hide_flag;
+	u8		hide_drives;
 	spinlock_t	diag_trigger_lock;
 	u8		diag_trigger_active;
 	struct SL_WH_MASTER_TRIGGER_T diag_trigger_master;

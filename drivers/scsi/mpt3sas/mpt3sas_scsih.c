@@ -54,6 +54,7 @@
 #include <linux/interrupt.h>
 #include <linux/aer.h>
 #include <linux/raid_class.h>
+#include <asm/unaligned.h>
 
 #include "mpt3sas_base.h"
 
@@ -70,6 +71,21 @@ static int _scsih_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 
 static u8 _scsih_check_for_pending_tm(struct MPT3SAS_ADAPTER *ioc, u16 smid);
 
+#ifdef SCSI_MPT2SAS
+static void _scsih_disable_ddio(struct MPT3SAS_ADAPTER *ioc);
+static u8 _scsih_get_num_volumes(struct MPT3SAS_ADAPTER *ioc);
+static void
+_scsih_init_warpdrive_properties(struct MPT3SAS_ADAPTER *ioc,
+	struct _raid_device *raid_device);
+static inline u8
+_scsih_scsi_direct_io_get(struct MPT3SAS_ADAPTER *ioc, u16 smid);
+static inline void
+_scsih_scsi_direct_io_set(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 direct_io);
+static void
+_scsih_setup_direct_io(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
+	struct _raid_device *raid_device, Mpi2SCSIIORequest_t *mpi_request,
+	u16 smid);
+#endif
 
 /* global parameters */
 LIST_HEAD(mpt3sas_ioc_list);
@@ -1144,7 +1160,9 @@ scsih_target_alloc(struct scsi_target *starget)
 			sas_target_priv_data->handle = raid_device->handle;
 			sas_target_priv_data->sas_address = raid_device->wwid;
 			sas_target_priv_data->flags |= MPT_TARGET_FLAGS_VOLUME;
-			raid_device->starget = starget;
+			sas_target_priv_data->raid_device = raid_device;
+			if (ioc->is_warpdrive)
+				raid_device->starget = starget;
 		}
 		spin_unlock_irqrestore(&ioc->raid_device_lock, flags);
 		return 0;
@@ -1386,7 +1404,10 @@ int
 scsih_is_raid(struct device *dev)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
+	struct MPT3SAS_ADAPTER *ioc = shost_priv(sdev->host);
 
+	if (ioc->is_warpdrive)
+		return 0;
 	return (sdev->channel == RAID_CHANNEL) ? 1 : 0;
 }
 
@@ -1409,6 +1430,9 @@ scsih_get_resync(struct device *dev)
 
 	percent_complete = 0;
 	handle = 0;
+	if (ioc->is_warpdrive)
+		goto out;
+
 	spin_lock_irqsave(&ioc->raid_device_lock, flags);
 	raid_device = _scsih_raid_device_find_by_id(ioc, sdev->id,
 	    sdev->channel);
@@ -1592,8 +1616,6 @@ _scsih_get_volume_capabilities(struct MPT3SAS_ADAPTER *ioc,
 	return 0;
 }
 
-
-
 /**
  * _scsih_enable_tlr - setting TLR flags
  * @ioc: per adapter object
@@ -1672,6 +1694,12 @@ scsih_slave_configure(struct scsi_device *sdev)
 			return 1;
 		}
 
+#ifdef SCSI_MPT2SAS
+		/*
+		 * WARPDRIVE: Initialize the required data for Direct IO
+		 */
+		_scsih_init_warpdrive_properties(ioc, raid_device);
+#endif
 
 		/* RAID Queue Depth Support
 		 * IS volume = underlying qdepth of drive type, either
@@ -1720,17 +1748,19 @@ scsih_slave_configure(struct scsi_device *sdev)
 			break;
 		}
 
-		sdev_printk(KERN_INFO, sdev,
-			"%s: handle(0x%04x), wwid(0x%016llx), pd_count(%d), type(%s)\n",
-			 r_level, raid_device->handle,
-			 (unsigned long long)raid_device->wwid,
-			 raid_device->num_pds, ds);
-
+		if (!ioc->hide_ir_msg)
+			sdev_printk(KERN_INFO, sdev,
+			   "%s: handle(0x%04x), wwid(0x%016llx),"
+			    " pd_count(%d), type(%s)\n",
+			    r_level, raid_device->handle,
+			    (unsigned long long)raid_device->wwid,
+			    raid_device->num_pds, ds);
 
 		scsih_change_queue_depth(sdev, qdepth);
 
-/* raid transport support */
-		_scsih_set_level(sdev, raid_device->volume_type);
+		/* raid transport support */
+		if (!ioc->is_warpdrive)
+			_scsih_set_level(sdev, raid_device->volume_type);
 		return 0;
 	}
 
@@ -2179,7 +2209,10 @@ _scsih_tm_display_info(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd)
 
 	if (!priv_target)
 		return;
-	device_str = "volume";
+	if (ioc->hide_ir_msg)
+		device_str = "WarpDrive";
+	else
+		device_str = "volume";
 
 	scsi_print_command(scmd);
 	if (priv_target->flags & MPT_TARGET_FLAGS_VOLUME) {
@@ -3368,6 +3401,9 @@ _scsih_check_ir_config_unhide_events(struct MPT3SAS_ADAPTER *ioc,
 	a = 0;
 	b = 0;
 
+	if (ioc->is_warpdrive)
+		return;
+
 	/* Volume Resets for Deleted or Removed */
 	element = (Mpi2EventIrConfigElement_t *)&event_data->ConfigElement[0];
 	for (i = 0; i < event_data->NumElements; i++, element++) {
@@ -3604,6 +3640,7 @@ _scsih_eedp_error_handling(struct scsi_cmnd *scmd, u16 ioc_status)
 }
 
 
+
 /**
  * scsih_qcmd - main scsi request entry point
  * @scmd: pointer to scsi command object
@@ -3621,6 +3658,9 @@ scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 	struct MPT3SAS_ADAPTER *ioc = shost_priv(shost);
 	struct MPT3SAS_DEVICE *sas_device_priv_data;
 	struct MPT3SAS_TARGET *sas_target_priv_data;
+#ifdef SCSI_MPT2SAS
+	struct _raid_device *raid_device;
+#endif
 	Mpi2SCSIIORequest_t *mpi_request;
 	u32 mpi_control;
 	u16 smid;
@@ -3677,7 +3717,11 @@ scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 	/* set tags */
 	mpi_control |= MPI2_SCSIIO_CONTROL_SIMPLEQ;
 
-	if ((sas_device_priv_data->flags & MPT_DEVICE_TLR_ON) &&
+	/* Make sure Device is not raid volume.
+	 * We do not expose raid functionality to upper layer for warpdrive.
+	 */
+	if (!ioc->is_warpdrive && !scsih_is_raid(&scmd->device->sdev_gendev)
+	    && (sas_device_priv_data->flags & MPT_DEVICE_TLR_ON) &&
 	    scmd->cmd_len != 32)
 		mpi_control |= MPI2_SCSIIO_CONTROL_TLR_ON;
 
@@ -3720,6 +3764,13 @@ scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 	} else
 		ioc->build_zero_len_sge(ioc, &mpi_request->SGL);
 
+#ifdef SCSI_MPT2SAS
+	raid_device = sas_target_priv_data->raid_device;
+	if (raid_device && raid_device->direct_io_enabled)
+		_scsih_setup_direct_io(ioc, scmd, raid_device, mpi_request,
+		    smid);
+#endif
+
 	if (likely(mpi_request->Function == MPI2_FUNCTION_SCSI_IO_REQUEST)) {
 #ifndef SCSI_MPT2SAS
 		if (sas_target_priv_data->flags & MPT_TARGET_FASTPATH_IO) {
@@ -3728,7 +3779,8 @@ scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 			mpt3sas_base_put_smid_fast_path(ioc, smid, handle);
 		} else
 #endif
-			mpt3sas_base_put_smid_scsi_io(ioc, smid, handle);
+			mpt3sas_base_put_smid_scsi_io(ioc, smid,
+			    le16_to_cpu(mpi_request->DevHandle));
 	} else
 		mpt3sas_base_put_smid_default(ioc, smid);
 	return 0;
@@ -3794,7 +3846,10 @@ _scsih_scsi_ioc_info(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 
 	if (!priv_target)
 		return;
-	device_str = "volume";
+	if (ioc->hide_ir_msg)
+		device_str = "WarpDrive";
+	else
+		device_str = "volume";
 
 	if (log_info == 0x31170000)
 		return;
@@ -4175,6 +4230,9 @@ _scsih_io_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 	u32 log_info;
 	struct MPT3SAS_DEVICE *sas_device_priv_data;
 	u32 response_code = 0;
+#ifdef SCSI_MPT2SAS
+	unsigned long flags;
+#endif
 
 	mpi_reply = mpt3sas_base_get_reply_virt_addr(ioc, reply);
 	scmd = _scsih_scsi_lookup_get_clear(ioc, smid);
@@ -4196,6 +4254,26 @@ _scsih_io_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 	}
 	ioc_status = le16_to_cpu(mpi_reply->IOCStatus);
 
+#ifdef SCSI_MPT2SAS
+	/*
+	 * WARPDRIVE: If direct_io is set then it is directIO,
+	 * the failed direct I/O should be redirected to volume
+	 */
+	if (_scsih_scsi_direct_io_get(ioc, smid) &&
+	     ((ioc_status & MPI2_IOCSTATUS_MASK)
+	      != MPI2_IOCSTATUS_SCSI_TASK_TERMINATED)) {
+		spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
+		ioc->scsi_lookup[smid - 1].scmd = scmd;
+		spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
+		_scsih_scsi_direct_io_set(ioc, smid, 0);
+		memcpy(mpi_request->CDB.CDB32, scmd->cmnd, scmd->cmd_len);
+		mpi_request->DevHandle =
+		    cpu_to_le16(sas_device_priv_data->sas_target->handle);
+		mpt3sas_base_put_smid_scsi_io(ioc, smid,
+		    sas_device_priv_data->sas_target->handle);
+		return 0;
+	}
+#endif
 	/* turning off TLR */
 	scsi_state = mpi_reply->SCSIState;
 	if (scsi_state & MPI2_SCSI_STATE_RESPONSE_INFO_VALID)
@@ -4203,7 +4281,9 @@ _scsih_io_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 		    le32_to_cpu(mpi_reply->ResponseInfo) & 0xFF;
 	if (!sas_device_priv_data->tlr_snoop_check) {
 		sas_device_priv_data->tlr_snoop_check++;
-		if ((sas_device_priv_data->flags & MPT_DEVICE_TLR_ON) &&
+		if (!ioc->is_warpdrive &&
+		    !scsih_is_raid(&scmd->device->sdev_gendev) &&
+		    (sas_device_priv_data->flags & MPT_DEVICE_TLR_ON) &&
 		    response_code == MPI2_SCSITASKMGMT_RSP_INVALID_FRAME)
 			sas_device_priv_data->flags &=
 			    ~MPT_DEVICE_TLR_ON;
@@ -5110,7 +5190,9 @@ _scsih_remove_device(struct MPT3SAS_ADAPTER *ioc,
 		sas_target_priv_data->handle =
 		     MPT3SAS_INVALID_DEVICE_HANDLE;
 	}
-	mpt3sas_transport_port_remove(ioc,
+
+	if (!ioc->hide_drives)
+		mpt3sas_transport_port_remove(ioc,
 		    sas_device->sas_address,
 		    sas_device->sas_address_parent);
 
@@ -6208,7 +6290,8 @@ _scsih_sas_ir_config_change_event(struct MPT3SAS_ADAPTER *ioc,
 		(Mpi2EventDataIrConfigChangeList_t *)
 		fw_event->event_data;
 
-	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK)
+	if ((ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK) &&
+	     (!ioc->hide_ir_msg))
 		_scsih_sas_ir_config_change_event_debug(ioc, event_data);
 
 	foreign_config = (le32_to_cpu(event_data->Flags) &
@@ -6226,6 +6309,7 @@ _scsih_sas_ir_config_change_event(struct MPT3SAS_ADAPTER *ioc,
 #endif
 		return;
 	}
+
 	for (i = 0; i < event_data->NumElements; i++, element++) {
 
 		switch (element->ReasonCode) {
@@ -6241,16 +6325,20 @@ _scsih_sas_ir_config_change_event(struct MPT3SAS_ADAPTER *ioc,
 				    le16_to_cpu(element->VolDevHandle));
 			break;
 		case MPI2_EVENT_IR_CHANGE_RC_PD_CREATED:
-			_scsih_sas_pd_hide(ioc, element);
+			if (!ioc->is_warpdrive)
+				_scsih_sas_pd_hide(ioc, element);
 			break;
 		case MPI2_EVENT_IR_CHANGE_RC_PD_DELETED:
-			_scsih_sas_pd_expose(ioc, element);
+			if (!ioc->is_warpdrive)
+				_scsih_sas_pd_expose(ioc, element);
 			break;
 		case MPI2_EVENT_IR_CHANGE_RC_HIDE:
-			_scsih_sas_pd_add(ioc, element);
+			if (!ioc->is_warpdrive)
+				_scsih_sas_pd_add(ioc, element);
 			break;
 		case MPI2_EVENT_IR_CHANGE_RC_UNHIDE:
-			_scsih_sas_pd_delete(ioc, element);
+			if (!ioc->is_warpdrive)
+				_scsih_sas_pd_delete(ioc, element);
 			break;
 		}
 	}
@@ -6285,10 +6373,11 @@ _scsih_sas_ir_volume_event(struct MPT3SAS_ADAPTER *ioc,
 
 	handle = le16_to_cpu(event_data->VolDevHandle);
 	state = le32_to_cpu(event_data->NewValue);
-	dewtprintk(ioc, pr_info(MPT3SAS_FMT
-		"%s: handle(0x%04x), old(0x%08x), new(0x%08x)\n",
-		ioc->name, __func__,  handle,
-	    le32_to_cpu(event_data->PreviousValue), state));
+	if (!ioc->hide_ir_msg)
+		dewtprintk(ioc, pr_info(MPT3SAS_FMT
+		    "%s: handle(0x%04x), old(0x%08x), new(0x%08x)\n",
+		    ioc->name, __func__,  handle,
+		    le32_to_cpu(event_data->PreviousValue), state));
 	switch (state) {
 	case MPI2_RAID_VOL_STATE_MISSING:
 	case MPI2_RAID_VOL_STATE_FAILED:
@@ -6371,10 +6460,12 @@ _scsih_sas_ir_physical_disk_event(struct MPT3SAS_ADAPTER *ioc,
 	handle = le16_to_cpu(event_data->PhysDiskDevHandle);
 	state = le32_to_cpu(event_data->NewValue);
 
-	dewtprintk(ioc, pr_info(MPT3SAS_FMT
-		"%s: handle(0x%04x), old(0x%08x), new(0x%08x)\n",
-		ioc->name, __func__,  handle,
+	if (!ioc->hide_ir_msg)
+		dewtprintk(ioc, pr_info(MPT3SAS_FMT
+		    "%s: handle(0x%04x), old(0x%08x), new(0x%08x)\n",
+		    ioc->name, __func__,  handle,
 		    le32_to_cpu(event_data->PreviousValue), state));
+
 	switch (state) {
 	case MPI2_RAID_PD_STATE_ONLINE:
 	case MPI2_RAID_PD_STATE_DEGRADED:
@@ -6382,7 +6473,8 @@ _scsih_sas_ir_physical_disk_event(struct MPT3SAS_ADAPTER *ioc,
 	case MPI2_RAID_PD_STATE_OPTIMAL:
 	case MPI2_RAID_PD_STATE_HOT_SPARE:
 
-		set_bit(handle, ioc->pd_handles);
+		if (!ioc->is_warpdrive)
+			set_bit(handle, ioc->pd_handles);
 		spin_lock_irqsave(&ioc->sas_device_lock, flags);
 		sas_device = _scsih_sas_device_find_by_handle(ioc, handle);
 		spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
@@ -6484,7 +6576,8 @@ _scsih_sas_ir_operation_status_event(struct MPT3SAS_ADAPTER *ioc,
 	unsigned long flags;
 	u16 handle;
 
-	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK)
+	if ((ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK) &&
+	    (!ioc->hide_ir_msg))
 		_scsih_sas_ir_operation_status_event_debug(ioc,
 		     event_data);
 
@@ -6655,7 +6748,7 @@ static void
 _scsih_mark_responding_raid_device(struct MPT3SAS_ADAPTER *ioc, u64 wwid,
 	u16 handle)
 {
-	struct MPT3SAS_TARGET *sas_target_priv_data;
+	struct MPT3SAS_TARGET *sas_target_priv_data = NULL;
 	struct scsi_target *starget;
 	struct _raid_device *raid_device;
 	unsigned long flags;
@@ -6674,6 +6767,15 @@ _scsih_mark_responding_raid_device(struct MPT3SAS_ADAPTER *ioc, u64 wwid,
 			starget_printk(KERN_INFO, raid_device->starget,
 			    "handle(0x%04x), wwid(0x%016llx)\n", handle,
 			    (unsigned long long)raid_device->wwid);
+
+#ifdef SCSI_MPT2SAS
+			/*
+			 * WARPDRIVE: The handles of the PDs might have changed
+			 * across the host reset so re-initialize the
+			 * required data for Direct IO
+			 */
+			_scsih_init_warpdrive_properties(ioc, raid_device);
+#endif
 			spin_lock_irqsave(&ioc->raid_device_lock, flags);
 			if (raid_device->handle == handle) {
 				spin_unlock_irqrestore(&ioc->raid_device_lock,
@@ -6743,6 +6845,7 @@ _scsih_search_responding_raid_devices(struct MPT3SAS_ADAPTER *ioc)
 	}
 
 	/* refresh the pd_handles */
+	if (!ioc->is_warpdrive) {
 		phys_disk_num = 0xFF;
 		memset(ioc->pd_handles, 0, ioc->pd_handles_sz);
 		while (!(mpt3sas_config_get_phys_disk_pg0(ioc, &mpi_reply,
@@ -6756,6 +6859,7 @@ _scsih_search_responding_raid_devices(struct MPT3SAS_ADAPTER *ioc)
 			handle = le16_to_cpu(pd_pg0.DevHandle);
 			set_bit(handle, ioc->pd_handles);
 		}
+	}
  out:
 	pr_info(MPT3SAS_FMT "search for responding raid volumes: complete\n",
 		ioc->name);
@@ -7405,7 +7509,53 @@ mpt3sas_scsih_event_callback(struct MPT3SAS_ADAPTER *ioc, u8 msix_index,
 		    (Mpi2EventDataIrVolume_t *)
 		    mpi_reply->EventData);
 		break;
+	case MPI2_EVENT_LOG_ENTRY_ADDED:
+	{
+		Mpi2EventDataLogEntryAdded_t *log_entry;
+		u32 *log_code;
 
+		if (!ioc->is_warpdrive)
+			break;
+
+		log_entry = (Mpi2EventDataLogEntryAdded_t *)
+		    mpi_reply->EventData;
+		log_code = (u32 *)log_entry->LogData;
+
+		if (le16_to_cpu(log_entry->LogEntryQualifier)
+		    != MPT2_WARPDRIVE_LOGENTRY)
+			break;
+
+		switch (le32_to_cpu(*log_code)) {
+		case MPT2_WARPDRIVE_LC_SSDT:
+			pr_warn(MPT3SAS_FMT "WarpDrive Warning: "
+			    "IO Throttling has occurred in the WarpDrive "
+			    "subsystem. Check WarpDrive documentation for "
+			    "additional details.\n", ioc->name);
+			break;
+		case MPT2_WARPDRIVE_LC_SSDLW:
+			pr_warn(MPT3SAS_FMT "WarpDrive Warning: "
+			    "Program/Erase Cycles for the WarpDrive subsystem "
+			    "in degraded range. Check WarpDrive documentation "
+			    "for additional details.\n", ioc->name);
+			break;
+		case MPT2_WARPDRIVE_LC_SSDLF:
+			pr_err(MPT3SAS_FMT "WarpDrive Fatal Error: "
+			    "There are no Program/Erase Cycles for the "
+			    "WarpDrive subsystem. The storage device will be "
+			    "in read-only mode. Check WarpDrive documentation "
+			    "for additional details.\n", ioc->name);
+			break;
+		case MPT2_WARPDRIVE_LC_BRMF:
+			pr_err(MPT3SAS_FMT "WarpDrive Fatal Error: "
+			    "The Backup Rail Monitor has failed on the "
+			    "WarpDrive subsystem. Check WarpDrive "
+			    "documentation for additional details.\n",
+			    ioc->name);
+			break;
+		}
+
+		break;
+	}
 	case MPI2_EVENT_SAS_DEVICE_STATUS_CHANGE:
 	case MPI2_EVENT_IR_OPERATION_STATUS:
 	case MPI2_EVENT_SAS_DISCOVERY:
@@ -7535,7 +7685,8 @@ _scsih_ir_shutdown(struct MPT3SAS_ADAPTER *ioc)
 	mpi_request->Function = MPI2_FUNCTION_RAID_ACTION;
 	mpi_request->Action = MPI2_RAID_ACTION_SYSTEM_SHUTDOWN_INITIATED;
 
-	pr_info(MPT3SAS_FMT "IR shutdown (sending)\n", ioc->name);
+	if (!ioc->hide_ir_msg)
+		pr_info(MPT3SAS_FMT "IR shutdown (sending)\n", ioc->name);
 	init_completion(&ioc->scsih_cmds.done);
 	mpt3sas_base_put_smid_default(ioc, smid);
 	wait_for_completion_timeout(&ioc->scsih_cmds.done, 10*HZ);
@@ -7548,10 +7699,11 @@ _scsih_ir_shutdown(struct MPT3SAS_ADAPTER *ioc)
 
 	if (ioc->scsih_cmds.status & MPT3_CMD_REPLY_VALID) {
 		mpi_reply = ioc->scsih_cmds.reply;
-		pr_info(MPT3SAS_FMT
-			"IR shutdown (complete): ioc_status(0x%04x), loginfo(0x%08x)\n",
-		    ioc->name, le16_to_cpu(mpi_reply->IOCStatus),
-		    le32_to_cpu(mpi_reply->IOCLogInfo));
+		if (!ioc->hide_ir_msg)
+			pr_info(MPT3SAS_FMT "IR shutdown "
+			   "(complete): ioc_status(0x%04x), loginfo(0x%08x)\n",
+			    ioc->name, le16_to_cpu(mpi_reply->IOCStatus),
+			    le32_to_cpu(mpi_reply->IOCLogInfo));
 	}
 
  out:
@@ -7716,6 +7868,8 @@ _scsih_probe_boot_devices(struct MPT3SAS_ADAPTER *ioc)
 		list_move_tail(&sas_device->list, &ioc->sas_device_list);
 		spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 
+		if (ioc->hide_drives)
+			return;
 		if (!mpt3sas_transport_port_add(ioc, handle,
 		    sas_address_parent)) {
 			_scsih_sas_device_remove(ioc, sas_device);
@@ -7768,6 +7922,9 @@ _scsih_probe_sas(struct MPT3SAS_ADAPTER *ioc)
 	/* SAS Device List */
 	list_for_each_entry_safe(sas_device, next, &ioc->sas_device_init_list,
 	    list) {
+
+		if (ioc->hide_drives)
+			return;
 
 		if (!mpt3sas_transport_port_add(ioc, sas_device->handle,
 		    sas_device->sas_address_parent)) {
@@ -7913,6 +8070,9 @@ void
 _scsih_determine_hba_mpi_version(struct MPT3SAS_ADAPTER *ioc) {
 
 	switch (ioc->pdev->device) {
+	case MPI2_MFGPAGE_DEVID_SSS6200:
+		ioc->is_warpdrive = 1;
+		ioc->hide_ir_msg = 1;
 	case MPI2_MFGPAGE_DEVID_SAS2004:
 	case MPI2_MFGPAGE_DEVID_SAS2008:
 	case MPI2_MFGPAGE_DEVID_SAS2108_1:
@@ -7947,6 +8107,10 @@ _scsih_determine_hba_mpi_version(struct MPT3SAS_ADAPTER *ioc) {
 			ioc->msix96_vector = 1;
 		break;
 	}
+
+	if ((ioc->pdev->device != MPI2_MFGPAGE_DEVID_SSS6200) &&
+	    (ioc->hba_mpi_version_belonged == MPI2_VERSION))
+		ioc->mfg_pg10_hide_flag = MFG_PAGE10_EXPOSE_ALL_DISKS;
 }
 
 /**
@@ -7969,7 +8133,6 @@ scsih_probe(struct pci_dev *pdev, struct Scsi_Host *shost)
 	list_add_tail(&ioc->list, &mpt3sas_ioc_list);
 	ioc->shost = shost;
 	ioc->id = mpt_ids++;
-
 	ioc->pdev = pdev;
 	ioc->scsi_io_cb_idx = scsi_io_cb_idx;
 	ioc->tm_cb_idx = tm_cb_idx;
@@ -8062,6 +8225,23 @@ scsih_probe(struct pci_dev *pdev, struct Scsi_Host *shost)
 		rv = -ENODEV;
 		goto out_attach_fail;
 	}
+
+#ifdef SCSI_MPT2SAS
+	if (ioc->is_warpdrive) {
+		if (ioc->mfg_pg10_hide_flag ==  MFG_PAGE10_EXPOSE_ALL_DISKS)
+			ioc->hide_drives = 0;
+		else if (ioc->mfg_pg10_hide_flag ==  MFG_PAGE10_HIDE_ALL_DISKS)
+			ioc->hide_drives = 1;
+		else {
+			if (_scsih_get_num_volumes(ioc))
+				ioc->hide_drives = 1;
+			else
+				ioc->hide_drives = 0;
+		}
+	} else
+		ioc->hide_drives = 0;
+#endif
+
 	rv = scsi_add_host(shost, &pdev->dev);
 	if (rv) {
 		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
@@ -8334,3 +8514,7 @@ scsih_exit(void)
 	raid_class_release(mpt3sas_raid_template);
 	sas_release_transport(mpt3sas_transport_template);
 }
+
+#ifdef SCSI_MPT2SAS
+#include "../mpt2sas/mpt2sas_warpdrive.c"
+#endif
