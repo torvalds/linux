@@ -785,7 +785,7 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 				u8 role)
 {
 	struct hci_conn_params *params;
-	struct hci_conn *conn, *conn_unfinished;
+	struct hci_conn *conn;
 	struct smp_irk *irk;
 	struct hci_request req;
 	int err;
@@ -804,27 +804,14 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	if (hci_lookup_le_connect(hdev))
 		return ERR_PTR(-EBUSY);
 
-	/* Some devices send ATT messages as soon as the physical link is
-	 * established. To be able to handle these ATT messages, the user-
-	 * space first establishes the connection and then starts the pairing
-	 * process.
-	 *
-	 * So if a hci_conn object already exists for the following connection
-	 * attempt, we simply update pending_sec_level and auth_type fields
-	 * and return the object found.
+	/* If there's already a connection object but it's not in
+	 * scanning state it means it must already be established, in
+	 * which case we can't do anything else except report a failure
+	 * to connect.
 	 */
 	conn = hci_conn_hash_lookup_le(hdev, dst, dst_type);
-	conn_unfinished = NULL;
-	if (conn) {
-		if (conn->state == BT_CONNECT &&
-		    test_bit(HCI_CONN_SCANNING, &conn->flags)) {
-			BT_DBG("will continue unfinished conn %pMR", dst);
-			conn_unfinished = conn;
-		} else {
-			if (conn->pending_sec_level < sec_level)
-				conn->pending_sec_level = sec_level;
-			goto done;
-		}
+	if (conn && !test_bit(HCI_CONN_SCANNING, &conn->flags)) {
+		return ERR_PTR(-EBUSY);
 	}
 
 	/* When given an identity address with existing identity
@@ -842,22 +829,19 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 		dst_type = ADDR_LE_DEV_RANDOM;
 	}
 
-	if (conn_unfinished) {
-		conn = conn_unfinished;
+	if (conn) {
 		bacpy(&conn->dst, dst);
 	} else {
 		conn = hci_conn_add(hdev, LE_LINK, dst, role);
+		if (!conn)
+			return ERR_PTR(-ENOMEM);
+		hci_conn_hold(conn);
+		conn->pending_sec_level = sec_level;
 	}
-
-	if (!conn)
-		return ERR_PTR(-ENOMEM);
 
 	conn->dst_type = dst_type;
 	conn->sec_level = BT_SECURITY_LOW;
 	conn->conn_timeout = conn_timeout;
-
-	if (!conn_unfinished)
-		conn->pending_sec_level = sec_level;
 
 	hci_req_init(&req, hdev);
 
@@ -921,14 +905,6 @@ create_conn:
 		hci_conn_del(conn);
 		return ERR_PTR(err);
 	}
-
-done:
-	/* If this is continuation of connect started by hci_connect_le_scan,
-	 * it already called hci_conn_hold and calling it again would mess the
-	 * counter.
-	 */
-	if (!conn_unfinished)
-		hci_conn_hold(conn);
 
 	return conn;
 }
