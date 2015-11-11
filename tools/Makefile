@@ -22,6 +22,10 @@ help:
 	@echo '  from the kernel command line to build and install one of'
 	@echo '  the tools above'
 	@echo ''
+	@echo '  $$ make tools/all'
+	@echo ''
+	@echo '  builds all tools.'
+	@echo ''
 	@echo '  $$ make tools/install'
 	@echo ''
 	@echo '  installs all tools.'
@@ -49,6 +53,10 @@ selftests: FORCE
 
 turbostat x86_energy_perf_policy: FORCE
 	$(call descend,power/x86/$@)
+
+all: cgroup cpupower firewire lguest \
+		perf selftests turbostat usb \
+		virtio vm net x86_energy_perf_policy
 
 cpupower_install:
 	$(call descend,power/$(@:_install=),install)
