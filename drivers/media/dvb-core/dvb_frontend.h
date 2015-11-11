@@ -213,12 +213,12 @@ enum dvbfe_search {
  *			are stored at @dvb_frontend.dtv_property_cache;. The
  *			tuner demod can change the parameters to reflect the
  *			changes needed for the channel to be tuned, and
- *			update statistics.
+ *			update statistics. This is the recommended way to set
+ *			the tuner parameters and should be used on newer
+ *			drivers.
  * @set_analog_params:	callback function used to tune into an analog TV
  *			channel on hybrid tuners. It passes @analog_parameters;
  *			to the driver.
- * @calc_regs:		callback function used to pass register data settings
- *			for simple tuners.
  * @set_config:		callback function used to send some tuner-specific
  *			parameters.
  * @get_frequency:	get the actual tuned frequency
@@ -231,10 +231,10 @@ enum dvbfe_search {
  *			via DVBv5 API (@dvb_frontend.dtv_property_cache;).
  * @get_afc:		Used only by analog TV core. Reports the frequency
  *			drift due to AFC.
- * @set_frequency:	Set a new frequency. Please notice that using
- *			set_params is preferred.
- * @set_bandwidth:	Set a new frequency. Please notice that using
- *			set_params is preferred.
+ * @calc_regs:		callback function used to pass register data settings
+ *			for simple tuners.  Shouldn't be used on newer drivers.
+ * @set_frequency:	Set a new frequency. Shouldn't be used on newer drivers.
+ * @set_bandwidth:	Set a new frequency. Shouldn't be used on newer drivers.
  *
  * NOTE: frequencies used on get_frequency and set_frequency are in Hz for
  * terrestrial/cable or kHz for satellite.
@@ -250,14 +250,10 @@ struct dvb_tuner_ops {
 	int (*suspend)(struct dvb_frontend *fe);
 	int (*resume)(struct dvb_frontend *fe);
 
-	/** This is for simple PLLs - set all parameters in one go. */
+	/* This is the recomended way to set the tuner */
 	int (*set_params)(struct dvb_frontend *fe);
 	int (*set_analog_params)(struct dvb_frontend *fe, struct analog_parameters *p);
 
-	/** This is support for demods like the mt352 - fills out the supplied buffer with what to write. */
-	int (*calc_regs)(struct dvb_frontend *fe, u8 *buf, int buf_len);
-
-	/** This is to allow setting tuner-specific configs */
 	int (*set_config)(struct dvb_frontend *fe, void *priv_cfg);
 
 	int (*get_frequency)(struct dvb_frontend *fe, u32 *frequency);
@@ -270,8 +266,21 @@ struct dvb_tuner_ops {
 	int (*get_rf_strength)(struct dvb_frontend *fe, u16 *strength);
 	int (*get_afc)(struct dvb_frontend *fe, s32 *afc);
 
-	/** These are provided separately from set_params in order to facilitate silicon
-	 * tuners which require sophisticated tuning loops, controlling each parameter separately. */
+	/*
+	 * This is support for demods like the mt352 - fills out the supplied
+	 * buffer with what to write.
+	 *
+	 * Don't use on newer drivers.
+	 */
+	int (*calc_regs)(struct dvb_frontend *fe, u8 *buf, int buf_len);
+
+	/*
+	 * These are provided separately from set_params in order to
+	 * facilitate silicon tuners which require sophisticated tuning loops,
+	 * controlling each parameter separately.
+	 *
+	 * Don't use on newer drivers.
+	 */
 	int (*set_frequency)(struct dvb_frontend *fe, u32 frequency);
 	int (*set_bandwidth)(struct dvb_frontend *fe, u32 bandwidth);
 };
@@ -462,7 +471,8 @@ struct dvb_frontend_ops {
 	int (*ts_bus_ctrl)(struct dvb_frontend* fe, int acquire);
 	int (*set_lna)(struct dvb_frontend *);
 
-	/* These callbacks are for devices that implement their own
+	/*
+	 * These callbacks are for devices that implement their own
 	 * tuning algorithms, rather than a simple swzigzag
 	 */
 	enum dvbfe_search (*search)(struct dvb_frontend *fe);
