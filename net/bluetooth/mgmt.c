@@ -4375,6 +4375,33 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
+static bool discovery_type_is_valid(struct hci_dev *hdev, uint8_t type,
+				    uint8_t *mgmt_status)
+{
+	switch (type) {
+	case DISCOV_TYPE_LE:
+		*mgmt_status = mgmt_le_support(hdev);
+		if (*mgmt_status)
+			return false;
+		break;
+	case DISCOV_TYPE_INTERLEAVED:
+		*mgmt_status = mgmt_le_support(hdev);
+		if (*mgmt_status)
+			return false;
+		/* Intentional fall-through */
+	case DISCOV_TYPE_BREDR:
+		*mgmt_status = mgmt_bredr_support(hdev);
+		if (*mgmt_status)
+			return false;
+		break;
+	default:
+		*mgmt_status = MGMT_STATUS_INVALID_PARAMS;
+		return false;
+	}
+
+	return true;
+}
+
 static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 			   void *data, u16 len)
 {
@@ -4400,6 +4427,12 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 		err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_START_DISCOVERY,
 					MGMT_STATUS_BUSY, &cp->type,
 					sizeof(cp->type));
+		goto failed;
+	}
+
+	if (!discovery_type_is_valid(hdev, cp->type, &status)) {
+		err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_START_DISCOVERY,
+					status, &cp->type, sizeof(cp->type));
 		goto failed;
 	}
 
@@ -4499,6 +4532,13 @@ static int start_service_discovery(struct sock *sk, struct hci_dev *hdev,
 					MGMT_OP_START_SERVICE_DISCOVERY,
 					MGMT_STATUS_INVALID_PARAMS, &cp->type,
 					sizeof(cp->type));
+		goto failed;
+	}
+
+	if (!discovery_type_is_valid(hdev, cp->type, &status)) {
+		err = mgmt_cmd_complete(sk, hdev->id,
+					MGMT_OP_START_SERVICE_DISCOVERY,
+					status, &cp->type, sizeof(cp->type));
 		goto failed;
 	}
 
