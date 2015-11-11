@@ -935,8 +935,12 @@ void intel_fbc_flush(struct drm_i915_private *dev_priv,
 	dev_priv->fbc.busy_bits &= ~frontbuffer_bits;
 
 	if (!dev_priv->fbc.busy_bits && dev_priv->fbc.enabled) {
-		__intel_fbc_deactivate(dev_priv);
-		__intel_fbc_update(dev_priv->fbc.crtc);
+		if (origin != ORIGIN_FLIP && dev_priv->fbc.active) {
+			intel_fbc_recompress(dev_priv);
+		} else {
+			__intel_fbc_deactivate(dev_priv);
+			__intel_fbc_update(dev_priv->fbc.crtc);
+		}
 	}
 
 	mutex_unlock(&dev_priv->fbc.lock);
