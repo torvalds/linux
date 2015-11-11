@@ -3218,22 +3218,6 @@ struct device_attribute *mpt3sas_dev_attrs[] = {
 	NULL,
 };
 
-static const struct file_operations ctl_fops = {
-	.owner = THIS_MODULE,
-	.unlocked_ioctl = ctl_ioctl,
-	.poll = ctl_poll,
-	.fasync = ctl_fasync,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = ctl_ioctl_compat,
-#endif
-};
-
-static struct miscdevice ctl_dev = {
-	.minor  = MPT3SAS_MINOR,
-	.name   = MPT3SAS_DEV_NAME,
-	.fops   = &ctl_fops,
-};
-
 /**
  * ctl_init - main entry point for ctl.
  *
@@ -3242,10 +3226,6 @@ void
 ctl_init(void)
 {
 	async_queue = NULL;
-	if (misc_register(&ctl_dev) < 0)
-		pr_err("%s can't register misc device [minor=%d]\n",
-		    MPT3SAS_DRIVER_NAME, MPT3SAS_MINOR);
-
 	init_waitqueue_head(&ctl_poll_wait);
 }
 
@@ -3279,5 +3259,4 @@ ctl_exit(void)
 
 		kfree(ioc->event_log);
 	}
-	misc_deregister(&ctl_dev);
 }

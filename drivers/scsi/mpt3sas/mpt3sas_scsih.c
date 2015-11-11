@@ -57,11 +57,6 @@
 
 #include "mpt3sas_base.h"
 
-MODULE_AUTHOR(MPT3SAS_AUTHOR);
-MODULE_DESCRIPTION(MPT3SAS_DESCRIPTION);
-MODULE_LICENSE("GPL");
-MODULE_VERSION(MPT3SAS_DRIVER_VERSION);
-
 #define RAID_CHANNEL 1
 /* forward proto's */
 static void _scsih_expander_node_remove(struct MPT3SAS_ADAPTER *ioc,
@@ -141,8 +136,7 @@ MODULE_PARM_DESC(prot_mask, " host protection capabilities mask, def=7 ");
 
 
 /* raid transport support */
-
-static struct raid_template *mpt3sas_raid_template;
+struct raid_template *mpt3sas_raid_template;
 
 
 /**
@@ -192,9 +186,6 @@ struct fw_event_work {
 	char			event_data[0] __aligned(4);
 };
 
-/* raid transport support */
-static struct raid_template *mpt3sas_raid_template;
-
 /**
  * struct _scsi_io_transfer - scsi io transfer
  * @handle: sas device handle (assigned by firmware)
@@ -242,28 +233,6 @@ struct _scsi_io_transfer {
 	u32	log_info;
 	u32	transfer_length;
 };
-
-/*
- * The pci device ids are defined in mpi/mpi2_cnfg.h.
- */
-static const struct pci_device_id scsih_pci_table[] = {
-	/* Fury ~ 3004 and 3008 */
-	{ MPI2_MFGPAGE_VENDORID_LSI, MPI25_MFGPAGE_DEVID_SAS3004,
-		PCI_ANY_ID, PCI_ANY_ID },
-	{ MPI2_MFGPAGE_VENDORID_LSI, MPI25_MFGPAGE_DEVID_SAS3008,
-		PCI_ANY_ID, PCI_ANY_ID },
-	/* Invader ~ 3108 */
-	{ MPI2_MFGPAGE_VENDORID_LSI, MPI25_MFGPAGE_DEVID_SAS3108_1,
-		PCI_ANY_ID, PCI_ANY_ID },
-	{ MPI2_MFGPAGE_VENDORID_LSI, MPI25_MFGPAGE_DEVID_SAS3108_2,
-		PCI_ANY_ID, PCI_ANY_ID },
-	{ MPI2_MFGPAGE_VENDORID_LSI, MPI25_MFGPAGE_DEVID_SAS3108_5,
-		PCI_ANY_ID, PCI_ANY_ID },
-	{ MPI2_MFGPAGE_VENDORID_LSI, MPI25_MFGPAGE_DEVID_SAS3108_6,
-		PCI_ANY_ID, PCI_ANY_ID },
-	{0}	/* Terminating entry */
-};
-MODULE_DEVICE_TABLE(pci, scsih_pci_table);
 
 /**
  * _scsih_set_debug_level - global setting of ioc->logging_level.
@@ -7486,36 +7455,6 @@ mpt3sas_scsih_event_callback(struct MPT3SAS_ADAPTER *ioc, u8 msix_index,
 	return 1;
 }
 
-/* shost template */
-static struct scsi_host_template scsih_driver_template = {
-	.module				= THIS_MODULE,
-	.name				= "Fusion MPT SAS Host",
-	.proc_name			= MPT3SAS_DRIVER_NAME,
-	.queuecommand			= scsih_qcmd,
-	.target_alloc			= scsih_target_alloc,
-	.slave_alloc			= scsih_slave_alloc,
-	.slave_configure		= scsih_slave_configure,
-	.target_destroy			= scsih_target_destroy,
-	.slave_destroy			= scsih_slave_destroy,
-	.scan_finished			= scsih_scan_finished,
-	.scan_start			= scsih_scan_start,
-	.change_queue_depth		= scsih_change_queue_depth,
-	.eh_abort_handler		= scsih_abort,
-	.eh_device_reset_handler	= scsih_dev_reset,
-	.eh_target_reset_handler	= scsih_target_reset,
-	.eh_host_reset_handler		= scsih_host_reset,
-	.bios_param			= scsih_bios_param,
-	.can_queue			= 1,
-	.this_id			= -1,
-	.sg_tablesize			= MPT3SAS_SG_DEPTH,
-	.max_sectors			= 32767,
-	.cmd_per_lun			= 7,
-	.use_clustering			= ENABLE_CLUSTERING,
-	.shost_attrs			= mpt3sas_host_attrs,
-	.sdev_attrs			= mpt3sas_dev_attrs,
-	.track_queue_depth		= 1,
-};
-
 /**
  * _scsih_expander_node_remove - removing expander device from list.
  * @ioc: per adapter object
@@ -7993,16 +7932,10 @@ scsih_scan_finished(struct Scsi_Host *shost, unsigned long time)
  * Returns 0 success, anything else error.
  */
 int
-scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+scsih_probe(struct pci_dev *pdev, struct Scsi_Host *shost)
 {
 	struct MPT3SAS_ADAPTER *ioc;
-	struct Scsi_Host *shost;
 	int rv;
-
-	shost = scsi_host_alloc(&scsih_driver_template,
-	    sizeof(struct MPT3SAS_ADAPTER));
-	if (!shost)
-		return -ENODEV;
 
 	/* init local params */
 	ioc = shost_priv(shost);
@@ -8298,35 +8231,6 @@ scsih_pci_mmio_enabled(struct pci_dev *pdev)
 	return PCI_ERS_RESULT_NEED_RESET;
 }
 
-/* raid transport support */
-static struct raid_function_template mpt3sas_raid_functions = {
-	.cookie		= &scsih_driver_template,
-	.is_raid	= scsih_is_raid,
-	.get_resync	= scsih_get_resync,
-	.get_state	= scsih_get_state,
-};
-
-static struct pci_error_handlers _scsih_err_handler = {
-	.error_detected = scsih_pci_error_detected,
-	.mmio_enabled = scsih_pci_mmio_enabled,
-	.slot_reset =	scsih_pci_slot_reset,
-	.resume =	scsih_pci_resume,
-};
-
-static struct pci_driver scsih_driver = {
-	.name		= MPT3SAS_DRIVER_NAME,
-	.id_table	= scsih_pci_table,
-	.probe		= scsih_probe,
-	.remove		= scsih_remove,
-	.shutdown	= scsih_shutdown,
-	.err_handler	= &_scsih_err_handler,
-#ifdef CONFIG_PM
-	.suspend	= scsih_suspend,
-	.resume		= scsih_resume,
-#endif
-};
-
-
 /**
  * scsih_init - main entry point for this driver.
  *
@@ -8335,24 +8239,7 @@ static struct pci_driver scsih_driver = {
 int
 scsih_init(void)
 {
-	int error;
-
 	mpt_ids = 0;
-
-	pr_info("%s version %s loaded\n", MPT3SAS_DRIVER_NAME,
-	    MPT3SAS_DRIVER_VERSION);
-
-	mpt3sas_transport_template =
-	    sas_attach_transport(&mpt3sas_transport_functions);
-	if (!mpt3sas_transport_template)
-		return -ENODEV;
-
-/* raid transport support */
-	mpt3sas_raid_template = raid_class_attach(&mpt3sas_raid_functions);
-	if (!mpt3sas_raid_template) {
-		sas_release_transport(mpt3sas_transport_template);
-		return -ENODEV;
-	}
 
 	mpt3sas_base_initialize_callback_handler();
 
@@ -8390,33 +8277,17 @@ scsih_init(void)
 	tm_sas_control_cb_idx = mpt3sas_base_register_callback_handler(
 	    _scsih_sas_control_complete);
 
-	ctl_init();
-
-	error = pci_register_driver(&scsih_driver);
-	if (error) {
-		/* raid transport support */
-		raid_class_release(mpt3sas_raid_template);
-		sas_release_transport(mpt3sas_transport_template);
-	}
-
-	return error;
+	return 0;
 }
 
 /**
- * _scsih_exit - exit point for this driver (when it is a module).
+ * scsih_exit - exit point for this driver (when it is a module).
  *
  * Returns 0 success, anything else error.
  */
 void
 scsih_exit(void)
 {
-	pr_info("mpt3sas version %s unloading\n",
-	    MPT3SAS_DRIVER_VERSION);
-
-	ctl_exit();
-
-	pci_unregister_driver(&scsih_driver);
-
 
 	mpt3sas_base_release_callback_handler(scsi_io_cb_idx);
 	mpt3sas_base_release_callback_handler(tm_cb_idx);
@@ -8435,6 +8306,3 @@ scsih_exit(void)
 	raid_class_release(mpt3sas_raid_template);
 	sas_release_transport(mpt3sas_transport_template);
 }
-
-module_init(scsih_init);
-module_exit(scsih_exit);

@@ -1084,6 +1084,7 @@ int mpt3sas_port_enable(struct MPT3SAS_ADAPTER *ioc);
 
 
 /* scsih shared API */
+extern struct raid_template *mpt3sas_raid_template;
 u8 mpt3sas_scsih_event_callback(struct MPT3SAS_ADAPTER *ioc, u8 msix_index,
 	u32 reply);
 void mpt3sas_scsih_reset_handler(struct MPT3SAS_ADAPTER *ioc, int reset_phase);
@@ -1108,7 +1109,7 @@ void mpt3sas_port_enable_complete(struct MPT3SAS_ADAPTER *ioc);
 
 void scsih_exit(void);
 int scsih_init(void);
-int scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id);
+int scsih_probe(struct pci_dev *pdev, struct Scsi_Host *shost);
 void scsih_remove(struct pci_dev *pdev);
 void scsih_shutdown(struct pci_dev *pdev);
 pci_ers_result_t scsih_pci_error_detected(struct pci_dev *pdev,
@@ -1241,6 +1242,7 @@ int mpt3sas_send_diag_release(struct MPT3SAS_ADAPTER *ioc, u8 buffer_type,
 	u8 *issue_reset);
 
 /* transport shared API */
+extern struct scsi_transport_template *mpt3sas_transport_template;
 u8 mpt3sas_transport_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 	u32 reply);
 struct _sas_port *mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc,
