@@ -1589,7 +1589,7 @@ static inline bool may_mandlock(void)
 #ifndef	CONFIG_MANDATORY_FILE_LOCKING
 	return false;
 #endif
-	return true;
+	return capable(CAP_SYS_ADMIN);
 }
 
 /*
