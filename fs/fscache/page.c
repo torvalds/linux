@@ -816,7 +816,7 @@ static void fscache_write_op(struct fscache_operation *_op)
 		goto superseded;
 	page = results[0];
 	_debug("gang %d [%lx]", n, page->index);
-	if (page->index > op->store_limit) {
+	if (page->index >= op->store_limit) {
 		fscache_stat(&fscache_n_store_pages_over_limit);
 		goto superseded;
 	}
