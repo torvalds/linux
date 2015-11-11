@@ -100,6 +100,12 @@ extern unsigned long hfi1_cap_mask;
 			HFI1_CAP_MISC_MASK)
 
 /*
+ * Control context is always 0 and handles the error packets.
+ * It also handles the VL15 and multicast packets.
+ */
+#define HFI1_CTRL_CTXT    0
+
+/*
  * per driver stats, either not device nor port-specific, or
  * summed over all of the devices and ports.
  * They are described by name via ipathfs filesystem, so layout
@@ -234,7 +240,7 @@ struct hfi1_ctxtdata {
 	/* chip offset of PIO buffers for this ctxt */
 	u32 piobufs;
 	/* per-context configuration flags */
-	u16 flags;
+	u32 flags;
 	/* per-context event flags for fileops/intr communication */
 	unsigned long event_flags;
 	/* WAIT_RCV that timed out, no interrupt */

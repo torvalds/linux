@@ -509,28 +509,49 @@ static inline void init_ps_mdata(struct ps_mdata *mdata,
 	mdata->maxcnt = packet->maxcnt;
 	mdata->ps_head = packet->rhqoff;
 
-	if (HFI1_CAP_IS_KSET(DMA_RTAIL)) {
+	if (HFI1_CAP_KGET_MASK(rcd->flags, DMA_RTAIL)) {
 		mdata->ps_tail = get_rcvhdrtail(rcd);
-		mdata->ps_seq = 0; /* not used with DMA_RTAIL */
+		if (rcd->ctxt == HFI1_CTRL_CTXT)
+			mdata->ps_seq = rcd->seq_cnt;
+		else
+			mdata->ps_seq = 0; /* not used with DMA_RTAIL */
 	} else {
 		mdata->ps_tail = 0; /* used only with DMA_RTAIL*/
 		mdata->ps_seq = rcd->seq_cnt;
 	}
 }
 
-static inline int ps_done(struct ps_mdata *mdata, u64 rhf)
+static inline int ps_done(struct ps_mdata *mdata, u64 rhf,
+			  struct hfi1_ctxtdata *rcd)
 {
-	if (HFI1_CAP_IS_KSET(DMA_RTAIL))
+	if (HFI1_CAP_KGET_MASK(rcd->flags, DMA_RTAIL))
 		return mdata->ps_head == mdata->ps_tail;
 	return mdata->ps_seq != rhf_rcv_seq(rhf);
 }
 
-static inline void update_ps_mdata(struct ps_mdata *mdata)
+static inline int ps_skip(struct ps_mdata *mdata, u64 rhf,
+			  struct hfi1_ctxtdata *rcd)
+{
+	/*
+	 * Control context can potentially receive an invalid rhf.
+	 * Drop such packets.
+	 */
+	if ((rcd->ctxt == HFI1_CTRL_CTXT) && (mdata->ps_head != mdata->ps_tail))
+		return mdata->ps_seq != rhf_rcv_seq(rhf);
+
+	return 0;
+}
+
+static inline void update_ps_mdata(struct ps_mdata *mdata,
+				   struct hfi1_ctxtdata *rcd)
 {
 	mdata->ps_head += mdata->rsize;
 	if (mdata->ps_head >= mdata->maxcnt)
 		mdata->ps_head = 0;
-	if (!HFI1_CAP_IS_KSET(DMA_RTAIL)) {
+
+	/* Control context must do seq counting */
+	if (!HFI1_CAP_KGET_MASK(rcd->flags, DMA_RTAIL) ||
+	    (rcd->ctxt == HFI1_CTRL_CTXT)) {
 		if (++mdata->ps_seq > 13)
 			mdata->ps_seq = 1;
 	}
@@ -566,8 +587,11 @@ static void prescan_rxq(struct hfi1_packet *packet)
 		int is_ecn = 0;
 		u8 lnh;
 
-		if (ps_done(&mdata, rhf))
+		if (ps_done(&mdata, rhf, rcd))
 			break;
+
+		if (ps_skip(&mdata, rhf, rcd))
+			goto next;
 
 		if (etype != RHF_RCV_TYPE_IB)
 			goto next;
@@ -606,8 +630,34 @@ static void prescan_rxq(struct hfi1_packet *packet)
 		bth1 &= ~(HFI1_FECN_SMASK | HFI1_BECN_SMASK);
 		ohdr->bth[1] = cpu_to_be32(bth1);
 next:
-		update_ps_mdata(&mdata);
+		update_ps_mdata(&mdata, rcd);
 	}
+}
+
+static inline int skip_rcv_packet(struct hfi1_packet *packet, int thread)
+{
+	int ret = RCV_PKT_OK;
+
+	/* Set up for the next packet */
+	packet->rhqoff += packet->rsize;
+	if (packet->rhqoff >= packet->maxcnt)
+		packet->rhqoff = 0;
+
+	packet->numpkt++;
+	if (unlikely((packet->numpkt & (MAX_PKT_RECV - 1)) == 0)) {
+		if (thread) {
+			cond_resched();
+		} else {
+			ret = RCV_PKT_LIMIT;
+			this_cpu_inc(*packet->rcd->dd->rcv_limit);
+		}
+	}
+
+	packet->rhf_addr = (__le32 *)packet->rcd->rcvhdrq + packet->rhqoff +
+				     packet->rcd->dd->rhf_offset;
+	packet->rhf = rhf_to_cpu(packet->rhf_addr);
+
+	return ret;
 }
 #endif /* CONFIG_PRESCAN_RXQ */
 
@@ -784,7 +834,6 @@ int handle_receive_interrupt_dma_rtail(struct hfi1_ctxtdata *rcd, int thread)
 
 	while (last == RCV_PKT_OK) {
 		last = process_rcv_packet(&packet, thread);
-		hdrqtail = get_rcvhdrtail(rcd);
 		if (packet.rhqoff == hdrqtail)
 			last = RCV_PKT_DONE;
 		process_rcv_update(last, &packet);
@@ -799,7 +848,7 @@ static inline void set_all_nodma_rtail(struct hfi1_devdata *dd)
 {
 	int i;
 
-	for (i = 0; i < dd->first_user_ctxt; i++)
+	for (i = HFI1_CTRL_CTXT + 1; i < dd->first_user_ctxt; i++)
 		dd->rcd[i]->do_interrupt =
 			&handle_receive_interrupt_nodma_rtail;
 }
@@ -808,7 +857,7 @@ static inline void set_all_dma_rtail(struct hfi1_devdata *dd)
 {
 	int i;
 
-	for (i = 0; i < dd->first_user_ctxt; i++)
+	for (i = HFI1_CTRL_CTXT + 1; i < dd->first_user_ctxt; i++)
 		dd->rcd[i]->do_interrupt =
 			&handle_receive_interrupt_dma_rtail;
 }
@@ -824,12 +873,16 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 {
 	struct hfi1_devdata *dd = rcd->dd;
 	u32 hdrqtail;
-	int last = RCV_PKT_OK, needset = 1;
+	int needset, last = RCV_PKT_OK;
 	struct hfi1_packet packet;
+	int skip_pkt = 0;
+
+	/* Control context will always use the slow path interrupt handler */
+	needset = (rcd->ctxt == HFI1_CTRL_CTXT) ? 0 : 1;
 
 	init_packet(rcd, &packet);
 
-	if (!HFI1_CAP_IS_KSET(DMA_RTAIL)) {
+	if (!HFI1_CAP_KGET_MASK(rcd->flags, DMA_RTAIL)) {
 		u32 seq = rhf_rcv_seq(packet.rhf);
 
 		if (seq != rcd->seq_cnt) {
@@ -844,6 +897,17 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 			goto bail;
 		}
 		smp_rmb();  /* prevent speculative reads of dma'ed hdrq */
+
+		/*
+		 * Control context can potentially receive an invalid
+		 * rhf. Drop such packets.
+		 */
+		if (rcd->ctxt == HFI1_CTRL_CTXT) {
+			u32 seq = rhf_rcv_seq(packet.rhf);
+
+			if (seq != rcd->seq_cnt)
+				skip_pkt = 1;
+		}
 	}
 
 	prescan_rxq(&packet);
@@ -861,11 +925,14 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 					  dd->rhf_offset;
 			packet.rhf = rhf_to_cpu(packet.rhf_addr);
 
+		} else if (skip_pkt) {
+			last = skip_rcv_packet(&packet, thread);
+			skip_pkt = 0;
 		} else {
 			last = process_rcv_packet(&packet, thread);
 		}
 
-		if (!HFI1_CAP_IS_KSET(DMA_RTAIL)) {
+		if (!HFI1_CAP_KGET_MASK(rcd->flags, DMA_RTAIL)) {
 			u32 seq = rhf_rcv_seq(packet.rhf);
 
 			if (++rcd->seq_cnt > 13)
@@ -881,6 +948,19 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 		} else {
 			if (packet.rhqoff == hdrqtail)
 				last = RCV_PKT_DONE;
+			/*
+			 * Control context can potentially receive an invalid
+			 * rhf. Drop such packets.
+			 */
+			if (rcd->ctxt == HFI1_CTRL_CTXT) {
+				u32 seq = rhf_rcv_seq(packet.rhf);
+
+				if (++rcd->seq_cnt > 13)
+					rcd->seq_cnt = 1;
+				if (!last && (seq != rcd->seq_cnt))
+					skip_pkt = 1;
+			}
+
 			if (needset) {
 				dd_dev_info(dd,
 					    "Switching to DMA_RTAIL\n");

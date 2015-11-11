@@ -90,7 +90,7 @@ MODULE_PARM_DESC(
 u8 krcvqs[RXE_NUM_DATA_VL];
 int krcvqsset;
 module_param_array(krcvqs, byte, &krcvqsset, S_IRUGO);
-MODULE_PARM_DESC(krcvqs, "Array of the number of kernel receive queues by VL");
+MODULE_PARM_DESC(krcvqs, "Array of the number of non-control kernel receive queues by VL");
 
 /* computed based on above array */
 unsigned n_krcvqs;
@@ -130,6 +130,9 @@ int hfi1_create_ctxts(struct hfi1_devdata *dd)
 	int ret;
 	int local_node_id = pcibus_to_node(dd->pcidev->bus);
 
+	/* Control context has to be always 0 */
+	BUILD_BUG_ON(HFI1_CTRL_CTXT != 0);
+
 	if (local_node_id < 0)
 		local_node_id = numa_node_id();
 	dd->assigned_node_id = local_node_id;
@@ -159,6 +162,10 @@ int hfi1_create_ctxts(struct hfi1_devdata *dd)
 			HFI1_CAP_KGET(NODROP_RHQ_FULL) |
 			HFI1_CAP_KGET(NODROP_EGR_FULL) |
 			HFI1_CAP_KGET(DMA_RTAIL);
+
+		/* Control context must use DMA_RTAIL */
+		if (rcd->ctxt == HFI1_CTRL_CTXT)
+			rcd->flags |= HFI1_CAP_DMA_RTAIL;
 		rcd->seq_cnt = 1;
 
 		rcd->sc = sc_alloc(dd, SC_ACK, rcd->rcvhdrqentsize, dd->node);

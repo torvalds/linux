@@ -121,8 +121,8 @@ struct flag_table {
 #define SEC_SC_HALTED		0x4	/* per-context only */
 #define SEC_SPC_FREEZE		0x8	/* per-HFI only */
 
-#define VL15CTXT                  1
 #define MIN_KERNEL_KCTXTS         2
+#define FIRST_KERNEL_KCTXT        1
 #define NUM_MAP_REGS             32
 
 /* Bit offset into the GUID which carries HFI id information */
@@ -7780,8 +7780,8 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt)
 					& RCV_TID_CTRL_TID_BASE_INDEX_MASK)
 				<< RCV_TID_CTRL_TID_BASE_INDEX_SHIFT);
 		write_kctxt_csr(dd, ctxt, RCV_TID_CTRL, reg);
-		if (ctxt == VL15CTXT)
-			write_csr(dd, RCV_VL15, VL15CTXT);
+		if (ctxt == HFI1_CTRL_CTXT)
+			write_csr(dd, RCV_VL15, HFI1_CTRL_CTXT);
 	}
 	if (op & HFI1_RCVCTRL_CTXT_DIS) {
 		write_csr(dd, RCV_VL15, 0);
@@ -8908,7 +8908,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 	int first_general, last_general;
 	int first_sdma, last_sdma;
 	int first_rx, last_rx;
-	int first_cpu, restart_cpu, curr_cpu;
+	int first_cpu, curr_cpu;
 	int rcv_cpu, sdma_cpu;
 	int i, ret = 0, possible;
 	int ht;
@@ -8947,22 +8947,19 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 			topology_sibling_cpumask(cpumask_first(local_mask)));
 	for (i = possible/ht; i < possible; i++)
 		cpumask_clear_cpu(i, def);
-	/* reset possible */
-	possible = cpumask_weight(def);
 	/* def now has full cores on chosen node*/
 	first_cpu = cpumask_first(def);
 	if (nr_cpu_ids >= first_cpu)
 		first_cpu++;
-	restart_cpu = first_cpu;
-	curr_cpu = restart_cpu;
+	curr_cpu = first_cpu;
 
-	for (i = first_cpu; i < dd->n_krcv_queues + first_cpu; i++) {
+	/*  One context is reserved as control context */
+	for (i = first_cpu; i < dd->n_krcv_queues + first_cpu - 1; i++) {
 		cpumask_clear_cpu(curr_cpu, def);
 		cpumask_set_cpu(curr_cpu, rcv);
-		if (curr_cpu >= possible)
-			curr_cpu = restart_cpu;
-		else
-			curr_cpu++;
+		curr_cpu = cpumask_next(curr_cpu, def);
+		if (curr_cpu >= nr_cpu_ids)
+			break;
 	}
 	/* def mask has non-rcv, rcv has recv mask */
 	rcv_cpu = cpumask_first(rcv);
@@ -9062,12 +9059,20 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 			if (sdma_cpu >= nr_cpu_ids)
 				sdma_cpu = cpumask_first(def);
 		} else if (handler == receive_context_interrupt) {
-			dd_dev_info(dd, "rcv ctxt %d cpu %d\n",
-				rcd->ctxt, rcv_cpu);
-			cpumask_set_cpu(rcv_cpu, dd->msix_entries[i].mask);
-			rcv_cpu = cpumask_next(rcv_cpu, rcv);
-			if (rcv_cpu >= nr_cpu_ids)
-				rcv_cpu = cpumask_first(rcv);
+			dd_dev_info(dd, "rcv ctxt %d cpu %d\n", rcd->ctxt,
+				    (rcd->ctxt == HFI1_CTRL_CTXT) ?
+					    cpumask_first(def) : rcv_cpu);
+			if (rcd->ctxt == HFI1_CTRL_CTXT) {
+				/* map to first default */
+				cpumask_set_cpu(cpumask_first(def),
+						dd->msix_entries[i].mask);
+			} else {
+				cpumask_set_cpu(rcv_cpu,
+						dd->msix_entries[i].mask);
+				rcv_cpu = cpumask_next(rcv_cpu, rcv);
+				if (rcv_cpu >= nr_cpu_ids)
+					rcv_cpu = cpumask_first(rcv);
+			}
 		} else {
 			/* otherwise first def */
 			dd_dev_info(dd, "%s cpu %d\n",
@@ -9200,11 +9205,18 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	/*
 	 * Kernel contexts: (to be fixed later):
 	 * - min or 2 or 1 context/numa
-	 * - Context 0 - default/errors
-	 * - Context 1 - VL15
+	 * - Context 0 - control context (VL15/multicast/error)
+	 * - Context 1 - default context
 	 */
 	if (n_krcvqs)
-		num_kernel_contexts = n_krcvqs + MIN_KERNEL_KCTXTS;
+		/*
+		 * Don't count context 0 in n_krcvqs since
+		 * is isn't used for normal verbs traffic.
+		 *
+		 * krcvqs will reflect number of kernel
+		 * receive contexts above 0.
+		 */
+		num_kernel_contexts = n_krcvqs + MIN_KERNEL_KCTXTS - 1;
 	else
 		num_kernel_contexts = num_online_nodes();
 	num_kernel_contexts =
@@ -10053,12 +10065,6 @@ static void init_qpmap_table(struct hfi1_devdata *dd,
 	u64 ctxt = first_ctxt;
 
 	for (i = 0; i < 256;) {
-		if (ctxt == VL15CTXT) {
-			ctxt++;
-			if (ctxt > last_ctxt)
-				ctxt = first_ctxt;
-			continue;
-		}
 		reg |= ctxt << (8 * (i % 8));
 		i++;
 		ctxt++;
@@ -10171,19 +10177,13 @@ static void init_qos(struct hfi1_devdata *dd, u32 first_ctxt)
 	/* Enable RSM */
 	add_rcvctrl(dd, RCV_CTRL_RCV_RSM_ENABLE_SMASK);
 	kfree(rsmmap);
-	/* map everything else (non-VL15) to context 0 */
-	init_qpmap_table(
-		dd,
-		0,
-		0);
+	/* map everything else to first context */
+	init_qpmap_table(dd, FIRST_KERNEL_KCTXT, MIN_KERNEL_KCTXTS - 1);
 	dd->qos_shift = n + 1;
 	return;
 bail:
 	dd->qos_shift = 1;
-	init_qpmap_table(
-		dd,
-		dd->n_krcv_queues > MIN_KERNEL_KCTXTS ? MIN_KERNEL_KCTXTS : 0,
-		dd->n_krcv_queues - 1);
+	init_qpmap_table(dd, FIRST_KERNEL_KCTXT, dd->n_krcv_queues - 1);
 }
 
 static void init_rxe(struct hfi1_devdata *dd)
