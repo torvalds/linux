@@ -82,13 +82,17 @@ void virtio_dev_complete(struct virtio_dev_req *req, uint32_t len);
 	(type *)((char *)(ptr) - __builtin_offsetof(type, member))
 
 #ifndef __MINGW32__
-#include <endian.h>
+#ifdef __FreeBSD__
+#include <sys/endian.h>
 #else
+#include <endian.h>
+#endif  /* __FreeBSD__ */
+#else  /* !__MINGW32__ */
 #define le32toh(x) (x)
 #define le16toh(x) (x)
 #define htole32(x) (x)
 #define htole16(x) (x)
 #define le64toh(x) (x)
-#endif
+#endif  /* __MINGW32__ */
 
 #endif /* _LKL_LIB_VIRTIO_H */

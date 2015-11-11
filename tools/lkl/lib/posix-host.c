@@ -1,5 +1,5 @@
 #include <pthread.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
 #include <signal.h>
@@ -189,7 +189,11 @@ void fd_do_rw(union lkl_disk_backstore bs, unsigned int type, unsigned int prio,
 		break;
 	case LKL_DEV_BLK_TYPE_FLUSH:
 	case LKL_DEV_BLK_TYPE_FLUSH_OUT:
+#ifdef __linux__
 		err = fdatasync(bs.fd);
+#else
+		err = fsync(bs.fd);
+#endif
 		break;
 	default:
 		lkl_dev_blk_complete(bufs, LKL_DEV_BLK_STATUS_UNSUP, 0);

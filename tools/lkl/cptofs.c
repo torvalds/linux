@@ -1,3 +1,7 @@
+#ifdef __FreeBSD__
+#include <sys/param.h>
+#endif
+
 #include <stdio.h>
 #include <time.h>
 #include <argp.h>
