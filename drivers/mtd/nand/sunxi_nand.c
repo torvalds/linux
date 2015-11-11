@@ -1163,6 +1163,18 @@ static int sunxi_nand_chip_set_timings(struct sunxi_nand_chip *chip,
 		min_clk_period = DIV_ROUND_UP(timings->tWC_min, 2);
 
 	/* T16 - T19 + tCAD */
+	if (timings->tWB_max > (min_clk_period * 20))
+		min_clk_period = DIV_ROUND_UP(timings->tWB_max, 20);
+
+	if (timings->tADL_min > (min_clk_period * 32))
+		min_clk_period = DIV_ROUND_UP(timings->tADL_min, 32);
+
+	if (timings->tWHR_min > (min_clk_period * 32))
+		min_clk_period = DIV_ROUND_UP(timings->tWHR_min, 32);
+
+	if (timings->tRHW_min > (min_clk_period * 20))
+		min_clk_period = DIV_ROUND_UP(timings->tRHW_min, 20);
+
 	tWB  = sunxi_nand_lookup_timing(tWB_lut, timings->tWB_max,
 					min_clk_period);
 	if (tWB < 0) {
