@@ -47,7 +47,7 @@ gf100_fifo_uevent_fini(struct nvkm_fifo *fifo)
 }
 
 void
-gf100_fifo_runlist_update(struct gf100_fifo *fifo)
+gf100_fifo_runlist_commit(struct gf100_fifo *fifo)
 {
 	struct gf100_fifo_chan *chan;
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
@@ -75,6 +75,22 @@ gf100_fifo_runlist_update(struct gf100_fifo *fifo)
 			       msecs_to_jiffies(2000)) == 0)
 		nvkm_error(subdev, "runlist update timeout\n");
 	mutex_unlock(&subdev->mutex);
+}
+
+void
+gf100_fifo_runlist_remove(struct gf100_fifo *fifo, struct gf100_fifo_chan *chan)
+{
+	mutex_lock(&fifo->base.engine.subdev.mutex);
+	list_del_init(&chan->head);
+	mutex_unlock(&fifo->base.engine.subdev.mutex);
+}
+
+void
+gf100_fifo_runlist_insert(struct gf100_fifo *fifo, struct gf100_fifo_chan *chan)
+{
+	mutex_lock(&fifo->base.engine.subdev.mutex);
+	list_add_tail(&chan->head, &fifo->chan);
+	mutex_unlock(&fifo->base.engine.subdev.mutex);
 }
 
 static inline int
@@ -139,7 +155,7 @@ gf100_fifo_recover_work(struct work_struct *work)
 		}
 	}
 
-	gf100_fifo_runlist_update(fifo);
+	gf100_fifo_runlist_commit(fifo);
 	nvkm_wr32(device, 0x00262c, engm);
 	nvkm_mask(device, 0x002630, engm, 0x00000000);
 }
