@@ -921,7 +921,7 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 	struct gb_loopback *gb;
 	int retval;
 	char name[DEBUGFS_NAMELEN];
-	struct kobject *kobj = &connection->hd->endo->dev.kobj;
+	struct kobject *kobj = &connection->bundle->dev.kobj;
 
 	gb = kzalloc(sizeof(*gb), GFP_KERNEL);
 	if (!gb)
@@ -1010,7 +1010,7 @@ out_sysfs:
 static void gb_loopback_connection_exit(struct gb_connection *connection)
 {
 	struct gb_loopback *gb = connection->bundle->private;
-	struct kobject *kobj = &connection->hd->endo->dev.kobj;
+	struct kobject *kobj = &connection->bundle->dev.kobj;
 
 	if (!IS_ERR_OR_NULL(gb->task))
 		kthread_stop(gb->task);
