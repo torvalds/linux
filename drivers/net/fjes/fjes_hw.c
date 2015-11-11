@@ -143,9 +143,7 @@ static int fjes_hw_alloc_epbuf(struct epbuf_handler *epbh)
 
 static void fjes_hw_free_epbuf(struct epbuf_handler *epbh)
 {
-	if (epbh->buffer)
-		vfree(epbh->buffer);
-
+	vfree(epbh->buffer);
 	epbh->buffer = NULL;
 	epbh->size = 0;
 

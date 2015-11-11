@@ -63,12 +63,13 @@ static inline struct metadata_dst *tun_rx_dst(int md_size)
 static inline struct metadata_dst *tun_dst_unclone(struct sk_buff *skb)
 {
 	struct metadata_dst *md_dst = skb_metadata_dst(skb);
-	int md_size = md_dst->u.tun_info.options_len;
+	int md_size;
 	struct metadata_dst *new_md;
 
 	if (!md_dst)
 		return ERR_PTR(-EINVAL);
 
+	md_size = md_dst->u.tun_info.options_len;
 	new_md = metadata_dst_alloc(md_size, GFP_ATOMIC);
 	if (!new_md)
 		return ERR_PTR(-ENOMEM);

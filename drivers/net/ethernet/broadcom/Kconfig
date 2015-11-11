@@ -173,6 +173,7 @@ config SYSTEMPORT
 config BNXT
 	tristate "Broadcom NetXtreme-C/E support"
 	depends on PCI
+	depends on VXLAN || VXLAN=n
 	select FW_LOADER
 	select LIBCRC32C
 	---help---

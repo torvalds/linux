@@ -508,12 +508,6 @@ static void le_setup(struct hci_request *req)
 	/* Read LE Supported States */
 	hci_req_add(req, HCI_OP_LE_READ_SUPPORTED_STATES, 0, NULL);
 
-	/* Read LE White List Size */
-	hci_req_add(req, HCI_OP_LE_READ_WHITE_LIST_SIZE, 0, NULL);
-
-	/* Clear LE White List */
-	hci_req_add(req, HCI_OP_LE_CLEAR_WHITE_LIST, 0, NULL);
-
 	/* LE-only controllers have LE implicitly enabled */
 	if (!lmp_bredr_capable(hdev))
 		hci_dev_set_flag(hdev, HCI_LE_ENABLED);
@@ -830,6 +824,17 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 		if (hdev->commands[25] & 0x40) {
 			/* Read LE Advertising Channel TX Power */
 			hci_req_add(req, HCI_OP_LE_READ_ADV_TX_POWER, 0, NULL);
+		}
+
+		if (hdev->commands[26] & 0x40) {
+			/* Read LE White List Size */
+			hci_req_add(req, HCI_OP_LE_READ_WHITE_LIST_SIZE,
+				    0, NULL);
+		}
+
+		if (hdev->commands[26] & 0x80) {
+			/* Clear LE White List */
+			hci_req_add(req, HCI_OP_LE_CLEAR_WHITE_LIST, 0, NULL);
 		}
 
 		if (hdev->le_features[0] & HCI_LE_DATA_LEN_EXT) {

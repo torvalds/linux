@@ -1462,6 +1462,10 @@ int mv88e6xxx_port_vlan_prepare(struct dsa_switch *ds, int port,
 				const struct switchdev_obj_port_vlan *vlan,
 				struct switchdev_trans *trans)
 {
+	/* We reserve a few VLANs to isolate unbridged ports */
+	if (vlan->vid_end >= 4000)
+		return -EOPNOTSUPP;
+
 	/* We don't need any dynamic resource from the kernel (yet),
 	 * so skip the prepare phase.
 	 */
@@ -1870,6 +1874,36 @@ unlock:
 	return err;
 }
 
+int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port, u32 members)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	const u16 pvid = 4000 + ds->index * DSA_MAX_PORTS + port;
+	int err;
+
+	/* The port joined a bridge, so leave its reserved VLAN */
+	mutex_lock(&ps->smi_mutex);
+	err = _mv88e6xxx_port_vlan_del(ds, port, pvid);
+	if (!err)
+		err = _mv88e6xxx_port_pvid_set(ds, port, 0);
+	mutex_unlock(&ps->smi_mutex);
+	return err;
+}
+
+int mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port, u32 members)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	const u16 pvid = 4000 + ds->index * DSA_MAX_PORTS + port;
+	int err;
+
+	/* The port left the bridge, so join its reserved VLAN */
+	mutex_lock(&ps->smi_mutex);
+	err = _mv88e6xxx_port_vlan_add(ds, port, pvid, true);
+	if (!err)
+		err = _mv88e6xxx_port_pvid_set(ds, port, pvid);
+	mutex_unlock(&ps->smi_mutex);
+	return err;
+}
+
 static void mv88e6xxx_bridge_work(struct work_struct *work)
 {
 	struct mv88e6xxx_priv_state *ps;
@@ -2138,6 +2172,14 @@ int mv88e6xxx_setup_ports(struct dsa_switch *ds)
 
 	for (i = 0; i < ps->num_ports; i++) {
 		ret = mv88e6xxx_setup_port(ds, i);
+		if (ret < 0)
+			return ret;
+
+		if (dsa_is_cpu_port(ds, i) || dsa_is_dsa_port(ds, i))
+			continue;
+
+		/* setup the unbridged state */
+		ret = mv88e6xxx_port_bridge_leave(ds, i, 0);
 		if (ret < 0)
 			return ret;
 	}

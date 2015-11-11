@@ -935,6 +935,9 @@ static ssize_t macvtap_do_read(struct macvtap_queue *q,
 		/* Nothing to read, let's sleep */
 		schedule();
 	}
+	if (!noblock)
+		finish_wait(sk_sleep(&q->sk), &wait);
+
 	if (skb) {
 		ret = macvtap_put_user(q, skb, to);
 		if (unlikely(ret < 0))
@@ -942,8 +945,6 @@ static ssize_t macvtap_do_read(struct macvtap_queue *q,
 		else
 			consume_skb(skb);
 	}
-	if (!noblock)
-		finish_wait(sk_sleep(&q->sk), &wait);
 	return ret;
 }
 

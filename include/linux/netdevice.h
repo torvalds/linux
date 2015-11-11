@@ -1322,6 +1322,7 @@ enum netdev_priv_flags {
 #define IFF_L3MDEV_MASTER		IFF_L3MDEV_MASTER
 #define IFF_NO_QUEUE			IFF_NO_QUEUE
 #define IFF_OPENVSWITCH			IFF_OPENVSWITCH
+#define IFF_L3MDEV_SLAVE		IFF_L3MDEV_SLAVE
 
 /**
  *	struct net_device - The DEVICE structure.
