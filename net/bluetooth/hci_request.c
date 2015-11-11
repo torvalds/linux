@@ -858,12 +858,191 @@ static void bg_scan_update(struct work_struct *work)
 	hci_dev_unlock(hdev);
 }
 
+static void inquiry_complete(struct hci_dev *hdev, u8 status, u16 opcode)
+{
+	if (status) {
+		BT_ERR("Failed to start inquiry: status %d", status);
+
+		hci_dev_lock(hdev);
+		hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+		hci_dev_unlock(hdev);
+		return;
+	}
+}
+
+static void le_scan_disable_work_complete(struct hci_dev *hdev, u8 status)
+{
+	/* General inquiry access code (GIAC) */
+	u8 lap[3] = { 0x33, 0x8b, 0x9e };
+	struct hci_cp_inquiry cp;
+	int err;
+
+	if (status) {
+		BT_ERR("Failed to disable LE scanning: status %d", status);
+		return;
+	}
+
+	hdev->discovery.scan_start = 0;
+
+	switch (hdev->discovery.type) {
+	case DISCOV_TYPE_LE:
+		hci_dev_lock(hdev);
+		hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+		hci_dev_unlock(hdev);
+		break;
+
+	case DISCOV_TYPE_INTERLEAVED:
+		hci_dev_lock(hdev);
+
+		if (test_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY,
+			     &hdev->quirks)) {
+			/* If we were running LE only scan, change discovery
+			 * state. If we were running both LE and BR/EDR inquiry
+			 * simultaneously, and BR/EDR inquiry is already
+			 * finished, stop discovery, otherwise BR/EDR inquiry
+			 * will stop discovery when finished. If we will resolve
+			 * remote device name, do not change discovery state.
+			 */
+			if (!test_bit(HCI_INQUIRY, &hdev->flags) &&
+			    hdev->discovery.state != DISCOVERY_RESOLVING)
+				hci_discovery_set_state(hdev,
+							DISCOVERY_STOPPED);
+		} else {
+			struct hci_request req;
+
+			hci_inquiry_cache_flush(hdev);
+
+			hci_req_init(&req, hdev);
+
+			memset(&cp, 0, sizeof(cp));
+			memcpy(&cp.lap, lap, sizeof(cp.lap));
+			cp.length = DISCOV_INTERLEAVED_INQUIRY_LEN;
+			hci_req_add(&req, HCI_OP_INQUIRY, sizeof(cp), &cp);
+
+			err = hci_req_run(&req, inquiry_complete);
+			if (err) {
+				BT_ERR("Inquiry request failed: err %d", err);
+				hci_discovery_set_state(hdev,
+							DISCOVERY_STOPPED);
+			}
+		}
+
+		hci_dev_unlock(hdev);
+		break;
+	}
+}
+
+static void le_scan_disable(struct hci_request *req, unsigned long opt)
+{
+	hci_req_add_le_scan_disable(req);
+}
+
+static void le_scan_disable_work(struct work_struct *work)
+{
+	struct hci_dev *hdev = container_of(work, struct hci_dev,
+					    le_scan_disable.work);
+	u8 status;
+	int err;
+
+	BT_DBG("%s", hdev->name);
+
+	cancel_delayed_work(&hdev->le_scan_restart);
+
+	err = hci_req_sync(hdev, le_scan_disable, 0, HCI_CMD_TIMEOUT, &status);
+	if (err)
+		return;
+
+	le_scan_disable_work_complete(hdev, status);
+}
+
+static void le_scan_restart_work_complete(struct hci_dev *hdev, u8 status)
+{
+	unsigned long timeout, duration, scan_start, now;
+
+	BT_DBG("%s", hdev->name);
+
+	if (status) {
+		BT_ERR("Failed to restart LE scan: status %d", status);
+		return;
+	}
+
+	hci_dev_lock(hdev);
+
+	if (!test_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks) ||
+	    !hdev->discovery.scan_start)
+		goto unlock;
+
+	/* When the scan was started, hdev->le_scan_disable has been queued
+	 * after duration from scan_start. During scan restart this job
+	 * has been canceled, and we need to queue it again after proper
+	 * timeout, to make sure that scan does not run indefinitely.
+	 */
+	duration = hdev->discovery.scan_duration;
+	scan_start = hdev->discovery.scan_start;
+	now = jiffies;
+	if (now - scan_start <= duration) {
+		int elapsed;
+
+		if (now >= scan_start)
+			elapsed = now - scan_start;
+		else
+			elapsed = ULONG_MAX - scan_start + now;
+
+		timeout = duration - elapsed;
+	} else {
+		timeout = 0;
+	}
+
+	queue_delayed_work(hdev->req_workqueue,
+			   &hdev->le_scan_disable, timeout);
+
+unlock:
+	hci_dev_unlock(hdev);
+}
+
+static void le_scan_restart(struct hci_request *req, unsigned long opt)
+{
+	struct hci_dev *hdev = req->hdev;
+	struct hci_cp_le_set_scan_enable cp;
+
+	/* If controller is not scanning we are done. */
+	if (!hci_dev_test_flag(hdev, HCI_LE_SCAN))
+		return;
+
+	hci_req_add_le_scan_disable(req);
+
+	memset(&cp, 0, sizeof(cp));
+	cp.enable = LE_SCAN_ENABLE;
+	cp.filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
+	hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(cp), &cp);
+}
+
+static void le_scan_restart_work(struct work_struct *work)
+{
+	struct hci_dev *hdev = container_of(work, struct hci_dev,
+					    le_scan_restart.work);
+	u8 status;
+	int err;
+
+	BT_DBG("%s", hdev->name);
+
+	err = hci_req_sync(hdev, le_scan_restart, 0, HCI_CMD_TIMEOUT, &status);
+	if (err)
+		return;
+
+	le_scan_restart_work_complete(hdev, status);
+}
+
 void hci_request_setup(struct hci_dev *hdev)
 {
 	INIT_WORK(&hdev->bg_scan_update, bg_scan_update);
+	INIT_DELAYED_WORK(&hdev->le_scan_disable, le_scan_disable_work);
+	INIT_DELAYED_WORK(&hdev->le_scan_restart, le_scan_restart_work);
 }
 
 void hci_request_cancel_all(struct hci_dev *hdev)
 {
 	cancel_work_sync(&hdev->bg_scan_update);
+	cancel_delayed_work_sync(&hdev->le_scan_disable);
+	cancel_delayed_work_sync(&hdev->le_scan_restart);
 }

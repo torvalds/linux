@@ -328,6 +328,8 @@ struct hci_dev {
 	struct work_struct	tx_work;
 
 	struct work_struct	bg_scan_update;
+	struct delayed_work	le_scan_disable;
+	struct delayed_work	le_scan_restart;
 
 	struct sk_buff_head	rx_q;
 	struct sk_buff_head	raw_q;
@@ -371,9 +373,6 @@ struct hci_dev {
 	struct rfkill		*rfkill;
 
 	DECLARE_BITMAP(dev_flags, __HCI_NUM_FLAGS);
-
-	struct delayed_work	le_scan_disable;
-	struct delayed_work	le_scan_restart;
 
 	__s8			adv_tx_power;
 	__u8			adv_data[HCI_MAX_AD_LENGTH];
