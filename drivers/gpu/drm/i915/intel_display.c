@@ -14369,16 +14369,17 @@ static int intel_framebuffer_init(struct drm_device *dev,
 static struct drm_framebuffer *
 intel_user_framebuffer_create(struct drm_device *dev,
 			      struct drm_file *filp,
-			      struct drm_mode_fb_cmd2 *mode_cmd)
+			      struct drm_mode_fb_cmd2 *user_mode_cmd)
 {
 	struct drm_i915_gem_object *obj;
+	struct drm_mode_fb_cmd2 mode_cmd = *user_mode_cmd;
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, filp,
-						mode_cmd->handles[0]));
+						mode_cmd.handles[0]));
 	if (&obj->base == NULL)
 		return ERR_PTR(-ENOENT);
 
-	return intel_framebuffer_create(dev, mode_cmd, obj);
+	return intel_framebuffer_create(dev, &mode_cmd, obj);
 }
 
 #ifndef CONFIG_DRM_FBDEV_EMULATION
