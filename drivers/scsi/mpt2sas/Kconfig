@@ -59,9 +59,3 @@ config SCSI_MPT2SAS_MAX_SGE
 	SAFE_PHYS_SEGMENTS.  However, it may decreased down to 16.
 	Decreasing this parameter will reduce memory requirements
 	on a per controller instance.
-
-config SCSI_MPT2SAS_LOGGING
-	bool "LSI MPT Fusion logging facility"
-	depends on PCI && SCSI && SCSI_MPT2SAS
-	---help---
-	This turns on a logging facility.

@@ -324,7 +324,6 @@ mpt3sas_halt_firmware(struct MPT3SAS_ADAPTER *ioc)
 		panic("panic in %s\n", __func__);
 }
 
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
 /**
  * _base_sas_ioc_info - verbose translation of the ioc status
  * @ioc: per adapter object
@@ -630,7 +629,6 @@ _base_display_event_data(struct MPT3SAS_ADAPTER *ioc,
 
 	pr_info(MPT3SAS_FMT "%s\n", ioc->name, desc);
 }
-#endif
 
 /**
  * _base_sas_log_info - verbose translation of firmware log info
@@ -710,13 +708,13 @@ _base_display_reply_info(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 		return;
 	}
 	ioc_status = le16_to_cpu(mpi_reply->IOCStatus);
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
+
 	if ((ioc_status & MPI2_IOCSTATUS_MASK) &&
 	    (ioc->logging_level & MPT_DEBUG_REPLY)) {
 		_base_sas_ioc_info(ioc , mpi_reply,
 		   mpt3sas_base_get_msg_frame(ioc, smid));
 	}
-#endif
+
 	if (ioc_status & MPI2_IOCSTATUS_FLAG_LOG_INFO_AVAILABLE) {
 		loginfo = le32_to_cpu(mpi_reply->IOCLogInfo);
 		_base_sas_log_info(ioc, loginfo);
@@ -783,9 +781,9 @@ _base_async_event(struct MPT3SAS_ADAPTER *ioc, u8 msix_index, u32 reply)
 		return 1;
 	if (mpi_reply->Function != MPI2_FUNCTION_EVENT_NOTIFICATION)
 		return 1;
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
+
 	_base_display_event_data(ioc, mpi_reply);
-#endif
+
 	if (!(mpi_reply->AckRequired & MPI2_EVENT_NOTIFICATION_ACK_REQUIRED))
 		goto out;
 	smid = mpt3sas_base_get_smid(ioc, ioc->base_cb_idx);

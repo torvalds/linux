@@ -59,9 +59,3 @@ config SCSI_MPT3SAS_MAX_SGE
 	MAX_PHYS_SEGMENTS in most kernels.  However in SuSE kernels this
 	can be 256. However, it may decreased down to 16.  Decreasing this
 	parameter will reduce memory requirements on a per controller instance.
-
-config SCSI_MPT3SAS_LOGGING
-	bool "LSI MPT Fusion logging facility"
-	depends on PCI && SCSI && SCSI_MPT3SAS
-	---help---
-	This turns on a logging facility.

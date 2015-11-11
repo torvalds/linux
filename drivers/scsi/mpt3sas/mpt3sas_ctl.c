@@ -78,7 +78,6 @@ enum block_state {
 	BLOCKING,
 };
 
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
 /**
  * _ctl_sas_device_find_by_handle - sas device search
  * @ioc: per adapter object
@@ -254,8 +253,6 @@ _ctl_display_some_debug(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 	}
 }
 
-#endif
-
 /**
  * mpt3sas_ctl_done - ctl module completion routine
  * @ioc: per adapter object
@@ -302,9 +299,7 @@ mpt3sas_ctl_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 			}
 		}
 	}
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
 	_ctl_display_some_debug(ioc, smid, "ctl_done", mpi_reply);
-#endif
 	ioc->ctl_cmds.status &= ~MPT3_CMD_PENDING;
 	complete(&ioc->ctl_cmds.done);
 	return 1;
@@ -759,9 +754,7 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 	psge = (void *)request + (karg.data_sge_offset*4);
 
 	/* send command to firmware */
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
 	_ctl_display_some_debug(ioc, smid, "ctl_request", NULL);
-#endif
 
 	init_completion(&ioc->ctl_cmds.done);
 	switch (mpi_request->Function) {
@@ -916,7 +909,6 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 	mpi_reply = ioc->ctl_cmds.reply;
 	ioc_status = le16_to_cpu(mpi_reply->IOCStatus) & MPI2_IOCSTATUS_MASK;
 
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
 	if (mpi_reply->Function == MPI2_FUNCTION_SCSI_TASK_MGMT &&
 	    (ioc->logging_level & MPT_DEBUG_TM)) {
 		Mpi2SCSITaskManagementReply_t *tm_reply =
@@ -929,7 +921,7 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 		    le32_to_cpu(tm_reply->IOCLogInfo),
 		    le32_to_cpu(tm_reply->TerminationCount));
 	}
-#endif
+
 	/* copy out xdata to user */
 	if (data_in_sz) {
 		if (copy_to_user(karg.data_in_buf_ptr, data_in,

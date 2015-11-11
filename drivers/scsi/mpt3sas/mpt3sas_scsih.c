@@ -3624,10 +3624,8 @@ scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 	u16 smid;
 	u16 handle;
 
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
 	if (ioc->logging_level & MPT_DEBUG_SCSI)
 		scsi_print_command(scmd);
-#endif
 
 	sas_device_priv_data = scmd->device->hostdata;
 	if (!sas_device_priv_data || !sas_device_priv_data->sas_target) {
@@ -3758,7 +3756,6 @@ _scsih_normalize_sense(char *sense_buffer, struct sense_info *data)
 	}
 }
 
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
 /**
  * _scsih_scsi_ioc_info - translated non-succesfull SCSI_IO request
  * @ioc: per adapter object
@@ -3971,7 +3968,6 @@ _scsih_scsi_ioc_info(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 		_scsih_response_code(ioc, response_bytes[0]);
 	}
 }
-#endif
 
 /**
  * _scsih_turn_on_pfa_led - illuminate PFA LED
@@ -4239,13 +4235,11 @@ _scsih_io_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 			    le16_to_cpu(mpi_reply->DevHandle));
 		mpt3sas_trigger_scsi(ioc, data.skey, data.asc, data.ascq);
 
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
 		if (!(ioc->logging_level & MPT_DEBUG_REPLY) &&
 		     ((scmd->sense_buffer[2] == UNIT_ATTENTION) ||
 		     (scmd->sense_buffer[2] == MEDIUM_ERROR) ||
 		     (scmd->sense_buffer[2] == HARDWARE_ERROR)))
 			_scsih_scsi_ioc_info(ioc, scmd, mpi_reply, smid);
-#endif
 	}
 	switch (ioc_status) {
 	case MPI2_IOCSTATUS_BUSY:
@@ -4352,10 +4346,8 @@ _scsih_io_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 
 	}
 
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
 	if (scmd->result && (ioc->logging_level & MPT_DEBUG_REPLY))
 		_scsih_scsi_ioc_info(ioc , scmd, mpi_reply, smid);
-#endif
 
  out:
 
@@ -5152,7 +5144,6 @@ _scsih_remove_device(struct MPT3SAS_ADAPTER *ioc,
 	kfree(sas_device);
 }
 
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
 /**
  * _scsih_sas_topology_change_event_debug - debug for topology event
  * @ioc: per adapter object
@@ -5230,7 +5221,6 @@ _scsih_sas_topology_change_event_debug(struct MPT3SAS_ADAPTER *ioc,
 
 	}
 }
-#endif
 
 /**
  * _scsih_sas_topology_change_event - handle topology changes
@@ -5255,10 +5245,8 @@ _scsih_sas_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 		(Mpi2EventDataSasTopologyChangeList_t *)
 		fw_event->event_data;
 
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
 	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK)
 		_scsih_sas_topology_change_event_debug(ioc, event_data);
-#endif
 
 	if (ioc->shost_recovery || ioc->remove_host || ioc->pci_error_recovery)
 		return 0;
@@ -5364,7 +5352,6 @@ _scsih_sas_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 	return 0;
 }
 
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
 /**
  * _scsih_sas_device_status_change_event_debug - debug for device event
  * @event_data: event data payload
@@ -5432,7 +5419,6 @@ _scsih_sas_device_status_change_event_debug(struct MPT3SAS_ADAPTER *ioc,
 		    event_data->ASC, event_data->ASCQ);
 	pr_info("\n");
 }
-#endif
 
 /**
  * _scsih_sas_device_status_change_event - handle device status change
@@ -5454,11 +5440,9 @@ _scsih_sas_device_status_change_event(struct MPT3SAS_ADAPTER *ioc,
 		(Mpi2EventDataSasDeviceStatusChange_t *)
 		fw_event->event_data;
 
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
 	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK)
 		_scsih_sas_device_status_change_event_debug(ioc,
 		     event_data);
-#endif
 
 	/* In MPI Revision K (0xC), the internal device reset complete was
 	 * implemented, so avoid setting tm_busy flag for older firmware.
@@ -5496,7 +5480,6 @@ _scsih_sas_device_status_change_event(struct MPT3SAS_ADAPTER *ioc,
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 }
 
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
 /**
  * _scsih_sas_enclosure_dev_status_change_event_debug - debug for enclosure
  * event
@@ -5531,7 +5514,6 @@ _scsih_sas_enclosure_dev_status_change_event_debug(struct MPT3SAS_ADAPTER *ioc,
 	    (unsigned long long)le64_to_cpu(event_data->EnclosureLogicalID),
 	    le16_to_cpu(event_data->StartSlot));
 }
-#endif
 
 /**
  * _scsih_sas_enclosure_dev_status_change_event - handle enclosure events
@@ -5545,12 +5527,10 @@ static void
 _scsih_sas_enclosure_dev_status_change_event(struct MPT3SAS_ADAPTER *ioc,
 	struct fw_event_work *fw_event)
 {
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
 	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK)
 		_scsih_sas_enclosure_dev_status_change_event_debug(ioc,
 		     (Mpi2EventDataSasEnclDevStatusChange_t *)
 		     fw_event->event_data);
-#endif
 }
 
 /**
@@ -5730,17 +5710,15 @@ _scsih_sas_discovery_event(struct MPT3SAS_ADAPTER *ioc,
 	Mpi2EventDataSasDiscovery_t *event_data =
 		(Mpi2EventDataSasDiscovery_t *) fw_event->event_data;
 
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
 	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK) {
 		pr_info(MPT3SAS_FMT "discovery event: (%s)", ioc->name,
 		    (event_data->ReasonCode == MPI2_EVENT_SAS_DISC_RC_STARTED) ?
 		    "start" : "stop");
-	if (event_data->DiscoveryStatus)
-		pr_info("discovery_status(0x%08x)",
-		    le32_to_cpu(event_data->DiscoveryStatus));
-	pr_info("\n");
+		if (event_data->DiscoveryStatus)
+			pr_info("discovery_status(0x%08x)",
+			    le32_to_cpu(event_data->DiscoveryStatus));
+		pr_info("\n");
 	}
-#endif
 
 	if (event_data->ReasonCode == MPI2_EVENT_SAS_DISC_RC_STARTED &&
 	    !ioc->sas_hba.num_phys) {
@@ -6117,7 +6095,6 @@ _scsih_sas_pd_add(struct MPT3SAS_ADAPTER *ioc,
 	_scsih_add_device(ioc, handle, 0, 1);
 }
 
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
 /**
  * _scsih_sas_ir_config_change_event_debug - debug for IR Config Change events
  * @ioc: per adapter object
@@ -6197,7 +6174,6 @@ _scsih_sas_ir_config_change_event_debug(struct MPT3SAS_ADAPTER *ioc,
 		    element->PhysDiskNum);
 	}
 }
-#endif
 
 /**
  * _scsih_sas_ir_config_change_event - handle ir configuration change events
@@ -6218,11 +6194,8 @@ _scsih_sas_ir_config_change_event(struct MPT3SAS_ADAPTER *ioc,
 		(Mpi2EventDataIrConfigChangeList_t *)
 		fw_event->event_data;
 
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
 	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK)
 		_scsih_sas_ir_config_change_event_debug(ioc, event_data);
-
-#endif
 
 	foreign_config = (le32_to_cpu(event_data->Flags) &
 	    MPI2_EVENT_IR_CHANGE_FLAGS_FOREIGN_CONFIG) ? 1 : 0;
@@ -6435,7 +6408,6 @@ _scsih_sas_ir_physical_disk_event(struct MPT3SAS_ADAPTER *ioc,
 	}
 }
 
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
 /**
  * _scsih_sas_ir_operation_status_event_debug - debug for IR op event
  * @ioc: per adapter object
@@ -6477,7 +6449,6 @@ _scsih_sas_ir_operation_status_event_debug(struct MPT3SAS_ADAPTER *ioc,
 	    le16_to_cpu(event_data->VolDevHandle),
 	    event_data->PercentComplete);
 }
-#endif
 
 /**
  * _scsih_sas_ir_operation_status_event - handle RAID operation events
@@ -6498,11 +6469,9 @@ _scsih_sas_ir_operation_status_event(struct MPT3SAS_ADAPTER *ioc,
 	unsigned long flags;
 	u16 handle;
 
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
 	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK)
 		_scsih_sas_ir_operation_status_event_debug(ioc,
 		     event_data);
-#endif
 
 	/* code added for raid transport support */
 	if (event_data->RAIDOperation == MPI2_EVENT_IR_RAIDOP_RESYNC) {
