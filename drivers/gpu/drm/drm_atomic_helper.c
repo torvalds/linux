@@ -1553,6 +1553,9 @@ retry:
 		goto fail;
 	}
 
+	if (plane_state->crtc && (plane == plane->crtc->cursor))
+		plane_state->state->legacy_cursor_update = true;
+
 	ret = __drm_atomic_helper_disable_plane(plane, plane_state);
 	if (ret != 0)
 		goto fail;
@@ -1604,9 +1607,6 @@ int __drm_atomic_helper_disable_plane(struct drm_plane *plane,
 	plane_state->src_y = 0;
 	plane_state->src_h = 0;
 	plane_state->src_w = 0;
-
-	if (plane->crtc && (plane == plane->crtc->cursor))
-		plane_state->state->legacy_cursor_update = true;
 
 	return 0;
 }
