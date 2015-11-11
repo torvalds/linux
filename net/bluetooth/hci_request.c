@@ -1044,6 +1044,7 @@ static void le_scan_restart_work(struct work_struct *work)
 
 static int bredr_inquiry(struct hci_request *req, unsigned long opt)
 {
+	u8 length = opt;
 	struct hci_cp_inquiry cp;
 	/* General inquiry access code (GIAC) */
 	u8 lap[3] = { 0x33, 0x8b, 0x9e };
@@ -1056,7 +1057,7 @@ static int bredr_inquiry(struct hci_request *req, unsigned long opt)
 
 	memset(&cp, 0, sizeof(cp));
 	memcpy(&cp.lap, lap, sizeof(cp.lap));
-	cp.length = DISCOV_BREDR_INQUIRY_LEN;
+	cp.length = length;
 
 	hci_req_add(req, HCI_OP_INQUIRY, sizeof(cp), &cp);
 
@@ -1150,7 +1151,7 @@ static int interleaved_discov(struct hci_request *req, unsigned long opt)
 	if (err)
 		return err;
 
-	return bredr_inquiry(req, opt);
+	return bredr_inquiry(req, DISCOV_BREDR_INQUIRY_LEN);
 }
 
 static void start_discovery(struct hci_dev *hdev, u8 *status)
@@ -1162,7 +1163,8 @@ static void start_discovery(struct hci_dev *hdev, u8 *status)
 	switch (hdev->discovery.type) {
 	case DISCOV_TYPE_BREDR:
 		if (!hci_dev_test_flag(hdev, HCI_INQUIRY))
-			hci_req_sync(hdev, bredr_inquiry, 0, HCI_CMD_TIMEOUT,
+			hci_req_sync(hdev, bredr_inquiry,
+				     DISCOV_BREDR_INQUIRY_LEN, HCI_CMD_TIMEOUT,
 				     status);
 		return;
 	case DISCOV_TYPE_INTERLEAVED:
