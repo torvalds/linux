@@ -569,4 +569,13 @@ static inline void __iwl_trans_pcie_set_bit(struct iwl_trans *trans,
 
 void iwl_trans_pcie_rf_kill(struct iwl_trans *trans, bool state);
 
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans);
+#else
+static inline int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans)
+{
+	return 0;
+}
+#endif
+
 #endif /* __iwl_trans_int_pcie_h__ */

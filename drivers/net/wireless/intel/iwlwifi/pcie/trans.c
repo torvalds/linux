@@ -2107,13 +2107,11 @@ DEBUGFS_READ_FILE_OPS(rx_queue);
 DEBUGFS_READ_FILE_OPS(tx_queue);
 DEBUGFS_WRITE_FILE_OPS(csr);
 
-/*
- * Create the debugfs files and directories
- *
- */
-static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,
-					 struct dentry *dir)
+/* Create the debugfs files and directories */
+int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans)
 {
+	struct dentry *dir = trans->dbgfs_dir;
+
 	DEBUGFS_ADD_FILE(rx_queue, dir, S_IRUSR);
 	DEBUGFS_ADD_FILE(tx_queue, dir, S_IRUSR);
 	DEBUGFS_ADD_FILE(interrupt, dir, S_IWUSR | S_IRUSR);
@@ -2124,12 +2122,6 @@ static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,
 err:
 	IWL_ERR(trans, "failed to create the trans debugfs entry\n");
 	return -ENOMEM;
-}
-#else
-static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,
-					 struct dentry *dir)
-{
-	return 0;
 }
 #endif /*CONFIG_IWLWIFI_DEBUGFS */
 
@@ -2472,8 +2464,6 @@ static const struct iwl_trans_ops trans_ops_pcie = {
 
 	.txq_disable = iwl_trans_pcie_txq_disable,
 	.txq_enable = iwl_trans_pcie_txq_enable,
-
-	.dbgfs_register = iwl_trans_pcie_dbgfs_register,
 
 	.wait_tx_queue_empty = iwl_trans_pcie_wait_txq_empty,
 	.freeze_txq_timer = iwl_trans_pcie_freeze_txq_timer,
