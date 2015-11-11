@@ -135,11 +135,6 @@ struct analog_parameters {
 	u64 std;
 };
 
-enum tuner_param {
-	DVBFE_TUNER_FREQUENCY		= (1 <<  0),
-	DVBFE_TUNER_BANDWIDTH		= (1 <<  1),
-};
-
 /**
  * enum dvbfe_algo - defines the algorithm used to tune into a channel
  *
@@ -168,11 +163,6 @@ enum dvbfe_algo {
 	DVBFE_ALGO_SW			= (1 <<  1),
 	DVBFE_ALGO_CUSTOM		= (1 <<  2),
 	DVBFE_ALGO_RECOVERY		= (1 << 31)
-};
-
-struct tuner_state {
-	u32 frequency;
-	u32 bandwidth;
 };
 
 /**
@@ -245,12 +235,6 @@ enum dvbfe_search {
  *			set_params is preferred.
  * @set_bandwidth:	Set a new frequency. Please notice that using
  *			set_params is preferred.
- * @set_state:		callback function used on some legacy drivers that
- * 			don't implement set_params in order to set properties.
- * 			Shouldn't be used on new drivers.
- * @get_state:		callback function used to get properties by some
- * 			legacy drivers that don't implement set_params.
- * 			Shouldn't be used on new drivers.
  *
  * NOTE: frequencies used on get_frequency and set_frequency are in Hz for
  * terrestrial/cable or kHz for satellite.
@@ -290,13 +274,6 @@ struct dvb_tuner_ops {
 	 * tuners which require sophisticated tuning loops, controlling each parameter separately. */
 	int (*set_frequency)(struct dvb_frontend *fe, u32 frequency);
 	int (*set_bandwidth)(struct dvb_frontend *fe, u32 bandwidth);
-
-	/*
-	 * These are provided separately from set_params in order to facilitate silicon
-	 * tuners which require sophisticated tuning loops, controlling each parameter separately.
-	 */
-	int (*set_state)(struct dvb_frontend *fe, enum tuner_param param, struct tuner_state *state);
-	int (*get_state)(struct dvb_frontend *fe, enum tuner_param param, struct tuner_state *state);
 };
 
 /**
