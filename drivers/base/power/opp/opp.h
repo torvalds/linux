@@ -17,6 +17,7 @@
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/limits.h>
 #include <linux/pm_opp.h>
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
@@ -53,6 +54,7 @@ extern struct mutex dev_opp_list_lock;
  * @dynamic:	not-created from static DT entries.
  * @available:	true/false - marks if this OPP as available or not
  * @turbo:	true if turbo (boost) OPP
+ * @suspend:	true if suspend OPP
  * @rate:	Frequency in hertz
  * @u_volt:	Target voltage in microvolts corresponding to this OPP
  * @u_volt_min:	Minimum voltage in microvolts corresponding to this OPP
@@ -63,6 +65,7 @@ extern struct mutex dev_opp_list_lock;
  * @dev_opp:	points back to the device_opp struct this opp belongs to
  * @rcu_head:	RCU callback head used for deferred freeing
  * @np:		OPP's device node.
+ * @dentry:	debugfs dentry pointer (per opp)
  *
  * This structure stores the OPP information for a given device.
  */
@@ -72,6 +75,7 @@ struct dev_pm_opp {
 	bool available;
 	bool dynamic;
 	bool turbo;
+	bool suspend;
 	unsigned long rate;
 
 	unsigned long u_volt;
@@ -84,6 +88,10 @@ struct dev_pm_opp {
 	struct rcu_head rcu_head;
 
 	struct device_node *np;
+
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *dentry;
+#endif
 };
 
 /**
@@ -91,6 +99,7 @@ struct dev_pm_opp {
  * @node:	list node
  * @dev:	device to which the struct object belongs
  * @rcu_head:	RCU callback head used for deferred freeing
+ * @dentry:	debugfs dentry pointer (per device)
  *
  * This is an internal data structure maintaining the list of devices that are
  * managed by 'struct device_opp'.
@@ -99,6 +108,10 @@ struct device_list_opp {
 	struct list_head node;
 	const struct device *dev;
 	struct rcu_head rcu_head;
+
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *dentry;
+#endif
 };
 
 /**
@@ -114,6 +127,8 @@ struct device_list_opp {
  * @opp_list:	list of opps
  * @np:		struct device_node pointer for opp's DT node.
  * @shared_opp: OPP is shared between multiple devices.
+ * @dentry:	debugfs dentry pointer of the real device directory (not links).
+ * @dentry_name: Name of the real dentry.
  *
  * This is an internal data structure maintaining the link to opps attached to
  * a device. This structure is not meant to be shared to users as it is
@@ -135,6 +150,11 @@ struct device_opp {
 	unsigned long clock_latency_ns_max;
 	bool shared_opp;
 	struct dev_pm_opp *suspend_opp;
+
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *dentry;
+	char dentry_name[NAME_MAX];
+#endif
 };
 
 /* Routines internal to opp core */
@@ -142,5 +162,27 @@ struct device_opp *_find_device_opp(struct device *dev);
 struct device_list_opp *_add_list_dev(const struct device *dev,
 				      struct device_opp *dev_opp);
 struct device_node *_of_get_opp_desc_node(struct device *dev);
+
+#ifdef CONFIG_DEBUG_FS
+void opp_debug_remove_one(struct dev_pm_opp *opp);
+int opp_debug_create_one(struct dev_pm_opp *opp, struct device_opp *dev_opp);
+int opp_debug_register(struct device_list_opp *list_dev,
+		       struct device_opp *dev_opp);
+void opp_debug_unregister(struct device_list_opp *list_dev,
+			  struct device_opp *dev_opp);
+#else
+static inline void opp_debug_remove_one(struct dev_pm_opp *opp) {}
+
+static inline int opp_debug_create_one(struct dev_pm_opp *opp,
+				       struct device_opp *dev_opp)
+{ return 0; }
+static inline int opp_debug_register(struct device_list_opp *list_dev,
+				     struct device_opp *dev_opp)
+{ return 0; }
+
+static inline void opp_debug_unregister(struct device_list_opp *list_dev,
+					struct device_opp *dev_opp)
+{ }
+#endif		/* DEBUG_FS */
 
 #endif		/* __DRIVER_OPP_H__ */
