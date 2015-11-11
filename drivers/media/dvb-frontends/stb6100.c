@@ -252,6 +252,7 @@ static int stb6100_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 {
 	int rc;
 	u8 f;
+	u32 bw;
 	struct stb6100_state *state = fe->tuner_priv;
 
 	rc = stb6100_read_reg(state, STB6100_F);
@@ -259,9 +260,9 @@ static int stb6100_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 		return rc;
 	f = rc & STB6100_F_F;
 
-	state->status.bandwidth = (f + 5) * 2000;	/* x2 for ZIF	*/
+	bw = (f + 5) * 2000;	/* x2 for ZIF	*/
 
-	*bandwidth = state->bandwidth = state->status.bandwidth * 1000;
+	*bandwidth = state->bandwidth = bw * 1000;
 	dprintk(verbose, FE_DEBUG, 1, "bandwidth = %u Hz", state->bandwidth);
 	return 0;
 }
@@ -495,15 +496,13 @@ static int stb6100_sleep(struct dvb_frontend *fe)
 static int stb6100_init(struct dvb_frontend *fe)
 {
 	struct stb6100_state *state = fe->tuner_priv;
-	struct tuner_state *status = &state->status;
 	int refclk = 27000000; /* Hz */
 
 	/*
 	 * iqsense = 1
 	 * tunerstep = 125000
 	 */
-	status->bandwidth	= 36000;	/* kHz	*/
-	state->bandwidth	= status->bandwidth * 1000;	/* Hz	*/
+	state->bandwidth	= 36000000;	/* Hz	*/
 	state->reference	= refclk / 1000;	/* kHz	*/
 
 	/* Set default bandwidth. Modified, PN 13-May-10	*/
