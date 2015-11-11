@@ -864,83 +864,31 @@ static void bg_scan_update(struct work_struct *work)
 	hci_dev_unlock(hdev);
 }
 
-static void inquiry_complete(struct hci_dev *hdev, u8 status, u16 opcode)
-{
-	if (status) {
-		BT_ERR("Failed to start inquiry: status %d", status);
-
-		hci_dev_lock(hdev);
-		hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
-		hci_dev_unlock(hdev);
-		return;
-	}
-}
-
-static void le_scan_disable_work_complete(struct hci_dev *hdev, u8 status)
-{
-	/* General inquiry access code (GIAC) */
-	u8 lap[3] = { 0x33, 0x8b, 0x9e };
-	struct hci_cp_inquiry cp;
-	int err;
-
-	if (status) {
-		BT_ERR("Failed to disable LE scanning: status %d", status);
-		return;
-	}
-
-	hdev->discovery.scan_start = 0;
-
-	switch (hdev->discovery.type) {
-	case DISCOV_TYPE_LE:
-		hci_dev_lock(hdev);
-		hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
-		hci_dev_unlock(hdev);
-		break;
-
-	case DISCOV_TYPE_INTERLEAVED:
-		hci_dev_lock(hdev);
-
-		if (test_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY,
-			     &hdev->quirks)) {
-			/* If we were running LE only scan, change discovery
-			 * state. If we were running both LE and BR/EDR inquiry
-			 * simultaneously, and BR/EDR inquiry is already
-			 * finished, stop discovery, otherwise BR/EDR inquiry
-			 * will stop discovery when finished. If we will resolve
-			 * remote device name, do not change discovery state.
-			 */
-			if (!test_bit(HCI_INQUIRY, &hdev->flags) &&
-			    hdev->discovery.state != DISCOVERY_RESOLVING)
-				hci_discovery_set_state(hdev,
-							DISCOVERY_STOPPED);
-		} else {
-			struct hci_request req;
-
-			hci_inquiry_cache_flush(hdev);
-
-			hci_req_init(&req, hdev);
-
-			memset(&cp, 0, sizeof(cp));
-			memcpy(&cp.lap, lap, sizeof(cp.lap));
-			cp.length = DISCOV_INTERLEAVED_INQUIRY_LEN;
-			hci_req_add(&req, HCI_OP_INQUIRY, sizeof(cp), &cp);
-
-			err = hci_req_run(&req, inquiry_complete);
-			if (err) {
-				BT_ERR("Inquiry request failed: err %d", err);
-				hci_discovery_set_state(hdev,
-							DISCOVERY_STOPPED);
-			}
-		}
-
-		hci_dev_unlock(hdev);
-		break;
-	}
-}
-
 static int le_scan_disable(struct hci_request *req, unsigned long opt)
 {
 	hci_req_add_le_scan_disable(req);
+	return 0;
+}
+
+static int bredr_inquiry(struct hci_request *req, unsigned long opt)
+{
+	u8 length = opt;
+	/* General inquiry access code (GIAC) */
+	u8 lap[3] = { 0x33, 0x8b, 0x9e };
+	struct hci_cp_inquiry cp;
+
+	BT_DBG("%s", req->hdev->name);
+
+	hci_dev_lock(req->hdev);
+	hci_inquiry_cache_flush(req->hdev);
+	hci_dev_unlock(req->hdev);
+
+	memset(&cp, 0, sizeof(cp));
+	memcpy(&cp.lap, lap, sizeof(cp.lap));
+	cp.length = length;
+
+	hci_req_add(req, HCI_OP_INQUIRY, sizeof(cp), &cp);
+
 	return 0;
 }
 
@@ -949,17 +897,57 @@ static void le_scan_disable_work(struct work_struct *work)
 	struct hci_dev *hdev = container_of(work, struct hci_dev,
 					    le_scan_disable.work);
 	u8 status;
-	int err;
 
 	BT_DBG("%s", hdev->name);
 
-	cancel_delayed_work(&hdev->le_scan_restart);
-
-	err = hci_req_sync(hdev, le_scan_disable, 0, HCI_CMD_TIMEOUT, &status);
-	if (err)
+	if (!hci_dev_test_flag(hdev, HCI_LE_SCAN))
 		return;
 
-	le_scan_disable_work_complete(hdev, status);
+	cancel_delayed_work(&hdev->le_scan_restart);
+
+	hci_req_sync(hdev, le_scan_disable, 0, HCI_CMD_TIMEOUT, &status);
+	if (status) {
+		BT_ERR("Failed to disable LE scan: status 0x%02x", status);
+		return;
+	}
+
+	hdev->discovery.scan_start = 0;
+
+	/* If we were running LE only scan, change discovery state. If
+	 * we were running both LE and BR/EDR inquiry simultaneously,
+	 * and BR/EDR inquiry is already finished, stop discovery,
+	 * otherwise BR/EDR inquiry will stop discovery when finished.
+	 * If we will resolve remote device name, do not change
+	 * discovery state.
+	 */
+
+	if (hdev->discovery.type == DISCOV_TYPE_LE)
+		goto discov_stopped;
+
+	if (hdev->discovery.type != DISCOV_TYPE_INTERLEAVED)
+		return;
+
+	if (test_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY, &hdev->quirks)) {
+		if (!test_bit(HCI_INQUIRY, &hdev->flags) &&
+		    hdev->discovery.state != DISCOVERY_RESOLVING)
+			goto discov_stopped;
+
+		return;
+	}
+
+	hci_req_sync(hdev, bredr_inquiry, DISCOV_INTERLEAVED_INQUIRY_LEN,
+		     HCI_CMD_TIMEOUT, &status);
+	if (status) {
+		BT_ERR("Inquiry failed: status 0x%02x", status);
+		goto discov_stopped;
+	}
+
+	return;
+
+discov_stopped:
+	hci_dev_lock(hdev);
+	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+	hci_dev_unlock(hdev);
 }
 
 static void le_scan_restart_work_complete(struct hci_dev *hdev, u8 status)
@@ -1040,28 +1028,6 @@ static void le_scan_restart_work(struct work_struct *work)
 		return;
 
 	le_scan_restart_work_complete(hdev, status);
-}
-
-static int bredr_inquiry(struct hci_request *req, unsigned long opt)
-{
-	u8 length = opt;
-	struct hci_cp_inquiry cp;
-	/* General inquiry access code (GIAC) */
-	u8 lap[3] = { 0x33, 0x8b, 0x9e };
-
-	BT_DBG("%s", req->hdev->name);
-
-	hci_dev_lock(req->hdev);
-	hci_inquiry_cache_flush(req->hdev);
-	hci_dev_unlock(req->hdev);
-
-	memset(&cp, 0, sizeof(cp));
-	memcpy(&cp.lap, lap, sizeof(cp.lap));
-	cp.length = length;
-
-	hci_req_add(req, HCI_OP_INQUIRY, sizeof(cp), &cp);
-
-	return 0;
 }
 
 static void cancel_adv_timeout(struct hci_dev *hdev)
