@@ -3127,7 +3127,6 @@ void cl_page_list_disown (const struct lu_env *env,
 			  struct cl_io *io, struct cl_page_list *plist);
 
 void cl_2queue_init     (struct cl_2queue *queue);
-void cl_2queue_add      (struct cl_2queue *queue, struct cl_page *page);
 void cl_2queue_disown   (const struct lu_env *env,
 			 struct cl_io *io, struct cl_2queue *queue);
 void cl_2queue_discard  (const struct lu_env *env,

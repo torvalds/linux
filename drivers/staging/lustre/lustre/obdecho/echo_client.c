@@ -1228,8 +1228,10 @@ static int cl_echo_object_brw(struct echo_object *eco, int rw, u64 offset,
 			cl_page_put(env, clp);
 			break;
 		}
-
-		cl_2queue_add(queue, clp);
+		/*
+		 * Add a page to the incoming page list of 2-queue.
+		 */
+		cl_page_list_add(&queue->c2_qin, clp);
 
 		/* drop the reference count for cl_page_find, so that the page
 		 * will be freed in cl_2queue_fini. */
