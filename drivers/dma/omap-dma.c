@@ -28,8 +28,6 @@
 struct omap_dmadev {
 	struct dma_device ddev;
 	spinlock_t lock;
-	struct tasklet_struct task;
-	struct list_head pending;
 	void __iomem *base;
 	const struct omap_dma_reg *reg_map;
 	struct omap_system_dma_plat_info *plat;
@@ -42,7 +40,6 @@ struct omap_dmadev {
 
 struct omap_chan {
 	struct virt_dma_chan vc;
-	struct list_head node;
 	void __iomem *channel_base;
 	const struct omap_dma_reg *reg_map;
 	uint32_t ccr;
@@ -454,33 +451,6 @@ static void omap_dma_callback(int ch, u16 status, void *data)
 	spin_unlock_irqrestore(&c->vc.lock, flags);
 }
 
-/*
- * This callback schedules all pending channels.  We could be more
- * clever here by postponing allocation of the real DMA channels to
- * this point, and freeing them when our virtual channel becomes idle.
- *
- * We would then need to deal with 'all channels in-use'
- */
-static void omap_dma_sched(unsigned long data)
-{
-	struct omap_dmadev *d = (struct omap_dmadev *)data;
-	LIST_HEAD(head);
-
-	spin_lock_irq(&d->lock);
-	list_splice_tail_init(&d->pending, &head);
-	spin_unlock_irq(&d->lock);
-
-	while (!list_empty(&head)) {
-		struct omap_chan *c = list_first_entry(&head,
-			struct omap_chan, node);
-
-		spin_lock_irq(&c->vc.lock);
-		list_del_init(&c->node);
-		omap_dma_start_desc(c);
-		spin_unlock_irq(&c->vc.lock);
-	}
-}
-
 static irqreturn_t omap_dma_irq(int irq, void *devid)
 {
 	struct omap_dmadev *od = devid;
@@ -739,22 +709,8 @@ static void omap_dma_issue_pending(struct dma_chan *chan)
 	unsigned long flags;
 
 	spin_lock_irqsave(&c->vc.lock, flags);
-	if (vchan_issue_pending(&c->vc) && !c->desc) {
-		/*
-		 * c->cyclic is used only by audio and in this case the DMA need
-		 * to be started without delay.
-		 */
-		if (!c->cyclic) {
-			struct omap_dmadev *d = to_omap_dma_dev(chan->device);
-			spin_lock(&d->lock);
-			if (list_empty(&c->node))
-				list_add_tail(&c->node, &d->pending);
-			spin_unlock(&d->lock);
-			tasklet_schedule(&d->task);
-		} else {
-			omap_dma_start_desc(c);
-		}
-	}
+	if (vchan_issue_pending(&c->vc) && !c->desc)
+		omap_dma_start_desc(c);
 	spin_unlock_irqrestore(&c->vc.lock, flags);
 }
 
@@ -1017,16 +973,10 @@ static int omap_dma_slave_config(struct dma_chan *chan, struct dma_slave_config 
 static int omap_dma_terminate_all(struct dma_chan *chan)
 {
 	struct omap_chan *c = to_omap_dma_chan(chan);
-	struct omap_dmadev *d = to_omap_dma_dev(c->vc.chan.device);
 	unsigned long flags;
 	LIST_HEAD(head);
 
 	spin_lock_irqsave(&c->vc.lock, flags);
-
-	/* Prevent this channel being scheduled */
-	spin_lock(&d->lock);
-	list_del_init(&c->node);
-	spin_unlock(&d->lock);
 
 	/*
 	 * Stop DMA activity: we assume the callback will not be called
@@ -1101,14 +1051,12 @@ static int omap_dma_chan_init(struct omap_dmadev *od)
 	c->reg_map = od->reg_map;
 	c->vc.desc_free = omap_dma_desc_free;
 	vchan_init(&c->vc, &od->ddev);
-	INIT_LIST_HEAD(&c->node);
 
 	return 0;
 }
 
 static void omap_dma_free(struct omap_dmadev *od)
 {
-	tasklet_kill(&od->task);
 	while (!list_empty(&od->ddev.channels)) {
 		struct omap_chan *c = list_first_entry(&od->ddev.channels,
 			struct omap_chan, vc.chan.device_node);
@@ -1164,11 +1112,8 @@ static int omap_dma_probe(struct platform_device *pdev)
 	od->ddev.residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
 	od->ddev.dev = &pdev->dev;
 	INIT_LIST_HEAD(&od->ddev.channels);
-	INIT_LIST_HEAD(&od->pending);
 	spin_lock_init(&od->lock);
 	spin_lock_init(&od->irq_lock);
-
-	tasklet_init(&od->task, omap_dma_sched, (unsigned long)od);
 
 	od->dma_requests = OMAP_SDMA_REQUESTS;
 	if (pdev->dev.of_node && of_property_read_u32(pdev->dev.of_node,
