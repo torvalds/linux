@@ -731,28 +731,6 @@ void __hci_update_background_scan(struct hci_request *req)
 	}
 }
 
-static void update_background_scan_complete(struct hci_dev *hdev, u8 status,
-					    u16 opcode)
-{
-	if (status)
-		BT_DBG("HCI request failed to update background scanning: "
-		       "status 0x%2.2x", status);
-}
-
-void hci_update_background_scan(struct hci_dev *hdev)
-{
-	int err;
-	struct hci_request req;
-
-	hci_req_init(&req, hdev);
-
-	__hci_update_background_scan(&req);
-
-	err = hci_req_run(&req, update_background_scan_complete);
-	if (err && err != -ENODATA)
-		BT_ERR("Failed to run HCI request: err %d", err);
-}
-
 void __hci_abort_conn(struct hci_request *req, struct hci_conn *conn,
 		      u8 reason)
 {
@@ -846,10 +824,27 @@ int hci_abort_conn(struct hci_conn *conn, u8 reason)
 	return 0;
 }
 
+static void update_bg_scan(struct hci_request *req, unsigned long opt)
+{
+	hci_dev_lock(req->hdev);
+	__hci_update_background_scan(req);
+	hci_dev_unlock(req->hdev);
+}
+
+static void bg_scan_update(struct work_struct *work)
+{
+	struct hci_dev *hdev = container_of(work, struct hci_dev,
+					    bg_scan_update);
+
+	hci_req_sync(hdev, update_bg_scan, 0, HCI_CMD_TIMEOUT);
+}
+
 void hci_request_setup(struct hci_dev *hdev)
 {
+	INIT_WORK(&hdev->bg_scan_update, bg_scan_update);
 }
 
 void hci_request_cancel_all(struct hci_dev *hdev)
 {
+	cancel_work_sync(&hdev->bg_scan_update);
 }
