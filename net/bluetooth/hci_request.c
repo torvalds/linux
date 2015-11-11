@@ -186,7 +186,7 @@ EXPORT_SYMBOL(__hci_cmd_sync);
 /* Execute request and wait for completion. */
 int __hci_req_sync(struct hci_dev *hdev, void (*func)(struct hci_request *req,
 						      unsigned long opt),
-		   unsigned long opt, __u32 timeout)
+		   unsigned long opt, u32 timeout, u8 *hci_status)
 {
 	struct hci_request req;
 	DECLARE_WAITQUEUE(wait, current);
@@ -231,14 +231,20 @@ int __hci_req_sync(struct hci_dev *hdev, void (*func)(struct hci_request *req,
 	switch (hdev->req_status) {
 	case HCI_REQ_DONE:
 		err = -bt_to_errno(hdev->req_result);
+		if (hci_status)
+			*hci_status = hdev->req_result;
 		break;
 
 	case HCI_REQ_CANCELED:
 		err = -hdev->req_result;
+		if (hci_status)
+			*hci_status = HCI_ERROR_UNSPECIFIED;
 		break;
 
 	default:
 		err = -ETIMEDOUT;
+		if (hci_status)
+			*hci_status = HCI_ERROR_UNSPECIFIED;
 		break;
 	}
 
@@ -251,7 +257,7 @@ int __hci_req_sync(struct hci_dev *hdev, void (*func)(struct hci_request *req,
 
 int hci_req_sync(struct hci_dev *hdev, void (*req)(struct hci_request *req,
 						   unsigned long opt),
-		 unsigned long opt, __u32 timeout)
+		 unsigned long opt, u32 timeout, u8 *hci_status)
 {
 	int ret;
 
@@ -260,7 +266,7 @@ int hci_req_sync(struct hci_dev *hdev, void (*req)(struct hci_request *req,
 
 	/* Serialize all requests */
 	hci_req_sync_lock(hdev);
-	ret = __hci_req_sync(hdev, req, opt, timeout);
+	ret = __hci_req_sync(hdev, req, opt, timeout, hci_status);
 	hci_req_sync_unlock(hdev);
 
 	return ret;
