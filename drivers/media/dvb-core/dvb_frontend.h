@@ -137,12 +137,7 @@ struct analog_parameters {
 
 enum tuner_param {
 	DVBFE_TUNER_FREQUENCY		= (1 <<  0),
-	DVBFE_TUNER_TUNERSTEP		= (1 <<  1),
-	DVBFE_TUNER_IFFREQ		= (1 <<  2),
-	DVBFE_TUNER_BANDWIDTH		= (1 <<  3),
-	DVBFE_TUNER_REFCLOCK		= (1 <<  4),
-	DVBFE_TUNER_IQSENSE		= (1 <<  5),
-	DVBFE_TUNER_DUMMY		= (1 << 31)
+	DVBFE_TUNER_BANDWIDTH		= (1 <<  1),
 };
 
 /**
@@ -177,11 +172,7 @@ enum dvbfe_algo {
 
 struct tuner_state {
 	u32 frequency;
-	u32 tunerstep;
-	u32 ifreq;
 	u32 bandwidth;
-	u32 iqsense;
-	u32 refclock;
 };
 
 /**
