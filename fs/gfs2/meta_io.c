@@ -187,6 +187,21 @@ struct buffer_head *gfs2_meta_new(struct gfs2_glock *gl, u64 blkno)
 	return bh;
 }
 
+static void gfs2_meta_readahead(struct gfs2_glock *gl, u64 blkno)
+{
+	struct buffer_head *bh;
+
+	bh = gfs2_getbuf(gl, blkno, 1);
+	lock_buffer(bh);
+	if (buffer_uptodate(bh)) {
+		unlock_buffer(bh);
+		brelse(bh);
+		return;
+	}
+	bh->b_end_io = end_buffer_read_sync;
+	submit_bh(READA | REQ_META | REQ_PRIO, bh);
+}
+
 /**
  * gfs2_meta_read - Read a block from disk
  * @gl: The glock covering the block
@@ -198,7 +213,7 @@ struct buffer_head *gfs2_meta_new(struct gfs2_glock *gl, u64 blkno)
  */
 
 int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
-		   struct buffer_head **bhp)
+		   int rahead, struct buffer_head **bhp)
 {
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct buffer_head *bh;
@@ -213,11 +228,15 @@ int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
 	lock_buffer(bh);
 	if (buffer_uptodate(bh)) {
 		unlock_buffer(bh);
+		if (rahead)
+			gfs2_meta_readahead(gl, blkno + 1);
 		return 0;
 	}
 	bh->b_end_io = end_buffer_read_sync;
 	get_bh(bh);
 	submit_bh(READ_SYNC | REQ_META | REQ_PRIO, bh);
+	if (rahead)
+		gfs2_meta_readahead(gl, blkno + 1);
 	if (!(flags & DIO_WAIT))
 		return 0;
 
@@ -341,8 +360,12 @@ int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, u64 num,
 	struct buffer_head *bh;
 	int ret = 0;
 	u32 mtype = height ? GFS2_METATYPE_IN : GFS2_METATYPE_DI;
+	int rahead = 0;
 
-	ret = gfs2_meta_read(gl, num, DIO_WAIT, &bh);
+	if (num == ip->i_no_addr)
+		rahead = ip->i_rahead;
+
+	ret = gfs2_meta_read(gl, num, DIO_WAIT, rahead, &bh);
 	if (ret == 0 && gfs2_metatype_check(sdp, bh, mtype)) {
 		brelse(bh);
 		ret = -EIO;

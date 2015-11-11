@@ -1158,7 +1158,7 @@ static int gfs2_rgrp_bh_get(struct gfs2_rgrpd *rgd)
 
 	for (x = 0; x < length; x++) {
 		bi = rgd->rd_bits + x;
-		error = gfs2_meta_read(gl, rgd->rd_addr + x, 0, &bi->bi_bh);
+		error = gfs2_meta_read(gl, rgd->rd_addr + x, 0, 0, &bi->bi_bh);
 		if (error)
 			goto fail;
 	}

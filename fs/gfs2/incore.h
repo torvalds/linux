@@ -402,6 +402,7 @@ struct gfs2_inode {
 	u32 i_diskflags;
 	u8 i_height;
 	u8 i_depth;
+	u16 i_rahead;
 };
 
 /*

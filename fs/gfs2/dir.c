@@ -108,7 +108,7 @@ static int gfs2_dir_get_existing_buffer(struct gfs2_inode *ip, u64 block,
 	struct buffer_head *bh;
 	int error;
 
-	error = gfs2_meta_read(ip->i_gl, block, DIO_WAIT, &bh);
+	error = gfs2_meta_read(ip->i_gl, block, DIO_WAIT, 0, &bh);
 	if (error)
 		return error;
 	if (gfs2_metatype_check(GFS2_SB(&ip->i_inode), bh, GFS2_METATYPE_JD)) {
@@ -305,7 +305,7 @@ static int gfs2_dir_read_data(struct gfs2_inode *ip, __be64 *buf,
 			BUG_ON(extlen < 1);
 			bh = gfs2_meta_ra(ip->i_gl, dblock, extlen);
 		} else {
-			error = gfs2_meta_read(ip->i_gl, dblock, DIO_WAIT, &bh);
+			error = gfs2_meta_read(ip->i_gl, dblock, DIO_WAIT, 0, &bh);
 			if (error)
 				goto fail;
 		}
@@ -723,7 +723,7 @@ static int get_leaf(struct gfs2_inode *dip, u64 leaf_no,
 {
 	int error;
 
-	error = gfs2_meta_read(dip->i_gl, leaf_no, DIO_WAIT, bhp);
+	error = gfs2_meta_read(dip->i_gl, leaf_no, DIO_WAIT, 0, bhp);
 	if (!error && gfs2_metatype_check(GFS2_SB(&dip->i_inode), *bhp, GFS2_METATYPE_LF)) {
 		/* pr_info("block num=%llu\n", leaf_no); */
 		error = -EIO;
@@ -1560,15 +1560,22 @@ struct inode *gfs2_dir_search(struct inode *dir, const struct qstr *name,
 
 	dent = gfs2_dirent_search(dir, name, gfs2_dirent_find, &bh);
 	if (dent) {
+		struct inode *inode;
+		u16 rahead;
+
 		if (IS_ERR(dent))
 			return ERR_CAST(dent);
 		dtype = be16_to_cpu(dent->de_type);
+		rahead = be16_to_cpu(dent->de_rahead);
 		addr = be64_to_cpu(dent->de_inum.no_addr);
 		formal_ino = be64_to_cpu(dent->de_inum.no_formal_ino);
 		brelse(bh);
 		if (fail_on_exist)
 			return ERR_PTR(-EEXIST);
-		return gfs2_inode_lookup(dir->i_sb, dtype, addr, formal_ino, 0);
+		inode = gfs2_inode_lookup(dir->i_sb, dtype, addr, formal_ino, 0);
+		if (!IS_ERR(inode))
+			GFS2_I(inode)->i_rahead = rahead;
+		return inode;
 	}
 	return ERR_PTR(-ENOENT);
 }

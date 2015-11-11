@@ -388,7 +388,7 @@ static int bh_get(struct gfs2_quota_data *qd)
 	error = gfs2_block_map(&ip->i_inode, block, &bh_map, 0);
 	if (error)
 		goto fail;
-	error = gfs2_meta_read(ip->i_gl, bh_map.b_blocknr, DIO_WAIT, &bh);
+	error = gfs2_meta_read(ip->i_gl, bh_map.b_blocknr, DIO_WAIT, 0, &bh);
 	if (error)
 		goto fail;
 	error = -EIO;

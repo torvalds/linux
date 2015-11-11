@@ -1633,6 +1633,7 @@ static struct inode *gfs2_alloc_inode(struct super_block *sb)
 		ip->i_gl = NULL;
 		ip->i_rgd = NULL;
 		ip->i_res = NULL;
+		ip->i_rahead = 0;
 	}
 	return &ip->i_inode;
 }
