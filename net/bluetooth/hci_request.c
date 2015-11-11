@@ -1042,8 +1042,209 @@ static void le_scan_restart_work(struct work_struct *work)
 	le_scan_restart_work_complete(hdev, status);
 }
 
+static int bredr_inquiry(struct hci_request *req, unsigned long opt)
+{
+	struct hci_cp_inquiry cp;
+	/* General inquiry access code (GIAC) */
+	u8 lap[3] = { 0x33, 0x8b, 0x9e };
+
+	BT_DBG("%s", req->hdev->name);
+
+	hci_dev_lock(req->hdev);
+	hci_inquiry_cache_flush(req->hdev);
+	hci_dev_unlock(req->hdev);
+
+	memset(&cp, 0, sizeof(cp));
+	memcpy(&cp.lap, lap, sizeof(cp.lap));
+	cp.length = DISCOV_BREDR_INQUIRY_LEN;
+
+	hci_req_add(req, HCI_OP_INQUIRY, sizeof(cp), &cp);
+
+	return 0;
+}
+
+static void cancel_adv_timeout(struct hci_dev *hdev)
+{
+	if (hdev->adv_instance_timeout) {
+		hdev->adv_instance_timeout = 0;
+		cancel_delayed_work(&hdev->adv_instance_expire);
+	}
+}
+
+static void disable_advertising(struct hci_request *req)
+{
+	u8 enable = 0x00;
+
+	hci_req_add(req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(enable), &enable);
+}
+
+static int active_scan(struct hci_request *req, unsigned long opt)
+{
+	uint16_t interval = opt;
+	struct hci_dev *hdev = req->hdev;
+	struct hci_cp_le_set_scan_param param_cp;
+	struct hci_cp_le_set_scan_enable enable_cp;
+	u8 own_addr_type;
+	int err;
+
+	BT_DBG("%s", hdev->name);
+
+	if (hci_dev_test_flag(hdev, HCI_LE_ADV)) {
+		hci_dev_lock(hdev);
+
+		/* Don't let discovery abort an outgoing connection attempt
+		 * that's using directed advertising.
+		 */
+		if (hci_lookup_le_connect(hdev)) {
+			hci_dev_unlock(hdev);
+			return -EBUSY;
+		}
+
+		cancel_adv_timeout(hdev);
+		hci_dev_unlock(hdev);
+
+		disable_advertising(req);
+	}
+
+	/* If controller is scanning, it means the background scanning is
+	 * running. Thus, we should temporarily stop it in order to set the
+	 * discovery scanning parameters.
+	 */
+	if (hci_dev_test_flag(hdev, HCI_LE_SCAN))
+		hci_req_add_le_scan_disable(req);
+
+	/* All active scans will be done with either a resolvable private
+	 * address (when privacy feature has been enabled) or non-resolvable
+	 * private address.
+	 */
+	err = hci_update_random_address(req, true, &own_addr_type);
+	if (err < 0)
+		own_addr_type = ADDR_LE_DEV_PUBLIC;
+
+	memset(&param_cp, 0, sizeof(param_cp));
+	param_cp.type = LE_SCAN_ACTIVE;
+	param_cp.interval = cpu_to_le16(interval);
+	param_cp.window = cpu_to_le16(DISCOV_LE_SCAN_WIN);
+	param_cp.own_address_type = own_addr_type;
+
+	hci_req_add(req, HCI_OP_LE_SET_SCAN_PARAM, sizeof(param_cp),
+		    &param_cp);
+
+	memset(&enable_cp, 0, sizeof(enable_cp));
+	enable_cp.enable = LE_SCAN_ENABLE;
+	enable_cp.filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
+
+	hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(enable_cp),
+		    &enable_cp);
+
+	return 0;
+}
+
+static int interleaved_discov(struct hci_request *req, unsigned long opt)
+{
+	int err;
+
+	BT_DBG("%s", req->hdev->name);
+
+	err = active_scan(req, opt);
+	if (err)
+		return err;
+
+	return bredr_inquiry(req, opt);
+}
+
+static void start_discovery(struct hci_dev *hdev, u8 *status)
+{
+	unsigned long timeout;
+
+	BT_DBG("%s type %u", hdev->name, hdev->discovery.type);
+
+	switch (hdev->discovery.type) {
+	case DISCOV_TYPE_BREDR:
+		if (!hci_dev_test_flag(hdev, HCI_INQUIRY))
+			hci_req_sync(hdev, bredr_inquiry, 0, HCI_CMD_TIMEOUT,
+				     status);
+		return;
+	case DISCOV_TYPE_INTERLEAVED:
+		/* When running simultaneous discovery, the LE scanning time
+		 * should occupy the whole discovery time sine BR/EDR inquiry
+		 * and LE scanning are scheduled by the controller.
+		 *
+		 * For interleaving discovery in comparison, BR/EDR inquiry
+		 * and LE scanning are done sequentially with separate
+		 * timeouts.
+		 */
+		if (test_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY,
+			     &hdev->quirks)) {
+			timeout = msecs_to_jiffies(DISCOV_LE_TIMEOUT);
+			/* During simultaneous discovery, we double LE scan
+			 * interval. We must leave some time for the controller
+			 * to do BR/EDR inquiry.
+			 */
+			hci_req_sync(hdev, interleaved_discov,
+				     DISCOV_LE_SCAN_INT * 2, HCI_CMD_TIMEOUT,
+				     status);
+			break;
+		}
+
+		timeout = msecs_to_jiffies(hdev->discov_interleaved_timeout);
+		hci_req_sync(hdev, active_scan, DISCOV_LE_SCAN_INT,
+			     HCI_CMD_TIMEOUT, status);
+		break;
+	case DISCOV_TYPE_LE:
+		timeout = msecs_to_jiffies(DISCOV_LE_TIMEOUT);
+		hci_req_sync(hdev, active_scan, DISCOV_LE_SCAN_INT,
+			     HCI_CMD_TIMEOUT, status);
+		break;
+	default:
+		*status = HCI_ERROR_UNSPECIFIED;
+		return;
+	}
+
+	if (*status)
+		return;
+
+	BT_DBG("%s timeout %u ms", hdev->name, jiffies_to_msecs(timeout));
+
+	/* When service discovery is used and the controller has a
+	 * strict duplicate filter, it is important to remember the
+	 * start and duration of the scan. This is required for
+	 * restarting scanning during the discovery phase.
+	 */
+	if (test_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks) &&
+		     hdev->discovery.result_filtering) {
+		hdev->discovery.scan_start = jiffies;
+		hdev->discovery.scan_duration = timeout;
+	}
+
+	queue_delayed_work(hdev->req_workqueue, &hdev->le_scan_disable,
+			   timeout);
+}
+
+static void discov_update(struct work_struct *work)
+{
+	struct hci_dev *hdev = container_of(work, struct hci_dev,
+					    discov_update);
+	u8 status = 0;
+
+	switch (hdev->discovery.state) {
+	case DISCOVERY_STARTING:
+		start_discovery(hdev, &status);
+		mgmt_start_discovery_complete(hdev, status);
+		if (status)
+			hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+		else
+			hci_discovery_set_state(hdev, DISCOVERY_FINDING);
+		break;
+	case DISCOVERY_STOPPED:
+	default:
+		return;
+	}
+}
+
 void hci_request_setup(struct hci_dev *hdev)
 {
+	INIT_WORK(&hdev->discov_update, discov_update);
 	INIT_WORK(&hdev->bg_scan_update, bg_scan_update);
 	INIT_DELAYED_WORK(&hdev->le_scan_disable, le_scan_disable_work);
 	INIT_DELAYED_WORK(&hdev->le_scan_restart, le_scan_restart_work);
@@ -1051,6 +1252,7 @@ void hci_request_setup(struct hci_dev *hdev)
 
 void hci_request_cancel_all(struct hci_dev *hdev)
 {
+	cancel_work_sync(&hdev->discov_update);
 	cancel_work_sync(&hdev->bg_scan_update);
 	cancel_delayed_work_sync(&hdev->le_scan_disable);
 	cancel_delayed_work_sync(&hdev->le_scan_restart);
