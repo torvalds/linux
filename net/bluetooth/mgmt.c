@@ -3518,8 +3518,7 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 
 		conn = hci_connect_le_scan(hdev, &cp->addr.bdaddr,
 					   addr_type, sec_level,
-					   HCI_LE_CONN_TIMEOUT,
-					   HCI_ROLE_MASTER);
+					   HCI_LE_CONN_TIMEOUT);
 	}
 
 	if (IS_ERR(conn)) {
