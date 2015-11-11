@@ -1023,7 +1023,6 @@ _ctl_getiocinfo(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 	    __func__));
 
 	memset(&karg, 0 , sizeof(karg));
-	karg.adapter_type = MPT3_IOCTL_INTERFACE_SAS3;
 	if (ioc->pfacts)
 		karg.port_number = ioc->pfacts[0].PortNumber;
 	karg.hw_rev = ioc->pdev->revision;
@@ -1035,9 +1034,22 @@ _ctl_getiocinfo(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 	karg.pci_information.u.bits.function = PCI_FUNC(ioc->pdev->devfn);
 	karg.pci_information.segment_id = pci_domain_nr(ioc->pdev->bus);
 	karg.firmware_version = ioc->facts.FWVersion.Word;
-	strcpy(karg.driver_version, MPT3SAS_DRIVER_NAME);
+	strcpy(karg.driver_version, driver_name);
 	strcat(karg.driver_version, "-");
-	strcat(karg.driver_version, MPT3SAS_DRIVER_VERSION);
+	switch  (ioc->hba_mpi_version_belonged) {
+	case MPI2_VERSION:
+		karg.adapter_type = MPT2_IOCTL_INTERFACE_SAS2;
+		strcat(karg.driver_version, MPT2SAS_DRIVER_VERSION);
+		break;
+	case MPI25_VERSION:
+		karg.adapter_type = MPT3_IOCTL_INTERFACE_SAS3;
+		strcat(karg.driver_version, MPT3SAS_DRIVER_VERSION);
+		break;
+	}
+	if (ioc->hba_mpi_version_belonged == MPI2_VERSION)
+		strcat(karg.driver_version, MPT2SAS_DRIVER_VERSION);
+	else
+		strcat(karg.driver_version, MPT3SAS_DRIVER_VERSION);
 	karg.bios_version = le32_to_cpu(ioc->bios_pg3.BiosVersion);
 
 	if (copy_to_user(arg, &karg, sizeof(karg))) {

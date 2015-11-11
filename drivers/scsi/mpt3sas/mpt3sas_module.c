@@ -168,6 +168,7 @@ _mpt3sas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!shost)
 		return -ENODEV;
 
+	sprintf(driver_name, "%s", MPT3SAS_DRIVER_NAME);
 	rv = scsih_probe(pdev, shost);
 	return rv;
 }

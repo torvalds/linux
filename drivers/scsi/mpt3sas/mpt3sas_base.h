@@ -870,6 +870,7 @@ struct MPT3SAS_ADAPTER {
 	MPT_BUILD_SG    build_sg;
 	MPT_BUILD_ZERO_LEN_SGE build_zero_len_sge;
 	u16             sge_size_ieee;
+	u16		hba_mpi_version_belonged;
 
 	/* function ptr for MPI sg elements only */
 	MPT_BUILD_SG    build_sg_mpi;
@@ -1023,6 +1024,8 @@ typedef u8 (*MPT_CALLBACK)(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 
 /* base shared API */
 extern struct list_head mpt3sas_ioc_list;
+extern char    driver_name[MPT_NAME_LENGTH];
+
 void mpt3sas_base_start_watchdog(struct MPT3SAS_ADAPTER *ioc);
 void mpt3sas_base_stop_watchdog(struct MPT3SAS_ADAPTER *ioc);
 

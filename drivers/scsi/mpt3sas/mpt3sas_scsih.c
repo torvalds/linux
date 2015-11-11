@@ -73,6 +73,7 @@ static u8 _scsih_check_for_pending_tm(struct MPT3SAS_ADAPTER *ioc, u16 smid);
 
 /* global parameters */
 LIST_HEAD(mpt3sas_ioc_list);
+char    driver_name[MPT_NAME_LENGTH];
 
 /* local parameters */
 static u8 scsi_io_cb_idx = -1;
@@ -7924,6 +7925,39 @@ scsih_scan_finished(struct Scsi_Host *shost, unsigned long time)
 	return 1;
 }
 
+void
+_scsih_determine_hba_mpi_version(struct MPT3SAS_ADAPTER *ioc) {
+
+	switch (ioc->pdev->device) {
+	case MPI2_MFGPAGE_DEVID_SAS2004:
+	case MPI2_MFGPAGE_DEVID_SAS2008:
+	case MPI2_MFGPAGE_DEVID_SAS2108_1:
+	case MPI2_MFGPAGE_DEVID_SAS2108_2:
+	case MPI2_MFGPAGE_DEVID_SAS2108_3:
+	case MPI2_MFGPAGE_DEVID_SAS2116_1:
+	case MPI2_MFGPAGE_DEVID_SAS2116_2:
+	case MPI2_MFGPAGE_DEVID_SAS2208_1:
+	case MPI2_MFGPAGE_DEVID_SAS2208_2:
+	case MPI2_MFGPAGE_DEVID_SAS2208_3:
+	case MPI2_MFGPAGE_DEVID_SAS2208_4:
+	case MPI2_MFGPAGE_DEVID_SAS2208_5:
+	case MPI2_MFGPAGE_DEVID_SAS2208_6:
+	case MPI2_MFGPAGE_DEVID_SAS2308_1:
+	case MPI2_MFGPAGE_DEVID_SAS2308_2:
+	case MPI2_MFGPAGE_DEVID_SAS2308_3:
+		ioc->hba_mpi_version_belonged = MPI2_VERSION;
+		break;
+	case MPI25_MFGPAGE_DEVID_SAS3004:
+	case MPI25_MFGPAGE_DEVID_SAS3008:
+	case MPI25_MFGPAGE_DEVID_SAS3108_1:
+	case MPI25_MFGPAGE_DEVID_SAS3108_2:
+	case MPI25_MFGPAGE_DEVID_SAS3108_5:
+	case MPI25_MFGPAGE_DEVID_SAS3108_6:
+		ioc->hba_mpi_version_belonged = MPI25_VERSION;
+		break;
+	}
+}
+
 /**
  * scsih_probe - attach and add scsi host
  * @pdev: PCI device struct
@@ -7944,7 +7978,7 @@ scsih_probe(struct pci_dev *pdev, struct Scsi_Host *shost)
 	list_add_tail(&ioc->list, &mpt3sas_ioc_list);
 	ioc->shost = shost;
 	ioc->id = mpt_ids++;
-	sprintf(ioc->name, "%s%d", MPT3SAS_DRIVER_NAME, ioc->id);
+
 	ioc->pdev = pdev;
 	ioc->scsi_io_cb_idx = scsi_io_cb_idx;
 	ioc->tm_cb_idx = tm_cb_idx;
@@ -7978,6 +8012,9 @@ scsih_probe(struct pci_dev *pdev, struct Scsi_Host *shost)
 	INIT_LIST_HEAD(&ioc->delayed_tr_list);
 	INIT_LIST_HEAD(&ioc->delayed_tr_volume_list);
 	INIT_LIST_HEAD(&ioc->reply_queue_list);
+
+	_scsih_determine_hba_mpi_version(ioc);
+	sprintf(ioc->name, "%s_cm%d", driver_name, ioc->id);
 
 	/* init shost parameters */
 	shost->max_cmd_len = 32;
