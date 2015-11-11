@@ -447,12 +447,12 @@ out_unlock:
 	return ret;
 }
 
-int pvfs2_xattr_set_default(struct dentry *dentry,
-			    const char *name,
-			    const void *buffer,
-			    size_t size,
-			    int flags,
-			    int handler_flags)
+static int pvfs2_xattr_set_default(const struct xattr_handler *handler,
+				   struct dentry *dentry,
+				   const char *name,
+				   const void *buffer,
+				   size_t size,
+				   int flags)
 {
 	return pvfs2_inode_setxattr(dentry->d_inode,
 				    PVFS2_XATTR_NAME_DEFAULT_PREFIX,
@@ -462,11 +462,11 @@ int pvfs2_xattr_set_default(struct dentry *dentry,
 				    flags);
 }
 
-int pvfs2_xattr_get_default(struct dentry *dentry,
-			    const char *name,
-			    void *buffer,
-			    size_t size,
-			    int handler_flags)
+static int pvfs2_xattr_get_default(const struct xattr_handler *handler,
+				   struct dentry *dentry,
+				   const char *name,
+				   void *buffer,
+				   size_t size)
 {
 	return pvfs2_inode_getxattr(dentry->d_inode,
 				    PVFS2_XATTR_NAME_DEFAULT_PREFIX,
@@ -476,12 +476,12 @@ int pvfs2_xattr_get_default(struct dentry *dentry,
 
 }
 
-static int pvfs2_xattr_set_trusted(struct dentry *dentry,
-			    const char *name,
-			    const void *buffer,
-			    size_t size,
-			    int flags,
-			    int handler_flags)
+static int pvfs2_xattr_set_trusted(const struct xattr_handler *handler,
+				   struct dentry *dentry,
+				   const char *name,
+				   const void *buffer,
+				   size_t size,
+				   int flags)
 {
 	return pvfs2_inode_setxattr(dentry->d_inode,
 				    PVFS2_XATTR_NAME_TRUSTED_PREFIX,
@@ -491,11 +491,11 @@ static int pvfs2_xattr_set_trusted(struct dentry *dentry,
 				    flags);
 }
 
-static int pvfs2_xattr_get_trusted(struct dentry *dentry,
-			    const char *name,
-			    void *buffer,
-			    size_t size,
-			    int handler_flags)
+static int pvfs2_xattr_get_trusted(const struct xattr_handler *handler,
+				   struct dentry *dentry,
+				   const char *name,
+				   void *buffer,
+				   size_t size)
 {
 	return pvfs2_inode_getxattr(dentry->d_inode,
 				    PVFS2_XATTR_NAME_TRUSTED_PREFIX,

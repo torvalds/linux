@@ -234,19 +234,6 @@ extern const struct xattr_handler *pvfs2_xattr_handlers[];
 extern struct posix_acl *pvfs2_get_acl(struct inode *inode, int type);
 extern int pvfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type);
 
-int pvfs2_xattr_set_default(struct dentry *dentry,
-			    const char *name,
-			    const void *buffer,
-			    size_t size,
-			    int flags,
-			    int handler_flags);
-
-int pvfs2_xattr_get_default(struct dentry *dentry,
-			    const char *name,
-			    void *buffer,
-			    size_t size,
-			    int handler_flags);
-
 /*
  * Redefine xtvec structure so that we could move helper functions out of
  * the define

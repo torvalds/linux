@@ -506,11 +506,10 @@ static long pvfs2_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	 */
 	if (cmd == FS_IOC_GETFLAGS) {
 		val = 0;
-		ret = pvfs2_xattr_get_default(file->f_path.dentry,
-					      "user.pvfs2.meta_hint",
-					      &val,
-					      sizeof(val),
-					      0);
+		ret = pvfs2_inode_getxattr(file_inode(file),
+					   PVFS2_XATTR_NAME_DEFAULT_PREFIX,
+					   "user.pvfs2.meta_hint",
+					   &val, sizeof(val));
 		if (ret < 0 && ret != -ENODATA)
 			return ret;
 		else if (ret == -ENODATA)
@@ -540,12 +539,10 @@ static long pvfs2_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "pvfs2_ioctl: FS_IOC_SETFLAGS: %llu\n",
 			     (unsigned long long)val);
-		ret = pvfs2_xattr_set_default(file->f_path.dentry,
-					      "user.pvfs2.meta_hint",
-					      &val,
-					      sizeof(val),
-					      0,
-					      0);
+		ret = pvfs2_inode_setxattr(file_inode(file),
+					   PVFS2_XATTR_NAME_DEFAULT_PREFIX,
+					   "user.pvfs2.meta_hint",
+					   &val, sizeof(val), 0);
 	}
 
 	return ret;
