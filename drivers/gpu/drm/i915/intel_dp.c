@@ -1023,7 +1023,7 @@ intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	enum port port = intel_dig_port->port;
 	struct ddi_vbt_port_info *info = &dev_priv->vbt.ddi_port_info[port];
-	uint32_t porte_aux_ctl_reg = DPA_AUX_CH_CTL;
+	uint32_t porte_aux_ctl_reg = DP_AUX_CH_CTL(PORT_A);
 	int ret;
 
 	/* On SKL we don't have Aux for port E so we rely on VBT to set
@@ -1032,32 +1032,28 @@ intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 	if ((IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) && port == PORT_E) {
 		switch (info->alternate_aux_channel) {
 		case DP_AUX_B:
-			porte_aux_ctl_reg = DPB_AUX_CH_CTL;
+			porte_aux_ctl_reg = DP_AUX_CH_CTL(PORT_B);
 			break;
 		case DP_AUX_C:
-			porte_aux_ctl_reg = DPC_AUX_CH_CTL;
+			porte_aux_ctl_reg = DP_AUX_CH_CTL(PORT_C);
 			break;
 		case DP_AUX_D:
-			porte_aux_ctl_reg = DPD_AUX_CH_CTL;
+			porte_aux_ctl_reg = DP_AUX_CH_CTL(PORT_D);
 			break;
 		case DP_AUX_A:
 		default:
-			porte_aux_ctl_reg = DPA_AUX_CH_CTL;
+			porte_aux_ctl_reg = DP_AUX_CH_CTL(PORT_A);
 		}
 	}
 
 	switch (port) {
 	case PORT_A:
-		intel_dp->aux_ch_ctl_reg = DPA_AUX_CH_CTL;
+		intel_dp->aux_ch_ctl_reg = DP_AUX_CH_CTL(port);
 		break;
 	case PORT_B:
-		intel_dp->aux_ch_ctl_reg = PCH_DPB_AUX_CH_CTL;
-		break;
 	case PORT_C:
-		intel_dp->aux_ch_ctl_reg = PCH_DPC_AUX_CH_CTL;
-		break;
 	case PORT_D:
-		intel_dp->aux_ch_ctl_reg = PCH_DPD_AUX_CH_CTL;
+		intel_dp->aux_ch_ctl_reg = PCH_DP_AUX_CH_CTL(port);
 		break;
 	case PORT_E:
 		intel_dp->aux_ch_ctl_reg = porte_aux_ctl_reg;

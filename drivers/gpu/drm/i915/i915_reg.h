@@ -3100,11 +3100,7 @@ enum skl_disp_power_wells {
 #define   EDP_PSR_IDLE_FRAME_SHIFT		0
 
 #define EDP_PSR_AUX_CTL(dev)			(EDP_PSR_BASE(dev) + 0x10)
-#define EDP_PSR_AUX_DATA1(dev)			(EDP_PSR_BASE(dev) + 0x14)
-#define EDP_PSR_AUX_DATA2(dev)			(EDP_PSR_BASE(dev) + 0x18)
-#define EDP_PSR_AUX_DATA3(dev)			(EDP_PSR_BASE(dev) + 0x1c)
-#define EDP_PSR_AUX_DATA4(dev)			(EDP_PSR_BASE(dev) + 0x20)
-#define EDP_PSR_AUX_DATA5(dev)			(EDP_PSR_BASE(dev) + 0x24)
+#define EDP_PSR_AUX_DATA(dev, i)		(EDP_PSR_BASE(dev) + 0x14 + (i) * 4) /* 5 registers */
 
 #define EDP_PSR_STATUS_CTL(dev)			(EDP_PSR_BASE(dev) + 0x40)
 #define   EDP_PSR_STATUS_STATE_MASK		(7<<29)
@@ -4232,33 +4228,36 @@ enum skl_disp_power_wells {
  * is 20 bytes in each direction, hence the 5 fixed
  * data registers
  */
-#define DPA_AUX_CH_CTL			0x64010
-#define DPA_AUX_CH_DATA1		0x64014
-#define DPA_AUX_CH_DATA2		0x64018
-#define DPA_AUX_CH_DATA3		0x6401c
-#define DPA_AUX_CH_DATA4		0x64020
-#define DPA_AUX_CH_DATA5		0x64024
+#define _DPA_AUX_CH_CTL			0x64010
+#define _DPA_AUX_CH_DATA1		0x64014
+#define _DPA_AUX_CH_DATA2		0x64018
+#define _DPA_AUX_CH_DATA3		0x6401c
+#define _DPA_AUX_CH_DATA4		0x64020
+#define _DPA_AUX_CH_DATA5		0x64024
 
-#define DPB_AUX_CH_CTL			0x64110
-#define DPB_AUX_CH_DATA1		0x64114
-#define DPB_AUX_CH_DATA2		0x64118
-#define DPB_AUX_CH_DATA3		0x6411c
-#define DPB_AUX_CH_DATA4		0x64120
-#define DPB_AUX_CH_DATA5		0x64124
+#define _DPB_AUX_CH_CTL			0x64110
+#define _DPB_AUX_CH_DATA1		0x64114
+#define _DPB_AUX_CH_DATA2		0x64118
+#define _DPB_AUX_CH_DATA3		0x6411c
+#define _DPB_AUX_CH_DATA4		0x64120
+#define _DPB_AUX_CH_DATA5		0x64124
 
-#define DPC_AUX_CH_CTL			0x64210
-#define DPC_AUX_CH_DATA1		0x64214
-#define DPC_AUX_CH_DATA2		0x64218
-#define DPC_AUX_CH_DATA3		0x6421c
-#define DPC_AUX_CH_DATA4		0x64220
-#define DPC_AUX_CH_DATA5		0x64224
+#define _DPC_AUX_CH_CTL			0x64210
+#define _DPC_AUX_CH_DATA1		0x64214
+#define _DPC_AUX_CH_DATA2		0x64218
+#define _DPC_AUX_CH_DATA3		0x6421c
+#define _DPC_AUX_CH_DATA4		0x64220
+#define _DPC_AUX_CH_DATA5		0x64224
 
-#define DPD_AUX_CH_CTL			0x64310
-#define DPD_AUX_CH_DATA1		0x64314
-#define DPD_AUX_CH_DATA2		0x64318
-#define DPD_AUX_CH_DATA3		0x6431c
-#define DPD_AUX_CH_DATA4		0x64320
-#define DPD_AUX_CH_DATA5		0x64324
+#define _DPD_AUX_CH_CTL			0x64310
+#define _DPD_AUX_CH_DATA1		0x64314
+#define _DPD_AUX_CH_DATA2		0x64318
+#define _DPD_AUX_CH_DATA3		0x6431c
+#define _DPD_AUX_CH_DATA4		0x64320
+#define _DPD_AUX_CH_DATA5		0x64324
+
+#define DP_AUX_CH_CTL(port)	_PORT(port, _DPA_AUX_CH_CTL, _DPB_AUX_CH_CTL)
+#define DP_AUX_CH_DATA(port, i)	(_PORT(port, _DPA_AUX_CH_DATA1, _DPB_AUX_CH_DATA1) + (i) * 4) /* 5 registers */
 
 #define   DP_AUX_CH_CTL_SEND_BUSY	    (1 << 31)
 #define   DP_AUX_CH_CTL_DONE		    (1 << 30)
@@ -6609,28 +6608,31 @@ enum skl_disp_power_wells {
 #define BXT_PP_OFF_DELAYS(n)	_PIPE(n, PCH_PP_OFF_DELAYS, _BXT_PP_OFF_DELAYS2)
 
 #define PCH_DP_B		0xe4100
-#define PCH_DPB_AUX_CH_CTL	0xe4110
-#define PCH_DPB_AUX_CH_DATA1	0xe4114
-#define PCH_DPB_AUX_CH_DATA2	0xe4118
-#define PCH_DPB_AUX_CH_DATA3	0xe411c
-#define PCH_DPB_AUX_CH_DATA4	0xe4120
-#define PCH_DPB_AUX_CH_DATA5	0xe4124
+#define _PCH_DPB_AUX_CH_CTL	0xe4110
+#define _PCH_DPB_AUX_CH_DATA1	0xe4114
+#define _PCH_DPB_AUX_CH_DATA2	0xe4118
+#define _PCH_DPB_AUX_CH_DATA3	0xe411c
+#define _PCH_DPB_AUX_CH_DATA4	0xe4120
+#define _PCH_DPB_AUX_CH_DATA5	0xe4124
 
 #define PCH_DP_C		0xe4200
-#define PCH_DPC_AUX_CH_CTL	0xe4210
-#define PCH_DPC_AUX_CH_DATA1	0xe4214
-#define PCH_DPC_AUX_CH_DATA2	0xe4218
-#define PCH_DPC_AUX_CH_DATA3	0xe421c
-#define PCH_DPC_AUX_CH_DATA4	0xe4220
-#define PCH_DPC_AUX_CH_DATA5	0xe4224
+#define _PCH_DPC_AUX_CH_CTL	0xe4210
+#define _PCH_DPC_AUX_CH_DATA1	0xe4214
+#define _PCH_DPC_AUX_CH_DATA2	0xe4218
+#define _PCH_DPC_AUX_CH_DATA3	0xe421c
+#define _PCH_DPC_AUX_CH_DATA4	0xe4220
+#define _PCH_DPC_AUX_CH_DATA5	0xe4224
 
 #define PCH_DP_D		0xe4300
-#define PCH_DPD_AUX_CH_CTL	0xe4310
-#define PCH_DPD_AUX_CH_DATA1	0xe4314
-#define PCH_DPD_AUX_CH_DATA2	0xe4318
-#define PCH_DPD_AUX_CH_DATA3	0xe431c
-#define PCH_DPD_AUX_CH_DATA4	0xe4320
-#define PCH_DPD_AUX_CH_DATA5	0xe4324
+#define _PCH_DPD_AUX_CH_CTL	0xe4310
+#define _PCH_DPD_AUX_CH_DATA1	0xe4314
+#define _PCH_DPD_AUX_CH_DATA2	0xe4318
+#define _PCH_DPD_AUX_CH_DATA3	0xe431c
+#define _PCH_DPD_AUX_CH_DATA4	0xe4320
+#define _PCH_DPD_AUX_CH_DATA5	0xe4324
+
+#define PCH_DP_AUX_CH_CTL(port)		_PORT((port) - PORT_B, _PCH_DPB_AUX_CH_CTL, _PCH_DPC_AUX_CH_CTL)
+#define PCH_DP_AUX_CH_DATA(port, i)	(_PORT((port) - PORT_B, _PCH_DPB_AUX_CH_DATA1, _PCH_DPC_AUX_CH_DATA1) + (i) * 4) /* 5 registers */
 
 /* CPT */
 #define  PORT_TRANS_A_SEL_CPT	0

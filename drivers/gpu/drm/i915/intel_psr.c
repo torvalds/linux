@@ -166,6 +166,7 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 		[3] = 1 - 1,
 		[4] = DP_SET_POWER_D0,
 	};
+	enum port port = dig_port->port;
 	int i;
 
 	BUILD_BUG_ON(sizeof(aux_msg) > 20);
@@ -182,9 +183,9 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 				DP_AUX_FRAME_SYNC_ENABLE);
 
 	aux_data_reg = (INTEL_INFO(dev)->gen >= 9) ?
-				DPA_AUX_CH_DATA1 : EDP_PSR_AUX_DATA1(dev);
+		DP_AUX_CH_DATA(port, 0) : EDP_PSR_AUX_DATA(dev, 0);
 	aux_ctl_reg = (INTEL_INFO(dev)->gen >= 9) ?
-				DPA_AUX_CH_CTL : EDP_PSR_AUX_CTL(dev);
+		DP_AUX_CH_CTL(port) : EDP_PSR_AUX_CTL(dev);
 
 	/* Setup AUX registers */
 	for (i = 0; i < sizeof(aux_msg); i += 4)
