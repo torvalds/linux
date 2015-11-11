@@ -1009,6 +1009,13 @@ intel_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 }
 
 static void
+intel_dp_aux_fini(struct intel_dp *intel_dp)
+{
+	drm_dp_aux_unregister(&intel_dp->aux);
+	kfree(intel_dp->aux.name);
+}
+
+static int
 intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
@@ -1016,7 +1023,6 @@ intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	enum port port = intel_dig_port->port;
 	struct ddi_vbt_port_info *info = &dev_priv->vbt.ddi_port_info[port];
-	const char *name = NULL;
 	uint32_t porte_aux_ctl_reg = DPA_AUX_CH_CTL;
 	int ret;
 
@@ -1043,23 +1049,18 @@ intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 	switch (port) {
 	case PORT_A:
 		intel_dp->aux_ch_ctl_reg = DPA_AUX_CH_CTL;
-		name = "DPDDC-A";
 		break;
 	case PORT_B:
 		intel_dp->aux_ch_ctl_reg = PCH_DPB_AUX_CH_CTL;
-		name = "DPDDC-B";
 		break;
 	case PORT_C:
 		intel_dp->aux_ch_ctl_reg = PCH_DPC_AUX_CH_CTL;
-		name = "DPDDC-C";
 		break;
 	case PORT_D:
 		intel_dp->aux_ch_ctl_reg = PCH_DPD_AUX_CH_CTL;
-		name = "DPDDC-D";
 		break;
 	case PORT_E:
 		intel_dp->aux_ch_ctl_reg = porte_aux_ctl_reg;
-		name = "DPDDC-E";
 		break;
 	default:
 		BUG();
@@ -1077,27 +1078,36 @@ intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 	if (!IS_HASWELL(dev) && !IS_BROADWELL(dev) && port != PORT_E)
 		intel_dp->aux_ch_ctl_reg = intel_dp->output_reg + 0x10;
 
-	intel_dp->aux.name = name;
+	intel_dp->aux.name = kasprintf(GFP_KERNEL, "DPDDC-%c", port_name(port));
+	if (!intel_dp->aux.name)
+		return -ENOMEM;
+
 	intel_dp->aux.dev = dev->dev;
 	intel_dp->aux.transfer = intel_dp_aux_transfer;
 
-	DRM_DEBUG_KMS("registering %s bus for %s\n", name,
+	DRM_DEBUG_KMS("registering %s bus for %s\n",
+		      intel_dp->aux.name,
 		      connector->base.kdev->kobj.name);
 
 	ret = drm_dp_aux_register(&intel_dp->aux);
 	if (ret < 0) {
 		DRM_ERROR("drm_dp_aux_register() for %s failed (%d)\n",
-			  name, ret);
-		return;
+			  intel_dp->aux.name, ret);
+		kfree(intel_dp->aux.name);
+		return ret;
 	}
 
 	ret = sysfs_create_link(&connector->base.kdev->kobj,
 				&intel_dp->aux.ddc.dev.kobj,
 				intel_dp->aux.ddc.dev.kobj.name);
 	if (ret < 0) {
-		DRM_ERROR("sysfs_create_link() for %s failed (%d)\n", name, ret);
-		drm_dp_aux_unregister(&intel_dp->aux);
+		DRM_ERROR("sysfs_create_link() for %s failed (%d)\n",
+			  intel_dp->aux.name, ret);
+		intel_dp_aux_fini(intel_dp);
+		return ret;
 	}
+
+	return 0;
 }
 
 static void
@@ -4771,7 +4781,7 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 
-	drm_dp_aux_unregister(&intel_dp->aux);
+	intel_dp_aux_fini(intel_dp);
 	intel_dp_mst_encoder_cleanup(intel_dig_port);
 	if (is_edp(intel_dp)) {
 		cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
@@ -5752,7 +5762,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum port port = intel_dig_port->port;
-	int type;
+	int type, ret;
 
 	intel_dp->pps_pipe = INVALID_PIPE;
 
@@ -5853,7 +5863,9 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		pps_unlock(intel_dp);
 	}
 
-	intel_dp_aux_init(intel_dp, intel_connector);
+	ret = intel_dp_aux_init(intel_dp, intel_connector);
+	if (ret)
+		goto fail;
 
 	/* init MST on ports that can support it */
 	if (HAS_DP_MST(dev) &&
@@ -5862,20 +5874,9 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 					  intel_connector->base.base.id);
 
 	if (!intel_edp_init_connector(intel_dp, intel_connector)) {
-		drm_dp_aux_unregister(&intel_dp->aux);
-		if (is_edp(intel_dp)) {
-			cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
-			/*
-			 * vdd might still be enabled do to the delayed vdd off.
-			 * Make sure vdd is actually turned off here.
-			 */
-			pps_lock(intel_dp);
-			edp_panel_vdd_off_sync(intel_dp);
-			pps_unlock(intel_dp);
-		}
-		drm_connector_unregister(connector);
-		drm_connector_cleanup(connector);
-		return false;
+		intel_dp_aux_fini(intel_dp);
+		intel_dp_mst_encoder_cleanup(intel_dig_port);
+		goto fail;
 	}
 
 	intel_dp_add_properties(intel_dp, connector);
@@ -5892,6 +5893,22 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	i915_debugfs_connector_add(connector);
 
 	return true;
+
+fail:
+	if (is_edp(intel_dp)) {
+		cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
+		/*
+		 * vdd might still be enabled do to the delayed vdd off.
+		 * Make sure vdd is actually turned off here.
+		 */
+		pps_lock(intel_dp);
+		edp_panel_vdd_off_sync(intel_dp);
+		pps_unlock(intel_dp);
+	}
+	drm_connector_unregister(connector);
+	drm_connector_cleanup(connector);
+
+	return false;
 }
 
 void
