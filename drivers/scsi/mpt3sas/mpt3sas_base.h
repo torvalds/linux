@@ -935,6 +935,7 @@ struct MPT3SAS_ADAPTER {
 	u8		id;
 	int		cpu_count;
 	char		name[MPT_NAME_LENGTH];
+	char		driver_name[MPT_NAME_LENGTH];
 	char		tmp_string[MPT_STRING_LENGTH];
 	struct pci_dev	*pdev;
 	Mpi2SystemInterfaceRegs_t __iomem *chip;
@@ -1246,7 +1247,6 @@ int mpt3sas_port_enable(struct MPT3SAS_ADAPTER *ioc);
 
 
 /* scsih shared API */
-extern struct raid_template *mpt3sas_raid_template;
 u8 mpt3sas_scsih_event_callback(struct MPT3SAS_ADAPTER *ioc, u8 msix_index,
 	u32 reply);
 void mpt3sas_scsih_reset_handler(struct MPT3SAS_ADAPTER *ioc, int reset_phase);
@@ -1270,39 +1270,8 @@ struct _sas_device *__mpt3sas_get_sdev_by_addr(
 	 struct MPT3SAS_ADAPTER *ioc, u64 sas_address);
 
 void mpt3sas_port_enable_complete(struct MPT3SAS_ADAPTER *ioc);
-
-void scsih_exit(void);
-int scsih_init(void);
-int scsih_probe(struct pci_dev *pdev, struct Scsi_Host *shost);
-void scsih_remove(struct pci_dev *pdev);
-void scsih_shutdown(struct pci_dev *pdev);
-pci_ers_result_t scsih_pci_error_detected(struct pci_dev *pdev,
-	pci_channel_state_t state);
-pci_ers_result_t scsih_pci_mmio_enabled(struct pci_dev *pdev);
-pci_ers_result_t scsih_pci_slot_reset(struct pci_dev *pdev);
-void scsih_pci_resume(struct pci_dev *pdev);
-int scsih_suspend(struct pci_dev *pdev, pm_message_t state);
-int scsih_resume(struct pci_dev *pdev);
-
-int scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd);
-int scsih_target_alloc(struct scsi_target *starget);
-int scsih_slave_alloc(struct scsi_device *sdev);
-int scsih_slave_configure(struct scsi_device *sdev);
-void scsih_target_destroy(struct scsi_target *starget);
-void scsih_slave_destroy(struct scsi_device *sdev);
-int scsih_scan_finished(struct Scsi_Host *shost, unsigned long time);
-void scsih_scan_start(struct Scsi_Host *shost);
-int scsih_change_queue_depth(struct scsi_device *sdev, int qdepth);
-int scsih_abort(struct scsi_cmnd *scmd);
-int scsih_dev_reset(struct scsi_cmnd *scmd);
-int scsih_target_reset(struct scsi_cmnd *scmd);
-int scsih_host_reset(struct scsi_cmnd *scmd);
-int scsih_bios_param(struct scsi_device *sdev, struct block_device *bdev,
-	sector_t capacity, int params[]);
-
-int scsih_is_raid(struct device *dev);
-void scsih_get_resync(struct device *dev);
-void scsih_get_state(struct device *dev);
+struct _raid_device *
+mpt3sas_raid_device_find_by_handle(struct MPT3SAS_ADAPTER *ioc, u16 handle);
 
 /* config shared API */
 u8 mpt3sas_config_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
@@ -1342,10 +1311,8 @@ int mpt3sas_config_get_sas_iounit_pg0(struct MPT3SAS_ADAPTER *ioc,
 	u16 sz);
 int mpt3sas_config_get_iounit_pg1(struct MPT3SAS_ADAPTER *ioc, Mpi2ConfigReply_t
 	*mpi_reply, Mpi2IOUnitPage1_t *config_page);
-#ifdef SCSI_MPT2SAS
 int mpt3sas_config_get_iounit_pg3(struct MPT3SAS_ADAPTER *ioc,
 	Mpi2ConfigReply_t *mpi_reply, Mpi2IOUnitPage3_t *config_page, u16 sz);
-#endif
 int mpt3sas_config_set_iounit_pg1(struct MPT3SAS_ADAPTER *ioc, Mpi2ConfigReply_t
 	*mpi_reply, Mpi2IOUnitPage1_t *config_page);
 int mpt3sas_config_get_iounit_pg8(struct MPT3SAS_ADAPTER *ioc, Mpi2ConfigReply_t
@@ -1390,12 +1357,8 @@ int mpt3sas_config_get_volume_wwid(struct MPT3SAS_ADAPTER *ioc,
 /* ctl shared API */
 extern struct device_attribute *mpt3sas_host_attrs[];
 extern struct device_attribute *mpt3sas_dev_attrs[];
-long ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
-unsigned int ctl_poll(struct file *filep, poll_table *wait);
-int ctl_fasync(int fd, struct file *filep, int mode);
-long ctl_ioctl_compat(struct file *file, unsigned cmd, unsigned long arg);
-void ctl_init(void);
-void ctl_exit(void);
+void mpt3sas_ctl_init(ushort hbas_to_enumerate);
+void mpt3sas_ctl_exit(ushort hbas_to_enumerate);
 u8 mpt3sas_ctl_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 	u32 reply);
 void mpt3sas_ctl_reset_handler(struct MPT3SAS_ADAPTER *ioc, int reset_phase);
@@ -1442,4 +1405,18 @@ void mpt3sas_trigger_scsi(struct MPT3SAS_ADAPTER *ioc, u8 sense_key,
 	u8 asc, u8 ascq);
 void mpt3sas_trigger_mpi(struct MPT3SAS_ADAPTER *ioc, u16 ioc_status,
 	u32 loginfo);
+
+/* warpdrive APIs */
+u8 mpt3sas_get_num_volumes(struct MPT3SAS_ADAPTER *ioc);
+void mpt3sas_init_warpdrive_properties(struct MPT3SAS_ADAPTER *ioc,
+	struct _raid_device *raid_device);
+inline u8
+mpt3sas_scsi_direct_io_get(struct MPT3SAS_ADAPTER *ioc, u16 smid);
+inline void
+mpt3sas_scsi_direct_io_set(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 direct_io);
+void
+mpt3sas_setup_direct_io(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
+	struct _raid_device *raid_device, Mpi2SCSIIORequest_t *mpi_request,
+	u16 smid);
+
 #endif /* MPT3SAS_BASE_H_INCLUDED */

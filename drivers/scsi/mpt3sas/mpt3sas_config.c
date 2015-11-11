@@ -865,7 +865,6 @@ mpt3sas_config_set_iounit_pg1(struct MPT3SAS_ADAPTER *ioc,
 	return r;
 }
 
-#ifdef SCSI_MPT2SAS
 /**
  * mpt3sas_config_get_iounit_pg3 - obtain iounit page 3
  * @ioc: per adapter object
@@ -901,7 +900,6 @@ mpt3sas_config_get_iounit_pg3(struct MPT3SAS_ADAPTER *ioc,
  out:
 	return r;
 }
-#endif
 
 /**
  * mpt3sas_config_get_iounit_pg8 - obtain iounit page 8

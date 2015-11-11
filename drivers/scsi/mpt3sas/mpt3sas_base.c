@@ -198,7 +198,7 @@ _base_fault_reset_work(struct work_struct *work)
 		ioc->remove_host = 1;
 		/*Remove the Dead Host */
 		p = kthread_run(mpt3sas_remove_dead_ioc_func, ioc,
-		    "mpt3sas_dead_ioc_%d", ioc->id);
+		    "%s_dead_ioc_%d", ioc->driver_name, ioc->id);
 		if (IS_ERR(p))
 			pr_err(MPT3SAS_FMT
 			"%s: Running mpt3sas_dead_ioc thread failed !!!!\n",
@@ -254,7 +254,8 @@ mpt3sas_base_start_watchdog(struct MPT3SAS_ADAPTER *ioc)
 
 	INIT_DELAYED_WORK(&ioc->fault_reset_work, _base_fault_reset_work);
 	snprintf(ioc->fault_reset_work_q_name,
-	    sizeof(ioc->fault_reset_work_q_name), "poll_%d_status", ioc->id);
+	    sizeof(ioc->fault_reset_work_q_name), "poll_%s%d_status",
+	    ioc->driver_name, ioc->id);
 	ioc->fault_reset_work_q =
 		create_singlethread_workqueue(ioc->fault_reset_work_q_name);
 	if (!ioc->fault_reset_work_q) {
@@ -1835,10 +1836,10 @@ _base_request_irq(struct MPT3SAS_ADAPTER *ioc, u8 index, u32 vector)
 	atomic_set(&reply_q->busy, 0);
 	if (ioc->msix_enable)
 		snprintf(reply_q->name, MPT_NAME_LENGTH, "%s%d-msix%d",
-		    driver_name, ioc->id, index);
+		    ioc->driver_name, ioc->id, index);
 	else
 		snprintf(reply_q->name, MPT_NAME_LENGTH, "%s%d",
-		    driver_name, ioc->id);
+		    ioc->driver_name, ioc->id);
 	r = request_irq(vector, _base_interrupt, IRQF_SHARED, reply_q->name,
 	    reply_q);
 	if (r) {
@@ -2064,7 +2065,7 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 
 
 	if (pci_request_selected_regions(pdev, ioc->bars,
-	    driver_name)) {
+	    ioc->driver_name)) {
 		pr_warn(MPT3SAS_FMT "pci_request_selected_regions: failed\n",
 			ioc->name);
 		ioc->bars = 0;

@@ -38,13 +38,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.
  */
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/errno.h>
+#include <linux/types.h>
+#include <asm/unaligned.h>
+
+#include "mpt3sas_base.h"
 
 /**
- * _scsih_disable_ddio - Disable direct I/O for all the volumes
+ * _warpdrive_disable_ddio - Disable direct I/O for all the volumes
  * @ioc: per adapter object
  */
 static void
-_scsih_disable_ddio(struct MPT3SAS_ADAPTER *ioc)
+_warpdrive_disable_ddio(struct MPT3SAS_ADAPTER *ioc)
 {
 	Mpi2RaidVolPage1_t vol_pg1;
 	Mpi2ConfigReply_t mpi_reply;
@@ -62,7 +69,7 @@ _scsih_disable_ddio(struct MPT3SAS_ADAPTER *ioc)
 			break;
 		handle = le16_to_cpu(vol_pg1.DevHandle);
 		spin_lock_irqsave(&ioc->raid_device_lock, flags);
-		raid_device = _scsih_raid_device_find_by_handle(ioc, handle);
+		raid_device = mpt3sas_raid_device_find_by_handle(ioc, handle);
 		if (raid_device)
 			raid_device->direct_io_enabled = 0;
 		spin_unlock_irqrestore(&ioc->raid_device_lock, flags);
@@ -72,11 +79,11 @@ _scsih_disable_ddio(struct MPT3SAS_ADAPTER *ioc)
 
 
 /**
- * _scsih_get_num_volumes - Get number of volumes in the ioc
+ * mpt3sas_get_num_volumes - Get number of volumes in the ioc
  * @ioc: per adapter object
  */
-static u8
-_scsih_get_num_volumes(struct MPT3SAS_ADAPTER *ioc)
+u8
+mpt3sas_get_num_volumes(struct MPT3SAS_ADAPTER *ioc)
 {
 	Mpi2RaidVolPage1_t vol_pg1;
 	Mpi2ConfigReply_t mpi_reply;
@@ -99,12 +106,12 @@ _scsih_get_num_volumes(struct MPT3SAS_ADAPTER *ioc)
 
 
 /**
- * _scsih_init_warpdrive_properties - Set properties for warpdrive direct I/O.
+ * mpt3sas_init_warpdrive_properties - Set properties for warpdrive direct I/O.
  * @ioc: per adapter object
  * @raid_device: the raid_device object
  */
-static void
-_scsih_init_warpdrive_properties(struct MPT3SAS_ADAPTER *ioc,
+void
+mpt3sas_init_warpdrive_properties(struct MPT3SAS_ADAPTER *ioc,
 	struct _raid_device *raid_device)
 {
 	Mpi2RaidVolPage0_t *vol_pg0;
@@ -124,8 +131,8 @@ _scsih_init_warpdrive_properties(struct MPT3SAS_ADAPTER *ioc,
 		    "globally as drives are exposed\n", ioc->name);
 		return;
 	}
-	if (_scsih_get_num_volumes(ioc) > 1) {
-		_scsih_disable_ddio(ioc);
+	if (mpt3sas_get_num_volumes(ioc) > 1) {
+		_warpdrive_disable_ddio(ioc);
 		pr_info(MPT3SAS_FMT "WarpDrive : Direct IO is disabled "
 		    "globally as number of drives > 1\n", ioc->name);
 		return;
@@ -254,34 +261,34 @@ out_error:
 }
 
 /**
- * _scsih_scsi_direct_io_get - returns direct io flag
+ * mpt3sas_scsi_direct_io_get - returns direct io flag
  * @ioc: per adapter object
  * @smid: system request message index
  *
  * Returns the smid stored scmd pointer.
  */
-static inline u8
-_scsih_scsi_direct_io_get(struct MPT3SAS_ADAPTER *ioc, u16 smid)
+inline u8
+mpt3sas_scsi_direct_io_get(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 {
 	return ioc->scsi_lookup[smid - 1].direct_io;
 }
 
 /**
- * _scsih_scsi_direct_io_set - sets direct io flag
+ * mpt3sas_scsi_direct_io_set - sets direct io flag
  * @ioc: per adapter object
  * @smid: system request message index
  * @direct_io: Zero or non-zero value to set in the direct_io flag
  *
  * Returns Nothing.
  */
-static inline void
-_scsih_scsi_direct_io_set(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 direct_io)
+inline void
+mpt3sas_scsi_direct_io_set(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 direct_io)
 {
 	ioc->scsi_lookup[smid - 1].direct_io = direct_io;
 }
 
 /**
- * _scsih_setup_direct_io - setup MPI request for WARPDRIVE Direct I/O
+ * mpt3sas_setup_direct_io - setup MPI request for WARPDRIVE Direct I/O
  * @ioc: per adapter object
  * @scmd: pointer to scsi command object
  * @raid_device: pointer to raid device data structure
@@ -290,12 +297,12 @@ _scsih_scsi_direct_io_set(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 direct_io)
  *
  * Returns nothing
  */
-static void
-_scsih_setup_direct_io(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
+void
+mpt3sas_setup_direct_io(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 	struct _raid_device *raid_device, Mpi2SCSIIORequest_t *mpi_request,
 	u16 smid)
 {
-	sector_t v_lba, p_lba, stripe_off, stripe_unit, column, io_size;
+	sector_t v_lba, p_lba, stripe_off, column, io_size;
 	u32 stripe_sz, stripe_exp;
 	u8 num_pds, cmd = scmd->cmnd[0];
 
@@ -323,9 +330,8 @@ _scsih_setup_direct_io(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 
 	num_pds = raid_device->num_pds;
 	p_lba = v_lba >> stripe_exp;
-	stripe_unit = p_lba / num_pds;
-	column = p_lba % num_pds;
-	p_lba = (stripe_unit << stripe_exp) + stripe_off;
+	column = sector_div(p_lba, num_pds);
+	p_lba = (p_lba << stripe_exp) + stripe_off;
 	mpi_request->DevHandle = cpu_to_le16(raid_device->pd_handle[column]);
 
 	if (cmd == READ_10 || cmd == WRITE_10)
@@ -334,5 +340,5 @@ _scsih_setup_direct_io(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 	else
 		put_unaligned_be64(p_lba, &mpi_request->CDB.CDB32[2]);
 
-	_scsih_scsi_direct_io_set(ioc, smid, 1);
+	mpt3sas_scsi_direct_io_set(ioc, smid, 1);
 }

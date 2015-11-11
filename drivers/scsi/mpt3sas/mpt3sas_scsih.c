@@ -71,27 +71,16 @@ static int _scsih_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 
 static u8 _scsih_check_for_pending_tm(struct MPT3SAS_ADAPTER *ioc, u16 smid);
 
-#ifdef SCSI_MPT2SAS
-static void _scsih_disable_ddio(struct MPT3SAS_ADAPTER *ioc);
-static u8 _scsih_get_num_volumes(struct MPT3SAS_ADAPTER *ioc);
-static void
-_scsih_init_warpdrive_properties(struct MPT3SAS_ADAPTER *ioc,
-	struct _raid_device *raid_device);
-static inline u8
-_scsih_scsi_direct_io_get(struct MPT3SAS_ADAPTER *ioc, u16 smid);
-static inline void
-_scsih_scsi_direct_io_set(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 direct_io);
-static void
-_scsih_setup_direct_io(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
-	struct _raid_device *raid_device, Mpi2SCSIIORequest_t *mpi_request,
-	u16 smid);
-#endif
-
 /* global parameters */
 LIST_HEAD(mpt3sas_ioc_list);
-char    driver_name[MPT_NAME_LENGTH];
 /* global ioc lock for list operations */
 DEFINE_SPINLOCK(gioc_lock);
+
+MODULE_AUTHOR(MPT3SAS_AUTHOR);
+MODULE_DESCRIPTION(MPT3SAS_DESCRIPTION);
+MODULE_LICENSE("GPL");
+MODULE_VERSION(MPT3SAS_DRIVER_VERSION);
+MODULE_ALIAS("mpt2sas");
 
 /* local parameters */
 static u8 scsi_io_cb_idx = -1;
@@ -102,7 +91,8 @@ static u8 port_enable_cb_idx = -1;
 static u8 transport_cb_idx = -1;
 static u8 scsih_cb_idx = -1;
 static u8 config_cb_idx = -1;
-static int mpt_ids;
+static int mpt2_ids;
+static int mpt3_ids;
 
 static u8 tm_tr_cb_idx = -1 ;
 static u8 tm_tr_volume_cb_idx = -1 ;
@@ -129,8 +119,12 @@ static u64 max_lun = MPT3SAS_MAX_LUN;
 module_param(max_lun, ullong, 0);
 MODULE_PARM_DESC(max_lun, " max lun, default=16895 ");
 
-
-
+static ushort hbas_to_enumerate;
+module_param(hbas_to_enumerate, ushort, 0);
+MODULE_PARM_DESC(hbas_to_enumerate,
+		" 0 - enumerates both SAS 2.0 & SAS 3.0 generation HBAs\n \
+		  1 - enumerates only SAS 2.0 generation HBAs\n \
+		  2 - enumerates only SAS 3.0 generation HBAs (default=0)");
 
 /* diag_buffer_enable is bitwise
  * bit 0 set = TRACE
@@ -156,6 +150,7 @@ MODULE_PARM_DESC(prot_mask, " host protection capabilities mask, def=7 ");
 
 /* raid transport support */
 struct raid_template *mpt3sas_raid_template;
+struct raid_template *mpt2sas_raid_template;
 
 
 /**
@@ -879,7 +874,7 @@ _scsih_raid_device_find_by_id(struct MPT3SAS_ADAPTER *ioc, int id, int channel)
 }
 
 /**
- * _scsih_raid_device_find_by_handle - raid device search
+ * mpt3sas_raid_device_find_by_handle - raid device search
  * @ioc: per adapter object
  * @handle: sas device handle (assigned by firmware)
  * Context: Calling function should acquire ioc->raid_device_lock
@@ -887,8 +882,8 @@ _scsih_raid_device_find_by_id(struct MPT3SAS_ADAPTER *ioc, int id, int channel)
  * This searches for raid_device based on handle, then return raid_device
  * object.
  */
-static struct _raid_device *
-_scsih_raid_device_find_by_handle(struct MPT3SAS_ADAPTER *ioc, u16 handle)
+struct _raid_device *
+mpt3sas_raid_device_find_by_handle(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 {
 	struct _raid_device *raid_device, *r;
 
@@ -1304,10 +1299,8 @@ scsih_target_alloc(struct scsi_target *starget)
 		if (test_bit(sas_device->handle, ioc->pd_handles))
 			sas_target_priv_data->flags |=
 			    MPT_TARGET_FLAGS_RAID_COMPONENT;
-#ifndef SCSI_MPT2SAS
 		if (sas_device->fast_path)
 			sas_target_priv_data->flags |= MPT_TARGET_FASTPATH_IO;
-#endif
 	}
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 
@@ -1596,7 +1589,10 @@ scsih_get_resync(struct device *dev)
 		percent_complete = 0;
 
  out:
-	raid_set_resync(mpt3sas_raid_template, dev, percent_complete);
+	if (ioc->hba_mpi_version_belonged == MPI2_VERSION)
+		raid_set_resync(mpt2sas_raid_template, dev, percent_complete);
+	if (ioc->hba_mpi_version_belonged == MPI25_VERSION)
+		raid_set_resync(mpt3sas_raid_template, dev, percent_complete);
 }
 
 /**
@@ -1654,7 +1650,10 @@ scsih_get_state(struct device *dev)
 		break;
 	}
  out:
-	raid_set_state(mpt3sas_raid_template, dev, state);
+	if (ioc->hba_mpi_version_belonged == MPI2_VERSION)
+		raid_set_state(mpt2sas_raid_template, dev, state);
+	if (ioc->hba_mpi_version_belonged == MPI25_VERSION)
+		raid_set_state(mpt3sas_raid_template, dev, state);
 }
 
 /**
@@ -1663,7 +1662,8 @@ scsih_get_state(struct device *dev)
  * @volume_type: volume type
  */
 static void
-_scsih_set_level(struct scsi_device *sdev, u8 volume_type)
+_scsih_set_level(struct MPT3SAS_ADAPTER *ioc,
+	struct scsi_device *sdev, u8 volume_type)
 {
 	enum raid_level level = RAID_LEVEL_UNKNOWN;
 
@@ -1682,7 +1682,12 @@ _scsih_set_level(struct scsi_device *sdev, u8 volume_type)
 		break;
 	}
 
-	raid_set_level(mpt3sas_raid_template, &sdev->sdev_gendev, level);
+	if (ioc->hba_mpi_version_belonged == MPI2_VERSION)
+		raid_set_level(mpt2sas_raid_template,
+			       &sdev->sdev_gendev, level);
+	if (ioc->hba_mpi_version_belonged == MPI25_VERSION)
+		raid_set_level(mpt3sas_raid_template,
+			       &sdev->sdev_gendev, level);
 }
 
 
@@ -1814,7 +1819,7 @@ scsih_slave_configure(struct scsi_device *sdev)
 	if (sas_target_priv_data->flags & MPT_TARGET_FLAGS_VOLUME) {
 
 		spin_lock_irqsave(&ioc->raid_device_lock, flags);
-		raid_device = _scsih_raid_device_find_by_handle(ioc, handle);
+		raid_device = mpt3sas_raid_device_find_by_handle(ioc, handle);
 		spin_unlock_irqrestore(&ioc->raid_device_lock, flags);
 		if (!raid_device) {
 			dfailprintk(ioc, pr_warn(MPT3SAS_FMT
@@ -1830,12 +1835,10 @@ scsih_slave_configure(struct scsi_device *sdev)
 			return 1;
 		}
 
-#ifdef SCSI_MPT2SAS
 		/*
 		 * WARPDRIVE: Initialize the required data for Direct IO
 		 */
-		_scsih_init_warpdrive_properties(ioc, raid_device);
-#endif
+		mpt3sas_init_warpdrive_properties(ioc, raid_device);
 
 		/* RAID Queue Depth Support
 		 * IS volume = underlying qdepth of drive type, either
@@ -1896,7 +1899,7 @@ scsih_slave_configure(struct scsi_device *sdev)
 
 		/* raid transport support */
 		if (!ioc->is_warpdrive)
-			_scsih_set_level(sdev, raid_device->volume_type);
+			_scsih_set_level(ioc, sdev, raid_device->volume_type);
 		return 0;
 	}
 
@@ -3523,7 +3526,7 @@ _scsih_set_volume_delete_flag(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 	unsigned long flags;
 
 	spin_lock_irqsave(&ioc->raid_device_lock, flags);
-	raid_device = _scsih_raid_device_find_by_handle(ioc, handle);
+	raid_device = mpt3sas_raid_device_find_by_handle(ioc, handle);
 	if (raid_device && raid_device->starget &&
 	    raid_device->starget->hostdata) {
 		sas_target_priv_data =
@@ -3841,9 +3844,7 @@ scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 	struct MPT3SAS_ADAPTER *ioc = shost_priv(shost);
 	struct MPT3SAS_DEVICE *sas_device_priv_data;
 	struct MPT3SAS_TARGET *sas_target_priv_data;
-#ifdef SCSI_MPT2SAS
 	struct _raid_device *raid_device;
-#endif
 	Mpi2SCSIIORequest_t *mpi_request;
 	u32 mpi_control;
 	u16 smid;
@@ -3947,21 +3948,17 @@ scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 	} else
 		ioc->build_zero_len_sge(ioc, &mpi_request->SGL);
 
-#ifdef SCSI_MPT2SAS
 	raid_device = sas_target_priv_data->raid_device;
 	if (raid_device && raid_device->direct_io_enabled)
-		_scsih_setup_direct_io(ioc, scmd, raid_device, mpi_request,
+		mpt3sas_setup_direct_io(ioc, scmd, raid_device, mpi_request,
 		    smid);
-#endif
 
 	if (likely(mpi_request->Function == MPI2_FUNCTION_SCSI_IO_REQUEST)) {
-#ifndef SCSI_MPT2SAS
 		if (sas_target_priv_data->flags & MPT_TARGET_FASTPATH_IO) {
 			mpi_request->IoFlags = cpu_to_le16(scmd->cmd_len |
 			    MPI25_SCSIIO_IOFLAGS_FAST_PATH);
 			mpt3sas_base_put_smid_fast_path(ioc, smid, handle);
 		} else
-#endif
 			mpt3sas_base_put_smid_scsi_io(ioc, smid,
 			    le16_to_cpu(mpi_request->DevHandle));
 	} else
@@ -4422,9 +4419,7 @@ _scsih_io_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 	u32 log_info;
 	struct MPT3SAS_DEVICE *sas_device_priv_data;
 	u32 response_code = 0;
-#ifdef SCSI_MPT2SAS
 	unsigned long flags;
-#endif
 
 	mpi_reply = mpt3sas_base_get_reply_virt_addr(ioc, reply);
 	scmd = _scsih_scsi_lookup_get_clear(ioc, smid);
@@ -4446,18 +4441,17 @@ _scsih_io_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 	}
 	ioc_status = le16_to_cpu(mpi_reply->IOCStatus);
 
-#ifdef SCSI_MPT2SAS
 	/*
 	 * WARPDRIVE: If direct_io is set then it is directIO,
 	 * the failed direct I/O should be redirected to volume
 	 */
-	if (_scsih_scsi_direct_io_get(ioc, smid) &&
+	if (mpt3sas_scsi_direct_io_get(ioc, smid) &&
 	     ((ioc_status & MPI2_IOCSTATUS_MASK)
 	      != MPI2_IOCSTATUS_SCSI_TASK_TERMINATED)) {
 		spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
 		ioc->scsi_lookup[smid - 1].scmd = scmd;
 		spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
-		_scsih_scsi_direct_io_set(ioc, smid, 0);
+		mpt3sas_scsi_direct_io_set(ioc, smid, 0);
 		memcpy(mpi_request->CDB.CDB32, scmd->cmnd, scmd->cmd_len);
 		mpi_request->DevHandle =
 		    cpu_to_le16(sas_device_priv_data->sas_target->handle);
@@ -4465,7 +4459,6 @@ _scsih_io_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 		    sas_device_priv_data->sas_target->handle);
 		return 0;
 	}
-#endif
 	/* turning off TLR */
 	scsi_state = mpi_reply->SCSIState;
 	if (scsi_state & MPI2_SCSI_STATE_RESPONSE_INFO_VALID)
@@ -4475,10 +4468,11 @@ _scsih_io_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 		sas_device_priv_data->tlr_snoop_check++;
 		if (!ioc->is_warpdrive &&
 		    !scsih_is_raid(&scmd->device->sdev_gendev) &&
-		    (sas_device_priv_data->flags & MPT_DEVICE_TLR_ON) &&
-		    response_code == MPI2_SCSITASKMGMT_RSP_INVALID_FRAME)
-			sas_device_priv_data->flags &=
-			    ~MPT_DEVICE_TLR_ON;
+		    sas_is_tlr_enabled(scmd->device) &&
+		    response_code == MPI2_SCSITASKMGMT_RSP_INVALID_FRAME) {
+			sas_disable_tlr(scmd->device);
+			sdev_printk(KERN_INFO, scmd->device, "TLR disabled\n");
+		}
 	}
 
 	xfer_cnt = le32_to_cpu(mpi_reply->TransferCount);
@@ -5309,10 +5303,8 @@ _scsih_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle, u8 phy_num,
 	sas_device->device_info = device_info;
 	sas_device->sas_address = sas_address;
 	sas_device->phy = sas_device_pg0.PhyNum;
-#ifndef SCSI_MPT2SAS
 	sas_device->fast_path = (le16_to_cpu(sas_device_pg0.Flags) &
 	    MPI25_SAS_DEVICE0_FLAGS_FAST_PATH_CAPABLE) ? 1 : 0;
-#endif
 
 	if (sas_device_pg0.Flags & MPI2_SAS_DEVICE0_FLAGS_ENCL_LEVEL_VALID) {
 		sas_device->enclosure_level =
@@ -6014,7 +6006,6 @@ _scsih_sas_discovery_event(struct MPT3SAS_ADAPTER *ioc,
 	}
 }
 
-#ifndef SCSI_MPT2SAS
 /**
  * _scsih_ir_fastpath - turn on fastpath for IR physdisk
  * @ioc: per adapter object
@@ -6033,6 +6024,9 @@ _scsih_ir_fastpath(struct MPT3SAS_ADAPTER *ioc, u16 handle, u8 phys_disk_num)
 	int rc = 0;
 	u16 ioc_status;
 	u32 log_info;
+
+	if (ioc->hba_mpi_version_belonged == MPI2_VERSION)
+		return rc;
 
 	mutex_lock(&ioc->scsih_cmds.mutex);
 
@@ -6108,8 +6102,6 @@ _scsih_ir_fastpath(struct MPT3SAS_ADAPTER *ioc, u16 handle, u8 phys_disk_num)
 		    FORCE_BIG_HAMMER);
 	return rc;
 }
-/* End of not defined SCSI_MPT2SAS */
-#endif
 
 /**
  * _scsih_reprobe_lun - reprobing lun
@@ -6202,7 +6194,7 @@ _scsih_sas_volume_delete(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 	struct scsi_target *starget = NULL;
 
 	spin_lock_irqsave(&ioc->raid_device_lock, flags);
-	raid_device = _scsih_raid_device_find_by_handle(ioc, handle);
+	raid_device = mpt3sas_raid_device_find_by_handle(ioc, handle);
 	if (raid_device) {
 		if (raid_device->starget) {
 			starget = raid_device->starget;
@@ -6304,10 +6296,9 @@ _scsih_sas_pd_hide(struct MPT3SAS_ADAPTER *ioc,
 	if (!sas_device)
 		return;
 
-#ifndef SCSI_MPT2SAS
 	/* hiding raid component */
 	_scsih_ir_fastpath(ioc, handle, element->PhysDiskNum);
-#endif
+
 	if (starget)
 		starget_for_each_device(starget, (void *)1, _scsih_reprobe_lun);
 
@@ -6355,9 +6346,7 @@ _scsih_sas_pd_add(struct MPT3SAS_ADAPTER *ioc,
 
 	sas_device = mpt3sas_get_sdev_by_handle(ioc, handle);
 	if (sas_device) {
-#ifndef SCSI_MPT2SAS
 		_scsih_ir_fastpath(ioc, handle, element->PhysDiskNum);
-#endif
 		sas_device_put(sas_device);
 		return;
 	}
@@ -6382,9 +6371,7 @@ _scsih_sas_pd_add(struct MPT3SAS_ADAPTER *ioc,
 		mpt3sas_transport_update_links(ioc, sas_address, handle,
 		    sas_device_pg0.PhyNum, MPI2_SAS_NEG_LINK_RATE_1_5);
 
-#ifndef SCSI_MPT2SAS
 	_scsih_ir_fastpath(ioc, handle, element->PhysDiskNum);
-#endif
 	_scsih_add_device(ioc, handle, 0, 1);
 }
 
@@ -6495,15 +6482,14 @@ _scsih_sas_ir_config_change_event(struct MPT3SAS_ADAPTER *ioc,
 	    MPI2_EVENT_IR_CHANGE_FLAGS_FOREIGN_CONFIG) ? 1 : 0;
 
 	element = (Mpi2EventIrConfigElement_t *)&event_data->ConfigElement[0];
-	if (ioc->shost_recovery) {
-#ifndef SCSI_MPT2SAS
+	if (ioc->shost_recovery &&
+	    ioc->hba_mpi_version_belonged != MPI2_VERSION) {
 		for (i = 0; i < event_data->NumElements; i++, element++) {
 			if (element->ReasonCode == MPI2_EVENT_IR_CHANGE_RC_HIDE)
 				_scsih_ir_fastpath(ioc,
 					le16_to_cpu(element->PhysDiskDevHandle),
 					element->PhysDiskNum);
 		}
-#endif
 		return;
 	}
 
@@ -6586,7 +6572,7 @@ _scsih_sas_ir_volume_event(struct MPT3SAS_ADAPTER *ioc,
 	case MPI2_RAID_VOL_STATE_OPTIMAL:
 
 		spin_lock_irqsave(&ioc->raid_device_lock, flags);
-		raid_device = _scsih_raid_device_find_by_handle(ioc, handle);
+		raid_device = mpt3sas_raid_device_find_by_handle(ioc, handle);
 		spin_unlock_irqrestore(&ioc->raid_device_lock, flags);
 
 		if (raid_device)
@@ -6782,7 +6768,7 @@ _scsih_sas_ir_operation_status_event(struct MPT3SAS_ADAPTER *ioc,
 
 		spin_lock_irqsave(&ioc->raid_device_lock, flags);
 		handle = le16_to_cpu(event_data->VolDevHandle);
-		raid_device = _scsih_raid_device_find_by_handle(ioc, handle);
+		raid_device = mpt3sas_raid_device_find_by_handle(ioc, handle);
 		if (raid_device)
 			raid_device->percent_complete =
 			    event_data->PercentComplete;
@@ -6964,14 +6950,12 @@ _scsih_mark_responding_raid_device(struct MPT3SAS_ADAPTER *ioc, u64 wwid,
 			    "handle(0x%04x), wwid(0x%016llx)\n", handle,
 			    (unsigned long long)raid_device->wwid);
 
-#ifdef SCSI_MPT2SAS
 			/*
 			 * WARPDRIVE: The handles of the PDs might have changed
 			 * across the host reset so re-initialize the
 			 * required data for Direct IO
 			 */
-			_scsih_init_warpdrive_properties(ioc, raid_device);
-#endif
+			mpt3sas_init_warpdrive_properties(ioc, raid_device);
 			spin_lock_irqsave(&ioc->raid_device_lock, flags);
 			if (raid_device->handle == handle) {
 				spin_unlock_irqrestore(&ioc->raid_device_lock,
@@ -8326,13 +8310,96 @@ scsih_scan_finished(struct Scsi_Host *shost, unsigned long time)
 	return 1;
 }
 
-void
-_scsih_determine_hba_mpi_version(struct MPT3SAS_ADAPTER *ioc) {
+/* shost template for SAS 2.0 HBA devices */
+static struct scsi_host_template mpt2sas_driver_template = {
+	.module				= THIS_MODULE,
+	.name				= "Fusion MPT SAS Host",
+	.proc_name			= MPT2SAS_DRIVER_NAME,
+	.queuecommand			= scsih_qcmd,
+	.target_alloc			= scsih_target_alloc,
+	.slave_alloc			= scsih_slave_alloc,
+	.slave_configure		= scsih_slave_configure,
+	.target_destroy			= scsih_target_destroy,
+	.slave_destroy			= scsih_slave_destroy,
+	.scan_finished			= scsih_scan_finished,
+	.scan_start			= scsih_scan_start,
+	.change_queue_depth		= scsih_change_queue_depth,
+	.eh_abort_handler		= scsih_abort,
+	.eh_device_reset_handler	= scsih_dev_reset,
+	.eh_target_reset_handler	= scsih_target_reset,
+	.eh_host_reset_handler		= scsih_host_reset,
+	.bios_param			= scsih_bios_param,
+	.can_queue			= 1,
+	.this_id			= -1,
+	.sg_tablesize			= MPT2SAS_SG_DEPTH,
+	.max_sectors			= 32767,
+	.cmd_per_lun			= 7,
+	.use_clustering			= ENABLE_CLUSTERING,
+	.shost_attrs			= mpt3sas_host_attrs,
+	.sdev_attrs			= mpt3sas_dev_attrs,
+	.track_queue_depth		= 1,
+};
 
-	switch (ioc->pdev->device) {
+/* raid transport support for SAS 2.0 HBA devices */
+static struct raid_function_template mpt2sas_raid_functions = {
+	.cookie		= &mpt2sas_driver_template,
+	.is_raid	= scsih_is_raid,
+	.get_resync	= scsih_get_resync,
+	.get_state	= scsih_get_state,
+};
+
+/* shost template for SAS 3.0 HBA devices */
+static struct scsi_host_template mpt3sas_driver_template = {
+	.module				= THIS_MODULE,
+	.name				= "Fusion MPT SAS Host",
+	.proc_name			= MPT3SAS_DRIVER_NAME,
+	.queuecommand			= scsih_qcmd,
+	.target_alloc			= scsih_target_alloc,
+	.slave_alloc			= scsih_slave_alloc,
+	.slave_configure		= scsih_slave_configure,
+	.target_destroy			= scsih_target_destroy,
+	.slave_destroy			= scsih_slave_destroy,
+	.scan_finished			= scsih_scan_finished,
+	.scan_start			= scsih_scan_start,
+	.change_queue_depth		= scsih_change_queue_depth,
+	.eh_abort_handler		= scsih_abort,
+	.eh_device_reset_handler	= scsih_dev_reset,
+	.eh_target_reset_handler	= scsih_target_reset,
+	.eh_host_reset_handler		= scsih_host_reset,
+	.bios_param			= scsih_bios_param,
+	.can_queue			= 1,
+	.this_id			= -1,
+	.sg_tablesize			= MPT3SAS_SG_DEPTH,
+	.max_sectors			= 32767,
+	.cmd_per_lun			= 7,
+	.use_clustering			= ENABLE_CLUSTERING,
+	.shost_attrs			= mpt3sas_host_attrs,
+	.sdev_attrs			= mpt3sas_dev_attrs,
+	.track_queue_depth		= 1,
+};
+
+/* raid transport support for SAS 3.0 HBA devices */
+static struct raid_function_template mpt3sas_raid_functions = {
+	.cookie		= &mpt3sas_driver_template,
+	.is_raid	= scsih_is_raid,
+	.get_resync	= scsih_get_resync,
+	.get_state	= scsih_get_state,
+};
+
+/**
+ * _scsih_determine_hba_mpi_version - determine in which MPI version class
+ *					this device belongs to.
+ * @pdev: PCI device struct
+ *
+ * return MPI2_VERSION for SAS 2.0 HBA devices,
+ *	MPI25_VERSION for SAS 3.0 HBA devices.
+ */
+u16
+_scsih_determine_hba_mpi_version(struct pci_dev *pdev)
+{
+
+	switch (pdev->device) {
 	case MPI2_MFGPAGE_DEVID_SSS6200:
-		ioc->is_warpdrive = 1;
-		ioc->hide_ir_msg = 1;
 	case MPI2_MFGPAGE_DEVID_SAS2004:
 	case MPI2_MFGPAGE_DEVID_SAS2008:
 	case MPI2_MFGPAGE_DEVID_SAS2108_1:
@@ -8349,52 +8416,91 @@ _scsih_determine_hba_mpi_version(struct MPT3SAS_ADAPTER *ioc) {
 	case MPI2_MFGPAGE_DEVID_SAS2308_1:
 	case MPI2_MFGPAGE_DEVID_SAS2308_2:
 	case MPI2_MFGPAGE_DEVID_SAS2308_3:
-		ioc->hba_mpi_version_belonged = MPI2_VERSION;
-		break;
+		return MPI2_VERSION;
 	case MPI25_MFGPAGE_DEVID_SAS3004:
 	case MPI25_MFGPAGE_DEVID_SAS3008:
 	case MPI25_MFGPAGE_DEVID_SAS3108_1:
 	case MPI25_MFGPAGE_DEVID_SAS3108_2:
 	case MPI25_MFGPAGE_DEVID_SAS3108_5:
 	case MPI25_MFGPAGE_DEVID_SAS3108_6:
-		ioc->hba_mpi_version_belonged = MPI25_VERSION;
-
-		/* Check whether the controller revision is C0 or above.
-		 * only C0 and above revision controllers support 96 MSI-X
-		 * vectors.
-		 */
-		if (ioc->pdev->revision >= SAS3_PCI_DEVICE_C0_REVISION)
-			ioc->msix96_vector = 1;
-		break;
+		return MPI25_VERSION;
 	}
-
-	if ((ioc->pdev->device != MPI2_MFGPAGE_DEVID_SSS6200) &&
-	    (ioc->hba_mpi_version_belonged == MPI2_VERSION))
-		ioc->mfg_pg10_hide_flag = MFG_PAGE10_EXPOSE_ALL_DISKS;
+	return 0;
 }
 
 /**
- * scsih_probe - attach and add scsi host
+ * _scsih_probe - attach and add scsi host
  * @pdev: PCI device struct
  * @id: pci device id
  *
  * Returns 0 success, anything else error.
  */
 int
-scsih_probe(struct pci_dev *pdev, struct Scsi_Host *shost)
+_scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct MPT3SAS_ADAPTER *ioc;
+	struct Scsi_Host *shost = NULL;
 	int rv;
+	u16 hba_mpi_version;
 
-	/* init local params */
-	ioc = shost_priv(shost);
-	memset(ioc, 0, sizeof(struct MPT3SAS_ADAPTER));
+	/* Determine in which MPI version class this pci device belongs */
+	hba_mpi_version = _scsih_determine_hba_mpi_version(pdev);
+	if (hba_mpi_version == 0)
+		return -ENODEV;
+
+	/* Enumerate only SAS 2.0 HBA's if hbas_to_enumerate is one,
+	 * for other generation HBA's return with -ENODEV
+	 */
+	if ((hbas_to_enumerate == 1) && (hba_mpi_version !=  MPI2_VERSION))
+		return -ENODEV;
+
+	/* Enumerate only SAS 3.0 HBA's if hbas_to_enumerate is two,
+	 * for other generation HBA's return with -ENODEV
+	 */
+	if ((hbas_to_enumerate == 2) && (hba_mpi_version !=  MPI25_VERSION))
+		return -ENODEV;
+
+	switch (hba_mpi_version) {
+	case MPI2_VERSION:
+		/* Use mpt2sas driver host template for SAS 2.0 HBA's */
+		shost = scsi_host_alloc(&mpt2sas_driver_template,
+		  sizeof(struct MPT3SAS_ADAPTER));
+		if (!shost)
+			return -ENODEV;
+		ioc = shost_priv(shost);
+		memset(ioc, 0, sizeof(struct MPT3SAS_ADAPTER));
+		ioc->hba_mpi_version_belonged = hba_mpi_version;
+		ioc->id = mpt2_ids++;
+		sprintf(ioc->driver_name, "%s", MPT2SAS_DRIVER_NAME);
+		if (pdev->device == MPI2_MFGPAGE_DEVID_SSS6200) {
+			ioc->is_warpdrive = 1;
+			ioc->hide_ir_msg = 1;
+		} else
+			ioc->mfg_pg10_hide_flag = MFG_PAGE10_EXPOSE_ALL_DISKS;
+		break;
+	case MPI25_VERSION:
+		/* Use mpt3sas driver host template for SAS 3.0 HBA's */
+		shost = scsi_host_alloc(&mpt3sas_driver_template,
+		  sizeof(struct MPT3SAS_ADAPTER));
+		if (!shost)
+			return -ENODEV;
+		ioc = shost_priv(shost);
+		memset(ioc, 0, sizeof(struct MPT3SAS_ADAPTER));
+		ioc->hba_mpi_version_belonged = hba_mpi_version;
+		ioc->id = mpt3_ids++;
+		sprintf(ioc->driver_name, "%s", MPT3SAS_DRIVER_NAME);
+		if (pdev->revision >= SAS3_PCI_DEVICE_C0_REVISION)
+			ioc->msix96_vector = 1;
+		break;
+	default:
+		return -ENODEV;
+	}
+
 	INIT_LIST_HEAD(&ioc->list);
 	spin_lock(&gioc_lock);
 	list_add_tail(&ioc->list, &mpt3sas_ioc_list);
 	spin_unlock(&gioc_lock);
 	ioc->shost = shost;
-	ioc->id = mpt_ids++;
 	ioc->pdev = pdev;
 	ioc->scsi_io_cb_idx = scsi_io_cb_idx;
 	ioc->tm_cb_idx = tm_cb_idx;
@@ -8431,8 +8537,7 @@ scsih_probe(struct pci_dev *pdev, struct Scsi_Host *shost)
 	INIT_LIST_HEAD(&ioc->delayed_tr_volume_list);
 	INIT_LIST_HEAD(&ioc->reply_queue_list);
 
-	_scsih_determine_hba_mpi_version(ioc);
-	sprintf(ioc->name, "%s_cm%d", driver_name, ioc->id);
+	sprintf(ioc->name, "%s_cm%d", ioc->driver_name, ioc->id);
 
 	/* init shost parameters */
 	shost->max_cmd_len = 32;
@@ -8472,7 +8577,7 @@ scsih_probe(struct pci_dev *pdev, struct Scsi_Host *shost)
 
 	/* event thread */
 	snprintf(ioc->firmware_event_name, sizeof(ioc->firmware_event_name),
-	    "fw_event%d", ioc->id);
+	    "fw_event_%s%d", ioc->driver_name, ioc->id);
 	ioc->firmware_event_thread = alloc_ordered_workqueue(
 	    ioc->firmware_event_name, WQ_MEM_RECLAIM);
 	if (!ioc->firmware_event_thread) {
@@ -8490,21 +8595,19 @@ scsih_probe(struct pci_dev *pdev, struct Scsi_Host *shost)
 		goto out_attach_fail;
 	}
 
-#ifdef SCSI_MPT2SAS
 	if (ioc->is_warpdrive) {
 		if (ioc->mfg_pg10_hide_flag ==  MFG_PAGE10_EXPOSE_ALL_DISKS)
 			ioc->hide_drives = 0;
 		else if (ioc->mfg_pg10_hide_flag ==  MFG_PAGE10_HIDE_ALL_DISKS)
 			ioc->hide_drives = 1;
 		else {
-			if (_scsih_get_num_volumes(ioc))
+			if (mpt3sas_get_num_volumes(ioc))
 				ioc->hide_drives = 1;
 			else
 				ioc->hide_drives = 0;
 		}
 	} else
 		ioc->hide_drives = 0;
-#endif
 
 	rv = scsi_add_host(shost, &pdev->dev);
 	if (rv) {
@@ -8705,6 +8808,89 @@ scsih_pci_mmio_enabled(struct pci_dev *pdev)
 	return PCI_ERS_RESULT_NEED_RESET;
 }
 
+/*
+ * The pci device ids are defined in mpi/mpi2_cnfg.h.
+ */
+static const struct pci_device_id mpt3sas_pci_table[] = {
+	/* Spitfire ~ 2004 */
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2004,
+		PCI_ANY_ID, PCI_ANY_ID },
+	/* Falcon ~ 2008 */
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2008,
+		PCI_ANY_ID, PCI_ANY_ID },
+	/* Liberator ~ 2108 */
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2108_1,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2108_2,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2108_3,
+		PCI_ANY_ID, PCI_ANY_ID },
+	/* Meteor ~ 2116 */
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2116_1,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2116_2,
+		PCI_ANY_ID, PCI_ANY_ID },
+	/* Thunderbolt ~ 2208 */
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2208_1,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2208_2,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2208_3,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2208_4,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2208_5,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2208_6,
+		PCI_ANY_ID, PCI_ANY_ID },
+	/* Mustang ~ 2308 */
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2308_1,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2308_2,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2308_3,
+		PCI_ANY_ID, PCI_ANY_ID },
+	/* SSS6200 */
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SSS6200,
+		PCI_ANY_ID, PCI_ANY_ID },
+	/* Fury ~ 3004 and 3008 */
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI25_MFGPAGE_DEVID_SAS3004,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI25_MFGPAGE_DEVID_SAS3008,
+		PCI_ANY_ID, PCI_ANY_ID },
+	/* Invader ~ 3108 */
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI25_MFGPAGE_DEVID_SAS3108_1,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI25_MFGPAGE_DEVID_SAS3108_2,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI25_MFGPAGE_DEVID_SAS3108_5,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI25_MFGPAGE_DEVID_SAS3108_6,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{0}     /* Terminating entry */
+};
+MODULE_DEVICE_TABLE(pci, mpt3sas_pci_table);
+
+static struct pci_error_handlers _mpt3sas_err_handler = {
+	.error_detected	= scsih_pci_error_detected,
+	.mmio_enabled	= scsih_pci_mmio_enabled,
+	.slot_reset	= scsih_pci_slot_reset,
+	.resume		= scsih_pci_resume,
+};
+
+static struct pci_driver mpt3sas_driver = {
+	.name		= MPT3SAS_DRIVER_NAME,
+	.id_table	= mpt3sas_pci_table,
+	.probe		= _scsih_probe,
+	.remove		= scsih_remove,
+	.shutdown	= scsih_shutdown,
+	.err_handler	= &_mpt3sas_err_handler,
+#ifdef CONFIG_PM
+	.suspend	= scsih_suspend,
+	.resume		= scsih_resume,
+#endif
+};
+
 /**
  * scsih_init - main entry point for this driver.
  *
@@ -8713,7 +8899,8 @@ scsih_pci_mmio_enabled(struct pci_dev *pdev)
 int
 scsih_init(void)
 {
-	mpt_ids = 0;
+	mpt2_ids = 0;
+	mpt3_ids = 0;
 
 	mpt3sas_base_initialize_callback_handler();
 
@@ -8777,10 +8964,86 @@ scsih_exit(void)
 	mpt3sas_base_release_callback_handler(tm_sas_control_cb_idx);
 
 /* raid transport support */
-	raid_class_release(mpt3sas_raid_template);
+	if (hbas_to_enumerate != 1)
+		raid_class_release(mpt3sas_raid_template);
+	if (hbas_to_enumerate != 2)
+		raid_class_release(mpt2sas_raid_template);
 	sas_release_transport(mpt3sas_transport_template);
 }
 
-#ifdef SCSI_MPT2SAS
-#include "../mpt2sas/mpt2sas_warpdrive.c"
-#endif
+/**
+ * _mpt3sas_init - main entry point for this driver.
+ *
+ * Returns 0 success, anything else error.
+ */
+static int __init
+_mpt3sas_init(void)
+{
+	int error;
+
+	pr_info("%s version %s loaded\n", MPT3SAS_DRIVER_NAME,
+					MPT3SAS_DRIVER_VERSION);
+
+	mpt3sas_transport_template =
+	    sas_attach_transport(&mpt3sas_transport_functions);
+	if (!mpt3sas_transport_template)
+		return -ENODEV;
+
+	/* No need attach mpt3sas raid functions template
+	 * if hbas_to_enumarate value is one.
+	 */
+	if (hbas_to_enumerate != 1) {
+		mpt3sas_raid_template =
+				raid_class_attach(&mpt3sas_raid_functions);
+		if (!mpt3sas_raid_template) {
+			sas_release_transport(mpt3sas_transport_template);
+			return -ENODEV;
+		}
+	}
+
+	/* No need to attach mpt2sas raid functions template
+	 * if hbas_to_enumarate value is two
+	 */
+	if (hbas_to_enumerate != 2) {
+		mpt2sas_raid_template =
+				raid_class_attach(&mpt2sas_raid_functions);
+		if (!mpt2sas_raid_template) {
+			sas_release_transport(mpt3sas_transport_template);
+			return -ENODEV;
+		}
+	}
+
+	error = scsih_init();
+	if (error) {
+		scsih_exit();
+		return error;
+	}
+
+	mpt3sas_ctl_init(hbas_to_enumerate);
+
+	error = pci_register_driver(&mpt3sas_driver);
+	if (error)
+		scsih_exit();
+
+	return error;
+}
+
+/**
+ * _mpt3sas_exit - exit point for this driver (when it is a module).
+ *
+ */
+static void __exit
+_mpt3sas_exit(void)
+{
+	pr_info("mpt3sas version %s unloading\n",
+				MPT3SAS_DRIVER_VERSION);
+
+	pci_unregister_driver(&mpt3sas_driver);
+
+	mpt3sas_ctl_exit(hbas_to_enumerate);
+
+	scsih_exit();
+}
+
+module_init(_mpt3sas_init);
+module_exit(_mpt3sas_exit);
