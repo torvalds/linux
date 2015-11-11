@@ -65,7 +65,7 @@ static void imx3_idle(void)
 		: "=r" (reg));
 }
 
-static void __iomem *imx3_ioremap_caller(phys_addr_t phys_addr, size_t size,
+static void __iomem *imx3_ioremap_caller(unsigned long phys_addr, size_t size,
 					 unsigned int mtype, void *caller)
 {
 	if (mtype == MT_DEVICE) {

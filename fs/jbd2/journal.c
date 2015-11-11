@@ -869,10 +869,9 @@ int jbd2_journal_get_log_tail(journal_t *journal, tid_t *tid,
  *
  * Requires j_checkpoint_mutex
  */
-int __jbd2_update_log_tail(journal_t *journal, tid_t tid, unsigned long block)
+void __jbd2_update_log_tail(journal_t *journal, tid_t tid, unsigned long block)
 {
 	unsigned long freed;
-	int ret;
 
 	BUG_ON(!mutex_is_locked(&journal->j_checkpoint_mutex));
 
@@ -882,10 +881,7 @@ int __jbd2_update_log_tail(journal_t *journal, tid_t tid, unsigned long block)
 	 * space and if we lose sb update during power failure we'd replay
 	 * old transaction with possibly newly overwritten data.
 	 */
-	ret = jbd2_journal_update_sb_log_tail(journal, tid, block, WRITE_FUA);
-	if (ret)
-		goto out;
-
+	jbd2_journal_update_sb_log_tail(journal, tid, block, WRITE_FUA);
 	write_lock(&journal->j_state_lock);
 	freed = block - journal->j_tail;
 	if (block < journal->j_tail)
@@ -901,9 +897,6 @@ int __jbd2_update_log_tail(journal_t *journal, tid_t tid, unsigned long block)
 	journal->j_tail_sequence = tid;
 	journal->j_tail = block;
 	write_unlock(&journal->j_state_lock);
-
-out:
-	return ret;
 }
 
 /*
@@ -1322,10 +1315,9 @@ static int journal_reset(journal_t *journal)
 	return jbd2_journal_start_thread(journal);
 }
 
-static int jbd2_write_superblock(journal_t *journal, int write_op)
+static void jbd2_write_superblock(journal_t *journal, int write_op)
 {
 	struct buffer_head *bh = journal->j_sb_buffer;
-	journal_superblock_t *sb = journal->j_superblock;
 	int ret;
 
 	trace_jbd2_write_superblock(journal, write_op);
@@ -1347,7 +1339,6 @@ static int jbd2_write_superblock(journal_t *journal, int write_op)
 		clear_buffer_write_io_error(bh);
 		set_buffer_uptodate(bh);
 	}
-	jbd2_superblock_csum_set(journal, sb);
 	get_bh(bh);
 	bh->b_end_io = end_buffer_write_sync;
 	ret = submit_bh(write_op, bh);
@@ -1361,10 +1352,7 @@ static int jbd2_write_superblock(journal_t *journal, int write_op)
 		printk(KERN_ERR "JBD2: Error %d detected when updating "
 		       "journal superblock for %s.\n", ret,
 		       journal->j_devname);
-		jbd2_journal_abort(journal, ret);
 	}
-
-	return ret;
 }
 
 /**
@@ -1377,11 +1365,10 @@ static int jbd2_write_superblock(journal_t *journal, int write_op)
  * Update a journal's superblock information about log tail and write it to
  * disk, waiting for the IO to complete.
  */
-int jbd2_journal_update_sb_log_tail(journal_t *journal, tid_t tail_tid,
+void jbd2_journal_update_sb_log_tail(journal_t *journal, tid_t tail_tid,
 				     unsigned long tail_block, int write_op)
 {
 	journal_superblock_t *sb = journal->j_superblock;
-	int ret;
 
 	BUG_ON(!mutex_is_locked(&journal->j_checkpoint_mutex));
 	jbd_debug(1, "JBD2: updating superblock (start %lu, seq %u)\n",
@@ -1390,18 +1377,13 @@ int jbd2_journal_update_sb_log_tail(journal_t *journal, tid_t tail_tid,
 	sb->s_sequence = cpu_to_be32(tail_tid);
 	sb->s_start    = cpu_to_be32(tail_block);
 
-	ret = jbd2_write_superblock(journal, write_op);
-	if (ret)
-		goto out;
+	jbd2_write_superblock(journal, write_op);
 
 	/* Log is no longer empty */
 	write_lock(&journal->j_state_lock);
 	WARN_ON(!sb->s_sequence);
 	journal->j_flags &= ~JBD2_FLUSHED;
 	write_unlock(&journal->j_state_lock);
-
-out:
-	return ret;
 }
 
 /**
@@ -1453,6 +1435,7 @@ void jbd2_journal_update_sb_errno(journal_t *journal)
 	jbd_debug(1, "JBD2: updating superblock error (errno %d)\n",
 		  journal->j_errno);
 	sb->s_errno    = cpu_to_be32(journal->j_errno);
+	jbd2_superblock_csum_set(journal, sb);
 	read_unlock(&journal->j_state_lock);
 
 	jbd2_write_superblock(journal, WRITE_SYNC);
@@ -1938,14 +1921,7 @@ int jbd2_journal_flush(journal_t *journal)
 		return -EIO;
 
 	mutex_lock(&journal->j_checkpoint_mutex);
-	if (!err) {
-		err = jbd2_cleanup_journal_tail(journal);
-		if (err < 0) {
-			mutex_unlock(&journal->j_checkpoint_mutex);
-			goto out;
-		}
-		err = 0;
-	}
+	jbd2_cleanup_journal_tail(journal);
 
 	/* Finally, mark the journal as really needing no recovery.
 	 * This sets s_start==0 in the underlying superblock, which is
@@ -1961,8 +1937,7 @@ int jbd2_journal_flush(journal_t *journal)
 	J_ASSERT(journal->j_head == journal->j_tail);
 	J_ASSERT(journal->j_tail_sequence == journal->j_transaction_sequence);
 	write_unlock(&journal->j_state_lock);
-out:
-	return err;
+	return 0;
 }
 
 /**

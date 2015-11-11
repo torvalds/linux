@@ -1612,7 +1612,7 @@ static int max98088_dai2_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 
 static void max98088_sync_cache(struct snd_soc_codec *codec)
 {
-       u8 *reg_cache = codec->reg_cache;
+       u16 *reg_cache = codec->reg_cache;
        int i;
 
        if (!codec->cache_sync)

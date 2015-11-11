@@ -162,8 +162,9 @@ static int iscsit_handle_r2t_snack(
 			" protocol error.\n", cmd->init_task_tag, begrun,
 			(begrun + runlength), cmd->acked_data_sn);
 
-			return iscsit_reject_cmd(cmd,
-					ISCSI_REASON_PROTOCOL_ERROR, buf);
+			return iscsit_add_reject_from_cmd(
+					ISCSI_REASON_PROTOCOL_ERROR,
+					1, 0, buf, cmd);
 	}
 
 	if (runlength) {
@@ -172,8 +173,8 @@ static int iscsit_handle_r2t_snack(
 			" with BegRun: 0x%08x, RunLength: 0x%08x, exceeds"
 			" current R2TSN: 0x%08x, protocol error.\n",
 			cmd->init_task_tag, begrun, runlength, cmd->r2t_sn);
-			return iscsit_reject_cmd(cmd,
-					ISCSI_REASON_BOOKMARK_INVALID, buf);
+			return iscsit_add_reject_from_cmd(
+				ISCSI_REASON_BOOKMARK_INVALID, 1, 0, buf, cmd);
 		}
 		last_r2tsn = (begrun + runlength);
 	} else
@@ -432,7 +433,8 @@ static int iscsit_handle_recovery_datain(
 			" protocol error.\n", cmd->init_task_tag, begrun,
 			(begrun + runlength), cmd->acked_data_sn);
 
-		return iscsit_reject_cmd(cmd, ISCSI_REASON_PROTOCOL_ERROR, buf);
+		return iscsit_add_reject_from_cmd(ISCSI_REASON_PROTOCOL_ERROR,
+				1, 0, buf, cmd);
 	}
 
 	/*
@@ -443,14 +445,14 @@ static int iscsit_handle_recovery_datain(
 		pr_err("Initiator requesting BegRun: 0x%08x, RunLength"
 			": 0x%08x greater than maximum DataSN: 0x%08x.\n",
 				begrun, runlength, (cmd->data_sn - 1));
-		return iscsit_reject_cmd(cmd, ISCSI_REASON_BOOKMARK_INVALID,
-					 buf);
+		return iscsit_add_reject_from_cmd(ISCSI_REASON_BOOKMARK_INVALID,
+				1, 0, buf, cmd);
 	}
 
 	dr = iscsit_allocate_datain_req();
 	if (!dr)
-		return iscsit_reject_cmd(cmd, ISCSI_REASON_BOOKMARK_NO_RESOURCES,
-					 buf);
+		return iscsit_add_reject_from_cmd(ISCSI_REASON_BOOKMARK_NO_RESOURCES,
+				1, 0, buf, cmd);
 
 	dr->data_sn = dr->begrun = begrun;
 	dr->runlength = runlength;
@@ -1088,7 +1090,7 @@ int iscsit_handle_ooo_cmdsn(
 
 	ooo_cmdsn = iscsit_allocate_ooo_cmdsn();
 	if (!ooo_cmdsn)
-		return -ENOMEM;
+		return CMDSN_ERROR_CANNOT_RECOVER;
 
 	ooo_cmdsn->cmd			= cmd;
 	ooo_cmdsn->batch_count		= (batch) ?
@@ -1099,10 +1101,10 @@ int iscsit_handle_ooo_cmdsn(
 
 	if (iscsit_attach_ooo_cmdsn(sess, ooo_cmdsn) < 0) {
 		kmem_cache_free(lio_ooo_cache, ooo_cmdsn);
-		return -ENOMEM;
+		return CMDSN_ERROR_CANNOT_RECOVER;
 	}
 
-	return 0;
+	return CMDSN_HIGHER_THAN_EXP;
 }
 
 static int iscsit_set_dataout_timeout_values(

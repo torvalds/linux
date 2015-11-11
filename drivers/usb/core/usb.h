@@ -55,7 +55,7 @@ extern int usb_match_one_id_intf(struct usb_device *dev,
 extern int usb_match_device(struct usb_device *dev,
 			    const struct usb_device_id *id);
 extern void usb_forced_unbind_intf(struct usb_interface *intf);
-extern void usb_unbind_and_rebind_marked_interfaces(struct usb_device *udev);
+extern void usb_rebind_intf(struct usb_interface *intf);
 
 extern int usb_hub_claim_port(struct usb_device *hdev, unsigned port,
 		struct dev_state *owner);

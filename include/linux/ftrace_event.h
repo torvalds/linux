@@ -78,11 +78,6 @@ struct trace_iterator {
 	/* trace_seq for __print_flags() and __print_symbolic() etc. */
 	struct trace_seq	tmp_seq;
 
-	cpumask_var_t		started;
-
-	/* it's true when current open file is snapshot */
-	bool			snapshot;
-
 	/* The below is zeroed out in pipe_read */
 	struct trace_seq	seq;
 	struct trace_entry	*ent;
@@ -95,7 +90,10 @@ struct trace_iterator {
 	loff_t			pos;
 	long			idx;
 
-	/* All new field here will be zeroed out in pipe_read */
+	cpumask_var_t		started;
+
+	/* it's true when current open file is snapshot */
+	bool			snapshot;
 };
 
 enum trace_iter_flags {
@@ -325,12 +323,16 @@ enum {
 	FILTER_TRACE_FN,
 };
 
+#define EVENT_STORAGE_SIZE 128
+extern struct mutex event_storage_mutex;
+extern char event_storage[EVENT_STORAGE_SIZE];
+
 extern int trace_event_raw_init(struct ftrace_event_call *call);
 extern int trace_define_field(struct ftrace_event_call *call, const char *type,
 			      const char *name, int offset, int size,
 			      int is_signed, int filter_type);
 extern int trace_add_event_call(struct ftrace_event_call *call);
-extern int trace_remove_event_call(struct ftrace_event_call *call);
+extern void trace_remove_event_call(struct ftrace_event_call *call);
 
 #define is_signed_type(type)	(((type)(-1)) < (type)1)
 

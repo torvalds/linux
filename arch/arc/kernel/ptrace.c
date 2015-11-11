@@ -92,7 +92,7 @@ static int genregs_set(struct task_struct *target,
 	REG_IN_CHUNK(scratch, callee, ptregs);	/* pt_regs[bta..orig_r8] */
 	REG_IN_CHUNK(callee, efa, cregs);	/* callee_regs[r25..r13] */
 	REG_IGNORE_ONE(efa);			/* efa update invalid */
-	REG_IGNORE_ONE(stop_pc);			/* PC updated via @ret */
+	REG_IN_ONE(stop_pc, &ptregs->ret);	/* stop_pc: PC update */
 
 	return ret;
 }
@@ -136,10 +136,6 @@ long arch_ptrace(struct task_struct *child, long request,
 	pr_debug("REQ=%ld: ADDR =0x%lx, DATA=0x%lx)\n", request, addr, data);
 
 	switch (request) {
-	case PTRACE_GET_THREAD_AREA:
-		ret = put_user(task_thread_info(child)->thr_ptr,
-			       (unsigned long __user *)data);
-		break;
 	default:
 		ret = ptrace_request(child, request, addr, data);
 		break;

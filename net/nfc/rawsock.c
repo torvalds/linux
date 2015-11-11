@@ -241,6 +241,8 @@ static int rawsock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (!skb)
 		return rc;
 
+	msg->msg_namelen = 0;
+
 	copied = skb->len;
 	if (len < copied) {
 		msg->msg_flags |= MSG_TRUNC;

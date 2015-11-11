@@ -1236,10 +1236,8 @@ __do_replace(struct net *net, const char *name, unsigned int valid_hooks,
 
 	xt_free_table_info(oldinfo);
 	if (copy_to_user(counters_ptr, counters,
-			 sizeof(struct xt_counters) * num_counters) != 0) {
-		/* Silent error, can't fail, new table is already in place */
-		net_warn_ratelimited("ip6tables: counters copy to user failed while replacing table\n");
-	}
+			 sizeof(struct xt_counters) * num_counters) != 0)
+		ret = -EFAULT;
 	vfree(counters);
 	xt_table_unlock(t);
 	return ret;

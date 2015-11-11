@@ -18,8 +18,7 @@
 #ifndef __ASM__VIRT_H
 #define __ASM__VIRT_H
 
-#define BOOT_CPU_MODE_EL1	(0xe11)
-#define BOOT_CPU_MODE_EL2	(0xe12)
+#define BOOT_CPU_MODE_EL2	(0x0e12b007)
 
 #ifndef __ASSEMBLY__
 
@@ -49,10 +48,6 @@ static inline bool is_hyp_mode_mismatched(void)
 {
 	return __boot_cpu_mode[0] != __boot_cpu_mode[1];
 }
-
-/* The section containing the hypervisor text */
-extern char __hyp_text_start[];
-extern char __hyp_text_end[];
 
 #endif /* __ASSEMBLY__ */
 

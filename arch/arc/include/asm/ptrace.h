@@ -52,14 +52,12 @@ struct pt_regs {
 
 	/*to distinguish bet excp, syscall, irq */
 	union {
-		struct {
 #ifdef CONFIG_CPU_BIG_ENDIAN
 		/* so that assembly code is same for LE/BE */
 		unsigned long orig_r8:16, event:16;
 #else
 		unsigned long event:16, orig_r8:16;
 #endif
-		};
 		long orig_r8_word;
 	};
 };
@@ -83,7 +81,7 @@ struct callee_regs {
 	long r13;
 };
 
-#define instruction_pointer(regs)	(unsigned long)((regs)->ret)
+#define instruction_pointer(regs)	((regs)->ret)
 #define profile_pc(regs)		instruction_pointer(regs)
 
 /* return 1 if user mode or 0 if kernel mode */

@@ -845,9 +845,6 @@ static int arp_reduce(struct net_device *dev, struct sk_buff *skb)
 
 		neigh_release(n);
 
-		if (reply == NULL)
-			goto out;
-
 		skb_reset_mac_header(reply);
 		__skb_pull(reply, skb_network_offset(reply));
 		reply->ip_summed = CHECKSUM_UNNECESSARY;
@@ -1093,7 +1090,7 @@ static netdev_tx_t vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 	iph->daddr	= dst;
 	iph->saddr	= fl4.saddr;
 	iph->ttl	= ttl ? : ip4_dst_hoplimit(&rt->dst);
-	__ip_select_ident(iph, skb_shinfo(skb)->gso_segs ?: 1);
+	tunnel_ip_select_ident(skb, old_iph, &rt->dst);
 
 	nf_reset(skb);
 
@@ -1314,7 +1311,7 @@ static void vxlan_setup(struct net_device *dev)
 
 	eth_hw_addr_random(dev);
 	ether_setup(dev);
-	dev->needed_headroom = ETH_HLEN + VXLAN_HEADROOM;
+	dev->hard_header_len = ETH_HLEN + VXLAN_HEADROOM;
 
 	dev->netdev_ops = &vxlan_netdev_ops;
 	dev->destructor = vxlan_free;
@@ -1454,7 +1451,7 @@ static int vxlan_newlink(struct net *net, struct net_device *dev,
 			dev->mtu = lowerdev->mtu - VXLAN_HEADROOM;
 
 		/* update header length based on lower device */
-		dev->needed_headroom = lowerdev->hard_header_len +
+		dev->hard_header_len = lowerdev->hard_header_len +
 				       VXLAN_HEADROOM;
 	}
 

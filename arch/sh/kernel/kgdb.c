@@ -13,7 +13,6 @@
 #include <linux/kdebug.h>
 #include <linux/irq.h>
 #include <linux/io.h>
-#include <linux/sched.h>
 #include <asm/cacheflush.h>
 #include <asm/traps.h>
 

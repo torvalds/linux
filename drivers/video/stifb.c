@@ -1101,7 +1101,6 @@ static int __init stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 	var = &info->var;
 
 	fb->sti = sti;
-	dev_name = sti->sti_data->inq_outptr.dev_name;
 	/* store upper 32bits of the graphics id */
 	fb->id = fb->sti->graphics_id[0];
 
@@ -1115,11 +1114,11 @@ static int __init stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 		  Since this driver only supports standard mode, we check
 		  if the device name contains the string "DX" and tell the
 		  user how to reconfigure the card. */
-		if (strstr(dev_name, "DX")) {
+		if (strstr(sti->outptr.dev_name, "DX")) {
 		   printk(KERN_WARNING
 "WARNING: stifb framebuffer driver does not support '%s' in double-buffer mode.\n"
 "WARNING: Please disable the double-buffer mode in IPL menu (the PARISC-BIOS).\n",
-			dev_name);
+			sti->outptr.dev_name);
 		   goto out_err0;
 		}
 		/* fall though */
@@ -1131,7 +1130,7 @@ static int __init stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 		break;
 	default:
 		printk(KERN_WARNING "stifb: '%s' (id: 0x%08x) not supported.\n",
-			dev_name, fb->id);
+			sti->outptr.dev_name, fb->id);
 		goto out_err0;
 	}
 	
@@ -1155,6 +1154,7 @@ static int __init stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 		fb->id = S9000_ID_A1659A;
 		break;
 	case S9000_ID_TIMBER:	/* HP9000/710 Any (may be a grayscale device) */
+		dev_name = fb->sti->outptr.dev_name;
 		if (strstr(dev_name, "GRAYSCALE") || 
 		    strstr(dev_name, "Grayscale") ||
 		    strstr(dev_name, "grayscale"))
@@ -1290,7 +1290,7 @@ static int __init stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 		var->xres, 
 		var->yres,
 		var->bits_per_pixel,
-		dev_name,
+		sti->outptr.dev_name,
 		fb->id, 
 		fix->mmio_start);
 

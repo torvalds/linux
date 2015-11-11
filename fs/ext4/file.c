@@ -82,7 +82,7 @@ ext4_unaligned_aio(struct inode *inode, const struct iovec *iov,
 	size_t count = iov_length(iov, nr_segs);
 	loff_t final_size = pos + count;
 
-	if (pos >= i_size_read(inode))
+	if (pos >= inode->i_size)
 		return 0;
 
 	if ((pos & blockmask) || (final_size & blockmask))
@@ -100,7 +100,7 @@ ext4_file_dio_write(struct kiocb *iocb, const struct iovec *iov,
 	struct blk_plug plug;
 	int unaligned_aio = 0;
 	ssize_t ret;
-	int *overwrite = iocb->private;
+	int overwrite = 0;
 	size_t length = iov_length(iov, nr_segs);
 
 	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS) &&
@@ -117,6 +117,8 @@ ext4_file_dio_write(struct kiocb *iocb, const struct iovec *iov,
 
 	mutex_lock(&inode->i_mutex);
 	blk_start_plug(&plug);
+
+	iocb->private = &overwrite;
 
 	/* check whether we do a DIO overwrite or not */
 	if (ext4_should_dioread_nolock(inode) && !unaligned_aio &&
@@ -141,7 +143,7 @@ ext4_file_dio_write(struct kiocb *iocb, const struct iovec *iov,
 		 * So we should check these two conditions.
 		 */
 		if (err == len && (map.m_flags & EXT4_MAP_MAPPED))
-			*overwrite = 1;
+			overwrite = 1;
 	}
 
 	ret = __generic_file_aio_write(iocb, iov, nr_segs, &iocb->ki_pos);
@@ -168,7 +170,6 @@ ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
 {
 	struct inode *inode = file_inode(iocb->ki_filp);
 	ssize_t ret;
-	int overwrite = 0;
 
 	/*
 	 * If we have encountered a bitmap-format file, the size limit
@@ -189,7 +190,6 @@ ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
 		}
 	}
 
-	iocb->private = &overwrite;
 	if (unlikely(iocb->ki_filp->f_flags & O_DIRECT))
 		ret = ext4_file_dio_write(iocb, iov, nr_segs, pos);
 	else
@@ -312,7 +312,7 @@ static int ext4_find_unwritten_pgoff(struct inode *inode,
 	blkbits = inode->i_sb->s_blocksize_bits;
 	startoff = *offset;
 	lastoff = startoff;
-	endoff = (loff_t)(map->m_lblk + map->m_len) << blkbits;
+	endoff = (map->m_lblk + map->m_len) << blkbits;
 
 	index = startoff >> PAGE_CACHE_SHIFT;
 	end = endoff >> PAGE_CACHE_SHIFT;
@@ -457,7 +457,7 @@ static loff_t ext4_seek_data(struct file *file, loff_t offset, loff_t maxsize)
 		ret = ext4_map_blocks(NULL, inode, &map, 0);
 		if (ret > 0 && !(map.m_flags & EXT4_MAP_UNWRITTEN)) {
 			if (last != start)
-				dataoff = (loff_t)last << blkbits;
+				dataoff = last << blkbits;
 			break;
 		}
 
@@ -468,7 +468,7 @@ static loff_t ext4_seek_data(struct file *file, loff_t offset, loff_t maxsize)
 		ext4_es_find_delayed_extent_range(inode, last, last, &es);
 		if (es.es_len != 0 && in_range(last, es.es_lblk, es.es_len)) {
 			if (last != start)
-				dataoff = (loff_t)last << blkbits;
+				dataoff = last << blkbits;
 			break;
 		}
 
@@ -486,7 +486,7 @@ static loff_t ext4_seek_data(struct file *file, loff_t offset, loff_t maxsize)
 		}
 
 		last++;
-		dataoff = (loff_t)last << blkbits;
+		dataoff = last << blkbits;
 	} while (last <= end);
 
 	mutex_unlock(&inode->i_mutex);
@@ -540,7 +540,7 @@ static loff_t ext4_seek_hole(struct file *file, loff_t offset, loff_t maxsize)
 		ret = ext4_map_blocks(NULL, inode, &map, 0);
 		if (ret > 0 && !(map.m_flags & EXT4_MAP_UNWRITTEN)) {
 			last += ret;
-			holeoff = (loff_t)last << blkbits;
+			holeoff = last << blkbits;
 			continue;
 		}
 
@@ -551,7 +551,7 @@ static loff_t ext4_seek_hole(struct file *file, loff_t offset, loff_t maxsize)
 		ext4_es_find_delayed_extent_range(inode, last, last, &es);
 		if (es.es_len != 0 && in_range(last, es.es_lblk, es.es_len)) {
 			last = es.es_lblk + es.es_len;
-			holeoff = (loff_t)last << blkbits;
+			holeoff = last << blkbits;
 			continue;
 		}
 
@@ -566,7 +566,7 @@ static loff_t ext4_seek_hole(struct file *file, loff_t offset, loff_t maxsize)
 							      &map, &holeoff);
 			if (!unwritten) {
 				last += ret;
-				holeoff = (loff_t)last << blkbits;
+				holeoff = last << blkbits;
 				continue;
 			}
 		}

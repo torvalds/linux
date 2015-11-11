@@ -26,20 +26,34 @@
 #include "iscsi_target_tq.h"
 #include "iscsi_target.h"
 
+static LIST_HEAD(active_ts_list);
 static LIST_HEAD(inactive_ts_list);
+static DEFINE_SPINLOCK(active_ts_lock);
 static DEFINE_SPINLOCK(inactive_ts_lock);
 static DEFINE_SPINLOCK(ts_bitmap_lock);
 
+static void iscsi_add_ts_to_active_list(struct iscsi_thread_set *ts)
+{
+	spin_lock(&active_ts_lock);
+	list_add_tail(&ts->ts_list, &active_ts_list);
+	iscsit_global->active_ts++;
+	spin_unlock(&active_ts_lock);
+}
+
 static void iscsi_add_ts_to_inactive_list(struct iscsi_thread_set *ts)
 {
-	if (!list_empty(&ts->ts_list)) {
-		WARN_ON(1);
-		return;
-	}
 	spin_lock(&inactive_ts_lock);
 	list_add_tail(&ts->ts_list, &inactive_ts_list);
 	iscsit_global->inactive_ts++;
 	spin_unlock(&inactive_ts_lock);
+}
+
+static void iscsi_del_ts_from_active_list(struct iscsi_thread_set *ts)
+{
+	spin_lock(&active_ts_lock);
+	list_del(&ts->ts_list);
+	iscsit_global->active_ts--;
+	spin_unlock(&active_ts_lock);
 }
 
 static struct iscsi_thread_set *iscsi_get_ts_from_inactive_list(void)
@@ -54,7 +68,7 @@ static struct iscsi_thread_set *iscsi_get_ts_from_inactive_list(void)
 
 	ts = list_first_entry(&inactive_ts_list, struct iscsi_thread_set, ts_list);
 
-	list_del_init(&ts->ts_list);
+	list_del(&ts->ts_list);
 	iscsit_global->inactive_ts--;
 	spin_unlock(&inactive_ts_lock);
 
@@ -205,6 +219,8 @@ static void iscsi_deallocate_extra_thread_sets(void)
 
 void iscsi_activate_thread_set(struct iscsi_conn *conn, struct iscsi_thread_set *ts)
 {
+	iscsi_add_ts_to_active_list(ts);
+
 	spin_lock_bh(&ts->ts_state_lock);
 	conn->thread_set = ts;
 	ts->conn = conn;
@@ -407,6 +423,7 @@ struct iscsi_conn *iscsi_rx_thread_pre_handler(struct iscsi_thread_set *ts)
 
 	if (ts->delay_inactive && (--ts->thread_count == 0)) {
 		spin_unlock_bh(&ts->ts_state_lock);
+		iscsi_del_ts_from_active_list(ts);
 
 		if (!iscsit_global->in_shutdown)
 			iscsi_deallocate_extra_thread_sets();
@@ -459,6 +476,7 @@ struct iscsi_conn *iscsi_tx_thread_pre_handler(struct iscsi_thread_set *ts)
 
 	if (ts->delay_inactive && (--ts->thread_count == 0)) {
 		spin_unlock_bh(&ts->ts_state_lock);
+		iscsi_del_ts_from_active_list(ts);
 
 		if (!iscsit_global->in_shutdown)
 			iscsi_deallocate_extra_thread_sets();

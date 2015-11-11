@@ -130,7 +130,7 @@ static int __diag_virtio_hypercall(struct kvm_vcpu *vcpu)
 
 int kvm_s390_handle_diag(struct kvm_vcpu *vcpu)
 {
-	int code = kvm_s390_get_base_disp_rs(vcpu) & 0xffff;
+	int code = (vcpu->arch.sie_block->ipb & 0xfff0000) >> 16;
 
 	trace_kvm_s390_handle_diag(vcpu, code);
 	switch (code) {

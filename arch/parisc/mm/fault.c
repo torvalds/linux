@@ -180,10 +180,6 @@ void do_page_fault(struct pt_regs *regs, unsigned long code,
 	if (in_atomic() || !mm)
 		goto no_context;
 
-	if (user_mode(regs))
-		flags |= FAULT_FLAG_USER;
-	if (acc_type & VM_WRITE)
-		flags |= FAULT_FLAG_WRITE;
 retry:
 	down_read(&mm->mmap_sem);
 	vma = find_vma_prev(mm, address, &prev_vma);
@@ -207,7 +203,8 @@ good_area:
 	 * fault.
 	 */
 
-	fault = handle_mm_fault(mm, vma, address, flags);
+	fault = handle_mm_fault(mm, vma, address,
+			flags | ((acc_type & VM_WRITE) ? FAULT_FLAG_WRITE : 0));
 
 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
 		return;
@@ -220,8 +217,6 @@ good_area:
 		 */
 		if (fault & VM_FAULT_OOM)
 			goto out_of_memory;
-		else if (fault & VM_FAULT_SIGSEGV)
-			goto bad_area;
 		else if (fault & VM_FAULT_SIGBUS)
 			goto bad_area;
 		BUG();

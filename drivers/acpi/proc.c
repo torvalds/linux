@@ -311,8 +311,6 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 			   dev->pnp.bus_id,
 			   (u32) dev->wakeup.sleep_state);
 
-		mutex_lock(&dev->physical_node_lock);
-
 		if (!dev->physical_node_count) {
 			seq_printf(seq, "%c%-8s\n",
 				dev->wakeup.flags.run_wake ? '*' : ' ',
@@ -340,8 +338,6 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 				put_device(ldev);
 			}
 		}
-
-		mutex_unlock(&dev->physical_node_lock);
 	}
 	mutex_unlock(&acpi_device_lock);
 	return 0;
@@ -351,16 +347,12 @@ static void physical_device_enable_wakeup(struct acpi_device *adev)
 {
 	struct acpi_device_physical_node *entry;
 
-	mutex_lock(&adev->physical_node_lock);
-
 	list_for_each_entry(entry,
 		&adev->physical_node_list, node)
 		if (entry->dev && device_can_wakeup(entry->dev)) {
 			bool enable = !device_may_wakeup(entry->dev);
 			device_set_wakeup_enable(entry->dev, enable);
 		}
-
-	mutex_unlock(&adev->physical_node_lock);
 }
 
 static ssize_t

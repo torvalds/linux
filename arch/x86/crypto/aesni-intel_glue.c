@@ -989,7 +989,7 @@ static int __driver_rfc4106_decrypt(struct aead_request *req)
 		src = kmalloc(req->cryptlen + req->assoclen, GFP_ATOMIC);
 		if (!src)
 			return -ENOMEM;
-		assoc = (src + req->cryptlen);
+		assoc = (src + req->cryptlen + auth_tag_len);
 		scatterwalk_map_and_copy(src, req->src, 0, req->cryptlen, 0);
 		scatterwalk_map_and_copy(assoc, req->assoc, 0,
 			req->assoclen, 0);
@@ -1014,7 +1014,7 @@ static int __driver_rfc4106_decrypt(struct aead_request *req)
 		scatterwalk_done(&src_sg_walk, 0, 0);
 		scatterwalk_done(&assoc_sg_walk, 0, 0);
 	} else {
-		scatterwalk_map_and_copy(dst, req->dst, 0, tempCipherLen, 1);
+		scatterwalk_map_and_copy(dst, req->dst, 0, req->cryptlen, 1);
 		kfree(src);
 	}
 	return retval;
@@ -1373,4 +1373,4 @@ module_exit(aesni_exit);
 
 MODULE_DESCRIPTION("Rijndael (AES) Cipher Algorithm, Intel AES-NI instructions optimized");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_CRYPTO("aes");
+MODULE_ALIAS("aes");

@@ -1249,10 +1249,6 @@ static int dvb_register(struct cx23885_tsport *port)
 		fe0->dvb.frontend = dvb_attach(ds3000_attach,
 					&tevii_ds3000_config,
 					&i2c_bus->i2c_adap);
-		if (fe0->dvb.frontend != NULL) {
-			dvb_attach(ts2020_attach, fe0->dvb.frontend,
-				&tevii_ts2020_config, &i2c_bus->i2c_adap);
-		}
 		break;
 	case CX23885_BOARD_PROF_8000:
 		i2c_bus = &dev->i2c_bus[0];

@@ -81,7 +81,6 @@ _GLOBAL(relocate)
 
 6:	blr
 
-.balign 8
 p_dyn:	.llong	__dynamic_start - 0b
 p_rela:	.llong	__rela_dyn_start - 0b
 p_st:	.llong	_stext - 0b

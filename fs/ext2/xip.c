@@ -35,7 +35,6 @@ __ext2_get_block(struct inode *inode, pgoff_t pgoff, int create,
 	int rc;
 
 	memset(&tmp, 0, sizeof(struct buffer_head));
-	tmp.b_size = 1 << inode->i_blkbits;
 	rc = ext2_get_block(inode, pgoff, &tmp, create);
 	*result = tmp.b_blocknr;
 

@@ -769,10 +769,7 @@ static void snd_card_asihpi_timer_function(unsigned long data)
 						s->number);
 				ds->drained_count++;
 				if (ds->drained_count > 20) {
-					unsigned long flags;
-					snd_pcm_stream_lock_irqsave(s, flags);
 					snd_pcm_stop(s, SNDRV_PCM_STATE_XRUN);
-					snd_pcm_stream_unlock_irqrestore(s, flags);
 					continue;
 				}
 			} else {

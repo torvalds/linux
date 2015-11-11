@@ -185,11 +185,6 @@ static struct viosrp_crq *crq_queue_next_crq(struct crq_queue *queue)
 	if (crq->valid & 0x80) {
 		if (++queue->cur == queue->size)
 			queue->cur = 0;
-
-		/* Ensure the read of the valid bit occurs before reading any
-		 * other bits of the CRQ entry
-		 */
-		rmb();
 	} else
 		crq = NULL;
 	spin_unlock_irqrestore(&queue->lock, flags);
@@ -208,11 +203,6 @@ static int ibmvscsi_send_crq(struct ibmvscsi_host_data *hostdata,
 {
 	struct vio_dev *vdev = to_vio_dev(hostdata->dev);
 
-	/*
-	 * Ensure the command buffer is flushed to memory before handing it
-	 * over to the VIOS to prevent it from fetching any stale data.
-	 */
-	mb();
 	return plpar_hcall_norets(H_SEND_CRQ, vdev->unit_address, word1, word2);
 }
 
@@ -804,8 +794,7 @@ static void purge_requests(struct ibmvscsi_host_data *hostdata, int error_code)
 				       evt->hostdata->dev);
 			if (evt->cmnd_done)
 				evt->cmnd_done(evt->cmnd);
-		} else if (evt->done && evt->crq.format != VIOSRP_MAD_FORMAT &&
-			   evt->iu.srp.login_req.opcode != SRP_LOGIN_REQ)
+		} else if (evt->done)
 			evt->done(evt);
 		free_event_struct(&evt->hostdata->pool, evt);
 		spin_lock_irqsave(hostdata->host->host_lock, flags);

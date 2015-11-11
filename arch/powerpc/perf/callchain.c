@@ -35,7 +35,7 @@ static int valid_next_sp(unsigned long sp, unsigned long prev_sp)
 		return 0;		/* must be 16-byte aligned */
 	if (!validate_sp(sp, current, STACK_FRAME_OVERHEAD))
 		return 0;
-	if (sp >= prev_sp + STACK_FRAME_MIN_SIZE)
+	if (sp >= prev_sp + STACK_FRAME_OVERHEAD)
 		return 1;
 	/*
 	 * sp could decrease when we jump off an interrupt stack
@@ -243,7 +243,7 @@ static void perf_callchain_user_64(struct perf_callchain_entry *entry,
 	sp = regs->gpr[1];
 	perf_callchain_store(entry, next_ip);
 
-	while (entry->nr < PERF_MAX_STACK_DEPTH) {
+	for (;;) {
 		fp = (unsigned long __user *) sp;
 		if (!valid_user_sp(sp, 1) || read_user_stack_64(fp, &next_sp))
 			return;

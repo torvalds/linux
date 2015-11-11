@@ -281,6 +281,9 @@ ieee80211_tx_h_check_assoc(struct ieee80211_tx_data *tx)
 	if (tx->sdata->vif.type == NL80211_IFTYPE_WDS)
 		return TX_CONTINUE;
 
+	if (tx->sdata->vif.type == NL80211_IFTYPE_MESH_POINT)
+		return TX_CONTINUE;
+
 	if (tx->flags & IEEE80211_TX_PS_BUFFERED)
 		return TX_CONTINUE;
 
@@ -395,9 +398,6 @@ ieee80211_tx_h_multicast_ps_buf(struct ieee80211_tx_data *tx)
 	if (ieee80211_has_order(hdr->frame_control))
 		return TX_CONTINUE;
 
-	if (ieee80211_is_probe_req(hdr->frame_control))
-		return TX_CONTINUE;
-
 	/* no stations in PS mode */
 	if (!atomic_read(&ps->num_sta_ps))
 		return TX_CONTINUE;
@@ -471,20 +471,6 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 		       sta->sta.addr, sta->sta.aid, ac);
 		if (tx->local->total_ps_buffered >= TOTAL_MAX_TX_BUFFER)
 			purge_old_ps_buffers(tx->local);
-
-		/* sync with ieee80211_sta_ps_deliver_wakeup */
-		spin_lock(&sta->ps_lock);
-		/*
-		 * STA woke up the meantime and all the frames on ps_tx_buf have
-		 * been queued to pending queue. No reordering can happen, go
-		 * ahead and Tx the packet.
-		 */
-		if (!test_sta_flag(sta, WLAN_STA_PS_STA) &&
-		    !test_sta_flag(sta, WLAN_STA_PS_DRIVER)) {
-			spin_unlock(&sta->ps_lock);
-			return TX_CONTINUE;
-		}
-
 		if (skb_queue_len(&sta->ps_tx_buf[ac]) >= STA_MAX_TX_BUFFER) {
 			struct sk_buff *old = skb_dequeue(&sta->ps_tx_buf[ac]);
 			ps_dbg(tx->sdata,
@@ -498,7 +484,6 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 		info->control.vif = &tx->sdata->vif;
 		info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
 		skb_queue_tail(&sta->ps_tx_buf[ac], tx->skb);
-		spin_unlock(&sta->ps_lock);
 
 		if (!timer_pending(&local->sta_cleanup))
 			mod_timer(&local->sta_cleanup,
@@ -526,6 +511,7 @@ ieee80211_tx_h_ps_buf(struct ieee80211_tx_data *tx)
 {
 	if (unlikely(tx->flags & IEEE80211_TX_PS_BUFFERED))
 		return TX_CONTINUE;
+
 	if (tx->flags & IEEE80211_TX_UNICAST)
 		return ieee80211_tx_h_unicast_ps_buf(tx);
 	else
@@ -865,7 +851,7 @@ static int ieee80211_fragment(struct ieee80211_tx_data *tx,
 	}
 
 	/* adjust first fragment's length */
-	skb_trim(skb, hdrlen + per_fragm);
+	skb->len = hdrlen + per_fragm;
 	return 0;
 }
 
@@ -1114,8 +1100,7 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 		tx->sta = rcu_dereference(sdata->u.vlan.sta);
 		if (!tx->sta && sdata->dev->ieee80211_ptr->use_4addr)
 			return TX_DROP;
-	} else if (info->flags & (IEEE80211_TX_CTL_INJECTED |
-				  IEEE80211_TX_INTFL_NL80211_FRAME_TX) ||
+	} else if (info->flags & IEEE80211_TX_CTL_INJECTED ||
 		   tx->sdata->control_port_protocol == tx->skb->protocol) {
 		tx->sta = sta_info_get_bss(sdata, hdr->addr1);
 	}
@@ -2707,7 +2692,7 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
 				cpu_to_le16(IEEE80211_FCTL_MOREDATA);
 		}
 
-		if (sdata->vif.type == NL80211_IFTYPE_AP)
+		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 			sdata = IEEE80211_DEV_TO_SUB_IF(skb->dev);
 		if (!ieee80211_tx_prepare(sdata, &tx, skb))
 			break;

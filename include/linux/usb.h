@@ -206,32 +206,6 @@ void usb_put_intf(struct usb_interface *intf);
 #define USB_MAXINTERFACES	32
 #define USB_MAXIADS		(USB_MAXINTERFACES/2)
 
-/*
- * USB Resume Timer: Every Host controller driver should drive the resume
- * signalling on the bus for the amount of time defined by this macro.
- *
- * That way we will have a 'stable' behavior among all HCDs supported by Linux.
- *
- * Note that the USB Specification states we should drive resume for *at least*
- * 20 ms, but it doesn't give an upper bound. This creates two possible
- * situations which we want to avoid:
- *
- * (a) sometimes an msleep(20) might expire slightly before 20 ms, which causes
- * us to fail USB Electrical Tests, thus failing Certification
- *
- * (b) Some (many) devices actually need more than 20 ms of resume signalling,
- * and while we can argue that's against the USB Specification, we don't have
- * control over which devices a certification laboratory will be using for
- * certification. If CertLab uses a device which was tested against Windows and
- * that happens to have relaxed resume signalling rules, we might fall into
- * situations where we fail interoperability and electrical tests.
- *
- * In order to avoid both conditions, we're using a 40 ms resume timeout, which
- * should cope with both LPJ calibration errors and devices not following every
- * detail of the USB Specification.
- */
-#define USB_RESUME_TIMEOUT	40 /* ms */
-
 /**
  * struct usb_interface_cache - long-term representation of a device interface
  * @num_altsetting: number of altsettings defined.

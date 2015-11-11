@@ -76,8 +76,6 @@ static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
 
 	total_objects = sb->s_nr_dentry_unused +
 			sb->s_nr_inodes_unused + fs_objects + 1;
-	if (!total_objects)
-		total_objects = 1;
 
 	if (sc->nr_to_scan) {
 		int	dentries;
@@ -163,6 +161,19 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
 			s = NULL;
 			goto out;
 		}
+#ifdef CONFIG_SMP
+		s->s_files = alloc_percpu(struct list_head);
+		if (!s->s_files)
+			goto err_out;
+		else {
+			int i;
+
+			for_each_possible_cpu(i)
+				INIT_LIST_HEAD(per_cpu_ptr(s->s_files, i));
+		}
+#else
+		INIT_LIST_HEAD(&s->s_files);
+#endif
 		if (init_sb_writers(s, type))
 			goto err_out;
 		s->s_flags = flags;
@@ -212,6 +223,10 @@ out:
 	return s;
 err_out:
 	security_sb_free(s);
+#ifdef CONFIG_SMP
+	if (s->s_files)
+		free_percpu(s->s_files);
+#endif
 	destroy_sb_writers(s);
 	kfree(s);
 	s = NULL;
@@ -226,6 +241,9 @@ err_out:
  */
 static inline void destroy_super(struct super_block *s)
 {
+#ifdef CONFIG_SMP
+	free_percpu(s->s_files);
+#endif
 	destroy_sb_writers(s);
 	security_sb_free(s);
 	WARN_ON(!list_empty(&s->s_mounts));
@@ -318,19 +336,19 @@ EXPORT_SYMBOL(deactivate_super);
  *	and want to turn it into a full-blown active reference.  grab_super()
  *	is called with sb_lock held and drops it.  Returns 1 in case of
  *	success, 0 if we had failed (superblock contents was already dead or
- *	dying when grab_super() had been called).  Note that this is only
- *	called for superblocks not in rundown mode (== ones still on ->fs_supers
- *	of their type), so increment of ->s_count is OK here.
+ *	dying when grab_super() had been called).
  */
 static int grab_super(struct super_block *s) __releases(sb_lock)
 {
-	s->s_count++;
-	spin_unlock(&sb_lock);
-	down_write(&s->s_umount);
-	if ((s->s_flags & MS_BORN) && atomic_inc_not_zero(&s->s_active)) {
-		put_super(s);
+	if (atomic_inc_not_zero(&s->s_active)) {
+		spin_unlock(&sb_lock);
 		return 1;
 	}
+	/* it's going away */
+	s->s_count++;
+	spin_unlock(&sb_lock);
+	/* wait for it to die */
+	down_write(&s->s_umount);
 	up_write(&s->s_umount);
 	put_super(s);
 	return 0;
@@ -444,6 +462,11 @@ retry:
 				up_write(&s->s_umount);
 				destroy_super(s);
 				s = NULL;
+			}
+			down_write(&old->s_umount);
+			if (unlikely(!(old->s_flags & MS_BORN))) {
+				deactivate_locked_super(old);
+				goto retry;
 			}
 			return old;
 		}
@@ -637,10 +660,10 @@ restart:
 		if (hlist_unhashed(&sb->s_instances))
 			continue;
 		if (sb->s_bdev == bdev) {
-			if (!grab_super(sb))
+			if (grab_super(sb)) /* drops sb_lock */
+				return sb;
+			else
 				goto restart;
-			up_write(&sb->s_umount);
-			return sb;
 		}
 	}
 	spin_unlock(&sb_lock);
@@ -707,8 +730,7 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 	   make sure there are no rw files opened */
 	if (remount_ro) {
 		if (force) {
-			sb->s_readonly_remount = 1;
-			smp_wmb();
+			mark_files_ro(sb);
 		} else {
 			retval = sb_prepare_remount_readonly(sb);
 			if (retval)
@@ -753,7 +775,7 @@ static void do_emergency_remount(struct work_struct *work)
 	struct super_block *sb, *p = NULL;
 
 	spin_lock(&sb_lock);
-	list_for_each_entry_reverse(sb, &super_blocks, s_list) {
+	list_for_each_entry(sb, &super_blocks, s_list) {
 		if (hlist_unhashed(&sb->s_instances))
 			continue;
 		sb->s_count++;

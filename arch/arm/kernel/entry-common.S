@@ -32,9 +32,7 @@ ret_fast_syscall:
  UNWIND(.fnstart	)
  UNWIND(.cantunwind	)
 	disable_irq				@ disable interrupts
-	ldr	r1, [tsk, #TI_FLAGS]		@ re-check for syscall tracing
-	tst	r1, #_TIF_SYSCALL_WORK
-	bne	__sys_trace_return
+	ldr	r1, [tsk, #TI_FLAGS]
 	tst	r1, #_TIF_WORK_MASK
 	bne	fast_work_pending
 	asm_trace_hardirqs_on
@@ -364,16 +362,6 @@ ENTRY(vector_swi)
 	str	r0, [sp, #S_OLD_R0]		@ Save OLD_R0
 	zero_fp
 
-#ifdef CONFIG_ALIGNMENT_TRAP
-	ldr	ip, __cr_alignment
-	ldr	ip, [ip]
-	mcr	p15, 0, ip, c1, c0		@ update control register
-#endif
-
-	enable_irq
-	ct_user_exit
-	get_thread_info tsk
-
 	/*
 	 * Get the system call number.
 	 */
@@ -387,11 +375,13 @@ ENTRY(vector_swi)
 #ifdef CONFIG_ARM_THUMB
 	tst	r8, #PSR_T_BIT
 	movne	r10, #0				@ no thumb OABI emulation
- USER(	ldreq	r10, [lr, #-4]		)	@ get SWI instruction
+	ldreq	r10, [lr, #-4]			@ get SWI instruction
 #else
- USER(	ldr	r10, [lr, #-4]		)	@ get SWI instruction
+	ldr	r10, [lr, #-4]			@ get SWI instruction
 #endif
- ARM_BE8(rev	r10, r10)			@ little endian instruction
+#ifdef CONFIG_CPU_ENDIAN_BE8
+	rev	r10, r10			@ little endian instruction
+#endif
 
 #elif defined(CONFIG_AEABI)
 
@@ -402,13 +392,22 @@ ENTRY(vector_swi)
 	/* Legacy ABI only, possibly thumb mode. */
 	tst	r8, #PSR_T_BIT			@ this is SPSR from save_user_regs
 	addne	scno, r7, #__NR_SYSCALL_BASE	@ put OS number in
- USER(	ldreq	scno, [lr, #-4]		)
+	ldreq	scno, [lr, #-4]
 
 #else
 	/* Legacy ABI only. */
- USER(	ldr	scno, [lr, #-4]		)	@ get SWI instruction
+	ldr	scno, [lr, #-4]			@ get SWI instruction
 #endif
 
+#ifdef CONFIG_ALIGNMENT_TRAP
+	ldr	ip, __cr_alignment
+	ldr	ip, [ip]
+	mcr	p15, 0, ip, c1, c0		@ update control register
+#endif
+	enable_irq
+	ct_user_exit
+
+	get_thread_info tsk
 	adr	tbl, sys_call_table		@ load syscall table pointer
 
 #if defined(CONFIG_OABI_COMPAT)
@@ -443,21 +442,6 @@ local_restart:
 	eor	r0, scno, #__NR_SYSCALL_BASE	@ put OS number back
 	bcs	arm_syscall	
 	b	sys_ni_syscall			@ not private func
-
-#if defined(CONFIG_OABI_COMPAT) || !defined(CONFIG_AEABI)
-	/*
-	 * We failed to handle a fault trying to access the page
-	 * containing the swi instruction, but we're not really in a
-	 * position to return -EFAULT. Instead, return back to the
-	 * instruction and re-enter the user fault handling path trying
-	 * to page it in. This will likely result in sending SEGV to the
-	 * current task.
-	 */
-9001:
-	sub	lr, lr, #4
-	str	lr, [sp, #S_PC]
-	b	ret_fast_syscall
-#endif
 ENDPROC(vector_swi)
 
 	/*

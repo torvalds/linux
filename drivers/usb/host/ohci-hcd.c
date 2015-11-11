@@ -231,26 +231,31 @@ static int ohci_urb_enqueue (
 			frame &= ~(ed->interval - 1);
 			frame |= ed->branch;
 			urb->start_frame = frame;
-			ed->last_iso = frame + ed->interval * (size - 1);
 		}
 	} else if (ed->type == PIPE_ISOCHRONOUS) {
 		u16	next = ohci_frame_no(ohci) + 1;
 		u16	frame = ed->last_iso + ed->interval;
-		u16	length = ed->interval * (size - 1);
 
 		/* Behind the scheduling threshold? */
 		if (unlikely(tick_before(frame, next))) {
 
-			/* URB_ISO_ASAP: Round up to the first available slot */
+			/* USB_ISO_ASAP: Round up to the first available slot */
 			if (urb->transfer_flags & URB_ISO_ASAP) {
 				frame += (next - frame + ed->interval - 1) &
 						-ed->interval;
 
 			/*
-			 * Not ASAP: Use the next slot in the stream,
-			 * no matter what.
+			 * Not ASAP: Use the next slot in the stream.  If
+			 * the entire URB falls before the threshold, fail.
 			 */
 			} else {
+				if (tick_before(frame + ed->interval *
+					(urb->number_of_packets - 1), next)) {
+					retval = -EXDEV;
+					usb_hcd_unlink_urb_from_ep(hcd, urb);
+					goto fail;
+				}
+
 				/*
 				 * Some OHCI hardware doesn't handle late TDs
 				 * correctly.  After retiring them it proceeds
@@ -261,16 +266,9 @@ static int ohci_urb_enqueue (
 				urb_priv->td_cnt = DIV_ROUND_UP(
 						(u16) (next - frame),
 						ed->interval);
-				if (urb_priv->td_cnt >= urb_priv->length) {
-					++urb_priv->td_cnt;	/* Mark it */
-					ohci_dbg(ohci, "iso underrun %p (%u+%u < %u)\n",
-							urb, frame, length,
-							next);
-				}
 			}
 		}
 		urb->start_frame = frame;
-		ed->last_iso = frame + length;
 	}
 
 	/* fill the TDs and link them to the ed; and
@@ -1194,6 +1192,25 @@ MODULE_LICENSE ("GPL");
 #ifdef CONFIG_USB_OHCI_HCD_PLATFORM
 #include "ohci-platform.c"
 #define PLATFORM_DRIVER		ohci_platform_driver
+#endif
+
+#if	!defined(PCI_DRIVER) &&		\
+	!defined(PLATFORM_DRIVER) &&	\
+	!defined(OMAP1_PLATFORM_DRIVER) &&	\
+	!defined(OMAP3_PLATFORM_DRIVER) &&	\
+	!defined(OF_PLATFORM_DRIVER) &&	\
+	!defined(SA1111_DRIVER) &&	\
+	!defined(PS3_SYSTEM_BUS_DRIVER) && \
+	!defined(SM501_OHCI_DRIVER) && \
+	!defined(TMIO_OHCI_DRIVER) && \
+	!defined(S3C2410_PLATFORM_DRIVER) && \
+	!defined(EXYNOS_PLATFORM_DRIVER) && \
+	!defined(EP93XX_PLATFORM_DRIVER) && \
+	!defined(AT91_PLATFORM_DRIVER) && \
+	!defined(NXP_PLATFORM_DRIVER) && \
+	!defined(DAVINCI_PLATFORM_DRIVER) && \
+	!defined(SPEAR_PLATFORM_DRIVER)
+#error "missing bus glue for ohci-hcd"
 #endif
 
 static int __init ohci_hcd_mod_init(void)

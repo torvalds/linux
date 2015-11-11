@@ -199,8 +199,8 @@ static void __init efika_setup_arch(void)
 
 static int __init efika_probe(void)
 {
-	const char *model = of_get_flat_dt_prop(of_get_flat_dt_root(),
-						"model", NULL);
+	char *model = of_get_flat_dt_prop(of_get_flat_dt_root(),
+					  "model", NULL);
 
 	if (model == NULL)
 		return 0;

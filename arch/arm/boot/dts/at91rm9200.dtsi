@@ -35,12 +35,8 @@
 		ssc2 = &ssc2;
 	};
 	cpus {
-		#address-cells = <0>;
-		#size-cells = <0>;
-
-		cpu {
+		cpu@0 {
 			compatible = "arm,arm920t";
-			device_type = "cpu";
 		};
 	};
 

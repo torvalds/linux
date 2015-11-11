@@ -51,8 +51,6 @@
  *	document number TBD : Lynx Point
  *	document number TBD : Lynx Point-LP
  *	document number TBD : Wellsburg
- *	document number TBD : Avoton SoC
- *	document number TBD : Coleto Creek
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -209,8 +207,6 @@ enum lpc_chipsets {
 	LPC_LPT,	/* Lynx Point */
 	LPC_LPT_LP,	/* Lynx Point-LP */
 	LPC_WBG,	/* Wellsburg */
-	LPC_AVN,	/* Avoton SoC */
-	LPC_COLETO,	/* Coleto Creek */
 };
 
 struct lpc_ich_info lpc_chipset_info[] = {
@@ -495,14 +491,6 @@ struct lpc_ich_info lpc_chipset_info[] = {
 		.name = "Wellsburg",
 		.iTCO_version = 2,
 	},
-	[LPC_AVN] = {
-		.name = "Avoton SoC",
-		.iTCO_version = 1,
-	},
-	[LPC_COLETO] = {
-		.name = "Coleto Creek",
-		.iTCO_version = 2,
-	},
 };
 
 /*
@@ -716,11 +704,6 @@ static DEFINE_PCI_DEVICE_TABLE(lpc_ich_ids) = {
 	{ PCI_VDEVICE(INTEL, 0x8d5d), LPC_WBG},
 	{ PCI_VDEVICE(INTEL, 0x8d5e), LPC_WBG},
 	{ PCI_VDEVICE(INTEL, 0x8d5f), LPC_WBG},
-	{ PCI_VDEVICE(INTEL, 0x1f38), LPC_AVN},
-	{ PCI_VDEVICE(INTEL, 0x1f39), LPC_AVN},
-	{ PCI_VDEVICE(INTEL, 0x1f3a), LPC_AVN},
-	{ PCI_VDEVICE(INTEL, 0x1f3b), LPC_AVN},
-	{ PCI_VDEVICE(INTEL, 0x2390), LPC_COLETO},
 	{ 0, },			/* End of list */
 };
 MODULE_DEVICE_TABLE(pci, lpc_ich_ids);

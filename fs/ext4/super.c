@@ -305,8 +305,6 @@ static void __save_error_info(struct super_block *sb, const char *func,
 	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
 
 	EXT4_SB(sb)->s_mount_state |= EXT4_ERROR_FS;
-	if (bdev_read_only(sb->s_bdev))
-		return;
 	es->s_state |= cpu_to_le16(EXT4_ERROR_FS);
 	es->s_last_error_time = cpu_to_le32(get_seconds());
 	strncpy(es->s_last_error_func, func, sizeof(es->s_last_error_func));
@@ -805,7 +803,6 @@ static void ext4_put_super(struct super_block *sb)
 		dump_orphan_list(sb, sbi);
 	J_ASSERT(list_empty(&sbi->s_orphan));
 
-	sync_blockdev(sb->s_bdev);
 	invalidate_bdev(sb->s_bdev);
 	if (sbi->journal_bdev && sbi->journal_bdev != sb->s_bdev) {
 		/*
@@ -967,7 +964,7 @@ static struct inode *ext4_nfs_get_inode(struct super_block *sb,
 	 * Currently we don't know the generation for parent directory, so
 	 * a generation of 0 means "accept any"
 	 */
-	inode = ext4_iget_normal(sb, ino);
+	inode = ext4_iget(sb, ino);
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
 	if (generation && inode->i_generation != generation) {
@@ -1344,7 +1341,7 @@ static const struct mount_opts {
 	{Opt_delalloc, EXT4_MOUNT_DELALLOC,
 	 MOPT_EXT4_ONLY | MOPT_SET | MOPT_EXPLICIT},
 	{Opt_nodelalloc, EXT4_MOUNT_DELALLOC,
-	 MOPT_EXT4_ONLY | MOPT_CLEAR},
+	 MOPT_EXT4_ONLY | MOPT_CLEAR | MOPT_EXPLICIT},
 	{Opt_journal_checksum, EXT4_MOUNT_JOURNAL_CHECKSUM,
 	 MOPT_EXT4_ONLY | MOPT_SET},
 	{Opt_journal_async_commit, (EXT4_MOUNT_JOURNAL_ASYNC_COMMIT |
@@ -1486,6 +1483,8 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
 			arg = JBD2_DEFAULT_MAX_COMMIT_AGE;
 		sbi->s_commit_interval = HZ * arg;
 	} else if (token == Opt_max_batch_time) {
+		if (arg == 0)
+			arg = EXT4_DEF_MAX_BATCH_TIME;
 		sbi->s_max_batch_time = arg;
 	} else if (token == Opt_min_batch_time) {
 		sbi->s_min_batch_time = arg;
@@ -1635,6 +1634,13 @@ static int parse_options(char *options, struct super_block *sb,
 					"not specified");
 			return 0;
 		}
+	} else {
+		if (sbi->s_jquota_fmt) {
+			ext4_msg(sb, KERN_ERR, "journaled quota format "
+					"specified with no journaling "
+					"enabled");
+			return 0;
+		}
 	}
 #endif
 	if (test_opt(sb, DIOREAD_NOLOCK)) {
@@ -1678,6 +1684,12 @@ static inline void ext4_show_quota_options(struct seq_file *seq,
 
 	if (sbi->s_qf_names[GRPQUOTA])
 		seq_printf(seq, ",grpjquota=%s", sbi->s_qf_names[GRPQUOTA]);
+
+	if (test_opt(sb, USRQUOTA))
+		seq_puts(seq, ",usrquota");
+
+	if (test_opt(sb, GRPQUOTA))
+		seq_puts(seq, ",grpquota");
 #endif
 }
 
@@ -1953,10 +1965,6 @@ static __le16 ext4_group_desc_csum(struct ext4_sb_info *sbi, __u32 block_group,
 	}
 
 	/* old crc16 code */
-	if (!(sbi->s_es->s_feature_ro_compat &
-	      cpu_to_le32(EXT4_FEATURE_RO_COMPAT_GDT_CSUM)))
-		return 0;
-
 	offset = offsetof(struct ext4_group_desc, bg_checksum);
 
 	crc = crc16(~0, sbi->s_es->s_uuid, sizeof(sbi->s_es->s_uuid));
@@ -2685,11 +2693,10 @@ static void print_daily_error_info(unsigned long arg)
 	es = sbi->s_es;
 
 	if (es->s_error_count)
-		/* fsck newer than v1.41.13 is needed to clean this condition. */
-		ext4_msg(sb, KERN_NOTICE, "error count since last fsck: %u",
+		ext4_msg(sb, KERN_NOTICE, "error count: %u",
 			 le32_to_cpu(es->s_error_count));
 	if (es->s_first_error_time) {
-		printk(KERN_NOTICE "EXT4-fs (%s): initial error at time %u: %.*s:%d",
+		printk(KERN_NOTICE "EXT4-fs (%s): initial error at %u: %.*s:%d",
 		       sb->s_id, le32_to_cpu(es->s_first_error_time),
 		       (int) sizeof(es->s_first_error_func),
 		       es->s_first_error_func,
@@ -2703,7 +2710,7 @@ static void print_daily_error_info(unsigned long arg)
 		printk("\n");
 	}
 	if (es->s_last_error_time) {
-		printk(KERN_NOTICE "EXT4-fs (%s): last error at time %u: %.*s:%d",
+		printk(KERN_NOTICE "EXT4-fs (%s): last error at %u: %.*s:%d",
 		       sb->s_id, le32_to_cpu(es->s_last_error_time),
 		       (int) sizeof(es->s_last_error_func),
 		       es->s_last_error_func,
@@ -3212,18 +3219,10 @@ int ext4_calculate_overhead(struct super_block *sb)
 }
 
 
-static ext4_fsblk_t ext4_calculate_resv_clusters(struct super_block *sb)
+static ext4_fsblk_t ext4_calculate_resv_clusters(struct ext4_sb_info *sbi)
 {
 	ext4_fsblk_t resv_clusters;
 
-	/*
-	 * There's no need to reserve anything when we aren't using extents.
-	 * The space estimates are exact, there are no unwritten extents,
-	 * hole punching doesn't need new metadata... This is needed especially
-	 * to keep ext2/3 backward compatibility.
-	 */
-	if (!EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_EXTENTS))
-		return 0;
 	/*
 	 * By default we reserve 2% or 4096 clusters, whichever is smaller.
 	 * This should cover the situations where we can not afford to run
@@ -3232,8 +3231,7 @@ static ext4_fsblk_t ext4_calculate_resv_clusters(struct super_block *sb)
 	 * allocation would require 1, or 2 blocks, higher numbers are
 	 * very rare.
 	 */
-	resv_clusters = ext4_blocks_count(EXT4_SB(sb)->s_es) >>
-			EXT4_SB(sb)->s_cluster_bits;
+	resv_clusters = ext4_blocks_count(sbi->s_es) >> sbi->s_cluster_bits;
 
 	do_div(resv_clusters, 50);
 	resv_clusters = min_t(ext4_fsblk_t, resv_clusters, 4096);
@@ -3453,7 +3451,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		}
 		if (test_opt(sb, DIOREAD_NOLOCK)) {
 			ext4_msg(sb, KERN_ERR, "can't mount with "
-				 "both data=journal and dioread_nolock");
+				 "both data=journal and delalloc");
 			goto failed_mount;
 		}
 		if (test_opt(sb, DELALLOC))
@@ -3588,25 +3586,23 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_addr_per_block_bits = ilog2(EXT4_ADDR_PER_BLOCK(sb));
 	sbi->s_desc_per_block_bits = ilog2(EXT4_DESC_PER_BLOCK(sb));
 
+	/* Do we have standard group size of blocksize * 8 blocks ? */
+	if (sbi->s_blocks_per_group == blocksize << 3)
+		set_opt2(sb, STD_GROUP_SIZE);
+
 	for (i = 0; i < 4; i++)
 		sbi->s_hash_seed[i] = le32_to_cpu(es->s_hash_seed[i]);
 	sbi->s_def_hash_version = es->s_def_hash_version;
-	if (EXT4_HAS_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_DIR_INDEX)) {
-		i = le32_to_cpu(es->s_flags);
-		if (i & EXT2_FLAGS_UNSIGNED_HASH)
-			sbi->s_hash_unsigned = 3;
-		else if ((i & EXT2_FLAGS_SIGNED_HASH) == 0) {
+	i = le32_to_cpu(es->s_flags);
+	if (i & EXT2_FLAGS_UNSIGNED_HASH)
+		sbi->s_hash_unsigned = 3;
+	else if ((i & EXT2_FLAGS_SIGNED_HASH) == 0) {
 #ifdef __CHAR_UNSIGNED__
-			if (!(sb->s_flags & MS_RDONLY))
-				es->s_flags |=
-					cpu_to_le32(EXT2_FLAGS_UNSIGNED_HASH);
-			sbi->s_hash_unsigned = 3;
+		es->s_flags |= cpu_to_le32(EXT2_FLAGS_UNSIGNED_HASH);
+		sbi->s_hash_unsigned = 3;
 #else
-			if (!(sb->s_flags & MS_RDONLY))
-				es->s_flags |=
-					cpu_to_le32(EXT2_FLAGS_SIGNED_HASH);
+		es->s_flags |= cpu_to_le32(EXT2_FLAGS_SIGNED_HASH);
 #endif
-		}
 	}
 
 	/* Handle clustersize */
@@ -3662,10 +3658,6 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		       sbi->s_inodes_per_group);
 		goto failed_mount;
 	}
-
-	/* Do we have standard group size of clustersize * 8 blocks ? */
-	if (sbi->s_blocks_per_group == clustersize << 3)
-		set_opt2(sb, STD_GROUP_SIZE);
 
 	/*
 	 * Test whether we have more sectors than will fit in sector_t,
@@ -3983,10 +3975,10 @@ no_journal:
 			 "available");
 	}
 
-	err = ext4_reserve_clusters(sbi, ext4_calculate_resv_clusters(sb));
+	err = ext4_reserve_clusters(sbi, ext4_calculate_resv_clusters(sbi));
 	if (err) {
 		ext4_msg(sb, KERN_ERR, "failed to reserve %llu clusters for "
-			 "reserved pool", ext4_calculate_resv_clusters(sb));
+			 "reserved pool", ext4_calculate_resv_clusters(sbi));
 		goto failed_mount4a;
 	}
 
@@ -4625,8 +4617,6 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 #endif
 	char *orig_data = kstrdup(data, GFP_KERNEL);
 
-	sync_filesystem(sb);
-
 	/* Store the original options */
 	old_sb_flags = sb->s_flags;
 	old_opts.s_mount_opt = sbi->s_mount_opt;
@@ -4660,21 +4650,6 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 	if (!parse_options(data, sb, NULL, &journal_ioprio, 1)) {
 		err = -EINVAL;
 		goto restore_opts;
-	}
-
-	if (test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA) {
-		if (test_opt2(sb, EXPLICIT_DELALLOC)) {
-			ext4_msg(sb, KERN_ERR, "can't mount with "
-				 "both data=journal and delalloc");
-			err = -EINVAL;
-			goto restore_opts;
-		}
-		if (test_opt(sb, DIOREAD_NOLOCK)) {
-			ext4_msg(sb, KERN_ERR, "can't mount with "
-				 "both data=journal and dioread_nolock");
-			err = -EINVAL;
-			goto restore_opts;
-		}
 	}
 
 	if (sbi->s_mount_flags & EXT4_MF_FS_ABORTED)
@@ -5431,7 +5406,6 @@ static void __exit ext4_exit_fs(void)
 	kset_unregister(ext4_kset);
 	ext4_exit_system_zone();
 	ext4_exit_pageio();
-	ext4_exit_es();
 }
 
 MODULE_AUTHOR("Remy Card, Stephen Tweedie, Andrew Morton, Andreas Dilger, Theodore Ts'o and others");

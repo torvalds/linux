@@ -575,7 +575,6 @@ extern int dev_pm_put_subsys_data(struct device *dev);
  */
 struct dev_pm_domain {
 	struct dev_pm_ops	ops;
-	void (*detach)(struct device *dev, bool power_off);
 };
 
 /*

@@ -702,7 +702,7 @@ static const struct drm_encoder_funcs intel_crt_enc_funcs = {
 	.destroy = intel_encoder_destroy,
 };
 
-static int intel_no_crt_dmi_callback(const struct dmi_system_id *id)
+static int __init intel_no_crt_dmi_callback(const struct dmi_system_id *id)
 {
 	DRM_INFO("Skipping CRT initialization for %s\n", id->ident);
 	return 1;
@@ -715,14 +715,6 @@ static const struct dmi_system_id intel_no_crt[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ACER"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "ZGB"),
-		},
-	},
-	{
-		.callback = intel_no_crt_dmi_callback,
-		.ident = "DELL XPS 8700",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "XPS 8700"),
 		},
 	},
 	{ }

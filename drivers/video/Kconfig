@@ -39,11 +39,6 @@ config VIDEOMODE_HELPERS
 config HDMI
 	bool
 
-config VEXPRESS_DVI_CONTROL
-	bool "Versatile Express DVI control"
-	depends on FB && VEXPRESS_CONFIG
-	default y
-
 menuconfig FB
 	tristate "Support for frame buffer devices"
 	---help---
@@ -317,8 +312,7 @@ config FB_PM2_FIFO_DISCONNECT
 
 config FB_ARMCLCD
 	tristate "ARM PrimeCell PL110 support"
-	depends on ARM || ARM64 || COMPILE_TEST
-	depends on FB && ARM_AMBA
+	depends on FB && ARM && ARM_AMBA
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -331,21 +325,6 @@ config FB_ARMCLCD
 	  inserted into and removed from the running kernel), say M
 	  here and read <file:Documentation/kbuild/modules.txt>.  The module
 	  will be called amba-clcd.
-
-config FB_ARMHDLCD
-	tristate "ARM High Definition LCD support"
-	depends on FB && ARM
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	help
-	  This framebuffer device driver is for the ARM High Definition
-	  Colour LCD controller.
-
-	  If you want to compile this as a module (=code which can be
-	  inserted into and removed from the running kernel), say M
-	  here and read <file:Documentation/kbuild/modules.txt>.  The module
-	  will be called arm-hdlcd.
 
 config FB_ACORN
 	bool "Acorn VIDC support"
@@ -2496,7 +2475,6 @@ source "drivers/video/omap2/Kconfig"
 source "drivers/video/exynos/Kconfig"
 source "drivers/video/mmp/Kconfig"
 source "drivers/video/backlight/Kconfig"
-source "drivers/video/adf/Kconfig"
 
 if VT
 	source "drivers/video/console/Kconfig"

@@ -93,7 +93,6 @@ static long media_device_enum_entities(struct media_device *mdev,
 	struct media_entity *ent;
 	struct media_entity_desc u_ent;
 
-	memset(&u_ent, 0, sizeof(u_ent));
 	if (copy_from_user(&u_ent.id, &uent->id, sizeof(u_ent.id)))
 		return -EFAULT;
 
@@ -106,6 +105,8 @@ static long media_device_enum_entities(struct media_device *mdev,
 	if (ent->name) {
 		strncpy(u_ent.name, ent->name, sizeof(u_ent.name));
 		u_ent.name[sizeof(u_ent.name) - 1] = '\0';
+	} else {
+		memset(u_ent.name, 0, sizeof(u_ent.name));
 	}
 	u_ent.type = ent->type;
 	u_ent.revision = ent->revision;

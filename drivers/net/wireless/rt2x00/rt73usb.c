@@ -2167,8 +2167,7 @@ static int rt73usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 		tx_power = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_A_START);
 		for (i = 14; i < spec->num_channels; i++) {
 			info[i].max_power = MAX_TXPOWER;
-			info[i].default_power1 =
-					TXPOWER_FROM_DEV(tx_power[i - 14]);
+			info[i].default_power1 = TXPOWER_FROM_DEV(tx_power[i]);
 		}
 	}
 

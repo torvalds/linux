@@ -109,17 +109,8 @@
 #define MEI_DEV_ID_PPT_2      0x1CBA  /* Panther Point */
 #define MEI_DEV_ID_PPT_3      0x1DBA  /* Panther Point */
 
-#define MEI_DEV_ID_LPT_H      0x8C3A  /* Lynx Point H */
-#define MEI_DEV_ID_LPT_W      0x8D3A  /* Lynx Point - Wellsburg */
+#define MEI_DEV_ID_LPT        0x8C3A  /* Lynx Point */
 #define MEI_DEV_ID_LPT_LP     0x9C3A  /* Lynx Point LP */
-#define MEI_DEV_ID_LPT_HR     0x8CBA  /* Lynx Point H Refresh */
-
-#define MEI_DEV_ID_WPT_LP     0x9CBA  /* Wildcat Point LP */
-
-/* Host Firmware Status Registers in PCI Config Space */
-#define PCI_CFG_HFS_1         0x40
-#define PCI_CFG_HFS_2         0x48
-
 /*
  * MEI HW Section
  */

@@ -765,12 +765,12 @@ class_dir_create_and_add(struct class *class, struct kobject *parent_kobj)
 	return &dir->kobj;
 }
 
-static DEFINE_MUTEX(gdp_mutex);
 
 static struct kobject *get_device_parent(struct device *dev,
 					 struct device *parent)
 {
 	if (dev->class) {
+		static DEFINE_MUTEX(gdp_mutex);
 		struct kobject *kobj = NULL;
 		struct kobject *parent_kobj;
 		struct kobject *k;
@@ -834,9 +834,7 @@ static void cleanup_glue_dir(struct device *dev, struct kobject *glue_dir)
 	    glue_dir->kset != &dev->class->p->glue_dirs)
 		return;
 
-	mutex_lock(&gdp_mutex);
 	kobject_put(glue_dir);
-	mutex_unlock(&gdp_mutex);
 }
 
 static void cleanup_device_parent(struct device *dev)
@@ -1841,7 +1839,7 @@ EXPORT_SYMBOL_GPL(device_move);
  */
 void device_shutdown(void)
 {
-	struct device *dev, *parent;
+	struct device *dev;
 
 	spin_lock(&devices_kset->list_lock);
 	/*
@@ -1858,7 +1856,7 @@ void device_shutdown(void)
 		 * prevent it from being freed because parent's
 		 * lock is to be held
 		 */
-		parent = get_device(dev->parent);
+		get_device(dev->parent);
 		get_device(dev);
 		/*
 		 * Make sure the device is off the kset list, in the
@@ -1868,8 +1866,8 @@ void device_shutdown(void)
 		spin_unlock(&devices_kset->list_lock);
 
 		/* hold lock to avoid race with probe/release */
-		if (parent)
-			device_lock(parent);
+		if (dev->parent)
+			device_lock(dev->parent);
 		device_lock(dev);
 
 		/* Don't allow any more runtime suspends */
@@ -1887,11 +1885,11 @@ void device_shutdown(void)
 		}
 
 		device_unlock(dev);
-		if (parent)
-			device_unlock(parent);
+		if (dev->parent)
+			device_unlock(dev->parent);
 
 		put_device(dev);
-		put_device(parent);
+		put_device(dev->parent);
 
 		spin_lock(&devices_kset->list_lock);
 	}

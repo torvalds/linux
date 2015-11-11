@@ -103,7 +103,7 @@ int ore_verify_layout(unsigned total_comps, struct ore_layout *layout)
 
 	layout->max_io_length =
 		(BIO_MAX_PAGES_KMALLOC * PAGE_SIZE - layout->stripe_unit) *
-					(layout->group_width - layout->parity);
+							layout->group_width;
 	if (layout->parity) {
 		unsigned stripe_length =
 				(layout->group_width - layout->parity) *
@@ -286,8 +286,7 @@ int  ore_get_rw_state(struct ore_layout *layout, struct ore_components *oc,
 	if (length) {
 		ore_calc_stripe_info(layout, offset, length, &ios->si);
 		ios->length = ios->si.length;
-		ios->nr_pages = ((ios->offset & (PAGE_SIZE - 1)) +
-				 ios->length + PAGE_SIZE - 1) / PAGE_SIZE;
+		ios->nr_pages = (ios->length + PAGE_SIZE - 1) / PAGE_SIZE;
 		if (layout->parity)
 			_ore_post_alloc_raid_stuff(ios);
 	}
@@ -537,7 +536,6 @@ void ore_calc_stripe_info(struct ore_layout *layout, u64 file_offset,
 	u64	H = LmodS - G * T;
 
 	u32	N = div_u64(H, U);
-	u32	Nlast;
 
 	/* "H - (N * U)" is just "H % U" so it's bound to u32 */
 	u32	C = (u32)(H - (N * U)) / stripe_unit + G * group_width;
@@ -570,10 +568,6 @@ void ore_calc_stripe_info(struct ore_layout *layout, u64 file_offset,
 	si->length = T - H;
 	if (si->length > length)
 		si->length = length;
-
-	Nlast = div_u64(H + si->length + U - 1, U);
-	si->maxdevUnits = Nlast - N;
-
 	si->M = M;
 }
 EXPORT_SYMBOL(ore_calc_stripe_info);
@@ -589,16 +583,13 @@ int _ore_add_stripe_unit(struct ore_io_state *ios,  unsigned *cur_pg,
 	int ret;
 
 	if (per_dev->bio == NULL) {
-		unsigned bio_size;
-
-		if (!ios->reading) {
-			bio_size = ios->si.maxdevUnits;
-		} else {
-			bio_size = (ios->si.maxdevUnits + 1) *
-			     (ios->layout->group_width - ios->layout->parity) /
-			     ios->layout->group_width;
-		}
-		bio_size *= (ios->layout->stripe_unit / PAGE_SIZE);
+		unsigned pages_in_stripe = ios->layout->group_width *
+					(ios->layout->stripe_unit / PAGE_SIZE);
+		unsigned nr_pages = ios->nr_pages * ios->layout->group_width /
+					(ios->layout->group_width -
+					 ios->layout->parity);
+		unsigned bio_size = (nr_pages + pages_in_stripe) /
+					ios->layout->group_width;
 
 		per_dev->bio = bio_kmalloc(GFP_KERNEL, bio_size);
 		if (unlikely(!per_dev->bio)) {
@@ -618,12 +609,8 @@ int _ore_add_stripe_unit(struct ore_io_state *ios,  unsigned *cur_pg,
 		added_len = bio_add_pc_page(q, per_dev->bio, pages[pg],
 					    pglen, pgbase);
 		if (unlikely(pglen != added_len)) {
-			/* If bi_vcnt == bi_max then this is a SW BUG */
-			ORE_DBGMSG("Failed bio_add_pc_page bi_vcnt=0x%x "
-				   "bi_max=0x%x BIO_MAX=0x%x cur_len=0x%x\n",
-				   per_dev->bio->bi_vcnt,
-				   per_dev->bio->bi_max_vecs,
-				   BIO_MAX_PAGES_KMALLOC, cur_len);
+			ORE_DBGMSG("Failed bio_add_pc_page bi_vcnt=%u\n",
+				   per_dev->bio->bi_vcnt);
 			ret = -ENOMEM;
 			goto out;
 		}
@@ -1111,7 +1098,7 @@ int ore_truncate(struct ore_layout *layout, struct ore_components *oc,
 		size_attr->attr = g_attr_logical_length;
 		size_attr->attr.val_ptr = &size_attr->newsize;
 
-		ORE_DBGMSG2("trunc(0x%llx) obj_offset=0x%llx dev=%d\n",
+		ORE_DBGMSG("trunc(0x%llx) obj_offset=0x%llx dev=%d\n",
 			     _LLU(oc->comps->obj.id), _LLU(obj_size), i);
 		ret = _truncate_mirrors(ios, i * ios->layout->mirrors_p1,
 					&size_attr->attr);

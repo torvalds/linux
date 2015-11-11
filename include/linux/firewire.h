@@ -200,7 +200,6 @@ struct fw_device {
 	unsigned irmc:1;
 	unsigned bc_implemented:2;
 
-	work_func_t workfn;
 	struct delayed_work work;
 	struct fw_attribute_group attribute_group;
 };
@@ -435,7 +434,6 @@ struct fw_iso_context {
 	int type;
 	int channel;
 	int speed;
-	bool drop_overflow_headers;
 	size_t header_size;
 	union {
 		fw_iso_callback_t sc;

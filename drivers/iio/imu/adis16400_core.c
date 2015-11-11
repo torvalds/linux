@@ -26,7 +26,6 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/debugfs.h>
-#include <linux/bitops.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -438,11 +437,6 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 			*val = st->variant->temp_scale_nano / 1000000;
 			*val2 = (st->variant->temp_scale_nano % 1000000);
 			return IIO_VAL_INT_PLUS_MICRO;
-		case IIO_PRESSURE:
-			/* 20 uBar = 0.002kPascal */
-			*val = 0;
-			*val2 = 2000;
-			return IIO_VAL_INT_PLUS_MICRO;
 		default:
 			return -EINVAL;
 		}
@@ -453,7 +447,7 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 		mutex_unlock(&indio_dev->mlock);
 		if (ret)
 			return ret;
-		val16 = sign_extend32(val16, 11);
+		val16 = ((val16 & 0xFFF) << 4) >> 4;
 		*val = val16;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_OFFSET:
@@ -485,10 +479,10 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 	}
 }
 
-#define ADIS16400_VOLTAGE_CHAN(addr, bits, name, si, chn) { \
+#define ADIS16400_VOLTAGE_CHAN(addr, bits, name, si) { \
 	.type = IIO_VOLTAGE, \
 	.indexed = 1, \
-	.channel = chn, \
+	.channel = 0, \
 	.extend_name = name, \
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | \
 		BIT(IIO_CHAN_INFO_SCALE), \
@@ -504,10 +498,10 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 }
 
 #define ADIS16400_SUPPLY_CHAN(addr, bits) \
-	ADIS16400_VOLTAGE_CHAN(addr, bits, "supply", ADIS16400_SCAN_SUPPLY, 0)
+	ADIS16400_VOLTAGE_CHAN(addr, bits, "supply", ADIS16400_SCAN_SUPPLY)
 
 #define ADIS16400_AUX_ADC_CHAN(addr, bits) \
-	ADIS16400_VOLTAGE_CHAN(addr, bits, NULL, ADIS16400_SCAN_ADC, 1)
+	ADIS16400_VOLTAGE_CHAN(addr, bits, NULL, ADIS16400_SCAN_ADC)
 
 #define ADIS16400_GYRO_CHAN(mod, addr, bits) { \
 	.type = IIO_ANGL_VEL, \
@@ -638,7 +632,7 @@ static const struct iio_chan_spec adis16400_channels[] = {
 	ADIS16400_MAGN_CHAN(Z, ADIS16400_ZMAGN_OUT, 14),
 	ADIS16400_TEMP_CHAN(ADIS16400_TEMP_OUT, 12),
 	ADIS16400_AUX_ADC_CHAN(ADIS16400_AUX_ADC, 12),
-	IIO_CHAN_SOFT_TIMESTAMP(ADIS16400_SCAN_TIMESTAMP),
+	IIO_CHAN_SOFT_TIMESTAMP(12)
 };
 
 static const struct iio_chan_spec adis16448_channels[] = {
@@ -657,15 +651,10 @@ static const struct iio_chan_spec adis16448_channels[] = {
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),
 		.address = ADIS16448_BARO_OUT,
 		.scan_index = ADIS16400_SCAN_BARO,
-		.scan_type = {
-			.sign = 's',
-			.realbits = 16,
-			.storagebits = 16,
-			.endianness = IIO_BE,
-		},
+		.scan_type = IIO_ST('s', 16, 16, 0),
 	},
 	ADIS16400_TEMP_CHAN(ADIS16448_TEMP_OUT, 12),
-	IIO_CHAN_SOFT_TIMESTAMP(ADIS16400_SCAN_TIMESTAMP),
+	IIO_CHAN_SOFT_TIMESTAMP(11)
 };
 
 static const struct iio_chan_spec adis16350_channels[] = {
@@ -683,7 +672,7 @@ static const struct iio_chan_spec adis16350_channels[] = {
 	ADIS16400_MOD_TEMP_CHAN(X, ADIS16350_XTEMP_OUT, 12),
 	ADIS16400_MOD_TEMP_CHAN(Y, ADIS16350_YTEMP_OUT, 12),
 	ADIS16400_MOD_TEMP_CHAN(Z, ADIS16350_ZTEMP_OUT, 12),
-	IIO_CHAN_SOFT_TIMESTAMP(ADIS16400_SCAN_TIMESTAMP),
+	IIO_CHAN_SOFT_TIMESTAMP(11)
 };
 
 static const struct iio_chan_spec adis16300_channels[] = {
@@ -696,7 +685,7 @@ static const struct iio_chan_spec adis16300_channels[] = {
 	ADIS16400_AUX_ADC_CHAN(ADIS16300_AUX_ADC, 12),
 	ADIS16400_INCLI_CHAN(X, ADIS16300_PITCH_OUT, 13),
 	ADIS16400_INCLI_CHAN(Y, ADIS16300_ROLL_OUT, 13),
-	IIO_CHAN_SOFT_TIMESTAMP(ADIS16400_SCAN_TIMESTAMP),
+	IIO_CHAN_SOFT_TIMESTAMP(14)
 };
 
 static const struct iio_chan_spec adis16334_channels[] = {
@@ -707,7 +696,7 @@ static const struct iio_chan_spec adis16334_channels[] = {
 	ADIS16400_ACCEL_CHAN(Y, ADIS16400_YACCL_OUT, 14),
 	ADIS16400_ACCEL_CHAN(Z, ADIS16400_ZACCL_OUT, 14),
 	ADIS16400_TEMP_CHAN(ADIS16350_XTEMP_OUT, 12),
-	IIO_CHAN_SOFT_TIMESTAMP(ADIS16400_SCAN_TIMESTAMP),
+	IIO_CHAN_SOFT_TIMESTAMP(8)
 };
 
 static struct attribute *adis16400_attributes[] = {
@@ -824,6 +813,11 @@ static const struct iio_info adis16400_info = {
 	.debugfs_reg_access = adis_debugfs_reg_access,
 };
 
+static const unsigned long adis16400_burst_scan_mask[] = {
+	~0UL,
+	0,
+};
+
 static const char * const adis16400_status_error_msgs[] = {
 	[ADIS16400_DIAG_STAT_ZACCL_FAIL] = "Z-axis accelerometer self-test failure",
 	[ADIS16400_DIAG_STAT_YACCL_FAIL] = "Y-axis accelerometer self-test failure",
@@ -871,20 +865,6 @@ static const struct adis_data adis16400_data = {
 		BIT(ADIS16400_DIAG_STAT_POWER_LOW),
 };
 
-static void adis16400_setup_chan_mask(struct adis16400_state *st)
-{
-	const struct adis16400_chip_info *chip_info = st->variant;
-	unsigned i;
-
-	for (i = 0; i < chip_info->num_channels; i++) {
-		const struct iio_chan_spec *ch = &chip_info->channels[i];
-
-		if (ch->scan_index >= 0 &&
-		    ch->scan_index != ADIS16400_SCAN_TIMESTAMP)
-			st->avail_scan_mask[0] |= BIT(ch->scan_index);
-	}
-}
-
 static int adis16400_probe(struct spi_device *spi)
 {
 	struct adis16400_state *st;
@@ -908,10 +888,8 @@ static int adis16400_probe(struct spi_device *spi)
 	indio_dev->info = &adis16400_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	if (!(st->variant->flags & ADIS16400_NO_BURST)) {
-		adis16400_setup_chan_mask(st);
-		indio_dev->available_scan_masks = st->avail_scan_mask;
-	}
+	if (!(st->variant->flags & ADIS16400_NO_BURST))
+		indio_dev->available_scan_masks = adis16400_burst_scan_mask;
 
 	ret = adis_init(&st->adis, indio_dev, spi, &adis16400_data);
 	if (ret)

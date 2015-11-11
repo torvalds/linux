@@ -272,12 +272,9 @@ static struct port *find_port_by_devt_in_portdev(struct ports_device *portdev,
 	unsigned long flags;
 
 	spin_lock_irqsave(&portdev->ports_lock, flags);
-	list_for_each_entry(port, &portdev->ports, list) {
-		if (port->cdev->dev == dev) {
-			kref_get(&port->kref);
+	list_for_each_entry(port, &portdev->ports, list)
+		if (port->cdev->dev == dev)
 			goto out;
-		}
-	}
 	port = NULL;
 out:
 	spin_unlock_irqrestore(&portdev->ports_lock, flags);
@@ -749,10 +746,6 @@ static ssize_t port_fops_read(struct file *filp, char __user *ubuf,
 
 	port = filp->private_data;
 
-	/* Port is hot-unplugged. */
-	if (!port->guest_connected)
-		return -ENODEV;
-
 	if (!port_has_data(port)) {
 		/*
 		 * If nothing's connected on the host just return 0 in
@@ -769,7 +762,7 @@ static ssize_t port_fops_read(struct file *filp, char __user *ubuf,
 		if (ret < 0)
 			return ret;
 	}
-	/* Port got hot-unplugged while we were waiting above. */
+	/* Port got hot-unplugged. */
 	if (!port->guest_connected)
 		return -ENODEV;
 	/*
@@ -939,25 +932,13 @@ static ssize_t port_fops_splice_write(struct pipe_inode_info *pipe,
 	if (is_rproc_serial(port->out_vq->vdev))
 		return -EINVAL;
 
-	/*
-	 * pipe->nrbufs == 0 means there are no data to transfer,
-	 * so this returns just 0 for no data.
-	 */
-	pipe_lock(pipe);
-	if (!pipe->nrbufs) {
-		ret = 0;
-		goto error_out;
-	}
-
 	ret = wait_port_writable(port, filp->f_flags & O_NONBLOCK);
 	if (ret < 0)
-		goto error_out;
+		return ret;
 
 	buf = alloc_buf(port->out_vq, 0, pipe->nrbufs);
-	if (!buf) {
-		ret = -ENOMEM;
-		goto error_out;
-	}
+	if (!buf)
+		return -ENOMEM;
 
 	sgl.n = 0;
 	sgl.len = 0;
@@ -965,16 +946,11 @@ static ssize_t port_fops_splice_write(struct pipe_inode_info *pipe,
 	sgl.sg = buf->sg;
 	sg_init_table(sgl.sg, sgl.size);
 	ret = __splice_from_pipe(pipe, &sd, pipe_to_sg);
-	pipe_unlock(pipe);
 	if (likely(ret > 0))
 		ret = __send_to_port(port, buf->sg, sgl.n, sgl.len, buf, true);
 
 	if (unlikely(ret <= 0))
 		free_buf(buf, true);
-	return ret;
-
-error_out:
-	pipe_unlock(pipe);
 	return ret;
 }
 
@@ -1043,13 +1019,13 @@ static int port_fops_open(struct inode *inode, struct file *filp)
 	struct port *port;
 	int ret;
 
-	/* We get the port with a kref here */
 	port = find_port_by_devt(cdev->dev);
-	if (!port) {
-		/* Port was unplugged before we could proceed */
-		return -ENXIO;
-	}
 	filp->private_data = port;
+
+	/* Prevent against a port getting hot-unplugged at the same time */
+	spin_lock_irq(&port->portdev->ports_lock);
+	kref_get(&port->kref);
+	spin_unlock_irq(&port->portdev->ports_lock);
 
 	/*
 	 * Don't allow opening of console port devices -- that's done
@@ -1522,6 +1498,14 @@ static void remove_port(struct kref *kref)
 
 	port = container_of(kref, struct port, kref);
 
+	sysfs_remove_group(&port->dev->kobj, &port_attribute_group);
+	device_destroy(pdrvdata.class, port->dev->devt);
+	cdev_del(port->cdev);
+
+	kfree(port->name);
+
+	debugfs_remove(port->debugfs_file);
+
 	kfree(port);
 }
 
@@ -1555,14 +1539,12 @@ static void unplug_port(struct port *port)
 	spin_unlock_irq(&port->portdev->ports_lock);
 
 	if (port->guest_connected) {
-		/* Let the app know the port is going down. */
-		send_sigio_to_port(port);
-
-		/* Do this after sigio is actually sent */
 		port->guest_connected = false;
 		port->host_connected = false;
-
 		wake_up_interruptible(&port->waitqueue);
+
+		/* Let the app know the port is going down. */
+		send_sigio_to_port(port);
 	}
 
 	if (is_console_port(port)) {
@@ -1580,14 +1562,6 @@ static void unplug_port(struct port *port)
 	 * control message.
 	 */
 	port->portdev = NULL;
-
-	sysfs_remove_group(&port->dev->kobj, &port_attribute_group);
-	device_destroy(pdrvdata.class, port->dev->devt);
-	cdev_del(port->cdev);
-
-	kfree(port->name);
-
-	debugfs_remove(port->debugfs_file);
 
 	/*
 	 * Locks around here are not necessary - a port can't be
@@ -2023,13 +1997,12 @@ static int virtcons_probe(struct virtio_device *vdev)
 	spin_lock_init(&portdev->ports_lock);
 	INIT_LIST_HEAD(&portdev->ports);
 
-	INIT_WORK(&portdev->control_work, &control_work_handler);
-
 	if (multiport) {
 		unsigned int nr_added_bufs;
 
 		spin_lock_init(&portdev->c_ivq_lock);
 		spin_lock_init(&portdev->c_ovq_lock);
+		INIT_WORK(&portdev->control_work, &control_work_handler);
 
 		nr_added_bufs = fill_queue(portdev->c_ivq,
 					   &portdev->c_ivq_lock);

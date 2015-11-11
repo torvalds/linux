@@ -1123,11 +1123,7 @@ int hci_dev_open(__u16 dev)
 		goto done;
 	}
 
-	/* Check for rfkill but allow the HCI setup stage to proceed
-	 * (which in itself doesn't cause any RF activity).
-	 */
-	if (test_bit(HCI_RFKILLED, &hdev->dev_flags) &&
-	    !test_bit(HCI_SETUP, &hdev->dev_flags)) {
+	if (hdev->rfkill && rfkill_blocked(hdev->rfkill)) {
 		ret = -ERFKILL;
 		goto done;
 	}
@@ -1549,13 +1545,10 @@ static int hci_rfkill_set_block(void *data, bool blocked)
 
 	BT_DBG("%p name %s blocked %d", hdev, hdev->name, blocked);
 
-	if (blocked) {
-		set_bit(HCI_RFKILLED, &hdev->dev_flags);
-		if (!test_bit(HCI_SETUP, &hdev->dev_flags))
-			hci_dev_do_close(hdev);
-	} else {
-		clear_bit(HCI_RFKILLED, &hdev->dev_flags);
-}
+	if (!blocked)
+		return 0;
+
+	hci_dev_do_close(hdev);
 
 	return 0;
 }
@@ -1577,13 +1570,9 @@ static void hci_power_on(struct work_struct *work)
 		return;
 	}
 
-	if (test_bit(HCI_RFKILLED, &hdev->dev_flags)) {
-		clear_bit(HCI_AUTO_OFF, &hdev->dev_flags);
-		hci_dev_do_close(hdev);
-	} else if (test_bit(HCI_AUTO_OFF, &hdev->dev_flags)) {
+	if (test_bit(HCI_AUTO_OFF, &hdev->dev_flags))
 		queue_delayed_work(hdev->req_workqueue, &hdev->power_off,
 				   HCI_AUTO_OFF_TIMEOUT);
-	}
 
 	if (test_and_clear_bit(HCI_SETUP, &hdev->dev_flags))
 		mgmt_index_added(hdev);
@@ -2251,9 +2240,6 @@ int hci_register_dev(struct hci_dev *hdev)
 			hdev->rfkill = NULL;
 		}
 	}
-
-	if (hdev->rfkill && rfkill_blocked(hdev->rfkill))
-		set_bit(HCI_RFKILLED, &hdev->dev_flags);
 
 	set_bit(HCI_SETUP, &hdev->dev_flags);
 

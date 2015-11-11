@@ -1624,7 +1624,6 @@ again:
 		 * shortening the size of the delalloc range we're searching
 		 */
 		free_extent_state(cached_state);
-		cached_state = NULL;
 		if (!loops) {
 			unsigned long offset = (*start) & (PAGE_CACHE_SIZE - 1);
 			max_bytes = PAGE_CACHE_SIZE - offset;
@@ -2357,7 +2356,7 @@ int end_extent_writepage(struct page *page, int err, u64 start, u64 end)
 {
 	int uptodate = (err == 0);
 	struct extent_io_tree *tree;
-	int ret = 0;
+	int ret;
 
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
 
@@ -2371,8 +2370,6 @@ int end_extent_writepage(struct page *page, int err, u64 start, u64 end)
 	if (!uptodate) {
 		ClearPageUptodate(page);
 		SetPageError(page);
-		ret = ret < 0 ? ret : -EIO;
-		mapping_set_error(page->mapping, ret);
 	}
 	return 0;
 }
@@ -4080,11 +4077,8 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		}
 		ret = fiemap_fill_next_extent(fieinfo, em_start, disko,
 					      em_len, flags);
-		if (ret) {
-			if (ret == 1)
-				ret = 0;
+		if (ret)
 			goto out_free;
-		}
 	}
 out_free:
 	free_extent_map(em);

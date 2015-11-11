@@ -1,0 +1,10 @@
+TODO:
+	- checkpatch.pl cleanups
+	- sparse fixes
+	- rename files to be not so "generic"
+	- make sure things build as modules properly
+	- add proper arch dependencies as needed
+	- audit userspace interfaces to make sure they are sane
+
+Please send patches to Greg Kroah-Hartman <greg@kroah.com> and Cc:
+Brian Swetland <swetland@google.com>

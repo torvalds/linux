@@ -47,7 +47,6 @@
 #include <linux/sched/sysctl.h>
 #include <linux/sched/rt.h>
 #include <linux/timer.h>
-#include <linux/freezer.h>
 
 #include <asm/uaccess.h>
 
@@ -246,11 +245,6 @@ again:
 			goto again;
 		}
 		timer->base = new_base;
-	} else {
-		if (cpu != this_cpu && hrtimer_check_target(timer, new_base)) {
-			cpu = this_cpu;
-			goto again;
-		}
 	}
 	return new_base;
 }
@@ -586,23 +580,6 @@ hrtimer_force_reprogram(struct hrtimer_cpu_base *cpu_base, int skip_equal)
 
 	cpu_base->expires_next.tv64 = expires_next.tv64;
 
-	/*
-	 * If a hang was detected in the last timer interrupt then we
-	 * leave the hang delay active in the hardware. We want the
-	 * system to make progress. That also prevents the following
-	 * scenario:
-	 * T1 expires 50ms from now
-	 * T2 expires 5s from now
-	 *
-	 * T1 is removed, so this code is called and would reprogram
-	 * the hardware to 5s from now. Any hrtimer_start after that
-	 * will not reprogram the hardware due to hang_detected being
-	 * set. So we'd effectivly block all timers until the T2 event
-	 * fires.
-	 */
-	if (cpu_base->hang_detected)
-		return;
-
 	if (cpu_base->expires_next.tv64 != KTIME_MAX)
 		tick_program_event(cpu_base->expires_next, 1);
 }
@@ -744,20 +721,17 @@ static int hrtimer_switch_to_hres(void)
 	return 1;
 }
 
-static void clock_was_set_work(struct work_struct *work)
-{
-	clock_was_set();
-}
-
-static DECLARE_WORK(hrtimer_work, clock_was_set_work);
-
 /*
- * Called from timekeeping and resume code to reprogramm the hrtimer
- * interrupt device on all cpus.
+ * Called from timekeeping code to reprogramm the hrtimer interrupt
+ * device. If called from the timer interrupt context we defer it to
+ * softirq context.
  */
 void clock_was_set_delayed(void)
 {
-	schedule_work(&hrtimer_work);
+	struct hrtimer_cpu_base *cpu_base = &__get_cpu_var(hrtimer_bases);
+
+	cpu_base->clock_was_set = 1;
+	__raise_softirq_irqoff(HRTIMER_SOFTIRQ);
 }
 
 #else
@@ -806,10 +780,8 @@ void hrtimers_resume(void)
 	WARN_ONCE(!irqs_disabled(),
 		  KERN_INFO "hrtimers_resume() called with IRQs enabled!");
 
-	/* Retrigger on the local CPU */
 	retrigger_next_event(NULL);
-	/* And schedule a retrigger for all others */
-	clock_was_set_delayed();
+	timerfd_clock_was_set();
 }
 
 static inline void timer_stats_hrtimer_set_start_info(struct hrtimer *timer)
@@ -1000,8 +972,11 @@ int __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 	/* Remove an active timer from the queue: */
 	ret = remove_hrtimer(timer, base);
 
+	/* Switch the timer base, if necessary: */
+	new_base = switch_hrtimer_base(timer, base, mode & HRTIMER_MODE_PINNED);
+
 	if (mode & HRTIMER_MODE_REL) {
-		tim = ktime_add_safe(tim, base->get_time());
+		tim = ktime_add_safe(tim, new_base->get_time());
 		/*
 		 * CONFIG_TIME_LOW_RES is a temporary way for architectures
 		 * to signal that they simply return xtime in
@@ -1015,9 +990,6 @@ int __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 	}
 
 	hrtimer_set_expires_range_ns(timer, tim, delta_ns);
-
-	/* Switch the timer base, if necessary: */
-	new_base = switch_hrtimer_base(timer, base, mode & HRTIMER_MODE_PINNED);
 
 	timer_stats_hrtimer_set_start_info(timer);
 
@@ -1460,6 +1432,13 @@ void hrtimer_peek_ahead_timers(void)
 
 static void run_hrtimer_softirq(struct softirq_action *h)
 {
+	struct hrtimer_cpu_base *cpu_base = &__get_cpu_var(hrtimer_bases);
+
+	if (cpu_base->clock_was_set) {
+		cpu_base->clock_was_set = 0;
+		clock_was_set();
+	}
+
 	hrtimer_peek_ahead_timers();
 }
 
@@ -1566,7 +1545,7 @@ static int __sched do_nanosleep(struct hrtimer_sleeper *t, enum hrtimer_mode mod
 			t->task = NULL;
 
 		if (likely(t->task))
-			freezable_schedule();
+			schedule();
 
 		hrtimer_cancel(&t->timer);
 		mode = HRTIMER_MODE_ABS;

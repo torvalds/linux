@@ -31,10 +31,6 @@
 #include <linux/binfmts.h>
 #include <linux/personality.h>
 
-#ifdef CONFIG_ANDROID_PARANOID_NETWORK
-#include <linux/android_aid.h>
-#endif
-
 /*
  * If a non-root user executes a setuid-root binary in
  * !secure(SECURE_NOROOT) mode, then we raise capabilities.
@@ -81,13 +77,6 @@ int cap_capable(const struct cred *cred, struct user_namespace *targ_ns,
 		int cap, int audit)
 {
 	struct user_namespace *ns = targ_ns;
-
-#ifdef CONFIG_ANDROID_PARANOID_NETWORK
-	if (cap == CAP_NET_RAW && in_egroup_p(AID_NET_RAW))
-		return 0;
-	if (cap == CAP_NET_ADMIN && in_egroup_p(AID_NET_ADMIN))
-		return 0;
-#endif
 
 	/* See if cred has the capability in the target user namespace
 	 * by examining the target user namespace and all of the target
@@ -431,9 +420,6 @@ int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_cap_data 
 		cpu_caps->permitted.cap[i] = le32_to_cpu(caps.data[i].permitted);
 		cpu_caps->inheritable.cap[i] = le32_to_cpu(caps.data[i].inheritable);
 	}
-
-	cpu_caps->permitted.cap[CAP_LAST_U32] &= CAP_LAST_U32_VALID_MASK;
-	cpu_caps->inheritable.cap[CAP_LAST_U32] &= CAP_LAST_U32_VALID_MASK;
 
 	return 0;
 }

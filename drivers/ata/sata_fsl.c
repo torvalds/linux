@@ -293,7 +293,6 @@ static void fsl_sata_set_irq_coalescing(struct ata_host *host,
 {
 	struct sata_fsl_host_priv *host_priv = host->private_data;
 	void __iomem *hcr_base = host_priv->hcr_base;
-	unsigned long flags;
 
 	if (count > ICC_MAX_INT_COUNT_THRESHOLD)
 		count = ICC_MAX_INT_COUNT_THRESHOLD;
@@ -306,12 +305,12 @@ static void fsl_sata_set_irq_coalescing(struct ata_host *host,
 			(count > ICC_MIN_INT_COUNT_THRESHOLD))
 		ticks = ICC_SAFE_INT_TICKS;
 
-	spin_lock_irqsave(&host->lock, flags);
+	spin_lock(&host->lock);
 	iowrite32((count << 24 | ticks), hcr_base + ICC);
 
 	intr_coalescing_count = count;
 	intr_coalescing_ticks = ticks;
-	spin_unlock_irqrestore(&host->lock, flags);
+	spin_unlock(&host->lock);
 
 	DPRINTK("interrupt coalescing, count = 0x%x, ticks = %x\n",
 			intr_coalescing_count, intr_coalescing_ticks);
@@ -1501,7 +1500,7 @@ static int sata_fsl_probe(struct platform_device *ofdev)
 	host_priv->csr_base = csr_base;
 
 	irq = irq_of_parse_and_map(ofdev->dev.of_node, 0);
-	if (!irq) {
+	if (irq < 0) {
 		dev_err(&ofdev->dev, "invalid irq from platform\n");
 		goto error_exit_with_cleanup;
 	}

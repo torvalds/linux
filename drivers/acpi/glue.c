@@ -78,99 +78,32 @@ static struct acpi_bus_type *acpi_get_bus_type(struct device *dev)
 	return ret;
 }
 
-static acpi_status acpi_dev_present(acpi_handle handle, u32 lvl_not_used,
-				  void *not_used, void **ret_p)
+static acpi_status do_acpi_find_child(acpi_handle handle, u32 lvl_not_used,
+				      void *addr_p, void **ret_p)
 {
-	struct acpi_device *adev = NULL;
+	unsigned long long addr;
+	acpi_status status;
 
-	acpi_bus_get_device(handle, &adev);
-	if (adev) {
+	status = acpi_evaluate_integer(handle, METHOD_NAME__ADR, NULL, &addr);
+	if (ACPI_SUCCESS(status) && addr == *((u64 *)addr_p)) {
 		*ret_p = handle;
 		return AE_CTRL_TERMINATE;
 	}
 	return AE_OK;
 }
 
-static bool acpi_extra_checks_passed(acpi_handle handle, bool is_bridge)
+acpi_handle acpi_get_child(acpi_handle parent, u64 address)
 {
-	unsigned long long sta;
-	acpi_status status;
+	void *ret = NULL;
 
-	status = acpi_bus_get_status_handle(handle, &sta);
-	if (ACPI_FAILURE(status) || !(sta & ACPI_STA_DEVICE_ENABLED))
-		return false;
+	if (!parent)
+		return NULL;
 
-	if (is_bridge) {
-		void *test = NULL;
-
-		/* Check if this object has at least one child device. */
-		acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, 1,
-				    acpi_dev_present, NULL, NULL, &test);
-		return !!test;
-	}
-	return true;
+	acpi_walk_namespace(ACPI_TYPE_DEVICE, parent, 1, NULL,
+			    do_acpi_find_child, &address, &ret);
+	return (acpi_handle)ret;
 }
-
-struct find_child_context {
-	u64 addr;
-	bool is_bridge;
-	acpi_handle ret;
-	bool ret_checked;
-};
-
-static acpi_status do_find_child(acpi_handle handle, u32 lvl_not_used,
-				 void *data, void **not_used)
-{
-	struct find_child_context *context = data;
-	unsigned long long addr;
-	acpi_status status;
-
-	status = acpi_evaluate_integer(handle, METHOD_NAME__ADR, NULL, &addr);
-	if (ACPI_FAILURE(status) || addr != context->addr)
-		return AE_OK;
-
-	if (!context->ret) {
-		/* This is the first matching object.  Save its handle. */
-		context->ret = handle;
-		return AE_OK;
-	}
-	/*
-	 * There is more than one matching object with the same _ADR value.
-	 * That really is unexpected, so we are kind of beyond the scope of the
-	 * spec here.  We have to choose which one to return, though.
-	 *
-	 * First, check if the previously found object is good enough and return
-	 * its handle if so.  Second, check the same for the object that we've
-	 * just found.
-	 */
-	if (!context->ret_checked) {
-		if (acpi_extra_checks_passed(context->ret, context->is_bridge))
-			return AE_CTRL_TERMINATE;
-		else
-			context->ret_checked = true;
-	}
-	if (acpi_extra_checks_passed(handle, context->is_bridge)) {
-		context->ret = handle;
-		return AE_CTRL_TERMINATE;
-	}
-	return AE_OK;
-}
-
-acpi_handle acpi_find_child(acpi_handle parent, u64 addr, bool is_bridge)
-{
-	if (parent) {
-		struct find_child_context context = {
-			.addr = addr,
-			.is_bridge = is_bridge,
-		};
-
-		acpi_walk_namespace(ACPI_TYPE_DEVICE, parent, 1, do_find_child,
-				    NULL, &context, NULL);
-		return context.ret;
-	}
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(acpi_find_child);
+EXPORT_SYMBOL(acpi_get_child);
 
 static int acpi_bind_one(struct device *dev, acpi_handle handle)
 {

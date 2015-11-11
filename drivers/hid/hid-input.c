@@ -317,9 +317,6 @@ static const struct hid_device_id hid_battery_quirks[] = {
 			       USB_DEVICE_ID_APPLE_ALU_WIRELESS_2011_ANSI),
 	  HID_BATTERY_QUIRK_PERCENT | HID_BATTERY_QUIRK_FEATURE },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_APPLE,
-			       USB_DEVICE_ID_APPLE_ALU_WIRELESS_2011_ISO),
-	  HID_BATTERY_QUIRK_PERCENT | HID_BATTERY_QUIRK_FEATURE },
-	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_APPLE,
 		USB_DEVICE_ID_APPLE_ALU_WIRELESS_ANSI),
 	  HID_BATTERY_QUIRK_PERCENT | HID_BATTERY_QUIRK_FEATURE },
 	{}
@@ -343,7 +340,7 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 {
 	struct hid_device *dev = container_of(psy, struct hid_device, battery);
 	int ret = 0;
-	__u8 *buf;
+	__u8 buf[2] = {};
 
 	switch (prop) {
 	case POWER_SUPPLY_PROP_PRESENT:
@@ -352,20 +349,13 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_CAPACITY:
-
-		buf = kmalloc(2 * sizeof(__u8), GFP_KERNEL);
-		if (!buf) {
-			ret = -ENOMEM;
-			break;
-		}
 		ret = dev->hid_get_raw_report(dev, dev->battery_report_id,
-					      buf, 2,
+					      buf, sizeof(buf),
 					      dev->battery_report_type);
 
 		if (ret != 2) {
 			if (ret >= 0)
 				ret = -EINVAL;
-			kfree(buf);
 			break;
 		}
 
@@ -374,7 +364,6 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 		    buf[1] <= dev->battery_max)
 			val->intval = (100 * (buf[1] - dev->battery_min)) /
 				(dev->battery_max - dev->battery_min);
-		kfree(buf);
 		break;
 
 	case POWER_SUPPLY_PROP_MODEL_NAME:
@@ -486,10 +475,6 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 	field->hidinput = hidinput;
 
 	if (field->flags & HID_MAIN_ITEM_CONSTANT)
-		goto ignore;
-
-	/* Ignore if report count is out of bounds. */
-	if (field->report_count < 1)
 		goto ignore;
 
 	/* only LED usages are supported in output fields */
@@ -729,13 +714,6 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case 0x06c: map_key_clear(KEY_YELLOW);		break;
 		case 0x06d: map_key_clear(KEY_ZOOM);		break;
 
-		case 0x06f: map_key_clear(KEY_BRIGHTNESSUP);		break;
-		case 0x070: map_key_clear(KEY_BRIGHTNESSDOWN);		break;
-		case 0x072: map_key_clear(KEY_BRIGHTNESS_TOGGLE);	break;
-		case 0x073: map_key_clear(KEY_BRIGHTNESS_MIN);		break;
-		case 0x074: map_key_clear(KEY_BRIGHTNESS_MAX);		break;
-		case 0x075: map_key_clear(KEY_BRIGHTNESS_AUTO);		break;
-
 		case 0x082: map_key_clear(KEY_VIDEO_NEXT);	break;
 		case 0x083: map_key_clear(KEY_LAST);		break;
 		case 0x084: map_key_clear(KEY_ENTER);		break;
@@ -776,7 +754,6 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case 0x0bf: map_key_clear(KEY_SLOW);		break;
 
 		case 0x0cd: map_key_clear(KEY_PLAYPAUSE);	break;
-		case 0x0cf: map_key_clear(KEY_VOICECOMMAND);	break;
 		case 0x0e0: map_abs_clear(ABS_VOLUME);		break;
 		case 0x0e2: map_key_clear(KEY_MUTE);		break;
 		case 0x0e5: map_key_clear(KEY_BASSBOOST);	break;
@@ -784,7 +761,6 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case 0x0ea: map_key_clear(KEY_VOLUMEDOWN);	break;
 		case 0x0f5: map_key_clear(KEY_SLOW);		break;
 
-		case 0x181: map_key_clear(KEY_BUTTONCONFIG);	break;
 		case 0x182: map_key_clear(KEY_BOOKMARKS);	break;
 		case 0x183: map_key_clear(KEY_CONFIG);		break;
 		case 0x184: map_key_clear(KEY_WORDPROCESSOR);	break;
@@ -798,8 +774,6 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case 0x18c: map_key_clear(KEY_VOICEMAIL);	break;
 		case 0x18d: map_key_clear(KEY_ADDRESSBOOK);	break;
 		case 0x18e: map_key_clear(KEY_CALENDAR);	break;
-		case 0x18f: map_key_clear(KEY_TASKMANAGER);	break;
-		case 0x190: map_key_clear(KEY_JOURNAL);		break;
 		case 0x191: map_key_clear(KEY_FINANCE);		break;
 		case 0x192: map_key_clear(KEY_CALC);		break;
 		case 0x193: map_key_clear(KEY_PLAYER);		break;
@@ -808,16 +782,10 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case 0x199: map_key_clear(KEY_CHAT);		break;
 		case 0x19c: map_key_clear(KEY_LOGOFF);		break;
 		case 0x19e: map_key_clear(KEY_COFFEE);		break;
-		case 0x19f: map_key_clear(KEY_CONTROLPANEL);		break;
-		case 0x1a2: map_key_clear(KEY_APPSELECT);		break;
-		case 0x1a3: map_key_clear(KEY_NEXT);		break;
-		case 0x1a4: map_key_clear(KEY_PREVIOUS);	break;
 		case 0x1a6: map_key_clear(KEY_HELP);		break;
 		case 0x1a7: map_key_clear(KEY_DOCUMENTS);	break;
 		case 0x1ab: map_key_clear(KEY_SPELLCHECK);	break;
 		case 0x1ae: map_key_clear(KEY_KEYBOARD);	break;
-		case 0x1b1: map_key_clear(KEY_SCREENSAVER);		break;
-		case 0x1b4: map_key_clear(KEY_FILE);		break;
 		case 0x1b6: map_key_clear(KEY_IMAGES);		break;
 		case 0x1b7: map_key_clear(KEY_AUDIO);		break;
 		case 0x1b8: map_key_clear(KEY_VIDEO);		break;
@@ -1083,23 +1051,6 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 		return;
 	}
 
-	/*
-	 * Ignore reports for absolute data if the data didn't change. This is
-	 * not only an optimization but also fixes 'dead' key reports. Some
-	 * RollOver implementations for localized keys (like BACKSLASH/PIPE; HID
-	 * 0x31 and 0x32) report multiple keys, even though a localized keyboard
-	 * can only have one of them physically available. The 'dead' keys
-	 * report constant 0. As all map to the same keycode, they'd confuse
-	 * the input layer. If we filter the 'dead' keys on the HID level, we
-	 * skip the keycode translation and only forward real events.
-	 */
-	if (!(field->flags & (HID_MAIN_ITEM_RELATIVE |
-	                      HID_MAIN_ITEM_BUFFERED_BYTE)) &&
-			      (field->flags & HID_MAIN_ITEM_VARIABLE) &&
-	    usage->usage_index < field->maxusage &&
-	    value == field->value[usage->usage_index])
-		return;
-
 	/* report the usage code as scancode if the key status has changed */
 	if (usage->type == EV_KEY && !!test_bit(usage->code, input->key) != value)
 		input_event(input, EV_MSC, MSC_SCAN, usage->hid);
@@ -1204,11 +1155,7 @@ static void report_features(struct hid_device *hid)
 
 	rep_enum = &hid->report_enum[HID_FEATURE_REPORT];
 	list_for_each_entry(rep, &rep_enum->report_list, list)
-		for (i = 0; i < rep->maxfield; i++) {
-			/* Ignore if report count is out of bounds. */
-			if (rep->field[i]->report_count < 1)
-				continue;
-
+		for (i = 0; i < rep->maxfield; i++)
 			for (j = 0; j < rep->field[i]->maxusage; j++) {
 				/* Verify if Battery Strength feature is available */
 				hidinput_setup_battery(hid, HID_FEATURE_REPORT, rep->field[i]);
@@ -1217,7 +1164,6 @@ static void report_features(struct hid_device *hid)
 					drv->feature_mapping(hid, rep->field[i],
 							     rep->field[i]->usage + j);
 			}
-		}
 }
 
 static struct hid_input *hidinput_allocate(struct hid_device *hid)
@@ -1375,9 +1321,8 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 				 * UGCI) cram a lot of unrelated inputs into the
 				 * same interface. */
 				hidinput->report = report;
-				if (drv->input_configured &&
-				    drv->input_configured(hid, hidinput))
-					goto out_cleanup;
+				if (drv->input_configured)
+					drv->input_configured(hid, hidinput);
 				if (input_register_device(hidinput->input))
 					goto out_cleanup;
 				hidinput = NULL;
@@ -1398,9 +1343,8 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 	}
 
 	if (hidinput) {
-		if (drv->input_configured &&
-		    drv->input_configured(hid, hidinput))
-			goto out_cleanup;
+		if (drv->input_configured)
+			drv->input_configured(hid, hidinput);
 		if (input_register_device(hidinput->input))
 			goto out_cleanup;
 	}

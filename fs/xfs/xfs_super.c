@@ -1218,7 +1218,6 @@ xfs_fs_remount(
 	char			*p;
 	int			error;
 
-	sync_filesystem(sb);
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token;
 

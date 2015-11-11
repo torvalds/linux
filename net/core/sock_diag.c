@@ -49,7 +49,7 @@ int sock_diag_put_meminfo(struct sock *sk, struct sk_buff *skb, int attrtype)
 }
 EXPORT_SYMBOL_GPL(sock_diag_put_meminfo);
 
-int sock_diag_put_filterinfo(bool may_report_filterinfo, struct sock *sk,
+int sock_diag_put_filterinfo(struct user_namespace *user_ns, struct sock *sk,
 			     struct sk_buff *skb, int attrtype)
 {
 	struct nlattr *attr;
@@ -57,7 +57,7 @@ int sock_diag_put_filterinfo(bool may_report_filterinfo, struct sock *sk,
 	unsigned int len;
 	int err = 0;
 
-	if (!may_report_filterinfo) {
+	if (!ns_capable(user_ns, CAP_NET_ADMIN)) {
 		nla_reserve(skb, attrtype, 0);
 		return 0;
 	}

@@ -147,7 +147,7 @@ static uint16_t combios_get_table_offset(struct drm_device *dev,
 					 enum radeon_combios_table_offset table)
 {
 	struct radeon_device *rdev = dev->dev_private;
-	int rev, size;
+	int rev;
 	uint16_t offset = 0, check_offset;
 
 	if (!rdev->bios)
@@ -156,106 +156,174 @@ static uint16_t combios_get_table_offset(struct drm_device *dev,
 	switch (table) {
 		/* absolute offset tables */
 	case COMBIOS_ASIC_INIT_1_TABLE:
-		check_offset = 0xc;
+		check_offset = RBIOS16(rdev->bios_header_start + 0xc);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_BIOS_SUPPORT_TABLE:
-		check_offset = 0x14;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x14);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_DAC_PROGRAMMING_TABLE:
-		check_offset = 0x2a;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x2a);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_MAX_COLOR_DEPTH_TABLE:
-		check_offset = 0x2c;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x2c);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_CRTC_INFO_TABLE:
-		check_offset = 0x2e;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x2e);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_PLL_INFO_TABLE:
-		check_offset = 0x30;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x30);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_TV_INFO_TABLE:
-		check_offset = 0x32;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x32);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_DFP_INFO_TABLE:
-		check_offset = 0x34;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x34);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_HW_CONFIG_INFO_TABLE:
-		check_offset = 0x36;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x36);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_MULTIMEDIA_INFO_TABLE:
-		check_offset = 0x38;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x38);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_TV_STD_PATCH_TABLE:
-		check_offset = 0x3e;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x3e);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_LCD_INFO_TABLE:
-		check_offset = 0x40;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x40);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_MOBILE_INFO_TABLE:
-		check_offset = 0x42;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x42);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_PLL_INIT_TABLE:
-		check_offset = 0x46;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x46);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_MEM_CONFIG_TABLE:
-		check_offset = 0x48;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x48);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_SAVE_MASK_TABLE:
-		check_offset = 0x4a;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x4a);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_HARDCODED_EDID_TABLE:
-		check_offset = 0x4c;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x4c);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_ASIC_INIT_2_TABLE:
-		check_offset = 0x4e;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x4e);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_CONNECTOR_INFO_TABLE:
-		check_offset = 0x50;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x50);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_DYN_CLK_1_TABLE:
-		check_offset = 0x52;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x52);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_RESERVED_MEM_TABLE:
-		check_offset = 0x54;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x54);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_EXT_TMDS_INFO_TABLE:
-		check_offset = 0x58;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x58);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_MEM_CLK_INFO_TABLE:
-		check_offset = 0x5a;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x5a);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_EXT_DAC_INFO_TABLE:
-		check_offset = 0x5c;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x5c);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_MISC_INFO_TABLE:
-		check_offset = 0x5e;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x5e);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_CRT_INFO_TABLE:
-		check_offset = 0x60;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x60);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_INTEGRATED_SYSTEM_INFO_TABLE:
-		check_offset = 0x62;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x62);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_COMPONENT_VIDEO_INFO_TABLE:
-		check_offset = 0x64;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x64);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_FAN_SPEED_INFO_TABLE:
-		check_offset = 0x66;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x66);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_OVERDRIVE_INFO_TABLE:
-		check_offset = 0x68;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x68);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_OEM_INFO_TABLE:
-		check_offset = 0x6a;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x6a);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_DYN_CLK_2_TABLE:
-		check_offset = 0x6c;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x6c);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_POWER_CONNECTOR_INFO_TABLE:
-		check_offset = 0x6e;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x6e);
+		if (check_offset)
+			offset = check_offset;
 		break;
 	case COMBIOS_I2C_INFO_TABLE:
-		check_offset = 0x70;
+		check_offset = RBIOS16(rdev->bios_header_start + 0x70);
+		if (check_offset)
+			offset = check_offset;
 		break;
 		/* relative offset tables */
 	case COMBIOS_ASIC_INIT_3_TABLE:	/* offset from misc info */
@@ -371,16 +439,11 @@ static uint16_t combios_get_table_offset(struct drm_device *dev,
 		}
 		break;
 	default:
-		check_offset = 0;
 		break;
 	}
 
-	size = RBIOS8(rdev->bios_header_start + 0x6);
-	/* check absolute offset tables */
-	if (table < COMBIOS_ASIC_INIT_3_TABLE && check_offset && check_offset < size)
-		offset = RBIOS16(rdev->bios_header_start + check_offset);
-
 	return offset;
+
 }
 
 bool radeon_combios_check_hardcoded_edid(struct radeon_device *rdev)
@@ -902,22 +965,16 @@ struct radeon_encoder_primary_dac *radeon_combios_get_primary_dac_info(struct
 			dac = RBIOS8(dac_info + 0x3) & 0xf;
 			p_dac->ps2_pdac_adj = (bg << 8) | (dac);
 		}
-		/* if the values are zeros, use the table */
-		if ((dac == 0) || (bg == 0))
-			found = 0;
-		else
+		/* if the values are all zeros, use the table */
+		if (p_dac->ps2_pdac_adj)
 			found = 1;
 	}
 
 	/* quirks */
-	/* Radeon 7000 (RV100) */
-	if (((dev->pdev->device == 0x5159) &&
-	    (dev->pdev->subsystem_vendor == 0x174B) &&
-	    (dev->pdev->subsystem_device == 0x7c28)) ||
 	/* Radeon 9100 (R200) */
-	   ((dev->pdev->device == 0x514D) &&
+	if ((dev->pdev->device == 0x514D) &&
 	    (dev->pdev->subsystem_vendor == 0x174B) &&
-	    (dev->pdev->subsystem_device == 0x7149))) {
+	    (dev->pdev->subsystem_device == 0x7149)) {
 		/* vbios value is bad, use the default */
 		found = 0;
 	}
@@ -1271,15 +1328,10 @@ struct radeon_encoder_lvds *radeon_combios_get_lvds_info(struct radeon_encoder
 
 			if ((RBIOS16(tmp) == lvds->native_mode.hdisplay) &&
 			    (RBIOS16(tmp + 2) == lvds->native_mode.vdisplay)) {
-				u32 hss = (RBIOS16(tmp + 21) - RBIOS16(tmp + 19) - 1) * 8;
-
-				if (hss > lvds->native_mode.hdisplay)
-					hss = (10 - 1) * 8;
-
 				lvds->native_mode.htotal = lvds->native_mode.hdisplay +
 					(RBIOS16(tmp + 17) - RBIOS16(tmp + 19)) * 8;
 				lvds->native_mode.hsync_start = lvds->native_mode.hdisplay +
-					hss;
+					(RBIOS16(tmp + 21) - RBIOS16(tmp + 19) - 1) * 8;
 				lvds->native_mode.hsync_end = lvds->native_mode.hsync_start +
 					(RBIOS8(tmp + 23) * 8);
 
@@ -3401,14 +3453,6 @@ void radeon_combios_asic_init(struct drm_device *dev)
 	if (rdev->family == CHIP_RS480 &&
 	    rdev->pdev->subsystem_vendor == 0x103c &&
 	    rdev->pdev->subsystem_device == 0x30ae)
-		return;
-
-	/* quirk for rs4xx HP Compaq dc5750 Small Form Factor to make it resume
-	 * - it hangs on resume inside the dynclk 1 table.
-	 */
-	if (rdev->family == CHIP_RS480 &&
-	    rdev->pdev->subsystem_vendor == 0x103c &&
-	    rdev->pdev->subsystem_device == 0x280a)
 		return;
 
 	/* DYN CLK 1 */

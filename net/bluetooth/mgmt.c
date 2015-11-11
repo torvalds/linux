@@ -2205,10 +2205,10 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 		auth_type = HCI_AT_DEDICATED_BONDING_MITM;
 
 	if (cp->addr.type == BDADDR_BREDR)
-		conn = hci_connect(hdev, ACL_LINK, 0, &cp->addr.bdaddr,
+		conn = hci_connect(hdev, ACL_LINK, &cp->addr.bdaddr,
 				   cp->addr.type, sec_level, auth_type);
 	else
-		conn = hci_connect(hdev, LE_LINK, 0, &cp->addr.bdaddr,
+		conn = hci_connect(hdev, LE_LINK, &cp->addr.bdaddr,
 				   cp->addr.type, sec_level, auth_type);
 
 	if (IS_ERR(conn)) {
@@ -2333,13 +2333,8 @@ static int user_pairing_resp(struct sock *sk, struct hci_dev *hdev,
 	}
 
 	if (addr->type == BDADDR_LE_PUBLIC || addr->type == BDADDR_LE_RANDOM) {
-		/* Continue with pairing via SMP. The hdev lock must be
-		 * released as SMP may try to recquire it for crypto
-		 * purposes.
-		 */
-		hci_dev_unlock(hdev);
+		/* Continue with pairing via SMP */
 		err = smp_user_confirm_reply(conn, mgmt_op, passkey);
-		hci_dev_lock(hdev);
 
 		if (!err)
 			err = cmd_complete(sk, hdev->id, mgmt_op,

@@ -864,8 +864,7 @@ static void ieee80211_rx_reorder_ampdu(struct ieee80211_rx_data *rx,
 	u16 sc;
 	u8 tid, ack_policy;
 
-	if (!ieee80211_is_data_qos(hdr->frame_control) ||
-	    is_multicast_ether_addr(hdr->addr1))
+	if (!ieee80211_is_data_qos(hdr->frame_control))
 		goto dont_reorder;
 
 	/*
@@ -933,14 +932,8 @@ ieee80211_rx_h_check(struct ieee80211_rx_data *rx)
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(rx->skb);
 
-	/*
-	 * Drop duplicate 802.11 retransmissions
-	 * (IEEE 802.11-2012: 9.3.2.10 "Duplicate detection and recovery")
-	 */
-	if (rx->skb->len >= 24 && rx->sta &&
-	    !ieee80211_is_ctl(hdr->frame_control) &&
-	    !ieee80211_is_qos_nullfunc(hdr->frame_control) &&
-	    !is_multicast_ether_addr(hdr->addr1)) {
+	/* Drop duplicate 802.11 retransmissions (IEEE 802.11 Chap. 9.2.9) */
+	if (rx->sta && !is_multicast_ether_addr(hdr->addr1)) {
 		if (unlikely(ieee80211_has_retry(hdr->frame_control) &&
 			     rx->sta->last_seq_ctrl[rx->seqno_idx] ==
 			     hdr->seq_ctrl)) {
@@ -1585,14 +1578,11 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 	sc = le16_to_cpu(hdr->seq_ctrl);
 	frag = sc & IEEE80211_SCTL_FRAG;
 
-	if (is_multicast_ether_addr(hdr->addr1)) {
-		rx->local->dot11MulticastReceivedFrameCount++;
-		goto out_no_led;
-	}
-
-	if (likely(!ieee80211_has_morefrags(fc) && frag == 0))
+	if (likely((!ieee80211_has_morefrags(fc) && frag == 0) ||
+		   is_multicast_ether_addr(hdr->addr1))) {
+		/* not fragmented */
 		goto out;
-
+	}
 	I802_DEBUG_INC(rx->local->rx_handlers_fragments);
 
 	if (skb_linearize(rx->skb))
@@ -1683,10 +1673,12 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 	status->rx_flags |= IEEE80211_RX_FRAGMENTED;
 
  out:
-	ieee80211_led_rx(rx->local);
- out_no_led:
 	if (rx->sta)
 		rx->sta->rx_packets++;
+	if (is_multicast_ether_addr(hdr->addr1))
+		rx->local->dot11MulticastReceivedFrameCount++;
+	else
+		ieee80211_led_rx(rx->local);
 	return RX_CONTINUE;
 }
 
@@ -2022,9 +2014,6 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 	/* reload pointers */
 	hdr = (struct ieee80211_hdr *) skb->data;
 	mesh_hdr = (struct ieee80211s_hdr *) (skb->data + hdrlen);
-
-	if (ieee80211_drop_unencrypted(rx, hdr->frame_control))
-		return RX_DROP_MONITOR;
 
 	/* frame is in RMC, don't forward */
 	if (ieee80211_is_data(hdr->frame_control) &&
@@ -3006,9 +2995,6 @@ static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		if (!bssid)
-			return 0;
-		if (ether_addr_equal(sdata->vif.addr, hdr->addr2) ||
-		    ether_addr_equal(sdata->u.ibss.bssid, hdr->addr2))
 			return 0;
 		if (ieee80211_is_beacon(hdr->frame_control)) {
 			return 1;

@@ -90,20 +90,27 @@ ENTRY(cpu_v7_set_pte_ext)
 
 	tst	r1, #L_PTE_USER
 	orrne	r3, r3, #PTE_EXT_AP1
+#ifdef CONFIG_CPU_USE_DOMAINS
+	@ allow kernel read/write access to read-only user pages
+	tstne	r3, #PTE_EXT_APX
+	bicne	r3, r3, #PTE_EXT_APX | PTE_EXT_AP0
+#endif
 
 	tst	r1, #L_PTE_XN
 	orrne	r3, r3, #PTE_EXT_XN
 
 	tst	r1, #L_PTE_YOUNG
 	tstne	r1, #L_PTE_VALID
+#ifndef CONFIG_CPU_USE_DOMAINS
 	eorne	r1, r1, #L_PTE_NONE
 	tstne	r1, #L_PTE_NONE
+#endif
 	moveq	r3, #0
 
  ARM(	str	r3, [r0, #2048]! )
  THUMB(	add	r0, r0, #2048 )
  THUMB(	str	r3, [r0] )
-	ALT_SMP(W(nop))
+	ALT_SMP(mov	pc,lr)
 	ALT_UP (mcr	p15, 0, r0, c7, c10, 1)		@ flush_pte
 #endif
 	mov	pc, lr

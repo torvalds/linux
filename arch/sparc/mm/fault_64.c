@@ -95,51 +95,38 @@ static unsigned int get_user_insn(unsigned long tpc)
 	pte_t *ptep, pte;
 	unsigned long pa;
 	u32 insn = 0;
+	unsigned long pstate;
 
-	if (pgd_none(*pgdp) || unlikely(pgd_bad(*pgdp)))
-		goto out;
+	if (pgd_none(*pgdp))
+		goto outret;
 	pudp = pud_offset(pgdp, tpc);
-	if (pud_none(*pudp) || unlikely(pud_bad(*pudp)))
-		goto out;
+	if (pud_none(*pudp))
+		goto outret;
+	pmdp = pmd_offset(pudp, tpc);
+	if (pmd_none(*pmdp))
+		goto outret;
 
 	/* This disables preemption for us as well. */
-	local_irq_disable();
+	__asm__ __volatile__("rdpr %%pstate, %0" : "=r" (pstate));
+	__asm__ __volatile__("wrpr %0, %1, %%pstate"
+				: : "r" (pstate), "i" (PSTATE_IE));
+	ptep = pte_offset_map(pmdp, tpc);
+	pte = *ptep;
+	if (!pte_present(pte))
+		goto out;
 
-	pmdp = pmd_offset(pudp, tpc);
-	if (pmd_none(*pmdp) || unlikely(pmd_bad(*pmdp)))
-		goto out_irq_enable;
+	pa  = (pte_pfn(pte) << PAGE_SHIFT);
+	pa += (tpc & ~PAGE_MASK);
 
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-	if (pmd_trans_huge(*pmdp)) {
-		if (pmd_trans_splitting(*pmdp))
-			goto out_irq_enable;
+	/* Use phys bypass so we don't pollute dtlb/dcache. */
+	__asm__ __volatile__("lduwa [%1] %2, %0"
+			     : "=r" (insn)
+			     : "r" (pa), "i" (ASI_PHYS_USE_EC));
 
-		pa  = pmd_pfn(*pmdp) << PAGE_SHIFT;
-		pa += tpc & ~HPAGE_MASK;
-
-		/* Use phys bypass so we don't pollute dtlb/dcache. */
-		__asm__ __volatile__("lduwa [%1] %2, %0"
-				     : "=r" (insn)
-				     : "r" (pa), "i" (ASI_PHYS_USE_EC));
-	} else
-#endif
-	{
-		ptep = pte_offset_map(pmdp, tpc);
-		pte = *ptep;
-		if (pte_present(pte)) {
-			pa  = (pte_pfn(pte) << PAGE_SHIFT);
-			pa += (tpc & ~PAGE_MASK);
-
-			/* Use phys bypass so we don't pollute dtlb/dcache. */
-			__asm__ __volatile__("lduwa [%1] %2, %0"
-					     : "=r" (insn)
-					     : "r" (pa), "i" (ASI_PHYS_USE_EC));
-		}
-		pte_unmap(ptep);
-	}
-out_irq_enable:
-	local_irq_enable();
 out:
+	pte_unmap(ptep);
+	__asm__ __volatile__("wrpr %0, 0x0, %%pstate" : : "r" (pstate));
+outret:
 	return insn;
 }
 
@@ -165,8 +152,7 @@ show_signal_msg(struct pt_regs *regs, int sig, int code,
 }
 
 static void do_fault_siginfo(int code, int sig, struct pt_regs *regs,
-			     unsigned long fault_addr, unsigned int insn,
-			     int fault_code)
+			     unsigned int insn, int fault_code)
 {
 	unsigned long addr;
 	siginfo_t info;
@@ -174,18 +160,10 @@ static void do_fault_siginfo(int code, int sig, struct pt_regs *regs,
 	info.si_code = code;
 	info.si_signo = sig;
 	info.si_errno = 0;
-	if (fault_code & FAULT_CODE_ITLB) {
+	if (fault_code & FAULT_CODE_ITLB)
 		addr = regs->tpc;
-	} else {
-		/* If we were able to probe the faulting instruction, use it
-		 * to compute a precise fault address.  Otherwise use the fault
-		 * time provided address which may only have page granularity.
-		 */
-		if (insn)
-			addr = compute_effective_address(regs, insn, 0);
-		else
-			addr = fault_addr;
-	}
+	else
+		addr = compute_effective_address(regs, insn, 0);
 	info.si_addr = (void __user *) addr;
 	info.si_trapno = 0;
 
@@ -260,7 +238,7 @@ static void __kprobes do_kernel_fault(struct pt_regs *regs, int si_code,
 		/* The si_code was set to make clear whether
 		 * this was a SEGV_MAPERR or SEGV_ACCERR fault.
 		 */
-		do_fault_siginfo(si_code, SIGSEGV, regs, address, insn, fault_code);
+		do_fault_siginfo(si_code, SIGSEGV, regs, insn, fault_code);
 		return;
 	}
 
@@ -277,6 +255,18 @@ static void noinline __kprobes bogus_32bit_fault_tpc(struct pt_regs *regs)
 		       "64-bit TPC [%lx]\n",
 		       current->comm, current->pid,
 		       regs->tpc);
+	show_regs(regs);
+}
+
+static void noinline __kprobes bogus_32bit_fault_address(struct pt_regs *regs,
+							 unsigned long addr)
+{
+	static int times;
+
+	if (times++ < 10)
+		printk(KERN_ERR "FAULT[%s:%d]: 32-bit process "
+		       "reports 64-bit fault address [%lx]\n",
+		       current->comm, current->pid, addr);
 	show_regs(regs);
 }
 
@@ -308,8 +298,10 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 				goto intr_or_no_mm;
 			}
 		}
-		if (unlikely((address >> 32) != 0))
+		if (unlikely((address >> 32) != 0)) {
+			bogus_32bit_fault_address(regs, address);
 			goto intr_or_no_mm;
+		}
 	}
 
 	if (regs->tstate & TSTATE_PRIV) {
@@ -323,8 +315,7 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 			bad_kernel_pc(regs, address);
 			return;
 		}
-	} else
-		flags |= FAULT_FLAG_USER;
+	}
 
 	/*
 	 * If we're in an interrupt or have no user
@@ -427,14 +418,13 @@ good_area:
 		    vma->vm_file != NULL)
 			set_thread_fault_code(fault_code |
 					      FAULT_CODE_BLKCOMMIT);
-
-		flags |= FAULT_FLAG_WRITE;
 	} else {
 		/* Allow reads even for write-only mappings */
 		if (!(vma->vm_flags & (VM_READ | VM_EXEC)))
 			goto bad_area;
 	}
 
+	flags |= ((fault_code & FAULT_CODE_WRITE) ? FAULT_FLAG_WRITE : 0);
 	fault = handle_mm_fault(mm, vma, address, flags);
 
 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
@@ -443,8 +433,6 @@ good_area:
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		if (fault & VM_FAULT_OOM)
 			goto out_of_memory;
-		else if (fault & VM_FAULT_SIGSEGV)
-			goto bad_area;
 		else if (fault & VM_FAULT_SIGBUS)
 			goto do_sigbus;
 		BUG();
@@ -531,7 +519,7 @@ do_sigbus:
 	 * Send a sigbus, regardless of whether we were in kernel
 	 * or user mode.
 	 */
-	do_fault_siginfo(BUS_ADRERR, SIGBUS, regs, address, insn, fault_code);
+	do_fault_siginfo(BUS_ADRERR, SIGBUS, regs, insn, fault_code);
 
 	/* Kernel mode? Handle exceptions or die */
 	if (regs->tstate & TSTATE_PRIV)

@@ -198,8 +198,7 @@ struct mga_device {
 		struct ttm_bo_device bdev;
 	} ttm;
 
-	/* SE model number stored in reg 0x1e24 */
-	u32 unique_rev_id;
+	u32 reg_1e24; /* SE model number */
 };
 
 

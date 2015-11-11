@@ -86,19 +86,10 @@ EXPORT_SYMBOL(__kernel_fpu_begin);
 
 void __kernel_fpu_end(void)
 {
-	if (use_eager_fpu()) {
-		/*
-		 * For eager fpu, most the time, tsk_used_math() is true.
-		 * Restore the user math as we are done with the kernel usage.
-		 * At few instances during thread exit, signal handling etc,
-		 * tsk_used_math() is false. Those few places will take proper
-		 * actions, so we don't need to restore the math here.
-		 */
-		if (likely(tsk_used_math(current)))
-			math_state_restore();
-	} else {
+	if (use_eager_fpu())
+		math_state_restore();
+	else
 		stts();
-	}
 }
 EXPORT_SYMBOL(__kernel_fpu_end);
 
@@ -125,7 +116,7 @@ static void __cpuinit mxcsr_feature_mask_init(void)
 
 	if (cpu_has_fxsr) {
 		memset(&fx_scratch, 0, sizeof(struct i387_fxsave_struct));
-		asm volatile("fxsave %0" : "+m" (fx_scratch));
+		asm volatile("fxsave %0" : : "m" (fx_scratch));
 		mask = fx_scratch.mxcsr_mask;
 		if (mask == 0)
 			mask = 0x0000ffbf;

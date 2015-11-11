@@ -282,7 +282,7 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 	snd_emu10k1_ptr_write(emu, TCB, 0, 0);	/* taken from original driver */
 	snd_emu10k1_ptr_write(emu, TCBS, 0, 4);	/* taken from original driver */
 
-	silent_page = (emu->silent_page.addr << emu->address_mode) | (emu->address_mode ? MAP_PTI_MASK1 : MAP_PTI_MASK0);
+	silent_page = (emu->silent_page.addr << 1) | MAP_PTI_MASK;
 	for (ch = 0; ch < NUM_G; ch++) {
 		snd_emu10k1_ptr_write(emu, MAPA, ch, silent_page);
 		snd_emu10k1_ptr_write(emu, MAPB, ch, silent_page);
@@ -346,11 +346,6 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 	} else if (emu->audigy) {	/* enable analog output */
 		unsigned int reg = inl(emu->port + A_IOCFG);
 		outl(reg | A_IOCFG_GPOUT0, emu->port + A_IOCFG);
-	}
-
-	if (emu->address_mode == 0) {
-		/* use 16M in 4G */
-		outl(inl(emu->port + HCFG) | HCFG_EXPANDED_MEM, emu->port + HCFG);
 	}
 
 	return 0;
@@ -1416,7 +1411,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 *
 	 */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x20011102,
-	 .driver = "Audigy2", .name = "Audigy 2 ZS Notebook [SB0530]",
+	 .driver = "Audigy2", .name = "SB Audigy 2 ZS Notebook [SB0530]",
 	 .id = "Audigy2",
 	 .emu10k2_chip = 1,
 	 .ca0108_chip = 1,
@@ -1566,7 +1561,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .adc_1361t = 1,  /* 24 bit capture instead of 16bit */
 	 .ac97_chip = 1} ,
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x10051102,
-	 .driver = "Audigy2", .name = "Audigy 2 Platinum EX [SB0280]",
+	 .driver = "Audigy2", .name = "SB Audigy 2 Platinum EX [SB0280]",
 	 .id = "Audigy2",
 	 .emu10k2_chip = 1,
 	 .ca0102_chip = 1,
@@ -1870,10 +1865,8 @@ int snd_emu10k1_create(struct snd_card *card,
 
 	is_audigy = emu->audigy = c->emu10k2_chip;
 
-	/* set addressing mode */
-	emu->address_mode = is_audigy ? 0 : 1;
 	/* set the DMA transfer mask */
-	emu->dma_mask = emu->address_mode ? EMU10K1_DMA_MASK : AUDIGY_DMA_MASK;
+	emu->dma_mask = is_audigy ? AUDIGY_DMA_MASK : EMU10K1_DMA_MASK;
 	if (pci_set_dma_mask(pci, emu->dma_mask) < 0 ||
 	    pci_set_consistent_dma_mask(pci, emu->dma_mask) < 0) {
 		snd_printk(KERN_ERR "architecture does not support PCI busmaster DMA with mask 0x%lx\n", emu->dma_mask);
@@ -1896,7 +1889,7 @@ int snd_emu10k1_create(struct snd_card *card,
 
 	emu->max_cache_pages = max_cache_bytes >> PAGE_SHIFT;
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
-				(emu->address_mode ? 32 : 16) * 1024, &emu->ptb_pages) < 0) {
+				32 * 1024, &emu->ptb_pages) < 0) {
 		err = -ENOMEM;
 		goto error;
 	}
@@ -1995,8 +1988,8 @@ int snd_emu10k1_create(struct snd_card *card,
 
 	/* Clear silent pages and set up pointers */
 	memset(emu->silent_page.area, 0, PAGE_SIZE);
-	silent_page = emu->silent_page.addr << emu->address_mode;
-	for (idx = 0; idx < (emu->address_mode ? MAXPAGES1 : MAXPAGES0); idx++)
+	silent_page = emu->silent_page.addr << 1;
+	for (idx = 0; idx < MAXPAGES; idx++)
 		((u32 *)emu->ptb_pages.area)[idx] = cpu_to_le32(silent_page | idx);
 
 	/* set up voice indices */

@@ -176,12 +176,7 @@ void bpf_jit_compile(struct sk_filter *fp)
 	}
 	cleanup_addr = proglen; /* epilogue address */
 
-	/* JITed image shrinks with every pass and the loop iterates
-	 * until the image stops shrinking. Very large bpf programs
-	 * may converge on the last pass. In such case do one more
-	 * pass to emit the final image
-	 */
-	for (pass = 0; pass < 10 || image; pass++) {
+	for (pass = 0; pass < 10; pass++) {
 		u8 seen_or_pass0 = (pass == 0) ? (SEEN_XREG | SEEN_DATAREF | SEEN_MEM) : seen;
 		/* no prologue/epilogue for trivial filters (RET something) */
 		proglen = 0;
@@ -329,21 +324,15 @@ void bpf_jit_compile(struct sk_filter *fp)
 				EMIT2(0x89, 0xd0);	/* mov %edx,%eax */
 				break;
 			case BPF_S_ALU_MOD_K: /* A %= K; */
-				if (K == 1) {
-					CLEAR_A();
-					break;
-				}
 				EMIT2(0x31, 0xd2);	/* xor %edx,%edx */
 				EMIT1(0xb9);EMIT(K, 4);	/* mov imm32,%ecx */
 				EMIT2(0xf7, 0xf1);	/* div %ecx */
 				EMIT2(0x89, 0xd0);	/* mov %edx,%eax */
 				break;
-			case BPF_S_ALU_DIV_K: /* A /= K */
-				if (K == 1)
-					break;
-				EMIT2(0x31, 0xd2);	/* xor %edx,%edx */
-				EMIT1(0xb9);EMIT(K, 4);	/* mov imm32,%ecx */
-				EMIT2(0xf7, 0xf1);	/* div %ecx */
+			case BPF_S_ALU_DIV_K: /* A = reciprocal_divide(A, K); */
+				EMIT3(0x48, 0x69, 0xc0); /* imul imm32,%rax,%rax */
+				EMIT(K, 4);
+				EMIT4(0x48, 0xc1, 0xe8, 0x20); /* shr $0x20,%rax */
 				break;
 			case BPF_S_ALU_AND_X:
 				seen |= SEEN_XREG;

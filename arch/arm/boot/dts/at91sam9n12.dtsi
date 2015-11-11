@@ -31,12 +31,8 @@
 		ssc0 = &ssc0;
 	};
 	cpus {
-		#address-cells = <0>;
-		#size-cells = <0>;
-
-		cpu {
-			compatible = "arm,arm926ej-s";
-			device_type = "cpu";
+		cpu@0 {
+			compatible = "arm,arm926ejs";
 		};
 	};
 

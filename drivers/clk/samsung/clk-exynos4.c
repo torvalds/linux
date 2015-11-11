@@ -40,7 +40,7 @@
 #define SRC_TOP1		0xc214
 #define SRC_CAM			0xc220
 #define SRC_TV			0xc224
-#define SRC_MFC			0xc228
+#define SRC_MFC			0xcc28
 #define SRC_G3D			0xc22c
 #define E4210_SRC_IMAGE		0xc230
 #define SRC_LCD0		0xc234

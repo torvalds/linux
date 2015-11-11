@@ -78,8 +78,8 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	p->thread.reg0 = (unsigned long) childregs;
 	if (unlikely(p->flags & PF_KTHREAD)) {
 		memset(childregs, 0, sizeof(struct pt_regs));
-		p->thread.reg12 = usp;
-		p->thread.reg13 = arg;
+		p->thread->reg12 = usp;
+		p->thread->reg13 = arg;
 		p->thread.reg3 = (unsigned long) ret_from_kernel_thread;
 	} else {
 		*childregs = *current_pt_regs();

@@ -148,7 +148,7 @@ static void max17040_get_online(struct i2c_client *client)
 {
 	struct max17040_chip *chip = i2c_get_clientdata(client);
 
-	if (chip->pdata && chip->pdata->battery_online)
+	if (chip->pdata->battery_online)
 		chip->online = chip->pdata->battery_online();
 	else
 		chip->online = 1;
@@ -158,8 +158,7 @@ static void max17040_get_status(struct i2c_client *client)
 {
 	struct max17040_chip *chip = i2c_get_clientdata(client);
 
-	if (!chip->pdata || !chip->pdata->charger_online
-			|| !chip->pdata->charger_enable) {
+	if (!chip->pdata->charger_online || !chip->pdata->charger_enable) {
 		chip->status = POWER_SUPPLY_STATUS_UNKNOWN;
 		return;
 	}

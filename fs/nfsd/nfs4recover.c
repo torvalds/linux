@@ -240,16 +240,11 @@ struct name_list {
 	struct list_head list;
 };
 
-struct nfs4_dir_ctx {
-	struct dir_context ctx;
-	struct list_head names;
-};
-
 static int
 nfsd4_build_namelist(void *arg, const char *name, int namlen,
 		loff_t offset, u64 ino, unsigned int d_type)
 {
-	struct nfs4_dir_ctx *ctx = arg;
+	struct list_head *names = arg;
 	struct name_list *entry;
 
 	if (namlen != HEXDIR_LEN - 1)
@@ -259,7 +254,7 @@ nfsd4_build_namelist(void *arg, const char *name, int namlen,
 		return -ENOMEM;
 	memcpy(entry->name, name, HEXDIR_LEN - 1);
 	entry->name[HEXDIR_LEN - 1] = '\0';
-	list_add(&entry->list, &ctx->names);
+	list_add(&entry->list, names);
 	return 0;
 }
 
@@ -268,10 +263,7 @@ nfsd4_list_rec_dir(recdir_func *f, struct nfsd_net *nn)
 {
 	const struct cred *original_cred;
 	struct dentry *dir = nn->rec_file->f_path.dentry;
-	struct nfs4_dir_ctx ctx = {
-		.ctx.actor = nfsd4_build_namelist,
-		.names = LIST_HEAD_INIT(ctx.names)
-	};
+	LIST_HEAD(names);
 	int status;
 
 	status = nfs4_save_creds(&original_cred);
@@ -284,11 +276,11 @@ nfsd4_list_rec_dir(recdir_func *f, struct nfsd_net *nn)
 		return status;
 	}
 
-	status = iterate_dir(nn->rec_file, &ctx.ctx);
+	status = vfs_readdir(nn->rec_file, nfsd4_build_namelist, &names);
 	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_PARENT);
-	while (!list_empty(&ctx.names)) {
+	while (!list_empty(&names)) {
 		struct name_list *entry;
-		entry = list_entry(ctx.names.next, struct name_list, list);
+		entry = list_entry(names.next, struct name_list, list);
 		if (!status) {
 			struct dentry *dentry;
 			dentry = lookup_one_len(entry->name, dir, HEXDIR_LEN-1);

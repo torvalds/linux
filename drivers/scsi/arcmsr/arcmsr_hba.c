@@ -137,7 +137,6 @@ static struct scsi_host_template arcmsr_scsi_host_template = {
 	.cmd_per_lun		= ARCMSR_MAX_CMD_PERLUN,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.shost_attrs		= arcmsr_host_attrs,
-	.no_write_same		= 1,
 };
 static struct pci_device_id arcmsr_device_id_table[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1110)},
@@ -2501,15 +2500,16 @@ static int arcmsr_polling_ccbdone(struct AdapterControlBlock *acb,
 static int arcmsr_iop_confirm(struct AdapterControlBlock *acb)
 {
 	uint32_t cdb_phyaddr, cdb_phyaddr_hi32;
-
+	dma_addr_t dma_coherent_handle;
 	/*
 	********************************************************************
 	** here we need to tell iop 331 our freeccb.HighPart
 	** if freeccb.HighPart is not zero
 	********************************************************************
 	*/
-	cdb_phyaddr = lower_32_bits(acb->dma_coherent_handle);
-	cdb_phyaddr_hi32 = upper_32_bits(acb->dma_coherent_handle);
+	dma_coherent_handle = acb->dma_coherent_handle;
+	cdb_phyaddr = (uint32_t)(dma_coherent_handle);
+	cdb_phyaddr_hi32 = (uint32_t)((cdb_phyaddr >> 16) >> 16);
 	acb->cdb_phyaddr_hi32 = cdb_phyaddr_hi32;
 	/*
 	***********************************************************************

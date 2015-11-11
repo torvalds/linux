@@ -26,8 +26,6 @@
 #include <linux/amba/serial.h>
 #include <linux/serial_reg.h>
 
-#include <asm/fixmap.h>
-
 static void __iomem *early_base;
 static void (*printch)(char ch);
 
@@ -143,10 +141,8 @@ static int __init setup_early_printk(char *buf)
 	}
 	/* no options parsing yet */
 
-	if (paddr) {
-		set_fixmap_io(FIX_EARLYCON_MEM_BASE, paddr);
-		early_base = (void __iomem *)fix_to_virt(FIX_EARLYCON_MEM_BASE);
-	}
+	if (paddr)
+		early_base = early_io_map(paddr, EARLYCON_IOBASE);
 
 	printch = match->printch;
 	early_console = &early_console_dev;

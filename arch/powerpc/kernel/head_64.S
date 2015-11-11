@@ -467,7 +467,6 @@ _STATIC(__after_prom_start)
 	mtctr	r8
 	bctr
 
-.balign 8
 p_end:	.llong	_end - _stext
 
 4:	/* Now copy the rest of the kernel up to _end */

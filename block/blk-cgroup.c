@@ -720,12 +720,8 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 		return -EINVAL;
 
 	disk = get_gendisk(MKDEV(major, minor), &part);
-	if (!disk)
+	if (!disk || part)
 		return -EINVAL;
-	if (part) {
-		put_disk(disk);
-		return -EINVAL;
-	}
 
 	rcu_read_lock();
 	spin_lock_irq(disk->queue->queue_lock);
@@ -879,20 +875,6 @@ int blkcg_init_queue(struct request_queue *q)
 void blkcg_drain_queue(struct request_queue *q)
 {
 	lockdep_assert_held(q->queue_lock);
-
-	/*
-	 * @q could be exiting and already have destroyed all blkgs as
-	 * indicated by NULL root_blkg.  If so, don't confuse policies.
-	 */
-	if (!q->root_blkg)
-		return;
-
-	/*
-	 * @q could be exiting and already have destroyed all blkgs as
-	 * indicated by NULL root_blkg.  If so, don't confuse policies.
-	 */
-	if (!q->root_blkg)
-		return;
 
 	blk_throtl_drain(q);
 }

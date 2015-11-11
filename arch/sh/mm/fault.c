@@ -353,8 +353,6 @@ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
 	} else {
 		if (fault & VM_FAULT_SIGBUS)
 			do_sigbus(regs, error_code, address);
-		else if (fault & VM_FAULT_SIGSEGV)
-			bad_area(regs, error_code, address);
 		else
 			BUG();
 	}
@@ -402,7 +400,9 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	struct mm_struct *mm;
 	struct vm_area_struct * vma;
 	int fault;
-	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+	int write = error_code & FAULT_CODE_WRITE;
+	unsigned int flags = (FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
+			      (write ? FAULT_FLAG_WRITE : 0));
 
 	tsk = current;
 	mm = tsk->mm;
@@ -475,11 +475,6 @@ good_area:
 	}
 
 	set_thread_fault_code(error_code);
-
-	if (user_mode(regs))
-		flags |= FAULT_FLAG_USER;
-	if (error_code & FAULT_CODE_WRITE)
-		flags |= FAULT_FLAG_WRITE;
 
 	/*
 	 * If for any reason at all we couldn't handle the fault,

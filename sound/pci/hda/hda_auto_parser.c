@@ -860,7 +860,7 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 		}
 	}
 	if (id < 0 && quirk) {
-		for (q = quirk; q->subvendor || q->subdevice; q++) {
+		for (q = quirk; q->subvendor; q++) {
 			unsigned int vendorid =
 				q->subdevice | (q->subvendor << 16);
 			unsigned int mask = 0xffff0000 | q->subdevice_mask;

@@ -941,7 +941,6 @@ int BBbVT3184Init(struct vnt_private *pDevice)
     u8 *                   pbyAgc;
     u16                    wLengthAgc;
     u8                    abyArray[256];
-	u8 data;
 
     ntStatus = CONTROLnsRequestIn(pDevice,
                                   MESSAGE_TYPE_READ,
@@ -1107,16 +1106,6 @@ else {
     ControlvWriteByte(pDevice,MESSAGE_REQUEST_BBREG,0x0D,0x01);
 
     RFbRFTableDownload(pDevice);
-
-	/* Fix for TX USB resets from vendors driver */
-	CONTROLnsRequestIn(pDevice, MESSAGE_TYPE_READ, USB_REG4,
-		MESSAGE_REQUEST_MEM, sizeof(data), &data);
-
-	data |= 0x2;
-
-	CONTROLnsRequestOut(pDevice, MESSAGE_TYPE_WRITE, USB_REG4,
-		MESSAGE_REQUEST_MEM, sizeof(data), &data);
-
     return true;//ntStatus;
 }
 
@@ -1466,6 +1455,7 @@ void BBvUpdatePreEDThreshold(struct vnt_private *pDevice, int bScanning)
 
             if( bScanning )
             {   // need Max sensitivity //RSSI -69, -70,....
+                if(pDevice->byBBPreEDIndex == 0) break;
                 pDevice->byBBPreEDIndex = 0;
                 ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0xC9, 0x00); //CR201(0xC9)
                 ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0xCE, 0x30); //CR206(0xCE)
@@ -1608,6 +1598,7 @@ void BBvUpdatePreEDThreshold(struct vnt_private *pDevice, int bScanning)
 
             if( bScanning )
             {   // need Max sensitivity  //RSSI -69, -70, ...
+                if(pDevice->byBBPreEDIndex == 0) break;
                 pDevice->byBBPreEDIndex = 0;
                 ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0xC9, 0x00); //CR201(0xC9)
                 ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0xCE, 0x24); //CR206(0xCE)
@@ -1759,6 +1750,7 @@ void BBvUpdatePreEDThreshold(struct vnt_private *pDevice, int bScanning)
         case RF_VT3342A0: //RobertYu:20060627, testing table
             if( bScanning )
             {   // need Max sensitivity  //RSSI -67, -68, ...
+                if(pDevice->byBBPreEDIndex == 0) break;
                 pDevice->byBBPreEDIndex = 0;
                 ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0xC9, 0x00); //CR201(0xC9)
                 ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0xCE, 0x38); //CR206(0xCE)

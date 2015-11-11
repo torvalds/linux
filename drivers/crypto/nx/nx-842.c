@@ -927,14 +927,28 @@ static int nx842_OF_upd(struct property *new_prop)
 		goto error_out;
 	}
 
-	/*
-	 * If this is a property update, there are only certain properties that
-	 * we care about. Bail if it isn't in the below list
-	 */
-	if (new_prop && (strncmp(new_prop->name, "status", new_prop->length) ||
-		         strncmp(new_prop->name, "ibm,max-sg-len", new_prop->length) ||
-		         strncmp(new_prop->name, "ibm,max-sync-cop", new_prop->length)))
-		goto out;
+	/* Set ptr to new property if provided */
+	if (new_prop) {
+		/* Single property */
+		if (!strncmp(new_prop->name, "status", new_prop->length)) {
+			status = new_prop;
+
+		} else if (!strncmp(new_prop->name, "ibm,max-sg-len",
+					new_prop->length)) {
+			maxsglen = new_prop;
+
+		} else if (!strncmp(new_prop->name, "ibm,max-sync-cop",
+					new_prop->length)) {
+			maxsyncop = new_prop;
+
+		} else {
+			/*
+			 * Skip the update, the property being updated
+			 * has no impact.
+			 */
+			goto out;
+		}
+	}
 
 	/* Perform property updates */
 	ret = nx842_OF_upd_status(new_devdata, status);
@@ -1000,9 +1014,9 @@ error_out:
  *		notifier_to_errno() to decode this value
  */
 static int nx842_OF_notifier(struct notifier_block *np, unsigned long action,
-			     void *data)
+			     void *update)
 {
-	struct of_reconfig_data *upd = data;
+	struct of_prop_reconfig *upd = update;
 	struct nx842_devdata *local_devdata;
 	struct device_node *node = NULL;
 

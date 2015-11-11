@@ -1571,17 +1571,17 @@ kvm_mips_handle_ri(unsigned long cause, uint32_t *opc,
 			arch->gprs[rt] = kvm_read_c0_guest_userlocal(cop0);
 #else
 			/* UserLocal not implemented */
-			er = EMULATE_FAIL;
+			er = kvm_mips_emulate_ri_exc(cause, opc, run, vcpu);
 #endif
 			break;
 
 		default:
-			kvm_debug("RDHWR %#x not supported @ %p\n", rd, opc);
+			printk("RDHWR not supported\n");
 			er = EMULATE_FAIL;
 			break;
 		}
 	} else {
-		kvm_debug("Emulate RI not supported @ %p: %#x\n", opc, inst);
+		printk("Emulate RI not supported @ %p: %#x\n", opc, inst);
 		er = EMULATE_FAIL;
 	}
 
@@ -1590,7 +1590,6 @@ kvm_mips_handle_ri(unsigned long cause, uint32_t *opc,
 	 */
 	if (er == EMULATE_FAIL) {
 		vcpu->arch.pc = curr_pc;
-		er = kvm_mips_emulate_ri_exc(cause, opc, run, vcpu);
 	}
 	return er;
 }
@@ -1626,7 +1625,7 @@ kvm_mips_complete_mmio_load(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		if (vcpu->mmio_needed == 2)
 			*gpr = *(int16_t *) run->mmio.data;
 		else
-			*gpr = *(uint16_t *)run->mmio.data;
+			*gpr = *(int16_t *) run->mmio.data;
 
 		break;
 	case 1:

@@ -162,7 +162,7 @@ static struct ibm_pa_feature {
 	{CPU_FTR_REAL_LE, PPC_FEATURE_TRUE_LE, 5, 0, 0},
 };
 
-static void __init scan_features(unsigned long node, const unsigned char *ftrs,
+static void __init scan_features(unsigned long node, unsigned char *ftrs,
 				 unsigned long tablelen,
 				 struct ibm_pa_feature *fp,
 				 unsigned long ft_size)
@@ -201,8 +201,8 @@ static void __init scan_features(unsigned long node, const unsigned char *ftrs,
 
 static void __init check_cpu_pa_features(unsigned long node)
 {
-	const unsigned char *pa_ftrs;
-	int tablelen;
+	unsigned char *pa_ftrs;
+	unsigned long tablelen;
 
 	pa_ftrs = of_get_flat_dt_prop(node, "ibm,pa-features", &tablelen);
 	if (pa_ftrs == NULL)
@@ -215,7 +215,7 @@ static void __init check_cpu_pa_features(unsigned long node)
 #ifdef CONFIG_PPC_STD_MMU_64
 static void __init check_cpu_slb_size(unsigned long node)
 {
-	const __be32 *slb_size_ptr;
+	u32 *slb_size_ptr;
 
 	slb_size_ptr = of_get_flat_dt_prop(node, "slb-size", NULL);
 	if (slb_size_ptr != NULL) {
@@ -256,7 +256,7 @@ static struct feature_property {
 static inline void identical_pvr_fixup(unsigned long node)
 {
 	unsigned int pvr;
-	const char *model = of_get_flat_dt_prop(node, "model", NULL);
+	char *model = of_get_flat_dt_prop(node, "model", NULL);
 
 	/*
 	 * Since 440GR(x)/440EP(x) processors have the same pvr,
@@ -294,11 +294,11 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 					  const char *uname, int depth,
 					  void *data)
 {
-	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
-	const __be32 *prop;
-	const __be32 *intserv;
+	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	const u32 *prop;
+	const u32 *intserv;
 	int i, nthreads;
-	int len;
+	unsigned long len;
 	int found = -1;
 	int found_thread = 0;
 
@@ -389,7 +389,7 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 int __init early_init_dt_scan_chosen_ppc(unsigned long node, const char *uname,
 					 int depth, void *data)
 {
-	const unsigned long *lprop; /* All these set by kernel, so no need to convert endian */
+	unsigned long *lprop;
 
 	/* Use common scan routine to determine if this is the chosen node */
 	if (early_init_dt_scan_chosen(node, uname, depth, data) == 0)
@@ -440,9 +440,8 @@ int __init early_init_dt_scan_chosen_ppc(unsigned long node, const char *uname,
  */
 static int __init early_init_dt_scan_drconf_memory(unsigned long node)
 {
-	const __be32 *dm, *ls, *usm;
-	int l;
-	unsigned long n, flags;
+	__be32 *dm, *ls, *usm;
+	unsigned long l, n, flags;
 	u64 base, size, memblock_size;
 	unsigned int is_kexec_kdump = 0, rngs;
 
@@ -551,7 +550,8 @@ void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
-void __init early_init_dt_setup_initrd_arch(u64 start, u64 end)
+void __init early_init_dt_setup_initrd_arch(unsigned long start,
+		unsigned long end)
 {
 	initrd_start = (unsigned long)__va(start);
 	initrd_end = (unsigned long)__va(end);
@@ -757,10 +757,119 @@ struct device_node *of_find_next_cache_node(struct device_node *np)
 	return NULL;
 }
 
+#ifdef CONFIG_PPC_PSERIES
+/*
+ * Fix up the uninitialized fields in a new device node:
+ * name, type and pci-specific fields
+ */
+
+static int of_finish_dynamic_node(struct device_node *node)
+{
+	struct device_node *parent = of_get_parent(node);
+	int err = 0;
+	const phandle *ibm_phandle;
+
+	node->name = of_get_property(node, "name", NULL);
+	node->type = of_get_property(node, "device_type", NULL);
+
+	if (!node->name)
+		node->name = "<NULL>";
+	if (!node->type)
+		node->type = "<NULL>";
+
+	if (!parent) {
+		err = -ENODEV;
+		goto out;
+	}
+
+	/* We don't support that function on PowerMac, at least
+	 * not yet
+	 */
+	if (machine_is(powermac))
+		return -ENODEV;
+
+	/* fix up new node's phandle field */
+	if ((ibm_phandle = of_get_property(node, "ibm,phandle", NULL)))
+		node->phandle = *ibm_phandle;
+
+out:
+	of_node_put(parent);
+	return err;
+}
+
+static int prom_reconfig_notifier(struct notifier_block *nb,
+				  unsigned long action, void *node)
+{
+	int err;
+
+	switch (action) {
+	case OF_RECONFIG_ATTACH_NODE:
+		err = of_finish_dynamic_node(node);
+		if (err < 0)
+			printk(KERN_ERR "finish_node returned %d\n", err);
+		break;
+	default:
+		err = 0;
+		break;
+	}
+	return notifier_from_errno(err);
+}
+
+static struct notifier_block prom_reconfig_nb = {
+	.notifier_call = prom_reconfig_notifier,
+	.priority = 10, /* This one needs to run first */
+};
+
+static int __init prom_reconfig_setup(void)
+{
+	return of_reconfig_notifier_register(&prom_reconfig_nb);
+}
+__initcall(prom_reconfig_setup);
+#endif
+
+/* Find the device node for a given logical cpu number, also returns the cpu
+ * local thread number (index in ibm,interrupt-server#s) if relevant and
+ * asked for (non NULL)
+ */
 struct device_node *of_get_cpu_node(int cpu, unsigned int *thread)
 {
-	return (int)phys_id == get_hard_smp_processor_id(cpu);
+	int hardid;
+	struct device_node *np;
+
+	hardid = get_hard_smp_processor_id(cpu);
+
+	for_each_node_by_type(np, "cpu") {
+		const u32 *intserv;
+		unsigned int plen, t;
+
+		/* Check for ibm,ppc-interrupt-server#s. If it doesn't exist
+		 * fallback to "reg" property and assume no threads
+		 */
+		intserv = of_get_property(np, "ibm,ppc-interrupt-server#s",
+				&plen);
+		if (intserv == NULL) {
+			const u32 *reg = of_get_property(np, "reg", NULL);
+			if (reg == NULL)
+				continue;
+			if (*reg == hardid) {
+				if (thread)
+					*thread = 0;
+				return np;
+			}
+		} else {
+			plen /= sizeof(u32);
+			for (t = 0; t < plen; t++) {
+				if (hardid == intserv[t]) {
+					if (thread)
+						*thread = t;
+					return np;
+				}
+			}
+		}
+	}
+	return NULL;
 }
+EXPORT_SYMBOL(of_get_cpu_node);
 
 #if defined(CONFIG_DEBUG_FS) && defined(DEBUG)
 static struct debugfs_blob_wrapper flat_dt_blob;

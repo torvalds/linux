@@ -21,6 +21,10 @@
 #include "hash.h"
 #include "transaction.h"
 
+static struct btrfs_dir_item *btrfs_match_dir_item_name(struct btrfs_root *root,
+			      struct btrfs_path *path,
+			      const char *name, int name_len);
+
 /*
  * insert a name into a directory, doing overflow properly if there is a hash
  * collision.  data_size indicates how big the item inserted should be.  On
@@ -379,9 +383,9 @@ struct btrfs_dir_item *btrfs_lookup_xattr(struct btrfs_trans_handle *trans,
  * this walks through all the entries in a dir item and finds one
  * for a specific name.
  */
-struct btrfs_dir_item *btrfs_match_dir_item_name(struct btrfs_root *root,
-						 struct btrfs_path *path,
-						 const char *name, int name_len)
+static struct btrfs_dir_item *btrfs_match_dir_item_name(struct btrfs_root *root,
+			      struct btrfs_path *path,
+			      const char *name, int name_len)
 {
 	struct btrfs_dir_item *dir_item;
 	unsigned long name_ptr;

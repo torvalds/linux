@@ -10,6 +10,8 @@
 #define SEG_GRANULARITY_4KB	(1 << 0)
 
 #define DESC_TYPE_CODE_DATA	(1 << 0)
+
+#define EFI_PAGE_SIZE		(1UL << EFI_PAGE_SHIFT)
 #define EFI_READ_CHUNK_SIZE	(1024 * 1024)
 
 #define EFI_CONSOLE_OUT_DEVICE_GUID    \
@@ -38,24 +40,6 @@ struct efi_graphics_output_mode_info {
 	u32 pixels_per_scan_line;
 } __packed;
 
-struct efi_graphics_output_protocol_mode_32 {
-	u32 max_mode;
-	u32 mode;
-	u32 info;
-	u32 size_of_info;
-	u64 frame_buffer_base;
-	u32 frame_buffer_size;
-} __packed;
-
-struct efi_graphics_output_protocol_mode_64 {
-	u32 max_mode;
-	u32 mode;
-	u64 info;
-	u64 size_of_info;
-	u64 frame_buffer_base;
-	u64 frame_buffer_size;
-} __packed;
-
 struct efi_graphics_output_protocol_mode {
 	u32 max_mode;
 	u32 mode;
@@ -65,20 +49,6 @@ struct efi_graphics_output_protocol_mode {
 	unsigned long frame_buffer_size;
 } __packed;
 
-struct efi_graphics_output_protocol_32 {
-	u32 query_mode;
-	u32 set_mode;
-	u32 blt;
-	u32 mode;
-};
-
-struct efi_graphics_output_protocol_64 {
-	u64 query_mode;
-	u64 set_mode;
-	u64 blt;
-	u64 mode;
-};
-
 struct efi_graphics_output_protocol {
 	void *query_mode;
 	unsigned long set_mode;
@@ -86,22 +56,16 @@ struct efi_graphics_output_protocol {
 	struct efi_graphics_output_protocol_mode *mode;
 };
 
-struct efi_uga_draw_protocol_32 {
-	u32 get_mode;
-	u32 set_mode;
-	u32 blt;
-};
-
-struct efi_uga_draw_protocol_64 {
-	u64 get_mode;
-	u64 set_mode;
-	u64 blt;
-};
-
 struct efi_uga_draw_protocol {
 	void *get_mode;
 	void *set_mode;
 	void *blt;
+};
+
+struct efi_simple_text_output_protocol {
+	void *reset;
+	void *output_string;
+	void *test_string;
 };
 
 #endif /* BOOT_COMPRESSED_EBOOT_H */

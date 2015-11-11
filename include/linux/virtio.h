@@ -70,10 +70,6 @@ void virtqueue_disable_cb(struct virtqueue *vq);
 
 bool virtqueue_enable_cb(struct virtqueue *vq);
 
-unsigned virtqueue_enable_cb_prepare(struct virtqueue *vq);
-
-bool virtqueue_poll(struct virtqueue *vq, unsigned);
-
 bool virtqueue_enable_cb_delayed(struct virtqueue *vq);
 
 void *virtqueue_detach_unused_buf(struct virtqueue *vq);

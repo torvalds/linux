@@ -314,8 +314,8 @@ static struct uncore_event_desc snbep_uncore_imc_events[] = {
 static struct uncore_event_desc snbep_uncore_qpi_events[] = {
 	INTEL_UNCORE_EVENT_DESC(clockticks,       "event=0x14"),
 	INTEL_UNCORE_EVENT_DESC(txl_flits_active, "event=0x00,umask=0x06"),
-	INTEL_UNCORE_EVENT_DESC(drs_data,         "event=0x102,umask=0x08"),
-	INTEL_UNCORE_EVENT_DESC(ncb_data,         "event=0x103,umask=0x04"),
+	INTEL_UNCORE_EVENT_DESC(drs_data,         "event=0x02,umask=0x08"),
+	INTEL_UNCORE_EVENT_DESC(ncb_data,         "event=0x03,umask=0x04"),
 	{ /* end: all zeroes */ },
 };
 
@@ -2657,17 +2657,6 @@ static struct intel_uncore_box *uncore_event_to_box(struct perf_event *event)
 	return uncore_pmu_to_box(uncore_event_to_pmu(event), smp_processor_id());
 }
 
-/*
- * Using uncore_pmu_event_init pmu event_init callback
- * as a detection point for uncore events.
- */
-static int uncore_pmu_event_init(struct perf_event *event);
-
-static bool is_uncore_event(struct perf_event *event)
-{
-	return event->pmu->event_init == uncore_pmu_event_init;
-}
-
 static int
 uncore_collect_events(struct intel_uncore_box *box, struct perf_event *leader, bool dogrp)
 {
@@ -2682,18 +2671,13 @@ uncore_collect_events(struct intel_uncore_box *box, struct perf_event *leader, b
 		return -EINVAL;
 
 	n = box->n_events;
-
-	if (is_uncore_event(leader)) {
-		box->event_list[n] = leader;
-		n++;
-	}
-
+	box->event_list[n] = leader;
+	n++;
 	if (!dogrp)
 		return n;
 
 	list_for_each_entry(event, &leader->sibling_list, group_entry) {
-		if (!is_uncore_event(event) ||
-		    event->state <= PERF_EVENT_STATE_OFF)
+		if (event->state <= PERF_EVENT_STATE_OFF)
 			continue;
 
 		if (n >= max_count)

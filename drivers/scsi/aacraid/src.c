@@ -93,9 +93,6 @@ static irqreturn_t aac_src_intr_message(int irq, void *dev_id)
 			int send_it = 0;
 			extern int aac_sync_mode;
 
-			src_writel(dev, MUnit.ODR_C, bellbits);
-			src_readl(dev, MUnit.ODR_C);
-
 			if (!aac_sync_mode) {
 				src_writel(dev, MUnit.ODR_C, bellbits);
 				src_readl(dev, MUnit.ODR_C);

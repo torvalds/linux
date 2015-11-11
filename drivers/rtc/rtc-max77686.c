@@ -240,9 +240,9 @@ static int max77686_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	}
 
 	alrm->pending = 0;
-	ret = regmap_read(info->max77686->regmap, MAX77686_REG_STATUS2, &val);
+	ret = regmap_read(info->max77686->regmap, MAX77686_REG_STATUS1, &val);
 	if (ret < 0) {
-		dev_err(info->dev, "%s:%d fail to read status2 reg(%d)\n",
+		dev_err(info->dev, "%s:%d fail to read status1 reg(%d)\n",
 				__func__, __LINE__, ret);
 		goto out;
 	}

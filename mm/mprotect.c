@@ -135,7 +135,6 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
 	pmd_t *pmd;
 	unsigned long next;
 	unsigned long pages = 0;
-	unsigned long nr_huge_updates = 0;
 	bool all_same_node;
 
 	pmd = pmd_offset(pud, addr);
@@ -147,7 +146,6 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
 			else if (change_huge_pmd(vma, pmd, addr, newprot,
 						 prot_numa)) {
 				pages += HPAGE_PMD_NR;
-				nr_huge_updates++;
 				continue;
 			}
 			/* fall through */
@@ -166,9 +164,6 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
 		if (prot_numa && all_same_node)
 			change_pmd_protnuma(vma->vm_mm, addr, pmd);
 	} while (pmd++, addr = next, addr != end);
-
-	if (nr_huge_updates)
-		count_vm_numa_events(NUMA_HUGE_PTE_UPDATES, nr_huge_updates);
 
 	return pages;
 }
@@ -206,7 +201,6 @@ static unsigned long change_protection_range(struct vm_area_struct *vma,
 	BUG_ON(addr >= end);
 	pgd = pgd_offset(mm, addr);
 	flush_cache_range(vma, addr, end);
-	set_tlb_flush_pending(mm);
 	do {
 		next = pgd_addr_end(addr, end);
 		if (pgd_none_or_clear_bad(pgd))
@@ -218,7 +212,6 @@ static unsigned long change_protection_range(struct vm_area_struct *vma,
 	/* Only flush the TLB if we actually modified any entries: */
 	if (pages)
 		flush_tlb_range(vma, start, end);
-	clear_tlb_flush_pending(mm);
 
 	return pages;
 }
@@ -278,8 +271,7 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
 	 */
 	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
 	*pprev = vma_merge(mm, *pprev, start, end, newflags,
-			vma->anon_vma, vma->vm_file, pgoff, vma_policy(vma),
-			vma_get_anon_name(vma));
+			vma->anon_vma, vma->vm_file, pgoff, vma_policy(vma));
 	if (*pprev) {
 		vma = *pprev;
 		goto success;

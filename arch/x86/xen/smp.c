@@ -245,15 +245,6 @@ static void __init xen_smp_prepare_boot_cpu(void)
 	   old memory can be recycled */
 	make_lowmem_page_readwrite(xen_initial_gdt);
 
-#ifdef CONFIG_X86_32
-	/*
-	 * Xen starts us with XEN_FLAT_RING1_DS, but linux code
-	 * expects __USER_DS
-	 */
-	loadsegment(ds, __USER_DS);
-	loadsegment(es, __USER_DS);
-#endif
-
 	xen_filter_cpu_maps();
 	xen_setup_vcpu_info_placement();
 }
@@ -676,15 +667,8 @@ static void __init xen_hvm_smp_prepare_cpus(unsigned int max_cpus)
 static int __cpuinit xen_hvm_cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	int rc;
-	/*
-	 * xen_smp_intr_init() needs to run before native_cpu_up()
-	 * so that IPI vectors are set up on the booting CPU before
-	 * it is marked online in native_cpu_up().
-	*/
-	rc = xen_smp_intr_init(cpu);
-	WARN_ON(rc);
-	if (!rc)
-		rc =  native_cpu_up(cpu, tidle);
+	rc = native_cpu_up(cpu, tidle);
+	WARN_ON (xen_smp_intr_init(cpu));
 	return rc;
 }
 

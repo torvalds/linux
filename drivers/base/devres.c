@@ -91,8 +91,7 @@ static __always_inline struct devres * alloc_dr(dr_release_t release,
 	if (unlikely(!dr))
 		return NULL;
 
-	memset(dr, 0, offsetof(struct devres, data));
-
+	memset(dr, 0, tot_size);
 	INIT_LIST_HEAD(&dr->node.entry);
 	dr->node.release = release;
 	return dr;
@@ -111,7 +110,7 @@ void * __devres_alloc(dr_release_t release, size_t size, gfp_t gfp,
 {
 	struct devres *dr;
 
-	dr = alloc_dr(release, size, gfp | __GFP_ZERO);
+	dr = alloc_dr(release, size, gfp);
 	if (unlikely(!dr))
 		return NULL;
 	set_node_dbginfo(&dr->node, name, size);
@@ -136,7 +135,7 @@ void * devres_alloc(dr_release_t release, size_t size, gfp_t gfp)
 {
 	struct devres *dr;
 
-	dr = alloc_dr(release, size, gfp | __GFP_ZERO);
+	dr = alloc_dr(release, size, gfp);
 	if (unlikely(!dr))
 		return NULL;
 	return dr->data;
@@ -297,10 +296,10 @@ void * devres_get(struct device *dev, void *new_res,
 	if (!dr) {
 		add_dr(dev, &new_dr->node);
 		dr = new_dr;
-		new_res = NULL;
+		new_dr = NULL;
 	}
 	spin_unlock_irqrestore(&dev->devres_lock, flags);
-	devres_free(new_res);
+	devres_free(new_dr);
 
 	return dr->data;
 }
@@ -746,62 +745,58 @@ void devm_remove_action(struct device *dev, void (*action)(void *), void *data)
 EXPORT_SYMBOL_GPL(devm_remove_action);
 
 /*
- * Managed kmalloc/kfree
+ * Managed kzalloc/kfree
  */
-static void devm_kmalloc_release(struct device *dev, void *res)
+static void devm_kzalloc_release(struct device *dev, void *res)
 {
 	/* noop */
 }
 
-static int devm_kmalloc_match(struct device *dev, void *res, void *data)
+static int devm_kzalloc_match(struct device *dev, void *res, void *data)
 {
 	return res == data;
 }
 
 /**
- * devm_kmalloc - Resource-managed kmalloc
+ * devm_kzalloc - Resource-managed kzalloc
  * @dev: Device to allocate memory for
  * @size: Allocation size
  * @gfp: Allocation gfp flags
  *
- * Managed kmalloc.  Memory allocated with this function is
+ * Managed kzalloc.  Memory allocated with this function is
  * automatically freed on driver detach.  Like all other devres
  * resources, guaranteed alignment is unsigned long long.
  *
  * RETURNS:
  * Pointer to allocated memory on success, NULL on failure.
  */
-void * devm_kmalloc(struct device *dev, size_t size, gfp_t gfp)
+void * devm_kzalloc(struct device *dev, size_t size, gfp_t gfp)
 {
 	struct devres *dr;
 
 	/* use raw alloc_dr for kmalloc caller tracing */
-	dr = alloc_dr(devm_kmalloc_release, size, gfp);
+	dr = alloc_dr(devm_kzalloc_release, size, gfp);
 	if (unlikely(!dr))
 		return NULL;
 
-	/*
-	 * This is named devm_kzalloc_release for historical reasons
-	 * The initial implementation did not support kmalloc, only kzalloc
-	 */
 	set_node_dbginfo(&dr->node, "devm_kzalloc_release", size);
 	devres_add(dev, dr->data);
 	return dr->data;
 }
-EXPORT_SYMBOL_GPL(devm_kmalloc);
+EXPORT_SYMBOL_GPL(devm_kzalloc);
 
 /**
  * devm_kfree - Resource-managed kfree
  * @dev: Device this memory belongs to
  * @p: Memory to free
  *
- * Free memory allocated with devm_kmalloc().
+ * Free memory allocated with devm_kzalloc().
  */
 void devm_kfree(struct device *dev, void *p)
 {
 	int rc;
 
-	rc = devres_destroy(dev, devm_kmalloc_release, devm_kmalloc_match, p);
+	rc = devres_destroy(dev, devm_kzalloc_release, devm_kzalloc_match, p);
 	WARN_ON(rc);
 }
 EXPORT_SYMBOL_GPL(devm_kfree);

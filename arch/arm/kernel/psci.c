@@ -17,7 +17,6 @@
 
 #include <linux/init.h>
 #include <linux/of.h>
-#include <linux/string.h>
 
 #include <asm/compiler.h>
 #include <asm/errno.h>
@@ -27,11 +26,6 @@
 
 struct psci_operations psci_ops;
 
-/* Type of psci support. Currently can only be enabled or disabled */
-#define PSCI_SUP_DISABLED		0
-#define PSCI_SUP_ENABLED		1
-
-static unsigned int psci;
 static int (*invoke_psci_fn)(u32, u32, u32, u32);
 
 enum psci_function {
@@ -48,7 +42,6 @@ static u32 psci_function_id[PSCI_FN_MAX];
 #define PSCI_RET_EOPNOTSUPP		-1
 #define PSCI_RET_EINVAL			-2
 #define PSCI_RET_EPERM			-3
-#define PSCI_RET_EALREADYON		-4
 
 static int psci_to_linux_errno(int errno)
 {
@@ -61,8 +54,6 @@ static int psci_to_linux_errno(int errno)
 		return -EINVAL;
 	case PSCI_RET_EPERM:
 		return -EPERM;
-	case PSCI_RET_EALREADYON:
-		return -EAGAIN;
 	};
 
 	return -EINVAL;
@@ -167,18 +158,15 @@ static const struct of_device_id psci_of_match[] __initconst = {
 	{},
 };
 
-void __init psci_init(void)
+static int __init psci_init(void)
 {
 	struct device_node *np;
 	const char *method;
 	u32 id;
 
-	if (psci == PSCI_SUP_DISABLED)
-		return;
-
 	np = of_find_matching_node(NULL, psci_of_match);
 	if (!np)
-		return;
+		return 0;
 
 	pr_info("probing function IDs from device-tree\n");
 
@@ -218,35 +206,6 @@ void __init psci_init(void)
 
 out_put_node:
 	of_node_put(np);
-	return;
+	return 0;
 }
-
-int __init psci_probe(void)
-{
-	struct device_node *np;
-	int ret = -ENODEV;
-
-	if (psci == PSCI_SUP_ENABLED) {
-		np = of_find_matching_node(NULL, psci_of_match);
-		if (np)
-			ret = 0;
-	}
-
-	of_node_put(np);
-	return ret;
-}
-
-static int __init early_psci(char *val)
-{
-	int ret = 0;
-
-	if (strcmp(val, "enable") == 0)
-		psci = PSCI_SUP_ENABLED;
-	else if (strcmp(val, "disable") == 0)
-		psci = PSCI_SUP_DISABLED;
-	else
-		ret = -EINVAL;
-
-	return ret;
-}
-early_param("psci", early_psci);
+early_initcall(psci_init);

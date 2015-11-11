@@ -72,8 +72,6 @@ void do_page_fault(struct pt_regs *regs)
 	       address, exccause, regs->pc, is_write? "w":"", is_exec? "x":"");
 #endif
 
-	if (user_mode(regs))
-		flags |= FAULT_FLAG_USER;
 retry:
 	down_read(&mm->mmap_sem);
 	vma = find_vma(mm, address);
@@ -117,8 +115,6 @@ good_area:
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		if (fault & VM_FAULT_OOM)
 			goto out_of_memory;
-		else if (fault & VM_FAULT_SIGSEGV)
-			goto bad_area;
 		else if (fault & VM_FAULT_SIGBUS)
 			goto do_sigbus;
 		BUG();

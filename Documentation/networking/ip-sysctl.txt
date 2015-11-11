@@ -22,15 +22,6 @@ ip_no_pmtu_disc - BOOLEAN
 min_pmtu - INTEGER
 	default 552 - minimum discovered Path MTU
 
-fwmark_reflect - BOOLEAN
-	Controls the fwmark of kernel-generated IPv4 reply packets that are not
-	associated with a socket for example, TCP RSTs or ICMP echo replies).
-	If unset, these packets have a fwmark of zero. If set, they have the
-	fwmark of the packet they are replying to. Similarly affects the fwmark
-	used by internal routing lookups triggered by incoming packets, such as
-	the ones used for Path MTU Discovery.
-	Default: 0
-
 route/max_size - INTEGER
 	Maximum number of routes allowed in the kernel.  Increase
 	this when using large numbers of interfaces and/or routes.
@@ -477,16 +468,6 @@ tcp_fastopen - INTEGER
 
 	See include/net/tcp.h and the code for more details.
 
-tcp_fwmark_accept - BOOLEAN
-	If set, incoming connections to listening sockets that do not have a
-	socket mark will set the mark of the accepting socket to the fwmark of
-	the incoming SYN packet. This will cause all packets on that connection
-	(starting from the first SYNACK) to be sent with that fwmark. The
-	listening socket's mark is unchanged. Listening sockets that already
-	have a fwmark set via setsockopt(SOL_SOCKET, SO_MARK, ...) are
-	unaffected.
-	Default: 0
-
 tcp_syn_retries - INTEGER
 	Number of times initial SYNs for an active TCP connection attempt
 	will be retransmitted. Should not be higher than 255. Default value
@@ -496,15 +477,6 @@ tcp_syn_retries - INTEGER
 
 tcp_timestamps - BOOLEAN
 	Enable timestamps as defined in RFC1323.
-
-tcp_min_tso_segs - INTEGER
-	Minimal number of segments per TSO frame.
-	Since linux-3.12, TCP does an automatic sizing of TSO frames,
-	depending on flow rate, instead of filling 64Kbytes packets.
-	For specific usages, it's possible to force TCP to build big
-	TSO frames. Note that TCP stack might split too big TSO packets
-	if available window is too small.
-	Default: 2
 
 tcp_tso_win_divisor - INTEGER
 	This allows control over what percentage of the congestion window
@@ -590,6 +562,9 @@ tcp_limit_output_bytes - INTEGER
 	typical pfifo_fast qdiscs.
 	tcp_limit_output_bytes limits the number of bytes on qdisc
 	or device to reduce artificial RTT/cwnd and reduce bufferbloat.
+	Note: For GSO/TSO enabled flows, we try to have at least two
+	packets in flight. Reducing tcp_limit_output_bytes might also
+	reduce the size of individual GSO packet (64KB being the max)
 	Default: 131072
 
 tcp_challenge_ack_limit - INTEGER
@@ -1112,15 +1087,6 @@ conf/all/forwarding - BOOLEAN
 proxy_ndp - BOOLEAN
 	Do proxy ndp.
 
-fwmark_reflect - BOOLEAN
-	Controls the fwmark of kernel-generated IPv6 reply packets that are not
-	associated with a socket for example, TCP RSTs or ICMPv6 echo replies).
-	If unset, these packets have a fwmark of zero. If set, they have the
-	fwmark of the packet they are replying to. Similarly affects the fwmark
-	used by internal routing lookups triggered by incoming packets, such as
-	the ones used for Path MTU Discovery.
-	Default: 0
-
 conf/interface/*:
 	Change special settings per interface.
 
@@ -1258,13 +1224,6 @@ router_solicitations - INTEGER
 	routers are present.
 	Default: 3
 
-use_oif_addrs_only - BOOLEAN
-	When enabled, the candidate source addresses for destinations
-	routed via this interface are restricted to the set of addresses
-	configured on this interface (vis. RFC 6724, section 4).
-
-	Default: false
-
 use_tempaddr - INTEGER
 	Preference for Privacy Extensions (RFC3041).
 	  <= 0 : disable Privacy Extensions
@@ -1345,19 +1304,6 @@ ndisc_notify - BOOLEAN
 	0 - (default): do nothing
 	1 - Generate unsolicited neighbour advertisements when device is brought
 	    up or hardware address changes.
-
-optimistic_dad - BOOLEAN
-	Whether to perform Optimistic Duplicate Address Detection (RFC 4429).
-		0: disabled (default)
-		1: enabled
-
-use_optimistic - BOOLEAN
-	If enabled, do not classify optimistic addresses as deprecated during
-	source address selection.  Preferred addresses will still be chosen
-	before optimistic addresses, subject to other ranking in the source
-	address selection algorithm.
-		0: disabled (default)
-		1: enabled
 
 icmp/*:
 ratelimit - INTEGER

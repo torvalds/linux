@@ -34,7 +34,7 @@ struct kvm_lapic {
 	 */
 	void *regs;
 	gpa_t vapic_addr;
-	struct gfn_to_hva_cache vapic_cache;
+	struct page *vapic_page;
 	unsigned long pending_events;
 	unsigned int sipi_vector;
 };
@@ -76,7 +76,7 @@ void kvm_set_lapic_tscdeadline_msr(struct kvm_vcpu *vcpu, u64 data);
 void kvm_apic_write_nodecode(struct kvm_vcpu *vcpu, u32 offset);
 void kvm_apic_set_eoi_accelerated(struct kvm_vcpu *vcpu, int vector);
 
-int kvm_lapic_set_vapic_addr(struct kvm_vcpu *vcpu, gpa_t vapic_addr);
+void kvm_lapic_set_vapic_addr(struct kvm_vcpu *vcpu, gpa_t vapic_addr);
 void kvm_lapic_sync_from_vapic(struct kvm_vcpu *vcpu);
 void kvm_lapic_sync_to_vapic(struct kvm_vcpu *vcpu);
 
@@ -165,7 +165,7 @@ static inline u16 apic_logical_id(struct kvm_apic_map *map, u32 ldr)
 
 static inline bool kvm_apic_has_events(struct kvm_vcpu *vcpu)
 {
-	return kvm_vcpu_has_lapic(vcpu) && vcpu->arch.apic->pending_events;
+	return vcpu->arch.apic->pending_events;
 }
 
 bool kvm_apic_pending_eoi(struct kvm_vcpu *vcpu, int vector);

@@ -150,7 +150,7 @@ void __init load_default_elevator_module(void)
 
 static struct kobj_type elv_ktype;
 
-struct elevator_queue *elevator_alloc(struct request_queue *q,
+static struct elevator_queue *elevator_alloc(struct request_queue *q,
 				  struct elevator_type *e)
 {
 	struct elevator_queue *eq;
@@ -170,7 +170,6 @@ err:
 	elevator_put(e);
 	return NULL;
 }
-EXPORT_SYMBOL(elevator_alloc);
 
 static void elevator_release(struct kobject *kobj)
 {
@@ -185,12 +184,6 @@ int elevator_init(struct request_queue *q, char *name)
 {
 	struct elevator_type *e = NULL;
 	int err;
-
-	/*
-	 * q->sysfs_lock must be held to provide mutual exclusion between
-	 * elevator_switch() and here.
-	 */
-	lockdep_assert_held(&q->sysfs_lock);
 
 	if (unlikely(q->elevator))
 		return 0;
@@ -228,7 +221,16 @@ int elevator_init(struct request_queue *q, char *name)
 		}
 	}
 
-	err = e->ops.elevator_init_fn(q, e);
+	q->elevator = elevator_alloc(q, e);
+	if (!q->elevator)
+		return -ENOMEM;
+
+	err = e->ops.elevator_init_fn(q);
+	if (err) {
+		kobject_put(&q->elevator->kobj);
+		return err;
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(elevator_init);
@@ -933,9 +935,16 @@ static int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 	spin_unlock_irq(q->queue_lock);
 
 	/* allocate, init and register new elevator */
-	err = new_e->ops.elevator_init_fn(q, new_e);
-	if (err)
+	err = -ENOMEM;
+	q->elevator = elevator_alloc(q, new_e);
+	if (!q->elevator)
 		goto fail_init;
+
+	err = new_e->ops.elevator_init_fn(q);
+	if (err) {
+		kobject_put(&q->elevator->kobj);
+		goto fail_init;
+	}
 
 	if (registered) {
 		err = elv_register_queue(q);
@@ -965,7 +974,7 @@ fail_init:
 /*
  * Switch this queue to the given IO scheduler.
  */
-static int __elevator_change(struct request_queue *q, const char *name)
+int elevator_change(struct request_queue *q, const char *name)
 {
 	char elevator_name[ELV_NAME_MAX];
 	struct elevator_type *e;
@@ -987,18 +996,6 @@ static int __elevator_change(struct request_queue *q, const char *name)
 
 	return elevator_switch(q, e);
 }
-
-int elevator_change(struct request_queue *q, const char *name)
-{
-	int ret;
-
-	/* Protect q->elevator from elevator_init() */
-	mutex_lock(&q->sysfs_lock);
-	ret = __elevator_change(q, name);
-	mutex_unlock(&q->sysfs_lock);
-
-	return ret;
-}
 EXPORT_SYMBOL(elevator_change);
 
 ssize_t elv_iosched_store(struct request_queue *q, const char *name,
@@ -1009,7 +1006,7 @@ ssize_t elv_iosched_store(struct request_queue *q, const char *name,
 	if (!q->elevator)
 		return count;
 
-	ret = __elevator_change(q, name);
+	ret = elevator_change(q, name);
 	if (!ret)
 		return count;
 

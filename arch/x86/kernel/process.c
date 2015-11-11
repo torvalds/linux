@@ -40,6 +40,19 @@ DEFINE_PER_CPU_SHARED_ALIGNED(struct tss_struct, init_tss) = INIT_TSS;
 
 #ifdef CONFIG_X86_64
 static DEFINE_PER_CPU(unsigned char, is_idle);
+static ATOMIC_NOTIFIER_HEAD(idle_notifier);
+
+void idle_notifier_register(struct notifier_block *n)
+{
+	atomic_notifier_chain_register(&idle_notifier, n);
+}
+EXPORT_SYMBOL_GPL(idle_notifier_register);
+
+void idle_notifier_unregister(struct notifier_block *n)
+{
+	atomic_notifier_chain_unregister(&idle_notifier, n);
+}
+EXPORT_SYMBOL_GPL(idle_notifier_unregister);
 #endif
 
 struct kmem_cache *task_xstate_cachep;
@@ -244,14 +257,14 @@ static inline void play_dead(void)
 void enter_idle(void)
 {
 	this_cpu_write(is_idle, 1);
-	idle_notifier_call_chain(IDLE_START);
+	atomic_notifier_call_chain(&idle_notifier, IDLE_START, NULL);
 }
 
 static void __exit_idle(void)
 {
 	if (x86_test_and_clear_bit_percpu(0, is_idle) == 0)
 		return;
-	idle_notifier_call_chain(IDLE_END);
+	atomic_notifier_call_chain(&idle_notifier, IDLE_END, NULL);
 }
 
 /* Called from interrupts to signify idle end */
@@ -378,9 +391,9 @@ static void amd_e400_idle(void)
 		 * The switch back from broadcast mode needs to be
 		 * called with interrupts disabled.
 		 */
-		local_irq_disable();
-		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &cpu);
-		local_irq_enable();
+		 local_irq_disable();
+		 clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &cpu);
+		 local_irq_enable();
 	} else
 		default_idle();
 }

@@ -6,7 +6,6 @@
  */
 #include <asm/checksum.h>
 #include <linux/module.h>
-#include <asm/smap.h>
 
 /**
  * csum_partial_copy_from_user - Copy and checksum from user space.
@@ -53,10 +52,8 @@ csum_partial_copy_from_user(const void __user *src, void *dst,
 			len -= 2;
 		}
 	}
-	stac();
 	isum = csum_partial_copy_generic((__force const void *)src,
 				dst, len, isum, errp, NULL);
-	clac();
 	if (unlikely(*errp))
 		goto out_err;
 
@@ -85,8 +82,6 @@ __wsum
 csum_partial_copy_to_user(const void *src, void __user *dst,
 			  int len, __wsum isum, int *errp)
 {
-	__wsum ret;
-
 	might_sleep();
 
 	if (unlikely(!access_ok(VERIFY_WRITE, dst, len))) {
@@ -110,11 +105,8 @@ csum_partial_copy_to_user(const void *src, void __user *dst,
 	}
 
 	*errp = 0;
-	stac();
-	ret = csum_partial_copy_generic(src, (void __force *)dst,
-					len, isum, NULL, errp);
-	clac();
-	return ret;
+	return csum_partial_copy_generic(src, (void __force *)dst,
+					 len, isum, NULL, errp);
 }
 EXPORT_SYMBOL(csum_partial_copy_to_user);
 

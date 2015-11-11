@@ -121,17 +121,16 @@ void ppc4xx_teardown_msi_irqs(struct pci_dev *dev)
 {
 	struct msi_desc *entry;
 	struct ppc4xx_msi *msi_data = &ppc4xx_msi;
-	irq_hw_number_t hwirq;
 
 	dev_dbg(&dev->dev, "PCIE-MSI: tearing down msi irqs\n");
 
 	list_for_each_entry(entry, &dev->msi_list, list) {
 		if (entry->irq == NO_IRQ)
 			continue;
-		hwirq = virq_to_hw(entry->irq);
 		irq_set_msi_desc(entry->irq, NULL);
+		msi_bitmap_free_hwirqs(&msi_data->bitmap,
+				virq_to_hw(entry->irq), 1);
 		irq_dispose_mapping(entry->irq);
-		msi_bitmap_free_hwirqs(&msi_data->bitmap, hwirq, 1);
 	}
 }
 

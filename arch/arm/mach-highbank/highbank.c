@@ -21,7 +21,6 @@
 #include <linux/irq.h>
 #include <linux/irqchip.h>
 #include <linux/irqdomain.h>
-#include <linux/pl320-ipc.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
@@ -66,12 +65,13 @@ void highbank_set_cpu_jump(int cpu, void *jump_addr)
 			  HB_JUMP_TABLE_PHYS(cpu) + 15);
 }
 
+#ifdef CONFIG_CACHE_L2X0
 static void highbank_l2x0_disable(void)
 {
-	outer_flush_all();
 	/* Disable PL310 L2 Cache controller */
 	highbank_smc1(0x102, 0x0);
 }
+#endif
 
 static void __init highbank_init_irq(void)
 {
@@ -80,13 +80,12 @@ static void __init highbank_init_irq(void)
 	if (of_find_compatible_node(NULL, NULL, "arm,cortex-a9"))
 		highbank_scu_map_io();
 
+#ifdef CONFIG_CACHE_L2X0
 	/* Enable PL310 L2 Cache controller */
-	if (IS_ENABLED(CONFIG_CACHE_L2X0) &&
-	    of_find_compatible_node(NULL, NULL, "arm,pl310-cache")) {
-		highbank_smc1(0x102, 0x1);
-		l2x0_of_init(0, ~0UL);
-		outer_cache.disable = highbank_l2x0_disable;
-	}
+	highbank_smc1(0x102, 0x1);
+	l2x0_of_init(0, ~0UL);
+	outer_cache.disable = highbank_l2x0_disable;
+#endif
 }
 
 static void __init highbank_timer_init(void)

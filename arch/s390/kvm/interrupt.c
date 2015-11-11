@@ -71,7 +71,6 @@ static int __interrupt_is_deliverable(struct kvm_vcpu *vcpu,
 			return 0;
 		if (vcpu->arch.sie_block->gcr[0] & 0x2000ul)
 			return 1;
-		return 0;
 	case KVM_S390_INT_EMERGENCY:
 		if (psw_extint_disabled(vcpu))
 			return 0;

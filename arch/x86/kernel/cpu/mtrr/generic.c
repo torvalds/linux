@@ -510,9 +510,8 @@ generic_get_free_region(unsigned long base, unsigned long size, int replace_reg)
 static void generic_get_mtrr(unsigned int reg, unsigned long *base,
 			     unsigned long *size, mtrr_type *type)
 {
-	u32 mask_lo, mask_hi, base_lo, base_hi;
-	unsigned int hi;
-	u64 tmp, mask;
+	unsigned int mask_lo, mask_hi, base_lo, base_hi;
+	unsigned int tmp, hi;
 
 	/*
 	 * get_mtrr doesn't need to update mtrr_state, also it could be called
@@ -533,18 +532,18 @@ static void generic_get_mtrr(unsigned int reg, unsigned long *base,
 	rdmsr(MTRRphysBase_MSR(reg), base_lo, base_hi);
 
 	/* Work out the shifted address mask: */
-	tmp = (u64)mask_hi << (32 - PAGE_SHIFT) | mask_lo >> PAGE_SHIFT;
-	mask = size_or_mask | tmp;
+	tmp = mask_hi << (32 - PAGE_SHIFT) | mask_lo >> PAGE_SHIFT;
+	mask_lo = size_or_mask | tmp;
 
 	/* Expand tmp with high bits to all 1s: */
-	hi = fls64(tmp);
+	hi = fls(tmp);
 	if (hi > 0) {
-		tmp |= ~((1ULL<<(hi - 1)) - 1);
+		tmp |= ~((1<<(hi - 1)) - 1);
 
-		if (tmp != mask) {
+		if (tmp != mask_lo) {
 			printk(KERN_WARNING "mtrr: your BIOS has configured an incorrect mask, fixing it.\n");
 			add_taint(TAINT_FIRMWARE_WORKAROUND, LOCKDEP_STILL_OK);
-			mask = tmp;
+			mask_lo = tmp;
 		}
 	}
 
@@ -552,8 +551,8 @@ static void generic_get_mtrr(unsigned int reg, unsigned long *base,
 	 * This works correctly if size is a power of two, i.e. a
 	 * contiguous range:
 	 */
-	*size = -mask;
-	*base = (u64)base_hi << (32 - PAGE_SHIFT) | base_lo >> PAGE_SHIFT;
+	*size = -mask_lo;
+	*base = base_hi << (32 - PAGE_SHIFT) | base_lo >> PAGE_SHIFT;
 	*type = base_lo & 0xff;
 
 out_put_cpu:

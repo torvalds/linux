@@ -184,16 +184,15 @@ static void alx_schedule_reset(struct alx_priv *alx)
 	schedule_work(&alx->reset_wk);
 }
 
-static int alx_clean_rx_irq(struct alx_priv *alx, int budget)
+static bool alx_clean_rx_irq(struct alx_priv *alx, int budget)
 {
 	struct alx_rx_queue *rxq = &alx->rxq;
 	struct alx_rrd *rrd;
 	struct alx_buffer *rxb;
 	struct sk_buff *skb;
 	u16 length, rfd_cleaned = 0;
-	int work = 0;
 
-	while (work < budget) {
+	while (budget > 0) {
 		rrd = &rxq->rrd[rxq->rrd_read_idx];
 		if (!(rrd->word3 & cpu_to_le32(1 << RRD_UPDATED_SHIFT)))
 			break;
@@ -204,7 +203,7 @@ static int alx_clean_rx_irq(struct alx_priv *alx, int budget)
 		    ALX_GET_FIELD(le32_to_cpu(rrd->word0),
 				  RRD_NOR) != 1) {
 			alx_schedule_reset(alx);
-			return work;
+			return 0;
 		}
 
 		rxb = &rxq->bufs[rxq->read_idx];
@@ -244,7 +243,7 @@ static int alx_clean_rx_irq(struct alx_priv *alx, int budget)
 		}
 
 		napi_gro_receive(&alx->napi, skb);
-		work++;
+		budget--;
 
 next_pkt:
 		if (++rxq->read_idx == alx->rx_ringsz)
@@ -259,22 +258,21 @@ next_pkt:
 	if (rfd_cleaned)
 		alx_refill_rx_ring(alx, GFP_ATOMIC);
 
-	return work;
+	return budget > 0;
 }
 
 static int alx_poll(struct napi_struct *napi, int budget)
 {
 	struct alx_priv *alx = container_of(napi, struct alx_priv, napi);
 	struct alx_hw *hw = &alx->hw;
+	bool complete = true;
 	unsigned long flags;
-	bool tx_complete;
-	int work;
 
-	tx_complete = alx_clean_tx_irq(alx);
-	work = alx_clean_rx_irq(alx, budget);
+	complete = alx_clean_tx_irq(alx) &&
+		   alx_clean_rx_irq(alx, budget);
 
-	if (!tx_complete || work == budget)
-		return budget;
+	if (!complete)
+		return 1;
 
 	napi_complete(&alx->napi);
 
@@ -286,7 +284,7 @@ static int alx_poll(struct napi_struct *napi, int budget)
 
 	alx_post_write(hw);
 
-	return work;
+	return 0;
 }
 
 static irqreturn_t alx_intr_handle(struct alx_priv *alx, u32 intr)
@@ -1305,8 +1303,6 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 	alx = netdev_priv(netdev);
-	spin_lock_init(&alx->hw.mdio_lock);
-	spin_lock_init(&alx->irq_lock);
 	alx->dev = netdev;
 	alx->hw.pdev = pdev;
 	alx->msg_enable = NETIF_MSG_LINK | NETIF_MSG_HW | NETIF_MSG_IFUP |
@@ -1389,6 +1385,9 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	INIT_WORK(&alx->link_check_wk, alx_link_check);
 	INIT_WORK(&alx->reset_wk, alx_reset);
+	spin_lock_init(&alx->hw.mdio_lock);
+	spin_lock_init(&alx->irq_lock);
+
 	netif_carrier_off(netdev);
 
 	err = register_netdev(netdev);

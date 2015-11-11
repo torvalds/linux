@@ -555,24 +555,6 @@ static const struct pipe_buf_operations default_pipe_buf_ops = {
 	.get = generic_pipe_buf_get,
 };
 
-static int generic_pipe_buf_nosteal(struct pipe_inode_info *pipe,
-				    struct pipe_buffer *buf)
-{
-	return 1;
-}
-
-/* Pipe buffer operations for a socket and similar. */
-const struct pipe_buf_operations nosteal_pipe_buf_ops = {
-	.can_merge = 0,
-	.map = generic_pipe_buf_map,
-	.unmap = generic_pipe_buf_unmap,
-	.confirm = generic_pipe_buf_confirm,
-	.release = generic_pipe_buf_release,
-	.steal = generic_pipe_buf_nosteal,
-	.get = generic_pipe_buf_get,
-};
-EXPORT_SYMBOL(nosteal_pipe_buf_ops);
-
 static ssize_t kernel_readv(struct file *file, const struct iovec *vec,
 			    unsigned long vlen, loff_t offset)
 {
@@ -1012,16 +994,12 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 	struct address_space *mapping = out->f_mapping;
 	struct inode *inode = mapping->host;
 	struct splice_desc sd = {
+		.total_len = len,
 		.flags = flags,
+		.pos = *ppos,
 		.u.file = out,
 	};
 	ssize_t ret;
-
-	ret = generic_write_checks(out, ppos, &len, S_ISBLK(inode->i_mode));
-	if (ret)
-		return ret;
-	sd.total_len = len;
-	sd.pos = *ppos;
 
 	pipe_lock(pipe);
 

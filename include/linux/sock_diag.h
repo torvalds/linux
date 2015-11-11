@@ -23,7 +23,7 @@ int sock_diag_check_cookie(void *sk, __u32 *cookie);
 void sock_diag_save_cookie(void *sk, __u32 *cookie);
 
 int sock_diag_put_meminfo(struct sock *sk, struct sk_buff *skb, int attr);
-int sock_diag_put_filterinfo(bool may_report_filterinfo, struct sock *sk,
+int sock_diag_put_filterinfo(struct user_namespace *user_ns, struct sock *sk,
 			     struct sk_buff *skb, int attrtype);
 
 #endif

@@ -290,7 +290,7 @@
 
 			fec: ethernet@1002b000 {
 				compatible = "fsl,imx27-fec";
-				reg = <0x1002b000 0x1000>;
+				reg = <0x1002b000 0x4000>;
 				interrupts = <50>;
 				clocks = <&clks 48>, <&clks 67>, <&clks 0>;
 				clock-names = "ipg", "ahb", "ptp";

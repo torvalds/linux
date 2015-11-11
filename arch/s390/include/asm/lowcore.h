@@ -142,9 +142,9 @@ struct _lowcore {
 	__u8	pad_0x02fc[0x0300-0x02fc];	/* 0x02fc */
 
 	/* Interrupt response block */
-	__u8	irb[96];			/* 0x0300 */
+	__u8	irb[64];			/* 0x0300 */
 
-	__u8	pad_0x0360[0x0e00-0x0360];	/* 0x0360 */
+	__u8	pad_0x0340[0x0e00-0x0340];	/* 0x0340 */
 
 	/*
 	 * 0xe00 contains the address of the IPL Parameter Information
@@ -288,13 +288,12 @@ struct _lowcore {
 	__u8	pad_0x03a0[0x0400-0x03a0];	/* 0x03a0 */
 
 	/* Interrupt response block. */
-	__u8	irb[96];			/* 0x0400 */
-	__u8	pad_0x0460[0x0480-0x0460];	/* 0x0460 */
+	__u8	irb[64];			/* 0x0400 */
 
 	/* Per cpu primary space access list */
-	__u32	paste[16];			/* 0x0480 */
+	__u32	paste[16];			/* 0x0440 */
 
-	__u8	pad_0x04c0[0x0e00-0x04c0];	/* 0x04c0 */
+	__u8	pad_0x0480[0x0e00-0x0480];	/* 0x0480 */
 
 	/*
 	 * 0xe00 contains the address of the IPL Parameter Information

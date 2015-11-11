@@ -167,7 +167,6 @@ static const struct xpad_device {
 	{ 0x1430, 0x8888, "TX6500+ Dance Pad (first generation)", MAP_DPAD_TO_BUTTONS, XTYPE_XBOX },
 	{ 0x146b, 0x0601, "BigBen Interactive XBOX 360 Controller", 0, XTYPE_XBOX360 },
 	{ 0x1689, 0xfd00, "Razer Onza Tournament Edition", MAP_DPAD_TO_BUTTONS, XTYPE_XBOX360 },
-	{ 0x1689, 0xfd01, "Razer Onza Classic Edition", MAP_DPAD_TO_BUTTONS, XTYPE_XBOX360 },
 	{ 0x1bad, 0x0002, "Harmonix Rock Band Guitar", 0, XTYPE_XBOX360 },
 	{ 0x1bad, 0x0003, "Harmonix Rock Band Drumkit", MAP_DPAD_TO_BUTTONS, XTYPE_XBOX360 },
 	{ 0x1bad, 0xf016, "Mad Catz Xbox 360 Controller", 0, XTYPE_XBOX360 },
@@ -1002,19 +1001,9 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 		}
 
 		ep_irq_in = &intf->cur_altsetting->endpoint[1].desc;
-		if (usb_endpoint_is_bulk_out(ep_irq_in)) {
-			usb_fill_bulk_urb(xpad->bulk_out, udev,
-					  usb_sndbulkpipe(udev,
-							  ep_irq_in->bEndpointAddress),
-					  xpad->bdata, XPAD_PKT_LEN,
-					  xpad_bulk_out, xpad);
-		} else {
-			usb_fill_int_urb(xpad->bulk_out, udev,
-					 usb_sndintpipe(udev,
-							ep_irq_in->bEndpointAddress),
-					 xpad->bdata, XPAD_PKT_LEN,
-					 xpad_bulk_out, xpad, 0);
-		}
+		usb_fill_bulk_urb(xpad->bulk_out, udev,
+				usb_sndbulkpipe(udev, ep_irq_in->bEndpointAddress),
+				xpad->bdata, XPAD_PKT_LEN, xpad_bulk_out, xpad);
 
 		/*
 		 * Submit the int URB immediately rather than waiting for open

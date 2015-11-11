@@ -206,8 +206,8 @@ static u32 cubic_root(u64 a)
  */
 static inline void bictcp_update(struct bictcp *ca, u32 cwnd)
 {
-	u32 delta, bic_target, max_cnt;
-	u64 offs, t;
+	u64 offs;
+	u32 delta, t, bic_target, max_cnt;
 
 	ca->ack_cnt++;	/* count the number of ACKs */
 
@@ -250,11 +250,9 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd)
 	 * if the cwnd < 1 million packets !!!
 	 */
 
-	t = (s32)(tcp_time_stamp - ca->epoch_start);
-	t += msecs_to_jiffies(ca->delay_min >> 3);
 	/* change the unit from HZ to bictcp_HZ */
-	t <<= BICTCP_HZ;
-	do_div(t, HZ);
+	t = ((tcp_time_stamp + msecs_to_jiffies(ca->delay_min>>3)
+	      - ca->epoch_start) << BICTCP_HZ) / HZ;
 
 	if (t < ca->bic_K)		/* t - K */
 		offs = ca->bic_K - t;
@@ -408,7 +406,7 @@ static void bictcp_acked(struct sock *sk, u32 cnt, s32 rtt_us)
 		ratio -= ca->delayed_ack >> ACK_RATIO_SHIFT;
 		ratio += cnt;
 
-		ca->delayed_ack = clamp(ratio, 1U, ACK_RATIO_LIMIT);
+		ca->delayed_ack = min(ratio, ACK_RATIO_LIMIT);
 	}
 
 	/* Some calls are for duplicates without timetamps */
@@ -416,7 +414,7 @@ static void bictcp_acked(struct sock *sk, u32 cnt, s32 rtt_us)
 		return;
 
 	/* Discard delay samples right after fast recovery */
-	if (ca->epoch_start && (s32)(tcp_time_stamp - ca->epoch_start) < HZ)
+	if ((s32)(tcp_time_stamp - ca->epoch_start) < HZ)
 		return;
 
 	delay = (rtt_us << 3) / USEC_PER_MSEC;

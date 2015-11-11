@@ -22,7 +22,6 @@
 #define _V4L2_CTRLS_H
 
 #include <linux/list.h>
-#include <linux/mutex.h>
 #include <linux/videodev2.h>
 
 /* forward references */

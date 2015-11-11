@@ -211,9 +211,9 @@ struct kvm_cpuid_entry2 {
 	__u32 padding[3];
 };
 
-#define KVM_CPUID_FLAG_SIGNIFCANT_INDEX		BIT(0)
-#define KVM_CPUID_FLAG_STATEFUL_FUNC		BIT(1)
-#define KVM_CPUID_FLAG_STATE_READ_NEXT		BIT(2)
+#define KVM_CPUID_FLAG_SIGNIFCANT_INDEX 1
+#define KVM_CPUID_FLAG_STATEFUL_FUNC    2
+#define KVM_CPUID_FLAG_STATE_READ_NEXT  4
 
 /* for KVM_SET_CPUID2 */
 struct kvm_cpuid2 {

@@ -575,6 +575,8 @@ static struct sdio_driver brcmf_sdmmc_driver = {
 
 static int brcmf_sdio_pd_probe(struct platform_device *pdev)
 {
+	int ret;
+
 	brcmf_dbg(SDIO, "Enter\n");
 
 	brcmfmac_sdio_pdata = pdev->dev.platform_data;
@@ -582,7 +584,11 @@ static int brcmf_sdio_pd_probe(struct platform_device *pdev)
 	if (brcmfmac_sdio_pdata->power_on)
 		brcmfmac_sdio_pdata->power_on();
 
-	return 0;
+	ret = sdio_register_driver(&brcmf_sdmmc_driver);
+	if (ret)
+		brcmf_err("sdio_register_driver failed: %d\n", ret);
+
+	return ret;
 }
 
 static int brcmf_sdio_pd_remove(struct platform_device *pdev)
@@ -604,15 +610,6 @@ static struct platform_driver brcmf_sdio_pd = {
 	}
 };
 
-void brcmf_sdio_register(void)
-{
-	int ret;
-
-	ret = sdio_register_driver(&brcmf_sdmmc_driver);
-	if (ret)
-		brcmf_err("sdio_register_driver failed: %d\n", ret);
-}
-
 void brcmf_sdio_exit(void)
 {
 	brcmf_dbg(SDIO, "Enter\n");
@@ -623,13 +620,18 @@ void brcmf_sdio_exit(void)
 		sdio_unregister_driver(&brcmf_sdmmc_driver);
 }
 
-void __init brcmf_sdio_init(void)
+void brcmf_sdio_init(void)
 {
 	int ret;
 
 	brcmf_dbg(SDIO, "Enter\n");
 
 	ret = platform_driver_probe(&brcmf_sdio_pd, brcmf_sdio_pd_probe);
-	if (ret == -ENODEV)
-		brcmf_dbg(SDIO, "No platform data available.\n");
+	if (ret == -ENODEV) {
+		brcmf_dbg(SDIO, "No platform data available, registering without.\n");
+		ret = sdio_register_driver(&brcmf_sdmmc_driver);
+	}
+
+	if (ret)
+		brcmf_err("driver registration failed: %d\n", ret);
 }

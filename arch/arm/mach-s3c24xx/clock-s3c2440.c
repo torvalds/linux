@@ -166,9 +166,6 @@ static struct clk_lookup s3c2440_clk_lookup[] = {
 	CLKDEV_INIT(NULL, "clk_uart_baud1", &s3c24xx_uclk),
 	CLKDEV_INIT(NULL, "clk_uart_baud2", &clk_p),
 	CLKDEV_INIT(NULL, "clk_uart_baud3", &s3c2440_clk_fclk_n),
-	CLKDEV_INIT("s3c2440-uart.0", "uart", &s3c24xx_clk_uart0),
-	CLKDEV_INIT("s3c2440-uart.1", "uart", &s3c24xx_clk_uart1),
-	CLKDEV_INIT("s3c2440-uart.2", "uart", &s3c24xx_clk_uart2),
 	CLKDEV_INIT("s3c2440-camif", "camera", &s3c2440_clk_cam_upll),
 };
 

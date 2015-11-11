@@ -32,9 +32,6 @@ gnet_stats_copy(struct gnet_dump *d, int type, void *buf, int size)
 	return 0;
 
 nla_put_failure:
-	kfree(d->xstats);
-	d->xstats = NULL;
-	d->xstats_len = 0;
 	spin_unlock_bh(d->lock);
 	return -1;
 }
@@ -208,9 +205,7 @@ int
 gnet_stats_copy_app(struct gnet_dump *d, void *st, int len)
 {
 	if (d->compat_xstats) {
-		d->xstats = kmemdup(st, len, GFP_ATOMIC);
-		if (!d->xstats)
-			goto err_out;
+		d->xstats = st;
 		d->xstats_len = len;
 	}
 
@@ -218,11 +213,6 @@ gnet_stats_copy_app(struct gnet_dump *d, void *st, int len)
 		return gnet_stats_copy(d, TCA_STATS_APP, st, len);
 
 	return 0;
-
-err_out:
-	d->xstats_len = 0;
-	spin_unlock_bh(d->lock);
-	return -1;
 }
 EXPORT_SYMBOL(gnet_stats_copy_app);
 
@@ -255,9 +245,6 @@ gnet_stats_finish_copy(struct gnet_dump *d)
 			return -1;
 	}
 
-	kfree(d->xstats);
-	d->xstats = NULL;
-	d->xstats_len = 0;
 	spin_unlock_bh(d->lock);
 	return 0;
 }

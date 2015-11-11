@@ -1,4 +1,3 @@
-#include <linux/cpufreq.h>
 #include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/tsacct_kern.h>
@@ -150,11 +149,6 @@ void account_user_time(struct task_struct *p, cputime_t cputime,
 
 	/* Account for user time used */
 	acct_account_cputime(p);
-
-#ifdef CONFIG_CPU_FREQ_STAT
-	/* Account power usage for user time */
-	acct_update_power(p, cputime);
-#endif
 }
 
 /*
@@ -205,11 +199,6 @@ void __account_system_time(struct task_struct *p, cputime_t cputime,
 
 	/* Account for system time used */
 	acct_account_cputime(p);
-
-#ifdef CONFIG_CPU_FREQ_STAT
-	/* Account power usage for system time */
-	acct_update_power(p, cputime);
-#endif
 }
 
 /*
@@ -337,50 +326,50 @@ out:
  * softirq as those do not count in task exec_runtime any more.
  */
 static void irqtime_account_process_tick(struct task_struct *p, int user_tick,
-					 struct rq *rq, int ticks)
+						struct rq *rq)
 {
-	cputime_t scaled = cputime_to_scaled(cputime_one_jiffy);
-	u64 cputime = (__force u64) cputime_one_jiffy;
+	cputime_t one_jiffy_scaled = cputime_to_scaled(cputime_one_jiffy);
 	u64 *cpustat = kcpustat_this_cpu->cpustat;
 
 	if (steal_account_process_tick())
 		return;
 
-	cputime *= ticks;
-	scaled *= ticks;
-
 	if (irqtime_account_hi_update()) {
-		cpustat[CPUTIME_IRQ] += cputime;
+		cpustat[CPUTIME_IRQ] += (__force u64) cputime_one_jiffy;
 	} else if (irqtime_account_si_update()) {
-		cpustat[CPUTIME_SOFTIRQ] += cputime;
+		cpustat[CPUTIME_SOFTIRQ] += (__force u64) cputime_one_jiffy;
 	} else if (this_cpu_ksoftirqd() == p) {
 		/*
 		 * ksoftirqd time do not get accounted in cpu_softirq_time.
 		 * So, we have to handle it separately here.
 		 * Also, p->stime needs to be updated for ksoftirqd.
 		 */
-		__account_system_time(p, cputime, scaled, CPUTIME_SOFTIRQ);
+		__account_system_time(p, cputime_one_jiffy, one_jiffy_scaled,
+					CPUTIME_SOFTIRQ);
 	} else if (user_tick) {
-		account_user_time(p, cputime, scaled);
+		account_user_time(p, cputime_one_jiffy, one_jiffy_scaled);
 	} else if (p == rq->idle) {
-		account_idle_time(cputime);
+		account_idle_time(cputime_one_jiffy);
 	} else if (p->flags & PF_VCPU) { /* System time or guest time */
-		account_guest_time(p, cputime, scaled);
+		account_guest_time(p, cputime_one_jiffy, one_jiffy_scaled);
 	} else {
-		__account_system_time(p, cputime, scaled,	CPUTIME_SYSTEM);
+		__account_system_time(p, cputime_one_jiffy, one_jiffy_scaled,
+					CPUTIME_SYSTEM);
 	}
 }
 
 static void irqtime_account_idle_ticks(int ticks)
 {
+	int i;
 	struct rq *rq = this_rq();
 
-	irqtime_account_process_tick(current, 0, rq, ticks);
+	for (i = 0; i < ticks; i++)
+		irqtime_account_process_tick(current, 0, rq);
 }
 #else /* CONFIG_IRQ_TIME_ACCOUNTING */
 static inline void irqtime_account_idle_ticks(int ticks) {}
 static inline void irqtime_account_process_tick(struct task_struct *p, int user_tick,
-						struct rq *rq, int nr_ticks) {}
+						struct rq *rq) {}
 #endif /* CONFIG_IRQ_TIME_ACCOUNTING */
 
 /*
@@ -475,7 +464,7 @@ void account_process_tick(struct task_struct *p, int user_tick)
 		return;
 
 	if (sched_clock_irqtime) {
-		irqtime_account_process_tick(p, user_tick, rq, 1);
+		irqtime_account_process_tick(p, user_tick, rq);
 		return;
 	}
 
@@ -569,13 +558,16 @@ static void cputime_adjust(struct task_cputime *curr,
 			   struct cputime *prev,
 			   cputime_t *ut, cputime_t *st)
 {
-	cputime_t rtime, stime, utime;
+	cputime_t rtime, stime, utime, total;
 
 	if (vtime_accounting_enabled()) {
 		*ut = curr->utime;
 		*st = curr->stime;
 		return;
 	}
+
+	stime = curr->stime;
+	total = stime + curr->utime;
 
 	/*
 	 * Tick based cputime accounting depend on random scheduling
@@ -597,19 +589,13 @@ static void cputime_adjust(struct task_cputime *curr,
 	if (prev->stime + prev->utime >= rtime)
 		goto out;
 
-	stime = curr->stime;
-	utime = curr->utime;
-
-	if (utime == 0) {
-		stime = rtime;
-	} else if (stime == 0) {
-		utime = rtime;
-	} else {
-		cputime_t total = stime + utime;
-
+	if (total) {
 		stime = scale_stime((__force u64)stime,
 				    (__force u64)rtime, (__force u64)total);
 		utime = rtime - stime;
+	} else {
+		stime = rtime;
+		utime = 0;
 	}
 
 	/*

@@ -498,11 +498,9 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 
 moved:
 	if (bo->evicted) {
-		if (bdev->driver->invalidate_caches) {
-			ret = bdev->driver->invalidate_caches(bdev, bo->mem.placement);
-			if (ret)
-				pr_err("Can not flush read caches\n");
-		}
+		ret = bdev->driver->invalidate_caches(bdev, bo->mem.placement);
+		if (ret)
+			pr_err("Can not flush read caches\n");
 		bo->evicted = false;
 	}
 
@@ -1155,32 +1153,24 @@ out_unlock:
 	return ret;
 }
 
-static bool ttm_bo_mem_compat(struct ttm_placement *placement,
-			      struct ttm_mem_reg *mem,
-			      uint32_t *new_flags)
+static int ttm_bo_mem_compat(struct ttm_placement *placement,
+			     struct ttm_mem_reg *mem)
 {
 	int i;
 
 	if (mem->mm_node && placement->lpfn != 0 &&
 	    (mem->start < placement->fpfn ||
 	     mem->start + mem->num_pages > placement->lpfn))
-		return false;
+		return -1;
 
 	for (i = 0; i < placement->num_placement; i++) {
-		*new_flags = placement->placement[i];
-		if ((*new_flags & mem->placement & TTM_PL_MASK_CACHING) &&
-		    (*new_flags & mem->placement & TTM_PL_MASK_MEM))
-			return true;
+		if ((placement->placement[i] & mem->placement &
+			TTM_PL_MASK_CACHING) &&
+			(placement->placement[i] & mem->placement &
+			TTM_PL_MASK_MEM))
+			return i;
 	}
-
-	for (i = 0; i < placement->num_busy_placement; i++) {
-		*new_flags = placement->busy_placement[i];
-		if ((*new_flags & mem->placement & TTM_PL_MASK_CACHING) &&
-		    (*new_flags & mem->placement & TTM_PL_MASK_MEM))
-			return true;
-	}
-
-	return false;
+	return -1;
 }
 
 int ttm_bo_validate(struct ttm_buffer_object *bo,
@@ -1189,7 +1179,6 @@ int ttm_bo_validate(struct ttm_buffer_object *bo,
 			bool no_wait_gpu)
 {
 	int ret;
-	uint32_t new_flags;
 
 	BUG_ON(!ttm_bo_is_reserved(bo));
 	/* Check that range is valid */
@@ -1200,7 +1189,8 @@ int ttm_bo_validate(struct ttm_buffer_object *bo,
 	/*
 	 * Check whether we need to move buffer.
 	 */
-	if (!ttm_bo_mem_compat(placement, &bo->mem, &new_flags)) {
+	ret = ttm_bo_mem_compat(placement, &bo->mem);
+	if (ret < 0) {
 		ret = ttm_bo_move_buffer(bo, placement, interruptible,
 					 no_wait_gpu);
 		if (ret)
@@ -1210,7 +1200,7 @@ int ttm_bo_validate(struct ttm_buffer_object *bo,
 		 * Use the access and other non-mapping-related flag bits from
 		 * the compatible memory placement flags to the active flags
 		 */
-		ttm_flag_masked(&bo->mem.placement, new_flags,
+		ttm_flag_masked(&bo->mem.placement, placement->placement[ret],
 				~TTM_PL_MASK_MEMTYPE);
 	}
 	/*

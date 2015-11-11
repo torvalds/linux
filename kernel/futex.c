@@ -61,16 +61,12 @@
 #include <linux/nsproxy.h>
 #include <linux/ptrace.h>
 #include <linux/sched/rt.h>
-#include <linux/hugetlb.h>
-#include <linux/freezer.h>
 
 #include <asm/futex.h>
 
 #include "rtmutex_common.h"
 
-#ifndef CONFIG_HAVE_FUTEX_CMPXCHG
 int __read_mostly futex_cmpxchg_enabled;
-#endif
 
 #define FUTEX_HASHBITS (CONFIG_BASE_SMALL ? 4 : 8)
 
@@ -290,7 +286,7 @@ again:
 		put_page(page);
 		/* serialize against __split_huge_page_splitting() */
 		local_irq_disable();
-		if (likely(__get_user_pages_fast(address, 1, !ro, &page) == 1)) {
+		if (likely(__get_user_pages_fast(address, 1, 1, &page) == 1)) {
 			page_head = compound_head(page);
 			/*
 			 * page_head is valid pointer but we must pin
@@ -369,7 +365,7 @@ again:
 	} else {
 		key->both.offset |= FUT_OFF_INODE; /* inode-based key */
 		key->shared.inode = page_head->mapping->host;
-		key->shared.pgoff = basepage_index(page);
+		key->shared.pgoff = page_head->index;
 	}
 
 	get_futex_key_refs(key);
@@ -593,55 +589,6 @@ void exit_pi_state_list(struct task_struct *curr)
 	raw_spin_unlock_irq(&curr->pi_lock);
 }
 
-/*
- * We need to check the following states:
- *
- *      Waiter | pi_state | pi->owner | uTID      | uODIED | ?
- *
- * [1]  NULL   | ---      | ---       | 0         | 0/1    | Valid
- * [2]  NULL   | ---      | ---       | >0        | 0/1    | Valid
- *
- * [3]  Found  | NULL     | --        | Any       | 0/1    | Invalid
- *
- * [4]  Found  | Found    | NULL      | 0         | 1      | Valid
- * [5]  Found  | Found    | NULL      | >0        | 1      | Invalid
- *
- * [6]  Found  | Found    | task      | 0         | 1      | Valid
- *
- * [7]  Found  | Found    | NULL      | Any       | 0      | Invalid
- *
- * [8]  Found  | Found    | task      | ==taskTID | 0/1    | Valid
- * [9]  Found  | Found    | task      | 0         | 0      | Invalid
- * [10] Found  | Found    | task      | !=taskTID | 0/1    | Invalid
- *
- * [1]	Indicates that the kernel can acquire the futex atomically. We
- *	came came here due to a stale FUTEX_WAITERS/FUTEX_OWNER_DIED bit.
- *
- * [2]	Valid, if TID does not belong to a kernel thread. If no matching
- *      thread is found then it indicates that the owner TID has died.
- *
- * [3]	Invalid. The waiter is queued on a non PI futex
- *
- * [4]	Valid state after exit_robust_list(), which sets the user space
- *	value to FUTEX_WAITERS | FUTEX_OWNER_DIED.
- *
- * [5]	The user space value got manipulated between exit_robust_list()
- *	and exit_pi_state_list()
- *
- * [6]	Valid state after exit_pi_state_list() which sets the new owner in
- *	the pi_state but cannot access the user space value.
- *
- * [7]	pi_state->owner can only be NULL when the OWNER_DIED bit is set.
- *
- * [8]	Owner and user space value match
- *
- * [9]	There is no transient state which sets the user space TID to 0
- *	except exit_robust_list(), but this is indicated by the
- *	FUTEX_OWNER_DIED bit. See [4]
- *
- * [10] There is no transient state which leaves owner and user space
- *	TID out of sync.
- */
 static int
 lookup_pi_state(u32 uval, struct futex_hash_bucket *hb,
 		union futex_key *key, struct futex_pi_state **ps)
@@ -657,13 +604,12 @@ lookup_pi_state(u32 uval, struct futex_hash_bucket *hb,
 	plist_for_each_entry_safe(this, next, head, list) {
 		if (match_futex(&this->key, key)) {
 			/*
-			 * Sanity check the waiter before increasing
-			 * the refcount and attaching to it.
+			 * Another waiter already exists - bump up
+			 * the refcount and return its pi_state:
 			 */
 			pi_state = this->pi_state;
 			/*
-			 * Userspace might have messed up non-PI and
-			 * PI futexes [3]
+			 * Userspace might have messed up non-PI and PI futexes
 			 */
 			if (unlikely(!pi_state))
 				return -EINVAL;
@@ -671,81 +617,40 @@ lookup_pi_state(u32 uval, struct futex_hash_bucket *hb,
 			WARN_ON(!atomic_read(&pi_state->refcount));
 
 			/*
-			 * Handle the owner died case:
+			 * When pi_state->owner is NULL then the owner died
+			 * and another waiter is on the fly. pi_state->owner
+			 * is fixed up by the task which acquires
+			 * pi_state->rt_mutex.
+			 *
+			 * We do not check for pid == 0 which can happen when
+			 * the owner died and robust_list_exit() cleared the
+			 * TID.
 			 */
-			if (uval & FUTEX_OWNER_DIED) {
+			if (pid && pi_state->owner) {
 				/*
-				 * exit_pi_state_list sets owner to NULL and
-				 * wakes the topmost waiter. The task which
-				 * acquires the pi_state->rt_mutex will fixup
-				 * owner.
+				 * Bail out if user space manipulated the
+				 * futex value.
 				 */
-				if (!pi_state->owner) {
-					/*
-					 * No pi state owner, but the user
-					 * space TID is not 0. Inconsistent
-					 * state. [5]
-					 */
-					if (pid)
-						return -EINVAL;
-					/*
-					 * Take a ref on the state and
-					 * return. [4]
-					 */
-					goto out_state;
-				}
-
-				/*
-				 * If TID is 0, then either the dying owner
-				 * has not yet executed exit_pi_state_list()
-				 * or some waiter acquired the rtmutex in the
-				 * pi state, but did not yet fixup the TID in
-				 * user space.
-				 *
-				 * Take a ref on the state and return. [6]
-				 */
-				if (!pid)
-					goto out_state;
-			} else {
-				/*
-				 * If the owner died bit is not set,
-				 * then the pi_state must have an
-				 * owner. [7]
-				 */
-				if (!pi_state->owner)
+				if (pid != task_pid_vnr(pi_state->owner))
 					return -EINVAL;
 			}
 
-			/*
-			 * Bail out if user space manipulated the
-			 * futex value. If pi state exists then the
-			 * owner TID must be the same as the user
-			 * space TID. [9/10]
-			 */
-			if (pid != task_pid_vnr(pi_state->owner))
-				return -EINVAL;
-
-		out_state:
 			atomic_inc(&pi_state->refcount);
 			*ps = pi_state;
+
 			return 0;
 		}
 	}
 
 	/*
 	 * We are the first waiter - try to look up the real owner and attach
-	 * the new pi_state to it, but bail out when TID = 0 [1]
+	 * the new pi_state to it, but bail out when TID = 0
 	 */
 	if (!pid)
 		return -ESRCH;
 	p = futex_find_get_task(pid);
 	if (!p)
 		return -ESRCH;
-
-	if (!p->mm) {
-		put_task_struct(p);
-		return -EPERM;
-	}
 
 	/*
 	 * We need to look at the task state flags to figure out,
@@ -767,9 +672,6 @@ lookup_pi_state(u32 uval, struct futex_hash_bucket *hb,
 		return ret;
 	}
 
-	/*
-	 * No existing pi state. First waiter. [2]
-	 */
 	pi_state = alloc_pi_state();
 
 	/*
@@ -841,18 +743,10 @@ retry:
 		return -EDEADLK;
 
 	/*
-	 * Surprise - we got the lock, but we do not trust user space at all.
+	 * Surprise - we got the lock. Just return to userspace:
 	 */
-	if (unlikely(!curval)) {
-		/*
-		 * We verify whether there is kernel state for this
-		 * futex. If not, we can safely assume, that the 0 ->
-		 * TID transition is correct. If state exists, we do
-		 * not bother to fixup the user space state as it was
-		 * corrupted already.
-		 */
-		return futex_top_waiter(hb, key) ? -EINVAL : 1;
-	}
+	if (unlikely(!curval))
+		return 1;
 
 	uval = curval;
 
@@ -982,7 +876,6 @@ static int wake_futex_pi(u32 __user *uaddr, u32 uval, struct futex_q *this)
 	struct task_struct *new_owner;
 	struct futex_pi_state *pi_state = this->pi_state;
 	u32 uninitialized_var(curval), newval;
-	int ret = 0;
 
 	if (!pi_state)
 		return -EINVAL;
@@ -1006,19 +899,23 @@ static int wake_futex_pi(u32 __user *uaddr, u32 uval, struct futex_q *this)
 		new_owner = this->task;
 
 	/*
-	 * We pass it to the next owner. The WAITERS bit is always
-	 * kept enabled while there is PI state around. We cleanup the
-	 * owner died bit, because we are the owner.
+	 * We pass it to the next owner. (The WAITERS bit is always
+	 * kept enabled while there is PI state around. We must also
+	 * preserve the owner died bit.)
 	 */
-	newval = FUTEX_WAITERS | task_pid_vnr(new_owner);
+	if (!(uval & FUTEX_OWNER_DIED)) {
+		int ret = 0;
 
-	if (cmpxchg_futex_value_locked(&curval, uaddr, uval, newval))
-		ret = -EFAULT;
-	else if (curval != uval)
-		ret = -EINVAL;
-	if (ret) {
-		raw_spin_unlock(&pi_state->pi_mutex.wait_lock);
-		return ret;
+		newval = FUTEX_WAITERS | task_pid_vnr(new_owner);
+
+		if (cmpxchg_futex_value_locked(&curval, uaddr, uval, newval))
+			ret = -EFAULT;
+		else if (curval != uval)
+			ret = -EINVAL;
+		if (ret) {
+			raw_spin_unlock(&pi_state->pi_mutex.wait_lock);
+			return ret;
+		}
 	}
 
 	raw_spin_lock_irq(&pi_state->owner->pi_lock);
@@ -1297,7 +1194,7 @@ void requeue_pi_wake_futex(struct futex_q *q, union futex_key *key,
  *
  * Return:
  *  0 - failed to acquire the lock atomically;
- * >0 - acquired the lock, return value is vpid of the top_waiter
+ *  1 - acquired the lock;
  * <0 - error
  */
 static int futex_proxy_trylock_atomic(u32 __user *pifutex,
@@ -1308,7 +1205,7 @@ static int futex_proxy_trylock_atomic(u32 __user *pifutex,
 {
 	struct futex_q *top_waiter = NULL;
 	u32 curval;
-	int ret, vpid;
+	int ret;
 
 	if (get_futex_value_locked(&curval, pifutex))
 		return -EFAULT;
@@ -1336,13 +1233,11 @@ static int futex_proxy_trylock_atomic(u32 __user *pifutex,
 	 * the contended case or if set_waiters is 1.  The pi_state is returned
 	 * in ps in contended cases.
 	 */
-	vpid = task_pid_vnr(top_waiter->task);
 	ret = futex_lock_pi_atomic(pifutex, hb2, key2, ps, top_waiter->task,
 				   set_waiters);
-	if (ret == 1) {
+	if (ret == 1)
 		requeue_pi_wake_futex(top_waiter, key2, hb2);
-		return vpid;
-	}
+
 	return ret;
 }
 
@@ -1374,15 +1269,9 @@ static int futex_requeue(u32 __user *uaddr1, unsigned int flags,
 	struct futex_hash_bucket *hb1, *hb2;
 	struct plist_head *head1;
 	struct futex_q *this, *next;
+	u32 curval2;
 
 	if (requeue_pi) {
-		/*
-		 * Requeue PI only works on two distinct uaddrs. This
-		 * check is only valid for private futexes. See below.
-		 */
-		if (uaddr1 == uaddr2)
-			return -EINVAL;
-
 		/*
 		 * requeue_pi requires a pi_state, try to allocate it now
 		 * without any locks in case it fails.
@@ -1420,15 +1309,6 @@ retry:
 			    requeue_pi ? VERIFY_WRITE : VERIFY_READ);
 	if (unlikely(ret != 0))
 		goto out_put_key1;
-
-	/*
-	 * The check above which compares uaddrs is not sufficient for
-	 * shared futexes. We need to compare the keys:
-	 */
-	if (requeue_pi && match_futex(&key1, &key2)) {
-		ret = -EINVAL;
-		goto out_put_keys;
-	}
 
 	hb1 = hash_futex(&key1);
 	hb2 = hash_futex(&key2);
@@ -1475,25 +1355,16 @@ retry_private:
 		 * At this point the top_waiter has either taken uaddr2 or is
 		 * waiting on it.  If the former, then the pi_state will not
 		 * exist yet, look it up one more time to ensure we have a
-		 * reference to it. If the lock was taken, ret contains the
-		 * vpid of the top waiter task.
+		 * reference to it.
 		 */
-		if (ret > 0) {
+		if (ret == 1) {
 			WARN_ON(pi_state);
 			drop_count++;
 			task_count++;
-			/*
-			 * If we acquired the lock, then the user
-			 * space value of uaddr2 should be vpid. It
-			 * cannot be changed by the top waiter as it
-			 * is blocked on hb2 lock if it tries to do
-			 * so. If something fiddled with it behind our
-			 * back the pi state lookup might unearth
-			 * it. So we rather use the known value than
-			 * rereading and handing potential crap to
-			 * lookup_pi_state.
-			 */
-			ret = lookup_pi_state(ret, hb2, &key2, &pi_state);
+			ret = get_futex_value_locked(&curval2, uaddr2);
+			if (!ret)
+				ret = lookup_pi_state(curval2, hb2, &key2,
+						      &pi_state);
 		}
 
 		switch (ret) {
@@ -1936,7 +1807,7 @@ static void futex_wait_queue_me(struct futex_hash_bucket *hb, struct futex_q *q,
 		 * is no timeout, or if it has yet to expire.
 		 */
 		if (!timeout || timeout->task)
-			freezable_schedule();
+			schedule();
 	}
 	__set_current_state(TASK_RUNNING);
 }
@@ -2263,10 +2134,9 @@ retry:
 	/*
 	 * To avoid races, try to do the TID -> 0 atomic transition
 	 * again. If it succeeds then we can return without waking
-	 * anyone else up. We only try this if neither the waiters nor
-	 * the owner died bit are set.
+	 * anyone else up:
 	 */
-	if (!(uval & ~FUTEX_TID_MASK) &&
+	if (!(uval & FUTEX_OWNER_DIED) &&
 	    cmpxchg_futex_value_locked(&uval, uaddr, vpid, 0))
 		goto pi_faulted;
 	/*
@@ -2298,9 +2168,11 @@ retry:
 	/*
 	 * No waiters - kernel unlocks the futex:
 	 */
-	ret = unlock_futex_pi(uaddr, uval);
-	if (ret == -EFAULT)
-		goto pi_faulted;
+	if (!(uval & FUTEX_OWNER_DIED)) {
+		ret = unlock_futex_pi(uaddr, uval);
+		if (ret == -EFAULT)
+			goto pi_faulted;
+	}
 
 out_unlock:
 	spin_unlock(&hb->lock);
@@ -2458,15 +2330,6 @@ static int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
 	ret = futex_wait_setup(uaddr, val, flags, &q, &hb);
 	if (ret)
 		goto out_key2;
-
-	/*
-	 * The check above which compares uaddrs is not sufficient for
-	 * shared futexes. We need to compare the keys:
-	 */
-	if (match_futex(&q.key, &key2)) {
-		ret = -EINVAL;
-		goto out_put_keys;
-	}
 
 	/* Queue the futex_q, drop the hb lock, wait for wakeup. */
 	futex_wait_queue_me(hb, &q, to);
@@ -2865,10 +2728,10 @@ SYSCALL_DEFINE6(futex, u32 __user *, uaddr, int, op, u32, val,
 	return do_futex(uaddr, op, val, tp, uaddr2, val2, val3);
 }
 
-static void __init futex_detect_cmpxchg(void)
+static int __init futex_init(void)
 {
-#ifndef CONFIG_HAVE_FUTEX_CMPXCHG
 	u32 curval;
+	int i;
 
 	/*
 	 * This will fail and we want it. Some arch implementations do
@@ -2882,14 +2745,6 @@ static void __init futex_detect_cmpxchg(void)
 	 */
 	if (cmpxchg_futex_value_locked(&curval, NULL, 0, 0) == -EFAULT)
 		futex_cmpxchg_enabled = 1;
-#endif
-}
-
-static int __init futex_init(void)
-{
-	int i;
-
-	futex_detect_cmpxchg();
 
 	for (i = 0; i < ARRAY_SIZE(futex_queues); i++) {
 		plist_head_init(&futex_queues[i].chain);

@@ -359,7 +359,6 @@ static void ip6gre_tunnel_uninit(struct net_device *dev)
 	struct ip6gre_net *ign = net_generic(net, ip6gre_net_id);
 
 	ip6gre_tunnel_unlink(ign, netdev_priv(dev));
-	ip6_tnl_dst_reset(netdev_priv(dev));
 	dev_put(dev);
 }
 
@@ -513,11 +512,11 @@ static int ip6gre_rcv(struct sk_buff *skb)
 
 		skb->protocol = gre_proto;
 		/* WCCP version 1 and 2 protocol decoding.
-		 * - Change protocol to IPv6
+		 * - Change protocol to IP
 		 * - When dealing with WCCPv2, Skip extra 4 bytes in GRE header
 		 */
 		if (flags == 0 && gre_proto == htons(ETH_P_WCCP)) {
-			skb->protocol = htons(ETH_P_IPV6);
+			skb->protocol = htons(ETH_P_IP);
 			if ((*(h + offset) & 0xF0) != 0x40)
 				offset += 4;
 		}
@@ -621,7 +620,7 @@ static netdev_tx_t ip6gre_xmit2(struct sk_buff *skb,
 	struct ip6_tnl *tunnel = netdev_priv(dev);
 	struct net_device *tdev;    /* Device to other host */
 	struct ipv6hdr  *ipv6h;     /* Our new IP header */
-	unsigned int max_headroom = 0; /* The extra header space needed */
+	unsigned int max_headroom;  /* The extra header space needed */
 	int    gre_hlen;
 	struct ipv6_tel_txoption opt;
 	int    mtu;
@@ -694,7 +693,7 @@ static netdev_tx_t ip6gre_xmit2(struct sk_buff *skb,
 			tunnel->err_count = 0;
 	}
 
-	max_headroom += LL_RESERVED_SPACE(tdev) + gre_hlen + dst->header_len;
+	max_headroom = LL_RESERVED_SPACE(tdev) + gre_hlen + dst->header_len;
 
 	if (skb_headroom(skb) < max_headroom || skb_shared(skb) ||
 	    (skb_cloned(skb) && !skb_clone_writable(skb, 0))) {
@@ -788,7 +787,7 @@ static inline int ip6gre_xmit_ipv4(struct sk_buff *skb, struct net_device *dev)
 		encap_limit = t->parms.encap_limit;
 
 	memcpy(&fl6, &t->fl.u.ip6, sizeof(fl6));
-	fl6.flowi6_proto = IPPROTO_GRE;
+	fl6.flowi6_proto = IPPROTO_IPIP;
 
 	dsfield = ipv4_get_dsfield(iph);
 
@@ -838,7 +837,7 @@ static inline int ip6gre_xmit_ipv6(struct sk_buff *skb, struct net_device *dev)
 		encap_limit = t->parms.encap_limit;
 
 	memcpy(&fl6, &t->fl.u.ip6, sizeof(fl6));
-	fl6.flowi6_proto = IPPROTO_GRE;
+	fl6.flowi6_proto = IPPROTO_IPV6;
 
 	dsfield = ipv6_get_dsfield(ipv6h);
 	if (t->parms.flags & IP6_TNL_F_USE_ORIG_TCLASS)
@@ -962,6 +961,8 @@ static void ip6gre_tnl_link_config(struct ip6_tnl *t, int set_mtu)
 		dev->flags |= IFF_POINTOPOINT;
 	else
 		dev->flags &= ~IFF_POINTOPOINT;
+
+	dev->iflink = p->link;
 
 	/* Precalculate GRE options length */
 	if (t->parms.o_flags&(GRE_CSUM|GRE_KEY|GRE_SEQ)) {
@@ -1266,8 +1267,6 @@ static int ip6gre_tunnel_init(struct net_device *dev)
 	if (!dev->tstats)
 		return -ENOMEM;
 
-	dev->iflink = tunnel->parms.link;
-
 	return 0;
 }
 
@@ -1282,6 +1281,7 @@ static void ip6gre_fb_tunnel_init(struct net_device *dev)
 
 	dev_hold(dev);
 }
+
 
 static struct inet6_protocol ip6gre_protocol __read_mostly = {
 	.handler     = ip6gre_rcv,
@@ -1458,8 +1458,6 @@ static int ip6gre_tap_init(struct net_device *dev)
 	if (!dev->tstats)
 		return -ENOMEM;
 
-	dev->iflink = tunnel->parms.link;
-
 	return 0;
 }
 
@@ -1551,15 +1549,6 @@ static int ip6gre_changelink(struct net_device *dev, struct nlattr *tb[],
 	return 0;
 }
 
-static void ip6gre_dellink(struct net_device *dev, struct list_head *head)
-{
-	struct net *net = dev_net(dev);
-	struct ip6gre_net *ign = net_generic(net, ip6gre_net_id);
-
-	if (dev != ign->fb_tunnel_dev)
-		unregister_netdevice_queue(dev, head);
-}
-
 static size_t ip6gre_get_size(const struct net_device *dev)
 {
 	return
@@ -1637,7 +1626,6 @@ static struct rtnl_link_ops ip6gre_link_ops __read_mostly = {
 	.validate	= ip6gre_tunnel_validate,
 	.newlink	= ip6gre_newlink,
 	.changelink	= ip6gre_changelink,
-	.dellink	= ip6gre_dellink,
 	.get_size	= ip6gre_get_size,
 	.fill_info	= ip6gre_fill_info,
 };

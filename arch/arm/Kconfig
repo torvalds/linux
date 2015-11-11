@@ -4,9 +4,7 @@ config ARM
 	select ARCH_BINFMT_ELF_RANDOMIZE_PIE
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select ARCH_HAVE_CUSTOM_GPIO_H
-	select ARCH_SUPPORTS_ATOMIC_RMW
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
-	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select BUILDTIME_EXTABLE_SORT if MMU
 	select CPU_PM if (SUSPEND || CPU_IDLE)
@@ -21,6 +19,7 @@ config ARM
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
 	select HARDIRQS_SW_RESEND
+	select HAVE_AOUT
 	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_SECCOMP_FILTER
@@ -214,8 +213,7 @@ config VECTORS_BASE
 	default DRAM_BASE if REMAP_VECTORS_TO_RAM
 	default 0x00000000
 	help
-	  The base address of exception vectors.  This must be two pages
-	  in size.
+	  The base address of exception vectors.
 
 config ARM_PATCH_PHYS_VIRT
 	bool "Patch physical to virtual translations at runtime" if EMBEDDED
@@ -476,7 +474,6 @@ config ARCH_IXP4XX
 	bool "IXP4xx-based"
 	depends on MMU
 	select ARCH_HAS_DMA_SET_COHERENT_MASK
-	select ARCH_SUPPORTS_BIG_ENDIAN
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKSRC_MMIO
 	select CPU_XSCALE
@@ -1497,109 +1494,6 @@ config SCHED_SMT
 	  MultiThreading at a cost of slightly increased overhead in some
 	  places. If unsure say N here.
 
-config DISABLE_CPU_SCHED_DOMAIN_BALANCE
-	bool "(EXPERIMENTAL) Disable CPU level scheduler load-balancing"
-	help
-	  Disables scheduler load-balancing at CPU sched domain level.
-
-config SCHED_HMP
-	bool "(EXPERIMENTAL) Heterogenous multiprocessor scheduling"
-	depends on DISABLE_CPU_SCHED_DOMAIN_BALANCE && SCHED_MC && FAIR_GROUP_SCHED && !SCHED_AUTOGROUP
-	help
-	  Experimental scheduler optimizations for heterogeneous platforms.
-	  Attempts to introspectively select task affinity to optimize power
-	  and performance. Basic support for multiple (>2) cpu types is in place,
-	  but it has only been tested with two types of cpus.
-	  There is currently no support for migration of task groups, hence
-	  !SCHED_AUTOGROUP. Furthermore, normal load-balancing must be disabled
-	  between cpus of different type (DISABLE_CPU_SCHED_DOMAIN_BALANCE).
-	  When turned on, this option adds sys/kernel/hmp directory which
-	  contains the following files:
-	  up_threshold - the load average threshold used for up migration
-	                 (0 - 1023)
-	  down_threshold - the load average threshold used for down migration
-	                 (0 - 1023)
-	  hmp_domains - a list of cpumasks for the present HMP domains,
-	                starting with the 'biggest' and ending with the
-	                'smallest'.
-	  Note that both the threshold files can be written at runtime to
-	  control scheduler behaviour.
-
-config SCHED_HMP_PRIO_FILTER
-	bool "(EXPERIMENTAL) Filter HMP migrations by task priority"
-	depends on SCHED_HMP
-	help
-	  Enables task priority based HMP migration filter. Any task with
-	  a NICE value above the threshold will always be on low-power cpus
-	  with less compute capacity.
-
-config SCHED_HMP_PRIO_FILTER_VAL
-	int "NICE priority threshold"
-	default 5
-	depends on SCHED_HMP_PRIO_FILTER
-
-config HMP_FAST_CPU_MASK
-	string "HMP scheduler fast CPU mask"
-	depends on SCHED_HMP
-	help
-          Leave empty to use device tree information.
-	  Specify the cpuids of the fast CPUs in the system as a list string,
-	  e.g. cpuid 0+1 should be specified as 0-1.
-
-config HMP_SLOW_CPU_MASK
-	string "HMP scheduler slow CPU mask"
-	depends on SCHED_HMP
-	help
-	  Leave empty to use device tree information.
-	  Specify the cpuids of the slow CPUs in the system as a list string,
-	  e.g. cpuid 0+1 should be specified as 0-1.
-
-config HMP_VARIABLE_SCALE
-	bool "Allows changing the load tracking scale through sysfs"
-	depends on SCHED_HMP
-	help
-	  When turned on, this option exports the load average period value
-	  for the load tracking patches through sysfs.
-	  The values can be modified to change the rate of load accumulation
-	  used for HMP migration. 'load_avg_period_ms' is the time in ms to
-	  reach a load average of 0.5 for an idle task of 0 load average
-	  ratio which becomes 100% busy.
-	  For example, with load_avg_period_ms = 128 and up_threshold = 512,
-	  a running task with a load of 0 will be migrated to a bigger CPU after
-	  128ms, because after 128ms its load_avg_ratio is 0.5 and the real
-	  up_threshold is 0.5.
-	  This patch has the same behavior as changing the Y of the load
-	  average computation to
-	        (1002/1024)^(LOAD_AVG_PERIOD/load_avg_period_ms)
-	  but removes intermediate overflows in computation.
-
-config HMP_FREQUENCY_INVARIANT_SCALE
-	bool "(EXPERIMENTAL) Frequency-Invariant Tracked Load for HMP"
-	depends on SCHED_HMP && CPU_FREQ
-	help
-	  Scales the current load contribution in line with the frequency
-	  of the CPU that the task was executed on.
-	  In this version, we use a simple linear scale derived from the
-	  maximum frequency reported by CPUFreq.
-	  Restricting tracked load to be scaled by the CPU's frequency
-	  represents the consumption of possible compute capacity
-	  (rather than consumption of actual instantaneous capacity as
-	  normal) and allows the HMP migration's simple threshold
-	  migration strategy to interact more predictably with CPUFreq's
-	  asynchronous compute capacity changes.
-
-config SCHED_HMP_LITTLE_PACKING
-	bool "Small task packing for HMP"
-	depends on SCHED_HMP
-	default n
-	help
-	  Allows the HMP Scheduler to pack small tasks into CPUs in the
-	  smallest HMP domain.
-	  Controlled by two sysfs files in sys/kernel/hmp.
-	  packing_enable: 1 to enable, 0 to disable packing. Default 1.
-	  packing_limit: runqueue load ratio where a RQ is considered
-	    to be full. Default is NICE_0_LOAD * 9/8.
-
 config HAVE_ARM_SCU
 	bool
 	help
@@ -1626,31 +1520,6 @@ config MCPM
 	  This option provides the common power management infrastructure
 	  for (multi-)cluster based systems, such as big.LITTLE based
 	  systems.
-
-config BIG_LITTLE
-	bool "big.LITTLE support (Experimental)"
-	depends on CPU_V7 && SMP
-	select MCPM
-	help
-	  This option enables support for the big.LITTLE architecture.
-
-config BL_SWITCHER
-	bool "big.LITTLE switcher support"
-	depends on BIG_LITTLE && MCPM && HOTPLUG_CPU
-	select CPU_PM
-	select ARM_CPU_SUSPEND
-	help
-	  The big.LITTLE "switcher" provides the core functionality to
-	  transparently handle transition between a cluster of A15's
-	  and a cluster of A7's in a big.LITTLE system.
-
-config BL_SWITCHER_DUMMY_IF
-	tristate "Simple big.LITTLE switcher user interface"
-	depends on BL_SWITCHER && DEBUG_KERNEL
-	help
-	  This is a simple and dummy char dev interface to control
-	  the big.LITTLE switcher core code.  It is meant for
-	  debugging purposes only.
 
 choice
 	prompt "Memory split"
@@ -1862,14 +1731,6 @@ config HW_PERF_EVENTS
 	  Enable hardware performance counter support for perf events. If
 	  disabled, perf events will use software events only.
 
-config SYS_SUPPORTS_HUGETLBFS
-       def_bool y
-       depends on ARM_LPAE
-
-config HAVE_ARCH_TRANSPARENT_HUGEPAGE
-       def_bool y
-       depends on ARM_LPAE
-
 source "mm/Kconfig"
 
 config FORCE_MAX_ZONEORDER
@@ -1958,15 +1819,6 @@ config XEN
 	help
 	  Say Y if you want to run Linux in a Virtual Machine on Xen on ARM.
 
-config ARM_FLUSH_CONSOLE_ON_RESTART
-	bool "Force flush the console on restart"
-	help
-	  If the console is locked while the system is rebooted, the messages
-	  in the temporary logbuffer would not have propogated to all the
-	  console drivers. This option forces the console lock to be
-	  released if it failed to be acquired, which will cause all the
-	  pending messages to be flushed.
-
 endmenu
 
 menu "Boot options"
@@ -1995,21 +1847,6 @@ config DEPRECATED_PARAM_STRUCT
 	help
 	  This was deprecated in 2001 and announced to live on for 5 years.
 	  Some old boot loaders still use this way.
-
-config BUILD_ARM_APPENDED_DTB_IMAGE
-	bool "Build a concatenated zImage/dtb by default"
-	depends on OF
-	help
-	  Enabling this option will cause a concatenated zImage and DTB to
-	  be built by default (instead of a standalone zImage.)  The image
-	  will built in arch/arm/boot/zImage-dtb.<dtb name>
-
-config BUILD_ARM_APPENDED_DTB_IMAGE_NAME
-	string "Default dtb name"
-	depends on BUILD_ARM_APPENDED_DTB_IMAGE
-	help
-	  name of the dtb to append when building a concatenated
-	  zImage/dtb.
 
 # Compressed boot loader in ROM.  Yes, we really want to ask about
 # TEXT and BSS so we preserve their values in the config files.
@@ -2359,13 +2196,6 @@ config NEON
 	help
 	  Say Y to include support code for NEON, the ARMv7 Advanced SIMD
 	  Extension.
-
-config KERNEL_MODE_NEON
-	bool "Support for NEON in kernel mode"
-	default n
-	depends on NEON
-	help
-	  Say Y to include support for NEON in kernel mode.
 
 endmenu
 

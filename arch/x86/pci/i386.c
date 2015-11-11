@@ -162,10 +162,6 @@ pcibios_align_resource(void *data, const struct resource *res,
 			return start;
 		if (start & 0x300)
 			start = (start + 0x3ff) & ~0x3ff;
-	} else if (res->flags & IORESOURCE_MEM) {
-		/* The low 1MB range is reserved for ISA cards */
-		if (start < BIOS_END)
-			start = BIOS_END;
 	}
 	return start;
 }

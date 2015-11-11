@@ -312,9 +312,7 @@ static void *pidns_get(struct task_struct *task)
 	struct pid_namespace *ns;
 
 	rcu_read_lock();
-	ns = task_active_pid_ns(task);
-	if (ns)
-		get_pid_ns(ns);
+	ns = get_pid_ns(task_active_pid_ns(task));
 	rcu_read_unlock();
 
 	return ns;

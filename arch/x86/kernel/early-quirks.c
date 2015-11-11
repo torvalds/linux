@@ -196,21 +196,16 @@ static void __init ati_bugs_contd(int num, int slot, int func)
 static void __init intel_remapping_check(int num, int slot, int func)
 {
 	u8 revision;
-	u16 device;
 
-	device = read_pci_config_16(num, slot, func, PCI_DEVICE_ID);
 	revision = read_pci_config_byte(num, slot, func, PCI_REVISION_ID);
 
 	/*
-	 * Revision <= 13 of all triggering devices id in this quirk
-	 * have a problem draining interrupts when irq remapping is
-	 * enabled, and should be flagged as broken. Additionally
-	 * revision 0x22 of device id 0x3405 has this problem.
+	 * Revision 0x13 of this chipset supports irq remapping
+	 * but has an erratum that breaks its behavior, flag it as such
 	 */
-	if (revision <= 0x13)
+	if (revision == 0x13)
 		set_irq_remapping_broken();
-	else if (device == 0x3405 && revision == 0x22)
-		set_irq_remapping_broken();
+
 }
 
 #define QFLAG_APPLY_ONCE 	0x1
@@ -243,8 +238,6 @@ static struct chipset early_qrk[] __initdata = {
 	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_SBX00_SMBUS,
 	  PCI_CLASS_SERIAL_SMBUS, PCI_ANY_ID, 0, ati_bugs_contd },
 	{ PCI_VENDOR_ID_INTEL, 0x3403, PCI_CLASS_BRIDGE_HOST,
-	  PCI_BASE_CLASS_BRIDGE, 0, intel_remapping_check },
-	{ PCI_VENDOR_ID_INTEL, 0x3405, PCI_CLASS_BRIDGE_HOST,
 	  PCI_BASE_CLASS_BRIDGE, 0, intel_remapping_check },
 	{ PCI_VENDOR_ID_INTEL, 0x3406, PCI_CLASS_BRIDGE_HOST,
 	  PCI_BASE_CLASS_BRIDGE, 0, intel_remapping_check },

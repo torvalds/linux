@@ -213,13 +213,9 @@ static int readpage_nounlock(struct file *filp, struct page *page)
 	if (err < 0) {
 		SetPageError(page);
 		goto out;
-	} else {
-		if (err < PAGE_CACHE_SIZE) {
+	} else if (err < PAGE_CACHE_SIZE) {
 		/* zero fill remainder of page */
-			zero_user_segment(page, err, PAGE_CACHE_SIZE);
-		} else {
-			flush_dcache_page(page);
-		}
+		zero_user_segment(page, err, PAGE_CACHE_SIZE);
 	}
 	SetPageUptodate(page);
 

@@ -130,7 +130,7 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 	}
 
 	/* Enable USB controller, 83xx or 8536 */
-	if (pdata->have_sysif_regs && pdata->controller_ver < FSL_USB_VER_1_6)
+	if (pdata->have_sysif_regs)
 		setbits32(hcd->regs + FSL_SOC_USB_CTRL, 0x4);
 
 	/* Don't need to set host mode here. It will be done by tdi_reset() */
@@ -232,9 +232,15 @@ static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 	case FSL_USB2_PHY_ULPI:
 		if (pdata->have_sysif_regs && pdata->controller_ver) {
 			/* controller version 1.6 or above */
-			clrbits32(non_ehci + FSL_SOC_USB_CTRL, UTMI_PHY_EN);
 			setbits32(non_ehci + FSL_SOC_USB_CTRL,
-				ULPI_PHY_CLK_SEL | USB_CTRL_USB_EN);
+					ULPI_PHY_CLK_SEL);
+			/*
+			 * Due to controller issue of PHY_CLK_VALID in ULPI
+			 * mode, we set USB_CTRL_USB_EN before checking
+			 * PHY_CLK_VALID, otherwise PHY_CLK_VALID doesn't work.
+			 */
+			clrsetbits_be32(non_ehci + FSL_SOC_USB_CTRL,
+					UTMI_PHY_EN, USB_CTRL_USB_EN);
 		}
 		portsc |= PORT_PTS_ULPI;
 		break;
@@ -261,8 +267,7 @@ static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 		break;
 	}
 
-	if (pdata->have_sysif_regs &&
-	    pdata->controller_ver > FSL_USB_VER_1_6 &&
+	if (pdata->have_sysif_regs && pdata->controller_ver &&
 	    (phy_mode == FSL_USB2_PHY_ULPI)) {
 		/* check PHY_CLK_VALID to get phy clk valid */
 		if (!spin_event_timeout(in_be32(non_ehci + FSL_SOC_USB_CTRL) &

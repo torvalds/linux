@@ -152,13 +152,21 @@ int selinux_xfrm_state_pol_flow_match(struct xfrm_state *x, struct xfrm_policy *
 	return rc;
 }
 
-static int selinux_xfrm_skb_sid_ingress(struct sk_buff *skb,
-					u32 *sid, int ckall)
+/*
+ * LSM hook implementation that checks and/or returns the xfrm sid for the
+ * incoming packet.
+ */
+
+int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *sid, int ckall)
 {
-	struct sec_path *sp = skb->sp;
+	struct sec_path *sp;
 
 	*sid = SECSID_NULL;
 
+	if (skb == NULL)
+		return 0;
+
+	sp = skb->sp;
 	if (sp) {
 		int i, sid_set = 0;
 
@@ -180,45 +188,6 @@ static int selinux_xfrm_skb_sid_ingress(struct sk_buff *skb,
 	}
 
 	return 0;
-}
-
-static u32 selinux_xfrm_skb_sid_egress(struct sk_buff *skb)
-{
-	struct dst_entry *dst = skb_dst(skb);
-	struct xfrm_state *x;
-
-	if (dst == NULL)
-		return SECSID_NULL;
-	x = dst->xfrm;
-	if (x == NULL || !selinux_authorizable_xfrm(x))
-		return SECSID_NULL;
-
-	return x->security->ctx_sid;
-}
-
-/*
- * LSM hook implementation that checks and/or returns the xfrm sid for the
- * incoming packet.
- */
-
-int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *sid, int ckall)
-{
-	if (skb == NULL) {
-		*sid = SECSID_NULL;
-		return 0;
-	}
-	return selinux_xfrm_skb_sid_ingress(skb, sid, ckall);
-}
-
-int selinux_xfrm_skb_sid(struct sk_buff *skb, u32 *sid)
-{
-	int rc;
-
-	rc = selinux_xfrm_skb_sid_ingress(skb, sid, 0);
-	if (rc == 0 && *sid == SECSID_NULL)
-		*sid = selinux_xfrm_skb_sid_egress(skb);
-
-	return rc;
 }
 
 /*

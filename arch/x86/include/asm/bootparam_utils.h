@@ -35,9 +35,9 @@ static void sanitize_boot_params(struct boot_params *boot_params)
 	 */
 	if (boot_params->sentinel) {
 		/* fields in boot_params are left uninitialized, clear them */
-		memset(&boot_params->ext_ramdisk_image, 0,
+		memset(&boot_params->olpc_ofw_header, 0,
 		       (char *)&boot_params->efi_info -
-			(char *)&boot_params->ext_ramdisk_image);
+			(char *)&boot_params->olpc_ofw_header);
 		memset(&boot_params->kbd_status, 0,
 		       (char *)&boot_params->hdr -
 		       (char *)&boot_params->kbd_status);

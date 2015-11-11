@@ -77,10 +77,8 @@ static void swap_inode_data(struct inode *inode1, struct inode *inode2)
 	memswap(ei1->i_data, ei2->i_data, sizeof(ei1->i_data));
 	memswap(&ei1->i_flags, &ei2->i_flags, sizeof(ei1->i_flags));
 	memswap(&ei1->i_disksize, &ei2->i_disksize, sizeof(ei1->i_disksize));
-	ext4_es_remove_extent(inode1, 0, EXT_MAX_BLOCKS);
-	ext4_es_remove_extent(inode2, 0, EXT_MAX_BLOCKS);
-	ext4_es_lru_del(inode1);
-	ext4_es_lru_del(inode2);
+	memswap(&ei1->i_es_tree, &ei2->i_es_tree, sizeof(ei1->i_es_tree));
+	memswap(&ei1->i_es_lru_nr, &ei2->i_es_lru_nr, sizeof(ei1->i_es_lru_nr));
 
 	isize = i_size_read(inode1);
 	i_size_write(inode1, i_size_read(inode2));
@@ -145,7 +143,7 @@ static long swap_inode_boot_loader(struct super_block *sb,
 	handle = ext4_journal_start(inode_bl, EXT4_HT_MOVE_EXTENTS, 2);
 	if (IS_ERR(handle)) {
 		err = -EINVAL;
-		goto journal_err_out;
+		goto swap_boot_out;
 	}
 
 	/* Protect extent tree against block allocations via delalloc */
@@ -203,7 +201,6 @@ static long swap_inode_boot_loader(struct super_block *sb,
 
 	ext4_double_up_write_data_sem(inode, inode_bl);
 
-journal_err_out:
 	ext4_inode_resume_unlocked_dio(inode);
 	ext4_inode_resume_unlocked_dio(inode_bl);
 
@@ -549,17 +546,9 @@ group_add_out:
 	}
 
 	case EXT4_IOC_SWAP_BOOT:
-	{
-		int err;
 		if (!(filp->f_mode & FMODE_WRITE))
 			return -EBADF;
-		err = mnt_want_write_file(filp);
-		if (err)
-			return err;
-		err = swap_inode_boot_loader(sb, inode);
-		mnt_drop_write_file(filp);
-		return err;
-	}
+		return swap_inode_boot_loader(sb, inode);
 
 	case EXT4_IOC_RESIZE_FS: {
 		ext4_fsblk_t n_blocks_count;
@@ -605,13 +594,11 @@ resizefs_out:
 		return err;
 	}
 
-	case FIDTRIM:
 	case FITRIM:
 	{
 		struct request_queue *q = bdev_get_queue(sb->s_bdev);
 		struct fstrim_range range;
 		int ret = 0;
-		int flags  = cmd == FIDTRIM ? BLKDEV_DISCARD_SECURE : 0;
 
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
@@ -619,15 +606,13 @@ resizefs_out:
 		if (!blk_queue_discard(q))
 			return -EOPNOTSUPP;
 
-		if ((flags & BLKDEV_DISCARD_SECURE) && !blk_queue_secdiscard(q))
-			return -EOPNOTSUPP;
 		if (copy_from_user(&range, (struct fstrim_range __user *)arg,
 		    sizeof(range)))
 			return -EFAULT;
 
 		range.minlen = max((unsigned int)range.minlen,
 				   q->limits.discard_granularity);
-		ret = ext4_trim_fs(sb, &range, flags);
+		ret = ext4_trim_fs(sb, &range);
 		if (ret < 0)
 			return ret;
 

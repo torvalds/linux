@@ -855,7 +855,6 @@ long vhost_dev_ioctl(struct vhost_dev *d, unsigned int ioctl, void __user *argp)
 		}
 		if (eventfp != d->log_file) {
 			filep = d->log_file;
-			d->log_file = eventfp;
 			ctx = d->log_ctx;
 			d->log_ctx = eventfp ?
 				eventfd_ctx_fileget(eventfp) : NULL;

@@ -34,11 +34,11 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/platform_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/log2.h>
 #include <linux/pm.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
-#include <linux/dmi.h>
 
 /* this is for "generic access to PC-style RTC" using CMOS_READ/CMOS_WRITE */
 #include <asm-generic/rtc.h>
@@ -377,51 +377,6 @@ static int cmos_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	return 0;
 }
 
-/*
- * Do not disable RTC alarm on shutdown - workaround for b0rked BIOSes.
- */
-static bool alarm_disable_quirk;
-
-static int __init set_alarm_disable_quirk(const struct dmi_system_id *id)
-{
-	alarm_disable_quirk = true;
-	pr_info("rtc-cmos: BIOS has alarm-disable quirk. ");
-	pr_info("RTC alarms disabled\n");
-	return 0;
-}
-
-static const struct dmi_system_id rtc_quirks[] __initconst = {
-	/* https://bugzilla.novell.com/show_bug.cgi?id=805740 */
-	{
-		.callback = set_alarm_disable_quirk,
-		.ident    = "IBM Truman",
-		.matches  = {
-			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "4852570"),
-		},
-	},
-	/* https://bugzilla.novell.com/show_bug.cgi?id=812592 */
-	{
-		.callback = set_alarm_disable_quirk,
-		.ident    = "Gigabyte GA-990XA-UD3",
-		.matches  = {
-			DMI_MATCH(DMI_SYS_VENDOR,
-					"Gigabyte Technology Co., Ltd."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "GA-990XA-UD3"),
-		},
-	},
-	/* http://permalink.gmane.org/gmane.linux.kernel/1604474 */
-	{
-		.callback = set_alarm_disable_quirk,
-		.ident    = "Toshiba Satellite L300",
-		.matches  = {
-			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Satellite L300"),
-		},
-	},
-	{}
-};
-
 static int cmos_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
@@ -429,9 +384,6 @@ static int cmos_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 	if (!is_valid_irq(cmos->irq))
 		return -EINVAL;
-
-	if (alarm_disable_quirk)
-		return 0;
 
 	spin_lock_irqsave(&rtc_lock, flags);
 
@@ -1210,8 +1162,6 @@ static int __init cmos_init(void)
 		if (retval == 0)
 			platform_driver_registered = true;
 	}
-
-	dmi_check_system(rtc_quirks);
 
 	if (retval == 0)
 		return 0;

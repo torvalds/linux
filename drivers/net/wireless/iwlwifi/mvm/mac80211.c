@@ -243,11 +243,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	if (ret)
 		return ret;
 
-	ret = ieee80211_register_hw(mvm->hw);
-	if (ret)
-		iwl_mvm_leds_exit(mvm);
-
-	return ret;
+	return ieee80211_register_hw(mvm->hw);
 }
 
 static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
@@ -278,24 +274,6 @@ static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 	ieee80211_free_txskb(hw, skb);
 }
 
-static inline bool iwl_enable_rx_ampdu(const struct iwl_cfg *cfg)
-{
-	if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_RXAGG)
-		return false;
-	return true;
-}
-
-static inline bool iwl_enable_tx_ampdu(const struct iwl_cfg *cfg)
-{
-	if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_TXAGG)
-		return false;
-	if (iwlwifi_mod_params.disable_11n & IWL_ENABLE_HT_TXAGG)
-		return true;
-
-	/* enabled by default */
-	return true;
-}
-
 static int iwl_mvm_mac_ampdu_action(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    enum ieee80211_ampdu_mlme_action action,
@@ -315,7 +293,7 @@ static int iwl_mvm_mac_ampdu_action(struct ieee80211_hw *hw,
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
-		if (!iwl_enable_rx_ampdu(mvm->cfg)) {
+		if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_RXAGG) {
 			ret = -EINVAL;
 			break;
 		}
@@ -325,7 +303,7 @@ static int iwl_mvm_mac_ampdu_action(struct ieee80211_hw *hw,
 		ret = iwl_mvm_sta_rx_agg(mvm, sta, tid, 0, false);
 		break;
 	case IEEE80211_AMPDU_TX_START:
-		if (!iwl_enable_tx_ampdu(mvm->cfg)) {
+		if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_TXAGG) {
 			ret = -EINVAL;
 			break;
 		}
@@ -359,6 +337,9 @@ static void iwl_mvm_cleanup_iterator(void *data, u8 *mac,
 
 	mvmvif->uploaded = false;
 	mvmvif->ap_sta_id = IWL_MVM_STATION_COUNT;
+
+	/* does this make sense at all? */
+	mvmvif->color++;
 
 	spin_lock_bh(&mvm->time_event_lock);
 	iwl_mvm_te_clear_data(mvm, &mvmvif->time_event_data);
@@ -1006,21 +987,6 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 	mutex_lock(&mvm->mutex);
 	if (old_state == IEEE80211_STA_NOTEXIST &&
 	    new_state == IEEE80211_STA_NONE) {
-		/*
-		 * Firmware bug - it'll crash if the beacon interval is less
-		 * than 16. We can't avoid connecting at all, so refuse the
-		 * station state change, this will cause mac80211 to abandon
-		 * attempts to connect to this AP, and eventually wpa_s will
-		 * blacklist the AP...
-		 */
-		if (vif->type == NL80211_IFTYPE_STATION &&
-		    vif->bss_conf.beacon_int < 16) {
-			IWL_ERR(mvm,
-				"AP %pM beacon interval is %d, refusing due to firmware bug!\n",
-				sta->addr, vif->bss_conf.beacon_int);
-			ret = -EINVAL;
-			goto out_unlock;
-		}
 		ret = iwl_mvm_add_sta(mvm, vif, sta);
 	} else if (old_state == IEEE80211_STA_NONE &&
 		   new_state == IEEE80211_STA_AUTH) {
@@ -1049,7 +1015,6 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 	} else {
 		ret = -EIO;
 	}
- out_unlock:
 	mutex_unlock(&mvm->mutex);
 
 	return ret;

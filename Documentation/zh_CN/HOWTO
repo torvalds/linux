@@ -237,7 +237,7 @@ kernel.org网站的pub/linux/kernel/v2.6/目录下找到它。它的开发遵循
 如果没有2.6.x.y版本内核存在，那么最新的2.6.x版本内核就相当于是当前的稳定
 版内核。
 
-2.6.x.y版本由“稳定版”小组（邮件地址<stable@vger.kernel.org>）维护，一般隔周发
+2.6.x.y版本由“稳定版”小组（邮件地址<stable@kernel.org>）维护，一般隔周发
 布新版本。
 
 内核源码中的Documentation/stable_kernel_rules.txt文件具体描述了可被稳定

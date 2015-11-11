@@ -111,7 +111,6 @@ struct cpuidle_driver {
 	struct cpuidle_state	states[CPUIDLE_STATE_MAX];
 	int			state_count;
 	int			safe_state_index;
-	struct cpumask		*cpumask;
 };
 
 #ifdef CONFIG_CPU_IDLE

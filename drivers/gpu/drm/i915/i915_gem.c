@@ -1160,8 +1160,7 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 	/* Manually manage the write flush as we may have not yet
 	 * retired the buffer.
 	 */
-	if (ret == 0 &&
-	    obj->last_write_seqno &&
+	if (obj->last_write_seqno &&
 	    i915_seqno_passed(seqno, obj->last_write_seqno)) {
 		obj->last_write_seqno = 0;
 		obj->base.write_domain &= ~I915_GEM_GPU_DOMAINS;
@@ -1881,10 +1880,6 @@ i915_gem_object_move_to_active(struct drm_i915_gem_object *obj,
 	u32 seqno = intel_ring_get_seqno(ring);
 
 	BUG_ON(ring == NULL);
-	if (obj->ring != ring && obj->last_write_seqno) {
-		/* Keep the seqno relative to the current ring */
-		obj->last_write_seqno = seqno;
-	}
 	obj->ring = ring;
 
 	/* Add a reference if we're newly entering the active list. */
@@ -2138,17 +2133,7 @@ void i915_gem_restore_fences(struct drm_device *dev)
 
 	for (i = 0; i < dev_priv->num_fence_regs; i++) {
 		struct drm_i915_fence_reg *reg = &dev_priv->fence_regs[i];
-
-		/*
-		 * Commit delayed tiling changes if we have an object still
-		 * attached to the fence, otherwise just clear the fence.
-		 */
-		if (reg->obj) {
-			i915_gem_object_update_fence(reg->obj, reg,
-						     reg->obj->tiling_mode);
-		} else {
-			i915_gem_write_fence(dev, i, NULL);
-		}
+		i915_gem_write_fence(dev, i, reg->obj);
 	}
 }
 
@@ -2548,6 +2533,7 @@ static void i965_write_fence_reg(struct drm_device *dev, int reg,
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int fence_reg;
 	int fence_pitch_shift;
+	uint64_t val;
 
 	if (INTEL_INFO(dev)->gen >= 6) {
 		fence_reg = FENCE_REG_SANDYBRIDGE_0;
@@ -2557,23 +2543,8 @@ static void i965_write_fence_reg(struct drm_device *dev, int reg,
 		fence_pitch_shift = I965_FENCE_PITCH_SHIFT;
 	}
 
-	fence_reg += reg * 8;
-
-	/* To w/a incoherency with non-atomic 64-bit register updates,
-	 * we split the 64-bit update into two 32-bit writes. In order
-	 * for a partial fence not to be evaluated between writes, we
-	 * precede the update with write to turn off the fence register,
-	 * and only enable the fence as the last step.
-	 *
-	 * For extra levels of paranoia, we make sure each step lands
-	 * before applying the next step.
-	 */
-	I915_WRITE(fence_reg, 0);
-	POSTING_READ(fence_reg);
-
 	if (obj) {
 		u32 size = obj->gtt_space->size;
-		uint64_t val;
 
 		val = (uint64_t)((obj->gtt_offset + size - 4096) &
 				 0xfffff000) << 32;
@@ -2582,16 +2553,12 @@ static void i965_write_fence_reg(struct drm_device *dev, int reg,
 		if (obj->tiling_mode == I915_TILING_Y)
 			val |= 1 << I965_FENCE_TILING_Y_SHIFT;
 		val |= I965_FENCE_REG_VALID;
+	} else
+		val = 0;
 
-		I915_WRITE(fence_reg + 4, val >> 32);
-		POSTING_READ(fence_reg + 4);
-
-		I915_WRITE(fence_reg + 0, val);
-		POSTING_READ(fence_reg);
-	} else {
-		I915_WRITE(fence_reg + 4, 0);
-		POSTING_READ(fence_reg + 4);
-	}
+	fence_reg += reg * 8;
+	I915_WRITE64(fence_reg, val);
+	POSTING_READ(fence_reg);
 }
 
 static void i915_write_fence_reg(struct drm_device *dev, int reg,
@@ -2686,10 +2653,6 @@ static void i915_gem_write_fence(struct drm_device *dev, int reg,
 	if (i915_gem_object_needs_mb(dev_priv->fence_regs[reg].obj))
 		mb();
 
-	WARN(obj && (!obj->stride || !obj->tiling_mode),
-	     "bogus fence setup with stride: 0x%x, tiling mode: %i\n",
-	     obj->stride, obj->tiling_mode);
-
 	switch (INTEL_INFO(dev)->gen) {
 	case 7:
 	case 6:
@@ -2749,7 +2712,6 @@ static void i915_gem_object_update_fence(struct drm_i915_gem_object *obj,
 		fence->obj = NULL;
 		list_del_init(&fence->lru_list);
 	}
-	obj->fence_dirty = false;
 }
 
 static int
@@ -2879,6 +2841,7 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj)
 		return 0;
 
 	i915_gem_object_update_fence(obj, reg, enable);
+	obj->fence_dirty = false;
 
 	return 0;
 }
@@ -4449,7 +4412,7 @@ static bool mutex_is_locked_by(struct mutex *mutex, struct task_struct *task)
 	if (!mutex_is_locked(mutex))
 		return false;
 
-#if defined(CONFIG_SMP) && !defined(CONFIG_DEBUG_MUTEXES)
+#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_MUTEXES)
 	return mutex->owner == task;
 #else
 	/* Since UP may be pre-empted, we cannot assume that we own the lock */
@@ -4493,7 +4456,7 @@ i915_gem_inactive_shrink(struct shrinker *shrinker, struct shrink_control *sc)
 	list_for_each_entry(obj, &dev_priv->mm.unbound_list, gtt_list)
 		if (obj->pages_pin_count == 0)
 			cnt += obj->base.size >> PAGE_SHIFT;
-	list_for_each_entry(obj, &dev_priv->mm.inactive_list, mm_list)
+	list_for_each_entry(obj, &dev_priv->mm.inactive_list, gtt_list)
 		if (obj->pin_count == 0 && obj->pages_pin_count == 0)
 			cnt += obj->base.size >> PAGE_SHIFT;
 

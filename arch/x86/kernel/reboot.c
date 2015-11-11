@@ -36,7 +36,7 @@ void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
 
 static const struct desc_ptr no_idt = {};
-static enum reboot_mode reboot_mode;
+static int reboot_mode;
 enum reboot_type reboot_type = BOOT_ACPI;
 int reboot_force;
 
@@ -88,11 +88,11 @@ static int __init reboot_setup(char *str)
 
 		switch (*str) {
 		case 'w':
-			reboot_mode = REBOOT_WARM;
+			reboot_mode = 0x1234;
 			break;
 
 		case 'c':
-			reboot_mode = REBOOT_COLD;
+			reboot_mode = 0;
 			break;
 
 #ifdef CONFIG_SMP
@@ -447,22 +447,6 @@ static struct dmi_system_id __initdata reboot_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Precision M6600"),
 		},
 	},
-	{	/* Handle problems with rebooting on the Dell PowerEdge C6100. */
-		.callback = set_pci_reboot,
-		.ident = "Dell PowerEdge C6100",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "C6100"),
-		},
-	},
-	{	/* Some C6100 machines were shipped with vendor being 'Dell'. */
-		.callback = set_pci_reboot,
-		.ident = "Dell PowerEdge C6100",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "C6100"),
-		},
-	},
 	{ }
 };
 
@@ -552,7 +536,6 @@ static void native_machine_emergency_restart(void)
 	int i;
 	int attempt = 0;
 	int orig_reboot_type = reboot_type;
-	unsigned short mode;
 
 	if (reboot_emergency)
 		emergency_vmx_disable_all();
@@ -560,8 +543,7 @@ static void native_machine_emergency_restart(void)
 	tboot_shutdown(TB_SHUTDOWN_REBOOT);
 
 	/* Tell the BIOS if we want cold or warm reboot */
-	mode = reboot_mode == REBOOT_WARM ? 0x1234 : 0;
-	*((unsigned short *)__va(0x472)) = mode;
+	*((unsigned short *)__va(0x472)) = reboot_mode;
 
 	for (;;) {
 		/* Could also try the reset bit in the Hammer NB */
@@ -603,7 +585,7 @@ static void native_machine_emergency_restart(void)
 
 		case BOOT_EFI:
 			if (efi_enabled(EFI_RUNTIME_SERVICES))
-				efi.reset_system(reboot_mode == REBOOT_WARM ?
+				efi.reset_system(reboot_mode ?
 						 EFI_RESET_WARM :
 						 EFI_RESET_COLD,
 						 EFI_SUCCESS, 0, NULL);

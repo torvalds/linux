@@ -121,7 +121,7 @@ static int wm8731_get_deemph(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct wm8731_priv *wm8731 = snd_soc_codec_get_drvdata(codec);
 
-	ucontrol->value.integer.value[0] = wm8731->deemph;
+	ucontrol->value.enumerated.item[0] = wm8731->deemph;
 
 	return 0;
 }
@@ -131,7 +131,7 @@ static int wm8731_put_deemph(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct wm8731_priv *wm8731 = snd_soc_codec_get_drvdata(codec);
-	int deemph = ucontrol->value.integer.value[0];
+	int deemph = ucontrol->value.enumerated.item[0];
 	int ret = 0;
 
 	if (deemph > 1)
@@ -407,10 +407,10 @@ static int wm8731_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		iface |= 0x0001;
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
-		iface |= 0x0013;
+		iface |= 0x0003;
 		break;
 	case SND_SOC_DAIFMT_DSP_B:
-		iface |= 0x0003;
+		iface |= 0x0013;
 		break;
 	default:
 		return -EINVAL;

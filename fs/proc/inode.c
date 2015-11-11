@@ -23,7 +23,6 @@
 #include <linux/slab.h>
 #include <linux/mount.h>
 #include <linux/magic.h>
-#include <linux/namei.h>
 
 #include <asm/uaccess.h>
 
@@ -373,26 +372,6 @@ static const struct file_operations proc_reg_file_ops_no_compat = {
 	.release	= proc_reg_release,
 };
 #endif
-
-static void *proc_follow_link(struct dentry *dentry, struct nameidata *nd)
-{
-	struct proc_dir_entry *pde = PDE(dentry->d_inode);
-	if (unlikely(!use_pde(pde)))
-		return ERR_PTR(-EINVAL);
-	nd_set_link(nd, pde->data);
-	return pde;
-}
-
-static void proc_put_link(struct dentry *dentry, struct nameidata *nd, void *p)
-{
-	unuse_pde(p);
-}
-
-const struct inode_operations proc_link_inode_operations = {
-	.readlink	= generic_readlink,
-	.follow_link	= proc_follow_link,
-	.put_link	= proc_put_link,
-};
 
 struct inode *proc_get_inode(struct super_block *sb, struct proc_dir_entry *de)
 {

@@ -140,7 +140,7 @@ void iscsit_free_connection_recovery_entires(struct iscsi_session *sess)
 		list_for_each_entry_safe(cmd, cmd_tmp,
 				&cr->conn_recovery_cmd_list, i_conn_node) {
 
-			list_del_init(&cmd->i_conn_node);
+			list_del(&cmd->i_conn_node);
 			cmd->conn = NULL;
 			spin_unlock(&cr->conn_recovery_cmd_lock);
 			iscsit_free_cmd(cmd, true);
@@ -162,7 +162,7 @@ void iscsit_free_connection_recovery_entires(struct iscsi_session *sess)
 		list_for_each_entry_safe(cmd, cmd_tmp,
 				&cr->conn_recovery_cmd_list, i_conn_node) {
 
-			list_del_init(&cmd->i_conn_node);
+			list_del(&cmd->i_conn_node);
 			cmd->conn = NULL;
 			spin_unlock(&cr->conn_recovery_cmd_lock);
 			iscsit_free_cmd(cmd, true);
@@ -218,7 +218,7 @@ int iscsit_remove_cmd_from_connection_recovery(
 	}
 	cr = cmd->cr;
 
-	list_del_init(&cmd->i_conn_node);
+	list_del(&cmd->i_conn_node);
 	return --cr->cmd_count;
 }
 
@@ -299,7 +299,7 @@ int iscsit_discard_unacknowledged_ooo_cmdsns_for_conn(struct iscsi_conn *conn)
 		if (!(cmd->cmd_flags & ICF_OOO_CMDSN))
 			continue;
 
-		list_del_init(&cmd->i_conn_node);
+		list_del(&cmd->i_conn_node);
 
 		spin_unlock_bh(&conn->cmd_lock);
 		iscsit_free_cmd(cmd, true);
@@ -337,7 +337,7 @@ int iscsit_prepare_cmds_for_realligance(struct iscsi_conn *conn)
 	/*
 	 * Only perform connection recovery on ISCSI_OP_SCSI_CMD or
 	 * ISCSI_OP_NOOP_OUT opcodes.  For all other opcodes call
-	 * list_del_init(&cmd->i_conn_node); to release the command to the
+	 * list_del(&cmd->i_conn_node); to release the command to the
 	 * session pool and remove it from the connection's list.
 	 *
 	 * Also stop the DataOUT timer, which will be restarted after
@@ -353,7 +353,7 @@ int iscsit_prepare_cmds_for_realligance(struct iscsi_conn *conn)
 				" CID: %hu\n", cmd->iscsi_opcode,
 				cmd->init_task_tag, cmd->cmd_sn, conn->cid);
 
-			list_del_init(&cmd->i_conn_node);
+			list_del(&cmd->i_conn_node);
 			spin_unlock_bh(&conn->cmd_lock);
 			iscsit_free_cmd(cmd, true);
 			spin_lock_bh(&conn->cmd_lock);
@@ -373,7 +373,7 @@ int iscsit_prepare_cmds_for_realligance(struct iscsi_conn *conn)
 		 */
 		if (!(cmd->cmd_flags & ICF_OOO_CMDSN) && !cmd->immediate_cmd &&
 		     iscsi_sna_gte(cmd->cmd_sn, conn->sess->exp_cmd_sn)) {
-			list_del_init(&cmd->i_conn_node);
+			list_del(&cmd->i_conn_node);
 			spin_unlock_bh(&conn->cmd_lock);
 			iscsit_free_cmd(cmd, true);
 			spin_lock_bh(&conn->cmd_lock);
@@ -395,7 +395,7 @@ int iscsit_prepare_cmds_for_realligance(struct iscsi_conn *conn)
 
 		cmd->sess = conn->sess;
 
-		list_del_init(&cmd->i_conn_node);
+		list_del(&cmd->i_conn_node);
 		spin_unlock_bh(&conn->cmd_lock);
 
 		iscsit_free_all_datain_reqs(cmd);

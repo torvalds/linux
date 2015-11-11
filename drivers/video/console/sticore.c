@@ -3,7 +3,7 @@
  *	core code for console driver using HP's STI firmware
  *
  *	Copyright (C) 2000 Philipp Rumpf <prumpf@tux.org>
- *	Copyright (C) 2001-2013 Helge Deller <deller@gmx.de>
+ *	Copyright (C) 2001-2003 Helge Deller <deller@gmx.de>
  *	Copyright (C) 2001-2002 Thomas Bogendoerfer <tsbogend@alpha.franken.de>
  * 
  * TODO:
@@ -30,7 +30,7 @@
 
 #include "../sticore.h"
 
-#define STI_DRIVERVERSION "Version 0.9b"
+#define STI_DRIVERVERSION "Version 0.9a"
 
 static struct sti_struct *default_sti __read_mostly;
 
@@ -73,34 +73,28 @@ static const struct sti_init_flags default_init_flags = {
 
 static int sti_init_graph(struct sti_struct *sti)
 {
-	struct sti_init_inptr *inptr = &sti->sti_data->init_inptr;
-	struct sti_init_inptr_ext *inptr_ext = &sti->sti_data->init_inptr_ext;
-	struct sti_init_outptr *outptr = &sti->sti_data->init_outptr;
+	struct sti_init_inptr_ext inptr_ext = { 0, };
+	struct sti_init_inptr inptr = {
+		.text_planes	= 3, /* # of text planes (max 3 for STI) */
+		.ext_ptr	= STI_PTR(&inptr_ext)
+	};
+	struct sti_init_outptr outptr = { 0, };
 	unsigned long flags;
-	int ret, err;
+	int ret;
 
 	spin_lock_irqsave(&sti->lock, flags);
 
-	memset(inptr, 0, sizeof(*inptr));
-	inptr->text_planes = 3; /* # of text planes (max 3 for STI) */
-	memset(inptr_ext, 0, sizeof(*inptr_ext));
-	inptr->ext_ptr = STI_PTR(inptr_ext);
-	outptr->errno = 0;
-
-	ret = sti_call(sti, sti->init_graph, &default_init_flags, inptr,
-		outptr, sti->glob_cfg);
-
-	if (ret >= 0)
-		sti->text_planes = outptr->text_planes;
-	err = outptr->errno;
+	ret = STI_CALL(sti->init_graph, &default_init_flags, &inptr,
+		&outptr, sti->glob_cfg);
 
 	spin_unlock_irqrestore(&sti->lock, flags);
 
 	if (ret < 0) {
-		pr_err("STI init_graph failed (ret %d, errno %d)\n", ret, err);
+		printk(KERN_ERR "STI init_graph failed (ret %d, errno %d)\n",ret,outptr.errno);
 		return -1;
 	}
 	
+	sti->text_planes = outptr.text_planes;
 	return 0;
 }
 
@@ -110,18 +104,16 @@ static const struct sti_conf_flags default_conf_flags = {
 
 static void sti_inq_conf(struct sti_struct *sti)
 {
-	struct sti_conf_inptr *inptr = &sti->sti_data->inq_inptr;
-	struct sti_conf_outptr *outptr = &sti->sti_data->inq_outptr;
+	struct sti_conf_inptr inptr = { 0, };
 	unsigned long flags;
 	s32 ret;
 
-	outptr->ext_ptr = STI_PTR(&sti->sti_data->inq_outptr_ext);
+	sti->outptr.ext_ptr = STI_PTR(&sti->outptr_ext);
 	
 	do {
 		spin_lock_irqsave(&sti->lock, flags);
-		memset(inptr, 0, sizeof(*inptr));
-		ret = sti_call(sti, sti->inq_conf, &default_conf_flags,
-			inptr, outptr, sti->glob_cfg);
+		ret = STI_CALL(sti->inq_conf, &default_conf_flags,
+			&inptr, &sti->outptr, sti->glob_cfg);
 		spin_unlock_irqrestore(&sti->lock, flags);
 	} while (ret == 1);
 }
@@ -134,8 +126,7 @@ static const struct sti_font_flags default_font_flags = {
 void
 sti_putc(struct sti_struct *sti, int c, int y, int x)
 {
-	struct sti_font_inptr *inptr = &sti->sti_data->font_inptr;
-	struct sti_font_inptr inptr_default = {
+	struct sti_font_inptr inptr = {
 		.font_start_addr= STI_PTR(sti->font->raw),
 		.index		= c_index(sti, c),
 		.fg_color	= c_fg(sti, c),
@@ -143,15 +134,14 @@ sti_putc(struct sti_struct *sti, int c, int y, int x)
 		.dest_x		= x * sti->font_width,
 		.dest_y		= y * sti->font_height,
 	};
-	struct sti_font_outptr *outptr = &sti->sti_data->font_outptr;
+	struct sti_font_outptr outptr = { 0, };
 	s32 ret;
 	unsigned long flags;
 
 	do {
 		spin_lock_irqsave(&sti->lock, flags);
-		*inptr = inptr_default;
-		ret = sti_call(sti, sti->font_unpmv, &default_font_flags,
-			inptr, outptr, sti->glob_cfg);
+		ret = STI_CALL(sti->font_unpmv, &default_font_flags,
+			&inptr, &outptr, sti->glob_cfg);
 		spin_unlock_irqrestore(&sti->lock, flags);
 	} while (ret == 1);
 }
@@ -166,8 +156,7 @@ void
 sti_set(struct sti_struct *sti, int src_y, int src_x,
 	int height, int width, u8 color)
 {
-	struct sti_blkmv_inptr *inptr = &sti->sti_data->blkmv_inptr;
-	struct sti_blkmv_inptr inptr_default = {
+	struct sti_blkmv_inptr inptr = {
 		.fg_color	= color,
 		.bg_color	= color,
 		.src_x		= src_x,
@@ -177,15 +166,14 @@ sti_set(struct sti_struct *sti, int src_y, int src_x,
 		.width		= width,
 		.height		= height,
 	};
-	struct sti_blkmv_outptr *outptr = &sti->sti_data->blkmv_outptr;
+	struct sti_blkmv_outptr outptr = { 0, };
 	s32 ret;
 	unsigned long flags;
 	
 	do {
 		spin_lock_irqsave(&sti->lock, flags);
-		*inptr = inptr_default;
-		ret = sti_call(sti, sti->block_move, &clear_blkmv_flags,
-			inptr, outptr, sti->glob_cfg);
+		ret = STI_CALL(sti->block_move, &clear_blkmv_flags,
+			&inptr, &outptr, sti->glob_cfg);
 		spin_unlock_irqrestore(&sti->lock, flags);
 	} while (ret == 1);
 }
@@ -194,8 +182,7 @@ void
 sti_clear(struct sti_struct *sti, int src_y, int src_x,
 	  int height, int width, int c)
 {
-	struct sti_blkmv_inptr *inptr = &sti->sti_data->blkmv_inptr;
-	struct sti_blkmv_inptr inptr_default = {
+	struct sti_blkmv_inptr inptr = {
 		.fg_color	= c_fg(sti, c),
 		.bg_color	= c_bg(sti, c),
 		.src_x		= src_x * sti->font_width,
@@ -205,15 +192,14 @@ sti_clear(struct sti_struct *sti, int src_y, int src_x,
 		.width		= width * sti->font_width,
 		.height		= height* sti->font_height,
 	};
-	struct sti_blkmv_outptr *outptr = &sti->sti_data->blkmv_outptr;
+	struct sti_blkmv_outptr outptr = { 0, };
 	s32 ret;
 	unsigned long flags;
 
 	do {
 		spin_lock_irqsave(&sti->lock, flags);
-		*inptr = inptr_default;
-		ret = sti_call(sti, sti->block_move, &clear_blkmv_flags,
-			inptr, outptr, sti->glob_cfg);
+		ret = STI_CALL(sti->block_move, &clear_blkmv_flags,
+			&inptr, &outptr, sti->glob_cfg);
 		spin_unlock_irqrestore(&sti->lock, flags);
 	} while (ret == 1);
 }
@@ -226,8 +212,7 @@ void
 sti_bmove(struct sti_struct *sti, int src_y, int src_x,
 	  int dst_y, int dst_x, int height, int width)
 {
-	struct sti_blkmv_inptr *inptr = &sti->sti_data->blkmv_inptr;
-	struct sti_blkmv_inptr inptr_default = {
+	struct sti_blkmv_inptr inptr = {
 		.src_x		= src_x * sti->font_width,
 		.src_y		= src_y * sti->font_height,
 		.dest_x		= dst_x * sti->font_width,
@@ -235,15 +220,14 @@ sti_bmove(struct sti_struct *sti, int src_y, int src_x,
 		.width		= width * sti->font_width,
 		.height		= height* sti->font_height,
 	};
-	struct sti_blkmv_outptr *outptr = &sti->sti_data->blkmv_outptr;
+	struct sti_blkmv_outptr outptr = { 0, };
 	s32 ret;
 	unsigned long flags;
 
 	do {
 		spin_lock_irqsave(&sti->lock, flags);
-		*inptr = inptr_default;
-		ret = sti_call(sti, sti->block_move, &default_blkmv_flags,
-			inptr, outptr, sti->glob_cfg);
+		ret = STI_CALL(sti->block_move, &default_blkmv_flags,
+			&inptr, &outptr, sti->glob_cfg);
 		spin_unlock_irqrestore(&sti->lock, flags);
 	} while (ret == 1);
 }
@@ -300,7 +284,7 @@ __setup("sti=", sti_setup);
 
 
 
-static char *font_name[MAX_STI_ROMS];
+static char *font_name[MAX_STI_ROMS] = { "VGA8x16", };
 static int font_index[MAX_STI_ROMS],
 	   font_height[MAX_STI_ROMS],
 	   font_width[MAX_STI_ROMS];
@@ -405,10 +389,10 @@ static void sti_dump_outptr(struct sti_struct *sti)
 		"%d used bits\n"
 		"%d planes\n"
 		"attributes %08x\n",
-		 sti->sti_data->inq_outptr.bits_per_pixel,
-		 sti->sti_data->inq_outptr.bits_used,
-		 sti->sti_data->inq_outptr.planes,
-		 sti->sti_data->inq_outptr.attributes));
+		 sti->outptr.bits_per_pixel,
+		 sti->outptr.bits_used,
+		 sti->outptr.planes,
+		 sti->outptr.attributes));
 }
 
 static int sti_init_glob_cfg(struct sti_struct *sti, unsigned long rom_address,
@@ -418,21 +402,24 @@ static int sti_init_glob_cfg(struct sti_struct *sti, unsigned long rom_address,
 	struct sti_glob_cfg_ext *glob_cfg_ext;
 	void *save_addr;
 	void *sti_mem_addr;
-	int i, size;
+	const int save_addr_size = 1024;	/* XXX */
+	int i;
 
-	if (sti->sti_mem_request < 256)
+	if (!sti->sti_mem_request)
 		sti->sti_mem_request = 256; /* STI default */
 
-	size = sizeof(struct sti_all_data) + sti->sti_mem_request - 256;
+	glob_cfg = kzalloc(sizeof(*sti->glob_cfg), GFP_KERNEL);
+	glob_cfg_ext = kzalloc(sizeof(*glob_cfg_ext), GFP_KERNEL);
+	save_addr = kzalloc(save_addr_size, GFP_KERNEL);
+	sti_mem_addr = kzalloc(sti->sti_mem_request, GFP_KERNEL);
 
-	sti->sti_data = kzalloc(size, STI_LOWMEM);
-	if (!sti->sti_data)
+	if (!(glob_cfg && glob_cfg_ext && save_addr && sti_mem_addr)) {
+		kfree(glob_cfg);
+		kfree(glob_cfg_ext);
+		kfree(save_addr);
+		kfree(sti_mem_addr);
 		return -ENOMEM;
-
-	glob_cfg	= &sti->sti_data->glob_cfg;
-	glob_cfg_ext	= &sti->sti_data->glob_cfg_ext;
-	save_addr	= &sti->sti_data->save_addr;
-	sti_mem_addr	= &sti->sti_data->sti_mem_addr;
+	}
 
 	glob_cfg->ext_ptr = STI_PTR(glob_cfg_ext);
 	glob_cfg->save_addr = STI_PTR(save_addr);
@@ -488,31 +475,32 @@ static int sti_init_glob_cfg(struct sti_struct *sti, unsigned long rom_address,
 	return 0;
 }
 
-#ifdef CONFIG_FONTS
+#ifdef CONFIG_FB
 static struct sti_cooked_font *
 sti_select_fbfont(struct sti_cooked_rom *cooked_rom, const char *fbfont_name)
 {
-	const struct font_desc *fbfont = NULL;
+	const struct font_desc *fbfont;
 	unsigned int size, bpc;
 	void *dest;
 	struct sti_rom_font *nf;
 	struct sti_cooked_font *cooked_font;
 	
-	if (fbfont_name && strlen(fbfont_name))
-		fbfont = find_font(fbfont_name);
+	if (!fbfont_name || !strlen(fbfont_name))
+		return NULL;
+	fbfont = find_font(fbfont_name);
 	if (!fbfont)
 		fbfont = get_default_font(1024,768, ~(u32)0, ~(u32)0);
 	if (!fbfont)
 		return NULL;
 
-	pr_info("STI selected %dx%d framebuffer font %s for sticon\n",
-			fbfont->width, fbfont->height, fbfont->name);
+	DPRINTK((KERN_DEBUG "selected %dx%d fb-font %s\n",
+			fbfont->width, fbfont->height, fbfont->name));
 			
 	bpc = ((fbfont->width+7)/8) * fbfont->height; 
 	size = bpc * 256;
 	size += sizeof(struct sti_rom_font);
 
-	nf = kzalloc(size, STI_LOWMEM);
+	nf = kzalloc(size, GFP_KERNEL);
 	if (!nf)
 		return NULL;
 
@@ -649,7 +637,7 @@ static void *sti_bmode_font_raw(struct sti_cooked_font *f)
 	unsigned char *n, *p, *q;
 	int size = f->raw->bytes_per_char*256+sizeof(struct sti_rom_font);
 	
-	n = kzalloc(4*size, STI_LOWMEM);
+	n = kzalloc (4*size, GFP_KERNEL);
 	if (!n)
 		return NULL;
 	p = n + 3;
@@ -685,7 +673,7 @@ static struct sti_rom *sti_get_bmode_rom (unsigned long address)
 	sti_bmode_rom_copy(address + BMODE_LAST_ADDR_OFFS, sizeof(size), &size);
 
 	size = (size+3) / 4;
-	raw = kmalloc(size, STI_LOWMEM);
+	raw = kmalloc(size, GFP_KERNEL);
 	if (raw) {
 		sti_bmode_rom_copy(address, size, raw);
 		memmove (&raw->res004, &raw->type[0], 0x3c);
@@ -719,7 +707,7 @@ static struct sti_rom *sti_get_wmode_rom(unsigned long address)
 	/* read the ROM size directly from the struct in ROM */ 
 	size = gsc_readl(address + offsetof(struct sti_rom,last_addr));
 
-	raw = kmalloc(size, STI_LOWMEM);
+	raw = kmalloc(size, GFP_KERNEL);
 	if (raw)
 		sti_rom_copy(address, size, raw);
 
@@ -754,10 +742,6 @@ static int sti_read_rom(int wordmode, struct sti_struct *sti,
 		memcpy(sti->regions, ((void *)raw)+raw->region_list, sizeof(sti->regions));
 
 	address = (unsigned long) STI_PTR(raw);
-
-	pr_info("STI ROM supports 32 %sbit firmware functions.\n",
-		raw->alt_code_type == ALT_CODE_TYPE_PA_RISC_64
-		? "and 64 " : "");
 
 	sti->font_unpmv = address + (raw->font_unpmv & 0x03ffffff);
 	sti->block_move = address + (raw->block_move & 0x03ffffff);
@@ -917,8 +901,7 @@ test_rom:
 	sti_dump_globcfg(sti->glob_cfg, sti->sti_mem_request);
 	sti_dump_outptr(sti);
 	
-	pr_info("    graphics card name: %s\n",
-		sti->sti_data->inq_outptr.dev_name);
+	printk(KERN_INFO "    graphics card name: %s\n", sti->outptr.dev_name );
 
 	sti_roms[num_sti_roms] = sti;
 	num_sti_roms++;
@@ -1089,29 +1072,6 @@ struct sti_struct * sti_get_rom(unsigned int index)
 	return sti_roms[index-1];
 }
 EXPORT_SYMBOL(sti_get_rom);
-
-
-int sti_call(const struct sti_struct *sti, unsigned long func,
-		const void *flags, void *inptr, void *outptr,
-		struct sti_glob_cfg *glob_cfg)
-{
-	unsigned long _flags = STI_PTR(flags);
-	unsigned long _inptr = STI_PTR(inptr);
-	unsigned long _outptr = STI_PTR(outptr);
-	unsigned long _glob_cfg = STI_PTR(glob_cfg);
-	int ret;
-
-#ifdef CONFIG_64BIT
-	/* Check for overflow when using 32bit STI on 64bit kernel. */
-	if (WARN_ONCE(_flags>>32 || _inptr>>32 || _outptr>>32 || _glob_cfg>>32,
-			"Out of 32bit-range pointers!"))
-		return -1;
-#endif
-
-	ret = pdc_sti_call(func, _flags, _inptr, _outptr, _glob_cfg);
-
-	return ret;
-}
 
 MODULE_AUTHOR("Philipp Rumpf, Helge Deller, Thomas Bogendoerfer");
 MODULE_DESCRIPTION("Core STI driver for HP's NGLE series graphics cards in HP PARISC machines");

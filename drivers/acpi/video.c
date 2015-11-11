@@ -450,14 +450,6 @@ static struct dmi_system_id video_dmi_table[] __initdata = {
 	},
 	{
 	 .callback = video_ignore_initial_backlight,
-	 .ident = "Fujitsu E753",
-	 .matches = {
-		DMI_MATCH(DMI_BOARD_VENDOR, "FUJITSU"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK E753"),
-		},
-	},
-	{
-	 .callback = video_ignore_initial_backlight,
 	 .ident = "HP Pavilion dm4",
 	 .matches = {
 		DMI_MATCH(DMI_BOARD_VENDOR, "Hewlett-Packard"),
@@ -733,7 +725,6 @@ acpi_video_init_brightness(struct acpi_video_device *device)
 	union acpi_object *o;
 	struct acpi_video_device_brightness *br = NULL;
 	int result = -EINVAL;
-	u32 value;
 
 	if (!ACPI_SUCCESS(acpi_video_device_lcd_query_levels(device, &obj))) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Could not query available "
@@ -764,12 +755,7 @@ acpi_video_init_brightness(struct acpi_video_device *device)
 			printk(KERN_ERR PREFIX "Invalid data\n");
 			continue;
 		}
-		value = (u32) o->integer.value;
-		/* Skip duplicate entries */
-		if (count > 2 && br->levels[count - 1] == value)
-			continue;
-
-		br->levels[count] = value;
+		br->levels[count] = (u32) o->integer.value;
 
 		if (br->levels[count] > max_level)
 			max_level = br->levels[count];
@@ -852,7 +838,7 @@ acpi_video_init_brightness(struct acpi_video_device *device)
 		for (i = 2; i < br->count; i++)
 			if (level_old == br->levels[i])
 				break;
-		if (i == br->count || !level)
+		if (i == br->count)
 			level = max_level;
 	}
 
@@ -1953,17 +1939,6 @@ EXPORT_SYMBOL(acpi_video_unregister);
 
 static int __init acpi_video_init(void)
 {
-	/*
-	 * Let the module load even if ACPI is disabled (e.g. due to
-	 * a broken BIOS) so that i915.ko can still be loaded on such
-	 * old systems without an AcpiOpRegion.
-	 *
-	 * acpi_video_register() will report -ENODEV later as well due
-	 * to acpi_disabled when i915.ko tries to register itself afterwards.
-	 */
-	if (acpi_disabled)
-		return 0;
-
 	dmi_check_system(video_dmi_table);
 
 	if (intel_opregion_present())

@@ -79,11 +79,8 @@ static DEFINE_PCI_DEVICE_TABLE(mei_me_pci_tbl) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_PPT_1)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_PPT_2)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_PPT_3)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_LPT_H)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_LPT_W)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_LPT)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_LPT_LP)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_LPT_HR)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_WPT_LP)},
 
 	/* required last entry */
 	{0, }
@@ -105,31 +102,15 @@ static bool mei_me_quirk_probe(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
 {
 	u32 reg;
-	/* Cougar Point || Patsburg */
-	if (ent->device == MEI_DEV_ID_CPT_1 ||
-	    ent->device == MEI_DEV_ID_PBG_1) {
-		pci_read_config_dword(pdev, PCI_CFG_HFS_2, &reg);
-		/* make sure that bit 9 (NM) is up and bit 10 (DM) is down */
-		if ((reg & 0x600) == 0x200)
-			goto no_mei;
+	if (ent->device == MEI_DEV_ID_PBG_1) {
+		pci_read_config_dword(pdev, 0x48, &reg);
+		/* make sure that bit 9 is up and bit 10 is down */
+		if ((reg & 0x600) == 0x200) {
+			dev_info(&pdev->dev, "Device doesn't have valid ME Interface\n");
+			return false;
+		}
 	}
-
-	/* Lynx Point */
-	if (ent->device == MEI_DEV_ID_LPT_H  ||
-	    ent->device == MEI_DEV_ID_LPT_W  ||
-	    ent->device == MEI_DEV_ID_LPT_HR) {
-		/* Read ME FW Status check for SPS Firmware */
-		pci_read_config_dword(pdev, PCI_CFG_HFS_1, &reg);
-		/* if bits [19:16] = 15, running SPS Firmware */
-		if ((reg & 0xf0000) == 0xf0000)
-			goto no_mei;
-	}
-
 	return true;
-
-no_mei:
-	dev_info(&pdev->dev, "Device doesn't have valid ME Interface\n");
-	return false;
 }
 /**
  * mei_probe - Device Initialization Routine

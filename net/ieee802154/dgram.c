@@ -315,8 +315,9 @@ static int dgram_recvmsg(struct kiocb *iocb, struct sock *sk,
 	if (saddr) {
 		saddr->family = AF_IEEE802154;
 		saddr->addr = mac_cb(skb)->sa;
-		*addr_len = sizeof(*saddr);
 	}
+	if (addr_len)
+		*addr_len = sizeof(*saddr);
 
 	if (flags & MSG_TRUNC)
 		copied = skb->len;

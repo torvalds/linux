@@ -746,12 +746,13 @@ int iscsit_check_post_dataout(
 		if (!conn->sess->sess_ops->ErrorRecoveryLevel) {
 			pr_err("Unable to recover from DataOUT CRC"
 				" failure while ERL=0, closing session.\n");
-			iscsit_reject_cmd(cmd, ISCSI_REASON_DATA_DIGEST_ERROR,
-					  buf);
+			iscsit_add_reject_from_cmd(ISCSI_REASON_DATA_DIGEST_ERROR,
+					1, 0, buf, cmd);
 			return DATAOUT_CANNOT_RECOVER;
 		}
 
-		iscsit_reject_cmd(cmd, ISCSI_REASON_DATA_DIGEST_ERROR, buf);
+		iscsit_add_reject_from_cmd(ISCSI_REASON_DATA_DIGEST_ERROR,
+				0, 0, buf, cmd);
 		return iscsit_dataout_post_crc_failed(cmd, buf);
 	}
 }
@@ -866,10 +867,7 @@ void iscsit_connection_reinstatement_rcfr(struct iscsi_conn *conn)
 	}
 	spin_unlock_bh(&conn->state_lock);
 
-	if (conn->tx_thread && conn->tx_thread_active)
-		send_sig(SIGINT, conn->tx_thread, 1);
-	if (conn->rx_thread && conn->rx_thread_active)
-		send_sig(SIGINT, conn->rx_thread, 1);
+	iscsi_thread_set_force_reinstatement(conn);
 
 sleep:
 	wait_for_completion(&conn->conn_wait_rcfr_comp);
@@ -894,10 +892,10 @@ void iscsit_cause_connection_reinstatement(struct iscsi_conn *conn, int sleep)
 		return;
 	}
 
-	if (conn->tx_thread && conn->tx_thread_active)
-		send_sig(SIGINT, conn->tx_thread, 1);
-	if (conn->rx_thread && conn->rx_thread_active)
-		send_sig(SIGINT, conn->rx_thread, 1);
+	if (iscsi_thread_set_force_reinstatement(conn) < 0) {
+		spin_unlock_bh(&conn->state_lock);
+		return;
+	}
 
 	atomic_set(&conn->connection_reinstatement, 1);
 	if (!sleep) {
@@ -911,7 +909,6 @@ void iscsit_cause_connection_reinstatement(struct iscsi_conn *conn, int sleep)
 	wait_for_completion(&conn->conn_wait_comp);
 	complete(&conn->conn_post_wait_comp);
 }
-EXPORT_SYMBOL(iscsit_cause_connection_reinstatement);
 
 void iscsit_fall_back_to_erl0(struct iscsi_session *sess)
 {

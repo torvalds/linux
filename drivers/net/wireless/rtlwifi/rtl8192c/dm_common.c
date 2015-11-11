@@ -158,42 +158,6 @@ static const u8 cckswing_table_ch14[CCK_TABLE_SIZE][8] = {
 	{0x09, 0x08, 0x07, 0x04, 0x00, 0x00, 0x00, 0x00}
 };
 
-static u32 power_index_reg[6] = {0xc90, 0xc91, 0xc92, 0xc98, 0xc99, 0xc9a};
-
-void dm_restorepowerindex(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u8	index;
-
-	for (index = 0; index < 6; index++)
-		rtl_write_byte(rtlpriv, power_index_reg[index],
-			       rtlpriv->dm.powerindex_backup[index]);
-}
-EXPORT_SYMBOL_GPL(dm_restorepowerindex);
-
-void dm_writepowerindex(struct ieee80211_hw *hw, u8 value)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u8 index;
-
-	for (index = 0; index < 6; index++)
-		rtl_write_byte(rtlpriv, power_index_reg[index], value);
-}
-EXPORT_SYMBOL_GPL(dm_writepowerindex);
-
-void dm_savepowerindex(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u8 index;
-	u8 tmp;
-
-	for (index = 0; index < 6; index++) {
-		tmp = rtl_read_byte(rtlpriv, power_index_reg[index]);
-		rtlpriv->dm.powerindex_backup[index] = tmp;
-	}
-}
-EXPORT_SYMBOL_GPL(dm_savepowerindex);
-
 static void rtl92c_dm_diginit(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);

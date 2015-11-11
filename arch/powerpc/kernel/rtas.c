@@ -584,23 +584,6 @@ int rtas_get_sensor(int sensor, int index, int *state)
 }
 EXPORT_SYMBOL(rtas_get_sensor);
 
-int rtas_get_sensor_fast(int sensor, int index, int *state)
-{
-	int token = rtas_token("get-sensor-state");
-	int rc;
-
-	if (token == RTAS_UNKNOWN_SERVICE)
-		return -ENOENT;
-
-	rc = rtas_call(token, 2, 2, state, sensor, index);
-	WARN_ON(rc == RTAS_BUSY || (rc >= RTAS_EXTENDED_DELAY_MIN &&
-				    rc <= RTAS_EXTENDED_DELAY_MAX));
-
-	if (rc < 0)
-		return rtas_error_rc(rc);
-	return rc;
-}
-
 bool rtas_indicator_present(int token, int *maxindex)
 {
 	int proplen, count, i;
@@ -1152,7 +1135,7 @@ void __init rtas_initialize(void)
 int __init early_init_dt_scan_rtas(unsigned long node,
 		const char *uname, int depth, void *data)
 {
-	const u32 *basep, *entryp, *sizep;
+	u32 *basep, *entryp, *sizep;
 
 	if (depth != 1 || strcmp(uname, "rtas") != 0)
 		return 0;

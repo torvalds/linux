@@ -39,8 +39,6 @@ nv50_fence_context_new(struct nouveau_channel *chan)
 	struct nv10_fence_chan *fctx;
 	struct ttm_mem_reg *mem = &priv->bo->bo.mem;
 	struct nouveau_object *object;
-	u32 start = mem->start * PAGE_SIZE;
-	u32 limit = start + mem->size - 1;
 	int ret, i;
 
 	fctx = chan->fence = kzalloc(sizeof(*fctx), GFP_KERNEL);
@@ -53,28 +51,26 @@ nv50_fence_context_new(struct nouveau_channel *chan)
 	fctx->base.sync = nv17_fence_sync;
 
 	ret = nouveau_object_new(nv_object(chan->cli), chan->handle,
-				 NvSema, 0x003d,
+				 NvSema, 0x0002,
 				 &(struct nv_dma_class) {
 					.flags = NV_DMA_TARGET_VRAM |
 						 NV_DMA_ACCESS_RDWR,
-					.start = start,
-					.limit = limit,
+					.start = mem->start * PAGE_SIZE,
+					.limit = mem->size - 1,
 				 }, sizeof(struct nv_dma_class),
 				 &object);
 
 	/* dma objects for display sync channel semaphore blocks */
 	for (i = 0; !ret && i < dev->mode_config.num_crtc; i++) {
 		struct nouveau_bo *bo = nv50_display_crtc_sema(dev, i);
-		u32 start = bo->bo.mem.start * PAGE_SIZE;
-		u32 limit = start + bo->bo.mem.size - 1;
 
 		ret = nouveau_object_new(nv_object(chan->cli), chan->handle,
 					 NvEvoSema0 + i, 0x003d,
 					 &(struct nv_dma_class) {
 						.flags = NV_DMA_TARGET_VRAM |
 							 NV_DMA_ACCESS_RDWR,
-						.start = start,
-						.limit = limit,
+						.start = bo->bo.offset,
+						.limit = bo->bo.offset + 0xfff,
 					 }, sizeof(struct nv_dma_class),
 					 &object);
 	}

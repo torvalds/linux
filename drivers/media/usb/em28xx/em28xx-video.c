@@ -696,16 +696,13 @@ static int em28xx_stop_streaming(struct vb2_queue *vq)
 	}
 
 	spin_lock_irqsave(&dev->slock, flags);
-	if (dev->usb_ctl.vid_buf != NULL) {
-		vb2_buffer_done(&dev->usb_ctl.vid_buf->vb, VB2_BUF_STATE_ERROR);
-		dev->usb_ctl.vid_buf = NULL;
-	}
 	while (!list_empty(&vidq->active)) {
 		struct em28xx_buffer *buf;
 		buf = list_entry(vidq->active.next, struct em28xx_buffer, list);
 		list_del(&buf->list);
 		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
 	}
+	dev->usb_ctl.vid_buf = NULL;
 	spin_unlock_irqrestore(&dev->slock, flags);
 
 	return 0;
@@ -727,16 +724,13 @@ int em28xx_stop_vbi_streaming(struct vb2_queue *vq)
 	}
 
 	spin_lock_irqsave(&dev->slock, flags);
-	if (dev->usb_ctl.vbi_buf != NULL) {
-		vb2_buffer_done(&dev->usb_ctl.vbi_buf->vb, VB2_BUF_STATE_ERROR);
-		dev->usb_ctl.vbi_buf = NULL;
-	}
 	while (!list_empty(&vbiq->active)) {
 		struct em28xx_buffer *buf;
 		buf = list_entry(vbiq->active.next, struct em28xx_buffer, list);
 		list_del(&buf->list);
 		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
 	}
+	dev->usb_ctl.vbi_buf = NULL;
 	spin_unlock_irqrestore(&dev->slock, flags);
 
 	return 0;

@@ -30,11 +30,6 @@
 #include <net/bluetooth/bluetooth.h>
 #include <linux/proc_fs.h>
 
-#ifndef CONFIG_BT_SOCK_DEBUG
-#undef  BT_DBG
-#define BT_DBG(D...)
-#endif
-
 #define VERSION "2.16"
 
 /* Bluetooth sockets */
@@ -108,39 +103,10 @@ void bt_sock_unregister(int proto)
 }
 EXPORT_SYMBOL(bt_sock_unregister);
 
-#ifdef CONFIG_PARANOID_NETWORK
-static inline int current_has_bt_admin(void)
-{
-	return !current_euid();
-}
-
-static inline int current_has_bt(void)
-{
-	return current_has_bt_admin();
-}
-# else
-static inline int current_has_bt_admin(void)
-{
-	return 1;
-}
-
-static inline int current_has_bt(void)
-{
-	return 1;
-}
-#endif
-
 static int bt_sock_create(struct net *net, struct socket *sock, int proto,
 			  int kern)
 {
 	int err;
-
-	if (proto == BTPROTO_RFCOMM || proto == BTPROTO_SCO ||
-			proto == BTPROTO_L2CAP) {
-		if (!current_has_bt())
-			return -EPERM;
-	} else if (!current_has_bt_admin())
-		return -EPERM;
 
 	if (net != &init_net)
 		return -EAFNOSUPPORT;
@@ -255,6 +221,8 @@ int bt_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (flags & (MSG_OOB))
 		return -EOPNOTSUPP;
 
+	msg->msg_namelen = 0;
+
 	skb = skb_recv_datagram(sk, flags, noblock, &err);
 	if (!skb) {
 		if (sk->sk_shutdown & RCV_SHUTDOWN)
@@ -318,6 +286,8 @@ int bt_sock_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	if (flags & MSG_OOB)
 		return -EOPNOTSUPP;
+
+	msg->msg_namelen = 0;
 
 	BT_DBG("sk %p size %zu", sk, size);
 

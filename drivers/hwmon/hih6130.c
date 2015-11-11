@@ -43,7 +43,6 @@
  * @last_update: time of last update (jiffies)
  * @temperature: cached temperature measurement value
  * @humidity: cached humidity measurement value
- * @write_length: length for I2C measurement request
  */
 struct hih6130 {
 	struct device *hwmon_dev;
@@ -52,7 +51,6 @@ struct hih6130 {
 	unsigned long last_update;
 	int temperature;
 	int humidity;
-	size_t write_length;
 };
 
 /**
@@ -123,15 +121,8 @@ static int hih6130_update_measurements(struct i2c_client *client)
 	 */
 	if (time_after(jiffies, hih6130->last_update + HZ) || !hih6130->valid) {
 
-		/*
-		 * Write to slave address to request a measurement.
-		 * According with the datasheet it should be with no data, but
-		 * for systems with I2C bus drivers that do not allow zero
-		 * length packets we write one dummy byte to allow sensor
-		 * measurements on them.
-		 */
-		tmp[0] = 0;
-		ret = i2c_master_send(client, tmp, hih6130->write_length);
+		/* write to slave address, no data, to request a measurement */
+		ret = i2c_master_send(client, tmp, 0);
 		if (ret < 0)
 			goto out;
 
@@ -260,9 +251,6 @@ static int hih6130_probe(struct i2c_client *client,
 		err = PTR_ERR(hih6130->hwmon_dev);
 		goto fail_remove_sysfs;
 	}
-
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_QUICK))
-		hih6130->write_length = 1;
 
 	return 0;
 

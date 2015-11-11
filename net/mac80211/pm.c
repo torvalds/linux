@@ -99,21 +99,10 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	}
 	mutex_unlock(&local->sta_mtx);
 
-	/* remove all interfaces that were created in the driver */
+	/* remove all interfaces */
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (!ieee80211_sdata_running(sdata))
 			continue;
-		switch (sdata->vif.type) {
-		case NL80211_IFTYPE_AP_VLAN:
-		case NL80211_IFTYPE_MONITOR:
-			continue;
-		case NL80211_IFTYPE_STATION:
-			ieee80211_mgd_quiesce(sdata);
-			break;
-		default:
-			break;
-		}
-
 		drv_remove_interface(local, sdata);
 	}
 

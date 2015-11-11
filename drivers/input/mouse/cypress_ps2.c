@@ -410,6 +410,7 @@ static int cypress_set_input_params(struct input_dev *input,
 	__clear_bit(REL_X, input->relbit);
 	__clear_bit(REL_Y, input->relbit);
 
+	__set_bit(INPUT_PROP_BUTTONPAD, input->propbit);
 	__set_bit(EV_KEY, input->evbit);
 	__set_bit(BTN_LEFT, input->keybit);
 	__set_bit(BTN_RIGHT, input->keybit);
@@ -438,7 +439,7 @@ static int cypress_get_finger_count(unsigned char header_byte)
 			case 2: return 5;
 			default:
 				/* Invalid contact (e.g. palm). Ignore it. */
-				return 0;
+				return -1;
 		}
 	}
 
@@ -451,10 +452,17 @@ static int cypress_parse_packet(struct psmouse *psmouse,
 {
 	unsigned char *packet = psmouse->packet;
 	unsigned char header_byte = packet[0];
+	int contact_cnt;
 
 	memset(report_data, 0, sizeof(struct cytp_report_data));
 
-	report_data->contact_cnt = cypress_get_finger_count(header_byte);
+	contact_cnt = cypress_get_finger_count(header_byte);
+
+	if (contact_cnt < 0) /* e.g. palm detect */
+		return -EINVAL;
+
+	report_data->contact_cnt = contact_cnt;
+
 	report_data->tap = (header_byte & ABS_MULTIFINGER_TAP) ? 1 : 0;
 
 	if (report_data->contact_cnt == 1) {
@@ -527,9 +535,11 @@ static void cypress_process_packet(struct psmouse *psmouse, bool zero_pkt)
 	int slots[CYTP_MAX_MT_SLOTS];
 	int n;
 
-	cypress_parse_packet(psmouse, cytp, &report_data);
+	if (cypress_parse_packet(psmouse, cytp, &report_data))
+		return;
 
 	n = report_data.contact_cnt;
+
 	if (n > CYTP_MAX_MT_SLOTS)
 		n = CYTP_MAX_MT_SLOTS;
 
@@ -595,6 +605,10 @@ static psmouse_ret_t cypress_validate_byte(struct psmouse *psmouse)
 		return PSMOUSE_BAD_DATA;
 
 	contact_cnt = cypress_get_finger_count(packet[0]);
+
+	if (contact_cnt < 0)
+		return PSMOUSE_BAD_DATA;
+
 	if (cytp->mode & CYTP_BIT_ABS_NO_PRESSURE)
 		cypress_set_packet_size(psmouse, contact_cnt == 2 ? 7 : 4);
 	else

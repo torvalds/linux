@@ -910,8 +910,6 @@ static const struct hda_verb vt1708S_init_verbs[] = {
 static void override_mic_boost(struct hda_codec *codec, hda_nid_t pin,
 			       int offset, int num_steps, int step_size)
 {
-	snd_hda_override_wcaps(codec, pin,
-			       get_wcaps(codec, pin) | AC_WCAP_IN_AMP);
 	snd_hda_override_amp_caps(codec, pin, HDA_INPUT,
 				  (offset << AC_AMPCAP_OFFSET_SHIFT) |
 				  (num_steps << AC_AMPCAP_NUM_STEPS_SHIFT) |

@@ -1404,8 +1404,6 @@ static int snd_pcm_do_drain_init(struct snd_pcm_substream *substream, int state)
 			if (! snd_pcm_playback_empty(substream)) {
 				snd_pcm_do_start(substream, SNDRV_PCM_STATE_DRAINING);
 				snd_pcm_post_start(substream, SNDRV_PCM_STATE_DRAINING);
-			} else {
-				runtime->status->state = SNDRV_PCM_STATE_SETUP;
 			}
 			break;
 		case SNDRV_PCM_STATE_RUNNING:
@@ -3199,7 +3197,7 @@ static const struct vm_operations_struct snd_pcm_vm_ops_data_fault = {
 
 #ifndef ARCH_HAS_DMA_MMAP_COHERENT
 /* This should be defined / handled globally! */
-#if defined(CONFIG_ARM) || defined(CONFIG_ARM64)
+#ifdef CONFIG_ARM
 #define ARCH_HAS_DMA_MMAP_COHERENT
 #endif
 #endif

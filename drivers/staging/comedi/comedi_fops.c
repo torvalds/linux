@@ -1401,19 +1401,22 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 		DPRINTK("subdevice busy\n");
 		return -EBUSY;
 	}
+	s->busy = file;
 
 	/* make sure channel/gain list isn't too long */
 	if (cmd.chanlist_len > s->len_chanlist) {
 		DPRINTK("channel/gain list too long %u > %d\n",
 			cmd.chanlist_len, s->len_chanlist);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto cleanup;
 	}
 
 	/* make sure channel/gain list isn't too short */
 	if (cmd.chanlist_len < 1) {
 		DPRINTK("channel/gain list too short %u < 1\n",
 			cmd.chanlist_len);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto cleanup;
 	}
 
 	async->cmd = cmd;
@@ -1423,7 +1426,8 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 	    kmalloc(async->cmd.chanlist_len * sizeof(int), GFP_KERNEL);
 	if (!async->cmd.chanlist) {
 		DPRINTK("allocation failed\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto cleanup;
 	}
 
 	if (copy_from_user(async->cmd.chanlist, user_chanlist,
@@ -1475,9 +1479,6 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 
 	comedi_set_subdevice_runflags(s, ~0, SRF_USER | SRF_RUNNING);
 
-	/* set s->busy _after_ setting SRF_RUNNING flag to avoid race with
-	 * comedi_read() or comedi_write() */
-	s->busy = file;
 	ret = s->do_cmd(dev, s);
 	if (ret == 0)
 		return 0;
@@ -1692,7 +1693,6 @@ static int do_cancel_ioctl(struct comedi_device *dev, unsigned int arg,
 			   void *file)
 {
 	struct comedi_subdevice *s;
-	int ret;
 
 	if (arg >= dev->n_subdevices)
 		return -EINVAL;
@@ -1709,11 +1709,7 @@ static int do_cancel_ioctl(struct comedi_device *dev, unsigned int arg,
 	if (s->busy != file)
 		return -EBUSY;
 
-	ret = do_cancel(dev, s);
-	if (comedi_get_subdevice_runflags(s) & SRF_USER)
-		wake_up_interruptible(&s->async->wait_head);
-
-	return ret;
+	return do_cancel(dev, s);
 }
 
 /*
@@ -2045,13 +2041,11 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 
 		if (!comedi_is_subdevice_running(s)) {
 			if (count == 0) {
-				mutex_lock(&dev->mutex);
 				if (comedi_is_subdevice_in_error(s))
 					retval = -EPIPE;
 				else
 					retval = 0;
 				do_become_nonbusy(dev, s);
-				mutex_unlock(&dev->mutex);
 			}
 			break;
 		}
@@ -2150,13 +2144,11 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 
 		if (n == 0) {
 			if (!comedi_is_subdevice_running(s)) {
-				mutex_lock(&dev->mutex);
 				do_become_nonbusy(dev, s);
 				if (comedi_is_subdevice_in_error(s))
 					retval = -EPIPE;
 				else
 					retval = 0;
-				mutex_unlock(&dev->mutex);
 				break;
 			}
 			if (file->f_flags & O_NONBLOCK) {
@@ -2194,11 +2186,9 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 		buf += n;
 		break;		/* makes device work like a pipe */
 	}
-	if (comedi_is_subdevice_idle(s)) {
-		mutex_lock(&dev->mutex);
-		if (async->buf_read_count - async->buf_write_count == 0)
-			do_become_nonbusy(dev, s);
-		mutex_unlock(&dev->mutex);
+	if (comedi_is_subdevice_idle(s) &&
+	    async->buf_read_count - async->buf_write_count == 0) {
+		do_become_nonbusy(dev, s);
 	}
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&async->wait_head, &wait);

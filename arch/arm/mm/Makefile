@@ -7,7 +7,6 @@ obj-y				:= dma-mapping.o extable.o fault.o init.o \
 
 obj-$(CONFIG_MMU)		+= fault-armv.o flush.o idmap.o ioremap.o \
 				   mmap.o pgd.o mmu.o
-obj-$(CONFIG_DEBUG_RODATA)	+= rodata.o
 
 ifneq ($(CONFIG_MMU),y)
 obj-y				+= nommu.o
@@ -17,7 +16,6 @@ obj-$(CONFIG_MODULES)		+= proc-syms.o
 
 obj-$(CONFIG_ALIGNMENT_TRAP)	+= alignment.o
 obj-$(CONFIG_HIGHMEM)		+= highmem.o
-obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
 
 obj-$(CONFIG_CPU_ABRT_NOMMU)	+= abort-nommu.o
 obj-$(CONFIG_CPU_ABRT_EV4)	+= abort-ev4.o

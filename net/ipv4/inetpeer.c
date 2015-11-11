@@ -26,7 +26,20 @@
  *  Theory of operations.
  *  We keep one entry for each peer IP address.  The nodes contains long-living
  *  information about the peer which doesn't depend on routes.
+ *  At this moment this information consists only of ID field for the next
+ *  outgoing IP packet.  This field is incremented with each packet as encoded
+ *  in inet_getid() function (include/net/inetpeer.h).
+ *  At the moment of writing this notes identifier of IP packets is generated
+ *  to be unpredictable using this code only for packets subjected
+ *  (actually or potentially) to defragmentation.  I.e. DF packets less than
+ *  PMTU in size uses a constant ID and do not use this code (see
+ *  ip_select_ident() in include/net/ip.h).
  *
+ *  Route cache entries hold references to our nodes.
+ *  New cache entries get references via lookup by destination IP address in
+ *  the avl tree.  The reference is grabbed only when it's needed i.e. only
+ *  when we try to output IP packet which needs an unpredictable ID (see
+ *  __ip_select_ident() in net/ipv4/route.c).
  *  Nodes are removed only when reference counter goes to 0.
  *  When it's happened the node may be removed when a sufficient amount of
  *  time has been passed since its last use.  The less-recently-used entry can
@@ -49,6 +62,7 @@
  *		refcnt: atomically against modifications on other CPU;
  *		   usually under some other lock to prevent node disappearing
  *		daddr: unchangeable
+ *		ip_id_count: atomic value (no lock needed)
  */
 
 static struct kmem_cache *peer_cachep __read_mostly;
@@ -490,6 +504,10 @@ relookup:
 		p->daddr = *daddr;
 		atomic_set(&p->refcnt, 1);
 		atomic_set(&p->rid, 0);
+		atomic_set(&p->ip_id_count,
+				(daddr->family == AF_INET) ?
+					secure_ip_id(daddr->addr.a4) :
+					secure_ipv6_id(daddr->addr.a6));
 		p->metrics[RTAX_LOCK-1] = INETPEER_METRICS_NEW;
 		p->rate_tokens = 0;
 		/* 60*HZ is arbitrary, but chosen enough high so that the first

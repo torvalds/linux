@@ -782,22 +782,16 @@ static struct sk_buff *be_insert_vlan_in_pkt(struct be_adapter *adapter,
 
 	if (vlan_tx_tag_present(skb))
 		vlan_tag = be_get_tx_vlan_tag(adapter, skb);
-
-	if (qnq_async_evt_rcvd(adapter) && adapter->pvid) {
-		if (!vlan_tag)
-			vlan_tag = adapter->pvid;
-		/* f/w workaround to set skip_hw_vlan = 1, informs the F/W to
-		 * skip VLAN insertion
-		 */
-		if (skip_hw_vlan)
-			*skip_hw_vlan = true;
-	}
+	else if (qnq_async_evt_rcvd(adapter) && adapter->pvid)
+		vlan_tag = adapter->pvid;
 
 	if (vlan_tag) {
 		skb = __vlan_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
 		if (unlikely(!skb))
 			return skb;
 		skb->vlan_tci = 0;
+		if (skip_hw_vlan)
+			*skip_hw_vlan = true;
 	}
 
 	/* Insert the outer VLAN, if any */
@@ -1767,7 +1761,7 @@ static u16 be_tx_compl_process(struct be_adapter *adapter,
 		queue_tail_inc(txq);
 	} while (cur_index != last_index);
 
-	dev_kfree_skb_any(sent_skb);
+	kfree_skb(sent_skb);
 	return num_wrbs;
 }
 
@@ -2561,8 +2555,8 @@ static int be_close(struct net_device *netdev)
 	/* Wait for all pending tx completions to arrive so that
 	 * all tx skbs are freed.
 	 */
-	netif_tx_disable(netdev);
 	be_tx_compl_clean(adapter);
+	netif_tx_disable(netdev);
 
 	be_rx_qs_destroy(adapter);
 
@@ -2663,7 +2657,7 @@ static int be_open(struct net_device *netdev)
 
 	for_all_evt_queues(adapter, eqo, i) {
 		napi_enable(&eqo->napi);
-		be_eq_notify(adapter, eqo->q.id, true, true, 0);
+		be_eq_notify(adapter, eqo->q.id, true, false, 0);
 	}
 	adapter->flags |= BE_FLAGS_NAPI_ENABLED;
 

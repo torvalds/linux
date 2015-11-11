@@ -87,8 +87,7 @@ static irqreturn_t adc_jack_irq_thread(int irq, void *_data)
 {
 	struct adc_jack_data *data = _data;
 
-	queue_delayed_work(system_power_efficient_wq,
-			   &data->handler, data->handling_delay);
+	schedule_delayed_work(&data->handler, data->handling_delay);
 	return IRQ_HANDLED;
 }
 

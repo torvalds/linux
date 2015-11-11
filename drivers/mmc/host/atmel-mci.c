@@ -584,13 +584,6 @@ static void atmci_timeout_timer(unsigned long data)
 	if (host->mrq->cmd->data) {
 		host->mrq->cmd->data->error = -ETIMEDOUT;
 		host->data = NULL;
-		/*
-		 * With some SDIO modules, sometimes DMA transfer hangs. If
-		 * stop_transfer() is not called then the DMA request is not
-		 * removed, following ones are queued and never computed.
-		 */
-		if (host->state == STATE_DATA_XFER)
-			host->stop_transfer(host);
 	} else {
 		host->mrq->cmd->error = -ETIMEDOUT;
 		host->cmd = NULL;
@@ -1188,21 +1181,10 @@ static void atmci_start_request(struct atmel_mci *host,
 	iflags |= ATMCI_CMDRDY;
 	cmd = mrq->cmd;
 	cmdflags = atmci_prepare_command(slot->mmc, cmd);
-
-	/*
-	 * DMA transfer should be started before sending the command to avoid
-	 * unexpected errors especially for read operations in SDIO mode.
-	 * Unfortunately, in PDC mode, command has to be sent before starting
-	 * the transfer.
-	 */
-	if (host->submit_data != &atmci_submit_data_dma)
-		atmci_send_command(host, cmd, cmdflags);
+	atmci_send_command(host, cmd, cmdflags);
 
 	if (data)
 		host->submit_data(host, data);
-
-	if (host->submit_data == &atmci_submit_data_dma)
-		atmci_send_command(host, cmd, cmdflags);
 
 	if (mrq->stop) {
 		host->stop_cmdr = atmci_prepare_command(slot->mmc, mrq->stop);
@@ -1295,7 +1277,7 @@ static void atmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	if (ios->clock) {
 		unsigned int clock_min = ~0U;
-		int clkdiv;
+		u32 clkdiv;
 
 		spin_lock_bh(&host->lock);
 		if (!host->mode_reg) {
@@ -1320,12 +1302,7 @@ static void atmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		/* Calculate clock divider */
 		if (host->caps.has_odd_clk_div) {
 			clkdiv = DIV_ROUND_UP(host->bus_hz, clock_min) - 2;
-			if (clkdiv < 0) {
-				dev_warn(&mmc->class_dev,
-					 "clock %u too fast; using %lu\n",
-					 clock_min, host->bus_hz / 2);
-				clkdiv = 0;
-			} else if (clkdiv > 511) {
+			if (clkdiv > 511) {
 				dev_warn(&mmc->class_dev,
 				         "clock %u too slow; using %lu\n",
 				         clock_min, host->bus_hz / (511 + 2));
@@ -1810,14 +1787,12 @@ static void atmci_tasklet_func(unsigned long priv)
 			if (unlikely(status)) {
 				host->stop_transfer(host);
 				host->data = NULL;
-				if (data) {
-					if (status & ATMCI_DTOE) {
-						data->error = -ETIMEDOUT;
-					} else if (status & ATMCI_DCRCE) {
-						data->error = -EILSEQ;
-					} else {
-						data->error = -EIO;
-					}
+				if (status & ATMCI_DTOE) {
+					data->error = -ETIMEDOUT;
+				} else if (status & ATMCI_DCRCE) {
+					data->error = -EILSEQ;
+				} else {
+					data->error = -EIO;
 				}
 			}
 

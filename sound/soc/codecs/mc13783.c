@@ -126,10 +126,6 @@ static int mc13783_write(struct snd_soc_codec *codec,
 
 	ret = mc13xxx_reg_write(priv->mc13xxx, reg, value);
 
-	/* include errata fix for spi audio problems */
-	if (reg == MC13783_AUDIO_CODEC || reg == MC13783_AUDIO_DAC)
-		ret = mc13xxx_reg_write(priv->mc13xxx, reg, value);
-
 	mc13xxx_unlock(priv->mc13xxx);
 
 	return ret;
@@ -604,14 +600,14 @@ static int mc13783_probe(struct snd_soc_codec *codec)
 				AUDIO_SSI_SEL, 0);
 	else
 		mc13xxx_reg_rmw(priv->mc13xxx, MC13783_AUDIO_CODEC,
-				AUDIO_SSI_SEL, AUDIO_SSI_SEL);
+				0, AUDIO_SSI_SEL);
 
 	if (priv->dac_ssi_port == MC13783_SSI1_PORT)
 		mc13xxx_reg_rmw(priv->mc13xxx, MC13783_AUDIO_DAC,
 				AUDIO_SSI_SEL, 0);
 	else
 		mc13xxx_reg_rmw(priv->mc13xxx, MC13783_AUDIO_DAC,
-				AUDIO_SSI_SEL, AUDIO_SSI_SEL);
+				0, AUDIO_SSI_SEL);
 
 	mc13xxx_unlock(priv->mc13xxx);
 

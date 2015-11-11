@@ -26,19 +26,13 @@
 #define PANIC_TIMER_STEP 100
 #define PANIC_BLINK_SPD 18
 
-/* Machine specific panic information string */
-char *mach_panic_string;
-
 int panic_on_oops = CONFIG_PANIC_ON_OOPS_VALUE;
 static unsigned long tainted_mask;
 static int pause_on_oops;
 static int pause_on_oops_flag;
 static DEFINE_SPINLOCK(pause_on_oops_lock);
 
-#ifndef CONFIG_PANIC_TIMEOUT
-#define CONFIG_PANIC_TIMEOUT 0
-#endif
-int panic_timeout = CONFIG_PANIC_TIMEOUT;
+int panic_timeout;
 EXPORT_SYMBOL_GPL(panic_timeout);
 
 ATOMIC_NOTIFIER_HEAD(panic_notifier_list);
@@ -381,11 +375,6 @@ late_initcall(init_oops_id);
 void print_oops_end_marker(void)
 {
 	init_oops_id();
-
-	if (mach_panic_string)
-		printk(KERN_WARNING "Board Information: %s\n",
-		       mach_panic_string);
-
 	printk(KERN_WARNING "---[ end trace %016llx ]---\n",
 		(unsigned long long)oops_id);
 }

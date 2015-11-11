@@ -9,8 +9,10 @@
 #include <asm/hibernate.h>
 #include <asm/visasm.h>
 #include <asm/page.h>
-#include <asm/sections.h>
 #include <asm/tlb.h>
+
+/* References to section boundaries */
+extern const void __nosave_begin, __nosave_end;
 
 struct saved_context saved_context;
 

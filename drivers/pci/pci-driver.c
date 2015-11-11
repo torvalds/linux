@@ -19,7 +19,6 @@
 #include <linux/cpu.h>
 #include <linux/pm_runtime.h>
 #include <linux/suspend.h>
-#include <linux/kexec.h>
 #include "pci.h"
 
 struct pci_dynid {
@@ -389,17 +388,12 @@ static void pci_device_shutdown(struct device *dev)
 	pci_msi_shutdown(pci_dev);
 	pci_msix_shutdown(pci_dev);
 
-#ifdef CONFIG_KEXEC
 	/*
-	 * If this is a kexec reboot, turn off Bus Master bit on the
-	 * device to tell it to not continue to do DMA. Don't touch
-	 * devices in D3cold or unknown states.
-	 * If it is not a kexec reboot, firmware will hit the PCI
-	 * devices with big hammer and stop their DMA any way.
+	 * Turn off Bus Master bit on the device to tell it to not
+	 * continue to do DMA. Don't touch devices in D3cold or unknown states.
 	 */
-	if (kexec_in_progress && (pci_dev->current_state <= PCI_D3hot))
+	if (pci_dev->current_state <= PCI_D3hot)
 		pci_clear_master(pci_dev);
-#endif
 }
 
 #ifdef CONFIG_PM
@@ -1267,7 +1261,7 @@ static int pci_uevent(struct device *dev, struct kobj_uevent_env *env)
 	if (add_uevent_var(env, "PCI_SLOT_NAME=%s", pci_name(pdev)))
 		return -ENOMEM;
 
-	if (add_uevent_var(env, "MODALIAS=pci:v%08Xd%08Xsv%08Xsd%08Xbc%02Xsc%02Xi%02X",
+	if (add_uevent_var(env, "MODALIAS=pci:v%08Xd%08Xsv%08Xsd%08Xbc%02Xsc%02Xi%02x",
 			   pdev->vendor, pdev->device,
 			   pdev->subsystem_vendor, pdev->subsystem_device,
 			   (u8)(pdev->class >> 16), (u8)(pdev->class >> 8),

@@ -89,11 +89,6 @@
 			     <1 14 0xf08>,
 			     <1 11 0xf08>,
 			     <1 10 0xf08>;
-		/* Unfortunately we need this since some versions of U-Boot
-		 * on Exynos don't set the CNTFRQ register, so we need the
-		 * value from DT.
-		 */
-		clock-frequency = <24000000>;
 	};
 
 	combiner:interrupt-controller@10440000 {
@@ -550,7 +545,7 @@
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x10800000 0x1000>;
 			interrupts = <0 33 0>;
-			clocks = <&clock 346>;
+			clocks = <&clock 271>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
 			#dma-channels = <8>;

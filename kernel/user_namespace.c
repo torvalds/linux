@@ -24,7 +24,6 @@
 #include <linux/fs_struct.h>
 
 static struct kmem_cache *user_ns_cachep __read_mostly;
-static DEFINE_MUTEX(userns_state_mutex);
 
 static bool new_idmap_permitted(const struct file *file,
 				struct user_namespace *ns, int cap_setid,
@@ -63,9 +62,6 @@ int create_user_ns(struct cred *new)
 	kgid_t group = new->egid;
 	int ret;
 
-	if (parent_ns->level > 32)
-		return -EUSERS;
-
 	/*
 	 * Verify that we can not violate the policy of which files
 	 * may be accessed that is specified by the root directory,
@@ -96,14 +92,8 @@ int create_user_ns(struct cred *new)
 	atomic_set(&ns->count, 1);
 	/* Leave the new->user_ns reference with the new user namespace. */
 	ns->parent = parent_ns;
-	ns->level = parent_ns->level + 1;
 	ns->owner = owner;
 	ns->group = group;
-
-	/* Inherit USERNS_SETGROUPS_ALLOWED from our parent */
-	mutex_lock(&userns_state_mutex);
-	ns->flags = parent_ns->flags;
-	mutex_unlock(&userns_state_mutex);
 
 	set_cred_user_ns(new, ns);
 
@@ -115,21 +105,16 @@ int create_user_ns(struct cred *new)
 int unshare_userns(unsigned long unshare_flags, struct cred **new_cred)
 {
 	struct cred *cred;
-	int err = -ENOMEM;
 
 	if (!(unshare_flags & CLONE_NEWUSER))
 		return 0;
 
 	cred = prepare_creds();
-	if (cred) {
-		err = create_user_ns(cred);
-		if (err)
-			put_cred(cred);
-		else
-			*new_cred = cred;
-	}
+	if (!cred)
+		return -ENOMEM;
 
-	return err;
+	*new_cred = cred;
+	return create_user_ns(cred);
 }
 
 void free_user_ns(struct user_namespace *ns)
@@ -154,7 +139,7 @@ static u32 map_id_range_down(struct uid_gid_map *map, u32 id, u32 count)
 
 	/* Find the matching extent */
 	extents = map->nr_extents;
-	smp_rmb();
+	smp_read_barrier_depends();
 	for (idx = 0; idx < extents; idx++) {
 		first = map->extent[idx].first;
 		last = first + map->extent[idx].count - 1;
@@ -178,7 +163,7 @@ static u32 map_id_down(struct uid_gid_map *map, u32 id)
 
 	/* Find the matching extent */
 	extents = map->nr_extents;
-	smp_rmb();
+	smp_read_barrier_depends();
 	for (idx = 0; idx < extents; idx++) {
 		first = map->extent[idx].first;
 		last = first + map->extent[idx].count - 1;
@@ -201,7 +186,7 @@ static u32 map_id_up(struct uid_gid_map *map, u32 id)
 
 	/* Find the matching extent */
 	extents = map->nr_extents;
-	smp_rmb();
+	smp_read_barrier_depends();
 	for (idx = 0; idx < extents; idx++) {
 		first = map->extent[idx].lower_first;
 		last = first + map->extent[idx].count - 1;
@@ -583,6 +568,9 @@ static bool mappings_overlap(struct uid_gid_map *new_map, struct uid_gid_extent 
 	return false;
 }
 
+
+static DEFINE_MUTEX(id_map_mutex);
+
 static ssize_t map_write(struct file *file, const char __user *buf,
 			 size_t count, loff_t *ppos,
 			 int cap_setid,
@@ -599,7 +587,7 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 	ssize_t ret = -EINVAL;
 
 	/*
-	 * The userns_state_mutex serializes all writes to any given map.
+	 * The id_map_mutex serializes all writes to any given map.
 	 *
 	 * Any map is only ever written once.
 	 *
@@ -614,10 +602,11 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 	 * were written before the count of the extents.
 	 *
 	 * To achieve this smp_wmb() is used on guarantee the write
-	 * order and smp_rmb() is guaranteed that we don't have crazy
-	 * architectures returning stale data.
+	 * order and smp_read_barrier_depends() is guaranteed that we
+	 * don't have crazy architectures returning stale data.
+	 *
 	 */
-	mutex_lock(&userns_state_mutex);
+	mutex_lock(&id_map_mutex);
 
 	ret = -EPERM;
 	/* Only allow one successful write to the map */
@@ -744,7 +733,7 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 	*ppos = count;
 	ret = count;
 out:
-	mutex_unlock(&userns_state_mutex);
+	mutex_unlock(&id_map_mutex);
 	if (page)
 		free_page(page);
 	return ret;
@@ -803,21 +792,17 @@ static bool new_idmap_permitted(const struct file *file,
 				struct user_namespace *ns, int cap_setid,
 				struct uid_gid_map *new_map)
 {
-	const struct cred *cred = file->f_cred;
-	/* Don't allow mappings that would allow anything that wouldn't
-	 * be allowed without the establishment of unprivileged mappings.
-	 */
-	if ((new_map->nr_extents == 1) && (new_map->extent[0].count == 1) &&
-	    uid_eq(ns->owner, cred->euid)) {
+	/* Allow mapping to your own filesystem ids */
+	if ((new_map->nr_extents == 1) && (new_map->extent[0].count == 1)) {
 		u32 id = new_map->extent[0].lower_first;
 		if (cap_setid == CAP_SETUID) {
 			kuid_t uid = make_kuid(ns->parent, id);
-			if (uid_eq(uid, cred->euid))
+			if (uid_eq(uid, file->f_cred->fsuid))
 				return true;
-		} else if (cap_setid == CAP_SETGID) {
+		}
+		else if (cap_setid == CAP_SETGID) {
 			kgid_t gid = make_kgid(ns->parent, id);
-			if (!(ns->flags & USERNS_SETGROUPS_ALLOWED) &&
-			    gid_eq(gid, cred->egid))
+			if (gid_eq(gid, file->f_cred->fsgid))
 				return true;
 		}
 	}
@@ -835,100 +820,6 @@ static bool new_idmap_permitted(const struct file *file,
 		return true;
 
 	return false;
-}
-
-int proc_setgroups_show(struct seq_file *seq, void *v)
-{
-	struct user_namespace *ns = seq->private;
-	unsigned long userns_flags = ACCESS_ONCE(ns->flags);
-
-	seq_printf(seq, "%s\n",
-		   (userns_flags & USERNS_SETGROUPS_ALLOWED) ?
-		   "allow" : "deny");
-	return 0;
-}
-
-ssize_t proc_setgroups_write(struct file *file, const char __user *buf,
-			     size_t count, loff_t *ppos)
-{
-	struct seq_file *seq = file->private_data;
-	struct user_namespace *ns = seq->private;
-	char kbuf[8], *pos;
-	bool setgroups_allowed;
-	ssize_t ret;
-
-	/* Only allow a very narrow range of strings to be written */
-	ret = -EINVAL;
-	if ((*ppos != 0) || (count >= sizeof(kbuf)))
-		goto out;
-
-	/* What was written? */
-	ret = -EFAULT;
-	if (copy_from_user(kbuf, buf, count))
-		goto out;
-	kbuf[count] = '\0';
-	pos = kbuf;
-
-	/* What is being requested? */
-	ret = -EINVAL;
-	if (strncmp(pos, "allow", 5) == 0) {
-		pos += 5;
-		setgroups_allowed = true;
-	}
-	else if (strncmp(pos, "deny", 4) == 0) {
-		pos += 4;
-		setgroups_allowed = false;
-	}
-	else
-		goto out;
-
-	/* Verify there is not trailing junk on the line */
-	pos = skip_spaces(pos);
-	if (*pos != '\0')
-		goto out;
-
-	ret = -EPERM;
-	mutex_lock(&userns_state_mutex);
-	if (setgroups_allowed) {
-		/* Enabling setgroups after setgroups has been disabled
-		 * is not allowed.
-		 */
-		if (!(ns->flags & USERNS_SETGROUPS_ALLOWED))
-			goto out_unlock;
-	} else {
-		/* Permanently disabling setgroups after setgroups has
-		 * been enabled by writing the gid_map is not allowed.
-		 */
-		if (ns->gid_map.nr_extents != 0)
-			goto out_unlock;
-		ns->flags &= ~USERNS_SETGROUPS_ALLOWED;
-	}
-	mutex_unlock(&userns_state_mutex);
-
-	/* Report a successful write */
-	*ppos = count;
-	ret = count;
-out:
-	return ret;
-out_unlock:
-	mutex_unlock(&userns_state_mutex);
-	goto out;
-}
-
-bool userns_may_setgroups(const struct user_namespace *ns)
-{
-	bool allowed;
-
-	mutex_lock(&userns_state_mutex);
-	/* It is not safe to use setgroups until a gid mapping in
-	 * the user namespace has been established.
-	 */
-	allowed = ns->gid_map.nr_extents != 0;
-	/* Is setgroups allowed? */
-	allowed = allowed && (ns->flags & USERNS_SETGROUPS_ALLOWED);
-	mutex_unlock(&userns_state_mutex);
-
-	return allowed;
 }
 
 static void *userns_get(struct task_struct *task)

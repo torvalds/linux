@@ -86,7 +86,7 @@ static struct shash_alg sha512_alg = {
 	}
 };
 
-MODULE_ALIAS_CRYPTO("sha512");
+MODULE_ALIAS("sha512");
 
 static int sha384_init(struct shash_desc *desc)
 {
@@ -126,7 +126,7 @@ static struct shash_alg sha384_alg = {
 	}
 };
 
-MODULE_ALIAS_CRYPTO("sha384");
+MODULE_ALIAS("sha384");
 
 static int __init init(void)
 {

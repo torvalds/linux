@@ -76,7 +76,7 @@ static bool igp_read_bios_from_vram(struct radeon_device *rdev)
 
 static bool radeon_read_bios(struct radeon_device *rdev)
 {
-	uint8_t __iomem *bios, val1, val2;
+	uint8_t __iomem *bios;
 	size_t size;
 
 	rdev->bios = NULL;
@@ -86,19 +86,15 @@ static bool radeon_read_bios(struct radeon_device *rdev)
 		return false;
 	}
 
-	val1 = readb(&bios[0]);
-	val2 = readb(&bios[1]);
-
-	if (size == 0 || val1 != 0x55 || val2 != 0xaa) {
+	if (size == 0 || bios[0] != 0x55 || bios[1] != 0xaa) {
 		pci_unmap_rom(rdev->pdev, bios);
 		return false;
 	}
-	rdev->bios = kzalloc(size, GFP_KERNEL);
+	rdev->bios = kmemdup(bios, size, GFP_KERNEL);
 	if (rdev->bios == NULL) {
 		pci_unmap_rom(rdev->pdev, bios);
 		return false;
 	}
-	memcpy_fromio(rdev->bios, bios, size);
 	pci_unmap_rom(rdev->pdev, bios);
 	return true;
 }
@@ -197,20 +193,6 @@ static bool radeon_atrm_get_bios(struct radeon_device *rdev)
 		if (!ACPI_FAILURE(status)) {
 			found = true;
 			break;
-		}
-	}
-
-	if (!found) {
-		while ((pdev = pci_get_class(PCI_CLASS_DISPLAY_OTHER << 8, pdev)) != NULL) {
-			dhandle = ACPI_HANDLE(&pdev->dev);
-			if (!dhandle)
-				continue;
-
-			status = acpi_get_handle(dhandle, "ATRM", &atrm_handle);
-			if (!ACPI_FAILURE(status)) {
-				found = true;
-				break;
-			}
 		}
 	}
 

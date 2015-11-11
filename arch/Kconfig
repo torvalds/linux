@@ -331,7 +331,6 @@ config HAVE_ARCH_SECCOMP_FILTER
 	  - secure_computing is called from a ptrace_event()-safe context
 	  - secure_computing return value is checked and a return value of -1
 	    results in the system call being skipped immediately.
-	  - seccomp syscall wired up
 
 config SECCOMP_FILTER
 	def_bool y
@@ -404,12 +403,6 @@ config CLONE_BACKWARDS2
 	bool
 	help
 	  Architecture has the first two arguments of clone(2) swapped.
-
-config CLONE_BACKWARDS3
-	bool
-	help
-	  Architecture has tls passed as the 3rd argument of clone(2),
-	  not the 5th one.
 
 config ODD_RT_SIGACTION
 	bool

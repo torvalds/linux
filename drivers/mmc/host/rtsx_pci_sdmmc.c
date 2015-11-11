@@ -247,9 +247,6 @@ static void sd_send_cmd_get_rsp(struct realtek_pci_sdmmc *host,
 	case MMC_RSP_R1:
 		rsp_type = SD_RSP_TYPE_R1;
 		break;
-	case MMC_RSP_R1 & ~MMC_RSP_CRC:
-		rsp_type = SD_RSP_TYPE_R1 | SD_NO_CHECK_CRC7;
-		break;
 	case MMC_RSP_R1B:
 		rsp_type = SD_RSP_TYPE_R1b;
 		break;
@@ -341,13 +338,6 @@ static void sd_send_cmd_get_rsp(struct realtek_pci_sdmmc *host,
 	}
 
 	if (rsp_type == SD_RSP_TYPE_R2) {
-		/*
-		 * The controller offloads the last byte {CRC-7, end bit 1'b1}
-		 * of response type R2. Assign dummy CRC, 0, and end bit to the
-		 * byte(ptr[16], goes into the LSB of resp[3] later).
-		 */
-		ptr[16] = 1;
-
 		for (i = 0; i < 4; i++) {
 			cmd->resp[i] = get_unaligned_be32(ptr + 1 + i * 4);
 			dev_dbg(sdmmc_dev(host), "cmd->resp[%d] = 0x%08x\n",

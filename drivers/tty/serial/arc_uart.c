@@ -773,6 +773,6 @@ module_init(arc_serial_init);
 module_exit(arc_serial_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:" DRIVER_NAME);
+MODULE_ALIAS("plat-arcfpga/uart");
 MODULE_AUTHOR("Vineet Gupta");
 MODULE_DESCRIPTION("ARC(Synopsys) On-Chip(fpga) serial driver");

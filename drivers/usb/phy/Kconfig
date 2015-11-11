@@ -16,14 +16,6 @@ menuconfig USB_PHY
 	  If you're not sure if this applies to you, it probably doesn't;
 	  say N here.
 
-config USB_OTG_WAKELOCK
-	bool "Hold a wakelock when USB connected"
-	depends on WAKELOCK
-	select USB_OTG_UTILS
-	help
-	  Select this to automatically hold a wakelock when USB is
-	  connected, preventing suspend.
-
 if USB_PHY
 
 #
@@ -206,7 +198,7 @@ config USB_RCAR_PHY
 
 config USB_ULPI
 	bool "Generic ULPI Transceiver Driver"
-	depends on ARM || ARM64
+	depends on ARM
 	help
 	  Enable this to support ULPI connected USB OTG transceivers which
 	  are likely found on embedded boards.
@@ -217,14 +209,5 @@ config USB_ULPI_VIEWPORT
 	help
 	  Provides read/write operations to the ULPI phy register set for
 	  controllers with a viewport register (e.g. Chipidea/ARC controllers).
-
-config DUAL_ROLE_USB_INTF
-	bool "Generic DUAL ROLE sysfs interface"
-	depends on SYSFS && USB_PHY
-	help
-	  A generic sysfs interface to track and change the state of
-	  dual role usb phys. The usb phy drivers can register to
-	  this interface to expose it capabilities to the userspace
-	  and thereby allowing userspace to change the port mode.
 
 endif # USB_PHY

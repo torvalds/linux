@@ -223,8 +223,6 @@ struct drm_mode_get_connector {
 	__u32 connection;
 	__u32 mm_width, mm_height; /**< HxW in millimeters */
 	__u32 subpixel;
-
-	__u32 pad;
 };
 
 #define DRM_MODE_PROP_PENDING	(1<<0)

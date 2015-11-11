@@ -126,7 +126,6 @@ config PPC
 	select HAVE_BPF_JIT if PPC64
 	select HAVE_ARCH_JUMP_LABEL
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
-	select ARCH_HAS_GCOV_PROFILE_ALL
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_CMOS_UPDATE
 	select GENERIC_TIME_VSYSCALL_OLD
@@ -139,7 +138,6 @@ config PPC
 	select ARCH_USE_BUILTIN_BSWAP
 	select OLD_SIGSUSPEND
 	select OLD_SIGACTION if PPC32
-	select ARCH_SUPPORTS_ATOMIC_RMW
 
 config EARLY_PRINTK
 	bool
@@ -574,7 +572,7 @@ config SCHED_SMT
 config PPC_DENORMALISATION
 	bool "PowerPC denormalisation exception handling"
 	depends on PPC_BOOK3S_64
-	default "y" if PPC_POWERNV
+	default "n"
 	---help---
 	  Add support for handling denormalisation of single precision
 	  values.  Useful for bare metal only.  If unsure say Y here.
@@ -988,7 +986,6 @@ config RELOCATABLE
 	  must live at a different physical address than the primary
 	  kernel.
 
-# This value must have zeroes in the bottom 60 bits otherwise lots will break
 config PAGE_OFFSET
 	hex
 	default "0xc000000000000000"

@@ -132,9 +132,9 @@ static int ath79_spi_setup_cs(struct spi_device *spi)
 
 		flags = GPIOF_DIR_OUT;
 		if (spi->mode & SPI_CS_HIGH)
-			flags |= GPIOF_INIT_LOW;
-		else
 			flags |= GPIOF_INIT_HIGH;
+		else
+			flags |= GPIOF_INIT_LOW;
 
 		status = gpio_request_one(cdata->gpio, flags,
 					  dev_name(&spi->dev));

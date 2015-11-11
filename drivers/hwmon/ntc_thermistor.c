@@ -44,7 +44,6 @@ struct ntc_compensation {
 	unsigned int	ohm;
 };
 
-/* Order matters, ntc_match references the entries by index */
 static const struct platform_device_id ntc_thermistor_id[] = {
 	{ "ncp15wb473", TYPE_NCPXXWB473 },
 	{ "ncp18wb473", TYPE_NCPXXWB473 },
@@ -142,11 +141,11 @@ struct ntc_data {
 	char name[PLATFORM_NAME_SIZE];
 };
 
-#if defined(CONFIG_OF) && IS_ENABLED(CONFIG_IIO)
+#ifdef CONFIG_OF
 static int ntc_adc_iio_read(struct ntc_thermistor_platform_data *pdata)
 {
 	struct iio_channel *channel = pdata->chan;
-	s64 result;
+	unsigned int result;
 	int val, ret;
 
 	ret = iio_read_channel_raw(channel, &val);
@@ -156,23 +155,23 @@ static int ntc_adc_iio_read(struct ntc_thermistor_platform_data *pdata)
 	}
 
 	/* unit: mV */
-	result = pdata->pullup_uv * (s64) val;
+	result = pdata->pullup_uv * val;
 	result >>= 12;
 
-	return (int)result;
+	return result;
 }
 
 static const struct of_device_id ntc_match[] = {
 	{ .compatible = "ntc,ncp15wb473",
-		.data = &ntc_thermistor_id[0] },
+		.data = &ntc_thermistor_id[TYPE_NCPXXWB473] },
 	{ .compatible = "ntc,ncp18wb473",
-		.data = &ntc_thermistor_id[1] },
+		.data = &ntc_thermistor_id[TYPE_NCPXXWB473] },
 	{ .compatible = "ntc,ncp21wb473",
-		.data = &ntc_thermistor_id[2] },
+		.data = &ntc_thermistor_id[TYPE_NCPXXWB473] },
 	{ .compatible = "ntc,ncp03wb473",
-		.data = &ntc_thermistor_id[3] },
+		.data = &ntc_thermistor_id[TYPE_NCPXXWB473] },
 	{ .compatible = "ntc,ncp15wl333",
-		.data = &ntc_thermistor_id[4] },
+		.data = &ntc_thermistor_id[TYPE_NCPXXWL333] },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, ntc_match);
@@ -181,10 +180,8 @@ static struct ntc_thermistor_platform_data *
 ntc_thermistor_parse_dt(struct platform_device *pdev)
 {
 	struct iio_channel *chan;
-	enum iio_chan_type type;
 	struct device_node *np = pdev->dev.of_node;
 	struct ntc_thermistor_platform_data *pdata;
-	int ret;
 
 	if (!np)
 		return NULL;
@@ -196,13 +193,6 @@ ntc_thermistor_parse_dt(struct platform_device *pdev)
 	chan = iio_channel_get(&pdev->dev, NULL);
 	if (IS_ERR(chan))
 		return ERR_CAST(chan);
-
-	ret = iio_get_channel_type(chan, &type);
-	if (ret < 0)
-		return ERR_PTR(ret);
-
-	if (type != IIO_VOLTAGE)
-		return ERR_PTR(-EINVAL);
 
 	if (of_property_read_u32(np, "pullup-uv", &pdata->pullup_uv))
 		return ERR_PTR(-ENODEV);
@@ -232,8 +222,6 @@ ntc_thermistor_parse_dt(struct platform_device *pdev)
 {
 	return NULL;
 }
-
-#define ntc_match	NULL
 
 static void ntc_iio_channel_release(struct ntc_thermistor_platform_data *pdata)
 { }

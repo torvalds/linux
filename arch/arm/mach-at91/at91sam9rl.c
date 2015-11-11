@@ -295,9 +295,6 @@ static void __init at91sam9rl_initialize(void)
 	arm_pm_restart = at91sam9_alt_restart;
 	at91_extern_irq = (1 << AT91SAM9RL_ID_IRQ0);
 
-	at91_sysirq_mask_rtc(AT91SAM9RL_BASE_RTC);
-	at91_sysirq_mask_rtt(AT91SAM9RL_BASE_RTT);
-
 	/* Register GPIO subsystem */
 	at91_gpio_init(at91sam9rl_gpio, 4);
 }

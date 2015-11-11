@@ -48,7 +48,7 @@ static inline int32_t div_fp(int32_t x, int32_t y)
 }
 
 struct sample {
-	int32_t core_pct_busy;
+	int core_pct_busy;
 	u64 aperf;
 	u64 mperf;
 	int freq;
@@ -68,7 +68,7 @@ struct _pid {
 	int32_t i_gain;
 	int32_t d_gain;
 	int deadband;
-	int32_t last_err;
+	int last_err;
 };
 
 struct cpudata {
@@ -103,10 +103,10 @@ struct pstate_adjust_policy {
 static struct pstate_adjust_policy default_policy = {
 	.sample_rate_ms = 10,
 	.deadband = 0,
-	.setpoint = 97,
-	.p_gain_pct = 20,
+	.setpoint = 109,
+	.p_gain_pct = 17,
 	.d_gain_pct = 0,
-	.i_gain_pct = 0,
+	.i_gain_pct = 4,
 };
 
 struct perf_limits {
@@ -153,15 +153,16 @@ static inline void pid_d_gain_set(struct _pid *pid, int percent)
 	pid->d_gain = div_fp(int_tofp(percent), int_tofp(100));
 }
 
-static signed int pid_calc(struct _pid *pid, int32_t busy)
+static signed int pid_calc(struct _pid *pid, int busy)
 {
-	signed int result;
+	signed int err, result;
 	int32_t pterm, dterm, fp_error;
 	int32_t integral_limit;
 
-	fp_error = int_tofp(pid->setpoint) - busy;
+	err = pid->setpoint - busy;
+	fp_error = int_tofp(err);
 
-	if (abs(fp_error) <= int_tofp(pid->deadband))
+	if (abs(err) <= pid->deadband)
 		return 0;
 
 	pterm = mul_fp(pid->p_gain, fp_error);
@@ -175,8 +176,8 @@ static signed int pid_calc(struct _pid *pid, int32_t busy)
 	if (pid->integral < -integral_limit)
 		pid->integral = -integral_limit;
 
-	dterm = mul_fp(pid->d_gain, fp_error - pid->last_err);
-	pid->last_err = fp_error;
+	dterm = mul_fp(pid->d_gain, (err - pid->last_err));
+	pid->last_err = err;
 
 	result = pterm + mul_fp(pid->integral, pid->i_gain) + dterm;
 
@@ -366,13 +367,12 @@ static int intel_pstate_turbo_pstate(void)
 static void intel_pstate_get_min_max(struct cpudata *cpu, int *min, int *max)
 {
 	int max_perf = cpu->pstate.turbo_pstate;
-	int max_perf_adj;
 	int min_perf;
 	if (limits.no_turbo)
 		max_perf = cpu->pstate.max_pstate;
 
-	max_perf_adj = fp_toint(mul_fp(int_tofp(max_perf), limits.max_perf));
-	*max = clamp_t(int, max_perf_adj,
+	max_perf = fp_toint(mul_fp(int_tofp(max_perf), limits.max_perf));
+	*max = clamp_t(int, max_perf,
 			cpu->pstate.min_pstate, cpu->pstate.turbo_pstate);
 
 	min_perf = fp_toint(mul_fp(int_tofp(max_perf), limits.min_perf));
@@ -394,10 +394,7 @@ static void intel_pstate_set_pstate(struct cpudata *cpu, int pstate)
 	trace_cpu_frequency(pstate * 100000, cpu->cpu);
 
 	cpu->pstate.current_pstate = pstate;
-	if (limits.no_turbo)
-		wrmsrl(MSR_IA32_PERF_CTL, BIT(32) | (pstate << 8));
-	else
-		wrmsrl(MSR_IA32_PERF_CTL, pstate << 8);
+	wrmsrl(MSR_IA32_PERF_CTL, pstate << 8);
 
 }
 
@@ -435,9 +432,8 @@ static inline void intel_pstate_calc_busy(struct cpudata *cpu,
 					struct sample *sample)
 {
 	u64 core_pct;
-	core_pct = div64_u64(int_tofp(sample->aperf * 100),
-			     sample->mperf);
-	sample->freq = fp_toint(cpu->pstate.max_pstate * core_pct * 1000);
+	core_pct = div64_u64(sample->aperf * 100, sample->mperf);
+	sample->freq = cpu->pstate.max_pstate * core_pct * 1000;
 
 	sample->core_pct_busy = core_pct;
 }
@@ -469,19 +465,22 @@ static inline void intel_pstate_set_sample_time(struct cpudata *cpu)
 	mod_timer_pinned(&cpu->timer, jiffies + delay);
 }
 
-static inline int32_t intel_pstate_get_scaled_busy(struct cpudata *cpu)
+static inline int intel_pstate_get_scaled_busy(struct cpudata *cpu)
 {
-	int32_t core_busy, max_pstate, current_pstate;
+	int32_t busy_scaled;
+	int32_t core_busy, turbo_pstate, current_pstate;
 
-	core_busy = cpu->samples[cpu->sample_ptr].core_pct_busy;
-	max_pstate = int_tofp(cpu->pstate.max_pstate);
+	core_busy = int_tofp(cpu->samples[cpu->sample_ptr].core_pct_busy);
+	turbo_pstate = int_tofp(cpu->pstate.turbo_pstate);
 	current_pstate = int_tofp(cpu->pstate.current_pstate);
-	return mul_fp(core_busy, div_fp(max_pstate, current_pstate));
+	busy_scaled = mul_fp(core_busy, div_fp(turbo_pstate, current_pstate));
+
+	return fp_toint(busy_scaled);
 }
 
 static inline void intel_pstate_adjust_busy_pstate(struct cpudata *cpu)
 {
-	int32_t busy_scaled;
+	int busy_scaled;
 	struct _pid *pid;
 	signed int ctl = 0;
 	int steps;
@@ -517,18 +516,12 @@ static void intel_pstate_timer_func(unsigned long __data)
 }
 
 #define ICPU(model, policy) \
-	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_APERFMPERF,\
-			(unsigned long)&policy }
+	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, (unsigned long)&policy }
 
 static const struct x86_cpu_id intel_pstate_cpu_ids[] = {
 	ICPU(0x2a, default_policy),
 	ICPU(0x2d, default_policy),
 	ICPU(0x3a, default_policy),
-	ICPU(0x3c, default_policy),
-	ICPU(0x3e, default_policy),
-	ICPU(0x3f, default_policy),
-	ICPU(0x45, default_policy),
-	ICPU(0x46, default_policy),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_pstate_cpu_ids);
@@ -550,11 +543,6 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 	cpu = all_cpu_data[cpunum];
 
 	intel_pstate_get_cpu_pstates(cpu);
-	if (!cpu->pstate.current_pstate) {
-		all_cpu_data[cpunum] = NULL;
-		kfree(cpu);
-		return -ENODATA;
-	}
 
 	cpu->cpu = cpunum;
 	cpu->pstate_policy =
@@ -599,7 +587,6 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 	if (policy->policy == CPUFREQ_POLICY_PERFORMANCE) {
 		limits.min_perf_pct = 100;
 		limits.min_perf = int_tofp(1);
-		limits.max_policy_pct = 100;
 		limits.max_perf_pct = 100;
 		limits.max_perf = int_tofp(1);
 		limits.no_turbo = 0;
@@ -642,8 +629,8 @@ static int __cpuinit intel_pstate_cpu_exit(struct cpufreq_policy *policy)
 
 static int __cpuinit intel_pstate_cpu_init(struct cpufreq_policy *policy)
 {
+	int rc, min_pstate, max_pstate;
 	struct cpudata *cpu;
-	int rc;
 
 	rc = intel_pstate_init_cpu(policy->cpu);
 	if (rc)
@@ -657,8 +644,9 @@ static int __cpuinit intel_pstate_cpu_init(struct cpufreq_policy *policy)
 	else
 		policy->policy = CPUFREQ_POLICY_POWERSAVE;
 
-	policy->min = cpu->pstate.min_pstate * 100000;
-	policy->max = cpu->pstate.turbo_pstate * 100000;
+	intel_pstate_get_min_max(cpu, &min_pstate, &max_pstate);
+	policy->min = min_pstate * 100000;
+	policy->max = max_pstate * 100000;
 
 	/* cpuinfo and default policy values */
 	policy->cpuinfo.min_freq = cpu->pstate.min_pstate * 100000;

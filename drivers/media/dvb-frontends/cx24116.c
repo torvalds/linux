@@ -963,10 +963,6 @@ static int cx24116_send_diseqc_msg(struct dvb_frontend *fe,
 	struct cx24116_state *state = fe->demodulator_priv;
 	int i, ret;
 
-	/* Validate length */
-	if (d->msg_len > sizeof(d->msg))
-                return -EINVAL;
-
 	/* Dump DiSEqC message */
 	if (debug) {
 		printk(KERN_INFO "cx24116: %s(", __func__);
@@ -977,6 +973,10 @@ static int cx24116_send_diseqc_msg(struct dvb_frontend *fe,
 		}
 		printk(") toneburst=%d\n", toneburst);
 	}
+
+	/* Validate length */
+	if (d->msg_len > (CX24116_ARGLEN - CX24116_DISEQC_MSGOFS))
+		return -EINVAL;
 
 	/* DiSEqC message */
 	for (i = 0; i < d->msg_len; i++)

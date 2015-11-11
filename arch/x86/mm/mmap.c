@@ -35,12 +35,12 @@ struct __read_mostly va_alignment va_align = {
 	.flags = -1,
 };
 
-static unsigned long stack_maxrandom_size(void)
+static unsigned int stack_maxrandom_size(void)
 {
-	unsigned long max = 0;
+	unsigned int max = 0;
 	if ((current->flags & PF_RANDOMIZE) &&
 		!(current->personality & ADDR_NO_RANDOMIZE)) {
-		max = ((-1UL) & STACK_RND_MASK) << PAGE_SHIFT;
+		max = ((-1U) & STACK_RND_MASK) << PAGE_SHIFT;
 	}
 
 	return max;
@@ -112,14 +112,12 @@ static unsigned long mmap_legacy_base(void)
  */
 void arch_pick_mmap_layout(struct mm_struct *mm)
 {
-	mm->mmap_legacy_base = mmap_legacy_base();
-	mm->mmap_base = mmap_base();
-
 	if (mmap_is_legacy()) {
-		mm->mmap_base = mm->mmap_legacy_base;
+		mm->mmap_base = mmap_legacy_base();
 		mm->get_unmapped_area = arch_get_unmapped_area;
 		mm->unmap_area = arch_unmap_area;
 	} else {
+		mm->mmap_base = mmap_base();
 		mm->get_unmapped_area = arch_get_unmapped_area_topdown;
 		mm->unmap_area = arch_unmap_area_topdown;
 	}

@@ -24,7 +24,6 @@
 #ifndef __CPU_COOLING_H__
 #define __CPU_COOLING_H__
 
-#include <linux/of.h>
 #include <linux/thermal.h>
 #include <linux/cpumask.h>
 
@@ -37,39 +36,15 @@ struct thermal_cooling_device *
 cpufreq_cooling_register(const struct cpumask *clip_cpus);
 
 /**
- * of_cpufreq_cooling_register - create cpufreq cooling device based on DT.
- * @np: a valid struct device_node to the cooling device device tree node.
- * @clip_cpus: cpumask of cpus where the frequency constraints will happen
- */
-#ifdef CONFIG_THERMAL_OF
-struct thermal_cooling_device *
-of_cpufreq_cooling_register(struct device_node *np,
-			    const struct cpumask *clip_cpus);
-#else
-static inline struct thermal_cooling_device *
-of_cpufreq_cooling_register(struct device_node *np,
-			    const struct cpumask *clip_cpus)
-{
-	return NULL;
-}
-#endif
-
-/**
  * cpufreq_cooling_unregister - function to remove cpufreq cooling device.
  * @cdev: thermal cooling device pointer.
  */
 void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev);
 
-unsigned long cpufreq_cooling_get_level(unsigned int cpu, unsigned int freq);
+unsigned long cpufreq_cooling_get_level(unsigned int, unsigned int);
 #else /* !CONFIG_CPU_THERMAL */
 static inline struct thermal_cooling_device *
 cpufreq_cooling_register(const struct cpumask *clip_cpus)
-{
-	return NULL;
-}
-static inline struct thermal_cooling_device *
-of_cpufreq_cooling_register(struct device_node *np,
-			    const struct cpumask *clip_cpus)
 {
 	return NULL;
 }
@@ -79,7 +54,7 @@ void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 	return;
 }
 static inline
-unsigned long cpufreq_cooling_get_level(unsigned int cpu, unsigned int freq)
+unsigned long cpufreq_cooling_get_level(unsigned int, unsigned int)
 {
 	return THERMAL_CSTATE_INVALID;
 }

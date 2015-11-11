@@ -100,8 +100,8 @@
  */
 
 /*
- * Xonar Essence ST (Deluxe)/STX (II)
- * ----------------------------------
+ * Xonar Essence ST (Deluxe)/STX
+ * -----------------------------
  *
  * CMI8788:
  *
@@ -1134,14 +1134,6 @@ int get_xonar_pcm179x_model(struct oxygen *chip,
 	case 0x835c:
 		chip->model = model_xonar_st;
 		chip->model.shortname = "Xonar STX";
-		chip->model.init = xonar_stx_init;
-		chip->model.resume = xonar_stx_resume;
-		chip->model.set_dac_params = set_pcm1796_params;
-		break;
-	case 0x85f4:
-		chip->model = model_xonar_st;
-		/* TODO: daughterboard support */
-		chip->model.shortname = "Xonar STX II";
 		chip->model.init = xonar_stx_init;
 		chip->model.resume = xonar_stx_resume;
 		chip->model.set_dac_params = set_pcm1796_params;

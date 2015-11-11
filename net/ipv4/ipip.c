@@ -149,13 +149,13 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 
 	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
 		ipv4_update_pmtu(skb, dev_net(skb->dev), info,
-				 t->parms.link, 0, IPPROTO_IPIP, 0);
+				 t->dev->ifindex, 0, IPPROTO_IPIP, 0);
 		err = 0;
 		goto out;
 	}
 
 	if (type == ICMP_REDIRECT) {
-		ipv4_redirect(skb, dev_net(skb->dev), t->parms.link, 0,
+		ipv4_redirect(skb, dev_net(skb->dev), t->dev->ifindex, 0,
 			      IPPROTO_IPIP, 0);
 		err = 0;
 		goto out;
@@ -195,7 +195,7 @@ static int ipip_rcv(struct sk_buff *skb)
 	if (tunnel) {
 		if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb))
 			goto drop;
-		return ip_tunnel_rcv(tunnel, skb, &tpi, 0, log_ecn_error);
+		return ip_tunnel_rcv(tunnel, skb, &tpi, log_ecn_error);
 	}
 
 	return -1;
@@ -240,13 +240,11 @@ ipip_tunnel_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof(p)))
 		return -EFAULT;
 
-	if (cmd == SIOCADDTUNNEL || cmd == SIOCCHGTUNNEL) {
-		if (p.iph.version != 4 || p.iph.protocol != IPPROTO_IPIP ||
-		    p.iph.ihl != 5 || (p.iph.frag_off&htons(~IP_DF)))
-			return -EINVAL;
-	}
-
-	p.i_key = p.o_key = p.i_flags = p.o_flags = 0;
+	if (p.iph.version != 4 || p.iph.protocol != IPPROTO_IPIP ||
+			p.iph.ihl != 5 || (p.iph.frag_off&htons(~IP_DF)))
+		return -EINVAL;
+	if (p.i_key || p.o_key || p.i_flags || p.o_flags)
+		return -EINVAL;
 	if (p.iph.ttl)
 		p.iph.frag_off |= htons(IP_DF);
 
@@ -483,5 +481,4 @@ static void __exit ipip_fini(void)
 module_init(ipip_init);
 module_exit(ipip_fini);
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_RTNL_LINK("ipip");
 MODULE_ALIAS_NETDEV("tunl0");

@@ -751,7 +751,6 @@ int gsc_register_m2m_device(struct gsc_dev *gsc)
 	gsc->vdev.release	= video_device_release_empty;
 	gsc->vdev.lock		= &gsc->lock;
 	gsc->vdev.vfl_dir	= VFL_DIR_M2M;
-	gsc->vdev.v4l2_dev	= &gsc->v4l2_dev;
 	snprintf(gsc->vdev.name, sizeof(gsc->vdev.name), "%s.%d:m2m",
 					GSC_MODULE_NAME, gsc->id);
 

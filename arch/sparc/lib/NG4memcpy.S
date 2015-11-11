@@ -41,10 +41,6 @@
 #endif
 #endif
 
-#if !defined(EX_LD) && !defined(EX_ST)
-#define NON_USER_COPY
-#endif
-
 #ifndef EX_LD
 #define EX_LD(x)	x
 #endif
@@ -201,13 +197,9 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	 mov		EX_RETVAL(%o3), %o0
 
 .Llarge_src_unaligned:
-#ifdef NON_USER_COPY
-	VISEntryHalfFast(.Lmedium_vis_entry_fail)
-#else
-	VISEntryHalf
-#endif
 	andn		%o2, 0x3f, %o4
 	sub		%o2, %o4, %o2
+	VISEntryHalf
 	alignaddr	%o1, %g0, %g1
 	add		%o1, %o4, %o1
 	EX_LD(LOAD(ldd, %g1 + 0x00, %f0))
@@ -240,21 +232,14 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	add		%o0, 0x40, %o0
 	bne,pt		%icc, 1b
 	 LOAD(prefetch, %g1 + 0x200, #n_reads_strong)
-#ifdef NON_USER_COPY
-	VISExitHalfFast
-#else
 	VISExitHalf
-#endif
+
 	brz,pn		%o2, .Lexit
 	 cmp		%o2, 19
 	ble,pn		%icc, .Lsmall_unaligned
 	 nop
 	ba,a,pt		%icc, .Lmedium_unaligned
 
-#ifdef NON_USER_COPY
-.Lmedium_vis_entry_fail:
-	 or		%o0, %o1, %g2
-#endif
 .Lmedium:
 	LOAD(prefetch, %o1 + 0x40, #n_reads_strong)
 	andcc		%g2, 0x7, %g0

@@ -708,10 +708,7 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 	/* Subtract time delta from raw timestamp to get final
 	 * vblank_time timestamp for end of vblank.
 	 */
-	if (delta_ns < 0)
-		etime = ktime_add_ns(etime, -delta_ns);
-	else
-		etime = ktime_sub_ns(etime, delta_ns);
+	etime = ktime_sub_ns(etime, delta_ns);
 	*vblank_time = ktime_to_timeval(etime);
 
 	DRM_DEBUG("crtc %d : v %d p(%d,%d)@ %ld.%ld -> %ld.%ld [e %d us, %d rep]\n",

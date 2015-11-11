@@ -98,7 +98,6 @@ void svc_rdma_rcl_chunk_counts(struct rpcrdma_read_chunk *ch,
  */
 static u32 *decode_write_list(u32 *va, u32 *vaend)
 {
-	unsigned long start, end;
 	int nchunks;
 
 	struct rpcrdma_write_array *ary =
@@ -114,12 +113,9 @@ static u32 *decode_write_list(u32 *va, u32 *vaend)
 		return NULL;
 	}
 	nchunks = ntohl(ary->wc_nchunks);
-
-	start = (unsigned long)&ary->wc_array[0];
-	end = (unsigned long)vaend;
-	if (nchunks < 0 ||
-	    nchunks > (SIZE_MAX - start) / sizeof(struct rpcrdma_write_chunk) ||
-	    (start + (sizeof(struct rpcrdma_write_chunk) * nchunks)) > end) {
+	if (((unsigned long)&ary->wc_array[0] +
+	     (sizeof(struct rpcrdma_write_chunk) * nchunks)) >
+	    (unsigned long)vaend) {
 		dprintk("svcrdma: ary=%p, wc_nchunks=%d, vaend=%p\n",
 			ary, nchunks, vaend);
 		return NULL;
@@ -133,7 +129,6 @@ static u32 *decode_write_list(u32 *va, u32 *vaend)
 
 static u32 *decode_reply_array(u32 *va, u32 *vaend)
 {
-	unsigned long start, end;
 	int nchunks;
 	struct rpcrdma_write_array *ary =
 		(struct rpcrdma_write_array *)va;
@@ -148,12 +143,9 @@ static u32 *decode_reply_array(u32 *va, u32 *vaend)
 		return NULL;
 	}
 	nchunks = ntohl(ary->wc_nchunks);
-
-	start = (unsigned long)&ary->wc_array[0];
-	end = (unsigned long)vaend;
-	if (nchunks < 0 ||
-	    nchunks > (SIZE_MAX - start) / sizeof(struct rpcrdma_write_chunk) ||
-	    (start + (sizeof(struct rpcrdma_write_chunk) * nchunks)) > end) {
+	if (((unsigned long)&ary->wc_array[0] +
+	     (sizeof(struct rpcrdma_write_chunk) * nchunks)) >
+	    (unsigned long)vaend) {
 		dprintk("svcrdma: ary=%p, wc_nchunks=%d, vaend=%p\n",
 			ary, nchunks, vaend);
 		return NULL;

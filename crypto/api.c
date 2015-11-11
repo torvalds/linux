@@ -34,8 +34,6 @@ EXPORT_SYMBOL_GPL(crypto_alg_sem);
 BLOCKING_NOTIFIER_HEAD(crypto_chain);
 EXPORT_SYMBOL_GPL(crypto_chain);
 
-static struct crypto_alg *crypto_larval_wait(struct crypto_alg *alg);
-
 struct crypto_alg *crypto_mod_get(struct crypto_alg *alg)
 {
 	return try_module_get(alg->cra_module) ? crypto_alg_get(alg) : NULL;
@@ -146,11 +144,8 @@ static struct crypto_alg *crypto_larval_add(const char *name, u32 type,
 	}
 	up_write(&crypto_alg_sem);
 
-	if (alg != &larval->alg) {
+	if (alg != &larval->alg)
 		kfree(larval);
-		if (crypto_is_larval(alg))
-			alg = crypto_larval_wait(alg);
-	}
 
 	return alg;
 }
@@ -216,11 +211,11 @@ struct crypto_alg *crypto_larval_lookup(const char *name, u32 type, u32 mask)
 
 	alg = crypto_alg_lookup(name, type, mask);
 	if (!alg) {
-		request_module("crypto-%s", name);
+		request_module("%s", name);
 
 		if (!((type ^ CRYPTO_ALG_NEED_FALLBACK) & mask &
 		      CRYPTO_ALG_NEED_FALLBACK))
-			request_module("crypto-%s-all", name);
+			request_module("%s-all", name);
 
 		alg = crypto_alg_lookup(name, type, mask);
 	}

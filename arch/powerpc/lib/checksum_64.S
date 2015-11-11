@@ -226,35 +226,19 @@ _GLOBAL(csum_partial)
 	blr
 
 
-	.macro srcnr
+	.macro source
 100:
 	.section __ex_table,"a"
 	.align 3
-	.llong 100b,.Lsrc_error_nr
-	.previous
-	.endm
-
-	.macro source
-150:
-	.section __ex_table,"a"
-	.align 3
-	.llong 150b,.Lsrc_error
-	.previous
-	.endm
-
-	.macro dstnr
-200:
-	.section __ex_table,"a"
-	.align 3
-	.llong 200b,.Ldest_error_nr
+	.llong 100b,.Lsrc_error
 	.previous
 	.endm
 
 	.macro dest
-250:
+200:
 	.section __ex_table,"a"
 	.align 3
-	.llong 250b,.Ldest_error
+	.llong 200b,.Ldest_error
 	.previous
 	.endm
 
@@ -285,16 +269,16 @@ _GLOBAL(csum_partial_copy_generic)
 	rldicl. r6,r3,64-1,64-2		/* r6 = (r3 & 0x3) >> 1 */
 	beq	.Lcopy_aligned
 
-	li	r9,4
-	sub	r6,r9,r6
+	li	r7,4
+	sub	r6,r7,r6
 	mtctr	r6
 
 1:
-srcnr;	lhz	r6,0(r3)		/* align to doubleword */
+source;	lhz	r6,0(r3)		/* align to doubleword */
 	subi	r5,r5,2
 	addi	r3,r3,2
 	adde	r0,r0,r6
-dstnr;	sth	r6,0(r4)
+dest;	sth	r6,0(r4)
 	addi	r4,r4,2
 	bdnz	1b
 
@@ -408,10 +392,10 @@ dest;	std	r16,56(r4)
 
 	mtctr	r6
 3:
-srcnr;	ld	r6,0(r3)
+source;	ld	r6,0(r3)
 	addi	r3,r3,8
 	adde	r0,r0,r6
-dstnr;	std	r6,0(r4)
+dest;	std	r6,0(r4)
 	addi	r4,r4,8
 	bdnz	3b
 
@@ -421,10 +405,10 @@ dstnr;	std	r6,0(r4)
 	srdi.	r6,r5,2
 	beq	.Lcopy_tail_halfword
 
-srcnr;	lwz	r6,0(r3)
+source;	lwz	r6,0(r3)
 	addi	r3,r3,4
 	adde	r0,r0,r6
-dstnr;	stw	r6,0(r4)
+dest;	stw	r6,0(r4)
 	addi	r4,r4,4
 	subi	r5,r5,4
 
@@ -432,10 +416,10 @@ dstnr;	stw	r6,0(r4)
 	srdi.	r6,r5,1
 	beq	.Lcopy_tail_byte
 
-srcnr;	lhz	r6,0(r3)
+source;	lhz	r6,0(r3)
 	addi	r3,r3,2
 	adde	r0,r0,r6
-dstnr;	sth	r6,0(r4)
+dest;	sth	r6,0(r4)
 	addi	r4,r4,2
 	subi	r5,r5,2
 
@@ -443,10 +427,10 @@ dstnr;	sth	r6,0(r4)
 	andi.	r6,r5,1
 	beq	.Lcopy_finish
 
-srcnr;	lbz	r6,0(r3)
+source;	lbz	r6,0(r3)
 	sldi	r9,r6,8			/* Pad the byte out to 16 bits */
 	adde	r0,r0,r9
-dstnr;	stb	r6,0(r4)
+dest;	stb	r6,0(r4)
 
 .Lcopy_finish:
 	addze	r0,r0			/* add in final carry */
@@ -456,11 +440,6 @@ dstnr;	stb	r6,0(r4)
 	blr
 
 .Lsrc_error:
-	ld	r14,STK_REG(R14)(r1)
-	ld	r15,STK_REG(R15)(r1)
-	ld	r16,STK_REG(R16)(r1)
-	addi	r1,r1,STACKFRAMESIZE
-.Lsrc_error_nr:
 	cmpdi	0,r7,0
 	beqlr
 	li	r6,-EFAULT
@@ -468,11 +447,6 @@ dstnr;	stb	r6,0(r4)
 	blr
 
 .Ldest_error:
-	ld	r14,STK_REG(R14)(r1)
-	ld	r15,STK_REG(R15)(r1)
-	ld	r16,STK_REG(R16)(r1)
-	addi	r1,r1,STACKFRAMESIZE
-.Ldest_error_nr:
 	cmpdi	0,r8,0
 	beqlr
 	li	r6,-EFAULT

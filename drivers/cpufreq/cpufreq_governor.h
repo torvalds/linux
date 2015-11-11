@@ -165,16 +165,17 @@ struct cs_cpu_dbs_info_s {
 
 /* Per policy Governers sysfs tunables */
 struct od_dbs_tuners {
-	unsigned int ignore_nice_load;
+	unsigned int ignore_nice;
 	unsigned int sampling_rate;
 	unsigned int sampling_down_factor;
 	unsigned int up_threshold;
+	unsigned int adj_up_threshold;
 	unsigned int powersave_bias;
 	unsigned int io_is_busy;
 };
 
 struct cs_dbs_tuners {
-	unsigned int ignore_nice_load;
+	unsigned int ignore_nice;
 	unsigned int sampling_rate;
 	unsigned int sampling_down_factor;
 	unsigned int up_threshold;
@@ -255,6 +256,7 @@ static ssize_t show_sampling_rate_min_gov_pol				\
 	return sprintf(buf, "%u\n", dbs_data->min_sampling_rate);	\
 }
 
+u64 get_cpu_idle_time(unsigned int cpu, u64 *wall, int io_busy);
 void dbs_check_cpu(struct dbs_data *dbs_data, int cpu);
 bool need_load_eval(struct cpu_dbs_common_info *cdbs,
 		unsigned int sampling_rate);

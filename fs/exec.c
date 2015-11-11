@@ -607,7 +607,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
 		return -ENOMEM;
 
 	lru_add_drain();
-	tlb_gather_mmu(&tlb, mm, old_start, old_end);
+	tlb_gather_mmu(&tlb, mm, 0);
 	if (new_end > old_start) {
 		/*
 		 * when the old and new regions overlap clear from new_end.
@@ -624,7 +624,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
 		free_pgd_range(&tlb, old_start, old_end, new_end,
 			vma->vm_next ? vma->vm_next->vm_start : USER_PGTABLES_CEILING);
 	}
-	tlb_finish_mmu(&tlb, old_start, old_end);
+	tlb_finish_mmu(&tlb, new_end, old_end);
 
 	/*
 	 * Shrink the vma to just the new range.  Always succeeds.
@@ -654,10 +654,10 @@ int setup_arg_pages(struct linux_binprm *bprm,
 	unsigned long rlim_stack;
 
 #ifdef CONFIG_STACK_GROWSUP
-	/* Limit stack size */
+	/* Limit stack size to 1GB */
 	stack_base = rlimit_max(RLIMIT_STACK);
-	if (stack_base > STACK_SIZE_MAX)
-		stack_base = STACK_SIZE_MAX;
+	if (stack_base > (1 << 30))
+		stack_base = 1 << 30;
 
 	/* Make sure we didn't let the argument array grow too large. */
 	if (vma->vm_end - vma->vm_start > stack_base)
@@ -1220,7 +1220,7 @@ EXPORT_SYMBOL(install_exec_creds);
 /*
  * determine how safe it is to execute the proposed program
  * - the caller must hold ->cred_guard_mutex to protect against
- *   PTRACE_ATTACH or seccomp thread-sync
+ *   PTRACE_ATTACH
  */
 static int check_unsafe_exec(struct linux_binprm *bprm)
 {
@@ -1239,7 +1239,7 @@ static int check_unsafe_exec(struct linux_binprm *bprm)
 	 * This isn't strictly necessary, but it makes it harder for LSMs to
 	 * mess up.
 	 */
-	if (task_no_new_privs(current))
+	if (current->no_new_privs)
 		bprm->unsafe |= LSM_UNSAFE_NO_NEW_PRIVS;
 
 	n_fs = 1;
@@ -1265,53 +1265,6 @@ static int check_unsafe_exec(struct linux_binprm *bprm)
 	return res;
 }
 
-static void bprm_fill_uid(struct linux_binprm *bprm)
-{
-	struct inode *inode;
-	unsigned int mode;
-	kuid_t uid;
-	kgid_t gid;
-
-	/* clear any previous set[ug]id data from a previous binary */
-	bprm->cred->euid = current_euid();
-	bprm->cred->egid = current_egid();
-
-	if (bprm->file->f_path.mnt->mnt_flags & MNT_NOSUID)
-		return;
-
-	if (task_no_new_privs(current))
-		return;
-
-	inode = file_inode(bprm->file);
-	mode = ACCESS_ONCE(inode->i_mode);
-	if (!(mode & (S_ISUID|S_ISGID)))
-		return;
-
-	/* Be careful if suid/sgid is set */
-	mutex_lock(&inode->i_mutex);
-
-	/* reload atomically mode/uid/gid now that lock held */
-	mode = inode->i_mode;
-	uid = inode->i_uid;
-	gid = inode->i_gid;
-	mutex_unlock(&inode->i_mutex);
-
-	/* We ignore suid/sgid if there are no mappings for them in the ns */
-	if (!kuid_has_mapping(bprm->cred->user_ns, uid) ||
-		 !kgid_has_mapping(bprm->cred->user_ns, gid))
-		return;
-
-	if (mode & S_ISUID) {
-		bprm->per_clear |= PER_CLEAR_ON_SETID;
-		bprm->cred->euid = uid;
-	}
-
-	if ((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP)) {
-		bprm->per_clear |= PER_CLEAR_ON_SETID;
-		bprm->cred->egid = gid;
-	}
-}
-
 /* 
  * Fill the binprm structure from the inode. 
  * Check permissions, then read the first 128 (BINPRM_BUF_SIZE) bytes
@@ -1320,12 +1273,39 @@ static void bprm_fill_uid(struct linux_binprm *bprm)
  */
 int prepare_binprm(struct linux_binprm *bprm)
 {
+	umode_t mode;
+	struct inode * inode = file_inode(bprm->file);
 	int retval;
 
+	mode = inode->i_mode;
 	if (bprm->file->f_op == NULL)
 		return -EACCES;
 
-	bprm_fill_uid(bprm);
+	/* clear any previous set[ug]id data from a previous binary */
+	bprm->cred->euid = current_euid();
+	bprm->cred->egid = current_egid();
+
+	if (!(bprm->file->f_path.mnt->mnt_flags & MNT_NOSUID) &&
+	    !current->no_new_privs &&
+	    kuid_has_mapping(bprm->cred->user_ns, inode->i_uid) &&
+	    kgid_has_mapping(bprm->cred->user_ns, inode->i_gid)) {
+		/* Set-uid? */
+		if (mode & S_ISUID) {
+			bprm->per_clear |= PER_CLEAR_ON_SETID;
+			bprm->cred->euid = inode->i_uid;
+		}
+
+		/* Set-gid? */
+		/*
+		 * If setgid is set but no group execute bit then this
+		 * is a candidate for mandatory locking, not a setgid
+		 * executable.
+		 */
+		if ((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP)) {
+			bprm->per_clear |= PER_CLEAR_ON_SETID;
+			bprm->cred->egid = inode->i_gid;
+		}
+	}
 
 	/* fill in binprm security blob */
 	retval = security_bprm_set_creds(bprm);
@@ -1689,12 +1669,6 @@ int __get_dumpable(unsigned long mm_flags)
 	return (ret > SUID_DUMP_USER) ? SUID_DUMP_ROOT : ret;
 }
 
-/*
- * This returns the actual value of the suid_dumpable flag. For things
- * that are using this for checking for privilege transitions, it must
- * test against SUID_DUMP_USER rather than treating it as a boolean
- * value.
- */
 int get_dumpable(struct mm_struct *mm)
 {
 	return __get_dumpable(mm->flags);

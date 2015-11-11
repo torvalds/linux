@@ -290,7 +290,7 @@ minstrel_get_rate(void *priv, struct ieee80211_sta *sta,
 	struct minstrel_rate *msr, *mr;
 	unsigned int ndx;
 	bool mrr_capable;
-	bool prev_sample;
+	bool prev_sample = mi->prev_sample;
 	int delta;
 	int sampling_ratio;
 
@@ -314,7 +314,6 @@ minstrel_get_rate(void *priv, struct ieee80211_sta *sta,
 			(mi->sample_count + mi->sample_deferred / 2);
 
 	/* delta < 0: no sampling required */
-	prev_sample = mi->prev_sample;
 	mi->prev_sample = false;
 	if (delta < 0 || (!mrr_capable && prev_sample))
 		return;

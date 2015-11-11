@@ -1070,7 +1070,7 @@ static void macb_configure_dma(struct macb *bp)
 static void macb_configure_caps(struct macb *bp)
 {
 	if (macb_is_gem(bp)) {
-		if (GEM_BFEXT(IRQCOR, gem_readl(bp, DCFG1)) == 0)
+		if (GEM_BF(IRQCOR, gem_readl(bp, DCFG1)) == 0)
 			bp->caps |= MACB_CAPS_ISR_CLEAR_ON_WRITE;
 	}
 }

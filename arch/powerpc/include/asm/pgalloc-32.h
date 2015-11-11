@@ -84,8 +84,10 @@ static inline void pgtable_free_tlb(struct mmu_gather *tlb,
 static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t table,
 				  unsigned long address)
 {
+	struct page *page = page_address(table);
+
 	tlb_flush_pgtable(tlb, address);
-	pgtable_page_dtor(table);
-	pgtable_free_tlb(tlb, page_address(table), 0);
+	pgtable_page_dtor(page);
+	pgtable_free_tlb(tlb, page, 0);
 }
 #endif /* _ASM_POWERPC_PGALLOC_32_H */

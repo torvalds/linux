@@ -1811,12 +1811,10 @@ static int zcache_comp_init(void)
 #else
 	if (*zcache_comp_name != '\0') {
 		ret = crypto_has_comp(zcache_comp_name, 0, 0);
-		if (!ret) {
+		if (!ret)
 			pr_info("zcache: %s not supported\n",
 					zcache_comp_name);
-			ret = 1;
-			goto out;
-		}
+		goto out;
 	}
 	if (!ret)
 		strcpy(zcache_comp_name, "lzo");

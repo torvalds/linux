@@ -11,6 +11,7 @@
 
 #include <asm-generic/sections.h>
 
+extern char _int_vec_base_lds[];
 extern char __arc_dccm_base[];
 extern char __dtb_start[];
 

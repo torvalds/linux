@@ -310,6 +310,7 @@ static void free_ioctx(struct kioctx *ctx)
 
 		avail = (head <= ctx->tail ? ctx->tail : ctx->nr_events) - head;
 
+		atomic_sub(avail, &ctx->reqs_active);
 		head += avail;
 		head %= ctx->nr_events;
 	}
@@ -422,12 +423,10 @@ static void kill_ioctx_rcu(struct rcu_head *head)
  *	when the processes owning a context have all exited to encourage
  *	the rapid destruction of the kioctx.
  */
-static void kill_ioctx(struct mm_struct *mm, struct kioctx *ctx)
+static void kill_ioctx(struct kioctx *ctx)
 {
 	if (!atomic_xchg(&ctx->dead, 1)) {
-		spin_lock(&mm->ioctx_lock);
 		hlist_del_rcu(&ctx->list);
-		spin_unlock(&mm->ioctx_lock);
 
 		/*
 		 * It'd be more correct to do this in free_ioctx(), after all
@@ -495,7 +494,7 @@ void exit_aio(struct mm_struct *mm)
 		 */
 		ctx->mmap_size = 0;
 
-		kill_ioctx(mm, ctx);
+		kill_ioctx(ctx);
 	}
 }
 
@@ -677,7 +676,6 @@ void aio_complete(struct kiocb *iocb, long res, long res2)
 put_rq:
 	/* everything turned out well, dispose of the aiocb. */
 	aio_put_req(iocb);
-	atomic_dec(&ctx->reqs_active);
 
 	/*
 	 * We have to order our ring_info tail store above and test
@@ -717,8 +715,6 @@ static long aio_read_events_ring(struct kioctx *ctx,
 	if (head == ctx->tail)
 		goto out;
 
-	head %= ctx->nr_events;
-
 	while (ret < nr) {
 		long avail;
 		struct io_event *ev;
@@ -757,6 +753,8 @@ static long aio_read_events_ring(struct kioctx *ctx,
 	flush_dcache_page(ctx->ring_pages[0]);
 
 	pr_debug("%li  h%u t%u\n", ret, head, ctx->tail);
+
+	atomic_sub(ret, &ctx->reqs_active);
 out:
 	mutex_unlock(&ctx->ring_lock);
 
@@ -854,7 +852,7 @@ SYSCALL_DEFINE2(io_setup, unsigned, nr_events, aio_context_t __user *, ctxp)
 	if (!IS_ERR(ioctx)) {
 		ret = put_user(ioctx->user_id, ctxp);
 		if (ret)
-			kill_ioctx(current->mm, ioctx);
+			kill_ioctx(ioctx);
 		put_ioctx(ioctx);
 	}
 
@@ -872,7 +870,7 @@ SYSCALL_DEFINE1(io_destroy, aio_context_t, ctx)
 {
 	struct kioctx *ioctx = lookup_ioctx(ctx);
 	if (likely(NULL != ioctx)) {
-		kill_ioctx(current->mm, ioctx);
+		kill_ioctx(ioctx);
 		put_ioctx(ioctx);
 		return 0;
 	}

@@ -282,8 +282,8 @@ static int board_added(struct slot *p_slot)
 		return WRONG_BUS_FREQUENCY;
 	}
 
-	bsp = ctrl->pci_dev->subordinate->cur_bus_speed;
-	msp = ctrl->pci_dev->subordinate->max_bus_speed;
+	bsp = ctrl->pci_dev->bus->cur_bus_speed;
+	msp = ctrl->pci_dev->bus->max_bus_speed;
 
 	/* Check if there are other slots or devices on the same bus */
 	if (!list_empty(&ctrl->pci_dev->subordinate->devices))

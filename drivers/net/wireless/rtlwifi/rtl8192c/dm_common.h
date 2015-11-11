@@ -91,17 +91,6 @@
 #define TX_POWER_NEAR_FIELD_THRESH_LVL2		74
 #define TX_POWER_NEAR_FIELD_THRESH_LVL1		67
 
-#define DYNAMIC_FUNC_DISABLE			0x0
-#define DYNAMIC_FUNC_DIG			BIT(0)
-#define DYNAMIC_FUNC_HP				BIT(1)
-#define DYNAMIC_FUNC_SS				BIT(2) /*Tx Power Tracking*/
-#define DYNAMIC_FUNC_BT				BIT(3)
-#define DYNAMIC_FUNC_ANT_DIV			BIT(4)
-
-#define	RSSI_CCK				0
-#define	RSSI_OFDM				1
-#define	RSSI_DEFAULT				2
-
 struct swat_t {
 	u8 failure_cnt;
 	u8 try_flag;
@@ -178,8 +167,5 @@ void rtl92c_phy_lc_calibrate(struct ieee80211_hw *hw);
 void rtl92c_phy_iq_calibrate(struct ieee80211_hw *hw, bool recovery);
 void rtl92c_dm_dynamic_txpower(struct ieee80211_hw *hw);
 void rtl92c_dm_bt_coexist(struct ieee80211_hw *hw);
-void dm_savepowerindex(struct ieee80211_hw *hw);
-void dm_writepowerindex(struct ieee80211_hw *hw, u8 value);
-void dm_restorepowerindex(struct ieee80211_hw *hw);
 
 #endif

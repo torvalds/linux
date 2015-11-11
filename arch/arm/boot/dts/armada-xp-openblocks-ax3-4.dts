@@ -32,10 +32,6 @@
 			  0xf0000000 0 0xf0000000 0x8000000     /* Device Bus, NOR 128MiB   */>;
 
 		internal-regs {
-			rtc@10300 {
-				/* No crystal connected to the internal RTC */
-				status = "disabled";
-			};
 			serial@12000 {
 				clock-frequency = <250000000>;
 				status = "okay";
@@ -156,7 +152,7 @@
 				/* Device Bus parameters are required */
 
 				/* Read parameters */
-				devbus,bus-width    = <16>;
+				devbus,bus-width    = <8>;
 				devbus,turn-off-ps  = <60000>;
 				devbus,badr-skew-ps = <0>;
 				devbus,acc-first-ps = <124000>;

@@ -2662,6 +2662,60 @@ static bool dspload_wait_loaded(struct hda_codec *codec)
 }
 
 /*
+ * PCM stuffs
+ */
+static void ca0132_setup_stream(struct hda_codec *codec, hda_nid_t nid,
+				 u32 stream_tag,
+				 int channel_id, int format)
+{
+	unsigned int oldval, newval;
+
+	if (!nid)
+		return;
+
+	snd_printdd(
+		   "ca0132_setup_stream: NID=0x%x, stream=0x%x, "
+		   "channel=%d, format=0x%x\n",
+		   nid, stream_tag, channel_id, format);
+
+	/* update the format-id if changed */
+	oldval = snd_hda_codec_read(codec, nid, 0,
+				    AC_VERB_GET_STREAM_FORMAT,
+				    0);
+	if (oldval != format) {
+		msleep(20);
+		snd_hda_codec_write(codec, nid, 0,
+				    AC_VERB_SET_STREAM_FORMAT,
+				    format);
+	}
+
+	oldval = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONV, 0);
+	newval = (stream_tag << 4) | channel_id;
+	if (oldval != newval) {
+		snd_hda_codec_write(codec, nid, 0,
+				    AC_VERB_SET_CHANNEL_STREAMID,
+				    newval);
+	}
+}
+
+static void ca0132_cleanup_stream(struct hda_codec *codec, hda_nid_t nid)
+{
+	unsigned int val;
+
+	if (!nid)
+		return;
+
+	snd_printdd(KERN_INFO "ca0132_cleanup_stream: NID=0x%x\n", nid);
+
+	val = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONV, 0);
+	if (!val)
+		return;
+
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_STREAM_FORMAT, 0);
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CHANNEL_STREAMID, 0);
+}
+
+/*
  * PCM callbacks
  */
 static int ca0132_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
@@ -2672,7 +2726,7 @@ static int ca0132_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 {
 	struct ca0132_spec *spec = codec->spec;
 
-	snd_hda_codec_setup_stream(codec, spec->dacs[0], stream_tag, 0, format);
+	ca0132_setup_stream(codec, spec->dacs[0], stream_tag, 0, format);
 
 	return 0;
 }
@@ -2691,7 +2745,7 @@ static int ca0132_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
 	if (spec->effects_switch[PLAY_ENHANCEMENT - EFFECT_START_NID])
 		msleep(50);
 
-	snd_hda_codec_cleanup_stream(codec, spec->dacs[0]);
+	ca0132_cleanup_stream(codec, spec->dacs[0]);
 
 	return 0;
 }
@@ -2768,8 +2822,10 @@ static int ca0132_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 					unsigned int format,
 					struct snd_pcm_substream *substream)
 {
-	snd_hda_codec_setup_stream(codec, hinfo->nid,
-				   stream_tag, 0, format);
+	struct ca0132_spec *spec = codec->spec;
+
+	ca0132_setup_stream(codec, spec->adcs[substream->number],
+			    stream_tag, 0, format);
 
 	return 0;
 }
@@ -2783,7 +2839,7 @@ static int ca0132_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 	if (spec->dsp_state == DSP_DOWNLOADING)
 		return 0;
 
-	snd_hda_codec_cleanup_stream(codec, hinfo->nid);
+	ca0132_cleanup_stream(codec, hinfo->nid);
 	return 0;
 }
 
@@ -4379,9 +4435,6 @@ static void ca0132_download_dsp(struct hda_codec *codec)
 	return; /* NOP */
 #endif
 
-	if (spec->dsp_state == DSP_DOWNLOAD_FAILED)
-		return; /* don't retry failures */
-
 	chipio_enable_clocks(codec);
 	spec->dsp_state = DSP_DOWNLOADING;
 	if (!ca0132_download_dsp_images(codec))
@@ -4558,8 +4611,7 @@ static int ca0132_init(struct hda_codec *codec)
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i;
 
-	if (spec->dsp_state != DSP_DOWNLOAD_FAILED)
-		spec->dsp_state = DSP_DOWNLOAD_INIT;
+	spec->dsp_state = DSP_DOWNLOAD_INIT;
 	spec->curr_chip_addx = INVALID_CHIP_ADDRESS;
 
 	snd_hda_power_up(codec);
@@ -4670,7 +4722,6 @@ static int patch_ca0132(struct hda_codec *codec)
 	codec->spec = spec;
 	spec->codec = codec;
 
-	spec->dsp_state = DSP_DOWNLOAD_INIT;
 	spec->num_mixers = 1;
 	spec->mixers[0] = ca0132_mixer;
 
@@ -4691,8 +4742,6 @@ static int patch_ca0132(struct hda_codec *codec)
 		return err;
 
 	codec->patch_ops = ca0132_patch_ops;
-	codec->pcm_format_first = 1;
-	codec->no_sticky_stream = 1;
 
 	return 0;
 }

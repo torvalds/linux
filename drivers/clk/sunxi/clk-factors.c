@@ -70,7 +70,7 @@ static unsigned long clk_factors_recalc_rate(struct clk_hw *hw,
 		p = FACTOR_GET(config->pshift, config->pwidth, reg);
 
 	/* Calculate the rate */
-	rate = (parent_rate * (n + config->n_start) * (k + 1) >> p) / (m + 1);
+	rate = (parent_rate * n * (k + 1) >> p) / (m + 1);
 
 	return rate;
 }

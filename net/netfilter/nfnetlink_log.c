@@ -45,8 +45,7 @@
 #define NFULNL_NLBUFSIZ_DEFAULT	NLMSG_GOODSIZE
 #define NFULNL_TIMEOUT_DEFAULT 	100	/* every second */
 #define NFULNL_QTHRESH_DEFAULT 	100	/* 100 packets */
-/* max packet size is limited by 16-bit struct nfattr nfa_len field */
-#define NFULNL_COPY_RANGE_MAX	(0xFFFF - NLA_HDRLEN)
+#define NFULNL_COPY_RANGE_MAX	0xFFFF	/* max packet size is limited by 16-bit struct nfattr nfa_len field */
 
 #define PRINTR(x, args...)	do { if (net_ratelimit()) \
 				     printk(x, ## args); } while (0);
@@ -256,8 +255,6 @@ nfulnl_set_mode(struct nfulnl_instance *inst, u_int8_t mode,
 
 	case NFULNL_COPY_PACKET:
 		inst->copy_mode = mode;
-		if (range == 0)
-			range = NFULNL_COPY_RANGE_MAX;
 		inst->copy_range = min_t(unsigned int,
 					 range, NFULNL_COPY_RANGE_MAX);
 		break;
@@ -348,25 +345,26 @@ nfulnl_alloc_skb(u32 peer_portid, unsigned int inst_size, unsigned int pkt_size)
 	return skb;
 }
 
-static void
+static int
 __nfulnl_send(struct nfulnl_instance *inst)
 {
+	int status = -1;
+
 	if (inst->qlen > 1) {
 		struct nlmsghdr *nlh = nlmsg_put(inst->skb, 0, 0,
 						 NLMSG_DONE,
 						 sizeof(struct nfgenmsg),
 						 0);
-		if (WARN_ONCE(!nlh, "bad nlskb size: %u, tailroom %d\n",
-			      inst->skb->len, skb_tailroom(inst->skb))) {
-			kfree_skb(inst->skb);
+		if (!nlh)
 			goto out;
-		}
 	}
-	nfnetlink_unicast(inst->skb, inst->net, inst->peer_portid,
-			  MSG_DONTWAIT);
-out:
+	status = nfnetlink_unicast(inst->skb, inst->net, inst->peer_portid,
+				   MSG_DONTWAIT);
+
 	inst->qlen = 0;
 	inst->skb = NULL;
+out:
+	return status;
 }
 
 static void
@@ -649,8 +647,7 @@ nfulnl_log_packet(struct net *net,
 		+ nla_total_size(sizeof(u_int32_t))	/* gid */
 		+ nla_total_size(plen)			/* prefix */
 		+ nla_total_size(sizeof(struct nfulnl_msg_packet_hw))
-		+ nla_total_size(sizeof(struct nfulnl_msg_packet_timestamp))
-		+ nla_total_size(sizeof(struct nfgenmsg));	/* NLMSG_DONE */
+		+ nla_total_size(sizeof(struct nfulnl_msg_packet_timestamp));
 
 	if (in && skb_mac_header_was_set(skb)) {
 		size +=   nla_total_size(skb->dev->hard_header_len)
@@ -679,7 +676,8 @@ nfulnl_log_packet(struct net *net,
 		break;
 
 	case NFULNL_COPY_PACKET:
-		if (inst->copy_range > skb->len)
+		if (inst->copy_range == 0
+		    || inst->copy_range > skb->len)
 			data_len = skb->len;
 		else
 			data_len = inst->copy_range;
@@ -692,7 +690,8 @@ nfulnl_log_packet(struct net *net,
 		goto unlock_and_release;
 	}
 
-	if (inst->skb && size > skb_tailroom(inst->skb)) {
+	if (inst->skb &&
+	    size > skb_tailroom(inst->skb) - sizeof(struct nfgenmsg)) {
 		/* either the queue len is too high or we don't have
 		 * enough room in the skb left. flush to userspace. */
 		__nfulnl_flush(inst);

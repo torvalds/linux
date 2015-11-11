@@ -268,16 +268,12 @@
 #include <linux/crypto.h>
 #include <linux/time.h>
 #include <linux/slab.h>
-#include <linux/uid_stat.h>
 
 #include <net/icmp.h>
 #include <net/inet_common.h>
 #include <net/tcp.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
-#include <net/ip6_route.h>
-#include <net/ipv6.h>
-#include <net/transp_v6.h>
 #include <net/netdma.h>
 #include <net/sock.h>
 
@@ -285,8 +281,6 @@
 #include <asm/ioctls.h>
 
 int sysctl_tcp_fin_timeout __read_mostly = TCP_FIN_TIMEOUT;
-
-int sysctl_tcp_min_tso_segs __read_mostly = 2;
 
 struct percpu_counter tcp_orphan_count;
 EXPORT_SYMBOL_GPL(tcp_orphan_count);
@@ -792,24 +786,14 @@ static unsigned int tcp_xmit_size_goal(struct sock *sk, u32 mss_now,
 	xmit_size_goal = mss_now;
 
 	if (large_allowed && sk_can_gso(sk)) {
-		u32 gso_size, hlen;
+		xmit_size_goal = ((sk->sk_gso_max_size - 1) -
+				  inet_csk(sk)->icsk_af_ops->net_header_len -
+				  inet_csk(sk)->icsk_ext_hdr_len -
+				  tp->tcp_header_len);
 
-		/* Maybe we should/could use sk->sk_prot->max_header here ? */
-		hlen = inet_csk(sk)->icsk_af_ops->net_header_len +
-		       inet_csk(sk)->icsk_ext_hdr_len +
-		       tp->tcp_header_len;
-
-		/* Goal is to send at least one packet per ms,
-		 * not one big TSO packet every 100 ms.
-		 * This preserves ACK clocking and is consistent
-		 * with tcp_tso_should_defer() heuristic.
-		 */
-		gso_size = sk->sk_pacing_rate / (2 * MSEC_PER_SEC);
-		gso_size = max_t(u32, gso_size,
-				 sysctl_tcp_min_tso_segs * mss_now);
-
-		xmit_size_goal = min_t(u32, gso_size,
-				       sk->sk_gso_max_size - 1 - hlen);
+		/* TSQ : try to have two TSO segments in flight */
+		xmit_size_goal = min_t(u32, xmit_size_goal,
+				       sysctl_tcp_limit_output_bytes >> 1);
 
 		xmit_size_goal = tcp_bound_to_half_wnd(tp, xmit_size_goal);
 
@@ -1005,8 +989,7 @@ void tcp_free_fastopen_req(struct tcp_sock *tp)
 	}
 }
 
-static int tcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg,
-				int *copied, size_t size)
+static int tcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg, int *size)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	int err, flags;
@@ -1021,12 +1004,11 @@ static int tcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg,
 	if (unlikely(tp->fastopen_req == NULL))
 		return -ENOBUFS;
 	tp->fastopen_req->data = msg;
-	tp->fastopen_req->size = size;
 
 	flags = (msg->msg_flags & MSG_DONTWAIT) ? O_NONBLOCK : 0;
 	err = __inet_stream_connect(sk->sk_socket, msg->msg_name,
 				    msg->msg_namelen, flags);
-	*copied = tp->fastopen_req->copied;
+	*size = tp->fastopen_req->copied;
 	tcp_free_fastopen_req(tp);
 	return err;
 }
@@ -1046,7 +1028,7 @@ int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 
 	flags = msg->msg_flags;
 	if (flags & MSG_FASTOPEN) {
-		err = tcp_sendmsg_fastopen(sk, msg, &copied_syn, size);
+		err = tcp_sendmsg_fastopen(sk, msg, &copied_syn);
 		if (err == -EINPROGRESS && copied_syn > 0)
 			goto out;
 		else if (err)
@@ -1069,7 +1051,7 @@ int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	if (unlikely(tp->repair)) {
 		if (tp->repair_queue == TCP_RECV_QUEUE) {
 			copied = tcp_send_rcvq(sk, msg, size);
-			goto out_nopush;
+			goto out;
 		}
 
 		err = -EINVAL;
@@ -1134,13 +1116,6 @@ new_segment:
 							  sk->sk_allocation);
 				if (!skb)
 					goto wait_for_memory;
-
-				/*
-				 * All packets are restored as if they have
-				 * already been sent.
-				 */
-				if (tp->repair)
-					TCP_SKB_CB(skb)->when = tcp_time_stamp;
 
 				/*
 				 * Check whether we can use HW checksum.
@@ -1242,11 +1217,7 @@ wait_for_memory:
 out:
 	if (copied)
 		tcp_push(sk, flags, mss_now, tp->nonagle);
-out_nopush:
 	release_sock(sk);
-
-	if (copied + copied_syn)
-		uid_stat_tcp_snd(current_uid(), copied + copied_syn);
 	return copied + copied_syn;
 
 do_fault:
@@ -1551,7 +1522,6 @@ int tcp_read_sock(struct sock *sk, read_descriptor_t *desc,
 	if (copied > 0) {
 		tcp_recv_skb(sk, seq, &offset);
 		tcp_cleanup_rbuf(sk, copied);
-		uid_stat_tcp_rcv(current_uid(), copied);
 	}
 	return copied;
 }
@@ -1956,9 +1926,6 @@ skip_copy:
 	tcp_cleanup_rbuf(sk, copied);
 
 	release_sock(sk);
-
-	if (copied > 0)
-		uid_stat_tcp_rcv(current_uid(), copied);
 	return copied;
 
 out:
@@ -1967,8 +1934,6 @@ out:
 
 recv_urg:
 	err = tcp_recv_urg(sk, msg, len, flags);
-	if (err > 0)
-		uid_stat_tcp_rcv(current_uid(), err);
 	goto out;
 
 recv_sndq:
@@ -2475,11 +2440,10 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 	case TCP_THIN_DUPACK:
 		if (val < 0 || val > 1)
 			err = -EINVAL;
-		else {
+		else
 			tp->thin_dupack = val;
 			if (tp->thin_dupack)
 				tcp_disable_early_retrans(tp);
-		}
 		break;
 
 	case TCP_REPAIR:
@@ -2915,7 +2879,6 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb,
 	netdev_features_t features)
 {
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
-	unsigned int sum_truesize = 0;
 	struct tcphdr *th;
 	unsigned int thlen;
 	unsigned int seq;
@@ -2999,7 +2962,13 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb,
 		if (copy_destructor) {
 			skb->destructor = gso_skb->destructor;
 			skb->sk = gso_skb->sk;
-			sum_truesize += skb->truesize;
+			/* {tcp|sock}_wfree() use exact truesize accounting :
+			 * sum(skb->truesize) MUST be exactly be gso_skb->truesize
+			 * So we account mss bytes of 'true size' for each segment.
+			 * The last segment will contain the remaining.
+			 */
+			skb->truesize = mss;
+			gso_skb->truesize -= mss;
 		}
 		skb = skb->next;
 		th = tcp_hdr(skb);
@@ -3016,9 +2985,7 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb,
 	if (copy_destructor) {
 		swap(gso_skb->sk, skb->sk);
 		swap(gso_skb->destructor, skb->destructor);
-		sum_truesize += skb->truesize;
-		atomic_add(sum_truesize - gso_skb->truesize,
-			   &skb->sk->sk_wmem_alloc);
+		swap(gso_skb->truesize, skb->truesize);
 	}
 
 	delta = htonl(oldlen + (skb->tail - skb->transport_header) +
@@ -3481,111 +3448,3 @@ void __init tcp_init(void)
 
 	tcp_tasklet_init();
 }
-
-static int tcp_is_local(struct net *net, __be32 addr) {
-	struct rtable *rt;
-	struct flowi4 fl4 = { .daddr = addr };
-	rt = ip_route_output_key(net, &fl4);
-	if (IS_ERR_OR_NULL(rt))
-		return 0;
-	return rt->dst.dev && (rt->dst.dev->flags & IFF_LOOPBACK);
-}
-
-#if defined(CONFIG_IPV6)
-static int tcp_is_local6(struct net *net, struct in6_addr *addr) {
-	struct rt6_info *rt6 = rt6_lookup(net, addr, addr, 0, 0);
-	return rt6 && rt6->dst.dev && (rt6->dst.dev->flags & IFF_LOOPBACK);
-}
-#endif
-
-/*
- * tcp_nuke_addr - destroy all sockets on the given local address
- * if local address is the unspecified address (0.0.0.0 or ::), destroy all
- * sockets with local addresses that are not configured.
- */
-int tcp_nuke_addr(struct net *net, struct sockaddr *addr)
-{
-	int family = addr->sa_family;
-	unsigned int bucket;
-
-	struct in_addr *in;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	struct in6_addr *in6 = NULL;
-#endif
-	if (family == AF_INET) {
-		in = &((struct sockaddr_in *)addr)->sin_addr;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	} else if (family == AF_INET6) {
-		in6 = &((struct sockaddr_in6 *)addr)->sin6_addr;
-#endif
-	} else {
-		return -EAFNOSUPPORT;
-	}
-
-	for (bucket = 0; bucket < tcp_hashinfo.ehash_mask; bucket++) {
-		struct hlist_nulls_node *node;
-		struct sock *sk;
-		spinlock_t *lock = inet_ehash_lockp(&tcp_hashinfo, bucket);
-
-restart:
-		spin_lock_bh(lock);
-		sk_nulls_for_each(sk, node, &tcp_hashinfo.ehash[bucket].chain) {
-			struct inet_sock *inet = inet_sk(sk);
-
-			if (sysctl_ip_dynaddr && sk->sk_state == TCP_SYN_SENT)
-				continue;
-			if (sock_flag(sk, SOCK_DEAD))
-				continue;
-
-			if (family == AF_INET) {
-				__be32 s4 = inet->inet_rcv_saddr;
-				if (s4 == LOOPBACK4_IPV6)
-					continue;
-
-				if (in->s_addr != s4 &&
-				    !(in->s_addr == INADDR_ANY &&
-				      !tcp_is_local(net, s4)))
-					continue;
-			}
-
-#if defined(CONFIG_IPV6)
-			if (family == AF_INET6) {
-				struct in6_addr *s6;
-				if (!inet->pinet6)
-					continue;
-
-				s6 = &inet->pinet6->rcv_saddr;
-				if (ipv6_addr_type(s6) == IPV6_ADDR_MAPPED)
-					continue;
-
-				if (!ipv6_addr_equal(in6, s6) &&
-				    !(ipv6_addr_equal(in6, &in6addr_any) &&
-				      !tcp_is_local6(net, s6)))
-				continue;
-			}
-#endif
-
-			sock_hold(sk);
-			spin_unlock_bh(lock);
-
-			lock_sock(sk);
-			// TODO:
-			// Check for SOCK_DEAD again, it could have changed.
-			// Add a write barrier, see tcp_reset().
-			local_bh_disable();
-			sk->sk_err = ETIMEDOUT;
-			sk->sk_error_report(sk);
-
-			tcp_done(sk);
-			local_bh_enable();
-			release_sock(sk);
-			sock_put(sk);
-
-			goto restart;
-		}
-		spin_unlock_bh(lock);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(tcp_nuke_addr);

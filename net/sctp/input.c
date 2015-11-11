@@ -648,7 +648,8 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 		break;
 	case ICMP_REDIRECT:
 		sctp_icmp_redirect(sk, transport, skb);
-		/* Fall through to out_unlock. */
+		err = 0;
+		break;
 	default:
 		goto out_unlock;
 	}

@@ -362,7 +362,7 @@ static int regcache_rbtree_write(struct regmap *map, unsigned int reg,
 		rbnode = kzalloc(sizeof *rbnode, GFP_KERNEL);
 		if (!rbnode)
 			return -ENOMEM;
-		rbnode->blklen = 1;
+		rbnode->blklen = sizeof(*rbnode);
 		rbnode->base_reg = reg;
 		rbnode->block = kmalloc(rbnode->blklen * map->cache_word_size,
 					GFP_KERNEL);

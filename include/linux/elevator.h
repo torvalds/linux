@@ -7,7 +7,6 @@
 #ifdef CONFIG_BLOCK
 
 struct io_cq;
-struct elevator_type;
 
 typedef int (elevator_merge_fn) (struct request_queue *, struct request **,
 				 struct bio *);
@@ -36,8 +35,7 @@ typedef void (elevator_put_req_fn) (struct request *);
 typedef void (elevator_activate_req_fn) (struct request_queue *, struct request *);
 typedef void (elevator_deactivate_req_fn) (struct request_queue *, struct request *);
 
-typedef int (elevator_init_fn) (struct request_queue *,
-				struct elevator_type *e);
+typedef int (elevator_init_fn) (struct request_queue *);
 typedef void (elevator_exit_fn) (struct elevator_queue *);
 
 struct elevator_ops
@@ -157,8 +155,6 @@ extern int elevator_init(struct request_queue *, char *);
 extern void elevator_exit(struct elevator_queue *);
 extern int elevator_change(struct request_queue *, const char *);
 extern bool elv_rq_merge_ok(struct request *, struct bio *);
-extern struct elevator_queue *elevator_alloc(struct request_queue *,
-					struct elevator_type *);
 
 /*
  * Helper functions.

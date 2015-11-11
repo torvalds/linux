@@ -408,13 +408,12 @@ static int pata_at91_probe(struct platform_device *pdev)
 
 	host->private_data = info;
 
-	ret = ata_host_activate(host, gpio_is_valid(irq) ? gpio_to_irq(irq) : 0,
-				gpio_is_valid(irq) ? ata_sff_interrupt : NULL,
-				irq_flags, &pata_at91_sht);
-	if (ret)
-		goto err_put;
+	return ata_host_activate(host, gpio_is_valid(irq) ? gpio_to_irq(irq) : 0,
+			gpio_is_valid(irq) ? ata_sff_interrupt : NULL,
+			irq_flags, &pata_at91_sht);
 
-	return 0;
+	if (!ret)
+		return 0;
 
 err_put:
 	clk_put(info->mck);

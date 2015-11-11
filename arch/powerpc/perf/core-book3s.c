@@ -75,8 +75,6 @@ static unsigned int freeze_events_kernel = MMCR0_FCS;
 
 #define MMCR0_FCHV		0
 #define MMCR0_PMCjCE		MMCR0_PMCnCE
-#define MMCR0_FC56		0
-#define MMCR0_PMAO		0
 
 #define SPRN_MMCRA		SPRN_MMCR2
 #define MMCRA_SAMPLE_ENABLE	0
@@ -112,16 +110,7 @@ static inline void power_pmu_bhrb_read(struct cpu_hw_events *cpuhw) {}
 
 static bool regs_use_siar(struct pt_regs *regs)
 {
-	/*
-	 * When we take a performance monitor exception the regs are setup
-	 * using perf_read_regs() which overloads some fields, in particular
-	 * regs->result to tell us whether to use SIAR.
-	 *
-	 * However if the regs are from another exception, eg. a syscall, then
-	 * they have not been setup using perf_read_regs() and so regs->result
-	 * is something random.
-	 */
-	return ((TRAP(regs) == 0xf00) && regs->result);
+	return !!regs->result;
 }
 
 /*
@@ -758,22 +747,7 @@ static void power_pmu_read(struct perf_event *event)
 	} while (local64_cmpxchg(&event->hw.prev_count, prev, val) != prev);
 
 	local64_add(delta, &event->count);
-
-	/*
-	 * A number of places program the PMC with (0x80000000 - period_left).
-	 * We never want period_left to be less than 1 because we will program
-	 * the PMC with a value >= 0x800000000 and an edge detected PMC will
-	 * roll around to 0 before taking an exception. We have seen this
-	 * on POWER8.
-	 *
-	 * To fix this, clamp the minimum value of period_left to 1.
-	 */
-	do {
-		prev = local64_read(&event->hw.period_left);
-		val = prev - delta;
-		if (val < 1)
-			val = 1;
-	} while (local64_cmpxchg(&event->hw.period_left, prev, val) != prev);
+	local64_sub(delta, &event->hw.period_left);
 }
 
 /*
@@ -878,7 +852,7 @@ static void write_mmcr0(struct cpu_hw_events *cpuhw, unsigned long mmcr0)
 static void power_pmu_disable(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuhw;
-	unsigned long flags, val;
+	unsigned long flags;
 
 	if (!ppmu)
 		return;
@@ -886,6 +860,9 @@ static void power_pmu_disable(struct pmu *pmu)
 	cpuhw = &__get_cpu_var(cpu_hw_events);
 
 	if (!cpuhw->disabled) {
+		cpuhw->disabled = 1;
+		cpuhw->n_added = 0;
+
 		/*
 		 * Check if we ever enabled the PMU on this cpu.
 		 */
@@ -893,21 +870,6 @@ static void power_pmu_disable(struct pmu *pmu)
 			ppc_enable_pmcs();
 			cpuhw->pmcs_enabled = 1;
 		}
-
-		/*
-		 * Set the 'freeze counters' bit, clear PMAO/FC56.
-		 */
-		val  = mfspr(SPRN_MMCR0);
-		val |= MMCR0_FC;
-		val &= ~(MMCR0_PMAO | MMCR0_FC56);
-
-		/*
-		 * The barrier is to make sure the mtspr has been
-		 * executed and the PMU has frozen the events etc.
-		 * before we return.
-		 */
-		write_mmcr0(cpuhw, val);
-		mb();
 
 		/*
 		 * Disable instruction sampling if it was enabled
@@ -918,8 +880,14 @@ static void power_pmu_disable(struct pmu *pmu)
 			mb();
 		}
 
-		cpuhw->disabled = 1;
-		cpuhw->n_added = 0;
+		/*
+		 * Set the 'freeze counters' bit.
+		 * The barrier is to make sure the mtspr has been
+		 * executed and the PMU has frozen the events
+		 * before we return.
+		 */
+		write_mmcr0(cpuhw, mfspr(SPRN_MMCR0) | MMCR0_FC);
+		mb();
 	}
 	local_irq_restore(flags);
 }
@@ -943,18 +911,12 @@ static void power_pmu_enable(struct pmu *pmu)
 
 	if (!ppmu)
 		return;
-
 	local_irq_save(flags);
-
 	cpuhw = &__get_cpu_var(cpu_hw_events);
-	if (!cpuhw->disabled)
-		goto out;
-
-	if (cpuhw->n_events == 0) {
-		ppc_set_pmu_inuse(0);
-		goto out;
+	if (!cpuhw->disabled) {
+		local_irq_restore(flags);
+		return;
 	}
-
 	cpuhw->disabled = 0;
 
 	/*
@@ -966,6 +928,8 @@ static void power_pmu_enable(struct pmu *pmu)
 	if (!cpuhw->n_added) {
 		mtspr(SPRN_MMCRA, cpuhw->mmcr[2] & ~MMCRA_SAMPLE_ENABLE);
 		mtspr(SPRN_MMCR1, cpuhw->mmcr[1]);
+		if (cpuhw->n_events == 0)
+			ppc_set_pmu_inuse(0);
 		goto out_enable;
 	}
 
@@ -1351,9 +1315,6 @@ static int can_go_on_limited_pmc(struct perf_event *event, u64 ev,
 	if (ppmu->limited_pmc_event(ev))
 		return 1;
 
-	if (ppmu->flags & PPMU_ARCH_207S)
-		mtspr(SPRN_MMCR2, 0);
-
 	/*
 	 * The requested event_id isn't on a limited PMC already;
 	 * see if any alternative code goes on a limited PMC.
@@ -1448,7 +1409,7 @@ static int power_pmu_event_init(struct perf_event *event)
 
 	if (has_branch_stack(event)) {
 	        /* PMU has BHRB enabled */
-		if (!(ppmu->flags & PPMU_ARCH_207S))
+		if (!(ppmu->flags & PPMU_BHRB))
 			return -EOPNOTSUPP;
 	}
 

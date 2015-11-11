@@ -251,7 +251,7 @@ static struct rtl_hal_cfg rtl8723ae_hal_cfg = {
 	.bar_id = 2,
 	.write_readback = true,
 	.name = "rtl8723ae_pci",
-	.fw_name = "rtlwifi/rtl8723fw.bin",
+	.fw_name = "rtlwifi/rtl8723aefw.bin",
 	.ops = &rtl8723ae_hal_ops,
 	.mod_params = &rtl8723ae_mod_params,
 	.maps[SYS_ISO_CTRL] = REG_SYS_ISO_CTRL,
@@ -353,8 +353,8 @@ MODULE_AUTHOR("Realtek WlanFAE	<wlanfae@realtek.com>");
 MODULE_AUTHOR("Larry Finger	<Larry.Finger@lwfinger.net>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Realtek 8723E 802.11n PCI wireless");
-MODULE_FIRMWARE("rtlwifi/rtl8723fw.bin");
-MODULE_FIRMWARE("rtlwifi/rtl8723fw_B.bin");
+MODULE_FIRMWARE("rtlwifi/rtl8723aefw.bin");
+MODULE_FIRMWARE("rtlwifi/rtl8723aefw_B.bin");
 
 module_param_named(swenc, rtl8723ae_mod_params.sw_crypto, bool, 0444);
 module_param_named(debug, rtl8723ae_mod_params.debug, int, 0444);

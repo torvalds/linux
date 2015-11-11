@@ -1511,6 +1511,7 @@ bool uprobe_deny_signal(void)
 		if (__fatal_signal_pending(t) || arch_uprobe_xol_was_trapped(t)) {
 			utask->state = UTASK_SSTEP_TRAPPED;
 			set_tsk_thread_flag(t, TIF_UPROBE);
+			set_tsk_thread_flag(t, TIF_NOTIFY_RESUME);
 		}
 	}
 
@@ -1681,10 +1682,12 @@ static bool handle_trampoline(struct pt_regs *regs)
 		tmp = ri;
 		ri = ri->next;
 		kfree(tmp);
-		utask->depth--;
 
 		if (!chained)
 			break;
+
+		utask->depth--;
+
 		BUG_ON(!ri);
 	}
 

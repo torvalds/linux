@@ -109,16 +109,6 @@
 #define EVENT_IS_MARKED		(EVENT_MARKED_MASK << EVENT_MARKED_SHIFT)
 #define EVENT_PSEL_MASK		0xff	/* PMCxSEL value */
 
-#define EVENT_VALID_MASK	\
-	((EVENT_THRESH_MASK    << EVENT_THRESH_SHIFT)		|	\
-	 (EVENT_SAMPLE_MASK    << EVENT_SAMPLE_SHIFT)		|	\
-	 (EVENT_CACHE_SEL_MASK << EVENT_CACHE_SEL_SHIFT)	|	\
-	 (EVENT_PMC_MASK       << EVENT_PMC_SHIFT)		|	\
-	 (EVENT_UNIT_MASK      << EVENT_UNIT_SHIFT)		|	\
-	 (EVENT_COMBINE_MASK   << EVENT_COMBINE_SHIFT)		|	\
-	 (EVENT_MARKED_MASK    << EVENT_MARKED_SHIFT)		|	\
-	  EVENT_PSEL_MASK)
-
 /* MMCRA IFM bits - POWER8 */
 #define	POWER8_MMCRA_IFM1		0x0000000040000000UL
 #define	POWER8_MMCRA_IFM2		0x0000000080000000UL
@@ -194,7 +184,6 @@
 #define MMCR1_UNIT_SHIFT(pmc)		(60 - (4 * ((pmc) - 1)))
 #define MMCR1_COMBINE_SHIFT(pmc)	(35 - ((pmc) - 1))
 #define MMCR1_PMCSEL_SHIFT(pmc)		(24 - (((pmc) - 1)) * 8)
-#define MMCR1_FAB_SHIFT			36
 #define MMCR1_DC_QUAL_SHIFT		47
 #define MMCR1_IC_QUAL_SHIFT		46
 
@@ -222,9 +211,6 @@ static int power8_get_constraint(u64 event, unsigned long *maskp, unsigned long 
 	unsigned long mask, value;
 
 	mask = value = 0;
-
-	if (event & ~EVENT_VALID_MASK)
-		return -1;
 
 	pmc   = (event >> EVENT_PMC_SHIFT)       & EVENT_PMC_MASK;
 	unit  = (event >> EVENT_UNIT_SHIFT)      & EVENT_UNIT_MASK;
@@ -368,8 +354,8 @@ static int power8_compute_mmcr(u64 event[], int n_ev,
 		 * the threshold bits are used for the match value.
 		 */
 		if (event_is_fab_match(event[i])) {
-			mmcr1 |= ((event[i] >> EVENT_THR_CTL_SHIFT) &
-				  EVENT_THR_CTL_MASK) << MMCR1_FAB_SHIFT;
+			mmcr1 |= (event[i] >> EVENT_THR_CTL_SHIFT) &
+				  EVENT_THR_CTL_MASK;
 		} else {
 			val = (event[i] >> EVENT_THR_CTL_SHIFT) & EVENT_THR_CTL_MASK;
 			mmcra |= val << MMCRA_THR_CTL_SHIFT;
@@ -391,10 +377,6 @@ static int power8_compute_mmcr(u64 event[], int n_ev,
 
 	if (pmc_inuse & 0x7c)
 		mmcr[0] |= MMCR0_PMCjCE;
-
-	/* If we're not using PMC 5 or 6, freeze them */
-	if (!(pmc_inuse & 0x60))
-		mmcr[0] |= MMCR0_FC56;
 
 	mmcr[1] = mmcr1;
 	mmcr[2] = mmcra;
@@ -592,7 +574,7 @@ static struct power_pmu power8_pmu = {
 	.get_constraint		= power8_get_constraint,
 	.get_alternatives	= power8_get_alternatives,
 	.disable_pmc		= power8_disable_pmc,
-	.flags			= PPMU_HAS_SSLOT | PPMU_HAS_SIER | PPMU_ARCH_207S,
+	.flags			= PPMU_HAS_SSLOT | PPMU_HAS_SIER | PPMU_BHRB,
 	.n_generic		= ARRAY_SIZE(power8_generic_events),
 	.generic_events		= power8_generic_events,
 	.attr_groups		= power8_pmu_attr_groups,

@@ -240,7 +240,7 @@ int dm_btree_del(struct dm_btree_info *info, dm_block_t root)
 	int r;
 	struct del_stack *s;
 
-	s = kmalloc(sizeof(*s), GFP_NOIO);
+	s = kmalloc(sizeof(*s), GFP_KERNEL);
 	if (!s)
 		return -ENOMEM;
 	s->tm = info->tm;
@@ -651,7 +651,12 @@ static int insert(struct dm_btree_info *info, dm_block_t root,
 	struct btree_node *n;
 	struct dm_btree_value_type le64_type;
 
-	init_le64_type(info->tm, &le64_type);
+	le64_type.context = NULL;
+	le64_type.size = sizeof(__le64);
+	le64_type.inc = NULL;
+	le64_type.dec = NULL;
+	le64_type.equal = NULL;
+
 	init_shadow_spine(&spine, info);
 
 	for (level = 0; level < (info->levels - 1); level++) {
@@ -807,26 +812,22 @@ EXPORT_SYMBOL_GPL(dm_btree_find_highest_key);
  * FIXME: We shouldn't use a recursive algorithm when we have limited stack
  * space.  Also this only works for single level trees.
  */
-static int walk_node(struct dm_btree_info *info, dm_block_t block,
+static int walk_node(struct ro_spine *s, dm_block_t block,
 		     int (*fn)(void *context, uint64_t *keys, void *leaf),
 		     void *context)
 {
 	int r;
 	unsigned i, nr;
-	struct dm_block *node;
 	struct btree_node *n;
 	uint64_t keys;
 
-	r = bn_read_lock(info, block, &node);
-	if (r)
-		return r;
-
-	n = dm_block_data(node);
+	r = ro_step(s, block);
+	n = ro_node(s);
 
 	nr = le32_to_cpu(n->header.nr_entries);
 	for (i = 0; i < nr; i++) {
 		if (le32_to_cpu(n->header.flags) & INTERNAL_NODE) {
-			r = walk_node(info, value64(n, i), fn, context);
+			r = walk_node(s, value64(n, i), fn, context);
 			if (r)
 				goto out;
 		} else {
@@ -838,7 +839,7 @@ static int walk_node(struct dm_btree_info *info, dm_block_t block,
 	}
 
 out:
-	dm_tm_unlock(info->tm, node);
+	ro_pop(s);
 	return r;
 }
 
@@ -846,7 +847,15 @@ int dm_btree_walk(struct dm_btree_info *info, dm_block_t root,
 		  int (*fn)(void *context, uint64_t *keys, void *leaf),
 		  void *context)
 {
+	int r;
+	struct ro_spine spine;
+
 	BUG_ON(info->levels > 1);
-	return walk_node(info, root, fn, context);
+
+	init_ro_spine(&spine, info);
+	r = walk_node(&spine, root, fn, context);
+	exit_ro_spine(&spine);
+
+	return r;
 }
 EXPORT_SYMBOL_GPL(dm_btree_walk);

@@ -3,8 +3,6 @@
 
 /* References to section boundaries */
 
-#include <linux/compiler.h>
-
 extern char _text[], _stext[], _etext[];
 extern char _data[], _sdata[], _edata[];
 extern char __bss_start[], __bss_stop[];
@@ -19,8 +17,6 @@ extern char __start_rodata[], __end_rodata[];
 
 /* Start and end of .ctors section - used for constructor calls. */
 extern char __ctors_start[], __ctors_end[];
-
-extern __visible const void __nosave_begin, __nosave_end;
 
 /* function descriptor handling (if any).  Override
  * in asm/sections.h */

@@ -255,7 +255,6 @@ static struct reg_default max98090_reg[] = {
 static bool max98090_volatile_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case M98090_REG_SOFTWARE_RESET:
 	case M98090_REG_DEVICE_STATUS:
 	case M98090_REG_JACK_STATUS:
 	case M98090_REG_REVISION_ID:
@@ -337,7 +336,6 @@ static bool max98090_readable_register(struct device *dev, unsigned int reg)
 	case M98090_REG_RECORD_TDM_SLOT:
 	case M98090_REG_SAMPLE_RATE:
 	case M98090_REG_DMIC34_BIQUAD_BASE ... M98090_REG_DMIC34_BIQUAD_BASE + 0x0E:
-	case M98090_REG_REVISION_ID:
 		return true;
 	default:
 		return false;
@@ -1364,8 +1362,8 @@ static const struct snd_soc_dapm_route max98090_dapm_routes[] = {
 	{"STENL Mux", "Sidetone Left", "DMICL"},
 	{"STENR Mux", "Sidetone Right", "ADCR"},
 	{"STENR Mux", "Sidetone Right", "DMICR"},
-	{"DACL", NULL, "STENL Mux"},
-	{"DACR", NULL, "STENL Mux"},
+	{"DACL", "NULL", "STENL Mux"},
+	{"DACR", "NULL", "STENL Mux"},
 
 	{"AIFINL", NULL, "SHDN"},
 	{"AIFINR", NULL, "SHDN"},
@@ -1757,6 +1755,16 @@ static int max98090_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
+		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+			ret = regcache_sync(max98090->regmap);
+
+			if (ret != 0) {
+				dev_err(codec->dev,
+					"Failed to sync cache: %d\n", ret);
+				return ret;
+			}
+		}
+
 		if (max98090->jack_state == M98090_JACK_STATE_HEADSET) {
 			/*
 			 * Set to normal bias level.
@@ -1770,16 +1778,6 @@ static int max98090_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
-			ret = regcache_sync(max98090->regmap);
-			if (ret != 0) {
-				dev_err(codec->dev,
-					"Failed to sync cache: %d\n", ret);
-				return ret;
-			}
-		}
-		break;
-
 	case SND_SOC_BIAS_OFF:
 		/* Set internal pull-up to lowest power mode */
 		snd_soc_update_bits(codec, M98090_REG_JACK_DETECT,
@@ -2234,7 +2232,7 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	/* Register for interrupts */
 	dev_dbg(codec->dev, "irq = %d\n", max98090->irq);
 
-	ret = devm_request_threaded_irq(codec->dev, max98090->irq, NULL,
+	ret = request_threaded_irq(max98090->irq, NULL,
 		max98090_interrupt, IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 		"max98090_interrupt", codec);
 	if (ret < 0) {
@@ -2343,8 +2341,6 @@ static int max98090_runtime_resume(struct device *dev)
 	struct max98090_priv *max98090 = dev_get_drvdata(dev);
 
 	regcache_cache_only(max98090->regmap, false);
-
-	max98090_reset(max98090);
 
 	regcache_sync(max98090->regmap);
 

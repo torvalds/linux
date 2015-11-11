@@ -217,17 +217,11 @@ void tty_wait_until_sent(struct tty_struct *tty, long timeout)
 #endif
 	if (!timeout)
 		timeout = MAX_SCHEDULE_TIMEOUT;
-
 	if (wait_event_interruptible_timeout(tty->write_wait,
-			!tty_chars_in_buffer(tty), timeout) < 0) {
-		return;
+			!tty_chars_in_buffer(tty), timeout) >= 0) {
+		if (tty->ops->wait_until_sent)
+			tty->ops->wait_until_sent(tty, timeout);
 	}
-
-	if (timeout == MAX_SCHEDULE_TIMEOUT)
-		timeout = 0;
-
-	if (tty->ops->wait_until_sent)
-		tty->ops->wait_until_sent(tty, timeout);
 }
 EXPORT_SYMBOL(tty_wait_until_sent);
 
@@ -1207,9 +1201,6 @@ int n_tty_ioctl_helper(struct tty_struct *tty, struct file *file,
 		}
 		return 0;
 	case TCFLSH:
-		retval = tty_check_change(tty);
-		if (retval)
-			return retval;
 		return __tty_perform_flush(tty, arg);
 	default:
 		/* Try the mode commands */

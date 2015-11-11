@@ -456,8 +456,7 @@ enum dmi_field {
 };
 
 struct dmi_strmatch {
-	unsigned char slot:7;
-	unsigned char exact_match:1;
+	unsigned char slot;
 	char substr[79];
 };
 
@@ -475,8 +474,7 @@ struct dmi_system_id {
  */
 #define dmi_device_id dmi_system_id
 
-#define DMI_MATCH(a, b)	{ .slot = a, .substr = b }
-#define DMI_EXACT_MATCH(a, b)	{ .slot = a, .substr = b, .exact_match = 1 }
+#define DMI_MATCH(a, b)	{ a, b }
 
 #define PLATFORM_NAME_SIZE	20
 #define PLATFORM_MODULE_PREFIX	"platform:"
@@ -562,15 +560,6 @@ struct x86_cpu_id {
 #define X86_FAMILY_ANY 0
 #define X86_MODEL_ANY  0
 #define X86_FEATURE_ANY 0	/* Same as FPU, you can't test for that */
-
-/*
- * Generic table type for matching CPU features.
- * @feature:	the bit number of the feature (0 - 65535)
- */
-
-struct cpu_feature {
-	__u16	feature;
-};
 
 #define IPACK_ANY_FORMAT 0xff
 #define IPACK_ANY_ID (~0)

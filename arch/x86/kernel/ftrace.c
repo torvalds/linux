@@ -77,7 +77,8 @@ within(unsigned long addr, unsigned long start, unsigned long end)
 	return addr >= start && addr < end;
 }
 
-static unsigned long text_ip_addr(unsigned long ip)
+static int
+do_ftrace_mod_code(unsigned long ip, const void *new_code)
 {
 	/*
 	 * On x86_64, kernel text mappings are mapped read-only with
@@ -90,7 +91,7 @@ static unsigned long text_ip_addr(unsigned long ip)
 	if (within(ip, (unsigned long)_text, (unsigned long)_etext))
 		ip = (unsigned long)__va(__pa_symbol(ip));
 
-	return ip;
+	return probe_kernel_write((void *)ip, new_code, MCOUNT_INSN_SIZE);
 }
 
 static const unsigned char *ftrace_nop_replace(void)
@@ -122,10 +123,8 @@ ftrace_modify_code_direct(unsigned long ip, unsigned const char *old_code,
 	if (memcmp(replaced, old_code, MCOUNT_INSN_SIZE) != 0)
 		return -EINVAL;
 
-	ip = text_ip_addr(ip);
-
 	/* replace the text with the new text */
-	if (probe_kernel_write((void *)ip, new_code, MCOUNT_INSN_SIZE))
+	if (do_ftrace_mod_code(ip, new_code))
 		return -EPERM;
 
 	sync_core();
@@ -222,54 +221,31 @@ int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 	return -EINVAL;
 }
 
-static unsigned long ftrace_update_func;
-
-static int update_ftrace_func(unsigned long ip, void *new)
+int ftrace_update_ftrace_func(ftrace_func_t func)
 {
-	unsigned char old[MCOUNT_INSN_SIZE];
+	unsigned long ip = (unsigned long)(&ftrace_call);
+	unsigned char old[MCOUNT_INSN_SIZE], *new;
 	int ret;
 
-	memcpy(old, (void *)ip, MCOUNT_INSN_SIZE);
-
-	ftrace_update_func = ip;
-	/* Make sure the breakpoints see the ftrace_update_func update */
-	smp_wmb();
+	memcpy(old, &ftrace_call, MCOUNT_INSN_SIZE);
+	new = ftrace_call_replace(ip, (unsigned long)func);
 
 	/* See comment above by declaration of modifying_ftrace_code */
 	atomic_inc(&modifying_ftrace_code);
 
 	ret = ftrace_modify_code(ip, old, new);
 
-	atomic_dec(&modifying_ftrace_code);
-
-	return ret;
-}
-
-int ftrace_update_ftrace_func(ftrace_func_t func)
-{
-	unsigned long ip = (unsigned long)(&ftrace_call);
-	unsigned char *new;
-	int ret;
-
-	new = ftrace_call_replace(ip, (unsigned long)func);
-	ret = update_ftrace_func(ip, new);
-
 	/* Also update the regs callback function */
 	if (!ret) {
 		ip = (unsigned long)(&ftrace_regs_call);
+		memcpy(old, &ftrace_regs_call, MCOUNT_INSN_SIZE);
 		new = ftrace_call_replace(ip, (unsigned long)func);
-		ret = update_ftrace_func(ip, new);
+		ret = ftrace_modify_code(ip, old, new);
 	}
 
+	atomic_dec(&modifying_ftrace_code);
+
 	return ret;
-}
-
-static int is_ftrace_caller(unsigned long ip)
-{
-	if (ip == ftrace_update_func)
-		return 1;
-
-	return 0;
 }
 
 /*
@@ -281,13 +257,10 @@ static int is_ftrace_caller(unsigned long ip)
  */
 int ftrace_int3_handler(struct pt_regs *regs)
 {
-	unsigned long ip;
-
 	if (WARN_ON_ONCE(!regs))
 		return 0;
 
-	ip = regs->ip - 1;
-	if (!ftrace_location(ip) && !is_ftrace_caller(ip))
+	if (!ftrace_location(regs->ip - 1))
 		return 0;
 
 	regs->ip += MCOUNT_INSN_SIZE - 1;
@@ -659,8 +632,8 @@ ftrace_modify_code(unsigned long ip, unsigned const char *old_code,
 		ret = -EPERM;
 		goto out;
 	}
- out:
 	run_sync();
+ out:
 	return ret;
 
  fail_update:
@@ -692,41 +665,45 @@ int __init ftrace_dyn_arch_init(void *data)
 #ifdef CONFIG_DYNAMIC_FTRACE
 extern void ftrace_graph_call(void);
 
-static unsigned char *ftrace_jmp_replace(unsigned long ip, unsigned long addr)
+static int ftrace_mod_jmp(unsigned long ip,
+			  int old_offset, int new_offset)
 {
-	static union ftrace_code_union calc;
+	unsigned char code[MCOUNT_INSN_SIZE];
 
-	/* Jmp not a call (ignore the .e8) */
-	calc.e8		= 0xe9;
-	calc.offset	= ftrace_calc_offset(ip + MCOUNT_INSN_SIZE, addr);
+	if (probe_kernel_read(code, (void *)ip, MCOUNT_INSN_SIZE))
+		return -EFAULT;
 
-	/*
-	 * ftrace external locks synchronize the access to the static variable.
-	 */
-	return calc.code;
-}
+	if (code[0] != 0xe9 || old_offset != *(int *)(&code[1]))
+		return -EINVAL;
 
-static int ftrace_mod_jmp(unsigned long ip, void *func)
-{
-	unsigned char *new;
+	*(int *)(&code[1]) = new_offset;
 
-	new = ftrace_jmp_replace(ip, (unsigned long)func);
+	if (do_ftrace_mod_code(ip, &code))
+		return -EPERM;
 
-	return update_ftrace_func(ip, new);
+	return 0;
 }
 
 int ftrace_enable_ftrace_graph_caller(void)
 {
 	unsigned long ip = (unsigned long)(&ftrace_graph_call);
+	int old_offset, new_offset;
 
-	return ftrace_mod_jmp(ip, &ftrace_graph_caller);
+	old_offset = (unsigned long)(&ftrace_stub) - (ip + MCOUNT_INSN_SIZE);
+	new_offset = (unsigned long)(&ftrace_graph_caller) - (ip + MCOUNT_INSN_SIZE);
+
+	return ftrace_mod_jmp(ip, old_offset, new_offset);
 }
 
 int ftrace_disable_ftrace_graph_caller(void)
 {
 	unsigned long ip = (unsigned long)(&ftrace_graph_call);
+	int old_offset, new_offset;
 
-	return ftrace_mod_jmp(ip, &ftrace_stub);
+	old_offset = (unsigned long)(&ftrace_graph_caller) - (ip + MCOUNT_INSN_SIZE);
+	new_offset = (unsigned long)(&ftrace_stub) - (ip + MCOUNT_INSN_SIZE);
+
+	return ftrace_mod_jmp(ip, old_offset, new_offset);
 }
 
 #endif /* !CONFIG_DYNAMIC_FTRACE */

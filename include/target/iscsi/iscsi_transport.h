@@ -11,7 +11,6 @@ struct iscsit_transport {
 	int (*iscsit_setup_np)(struct iscsi_np *, struct __kernel_sockaddr_storage *);
 	int (*iscsit_accept_np)(struct iscsi_np *, struct iscsi_conn *);
 	void (*iscsit_free_np)(struct iscsi_np *);
-	void (*iscsit_wait_conn)(struct iscsi_conn *);
 	void (*iscsit_free_conn)(struct iscsi_conn *);
 	struct iscsi_cmd *(*iscsit_alloc_cmd)(struct iscsi_conn *, gfp_t);
 	int (*iscsit_get_login_rx)(struct iscsi_conn *, struct iscsi_login *);
@@ -35,6 +34,8 @@ extern void iscsit_put_transport(struct iscsit_transport *);
 /*
  * From iscsi_target.c
  */
+extern int iscsit_add_reject_from_cmd(u8, int, int, unsigned char *,
+				struct iscsi_cmd *);
 extern int iscsit_setup_scsi_cmd(struct iscsi_conn *, struct iscsi_cmd *,
 				unsigned char *);
 extern void iscsit_set_unsoliticed_dataout(struct iscsi_cmd *);
@@ -66,10 +67,6 @@ extern int iscsit_logout_post_handler(struct iscsi_cmd *, struct iscsi_conn *);
  */
 extern void iscsit_increment_maxcmdsn(struct iscsi_cmd *, struct iscsi_session *);
 /*
- * From iscsi_target_erl0.c
- */
-extern void iscsit_cause_connection_reinstatement(struct iscsi_conn *, int);
-/*
  * From iscsi_target_erl1.c
  */
 extern void iscsit_stop_dataout_timer(struct iscsi_cmd *);
@@ -83,5 +80,4 @@ extern int iscsit_tmr_post_handler(struct iscsi_cmd *, struct iscsi_conn *);
  * From iscsi_target_util.c
  */
 extern struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *, gfp_t);
-extern int iscsit_sequence_cmd(struct iscsi_conn *, struct iscsi_cmd *,
-			       unsigned char *, __be32);
+extern int iscsit_sequence_cmd(struct iscsi_conn *, struct iscsi_cmd *, __be32);

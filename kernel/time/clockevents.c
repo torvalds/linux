@@ -15,6 +15,7 @@
 #include <linux/hrtimer.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/notifier.h>
 #include <linux/smp.h>
 
 #include "tick-internal.h"
@@ -22,56 +23,12 @@
 /* The registered clock event devices */
 static LIST_HEAD(clockevent_devices);
 static LIST_HEAD(clockevents_released);
+
+/* Notification for clock events */
+static RAW_NOTIFIER_HEAD(clockevents_chain);
+
 /* Protection for the above */
 static DEFINE_RAW_SPINLOCK(clockevents_lock);
-
-static u64 cev_delta2ns(unsigned long latch, struct clock_event_device *evt,
-			bool ismax)
-{
-	u64 clc = (u64) latch << evt->shift;
-	u64 rnd;
-
-	if (unlikely(!evt->mult)) {
-		evt->mult = 1;
-		WARN_ON(1);
-	}
-	rnd = (u64) evt->mult - 1;
-
-	/*
-	 * Upper bound sanity check. If the backwards conversion is
-	 * not equal latch, we know that the above shift overflowed.
-	 */
-	if ((clc >> evt->shift) != (u64)latch)
-		clc = ~0ULL;
-
-	/*
-	 * Scaled math oddities:
-	 *
-	 * For mult <= (1 << shift) we can safely add mult - 1 to
-	 * prevent integer rounding loss. So the backwards conversion
-	 * from nsec to device ticks will be correct.
-	 *
-	 * For mult > (1 << shift), i.e. device frequency is > 1GHz we
-	 * need to be careful. Adding mult - 1 will result in a value
-	 * which when converted back to device ticks can be larger
-	 * than latch by up to (mult - 1) >> shift. For the min_delta
-	 * calculation we still want to apply this in order to stay
-	 * above the minimum device ticks limit. For the upper limit
-	 * we would end up with a latch value larger than the upper
-	 * limit of the device, so we omit the add to stay below the
-	 * device upper boundary.
-	 *
-	 * Also omit the add if it would overflow the u64 boundary.
-	 */
-	if ((~0ULL - clc > rnd) &&
-	    (!ismax || evt->mult <= (1U << evt->shift)))
-		clc += rnd;
-
-	do_div(clc, evt->mult);
-
-	/* Deltas less than 1usec are pointless noise */
-	return clc > 1000 ? clc : 1000;
-}
 
 /**
  * clockevents_delta2ns - Convert a latch value (device ticks) to nanoseconds
@@ -82,7 +39,20 @@ static u64 cev_delta2ns(unsigned long latch, struct clock_event_device *evt,
  */
 u64 clockevent_delta2ns(unsigned long latch, struct clock_event_device *evt)
 {
-	return cev_delta2ns(latch, evt, false);
+	u64 clc = (u64) latch << evt->shift;
+
+	if (unlikely(!evt->mult)) {
+		evt->mult = 1;
+		WARN_ON(1);
+	}
+
+	do_div(clc, evt->mult);
+	if (clc < 1000)
+		clc = 1000;
+	if (clc > KTIME_MAX)
+		clc = KTIME_MAX;
+
+	return clc;
 }
 EXPORT_SYMBOL_GPL(clockevent_delta2ns);
 
@@ -138,8 +108,7 @@ static int clockevents_increase_min_delta(struct clock_event_device *dev)
 {
 	/* Nothing to do if we already reached the limit */
 	if (dev->min_delta_ns >= MIN_DELTA_LIMIT) {
-		printk_deferred(KERN_WARNING
-				"CE: Reprogramming failure. Giving up\n");
+		printk(KERN_WARNING "CE: Reprogramming failure. Giving up\n");
 		dev->next_event.tv64 = KTIME_MAX;
 		return -ETIME;
 	}
@@ -152,10 +121,9 @@ static int clockevents_increase_min_delta(struct clock_event_device *dev)
 	if (dev->min_delta_ns > MIN_DELTA_LIMIT)
 		dev->min_delta_ns = MIN_DELTA_LIMIT;
 
-	printk_deferred(KERN_WARNING
-			"CE: %s increased min_delta_ns to %llu nsec\n",
-			dev->name ? dev->name : "?",
-			(unsigned long long) dev->min_delta_ns);
+	printk(KERN_WARNING "CE: %s increased min_delta_ns to %llu nsec\n",
+	       dev->name ? dev->name : "?",
+	       (unsigned long long) dev->min_delta_ns);
 	return 0;
 }
 
@@ -264,6 +232,30 @@ int clockevents_program_event(struct clock_event_device *dev, ktime_t expires,
 	return (rc && force) ? clockevents_program_min_delta(dev) : rc;
 }
 
+/**
+ * clockevents_register_notifier - register a clock events change listener
+ */
+int clockevents_register_notifier(struct notifier_block *nb)
+{
+	unsigned long flags;
+	int ret;
+
+	raw_spin_lock_irqsave(&clockevents_lock, flags);
+	ret = raw_notifier_chain_register(&clockevents_chain, nb);
+	raw_spin_unlock_irqrestore(&clockevents_lock, flags);
+
+	return ret;
+}
+
+/*
+ * Notify about a clock event change. Called with clockevents_lock
+ * held.
+ */
+static void clockevents_do_notify(unsigned long reason, void *dev)
+{
+	raw_notifier_call_chain(&clockevents_chain, reason, dev);
+}
+
 /*
  * Called after a notify add to make devices available which were
  * released from the notifier call.
@@ -277,7 +269,7 @@ static void clockevents_notify_released(void)
 				 struct clock_event_device, list);
 		list_del(&dev->list);
 		list_add(&dev->list, &clockevent_devices);
-		tick_check_new_device(dev);
+		clockevents_do_notify(CLOCK_EVT_NOTIFY_ADD, dev);
 	}
 }
 
@@ -298,7 +290,7 @@ void clockevents_register_device(struct clock_event_device *dev)
 	raw_spin_lock_irqsave(&clockevents_lock, flags);
 
 	list_add(&dev->list, &clockevent_devices);
-	tick_check_new_device(dev);
+	clockevents_do_notify(CLOCK_EVT_NOTIFY_ADD, dev);
 	clockevents_notify_released();
 
 	raw_spin_unlock_irqrestore(&clockevents_lock, flags);
@@ -325,8 +317,8 @@ void clockevents_config(struct clock_event_device *dev, u32 freq)
 		sec = 600;
 
 	clockevents_calc_mult_shift(dev, freq, sec);
-	dev->min_delta_ns = cev_delta2ns(dev->min_delta_ticks, dev, false);
-	dev->max_delta_ns = cev_delta2ns(dev->max_delta_ticks, dev, true);
+	dev->min_delta_ns = clockevent_delta2ns(dev->min_delta_ticks, dev);
+	dev->max_delta_ns = clockevent_delta2ns(dev->max_delta_ticks, dev);
 }
 
 /**
@@ -394,7 +386,6 @@ void clockevents_exchange_device(struct clock_event_device *old,
 	 * released list and do a notify add later.
 	 */
 	if (old) {
-		module_put(old->owner);
 		clockevents_set_mode(old, CLOCK_EVT_MODE_UNUSED);
 		list_del(&old->list);
 		list_add(&old->list, &clockevents_released);
@@ -434,45 +425,18 @@ void clockevents_resume(void)
 #ifdef CONFIG_GENERIC_CLOCKEVENTS
 /**
  * clockevents_notify - notification about relevant events
- * Returns 0 on success, any other value on error
  */
-int clockevents_notify(unsigned long reason, void *arg)
+void clockevents_notify(unsigned long reason, void *arg)
 {
 	struct clock_event_device *dev, *tmp;
 	unsigned long flags;
-	int cpu, ret = 0;
+	int cpu;
 
 	raw_spin_lock_irqsave(&clockevents_lock, flags);
+	clockevents_do_notify(reason, arg);
 
 	switch (reason) {
-	case CLOCK_EVT_NOTIFY_BROADCAST_ON:
-	case CLOCK_EVT_NOTIFY_BROADCAST_OFF:
-	case CLOCK_EVT_NOTIFY_BROADCAST_FORCE:
-		tick_broadcast_on_off(reason, arg);
-		break;
-
-	case CLOCK_EVT_NOTIFY_BROADCAST_ENTER:
-	case CLOCK_EVT_NOTIFY_BROADCAST_EXIT:
-		ret = tick_broadcast_oneshot_control(reason);
-		break;
-
-	case CLOCK_EVT_NOTIFY_CPU_DYING:
-		tick_handover_do_timer(arg);
-		break;
-
-	case CLOCK_EVT_NOTIFY_SUSPEND:
-		tick_suspend();
-		tick_suspend_broadcast();
-		break;
-
-	case CLOCK_EVT_NOTIFY_RESUME:
-		tick_resume();
-		break;
-
 	case CLOCK_EVT_NOTIFY_CPU_DEAD:
-		tick_shutdown_broadcast_oneshot(arg);
-		tick_shutdown_broadcast(arg);
-		tick_shutdown(arg);
 		/*
 		 * Unregister the clock event devices which were
 		 * released from the users in the notify chain.
@@ -496,7 +460,6 @@ int clockevents_notify(unsigned long reason, void *arg)
 		break;
 	}
 	raw_spin_unlock_irqrestore(&clockevents_lock, flags);
-	return ret;
 }
 EXPORT_SYMBOL_GPL(clockevents_notify);
 #endif

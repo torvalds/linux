@@ -171,8 +171,6 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long fault_code,
 	if (in_atomic() || !mm)
 		goto no_context;
 
-	if ((fault_code & MMUFCR_xFC_ACCESS) == MMUFCR_xFC_ACCESS_USR)
-		flags |= FAULT_FLAG_USER;
 retry:
 	down_read(&mm->mmap_sem);
 
@@ -262,8 +260,6 @@ good_area:
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		if (fault & VM_FAULT_OOM)
 			goto out_of_memory;
-		else if (fault & VM_FAULT_SIGSEGV)
-			goto bad_area;
 		else if (fault & VM_FAULT_SIGBUS)
 			goto do_sigbus;
 		BUG();
@@ -349,10 +345,9 @@ no_context:
  */
 out_of_memory:
 	up_read(&mm->mmap_sem);
-	if ((fault_code & MMUFCR_xFC_ACCESS) == MMUFCR_xFC_ACCESS_USR) {
-		pagefault_out_of_memory();
-		return;
-	}
+	printk(KERN_ALERT "VM: killing process %s\n", tsk->comm);
+	if ((fault_code & MMUFCR_xFC_ACCESS) == MMUFCR_xFC_ACCESS_USR)
+		do_exit(SIGKILL);
 	goto no_context;
 
 do_sigbus:

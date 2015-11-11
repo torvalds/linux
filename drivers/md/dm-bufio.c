@@ -462,7 +462,6 @@ static void __relink_lru(struct dm_buffer *b, int dirty)
 	c->n_buffers[dirty]++;
 	b->list_mode = dirty;
 	list_move(&b->lru_list, &c->lru[dirty]);
-	b->last_accessed = jiffies;
 }
 
 /*----------------------------------------------------------------
@@ -529,19 +528,6 @@ static void use_dmio(struct dm_buffer *b, int rw, sector_t block,
 		end_io(&b->bio, r);
 }
 
-static void inline_endio(struct bio *bio, int error)
-{
-	bio_end_io_t *end_fn = bio->bi_private;
-
-	/*
-	 * Reset the bio to free any attached resources
-	 * (e.g. bio integrity profiles).
-	 */
-	bio_reset(bio);
-
-	end_fn(bio, error);
-}
-
 static void use_inline_bio(struct dm_buffer *b, int rw, sector_t block,
 			   bio_end_io_t *end_io)
 {
@@ -553,12 +539,7 @@ static void use_inline_bio(struct dm_buffer *b, int rw, sector_t block,
 	b->bio.bi_max_vecs = DM_BUFIO_INLINE_VECS;
 	b->bio.bi_sector = block << b->c->sectors_per_block_bits;
 	b->bio.bi_bdev = b->c->bdev;
-	b->bio.bi_end_io = inline_endio;
-	/*
-	 * Use of .bi_private isn't a problem here because
-	 * the dm_buffer's inline bio is local to bufio.
-	 */
-	b->bio.bi_private = end_io;
+	b->bio.bi_end_io = end_io;
 
 	/*
 	 * We assume that if len >= PAGE_SIZE ptr is page-aligned.
@@ -1678,11 +1659,6 @@ static void work_fn(struct work_struct *w)
 static int __init dm_bufio_init(void)
 {
 	__u64 mem;
-
-	dm_bufio_allocated_kmem_cache = 0;
-	dm_bufio_allocated_get_free_pages = 0;
-	dm_bufio_allocated_vmalloc = 0;
-	dm_bufio_current_allocated = 0;
 
 	memset(&dm_bufio_caches, 0, sizeof dm_bufio_caches);
 	memset(&dm_bufio_cache_names, 0, sizeof dm_bufio_cache_names);

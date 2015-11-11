@@ -678,9 +678,10 @@ static int pcifront_connect_and_init_dma(struct pcifront_device *pdev)
 	if (!pcifront_dev) {
 		dev_info(&pdev->xdev->dev, "Installing PCI frontend\n");
 		pcifront_dev = pdev;
-	} else
+	} else {
+		dev_err(&pdev->xdev->dev, "PCI frontend already installed!\n");
 		err = -EEXIST;
-
+	}
 	spin_unlock(&pcifront_dev_lock);
 
 	if (!err && !swiotlb_nr_tbl()) {
@@ -847,7 +848,7 @@ static int pcifront_try_connect(struct pcifront_device *pdev)
 		goto out;
 
 	err = pcifront_connect_and_init_dma(pdev);
-	if (err && err != -EEXIST) {
+	if (err) {
 		xenbus_dev_fatal(pdev->xdev, err,
 				 "Error setting up PCI Frontend");
 		goto out;

@@ -46,20 +46,10 @@ void rtl_fw_cb(const struct firmware *firmware, void *context)
 			 "Firmware callback routine entered!\n");
 	complete(&rtlpriv->firmware_loading_complete);
 	if (!firmware) {
-		if (rtlpriv->cfg->alt_fw_name) {
-			err = request_firmware(&firmware,
-					       rtlpriv->cfg->alt_fw_name,
-					       rtlpriv->io.dev);
-			pr_info("Loading alternative firmware %s\n",
-				rtlpriv->cfg->alt_fw_name);
-			if (!err)
-				goto found_alt;
-		}
 		pr_err("Firmware %s not available\n", rtlpriv->cfg->fw_name);
 		rtlpriv->max_fw_size = 0;
 		return;
 	}
-found_alt:
 	if (firmware->size > rtlpriv->max_fw_size) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "Firmware is too big!\n");
@@ -194,7 +184,6 @@ static int rtl_op_add_interface(struct ieee80211_hw *hw,
 					rtlpriv->cfg->maps
 					[RTL_IBSS_INT_MASKS]);
 		}
-		mac->link_state = MAC80211_LINKED;
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD,

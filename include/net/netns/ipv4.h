@@ -43,7 +43,6 @@ struct netns_ipv4 {
 	struct inet_peer_base	*peers;
 	struct tcpm_hash_bucket	*tcp_metrics_hash;
 	unsigned int		tcp_metrics_hash_log;
-	struct sock  * __percpu	*tcp_sk;
 	struct netns_frags	frags;
 #ifdef CONFIG_NETFILTER
 	struct xt_table		*iptable_filter;
@@ -64,9 +63,6 @@ struct netns_ipv4 {
 	int sysctl_icmp_errors_use_inbound_ifaddr;
 
 	int sysctl_tcp_ecn;
-
-	int sysctl_fwmark_reflect;
-	int sysctl_tcp_fwmark_accept;
 
 	kgid_t sysctl_ping_group_range[2];
 	long sysctl_tcp_mem[3];

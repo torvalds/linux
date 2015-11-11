@@ -42,7 +42,6 @@
 #define COMPAT_PSR_MODE_UND	0x0000001b
 #define COMPAT_PSR_MODE_SYS	0x0000001f
 #define COMPAT_PSR_T_BIT	0x00000020
-#define COMPAT_PSR_E_BIT	0x00000200
 #define COMPAT_PSR_F_BIT	0x00000040
 #define COMPAT_PSR_I_BIT	0x00000080
 #define COMPAT_PSR_A_BIT	0x00000100
@@ -61,15 +60,6 @@
 #define COMPAT_PT_TEXT_ADDR		0x10000
 #define COMPAT_PT_DATA_ADDR		0x10004
 #define COMPAT_PT_TEXT_END_ADDR		0x10008
-
-/*
- * used to skip a system call when tracer changes its number to -1
- * with ptrace(PTRACE_SET_SYSCALL)
- */
-#define RET_SKIP_SYSCALL	-1
-#define RET_SKIP_SYSCALL_TRACE	-2
-#define IS_SKIP_SYSCALL(no)	((int)(no & 0xffffffff) == -1)
-
 #ifndef __ASSEMBLY__
 
 /* sizeof(struct user) for AArch32 */
@@ -77,7 +67,6 @@
 
 /* Architecturally defined mapping between AArch32 and AArch64 registers */
 #define compat_usr(x)	regs[(x)]
-#define compat_fp	regs[11]
 #define compat_sp	regs[13]
 #define compat_lr	regs[14]
 #define compat_sp_hyp	regs[15]
@@ -142,12 +131,7 @@ struct pt_regs {
 	(!((regs)->pstate & PSR_F_BIT))
 
 #define user_stack_pointer(regs) \
-	(!compat_user_mode(regs) ? (regs)->sp : (regs)->compat_sp)
-
-static inline unsigned long regs_return_value(struct pt_regs *regs)
-{
-	return regs->regs[0];
-}
+	((regs)->sp)
 
 /*
  * Are the current registers suitable for user mode? (used to maintain
@@ -179,7 +163,7 @@ static inline int valid_user_regs(struct user_pt_regs *regs)
 	return 0;
 }
 
-#define instruction_pointer(regs)	((unsigned long)(regs)->pc)
+#define instruction_pointer(regs)	(regs)->pc
 
 #ifdef CONFIG_SMP
 extern unsigned long profile_pc(struct pt_regs *regs);
@@ -187,13 +171,7 @@ extern unsigned long profile_pc(struct pt_regs *regs);
 #define profile_pc(regs) instruction_pointer(regs)
 #endif
 
-/*
- * True if instr is a 32-bit thumb instruction. This works if instr
- * is the first or only half-word of a thumb instruction. It also works
- * when instr holds all 32-bits of a wide thumb instruction if stored
- * in the form (first_half<<16)|(second_half)
- */
-#define is_wide_instruction(instr)	((unsigned)(instr) >= 0xe800)
+extern int aarch32_break_trap(struct pt_regs *regs);
 
 #endif /* __ASSEMBLY__ */
 #endif

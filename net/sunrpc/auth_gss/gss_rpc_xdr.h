@@ -147,8 +147,6 @@ struct gssx_arg_accept_sec_context {
 	struct gssx_cb *input_cb;
 	u32 ret_deleg_cred;
 	struct gssx_option_array options;
-	struct page **pages;
-	unsigned int npages;
 };
 
 struct gssx_res_accept_sec_context {
@@ -242,8 +240,7 @@ int gssx_dec_accept_sec_context(struct rpc_rqst *rqstp,
 			     2 * GSSX_max_princ_sz + \
 			     8 + 8 + 4 + 4 + 4)
 #define GSSX_max_output_token_sz 1024
-/* grouplist not included; we allocate separate pages for that: */
-#define GSSX_max_creds_sz (4 + 4 + 4 /* + NGROUPS_MAX*4 */)
+#define GSSX_max_creds_sz (4 + 4 + 4 + NGROUPS_MAX * 4)
 #define GSSX_RES_accept_sec_context_sz (GSSX_default_status_sz + \
 					GSSX_default_ctx_sz + \
 					GSSX_max_output_token_sz + \

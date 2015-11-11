@@ -90,24 +90,6 @@ __acquires(ohci->lock)
 	dl_done_list (ohci);
 	finish_unlinks (ohci, ohci_frame_no(ohci));
 
-	/*
-	 * Some controllers don't handle "global" suspend properly if
-	 * there are unsuspended ports.  For these controllers, put all
-	 * the enabled ports into suspend before suspending the root hub.
-	 */
-	if (ohci->flags & OHCI_QUIRK_GLOBAL_SUSPEND) {
-		__hc32 __iomem	*portstat = ohci->regs->roothub.portstatus;
-		int		i;
-		unsigned	temp;
-
-		for (i = 0; i < ohci->num_ports; (++i, ++portstat)) {
-			temp = ohci_readl(ohci, portstat);
-			if ((temp & (RH_PS_PES | RH_PS_PSS)) ==
-					RH_PS_PES)
-				ohci_writel(ohci, RH_PS_PSS, portstat);
-		}
-	}
-
 	/* maybe resume can wake root hub */
 	if (ohci_to_hcd(ohci)->self.root_hub->do_remote_wakeup || autostop) {
 		ohci->hc_control |= OHCI_CTRL_RWE;

@@ -28,7 +28,6 @@
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/ktime.h>
-#include <linux/mm.h>
 #include <asm/dma.h>	/* isa_dma_bridge_buggy */
 #include "pci.h"
 
@@ -291,25 +290,6 @@ static void quirk_citrine(struct pci_dev *dev)
 	dev->cfg_size = 0xA0;
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_IBM,	PCI_DEVICE_ID_IBM_CITRINE,	quirk_citrine);
-
-/*  On IBM Crocodile ipr SAS adapters, expand BAR to system page size */
-static void quirk_extend_bar_to_page(struct pci_dev *dev)
-{
-	int i;
-
-	for (i = 0; i < PCI_STD_RESOURCE_END; i++) {
-		struct resource *r = &dev->resource[i];
-
-		if (r->flags & IORESOURCE_MEM && resource_size(r) < PAGE_SIZE) {
-			r->end = PAGE_SIZE - 1;
-			r->start = 0;
-			r->flags |= IORESOURCE_UNSET;
-			dev_info(&dev->dev, "expanded BAR %d to page size: %pR\n",
-				 i, r);
-		}
-	}
-}
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_IBM, 0x034a, quirk_extend_bar_to_page);
 
 /*
  *  S3 868 and 968 chips report region size equal to 32M, but they decode 64M.
@@ -1042,8 +1022,6 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP700_SATA, quirk
 DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP700_SATA, quirk_amd_ide_mode);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_HUDSON2_SATA_IDE, quirk_amd_ide_mode);
 DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_HUDSON2_SATA_IDE, quirk_amd_ide_mode);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AMD, 0x7900, quirk_amd_ide_mode);
-DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_AMD, 0x7900, quirk_amd_ide_mode);
 
 /*
  *	Serverworks CSB5 IDE does not fully support native mode
@@ -2796,15 +2774,12 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x3c28, vtd_mask_spec_errors);
 
 static void fixup_ti816x_class(struct pci_dev *dev)
 {
-	u32 class = dev->class;
-
 	/* TI 816x devices do not have class code set when in PCIe boot mode */
-	dev->class = PCI_CLASS_MULTIMEDIA_VIDEO << 8;
-	dev_info(&dev->dev, "PCI class overridden (%#08x -> %#08x)\n",
-		 class, dev->class);
+	dev_info(&dev->dev, "Setting PCI class for 816x PCIe device\n");
+	dev->class = PCI_CLASS_MULTIMEDIA_VIDEO;
 }
 DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_TI, 0xb800,
-			      PCI_CLASS_NOT_DEFINED, 0, fixup_ti816x_class);
+				 PCI_CLASS_NOT_DEFINED, 0, fixup_ti816x_class);
 
 /* Some PCIe devices do not work reliably with the claimed maximum
  * payload size supported.
@@ -2953,7 +2928,6 @@ static void disable_igfx_irq(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0102, disable_igfx_irq);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x010a, disable_igfx_irq);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0152, disable_igfx_irq);
 
 /*
  * Some devices may pass our check in pci_intx_mask_supported if

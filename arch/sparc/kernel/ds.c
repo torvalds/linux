@@ -842,8 +842,9 @@ void ldom_reboot(const char *boot_command)
 	if (boot_command && strlen(boot_command)) {
 		unsigned long len;
 
-		snprintf(full_boot_str, sizeof(full_boot_str), "boot %s",
-			 boot_command);
+		strcpy(full_boot_str, "boot ");
+		strlcpy(full_boot_str + strlen("boot "), boot_command,
+			sizeof(full_boot_str + strlen("boot ")));
 		len = strlen(full_boot_str);
 
 		if (reboot_data_supported) {

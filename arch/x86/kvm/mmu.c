@@ -2585,9 +2585,6 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 	int emulate = 0;
 	gfn_t pseudo_gfn;
 
-	if (!VALID_PAGE(vcpu->arch.mmu.root_hpa))
-		return 0;
-
 	for_each_shadow_entry(vcpu, (u64)gfn << PAGE_SHIFT, iterator) {
 		if (iterator.level == level) {
 			mmu_set_spte(vcpu, iterator.sptep, ACC_ALL,
@@ -2750,9 +2747,6 @@ static bool fast_page_fault(struct kvm_vcpu *vcpu, gva_t gva, int level,
 	struct kvm_shadow_walk_iterator iterator;
 	bool ret = false;
 	u64 spte = 0ull;
-
-	if (!VALID_PAGE(vcpu->arch.mmu.root_hpa))
-		return false;
 
 	if (!page_fault_can_be_fast(vcpu, error_code))
 		return false;
@@ -3072,7 +3066,7 @@ static void mmu_sync_roots(struct kvm_vcpu *vcpu)
 	if (!VALID_PAGE(vcpu->arch.mmu.root_hpa))
 		return;
 
-	vcpu_clear_mmio_info(vcpu, MMIO_GVA_ANY);
+	vcpu_clear_mmio_info(vcpu, ~0ul);
 	kvm_mmu_audit(vcpu, AUDIT_PRE_SYNC);
 	if (vcpu->arch.mmu.root_level == PT64_ROOT_LEVEL) {
 		hpa_t root = vcpu->arch.mmu.root_hpa;
@@ -3144,9 +3138,6 @@ static u64 walk_shadow_page_get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr)
 {
 	struct kvm_shadow_walk_iterator iterator;
 	u64 spte = 0ull;
-
-	if (!VALID_PAGE(vcpu->arch.mmu.root_hpa))
-		return spte;
 
 	walk_shadow_page_lockless_begin(vcpu);
 	for_each_shadow_entry_lockless(vcpu, addr, iterator, spte)
@@ -3241,7 +3232,7 @@ static int kvm_arch_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn)
 	arch.direct_map = vcpu->arch.mmu.direct_map;
 	arch.cr3 = vcpu->arch.mmu.get_cr3(vcpu);
 
-	return kvm_setup_async_pf(vcpu, gva, gfn_to_hva(vcpu->kvm, gfn), &arch);
+	return kvm_setup_async_pf(vcpu, gva, gfn, &arch);
 }
 
 static bool can_do_async_pf(struct kvm_vcpu *vcpu)
@@ -3975,7 +3966,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	++vcpu->kvm->stat.mmu_pte_write;
 	kvm_mmu_audit(vcpu, AUDIT_PRE_PTE_WRITE);
 
-	mask.cr0_wp = mask.cr4_pae = mask.nxe = mask.smep_andnot_wp = 1;
+	mask.cr0_wp = mask.cr4_pae = mask.nxe = 1;
 	for_each_gfn_indirect_valid_sp(vcpu->kvm, sp, gfn) {
 		if (detect_write_misaligned(sp, gpa, bytes) ||
 		      detect_write_flooding(sp)) {
@@ -4229,7 +4220,7 @@ static int mmu_shrink(struct shrinker *shrink, struct shrink_control *sc)
 	if (nr_to_scan == 0)
 		goto out;
 
-	spin_lock(&kvm_lock);
+	raw_spin_lock(&kvm_lock);
 
 	list_for_each_entry(kvm, &vm_list, vm_list) {
 		int idx;
@@ -4265,7 +4256,7 @@ static int mmu_shrink(struct shrinker *shrink, struct shrink_control *sc)
 		break;
 	}
 
-	spin_unlock(&kvm_lock);
+	raw_spin_unlock(&kvm_lock);
 
 out:
 	return percpu_counter_read_positive(&kvm_total_used_mmu_pages);
@@ -4337,9 +4328,6 @@ int kvm_mmu_get_spte_hierarchy(struct kvm_vcpu *vcpu, u64 addr, u64 sptes[4])
 	struct kvm_shadow_walk_iterator iterator;
 	u64 spte;
 	int nr_sptes = 0;
-
-	if (!VALID_PAGE(vcpu->arch.mmu.root_hpa))
-		return nr_sptes;
 
 	walk_shadow_page_lockless_begin(vcpu);
 	for_each_shadow_entry_lockless(vcpu, addr, iterator, spte) {

@@ -498,7 +498,7 @@ tracesys_exit:
 trap_with_param:
 
 	; stop_pc info by gdb needs this info
-	st  orig_r8_IS_BRKPT, [sp, PT_orig_r8]
+	stw orig_r8_IS_BRKPT, [sp, PT_orig_r8]
 
 	mov r0, r12
 	lr  r1, [efa]
@@ -589,7 +589,11 @@ ARC_ENTRY ret_from_exception
 	; Pre-{IRQ,Trap,Exception} K/U mode from pt_regs->status32
 	ld  r8, [sp, PT_status32]   ; returning to User/Kernel Mode
 
+#ifdef CONFIG_PREEMPT
 	bbit0  r8, STATUS_U_BIT, resume_kernel_mode
+#else
+	bbit0  r8, STATUS_U_BIT, restore_regs
+#endif
 
 	; Before returning to User mode check-for-and-complete any pending work
 	; such as rescheduling/signal-delivery etc.
@@ -649,14 +653,9 @@ resume_user_mode_begin:
 	b      resume_user_mode_begin	; unconditionally back to U mode ret chks
 					; for single exit point from this block
 
-resume_kernel_mode:
-
-	; Disable Interrupts from this point on
-	; CONFIG_PREEMPT: This is a must for preempt_schedule_irq()
-	; !CONFIG_PREEMPT: To ensure restore_regs is intr safe
-	IRQ_DISABLE	r9
-
 #ifdef CONFIG_PREEMPT
+
+resume_kernel_mode:
 
 	; Can't preempt if preemption disabled
 	GET_CURR_THR_INFO_FROM_SP   r10
@@ -666,6 +665,8 @@ resume_kernel_mode:
 	; check if this task's NEED_RESCHED flag set
 	ld  r9, [r10, THREAD_INFO_FLAGS]
 	bbit0  r9, TIF_NEED_RESCHED, restore_regs
+
+	IRQ_DISABLE	r9
 
 	; Invoke PREEMPTION
 	bl      preempt_schedule_irq
@@ -679,11 +680,12 @@ resume_kernel_mode:
 ;
 ; Restore the saved sys context (common exit-path for EXCPN/IRQ/Trap)
 ; IRQ shd definitely not happen between now and rtie
-; All 2 entry points to here already disable interrupts
 
 restore_regs :
 
-	lr	r10, [status32]
+	; Disable Interrupts while restoring reg-file back
+	; XXX can this be optimised out
+	IRQ_DISABLE_SAVE    r9, r10	;@r10 has prisitine (pre-disable) copy
 
 #ifdef CONFIG_ARC_CURR_IN_REG
 	; Restore User R25
@@ -721,7 +723,7 @@ not_exception:
 	; things to what they were, before returning from L2 context
 	;----------------------------------------------------------------
 
-	ld   r9, [sp, PT_orig_r8]      ; get orig_r8 to make sure it is
+	ldw  r9, [sp, PT_orig_r8]      ; get orig_r8 to make sure it is
 	brne r9, orig_r8_IS_IRQ2, 149f ; infact a L2 ISR ret path
 
 	ld r9, [sp, PT_status32]       ; get statu32_l2 (saved in pt_regs)

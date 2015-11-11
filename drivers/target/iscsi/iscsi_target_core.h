@@ -132,6 +132,7 @@ enum cmd_flags_table {
 	ICF_CONTIG_MEMORY			= 0x00000020,
 	ICF_ATTACHED_TO_RQUEUE			= 0x00000040,
 	ICF_OOO_CMDSN				= 0x00000080,
+	ICF_REJECT_FAIL_CONN			= 0x00000100,
 };
 
 /* struct iscsi_cmd->i_state */
@@ -365,8 +366,6 @@ struct iscsi_cmd {
 	u8			maxcmdsn_inc;
 	/* Immediate Unsolicited Dataout */
 	u8			unsolicited_data;
-	/* Reject reason code */
-	u8			reject_reason;
 	/* CID contained in logout PDU when opcode == ISCSI_INIT_LOGOUT_CMND */
 	u16			logout_cid;
 	/* Command flags */
@@ -447,6 +446,7 @@ struct iscsi_cmd {
 	struct list_head	datain_list;
 	/* R2T List */
 	struct list_head	cmd_r2t_list;
+	struct completion	reject_comp;
 	/* Timer for DataOUT */
 	struct timer_list	dataout_timer;
 	/* Iovecs for SCSI data payload RX/TX w/ kernel level sockets */
@@ -586,12 +586,6 @@ struct iscsi_conn {
 	struct iscsi_session	*sess;
 	/* Pointer to thread_set in use for this conn's threads */
 	struct iscsi_thread_set	*thread_set;
-	int			bitmap_id;
-	int			rx_thread_active;
-	struct task_struct	*rx_thread;
-	struct completion	rx_login_comp;
-	int			tx_thread_active;
-	struct task_struct	*tx_thread;
 	/* list_head for session connection list */
 	struct list_head	conn_list;
 } ____cacheline_aligned;
@@ -766,7 +760,6 @@ struct iscsi_np {
 	int			np_ip_proto;
 	int			np_sock_type;
 	enum np_thread_state_table np_thread_state;
-	bool                    enabled;
 	enum iscsi_timer_flags_table np_login_timer_flags;
 	u32			np_exports;
 	enum np_flags_table	np_flags;
@@ -868,12 +861,10 @@ struct iscsit_global {
 	/* Unique identifier used for the authentication daemon */
 	u32			auth_id;
 	u32			inactive_ts;
-#define ISCSIT_BITMAP_BITS	262144
 	/* Thread Set bitmap count */
 	int			ts_bitmap_count;
 	/* Thread Set bitmap pointer */
 	unsigned long		*ts_bitmap;
-	spinlock_t		ts_bitmap_lock;
 	/* Used for iSCSI discovery session authentication */
 	struct iscsi_node_acl	discovery_acl;
 	struct iscsi_portal_group	*discovery_tpg;

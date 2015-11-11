@@ -565,7 +565,7 @@ static void init_node_lock_keys(int q)
 	if (slab_state < UP)
 		return;
 
-	for (i = 1; i <= KMALLOC_SHIFT_HIGH; i++) {
+	for (i = 1; i < PAGE_SHIFT + MAX_ORDER; i++) {
 		struct kmem_cache_node *n;
 		struct kmem_cache *cache = kmalloc_caches[i];
 

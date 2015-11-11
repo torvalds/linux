@@ -153,8 +153,6 @@ THUMB(	orr	r7, #(1 << 30)	)	@ HSCTLR.TE
 	mrc	p15, 4, r7, c14, c1, 0	@ CNTHCTL
 	orr	r7, r7, #3		@ PL1PCEN | PL1PCTEN
 	mcr	p15, 4, r7, c14, c1, 0	@ CNTHCTL
-	mov	r7, #0
-	mcrr	p15, 4, r7, r7, c14	@ CNTVOFF
 1:
 #endif
 

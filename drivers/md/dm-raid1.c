@@ -604,15 +604,6 @@ static void write_callback(unsigned long error, void *context)
 		return;
 	}
 
-	/*
-	 * If the bio is discard, return an error, but do not
-	 * degrade the array.
-	 */
-	if (bio->bi_rw & REQ_DISCARD) {
-		bio_endio(bio, -EOPNOTSUPP);
-		return;
-	}
-
 	for (i = 0; i < ms->nr_mirrors; i++)
 		if (test_bit(i, &error))
 			fail_mirror(ms->mirror + i, DM_RAID1_WRITE_ERROR);
@@ -1089,7 +1080,8 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ti->per_bio_data_size = sizeof(struct dm_raid1_bio_record);
 	ti->discard_zeroes_data_unsupported = true;
 
-	ms->kmirrord_wq = alloc_workqueue("kmirrord", WQ_MEM_RECLAIM, 0);
+	ms->kmirrord_wq = alloc_workqueue("kmirrord",
+					  WQ_NON_REENTRANT | WQ_MEM_RECLAIM, 0);
 	if (!ms->kmirrord_wq) {
 		DMERR("couldn't start kmirrord");
 		r = -ENOMEM;

@@ -36,12 +36,10 @@ struct ipv6_devconf {
 	__s32		accept_ra_rt_info_max_plen;
 #endif
 #endif
-	__s32		accept_ra_rt_table;
 	__s32		proxy_ndp;
 	__s32		accept_source_route;
 #ifdef CONFIG_IPV6_OPTIMISTIC_DAD
 	__s32		optimistic_dad;
-	__s32		use_optimistic;
 #endif
 #ifdef CONFIG_IPV6_MROUTE
 	__s32		mc_forwarding;
@@ -50,7 +48,6 @@ struct ipv6_devconf {
 	__s32		accept_dad;
 	__s32		force_tllao;
 	__s32           ndisc_notify;
-	__s32		use_oif_addrs_only;
 	void		*sysctl;
 };
 
@@ -104,7 +101,6 @@ struct inet6_skb_parm {
 #define IP6SKB_FORWARDED	2
 #define IP6SKB_REROUTED		4
 #define IP6SKB_ROUTERALERT	8
-#define IP6SKB_FRAGMENTED      16
 };
 
 #define IP6CB(skb)	((struct inet6_skb_parm*)((skb)->cb))
@@ -273,9 +269,9 @@ static inline struct inet6_timewait_sock *inet6_twsk(const struct sock *sk)
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
-static inline struct ipv6_pinfo *inet6_sk(const struct sock *__sk)
+static inline struct ipv6_pinfo * inet6_sk(const struct sock *__sk)
 {
-	return sk_fullsock(__sk) ? inet_sk(__sk)->pinet6 : NULL;
+	return inet_sk(__sk)->pinet6;
 }
 
 static inline struct inet6_request_sock *

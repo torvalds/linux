@@ -66,8 +66,9 @@ static int fd_attach_hba(struct se_hba *hba, u32 host_id)
 	pr_debug("CORE_HBA[%d] - TCM FILEIO HBA Driver %s on Generic"
 		" Target Core Stack %s\n", hba->hba_id, FD_VERSION,
 		TARGET_CORE_MOD_VERSION);
-	pr_debug("CORE_HBA[%d] - Attached FILEIO HBA: %u to Generic\n",
-		hba->hba_id, fd_host->fd_host_id);
+	pr_debug("CORE_HBA[%d] - Attached FILEIO HBA: %u to Generic"
+		" MaxSectors: %u\n",
+		hba->hba_id, fd_host->fd_host_id, FD_MAX_SECTORS);
 
 	return 0;
 }
@@ -219,8 +220,7 @@ static int fd_configure_device(struct se_device *dev)
 	}
 
 	dev->dev_attrib.hw_block_size = fd_dev->fd_block_size;
-	dev->dev_attrib.max_bytes_per_io = FD_MAX_BYTES;
-	dev->dev_attrib.hw_max_sectors = FD_MAX_BYTES / fd_dev->fd_block_size;
+	dev->dev_attrib.hw_max_sectors = FD_MAX_SECTORS;
 	dev->dev_attrib.hw_queue_depth = FD_MAX_DEVICE_QUEUE_DEPTH;
 
 	if (fd_dev->fbd_flags & FDBD_HAS_BUFFERED_IO_WCE) {
@@ -554,16 +554,7 @@ fd_execute_rw(struct se_cmd *cmd)
 	enum dma_data_direction data_direction = cmd->data_direction;
 	struct se_device *dev = cmd->se_dev;
 	int ret = 0;
-	/*
-	 * We are currently limited by the number of iovecs (2048) per
-	 * single vfs_[writev,readv] call.
-	 */
-	if (cmd->data_length > FD_MAX_BYTES) {
-		pr_err("FILEIO: Not able to process I/O of %u bytes due to"
-		       "FD_MAX_BYTES: %u iovec count limitiation\n",
-			cmd->data_length, FD_MAX_BYTES);
-		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-	}
+
 	/*
 	 * Call vectorized fileio functions to map struct scatterlist
 	 * physical memory addresses to struct iovec virtual memory.

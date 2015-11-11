@@ -1122,13 +1122,9 @@ static int gsc_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	ret = v4l2_device_register(dev, &gsc->v4l2_dev);
-	if (ret)
-		goto err_clk;
-
 	ret = gsc_register_m2m_device(gsc);
 	if (ret)
-		goto err_v4l2;
+		goto err_clk;
 
 	platform_set_drvdata(pdev, gsc);
 	pm_runtime_enable(dev);
@@ -1151,8 +1147,6 @@ err_pm:
 	pm_runtime_put(dev);
 err_m2m:
 	gsc_unregister_m2m_device(gsc);
-err_v4l2:
-	v4l2_device_unregister(&gsc->v4l2_dev);
 err_clk:
 	gsc_clk_put(gsc);
 	return ret;
@@ -1163,7 +1157,6 @@ static int gsc_remove(struct platform_device *pdev)
 	struct gsc_dev *gsc = platform_get_drvdata(pdev);
 
 	gsc_unregister_m2m_device(gsc);
-	v4l2_device_unregister(&gsc->v4l2_dev);
 
 	vb2_dma_contig_cleanup_ctx(gsc->alloc_ctx);
 	pm_runtime_disable(&pdev->dev);

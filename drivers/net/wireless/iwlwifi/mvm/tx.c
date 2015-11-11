@@ -175,7 +175,7 @@ static void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm,
 	 * table is controlled by LINK_QUALITY commands
 	 */
 
-	if (ieee80211_is_data(fc) && sta) {
+	if (ieee80211_is_data(fc)) {
 		tx_cmd->initial_rate_index = 0;
 		tx_cmd->tx_flags |= cpu_to_le32(TX_CMD_FLG_STA_RATE);
 		return;
@@ -610,8 +610,8 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		    !(info->flags & IEEE80211_TX_STAT_ACK))
 			info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
 
-		/* W/A FW bug: seq_ctl is wrong when the status isn't success */
-		if (status != TX_STATUS_SUCCESS) {
+		/* W/A FW bug: seq_ctl is wrong when the queue is flushed */
+		if (status == TX_STATUS_FAIL_FIFO_FLUSHED) {
 			struct ieee80211_hdr *hdr = (void *)skb->data;
 			seq_ctl = le16_to_cpu(hdr->seq_ctrl);
 		}
@@ -819,23 +819,22 @@ int iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	struct iwl_mvm_ba_notif *ba_notif = (void *)pkt->data;
 	struct sk_buff_head reclaimed_skbs;
 	struct iwl_mvm_tid_data *tid_data;
+	struct ieee80211_tx_info *info;
 	struct ieee80211_sta *sta;
 	struct iwl_mvm_sta *mvmsta;
+	struct ieee80211_hdr *hdr;
 	struct sk_buff *skb;
 	int sta_id, tid, freed;
+
 	/* "flow" corresponds to Tx queue */
 	u16 scd_flow = le16_to_cpu(ba_notif->scd_flow);
+
 	/* "ssn" is start of block-ack Tx window, corresponds to index
 	 * (in Tx queue's circular buffer) of first TFD/frame in window */
 	u16 ba_resp_scd_ssn = le16_to_cpu(ba_notif->scd_ssn);
 
 	sta_id = ba_notif->sta_id;
 	tid = ba_notif->tid;
-
-	if (WARN_ONCE(sta_id >= IWL_MVM_STATION_COUNT ||
-		      tid >= IWL_MAX_TID_COUNT,
-		      "sta_id %d tid %d", sta_id, tid))
-		return 0;
 
 	rcu_read_lock();
 
@@ -886,26 +885,22 @@ int iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	freed = 0;
 
 	skb_queue_walk(&reclaimed_skbs, skb) {
-		struct ieee80211_hdr *hdr = (void *)skb->data;
-		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+		hdr = (struct ieee80211_hdr *)skb->data;
 
 		if (ieee80211_is_data_qos(hdr->frame_control))
 			freed++;
 		else
 			WARN_ON_ONCE(1);
 
+		info = IEEE80211_SKB_CB(skb);
 		iwl_trans_free_tx_cmd(mvm->trans, info->driver_data[1]);
-
-		memset(&info->status, 0, sizeof(info->status));
-		/* Packet was transmitted successfully, failures come as single
-		 * frames because before failing a frame the firmware transmits
-		 * it without aggregation at least once.
-		 */
-		info->flags |= IEEE80211_TX_STAT_ACK;
 
 		if (freed == 1) {
 			/* this is the first skb we deliver in this batch */
 			/* put the rate scaling data there */
+			info = IEEE80211_SKB_CB(skb);
+			memset(&info->status, 0, sizeof(info->status));
+			info->flags |= IEEE80211_TX_STAT_ACK;
 			info->flags |= IEEE80211_TX_STAT_AMPDU;
 			info->status.ampdu_ack_len = ba_notif->txed_2_done;
 			info->status.ampdu_len = ba_notif->txed;

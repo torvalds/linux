@@ -19,7 +19,6 @@
 #include <linux/if_vlan.h>
 #include <asm/cacheflush.h>
 #include <asm/hwcap.h>
-#include <asm/opcodes.h>
 
 #include "bpf_jit_32.h"
 
@@ -114,11 +113,8 @@ static u32 jit_udiv(u32 dividend, u32 divisor)
 
 static inline void _emit(int cond, u32 inst, struct jit_ctx *ctx)
 {
-	inst |= (cond << 28);
-	inst = __opcode_to_mem_arm(inst);
-
 	if (ctx->target != NULL)
-		ctx->target[ctx->idx] = inst;
+		ctx->target[ctx->idx] = inst | (cond << 28);
 
 	ctx->idx++;
 }
@@ -641,10 +637,10 @@ load_ind:
 			emit(ARM_MUL(r_A, r_A, r_X), ctx);
 			break;
 		case BPF_S_ALU_DIV_K:
-			if (k == 1)
-				break;
+			/* current k == reciprocal_value(userspace k) */
 			emit_mov_i(r_scratch, k, ctx);
-			emit_udiv(r_A, r_A, r_scratch, ctx);
+			/* A = top 32 bits of the product */
+			emit(ARM_UMULL(r_scratch, r_A, r_A, r_scratch), ctx);
 			break;
 		case BPF_S_ALU_DIV_X:
 			update_on_xread(ctx);

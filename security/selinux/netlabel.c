@@ -442,7 +442,8 @@ int selinux_netlbl_socket_connect(struct sock *sk, struct sockaddr *addr)
 	    sksec->nlbl_state != NLBL_CONNLABELED)
 		return 0;
 
-	lock_sock(sk);
+	local_bh_disable();
+	bh_lock_sock_nested(sk);
 
 	/* connected sockets are allowed to disconnect when the address family
 	 * is set to AF_UNSPEC, if that is what is happening we want to reset
@@ -463,6 +464,7 @@ int selinux_netlbl_socket_connect(struct sock *sk, struct sockaddr *addr)
 		sksec->nlbl_state = NLBL_CONNLABELED;
 
 socket_connect_return:
-	release_sock(sk);
+	bh_unlock_sock(sk);
+	local_bh_enable();
 	return rc;
 }

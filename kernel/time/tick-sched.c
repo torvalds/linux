@@ -720,10 +720,8 @@ static bool can_stop_idle_tick(int cpu, struct tick_sched *ts)
 		return false;
 	}
 
-	if (unlikely(ts->nohz_mode == NOHZ_MODE_INACTIVE)) {
-		ts->sleep_length = (ktime_t) { .tv64 = NSEC_PER_SEC/HZ };
+	if (unlikely(ts->nohz_mode == NOHZ_MODE_INACTIVE))
 		return false;
-	}
 
 	if (need_resched())
 		return false;
@@ -834,10 +832,13 @@ void tick_nohz_irq_exit(void)
 {
 	struct tick_sched *ts = &__get_cpu_var(tick_cpu_sched);
 
-	if (ts->inidle)
+	if (ts->inidle) {
+		/* Cancel the timer because CPU already waken up from the C-states*/
+		menu_hrtimer_cancel();
 		__tick_nohz_idle_enter(ts);
-	else
+	} else {
 		tick_nohz_full_stop_tick(ts);
+	}
 }
 
 /**
@@ -935,6 +936,8 @@ void tick_nohz_idle_exit(void)
 
 	ts->inidle = 0;
 
+	/* Cancel the timer because CPU already waken up from the C-states*/
+	menu_hrtimer_cancel();
 	if (ts->idle_active || ts->tick_stopped)
 		now = ktime_get();
 

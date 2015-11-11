@@ -613,54 +613,6 @@ truncate_pat_collision(struct resource *root, struct resource *new)
 	return 0;	/* truncation successful */
 }
 
-/*
- * extend_lmmio_len: extend lmmio range to maximum length
- *
- * This is needed at least on C8000 systems to get the ATI FireGL card
- * working. On other systems we will currently not extend the lmmio space.
- */
-static unsigned long
-extend_lmmio_len(unsigned long start, unsigned long end, unsigned long lba_len)
-{
-	struct resource *tmp;
-
-	pr_debug("LMMIO mismatch: PAT length = 0x%lx, MASK register = 0x%lx\n",
-		end - start, lba_len);
-
-	lba_len = min(lba_len+1, 256UL*1024*1024); /* limit to 256 MB */
-
-	pr_debug("LBA: lmmio_space [0x%lx-0x%lx] - original\n", start, end);
-
-	if (boot_cpu_data.cpu_type < mako) {
-		pr_info("LBA: Not a C8000 system - not extending LMMIO range.\n");
-		return end;
-	}
-
-	end += lba_len;
-	if (end < start) /* fix overflow */
-		end = -1ULL;
-
-	pr_debug("LBA: lmmio_space [0x%lx-0x%lx] - current\n", start, end);
-
-	/* first overlap */
-	for (tmp = iomem_resource.child; tmp; tmp = tmp->sibling) {
-		pr_debug("LBA: testing %pR\n", tmp);
-		if (tmp->start == start)
-			continue; /* ignore ourself */
-		if (tmp->end < start)
-			continue;
-		if (tmp->start > end)
-			continue;
-		if (end >= tmp->start)
-			end = tmp->start - 1;
-	}
-
-	pr_info("LBA: lmmio_space [0x%lx-0x%lx] - new\n", start, end);
-
-	/* return new end */
-	return end;
-}
-
 #else
 #define truncate_pat_collision(r,n)  (0)
 #endif
@@ -1042,14 +994,6 @@ lba_pat_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 		case PAT_LMMIO:
 			/* used to fix up pre-initialized MEM BARs */
 			if (!lba_dev->hba.lmmio_space.flags) {
-				unsigned long lba_len;
-
-				lba_len = ~READ_REG32(lba_dev->hba.base_addr
-						+ LBA_LMMIO_MASK);
-				if ((p->end - p->start) != lba_len)
-					p->end = extend_lmmio_len(p->start,
-						p->end, lba_len);
-
 				sprintf(lba_dev->hba.lmmio_name,
 						"PCI%02x LMMIO",
 						(int)lba_dev->hba.bus_num.start);

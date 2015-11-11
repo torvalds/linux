@@ -116,13 +116,11 @@ static void iwl_pcie_set_pwr(struct iwl_trans *trans, bool vaux)
 
 /* PCI registers */
 #define PCI_CFG_RETRY_TIMEOUT	0x041
-#define PCI_EXP_DEVCTL2_LTR_EN	0x0400
 
 static void iwl_pcie_apm_config(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u16 lctl;
-	u16 cap;
 
 	/*
 	 * HW bug W/A for instability in PCIe bus L0S->L1 transition.
@@ -133,17 +131,16 @@ static void iwl_pcie_apm_config(struct iwl_trans *trans)
 	 *    power savings, even without L1.
 	 */
 	pcie_capability_read_word(trans_pcie->pci_dev, PCI_EXP_LNKCTL, &lctl);
-	if (lctl & PCI_EXP_LNKCTL_ASPM_L1)
+	if (lctl & PCI_EXP_LNKCTL_ASPM_L1) {
+		/* L1-ASPM enabled; disable(!) L0S */
 		iwl_set_bit(trans, CSR_GIO_REG, CSR_GIO_REG_VAL_L0S_ENABLED);
-	else
+		dev_info(trans->dev, "L1 Enabled; Disabling L0S\n");
+	} else {
+		/* L1-ASPM disabled; enable(!) L0S */
 		iwl_clear_bit(trans, CSR_GIO_REG, CSR_GIO_REG_VAL_L0S_ENABLED);
+		dev_info(trans->dev, "L1 Disabled; Enabling L0S\n");
+	}
 	trans->pm_support = !(lctl & PCI_EXP_LNKCTL_ASPM_L0S);
-
-	pcie_capability_read_word(trans_pcie->pci_dev, PCI_EXP_DEVCTL2, &cap);
-	trans->ltr_enabled = cap & PCI_EXP_DEVCTL2_LTR_EN;
-	dev_info(trans->dev, "L1 %sabled - LTR %sabled\n",
-		 (lctl & PCI_EXP_LNKCTL_ASPM_L1) ? "En" : "Dis",
-		 trans->ltr_enabled ? "En" : "Dis");
 }
 
 /*
@@ -208,22 +205,6 @@ static int iwl_pcie_apm_init(struct iwl_trans *trans)
 		IWL_DEBUG_INFO(trans, "Failed to init the card\n");
 		goto out;
 	}
-
-	/*
-	 * Enable the oscillator to count wake up time for L1 exit. This
-	 * consumes slightly more power (100uA) - but allows to be sure
-	 * that we wake up from L1 on time.
-	 *
-	 * This looks weird: read twice the same register, discard the
-	 * value, set a bit, and yet again, read that same register
-	 * just to discard the value. But that's the way the hardware
-	 * seems to like it.
-	 */
-	iwl_read_prph(trans, OSC_CLK);
-	iwl_read_prph(trans, OSC_CLK);
-	iwl_set_bits_prph(trans, OSC_CLK, OSC_CLK_FORCE_CONTROL);
-	iwl_read_prph(trans, OSC_CLK);
-	iwl_read_prph(trans, OSC_CLK);
 
 	/*
 	 * Enable DMA clock and wait for it to stabilize.
@@ -295,6 +276,9 @@ static int iwl_pcie_nic_init(struct iwl_trans *trans)
 	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 	iwl_pcie_apm_init(trans);
 
+	/* Set interrupt coalescing calibration timer to default (512 usecs) */
+	iwl_write8(trans, CSR_INT_COALESCING, IWL_HOST_INT_CALIB_TIMEOUT_DEF);
+
 	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 
 	iwl_pcie_set_pwr(trans, false);
@@ -342,7 +326,6 @@ static int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 {
 	int ret;
 	int t = 0;
-	int iter;
 
 	IWL_DEBUG_INFO(trans, "iwl_trans_prepare_card_hw enter\n");
 
@@ -351,23 +334,18 @@ static int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 	if (ret >= 0)
 		return 0;
 
-	for (iter = 0; iter < 10; iter++) {
-		/* If HW is not ready, prepare the conditions to check again */
-		iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-			    CSR_HW_IF_CONFIG_REG_PREPARE);
+	/* If HW is not ready, prepare the conditions to check again */
+	iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
+		    CSR_HW_IF_CONFIG_REG_PREPARE);
 
-		do {
-			ret = iwl_pcie_set_hw_ready(trans);
-			if (ret >= 0)
-				return 0;
+	do {
+		ret = iwl_pcie_set_hw_ready(trans);
+		if (ret >= 0)
+			return 0;
 
-			usleep_range(200, 1000);
-			t += 200;
-		} while (t < 150000);
-		msleep(25);
-	}
-
-	IWL_DEBUG_INFO(trans, "got NIC after %d iterations\n", iter);
+		usleep_range(200, 1000);
+		t += 200;
+	} while (t < 150000);
 
 	return ret;
 }
@@ -1503,15 +1481,15 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	spin_lock_init(&trans_pcie->reg_lock);
 	init_waitqueue_head(&trans_pcie->ucode_write_waitq);
 
-	if (pci_enable_device(pdev)) {
-		err = -ENODEV;
-		goto out_no_pci;
-	}
-
 	/* W/A - seems to solve weird behavior. We need to remove this if we
 	 * don't want to stay in L1 all the time. This wastes a lot of power */
 	pci_disable_link_state(pdev, PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1 |
 			       PCIE_LINK_STATE_CLKPM);
+
+	if (pci_enable_device(pdev)) {
+		err = -ENODEV;
+		goto out_no_pci;
+	}
 
 	pci_set_master(pdev);
 

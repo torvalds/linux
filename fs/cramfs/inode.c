@@ -227,7 +227,6 @@ static void cramfs_put_super(struct super_block *sb)
 
 static int cramfs_remount(struct super_block *sb, int *flags, char *data)
 {
-	sync_filesystem(sb);
 	*flags |= MS_RDONLY;
 	return 0;
 }

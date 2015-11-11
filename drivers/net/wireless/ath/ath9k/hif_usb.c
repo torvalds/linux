@@ -1289,9 +1289,7 @@ static void ath9k_hif_usb_disconnect(struct usb_interface *interface)
 
 	usb_set_intfdata(interface, NULL);
 
-	/* If firmware was loaded we should drop it
-	 * go back to first stage bootloader. */
-	if (!unplugged && (hif_dev->flags & HIF_USB_READY))
+	if (!unplugged && (hif_dev->flags & HIF_USB_START))
 		ath9k_hif_usb_reboot(udev);
 
 	kfree(hif_dev);

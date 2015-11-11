@@ -287,8 +287,7 @@ validate_fini_list(struct list_head *list, struct nouveau_fence *fence)
 	list_for_each_safe(entry, tmp, list) {
 		nvbo = list_entry(entry, struct nouveau_bo, entry);
 
-		if (likely(fence))
-			nouveau_bo_fence(nvbo, fence);
+		nouveau_bo_fence(nvbo, fence);
 
 		if (unlikely(nvbo->validate_mapped)) {
 			ttm_bo_kunmap(&nvbo->kmap);

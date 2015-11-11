@@ -347,7 +347,9 @@ int platform_device_add(struct platform_device *pdev)
 
 	while (--i >= 0) {
 		struct resource *r = &pdev->resource[i];
-		if (r->parent)
+		unsigned long type = resource_type(r);
+
+		if (type == IORESOURCE_MEM || type == IORESOURCE_IO)
 			release_resource(r);
 	}
 
@@ -378,7 +380,9 @@ void platform_device_del(struct platform_device *pdev)
 
 		for (i = 0; i < pdev->num_resources; i++) {
 			struct resource *r = &pdev->resource[i];
-			if (r->parent)
+			unsigned long type = resource_type(r);
+
+			if (type == IORESOURCE_MEM || type == IORESOURCE_IO)
 				release_resource(r);
 		}
 	}
@@ -909,7 +913,6 @@ int __init platform_bus_init(void)
 	error =  bus_register(&platform_bus_type);
 	if (error)
 		device_unregister(&platform_bus);
-	of_platform_register_reconfig_notifier();
 	return error;
 }
 

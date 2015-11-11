@@ -143,6 +143,7 @@ static int msg_insert(struct msg_msg *msg, struct mqueue_inode_info *info)
 		if (!leaf)
 			return -ENOMEM;
 		INIT_LIST_HEAD(&leaf->msg_list);
+		info->qsize += sizeof(*leaf);
 	}
 	leaf->priority = msg->m_type;
 	rb_link_node(&leaf->rb_node, parent, p);
@@ -187,6 +188,7 @@ try_again:
 			     "lazy leaf delete!\n");
 		rb_erase(&leaf->rb_node, &info->msg_tree);
 		if (info->node_cache) {
+			info->qsize -= sizeof(*leaf);
 			kfree(leaf);
 		} else {
 			info->node_cache = leaf;
@@ -199,6 +201,7 @@ try_again:
 		if (list_empty(&leaf->msg_list)) {
 			rb_erase(&leaf->rb_node, &info->msg_tree);
 			if (info->node_cache) {
+				info->qsize -= sizeof(*leaf);
 				kfree(leaf);
 			} else {
 				info->node_cache = leaf;
@@ -430,9 +433,9 @@ static int mqueue_create(struct inode *dir, struct dentry *dentry,
 		error = -EACCES;
 		goto out_unlock;
 	}
-
-	if (ipc_ns->mq_queues_count >= ipc_ns->mq_queues_max &&
-	    !capable(CAP_SYS_RESOURCE)) {
+	if (ipc_ns->mq_queues_count >= HARD_QUEUESMAX ||
+	    (ipc_ns->mq_queues_count >= ipc_ns->mq_queues_max &&
+	     !capable(CAP_SYS_RESOURCE))) {
 		error = -ENOSPC;
 		goto out_unlock;
 	}
@@ -820,7 +823,6 @@ SYSCALL_DEFINE4(mq_open, const char __user *, u_name, int, oflag, umode_t, mode,
 				error = ro;
 				goto out;
 			}
-			audit_inode_parent_hidden(name, root);
 			filp = do_create(ipc_ns, root->d_inode,
 						&path, oflag, mode,
 						u_attr ? &attr : NULL);
@@ -866,7 +868,6 @@ SYSCALL_DEFINE1(mq_unlink, const char __user *, u_name)
 	if (IS_ERR(name))
 		return PTR_ERR(name);
 
-	audit_inode_parent_hidden(name, mnt->mnt_root);
 	err = mnt_want_write(mnt);
 	if (err)
 		goto out_name;
@@ -1023,6 +1024,7 @@ SYSCALL_DEFINE5(mq_timedsend, mqd_t, mqdes, const char __user *, u_msg_ptr,
 		/* Save our speculative allocation into the cache */
 		INIT_LIST_HEAD(&new_leaf->msg_list);
 		info->node_cache = new_leaf;
+		info->qsize += sizeof(*new_leaf);
 		new_leaf = NULL;
 	} else {
 		kfree(new_leaf);
@@ -1129,6 +1131,7 @@ SYSCALL_DEFINE5(mq_timedreceive, mqd_t, mqdes, char __user *, u_msg_ptr,
 		/* Save our speculative allocation into the cache */
 		INIT_LIST_HEAD(&new_leaf->msg_list);
 		info->node_cache = new_leaf;
+		info->qsize += sizeof(*new_leaf);
 	} else {
 		kfree(new_leaf);
 	}

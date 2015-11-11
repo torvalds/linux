@@ -27,12 +27,9 @@
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
-#include <asm/cputhreads.h>
 #include <asm/sparsemem.h>
 #include <asm/prom.h>
 #include <asm/smp.h>
-#include <asm/cputhreads.h>
-#include <asm/topology.h>
 #include <asm/firmware.h>
 #include <asm/paca.h>
 #include <asm/hvcall.h>
@@ -154,22 +151,9 @@ static void __init get_node_active_region(unsigned long pfn,
 	}
 }
 
-static void reset_numa_cpu_lookup_table(void)
-{
-	unsigned int cpu;
-
-	for_each_possible_cpu(cpu)
-		numa_cpu_lookup_table[cpu] = -1;
-}
-
-static void update_numa_cpu_lookup_table(unsigned int cpu, int node)
-{
-	numa_cpu_lookup_table[cpu] = node;
-}
-
 static void map_cpu_to_node(int cpu, int node)
 {
-	update_numa_cpu_lookup_table(cpu, node);
+	numa_cpu_lookup_table[cpu] = node;
 
 	dbg("adding cpu %d to node %d\n", cpu, node);
 
@@ -534,24 +518,11 @@ static int of_drconf_to_nid_single(struct of_drconf_cell *drmem,
  */
 static int __cpuinit numa_setup_cpu(unsigned long lcpu)
 {
-	int nid;
-	struct device_node *cpu;
-
-	/*
-	 * If a valid cpu-to-node mapping is already available, use it
-	 * directly instead of querying the firmware, since it represents
-	 * the most recent mapping notified to us by the platform (eg: VPHN).
-	 */
-	if ((nid = numa_cpu_lookup_table[lcpu]) >= 0) {
-		map_cpu_to_node(lcpu, nid);
-		return nid;
-	}
-
-	cpu = of_get_cpu_node(lcpu, NULL);
+	int nid = 0;
+	struct device_node *cpu = of_get_cpu_node(lcpu, NULL);
 
 	if (!cpu) {
 		WARN_ON(1);
-		nid = 0;
 		goto out;
 	}
 
@@ -586,8 +557,8 @@ static int __cpuinit cpu_numa_callback(struct notifier_block *nfb,
 	case CPU_UP_CANCELED:
 	case CPU_UP_CANCELED_FROZEN:
 		unmap_cpu_from_node(lcpu);
-		ret = NOTIFY_OK;
 		break;
+		ret = NOTIFY_OK;
 #endif
 	}
 	return ret;
@@ -1094,7 +1065,6 @@ void __init do_init_bootmem(void)
 	 */
 	setup_node_to_cpumask_map();
 
-	reset_numa_cpu_lookup_table();
 	register_cpu_notifier(&ppc64_numa_nb);
 	cpu_numa_callback(&ppc64_numa_nb, CPU_UP_PREPARE,
 			  (void *)(unsigned long)boot_cpuid);
@@ -1349,8 +1319,7 @@ static int update_cpu_associativity_changes_mask(void)
 			}
 		}
 		if (changed) {
-			cpumask_or(changes, changes, cpu_sibling_mask(cpu));
-			cpu = cpu_last_thread_sibling(cpu);
+			cpumask_set_cpu(cpu, changes);
 		}
 	}
 
@@ -1458,42 +1427,17 @@ static int update_cpu_topology(void *data)
 	if (!data)
 		return -EINVAL;
 
-	cpu = smp_processor_id();
+	cpu = get_cpu();
 
 	for (update = data; update; update = update->next) {
 		if (cpu != update->cpu)
 			continue;
 
+		unregister_cpu_under_node(update->cpu, update->old_nid);
 		unmap_cpu_from_node(update->cpu);
 		map_cpu_to_node(update->cpu, update->new_nid);
 		vdso_getcpu_init();
-	}
-
-	return 0;
-}
-
-static int update_lookup_table(void *data)
-{
-	struct topology_update_data *update;
-
-	if (!data)
-		return -EINVAL;
-
-	/*
-	 * Upon topology update, the numa-cpu lookup table needs to be updated
-	 * for all threads in the core, including offline CPUs, to ensure that
-	 * future hotplug operations respect the cpu-to-node associativity
-	 * properly.
-	 */
-	for (update = data; update; update = update->next) {
-		int nid, base, j;
-
-		nid = update->new_nid;
-		base = cpu_first_thread_sibling(update->cpu);
-
-		for (j = 0; j < threads_per_core; j++) {
-			update_numa_cpu_lookup_table(base + j, nid);
-		}
+		register_cpu_under_node(update->cpu, update->new_nid);
 	}
 
 	return 0;
@@ -1505,12 +1449,12 @@ static int update_lookup_table(void *data)
  */
 int arch_update_cpu_topology(void)
 {
-	unsigned int cpu, sibling, changed = 0;
+	unsigned int cpu, changed = 0;
 	struct topology_update_data *updates, *ud;
 	unsigned int associativity[VPHN_ASSOC_BUFSIZE] = {0};
 	cpumask_t updated_cpus;
 	struct device *dev;
-	int weight, new_nid, i = 0;
+	int weight, i = 0;
 
 	weight = cpumask_weight(&cpu_associativity_changes_mask);
 	if (!weight)
@@ -1523,62 +1467,24 @@ int arch_update_cpu_topology(void)
 	cpumask_clear(&updated_cpus);
 
 	for_each_cpu(cpu, &cpu_associativity_changes_mask) {
-		/*
-		 * If siblings aren't flagged for changes, updates list
-		 * will be too short. Skip on this update and set for next
-		 * update.
-		 */
-		if (!cpumask_subset(cpu_sibling_mask(cpu),
-					&cpu_associativity_changes_mask)) {
-			pr_info("Sibling bits not set for associativity "
-					"change, cpu%d\n", cpu);
-			cpumask_or(&cpu_associativity_changes_mask,
-					&cpu_associativity_changes_mask,
-					cpu_sibling_mask(cpu));
-			cpu = cpu_last_thread_sibling(cpu);
-			continue;
-		}
-
-		/* Use associativity from first thread for all siblings */
+		ud = &updates[i++];
+		ud->cpu = cpu;
 		vphn_get_associativity(cpu, associativity);
-		new_nid = associativity_to_nid(associativity);
-		if (new_nid < 0 || !node_online(new_nid))
-			new_nid = first_online_node;
+		ud->new_nid = associativity_to_nid(associativity);
 
-		if (new_nid == numa_cpu_lookup_table[cpu]) {
-			cpumask_andnot(&cpu_associativity_changes_mask,
-					&cpu_associativity_changes_mask,
-					cpu_sibling_mask(cpu));
-			cpu = cpu_last_thread_sibling(cpu);
-			continue;
-		}
+		if (ud->new_nid < 0 || !node_online(ud->new_nid))
+			ud->new_nid = first_online_node;
 
-		for_each_cpu(sibling, cpu_sibling_mask(cpu)) {
-			ud = &updates[i++];
-			ud->cpu = sibling;
-			ud->new_nid = new_nid;
-			ud->old_nid = numa_cpu_lookup_table[sibling];
-			cpumask_set_cpu(sibling, &updated_cpus);
-			if (i < weight)
-				ud->next = &updates[i];
-		}
-		cpu = cpu_last_thread_sibling(cpu);
+		ud->old_nid = numa_cpu_lookup_table[cpu];
+		cpumask_set_cpu(cpu, &updated_cpus);
+
+		if (i < weight)
+			ud->next = &updates[i];
 	}
 
 	stop_machine(update_cpu_topology, &updates[0], &updated_cpus);
 
-	/*
-	 * Update the numa-cpu lookup table with the new mappings, even for
-	 * offline CPUs. It is best to perform this update from the stop-
-	 * machine context.
-	 */
-	stop_machine(update_lookup_table, &updates[0],
-					cpumask_of(raw_smp_processor_id()));
-
 	for (ud = &updates[0]; ud; ud = ud->next) {
-		unregister_cpu_under_node(ud->cpu, ud->old_nid);
-		register_cpu_under_node(ud->cpu, ud->new_nid);
-
 		dev = get_cpu_device(ud->cpu);
 		if (dev)
 			kobject_uevent(&dev->kobj, KOBJ_CHANGE);
@@ -1633,11 +1539,12 @@ static void stage_topology_update(int core_id)
 static int dt_update_callback(struct notifier_block *nb,
 				unsigned long action, void *data)
 {
-	struct of_reconfig_data *update = data;
+	struct of_prop_reconfig *update;
 	int rc = NOTIFY_DONE;
 
 	switch (action) {
 	case OF_RECONFIG_UPDATE_PROPERTY:
+		update = (struct of_prop_reconfig *)data;
 		if (!of_prop_cmp(update->dn->type, "cpu") &&
 		    !of_prop_cmp(update->prop->name, "ibm,associativity")) {
 			u32 core_id;

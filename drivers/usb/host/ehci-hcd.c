@@ -591,16 +591,11 @@ static int ehci_run (struct usb_hcd *hcd)
 	 */
 	hcc_params = ehci_readl(ehci, &ehci->caps->hcc_params);
 	if (HCC_64BIT_ADDR(hcc_params)) {
-#ifdef CONFIG_ARM64
-		ehci_writel(ehci, ehci->periodic_dma >> 32, &ehci->regs->segment);
-		/*
-		 * this is deeply broken on almost all architectures
-		 * but arm64 can use it so enable it
-		 */
+		ehci_writel(ehci, 0, &ehci->regs->segment);
+#if 0
+// this is deeply broken on almost all architectures
 		if (!dma_set_mask(hcd->self.controller, DMA_BIT_MASK(64)))
 			ehci_info(ehci, "enabled 64bit DMA\n");
-#else
-		ehci_writel(ehci, 0, &ehci->regs->segment);
 #endif
 	}
 
@@ -691,15 +686,8 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
 	u32			status, masked_status, pcd_status = 0, cmd;
 	int			bh;
-	unsigned long		flags;
 
-	/*
-	 * For threadirqs option we use spin_lock_irqsave() variant to prevent
-	 * deadlock with ehci hrtimer callback, because hrtimer callbacks run
-	 * in interrupt context even when threadirqs is specified. We can go
-	 * back to spin_lock() variant when hrtimer callbacks become threaded.
-	 */
-	spin_lock_irqsave(&ehci->lock, flags);
+	spin_lock (&ehci->lock);
 
 	status = ehci_readl(ehci, &ehci->regs->status);
 
@@ -717,7 +705,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 
 	/* Shared IRQ? */
 	if (!masked_status || unlikely(ehci->rh_state == EHCI_RH_HALTED)) {
-		spin_unlock_irqrestore(&ehci->lock, flags);
+		spin_unlock(&ehci->lock);
 		return IRQ_NONE;
 	}
 
@@ -835,7 +823,7 @@ dead:
 
 	if (bh)
 		ehci_work (ehci);
-	spin_unlock_irqrestore(&ehci->lock, flags);
+	spin_unlock (&ehci->lock);
 	if (pcd_status)
 		usb_hcd_poll_rh_status(hcd);
 	return IRQ_HANDLED;
@@ -977,6 +965,8 @@ rescan:
 	}
 
 	qh->exception = 1;
+	if (ehci->rh_state < EHCI_RH_RUNNING)
+		qh->qh_state = QH_STATE_IDLE;
 	switch (qh->qh_state) {
 	case QH_STATE_LINKED:
 	case QH_STATE_COMPLETING:

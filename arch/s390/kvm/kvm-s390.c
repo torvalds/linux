@@ -86,10 +86,14 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 static unsigned long long *facilities;
 
 /* Section: not file related */
-int kvm_arch_hardware_enable(void)
+int kvm_arch_hardware_enable(void *garbage)
 {
 	/* every s390 is virtualization enabled ;-) */
 	return 0;
+}
+
+void kvm_arch_hardware_disable(void *garbage)
+{
 }
 
 int kvm_arch_hardware_setup(void)
@@ -101,9 +105,17 @@ void kvm_arch_hardware_unsetup(void)
 {
 }
 
+void kvm_arch_check_processor_compat(void *rtn)
+{
+}
+
 int kvm_arch_init(void *opaque)
 {
 	return 0;
+}
+
+void kvm_arch_exit(void)
+{
 }
 
 /* Section: device related */
@@ -115,7 +127,7 @@ long kvm_arch_dev_ioctl(struct file *filp,
 	return -EINVAL;
 }
 
-int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
+int kvm_dev_ioctl_check_extension(long ext)
 {
 	int r;
 
@@ -277,6 +289,10 @@ static void kvm_free_vcpus(struct kvm *kvm)
 	mutex_unlock(&kvm->lock);
 }
 
+void kvm_arch_sync_events(struct kvm *kvm)
+{
+}
+
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	kvm_free_vcpus(kvm);
@@ -302,6 +318,11 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 				    KVM_SYNC_ACRS |
 				    KVM_SYNC_CRS;
 	return 0;
+}
+
+void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
+{
+	/* Nothing todo */
 }
 
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
@@ -601,25 +622,14 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 		kvm_s390_deliver_pending_interrupts(vcpu);
 
 	vcpu->arch.sie_block->icptcode = 0;
+	preempt_disable();
+	kvm_guest_enter();
+	preempt_enable();
 	VCPU_EVENT(vcpu, 6, "entering sie flags %x",
 		   atomic_read(&vcpu->arch.sie_block->cpuflags));
 	trace_kvm_s390_sie_enter(vcpu,
 				 atomic_read(&vcpu->arch.sie_block->cpuflags));
-
-	/*
-	 * As PF_VCPU will be used in fault handler, between guest_enter
-	 * and guest_exit should be no uaccess.
-	 */
-	preempt_disable();
-	kvm_guest_enter();
-	preempt_enable();
 	rc = sie64a(vcpu->arch.sie_block, vcpu->run->s.regs.gprs);
-	kvm_guest_exit();
-
-	VCPU_EVENT(vcpu, 6, "exit sie icptcode %d",
-		   vcpu->arch.sie_block->icptcode);
-	trace_kvm_s390_sie_exit(vcpu, vcpu->arch.sie_block->icptcode);
-
 	if (rc) {
 		if (kvm_is_ucontrol(vcpu->kvm)) {
 			rc = SIE_INTERCEPT_UCONTROL;
@@ -629,6 +639,10 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 			rc = kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 		}
 	}
+	VCPU_EVENT(vcpu, 6, "exit sie icptcode %d",
+		   vcpu->arch.sie_block->icptcode);
+	trace_kvm_s390_sie_exit(vcpu, vcpu->arch.sie_block->icptcode);
+	kvm_guest_exit();
 
 	memcpy(&vcpu->run->s.regs.gprs[14], &vcpu->arch.sie_block->gg14, 16);
 	return rc;
@@ -950,8 +964,12 @@ int kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
 	return VM_FAULT_SIGBUS;
 }
 
-int kvm_arch_create_memslot(struct kvm *kvm, struct kvm_memory_slot *slot,
-			    unsigned long npages)
+void kvm_arch_free_memslot(struct kvm_memory_slot *free,
+			   struct kvm_memory_slot *dont)
+{
+}
+
+int kvm_arch_create_memslot(struct kvm_memory_slot *slot, unsigned long npages)
 {
 	return 0;
 }
@@ -999,6 +1017,15 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 	if (rc)
 		printk(KERN_WARNING "kvm-s390: failed to commit memory region\n");
 	return;
+}
+
+void kvm_arch_flush_shadow_all(struct kvm *kvm)
+{
+}
+
+void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
+				   struct kvm_memory_slot *slot)
+{
 }
 
 static int __init kvm_s390_init(void)

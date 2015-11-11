@@ -165,7 +165,7 @@ static u32 *vexpress_sysreg_config_data;
 static int vexpress_sysreg_config_tries;
 
 static void *vexpress_sysreg_config_func_get(struct device *dev,
-		struct device_node *node, const char *id)
+		struct device_node *node)
 {
 	struct vexpress_sysreg_config_func *config_func;
 	u32 site;
@@ -351,8 +351,6 @@ void __init vexpress_sysreg_of_early_init(void)
 }
 
 
-#ifdef CONFIG_GPIOLIB
-
 #define VEXPRESS_SYSREG_GPIO(_name, _reg, _value) \
 	[VEXPRESS_GPIO_##_name] = { \
 		.reg = _reg, \
@@ -447,8 +445,6 @@ struct gpio_led_platform_data vexpress_sysreg_leds_pdata = {
 	.leds = vexpress_sysreg_leds,
 };
 
-#endif
-
 
 static ssize_t vexpress_sysreg_sys_id_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -484,9 +480,6 @@ static int vexpress_sysreg_probe(struct platform_device *pdev)
 	setup_timer(&vexpress_sysreg_config_timer,
 			vexpress_sysreg_config_complete, 0);
 
-	vexpress_sysreg_dev = &pdev->dev;
-
-#ifdef CONFIG_GPIOLIB
 	vexpress_sysreg_gpio_chip.dev = &pdev->dev;
 	err = gpiochip_add(&vexpress_sysreg_gpio_chip);
 	if (err) {
@@ -497,10 +490,11 @@ static int vexpress_sysreg_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	vexpress_sysreg_dev = &pdev->dev;
+
 	platform_device_register_data(vexpress_sysreg_dev, "leds-gpio",
 			PLATFORM_DEVID_AUTO, &vexpress_sysreg_leds_pdata,
 			sizeof(vexpress_sysreg_leds_pdata));
-#endif
 
 	device_create_file(vexpress_sysreg_dev, &dev_attr_sys_id);
 

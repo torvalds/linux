@@ -762,16 +762,7 @@ static void tcm_qla2xxx_clear_nacl_from_fcport_map(struct qla_tgt_sess *sess)
 	pr_debug("fc_rport domain: port_id 0x%06x\n", nacl->nport_id);
 
 	node = btree_remove32(&lport->lport_fcport_map, nacl->nport_id);
-	if (WARN_ON(node && (node != se_nacl))) {
-		/*
-		 * The nacl no longer matches what we think it should be.
-		 * Most likely a new dynamic acl has been added while
-		 * someone dropped the hardware lock.  It clearly is a
-		 * bug elsewhere, but this bit can't make things worse.
-		 */
-		btree_insert32(&lport->lport_fcport_map, nacl->nport_id,
-			       node, GFP_ATOMIC);
-	}
+	WARN_ON(node && (node != se_nacl));
 
 	pr_debug("Removed from fcport_map: %p for WWNN: 0x%016LX, port_id: 0x%06x\n",
 	    se_nacl, nacl->nport_wwnn, nacl->nport_id);
@@ -1465,7 +1456,7 @@ static int tcm_qla2xxx_check_initiator_node_acl(
 	/*
 	 * Finally register the new FC Nexus with TCM
 	 */
-	transport_register_session(se_nacl->se_tpg, se_nacl, se_sess, sess);
+	__transport_register_session(se_nacl->se_tpg, se_nacl, se_sess, sess);
 
 	return 0;
 }

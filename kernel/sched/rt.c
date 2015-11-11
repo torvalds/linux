@@ -892,7 +892,7 @@ static int sched_rt_runtime_exceeded(struct rt_rq *rt_rq)
 
 			if (!once) {
 				once = true;
-				printk_deferred("sched: RT throttling activated\n");
+				printk_sched("sched: RT throttling activated\n");
 			}
 		} else {
 			/*
@@ -964,13 +964,6 @@ inc_rt_prio_smp(struct rt_rq *rt_rq, int prio, int prev_prio)
 {
 	struct rq *rq = rq_of_rt_rq(rt_rq);
 
-#ifdef CONFIG_RT_GROUP_SCHED
-	/*
-	 * Change rq's cpupri only if rt_rq is the top queue.
-	 */
-	if (&rq->rt != rt_rq)
-		return;
-#endif
 	if (rq->online && prio < prev_prio)
 		cpupri_set(&rq->rd->cpupri, rq->cpu, prio);
 }
@@ -980,13 +973,6 @@ dec_rt_prio_smp(struct rt_rq *rt_rq, int prio, int prev_prio)
 {
 	struct rq *rq = rq_of_rt_rq(rt_rq);
 
-#ifdef CONFIG_RT_GROUP_SCHED
-	/*
-	 * Change rq's cpupri only if rt_rq is the top queue.
-	 */
-	if (&rq->rt != rt_rq)
-		return;
-#endif
 	if (rq->online && rt_rq->highest_prio.curr != prev_prio)
 		cpupri_set(&rq->rd->cpupri, rq->cpu, rt_rq->highest_prio.curr);
 }

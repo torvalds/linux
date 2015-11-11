@@ -52,20 +52,17 @@ static void unmark_dirty(struct super_block *s)
 }
 
 /* Filesystem error... */
+static char err_buf[1024];
+
 void hpfs_error(struct super_block *s, const char *fmt, ...)
 {
-	struct va_format vaf;
 	va_list args;
 
 	va_start(args, fmt);
-
-	vaf.fmt = fmt;
-	vaf.va = &args;
-
-	pr_err("filesystem error: %pV", &vaf);
-
+	vsnprintf(err_buf, sizeof(err_buf), fmt, args);
 	va_end(args);
 
+	printk("HPFS: filesystem error: %s", err_buf);
 	if (!hpfs_sb(s)->sb_was_error) {
 		if (hpfs_sb(s)->sb_err == 2) {
 			printk("; crashing the system because you wanted it\n");
@@ -398,8 +395,6 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
 	char *new_opts = kstrdup(data, GFP_KERNEL);
 	
-	sync_filesystem(s);
-
 	*flags |= MS_NOATIME;
 	
 	hpfs_lock(s);
@@ -563,13 +558,7 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	sbi->sb_cp_table = NULL;
 	sbi->sb_c_bitmap = -1;
 	sbi->sb_max_fwd_alloc = 0xffffff;
-
-	if (sbi->sb_fs_size >= 0x80000000) {
-		hpfs_error(s, "invalid size in superblock: %08x",
-			(unsigned)sbi->sb_fs_size);
-		goto bail4;
-	}
-
+	
 	/* Load bitmap directory */
 	if (!(sbi->sb_bmp_dir = hpfs_load_bitmap_directory(s, le32_to_cpu(superblock->bitmaps))))
 		goto bail4;

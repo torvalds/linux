@@ -272,4 +272,4 @@ module_exit(sha256_ssse3_mod_fini);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SHA256 Secure Hash Algorithm, Supplemental SSE3 accelerated");
 
-MODULE_ALIAS_CRYPTO("sha256");
+MODULE_ALIAS("sha256");

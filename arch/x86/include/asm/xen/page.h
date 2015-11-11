@@ -79,38 +79,30 @@ static inline int phys_to_machine_mapping_valid(unsigned long pfn)
 	return get_phys_to_machine(pfn) != INVALID_P2M_ENTRY;
 }
 
-static inline unsigned long mfn_to_pfn_no_overrides(unsigned long mfn)
+static inline unsigned long mfn_to_pfn(unsigned long mfn)
 {
 	unsigned long pfn;
-	int ret;
+	int ret = 0;
 
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return mfn;
 
-	if (unlikely(mfn >= machine_to_phys_nr))
-		return ~0;
-
+	if (unlikely(mfn >= machine_to_phys_nr)) {
+		pfn = ~0;
+		goto try_override;
+	}
+	pfn = 0;
 	/*
 	 * The array access can fail (e.g., device space beyond end of RAM).
 	 * In such cases it doesn't matter what we return (we return garbage),
 	 * but we must handle the fault without crashing!
 	 */
 	ret = __get_user(pfn, &machine_to_phys_mapping[mfn]);
+try_override:
+	/* ret might be < 0 if there are no entries in the m2p for mfn */
 	if (ret < 0)
-		return ~0;
-
-	return pfn;
-}
-
-static inline unsigned long mfn_to_pfn(unsigned long mfn)
-{
-	unsigned long pfn;
-
-	if (xen_feature(XENFEAT_auto_translated_physmap))
-		return mfn;
-
-	pfn = mfn_to_pfn_no_overrides(mfn);
-	if (get_phys_to_machine(pfn) != mfn) {
+		pfn = ~0;
+	else if (get_phys_to_machine(pfn) != mfn)
 		/*
 		 * If this appears to be a foreign mfn (because the pfn
 		 * doesn't map back to the mfn), then check the local override
@@ -119,7 +111,6 @@ static inline unsigned long mfn_to_pfn(unsigned long mfn)
 		 * m2p_find_override_pfn returns ~0 if it doesn't find anything.
 		 */
 		pfn = m2p_find_override_pfn(mfn, ~0);
-	}
 
 	/* 
 	 * pfn is ~0 if there are no entries in the m2p for mfn or if the

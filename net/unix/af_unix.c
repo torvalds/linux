@@ -114,7 +114,6 @@
 #include <linux/mount.h>
 #include <net/checksum.h>
 #include <linux/security.h>
-#include <linux/freezer.h>
 
 struct hlist_head unix_socket_table[2 * UNIX_HASH_SIZE];
 EXPORT_SYMBOL_GPL(unix_socket_table);
@@ -161,8 +160,9 @@ static inline void unix_set_secdata(struct scm_cookie *scm, struct sk_buff *skb)
 
 static inline unsigned int unix_hash_fold(__wsum n)
 {
-	unsigned int hash = (__force unsigned int)csum_fold(n);
+	unsigned int hash = (__force unsigned int)n;
 
+	hash ^= hash>>16;
 	hash ^= hash>>8;
 	return hash&(UNIX_HASH_SIZE-1);
 }
@@ -529,17 +529,13 @@ static int unix_seqpacket_sendmsg(struct kiocb *, struct socket *,
 static int unix_seqpacket_recvmsg(struct kiocb *, struct socket *,
 				  struct msghdr *, size_t, int);
 
-static int unix_set_peek_off(struct sock *sk, int val)
+static void unix_set_peek_off(struct sock *sk, int val)
 {
 	struct unix_sock *u = unix_sk(sk);
 
-	if (mutex_lock_interruptible(&u->readlock))
-		return -EINTR;
-
+	mutex_lock(&u->readlock);
 	sk->sk_peek_off = val;
 	mutex_unlock(&u->readlock);
-
-	return 0;
 }
 
 
@@ -717,9 +713,7 @@ static int unix_autobind(struct socket *sock)
 	int err;
 	unsigned int retries = 0;
 
-	err = mutex_lock_interruptible(&u->readlock);
-	if (err)
-		return err;
+	mutex_lock(&u->readlock);
 
 	err = 0;
 	if (u->addr)
@@ -878,9 +872,7 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		goto out;
 	addr_len = err;
 
-	err = mutex_lock_interruptible(&u->readlock);
-	if (err)
-		goto out;
+	mutex_lock(&u->readlock);
 
 	err = -EINVAL;
 	if (u->addr)
@@ -1253,15 +1245,6 @@ static int unix_socketpair(struct socket *socka, struct socket *sockb)
 	return 0;
 }
 
-static void unix_sock_inherit_flags(const struct socket *old,
-				    struct socket *new)
-{
-	if (test_bit(SOCK_PASSCRED, &old->flags))
-		set_bit(SOCK_PASSCRED, &new->flags);
-	if (test_bit(SOCK_PASSSEC, &old->flags))
-		set_bit(SOCK_PASSSEC, &new->flags);
-}
-
 static int unix_accept(struct socket *sock, struct socket *newsock, int flags)
 {
 	struct sock *sk = sock->sk;
@@ -1296,7 +1279,6 @@ static int unix_accept(struct socket *sock, struct socket *newsock, int flags)
 	/* attach accepted sock to socket */
 	unix_state_lock(tsk);
 	newsock->state = SS_CONNECTED;
-	unix_sock_inherit_flags(sock, newsock);
 	sock_graft(tsk, newsock);
 	unix_state_unlock(tsk);
 	return 0;
@@ -1769,6 +1751,7 @@ static void unix_copy_addr(struct msghdr *msg, struct sock *sk)
 {
 	struct unix_sock *u = unix_sk(sk);
 
+	msg->msg_namelen = 0;
 	if (u->addr) {
 		msg->msg_namelen = u->addr->len;
 		memcpy(msg->msg_name, u->addr->name, u->addr->len);
@@ -1792,12 +1775,11 @@ static int unix_dgram_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (flags&MSG_OOB)
 		goto out;
 
+	msg->msg_namelen = 0;
+
 	err = mutex_lock_interruptible(&u->readlock);
-	if (unlikely(err)) {
-		/* recvmsg() in non blocking mode is supposed to return -EAGAIN
-		 * sk_rcvtimeo is not honored by mutex_lock_interruptible()
-		 */
-		err = noblock ? -EAGAIN : -ERESTARTSYS;
+	if (err) {
+		err = sock_intr_errno(sock_rcvtimeo(sk, noblock));
 		goto out;
 	}
 
@@ -1897,12 +1879,8 @@ static long unix_stream_data_wait(struct sock *sk, long timeo,
 
 		set_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
 		unix_state_unlock(sk);
-		timeo = freezable_schedule_timeout(timeo);
+		timeo = schedule_timeout(timeo);
 		unix_state_lock(sk);
-
-		if (sock_flag(sk, SOCK_DEAD))
-			break;
-
 		clear_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
 	}
 
@@ -1921,7 +1899,6 @@ static int unix_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 	struct unix_sock *u = unix_sk(sk);
 	struct sockaddr_un *sunaddr = msg->msg_name;
 	int copied = 0;
-	int noblock = flags & MSG_DONTWAIT;
 	int check_creds = 0;
 	int target;
 	int err = 0;
@@ -1937,7 +1914,9 @@ static int unix_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 		goto out;
 
 	target = sock_rcvlowat(sk, flags&MSG_WAITALL, size);
-	timeo = sock_rcvtimeo(sk, noblock);
+	timeo = sock_rcvtimeo(sk, flags&MSG_DONTWAIT);
+
+	msg->msg_namelen = 0;
 
 	/* Lock the socket to prevent queue disordering
 	 * while sleeps in memcpy_tomsg
@@ -1949,11 +1928,8 @@ static int unix_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 	}
 
 	err = mutex_lock_interruptible(&u->readlock);
-	if (unlikely(err)) {
-		/* recvmsg() in non blocking mode is supposed to return -EAGAIN
-		 * sk_rcvtimeo is not honored by mutex_lock_interruptible()
-		 */
-		err = noblock ? -EAGAIN : -ERESTARTSYS;
+	if (err) {
+		err = sock_intr_errno(timeo);
 		goto out;
 	}
 
@@ -1962,10 +1938,6 @@ static int unix_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 		struct sk_buff *skb, *last;
 
 		unix_state_lock(sk);
-		if (sock_flag(sk, SOCK_DEAD)) {
-			err = -ECONNRESET;
-			goto unlock;
-		}
 		last = skb = skb_peek(&sk->sk_receive_queue);
 again:
 		if (skb == NULL) {
@@ -2064,20 +2036,8 @@ again:
 			if (UNIXCB(skb).fp)
 				siocb->scm->fp = scm_fp_dup(UNIXCB(skb).fp);
 
-			if (skip) {
-				sk_peek_offset_fwd(sk, chunk);
-				skip -= chunk;
-			}
+			sk_peek_offset_fwd(sk, chunk);
 
-			if (UNIXCB(skb).fp)
-				break;
-
-			last = skb;
-			unix_state_lock(sk);
-			skb = skb_peek_next(skb, &sk->sk_receive_queue);
-			if (skb)
-				goto again;
-			unix_state_unlock(sk);
 			break;
 		}
 	} while (size);

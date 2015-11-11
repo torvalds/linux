@@ -88,9 +88,7 @@ static unsigned int rds_iw_unmap_fastreg_list(struct rds_iw_mr_pool *pool,
 			int *unpinned);
 static void rds_iw_destroy_fastreg(struct rds_iw_mr_pool *pool, struct rds_iw_mr *ibmr);
 
-static int rds_iw_get_device(struct sockaddr_in *src, struct sockaddr_in *dst,
-			     struct rds_iw_device **rds_iwdev,
-			     struct rdma_cm_id **cm_id)
+static int rds_iw_get_device(struct rds_sock *rs, struct rds_iw_device **rds_iwdev, struct rdma_cm_id **cm_id)
 {
 	struct rds_iw_device *iwdev;
 	struct rds_iw_cm_id *i_cm_id;
@@ -114,15 +112,15 @@ static int rds_iw_get_device(struct sockaddr_in *src, struct sockaddr_in *dst,
 				src_addr->sin_port,
 				dst_addr->sin_addr.s_addr,
 				dst_addr->sin_port,
-				src->sin_addr.s_addr,
-				src->sin_port,
-				dst->sin_addr.s_addr,
-				dst->sin_port);
+				rs->rs_bound_addr,
+				rs->rs_bound_port,
+				rs->rs_conn_addr,
+				rs->rs_conn_port);
 #ifdef WORKING_TUPLE_DETECTION
-			if (src_addr->sin_addr.s_addr == src->sin_addr.s_addr &&
-			    src_addr->sin_port == src->sin_port &&
-			    dst_addr->sin_addr.s_addr == dst->sin_addr.s_addr &&
-			    dst_addr->sin_port == dst->sin_port) {
+			if (src_addr->sin_addr.s_addr == rs->rs_bound_addr &&
+			    src_addr->sin_port == rs->rs_bound_port &&
+			    dst_addr->sin_addr.s_addr == rs->rs_conn_addr &&
+			    dst_addr->sin_port == rs->rs_conn_port) {
 #else
 			/* FIXME - needs to compare the local and remote
 			 * ipaddr/port tuple, but the ipaddr is the only
@@ -130,7 +128,7 @@ static int rds_iw_get_device(struct sockaddr_in *src, struct sockaddr_in *dst,
 			 * zero'ed.  It doesn't appear to be properly populated
 			 * during connection setup...
 			 */
-			if (src_addr->sin_addr.s_addr == src->sin_addr.s_addr) {
+			if (src_addr->sin_addr.s_addr == rs->rs_bound_addr) {
 #endif
 				spin_unlock_irq(&iwdev->spinlock);
 				*rds_iwdev = iwdev;
@@ -182,13 +180,19 @@ int rds_iw_update_cm_id(struct rds_iw_device *rds_iwdev, struct rdma_cm_id *cm_i
 {
 	struct sockaddr_in *src_addr, *dst_addr;
 	struct rds_iw_device *rds_iwdev_old;
+	struct rds_sock rs;
 	struct rdma_cm_id *pcm_id;
 	int rc;
 
 	src_addr = (struct sockaddr_in *)&cm_id->route.addr.src_addr;
 	dst_addr = (struct sockaddr_in *)&cm_id->route.addr.dst_addr;
 
-	rc = rds_iw_get_device(src_addr, dst_addr, &rds_iwdev_old, &pcm_id);
+	rs.rs_bound_addr = src_addr->sin_addr.s_addr;
+	rs.rs_bound_port = src_addr->sin_port;
+	rs.rs_conn_addr = dst_addr->sin_addr.s_addr;
+	rs.rs_conn_port = dst_addr->sin_port;
+
+	rc = rds_iw_get_device(&rs, &rds_iwdev_old, &pcm_id);
 	if (rc)
 		rds_iw_remove_cm_id(rds_iwdev, cm_id);
 
@@ -594,17 +598,9 @@ void *rds_iw_get_mr(struct scatterlist *sg, unsigned long nents,
 	struct rds_iw_device *rds_iwdev;
 	struct rds_iw_mr *ibmr = NULL;
 	struct rdma_cm_id *cm_id;
-	struct sockaddr_in src = {
-		.sin_addr.s_addr = rs->rs_bound_addr,
-		.sin_port = rs->rs_bound_port,
-	};
-	struct sockaddr_in dst = {
-		.sin_addr.s_addr = rs->rs_conn_addr,
-		.sin_port = rs->rs_conn_port,
-	};
 	int ret;
 
-	ret = rds_iw_get_device(&src, &dst, &rds_iwdev, &cm_id);
+	ret = rds_iw_get_device(rs, &rds_iwdev, &cm_id);
 	if (ret || !cm_id) {
 		ret = -ENODEV;
 		goto out;

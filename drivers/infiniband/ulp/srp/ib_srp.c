@@ -93,7 +93,6 @@ static void srp_send_completion(struct ib_cq *cq, void *target_ptr);
 static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event);
 
 static struct scsi_transport_template *ib_srp_transport_template;
-static struct workqueue_struct *srp_remove_wq;
 
 static struct ib_client srp_client = {
 	.name   = "srp",
@@ -457,7 +456,7 @@ static bool srp_queue_remove_work(struct srp_target_port *target)
 	spin_unlock_irq(&target->lock);
 
 	if (changed)
-		queue_work(srp_remove_wq, &target->remove_work);
+		queue_work(system_long_wq, &target->remove_work);
 
 	return changed;
 }
@@ -1301,13 +1300,14 @@ static void srp_handle_recv(struct srp_target_port *target, struct ib_wc *wc)
 			     PFX "Recv failed with error code %d\n", res);
 }
 
-static void srp_handle_qp_err(enum ib_wc_status wc_status, bool send_err,
+static void srp_handle_qp_err(enum ib_wc_status wc_status,
+			      enum ib_wc_opcode wc_opcode,
 			      struct srp_target_port *target)
 {
 	if (target->connected && !target->qp_in_error) {
 		shost_printk(KERN_ERR, target->scsi_host,
 			     PFX "failed %s status %d\n",
-			     send_err ? "send" : "receive",
+			     wc_opcode & IB_WC_RECV ? "receive" : "send",
 			     wc_status);
 	}
 	target->qp_in_error = true;
@@ -1323,7 +1323,7 @@ static void srp_recv_completion(struct ib_cq *cq, void *target_ptr)
 		if (likely(wc.status == IB_WC_SUCCESS)) {
 			srp_handle_recv(target, &wc);
 		} else {
-			srp_handle_qp_err(wc.status, false, target);
+			srp_handle_qp_err(wc.status, wc.opcode, target);
 		}
 	}
 }
@@ -1339,7 +1339,7 @@ static void srp_send_completion(struct ib_cq *cq, void *target_ptr)
 			iu = (struct srp_iu *) (uintptr_t) wc.wr_id;
 			list_add(&iu->list, &target->free_tx);
 		} else {
-			srp_handle_qp_err(wc.status, true, target);
+			srp_handle_qp_err(wc.status, wc.opcode, target);
 		}
 	}
 }
@@ -1409,12 +1409,6 @@ err_unmap:
 
 err_iu:
 	srp_put_tx_iu(target, iu, SRP_IU_CMD);
-
-	/*
-	 * Avoid that the loops that iterate over the request ring can
-	 * encounter a dangling SCSI command pointer.
-	 */
-	req->scmnd = NULL;
 
 	spin_lock_irqsave(&target->lock, flags);
 	list_add(&req->list, &target->free_reqs);
@@ -2531,10 +2525,9 @@ static void srp_remove_one(struct ib_device *device)
 		spin_unlock(&host->target_lock);
 
 		/*
-		 * Wait for tl_err and target port removal tasks.
+		 * Wait for target port removal tasks.
 		 */
 		flush_workqueue(system_long_wq);
-		flush_workqueue(srp_remove_wq);
 
 		kfree(host);
 	}
@@ -2579,22 +2572,16 @@ static int __init srp_init_module(void)
 		indirect_sg_entries = cmd_sg_entries;
 	}
 
-	srp_remove_wq = create_workqueue("srp_remove");
-	if (IS_ERR(srp_remove_wq)) {
-		ret = PTR_ERR(srp_remove_wq);
-		goto out;
-	}
-
-	ret = -ENOMEM;
 	ib_srp_transport_template =
 		srp_attach_transport(&ib_srp_transport_functions);
 	if (!ib_srp_transport_template)
-		goto destroy_wq;
+		return -ENOMEM;
 
 	ret = class_register(&srp_class);
 	if (ret) {
 		pr_err("couldn't register class infiniband_srp\n");
-		goto release_tr;
+		srp_release_transport(ib_srp_transport_template);
+		return ret;
 	}
 
 	ib_sa_register_client(&srp_sa_client);
@@ -2602,22 +2589,13 @@ static int __init srp_init_module(void)
 	ret = ib_register_client(&srp_client);
 	if (ret) {
 		pr_err("couldn't register IB client\n");
-		goto unreg_sa;
+		srp_release_transport(ib_srp_transport_template);
+		ib_sa_unregister_client(&srp_sa_client);
+		class_unregister(&srp_class);
+		return ret;
 	}
 
-out:
-	return ret;
-
-unreg_sa:
-	ib_sa_unregister_client(&srp_sa_client);
-	class_unregister(&srp_class);
-
-release_tr:
-	srp_release_transport(ib_srp_transport_template);
-
-destroy_wq:
-	destroy_workqueue(srp_remove_wq);
-	goto out;
+	return 0;
 }
 
 static void __exit srp_cleanup_module(void)
@@ -2626,7 +2604,6 @@ static void __exit srp_cleanup_module(void)
 	ib_sa_unregister_client(&srp_sa_client);
 	class_unregister(&srp_class);
 	srp_release_transport(ib_srp_transport_template);
-	destroy_workqueue(srp_remove_wq);
 }
 
 module_init(srp_init_module);

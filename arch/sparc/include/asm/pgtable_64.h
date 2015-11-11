@@ -24,8 +24,7 @@
 
 /* The kernel image occupies 0x4000000 to 0x6000000 (4MB --> 96MB).
  * The page copy blockops can use 0x6000000 to 0x8000000.
- * The 8K TSB is mapped in the 0x8000000 to 0x8400000 range.
- * The 4M TSB is mapped in the 0x8400000 to 0x8800000 range.
+ * The TSB is mapped in the 0x8000000 to 0xa000000 range.
  * The PROM resides in an area spanning 0xf0000000 to 0x100000000.
  * The vmalloc area spans 0x100000000 to 0x200000000.
  * Since modules need to be in the lowest 32-bits of the address space,
@@ -34,8 +33,7 @@
  * 0x400000000.
  */
 #define	TLBTEMP_BASE		_AC(0x0000000006000000,UL)
-#define	TSBMAP_8K_BASE		_AC(0x0000000008000000,UL)
-#define	TSBMAP_4M_BASE		_AC(0x0000000008400000,UL)
+#define	TSBMAP_BASE		_AC(0x0000000008000000,UL)
 #define MODULES_VADDR		_AC(0x0000000010000000,UL)
 #define MODULES_LEN		_AC(0x00000000e0000000,UL)
 #define MODULES_END		_AC(0x00000000f0000000,UL)
@@ -618,7 +616,7 @@ static inline unsigned long pte_present(pte_t pte)
 }
 
 #define pte_accessible pte_accessible
-static inline unsigned long pte_accessible(struct mm_struct *mm, pte_t a)
+static inline unsigned long pte_accessible(pte_t a)
 {
 	return pte_val(a) & _PAGE_VALID;
 }
@@ -808,7 +806,7 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 	 * SUN4V NOTE: _PAGE_VALID is the same value in both the SUN4U
 	 *             and SUN4V pte layout, so this inline test is fine.
 	 */
-	if (likely(mm != &init_mm) && pte_accessible(mm, orig))
+	if (likely(mm != &init_mm) && pte_accessible(orig))
 		tlb_batch_add(mm, addr, ptep, orig, fullmm);
 }
 

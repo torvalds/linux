@@ -467,10 +467,6 @@ struct snd_usb_endpoint *snd_usb_add_endpoint(struct snd_usb_audio *chip,
 			ep->syncinterval = 3;
 
 		ep->syncmaxsize = le16_to_cpu(get_endpoint(alts, 1)->wMaxPacketSize);
-
-		if (chip->usb_id == USB_ID(0x0644, 0x8038) /* TEAC UD-H01 */ &&
-		    ep->syncmaxsize == 4)
-			ep->udh01_fb_quirk = 1;
 	}
 
 	list_add_tail(&ep->list, &chip->ep_list);
@@ -595,16 +591,17 @@ static int data_ep_set_params(struct snd_usb_endpoint *ep,
 	ep->stride = frame_bits >> 3;
 	ep->silence_value = pcm_format == SNDRV_PCM_FORMAT_U8 ? 0x80 : 0;
 
-	/* assume max. frequency is 25% higher than nominal */
-	ep->freqmax = ep->freqn + (ep->freqn >> 2);
-	maxsize = ((ep->freqmax + 0xffff) * (frame_bits >> 3))
-				>> (16 - ep->datainterval);
-	/* but wMaxPacketSize might reduce this */
-	if (ep->maxpacksize && ep->maxpacksize < maxsize) {
+	/* calculate max. frequency */
+	if (ep->maxpacksize) {
 		/* whatever fits into a max. size packet */
 		maxsize = ep->maxpacksize;
 		ep->freqmax = (maxsize / (frame_bits >> 3))
 				<< (16 - ep->datainterval);
+	} else {
+		/* no max. packet size: just take 25% higher than nominal */
+		ep->freqmax = ep->freqn + (ep->freqn >> 2);
+		maxsize = ((ep->freqmax + 0xffff) * (frame_bits >> 3))
+				>> (16 - ep->datainterval);
 	}
 
 	if (ep->fill_max)
@@ -1079,16 +1076,7 @@ void snd_usb_handle_sync_urb(struct snd_usb_endpoint *ep,
 	if (f == 0)
 		return;
 
-	if (unlikely(sender->udh01_fb_quirk)) {
-		/*
-		 * The TEAC UD-H01 firmware sometimes changes the feedback value
-		 * by +/- 0x1.0000.
-		 */
-		if (f < ep->freqn - 0x8000)
-			f += 0x10000;
-		else if (f > ep->freqn + 0x8000)
-			f -= 0x10000;
-	} else if (unlikely(ep->freqshift == INT_MIN)) {
+	if (unlikely(ep->freqshift == INT_MIN)) {
 		/*
 		 * The first time we see a feedback value, determine its format
 		 * by shifting it left or right until it matches the nominal

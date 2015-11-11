@@ -55,7 +55,6 @@ static int qnx6_show_options(struct seq_file *seq, struct dentry *root)
 
 static int qnx6_remount(struct super_block *sb, int *flags, char *data)
 {
-	sync_filesystem(sb);
 	*flags |= MS_RDONLY;
 	return 0;
 }

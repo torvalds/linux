@@ -1034,19 +1034,37 @@ struct ffs_sb_fill_data {
 	struct ffs_file_perms perms;
 	umode_t root_mode;
 	const char *dev_name;
-	struct ffs_data *ffs_data;
+	union {
+		/* set by ffs_fs_mount(), read by ffs_sb_fill() */
+		void *private_data;
+		/* set by ffs_sb_fill(), read by ffs_fs_mount */
+		struct ffs_data *ffs_data;
+	};
 };
 
 static int ffs_sb_fill(struct super_block *sb, void *_data, int silent)
 {
 	struct ffs_sb_fill_data *data = _data;
 	struct inode	*inode;
-	struct ffs_data	*ffs = data->ffs_data;
+	struct ffs_data	*ffs;
 
 	ENTER();
 
+	/* Initialise data */
+	ffs = ffs_data_new();
+	if (unlikely(!ffs))
+		goto Enomem;
+
 	ffs->sb              = sb;
-	data->ffs_data       = NULL;
+	ffs->dev_name        = kstrdup(data->dev_name, GFP_KERNEL);
+	if (unlikely(!ffs->dev_name))
+		goto Enomem;
+	ffs->file_perms      = data->perms;
+	ffs->private_data    = data->private_data;
+
+	/* used by the caller of this function */
+	data->ffs_data       = ffs;
+
 	sb->s_fs_info        = ffs;
 	sb->s_blocksize      = PAGE_CACHE_SIZE;
 	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
@@ -1062,14 +1080,17 @@ static int ffs_sb_fill(struct super_block *sb, void *_data, int silent)
 				  &data->perms);
 	sb->s_root = d_make_root(inode);
 	if (unlikely(!sb->s_root))
-		return -ENOMEM;
+		goto Enomem;
 
 	/* EP0 file */
 	if (unlikely(!ffs_sb_create_file(sb, "ep0", ffs,
 					 &ffs_ep0_operations, NULL)))
-		return -ENOMEM;
+		goto Enomem;
 
 	return 0;
+
+Enomem:
+	return -ENOMEM;
 }
 
 static int ffs_fs_parse_opts(struct ffs_sb_fill_data *data, char *opts)
@@ -1172,7 +1193,6 @@ ffs_fs_mount(struct file_system_type *t, int flags,
 	struct dentry *rv;
 	int ret;
 	void *ffs_dev;
-	struct ffs_data	*ffs;
 
 	ENTER();
 
@@ -1180,30 +1200,18 @@ ffs_fs_mount(struct file_system_type *t, int flags,
 	if (unlikely(ret < 0))
 		return ERR_PTR(ret);
 
-	ffs = ffs_data_new();
-	if (unlikely(!ffs))
-		return ERR_PTR(-ENOMEM);
-	ffs->file_perms = data.perms;
-
-	ffs->dev_name = kstrdup(dev_name, GFP_KERNEL);
-	if (unlikely(!ffs->dev_name)) {
-		ffs_data_put(ffs);
-		return ERR_PTR(-ENOMEM);
-	}
-
 	ffs_dev = functionfs_acquire_dev_callback(dev_name);
-	if (IS_ERR(ffs_dev)) {
-		ffs_data_put(ffs);
-		return ERR_CAST(ffs_dev);
-	}
-	ffs->private_data = ffs_dev;
-	data.ffs_data = ffs;
+	if (IS_ERR(ffs_dev))
+		return ffs_dev;
 
+	data.dev_name = dev_name;
+	data.private_data = ffs_dev;
 	rv = mount_nodev(t, flags, &data, ffs_sb_fill);
-	if (IS_ERR(rv) && data.ffs_data) {
+
+	/* data.ffs_data is set by ffs_sb_fill */
+	if (IS_ERR(rv))
 		functionfs_release_dev_callback(data.ffs_data);
-		ffs_data_put(data.ffs_data);
-	}
+
 	return rv;
 }
 
@@ -1389,13 +1397,11 @@ static int functionfs_bind(struct ffs_data *ffs, struct usb_composite_dev *cdev)
 	ffs->ep0req->context = ffs;
 
 	lang = ffs->stringtabs;
-	if (lang) {
-		for (; *lang; ++lang) {
-			struct usb_string *str = (*lang)->strings;
-			int id = first_id;
-			for (; str->s; ++id, ++str)
-				str->id = id;
-		}
+	for (lang = ffs->stringtabs; *lang; ++lang) {
+		struct usb_string *str = (*lang)->strings;
+		int id = first_id;
+		for (; str->s; ++id, ++str)
+			str->id = id;
 	}
 
 	ffs->gadget = cdev->gadget;
@@ -1563,12 +1569,7 @@ static int ffs_func_eps_enable(struct ffs_function *func)
 	spin_lock_irqsave(&func->ffs->eps_lock, flags);
 	do {
 		struct usb_endpoint_descriptor *ds;
-		int desc_idx = ffs->gadget->speed == USB_SPEED_HIGH ? 1 : 0;
-		ds = ep->descs[desc_idx];
-		if (!ds) {
-			ret = -EINVAL;
-			break;
-		}
+		ds = ep->descs[ep->descs[1] ? 1 : 0];
 
 		ep->ep->driver_data = ep;
 		ep->ep->desc = ds;

@@ -131,9 +131,11 @@ static int wm8775_s_routing(struct v4l2_subdev *sd,
 		return -EINVAL;
 	}
 	state->input = input;
-	if (v4l2_ctrl_g_ctrl(state->mute))
+	if (!v4l2_ctrl_g_ctrl(state->mute))
 		return 0;
 	if (!v4l2_ctrl_g_ctrl(state->vol))
+		return 0;
+	if (!v4l2_ctrl_g_ctrl(state->bal))
 		return 0;
 	wm8775_set_audio(sd, 1);
 	return 0;

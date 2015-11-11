@@ -305,11 +305,9 @@ static void vlan_sync_address(struct net_device *dev,
 static void vlan_transfer_features(struct net_device *dev,
 				   struct net_device *vlandev)
 {
-	struct vlan_dev_priv *vlan = vlan_dev_priv(vlandev);
-
 	vlandev->gso_max_size = dev->gso_max_size;
 
-	if (vlan_hw_offload_capable(dev->features, vlan->vlan_proto))
+	if (dev->features & NETIF_F_HW_VLAN_CTAG_TX)
 		vlandev->hard_header_len = dev->hard_header_len;
 	else
 		vlandev->hard_header_len = dev->hard_header_len + VLAN_HLEN;

@@ -18,6 +18,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/spinlock.h>
+#include <video/vga.h>
 
 #include <asm/irq.h>
 #include <asm/mach/pci.h>
@@ -275,6 +276,8 @@ int __init dc21285_setup(int nr, struct pci_sys_data *sys)
 
 	sys->mem_offset  = DC21285_PCI_MEM;
 
+	pci_ioremap_io(0, DC21285_PCI_IO);
+
 	pci_add_resource_offset(&sys->resources, &res[0], sys->mem_offset);
 	pci_add_resource_offset(&sys->resources, &res[1], sys->mem_offset);
 
@@ -290,6 +293,7 @@ void __init dc21285_preinit(void)
 	int cfn_mode;
 
 	pcibios_min_mem = 0x81000000;
+	vga_base = PCIMEM_BASE;
 
 	mem_size = (unsigned int)high_memory - PAGE_OFFSET;
 	for (mem_mask = 0x00100000; mem_mask < 0x10000000; mem_mask <<= 1)

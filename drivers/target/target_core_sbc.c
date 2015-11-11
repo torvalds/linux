@@ -63,7 +63,7 @@ sbc_emulate_readcapacity(struct se_cmd *cmd)
 		transport_kunmap_data_sg(cmd);
 	}
 
-	target_complete_cmd_with_length(cmd, GOOD, 8);
+	target_complete_cmd(cmd, GOOD);
 	return 0;
 }
 
@@ -101,7 +101,7 @@ sbc_emulate_readcapacity_16(struct se_cmd *cmd)
 		transport_kunmap_data_sg(cmd);
 	}
 
-	target_complete_cmd_with_length(cmd, GOOD, 32);
+	target_complete_cmd(cmd, GOOD);
 	return 0;
 }
 
@@ -561,9 +561,23 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 	if (cmd->se_cmd_flags & SCF_SCSI_DATA_CDB) {
 		unsigned long long end_lba;
 
+		if (sectors > dev->dev_attrib.fabric_max_sectors) {
+			printk_ratelimited(KERN_ERR "SCSI OP %02xh with too"
+				" big sectors %u exceeds fabric_max_sectors:"
+				" %u\n", cdb[0], sectors,
+				dev->dev_attrib.fabric_max_sectors);
+			return TCM_INVALID_CDB_FIELD;
+		}
+		if (sectors > dev->dev_attrib.hw_max_sectors) {
+			printk_ratelimited(KERN_ERR "SCSI OP %02xh with too"
+				" big sectors %u exceeds backend hw_max_sectors:"
+				" %u\n", cdb[0], sectors,
+				dev->dev_attrib.hw_max_sectors);
+			return TCM_INVALID_CDB_FIELD;
+		}
+
 		end_lba = dev->transport->get_blocks(dev) + 1;
-		if (((cmd->t_task_lba + sectors) < cmd->t_task_lba) ||
-		    ((cmd->t_task_lba + sectors) > end_lba)) {
+		if (cmd->t_task_lba + sectors > end_lba) {
 			pr_err("cmd exceeds last lba %llu "
 				"(lba %llu, sectors %u)\n",
 				end_lba, cmd->t_task_lba, sectors);

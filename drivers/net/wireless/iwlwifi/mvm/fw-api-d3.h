@@ -75,15 +75,13 @@ enum iwl_d3_wakeup_flags {
  * struct iwl_d3_manager_config - D3 manager configuration command
  * @min_sleep_time: minimum sleep time (in usec)
  * @wakeup_flags: wakeup flags, see &enum iwl_d3_wakeup_flags
- * @wakeup_host_timer: force wakeup after this many seconds
  *
  * The structure is used for the D3_CONFIG_CMD command.
  */
 struct iwl_d3_manager_config {
 	__le32 min_sleep_time;
 	__le32 wakeup_flags;
-	__le32 wakeup_host_timer;
-} __packed; /* D3_MANAGER_CONFIG_CMD_S_VER_4 */
+} __packed; /* D3_MANAGER_CONFIG_CMD_S_VER_3 */
 
 
 /* TODO: OFFLOADS_QUERY_API_S_VER_1 */

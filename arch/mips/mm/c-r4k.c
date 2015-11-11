@@ -12,7 +12,6 @@
 #include <linux/highmem.h>
 #include <linux/kernel.h>
 #include <linux/linkage.h>
-#include <linux/preempt.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/mm.h>
@@ -602,13 +601,11 @@ static void r4k_dma_cache_wback_inv(unsigned long addr, unsigned long size)
 	/* Catch bad driver code */
 	BUG_ON(size == 0);
 
-	preempt_disable();
 	if (cpu_has_inclusive_pcaches) {
 		if (size >= scache_size)
 			r4k_blast_scache();
 		else
 			blast_scache_range(addr, addr + size);
-		preempt_enable();
 		__sync();
 		return;
 	}
@@ -624,7 +621,6 @@ static void r4k_dma_cache_wback_inv(unsigned long addr, unsigned long size)
 		R4600_HIT_CACHEOP_WAR_IMPL;
 		blast_dcache_range(addr, addr + size);
 	}
-	preempt_enable();
 
 	bc_wback_inv(addr, size);
 	__sync();
@@ -635,7 +631,6 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 	/* Catch bad driver code */
 	BUG_ON(size == 0);
 
-	preempt_disable();
 	if (cpu_has_inclusive_pcaches) {
 		if (size >= scache_size)
 			r4k_blast_scache();
@@ -650,7 +645,6 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 			 */
 			blast_inv_scache_range(addr, addr + size);
 		}
-		preempt_enable();
 		__sync();
 		return;
 	}
@@ -661,7 +655,6 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 		R4600_HIT_CACHEOP_WAR_IMPL;
 		blast_inv_dcache_range(addr, addr + size);
 	}
-	preempt_enable();
 
 	bc_inv(addr, size);
 	__sync();

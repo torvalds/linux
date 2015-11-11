@@ -1299,7 +1299,7 @@ isp1301_set_host(struct usb_otg *otg, struct usb_bus *host)
 		return isp1301_otg_enable(isp);
 	return 0;
 
-#elif !IS_ENABLED(CONFIG_USB_OMAP)
+#elif	!defined(CONFIG_USB_GADGET_OMAP)
 	// FIXME update its refcount
 	otg->host = host;
 

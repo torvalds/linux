@@ -24,40 +24,27 @@
 struct backend_info {
 	struct xenbus_device *dev;
 	struct xenvif *vif;
-
-	/* This is the state that will be reflected in xenstore when any
-	 * active hotplug script completes.
-	 */
-	enum xenbus_state state;
-
 	enum xenbus_state frontend_state;
 	struct xenbus_watch hotplug_status_watch;
 	u8 have_hotplug_status_watch:1;
-
-	const char *hotplug_script;
 };
 
 static int connect_rings(struct backend_info *);
 static void connect(struct backend_info *);
 static void backend_create_xenvif(struct backend_info *be);
 static void unregister_hotplug_status_watch(struct backend_info *be);
-static void set_backend_state(struct backend_info *be,
-			      enum xenbus_state state);
 
 static int netback_remove(struct xenbus_device *dev)
 {
 	struct backend_info *be = dev_get_drvdata(&dev->dev);
 
-	set_backend_state(be, XenbusStateClosed);
-
 	unregister_hotplug_status_watch(be);
 	if (be->vif) {
 		kobject_uevent(&dev->dev.kobj, KOBJ_OFFLINE);
 		xenbus_rm(XBT_NIL, dev->nodename, "hotplug-status");
-		xenvif_free(be->vif);
+		xenvif_disconnect(be->vif);
 		be->vif = NULL;
 	}
-	kfree(be->hotplug_script);
 	kfree(be);
 	dev_set_drvdata(&dev->dev, NULL);
 	return 0;
@@ -75,7 +62,6 @@ static int netback_probe(struct xenbus_device *dev,
 	struct xenbus_transaction xbt;
 	int err;
 	int sg;
-	const char *script;
 	struct backend_info *be = kzalloc(sizeof(struct backend_info),
 					  GFP_KERNEL);
 	if (!be) {
@@ -136,20 +122,9 @@ static int netback_probe(struct xenbus_device *dev,
 		goto fail;
 	}
 
-	script = xenbus_read(XBT_NIL, dev->nodename, "script", NULL);
-	if (IS_ERR(script)) {
-		err = PTR_ERR(script);
-		xenbus_dev_fatal(dev, err, "reading script");
-		goto fail;
-	}
-
-	be->hotplug_script = script;
-
 	err = xenbus_switch_state(dev, XenbusStateInitWait);
 	if (err)
 		goto fail;
-
-	be->state = XenbusStateInitWait;
 
 	/* This kicks hotplug scripts, so do it immediately. */
 	backend_create_xenvif(be);
@@ -175,14 +150,22 @@ static int netback_uevent(struct xenbus_device *xdev,
 			  struct kobj_uevent_env *env)
 {
 	struct backend_info *be = dev_get_drvdata(&xdev->dev);
+	char *val;
 
-	if (!be)
-		return 0;
+	val = xenbus_read(XBT_NIL, xdev->nodename, "script", NULL);
+	if (IS_ERR(val)) {
+		int err = PTR_ERR(val);
+		xenbus_dev_fatal(xdev, err, "reading script");
+		return err;
+	} else {
+		if (add_uevent_var(env, "script=%s", val)) {
+			kfree(val);
+			return -ENOMEM;
+		}
+		kfree(val);
+	}
 
-	if (add_uevent_var(env, "script=%s", be->hotplug_script))
-		return -ENOMEM;
-
-	if (!be->vif)
+	if (!be || !be->vif)
 		return 0;
 
 	return add_uevent_var(env, "vif=%s", be->vif->dev->name);
@@ -215,113 +198,15 @@ static void backend_create_xenvif(struct backend_info *be)
 	kobject_uevent(&dev->dev.kobj, KOBJ_ONLINE);
 }
 
-static void backend_disconnect(struct backend_info *be)
+
+static void disconnect_backend(struct xenbus_device *dev)
 {
-	if (be->vif)
+	struct backend_info *be = dev_get_drvdata(&dev->dev);
+
+	if (be->vif) {
+		xenbus_rm(XBT_NIL, dev->nodename, "hotplug-status");
 		xenvif_disconnect(be->vif);
-}
-
-static void backend_connect(struct backend_info *be)
-{
-	if (be->vif)
-		connect(be);
-}
-
-static inline void backend_switch_state(struct backend_info *be,
-					enum xenbus_state state)
-{
-	struct xenbus_device *dev = be->dev;
-
-	pr_debug("%s -> %s\n", dev->nodename, xenbus_strstate(state));
-	be->state = state;
-
-	/* If we are waiting for a hotplug script then defer the
-	 * actual xenbus state change.
-	 */
-	if (!be->have_hotplug_status_watch)
-		xenbus_switch_state(dev, state);
-}
-
-/* Handle backend state transitions:
- *
- * The backend state starts in InitWait and the following transitions are
- * allowed.
- *
- * InitWait -> Connected
- *
- *    ^    \         |
- *    |     \        |
- *    |      \       |
- *    |       \      |
- *    |        \     |
- *    |         \    |
- *    |          V   V
- *
- *  Closed  <-> Closing
- *
- * The state argument specifies the eventual state of the backend and the
- * function transitions to that state via the shortest path.
- */
-static void set_backend_state(struct backend_info *be,
-			      enum xenbus_state state)
-{
-	while (be->state != state) {
-		switch (be->state) {
-		case XenbusStateClosed:
-			switch (state) {
-			case XenbusStateInitWait:
-			case XenbusStateConnected:
-				pr_info("%s: prepare for reconnect\n",
-					be->dev->nodename);
-				backend_switch_state(be, XenbusStateInitWait);
-				break;
-			case XenbusStateClosing:
-				backend_switch_state(be, XenbusStateClosing);
-				break;
-			default:
-				BUG();
-			}
-			break;
-		case XenbusStateInitWait:
-			switch (state) {
-			case XenbusStateConnected:
-				backend_connect(be);
-				backend_switch_state(be, XenbusStateConnected);
-				break;
-			case XenbusStateClosing:
-			case XenbusStateClosed:
-				backend_switch_state(be, XenbusStateClosing);
-				break;
-			default:
-				BUG();
-			}
-			break;
-		case XenbusStateConnected:
-			switch (state) {
-			case XenbusStateInitWait:
-			case XenbusStateClosing:
-			case XenbusStateClosed:
-				backend_disconnect(be);
-				backend_switch_state(be, XenbusStateClosing);
-				break;
-			default:
-				BUG();
-			}
-			break;
-		case XenbusStateClosing:
-			switch (state) {
-			case XenbusStateInitWait:
-			case XenbusStateConnected:
-			case XenbusStateClosed:
-				backend_switch_state(be, XenbusStateClosed);
-				break;
-			default:
-				BUG();
-			}
-			break;
-		default:
-			BUG();
-		}
+		be->vif = NULL;
 	}
 }
 
@@ -333,33 +218,43 @@ static void frontend_changed(struct xenbus_device *dev,
 {
 	struct backend_info *be = dev_get_drvdata(&dev->dev);
 
-	pr_debug("%s -> %s\n", dev->otherend, xenbus_strstate(frontend_state));
+	pr_debug("frontend state %s", xenbus_strstate(frontend_state));
 
 	be->frontend_state = frontend_state;
 
 	switch (frontend_state) {
 	case XenbusStateInitialising:
-		set_backend_state(be, XenbusStateInitWait);
+		if (dev->state == XenbusStateClosed) {
+			printk(KERN_INFO "%s: %s: prepare for reconnect\n",
+			       __func__, dev->nodename);
+			xenbus_switch_state(dev, XenbusStateInitWait);
+		}
 		break;
 
 	case XenbusStateInitialised:
 		break;
 
 	case XenbusStateConnected:
-		set_backend_state(be, XenbusStateConnected);
+		if (dev->state == XenbusStateConnected)
+			break;
+		backend_create_xenvif(be);
+		if (be->vif)
+			connect(be);
 		break;
 
 	case XenbusStateClosing:
-		set_backend_state(be, XenbusStateClosing);
+		if (be->vif)
+			kobject_uevent(&dev->dev.kobj, KOBJ_OFFLINE);
+		disconnect_backend(dev);
+		xenbus_switch_state(dev, XenbusStateClosing);
 		break;
 
 	case XenbusStateClosed:
-		set_backend_state(be, XenbusStateClosed);
+		xenbus_switch_state(dev, XenbusStateClosed);
 		if (xenbus_dev_is_online(dev))
 			break;
 		/* fall through if not online */
 	case XenbusStateUnknown:
-		set_backend_state(be, XenbusStateClosed);
 		device_unregister(&dev->dev);
 		break;
 
@@ -452,9 +347,7 @@ static void hotplug_status_changed(struct xenbus_watch *watch,
 	if (IS_ERR(str))
 		return;
 	if (len == sizeof("connected")-1 && !memcmp(str, "connected", len)) {
-		/* Complete any pending state change */
-		xenbus_switch_state(be->dev, be->state);
-
+		xenbus_switch_state(be->dev, XenbusStateConnected);
 		/* Not interested in this watch anymore. */
 		unregister_hotplug_status_watch(be);
 	}
@@ -484,8 +377,12 @@ static void connect(struct backend_info *be)
 	err = xenbus_watch_pathfmt(dev, &be->hotplug_status_watch,
 				   hotplug_status_changed,
 				   "%s/%s", dev->nodename, "hotplug-status");
-	if (!err)
+	if (err) {
+		/* Switch now, since we can't do a watch. */
+		xenbus_switch_state(dev, XenbusStateConnected);
+	} else {
 		be->have_hotplug_status_watch = 1;
+	}
 
 	netif_wake_queue(be->vif->dev);
 }

@@ -704,4 +704,3 @@ module_exit(anubis_mod_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Anubis Cryptographic Algorithm");
-MODULE_ALIAS_CRYPTO("anubis");

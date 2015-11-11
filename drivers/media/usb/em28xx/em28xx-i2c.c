@@ -726,7 +726,7 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned bus,
 
 	*eedata = data;
 	*eedata_len = len;
-	dev_config = (void *)*eedata;
+	dev_config = (void *)eedata;
 
 	switch (le16_to_cpu(dev_config->chip_conf) >> 4 & 0x3) {
 	case 0:

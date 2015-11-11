@@ -324,27 +324,14 @@ int acpi_bus_update_power(acpi_handle handle, int *state_p)
 	if (result)
 		return result;
 
-	if (state == ACPI_STATE_UNKNOWN) {
+	if (state == ACPI_STATE_UNKNOWN)
 		state = ACPI_STATE_D0;
-		result = acpi_device_set_power(device, state);
-		if (result)
-			return result;
-	} else {
-		if (device->power.flags.power_resources) {
-			/*
-			 * We don't need to really switch the state, bu we need
-			 * to update the power resources' reference counters.
-			 */
-			result = acpi_power_transition(device, state);
-			if (result)
-				return result;
-		}
-		device->power.state = state;
-	}
-	if (state_p)
+
+	result = acpi_device_set_power(device, state);
+	if (!result && state_p)
 		*state_p = state;
 
-	return 0;
+	return result;
 }
 EXPORT_SYMBOL_GPL(acpi_bus_update_power);
 
@@ -965,8 +952,6 @@ int acpi_dev_pm_attach(struct device *dev, bool power_on)
 		acpi_dev_pm_full_power(adev);
 		__acpi_device_run_wake(adev, false);
 	}
-
-	dev->pm_domain->detach = acpi_dev_pm_detach;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(acpi_dev_pm_attach);

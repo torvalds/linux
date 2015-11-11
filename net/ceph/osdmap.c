@@ -89,7 +89,7 @@ static int crush_decode_tree_bucket(void **p, void *end,
 {
 	int j;
 	dout("crush_decode_tree_bucket %p to %p\n", *p, end);
-	ceph_decode_8_safe(p, end, b->num_nodes, bad);
+	ceph_decode_32_safe(p, end, b->num_nodes, bad);
 	b->node_weights = kcalloc(b->num_nodes, sizeof(u32), GFP_NOFS);
 	if (b->node_weights == NULL)
 		return -ENOMEM;
@@ -1129,7 +1129,7 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 
 	/* pg_temp? */
 	pgid.seed = ceph_stable_mod(pgid.seed, pool->pg_num,
-				    pool->pg_num_mask);
+				    pool->pgp_num_mask);
 	pg = __lookup_pg_mapping(&osdmap->pg_temp, pgid);
 	if (pg) {
 		*num = pg->len;

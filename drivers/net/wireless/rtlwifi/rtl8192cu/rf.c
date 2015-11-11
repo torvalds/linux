@@ -85,15 +85,17 @@ void rtl92cu_phy_rf6052_set_cck_txpower(struct ieee80211_hw *hw,
 	if (mac->act_scanning) {
 		tx_agc[RF90_PATH_A] = 0x3f3f3f3f;
 		tx_agc[RF90_PATH_B] = 0x3f3f3f3f;
-		for (idx1 = RF90_PATH_A; idx1 <= RF90_PATH_B; idx1++) {
-			tx_agc[idx1] = ppowerlevel[idx1] |
-			    (ppowerlevel[idx1] << 8) |
-			    (ppowerlevel[idx1] << 16) |
-			    (ppowerlevel[idx1] << 24);
-			if (rtlhal->interface == INTF_USB) {
-				if (tx_agc[idx1] > 0x20 &&
-				    rtlefuse->external_pa)
-					tx_agc[idx1] = 0x20;
+		if (turbo_scanoff) {
+			for (idx1 = RF90_PATH_A; idx1 <= RF90_PATH_B; idx1++) {
+				tx_agc[idx1] = ppowerlevel[idx1] |
+				    (ppowerlevel[idx1] << 8) |
+				    (ppowerlevel[idx1] << 16) |
+				    (ppowerlevel[idx1] << 24);
+				if (rtlhal->interface == INTF_USB) {
+					if (tx_agc[idx1] > 0x20 &&
+					    rtlefuse->external_pa)
+						tx_agc[idx1] = 0x20;
+				}
 			}
 		}
 	} else {
@@ -102,10 +104,10 @@ void rtl92cu_phy_rf6052_set_cck_txpower(struct ieee80211_hw *hw,
 			tx_agc[RF90_PATH_A] = 0x10101010;
 			tx_agc[RF90_PATH_B] = 0x10101010;
 		} else if (rtlpriv->dm.dynamic_txhighpower_lvl ==
-			   TXHIGHPWRLEVEL_LEVEL2) {
+			   TXHIGHPWRLEVEL_LEVEL1) {
 			tx_agc[RF90_PATH_A] = 0x00000000;
 			tx_agc[RF90_PATH_B] = 0x00000000;
-		} else {
+		} else{
 			for (idx1 = RF90_PATH_A; idx1 <= RF90_PATH_B; idx1++) {
 				tx_agc[idx1] = ppowerlevel[idx1] |
 				    (ppowerlevel[idx1] << 8) |
@@ -371,12 +373,7 @@ static void _rtl92c_write_ofdm_power_reg(struct ieee80211_hw *hw,
 			    regoffset == RTXAGC_B_MCS07_MCS04)
 				regoffset = 0xc98;
 			for (i = 0; i < 3; i++) {
-				if (i != 2)
-					writeVal = (writeVal > 8) ?
-						   (writeVal - 8) : 0;
-				else
-					writeVal = (writeVal > 6) ?
-						   (writeVal - 6) : 0;
+				writeVal = (writeVal > 6) ? (writeVal - 6) : 0;
 				rtl_write_byte(rtlpriv, (u32)(regoffset + i),
 					      (u8)writeVal);
 			}

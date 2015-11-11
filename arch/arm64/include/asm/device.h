@@ -18,9 +18,6 @@
 
 struct dev_archdata {
 	struct dma_map_ops *dma_ops;
-#ifdef CONFIG_IOMMU_API
-	void *iommu;			/* private IOMMU data */
-#endif
 };
 
 struct pdev_archdata {

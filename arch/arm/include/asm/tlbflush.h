@@ -535,8 +535,6 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
 }
 #endif
 
-#define update_mmu_cache_pmd(vma, address, pmd) do { } while (0)
-
 #endif
 
 #endif /* CONFIG_MMU */

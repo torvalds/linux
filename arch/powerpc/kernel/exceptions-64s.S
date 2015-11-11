@@ -341,17 +341,10 @@ vsx_unavailable_pSeries_1:
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	vsx_unavailable_pSeries
 
-facility_unavailable_trampoline:
 	. = 0xf60
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
-	b	facility_unavailable_pSeries
-
-hv_facility_unavailable_trampoline:
-	. = 0xf80
-	SET_SCRATCH0(r13)
-	EXCEPTION_PROLOG_0(PACA_EXGEN)
-	b	facility_unavailable_hv
+	b	tm_unavailable_pSeries
 
 #ifdef CONFIG_CBE_RAS
 	STD_EXCEPTION_HV(0x1200, 0x1202, cbe_system_error)
@@ -529,10 +522,8 @@ denorm_done:
 	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0xf20)
 	STD_EXCEPTION_PSERIES_OOL(0xf40, vsx_unavailable)
 	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0xf40)
-	STD_EXCEPTION_PSERIES_OOL(0xf60, facility_unavailable)
+	STD_EXCEPTION_PSERIES_OOL(0xf60, tm_unavailable)
 	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0xf60)
-	STD_EXCEPTION_HV_OOL(0xf82, facility_unavailable)
-	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xf82)
 
 /*
  * An interrupt came in while soft-disabled. We set paca->irq_happened, then:
@@ -802,10 +793,14 @@ system_call_relon_pSeries:
 	STD_RELON_EXCEPTION_PSERIES(0x4d00, 0xd00, single_step)
 
 	. = 0x4e00
-	b	.	/* Can't happen, see v2.07 Book III-S section 6.5 */
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
+	b	h_data_storage_relon_hv
 
 	. = 0x4e20
-	b	.	/* Can't happen, see v2.07 Book III-S section 6.5 */
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
+	b	h_instr_storage_relon_hv
 
 	. = 0x4e40
 	SET_SCRATCH0(r13)
@@ -813,7 +808,9 @@ system_call_relon_pSeries:
 	b	emulation_assist_relon_hv
 
 	. = 0x4e60
-	b	.	/* Can't happen, see v2.07 Book III-S section 6.5 */
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
+	b	hmi_exception_relon_hv
 
 	. = 0x4e80
 	SET_SCRATCH0(r13)
@@ -838,17 +835,11 @@ vsx_unavailable_relon_pSeries_1:
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	vsx_unavailable_relon_pSeries
 
-facility_unavailable_relon_trampoline:
+tm_unavailable_relon_pSeries_1:
 	. = 0x4f60
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
-	b	facility_unavailable_relon_pSeries
-
-hv_facility_unavailable_relon_trampoline:
-	. = 0x4f80
-	SET_SCRATCH0(r13)
-	EXCEPTION_PROLOG_0(PACA_EXGEN)
-	b	hv_facility_unavailable_relon_hv
+	b	tm_unavailable_relon_pSeries
 
 	STD_RELON_EXCEPTION_PSERIES(0x5300, 0x1300, instruction_breakpoint)
 #ifdef CONFIG_PPC_DENORMALISATION
@@ -1174,22 +1165,36 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	bl	.vsx_unavailable_exception
 	b	.ret_from_except
 
-	STD_EXCEPTION_COMMON(0xf60, facility_unavailable, .facility_unavailable_exception)
-	STD_EXCEPTION_COMMON(0xf80, hv_facility_unavailable, .facility_unavailable_exception)
+	.align	7
+	.globl tm_unavailable_common
+tm_unavailable_common:
+	EXCEPTION_PROLOG_COMMON(0xf60, PACA_EXGEN)
+	bl	.save_nvgprs
+	DISABLE_INTS
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	.tm_unavailable_exception
+	b	.ret_from_except
 
 	.align	7
 	.globl	__end_handlers
 __end_handlers:
 
 	/* Equivalents to the above handlers for relocation-on interrupt vectors */
+	STD_RELON_EXCEPTION_HV_OOL(0xe00, h_data_storage)
+	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe00)
+	STD_RELON_EXCEPTION_HV_OOL(0xe20, h_instr_storage)
+	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe20)
 	STD_RELON_EXCEPTION_HV_OOL(0xe40, emulation_assist)
+	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe40)
+	STD_RELON_EXCEPTION_HV_OOL(0xe60, hmi_exception)
+	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe60)
 	MASKABLE_RELON_EXCEPTION_HV_OOL(0xe80, h_doorbell)
+	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe80)
 
 	STD_RELON_EXCEPTION_PSERIES_OOL(0xf00, performance_monitor)
 	STD_RELON_EXCEPTION_PSERIES_OOL(0xf20, altivec_unavailable)
 	STD_RELON_EXCEPTION_PSERIES_OOL(0xf40, vsx_unavailable)
-	STD_RELON_EXCEPTION_PSERIES_OOL(0xf60, facility_unavailable)
-	STD_RELON_EXCEPTION_HV_OOL(0xf80, hv_facility_unavailable)
+	STD_RELON_EXCEPTION_PSERIES_OOL(0xf60, tm_unavailable)
 
 #if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV)
 /*

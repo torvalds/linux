@@ -1449,9 +1449,7 @@ static long ppc_set_hwdebug(struct task_struct *child,
 	 */
 	if (bp_info->addr_mode == PPC_BREAKPOINT_MODE_RANGE_INCLUSIVE) {
 		len = bp_info->addr2 - bp_info->addr;
-	} else if (bp_info->addr_mode == PPC_BREAKPOINT_MODE_EXACT)
-		len = 1;
-	else {
+	} else if (bp_info->addr_mode != PPC_BREAKPOINT_MODE_EXACT) {
 		ptrace_put_breakpoints(child);
 		return -EINVAL;
 	}

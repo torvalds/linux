@@ -117,17 +117,9 @@ do {								\
 #endif /*arch_spin_is_contended*/
 #endif
 
-/*
- * Despite its name it doesn't necessarily has to be a full barrier.
- * It should only guarantee that a STORE before the critical section
- * can not be reordered with a LOAD inside this section.
- * spin_lock() is the one-way barrier, this LOAD can not escape out
- * of the region. So the default implementation simply ensures that
- * a STORE can not move into the critical section, smp_wmb() should
- * serialize it with another STORE done by spin_lock().
- */
-#ifndef smp_mb__before_spinlock
-#define smp_mb__before_spinlock()	smp_wmb()
+/* The lock does not imply full memory barrier. */
+#ifndef ARCH_HAS_SMP_MB_AFTER_LOCK
+static inline void smp_mb__after_lock(void) { smp_mb(); }
 #endif
 
 /**

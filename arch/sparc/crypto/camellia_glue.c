@@ -274,7 +274,6 @@ static struct crypto_alg algs[] = { {
 		.blkcipher = {
 			.min_keysize	= CAMELLIA_MIN_KEY_SIZE,
 			.max_keysize	= CAMELLIA_MAX_KEY_SIZE,
-			.ivsize		= CAMELLIA_BLOCK_SIZE,
 			.setkey		= camellia_set_key,
 			.encrypt	= cbc_encrypt,
 			.decrypt	= cbc_decrypt,
@@ -323,6 +322,6 @@ module_exit(camellia_sparc64_mod_fini);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Camellia Cipher Algorithm, sparc64 camellia opcode accelerated");
 
-MODULE_ALIAS_CRYPTO("aes");
+MODULE_ALIAS("aes");
 
 #include "crop_devid.c"

@@ -69,21 +69,6 @@ ENTRY(cpu_reset)
 	ret	x0
 ENDPROC(cpu_reset)
 
-ENTRY(cpu_soft_restart)
-	/* Save address of cpu_reset() and reset address */
-	mov	x19, x0
-	mov	x20, x1
-
-	/* Turn D-cache off */
-	bl	cpu_cache_off
-
-	/* Push out all dirty data, and ensure cache is empty */
-	bl	flush_cache_all
-
-	mov	x0, x20
-	ret	x19
-ENDPROC(cpu_soft_restart)
-
 /*
  *	cpu_do_idle()
  *
@@ -95,77 +80,8 @@ ENTRY(cpu_do_idle)
 	ret
 ENDPROC(cpu_do_idle)
 
-#ifdef CONFIG_ARM64_CPU_SUSPEND
-/**
- * cpu_do_suspend - save CPU registers context
- *
- * x0: virtual address of context pointer
- */
-ENTRY(cpu_do_suspend)
-	mrs	x2, tpidr_el0
-	mrs	x3, tpidrro_el0
-	mrs	x4, contextidr_el1
-	mrs	x5, mair_el1
-	mrs	x6, cpacr_el1
-	mrs	x7, ttbr1_el1
-	mrs	x8, tcr_el1
-	mrs	x9, vbar_el1
-	mrs	x10, mdscr_el1
-	mrs	x11, oslsr_el1
-	mrs	x12, sctlr_el1
-	stp	x2, x3, [x0]
-	stp	x4, x5, [x0, #16]
-	stp	x6, x7, [x0, #32]
-	stp	x8, x9, [x0, #48]
-	stp	x10, x11, [x0, #64]
-	str	x12, [x0, #80]
-	ret
-ENDPROC(cpu_do_suspend)
-
-/**
- * cpu_do_resume - restore CPU register context
- *
- * x0: Physical address of context pointer
- * x1: ttbr0_el1 to be restored
- *
- * Returns:
- *	sctlr_el1 value in x0
- */
-ENTRY(cpu_do_resume)
-	/*
-	 * Invalidate local tlb entries before turning on MMU
-	 */
-	tlbi	vmalle1
-	ldp	x2, x3, [x0]
-	ldp	x4, x5, [x0, #16]
-	ldp	x6, x7, [x0, #32]
-	ldp	x8, x9, [x0, #48]
-	ldp	x10, x11, [x0, #64]
-	ldr	x12, [x0, #80]
-	msr	tpidr_el0, x2
-	msr	tpidrro_el0, x3
-	msr	contextidr_el1, x4
-	msr	mair_el1, x5
-	msr	cpacr_el1, x6
-	msr	ttbr0_el1, x1
-	msr	ttbr1_el1, x7
-	msr	tcr_el1, x8
-	msr	vbar_el1, x9
-	msr	mdscr_el1, x10
-	/*
-	 * Restore oslsr_el1 by writing oslar_el1
-	 */
-	ubfx	x11, x11, #1, #1
-	msr	oslar_el1, x11
-	mov	x0, x12
-	dsb	nsh		// Make sure local tlb invalidation completed
-	isb
-	ret
-ENDPROC(cpu_do_resume)
-#endif
-
 /*
- *	cpu_do_switch_mm(pgd_phys, tsk)
+ *	cpu_switch_mm(pgd_phys, tsk)
  *
  *	Set the translation table base pointer to be pgd_phys.
  *
@@ -179,6 +95,10 @@ ENTRY(cpu_do_switch_mm)
 	ret
 ENDPROC(cpu_do_switch_mm)
 
+cpu_name:
+	.ascii	"AArch64 Processor"
+	.align
+
 	.section ".text.init", #alloc, #execinstr
 
 /*
@@ -188,13 +108,19 @@ ENDPROC(cpu_do_switch_mm)
  *	value of the SCTLR_EL1 register.
  */
 ENTRY(__cpu_setup)
+	/*
+	 * Preserve the link register across the function call.
+	 */
+	mov	x28, lr
+	bl	__flush_dcache_all
+	mov	lr, x28
 	ic	iallu				// I+BTB cache invalidate
-	tlbi	vmalle1is			// invalidate I + D TLBs
-	dsb	ish
+	dsb	sy
 
 	mov	x0, #3 << 20
 	msr	cpacr_el1, x0			// Enable FP/ASIMD
 	msr	mdscr_el1, xzr			// Reset mdscr_el1
+	tlbi	vmalle1is			// invalidate I + D TLBs
 	/*
 	 * Memory region attributes for LPAE:
 	 *
@@ -224,14 +150,8 @@ ENTRY(__cpu_setup)
 	 * Set/prepare TCR and TTBR. We use 512GB (39-bit) address range for
 	 * both user and kernel.
 	 */
-	ldr	x10, =TCR_TxSZ(VA_BITS) | TCR_FLAGS | \
-		      TCR_ASID16 | TCR_TBI0 | (1 << 31)
-	/*
-	 * Read the PARange bits from ID_AA64MMFR0_EL1 and set the IPS bits in
-	 * TCR_EL1.
-	 */
-	mrs	x9, ID_AA64MMFR0_EL1
-	bfi	x10, x9, #32, #3
+	ldr	x10, =TCR_TxSZ(VA_BITS) | TCR_FLAGS | TCR_IPS_40BIT | \
+		      TCR_ASID16 | (1 << 31)
 #ifdef CONFIG_ARM64_64K_PAGES
 	orr	x10, x10, TCR_TG0_64K
 	orr	x10, x10, TCR_TG1_64K
@@ -240,30 +160,15 @@ ENTRY(__cpu_setup)
 	ret					// return to head.S
 ENDPROC(__cpu_setup)
 
-#ifdef CONFIG_ARMV7_COMPAT
 	/*
 	 *                 n n            T
 	 *       U E      WT T UD     US IHBS
 	 *       CE0      XWHW CZ     ME TEEA S
 	 * .... .IEE .... NEAI TE.I ..AD DEN0 ACAM
 	 * 0011 0... 1101 ..0. ..0. 10.. .... .... < hardware reserved
-	 * .... .100 .... 01.1 11.1 ..01 0011 1101 < software settings
+	 * .... .100 .... 01.1 11.1 ..01 0001 1101 < software settings
 	 */
 	.type	crval, #object
 crval:
 	.word	0x030802e2			// clear
-	.word	0x0405d03d			// set
-#else
-	/*
-	 *                 n n            T
-	 *       U E      WT T UD     US IHBS
-	 *       CE0      XWHW CZ     ME TEEA S
-	 * .... .IEE .... NEAI TE.I ..AD DEN0 ACAM
-	 * 0011 0... 1101 ..0. ..0. 10.. .... .... < hardware reserved
-	 * .... .1.. .... 01.1 11.1 ..01 0001 1101 < software settings
-	 */
-	.type	crval, #object
-crval:
-	.word	0x000802e2			// clear
 	.word	0x0405d11d			// set
-#endif

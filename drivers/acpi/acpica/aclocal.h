@@ -254,7 +254,6 @@ struct acpi_create_field_info {
 	u32 field_bit_position;
 	u32 field_bit_length;
 	u16 resource_length;
-	u16 pin_number_index;
 	u8 field_flags;
 	u8 attribute;
 	u8 field_type;

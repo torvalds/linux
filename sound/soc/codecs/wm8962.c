@@ -153,7 +153,6 @@ static struct reg_default wm8962_reg[] = {
 	{ 40, 0x0000 },   /* R40    - SPKOUTL volume */
 	{ 41, 0x0000 },   /* R41    - SPKOUTR volume */
 
-	{ 49, 0x0010 },   /* R49    - Class D Control 1 */
 	{ 51, 0x0003 },   /* R51    - Class D Control 2 */
 
 	{ 56, 0x0506 },   /* R56    - Clocking 4 */
@@ -795,6 +794,7 @@ static bool wm8962_volatile_register(struct device *dev, unsigned int reg)
 	case WM8962_ALC2:
 	case WM8962_THERMAL_SHUTDOWN_STATUS:
 	case WM8962_ADDITIONAL_CONTROL_4:
+	case WM8962_CLASS_D_CONTROL_1:
 	case WM8962_DC_SERVO_6:
 	case WM8962_INTERRUPT_STATUS_1:
 	case WM8962_INTERRUPT_STATUS_2:
@@ -1600,6 +1600,7 @@ static int wm8962_put_hp_sw(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	u16 *reg_cache = codec->reg_cache;
 	int ret;
 
 	/* Apply the update (if any) */
@@ -1608,19 +1609,16 @@ static int wm8962_put_hp_sw(struct snd_kcontrol *kcontrol,
 		return 0;
 
 	/* If the left PGA is enabled hit that VU bit... */
-	ret = snd_soc_read(codec, WM8962_PWR_MGMT_2);
-	if (ret & WM8962_HPOUTL_PGA_ENA) {
-		snd_soc_write(codec, WM8962_HPOUTL_VOLUME,
-			      snd_soc_read(codec, WM8962_HPOUTL_VOLUME));
-		return 1;
-	}
+	if (snd_soc_read(codec, WM8962_PWR_MGMT_2) & WM8962_HPOUTL_PGA_ENA)
+		return snd_soc_write(codec, WM8962_HPOUTL_VOLUME,
+				     reg_cache[WM8962_HPOUTL_VOLUME]);
 
 	/* ...otherwise the right.  The VU is stereo. */
-	if (ret & WM8962_HPOUTR_PGA_ENA)
-		snd_soc_write(codec, WM8962_HPOUTR_VOLUME,
-			      snd_soc_read(codec, WM8962_HPOUTR_VOLUME));
+	if (snd_soc_read(codec, WM8962_PWR_MGMT_2) & WM8962_HPOUTR_PGA_ENA)
+		return snd_soc_write(codec, WM8962_HPOUTR_VOLUME,
+				     reg_cache[WM8962_HPOUTR_VOLUME]);
 
-	return 1;
+	return 0;
 }
 
 /* The VU bits for the speakers are in a different register to the mute
@@ -2901,21 +2899,12 @@ static int wm8962_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 static int wm8962_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	int val, ret;
+	int val;
 
 	if (mute)
-		val = WM8962_DAC_MUTE | WM8962_DAC_MUTE_ALT;
+		val = WM8962_DAC_MUTE;
 	else
 		val = 0;
-
-	/**
-	 * The DAC mute bit is mirrored in two registers, update both to keep
-	 * the register cache consistent.
-	 */
-	ret = snd_soc_update_bits(codec, WM8962_CLASS_D_CONTROL_1,
-				  WM8962_DAC_MUTE_ALT, val);
-	if (ret < 0)
-		return ret;
 
 	return snd_soc_update_bits(codec, WM8962_ADC_DAC_CONTROL_1,
 				   WM8962_DAC_MUTE, val);
@@ -3385,6 +3374,7 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 	int ret;
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
 	struct wm8962_pdata *pdata = dev_get_platdata(codec->dev);
+	u16 *reg_cache = codec->reg_cache;
 	int i, trigger, irq_pol;
 	bool dmicclk, dmicdat;
 
@@ -3442,9 +3432,8 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 
 		/* Put the speakers into mono mode? */
 		if (pdata->spk_mono)
-			snd_soc_update_bits(codec, WM8962_CLASS_D_CONTROL_2,
-				WM8962_SPK_MONO_MASK, WM8962_SPK_MONO);
-
+			reg_cache[WM8962_CLASS_D_CONTROL_2]
+				|= WM8962_SPK_MONO;
 
 		/* Micbias setup, detection enable and detection
 		 * threasholds. */
@@ -3694,8 +3683,6 @@ static int wm8962_i2c_probe(struct i2c_client *i2c,
 				     &soc_codec_dev_wm8962, &wm8962_dai, 1);
 	if (ret < 0)
 		goto err_enable;
-
-	regcache_cache_only(wm8962->regmap, true);
 
 	/* The drivers should power up as needed */
 	regulator_bulk_disable(ARRAY_SIZE(wm8962->supplies), wm8962->supplies);

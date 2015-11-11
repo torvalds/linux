@@ -208,8 +208,8 @@ static void do_usb_entry(void *symval,
 				range_lo < 0x9 ? "[%X-9" : "[%X",
 				range_lo);
 			sprintf(alias + strlen(alias),
-				range_hi > 0xA ? "A-%X]" : "%X]",
-				range_hi);
+				range_hi > 0xA ? "a-%X]" : "%X]",
+				range_lo);
 		}
 	}
 	if (bcdDevice_initial_digits < (sizeof(bcdDevice_lo) * 2 - 1))
@@ -1132,16 +1132,6 @@ static int do_x86cpu_entry(const char *filename, void *symval,
 	return 1;
 }
 ADD_TO_DEVTABLE("x86cpu", x86_cpu_id, do_x86cpu_entry);
-
-/* LOOKS like cpu:type:*:feature:*FEAT* */
-static int do_cpu_entry(const char *filename, void *symval, char *alias)
-{
-	DEF_FIELD(symval, cpu_feature, feature);
-
-	sprintf(alias, "cpu:type:*:feature:*%04X*", feature);
-	return 1;
-}
-ADD_TO_DEVTABLE("cpu", cpu_feature, do_cpu_entry);
 
 /* Looks like: mei:S */
 static int do_mei_entry(const char *filename, void *symval,

@@ -178,6 +178,7 @@ struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *conn, gfp_t gfp_mask)
 	INIT_LIST_HEAD(&cmd->i_conn_node);
 	INIT_LIST_HEAD(&cmd->datain_list);
 	INIT_LIST_HEAD(&cmd->cmd_r2t_list);
+	init_completion(&cmd->reject_comp);
 	spin_lock_init(&cmd->datain_lock);
 	spin_lock_init(&cmd->dataout_timeout_lock);
 	spin_lock_init(&cmd->istate_lock);
@@ -283,12 +284,13 @@ static inline int iscsit_check_received_cmdsn(struct iscsi_session *sess, u32 cm
  * Commands may be received out of order if MC/S is in use.
  * Ensure they are executed in CmdSN order.
  */
-int iscsit_sequence_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
-			unsigned char *buf, __be32 cmdsn)
+int iscsit_sequence_cmd(
+	struct iscsi_conn *conn,
+	struct iscsi_cmd *cmd,
+	__be32 cmdsn)
 {
-	int ret, cmdsn_ret;
-	bool reject = false;
-	u8 reason = ISCSI_REASON_BOOKMARK_NO_RESOURCES;
+	int ret;
+	int cmdsn_ret;
 
 	mutex_lock(&conn->sess->cmdsn_mutex);
 
@@ -298,19 +300,9 @@ int iscsit_sequence_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 		ret = iscsit_execute_cmd(cmd, 0);
 		if ((ret >= 0) && !list_empty(&conn->sess->sess_ooo_cmdsn_list))
 			iscsit_execute_ooo_cmdsns(conn->sess);
-		else if (ret < 0) {
-			reject = true;
-			ret = CMDSN_ERROR_CANNOT_RECOVER;
-		}
 		break;
 	case CMDSN_HIGHER_THAN_EXP:
 		ret = iscsit_handle_ooo_cmdsn(conn->sess, cmd, be32_to_cpu(cmdsn));
-		if (ret < 0) {
-			reject = true;
-			ret = CMDSN_ERROR_CANNOT_RECOVER;
-			break;
-		}
-		ret = CMDSN_HIGHER_THAN_EXP;
 		break;
 	case CMDSN_LOWER_THAN_EXP:
 		cmd->i_state = ISTATE_REMOVE;
@@ -318,15 +310,10 @@ int iscsit_sequence_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 		ret = cmdsn_ret;
 		break;
 	default:
-		reason = ISCSI_REASON_PROTOCOL_ERROR;
-		reject = true;
 		ret = cmdsn_ret;
 		break;
 	}
 	mutex_unlock(&conn->sess->cmdsn_mutex);
-
-	if (reject)
-		iscsit_reject_cmd(cmd, reason, buf);
 
 	return ret;
 }
@@ -734,7 +721,7 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
 		 * Fallthrough
 		 */
 	case ISCSI_OP_SCSI_TMFUNC:
-		rc = transport_generic_free_cmd(&cmd->se_cmd, shutdown);
+		rc = transport_generic_free_cmd(&cmd->se_cmd, 1);
 		if (!rc && shutdown && se_cmd && se_cmd->se_sess) {
 			__iscsit_free_cmd(cmd, true, shutdown);
 			target_put_sess_cmd(se_cmd->se_sess, se_cmd);
@@ -750,7 +737,7 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
 			se_cmd = &cmd->se_cmd;
 			__iscsit_free_cmd(cmd, true, shutdown);
 
-			rc = transport_generic_free_cmd(&cmd->se_cmd, shutdown);
+			rc = transport_generic_free_cmd(&cmd->se_cmd, 1);
 			if (!rc && shutdown && se_cmd->se_sess) {
 				__iscsit_free_cmd(cmd, true, shutdown);
 				target_put_sess_cmd(se_cmd->se_sess, se_cmd);
@@ -1288,8 +1275,6 @@ int iscsit_tx_login_rsp(struct iscsi_conn *conn, u8 status_class, u8 status_deta
 	login->login_failed = 1;
 	iscsit_collect_login_stats(conn, status_class, status_detail);
 
-	memset(&login->rsp[0], 0, ISCSI_HDR_LEN);
-
 	hdr	= (struct iscsi_login_rsp *)&login->rsp[0];
 	hdr->opcode		= ISCSI_OP_LOGIN_RSP;
 	hdr->status_class	= status_class;
@@ -1349,15 +1334,15 @@ static int iscsit_do_tx_data(
 	struct iscsi_conn *conn,
 	struct iscsi_data_count *count)
 {
-	int ret, iov_len;
+	int data = count->data_length, total_tx = 0, tx_loop = 0, iov_len;
 	struct kvec *iov_p;
 	struct msghdr msg;
 
 	if (!conn || !conn->sock || !conn->conn_ops)
 		return -1;
 
-	if (count->data_length <= 0) {
-		pr_err("Data length is: %d\n", count->data_length);
+	if (data <= 0) {
+		pr_err("Data length is: %d\n", data);
 		return -1;
 	}
 
@@ -1366,16 +1351,20 @@ static int iscsit_do_tx_data(
 	iov_p = count->iov;
 	iov_len = count->iov_count;
 
-	ret = kernel_sendmsg(conn->sock, &msg, iov_p, iov_len,
-			     count->data_length);
-	if (ret != count->data_length) {
-		pr_err("Unexpected ret: %d send data %d\n",
-		       ret, count->data_length);
-		return -EPIPE;
+	while (total_tx < data) {
+		tx_loop = kernel_sendmsg(conn->sock, &msg, iov_p, iov_len,
+					(data - total_tx));
+		if (tx_loop <= 0) {
+			pr_debug("tx_loop: %d total_tx %d\n",
+				tx_loop, total_tx);
+			return tx_loop;
+		}
+		total_tx += tx_loop;
+		pr_debug("tx_loop: %d, total_tx: %d, data: %d\n",
+					tx_loop, total_tx, data);
 	}
-	pr_debug("ret: %d, sent data: %d\n", ret, count->data_length);
 
-	return ret;
+	return total_tx;
 }
 
 int rx_data(

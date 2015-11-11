@@ -71,7 +71,7 @@ int br_handle_frame_finish(struct sk_buff *skb)
 		goto drop;
 
 	if (!br_allowed_ingress(p->br, nbp_get_vlan_info(p), skb, &vid))
-		goto out;
+		goto drop;
 
 	/* insert into forwarding database after filtering to avoid spoofing */
 	br = p->br;

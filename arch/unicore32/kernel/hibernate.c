@@ -18,7 +18,6 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
-#include <asm/sections.h>
 #include <asm/suspend.h>
 
 #include "mach/pm.h"

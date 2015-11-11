@@ -22,10 +22,17 @@
 /*
  * Spinlock implementation.
  *
+ * The old value is read exclusively and the new one, if unlocked, is written
+ * exclusively. In case of failure, the loop is restarted.
+ *
  * The memory barriers are implicit with the load-acquire and store-release
  * instructions.
+ *
+ * Unlocked value: 0
+ * Locked value: 1
  */
 
+#define arch_spin_is_locked(x)		((x)->lock != 0)
 #define arch_spin_unlock_wait(lock) \
 	do { while (arch_spin_is_locked(lock)) cpu_relax(); } while (0)
 
@@ -34,51 +41,31 @@
 static inline void arch_spin_lock(arch_spinlock_t *lock)
 {
 	unsigned int tmp;
-	arch_spinlock_t lockval, newval;
 
 	asm volatile(
-	/* Atomically increment the next ticket. */
-"	prfm	pstl1strm, %3\n"
-"1:	ldaxr	%w0, %3\n"
-"	add	%w1, %w0, %w5\n"
-"	stxr	%w2, %w1, %3\n"
-"	cbnz	%w2, 1b\n"
-	/* Did we get the lock? */
-"	eor	%w1, %w0, %w0, ror #16\n"
-"	cbz	%w1, 3f\n"
-	/*
-	 * No: spin on the owner. Send a local event to avoid missing an
-	 * unlock before the exclusive load.
-	 */
-"	sevl\n"
-"2:	wfe\n"
-"	ldaxrh	%w2, %4\n"
-"	eor	%w1, %w2, %w0, lsr #16\n"
-"	cbnz	%w1, 2b\n"
-	/* We got the lock. Critical section starts here. */
-"3:"
-	: "=&r" (lockval), "=&r" (newval), "=&r" (tmp), "+Q" (*lock)
-	: "Q" (lock->owner), "I" (1 << TICKET_SHIFT)
-	: "memory");
+	"	sevl\n"
+	"1:	wfe\n"
+	"2:	ldaxr	%w0, %1\n"
+	"	cbnz	%w0, 1b\n"
+	"	stxr	%w0, %w2, %1\n"
+	"	cbnz	%w0, 2b\n"
+	: "=&r" (tmp), "+Q" (lock->lock)
+	: "r" (1)
+	: "cc", "memory");
 }
 
 static inline int arch_spin_trylock(arch_spinlock_t *lock)
 {
 	unsigned int tmp;
-	arch_spinlock_t lockval;
 
 	asm volatile(
-"	prfm	pstl1strm, %2\n"
-"1:	ldaxr	%w0, %2\n"
-"	eor	%w1, %w0, %w0, ror #16\n"
-"	cbnz	%w1, 2f\n"
-"	add	%w0, %w0, %3\n"
-"	stxr	%w1, %w0, %2\n"
-"	cbnz	%w1, 1b\n"
-"2:"
-	: "=&r" (lockval), "=&r" (tmp), "+Q" (*lock)
-	: "I" (1 << TICKET_SHIFT)
-	: "memory");
+	"	ldaxr	%w0, %1\n"
+	"	cbnz	%w0, 1f\n"
+	"	stxr	%w0, %w2, %1\n"
+	"1:\n"
+	: "=&r" (tmp), "+Q" (lock->lock)
+	: "r" (1)
+	: "cc", "memory");
 
 	return !tmp;
 }
@@ -86,28 +73,9 @@ static inline int arch_spin_trylock(arch_spinlock_t *lock)
 static inline void arch_spin_unlock(arch_spinlock_t *lock)
 {
 	asm volatile(
-"	stlrh	%w1, %0\n"
-	: "=Q" (lock->owner)
-	: "r" (lock->owner + 1)
-	: "memory");
+	"	stlr	%w1, %0\n"
+	: "=Q" (lock->lock) : "r" (0) : "memory");
 }
-
-static inline int arch_spin_value_unlocked(arch_spinlock_t lock)
-{
-	return lock.owner == lock.next;
-}
-
-static inline int arch_spin_is_locked(arch_spinlock_t *lock)
-{
-	return !arch_spin_value_unlocked(ACCESS_ONCE(*lock));
-}
-
-static inline int arch_spin_is_contended(arch_spinlock_t *lock)
-{
-	arch_spinlock_t lockval = ACCESS_ONCE(*lock);
-	return (lockval.next - lockval.owner) > 1;
-}
-#define arch_spin_is_contended	arch_spin_is_contended
 
 /*
  * Write lock implementation.
@@ -132,7 +100,7 @@ static inline void arch_write_lock(arch_rwlock_t *rw)
 	"	cbnz	%w0, 2b\n"
 	: "=&r" (tmp), "+Q" (rw->lock)
 	: "r" (0x80000000)
-	: "memory");
+	: "cc", "memory");
 }
 
 static inline int arch_write_trylock(arch_rwlock_t *rw)
@@ -146,7 +114,7 @@ static inline int arch_write_trylock(arch_rwlock_t *rw)
 	"1:\n"
 	: "=&r" (tmp), "+Q" (rw->lock)
 	: "r" (0x80000000)
-	: "memory");
+	: "cc", "memory");
 
 	return !tmp;
 }
@@ -187,7 +155,7 @@ static inline void arch_read_lock(arch_rwlock_t *rw)
 	"	cbnz	%w1, 2b\n"
 	: "=&r" (tmp), "=&r" (tmp2), "+Q" (rw->lock)
 	:
-	: "memory");
+	: "cc", "memory");
 }
 
 static inline void arch_read_unlock(arch_rwlock_t *rw)
@@ -201,7 +169,7 @@ static inline void arch_read_unlock(arch_rwlock_t *rw)
 	"	cbnz	%w1, 1b\n"
 	: "=&r" (tmp), "=&r" (tmp2), "+Q" (rw->lock)
 	:
-	: "memory");
+	: "cc", "memory");
 }
 
 static inline int arch_read_trylock(arch_rwlock_t *rw)
@@ -216,7 +184,7 @@ static inline int arch_read_trylock(arch_rwlock_t *rw)
 	"1:\n"
 	: "=&r" (tmp), "+r" (tmp2), "+Q" (rw->lock)
 	:
-	: "memory");
+	: "cc", "memory");
 
 	return !tmp2;
 }

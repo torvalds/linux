@@ -74,9 +74,6 @@ nfnl_cthelper_parse_tuple(struct nf_conntrack_tuple *tuple,
 	if (!tb[NFCTH_TUPLE_L3PROTONUM] || !tb[NFCTH_TUPLE_L4PROTONUM])
 		return -EINVAL;
 
-	/* Not all fields are initialized so first zero the tuple */
-	memset(tuple, 0, sizeof(struct nf_conntrack_tuple));
-
 	tuple->src.l3num = ntohs(nla_get_be16(tb[NFCTH_TUPLE_L3PROTONUM]));
 	tuple->dst.protonum = nla_get_u8(tb[NFCTH_TUPLE_L4PROTONUM]);
 
@@ -86,7 +83,7 @@ nfnl_cthelper_parse_tuple(struct nf_conntrack_tuple *tuple,
 static int
 nfnl_cthelper_from_nlattr(struct nlattr *attr, struct nf_conn *ct)
 {
-	struct nf_conn_help *help = nfct_help(ct);
+	const struct nf_conn_help *help = nfct_help(ct);
 
 	if (attr == NULL)
 		return -EINVAL;
@@ -94,7 +91,7 @@ nfnl_cthelper_from_nlattr(struct nlattr *attr, struct nf_conn *ct)
 	if (help->helper->data_len == 0)
 		return -EINVAL;
 
-	memcpy(help->data, nla_data(attr), help->helper->data_len);
+	memcpy(&help->data, nla_data(attr), help->helper->data_len);
 	return 0;
 }
 

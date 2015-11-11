@@ -431,7 +431,6 @@ static int qxl_sync_obj_flush(void *sync_obj)
 
 static void qxl_sync_obj_unref(void **sync_obj)
 {
-	*sync_obj = NULL;
 }
 
 static void *qxl_sync_obj_ref(void *sync_obj)

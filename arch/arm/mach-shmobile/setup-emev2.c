@@ -287,14 +287,14 @@ static struct gpio_em_config gio3_config = {
 static struct resource gio3_resources[] = {
 	[0] = {
 		.name	= "GIO_096",
-		.start	= 0xe0050180,
-		.end	= 0xe00501ab,
+		.start	= 0xe0050100,
+		.end	= 0xe005012b,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
 		.name	= "GIO_096",
-		.start	= 0xe00501c0,
-		.end	= 0xe00501df,
+		.start	= 0xe0050140,
+		.end	= 0xe005015f,
 		.flags	= IORESOURCE_MEM,
 	},
 	[2] = {

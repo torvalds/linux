@@ -41,12 +41,8 @@ finish_urb(struct ohci_hcd *ohci, struct urb *urb, int status)
 __releases(ohci->lock)
 __acquires(ohci->lock)
 {
-	struct usb_host_endpoint *ep = urb->ep;
-	struct urb_priv *urb_priv;
-
 	// ASSERT (urb->hcpriv != 0);
 
- restart:
 	urb_free_priv (ohci, urb->hcpriv);
 	urb->hcpriv = NULL;
 	if (likely(status == -EINPROGRESS))
@@ -82,21 +78,6 @@ __acquires(ohci->lock)
 			&& ohci_to_hcd(ohci)->self.bandwidth_int_reqs == 0) {
 		ohci->hc_control &= ~(OHCI_CTRL_PLE|OHCI_CTRL_IE);
 		ohci_writel (ohci, ohci->hc_control, &ohci->regs->control);
-	}
-
-	/*
-	 * An isochronous URB that is sumitted too late won't have any TDs
-	 * (marked by the fact that the td_cnt value is larger than the
-	 * actual number of TDs).  If the next URB on this endpoint is like
-	 * that, give it back now.
-	 */
-	if (!list_empty(&ep->urb_list)) {
-		urb = list_first_entry(&ep->urb_list, struct urb, urb_list);
-		urb_priv = urb->hcpriv;
-		if (urb_priv->td_cnt > urb_priv->length) {
-			status = 0;
-			goto restart;
-		}
 	}
 }
 
@@ -314,7 +295,8 @@ static void periodic_unlink (struct ohci_hcd *ohci, struct ed *ed)
  *  - ED_OPER: when there's any request queued, the ED gets rescheduled
  *    immediately.  HC should be working on them.
  *
- *  - ED_IDLE: when there's no TD queue or the HC isn't running.
+ *  - ED_IDLE:  when there's no TD queue. there's no reason for the HC
+ *    to care about this ED; safe to disable the endpoint.
  *
  * When finish_unlinks() runs later, after SOF interrupt, it will often
  * complete one or more URB unlinks before making that state change.
@@ -563,6 +545,7 @@ td_fill (struct ohci_hcd *ohci, u32 info,
 		td->hwCBP = cpu_to_hc32 (ohci, data & 0xFFFFF000);
 		*ohci_hwPSWp(ohci, td, 0) = cpu_to_hc16 (ohci,
 						(data & 0x0FFF) | 0xE000);
+		td->ed->last_iso = info & 0xffff;
 	} else {
 		td->hwCBP = cpu_to_hc32 (ohci, data);
 	}
@@ -927,10 +910,6 @@ rescan_all:
 		int			completed, modified;
 		__hc32			*prev;
 
-		/* Is this ED already invisible to the hardware? */
-		if (ed->state == ED_IDLE)
-			goto ed_idle;
-
 		/* only take off EDs that the HC isn't using, accounting for
 		 * frame counter wraps and EDs with partially retired TDs
 		 */
@@ -960,20 +939,12 @@ skip_ed:
 			}
 		}
 
-		/* ED's now officially unlinked, hc doesn't see */
-		ed->state = ED_IDLE;
-		if (quirk_zfmicro(ohci) && ed->type == PIPE_INTERRUPT)
-			ohci->eds_scheduled--;
-		ed->hwHeadP &= ~cpu_to_hc32(ohci, ED_H);
-		ed->hwNextED = 0;
-		wmb();
-		ed->hwINFO &= ~cpu_to_hc32(ohci, ED_SKIP | ED_DEQUEUE);
-ed_idle:
-
 		/* reentrancy:  if we drop the schedule lock, someone might
 		 * have modified this list.  normally it's just prepending
 		 * entries (which we'd ignore), but paranoia won't hurt.
 		 */
+		*last = ed->ed_next;
+		ed->ed_next = NULL;
 		modified = 0;
 
 		/* unlink urbs as requested, but rescan the list after
@@ -1023,7 +994,7 @@ rescan_this:
 			urb_priv->td_cnt++;
 
 			/* if URB is done, clean up */
-			if (urb_priv->td_cnt >= urb_priv->length) {
+			if (urb_priv->td_cnt == urb_priv->length) {
 				modified = completed = 1;
 				finish_urb(ohci, urb, 0);
 			}
@@ -1031,20 +1002,19 @@ rescan_this:
 		if (completed && !list_empty (&ed->td_list))
 			goto rescan_this;
 
-		/*
-		 * If no TDs are queued, take ED off the ed_rm_list.
-		 * Otherwise, if the HC is running, reschedule.
-		 * If not, leave it on the list for further dequeues.
-		 */
-		if (list_empty(&ed->td_list)) {
-			*last = ed->ed_next;
-			ed->ed_next = NULL;
-		} else if (ohci->rh_state == OHCI_RH_RUNNING) {
-			*last = ed->ed_next;
-			ed->ed_next = NULL;
-			ed_schedule(ohci, ed);
-		} else {
-			last = &ed->ed_next;
+		/* ED's now officially unlinked, hc doesn't see */
+		ed->state = ED_IDLE;
+		if (quirk_zfmicro(ohci) && ed->type == PIPE_INTERRUPT)
+			ohci->eds_scheduled--;
+		ed->hwHeadP &= ~cpu_to_hc32(ohci, ED_H);
+		ed->hwNextED = 0;
+		wmb ();
+		ed->hwINFO &= ~cpu_to_hc32 (ohci, ED_SKIP | ED_DEQUEUE);
+
+		/* but if there's work queued, reschedule */
+		if (!list_empty (&ed->td_list)) {
+			if (ohci->rh_state == OHCI_RH_RUNNING)
+				ed_schedule (ohci, ed);
 		}
 
 		if (modified)
@@ -1114,7 +1084,7 @@ static void takeback_td(struct ohci_hcd *ohci, struct td *td)
 	urb_priv->td_cnt++;
 
 	/* If all this urb's TDs are done, call complete() */
-	if (urb_priv->td_cnt >= urb_priv->length)
+	if (urb_priv->td_cnt == urb_priv->length)
 		finish_urb(ohci, urb, status);
 
 	/* clean schedule:  unlink EDs that are no longer busy */

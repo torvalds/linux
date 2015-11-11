@@ -298,7 +298,7 @@ static int wm8955_configure_clocking(struct snd_soc_codec *codec)
 		snd_soc_update_bits(codec, WM8955_PLL_CONTROL_2,
 				    WM8955_K_17_9_MASK,
 				    (pll.k >> 9) & WM8955_K_17_9_MASK);
-		snd_soc_update_bits(codec, WM8955_PLL_CONTROL_3,
+		snd_soc_update_bits(codec, WM8955_PLL_CONTROL_2,
 				    WM8955_K_8_0_MASK,
 				    pll.k & WM8955_K_8_0_MASK);
 		if (pll.k)
@@ -393,7 +393,7 @@ static int wm8955_get_deemph(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct wm8955_priv *wm8955 = snd_soc_codec_get_drvdata(codec);
 
-	ucontrol->value.integer.value[0] = wm8955->deemph;
+	ucontrol->value.enumerated.item[0] = wm8955->deemph;
 	return 0;
 }
 
@@ -402,7 +402,7 @@ static int wm8955_put_deemph(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct wm8955_priv *wm8955 = snd_soc_codec_get_drvdata(codec);
-	int deemph = ucontrol->value.integer.value[0];
+	int deemph = ucontrol->value.enumerated.item[0];
 
 	if (deemph > 1)
 		return -EINVAL;

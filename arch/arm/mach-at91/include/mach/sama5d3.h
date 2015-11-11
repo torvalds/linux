@@ -65,11 +65,6 @@
 #define SAMA5D3_ID_IRQ0		47	/* Advanced Interrupt Controller (IRQ0) */
 
 /*
- * System Peripherals
- */
-#define SAMA5D3_BASE_RTC	0xfffffeb0
-
-/*
  * Internal Memory
  */
 #define SAMA5D3_SRAM_BASE	0x00300000	/* Internal SRAM base address */

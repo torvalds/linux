@@ -543,7 +543,7 @@ static void rb_wake_up_waiters(struct irq_work *work)
  * as data is added to any of the @buffer's cpu buffers. Otherwise
  * it will wait for data to be added to a specific cpu buffer.
  */
-int ring_buffer_wait(struct ring_buffer *buffer, int cpu)
+void ring_buffer_wait(struct ring_buffer *buffer, int cpu)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
 	DEFINE_WAIT(wait);
@@ -557,8 +557,6 @@ int ring_buffer_wait(struct ring_buffer *buffer, int cpu)
 	if (cpu == RING_BUFFER_ALL_CPUS)
 		work = &buffer->irq_work;
 	else {
-		if (!cpumask_test_cpu(cpu, buffer->cpumask))
-			return -ENODEV;
 		cpu_buffer = buffer->buffers[cpu];
 		work = &cpu_buffer->irq_work;
 	}
@@ -593,7 +591,6 @@ int ring_buffer_wait(struct ring_buffer *buffer, int cpu)
 		schedule();
 
 	finish_wait(&work->waiters, &wait);
-	return 0;
 }
 
 /**
@@ -616,6 +613,10 @@ int ring_buffer_poll_wait(struct ring_buffer *buffer, int cpu,
 	struct ring_buffer_per_cpu *cpu_buffer;
 	struct rb_irq_work *work;
 
+	if ((cpu == RING_BUFFER_ALL_CPUS && !ring_buffer_empty(buffer)) ||
+	    (cpu != RING_BUFFER_ALL_CPUS && !ring_buffer_empty_cpu(buffer, cpu)))
+		return POLLIN | POLLRDNORM;
+
 	if (cpu == RING_BUFFER_ALL_CPUS)
 		work = &buffer->irq_work;
 	else {
@@ -626,22 +627,8 @@ int ring_buffer_poll_wait(struct ring_buffer *buffer, int cpu,
 		work = &cpu_buffer->irq_work;
 	}
 
-	poll_wait(filp, &work->waiters, poll_table);
 	work->waiters_pending = true;
-	/*
-	 * There's a tight race between setting the waiters_pending and
-	 * checking if the ring buffer is empty.  Once the waiters_pending bit
-	 * is set, the next event will wake the task up, but we can get stuck
-	 * if there's only a single event in.
-	 *
-	 * FIXME: Ideally, we need a memory barrier on the writer side as well,
-	 * but adding a memory barrier to all events will cause too much of a
-	 * performance hit in the fast path.  We only need a memory barrier when
-	 * the buffer goes from empty to having content.  But as this race is
-	 * extremely small, and it's not a problem if another event comes in, we
-	 * will fix it later.
-	 */
-	smp_mb();
+	poll_wait(filp, &work->waiters, poll_table);
 
 	if ((cpu == RING_BUFFER_ALL_CPUS && !ring_buffer_empty(buffer)) ||
 	    (cpu != RING_BUFFER_ALL_CPUS && !ring_buffer_empty_cpu(buffer, cpu)))
@@ -1994,7 +1981,7 @@ rb_add_time_stamp(struct ring_buffer_event *event, u64 delta)
 
 /**
  * rb_update_event - update event type and data
- * @event: the event to update
+ * @event: the even to update
  * @type: the type of event
  * @length: the size of the event field in the ring buffer
  *
@@ -2409,13 +2396,6 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 	write &= RB_WRITE_MASK;
 	tail = write - length;
 
-	/*
-	 * If this is the first commit on the page, then it has the same
-	 * timestamp as the page itself.
-	 */
-	if (!tail)
-		delta = 0;
-
 	/* See if we shot pass the end of this buffer page */
 	if (unlikely(write > BUF_PAGE_SIZE))
 		return rb_move_tail(cpu_buffer, length, tail,
@@ -2650,7 +2630,7 @@ static DEFINE_PER_CPU(unsigned int, current_context);
 
 static __always_inline int trace_recursive_lock(void)
 {
-	unsigned int val = __this_cpu_read(current_context);
+	unsigned int val = this_cpu_read(current_context);
 	int bit;
 
 	if (in_interrupt()) {
@@ -2667,17 +2647,18 @@ static __always_inline int trace_recursive_lock(void)
 		return 1;
 
 	val |= (1 << bit);
-	__this_cpu_write(current_context, val);
+	this_cpu_write(current_context, val);
 
 	return 0;
 }
 
 static __always_inline void trace_recursive_unlock(void)
 {
-	unsigned int val = __this_cpu_read(current_context);
+	unsigned int val = this_cpu_read(current_context);
 
-	val &= val & (val - 1);
-	__this_cpu_write(current_context, val);
+	val--;
+	val &= this_cpu_read(current_context);
+	this_cpu_write(current_context, val);
 }
 
 #else
@@ -3366,16 +3347,21 @@ static void rb_iter_reset(struct ring_buffer_iter *iter)
 	struct ring_buffer_per_cpu *cpu_buffer = iter->cpu_buffer;
 
 	/* Iterator usage is expected to have record disabled */
-	iter->head_page = cpu_buffer->reader_page;
-	iter->head = cpu_buffer->reader_page->read;
-
-	iter->cache_reader_page = iter->head_page;
-	iter->cache_read = cpu_buffer->read;
-
+	if (list_empty(&cpu_buffer->reader_page->list)) {
+		iter->head_page = rb_set_head_page(cpu_buffer);
+		if (unlikely(!iter->head_page))
+			return;
+		iter->head = iter->head_page->read;
+	} else {
+		iter->head_page = cpu_buffer->reader_page;
+		iter->head = cpu_buffer->reader_page->read;
+	}
 	if (iter->head)
 		iter->read_stamp = cpu_buffer->read_stamp;
 	else
 		iter->read_stamp = iter->head_page->page->time_stamp;
+	iter->cache_reader_page = cpu_buffer->reader_page;
+	iter->cache_read = cpu_buffer->read;
 }
 
 /**
@@ -3768,14 +3754,12 @@ rb_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 		return NULL;
 
 	/*
-	 * We repeat when a time extend is encountered or we hit
-	 * the end of the page. Since the time extend is always attached
-	 * to a data event, we should never loop more than three times.
-	 * Once for going to next page, once on time extend, and
-	 * finally once to get the event.
-	 * (We never hit the following condition more than thrice).
+	 * We repeat when a time extend is encountered.
+	 * Since the time extend is always attached to a data event,
+	 * we should never loop more than once.
+	 * (We never hit the following condition more than twice).
 	 */
-	if (RB_WARN_ON(cpu_buffer, ++nr_loops > 3))
+	if (RB_WARN_ON(cpu_buffer, ++nr_loops > 2))
 		return NULL;
 
 	if (rb_per_cpu_empty(cpu_buffer))

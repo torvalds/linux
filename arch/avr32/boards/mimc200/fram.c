@@ -11,7 +11,6 @@
 #define FRAM_VERSION	"1.0"
 
 #include <linux/miscdevice.h>
-#include <linux/module.h>
 #include <linux/proc_fs.h>
 #include <linux/mm.h>
 #include <linux/io.h>

@@ -20,7 +20,6 @@ config KVM
 	bool "Kernel-based Virtual Machine (KVM) support"
 	select PREEMPT_NOTIFIERS
 	select ANON_INODES
-	select HAVE_KVM_CPU_RELAX_INTERCEPT
 	select KVM_MMIO
 	select KVM_ARM_HOST
 	depends on ARM_VIRT_EXT && ARM_LPAE
@@ -42,9 +41,9 @@ config KVM_ARM_HOST
 	  Provides host support for ARM processors.
 
 config KVM_ARM_MAX_VCPUS
-	int "Number maximum supported virtual CPUs per VM"
-	depends on KVM_ARM_HOST
-	default 4
+	int "Number maximum supported virtual CPUs per VM" if KVM_ARM_HOST
+	default 4 if KVM_ARM_HOST
+	default 0
 	help
 	  Static number of max supported virtual CPUs per VM.
 
@@ -67,5 +66,7 @@ config KVM_ARM_TIMER
 	default y
 	---help---
 	  Adds support for the Architected Timers in virtual machines
+
+source drivers/virtio/Kconfig
 
 endif # VIRTUALIZATION

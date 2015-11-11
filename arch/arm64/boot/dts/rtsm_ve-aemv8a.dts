@@ -27,70 +27,37 @@
 		serial3 = &v2m_serial3;
 	};
 
-	psci {
-		compatible = "arm,psci";
-		method = "smc";
-		/*
-		 * Function IDs usage and compliancy with PSCI v0.2 still
-		 * under discussion.  Current IDs should be considered
-		 * temporary for demonstration purposes.
-		 */
-		cpu_suspend = <0x84000001>;
-		cpu_off = <0x84000002>;
-		cpu_on = <0x84000003>;
-	};
-
 	cpus {
 		#address-cells = <2>;
 		#size-cells = <0>;
-
-		idle-states {
-			entry-method = "arm,psci";
-
-			CPU_SLEEP_0: cpu-sleep-0 {
-				compatible = "arm,idle-state";
-				entry-method-param = <0x0010000>;
-				entry-latency-us = <40>;
-				exit-latency-us = <100>;
-				min-residency-us = <150>;
-			};
-
-			CLUSTER_SLEEP_0: cluster-sleep-0 {
-				compatible = "arm,idle-state";
-				entry-method-param = <0x1010000>;
-				entry-latency-us = <500>;
-				exit-latency-us = <1000>;
-				min-residency-us = <2500>;
-			};
-		};
 
 		cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,armv8";
 			reg = <0x0 0x0>;
-			enable-method = "psci";
-			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0x8000fff8>;
 		};
 		cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,armv8";
 			reg = <0x0 0x1>;
-			enable-method = "psci";
-			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0x8000fff8>;
 		};
 		cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,armv8";
 			reg = <0x0 0x2>;
-			enable-method = "psci";
-			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0x8000fff8>;
 		};
 		cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,armv8";
 			reg = <0x0 0x3>;
-			enable-method = "psci";
-			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0x8000fff8>;
 		};
 	};
 
@@ -190,5 +157,3 @@
 		/include/ "rtsm_ve-motherboard.dtsi"
 	};
 };
-
-/include/ "clcd-panels.dtsi"

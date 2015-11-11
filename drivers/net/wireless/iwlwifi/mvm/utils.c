@@ -401,8 +401,6 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 			mvm->status, table.valid);
 	}
 
-	IWL_ERR(mvm, "Loaded firmware version: %s\n", mvm->fw->fw_version);
-
 	trace_iwlwifi_dev_ucode_error(trans->dev, table.error_id, table.tsf_low,
 				      table.data1, table.data2, table.data3,
 				      table.blink1, table.blink2, table.ilink1,

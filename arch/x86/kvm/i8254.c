@@ -37,7 +37,6 @@
 
 #include "irq.h"
 #include "i8254.h"
-#include "x86.h"
 
 #ifndef CONFIG_X86_64
 #define mod_64(x, y) ((x) - (y) * div64_u64(x, y))
@@ -262,10 +261,8 @@ void __kvm_migrate_pit_timer(struct kvm_vcpu *vcpu)
 		return;
 
 	timer = &pit->pit_state.timer;
-	mutex_lock(&pit->pit_state.lock);
 	if (hrtimer_cancel(timer))
 		hrtimer_start_expires(timer, HRTIMER_MODE_ABS);
-	mutex_unlock(&pit->pit_state.lock);
 }
 
 static void destroy_pit_timer(struct kvm_pit *pit)
@@ -305,7 +302,7 @@ static void pit_do_work(struct kthread_work *work)
 		 * LVT0 to NMI delivery. Other PIC interrupts are just sent to
 		 * VCPU0, and only if its LVT0 is in EXTINT mode.
 		 */
-		if (atomic_read(&kvm->arch.vapics_in_nmi_mode) > 0)
+		if (kvm->arch.vapics_in_nmi_mode > 0)
 			kvm_for_each_vcpu(i, vcpu, kvm)
 				kvm_apic_nmi_wd_deliver(vcpu);
 	}
@@ -351,23 +348,6 @@ static void create_pit_timer(struct kvm *kvm, u32 val, int is_period)
 
 	atomic_set(&ps->pending, 0);
 	ps->irq_ack = 1;
-
-	/*
-	 * Do not allow the guest to program periodic timers with small
-	 * interval, since the hrtimers are not throttled by the host
-	 * scheduler.
-	 */
-	if (ps->is_periodic) {
-		s64 min_period = min_timer_period_us * 1000LL;
-
-		if (ps->period < min_period) {
-			pr_info_ratelimited(
-			    "kvm: requested %lld ns "
-			    "i8254 timer period limited to %lld ns\n",
-			    ps->period, min_period);
-			ps->period = min_period;
-		}
-	}
 
 	hrtimer_start(&ps->timer, ktime_add_ns(ktime_get(), interval),
 		      HRTIMER_MODE_ABS);

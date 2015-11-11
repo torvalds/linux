@@ -38,7 +38,7 @@ dma_apbx: dma-apbx@80024000 {
 		      80 81 68 69
 		      70 71 72 73
 		      74 75 76 77>;
-	interrupt-names = "auart4-rx", "auart4-tx", "spdif-tx", "empty",
+	interrupt-names = "auart4-rx", "aurat4-tx", "spdif-tx", "empty",
 			  "saif0", "saif1", "i2c0", "i2c1",
 			  "auart0-rx", "auart0-tx", "auart1-rx", "auart1-tx",
 			  "auart2-rx", "auart2-tx", "auart3-rx", "auart3-tx";

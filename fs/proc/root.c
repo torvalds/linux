@@ -92,8 +92,6 @@ static int proc_parse_options(char *options, struct pid_namespace *pid)
 int proc_remount(struct super_block *sb, int *flags, char *data)
 {
 	struct pid_namespace *pid = sb->s_fs_info;
-
-	sync_filesystem(sb);
 	return !proc_parse_options(data, pid);
 }
 
@@ -112,8 +110,7 @@ static struct dentry *proc_mount(struct file_system_type *fs_type,
 		ns = task_active_pid_ns(current);
 		options = data;
 
-		if (!current_user_ns()->may_mount_proc ||
-		    !ns_capable(ns->user_ns, CAP_SYS_ADMIN))
+		if (!current_user_ns()->may_mount_proc)
 			return ERR_PTR(-EPERM);
 	}
 
@@ -182,6 +179,9 @@ void __init proc_root_init(void)
 	proc_mkdir("openprom", NULL);
 #endif
 	proc_tty_init();
+#ifdef CONFIG_PROC_DEVICETREE
+	proc_device_tree_init();
+#endif
 	proc_mkdir("bus", NULL);
 	proc_sys_init();
 }

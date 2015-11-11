@@ -840,7 +840,16 @@ int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 			   MLX4_CMD_NATIVE);
 
 	if (!err && dev->caps.function != slave) {
-		def_mac = priv->mfunc.master.vf_oper[slave].vport[vhcr->in_modifier].state.mac;
+		/* if config MAC in DB use it */
+		if (priv->mfunc.master.vf_oper[slave].vport[vhcr->in_modifier].state.mac)
+			def_mac = priv->mfunc.master.vf_oper[slave].vport[vhcr->in_modifier].state.mac;
+		else {
+			/* set slave default_mac address */
+			MLX4_GET(def_mac, outbox->buf, QUERY_PORT_MAC_OFFSET);
+			def_mac += slave << 8;
+			priv->mfunc.master.vf_admin[slave].vport[vhcr->in_modifier].mac = def_mac;
+		}
+
 		MLX4_PUT(outbox->buf, def_mac, QUERY_PORT_MAC_OFFSET);
 
 		/* get port type - currently only eth is enabled */

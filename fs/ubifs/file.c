@@ -1524,7 +1524,8 @@ static int ubifs_vm_page_mkwrite(struct vm_area_struct *vma,
 	}
 
 	wait_for_stable_page(page);
-	return VM_FAULT_LOCKED;
+	unlock_page(page);
+	return 0;
 
 out_unlock:
 	unlock_page(page);

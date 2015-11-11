@@ -3000,11 +3000,7 @@ sym_dequeue_from_squeue(struct sym_hcb *np, int i, int target, int lun, int task
 		if ((target == -1 || cp->target == target) &&
 		    (lun    == -1 || cp->lun    == lun)    &&
 		    (task   == -1 || cp->tag    == task)) {
-#ifdef SYM_OPT_HANDLE_DEVICE_QUEUEING
 			sym_set_cam_status(cp->cmd, DID_SOFT_ERROR);
-#else
-			sym_set_cam_status(cp->cmd, DID_REQUEUE);
-#endif
 			sym_remque(&cp->link_ccbq);
 			sym_insque_tail(&cp->link_ccbq, &np->comp_ccbq);
 		}

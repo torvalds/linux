@@ -19,7 +19,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/jiffies.h>
 #include <linux/mman.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -460,11 +459,6 @@ static bool do_hot_add;
  */
 static uint pressure_report_delay = 45;
 
-/*
- * The last time we posted a pressure report to host.
- */
-static unsigned long last_post_time;
-
 module_param(hot_add, bool, (S_IRUGO | S_IWUSR));
 MODULE_PARM_DESC(hot_add, "If set attempt memory hot_add");
 
@@ -548,7 +542,6 @@ struct hv_dynmem_device {
 
 static struct hv_dynmem_device dm_device;
 
-static void post_status(struct hv_dynmem_device *dm);
 #ifdef CONFIG_MEMORY_HOTPLUG
 
 static void hv_bring_pgs_online(unsigned long start_pfn, unsigned long size)
@@ -569,7 +562,7 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 				struct hv_hotadd_state *has)
 {
 	int ret = 0;
-	int i, nid;
+	int i, nid, t;
 	unsigned long start_pfn;
 	unsigned long processed_pfn;
 	unsigned long total_pfn = pfn_count;
@@ -614,12 +607,15 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 
 		/*
 		 * Wait for the memory block to be onlined.
-		 * Since the hot add has succeeded, it is ok to
-		 * proceed even if the pages in the hot added region
-		 * have not been "onlined" within the allowed time.
 		 */
-		wait_for_completion_timeout(&dm_device.ol_waitevent, 5*HZ);
-		post_status(&dm_device);
+		t = wait_for_completion_timeout(&dm_device.ol_waitevent, 5*HZ);
+		if (t == 0) {
+			pr_info("hot_add memory timedout\n");
+			has->ha_end_pfn -= HA_CHUNK;
+			has->covered_end_pfn -=  processed_pfn;
+			break;
+		}
+
 	}
 
 	return;
@@ -958,17 +954,11 @@ static void post_status(struct hv_dynmem_device *dm)
 {
 	struct dm_status status;
 	struct sysinfo val;
-	unsigned long now = jiffies;
-	unsigned long last_post = last_post_time;
 
 	if (pressure_report_delay > 0) {
 		--pressure_report_delay;
 		return;
 	}
-
-	if (!time_after(now, (last_post_time + HZ)))
-		return;
-
 	si_meminfo(&val);
 	memset(&status, 0, sizeof(struct dm_status));
 	status.hdr.type = DM_STATUS_REPORT;
@@ -988,22 +978,6 @@ static void post_status(struct hv_dynmem_device *dm)
 				dm->num_pages_ballooned +
 				compute_balloon_floor();
 
-	/*
-	 * If our transaction ID is no longer current, just don't
-	 * send the status. This can happen if we were interrupted
-	 * after we picked our transaction ID.
-	 */
-	if (status.hdr.trans_id != atomic_read(&trans_id))
-		return;
-
-	/*
-	 * If the last post time that we sampled has changed,
-	 * we have raced, don't post the status.
-	 */
-	if (last_post != last_post_time)
-		return;
-
-	last_post_time = jiffies;
 	vmbus_sendpacket(dm->dev->channel, &status,
 				sizeof(struct dm_status),
 				(unsigned long)NULL,
@@ -1138,7 +1112,7 @@ static void balloon_up(struct work_struct *dummy)
 
 			if (ret == -EAGAIN)
 				msleep(20);
-			post_status(&dm_device);
+
 		} while (ret == -EAGAIN);
 
 		if (ret) {
@@ -1165,10 +1139,8 @@ static void balloon_down(struct hv_dynmem_device *dm,
 	struct dm_unballoon_response resp;
 	int i;
 
-	for (i = 0; i < range_count; i++) {
+	for (i = 0; i < range_count; i++)
 		free_balloon_pages(dm, &range_array[i]);
-		post_status(&dm_device);
-	}
 
 	if (req->more_pages == 1)
 		return;

@@ -290,8 +290,7 @@ int ceph_msgr_init(void)
 	if (ceph_msgr_slab_init())
 		return -ENOMEM;
 
-	ceph_msgr_wq = alloc_workqueue("ceph-msgr",
-				       WQ_NON_REENTRANT | WQ_MEM_RECLAIM, 0);
+	ceph_msgr_wq = alloc_workqueue("ceph-msgr", WQ_NON_REENTRANT, 0);
 	if (ceph_msgr_wq)
 		return 0;
 
@@ -557,7 +556,7 @@ static int ceph_tcp_sendmsg(struct socket *sock, struct kvec *iov,
 	return r;
 }
 
-static int __ceph_tcp_sendpage(struct socket *sock, struct page *page,
+static int ceph_tcp_sendpage(struct socket *sock, struct page *page,
 		     int offset, size_t size, bool more)
 {
 	int flags = MSG_DONTWAIT | MSG_NOSIGNAL | (more ? MSG_MORE : MSG_EOR);
@@ -570,24 +569,6 @@ static int __ceph_tcp_sendpage(struct socket *sock, struct page *page,
 	return ret;
 }
 
-static int ceph_tcp_sendpage(struct socket *sock, struct page *page,
-		     int offset, size_t size, bool more)
-{
-	int ret;
-	struct kvec iov;
-
-	/* sendpage cannot properly handle pages with page_count == 0,
-	 * we need to fallback to sendmsg if that's the case */
-	if (page_count(page) >= 1)
-		return __ceph_tcp_sendpage(sock, page, offset, size, more);
-
-	iov.iov_base = kmap(page) + offset;
-	iov.iov_len = size;
-	ret = ceph_tcp_sendmsg(sock, &iov, 1, size, more);
-	kunmap(page);
-
-	return ret;
-}
 
 /*
  * Shutdown/close the socket for the given connection.
@@ -905,7 +886,7 @@ static void ceph_msg_data_pages_cursor_init(struct ceph_msg_data_cursor *cursor,
 	BUG_ON(page_count > (int)USHRT_MAX);
 	cursor->page_count = (unsigned short)page_count;
 	BUG_ON(length > SIZE_MAX - cursor->page_offset);
-	cursor->last_piece = cursor->page_offset + cursor->resid <= PAGE_SIZE;
+	cursor->last_piece = (size_t)cursor->page_offset + length <= PAGE_SIZE;
 }
 
 static struct page *
@@ -3145,7 +3126,7 @@ struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
 	INIT_LIST_HEAD(&m->data);
 
 	/* front */
-	m->front_alloc_len = front_len;
+	m->front_max = front_len;
 	if (front_len) {
 		if (front_len > PAGE_CACHE_SIZE) {
 			m->front.iov_base = __vmalloc(front_len, flags,
@@ -3320,8 +3301,8 @@ EXPORT_SYMBOL(ceph_msg_last_put);
 
 void ceph_msg_dump(struct ceph_msg *msg)
 {
-	pr_debug("msg_dump %p (front_alloc_len %d length %zd)\n", msg,
-		 msg->front_alloc_len, msg->data_length);
+	pr_debug("msg_dump %p (front_max %d length %zd)\n", msg,
+		 msg->front_max, msg->data_length);
 	print_hex_dump(KERN_DEBUG, "header: ",
 		       DUMP_PREFIX_OFFSET, 16, 1,
 		       &msg->hdr, sizeof(msg->hdr), true);

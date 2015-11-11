@@ -128,7 +128,7 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 		else
 			pv = br_get_vlan_info(br);
 
-		if (!pv || bitmap_empty(pv->vlan_bitmap, VLAN_N_VID))
+		if (!pv || bitmap_empty(pv->vlan_bitmap, BR_VLAN_BITMAP_LEN))
 			goto done;
 
 		af = nla_nest_start(skb, IFLA_AF_SPEC);
@@ -136,7 +136,7 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 			goto nla_put_failure;
 
 		pvid = br_get_pvid(pv);
-		for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID) {
+		for_each_set_bit(vid, pv->vlan_bitmap, BR_VLAN_BITMAP_LEN) {
 			vinfo.vid = vid;
 			vinfo.flags = 0;
 			if (vid == pvid)
@@ -203,7 +203,7 @@ int br_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 	       struct net_device *dev, u32 filter_mask)
 {
 	int err = 0;
-	struct net_bridge_port *port = br_port_get_rtnl(dev);
+	struct net_bridge_port *port = br_port_get_rcu(dev);
 
 	/* not a bridge port and  */
 	if (!port && !(filter_mask & RTEXT_FILTER_BRVLAN))
@@ -438,26 +438,12 @@ static int br_validate(struct nlattr *tb[], struct nlattr *data[])
 	return 0;
 }
 
-static int br_dev_newlink(struct net *src_net, struct net_device *dev,
-			  struct nlattr *tb[], struct nlattr *data[])
-{
-	struct net_bridge *br = netdev_priv(dev);
-
-	if (tb[IFLA_ADDRESS]) {
-		spin_lock_bh(&br->lock);
-		br_stp_change_bridge_id(br, nla_data(tb[IFLA_ADDRESS]));
-		spin_unlock_bh(&br->lock);
-	}
-
-	return register_netdevice(dev);
-}
-
 static size_t br_get_link_af_size(const struct net_device *dev)
 {
 	struct net_port_vlans *pv;
 
 	if (br_port_exists(dev))
-		pv = nbp_get_vlan_info(br_port_get_rtnl(dev));
+		pv = nbp_get_vlan_info(br_port_get_rcu(dev));
 	else if (dev->priv_flags & IFF_EBRIDGE)
 		pv = br_get_vlan_info((struct net_bridge *)netdev_priv(dev));
 	else
@@ -480,7 +466,6 @@ struct rtnl_link_ops br_link_ops __read_mostly = {
 	.priv_size	= sizeof(struct net_bridge),
 	.setup		= br_dev_setup,
 	.validate	= br_validate,
-	.newlink	= br_dev_newlink,
 	.dellink	= br_dev_delete,
 };
 

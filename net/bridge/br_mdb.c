@@ -345,6 +345,7 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 		return -ENOMEM;
 	rcu_assign_pointer(*pp, p);
 
+	br_mdb_notify(br->dev, port, group, RTM_NEWMDB);
 	return 0;
 }
 
@@ -367,7 +368,6 @@ static int __br_mdb_add(struct net *net, struct net_bridge *br,
 	if (!p || p->br != br || p->state == BR_STATE_DISABLED)
 		return -EINVAL;
 
-	memset(&ip, 0, sizeof(ip));
 	ip.proto = entry->addr.proto;
 	if (ip.proto == htons(ETH_P_IP))
 		ip.u.ip4 = entry->addr.u.ip4;
@@ -417,7 +417,6 @@ static int __br_mdb_del(struct net_bridge *br, struct br_mdb_entry *entry)
 	if (timer_pending(&br->multicast_querier_timer))
 		return -EBUSY;
 
-	memset(&ip, 0, sizeof(ip));
 	ip.proto = entry->addr.proto;
 	if (ip.proto == htons(ETH_P_IP))
 		ip.u.ip4 = entry->addr.u.ip4;

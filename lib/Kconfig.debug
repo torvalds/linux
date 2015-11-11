@@ -191,26 +191,14 @@ config LOCKUP_DETECTOR
 	  The overhead should be minimal.  A periodic hrtimer runs to
 	  generate interrupts and kick the watchdog task every 4 seconds.
 	  An NMI is generated every 10 seconds or so to check for hardlockups.
-	  If NMIs are not available on the platform, every 12 seconds the
-	  hrtimer interrupt on one cpu will be used to check for hardlockups
-	  on the next cpu.
 
 	  The frequency of hrtimer and NMI events and the soft and hard lockup
 	  thresholds can be controlled through the sysctl watchdog_thresh.
 
-config HARDLOCKUP_DETECTOR_NMI
+config HARDLOCKUP_DETECTOR
 	def_bool y
 	depends on LOCKUP_DETECTOR && !HAVE_NMI_WATCHDOG
 	depends on PERF_EVENTS && HAVE_PERF_EVENTS_NMI
-
-config HARDLOCKUP_DETECTOR_OTHER_CPU
-	def_bool y
-	depends on LOCKUP_DETECTOR && SMP
-	depends on !HARDLOCKUP_DETECTOR_NMI && !HAVE_NMI_WATCHDOG
-
-config HARDLOCKUP_DETECTOR
-	def_bool y
-	depends on HARDLOCKUP_DETECTOR_NMI || HARDLOCKUP_DETECTOR_OTHER_CPU
 
 config BOOTPARAM_HARDLOCKUP_PANIC
 	bool "Panic (Reboot) On Hard Lockups"
@@ -681,9 +669,8 @@ config DEBUG_LOCKING_API_SELFTESTS
 	  mutexes and rwsems.
 
 config STACKTRACE
-	bool "Stacktrace"
+	bool
 	depends on STACKTRACE_SUPPORT
-	default y
 
 config DEBUG_STACK_USAGE
 	bool "Stack utilization instrumentation"
@@ -1285,7 +1272,7 @@ config FAULT_INJECTION_STACKTRACE_FILTER
 	depends on FAULT_INJECTION_DEBUG_FS && STACKTRACE_SUPPORT
 	depends on !X86_64
 	select STACKTRACE
-	select FRAME_POINTER if !MIPS && !PPC && !S390 && !MICROBLAZE && !ARM_UNWIND
+	select FRAME_POINTER if !PPC && !S390 && !MICROBLAZE && !ARM_UNWIND
 	help
 	  Provide stacktrace filter for fault-injection capabilities
 

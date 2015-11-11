@@ -1020,9 +1020,6 @@ void radeon_i2c_destroy(struct radeon_i2c_chan *i2c)
 /* Add the default buses */
 void radeon_i2c_init(struct radeon_device *rdev)
 {
-	if (radeon_hw_i2c)
-		DRM_INFO("hw_i2c forced on, you may experience display detection problems!\n");
-
 	if (rdev->is_atom_bios)
 		radeon_atombios_i2c_init(rdev);
 	else

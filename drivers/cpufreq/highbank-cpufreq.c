@@ -19,7 +19,7 @@
 #include <linux/cpu.h>
 #include <linux/err.h>
 #include <linux/of.h>
-#include <linux/pl320-ipc.h>
+#include <linux/mailbox.h>
 #include <linux/platform_device.h>
 
 #define HB_CPUFREQ_CHANGE_NOTE	0x80000001
@@ -66,8 +66,7 @@ static int hb_cpufreq_driver_init(void)
 	struct device_node *np;
 	int ret;
 
-	if ((!of_machine_is_compatible("calxeda,highbank")) &&
-		(!of_machine_is_compatible("calxeda,ecx-2000")))
+	if (!of_machine_is_compatible("calxeda,highbank"))
 		return -ENODEV;
 
 	for_each_child_of_node(of_find_node_by_path("/cpus"), np)

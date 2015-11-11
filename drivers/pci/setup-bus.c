@@ -300,47 +300,6 @@ static void assign_requested_resources_sorted(struct list_head *head,
 	}
 }
 
-static unsigned long pci_fail_res_type_mask(struct list_head *fail_head)
-{
-	struct pci_dev_resource *fail_res;
-	unsigned long mask = 0;
-
-	/* check failed type */
-	list_for_each_entry(fail_res, fail_head, list)
-		mask |= fail_res->flags;
-
-	/*
-	 * one pref failed resource will set IORESOURCE_MEM,
-	 * as we can allocate pref in non-pref range.
-	 * Will release all assigned non-pref sibling resources
-	 * according to that bit.
-	 */
-	return mask & (IORESOURCE_IO | IORESOURCE_MEM | IORESOURCE_PREFETCH);
-}
-
-static bool pci_need_to_release(unsigned long mask, struct resource *res)
-{
-	if (res->flags & IORESOURCE_IO)
-		return !!(mask & IORESOURCE_IO);
-
-	/* check pref at first */
-	if (res->flags & IORESOURCE_PREFETCH) {
-		if (mask & IORESOURCE_PREFETCH)
-			return true;
-		/* count pref if its parent is non-pref */
-		else if ((mask & IORESOURCE_MEM) &&
-			 !(res->parent->flags & IORESOURCE_PREFETCH))
-			return true;
-		else
-			return false;
-	}
-
-	if (res->flags & IORESOURCE_MEM)
-		return !!(mask & IORESOURCE_MEM);
-
-	return false;	/* should not get here */
-}
-
 static void __assign_resources_sorted(struct list_head *head,
 				 struct list_head *realloc_head,
 				 struct list_head *fail_head)
@@ -353,24 +312,11 @@ static void __assign_resources_sorted(struct list_head *head,
 	 *  if could do that, could get out early.
 	 *  if could not do that, we still try to assign requested at first,
 	 *    then try to reassign add_size for some resources.
-	 *
-	 * Separate three resource type checking if we need to release
-	 * assigned resource after requested + add_size try.
-	 *	1. if there is io port assign fail, will release assigned
-	 *	   io port.
-	 *	2. if there is pref mmio assign fail, release assigned
-	 *	   pref mmio.
-	 *	   if assigned pref mmio's parent is non-pref mmio and there
-	 *	   is non-pref mmio assign fail, will release that assigned
-	 *	   pref mmio.
-	 *	3. if there is non-pref mmio assign fail or pref mmio
-	 *	   assigned fail, will release assigned non-pref mmio.
 	 */
 	LIST_HEAD(save_head);
 	LIST_HEAD(local_fail_head);
 	struct pci_dev_resource *save_res;
-	struct pci_dev_resource *dev_res, *tmp_res;
-	unsigned long fail_type;
+	struct pci_dev_resource *dev_res;
 
 	/* Check if optional add_size is there */
 	if (!realloc_head || list_empty(realloc_head))
@@ -401,19 +347,6 @@ static void __assign_resources_sorted(struct list_head *head,
 		free_list(head);
 		return;
 	}
-
-	/* check failed type */
-	fail_type = pci_fail_res_type_mask(&local_fail_head);
-	/* remove not need to be released assigned res from head list etc */
-	list_for_each_entry_safe(dev_res, tmp_res, head, list)
-		if (dev_res->res->parent &&
-		    !pci_need_to_release(fail_type, dev_res->res)) {
-			/* remove it from realloc_head list */
-			remove_from_list(realloc_head, dev_res->res);
-			remove_from_list(&save_head, dev_res->res);
-			list_del(&dev_res->list);
-			kfree(dev_res);
-		}
 
 	free_list(&local_fail_head);
 	/* Release assigned resource */

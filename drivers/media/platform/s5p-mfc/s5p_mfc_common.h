@@ -29,7 +29,7 @@
 
 /* Offset base used to differentiate between CAPTURE and OUTPUT
 *  while mmaping */
-#define DST_QUEUE_OFF_BASE	(1 << 30)
+#define DST_QUEUE_OFF_BASE      (TASK_SIZE / 2)
 
 #define MFC_BANK1_ALLOC_CTX	0
 #define MFC_BANK2_ALLOC_CTX	1
@@ -110,6 +110,15 @@ enum s5p_mfc_fmt_type {
 	MFC_FMT_DEC,
 	MFC_FMT_ENC,
 	MFC_FMT_RAW,
+};
+
+/**
+ * enum s5p_mfc_node_type - The type of an MFC device node.
+ */
+enum s5p_mfc_node_type {
+	MFCNODE_INVALID = -1,
+	MFCNODE_DECODER = 0,
+	MFCNODE_ENCODER = 1,
 };
 
 /**

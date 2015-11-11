@@ -305,8 +305,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 		return -EINVAL;
 	}
 
-	if ((base | (base + size - 1)) >>
-	    (boot_cpu_data.x86_phys_bits - PAGE_SHIFT)) {
+	if (base & size_or_mask || size & size_or_mask) {
 		pr_warning("mtrr: base or size exceeds the MTRR width\n");
 		return -EINVAL;
 	}
@@ -584,7 +583,6 @@ static struct syscore_ops mtrr_syscore_ops = {
 
 int __initdata changed_by_mtrr_cleanup;
 
-#define SIZE_OR_MASK_BITS(n)  (~((1ULL << ((n) - PAGE_SHIFT)) - 1))
 /**
  * mtrr_bp_init - initialize mtrrs on the boot CPU
  *
@@ -602,7 +600,7 @@ void __init mtrr_bp_init(void)
 
 	if (cpu_has_mtrr) {
 		mtrr_if = &generic_mtrr_ops;
-		size_or_mask = SIZE_OR_MASK_BITS(36);
+		size_or_mask = 0xff000000;			/* 36 bits */
 		size_and_mask = 0x00f00000;
 		phys_addr = 36;
 
@@ -621,7 +619,7 @@ void __init mtrr_bp_init(void)
 			     boot_cpu_data.x86_mask == 0x4))
 				phys_addr = 36;
 
-			size_or_mask = SIZE_OR_MASK_BITS(phys_addr);
+			size_or_mask = ~((1ULL << (phys_addr - PAGE_SHIFT)) - 1);
 			size_and_mask = ~size_or_mask & 0xfffff00000ULL;
 		} else if (boot_cpu_data.x86_vendor == X86_VENDOR_CENTAUR &&
 			   boot_cpu_data.x86 == 6) {
@@ -629,7 +627,7 @@ void __init mtrr_bp_init(void)
 			 * VIA C* family have Intel style MTRRs,
 			 * but don't support PAE
 			 */
-			size_or_mask = SIZE_OR_MASK_BITS(32);
+			size_or_mask = 0xfff00000;		/* 32 bits */
 			size_and_mask = 0;
 			phys_addr = 32;
 		}
@@ -639,21 +637,21 @@ void __init mtrr_bp_init(void)
 			if (cpu_has_k6_mtrr) {
 				/* Pre-Athlon (K6) AMD CPU MTRRs */
 				mtrr_if = mtrr_ops[X86_VENDOR_AMD];
-				size_or_mask = SIZE_OR_MASK_BITS(32);
+				size_or_mask = 0xfff00000;	/* 32 bits */
 				size_and_mask = 0;
 			}
 			break;
 		case X86_VENDOR_CENTAUR:
 			if (cpu_has_centaur_mcr) {
 				mtrr_if = mtrr_ops[X86_VENDOR_CENTAUR];
-				size_or_mask = SIZE_OR_MASK_BITS(32);
+				size_or_mask = 0xfff00000;	/* 32 bits */
 				size_and_mask = 0;
 			}
 			break;
 		case X86_VENDOR_CYRIX:
 			if (cpu_has_cyrix_arr) {
 				mtrr_if = mtrr_ops[X86_VENDOR_CYRIX];
-				size_or_mask = SIZE_OR_MASK_BITS(32);
+				size_or_mask = 0xfff00000;	/* 32 bits */
 				size_and_mask = 0;
 			}
 			break;

@@ -32,14 +32,13 @@ struct zpodd {
 
 static int eject_tray(struct ata_device *dev)
 {
-	struct ata_taskfile tf;
+	struct ata_taskfile tf = {};
 	const char cdb[] = {  GPCMD_START_STOP_UNIT,
 		0, 0, 0,
 		0x02,     /* LoEj */
 		0, 0, 0, 0, 0, 0, 0,
 	};
 
-	ata_tf_init(dev, &tf);
 	tf.flags = ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	tf.command = ATA_CMD_PACKET;
 	tf.protocol = ATAPI_PROT_NODATA;
@@ -53,7 +52,8 @@ static enum odd_mech_type zpodd_get_mech_type(struct ata_device *dev)
 	char buf[16];
 	unsigned int ret;
 	struct rm_feature_desc *desc = (void *)(buf + 8);
-	struct ata_taskfile tf;
+	struct ata_taskfile tf = {};
+
 	char cdb[] = {  GPCMD_GET_CONFIGURATION,
 			2,      /* only 1 feature descriptor requested */
 			0, 3,   /* 3, removable medium feature */
@@ -62,7 +62,6 @@ static enum odd_mech_type zpodd_get_mech_type(struct ata_device *dev)
 			0, 0, 0,
 	};
 
-	ata_tf_init(dev, &tf);
 	tf.flags = ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	tf.command = ATA_CMD_PACKET;
 	tf.protocol = ATAPI_PROT_PIO;

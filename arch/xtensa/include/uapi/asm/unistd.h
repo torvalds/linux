@@ -384,8 +384,7 @@ __SYSCALL(174, sys_chroot, 1)
 #define __NR_pivot_root 			175
 __SYSCALL(175, sys_pivot_root, 2)
 #define __NR_umount 				176
-__SYSCALL(176, sys_oldumount, 1)
-#define __ARCH_WANT_SYS_OLDUMOUNT
+__SYSCALL(176, sys_umount, 2)
 #define __NR_swapoff 				177
 __SYSCALL(177, sys_swapoff, 1)
 #define __NR_sync 				178
@@ -715,7 +714,7 @@ __SYSCALL(323, sys_process_vm_writev, 6)
 __SYSCALL(324, sys_name_to_handle_at, 5)
 #define __NR_open_by_handle_at			325
 __SYSCALL(325, sys_open_by_handle_at, 3)
-#define __NR_sync_file_range2			326
+#define __NR_sync_file_range			326
 __SYSCALL(326, sys_sync_file_range2, 6)
 #define __NR_perf_event_open			327
 __SYSCALL(327, sys_perf_event_open, 5)

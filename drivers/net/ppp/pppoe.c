@@ -313,6 +313,7 @@ static void pppoe_flush_dev(struct net_device *dev)
 			if (po->pppoe_dev == dev &&
 			    sk->sk_state & (PPPOX_CONNECTED | PPPOX_BOUND | PPPOX_ZOMBIE)) {
 				pppox_unbind_sock(sk);
+				sk->sk_state = PPPOX_ZOMBIE;
 				sk->sk_state_change(sk);
 				po->pppoe_dev = NULL;
 				dev_put(dev);
@@ -674,7 +675,7 @@ static int pppoe_connect(struct socket *sock, struct sockaddr *uservaddr,
 		po->chan.hdrlen = (sizeof(struct pppoe_hdr) +
 				   dev->hard_header_len);
 
-		po->chan.mtu = dev->mtu - sizeof(struct pppoe_hdr) - 2;
+		po->chan.mtu = dev->mtu - sizeof(struct pppoe_hdr);
 		po->chan.private = sk;
 		po->chan.ops = &pppoe_chan_ops;
 
@@ -977,6 +978,8 @@ static int pppoe_recvmsg(struct kiocb *iocb, struct socket *sock,
 				flags & MSG_DONTWAIT, &error);
 	if (error < 0)
 		goto end;
+
+	m->msg_namelen = 0;
 
 	if (skb) {
 		total_len = min_t(size_t, total_len, skb->len);

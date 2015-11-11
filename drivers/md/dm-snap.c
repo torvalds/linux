@@ -66,18 +66,6 @@ struct dm_snapshot {
 
 	atomic_t pending_exceptions_count;
 
-	/* Protected by "lock" */
-	sector_t exception_start_sequence;
-
-	/* Protected by kcopyd single-threaded callback */
-	sector_t exception_complete_sequence;
-
-	/*
-	 * A list of pending exceptions that completed out of order.
-	 * Protected by kcopyd single-threaded callback.
-	 */
-	struct list_head out_of_order_list;
-
 	mempool_t *pending_pool;
 
 	struct dm_exception_table pending;
@@ -184,14 +172,6 @@ struct dm_snap_pending_exception {
 	 * kcopyd.
 	 */
 	int started;
-
-	/* There was copying error. */
-	int copy_error;
-
-	/* A sequence number, it is used for in-order completion. */
-	sector_t exception_sequence;
-
-	struct list_head out_of_order_entry;
 
 	/*
 	 * For writing a complete chunk, bypassing the copy.
@@ -745,16 +725,17 @@ static int calc_max_buckets(void)
  */
 static int init_hash_tables(struct dm_snapshot *s)
 {
-	sector_t hash_size, cow_dev_size, max_buckets;
+	sector_t hash_size, cow_dev_size, origin_dev_size, max_buckets;
 
 	/*
 	 * Calculate based on the size of the original volume or
 	 * the COW volume...
 	 */
 	cow_dev_size = get_dev_size(s->cow->bdev);
+	origin_dev_size = get_dev_size(s->origin->bdev);
 	max_buckets = calc_max_buckets();
 
-	hash_size = cow_dev_size >> s->store->chunk_shift;
+	hash_size = min(origin_dev_size, cow_dev_size) >> s->store->chunk_shift;
 	hash_size = min(hash_size, max_buckets);
 
 	if (hash_size < 64)
@@ -1114,9 +1095,6 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	s->valid = 1;
 	s->active = 0;
 	atomic_set(&s->pending_exceptions_count, 0);
-	s->exception_start_sequence = 0;
-	s->exception_complete_sequence = 0;
-	INIT_LIST_HEAD(&s->out_of_order_list);
 	init_rwsem(&s->lock);
 	INIT_LIST_HEAD(&s->list);
 	spin_lock_init(&s->pe_lock);
@@ -1439,6 +1417,8 @@ out:
 		full_bio->bi_end_io = pe->full_bio_end_io;
 		full_bio->bi_private = pe->full_bio_private;
 	}
+	free_pending_exception(pe);
+
 	increment_pending_exceptions_done_count();
 
 	up_write(&s->lock);
@@ -1455,8 +1435,6 @@ out:
 	}
 
 	retry_origin_bios(s, origin_bios);
-
-	free_pending_exception(pe);
 }
 
 static void commit_callback(void *context, int success)
@@ -1464,19 +1442,6 @@ static void commit_callback(void *context, int success)
 	struct dm_snap_pending_exception *pe = context;
 
 	pending_complete(pe, success);
-}
-
-static void complete_exception(struct dm_snap_pending_exception *pe)
-{
-	struct dm_snapshot *s = pe->snap;
-
-	if (unlikely(pe->copy_error))
-		pending_complete(pe, 0);
-
-	else
-		/* Update the metadata if we are persistent */
-		s->store->type->commit_exception(s->store, &pe->e,
-						 commit_callback, pe);
 }
 
 /*
@@ -1488,32 +1453,13 @@ static void copy_callback(int read_err, unsigned long write_err, void *context)
 	struct dm_snap_pending_exception *pe = context;
 	struct dm_snapshot *s = pe->snap;
 
-	pe->copy_error = read_err || write_err;
+	if (read_err || write_err)
+		pending_complete(pe, 0);
 
-	if (pe->exception_sequence == s->exception_complete_sequence) {
-		s->exception_complete_sequence++;
-		complete_exception(pe);
-
-		while (!list_empty(&s->out_of_order_list)) {
-			pe = list_entry(s->out_of_order_list.next,
-					struct dm_snap_pending_exception, out_of_order_entry);
-			if (pe->exception_sequence != s->exception_complete_sequence)
-				break;
-			s->exception_complete_sequence++;
-			list_del(&pe->out_of_order_entry);
-			complete_exception(pe);
-		}
-	} else {
-		struct list_head *lh;
-		struct dm_snap_pending_exception *pe2;
-
-		list_for_each_prev(lh, &s->out_of_order_list) {
-			pe2 = list_entry(lh, struct dm_snap_pending_exception, out_of_order_entry);
-			if (pe2->exception_sequence < pe->exception_sequence)
-				break;
-		}
-		list_add(&pe->out_of_order_entry, lh);
-	}
+	else
+		/* Update the metadata if we are persistent */
+		s->store->type->commit_exception(s->store, &pe->e,
+						 commit_callback, pe);
 }
 
 /*
@@ -1607,8 +1553,6 @@ __find_pending_exception(struct dm_snapshot *s,
 		free_pending_exception(pe);
 		return NULL;
 	}
-
-	pe->exception_sequence = s->exception_start_sequence++;
 
 	dm_insert_exception(&s->pending, &pe->e);
 
@@ -2249,7 +2193,7 @@ static struct target_type origin_target = {
 
 static struct target_type snapshot_target = {
 	.name    = "snapshot",
-	.version = {1, 12, 0},
+	.version = {1, 11, 1},
 	.module  = THIS_MODULE,
 	.ctr     = snapshot_ctr,
 	.dtr     = snapshot_dtr,

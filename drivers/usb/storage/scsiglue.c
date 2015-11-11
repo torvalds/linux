@@ -78,8 +78,6 @@ static const char* host_info(struct Scsi_Host *host)
 
 static int slave_alloc (struct scsi_device *sdev)
 {
-	struct us_data *us = host_to_us(sdev->host);
-
 	/*
 	 * Set the INQUIRY transfer length to 36.  We don't use any of
 	 * the extra data and many devices choke if asked for more or
@@ -103,10 +101,6 @@ static int slave_alloc (struct scsi_device *sdev)
 	 * will require changes to the block layer.
 	 */
 	blk_queue_update_dma_alignment(sdev->request_queue, (512 - 1));
-
-	/* Tell the SCSI layer if we know there is more than one LUN */
-	if (us->protocol == USB_PR_BULK && us->max_lun > 0)
-		sdev->sdev_bflags |= BLIST_FORCELUN;
 
 	return 0;
 }
@@ -217,11 +211,8 @@ static int slave_configure(struct scsi_device *sdev)
 		/*
 		 * Many devices do not respond properly to READ_CAPACITY_16.
 		 * Tell the SCSI layer to try READ_CAPACITY_10 first.
-		 * However some USB 3.0 drive enclosures return capacity
-		 * modulo 2TB. Those must use READ_CAPACITY_16
 		 */
-		if (!(us->fflags & US_FL_NEEDS_CAP16))
-			sdev->try_rc_10_first = 1;
+		sdev->try_rc_10_first = 1;
 
 		/* assume SPC3 or latter devices support sense size > 18 */
 		if (sdev->scsi_level > SCSI_SPC_2)

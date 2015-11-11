@@ -114,7 +114,7 @@ bool regmap_readable(struct regmap *map, unsigned int reg)
 
 bool regmap_volatile(struct regmap *map, unsigned int reg)
 {
-	if (!map->format.format_write && !regmap_readable(map, reg))
+	if (!regmap_readable(map, reg))
 		return false;
 
 	if (map->volatile_reg)
@@ -1177,7 +1177,7 @@ int _regmap_write(struct regmap *map, unsigned int reg,
 	}
 
 #ifdef LOG_DEVICE
-	if (map->dev && strcmp(dev_name(map->dev), LOG_DEVICE) == 0)
+	if (strcmp(dev_name(map->dev), LOG_DEVICE) == 0)
 		dev_info(map->dev, "%x <= %x\n", reg, val);
 #endif
 
@@ -1437,7 +1437,7 @@ static int _regmap_read(struct regmap *map, unsigned int reg,
 	ret = map->reg_read(context, reg, val);
 	if (ret == 0) {
 #ifdef LOG_DEVICE
-		if (map->dev && strcmp(dev_name(map->dev), LOG_DEVICE) == 0)
+		if (strcmp(dev_name(map->dev), LOG_DEVICE) == 0)
 			dev_info(map->dev, "%x => %x\n", reg, *val);
 #endif
 
@@ -1586,7 +1586,7 @@ int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 					  &ival);
 			if (ret != 0)
 				return ret;
-			map->format.format_val(val + (i * val_bytes), ival, 0);
+			memcpy(val + (i * val_bytes), &ival, val_bytes);
 		}
 	}
 
@@ -1717,7 +1717,7 @@ int regmap_async_complete(struct regmap *map)
 	int ret;
 
 	/* Nothing to do with no async support */
-	if (!map->bus || !map->bus->async_write)
+	if (!map->bus->async_write)
 		return 0;
 
 	trace_regmap_async_complete_start(map->dev);

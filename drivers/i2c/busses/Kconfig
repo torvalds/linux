@@ -108,9 +108,6 @@ config I2C_I801
 	    Lynx Point-LP (PCH)
 	    Avoton (SOC)
 	    Wellsburg (PCH)
-	    Coleto Creek (PCH)
-	    Wildcat Point-LP (PCH)
-	    BayTrail (SOC)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -153,7 +150,6 @@ config I2C_PIIX4
 	    ATI SB700/SP5100
 	    ATI SB800
 	    AMD Hudson-2
-	    AMD CZ
 	    Serverworks OSB4
 	    Serverworks CSB5
 	    Serverworks CSB6

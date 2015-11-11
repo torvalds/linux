@@ -498,7 +498,6 @@ void invert_screen(struct vc_data *vc, int offset, int count, int viewed)
 #endif
 	if (DO_UPDATE(vc))
 		do_update_region(vc, (unsigned long) p, count);
-	notify_update(vc);
 }
 
 /* used by selection: complement pointer position */
@@ -515,7 +514,6 @@ void complement_pos(struct vc_data *vc, int offset)
 		scr_writew(old, screenpos(vc, old_offset, 1));
 		if (DO_UPDATE(vc))
 			vc->vc_sw->con_putc(vc, old, oldy, oldx);
-		notify_update(vc);
 	}
 
 	old_offset = offset;
@@ -533,8 +531,8 @@ void complement_pos(struct vc_data *vc, int offset)
 			oldy = (offset >> 1) / vc->vc_cols;
 			vc->vc_sw->con_putc(vc, new, oldy, oldx);
 		}
-		notify_update(vc);
 	}
+
 }
 
 static void insert_char(struct vc_data *vc, unsigned int nr)
@@ -1166,8 +1164,6 @@ static void csi_J(struct vc_data *vc, int vpar)
 			scr_memsetw(vc->vc_screenbuf, vc->vc_video_erase_char,
 				    vc->vc_screenbuf_size >> 1);
 			set_origin(vc);
-			if (CON_IS_VISIBLE(vc))
-				update_screen(vc);
 			/* fall through */
 		case 2: /* erase whole display */
 			count = vc->vc_cols * vc->vc_rows;

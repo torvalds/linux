@@ -111,14 +111,6 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 			return;
 	}
 
-	/*
-	 * If we know that the inode will need to be revalidated immediately,
-	 * then don't create a new dentry for it. We'll end up doing an on
-	 * the wire call either way and this spares us an invalidation.
-	 */
-	if (fattr->cf_flags & CIFS_FATTR_NEED_REVAL)
-		return;
-
 	dentry = d_alloc(parent, name);
 	if (!dentry)
 		return;
@@ -582,11 +574,11 @@ find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon,
 		/* close and restart search */
 		cifs_dbg(FYI, "search backing up - close and restart search\n");
 		spin_lock(&cifs_file_list_lock);
-		if (server->ops->dir_needs_close(cfile)) {
+		if (!cfile->srch_inf.endOfSearch && !cfile->invalidHandle) {
 			cfile->invalidHandle = true;
 			spin_unlock(&cifs_file_list_lock);
-			if (server->ops->close_dir)
-				server->ops->close_dir(xid, tcon, &cfile->fid);
+			if (server->ops->close)
+				server->ops->close(xid, tcon, &cfile->fid);
 		} else
 			spin_unlock(&cifs_file_list_lock);
 		if (cfile->srch_inf.ntwrk_buf_start) {

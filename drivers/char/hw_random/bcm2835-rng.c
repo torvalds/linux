@@ -110,4 +110,4 @@ module_platform_driver(bcm2835_rng_driver);
 
 MODULE_AUTHOR("Lubomir Rintel <lkundrak@v3.sk>");
 MODULE_DESCRIPTION("BCM2835 Random Number Generator (RNG) driver");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPLv2");

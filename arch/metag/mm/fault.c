@@ -53,7 +53,8 @@ int do_page_fault(struct pt_regs *regs, unsigned long address,
 	struct vm_area_struct *vma, *prev_vma;
 	siginfo_t info;
 	int fault;
-	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
+				(write_access ? FAULT_FLAG_WRITE : 0);
 
 	tsk = current;
 
@@ -108,8 +109,6 @@ int do_page_fault(struct pt_regs *regs, unsigned long address,
 	if (in_atomic() || !mm)
 		goto no_context;
 
-	if (user_mode(regs))
-		flags |= FAULT_FLAG_USER;
 retry:
 	down_read(&mm->mmap_sem);
 
@@ -122,7 +121,6 @@ good_area:
 	if (write_access) {
 		if (!(vma->vm_flags & VM_WRITE))
 			goto bad_area;
-		flags |= FAULT_FLAG_WRITE;
 	} else {
 		if (!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)))
 			goto bad_area;
@@ -141,8 +139,6 @@ good_area:
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		if (fault & VM_FAULT_OOM)
 			goto out_of_memory;
-		else if (fault & VM_FAULT_SIGSEGV)
-			goto bad_area;
 		else if (fault & VM_FAULT_SIGBUS)
 			goto do_sigbus;
 		BUG();
@@ -228,10 +224,8 @@ do_sigbus:
 	 */
 out_of_memory:
 	up_read(&mm->mmap_sem);
-	if (user_mode(regs)) {
-		pagefault_out_of_memory();
-		return 1;
-	}
+	if (user_mode(regs))
+		do_group_exit(SIGKILL);
 
 no_context:
 	/* Are we prepared to handle this kernel fault?  */

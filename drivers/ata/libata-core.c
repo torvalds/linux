@@ -2199,16 +2199,6 @@ int ata_dev_configure(struct ata_device *dev)
 	if (rc)
 		return rc;
 
-	/* some WD SATA-1 drives have issues with LPM, turn on NOLPM for them */
-	if ((dev->horkage & ATA_HORKAGE_WD_BROKEN_LPM) &&
-	    (id[ATA_ID_SATA_CAPABILITY] & 0xe) == 0x2)
-		dev->horkage |= ATA_HORKAGE_NOLPM;
-
-	if (dev->horkage & ATA_HORKAGE_NOLPM) {
-		ata_dev_warn(dev, "LPM support broken, forcing max_power\n");
-		dev->link->ap->target_lpm_policy = ATA_LPM_MAX_POWER;
-	}
-
 	/* let ACPI work its magic */
 	rc = ata_acpi_on_devcfg(dev);
 	if (rc)
@@ -2411,7 +2401,7 @@ int ata_dev_configure(struct ata_device *dev)
 			cdb_intr_string = ", CDB intr";
 		}
 
-		if (atapi_dmadir || (dev->horkage & ATA_HORKAGE_ATAPI_DMADIR) || atapi_id_dmadir(dev->id)) {
+		if (atapi_dmadir || atapi_id_dmadir(dev->id)) {
 			dev->flags |= ATA_DFLAG_DMADIR;
 			dma_dir_string = ", DMADIR";
 		}
@@ -4120,7 +4110,6 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "TORiSAN DVD-ROM DRD-N216", NULL,	ATA_HORKAGE_MAX_SEC_128 },
 	{ "QUANTUM DAT    DAT72-000", NULL,	ATA_HORKAGE_ATAPI_MOD16_DMA },
 	{ "Slimtype DVD A  DS8A8SH", NULL,	ATA_HORKAGE_MAX_SEC_LBA48 },
-	{ "Slimtype DVD A  DS8A9SH", NULL,	ATA_HORKAGE_MAX_SEC_LBA48 },
 
 	/* Devices we expect to fail diagnostics */
 
@@ -4149,11 +4138,6 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 
 	{ "ST3320[68]13AS",	"SD1[5-9]",	ATA_HORKAGE_NONCQ |
 						ATA_HORKAGE_FIRMWARE_WARN },
-
-	/* drives which fail FPDMA_AA activation (some may freeze afterwards) */
-	{ "ST1000LM024 HN-M101MBB", "2AR10001",	ATA_HORKAGE_BROKEN_FPDMA_AA },
-	{ "ST1000LM024 HN-M101MBB", "2BA30001",	ATA_HORKAGE_BROKEN_FPDMA_AA },
-	{ "VB0250EAVER",	"HPG7",		ATA_HORKAGE_BROKEN_FPDMA_AA },
 
 	/* Blacklist entries taken from Silicon Image 3124/3132
 	   Windows driver .inf file - also several Linux problem reports */
@@ -4200,26 +4184,6 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "PIONEER DVD-RW  DVR-215",	NULL,	ATA_HORKAGE_NOSETXFER },
 	{ "PIONEER DVD-RW  DVR-212D",	NULL,	ATA_HORKAGE_NOSETXFER },
 	{ "PIONEER DVD-RW  DVR-216D",	NULL,	ATA_HORKAGE_NOSETXFER },
-
-	/* devices that don't properly handle TRIM commands */
-	{ "SuperSSpeed S238*",		NULL,	ATA_HORKAGE_NOTRIM, },
-
-	/*
-	 * Some WD SATA-I drives spin up and down erratically when the link
-	 * is put into the slumber mode.  We don't have full list of the
-	 * affected devices.  Disable LPM if the device matches one of the
-	 * known prefixes and is SATA-1.  As a side effect LPM partial is
-	 * lost too.
-	 *
-	 * https://bugzilla.kernel.org/show_bug.cgi?id=57211
-	 */
-	{ "WDC WD800JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
-	{ "WDC WD1200JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
-	{ "WDC WD1600JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
-	{ "WDC WD2000JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
-	{ "WDC WD2500JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
-	{ "WDC WD3000JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
-	{ "WDC WD3200JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
 
 	/* End Marker */
 	{ }
@@ -4508,8 +4472,7 @@ static unsigned int ata_dev_set_xfermode(struct ata_device *dev)
 	else /* In the ancient relic department - skip all of this */
 		return 0;
 
-	/* On some disks, this command causes spin-up, so we need longer timeout */
-	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 15000);
+	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 
 	DPRINTK("EXIT, err_mask=%x\n", err_mask);
 	return err_mask;
@@ -4763,10 +4726,6 @@ void swap_buf_le16(u16 *buf, unsigned int buf_words)
  *	ata_qc_new - Request an available ATA command, for queueing
  *	@ap: target port
  *
- *	Some ATA host controllers may implement a queue depth which is less
- *	than ATA_MAX_QUEUE. So we shouldn't allocate a tag which is beyond
- *	the hardware limitation.
- *
  *	LOCKING:
  *	None.
  */
@@ -4774,27 +4733,21 @@ void swap_buf_le16(u16 *buf, unsigned int buf_words)
 static struct ata_queued_cmd *ata_qc_new(struct ata_port *ap)
 {
 	struct ata_queued_cmd *qc = NULL;
-	unsigned int max_queue = ap->host->n_tags;
-	unsigned int i, tag;
+	unsigned int i;
 
 	/* no command while frozen */
 	if (unlikely(ap->pflags & ATA_PFLAG_FROZEN))
 		return NULL;
 
-	for (i = 0, tag = ap->last_tag + 1; i < max_queue; i++, tag++) {
-		tag = tag < max_queue ? tag : 0;
-
-		/* the last tag is reserved for internal command. */
-		if (tag == ATA_TAG_INTERNAL)
-			continue;
-
-		if (!test_and_set_bit(tag, &ap->qc_allocated)) {
-			qc = __ata_qc_from_tag(ap, tag);
-			qc->tag = tag;
-			ap->last_tag = tag;
+	/* the last tag is reserved for internal command. */
+	for (i = 0; i < ATA_MAX_QUEUE - 1; i++)
+		if (!test_and_set_bit(i, &ap->qc_allocated)) {
+			qc = __ata_qc_from_tag(ap, i);
 			break;
 		}
-	}
+
+	if (qc)
+		qc->tag = i;
 
 	return qc;
 }
@@ -6083,7 +6036,6 @@ void ata_host_init(struct ata_host *host, struct device *dev,
 {
 	spin_lock_init(&host->lock);
 	mutex_init(&host->eh_mutex);
-	host->n_tags = ATA_MAX_QUEUE - 1;
 	host->dev = dev;
 	host->ops = ops;
 }
@@ -6164,8 +6116,6 @@ static void async_port_probe(void *data, async_cookie_t cookie)
 int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 {
 	int i, rc;
-
-	host->n_tags = clamp(sht->can_queue, 1, ATA_MAX_QUEUE - 1);
 
 	/* host must have been started */
 	if (!(host->flags & ATA_HOST_STARTED)) {
@@ -6313,8 +6263,6 @@ int ata_host_activate(struct ata_host *host, int irq,
 static void ata_port_detach(struct ata_port *ap)
 {
 	unsigned long flags;
-	struct ata_link *link;
-	struct ata_device *dev;
 
 	if (!ap->ops->error_handler)
 		goto skip_eh;
@@ -6334,13 +6282,6 @@ static void ata_port_detach(struct ata_port *ap)
 	cancel_delayed_work_sync(&ap->hotplug_task);
 
  skip_eh:
-	/* clean up zpodd on port removal */
-	ata_for_each_link(link, ap, HOST_FIRST) {
-		ata_for_each_dev(dev, link, ALL) {
-			if (zpodd_dev_enabled(dev))
-				zpodd_exit(dev);
-		}
-	}
 	if (ap->pmp_link) {
 		int i;
 		for (i = 0; i < SATA_PMP_MAX_PORTS; i++)
@@ -6561,8 +6502,6 @@ static int __init ata_parse_force_one(char **cur,
 		{ "nosrst",	.lflags		= ATA_LFLAG_NO_SRST },
 		{ "norst",	.lflags		= ATA_LFLAG_NO_HRST | ATA_LFLAG_NO_SRST },
 		{ "rstonce",	.lflags		= ATA_LFLAG_RST_ONCE },
-		{ "atapi_dmadir", .horkage_on	= ATA_HORKAGE_ATAPI_DMADIR },
-		{ "disable",	.horkage_on	= ATA_HORKAGE_DISABLE },
 	};
 	char *start = *cur, *p = *cur;
 	char *id, *val, *endp;
@@ -6804,38 +6743,6 @@ u32 ata_wait_register(struct ata_port *ap, void __iomem *reg, u32 mask, u32 val,
 
 	return tmp;
 }
-
-/**
- *	sata_lpm_ignore_phy_events - test if PHY event should be ignored
- *	@link: Link receiving the event
- *
- *	Test whether the received PHY event has to be ignored or not.
- *
- *	LOCKING:
- *	None:
- *
- *	RETURNS:
- *	True if the event has to be ignored.
- */
-bool sata_lpm_ignore_phy_events(struct ata_link *link)
-{
-	unsigned long lpm_timeout = link->last_lpm_change +
-				    msecs_to_jiffies(ATA_TMOUT_SPURIOUS_PHY);
-
-	/* if LPM is enabled, PHYRDY doesn't mean anything */
-	if (link->lpm_policy > ATA_LPM_MAX_POWER)
-		return true;
-
-	/* ignore the first PHY event after the LPM policy changed
-	 * as it is might be spurious
-	 */
-	if ((link->flags & ATA_LFLAG_CHANGED) &&
-	    time_before(jiffies, lpm_timeout))
-		return true;
-
-	return false;
-}
-EXPORT_SYMBOL_GPL(sata_lpm_ignore_phy_events);
 
 /*
  * Dummy port_ops

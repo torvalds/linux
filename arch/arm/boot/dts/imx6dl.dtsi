@@ -18,14 +18,12 @@
 
 		cpu@0 {
 			compatible = "arm,cortex-a9";
-			device_type = "cpu";
 			reg = <0>;
 			next-level-cache = <&L2>;
 		};
 
 		cpu@1 {
 			compatible = "arm,cortex-a9";
-			device_type = "cpu";
 			reg = <1>;
 			next-level-cache = <&L2>;
 		};

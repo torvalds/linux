@@ -839,7 +839,7 @@ sys_sigreturn:
 	 nop
 
 	call	syscall_trace
-	 mov	1, %o1
+	 nop
 
 1:
 	/* We don't want to muck with user registers like a

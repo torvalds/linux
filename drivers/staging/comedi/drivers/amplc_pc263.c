@@ -72,9 +72,6 @@ static int pc263_do_insn_bits(struct comedi_device *dev,
 		outb(s->state & 0xFF, dev->iobase);
 		outb(s->state >> 8, dev->iobase + 1);
 	}
-
-	data[1] = s->state;
-
 	return insn->n;
 }
 

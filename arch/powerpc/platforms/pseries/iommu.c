@@ -1325,11 +1325,10 @@ static struct notifier_block iommu_mem_nb = {
 	.notifier_call = iommu_mem_notifier,
 };
 
-static int iommu_reconfig_notifier(struct notifier_block *nb, unsigned long action, void *data)
+static int iommu_reconfig_notifier(struct notifier_block *nb, unsigned long action, void *node)
 {
 	int err = NOTIFY_OK;
-	struct of_reconfig_data *rd = data;
-	struct device_node *np = rd->dn;
+	struct device_node *np = node;
 	struct pci_dn *pci = PCI_DN(np);
 	struct direct_window *window;
 

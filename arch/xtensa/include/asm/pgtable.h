@@ -68,12 +68,7 @@
 #define VMALLOC_START		0xC0000000
 #define VMALLOC_END		0xC7FEFFFF
 #define TLBTEMP_BASE_1		0xC7FF0000
-#define TLBTEMP_BASE_2		(TLBTEMP_BASE_1 + DCACHE_WAY_SIZE)
-#if 2 * DCACHE_WAY_SIZE > ICACHE_WAY_SIZE
-#define TLBTEMP_SIZE		(2 * DCACHE_WAY_SIZE)
-#else
-#define TLBTEMP_SIZE		ICACHE_WAY_SIZE
-#endif
+#define TLBTEMP_BASE_2		0xC7FF8000
 
 /*
  * Xtensa Linux config PTE layout (when present):

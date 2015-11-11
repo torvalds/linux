@@ -102,7 +102,6 @@ struct ore_striping_info {
 	unsigned unit_off;
 	unsigned cur_pg;
 	unsigned cur_comp;
-	unsigned maxdevUnits;
 };
 
 struct ore_io_state;

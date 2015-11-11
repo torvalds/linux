@@ -77,14 +77,16 @@ static void arizona_haptics_work(struct work_struct *work)
 			return;
 		}
 
-		mutex_unlock(dapm_mutex);
-
 		ret = snd_soc_dapm_sync(arizona->dapm);
 		if (ret != 0) {
 			dev_err(arizona->dev, "Failed to sync DAPM: %d\n",
 				ret);
+			mutex_unlock(dapm_mutex);
 			return;
 		}
+
+		mutex_unlock(dapm_mutex);
+
 	} else {
 		/* This disable sequence will be a noop if already enabled */
 		mutex_lock_nested(dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
@@ -97,14 +99,15 @@ static void arizona_haptics_work(struct work_struct *work)
 			return;
 		}
 
-		mutex_unlock(dapm_mutex);
-
 		ret = snd_soc_dapm_sync(arizona->dapm);
 		if (ret != 0) {
 			dev_err(arizona->dev, "Failed to sync DAPM: %d\n",
 				ret);
+			mutex_unlock(dapm_mutex);
 			return;
 		}
+
+		mutex_unlock(dapm_mutex);
 
 		ret = regmap_update_bits(arizona->regmap,
 					 ARIZONA_HAPTICS_CONTROL_1,

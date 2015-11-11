@@ -23,7 +23,8 @@ static struct dentry *regmap_debugfs_root;
 /* Calculate the length of a fixed format  */
 static size_t regmap_calc_reg_len(int max_val, char *buf, size_t buf_size)
 {
-	return snprintf(NULL, 0, "%x", max_val);
+	snprintf(buf, buf_size, "%x", max_val);
+	return strlen(buf);
 }
 
 static ssize_t regmap_name_read_file(struct file *file,
@@ -418,7 +419,7 @@ static ssize_t regmap_access_read_file(struct file *file,
 		/* If we're in the region the user is trying to read */
 		if (p >= *ppos) {
 			/* ...but not beyond it */
-			if (buf_pos + tot_len + 1 >= count)
+			if (buf_pos >= count - 1 - tot_len)
 				break;
 
 			/* Format the register */
@@ -459,20 +460,16 @@ void regmap_debugfs_init(struct regmap *map, const char *name)
 {
 	struct rb_node *next;
 	struct regmap_range_node *range_node;
-	const char *devname = "dummy";
 
 	INIT_LIST_HEAD(&map->debugfs_off_cache);
 	mutex_init(&map->cache_lock);
 
-	if (map->dev)
-		devname = dev_name(map->dev);
-
 	if (name) {
 		map->debugfs_name = kasprintf(GFP_KERNEL, "%s-%s",
-					      devname, name);
+					      dev_name(map->dev), name);
 		name = map->debugfs_name;
 	} else {
-		name = devname;
+		name = dev_name(map->dev);
 	}
 
 	map->debugfs = debugfs_create_dir(name, regmap_debugfs_root);

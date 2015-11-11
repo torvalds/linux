@@ -103,8 +103,7 @@ static int	audit_rate_limit;
 
 /* Number of outstanding audit_buffers allowed. */
 static int	audit_backlog_limit = 64;
-#define AUDIT_BACKLOG_WAIT_TIME (60 * HZ)
-static int	audit_backlog_wait_time = AUDIT_BACKLOG_WAIT_TIME;
+static int	audit_backlog_wait_time = 60 * HZ;
 static int	audit_backlog_wait_overflow = 0;
 
 /* The identity of the user shutting down the audit system. */
@@ -593,13 +592,13 @@ static int audit_netlink_ok(struct sk_buff *skb, u16 msg_type)
 	case AUDIT_TTY_SET:
 	case AUDIT_TRIM:
 	case AUDIT_MAKE_EQUIV:
-		if (!netlink_capable(skb, CAP_AUDIT_CONTROL))
+		if (!capable(CAP_AUDIT_CONTROL))
 			err = -EPERM;
 		break;
 	case AUDIT_USER:
 	case AUDIT_FIRST_USER_MSG ... AUDIT_LAST_USER_MSG:
 	case AUDIT_FIRST_USER_MSG2 ... AUDIT_LAST_USER_MSG2:
-		if (!netlink_capable(skb, CAP_AUDIT_WRITE))
+		if (!capable(CAP_AUDIT_WRITE))
 			err = -EPERM;
 		break;
 	default:  /* bad msg */
@@ -614,7 +613,7 @@ static int audit_log_common_recv_msg(struct audit_buffer **ab, u16 msg_type)
 	int rc = 0;
 	uid_t uid = from_kuid(&init_user_ns, current_uid());
 
-	if (!audit_enabled && msg_type != AUDIT_USER_AVC) {
+	if (!audit_enabled) {
 		*ab = NULL;
 		return rc;
 	}
@@ -660,7 +659,6 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	switch (msg_type) {
 	case AUDIT_GET:
-		status_set.mask		 = 0;
 		status_set.enabled	 = audit_enabled;
 		status_set.failure	 = audit_failure;
 		status_set.pid		 = audit_pid;
@@ -672,7 +670,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 				 &status_set, sizeof(status_set));
 		break;
 	case AUDIT_SET:
-		if (nlmsg_len(nlh) < sizeof(struct audit_status))
+		if (nlh->nlmsg_len < sizeof(struct audit_status))
 			return -EINVAL;
 		status_get   = (struct audit_status *)data;
 		if (status_get->mask & AUDIT_STATUS_ENABLED) {
@@ -834,7 +832,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 		memset(&s, 0, sizeof(s));
 		/* guard against past and future API changes */
-		memcpy(&s, data, min_t(size_t, sizeof(s), nlmsg_len(nlh)));
+		memcpy(&s, data, min(sizeof(s), (size_t)nlh->nlmsg_len));
 		if ((s.enabled != 0 && s.enabled != 1) ||
 		    (s.log_passwd != 0 && s.log_passwd != 1))
 			return -EINVAL;
@@ -1119,10 +1117,9 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 
 			sleep_time = timeout_start + audit_backlog_wait_time -
 					jiffies;
-			if ((long)sleep_time > 0) {
+			if ((long)sleep_time > 0)
 				wait_for_auditd(sleep_time);
-				continue;
-			}
+			continue;
 		}
 		if (audit_rate_check() && printk_ratelimit())
 			printk(KERN_WARNING
@@ -1135,8 +1132,6 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 		wake_up(&audit_backlog_wait);
 		return NULL;
 	}
-
-	audit_backlog_wait_time = AUDIT_BACKLOG_WAIT_TIME;
 
 	ab = audit_buffer_alloc(ctx, gfp_mask, type);
 	if (!ab) {
@@ -1412,7 +1407,7 @@ void audit_log_cap(struct audit_buffer *ab, char *prefix, kernel_cap_t *cap)
 	audit_log_format(ab, " %s=", prefix);
 	CAP_FOR_EACH_U32(i) {
 		audit_log_format(ab, "%08x",
-				 cap->cap[CAP_LAST_U32 - i]);
+				 cap->cap[(_KERNEL_CAPABILITY_U32S-1) - i]);
 	}
 }
 
@@ -1538,26 +1533,6 @@ void audit_log_name(struct audit_context *context, struct audit_names *n,
 			audit_log_format(ab, " obj=%s", ctx);
 			security_release_secctx(ctx, len);
 		}
-	}
-
-	/* log the audit_names record type */
-	audit_log_format(ab, " nametype=");
-	switch(n->type) {
-	case AUDIT_TYPE_NORMAL:
-		audit_log_format(ab, "NORMAL");
-		break;
-	case AUDIT_TYPE_PARENT:
-		audit_log_format(ab, "PARENT");
-		break;
-	case AUDIT_TYPE_CHILD_DELETE:
-		audit_log_format(ab, "DELETE");
-		break;
-	case AUDIT_TYPE_CHILD_CREATE:
-		audit_log_format(ab, "CREATE");
-		break;
-	default:
-		audit_log_format(ab, "UNKNOWN");
-		break;
 	}
 
 	audit_log_fcaps(ab, n);

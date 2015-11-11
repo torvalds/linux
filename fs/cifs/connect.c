@@ -377,7 +377,6 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		try_to_freeze();
 
 		/* we should try only the port we connected to before */
-		mutex_lock(&server->srv_mutex);
 		rc = generic_ip_connect(server);
 		if (rc) {
 			cifs_dbg(FYI, "reconnect error %d\n", rc);
@@ -389,7 +388,6 @@ cifs_reconnect(struct TCP_Server_Info *server)
 				server->tcpStatus = CifsNeedNegotiate;
 			spin_unlock(&GlobalMid_Lock);
 		}
-		mutex_unlock(&server->srv_mutex);
 	} while (server->tcpStatus == CifsNeedReconnect);
 
 	return rc;
@@ -1664,8 +1662,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			if (string == NULL)
 				goto out_nomem;
 
-			if (strnlen(string, CIFS_MAX_DOMAINNAME_LEN)
-					== CIFS_MAX_DOMAINNAME_LEN) {
+			if (strnlen(string, 256) == 256) {
 				printk(KERN_WARNING "CIFS: domain name too"
 						    " long\n");
 				goto cifs_parse_mount_err;
@@ -2291,8 +2288,8 @@ cifs_put_smb_ses(struct cifs_ses *ses)
 
 #ifdef CONFIG_KEYS
 
-/* strlen("cifs:a:") + CIFS_MAX_DOMAINNAME_LEN + 1 */
-#define CIFSCREDS_DESC_SIZE (7 + CIFS_MAX_DOMAINNAME_LEN + 1)
+/* strlen("cifs:a:") + INET6_ADDRSTRLEN + 1 */
+#define CIFSCREDS_DESC_SIZE (7 + INET6_ADDRSTRLEN + 1)
 
 /* Populate username and pw fields from keyring if possible */
 static int

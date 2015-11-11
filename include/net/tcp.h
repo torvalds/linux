@@ -287,8 +287,6 @@ extern int sysctl_tcp_thin_dupack;
 extern int sysctl_tcp_early_retrans;
 extern int sysctl_tcp_limit_output_bytes;
 extern int sysctl_tcp_challenge_ack_limit;
-extern int sysctl_tcp_min_tso_segs;
-extern int sysctl_tcp_default_init_rwnd;
 
 extern atomic_long_t tcp_memory_allocated;
 extern struct percpu_counter tcp_sockets_allocated;
@@ -461,7 +459,6 @@ extern const u8 *tcp_parse_md5sig_option(const struct tcphdr *th);
  */
 
 extern void tcp_v4_send_check(struct sock *sk, struct sk_buff *skb);
-void tcp_v4_mtu_reduced(struct sock *sk);
 extern int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb);
 extern struct sock * tcp_create_openreq_child(struct sock *sk,
 					      struct request_sock *req,
@@ -1310,8 +1307,7 @@ struct tcp_fastopen_request {
 	/* Fast Open cookie. Size 0 means a cookie request */
 	struct tcp_fastopen_cookie	cookie;
 	struct msghdr			*data;  /* data in MSG_FASTOPEN */
-	size_t				size;
-	int				copied;	/* queued in tcp_connect() */
+	u16				copied;	/* queued in tcp_connect() */
 };
 void tcp_free_fastopen_req(struct tcp_sock *tp);
 
@@ -1553,8 +1549,6 @@ extern struct sk_buff **tcp4_gro_receive(struct sk_buff **head,
 					 struct sk_buff *skb);
 extern int tcp_gro_complete(struct sk_buff *skb);
 extern int tcp4_gro_complete(struct sk_buff *skb);
-
-extern int tcp_nuke_addr(struct net *net, struct sockaddr *addr);
 
 #ifdef CONFIG_PROC_FS
 extern int tcp4_proc_init(void);

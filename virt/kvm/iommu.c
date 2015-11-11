@@ -43,13 +43,13 @@ static void kvm_iommu_put_pages(struct kvm *kvm,
 				gfn_t base_gfn, unsigned long npages);
 
 static pfn_t kvm_pin_pages(struct kvm_memory_slot *slot, gfn_t gfn,
-			   unsigned long npages)
+			   unsigned long size)
 {
 	gfn_t end_gfn;
 	pfn_t pfn;
 
 	pfn     = gfn_to_pfn_memslot(slot, gfn);
-	end_gfn = gfn + npages;
+	end_gfn = gfn + (size >> PAGE_SHIFT);
 	gfn    += 1;
 
 	if (is_error_noslot_pfn(pfn))
@@ -59,14 +59,6 @@ static pfn_t kvm_pin_pages(struct kvm_memory_slot *slot, gfn_t gfn,
 		gfn_to_pfn_memslot(slot, gfn++);
 
 	return pfn;
-}
-
-static void kvm_unpin_pages(struct kvm *kvm, pfn_t pfn, unsigned long npages)
-{
-	unsigned long i;
-
-	for (i = 0; i < npages; ++i)
-		kvm_release_pfn_clean(pfn + i);
 }
 
 int kvm_iommu_map_pages(struct kvm *kvm, struct kvm_memory_slot *slot)
@@ -111,15 +103,11 @@ int kvm_iommu_map_pages(struct kvm *kvm, struct kvm_memory_slot *slot)
 		while ((gfn << PAGE_SHIFT) & (page_size - 1))
 			page_size >>= 1;
 
-		/* Make sure hva is aligned to the page size we want to map */
-		while (__gfn_to_hva_memslot(slot, gfn) & (page_size - 1))
-			page_size >>= 1;
-
 		/*
 		 * Pin all pages we are about to map in memory. This is
 		 * important because we unmap and unpin in 4kb steps later.
 		 */
-		pfn = kvm_pin_pages(slot, gfn, page_size >> PAGE_SHIFT);
+		pfn = kvm_pin_pages(slot, gfn, page_size);
 		if (is_error_noslot_pfn(pfn)) {
 			gfn += 1;
 			continue;
@@ -131,7 +119,6 @@ int kvm_iommu_map_pages(struct kvm *kvm, struct kvm_memory_slot *slot)
 		if (r) {
 			printk(KERN_ERR "kvm_iommu_map_address:"
 			       "iommu failed to map pfn=%llx\n", pfn);
-			kvm_unpin_pages(kvm, pfn, page_size >> PAGE_SHIFT);
 			goto unmap_pages;
 		}
 
@@ -143,7 +130,7 @@ int kvm_iommu_map_pages(struct kvm *kvm, struct kvm_memory_slot *slot)
 	return 0;
 
 unmap_pages:
-	kvm_iommu_put_pages(kvm, slot->base_gfn, gfn - slot->base_gfn);
+	kvm_iommu_put_pages(kvm, slot->base_gfn, gfn);
 	return r;
 }
 
@@ -203,7 +190,11 @@ int kvm_assign_device(struct kvm *kvm,
 
 	pdev->dev_flags |= PCI_DEV_FLAGS_ASSIGNED;
 
-	dev_info(&pdev->dev, "kvm assign device\n");
+	printk(KERN_DEBUG "assign device %x:%x:%x.%x\n",
+		assigned_dev->host_segnr,
+		assigned_dev->host_busnr,
+		PCI_SLOT(assigned_dev->host_devfn),
+		PCI_FUNC(assigned_dev->host_devfn));
 
 	return 0;
 out_unmap:
@@ -229,7 +220,11 @@ int kvm_deassign_device(struct kvm *kvm,
 
 	pdev->dev_flags &= ~PCI_DEV_FLAGS_ASSIGNED;
 
-	dev_info(&pdev->dev, "kvm deassign device\n");
+	printk(KERN_DEBUG "deassign device %x:%x:%x.%x\n",
+		assigned_dev->host_segnr,
+		assigned_dev->host_busnr,
+		PCI_SLOT(assigned_dev->host_devfn),
+		PCI_FUNC(assigned_dev->host_devfn));
 
 	return 0;
 }
@@ -271,6 +266,14 @@ int kvm_iommu_map_guest(struct kvm *kvm)
 out_unlock:
 	mutex_unlock(&kvm->slots_lock);
 	return r;
+}
+
+static void kvm_unpin_pages(struct kvm *kvm, pfn_t pfn, unsigned long npages)
+{
+	unsigned long i;
+
+	for (i = 0; i < npages; ++i)
+		kvm_release_pfn_clean(pfn + i);
 }
 
 static void kvm_iommu_put_pages(struct kvm *kvm,

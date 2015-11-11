@@ -116,7 +116,7 @@ static void __init ebsa110_map_io(void)
 	iotable_init(ebsa110_io_desc, ARRAY_SIZE(ebsa110_io_desc));
 }
 
-static void __iomem *ebsa110_ioremap_caller(phys_addr_t cookie, size_t size,
+static void __iomem *ebsa110_ioremap_caller(unsigned long cookie, size_t size,
 					    unsigned int flags, void *caller)
 {
 	return (void __iomem *)cookie;

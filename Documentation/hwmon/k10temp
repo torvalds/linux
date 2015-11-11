@@ -12,7 +12,6 @@ Supported chips:
 * AMD Family 12h processors: "Llano" (E2/A4/A6/A8-Series)
 * AMD Family 14h processors: "Brazos" (C/E/G/Z-Series)
 * AMD Family 15h processors: "Bulldozer" (FX-Series), "Trinity"
-* AMD Family 16h processors: "Kabini"
 
   Prefix: 'k10temp'
   Addresses scanned: PCI space

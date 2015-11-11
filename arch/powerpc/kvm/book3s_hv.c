@@ -82,13 +82,10 @@ void kvmppc_fast_vcpu_kick(struct kvm_vcpu *vcpu)
 
 	/* CPU points to the first thread of the core */
 	if (cpu != me && cpu >= 0 && cpu < nr_cpu_ids) {
-#ifdef CONFIG_KVM_XICS
 		int real_cpu = cpu + vcpu->arch.ptid;
 		if (paca[real_cpu].kvm_hstate.xics_phys)
 			xics_wake_cpu(real_cpu);
-		else
-#endif
-		if (cpu_online(cpu))
+		else if (cpu_online(cpu))
 			smp_send_reschedule(cpu);
 	}
 	put_cpu();
@@ -1093,9 +1090,7 @@ static void kvmppc_start_thread(struct kvm_vcpu *vcpu)
 	smp_wmb();
 #if defined(CONFIG_PPC_ICP_NATIVE) && defined(CONFIG_SMP)
 	if (vcpu->arch.ptid) {
-#ifdef CONFIG_KVM_XICS
 		xics_wake_cpu(cpu);
-#endif
 		++vc->n_woken;
 	}
 #endif
@@ -1258,7 +1253,7 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 	kvm_guest_exit();
 
 	preempt_enable();
-	cond_resched();
+	kvm_resched(vcpu);
 
 	spin_lock(&vc->lock);
 	now = get_tb();

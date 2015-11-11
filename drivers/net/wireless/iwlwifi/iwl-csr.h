@@ -463,10 +463,13 @@
  * the CSR_INT_COALESCING is an 8 bit register in 32-usec unit
  *
  * default interrupt coalescing timer is 64 x 32 = 2048 usecs
+ * default interrupt coalescing calibration timer is 16 x 32 = 512 usecs
  */
 #define IWL_HOST_INT_TIMEOUT_MAX	(0xFF)
 #define IWL_HOST_INT_TIMEOUT_DEF	(0x40)
 #define IWL_HOST_INT_TIMEOUT_MIN	(0x0)
-#define IWL_HOST_INT_OPER_MODE		BIT(31)
+#define IWL_HOST_INT_CALIB_TIMEOUT_MAX	(0xFF)
+#define IWL_HOST_INT_CALIB_TIMEOUT_DEF	(0x10)
+#define IWL_HOST_INT_CALIB_TIMEOUT_MIN	(0x0)
 
 #endif /* !__iwl_csr_h__ */

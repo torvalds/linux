@@ -7,7 +7,6 @@
  * Copyright (C) 2008, 2009 Wind River Systems
  *   written by Ralf Baechle <ralf@linux-mips.org>
  */
-#include <linux/compiler.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/console.h>
@@ -463,18 +462,6 @@ static void octeon_halt(void)
 	octeon_kill_core(NULL);
 }
 
-static char __read_mostly octeon_system_type[80];
-
-static int __init init_octeon_system_type(void)
-{
-	snprintf(octeon_system_type, sizeof(octeon_system_type), "%s (%s)",
-		cvmx_board_type_to_string(octeon_bootinfo->board_type),
-		octeon_model_get_string(read_c0_prid()));
-
-	return 0;
-}
-early_initcall(init_octeon_system_type);
-
 /**
  * Handle all the error condition interrupts that might occur.
  *
@@ -494,7 +481,11 @@ static irqreturn_t octeon_rlm_interrupt(int cpl, void *dev_id)
  */
 const char *octeon_board_type_string(void)
 {
-	return octeon_system_type;
+	static char name[80];
+	sprintf(name, "%s (%s)",
+		cvmx_board_type_to_string(octeon_bootinfo->board_type),
+		octeon_model_get_string(read_c0_prid()));
+	return name;
 }
 
 const char *get_system_type(void)
@@ -721,7 +712,7 @@ void __init prom_init(void)
 	if (cvmx_read_csr(CVMX_L2D_FUS3) & (3ull << 34)) {
 		pr_info("Skipping L2 locking due to reduced L2 cache size\n");
 	} else {
-		uint32_t __maybe_unused ebase = read_c0_ebase() & 0x3ffff000;
+		uint32_t ebase = read_c0_ebase() & 0x3ffff000;
 #ifdef CONFIG_CAVIUM_OCTEON_LOCK_L2_TLB
 		/* TLB refill */
 		cvmx_l2c_lock_mem_region(ebase, 0x100);
@@ -1005,7 +996,7 @@ void __init plat_mem_setup(void)
 	cvmx_bootmem_unlock();
 	/* Add the memory region for the kernel. */
 	kernel_start = (unsigned long) _text;
-	kernel_size = _end - _text;
+	kernel_size = ALIGN(_end - _text, 0x100000);
 
 	/* Adjust for physical offset. */
 	kernel_start &= ~0xffffffff80000000ULL;

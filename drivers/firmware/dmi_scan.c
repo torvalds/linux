@@ -551,15 +551,9 @@ static bool dmi_matches(const struct dmi_system_id *dmi)
 		int s = dmi->matches[i].slot;
 		if (s == DMI_NONE)
 			break;
-		if (dmi_ident[s]) {
-			if (!dmi->matches[i].exact_match &&
-			    strstr(dmi_ident[s], dmi->matches[i].substr))
-				continue;
-			else if (dmi->matches[i].exact_match &&
-				 !strcmp(dmi_ident[s], dmi->matches[i].substr))
-				continue;
-		}
-
+		if (dmi_ident[s]
+		    && strstr(dmi_ident[s], dmi->matches[i].substr))
+			continue;
 		/* No match */
 		return false;
 	}

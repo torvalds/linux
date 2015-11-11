@@ -52,13 +52,13 @@ void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
 }
 
 #ifdef CONFIG_EARLY_PRINTK
-static const char *stdout;
+static char *stdout;
 
 static int __init early_init_dt_scan_chosen_serial(unsigned long node,
 				const char *uname, int depth, void *data)
 {
-	int l;
-	const char *p;
+	unsigned long l;
+	char *p;
 
 	pr_debug("%s: depth: %d, uname: %s\n", __func__, depth, uname);
 
@@ -89,7 +89,7 @@ static int __init early_init_dt_scan_chosen_serial(unsigned long node,
 				(strncmp(p, "xlnx,opb-uartlite", 17) == 0) ||
 				(strncmp(p, "xlnx,axi-uartlite", 17) == 0) ||
 				(strncmp(p, "xlnx,mdm", 8) == 0)) {
-			const unsigned int *addrp;
+			unsigned int *addrp;
 
 			*(u32 *)data = UARTLITE;
 
@@ -136,7 +136,8 @@ void __init early_init_devtree(void *params)
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
-void __init early_init_dt_setup_initrd_arch(u64 start, u64 end)
+void __init early_init_dt_setup_initrd_arch(unsigned long start,
+		unsigned long end)
 {
 	initrd_start = (unsigned long)__va(start);
 	initrd_end = (unsigned long)__va(end);

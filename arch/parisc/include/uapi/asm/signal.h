@@ -69,6 +69,8 @@
 #define SA_NOMASK	SA_NODEFER
 #define SA_ONESHOT	SA_RESETHAND
 
+#define SA_RESTORER	0x04000000 /* obsolete -- ignored */
+
 #define MINSIGSTKSZ	2048
 #define SIGSTKSZ	8192
 

@@ -19,7 +19,6 @@
 #include <linux/netdevice.h>
 #include <linux/can.h>
 #include <linux/can/dev.h>
-#include <linux/can/skb.h>
 #include <linux/can/error.h>
 
 #include <linux/mfd/janz.h>
@@ -1135,9 +1134,20 @@ static void ican3_handle_message(struct ican3_dev *mod, struct ican3_msg *msg)
  */
 static void ican3_put_echo_skb(struct ican3_dev *mod, struct sk_buff *skb)
 {
-	skb = can_create_echo_skb(skb);
-	if (!skb)
-		return;
+	struct sock *srcsk = skb->sk;
+
+	if (atomic_read(&skb->users) != 1) {
+		struct sk_buff *old_skb = skb;
+
+		skb = skb_clone(old_skb, GFP_ATOMIC);
+		kfree_skb(old_skb);
+		if (!skb)
+			return;
+	} else {
+		skb_orphan(skb);
+	}
+
+	skb->sk = srcsk;
 
 	/* save this skb for tx interrupt echo handling */
 	skb_queue_tail(&mod->echoq, skb);

@@ -137,6 +137,13 @@ static inline void arch_unmask_irq(unsigned int irq)
 	flag	\scratch
 .endm
 
+.macro IRQ_DISABLE_SAVE  scratch, save
+	lr	\scratch, [status32]
+	mov	\save, \scratch		/* Make a copy */
+	bic	\scratch, \scratch, (STATUS_E1_MASK | STATUS_E2_MASK)
+	flag	\scratch
+.endm
+
 .macro IRQ_ENABLE  scratch
 	lr	\scratch, [status32]
 	or	\scratch, \scratch, (STATUS_E1_MASK | STATUS_E2_MASK)

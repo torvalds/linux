@@ -41,7 +41,8 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs, unsigned long writ
 	const int field = sizeof(unsigned long) * 2;
 	siginfo_t info;
 	int fault;
-	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
+						 (write ? FAULT_FLAG_WRITE : 0);
 
 #if 0
 	printk("Cpu%d[%s:%d:%0*lx:%ld:%0*lx]\n", raw_smp_processor_id(),
@@ -91,8 +92,6 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs, unsigned long writ
 	if (in_atomic() || !mm)
 		goto bad_area_nosemaphore;
 
-	if (user_mode(regs))
-		flags |= FAULT_FLAG_USER;
 retry:
 	down_read(&mm->mmap_sem);
 	vma = find_vma(mm, address);
@@ -114,7 +113,6 @@ good_area:
 	if (write) {
 		if (!(vma->vm_flags & VM_WRITE))
 			goto bad_area;
-		flags |= FAULT_FLAG_WRITE;
 	} else {
 		if (cpu_has_rixi) {
 			if (address == regs->cp0_epc && !(vma->vm_flags & VM_EXEC)) {
@@ -157,8 +155,6 @@ good_area:
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		if (fault & VM_FAULT_OOM)
 			goto out_of_memory;
-		else if (fault & VM_FAULT_SIGSEGV)
-			goto bad_area;
 		else if (fault & VM_FAULT_SIGBUS)
 			goto do_sigbus;
 		BUG();
@@ -244,8 +240,6 @@ out_of_memory:
 	 * (which will retry the fault, or kill us if we got oom-killed).
 	 */
 	up_read(&mm->mmap_sem);
-	if (!user_mode(regs))
-		goto no_context;
 	pagefault_out_of_memory();
 	return;
 

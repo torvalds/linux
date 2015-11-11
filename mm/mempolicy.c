@@ -608,18 +608,19 @@ static unsigned long change_prot_numa(struct vm_area_struct *vma,
  * If pagelist != NULL then isolate pages from the LRU and
  * put them on the pagelist.
  */
-static int
+static struct vm_area_struct *
 check_range(struct mm_struct *mm, unsigned long start, unsigned long end,
 		const nodemask_t *nodes, unsigned long flags, void *private)
 {
-	int err = 0;
-	struct vm_area_struct *vma, *prev;
+	int err;
+	struct vm_area_struct *first, *vma, *prev;
 
-	vma = find_vma(mm, start);
-	if (!vma)
-		return -EFAULT;
+
+	first = find_vma(mm, start);
+	if (!first)
+		return ERR_PTR(-EFAULT);
 	prev = NULL;
-	for (; vma && vma->vm_start < end; vma = vma->vm_next) {
+	for (vma = first; vma && vma->vm_start < end; vma = vma->vm_next) {
 		unsigned long endvma = vma->vm_end;
 
 		if (endvma > end)
@@ -629,9 +630,9 @@ check_range(struct mm_struct *mm, unsigned long start, unsigned long end,
 
 		if (!(flags & MPOL_MF_DISCONTIG_OK)) {
 			if (!vma->vm_next && vma->vm_end < end)
-				return -EFAULT;
+				return ERR_PTR(-EFAULT);
 			if (prev && prev->vm_end < vma->vm_start)
-				return -EFAULT;
+				return ERR_PTR(-EFAULT);
 		}
 
 		if (is_vm_hugetlb_page(vma))
@@ -648,13 +649,15 @@ check_range(struct mm_struct *mm, unsigned long start, unsigned long end,
 
 			err = check_pgd_range(vma, start, endvma, nodes,
 						flags, private);
-			if (err)
+			if (err) {
+				first = ERR_PTR(err);
 				break;
+			}
 		}
 next:
 		prev = vma;
 	}
-	return err;
+	return first;
 }
 
 /*
@@ -725,14 +728,11 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
 			((vmstart - vma->vm_start) >> PAGE_SHIFT);
 		prev = vma_merge(mm, prev, vmstart, vmend, vma->vm_flags,
 				  vma->anon_vma, vma->vm_file, pgoff,
-				  new_pol, vma_get_anon_name(vma));
+				  new_pol);
 		if (prev) {
 			vma = prev;
 			next = vma->vm_next;
-			if (mpol_equal(vma_policy(vma), new_pol))
-				continue;
-			/* vma_merge() joined vma && vma->next, case 8 */
-			goto replace;
+			continue;
 		}
 		if (vma->vm_start != vmstart) {
 			err = split_vma(vma->vm_mm, vma, vmstart, 1);
@@ -744,7 +744,6 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
 			if (err)
 				goto out;
 		}
- replace:
 		err = vma_replace_policy(vma, new_pol);
 		if (err)
 			goto out;
@@ -1135,17 +1134,16 @@ out:
 
 /*
  * Allocate a new page for page migration based on vma policy.
- * Start by assuming the page is mapped by the same vma as contains @start.
+ * Start assuming that page is mapped by vma pointed to by @private.
  * Search forward from there, if not.  N.B., this assumes that the
  * list of pages handed to migrate_pages()--which is how we get here--
  * is in virtual address order.
  */
-static struct page *new_page(struct page *page, unsigned long start, int **x)
+static struct page *new_vma_page(struct page *page, unsigned long private, int **x)
 {
-	struct vm_area_struct *vma;
+	struct vm_area_struct *vma = (struct vm_area_struct *)private;
 	unsigned long uninitialized_var(address);
 
-	vma = find_vma(current->mm, start);
 	while (vma) {
 		address = page_address_in_vma(page, vma);
 		if (address != -EFAULT)
@@ -1171,7 +1169,7 @@ int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
 	return -ENOSYS;
 }
 
-static struct page *new_page(struct page *page, unsigned long start, int **x)
+static struct page *new_vma_page(struct page *page, unsigned long private, int **x)
 {
 	return NULL;
 }
@@ -1181,6 +1179,7 @@ static long do_mbind(unsigned long start, unsigned long len,
 		     unsigned short mode, unsigned short mode_flags,
 		     nodemask_t *nmask, unsigned long flags)
 {
+	struct vm_area_struct *vma;
 	struct mm_struct *mm = current->mm;
 	struct mempolicy *new;
 	unsigned long end;
@@ -1246,9 +1245,11 @@ static long do_mbind(unsigned long start, unsigned long len,
 	if (err)
 		goto mpol_out;
 
-	err = check_range(mm, start, end, nmask,
+	vma = check_range(mm, start, end, nmask,
 			  flags | MPOL_MF_INVERT, &pagelist);
-	if (!err)
+
+	err = PTR_ERR(vma);	/* maybe ... */
+	if (!IS_ERR(vma))
 		err = mbind_range(mm, start, end, new);
 
 	if (!err) {
@@ -1256,8 +1257,9 @@ static long do_mbind(unsigned long start, unsigned long len,
 
 		if (!list_empty(&pagelist)) {
 			WARN_ON_ONCE(flags & MPOL_MF_LAZY);
-			nr_failed = migrate_pages(&pagelist, new_page,
-				start, MIGRATE_SYNC, MR_MEMPOLICY_MBIND);
+			nr_failed = migrate_pages(&pagelist, new_vma_page,
+					(unsigned long)vma,
+					MIGRATE_SYNC, MR_MEMPOLICY_MBIND);
 			if (nr_failed)
 				putback_lru_pages(&pagelist);
 		}
@@ -2086,6 +2088,7 @@ struct mempolicy *__mpol_dup(struct mempolicy *old)
 	} else
 		*new = *old;
 
+	rcu_read_lock();
 	if (current_cpuset_is_being_rebound()) {
 		nodemask_t mems = cpuset_mems_allowed(current);
 		if (new->flags & MPOL_F_REBINDING)
@@ -2093,6 +2096,7 @@ struct mempolicy *__mpol_dup(struct mempolicy *old)
 		else
 			mpol_rebind_policy(new, &mems, MPOL_REBIND_ONCE);
 	}
+	rcu_read_unlock();
 	atomic_set(&new->refcnt, 1);
 	return new;
 }
@@ -2793,7 +2797,7 @@ int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 	 */
 	VM_BUG_ON(maxlen < strlen("interleave") + strlen("relative") + 16);
 
-	if (!pol || pol == &default_policy || (pol->flags & MPOL_F_MORON))
+	if (!pol || pol == &default_policy)
 		mode = MPOL_DEFAULT;
 	else
 		mode = pol->mode;

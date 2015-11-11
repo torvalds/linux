@@ -23,7 +23,6 @@
 
 #include <asm/hwcap.h>
 
-#define PTRACE_SET_SYSCALL	23
 
 /*
  * PSR bits

@@ -45,15 +45,11 @@
 #    define SMPWMB      eieio
 #endif
 
-#define __lwsync()	__asm__ __volatile__ (stringify_in_c(LWSYNC) : : :"memory")
-
 #define smp_mb()	mb()
-#define smp_rmb()	__lwsync()
+#define smp_rmb()	__asm__ __volatile__ (stringify_in_c(LWSYNC) : : :"memory")
 #define smp_wmb()	__asm__ __volatile__ (stringify_in_c(SMPWMB) : : :"memory")
 #define smp_read_barrier_depends()	read_barrier_depends()
 #else
-#define __lwsync()	barrier()
-
 #define smp_mb()	barrier()
 #define smp_rmb()	barrier()
 #define smp_wmb()	barrier()
@@ -68,20 +64,5 @@
  */
 #define data_barrier(x)	\
 	asm volatile("twi 0,%0,0; isync" : : "r" (x) : "memory");
-
-#define smp_store_release(p, v)						\
-do {									\
-	compiletime_assert_atomic_type(*p);				\
-	__lwsync();							\
-	ACCESS_ONCE(*p) = (v);						\
-} while (0)
-
-#define smp_load_acquire(p)						\
-({									\
-	typeof(*p) ___p1 = ACCESS_ONCE(*p);				\
-	compiletime_assert_atomic_type(*p);				\
-	__lwsync();							\
-	___p1;								\
-})
 
 #endif /* _ASM_POWERPC_BARRIER_H */

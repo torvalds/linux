@@ -113,6 +113,7 @@
 
 #define FRAC_BITS		30	/* fixed point arithmetic */
 #define ONE_FP			(1UL << FRAC_BITS)
+#define IWSUM			(ONE_FP/QFQ_MAX_WSUM)
 
 #define QFQ_MTU_SHIFT		16	/* to support TSO/GSO */
 #define QFQ_MIN_LMAX		512	/* see qfq_slot_insert */
@@ -188,7 +189,6 @@ struct qfq_sched {
 	struct qfq_aggregate	*in_serv_agg;   /* Aggregate being served. */
 	u32			num_active_agg; /* Num. of active aggregates */
 	u32			wsum;		/* weight sum */
-	u32			iwsum;		/* inverse weight sum */
 
 	unsigned long bitmaps[QFQ_MAX_STATE];	    /* Group bitmaps. */
 	struct qfq_group groups[QFQ_MAX_INDEX + 1]; /* The groups. */
@@ -314,7 +314,6 @@ static void qfq_update_agg(struct qfq_sched *q, struct qfq_aggregate *agg,
 
 	q->wsum +=
 		(int) agg->class_weight * (new_num_classes - agg->num_classes);
-	q->iwsum = ONE_FP / q->wsum;
 
 	agg->num_classes = new_num_classes;
 }
@@ -341,10 +340,6 @@ static void qfq_destroy_agg(struct qfq_sched *q, struct qfq_aggregate *agg)
 {
 	if (!hlist_unhashed(&agg->nonfull_next))
 		hlist_del_init(&agg->nonfull_next);
-	q->wsum -= agg->class_weight;
-	if (q->wsum != 0)
-		q->iwsum = ONE_FP / q->wsum;
-
 	if (q->in_serv_agg == agg)
 		q->in_serv_agg = qfq_choose_next_agg(q);
 	kfree(agg);
@@ -832,60 +827,38 @@ static void qfq_make_eligible(struct qfq_sched *q)
 	}
 }
 
+
 /*
- * The index of the slot in which the input aggregate agg is to be
- * inserted must not be higher than QFQ_MAX_SLOTS-2. There is a '-2'
- * and not a '-1' because the start time of the group may be moved
- * backward by one slot after the aggregate has been inserted, and
- * this would cause non-empty slots to be right-shifted by one
- * position.
+ * The index of the slot in which the aggregate is to be inserted must
+ * not be higher than QFQ_MAX_SLOTS-2. There is a '-2' and not a '-1'
+ * because the start time of the group may be moved backward by one
+ * slot after the aggregate has been inserted, and this would cause
+ * non-empty slots to be right-shifted by one position.
  *
- * QFQ+ fully satisfies this bound to the slot index if the parameters
- * of the classes are not changed dynamically, and if QFQ+ never
- * happens to postpone the service of agg unjustly, i.e., it never
- * happens that the aggregate becomes backlogged and eligible, or just
- * eligible, while an aggregate with a higher approximated finish time
- * is being served. In particular, in this case QFQ+ guarantees that
- * the timestamps of agg are low enough that the slot index is never
- * higher than 2. Unfortunately, QFQ+ cannot provide the same
- * guarantee if it happens to unjustly postpone the service of agg, or
- * if the parameters of some class are changed.
+ * If the weight and lmax (max_pkt_size) of the classes do not change,
+ * then QFQ+ does meet the above contraint according to the current
+ * values of its parameters. In fact, if the weight and lmax of the
+ * classes do not change, then, from the theory, QFQ+ guarantees that
+ * the slot index is never higher than
+ * 2 + QFQ_MAX_AGG_CLASSES * ((1<<QFQ_MTU_SHIFT)/QFQ_MIN_LMAX) *
+ * (QFQ_MAX_WEIGHT/QFQ_MAX_WSUM) = 2 + 8 * 128 * (1 / 64) = 18
  *
- * As for the first event, i.e., an out-of-order service, the
- * upper bound to the slot index guaranteed by QFQ+ grows to
- * 2 +
- * QFQ_MAX_AGG_CLASSES * ((1<<QFQ_MTU_SHIFT)/QFQ_MIN_LMAX) *
- * (current_max_weight/current_wsum) <= 2 + 8 * 128 * 1.
- *
- * The following function deals with this problem by backward-shifting
- * the timestamps of agg, if needed, so as to guarantee that the slot
- * index is never higher than QFQ_MAX_SLOTS-2. This backward-shift may
- * cause the service of other aggregates to be postponed, yet the
- * worst-case guarantees of these aggregates are not violated.  In
- * fact, in case of no out-of-order service, the timestamps of agg
- * would have been even lower than they are after the backward shift,
- * because QFQ+ would have guaranteed a maximum value equal to 2 for
- * the slot index, and 2 < QFQ_MAX_SLOTS-2. Hence the aggregates whose
- * service is postponed because of the backward-shift would have
- * however waited for the service of agg before being served.
- *
- * The other event that may cause the slot index to be higher than 2
- * for agg is a recent change of the parameters of some class. If the
- * weight of a class is increased or the lmax (max_pkt_size) of the
- * class is decreased, then a new aggregate with smaller slot size
- * than the original parent aggregate of the class may happen to be
- * activated. The activation of this aggregate should be properly
- * delayed to when the service of the class has finished in the ideal
- * system tracked by QFQ+. If the activation of the aggregate is not
- * delayed to this reference time instant, then this aggregate may be
- * unjustly served before other aggregates waiting for service. This
- * may cause the above bound to the slot index to be violated for some
- * of these unlucky aggregates.
+ * When the weight of a class is increased or the lmax of the class is
+ * decreased, a new aggregate with smaller slot size than the original
+ * parent aggregate of the class may happen to be activated. The
+ * activation of this aggregate should be properly delayed to when the
+ * service of the class has finished in the ideal system tracked by
+ * QFQ+. If the activation of the aggregate is not delayed to this
+ * reference time instant, then this aggregate may be unjustly served
+ * before other aggregates waiting for service. This may cause the
+ * above bound to the slot index to be violated for some of these
+ * unlucky aggregates.
  *
  * Instead of delaying the activation of the new aggregate, which is
- * quite complex, the above-discussed capping of the slot index is
- * used to handle also the consequences of a change of the parameters
- * of a class.
+ * quite complex, the following inaccurate but simple solution is used:
+ * if the slot index is higher than QFQ_MAX_SLOTS-2, then the
+ * timestamps of the aggregate are shifted backward so as to let the
+ * slot index become equal to QFQ_MAX_SLOTS-2.
  */
 static void qfq_slot_insert(struct qfq_group *grp, struct qfq_aggregate *agg,
 			    u64 roundedS)
@@ -1104,7 +1077,7 @@ static struct sk_buff *qfq_dequeue(struct Qdisc *sch)
 	else
 		in_serv_agg->budget -= len;
 
-	q->V += (u64)len * q->iwsum;
+	q->V += (u64)len * IWSUM;
 	pr_debug("qfq dequeue: len %u F %lld now %lld\n",
 		 len, (unsigned long long) in_serv_agg->F,
 		 (unsigned long long) q->V);

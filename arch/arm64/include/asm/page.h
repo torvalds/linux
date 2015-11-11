@@ -31,15 +31,6 @@
 /* We do define AT_SYSINFO_EHDR but don't use the gate mechanism */
 #define __HAVE_ARCH_GATE_AREA		1
 
-/*
- * The idmap and swapper page tables need some space reserved in the kernel
- * image. Both require a pgd and a next level table to (section) map the
- * kernel. The the swapper also maps the FDT (see __create_page_tables for
- * more information).
- */
-#define SWAPPER_DIR_SIZE	(2 * PAGE_SIZE)
-#define IDMAP_DIR_SIZE		(2 * PAGE_SIZE)
-
 #ifndef __ASSEMBLY__
 
 #ifdef CONFIG_ARM64_64K_PAGES

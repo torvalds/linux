@@ -265,7 +265,6 @@ sysc_sigpending:
 	tm	__TI_flags+3(%r12),_TIF_SYSCALL
 	jno	sysc_return
 	lm	%r2,%r7,__PT_R2(%r11)	# load svc arguments
-	l	%r10,__TI_sysc_table(%r12)	# 31 bit system call table
 	xr	%r8,%r8			# svc 0 returns -ENOSYS
 	clc	__PT_INT_CODE+2(2,%r11),BASED(.Lnr_syscalls+2)
 	jnl	sysc_nr_ok		# invalid svc number -> do svc 0

@@ -1094,7 +1094,7 @@ struct pnfs_ds_commit_info {
 	struct pnfs_commit_bucket *buckets;
 };
 
-#define NFS4_EXCHANGE_ID_LEN	(127)
+#define NFS4_EXCHANGE_ID_LEN	(48)
 struct nfs41_exchange_id_args {
 	struct nfs_client		*client;
 	nfs4_verifier			*verifier;
@@ -1184,21 +1184,10 @@ struct nfs41_free_stateid_res {
 	unsigned int			status;
 };
 
-static inline void
-nfs_free_pnfs_ds_cinfo(struct pnfs_ds_commit_info *cinfo)
-{
-	kfree(cinfo->buckets);
-}
-
 #else
 
 struct pnfs_ds_commit_info {
 };
-
-static inline void
-nfs_free_pnfs_ds_cinfo(struct pnfs_ds_commit_info *cinfo)
-{
-}
 
 #endif /* CONFIG_NFS_V4_1 */
 

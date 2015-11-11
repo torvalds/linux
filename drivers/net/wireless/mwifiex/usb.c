@@ -446,6 +446,9 @@ static int mwifiex_usb_suspend(struct usb_interface *intf, pm_message_t message)
 	 */
 	adapter->is_suspended = true;
 
+	for (i = 0; i < adapter->priv_num; i++)
+		netif_carrier_off(adapter->priv[i]->netdev);
+
 	if (atomic_read(&card->rx_cmd_urb_pending) && card->rx_cmd.urb)
 		usb_kill_urb(card->rx_cmd.urb);
 
@@ -505,11 +508,22 @@ static int mwifiex_usb_resume(struct usb_interface *intf)
 						  MWIFIEX_RX_CMD_BUF_SIZE);
 	}
 
+	for (i = 0; i < adapter->priv_num; i++)
+		if (adapter->priv[i]->media_connected)
+			netif_carrier_on(adapter->priv[i]->netdev);
+
 	/* Disable Host Sleep */
 	if (adapter->hs_activated)
 		mwifiex_cancel_hs(mwifiex_get_priv(adapter,
 						   MWIFIEX_BSS_ROLE_ANY),
 				  MWIFIEX_ASYNC_CMD);
+
+#ifdef CONFIG_PM
+	/* Resume handler may be called due to remote wakeup,
+	 * force to exit suspend anyway
+	 */
+	usb_disable_autosuspend(card->udev);
+#endif /* CONFIG_PM */
 
 	return 0;
 }
@@ -569,6 +583,7 @@ static struct usb_driver mwifiex_usb_driver = {
 	.id_table = mwifiex_usb_table,
 	.suspend = mwifiex_usb_suspend,
 	.resume = mwifiex_usb_resume,
+	.supports_autosuspend = 1,
 };
 
 static int mwifiex_usb_tx_init(struct mwifiex_adapter *adapter)

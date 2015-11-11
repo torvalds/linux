@@ -783,14 +783,6 @@ M:	Hubert Feurstein <hubert.feurstein@contec.at>
 S:	Maintained
 F:	arch/arm/mach-ep93xx/micro9.c
 
-ARM/CORESIGHT FRAMEWORK AND DRIVERS
-M:	Mathieu Poirier <mathieu.poirier@linaro.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	drivers/coresight/*
-F:	Documentation/trace/coresight.txt
-F:	Documentation/devicetree/bindings/arm/coresight.txt
-
 ARM/CORGI MACHINE SUPPORT
 M:	Richard Purdie <rpurdie@rpsys.net>
 S:	Maintained
@@ -4727,15 +4719,6 @@ F:	arch/arm/include/uapi/asm/kvm*
 F:	arch/arm/include/asm/kvm*
 F:	arch/arm/kvm/
 
-KERNEL VIRTUAL MACHINE FOR ARM64 (KVM/arm64)
-M:	Marc Zyngier <marc.zyngier@arm.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-L:	kvmarm@lists.cs.columbia.edu
-S:	Maintained
-F:	arch/arm64/include/uapi/asm/kvm*
-F:	arch/arm64/include/asm/kvm*
-F:	arch/arm64/kvm/
-
 KEXEC
 M:	Eric Biederman <ebiederm@xmission.com>
 W:	http://kernel.org/pub/linux/utils/kernel/kexec/
@@ -5168,14 +5151,6 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/macvlan.c
 F:	include/linux/if_macvlan.h
-
-MAILBOX API
-M:	Jassi Brar <jassisinghbrar@gmail.com>
-L:	linux-kernel@vger.kernel.org
-S:	Maintained
-F:	drivers/mailbox/
-F:	include/linux/mailbox_client.h
-F:	include/linux/mailbox_controller.h
 
 MAN-PAGES: MANUAL PAGES FOR LINUX -- Sections 2, 3, 4, 5, and 7
 M:	Michael Kerrisk <mtk.manpages@gmail.com>
@@ -7692,7 +7667,6 @@ STABLE BRANCH
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 L:	stable@vger.kernel.org
 S:	Supported
-F:	Documentation/stable_kernel_rules.txt
 
 STAGING SUBSYSTEM
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
@@ -8098,7 +8072,6 @@ S:      Supported
 F:      drivers/thermal/
 F:      include/linux/thermal.h
 F:      include/linux/cpu_cooling.h
-F:      Documentation/devicetree/bindings/thermal/
 
 THINGM BLINK(1) USB RGB LED DRIVER
 M:	Vivien Didelot <vivien.didelot@savoirfairelinux.com>

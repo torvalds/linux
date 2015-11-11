@@ -154,7 +154,7 @@ asmlinkage long mipsmt_sys_sched_getaffinity(pid_t pid, unsigned int len,
 				      unsigned long __user *user_mask_ptr)
 {
 	unsigned int real_len;
-	cpumask_t allowed, mask;
+	cpumask_t mask;
 	int retval;
 	struct task_struct *p;
 
@@ -173,8 +173,7 @@ asmlinkage long mipsmt_sys_sched_getaffinity(pid_t pid, unsigned int len,
 	if (retval)
 		goto out_unlock;
 
-	cpumask_or(&allowed, &p->thread.user_cpus_allowed, &p->cpus_allowed);
-	cpumask_and(&mask, &allowed, cpu_active_mask);
+	cpumask_and(&mask, &p->thread.user_cpus_allowed, cpu_possible_mask);
 
 out_unlock:
 	read_unlock(&tasklist_lock);

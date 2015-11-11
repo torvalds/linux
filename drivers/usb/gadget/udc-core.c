@@ -105,7 +105,7 @@ void usb_gadget_set_state(struct usb_gadget *gadget,
 		enum usb_device_state state)
 {
 	gadget->state = state;
-	sysfs_notify(&gadget->dev.kobj, NULL, "state");
+	sysfs_notify(&gadget->dev.kobj, NULL, "status");
 }
 EXPORT_SYMBOL_GPL(usb_gadget_set_state);
 
@@ -335,15 +335,7 @@ static int udc_bind_to_driver(struct usb_udc *udc, struct usb_gadget_driver *dri
 		driver->unbind(udc->gadget);
 		goto err1;
 	}
-	/*
-	 * HACK: The Android gadget driver disconnects the gadget
-	 * on bind and expects the gadget to stay disconnected until
-	 * it calls usb_gadget_connect when userspace is ready. Remove
-	 * the call to usb_gadget_connect bellow to avoid enabling the
-	 * pullup before userspace is ready.
-	 *
-	 * usb_gadget_connect(udc->gadget);
-	 */
+	usb_gadget_connect(udc->gadget);
 
 	kobject_uevent(&udc->dev.kobj, KOBJ_CHANGE);
 	return 0;
@@ -446,11 +438,6 @@ static ssize_t usb_udc_softconn_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t n)
 {
 	struct usb_udc		*udc = container_of(dev, struct usb_udc, dev);
-
-	if (!udc->driver) {
-		dev_err(dev, "soft-connect without a gadget driver\n");
-		return -EOPNOTSUPP;
-	}
 
 	if (sysfs_streq(buf, "connect")) {
 		usb_gadget_udc_start(udc->gadget, udc->driver);

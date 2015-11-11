@@ -498,13 +498,8 @@ static void sctp_v4_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 			continue;
 		if ((laddr->state == SCTP_ADDR_SRC) &&
 		    (AF_INET == laddr->a.sa.sa_family)) {
+			fl4->saddr = laddr->a.v4.sin_addr.s_addr;
 			fl4->fl4_sport = laddr->a.v4.sin_port;
-			flowi4_update_output(fl4,
-					     asoc->base.sk->sk_bound_dev_if,
-					     RT_CONN_FLAGS(asoc->base.sk),
-					     daddr->v4.sin_addr.s_addr,
-					     laddr->a.v4.sin_addr.s_addr);
-
 			rt = ip_route_output_key(sock_net(sk), fl4);
 			if (!IS_ERR(rt)) {
 				dst = &rt->dst;
@@ -1170,7 +1165,7 @@ static void sctp_v4_del_protocol(void)
 	unregister_inetaddr_notifier(&sctp_inetaddr_notifier);
 }
 
-static int __net_init sctp_defaults_init(struct net *net)
+static int __net_init sctp_net_init(struct net *net)
 {
 	int status;
 
@@ -1263,6 +1258,12 @@ static int __net_init sctp_defaults_init(struct net *net)
 
 	sctp_dbg_objcnt_init(net);
 
+	/* Initialize the control inode/socket for handling OOTB packets.  */
+	if ((status = sctp_ctl_sock_init(net))) {
+		pr_err("Failed to initialize the SCTP control sock\n");
+		goto err_ctl_sock_init;
+	}
+
 	/* Initialize the local address list. */
 	INIT_LIST_HEAD(&net->sctp.local_addr_list);
 	spin_lock_init(&net->sctp.local_addr_lock);
@@ -1278,6 +1279,9 @@ static int __net_init sctp_defaults_init(struct net *net)
 
 	return 0;
 
+err_ctl_sock_init:
+	sctp_dbg_objcnt_exit(net);
+	sctp_proc_exit(net);
 err_init_proc:
 	cleanup_sctp_mibs(net);
 err_init_mibs:
@@ -1286,11 +1290,14 @@ err_sysctl_register:
 	return status;
 }
 
-static void __net_exit sctp_defaults_exit(struct net *net)
+static void __net_exit sctp_net_exit(struct net *net)
 {
 	/* Free the local address list */
 	sctp_free_addr_wq(net);
 	sctp_free_local_addr_list(net);
+
+	/* Free the control endpoint.  */
+	inet_ctl_sock_destroy(net->sctp.ctl_sock);
 
 	sctp_dbg_objcnt_exit(net);
 
@@ -1299,32 +1306,9 @@ static void __net_exit sctp_defaults_exit(struct net *net)
 	sctp_sysctl_net_unregister(net);
 }
 
-static struct pernet_operations sctp_defaults_ops = {
-	.init = sctp_defaults_init,
-	.exit = sctp_defaults_exit,
-};
-
-static int __net_init sctp_ctrlsock_init(struct net *net)
-{
-	int status;
-
-	/* Initialize the control inode/socket for handling OOTB packets.  */
-	status = sctp_ctl_sock_init(net);
-	if (status)
-		pr_err("Failed to initialize the SCTP control sock\n");
-
-	return status;
-}
-
-static void __net_init sctp_ctrlsock_exit(struct net *net)
-{
-	/* Free the control endpoint.  */
-	inet_ctl_sock_destroy(net->sctp.ctl_sock);
-}
-
-static struct pernet_operations sctp_ctrlsock_ops = {
-	.init = sctp_ctrlsock_init,
-	.exit = sctp_ctrlsock_exit,
+static struct pernet_operations sctp_net_ops = {
+	.init = sctp_net_init,
+	.exit = sctp_net_exit,
 };
 
 /* Initialize the universe into something sensible.  */
@@ -1459,11 +1443,8 @@ SCTP_STATIC __init int sctp_init(void)
 	sctp_v4_pf_init();
 	sctp_v6_pf_init();
 
-	status = register_pernet_subsys(&sctp_defaults_ops);
-	if (status)
-		goto err_register_defaults;
-
 	status = sctp_v4_protosw_init();
+
 	if (status)
 		goto err_protosw_init;
 
@@ -1471,9 +1452,9 @@ SCTP_STATIC __init int sctp_init(void)
 	if (status)
 		goto err_v6_protosw_init;
 
-	status = register_pernet_subsys(&sctp_ctrlsock_ops);
+	status = register_pernet_subsys(&sctp_net_ops);
 	if (status)
-		goto err_register_ctrlsock;
+		goto err_register_pernet_subsys;
 
 	status = sctp_v4_add_protocol();
 	if (status)
@@ -1490,14 +1471,12 @@ out:
 err_v6_add_protocol:
 	sctp_v4_del_protocol();
 err_add_protocol:
-	unregister_pernet_subsys(&sctp_ctrlsock_ops);
-err_register_ctrlsock:
+	unregister_pernet_subsys(&sctp_net_ops);
+err_register_pernet_subsys:
 	sctp_v6_protosw_exit();
 err_v6_protosw_init:
 	sctp_v4_protosw_exit();
 err_protosw_init:
-	unregister_pernet_subsys(&sctp_defaults_ops);
-err_register_defaults:
 	sctp_v4_pf_exit();
 	sctp_v6_pf_exit();
 	sctp_sysctl_unregister();
@@ -1530,13 +1509,11 @@ SCTP_STATIC __exit void sctp_exit(void)
 	sctp_v6_del_protocol();
 	sctp_v4_del_protocol();
 
-	unregister_pernet_subsys(&sctp_ctrlsock_ops);
+	unregister_pernet_subsys(&sctp_net_ops);
 
 	/* Free protosw registrations */
 	sctp_v6_protosw_exit();
 	sctp_v4_protosw_exit();
-
-	unregister_pernet_subsys(&sctp_defaults_ops);
 
 	/* Unregister with socket layer. */
 	sctp_v6_pf_exit();

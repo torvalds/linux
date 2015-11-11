@@ -9,7 +9,7 @@ bool vlan_do_receive(struct sk_buff **skbp)
 {
 	struct sk_buff *skb = *skbp;
 	__be16 vlan_proto = skb->vlan_proto;
-	u16 vlan_id = vlan_tx_tag_get_id(skb);
+	u16 vlan_id = skb->vlan_tci & VLAN_VID_MASK;
 	struct net_device *vlan_dev;
 	struct vlan_pcpu_stats *rx_stats;
 
@@ -103,11 +103,8 @@ EXPORT_SYMBOL(vlan_dev_vlan_id);
 
 static struct sk_buff *vlan_reorder_header(struct sk_buff *skb)
 {
-	if (skb_cow(skb, skb_headroom(skb)) < 0) {
-		kfree_skb(skb);
+	if (skb_cow(skb, skb_headroom(skb)) < 0)
 		return NULL;
-	}
-
 	memmove(skb->data - ETH_HLEN, skb->data - VLAN_ETH_HLEN, 2 * ETH_ALEN);
 	skb->mac_header += VLAN_HLEN;
 	return skb;

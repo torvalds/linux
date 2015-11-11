@@ -788,9 +788,6 @@ static void remove_cache_dir(struct cache_dir *cache_dir)
 {
 	remove_index_dirs(cache_dir);
 
-	/* Remove cache dir from sysfs */
-	kobject_del(cache_dir->kobj);
-
 	kobject_put(cache_dir->kobj);
 
 	kfree(cache_dir);

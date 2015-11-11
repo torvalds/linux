@@ -975,15 +975,6 @@ unknown:
 		break;
 	}
 	/* host either stalls (value < 0) or reports success */
-	if (value >= 0) {
-		req->length = value;
-		req->zero = value < wLength;
-		value = usb_ep_queue(cdev->gadget->ep0, req, GFP_ATOMIC);
-		if (value < 0) {
-			ERROR(dev, "%s:%d Error!\n", __func__, __LINE__);
-			req->status = 0;
-		}
-	}
 	return value;
 }
 

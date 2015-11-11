@@ -648,13 +648,15 @@ int vmbus_request_offers(void)
 {
 	struct vmbus_channel_message_header *msg;
 	struct vmbus_channel_msginfo *msginfo;
-	int ret;
+	int ret, t;
 
 	msginfo = kmalloc(sizeof(*msginfo) +
 			  sizeof(struct vmbus_channel_message_header),
 			  GFP_KERNEL);
 	if (!msginfo)
 		return -ENOMEM;
+
+	init_completion(&msginfo->waitevent);
 
 	msg = (struct vmbus_channel_message_header *)msginfo->msg;
 
@@ -668,6 +670,14 @@ int vmbus_request_offers(void)
 
 		goto cleanup;
 	}
+
+	t = wait_for_completion_timeout(&msginfo->waitevent, 5*HZ);
+	if (t == 0) {
+		ret = -ETIMEDOUT;
+		goto cleanup;
+	}
+
+
 
 cleanup:
 	kfree(msginfo);

@@ -3,7 +3,6 @@
 
 #include <asm/page.h>   /* for __va, __pa */
 #include <arch/io.h>
-#include <asm-generic/iomap.h>
 #include <linux/kernel.h>
 
 struct cris_io_operations

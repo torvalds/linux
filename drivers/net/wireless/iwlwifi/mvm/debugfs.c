@@ -119,10 +119,6 @@ static ssize_t iwl_dbgfs_sta_drain_write(struct file *file,
 
 	if (sscanf(buf, "%d %d", &sta_id, &drain) != 2)
 		return -EINVAL;
-	if (sta_id < 0 || sta_id >= IWL_MVM_STATION_COUNT)
-		return -EINVAL;
-	if (drain < 0 || drain > 1)
-		return -EINVAL;
 
 	mutex_lock(&mvm->mutex);
 

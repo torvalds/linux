@@ -21,8 +21,6 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 
-#include <asm/assembler.h>
-
 /*
  * At this stage the secondary CPUs don't have acces yet to the MMU, so
  * we have to provide physical addresses
@@ -37,7 +35,6 @@
  * startup
  */
 ENTRY(armada_xp_secondary_startup)
- ARM_BE8(setend	be )			@ go BE8 if entered LE
 
 	/* Read CPU id */
 	mrc     p15, 0, r1, c0, c0, 5

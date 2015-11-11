@@ -25,16 +25,14 @@
 #include <linux/suspend.h>
 #include <linux/syscore_ops.h>
 #include <linux/ftrace.h>
-#include <linux/rtc.h>
 #include <trace/events/power.h>
-#include <linux/wakeup_reason.h>
 
 #include "power.h"
 
-struct pm_sleep_state pm_states[PM_SUSPEND_MAX] = {
-	[PM_SUSPEND_FREEZE] = { .label = "freeze", .state = PM_SUSPEND_FREEZE },
-	[PM_SUSPEND_STANDBY] = { .label = "standby", },
-	[PM_SUSPEND_MEM] = { .label = "mem", },
+const char *const pm_states[PM_SUSPEND_MAX] = {
+	[PM_SUSPEND_FREEZE]	= "freeze",
+	[PM_SUSPEND_STANDBY]	= "standby",
+	[PM_SUSPEND_MEM]	= "mem",
 };
 
 static const struct platform_suspend_ops *suspend_ops;
@@ -64,33 +62,41 @@ void freeze_wake(void)
 }
 EXPORT_SYMBOL_GPL(freeze_wake);
 
-static bool valid_state(suspend_state_t state)
-{
-	/*
-	 * PM_SUSPEND_STANDBY and PM_SUSPEND_MEM states need low level
-	 * support and need to be valid to the low level
-	 * implementation, no valid callback implies that none are valid.
-	 */
-	return suspend_ops && suspend_ops->valid && suspend_ops->valid(state);
-}
-
 /**
  * suspend_set_ops - Set the global suspend method table.
  * @ops: Suspend operations to use.
  */
 void suspend_set_ops(const struct platform_suspend_ops *ops)
 {
-	suspend_state_t i;
-
 	lock_system_sleep();
-
 	suspend_ops = ops;
-	for (i = PM_SUSPEND_STANDBY; i <= PM_SUSPEND_MEM; i++)
-		pm_states[i].state = valid_state(i) ? i : 0;
-
 	unlock_system_sleep();
 }
 EXPORT_SYMBOL_GPL(suspend_set_ops);
+
+bool valid_state(suspend_state_t state)
+{
+	if (state == PM_SUSPEND_FREEZE) {
+#ifdef CONFIG_PM_DEBUG
+		if (pm_test_level != TEST_NONE &&
+		    pm_test_level != TEST_FREEZER &&
+		    pm_test_level != TEST_DEVICES &&
+		    pm_test_level != TEST_PLATFORM) {
+			printk(KERN_WARNING "Unsupported pm_test mode for "
+					"freeze state, please choose "
+					"none/freezer/devices/platform.\n");
+			return false;
+		}
+#endif
+			return true;
+	}
+	/*
+	 * PM_SUSPEND_STANDBY and PM_SUSPEND_MEMORY states need lowlevel
+	 * support and need to be valid to the lowlevel
+	 * implementation, no valid callback implies that none are valid.
+	 */
+	return suspend_ops && suspend_ops->valid && suspend_ops->valid(state);
+}
 
 /**
  * suspend_valid_only_mem - Generic memory-only valid callback.
@@ -140,7 +146,7 @@ static int suspend_prepare(suspend_state_t state)
 	error = suspend_freeze_processes();
 	if (!error)
 		return 0;
-	log_suspend_abort_reason("One or more tasks refusing to freeze");
+
 	suspend_stats.failed_freeze++;
 	dpm_save_failed_step(SUSPEND_FREEZE);
  Finish:
@@ -170,8 +176,7 @@ void __attribute__ ((weak)) arch_suspend_enable_irqs(void)
  */
 static int suspend_enter(suspend_state_t state, bool *wakeup)
 {
-	char suspend_abort[MAX_SUSPEND_ABORT_LEN];
-	int error, last_dev;
+	int error;
 
 	if (need_suspend_ops(state) && suspend_ops->prepare) {
 		error = suspend_ops->prepare();
@@ -181,11 +186,7 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 
 	error = dpm_suspend_end(PMSG_SUSPEND);
 	if (error) {
-		last_dev = suspend_stats.last_failed_dev + REC_FAILED_NUM - 1;
-		last_dev %= REC_FAILED_NUM;
 		printk(KERN_ERR "PM: Some devices failed to power down\n");
-		log_suspend_abort_reason("%s device failed to power down",
-			suspend_stats.failed_devs[last_dev]);
 		goto Platform_finish;
 	}
 
@@ -210,10 +211,8 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 	}
 
 	error = disable_nonboot_cpus();
-	if (error || suspend_test(TEST_CPUS)) {
-		log_suspend_abort_reason("Disabling non-boot cpus failed");
+	if (error || suspend_test(TEST_CPUS))
 		goto Enable_cpus;
-	}
 
 	arch_suspend_disable_irqs();
 	BUG_ON(!irqs_disabled());
@@ -224,11 +223,6 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 		if (!(suspend_test(TEST_CORE) || *wakeup)) {
 			error = suspend_ops->enter(state);
 			events_check_enabled = false;
-		} else if (*wakeup) {
-			pm_get_active_wakeup_sources(suspend_abort,
-				MAX_SUSPEND_ABORT_LEN);
-			log_suspend_abort_reason(suspend_abort);
-			error = -EBUSY;
 		}
 		syscore_resume();
 	}
@@ -276,7 +270,6 @@ int suspend_devices_and_enter(suspend_state_t state)
 	error = dpm_suspend_start(PMSG_SUSPEND);
 	if (error) {
 		printk(KERN_ERR "PM: Some devices failed to suspend\n");
-		log_suspend_abort_reason("Some devices failed to suspend");
 		goto Recover_platform;
 	}
 	suspend_test_finish("suspend devices");
@@ -331,17 +324,9 @@ static int enter_state(suspend_state_t state)
 {
 	int error;
 
-	if (state == PM_SUSPEND_FREEZE) {
-#ifdef CONFIG_PM_DEBUG
-		if (pm_test_level != TEST_NONE && pm_test_level <= TEST_CPUS) {
-			pr_warning("PM: Unsupported test mode for freeze state,"
-				   "please choose none/freezer/devices/platform.\n");
-			return -EAGAIN;
-		}
-#endif
-	} else if (!valid_state(state)) {
-		return -EINVAL;
-	}
+	if (!valid_state(state))
+		return -ENODEV;
+
 	if (!mutex_trylock(&pm_mutex))
 		return -EBUSY;
 
@@ -352,7 +337,7 @@ static int enter_state(suspend_state_t state)
 	sys_sync();
 	printk("done.\n");
 
-	pr_debug("PM: Preparing system for %s sleep\n", pm_states[state].label);
+	pr_debug("PM: Preparing system for %s sleep\n", pm_states[state]);
 	error = suspend_prepare(state);
 	if (error)
 		goto Unlock;
@@ -360,7 +345,7 @@ static int enter_state(suspend_state_t state)
 	if (suspend_test(TEST_FREEZER))
 		goto Finish;
 
-	pr_debug("PM: Entering %s sleep\n", pm_states[state].label);
+	pr_debug("PM: Entering %s sleep\n", pm_states[state]);
 	pm_restrict_gfp_mask();
 	error = suspend_devices_and_enter(state);
 	pm_restore_gfp_mask();
@@ -371,18 +356,6 @@ static int enter_state(suspend_state_t state)
  Unlock:
 	mutex_unlock(&pm_mutex);
 	return error;
-}
-
-static void pm_suspend_marker(char *annotation)
-{
-	struct timespec ts;
-	struct rtc_time tm;
-
-	getnstimeofday(&ts);
-	rtc_time_to_tm(ts.tv_sec, &tm);
-	pr_info("PM: suspend %s %d-%02d-%02d %02d:%02d:%02d.%09lu UTC\n",
-		annotation, tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-		tm.tm_hour, tm.tm_min, tm.tm_sec, ts.tv_nsec);
 }
 
 /**
@@ -399,7 +372,6 @@ int pm_suspend(suspend_state_t state)
 	if (state <= PM_SUSPEND_ON || state >= PM_SUSPEND_MAX)
 		return -EINVAL;
 
-	pm_suspend_marker("entry");
 	error = enter_state(state);
 	if (error) {
 		suspend_stats.fail++;
@@ -407,7 +379,6 @@ int pm_suspend(suspend_state_t state)
 	} else {
 		suspend_stats.success++;
 	}
-	pm_suspend_marker("exit");
 	return error;
 }
 EXPORT_SYMBOL(pm_suspend);

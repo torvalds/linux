@@ -653,21 +653,17 @@ void dlm_lockres_clear_refmap_bit(struct dlm_ctxt *dlm,
 	clear_bit(bit, res->refmap);
 }
 
-static void __dlm_lockres_grab_inflight_ref(struct dlm_ctxt *dlm,
-				   struct dlm_lock_resource *res)
-{
-	res->inflight_locks++;
-
-	mlog(0, "%s: res %.*s, inflight++: now %u, %ps()\n", dlm->name,
-	     res->lockname.len, res->lockname.name, res->inflight_locks,
-	     __builtin_return_address(0));
-}
 
 void dlm_lockres_grab_inflight_ref(struct dlm_ctxt *dlm,
 				   struct dlm_lock_resource *res)
 {
 	assert_spin_locked(&res->spinlock);
-	__dlm_lockres_grab_inflight_ref(dlm, res);
+
+	res->inflight_locks++;
+
+	mlog(0, "%s: res %.*s, inflight++: now %u, %ps()\n", dlm->name,
+	     res->lockname.len, res->lockname.name, res->inflight_locks,
+	     __builtin_return_address(0));
 }
 
 void dlm_lockres_drop_inflight_ref(struct dlm_ctxt *dlm,
@@ -729,19 +725,6 @@ lookup:
 	if (tmpres) {
 		spin_unlock(&dlm->spinlock);
 		spin_lock(&tmpres->spinlock);
-
-		/*
-		 * Right after dlm spinlock was released, dlm_thread could have
-		 * purged the lockres. Check if lockres got unhashed. If so
-		 * start over.
-		 */
-		if (hlist_unhashed(&tmpres->hash_node)) {
-			spin_unlock(&tmpres->spinlock);
-			dlm_lockres_put(tmpres);
-			tmpres = NULL;
-			goto lookup;
-		}
-
 		/* Wait on the thread that is mastering the resource */
 		if (tmpres->owner == DLM_LOCK_RES_OWNER_UNKNOWN) {
 			__dlm_wait_on_lockres(tmpres);
@@ -872,8 +855,10 @@ lookup:
 	/* finally add the lockres to its hash bucket */
 	__dlm_insert_lockres(dlm, res);
 
-	/* since this lockres is new it doesn't not require the spinlock */
-	__dlm_lockres_grab_inflight_ref(dlm, res);
+	/* Grab inflight ref to pin the resource */
+	spin_lock(&res->spinlock);
+	dlm_lockres_grab_inflight_ref(dlm, res);
+	spin_unlock(&res->spinlock);
 
 	/* get an extra ref on the mle in case this is a BLOCK
 	 * if so, the creator of the BLOCK may try to put the last

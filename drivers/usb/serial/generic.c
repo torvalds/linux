@@ -176,7 +176,14 @@ retry:
 		return result;
 	}
 
-	goto retry;	/* try sending off another urb */
+	/* Try sending off another urb, unless in irq context (in which case
+	 * there will be no free urb). */
+	if (!in_irq())
+		goto retry;
+
+	clear_bit_unlock(USB_SERIAL_WRITE_BUSY, &port->flags);
+
+	return 0;
 }
 
 /**
@@ -261,8 +268,7 @@ void usb_serial_generic_wait_until_sent(struct tty_struct *tty, long timeout)
 	 * character or at least one jiffy.
 	 */
 	period = max_t(unsigned long, (10 * HZ / bps), 1);
-	if (timeout)
-		period = min_t(unsigned long, period, timeout);
+	period = min_t(unsigned long, period, timeout);
 
 	dev_dbg(&port->dev, "%s - timeout = %u ms, period = %u ms\n",
 					__func__, jiffies_to_msecs(timeout),
@@ -272,7 +278,7 @@ void usb_serial_generic_wait_until_sent(struct tty_struct *tty, long timeout)
 		schedule_timeout_interruptible(period);
 		if (signal_pending(current))
 			break;
-		if (timeout && time_after(jiffies, expire))
+		if (time_after(jiffies, expire))
 			break;
 	}
 }

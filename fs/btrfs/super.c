@@ -779,15 +779,6 @@ find_root:
 	if (btrfs_root_refs(&new_root->root_item) == 0)
 		return ERR_PTR(-ENOENT);
 
-	if (!(sb->s_flags & MS_RDONLY)) {
-		int ret;
-		down_read(&fs_info->cleanup_work_sem);
-		ret = btrfs_orphan_cleanup(new_root);
-		up_read(&fs_info->cleanup_work_sem);
-		if (ret)
-			return ERR_PTR(ret);
-	}
-
 	dir_id = btrfs_root_dirid(&new_root->root_item);
 setup_root:
 	location.objectid = dir_id;
@@ -1248,7 +1239,6 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 	unsigned int old_metadata_ratio = fs_info->metadata_ratio;
 	int ret;
 
-	sync_filesystem(sb);
 	btrfs_remount_prepare(fs_info);
 
 	ret = btrfs_parse_options(root, data);

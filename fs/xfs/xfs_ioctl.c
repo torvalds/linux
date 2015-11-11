@@ -409,8 +409,7 @@ xfs_attrlist_by_handle(
 		return -XFS_ERROR(EPERM);
 	if (copy_from_user(&al_hreq, arg, sizeof(xfs_fsop_attrlist_handlereq_t)))
 		return -XFS_ERROR(EFAULT);
-	if (al_hreq.buflen < sizeof(struct attrlist) ||
-	    al_hreq.buflen > XATTR_LIST_MAX)
+	if (al_hreq.buflen > XATTR_LIST_MAX)
 		return -XFS_ERROR(EINVAL);
 
 	/*
@@ -1612,12 +1611,6 @@ xfs_file_ioctl(
 
 	case XFS_IOC_FREE_EOFBLOCKS: {
 		struct xfs_eofblocks eofb;
-
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-
-		if (mp->m_flags & XFS_MOUNT_RDONLY)
-			return -XFS_ERROR(EROFS);
 
 		if (copy_from_user(&eofb, arg, sizeof(eofb)))
 			return -XFS_ERROR(EFAULT);

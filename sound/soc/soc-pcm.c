@@ -34,7 +34,7 @@
 #define DPCM_MAX_BE_USERS	8
 
 /* DPCM stream event, send event to FE and all active BEs. */
-int dpcm_dapm_stream_event(struct snd_soc_pcm_runtime *fe, int dir,
+static int dpcm_dapm_stream_event(struct snd_soc_pcm_runtime *fe, int dir,
 	int event)
 {
 	struct snd_soc_dpcm *dpcm;
@@ -408,9 +408,8 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 		} else {
 			/* start delayed pop wq here for playback streams */
 			rtd->pop_wait = 1;
-			queue_delayed_work(system_power_efficient_wq,
-					   &rtd->delayed_work,
-					   msecs_to_jiffies(rtd->pmdown_time));
+			schedule_delayed_work(&rtd->delayed_work,
+				msecs_to_jiffies(rtd->pmdown_time));
 		}
 	} else {
 		/* capture streams can be powered down now */
@@ -758,7 +757,7 @@ static void dpcm_be_reparent(struct snd_soc_pcm_runtime *fe,
 }
 
 /* disconnect a BE and FE */
-void dpcm_be_disconnect(struct snd_soc_pcm_runtime *fe, int stream)
+static void dpcm_be_disconnect(struct snd_soc_pcm_runtime *fe, int stream)
 {
 	struct snd_soc_dpcm *dpcm, *d;
 
@@ -854,7 +853,7 @@ static int widget_in_list(struct snd_soc_dapm_widget_list *list,
 	return 0;
 }
 
-int dpcm_path_get(struct snd_soc_pcm_runtime *fe,
+static int dpcm_path_get(struct snd_soc_pcm_runtime *fe,
 	int stream, struct snd_soc_dapm_widget_list **list_)
 {
 	struct snd_soc_dai *cpu_dai = fe->cpu_dai;
@@ -874,6 +873,11 @@ int dpcm_path_get(struct snd_soc_pcm_runtime *fe,
 
 	*list_ = list;
 	return paths;
+}
+
+static inline void dpcm_path_put(struct snd_soc_dapm_widget_list **list)
+{
+	kfree(*list);
 }
 
 static int dpcm_prune_paths(struct snd_soc_pcm_runtime *fe, int stream,
@@ -945,7 +949,7 @@ static int dpcm_add_paths(struct snd_soc_pcm_runtime *fe, int stream,
 			continue;
 
 		/* don't connect if FE is not running */
-		if (!fe->dpcm[stream].runtime && !fe->fe_compr)
+		if (!fe->dpcm[stream].runtime)
 			continue;
 
 		/* newly connected FE and BE */
@@ -970,7 +974,7 @@ static int dpcm_add_paths(struct snd_soc_pcm_runtime *fe, int stream,
  * Find the corresponding BE DAIs that source or sink audio to this
  * FE substream.
  */
-int dpcm_process_paths(struct snd_soc_pcm_runtime *fe,
+static int dpcm_process_paths(struct snd_soc_pcm_runtime *fe,
 	int stream, struct snd_soc_dapm_widget_list **list, int new)
 {
 	if (new)
@@ -979,7 +983,7 @@ int dpcm_process_paths(struct snd_soc_pcm_runtime *fe,
 		return dpcm_prune_paths(fe, stream, list);
 }
 
-void dpcm_clear_pending_state(struct snd_soc_pcm_runtime *fe, int stream)
+static void dpcm_clear_pending_state(struct snd_soc_pcm_runtime *fe, int stream)
 {
 	struct snd_soc_dpcm *dpcm;
 
@@ -1017,7 +1021,7 @@ static void dpcm_be_dai_startup_unwind(struct snd_soc_pcm_runtime *fe,
 	}
 }
 
-int dpcm_be_dai_startup(struct snd_soc_pcm_runtime *fe, int stream)
+static int dpcm_be_dai_startup(struct snd_soc_pcm_runtime *fe, int stream)
 {
 	struct snd_soc_dpcm *dpcm;
 	int err, count = 0;
@@ -1159,7 +1163,7 @@ be_err:
 	return ret;
 }
 
-int dpcm_be_dai_shutdown(struct snd_soc_pcm_runtime *fe, int stream)
+static int dpcm_be_dai_shutdown(struct snd_soc_pcm_runtime *fe, int stream)
 {
 	struct snd_soc_dpcm *dpcm;
 
@@ -1220,7 +1224,7 @@ static int dpcm_fe_dai_shutdown(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-int dpcm_be_dai_hw_free(struct snd_soc_pcm_runtime *fe, int stream)
+static int dpcm_be_dai_hw_free(struct snd_soc_pcm_runtime *fe, int stream)
 {
 	struct snd_soc_dpcm *dpcm;
 
@@ -1285,7 +1289,7 @@ static int dpcm_fe_dai_hw_free(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-int dpcm_be_dai_hw_params(struct snd_soc_pcm_runtime *fe, int stream)
+static int dpcm_be_dai_hw_params(struct snd_soc_pcm_runtime *fe, int stream)
 {
 	struct snd_soc_dpcm *dpcm;
 	int ret;
@@ -1415,7 +1419,7 @@ static int dpcm_do_trigger(struct snd_soc_dpcm *dpcm,
 	return ret;
 }
 
-int dpcm_be_dai_trigger(struct snd_soc_pcm_runtime *fe, int stream,
+static int dpcm_be_dai_trigger(struct snd_soc_pcm_runtime *fe, int stream,
 			       int cmd)
 {
 	struct snd_soc_dpcm *dpcm;
@@ -1583,7 +1587,7 @@ out:
 	return ret;
 }
 
-int dpcm_be_dai_prepare(struct snd_soc_pcm_runtime *fe, int stream)
+static int dpcm_be_dai_prepare(struct snd_soc_pcm_runtime *fe, int stream)
 {
 	struct snd_soc_dpcm *dpcm;
 	int ret = 0;
@@ -1882,7 +1886,6 @@ int soc_dpcm_runtime_update(struct snd_soc_dapm_widget *widget)
 			dpcm_be_disconnect(fe, SNDRV_PCM_STREAM_PLAYBACK);
 		}
 
-		dpcm_path_put(&list);
 capture:
 		/* skip if FE doesn't have capture capability */
 		if (!fe->cpu_dai->driver->capture.channels_min)

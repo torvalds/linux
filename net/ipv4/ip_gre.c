@@ -335,8 +335,7 @@ static int ipgre_rcv(struct sk_buff *skb)
 				  iph->saddr, iph->daddr, tpi.key);
 
 	if (tunnel) {
-		skb_pop_mac_header(skb);
-		ip_tunnel_rcv(tunnel, skb, &tpi, hdr_len, log_ecn_error);
+		ip_tunnel_rcv(tunnel, skb, &tpi, log_ecn_error);
 		return 0;
 	}
 	icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PORT_UNREACH, 0);
@@ -504,11 +503,10 @@ static int ipgre_tunnel_ioctl(struct net_device *dev,
 
 	if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof(p)))
 		return -EFAULT;
-	if (cmd == SIOCADDTUNNEL || cmd == SIOCCHGTUNNEL) {
-		if (p.iph.version != 4 || p.iph.protocol != IPPROTO_GRE ||
-		    p.iph.ihl != 5 || (p.iph.frag_off&htons(~IP_DF)) ||
-		    ((p.i_flags|p.o_flags)&(GRE_VERSION|GRE_ROUTING)))
-			return -EINVAL;
+	if (p.iph.version != 4 || p.iph.protocol != IPPROTO_GRE ||
+	    p.iph.ihl != 5 || (p.iph.frag_off&htons(~IP_DF)) ||
+	    ((p.i_flags|p.o_flags)&(GRE_VERSION|GRE_ROUTING))) {
+		return -EINVAL;
 	}
 	p.i_flags = gre_flags_to_tnl_flags(p.i_flags);
 	p.o_flags = gre_flags_to_tnl_flags(p.o_flags);
@@ -573,7 +571,7 @@ static int ipgre_header(struct sk_buff *skb, struct net_device *dev,
 	if (daddr)
 		memcpy(&iph->daddr, daddr, 4);
 	if (iph->daddr)
-		return t->hlen + sizeof(*iph);
+		return t->hlen;
 
 	return -(t->hlen + sizeof(*iph));
 }
@@ -652,7 +650,6 @@ static const struct net_device_ops ipgre_netdev_ops = {
 static void ipgre_tunnel_setup(struct net_device *dev)
 {
 	dev->netdev_ops		= &ipgre_netdev_ops;
-	dev->type		= ARPHRD_IPGRE;
 	ip_tunnel_setup(dev, ipgre_net_id);
 }
 
@@ -691,6 +688,7 @@ static int ipgre_tunnel_init(struct net_device *dev)
 	memcpy(dev->dev_addr, &iph->saddr, 4);
 	memcpy(dev->broadcast, &iph->daddr, 4);
 
+	dev->type		= ARPHRD_IPGRE;
 	dev->flags		= IFF_NOARP;
 	dev->priv_flags		&= ~IFF_XMIT_DST_RELEASE;
 	dev->addr_len		= 4;

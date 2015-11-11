@@ -162,8 +162,8 @@ static __be32 *read_buf(struct nfsd4_compoundargs *argp, u32 nbytes)
 	 */
 	memcpy(p, argp->p, avail);
 	/* step to next page */
-	argp->pagelist++;
 	argp->p = page_address(argp->pagelist[0]);
+	argp->pagelist++;
 	if (argp->pagelen < PAGE_SIZE) {
 		argp->end = argp->p + (argp->pagelen>>2);
 		argp->pagelen = 0;
@@ -553,18 +553,7 @@ nfsd4_decode_create(struct nfsd4_compoundargs *argp, struct nfsd4_create *create
 		READ_BUF(4);
 		READ32(create->cr_linklen);
 		READ_BUF(create->cr_linklen);
-		/*
-		 * The VFS will want a null-terminated string, and
-		 * null-terminating in place isn't safe since this might
-		 * end on a page boundary:
-		 */
-		create->cr_linkname =
-				kmalloc(create->cr_linklen + 1, GFP_KERNEL);
-		if (!create->cr_linkname)
-			return nfserr_jukebox;
-		memcpy(create->cr_linkname, p, create->cr_linklen);
-		create->cr_linkname[create->cr_linklen] = '\0';
-		defer_free(argp, kfree, create->cr_linkname);
+		SAVEMEM(create->cr_linkname, create->cr_linklen);
 		break;
 	case NF4BLK:
 	case NF4CHR:
@@ -1743,9 +1732,6 @@ static __be32 nfsd4_encode_components_esc(char sep, char *components,
 		}
 		else
 			end++;
-		if (found_esc)
-			end = next;
-
 		str = end;
 	}
 	*pp = p;
@@ -2049,8 +2035,8 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 	err = vfs_getattr(&path, &stat);
 	if (err)
 		goto out_nfserr;
-	if ((bmval0 & (FATTR4_WORD0_FILES_AVAIL | FATTR4_WORD0_FILES_FREE |
-			FATTR4_WORD0_FILES_TOTAL | FATTR4_WORD0_MAXNAME)) ||
+	if ((bmval0 & (FATTR4_WORD0_FILES_FREE | FATTR4_WORD0_FILES_TOTAL |
+			FATTR4_WORD0_MAXNAME)) ||
 	    (bmval1 & (FATTR4_WORD1_SPACE_AVAIL | FATTR4_WORD1_SPACE_FREE |
 		       FATTR4_WORD1_SPACE_TOTAL))) {
 		err = vfs_statfs(&path, &statfs);
@@ -2415,8 +2401,6 @@ out_acl:
 		WRITE64(stat.ino);
 	}
 	if (bmval2 & FATTR4_WORD2_SUPPATTR_EXCLCREAT) {
-		if ((buflen -= 16) < 0)
-			goto out_resource;
 		WRITE32(3);
 		WRITE32(NFSD_SUPPATTR_EXCLCREAT_WORD0);
 		WRITE32(NFSD_SUPPATTR_EXCLCREAT_WORD1);
@@ -3397,9 +3381,6 @@ nfsd4_encode_test_stateid(struct nfsd4_compoundres *resp, __be32 nfserr,
 {
 	struct nfsd4_test_stateid_id *stateid, *next;
 	__be32 *p;
-
-	if (nfserr)
-		return nfserr;
 
 	RESERVE_SPACE(4 + (4 * test_stateid->ts_num_ids));
 	*p++ = htonl(test_stateid->ts_num_ids);

@@ -387,6 +387,7 @@ bool ath9k_hw_getnf(struct ath_hw *ah, struct ath9k_channel *chan)
 
 	if (!caldata) {
 		chan->noisefloor = nf;
+		ah->noise = ath9k_hw_getchan_noise(ah, chan);
 		return false;
 	}
 

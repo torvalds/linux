@@ -61,7 +61,6 @@ struct genl_family {
 	struct list_head	ops_list;	/* private */
 	struct list_head	family_list;	/* private */
 	struct list_head	mcast_groups;	/* private */
-	struct module		*module;
 };
 
 /**
@@ -122,24 +121,9 @@ struct genl_ops {
 	struct list_head	ops_list;
 };
 
-extern int __genl_register_family(struct genl_family *family);
-
-static inline int genl_register_family(struct genl_family *family)
-{
-	family->module = THIS_MODULE;
-	return __genl_register_family(family);
-}
-
-extern int __genl_register_family_with_ops(struct genl_family *family,
+extern int genl_register_family(struct genl_family *family);
+extern int genl_register_family_with_ops(struct genl_family *family,
 	struct genl_ops *ops, size_t n_ops);
-
-static inline int genl_register_family_with_ops(struct genl_family *family,
-	struct genl_ops *ops, size_t n_ops)
-{
-	family->module = THIS_MODULE;
-	return __genl_register_family_with_ops(family, ops, n_ops);
-}
-
 extern int genl_unregister_family(struct genl_family *family);
 extern int genl_register_ops(struct genl_family *, struct genl_ops *ops);
 extern int genl_unregister_ops(struct genl_family *, struct genl_ops *ops);

@@ -63,11 +63,7 @@ struct unix_sock {
 #define UNIX_GC_MAYBE_CYCLE	1
 	struct socket_wq	peer_wq;
 };
-
-static inline struct unix_sock *unix_sk(struct sock *sk)
-{
-	return (struct unix_sock *)sk;
-}
+#define unix_sk(__sk) ((struct unix_sock *)__sk)
 
 #define peer_wait peer_wq.wait
 

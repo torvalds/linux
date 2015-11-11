@@ -576,16 +576,10 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
 
 	spin_lock_bh(&txq->lock);
 	while (q->write_ptr != q->read_ptr) {
-		IWL_DEBUG_TX_REPLY(trans, "Q %d Free %d\n",
-				   txq_id, q->read_ptr);
 		iwl_pcie_txq_free_tfd(trans, txq);
 		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd);
 	}
-	txq->active = false;
 	spin_unlock_bh(&txq->lock);
-
-	/* just in case - this queue may have been stopped */
-	iwl_wake_queue(trans, txq);
 }
 
 /*
@@ -720,12 +714,7 @@ void iwl_trans_pcie_tx_reset(struct iwl_trans *trans)
 	iwl_write_direct32(trans, FH_KW_MEM_ADDR_REG,
 			   trans_pcie->kw.dma >> 4);
 
-	/*
-	 * Send 0 as the scd_base_addr since the device may have be reset
-	 * while we were in WoWLAN in which case SCD_SRAM_BASE_ADDR will
-	 * contain garbage.
-	 */
-	iwl_pcie_tx_start(trans, 0);
+	iwl_pcie_tx_start(trans, trans_pcie->scd_base_addr);
 }
 
 /*
@@ -938,12 +927,6 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 
 	spin_lock_bh(&txq->lock);
 
-	if (!txq->active) {
-		IWL_DEBUG_TX_QUEUES(trans, "Q %d inactive - ignoring idx %d\n",
-				    txq_id, ssn);
-		goto out;
-	}
-
 	if (txq->q.read_ptr == tfd_num)
 		goto out;
 
@@ -1120,7 +1103,6 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
 		       (fifo << SCD_QUEUE_STTS_REG_POS_TXF) |
 		       (1 << SCD_QUEUE_STTS_REG_POS_WSL) |
 		       SCD_QUEUE_STTS_REG_MSK);
-	trans_pcie->txq[txq_id].active = true;
 	IWL_DEBUG_TX_QUEUES(trans, "Activate queue %d on FIFO %d WrPtr: %d\n",
 			    txq_id, fifo, ssn & 0xff);
 }

@@ -318,15 +318,8 @@ int percent_color_fprintf(FILE *fp, const char *fmt, double percent)
 	return r;
 }
 
-int percent_color_snprintf(char *bf, size_t size, const char *fmt, ...)
+int percent_color_snprintf(char *bf, size_t size, const char *fmt, double percent)
 {
-	va_list args;
-	double percent;
-	const char *color;
-
-	va_start(args, fmt);
-	percent = va_arg(args, double);
-	va_end(args);
-	color = get_percent_color(percent);
+	const char *color = get_percent_color(percent);
 	return color_snprintf(bf, size, color, fmt, percent);
 }

@@ -19,15 +19,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/audit.h>
-#include <linux/compat.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/ptrace.h>
 #include <linux/user.h>
-#include <linux/seccomp.h>
 #include <linux/security.h>
 #include <linux/init.h>
 #include <linux/signal.h>
@@ -41,12 +38,8 @@
 #include <asm/compat.h>
 #include <asm/debug-monitors.h>
 #include <asm/pgtable.h>
-#include <asm/syscall.h>
 #include <asm/traps.h>
 #include <asm/system_misc.h>
-
-#define CREATE_TRACE_POINTS
-#include <trace/events/syscalls.h>
 
 /*
  * TODO: does not yet catch signals sent when the child dies.
@@ -58,6 +51,28 @@
  */
 void ptrace_disable(struct task_struct *child)
 {
+}
+
+/*
+ * Handle hitting a breakpoint.
+ */
+static int ptrace_break(struct pt_regs *regs)
+{
+	siginfo_t info = {
+		.si_signo = SIGTRAP,
+		.si_errno = 0,
+		.si_code  = TRAP_BRKPT,
+		.si_addr  = (void __user *)instruction_pointer(regs),
+	};
+
+	force_sig_info(SIGTRAP, &info, current);
+	return 0;
+}
+
+static int arm64_break_trap(unsigned long addr, unsigned int esr,
+			    struct pt_regs *regs)
+{
+	return ptrace_break(regs);
 }
 
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
@@ -88,8 +103,7 @@ static void ptrace_hbptriggered(struct perf_event *bp,
 			break;
 		}
 	}
-
-	for (i = 0; i < ARM_MAX_WRP; ++i) {
+	for (i = ARM_MAX_BRP; i < ARM_MAX_HBP_SLOTS && !bp; ++i) {
 		if (current->thread.debug.hbp_watch[i] == bp) {
 			info.si_errno = -((i << 1) + 1);
 			break;
@@ -222,29 +236,31 @@ static int ptrace_hbp_fill_attr_ctrl(unsigned int note_type,
 {
 	int err, len, type, disabled = !ctrl.enabled;
 
-	attr->disabled = disabled;
-	if (disabled)
-		return 0;
+	if (disabled) {
+		len = 0;
+		type = HW_BREAKPOINT_EMPTY;
+	} else {
+		err = arch_bp_generic_fields(ctrl, &len, &type);
+		if (err)
+			return err;
 
-	err = arch_bp_generic_fields(ctrl, &len, &type);
-	if (err)
-		return err;
-
-	switch (note_type) {
-	case NT_ARM_HW_BREAK:
-		if ((type & HW_BREAKPOINT_X) != type)
+		switch (note_type) {
+		case NT_ARM_HW_BREAK:
+			if ((type & HW_BREAKPOINT_X) != type)
+				return -EINVAL;
+			break;
+		case NT_ARM_HW_WATCH:
+			if ((type & HW_BREAKPOINT_RW) != type)
+				return -EINVAL;
+			break;
+		default:
 			return -EINVAL;
-		break;
-	case NT_ARM_HW_WATCH:
-		if ((type & HW_BREAKPOINT_RW) != type)
-			return -EINVAL;
-		break;
-	default:
-		return -EINVAL;
+		}
 	}
 
 	attr->bp_len	= len;
 	attr->bp_type	= type;
+	attr->disabled	= disabled;
 
 	return 0;
 }
@@ -525,7 +541,6 @@ static int fpr_set(struct task_struct *target, const struct user_regset *regset,
 		return ret;
 
 	target->thread.fpsimd_state.user_fpsimd = newstate;
-	fpsimd_flush_task_state(target);
 	return ret;
 }
 
@@ -643,34 +658,28 @@ static int compat_gpr_get(struct task_struct *target,
 
 	for (i = 0; i < num_regs; ++i) {
 		unsigned int idx = start + i;
-		compat_ulong_t reg;
+		void *reg;
 
 		switch (idx) {
 		case 15:
-			reg = task_pt_regs(target)->pc;
+			reg = (void *)&task_pt_regs(target)->pc;
 			break;
 		case 16:
-			reg = task_pt_regs(target)->pstate;
+			reg = (void *)&task_pt_regs(target)->pstate;
 			break;
 		case 17:
-			reg = task_pt_regs(target)->orig_x0;
+			reg = (void *)&task_pt_regs(target)->orig_x0;
 			break;
 		default:
-			reg = task_pt_regs(target)->regs[idx];
+			reg = (void *)&task_pt_regs(target)->regs[idx];
 		}
 
-		if (kbuf) {
-			memcpy(kbuf, &reg, sizeof(reg));
-			kbuf += sizeof(reg);
-		} else {
-			ret = copy_to_user(ubuf, &reg, sizeof(reg));
-			if (ret) {
-				ret = -EFAULT;
-				break;
-			}
+		ret = copy_to_user(ubuf, reg, sizeof(compat_ulong_t));
 
-			ubuf += sizeof(reg);
-		}
+		if (ret)
+			break;
+		else
+			ubuf += sizeof(compat_ulong_t);
 	}
 
 	return ret;
@@ -698,35 +707,28 @@ static int compat_gpr_set(struct task_struct *target,
 
 	for (i = 0; i < num_regs; ++i) {
 		unsigned int idx = start + i;
-		compat_ulong_t reg;
-
-		if (kbuf) {
-			memcpy(&reg, kbuf, sizeof(reg));
-			kbuf += sizeof(reg);
-		} else {
-			ret = copy_from_user(&reg, ubuf, sizeof(reg));
-			if (ret) {
-				ret = -EFAULT;
-				break;
-			}
-
-			ubuf += sizeof(reg);
-		}
+		void *reg;
 
 		switch (idx) {
 		case 15:
-			newregs.pc = reg;
+			reg = (void *)&newregs.pc;
 			break;
 		case 16:
-			newregs.pstate = reg;
+			reg = (void *)&newregs.pstate;
 			break;
 		case 17:
-			newregs.orig_x0 = reg;
+			reg = (void *)&newregs.orig_x0;
 			break;
 		default:
-			newregs.regs[idx] = reg;
+			reg = (void *)&newregs.regs[idx];
 		}
 
+		ret = copy_from_user(reg, ubuf, sizeof(compat_ulong_t));
+
+		if (ret)
+			goto out;
+		else
+			ubuf += sizeof(compat_ulong_t);
 	}
 
 	if (valid_user_regs(&newregs.user_regs))
@@ -734,6 +736,7 @@ static int compat_gpr_set(struct task_struct *target,
 	else
 		ret = -EINVAL;
 
+out:
 	return ret;
 }
 
@@ -787,7 +790,6 @@ static int compat_vfp_set(struct task_struct *target,
 		uregs->fpcr = fpscr & VFP_FPSCR_CTRL_MASK;
 	}
 
-	fpsimd_flush_task_state(target);
 	return ret;
 }
 
@@ -814,6 +816,33 @@ static const struct user_regset_view user_aarch32_view = {
 	.name = "aarch32", .e_machine = EM_ARM,
 	.regsets = aarch32_regsets, .n = ARRAY_SIZE(aarch32_regsets)
 };
+
+int aarch32_break_trap(struct pt_regs *regs)
+{
+	unsigned int instr;
+	bool bp = false;
+	void __user *pc = (void __user *)instruction_pointer(regs);
+
+	if (compat_thumb_mode(regs)) {
+		/* get 16-bit Thumb instruction */
+		get_user(instr, (u16 __user *)pc);
+		if (instr == AARCH32_BREAK_THUMB2_LO) {
+			/* get second half of 32-bit Thumb-2 instruction */
+			get_user(instr, (u16 __user *)(pc + 2));
+			bp = instr == AARCH32_BREAK_THUMB2_HI;
+		} else {
+			bp = instr == AARCH32_BREAK_THUMB;
+		}
+	} else {
+		/* 32-bit ARM instruction */
+		get_user(instr, (u32 __user *)pc);
+		bp = (instr & ~0xf0000000) == AARCH32_BREAK_ARM;
+	}
+
+	if (bp)
+		return ptrace_break(regs);
+	return 1;
+}
 
 static int compat_ptrace_read_user(struct task_struct *tsk, compat_ulong_t off,
 				   compat_ulong_t __user *ret)
@@ -845,7 +874,6 @@ static int compat_ptrace_write_user(struct task_struct *tsk, compat_ulong_t off,
 				    compat_ulong_t val)
 {
 	int ret;
-	mm_segment_t old_fs = get_fs();
 
 	if (off & 3 || off >= COMPAT_USER_SZ)
 		return -EIO;
@@ -853,13 +881,10 @@ static int compat_ptrace_write_user(struct task_struct *tsk, compat_ulong_t off,
 	if (off >= sizeof(compat_elf_gregset_t))
 		return 0;
 
-	set_fs(KERNEL_DS);
 	ret = copy_regset_from_user(tsk, &user_aarch32_view,
 				    REGSET_COMPAT_GPR, off,
 				    sizeof(compat_ulong_t),
 				    &val);
-	set_fs(old_fs);
-
 	return ret;
 }
 
@@ -1083,69 +1108,48 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 long arch_ptrace(struct task_struct *child, long request,
 		 unsigned long addr, unsigned long data)
 {
-	int ret;
-
-	switch (request) {
-		case PTRACE_SET_SYSCALL:
-			task_pt_regs(child)->syscallno = data;
-			ret = 0;
-			break;
-		default:
-			ret = ptrace_request(child, request, addr, data);
-			break;
-	}
-
-	return ret;
+	return ptrace_request(child, request, addr, data);
 }
 
-enum ptrace_syscall_dir {
-	PTRACE_SYSCALL_ENTER = 0,
-	PTRACE_SYSCALL_EXIT,
-};
 
-static void tracehook_report_syscall(struct pt_regs *regs,
-				     enum ptrace_syscall_dir dir)
+static int __init ptrace_break_init(void)
 {
-	int regno;
+	hook_debug_fault_code(DBG_ESR_EVT_BRK, arm64_break_trap, SIGTRAP,
+			      TRAP_BRKPT, "ptrace BRK handler");
+	return 0;
+}
+core_initcall(ptrace_break_init);
+
+
+asmlinkage int syscall_trace(int dir, struct pt_regs *regs)
+{
 	unsigned long saved_reg;
 
-	/*
-	 * A scratch register (ip(r12) on AArch32, x7 on AArch64) is
-	 * used to denote syscall entry/exit:
-	 */
-	regno = (is_compat_task() ? 12 : 7);
-	saved_reg = regs->regs[regno];
-	regs->regs[regno] = dir;
+	if (!test_thread_flag(TIF_SYSCALL_TRACE))
+		return regs->syscallno;
 
-	if (dir == PTRACE_SYSCALL_EXIT)
+	if (is_compat_task()) {
+		/* AArch32 uses ip (r12) for scratch */
+		saved_reg = regs->regs[12];
+		regs->regs[12] = dir;
+	} else {
+		/*
+		 * Save X7. X7 is used to denote syscall entry/exit:
+		 *   X7 = 0 -> entry, = 1 -> exit
+		 */
+		saved_reg = regs->regs[7];
+		regs->regs[7] = dir;
+	}
+
+	if (dir)
 		tracehook_report_syscall_exit(regs, 0);
 	else if (tracehook_report_syscall_entry(regs))
 		regs->syscallno = ~0UL;
 
-	regs->regs[regno] = saved_reg;
-}
-
-asmlinkage int syscall_trace_enter(struct pt_regs *regs)
-{
-	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall(regs, PTRACE_SYSCALL_ENTER);
-
-	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
-		trace_sys_enter(regs, regs->syscallno);
-
-	audit_syscall_entry(syscall_get_arch(), regs->syscallno,
-		regs->orig_x0, regs->regs[1], regs->regs[2], regs->regs[3]);
+	if (is_compat_task())
+		regs->regs[12] = saved_reg;
+	else
+		regs->regs[7] = saved_reg;
 
 	return regs->syscallno;
-}
-
-asmlinkage void syscall_trace_exit(struct pt_regs *regs)
-{
-	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
-		trace_sys_exit(regs, regs_return_value(regs));
-
-	audit_syscall_exit(regs);
-
-	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall(regs, PTRACE_SYSCALL_EXIT);
 }

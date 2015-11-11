@@ -59,7 +59,6 @@ Configuration Options: not applicable, uses PCI auto config
 #include "../comedidev.h"
 
 #include "8255.h"
-#include "mite.h"
 
 enum pci_8255_boardid {
 	BOARD_ADLINK_PCI7224,
@@ -67,8 +66,7 @@ enum pci_8255_boardid {
 	BOARD_ADLINK_PCI7296,
 	BOARD_CB_PCIDIO24,
 	BOARD_CB_PCIDIO24H,
-	BOARD_CB_PCIDIO48H_OLD,
-	BOARD_CB_PCIDIO48H_NEW,
+	BOARD_CB_PCIDIO48H,
 	BOARD_CB_PCIDIO96H,
 	BOARD_NI_PCIDIO96,
 	BOARD_NI_PCIDIO96B,
@@ -83,7 +81,6 @@ struct pci_8255_boardinfo {
 	const char *name;
 	int dio_badr;
 	int n_8255;
-	unsigned int has_mite:1;
 };
 
 static const struct pci_8255_boardinfo pci_8255_boards[] = {
@@ -112,14 +109,9 @@ static const struct pci_8255_boardinfo pci_8255_boards[] = {
 		.dio_badr	= 2,
 		.n_8255		= 1,
 	},
-	[BOARD_CB_PCIDIO48H_OLD] = {
+	[BOARD_CB_PCIDIO48H] = {
 		.name		= "cb_pci-dio48h",
 		.dio_badr	= 1,
-		.n_8255		= 2,
-	},
-	[BOARD_CB_PCIDIO48H_NEW] = {
-		.name		= "cb_pci-dio48h",
-		.dio_badr	= 2,
 		.n_8255		= 2,
 	},
 	[BOARD_CB_PCIDIO96H] = {
@@ -131,68 +123,42 @@ static const struct pci_8255_boardinfo pci_8255_boards[] = {
 		.name		= "ni_pci-dio-96",
 		.dio_badr	= 1,
 		.n_8255		= 4,
-		.has_mite	= 1,
 	},
 	[BOARD_NI_PCIDIO96B] = {
 		.name		= "ni_pci-dio-96b",
 		.dio_badr	= 1,
 		.n_8255		= 4,
-		.has_mite	= 1,
 	},
 	[BOARD_NI_PXI6508] = {
 		.name		= "ni_pxi-6508",
 		.dio_badr	= 1,
 		.n_8255		= 4,
-		.has_mite	= 1,
 	},
 	[BOARD_NI_PCI6503] = {
 		.name		= "ni_pci-6503",
 		.dio_badr	= 1,
 		.n_8255		= 1,
-		.has_mite	= 1,
 	},
 	[BOARD_NI_PCI6503B] = {
 		.name		= "ni_pci-6503b",
 		.dio_badr	= 1,
 		.n_8255		= 1,
-		.has_mite	= 1,
 	},
 	[BOARD_NI_PCI6503X] = {
 		.name		= "ni_pci-6503x",
 		.dio_badr	= 1,
 		.n_8255		= 1,
-		.has_mite	= 1,
 	},
 	[BOARD_NI_PXI_6503] = {
 		.name		= "ni_pxi-6503",
 		.dio_badr	= 1,
 		.n_8255		= 1,
-		.has_mite	= 1,
 	},
 };
 
 struct pci_8255_private {
 	void __iomem *mmio_base;
 };
-
-static int pci_8255_mite_init(struct pci_dev *pcidev)
-{
-	void __iomem *mite_base;
-	u32 main_phys_addr;
-
-	/* ioremap the MITE registers (BAR 0) temporarily */
-	mite_base = pci_ioremap_bar(pcidev, 0);
-	if (!mite_base)
-		return -ENOMEM;
-
-	/* set data window to main registers (BAR 1) */
-	main_phys_addr = pci_resource_start(pcidev, 1);
-	writel(main_phys_addr | WENAB, mite_base + MITE_IODWBSR);
-
-	/* finished with MITE registers */
-	iounmap(mite_base);
-	return 0;
-}
 
 static int pci_8255_mmio(int dir, int port, int data, unsigned long iobase)
 {
@@ -232,12 +198,6 @@ static int pci_8255_auto_attach(struct comedi_device *dev,
 	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
-
-	if (board->has_mite) {
-		ret = pci_8255_mite_init(pcidev);
-		if (ret)
-			return ret;
-	}
 
 	is_mmio = (pci_resource_flags(pcidev, board->dio_badr) &
 		   IORESOURCE_MEM) != 0;
@@ -310,10 +270,7 @@ static DEFINE_PCI_DEVICE_TABLE(pci_8255_pci_table) = {
 	{ PCI_VDEVICE(ADLINK, 0x7296), BOARD_ADLINK_PCI7296 },
 	{ PCI_VDEVICE(CB, 0x0028), BOARD_CB_PCIDIO24 },
 	{ PCI_VDEVICE(CB, 0x0014), BOARD_CB_PCIDIO24H },
-	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_CB, 0x000b, 0x0000, 0x0000),
-	  .driver_data = BOARD_CB_PCIDIO48H_OLD },
-	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_CB, 0x000b, PCI_VENDOR_ID_CB, 0x000b),
-	  .driver_data = BOARD_CB_PCIDIO48H_NEW },
+	{ PCI_VDEVICE(CB, 0x000b), BOARD_CB_PCIDIO48H },
 	{ PCI_VDEVICE(CB, 0x0017), BOARD_CB_PCIDIO96H },
 	{ PCI_VDEVICE(NI, 0x0160), BOARD_NI_PCIDIO96 },
 	{ PCI_VDEVICE(NI, 0x1630), BOARD_NI_PCIDIO96B },

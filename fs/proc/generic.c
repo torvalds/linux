@@ -19,6 +19,7 @@
 #include <linux/mount.h>
 #include <linux/init.h>
 #include <linux/idr.h>
+#include <linux/namei.h>
 #include <linux/bitops.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
@@ -161,6 +162,17 @@ void proc_free_inum(unsigned int inum)
 	ida_remove(&proc_inum_ida, inum - PROC_DYNAMIC_FIRST);
 	spin_unlock_irqrestore(&proc_inum_lock, flags);
 }
+
+static void *proc_follow_link(struct dentry *dentry, struct nameidata *nd)
+{
+	nd_set_link(nd, __PDE_DATA(dentry->d_inode));
+	return NULL;
+}
+
+static const struct inode_operations proc_link_inode_operations = {
+	.readlink	= generic_readlink,
+	.follow_link	= proc_follow_link,
+};
 
 /*
  * As some entries in /proc are volatile, we want to 

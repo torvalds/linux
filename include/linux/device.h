@@ -26,7 +26,6 @@
 #include <linux/atomic.h>
 #include <linux/ratelimit.h>
 #include <linux/uidgid.h>
-#include <linux/gfp.h>
 #include <asm/device.h>
 
 struct device;
@@ -48,11 +47,7 @@ struct bus_attribute {
 };
 
 #define BUS_ATTR(_name, _mode, _show, _store)	\
-	struct bus_attribute bus_attr_##_name = __ATTR(_name, _mode, _show, _store)
-#define BUS_ATTR_RW(_name) \
-	struct bus_attribute bus_attr_##_name = __ATTR_RW(_name)
-#define BUS_ATTR_RO(_name) \
-	struct bus_attribute bus_attr_##_name = __ATTR_RO(_name)
+struct bus_attribute bus_attr_##_name = __ATTR(_name, _mode, _show, _store)
 
 extern int __must_check bus_create_file(struct bus_type *,
 					struct bus_attribute *);
@@ -258,14 +253,9 @@ struct driver_attribute {
 			 size_t count);
 };
 
-#define DRIVER_ATTR(_name, _mode, _show, _store) \
-	struct driver_attribute driver_attr_##_name = __ATTR(_name, _mode, _show, _store)
-#define DRIVER_ATTR_RW(_name) \
-	struct driver_attribute driver_attr_##_name = __ATTR_RW(_name)
-#define DRIVER_ATTR_RO(_name) \
-	struct driver_attribute driver_attr_##_name = __ATTR_RO(_name)
-#define DRIVER_ATTR_WO(_name) \
-	struct driver_attribute driver_attr_##_name = __ATTR_WO(_name)
+#define DRIVER_ATTR(_name, _mode, _show, _store)	\
+struct driver_attribute driver_attr_##_name =		\
+	__ATTR(_name, _mode, _show, _store)
 
 extern int __must_check driver_create_file(struct device_driver *driver,
 					const struct driver_attribute *attr);
@@ -416,12 +406,8 @@ struct class_attribute {
 				 const struct class_attribute *attr);
 };
 
-#define CLASS_ATTR(_name, _mode, _show, _store) \
-	struct class_attribute class_attr_##_name = __ATTR(_name, _mode, _show, _store)
-#define CLASS_ATTR_RW(_name) \
-	struct class_attribute class_attr_##_name = __ATTR_RW(_name)
-#define CLASS_ATTR_RO(_name) \
-	struct class_attribute class_attr_##_name = __ATTR_RO(_name)
+#define CLASS_ATTR(_name, _mode, _show, _store)			\
+struct class_attribute class_attr_##_name = __ATTR(_name, _mode, _show, _store)
 
 extern int __must_check class_create_file(struct class *class,
 					  const struct class_attribute *attr);
@@ -429,6 +415,7 @@ extern void class_remove_file(struct class *class,
 			      const struct class_attribute *attr);
 
 /* Simple class attribute that is just a static string */
+
 struct class_attribute_string {
 	struct class_attribute attr;
 	char *str;
@@ -517,12 +504,6 @@ ssize_t device_store_bool(struct device *dev, struct device_attribute *attr,
 
 #define DEVICE_ATTR(_name, _mode, _show, _store) \
 	struct device_attribute dev_attr_##_name = __ATTR(_name, _mode, _show, _store)
-#define DEVICE_ATTR_RW(_name) \
-	struct device_attribute dev_attr_##_name = __ATTR_RW(_name)
-#define DEVICE_ATTR_RO(_name) \
-	struct device_attribute dev_attr_##_name = __ATTR_RO(_name)
-#define DEVICE_ATTR_WO(_name) \
-	struct device_attribute dev_attr_##_name = __ATTR_WO(_name)
 #define DEVICE_ULONG_ATTR(_name, _mode, _var) \
 	struct dev_ext_attribute dev_attr_##_name = \
 		{ __ATTR(_name, _mode, device_show_ulong, device_store_ulong), &(_var) }
@@ -587,24 +568,8 @@ extern void devres_close_group(struct device *dev, void *id);
 extern void devres_remove_group(struct device *dev, void *id);
 extern int devres_release_group(struct device *dev, void *id);
 
-/* managed devm_k.alloc/kfree for device drivers */
-extern void *devm_kmalloc(struct device *dev, size_t size, gfp_t gfp);
-static inline void *devm_kzalloc(struct device *dev, size_t size, gfp_t gfp)
-{
-	return devm_kmalloc(dev, size, gfp | __GFP_ZERO);
-}
-static inline void *devm_kmalloc_array(struct device *dev,
-				       size_t n, size_t size, gfp_t flags)
-{
-	if (size != 0 && n > SIZE_MAX / size)
-		return NULL;
-	return devm_kmalloc(dev, n * size, flags);
-}
-static inline void *devm_kcalloc(struct device *dev,
-				 size_t n, size_t size, gfp_t flags)
-{
-	return devm_kmalloc_array(dev, n, size, flags | __GFP_ZERO);
-}
+/* managed kzalloc/kfree for device drivers, no kmalloc, always use kzalloc */
+extern void *devm_kzalloc(struct device *dev, size_t size, gfp_t gfp);
 extern void devm_kfree(struct device *dev, void *p);
 
 void __iomem *devm_ioremap_resource(struct device *dev, struct resource *res);
@@ -733,7 +698,7 @@ struct device {
 
 	struct dma_coherent_mem	*dma_mem; /* internal for coherent mem
 					     override */
-#ifdef CONFIG_DMA_CMA
+#ifdef CONFIG_CMA
 	struct cma *cma_area;		/* contiguous memory area for dma
 					   allocations */
 #endif

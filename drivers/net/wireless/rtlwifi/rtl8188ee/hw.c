@@ -143,7 +143,6 @@ static void _rtl88ee_set_fw_clock_on(struct ieee80211_hw *hw,
 		} else {
 			rtlhal->fw_clk_change_in_progress = false;
 			spin_unlock_bh(&rtlpriv->locks.fw_ps_lock);
-			break;
 		}
 	}
 
@@ -1025,20 +1024,9 @@ int rtl88ee_hw_init(struct ieee80211_hw *hw)
 	bool rtstatus = true;
 	int err = 0;
 	u8 tmp_u1b, u1byte;
-	unsigned long flags;
 
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "Rtl8188EE hw init\n");
 	rtlpriv->rtlhal.being_init_adapter = true;
-	/* As this function can take a very long time (up to 350 ms)
-	 * and can be called with irqs disabled, reenable the irqs
-	 * to let the other devices continue being serviced.
-	 *
-	 * It is safe doing so since our own interrupts will only be enabled
-	 * in a subsequent step.
-	 */
-	local_save_flags(flags);
-	local_irq_enable();
-
 	rtlpriv->intf_ops->disable_aspm(hw);
 
 	tmp_u1b = rtl_read_byte(rtlpriv, REG_SYS_CLKR+1);
@@ -1054,7 +1042,7 @@ int rtl88ee_hw_init(struct ieee80211_hw *hw)
 	if (rtstatus != true) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Init MAC failed\n");
 		err = 1;
-		goto exit;
+		return err;
 	}
 
 	err = rtl88e_download_fw(hw, false);
@@ -1062,7 +1050,8 @@ int rtl88ee_hw_init(struct ieee80211_hw *hw)
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
 			 "Failed to download FW. Init HW without FW now..\n");
 		err = 1;
-		goto exit;
+		rtlhal->fw_ready = false;
+		return err;
 	} else {
 		rtlhal->fw_ready = true;
 	}
@@ -1145,12 +1134,10 @@ int rtl88ee_hw_init(struct ieee80211_hw *hw)
 	}
 	rtl_write_byte(rtlpriv, REG_NAV_CTRL+2,  ((30000+127)/128));
 	rtl88e_dm_init(hw);
-exit:
-	local_irq_restore(flags);
 	rtlpriv->rtlhal.being_init_adapter = false;
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "end of Rtl8188EE hw init %x\n",
 		 err);
-	return err;
+	return 0;
 }
 
 static enum version_8188e _rtl88ee_read_chip_version(struct ieee80211_hw *hw)

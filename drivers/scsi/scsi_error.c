@@ -1689,10 +1689,8 @@ static void scsi_restart_operations(struct Scsi_Host *shost)
 	 * is no point trying to lock the door of an off-line device.
 	 */
 	shost_for_each_device(sdev, shost) {
-		if (scsi_device_online(sdev) && sdev->was_reset && sdev->locked) {
+		if (scsi_device_online(sdev) && sdev->locked)
 			scsi_eh_lock_door(sdev);
-			sdev->was_reset = 0;
-		}
 	}
 
 	/*
@@ -1849,17 +1847,8 @@ int scsi_error_handler(void *data)
 	 * We never actually get interrupted because kthread_run
 	 * disables signal delivery for the created thread.
 	 */
-	while (true) {
-		/*
-		 * The sequence in kthread_stop() sets the stop flag first
-		 * then wakes the process.  To avoid missed wakeups, the task
-		 * should always be in a non running state before the stop
-		 * flag is checked
-		 */
+	while (!kthread_should_stop()) {
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (kthread_should_stop())
-			break;
-
 		if ((shost->host_failed == 0 && shost->host_eh_scheduled == 0) ||
 		    shost->host_failed != shost->host_busy) {
 			SCSI_LOG_ERROR_RECOVERY(1,

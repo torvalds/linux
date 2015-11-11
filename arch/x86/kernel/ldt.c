@@ -229,11 +229,6 @@ static int write_ldt(void __user *ptr, unsigned long bytecount, int oldmode)
 		}
 	}
 
-	if (!IS_ENABLED(CONFIG_X86_16BIT) && !ldt_info.seg_32bit) {
-		error = -EINVAL;
-		goto out_unlock;
-	}
-
 	fill_ldt(&ldt, &ldt_info);
 	if (oldmode)
 		ldt.avl = 0;

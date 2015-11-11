@@ -203,25 +203,6 @@ static inline int phy_find_valid(int idx, u32 features)
 }
 
 /**
- * phy_check_valid - check if there is a valid PHY setting which matches
- *		     speed, duplex, and feature mask
- * @speed: speed to match
- * @duplex: duplex to match
- * @features: A mask of the valid settings
- *
- * Description: Returns true if there is a valid setting, false otherwise.
- */
-static inline bool phy_check_valid(int speed, int duplex, u32 features)
-{
-	unsigned int idx;
-
-	idx = phy_find_valid(phy_find_setting(speed, duplex), features);
-
-	return settings[idx].speed == speed && settings[idx].duplex == duplex &&
-		(settings[idx].setting & features);
-}
-
-/**
  * phy_sanitize_settings - make sure the PHY is set to supported speed and duplex
  * @phydev: the target phy_device struct
  *
@@ -458,7 +439,7 @@ void phy_start_machine(struct phy_device *phydev,
 {
 	phydev->adjust_state = handler;
 
-	queue_delayed_work(system_power_efficient_wq, &phydev->state_queue, HZ);
+	schedule_delayed_work(&phydev->state_queue, HZ);
 }
 
 /**
@@ -519,7 +500,7 @@ static irqreturn_t phy_interrupt(int irq, void *phy_dat)
 	disable_irq_nosync(irq);
 	atomic_inc(&phydev->irq_disable);
 
-	queue_work(system_power_efficient_wq, &phydev->phy_queue);
+	schedule_work(&phydev->phy_queue);
 
 	return IRQ_HANDLED;
 }
@@ -674,7 +655,7 @@ static void phy_change(struct work_struct *work)
 
 	/* reschedule state queue work to run as soon as possible */
 	cancel_delayed_work_sync(&phydev->state_queue);
-	queue_delayed_work(system_power_efficient_wq, &phydev->state_queue, 0);
+	schedule_delayed_work(&phydev->state_queue, 0);
 
 	return;
 
@@ -937,8 +918,7 @@ void phy_state_machine(struct work_struct *work)
 	if (err < 0)
 		phy_error(phydev);
 
-	queue_delayed_work(system_power_efficient_wq, &phydev->state_queue,
-			PHY_STATE_TIME * HZ);
+	schedule_delayed_work(&phydev->state_queue, PHY_STATE_TIME * HZ);
 }
 
 static inline void mmd_phy_indirect(struct mii_bus *bus, int prtad, int devad,
@@ -1023,17 +1003,15 @@ int phy_init_eee(struct phy_device *phydev, bool clk_stop_enable)
 
 	/* According to 802.3az,the EEE is supported only in full duplex-mode.
 	 * Also EEE feature is active when core is operating with MII, GMII
-	 * or RGMII (all kinds). Internal PHYs are also allowed to proceed and
-	 * should return an error if they do not support EEE.
+	 * or RGMII.
 	 */
 	if ((phydev->duplex == DUPLEX_FULL) &&
 	    ((phydev->interface == PHY_INTERFACE_MODE_MII) ||
 	    (phydev->interface == PHY_INTERFACE_MODE_GMII) ||
-	     (phydev->interface >= PHY_INTERFACE_MODE_RGMII &&
-	      phydev->interface <= PHY_INTERFACE_MODE_RGMII_TXID))) {
+	    (phydev->interface == PHY_INTERFACE_MODE_RGMII))) {
 		int eee_lp, eee_cap, eee_adv;
 		u32 lp, cap, adv;
-		int status;
+		int idx, status;
 
 		/* Read phy status to properly get the right settings */
 		status = phy_read_status(phydev);
@@ -1065,7 +1043,8 @@ int phy_init_eee(struct phy_device *phydev, bool clk_stop_enable)
 
 		adv = mmd_eee_adv_to_ethtool_adv_t(eee_adv);
 		lp = mmd_eee_adv_to_ethtool_adv_t(eee_lp);
-		if (!phy_check_valid(phydev->speed, phydev->duplex, lp & adv))
+		idx = phy_find_setting(phydev->speed, phydev->duplex);
+		if (!(lp & adv & settings[idx].setting))
 			goto eee_exit;
 
 		if (clk_stop_enable) {

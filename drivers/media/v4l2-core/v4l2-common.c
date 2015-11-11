@@ -485,12 +485,15 @@ static unsigned int clamp_align(unsigned int x, unsigned int min,
 	/* Bits that must be zero to be aligned */
 	unsigned int mask = ~((1 << align) - 1);
 
-	/* Clamp to aligned min and max */
-	x = clamp(x, (min + ~mask) & mask, max & mask);
-
 	/* Round to nearest aligned value */
 	if (align)
 		x = (x + (1 << (align - 1))) & mask;
+
+	/* Clamp to aligned value of min and max */
+	if (x < min)
+		x = (min + ~mask) & mask;
+	else if (x > max)
+		x = max & mask;
 
 	return x;
 }

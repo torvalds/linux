@@ -549,13 +549,12 @@ user_exception_exit:
 	 *	 (if we have restored WSBITS-1 frames).
 	 */
 
-2:
 #if XCHAL_HAVE_THREADPTR
 	l32i	a3, a1, PT_THREADPTR
 	wur	a3, threadptr
 #endif
 
-	j	common_exception_exit
+2:	j	common_exception_exit
 
 	/* This is the kernel exception exit.
 	 * We avoided to do a MOVSP when we entered the exception, but we
@@ -1122,8 +1121,9 @@ ENTRY(fast_syscall_xtensa)
 	movi	a7, 4			# sizeof(unsigned int)
 	access_ok a3, a7, a0, a2, .Leac	# a0: scratch reg, a2: sp
 
-	_bgeui	a6, SYS_XTENSA_COUNT, .Lill
-	_bnei	a6, SYS_XTENSA_ATOMIC_CMP_SWP, .Lnswp
+	addi	a6, a6, -1		# assuming SYS_XTENSA_ATOMIC_SET = 1
+	_bgeui	a6, SYS_XTENSA_COUNT - 1, .Lill
+	_bnei	a6, SYS_XTENSA_ATOMIC_CMP_SWP - 1, .Lnswp
 
 	/* Fall through for ATOMIC_CMP_SWP. */
 
@@ -1135,26 +1135,27 @@ TRY	s32i	a5, a3, 0		# different, modify value
 	l32i	a7, a2, PT_AREG7	# restore a7
 	l32i	a0, a2, PT_AREG0	# restore a0
 	movi	a2, 1			# and return 1
+	addi	a6, a6, 1		# restore a6 (really necessary?)
 	rfe
 
 1:	l32i	a7, a2, PT_AREG7	# restore a7
 	l32i	a0, a2, PT_AREG0	# restore a0
 	movi	a2, 0			# return 0 (note that we cannot set
+	addi	a6, a6, 1		# restore a6 (really necessary?)
 	rfe
 
 .Lnswp:	/* Atomic set, add, and exg_add. */
 
 TRY	l32i	a7, a3, 0		# orig
-	addi	a6, a6, -SYS_XTENSA_ATOMIC_SET
 	add	a0, a4, a7		# + arg
 	moveqz	a0, a4, a6		# set
-	addi	a6, a6, SYS_XTENSA_ATOMIC_SET
 TRY	s32i	a0, a3, 0		# write new value
 
 	mov	a0, a2
 	mov	a2, a7
 	l32i	a7, a0, PT_AREG7	# restore a7
 	l32i	a0, a0, PT_AREG0	# restore a0
+	addi	a6, a6, 1		# restore a6 (really necessary?)
 	rfe
 
 CATCH
@@ -1163,7 +1164,7 @@ CATCH
 	movi	a2, -EFAULT
 	rfe
 
-.Lill:	l32i	a7, a2, PT_AREG7	# restore a7
+.Lill:	l32i	a7, a2, PT_AREG0	# restore a7
 	l32i	a0, a2, PT_AREG0	# restore a0
 	movi	a2, -EINVAL
 	rfe
@@ -1702,7 +1703,7 @@ ENTRY(fast_second_level_miss)
 	rsr	a0, excvaddr
 	bltu	a0, a3, 2f
 
-	addi	a1, a0, -TLBTEMP_SIZE
+	addi	a1, a0, -(2 << (DCACHE_ALIAS_ORDER + PAGE_SHIFT))
 	bgeu	a1, a3, 2f
 
 	/* Check if we have to restore an ITLB mapping. */
@@ -1911,43 +1912,6 @@ ENTRY(system_call)
 
 ENDPROC(system_call)
 
-/*
- * Spill live registers on the kernel stack macro.
- *
- * Entry condition: ps.woe is set, ps.excm is cleared
- * Exit condition: windowstart has single bit set
- * May clobber: a12, a13
- */
-	.macro	spill_registers_kernel
-
-#if XCHAL_NUM_AREGS > 16
-	call12	1f
-	_j	2f
-	retw
-	.align	4
-1:
-	_entry	a1, 48
-	addi	a12, a0, 3
-#if XCHAL_NUM_AREGS > 32
-	.rept	(XCHAL_NUM_AREGS - 32) / 12
-	_entry	a1, 48
-	mov	a12, a0
-	.endr
-#endif
-	_entry	a1, 16
-#if XCHAL_NUM_AREGS % 12 == 0
-	mov	a8, a8
-#elif XCHAL_NUM_AREGS % 12 == 4
-	mov	a12, a12
-#elif XCHAL_NUM_AREGS % 12 == 8
-	mov	a4, a4
-#endif
-	retw
-2:
-#else
-	mov	a12, a12
-#endif
-	.endm
 
 /*
  * Task switch.
@@ -1958,27 +1922,23 @@ ENDPROC(system_call)
 
 ENTRY(_switch_to)
 
-	entry	a1, 48
+	entry	a1, 16
 
-	mov	a11, a3			# and 'next' (a3)
+	mov	a12, a2			# preserve 'prev' (a2)
+	mov	a13, a3			# and 'next' (a3)
 
 	l32i	a4, a2, TASK_THREAD_INFO
 	l32i	a5, a3, TASK_THREAD_INFO
 
-	save_xtregs_user a4 a6 a8 a9 a12 a13 THREAD_XTREGS_USER
+	save_xtregs_user a4 a6 a8 a9 a10 a11 THREAD_XTREGS_USER
 
-#if THREAD_RA > 1020 || THREAD_SP > 1020
-	addi	a10, a2, TASK_THREAD
-	s32i	a0, a10, THREAD_RA - TASK_THREAD	# save return address
-	s32i	a1, a10, THREAD_SP - TASK_THREAD	# save stack pointer
-#else
-	s32i	a0, a2, THREAD_RA	# save return address
-	s32i	a1, a2, THREAD_SP	# save stack pointer
-#endif
+	s32i	a0, a12, THREAD_RA	# save return address
+	s32i	a1, a12, THREAD_SP	# save stack pointer
 
 	/* Disable ints while we manipulate the stack pointer. */
 
-	rsil	a14, LOCKLEVEL
+	movi	a14, (1 << PS_EXCM_BIT) | LOCKLEVEL
+	xsr	a14, ps
 	rsr	a3, excsave1
 	rsync
 	s32i	a3, a3, EXC_TABLE_FIXUP	/* enter critical section */
@@ -1993,7 +1953,7 @@ ENTRY(_switch_to)
 
 	/* Flush register file. */
 
-	spill_registers_kernel
+	call0	_spill_registers	# destroys a3, a4, and SAR
 
 	/* Set kernel stack (and leave critical section)
 	 * Note: It's save to set it here. The stack will not be overwritten
@@ -2009,12 +1969,13 @@ ENTRY(_switch_to)
 
 	/* restore context of the task 'next' */
 
-	l32i	a0, a11, THREAD_RA	# restore return address
-	l32i	a1, a11, THREAD_SP	# restore stack pointer
+	l32i	a0, a13, THREAD_RA	# restore return address
+	l32i	a1, a13, THREAD_SP	# restore stack pointer
 
-	load_xtregs_user a5 a6 a8 a9 a12 a13 THREAD_XTREGS_USER
+	load_xtregs_user a5 a6 a8 a9 a10 a11 THREAD_XTREGS_USER
 
 	wsr	a14, ps
+	mov	a2, a12			# return 'prev'
 	rsync
 
 	retw

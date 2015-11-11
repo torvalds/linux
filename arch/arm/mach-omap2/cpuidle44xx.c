@@ -14,7 +14,6 @@
 #include <linux/cpuidle.h>
 #include <linux/cpu_pm.h>
 #include <linux/export.h>
-#include <linux/clockchips.h>
 
 #include <asm/cpuidle.h>
 #include <asm/proc-fns.h>
@@ -81,7 +80,6 @@ static int omap_enter_idle_coupled(struct cpuidle_device *dev,
 			int index)
 {
 	struct idle_statedata *cx = state_ptr + index;
-	int cpu_id = smp_processor_id();
 
 	/*
 	 * CPU0 has to wait and stay ON until CPU1 is OFF state.
@@ -105,8 +103,6 @@ static int omap_enter_idle_coupled(struct cpuidle_device *dev,
 
 		}
 	}
-
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &cpu_id);
 
 	/*
 	 * Call idle CPU PM enter notifier chain so that
@@ -151,23 +147,11 @@ static int omap_enter_idle_coupled(struct cpuidle_device *dev,
 		(cx->mpu_logic_state == PWRDM_POWER_OFF))
 		cpu_cluster_pm_exit();
 
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &cpu_id);
-
 fail:
 	cpuidle_coupled_parallel_barrier(dev, &abort_barrier);
 	cpu_done[dev->cpu] = false;
 
 	return index;
-}
-
-/*
- * For each cpu, setup the broadcast timer because local timers
- * stops for the states above C1.
- */
-static void omap_setup_broadcast_timer(void *arg)
-{
-	int cpu = smp_processor_id();
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ON, &cpu);
 }
 
 static struct cpuidle_driver omap4_idle_driver = {
@@ -187,7 +171,8 @@ static struct cpuidle_driver omap4_idle_driver = {
 			/* C2 - CPU0 OFF + CPU1 OFF + MPU CSWR */
 			.exit_latency = 328 + 440,
 			.target_residency = 960,
-			.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_COUPLED,
+			.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_COUPLED |
+			         CPUIDLE_FLAG_TIMER_STOP,
 			.enter = omap_enter_idle_coupled,
 			.name = "C2",
 			.desc = "CPUx OFF, MPUSS CSWR",
@@ -196,7 +181,8 @@ static struct cpuidle_driver omap4_idle_driver = {
 			/* C3 - CPU0 OFF + CPU1 OFF + MPU OSWR */
 			.exit_latency = 460 + 518,
 			.target_residency = 1100,
-			.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_COUPLED,
+			.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_COUPLED |
+			         CPUIDLE_FLAG_TIMER_STOP,
 			.enter = omap_enter_idle_coupled,
 			.name = "C3",
 			.desc = "CPUx OFF, MPUSS OSWR",
@@ -226,9 +212,6 @@ int __init omap4_idle_init(void)
 	cpu_clkdm[1] = clkdm_lookup("mpu1_clkdm");
 	if (!cpu_clkdm[0] || !cpu_clkdm[1])
 		return -ENODEV;
-
-	/* Configure the broadcast timer on each cpu */
-	on_each_cpu(omap_setup_broadcast_timer, NULL, 1);
 
 	return cpuidle_register(&omap4_idle_driver, cpu_online_mask);
 }

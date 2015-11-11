@@ -679,7 +679,7 @@ exec_clkcmp(struct nv50_disp_priv *priv, int head, int id,
 	}
 
 	if (outp == 8)
-		return conf;
+		return false;
 
 	data = exec_lookup(priv, head, outp, ctrl, dcb, &ver, &hdr, &cnt, &len, &info1);
 	if (data == 0x0000)

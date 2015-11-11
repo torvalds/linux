@@ -305,10 +305,7 @@ static int nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 		.rpc_argp	= &args,
 		.rpc_resp	= &fattr,
 	};
-	int status = 0;
-
-	if (acl == NULL && (!S_ISDIR(inode->i_mode) || dfacl == NULL))
-		goto out;
+	int status;
 
 	status = -EOPNOTSUPP;
 	if (!nfs_server_capable(inode, NFS_CAP_ACLS))

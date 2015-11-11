@@ -23,7 +23,6 @@ struct sunrpc_net {
 	struct rpc_clnt *rpcb_local_clnt4;
 	spinlock_t rpcb_clnt_lock;
 	unsigned int rpcb_users;
-	unsigned int rpcb_is_af_local : 1;
 
 	struct mutex gssp_lock;
 	wait_queue_head_t gssp_wq;

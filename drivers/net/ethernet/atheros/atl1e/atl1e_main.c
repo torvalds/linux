@@ -1665,8 +1665,8 @@ check_sum:
 	return 0;
 }
 
-static int atl1e_tx_map(struct atl1e_adapter *adapter,
-			struct sk_buff *skb, struct atl1e_tpd_desc *tpd)
+static void atl1e_tx_map(struct atl1e_adapter *adapter,
+		      struct sk_buff *skb, struct atl1e_tpd_desc *tpd)
 {
 	struct atl1e_tpd_desc *use_tpd = NULL;
 	struct atl1e_tx_buffer *tx_buffer = NULL;
@@ -1677,8 +1677,6 @@ static int atl1e_tx_map(struct atl1e_adapter *adapter,
 	u16 nr_frags;
 	u16 f;
 	int segment;
-	int ring_start = adapter->tx_ring.next_to_use;
-	int ring_end;
 
 	nr_frags = skb_shinfo(skb)->nr_frags;
 	segment = (tpd->word3 >> TPD_SEGMENT_EN_SHIFT) & TPD_SEGMENT_EN_MASK;
@@ -1691,9 +1689,6 @@ static int atl1e_tx_map(struct atl1e_adapter *adapter,
 		tx_buffer->length = map_len;
 		tx_buffer->dma = pci_map_single(adapter->pdev,
 					skb->data, hdr_len, PCI_DMA_TODEVICE);
-		if (dma_mapping_error(&adapter->pdev->dev, tx_buffer->dma))
-			return -ENOSPC;
-
 		ATL1E_SET_PCIMAP_TYPE(tx_buffer, ATL1E_TX_PCIMAP_SINGLE);
 		mapped_len += map_len;
 		use_tpd->buffer_addr = cpu_to_le64(tx_buffer->dma);
@@ -1720,22 +1715,6 @@ static int atl1e_tx_map(struct atl1e_adapter *adapter,
 		tx_buffer->dma =
 			pci_map_single(adapter->pdev, skb->data + mapped_len,
 					map_len, PCI_DMA_TODEVICE);
-
-		if (dma_mapping_error(&adapter->pdev->dev, tx_buffer->dma)) {
-			/* We need to unwind the mappings we've done */
-			ring_end = adapter->tx_ring.next_to_use;
-			adapter->tx_ring.next_to_use = ring_start;
-			while (adapter->tx_ring.next_to_use != ring_end) {
-				tpd = atl1e_get_tpd(adapter);
-				tx_buffer = atl1e_get_tx_buffer(adapter, tpd);
-				pci_unmap_single(adapter->pdev, tx_buffer->dma,
-						 tx_buffer->length, PCI_DMA_TODEVICE);
-			}
-			/* Reset the tx rings next pointer */
-			adapter->tx_ring.next_to_use = ring_start;
-			return -ENOSPC;
-		}
-
 		ATL1E_SET_PCIMAP_TYPE(tx_buffer, ATL1E_TX_PCIMAP_SINGLE);
 		mapped_len  += map_len;
 		use_tpd->buffer_addr = cpu_to_le64(tx_buffer->dma);
@@ -1771,23 +1750,6 @@ static int atl1e_tx_map(struct atl1e_adapter *adapter,
 							  (i * MAX_TX_BUF_LEN),
 							  tx_buffer->length,
 							  DMA_TO_DEVICE);
-
-			if (dma_mapping_error(&adapter->pdev->dev, tx_buffer->dma)) {
-				/* We need to unwind the mappings we've done */
-				ring_end = adapter->tx_ring.next_to_use;
-				adapter->tx_ring.next_to_use = ring_start;
-				while (adapter->tx_ring.next_to_use != ring_end) {
-					tpd = atl1e_get_tpd(adapter);
-					tx_buffer = atl1e_get_tx_buffer(adapter, tpd);
-					dma_unmap_page(&adapter->pdev->dev, tx_buffer->dma,
-						       tx_buffer->length, DMA_TO_DEVICE);
-				}
-
-				/* Reset the ring next to use pointer */
-				adapter->tx_ring.next_to_use = ring_start;
-				return -ENOSPC;
-			}
-
 			ATL1E_SET_PCIMAP_TYPE(tx_buffer, ATL1E_TX_PCIMAP_PAGE);
 			use_tpd->buffer_addr = cpu_to_le64(tx_buffer->dma);
 			use_tpd->word2 = (use_tpd->word2 & (~TPD_BUFLEN_MASK)) |
@@ -1805,7 +1767,6 @@ static int atl1e_tx_map(struct atl1e_adapter *adapter,
 	/* The last buffer info contain the skb address,
 	   so it will be free after unmap */
 	tx_buffer->skb = skb;
-	return 0;
 }
 
 static void atl1e_tx_queue(struct atl1e_adapter *adapter, u16 count,
@@ -1873,15 +1834,10 @@ static netdev_tx_t atl1e_xmit_frame(struct sk_buff *skb,
 		return NETDEV_TX_OK;
 	}
 
-	if (atl1e_tx_map(adapter, skb, tpd)) {
-		dev_kfree_skb_any(skb);
-		goto out;
-	}
-
+	atl1e_tx_map(adapter, skb, tpd);
 	atl1e_tx_queue(adapter, tpd_req, tpd);
 
 	netdev->trans_start = jiffies; /* NETIF_F_LLTX driver :( */
-out:
 	spin_unlock_irqrestore(&adapter->tx_lock, flags);
 	return NETDEV_TX_OK;
 }

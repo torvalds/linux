@@ -44,41 +44,6 @@ static char *pre_emph_names[] = {
 };
 
 /***** radeon AUX functions *****/
-
-/* Atom needs data in little endian format
- * so swap as appropriate when copying data to
- * or from atom. Note that atom operates on
- * dw units.
- */
-void radeon_atom_copy_swap(u8 *dst, u8 *src, u8 num_bytes, bool to_le)
-{
-#ifdef __BIG_ENDIAN
-	u8 src_tmp[20], dst_tmp[20]; /* used for byteswapping */
-	u32 *dst32, *src32;
-	int i;
-
-	memcpy(src_tmp, src, num_bytes);
-	src32 = (u32 *)src_tmp;
-	dst32 = (u32 *)dst_tmp;
-	if (to_le) {
-		for (i = 0; i < ((num_bytes + 3) / 4); i++)
-			dst32[i] = cpu_to_le32(src32[i]);
-		memcpy(dst, dst_tmp, num_bytes);
-	} else {
-		u8 dws = num_bytes & ~3;
-		for (i = 0; i < ((num_bytes + 3) / 4); i++)
-			dst32[i] = le32_to_cpu(src32[i]);
-		memcpy(dst, dst_tmp, dws);
-		if (num_bytes % 4) {
-			for (i = 0; i < (num_bytes % 4); i++)
-				dst[dws+i] = dst_tmp[dws+i];
-		}
-	}
-#else
-	memcpy(dst, src, num_bytes);
-#endif
-}
-
 union aux_channel_transaction {
 	PROCESS_AUX_CHANNEL_TRANSACTION_PS_ALLOCATION v1;
 	PROCESS_AUX_CHANNEL_TRANSACTION_PARAMETERS_V2 v2;
@@ -100,10 +65,10 @@ static int radeon_process_aux_ch(struct radeon_i2c_chan *chan,
 
 	base = (unsigned char *)(rdev->mode_info.atom_context->scratch + 1);
 
-	radeon_atom_copy_swap(base, send, send_bytes, true);
+	memcpy(base, send, send_bytes);
 
-	args.v1.lpAuxRequest = cpu_to_le16((u16)(0 + 4));
-	args.v1.lpDataOut = cpu_to_le16((u16)(16 + 4));
+	args.v1.lpAuxRequest = 0 + 4;
+	args.v1.lpDataOut = 16 + 4;
 	args.v1.ucDataOutLen = 0;
 	args.v1.ucChannelID = chan->rec.i2c_id;
 	args.v1.ucDelay = delay / 10;
@@ -137,7 +102,7 @@ static int radeon_process_aux_ch(struct radeon_i2c_chan *chan,
 		recv_bytes = recv_size;
 
 	if (recv && recv_size)
-		radeon_atom_copy_swap(recv, base + 16, recv_bytes, false);
+		memcpy(recv, base + 16, recv_bytes);
 
 	return recv_bytes;
 }
@@ -384,19 +349,6 @@ static int dp_get_max_dp_pix_clock(int link_rate,
 
 /***** radeon specific DP functions *****/
 
-static int radeon_dp_get_max_link_rate(struct drm_connector *connector,
-				       u8 dpcd[DP_DPCD_SIZE])
-{
-	int max_link_rate;
-
-	if (radeon_connector_is_dp12_capable(connector))
-		max_link_rate = min(drm_dp_max_link_rate(dpcd), 540000);
-	else
-		max_link_rate = min(drm_dp_max_link_rate(dpcd), 270000);
-
-	return max_link_rate;
-}
-
 /* First get the min lane# when low rate is used according to pixel clock
  * (prefer low rate), second check max lane# supported by DP panel,
  * if the max lane# < low rate lane# then use max lane# instead.
@@ -406,7 +358,7 @@ static int radeon_dp_get_dp_lane_number(struct drm_connector *connector,
 					int pix_clock)
 {
 	int bpp = convert_bpc_to_bpp(radeon_get_monitor_bpc(connector));
-	int max_link_rate = radeon_dp_get_max_link_rate(connector, dpcd);
+	int max_link_rate = drm_dp_max_link_rate(dpcd);
 	int max_lane_num = drm_dp_max_lane_count(dpcd);
 	int lane_num;
 	int max_dp_pix_clock;
@@ -444,7 +396,7 @@ static int radeon_dp_get_dp_link_clock(struct drm_connector *connector,
 			return 540000;
 	}
 
-	return radeon_dp_get_max_link_rate(connector, dpcd);
+	return drm_dp_max_link_rate(dpcd);
 }
 
 static u8 radeon_dp_encoder_service(struct radeon_device *rdev,
@@ -573,10 +525,6 @@ int radeon_dp_mode_valid_helper(struct drm_connector *connector,
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	struct radeon_connector_atom_dig *dig_connector;
 	int dp_clock;
-
-	if ((mode->clock > 340000) &&
-	    (!radeon_connector_is_dp12_capable(connector)))
-		return MODE_CLOCK_HIGH;
 
 	if (!radeon_connector->con_priv)
 		return MODE_CLOCK_HIGH;

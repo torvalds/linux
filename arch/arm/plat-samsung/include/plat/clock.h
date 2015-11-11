@@ -83,11 +83,6 @@ extern struct clk clk_ext;
 extern struct clksrc_clk clk_epllref;
 extern struct clksrc_clk clk_esysclk;
 
-/* S3C24XX UART clocks */
-extern struct clk s3c24xx_clk_uart0;
-extern struct clk s3c24xx_clk_uart1;
-extern struct clk s3c24xx_clk_uart2;
-
 /* S3C64XX specific clocks */
 extern struct clk clk_h2;
 extern struct clk clk_27m;

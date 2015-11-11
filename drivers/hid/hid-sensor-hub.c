@@ -221,8 +221,7 @@ int sensor_hub_get_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 
 	mutex_lock(&data->mutex);
 	report = sensor_hub_report(report_id, hsdev->hdev, HID_FEATURE_REPORT);
-	if (!report || (field_index >=  report->maxfield) ||
-	    report->field[field_index]->report_count < 1) {
+	if (!report || (field_index >=  report->maxfield)) {
 		ret = -EINVAL;
 		goto done_proc;
 	}
@@ -327,8 +326,7 @@ int sensor_hub_input_get_attribute_info(struct hid_sensor_hub_device *hsdev,
 				field->logical == attr_usage_id) {
 				sensor_hub_fill_attr_info(info, i, report->id,
 					field->unit, field->unit_exponent,
-					field->report_size *
-							field->report_count);
+					field->report_size);
 				ret = 0;
 			} else {
 				for (j = 0; j < field->maxusage; ++j) {
@@ -340,8 +338,7 @@ int sensor_hub_input_get_attribute_info(struct hid_sensor_hub_device *hsdev,
 							i, report->id,
 							field->unit,
 							field->unit_exponent,
-							field->report_size *
-							field->report_count);
+							field->report_size);
 						ret = 0;
 						break;
 					}
@@ -428,10 +425,9 @@ static int sensor_hub_raw_event(struct hid_device *hdev,
 		hid_dbg(hdev, "%d collection_index:%x hid:%x sz:%x\n",
 				i, report->field[i]->usage->collection_index,
 				report->field[i]->usage->hid,
-				(report->field[i]->report_size *
-					report->field[i]->report_count)/8);
-		sz = (report->field[i]->report_size *
-					report->field[i]->report_count)/8;
+				report->field[i]->report_size/8);
+
+		sz = report->field[i]->report_size/8;
 		if (pdata->pending.status && pdata->pending.attr_usage_id ==
 				report->field[i]->usage->hid) {
 			hid_dbg(hdev, "data was pending ...\n");

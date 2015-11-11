@@ -2,8 +2,6 @@
 #define _ASMARM_BUG_H
 
 #include <linux/linkage.h>
-#include <linux/types.h>
-#include <asm/opcodes.h>
 
 #ifdef CONFIG_BUG
 
@@ -14,10 +12,10 @@
  */
 #ifdef CONFIG_THUMB2_KERNEL
 #define BUG_INSTR_VALUE 0xde02
-#define BUG_INSTR(__value) __inst_thumb16(__value)
+#define BUG_INSTR_TYPE ".hword "
 #else
 #define BUG_INSTR_VALUE 0xe7f001f2
-#define BUG_INSTR(__value) __inst_arm(__value)
+#define BUG_INSTR_TYPE ".word "
 #endif
 
 
@@ -35,7 +33,7 @@
 
 #define __BUG(__file, __line, __value)				\
 do {								\
-	asm volatile("1:\t" BUG_INSTR(__value) "\n"  \
+	asm volatile("1:\t" BUG_INSTR_TYPE #__value "\n"	\
 		".pushsection .rodata.str, \"aMS\", %progbits, 1\n" \
 		"2:\t.asciz " #__file "\n" 			\
 		".popsection\n" 				\
@@ -50,7 +48,7 @@ do {								\
 
 #define __BUG(__file, __line, __value)				\
 do {								\
-	asm volatile(BUG_INSTR(__value) "\n");			\
+	asm volatile(BUG_INSTR_TYPE #__value);			\
 	unreachable();						\
 } while (0)
 #endif  /* CONFIG_DEBUG_BUGVERBOSE */

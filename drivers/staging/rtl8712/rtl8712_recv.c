@@ -1075,8 +1075,7 @@ static int recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 		/* for first fragment packet, driver need allocate 1536 +
 		 * drvinfo_sz + RXDESC_SIZE to defrag packet. */
 		if ((mf == 1) && (frag == 0))
-			/*1658+6=1664, 1664 is 128 alignment.*/
-			alloc_sz = max_t(u16, tmp_len, 1658);
+			alloc_sz = 1658;/*1658+6=1664, 1664 is 128 alignment.*/
 		else
 			alloc_sz = tmp_len;
 		/* 2 is for IP header 4 bytes alignment in QoS packet case.

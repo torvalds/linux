@@ -187,8 +187,7 @@ static irqreturn_t ras_epow_interrupt(int irq, void *dev_id)
 	int state;
 	int critical;
 
-	status = rtas_get_sensor_fast(EPOW_SENSOR_TOKEN, EPOW_SENSOR_INDEX,
-				      &state);
+	status = rtas_get_sensor(EPOW_SENSOR_TOKEN, EPOW_SENSOR_INDEX, &state);
 
 	if (state > 3)
 		critical = 1;		/* Time Critical */

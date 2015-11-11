@@ -196,26 +196,10 @@ static int highbank_initialize_phys(struct device *dev, void __iomem *addr)
 	return 0;
 }
 
-/*
- * The Calxeda SATA phy intermittently fails to bring up a link with Gen3
- * Retrying the phy hard reset can work around the issue, but the drive
- * may fail again. In less than 150 out of 15000 test runs, it took more
- * than 10 tries for the link to be established (but never more than 35).
- * Triple the maximum observed retry count to provide plenty of margin for
- * rare events and to guarantee that the link is established.
- *
- * Also, the default 2 second time-out on a failed drive is too long in
- * this situation. The uboot implementation of the same driver function
- * uses a much shorter time-out period and never experiences a time out
- * issue. Reducing the time-out to 500ms improves the responsiveness.
- * The other timing constants were kept the same as the stock AHCI driver.
- * This change was also tested 15000 times on 24 drives and none of them
- * experienced a time out.
- */
 static int ahci_highbank_hardreset(struct ata_link *link, unsigned int *class,
 				unsigned long deadline)
 {
-	static const unsigned long timing[] = { 5, 100, 500};
+	const unsigned long *timing = sata_ehc_deb_timing(&link->eh_context);
 	struct ata_port *ap = link->ap;
 	struct ahci_port_priv *pp = ap->private_data;
 	u8 *d2h_fis = pp->rx_fis + RX_FIS_D2H_REG;
@@ -223,7 +207,7 @@ static int ahci_highbank_hardreset(struct ata_link *link, unsigned int *class,
 	bool online;
 	u32 sstatus;
 	int rc;
-	int retry = 100;
+	int retry = 10;
 
 	ahci_stop_engine(ap);
 

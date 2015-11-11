@@ -193,10 +193,13 @@ static void iwl_mvm_mac_iface_iterator(void *_data, u8 *mac,
 u32 iwl_mvm_mac_get_queues_mask(struct iwl_mvm *mvm,
 				struct ieee80211_vif *vif)
 {
-	u32 qmask = 0, ac;
+	u32 qmask, ac;
 
 	if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
 		return BIT(IWL_MVM_OFFCHANNEL_QUEUE);
+
+	qmask = (vif->cab_queue != IEEE80211_INVAL_HW_QUEUE) ?
+		BIT(vif->cab_queue) : 0;
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
 		if (vif->hw_queue[ac] != IEEE80211_INVAL_HW_QUEUE)
@@ -359,7 +362,7 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		break;
 	case NL80211_IFTYPE_AP:
 		iwl_trans_ac_txq_enable(mvm->trans, vif->cab_queue,
-					IWL_MVM_TX_FIFO_MCAST);
+					IWL_MVM_TX_FIFO_VO);
 		/* fall through */
 	default:
 		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
@@ -546,10 +549,6 @@ static void iwl_mvm_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 			cpu_to_le16(mvmvif->queue_params[i].txop * 32);
 		cmd->ac[i].fifos_mask = BIT(iwl_mvm_ac_to_tx_fifo[i]);
 	}
-
-	/* in AP mode, the MCAST FIFO takes the EDCA params from VO */
-	if (vif->type == NL80211_IFTYPE_AP)
-		cmd->ac[AC_VO].fifos_mask |= BIT(IWL_MVM_TX_FIFO_MCAST);
 
 	if (vif->bss_conf.qos)
 		cmd->qos_flags |= cpu_to_le32(MAC_QOS_FLG_UPDATE_EDCA);

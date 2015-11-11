@@ -242,7 +242,7 @@ static struct gcov_node *get_node_by_name(const char *name)
 
 	list_for_each_entry(node, &all_head, all) {
 		info = get_node_info(node);
-		if (info && (strcmp(gcov_info_filename(info), name) == 0))
+		if (info && (strcmp(info->filename, name) == 0))
 			return node;
 	}
 
@@ -279,7 +279,7 @@ static ssize_t gcov_seq_write(struct file *file, const char __user *addr,
 	seq = file->private_data;
 	info = gcov_iter_get_info(seq->private);
 	mutex_lock(&node_lock);
-	node = get_node_by_name(gcov_info_filename(info));
+	node = get_node_by_name(info->filename);
 	if (node) {
 		/* Reset counts or remove node for unloaded modules. */
 		if (node->num_loaded == 0)
@@ -376,9 +376,8 @@ static void add_links(struct gcov_node *node, struct dentry *parent)
 	if (!node->links)
 		return;
 	for (i = 0; i < num; i++) {
-		target = get_link_target(
-				gcov_info_filename(get_node_info(node)),
-				&gcov_link[i]);
+		target = get_link_target(get_node_info(node)->filename,
+					 &gcov_link[i]);
 		if (!target)
 			goto out_err;
 		basename = strrchr(target, '/');
@@ -577,7 +576,7 @@ static void add_node(struct gcov_info *info)
 	struct gcov_node *parent;
 	struct gcov_node *node;
 
-	filename = kstrdup(gcov_info_filename(info), GFP_KERNEL);
+	filename = kstrdup(info->filename, GFP_KERNEL);
 	if (!filename)
 		return;
 	parent = &root_node;
@@ -632,7 +631,7 @@ static void add_info(struct gcov_node *node, struct gcov_info *info)
 	loaded_info = kcalloc(num + 1, sizeof(struct gcov_info *), GFP_KERNEL);
 	if (!loaded_info) {
 		pr_warning("could not add '%s' (out of memory)\n",
-			   gcov_info_filename(info));
+			   info->filename);
 		return;
 	}
 	memcpy(loaded_info, node->loaded_info,
@@ -646,8 +645,7 @@ static void add_info(struct gcov_node *node, struct gcov_info *info)
 		 */
 		if (!gcov_info_is_compatible(node->unloaded_info, info)) {
 			pr_warning("discarding saved data for %s "
-				   "(incompatible version)\n",
-				   gcov_info_filename(info));
+				   "(incompatible version)\n", info->filename);
 			gcov_info_free(node->unloaded_info);
 			node->unloaded_info = NULL;
 		}
@@ -658,7 +656,7 @@ static void add_info(struct gcov_node *node, struct gcov_info *info)
 		 */
 		if (!gcov_info_is_compatible(node->loaded_info[0], info)) {
 			pr_warning("could not add '%s' (incompatible "
-				   "version)\n", gcov_info_filename(info));
+				   "version)\n", info->filename);
 			kfree(loaded_info);
 			return;
 		}
@@ -694,8 +692,7 @@ static void save_info(struct gcov_node *node, struct gcov_info *info)
 		node->unloaded_info = gcov_info_dup(info);
 		if (!node->unloaded_info) {
 			pr_warning("could not save data for '%s' "
-				   "(out of memory)\n",
-				   gcov_info_filename(info));
+				   "(out of memory)\n", info->filename);
 		}
 	}
 }
@@ -711,7 +708,7 @@ static void remove_info(struct gcov_node *node, struct gcov_info *info)
 	i = get_info_index(node, info);
 	if (i < 0) {
 		pr_warning("could not remove '%s' (not found)\n",
-			   gcov_info_filename(info));
+			   info->filename);
 		return;
 	}
 	if (gcov_persist)
@@ -738,7 +735,7 @@ void gcov_event(enum gcov_action action, struct gcov_info *info)
 	struct gcov_node *node;
 
 	mutex_lock(&node_lock);
-	node = get_node_by_name(gcov_info_filename(info));
+	node = get_node_by_name(info->filename);
 	switch (action) {
 	case GCOV_ADD:
 		if (node)
@@ -751,7 +748,7 @@ void gcov_event(enum gcov_action action, struct gcov_info *info)
 			remove_info(node, info);
 		else {
 			pr_warning("could not remove '%s' (not found)\n",
-				   gcov_info_filename(info));
+				   info->filename);
 		}
 		break;
 	}

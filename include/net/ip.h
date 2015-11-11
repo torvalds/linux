@@ -37,12 +37,11 @@ struct inet_skb_parm {
 	struct ip_options	opt;		/* Compiled IP options		*/
 	unsigned char		flags;
 
-#define IPSKB_FORWARDED		BIT(0)
-#define IPSKB_XFRM_TUNNEL_SIZE	BIT(1)
-#define IPSKB_XFRM_TRANSFORMED	BIT(2)
-#define IPSKB_FRAG_COMPLETE	BIT(3)
-#define IPSKB_REROUTED		BIT(4)
-#define IPSKB_DOREDIRECT	BIT(5)
+#define IPSKB_FORWARDED		1
+#define IPSKB_XFRM_TUNNEL_SIZE	2
+#define IPSKB_XFRM_TRANSFORMED	4
+#define IPSKB_FRAG_COMPLETE	8
+#define IPSKB_REROUTED		16
 
 	u16			frag_max_size;
 };
@@ -141,7 +140,6 @@ static inline struct sk_buff *ip_finish_skb(struct sock *sk, struct flowi4 *fl4)
 }
 
 /* datagram.c */
-int __ip4_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len);
 extern int		ip4_datagram_connect(struct sock *sk, 
 					     struct sockaddr *uaddr, int addr_len);
 
@@ -155,7 +153,6 @@ struct ip_reply_arg {
 				/* -1 if not needed */ 
 	int	    bound_dev_if;
 	u8  	    tos;
-	kuid_t	    uid;
 }; 
 
 #define IP_REPLY_ARG_NOSRCCHECK 1
@@ -165,7 +162,7 @@ static inline __u8 ip_reply_arg_flowi_flags(const struct ip_reply_arg *arg)
 	return (arg->flags & IP_REPLY_ARG_NOSRCCHECK) ? FLOWI_FLAG_ANYSRC : 0;
 }
 
-void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb, __be32 daddr,
+void ip_send_unicast_reply(struct net *net, struct sk_buff *skb, __be32 daddr,
 			   __be32 saddr, const struct ip_reply_arg *arg,
 			   unsigned int len);
 
@@ -228,9 +225,6 @@ extern void ipfrag_init(void);
 
 extern void ip_static_sysctl_init(void);
 
-#define IP4_REPLY_MARK(net, mark) \
-	((net)->ipv4.sysctl_fwmark_reflect ? (mark) : 0)
-
 static inline bool ip_is_fragment(const struct iphdr *iph)
 {
 	return (iph->frag_off & htons(IP_MF | IP_OFFSET)) != 0;
@@ -258,33 +252,32 @@ int ip_dont_fragment(struct sock *sk, struct dst_entry *dst)
 		 !(dst_metric_locked(dst, RTAX_MTU)));
 }
 
-u32 ip_idents_reserve(u32 hash, int segs);
-void __ip_select_ident(struct iphdr *iph, int segs);
+extern void __ip_select_ident(struct iphdr *iph, struct dst_entry *dst, int more);
 
-static inline void ip_select_ident_segs(struct sk_buff *skb, struct sock *sk, int segs)
+static inline void ip_select_ident(struct iphdr *iph, struct dst_entry *dst, struct sock *sk)
 {
-	struct iphdr *iph = ip_hdr(skb);
-
-	if ((iph->frag_off & htons(IP_DF)) && !skb->local_df) {
+	if (iph->frag_off & htons(IP_DF)) {
 		/* This is only to work around buggy Windows95/2000
 		 * VJ compression implementations.  If the ID field
 		 * does not change, they drop every other packet in
 		 * a TCP stream using header compression.
 		 */
-		if (sk && inet_sk(sk)->inet_daddr) {
-			iph->id = htons(inet_sk(sk)->inet_id);
-			inet_sk(sk)->inet_id += segs;
-		} else {
-			iph->id = 0;
-		}
-	} else {
-		__ip_select_ident(iph, segs);
-	}
+		iph->id = (sk && inet_sk(sk)->inet_daddr) ?
+					htons(inet_sk(sk)->inet_id++) : 0;
+	} else
+		__ip_select_ident(iph, dst, 0);
 }
 
-static inline void ip_select_ident(struct sk_buff *skb, struct sock *sk)
+static inline void ip_select_ident_more(struct iphdr *iph, struct dst_entry *dst, struct sock *sk, int more)
 {
-	ip_select_ident_segs(skb, sk, 1);
+	if (iph->frag_off & htons(IP_DF)) {
+		if (sk && inet_sk(sk)->inet_daddr) {
+			iph->id = htons(inet_sk(sk)->inet_id);
+			inet_sk(sk)->inet_id += 1 + more;
+		} else
+			iph->id = 0;
+	} else
+		__ip_select_ident(iph, dst, more);
 }
 
 /*
@@ -457,7 +450,7 @@ extern int	compat_ip_getsockopt(struct sock *sk, int level,
 			int optname, char __user *optval, int __user *optlen);
 extern int	ip_ra_control(struct sock *sk, unsigned char on, void (*destructor)(struct sock *));
 
-extern int 	ip_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len);
+extern int 	ip_recv_error(struct sock *sk, struct msghdr *msg, int len);
 extern void	ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err, 
 			      __be16 port, u32 info, u8 *payload);
 extern void	ip_local_error(struct sock *sk, int err, __be32 daddr, __be16 dport,

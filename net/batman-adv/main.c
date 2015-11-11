@@ -61,7 +61,6 @@ static int __init batadv_init(void)
 	batadv_recv_handler_init();
 
 	batadv_iv_init();
-	batadv_nc_init();
 
 	batadv_event_workqueue = create_singlethread_workqueue("bat_events");
 
@@ -139,7 +138,7 @@ int batadv_mesh_init(struct net_device *soft_iface)
 	if (ret < 0)
 		goto err;
 
-	ret = batadv_nc_mesh_init(bat_priv);
+	ret = batadv_nc_init(bat_priv);
 	if (ret < 0)
 		goto err;
 
@@ -164,7 +163,7 @@ void batadv_mesh_free(struct net_device *soft_iface)
 	batadv_vis_quit(bat_priv);
 
 	batadv_gw_node_purge(bat_priv);
-	batadv_nc_mesh_free(bat_priv);
+	batadv_nc_free(bat_priv);
 	batadv_dat_free(bat_priv);
 	batadv_bla_free(bat_priv);
 

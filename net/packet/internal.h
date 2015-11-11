@@ -29,7 +29,6 @@ struct tpacket_kbdq_core {
 	char		*pkblk_start;
 	char		*pkblk_end;
 	int		kblk_size;
-	unsigned int	max_frame_len;
 	unsigned int	knum_blocks;
 	uint64_t	knxt_seq_num;
 	char		*prev;
@@ -114,7 +113,6 @@ struct packet_sock {
 	unsigned int		tp_loss:1;
 	unsigned int		tp_tx_has_off:1;
 	unsigned int		tp_tstamp;
-	struct net_device __rcu	*cached_dev;
 	struct packet_type	prot_hook ____cacheline_aligned_in_smp;
 };
 

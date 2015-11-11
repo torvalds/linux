@@ -144,8 +144,6 @@ int kgdb_arch_handle_exception(int exception_vector, int signo,
 
 static int kgdb_brk_fn(struct pt_regs *regs, unsigned int instr)
 {
-	if (user_mode(regs))
-		return -1;
 	kgdb_handle_exception(1, SIGTRAP, 0, regs);
 
 	return 0;
@@ -153,8 +151,6 @@ static int kgdb_brk_fn(struct pt_regs *regs, unsigned int instr)
 
 static int kgdb_compiled_brk_fn(struct pt_regs *regs, unsigned int instr)
 {
-	if (user_mode(regs))
-		return -1;
 	compiled_break = 1;
 	kgdb_handle_exception(1, SIGTRAP, 0, regs);
 

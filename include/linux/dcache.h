@@ -120,15 +120,15 @@ struct dentry {
 	void *d_fsdata;			/* fs-specific data */
 
 	struct list_head d_lru;		/* LRU list */
-	struct list_head d_child;	/* child of parent list */
-	struct list_head d_subdirs;	/* our children */
 	/*
-	 * d_alias and d_rcu can share memory
+	 * d_child and d_rcu can share memory
 	 */
 	union {
-		struct hlist_node d_alias;	/* inode alias list */
+		struct list_head d_child;	/* child of parent list */
 	 	struct rcu_head d_rcu;
 	} d_u;
+	struct list_head d_subdirs;	/* our children */
+	struct hlist_node d_alias;	/* inode alias list */
 };
 
 /*
@@ -332,7 +332,6 @@ extern int d_validate(struct dentry *, struct dentry *);
  * helper function for dentry_operations.d_dname() members
  */
 extern char *dynamic_dname(struct dentry *, char *, int, const char *, ...);
-extern char *simple_dname(struct dentry *, char *, int);
 
 extern char *__d_path(const struct path *, const struct path *, char *, int);
 extern char *d_absolute_path(const struct path *, char *, int);

@@ -45,14 +45,7 @@ static inline int arch_spin_trylock(arch_spinlock_t *lock)
 
 static inline void arch_spin_unlock(arch_spinlock_t *lock)
 {
-	unsigned int tmp = __ARCH_SPIN_LOCK_UNLOCKED__;
-
-	__asm__ __volatile__(
-	"	ex  %0, [%1]		\n"
-	: "+r" (tmp)
-	: "r"(&(lock->slock))
-	: "memory");
-
+	lock->slock = __ARCH_SPIN_LOCK_UNLOCKED__;
 	smp_mb();
 }
 

@@ -66,8 +66,7 @@ void __init armada_370_xp_init_early(void)
 			ARMADA_370_XP_MBUS_WINS_BASE,
 			ARMADA_370_XP_MBUS_WINS_SIZE,
 			ARMADA_370_XP_SDRAM_WINS_BASE,
-			ARMADA_370_XP_SDRAM_WINS_SIZE,
-			coherency_available());
+			ARMADA_370_XP_SDRAM_WINS_SIZE);
 
 #ifdef CONFIG_CACHE_L2X0
 	l2x0_of_init(0, ~0UL);

@@ -708,7 +708,6 @@ enum rt2x00_capability_flags {
 	REQUIRE_SW_SEQNO,
 	REQUIRE_HT_TX_DESC,
 	REQUIRE_PS_AUTOWAKE,
-	REQUIRE_DELAYED_RFKILL,
 
 	/*
 	 * Capabilities

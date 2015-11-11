@@ -86,7 +86,7 @@ static inline u8 IN_TO_REG(unsigned long val, int n)
  */
 static inline s8 TEMP_TO_REG(int val)
 {
-	return SCALE(clamp_val(val, -128000, 127000), 1, 1000);
+	return clamp_val(SCALE(val, 1, 1000), -128000, 127000);
 }
 
 static inline int TEMP_FROM_REG(s8 val)
@@ -384,8 +384,6 @@ static ssize_t set_vrm(struct device *dev, struct device_attribute *attr,
 	err = kstrtoul(buf, 10, &val);
 	if (err)
 		return err;
-	if (val > 255)
-		return -EINVAL;
 
 	data->vrm = val;
 	return count;

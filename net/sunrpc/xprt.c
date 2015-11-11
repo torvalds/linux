@@ -1290,7 +1290,7 @@ struct rpc_xprt *xprt_create_transport(struct xprt_create *args)
 		}
 	}
 	spin_unlock(&xprt_list_lock);
-	dprintk("RPC: transport (%d) not supported\n", args->ident);
+	printk(KERN_ERR "RPC: transport (%d) not supported\n", args->ident);
 	return ERR_PTR(-EIO);
 
 found:

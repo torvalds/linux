@@ -181,7 +181,6 @@ extern int udp_get_port(struct sock *sk, unsigned short snum,
 extern void udp_err(struct sk_buff *, u32);
 extern int udp_sendmsg(struct kiocb *iocb, struct sock *sk,
 			    struct msghdr *msg, size_t len);
-extern int udp_push_pending_frames(struct sock *sk);
 extern void udp_flush_pending_frames(struct sock *sk);
 extern int udp_rcv(struct sk_buff *skb);
 extern int udp_ioctl(struct sock *sk, int cmd, unsigned long arg);

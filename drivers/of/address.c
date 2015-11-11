@@ -69,6 +69,14 @@ static u64 of_bus_default_map(__be32 *addr, const __be32 *range,
 		 (unsigned long long)cp, (unsigned long long)s,
 		 (unsigned long long)da);
 
+	/*
+	 * If the number of address cells is larger than 2 we assume the
+	 * mapping doesn't specify a physical address. Rather, the address
+	 * specifies an identifier that must match exactly.
+	 */
+	if (na > 2 && memcmp(range, addr, na * 4) != 0)
+		return OF_BAD_ADDR;
+
 	if (da < cp || da >= (cp + s))
 		return OF_BAD_ADDR;
 	return da - cp;
@@ -98,13 +106,8 @@ static unsigned int of_bus_default_get_flags(const __be32 *addr)
 
 static int of_bus_pci_match(struct device_node *np)
 {
-	/*
- 	 * "pciex" is PCI Express
-	 * "vci" is for the /chaos bridge on 1st-gen PCI powermacs
-	 * "ht" is hypertransport
-	 */
-	return !strcmp(np->type, "pci") || !strcmp(np->type, "pciex") ||
-		!strcmp(np->type, "vci") || !strcmp(np->type, "ht");
+	/* "vci" is for the /chaos bridge on 1st-gen PCI powermacs */
+	return !strcmp(np->type, "pci") || !strcmp(np->type, "vci");
 }
 
 static void of_bus_pci_count_cells(struct device_node *np,
@@ -334,21 +337,6 @@ static struct of_bus *of_match_bus(struct device_node *np)
 	return NULL;
 }
 
-static int of_empty_ranges_quirk(void)
-{
-	if (IS_ENABLED(CONFIG_PPC)) {
-		/* To save cycles, we cache the result */
-		static int quirk_state = -1;
-
-		if (quirk_state < 0)
-			quirk_state =
-				of_machine_is_compatible("Power Macintosh") ||
-				of_machine_is_compatible("MacRISC");
-		return quirk_state;
-	}
-	return false;
-}
-
 static int of_translate_one(struct device_node *parent, struct of_bus *bus,
 			    struct of_bus *pbus, __be32 *addr,
 			    int na, int ns, int pna, const char *rprop)
@@ -374,10 +362,12 @@ static int of_translate_one(struct device_node *parent, struct of_bus *bus,
 	 * This code is only enabled on powerpc. --gcl
 	 */
 	ranges = of_get_property(parent, rprop, &rlen);
-	if (ranges == NULL && !of_empty_ranges_quirk()) {
+#if !defined(CONFIG_PPC)
+	if (ranges == NULL) {
 		pr_err("OF: no ranges; cannot translate\n");
 		return 1;
 	}
+#endif /* !defined(CONFIG_PPC) */
 	if (ranges == NULL || rlen == 0) {
 		offset = of_read_number(addr, na);
 		memset(addr, 0, pna * 4);
@@ -428,7 +418,7 @@ static u64 __of_translate_address(struct device_node *dev,
 	int na, ns, pna, pns;
 	u64 result = OF_BAD_ADDR;
 
-	pr_debug("OF: ** translation for device %s **\n", of_node_full_name(dev));
+	pr_debug("OF: ** translation for device %s **\n", dev->full_name);
 
 	/* Increase refcount at current level */
 	of_node_get(dev);
@@ -443,13 +433,13 @@ static u64 __of_translate_address(struct device_node *dev,
 	bus->count_cells(dev, &na, &ns);
 	if (!OF_CHECK_COUNTS(na, ns)) {
 		printk(KERN_ERR "prom_parse: Bad cell count for %s\n",
-		       of_node_full_name(dev));
+		       dev->full_name);
 		goto bail;
 	}
 	memcpy(addr, in_addr, na * 4);
 
 	pr_debug("OF: bus is %s (na=%d, ns=%d) on %s\n",
-	    bus->name, na, ns, of_node_full_name(parent));
+	    bus->name, na, ns, parent->full_name);
 	of_dump_addr("OF: translating address:", addr, na);
 
 	/* Translate */
@@ -629,10 +619,10 @@ struct device_node *of_find_matching_node_by_address(struct device_node *from,
 	struct resource res;
 
 	while (dn) {
-		if (!of_address_to_resource(dn, 0, &res) &&
-		    res.start == base_address)
+		if (of_address_to_resource(dn, 0, &res))
+			continue;
+		if (res.start == base_address)
 			return dn;
-
 		dn = of_find_matching_node(dn, matches);
 	}
 
