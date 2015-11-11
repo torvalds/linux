@@ -490,27 +490,27 @@ mpt3sas_ctl_reset_handler(struct MPT3SAS_ADAPTER *ioc, int reset_phase)
 }
 
 /**
- * _ctl_fasync -
+ * ctl_fasync -
  * @fd -
  * @filep -
  * @mode -
  *
  * Called when application request fasyn callback handler.
  */
-static int
-_ctl_fasync(int fd, struct file *filep, int mode)
+int
+ctl_fasync(int fd, struct file *filep, int mode)
 {
 	return fasync_helper(fd, filep, mode, &async_queue);
 }
 
 /**
- * _ctl_poll -
+ * ctl_poll -
  * @file -
  * @wait -
  *
  */
-static unsigned int
-_ctl_poll(struct file *filep, poll_table *wait)
+unsigned int
+ctl_poll(struct file *filep, poll_table *wait)
 {
 	struct MPT3SAS_ADAPTER *ioc;
 
@@ -2298,13 +2298,13 @@ _ctl_ioctl_main(struct file *file, unsigned int cmd, void __user *arg,
 }
 
 /**
- * _ctl_ioctl - main ioctl entry point (unlocked)
+ * ctl_ioctl - main ioctl entry point (unlocked)
  * @file - (struct file)
  * @cmd - ioctl opcode
  * @arg -
  */
-static long
-_ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+long
+ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	long ret;
 
@@ -2314,15 +2314,15 @@ _ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 #ifdef CONFIG_COMPAT
 /**
- * _ctl_ioctl_compat - main ioctl entry point (compat)
+ * ctl_ioctl_compat - main ioctl entry point (compat)
  * @file -
  * @cmd -
  * @arg -
  *
  * This routine handles 32 bit applications in 64bit os.
  */
-static long
-_ctl_ioctl_compat(struct file *file, unsigned cmd, unsigned long arg)
+long
+ctl_ioctl_compat(struct file *file, unsigned cmd, unsigned long arg)
 {
 	long ret;
 
@@ -3220,11 +3220,11 @@ struct device_attribute *mpt3sas_dev_attrs[] = {
 
 static const struct file_operations ctl_fops = {
 	.owner = THIS_MODULE,
-	.unlocked_ioctl = _ctl_ioctl,
-	.poll = _ctl_poll,
-	.fasync = _ctl_fasync,
+	.unlocked_ioctl = ctl_ioctl,
+	.poll = ctl_poll,
+	.fasync = ctl_fasync,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl = _ctl_ioctl_compat,
+	.compat_ioctl = ctl_ioctl_compat,
 #endif
 };
 
@@ -3235,11 +3235,11 @@ static struct miscdevice ctl_dev = {
 };
 
 /**
- * mpt3sas_ctl_init - main entry point for ctl.
+ * ctl_init - main entry point for ctl.
  *
  */
 void
-mpt3sas_ctl_init(void)
+ctl_init(void)
 {
 	async_queue = NULL;
 	if (misc_register(&ctl_dev) < 0)
@@ -3250,11 +3250,11 @@ mpt3sas_ctl_init(void)
 }
 
 /**
- * mpt3sas_ctl_exit - exit point for ctl
+ * ctl_exit - exit point for ctl
  *
  */
 void
-mpt3sas_ctl_exit(void)
+ctl_exit(void)
 {
 	struct MPT3SAS_ADAPTER *ioc;
 	int i;

@@ -63,15 +63,20 @@
 #include <scsi/scsi_transport_sas.h>
 #include <scsi/scsi_dbg.h>
 #include <scsi/scsi_eh.h>
+#include <linux/pci.h>
+#include <linux/poll.h>
 
 #include "mpt3sas_debug.h"
 #include "mpt3sas_trigger_diag.h"
 
 /* driver versioning info */
 #define MPT3SAS_DRIVER_NAME		"mpt3sas"
+#define MPT2SAS_DRIVER_NAME		"mpt2sas"
 #define MPT3SAS_AUTHOR "Avago Technologies <MPT-FusionLinux.pdl@avagotech.com>"
 #define MPT3SAS_DESCRIPTION	"LSI MPT Fusion SAS 3.0 Device Driver"
+#define MPT2SAS_DESCRIPTION	"LSI MPT Fusion SAS 2.0 Device Driver"
 #define MPT3SAS_DRIVER_VERSION		"09.100.00.00"
+#define MPT2SAS_DRIVER_VERSION		"20.101.00.00"
 #define MPT3SAS_MAJOR_VERSION		9
 #define MPT3SAS_MINOR_VERSION		100
 #define MPT3SAS_BUILD_VERSION		0
@@ -80,14 +85,20 @@
 /*
  * Set MPT3SAS_SG_DEPTH value based on user input.
  */
-#define MPT3SAS_MAX_PHYS_SEGMENTS	SCSI_MAX_SG_SEGMENTS
-#define MPT3SAS_MIN_PHYS_SEGMENTS	16
+#define MPT_MAX_PHYS_SEGMENTS	SCSI_MAX_SG_SEGMENTS
+#define MPT_MIN_PHYS_SEGMENTS	16
+
 #ifdef CONFIG_SCSI_MPT3SAS_MAX_SGE
 #define MPT3SAS_SG_DEPTH		CONFIG_SCSI_MPT3SAS_MAX_SGE
 #else
-#define MPT3SAS_SG_DEPTH		MPT3SAS_MAX_PHYS_SEGMENTS
+#define MPT3SAS_SG_DEPTH		MPT_MAX_PHYS_SEGMENTS
 #endif
 
+#ifdef CONFIG_SCSI_MPT2SAS_MAX_SGE
+#define MPT2SAS_SG_DEPTH		CONFIG_SCSI_MPT2SAS_MAX_SGE
+#else
+#define MPT2SAS_SG_DEPTH		MPT_MAX_PHYS_SEGMENTS
+#endif
 
 /*
  * Generic Defines
@@ -1095,6 +1106,39 @@ struct _sas_device *mpt3sas_scsih_sas_device_find_by_sas_address(
 
 void mpt3sas_port_enable_complete(struct MPT3SAS_ADAPTER *ioc);
 
+void scsih_exit(void);
+int scsih_init(void);
+int scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id);
+void scsih_remove(struct pci_dev *pdev);
+void scsih_shutdown(struct pci_dev *pdev);
+pci_ers_result_t scsih_pci_error_detected(struct pci_dev *pdev,
+	pci_channel_state_t state);
+pci_ers_result_t scsih_pci_mmio_enabled(struct pci_dev *pdev);
+pci_ers_result_t scsih_pci_slot_reset(struct pci_dev *pdev);
+void scsih_pci_resume(struct pci_dev *pdev);
+int scsih_suspend(struct pci_dev *pdev, pm_message_t state);
+int scsih_resume(struct pci_dev *pdev);
+
+int scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd);
+int scsih_target_alloc(struct scsi_target *starget);
+int scsih_slave_alloc(struct scsi_device *sdev);
+int scsih_slave_configure(struct scsi_device *sdev);
+void scsih_target_destroy(struct scsi_target *starget);
+void scsih_slave_destroy(struct scsi_device *sdev);
+int scsih_scan_finished(struct Scsi_Host *shost, unsigned long time);
+void scsih_scan_start(struct Scsi_Host *shost);
+int scsih_change_queue_depth(struct scsi_device *sdev, int qdepth);
+int scsih_abort(struct scsi_cmnd *scmd);
+int scsih_dev_reset(struct scsi_cmnd *scmd);
+int scsih_target_reset(struct scsi_cmnd *scmd);
+int scsih_host_reset(struct scsi_cmnd *scmd);
+int scsih_bios_param(struct scsi_device *sdev, struct block_device *bdev,
+	sector_t capacity, int params[]);
+
+int scsih_is_raid(struct device *dev);
+void scsih_get_resync(struct device *dev);
+void scsih_get_state(struct device *dev);
+
 /* config shared API */
 u8 mpt3sas_config_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 	u32 reply);
@@ -1177,8 +1221,12 @@ int mpt3sas_config_get_volume_wwid(struct MPT3SAS_ADAPTER *ioc,
 /* ctl shared API */
 extern struct device_attribute *mpt3sas_host_attrs[];
 extern struct device_attribute *mpt3sas_dev_attrs[];
-void mpt3sas_ctl_init(void);
-void mpt3sas_ctl_exit(void);
+long ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
+unsigned int ctl_poll(struct file *filep, poll_table *wait);
+int ctl_fasync(int fd, struct file *filep, int mode);
+long ctl_ioctl_compat(struct file *file, unsigned cmd, unsigned long arg);
+void ctl_init(void);
+void ctl_exit(void);
 u8 mpt3sas_ctl_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 	u32 reply);
 void mpt3sas_ctl_reset_handler(struct MPT3SAS_ADAPTER *ioc, int reset_phase);
