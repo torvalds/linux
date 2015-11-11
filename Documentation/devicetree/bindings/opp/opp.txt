@@ -45,20 +45,9 @@ Devices supporting OPPs must set their "operating-points-v2" property with
 phandle to a OPP table in their DT node. The OPP core will use this phandle to
 find the operating points for the device.
 
-Devices may want to choose OPP tables at runtime and so can provide a list of
-phandles here. But only *one* of them should be chosen at runtime. This must be
-accompanied by a corresponding "operating-points-names" property, to uniquely
-identify the OPP tables.
-
 If required, this can be extended for SoC vendor specfic bindings. Such bindings
 should be documented as Documentation/devicetree/bindings/power/<vendor>-opp.txt
 and should have a compatible description like: "operating-points-v2-<vendor>".
-
-Optional properties:
-- operating-points-names: Names of OPP tables (required if multiple OPP
-  tables are present), to uniquely identify them. The same list must be present
-  for all the CPUs which are sharing clock/voltage rails and hence the OPP
-  tables.
 
 * OPP Table Node
 
@@ -448,54 +437,7 @@ Example 4: Handling multiple regulators
 	};
 };
 
-Example 5: Multiple OPP tables
-
-/ {
-	cpus {
-		cpu@0 {
-			compatible = "arm,cortex-a7";
-			...
-
-			cpu-supply = <&cpu_supply>
-			operating-points-v2 = <&cpu0_opp_table_slow>, <&cpu0_opp_table_fast>;
-			operating-points-names = "slow", "fast";
-		};
-	};
-
-	cpu0_opp_table_slow: opp_table_slow {
-		compatible = "operating-points-v2";
-		status = "okay";
-		opp-shared;
-
-		opp00 {
-			opp-hz = /bits/ 64 <600000000>;
-			...
-		};
-
-		opp01 {
-			opp-hz = /bits/ 64 <800000000>;
-			...
-		};
-	};
-
-	cpu0_opp_table_fast: opp_table_fast {
-		compatible = "operating-points-v2";
-		status = "okay";
-		opp-shared;
-
-		opp10 {
-			opp-hz = /bits/ 64 <1000000000>;
-			...
-		};
-
-		opp11 {
-			opp-hz = /bits/ 64 <1100000000>;
-			...
-		};
-	};
-};
-
-Example 6: opp-supported-hw
+Example 5: opp-supported-hw
 (example: three level hierarchy of versions: cuts, substrate and process)
 
 / {
@@ -540,7 +482,7 @@ Example 6: opp-supported-hw
 	};
 };
 
-Example 7: opp-microvolt-<name>, opp-microamp-<name>:
+Example 6: opp-microvolt-<name>, opp-microamp-<name>:
 (example: device with two possible microvolt ranges: slow and fast)
 
 / {
