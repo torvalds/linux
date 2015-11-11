@@ -1358,7 +1358,7 @@ int self_check_eba(struct ubi_device *ubi, struct ubi_attach_info *ai_fastmap,
 					continue;
 
 				ubi_err(ubi, "LEB:%i:%i is PEB:%i instead of %i!",
-					vol->vol_id, i, fm_eba[i][j],
+					vol->vol_id, j, fm_eba[i][j],
 					scan_eba[i][j]);
 				ubi_assert(0);
 			}

@@ -172,6 +172,30 @@ void ubi_refill_pools(struct ubi_device *ubi)
 }
 
 /**
+ * produce_free_peb - produce a free physical eraseblock.
+ * @ubi: UBI device description object
+ *
+ * This function tries to make a free PEB by means of synchronous execution of
+ * pending works. This may be needed if, for example the background thread is
+ * disabled. Returns zero in case of success and a negative error code in case
+ * of failure.
+ */
+static int produce_free_peb(struct ubi_device *ubi)
+{
+	int err;
+
+	while (!ubi->free.rb_node && ubi->works_count) {
+		dbg_wl("do one work synchronously");
+		err = do_work(ubi);
+
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+/**
  * ubi_wl_get_peb - get a physical eraseblock.
  * @ubi: UBI device description object
  *
@@ -213,6 +237,11 @@ again:
 		}
 		retried = 1;
 		up_read(&ubi->fm_eba_sem);
+		ret = produce_free_peb(ubi);
+		if (ret < 0) {
+			down_read(&ubi->fm_eba_sem);
+			goto out;
+		}
 		goto again;
 	}
 
