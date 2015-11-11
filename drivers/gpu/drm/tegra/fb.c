@@ -92,7 +92,7 @@ static struct drm_framebuffer_funcs tegra_fb_funcs = {
 };
 
 static struct tegra_fb *tegra_fb_alloc(struct drm_device *drm,
-				       struct drm_mode_fb_cmd2 *mode_cmd,
+				       const struct drm_mode_fb_cmd2 *mode_cmd,
 				       struct tegra_bo **planes,
 				       unsigned int num_planes)
 {
@@ -131,7 +131,7 @@ static struct tegra_fb *tegra_fb_alloc(struct drm_device *drm,
 
 struct drm_framebuffer *tegra_fb_create(struct drm_device *drm,
 					struct drm_file *file,
-					struct drm_mode_fb_cmd2 *cmd)
+					const struct drm_mode_fb_cmd2 *cmd)
 {
 	unsigned int hsub, vsub, i;
 	struct tegra_bo *planes[4];

@@ -241,7 +241,7 @@ static struct fb_ops psbfb_unaccel_ops = {
  */
 static int psb_framebuffer_init(struct drm_device *dev,
 					struct psb_framebuffer *fb,
-					struct drm_mode_fb_cmd2 *mode_cmd,
+					const struct drm_mode_fb_cmd2 *mode_cmd,
 					struct gtt_range *gt)
 {
 	u32 bpp, depth;
@@ -284,7 +284,7 @@ static int psb_framebuffer_init(struct drm_device *dev,
 
 static struct drm_framebuffer *psb_framebuffer_create
 			(struct drm_device *dev,
-			 struct drm_mode_fb_cmd2 *mode_cmd,
+			 const struct drm_mode_fb_cmd2 *mode_cmd,
 			 struct gtt_range *gt)
 {
 	struct psb_framebuffer *fb;
@@ -488,7 +488,7 @@ out_err1:
  */
 static struct drm_framebuffer *psb_user_framebuffer_create
 			(struct drm_device *dev, struct drm_file *filp,
-			 struct drm_mode_fb_cmd2 *cmd)
+			 const struct drm_mode_fb_cmd2 *cmd)
 {
 	struct gtt_range *r;
 	struct drm_gem_object *obj;

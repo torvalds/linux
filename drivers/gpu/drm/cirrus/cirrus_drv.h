@@ -206,7 +206,7 @@ int cirrus_dumb_create(struct drm_file *file,
 
 int cirrus_framebuffer_init(struct drm_device *dev,
 			   struct cirrus_framebuffer *gfb,
-			    struct drm_mode_fb_cmd2 *mode_cmd,
+			    const struct drm_mode_fb_cmd2 *mode_cmd,
 			    struct drm_gem_object *obj);
 
 bool cirrus_check_framebuffer(struct cirrus_device *cdev, int width, int height,

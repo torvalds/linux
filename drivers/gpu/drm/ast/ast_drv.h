@@ -308,7 +308,7 @@ extern void ast_mode_fini(struct drm_device *dev);
 
 int ast_framebuffer_init(struct drm_device *dev,
 			 struct ast_framebuffer *ast_fb,
-			 struct drm_mode_fb_cmd2 *mode_cmd,
+			 const struct drm_mode_fb_cmd2 *mode_cmd,
 			 struct drm_gem_object *obj);
 
 int ast_fbdev_init(struct drm_device *dev);

@@ -282,7 +282,7 @@ int qxl_get_handle_for_primary_fb(struct qxl_device *qdev,
 }
 
 static int qxlfb_create_pinned_object(struct qxl_fbdev *qfbdev,
-				      struct drm_mode_fb_cmd2 *mode_cmd,
+				      const struct drm_mode_fb_cmd2 *mode_cmd,
 				      struct drm_gem_object **gobj_p)
 {
 	struct qxl_device *qdev = qfbdev->qdev;
