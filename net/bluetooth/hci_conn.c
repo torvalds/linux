@@ -933,26 +933,6 @@ done:
 	return conn;
 }
 
-static void hci_connect_le_scan_complete(struct hci_dev *hdev, u8 status,
-					 u16 opcode)
-{
-	struct hci_conn *conn;
-
-	if (!status)
-		return;
-
-	BT_ERR("Failed to add device to auto conn whitelist: status 0x%2.2x",
-	       status);
-
-	hci_dev_lock(hdev);
-
-	conn = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
-	if (conn)
-		hci_le_conn_failed(conn, status);
-
-	hci_dev_unlock(hdev);
-}
-
 static bool is_connected(struct hci_dev *hdev, bdaddr_t *addr, u8 type)
 {
 	struct hci_conn *conn;
@@ -968,10 +948,9 @@ static bool is_connected(struct hci_dev *hdev, bdaddr_t *addr, u8 type)
 }
 
 /* This function requires the caller holds hdev->lock */
-static int hci_explicit_conn_params_set(struct hci_request *req,
+static int hci_explicit_conn_params_set(struct hci_dev *hdev,
 					bdaddr_t *addr, u8 addr_type)
 {
-	struct hci_dev *hdev = req->hdev;
 	struct hci_conn_params *params;
 
 	if (is_connected(hdev, addr, addr_type))
@@ -999,7 +978,6 @@ static int hci_explicit_conn_params_set(struct hci_request *req,
 	}
 
 	params->explicit_connect = true;
-	__hci_update_background_scan(req);
 
 	BT_DBG("addr %pMR (type %u) auto_connect %u", addr, addr_type,
 	       params->auto_connect);
@@ -1013,8 +991,6 @@ struct hci_conn *hci_connect_le_scan(struct hci_dev *hdev, bdaddr_t *dst,
 				     u16 conn_timeout, u8 role)
 {
 	struct hci_conn *conn;
-	struct hci_request req;
-	int err;
 
 	/* Let's make sure that le is enabled.*/
 	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED)) {
@@ -1046,24 +1022,17 @@ struct hci_conn *hci_connect_le_scan(struct hci_dev *hdev, bdaddr_t *dst,
 	if (!conn)
 		return ERR_PTR(-ENOMEM);
 
-	hci_req_init(&req, hdev);
-
-	if (hci_explicit_conn_params_set(&req, dst, dst_type) < 0)
+	if (hci_explicit_conn_params_set(hdev, dst, dst_type) < 0)
 		return ERR_PTR(-EBUSY);
 
 	conn->state = BT_CONNECT;
 	set_bit(HCI_CONN_SCANNING, &conn->flags);
-
-	err = hci_req_run(&req, hci_connect_le_scan_complete);
-	if (err && err != -ENODATA) {
-		hci_conn_del(conn);
-		return ERR_PTR(err);
-	}
-
 	conn->dst_type = dst_type;
 	conn->sec_level = BT_SECURITY_LOW;
 	conn->pending_sec_level = sec_level;
 	conn->conn_timeout = conn_timeout;
+
+	hci_update_background_scan(hdev);
 
 done:
 	hci_conn_hold(conn);
