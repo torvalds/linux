@@ -724,8 +724,7 @@ static int __gb_lights_flash_led_register(struct gb_channel *channel)
 			goto fail;
 	}
 
-	ret = led_classdev_flash_register(&connection->bundle->intf->dev,
-					  fled);
+	ret = led_classdev_flash_register(&connection->bundle->dev, fled);
 	if (ret < 0)
 		goto fail;
 
@@ -812,8 +811,7 @@ static int __gb_lights_led_register(struct gb_channel *channel)
 	struct led_classdev *cdev = get_channel_cdev(channel);
 	int ret;
 
-	ret = led_classdev_register(&connection->bundle->intf->dev,
-				    cdev);
+	ret = led_classdev_register(&connection->bundle->dev, cdev);
 	if (ret < 0)
 		channel->led = NULL;
 	else
