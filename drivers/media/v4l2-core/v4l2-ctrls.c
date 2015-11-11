@@ -3300,7 +3300,8 @@ EXPORT_SYMBOL(v4l2_ctrl_notify);
 int __v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
 			s64 min, s64 max, u64 step, s64 def)
 {
-	bool changed;
+	bool value_changed;
+	bool range_changed = false;
 	int ret;
 
 	lockdep_assert_held(ctrl->handler->lock);
@@ -3324,10 +3325,14 @@ int __v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
 	default:
 		return -EINVAL;
 	}
-	ctrl->minimum = min;
-	ctrl->maximum = max;
-	ctrl->step = step;
-	ctrl->default_value = def;
+	if ((ctrl->minimum != min) || (ctrl->maximum != max) ||
+		(ctrl->step != step) || ctrl->default_value != def) {
+		range_changed = true;
+		ctrl->minimum = min;
+		ctrl->maximum = max;
+		ctrl->step = step;
+		ctrl->default_value = def;
+	}
 	cur_to_new(ctrl);
 	if (validate_new(ctrl, ctrl->p_new)) {
 		if (ctrl->type == V4L2_CTRL_TYPE_INTEGER64)
@@ -3337,12 +3342,12 @@ int __v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
 	}
 
 	if (ctrl->type == V4L2_CTRL_TYPE_INTEGER64)
-		changed = *ctrl->p_new.p_s64 != *ctrl->p_cur.p_s64;
+		value_changed = *ctrl->p_new.p_s64 != *ctrl->p_cur.p_s64;
 	else
-		changed = *ctrl->p_new.p_s32 != *ctrl->p_cur.p_s32;
-	if (changed)
+		value_changed = *ctrl->p_new.p_s32 != *ctrl->p_cur.p_s32;
+	if (value_changed)
 		ret = set_ctrl(NULL, ctrl, V4L2_EVENT_CTRL_CH_RANGE);
-	else
+	else if (range_changed)
 		send_event(NULL, ctrl, V4L2_EVENT_CTRL_CH_RANGE);
 	return ret;
 }
