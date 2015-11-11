@@ -845,3 +845,11 @@ int hci_abort_conn(struct hci_conn *conn, u8 reason)
 
 	return 0;
 }
+
+void hci_request_setup(struct hci_dev *hdev)
+{
+}
+
+void hci_request_cancel_all(struct hci_dev *hdev)
+{
+}
