@@ -2893,7 +2893,7 @@ static int dsp_y_pos(int mirror_en, struct rk_screen *screen,
 
 	if (screen->y_mirror && mirror_en)
 		pr_err("not support both win and global mirror\n");
-	if (screen->mode.vmode & FB_VMODE_NONINTERLACED) {
+	if (!(screen->mode.vmode & FB_VMODE_INTERLACED)) {
 		if ((!mirror_en) && (!screen->y_mirror))
 			pos = area->ypos + screen->mode.upper_margin +
 				screen->mode.vsync_len;
@@ -2901,7 +2901,7 @@ static int dsp_y_pos(int mirror_en, struct rk_screen *screen,
 			pos = screen->mode.yres - area->ypos -
 				area->ysize + screen->mode.upper_margin +
 				screen->mode.vsync_len;
-	} else if (screen->mode.vmode & FB_VMODE_INTERLACED) {
+	} else {
 		pos = area->ypos / 2 + screen->mode.upper_margin +
 			screen->mode.vsync_len;
 		area->ysize /= 2;
@@ -3099,7 +3099,7 @@ static int win_2_3_set_par(struct lcdc_device *lcdc_dev,
 						  &win->area[i]);
 			if (((win->area[i].xact != win->area[i].xsize) ||
 			     (win->area[i].yact != win->area[i].ysize)) &&
-			     (screen->mode.vmode & FB_VMODE_NONINTERLACED)) {
+			     !(screen->mode.vmode & FB_VMODE_INTERLACED)) {
 				pr_err("win[%d]->area[%d],not support scale\n",
 				       win->id, i);
 				pr_err("xact=%d,yact=%d,xsize=%d,ysize=%d\n",
@@ -4788,7 +4788,7 @@ static irqreturn_t rk3368_lcdc_isr(int irq, void *dev_id)
 		}
 		lcdc_dev->driver.vsync_info.timestamp = timestamp;
 		wake_up_interruptible_all(&lcdc_dev->driver.vsync_info.wait);
-		if ((screen->mode.vmode & FB_VMODE_NONINTERLACED) ||
+		if (!(screen->mode.vmode & FB_VMODE_INTERLACED) ||
 		    (line_scane_num >= dsp_vs_st_f1)) {
 			lcdc_dev->driver.vsync_info.timestamp = timestamp;
 			wake_up_interruptible_all(
