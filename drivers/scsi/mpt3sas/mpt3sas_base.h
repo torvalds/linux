@@ -71,16 +71,21 @@
 
 /* driver versioning info */
 #define MPT3SAS_DRIVER_NAME		"mpt3sas"
-#define MPT2SAS_DRIVER_NAME		"mpt2sas"
 #define MPT3SAS_AUTHOR "Avago Technologies <MPT-FusionLinux.pdl@avagotech.com>"
 #define MPT3SAS_DESCRIPTION	"LSI MPT Fusion SAS 3.0 Device Driver"
-#define MPT2SAS_DESCRIPTION	"LSI MPT Fusion SAS 2.0 Device Driver"
-#define MPT3SAS_DRIVER_VERSION		"09.100.00.00"
-#define MPT2SAS_DRIVER_VERSION		"20.101.00.00"
+#define MPT3SAS_DRIVER_VERSION		"09.101.00.00"
 #define MPT3SAS_MAJOR_VERSION		9
-#define MPT3SAS_MINOR_VERSION		100
+#define MPT3SAS_MINOR_VERSION		101
 #define MPT3SAS_BUILD_VERSION		0
 #define MPT3SAS_RELEASE_VERSION	00
+
+#define MPT2SAS_DRIVER_NAME		"mpt2sas"
+#define MPT2SAS_DESCRIPTION	"LSI MPT Fusion SAS 2.0 Device Driver"
+#define MPT2SAS_DRIVER_VERSION		"20.102.00.00"
+#define MPT2SAS_MAJOR_VERSION		20
+#define MPT2SAS_MINOR_VERSION		102
+#define MPT2SAS_BUILD_VERSION		0
+#define MPT2SAS_RELEASE_VERSION	00
 
 /*
  * Set MPT3SAS_SG_DEPTH value based on user input.
