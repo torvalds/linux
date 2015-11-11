@@ -673,7 +673,13 @@ static enum dma_status omap_dma_tx_status(struct dma_chan *chan,
 	struct omap_chan *c = to_omap_dma_chan(chan);
 	struct virt_dma_desc *vd;
 	enum dma_status ret;
+	uint32_t ccr;
 	unsigned long flags;
+
+	ccr = omap_dma_chan_read(c, CCR);
+	/* The channel is no longer active, handle the completion right away */
+	if (!(ccr & CCR_ENABLE))
+		omap_dma_callback(c->dma_ch, 0, c);
 
 	ret = dma_cookie_status(chan, cookie, txstate);
 	if (ret == DMA_COMPLETE || !txstate)
