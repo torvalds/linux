@@ -13,37 +13,6 @@
 #include "core.h"
 #include "sh_pfc.h"
 
-#define PORT_GP_4(bank, fn, sfx)					\
-	PORT_GP_1(bank, 0,  fn, sfx), PORT_GP_1(bank, 1,  fn, sfx),	\
-	PORT_GP_1(bank, 2,  fn, sfx), PORT_GP_1(bank, 3,  fn, sfx)
-
-#define PORT_GP_15(bank, fn, sfx)					\
-	PORT_GP_4(bank, fn, sfx),					\
-	PORT_GP_1(bank, 4,  fn, sfx), PORT_GP_1(bank, 5,  fn, sfx),	\
-	PORT_GP_1(bank, 6,  fn, sfx), PORT_GP_1(bank, 7,  fn, sfx),	\
-	PORT_GP_1(bank, 8,  fn, sfx), PORT_GP_1(bank, 9,  fn, sfx),	\
-	PORT_GP_1(bank, 10, fn, sfx), PORT_GP_1(bank, 11, fn, sfx),	\
-	PORT_GP_1(bank, 12, fn, sfx), PORT_GP_1(bank, 13, fn, sfx),	\
-	PORT_GP_1(bank, 14, fn, sfx)
-
-#define PORT_GP_16(bank, fn, sfx)					\
-	PORT_GP_15(bank, fn, sfx),   PORT_GP_1(bank, 15, fn, sfx)
-
-#define PORT_GP_18(bank, fn, sfx)					\
-	PORT_GP_16(bank, fn, sfx),					\
-	PORT_GP_1(bank, 16, fn, sfx), PORT_GP_1(bank, 17, fn, sfx)
-
-#define PORT_GP_26(bank, fn, sfx)					\
-	PORT_GP_18(bank, fn, sfx),					\
-	PORT_GP_1(bank, 18, fn, sfx), PORT_GP_1(bank, 19, fn, sfx),	\
-	PORT_GP_1(bank, 20, fn, sfx), PORT_GP_1(bank, 21, fn, sfx),	\
-	PORT_GP_1(bank, 22, fn, sfx), PORT_GP_1(bank, 23, fn, sfx),	\
-	PORT_GP_1(bank, 24, fn, sfx), PORT_GP_1(bank, 25, fn, sfx)
-
-#define PORT_GP_28(bank, fn, sfx)					\
-	PORT_GP_26(bank, fn, sfx),					\
-	PORT_GP_1(bank, 26, fn, sfx), PORT_GP_1(bank, 27, fn, sfx)
-
 #define CPU_ALL_PORT(fn, sfx)						\
 	PORT_GP_16(0, fn, sfx),						\
 	PORT_GP_28(1, fn, sfx),						\

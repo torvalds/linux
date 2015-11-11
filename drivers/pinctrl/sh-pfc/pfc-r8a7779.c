@@ -23,13 +23,6 @@
 
 #include "sh_pfc.h"
 
-#define PORT_GP_9(bank, fn, sfx)					\
-	PORT_GP_1(bank, 0, fn, sfx), PORT_GP_1(bank, 1, fn, sfx),	\
-	PORT_GP_1(bank, 2, fn, sfx), PORT_GP_1(bank, 3, fn, sfx),	\
-	PORT_GP_1(bank, 4, fn, sfx), PORT_GP_1(bank, 5, fn, sfx),	\
-	PORT_GP_1(bank, 6, fn, sfx), PORT_GP_1(bank, 7, fn, sfx),	\
-	PORT_GP_1(bank, 8, fn, sfx)
-
 #define CPU_ALL_PORT(fn, sfx)						\
 	PORT_GP_32(0, fn, sfx),						\
 	PORT_GP_32(1, fn, sfx),						\
