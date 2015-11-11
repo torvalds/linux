@@ -719,7 +719,7 @@ static enum dma_status omap_dma_tx_status(struct dma_chan *chan,
 
 		if (d->dir == DMA_MEM_TO_DEV)
 			pos = omap_dma_get_src_pos(c);
-		else if (d->dir == DMA_DEV_TO_MEM)
+		else if (d->dir == DMA_DEV_TO_MEM  || d->dir == DMA_MEM_TO_MEM)
 			pos = omap_dma_get_dst_pos(c);
 		else
 			pos = 0;
