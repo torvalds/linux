@@ -90,6 +90,8 @@ _scsih_setup_direct_io(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 /* global parameters */
 LIST_HEAD(mpt3sas_ioc_list);
 char    driver_name[MPT_NAME_LENGTH];
+/* global ioc lock for list operations */
+DEFINE_SPINLOCK(gioc_lock);
 
 /* local parameters */
 static u8 scsi_io_cb_idx = -1;
@@ -294,8 +296,10 @@ _scsih_set_debug_level(const char *val, struct kernel_param *kp)
 		return ret;
 
 	pr_info("setting logging_level(0x%08x)\n", logging_level);
+	spin_lock(&gioc_lock);
 	list_for_each_entry(ioc, &mpt3sas_ioc_list, list)
 		ioc->logging_level = logging_level;
+	spin_unlock(&gioc_lock);
 	return 0;
 }
 module_param_call(logging_level, _scsih_set_debug_level, param_get_int,
@@ -7997,7 +8001,9 @@ void scsih_remove(struct pci_dev *pdev)
 	sas_remove_host(shost);
 	scsi_remove_host(shost);
 	mpt3sas_base_detach(ioc);
+	spin_lock(&gioc_lock);
 	list_del(&ioc->list);
+	spin_unlock(&gioc_lock);
 	scsi_host_put(shost);
 }
 
@@ -8384,7 +8390,9 @@ scsih_probe(struct pci_dev *pdev, struct Scsi_Host *shost)
 	ioc = shost_priv(shost);
 	memset(ioc, 0, sizeof(struct MPT3SAS_ADAPTER));
 	INIT_LIST_HEAD(&ioc->list);
+	spin_lock(&gioc_lock);
 	list_add_tail(&ioc->list, &mpt3sas_ioc_list);
+	spin_unlock(&gioc_lock);
 	ioc->shost = shost;
 	ioc->id = mpt_ids++;
 	ioc->pdev = pdev;
@@ -8403,6 +8411,8 @@ scsih_probe(struct pci_dev *pdev, struct Scsi_Host *shost)
 	ioc->schedule_dead_ioc_flush_running_cmds = &_scsih_flush_running_cmds;
 	/* misc semaphores and spin locks */
 	mutex_init(&ioc->reset_in_progress_mutex);
+	/* initializing pci_access_mutex lock */
+	mutex_init(&ioc->pci_access_mutex);
 	spin_lock_init(&ioc->ioc_reset_in_progress_lock);
 	spin_lock_init(&ioc->scsi_lookup_lock);
 	spin_lock_init(&ioc->sas_device_lock);
@@ -8510,7 +8520,9 @@ out_add_shost_fail:
  out_attach_fail:
 	destroy_workqueue(ioc->firmware_event_thread);
  out_thread_fail:
+	spin_lock(&gioc_lock);
 	list_del(&ioc->list);
+	spin_unlock(&gioc_lock);
 	scsi_host_put(shost);
 	return rv;
 }

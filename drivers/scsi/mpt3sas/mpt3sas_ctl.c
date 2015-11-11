@@ -416,13 +416,16 @@ static int
 _ctl_verify_adapter(int ioc_number, struct MPT3SAS_ADAPTER **iocpp)
 {
 	struct MPT3SAS_ADAPTER *ioc;
-
+	/* global ioc lock to protect controller on list operations */
+	spin_lock(&gioc_lock);
 	list_for_each_entry(ioc, &mpt3sas_ioc_list, list) {
 		if (ioc->id != ioc_number)
 			continue;
+		spin_unlock(&gioc_lock);
 		*iocpp = ioc;
 		return ioc_number;
 	}
+	spin_unlock(&gioc_lock);
 	*iocpp = NULL;
 	return -1;
 }
@@ -511,10 +514,15 @@ ctl_poll(struct file *filep, poll_table *wait)
 
 	poll_wait(filep, &ctl_poll_wait, wait);
 
+	/* global ioc lock to protect controller on list operations */
+	spin_lock(&gioc_lock);
 	list_for_each_entry(ioc, &mpt3sas_ioc_list, list) {
-		if (ioc->aen_event_read_flag)
+		if (ioc->aen_event_read_flag) {
+			spin_unlock(&gioc_lock);
 			return POLLIN | POLLRDNORM;
+		}
 	}
+	spin_unlock(&gioc_lock);
 	return 0;
 }
 
@@ -2211,16 +2219,25 @@ _ctl_ioctl_main(struct file *file, unsigned int cmd, void __user *arg,
 	if (_ctl_verify_adapter(ioctl_header.ioc_number, &ioc) == -1 || !ioc)
 		return -ENODEV;
 
+	/* pci_access_mutex lock acquired by ioctl path */
+	mutex_lock(&ioc->pci_access_mutex);
+
 	if (ioc->shost_recovery || ioc->pci_error_recovery ||
-	    ioc->is_driver_loading)
-		return -EAGAIN;
+	    ioc->is_driver_loading || ioc->remove_host) {
+		ret = -EAGAIN;
+		goto out_unlock_pciaccess;
+	}
 
 	state = (file->f_flags & O_NONBLOCK) ? NON_BLOCKING : BLOCKING;
 	if (state == NON_BLOCKING) {
-		if (!mutex_trylock(&ioc->ctl_cmds.mutex))
-			return -EAGAIN;
-	} else if (mutex_lock_interruptible(&ioc->ctl_cmds.mutex))
-		return -ERESTARTSYS;
+		if (!mutex_trylock(&ioc->ctl_cmds.mutex)) {
+			ret = -EAGAIN;
+			goto out_unlock_pciaccess;
+		}
+	} else if (mutex_lock_interruptible(&ioc->ctl_cmds.mutex)) {
+		ret = -ERESTARTSYS;
+		goto out_unlock_pciaccess;
+	}
 
 
 	switch (cmd) {
@@ -2301,6 +2318,8 @@ _ctl_ioctl_main(struct file *file, unsigned int cmd, void __user *arg,
 	}
 
 	mutex_unlock(&ioc->ctl_cmds.mutex);
+out_unlock_pciaccess:
+	mutex_unlock(&ioc->pci_access_mutex);
 	return ret;
 }
 
@@ -2748,6 +2767,12 @@ _ctl_BRM_status_show(struct device *cdev, struct device_attribute *attr,
 		    " warpdrive\n", ioc->name, __func__);
 		goto out;
 	}
+	/* pci_access_mutex lock acquired by sysfs show path */
+	mutex_lock(&ioc->pci_access_mutex);
+	if (ioc->pci_error_recovery || ioc->remove_host) {
+		mutex_unlock(&ioc->pci_access_mutex);
+		return 0;
+	}
 
 	/* allocate upto GPIOVal 36 entries */
 	sz = offsetof(Mpi2IOUnitPage3_t, GPIOVal) + (sizeof(u16) * 36);
@@ -2786,6 +2811,7 @@ _ctl_BRM_status_show(struct device *cdev, struct device_attribute *attr,
 
  out:
 	kfree(io_unit_pg3);
+	mutex_unlock(&ioc->pci_access_mutex);
 	return rc;
 }
 static DEVICE_ATTR(BRM_status, S_IRUGO, _ctl_BRM_status_show, NULL);

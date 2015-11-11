@@ -916,7 +916,13 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @replyPostRegisterIndex: index of next position in Reply Desc Post Queue
  * @delayed_tr_list: target reset link list
  * @delayed_tr_volume_list: volume target reset link list
- * @@temp_sensors_count: flag to carry the number of temperature sensors
+ * @temp_sensors_count: flag to carry the number of temperature sensors
+ * @pci_access_mutex: Mutex to synchronize ioctl,sysfs show path and
+ *	pci resource handling. PCI resource freeing will lead to free
+ *	vital hardware/memory resource, which might be in use by cli/sysfs
+ *	path functions resulting in Null pointer reference followed by kernel
+ *	crash. To avoid the above race condition we use mutex syncrhonization
+ *	which ensures the syncrhonization between cli/sysfs_show path.
  */
 struct MPT3SAS_ADAPTER {
 	struct list_head list;
@@ -1131,6 +1137,7 @@ struct MPT3SAS_ADAPTER {
 	struct list_head delayed_tr_list;
 	struct list_head delayed_tr_volume_list;
 	u8		temp_sensors_count;
+	struct mutex pci_access_mutex;
 
 	/* diag buffer support */
 	u8		*diag_buffer[MPI2_DIAG_BUF_TYPE_COUNT];
@@ -1161,6 +1168,17 @@ typedef u8 (*MPT_CALLBACK)(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 /* base shared API */
 extern struct list_head mpt3sas_ioc_list;
 extern char    driver_name[MPT_NAME_LENGTH];
+/* spinlock on list operations over IOCs
+ * Case: when multiple warpdrive cards(IOCs) are in use
+ * Each IOC will added to the ioc list structure on initialization.
+ * Watchdog threads run at regular intervals to check IOC for any
+ * fault conditions which will trigger the dead_ioc thread to
+ * deallocate pci resource, resulting deleting the IOC netry from list,
+ * this deletion need to protected by spinlock to enusre that
+ * ioc removal is syncrhonized, if not synchronized it might lead to
+ * list_del corruption as the ioc list is traversed in cli path.
+ */
+extern spinlock_t gioc_lock;
 
 void mpt3sas_base_start_watchdog(struct MPT3SAS_ADAPTER *ioc);
 void mpt3sas_base_stop_watchdog(struct MPT3SAS_ADAPTER *ioc);
