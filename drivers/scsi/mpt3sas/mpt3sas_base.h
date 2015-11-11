@@ -845,6 +845,7 @@ struct MPT3SAS_ADAPTER {
 	u16		cpu_msix_table_sz;
 	u32		ioc_reset_count;
 	MPT3SAS_FLUSH_RUNNING_CMDS schedule_dead_ioc_flush_running_cmds;
+	u32             non_operational_loop;
 
 	/* internal commands, callback index */
 	u8		scsi_io_cb_idx;
