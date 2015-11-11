@@ -790,7 +790,6 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t ch_ctl = intel_dp->aux_ch_ctl_reg;
-	uint32_t ch_data = ch_ctl + 4;
 	uint32_t aux_clock_divider;
 	int i, ret, recv_bytes;
 	uint32_t status;
@@ -856,7 +855,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 		for (try = 0; try < 5; try++) {
 			/* Load the send data into the aux channel data registers */
 			for (i = 0; i < send_bytes; i += 4)
-				I915_WRITE(ch_data + i,
+				I915_WRITE(intel_dp->aux_ch_data_reg[i >> 2],
 					   intel_dp_pack_aux(send + i,
 							     send_bytes - i));
 
@@ -920,7 +919,7 @@ done:
 		recv_bytes = recv_size;
 
 	for (i = 0; i < recv_bytes; i += 4)
-		intel_dp_unpack_aux(I915_READ(ch_data + i),
+		intel_dp_unpack_aux(I915_READ(intel_dp->aux_ch_data_reg[i >> 2]),
 				    recv + i, recv_bytes - i);
 
 	ret = recv_bytes;
@@ -1022,6 +1021,20 @@ static uint32_t g4x_aux_ctl_reg(struct drm_i915_private *dev_priv,
 	}
 }
 
+static uint32_t g4x_aux_data_reg(struct drm_i915_private *dev_priv,
+				 enum port port, int index)
+{
+	switch (port) {
+	case PORT_B:
+	case PORT_C:
+	case PORT_D:
+		return DP_AUX_CH_DATA(port, index);
+	default:
+		MISSING_CASE(port);
+		return DP_AUX_CH_DATA(PORT_B, index);
+	}
+}
+
 static uint32_t ilk_aux_ctl_reg(struct drm_i915_private *dev_priv,
 				enum port port)
 {
@@ -1035,6 +1048,22 @@ static uint32_t ilk_aux_ctl_reg(struct drm_i915_private *dev_priv,
 	default:
 		MISSING_CASE(port);
 		return DP_AUX_CH_CTL(PORT_A);
+	}
+}
+
+static uint32_t ilk_aux_data_reg(struct drm_i915_private *dev_priv,
+				 enum port port, int index)
+{
+	switch (port) {
+	case PORT_A:
+		return DP_AUX_CH_DATA(port, index);
+	case PORT_B:
+	case PORT_C:
+	case PORT_D:
+		return PCH_DP_AUX_CH_DATA(port, index);
+	default:
+		MISSING_CASE(port);
+		return DP_AUX_CH_DATA(PORT_A, index);
 	}
 }
 
@@ -1080,6 +1109,57 @@ static uint32_t skl_aux_ctl_reg(struct drm_i915_private *dev_priv,
 	}
 }
 
+static uint32_t skl_aux_data_reg(struct drm_i915_private *dev_priv,
+				 enum port port, int index)
+{
+	if (port == PORT_E)
+		port = skl_porte_aux_port(dev_priv);
+
+	switch (port) {
+	case PORT_A:
+	case PORT_B:
+	case PORT_C:
+	case PORT_D:
+		return DP_AUX_CH_DATA(port, index);
+	default:
+		MISSING_CASE(port);
+		return DP_AUX_CH_DATA(PORT_A, index);
+	}
+}
+
+static uint32_t intel_aux_ctl_reg(struct drm_i915_private *dev_priv,
+				  enum port port)
+{
+	if (INTEL_INFO(dev_priv)->gen >= 9)
+		return skl_aux_ctl_reg(dev_priv, port);
+	else if (HAS_PCH_SPLIT(dev_priv))
+		return ilk_aux_ctl_reg(dev_priv, port);
+	else
+		return g4x_aux_ctl_reg(dev_priv, port);
+}
+
+static uint32_t intel_aux_data_reg(struct drm_i915_private *dev_priv,
+				   enum port port, int index)
+{
+	if (INTEL_INFO(dev_priv)->gen >= 9)
+		return skl_aux_data_reg(dev_priv, port, index);
+	else if (HAS_PCH_SPLIT(dev_priv))
+		return ilk_aux_data_reg(dev_priv, port, index);
+	else
+		return g4x_aux_data_reg(dev_priv, port, index);
+}
+
+static void intel_aux_reg_init(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
+	enum port port = dp_to_dig_port(intel_dp)->port;
+	int i;
+
+	intel_dp->aux_ch_ctl_reg = intel_aux_ctl_reg(dev_priv, port);
+	for (i = 0; i < ARRAY_SIZE(intel_dp->aux_ch_data_reg); i++)
+		intel_dp->aux_ch_data_reg[i] = intel_aux_data_reg(dev_priv, port, i);
+}
+
 static void
 intel_dp_aux_fini(struct intel_dp *intel_dp)
 {
@@ -1091,17 +1171,11 @@ static int
 intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	enum port port = intel_dig_port->port;
 	int ret;
 
-	if (INTEL_INFO(dev_priv)->gen >= 9)
-		intel_dp->aux_ch_ctl_reg = skl_aux_ctl_reg(dev_priv, port);
-	else if (HAS_PCH_SPLIT(dev_priv))
-		intel_dp->aux_ch_ctl_reg = ilk_aux_ctl_reg(dev_priv, port);
-	else
-		intel_dp->aux_ch_ctl_reg = g4x_aux_ctl_reg(dev_priv, port);
+	intel_aux_reg_init(intel_dp);
 
 	intel_dp->aux.name = kasprintf(GFP_KERNEL, "DPDDC-%c", port_name(port));
 	if (!intel_dp->aux.name)
