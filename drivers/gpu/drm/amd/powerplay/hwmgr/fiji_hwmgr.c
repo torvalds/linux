@@ -3576,18 +3576,38 @@ static int fiji_force_dpm_lowest(struct pp_hwmgr *hwmgr)
 {
 	struct fiji_hwmgr *data =
 			(struct fiji_hwmgr *)(hwmgr->backend);
-	uint32_t level = 0;
+	uint32_t level;
 
-	/* Only force sclk for now */
 	if (!data->sclk_dpm_key_disabled)
 		if (data->dpm_level_enable_mask.sclk_dpm_enable_mask) {
 			level = fiji_get_lowest_enabled_level(hwmgr,
-					data->dpm_level_enable_mask.sclk_dpm_enable_mask);
+							      data->dpm_level_enable_mask.sclk_dpm_enable_mask);
 			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
-					PPSMC_MSG_SCLKDPM_SetEnabledMask,
-					(1 << level));
+							    PPSMC_MSG_SCLKDPM_SetEnabledMask,
+							    (1 << level));
 
 	}
+
+	if (!data->mclk_dpm_key_disabled) {
+		if (data->dpm_level_enable_mask.mclk_dpm_enable_mask) {
+			level = fiji_get_lowest_enabled_level(hwmgr,
+							      data->dpm_level_enable_mask.mclk_dpm_enable_mask);
+			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+							    PPSMC_MSG_MCLKDPM_SetEnabledMask,
+							    (1 << level));
+		}
+	}
+
+	if (!data->pcie_dpm_key_disabled) {
+		if (data->dpm_level_enable_mask.pcie_dpm_enable_mask) {
+			level = fiji_get_lowest_enabled_level(hwmgr,
+							      data->dpm_level_enable_mask.pcie_dpm_enable_mask);
+			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+							    PPSMC_MSG_PCIeDPM_ForceLevel,
+							    (1 << level));
+		}
+	}
+
 	return 0;
 
 }
