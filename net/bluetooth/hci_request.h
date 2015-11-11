@@ -58,6 +58,9 @@ struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode, u32 plen,
 void hci_req_add_le_scan_disable(struct hci_request *req);
 void hci_req_add_le_passive_scan(struct hci_request *req);
 
+/* Returns true if HCI commands were queued */
+bool hci_req_stop_discovery(struct hci_request *req);
+
 void hci_update_page_scan(struct hci_dev *hdev);
 void __hci_update_page_scan(struct hci_request *req);
 

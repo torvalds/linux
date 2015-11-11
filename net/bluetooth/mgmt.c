@@ -1416,49 +1416,6 @@ static void clean_up_hci_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 	}
 }
 
-static bool hci_stop_discovery(struct hci_request *req)
-{
-	struct hci_dev *hdev = req->hdev;
-	struct hci_cp_remote_name_req_cancel cp;
-	struct inquiry_entry *e;
-
-	switch (hdev->discovery.state) {
-	case DISCOVERY_FINDING:
-		if (test_bit(HCI_INQUIRY, &hdev->flags))
-			hci_req_add(req, HCI_OP_INQUIRY_CANCEL, 0, NULL);
-
-		if (hci_dev_test_flag(hdev, HCI_LE_SCAN)) {
-			cancel_delayed_work(&hdev->le_scan_disable);
-			hci_req_add_le_scan_disable(req);
-		}
-
-		return true;
-
-	case DISCOVERY_RESOLVING:
-		e = hci_inquiry_cache_lookup_resolve(hdev, BDADDR_ANY,
-						     NAME_PENDING);
-		if (!e)
-			break;
-
-		bacpy(&cp.bdaddr, &e->data.bdaddr);
-		hci_req_add(req, HCI_OP_REMOTE_NAME_REQ_CANCEL, sizeof(cp),
-			    &cp);
-
-		return true;
-
-	default:
-		/* Passive scanning */
-		if (hci_dev_test_flag(hdev, HCI_LE_SCAN)) {
-			hci_req_add_le_scan_disable(req);
-			return true;
-		}
-
-		break;
-	}
-
-	return false;
-}
-
 static void advertising_added(struct sock *sk, struct hci_dev *hdev,
 			      u8 instance)
 {
@@ -1636,7 +1593,7 @@ static int clean_up_hci_state(struct hci_dev *hdev)
 	if (hci_dev_test_flag(hdev, HCI_LE_ADV))
 		disable_advertising(&req);
 
-	discov_stopped = hci_stop_discovery(&req);
+	discov_stopped = hci_req_stop_discovery(&req);
 
 	list_for_each_entry(conn, &hdev->conn_hash.list, list) {
 		/* 0x15 == Terminated due to Power Off */
@@ -4377,7 +4334,7 @@ failed:
 	return err;
 }
 
-static void stop_discovery_complete(struct hci_dev *hdev, u8 status, u16 opcode)
+void mgmt_stop_discovery_complete(struct hci_dev *hdev, u8 status)
 {
 	struct mgmt_pending_cmd *cmd;
 
@@ -4391,9 +4348,6 @@ static void stop_discovery_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 		mgmt_pending_remove(cmd);
 	}
 
-	if (!status)
-		hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
-
 	hci_dev_unlock(hdev);
 }
 
@@ -4402,7 +4356,6 @@ static int stop_discovery(struct sock *sk, struct hci_dev *hdev, void *data,
 {
 	struct mgmt_cp_stop_discovery *mgmt_cp = data;
 	struct mgmt_pending_cmd *cmd;
-	struct hci_request req;
 	int err;
 
 	BT_DBG("%s", hdev->name);
@@ -4431,24 +4384,9 @@ static int stop_discovery(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	cmd->cmd_complete = generic_cmd_complete;
 
-	hci_req_init(&req, hdev);
-
-	hci_stop_discovery(&req);
-
-	err = hci_req_run(&req, stop_discovery_complete);
-	if (!err) {
-		hci_discovery_set_state(hdev, DISCOVERY_STOPPING);
-		goto unlock;
-	}
-
-	mgmt_pending_remove(cmd);
-
-	/* If no HCI commands were sent we're done */
-	if (err == -ENODATA) {
-		err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_STOP_DISCOVERY, 0,
-					&mgmt_cp->type, sizeof(mgmt_cp->type));
-		hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
-	}
+	hci_discovery_set_state(hdev, DISCOVERY_STOPPING);
+	queue_work(hdev->req_workqueue, &hdev->discov_update);
+	err = 0;
 
 unlock:
 	hci_dev_unlock(hdev);
