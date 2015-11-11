@@ -4228,33 +4228,33 @@ enum skl_disp_power_wells {
  * is 20 bytes in each direction, hence the 5 fixed
  * data registers
  */
-#define _DPA_AUX_CH_CTL			0x64010
-#define _DPA_AUX_CH_DATA1		0x64014
-#define _DPA_AUX_CH_DATA2		0x64018
-#define _DPA_AUX_CH_DATA3		0x6401c
-#define _DPA_AUX_CH_DATA4		0x64020
-#define _DPA_AUX_CH_DATA5		0x64024
+#define _DPA_AUX_CH_CTL		(dev_priv->info.display_mmio_offset + 0x64010)
+#define _DPA_AUX_CH_DATA1	(dev_priv->info.display_mmio_offset + 0x64014)
+#define _DPA_AUX_CH_DATA2	(dev_priv->info.display_mmio_offset + 0x64018)
+#define _DPA_AUX_CH_DATA3	(dev_priv->info.display_mmio_offset + 0x6401c)
+#define _DPA_AUX_CH_DATA4	(dev_priv->info.display_mmio_offset + 0x64020)
+#define _DPA_AUX_CH_DATA5	(dev_priv->info.display_mmio_offset + 0x64024)
 
-#define _DPB_AUX_CH_CTL			0x64110
-#define _DPB_AUX_CH_DATA1		0x64114
-#define _DPB_AUX_CH_DATA2		0x64118
-#define _DPB_AUX_CH_DATA3		0x6411c
-#define _DPB_AUX_CH_DATA4		0x64120
-#define _DPB_AUX_CH_DATA5		0x64124
+#define _DPB_AUX_CH_CTL		(dev_priv->info.display_mmio_offset + 0x64110)
+#define _DPB_AUX_CH_DATA1	(dev_priv->info.display_mmio_offset + 0x64114)
+#define _DPB_AUX_CH_DATA2	(dev_priv->info.display_mmio_offset + 0x64118)
+#define _DPB_AUX_CH_DATA3	(dev_priv->info.display_mmio_offset + 0x6411c)
+#define _DPB_AUX_CH_DATA4	(dev_priv->info.display_mmio_offset + 0x64120)
+#define _DPB_AUX_CH_DATA5	(dev_priv->info.display_mmio_offset + 0x64124)
 
-#define _DPC_AUX_CH_CTL			0x64210
-#define _DPC_AUX_CH_DATA1		0x64214
-#define _DPC_AUX_CH_DATA2		0x64218
-#define _DPC_AUX_CH_DATA3		0x6421c
-#define _DPC_AUX_CH_DATA4		0x64220
-#define _DPC_AUX_CH_DATA5		0x64224
+#define _DPC_AUX_CH_CTL		(dev_priv->info.display_mmio_offset + 0x64210)
+#define _DPC_AUX_CH_DATA1	(dev_priv->info.display_mmio_offset + 0x64214)
+#define _DPC_AUX_CH_DATA2	(dev_priv->info.display_mmio_offset + 0x64218)
+#define _DPC_AUX_CH_DATA3	(dev_priv->info.display_mmio_offset + 0x6421c)
+#define _DPC_AUX_CH_DATA4	(dev_priv->info.display_mmio_offset + 0x64220)
+#define _DPC_AUX_CH_DATA5	(dev_priv->info.display_mmio_offset + 0x64224)
 
-#define _DPD_AUX_CH_CTL			0x64310
-#define _DPD_AUX_CH_DATA1		0x64314
-#define _DPD_AUX_CH_DATA2		0x64318
-#define _DPD_AUX_CH_DATA3		0x6431c
-#define _DPD_AUX_CH_DATA4		0x64320
-#define _DPD_AUX_CH_DATA5		0x64324
+#define _DPD_AUX_CH_CTL		(dev_priv->info.display_mmio_offset + 0x64310)
+#define _DPD_AUX_CH_DATA1	(dev_priv->info.display_mmio_offset + 0x64314)
+#define _DPD_AUX_CH_DATA2	(dev_priv->info.display_mmio_offset + 0x64318)
+#define _DPD_AUX_CH_DATA3	(dev_priv->info.display_mmio_offset + 0x6431c)
+#define _DPD_AUX_CH_DATA4	(dev_priv->info.display_mmio_offset + 0x64320)
+#define _DPD_AUX_CH_DATA5	(dev_priv->info.display_mmio_offset + 0x64324)
 
 #define DP_AUX_CH_CTL(port)	_PORT(port, _DPA_AUX_CH_CTL, _DPB_AUX_CH_CTL)
 #define DP_AUX_CH_DATA(port, i)	(_PORT(port, _DPA_AUX_CH_DATA1, _DPB_AUX_CH_DATA1) + (i) * 4) /* 5 registers */

@@ -1008,6 +1008,78 @@ intel_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 	return ret;
 }
 
+static uint32_t g4x_aux_ctl_reg(struct drm_i915_private *dev_priv,
+				enum port port)
+{
+	switch (port) {
+	case PORT_B:
+	case PORT_C:
+	case PORT_D:
+		return DP_AUX_CH_CTL(port);
+	default:
+		MISSING_CASE(port);
+		return DP_AUX_CH_CTL(PORT_B);
+	}
+}
+
+static uint32_t ilk_aux_ctl_reg(struct drm_i915_private *dev_priv,
+				enum port port)
+{
+	switch (port) {
+	case PORT_A:
+		return DP_AUX_CH_CTL(port);
+	case PORT_B:
+	case PORT_C:
+	case PORT_D:
+		return PCH_DP_AUX_CH_CTL(port);
+	default:
+		MISSING_CASE(port);
+		return DP_AUX_CH_CTL(PORT_A);
+	}
+}
+
+/*
+ * On SKL we don't have Aux for port E so we rely
+ * on VBT to set a proper alternate aux channel.
+ */
+static enum port skl_porte_aux_port(struct drm_i915_private *dev_priv)
+{
+	const struct ddi_vbt_port_info *info =
+		&dev_priv->vbt.ddi_port_info[PORT_E];
+
+	switch (info->alternate_aux_channel) {
+	case DP_AUX_A:
+		return PORT_A;
+	case DP_AUX_B:
+		return PORT_B;
+	case DP_AUX_C:
+		return PORT_C;
+	case DP_AUX_D:
+		return PORT_D;
+	default:
+		MISSING_CASE(info->alternate_aux_channel);
+		return PORT_A;
+	}
+}
+
+static uint32_t skl_aux_ctl_reg(struct drm_i915_private *dev_priv,
+				enum port port)
+{
+	if (port == PORT_E)
+		port = skl_porte_aux_port(dev_priv);
+
+	switch (port) {
+	case PORT_A:
+	case PORT_B:
+	case PORT_C:
+	case PORT_D:
+		return DP_AUX_CH_CTL(port);
+	default:
+		MISSING_CASE(port);
+		return DP_AUX_CH_CTL(PORT_A);
+	}
+}
+
 static void
 intel_dp_aux_fini(struct intel_dp *intel_dp)
 {
@@ -1022,57 +1094,14 @@ intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	enum port port = intel_dig_port->port;
-	struct ddi_vbt_port_info *info = &dev_priv->vbt.ddi_port_info[port];
-	uint32_t porte_aux_ctl_reg = DP_AUX_CH_CTL(PORT_A);
 	int ret;
 
-	/* On SKL we don't have Aux for port E so we rely on VBT to set
-	 * a proper alternate aux channel.
-	 */
-	if ((IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) && port == PORT_E) {
-		switch (info->alternate_aux_channel) {
-		case DP_AUX_B:
-			porte_aux_ctl_reg = DP_AUX_CH_CTL(PORT_B);
-			break;
-		case DP_AUX_C:
-			porte_aux_ctl_reg = DP_AUX_CH_CTL(PORT_C);
-			break;
-		case DP_AUX_D:
-			porte_aux_ctl_reg = DP_AUX_CH_CTL(PORT_D);
-			break;
-		case DP_AUX_A:
-		default:
-			porte_aux_ctl_reg = DP_AUX_CH_CTL(PORT_A);
-		}
-	}
-
-	switch (port) {
-	case PORT_A:
-		intel_dp->aux_ch_ctl_reg = DP_AUX_CH_CTL(port);
-		break;
-	case PORT_B:
-	case PORT_C:
-	case PORT_D:
-		intel_dp->aux_ch_ctl_reg = PCH_DP_AUX_CH_CTL(port);
-		break;
-	case PORT_E:
-		intel_dp->aux_ch_ctl_reg = porte_aux_ctl_reg;
-		break;
-	default:
-		BUG();
-	}
-
-	/*
-	 * The AUX_CTL register is usually DP_CTL + 0x10.
-	 *
-	 * On Haswell and Broadwell though:
-	 *   - Both port A DDI_BUF_CTL and DDI_AUX_CTL are on the CPU
-	 *   - Port B/C/D AUX channels are on the PCH, DDI_BUF_CTL on the CPU
-	 *
-	 * Skylake moves AUX_CTL back next to DDI_BUF_CTL, on the CPU.
-	 */
-	if (!IS_HASWELL(dev) && !IS_BROADWELL(dev) && port != PORT_E)
-		intel_dp->aux_ch_ctl_reg = intel_dp->output_reg + 0x10;
+	if (INTEL_INFO(dev_priv)->gen >= 9)
+		intel_dp->aux_ch_ctl_reg = skl_aux_ctl_reg(dev_priv, port);
+	else if (HAS_PCH_SPLIT(dev_priv))
+		intel_dp->aux_ch_ctl_reg = ilk_aux_ctl_reg(dev_priv, port);
+	else
+		intel_dp->aux_ch_ctl_reg = g4x_aux_ctl_reg(dev_priv, port);
 
 	intel_dp->aux.name = kasprintf(GFP_KERNEL, "DPDDC-%c", port_name(port));
 	if (!intel_dp->aux.name)
