@@ -789,6 +789,11 @@ S:	Maintained
 F:	drivers/net/appletalk/
 F:	net/appletalk/
 
+APPLIED MICRO (APM) X-GENE DEVICE TREE SUPPORT
+M:	Duc Dang <dhdang@apm.com>
+S:	Supported
+F:	arch/arm64/boot/dts/apm/
+
 APPLIED MICRO (APM) X-GENE SOC ETHERNET DRIVER
 M:	Iyappan Subramanian <isubramanian@apm.com>
 M:	Keyur Chudgar <kchudgar@apm.com>
@@ -920,7 +925,7 @@ M:	Tsahee Zidenberg <tsahee@annapurnalabs.com>
 S:	Maintained
 F:	arch/arm/mach-alpine/
 
-ARM/ATMEL AT91RM9200 AND AT91SAM ARM ARCHITECTURES
+ARM/ATMEL AT91RM9200, AT91SAM9 AND SAMA5 SOC SUPPORT
 M:	Nicolas Ferre <nicolas.ferre@atmel.com>
 M:	Alexandre Belloni <alexandre.belloni@free-electrons.com>
 M:	Jean-Christophe Plagniol-Villard <plagnioj@jcrosoft.com>
@@ -1233,6 +1238,13 @@ ARM/LPC18XX ARCHITECTURE
 M:	Joachim Eastwood <manabian@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
+F:	arch/arm/boot/dts/lpc43*
+F:	drivers/clk/nxp/clk-lpc18xx*
+F:	drivers/clocksource/time-lpc32xx.c
+F:	drivers/i2c/busses/i2c-lpc2k.c
+F:	drivers/memory/pl172.c
+F:	drivers/mtd/spi-nor/nxp-spifi.c
+F:	drivers/rtc/rtc-lpc24xx.c
 N:	lpc18xx
 
 ARM/MAGICIAN MACHINE SUPPORT
@@ -1455,6 +1467,10 @@ F:	drivers/*/*s3c2410*
 F:	drivers/*/*/*s3c2410*
 F:	drivers/spi/spi-s3c*
 F:	sound/soc/samsung/*
+F:	Documentation/arm/Samsung/
+F:	Documentation/devicetree/bindings/arm/samsung/
+F:	Documentation/devicetree/bindings/sram/samsung-sram.txt
+F:	Documentation/devicetree/bindings/power/pd-samsung.txt
 N:	exynos
 
 ARM/SAMSUNG MOBILE MACHINE SUPPORT
@@ -1509,8 +1525,6 @@ F:	arch/arm/boot/dts/emev2*
 F:	arch/arm/boot/dts/r7s*
 F:	arch/arm/boot/dts/r8a*
 F:	arch/arm/boot/dts/sh*
-F:	arch/arm/configs/bockw_defconfig
-F:	arch/arm/configs/marzen_defconfig
 F:	arch/arm/configs/shmobile_defconfig
 F:	arch/arm/include/debug/renesas-scif.S
 F:	arch/arm/mach-shmobile/
@@ -1625,7 +1639,10 @@ M:	Masahiro Yamada <yamada.masahiro@socionext.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/boot/dts/uniphier*
+F:	arch/arm/include/asm/hardware/cache-uniphier.h
 F:	arch/arm/mach-uniphier/
+F:	arch/arm/mm/cache-uniphier.c
+F:	drivers/i2c/busses/i2c-uniphier*
 F:	drivers/pinctrl/uniphier/
 F:	drivers/tty/serial/8250/8250_uniphier.c
 N:	uniphier
@@ -2387,19 +2404,27 @@ L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/bnx2i/
 
-BROADCOM CYGNUS/IPROC ARM ARCHITECTURE
+BROADCOM IPROC ARM ARCHITECTURE
 M:	Ray Jui <rjui@broadcom.com>
 M:	Scott Branden <sbranden@broadcom.com>
+M:	Jon Mason <jonmason@broadcom.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	bcm-kernel-feedback-list@broadcom.com
 T:	git git://github.com/broadcom/cygnus-linux.git
 S:	Maintained
 N:	iproc
 N:	cygnus
+N:	nsp
 N:	bcm9113*
 N:	bcm9583*
-N:	bcm583*
+N:	bcm9585*
+N:	bcm9586*
+N:	bcm988312
 N:	bcm113*
+N:	bcm583*
+N:	bcm585*
+N:	bcm586*
+N:	bcm88312
 
 BROADCOM BRCMSTB GPIO DRIVER
 M:	Gregory Fong <gregory.0xf0@gmail.com>
@@ -3624,6 +3649,7 @@ M:	Daniel Vetter <daniel.vetter@intel.com>
 M:	Jani Nikula <jani.nikula@linux.intel.com>
 L:	intel-gfx@lists.freedesktop.org
 L:	dri-devel@lists.freedesktop.org
+W:	https://01.org/linuxgraphics/
 Q:	http://patchwork.freedesktop.org/project/intel-gfx/
 T:	git git://anongit.freedesktop.org/drm-intel
 S:	Supported
@@ -3664,6 +3690,7 @@ M:	Philipp Zabel <p.zabel@pengutronix.de>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 F:	drivers/gpu/drm/imx/
+F:	drivers/gpu/ipu-v3/
 F:	Documentation/devicetree/bindings/display/imx/
 
 DRM DRIVERS FOR GMA500 (Poulsbo, Moorestown and derivative chipsets)
@@ -5161,6 +5188,7 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/i2c/
 F:	Documentation/i2c/
 F:	drivers/i2c/
+F:	drivers/i2c/*/
 F:	include/linux/i2c.h
 F:	include/linux/i2c-*.h
 F:	include/uapi/linux/i2c.h
@@ -6966,7 +6994,7 @@ F:	Documentation/hwmon/menf21bmc
 METAG ARCHITECTURE
 M:	James Hogan <james.hogan@imgtec.com>
 L:	linux-metag@vger.kernel.org
-S:	Supported
+S:	Odd Fixes
 F:	arch/metag/
 F:	Documentation/metag/
 F:	Documentation/devicetree/bindings/metag/
@@ -8416,12 +8444,6 @@ M:	"Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
 S:	Maintained
 F:	drivers/pnp/
 
-PNXxxxx I2C DRIVER
-M:	Vitaly Wool <vitalywool@gmail.com>
-L:	linux-i2c@vger.kernel.org
-S:	Maintained
-F:	drivers/i2c/busses/i2c-pnx.c
-
 PPP PROTOCOL DRIVERS AND COMPRESSORS
 M:	Paul Mackerras <paulus@samba.org>
 L:	linux-ppp@vger.kernel.org
@@ -9348,6 +9370,16 @@ M:	Lennox Wu <lennox.wu@gmail.com>
 W:	http://www.sunplus.com
 S:	Supported
 F:	arch/score/
+
+SYSTEM CONTROL & POWER INTERFACE (SCPI) Message Protocol drivers
+M:	Sudeep Holla <sudeep.holla@arm.com>
+L:	linux-arm-kernel@lists.infradead.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/arm/arm,scpi.txt
+F:	drivers/clk/clk-scpi.c
+F:	drivers/cpufreq/scpi-cpufreq.c
+F:	drivers/firmware/arm_scpi.c
+F:	include/linux/scpi_protocol.h
 
 SCSI CDROM DRIVER
 M:	Jens Axboe <axboe@kernel.dk>

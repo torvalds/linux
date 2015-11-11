@@ -16,6 +16,8 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
+#include <asm-generic/io-64-nonatomic-lo-hi.h>
+
 #include "virt-dma.h"
 
 /* Channel registers */
@@ -166,19 +168,13 @@ static inline void idma64c_writel(struct idma64_chan *idma64c, int offset,
 
 static inline u64 idma64c_readq(struct idma64_chan *idma64c, int offset)
 {
-	u64 l, h;
-
-	l = idma64c_readl(idma64c, offset);
-	h = idma64c_readl(idma64c, offset + 4);
-
-	return l | (h << 32);
+	return lo_hi_readq(idma64c->regs + offset);
 }
 
 static inline void idma64c_writeq(struct idma64_chan *idma64c, int offset,
 				  u64 value)
 {
-	idma64c_writel(idma64c, offset, value);
-	idma64c_writel(idma64c, offset + 4, value >> 32);
+	lo_hi_writeq(value, idma64c->regs + offset);
 }
 
 #define channel_readq(idma64c, reg)		\
@@ -217,7 +213,7 @@ static inline void idma64_writel(struct idma64 *idma64, int offset, u32 value)
 	idma64_writel(idma64, IDMA64_##reg, (value))
 
 /**
- * struct idma64_chip - representation of DesignWare DMA controller hardware
+ * struct idma64_chip - representation of iDMA 64-bit controller hardware
  * @dev:		struct device of the DMA controller
  * @irq:		irq line
  * @regs:		memory mapped I/O space

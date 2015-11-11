@@ -22,6 +22,10 @@ Optional properties:
 - samsung,s2mps11-wrstbi-ground: Indicates that WRSTBI pin of PMIC is pulled
   down. When the system is suspended it will always go down thus triggerring
   unwanted buck warm reset (setting buck voltages to default values).
+- samsung,s2mps11-acokb-ground: Indicates that ACOKB pin of S2MPS11 PMIC is
+  connected to the ground so the PMIC must manually set PWRHOLD bit in CTRL1
+  register to turn off the power. Usually the ACOKB is pulled up to VBATT so
+  when PWRHOLD pin goes low, the rising ACOKB will trigger power off.
 
 Optional nodes:
 - clocks: s2mps11, s2mps13, s2mps15 and s5m8767 provide three(AP/CP/BT) buffered 32.768

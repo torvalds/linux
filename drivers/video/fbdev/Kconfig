@@ -1666,6 +1666,8 @@ config FB_TRIDENT
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select FB_DDC
+	select FB_MODE_HELPERS
 	---help---
 	  This is the frame buffer device driver for Trident PCI/AGP chipsets.
 	  Supported chipset families are TGUI 9440/96XX, 3DImage, Blade3D
@@ -2132,7 +2134,7 @@ config FB_UDL
 
 config FB_IBM_GXT4500
 	tristate "Framebuffer support for IBM GXT4000P/4500P/6000P/6500P adaptors"
-	depends on FB && PPC
+	depends on FB
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -2140,7 +2142,8 @@ config FB_IBM_GXT4500
 	  Say Y here to enable support for the IBM GXT4000P/6000P and
 	  GXT4500P/6500P display adaptor based on Raster Engine RC1000,
 	  found on some IBM System P (pSeries) machines. This driver
-	  doesn't use Geometry Engine GT1000.
+	  doesn't use Geometry Engine GT1000. This driver also supports
+	  AGP Fire GL2/3/4 cards on x86.
 
 config FB_PS3
 	tristate "PS3 GPU framebuffer driver"

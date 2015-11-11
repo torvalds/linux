@@ -717,6 +717,8 @@ static int vmw_stdu_crtc_page_flip(struct drm_crtc *crtc,
 						   &event->event.tv_usec,
 						   true);
 		vmw_fence_obj_unreference(&fence);
+	} else {
+		vmw_fifo_flush(dev_priv, false);
 	}
 
 	return ret;

@@ -346,7 +346,7 @@ gmux_active_client(struct apple_gmux_data *gmux_data)
 	return VGA_SWITCHEROO_DIS;
 }
 
-static struct vga_switcheroo_handler gmux_handler = {
+static const struct vga_switcheroo_handler gmux_handler = {
 	.switchto = gmux_switchto,
 	.power_state = gmux_set_power_state,
 	.get_client_id = gmux_get_client_id,

@@ -73,7 +73,7 @@ int drm_authmagic(struct drm_device *dev, void *data,
 /* drm_sysfs.c */
 extern struct class *drm_class;
 
-struct class *drm_sysfs_create(struct module *owner, char *name);
+int drm_sysfs_init(void);
 void drm_sysfs_destroy(void);
 struct device *drm_sysfs_minor_alloc(struct drm_minor *minor);
 int drm_sysfs_connector_add(struct drm_connector *connector);

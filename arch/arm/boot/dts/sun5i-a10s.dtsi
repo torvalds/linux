@@ -77,6 +77,15 @@
 			clocks = <&pll5 1>, <&ahb_gates 36>, <&ahb_gates 44>;
 			status = "disabled";
 		};
+
+		framebuffer@2 {
+			compatible = "allwinner,simple-framebuffer",
+				     "simple-framebuffer";
+			allwinner,pipeline = "de_be0-lcd0-tve0";
+			clocks = <&pll5 1>, <&ahb_gates 34>, <&ahb_gates 36>,
+				 <&ahb_gates 44>;
+			status = "disabled";
+		};
 	};
 
 	clocks {
@@ -156,6 +165,14 @@
 			#size-cells = <0>;
 		};
 
+		pwm: pwm@01c20e00 {
+			compatible = "allwinner,sun5i-a10s-pwm";
+			reg = <0x01c20e00 0xc>;
+			clocks = <&osc24M>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
 		uart0: serial@01c28000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28000 0x400>;
@@ -195,19 +212,23 @@
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
-	uart3_pins_a: uart3@0 {
-		allwinner,pins = "PG9", "PG10";
-		allwinner,function = "uart3";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
-
 	emac_pins_a: emac0@0 {
 		allwinner,pins = "PA0", "PA1", "PA2",
 				"PA3", "PA4", "PA5", "PA6",
 				"PA7", "PA8", "PA9", "PA10",
 				"PA11", "PA12", "PA13", "PA14",
 				"PA15", "PA16";
+		allwinner,function = "emac";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
+
+	emac_pins_b: emac0@1 {
+		allwinner,pins = "PD6", "PD7", "PD10",
+				"PD11", "PD12", "PD13", "PD14",
+				"PD15", "PD18", "PD19", "PD20",
+				"PD21", "PD22", "PD23", "PD24",
+				"PD25", "PD26", "PD27";
 		allwinner,function = "emac";
 		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;

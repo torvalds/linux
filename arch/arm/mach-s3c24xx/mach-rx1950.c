@@ -375,6 +375,11 @@ static struct s3c2410fb_mach_info rx1950_lcd_cfg = {
 
 };
 
+static struct pwm_lookup rx1950_pwm_lookup[] = {
+	PWM_LOOKUP("samsung-pwm", 0, "pwm-backlight.0", NULL, 48000,
+		   PWM_POLARITY_NORMAL),
+};
+
 static struct pwm_device *lcd_pwm;
 
 static void rx1950_lcd_power(int enable)
@@ -520,10 +525,8 @@ static int rx1950_backlight_notify(struct device *dev, int brightness)
 }
 
 static struct platform_pwm_backlight_data rx1950_backlight_data = {
-	.pwm_id = 0,
 	.max_brightness = 24,
 	.dft_brightness = 4,
-	.pwm_period_ns = 48000,
 	.enable_gpio = -1,
 	.init = rx1950_backlight_init,
 	.notify = rx1950_backlight_notify,
@@ -792,6 +795,7 @@ static void __init rx1950_init_machine(void)
 	gpio_direction_output(S3C2410_GPA(4), 0);
 	gpio_direction_output(S3C2410_GPJ(6), 0);
 
+	pwm_add_table(rx1950_pwm_lookup, ARRAY_SIZE(rx1950_pwm_lookup));
 	platform_add_devices(rx1950_devices, ARRAY_SIZE(rx1950_devices));
 
 	i2c_register_board_info(0, rx1950_i2c_devices,

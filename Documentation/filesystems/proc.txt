@@ -1605,16 +1605,16 @@ Documentation/accounting.
 ---------------------------------------------------------------
 When a process is dumped, all anonymous memory is written to a core file as
 long as the size of the core file isn't limited. But sometimes we don't want
-to dump some memory segments, for example, huge shared memory. Conversely,
-sometimes we want to save file-backed memory segments into a core file, not
-only the individual files.
+to dump some memory segments, for example, huge shared memory or DAX.
+Conversely, sometimes we want to save file-backed memory segments into a core
+file, not only the individual files.
 
 /proc/<pid>/coredump_filter allows you to customize which memory segments
 will be dumped when the <pid> process is dumped. coredump_filter is a bitmask
 of memory types. If a bit of the bitmask is set, memory segments of the
 corresponding memory type are dumped, otherwise they are not dumped.
 
-The following 7 memory types are supported:
+The following 9 memory types are supported:
   - (bit 0) anonymous private memory
   - (bit 1) anonymous shared memory
   - (bit 2) file-backed private memory
@@ -1623,20 +1623,22 @@ The following 7 memory types are supported:
             effective only if the bit 2 is cleared)
   - (bit 5) hugetlb private memory
   - (bit 6) hugetlb shared memory
+  - (bit 7) DAX private memory
+  - (bit 8) DAX shared memory
 
   Note that MMIO pages such as frame buffer are never dumped and vDSO pages
   are always dumped regardless of the bitmask status.
 
-  Note bit 0-4 doesn't effect any hugetlb memory. hugetlb memory are only
-  effected by bit 5-6.
+  Note that bits 0-4 don't affect hugetlb or DAX memory. hugetlb memory is
+  only affected by bit 5-6, and DAX is only affected by bits 7-8.
 
-Default value of coredump_filter is 0x23; this means all anonymous memory
-segments and hugetlb private memory are dumped.
+The default value of coredump_filter is 0x33; this means all anonymous memory
+segments, ELF header pages and hugetlb private memory are dumped.
 
 If you don't want to dump all shared memory segments attached to pid 1234,
-write 0x21 to the process's proc file.
+write 0x31 to the process's proc file.
 
-  $ echo 0x21 > /proc/1234/coredump_filter
+  $ echo 0x31 > /proc/1234/coredump_filter
 
 When a new process is created, the process inherits the bitmask status from its
 parent. It is useful to set up coredump_filter before the program runs.

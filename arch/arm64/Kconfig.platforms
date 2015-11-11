@@ -7,6 +7,7 @@ config ARCH_BCM_IPROC
 
 config ARCH_BERLIN
 	bool "Marvell Berlin SoC Family"
+	select ARCH_REQUIRE_GPIOLIB
 	select DW_APB_ICTL
 	help
 	  This enables support for Marvell Berlin SoC Family
@@ -28,10 +29,10 @@ config ARCH_EXYNOS7
 	help
 	  This enables support for Samsung Exynos7 SoC family
 
-config ARCH_FSL_LS2085A
-	bool "Freescale LS2085A SOC"
+config ARCH_LAYERSCAPE
+	bool "ARMv8 based Freescale Layerscape SoC family"
 	help
-	  This enables support for Freescale LS2085A SOC.
+	  This enables support for the Freescale Layerscape SoC family.
 
 config ARCH_HISI
 	bool "Hisilicon SoC Family"
@@ -65,6 +66,11 @@ config ARCH_SEATTLE
 	bool "AMD Seattle SoC Family"
 	help
 	  This enables support for AMD Seattle SOC Family
+
+config ARCH_STRATIX10
+	bool "Altera's Stratix 10 SoCFPGA Family"
+	help
+	  This enables support for Altera's Stratix 10 SoCFPGA Family.
 
 config ARCH_TEGRA
 	bool "NVIDIA Tegra SoC Family"

@@ -1140,14 +1140,18 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 		goto out;
 	}
 	*own_req = inet_ehash_nolisten(newsk, req_to_sk(req_unhash));
-	/* Clone pktoptions received with SYN, if we own the req */
-	if (*own_req && ireq->pktopts) {
-		newnp->pktoptions = skb_clone(ireq->pktopts,
-					      sk_gfp_atomic(sk, GFP_ATOMIC));
-		consume_skb(ireq->pktopts);
-		ireq->pktopts = NULL;
-		if (newnp->pktoptions)
-			skb_set_owner_r(newnp->pktoptions, newsk);
+	if (*own_req) {
+		tcp_move_syn(newtp, req);
+
+		/* Clone pktoptions received with SYN, if we own the req */
+		if (ireq->pktopts) {
+			newnp->pktoptions = skb_clone(ireq->pktopts,
+						      sk_gfp_atomic(sk, GFP_ATOMIC));
+			consume_skb(ireq->pktopts);
+			ireq->pktopts = NULL;
+			if (newnp->pktoptions)
+				skb_set_owner_r(newnp->pktoptions, newsk);
+		}
 	}
 
 	return newsk;

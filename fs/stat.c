@@ -367,8 +367,6 @@ static long cp_new_stat64(struct kstat *stat, struct stat64 __user *statbuf)
 	INIT_STRUCT_STAT64_PADDING(tmp);
 #ifdef CONFIG_MIPS
 	/* mips has weird padding, so we don't get 64 bits there */
-	if (!new_valid_dev(stat->dev) || !new_valid_dev(stat->rdev))
-		return -EOVERFLOW;
 	tmp.st_dev = new_encode_dev(stat->dev);
 	tmp.st_rdev = new_encode_dev(stat->rdev);
 #else

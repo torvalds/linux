@@ -258,7 +258,7 @@ static int bnxt_set_vf_attr(struct bnxt *bp, int num_vfs)
 	return 0;
 }
 
-static int bnxt_hwrm_func_vf_resource_free(struct bnxt *bp)
+static int bnxt_hwrm_func_vf_resource_free(struct bnxt *bp, int num_vfs)
 {
 	int i, rc = 0;
 	struct bnxt_pf_info *pf = &bp->pf;
@@ -267,7 +267,7 @@ static int bnxt_hwrm_func_vf_resource_free(struct bnxt *bp)
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_VF_RESC_FREE, -1, -1);
 
 	mutex_lock(&bp->hwrm_cmd_lock);
-	for (i = pf->first_vf_id; i < pf->first_vf_id + pf->active_vfs; i++) {
+	for (i = pf->first_vf_id; i < pf->first_vf_id + num_vfs; i++) {
 		req.vf_id = cpu_to_le16(i);
 		rc = _hwrm_send_message(bp, &req, sizeof(req),
 					HWRM_CMD_TIMEOUT);
@@ -509,7 +509,7 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 
 err_out2:
 	/* Free the resources reserved for various VF's */
-	bnxt_hwrm_func_vf_resource_free(bp);
+	bnxt_hwrm_func_vf_resource_free(bp, *num_vfs);
 
 err_out1:
 	bnxt_free_vf_resources(bp);
@@ -519,13 +519,19 @@ err_out1:
 
 void bnxt_sriov_disable(struct bnxt *bp)
 {
-	if (!bp->pf.active_vfs)
+	u16 num_vfs = pci_num_vf(bp->pdev);
+
+	if (!num_vfs)
 		return;
 
-	pci_disable_sriov(bp->pdev);
-
-	/* Free the resources reserved for various VF's */
-	bnxt_hwrm_func_vf_resource_free(bp);
+	if (pci_vfs_assigned(bp->pdev)) {
+		netdev_warn(bp->dev, "Unable to free %d VFs because some are assigned to VMs.\n",
+			    num_vfs);
+	} else {
+		pci_disable_sriov(bp->pdev);
+		/* Free the HW resources reserved for various VF's */
+		bnxt_hwrm_func_vf_resource_free(bp, num_vfs);
+	}
 
 	bnxt_free_vf_resources(bp);
 
@@ -552,17 +558,25 @@ int bnxt_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	}
 	bp->sriov_cfg = true;
 	rtnl_unlock();
-	if (!num_vfs) {
-		bnxt_sriov_disable(bp);
-		return 0;
+
+	if (pci_vfs_assigned(bp->pdev)) {
+		netdev_warn(dev, "Unable to configure SRIOV since some VFs are assigned to VMs.\n");
+		num_vfs = 0;
+		goto sriov_cfg_exit;
 	}
 
 	/* Check if enabled VFs is same as requested */
-	if (num_vfs == bp->pf.active_vfs)
-		return 0;
+	if (num_vfs && num_vfs == bp->pf.active_vfs)
+		goto sriov_cfg_exit;
+
+	/* if there are previous existing VFs, clean them up */
+	bnxt_sriov_disable(bp);
+	if (!num_vfs)
+		goto sriov_cfg_exit;
 
 	bnxt_sriov_enable(bp, &num_vfs);
 
+sriov_cfg_exit:
 	bp->sriov_cfg = false;
 	wake_up(&bp->sriov_cfg_wait);
 

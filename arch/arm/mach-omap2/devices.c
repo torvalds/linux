@@ -33,7 +33,6 @@
 #include "common.h"
 #include "mux.h"
 #include "control.h"
-#include "devices.h"
 #include "display.h"
 
 #define L3_MODULES_MAX_LEN 12
@@ -66,58 +65,6 @@ static int __init omap3_l3_init(void)
 	return PTR_ERR_OR_ZERO(pdev);
 }
 omap_postcore_initcall(omap3_l3_init);
-
-#if defined(CONFIG_IOMMU_API)
-
-#include <linux/platform_data/iommu-omap.h>
-
-static struct resource omap3isp_resources[] = {
-	{
-		.start		= OMAP3430_ISP_BASE,
-		.end		= OMAP3430_ISP_BASE + 0x12fc,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= OMAP3430_ISP_BASE2,
-		.end		= OMAP3430_ISP_BASE2 + 0x0600,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= 24 + OMAP_INTC_START,
-		.flags		= IORESOURCE_IRQ,
-	}
-};
-
-static struct platform_device omap3isp_device = {
-	.name		= "omap3isp",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(omap3isp_resources),
-	.resource	= omap3isp_resources,
-};
-
-static struct omap_iommu_arch_data omap3_isp_iommu = {
-	.name = "mmu_isp",
-};
-
-int omap3_init_camera(struct isp_platform_data *pdata)
-{
-	if (of_have_populated_dt())
-		omap3_isp_iommu.name = "480bd400.mmu";
-
-	omap3isp_device.dev.platform_data = pdata;
-	omap3isp_device.dev.archdata.iommu = &omap3_isp_iommu;
-
-	return platform_device_register(&omap3isp_device);
-}
-
-#else /* !CONFIG_IOMMU_API */
-
-int omap3_init_camera(struct isp_platform_data *pdata)
-{
-	return 0;
-}
-
-#endif
 
 #if defined(CONFIG_OMAP2PLUS_MBOX) || defined(CONFIG_OMAP2PLUS_MBOX_MODULE)
 static inline void __init omap_init_mbox(void)

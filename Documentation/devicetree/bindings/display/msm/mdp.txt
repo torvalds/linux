@@ -11,13 +11,14 @@ Required properties:
 - clock-names: the following clocks are required:
   * "core_clk"
   * "iface_clk"
-  * "lut_clk"
   * "src_clk"
   * "hdmi_clk"
   * "mpd_clk"
 
 Optional properties:
 - gpus: phandle for gpu device
+- clock-names: the following clocks are optional:
+  * "lut_clk"
 
 Example:
 

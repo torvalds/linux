@@ -58,7 +58,9 @@
 
 	soc {
 		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000
-			  MBUS_ID(0x01, 0x1d) 0 0xfff00000 0x100000>;
+			  MBUS_ID(0x01, 0x1d) 0 0xfff00000 0x100000
+			  MBUS_ID(0x09, 0x19) 0 0xf1100000 0x10000
+			  MBUS_ID(0x09, 0x15) 0 0xf1110000 0x10000>;
 
 		internal-regs {
 			spi@10600 {
@@ -205,8 +207,21 @@
 			sdhci@d8000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&sdhci_pins>;
-				cd-gpios = <&expander0 5 GPIO_ACTIVE_LOW>;
 				no-1-8-v;
+				/*
+				 * A388-GP board v1.5 and higher replace
+				 * hitherto card detection method based on GPIO
+				 * with the one using DAT3 pin. As they are
+				 * incompatible, software-based polling is
+				 * enabled with 'broken-cd' property. For boards
+				 * older than v1.5 it can be replaced with:
+				 * 'cd-gpios = <&expander0 5 GPIO_ACTIVE_LOW>;',
+				 * whereas for the newer ones following can be
+				 * used instead:
+				 * 'dat3-cd;'
+				 * 'cd-inverted;'
+				 */
+				broken-cd;
 				wp-inverted;
 				bus-width = <8>;
 				status = "okay";

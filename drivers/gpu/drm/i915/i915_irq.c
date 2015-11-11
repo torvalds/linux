@@ -45,6 +45,18 @@
  * and related files, but that will be described in separate chapters.
  */
 
+static const u32 hpd_ilk[HPD_NUM_PINS] = {
+	[HPD_PORT_A] = DE_DP_A_HOTPLUG,
+};
+
+static const u32 hpd_ivb[HPD_NUM_PINS] = {
+	[HPD_PORT_A] = DE_DP_A_HOTPLUG_IVB,
+};
+
+static const u32 hpd_bdw[HPD_NUM_PINS] = {
+	[HPD_PORT_A] = GEN8_PORT_DP_A_HOTPLUG,
+};
+
 static const u32 hpd_ibx[HPD_NUM_PINS] = {
 	[HPD_CRT] = SDE_CRT_HOTPLUG,
 	[HPD_SDVO_B] = SDE_SDVOB_HOTPLUG,
@@ -62,6 +74,7 @@ static const u32 hpd_cpt[HPD_NUM_PINS] = {
 };
 
 static const u32 hpd_spt[HPD_NUM_PINS] = {
+	[HPD_PORT_A] = SDE_PORTA_HOTPLUG_SPT,
 	[HPD_PORT_B] = SDE_PORTB_HOTPLUG_CPT,
 	[HPD_PORT_C] = SDE_PORTC_HOTPLUG_CPT,
 	[HPD_PORT_D] = SDE_PORTD_HOTPLUG_CPT,
@@ -97,6 +110,7 @@ static const u32 hpd_status_i915[HPD_NUM_PINS] = {
 
 /* BXT hpd list */
 static const u32 hpd_bxt[HPD_NUM_PINS] = {
+	[HPD_PORT_A] = BXT_DE_PORT_HP_DDIA,
 	[HPD_PORT_B] = BXT_DE_PORT_HP_DDIB,
 	[HPD_PORT_C] = BXT_DE_PORT_HP_DDIC
 };
@@ -125,27 +139,30 @@ static const u32 hpd_bxt[HPD_NUM_PINS] = {
 /*
  * We should clear IMR at preinstall/uninstall, and just check at postinstall.
  */
-#define GEN5_ASSERT_IIR_IS_ZERO(reg) do { \
-	u32 val = I915_READ(reg); \
-	if (val) { \
-		WARN(1, "Interrupt register 0x%x is not zero: 0x%08x\n", \
-		     (reg), val); \
-		I915_WRITE((reg), 0xffffffff); \
-		POSTING_READ(reg); \
-		I915_WRITE((reg), 0xffffffff); \
-		POSTING_READ(reg); \
-	} \
-} while (0)
+static void gen5_assert_iir_is_zero(struct drm_i915_private *dev_priv, u32 reg)
+{
+	u32 val = I915_READ(reg);
+
+	if (val == 0)
+		return;
+
+	WARN(1, "Interrupt register 0x%x is not zero: 0x%08x\n",
+	     reg, val);
+	I915_WRITE(reg, 0xffffffff);
+	POSTING_READ(reg);
+	I915_WRITE(reg, 0xffffffff);
+	POSTING_READ(reg);
+}
 
 #define GEN8_IRQ_INIT_NDX(type, which, imr_val, ier_val) do { \
-	GEN5_ASSERT_IIR_IS_ZERO(GEN8_##type##_IIR(which)); \
+	gen5_assert_iir_is_zero(dev_priv, GEN8_##type##_IIR(which)); \
 	I915_WRITE(GEN8_##type##_IER(which), (ier_val)); \
 	I915_WRITE(GEN8_##type##_IMR(which), (imr_val)); \
 	POSTING_READ(GEN8_##type##_IMR(which)); \
 } while (0)
 
 #define GEN5_IRQ_INIT(type, imr_val, ier_val) do { \
-	GEN5_ASSERT_IIR_IS_ZERO(type##IIR); \
+	gen5_assert_iir_is_zero(dev_priv, type##IIR); \
 	I915_WRITE(type##IER, (ier_val)); \
 	I915_WRITE(type##IMR, (imr_val)); \
 	POSTING_READ(type##IMR); \
@@ -154,34 +171,83 @@ static const u32 hpd_bxt[HPD_NUM_PINS] = {
 static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir);
 
 /* For display hotplug interrupt */
-void
-ironlake_enable_display_irq(struct drm_i915_private *dev_priv, u32 mask)
+static inline void
+i915_hotplug_interrupt_update_locked(struct drm_i915_private *dev_priv,
+				     uint32_t mask,
+				     uint32_t bits)
 {
+	uint32_t val;
+
 	assert_spin_locked(&dev_priv->irq_lock);
+	WARN_ON(bits & ~mask);
+
+	val = I915_READ(PORT_HOTPLUG_EN);
+	val &= ~mask;
+	val |= bits;
+	I915_WRITE(PORT_HOTPLUG_EN, val);
+}
+
+/**
+ * i915_hotplug_interrupt_update - update hotplug interrupt enable
+ * @dev_priv: driver private
+ * @mask: bits to update
+ * @bits: bits to enable
+ * NOTE: the HPD enable bits are modified both inside and outside
+ * of an interrupt context. To avoid that read-modify-write cycles
+ * interfer, these bits are protected by a spinlock. Since this
+ * function is usually not called from a context where the lock is
+ * held already, this function acquires the lock itself. A non-locking
+ * version is also available.
+ */
+void i915_hotplug_interrupt_update(struct drm_i915_private *dev_priv,
+				   uint32_t mask,
+				   uint32_t bits)
+{
+	spin_lock_irq(&dev_priv->irq_lock);
+	i915_hotplug_interrupt_update_locked(dev_priv, mask, bits);
+	spin_unlock_irq(&dev_priv->irq_lock);
+}
+
+/**
+ * ilk_update_display_irq - update DEIMR
+ * @dev_priv: driver private
+ * @interrupt_mask: mask of interrupt bits to update
+ * @enabled_irq_mask: mask of interrupt bits to enable
+ */
+static void ilk_update_display_irq(struct drm_i915_private *dev_priv,
+				   uint32_t interrupt_mask,
+				   uint32_t enabled_irq_mask)
+{
+	uint32_t new_val;
+
+	assert_spin_locked(&dev_priv->irq_lock);
+
+	WARN_ON(enabled_irq_mask & ~interrupt_mask);
 
 	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
 		return;
 
-	if ((dev_priv->irq_mask & mask) != 0) {
-		dev_priv->irq_mask &= ~mask;
+	new_val = dev_priv->irq_mask;
+	new_val &= ~interrupt_mask;
+	new_val |= (~enabled_irq_mask & interrupt_mask);
+
+	if (new_val != dev_priv->irq_mask) {
+		dev_priv->irq_mask = new_val;
 		I915_WRITE(DEIMR, dev_priv->irq_mask);
 		POSTING_READ(DEIMR);
 	}
 }
 
 void
+ironlake_enable_display_irq(struct drm_i915_private *dev_priv, u32 mask)
+{
+	ilk_update_display_irq(dev_priv, mask, mask);
+}
+
+void
 ironlake_disable_display_irq(struct drm_i915_private *dev_priv, u32 mask)
 {
-	assert_spin_locked(&dev_priv->irq_lock);
-
-	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
-		return;
-
-	if ((dev_priv->irq_mask & mask) != mask) {
-		dev_priv->irq_mask |= mask;
-		I915_WRITE(DEIMR, dev_priv->irq_mask);
-		POSTING_READ(DEIMR);
-	}
+	ilk_update_display_irq(dev_priv, mask, 0);
 }
 
 /**
@@ -351,6 +417,38 @@ void gen6_disable_rps_interrupts(struct drm_device *dev)
 }
 
 /**
+  * bdw_update_port_irq - update DE port interrupt
+  * @dev_priv: driver private
+  * @interrupt_mask: mask of interrupt bits to update
+  * @enabled_irq_mask: mask of interrupt bits to enable
+  */
+static void bdw_update_port_irq(struct drm_i915_private *dev_priv,
+				uint32_t interrupt_mask,
+				uint32_t enabled_irq_mask)
+{
+	uint32_t new_val;
+	uint32_t old_val;
+
+	assert_spin_locked(&dev_priv->irq_lock);
+
+	WARN_ON(enabled_irq_mask & ~interrupt_mask);
+
+	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
+		return;
+
+	old_val = I915_READ(GEN8_DE_PORT_IMR);
+
+	new_val = old_val;
+	new_val &= ~interrupt_mask;
+	new_val |= (~enabled_irq_mask & interrupt_mask);
+
+	if (new_val != old_val) {
+		I915_WRITE(GEN8_DE_PORT_IMR, new_val);
+		POSTING_READ(GEN8_DE_PORT_IMR);
+	}
+}
+
+/**
  * ibx_display_interrupt_update - update SDEIMR
  * @dev_priv: driver private
  * @interrupt_mask: mask of interrupt bits to update
@@ -486,6 +584,7 @@ i915_disable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 
 /**
  * i915_enable_asle_pipestat - enable ASLE pipestat for OpRegion
+ * @dev: drm device
  */
 static void i915_enable_asle_pipestat(struct drm_device *dev)
 {
@@ -554,7 +653,7 @@ static void i915_enable_asle_pipestat(struct drm_device *dev)
  *   of horizontal active on the first line of vertical active
  */
 
-static u32 i8xx_get_vblank_counter(struct drm_device *dev, int pipe)
+static u32 i8xx_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 {
 	/* Gen2 doesn't have a hardware frame counter */
 	return 0;
@@ -563,7 +662,7 @@ static u32 i8xx_get_vblank_counter(struct drm_device *dev, int pipe)
 /* Called from drm generic code, passed a 'crtc', which
  * we use as a pipe index
  */
-static u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
+static u32 i915_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long high_frame;
@@ -611,12 +710,11 @@ static u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 	return (((high1 << 8) | low) + (pixel >= vbl_start)) & 0xffffff;
 }
 
-static u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
+static u32 g4x_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int reg = PIPE_FRMCOUNT_GM45(pipe);
 
-	return I915_READ(reg);
+	return I915_READ(PIPE_FRMCOUNT_G4X(pipe));
 }
 
 /* raw reads, only for fast reads of display block, no need for forcewake etc. */
@@ -651,7 +749,7 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	 * problem.  We may need to extend this to include other platforms,
 	 * but so far testing only shows the problem on HSW.
 	 */
-	if (IS_HASWELL(dev) && !position) {
+	if (HAS_DDI(dev) && !position) {
 		int i, temp;
 
 		for (i = 0; i < 100; i++) {
@@ -672,14 +770,14 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	return (position + crtc->scanline_offset) % vtotal;
 }
 
-static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
+static int i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 				    unsigned int flags, int *vpos, int *hpos,
-				    ktime_t *stime, ktime_t *etime)
+				    ktime_t *stime, ktime_t *etime,
+				    const struct drm_display_mode *mode)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	const struct drm_display_mode *mode = &intel_crtc->base.hwmode;
 	int position;
 	int vbl_start, vbl_end, hsync_start, htotal, vtotal;
 	bool in_vbl = true;
@@ -809,34 +907,33 @@ int intel_get_crtc_scanline(struct intel_crtc *crtc)
 	return position;
 }
 
-static int i915_get_vblank_timestamp(struct drm_device *dev, int pipe,
+static int i915_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
 			      int *max_error,
 			      struct timeval *vblank_time,
 			      unsigned flags)
 {
 	struct drm_crtc *crtc;
 
-	if (pipe < 0 || pipe >= INTEL_INFO(dev)->num_pipes) {
-		DRM_ERROR("Invalid crtc %d\n", pipe);
+	if (pipe >= INTEL_INFO(dev)->num_pipes) {
+		DRM_ERROR("Invalid crtc %u\n", pipe);
 		return -EINVAL;
 	}
 
 	/* Get drm_crtc to timestamp: */
 	crtc = intel_get_crtc_for_pipe(dev, pipe);
 	if (crtc == NULL) {
-		DRM_ERROR("Invalid crtc %d\n", pipe);
+		DRM_ERROR("Invalid crtc %u\n", pipe);
 		return -EINVAL;
 	}
 
 	if (!crtc->hwmode.crtc_clock) {
-		DRM_DEBUG_KMS("crtc %d is disabled\n", pipe);
+		DRM_DEBUG_KMS("crtc %u is disabled\n", pipe);
 		return -EBUSY;
 	}
 
 	/* Helper routine in DRM core does all the work: */
 	return drm_calc_vbltimestamp_from_scanoutpos(dev, pipe, max_error,
 						     vblank_time, flags,
-						     crtc,
 						     &crtc->hwmode);
 }
 
@@ -903,12 +1000,16 @@ static bool vlv_c0_above(struct drm_i915_private *dev_priv,
 			 int threshold)
 {
 	u64 time, c0;
+	unsigned int mul = 100;
 
 	if (old->cz_clock == 0)
 		return false;
 
+	if (I915_READ(VLV_COUNTER_CONTROL) & VLV_COUNT_RANGE_HIGH)
+		mul <<= 8;
+
 	time = now->cz_clock - old->cz_clock;
-	time *= threshold * dev_priv->mem_freq;
+	time *= threshold * dev_priv->czclk_freq;
 
 	/* Workload can be split between render + media, e.g. SwapBuffers
 	 * being blitted in X after being rendered in mesa. To account for
@@ -916,7 +1017,7 @@ static bool vlv_c0_above(struct drm_i915_private *dev_priv,
 	 */
 	c0 = now->render_c0 - old->render_c0;
 	c0 += now->media_c0 - old->media_c0;
-	c0 *= 100 * VLV_CZ_CLOCK_TO_MILLI_SEC * 4 / 1000;
+	c0 *= mul * VLV_CZ_CLOCK_TO_MILLI_SEC;
 
 	return c0 >= time;
 }
@@ -1264,13 +1365,47 @@ static bool bxt_port_hotplug_long_detect(enum port port, u32 val)
 {
 	switch (port) {
 	case PORT_A:
-		return val & BXT_PORTA_HOTPLUG_LONG_DETECT;
+		return val & PORTA_HOTPLUG_LONG_DETECT;
+	case PORT_B:
+		return val & PORTB_HOTPLUG_LONG_DETECT;
+	case PORT_C:
+		return val & PORTC_HOTPLUG_LONG_DETECT;
+	default:
+		return false;
+	}
+}
+
+static bool spt_port_hotplug2_long_detect(enum port port, u32 val)
+{
+	switch (port) {
+	case PORT_E:
+		return val & PORTE_HOTPLUG_LONG_DETECT;
+	default:
+		return false;
+	}
+}
+
+static bool spt_port_hotplug_long_detect(enum port port, u32 val)
+{
+	switch (port) {
+	case PORT_A:
+		return val & PORTA_HOTPLUG_LONG_DETECT;
 	case PORT_B:
 		return val & PORTB_HOTPLUG_LONG_DETECT;
 	case PORT_C:
 		return val & PORTC_HOTPLUG_LONG_DETECT;
 	case PORT_D:
 		return val & PORTD_HOTPLUG_LONG_DETECT;
+	default:
+		return false;
+	}
+}
+
+static bool ilk_port_hotplug_long_detect(enum port port, u32 val)
+{
+	switch (port) {
+	case PORT_A:
+		return val & DIGITAL_PORTA_HOTPLUG_LONG_DETECT;
 	default:
 		return false;
 	}
@@ -1285,8 +1420,6 @@ static bool pch_port_hotplug_long_detect(enum port port, u32 val)
 		return val & PORTC_HOTPLUG_LONG_DETECT;
 	case PORT_D:
 		return val & PORTD_HOTPLUG_LONG_DETECT;
-	case PORT_E:
-		return val & PORTE_HOTPLUG_LONG_DETECT;
 	default:
 		return false;
 	}
@@ -1306,7 +1439,13 @@ static bool i9xx_port_hotplug_long_detect(enum port port, u32 val)
 	}
 }
 
-/* Get a bit mask of pins that have triggered, and which ones may be long. */
+/*
+ * Get a bit mask of pins that have triggered, and which ones may be long.
+ * This can be called multiple times with the same masks to accumulate
+ * hotplug detection results from several registers.
+ *
+ * Note that the caller is expected to zero out the masks initially.
+ */
 static void intel_get_hpd_pins(u32 *pin_mask, u32 *long_mask,
 			     u32 hotplug_trigger, u32 dig_hotplug_reg,
 			     const u32 hpd[HPD_NUM_PINS],
@@ -1314,9 +1453,6 @@ static void intel_get_hpd_pins(u32 *pin_mask, u32 *long_mask,
 {
 	enum port port;
 	int i;
-
-	*pin_mask = 0;
-	*long_mask = 0;
 
 	for_each_hpd_pin(i) {
 		if ((hpd[i] & hotplug_trigger) == 0)
@@ -1558,7 +1694,7 @@ static void i9xx_hpd_irq_handler(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 hotplug_status = I915_READ(PORT_HOTPLUG_STAT);
-	u32 pin_mask, long_mask;
+	u32 pin_mask = 0, long_mask = 0;
 
 	if (!hotplug_status)
 		return;
@@ -1573,20 +1709,25 @@ static void i9xx_hpd_irq_handler(struct drm_device *dev)
 	if (IS_G4X(dev) || IS_VALLEYVIEW(dev)) {
 		u32 hotplug_trigger = hotplug_status & HOTPLUG_INT_STATUS_G4X;
 
-		intel_get_hpd_pins(&pin_mask, &long_mask, hotplug_trigger,
-				   hotplug_trigger, hpd_status_g4x,
-				   i9xx_port_hotplug_long_detect);
-		intel_hpd_irq_handler(dev, pin_mask, long_mask);
+		if (hotplug_trigger) {
+			intel_get_hpd_pins(&pin_mask, &long_mask, hotplug_trigger,
+					   hotplug_trigger, hpd_status_g4x,
+					   i9xx_port_hotplug_long_detect);
+
+			intel_hpd_irq_handler(dev, pin_mask, long_mask);
+		}
 
 		if (hotplug_status & DP_AUX_CHANNEL_MASK_INT_STATUS_G4X)
 			dp_aux_irq_handler(dev);
 	} else {
 		u32 hotplug_trigger = hotplug_status & HOTPLUG_INT_STATUS_I915;
 
-		intel_get_hpd_pins(&pin_mask, &long_mask, hotplug_trigger,
-				   hotplug_trigger, hpd_status_i915,
-				   i9xx_port_hotplug_long_detect);
-		intel_hpd_irq_handler(dev, pin_mask, long_mask);
+		if (hotplug_trigger) {
+			intel_get_hpd_pins(&pin_mask, &long_mask, hotplug_trigger,
+					   hotplug_trigger, hpd_status_i915,
+					   i9xx_port_hotplug_long_detect);
+			intel_hpd_irq_handler(dev, pin_mask, long_mask);
+		}
 	}
 }
 
@@ -1680,23 +1821,30 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 	return ret;
 }
 
+static void ibx_hpd_irq_handler(struct drm_device *dev, u32 hotplug_trigger,
+				const u32 hpd[HPD_NUM_PINS])
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	u32 dig_hotplug_reg, pin_mask = 0, long_mask = 0;
+
+	dig_hotplug_reg = I915_READ(PCH_PORT_HOTPLUG);
+	I915_WRITE(PCH_PORT_HOTPLUG, dig_hotplug_reg);
+
+	intel_get_hpd_pins(&pin_mask, &long_mask, hotplug_trigger,
+			   dig_hotplug_reg, hpd,
+			   pch_port_hotplug_long_detect);
+
+	intel_hpd_irq_handler(dev, pin_mask, long_mask);
+}
+
 static void ibx_irq_handler(struct drm_device *dev, u32 pch_iir)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe;
 	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK;
 
-	if (hotplug_trigger) {
-		u32 dig_hotplug_reg, pin_mask, long_mask;
-
-		dig_hotplug_reg = I915_READ(PCH_PORT_HOTPLUG);
-		I915_WRITE(PCH_PORT_HOTPLUG, dig_hotplug_reg);
-
-		intel_get_hpd_pins(&pin_mask, &long_mask, hotplug_trigger,
-				   dig_hotplug_reg, hpd_ibx,
-				   pch_port_hotplug_long_detect);
-		intel_hpd_irq_handler(dev, pin_mask, long_mask);
-	}
+	if (hotplug_trigger)
+		ibx_hpd_irq_handler(dev, hotplug_trigger, hpd_ibx);
 
 	if (pch_iir & SDE_AUDIO_POWER_MASK) {
 		int port = ffs((pch_iir & SDE_AUDIO_POWER_MASK) >>
@@ -1787,38 +1935,10 @@ static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe;
-	u32 hotplug_trigger;
+	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK_CPT;
 
-	if (HAS_PCH_SPT(dev))
-		hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK_SPT;
-	else
-		hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK_CPT;
-
-	if (hotplug_trigger) {
-		u32 dig_hotplug_reg, pin_mask, long_mask;
-
-		dig_hotplug_reg = I915_READ(PCH_PORT_HOTPLUG);
-		I915_WRITE(PCH_PORT_HOTPLUG, dig_hotplug_reg);
-
-		if (HAS_PCH_SPT(dev)) {
-			intel_get_hpd_pins(&pin_mask, &long_mask,
-					   hotplug_trigger,
-					   dig_hotplug_reg, hpd_spt,
-					   pch_port_hotplug_long_detect);
-
-			/* detect PORTE HP event */
-			dig_hotplug_reg = I915_READ(PCH_PORT_HOTPLUG2);
-			if (pch_port_hotplug_long_detect(PORT_E,
-							 dig_hotplug_reg))
-				long_mask |= 1 << HPD_PORT_E;
-		} else
-			intel_get_hpd_pins(&pin_mask, &long_mask,
-					   hotplug_trigger,
-					   dig_hotplug_reg, hpd_cpt,
-					   pch_port_hotplug_long_detect);
-
-		intel_hpd_irq_handler(dev, pin_mask, long_mask);
-	}
+	if (hotplug_trigger)
+		ibx_hpd_irq_handler(dev, hotplug_trigger, hpd_cpt);
 
 	if (pch_iir & SDE_AUDIO_POWER_MASK_CPT) {
 		int port = ffs((pch_iir & SDE_AUDIO_POWER_MASK_CPT) >>
@@ -1849,10 +1969,67 @@ static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
 		cpt_serr_int_handler(dev);
 }
 
+static void spt_irq_handler(struct drm_device *dev, u32 pch_iir)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK_SPT &
+		~SDE_PORTE_HOTPLUG_SPT;
+	u32 hotplug2_trigger = pch_iir & SDE_PORTE_HOTPLUG_SPT;
+	u32 pin_mask = 0, long_mask = 0;
+
+	if (hotplug_trigger) {
+		u32 dig_hotplug_reg;
+
+		dig_hotplug_reg = I915_READ(PCH_PORT_HOTPLUG);
+		I915_WRITE(PCH_PORT_HOTPLUG, dig_hotplug_reg);
+
+		intel_get_hpd_pins(&pin_mask, &long_mask, hotplug_trigger,
+				   dig_hotplug_reg, hpd_spt,
+				   spt_port_hotplug_long_detect);
+	}
+
+	if (hotplug2_trigger) {
+		u32 dig_hotplug_reg;
+
+		dig_hotplug_reg = I915_READ(PCH_PORT_HOTPLUG2);
+		I915_WRITE(PCH_PORT_HOTPLUG2, dig_hotplug_reg);
+
+		intel_get_hpd_pins(&pin_mask, &long_mask, hotplug2_trigger,
+				   dig_hotplug_reg, hpd_spt,
+				   spt_port_hotplug2_long_detect);
+	}
+
+	if (pin_mask)
+		intel_hpd_irq_handler(dev, pin_mask, long_mask);
+
+	if (pch_iir & SDE_GMBUS_CPT)
+		gmbus_irq_handler(dev);
+}
+
+static void ilk_hpd_irq_handler(struct drm_device *dev, u32 hotplug_trigger,
+				const u32 hpd[HPD_NUM_PINS])
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	u32 dig_hotplug_reg, pin_mask = 0, long_mask = 0;
+
+	dig_hotplug_reg = I915_READ(DIGITAL_PORT_HOTPLUG_CNTRL);
+	I915_WRITE(DIGITAL_PORT_HOTPLUG_CNTRL, dig_hotplug_reg);
+
+	intel_get_hpd_pins(&pin_mask, &long_mask, hotplug_trigger,
+			   dig_hotplug_reg, hpd,
+			   ilk_port_hotplug_long_detect);
+
+	intel_hpd_irq_handler(dev, pin_mask, long_mask);
+}
+
 static void ilk_display_irq_handler(struct drm_device *dev, u32 de_iir)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum pipe pipe;
+	u32 hotplug_trigger = de_iir & DE_DP_A_HOTPLUG;
+
+	if (hotplug_trigger)
+		ilk_hpd_irq_handler(dev, hotplug_trigger, hpd_ilk);
 
 	if (de_iir & DE_AUX_CHANNEL_A)
 		dp_aux_irq_handler(dev);
@@ -1902,6 +2079,10 @@ static void ivb_display_irq_handler(struct drm_device *dev, u32 de_iir)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum pipe pipe;
+	u32 hotplug_trigger = de_iir & DE_DP_A_HOTPLUG_IVB;
+
+	if (hotplug_trigger)
+		ilk_hpd_irq_handler(dev, hotplug_trigger, hpd_ivb);
 
 	if (de_iir & DE_ERR_INT_IVB)
 		ivb_err_int_handler(dev);
@@ -2014,27 +2195,19 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 	return ret;
 }
 
-static void bxt_hpd_handler(struct drm_device *dev, uint32_t iir_status)
+static void bxt_hpd_irq_handler(struct drm_device *dev, u32 hotplug_trigger,
+				const u32 hpd[HPD_NUM_PINS])
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 hp_control, hp_trigger;
-	u32 pin_mask, long_mask;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	u32 dig_hotplug_reg, pin_mask = 0, long_mask = 0;
 
-	/* Get the status */
-	hp_trigger = iir_status & BXT_DE_PORT_HOTPLUG_MASK;
-	hp_control = I915_READ(BXT_HOTPLUG_CTL);
+	dig_hotplug_reg = I915_READ(PCH_PORT_HOTPLUG);
+	I915_WRITE(PCH_PORT_HOTPLUG, dig_hotplug_reg);
 
-	/* Hotplug not enabled ? */
-	if (!(hp_control & BXT_HOTPLUG_CTL_MASK)) {
-		DRM_ERROR("Interrupt when HPD disabled\n");
-		return;
-	}
+	intel_get_hpd_pins(&pin_mask, &long_mask, hotplug_trigger,
+			   dig_hotplug_reg, hpd,
+			   bxt_port_hotplug_long_detect);
 
-	/* Clear sticky bits in hpd status */
-	I915_WRITE(BXT_HOTPLUG_CTL, hp_control);
-
-	intel_get_hpd_pins(&pin_mask, &long_mask, hp_trigger, hp_control,
-			   hpd_bxt, bxt_port_hotplug_long_detect);
 	intel_hpd_irq_handler(dev, pin_mask, long_mask);
 }
 
@@ -2051,7 +2224,7 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 	if (!intel_irqs_enabled(dev_priv))
 		return IRQ_NONE;
 
-	if (IS_GEN9(dev))
+	if (INTEL_INFO(dev_priv)->gen >= 9)
 		aux_mask |=  GEN9_AUX_CHANNEL_B | GEN9_AUX_CHANNEL_C |
 			GEN9_AUX_CHANNEL_D;
 
@@ -2084,6 +2257,12 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 		tmp = I915_READ(GEN8_DE_PORT_IIR);
 		if (tmp) {
 			bool found = false;
+			u32 hotplug_trigger = 0;
+
+			if (IS_BROXTON(dev_priv))
+				hotplug_trigger = tmp & BXT_DE_PORT_HOTPLUG_MASK;
+			else if (IS_BROADWELL(dev_priv))
+				hotplug_trigger = tmp & GEN8_PORT_DP_A_HOTPLUG;
 
 			I915_WRITE(GEN8_DE_PORT_IIR, tmp);
 			ret = IRQ_HANDLED;
@@ -2093,8 +2272,11 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 				found = true;
 			}
 
-			if (IS_BROXTON(dev) && tmp & BXT_DE_PORT_HOTPLUG_MASK) {
-				bxt_hpd_handler(dev, tmp);
+			if (hotplug_trigger) {
+				if (IS_BROXTON(dev))
+					bxt_hpd_irq_handler(dev, hotplug_trigger, hpd_bxt);
+				else
+					ilk_hpd_irq_handler(dev, hotplug_trigger, hpd_bdw);
 				found = true;
 			}
 
@@ -2125,7 +2307,7 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 			    intel_pipe_handle_vblank(dev, pipe))
 				intel_check_page_flip(dev, pipe);
 
-			if (IS_GEN9(dev))
+			if (INTEL_INFO(dev_priv)->gen >= 9)
 				flip_done = pipe_iir & GEN9_PIPE_PLANE1_FLIP_DONE;
 			else
 				flip_done = pipe_iir & GEN8_PIPE_PRIMARY_FLIP_DONE;
@@ -2143,7 +2325,7 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 								    pipe);
 
 
-			if (IS_GEN9(dev))
+			if (INTEL_INFO(dev_priv)->gen >= 9)
 				fault_errors = pipe_iir & GEN9_DE_PIPE_IRQ_FAULT_ERRORS;
 			else
 				fault_errors = pipe_iir & GEN8_DE_PIPE_IRQ_FAULT_ERRORS;
@@ -2167,7 +2349,11 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 		if (pch_iir) {
 			I915_WRITE(SDEIIR, pch_iir);
 			ret = IRQ_HANDLED;
-			cpt_irq_handler(dev, pch_iir);
+
+			if (HAS_PCH_SPT(dev_priv))
+				spt_irq_handler(dev, pch_iir);
+			else
+				cpt_irq_handler(dev, pch_iir);
 		} else
 			DRM_ERROR("The master control interrupt lied (SDE)!\n");
 
@@ -2209,6 +2395,7 @@ static void i915_error_wake_up(struct drm_i915_private *dev_priv,
 
 /**
  * i915_reset_and_wakeup - do process context error handling work
+ * @dev: drm device
  *
  * Fire an error uevent so userspace can see that a hang or error
  * was detected.
@@ -2386,7 +2573,7 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
  * i915_handle_error - handle a gpu error
  * @dev: drm device
  *
- * Do some basic checking of regsiter state at error time and
+ * Do some basic checking of register state at error time and
  * dump it to the syslog.  Also call i915_capture_error_state() to make
  * sure we get a record and make it available in debugfs.  Fire a uevent
  * so userspace knows something bad happened (should trigger collection
@@ -2432,7 +2619,7 @@ void i915_handle_error(struct drm_device *dev, bool wedged,
 /* Called from drm generic code, passed 'crtc' which
  * we use as a pipe index
  */
-static int i915_enable_vblank(struct drm_device *dev, int pipe)
+static int i915_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
@@ -2449,7 +2636,7 @@ static int i915_enable_vblank(struct drm_device *dev, int pipe)
 	return 0;
 }
 
-static int ironlake_enable_vblank(struct drm_device *dev, int pipe)
+static int ironlake_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
@@ -2463,7 +2650,7 @@ static int ironlake_enable_vblank(struct drm_device *dev, int pipe)
 	return 0;
 }
 
-static int valleyview_enable_vblank(struct drm_device *dev, int pipe)
+static int valleyview_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
@@ -2476,7 +2663,7 @@ static int valleyview_enable_vblank(struct drm_device *dev, int pipe)
 	return 0;
 }
 
-static int gen8_enable_vblank(struct drm_device *dev, int pipe)
+static int gen8_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
@@ -2492,7 +2679,7 @@ static int gen8_enable_vblank(struct drm_device *dev, int pipe)
 /* Called from drm generic code, passed 'crtc' which
  * we use as a pipe index
  */
-static void i915_disable_vblank(struct drm_device *dev, int pipe)
+static void i915_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
@@ -2504,7 +2691,7 @@ static void i915_disable_vblank(struct drm_device *dev, int pipe)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
-static void ironlake_disable_vblank(struct drm_device *dev, int pipe)
+static void ironlake_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
@@ -2516,7 +2703,7 @@ static void ironlake_disable_vblank(struct drm_device *dev, int pipe)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
-static void valleyview_disable_vblank(struct drm_device *dev, int pipe)
+static void valleyview_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
@@ -2527,7 +2714,7 @@ static void valleyview_disable_vblank(struct drm_device *dev, int pipe)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
-static void gen8_disable_vblank(struct drm_device *dev, int pipe)
+static void gen8_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
@@ -2598,6 +2785,26 @@ semaphore_waits_for(struct intel_engine_cs *ring, u32 *seqno)
 	u32 cmd, ipehr, head;
 	u64 offset = 0;
 	int i, backwards;
+
+	/*
+	 * This function does not support execlist mode - any attempt to
+	 * proceed further into this function will result in a kernel panic
+	 * when dereferencing ring->buffer, which is not set up in execlist
+	 * mode.
+	 *
+	 * The correct way of doing it would be to derive the currently
+	 * executing ring buffer from the current context, which is derived
+	 * from the currently running request. Unfortunately, to get the
+	 * current request we would have to grab the struct_mutex before doing
+	 * anything else, which would be ill-advised since some other thread
+	 * might have grabbed it already and managed to hang itself, causing
+	 * the hang checker to deadlock.
+	 *
+	 * Therefore, this function does not support execlist mode in its
+	 * current form. Just return NULL and move on.
+	 */
+	if (ring->buffer == NULL)
+		return NULL;
 
 	ipehr = I915_READ(RING_IPEHR(ring->mmio_base));
 	if (!ipehr_is_semaphore_wait(ring->dev, ipehr))
@@ -2933,7 +3140,7 @@ static void vlv_display_irq_reset(struct drm_i915_private *dev_priv)
 {
 	enum pipe pipe;
 
-	I915_WRITE(PORT_HOTPLUG_EN, 0);
+	i915_hotplug_interrupt_update(dev_priv, 0xFFFFFFFF, 0);
 	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
 
 	for_each_pipe(dev_priv, pipe)
@@ -3027,86 +3234,124 @@ static void cherryview_irq_preinstall(struct drm_device *dev)
 	vlv_display_irq_reset(dev_priv);
 }
 
+static u32 intel_hpd_enabled_irqs(struct drm_device *dev,
+				  const u32 hpd[HPD_NUM_PINS])
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_encoder *encoder;
+	u32 enabled_irqs = 0;
+
+	for_each_intel_encoder(dev, encoder)
+		if (dev_priv->hotplug.stats[encoder->hpd_pin].state == HPD_ENABLED)
+			enabled_irqs |= hpd[encoder->hpd_pin];
+
+	return enabled_irqs;
+}
+
 static void ibx_hpd_irq_setup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_encoder *intel_encoder;
-	u32 hotplug_irqs, hotplug, enabled_irqs = 0;
+	u32 hotplug_irqs, hotplug, enabled_irqs;
 
 	if (HAS_PCH_IBX(dev)) {
 		hotplug_irqs = SDE_HOTPLUG_MASK;
-		for_each_intel_encoder(dev, intel_encoder)
-			if (dev_priv->hotplug.stats[intel_encoder->hpd_pin].state == HPD_ENABLED)
-				enabled_irqs |= hpd_ibx[intel_encoder->hpd_pin];
-	} else if (HAS_PCH_SPT(dev)) {
-		hotplug_irqs = SDE_HOTPLUG_MASK_SPT;
-		for_each_intel_encoder(dev, intel_encoder)
-			if (dev_priv->hotplug.stats[intel_encoder->hpd_pin].state == HPD_ENABLED)
-				enabled_irqs |= hpd_spt[intel_encoder->hpd_pin];
+		enabled_irqs = intel_hpd_enabled_irqs(dev, hpd_ibx);
 	} else {
 		hotplug_irqs = SDE_HOTPLUG_MASK_CPT;
-		for_each_intel_encoder(dev, intel_encoder)
-			if (dev_priv->hotplug.stats[intel_encoder->hpd_pin].state == HPD_ENABLED)
-				enabled_irqs |= hpd_cpt[intel_encoder->hpd_pin];
+		enabled_irqs = intel_hpd_enabled_irqs(dev, hpd_cpt);
 	}
 
 	ibx_display_interrupt_update(dev_priv, hotplug_irqs, enabled_irqs);
 
 	/*
 	 * Enable digital hotplug on the PCH, and configure the DP short pulse
-	 * duration to 2ms (which is the minimum in the Display Port spec)
-	 *
-	 * This register is the same on all known PCH chips.
+	 * duration to 2ms (which is the minimum in the Display Port spec).
+	 * The pulse duration bits are reserved on LPT+.
 	 */
 	hotplug = I915_READ(PCH_PORT_HOTPLUG);
 	hotplug &= ~(PORTD_PULSE_DURATION_MASK|PORTC_PULSE_DURATION_MASK|PORTB_PULSE_DURATION_MASK);
 	hotplug |= PORTD_HOTPLUG_ENABLE | PORTD_PULSE_DURATION_2ms;
 	hotplug |= PORTC_HOTPLUG_ENABLE | PORTC_PULSE_DURATION_2ms;
 	hotplug |= PORTB_HOTPLUG_ENABLE | PORTB_PULSE_DURATION_2ms;
+	/*
+	 * When CPU and PCH are on the same package, port A
+	 * HPD must be enabled in both north and south.
+	 */
+	if (HAS_PCH_LPT_LP(dev))
+		hotplug |= PORTA_HOTPLUG_ENABLE;
+	I915_WRITE(PCH_PORT_HOTPLUG, hotplug);
+}
+
+static void spt_hpd_irq_setup(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 hotplug_irqs, hotplug, enabled_irqs;
+
+	hotplug_irqs = SDE_HOTPLUG_MASK_SPT;
+	enabled_irqs = intel_hpd_enabled_irqs(dev, hpd_spt);
+
+	ibx_display_interrupt_update(dev_priv, hotplug_irqs, enabled_irqs);
+
+	/* Enable digital hotplug on the PCH */
+	hotplug = I915_READ(PCH_PORT_HOTPLUG);
+	hotplug |= PORTD_HOTPLUG_ENABLE | PORTC_HOTPLUG_ENABLE |
+		PORTB_HOTPLUG_ENABLE | PORTA_HOTPLUG_ENABLE;
 	I915_WRITE(PCH_PORT_HOTPLUG, hotplug);
 
-	/* enable SPT PORTE hot plug */
-	if (HAS_PCH_SPT(dev)) {
-		hotplug = I915_READ(PCH_PORT_HOTPLUG2);
-		hotplug |= PORTE_HOTPLUG_ENABLE;
-		I915_WRITE(PCH_PORT_HOTPLUG2, hotplug);
+	hotplug = I915_READ(PCH_PORT_HOTPLUG2);
+	hotplug |= PORTE_HOTPLUG_ENABLE;
+	I915_WRITE(PCH_PORT_HOTPLUG2, hotplug);
+}
+
+static void ilk_hpd_irq_setup(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 hotplug_irqs, hotplug, enabled_irqs;
+
+	if (INTEL_INFO(dev)->gen >= 8) {
+		hotplug_irqs = GEN8_PORT_DP_A_HOTPLUG;
+		enabled_irqs = intel_hpd_enabled_irqs(dev, hpd_bdw);
+
+		bdw_update_port_irq(dev_priv, hotplug_irqs, enabled_irqs);
+	} else if (INTEL_INFO(dev)->gen >= 7) {
+		hotplug_irqs = DE_DP_A_HOTPLUG_IVB;
+		enabled_irqs = intel_hpd_enabled_irqs(dev, hpd_ivb);
+
+		ilk_update_display_irq(dev_priv, hotplug_irqs, enabled_irqs);
+	} else {
+		hotplug_irqs = DE_DP_A_HOTPLUG;
+		enabled_irqs = intel_hpd_enabled_irqs(dev, hpd_ilk);
+
+		ilk_update_display_irq(dev_priv, hotplug_irqs, enabled_irqs);
 	}
+
+	/*
+	 * Enable digital hotplug on the CPU, and configure the DP short pulse
+	 * duration to 2ms (which is the minimum in the Display Port spec)
+	 * The pulse duration bits are reserved on HSW+.
+	 */
+	hotplug = I915_READ(DIGITAL_PORT_HOTPLUG_CNTRL);
+	hotplug &= ~DIGITAL_PORTA_PULSE_DURATION_MASK;
+	hotplug |= DIGITAL_PORTA_HOTPLUG_ENABLE | DIGITAL_PORTA_PULSE_DURATION_2ms;
+	I915_WRITE(DIGITAL_PORT_HOTPLUG_CNTRL, hotplug);
+
+	ibx_hpd_irq_setup(dev);
 }
 
 static void bxt_hpd_irq_setup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_encoder *intel_encoder;
-	u32 hotplug_port = 0;
-	u32 hotplug_ctrl;
+	u32 hotplug_irqs, hotplug, enabled_irqs;
 
-	/* Now, enable HPD */
-	for_each_intel_encoder(dev, intel_encoder) {
-		if (dev_priv->hotplug.stats[intel_encoder->hpd_pin].state
-				== HPD_ENABLED)
-			hotplug_port |= hpd_bxt[intel_encoder->hpd_pin];
-	}
+	enabled_irqs = intel_hpd_enabled_irqs(dev, hpd_bxt);
+	hotplug_irqs = BXT_DE_PORT_HOTPLUG_MASK;
 
-	/* Mask all HPD control bits */
-	hotplug_ctrl = I915_READ(BXT_HOTPLUG_CTL) & ~BXT_HOTPLUG_CTL_MASK;
+	bdw_update_port_irq(dev_priv, hotplug_irqs, enabled_irqs);
 
-	/* Enable requested port in hotplug control */
-	/* TODO: implement (short) HPD support on port A */
-	WARN_ON_ONCE(hotplug_port & BXT_DE_PORT_HP_DDIA);
-	if (hotplug_port & BXT_DE_PORT_HP_DDIB)
-		hotplug_ctrl |= BXT_DDIB_HPD_ENABLE;
-	if (hotplug_port & BXT_DE_PORT_HP_DDIC)
-		hotplug_ctrl |= BXT_DDIC_HPD_ENABLE;
-	I915_WRITE(BXT_HOTPLUG_CTL, hotplug_ctrl);
-
-	/* Unmask DDI hotplug in IMR */
-	hotplug_ctrl = I915_READ(GEN8_DE_PORT_IMR) & ~hotplug_port;
-	I915_WRITE(GEN8_DE_PORT_IMR, hotplug_ctrl);
-
-	/* Enable DDI hotplug in IER */
-	hotplug_ctrl = I915_READ(GEN8_DE_PORT_IER) | hotplug_port;
-	I915_WRITE(GEN8_DE_PORT_IER, hotplug_ctrl);
-	POSTING_READ(GEN8_DE_PORT_IER);
+	hotplug = I915_READ(PCH_PORT_HOTPLUG);
+	hotplug |= PORTC_HOTPLUG_ENABLE | PORTB_HOTPLUG_ENABLE |
+		PORTA_HOTPLUG_ENABLE;
+	I915_WRITE(PCH_PORT_HOTPLUG, hotplug);
 }
 
 static void ibx_irq_postinstall(struct drm_device *dev)
@@ -3122,7 +3367,7 @@ static void ibx_irq_postinstall(struct drm_device *dev)
 	else
 		mask = SDE_GMBUS_CPT | SDE_AUX_MASK_CPT;
 
-	GEN5_ASSERT_IIR_IS_ZERO(SDEIIR);
+	gen5_assert_iir_is_zero(dev_priv, SDEIIR);
 	I915_WRITE(SDEIMR, ~mask);
 }
 
@@ -3174,15 +3419,17 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 				DE_PLANEB_FLIP_DONE_IVB |
 				DE_PLANEA_FLIP_DONE_IVB | DE_AUX_CHANNEL_A_IVB);
 		extra_mask = (DE_PIPEC_VBLANK_IVB | DE_PIPEB_VBLANK_IVB |
-			      DE_PIPEA_VBLANK_IVB | DE_ERR_INT_IVB);
+			      DE_PIPEA_VBLANK_IVB | DE_ERR_INT_IVB |
+			      DE_DP_A_HOTPLUG_IVB);
 	} else {
 		display_mask = (DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
 				DE_PLANEA_FLIP_DONE | DE_PLANEB_FLIP_DONE |
 				DE_AUX_CHANNEL_A |
 				DE_PIPEB_CRC_DONE | DE_PIPEA_CRC_DONE |
 				DE_POISON);
-		extra_mask = DE_PIPEA_VBLANK | DE_PIPEB_VBLANK | DE_PCU_EVENT |
-				DE_PIPEB_FIFO_UNDERRUN | DE_PIPEA_FIFO_UNDERRUN;
+		extra_mask = (DE_PIPEA_VBLANK | DE_PIPEB_VBLANK | DE_PCU_EVENT |
+			      DE_PIPEB_FIFO_UNDERRUN | DE_PIPEA_FIFO_UNDERRUN |
+			      DE_DP_A_HOTPLUG);
 	}
 
 	dev_priv->irq_mask = ~display_mask;
@@ -3309,7 +3556,7 @@ static void vlv_display_irq_postinstall(struct drm_i915_private *dev_priv)
 {
 	dev_priv->irq_mask = ~0;
 
-	I915_WRITE(PORT_HOTPLUG_EN, 0);
+	i915_hotplug_interrupt_update(dev_priv, 0xffffffff, 0);
 	POSTING_READ(PORT_HOTPLUG_EN);
 
 	I915_WRITE(VLV_IIR, 0xffffffff);
@@ -3378,23 +3625,30 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 {
 	uint32_t de_pipe_masked = GEN8_PIPE_CDCLK_CRC_DONE;
 	uint32_t de_pipe_enables;
-	int pipe;
-	u32 de_port_en = GEN8_AUX_CHANNEL_A;
+	u32 de_port_masked = GEN8_AUX_CHANNEL_A;
+	u32 de_port_enables;
+	enum pipe pipe;
 
-	if (IS_GEN9(dev_priv)) {
+	if (INTEL_INFO(dev_priv)->gen >= 9) {
 		de_pipe_masked |= GEN9_PIPE_PLANE1_FLIP_DONE |
 				  GEN9_DE_PIPE_IRQ_FAULT_ERRORS;
-		de_port_en |= GEN9_AUX_CHANNEL_B | GEN9_AUX_CHANNEL_C |
-			GEN9_AUX_CHANNEL_D;
-
+		de_port_masked |= GEN9_AUX_CHANNEL_B | GEN9_AUX_CHANNEL_C |
+				  GEN9_AUX_CHANNEL_D;
 		if (IS_BROXTON(dev_priv))
-			de_port_en |= BXT_DE_PORT_GMBUS;
-	} else
+			de_port_masked |= BXT_DE_PORT_GMBUS;
+	} else {
 		de_pipe_masked |= GEN8_PIPE_PRIMARY_FLIP_DONE |
 				  GEN8_DE_PIPE_IRQ_FAULT_ERRORS;
+	}
 
 	de_pipe_enables = de_pipe_masked | GEN8_PIPE_VBLANK |
 					   GEN8_PIPE_FIFO_UNDERRUN;
+
+	de_port_enables = de_port_masked;
+	if (IS_BROXTON(dev_priv))
+		de_port_enables |= BXT_DE_PORT_HOTPLUG_MASK;
+	else if (IS_BROADWELL(dev_priv))
+		de_port_enables |= GEN8_PORT_DP_A_HOTPLUG;
 
 	dev_priv->de_irq_mask[PIPE_A] = ~de_pipe_masked;
 	dev_priv->de_irq_mask[PIPE_B] = ~de_pipe_masked;
@@ -3407,7 +3661,7 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 					  dev_priv->de_irq_mask[pipe],
 					  de_pipe_enables);
 
-	GEN5_IRQ_INIT(GEN8_DE_PORT_, ~de_port_en, de_port_en);
+	GEN5_IRQ_INIT(GEN8_DE_PORT_, ~de_port_masked, de_port_enables);
 }
 
 static int gen8_irq_postinstall(struct drm_device *dev)
@@ -3676,7 +3930,7 @@ static void i915_irq_preinstall(struct drm_device * dev)
 	int pipe;
 
 	if (I915_HAS_HOTPLUG(dev)) {
-		I915_WRITE(PORT_HOTPLUG_EN, 0);
+		i915_hotplug_interrupt_update(dev_priv, 0xffffffff, 0);
 		I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
 	}
 
@@ -3710,7 +3964,7 @@ static int i915_irq_postinstall(struct drm_device *dev)
 		I915_USER_INTERRUPT;
 
 	if (I915_HAS_HOTPLUG(dev)) {
-		I915_WRITE(PORT_HOTPLUG_EN, 0);
+		i915_hotplug_interrupt_update(dev_priv, 0xffffffff, 0);
 		POSTING_READ(PORT_HOTPLUG_EN);
 
 		/* Enable in IER... */
@@ -3872,7 +4126,7 @@ static void i915_irq_uninstall(struct drm_device * dev)
 	int pipe;
 
 	if (I915_HAS_HOTPLUG(dev)) {
-		I915_WRITE(PORT_HOTPLUG_EN, 0);
+		i915_hotplug_interrupt_update(dev_priv, 0xffffffff, 0);
 		I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
 	}
 
@@ -3893,7 +4147,7 @@ static void i965_irq_preinstall(struct drm_device * dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe;
 
-	I915_WRITE(PORT_HOTPLUG_EN, 0);
+	i915_hotplug_interrupt_update(dev_priv, 0xffffffff, 0);
 	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
 
 	I915_WRITE(HWSTAM, 0xeffe);
@@ -3954,7 +4208,7 @@ static int i965_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(IER, enable_mask);
 	POSTING_READ(IER);
 
-	I915_WRITE(PORT_HOTPLUG_EN, 0);
+	i915_hotplug_interrupt_update(dev_priv, 0xffffffff, 0);
 	POSTING_READ(PORT_HOTPLUG_EN);
 
 	i915_enable_asle_pipestat(dev);
@@ -3965,29 +4219,27 @@ static int i965_irq_postinstall(struct drm_device *dev)
 static void i915_hpd_irq_setup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_encoder *intel_encoder;
 	u32 hotplug_en;
 
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	hotplug_en = I915_READ(PORT_HOTPLUG_EN);
-	hotplug_en &= ~HOTPLUG_INT_EN_MASK;
 	/* Note HDMI and DP share hotplug bits */
 	/* enable bits are the same for all generations */
-	for_each_intel_encoder(dev, intel_encoder)
-		if (dev_priv->hotplug.stats[intel_encoder->hpd_pin].state == HPD_ENABLED)
-			hotplug_en |= hpd_mask_i915[intel_encoder->hpd_pin];
+	hotplug_en = intel_hpd_enabled_irqs(dev, hpd_mask_i915);
 	/* Programming the CRT detection parameters tends
 	   to generate a spurious hotplug event about three
 	   seconds later.  So just do it once.
 	*/
 	if (IS_G4X(dev))
 		hotplug_en |= CRT_HOTPLUG_ACTIVATION_PERIOD_64;
-	hotplug_en &= ~CRT_HOTPLUG_VOLTAGE_COMPARE_MASK;
 	hotplug_en |= CRT_HOTPLUG_VOLTAGE_COMPARE_50;
 
 	/* Ignore TV since it's buggy */
-	I915_WRITE(PORT_HOTPLUG_EN, hotplug_en);
+	i915_hotplug_interrupt_update_locked(dev_priv,
+					     HOTPLUG_INT_EN_MASK |
+					     CRT_HOTPLUG_VOLTAGE_COMPARE_MASK |
+					     CRT_HOTPLUG_ACTIVATION_PERIOD_64,
+					     hotplug_en);
 }
 
 static irqreturn_t i965_irq_handler(int irq, void *arg)
@@ -4100,7 +4352,7 @@ static void i965_irq_uninstall(struct drm_device * dev)
 	if (!dev_priv)
 		return;
 
-	I915_WRITE(PORT_HOTPLUG_EN, 0);
+	i915_hotplug_interrupt_update(dev_priv, 0xffffffff, 0);
 	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
 
 	I915_WRITE(HWSTAM, 0xffffffff);
@@ -4148,7 +4400,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		dev->driver->get_vblank_counter = i8xx_get_vblank_counter;
 	} else if (IS_G4X(dev_priv) || INTEL_INFO(dev_priv)->gen >= 5) {
 		dev->max_vblank_count = 0xffffffff; /* full 32 bit counter */
-		dev->driver->get_vblank_counter = gm45_get_vblank_counter;
+		dev->driver->get_vblank_counter = g4x_get_vblank_counter;
 	} else {
 		dev->driver->get_vblank_counter = i915_get_vblank_counter;
 		dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
@@ -4188,10 +4440,12 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		dev->driver->irq_uninstall = gen8_irq_uninstall;
 		dev->driver->enable_vblank = gen8_enable_vblank;
 		dev->driver->disable_vblank = gen8_disable_vblank;
-		if (HAS_PCH_SPLIT(dev))
-			dev_priv->display.hpd_irq_setup = ibx_hpd_irq_setup;
-		else
+		if (IS_BROXTON(dev))
 			dev_priv->display.hpd_irq_setup = bxt_hpd_irq_setup;
+		else if (HAS_PCH_SPT(dev))
+			dev_priv->display.hpd_irq_setup = spt_hpd_irq_setup;
+		else
+			dev_priv->display.hpd_irq_setup = ilk_hpd_irq_setup;
 	} else if (HAS_PCH_SPLIT(dev)) {
 		dev->driver->irq_handler = ironlake_irq_handler;
 		dev->driver->irq_preinstall = ironlake_irq_reset;
@@ -4199,7 +4453,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		dev->driver->irq_uninstall = ironlake_irq_uninstall;
 		dev->driver->enable_vblank = ironlake_enable_vblank;
 		dev->driver->disable_vblank = ironlake_disable_vblank;
-		dev_priv->display.hpd_irq_setup = ibx_hpd_irq_setup;
+		dev_priv->display.hpd_irq_setup = ilk_hpd_irq_setup;
 	} else {
 		if (INTEL_INFO(dev_priv)->gen == 2) {
 			dev->driver->irq_preinstall = i8xx_irq_preinstall;

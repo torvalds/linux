@@ -480,14 +480,12 @@ static const struct drm_plane_funcs tegra_primary_plane_funcs = {
 };
 
 static int tegra_plane_prepare_fb(struct drm_plane *plane,
-				  struct drm_framebuffer *fb,
 				  const struct drm_plane_state *new_state)
 {
 	return 0;
 }
 
 static void tegra_plane_cleanup_fb(struct drm_plane *plane,
-				   struct drm_framebuffer *fb,
 				   const struct drm_plane_state *old_fb)
 {
 }
@@ -1696,12 +1694,17 @@ static int tegra_dc_debugfs_exit(struct tegra_dc *dc)
 static int tegra_dc_init(struct host1x_client *client)
 {
 	struct drm_device *drm = dev_get_drvdata(client->parent);
+	unsigned long flags = HOST1X_SYNCPT_CLIENT_MANAGED;
 	struct tegra_dc *dc = host1x_client_to_dc(client);
 	struct tegra_drm *tegra = drm->dev_private;
 	struct drm_plane *primary = NULL;
 	struct drm_plane *cursor = NULL;
 	u32 value;
 	int err;
+
+	dc->syncpt = host1x_syncpt_request(dc->dev, flags);
+	if (!dc->syncpt)
+		dev_warn(dc->dev, "failed to allocate syncpoint\n");
 
 	if (tegra->domain) {
 		err = iommu_attach_device(tegra->domain, dc->dev);
@@ -1849,6 +1852,8 @@ static int tegra_dc_exit(struct host1x_client *client)
 		dc->domain = NULL;
 	}
 
+	host1x_syncpt_free(dc->syncpt);
+
 	return 0;
 }
 
@@ -1961,7 +1966,6 @@ static int tegra_dc_parse_dt(struct tegra_dc *dc)
 
 static int tegra_dc_probe(struct platform_device *pdev)
 {
-	unsigned long flags = HOST1X_SYNCPT_CLIENT_MANAGED;
 	const struct of_device_id *id;
 	struct resource *regs;
 	struct tegra_dc *dc;
@@ -2036,10 +2040,6 @@ static int tegra_dc_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	dc->syncpt = host1x_syncpt_request(&pdev->dev, flags);
-	if (!dc->syncpt)
-		dev_warn(&pdev->dev, "failed to allocate syncpoint\n");
-
 	INIT_LIST_HEAD(&dc->client.list);
 	dc->client.ops = &dc_client_ops;
 	dc->client.dev = &pdev->dev;
@@ -2066,8 +2066,6 @@ static int tegra_dc_remove(struct platform_device *pdev)
 {
 	struct tegra_dc *dc = platform_get_drvdata(pdev);
 	int err;
-
-	host1x_syncpt_free(dc->syncpt);
 
 	err = host1x_client_unregister(&dc->client);
 	if (err < 0) {

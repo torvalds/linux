@@ -51,12 +51,12 @@ nouveau_display_vblank_handler(struct nvif_notify *notify)
 }
 
 int
-nouveau_display_vblank_enable(struct drm_device *dev, int head)
+nouveau_display_vblank_enable(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_crtc *crtc;
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		if (nv_crtc->index == head) {
+		if (nv_crtc->index == pipe) {
 			nvif_notify_get(&nv_crtc->vblank);
 			return 0;
 		}
@@ -65,12 +65,12 @@ nouveau_display_vblank_enable(struct drm_device *dev, int head)
 }
 
 void
-nouveau_display_vblank_disable(struct drm_device *dev, int head)
+nouveau_display_vblank_disable(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_crtc *crtc;
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		if (nv_crtc->index == head) {
+		if (nv_crtc->index == pipe) {
 			nvif_notify_put(&nv_crtc->vblank);
 			return;
 		}
@@ -103,6 +103,7 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 		.base.head = nouveau_crtc(crtc)->index,
 	};
 	struct nouveau_display *disp = nouveau_display(crtc->dev);
+	struct drm_vblank_crtc *vblank = &crtc->dev->vblank[drm_crtc_index(crtc)];
 	int ret, retry = 1;
 
 	do {
@@ -116,7 +117,7 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 			break;
 		}
 
-		if (retry) ndelay(crtc->linedur_ns);
+		if (retry) ndelay(vblank->linedur_ns);
 	} while (retry--);
 
 	*hpos = args.scan.hline;
@@ -131,13 +132,15 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 }
 
 int
-nouveau_display_scanoutpos(struct drm_device *dev, int head, unsigned int flags,
-			   int *vpos, int *hpos, ktime_t *stime, ktime_t *etime)
+nouveau_display_scanoutpos(struct drm_device *dev, unsigned int pipe,
+			   unsigned int flags, int *vpos, int *hpos,
+			   ktime_t *stime, ktime_t *etime,
+			   const struct drm_display_mode *mode)
 {
 	struct drm_crtc *crtc;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (nouveau_crtc(crtc)->index == head) {
+		if (nouveau_crtc(crtc)->index == pipe) {
 			return nouveau_display_scanoutpos_head(crtc, vpos, hpos,
 							       stime, etime);
 		}
@@ -147,15 +150,15 @@ nouveau_display_scanoutpos(struct drm_device *dev, int head, unsigned int flags,
 }
 
 int
-nouveau_display_vblstamp(struct drm_device *dev, int head, int *max_error,
-			 struct timeval *time, unsigned flags)
+nouveau_display_vblstamp(struct drm_device *dev, unsigned int pipe,
+			 int *max_error, struct timeval *time, unsigned flags)
 {
 	struct drm_crtc *crtc;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (nouveau_crtc(crtc)->index == head) {
+		if (nouveau_crtc(crtc)->index == pipe) {
 			return drm_calc_vbltimestamp_from_scanoutpos(dev,
-					head, max_error, time, flags, crtc,
+					pipe, max_error, time, flags,
 					&crtc->hwmode);
 		}
 	}
@@ -506,9 +509,8 @@ nouveau_display_create(struct drm_device *dev)
 		int i;
 
 		for (i = 0, ret = -ENODEV; ret && i < ARRAY_SIZE(oclass); i++) {
-			ret = nvif_object_init(&drm->device.object,
-					       NVDRM_DISPLAY, oclass[i],
-					       NULL, 0, &disp->disp);
+			ret = nvif_object_init(&drm->device.object, 0,
+					       oclass[i], NULL, 0, &disp->disp);
 		}
 
 		if (ret == 0) {

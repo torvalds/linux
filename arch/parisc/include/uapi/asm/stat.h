@@ -36,37 +36,6 @@ struct stat {
 
 #define STAT_HAVE_NSEC
 
-struct hpux_stat64 {
-	unsigned int	st_dev;		/* dev_t is 32 bits on parisc */
-	unsigned int	st_ino;         /* 32 bits */
-	unsigned short	st_mode;	/* 16 bits */
-	unsigned short	st_nlink;	/* 16 bits */
-	unsigned short	st_reserved1;	/* old st_uid */
-	unsigned short	st_reserved2;	/* old st_gid */
-	unsigned int	st_rdev;
-	signed long long st_size;
-	signed int	st_atime;
-	unsigned int	st_spare1;
-	signed int	st_mtime;
-	unsigned int	st_spare2;
-	signed int	st_ctime;
-	unsigned int	st_spare3;
-	int		st_blksize;
-	unsigned long long st_blocks;
-	unsigned int	__unused1;	/* ACL stuff */
-	unsigned int	__unused2;	/* network */
-	unsigned int	__unused3;      /* network */
-	unsigned int	__unused4;	/* cnodes */
-	unsigned short	__unused5;	/* netsite */
-	short		st_fstype;
-	unsigned int	st_realdev;
-	unsigned short	st_basemode;
-	unsigned short	st_spareshort;
-	unsigned int	st_uid;
-	unsigned int	st_gid;
-	unsigned int	st_spare4[3];
-};
-
 /* This is the struct that 32-bit userspace applications are expecting.
  * How 64-bit apps are going to be compiled, I have no idea.  But at least
  * this way, we don't have a wrapper in the kernel.

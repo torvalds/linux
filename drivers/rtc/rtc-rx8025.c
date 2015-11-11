@@ -65,6 +65,7 @@
 
 static const struct i2c_device_id rx8025_id[] = {
 	{ "rx8025", 0 },
+	{ "rv8803", 1 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rx8025_id);
@@ -518,9 +519,8 @@ static int rx8025_probe(struct i2c_client *client,
 	}
 
 	rx8025 = devm_kzalloc(&client->dev, sizeof(*rx8025), GFP_KERNEL);
-	if (!rx8025) {
+	if (!rx8025)
 		return -ENOMEM;
-	}
 
 	rx8025->client = client;
 	i2c_set_clientdata(client, rx8025);

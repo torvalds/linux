@@ -1234,7 +1234,7 @@ vmci_transport_recv_connecting_server(struct sock *listener,
 	/* Callers of accept() will be be waiting on the listening socket, not
 	 * the pending socket.
 	 */
-	listener->sk_state_change(listener);
+	listener->sk_data_ready(listener);
 
 	return 0;
 

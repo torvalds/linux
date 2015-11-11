@@ -93,7 +93,7 @@ static int __pm_clk_add(struct device *dev, const char *con_id,
 			return -ENOMEM;
 		}
 	} else {
-		if (IS_ERR(clk) || !__clk_get(clk)) {
+		if (IS_ERR(clk)) {
 			kfree(ce);
 			return -ENOENT;
 		}
@@ -127,7 +127,9 @@ int pm_clk_add(struct device *dev, const char *con_id)
  * @clk: Clock pointer
  *
  * Add the clock to the list of clocks used for the power management of @dev.
- * It will increment refcount on clock pointer, use clk_put() on it when done.
+ * The power-management code will take control of the clock reference, so
+ * callers should not call clk_put() on @clk after this function sucessfully
+ * returned.
  */
 int pm_clk_add_clk(struct device *dev, struct clk *clk)
 {

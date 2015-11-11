@@ -904,7 +904,7 @@ void *memchr_inv(const void *start, int c, size_t bytes)
 
 	value64 = value;
 #if defined(CONFIG_ARCH_HAS_FAST_MULTIPLIER) && BITS_PER_LONG == 64
-	value64 *= 0x0101010101010101;
+	value64 *= 0x0101010101010101ULL;
 #elif defined(CONFIG_ARCH_HAS_FAST_MULTIPLIER)
 	value64 *= 0x01010101;
 	value64 |= value64 << 32;

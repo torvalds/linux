@@ -6360,9 +6360,6 @@ static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
 	u64 objectid;
 	u64 index = 0;
 
-	if (!new_valid_dev(rdev))
-		return -EINVAL;
-
 	/*
 	 * 2 for inode item and ref
 	 * 2 for dir items

@@ -858,9 +858,9 @@ struct ubifs_compressor {
  * @mod_dent: non-zero if the operation removes or modifies an existing
  *            directory entry
  * @new_ino: non-zero if the operation adds a new inode
- * @new_ino_d: now much data newly created inode contains
+ * @new_ino_d: how much data newly created inode contains
  * @dirtied_ino: how many inodes the operation makes dirty
- * @dirtied_ino_d: now much data dirtied inode contains
+ * @dirtied_ino_d: how much data dirtied inode contains
  * @idx_growth: how much the index will supposedly grow
  * @data_growth: how much new data the operation will supposedly add
  * @dd_growth: how much data that makes other data dirty the operation will
@@ -1746,6 +1746,9 @@ int ubifs_calc_dark(const struct ubifs_info *c, int spc);
 /* file.c */
 int ubifs_fsync(struct file *file, loff_t start, loff_t end, int datasync);
 int ubifs_setattr(struct dentry *dentry, struct iattr *attr);
+#ifdef CONFIG_UBIFS_ATIME_SUPPORT
+int ubifs_update_time(struct inode *inode, struct timespec *time, int flags);
+#endif
 
 /* dir.c */
 struct inode *ubifs_new_inode(struct ubifs_info *c, const struct inode *dir,

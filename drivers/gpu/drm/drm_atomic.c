@@ -438,7 +438,8 @@ EXPORT_SYMBOL(drm_atomic_crtc_set_property);
  * consistent behavior you must call this function rather than the
  * driver hook directly.
  */
-int drm_atomic_crtc_get_property(struct drm_crtc *crtc,
+static int
+drm_atomic_crtc_get_property(struct drm_crtc *crtc,
 		const struct drm_crtc_state *state,
 		struct drm_property *property, uint64_t *val)
 {
@@ -663,6 +664,25 @@ drm_atomic_plane_get_property(struct drm_plane *plane,
 	return 0;
 }
 
+static bool
+plane_switching_crtc(struct drm_atomic_state *state,
+		     struct drm_plane *plane,
+		     struct drm_plane_state *plane_state)
+{
+	if (!plane->state->crtc || !plane_state->crtc)
+		return false;
+
+	if (plane->state->crtc == plane_state->crtc)
+		return false;
+
+	/* This could be refined, but currently there's no helper or driver code
+	 * to implement direct switching of active planes nor userspace to take
+	 * advantage of more direct plane switching without the intermediate
+	 * full OFF state.
+	 */
+	return true;
+}
+
 /**
  * drm_atomic_plane_check - check plane state
  * @plane: plane to check
@@ -732,6 +752,12 @@ static int drm_atomic_plane_check(struct drm_plane *plane,
 				 state->src_x >> 16, ((state->src_x & 0xffff) * 15625) >> 10,
 				 state->src_y >> 16, ((state->src_y & 0xffff) * 15625) >> 10);
 		return -ENOSPC;
+	}
+
+	if (plane_switching_crtc(state->state, plane, state)) {
+		DRM_DEBUG_ATOMIC("[PLANE:%d] switching CRTC directly\n",
+				 plane->base.id);
+		return -EINVAL;
 	}
 
 	return 0;

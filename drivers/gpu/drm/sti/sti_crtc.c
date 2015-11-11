@@ -299,7 +299,7 @@ int sti_crtc_vblank_cb(struct notifier_block *nb,
 	return 0;
 }
 
-int sti_crtc_enable_vblank(struct drm_device *dev, int crtc)
+int sti_crtc_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct sti_private *dev_priv = dev->dev_private;
 	struct sti_compositor *compo = dev_priv->compo;
@@ -307,9 +307,9 @@ int sti_crtc_enable_vblank(struct drm_device *dev, int crtc)
 
 	DRM_DEBUG_DRIVER("\n");
 
-	if (sti_vtg_register_client(crtc == STI_MIXER_MAIN ?
+	if (sti_vtg_register_client(pipe == STI_MIXER_MAIN ?
 			compo->vtg_main : compo->vtg_aux,
-			vtg_vblank_nb, crtc)) {
+			vtg_vblank_nb, pipe)) {
 		DRM_ERROR("Cannot register VTG notifier\n");
 		return -EINVAL;
 	}
@@ -318,7 +318,7 @@ int sti_crtc_enable_vblank(struct drm_device *dev, int crtc)
 }
 EXPORT_SYMBOL(sti_crtc_enable_vblank);
 
-void sti_crtc_disable_vblank(struct drm_device *drm_dev, int crtc)
+void sti_crtc_disable_vblank(struct drm_device *drm_dev, unsigned int pipe)
 {
 	struct sti_private *priv = drm_dev->dev_private;
 	struct sti_compositor *compo = priv->compo;
@@ -326,14 +326,14 @@ void sti_crtc_disable_vblank(struct drm_device *drm_dev, int crtc)
 
 	DRM_DEBUG_DRIVER("\n");
 
-	if (sti_vtg_unregister_client(crtc == STI_MIXER_MAIN ?
+	if (sti_vtg_unregister_client(pipe == STI_MIXER_MAIN ?
 			compo->vtg_main : compo->vtg_aux, vtg_vblank_nb))
 		DRM_DEBUG_DRIVER("Warning: cannot unregister VTG notifier\n");
 
 	/* free the resources of the pending requests */
-	if (compo->mixer[crtc]->pending_event) {
-		drm_vblank_put(drm_dev, crtc);
-		compo->mixer[crtc]->pending_event = NULL;
+	if (compo->mixer[pipe]->pending_event) {
+		drm_vblank_put(drm_dev, pipe);
+		compo->mixer[pipe]->pending_event = NULL;
 	}
 }
 EXPORT_SYMBOL(sti_crtc_disable_vblank);

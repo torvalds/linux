@@ -1,0 +1,60 @@
+UniPhier outer cache controller
+
+UniPhier SoCs are integrated with a full-custom outer cache controller system.
+All of them have a level 2 cache controller, and some have a level 3 cache
+controller as well.
+
+Required properties:
+- compatible: should be "socionext,uniphier-system-cache"
+- reg: offsets and lengths of the register sets for the device.  It should
+  contain 3 regions: control register, revision register, operation register,
+  in this order.
+- cache-unified: specifies the cache is a unified cache.
+- cache-size: specifies the size in bytes of the cache
+- cache-sets: specifies the number of associativity sets of the cache
+- cache-line-size: specifies the line size in bytes
+- cache-level: specifies the level in the cache hierarchy.  The value should
+  be 2 for L2 cache, 3 for L3 cache, etc.
+
+Optional properties:
+- next-level-cache: phandle to the next level cache if present.  The next level
+  cache should be also compatible with "socionext,uniphier-system-cache".
+
+The L2 cache must exist to use the L3 cache; the cache hierarchy must be
+indicated correctly with "next-level-cache" properties.
+
+Example 1 (system with L2):
+	l2: l2-cache@500c0000 {
+		compatible = "socionext,uniphier-system-cache";
+		reg = <0x500c0000 0x2000>, <0x503c0100 0x4>,
+		      <0x506c0000 0x400>;
+		cache-unified;
+		cache-size = <0x80000>;
+		cache-sets = <256>;
+		cache-line-size = <128>;
+		cache-level = <2>;
+	};
+
+Example 2 (system with L2 and L3):
+	l2: l2-cache@500c0000 {
+		compatible = "socionext,uniphier-system-cache";
+		reg = <0x500c0000 0x2000>, <0x503c0100 0x8>,
+		      <0x506c0000 0x400>;
+		cache-unified;
+		cache-size = <0x200000>;
+		cache-sets = <512>;
+		cache-line-size = <128>;
+		cache-level = <2>;
+		next-level-cache = <&l3>;
+	};
+
+	l3: l3-cache@500c8000 {
+		compatible = "socionext,uniphier-system-cache";
+		reg = <0x500c8000 0x2000>, <0x503c8100 0x8>,
+		      <0x506c8000 0x400>;
+		cache-unified;
+		cache-size = <0x400000>;
+		cache-sets = <512>;
+		cache-line-size = <256>;
+		cache-level = <3>;
+	};

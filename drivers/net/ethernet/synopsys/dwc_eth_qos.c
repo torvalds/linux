@@ -2970,8 +2970,7 @@ err_out_unregister_netdev:
 err_out_clk_dis_aper:
 	clk_disable_unprepare(lp->apb_pclk);
 err_out_free_netdev:
-	if (lp->phy_node)
-		of_node_put(lp->phy_node);
+	of_node_put(lp->phy_node);
 	free_netdev(ndev);
 	platform_set_drvdata(pdev, NULL);
 	return ret;

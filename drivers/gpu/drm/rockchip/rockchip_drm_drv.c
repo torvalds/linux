@@ -19,6 +19,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_of.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
 #include <linux/module.h>
@@ -103,7 +104,8 @@ static struct drm_crtc *rockchip_crtc_from_pipe(struct drm_device *drm,
 	return NULL;
 }
 
-static int rockchip_drm_crtc_enable_vblank(struct drm_device *dev, int pipe)
+static int rockchip_drm_crtc_enable_vblank(struct drm_device *dev,
+					   unsigned int pipe)
 {
 	struct rockchip_drm_private *priv = dev->dev_private;
 	struct drm_crtc *crtc = rockchip_crtc_from_pipe(dev, pipe);
@@ -115,7 +117,8 @@ static int rockchip_drm_crtc_enable_vblank(struct drm_device *dev, int pipe)
 	return 0;
 }
 
-static void rockchip_drm_crtc_disable_vblank(struct drm_device *dev, int pipe)
+static void rockchip_drm_crtc_disable_vblank(struct drm_device *dev,
+					     unsigned int pipe)
 {
 	struct rockchip_drm_private *priv = dev->dev_private;
 	struct drm_crtc *crtc = rockchip_crtc_from_pipe(dev, pipe);
@@ -277,7 +280,7 @@ static struct drm_driver rockchip_drm_driver = {
 	.load			= rockchip_drm_load,
 	.unload			= rockchip_drm_unload,
 	.lastclose		= rockchip_drm_lastclose,
-	.get_vblank_counter	= drm_vblank_count,
+	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= rockchip_drm_crtc_enable_vblank,
 	.disable_vblank		= rockchip_drm_crtc_disable_vblank,
 	.gem_vm_ops		= &rockchip_drm_vm_ops,
@@ -416,29 +419,6 @@ static int compare_of(struct device *dev, void *data)
 	return dev->of_node == np;
 }
 
-static void rockchip_add_endpoints(struct device *dev,
-				   struct component_match **match,
-				   struct device_node *port)
-{
-	struct device_node *ep, *remote;
-
-	for_each_child_of_node(port, ep) {
-		remote = of_graph_get_remote_port_parent(ep);
-		if (!remote || !of_device_is_available(remote)) {
-			of_node_put(remote);
-			continue;
-		} else if (!of_device_is_available(remote->parent)) {
-			dev_warn(dev, "parent device of %s is not available\n",
-				 remote->full_name);
-			of_node_put(remote);
-			continue;
-		}
-
-		component_match_add(dev, match, compare_of, remote);
-		of_node_put(remote);
-	}
-}
-
 static int rockchip_drm_bind(struct device *dev)
 {
 	struct drm_device *drm;
@@ -481,61 +461,14 @@ static const struct component_master_ops rockchip_drm_ops = {
 
 static int rockchip_drm_platform_probe(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	struct component_match *match = NULL;
-	struct device_node *np = dev->of_node;
-	struct device_node *port;
-	int i;
+	int ret = drm_of_component_probe(&pdev->dev, compare_of,
+					 &rockchip_drm_ops);
 
-	if (!np)
+	/* keep compatibility with old code that was returning -ENODEV */
+	if (ret == -EINVAL)
 		return -ENODEV;
-	/*
-	 * Bind the crtc ports first, so that
-	 * drm_of_find_possible_crtcs called from encoder .bind callbacks
-	 * works as expected.
-	 */
-	for (i = 0;; i++) {
-		port = of_parse_phandle(np, "ports", i);
-		if (!port)
-			break;
 
-		if (!of_device_is_available(port->parent)) {
-			of_node_put(port);
-			continue;
-		}
-
-		component_match_add(dev, &match, compare_of, port->parent);
-		of_node_put(port);
-	}
-
-	if (i == 0) {
-		dev_err(dev, "missing 'ports' property\n");
-		return -ENODEV;
-	}
-
-	if (!match) {
-		dev_err(dev, "No available vop found for display-subsystem.\n");
-		return -ENODEV;
-	}
-	/*
-	 * For each bound crtc, bind the encoders attached to its
-	 * remote endpoint.
-	 */
-	for (i = 0;; i++) {
-		port = of_parse_phandle(np, "ports", i);
-		if (!port)
-			break;
-
-		if (!of_device_is_available(port->parent)) {
-			of_node_put(port);
-			continue;
-		}
-
-		rockchip_add_endpoints(dev, &match, port);
-		of_node_put(port);
-	}
-
-	return component_master_add_with_match(dev, &rockchip_drm_ops, match);
+	return ret;
 }
 
 static int rockchip_drm_platform_remove(struct platform_device *pdev)

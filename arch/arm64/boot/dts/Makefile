@@ -1,3 +1,4 @@
+dts-dirs += altera
 dts-dirs += amd
 dts-dirs += apm
 dts-dirs += arm

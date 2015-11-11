@@ -246,7 +246,7 @@
 		d8 {
 			label = "d8";
 			gpios = <&pioD 30 GPIO_ACTIVE_HIGH>;
-			status = "disabled";
+			default-state = "on";
 		};
 
 		d10 {

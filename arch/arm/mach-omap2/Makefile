@@ -48,11 +48,9 @@ AFLAGS_sleep44xx.o			:=-Wa,-march=armv7-a$(plus_sec)
 # Functions loaded to SRAM
 obj-$(CONFIG_SOC_OMAP2420)		+= sram242x.o
 obj-$(CONFIG_SOC_OMAP2430)		+= sram243x.o
-obj-$(CONFIG_ARCH_OMAP3)		+= sram34xx.o
 
 AFLAGS_sram242x.o			:=-Wa,-march=armv6
 AFLAGS_sram243x.o			:=-Wa,-march=armv6
-AFLAGS_sram34xx.o			:=-Wa,-march=armv7-a
 
 # Restart code (OMAP4/5 currently in omap4-common.c)
 obj-$(CONFIG_SOC_OMAP2420)		+= omap2-restart.o
@@ -186,7 +184,6 @@ obj-$(CONFIG_ARCH_OMAP2)		+= clkt2xxx_dpllcore.o
 obj-$(CONFIG_ARCH_OMAP2)		+= clkt2xxx_virt_prcm_set.o
 obj-$(CONFIG_ARCH_OMAP2)		+= clkt2xxx_dpll.o
 obj-$(CONFIG_ARCH_OMAP3)		+= $(clock-common)
-obj-$(CONFIG_ARCH_OMAP3)		+= clkt34xx_dpll3m2.o
 obj-$(CONFIG_ARCH_OMAP4)		+= $(clock-common)
 obj-$(CONFIG_SOC_AM33XX)		+= $(clock-common)
 obj-$(CONFIG_SOC_OMAP5)			+= $(clock-common)

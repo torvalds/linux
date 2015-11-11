@@ -30,38 +30,49 @@
  */
 #define MAX_PORTS 5
 
+/**
+ * struct i915_audio_component_ops - callbacks defined in gfx driver
+ * @owner: the module owner
+ * @get_power: get the POWER_DOMAIN_AUDIO power well
+ * @put_power: put the POWER_DOMAIN_AUDIO power well
+ * @codec_wake_override: Enable/Disable generating the codec wake signal
+ * @get_cdclk_freq: get the Core Display Clock in KHz
+ * @sync_audio_rate: set n/cts based on the sample rate
+ */
+struct i915_audio_component_ops {
+	struct module *owner;
+	void (*get_power)(struct device *);
+	void (*put_power)(struct device *);
+	void (*codec_wake_override)(struct device *, bool enable);
+	int (*get_cdclk_freq)(struct device *);
+	int (*sync_audio_rate)(struct device *, int port, int rate);
+};
+
+struct i915_audio_component_audio_ops {
+	void *audio_ptr;
+	/**
+	 * Call from i915 driver, notifying the HDA driver that
+	 * pin sense and/or ELD information has changed.
+	 * @audio_ptr:		HDA driver object
+	 * @port:	Which port has changed (PORTA / PORTB / PORTC etc)
+	 */
+	void (*pin_eld_notify)(void *audio_ptr, int port);
+};
+
+/**
+ * struct i915_audio_component - used for audio video interaction
+ * @dev: the device from gfx driver
+ * @aud_sample_rate: the array of audio sample rate per port
+ * @ops: callback for audio driver calling
+ * @audio_ops: Call from i915 driver
+ */
 struct i915_audio_component {
 	struct device *dev;
-	/**
-	 * @aud_sample_rate: the array of audio sample rate per port
-	 */
 	int aud_sample_rate[MAX_PORTS];
 
-	const struct i915_audio_component_ops {
-		struct module *owner;
-		void (*get_power)(struct device *);
-		void (*put_power)(struct device *);
-		void (*codec_wake_override)(struct device *, bool enable);
-		int (*get_cdclk_freq)(struct device *);
-		/**
-		 * @sync_audio_rate: set n/cts based on the sample rate
-		 *
-		 * Called from audio driver. After audio driver sets the
-		 * sample rate, it will call this function to set n/cts
-		 */
-		int (*sync_audio_rate)(struct device *, int port, int rate);
-	} *ops;
+	const struct i915_audio_component_ops *ops;
 
-	const struct i915_audio_component_audio_ops {
-		void *audio_ptr;
-		/**
-		 * Call from i915 driver, notifying the HDA driver that
-		 * pin sense and/or ELD information has changed.
-		 * @audio_ptr:		HDA driver object
-		 * @port:		Which port has changed (PORTA / PORTB / PORTC etc)
-		 */
-		void (*pin_eld_notify)(void *audio_ptr, int port);
-	} *audio_ops;
+	const struct i915_audio_component_audio_ops *audio_ops;
 };
 
 #endif /* _I915_COMPONENT_H_ */

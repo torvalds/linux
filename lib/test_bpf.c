@@ -5056,6 +5056,36 @@ static struct bpf_test tests[] = {
 		{ {0x1, 0x0 } },
 	},
 	{
+		"MOD default X",
+		.u.insns = {
+			/*
+			 * A = 0x42
+			 * A = A mod X ; this halt the filter execution if X is 0
+			 * ret 0x42
+			 */
+			BPF_STMT(BPF_LD | BPF_IMM, 0x42),
+			BPF_STMT(BPF_ALU | BPF_MOD | BPF_X, 0),
+			BPF_STMT(BPF_RET | BPF_K, 0x42),
+		},
+		CLASSIC | FLAG_NO_DATA,
+		{},
+		{ {0x1, 0x0 } },
+	},
+	{
+		"MOD default A",
+		.u.insns = {
+			/*
+			 * A = A mod 1
+			 * ret A
+			 */
+			BPF_STMT(BPF_ALU | BPF_MOD | BPF_K, 0x1),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC | FLAG_NO_DATA,
+		{},
+		{ {0x1, 0x0 } },
+	},
+	{
 		"JMP EQ default A",
 		.u.insns = {
 			/*

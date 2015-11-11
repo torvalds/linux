@@ -426,7 +426,7 @@ static inline struct ppa_addr block_to_ppa(struct nvm_dev *dev,
 	return ppa;
 }
 
-typedef void (nvm_tgt_make_rq_fn)(struct request_queue *, struct bio *);
+typedef blk_qc_t (nvm_tgt_make_rq_fn)(struct request_queue *, struct bio *);
 typedef sector_t (nvm_tgt_capacity_fn)(void *);
 typedef int (nvm_tgt_end_io_fn)(struct nvm_rq *, int);
 typedef void *(nvm_tgt_init_fn)(struct nvm_dev *, struct gendisk *, int, int);

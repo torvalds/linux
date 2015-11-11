@@ -18,10 +18,14 @@ Required properties :
 - #clock-cells : shall contain 1
 - #reset-cells : shall contain 1
 
+Optional properties :
+- #power-domain-cells : shall contain 1
+
 Example:
 	clock-controller@900000 {
 		compatible = "qcom,gcc-msm8960";
 		reg = <0x900000 0x4000>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
+		#power-domain-cells = <1>;
 	};

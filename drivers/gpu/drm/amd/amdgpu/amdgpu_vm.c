@@ -90,11 +90,9 @@ struct amdgpu_bo_list_entry *amdgpu_vm_get_bos(struct amdgpu_device *adev,
 	struct amdgpu_bo_list_entry *list;
 	unsigned i, idx;
 
-	mutex_lock(&vm->mutex);
 	list = drm_malloc_ab(vm->max_pde_used + 2,
 			     sizeof(struct amdgpu_bo_list_entry));
 	if (!list) {
-		mutex_unlock(&vm->mutex);
 		return NULL;
 	}
 
@@ -119,7 +117,6 @@ struct amdgpu_bo_list_entry *amdgpu_vm_get_bos(struct amdgpu_device *adev,
 		list[idx].tv.shared = true;
 		list_add(&list[idx++].tv.head, head);
 	}
-	mutex_unlock(&vm->mutex);
 
 	return list;
 }
@@ -138,7 +135,7 @@ struct amdgpu_bo_list_entry *amdgpu_vm_get_bos(struct amdgpu_device *adev,
 int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		      struct amdgpu_sync *sync)
 {
-	struct amdgpu_fence *best[AMDGPU_MAX_RINGS] = {};
+	struct fence *best[AMDGPU_MAX_RINGS] = {};
 	struct amdgpu_vm_id *vm_id = &vm->ids[ring->idx];
 	struct amdgpu_device *adev = ring->adev;
 
@@ -147,15 +144,18 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 
 	/* check if the id is still valid */
 	if (vm_id->id && vm_id->last_id_use &&
-	    vm_id->last_id_use == adev->vm_manager.active[vm_id->id])
+	    vm_id->last_id_use == adev->vm_manager.active[vm_id->id]) {
+		trace_amdgpu_vm_grab_id(vm_id->id, ring->idx);
 		return 0;
+	}
 
 	/* we definately need to flush */
 	vm_id->pd_gpu_addr = ~0ll;
 
 	/* skip over VMID 0, since it is the system VM */
 	for (i = 1; i < adev->vm_manager.nvm; ++i) {
-		struct amdgpu_fence *fence = adev->vm_manager.active[i];
+		struct fence *fence = adev->vm_manager.active[i];
+		struct amdgpu_ring *fring;
 
 		if (fence == NULL) {
 			/* found a free one */
@@ -164,21 +164,23 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 			return 0;
 		}
 
-		if (amdgpu_fence_is_earlier(fence, best[fence->ring->idx])) {
-			best[fence->ring->idx] = fence;
-			choices[fence->ring == ring ? 0 : 1] = i;
+		fring = amdgpu_ring_from_fence(fence);
+		if (best[fring->idx] == NULL ||
+		    fence_is_later(best[fring->idx], fence)) {
+			best[fring->idx] = fence;
+			choices[fring == ring ? 0 : 1] = i;
 		}
 	}
 
 	for (i = 0; i < 2; ++i) {
 		if (choices[i]) {
-			struct amdgpu_fence *fence;
+			struct fence *fence;
 
 			fence  = adev->vm_manager.active[choices[i]];
 			vm_id->id = choices[i];
 
 			trace_amdgpu_vm_grab_id(choices[i], ring->idx);
-			return amdgpu_sync_fence(ring->adev, sync, &fence->base);
+			return amdgpu_sync_fence(ring->adev, sync, fence);
 		}
 	}
 
@@ -247,11 +249,11 @@ void amdgpu_vm_fence(struct amdgpu_device *adev,
 	unsigned ridx = fence->ring->idx;
 	unsigned vm_id = vm->ids[ridx].id;
 
-	amdgpu_fence_unref(&adev->vm_manager.active[vm_id]);
-	adev->vm_manager.active[vm_id] = amdgpu_fence_ref(fence);
+	fence_put(adev->vm_manager.active[vm_id]);
+	adev->vm_manager.active[vm_id] = fence_get(&fence->base);
 
-	amdgpu_fence_unref(&vm->ids[ridx].last_id_use);
-	vm->ids[ridx].last_id_use = amdgpu_fence_ref(fence);
+	fence_put(vm->ids[ridx].last_id_use);
+	vm->ids[ridx].last_id_use = fence_get(&fence->base);
 }
 
 /**
@@ -852,6 +854,14 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 			return r;
 	}
 
+	if (trace_amdgpu_vm_bo_mapping_enabled()) {
+		list_for_each_entry(mapping, &bo_va->valids, list)
+			trace_amdgpu_vm_bo_mapping(mapping);
+
+		list_for_each_entry(mapping, &bo_va->invalids, list)
+			trace_amdgpu_vm_bo_mapping(mapping);
+	}
+
 	spin_lock(&vm->status_lock);
 	list_splice_init(&bo_va->invalids, &bo_va->valids);
 	list_del_init(&bo_va->vm_status);
@@ -962,9 +972,7 @@ struct amdgpu_bo_va *amdgpu_vm_bo_add(struct amdgpu_device *adev,
 	INIT_LIST_HEAD(&bo_va->invalids);
 	INIT_LIST_HEAD(&bo_va->vm_status);
 
-	mutex_lock(&vm->mutex);
 	list_add_tail(&bo_va->bo_list, &bo->va);
-	mutex_unlock(&vm->mutex);
 
 	return bo_va;
 }
@@ -1017,8 +1025,6 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 		return -EINVAL;
 	}
 
-	mutex_lock(&vm->mutex);
-
 	saddr /= AMDGPU_GPU_PAGE_SIZE;
 	eaddr /= AMDGPU_GPU_PAGE_SIZE;
 
@@ -1032,14 +1038,14 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 			tmp->it.start, tmp->it.last + 1);
 		amdgpu_bo_unreserve(bo_va->bo);
 		r = -EINVAL;
-		goto error_unlock;
+		goto error;
 	}
 
 	mapping = kmalloc(sizeof(*mapping), GFP_KERNEL);
 	if (!mapping) {
 		amdgpu_bo_unreserve(bo_va->bo);
 		r = -ENOMEM;
-		goto error_unlock;
+		goto error;
 	}
 
 	INIT_LIST_HEAD(&mapping->list);
@@ -1071,9 +1077,6 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 		if (vm->page_tables[pt_idx].bo)
 			continue;
 
-		/* drop mutex to allocate and clear page table */
-		mutex_unlock(&vm->mutex);
-
 		ww_mutex_lock(&resv->lock, NULL);
 		r = amdgpu_bo_create(adev, AMDGPU_VM_PTE_COUNT * 8,
 				     AMDGPU_GPU_PAGE_SIZE, true,
@@ -1090,32 +1093,19 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 			goto error_free;
 		}
 
-		/* aquire mutex again */
-		mutex_lock(&vm->mutex);
-		if (vm->page_tables[pt_idx].bo) {
-			/* someone else allocated the pt in the meantime */
-			mutex_unlock(&vm->mutex);
-			amdgpu_bo_unref(&pt);
-			mutex_lock(&vm->mutex);
-			continue;
-		}
-
 		vm->page_tables[pt_idx].addr = 0;
 		vm->page_tables[pt_idx].bo = pt;
 	}
 
-	mutex_unlock(&vm->mutex);
 	return 0;
 
 error_free:
-	mutex_lock(&vm->mutex);
 	list_del(&mapping->list);
 	interval_tree_remove(&mapping->it, &vm->va);
 	trace_amdgpu_vm_bo_unmap(bo_va, mapping);
 	kfree(mapping);
 
-error_unlock:
-	mutex_unlock(&vm->mutex);
+error:
 	return r;
 }
 
@@ -1160,7 +1150,6 @@ int amdgpu_vm_bo_unmap(struct amdgpu_device *adev,
 		}
 	}
 
-	mutex_lock(&vm->mutex);
 	list_del(&mapping->list);
 	interval_tree_remove(&mapping->it, &vm->va);
 	trace_amdgpu_vm_bo_unmap(bo_va, mapping);
@@ -1169,7 +1158,6 @@ int amdgpu_vm_bo_unmap(struct amdgpu_device *adev,
 		list_add(&mapping->list, &vm->freed);
 	else
 		kfree(mapping);
-	mutex_unlock(&vm->mutex);
 	amdgpu_bo_unreserve(bo_va->bo);
 
 	return 0;
@@ -1193,8 +1181,6 @@ void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 
 	list_del(&bo_va->bo_list);
 
-	mutex_lock(&vm->mutex);
-
 	spin_lock(&vm->status_lock);
 	list_del(&bo_va->vm_status);
 	spin_unlock(&vm->status_lock);
@@ -1213,8 +1199,6 @@ void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 
 	fence_put(bo_va->last_pt_update);
 	kfree(bo_va);
-
-	mutex_unlock(&vm->mutex);
 }
 
 /**
@@ -1332,7 +1316,7 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 		fence_put(vm->ids[i].flushed_updates);
-		amdgpu_fence_unref(&vm->ids[i].last_id_use);
+		fence_put(vm->ids[i].last_id_use);
 	}
 
 	mutex_destroy(&vm->mutex);

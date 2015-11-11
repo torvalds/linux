@@ -39,6 +39,8 @@ struct drm_i915_file_private;
 typedef uint32_t gen6_pte_t;
 typedef uint64_t gen8_pte_t;
 typedef uint64_t gen8_pde_t;
+typedef uint64_t gen8_ppgtt_pdpe_t;
+typedef uint64_t gen8_ppgtt_pml4e_t;
 
 #define gtt_total_entries(gtt) ((gtt).base.total >> PAGE_SHIFT)
 
@@ -88,15 +90,27 @@ typedef uint64_t gen8_pde_t;
  * PDPE  |  PDE  |  PTE  | offset
  * The difference as compared to normal x86 3 level page table is the PDPEs are
  * programmed via register.
+ *
+ * GEN8 48b legacy style address is defined as a 4 level page table:
+ * 47:39 | 38:30 | 29:21 | 20:12 |  11:0
+ * PML4E | PDPE  |  PDE  |  PTE  | offset
  */
+#define GEN8_PML4ES_PER_PML4		512
+#define GEN8_PML4E_SHIFT		39
+#define GEN8_PML4E_MASK			(GEN8_PML4ES_PER_PML4 - 1)
 #define GEN8_PDPE_SHIFT			30
-#define GEN8_PDPE_MASK			0x3
+/* NB: GEN8_PDPE_MASK is untrue for 32b platforms, but it has no impact on 32b page
+ * tables */
+#define GEN8_PDPE_MASK			0x1ff
 #define GEN8_PDE_SHIFT			21
 #define GEN8_PDE_MASK			0x1ff
 #define GEN8_PTE_SHIFT			12
 #define GEN8_PTE_MASK			0x1ff
 #define GEN8_LEGACY_PDPES		4
 #define GEN8_PTES			I915_PTES(sizeof(gen8_pte_t))
+
+#define I915_PDPES_PER_PDP(dev) (USES_FULL_48BIT_PPGTT(dev) ?\
+				 GEN8_PML4ES_PER_PML4 : GEN8_LEGACY_PDPES)
 
 #define PPAT_UNCACHED_INDEX		(_PAGE_PWT | _PAGE_PCD)
 #define PPAT_CACHED_PDE_INDEX		0 /* WB LLC */
@@ -124,10 +138,14 @@ enum i915_ggtt_view_type {
 struct intel_rotation_info {
 	unsigned int height;
 	unsigned int pitch;
+	unsigned int uv_offset;
 	uint32_t pixel_format;
 	uint64_t fb_modifier;
 	unsigned int width_pages, height_pages;
 	uint64_t size;
+	unsigned int width_pages_uv, height_pages_uv;
+	uint64_t size_uv;
+	unsigned int uv_start_page;
 };
 
 struct i915_ggtt_view {
@@ -135,7 +153,7 @@ struct i915_ggtt_view {
 
 	union {
 		struct {
-			unsigned long offset;
+			u64 offset;
 			unsigned int size;
 		} partial;
 	} params;
@@ -241,9 +259,17 @@ struct i915_page_directory {
 };
 
 struct i915_page_directory_pointer {
-	/* struct page *page; */
-	DECLARE_BITMAP(used_pdpes, GEN8_LEGACY_PDPES);
-	struct i915_page_directory *page_directory[GEN8_LEGACY_PDPES];
+	struct i915_page_dma base;
+
+	unsigned long *used_pdpes;
+	struct i915_page_directory **page_directory;
+};
+
+struct i915_pml4 {
+	struct i915_page_dma base;
+
+	DECLARE_BITMAP(used_pml4es, GEN8_PML4ES_PER_PML4);
+	struct i915_page_directory_pointer *pdps[GEN8_PML4ES_PER_PML4];
 };
 
 struct i915_address_space {
@@ -256,6 +282,7 @@ struct i915_address_space {
 	struct i915_page_scratch *scratch_page;
 	struct i915_page_table *scratch_pt;
 	struct i915_page_directory *scratch_pd;
+	struct i915_page_directory_pointer *scratch_pdp; /* GEN8+ & 48b PPGTT */
 
 	/**
 	 * List of objects currently involved in rendering.
@@ -318,6 +345,7 @@ struct i915_gtt {
 	struct i915_address_space base;
 
 	size_t stolen_size;		/* Total size of stolen memory */
+	size_t stolen_usable_size;	/* Total size minus BIOS reserved */
 	u64 mappable_end;		/* End offset that we can CPU map */
 	struct io_mapping *mappable;	/* Mapping to our CPU mappable region */
 	phys_addr_t mappable_base;	/* PA of our GMADR */
@@ -341,8 +369,9 @@ struct i915_hw_ppgtt {
 	struct drm_mm_node node;
 	unsigned long pd_dirty_rings;
 	union {
-		struct i915_page_directory_pointer pdp;
-		struct i915_page_directory pd;
+		struct i915_pml4 pml4;		/* GEN8+ & 48b PPGTT */
+		struct i915_page_directory_pointer pdp;	/* GEN8+ */
+		struct i915_page_directory pd;		/* GEN6-7 */
 	};
 
 	struct drm_i915_file_private *file_priv;
@@ -365,7 +394,8 @@ struct i915_hw_ppgtt {
  */
 #define gen6_for_each_pde(pt, pd, start, length, temp, iter) \
 	for (iter = gen6_pde_index(start); \
-	     pt = (pd)->page_table[iter], length > 0 && iter < I915_PDES; \
+	     length > 0 && iter < I915_PDES ? \
+			(pt = (pd)->page_table[iter]), 1 : 0; \
 	     iter++, \
 	     temp = ALIGN(start+1, 1 << GEN6_PDE_SHIFT) - start, \
 	     temp = min_t(unsigned, temp, length), \
@@ -430,30 +460,30 @@ static inline uint32_t gen6_pde_index(uint32_t addr)
  */
 #define gen8_for_each_pde(pt, pd, start, length, temp, iter)		\
 	for (iter = gen8_pde_index(start); \
-	     pt = (pd)->page_table[iter], length > 0 && iter < I915_PDES;	\
+	     length > 0 && iter < I915_PDES ? \
+			(pt = (pd)->page_table[iter]), 1 : 0; \
 	     iter++,				\
 	     temp = ALIGN(start+1, 1 << GEN8_PDE_SHIFT) - start,	\
 	     temp = min(temp, length),					\
 	     start += temp, length -= temp)
 
-#define gen8_for_each_pdpe(pd, pdp, start, length, temp, iter)		\
-	for (iter = gen8_pdpe_index(start);	\
-	     pd = (pdp)->page_directory[iter], length > 0 && iter < GEN8_LEGACY_PDPES;	\
+#define gen8_for_each_pdpe(pd, pdp, start, length, temp, iter)	\
+	for (iter = gen8_pdpe_index(start); \
+	     length > 0 && (iter < I915_PDPES_PER_PDP(dev)) ? \
+			(pd = (pdp)->page_directory[iter]), 1 : 0; \
 	     iter++,				\
 	     temp = ALIGN(start+1, 1 << GEN8_PDPE_SHIFT) - start,	\
 	     temp = min(temp, length),					\
 	     start += temp, length -= temp)
 
-/* Clamp length to the next page_directory boundary */
-static inline uint64_t gen8_clamp_pd(uint64_t start, uint64_t length)
-{
-	uint64_t next_pd = ALIGN(start + 1, 1 << GEN8_PDPE_SHIFT);
-
-	if (next_pd > (start + length))
-		return length;
-
-	return next_pd - start;
-}
+#define gen8_for_each_pml4e(pdp, pml4, start, length, temp, iter)	\
+	for (iter = gen8_pml4e_index(start);	\
+	     length > 0 && iter < GEN8_PML4ES_PER_PML4 ? \
+			(pdp = (pml4)->pdps[iter]), 1 : 0; \
+	     iter++,				\
+	     temp = ALIGN(start+1, 1ULL << GEN8_PML4E_SHIFT) - start,	\
+	     temp = min(temp, length),					\
+	     start += temp, length -= temp)
 
 static inline uint32_t gen8_pte_index(uint64_t address)
 {
@@ -472,8 +502,7 @@ static inline uint32_t gen8_pdpe_index(uint64_t address)
 
 static inline uint32_t gen8_pml4e_index(uint64_t address)
 {
-	WARN_ON(1); /* For 64B */
-	return 0;
+	return (address >> GEN8_PML4E_SHIFT) & GEN8_PML4E_MASK;
 }
 
 static inline size_t gen8_pte_count(uint64_t address, uint64_t length)
