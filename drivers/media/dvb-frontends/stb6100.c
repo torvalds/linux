@@ -502,49 +502,22 @@ static int stb6100_init(struct dvb_frontend *fe)
 	 * iqsense = 1
 	 * tunerstep = 125000
 	 */
-	state->bandwidth	= 36000000;	/* Hz	*/
+	state->bandwidth        = 36000000;		/* Hz	*/
 	state->reference	= refclk / 1000;	/* kHz	*/
 
 	/* Set default bandwidth. Modified, PN 13-May-10	*/
 	return 0;
 }
 
-static int stb6100_get_state(struct dvb_frontend *fe,
-			     enum tuner_param param,
-			     struct tuner_state *state)
+static int stb6100_set_params(struct dvb_frontend *fe)
 {
-	switch (param) {
-	case DVBFE_TUNER_FREQUENCY:
-		stb6100_get_frequency(fe, &state->frequency);
-		break;
-	case DVBFE_TUNER_BANDWIDTH:
-		stb6100_get_bandwidth(fe, &state->bandwidth);
-		break;
-	default:
-		break;
-	}
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
-	return 0;
-}
+	if (c->frequency > 0)
+		stb6100_set_frequency(fe, c->frequency);
 
-static int stb6100_set_state(struct dvb_frontend *fe,
-			     enum tuner_param param,
-			     struct tuner_state *state)
-{
-	struct stb6100_state *tstate = fe->tuner_priv;
-
-	switch (param) {
-	case DVBFE_TUNER_FREQUENCY:
-		stb6100_set_frequency(fe, state->frequency);
-		tstate->frequency = state->frequency;
-		break;
-	case DVBFE_TUNER_BANDWIDTH:
-		stb6100_set_bandwidth(fe, state->bandwidth);
-		tstate->bandwidth = state->bandwidth;
-		break;
-	default:
-		break;
-	}
+	if (c->bandwidth_hz > 0)
+		stb6100_set_bandwidth(fe, c->bandwidth_hz);
 
 	return 0;
 }
@@ -560,8 +533,9 @@ static struct dvb_tuner_ops stb6100_ops = {
 	.init		= stb6100_init,
 	.sleep          = stb6100_sleep,
 	.get_status	= stb6100_get_status,
-	.get_state	= stb6100_get_state,
-	.set_state	= stb6100_set_state,
+	.set_params	= stb6100_set_params,
+	.get_frequency  = stb6100_get_frequency,
+	.get_bandwidth  = stb6100_get_bandwidth,
 	.release	= stb6100_release
 };
 
