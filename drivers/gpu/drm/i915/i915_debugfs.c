@@ -2561,7 +2561,7 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 		   yesno(work_busy(&dev_priv->psr.work.work)));
 
 	if (HAS_DDI(dev))
-		enabled = I915_READ(EDP_PSR_CTL(dev)) & EDP_PSR_ENABLE;
+		enabled = I915_READ(EDP_PSR_CTL) & EDP_PSR_ENABLE;
 	else {
 		for_each_pipe(dev_priv, pipe) {
 			stat[pipe] = I915_READ(VLV_PSRSTAT(pipe)) &
@@ -2583,7 +2583,7 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 
 	/* CHV PSR has no kind of performance counter */
 	if (HAS_DDI(dev)) {
-		psrperf = I915_READ(EDP_PSR_PERF_CNT(dev)) &
+		psrperf = I915_READ(EDP_PSR_PERF_CNT) &
 			EDP_PSR_PERF_CNT_MASK;
 
 		seq_printf(m, "Performance_Counter: %u\n", psrperf);

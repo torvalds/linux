@@ -3075,8 +3075,9 @@ enum skl_disp_power_wells {
 #define VLV_PSRSTAT(pipe) _PIPE(pipe, _PSRSTATA, _PSRSTATB)
 
 /* HSW+ eDP PSR registers */
-#define EDP_PSR_BASE(dev)                       (IS_HASWELL(dev) ? 0x64800 : 0x6f800)
-#define EDP_PSR_CTL(dev)			(EDP_PSR_BASE(dev) + 0)
+#define HSW_EDP_PSR_BASE	0x64800
+#define BDW_EDP_PSR_BASE	0x6f800
+#define EDP_PSR_CTL				(dev_priv->psr_mmio_base + 0)
 #define   EDP_PSR_ENABLE			(1<<31)
 #define   BDW_PSR_SINGLE_FRAME			(1<<30)
 #define   EDP_PSR_LINK_STANDBY			(1<<27)
@@ -3099,10 +3100,10 @@ enum skl_disp_power_wells {
 #define   EDP_PSR_TP1_TIME_0us			(3<<4)
 #define   EDP_PSR_IDLE_FRAME_SHIFT		0
 
-#define EDP_PSR_AUX_CTL(dev)			(EDP_PSR_BASE(dev) + 0x10)
-#define EDP_PSR_AUX_DATA(dev, i)		(EDP_PSR_BASE(dev) + 0x14 + (i) * 4) /* 5 registers */
+#define EDP_PSR_AUX_CTL				(dev_priv->psr_mmio_base + 0x10)
+#define EDP_PSR_AUX_DATA(i)			(dev_priv->psr_mmio_base + 0x14 + (i) * 4) /* 5 registers */
 
-#define EDP_PSR_STATUS_CTL(dev)			(EDP_PSR_BASE(dev) + 0x40)
+#define EDP_PSR_STATUS_CTL			(dev_priv->psr_mmio_base + 0x40)
 #define   EDP_PSR_STATUS_STATE_MASK		(7<<29)
 #define   EDP_PSR_STATUS_STATE_IDLE		(0<<29)
 #define   EDP_PSR_STATUS_STATE_SRDONACK		(1<<29)
@@ -3126,10 +3127,10 @@ enum skl_disp_power_wells {
 #define   EDP_PSR_STATUS_SENDING_TP1		(1<<4)
 #define   EDP_PSR_STATUS_IDLE_MASK		0xf
 
-#define EDP_PSR_PERF_CNT(dev)		(EDP_PSR_BASE(dev) + 0x44)
+#define EDP_PSR_PERF_CNT		(dev_priv->psr_mmio_base + 0x44)
 #define   EDP_PSR_PERF_CNT_MASK		0xffffff
 
-#define EDP_PSR_DEBUG_CTL(dev)		(EDP_PSR_BASE(dev) + 0x60)
+#define EDP_PSR_DEBUG_CTL		(dev_priv->psr_mmio_base + 0x60)
 #define   EDP_PSR_DEBUG_MASK_LPSP	(1<<27)
 #define   EDP_PSR_DEBUG_MASK_MEMUP	(1<<26)
 #define   EDP_PSR_DEBUG_MASK_HPD	(1<<25)
