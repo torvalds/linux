@@ -342,6 +342,7 @@ static int restore_fbdev_mode_atomic(struct drm_fb_helper *fb_helper)
 	struct drm_plane *plane;
 	struct drm_atomic_state *state;
 	int i, ret;
+	unsigned plane_mask;
 
 	state = drm_atomic_state_alloc(dev);
 	if (!state)
@@ -349,10 +350,9 @@ static int restore_fbdev_mode_atomic(struct drm_fb_helper *fb_helper)
 
 	state->acquire_ctx = dev->mode_config.acquire_ctx;
 retry:
+	plane_mask = 0;
 	drm_for_each_plane(plane, dev) {
 		struct drm_plane_state *plane_state;
-
-		plane->old_fb = plane->fb;
 
 		plane_state = drm_atomic_get_plane_state(state, plane);
 		if (IS_ERR(plane_state)) {
@@ -361,6 +361,9 @@ retry:
 		}
 
 		plane_state->rotation = BIT(DRM_ROTATE_0);
+
+		plane->old_fb = plane->fb;
+		plane_mask |= 1 << drm_plane_index(plane);
 
 		/* disable non-primary: */
 		if (plane->type == DRM_PLANE_TYPE_PRIMARY)
@@ -382,19 +385,7 @@ retry:
 	ret = drm_atomic_commit(state);
 
 fail:
-	drm_for_each_plane(plane, dev) {
-		if (ret == 0) {
-			struct drm_framebuffer *new_fb = plane->state->fb;
-			if (new_fb)
-				drm_framebuffer_reference(new_fb);
-			plane->fb = new_fb;
-			plane->crtc = plane->state->crtc;
-
-			if (plane->old_fb)
-				drm_framebuffer_unreference(plane->old_fb);
-		}
-		plane->old_fb = NULL;
-	}
+	drm_atomic_clean_old_fb(dev, plane_mask, ret);
 
 	if (ret == -EDEADLK)
 		goto backoff;
