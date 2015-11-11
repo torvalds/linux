@@ -1446,7 +1446,7 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 	struct drm_plane *plane;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
-	unsigned plane_mask = 0;
+	unsigned plane_mask;
 	int ret = 0;
 	unsigned int i, j;
 
@@ -1486,6 +1486,7 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 	state->allow_modeset = !!(arg->flags & DRM_MODE_ATOMIC_ALLOW_MODESET);
 
 retry:
+	plane_mask = 0;
 	copied_objs = 0;
 	copied_props = 0;
 
