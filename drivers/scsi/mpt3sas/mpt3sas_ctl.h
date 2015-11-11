@@ -50,10 +50,13 @@
 #include <linux/miscdevice.h>
 #endif
 
-
+#ifndef MPT2SAS_MINOR
+#define MPT2SAS_MINOR		(MPT_MINOR + 1)
+#endif
 #ifndef MPT3SAS_MINOR
 #define MPT3SAS_MINOR		(MPT_MINOR + 2)
 #endif
+#define MPT2SAS_DEV_NAME	"mpt2ctl"
 #define MPT3SAS_DEV_NAME	"mpt3ctl"
 #define MPT3_MAGIC_NUMBER	'L'
 #define MPT3_IOCTL_DEFAULT_TIMEOUT (10) /* in seconds */
