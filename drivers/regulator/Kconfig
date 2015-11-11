@@ -250,54 +250,6 @@ config REGULATOR_MAX77686
 	  via I2C bus. The provided regulator is suitable for
 	  Exynos-4 chips to control VARM and VINT voltages.
 
-config REGULATOR_ACT8846
-	tristate "Active Semi ACT8846 PMIC regulators"
-	depends on I2C
-	help
-	  Support the voltage and current regulators of the ACT8846 series of PMIC devices.
-
-config ACT8846_SUPPORT_RESET
-	tristate "ACT8846 PMIC SUPPORT RESET"
-	depends on REGULATOR_ACT8846=y
-	help
-	  Support short press key to restart.
-
-config REGULATOR_ACT8931
-	tristate "Active Semi ACT8931 PMIC regulators"
-        depends on I2C
-        help
-          Support the voltage and current regulators of the ACT8931 series of PMIC devices.
-
-config REGULATOR_RT5025
-	bool "Richtek RT5025 PMIC Voltage regulstors"
-	depends on MFD_RT5025
-	default n
-	help
-	  This driver supports voltage regulator in RT5025 PMIC chips.
-
-config REGULATOR_RT5036
-	bool "RT5036 regulator support"
-	depends on MFD_RT5036
-	help
-	  This driver support voltage regulator in Richtek RT5036.
-
-config ROCKCHIP_PWM_REGULATOR
-	tristate "rockchip pwm voltage regulator for discrete dcdc or ldo"
-	help
-	  Say Y to enable support for the voltage regulators control on the ROCKCHIP.
-
-config REGULATOR_SYR82X
-	tristate "SYR82X DCDC SUPPORT REGULATOR"
-	depends on I2C
-	help
-	  Support the voltage and current regulators of the SYR82X series of DCDC devices.
-
-config REGULATOR_XZ3216
-	tristate "XZ3216 DCDC SUPPORT REGULATOR"
-	depends on I2C
-	help
-	  Support the voltage and current regulators of the XZ321X series of DCDC devices.
-
 config REGULATOR_PCAP
 	tristate "Motorola PCAP2 regulator driver"
 	depends on EZX_PCAP
@@ -555,12 +507,6 @@ config REGULATOR_WM8994
 	  This driver provides support for the voltage regulators on the
 	  WM8994 CODEC.
 
-config REGULATOR_RICOH619
-	tristate "RICOH 619 Power regulators"
-	depends on MFD_RICOH619
-	default n
-	help
-	  This driver supports regulator driver for RICOH619 PMIC.
 config REGULATOR_AS3711
 	tristate "AS3711 PMIC"
 	depends on MFD_AS3711

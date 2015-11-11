@@ -1405,7 +1405,7 @@ static int dma_runtime_idle(struct device *dev)
 			return -EAGAIN;
 	}
 
-	return 0;
+	return pm_schedule_suspend(dev, 0);
 }
 
 /******************************************************************************

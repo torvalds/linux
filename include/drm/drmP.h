@@ -204,7 +204,7 @@ int drm_err(const char *func, const char *format, ...);
  * \param fmt printf() like format string.
  * \param arg arguments
  */
-#if 0// DRM_DEBUG_CODE
+#if DRM_DEBUG_CODE
 #define DRM_DEBUG(fmt, args...)						\
 	do {								\
 		drm_ut_debug_printk(DRM_UT_CORE, DRM_NAME, 		\

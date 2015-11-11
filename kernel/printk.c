@@ -51,10 +51,6 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/printk.h>
 
-#ifdef CONFIG_EARLY_PRINTK_DIRECT
-extern void printascii(char *);
-#endif
-
 /* printk's without a loglevel use this.. */
 #define DEFAULT_MESSAGE_LOGLEVEL CONFIG_DEFAULT_MESSAGE_LOGLEVEL
 
@@ -212,12 +208,6 @@ struct log {
 	u8 facility;		/* syslog facility */
 	u8 flags:5;		/* internal record flags */
 	u8 level:3;		/* syslog level */
-#ifdef CONFIG_PRINTK_PROCESS
-	char process[16];	/* process name */
-	pid_t pid;		/* process id */
-	u8 cpu;			/* cpu id */
-	u8 in_interrupt;	/* interrupt context */
-#endif
 };
 
 /*
@@ -251,11 +241,7 @@ static enum log_flags console_prev;
 static u64 clear_seq;
 static u32 clear_idx;
 
-#ifdef CONFIG_PRINTK_PROCESS
-#define PREFIX_MAX		48
-#else
 #define PREFIX_MAX		32
-#endif
 #define LOG_LINE_MAX		1024 - PREFIX_MAX
 
 /* record buffer */
@@ -316,31 +302,6 @@ static u32 log_next(u32 idx)
 	return idx + msg->len;
 }
 
-#ifdef CONFIG_PRINTK_PROCESS
-static bool printk_process = 1;
-static size_t print_process(const struct log *msg, char *buf)
-{
-	if (!printk_process)
-		return 0;
-
-	if (!buf)
-		return snprintf(NULL, 0, "%c[%1d:%15s:%5d] ", ' ', 0, " ", 0);
-
-	return sprintf(buf, "%c[%1d:%15s:%5d] ",
-			msg->in_interrupt ? 'I' : ' ',
-			msg->cpu,
-			msg->process,
-			msg->pid);
-}
-module_param_named(process, printk_process, bool, S_IRUGO | S_IWUSR);
-#endif
-
-#ifdef CONFIG_RK_LAST_LOG
-extern void rk_last_log_text(char *text, size_t size);
-static char rk_text[1024];
-static size_t msg_print_text(const struct log *msg, enum log_flags prev,
-			     bool syslog, char *buf, size_t size);
-#endif
 /* insert record into the buffer, discard old ones, update heads */
 static void log_store(int facility, int level,
 		      enum log_flags flags, u64 ts_nsec,
@@ -397,20 +358,6 @@ static void log_store(int facility, int level,
 	memset(log_dict(msg) + dict_len, 0, pad_len);
 	msg->len = sizeof(struct log) + text_len + dict_len + pad_len;
 
-#ifdef CONFIG_PRINTK_PROCESS
-	if (printk_process) {
-		strncpy(msg->process, current->comm, sizeof(msg->process)-1);
-		msg->process[sizeof(msg->process) - 1] = '\0';
-		msg->pid = task_pid_nr(current);
-		msg->cpu = smp_processor_id();
-		msg->in_interrupt = in_interrupt() ? 1 : 0;
-	}
-#endif
-
-#ifdef CONFIG_RK_LAST_LOG
-	size = msg_print_text(msg, msg->flags, true, rk_text, sizeof(rk_text));
-	rk_last_log_text(rk_text, size);
-#endif
 	/* insert message */
 	log_next_idx += msg->len;
 	log_next_seq++;
@@ -957,9 +904,6 @@ static size_t print_prefix(const struct log *msg, bool syslog, char *buf)
 	}
 
 	len += print_time(msg->ts_nsec, buf ? buf + len : NULL);
-#ifdef CONFIG_PRINTK_PROCESS
-	len += print_process(msg, buf ? buf + len : NULL);
-#endif
 	return len;
 }
 
@@ -1528,10 +1472,6 @@ static size_t cont_print_text(char *text, size_t size)
 
 	if (cont.cons == 0 && (console_prev & LOG_NEWLINE)) {
 		textlen += print_time(cont.ts_nsec, text);
-#ifdef CONFIG_PRINTK_PROCESS
-		*(text+textlen) = ' ';
-		textlen += print_process(NULL, NULL);
-#endif
 		size -= textlen;
 	}
 
@@ -1637,10 +1577,6 @@ asmlinkage int vprintk_emit(int facility, int level,
 			text = (char *)end_of_header;
 		}
 	}
-
-#ifdef CONFIG_EARLY_PRINTK_DIRECT
-	printascii(text);
-#endif
 
 	if (level == -1)
 		level = default_message_loglevel;
@@ -1763,12 +1699,6 @@ asmlinkage int printk(const char *fmt, ...)
 }
 EXPORT_SYMBOL(printk);
 
-#if defined(CONFIG_RK_DEBUG_UART) && (CONFIG_RK_DEBUG_UART >= 0)
-void console_disable_suspend(void)
-{
-	console_suspended = 0;
-}
-#endif
 #else /* CONFIG_PRINTK */
 
 #define LOG_LINE_MAX		0

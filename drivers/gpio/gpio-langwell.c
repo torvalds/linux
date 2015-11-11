@@ -305,7 +305,11 @@ static const struct irq_domain_ops lnw_gpio_irq_ops = {
 
 static int lnw_gpio_runtime_idle(struct device *dev)
 {
-	pm_schedule_suspend(dev, 500);
+	int err = pm_schedule_suspend(dev, 500);
+
+	if (!err)
+		return 0;
+
 	return -EBUSY;
 }
 

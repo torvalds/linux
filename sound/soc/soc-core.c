@@ -1595,11 +1595,8 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	struct snd_soc_codec *codec;
 	struct snd_soc_codec_conf *codec_conf;
 	enum snd_soc_compress_type compress_type;
-#ifndef CONFIG_SND_RK_SOC
 	struct snd_soc_dai_link *dai_link;
-	int dai_fmt;
-#endif
-	int ret, i, order;
+	int ret, i, order, dai_fmt;
 
 	mutex_lock_nested(&card->mutex, SND_SOC_CARD_CLASS_INIT);
 
@@ -1722,8 +1719,6 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 
 	snd_soc_dapm_new_widgets(&card->dapm);
 
-//dai_fmt will and need to be setted in hw_parsms for codecs, so ignore here.
-#ifndef CONFIG_SND_RK_SOC
 	for (i = 0; i < card->num_links; i++) {
 		dai_link = &card->dai_link[i];
 		dai_fmt = dai_link->dai_fmt;
@@ -1773,7 +1768,6 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 					 ret);
 		}
 	}
-#endif //CONFIG_SND_RK_SOC
 
 	snprintf(card->snd_card->shortname, sizeof(card->snd_card->shortname),
 		 "%s", card->name);
@@ -2120,7 +2114,7 @@ EXPORT_SYMBOL_GPL(snd_soc_read);
 unsigned int snd_soc_write(struct snd_soc_codec *codec,
 			   unsigned int reg, unsigned int val)
 {
-	dev_dbg(codec->dev, "write %x => %x\n", reg, val);
+	dev_dbg(codec->dev, "write %x = %x\n", reg, val);
 	trace_snd_soc_reg_write(codec, reg, val);
 	return codec->write(codec, reg, val);
 }

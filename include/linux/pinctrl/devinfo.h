@@ -28,10 +28,6 @@
 struct dev_pin_info {
 	struct pinctrl *p;
 	struct pinctrl_state *default_state;
-#ifdef CONFIG_PM
-	struct pinctrl_state *sleep_state;
-	struct pinctrl_state *idle_state;
-#endif
 };
 
 extern int pinctrl_bind_pins(struct device *dev);

@@ -425,11 +425,6 @@ struct uvc_stats_stream {
 	unsigned int max_sof;		/* Maximum STC.SOF value */
 };
 
-enum uvc_urb_state {
-	UrbActive,
-	UrbDeactive
-};
-
 struct uvc_streaming {
 	struct list_head list;
 	struct uvc_device *dev;
@@ -478,9 +473,6 @@ struct uvc_streaming {
 
 	__u32 sequence;
 	__u8 last_fid;
-
-	struct tasklet_struct *tasklet[UVC_URBS];     /* ddl@rock-chips.com */
-	atomic_t urb_state[UVC_URBS];
 
 	/* debugfs */
 	struct dentry *debugfs_dir;

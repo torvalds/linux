@@ -1050,15 +1050,6 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
 
 			page = list_entry(area->free_list[migratetype].next,
 					struct page, lru);
-
-#ifdef CONFIG_ARCH_ROCKCHIP
-			if (is_migrate_cma(migratetype)){
-				int mt = get_pageblock_migratetype(page);
-				if (unlikely(is_migrate_isolate(mt)))
-					continue;
-			}
-#endif
-
 			area->nr_free--;
 
 			/*
@@ -4559,7 +4550,7 @@ static inline void setup_usemap(struct pglist_data *pgdat, struct zone *zone,
 #ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
 
 /* Initialise the number of pages represented by NR_PAGEBLOCK_BITS */
-void __paginginit set_pageblock_order(void)
+void __init set_pageblock_order(void)
 {
 	unsigned int order;
 
@@ -4587,7 +4578,7 @@ void __paginginit set_pageblock_order(void)
  * include/linux/pageblock-flags.h for the values of pageblock_order based on
  * the kernel config
  */
-void __paginginit set_pageblock_order(void)
+void __init set_pageblock_order(void)
 {
 }
 

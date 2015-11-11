@@ -20,7 +20,6 @@
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 
-#include <linux/seq_file.h>
 #include "uapi/sync.h"
 
 struct sync_timeline;

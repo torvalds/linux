@@ -19,9 +19,6 @@
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/cpufreq.h>
-#ifdef CONFIG_ARCH_ROCKCHIP
-#include <linux/input.h>
-#endif
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/rwsem.h>
@@ -109,14 +106,6 @@ struct cpufreq_interactive_tunables {
 	int boostpulse_duration_val;
 	/* End time of boost pulse in ktime converted to usecs */
 	u64 boostpulse_endtime;
-#ifdef CONFIG_ARCH_ROCKCHIP
-	/* Frequency to which a touch boost takes the cpus to */
-	unsigned long touchboost_freq;
-	/* Duration of a touchboost pulse in usecs */
-	int touchboostpulse_duration_val;
-	/* End time of touchboost pulse in ktime converted to usecs */
-	u64 touchboostpulse_endtime;
-#endif
 	bool boosted;
 	/*
 	 * Max additional time to wait in idle, beyond timer_rate, at speeds
@@ -378,19 +367,7 @@ static void cpufreq_interactive_timer(unsigned long data)
 	cpu_load = loadadjfreq / pcpu->policy->cur;
 	tunables->boosted = tunables->boost_val || now < tunables->boostpulse_endtime;
 
-#ifdef CONFIG_ARCH_ROCKCHIP
-	pcpu->target_freq = pcpu->policy->cur;
-	tunables->boosted |= now < tunables->touchboostpulse_endtime;
-#endif
-
 	if (cpu_load >= tunables->go_hispeed_load || tunables->boosted) {
-#ifdef CONFIG_ARCH_ROCKCHIP
-		if (now < tunables->touchboostpulse_endtime) {
-			new_freq = choose_freq(pcpu, loadadjfreq);
-			if (new_freq < tunables->touchboost_freq)
-				new_freq = tunables->touchboost_freq;
-		} else
-#endif
 		if (pcpu->target_freq < tunables->hispeed_freq) {
 			new_freq = tunables->hispeed_freq;
 		} else {
@@ -1150,123 +1127,6 @@ static struct notifier_block cpufreq_interactive_idle_nb = {
 	.notifier_call = cpufreq_interactive_idle_notifier,
 };
 
-#ifdef CONFIG_ARCH_ROCKCHIP
-static void cpufreq_interactive_input_event(struct input_handle *handle, unsigned int type,
-		unsigned int code, int value)
-{
-	u64 now, endtime;
-	int i;
-	int anyboost = 0;
-	unsigned long flags[2];
-	struct cpufreq_interactive_cpuinfo *pcpu;
-	struct cpufreq_interactive_tunables *tunables;
-
-	if (type != EV_ABS)
-		return;
-
-	trace_cpufreq_interactive_boost("touch");
-	spin_lock_irqsave(&speedchange_cpumask_lock, flags[0]);
-
-	now = ktime_to_us(ktime_get());
-	for_each_online_cpu(i) {
-		pcpu = &per_cpu(cpuinfo, i);
-		if (have_governor_per_policy())
-			tunables = pcpu->policy->governor_data;
-		else
-			tunables = common_tunables;
-		if (!tunables)
-			continue;
-
-		endtime = now + tunables->touchboostpulse_duration_val;
-		if (endtime < (tunables->touchboostpulse_endtime + 10 * USEC_PER_MSEC))
-			continue;
-		tunables->touchboostpulse_endtime = endtime;
-
-		spin_lock_irqsave(&pcpu->target_freq_lock, flags[1]);
-		if (pcpu->target_freq < tunables->touchboost_freq) {
-			pcpu->target_freq = tunables->touchboost_freq;
-			cpumask_set_cpu(i, &speedchange_cpumask);
-			pcpu->hispeed_validate_time =
-					ktime_to_us(ktime_get());
-			anyboost = 1;
-		}
-
-		pcpu->floor_freq = tunables->touchboost_freq;
-		pcpu->floor_validate_time = ktime_to_us(ktime_get());
-
-		spin_unlock_irqrestore(&pcpu->target_freq_lock, flags[1]);
-	}
-
-	spin_unlock_irqrestore(&speedchange_cpumask_lock, flags[0]);
-	if (anyboost)
-		wake_up_process(speedchange_task);
-}
-
-static int cpufreq_interactive_input_connect(struct input_handler *handler,
-		struct input_dev *dev, const struct input_device_id *id)
-{
-	struct input_handle *handle;
-	int error;
-
-	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
-	if (!handle)
-		return -ENOMEM;
-
-	handle->dev = dev;
-	handle->handler = handler;
-	handle->name = "cpufreq";
-
-	error = input_register_handle(handle);
-	if (error)
-		goto err2;
-
-	error = input_open_device(handle);
-	if (error)
-		goto err1;
-
-	return 0;
-err1:
-	input_unregister_handle(handle);
-err2:
-	kfree(handle);
-	return error;
-}
-
-static void cpufreq_interactive_input_disconnect(struct input_handle *handle)
-{
-	input_close_device(handle);
-	input_unregister_handle(handle);
-	kfree(handle);
-}
-
-static const struct input_device_id cpufreq_interactive_ids[] = {
-	{
-		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
-			INPUT_DEVICE_ID_MATCH_ABSBIT,
-		.evbit = { BIT_MASK(EV_ABS) },
-		.absbit = { [BIT_WORD(ABS_MT_POSITION_X)] =
-			BIT_MASK(ABS_MT_POSITION_X) |
-			BIT_MASK(ABS_MT_POSITION_Y) },
-	},
-	{
-		.flags = INPUT_DEVICE_ID_MATCH_KEYBIT |
-			INPUT_DEVICE_ID_MATCH_ABSBIT,
-		.keybit = { [BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH) },
-		.absbit = { [BIT_WORD(ABS_X)] =
-			BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) },
-	},
-	{ },
-};
-
-static struct input_handler cpufreq_interactive_input_handler = {
-	.event		= cpufreq_interactive_input_event,
-	.connect	= cpufreq_interactive_input_connect,
-	.disconnect	= cpufreq_interactive_input_disconnect,
-	.name		= "cpufreq_interactive",
-	.id_table	= cpufreq_interactive_ids,
-};
-#endif
-
 static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 		unsigned int event)
 {
@@ -1315,25 +1175,6 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 		spin_lock_init(&tunables->target_loads_lock);
 		spin_lock_init(&tunables->above_hispeed_delay_lock);
 
-#ifdef CONFIG_ARCH_ROCKCHIP
-		{
-			unsigned int index;
-			freq_table = cpufreq_frequency_get_table(policy->cpu);
-			tunables->hispeed_freq = policy->max;
-			if (policy->min < 600000)
-				tunables->hispeed_freq = 600000;
-			else if (cpufreq_frequency_table_target(policy, freq_table, policy->min + 1, CPUFREQ_RELATION_L, &index) == 0)
-				tunables->hispeed_freq = freq_table[index].frequency;
-			tunables->timer_slack_val = 20 * USEC_PER_MSEC;
-			tunables->min_sample_time = 40 * USEC_PER_MSEC;
-			store_above_hispeed_delay(tunables, "20000 1000000:80000 1200000:100000 1700000:20000", 0);
-			store_target_loads(tunables, "70 600000:70 800000:75 1500000:80 1700000:90", 0);
-			tunables->boostpulse_duration_val = 40 * USEC_PER_MSEC;
-			tunables->touchboostpulse_duration_val = 500 * USEC_PER_MSEC;
-			tunables->touchboost_freq = 1200000;
-		}
-#endif
-
 		policy->governor_data = tunables;
 		if (!have_governor_per_policy())
 			common_tunables = tunables;
@@ -1352,9 +1193,6 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 			idle_notifier_register(&cpufreq_interactive_idle_nb);
 			cpufreq_register_notifier(&cpufreq_notifier_block,
 					CPUFREQ_TRANSITION_NOTIFIER);
-#ifdef CONFIG_ARCH_ROCKCHIP
-			rc = input_register_handler(&cpufreq_interactive_input_handler);
-#endif
 		}
 
 		break;
@@ -1362,9 +1200,6 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 	case CPUFREQ_GOV_POLICY_EXIT:
 		if (!--tunables->usage_count) {
 			if (policy->governor->initialized == 1) {
-#ifdef CONFIG_ARCH_ROCKCHIP
-				input_unregister_handler(&cpufreq_interactive_input_handler);
-#endif
 				cpufreq_unregister_notifier(&cpufreq_notifier_block,
 						CPUFREQ_TRANSITION_NOTIFIER);
 				idle_notifier_unregister(&cpufreq_interactive_idle_nb);

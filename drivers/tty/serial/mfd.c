@@ -1248,8 +1248,13 @@ static int serial_hsu_resume(struct pci_dev *pdev)
 #ifdef CONFIG_PM_RUNTIME
 static int serial_hsu_runtime_idle(struct device *dev)
 {
-	pm_schedule_suspend(dev, 500);
-	return -EBUSY;
+	int err;
+
+	err = pm_schedule_suspend(dev, 500);
+	if (err)
+		return -EBUSY;
+
+	return 0;
 }
 
 static int serial_hsu_runtime_suspend(struct device *dev)

@@ -61,7 +61,6 @@ static DEFINE_MUTEX(core_lock);
 static DEFINE_IDR(i2c_adapter_idr);
 
 static struct device_type i2c_client_type;
-static int i2c_check_addr_ex(struct i2c_adapter *adapter, int addr);
 static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver);
 
 /* ------------------------------------------------------------------------- */
@@ -446,7 +445,7 @@ static const struct dev_pm_ops i2c_device_pm_ops = {
 	SET_RUNTIME_PM_OPS(
 		pm_generic_runtime_suspend,
 		pm_generic_runtime_resume,
-		NULL
+		pm_generic_runtime_idle
 	)
 };
 
@@ -668,18 +667,9 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 	}
 
 	/* Check for address business */
-	#if 0	
 	status = i2c_check_addr_busy(adap, client->addr);
 	if (status)
 		goto out_err;
-	#else
-	/* ddl@rock-chips.com : Devices which have some i2c addr can work in same i2c bus, 
-	   if devices havn't work at the same time.*/
-	status = i2c_check_addr_ex(adap, client->addr);
-	if (status != 0)
-		dev_err(&adap->dev, "%d i2c clients have been registered at 0x%02x",
-			status, client->addr);   
-	#endif
 
 	client->dev.parent = &client->adapter->dev;
 	client->dev.bus = &i2c_bus_type;
@@ -688,22 +678,9 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 	ACPI_HANDLE_SET(&client->dev, info->acpi_node.handle);
 
 	/* For 10-bit clients, add an arbitrary offset to avoid collisions */
-	
-    /* ddl@rock-chips.com : Devices which have some i2c addr can work in same i2c bus, 
-      if devices havn't work at the same time.*/
-	#if 0
 	dev_set_name(&client->dev, "%d-%04x", i2c_adapter_id(adap),
 		     client->addr | ((client->flags & I2C_CLIENT_TEN)
 				     ? 0xa000 : 0));
-	#else
-    if (status == 0)
-    	dev_set_name(&client->dev, "%d-%04x", i2c_adapter_id(adap),
-    		     client->addr);
-    else 
-        dev_set_name(&client->dev, "%d-%04x-%01x", i2c_adapter_id(adap),
-    		     client->addr,status);
-	#endif
-
 	status = device_register(&client->dev);
 	if (status)
 		goto out_err;
@@ -1513,33 +1490,6 @@ void i2c_del_driver(struct i2c_driver *driver)
 EXPORT_SYMBOL(i2c_del_driver);
 
 /* ------------------------------------------------------------------------- */
-/* ddl@rock-chips.com : Devices which have some i2c addr can work in same i2c bus, 
-      if devices havn't work at the same time.*/
-struct i2c_addr_cnt
-{
-    int addr;
-    int cnt;
-};
-static int __i2c_check_addr_ex(struct device *dev, void *addrp)
-{
-	struct i2c_client	*client = i2c_verify_client(dev);
-	struct i2c_addr_cnt *addrinfo = (struct i2c_addr_cnt *)addrp;
-    int addr = addrinfo->addr;
-
-	if (client && client->addr == addr) {
-		addrinfo->cnt++;
-	}
-	return 0;
-}
-static int i2c_check_addr_ex(struct i2c_adapter *adapter, int addr)
-{
-    struct i2c_addr_cnt addrinfo;
-
-    addrinfo.addr = addr;
-    addrinfo.cnt = 0;
-    device_for_each_child(&adapter->dev, &addrinfo, __i2c_check_addr_ex);
-    return addrinfo.cnt;
-}
 
 /**
  * i2c_use_client - increments the reference count of the i2c client structure
@@ -1819,9 +1769,6 @@ int i2c_master_send(const struct i2c_client *client, const char *buf, int count)
 	msg.flags = client->flags & I2C_M_TEN;
 	msg.len = count;
 	msg.buf = (char *)buf;
-#ifdef CONFIG_I2C_ROCKCHIP_COMPAT
-	msg.scl_rate = 100 * 1000;
-#endif
 
 	ret = i2c_transfer(adap, &msg, 1);
 
@@ -1852,9 +1799,6 @@ int i2c_master_recv(const struct i2c_client *client, char *buf, int count)
 	msg.flags |= I2C_M_RD;
 	msg.len = count;
 	msg.buf = buf;
-#ifdef CONFIG_I2C_ROCKCHIP_COMPAT
-	msg.scl_rate = 100 * 1000;
-#endif
 
 	ret = i2c_transfer(adap, &msg, 1);
 
@@ -2359,17 +2303,11 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 			.flags = flags,
 			.len = 1,
 			.buf = msgbuf0,
-			#ifdef CONFIG_I2C_ROCKCHIP_COMPAT
-			.scl_rate = 100 * 1000,
-			#endif
 		}, {
 			.addr = addr,
 			.flags = flags | I2C_M_RD,
 			.len = 0,
 			.buf = msgbuf1,
-			#ifdef CONFIG_I2C_ROCKCHIP_COMPAT
-			.scl_rate = 100 * 1000,
-			#endif
 		},
 	};
 

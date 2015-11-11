@@ -11,9 +11,6 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 
-#ifdef CONFIG_ARM_TRUSTZONE
-#undef CONFIG_MMU
-#endif
 	.arch	armv7-a
 /*
  * Debugging stuff
@@ -182,9 +179,6 @@ not_angel:
 		@ determine final kernel image address
 		mov	r4, pc
 		and	r4, r4, #0xf8000000
-#ifdef CONFIG_ARM_TRUSTZONE
-		mov	r4, #0
-#endif
 		add	r4, r4, #TEXT_OFFSET
 #else
 		ldr	r4, =zreladdr
@@ -719,9 +713,6 @@ __armv7_mmu_cache_on:
 		movne	r1, #0xfffffffd		@ domain 0 = client
 		bic     r6, r6, #1 << 31        @ 32-bit translation system
 		bic     r6, r6, #3 << 0         @ use only ttbr0
-#ifdef CONFIG_ARM_TRUSTZONE
-		mov r6, #0
-#endif
 		mcrne	p15, 0, r3, c2, c0, 0	@ load page table pointer
 		mcrne	p15, 0, r0, c8, c7, 0	@ flush I,D TLBs
 		mcr	p15, 0, r0, c7, c5, 4	@ ISB

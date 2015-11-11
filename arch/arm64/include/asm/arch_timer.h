@@ -135,16 +135,6 @@ static inline void arch_timer_evtstrm_enable(int divider)
 #endif
 }
 
-static inline u64 arch_counter_get_cntpct(void)
-{
-	u64 cval;
-
-	isb();
-	asm volatile("mrs %0, cntpct_el0" : "=r" (cval));
-
-	return cval;
-}
-
 static inline u64 arch_counter_get_cntvct(void)
 {
 	u64 cval;

@@ -81,8 +81,6 @@ SECTIONS
 #ifndef CONFIG_SMP_ON_UP
 		*(.alt.smp.init)
 #endif
-		*(.pie.*)
-		*(.ARM.exidx.pie.*.text)
 		*(.discard)
 		*(.discard.*)
 	}

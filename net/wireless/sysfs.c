@@ -100,9 +100,8 @@ static int wiphy_suspend(struct device *dev, pm_message_t state)
 
 	rtnl_lock();
 	if (rdev->wiphy.registered) {
-		//modify to fix wifi disconnet when suspended.(gwl)
-		//if (!rdev->wowlan)
-		//	cfg80211_leave_all(rdev);
+		if (!rdev->wowlan)
+			cfg80211_leave_all(rdev);
 		if (rdev->ops->suspend)
 			ret = rdev_suspend(rdev, rdev->wowlan);
 		if (ret == 1) {

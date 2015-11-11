@@ -129,9 +129,6 @@ config SWIOTLB
 config IOMMU_HELPER
 	def_bool SWIOTLB
 
-config KERNEL_MODE_NEON
-	def_bool y
-
 config FIX_EARLYCON_MEM
 	def_bool y
 
@@ -140,14 +137,6 @@ source "init/Kconfig"
 source "kernel/Kconfig.freezer"
 
 menu "Platform selection"
-
-config ARCH_ROCKCHIP
-	bool "Rockchip SoCs"
-	select PINCTRL
-	select PINCTRL_RK3368
-	select ARCH_REQUIRE_GPIOLIB
-
-source "arch/arm64/mach-rockchip/Kconfig"
 
 config ARCH_VEXPRESS
 	bool "ARMv8 software model (Versatile Express)"
@@ -572,8 +561,6 @@ endmenu
 menu "CPU Power Management"
 
 source "drivers/cpuidle/Kconfig"
-
-source "drivers/cpuquiet/Kconfig"
 
 endmenu
 

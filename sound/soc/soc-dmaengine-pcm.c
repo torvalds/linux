@@ -132,33 +132,11 @@ void snd_dmaengine_pcm_set_config_from_dai_data(
 }
 EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_set_config_from_dai_data);
 
-#ifdef CONFIG_ARCH_ROCKCHIP
-static int debug_audio_timeout = 0;
-module_param(debug_audio_timeout, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-MODULE_PARM_DESC(debug_audio_timeout, "Debug interface Audio DMA buffdone time out");
-#endif
 static void dmaengine_pcm_dma_complete(void *arg)
 {
 	struct snd_pcm_substream *substream = arg;
 	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
 
-#ifdef CONFIG_ARCH_ROCKCHIP
-	if(debug_audio_timeout){
-		struct snd_pcm_runtime *runtime = substream->runtime;
-		static ktime_t before = {0},after = {0};
-		s64 t;
-		before = after;
-		after = ktime_get();
-		t = ktime_to_us(ktime_sub(after, before));
-
-		if(t > (snd_pcm_lib_period_bytes(substream)/4+32)*1000*1000/runtime->rate
-			&& t != ktime_to_us(after)) // (23220)4096/4/44100 + 32/44100
-		{
-				printk(KERN_DEBUG "Time out:: Audio DMA buffdone time out!!! the time = %lld!\n", t);
-		}
-		//printk(KERN_DEBUG "audio DMA callback time = %lld\n", t);
-	}
-#endif
 	prtd->pos += snd_pcm_lib_period_bytes(substream);
 	if (prtd->pos >= snd_pcm_lib_buffer_bytes(substream))
 		prtd->pos = 0;
@@ -180,23 +158,10 @@ static int dmaengine_pcm_prepare_and_submit(struct snd_pcm_substream *substream)
 		flags |= DMA_PREP_INTERRUPT;
 
 	prtd->pos = 0;
-#ifdef CONFIG_ARCH_ROCKCHIP
-	//printk("soc dma buffersize = %d , periodsize=%d, periods=%d\n",
-	//	snd_pcm_lib_buffer_bytes(substream),
-	//	snd_pcm_lib_period_bytes(substream),
-	//	snd_pcm_lib_buffer_bytes(substream)/snd_pcm_lib_period_bytes(substream));
-	desc = dmaengine_prep_dma_infiniteloop(chan,
-		substream->runtime->dma_addr,
-		snd_pcm_lib_buffer_bytes(substream),
-		snd_pcm_lib_period_bytes(substream),
-		direction, flags,
-		snd_pcm_lib_buffer_bytes(substream)/snd_pcm_lib_period_bytes(substream));
-#else
 	desc = dmaengine_prep_dma_cyclic(chan,
 		substream->runtime->dma_addr,
 		snd_pcm_lib_buffer_bytes(substream),
 		snd_pcm_lib_period_bytes(substream), direction, flags);
-#endif
 
 	if (!desc)
 		return -ENOMEM;
@@ -259,15 +224,6 @@ EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_trigger);
 snd_pcm_uframes_t snd_dmaengine_pcm_pointer_no_residue(struct snd_pcm_substream *substream)
 {
 	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
-#ifdef CONFIG_ARCH_ROCKCHIP
-	dma_addr_t src, dst;
-
-	prtd->dma_chan->device->dma_getposition(prtd->dma_chan, &src, &dst);
-	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
-		prtd->pos = dst - substream->runtime->dma_addr;
-	else
-		prtd->pos = src - substream->runtime->dma_addr;
-#endif
 	return bytes_to_frames(substream->runtime, prtd->pos);
 }
 EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_pointer_no_residue);

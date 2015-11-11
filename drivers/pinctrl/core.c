@@ -1204,68 +1204,6 @@ int pinctrl_force_default(struct pinctrl_dev *pctldev)
 }
 EXPORT_SYMBOL_GPL(pinctrl_force_default);
 
-#ifdef CONFIG_PM
-
-/**
- * pinctrl_pm_select_state() - select pinctrl state for PM
- * @dev: device to select default state for
- * @state: state to set
- */
-static int pinctrl_pm_select_state(struct device *dev,
-				   struct pinctrl_state *state)
-{
-	struct dev_pin_info *pins = dev->pins;
-	int ret;
-
-	if (IS_ERR(state))
-		return 0; /* No such state */
-	ret = pinctrl_select_state(pins->p, state);
-	if (ret)
-		dev_err(dev, "failed to activate pinctrl state %s\n",
-			state->name);
-	return ret;
-}
-
-/**
- * pinctrl_pm_select_default_state() - select default pinctrl state for PM
- * @dev: device to select default state for
- */
-int pinctrl_pm_select_default_state(struct device *dev)
-{
-	if (!dev->pins)
-		return 0;
-
-	return pinctrl_pm_select_state(dev, dev->pins->default_state);
-}
-EXPORT_SYMBOL_GPL(pinctrl_pm_select_default_state);
-
-/**
- * pinctrl_pm_select_sleep_state() - select sleep pinctrl state for PM
- * @dev: device to select sleep state for
- */
-int pinctrl_pm_select_sleep_state(struct device *dev)
-{
-	if (!dev->pins)
-		return 0;
-
-	return pinctrl_pm_select_state(dev, dev->pins->sleep_state);
-}
-EXPORT_SYMBOL_GPL(pinctrl_pm_select_sleep_state);
-
-/**
- * pinctrl_pm_select_idle_state() - select idle pinctrl state for PM
- * @dev: device to select idle state for
- */
-int pinctrl_pm_select_idle_state(struct device *dev)
-{
-	if (!dev->pins)
-		return 0;
-
-	return pinctrl_pm_select_state(dev, dev->pins->idle_state);
-}
-EXPORT_SYMBOL_GPL(pinctrl_pm_select_idle_state);
-#endif
-
 #ifdef CONFIG_DEBUG_FS
 
 static int pinctrl_pins_show(struct seq_file *s, void *what)

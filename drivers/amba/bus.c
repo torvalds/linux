@@ -284,7 +284,7 @@ static const struct dev_pm_ops amba_pm = {
 	SET_RUNTIME_PM_OPS(
 		amba_pm_runtime_suspend,
 		amba_pm_runtime_resume,
-		NULL
+		pm_generic_runtime_idle
 	)
 };
 
@@ -421,7 +421,6 @@ int amba_driver_register(struct amba_driver *drv)
 {
 	drv->drv.bus = &amba_bustype;
 
-
 #define SETFN(fn)	if (drv->fn) drv->drv.fn = amba_##fn
 	SETFN(probe);
 	SETFN(remove);
@@ -491,7 +490,6 @@ int amba_device_add(struct amba_device *dev, struct resource *parent)
 	}
 
 	ret = amba_get_enable_pclk(dev);
-	ret = 0;
 	if (ret == 0) {
 		u32 pid, cid;
 

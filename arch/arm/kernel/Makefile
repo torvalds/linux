@@ -87,6 +87,4 @@ obj-y				+= psci.o
 obj-$(CONFIG_SMP)		+= psci_smp.o
 endif
 
-obj-$(CONFIG_PIE)		+= pie.o
-
-extra-y := $(head-y) vmlinux.lds pie.lds
+extra-y := $(head-y) vmlinux.lds

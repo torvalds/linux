@@ -104,18 +104,6 @@ config MMC_SDHCI_PLTFM
 
 	  If unsure, say N.
 
-config MMC_SDHCI_OF_ARASAN
-	tristate "SDHCI OF support for the Arasan SDHCI controllers"
-	depends on MMC_SDHCI_PLTFM
-	depends on OF
-	help
-	  This selects the Arasan Secure Digital Host Controller Interface
-	  (SDHCI). This hardware is found e.g. in Xilinx' Zynq SoC.
-
-	  If you have a controller with this interface, say Y or M here.
-
-	  If unsure, say N.
-
 config MMC_SDHCI_OF_ESDHC
 	tristate "SDHCI OF support for the Freescale eSDHC controller"
 	depends on MMC_SDHCI_PLTFM
@@ -531,7 +519,7 @@ config SDH_BFIN_MISSING_CMD_PULLUP_WORKAROUND
 
 config MMC_DW
 	tristate "Synopsys DesignWare Memory Card Interface"
-	depends on ARM || ARM64
+	depends on ARM
 	help
 	  This selects support for the Synopsys DesignWare Mobile Storage IP
 	  block, this provides host support for SD and MMC interfaces, in both
@@ -558,30 +546,6 @@ config MMC_DW_PLTFM
 	  If you have a controller with this interface, say Y or M here.
 
 	  If unsure, say Y.
-
-config MMC_DW_ROCKCHIP
-	tristate "Rockchip specific extensions for Synopsys DW Memory Card Interface"
-	depends on MMC_DW
-	select MMC_DW_PLTFM
-	help
-	  This selects support for Rockchip RK32XX SoC specific extensions to the
-	  Synopsys DesignWare Memory Card Interface driver. Select this option
-	  for platforms based on RK32XX SoC's.
-
-config MMC_DW_ROCKCHIP_SWITCH_VOLTAGE
-	tristate "Supoort voltage switch for higher level standard"
-	depends on MMC_DW_ROCKCHIP
-	default n 
-	help
-          This selects support for Rockchip RK32XX Soc specific extensions to voltage
-	  switch squence
-
-config MMC_DW_SKIP_CACHE_OP
-	bool "Skip operations for cache coherency"
-	depends on MMC_DW
-	help
-	  This selects support for skipping operations for cache coherency
-	  to reduce I/O overhead if file system layer do same thing.
 
 config MMC_DW_EXYNOS
 	tristate "Exynos specific extensions for Synopsys DW Memory Card Interface"

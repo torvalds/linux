@@ -130,8 +130,6 @@ KBUILD_AFLAGS	+=$(CFLAGS_ABI) $(AFLAGS_ISA) $(arch-y) $(tune-y) -include asm/uni
 
 CHECKFLAGS	+= -D__arm__
 
-OBJCOPY_OUTPUT_FORMAT := elf32-littlearm
-
 #Default value
 head-y		:= arch/arm/kernel/head$(MMUEXT).o
 textofs-y	:= 0x00008000
@@ -182,7 +180,6 @@ machine-$(CONFIG_ARCH_PICOXCELL)	+= picoxcell
 machine-$(CONFIG_ARCH_PRIMA2)		+= prima2
 machine-$(CONFIG_ARCH_PXA)		+= pxa
 machine-$(CONFIG_ARCH_REALVIEW)		+= realview
-machine-$(CONFIG_ARCH_ROCKCHIP)		+= rockchip
 machine-$(CONFIG_ARCH_RPC)		+= rpc
 machine-$(CONFIG_ARCH_S3C24XX)		+= s3c24xx
 machine-$(CONFIG_ARCH_S3C64XX)		+= s3c64xx
@@ -273,9 +270,6 @@ drivers-$(CONFIG_OPROFILE)      += arch/arm/oprofile/
 
 libs-y				:= arch/arm/lib/ $(libs-y)
 
-PIE_LDS				:= arch/arm/kernel/pie.lds
-libpie-$(CONFIG_PIE)		+= arch/arm/libpie/
-
 # Default target when executing plain make
 ifeq ($(CONFIG_XIP_KERNEL),y)
 KBUILD_IMAGE := xipImage
@@ -336,19 +330,3 @@ define archhelp
   echo  '                  (distribution) /sbin/$(INSTALLKERNEL) or'
   echo  '                  install to $$(INSTALL_PATH) and run lilo'
 endef
-
-kernel.img: zImage
-	$(Q)$(srctree)/mkkrnlimg $(objtree)/arch/arm/boot/zImage $(objtree)/kernel.img >/dev/null
-	@echo '  Image:  kernel.img is ready'
-
-%_kernel.img: %.dtb zImage
-	$(Q)cat $(objtree)/arch/arm/boot/zImage $(objtree)/arch/arm/boot/dts/$*.dtb > $(objtree)/zImage-dtb && \
-	$(srctree)/mkkrnlimg $(objtree)/zImage-dtb $(objtree)/kernel.img >/dev/null && \
-	rm -f $(objtree)/zImage-dtb
-	@echo '  Image:  kernel.img (with $*.dtb) is ready'
-
-LOGO := $(notdir $(wildcard $(srctree)/logo.bmp))
-LOGO_KERNEL := $(notdir $(wildcard $(srctree)/logo_kernel.bmp))
-%.img: %.dtb kernel.img $(LOGO) $(LOGO_KERNEL)
-	$(Q)$(srctree)/resource_tool $(objtree)/arch/arm/boot/dts/$*.dtb $(LOGO) $(LOGO_KERNEL)
-	@echo '  Image:  resource.img (with $*.dtb $(LOGO) $(LOGO_KERNEL)) is ready'

@@ -158,9 +158,6 @@ static void *__dma_alloc_noncoherent(struct device *dev, size_t size,
 	if (!ptr)
 		goto no_mem;
 
-	if (flags & __GFP_ZERO)
-		memset(ptr, 0, size);
-
 	/* remove any dirty cache lines on the kernel alias */
 	__dma_flush_range(ptr, ptr + size);
 
@@ -224,11 +221,10 @@ static int __swiotlb_map_sg_attrs(struct device *dev, struct scatterlist *sgl,
 	int i, ret;
 
 	ret = swiotlb_map_sg_attrs(dev, sgl, nelems, dir, attrs);
-	if (!dma_get_attr(DMA_ATTR_SKIP_CPU_SYNC, attrs)) {
-		for_each_sg(sgl, sg, ret, i)
-			__dma_map_area(phys_to_virt(dma_to_phys(dev, sg->dma_address)),
-					sg->length, dir);
-	}
+	for_each_sg(sgl, sg, ret, i)
+		__dma_map_area(phys_to_virt(dma_to_phys(dev, sg->dma_address)),
+			       sg->length, dir);
+
 	return ret;
 }
 

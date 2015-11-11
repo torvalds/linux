@@ -182,7 +182,6 @@ __v7_ca9mp_setup:
 	mov	r10, #(1 << 0)			@ TLB ops broadcasting
 	b	1f
 __v7_ca7mp_setup:
-__v7_ca12mp_setup:
 __v7_ca15mp_setup:
 	mov	r10, #0
 1:
@@ -326,28 +325,7 @@ __v7_setup:
 1:
 #endif
 
-	/* Cortex-A12 Errata */
-3:	ldr	r10, =0x00000c0d		@ Cortex-A12 primary part number
-	teq	r0, r10
-	bne	4f
-#ifdef CONFIG_ARM_ERRATA_818325
-	teq	r6, #0x00			@ present in r0p0
-	teqne	r6, #0x01			@ present in r0p1-00lac0-rc11
-	mrceq	p15, 0, r10, c15, c0, 1		@ read diagnostic register
-	orreq	r10, r10, #1 << 12		@ set bit #12
-	mcreq	p15, 0, r10, c15, c0, 1		@ write diagnostic register
-	isb
-#endif
-#ifdef CONFIG_ARM_ERRATA_821420
-	teq	r6, #0x00			@ present in r0p0
-	teqne	r6, #0x01			@ present in r0p1
-	mrceq	p15, 0, r10, c15, c0, 2
-	orreq	r10, r10, #1 << 1
-	mcreq	p15, 0, r10, c15, c0, 2
-	isb
-#endif
-
-4:	mov	r10, #0
+3:	mov	r10, #0
 	mcr	p15, 0, r10, c7, c5, 0		@ I+BTB cache invalidate
 #ifdef CONFIG_MMU
 	mcr	p15, 0, r10, c8, c7, 0		@ invalidate I + D TLBs
@@ -470,16 +448,6 @@ __v7_ca7mp_proc_info:
 	.long	0xff0ffff0
 	__v7_proc __v7_ca7mp_setup
 	.size	__v7_ca7mp_proc_info, . - __v7_ca7mp_proc_info
-
-	/*
-	 * ARM Ltd. Cortex A12 processor.
-	 */
-	.type	__v7_ca12mp_proc_info, #object
-__v7_ca12mp_proc_info:
-	.long	0x410fc0d0
-	.long	0xff0ffff0
-	__v7_proc __v7_ca12mp_setup
-	.size	__v7_ca12mp_proc_info, . - __v7_ca12mp_proc_info
 
 	/*
 	 * ARM Ltd. Cortex A15 processor.

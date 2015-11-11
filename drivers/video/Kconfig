@@ -23,14 +23,6 @@ source "drivers/gpu/drm/Kconfig"
 
 source "drivers/gpu/host1x/Kconfig"
 
-source "drivers/gpu/arm/midgard/Kconfig"
-
-source "drivers/gpu/arm/mali400/mali/Kconfig"
-
-source "drivers/gpu/arm/mali400/ump/Kconfig"
-
-source "drivers/gpu/rogue/Kconfig"
-
 config VGASTATE
        tristate
        default n
@@ -2505,7 +2497,6 @@ source "drivers/video/exynos/Kconfig"
 source "drivers/video/mmp/Kconfig"
 source "drivers/video/backlight/Kconfig"
 source "drivers/video/adf/Kconfig"
-source "drivers/video/rockchip/Kconfig"
 
 if VT
 	source "drivers/video/console/Kconfig"

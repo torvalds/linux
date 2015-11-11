@@ -537,18 +537,9 @@ config UID_CPUTIME
 	help
 	  Per UID based cpu time statistics exported to /proc/uid_cputime
 
-config 5V_EN
-	bool "5v en power control for otg and hdmi"
-	default y
-	help
-	  This driver is control enable 5v power when startup and disable it
-	  when suspend and no insert otg. if your board is control this power
-	  by a gpio please select it. 
-
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
-source "drivers/misc/inv_mpu/Kconfig"
 source "drivers/misc/ti-st/Kconfig"
 source "drivers/misc/lis3lv02d/Kconfig"
 source "drivers/misc/carma/Kconfig"

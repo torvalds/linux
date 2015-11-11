@@ -36,18 +36,14 @@
  *	tristate. The argument is ignored.
  * @PIN_CONFIG_BIAS_PULL_UP: the pin will be pulled up (usually with high
  *	impedance to VDD). If the argument is != 0 pull-up is enabled,
- *	if it is 0, pull-up is total, i.e. the pin is connected to VDD.
+ *	if it is 0, pull-up is disabled.
  * @PIN_CONFIG_BIAS_PULL_DOWN: the pin will be pulled down (usually with high
  *	impedance to GROUND). If the argument is != 0 pull-down is enabled,
- *	if it is 0, pull-down is total, i.e. the pin is connected to GROUND.
+ *	if it is 0, pull-down is disabled.
  * @PIN_CONFIG_BIAS_PULL_PIN_DEFAULT: the pin will be pulled up or down based
- *	on embedded knowledge of the controller hardware, like current mux
- *	function. The pull direction and possibly strength too will normally
- *	be decided completely inside the hardware block and not be readable
- *	from the kernel side.
- *	If the argument is != 0 pull up/down is enabled, if it is 0, the
- *	configuration is ignored. The proper way to disable it is to use
- *	@PIN_CONFIG_BIAS_DISABLE.
+ *	on embedded knowledge of the controller, like current mux function.
+ *	If the argument is != 0 pull up/down is enabled, if it is 0,
+ *	the pull is disabled.
  * @PIN_CONFIG_DRIVE_PUSH_PULL: the pin will be driven actively high and
  *	low, this is the most typical case and is typically achieved with two
  *	active transistors on the output. Setting this config will enable
@@ -79,8 +75,8 @@
  *	supplies, the argument to this parameter (on a custom format) tells
  *	the driver which alternative power source to use.
  * @PIN_CONFIG_SLEW_RATE: if the pin can select slew rate, the argument to
- *	this parameter (on a custom format) tells the driver which alternative
- *	slew rate to use.
+ * 	this parameter (on a custom format) tells the driver which alternative
+ * 	slew rate to use.
  * @PIN_CONFIG_LOW_POWER_MODE: this will configure the pin for low power
  *	operation, if several modes of operation are supported these can be
  *	passed in the argument on a custom form, else just use argument 1

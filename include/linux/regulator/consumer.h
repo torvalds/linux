@@ -92,12 +92,7 @@ struct notifier_block;
  * OVER_TEMP      Regulator over temp.
  * FORCE_DISABLE  Regulator forcibly shut down by software.
  * VOLTAGE_CHANGE Regulator voltage changed.
- *                Data passed is old voltage cast to (void *).
  * DISABLE        Regulator was disabled.
- * PRE_VOLTAGE_CHANGE   Regulator is about to have voltage changed.
- *                      Data passed is "struct pre_voltage_change_data"
- * ABORT_VOLTAGE_CHANGE Regulator voltage change failed for some reason.
- *                      Data passed is old voltage cast to (void *).
  *
  * NOTE: These events can be OR'ed together when passed into handler.
  */
@@ -110,21 +105,6 @@ struct notifier_block;
 #define REGULATOR_EVENT_FORCE_DISABLE		0x20
 #define REGULATOR_EVENT_VOLTAGE_CHANGE		0x40
 #define REGULATOR_EVENT_DISABLE 		0x80
-#define REGULATOR_EVENT_PRE_VOLTAGE_CHANGE	0x100
-#define REGULATOR_EVENT_ABORT_VOLTAGE_CHANGE	0x200
-
-/**
- * struct pre_voltage_change_data - Data sent with PRE_VOLTAGE_CHANGE event
- *
- * @old_uV: Current voltage before change.
- * @min_uV: Min voltage we'll change to.
- * @max_uV: Max voltage we'll change to.
- */
-struct pre_voltage_change_data {
-	unsigned long old_uV;
-	unsigned long min_uV;
-	unsigned long max_uV;
-};
 
 struct regulator;
 
@@ -194,7 +174,6 @@ int regulator_set_current_limit(struct regulator *regulator,
 			       int min_uA, int max_uA);
 int regulator_get_current_limit(struct regulator *regulator);
 
-int regulator_is_supported_mode(struct regulator *regulator, int *mode);
 int regulator_set_mode(struct regulator *regulator, unsigned int mode);
 unsigned int regulator_get_mode(struct regulator *regulator);
 int regulator_set_optimum_mode(struct regulator *regulator, int load_uA);

@@ -55,16 +55,6 @@ obj-$(CONFIG_MFD_WM8350)	+= wm8350.o
 obj-$(CONFIG_MFD_WM8350_I2C)	+= wm8350-i2c.o
 obj-$(CONFIG_MFD_WM8994)	+= wm8994-core.o wm8994-irq.o wm8994-regmap.o
 
-obj-$(CONFIG_MFD_RT5025)	+= rt5025-i2c.o rt5025-core.o
-obj-$(CONFIG_MISC_RT5025)	+= rt5025-misc.o
-obj-$(CONFIG_IRQ_RT5025)	+= rt5025-irq.o
-obj-$(CONFIG_DEBUG_RT5025)	+= rt5025-debug.o
-
-obj-$(CONFIG_MFD_RT5036)	+= rt5036-i2c.o rt5036-core.o
-obj-$(CONFIG_MISC_RT5036)	+= rt5036-misc.o
-obj-$(CONFIG_IRQ_RT5036)	+= rt5036-irq.o
-obj-$(CONFIG_DEBUG_RT5036)	+= rt5036-debug.o
-
 obj-$(CONFIG_TPS6105X)		+= tps6105x.o
 obj-$(CONFIG_TPS65010)		+= tps65010.o
 obj-$(CONFIG_TPS6507X)		+= tps6507x.o
@@ -154,9 +144,6 @@ obj-$(CONFIG_MFD_PM8921_CORE) 	+= pm8921-core.o
 obj-$(CONFIG_MFD_PM8XXX_IRQ) 	+= pm8xxx-irq.o
 obj-$(CONFIG_TPS65911_COMPARATOR)	+= tps65911-comparator.o
 obj-$(CONFIG_MFD_TPS65090)	+= tps65090.o
-obj-$(CONFIG_MFD_RK808)	+= rk808.o rk808-irq.o
-obj-$(CONFIG_MFD_RK818)	+= rk818.o rk818-irq.o
-obj-$(CONFIG_MFD_RICOH619)	+= ricoh619.o ricoh619-irq.o
 obj-$(CONFIG_MFD_AAT2870_CORE)	+= aat2870-core.o
 obj-$(CONFIG_MFD_INTEL_MSIC)	+= intel_msic.o
 obj-$(CONFIG_MFD_PALMAS)	+= palmas.o
@@ -168,7 +155,4 @@ obj-$(CONFIG_MFD_LM3533)	+= lm3533-core.o lm3533-ctrlbank.o
 obj-$(CONFIG_VEXPRESS_CONFIG)	+= vexpress-config.o vexpress-sysreg.o
 obj-$(CONFIG_VEXPRESS_SPC)	+= vexpress-spc.o
 obj-$(CONFIG_MFD_RETU)		+= retu-mfd.o
-obj-$(CONFIG_MFD_RK1000)	+= rk1000-core.o
-obj-$(CONFIG_MFD_RK610)	+= rk610-core.o
 obj-$(CONFIG_MFD_AS3711)	+= as3711.o
-obj-$(CONFIG_MFD_RK616)		+= rk616-core.o rk616-vif.o

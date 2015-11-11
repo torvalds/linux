@@ -39,10 +39,6 @@
 #include <asm/sizes.h>
 #include <asm/tlb.h>
 
-#ifdef CONFIG_ARCH_ROCKCHIP
-#include <linux/rockchip/common.h>
-#endif
-
 #include "mm.h"
 
 static unsigned long phys_initrd_start __initdata = 0;
@@ -206,13 +202,6 @@ void __init arm64_memblock_init(void)
 	}
 
 	early_init_fdt_scan_reserved_mem();
-#ifdef CONFIG_ARCH_ROCKCHIP
-	/* reserve memory for uboot */
-	rockchip_uboot_mem_reserve();
-
-	/* reserve memory for ION */
-	rockchip_ion_reserve();
-#endif
 
 	/* 4GB maximum for 32-bit only capable devices */
 	if (IS_ENABLED(CONFIG_ZONE_DMA))

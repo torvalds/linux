@@ -332,15 +332,6 @@ config RTC_DRV_PCF8563
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-pcf8563.
 
-config RTC_HYM8563
-	tristate "rtc of HYM8563"
-	help
-	If you say yes here you get support for the
-          HYM8563 RTC chip. The  HYM8564 should work as well.
-
-          This driver can also be built as a module. If so, the module
-          will be called rtc-HYM8563. 
-
 config RTC_DRV_PCF8583
 	tristate "Philips PCF8583"
 	help
@@ -422,25 +413,6 @@ config RTC_DRV_TPS65910
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-tps65910.
-
-config  RK808_RTC
-	tristate "rk808 rtc for rk"
-	depends on MFD_RK808
-	help
-		enable rk808 rtc for system
-
-config  RK818_RTC
-	tristate "rk818 rtc for rk"
-	depends on MFD_RK818
-	help
-		enable rk818 rtc for system
-
-config RTC_RT5036
-	bool "RT5036 RTC driver support"
-	depends on MFD_RT5036
-	default n
-	help
-	  Say Y here if you want to support Richtek RT5036 RTC.
 
 config RTC_DRV_TPS80031
 	tristate "TI TPS80031/TPS80032 RTC driver"
@@ -1275,16 +1247,6 @@ config RTC_DRV_HID_SENSOR_TIME
 
 	  If this driver is compiled as a module, it will be named
 	  rtc-hid-sensor-time.
-	  
-config RTC_DRV_RC5T619
-	tristate "RICOH RC5T619 PMU RTC driver"
-	depends on MFD_RICOH619
-	default n
-	help
-	  If you say yes here you get support for the RICOH RC5T619 RTC module.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called rtc-rc5t619.
 
 
 endif # RTC_CLASS

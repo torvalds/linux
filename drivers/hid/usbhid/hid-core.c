@@ -1183,7 +1183,6 @@ static int usbhid_start(struct hid_device *hid)
 		usbhid_set_leds(hid);
 		device_set_wakeup_enable(&dev->dev, 1);
 	}
-	device_set_wakeup_enable(&dev->dev, 1);
 	return 0;
 
 fail:

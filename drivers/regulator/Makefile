@@ -13,7 +13,6 @@ obj-$(CONFIG_REGULATOR_88PM8607) += 88pm8607.o
 obj-$(CONFIG_REGULATOR_AAT2870) += aat2870-regulator.o
 obj-$(CONFIG_REGULATOR_AB3100) += ab3100.o
 obj-$(CONFIG_REGULATOR_AB8500)	+= ab8500.o ab8500-ext.o
-obj-$(CONFIG_REGULATOR_ACT8931) += act8931.o
 obj-$(CONFIG_REGULATOR_AD5398) += ad5398.o
 obj-$(CONFIG_REGULATOR_ANATOP) += anatop-regulator.o
 obj-$(CONFIG_REGULATOR_ARIZONA) += arizona-micsupp.o arizona-ldo1.o
@@ -52,9 +51,6 @@ obj-$(CONFIG_REGULATOR_PCF50633) += pcf50633-regulator.o
 obj-$(CONFIG_REGULATOR_RC5T583)  += rc5t583-regulator.o
 obj-$(CONFIG_REGULATOR_S2MPS11) += s2mps11.o
 obj-$(CONFIG_REGULATOR_S5M8767) += s5m8767.o
-
-obj-$(CONFIG_ROCKCHIP_PWM_REGULATOR) += rockchip-pwm-regulator.o
-
 obj-$(CONFIG_REGULATOR_TPS6105X) += tps6105x-regulator.o
 obj-$(CONFIG_REGULATOR_TPS62360) += tps62360-regulator.o
 obj-$(CONFIG_REGULATOR_TPS65023) += tps65023-regulator.o
@@ -74,14 +70,6 @@ obj-$(CONFIG_REGULATOR_WM831X) += wm831x-ldo.o
 obj-$(CONFIG_REGULATOR_WM8350) += wm8350-regulator.o
 obj-$(CONFIG_REGULATOR_WM8400) += wm8400-regulator.o
 obj-$(CONFIG_REGULATOR_WM8994) += wm8994-regulator.o
-obj-$(CONFIG_REGULATOR_ACT8846) += act8846.o
-obj-$(CONFIG_REGULATOR_SYR82X) += syr82x.o
-obj-$(CONFIG_REGULATOR_XZ3216)  += xz3216.o
-obj-$(CONFIG_REGULATOR_RICOH619) += ricoh619-regulator.o
-obj-$(CONFIG_REGULATOR_RT5025) += rt5025-regulator.o
-obj-$(CONFIG_REGULATOR_RT5036)	+= rt5036-regulator.o
-
-obj-$(CONFIG_ARCH_ROCKCHIP) += rockchip_io_vol_domain.o
 
 
 ccflags-$(CONFIG_REGULATOR_DEBUG) += -DDEBUG

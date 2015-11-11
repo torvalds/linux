@@ -78,16 +78,6 @@ unsigned int compat_elf_hwcap2 __read_mostly;
 
 static const char *cpu_name;
 static const char *machine_name;
-
-unsigned int system_rev;
-EXPORT_SYMBOL(system_rev);
-
-unsigned int system_serial_low;
-EXPORT_SYMBOL(system_serial_low);
-
-unsigned int system_serial_high;
-EXPORT_SYMBOL(system_serial_high);
-
 phys_addr_t __fdt_pointer __initdata;
 
 /*
@@ -543,8 +533,7 @@ static int c_show(struct seq_file *m, void *v)
 		 * software which does already (at least for 32-bit).
 		 */
 		seq_puts(m, "Features\t:");
-		if (personality(current->personality) == PER_LINUX32 ||
-		    is_compat_task()) {
+		if (personality(current->personality) == PER_LINUX32) {
 #ifdef CONFIG_COMPAT
 			for (j = 0; compat_hwcap_str[j]; j++)
 				if (COMPAT_ELF_HWCAP & (1 << j))
@@ -567,11 +556,6 @@ static int c_show(struct seq_file *m, void *v)
 		seq_printf(m, "CPU part\t: 0x%03x\n", ((midr >> 4) & 0xfff));
 		seq_printf(m, "CPU revision\t: %d\n\n", (midr & 0xf));
 	}
-
-	seq_printf(m, "Hardware\t: %s\n", machine_name);
-	seq_printf(m, "Revision\t: %04x\n", system_rev);
-	seq_printf(m, "Serial\t\t: %08x%08x\n",
-		   system_serial_high, system_serial_low);
 
 	return 0;
 }

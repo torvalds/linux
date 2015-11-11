@@ -21,7 +21,6 @@
 #include <linux/usb/composite.h>
 #include <asm/unaligned.h>
 
-static int gadget_connected = 0;
 /*
  * The code in this file is utility code, used to build a gadget driver
  * from one or more "function" drivers, one or more "configuration"
@@ -637,9 +636,6 @@ static int set_config(struct usb_composite_dev *cdev,
 
 	cdev->config = c;
 
-	/* reset delay status to zero every time usb reconnect */
-	cdev->delayed_status = 0;
-
 	/* Initialize all interfaces by setting them to altsetting zero. */
 	for (tmp = 0; tmp < MAX_CONFIG_INTERFACES; tmp++) {
 		struct usb_function	*f = c->interface[tmp];
@@ -699,8 +695,6 @@ static int set_config(struct usb_composite_dev *cdev,
 
 	/* when we return, be sure our power usage is valid */
 	power = c->MaxPower ? c->MaxPower : CONFIG_USB_GADGET_VBUS_DRAW;
-	/* usb gadget connect flag */
-	gadget_connected = 1;
 done:
 	usb_gadget_vbus_draw(gadget, power);
 	if (result >= 0 && cdev->delayed_status)
@@ -1500,15 +1494,9 @@ void composite_disconnect(struct usb_gadget *gadget)
 		reset_config(cdev);
 	if (cdev->driver->disconnect)
 		cdev->driver->disconnect(cdev);
-	/* usb gadget connect flag */
-	gadget_connected = 0;
 	spin_unlock_irqrestore(&cdev->lock, flags);
 }
 
-int get_gadget_connect_flag( void )
-{
-	return gadget_connected;
-}
 /*-------------------------------------------------------------------------*/
 
 static ssize_t composite_show_suspended(struct device *dev,
@@ -1851,8 +1839,6 @@ void usb_composite_setup_continue(struct usb_composite_dev *cdev)
 			req->status = 0;
 			composite_setup_complete(cdev->gadget->ep0, req);
 		}
-	}else{
-		WARN(cdev, "%s: Unexpected delayed status 0x%x\n", __func__, cdev->delayed_status);
 	}
 
 	spin_unlock_irqrestore(&cdev->lock, flags);

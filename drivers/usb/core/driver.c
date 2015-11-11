@@ -1786,8 +1786,7 @@ int usb_runtime_idle(struct device *dev)
 	 */
 	if (autosuspend_check(udev) == 0)
 		pm_runtime_autosuspend(dev);
-	/* Tell the core not to suspend it, though. */
-	return -EBUSY;
+	return 0;
 }
 
 int usb_set_usb2_hardware_lpm(struct usb_device *udev, int enable)

@@ -433,10 +433,6 @@ static int cpufreq_stats_create_table(struct cpufreq_policy *policy,
 	spin_lock(&cpufreq_stats_lock);
 	stat->last_time = get_jiffies_64();
 	stat->last_index = freq_table_get_index(stat, policy->cur);
-#ifdef CONFIG_ARCH_ROCKCHIP
-	if (stat->last_index == -1)
-		stat->last_index = 0;
-#endif
 	spin_unlock(&cpufreq_stats_lock);
 	cpufreq_cpu_put(data);
 	return 0;

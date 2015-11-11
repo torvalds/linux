@@ -28,7 +28,6 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/genalloc.h>
-#include <linux/platform_data/sram.h>
 
 #define SRAM_GRANULARITY	32
 
@@ -39,30 +38,21 @@ struct sram_dev {
 
 static int sram_probe(struct platform_device *pdev)
 {
-	struct sram_platform_data *pdata = pdev->dev.platform_data;
 	void __iomem *virt_base;
 	struct sram_dev *sram;
 	struct resource *res;
 	unsigned long size;
-	bool map_exec = false;
 	int ret;
 
-	if (of_get_property(pdev->dev.of_node, "map-exec", NULL))
-		map_exec = true;
-	if (pdata && pdata->map_exec)
-		map_exec |= true;
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res && of_get_property(pdev->dev.of_node, "map-cacheable", NULL))
-		res->flags |= IORESOURCE_CACHEABLE;
-	if (map_exec)
-		virt_base = devm_ioremap_exec_resource(&pdev->dev, res);
-	else
-		virt_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(virt_base))
-		return PTR_ERR(virt_base);
+	if (!res)
+		return -EINVAL;
 
 	size = resource_size(res);
+
+	virt_base = devm_request_and_ioremap(&pdev->dev, res);
+	if (!virt_base)
+		return -EADDRNOTAVAIL;
 
 	sram = devm_kzalloc(&pdev->dev, sizeof(*sram), GFP_KERNEL);
 	if (!sram)

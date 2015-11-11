@@ -141,7 +141,7 @@ int ion_page_pool_shrink(struct ion_page_pool *pool, gfp_t gfp_mask,
 	int i;
 	bool high;
 
-	high = true;
+	high = !!(gfp_mask & __GFP_HIGHMEM);
 
 	for (i = 0; i < nr_to_scan; i++) {
 		struct page *page;
