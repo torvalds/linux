@@ -169,6 +169,58 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+
+			mdss_hdmi_hpd_active: mdss_hdmi_hpd_active {
+				mux {
+					pins = "gpio34";
+					function = "hdmi_hot";
+				};
+
+				config {
+					pins = "gpio34";
+					bias-pull-down;
+					drive-strength = <16>;
+				};
+			};
+
+			mdss_hdmi_hpd_suspend: mdss_hdmi_hpd_suspend {
+				mux {
+					pins = "gpio34";
+					function = "hdmi_hot";
+				};
+
+				config {
+					pins = "gpio34";
+					bias-pull-down;
+					drive-strength = <2>;
+				};
+			};
+
+			mdss_hdmi_ddc_active: mdss_hdmi_ddc_active {
+				mux {
+					pins = "gpio32", "gpio33";
+					function = "hdmi_ddc";
+				};
+
+				config {
+					pins = "gpio32", "gpio33";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+			};
+
+			mdss_hdmi_ddc_suspend: mdss_hdmi_ddc_suspend {
+				mux {
+					pins = "gpio32", "gpio33";
+					function = "hdmi_ddc";
+				};
+
+				config {
+					pins = "gpio32", "gpio33";
+					drive-strength = <2>;
+					bias-pull-down;
+				};
+			};
 		};
 
 		timer@09840000 {
@@ -436,6 +488,107 @@
 					};
 				};
 			};
+		};
+
+		mdss_mdp: qcom,mdss_mdp@900000 {
+			compatible = "qcom,mdss_mdp";
+			reg = <0x00900000 0x90000>,
+			      <0x009b0000 0x1040>,
+			      <0x009b8000 0x1040>;
+			reg-names = "mdp_phys",
+				"vbif_phys",
+				"vbif_nrt_phys";
+			clocks = <&mmcc MDSS_AHB_CLK>,
+				 <&mmcc MMSS_MMAGIC_AHB_CLK>,
+				 <&mmcc MDSS_AXI_CLK>,
+				 <&mmcc MDP_CLK_SRC>,
+				 <&mmcc MDSS_MDP_CLK>,
+				 <&mmcc SMMU_MDP_AXI_CLK>,
+				 <&mmcc MDSS_VSYNC_CLK>,
+				 <&mmcc MMAGIC_MDSS_AXI_CLK>,
+				 <&mmcc MMSS_MMAGIC_AXI_CLK>,
+				 <&mmcc MMSS_S0_AXI_CLK>,
+				 <&mmcc MMAGIC_BIMC_AXI_CLK>;
+			clock-names = "iface_clk",
+				"mmagic_iface_clk",
+				"bus_clk",
+				"core_clk_src",
+				"core_clk",
+				"iommu_clk",
+				"vsync_clk",
+				"mmagic_mdss_bus_clk",
+				"mmagic_mmss_bus_clk",
+				"mmss_s0_bus_clk",
+				"mmagic_bimc_bus_clk";
+
+			connectors = <&mdss_hdmi>;
+
+			power-domains = <&mmcc MDSS_GDSC>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <0 83 0>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			//iommus = <&mdp_smmu 0>;
+		};
+
+		mdss_hdmi_phy: qcom,hdmi_phy@9a0600 {
+			compatible = "qcom,hdmi-phy-8996";
+			reg = <0x9a0600 0x1c4>,
+			      <0x9a0a00 0x124>,
+			      <0x9a0c00 0x124>,
+			      <0x9a0e00 0x124>,
+			      <0x9a1000 0x124>,
+			      <0x9a1200 0x0c8>;
+			reg-names = "hdmi_pll",
+				    "hdmi_tx_l0",
+				    "hdmi_tx_l1",
+				    "hdmi_tx_l2",
+				    "hdmi_tx_l3",
+				    "hdmi_phy";
+
+			power-domains = <&mmcc MDSS_GDSC>;
+
+			clocks = <&mmcc MDSS_AHB_CLK>,
+				 <&mmcc MMSS_MMAGIC_AHB_CLK>,
+				 <&gcc GCC_HDMI_CLKREF_CLK>;
+			clock-names = "iface_clk",
+				      "mmagic_iface_clk",
+				      "ref_clk";
+		};
+
+		mdss_hdmi: qcom,hdmi_tx@9a0000 {
+			compatible = "qcom,hdmi-tx-8996";
+			reg =	<0x009a0000 0x50c>,
+				<0x00070000 0x6158>,
+				<0x009e0000 0xfff>;
+			reg-names = "core_physical",
+				"qfprom_physical",
+				"hdcp_physical";
+			clocks = <&mmcc MDSS_MDP_CLK>,
+				 <&mmcc MDSS_AHB_CLK>,
+				 <&mmcc MDSS_HDMI_CLK>,
+				 <&mmcc MDSS_HDMI_AHB_CLK>,
+				 <&mmcc MDSS_EXTPCLK_CLK>;
+			clock-names =
+				"mdp_core_clk",
+				"iface_clk",
+				"core_clk",
+				"alt_iface_clk",
+				"extp_clk";
+			interrupt-parent = <&mdss_mdp>;
+			interrupts = <8 0>;
+
+			power-domains = <&mmcc MDSS_GDSC>;
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&mdss_hdmi_hpd_active
+				     &mdss_hdmi_ddc_active>;
+			pinctrl-1 = <&mdss_hdmi_hpd_suspend
+				     &mdss_hdmi_ddc_suspend>;
+
+			qcom,hdmi-phy = <&mdss_hdmi_phy>;
+			status = "ok";
 		};
 	};
 };
