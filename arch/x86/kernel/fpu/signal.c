@@ -385,20 +385,19 @@ fpu__alloc_mathframe(unsigned long sp, int ia32_frame,
  */
 void fpu__init_prepare_fx_sw_frame(void)
 {
-	int fsave_header_size = sizeof(struct fregs_state);
 	int size = xstate_size + FP_XSTATE_MAGIC2_SIZE;
-
-	if (config_enabled(CONFIG_X86_32))
-		size += fsave_header_size;
 
 	fx_sw_reserved.magic1 = FP_XSTATE_MAGIC1;
 	fx_sw_reserved.extended_size = size;
 	fx_sw_reserved.xfeatures = xfeatures_mask;
 	fx_sw_reserved.xstate_size = xstate_size;
 
-	if (config_enabled(CONFIG_IA32_EMULATION)) {
+	if (config_enabled(CONFIG_IA32_EMULATION) ||
+	    config_enabled(CONFIG_X86_32)) {
+		int fsave_header_size = sizeof(struct fregs_state);
+
 		fx_sw_reserved_ia32 = fx_sw_reserved;
-		fx_sw_reserved_ia32.extended_size += fsave_header_size;
+		fx_sw_reserved_ia32.extended_size = size + fsave_header_size;
 	}
 }
 
