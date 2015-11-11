@@ -184,8 +184,8 @@ struct sk_buff *__hci_cmd_sync(struct hci_dev *hdev, u16 opcode, u32 plen,
 EXPORT_SYMBOL(__hci_cmd_sync);
 
 /* Execute request and wait for completion. */
-int __hci_req_sync(struct hci_dev *hdev, void (*func)(struct hci_request *req,
-						      unsigned long opt),
+int __hci_req_sync(struct hci_dev *hdev, int (*func)(struct hci_request *req,
+						     unsigned long opt),
 		   unsigned long opt, u32 timeout, u8 *hci_status)
 {
 	struct hci_request req;
@@ -198,7 +198,12 @@ int __hci_req_sync(struct hci_dev *hdev, void (*func)(struct hci_request *req,
 
 	hdev->req_status = HCI_REQ_PEND;
 
-	func(&req, opt);
+	err = func(&req, opt);
+	if (err) {
+		if (hci_status)
+			*hci_status = HCI_ERROR_UNSPECIFIED;
+		return err;
+	}
 
 	add_wait_queue(&hdev->req_wait_q, &wait);
 	set_current_state(TASK_INTERRUPTIBLE);
@@ -255,8 +260,8 @@ int __hci_req_sync(struct hci_dev *hdev, void (*func)(struct hci_request *req,
 	return err;
 }
 
-int hci_req_sync(struct hci_dev *hdev, void (*req)(struct hci_request *req,
-						   unsigned long opt),
+int hci_req_sync(struct hci_dev *hdev, int (*req)(struct hci_request *req,
+						  unsigned long opt),
 		 unsigned long opt, u32 timeout, u8 *hci_status)
 {
 	int ret;
@@ -830,11 +835,12 @@ int hci_abort_conn(struct hci_conn *conn, u8 reason)
 	return 0;
 }
 
-static void update_bg_scan(struct hci_request *req, unsigned long opt)
+static int update_bg_scan(struct hci_request *req, unsigned long opt)
 {
 	hci_dev_lock(req->hdev);
 	__hci_update_background_scan(req);
 	hci_dev_unlock(req->hdev);
+	return 0;
 }
 
 static void bg_scan_update(struct work_struct *work)
@@ -932,9 +938,10 @@ static void le_scan_disable_work_complete(struct hci_dev *hdev, u8 status)
 	}
 }
 
-static void le_scan_disable(struct hci_request *req, unsigned long opt)
+static int le_scan_disable(struct hci_request *req, unsigned long opt)
 {
 	hci_req_add_le_scan_disable(req);
+	return 0;
 }
 
 static void le_scan_disable_work(struct work_struct *work)
@@ -1000,14 +1007,14 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
-static void le_scan_restart(struct hci_request *req, unsigned long opt)
+static int le_scan_restart(struct hci_request *req, unsigned long opt)
 {
 	struct hci_dev *hdev = req->hdev;
 	struct hci_cp_le_set_scan_enable cp;
 
 	/* If controller is not scanning we are done. */
 	if (!hci_dev_test_flag(hdev, HCI_LE_SCAN))
-		return;
+		return 0;
 
 	hci_req_add_le_scan_disable(req);
 
@@ -1015,6 +1022,8 @@ static void le_scan_restart(struct hci_request *req, unsigned long opt)
 	cp.enable = LE_SCAN_ENABLE;
 	cp.filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
 	hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(cp), &cp);
+
+	return 0;
 }
 
 static void le_scan_restart_work(struct work_struct *work)
