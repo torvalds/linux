@@ -142,6 +142,9 @@
 #define MPT_TARGET_FLAGS_DELETED	0x04
 #define MPT_TARGET_FASTPATH_IO		0x08
 
+#define SAS2_PCI_DEVICE_B0_REVISION	(0x01)
+#define SAS3_PCI_DEVICE_C0_REVISION	(0x02)
+
 /*
  * Intel HBA branding
  */

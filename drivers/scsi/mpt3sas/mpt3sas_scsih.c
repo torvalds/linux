@@ -7938,6 +7938,13 @@ _scsih_determine_hba_mpi_version(struct MPT3SAS_ADAPTER *ioc) {
 	case MPI25_MFGPAGE_DEVID_SAS3108_5:
 	case MPI25_MFGPAGE_DEVID_SAS3108_6:
 		ioc->hba_mpi_version_belonged = MPI25_VERSION;
+
+		/* Check whether the controller revision is C0 or above.
+		 * only C0 and above revision controllers support 96 MSI-X
+		 * vectors.
+		 */
+		if (ioc->pdev->revision >= SAS3_PCI_DEVICE_C0_REVISION)
+			ioc->msix96_vector = 1;
 		break;
 	}
 }
