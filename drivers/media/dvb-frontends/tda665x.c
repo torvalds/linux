@@ -66,28 +66,6 @@ exit:
 	return err;
 }
 
-static int tda665x_get_state(struct dvb_frontend *fe,
-			     enum tuner_param param,
-			     struct tuner_state *tstate)
-{
-	struct tda665x_state *state = fe->tuner_priv;
-	int err = 0;
-
-	switch (param) {
-	case DVBFE_TUNER_FREQUENCY:
-		tstate->frequency = state->frequency;
-		break;
-	case DVBFE_TUNER_BANDWIDTH:
-		break;
-	default:
-		printk(KERN_ERR "%s: Unknown parameter (param=%d)\n", __func__, param);
-		err = -EINVAL;
-		break;
-	}
-
-	return err;
-}
-
 static int tda665x_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 {
 	struct tda665x_state *state = fe->tuner_priv;
@@ -219,17 +197,6 @@ static int tda665x_set_params(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int tda665x_set_state(struct dvb_frontend *fe,
-			     enum tuner_param param,
-			     struct tuner_state *tstate)
-{
-	if (param & DVBFE_TUNER_FREQUENCY)
-		return  tda665x_set_frequency(fe, tstate->frequency);
-
-	printk(KERN_ERR "%s: Unknown parameter (param=%d)\n", __func__, param);
-	return -EINVAL;
-}
-
 static int tda665x_release(struct dvb_frontend *fe)
 {
 	struct tda665x_state *state = fe->tuner_priv;
@@ -240,9 +207,6 @@ static int tda665x_release(struct dvb_frontend *fe)
 }
 
 static struct dvb_tuner_ops tda665x_ops = {
-
-	.set_state	= tda665x_set_state,
-	.get_state	= tda665x_get_state,
 	.get_status	= tda665x_get_status,
 	.set_params	= tda665x_set_params,
 	.get_frequency	= tda665x_get_frequency,
