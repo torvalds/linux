@@ -1,0 +1,12 @@
+## Customize dependencies
+dependencies:
+  pre:
+    - sudo apt-get update; sudo apt-get install bc libfuse-dev libarchive-dev
+  post:
+    - make defconfig ARCH=lkl
+    - make ARCH=lkl -j8
+
+test:
+  override:
+    - cd tools/lkl && make -j8
+    - cd tools/lkl && make test
