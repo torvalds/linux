@@ -289,4 +289,11 @@ static inline bool led_sysfs_is_disabled(struct led_classdev *led_cdev)
 #include <media/v4l2-flash-led-class.h>
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
+/*
+ * Power supply get by name need to drop reference after call
+ */
+#define PSY_HAVE_PUT
+#endif
+
 #endif	/* __GREYBUS_KERNEL_VER_H */

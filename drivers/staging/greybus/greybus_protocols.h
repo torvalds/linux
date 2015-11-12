@@ -205,17 +205,14 @@ struct gb_firmware_ready_to_boot_request {
 #define GB_POWER_SUPPLY_VERSION_MINOR		0x01
 
 /* Greybus power supply request types */
-#define GB_POWER_SUPPLY_TYPE_TECHNOLOGY			0x02
-#define GB_POWER_SUPPLY_TYPE_STATUS			0x03
-#define GB_POWER_SUPPLY_TYPE_MAX_VOLTAGE		0x04
-#define GB_POWER_SUPPLY_TYPE_PERCENT_CAPACITY		0x05
-#define GB_POWER_SUPPLY_TYPE_TEMPERATURE		0x06
-#define GB_POWER_SUPPLY_TYPE_VOLTAGE			0x07
-#define GB_POWER_SUPPLY_TYPE_CURRENT			0x08
-#define GB_POWER_SUPPLY_TYPE_CAPACITY			0x09	// TODO - POWER_SUPPLY_PROP_CURRENT_MAX
-#define GB_POWER_SUPPLY_TYPE_SHUTDOWN_TEMP		0x0a	// TODO - POWER_SUPPLY_PROP_TEMP_ALERT_MAX
+#define GB_POWER_SUPPLY_TYPE_GET_SUPPLIES		0x02
+#define GB_POWER_SUPPLY_TYPE_GET_DESCRIPTION		0x03
+#define GB_POWER_SUPPLY_TYPE_GET_PROP_DESCRIPTORS	0x04
+#define GB_POWER_SUPPLY_TYPE_GET_PROPERTY		0x05
+#define GB_POWER_SUPPLY_TYPE_SET_PROPERTY		0x06
+#define GB_POWER_SUPPLY_TYPE_EVENT			0x07
 
-/* Should match up with battery technology types in linux/power_supply.h */
+/* Should match up with battery technologies in linux/power_supply.h */
 #define GB_POWER_SUPPLY_TECH_UNKNOWN			0x0000
 #define GB_POWER_SUPPLY_TECH_NiMH			0x0001
 #define GB_POWER_SUPPLY_TECH_LION			0x0002
@@ -224,35 +221,145 @@ struct gb_firmware_ready_to_boot_request {
 #define GB_POWER_SUPPLY_TECH_NiCd			0x0005
 #define GB_POWER_SUPPLY_TECH_LiMn			0x0006
 
-struct gb_power_supply_technology_response {
-	__le32	technology;
+/* Should match up with power supply types in linux/power_supply.h */
+#define GB_POWER_SUPPLY_UNKNOWN_TYPE			0x0000
+#define GB_POWER_SUPPLY_BATTERY_TYPE			0x0001
+#define GB_POWER_SUPPLY_UPS_TYPE			0x0002
+#define GB_POWER_SUPPLY_MAINS_TYPE			0x0003
+#define GB_POWER_SUPPLY_USB_TYPE			0x0004
+#define GB_POWER_SUPPLY_USB_DCP_TYPE			0x0005
+#define GB_POWER_SUPPLY_USB_CDP_TYPE			0x0006
+#define GB_POWER_SUPPLY_USB_ACA_TYPE			0x0007
+
+/* Should match up with power supply health in linux/power_supply.h */
+#define GB_POWER_SUPPLY_HEALTH_UNKNOWN			0x0000
+#define GB_POWER_SUPPLY_HEALTH_GOOD			0x0001
+#define GB_POWER_SUPPLY_HEALTH_OVERHEAT			0x0002
+#define GB_POWER_SUPPLY_HEALTH_DEAD			0x0003
+#define GB_POWER_SUPPLY_HEALTH_OVERVOLTAGE		0x0004
+#define GB_POWER_SUPPLY_HEALTH_UNSPEC_FAILURE		0x0005
+#define GB_POWER_SUPPLY_HEALTH_COLD			0x0006
+#define GB_POWER_SUPPLY_HEALTH_WATCHDOG_TIMER_EXPIRE	0x0007
+#define GB_POWER_SUPPLY_HEALTH_SAFETY_TIMER_EXPIRE	0x0008
+
+/* Should match up with battery status in linux/power_supply.h */
+#define GB_POWER_SUPPLY_STATUS_UNKNOWN		0x0000
+#define GB_POWER_SUPPLY_STATUS_CHARGING		0x0001
+#define GB_POWER_SUPPLY_STATUS_DISCHARGING	0x0002
+#define GB_POWER_SUPPLY_STATUS_NOT_CHARGING	0x0003
+#define GB_POWER_SUPPLY_STATUS_FULL		0x0004
+
+struct gb_power_supply_get_supplies_response {
+	__u8	supplies_count;
 } __packed;
 
-/* Should match up with power supply status in linux/power_supply.h */
-#define GB_POWER_SUPPLY_STATUS_UNKNOWN			0x0000
-#define GB_POWER_SUPPLY_STATUS_CHARGING			0x0001
-#define GB_POWER_SUPPLY_STATUS_DISCHARGING		0x0002
-#define GB_POWER_SUPPLY_STATUS_NOT_CHARGING		0x0003
-#define GB_POWER_SUPPLY_STATUS_FULL			0x0004
-
-struct gb_power_supply_status_response {
-	__le16	psy_status;
+struct gb_power_supply_get_description_request {
+	__u8	psy_id;
 } __packed;
 
-struct gb_power_supply_max_voltage_response {
-	__le32	max_voltage;
+struct gb_power_supply_get_description_response {
+	__u8	manufacturer[32];
+	__u8	model[32];
+	__u8	serial_number[32];
+	__le16	type;
+	__u8	properties_count;
 } __packed;
 
-struct gb_power_supply_capacity_response {
-	__le32	capacity;
+struct gb_power_supply_props_desc {
+	__u8	property;
+#define GB_POWER_SUPPLY_PROP_STATUS				0x00
+#define GB_POWER_SUPPLY_PROP_CHARGE_TYPE			0x01
+#define GB_POWER_SUPPLY_PROP_HEALTH				0x02
+#define GB_POWER_SUPPLY_PROP_PRESENT				0x03
+#define GB_POWER_SUPPLY_PROP_ONLINE				0x04
+#define GB_POWER_SUPPLY_PROP_AUTHENTIC				0x05
+#define GB_POWER_SUPPLY_PROP_TECHNOLOGY				0x06
+#define GB_POWER_SUPPLY_PROP_CYCLE_COUNT			0x07
+#define GB_POWER_SUPPLY_PROP_VOLTAGE_MAX			0x08
+#define GB_POWER_SUPPLY_PROP_VOLTAGE_MIN			0x09
+#define GB_POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN			0x0A
+#define GB_POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN			0x0B
+#define GB_POWER_SUPPLY_PROP_VOLTAGE_NOW			0x0C
+#define GB_POWER_SUPPLY_PROP_VOLTAGE_AVG			0x0D
+#define GB_POWER_SUPPLY_PROP_VOLTAGE_OCV			0x0E
+#define GB_POWER_SUPPLY_PROP_VOLTAGE_BOOT			0x0F
+#define GB_POWER_SUPPLY_PROP_CURRENT_MAX			0x10
+#define GB_POWER_SUPPLY_PROP_CURRENT_NOW			0x11
+#define GB_POWER_SUPPLY_PROP_CURRENT_AVG			0x12
+#define GB_POWER_SUPPLY_PROP_CURRENT_BOOT			0x13
+#define GB_POWER_SUPPLY_PROP_POWER_NOW				0x14
+#define GB_POWER_SUPPLY_PROP_POWER_AVG				0x15
+#define GB_POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN			0x16
+#define GB_POWER_SUPPLY_PROP_CHARGE_EMPTY_DESIGN		0x17
+#define GB_POWER_SUPPLY_PROP_CHARGE_FULL			0x18
+#define GB_POWER_SUPPLY_PROP_CHARGE_EMPTY			0x19
+#define GB_POWER_SUPPLY_PROP_CHARGE_NOW				0x1A
+#define GB_POWER_SUPPLY_PROP_CHARGE_AVG				0x1B
+#define GB_POWER_SUPPLY_PROP_CHARGE_COUNTER			0x1C
+#define GB_POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT		0x1D
+#define GB_POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX	0x1E
+#define GB_POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE		0x1F
+#define GB_POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX	0x20
+#define GB_POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT		0x21
+#define GB_POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT_MAX		0x22
+#define GB_POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT		0x23
+#define GB_POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN			0x24
+#define GB_POWER_SUPPLY_PROP_ENERGY_EMPTY_DESIGN		0x25
+#define GB_POWER_SUPPLY_PROP_ENERGY_FULL			0x26
+#define GB_POWER_SUPPLY_PROP_ENERGY_EMPTY			0x27
+#define GB_POWER_SUPPLY_PROP_ENERGY_NOW				0x28
+#define GB_POWER_SUPPLY_PROP_ENERGY_AVG				0x29
+#define GB_POWER_SUPPLY_PROP_CAPACITY				0x2A
+#define GB_POWER_SUPPLY_PROP_CAPACITY_ALERT_MIN			0x2B
+#define GB_POWER_SUPPLY_PROP_CAPACITY_ALERT_MAX			0x2C
+#define GB_POWER_SUPPLY_PROP_CAPACITY_LEVEL			0x2D
+#define GB_POWER_SUPPLY_PROP_TEMP				0x2E
+#define GB_POWER_SUPPLY_PROP_TEMP_MAX				0x2F
+#define GB_POWER_SUPPLY_PROP_TEMP_MIN				0x30
+#define GB_POWER_SUPPLY_PROP_TEMP_ALERT_MIN			0x31
+#define GB_POWER_SUPPLY_PROP_TEMP_ALERT_MAX			0x32
+#define GB_POWER_SUPPLY_PROP_TEMP_AMBIENT			0x33
+#define GB_POWER_SUPPLY_PROP_TEMP_AMBIENT_ALERT_MIN		0x34
+#define GB_POWER_SUPPLY_PROP_TEMP_AMBIENT_ALERT_MAX		0x35
+#define GB_POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW			0x36
+#define GB_POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG			0x37
+#define GB_POWER_SUPPLY_PROP_TIME_TO_FULL_NOW			0x38
+#define GB_POWER_SUPPLY_PROP_TIME_TO_FULL_AVG			0x39
+#define GB_POWER_SUPPLY_PROP_TYPE				0x3A
+#define GB_POWER_SUPPLY_PROP_SCOPE				0x3B
+#define GB_POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT		0x3C
+#define GB_POWER_SUPPLY_PROP_CALIBRATE				0x3D
+	__u8	is_writeable;
 } __packed;
 
-struct gb_power_supply_temperature_response {
-	__le32	temperature;
+struct gb_power_supply_get_property_descriptors_request {
+	__u8	psy_id;
 } __packed;
 
-struct gb_power_supply_voltage_response {
-	__le32	voltage;
+struct gb_power_supply_get_property_descriptors_response {
+	__u8	properties_count;
+	struct gb_power_supply_props_desc props[];
+} __packed;
+
+struct gb_power_supply_get_property_request {
+	__u8	psy_id;
+	__u8	property;
+} __packed;
+
+struct gb_power_supply_get_property_response {
+	__le32	prop_val;
+};
+
+struct gb_power_supply_set_property_request {
+	__u8	psy_id;
+	__u8	property;
+	__le32	prop_val;
+} __packed;
+
+struct gb_power_supply_event_request {
+	__u8	psy_id;
+	__u8	event;
+#define GB_POWER_SUPPLY_UPDATE		0x01
 } __packed;
 
 
