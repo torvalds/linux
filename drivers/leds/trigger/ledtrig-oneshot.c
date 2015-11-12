@@ -201,4 +201,4 @@ module_exit(oneshot_trig_exit);
 
 MODULE_AUTHOR("Fabio Baltieri <fabio.baltieri@gmail.com>");
 MODULE_DESCRIPTION("One-shot LED trigger");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
