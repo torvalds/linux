@@ -191,9 +191,6 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 
 	aux_clock_divider = intel_dp->get_aux_clock_divider(intel_dp, 0);
 
-	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG,
-			   DP_PSR_ENABLE & ~DP_PSR_MAIN_LINK_ACTIVE);
-
 	/* Enable AUX frame sync at sink */
 	if (dev_priv->psr.aux_frame_sync)
 		drm_dp_dpcd_writeb(&intel_dp->aux,
