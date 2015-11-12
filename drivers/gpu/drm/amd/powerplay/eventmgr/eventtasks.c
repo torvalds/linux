@@ -402,7 +402,7 @@ restart_search:
 			event_data->pnew_power_state = state;
 			return 0;
 		}
-		state = (struct pp_power_state *)((uint64_t)state + hwmgr->ps_size);
+		state = (struct pp_power_state *)((unsigned long)state + hwmgr->ps_size);
 	}
 
 	switch (event_data->requested_ui_label) {

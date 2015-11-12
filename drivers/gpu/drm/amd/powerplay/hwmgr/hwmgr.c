@@ -121,7 +121,7 @@ int hw_init_power_state_table(struct pp_hwmgr *hwmgr)
 
 		if (state->classification.flags & PP_StateClassificationFlag_Uvd)
 			hwmgr->uvd_ps = state;
-		state = (struct pp_power_state *)((uint64_t)state + size);
+		state = (struct pp_power_state *)((unsigned long)state + size);
 	}
 
 	return 0;

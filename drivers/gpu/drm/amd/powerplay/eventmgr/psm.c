@@ -37,7 +37,7 @@ int psm_get_ui_state(struct pp_eventmgr *eventmgr, enum PP_StateUILabel ui_label
 			*state_id = state->id;
 			return 0;
 		}
-		state = (struct pp_power_state *)((uint64_t)state + hwmgr->ps_size);
+		state = (struct pp_power_state *)((unsigned long)state + hwmgr->ps_size);
 	}
 	return -1;
 }
@@ -57,7 +57,7 @@ int psm_get_state_by_classification(struct pp_eventmgr *eventmgr, enum PP_StateC
 			*state_id = state->id;
 			return 0;
 		}
-		state = (struct pp_power_state *)((uint64_t)state + hwmgr->ps_size);
+		state = (struct pp_power_state *)((unsigned long)state + hwmgr->ps_size);
 	}
 	return -1;
 }
@@ -77,7 +77,7 @@ int psm_set_performance_states(struct pp_eventmgr *eventmgr, unsigned long *stat
 			hwmgr->request_ps = state;
 			return 0;
 		}
-		state = (struct pp_power_state *)((uint64_t)state + hwmgr->ps_size);
+		state = (struct pp_power_state *)((unsigned long)state + hwmgr->ps_size);
 	}
 	return -1;
 }
