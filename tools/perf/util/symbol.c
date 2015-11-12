@@ -1436,9 +1436,9 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 		if (lstat(dso->name, &st) < 0)
 			goto out;
 
-		if (st.st_uid && (st.st_uid != geteuid())) {
+		if (!symbol_conf.force && st.st_uid && (st.st_uid != geteuid())) {
 			pr_warning("File %s not owned by current user or root, "
-				"ignoring it.\n", dso->name);
+				   "ignoring it (use -f to override).\n", dso->name);
 			goto out;
 		}
 
