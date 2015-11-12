@@ -51,6 +51,11 @@ Required properties:
   - clocks: Must contain a phandle and clock-specifier pair for each entry
     in clock-names.
   - clock-names: Must contain "fck" for the SCIx UART functional clock.
+    Apart from the divided functional clock, there may be other possible
+    sources for the sampling clock, depending on SCIx variant.
+    On (H)SCI(F) and some SCIFA, an additional clock may be specified:
+      - "hsck" for the optional external clock input (on HSCIF),
+      - "sck" for the optional external clock input (on other variants).
 
 Note: Each enabled SCIx UART should have an alias correctly numbered in the
 "aliases" node.
