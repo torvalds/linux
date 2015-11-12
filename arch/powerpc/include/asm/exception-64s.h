@@ -263,17 +263,6 @@ do_kvm_##n:								\
 #define KVM_HANDLER_SKIP(area, h, n)
 #endif
 
-#ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
-#define KVMTEST_PR(n)			__KVMTEST(n)
-#define KVM_HANDLER_PR(area, h, n)	__KVM_HANDLER(area, h, n)
-#define KVM_HANDLER_PR_SKIP(area, h, n)	__KVM_HANDLER_SKIP(area, h, n)
-
-#else
-#define KVMTEST_PR(n)
-#define KVM_HANDLER_PR(area, h, n)
-#define KVM_HANDLER_PR_SKIP(area, h, n)
-#endif
-
 #define NOTEST(n)
 
 /*
@@ -360,13 +349,13 @@ label##_pSeries:					\
 	HMT_MEDIUM_PPR_DISCARD;				\
 	SET_SCRATCH0(r13);		/* save r13 */		\
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common,	\
-				 EXC_STD, KVMTEST_PR, vec)
+				 EXC_STD, KVMTEST, vec)
 
 /* Version of above for when we have to branch out-of-line */
 #define STD_EXCEPTION_PSERIES_OOL(vec, label)			\
 	.globl label##_pSeries;					\
 label##_pSeries:						\
-	EXCEPTION_PROLOG_1(PACA_EXGEN, KVMTEST_PR, vec);	\
+	EXCEPTION_PROLOG_1(PACA_EXGEN, KVMTEST, vec);	\
 	EXCEPTION_PROLOG_PSERIES_1(label##_common, EXC_STD)
 
 #define STD_EXCEPTION_HV(loc, vec, label)		\
@@ -436,16 +425,12 @@ label##_relon_hv:						\
 #define _SOFTEN_TEST(h, vec)	__SOFTEN_TEST(h, vec)
 
 #define SOFTEN_TEST_PR(vec)						\
-	KVMTEST_PR(vec);						\
+	KVMTEST(vec);							\
 	_SOFTEN_TEST(EXC_STD, vec)
 
 #define SOFTEN_TEST_HV(vec)						\
 	KVMTEST(vec);							\
 	_SOFTEN_TEST(EXC_HV, vec)
-
-#define SOFTEN_TEST_HV_201(vec)						\
-	KVMTEST(vec);							\
-	_SOFTEN_TEST(EXC_STD, vec)
 
 #define SOFTEN_NOTEST_PR(vec)		_SOFTEN_TEST(EXC_STD, vec)
 #define SOFTEN_NOTEST_HV(vec)		_SOFTEN_TEST(EXC_HV, vec)
