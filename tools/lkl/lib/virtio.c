@@ -165,7 +165,6 @@ static int virtio_read(void *data, int offset, void *res, int size)
 {
 	uint32_t val;
 	struct virtio_dev *dev = (struct virtio_dev *)data;
-	int ret = 0;
 
 	if (offset >= VIRTIO_MMIO_CONFIG) {
 		offset -= VIRTIO_MMIO_CONFIG;
@@ -210,12 +209,12 @@ static int virtio_read(void *data, int offset, void *res, int size)
 		val = dev->config_gen;
 		break;
 	default:
-		ret = -1;
+		return -1;
 	}
 
 	*(uint32_t *)res = htole32(val);
 
-	return ret;
+	return 0;
 }
 
 static inline void set_ptr_low(void **ptr, uint32_t val)

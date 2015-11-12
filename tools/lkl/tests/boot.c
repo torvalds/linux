@@ -50,8 +50,10 @@ static int parse_opt(int key, char *arg)
 
 void printk(const char *str, int len)
 {
+	int ret __attribute__((unused));
+
 	if (cla.printk)
-		write(STDOUT_FILENO, str, len);
+		ret = write(STDOUT_FILENO, str, len);
 }
 
 #define TEST(name) do_test(#name, test_##name)

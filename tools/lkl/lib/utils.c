@@ -144,7 +144,7 @@ const char *lkl_strerror(int err)
 	if (err < 0)
 		err = -err;
 
-	if (err >= sizeof(lkl_err_strings) / sizeof(const char *))
+	if ((size_t)err >= sizeof(lkl_err_strings) / sizeof(const char *))
 		return "Bad error code";
 
 	return lkl_err_strings[err];

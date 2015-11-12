@@ -19,6 +19,21 @@ LKL is implemented as an architecture port in arch/lkl. It uses host operations
 defined by the application or a host library (tools/lkl/lib).
 
 
+Building LKL on FreeBSD
+-----------------------
+
+$ pkg install binutils gcc49
+
+If you don't have a gcc binary:
+$ ln -sf /usr/local/bin/gcc49 /usr/local/bin/gcc
+
+Prefer ports binutils:
+$ export PATH=/sbin:/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/usr/lib64/ccache
+
+$ cd tools/lkl
+$ gmake
+
+
 Building LKL the host library and LKL applications
 --------------------------------------------------
 

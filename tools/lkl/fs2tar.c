@@ -1,3 +1,7 @@
+#ifdef __FreeBSD__
+#include <sys/param.h>
+#endif
+
 #include <stdio.h>
 #include <time.h>
 #include <argp.h>
@@ -351,11 +355,12 @@ int main(int argc, char **argv)
 		goto out;
 	}
 
-	disk_id = lkl_disk_add(bs);
-	if (disk_id < 0) {
+	ret = lkl_disk_add(bs);
+	if (ret < 0) {
 		fprintf(stderr, "can't add disk: %s\n", lkl_strerror(ret));
 		goto out_close;
 	}
+	disk_id = ret;
 
 	lkl_start_kernel(&lkl_host_ops, 10 * 1024 * 1024, "");
 
