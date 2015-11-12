@@ -28,17 +28,17 @@
 static inline bool is_pcie_gen3_supported(uint32_t pcie_link_speed_cap)
 {
 	if (pcie_link_speed_cap & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)
-		return 1;
+		return true;
 
-	return 0;
+	return false;
 }
 
 static inline bool is_pcie_gen2_supported(uint32_t pcie_link_speed_cap)
 {
 	if (pcie_link_speed_cap & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2)
-		return 1;
+		return true;
 
-	return 0;
+	return false;
 }
 
 /* Get the new PCIE speed given the ASIC PCIE Cap and the NewState's requested PCIE speed*/
