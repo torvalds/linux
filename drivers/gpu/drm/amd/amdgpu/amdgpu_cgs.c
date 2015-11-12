@@ -754,6 +754,12 @@ static int amdgpu_cgs_query_system_info(void *cgs_device,
 	case CGS_SYSTEM_INFO_ADAPTER_BDF_ID:
 		sys_info->value = adev->pdev->devfn | (adev->pdev->bus->number << 8);
 		break;
+	case CGS_SYSTEM_INFO_PCIE_GEN_INFO:
+		sys_info->value = adev->pm.pcie_gen_mask;
+		break;
+	case CGS_SYSTEM_INFO_PCIE_MLW:
+		sys_info->value = adev->pm.pcie_mlw_mask;
+		break;
 	default:
 		return -ENODEV;
 	}

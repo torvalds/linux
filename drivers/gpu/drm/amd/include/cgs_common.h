@@ -107,6 +107,8 @@ enum cgs_ucode_id {
 
 enum cgs_system_info_id {
 	CGS_SYSTEM_INFO_ADAPTER_BDF_ID = 1,
+	CGS_SYSTEM_INFO_PCIE_GEN_INFO,
+	CGS_SYSTEM_INFO_PCIE_MLW,
 	CGS_SYSTEM_INFO_ID_MAXIMUM,
 };
 
