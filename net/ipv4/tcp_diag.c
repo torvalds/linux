@@ -21,7 +21,7 @@ static void tcp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 {
 	struct tcp_info *info = _info;
 
-	if (sk->sk_state == TCP_LISTEN) {
+	if (sk_state_load(sk) == TCP_LISTEN) {
 		r->idiag_rqueue = sk->sk_ack_backlog;
 		r->idiag_wqueue = sk->sk_max_ack_backlog;
 	} else if (sk->sk_type == SOCK_STREAM) {
