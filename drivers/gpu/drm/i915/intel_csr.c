@@ -199,40 +199,6 @@ static const struct stepping_info *intel_get_stepping_info(struct drm_device *de
 }
 
 /**
- * intel_csr_load_status_get() - to get firmware loading status.
- * @dev_priv: i915 device.
- *
- * This function helps to get the firmware loading status.
- *
- * Return: Firmware loading status.
- */
-enum csr_state intel_csr_load_status_get(struct drm_i915_private *dev_priv)
-{
-	enum csr_state state;
-
-	mutex_lock(&dev_priv->csr_lock);
-	state = dev_priv->csr.state;
-	mutex_unlock(&dev_priv->csr_lock);
-
-	return state;
-}
-
-/**
- * intel_csr_load_status_set() - help to set firmware loading status.
- * @dev_priv: i915 device.
- * @state: enumeration of firmware loading status.
- *
- * Set the firmware loading status.
- */
-void intel_csr_load_status_set(struct drm_i915_private *dev_priv,
-			enum csr_state state)
-{
-	mutex_lock(&dev_priv->csr_lock);
-	dev_priv->csr.state = state;
-	mutex_unlock(&dev_priv->csr_lock);
-}
-
-/**
  * intel_csr_load_program() - write the firmware from memory to register.
  * @dev: drm device.
  *
@@ -260,7 +226,6 @@ void intel_csr_load_program(struct drm_device *dev)
 	if (I915_READ(CSR_PROGRAM(0)))
 		return;
 
-	mutex_lock(&dev_priv->csr_lock);
 	fw_size = dev_priv->csr.dmc_fw_size;
 	for (i = 0; i < fw_size; i++)
 		I915_WRITE(CSR_PROGRAM(i), payload[i]);
@@ -269,9 +234,6 @@ void intel_csr_load_program(struct drm_device *dev)
 		I915_WRITE(dev_priv->csr.mmioaddr[i],
 			dev_priv->csr.mmiodata[i]);
 	}
-
-	dev_priv->csr.state = FW_LOADED;
-	mutex_unlock(&dev_priv->csr_lock);
 }
 
 static void finish_csr_load(const struct firmware *fw, void *context)
@@ -412,8 +374,6 @@ out:
 			 CSR_VERSION_MAJOR(csr->version),
 			 CSR_VERSION_MINOR(csr->version));
 	} else {
-		intel_csr_load_status_set(dev_priv, FW_FAILED);
-
 		i915_firmware_load_error_print(csr->fw_path, 0);
 	}
 
@@ -442,7 +402,6 @@ void intel_csr_ucode_init(struct drm_device *dev)
 		csr->fw_path = I915_CSR_BXT;
 	else {
 		DRM_ERROR("Unexpected: no known CSR firmware for platform\n");
-		intel_csr_load_status_set(dev_priv, FW_FAILED);
 		return;
 	}
 
@@ -459,10 +418,8 @@ void intel_csr_ucode_init(struct drm_device *dev)
 				&dev_priv->dev->pdev->dev,
 				GFP_KERNEL, dev_priv,
 				finish_csr_load);
-	if (ret) {
+	if (ret)
 		i915_firmware_load_error_print(csr->fw_path, ret);
-		intel_csr_load_status_set(dev_priv, FW_FAILED);
-	}
 }
 
 /**
@@ -479,6 +436,5 @@ void intel_csr_ucode_fini(struct drm_device *dev)
 	if (!HAS_CSR(dev))
 		return;
 
-	intel_csr_load_status_set(dev_priv, FW_FAILED);
 	kfree(dev_priv->csr.dmc_payload);
 }

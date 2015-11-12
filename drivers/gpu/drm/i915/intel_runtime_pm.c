@@ -663,8 +663,7 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 	} else {
 		if (enable_requested) {
 			if (IS_SKYLAKE(dev) &&
-				(power_well->data == SKL_DISP_PW_1) &&
-				(intel_csr_load_status_get(dev_priv) == FW_LOADED))
+				(power_well->data == SKL_DISP_PW_1))
 				DRM_DEBUG_KMS("Not Disabling PW1, dmc will handle\n");
 			else {
 				I915_WRITE(HSW_PWR_WELL_DRIVER,	tmp & ~req_mask);
@@ -673,20 +672,8 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 			}
 
 			if (GEN9_ENABLE_DC5(dev) &&
-				power_well->data == SKL_DISP_PW_2) {
-				enum csr_state state;
-				/* TODO: wait for a completion event or
-				 * similar here instead of busy
-				 * waiting using wait_for function.
-				 */
-				wait_for((state = intel_csr_load_status_get(dev_priv)) !=
-						FW_UNINITIALIZED, 1000);
-				if (state != FW_LOADED)
-					DRM_DEBUG("CSR firmware not ready (%d)\n",
-							state);
-				else
+				power_well->data == SKL_DISP_PW_2)
 					gen9_enable_dc5(dev_priv);
-			}
 		}
 	}
 

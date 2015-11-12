@@ -1221,9 +1221,6 @@ u32 skl_plane_ctl_rotation(unsigned int rotation);
 
 /* intel_csr.c */
 void intel_csr_ucode_init(struct drm_device *dev);
-enum csr_state intel_csr_load_status_get(struct drm_i915_private *dev_priv);
-void intel_csr_load_status_set(struct drm_i915_private *dev_priv,
-					enum csr_state state);
 void intel_csr_load_program(struct drm_device *dev);
 void intel_csr_ucode_fini(struct drm_device *dev);
 
