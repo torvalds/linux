@@ -242,6 +242,7 @@ enum {
 	AHCI_HFLAG_NO_FBS		= (1 << 18), /* no FBS */
 	AHCI_HFLAG_EDGE_IRQ		= (1 << 19), /* HOST_IRQ_STAT behaves as
 							Edge Triggered */
+	AHCI_HFLAG_MULTI_MSIX		= (1 << 20), /* per-port MSI-X */
 
 	/* ap->flags bits */
 
@@ -343,6 +344,7 @@ struct ahci_host_priv {
 	 * the PHY position in this array.
 	 */
 	struct phy		**phys;
+	struct msix_entry	*msix;		/* Optional MSI-X support */
 	unsigned		nports;		/* Number of ports */
 	void			*plat_data;	/* Other platform data */
 	unsigned int		irq;		/* interrupt line */

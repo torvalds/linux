@@ -43,6 +43,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
 #include <linux/libata.h>
+#include <linux/pci.h>
 #include "ahci.h"
 #include "libata.h"
 
@@ -2470,9 +2471,10 @@ void ahci_set_em_messages(struct ahci_host_priv *hpriv,
 }
 EXPORT_SYMBOL_GPL(ahci_set_em_messages);
 
-static int ahci_host_activate_multi_irqs(struct ata_host *host, int irq,
+static int ahci_host_activate_multi_irqs(struct ata_host *host,
 					 struct scsi_host_template *sht)
 {
+	struct ahci_host_priv *hpriv = host->private_data;
 	int i, rc;
 
 	rc = ata_host_start(host);
@@ -2484,6 +2486,12 @@ static int ahci_host_activate_multi_irqs(struct ata_host *host, int irq,
 	 */
 	for (i = 0; i < host->n_ports; i++) {
 		struct ahci_port_priv *pp = host->ports[i]->private_data;
+		int irq;
+
+		if (hpriv->flags & AHCI_HFLAG_MULTI_MSIX)
+			irq = hpriv->msix[i].vector;
+		else
+			irq = hpriv->irq + i;
 
 		/* Do not receive interrupts sent by dummy ports */
 		if (!pp) {
@@ -2491,14 +2499,15 @@ static int ahci_host_activate_multi_irqs(struct ata_host *host, int irq,
 			continue;
 		}
 
-		rc = devm_request_threaded_irq(host->dev, irq + i,
+		rc = devm_request_threaded_irq(host->dev, irq,
 					       ahci_multi_irqs_intr,
 					       ahci_port_thread_fn, 0,
 					       pp->irq_desc, host->ports[i]);
 		if (rc)
 			return rc;
-		ata_port_desc(host->ports[i], "irq %d", irq + i);
+		ata_port_desc(host->ports[i], "irq %d", irq);
 	}
+
 	return ata_host_register(host, sht);
 }
 
@@ -2519,8 +2528,8 @@ int ahci_host_activate(struct ata_host *host, struct scsi_host_template *sht)
 	int irq = hpriv->irq;
 	int rc;
 
-	if (hpriv->flags & AHCI_HFLAG_MULTI_MSI)
-		rc = ahci_host_activate_multi_irqs(host, irq, sht);
+	if (hpriv->flags & (AHCI_HFLAG_MULTI_MSI | AHCI_HFLAG_MULTI_MSIX))
+		rc = ahci_host_activate_multi_irqs(host, sht);
 	else if (hpriv->flags & AHCI_HFLAG_EDGE_IRQ)
 		rc = ata_host_activate(host, irq, ahci_single_edge_irq_intr,
 				       IRQF_SHARED, sht);
