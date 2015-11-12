@@ -165,7 +165,7 @@ static void alloc_init_pte(pmd_t *pmd, unsigned long addr,
 	} while (addr != end);
 }
 
-void split_pud(pud_t *old_pud, pmd_t *pmd)
+static void split_pud(pud_t *old_pud, pmd_t *pmd)
 {
 	unsigned long addr = pud_pfn(*old_pud) << PAGE_SHIFT;
 	pgprot_t prot = __pgprot(pud_val(*old_pud) ^ addr);
@@ -447,7 +447,7 @@ static void __init map_mem(void)
 	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
 }
 
-void __init fixup_executable(void)
+static void __init fixup_executable(void)
 {
 #ifdef CONFIG_DEBUG_RODATA
 	/* now that we are actually fully mapped, make the start/end more fine grained */
