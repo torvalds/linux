@@ -1,5 +1,5 @@
 /*
- * Battery driver for a Greybus module.
+ * Power Supply driver for a Greybus module.
  *
  * Copyright 2014 Google Inc.
  * Copyright 2014 Linaro Ltd.
@@ -13,35 +13,36 @@
 #include <linux/power_supply.h>
 #include "greybus.h"
 
-struct gb_battery {
+struct gb_power_supply {
 	/*
 	 * The power supply api changed in 4.1, so handle both the old
 	 * and new apis in the same driver for now, until this is merged
 	 * upstream, when all of these version checks can be removed.
 	 */
 #ifdef DRIVER_OWNS_PSY_STRUCT
-	struct power_supply bat;
-#define to_gb_battery(x) container_of(x, struct gb_battery, bat)
+	struct power_supply psy;
+#define to_gb_power_supply(x) container_of(x, struct gb_power_supply, psy)
 #else
-	struct power_supply *bat;
+	struct power_supply *psy;
 	struct power_supply_desc desc;
-#define to_gb_battery(x) power_supply_get_drvdata(x)
+#define to_gb_power_supply(x) power_supply_get_drvdata(x)
 #endif
 	// FIXME
-	// we will want to keep the battery stats in here as we will be getting
-	// updates from the SVC "on the fly" so we don't have to always go ask
-	// the battery for some information.  Hopefully...
+	// we will want to keep the power supply stats in here as we will be
+	// getting updates from the SVC "on the fly" so we don't have to always
+	// go ask the power supply for some information. Hopefully...
 	struct gb_connection *connection;
 
 };
 
-static int get_tech(struct gb_battery *gb)
+static int get_tech(struct gb_power_supply *gb)
 {
-	struct gb_battery_technology_response tech_response;
+	struct gb_power_supply_technology_response tech_response;
 	u32 technology;
 	int retval;
 
-	retval = gb_operation_sync(gb->connection, GB_BATTERY_TYPE_TECHNOLOGY,
+	retval = gb_operation_sync(gb->connection,
+				   GB_POWER_SUPPLY_TYPE_TECHNOLOGY,
 				   NULL, 0,
 				   &tech_response, sizeof(tech_response));
 	if (retval)
@@ -54,25 +55,25 @@ static int get_tech(struct gb_battery *gb)
 	 */
 	technology = le32_to_cpu(tech_response.technology);
 	switch (technology) {
-	case GB_BATTERY_TECH_NiMH:
+	case GB_POWER_SUPPLY_TECH_NiMH:
 		technology = POWER_SUPPLY_TECHNOLOGY_NiMH;
 		break;
-	case GB_BATTERY_TECH_LION:
+	case GB_POWER_SUPPLY_TECH_LION:
 		technology = POWER_SUPPLY_TECHNOLOGY_LION;
 		break;
-	case GB_BATTERY_TECH_LIPO:
+	case GB_POWER_SUPPLY_TECH_LIPO:
 		technology = POWER_SUPPLY_TECHNOLOGY_LIPO;
 		break;
-	case GB_BATTERY_TECH_LiFe:
+	case GB_POWER_SUPPLY_TECH_LiFe:
 		technology = POWER_SUPPLY_TECHNOLOGY_LiFe;
 		break;
-	case GB_BATTERY_TECH_NiCd:
+	case GB_POWER_SUPPLY_TECH_NiCd:
 		technology = POWER_SUPPLY_TECHNOLOGY_NiCd;
 		break;
-	case GB_BATTERY_TECH_LiMn:
+	case GB_POWER_SUPPLY_TECH_LiMn:
 		technology = POWER_SUPPLY_TECHNOLOGY_LiMn;
 		break;
-	case GB_BATTERY_TECH_UNKNOWN:
+	case GB_POWER_SUPPLY_TECH_UNKNOWN:
 	default:
 		technology = POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
 		break;
@@ -80,13 +81,13 @@ static int get_tech(struct gb_battery *gb)
 	return technology;
 }
 
-static int get_status(struct gb_battery *gb)
+static int get_status(struct gb_power_supply *gb)
 {
-	struct gb_battery_status_response status_response;
-	u16 battery_status;
+	struct gb_power_supply_status_response status_response;
+	u16 psy_status;
 	int retval;
 
-	retval = gb_operation_sync(gb->connection, GB_BATTERY_TYPE_STATUS,
+	retval = gb_operation_sync(gb->connection, GB_POWER_SUPPLY_TYPE_STATUS,
 				   NULL, 0,
 				   &status_response, sizeof(status_response));
 	if (retval)
@@ -97,35 +98,36 @@ static int get_status(struct gb_battery *gb)
 	 * "identical" which should allow gcc to optimize the code away to
 	 * nothing.
 	 */
-	battery_status = le16_to_cpu(status_response.battery_status);
-	switch (battery_status) {
-	case GB_BATTERY_STATUS_CHARGING:
-		battery_status = POWER_SUPPLY_STATUS_CHARGING;
+	psy_status = le16_to_cpu(status_response.psy_status);
+	switch (psy_status) {
+	case GB_POWER_SUPPLY_STATUS_CHARGING:
+		psy_status = POWER_SUPPLY_STATUS_CHARGING;
 		break;
-	case GB_BATTERY_STATUS_DISCHARGING:
-		battery_status = POWER_SUPPLY_STATUS_DISCHARGING;
+	case GB_POWER_SUPPLY_STATUS_DISCHARGING:
+		psy_status = POWER_SUPPLY_STATUS_DISCHARGING;
 		break;
-	case GB_BATTERY_STATUS_NOT_CHARGING:
-		battery_status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+	case GB_POWER_SUPPLY_STATUS_NOT_CHARGING:
+		psy_status = POWER_SUPPLY_STATUS_NOT_CHARGING;
 		break;
-	case GB_BATTERY_STATUS_FULL:
-		battery_status = POWER_SUPPLY_STATUS_FULL;
+	case GB_POWER_SUPPLY_STATUS_FULL:
+		psy_status = POWER_SUPPLY_STATUS_FULL;
 		break;
-	case GB_BATTERY_STATUS_UNKNOWN:
+	case GB_POWER_SUPPLY_STATUS_UNKNOWN:
 	default:
-		battery_status = POWER_SUPPLY_STATUS_UNKNOWN;
+		psy_status = POWER_SUPPLY_STATUS_UNKNOWN;
 		break;
 	}
-	return battery_status;
+	return psy_status;
 }
 
-static int get_max_voltage(struct gb_battery *gb)
+static int get_max_voltage(struct gb_power_supply *gb)
 {
-	struct gb_battery_max_voltage_response volt_response;
+	struct gb_power_supply_max_voltage_response volt_response;
 	u32 max_voltage;
 	int retval;
 
-	retval = gb_operation_sync(gb->connection, GB_BATTERY_TYPE_MAX_VOLTAGE,
+	retval = gb_operation_sync(gb->connection,
+				   GB_POWER_SUPPLY_TYPE_MAX_VOLTAGE,
 				   NULL, 0,
 				   &volt_response, sizeof(volt_response));
 	if (retval)
@@ -135,14 +137,14 @@ static int get_max_voltage(struct gb_battery *gb)
 	return max_voltage;
 }
 
-static int get_percent_capacity(struct gb_battery *gb)
+static int get_percent_capacity(struct gb_power_supply *gb)
 {
-	struct gb_battery_capacity_response capacity_response;
+	struct gb_power_supply_capacity_response capacity_response;
 	u32 capacity;
 	int retval;
 
 	retval = gb_operation_sync(gb->connection,
-				   GB_BATTERY_TYPE_PERCENT_CAPACITY,
+				   GB_POWER_SUPPLY_TYPE_PERCENT_CAPACITY,
 				   NULL, 0, &capacity_response,
 				   sizeof(capacity_response));
 	if (retval)
@@ -152,13 +154,14 @@ static int get_percent_capacity(struct gb_battery *gb)
 	return capacity;
 }
 
-static int get_temp(struct gb_battery *gb)
+static int get_temp(struct gb_power_supply *gb)
 {
-	struct gb_battery_temperature_response temp_response;
+	struct gb_power_supply_temperature_response temp_response;
 	u32 temperature;
 	int retval;
 
-	retval = gb_operation_sync(gb->connection, GB_BATTERY_TYPE_TEMPERATURE,
+	retval = gb_operation_sync(gb->connection,
+				   GB_POWER_SUPPLY_TYPE_TEMPERATURE,
 				   NULL, 0,
 				   &temp_response, sizeof(temp_response));
 	if (retval)
@@ -168,13 +171,13 @@ static int get_temp(struct gb_battery *gb)
 	return temperature;
 }
 
-static int get_voltage(struct gb_battery *gb)
+static int get_voltage(struct gb_power_supply *gb)
 {
-	struct gb_battery_voltage_response voltage_response;
+	struct gb_power_supply_voltage_response voltage_response;
 	u32 voltage;
 	int retval;
 
-	retval = gb_operation_sync(gb->connection, GB_BATTERY_TYPE_VOLTAGE,
+	retval = gb_operation_sync(gb->connection, GB_POWER_SUPPLY_TYPE_VOLTAGE,
 				   NULL, 0,
 				   &voltage_response, sizeof(voltage_response));
 	if (retval)
@@ -188,7 +191,7 @@ static int get_property(struct power_supply *b,
 			enum power_supply_property psp,
 			union power_supply_propval *val)
 {
-	struct gb_battery *gb = to_gb_battery(b);
+	struct gb_power_supply *gb = to_gb_power_supply(b);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
@@ -223,7 +226,7 @@ static int get_property(struct power_supply *b,
 }
 
 // FIXME - verify this list, odds are some can be removed and others added.
-static enum power_supply_property battery_props[] = {
+static enum power_supply_property psy_props[] = {
 	POWER_SUPPLY_PROP_TECHNOLOGY,
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
@@ -238,17 +241,17 @@ static int init_and_register(struct gb_connection *connection,
 {
 	// FIXME - get a better (i.e. unique) name
 	// FIXME - anything else needs to be set?
-	gb->bat.name		= "gb_battery";
-	gb->bat.type		= POWER_SUPPLY_TYPE_BATTERY;
-	gb->bat.properties	= battery_props;
-	gb->bat.num_properties	= ARRAY_SIZE(battery_props);
-	gb->bat.get_property	= get_property;
+	gb->psy.name		= "gb_battery";
+	gb->psy.type		= POWER_SUPPLY_TYPE_BATTERY;
+	gb->psy.properties	= psy_props;
+	gb->psy.num_properties	= ARRAY_SIZE(psy_props);
+	gb->psy.get_property	= get_property;
 
-	return power_supply_register(&connection->bundle->dev, &gb->bat);
+	return power_supply_register(&connection->bundle->dev, &gb->psy);
 }
 #else
 static int init_and_register(struct gb_connection *connection,
-			     struct gb_battery *gb)
+			     struct gb_power_supply *gb)
 {
 	struct power_supply_config cfg = {};
 
@@ -258,22 +261,22 @@ static int init_and_register(struct gb_connection *connection,
 	// FIXME - anything else needs to be set?
 	gb->desc.name		= "gb_battery";
 	gb->desc.type		= POWER_SUPPLY_TYPE_BATTERY;
-	gb->desc.properties	= battery_props;
-	gb->desc.num_properties	= ARRAY_SIZE(battery_props);
+	gb->desc.properties	= psy_props;
+	gb->desc.num_properties	= ARRAY_SIZE(psy_props);
 	gb->desc.get_property	= get_property;
 
-	gb->bat = power_supply_register(&connection->bundle->dev,
+	gb->psy = power_supply_register(&connection->bundle->dev,
 					&gb->desc, &cfg);
-	if (IS_ERR(gb->bat))
-		return PTR_ERR(gb->bat);
+	if (IS_ERR(gb->psy))
+		return PTR_ERR(gb->psy);
 
 	return 0;
 }
 #endif
 
-static int gb_battery_connection_init(struct gb_connection *connection)
+static int gb_power_supply_connection_init(struct gb_connection *connection)
 {
-	struct gb_battery *gb;
+	struct gb_power_supply *gb;
 	int retval;
 
 	gb = kzalloc(sizeof(*gb), GFP_KERNEL);
@@ -290,28 +293,28 @@ static int gb_battery_connection_init(struct gb_connection *connection)
 	return retval;
 }
 
-static void gb_battery_connection_exit(struct gb_connection *connection)
+static void gb_power_supply_connection_exit(struct gb_connection *connection)
 {
-	struct gb_battery *gb = connection->private;
+	struct gb_power_supply *gb = connection->private;
 
 #ifdef DRIVER_OWNS_PSY_STRUCT
-	power_supply_unregister(&gb->bat);
+	power_supply_unregister(&gb->psy);
 #else
-	power_supply_unregister(gb->bat);
+	power_supply_unregister(gb->psy);
 #endif
 	kfree(gb);
 }
 
-static struct gb_protocol battery_protocol = {
-	.name			= "battery",
-	.id			= GREYBUS_PROTOCOL_BATTERY,
-	.major			= GB_BATTERY_VERSION_MAJOR,
-	.minor			= GB_BATTERY_VERSION_MINOR,
-	.connection_init	= gb_battery_connection_init,
-	.connection_exit	= gb_battery_connection_exit,
+static struct gb_protocol power_supply_protocol = {
+	.name			= "power_supply",
+	.id			= GREYBUS_PROTOCOL_POWER_SUPPLY,
+	.major			= GB_POWER_SUPPLY_VERSION_MAJOR,
+	.minor			= GB_POWER_SUPPLY_VERSION_MINOR,
+	.connection_init	= gb_power_supply_connection_init,
+	.connection_exit	= gb_power_supply_connection_exit,
 	.request_recv		= NULL,	/* no incoming requests */
 };
 
-gb_protocol_driver(&battery_protocol);
+gb_protocol_driver(&power_supply_protocol);
 
 MODULE_LICENSE("GPL v2");
