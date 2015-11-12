@@ -1628,7 +1628,8 @@ information.</para>
     &sub-y41p;
     &sub-yuv420;
     &sub-yuv420m;
-    &sub-yvu420m;
+    &sub-yuv422m;
+    &sub-yuv444m;
     &sub-yuv410;
     &sub-yuv422p;
     &sub-yuv411p;
@@ -1723,6 +1724,11 @@ extended control <constant>V4L2_CID_MPEG_STREAM_TYPE</constant>, see
 		<entry><constant>V4L2_PIX_FMT_VP8</constant></entry>
 		<entry>'VP80'</entry>
 		<entry>VP8 video elementary stream.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-VP9">
+		<entry><constant>V4L2_PIX_FMT_VP9</constant></entry>
+		<entry>'VP90'</entry>
+		<entry>VP9 video elementary stream.</entry>
 	  </row>
 	</tbody>
       </tgroup>
