@@ -161,11 +161,11 @@ static void build_prologue(struct jit_ctx *ctx)
 	if (ctx->tmp_used)
 		emit(A64_PUSH(tmp1, tmp2, A64_SP), ctx);
 
-	/* Set up BPF stack */
-	emit(A64_SUB_I(1, A64_SP, A64_SP, stack_size), ctx);
-
 	/* Set up frame pointer */
 	emit(A64_MOV(1, fp, A64_SP), ctx);
+
+	/* Set up BPF stack */
+	emit(A64_SUB_I(1, A64_SP, A64_SP, stack_size), ctx);
 
 	/* Clear registers A and X */
 	emit_a64_mov_i64(ra, 0, ctx);
