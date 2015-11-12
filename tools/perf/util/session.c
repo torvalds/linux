@@ -29,7 +29,7 @@ static int perf_session__open(struct perf_session *session)
 	struct perf_data_file *file = session->file;
 
 	if (perf_session__read_header(session) < 0) {
-		pr_err("incompatible file format (rerun with -v to learn more)");
+		pr_err("incompatible file format (rerun with -v to learn more)\n");
 		return -1;
 	}
 
@@ -37,17 +37,17 @@ static int perf_session__open(struct perf_session *session)
 		return 0;
 
 	if (!perf_evlist__valid_sample_type(session->evlist)) {
-		pr_err("non matching sample_type");
+		pr_err("non matching sample_type\n");
 		return -1;
 	}
 
 	if (!perf_evlist__valid_sample_id_all(session->evlist)) {
-		pr_err("non matching sample_id_all");
+		pr_err("non matching sample_id_all\n");
 		return -1;
 	}
 
 	if (!perf_evlist__valid_read_format(session->evlist)) {
-		pr_err("non matching read_format");
+		pr_err("non matching read_format\n");
 		return -1;
 	}
 

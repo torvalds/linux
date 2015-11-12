@@ -1620,6 +1620,7 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map,
 	len = symbol__size(sym);
 
 	if (print_lines) {
+		srcline_full_filename = full_paths;
 		symbol__get_source_line(sym, map, evsel, &source_line, len);
 		print_summary(&source_line, dso->long_name);
 	}
