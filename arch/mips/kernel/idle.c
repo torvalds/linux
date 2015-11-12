@@ -171,7 +171,6 @@ void __init check_wait(void)
 	case CPU_BMIPS3300:
 	case CPU_BMIPS4350:
 	case CPU_BMIPS4380:
-	case CPU_BMIPS5000:
 	case CPU_CAVIUM_OCTEON:
 	case CPU_CAVIUM_OCTEON_PLUS:
 	case CPU_CAVIUM_OCTEON2:
@@ -182,7 +181,9 @@ void __init check_wait(void)
 	case CPU_XLP:
 		cpu_wait = r4k_wait;
 		break;
-
+	case CPU_BMIPS5000:
+		cpu_wait = r4k_wait_irqoff;
+		break;
 	case CPU_RM7000:
 		cpu_wait = rm7k_wait_irqoff;
 		break;

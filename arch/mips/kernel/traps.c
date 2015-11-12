@@ -1857,12 +1857,14 @@ void __noreturn nmi_exception_handler(struct pt_regs *regs)
 {
 	char str[100];
 
+	nmi_enter();
 	raw_notifier_call_chain(&nmi_chain, 0, regs);
 	bust_spinlocks(1);
 	snprintf(str, 100, "CPU%d NMI taken, CP0_EPC=%lx\n",
 		 smp_processor_id(), regs->cp0_epc);
 	regs->cp0_epc = read_c0_errorepc();
 	die(str, regs);
+	nmi_exit();
 }
 
 #define VECTORSPACING 0x100	/* for EI/VI mode */
