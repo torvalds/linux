@@ -684,14 +684,30 @@ static int fiji_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 			PHM_PlatformCaps_StayInBootState);
 
 	if (0 == result) {
+		struct cgs_system_info sys_info = {0};
+
 		data->is_tlu_enabled = 0;
 		hwmgr->platform_descriptor.hardwareActivityPerformanceLevels =
 				FIJI_MAX_HARDWARE_POWERLEVELS;
 		hwmgr->platform_descriptor.hardwarePerformanceLevels = 2;
 		hwmgr->platform_descriptor.minimumClocksReductionPercentage  = 50;
 
-		data->pcie_gen_cap = 0x30007;
-		data->pcie_lane_cap = 0x2f0000;
+		sys_info.size = sizeof(struct cgs_system_info);
+		sys_info.info_id = CGS_SYSTEM_INFO_PCIE_GEN_INFO;
+		result = cgs_query_system_info(hwmgr->device, &sys_info);
+		if (result)
+			data->pcie_gen_cap = 0x30007;
+		else
+			data->pcie_gen_cap = (uint32_t)sys_info.value;
+		if (data->pcie_gen_cap & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)
+			data->pcie_spc_cap = 20;
+		sys_info.size = sizeof(struct cgs_system_info);
+		sys_info.info_id = CGS_SYSTEM_INFO_PCIE_MLW;
+		result = cgs_query_system_info(hwmgr->device, &sys_info);
+		if (result)
+			data->pcie_lane_cap = 0x2f0000;
+		else
+			data->pcie_lane_cap = (uint32_t)sys_info.value;
 	} else {
 		/* Ignore return value in here, we are cleaning up a mess. */
 		tonga_hwmgr_backend_fini(hwmgr);
