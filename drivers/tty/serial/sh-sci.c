@@ -2645,7 +2645,7 @@ sci_parse_dt(struct platform_device *pdev, unsigned int *dev_id)
 	if (!p)
 		return NULL;
 
-	/* Get the line number for the aliases node. */
+	/* Get the line number from the aliases node. */
 	id = of_alias_get_id(np, "serial");
 	if (id < 0) {
 		dev_err(&pdev->dev, "failed to get alias id (%d)\n", id);
