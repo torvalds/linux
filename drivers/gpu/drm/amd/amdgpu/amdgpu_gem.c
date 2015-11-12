@@ -483,6 +483,9 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 		if (domain == AMDGPU_GEM_DOMAIN_CPU)
 			goto error_unreserve;
 	}
+	r = amdgpu_vm_update_page_directory(adev, bo_va->vm);
+	if (r)
+		goto error_unreserve;
 
 	r = amdgpu_vm_clear_freed(adev, bo_va->vm);
 	if (r)
