@@ -715,7 +715,7 @@ static int i2c_device_probe(struct device *dev)
 		if (wakeirq > 0 && wakeirq != client->irq)
 			status = dev_pm_set_dedicated_wake_irq(dev, wakeirq);
 		else if (client->irq > 0)
-			status = dev_pm_set_wake_irq(dev, wakeirq);
+			status = dev_pm_set_wake_irq(dev, client->irq);
 		else
 			status = 0;
 
