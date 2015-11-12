@@ -917,7 +917,14 @@ static int fiji_start_smu(struct pp_smumgr *smumgr)
 	}
 
 	/* To initialize all clock gating before RLC loaded and running.*/
-	/*PECI_InitClockGating(peci);*/
+	cgs_set_clockgating_state(smumgr->device,
+			AMD_IP_BLOCK_TYPE_GFX, AMD_CG_STATE_GATE);
+	cgs_set_clockgating_state(smumgr->device,
+			AMD_IP_BLOCK_TYPE_GMC, AMD_CG_STATE_GATE);
+	cgs_set_clockgating_state(smumgr->device,
+			AMD_IP_BLOCK_TYPE_SDMA, AMD_CG_STATE_GATE);
+	cgs_set_clockgating_state(smumgr->device,
+			AMD_IP_BLOCK_TYPE_COMMON, AMD_CG_STATE_GATE);
 
 	/* Setup SoftRegsStart here for register lookup in case
 	 * DummyBackEnd is used and ProcessFirmwareHeader is not executed
