@@ -2404,6 +2404,8 @@ machine_check_realmode:
 	 * guest as machine check causing guest to crash.
 	 */
 	ld	r11, VCPU_MSR(r9)
+	rldicl.	r0, r11, 64-MSR_HV_LG, 63 /* check if it happened in HV mode */
+	bne	mc_cont			/* if so, exit to host */
 	andi.	r10, r11, MSR_RI	/* check for unrecoverable exception */
 	beq	1f			/* Deliver a machine check to guest */
 	ld	r10, VCPU_PC(r9)
