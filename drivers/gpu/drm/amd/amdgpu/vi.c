@@ -1543,9 +1543,95 @@ static int vi_common_soft_reset(void *handle)
 	return 0;
 }
 
+static void fiji_update_bif_medium_grain_light_sleep(struct amdgpu_device *adev,
+		bool enable)
+{
+	uint32_t temp, data;
+
+	temp = data = RREG32_PCIE(ixPCIE_CNTL2);
+
+	if (enable)
+		data |= PCIE_CNTL2__SLV_MEM_LS_EN_MASK |
+				PCIE_CNTL2__MST_MEM_LS_EN_MASK |
+				PCIE_CNTL2__REPLAY_MEM_LS_EN_MASK;
+	else
+		data &= ~(PCIE_CNTL2__SLV_MEM_LS_EN_MASK |
+				PCIE_CNTL2__MST_MEM_LS_EN_MASK |
+				PCIE_CNTL2__REPLAY_MEM_LS_EN_MASK);
+
+	if (temp != data)
+		WREG32_PCIE(ixPCIE_CNTL2, data);
+}
+
+static void fiji_update_hdp_medium_grain_clock_gating(struct amdgpu_device *adev,
+		bool enable)
+{
+	uint32_t temp, data;
+
+	temp = data = RREG32(mmHDP_HOST_PATH_CNTL);
+
+	if (enable)
+		data &= ~HDP_HOST_PATH_CNTL__CLOCK_GATING_DIS_MASK;
+	else
+		data |= HDP_HOST_PATH_CNTL__CLOCK_GATING_DIS_MASK;
+
+	if (temp != data)
+		WREG32(mmHDP_HOST_PATH_CNTL, data);
+}
+
+static void fiji_update_hdp_light_sleep(struct amdgpu_device *adev,
+		bool enable)
+{
+	uint32_t temp, data;
+
+	temp = data = RREG32(mmHDP_MEM_POWER_LS);
+
+	if (enable)
+		data |= HDP_MEM_POWER_LS__LS_ENABLE_MASK;
+	else
+		data &= ~HDP_MEM_POWER_LS__LS_ENABLE_MASK;
+
+	if (temp != data)
+		WREG32(mmHDP_MEM_POWER_LS, data);
+}
+
+static void fiji_update_rom_medium_grain_clock_gating(struct amdgpu_device *adev,
+		bool enable)
+{
+	uint32_t temp, data;
+
+	temp = data = RREG32_SMC(ixCGTT_ROM_CLK_CTRL0);
+
+	if (enable)
+		data &= ~(CGTT_ROM_CLK_CTRL0__SOFT_OVERRIDE0_MASK |
+				CGTT_ROM_CLK_CTRL0__SOFT_OVERRIDE1_MASK);
+	else
+		data |= CGTT_ROM_CLK_CTRL0__SOFT_OVERRIDE0_MASK |
+				CGTT_ROM_CLK_CTRL0__SOFT_OVERRIDE1_MASK;
+
+	if (temp != data)
+		WREG32_SMC(ixCGTT_ROM_CLK_CTRL0, data);
+}
+
 static int vi_common_set_clockgating_state(void *handle,
 					    enum amd_clockgating_state state)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	switch (adev->asic_type) {
+	case CHIP_FIJI:
+		fiji_update_bif_medium_grain_light_sleep(adev,
+				state == AMD_CG_STATE_GATE ? true : false);
+		fiji_update_hdp_medium_grain_clock_gating(adev,
+				state == AMD_CG_STATE_GATE ? true : false);
+		fiji_update_hdp_light_sleep(adev,
+				state == AMD_CG_STATE_GATE ? true : false);
+		fiji_update_rom_medium_grain_clock_gating(adev,
+				state == AMD_CG_STATE_GATE ? true : false);
+		break;
+	default:
+		break;
+	}
 	return 0;
 }
 
