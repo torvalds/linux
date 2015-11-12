@@ -521,6 +521,10 @@ void intel_audio_codec_enable(struct intel_encoder *intel_encoder)
 		dev_priv->display.audio_codec_enable(connector, intel_encoder,
 						     adjusted_mode);
 
+	mutex_lock(&dev_priv->av_mutex);
+	intel_dig_port->audio_connector = connector;
+	mutex_unlock(&dev_priv->av_mutex);
+
 	if (acomp && acomp->audio_ops && acomp->audio_ops->pin_eld_notify)
 		acomp->audio_ops->pin_eld_notify(acomp->audio_ops->audio_ptr, (int) port);
 }
@@ -543,6 +547,10 @@ void intel_audio_codec_disable(struct intel_encoder *intel_encoder)
 
 	if (dev_priv->display.audio_codec_disable)
 		dev_priv->display.audio_codec_disable(intel_encoder);
+
+	mutex_lock(&dev_priv->av_mutex);
+	intel_dig_port->audio_connector = NULL;
+	mutex_unlock(&dev_priv->av_mutex);
 
 	if (acomp && acomp->audio_ops && acomp->audio_ops->pin_eld_notify)
 		acomp->audio_ops->pin_eld_notify(acomp->audio_ops->audio_ptr, (int) port);
@@ -703,6 +711,39 @@ static int i915_audio_component_sync_audio_rate(struct device *dev,
 	return 0;
 }
 
+static int i915_audio_component_get_eld(struct device *dev, int port,
+					bool *enabled,
+					unsigned char *buf, int max_bytes)
+{
+	struct drm_i915_private *dev_priv = dev_to_i915(dev);
+	struct drm_device *drm_dev = dev_priv->dev;
+	struct intel_encoder *intel_encoder;
+	struct intel_digital_port *intel_dig_port;
+	const u8 *eld;
+	int ret = -EINVAL;
+
+	mutex_lock(&dev_priv->av_mutex);
+	for_each_intel_encoder(drm_dev, intel_encoder) {
+		if (intel_encoder->type != INTEL_OUTPUT_DISPLAYPORT &&
+		    intel_encoder->type != INTEL_OUTPUT_HDMI)
+			continue;
+		intel_dig_port = enc_to_dig_port(&intel_encoder->base);
+		if (port == intel_dig_port->port) {
+			ret = 0;
+			*enabled = intel_dig_port->audio_connector != NULL;
+			if (!*enabled)
+				break;
+			eld = intel_dig_port->audio_connector->eld;
+			ret = drm_eld_size(eld);
+			memcpy(buf, eld, min(max_bytes, ret));
+			break;
+		}
+	}
+
+	mutex_unlock(&dev_priv->av_mutex);
+	return ret;
+}
+
 static const struct i915_audio_component_ops i915_audio_component_ops = {
 	.owner		= THIS_MODULE,
 	.get_power	= i915_audio_component_get_power,
@@ -710,6 +751,7 @@ static const struct i915_audio_component_ops i915_audio_component_ops = {
 	.codec_wake_override = i915_audio_component_codec_wake_override,
 	.get_cdclk_freq	= i915_audio_component_get_cdclk_freq,
 	.sync_audio_rate = i915_audio_component_sync_audio_rate,
+	.get_eld	= i915_audio_component_get_eld,
 };
 
 static int i915_audio_component_bind(struct device *i915_dev,
