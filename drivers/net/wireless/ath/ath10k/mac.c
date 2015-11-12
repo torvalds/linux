@@ -90,13 +90,16 @@ static u8 ath10k_mac_bitrate_to_rate(int bitrate)
 }
 
 u8 ath10k_mac_hw_rate_to_idx(const struct ieee80211_supported_band *sband,
-			     u8 hw_rate)
+			     u8 hw_rate, bool cck)
 {
 	const struct ieee80211_rate *rate;
 	int i;
 
 	for (i = 0; i < sband->n_bitrates; i++) {
 		rate = &sband->bitrates[i];
+
+		if (ath10k_mac_bitrate_is_cck(rate->bitrate) != cck)
+			continue;
 
 		if (rate->hw_value == hw_rate)
 			return i;
