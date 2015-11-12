@@ -1901,6 +1901,8 @@ static int mlx5e_change_mtu(struct net_device *netdev, int new_mtu)
 
 	mlx5_query_port_max_mtu(mdev, &max_mtu, 1);
 
+	max_mtu = MLX5E_HW2SW_MTU(max_mtu);
+
 	if (new_mtu > max_mtu) {
 		netdev_err(netdev,
 			   "%s: Bad MTU (%d) > (%d) Max\n",
