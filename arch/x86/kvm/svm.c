@@ -86,6 +86,7 @@ static const u32 host_save_user_msrs[] = {
 	MSR_FS_BASE,
 #endif
 	MSR_IA32_SYSENTER_CS, MSR_IA32_SYSENTER_ESP, MSR_IA32_SYSENTER_EIP,
+	MSR_TSC_AUX,
 };
 
 #define NR_HOST_SAVE_USER_MSRS ARRAY_SIZE(host_save_user_msrs)
@@ -135,6 +136,7 @@ struct vcpu_svm {
 	uint64_t asid_generation;
 	uint64_t sysenter_esp;
 	uint64_t sysenter_eip;
+	uint64_t tsc_aux;
 
 	u64 next_rip;
 
@@ -1238,6 +1240,9 @@ static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 			wrmsrl(MSR_AMD64_TSC_RATIO, tsc_ratio);
 		}
 	}
+	/* This assumes that the kernel never uses MSR_TSC_AUX */
+	if (static_cpu_has(X86_FEATURE_RDTSCP))
+		wrmsrl(MSR_TSC_AUX, svm->tsc_aux);
 }
 
 static void svm_vcpu_put(struct kvm_vcpu *vcpu)
@@ -3024,6 +3029,11 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case MSR_IA32_SYSENTER_ESP:
 		msr_info->data = svm->sysenter_esp;
 		break;
+	case MSR_TSC_AUX:
+		if (!boot_cpu_has(X86_FEATURE_RDTSCP))
+			return 1;
+		msr_info->data = svm->tsc_aux;
+		break;
 	/*
 	 * Nobody will change the following 5 values in the VMCB so we can
 	 * safely return them on rdmsr. They will always be 0 until LBRV is
@@ -3144,6 +3154,18 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 	case MSR_IA32_SYSENTER_ESP:
 		svm->sysenter_esp = data;
 		svm->vmcb->save.sysenter_esp = data;
+		break;
+	case MSR_TSC_AUX:
+		if (!boot_cpu_has(X86_FEATURE_RDTSCP))
+			return 1;
+
+		/*
+		 * This is rare, so we update the MSR here instead of using
+		 * direct_access_msrs.  Doing that would require a rdmsr in
+		 * svm_vcpu_put.
+		 */
+		svm->tsc_aux = data;
+		wrmsrl(MSR_TSC_AUX, svm->tsc_aux);
 		break;
 	case MSR_IA32_DEBUGCTLMSR:
 		if (!boot_cpu_has(X86_FEATURE_LBRV)) {
@@ -4041,7 +4063,7 @@ static int svm_get_lpage_level(void)
 
 static bool svm_rdtscp_supported(void)
 {
-	return false;
+	return boot_cpu_has(X86_FEATURE_RDTSCP);
 }
 
 static bool svm_invpcid_supported(void)
