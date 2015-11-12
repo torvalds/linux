@@ -22,12 +22,12 @@ defined by the application or a host library (tools/lkl/lib).
 Building LKL on FreeBSD
 -----------------------
 
-$ pkg install binutils gcc49
+$ pkg install binutils gcc49 gnubc
 
 If you don't have a gcc binary:
 $ ln -sf /usr/local/bin/gcc49 /usr/local/bin/gcc
 
-Prefer ports binutils:
+Prefer ports binutils and GNU bc(1):
 $ export PATH=/sbin:/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/usr/lib64/ccache
 
 $ cd tools/lkl
