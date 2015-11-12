@@ -247,9 +247,14 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 		.flags		= CI_HDRC_SET_NON_ZERO_TTHA,
 	};
 	int ret;
-	const struct of_device_id *of_id =
-			of_match_device(ci_hdrc_imx_dt_ids, &pdev->dev);
-	const struct ci_hdrc_imx_platform_flag *imx_platform_flag = of_id->data;
+	const struct of_device_id *of_id;
+	const struct ci_hdrc_imx_platform_flag *imx_platform_flag;
+
+	of_id = of_match_device(ci_hdrc_imx_dt_ids, &pdev->dev);
+	if (!of_id)
+		return -ENODEV;
+
+	imx_platform_flag = of_id->data;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
