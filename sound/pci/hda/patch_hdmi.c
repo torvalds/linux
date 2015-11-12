@@ -2097,14 +2097,17 @@ static int generic_hdmi_build_jack(struct hda_codec *codec, int pin_idx)
 	struct hdmi_spec *spec = codec->spec;
 	struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
 	int pcmdev = get_pcm_rec(spec, pin_idx)->device;
+	bool phantom_jack;
 
 	if (pcmdev > 0)
 		sprintf(hdmi_str + strlen(hdmi_str), ",pcm=%d", pcmdev);
-	if (!is_jack_detectable(codec, per_pin->pin_nid))
+	phantom_jack = !is_jack_detectable(codec, per_pin->pin_nid);
+	if (phantom_jack)
 		strncat(hdmi_str, " Phantom",
 			sizeof(hdmi_str) - strlen(hdmi_str) - 1);
 
-	return snd_hda_jack_add_kctl(codec, per_pin->pin_nid, hdmi_str);
+	return snd_hda_jack_add_kctl(codec, per_pin->pin_nid, hdmi_str,
+				     phantom_jack);
 }
 
 static int generic_hdmi_build_controls(struct hda_codec *codec)
