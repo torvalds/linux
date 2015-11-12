@@ -16,6 +16,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 
 #include "pwm-lpss.h"
 
@@ -29,6 +30,9 @@
 #define PWM_LIMIT			(0x8000 + PWM_DIVISION_CORRECTION)
 #define NSECS_PER_SEC			1000000000UL
 
+/* Size of each PWM register space if multiple */
+#define PWM_SIZE			0x400
+
 struct pwm_lpss_chip {
 	struct pwm_chip chip;
 	void __iomem *regs;
@@ -37,19 +41,42 @@ struct pwm_lpss_chip {
 
 /* BayTrail */
 const struct pwm_lpss_boardinfo pwm_lpss_byt_info = {
-	.clk_rate = 25000000
+	.clk_rate = 25000000,
+	.npwm = 1,
 };
 EXPORT_SYMBOL_GPL(pwm_lpss_byt_info);
 
 /* Braswell */
 const struct pwm_lpss_boardinfo pwm_lpss_bsw_info = {
-	.clk_rate = 19200000
+	.clk_rate = 19200000,
+	.npwm = 1,
 };
 EXPORT_SYMBOL_GPL(pwm_lpss_bsw_info);
+
+/* Broxton */
+const struct pwm_lpss_boardinfo pwm_lpss_bxt_info = {
+	.clk_rate = 19200000,
+	.npwm = 4,
+};
+EXPORT_SYMBOL_GPL(pwm_lpss_bxt_info);
 
 static inline struct pwm_lpss_chip *to_lpwm(struct pwm_chip *chip)
 {
 	return container_of(chip, struct pwm_lpss_chip, chip);
+}
+
+static inline u32 pwm_lpss_read(const struct pwm_device *pwm)
+{
+	struct pwm_lpss_chip *lpwm = to_lpwm(pwm->chip);
+
+	return readl(lpwm->regs + pwm->hwpwm * PWM_SIZE + PWM);
+}
+
+static inline void pwm_lpss_write(const struct pwm_device *pwm, u32 value)
+{
+	struct pwm_lpss_chip *lpwm = to_lpwm(pwm->chip);
+
+	writel(value, lpwm->regs + pwm->hwpwm * PWM_SIZE + PWM);
 }
 
 static int pwm_lpss_config(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -79,38 +106,36 @@ static int pwm_lpss_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		duty_ns = 1;
 	on_time_div = 255 - (255 * duty_ns / period_ns);
 
-	ctrl = readl(lpwm->regs + PWM);
+	pm_runtime_get_sync(chip->dev);
+
+	ctrl = pwm_lpss_read(pwm);
 	ctrl &= ~(PWM_BASE_UNIT_MASK | PWM_ON_TIME_DIV_MASK);
 	ctrl |= (u16) base_unit << PWM_BASE_UNIT_SHIFT;
 	ctrl |= on_time_div;
 	/* request PWM to update on next cycle */
 	ctrl |= PWM_SW_UPDATE;
-	writel(ctrl, lpwm->regs + PWM);
+	pwm_lpss_write(pwm, ctrl);
+
+	pm_runtime_put(chip->dev);
 
 	return 0;
 }
 
 static int pwm_lpss_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
-	struct pwm_lpss_chip *lpwm = to_lpwm(chip);
-	u32 ctrl;
-
-	ctrl = readl(lpwm->regs + PWM);
-	writel(ctrl | PWM_ENABLE, lpwm->regs + PWM);
-
+	pm_runtime_get_sync(chip->dev);
+	pwm_lpss_write(pwm, pwm_lpss_read(pwm) | PWM_ENABLE);
 	return 0;
 }
 
 static void pwm_lpss_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
-	struct pwm_lpss_chip *lpwm = to_lpwm(chip);
-	u32 ctrl;
-
-	ctrl = readl(lpwm->regs + PWM);
-	writel(ctrl & ~PWM_ENABLE, lpwm->regs + PWM);
+	pwm_lpss_write(pwm, pwm_lpss_read(pwm) & ~PWM_ENABLE);
+	pm_runtime_put(chip->dev);
 }
 
 static const struct pwm_ops pwm_lpss_ops = {
+	.free = pwm_lpss_disable,
 	.config = pwm_lpss_config,
 	.enable = pwm_lpss_enable,
 	.disable = pwm_lpss_disable,
@@ -135,7 +160,7 @@ struct pwm_lpss_chip *pwm_lpss_probe(struct device *dev, struct resource *r,
 	lpwm->chip.dev = dev;
 	lpwm->chip.ops = &pwm_lpss_ops;
 	lpwm->chip.base = -1;
-	lpwm->chip.npwm = 1;
+	lpwm->chip.npwm = info->npwm;
 
 	ret = pwmchip_add(&lpwm->chip);
 	if (ret) {
@@ -149,11 +174,6 @@ EXPORT_SYMBOL_GPL(pwm_lpss_probe);
 
 int pwm_lpss_remove(struct pwm_lpss_chip *lpwm)
 {
-	u32 ctrl;
-
-	ctrl = readl(lpwm->regs + PWM);
-	writel(ctrl & ~PWM_ENABLE, lpwm->regs + PWM);
-
 	return pwmchip_remove(&lpwm->chip);
 }
 EXPORT_SYMBOL_GPL(pwm_lpss_remove);

@@ -29,6 +29,11 @@
 #include <linux/uio.h>
 #include <linux/vmstat.h>
 
+/*
+ * dax_clear_blocks() is called from within transaction context from XFS,
+ * and hence this means the stack from this point must follow GFP_NOFS
+ * semantics for all operations.
+ */
 int dax_clear_blocks(struct inode *inode, sector_t block, long size)
 {
 	struct block_device *bdev = inode->i_sb->s_bdev;
