@@ -64,7 +64,6 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
-		ti,hwmods = "l3_main";
 
 		prcm: prcm@48180000 {
 			compatible = "ti,dm816-prcm";
