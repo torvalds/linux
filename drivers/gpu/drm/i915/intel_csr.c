@@ -235,9 +235,9 @@ void intel_csr_load_program(struct drm_i915_private *dev_priv)
 	}
 }
 
-static void finish_csr_load(const struct firmware *fw, void *context)
+static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
+			      const struct firmware *fw)
 {
-	struct drm_i915_private *dev_priv = context;
 	struct drm_device *dev = dev_priv->dev;
 	struct intel_css_header *css_header;
 	struct intel_package_header *package_header;
@@ -248,14 +248,13 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 	uint32_t dmc_offset = CSR_DEFAULT_FW_OFFSET, readcount = 0, nbytes;
 	uint32_t i;
 	uint32_t *dmc_payload;
-	bool fw_loaded = false;
 
 	if (!fw)
-		goto out;
+		return NULL;
 
 	if (!stepping_info) {
 		DRM_ERROR("Unknown stepping info, firmware loading failed\n");
-		goto out;
+		return NULL;
 	}
 
 	stepping = stepping_info->stepping;
@@ -267,7 +266,7 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 	    (css_header->header_len * 4)) {
 		DRM_ERROR("Firmware has wrong CSS header length %u bytes\n",
 			  (css_header->header_len * 4));
-		goto out;
+		return NULL;
 	}
 
 	csr->version = css_header->version;
@@ -280,7 +279,7 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 			 CSR_VERSION_MINOR(csr->version),
 			 CSR_VERSION_MAJOR(SKL_CSR_VERSION_REQUIRED),
 			 CSR_VERSION_MINOR(SKL_CSR_VERSION_REQUIRED));
-		goto out;
+		return NULL;
 	}
 
 	readcount += sizeof(struct intel_css_header);
@@ -292,7 +291,7 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 	    (package_header->header_len * 4)) {
 		DRM_ERROR("Firmware has wrong package header length %u bytes\n",
 			  (package_header->header_len * 4));
-		goto out;
+		return NULL;
 	}
 	readcount += sizeof(struct intel_package_header);
 
@@ -312,7 +311,7 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 	}
 	if (dmc_offset == CSR_DEFAULT_FW_OFFSET) {
 		DRM_ERROR("Firmware not supported for %c stepping\n", stepping);
-		goto out;
+		return NULL;
 	}
 	readcount += dmc_offset;
 
@@ -321,7 +320,7 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 	if (sizeof(struct intel_dmc_header) != (dmc_header->header_len)) {
 		DRM_ERROR("Firmware has wrong dmc header length %u bytes\n",
 			  (dmc_header->header_len));
-		goto out;
+		return NULL;
 	}
 	readcount += sizeof(struct intel_dmc_header);
 
@@ -329,7 +328,7 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 	if (dmc_header->mmio_count > ARRAY_SIZE(csr->mmioaddr)) {
 		DRM_ERROR("Firmware has wrong mmio count %u\n",
 			  dmc_header->mmio_count);
-		goto out;
+		return NULL;
 	}
 	csr->mmio_count = dmc_header->mmio_count;
 	for (i = 0; i < dmc_header->mmio_count; i++) {
@@ -337,7 +336,7 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 		    dmc_header->mmioaddr[i] > CSR_MMIO_END_RANGE) {
 			DRM_ERROR(" Firmware has wrong mmio address 0x%x\n",
 				  dmc_header->mmioaddr[i]);
-			goto out;
+			return NULL;
 		}
 		csr->mmioaddr[i] = dmc_header->mmioaddr[i];
 		csr->mmiodata[i] = dmc_header->mmiodata[i];
@@ -347,25 +346,38 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 	nbytes = dmc_header->fw_size * 4;
 	if (nbytes > CSR_MAX_FW_SIZE) {
 		DRM_ERROR("CSR firmware too big (%u) bytes\n", nbytes);
-		goto out;
+		return NULL;
 	}
 	csr->dmc_fw_size = dmc_header->fw_size;
 
-	csr->dmc_payload = kmalloc(nbytes, GFP_KERNEL);
-	if (!csr->dmc_payload) {
+	dmc_payload = kmalloc(nbytes, GFP_KERNEL);
+	if (!dmc_payload) {
 		DRM_ERROR("Memory allocation failed for dmc payload\n");
-		goto out;
+		return NULL;
 	}
 
-	dmc_payload = csr->dmc_payload;
 	memcpy(dmc_payload, &fw->data[readcount], nbytes);
+
+	return dmc_payload;
+}
+
+static void finish_csr_load(const struct firmware *fw, void *context)
+{
+	struct drm_i915_private *dev_priv = context;
+	struct intel_csr *csr = &dev_priv->csr;
+
+	if (!fw)
+		goto out;
+
+	dev_priv->csr.dmc_payload = parse_csr_fw(dev_priv, fw);
+	if (!dev_priv->csr.dmc_payload)
+		goto out;
 
 	/* load csr program during system boot, as needed for DC states */
 	intel_csr_load_program(dev_priv);
-	fw_loaded = true;
 
 out:
-	if (fw_loaded) {
+	if (dev_priv->csr.dmc_payload) {
 		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
 
 		DRM_INFO("Finished loading %s (v%u.%u)\n",
