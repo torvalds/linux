@@ -225,6 +225,13 @@
 			};
 		};
 
+		spinbox: spinbox@480ca000 {
+			compatible = "ti,omap4-hwspinlock";
+			reg = <0x480ca000 0x2000>;
+			ti,hwmods = "spinbox";
+			#hwlock-cells = <1>;
+		};
+
 		mdio: mdio@4a100800 {
 			compatible = "ti,davinci_mdio";
 			#address-cells = <1>;
