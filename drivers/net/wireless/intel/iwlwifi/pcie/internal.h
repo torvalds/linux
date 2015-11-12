@@ -378,8 +378,11 @@ struct iwl_trans_pcie {
 	u32 fw_mon_size;
 };
 
-#define IWL_TRANS_GET_PCIE_TRANS(_iwl_trans) \
-	((struct iwl_trans_pcie *) ((_iwl_trans)->trans_specific))
+static inline struct iwl_trans_pcie *
+IWL_TRANS_GET_PCIE_TRANS(struct iwl_trans *trans)
+{
+	return (void *)trans->trans_specific;
+}
 
 static inline struct iwl_trans *
 iwl_trans_pcie_get_trans(struct iwl_trans_pcie *trans_pcie)
