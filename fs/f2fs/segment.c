@@ -86,6 +86,7 @@ static inline unsigned long __reverse_ffs(unsigned long word)
 /*
  * __find_rev_next(_zero)_bit is copied from lib/find_next_bit.c because
  * f2fs_set_bit makes MSB and LSB reversed in a byte.
+ * @size must be integral times of unsigned long.
  * Example:
  *                             MSB <--> LSB
  *   f2fs_set_bit(0, bitmap) => 1000 0000
@@ -95,47 +96,36 @@ static unsigned long __find_rev_next_bit(const unsigned long *addr,
 			unsigned long size, unsigned long offset)
 {
 	const unsigned long *p = addr + BIT_WORD(offset);
-	unsigned long result = offset & ~(BITS_PER_LONG - 1);
+	unsigned long result = size;
 	unsigned long tmp;
 
 	if (offset >= size)
 		return size;
 
-	size -= result;
+	size -= (offset & ~(BITS_PER_LONG - 1));
 	offset %= BITS_PER_LONG;
-	if (!offset)
-		goto aligned;
 
-	tmp = __reverse_ulong((unsigned char *)p);
-	tmp &= ~0UL >> offset;
+	while (1) {
+		if (*p == 0)
+			goto pass;
 
-	if (size < BITS_PER_LONG)
-		goto found_first;
-	if (tmp)
-		goto found_middle;
-
-	size -= BITS_PER_LONG;
-	result += BITS_PER_LONG;
-	p++;
-aligned:
-	while (size & ~(BITS_PER_LONG-1)) {
 		tmp = __reverse_ulong((unsigned char *)p);
+
+		tmp &= ~0UL >> offset;
+		if (size < BITS_PER_LONG)
+			tmp &= (~0UL << (BITS_PER_LONG - size));
 		if (tmp)
-			goto found_middle;
-		result += BITS_PER_LONG;
+			goto found;
+pass:
+		if (size <= BITS_PER_LONG)
+			break;
 		size -= BITS_PER_LONG;
+		offset = 0;
 		p++;
 	}
-	if (!size)
-		return result;
-
-	tmp = __reverse_ulong((unsigned char *)p);
-found_first:
-	tmp &= (~0UL << (BITS_PER_LONG - size));
-	if (!tmp)		/* Are any bits set? */
-		return result + size;   /* Nope. */
-found_middle:
-	return result + __reverse_ffs(tmp);
+	return result;
+found:
+	return result - size + __reverse_ffs(tmp);
 }
 
 static unsigned long __find_rev_next_zero_bit(const unsigned long *addr,
