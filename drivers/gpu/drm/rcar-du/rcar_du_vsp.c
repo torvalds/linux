@@ -106,6 +106,12 @@ static const u32 formats_kms[] = {
 	DRM_FORMAT_NV21,
 	DRM_FORMAT_NV16,
 	DRM_FORMAT_NV61,
+	DRM_FORMAT_YUV420,
+	DRM_FORMAT_YVU420,
+	DRM_FORMAT_YUV422,
+	DRM_FORMAT_YVU422,
+	DRM_FORMAT_YUV444,
+	DRM_FORMAT_YVU444,
 };
 
 static const u32 formats_v4l2[] = {
@@ -129,6 +135,12 @@ static const u32 formats_v4l2[] = {
 	V4L2_PIX_FMT_NV21M,
 	V4L2_PIX_FMT_NV16M,
 	V4L2_PIX_FMT_NV61M,
+	V4L2_PIX_FMT_YUV420M,
+	V4L2_PIX_FMT_YVU420M,
+	V4L2_PIX_FMT_YUV422M,
+	V4L2_PIX_FMT_YVU422M,
+	V4L2_PIX_FMT_YUV444M,
+	V4L2_PIX_FMT_YVU444M,
 };
 
 static void rcar_du_vsp_plane_setup(struct rcar_du_vsp_plane *plane)
@@ -136,7 +148,6 @@ static void rcar_du_vsp_plane_setup(struct rcar_du_vsp_plane *plane)
 	struct rcar_du_vsp_plane_state *state =
 		to_rcar_vsp_plane_state(plane->plane.state);
 	struct drm_framebuffer *fb = plane->plane.state->fb;
-	struct drm_gem_cma_object *gem;
 	struct v4l2_rect src;
 	struct v4l2_rect dst;
 	dma_addr_t paddr[2] = { 0, };
@@ -153,12 +164,11 @@ static void rcar_du_vsp_plane_setup(struct rcar_du_vsp_plane *plane)
 	dst.width = state->state.crtc_w;
 	dst.height = state->state.crtc_h;
 
-	gem = drm_fb_cma_get_gem_obj(fb, 0);
-	paddr[0] = gem->paddr + fb->offsets[0];
+	for (i = 0; i < state->format->planes; ++i) {
+		struct drm_gem_cma_object *gem;
 
-	if (state->format->planes == 2) {
-		gem = drm_fb_cma_get_gem_obj(fb, 1);
-		paddr[1] = gem->paddr + fb->offsets[1];
+		gem = drm_fb_cma_get_gem_obj(fb, i);
+		paddr[i] = gem->paddr + fb->offsets[i];
 	}
 
 	for (i = 0; i < ARRAY_SIZE(formats_kms); ++i) {

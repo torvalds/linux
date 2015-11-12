@@ -90,12 +90,43 @@ static const struct rcar_du_format_info rcar_du_format_infos[] = {
 		.pnmr = PnMR_SPIM_TP_OFF | PnMR_DDDF_YC,
 		.edf = PnDDCR4_EDF_NONE,
 	}, {
-		/* In YUV 4:2:2, only NV16 is supported (NV61 isn't) */
 		.fourcc = DRM_FORMAT_NV16,
 		.bpp = 16,
 		.planes = 2,
 		.pnmr = PnMR_SPIM_TP_OFF | PnMR_DDDF_YC,
 		.edf = PnDDCR4_EDF_NONE,
+	},
+	/* The following formats are not supported on Gen2 and thus have no
+	 * associated .pnmr or .edf settings.
+	 */
+	{
+		.fourcc = DRM_FORMAT_NV61,
+		.bpp = 16,
+		.planes = 2,
+	}, {
+		.fourcc = DRM_FORMAT_YUV420,
+		.bpp = 12,
+		.planes = 3,
+	}, {
+		.fourcc = DRM_FORMAT_YVU420,
+		.bpp = 12,
+		.planes = 3,
+	}, {
+		.fourcc = DRM_FORMAT_YUV422,
+		.bpp = 16,
+		.planes = 3,
+	}, {
+		.fourcc = DRM_FORMAT_YVU422,
+		.bpp = 16,
+		.planes = 3,
+	}, {
+		.fourcc = DRM_FORMAT_YUV444,
+		.bpp = 24,
+		.planes = 3,
+	}, {
+		.fourcc = DRM_FORMAT_YVU444,
+		.bpp = 24,
+		.planes = 3,
 	},
 };
 
@@ -144,6 +175,7 @@ rcar_du_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 	unsigned int max_pitch;
 	unsigned int align;
 	unsigned int bpp;
+	unsigned int i;
 
 	format = rcar_du_format_info(mode_cmd->pixel_format);
 	if (format == NULL) {
@@ -156,7 +188,7 @@ rcar_du_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 	 * The pitch and alignment constraints are expressed in pixels on the
 	 * hardware side and in bytes in the DRM API.
 	 */
-	bpp = format->planes == 2 ? 1 : format->bpp / 8;
+	bpp = format->planes == 1 ? format->bpp / 8 : 1;
 	max_pitch =  4096 * bpp;
 
 	if (rcar_du_needs(rcdu, RCAR_DU_QUIRK_ALIGN_128B))
@@ -171,8 +203,8 @@ rcar_du_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (format->planes == 2) {
-		if (mode_cmd->pitches[1] != mode_cmd->pitches[0]) {
+	for (i = 1; i < format->planes; ++i) {
+		if (mode_cmd->pitches[i] != mode_cmd->pitches[0]) {
 			dev_dbg(dev->dev,
 				"luma and chroma pitches do not match\n");
 			return ERR_PTR(-EINVAL);
