@@ -1249,6 +1249,10 @@ static inline void iwl_mvm_leds_exit(struct iwl_mvm *mvm)
 /* D3 (WoWLAN, NetDetect) */
 int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan);
 int iwl_mvm_resume(struct ieee80211_hw *hw);
+int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
+				     struct ieee80211_vif *vif,
+				     bool configure_keys,
+				     u32 cmd_flags);
 void iwl_mvm_set_wakeup(struct ieee80211_hw *hw, bool enabled);
 void iwl_mvm_set_rekey_data(struct ieee80211_hw *hw,
 			    struct ieee80211_vif *vif,
