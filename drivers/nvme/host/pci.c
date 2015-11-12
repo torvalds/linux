@@ -1725,7 +1725,7 @@ static int nvme_configure_admin_queue(struct nvme_dev *dev)
 {
 	int result;
 	u32 aqa;
-	u64 cap = readq(&dev->bar->cap);
+	u64 cap = lo_hi_readq(&dev->bar->cap);
 	struct nvme_queue *nvmeq;
 	unsigned page_shift = PAGE_SHIFT;
 	unsigned dev_page_min = NVME_CAP_MPSMIN(cap) + 12;
@@ -1774,8 +1774,8 @@ static int nvme_configure_admin_queue(struct nvme_dev *dev)
 	dev->ctrl_config |= NVME_CC_IOSQES | NVME_CC_IOCQES;
 
 	writel(aqa, &dev->bar->aqa);
-	writeq(nvmeq->sq_dma_addr, &dev->bar->asq);
-	writeq(nvmeq->cq_dma_addr, &dev->bar->acq);
+	lo_hi_writeq(nvmeq->sq_dma_addr, &dev->bar->asq);
+	lo_hi_writeq(nvmeq->cq_dma_addr, &dev->bar->acq);
 
 	result = nvme_enable_ctrl(dev, cap);
 	if (result)
@@ -2606,7 +2606,7 @@ static int nvme_dev_add(struct nvme_dev *dev)
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	int res;
 	struct nvme_id_ctrl *ctrl;
-	int shift = NVME_CAP_MPSMIN(readq(&dev->bar->cap)) + 12;
+	int shift = NVME_CAP_MPSMIN(lo_hi_readq(&dev->bar->cap)) + 12;
 
 	res = nvme_identify_ctrl(dev, &ctrl);
 	if (res) {
@@ -2622,6 +2622,8 @@ static int nvme_dev_add(struct nvme_dev *dev)
 	memcpy(dev->firmware_rev, ctrl->fr, sizeof(ctrl->fr));
 	if (ctrl->mdts)
 		dev->max_hw_sectors = 1 << (ctrl->mdts + shift - 9);
+	else
+		dev->max_hw_sectors = UINT_MAX;
 	if ((pdev->vendor == PCI_VENDOR_ID_INTEL) &&
 			(pdev->device == 0x0953) && ctrl->vs[3]) {
 		unsigned int max_hw_sectors;
@@ -2695,7 +2697,7 @@ static int nvme_dev_map(struct nvme_dev *dev)
 			goto unmap;
 	}
 
-	cap = readq(&dev->bar->cap);
+	cap = lo_hi_readq(&dev->bar->cap);
 	dev->q_depth = min_t(int, NVME_CAP_MQES(cap) + 1, NVME_Q_DEPTH);
 	dev->db_stride = 1 << NVME_CAP_STRIDE(cap);
 	dev->dbs = ((void __iomem *)dev->bar) + 4096;
@@ -2758,7 +2760,7 @@ static void nvme_wait_dq(struct nvme_delq_ctx *dq, struct nvme_dev *dev)
 			 * queues than admin tags.
 			 */
 			set_current_state(TASK_RUNNING);
-			nvme_disable_ctrl(dev, readq(&dev->bar->cap));
+			nvme_disable_ctrl(dev, lo_hi_readq(&dev->bar->cap));
 			nvme_clear_queue(dev->queues[0]);
 			flush_kthread_worker(dq->worker);
 			nvme_disable_queue(dev, 0);
@@ -3401,6 +3403,7 @@ static const struct pci_error_handlers nvme_err_handler = {
 
 static const struct pci_device_id nvme_id_table[] = {
 	{ PCI_DEVICE_CLASS(PCI_CLASS_STORAGE_EXPRESS, 0xffffff) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_APPLE, 0x2001) },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, nvme_id_table);

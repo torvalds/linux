@@ -174,8 +174,10 @@ static ssize_t dax_io(struct inode *inode, struct iov_iter *iter,
 		else
 			len = iov_iter_zero(max - pos, iter);
 
-		if (!len)
+		if (!len) {
+			retval = -EFAULT;
 			break;
+		}
 
 		pos += len;
 		addr += len;
