@@ -108,6 +108,15 @@ xfs_trans_log_inode(
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 
 	/*
+	 * Record the specific change for fdatasync optimisation. This
+	 * allows fdatasync to skip log forces for inodes that are only
+	 * timestamp dirty. We do this before the change count so that
+	 * the core being logged in this case does not impact on fdatasync
+	 * behaviour.
+	 */
+	ip->i_itemp->ili_fsync_fields |= flags;
+
+	/*
 	 * First time we log the inode in a transaction, bump the inode change
 	 * counter if it is configured for this to occur. We don't use
 	 * inode_inc_version() because there is no need for extra locking around
