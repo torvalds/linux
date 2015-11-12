@@ -1637,7 +1637,11 @@ struct amdgpu_pm {
 	const struct firmware	*fw;	/* SMC firmware */
 	uint32_t                fw_version;
 	const struct amdgpu_dpm_funcs *funcs;
+	uint32_t                pcie_gen_mask;
+	uint32_t                pcie_mlw_mask;
 };
+
+void amdgpu_get_pcie_info(struct amdgpu_device *adev);
 
 /*
  * UVD

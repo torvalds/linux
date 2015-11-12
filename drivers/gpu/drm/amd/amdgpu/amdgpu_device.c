@@ -38,6 +38,7 @@
 #include "amdgpu_i2c.h"
 #include "atom.h"
 #include "amdgpu_atombios.h"
+#include "amd_pcie.h"
 #ifdef CONFIG_DRM_AMDGPU_CIK
 #include "cik.h"
 #endif
@@ -1932,6 +1933,83 @@ retry:
 	return r;
 }
 
+void amdgpu_get_pcie_info(struct amdgpu_device *adev)
+{
+	u32 mask;
+	int ret;
+
+	if (pci_is_root_bus(adev->pdev->bus))
+		return;
+
+	if (amdgpu_pcie_gen2 == 0)
+		return;
+
+	if (adev->flags & AMD_IS_APU)
+		return;
+
+	ret = drm_pcie_get_speed_cap_mask(adev->ddev, &mask);
+	if (!ret) {
+		adev->pm.pcie_gen_mask = (CAIL_ASIC_PCIE_LINK_SPEED_SUPPORT_GEN1 |
+					  CAIL_ASIC_PCIE_LINK_SPEED_SUPPORT_GEN2 |
+					  CAIL_ASIC_PCIE_LINK_SPEED_SUPPORT_GEN3);
+
+		if (mask & DRM_PCIE_SPEED_25)
+			adev->pm.pcie_gen_mask |= CAIL_PCIE_LINK_SPEED_SUPPORT_GEN1;
+		if (mask & DRM_PCIE_SPEED_50)
+			adev->pm.pcie_gen_mask |= CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2;
+		if (mask & DRM_PCIE_SPEED_80)
+			adev->pm.pcie_gen_mask |= CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3;
+	}
+	ret = drm_pcie_get_max_link_width(adev->ddev, &mask);
+	if (!ret) {
+		switch (mask) {
+		case 32:
+			adev->pm.pcie_mlw_mask = (CAIL_PCIE_LINK_WIDTH_SUPPORT_X32 |
+						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X16 |
+						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X12 |
+						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X8 |
+						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 |
+						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
+						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
+			break;
+		case 16:
+			adev->pm.pcie_mlw_mask = (CAIL_PCIE_LINK_WIDTH_SUPPORT_X16 |
+						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X12 |
+						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X8 |
+						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 |
+						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
+						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
+			break;
+		case 12:
+			adev->pm.pcie_mlw_mask = (CAIL_PCIE_LINK_WIDTH_SUPPORT_X12 |
+						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X8 |
+						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 |
+						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
+						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
+			break;
+		case 8:
+			adev->pm.pcie_mlw_mask = (CAIL_PCIE_LINK_WIDTH_SUPPORT_X8 |
+						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 |
+						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
+						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
+			break;
+		case 4:
+			adev->pm.pcie_mlw_mask = (CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 |
+						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
+						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
+			break;
+		case 2:
+			adev->pm.pcie_mlw_mask = (CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
+						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
+			break;
+		case 1:
+			adev->pm.pcie_mlw_mask = CAIL_PCIE_LINK_WIDTH_SUPPORT_X1;
+			break;
+		default:
+			break;
+		}
+	}
+}
 
 /*
  * Debugfs
