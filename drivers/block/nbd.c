@@ -215,7 +215,7 @@ static int sock_xmit(struct nbd_device *nbd, int index, int send, void *buf,
 	struct socket *sock = nbd->socks[index]->sock;
 	int result;
 	struct msghdr msg;
-	struct kvec iov;
+	struct kvec iov = {.iov_base = buf, .iov_len = size};
 	unsigned long pflags = current->flags;
 
 	if (unlikely(!sock)) {
@@ -225,11 +225,12 @@ static int sock_xmit(struct nbd_device *nbd, int index, int send, void *buf,
 		return -EINVAL;
 	}
 
+	iov_iter_kvec(&msg.msg_iter, (send ? WRITE : READ) | ITER_KVEC,
+		      &iov, 1, size);
+
 	current->flags |= PF_MEMALLOC;
 	do {
 		sock->sk->sk_allocation = GFP_NOIO | __GFP_MEMALLOC;
-		iov.iov_base = buf;
-		iov.iov_len = size;
 		msg.msg_name = NULL;
 		msg.msg_namelen = 0;
 		msg.msg_control = NULL;
@@ -237,19 +238,16 @@ static int sock_xmit(struct nbd_device *nbd, int index, int send, void *buf,
 		msg.msg_flags = msg_flags | MSG_NOSIGNAL;
 
 		if (send)
-			result = kernel_sendmsg(sock, &msg, &iov, 1, size);
+			result = sock_sendmsg(sock, &msg);
 		else
-			result = kernel_recvmsg(sock, &msg, &iov, 1, size,
-						msg.msg_flags);
+			result = sock_recvmsg(sock, &msg, msg.msg_flags);
 
 		if (result <= 0) {
 			if (result == 0)
 				result = -EPIPE; /* short read */
 			break;
 		}
-		size -= result;
-		buf += result;
-	} while (size > 0);
+	} while (msg_data_left(&msg));
 
 	tsk_restore_flags(current, pflags, PF_MEMALLOC);
 
