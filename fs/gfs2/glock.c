@@ -1417,14 +1417,14 @@ static struct shrinker glock_shrinker = {
 static void glock_hash_walk(glock_examiner examiner, const struct gfs2_sbd *sdp)
 {
 	struct gfs2_glock *gl;
-	struct rhash_head *pos, *next;
+	struct rhash_head *pos;
 	const struct bucket_table *tbl;
 	int i;
 
 	rcu_read_lock();
 	tbl = rht_dereference_rcu(gl_hash_table.tbl, &gl_hash_table);
 	for (i = 0; i < tbl->size; i++) {
-		rht_for_each_entry_safe(gl, pos, next, tbl, i, gl_node) {
+		rht_for_each_entry_rcu(gl, pos, tbl, i, gl_node) {
 			if ((gl->gl_name.ln_sbd == sdp) &&
 			    lockref_get_not_dead(&gl->gl_lockref))
 				examiner(gl);
