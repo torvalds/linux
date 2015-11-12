@@ -8,6 +8,7 @@
 #include <linux/slab.h>
 #include <linux/blk-mq.h>
 #include <linux/hrtimer.h>
+#include <linux/lightnvm.h>
 
 struct nullb_cmd {
 	struct list_head list;
@@ -39,6 +40,7 @@ struct nullb {
 
 	struct nullb_queue *queues;
 	unsigned int nr_queues;
+	char disk_name[DISK_NAME_LEN];
 };
 
 static LIST_HEAD(nullb_list);
@@ -118,6 +120,10 @@ MODULE_PARM_DESC(bs, "Block size (in bytes)");
 static int nr_devices = 2;
 module_param(nr_devices, int, S_IRUGO);
 MODULE_PARM_DESC(nr_devices, "Number of devices to register");
+
+static bool use_lightnvm;
+module_param(use_lightnvm, bool, S_IRUGO);
+MODULE_PARM_DESC(use_lightnvm, "Register as a LightNVM device");
 
 static int irqmode = NULL_IRQ_SOFTIRQ;
 
@@ -427,6 +433,8 @@ static void null_del_dev(struct nullb *nullb)
 {
 	list_del_init(&nullb->list);
 
+	if (use_lightnvm)
+		nvm_unregister(nullb->disk->disk_name);
 	del_gendisk(nullb->disk);
 	blk_cleanup_queue(nullb->q);
 	if (queue_mode == NULL_Q_MQ)
@@ -435,6 +443,125 @@ static void null_del_dev(struct nullb *nullb)
 	cleanup_queues(nullb);
 	kfree(nullb);
 }
+
+#ifdef CONFIG_NVM
+
+static void null_lnvm_end_io(struct request *rq, int error)
+{
+	struct nvm_rq *rqd = rq->end_io_data;
+	struct nvm_dev *dev = rqd->dev;
+
+	dev->mt->end_io(rqd, error);
+
+	blk_put_request(rq);
+}
+
+static int null_lnvm_submit_io(struct request_queue *q, struct nvm_rq *rqd)
+{
+	struct request *rq;
+	struct bio *bio = rqd->bio;
+
+	rq = blk_mq_alloc_request(q, bio_rw(bio), GFP_KERNEL, 0);
+	if (IS_ERR(rq))
+		return -ENOMEM;
+
+	rq->cmd_type = REQ_TYPE_DRV_PRIV;
+	rq->__sector = bio->bi_iter.bi_sector;
+	rq->ioprio = bio_prio(bio);
+
+	if (bio_has_data(bio))
+		rq->nr_phys_segments = bio_phys_segments(q, bio);
+
+	rq->__data_len = bio->bi_iter.bi_size;
+	rq->bio = rq->biotail = bio;
+
+	rq->end_io_data = rqd;
+
+	blk_execute_rq_nowait(q, NULL, rq, 0, null_lnvm_end_io);
+
+	return 0;
+}
+
+static int null_lnvm_id(struct request_queue *q, struct nvm_id *id)
+{
+	sector_t size = gb * 1024 * 1024 * 1024ULL;
+	struct nvm_id_group *grp;
+
+	id->ver_id = 0x1;
+	id->vmnt = 0;
+	id->cgrps = 1;
+	id->cap = 0x3;
+	id->dom = 0x1;
+	id->ppat = NVM_ADDRMODE_LINEAR;
+
+	do_div(size, bs); /* convert size to pages */
+	grp = &id->groups[0];
+	grp->mtype = 0;
+	grp->fmtype = 1;
+	grp->num_ch = 1;
+	grp->num_lun = 1;
+	grp->num_pln = 1;
+	grp->num_blk = size / 256;
+	grp->num_pg = 256;
+	grp->fpg_sz = bs;
+	grp->csecs = bs;
+	grp->trdt = 25000;
+	grp->trdm = 25000;
+	grp->tprt = 500000;
+	grp->tprm = 500000;
+	grp->tbet = 1500000;
+	grp->tbem = 1500000;
+	grp->mpos = 0x010101; /* single plane rwe */
+	grp->cpar = hw_queue_depth;
+
+	return 0;
+}
+
+static void *null_lnvm_create_dma_pool(struct request_queue *q, char *name)
+{
+	mempool_t *virtmem_pool;
+
+	virtmem_pool = mempool_create_page_pool(64, 0);
+	if (!virtmem_pool) {
+		pr_err("null_blk: Unable to create virtual memory pool\n");
+		return NULL;
+	}
+
+	return virtmem_pool;
+}
+
+static void null_lnvm_destroy_dma_pool(void *pool)
+{
+	mempool_destroy(pool);
+}
+
+static void *null_lnvm_dev_dma_alloc(struct request_queue *q, void *pool,
+				gfp_t mem_flags, dma_addr_t *dma_handler)
+{
+	return mempool_alloc(pool, mem_flags);
+}
+
+static void null_lnvm_dev_dma_free(void *pool, void *entry,
+							dma_addr_t dma_handler)
+{
+	mempool_free(entry, pool);
+}
+
+static struct nvm_dev_ops null_lnvm_dev_ops = {
+	.identity		= null_lnvm_id,
+	.submit_io		= null_lnvm_submit_io,
+
+	.create_dma_pool	= null_lnvm_create_dma_pool,
+	.destroy_dma_pool	= null_lnvm_destroy_dma_pool,
+	.dev_dma_alloc		= null_lnvm_dev_dma_alloc,
+	.dev_dma_free		= null_lnvm_dev_dma_free,
+
+	/* Simulate nvme protocol restriction */
+	.max_phys_sect		= 64,
+};
+#else
+static struct nvm_dev_ops null_lnvm_dev_ops;
+#endif /* CONFIG_NVM */
 
 static int null_open(struct block_device *bdev, fmode_t mode)
 {
@@ -575,11 +702,6 @@ static int null_add_dev(void)
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, nullb->q);
 	queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, nullb->q);
 
-	disk = nullb->disk = alloc_disk_node(1, home_node);
-	if (!disk) {
-		rv = -ENOMEM;
-		goto out_cleanup_blk_queue;
-	}
 
 	mutex_lock(&lock);
 	list_add_tail(&nullb->list, &nullb_list);
@@ -589,6 +711,21 @@ static int null_add_dev(void)
 	blk_queue_logical_block_size(nullb->q, bs);
 	blk_queue_physical_block_size(nullb->q, bs);
 
+	sprintf(nullb->disk_name, "nullb%d", nullb->index);
+
+	if (use_lightnvm) {
+		rv = nvm_register(nullb->q, nullb->disk_name,
+							&null_lnvm_dev_ops);
+		if (rv)
+			goto out_cleanup_blk_queue;
+		goto done;
+	}
+
+	disk = nullb->disk = alloc_disk_node(1, home_node);
+	if (!disk) {
+		rv = -ENOMEM;
+		goto out_cleanup_lightnvm;
+	}
 	size = gb * 1024 * 1024 * 1024ULL;
 	set_capacity(disk, size >> 9);
 
@@ -598,10 +735,15 @@ static int null_add_dev(void)
 	disk->fops		= &null_fops;
 	disk->private_data	= nullb;
 	disk->queue		= nullb->q;
-	sprintf(disk->disk_name, "nullb%d", nullb->index);
+	strncpy(disk->disk_name, nullb->disk_name, DISK_NAME_LEN);
+
 	add_disk(disk);
+done:
 	return 0;
 
+out_cleanup_lightnvm:
+	if (use_lightnvm)
+		nvm_unregister(nullb->disk_name);
 out_cleanup_blk_queue:
 	blk_cleanup_queue(nullb->q);
 out_cleanup_tags:
@@ -623,6 +765,12 @@ static int __init null_init(void)
 		pr_warn("null_blk: invalid block size\n");
 		pr_warn("null_blk: defaults block size to %lu\n", PAGE_SIZE);
 		bs = PAGE_SIZE;
+	}
+
+	if (use_lightnvm && queue_mode != NULL_Q_MQ) {
+		pr_warn("null_blk: LightNVM only supported for blk-mq\n");
+		pr_warn("null_blk: defaults queue mode to blk-mq\n");
+		queue_mode = NULL_Q_MQ;
 	}
 
 	if (queue_mode == NULL_Q_MQ && use_per_node_hctx) {
