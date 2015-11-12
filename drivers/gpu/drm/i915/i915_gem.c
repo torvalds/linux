@@ -4484,10 +4484,8 @@ struct i915_vma *i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
 {
 	struct i915_vma *vma;
 	list_for_each_entry(vma, &obj->vma_list, vma_link) {
-		if (i915_is_ggtt(vma->vm) &&
-		    vma->ggtt_view.type != I915_GGTT_VIEW_NORMAL)
-			continue;
-		if (vma->vm == vm)
+		if (vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL &&
+		    vma->vm == vm)
 			return vma;
 	}
 	return NULL;
