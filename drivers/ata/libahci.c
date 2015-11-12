@@ -1796,29 +1796,10 @@ static void ahci_port_intr(struct ata_port *ap)
 	ahci_handle_port_interrupt(ap, port_mmio, status);
 }
 
-static irqreturn_t ahci_port_thread_fn(int irq, void *dev_instance)
-{
-	struct ata_port *ap = dev_instance;
-	struct ahci_port_priv *pp = ap->private_data;
-	void __iomem *port_mmio = ahci_port_base(ap);
-	u32 status;
-
-	status = atomic_xchg(&pp->intr_status, 0);
-	if (!status)
-		return IRQ_NONE;
-
-	spin_lock_bh(ap->lock);
-	ahci_handle_port_interrupt(ap, port_mmio, status);
-	spin_unlock_bh(ap->lock);
-
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t ahci_multi_irqs_intr(int irq, void *dev_instance)
+static irqreturn_t ahci_multi_irqs_intr_hard(int irq, void *dev_instance)
 {
 	struct ata_port *ap = dev_instance;
 	void __iomem *port_mmio = ahci_port_base(ap);
-	struct ahci_port_priv *pp = ap->private_data;
 	u32 status;
 
 	VPRINTK("ENTER\n");
@@ -1826,11 +1807,13 @@ static irqreturn_t ahci_multi_irqs_intr(int irq, void *dev_instance)
 	status = readl(port_mmio + PORT_IRQ_STAT);
 	writel(status, port_mmio + PORT_IRQ_STAT);
 
-	atomic_or(status, &pp->intr_status);
+	spin_lock(ap->lock);
+	ahci_handle_port_interrupt(ap, port_mmio, status);
+	spin_unlock(ap->lock);
 
 	VPRINTK("EXIT\n");
 
-	return IRQ_WAKE_THREAD;
+	return IRQ_HANDLED;
 }
 
 static u32 ahci_handle_port_intr(struct ata_host *host, u32 irq_masked)
@@ -2499,10 +2482,9 @@ static int ahci_host_activate_multi_irqs(struct ata_host *host,
 			continue;
 		}
 
-		rc = devm_request_threaded_irq(host->dev, irq,
-					       ahci_multi_irqs_intr,
-					       ahci_port_thread_fn, 0,
-					       pp->irq_desc, host->ports[i]);
+		rc = devm_request_irq(host->dev, irq, ahci_multi_irqs_intr_hard,
+				0, pp->irq_desc, host->ports[i]);
+
 		if (rc)
 			return rc;
 		ata_port_desc(host->ports[i], "irq %d", irq);
