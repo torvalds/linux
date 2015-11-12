@@ -555,6 +555,7 @@ endif # KBUILD_EXTMOD
 
 ifeq ($(dot-config),1)
 # Read in config
+-include arch/$(SRCARCH)/auto.conf
 -include include/config/auto.conf
 
 ifeq ($(KBUILD_EXTMOD),)

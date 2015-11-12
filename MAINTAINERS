@@ -6448,6 +6448,12 @@ F:	arch/powerpc/platforms/pasemi/
 F:	drivers/*/*pasemi*
 F:	drivers/*/*/*pasemi*
 
+LINUX KERNEL LIBRARY
+M:	Octavian Purdila <octavian.purdila@intel.com>
+S:	Maintained
+F:	arch/lkl/
+F:	tools/lkl/
+
 LINUX SECURITY MODULE (LSM) FRAMEWORK
 M:	Chris Wright <chrisw@sous-sol.org>
 L:	linux-security-module@vger.kernel.org

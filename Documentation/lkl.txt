@@ -1,0 +1,80 @@
+
+Introduction
+------------
+
+LKL (Linux Kernel Library) is aiming to allow reusing the Linux kernel code as
+extensively as possible with minimal effort and reduced maintenance overhead.
+
+Examples of how LKL can be used are: creating userspace applications (running on
+Linux and other operating systems) that can read or write Linux filesystems or
+can use the Linux networking stack, creating kernel drivers for other operating
+systems that can read Linux filesystems, bootloaders support for reading/writing
+Linux filesystems, etc.
+
+With LKL, the kernel code is compiled into an object file that can be directly
+linked by applications. The API offered by LKL is based on the Linux system call
+interface.
+
+LKL is implemented as an architecture port in arch/lkl. It uses host operations
+defined by the application or a host library (tools/lkl/lib).
+
+
+Building LKL on FreeBSD
+-----------------------
+
+$ pkg install binutils gcc49
+
+If you don't have a gcc binary:
+$ ln -sf /usr/local/bin/gcc49 /usr/local/bin/gcc
+
+Prefer ports binutils:
+$ export PATH=/sbin:/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/usr/lib64/ccache
+
+$ cd tools/lkl
+$ gmake
+
+
+Building LKL the host library and LKL applications
+--------------------------------------------------
+
+% cd tools/lkl
+% make
+
+will build LKL as a object file, it will install it in tools/lkl/lib together
+with the headers files in tools/lkl/include then will build the host library,
+tests and a few of application examples:
+
+* tests/boot - a simple applications that uses LKL and exercises the basic LKL
+APIs
+
+* fs2tar - a tool that converts a filesystem image to a tar archive
+
+* cptofs/cpfromfs - a tool that copies files to/from a filesystem image
+
+
+Supported hosts
+---------------
+
+The supported hosts for now are POSIX and Windows userspace applications.
+
+FAQ
+---
+
+Q: How is LKL different from UML?
+
+A: UML prodivides a full OS environment (e.g. user/kernel separation, user
+processes) and also has requirements (a filesystem, processes, etc.) that makes
+it hard to use it for standalone applications. UML also relies heavily on Linux
+hosts. On the other hand LKL is designed to be linked directly with the
+application and hence does not have user/kernel separation which makes it easier
+to use it in standalone applications.
+
+
+Q: How is LKL different from LibOS?
+
+A: LibOS re-implements high-level kernel APIs for timers, softirqs, scheduling,
+sysctl, SLAB/SLUB, etc. LKL behaves like any arch port, implementing the arch
+level operations requested by the Linux kernel. LKL also offers a host interface
+so that support for multiple hosts can be implemented.
+
+

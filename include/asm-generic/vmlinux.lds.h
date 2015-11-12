@@ -251,11 +251,16 @@
 /*
  * Read only Data
  */
+
+#ifndef RODATA_SECTION
+#define RODATA_SECTION .rodata
+#endif
+
 #define RO_DATA_SECTION(align)						\
 	. = ALIGN((align));						\
-	.rodata           : AT(ADDR(.rodata) - LOAD_OFFSET) {		\
+	RODATA_SECTION    : AT(ADDR(RODATA_SECTION) - LOAD_OFFSET) {	\
 		VMLINUX_SYMBOL(__start_rodata) = .;			\
-		*(.rodata) *(.rodata.*)					\
+		*(RODATA_SECTION) *(RODATA_SECTION.*)			\
 		*(__vermagic)		/* Kernel version magic */	\
 		. = ALIGN(8);						\
 		VMLINUX_SYMBOL(__start___tracepoints_ptrs) = .;		\
