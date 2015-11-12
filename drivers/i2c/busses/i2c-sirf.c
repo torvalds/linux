@@ -358,11 +358,29 @@ static int i2c_sirfsoc_probe(struct platform_device *pdev)
 	if (err < 0)
 		bitrate = SIRFSOC_I2C_DEFAULT_SPEED;
 
-	if (bitrate < 100000)
-		regval =
-			(2 * ctrl_speed) / (bitrate * 11);
-	else
+	/*
+	 * Due to some hardware design issues, we need to tune the formula.
+	 * Since i2c is open drain interface that allows the slave to
+	 * stall the transaction by holding the SCL line at '0', the RTL
+	 * implementation is waiting for SCL feedback from the pin after
+	 * setting it to High-Z ('1'). This wait adds to the high-time
+	 * interval counter few cycles of the input synchronization
+	 * (depending on the SCL_FILTER_REG field), and also the time it
+	 * takes for the board pull-up resistor to rise the SCL line.
+	 * For slow SCL settings these additions are negligible,
+	 * but they start to affect the speed when clock is set to faster
+	 * frequencies.
+	 * Through the actual tests, use the different user_div value(which
+	 * in the divider formular 'Fio / (Fi2c * user_div)') to adapt
+	 * the different ranges of i2c bus clock frequency, to make the SCL
+	 * more accurate.
+	 */
+	if (bitrate <= 30000)
 		regval = ctrl_speed / (bitrate * 5);
+	else if (bitrate > 30000 && bitrate <= 280000)
+		regval = (2 * ctrl_speed) / (bitrate * 11);
+	else
+		regval = ctrl_speed / (bitrate * 6);
 
 	writel(regval, siic->base + SIRFSOC_I2C_CLK_CTRL);
 	if (regval > 0xFF)

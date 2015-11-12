@@ -570,6 +570,7 @@ static struct cs_spec *cs_alloc_spec(struct hda_codec *codec, int vendor_nid)
 		return NULL;
 	codec->spec = spec;
 	spec->vendor_nid = vendor_nid;
+	codec->power_save_node = 1;
 	snd_hda_gen_spec_init(&spec->gen);
 
 	return spec;
@@ -1200,26 +1201,21 @@ static int patch_cs4213(struct hda_codec *codec)
 /*
  * patch entries
  */
-static const struct hda_codec_preset snd_hda_preset_cirrus[] = {
-	{ .id = 0x10134206, .name = "CS4206", .patch = patch_cs420x },
-	{ .id = 0x10134207, .name = "CS4207", .patch = patch_cs420x },
-	{ .id = 0x10134208, .name = "CS4208", .patch = patch_cs4208 },
-	{ .id = 0x10134210, .name = "CS4210", .patch = patch_cs4210 },
-	{ .id = 0x10134213, .name = "CS4213", .patch = patch_cs4213 },
+static const struct hda_device_id snd_hda_id_cirrus[] = {
+	HDA_CODEC_ENTRY(0x10134206, "CS4206", patch_cs420x),
+	HDA_CODEC_ENTRY(0x10134207, "CS4207", patch_cs420x),
+	HDA_CODEC_ENTRY(0x10134208, "CS4208", patch_cs4208),
+	HDA_CODEC_ENTRY(0x10134210, "CS4210", patch_cs4210),
+	HDA_CODEC_ENTRY(0x10134213, "CS4213", patch_cs4213),
 	{} /* terminator */
 };
-
-MODULE_ALIAS("snd-hda-codec-id:10134206");
-MODULE_ALIAS("snd-hda-codec-id:10134207");
-MODULE_ALIAS("snd-hda-codec-id:10134208");
-MODULE_ALIAS("snd-hda-codec-id:10134210");
-MODULE_ALIAS("snd-hda-codec-id:10134213");
+MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_cirrus);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Cirrus Logic HD-audio codec");
 
 static struct hda_codec_driver cirrus_driver = {
-	.preset = snd_hda_preset_cirrus,
+	.id = snd_hda_id_cirrus,
 };
 
 module_hda_codec_driver(cirrus_driver);

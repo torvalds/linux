@@ -1074,11 +1074,9 @@ static void dmaengine_destroy_unmap_pool(void)
 	for (i = 0; i < ARRAY_SIZE(unmap_pool); i++) {
 		struct dmaengine_unmap_pool *p = &unmap_pool[i];
 
-		if (p->pool)
-			mempool_destroy(p->pool);
+		mempool_destroy(p->pool);
 		p->pool = NULL;
-		if (p->cache)
-			kmem_cache_destroy(p->cache);
+		kmem_cache_destroy(p->cache);
 		p->cache = NULL;
 	}
 }

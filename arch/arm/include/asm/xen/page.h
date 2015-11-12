@@ -13,9 +13,6 @@
 
 #define phys_to_machine_mapping_valid(pfn) (1)
 
-#define pte_mfn	    pte_pfn
-#define mfn_pte	    pfn_pte
-
 /* Xen machine address */
 typedef struct xmaddr {
 	phys_addr_t maddr;
@@ -30,6 +27,17 @@ typedef struct xpaddr {
 #define XPADDR(x)	((xpaddr_t) { .paddr = (x) })
 
 #define INVALID_P2M_ENTRY      (~0UL)
+
+/*
+ * The pseudo-physical frame (pfn) used in all the helpers is always based
+ * on Xen page granularity (i.e 4KB).
+ *
+ * A Linux page may be split across multiple non-contiguous Xen page so we
+ * have to keep track with frame based on 4KB page granularity.
+ *
+ * PV drivers should never make a direct usage of those helpers (particularly
+ * pfn_to_gfn and gfn_to_pfn).
+ */
 
 unsigned long __pfn_to_mfn(unsigned long pfn);
 extern struct rb_root phys_to_mach;
@@ -67,8 +75,8 @@ static inline unsigned long bfn_to_pfn(unsigned long bfn)
 #define bfn_to_local_pfn(bfn)	bfn_to_pfn(bfn)
 
 /* VIRT <-> GUEST conversion */
-#define virt_to_gfn(v)		(pfn_to_gfn(virt_to_pfn(v)))
-#define gfn_to_virt(m)		(__va(gfn_to_pfn(m) << PAGE_SHIFT))
+#define virt_to_gfn(v)		(pfn_to_gfn(virt_to_phys(v) >> XEN_PAGE_SHIFT))
+#define gfn_to_virt(m)		(__va(gfn_to_pfn(m) << XEN_PAGE_SHIFT))
 
 /* Only used in PV code. But ARM guests are always HVM. */
 static inline xmaddr_t arbitrary_virt_to_machine(void *vaddr)
@@ -107,8 +115,8 @@ static inline bool set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 #define xen_unmap(cookie) iounmap((cookie))
 
 bool xen_arch_need_swiotlb(struct device *dev,
-			   unsigned long pfn,
-			   unsigned long bfn);
+			   phys_addr_t phys,
+			   dma_addr_t dev_addr);
 unsigned long xen_get_swiotlb_free_pages(unsigned int order);
 
 #endif /* _ASM_ARM_XEN_PAGE_H */

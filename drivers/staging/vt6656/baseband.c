@@ -527,7 +527,6 @@ void vnt_set_short_slot_time(struct vnt_private *priv)
 
 void vnt_set_vga_gain_offset(struct vnt_private *priv, u8 data)
 {
-
 	vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0xE7, data);
 
 	/* patch for 3253B0 Baseband with Cardbus module */
@@ -811,7 +810,6 @@ void vnt_update_pre_ed_threshold(struct vnt_private *priv, int scanning)
 			cr_206 = 0x38;
 		}
 		break;
-
 	}
 
 	if (ed_inx == priv->bb_pre_ed_index && !scanning)

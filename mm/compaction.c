@@ -35,17 +35,6 @@ static inline void count_compact_events(enum vm_event_item item, long delta)
 #endif
 
 #if defined CONFIG_COMPACTION || defined CONFIG_CMA
-#ifdef CONFIG_TRACEPOINTS
-static const char *const compaction_status_string[] = {
-	"deferred",
-	"skipped",
-	"continue",
-	"partial",
-	"complete",
-	"no_suitable_page",
-	"not_suitable_zone",
-};
-#endif
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/compaction.h>
@@ -1197,6 +1186,15 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
 	return cc->nr_migratepages ? ISOLATE_SUCCESS : ISOLATE_NONE;
 }
 
+/*
+ * order == -1 is expected when compacting via
+ * /proc/sys/vm/compact_memory
+ */
+static inline bool is_via_compact_memory(int order)
+{
+	return order == -1;
+}
+
 static int __compact_finished(struct zone *zone, struct compact_control *cc,
 			    const int migratetype)
 {
@@ -1204,7 +1202,7 @@ static int __compact_finished(struct zone *zone, struct compact_control *cc,
 	unsigned long watermark;
 
 	if (cc->contended || fatal_signal_pending(current))
-		return COMPACT_PARTIAL;
+		return COMPACT_CONTENDED;
 
 	/* Compaction run completes if the migrate and free scanner meet */
 	if (compact_scanners_met(cc)) {
@@ -1223,11 +1221,7 @@ static int __compact_finished(struct zone *zone, struct compact_control *cc,
 		return COMPACT_COMPLETE;
 	}
 
-	/*
-	 * order == -1 is expected when compacting via
-	 * /proc/sys/vm/compact_memory
-	 */
-	if (cc->order == -1)
+	if (is_via_compact_memory(cc->order))
 		return COMPACT_CONTINUE;
 
 	/* Compaction run is not finished if the watermark is not met */
@@ -1290,11 +1284,7 @@ static unsigned long __compaction_suitable(struct zone *zone, int order,
 	int fragindex;
 	unsigned long watermark;
 
-	/*
-	 * order == -1 is expected when compacting via
-	 * /proc/sys/vm/compact_memory
-	 */
-	if (order == -1)
+	if (is_via_compact_memory(order))
 		return COMPACT_CONTINUE;
 
 	watermark = low_wmark_pages(zone);
@@ -1403,7 +1393,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 
 		switch (isolate_migratepages(zone, cc)) {
 		case ISOLATE_ABORT:
-			ret = COMPACT_PARTIAL;
+			ret = COMPACT_CONTENDED;
 			putback_movable_pages(&cc->migratepages);
 			cc->nr_migratepages = 0;
 			goto out;
@@ -1434,7 +1424,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 			 * and we want compact_finished() to detect it
 			 */
 			if (err == -ENOMEM && !compact_scanners_met(cc)) {
-				ret = COMPACT_PARTIAL;
+				ret = COMPACT_CONTENDED;
 				goto out;
 			}
 		}
@@ -1486,6 +1476,9 @@ out:
 
 	trace_mm_compaction_end(start_pfn, cc->migrate_pfn,
 				cc->free_pfn, end_pfn, sync, ret);
+
+	if (ret == COMPACT_CONTENDED)
+		ret = COMPACT_PARTIAL;
 
 	return ret;
 }
@@ -1658,10 +1651,11 @@ static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
 		 * this makes sure we compact the whole zone regardless of
 		 * cached scanner positions.
 		 */
-		if (cc->order == -1)
+		if (is_via_compact_memory(cc->order))
 			__reset_isolation_suitable(zone);
 
-		if (cc->order == -1 || !compaction_deferred(zone, cc->order))
+		if (is_via_compact_memory(cc->order) ||
+				!compaction_deferred(zone, cc->order))
 			compact_zone(zone, cc);
 
 		if (cc->order > 0) {

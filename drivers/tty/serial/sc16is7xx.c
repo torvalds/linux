@@ -1321,6 +1321,9 @@ static int sc16is7xx_spi_probe(struct spi_device *spi)
 		const struct of_device_id *of_id =
 			of_match_device(sc16is7xx_dt_ids, &spi->dev);
 
+		if (!of_id)
+			return -ENODEV;
+
 		devtype = (struct sc16is7xx_devtype *)of_id->data;
 	} else {
 		const struct spi_device_id *id_entry = spi_get_device_id(spi);
@@ -1357,7 +1360,6 @@ MODULE_DEVICE_TABLE(spi, sc16is7xx_spi_id_table);
 static struct spi_driver sc16is7xx_spi_uart_driver = {
 	.driver = {
 		.name		= SC16IS7XX_NAME,
-		.owner		= THIS_MODULE,
 		.of_match_table	= of_match_ptr(sc16is7xx_dt_ids),
 	},
 	.probe		= sc16is7xx_spi_probe,
@@ -1379,6 +1381,9 @@ static int sc16is7xx_i2c_probe(struct i2c_client *i2c,
 	if (i2c->dev.of_node) {
 		const struct of_device_id *of_id =
 				of_match_device(sc16is7xx_dt_ids, &i2c->dev);
+
+		if (!of_id)
+			return -ENODEV;
 
 		devtype = (struct sc16is7xx_devtype *)of_id->data;
 	} else {
@@ -1420,7 +1425,6 @@ static struct i2c_driver sc16is7xx_i2c_uart_driver = {
 	.id_table	= sc16is7xx_i2c_id_table,
 };
 
-MODULE_ALIAS("i2c:sc16is7xx");
 #endif
 
 static int __init sc16is7xx_init(void)

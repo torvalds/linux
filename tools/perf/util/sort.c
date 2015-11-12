@@ -21,6 +21,7 @@ int		sort__need_collapse = 0;
 int		sort__has_parent = 0;
 int		sort__has_sym = 0;
 int		sort__has_dso = 0;
+int		sort__has_socket = 0;
 enum sort_mode	sort__mode = SORT_MODE__NORMAL;
 
 
@@ -328,8 +329,8 @@ static char *get_srcfile(struct hist_entry *e)
 	char *sf, *p;
 	struct map *map = e->ms.map;
 
-	sf = get_srcline(map->dso, map__rip_2objdump(map, e->ip),
-			 e->ms.sym, true);
+	sf = __get_srcline(map->dso, map__rip_2objdump(map, e->ip),
+			 e->ms.sym, false, true);
 	if (!strcmp(sf, SRCLINE_UNKNOWN))
 		return no_srcfile;
 	p = strchr(sf, ':');
@@ -419,6 +420,27 @@ struct sort_entry sort_cpu = {
 	.se_cmp	        = sort__cpu_cmp,
 	.se_snprintf    = hist_entry__cpu_snprintf,
 	.se_width_idx	= HISTC_CPU,
+};
+
+/* --sort socket */
+
+static int64_t
+sort__socket_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	return right->socket - left->socket;
+}
+
+static int hist_entry__socket_snprintf(struct hist_entry *he, char *bf,
+				    size_t size, unsigned int width)
+{
+	return repsep_snprintf(bf, size, "%*.*d", width, width-3, he->socket);
+}
+
+struct sort_entry sort_socket = {
+	.se_header      = "Socket",
+	.se_cmp	        = sort__socket_cmp,
+	.se_snprintf    = hist_entry__socket_snprintf,
+	.se_width_idx	= HISTC_SOCKET,
 };
 
 /* sort keys for branch stacks */
@@ -627,6 +649,35 @@ static int hist_entry__daddr_snprintf(struct hist_entry *he, char *bf,
 		addr = he->mem_info->daddr.addr;
 		map = he->mem_info->daddr.map;
 		sym = he->mem_info->daddr.sym;
+	}
+	return _hist_entry__sym_snprintf(map, sym, addr, he->level, bf, size,
+					 width);
+}
+
+static int64_t
+sort__iaddr_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	uint64_t l = 0, r = 0;
+
+	if (left->mem_info)
+		l = left->mem_info->iaddr.addr;
+	if (right->mem_info)
+		r = right->mem_info->iaddr.addr;
+
+	return (int64_t)(r - l);
+}
+
+static int hist_entry__iaddr_snprintf(struct hist_entry *he, char *bf,
+				    size_t size, unsigned int width)
+{
+	uint64_t addr = 0;
+	struct map *map = NULL;
+	struct symbol *sym = NULL;
+
+	if (he->mem_info) {
+		addr = he->mem_info->iaddr.addr;
+		map  = he->mem_info->iaddr.map;
+		sym  = he->mem_info->iaddr.sym;
 	}
 	return _hist_entry__sym_snprintf(map, sym, addr, he->level, bf, size,
 					 width);
@@ -1055,6 +1106,13 @@ struct sort_entry sort_mem_daddr_sym = {
 	.se_width_idx	= HISTC_MEM_DADDR_SYMBOL,
 };
 
+struct sort_entry sort_mem_iaddr_sym = {
+	.se_header	= "Code Symbol",
+	.se_cmp		= sort__iaddr_cmp,
+	.se_snprintf	= hist_entry__iaddr_snprintf,
+	.se_width_idx	= HISTC_MEM_IADDR_SYMBOL,
+};
+
 struct sort_entry sort_mem_daddr_dso = {
 	.se_header	= "Data Object",
 	.se_cmp		= sort__dso_daddr_cmp,
@@ -1248,6 +1306,7 @@ static struct sort_dimension common_sort_dimensions[] = {
 	DIM(SORT_SYM, "symbol", sort_sym),
 	DIM(SORT_PARENT, "parent", sort_parent),
 	DIM(SORT_CPU, "cpu", sort_cpu),
+	DIM(SORT_SOCKET, "socket", sort_socket),
 	DIM(SORT_SRCLINE, "srcline", sort_srcline),
 	DIM(SORT_SRCFILE, "srcfile", sort_srcfile),
 	DIM(SORT_LOCAL_WEIGHT, "local_weight", sort_local_weight),
@@ -1276,6 +1335,7 @@ static struct sort_dimension bstack_sort_dimensions[] = {
 
 static struct sort_dimension memory_sort_dimensions[] = {
 	DIM(SORT_MEM_DADDR_SYMBOL, "symbol_daddr", sort_mem_daddr_sym),
+	DIM(SORT_MEM_IADDR_SYMBOL, "symbol_iaddr", sort_mem_iaddr_sym),
 	DIM(SORT_MEM_DADDR_DSO, "dso_daddr", sort_mem_daddr_dso),
 	DIM(SORT_MEM_LOCKED, "locked", sort_mem_locked),
 	DIM(SORT_MEM_TLB, "tlb", sort_mem_tlb),
@@ -1517,6 +1577,12 @@ static int __hpp_dimension__add_output(struct hpp_dimension *hd)
 	return 0;
 }
 
+int hpp_dimension__add_output(unsigned col)
+{
+	BUG_ON(col >= PERF_HPP__MAX_INDEX);
+	return __hpp_dimension__add_output(&hpp_sort_dimensions[col]);
+}
+
 int sort_dimension__add(const char *tok)
 {
 	unsigned int i;
@@ -1550,6 +1616,8 @@ int sort_dimension__add(const char *tok)
 
 		} else if (sd->entry == &sort_dso) {
 			sort__has_dso = 1;
+		} else if (sd->entry == &sort_socket) {
+			sort__has_socket = 1;
 		}
 
 		return __sort_dimension__add(sd);
@@ -1854,8 +1922,6 @@ static int __setup_output_field(void)
 
 	if (field_order == NULL)
 		return 0;
-
-	reset_dimensions();
 
 	strp = str = strdup(field_order);
 	if (str == NULL) {

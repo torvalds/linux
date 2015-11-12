@@ -297,13 +297,13 @@ s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
 
 	/* Setup flow control */
 	ret_val = ixgbe_setup_fc(hw);
-	if (!ret_val)
-		return 0;
+	if (ret_val)
+		return ret_val;
 
 	/* Clear adapter stopped flag */
 	hw->adapter_stopped = false;
 
-	return ret_val;
+	return 0;
 }
 
 /**
@@ -2164,10 +2164,11 @@ s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw)
 			/*
 			 * In order to prevent Tx hangs when the internal Tx
 			 * switch is enabled we must set the high water mark
-			 * to the maximum FCRTH value.  This allows the Tx
-			 * switch to function even under heavy Rx workloads.
+			 * to the Rx packet buffer size - 24KB.  This allows
+			 * the Tx switch to function even under heavy Rx
+			 * workloads.
 			 */
-			fcrth = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(i)) - 32;
+			fcrth = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(i)) - 24576;
 		}
 
 		IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(i), fcrth);
@@ -2475,6 +2476,9 @@ static s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw)
 	 */
 	hw_dbg(hw, "GIO Master Disable bit didn't clear - requesting resets\n");
 	hw->mac.flags |= IXGBE_FLAGS_DOUBLE_RESET_REQUIRED;
+
+	if (hw->mac.type >= ixgbe_mac_X550)
+		return 0;
 
 	/*
 	 * Before proceeding, make sure that the PCIe block does not have
@@ -3919,4 +3923,214 @@ bool ixgbe_mng_present(struct ixgbe_hw *hw)
 	fwsm = IXGBE_READ_REG(hw, IXGBE_FWSM(hw));
 	fwsm &= IXGBE_FWSM_MODE_MASK;
 	return fwsm == IXGBE_FWSM_FW_MODE_PT;
+}
+
+/**
+ *  ixgbe_setup_mac_link_multispeed_fiber - Set MAC link speed
+ *  @hw: pointer to hardware structure
+ *  @speed: new link speed
+ *  @autoneg_wait_to_complete: true when waiting for completion is needed
+ *
+ *  Set the link speed in the MAC and/or PHY register and restarts link.
+ */
+s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
+					  ixgbe_link_speed speed,
+					  bool autoneg_wait_to_complete)
+{
+	ixgbe_link_speed link_speed = IXGBE_LINK_SPEED_UNKNOWN;
+	ixgbe_link_speed highest_link_speed = IXGBE_LINK_SPEED_UNKNOWN;
+	s32 status = 0;
+	u32 speedcnt = 0;
+	u32 i = 0;
+	bool autoneg, link_up = false;
+
+	/* Mask off requested but non-supported speeds */
+	status = hw->mac.ops.get_link_capabilities(hw, &link_speed, &autoneg);
+	if (status)
+		return status;
+
+	speed &= link_speed;
+
+	/* Try each speed one by one, highest priority first.  We do this in
+	 * software because 10Gb fiber doesn't support speed autonegotiation.
+	 */
+	if (speed & IXGBE_LINK_SPEED_10GB_FULL) {
+		speedcnt++;
+		highest_link_speed = IXGBE_LINK_SPEED_10GB_FULL;
+
+		/* If we already have link at this speed, just jump out */
+		status = hw->mac.ops.check_link(hw, &link_speed, &link_up,
+						false);
+		if (status)
+			return status;
+
+		if (link_speed == IXGBE_LINK_SPEED_10GB_FULL && link_up)
+			goto out;
+
+		/* Set the module link speed */
+		switch (hw->phy.media_type) {
+		case ixgbe_media_type_fiber:
+			hw->mac.ops.set_rate_select_speed(hw,
+						    IXGBE_LINK_SPEED_10GB_FULL);
+			break;
+		case ixgbe_media_type_fiber_qsfp:
+			/* QSFP module automatically detects MAC link speed */
+			break;
+		default:
+			hw_dbg(hw, "Unexpected media type\n");
+			break;
+		}
+
+		/* Allow module to change analog characteristics (1G->10G) */
+		msleep(40);
+
+		status = hw->mac.ops.setup_mac_link(hw,
+						    IXGBE_LINK_SPEED_10GB_FULL,
+						    autoneg_wait_to_complete);
+		if (status)
+			return status;
+
+		/* Flap the Tx laser if it has not already been done */
+		if (hw->mac.ops.flap_tx_laser)
+			hw->mac.ops.flap_tx_laser(hw);
+
+		/* Wait for the controller to acquire link.  Per IEEE 802.3ap,
+		 * Section 73.10.2, we may have to wait up to 500ms if KR is
+		 * attempted.  82599 uses the same timing for 10g SFI.
+		 */
+		for (i = 0; i < 5; i++) {
+			/* Wait for the link partner to also set speed */
+			msleep(100);
+
+			/* If we have link, just jump out */
+			status = hw->mac.ops.check_link(hw, &link_speed,
+							&link_up, false);
+			if (status)
+				return status;
+
+			if (link_up)
+				goto out;
+		}
+	}
+
+	if (speed & IXGBE_LINK_SPEED_1GB_FULL) {
+		speedcnt++;
+		if (highest_link_speed == IXGBE_LINK_SPEED_UNKNOWN)
+			highest_link_speed = IXGBE_LINK_SPEED_1GB_FULL;
+
+		/* If we already have link at this speed, just jump out */
+		status = hw->mac.ops.check_link(hw, &link_speed, &link_up,
+						false);
+		if (status)
+			return status;
+
+		if (link_speed == IXGBE_LINK_SPEED_1GB_FULL && link_up)
+			goto out;
+
+		/* Set the module link speed */
+		switch (hw->phy.media_type) {
+		case ixgbe_media_type_fiber:
+			hw->mac.ops.set_rate_select_speed(hw,
+						     IXGBE_LINK_SPEED_1GB_FULL);
+			break;
+		case ixgbe_media_type_fiber_qsfp:
+			/* QSFP module automatically detects link speed */
+			break;
+		default:
+			hw_dbg(hw, "Unexpected media type\n");
+			break;
+		}
+
+		/* Allow module to change analog characteristics (10G->1G) */
+		msleep(40);
+
+		status = hw->mac.ops.setup_mac_link(hw,
+						    IXGBE_LINK_SPEED_1GB_FULL,
+						    autoneg_wait_to_complete);
+		if (status)
+			return status;
+
+		/* Flap the Tx laser if it has not already been done */
+		if (hw->mac.ops.flap_tx_laser)
+			hw->mac.ops.flap_tx_laser(hw);
+
+		/* Wait for the link partner to also set speed */
+		msleep(100);
+
+		/* If we have link, just jump out */
+		status = hw->mac.ops.check_link(hw, &link_speed, &link_up,
+						false);
+		if (status)
+			return status;
+
+		if (link_up)
+			goto out;
+	}
+
+	/* We didn't get link.  Configure back to the highest speed we tried,
+	 * (if there was more than one).  We call ourselves back with just the
+	 * single highest speed that the user requested.
+	 */
+	if (speedcnt > 1)
+		status = ixgbe_setup_mac_link_multispeed_fiber(hw,
+						      highest_link_speed,
+						      autoneg_wait_to_complete);
+
+out:
+	/* Set autoneg_advertised value based on input link speed */
+	hw->phy.autoneg_advertised = 0;
+
+	if (speed & IXGBE_LINK_SPEED_10GB_FULL)
+		hw->phy.autoneg_advertised |= IXGBE_LINK_SPEED_10GB_FULL;
+
+	if (speed & IXGBE_LINK_SPEED_1GB_FULL)
+		hw->phy.autoneg_advertised |= IXGBE_LINK_SPEED_1GB_FULL;
+
+	return status;
+}
+
+/**
+ *  ixgbe_set_soft_rate_select_speed - Set module link speed
+ *  @hw: pointer to hardware structure
+ *  @speed: link speed to set
+ *
+ *  Set module link speed via the soft rate select.
+ */
+void ixgbe_set_soft_rate_select_speed(struct ixgbe_hw *hw,
+				      ixgbe_link_speed speed)
+{
+	s32 status;
+	u8 rs, eeprom_data;
+
+	switch (speed) {
+	case IXGBE_LINK_SPEED_10GB_FULL:
+		/* one bit mask same as setting on */
+		rs = IXGBE_SFF_SOFT_RS_SELECT_10G;
+		break;
+	case IXGBE_LINK_SPEED_1GB_FULL:
+		rs = IXGBE_SFF_SOFT_RS_SELECT_1G;
+		break;
+	default:
+		hw_dbg(hw, "Invalid fixed module speed\n");
+		return;
+	}
+
+	/* Set RS0 */
+	status = hw->phy.ops.read_i2c_byte(hw, IXGBE_SFF_SFF_8472_OSCB,
+					   IXGBE_I2C_EEPROM_DEV_ADDR2,
+					   &eeprom_data);
+	if (status) {
+		hw_dbg(hw, "Failed to read Rx Rate Select RS0\n");
+		return;
+	}
+
+	eeprom_data = (eeprom_data & ~IXGBE_SFF_SOFT_RS_SELECT_MASK) | rs;
+
+	status = hw->phy.ops.write_i2c_byte(hw, IXGBE_SFF_SFF_8472_OSCB,
+					    IXGBE_I2C_EEPROM_DEV_ADDR2,
+					    eeprom_data);
+	if (status) {
+		hw_dbg(hw, "Failed to write Rx Rate Select RS0\n");
+		return;
+	}
 }

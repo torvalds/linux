@@ -167,7 +167,6 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 	nand_chip->priv = host;		/* link the private data structures */
 	mtd->priv = nand_chip;
 	mtd->name = "socrates_nand";
-	mtd->owner = THIS_MODULE;
 	mtd->dev.parent = &ofdev->dev;
 	ppdata.of_node = ofdev->dev.of_node;
 

@@ -173,7 +173,7 @@ static struct mtip_cmd *mtip_get_int_command(struct driver_data *dd)
 {
 	struct request *rq;
 
-	rq = blk_mq_alloc_request(dd->queue, 0, __GFP_WAIT, true);
+	rq = blk_mq_alloc_request(dd->queue, 0, __GFP_RECLAIM, true);
 	return blk_mq_rq_to_pdu(rq);
 }
 

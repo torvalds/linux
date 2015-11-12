@@ -531,7 +531,7 @@ static bool vga_arbiter_add_pci_device(struct pci_dev *pdev)
 		return false;
 
 	/* Allocate structure */
-	vgadev = kmalloc(sizeof(struct vga_device), GFP_KERNEL);
+	vgadev = kzalloc(sizeof(struct vga_device), GFP_KERNEL);
 	if (vgadev == NULL) {
 		pr_err("failed to allocate pci device\n");
 		/*
@@ -540,8 +540,6 @@ static bool vga_arbiter_add_pci_device(struct pci_dev *pdev)
 		 */
 		return false;
 	}
-
-	memset(vgadev, 0, sizeof(*vgadev));
 
 	/* Take lock & check for duplicates */
 	spin_lock_irqsave(&vga_lock, flags);

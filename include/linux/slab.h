@@ -111,7 +111,7 @@ struct mem_cgroup;
  * struct kmem_cache related prototypes
  */
 void __init kmem_cache_init(void);
-int slab_is_available(void);
+bool slab_is_available(void);
 
 struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
 			unsigned long,

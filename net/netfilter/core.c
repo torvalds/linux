@@ -152,6 +152,8 @@ void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
 #endif
 	synchronize_net();
 	nf_queue_nf_hook_drop(net, &entry->ops);
+	/* other cpu might still process nfqueue verdict that used reg */
+	synchronize_net();
 	kfree(entry);
 }
 EXPORT_SYMBOL(nf_unregister_net_hook);
@@ -269,7 +271,7 @@ unsigned int nf_iterate(struct list_head *head,
 		/* Optimization: we don't need to hold module
 		   reference here, since function can't sleep. --RR */
 repeat:
-		verdict = (*elemp)->hook(*elemp, skb, state);
+		verdict = (*elemp)->hook((*elemp)->priv, skb, state);
 		if (verdict != NF_ACCEPT) {
 #ifdef CONFIG_NETFILTER_DEBUG
 			if (unlikely((verdict & NF_VERDICT_MASK)
@@ -313,8 +315,6 @@ next_hook:
 		int err = nf_queue(skb, elem, state,
 				   verdict >> NF_VERDICT_QBITS);
 		if (err < 0) {
-			if (err == -ECANCELED)
-				goto next_hook;
 			if (err == -ESRCH &&
 			   (verdict & NF_VERDICT_FLAG_QUEUE_BYPASS))
 				goto next_hook;
@@ -347,6 +347,12 @@ int skb_make_writable(struct sk_buff *skb, unsigned int writable_len)
 	return !!__pskb_pull_tail(skb, writable_len);
 }
 EXPORT_SYMBOL(skb_make_writable);
+
+/* This needs to be compiled in any case to avoid dependencies between the
+ * nfnetlink_queue code and nf_conntrack.
+ */
+struct nfnl_ct_hook __rcu *nfnl_ct_hook __read_mostly;
+EXPORT_SYMBOL_GPL(nfnl_ct_hook);
 
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 /* This does not belong here, but locally generated errors need it if connection
@@ -384,9 +390,6 @@ void nf_conntrack_destroy(struct nf_conntrack *nfct)
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL(nf_conntrack_destroy);
-
-struct nfq_ct_hook __rcu *nfq_ct_hook __read_mostly;
-EXPORT_SYMBOL_GPL(nfq_ct_hook);
 
 /* Built-in default zone used e.g. by modules. */
 const struct nf_conntrack_zone nf_ct_zone_dflt = {

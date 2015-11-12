@@ -366,10 +366,18 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 
 	indio_dev->trig = trig;
 
-	if (oldtrig)
+	if (oldtrig) {
+		if (indio_dev->modes & INDIO_EVENT_TRIGGERED)
+			iio_trigger_detach_poll_func(oldtrig,
+						     indio_dev->pollfunc_event);
 		iio_trigger_put(oldtrig);
-	if (indio_dev->trig)
+	}
+	if (indio_dev->trig) {
 		iio_trigger_get(indio_dev->trig);
+		if (indio_dev->modes & INDIO_EVENT_TRIGGERED)
+			iio_trigger_attach_poll_func(indio_dev->trig,
+						     indio_dev->pollfunc_event);
+	}
 
 	return len;
 }

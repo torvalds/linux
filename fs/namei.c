@@ -955,26 +955,23 @@ static bool safe_hardlink_source(struct inode *inode)
  *  - sysctl_protected_hardlinks enabled
  *  - fsuid does not match inode
  *  - hardlink source is unsafe (see safe_hardlink_source() above)
- *  - not CAP_FOWNER
+ *  - not CAP_FOWNER in a namespace with the inode owner uid mapped
  *
  * Returns 0 if successful, -ve on error.
  */
 static int may_linkat(struct path *link)
 {
-	const struct cred *cred;
 	struct inode *inode;
 
 	if (!sysctl_protected_hardlinks)
 		return 0;
 
-	cred = current_cred();
 	inode = link->dentry->d_inode;
 
 	/* Source inode owner (or CAP_FOWNER) can hardlink all they like,
 	 * otherwise, it must be a safe source.
 	 */
-	if (uid_eq(cred->fsuid, inode->i_uid) || safe_hardlink_source(inode) ||
-	    capable(CAP_FOWNER))
+	if (inode_owner_or_capable(inode) || safe_hardlink_source(inode))
 		return 0;
 
 	audit_log_link_denied("linkat", link);
@@ -1969,7 +1966,7 @@ OK:
 		if (err) {
 			const char *s = get_link(nd);
 
-			if (unlikely(IS_ERR(s)))
+			if (IS_ERR(s))
 				return PTR_ERR(s);
 			err = 0;
 			if (unlikely(!s)) {
@@ -3383,7 +3380,7 @@ struct file *do_file_open_root(struct dentry *dentry, struct vfsmount *mnt,
 		return ERR_PTR(-ELOOP);
 
 	filename = getname_kernel(name);
-	if (unlikely(IS_ERR(filename)))
+	if (IS_ERR(filename))
 		return ERR_CAST(filename);
 
 	set_nameidata(&nd, -1, filename);
@@ -4607,7 +4604,7 @@ EXPORT_SYMBOL(__page_symlink);
 int page_symlink(struct inode *inode, const char *symname, int len)
 {
 	return __page_symlink(inode, symname, len,
-			!(mapping_gfp_mask(inode->i_mapping) & __GFP_FS));
+			!mapping_gfp_constraint(inode->i_mapping, __GFP_FS));
 }
 EXPORT_SYMBOL(page_symlink);
 

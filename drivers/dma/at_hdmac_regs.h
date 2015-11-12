@@ -202,7 +202,7 @@ struct at_desc {
 	size_t				src_hole;
 
 	/* Memset temporary buffer */
-	bool				memset;
+	bool				memset_buffer;
 	dma_addr_t			memset_paddr;
 	int				*memset_vaddr;
 };

@@ -29,7 +29,7 @@
 #include <linux/string.h>
 #include <linux/drbd.h>
 #include <linux/slab.h>
-#include <asm/kmap_types.h>
+#include <linux/highmem.h>
 
 #include "drbd_int.h"
 
@@ -1007,7 +1007,7 @@ static void bm_page_io_async(struct drbd_bm_aio_ctx *ctx, int page_nr) __must_ho
 	bm_set_page_unchanged(b->bm_pages[page_nr]);
 
 	if (ctx->flags & BM_AIO_COPY_PAGES) {
-		page = mempool_alloc(drbd_md_io_page_pool, __GFP_HIGHMEM|__GFP_WAIT);
+		page = mempool_alloc(drbd_md_io_page_pool, __GFP_HIGHMEM|__GFP_RECLAIM);
 		copy_highpage(page, b->bm_pages[page_nr]);
 		bm_store_page_idx(page, page_nr);
 	} else

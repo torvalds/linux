@@ -93,7 +93,7 @@ static struct reg_data rt8973a_reg_data[] = {
 static const unsigned int rt8973a_extcon_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
-	EXTCON_TA,
+	EXTCON_CHG_USB_DCP,
 	EXTCON_JIG,
 	EXTCON_NONE,
 };
@@ -333,7 +333,7 @@ static int rt8973a_muic_cable_handler(struct rt8973a_muic_info *info,
 		con_sw = DM_DP_SWITCH_USB;
 		break;
 	case RT8973A_MUIC_ADC_TA:
-		id = EXTCON_TA;
+		id = EXTCON_CHG_USB_DCP;
 		con_sw = DM_DP_SWITCH_OPEN;
 		break;
 	case RT8973A_MUIC_ADC_FACTORY_MODE_BOOT_OFF_USB:
@@ -594,7 +594,7 @@ static int rt8973a_muic_i2c_probe(struct i2c_client *i2c,
 
 	for (i = 0; i < info->num_muic_irqs; i++) {
 		struct muic_irq *muic_irq = &info->muic_irqs[i];
-		unsigned int virq = 0;
+		int virq = 0;
 
 		virq = regmap_irq_get_virq(info->irq_data, muic_irq->irq);
 		if (virq <= 0)
@@ -658,6 +658,7 @@ static const struct of_device_id rt8973a_dt_match[] = {
 	{ .compatible = "richtek,rt8973a-muic" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, rt8973a_dt_match);
 
 #ifdef CONFIG_PM_SLEEP
 static int rt8973a_muic_suspend(struct device *dev)

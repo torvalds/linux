@@ -197,6 +197,7 @@ config ENABLE_MUST_CHECK
 config FRAME_WARN
 	int "Warn for stack frames larger than (needs gcc 4.4)"
 	range 0 8192
+	default 0 if KASAN
 	default 1024 if !64BIT
 	default 2048 if 64BIT
 	help
@@ -310,6 +311,15 @@ config DEBUG_SECTION_MISMATCH
 	    reported at least twice.
 	  - Enable verbose reporting from modpost in order to help resolve
 	    the section mismatches that are reported.
+
+config SECTION_MISMATCH_WARN_ONLY
+	bool "Make section mismatch errors non-fatal"
+	default y
+	help
+	  If you say N here, the build process will fail if there are any
+	  section mismatch, instead of just throwing warnings.
+
+	  If unsure, say Y.
 
 #
 # Select this config option from the architecture Kconfig, if it
@@ -1684,6 +1694,9 @@ config TEST_STRING_HELPERS
 
 config TEST_KSTRTOX
 	tristate "Test kstrto*() family of functions at runtime"
+
+config TEST_PRINTF
+	tristate "Test printf() family of functions at runtime"
 
 config TEST_RHASHTABLE
 	tristate "Perform selftest on resizable hash table"

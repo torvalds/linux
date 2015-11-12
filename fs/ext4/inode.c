@@ -378,7 +378,7 @@ static int __check_block_validity(struct inode *inode, const char *func,
 				 "lblock %lu mapped to illegal pblock "
 				 "(length %d)", (unsigned long) map->m_lblk,
 				 map->m_len);
-		return -EIO;
+		return -EFSCORRUPTED;
 	}
 	return 0;
 }
@@ -480,7 +480,7 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 
 	/* We can handle the block number less than EXT_MAX_BLOCKS */
 	if (unlikely(map->m_lblk >= EXT_MAX_BLOCKS))
-		return -EIO;
+		return -EFSCORRUPTED;
 
 	/* Lookup extent status tree firstly */
 	if (ext4_es_lookup_extent(inode, map->m_lblk, &es)) {
@@ -965,7 +965,7 @@ static int ext4_block_write_begin(struct page *page, loff_t pos, unsigned len,
 	if (unlikely(err))
 		page_zero_new_buffers(page, from, to);
 	else if (decrypt)
-		err = ext4_decrypt_one(inode, page);
+		err = ext4_decrypt(page);
 	return err;
 }
 #endif
@@ -1181,6 +1181,38 @@ errout:
 	return ret ? ret : copied;
 }
 
+/*
+ * This is a private version of page_zero_new_buffers() which doesn't
+ * set the buffer to be dirty, since in data=journalled mode we need
+ * to call ext4_handle_dirty_metadata() instead.
+ */
+static void zero_new_buffers(struct page *page, unsigned from, unsigned to)
+{
+	unsigned int block_start = 0, block_end;
+	struct buffer_head *head, *bh;
+
+	bh = head = page_buffers(page);
+	do {
+		block_end = block_start + bh->b_size;
+		if (buffer_new(bh)) {
+			if (block_end > from && block_start < to) {
+				if (!PageUptodate(page)) {
+					unsigned start, size;
+
+					start = max(from, block_start);
+					size = min(to, block_end) - start;
+
+					zero_user(page, start, size);
+					set_buffer_uptodate(bh);
+				}
+				clear_buffer_new(bh);
+			}
+		}
+		block_start = block_end;
+		bh = bh->b_this_page;
+	} while (bh != head);
+}
+
 static int ext4_journalled_write_end(struct file *file,
 				     struct address_space *mapping,
 				     loff_t pos, unsigned len, unsigned copied,
@@ -1207,7 +1239,7 @@ static int ext4_journalled_write_end(struct file *file,
 		if (copied < len) {
 			if (!PageUptodate(page))
 				copied = 0;
-			page_zero_new_buffers(page, from+copied, to);
+			zero_new_buffers(page, from+copied, to);
 		}
 
 		ret = ext4_walk_page_buffers(handle, page_buffers(page), from,
@@ -1815,11 +1847,22 @@ static int ext4_writepage(struct page *page,
 	 * the page. But we may reach here when we do a journal commit via
 	 * journal_submit_inode_data_buffers() and in that case we must write
 	 * allocated buffers to achieve data=ordered mode guarantees.
+	 *
+	 * Also, if there is only one buffer per page (the fs block
+	 * size == the page size), if one buffer needs block
+	 * allocation or needs to modify the extent tree to clear the
+	 * unwritten flag, we know that the page can't be written at
+	 * all, so we might as well refuse the write immediately.
+	 * Unfortunately if the block size != page size, we can't as
+	 * easily detect this case using ext4_walk_page_buffers(), but
+	 * for the extremely common case, this is an optimization that
+	 * skips a useless round trip through ext4_bio_write_page().
 	 */
 	if (ext4_walk_page_buffers(NULL, page_bufs, 0, len, NULL,
 				   ext4_bh_delay_or_unwritten)) {
 		redirty_page_for_writepage(wbc, page);
-		if (current->flags & PF_MEMALLOC) {
+		if ((current->flags & PF_MEMALLOC) ||
+		    (inode->i_sb->s_blocksize == PAGE_CACHE_SIZE)) {
 			/*
 			 * For memory cleaning there's no point in writing only
 			 * some buffers. So just bail out. Warn if we came here
@@ -2599,8 +2642,7 @@ static int ext4_nonda_switch(struct super_block *sb)
 /* We always reserve for an inode update; the superblock could be there too */
 static int ext4_da_write_credits(struct inode *inode, loff_t pos, unsigned len)
 {
-	if (likely(EXT4_HAS_RO_COMPAT_FEATURE(inode->i_sb,
-				EXT4_FEATURE_RO_COMPAT_LARGE_FILE)))
+	if (likely(ext4_has_feature_large_file(inode->i_sb)))
 		return 1;
 
 	if (pos + len <= 0x7fffffffULL)
@@ -3344,7 +3386,7 @@ static int __ext4_block_zero_page_range(handle_t *handle,
 	int err = 0;
 
 	page = find_or_create_page(mapping, from >> PAGE_CACHE_SHIFT,
-				   mapping_gfp_mask(mapping) & ~__GFP_FS);
+				   mapping_gfp_constraint(mapping, ~__GFP_FS));
 	if (!page)
 		return -ENOMEM;
 
@@ -3393,7 +3435,7 @@ static int __ext4_block_zero_page_range(handle_t *handle,
 			/* We expect the key to be set. */
 			BUG_ON(!ext4_has_encryption_key(inode));
 			BUG_ON(blocksize != PAGE_CACHE_SIZE);
-			WARN_ON_ONCE(ext4_decrypt_one(inode, page));
+			WARN_ON_ONCE(ext4_decrypt(page));
 		}
 	}
 	if (ext4_should_journal_data(inode)) {
@@ -3820,7 +3862,7 @@ static int __ext4_get_inode_loc(struct inode *inode,
 
 	iloc->bh = NULL;
 	if (!ext4_valid_inum(sb, inode->i_ino))
-		return -EIO;
+		return -EFSCORRUPTED;
 
 	iloc->block_group = (inode->i_ino - 1) / EXT4_INODES_PER_GROUP(sb);
 	gdp = ext4_get_group_desc(sb, iloc->block_group, NULL);
@@ -4006,8 +4048,7 @@ static blkcnt_t ext4_inode_blocks(struct ext4_inode *raw_inode,
 	struct inode *inode = &(ei->vfs_inode);
 	struct super_block *sb = inode->i_sb;
 
-	if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
-				EXT4_FEATURE_RO_COMPAT_HUGE_FILE)) {
+	if (ext4_has_feature_huge_file(sb)) {
 		/* we are using combined 48 bit field */
 		i_blocks = ((u64)le16_to_cpu(raw_inode->i_blocks_high)) << 32 |
 					le32_to_cpu(raw_inode->i_blocks_lo);
@@ -4068,7 +4109,7 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 			EXT4_ERROR_INODE(inode, "bad extra_isize (%u != %u)",
 				EXT4_GOOD_OLD_INODE_SIZE + ei->i_extra_isize,
 				EXT4_INODE_SIZE(inode->i_sb));
-			ret = -EIO;
+			ret = -EFSCORRUPTED;
 			goto bad_inode;
 		}
 	} else
@@ -4088,7 +4129,7 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 
 	if (!ext4_inode_csum_verify(inode, raw_inode, ei)) {
 		EXT4_ERROR_INODE(inode, "checksum invalid");
-		ret = -EIO;
+		ret = -EFSBADCRC;
 		goto bad_inode;
 	}
 
@@ -4130,7 +4171,7 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 	ei->i_flags = le32_to_cpu(raw_inode->i_flags);
 	inode->i_blocks = ext4_inode_blocks(raw_inode, ei);
 	ei->i_file_acl = le32_to_cpu(raw_inode->i_file_acl_lo);
-	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_64BIT))
+	if (ext4_has_feature_64bit(sb))
 		ei->i_file_acl |=
 			((__u64)le16_to_cpu(raw_inode->i_file_acl_high)) << 32;
 	inode->i_size = ext4_isize(raw_inode);
@@ -4203,7 +4244,7 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 	    !ext4_data_block_valid(EXT4_SB(sb), ei->i_file_acl, 1)) {
 		EXT4_ERROR_INODE(inode, "bad extended attribute block %llu",
 				 ei->i_file_acl);
-		ret = -EIO;
+		ret = -EFSCORRUPTED;
 		goto bad_inode;
 	} else if (!ext4_has_inline_data(inode)) {
 		if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)) {
@@ -4254,7 +4295,7 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 	} else if (ino == EXT4_BOOT_LOADER_INO) {
 		make_bad_inode(inode);
 	} else {
-		ret = -EIO;
+		ret = -EFSCORRUPTED;
 		EXT4_ERROR_INODE(inode, "bogus i_mode (%o)", inode->i_mode);
 		goto bad_inode;
 	}
@@ -4272,7 +4313,7 @@ bad_inode:
 struct inode *ext4_iget_normal(struct super_block *sb, unsigned long ino)
 {
 	if (ino < EXT4_FIRST_INO(sb) && ino != EXT4_ROOT_INO)
-		return ERR_PTR(-EIO);
+		return ERR_PTR(-EFSCORRUPTED);
 	return ext4_iget(sb, ino);
 }
 
@@ -4294,7 +4335,7 @@ static int ext4_inode_blocks_set(handle_t *handle,
 		ext4_clear_inode_flag(inode, EXT4_INODE_HUGE_FILE);
 		return 0;
 	}
-	if (!EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_HUGE_FILE))
+	if (!ext4_has_feature_huge_file(sb))
 		return -EFBIG;
 
 	if (i_blocks <= 0xffffffffffffULL) {
@@ -4455,8 +4496,7 @@ static int ext4_do_update_inode(handle_t *handle,
 		need_datasync = 1;
 	}
 	if (ei->i_disksize > 0x7fffffffULL) {
-		if (!EXT4_HAS_RO_COMPAT_FEATURE(sb,
-				EXT4_FEATURE_RO_COMPAT_LARGE_FILE) ||
+		if (!ext4_has_feature_large_file(sb) ||
 				EXT4_SB(sb)->s_es->s_rev_level ==
 		    cpu_to_le32(EXT4_GOOD_OLD_REV))
 			set_large_file = 1;
@@ -4505,8 +4545,7 @@ static int ext4_do_update_inode(handle_t *handle,
 		if (err)
 			goto out_brelse;
 		ext4_update_dynamic_rev(sb);
-		EXT4_SET_RO_COMPAT_FEATURE(sb,
-					   EXT4_FEATURE_RO_COMPAT_LARGE_FILE);
+		ext4_set_feature_large_file(sb);
 		ext4_handle_sync(handle);
 		err = ext4_handle_dirty_super(handle, sb);
 	}

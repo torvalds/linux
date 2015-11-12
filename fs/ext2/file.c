@@ -27,27 +27,103 @@
 #include "acl.h"
 
 #ifdef CONFIG_FS_DAX
+/*
+ * The lock ordering for ext2 DAX fault paths is:
+ *
+ * mmap_sem (MM)
+ *   sb_start_pagefault (vfs, freeze)
+ *     ext2_inode_info->dax_sem
+ *       address_space->i_mmap_rwsem or page_lock (mutually exclusive in DAX)
+ *         ext2_inode_info->truncate_mutex
+ *
+ * The default page_lock and i_size verification done by non-DAX fault paths
+ * is sufficient because ext2 doesn't support hole punching.
+ */
 static int ext2_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	return dax_fault(vma, vmf, ext2_get_block, NULL);
+	struct inode *inode = file_inode(vma->vm_file);
+	struct ext2_inode_info *ei = EXT2_I(inode);
+	int ret;
+
+	if (vmf->flags & FAULT_FLAG_WRITE) {
+		sb_start_pagefault(inode->i_sb);
+		file_update_time(vma->vm_file);
+	}
+	down_read(&ei->dax_sem);
+
+	ret = __dax_fault(vma, vmf, ext2_get_block, NULL);
+
+	up_read(&ei->dax_sem);
+	if (vmf->flags & FAULT_FLAG_WRITE)
+		sb_end_pagefault(inode->i_sb);
+	return ret;
 }
 
 static int ext2_dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
 						pmd_t *pmd, unsigned int flags)
 {
-	return dax_pmd_fault(vma, addr, pmd, flags, ext2_get_block, NULL);
+	struct inode *inode = file_inode(vma->vm_file);
+	struct ext2_inode_info *ei = EXT2_I(inode);
+	int ret;
+
+	if (flags & FAULT_FLAG_WRITE) {
+		sb_start_pagefault(inode->i_sb);
+		file_update_time(vma->vm_file);
+	}
+	down_read(&ei->dax_sem);
+
+	ret = __dax_pmd_fault(vma, addr, pmd, flags, ext2_get_block, NULL);
+
+	up_read(&ei->dax_sem);
+	if (flags & FAULT_FLAG_WRITE)
+		sb_end_pagefault(inode->i_sb);
+	return ret;
 }
 
 static int ext2_dax_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	return dax_mkwrite(vma, vmf, ext2_get_block, NULL);
+	struct inode *inode = file_inode(vma->vm_file);
+	struct ext2_inode_info *ei = EXT2_I(inode);
+	int ret;
+
+	sb_start_pagefault(inode->i_sb);
+	file_update_time(vma->vm_file);
+	down_read(&ei->dax_sem);
+
+	ret = __dax_mkwrite(vma, vmf, ext2_get_block, NULL);
+
+	up_read(&ei->dax_sem);
+	sb_end_pagefault(inode->i_sb);
+	return ret;
+}
+
+static int ext2_dax_pfn_mkwrite(struct vm_area_struct *vma,
+		struct vm_fault *vmf)
+{
+	struct inode *inode = file_inode(vma->vm_file);
+	struct ext2_inode_info *ei = EXT2_I(inode);
+	int ret = VM_FAULT_NOPAGE;
+	loff_t size;
+
+	sb_start_pagefault(inode->i_sb);
+	file_update_time(vma->vm_file);
+	down_read(&ei->dax_sem);
+
+	/* check that the faulting page hasn't raced with truncate */
+	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	if (vmf->pgoff >= size)
+		ret = VM_FAULT_SIGBUS;
+
+	up_read(&ei->dax_sem);
+	sb_end_pagefault(inode->i_sb);
+	return ret;
 }
 
 static const struct vm_operations_struct ext2_dax_vm_ops = {
 	.fault		= ext2_dax_fault,
 	.pmd_fault	= ext2_dax_pmd_fault,
 	.page_mkwrite	= ext2_dax_mkwrite,
-	.pfn_mkwrite	= dax_pfn_mkwrite,
+	.pfn_mkwrite	= ext2_dax_pfn_mkwrite,
 };
 
 static int ext2_file_mmap(struct file *file, struct vm_area_struct *vma)

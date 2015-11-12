@@ -23,6 +23,7 @@
 #include "wmi-ops.h"
 #include "wmi-tlv.h"
 #include "p2p.h"
+#include "testmode.h"
 
 /***************/
 /* TLV helpers */
@@ -419,6 +420,7 @@ static void ath10k_wmi_tlv_op_rx(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct wmi_cmd_hdr *cmd_hdr;
 	enum wmi_tlv_event_id id;
+	bool consumed;
 
 	cmd_hdr = (struct wmi_cmd_hdr *)skb->data;
 	id = MS(__le32_to_cpu(cmd_hdr->cmd_id), WMI_CMD_HDR_CMD_ID);
@@ -427,6 +429,18 @@ static void ath10k_wmi_tlv_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		goto out;
 
 	trace_ath10k_wmi_event(ar, id, skb->data, skb->len);
+
+	consumed = ath10k_tm_event_wmi(ar, id, skb);
+
+	/* Ready event must be handled normally also in UTF mode so that we
+	 * know the UTF firmware has booted, others we are just bypass WMI
+	 * events to testmode.
+	 */
+	if (consumed && id != WMI_TLV_READY_EVENTID) {
+		ath10k_dbg(ar, ATH10K_DBG_WMI,
+			   "wmi tlv testmode consumed 0x%x\n", id);
+		goto out;
+	}
 
 	switch (id) {
 	case WMI_TLV_MGMT_RX_EVENTID:
@@ -3468,6 +3482,7 @@ static const struct wmi_ops wmi_tlv_ops = {
 	.gen_update_fw_tdls_state = ath10k_wmi_tlv_op_gen_update_fw_tdls_state,
 	.gen_tdls_peer_update = ath10k_wmi_tlv_op_gen_tdls_peer_update,
 	.gen_adaptive_qcs = ath10k_wmi_tlv_op_gen_adaptive_qcs,
+	.fw_stats_fill = ath10k_wmi_main_op_fw_stats_fill,
 };
 
 /************/

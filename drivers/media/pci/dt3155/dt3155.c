@@ -131,11 +131,12 @@ static int wait_i2c_reg(void __iomem *addr)
 }
 
 static int
-dt3155_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+dt3155_queue_setup(struct vb2_queue *vq, const void *parg,
 		unsigned int *nbuffers, unsigned int *num_planes,
 		unsigned int sizes[], void *alloc_ctxs[])
 
 {
+	const struct v4l2_format *fmt = parg;
 	struct dt3155_priv *pd = vb2_get_drv_priv(vq);
 	unsigned size = pd->width * pd->height;
 
@@ -160,7 +161,7 @@ static int dt3155_buf_prepare(struct vb2_buffer *vb)
 static int dt3155_start_streaming(struct vb2_queue *q, unsigned count)
 {
 	struct dt3155_priv *pd = vb2_get_drv_priv(q);
-	struct vb2_buffer *vb = pd->curr_buf;
+	struct vb2_buffer *vb = &pd->curr_buf->vb2_buf;
 	dma_addr_t dma_addr;
 
 	pd->sequence = 0;
@@ -208,7 +209,7 @@ static void dt3155_stop_streaming(struct vb2_queue *q)
 
 	spin_lock_irq(&pd->lock);
 	if (pd->curr_buf) {
-		vb2_buffer_done(pd->curr_buf, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&pd->curr_buf->vb2_buf, VB2_BUF_STATE_ERROR);
 		pd->curr_buf = NULL;
 	}
 
@@ -222,6 +223,7 @@ static void dt3155_stop_streaming(struct vb2_queue *q)
 
 static void dt3155_buf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct dt3155_priv *pd = vb2_get_drv_priv(vb->vb2_queue);
 
 	/*  pd->vidq.streaming = 1 when dt3155_buf_queue() is invoked  */
@@ -229,7 +231,7 @@ static void dt3155_buf_queue(struct vb2_buffer *vb)
 	if (pd->curr_buf)
 		list_add_tail(&vb->done_entry, &pd->dmaq);
 	else
-		pd->curr_buf = vb;
+		pd->curr_buf = vbuf;
 	spin_unlock_irq(&pd->lock);
 }
 
@@ -269,14 +271,14 @@ static irqreturn_t dt3155_irq_handler_even(int irq, void *dev_id)
 
 	spin_lock(&ipd->lock);
 	if (ipd->curr_buf && !list_empty(&ipd->dmaq)) {
-		v4l2_get_timestamp(&ipd->curr_buf->v4l2_buf.timestamp);
-		ipd->curr_buf->v4l2_buf.sequence = ipd->sequence++;
-		ipd->curr_buf->v4l2_buf.field = V4L2_FIELD_NONE;
-		vb2_buffer_done(ipd->curr_buf, VB2_BUF_STATE_DONE);
+		v4l2_get_timestamp(&ipd->curr_buf->timestamp);
+		ipd->curr_buf->sequence = ipd->sequence++;
+		ipd->curr_buf->field = V4L2_FIELD_NONE;
+		vb2_buffer_done(&ipd->curr_buf->vb2_buf, VB2_BUF_STATE_DONE);
 
 		ivb = list_first_entry(&ipd->dmaq, typeof(*ivb), done_entry);
 		list_del(&ivb->done_entry);
-		ipd->curr_buf = ivb;
+		ipd->curr_buf = to_vb2_v4l2_buffer(ivb);
 		dma_addr = vb2_dma_contig_plane_dma_addr(ivb, 0);
 		iowrite32(dma_addr, ipd->regs + EVEN_DMA_START);
 		iowrite32(dma_addr + ipd->width, ipd->regs + ODD_DMA_START);

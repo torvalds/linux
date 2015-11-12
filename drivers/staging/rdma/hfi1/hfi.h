@@ -262,7 +262,7 @@ struct hfi1_ctxtdata {
 	pid_t pid;
 	pid_t subpid[HFI1_MAX_SHARED_CTXTS];
 	/* same size as task_struct .comm[], command that opened context */
-	char comm[16];
+	char comm[TASK_COMM_LEN];
 	/* so file ops can get at unit */
 	struct hfi1_devdata *dd;
 	/* so functions that need physical port can get it easily */
@@ -313,7 +313,7 @@ struct hfi1_ctxtdata {
 	 * be valid. Worst case is we process an extra interrupt and up to 64
 	 * packets with the wrong interrupt handler.
 	 */
-	void (*do_interrupt)(struct hfi1_ctxtdata *rcd);
+	int (*do_interrupt)(struct hfi1_ctxtdata *rcd, int threaded);
 };
 
 /*
@@ -1130,9 +1130,21 @@ void hfi1_init_pportdata(struct pci_dev *, struct hfi1_pportdata *,
 			 struct hfi1_devdata *, u8, u8);
 void hfi1_free_ctxtdata(struct hfi1_devdata *, struct hfi1_ctxtdata *);
 
-void handle_receive_interrupt(struct hfi1_ctxtdata *);
-void handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *rcd);
-void handle_receive_interrupt_dma_rtail(struct hfi1_ctxtdata *rcd);
+int handle_receive_interrupt(struct hfi1_ctxtdata *, int);
+int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *, int);
+int handle_receive_interrupt_dma_rtail(struct hfi1_ctxtdata *, int);
+
+/* receive packet handler dispositions */
+#define RCV_PKT_OK      0x0 /* keep going */
+#define RCV_PKT_LIMIT   0x1 /* stop, hit limit, start thread */
+#define RCV_PKT_DONE    0x2 /* stop, no more packets detected */
+
+/* calculate the current RHF address */
+static inline __le32 *get_rhf_addr(struct hfi1_ctxtdata *rcd)
+{
+	return (__le32 *)rcd->rcvhdrq + rcd->head + rcd->dd->rhf_offset;
+}
+
 int hfi1_reset_device(int);
 
 /* return the driver's idea of the logical OPA port state */

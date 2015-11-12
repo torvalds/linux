@@ -819,6 +819,7 @@ static const struct snd_pci_quirk cxt5066_fixups[] = {
 	SND_PCI_QUIRK(0x17aa, 0x21da, "Lenovo X220", CXT_PINCFG_LENOVO_TP410),
 	SND_PCI_QUIRK(0x17aa, 0x21db, "Lenovo X220-tablet", CXT_PINCFG_LENOVO_TP410),
 	SND_PCI_QUIRK(0x17aa, 0x38af, "Lenovo IdeaPad Z560", CXT_FIXUP_MUTE_LED_EAPD),
+	SND_PCI_QUIRK(0x17aa, 0x390b, "Lenovo G50-80", CXT_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x17aa, 0x3975, "Lenovo U300s", CXT_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x17aa, 0x3977, "Lenovo IdeaPad U310", CXT_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x17aa, 0x397b, "Lenovo S205", CXT_FIXUP_STEREO_DMIC),
@@ -953,100 +954,44 @@ static int patch_conexant_auto(struct hda_codec *codec)
 /*
  */
 
-static const struct hda_codec_preset snd_hda_preset_conexant[] = {
-	{ .id = 0x14f15045, .name = "CX20549 (Venice)",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15047, .name = "CX20551 (Waikiki)",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15051, .name = "CX20561 (Hermosa)",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15066, .name = "CX20582 (Pebble)",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15067, .name = "CX20583 (Pebble HSF)",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15068, .name = "CX20584",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15069, .name = "CX20585",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f1506c, .name = "CX20588",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f1506e, .name = "CX20590",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15097, .name = "CX20631",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15098, .name = "CX20632",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f150a1, .name = "CX20641",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f150a2, .name = "CX20642",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f150ab, .name = "CX20651",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f150ac, .name = "CX20652",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f150b8, .name = "CX20664",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f150b9, .name = "CX20665",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f150f1, .name = "CX20721",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f150f2, .name = "CX20722",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f150f3, .name = "CX20723",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f150f4, .name = "CX20724",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f1510f, .name = "CX20751/2",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15110, .name = "CX20751/2",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15111, .name = "CX20753/4",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15113, .name = "CX20755",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15114, .name = "CX20756",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15115, .name = "CX20757",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f151d7, .name = "CX20952",
-	  .patch = patch_conexant_auto },
+static const struct hda_device_id snd_hda_id_conexant[] = {
+	HDA_CODEC_ENTRY(0x14f15045, "CX20549 (Venice)", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15047, "CX20551 (Waikiki)", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15051, "CX20561 (Hermosa)", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15066, "CX20582 (Pebble)", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15067, "CX20583 (Pebble HSF)", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15068, "CX20584", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15069, "CX20585", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f1506c, "CX20588", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f1506e, "CX20590", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15097, "CX20631", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15098, "CX20632", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f150a1, "CX20641", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f150a2, "CX20642", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f150ab, "CX20651", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f150ac, "CX20652", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f150b8, "CX20664", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f150b9, "CX20665", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f150f1, "CX20721", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f150f2, "CX20722", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f150f3, "CX20723", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f150f4, "CX20724", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f1510f, "CX20751/2", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15110, "CX20751/2", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15111, "CX20753/4", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15113, "CX20755", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15114, "CX20756", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15115, "CX20757", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f151d7, "CX20952", patch_conexant_auto),
 	{} /* terminator */
 };
-
-MODULE_ALIAS("snd-hda-codec-id:14f15045");
-MODULE_ALIAS("snd-hda-codec-id:14f15047");
-MODULE_ALIAS("snd-hda-codec-id:14f15051");
-MODULE_ALIAS("snd-hda-codec-id:14f15066");
-MODULE_ALIAS("snd-hda-codec-id:14f15067");
-MODULE_ALIAS("snd-hda-codec-id:14f15068");
-MODULE_ALIAS("snd-hda-codec-id:14f15069");
-MODULE_ALIAS("snd-hda-codec-id:14f1506c");
-MODULE_ALIAS("snd-hda-codec-id:14f1506e");
-MODULE_ALIAS("snd-hda-codec-id:14f15097");
-MODULE_ALIAS("snd-hda-codec-id:14f15098");
-MODULE_ALIAS("snd-hda-codec-id:14f150a1");
-MODULE_ALIAS("snd-hda-codec-id:14f150a2");
-MODULE_ALIAS("snd-hda-codec-id:14f150ab");
-MODULE_ALIAS("snd-hda-codec-id:14f150ac");
-MODULE_ALIAS("snd-hda-codec-id:14f150b8");
-MODULE_ALIAS("snd-hda-codec-id:14f150b9");
-MODULE_ALIAS("snd-hda-codec-id:14f150f1");
-MODULE_ALIAS("snd-hda-codec-id:14f150f2");
-MODULE_ALIAS("snd-hda-codec-id:14f150f3");
-MODULE_ALIAS("snd-hda-codec-id:14f150f4");
-MODULE_ALIAS("snd-hda-codec-id:14f1510f");
-MODULE_ALIAS("snd-hda-codec-id:14f15110");
-MODULE_ALIAS("snd-hda-codec-id:14f15111");
-MODULE_ALIAS("snd-hda-codec-id:14f15113");
-MODULE_ALIAS("snd-hda-codec-id:14f15114");
-MODULE_ALIAS("snd-hda-codec-id:14f15115");
-MODULE_ALIAS("snd-hda-codec-id:14f151d7");
+MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_conexant);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Conexant HD-audio codec");
 
 static struct hda_codec_driver conexant_driver = {
-	.preset = snd_hda_preset_conexant,
+	.id = snd_hda_id_conexant,
 };
 
 module_hda_codec_driver(conexant_driver);

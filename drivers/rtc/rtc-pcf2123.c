@@ -346,7 +346,6 @@ MODULE_DEVICE_TABLE(of, pcf2123_dt_ids);
 static struct spi_driver pcf2123_driver = {
 	.driver	= {
 			.name	= "rtc-pcf2123",
-			.owner	= THIS_MODULE,
 			.of_match_table = of_match_ptr(pcf2123_dt_ids),
 	},
 	.probe	= pcf2123_probe,

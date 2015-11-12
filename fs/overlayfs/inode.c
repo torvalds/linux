@@ -363,6 +363,9 @@ struct inode *ovl_d_select_inode(struct dentry *dentry, unsigned file_flags)
 		ovl_path_upper(dentry, &realpath);
 	}
 
+	if (realpath.dentry->d_flags & DCACHE_OP_SELECT_INODE)
+		return realpath.dentry->d_op->d_select_inode(realpath.dentry, file_flags);
+
 	return d_backing_inode(realpath.dentry);
 }
 

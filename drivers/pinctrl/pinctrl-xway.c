@@ -682,28 +682,14 @@ static int xway_gpio_dir_out(struct gpio_chip *chip, unsigned int pin, int val)
 	return 0;
 }
 
-static int xway_gpio_req(struct gpio_chip *chip, unsigned offset)
-{
-	int gpio = chip->base + offset;
-
-	return pinctrl_request_gpio(gpio);
-}
-
-static void xway_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-	int gpio = chip->base + offset;
-
-	pinctrl_free_gpio(gpio);
-}
-
 static struct gpio_chip xway_chip = {
 	.label = "gpio-xway",
 	.direction_input = xway_gpio_dir_in,
 	.direction_output = xway_gpio_dir_out,
 	.get = xway_gpio_get,
 	.set = xway_gpio_set,
-	.request = xway_gpio_req,
-	.free = xway_gpio_free,
+	.request = gpiochip_generic_request,
+	.free = gpiochip_generic_free,
 	.base = -1,
 };
 

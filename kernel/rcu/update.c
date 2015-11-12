@@ -534,7 +534,7 @@ static void rcu_spawn_tasks_kthread(void);
  * Post an RCU-tasks callback.  First call must be from process context
  * after the scheduler if fully operational.
  */
-void call_rcu_tasks(struct rcu_head *rhp, void (*func)(struct rcu_head *rhp))
+void call_rcu_tasks(struct rcu_head *rhp, rcu_callback_t func)
 {
 	unsigned long flags;
 	bool needwake;

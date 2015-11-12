@@ -469,56 +469,6 @@ static unsigned long dfll_scale_dvco_rate(int scale_bits,
 }
 
 /*
- * Monitor control
- */
-
-/**
- * dfll_calc_monitored_rate - convert DFLL_MONITOR_DATA_VAL rate into real freq
- * @monitor_data: value read from the DFLL_MONITOR_DATA_VAL bitfield
- * @ref_rate: DFLL reference clock rate
- *
- * Convert @monitor_data from DFLL_MONITOR_DATA_VAL units into cycles
- * per second. Returns the converted value.
- */
-static u64 dfll_calc_monitored_rate(u32 monitor_data,
-				    unsigned long ref_rate)
-{
-	return monitor_data * (ref_rate / REF_CLK_CYC_PER_DVCO_SAMPLE);
-}
-
-/**
- * dfll_read_monitor_rate - return the DFLL's output rate from internal monitor
- * @td: DFLL instance
- *
- * If the DFLL is enabled, return the last rate reported by the DFLL's
- * internal monitoring hardware. This works in both open-loop and
- * closed-loop mode, and takes the output scaler setting into account.
- * Assumes that the monitor was programmed to monitor frequency before
- * the sample period started. If the driver believes that the DFLL is
- * currently uninitialized or disabled, it will return 0, since
- * otherwise the DFLL monitor data register will return the last
- * measured rate from when the DFLL was active.
- */
-static u64 dfll_read_monitor_rate(struct tegra_dfll *td)
-{
-	u32 v, s;
-	u64 pre_scaler_rate, post_scaler_rate;
-
-	if (!dfll_is_running(td))
-		return 0;
-
-	v = dfll_readl(td, DFLL_MONITOR_DATA);
-	v = (v & DFLL_MONITOR_DATA_VAL_MASK) >> DFLL_MONITOR_DATA_VAL_SHIFT;
-	pre_scaler_rate = dfll_calc_monitored_rate(v, td->ref_rate);
-
-	s = dfll_readl(td, DFLL_FREQ_REQ);
-	s = (s & DFLL_FREQ_REQ_SCALE_MASK) >> DFLL_FREQ_REQ_SCALE_SHIFT;
-	post_scaler_rate = dfll_scale_dvco_rate(s, pre_scaler_rate);
-
-	return post_scaler_rate;
-}
-
-/*
  * DFLL mode switching
  */
 
@@ -1006,24 +956,25 @@ static unsigned long dfll_clk_recalc_rate(struct clk_hw *hw,
 	return td->last_unrounded_rate;
 }
 
-static long dfll_clk_round_rate(struct clk_hw *hw,
-				unsigned long rate,
-				unsigned long *parent_rate)
+/* Must use determine_rate since it allows for rates exceeding 2^31-1 */
+static int dfll_clk_determine_rate(struct clk_hw *hw,
+				   struct clk_rate_request *clk_req)
 {
 	struct tegra_dfll *td = clk_hw_to_dfll(hw);
 	struct dfll_rate_req req;
 	int ret;
 
-	ret = dfll_calculate_rate_request(td, &req, rate);
+	ret = dfll_calculate_rate_request(td, &req, clk_req->rate);
 	if (ret)
 		return ret;
 
 	/*
-	 * Don't return the rounded rate, since it doesn't really matter as
+	 * Don't set the rounded rate, since it doesn't really matter as
 	 * the output rate will be voltage controlled anyway, and cpufreq
 	 * freaks out if any rounding happens.
 	 */
-	return rate;
+
+	return 0;
 }
 
 static int dfll_clk_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -1039,7 +990,7 @@ static const struct clk_ops dfll_clk_ops = {
 	.enable		= dfll_clk_enable,
 	.disable	= dfll_clk_disable,
 	.recalc_rate	= dfll_clk_recalc_rate,
-	.round_rate	= dfll_clk_round_rate,
+	.determine_rate	= dfll_clk_determine_rate,
 	.set_rate	= dfll_clk_set_rate,
 };
 
@@ -1101,6 +1052,55 @@ static void dfll_unregister_clk(struct tegra_dfll *td)
  */
 
 #ifdef CONFIG_DEBUG_FS
+/*
+ * Monitor control
+ */
+
+/**
+ * dfll_calc_monitored_rate - convert DFLL_MONITOR_DATA_VAL rate into real freq
+ * @monitor_data: value read from the DFLL_MONITOR_DATA_VAL bitfield
+ * @ref_rate: DFLL reference clock rate
+ *
+ * Convert @monitor_data from DFLL_MONITOR_DATA_VAL units into cycles
+ * per second. Returns the converted value.
+ */
+static u64 dfll_calc_monitored_rate(u32 monitor_data,
+				    unsigned long ref_rate)
+{
+	return monitor_data * (ref_rate / REF_CLK_CYC_PER_DVCO_SAMPLE);
+}
+
+/**
+ * dfll_read_monitor_rate - return the DFLL's output rate from internal monitor
+ * @td: DFLL instance
+ *
+ * If the DFLL is enabled, return the last rate reported by the DFLL's
+ * internal monitoring hardware. This works in both open-loop and
+ * closed-loop mode, and takes the output scaler setting into account.
+ * Assumes that the monitor was programmed to monitor frequency before
+ * the sample period started. If the driver believes that the DFLL is
+ * currently uninitialized or disabled, it will return 0, since
+ * otherwise the DFLL monitor data register will return the last
+ * measured rate from when the DFLL was active.
+ */
+static u64 dfll_read_monitor_rate(struct tegra_dfll *td)
+{
+	u32 v, s;
+	u64 pre_scaler_rate, post_scaler_rate;
+
+	if (!dfll_is_running(td))
+		return 0;
+
+	v = dfll_readl(td, DFLL_MONITOR_DATA);
+	v = (v & DFLL_MONITOR_DATA_VAL_MASK) >> DFLL_MONITOR_DATA_VAL_SHIFT;
+	pre_scaler_rate = dfll_calc_monitored_rate(v, td->ref_rate);
+
+	s = dfll_readl(td, DFLL_FREQ_REQ);
+	s = (s & DFLL_FREQ_REQ_SCALE_MASK) >> DFLL_FREQ_REQ_SCALE_SHIFT;
+	post_scaler_rate = dfll_scale_dvco_rate(s, pre_scaler_rate);
+
+	return post_scaler_rate;
+}
 
 static int attr_enable_get(void *data, u64 *val)
 {

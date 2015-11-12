@@ -81,6 +81,7 @@
 #include <net/ip.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
+#include <net/l3mdev.h>
 #include <linux/if_tunnel.h>
 #include <linux/rtnetlink.h>
 #include <linux/netconf.h>
@@ -2146,7 +2147,7 @@ addrconf_prefix_route(struct in6_addr *pfx, int plen, struct net_device *dev,
 		      unsigned long expires, u32 flags)
 {
 	struct fib6_config cfg = {
-		.fc_table = RT6_TABLE_PREFIX,
+		.fc_table = l3mdev_fib_table(dev) ? : RT6_TABLE_PREFIX,
 		.fc_metric = IP6_RT_PRIO_ADDRCONF,
 		.fc_ifindex = dev->ifindex,
 		.fc_expires = expires,
@@ -2179,8 +2180,9 @@ static struct rt6_info *addrconf_get_prefix_route(const struct in6_addr *pfx,
 	struct fib6_node *fn;
 	struct rt6_info *rt = NULL;
 	struct fib6_table *table;
+	u32 tb_id = l3mdev_fib_table(dev) ? : RT6_TABLE_PREFIX;
 
-	table = fib6_get_table(dev_net(dev), RT6_TABLE_PREFIX);
+	table = fib6_get_table(dev_net(dev), tb_id);
 	if (!table)
 		return NULL;
 
@@ -2211,7 +2213,7 @@ out:
 static void addrconf_add_mroute(struct net_device *dev)
 {
 	struct fib6_config cfg = {
-		.fc_table = RT6_TABLE_LOCAL,
+		.fc_table = l3mdev_fib_table(dev) ? : RT6_TABLE_LOCAL,
 		.fc_metric = IP6_RT_PRIO_ADDRCONF,
 		.fc_ifindex = dev->ifindex,
 		.fc_dst_len = 8,
@@ -3029,6 +3031,10 @@ static void addrconf_addr_gen(struct inet6_dev *idev, bool prefix_route)
 {
 	struct in6_addr addr;
 
+	/* no link local addresses on L3 master devices */
+	if (netif_is_l3_master(idev->dev))
+		return;
+
 	ipv6_addr_set(&addr, htonl(0xFE800000), 0, 0, 0);
 
 	if (idev->addr_gen_mode == IN6_ADDR_GEN_MODE_STABLE_PRIVACY) {
@@ -3119,6 +3125,8 @@ static void addrconf_gre_config(struct net_device *dev)
 	}
 
 	addrconf_addr_gen(idev, true);
+	if (dev->flags & IFF_POINTOPOINT)
+		addrconf_add_mroute(dev);
 }
 #endif
 
@@ -3138,6 +3146,32 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 				return notifier_from_errno(PTR_ERR(idev));
 		}
 		break;
+
+	case NETDEV_CHANGEMTU:
+		/* if MTU under IPV6_MIN_MTU stop IPv6 on this interface. */
+		if (dev->mtu < IPV6_MIN_MTU) {
+			addrconf_ifdown(dev, 1);
+			break;
+		}
+
+		if (idev) {
+			rt6_mtu_change(dev, dev->mtu);
+			idev->cnf.mtu6 = dev->mtu;
+			break;
+		}
+
+		/* allocate new idev */
+		idev = ipv6_add_dev(dev);
+		if (IS_ERR(idev))
+			break;
+
+		/* device is still not ready */
+		if (!(idev->if_flags & IF_READY))
+			break;
+
+		run_pending = 1;
+
+		/* fall through */
 
 	case NETDEV_UP:
 	case NETDEV_CHANGE:
@@ -3162,7 +3196,7 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 				idev->if_flags |= IF_READY;
 				run_pending = 1;
 			}
-		} else {
+		} else if (event == NETDEV_CHANGE) {
 			if (!addrconf_qdisc_ok(dev)) {
 				/* device is still not ready. */
 				break;
@@ -3226,24 +3260,6 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 				addrconf_ifdown(dev, 1);
 		}
 		break;
-
-	case NETDEV_CHANGEMTU:
-		if (idev && dev->mtu >= IPV6_MIN_MTU) {
-			rt6_mtu_change(dev, dev->mtu);
-			idev->cnf.mtu6 = dev->mtu;
-			break;
-		}
-
-		if (!idev && dev->mtu >= IPV6_MIN_MTU) {
-			idev = ipv6_add_dev(dev);
-			if (!IS_ERR(idev))
-				break;
-		}
-
-		/*
-		 * if MTU under IPV6_MIN_MTU.
-		 * Stop IPv6 on this interface.
-		 */
 
 	case NETDEV_DOWN:
 	case NETDEV_UNREGISTER:
@@ -3625,7 +3641,7 @@ static void addrconf_dad_work(struct work_struct *w)
 
 	/* send a neighbour solicitation for our addr */
 	addrconf_addr_solict_mult(&ifp->addr, &mcaddr);
-	ndisc_send_ns(ifp->idev->dev, NULL, &ifp->addr, &mcaddr, &in6addr_any, NULL);
+	ndisc_send_ns(ifp->idev->dev, &ifp->addr, &mcaddr, &in6addr_any, NULL);
 out:
 	in6_ifa_put(ifp);
 	rtnl_unlock();
@@ -4729,7 +4745,8 @@ static void snmp6_fill_stats(u64 *stats, struct inet6_dev *idev, int attrtype,
 	}
 }
 
-static int inet6_fill_ifla6_attrs(struct sk_buff *skb, struct inet6_dev *idev)
+static int inet6_fill_ifla6_attrs(struct sk_buff *skb, struct inet6_dev *idev,
+				  u32 ext_filter_mask)
 {
 	struct nlattr *nla;
 	struct ifla_cacheinfo ci;
@@ -4748,6 +4765,9 @@ static int inet6_fill_ifla6_attrs(struct sk_buff *skb, struct inet6_dev *idev)
 	ipv6_store_devconf(&idev->cnf, nla_data(nla), nla_len(nla));
 
 	/* XXX - MC not implemented */
+
+	if (ext_filter_mask & RTEXT_FILTER_SKIP_STATS)
+		return 0;
 
 	nla = nla_reserve(skb, IFLA_INET6_STATS, IPSTATS_MIB_MAX * sizeof(u64));
 	if (!nla)
@@ -4776,7 +4796,8 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static size_t inet6_get_link_af_size(const struct net_device *dev)
+static size_t inet6_get_link_af_size(const struct net_device *dev,
+				     u32 ext_filter_mask)
 {
 	if (!__in6_dev_get(dev))
 		return 0;
@@ -4784,14 +4805,15 @@ static size_t inet6_get_link_af_size(const struct net_device *dev)
 	return inet6_ifla6_size();
 }
 
-static int inet6_fill_link_af(struct sk_buff *skb, const struct net_device *dev)
+static int inet6_fill_link_af(struct sk_buff *skb, const struct net_device *dev,
+			      u32 ext_filter_mask)
 {
 	struct inet6_dev *idev = __in6_dev_get(dev);
 
 	if (!idev)
 		return -ENODATA;
 
-	if (inet6_fill_ifla6_attrs(skb, idev) < 0)
+	if (inet6_fill_ifla6_attrs(skb, idev, ext_filter_mask) < 0)
 		return -EMSGSIZE;
 
 	return 0;
@@ -4946,7 +4968,7 @@ static int inet6_fill_ifinfo(struct sk_buff *skb, struct inet6_dev *idev,
 	if (!protoinfo)
 		goto nla_put_failure;
 
-	if (inet6_fill_ifla6_attrs(skb, idev) < 0)
+	if (inet6_fill_ifla6_attrs(skb, idev, 0) < 0)
 		goto nla_put_failure;
 
 	nla_nest_end(skb, protoinfo);

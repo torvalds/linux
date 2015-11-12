@@ -500,7 +500,7 @@ static int uart_clps711x_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, s);
 
-	s->gpios = mctrl_gpio_init(&pdev->dev, 0);
+	s->gpios = mctrl_gpio_init_noauto(&pdev->dev, 0);
 	if (IS_ERR(s->gpios))
 	    return PTR_ERR(s->gpios);
 

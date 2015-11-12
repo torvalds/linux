@@ -129,9 +129,8 @@ void usb_anchor_urb(struct urb *urb, struct usb_anchor *anchor)
 	list_add_tail(&urb->anchor_list, &anchor->urb_list);
 	urb->anchor = anchor;
 
-	if (unlikely(anchor->poisoned)) {
+	if (unlikely(anchor->poisoned))
 		atomic_inc(&urb->reject);
-	}
 
 	spin_unlock_irqrestore(&anchor->lock, flags);
 }

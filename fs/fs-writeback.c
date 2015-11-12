@@ -778,18 +778,23 @@ static void bdi_split_work_to_wbs(struct backing_dev_info *bdi,
 				  struct wb_writeback_work *base_work,
 				  bool skip_if_busy)
 {
-	int next_memcg_id = 0;
-	struct bdi_writeback *wb;
-	struct wb_iter iter;
+	struct bdi_writeback *last_wb = NULL;
+	struct bdi_writeback *wb = list_entry(&bdi->wb_list,
+					      struct bdi_writeback, bdi_node);
 
 	might_sleep();
 restart:
 	rcu_read_lock();
-	bdi_for_each_wb(wb, bdi, &iter, next_memcg_id) {
+	list_for_each_entry_continue_rcu(wb, &bdi->wb_list, bdi_node) {
 		DEFINE_WB_COMPLETION_ONSTACK(fallback_work_done);
 		struct wb_writeback_work fallback_work;
 		struct wb_writeback_work *work;
 		long nr_pages;
+
+		if (last_wb) {
+			wb_put(last_wb);
+			last_wb = NULL;
+		}
 
 		/* SYNC_ALL writes out I_DIRTY_TIME too */
 		if (!wb_has_dirty_io(wb) &&
@@ -819,12 +824,22 @@ restart:
 
 		wb_queue_work(wb, work);
 
-		next_memcg_id = wb->memcg_css->id + 1;
+		/*
+		 * Pin @wb so that it stays on @bdi->wb_list.  This allows
+		 * continuing iteration from @wb after dropping and
+		 * regrabbing rcu read lock.
+		 */
+		wb_get(wb);
+		last_wb = wb;
+
 		rcu_read_unlock();
 		wb_wait_for_completion(bdi, &fallback_work_done);
 		goto restart;
 	}
 	rcu_read_unlock();
+
+	if (last_wb)
+		wb_put(last_wb);
 }
 
 #else	/* CONFIG_CGROUP_WRITEBACK */
@@ -1857,12 +1872,11 @@ void wakeup_flusher_threads(long nr_pages, enum wb_reason reason)
 	rcu_read_lock();
 	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list) {
 		struct bdi_writeback *wb;
-		struct wb_iter iter;
 
 		if (!bdi_has_dirty_io(bdi))
 			continue;
 
-		bdi_for_each_wb(wb, bdi, &iter, 0)
+		list_for_each_entry_rcu(wb, &bdi->wb_list, bdi_node)
 			wb_start_writeback(wb, wb_split_bdi_pages(wb, nr_pages),
 					   false, reason);
 	}
@@ -1894,11 +1908,10 @@ static void wakeup_dirtytime_writeback(struct work_struct *w)
 	rcu_read_lock();
 	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list) {
 		struct bdi_writeback *wb;
-		struct wb_iter iter;
 
-		bdi_for_each_wb(wb, bdi, &iter, 0)
-			if (!list_empty(&bdi->wb.b_dirty_time))
-				wb_wakeup(&bdi->wb);
+		list_for_each_entry_rcu(wb, &bdi->wb_list, bdi_node)
+			if (!list_empty(&wb->b_dirty_time))
+				wb_wakeup(wb);
 	}
 	rcu_read_unlock();
 	schedule_delayed_work(&dirtytime_work, dirtytime_expire_interval * HZ);
@@ -1968,9 +1981,9 @@ static noinline void block_dump___mark_inode_dirty(struct inode *inode)
  * page->mapping->host, so the page-dirtying time is recorded in the internal
  * blockdev inode.
  */
-#define I_DIRTY_INODE (I_DIRTY_SYNC | I_DIRTY_DATASYNC)
 void __mark_inode_dirty(struct inode *inode, int flags)
 {
+#define I_DIRTY_INODE (I_DIRTY_SYNC | I_DIRTY_DATASYNC)
 	struct super_block *sb = inode->i_sb;
 	int dirtytime;
 
@@ -2080,6 +2093,7 @@ void __mark_inode_dirty(struct inode *inode, int flags)
 out_unlock_inode:
 	spin_unlock(&inode->i_lock);
 
+#undef I_DIRTY_INODE
 }
 EXPORT_SYMBOL(__mark_inode_dirty);
 
@@ -2136,7 +2150,12 @@ static void wait_sb_inodes(struct super_block *sb)
 		iput(old_inode);
 		old_inode = inode;
 
-		filemap_fdatawait(mapping);
+		/*
+		 * We keep the error status of individual mapping so that
+		 * applications can catch the writeback error using fsync(2).
+		 * See filemap_fdatawait_keep_errors() for details.
+		 */
+		filemap_fdatawait_keep_errors(mapping);
 
 		cond_resched();
 

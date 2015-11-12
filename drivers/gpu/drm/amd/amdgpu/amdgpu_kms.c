@@ -218,8 +218,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			break;
 		case AMDGPU_HW_IP_DMA:
 			type = AMD_IP_BLOCK_TYPE_SDMA;
-			ring_mask = adev->sdma[0].ring.ready ? 1 : 0;
-			ring_mask |= ((adev->sdma[1].ring.ready ? 1 : 0) << 1);
+			for (i = 0; i < adev->sdma.num_instances; i++)
+				ring_mask |= ((adev->sdma.instance[i].ring.ready ? 1 : 0) << i);
 			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
 			ib_size_alignment = 1;
 			break;
@@ -341,10 +341,10 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			fw_info.feature = 0;
 			break;
 		case AMDGPU_INFO_FW_SDMA:
-			if (info->query_fw.index >= 2)
+			if (info->query_fw.index >= adev->sdma.num_instances)
 				return -EINVAL;
-			fw_info.ver = adev->sdma[info->query_fw.index].fw_version;
-			fw_info.feature = adev->sdma[info->query_fw.index].feature_version;
+			fw_info.ver = adev->sdma.instance[info->query_fw.index].fw_version;
+			fw_info.feature = adev->sdma.instance[info->query_fw.index].feature_version;
 			break;
 		default:
 			return -EINVAL;
@@ -485,14 +485,17 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
  * Outdated mess for old drm with Xorg being in charge (void function now).
  */
 /**
- * amdgpu_driver_firstopen_kms - drm callback for last close
+ * amdgpu_driver_lastclose_kms - drm callback for last close
  *
  * @dev: drm dev pointer
  *
- * Switch vga switcheroo state after last close (all asics).
+ * Switch vga_switcheroo state after last close (all asics).
  */
 void amdgpu_driver_lastclose_kms(struct drm_device *dev)
 {
+	struct amdgpu_device *adev = dev->dev_private;
+
+	amdgpu_fbdev_restore_mode(adev);
 	vga_switcheroo_process_delayed_switch();
 }
 
@@ -600,36 +603,36 @@ void amdgpu_driver_preclose_kms(struct drm_device *dev,
  * amdgpu_get_vblank_counter_kms - get frame count
  *
  * @dev: drm dev pointer
- * @crtc: crtc to get the frame count from
+ * @pipe: crtc to get the frame count from
  *
  * Gets the frame count on the requested crtc (all asics).
  * Returns frame count on success, -EINVAL on failure.
  */
-u32 amdgpu_get_vblank_counter_kms(struct drm_device *dev, int crtc)
+u32 amdgpu_get_vblank_counter_kms(struct drm_device *dev, unsigned int pipe)
 {
 	struct amdgpu_device *adev = dev->dev_private;
 
-	if (crtc < 0 || crtc >= adev->mode_info.num_crtc) {
-		DRM_ERROR("Invalid crtc %d\n", crtc);
+	if (pipe >= adev->mode_info.num_crtc) {
+		DRM_ERROR("Invalid crtc %u\n", pipe);
 		return -EINVAL;
 	}
 
-	return amdgpu_display_vblank_get_counter(adev, crtc);
+	return amdgpu_display_vblank_get_counter(adev, pipe);
 }
 
 /**
  * amdgpu_enable_vblank_kms - enable vblank interrupt
  *
  * @dev: drm dev pointer
- * @crtc: crtc to enable vblank interrupt for
+ * @pipe: crtc to enable vblank interrupt for
  *
  * Enable the interrupt on the requested crtc (all asics).
  * Returns 0 on success, -EINVAL on failure.
  */
-int amdgpu_enable_vblank_kms(struct drm_device *dev, int crtc)
+int amdgpu_enable_vblank_kms(struct drm_device *dev, unsigned int pipe)
 {
 	struct amdgpu_device *adev = dev->dev_private;
-	int idx = amdgpu_crtc_idx_to_irq_type(adev, crtc);
+	int idx = amdgpu_crtc_idx_to_irq_type(adev, pipe);
 
 	return amdgpu_irq_get(adev, &adev->crtc_irq, idx);
 }
@@ -638,14 +641,14 @@ int amdgpu_enable_vblank_kms(struct drm_device *dev, int crtc)
  * amdgpu_disable_vblank_kms - disable vblank interrupt
  *
  * @dev: drm dev pointer
- * @crtc: crtc to disable vblank interrupt for
+ * @pipe: crtc to disable vblank interrupt for
  *
  * Disable the interrupt on the requested crtc (all asics).
  */
-void amdgpu_disable_vblank_kms(struct drm_device *dev, int crtc)
+void amdgpu_disable_vblank_kms(struct drm_device *dev, unsigned int pipe)
 {
 	struct amdgpu_device *adev = dev->dev_private;
-	int idx = amdgpu_crtc_idx_to_irq_type(adev, crtc);
+	int idx = amdgpu_crtc_idx_to_irq_type(adev, pipe);
 
 	amdgpu_irq_put(adev, &adev->crtc_irq, idx);
 }
@@ -663,41 +666,41 @@ void amdgpu_disable_vblank_kms(struct drm_device *dev, int crtc)
  * scanout position.  (all asics).
  * Returns postive status flags on success, negative error on failure.
  */
-int amdgpu_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
+int amdgpu_get_vblank_timestamp_kms(struct drm_device *dev, unsigned int pipe,
 				    int *max_error,
 				    struct timeval *vblank_time,
 				    unsigned flags)
 {
-	struct drm_crtc *drmcrtc;
+	struct drm_crtc *crtc;
 	struct amdgpu_device *adev = dev->dev_private;
 
-	if (crtc < 0 || crtc >= dev->num_crtcs) {
-		DRM_ERROR("Invalid crtc %d\n", crtc);
+	if (pipe >= dev->num_crtcs) {
+		DRM_ERROR("Invalid crtc %u\n", pipe);
 		return -EINVAL;
 	}
 
 	/* Get associated drm_crtc: */
-	drmcrtc = &adev->mode_info.crtcs[crtc]->base;
+	crtc = &adev->mode_info.crtcs[pipe]->base;
 
 	/* Helper routine in DRM core does all the work: */
-	return drm_calc_vbltimestamp_from_scanoutpos(dev, crtc, max_error,
+	return drm_calc_vbltimestamp_from_scanoutpos(dev, pipe, max_error,
 						     vblank_time, flags,
-						     drmcrtc, &drmcrtc->hwmode);
+						     &crtc->hwmode);
 }
 
 const struct drm_ioctl_desc amdgpu_ioctls_kms[] = {
-	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_CREATE, amdgpu_gem_create_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(AMDGPU_CTX, amdgpu_ctx_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(AMDGPU_BO_LIST, amdgpu_bo_list_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_CREATE, amdgpu_gem_create_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(AMDGPU_CTX, amdgpu_ctx_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(AMDGPU_BO_LIST, amdgpu_bo_list_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 	/* KMS */
-	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_MMAP, amdgpu_gem_mmap_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_WAIT_IDLE, amdgpu_gem_wait_idle_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(AMDGPU_CS, amdgpu_cs_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(AMDGPU_INFO, amdgpu_info_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(AMDGPU_WAIT_CS, amdgpu_cs_wait_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_METADATA, amdgpu_gem_metadata_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_VA, amdgpu_gem_va_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_OP, amdgpu_gem_op_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_USERPTR, amdgpu_gem_userptr_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_MMAP, amdgpu_gem_mmap_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_WAIT_IDLE, amdgpu_gem_wait_idle_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(AMDGPU_CS, amdgpu_cs_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(AMDGPU_INFO, amdgpu_info_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(AMDGPU_WAIT_CS, amdgpu_cs_wait_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_METADATA, amdgpu_gem_metadata_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_VA, amdgpu_gem_va_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_OP, amdgpu_gem_op_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_USERPTR, amdgpu_gem_userptr_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 };
 int amdgpu_max_kms_ioctl = ARRAY_SIZE(amdgpu_ioctls_kms);

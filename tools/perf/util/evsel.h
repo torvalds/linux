@@ -43,6 +43,7 @@ enum {
 	PERF_EVSEL__CONFIG_TERM_TIME,
 	PERF_EVSEL__CONFIG_TERM_CALLGRAPH,
 	PERF_EVSEL__CONFIG_TERM_STACK_USER,
+	PERF_EVSEL__CONFIG_TERM_INHERIT,
 	PERF_EVSEL__CONFIG_TERM_MAX,
 };
 
@@ -55,6 +56,7 @@ struct perf_evsel_config_term {
 		bool	time;
 		char	*callgraph;
 		u64	stack_user;
+		bool	inherit;
 	} val;
 };
 
@@ -90,9 +92,9 @@ struct perf_evsel {
 	double			scale;
 	const char		*unit;
 	struct event_format	*tp_format;
+	off_t			id_offset;
 	union {
 		void		*priv;
-		off_t		id_offset;
 		u64		db_id;
 	};
 	struct cgroup_sel	*cgrp;
@@ -111,6 +113,7 @@ struct perf_evsel {
 	bool			system_wide;
 	bool			tracking;
 	bool			per_pkg;
+	bool			precise_max;
 	/* parse modifier helper */
 	int			exclude_GH;
 	int			nr_members;
@@ -120,6 +123,7 @@ struct perf_evsel {
 	char			*group_name;
 	bool			cmdline_group_boundary;
 	struct list_head	config_terms;
+	int			bpf_fd;
 };
 
 union u64_swap {
@@ -130,7 +134,6 @@ union u64_swap {
 struct cpu_map;
 struct target;
 struct thread_map;
-struct perf_evlist;
 struct record_opts;
 
 static inline struct cpu_map *perf_evsel__cpus(struct perf_evsel *evsel)
@@ -162,6 +165,9 @@ static inline struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr)
 
 struct perf_evsel *perf_evsel__newtp_idx(const char *sys, const char *name, int idx);
 
+/*
+ * Returns pointer with encoded error via <linux/err.h> interface.
+ */
 static inline struct perf_evsel *perf_evsel__newtp(const char *sys, const char *name)
 {
 	return perf_evsel__newtp_idx(sys, name, 0);

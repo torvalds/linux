@@ -880,6 +880,14 @@ __kvm_hyp_panic:
 
 	bl __restore_sysregs
 
+	/*
+	 * Make sure we have a valid host stack, and don't leave junk in the
+	 * frame pointer that will give us a misleading host stack unwinding.
+	 */
+	ldr	x22, [x2, #CPU_GP_REG_OFFSET(CPU_SP_EL1)]
+	msr	sp_el1, x22
+	mov	x29, xzr
+
 1:	adr	x0, __hyp_panic_str
 	adr	x1, 2f
 	ldp	x2, x3, [x1]

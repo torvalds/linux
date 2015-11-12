@@ -98,14 +98,14 @@ static void mv_cesa_ablkcipher_std_step(struct ablkcipher_request *req)
 
 	/* FIXME: only update enc_len field */
 	if (!sreq->skip_ctx) {
-		memcpy(engine->sram, &sreq->op, sizeof(sreq->op));
+		memcpy_toio(engine->sram, &sreq->op, sizeof(sreq->op));
 		sreq->skip_ctx = true;
 	} else {
-		memcpy(engine->sram, &sreq->op, sizeof(sreq->op.desc));
+		memcpy_toio(engine->sram, &sreq->op, sizeof(sreq->op.desc));
 	}
 
 	mv_cesa_set_int_mask(engine, CESA_SA_INT_ACCEL0_DONE);
-	writel(CESA_SA_CFG_PARA_DIS, engine->regs + CESA_SA_CFG);
+	writel_relaxed(CESA_SA_CFG_PARA_DIS, engine->regs + CESA_SA_CFG);
 	writel(CESA_SA_CMD_EN_CESA_SA_ACCL0, engine->regs + CESA_SA_CMD);
 }
 
@@ -145,8 +145,9 @@ static int mv_cesa_ablkcipher_process(struct crypto_async_request *req,
 	if (ret)
 		return ret;
 
-	memcpy(ablkreq->info, engine->sram + CESA_SA_CRYPT_IV_SRAM_OFFSET,
-	       crypto_ablkcipher_ivsize(crypto_ablkcipher_reqtfm(ablkreq)));
+	memcpy_fromio(ablkreq->info,
+		      engine->sram + CESA_SA_CRYPT_IV_SRAM_OFFSET,
+		      crypto_ablkcipher_ivsize(crypto_ablkcipher_reqtfm(ablkreq)));
 
 	return 0;
 }
@@ -181,7 +182,7 @@ mv_cesa_ablkcipher_std_prepare(struct ablkcipher_request *req)
 	sreq->size = 0;
 	sreq->offset = 0;
 	mv_cesa_adjust_op(engine, &sreq->op);
-	memcpy(engine->sram, &sreq->op, sizeof(sreq->op));
+	memcpy_toio(engine->sram, &sreq->op, sizeof(sreq->op));
 }
 
 static inline void mv_cesa_ablkcipher_prepare(struct crypto_async_request *req,

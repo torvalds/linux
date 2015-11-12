@@ -183,7 +183,6 @@ MODULE_DEVICE_TABLE(of, gen_74x164_dt_ids);
 static struct spi_driver gen_74x164_driver = {
 	.driver = {
 		.name		= "74x164",
-		.owner		= THIS_MODULE,
 		.of_match_table	= gen_74x164_dt_ids,
 	},
 	.probe		= gen_74x164_probe,

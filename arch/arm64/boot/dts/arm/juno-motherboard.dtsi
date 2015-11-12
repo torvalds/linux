@@ -61,46 +61,61 @@
 
 				button@1 {
 					debounce_interval = <50>;
-					wakeup = <1>;
+					wakeup-source;
 					linux,code = <116>;
 					label = "POWER";
 					gpios = <&iofpga_gpio0 0 0x4>;
 				};
 				button@2 {
 					debounce_interval = <50>;
-					wakeup = <1>;
+					wakeup-source;
 					linux,code = <102>;
 					label = "HOME";
 					gpios = <&iofpga_gpio0 1 0x4>;
 				};
 				button@3 {
 					debounce_interval = <50>;
-					wakeup = <1>;
+					wakeup-source;
 					linux,code = <152>;
 					label = "RLOCK";
 					gpios = <&iofpga_gpio0 2 0x4>;
 				};
 				button@4 {
 					debounce_interval = <50>;
-					wakeup = <1>;
+					wakeup-source;
 					linux,code = <115>;
 					label = "VOL+";
 					gpios = <&iofpga_gpio0 3 0x4>;
 				};
 				button@5 {
 					debounce_interval = <50>;
-					wakeup = <1>;
+					wakeup-source;
 					linux,code = <114>;
 					label = "VOL-";
 					gpios = <&iofpga_gpio0 4 0x4>;
 				};
 				button@6 {
 					debounce_interval = <50>;
-					wakeup = <1>;
+					wakeup-source;
 					linux,code = <99>;
 					label = "NMI";
 					gpios = <&iofpga_gpio0 5 0x4>;
 				};
+			};
+
+			flash@0,00000000 {
+				/* 2 * 32MiB NOR Flash memory mounted on CS0 */
+				compatible = "arm,vexpress-flash", "cfi-flash";
+				linux,part-probe = "afs";
+				reg = <0 0x00000000 0x04000000>;
+				bank-width = <4>;
+				/*
+				 * Unfortunately, accessing the flash disturbs
+				 * the CPU idle states (suspend) and CPU
+				 * hotplug of the platform. For this reason,
+				 * flash hardware access is disabled by default.
+				 */
+				status = "disabled";
 			};
 
 			ethernet@2,00000000 {

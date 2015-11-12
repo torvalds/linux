@@ -1123,11 +1123,12 @@ static struct sk_buff *be_xmit_workarounds(struct be_adapter *adapter,
 					   struct sk_buff *skb,
 					   struct be_wrb_params *wrb_params)
 {
-	/* Lancer, SH-R ASICs have a bug wherein Packets that are 32 bytes or
-	 * less may cause a transmit stall on that port. So the work-around is
-	 * to pad short packets (<= 32 bytes) to a 36-byte length.
+	/* Lancer, SH and BE3 in SRIOV mode have a bug wherein
+	 * packets that are 32b or less may cause a transmit stall
+	 * on that port. The workaround is to pad such packets
+	 * (len <= 32 bytes) to a minimum length of 36b.
 	 */
-	if (unlikely(!BEx_chip(adapter) && skb->len <= 32)) {
+	if (skb->len <= 32) {
 		if (skb_put_padto(skb, 36))
 			return NULL;
 	}
@@ -4205,10 +4206,6 @@ static int be_get_config(struct be_adapter *adapter)
 	int status, level;
 	u16 profile_id;
 
-	status = be_cmd_get_cntl_attributes(adapter);
-	if (status)
-		return status;
-
 	status = be_cmd_query_fw_cfg(adapter);
 	if (status)
 		return status;
@@ -4406,6 +4403,11 @@ static int be_setup(struct be_adapter *adapter)
 
 	if (!lancer_chip(adapter))
 		be_cmd_req_native_mode(adapter);
+
+	/* Need to invoke this cmd first to get the PCI Function Number */
+	status = be_cmd_get_cntl_attributes(adapter);
+	if (status)
+		return status;
 
 	if (!BE2_chip(adapter) && be_physfn(adapter))
 		be_alloc_sriov_res(adapter);
@@ -4999,7 +5001,15 @@ static bool be_check_ufi_compatibility(struct be_adapter *adapter,
 		return false;
 	}
 
-	return (fhdr->asic_type_rev >= adapter->asic_rev);
+	/* In BE3 FW images the "asic_type_rev" field doesn't track the
+	 * asic_rev of the chips it is compatible with.
+	 * When asic_type_rev is 0 the image is compatible only with
+	 * pre-BE3-R chips (asic_rev < 0x10)
+	 */
+	if (BEx_chip(adapter) && fhdr->asic_type_rev == 0)
+		return adapter->asic_rev < 0x10;
+	else
+		return (fhdr->asic_type_rev >= adapter->asic_rev);
 }
 
 static int be_fw_download(struct be_adapter *adapter, const struct firmware* fw)

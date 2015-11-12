@@ -46,9 +46,6 @@ struct driver_data {
 	u32 clear_sr;
 	u32 mask_sr;
 
-	/* Maximun clock rate */
-	unsigned long max_clk_rate;
-
 	/* Message Transfer pump */
 	struct tasklet_struct pump_transfers;
 
@@ -86,10 +83,8 @@ struct driver_data {
 };
 
 struct chip_data {
-	u32 cr0;
 	u32 cr1;
 	u32 dds_rate;
-	u32 psp;
 	u32 timeout;
 	u8 n_bytes;
 	u32 dma_burst_size;
@@ -98,8 +93,6 @@ struct chip_data {
 	u16 lpss_rx_threshold;
 	u16 lpss_tx_threshold;
 	u8 enable_dma;
-	u8 bits_per_word;
-	u32 speed_hz;
 	union {
 		int gpio_cs;
 		unsigned int frm;
@@ -175,7 +168,6 @@ extern int pxa2xx_spi_dma_prepare(struct driver_data *drv_data, u32 dma_burst);
 extern void pxa2xx_spi_dma_start(struct driver_data *drv_data);
 extern int pxa2xx_spi_dma_setup(struct driver_data *drv_data);
 extern void pxa2xx_spi_dma_release(struct driver_data *drv_data);
-extern void pxa2xx_spi_dma_resume(struct driver_data *drv_data);
 extern int pxa2xx_spi_set_dma_burst_and_threshold(struct chip_data *chip,
 						  struct spi_device *spi,
 						  u8 bits_per_word,
@@ -196,7 +188,6 @@ static inline int pxa2xx_spi_dma_setup(struct driver_data *drv_data)
 	return 0;
 }
 static inline void pxa2xx_spi_dma_release(struct driver_data *drv_data) {}
-static inline void pxa2xx_spi_dma_resume(struct driver_data *drv_data) {}
 static inline int pxa2xx_spi_set_dma_burst_and_threshold(struct chip_data *chip,
 							 struct spi_device *spi,
 							 u8 bits_per_word,

@@ -146,7 +146,8 @@ MODULE_PARM_DESC(sdma_comp_size, "Size of User SDMA completion ring. Default: 12
 #define KDETH_OM_MAX_SIZE  (1 << ((KDETH_OM_LARGE / KDETH_OM_SMALL) + 1))
 
 /* Last packet in the request */
-#define USER_SDMA_TXREQ_FLAGS_LAST_PKT   (1 << 0)
+#define TXREQ_FLAGS_REQ_LAST_PKT   (1 << 0)
+#define TXREQ_FLAGS_IOVEC_LAST_PKT (1 << 0)
 
 #define SDMA_REQ_IN_USE     0
 #define SDMA_REQ_FOR_THREAD 1
@@ -249,13 +250,22 @@ struct user_sdma_request {
 	unsigned long flags;
 };
 
+/*
+ * A single txreq could span up to 3 physical pages when the MTU
+ * is sufficiently large (> 4K). Each of the IOV pointers also
+ * needs it's own set of flags so the vector has been handled
+ * independently of each other.
+ */
 struct user_sdma_txreq {
 	/* Packet header for the txreq */
 	struct hfi1_pkt_header hdr;
 	struct sdma_txreq txreq;
 	struct user_sdma_request *req;
-	struct user_sdma_iovec *iovec1;
-	struct user_sdma_iovec *iovec2;
+	struct {
+		struct user_sdma_iovec *vec;
+		u8 flags;
+	} iovecs[3];
+	int idx;
 	u16 flags;
 	unsigned busycount;
 	u64 seqnum;
@@ -293,21 +303,6 @@ static int defer_packet_queue(
 	struct sdma_txreq *,
 	unsigned seq);
 static void activate_packet_queue(struct iowait *, int);
-
-static inline int iovec_may_free(struct user_sdma_iovec *iovec,
-				       void (*free)(struct user_sdma_iovec *))
-{
-	if (ACCESS_ONCE(iovec->offset) == iovec->iov.iov_len) {
-		free(iovec);
-		return 1;
-	}
-	return 0;
-}
-
-static inline void iovec_set_complete(struct user_sdma_iovec *iovec)
-{
-	iovec->offset = iovec->iov.iov_len;
-}
 
 static int defer_packet_queue(
 	struct sdma_engine *sde,
@@ -378,20 +373,14 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt, struct file *fp)
 	dd = uctxt->dd;
 
 	pq = kzalloc(sizeof(*pq), GFP_KERNEL);
-	if (!pq) {
-		dd_dev_err(dd,
-			   "[%u:%u] Failed to allocate SDMA request struct\n",
-			   uctxt->ctxt, subctxt_fp(fp));
+	if (!pq)
 		goto pq_nomem;
-	}
+
 	memsize = sizeof(*pq->reqs) * hfi1_sdma_comp_ring_size;
 	pq->reqs = kmalloc(memsize, GFP_KERNEL);
-	if (!pq->reqs) {
-		dd_dev_err(dd,
-			   "[%u:%u] Failed to allocate SDMA request queue (%u)\n",
-			   uctxt->ctxt, subctxt_fp(fp), memsize);
+	if (!pq->reqs)
 		goto pq_reqs_nomem;
-	}
+
 	INIT_LIST_HEAD(&pq->list);
 	pq->dd = dd;
 	pq->ctxt = uctxt->ctxt;
@@ -417,22 +406,15 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt, struct file *fp)
 	}
 	user_sdma_pkt_fp(fp) = pq;
 	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
-	if (!cq) {
-		dd_dev_err(dd,
-			   "[%u:%u] Failed to allocate SDMA completion queue\n",
-			   uctxt->ctxt, subctxt_fp(fp));
+	if (!cq)
 		goto cq_nomem;
-	}
 
 	memsize = ALIGN(sizeof(*cq->comps) * hfi1_sdma_comp_ring_size,
 			PAGE_SIZE);
 	cq->comps = vmalloc_user(memsize);
-	if (!cq->comps) {
-		dd_dev_err(dd,
-		      "[%u:%u] Failed to allocate SDMA completion queue entries\n",
-		      uctxt->ctxt, subctxt_fp(fp));
+	if (!cq->comps)
 		goto cq_comps_nomem;
-	}
+
 	cq->nentries = hfi1_sdma_comp_ring_size;
 	user_sdma_comp_fp(fp) = cq;
 
@@ -486,8 +468,7 @@ int hfi1_user_sdma_free_queues(struct hfi1_filedata *fd)
 			}
 			kfree(pq->reqs);
 		}
-		if (pq->txreq_cache)
-			kmem_cache_destroy(pq->txreq_cache);
+		kmem_cache_destroy(pq->txreq_cache);
 		kfree(pq);
 		fd->pq = NULL;
 	}
@@ -839,11 +820,11 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 		tx->flags = 0;
 		tx->req = req;
 		tx->busycount = 0;
-		tx->iovec1 = NULL;
-		tx->iovec2 = NULL;
+		tx->idx = -1;
+		memset(tx->iovecs, 0, sizeof(tx->iovecs));
 
 		if (req->seqnum == req->info.npkts - 1)
-			tx->flags |= USER_SDMA_TXREQ_FLAGS_LAST_PKT;
+			tx->flags |= TXREQ_FLAGS_REQ_LAST_PKT;
 
 		/*
 		 * Calculate the payload size - this is min of the fragment
@@ -872,7 +853,7 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 					goto free_tx;
 			}
 
-			tx->iovec1 = iovec;
+			tx->iovecs[++tx->idx].vec = iovec;
 			datalen = compute_data_length(req, tx);
 			if (!datalen) {
 				SDMA_DBG(req,
@@ -962,10 +943,17 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 					      iovec->pages[pageidx],
 					      offset, len);
 			if (ret) {
+				int i;
+
 				dd_dev_err(pq->dd,
 					   "SDMA txreq add page failed %d\n",
 					   ret);
-				iovec_set_complete(iovec);
+				/* Mark all assigned vectors as complete so they
+				 * are unpinned in the callback. */
+				for (i = tx->idx; i >= 0; i--) {
+					tx->iovecs[i].flags |=
+						TXREQ_FLAGS_IOVEC_LAST_PKT;
+				}
 				goto free_txreq;
 			}
 			iov_offset += len;
@@ -973,8 +961,11 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 			data_sent += len;
 			if (unlikely(queued < datalen &&
 				     pageidx == iovec->npages &&
-				     req->iov_idx < req->data_iovs - 1)) {
+				     req->iov_idx < req->data_iovs - 1 &&
+				     tx->idx < ARRAY_SIZE(tx->iovecs))) {
 				iovec->offset += iov_offset;
+				tx->iovecs[tx->idx].flags |=
+					TXREQ_FLAGS_IOVEC_LAST_PKT;
 				iovec = &req->iovs[++req->iov_idx];
 				if (!iovec->pages) {
 					ret = pin_vector_pages(req, iovec);
@@ -982,8 +973,7 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 						goto free_txreq;
 				}
 				iov_offset = 0;
-				tx->iovec2 = iovec;
-
+				tx->iovecs[++tx->idx].vec = iovec;
 			}
 		}
 		/*
@@ -995,11 +985,15 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 			req->tidoffset += datalen;
 		req->sent += data_sent;
 		if (req->data_len) {
-			if (tx->iovec1 && !tx->iovec2)
-				tx->iovec1->offset += iov_offset;
-			else if (tx->iovec2)
-				tx->iovec2->offset += iov_offset;
+			tx->iovecs[tx->idx].vec->offset += iov_offset;
+			/* If we've reached the end of the io vector, mark it
+			 * so the callback can unpin the pages and free it. */
+			if (tx->iovecs[tx->idx].vec->offset ==
+			    tx->iovecs[tx->idx].vec->iov.iov_len)
+				tx->iovecs[tx->idx].flags |=
+					TXREQ_FLAGS_IOVEC_LAST_PKT;
 		}
+
 		/*
 		 * It is important to increment this here as it is used to
 		 * generate the BTH.PSN and, therefore, can't be bulk-updated
@@ -1051,8 +1045,8 @@ static int pin_vector_pages(struct user_sdma_request *req,
 	unsigned pinned;
 
 	iovec->npages = num_user_pages(&iovec->iov);
-	iovec->pages = kzalloc(sizeof(*iovec->pages) *
-			       iovec->npages, GFP_KERNEL);
+	iovec->pages = kcalloc(iovec->npages, sizeof(*iovec->pages),
+			       GFP_KERNEL);
 	if (!iovec->pages) {
 		SDMA_DBG(req, "Failed page array alloc");
 		ret = -ENOMEM;
@@ -1228,7 +1222,7 @@ static int set_txreq_header(struct user_sdma_request *req,
 				req->seqnum));
 
 	/* Set ACK request on last packet */
-	if (unlikely(tx->flags & USER_SDMA_TXREQ_FLAGS_LAST_PKT))
+	if (unlikely(tx->flags & TXREQ_FLAGS_REQ_LAST_PKT))
 		hdr->bth[2] |= cpu_to_be32(1UL<<31);
 
 	/* Set the new offset */
@@ -1260,7 +1254,7 @@ static int set_txreq_header(struct user_sdma_request *req,
 		KDETH_SET(hdr->kdeth.ver_tid_offset, TID,
 			  EXP_TID_GET(tidval, IDX));
 		/* Clear KDETH.SH only on the last packet */
-		if (unlikely(tx->flags & USER_SDMA_TXREQ_FLAGS_LAST_PKT))
+		if (unlikely(tx->flags & TXREQ_FLAGS_REQ_LAST_PKT))
 			KDETH_SET(hdr->kdeth.ver_tid_offset, SH, 0);
 		/*
 		 * Set the KDETH.OFFSET and KDETH.OM based on size of
@@ -1304,7 +1298,7 @@ static int set_txreq_header_ahg(struct user_sdma_request *req,
 	/* BTH.PSN and BTH.A */
 	val32 = (be32_to_cpu(hdr->bth[2]) + req->seqnum) &
 		(HFI1_CAP_IS_KSET(EXTENDED_PSN) ? 0x7fffffff : 0xffffff);
-	if (unlikely(tx->flags & USER_SDMA_TXREQ_FLAGS_LAST_PKT))
+	if (unlikely(tx->flags & TXREQ_FLAGS_REQ_LAST_PKT))
 		val32 |= 1UL << 31;
 	AHG_HEADER_SET(req->ahg, diff, 6, 0, 16, cpu_to_be16(val32 >> 16));
 	AHG_HEADER_SET(req->ahg, diff, 6, 16, 16, cpu_to_be16(val32 & 0xffff));
@@ -1345,7 +1339,7 @@ static int set_txreq_header_ahg(struct user_sdma_request *req,
 		val = cpu_to_le16(((EXP_TID_GET(tidval, CTRL) & 0x3) << 10) |
 					(EXP_TID_GET(tidval, IDX) & 0x3ff));
 		/* Clear KDETH.SH on last packet */
-		if (unlikely(tx->flags & USER_SDMA_TXREQ_FLAGS_LAST_PKT)) {
+		if (unlikely(tx->flags & TXREQ_FLAGS_REQ_LAST_PKT)) {
 			val |= cpu_to_le16(KDETH_GET(hdr->kdeth.ver_tid_offset,
 								INTR) >> 16);
 			val &= cpu_to_le16(~(1U << 13));
@@ -1372,10 +1366,16 @@ static void user_sdma_txreq_cb(struct sdma_txreq *txreq, int status,
 	if (unlikely(!req || !pq))
 		return;
 
-	if (tx->iovec1)
-		iovec_may_free(tx->iovec1, unpin_vector_pages);
-	if (tx->iovec2)
-		iovec_may_free(tx->iovec2, unpin_vector_pages);
+	/* If we have any io vectors associated with this txreq,
+	 * check whether they need to be 'freed'. */
+	if (tx->idx != -1) {
+		int i;
+
+		for (i = tx->idx; i >= 0; i--) {
+			if (tx->iovecs[i].flags & TXREQ_FLAGS_IOVEC_LAST_PKT)
+				unpin_vector_pages(tx->iovecs[i].vec);
+		}
+	}
 
 	tx_seqnum = tx->seqnum;
 	kmem_cache_free(pq->txreq_cache, tx);

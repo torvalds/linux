@@ -367,8 +367,10 @@ common_exception:
 	s32i	a2, a1, PT_SYSCALL
 	movi	a2, 0
 	s32i	a3, a1, PT_EXCVADDR
+#if XCHAL_HAVE_LOOPS
 	xsr	a2, lcount
 	s32i	a2, a1, PT_LCOUNT
+#endif
 
 	/* It is now save to restore the EXC_TABLE_FIXUP variable. */
 
@@ -429,11 +431,12 @@ common_exception:
 	rsync				# PS.WOE => rsync => overflow
 
 	/* Save lbeg, lend */
-
+#if XCHAL_HAVE_LOOPS
 	rsr	a4, lbeg
 	rsr	a3, lend
 	s32i	a4, a1, PT_LBEG
 	s32i	a3, a1, PT_LEND
+#endif
 
 	/* Save SCOMPARE1 */
 
@@ -724,13 +727,14 @@ common_exception_exit:
 	wsr	a3, sar
 
 	/* Restore LBEG, LEND, LCOUNT */
-
+#if XCHAL_HAVE_LOOPS
 	l32i	a2, a1, PT_LBEG
 	l32i	a3, a1, PT_LEND
 	wsr	a2, lbeg
 	l32i	a2, a1, PT_LCOUNT
 	wsr	a3, lend
 	wsr	a2, lcount
+#endif
 
 	/* We control single stepping through the ICOUNTLEVEL register. */
 

@@ -482,13 +482,12 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 			goto next;
 		}
 
-		page = __page_cache_alloc(mapping_gfp_mask(mapping) &
-								~__GFP_FS);
+		page = __page_cache_alloc(mapping_gfp_constraint(mapping,
+								 ~__GFP_FS));
 		if (!page)
 			break;
 
-		if (add_to_page_cache_lru(page, mapping, pg_index,
-								GFP_NOFS)) {
+		if (add_to_page_cache_lru(page, mapping, pg_index, GFP_NOFS)) {
 			page_cache_release(page);
 			goto next;
 		}
@@ -745,11 +744,13 @@ out:
 	return ret;
 }
 
-static struct list_head comp_idle_workspace[BTRFS_COMPRESS_TYPES];
-static spinlock_t comp_workspace_lock[BTRFS_COMPRESS_TYPES];
-static int comp_num_workspace[BTRFS_COMPRESS_TYPES];
-static atomic_t comp_alloc_workspace[BTRFS_COMPRESS_TYPES];
-static wait_queue_head_t comp_workspace_wait[BTRFS_COMPRESS_TYPES];
+static struct {
+	struct list_head idle_ws;
+	spinlock_t ws_lock;
+	int num_ws;
+	atomic_t alloc_ws;
+	wait_queue_head_t ws_wait;
+} btrfs_comp_ws[BTRFS_COMPRESS_TYPES];
 
 static const struct btrfs_compress_op * const btrfs_compress_op[] = {
 	&btrfs_zlib_compress,
@@ -761,10 +762,10 @@ void __init btrfs_init_compress(void)
 	int i;
 
 	for (i = 0; i < BTRFS_COMPRESS_TYPES; i++) {
-		INIT_LIST_HEAD(&comp_idle_workspace[i]);
-		spin_lock_init(&comp_workspace_lock[i]);
-		atomic_set(&comp_alloc_workspace[i], 0);
-		init_waitqueue_head(&comp_workspace_wait[i]);
+		INIT_LIST_HEAD(&btrfs_comp_ws[i].idle_ws);
+		spin_lock_init(&btrfs_comp_ws[i].ws_lock);
+		atomic_set(&btrfs_comp_ws[i].alloc_ws, 0);
+		init_waitqueue_head(&btrfs_comp_ws[i].ws_wait);
 	}
 }
 
@@ -778,38 +779,38 @@ static struct list_head *find_workspace(int type)
 	int cpus = num_online_cpus();
 	int idx = type - 1;
 
-	struct list_head *idle_workspace	= &comp_idle_workspace[idx];
-	spinlock_t *workspace_lock		= &comp_workspace_lock[idx];
-	atomic_t *alloc_workspace		= &comp_alloc_workspace[idx];
-	wait_queue_head_t *workspace_wait	= &comp_workspace_wait[idx];
-	int *num_workspace			= &comp_num_workspace[idx];
+	struct list_head *idle_ws	= &btrfs_comp_ws[idx].idle_ws;
+	spinlock_t *ws_lock		= &btrfs_comp_ws[idx].ws_lock;
+	atomic_t *alloc_ws		= &btrfs_comp_ws[idx].alloc_ws;
+	wait_queue_head_t *ws_wait	= &btrfs_comp_ws[idx].ws_wait;
+	int *num_ws			= &btrfs_comp_ws[idx].num_ws;
 again:
-	spin_lock(workspace_lock);
-	if (!list_empty(idle_workspace)) {
-		workspace = idle_workspace->next;
+	spin_lock(ws_lock);
+	if (!list_empty(idle_ws)) {
+		workspace = idle_ws->next;
 		list_del(workspace);
-		(*num_workspace)--;
-		spin_unlock(workspace_lock);
+		(*num_ws)--;
+		spin_unlock(ws_lock);
 		return workspace;
 
 	}
-	if (atomic_read(alloc_workspace) > cpus) {
+	if (atomic_read(alloc_ws) > cpus) {
 		DEFINE_WAIT(wait);
 
-		spin_unlock(workspace_lock);
-		prepare_to_wait(workspace_wait, &wait, TASK_UNINTERRUPTIBLE);
-		if (atomic_read(alloc_workspace) > cpus && !*num_workspace)
+		spin_unlock(ws_lock);
+		prepare_to_wait(ws_wait, &wait, TASK_UNINTERRUPTIBLE);
+		if (atomic_read(alloc_ws) > cpus && !*num_ws)
 			schedule();
-		finish_wait(workspace_wait, &wait);
+		finish_wait(ws_wait, &wait);
 		goto again;
 	}
-	atomic_inc(alloc_workspace);
-	spin_unlock(workspace_lock);
+	atomic_inc(alloc_ws);
+	spin_unlock(ws_lock);
 
 	workspace = btrfs_compress_op[idx]->alloc_workspace();
 	if (IS_ERR(workspace)) {
-		atomic_dec(alloc_workspace);
-		wake_up(workspace_wait);
+		atomic_dec(alloc_ws);
+		wake_up(ws_wait);
 	}
 	return workspace;
 }
@@ -821,27 +822,30 @@ again:
 static void free_workspace(int type, struct list_head *workspace)
 {
 	int idx = type - 1;
-	struct list_head *idle_workspace	= &comp_idle_workspace[idx];
-	spinlock_t *workspace_lock		= &comp_workspace_lock[idx];
-	atomic_t *alloc_workspace		= &comp_alloc_workspace[idx];
-	wait_queue_head_t *workspace_wait	= &comp_workspace_wait[idx];
-	int *num_workspace			= &comp_num_workspace[idx];
+	struct list_head *idle_ws	= &btrfs_comp_ws[idx].idle_ws;
+	spinlock_t *ws_lock		= &btrfs_comp_ws[idx].ws_lock;
+	atomic_t *alloc_ws		= &btrfs_comp_ws[idx].alloc_ws;
+	wait_queue_head_t *ws_wait	= &btrfs_comp_ws[idx].ws_wait;
+	int *num_ws			= &btrfs_comp_ws[idx].num_ws;
 
-	spin_lock(workspace_lock);
-	if (*num_workspace < num_online_cpus()) {
-		list_add(workspace, idle_workspace);
-		(*num_workspace)++;
-		spin_unlock(workspace_lock);
+	spin_lock(ws_lock);
+	if (*num_ws < num_online_cpus()) {
+		list_add(workspace, idle_ws);
+		(*num_ws)++;
+		spin_unlock(ws_lock);
 		goto wake;
 	}
-	spin_unlock(workspace_lock);
+	spin_unlock(ws_lock);
 
 	btrfs_compress_op[idx]->free_workspace(workspace);
-	atomic_dec(alloc_workspace);
+	atomic_dec(alloc_ws);
 wake:
+	/*
+	 * Make sure counter is updated before we wake up waiters.
+	 */
 	smp_mb();
-	if (waitqueue_active(workspace_wait))
-		wake_up(workspace_wait);
+	if (waitqueue_active(ws_wait))
+		wake_up(ws_wait);
 }
 
 /*
@@ -853,11 +857,11 @@ static void free_workspaces(void)
 	int i;
 
 	for (i = 0; i < BTRFS_COMPRESS_TYPES; i++) {
-		while (!list_empty(&comp_idle_workspace[i])) {
-			workspace = comp_idle_workspace[i].next;
+		while (!list_empty(&btrfs_comp_ws[i].idle_ws)) {
+			workspace = btrfs_comp_ws[i].idle_ws.next;
 			list_del(workspace);
 			btrfs_compress_op[i]->free_workspace(workspace);
-			atomic_dec(&comp_alloc_workspace[i]);
+			atomic_dec(&btrfs_comp_ws[i].alloc_ws);
 		}
 	}
 }

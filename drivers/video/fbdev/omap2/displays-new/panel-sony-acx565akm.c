@@ -903,7 +903,6 @@ MODULE_DEVICE_TABLE(of, acx565akm_of_match);
 static struct spi_driver acx565akm_driver = {
 	.driver = {
 		.name	= "acx565akm",
-		.owner	= THIS_MODULE,
 		.of_match_table = acx565akm_of_match,
 		.suppress_bind_attrs = true,
 	},

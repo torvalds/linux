@@ -540,6 +540,7 @@ static void blk_release_queue(struct kobject *kobj)
 	struct request_queue *q =
 		container_of(kobj, struct request_queue, kobj);
 
+	bdi_exit(&q->backing_dev_info);
 	blkcg_exit_queue(q);
 
 	if (q->elevator) {
@@ -599,9 +600,8 @@ int blk_register_queue(struct gendisk *disk)
 	 */
 	if (!blk_queue_init_done(q)) {
 		queue_flag_set_unlocked(QUEUE_FLAG_INIT_DONE, q);
+		percpu_ref_switch_to_percpu(&q->q_usage_counter);
 		blk_queue_bypass_end(q);
-		if (q->mq_ops)
-			blk_mq_finish_init(q);
 	}
 
 	ret = blk_trace_init_sysfs(dev);

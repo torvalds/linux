@@ -1,3 +1,5 @@
+This file describes sysfs entries beneath /devices/platform/visorchipset.
+
 What:		install/error
 Date:		7/18/2014
 KernelVersion: 	TBD

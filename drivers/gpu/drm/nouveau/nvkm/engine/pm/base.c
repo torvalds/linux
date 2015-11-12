@@ -633,7 +633,7 @@ nvkm_perfmon_dtor(struct nvkm_object *object)
 	return perfmon;
 }
 
-static struct nvkm_object_func
+static const struct nvkm_object_func
 nvkm_perfmon = {
 	.dtor = nvkm_perfmon_dtor,
 	.mthd = nvkm_perfmon_mthd,

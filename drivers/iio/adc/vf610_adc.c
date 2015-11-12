@@ -34,8 +34,11 @@
 #include <linux/err.h>
 
 #include <linux/iio/iio.h>
+#include <linux/iio/buffer.h>
 #include <linux/iio/sysfs.h>
-#include <linux/iio/driver.h>
+#include <linux/iio/trigger.h>
+#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 
 /* This will be the driver name the kernel reports */
 #define DRIVER_NAME "vf610-adc"
@@ -170,6 +173,7 @@ struct vf610_adc {
 	u32 sample_freq_avail[5];
 
 	struct completion completion;
+	u16 buffer[8];
 };
 
 static const u32 vf610_hw_avgs[] = { 1, 4, 8, 16, 32 };
@@ -505,12 +509,24 @@ static const struct iio_chan_spec_ext_info vf610_ext_info[] = {
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |	\
 				BIT(IIO_CHAN_INFO_SAMP_FREQ),	\
 	.ext_info = vf610_ext_info,				\
+	.scan_index = (_idx),			\
+	.scan_type = {					\
+		.sign = 'u',				\
+		.realbits = 12,				\
+		.storagebits = 16,			\
+	},						\
 }
 
 #define VF610_ADC_TEMPERATURE_CHAN(_idx, _chan_type) {	\
 	.type = (_chan_type),	\
 	.channel = (_idx),		\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),	\
+	.scan_index = (_idx),					\
+	.scan_type = {						\
+		.sign = 'u',					\
+		.realbits = 12,					\
+		.storagebits = 16,				\
+	},							\
 }
 
 static const struct iio_chan_spec vf610_adc_iio_channels[] = {
@@ -531,6 +547,7 @@ static const struct iio_chan_spec vf610_adc_iio_channels[] = {
 	VF610_ADC_CHAN(14, IIO_VOLTAGE),
 	VF610_ADC_CHAN(15, IIO_VOLTAGE),
 	VF610_ADC_TEMPERATURE_CHAN(26, IIO_TEMP),
+	IIO_CHAN_SOFT_TIMESTAMP(32),
 	/* sentinel */
 };
 
@@ -559,13 +576,20 @@ static int vf610_adc_read_data(struct vf610_adc *info)
 
 static irqreturn_t vf610_adc_isr(int irq, void *dev_id)
 {
-	struct vf610_adc *info = (struct vf610_adc *)dev_id;
+	struct iio_dev *indio_dev = (struct iio_dev *)dev_id;
+	struct vf610_adc *info = iio_priv(indio_dev);
 	int coco;
 
 	coco = readl(info->regs + VF610_REG_ADC_HS);
 	if (coco & VF610_ADC_HS_COCO0) {
 		info->value = vf610_adc_read_data(info);
-		complete(&info->completion);
+		if (iio_buffer_enabled(indio_dev)) {
+			info->buffer[0] = info->value;
+			iio_push_to_buffers_with_timestamp(indio_dev,
+					info->buffer, iio_get_time_ns());
+			iio_trigger_notify_done(indio_dev->trig);
+		} else
+			complete(&info->completion);
 	}
 
 	return IRQ_HANDLED;
@@ -613,8 +637,12 @@ static int vf610_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_RAW:
 	case IIO_CHAN_INFO_PROCESSED:
 		mutex_lock(&indio_dev->mlock);
-		reinit_completion(&info->completion);
+		if (iio_buffer_enabled(indio_dev)) {
+			mutex_unlock(&indio_dev->mlock);
+			return -EBUSY;
+		}
 
+		reinit_completion(&info->completion);
 		hc_cfg = VF610_ADC_ADCHC(chan->channel);
 		hc_cfg |= VF610_ADC_AIEN;
 		writel(hc_cfg, info->regs + VF610_REG_ADC_HC0);
@@ -694,6 +722,56 @@ static int vf610_write_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+static int vf610_adc_buffer_postenable(struct iio_dev *indio_dev)
+{
+	struct vf610_adc *info = iio_priv(indio_dev);
+	unsigned int channel;
+	int ret;
+	int val;
+
+	ret = iio_triggered_buffer_postenable(indio_dev);
+	if (ret)
+		return ret;
+
+	val = readl(info->regs + VF610_REG_ADC_GC);
+	val |= VF610_ADC_ADCON;
+	writel(val, info->regs + VF610_REG_ADC_GC);
+
+	channel = find_first_bit(indio_dev->active_scan_mask,
+						indio_dev->masklength);
+
+	val = VF610_ADC_ADCHC(channel);
+	val |= VF610_ADC_AIEN;
+
+	writel(val, info->regs + VF610_REG_ADC_HC0);
+
+	return 0;
+}
+
+static int vf610_adc_buffer_predisable(struct iio_dev *indio_dev)
+{
+	struct vf610_adc *info = iio_priv(indio_dev);
+	unsigned int hc_cfg = 0;
+	int val;
+
+	val = readl(info->regs + VF610_REG_ADC_GC);
+	val &= ~VF610_ADC_ADCON;
+	writel(val, info->regs + VF610_REG_ADC_GC);
+
+	hc_cfg |= VF610_ADC_CONV_DISABLE;
+	hc_cfg &= ~VF610_ADC_AIEN;
+
+	writel(hc_cfg, info->regs + VF610_REG_ADC_HC0);
+
+	return iio_triggered_buffer_predisable(indio_dev);
+}
+
+static const struct iio_buffer_setup_ops iio_triggered_buffer_setup_ops = {
+	.postenable = &vf610_adc_buffer_postenable,
+	.predisable = &vf610_adc_buffer_predisable,
+	.validate_scan_mask = &iio_validate_scan_mask_onehot,
+};
+
 static int vf610_adc_reg_access(struct iio_dev *indio_dev,
 			unsigned reg, unsigned writeval,
 			unsigned *readval)
@@ -753,7 +831,7 @@ static int vf610_adc_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(info->dev, irq,
 				vf610_adc_isr, 0,
-				dev_name(&pdev->dev), info);
+				dev_name(&pdev->dev), indio_dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed requesting irq, irq = %d\n", irq);
 		return ret;
@@ -806,15 +884,23 @@ static int vf610_adc_probe(struct platform_device *pdev)
 	vf610_adc_cfg_init(info);
 	vf610_adc_hw_init(info);
 
+	ret = iio_triggered_buffer_setup(indio_dev, &iio_pollfunc_store_time,
+					NULL, &iio_triggered_buffer_setup_ops);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Couldn't initialise the buffer\n");
+		goto error_iio_device_register;
+	}
+
 	ret = iio_device_register(indio_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Couldn't register the device.\n");
-		goto error_iio_device_register;
+		goto error_adc_buffer_init;
 	}
 
 	return 0;
 
-
+error_adc_buffer_init:
+	iio_triggered_buffer_cleanup(indio_dev);
 error_iio_device_register:
 	clk_disable_unprepare(info->clk);
 error_adc_clk_enable:
@@ -829,6 +915,7 @@ static int vf610_adc_remove(struct platform_device *pdev)
 	struct vf610_adc *info = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
+	iio_triggered_buffer_cleanup(indio_dev);
 	regulator_disable(info->vref);
 	clk_disable_unprepare(info->clk);
 

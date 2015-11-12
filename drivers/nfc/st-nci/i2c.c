@@ -27,12 +27,12 @@
 #include <linux/nfc.h>
 #include <linux/platform_data/st-nci.h>
 
-#include "ndlc.h"
+#include "st-nci.h"
 
 #define DRIVER_DESC "NCI NFC driver for ST_NCI"
 
 /* ndlc header */
-#define ST_NCI_FRAME_HEADROOM	1
+#define ST_NCI_FRAME_HEADROOM 1
 #define ST_NCI_FRAME_TAILROOM 0
 
 #define ST_NCI_I2C_MIN_SIZE 4   /* PCB(1) + NCI Packet header(3) */
@@ -50,16 +50,13 @@ struct st_nci_i2c_phy {
 	struct i2c_client *i2c_dev;
 	struct llt_ndlc *ndlc;
 
+	bool irq_active;
+
 	unsigned int gpio_reset;
 	unsigned int irq_polarity;
-};
 
-#define I2C_DUMP_SKB(info, skb)					\
-do {								\
-	pr_debug("%s:\n", info);				\
-	print_hex_dump(KERN_DEBUG, "i2c: ", DUMP_PREFIX_OFFSET,	\
-		       16, 1, (skb)->data, (skb)->len, 0);	\
-} while (0)
+	struct st_nci_se_status se_status;
+};
 
 static int st_nci_i2c_enable(void *phy_id)
 {
@@ -70,8 +67,10 @@ static int st_nci_i2c_enable(void *phy_id)
 	gpio_set_value(phy->gpio_reset, 1);
 	usleep_range(80000, 85000);
 
-	if (phy->ndlc->powered == 0)
+	if (phy->ndlc->powered == 0 && phy->irq_active == 0) {
 		enable_irq(phy->i2c_dev->irq);
+		phy->irq_active = true;
+	}
 
 	return 0;
 }
@@ -81,6 +80,7 @@ static void st_nci_i2c_disable(void *phy_id)
 	struct st_nci_i2c_phy *phy = phy_id;
 
 	disable_irq_nosync(phy->i2c_dev->irq);
+	phy->irq_active = false;
 }
 
 /*
@@ -93,8 +93,6 @@ static int st_nci_i2c_write(void *phy_id, struct sk_buff *skb)
 	int r = -1;
 	struct st_nci_i2c_phy *phy = phy_id;
 	struct i2c_client *client = phy->i2c_dev;
-
-	I2C_DUMP_SKB("st_nci_i2c_write", skb);
 
 	if (phy->ndlc->hard_fault != 0)
 		return phy->ndlc->hard_fault;
@@ -165,8 +163,6 @@ static int st_nci_i2c_read(struct st_nci_i2c_phy *phy,
 
 	skb_put(*skb, len);
 	memcpy((*skb)->data + ST_NCI_I2C_MIN_SIZE, buf, len);
-
-	I2C_DUMP_SKB("i2c frame read", *skb);
 
 	return 0;
 }
@@ -245,6 +241,11 @@ static int st_nci_i2c_of_request_resources(struct i2c_client *client)
 
 	phy->irq_polarity = irq_get_trigger_type(client->irq);
 
+	phy->se_status.is_ese_present =
+				of_property_read_bool(pp, "ese-present");
+	phy->se_status.is_uicc_present =
+				of_property_read_bool(pp, "uicc-present");
+
 	return 0;
 }
 #else
@@ -276,6 +277,9 @@ static int st_nci_i2c_request_resources(struct i2c_client *client)
 		pr_err("%s : reset gpio_request failed\n", __FILE__);
 		return r;
 	}
+
+	phy->se_status.is_ese_present = pdata->is_ese_present;
+	phy->se_status.is_uicc_present = pdata->is_uicc_present;
 
 	return 0;
 }
@@ -326,12 +330,13 @@ static int st_nci_i2c_probe(struct i2c_client *client,
 
 	r = ndlc_probe(phy, &i2c_phy_ops, &client->dev,
 			ST_NCI_FRAME_HEADROOM, ST_NCI_FRAME_TAILROOM,
-			&phy->ndlc);
+			&phy->ndlc, &phy->se_status);
 	if (r < 0) {
 		nfc_err(&client->dev, "Unable to register ndlc layer\n");
 		return r;
 	}
 
+	phy->irq_active = true;
 	r = devm_request_threaded_irq(&client->dev, client->irq, NULL,
 				st_nci_irq_thread_fn,
 				phy->irq_polarity | IRQF_ONESHOT,

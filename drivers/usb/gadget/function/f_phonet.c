@@ -418,7 +418,7 @@ static int pn_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 
 		spin_lock(&port->lock);
 
-		if (fp->in_ep->driver_data)
+		if (fp->in_ep->enabled)
 			__pn_reset(f);
 
 		if (alt == 1) {
@@ -530,13 +530,11 @@ static int pn_bind(struct usb_configuration *c, struct usb_function *f)
 	if (!ep)
 		goto err;
 	fp->out_ep = ep;
-	ep->driver_data = fp; /* Claim */
 
 	ep = usb_ep_autoconfig(gadget, &pn_fs_source_desc);
 	if (!ep)
 		goto err;
 	fp->in_ep = ep;
-	ep->driver_data = fp; /* Claim */
 
 	pn_hs_sink_desc.bEndpointAddress = pn_fs_sink_desc.bEndpointAddress;
 	pn_hs_source_desc.bEndpointAddress = pn_fs_source_desc.bEndpointAddress;
@@ -575,10 +573,6 @@ err_req:
 		usb_ep_free_request(fp->out_ep, fp->out_reqv[i]);
 	usb_free_all_descriptors(f);
 err:
-	if (fp->out_ep)
-		fp->out_ep->driver_data = NULL;
-	if (fp->in_ep)
-		fp->in_ep->driver_data = NULL;
 	ERROR(cdev, "USB CDC Phonet: cannot autoconfigure\n");
 	return status;
 }

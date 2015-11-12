@@ -752,7 +752,6 @@ static SIMPLE_DEV_PM_OPS(tsc2005_pm_ops, tsc2005_suspend, tsc2005_resume);
 static struct spi_driver tsc2005_driver = {
 	.driver	= {
 		.name	= "tsc2005",
-		.owner	= THIS_MODULE,
 		.pm	= &tsc2005_pm_ops,
 	},
 	.probe	= tsc2005_probe,

@@ -119,6 +119,8 @@
 #define BRCMF_COUNTRY_BUF_SZ		4
 #define BRCMF_ANT_MAX			4
 
+#define BRCMF_MAX_ASSOCLIST		128
+
 /* join preference types for join_pref iovar */
 enum brcmf_join_pref_types {
 	BRCMF_JOIN_PREF_RSSI = 1,
@@ -619,6 +621,17 @@ struct brcmf_rev_info_le {
 	__le32 anarev;
 	__le32 chippkg;
 	__le32 nvramrev;
+};
+
+/**
+ * struct brcmf_assoclist_le - request assoc list.
+ *
+ * @count: indicates number of stations.
+ * @mac: MAC addresses of stations.
+ */
+struct brcmf_assoclist_le {
+	__le32 count;
+	u8 mac[BRCMF_MAX_ASSOCLIST][ETH_ALEN];
 };
 
 #endif /* FWIL_TYPES_H_ */

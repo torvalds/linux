@@ -117,7 +117,6 @@ MODULE_DEVICE_TABLE(spi, ms5611_id);
 static struct spi_driver ms5611_driver = {
 	.driver = {
 		.name = "ms5611",
-		.owner = THIS_MODULE,
 	},
 	.id_table = ms5611_id,
 	.probe = ms5611_spi_probe,

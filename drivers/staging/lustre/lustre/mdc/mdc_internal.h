@@ -43,17 +43,14 @@
 void lprocfs_mdc_init_vars(struct lprocfs_static_vars *lvars);
 
 void mdc_pack_body(struct ptlrpc_request *req, const struct lu_fid *fid,
-		   struct obd_capa *oc, __u64 valid, int ea_size,
-		   __u32 suppgid, int flags);
-void mdc_pack_capa(struct ptlrpc_request *req,
-		   const struct req_msg_field *field, struct obd_capa *oc);
+		   __u64 valid, int ea_size, __u32 suppgid, int flags);
 int mdc_pack_req(struct ptlrpc_request *req, int version, int opc);
 void mdc_is_subdir_pack(struct ptlrpc_request *req, const struct lu_fid *pfid,
 			const struct lu_fid *cfid, int flags);
 void mdc_swap_layouts_pack(struct ptlrpc_request *req,
 			   struct md_op_data *op_data);
 void mdc_readdir_pack(struct ptlrpc_request *req, __u64 pgoff, __u32 size,
-		      const struct lu_fid *fid, struct obd_capa *oc);
+		      const struct lu_fid *fid);
 void mdc_getattr_pack(struct ptlrpc_request *req, __u64 valid, int flags,
 		      struct md_op_data *data, int ea_size);
 void mdc_setattr_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
@@ -139,17 +136,6 @@ int mdc_unlink(struct obd_export *exp, struct md_op_data *op_data,
 int mdc_cancel_unused(struct obd_export *exp, const struct lu_fid *fid,
 		      ldlm_policy_data_t *policy, ldlm_mode_t mode,
 		      ldlm_cancel_flags_t flags, void *opaque);
-
-static inline void mdc_set_capa_size(struct ptlrpc_request *req,
-				     const struct req_msg_field *field,
-				     struct obd_capa *oc)
-{
-	if (oc == NULL)
-		req_capsule_set_size(&req->rq_pill, field, RCL_CLIENT, 0);
-	else
-		/* it is already calculated as sizeof struct obd_capa */
-		;
-}
 
 int mdc_revalidate_lock(struct obd_export *exp, struct lookup_intent *it,
 			struct lu_fid *fid, __u64 *bits);

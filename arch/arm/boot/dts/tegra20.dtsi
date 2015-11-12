@@ -244,7 +244,9 @@
 		gpio-controller;
 		#interrupt-cells = <2>;
 		interrupt-controller;
+		/*
 		gpio-ranges = <&pinmux 0 0 224>;
+		*/
 	};
 
 	apbmisc@70000800 {
@@ -601,8 +603,8 @@
 			 <&tegra_car TEGRA20_CLK_PLL_E>;
 		clock-names = "pex", "afi", "pll_e";
 		resets = <&tegra_car 70>,
-		         <&tegra_car 72>,
-		         <&tegra_car 74>;
+			 <&tegra_car 72>,
+			 <&tegra_car 74>;
 		reset-names = "pex", "afi", "pcie_x";
 		status = "disabled";
 

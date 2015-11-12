@@ -249,7 +249,7 @@ void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times)
 		 * but barriers are not required because update_gt_cputime()
 		 * can handle concurrent updates.
 		 */
-		WRITE_ONCE(cputimer->running, 1);
+		WRITE_ONCE(cputimer->running, true);
 	}
 	sample_cputime_atomic(times, &cputimer->cputime_atomic);
 }
@@ -864,6 +864,13 @@ static void check_thread_timers(struct task_struct *tsk,
 	unsigned long long expires;
 	unsigned long soft;
 
+	/*
+	 * If cputime_expires is zero, then there are no active
+	 * per thread CPU timers.
+	 */
+	if (task_cputime_zero(&tsk->cputime_expires))
+		return;
+
 	expires = check_timers_list(timers, firing, prof_ticks(tsk));
 	tsk_expires->prof_exp = expires_to_cputime(expires);
 
@@ -911,7 +918,7 @@ static inline void stop_process_timers(struct signal_struct *sig)
 	struct thread_group_cputimer *cputimer = &sig->cputimer;
 
 	/* Turn off cputimer->running. This is done without locking. */
-	WRITE_ONCE(cputimer->running, 0);
+	WRITE_ONCE(cputimer->running, false);
 }
 
 static u32 onecputick;
@@ -960,6 +967,19 @@ static void check_process_timers(struct task_struct *tsk,
 	struct list_head *timers = sig->cpu_timers;
 	struct task_cputime cputime;
 	unsigned long soft;
+
+	/*
+	 * If cputimer is not running, then there are no active
+	 * process wide timers (POSIX 1.b, itimers, RLIMIT_CPU).
+	 */
+	if (!READ_ONCE(tsk->signal->cputimer.running))
+		return;
+
+        /*
+	 * Signify that a thread is checking for process timers.
+	 * Write access to this field is protected by the sighand lock.
+	 */
+	sig->cputimer.checking_timer = true;
 
 	/*
 	 * Collect the current process totals.
@@ -1015,6 +1035,8 @@ static void check_process_timers(struct task_struct *tsk,
 	sig->cputime_expires.sched_exp = sched_expires;
 	if (task_cputime_zero(&sig->cputime_expires))
 		stop_process_timers(sig);
+
+	sig->cputimer.checking_timer = false;
 }
 
 /*
@@ -1117,24 +1139,33 @@ static inline int task_cputime_expired(const struct task_cputime *sample,
 static inline int fastpath_timer_check(struct task_struct *tsk)
 {
 	struct signal_struct *sig;
-	cputime_t utime, stime;
-
-	task_cputime(tsk, &utime, &stime);
 
 	if (!task_cputime_zero(&tsk->cputime_expires)) {
-		struct task_cputime task_sample = {
-			.utime = utime,
-			.stime = stime,
-			.sum_exec_runtime = tsk->se.sum_exec_runtime
-		};
+		struct task_cputime task_sample;
 
+		task_cputime(tsk, &task_sample.utime, &task_sample.stime);
+		task_sample.sum_exec_runtime = tsk->se.sum_exec_runtime;
 		if (task_cputime_expired(&task_sample, &tsk->cputime_expires))
 			return 1;
 	}
 
 	sig = tsk->signal;
-	/* Check if cputimer is running. This is accessed without locking. */
-	if (READ_ONCE(sig->cputimer.running)) {
+	/*
+	 * Check if thread group timers expired when the cputimer is
+	 * running and no other thread in the group is already checking
+	 * for thread group cputimers. These fields are read without the
+	 * sighand lock. However, this is fine because this is meant to
+	 * be a fastpath heuristic to determine whether we should try to
+	 * acquire the sighand lock to check/handle timers.
+	 *
+	 * In the worst case scenario, if 'running' or 'checking_timer' gets
+	 * set but the current thread doesn't see the change yet, we'll wait
+	 * until the next thread in the group gets a scheduler interrupt to
+	 * handle the timer. This isn't an issue in practice because these
+	 * types of delays with signals actually getting sent are expected.
+	 */
+	if (READ_ONCE(sig->cputimer.running) &&
+	    !READ_ONCE(sig->cputimer.checking_timer)) {
 		struct task_cputime group_sample;
 
 		sample_cputime_atomic(&group_sample, &sig->cputimer.cputime_atomic);
@@ -1174,12 +1205,8 @@ void run_posix_cpu_timers(struct task_struct *tsk)
 	 * put them on the firing list.
 	 */
 	check_thread_timers(tsk, &firing);
-	/*
-	 * If there are any active process wide timers (POSIX 1.b, itimers,
-	 * RLIMIT_CPU) cputimer must be running.
-	 */
-	if (READ_ONCE(tsk->signal->cputimer.running))
-		check_process_timers(tsk, &firing);
+
+	check_process_timers(tsk, &firing);
 
 	/*
 	 * We must release these locks before taking any timer's lock.

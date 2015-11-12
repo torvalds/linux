@@ -72,12 +72,10 @@
 #define IWL7260_UCODE_API_MAX	17
 
 /* Oldest version we won't warn about */
-#define IWL7260_UCODE_API_OK	12
-#define IWL3165_UCODE_API_OK	13
+#define IWL7260_UCODE_API_OK	13
 
 /* Lowest firmware API version supported */
-#define IWL7260_UCODE_API_MIN	12
-#define IWL3165_UCODE_API_MIN	13
+#define IWL7260_UCODE_API_MIN	13
 
 /* NVM versions */
 #define IWL7260_NVM_VERSION		0x0a1d
@@ -113,7 +111,7 @@
 
 static const struct iwl_base_params iwl7000_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_FAMILY_7000,
-	.num_of_queues = IWLAGN_NUM_QUEUES,
+	.num_of_queues = 31,
 	.pll_cfg_val = 0,
 	.shadow_ram_support = true,
 	.led_compensation = 57,
@@ -269,11 +267,6 @@ const struct iwl_cfg iwl3165_2ac_cfg = {
 	.name = "Intel(R) Dual Band Wireless AC 3165",
 	.fw_name_pre = IWL7265D_FW_PRE,
 	IWL_DEVICE_7000,
-	/* sparse doens't like the re-assignment but it is safe */
-#ifndef __CHECKER__
-	.ucode_api_ok = IWL3165_UCODE_API_OK,
-	.ucode_api_min = IWL3165_UCODE_API_MIN,
-#endif
 	.ht_params = &iwl7000_ht_params,
 	.nvm_ver = IWL3165_NVM_VERSION,
 	.nvm_calib_ver = IWL3165_TX_POWER_VERSION,
@@ -348,6 +341,6 @@ const struct iwl_cfg iwl7265d_n_cfg = {
 };
 
 MODULE_FIRMWARE(IWL7260_MODULE_FIRMWARE(IWL7260_UCODE_API_OK));
-MODULE_FIRMWARE(IWL3160_MODULE_FIRMWARE(IWL3160_UCODE_API_OK));
+MODULE_FIRMWARE(IWL3160_MODULE_FIRMWARE(IWL7260_UCODE_API_OK));
 MODULE_FIRMWARE(IWL7265_MODULE_FIRMWARE(IWL7260_UCODE_API_OK));
 MODULE_FIRMWARE(IWL7265D_MODULE_FIRMWARE(IWL7260_UCODE_API_OK));

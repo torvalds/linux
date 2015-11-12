@@ -147,6 +147,10 @@ struct phys_info {
 	u16 pi_len;
 } __packed;
 
+#define MIN_NUMSIGNALS 64
+
+/* structs with pragma pack  */
+
 struct guest_phys_info {
 	u64 address;
 	u64 length;
@@ -183,7 +187,7 @@ struct vhba_config_max {	/* 20 bytes */
 } __packed;
 
 struct uiscmdrsp_scsi {
-	void *scsicmd;		/* the handle to the cmd that was received -
+	u64 handle;		/* the handle to the cmd that was received -
 				 * send it back as is in the rsp packet.  */
 	u8 cmnd[MAX_CMND_SIZE];	/* the cdb for the command */
 	u32 bufflen;		/* length of data to be transferred out or in */
@@ -437,24 +441,22 @@ struct uiscmdrsp_scsitaskmgmt {
 	struct uisscsi_dest vdest;
 
 	    /* the vdisk for which this task mgmt is generated */
-	void *scsicmd;
+	u64 handle;
 
-	    /* This is some handle that the guest has saved off for its own use.
+	    /* This is a handle that the guest has saved off for its own use.
 	     * Its value is preserved by iopart & returned as is in the task
 	     * mgmt rsp.
 	     */
-	void *notify;
+	u64 notify_handle;
 
 	   /* For linux guests, this is a pointer to wait_queue_head that a
 	    * thread is waiting on to see if the taskmgmt command has completed.
-	    * For windows guests, this is a pointer to a location that a waiting
-	    * thread is testing to see if the taskmgmt command has completed.
 	    * When the rsp is received by guest, the thread receiving the
 	    * response uses this to notify the thread waiting for taskmgmt
 	    * command completion.  Its value is preserved by iopart & returned
 	    * as is in the task mgmt rsp.
 	    */
-	void *notifyresult;
+	u64 notifyresult_handle;
 
 	    /* this is a handle to location in guest where the result of the
 	     * taskmgmt command (result field) is to saved off when the response
@@ -486,24 +488,22 @@ struct uiscmdrsp_vdiskmgmt {
 	struct uisscsi_dest vdest;
 
 	    /* the vdisk for which this task mgmt is generated */
-	void *scsicmd;
+	u64 handle;
 
-	    /* This is some handle that the guest has saved off for its own use.
+	    /* This is a handle that the guest has saved off for its own use.
 	     * Its value is preserved by iopart & returned as is in the task
 	     * mgmt rsp.
 	     */
-	void *notify;
+	u64 notify_handle;
 
 	    /* For linux guests, this is a pointer to wait_queue_head that a
 	     * thread is waiting on to see if the tskmgmt command has completed.
-	     * For win32 guests, this is a pointer to a location that a waiting
-	     * thread is testing to see if the taskmgmt command has completed.
 	     * When the rsp is received by guest, the thread receiving the
 	     * response uses this to notify the thread waiting for taskmgmt
 	     * command completion.  Its value is preserved by iopart & returned
 	     * as is in the task mgmt rsp.
 	     */
-	void *notifyresult;
+	u64 notifyresult_handle;
 
 	    /* this is a handle to location in guest where the result of the
 	     * taskmgmt command (result field) is to saved off when the response

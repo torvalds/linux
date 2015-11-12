@@ -60,6 +60,24 @@ const char *usb_speed_string(enum usb_device_speed speed)
 }
 EXPORT_SYMBOL_GPL(usb_speed_string);
 
+enum usb_device_speed usb_get_maximum_speed(struct device *dev)
+{
+	const char *maximum_speed;
+	int err;
+	int i;
+
+	err = device_property_read_string(dev, "maximum-speed", &maximum_speed);
+	if (err < 0)
+		return USB_SPEED_UNKNOWN;
+
+	for (i = 0; i < ARRAY_SIZE(speed_names); i++)
+		if (strcmp(maximum_speed, speed_names[i]) == 0)
+			return i;
+
+	return USB_SPEED_UNKNOWN;
+}
+EXPORT_SYMBOL_GPL(usb_get_maximum_speed);
+
 const char *usb_state_string(enum usb_device_state state)
 {
 	static const char *const names[] = {
@@ -81,7 +99,6 @@ const char *usb_state_string(enum usb_device_state state)
 }
 EXPORT_SYMBOL_GPL(usb_state_string);
 
-#ifdef CONFIG_OF
 static const char *const usb_dr_modes[] = {
 	[USB_DR_MODE_UNKNOWN]		= "",
 	[USB_DR_MODE_HOST]		= "host",
@@ -89,19 +106,12 @@ static const char *const usb_dr_modes[] = {
 	[USB_DR_MODE_OTG]		= "otg",
 };
 
-/**
- * of_usb_get_dr_mode - Get dual role mode for given device_node
- * @np:	Pointer to the given device_node
- *
- * The function gets phy interface string from property 'dr_mode',
- * and returns the correspondig enum usb_dr_mode
- */
-enum usb_dr_mode of_usb_get_dr_mode(struct device_node *np)
+enum usb_dr_mode usb_get_dr_mode(struct device *dev)
 {
 	const char *dr_mode;
 	int err, i;
 
-	err = of_property_read_string(np, "dr_mode", &dr_mode);
+	err = device_property_read_string(dev, "dr_mode", &dr_mode);
 	if (err < 0)
 		return USB_DR_MODE_UNKNOWN;
 
@@ -111,34 +121,9 @@ enum usb_dr_mode of_usb_get_dr_mode(struct device_node *np)
 
 	return USB_DR_MODE_UNKNOWN;
 }
-EXPORT_SYMBOL_GPL(of_usb_get_dr_mode);
+EXPORT_SYMBOL_GPL(usb_get_dr_mode);
 
-/**
- * of_usb_get_maximum_speed - Get maximum requested speed for a given USB
- * controller.
- * @np: Pointer to the given device_node
- *
- * The function gets the maximum speed string from property "maximum-speed",
- * and returns the corresponding enum usb_device_speed.
- */
-enum usb_device_speed of_usb_get_maximum_speed(struct device_node *np)
-{
-	const char *maximum_speed;
-	int err;
-	int i;
-
-	err = of_property_read_string(np, "maximum-speed", &maximum_speed);
-	if (err < 0)
-		return USB_SPEED_UNKNOWN;
-
-	for (i = 0; i < ARRAY_SIZE(speed_names); i++)
-		if (strcmp(maximum_speed, speed_names[i]) == 0)
-			return i;
-
-	return USB_SPEED_UNKNOWN;
-}
-EXPORT_SYMBOL_GPL(of_usb_get_maximum_speed);
-
+#ifdef CONFIG_OF
 /**
  * of_usb_host_tpl_support - to get if Targeted Peripheral List is supported
  * for given targeted hosts (non-PC hosts)

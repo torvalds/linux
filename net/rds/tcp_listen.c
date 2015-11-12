@@ -110,28 +110,27 @@ int rds_tcp_accept_one(struct socket *sock)
 		goto out;
 	}
 	/* An incoming SYN request came in, and TCP just accepted it.
-	 * We always create a new conn for listen side of TCP, and do not
-	 * add it to the c_hash_list.
 	 *
 	 * If the client reboots, this conn will need to be cleaned up.
 	 * rds_tcp_state_change() will do that cleanup
 	 */
 	rs_tcp = (struct rds_tcp_connection *)conn->c_transport_data;
-	WARN_ON(!rs_tcp || rs_tcp->t_sock);
+	if (rs_tcp->t_sock &&
+	    ntohl(inet->inet_saddr) < ntohl(inet->inet_daddr)) {
+		struct sock *nsk = new_sock->sk;
 
-	/*
-	 * see the comment above rds_queue_delayed_reconnect()
-	 */
-	if (!rds_conn_transition(conn, RDS_CONN_DOWN, RDS_CONN_CONNECTING)) {
-		if (rds_conn_state(conn) == RDS_CONN_UP)
-			rds_tcp_stats_inc(s_tcp_listen_closed_stale);
-		else
-			rds_tcp_stats_inc(s_tcp_connect_raced);
-		rds_conn_drop(conn);
+		nsk->sk_user_data = NULL;
+		nsk->sk_prot->disconnect(nsk, 0);
+		tcp_done(nsk);
+		new_sock = NULL;
 		ret = 0;
 		goto out;
+	} else if (rs_tcp->t_sock) {
+		rds_tcp_restore_callbacks(rs_tcp->t_sock, rs_tcp);
+		conn->c_outgoing = 0;
 	}
 
+	rds_conn_transition(conn, RDS_CONN_DOWN, RDS_CONN_CONNECTING);
 	rds_tcp_set_callbacks(new_sock, conn);
 	rds_connect_complete(conn);
 	new_sock = NULL;

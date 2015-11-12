@@ -69,81 +69,13 @@ static inline struct sec4_sg_entry *sg_to_sec4_sg_len(
 	return sec4_sg_ptr - 1;
 }
 
-/* count number of elements in scatterlist */
-static inline int __sg_count(struct scatterlist *sg_list, int nbytes,
-			     bool *chained)
-{
-	struct scatterlist *sg = sg_list;
-	int sg_nents = 0;
-
-	while (nbytes > 0) {
-		sg_nents++;
-		nbytes -= sg->length;
-		if (!sg_is_last(sg) && (sg + 1)->length == 0)
-			*chained = true;
-		sg = sg_next(sg);
-	}
-
-	return sg_nents;
-}
-
 /* derive number of elements in scatterlist, but return 0 for 1 */
-static inline int sg_count(struct scatterlist *sg_list, int nbytes,
-			     bool *chained)
+static inline int sg_count(struct scatterlist *sg_list, int nbytes)
 {
-	int sg_nents = __sg_count(sg_list, nbytes, chained);
+	int sg_nents = sg_nents_for_len(sg_list, nbytes);
 
 	if (likely(sg_nents == 1))
 		return 0;
 
 	return sg_nents;
-}
-
-static inline void dma_unmap_sg_chained(
-	struct device *dev, struct scatterlist *sg, unsigned int nents,
-	enum dma_data_direction dir, bool chained)
-{
-	if (unlikely(chained)) {
-		int i;
-		struct scatterlist *tsg = sg;
-
-		/*
-		 * Use a local copy of the sg pointer to avoid moving the
-		 * head of the list pointed to by sg as we walk the list.
-		 */
-		for (i = 0; i < nents; i++) {
-			dma_unmap_sg(dev, tsg, 1, dir);
-			tsg = sg_next(tsg);
-		}
-	} else if (nents) {
-		dma_unmap_sg(dev, sg, nents, dir);
-	}
-}
-
-static inline int dma_map_sg_chained(
-	struct device *dev, struct scatterlist *sg, unsigned int nents,
-	enum dma_data_direction dir, bool chained)
-{
-	if (unlikely(chained)) {
-		int i;
-		struct scatterlist *tsg = sg;
-
-		/*
-		 * Use a local copy of the sg pointer to avoid moving the
-		 * head of the list pointed to by sg as we walk the list.
-		 */
-		for (i = 0; i < nents; i++) {
-			if (!dma_map_sg(dev, tsg, 1, dir)) {
-				dma_unmap_sg_chained(dev, sg, i, dir,
-						     chained);
-				nents = 0;
-				break;
-			}
-
-			tsg = sg_next(tsg);
-		}
-	} else
-		nents = dma_map_sg(dev, sg, nents, dir);
-
-	return nents;
 }

@@ -411,7 +411,7 @@ bail:
  */
 static int i2c_probe(struct ipath_devdata *dd, int devaddr)
 {
-	int ret = 0;
+	int ret;
 
 	ret = eeprom_reset(dd);
 	if (ret) {

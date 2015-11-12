@@ -77,6 +77,9 @@ Required properties:
 	"atmel,sama5d4-clk-h32mx":
 		at91 h32mx clock
 
+	"atmel,sama5d2-clk-generated":
+		at91 generated clock
+
 Required properties for SCKC node:
 - reg : defines the IO memory reserved for the SCKC.
 - #size-cells : shall be 0 (reg is used to encode clk id).
@@ -460,4 +463,36 @@ For example:
 		#clock-cells = <0>;
 		compatible = "atmel,sama5d4-clk-h32mx";
 		clocks = <&mck>;
+	};
+
+Required properties for generated clocks:
+- #size-cells : shall be 0 (reg is used to encode clk id).
+- #address-cells : shall be 1 (reg is used to encode clk id).
+- clocks : shall be the generated clock source phandles.
+	e.g. clocks = <&clk32k>, <&main>, <&plladiv>, <&utmi>, <&mck>, <&audio_pll_pmc>;
+- name: device tree node describing a specific generated clock.
+	* #clock-cells : from common clock binding; shall be set to 0.
+	* reg: peripheral id. See Atmel's datasheets to get a full
+	  list of peripheral ids.
+	* atmel,clk-output-range : minimum and maximum clock frequency
+	  (two u32 fields).
+
+For example:
+	gck {
+		compatible = "atmel,sama5d2-clk-generated";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clocks = <&clk32k>, <&main>, <&plladiv>, <&utmi>, <&mck>, <&audio_pll_pmc>;
+
+		tcb0_gclk: tcb0_gclk {
+			#clock-cells = <0>;
+			reg = <35>;
+			atmel,clk-output-range = <0 83000000>;
+		};
+
+		pwm_gclk: pwm_gclk {
+			#clock-cells = <0>;
+			reg = <38>;
+			atmel,clk-output-range = <0 83000000>;
+		};
 	};

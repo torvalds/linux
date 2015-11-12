@@ -348,4 +348,10 @@
 #define GCC_PCIE_1_PIPE_CLK				331
 #define GCC_PCIE_1_SLV_AXI_CLK				332
 
+/* gdscs */
+#define USB_HS_HSIC_GDSC				0
+#define PCIE0_GDSC					1
+#define PCIE1_GDSC					2
+#define USB30_GDSC					3
+
 #endif

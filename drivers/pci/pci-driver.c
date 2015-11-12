@@ -172,7 +172,7 @@ static ssize_t store_remove_id(struct device_driver *driver, const char *buf,
 	__u32 vendor, device, subvendor = PCI_ANY_ID,
 		subdevice = PCI_ANY_ID, class = 0, class_mask = 0;
 	int fields = 0;
-	int retval = -ENODEV;
+	size_t retval = -ENODEV;
 
 	fields = sscanf(buf, "%x %x %x %x %x %x",
 			&vendor, &device, &subvendor, &subdevice,
@@ -190,15 +190,13 @@ static ssize_t store_remove_id(struct device_driver *driver, const char *buf,
 		    !((id->class ^ class) & class_mask)) {
 			list_del(&dynid->node);
 			kfree(dynid);
-			retval = 0;
+			retval = count;
 			break;
 		}
 	}
 	spin_unlock(&pdrv->dynids.lock);
 
-	if (retval)
-		return retval;
-	return count;
+	return retval;
 }
 static DRIVER_ATTR(remove_id, S_IWUSR, NULL, store_remove_id);
 
@@ -684,10 +682,16 @@ static int pci_pm_prepare(struct device *dev)
 	return pci_dev_keep_suspended(to_pci_dev(dev));
 }
 
+static void pci_pm_complete(struct device *dev)
+{
+	pci_dev_complete_resume(to_pci_dev(dev));
+	pm_complete_with_resume_check(dev);
+}
 
 #else /* !CONFIG_PM_SLEEP */
 
 #define pci_pm_prepare	NULL
+#define pci_pm_complete	NULL
 
 #endif /* !CONFIG_PM_SLEEP */
 
@@ -1218,6 +1222,7 @@ static int pci_pm_runtime_idle(struct device *dev)
 
 static const struct dev_pm_ops pci_dev_pm_ops = {
 	.prepare = pci_pm_prepare,
+	.complete = pci_pm_complete,
 	.suspend = pci_pm_suspend,
 	.resume = pci_pm_resume,
 	.freeze = pci_pm_freeze,

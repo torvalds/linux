@@ -2134,9 +2134,10 @@ static int rhine_rx(struct net_device *dev, int limit)
 			}
 
 			skb_put(skb, pkt_len);
-			skb->protocol = eth_type_trans(skb, dev);
 
 			rhine_rx_vlan_tag(skb, desc, data_size);
+
+			skb->protocol = eth_type_trans(skb, dev);
 
 			netif_receive_skb(skb);
 

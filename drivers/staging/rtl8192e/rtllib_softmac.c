@@ -709,7 +709,7 @@ EXPORT_SYMBOL(rtllib_stop_scan);
 void rtllib_stop_scan_syncro(struct rtllib_device *ieee)
 {
 	if (ieee->softmac_features & IEEE_SOFTMAC_SCAN) {
-			ieee->sync_scan_hurryup = 1;
+		ieee->sync_scan_hurryup = 1;
 	} else {
 		if (ieee->rtllib_stop_hw_scan)
 			ieee->rtllib_stop_hw_scan(ieee->dev);
@@ -858,7 +858,7 @@ static struct sk_buff *rtllib_probe_resp(struct rtllib_device *ieee,
 
 	crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
 	encrypt = ieee->host_encrypt && crypt && crypt->ops &&
-		((0 == strcmp(crypt->ops->name, "R-WEP") || wpa_ie_len));
+		((strcmp(crypt->ops->name, "R-WEP") == 0 || wpa_ie_len));
 	if (ieee->pHTInfo->bCurrentHTSupport) {
 		tmp_ht_cap_buf = (u8 *) &(ieee->pHTInfo->SelfHTCap);
 		tmp_ht_cap_len = sizeof(ieee->pHTInfo->SelfHTCap);
@@ -1180,7 +1180,7 @@ inline struct sk_buff *rtllib_association_req(struct rtllib_network *beacon,
 	crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
 	if (crypt != NULL)
 		encrypt = ieee->host_encrypt && crypt && crypt->ops &&
-			  ((0 == strcmp(crypt->ops->name, "R-WEP") ||
+			  ((strcmp(crypt->ops->name, "R-WEP") == 0 ||
 			  wpa_ie_len));
 	else
 		encrypt = 0;
@@ -1520,8 +1520,7 @@ static void rtllib_associate_complete_wq(void *data)
 				     container_of_work_rsl(data,
 				     struct rtllib_device,
 				     associate_complete_wq);
-	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
-					(&(ieee->PowerSaveControl));
+	struct rt_pwr_save_ctrl *pPSC = &(ieee->PowerSaveControl);
 	netdev_info(ieee->dev, "Associated successfully\n");
 	if (!ieee->is_silent_reset) {
 		netdev_info(ieee->dev, "normal associate\n");
@@ -1974,8 +1973,7 @@ static short rtllib_sta_ps_sleep(struct rtllib_device *ieee, u64 *time)
 {
 	int timeout = ieee->ps_timeout;
 	u8 dtim;
-	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
-					(&(ieee->PowerSaveControl));
+	struct rt_pwr_save_ctrl *pPSC = &(ieee->PowerSaveControl);
 
 	if (ieee->LPSDelayCnt) {
 		ieee->LPSDelayCnt--;
@@ -2229,7 +2227,7 @@ inline int rtllib_rx_assoc_resp(struct rtllib_device *ieee, struct sk_buff *skb,
 	     ieee->state == RTLLIB_ASSOCIATING_AUTHENTICATED &&
 	     (ieee->iw_mode == IW_MODE_INFRA)) {
 		errcode = assoc_parse(ieee, skb, &aid);
-		if (0 == errcode) {
+		if (!errcode) {
 			struct rtllib_network *network =
 				 kzalloc(sizeof(struct rtllib_network),
 				 GFP_ATOMIC);
@@ -2762,10 +2760,10 @@ void rtllib_disassociate(struct rtllib_device *ieee)
 {
 	netif_carrier_off(ieee->dev);
 	if (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE)
-			rtllib_reset_queue(ieee);
+		rtllib_reset_queue(ieee);
 
 	if (ieee->data_hard_stop)
-			ieee->data_hard_stop(ieee->dev);
+		ieee->data_hard_stop(ieee->dev);
 	if (IS_DOT11D_ENABLE(ieee))
 		Dot11d_Reset(ieee);
 	ieee->state = RTLLIB_NOLINK;
@@ -3480,7 +3478,7 @@ u8 rtllib_ap_sec_type(struct rtllib_device *ieee)
 	crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
 	encrypt = (ieee->current_network.capability & WLAN_CAPABILITY_PRIVACY)
 		  || (ieee->host_encrypt && crypt && crypt->ops &&
-		  (0 == strcmp(crypt->ops->name, "R-WEP")));
+		  (strcmp(crypt->ops->name, "R-WEP") == 0));
 
 	/* simply judge  */
 	if (encrypt && (wpa_ie_len == 0)) {

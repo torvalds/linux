@@ -45,7 +45,6 @@
 #define STK8BA50_ALL_CHANNEL_SIZE		6
 
 #define STK8BA50_DRIVER_NAME			"stk8ba50"
-#define STK8BA50_GPIO				"stk8ba50_gpio"
 #define STK8BA50_IRQ_NAME			"stk8ba50_event"
 
 #define STK8BA50_SCALE_AVAIL			"0.0384 0.0767 0.1534 0.3069"
@@ -388,30 +387,6 @@ static const struct iio_buffer_setup_ops stk8ba50_buffer_setup_ops = {
 	.postdisable = stk8ba50_buffer_postdisable,
 };
 
-static int stk8ba50_gpio_probe(struct i2c_client *client)
-{
-	struct device *dev;
-	struct gpio_desc *gpio;
-	int ret;
-
-	if (!client)
-		return -EINVAL;
-
-	dev = &client->dev;
-
-	/* data ready gpio interrupt pin */
-	gpio = devm_gpiod_get_index(dev, STK8BA50_GPIO, 0, GPIOD_IN);
-	if (IS_ERR(gpio)) {
-		dev_err(dev, "acpi gpio get index failed\n");
-		return PTR_ERR(gpio);
-	}
-
-	ret = gpiod_to_irq(gpio);
-	dev_dbg(dev, "GPIO resource, no:%d irq:%d\n", desc_to_gpio(gpio), ret);
-
-	return ret;
-}
-
 static int stk8ba50_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
@@ -465,10 +440,7 @@ static int stk8ba50_probe(struct i2c_client *client,
 		goto err_power_off;
 	}
 
-	if (client->irq < 0)
-		client->irq = stk8ba50_gpio_probe(client);
-
-	if (client->irq >= 0) {
+	if (client->irq > 0) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 						stk8ba50_data_rdy_trig_poll,
 						NULL,

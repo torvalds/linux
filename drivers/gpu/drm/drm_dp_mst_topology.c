@@ -1194,17 +1194,18 @@ static struct drm_dp_mst_branch *drm_dp_get_mst_branch_device(struct drm_dp_mst_
 
 		list_for_each_entry(port, &mstb->ports, next) {
 			if (port->port_num == port_num) {
-				if (!port->mstb) {
+				mstb = port->mstb;
+				if (!mstb) {
 					DRM_ERROR("failed to lookup MSTB with lct %d, rad %02x\n", lct, rad[0]);
-					return NULL;
+					goto out;
 				}
 
-				mstb = port->mstb;
 				break;
 			}
 		}
 	}
 	kref_get(&mstb->kref);
+out:
 	mutex_unlock(&mgr->lock);
 	return mstb;
 }
@@ -2801,12 +2802,13 @@ static int drm_dp_mst_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs
 	if (msgs[num - 1].flags & I2C_M_RD)
 		reading = true;
 
-	if (!reading) {
+	if (!reading || (num - 1 > DP_REMOTE_I2C_READ_MAX_TRANSACTIONS)) {
 		DRM_DEBUG_KMS("Unsupported I2C transaction for MST device\n");
 		ret = -EIO;
 		goto out;
 	}
 
+	memset(&msg, 0, sizeof(msg));
 	msg.req_type = DP_REMOTE_I2C_READ;
 	msg.u.i2c_read.num_transactions = num - 1;
 	msg.u.i2c_read.port_number = port->port_num;

@@ -44,7 +44,6 @@ for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *data)
 	int ret;
 
 	init_subchannel_id(&schid);
-	ret = -ENODEV;
 	do {
 		do {
 			ret = fn(schid, data);
@@ -1089,6 +1088,7 @@ void channel_subsystem_reinit(void)
 		if (chp)
 			chp_update_desc(chp);
 	}
+	cmf_reactivate();
 }
 
 #ifdef CONFIG_PROC_FS

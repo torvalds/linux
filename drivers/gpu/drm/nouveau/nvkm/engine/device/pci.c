@@ -259,6 +259,12 @@ nvkm_device_pci_10de_0df4[] = {
 };
 
 static const struct nvkm_device_pci_vendor
+nvkm_device_pci_10de_0fcd[] = {
+	{ 0x17aa, 0x3801, NULL, { .War00C800_0 = true } }, /* Lenovo Y510P */
+	{}
+};
+
+static const struct nvkm_device_pci_vendor
 nvkm_device_pci_10de_0fd2[] = {
 	{ 0x1028, 0x0595, "GeForce GT 640M LE" },
 	{ 0x1028, 0x05b2, "GeForce GT 640M LE" },
@@ -678,6 +684,7 @@ nvkm_device_pci_10de_1189[] = {
 static const struct nvkm_device_pci_vendor
 nvkm_device_pci_10de_1199[] = {
 	{ 0x1458, 0xd001, "GeForce GTX 760" },
+	{ 0x1462, 0x1106, "GeForce GTX 780M", { .War00C800_0 = true } }, /* Medion Erazer X7827 */
 	{}
 };
 
@@ -1349,7 +1356,7 @@ nvkm_device_pci_10de[] = {
 	{ 0x0fc6, "GeForce GTX 650" },
 	{ 0x0fc8, "GeForce GT 740" },
 	{ 0x0fc9, "GeForce GT 730" },
-	{ 0x0fcd, "GeForce GT 755M" },
+	{ 0x0fcd, "GeForce GT 755M", nvkm_device_pci_10de_0fcd },
 	{ 0x0fce, "GeForce GT 640M LE" },
 	{ 0x0fd1, "GeForce GT 650M" },
 	{ 0x0fd2, "GeForce GT 640M", nvkm_device_pci_10de_0fd2 },

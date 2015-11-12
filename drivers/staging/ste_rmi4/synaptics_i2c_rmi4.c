@@ -1138,4 +1138,3 @@ module_i2c_driver(synaptics_rmi4_driver);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("naveen.gaddipati@stericsson.com, js.ha@stericsson.com");
 MODULE_DESCRIPTION("synaptics rmi4 i2c touch Driver");
-MODULE_ALIAS("i2c:synaptics_rmi4_ts");

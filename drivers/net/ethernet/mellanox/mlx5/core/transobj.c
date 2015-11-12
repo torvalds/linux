@@ -177,7 +177,7 @@ int mlx5_core_modify_tir(struct mlx5_core_dev *dev, u32 tirn, u32 *in,
 
 void mlx5_core_destroy_tir(struct mlx5_core_dev *dev, u32 tirn)
 {
-	u32 in[MLX5_ST_SZ_DW(destroy_tir_out)];
+	u32 in[MLX5_ST_SZ_DW(destroy_tir_in)];
 	u32 out[MLX5_ST_SZ_DW(destroy_tir_out)];
 
 	memset(in, 0, sizeof(in));
@@ -206,7 +206,7 @@ int mlx5_core_create_tis(struct mlx5_core_dev *dev, u32 *in, int inlen,
 
 void mlx5_core_destroy_tis(struct mlx5_core_dev *dev, u32 tisn)
 {
-	u32 in[MLX5_ST_SZ_DW(destroy_tis_out)];
+	u32 in[MLX5_ST_SZ_DW(destroy_tis_in)];
 	u32 out[MLX5_ST_SZ_DW(destroy_tis_out)];
 
 	memset(in, 0, sizeof(in));

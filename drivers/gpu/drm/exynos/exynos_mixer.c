@@ -39,11 +39,10 @@
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_plane.h"
 #include "exynos_drm_iommu.h"
-#include "exynos_mixer.h"
 
 #define MIXER_WIN_NR		3
-#define MIXER_DEFAULT_WIN	0
 #define VP_DEFAULT_WIN		2
+#define CURSOR_WIN		1
 
 /* The pixelformats that are natively supported by the mixer. */
 #define MXR_FORMAT_RGB565	4
@@ -600,7 +599,7 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 
 	/* setup display size */
 	if (ctx->mxr_ver == MXR_VER_128_0_0_184 &&
-		win == MIXER_DEFAULT_WIN) {
+		win == DEFAULT_WIN) {
 		val  = MXR_MXR_RES_HEIGHT(mode->vdisplay);
 		val |= MXR_MXR_RES_WIDTH(mode->hdisplay);
 		mixer_reg_write(res, MXR_RESOLUTION, val);
@@ -652,7 +651,7 @@ static void vp_win_reset(struct mixer_context *ctx)
 		/* waiting until VP_SRESET_PROCESSING is 0 */
 		if (~vp_reg_read(res, VP_SRESET) & VP_SRESET_PROCESSING)
 			break;
-		usleep_range(10000, 12000);
+		mdelay(10);
 	}
 	WARN(tries == 0, "failed to reset Video Processor\n");
 }
@@ -1096,8 +1095,10 @@ static void mixer_disable(struct exynos_drm_crtc *crtc)
 }
 
 /* Only valid for Mixer version 16.0.33.0 */
-int mixer_check_mode(struct drm_display_mode *mode)
+static int mixer_atomic_check(struct exynos_drm_crtc *crtc,
+		       struct drm_crtc_state *state)
 {
+	struct drm_display_mode *mode = &state->adjusted_mode;
 	u32 w, h;
 
 	w = mode->hdisplay;
@@ -1123,6 +1124,7 @@ static const struct exynos_drm_crtc_ops mixer_crtc_ops = {
 	.wait_for_vblank	= mixer_wait_for_vblank,
 	.update_plane		= mixer_update_plane,
 	.disable_plane		= mixer_disable_plane,
+	.atomic_check		= mixer_atomic_check,
 };
 
 static struct mixer_drv_data exynos5420_mxr_drv_data = {
@@ -1197,8 +1199,6 @@ static int mixer_bind(struct device *dev, struct device *manager, void *data)
 		const uint32_t *formats;
 		unsigned int fcount;
 
-		type = (zpos == MIXER_DEFAULT_WIN) ? DRM_PLANE_TYPE_PRIMARY :
-						DRM_PLANE_TYPE_OVERLAY;
 		if (zpos < VP_DEFAULT_WIN) {
 			formats = mixer_formats;
 			fcount = ARRAY_SIZE(mixer_formats);
@@ -1207,6 +1207,7 @@ static int mixer_bind(struct device *dev, struct device *manager, void *data)
 			fcount = ARRAY_SIZE(vp_formats);
 		}
 
+		type = exynos_plane_get_type(zpos, CURSOR_WIN);
 		ret = exynos_plane_init(drm_dev, &ctx->planes[zpos],
 					1 << ctx->pipe, type, formats, fcount,
 					zpos);
@@ -1214,7 +1215,7 @@ static int mixer_bind(struct device *dev, struct device *manager, void *data)
 			return ret;
 	}
 
-	exynos_plane = &ctx->planes[MIXER_DEFAULT_WIN];
+	exynos_plane = &ctx->planes[DEFAULT_WIN];
 	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,
 					   ctx->pipe, EXYNOS_DISPLAY_TYPE_HDMI,
 					   &mixer_crtc_ops, ctx);

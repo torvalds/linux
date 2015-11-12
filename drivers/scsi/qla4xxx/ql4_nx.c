@@ -12,7 +12,7 @@
 #include "ql4_glbl.h"
 #include "ql4_inline.h"
 
-#include <asm-generic/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 
 #define TIMEOUT_100_MS	100
 #define MASK(n)		DMA_BIT_MASK(n)

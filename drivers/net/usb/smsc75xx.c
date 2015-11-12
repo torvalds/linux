@@ -2185,11 +2185,6 @@ static int smsc75xx_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			skb_pull(skb, align_count);
 	}
 
-	if (unlikely(skb->len < 0)) {
-		netdev_warn(dev->net, "invalid rx length<0 %d\n", skb->len);
-		return 0;
-	}
-
 	return 1;
 }
 

@@ -90,3 +90,34 @@ etc, but you get the idea. Anybody with access to a device gadget kit
 can fake descriptors and device info. Don't trust that. You are
 welcome.
 
+
+Interface authorization
+-----------------------
+There is a similar approach to allow or deny specific USB interfaces.
+That allows to block only a subset of an USB device.
+
+Authorize an interface:
+$ echo 1 > /sys/bus/usb/devices/INTERFACE/authorized
+
+Deauthorize an interface:
+$ echo 0 > /sys/bus/usb/devices/INTERFACE/authorized
+
+The default value for new interfaces
+on a particular USB bus can be changed, too.
+
+Allow interfaces per default:
+$ echo 1 > /sys/bus/usb/devices/usbX/interface_authorized_default
+
+Deny interfaces per default:
+$ echo 0 > /sys/bus/usb/devices/usbX/interface_authorized_default
+
+Per default the interface_authorized_default bit is 1.
+So all interfaces would authorized per default.
+
+Note:
+If a deauthorized interface will be authorized so the driver probing must
+be triggered manually by writing INTERFACE to /sys/bus/usb/drivers_probe
+
+For drivers that need multiple interfaces all needed interfaces should be
+authroized first. After that the drivers should be probed.
+This avoids side effects.

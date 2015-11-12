@@ -141,7 +141,9 @@ int dm_btree_empty(struct dm_btree_info *info, dm_block_t *root)
 	n->header.value_size = cpu_to_le32(info->value_type.size);
 
 	*root = dm_block_location(b);
-	return unlock_block(info, b);
+	unlock_block(info, b);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(dm_btree_empty);
 
@@ -523,7 +525,7 @@ static int btree_split_beneath(struct shadow_spine *s, uint64_t key)
 
 	r = new_block(s->info, &right);
 	if (r < 0) {
-		/* FIXME: put left */
+		unlock_block(s->info, left);
 		return r;
 	}
 

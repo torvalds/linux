@@ -239,12 +239,12 @@ static unsigned long __peek_user(struct task_struct *child, addr_t addr)
 		 * or the child->thread.fpu.vxrs array
 		 */
 		offset = addr - (addr_t) &dummy->regs.fp_regs.fprs;
-		if (is_vx_task(child))
+		if (MACHINE_HAS_VX)
 			tmp = *(addr_t *)
 			       ((addr_t) child->thread.fpu.vxrs + 2*offset);
 		else
 			tmp = *(addr_t *)
-			       ((addr_t) &child->thread.fpu.fprs + offset);
+			       ((addr_t) child->thread.fpu.fprs + offset);
 
 	} else if (addr < (addr_t) (&dummy->regs.per_info + 1)) {
 		/*
@@ -383,12 +383,12 @@ static int __poke_user(struct task_struct *child, addr_t addr, addr_t data)
 		 * or the child->thread.fpu.vxrs array
 		 */
 		offset = addr - (addr_t) &dummy->regs.fp_regs.fprs;
-		if (is_vx_task(child))
+		if (MACHINE_HAS_VX)
 			*(addr_t *)((addr_t)
 				child->thread.fpu.vxrs + 2*offset) = data;
 		else
 			*(addr_t *)((addr_t)
-				&child->thread.fpu.fprs + offset) = data;
+				child->thread.fpu.fprs + offset) = data;
 
 	} else if (addr < (addr_t) (&dummy->regs.per_info + 1)) {
 		/*
@@ -617,12 +617,12 @@ static u32 __peek_user_compat(struct task_struct *child, addr_t addr)
 		 * or the child->thread.fpu.vxrs array
 		 */
 		offset = addr - (addr_t) &dummy32->regs.fp_regs.fprs;
-		if (is_vx_task(child))
+		if (MACHINE_HAS_VX)
 			tmp = *(__u32 *)
 			       ((addr_t) child->thread.fpu.vxrs + 2*offset);
 		else
 			tmp = *(__u32 *)
-			       ((addr_t) &child->thread.fpu.fprs + offset);
+			       ((addr_t) child->thread.fpu.fprs + offset);
 
 	} else if (addr < (addr_t) (&dummy32->regs.per_info + 1)) {
 		/*
@@ -742,12 +742,12 @@ static int __poke_user_compat(struct task_struct *child,
 		 * or the child->thread.fpu.vxrs array
 		 */
 		offset = addr - (addr_t) &dummy32->regs.fp_regs.fprs;
-		if (is_vx_task(child))
+		if (MACHINE_HAS_VX)
 			*(__u32 *)((addr_t)
 				child->thread.fpu.vxrs + 2*offset) = tmp;
 		else
 			*(__u32 *)((addr_t)
-				&child->thread.fpu.fprs + offset) = tmp;
+				child->thread.fpu.fprs + offset) = tmp;
 
 	} else if (addr < (addr_t) (&dummy32->regs.per_info + 1)) {
 		/*
@@ -981,7 +981,7 @@ static int s390_fpregs_set(struct task_struct *target,
 	if (rc)
 		return rc;
 
-	if (is_vx_task(target))
+	if (MACHINE_HAS_VX)
 		convert_fp_to_vx(target->thread.fpu.vxrs, fprs);
 	else
 		memcpy(target->thread.fpu.fprs, &fprs, sizeof(fprs));
@@ -1047,13 +1047,10 @@ static int s390_vxrs_low_get(struct task_struct *target,
 
 	if (!MACHINE_HAS_VX)
 		return -ENODEV;
-	if (is_vx_task(target)) {
-		if (target == current)
-			save_fpu_regs();
-		for (i = 0; i < __NUM_VXRS_LOW; i++)
-			vxrs[i] = *((__u64 *)(target->thread.fpu.vxrs + i) + 1);
-	} else
-		memset(vxrs, 0, sizeof(vxrs));
+	if (target == current)
+		save_fpu_regs();
+	for (i = 0; i < __NUM_VXRS_LOW; i++)
+		vxrs[i] = *((__u64 *)(target->thread.fpu.vxrs + i) + 1);
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, vxrs, 0, -1);
 }
 
@@ -1067,11 +1064,7 @@ static int s390_vxrs_low_set(struct task_struct *target,
 
 	if (!MACHINE_HAS_VX)
 		return -ENODEV;
-	if (!is_vx_task(target)) {
-		rc = alloc_vector_registers(target);
-		if (rc)
-			return rc;
-	} else if (target == current)
+	if (target == current)
 		save_fpu_regs();
 
 	rc = user_regset_copyin(&pos, &count, &kbuf, &ubuf, vxrs, 0, -1);
@@ -1091,13 +1084,10 @@ static int s390_vxrs_high_get(struct task_struct *target,
 
 	if (!MACHINE_HAS_VX)
 		return -ENODEV;
-	if (is_vx_task(target)) {
-		if (target == current)
-			save_fpu_regs();
-		memcpy(vxrs, target->thread.fpu.vxrs + __NUM_VXRS_LOW,
-		       sizeof(vxrs));
-	} else
-		memset(vxrs, 0, sizeof(vxrs));
+	if (target == current)
+		save_fpu_regs();
+	memcpy(vxrs, target->thread.fpu.vxrs + __NUM_VXRS_LOW, sizeof(vxrs));
+
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, vxrs, 0, -1);
 }
 
@@ -1110,11 +1100,7 @@ static int s390_vxrs_high_set(struct task_struct *target,
 
 	if (!MACHINE_HAS_VX)
 		return -ENODEV;
-	if (!is_vx_task(target)) {
-		rc = alloc_vector_registers(target);
-		if (rc)
-			return rc;
-	} else if (target == current)
+	if (target == current)
 		save_fpu_regs();
 
 	rc = user_regset_copyin(&pos, &count, &kbuf, &ubuf,

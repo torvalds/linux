@@ -37,7 +37,7 @@
 #define MAX_BUFFERS_PACKET      32
 #define MAX_BUFFERS_STREAMING   32
 #define MAX_BUF_SIZE_PACKET     2048
-#define MAX_BUF_SIZE_STREAMING  (8*1024)
+#define MAX_BUF_SIZE_STREAMING  (8 * 1024)
 
 /* command line parameter to select clock speed */
 static char *clock_speed;
@@ -166,16 +166,6 @@ void DIMCB_OnError(u8 error_id, const char *error_message)
 }
 
 /**
- * DIMCB_OnFail - callback from HAL to report unrecoverable errors
- * @filename: Source file where the error happened
- * @linenum: Line number of the file where the error happened
- */
-void DIMCB_OnFail(const char *filename, int linenum)
-{
-	pr_err("DIMCB_OnFail: file - %s, line no. - %d\n", filename, linenum);
-}
-
-/**
  * startup_dim - initialize the dim2 interface
  * @pdev: platform device
  *
@@ -210,12 +200,11 @@ static int startup_dim(struct platform_device *pdev)
 	}
 
 	if (dev->clk_speed == -1) {
-		pr_info("Bad or missing clock speed parameter,"
-			" using default value: 3072fs\n");
+		pr_info("Bad or missing clock speed parameter, using default value: 3072fs\n");
 		dev->clk_speed = CLK_3072FS;
-	} else
+	} else {
 		pr_info("Selected clock speed: %s\n", clock_speed);
-
+	}
 	if (pdata && pdata->init) {
 		int ret = pdata->init(pdata, dev->io_base, dev->clk_speed);
 
@@ -248,7 +237,7 @@ static int try_start_dim_transfer(struct hdm_channel *hdm_ch)
 	unsigned long flags;
 	struct dim_ch_state_t st;
 
-	BUG_ON(hdm_ch == 0);
+	BUG_ON(!hdm_ch);
 	BUG_ON(!hdm_ch->is_initialized);
 
 	spin_lock_irqsave(&dim_lock, flags);
@@ -289,7 +278,7 @@ static int try_start_dim_transfer(struct hdm_channel *hdm_ch)
  */
 static int deliver_netinfo_thread(void *data)
 {
-	struct dim2_hdm *dev = (struct dim2_hdm *)data;
+	struct dim2_hdm *dev = data;
 
 	while (!kthread_should_stop()) {
 		wait_event_interruptible(dev->netinfo_waitq,
@@ -346,7 +335,7 @@ static void service_done_flag(struct dim2_hdm *dev, int ch_idx)
 	unsigned long flags;
 	u8 *data;
 
-	BUG_ON(hdm_ch == 0);
+	BUG_ON(!hdm_ch);
 	BUG_ON(!hdm_ch->is_initialized);
 
 	spin_lock_irqsave(&dim_lock, flags);
@@ -369,8 +358,7 @@ static void service_done_flag(struct dim2_hdm *dev, int ch_idx)
 		spin_lock_irqsave(&dim_lock, flags);
 		if (list_empty(head)) {
 			spin_unlock_irqrestore(&dim_lock, flags);
-			pr_crit("hard error: started_mbo list is empty "
-				"whereas DIM2 has sent buffers\n");
+			pr_crit("hard error: started_mbo list is empty whereas DIM2 has sent buffers\n");
 			break;
 		}
 
@@ -397,7 +385,8 @@ static void service_done_flag(struct dim2_hdm *dev, int ch_idx)
 					(u32)data[0] * 256 + data[1] + 2;
 
 				mbo->processed_length =
-					min(data_size, (u32)mbo->buffer_length);
+					min_t(u32, data_size,
+					      mbo->buffer_length);
 			} else {
 				mbo->processed_length = mbo->buffer_length;
 			}
@@ -410,7 +399,7 @@ static void service_done_flag(struct dim2_hdm *dev, int ch_idx)
 }
 
 static struct dim_channel **get_active_channels(struct dim2_hdm *dev,
-		struct dim_channel **buffer)
+						struct dim_channel **buffer)
 {
 	int idx = 0;
 	int ch_idx;
@@ -419,7 +408,7 @@ static struct dim_channel **get_active_channels(struct dim2_hdm *dev,
 		if (dev->hch[ch_idx].is_initialized)
 			buffer[idx++] = &dev->hch[ch_idx].ch;
 	}
-	buffer[idx++] = 0;
+	buffer[idx++] = NULL;
 
 	return buffer;
 }
@@ -441,7 +430,7 @@ static void dim2_tasklet_fn(unsigned long data)
 			continue;
 
 		spin_lock_irqsave(&dim_lock, flags);
-		DIM_ServiceChannel(&(dev->hch[ch_idx].ch));
+		DIM_ServiceChannel(&dev->hch[ch_idx].ch);
 		spin_unlock_irqrestore(&dim_lock, flags);
 
 		service_done_flag(dev, ch_idx);
@@ -460,7 +449,7 @@ static void dim2_tasklet_fn(unsigned long data)
  */
 static irqreturn_t dim2_ahb_isr(int irq, void *_dev)
 {
-	struct dim2_hdm *dev = (struct dim2_hdm *)_dev;
+	struct dim2_hdm *dev = _dev;
 	struct dim_channel *buffer[DMA_CHANNELS + 1];
 	unsigned long flags;
 
@@ -557,7 +546,8 @@ static int configure_channel(struct most_interface *most_iface, int ch_idx,
 			pr_warn("%s: fixed buffer size (%d -> %d)\n",
 				hdm_ch->name, buf_size, new_size);
 		spin_lock_irqsave(&dim_lock, flags);
-		hal_ret = DIM_InitControl(&hdm_ch->ch, is_tx, ch_addr, buf_size);
+		hal_ret = DIM_InitControl(&hdm_ch->ch, is_tx, ch_addr,
+					  buf_size);
 		break;
 	case MOST_CH_ASYNC:
 		new_size = DIM_NormCtrlAsyncBufferSize(buf_size);
@@ -575,8 +565,8 @@ static int configure_channel(struct most_interface *most_iface, int ch_idx,
 	case MOST_CH_ISOC_AVP:
 		new_size = DIM_NormIsocBufferSize(buf_size, sub_size);
 		if (new_size == 0) {
-			pr_err("%s: invalid sub-buffer size or "
-			       "too small buffer size\n", hdm_ch->name);
+			pr_err("%s: invalid sub-buffer size or too small buffer size\n",
+			       hdm_ch->name);
 			return -EINVAL;
 		}
 		ccfg->buffer_size = new_size;
@@ -589,8 +579,8 @@ static int configure_channel(struct most_interface *most_iface, int ch_idx,
 	case MOST_CH_SYNC:
 		new_size = DIM_NormSyncBufferSize(buf_size, sub_size);
 		if (new_size == 0) {
-			pr_err("%s: invalid sub-buffer size or "
-			       "too small buffer size\n", hdm_ch->name);
+			pr_err("%s: invalid sub-buffer size or too small buffer size\n",
+			       hdm_ch->name);
 			return -EINVAL;
 		}
 		ccfg->buffer_size = new_size;
@@ -679,7 +669,7 @@ static void request_netinfo(struct most_interface *most_iface, int ch_idx)
 		return;
 	}
 
-	mbo = most_get_mbo(&dev->most_iface, dev->atx_idx);
+	mbo = most_get_mbo(&dev->most_iface, dev->atx_idx, NULL);
 	if (!mbo)
 		return;
 
@@ -787,7 +777,8 @@ static int dim2_probe(struct platform_device *pdev)
 
 	ret = request_irq(dev->irq_ahb0, dim2_ahb_isr, 0, "mlb_ahb0", dev);
 	if (ret) {
-		pr_err("failed to request IRQ: %d, err: %d\n", dev->irq_ahb0, ret);
+		pr_err("failed to request IRQ: %d, err: %d\n",
+		       dev->irq_ahb0, ret);
 		goto err_unmap_io;
 	}
 #endif
@@ -915,7 +906,7 @@ static int dim2_remove(struct platform_device *pdev)
 	 * break link to local platform_device_id struct
 	 * to prevent crash by unload platform device module
 	 */
-	pdev->id_entry = 0;
+	pdev->id_entry = NULL;
 
 	return 0;
 }
@@ -933,30 +924,10 @@ static struct platform_driver dim2_driver = {
 	.id_table = dim2_id,
 	.driver = {
 		.name = "hdm_dim2",
-		.owner = THIS_MODULE,
 	},
 };
 
-/**
- * dim2_hdm_init - Driver Registration Routine
- */
-static int __init dim2_hdm_init(void)
-{
-	pr_info("dim2_hdm_init()\n");
-	return platform_driver_register(&dim2_driver);
-}
-
-/**
- * dim2_hdm_exit - Driver Cleanup Routine
- **/
-static void __exit dim2_hdm_exit(void)
-{
-	pr_info("dim2_hdm_exit()\n");
-	platform_driver_unregister(&dim2_driver);
-}
-
-module_init(dim2_hdm_init);
-module_exit(dim2_hdm_exit);
+module_platform_driver(dim2_driver);
 
 MODULE_AUTHOR("Jain Roy Ambi <JainRoy.Ambi@microchip.com>");
 MODULE_AUTHOR("Andrey Shvetsov <andrey.shvetsov@k2l.de>");

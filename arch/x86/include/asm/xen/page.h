@@ -12,7 +12,7 @@
 #include <asm/pgtable.h>
 
 #include <xen/interface/xen.h>
-#include <xen/grant_table.h>
+#include <xen/interface/grant_table.h>
 #include <xen/features.h>
 
 /* Xen machine address */
@@ -42,6 +42,8 @@ extern unsigned long  machine_to_phys_nr;
 extern unsigned long *xen_p2m_addr;
 extern unsigned long  xen_p2m_size;
 extern unsigned long  xen_max_p2m_pfn;
+
+extern int xen_alloc_p2m_entry(unsigned long pfn);
 
 extern unsigned long get_phys_to_machine(unsigned long pfn);
 extern bool set_phys_to_machine(unsigned long pfn, unsigned long mfn);
@@ -296,8 +298,8 @@ void make_lowmem_page_readwrite(void *vaddr);
 #define xen_unmap(cookie) iounmap((cookie))
 
 static inline bool xen_arch_need_swiotlb(struct device *dev,
-					 unsigned long pfn,
-					 unsigned long bfn)
+					 phys_addr_t phys,
+					 dma_addr_t dev_addr)
 {
 	return false;
 }

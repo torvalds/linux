@@ -1,6 +1,8 @@
 #ifndef _I810_DRM_H_
 #define _I810_DRM_H_
 
+#include <drm/drm.h>
+
 /* WARNING: These defines must be the same as what the Xserver uses.
  * if you change them, you must change the defines in the Xserver.
  */

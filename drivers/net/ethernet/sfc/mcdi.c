@@ -9,7 +9,7 @@
 
 #include <linux/delay.h>
 #include <linux/moduleparam.h>
-#include <asm/cmpxchg.h>
+#include <linux/atomic.h>
 #include "net_driver.h"
 #include "nic.h"
 #include "io.h"
@@ -1028,10 +1028,21 @@ static void efx_mcdi_ev_death(struct efx_nic *efx, int rc)
 
 		/* Consume the status word since efx_mcdi_rpc_finish() won't */
 		for (count = 0; count < MCDI_STATUS_DELAY_COUNT; ++count) {
-			if (efx_mcdi_poll_reboot(efx))
+			rc = efx_mcdi_poll_reboot(efx);
+			if (rc)
 				break;
 			udelay(MCDI_STATUS_DELAY_US);
 		}
+
+		/* On EF10, a CODE_MC_REBOOT event can be received without the
+		 * reboot detection in efx_mcdi_poll_reboot() being triggered.
+		 * If zero was returned from the final call to
+		 * efx_mcdi_poll_reboot(), the MC reboot wasn't noticed but the
+		 * MC has definitely rebooted so prepare for the reset.
+		 */
+		if (!rc && efx->type->mcdi_reboot_detected)
+			efx->type->mcdi_reboot_detected(efx);
+
 		mcdi->new_epoch = true;
 
 		/* Nobody was waiting for an MCDI request, so trigger a reset */

@@ -278,10 +278,7 @@ int c2_llp_service_destroy(struct iw_cm_id *cm_id)
 		err = -ENOMEM;
 		goto bail0;
 	}
-	if ((err = c2_errno(reply)) != 0)
-		goto bail1;
 
- bail1:
 	vq_repbuf_free(c2dev, reply);
  bail0:
 	vq_req_free(c2dev, vq_req);

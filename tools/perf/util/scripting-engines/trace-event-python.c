@@ -251,6 +251,7 @@ static void define_event_symbols(struct event_format *event,
 		/* gcc warns for these? */
 	case PRINT_BSTRING:
 	case PRINT_DYNAMIC_ARRAY:
+	case PRINT_DYNAMIC_ARRAY_LEN:
 	case PRINT_FUNC:
 	case PRINT_BITMASK:
 		/* we should warn... */
@@ -318,7 +319,7 @@ static PyObject *python_process_callchain(struct perf_sample *sample,
 
 	if (thread__resolve_callchain(al->thread, evsel,
 				      sample, NULL, NULL,
-				      PERF_MAX_STACK_DEPTH) != 0) {
+				      scripting_max_stack) != 0) {
 		pr_err("Failed to resolve callchain. Skipping\n");
 		goto exit;
 	}

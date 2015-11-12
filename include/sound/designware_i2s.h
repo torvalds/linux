@@ -38,6 +38,8 @@ struct i2s_clk_config_data {
 struct i2s_platform_data {
 	#define DWC_I2S_PLAY	(1 << 0)
 	#define DWC_I2S_RECORD	(1 << 1)
+	#define DW_I2S_SLAVE	(1 << 2)
+	#define DW_I2S_MASTER	(1 << 3)
 	unsigned int cap;
 	int channel;
 	u32 snd_fmts;

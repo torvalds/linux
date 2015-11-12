@@ -171,20 +171,7 @@ static struct phy_driver aquantia_driver[] = {
 },
 };
 
-static int __init aquantia_init(void)
-{
-	return phy_drivers_register(aquantia_driver,
-				    ARRAY_SIZE(aquantia_driver));
-}
-
-static void __exit aquantia_exit(void)
-{
-	return phy_drivers_unregister(aquantia_driver,
-				      ARRAY_SIZE(aquantia_driver));
-}
-
-module_init(aquantia_init);
-module_exit(aquantia_exit);
+module_phy_driver(aquantia_driver);
 
 static struct mdio_device_id __maybe_unused aquantia_tbl[] = {
 	{ PHY_ID_AQ1202, 0xfffffff0 },

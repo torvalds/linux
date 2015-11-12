@@ -144,7 +144,7 @@ static int sharpsl_nand_probe(struct platform_device *pdev)
 
 	/* Link the private data with the MTD structure */
 	sharpsl->mtd.priv = this;
-	sharpsl->mtd.owner = THIS_MODULE;
+	sharpsl->mtd.dev.parent = &pdev->dev;
 
 	platform_set_drvdata(pdev, sharpsl);
 

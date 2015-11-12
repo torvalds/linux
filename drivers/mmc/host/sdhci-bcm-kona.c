@@ -273,7 +273,7 @@ static int sdhci_bcm_kona_probe(struct platform_device *pdev)
 		host->quirks |= SDHCI_QUIRK_BROKEN_CARD_DETECTION;
 
 	dev_dbg(dev, "is_8bit=%c\n",
-		(host->mmc->caps | MMC_CAP_8_BIT_DATA) ? 'Y' : 'N');
+		(host->mmc->caps & MMC_CAP_8_BIT_DATA) ? 'Y' : 'N');
 
 	ret = sdhci_bcm_kona_sd_reset(host);
 	if (ret)

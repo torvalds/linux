@@ -240,7 +240,7 @@ int c2_qp_modify(struct c2_dev *c2dev, struct c2_qp *qp,
 	spin_unlock_irqrestore(&qp->lock, flags);
 
 	vq_repbuf_free(c2dev, reply);
-      bail0:
+bail0:
 	vq_req_free(c2dev, vq_req);
 
 	pr_debug("%s:%d qp=%p, cur_state=%s\n",
@@ -294,7 +294,7 @@ int c2_qp_set_read_limits(struct c2_dev *c2dev, struct c2_qp *qp,
 
 	err = c2_errno(reply);
 	vq_repbuf_free(c2dev, reply);
-      bail0:
+bail0:
 	vq_req_free(c2dev, vq_req);
 	return err;
 }
@@ -373,7 +373,7 @@ static int destroy_qp(struct c2_dev *c2dev, struct c2_qp *qp)
 	spin_unlock_irqrestore(&qp->lock, flags);
 
 	vq_repbuf_free(c2dev, reply);
-      bail0:
+bail0:
 	vq_req_free(c2dev, vq_req);
 	return err;
 }
@@ -554,19 +554,19 @@ int c2_alloc_qp(struct c2_dev *c2dev,
 
 	return 0;
 
-      bail6:
+bail6:
 	iounmap(qp->sq_mq.peer);
-      bail5:
+bail5:
 	destroy_qp(c2dev, qp);
-      bail4:
+bail4:
 	vq_repbuf_free(c2dev, reply);
-      bail3:
+bail3:
 	vq_req_free(c2dev, vq_req);
-      bail2:
+bail2:
 	c2_free_mqsp(qp->rq_mq.shared);
-      bail1:
+bail1:
 	c2_free_mqsp(qp->sq_mq.shared);
-      bail0:
+bail0:
 	c2_free_qpn(c2dev, qp->qpn);
 	return err;
 }
@@ -860,9 +860,9 @@ int c2_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
 				flags |= SQ_READ_FENCE;
 			}
 			wr.sqwr.rdma_write.remote_stag =
-			    cpu_to_be32(ib_wr->wr.rdma.rkey);
+			    cpu_to_be32(rdma_wr(ib_wr)->rkey);
 			wr.sqwr.rdma_write.remote_to =
-			    cpu_to_be64(ib_wr->wr.rdma.remote_addr);
+			    cpu_to_be64(rdma_wr(ib_wr)->remote_addr);
 			err = move_sgl((struct c2_data_addr *)
 				       & (wr.sqwr.rdma_write.data),
 				       ib_wr->sg_list,
@@ -889,9 +889,9 @@ int c2_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
 			wr.sqwr.rdma_read.local_to =
 			    cpu_to_be64(ib_wr->sg_list->addr);
 			wr.sqwr.rdma_read.remote_stag =
-			    cpu_to_be32(ib_wr->wr.rdma.rkey);
+			    cpu_to_be32(rdma_wr(ib_wr)->rkey);
 			wr.sqwr.rdma_read.remote_to =
-			    cpu_to_be64(ib_wr->wr.rdma.remote_addr);
+			    cpu_to_be64(rdma_wr(ib_wr)->remote_addr);
 			wr.sqwr.rdma_read.length =
 			    cpu_to_be32(ib_wr->sg_list->length);
 			break;

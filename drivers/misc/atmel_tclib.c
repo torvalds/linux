@@ -125,6 +125,10 @@ static int __init tc_probe(struct platform_device *pdev)
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
+	tc->slow_clk = devm_clk_get(&pdev->dev, "slow_clk");
+	if (IS_ERR(tc->slow_clk))
+		return PTR_ERR(tc->slow_clk);
+
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	tc->regs = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(tc->regs))

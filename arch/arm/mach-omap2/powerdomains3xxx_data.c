@@ -582,7 +582,7 @@ void __init omap3xxx_powerdomains_init(void)
 
 	/* Only 81xx needs custom pwrdm_operations */
 	if (!cpu_is_ti81xx())
-		pwrdm_register_platform_funcs(&omap3_pwrdm_operations);;
+		pwrdm_register_platform_funcs(&omap3_pwrdm_operations);
 
 	rev = omap_rev();
 

@@ -1039,12 +1039,10 @@ autoconf_fail:
 			cdev->gadget->name);
 		return -ENODEV;
 	}
-	in_ep->driver_data = in_ep;	/* claim */
 
 	out_ep = usb_ep_autoconfig(cdev->gadget, &fs_ep_out_desc);
 	if (!out_ep)
 		goto autoconf_fail;
-	out_ep->driver_data = out_ep;	/* claim */
 
 	/* assumes that all endpoints are dual-speed */
 	hs_ep_in_desc.bEndpointAddress = fs_ep_in_desc.bEndpointAddress;

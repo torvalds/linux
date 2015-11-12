@@ -88,7 +88,6 @@
 #define AD7192_CLK_INT_CO		3 /* Internal 4.92 MHz Clock available
 					   * at the MCLK2 pin */
 
-
 /* Configuration Register Bit Designations (AD7192_REG_CONF) */
 
 #define AD7192_CONF_CHOP	BIT(23) /* CHOP enable */
@@ -125,7 +124,7 @@
 #define AD7192_GPOCON_P1DAT	BIT(1) /* P1 state */
 #define AD7192_GPOCON_P0DAT	BIT(0) /* P0 state */
 
-#define AD7192_INT_FREQ_MHz	4915200
+#define AD7192_INT_FREQ_MHZ	4915200
 
 /* NOTE:
  * The AD7190/2/5 features a dual use data out ready DOUT/RDY output.
@@ -201,7 +200,7 @@ static int ad7192_calibrate_all(struct ad7192_state *st)
 }
 
 static int ad7192_setup(struct ad7192_state *st,
-	const struct ad7192_platform_data *pdata)
+			const struct ad7192_platform_data *pdata)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(st->sd.spi);
 	unsigned long long scale_uv;
@@ -224,19 +223,19 @@ static int ad7192_setup(struct ad7192_state *st,
 
 	if (id != st->devid)
 		dev_warn(&st->sd.spi->dev, "device ID query failed (0x%X)\n",
-			id);
+			 id);
 
 	switch (pdata->clock_source_sel) {
 	case AD7192_CLK_EXT_MCLK1_2:
 	case AD7192_CLK_EXT_MCLK2:
-		st->mclk = AD7192_INT_FREQ_MHz;
+		st->mclk = AD7192_INT_FREQ_MHZ;
 		break;
 	case AD7192_CLK_INT:
 	case AD7192_CLK_INT_CO:
-		if (pdata->ext_clk_Hz)
-			st->mclk = pdata->ext_clk_Hz;
+		if (pdata->ext_clk_hz)
+			st->mclk = pdata->ext_clk_hz;
 		else
-			st->mclk = AD7192_INT_FREQ_MHz;
+			st->mclk = AD7192_INT_FREQ_MHZ;
 			break;
 	default:
 		ret = -EINVAL;
@@ -307,8 +306,8 @@ out:
 }
 
 static ssize_t ad7192_read_frequency(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+				     struct device_attribute *attr,
+				     char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7192_state *st = iio_priv(indio_dev);
@@ -318,9 +317,9 @@ static ssize_t ad7192_read_frequency(struct device *dev,
 }
 
 static ssize_t ad7192_write_frequency(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+				      struct device_attribute *attr,
+				      const char *buf,
+				      size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7192_state *st = iio_priv(indio_dev);
@@ -359,8 +358,9 @@ static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 		ad7192_read_frequency,
 		ad7192_write_frequency);
 
-static ssize_t ad7192_show_scale_available(struct device *dev,
-			struct device_attribute *attr, char *buf)
+static ssize_t
+ad7192_show_scale_available(struct device *dev,
+			    struct device_attribute *attr, char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7192_state *st = iio_priv(indio_dev);
@@ -383,8 +383,8 @@ static IIO_DEVICE_ATTR(in_voltage_scale_available, S_IRUGO,
 		       ad7192_show_scale_available, NULL, 0);
 
 static ssize_t ad7192_show_ac_excitation(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+					 struct device_attribute *attr,
+					 char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7192_state *st = iio_priv(indio_dev);
@@ -393,8 +393,8 @@ static ssize_t ad7192_show_ac_excitation(struct device *dev,
 }
 
 static ssize_t ad7192_show_bridge_switch(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+					 struct device_attribute *attr,
+					 char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7192_state *st = iio_priv(indio_dev);
@@ -403,9 +403,9 @@ static ssize_t ad7192_show_bridge_switch(struct device *dev,
 }
 
 static ssize_t ad7192_set(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+			  struct device_attribute *attr,
+			  const char *buf,
+			  size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7192_state *st = iio_priv(indio_dev);
@@ -423,7 +423,7 @@ static ssize_t ad7192_set(struct device *dev,
 		return -EBUSY;
 	}
 
-	switch ((u32) this_attr->address) {
+	switch ((u32)this_attr->address) {
 	case AD7192_REG_GPOCON:
 		if (val)
 			st->gpocon |= AD7192_GPOCON_BPDSW;
@@ -529,10 +529,10 @@ static int ad7192_read_raw(struct iio_dev *indio_dev,
 }
 
 static int ad7192_write_raw(struct iio_dev *indio_dev,
-			       struct iio_chan_spec const *chan,
-			       int val,
-			       int val2,
-			       long mask)
+			    struct iio_chan_spec const *chan,
+			    int val,
+			    int val2,
+			    long mask)
 {
 	struct ad7192_state *st = iio_priv(indio_dev);
 	int ret, i;
@@ -556,7 +556,7 @@ static int ad7192_write_raw(struct iio_dev *indio_dev,
 				if (tmp == st->conf)
 					break;
 				ad_sd_write_reg(&st->sd, AD7192_REG_CONF,
-						 3, st->conf);
+						3, st->conf);
 				ad7192_calibrate_all(st);
 				break;
 			}
@@ -571,8 +571,8 @@ static int ad7192_write_raw(struct iio_dev *indio_dev,
 }
 
 static int ad7192_write_raw_get_fmt(struct iio_dev *indio_dev,
-			       struct iio_chan_spec const *chan,
-			       long mask)
+				    struct iio_chan_spec const *chan,
+				    long mask)
 {
 	return IIO_VAL_INT_PLUS_NANO;
 }
@@ -625,7 +625,7 @@ static int ad7192_probe(struct spi_device *spi)
 	}
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
-	if (indio_dev == NULL)
+	if (!indio_dev)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
@@ -639,7 +639,7 @@ static int ad7192_probe(struct spi_device *spi)
 		voltage_uv = regulator_get_voltage(st->reg);
 	}
 
-	if (pdata && pdata->vref_mv)
+	if (pdata->vref_mv)
 		st->int_vref_mv = pdata->vref_mv;
 	else if (voltage_uv)
 		st->int_vref_mv = voltage_uv / 1000;
@@ -707,7 +707,6 @@ MODULE_DEVICE_TABLE(spi, ad7192_id);
 static struct spi_driver ad7192_driver = {
 	.driver = {
 		.name	= "ad7192",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ad7192_probe,
 	.remove		= ad7192_remove,

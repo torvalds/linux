@@ -17,7 +17,7 @@
 #ifndef _MEDIA_V4L2_MEM2MEM_H
 #define _MEDIA_V4L2_MEM2MEM_H
 
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 
 /**
  * struct v4l2_m2m_ops - mem-to-mem device driver callbacks
@@ -90,7 +90,7 @@ struct v4l2_m2m_ctx {
 };
 
 struct v4l2_m2m_buffer {
-	struct vb2_buffer	vb;
+	struct vb2_v4l2_buffer	vb;
 	struct list_head	list;
 };
 
@@ -105,9 +105,9 @@ void v4l2_m2m_job_finish(struct v4l2_m2m_dev *m2m_dev,
 			 struct v4l2_m2m_ctx *m2m_ctx);
 
 static inline void
-v4l2_m2m_buf_done(struct vb2_buffer *buf, enum vb2_buffer_state state)
+v4l2_m2m_buf_done(struct vb2_v4l2_buffer *buf, enum vb2_buffer_state state)
 {
-	vb2_buffer_done(buf, state);
+	vb2_buffer_done(&buf->vb2_buf, state);
 }
 
 int v4l2_m2m_reqbufs(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
@@ -160,7 +160,8 @@ static inline void v4l2_m2m_set_dst_buffered(struct v4l2_m2m_ctx *m2m_ctx,
 
 void v4l2_m2m_ctx_release(struct v4l2_m2m_ctx *m2m_ctx);
 
-void v4l2_m2m_buf_queue(struct v4l2_m2m_ctx *m2m_ctx, struct vb2_buffer *vb);
+void v4l2_m2m_buf_queue(struct v4l2_m2m_ctx *m2m_ctx,
+			struct vb2_v4l2_buffer *vbuf);
 
 /**
  * v4l2_m2m_num_src_bufs_ready() - return the number of source buffers ready for

@@ -48,10 +48,6 @@
 
 #define DEFAULT_DEBUG_LEVEL_SHIFT 3
 #define PFX "i40evf: "
-#define DPRINTK(nlevel, klevel, fmt, args...) \
-	((void)((NETIF_MSG_##nlevel & adapter->msg_enable) && \
-	printk(KERN_##klevel PFX "%s: %s: " fmt, adapter->netdev->name, \
-		__func__ , ## args)))
 
 /* dummy struct to make common code less painful */
 struct i40e_vsi {
@@ -70,6 +66,7 @@ struct i40e_vsi {
 	 */
 	u16 rx_itr_setting;
 	u16 tx_itr_setting;
+	u16 qs_handle;
 };
 
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
@@ -90,7 +87,7 @@ struct i40e_vsi {
 #define I40EVF_MAX_RXBUFFER   16384  /* largest size for single descriptor */
 #define I40EVF_MAX_AQ_BUF_SIZE    4096
 #define I40EVF_AQ_LEN             32
-#define I40EVF_AQ_MAX_ERR         10 /* times to try before resetting AQ */
+#define I40EVF_AQ_MAX_ERR         20 /* times to try before resetting AQ */
 
 #define MAXIMUM_ETHERNET_VLAN_SIZE (VLAN_ETH_FRAME_LEN + ETH_FCS_LEN)
 
@@ -115,6 +112,8 @@ struct i40e_q_vector {
 	struct i40e_ring_container tx;
 	u32 ring_mask;
 	u8 num_ringpairs;	/* total number of ring pairs in vector */
+#define ITR_COUNTDOWN_START 100
+	u8 itr_countdown;	/* when 0 or 1 update ITR */
 	int v_idx;	  /* vector index in list */
 	char name[IFNAMSIZ + 9];
 	bool arm_wb_state;
@@ -214,7 +213,6 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_RX_1BUF_CAPABLE              BIT(1)
 #define I40EVF_FLAG_RX_PS_CAPABLE                BIT(2)
 #define I40EVF_FLAG_RX_PS_ENABLED                BIT(3)
-#define I40EVF_FLAG_IN_NETPOLL                   BIT(4)
 #define I40EVF_FLAG_IMIR_ENABLED                 BIT(5)
 #define I40EVF_FLAG_MQ_CAPABLE                   BIT(6)
 #define I40EVF_FLAG_NEED_LINK_UPDATE             BIT(7)
@@ -223,10 +221,10 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_RESET_NEEDED                 BIT(10)
 #define I40EVF_FLAG_WB_ON_ITR_CAPABLE		BIT(11)
 #define I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE	BIT(12)
+#define I40EVF_FLAG_ADDR_SET_BY_PF		BIT(13)
 /* duplicates for common code */
 #define I40E_FLAG_FDIR_ATR_ENABLED		 0
 #define I40E_FLAG_DCB_ENABLED			 0
-#define I40E_FLAG_IN_NETPOLL			 I40EVF_FLAG_IN_NETPOLL
 #define I40E_FLAG_RX_CSUM_ENABLED                I40EVF_FLAG_RX_CSUM_ENABLED
 #define I40E_FLAG_WB_ON_ITR_CAPABLE		I40EVF_FLAG_WB_ON_ITR_CAPABLE
 #define I40E_FLAG_OUTER_UDP_CSUM_CAPABLE	I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE

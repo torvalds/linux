@@ -181,10 +181,6 @@ bool __kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
 	list_for_each_entry(iter, &(root)->memcg_params.list, \
 			    memcg_params.list)
 
-#define for_each_memcg_cache_safe(iter, tmp, root) \
-	list_for_each_entry_safe(iter, tmp, &(root)->memcg_params.list, \
-				 memcg_params.list)
-
 static inline bool is_root_cache(struct kmem_cache *s)
 {
 	return s->memcg_params.is_root_cache;
@@ -240,23 +236,16 @@ static inline struct kmem_cache *memcg_root_cache(struct kmem_cache *s)
 	return s->memcg_params.root_cache;
 }
 
-static __always_inline int memcg_charge_slab(struct kmem_cache *s,
-					     gfp_t gfp, int order)
+static __always_inline int memcg_charge_slab(struct page *page,
+					     gfp_t gfp, int order,
+					     struct kmem_cache *s)
 {
 	if (!memcg_kmem_enabled())
 		return 0;
 	if (is_root_cache(s))
 		return 0;
-	return memcg_charge_kmem(s->memcg_params.memcg, gfp, 1 << order);
-}
-
-static __always_inline void memcg_uncharge_slab(struct kmem_cache *s, int order)
-{
-	if (!memcg_kmem_enabled())
-		return;
-	if (is_root_cache(s))
-		return;
-	memcg_uncharge_kmem(s->memcg_params.memcg, 1 << order);
+	return __memcg_kmem_charge_memcg(page, gfp, order,
+					 s->memcg_params.memcg);
 }
 
 extern void slab_init_memcg_params(struct kmem_cache *);
@@ -265,8 +254,6 @@ extern void slab_init_memcg_params(struct kmem_cache *);
 
 #define for_each_memcg_cache(iter, root) \
 	for ((void)(iter), (void)(root); 0; )
-#define for_each_memcg_cache_safe(iter, tmp, root) \
-	for ((void)(iter), (void)(tmp), (void)(root); 0; )
 
 static inline bool is_root_cache(struct kmem_cache *s)
 {
@@ -295,13 +282,10 @@ static inline struct kmem_cache *memcg_root_cache(struct kmem_cache *s)
 	return s;
 }
 
-static inline int memcg_charge_slab(struct kmem_cache *s, gfp_t gfp, int order)
+static inline int memcg_charge_slab(struct page *page, gfp_t gfp, int order,
+				    struct kmem_cache *s)
 {
 	return 0;
-}
-
-static inline void memcg_uncharge_slab(struct kmem_cache *s, int order)
-{
 }
 
 static inline void slab_init_memcg_params(struct kmem_cache *s)

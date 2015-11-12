@@ -40,14 +40,15 @@ void br_log_state(const struct net_bridge_port *p)
 void br_set_state(struct net_bridge_port *p, unsigned int state)
 {
 	struct switchdev_attr attr = {
-		.id = SWITCHDEV_ATTR_PORT_STP_STATE,
+		.id = SWITCHDEV_ATTR_ID_PORT_STP_STATE,
+		.flags = SWITCHDEV_F_DEFER,
 		.u.stp_state = state,
 	};
 	int err;
 
 	p->state = state;
 	err = switchdev_port_attr_set(p->dev, &attr);
-	if (err && err != -EOPNOTSUPP)
+	if (err)
 		br_warn(p->br, "error setting offload STP state on port %u(%s)\n",
 				(unsigned int) p->port_no, p->dev->name);
 }
@@ -566,6 +567,29 @@ int br_set_max_age(struct net_bridge *br, unsigned long val)
 
 }
 
+int br_set_ageing_time(struct net_bridge *br, u32 ageing_time)
+{
+	struct switchdev_attr attr = {
+		.id = SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME,
+		.flags = SWITCHDEV_F_SKIP_EOPNOTSUPP,
+		.u.ageing_time = ageing_time,
+	};
+	unsigned long t = clock_t_to_jiffies(ageing_time);
+	int err;
+
+	if (t < BR_MIN_AGEING_TIME || t > BR_MAX_AGEING_TIME)
+		return -ERANGE;
+
+	err = switchdev_port_attr_set(br->dev, &attr);
+	if (err)
+		return err;
+
+	br->ageing_time = t;
+	mod_timer(&br->gc_timer, jiffies);
+
+	return 0;
+}
+
 void __br_set_forward_delay(struct net_bridge *br, unsigned long t)
 {
 	br->bridge_forward_delay = t;
@@ -576,17 +600,12 @@ void __br_set_forward_delay(struct net_bridge *br, unsigned long t)
 int br_set_forward_delay(struct net_bridge *br, unsigned long val)
 {
 	unsigned long t = clock_t_to_jiffies(val);
-	int err = -ERANGE;
+
+	if (t < BR_MIN_FORWARD_DELAY || t > BR_MAX_FORWARD_DELAY)
+		return -ERANGE;
 
 	spin_lock_bh(&br->lock);
-	if (br->stp_enabled != BR_NO_STP &&
-	    (t < BR_MIN_FORWARD_DELAY || t > BR_MAX_FORWARD_DELAY))
-		goto unlock;
-
 	__br_set_forward_delay(br, t);
-	err = 0;
-
-unlock:
 	spin_unlock_bh(&br->lock);
-	return err;
+	return 0;
 }

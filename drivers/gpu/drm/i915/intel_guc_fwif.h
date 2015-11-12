@@ -32,17 +32,16 @@
  * EDITING THIS FILE IS THEREFORE NOT RECOMMENDED - YOUR CHANGES MAY BE LOST.
  */
 
-#define GFXCORE_FAMILY_GEN8		11
 #define GFXCORE_FAMILY_GEN9		12
-#define GFXCORE_FAMILY_FORCE_ULONG	0x7fffffff
+#define GFXCORE_FAMILY_UNKNOWN		0x7fffffff
 
-#define GUC_CTX_PRIORITY_CRITICAL	0
+#define GUC_CTX_PRIORITY_KMD_HIGH	0
 #define GUC_CTX_PRIORITY_HIGH		1
-#define GUC_CTX_PRIORITY_NORMAL		2
-#define GUC_CTX_PRIORITY_LOW		3
+#define GUC_CTX_PRIORITY_KMD_NORMAL	2
+#define GUC_CTX_PRIORITY_NORMAL		3
 
 #define GUC_MAX_GPU_CONTEXTS		1024
-#define	GUC_INVALID_CTX_ID		(GUC_MAX_GPU_CONTEXTS + 1)
+#define	GUC_INVALID_CTX_ID		GUC_MAX_GPU_CONTEXTS
 
 /* Work queue item header definitions */
 #define WQ_STATUS_ACTIVE		1
@@ -76,6 +75,7 @@
 #define GUC_CTX_DESC_ATTR_RESET		(1 << 4)
 #define GUC_CTX_DESC_ATTR_WQLOCKED	(1 << 5)
 #define GUC_CTX_DESC_ATTR_PCH		(1 << 6)
+#define GUC_CTX_DESC_ATTR_TERMINATED	(1 << 7)
 
 /* The guc control data is 10 DWORDs */
 #define GUC_CTL_CTXINFO			0
@@ -108,6 +108,7 @@
 #define   GUC_CTL_DISABLE_SCHEDULER	(1 << 4)
 #define   GUC_CTL_PREEMPTION_LOG	(1 << 5)
 #define   GUC_CTL_ENABLE_SLPC		(1 << 7)
+#define   GUC_CTL_RESET_ON_PREMPT_FAILURE	(1 << 8)
 #define GUC_CTL_DEBUG			8
 #define   GUC_LOG_VERBOSITY_SHIFT	0
 #define   GUC_LOG_VERBOSITY_LOW		(0 << GUC_LOG_VERBOSITY_SHIFT)
@@ -117,8 +118,9 @@
 /* Verbosity range-check limits, without the shift */
 #define	  GUC_LOG_VERBOSITY_MIN		0
 #define	  GUC_LOG_VERBOSITY_MAX		3
+#define GUC_CTL_RSRVD			9
 
-#define GUC_CTL_MAX_DWORDS		(GUC_CTL_DEBUG + 1)
+#define GUC_CTL_MAX_DWORDS		(GUC_CTL_RSRVD + 1)
 
 struct guc_doorbell_info {
 	u32 db_status;
@@ -208,11 +210,22 @@ struct guc_context_desc {
 
 	u32 engine_presence;
 
-	u32 reserved0[1];
+	u8 engine_suspended;
+
+	u8 reserved0[3];
 	u64 reserved1[1];
 
 	u64 desc_private;
 } __packed;
+
+#define GUC_FORCEWAKE_RENDER	(1 << 0)
+#define GUC_FORCEWAKE_MEDIA	(1 << 1)
+
+#define GUC_POWER_UNSPECIFIED	0
+#define GUC_POWER_D0		1
+#define GUC_POWER_D1		2
+#define GUC_POWER_D2		3
+#define GUC_POWER_D3		4
 
 /* This Action will be programmed in C180 - SOFT_SCRATCH_O_REG */
 enum host2guc_action {
@@ -220,6 +233,8 @@ enum host2guc_action {
 	HOST2GUC_ACTION_SAMPLE_FORCEWAKE = 0x6,
 	HOST2GUC_ACTION_ALLOCATE_DOORBELL = 0x10,
 	HOST2GUC_ACTION_DEALLOCATE_DOORBELL = 0x20,
+	HOST2GUC_ACTION_ENTER_S_STATE = 0x501,
+	HOST2GUC_ACTION_EXIT_S_STATE = 0x502,
 	HOST2GUC_ACTION_SLPC_REQUEST = 0x3003,
 	HOST2GUC_ACTION_LIMIT
 };

@@ -19,6 +19,8 @@
 #include <linux/mutex.h>
 #include <linux/mii.h>
 #include <linux/ethtool.h>
+#include <linux/types.h>
+#include <linux/bitops.h>
 
 #include <net/dsa.h>
 
@@ -50,6 +52,60 @@ struct bcm_sf2_port_status {
 	u32 vlan_ctl_mask;
 };
 
+struct bcm_sf2_arl_entry {
+	u8 port;
+	u8 mac[ETH_ALEN];
+	u16 vid;
+	u8 is_valid:1;
+	u8 is_age:1;
+	u8 is_static:1;
+};
+
+static inline void bcm_sf2_mac_from_u64(u64 src, u8 *dst)
+{
+	unsigned int i;
+
+	for (i = 0; i < ETH_ALEN; i++)
+		dst[ETH_ALEN - 1 - i] = (src >> (8 * i)) & 0xff;
+}
+
+static inline u64 bcm_sf2_mac_to_u64(const u8 *src)
+{
+	unsigned int i;
+	u64 dst = 0;
+
+	for (i = 0; i < ETH_ALEN; i++)
+		dst |= (u64)src[ETH_ALEN - 1 - i] << (8 * i);
+
+	return dst;
+}
+
+static inline void bcm_sf2_arl_to_entry(struct bcm_sf2_arl_entry *ent,
+					u64 mac_vid, u32 fwd_entry)
+{
+	memset(ent, 0, sizeof(*ent));
+	ent->port = fwd_entry & PORTID_MASK;
+	ent->is_valid = !!(fwd_entry & ARL_VALID);
+	ent->is_age = !!(fwd_entry & ARL_AGE);
+	ent->is_static = !!(fwd_entry & ARL_STATIC);
+	bcm_sf2_mac_from_u64(mac_vid, ent->mac);
+	ent->vid = mac_vid >> VID_SHIFT;
+}
+
+static inline void bcm_sf2_arl_from_entry(u64 *mac_vid, u32 *fwd_entry,
+					  const struct bcm_sf2_arl_entry *ent)
+{
+	*mac_vid = bcm_sf2_mac_to_u64(ent->mac);
+	*mac_vid |= (u64)(ent->vid & VID_MASK) << VID_SHIFT;
+	*fwd_entry = ent->port & PORTID_MASK;
+	if (ent->is_valid)
+		*fwd_entry |= ARL_VALID;
+	if (ent->is_static)
+		*fwd_entry |= ARL_STATIC;
+	if (ent->is_age)
+		*fwd_entry |= ARL_AGE;
+}
+
 struct bcm_sf2_priv {
 	/* Base registers, keep those in order with BCM_SF2_REGS_NAME */
 	void __iomem			*core;
@@ -78,6 +134,12 @@ struct bcm_sf2_priv {
 
 	/* Mask of ports enabled for Wake-on-LAN */
 	u32				wol_ports_mask;
+
+	/* MoCA port location */
+	int				moca_port;
+
+	/* Bitmask of ports having an integrated PHY */
+	unsigned int			int_phy_mask;
 };
 
 struct bcm_sf2_hw_stats {

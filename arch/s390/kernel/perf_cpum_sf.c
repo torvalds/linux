@@ -1019,11 +1019,13 @@ static int perf_push_sample(struct perf_event *event, struct sf_raw_sample *sfr)
 		break;
 	}
 
-	/* The host-program-parameter (hpp) contains the pid of
-	 * the CPU thread as set by sie64a() in entry.S.
-	 * If non-zero assume a guest sample.
+	/*
+	 * A non-zero guest program parameter indicates a guest
+	 * sample.
+	 * Note that some early samples might be misaccounted to
+	 * the host.
 	 */
-	if (sfr->basic.hpp)
+	if (sfr->basic.gpp)
 		sde_regs->in_guest = 1;
 
 	overflow = 0;

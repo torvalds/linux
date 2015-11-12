@@ -36,15 +36,22 @@ static struct class *most_class;
 static struct device *class_glue_dir;
 static struct ida mdev_id;
 static int modref;
+static int dummy_num_buffers;
+
+struct most_c_aim_obj {
+	struct most_aim *ptr;
+	int refs;
+	int num_buffers;
+};
 
 struct most_c_obj {
 	struct kobject kobj;
 	struct completion cleanup;
 	atomic_t mbo_ref;
 	atomic_t mbo_nq_level;
-	uint16_t channel_id;
+	u16 channel_id;
 	bool is_poisoned;
-	bool is_started;
+	struct mutex start_mutex;
 	int is_starving;
 	struct most_interface *iface;
 	struct most_inst_obj *inst;
@@ -55,13 +62,14 @@ struct most_c_obj {
 	spinlock_t fifo_lock;
 	struct list_head halt_fifo;
 	struct list_head list;
-	struct most_aim *first_aim;
-	struct most_aim *second_aim;
+	struct most_c_aim_obj aim0;
+	struct most_c_aim_obj aim1;
 	struct list_head trash_fifo;
 	struct task_struct *hdm_enqueue_task;
 	struct mutex stop_task_mutex;
 	wait_queue_head_t hdm_fifo_wq;
 };
+
 #define to_c_obj(d) container_of(d, struct most_c_obj, kobj)
 
 struct most_inst_obj {
@@ -73,6 +81,7 @@ struct most_inst_obj {
 	struct kobject kobj;
 	struct list_head list;
 };
+
 #define to_inst_obj(d) container_of(d, struct most_inst_obj, kobj)
 
 /**
@@ -108,6 +117,7 @@ struct most_c_attr {
 			 const char *buf,
 			 size_t count);
 };
+
 #define to_channel_attr(a) container_of(a, struct most_c_attr, attr)
 
 #define MOST_CHNL_ATTR(_name, _mode, _show, _store) \
@@ -190,8 +200,7 @@ static void flush_channel_fifos(struct most_c_obj *c)
 	list_for_each_entry_safe(mbo, tmp, &c->fifo, list) {
 		list_del(&mbo->list);
 		spin_unlock_irqrestore(&c->fifo_lock, flags);
-		if (likely(mbo))
-			most_free_mbo_coherent(mbo);
+		most_free_mbo_coherent(mbo);
 		spin_lock_irqsave(&c->fifo_lock, flags);
 	}
 	spin_unlock_irqrestore(&c->fifo_lock, flags);
@@ -200,8 +209,7 @@ static void flush_channel_fifos(struct most_c_obj *c)
 	list_for_each_entry_safe(mbo, tmp, &c->halt_fifo, list) {
 		list_del(&mbo->list);
 		spin_unlock_irqrestore(&c->fifo_lock, hf_flags);
-		if (likely(mbo))
-			most_free_mbo_coherent(mbo);
+		most_free_mbo_coherent(mbo);
 		spin_lock_irqsave(&c->fifo_lock, hf_flags);
 	}
 	spin_unlock_irqrestore(&c->fifo_lock, hf_flags);
@@ -242,8 +250,8 @@ static void most_channel_release(struct kobject *kobj)
 }
 
 static ssize_t show_available_directions(struct most_c_obj *c,
-		struct most_c_attr *attr,
-		char *buf)
+					 struct most_c_attr *attr,
+					 char *buf)
 {
 	unsigned int i = c->channel_id;
 
@@ -326,7 +334,6 @@ static ssize_t show_channel_starving(struct most_c_obj *c,
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->is_starving);
 }
 
-
 #define create_show_channel_attribute(val) \
 	static MOST_CHNL_ATTR(val, S_IRUGO, show_##val, NULL)
 
@@ -392,11 +399,11 @@ static ssize_t store_set_direction(struct most_c_obj *c,
 				   const char *buf,
 				   size_t count)
 {
-	if (!strcmp(buf, "dir_rx\n"))
+	if (!strcmp(buf, "dir_rx\n")) {
 		c->cfg.direction = MOST_CH_RX;
-	else if (!strcmp(buf, "dir_tx\n"))
+	} else if (!strcmp(buf, "dir_tx\n")) {
 		c->cfg.direction = MOST_CH_TX;
-	else {
+	} else {
 		pr_info("WARN: invalid attribute settings\n");
 		return -EINVAL;
 	}
@@ -423,15 +430,15 @@ static ssize_t store_set_datatype(struct most_c_obj *c,
 				  const char *buf,
 				  size_t count)
 {
-	if (!strcmp(buf, "control\n"))
+	if (!strcmp(buf, "control\n")) {
 		c->cfg.data_type = MOST_CH_CONTROL;
-	else if (!strcmp(buf, "async\n"))
+	} else if (!strcmp(buf, "async\n")) {
 		c->cfg.data_type = MOST_CH_ASYNC;
-	else if (!strcmp(buf, "sync\n"))
+	} else if (!strcmp(buf, "sync\n")) {
 		c->cfg.data_type = MOST_CH_SYNC;
-	else if (!strcmp(buf, "isoc_avp\n"))
+	} else if (!strcmp(buf, "isoc_avp\n")) {
 		c->cfg.data_type = MOST_CH_ISOC_AVP;
-	else {
+	} else {
 		pr_info("WARN: invalid attribute settings\n");
 		return -EINVAL;
 	}
@@ -487,7 +494,6 @@ create_channel_attribute(set_direction);
 create_channel_attribute(set_datatype);
 create_channel_attribute(set_subbuffer_size);
 create_channel_attribute(set_packets_per_xact);
-
 
 /**
  * most_channel_def_attrs - array of default attributes of channel object
@@ -554,12 +560,12 @@ create_most_c_obj(const char *name, struct kobject *parent)
  */
 static void destroy_most_c_obj(struct most_c_obj *c)
 {
-	if (c->first_aim)
-		c->first_aim->disconnect_channel(c->iface, c->channel_id);
-	if (c->second_aim)
-		c->second_aim->disconnect_channel(c->iface, c->channel_id);
-	c->first_aim = NULL;
-	c->second_aim = NULL;
+	if (c->aim0.ptr)
+		c->aim0.ptr->disconnect_channel(c->iface, c->channel_id);
+	if (c->aim1.ptr)
+		c->aim1.ptr->disconnect_channel(c->iface, c->channel_id);
+	c->aim0.ptr = NULL;
+	c->aim1.ptr = NULL;
 
 	mutex_lock(&deregister_mutex);
 	flush_trash_fifo(c);
@@ -593,6 +599,7 @@ struct most_inst_attribute {
 			 const char *buf,
 			 size_t count);
 };
+
 #define to_instance_attr(a) \
 	container_of(a, struct most_inst_attribute, attr)
 
@@ -715,7 +722,6 @@ static struct kobj_type most_inst_ktype = {
 
 static struct kset *most_inst_kset;
 
-
 /**
  * create_most_inst_obj - creates an instance object
  * @name: name of the object to be created
@@ -775,10 +781,10 @@ struct most_aim_obj {
 	char add_link[STRING_SIZE];
 	char remove_link[STRING_SIZE];
 };
+
 #define to_aim_obj(d) container_of(d, struct most_aim_obj, kobj)
 
 static struct list_head aim_list;
-
 
 /**
  * struct most_aim_attribute - to access the attributes of AIM object
@@ -796,6 +802,7 @@ struct most_aim_attribute {
 			 const char *buf,
 			 size_t count);
 };
+
 #define to_aim_attr(a) container_of(a, struct most_aim_attribute, attr)
 
 /**
@@ -933,7 +940,7 @@ most_c_obj *get_channel_by_name(char *mdev, char *mdev_ch)
 			break;
 		}
 	}
-	if (unlikely(2 > found))
+	if (unlikely(found < 2))
 		return ERR_PTR(-EIO);
 	return c;
 }
@@ -983,7 +990,8 @@ static ssize_t store_add_link(struct most_aim_obj *aim_obj,
 		return ret;
 
 	if (!mdev_devnod || *mdev_devnod == 0) {
-		snprintf(devnod_buf, sizeof(devnod_buf), "%s-%s", mdev, mdev_ch);
+		snprintf(devnod_buf, sizeof(devnod_buf), "%s-%s", mdev,
+			 mdev_ch);
 		mdev_devnod = devnod_buf;
 	}
 
@@ -991,10 +999,10 @@ static ssize_t store_add_link(struct most_aim_obj *aim_obj,
 	if (IS_ERR(c))
 		return -ENODEV;
 
-	if (!c->first_aim)
-		aim_ptr = &c->first_aim;
-	else if (!c->second_aim)
-		aim_ptr = &c->second_aim;
+	if (!c->aim0.ptr)
+		aim_ptr = &c->aim0.ptr;
+	else if (!c->aim1.ptr)
+		aim_ptr = &c->aim1.ptr;
 	else
 		return -ENOSPC;
 
@@ -1048,17 +1056,18 @@ static ssize_t store_remove_link(struct most_aim_obj *aim_obj,
 	if (IS_ERR(c))
 		return -ENODEV;
 
-	if (c->first_aim == aim_obj->driver)
-		c->first_aim = NULL;
-	if (c->second_aim == aim_obj->driver)
-		c->second_aim = NULL;
+	if (c->aim0.ptr == aim_obj->driver)
+		c->aim0.ptr = NULL;
+	if (c->aim1.ptr == aim_obj->driver)
+		c->aim1.ptr = NULL;
 	if (aim_obj->driver->disconnect_channel(c->iface, c->channel_id))
 		return -EIO;
 	return len;
 }
 
 static struct most_aim_attribute most_aim_attr_remove_link =
-	__ATTR(remove_link, S_IRUGO | S_IWUSR, show_remove_link, store_remove_link);
+	__ATTR(remove_link, S_IRUGO | S_IWUSR, show_remove_link,
+	       store_remove_link);
 
 static struct attribute *most_aim_def_attrs[] = {
 	&most_aim_attr_add_link.attr,
@@ -1112,7 +1121,6 @@ static void destroy_most_aim_obj(struct most_aim_obj *p)
 {
 	kobject_put(&p->kobj);
 }
-
 
 /*		     ___       ___
  *		     ___C O R E___
@@ -1176,8 +1184,8 @@ static int hdm_enqueue_thread(void *data)
 
 	while (likely(!kthread_should_stop())) {
 		wait_event_interruptible(c->hdm_fifo_wq,
-					 (mbo = get_hdm_mbo(c))
-					 || kthread_should_stop());
+					 (mbo = get_hdm_mbo(c)) ||
+					 kthread_should_stop());
 
 		if (unlikely(!mbo))
 			continue;
@@ -1199,7 +1207,8 @@ static int hdm_enqueue_thread(void *data)
 static int run_enqueue_thread(struct most_c_obj *c, int channel_id)
 {
 	struct task_struct *task =
-		kthread_run(&hdm_enqueue_thread, c, "hdm_fifo_%d", channel_id);
+		kthread_run(hdm_enqueue_thread, c, "hdm_fifo_%d",
+			    channel_id);
 
 	if (IS_ERR(task))
 		return PTR_ERR(task);
@@ -1233,13 +1242,15 @@ static void arm_mbo(struct mbo *mbo)
 	}
 
 	spin_lock_irqsave(&c->fifo_lock, flags);
+	++*mbo->num_buffers_ptr;
 	list_add_tail(&mbo->list, &c->fifo);
 	spin_unlock_irqrestore(&c->fifo_lock, flags);
 
-	if (c->second_aim && c->second_aim->tx_completion)
-		c->second_aim->tx_completion(c->iface, c->channel_id);
-	if (c->first_aim && c->first_aim->tx_completion)
-		c->first_aim->tx_completion(c->iface, c->channel_id);
+	if (c->aim0.refs && c->aim0.ptr->tx_completion)
+		c->aim0.ptr->tx_completion(c->iface, c->channel_id);
+
+	if (c->aim1.refs && c->aim1.ptr->tx_completion)
+		c->aim1.ptr->tx_completion(c->iface, c->channel_id);
 }
 
 /**
@@ -1285,6 +1296,7 @@ static int arm_mbo_chain(struct most_c_obj *c, int dir,
 			goto _error1;
 		}
 		mbo->complete = compl;
+		mbo->num_buffers_ptr = &dummy_num_buffers;
 		if (dir == MOST_CH_RX) {
 			nq_hdm_mbo(mbo);
 			atomic_inc(&c->mbo_nq_level);
@@ -1341,7 +1353,7 @@ static void most_write_completion(struct mbo *mbo)
 	c = mbo->context;
 	if (mbo->status == MBO_E_INVAL)
 		pr_info("WARN: Tx MBO status: invalid\n");
-	if (unlikely((c->is_poisoned == true) || (mbo->status == MBO_E_CLOSE)))
+	if (unlikely(c->is_poisoned || (mbo->status == MBO_E_CLOSE)))
 		trash_mbo(mbo);
 	else
 		arm_mbo(mbo);
@@ -1375,6 +1387,22 @@ most_c_obj *get_channel_by_iface(struct most_interface *iface, int id)
 	return i->channel[id];
 }
 
+int channel_has_mbo(struct most_interface *iface, int id)
+{
+	struct most_c_obj *c = get_channel_by_iface(iface, id);
+	unsigned long flags;
+	int empty;
+
+	if (unlikely(!c))
+		return -EINVAL;
+
+	spin_lock_irqsave(&c->fifo_lock, flags);
+	empty = list_empty(&c->fifo);
+	spin_unlock_irqrestore(&c->fifo_lock, flags);
+	return !empty;
+}
+EXPORT_SYMBOL_GPL(channel_has_mbo);
+
 /**
  * most_get_mbo - get pointer to an MBO of pool
  * @iface: pointer to interface instance
@@ -1383,27 +1411,44 @@ most_c_obj *get_channel_by_iface(struct most_interface *iface, int id)
  * This attempts to get a free buffer out of the channel fifo.
  * Returns a pointer to MBO on success or NULL otherwise.
  */
-struct mbo *most_get_mbo(struct most_interface *iface, int id)
+struct mbo *most_get_mbo(struct most_interface *iface, int id,
+			 struct most_aim *aim)
 {
 	struct mbo *mbo;
 	struct most_c_obj *c;
 	unsigned long flags;
+	int *num_buffers_ptr;
 
 	c = get_channel_by_iface(iface, id);
 	if (unlikely(!c))
 		return NULL;
+
+	if (c->aim0.refs && c->aim1.refs &&
+	    ((aim == c->aim0.ptr && c->aim0.num_buffers <= 0) ||
+	     (aim == c->aim1.ptr && c->aim1.num_buffers <= 0)))
+		return NULL;
+
+	if (aim == c->aim0.ptr)
+		num_buffers_ptr = &c->aim0.num_buffers;
+	else if (aim == c->aim1.ptr)
+		num_buffers_ptr = &c->aim1.num_buffers;
+	else
+		num_buffers_ptr = &dummy_num_buffers;
+
 	spin_lock_irqsave(&c->fifo_lock, flags);
 	if (list_empty(&c->fifo)) {
 		spin_unlock_irqrestore(&c->fifo_lock, flags);
 		return NULL;
 	}
 	mbo = list_pop_mbo(&c->fifo);
+	--*num_buffers_ptr;
 	spin_unlock_irqrestore(&c->fifo_lock, flags);
+
+	mbo->num_buffers_ptr = num_buffers_ptr;
 	mbo->buffer_length = c->cfg.buffer_size;
 	return mbo;
 }
 EXPORT_SYMBOL_GPL(most_get_mbo);
-
 
 /**
  * most_put_mbo - return buffer to pool
@@ -1443,11 +1488,12 @@ EXPORT_SYMBOL_GPL(most_put_mbo);
  */
 static void most_read_completion(struct mbo *mbo)
 {
-	struct most_c_obj *c;
+	struct most_c_obj *c = mbo->context;
 
-	c = mbo->context;
-	if (unlikely((c->is_poisoned == true) || (mbo->status == MBO_E_CLOSE)))
-		goto release_mbo;
+	if (unlikely(c->is_poisoned || (mbo->status == MBO_E_CLOSE))) {
+		trash_mbo(mbo);
+		return;
+	}
 
 	if (mbo->status == MBO_E_INVAL) {
 		nq_hdm_mbo(mbo);
@@ -1460,16 +1506,15 @@ static void most_read_completion(struct mbo *mbo)
 		c->is_starving = 1;
 	}
 
-	if (c->first_aim && c->first_aim->rx_completion &&
-	    c->first_aim->rx_completion(mbo) == 0)
+	if (c->aim0.refs && c->aim0.ptr->rx_completion &&
+	    c->aim0.ptr->rx_completion(mbo) == 0)
 		return;
-	if (c->second_aim && c->second_aim->rx_completion &&
-	    c->second_aim->rx_completion(mbo) == 0)
+
+	if (c->aim1.refs && c->aim1.ptr->rx_completion &&
+	    c->aim1.ptr->rx_completion(mbo) == 0)
 		return;
-	pr_info("WARN: no driver linked with this channel\n");
-	mbo->status = MBO_E_CLOSE;
-release_mbo:
-	trash_mbo(mbo);
+
+	most_put_mbo(mbo);
 }
 
 /**
@@ -1482,7 +1527,8 @@ release_mbo:
  *
  * Returns 0 on success or error code otherwise.
  */
-int most_start_channel(struct most_interface *iface, int id)
+int most_start_channel(struct most_interface *iface, int id,
+		       struct most_aim *aim)
 {
 	int num_buffer;
 	int ret;
@@ -1491,11 +1537,13 @@ int most_start_channel(struct most_interface *iface, int id)
 	if (unlikely(!c))
 		return -EINVAL;
 
-	if (c->is_started)
-		return -EBUSY;
+	mutex_lock(&c->start_mutex);
+	if (c->aim0.refs + c->aim1.refs > 0)
+		goto out; /* already started by other aim */
 
 	if (!try_module_get(iface->mod)) {
 		pr_info("failed to acquire HDM lock\n");
+		mutex_unlock(&c->start_mutex);
 		return -ENOLCK;
 	}
 	modref++;
@@ -1515,7 +1563,7 @@ int most_start_channel(struct most_interface *iface, int id)
 	else
 		num_buffer = arm_mbo_chain(c, c->cfg.direction,
 					   most_write_completion);
-	if (unlikely(0 == num_buffer)) {
+	if (unlikely(!num_buffer)) {
 		pr_info("failed to allocate memory\n");
 		ret = -ENOMEM;
 		goto error;
@@ -1525,14 +1573,24 @@ int most_start_channel(struct most_interface *iface, int id)
 	if (ret)
 		goto error;
 
-	c->is_started = true;
 	c->is_starving = 0;
+	c->aim0.num_buffers = c->cfg.num_buffers / 2;
+	c->aim1.num_buffers = c->cfg.num_buffers - c->aim0.num_buffers;
 	atomic_set(&c->mbo_ref, num_buffer);
+
+out:
+	if (aim == c->aim0.ptr)
+		c->aim0.refs++;
+	if (aim == c->aim1.ptr)
+		c->aim1.refs++;
+	mutex_unlock(&c->start_mutex);
 	return 0;
+
 error:
 	if (iface->mod)
 		module_put(iface->mod);
 	modref--;
+	mutex_unlock(&c->start_mutex);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(most_start_channel);
@@ -1542,7 +1600,8 @@ EXPORT_SYMBOL_GPL(most_start_channel);
  * @iface: pointer to interface instance
  * @id: channel ID
  */
-int most_stop_channel(struct most_interface *iface, int id)
+int most_stop_channel(struct most_interface *iface, int id,
+		      struct most_aim *aim)
 {
 	struct most_c_obj *c;
 
@@ -1554,13 +1613,9 @@ int most_stop_channel(struct most_interface *iface, int id)
 	if (unlikely(!c))
 		return -EINVAL;
 
-	if (!c->is_started)
-		return 0;
-
-	/* FIXME: we need to know calling AIM to reset only one link */
-	c->first_aim = NULL;
-	c->second_aim = NULL;
-	/* do not go into recursion calling aim->disconnect_channel */
+	mutex_lock(&c->start_mutex);
+	if (c->aim0.refs + c->aim1.refs >= 2)
+		goto out;
 
 	mutex_lock(&c->stop_task_mutex);
 	if (c->hdm_enqueue_task)
@@ -1571,6 +1626,7 @@ int most_stop_channel(struct most_interface *iface, int id)
 	mutex_lock(&deregister_mutex);
 	if (atomic_read(&c->inst->tainted)) {
 		mutex_unlock(&deregister_mutex);
+		mutex_unlock(&c->start_mutex);
 		return -ENODEV;
 	}
 	mutex_unlock(&deregister_mutex);
@@ -1584,6 +1640,7 @@ int most_stop_channel(struct most_interface *iface, int id)
 	if (c->iface->poison_channel(c->iface, c->channel_id)) {
 		pr_err("Cannot stop channel %d of mdev %s\n", c->channel_id,
 		       c->iface->description);
+		mutex_unlock(&c->start_mutex);
 		return -EAGAIN;
 	}
 	flush_trash_fifo(c);
@@ -1592,13 +1649,20 @@ int most_stop_channel(struct most_interface *iface, int id)
 #ifdef CMPL_INTERRUPTIBLE
 	if (wait_for_completion_interruptible(&c->cleanup)) {
 		pr_info("Interrupted while clean up ch %d\n", c->channel_id);
+		mutex_unlock(&c->start_mutex);
 		return -EINTR;
 	}
 #else
 	wait_for_completion(&c->cleanup);
 #endif
 	c->is_poisoned = false;
-	c->is_started = false;
+
+out:
+	if (aim == c->aim0.ptr)
+		c->aim0.refs--;
+	if (aim == c->aim1.ptr)
+		c->aim1.refs--;
+	mutex_unlock(&c->start_mutex);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(most_stop_channel);
@@ -1651,13 +1715,13 @@ int most_deregister_aim(struct most_aim *aim)
 	}
 	list_for_each_entry_safe(i, i_tmp, &instance_list, list) {
 		list_for_each_entry_safe(c, tmp, &i->channel_list, list) {
-			if (c->first_aim == aim || c->second_aim == aim)
+			if (c->aim0.ptr == aim || c->aim1.ptr == aim)
 				aim->disconnect_channel(
 					c->iface, c->channel_id);
-			if (c->first_aim == aim)
-				c->first_aim = NULL;
-			if (c->second_aim == aim)
-				c->second_aim = NULL;
+			if (c->aim0.ptr == aim)
+				c->aim0.ptr = NULL;
+			if (c->aim1.ptr == aim)
+				c->aim1.ptr = NULL;
 		}
 	}
 	list_del(&aim_obj->list);
@@ -1732,7 +1796,6 @@ struct kobject *most_register_interface(struct most_interface *iface)
 		c->keep_mbo = false;
 		c->enqueue_halt = false;
 		c->is_poisoned = false;
-		c->is_started = false;
 		c->cfg.direction = 0;
 		c->cfg.data_type = 0;
 		c->cfg.num_buffers = 0;
@@ -1745,6 +1808,7 @@ struct kobject *most_register_interface(struct most_interface *iface)
 		INIT_LIST_HEAD(&c->halt_fifo);
 		init_completion(&c->cleanup);
 		atomic_set(&c->mbo_ref, 0);
+		mutex_init(&c->start_mutex);
 		mutex_init(&c->stop_task_mutex);
 		list_add_tail(&c->list, &inst->channel_list);
 	}
@@ -1791,7 +1855,7 @@ void most_deregister_interface(struct most_interface *iface)
 	}
 
 	list_for_each_entry(c, &i->channel_list, list) {
-		if (!c->is_started)
+		if (c->aim0.refs + c->aim1.refs <= 0)
 			continue;
 
 		mutex_lock(&c->stop_task_mutex);

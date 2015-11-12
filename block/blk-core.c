@@ -554,15 +554,15 @@ void blk_cleanup_queue(struct request_queue *q)
 	 * Drain all requests queued before DYING marking. Set DEAD flag to
 	 * prevent that q->request_fn() gets invoked after draining finished.
 	 */
-	if (q->mq_ops) {
-		blk_mq_freeze_queue(q);
-		spin_lock_irq(lock);
-	} else {
-		spin_lock_irq(lock);
+	blk_freeze_queue(q);
+	spin_lock_irq(lock);
+	if (!q->mq_ops)
 		__blk_drain_queue(q, true);
-	}
 	queue_flag_set(QUEUE_FLAG_DEAD, q);
 	spin_unlock_irq(lock);
+
+	/* for synchronous bio-based driver finish in-flight integrity i/o */
+	blk_flush_integrity();
 
 	/* @q won't process any more request, flush async actions */
 	del_timer_sync(&q->backing_dev_info.laptop_mode_wb_timer);
@@ -570,13 +570,14 @@ void blk_cleanup_queue(struct request_queue *q)
 
 	if (q->mq_ops)
 		blk_mq_free_queue(q);
+	percpu_ref_exit(&q->q_usage_counter);
 
 	spin_lock_irq(lock);
 	if (q->queue_lock != &q->__queue_lock)
 		q->queue_lock = &q->__queue_lock;
 	spin_unlock_irq(lock);
 
-	bdi_destroy(&q->backing_dev_info);
+	bdi_unregister(&q->backing_dev_info);
 
 	/* @q is and will stay empty, shutdown and put */
 	blk_put_queue(q);
@@ -628,6 +629,40 @@ struct request_queue *blk_alloc_queue(gfp_t gfp_mask)
 	return blk_alloc_queue_node(gfp_mask, NUMA_NO_NODE);
 }
 EXPORT_SYMBOL(blk_alloc_queue);
+
+int blk_queue_enter(struct request_queue *q, gfp_t gfp)
+{
+	while (true) {
+		int ret;
+
+		if (percpu_ref_tryget_live(&q->q_usage_counter))
+			return 0;
+
+		if (!gfpflags_allow_blocking(gfp))
+			return -EBUSY;
+
+		ret = wait_event_interruptible(q->mq_freeze_wq,
+				!atomic_read(&q->mq_freeze_depth) ||
+				blk_queue_dying(q));
+		if (blk_queue_dying(q))
+			return -ENODEV;
+		if (ret)
+			return ret;
+	}
+}
+
+void blk_queue_exit(struct request_queue *q)
+{
+	percpu_ref_put(&q->q_usage_counter);
+}
+
+static void blk_queue_usage_counter_release(struct percpu_ref *ref)
+{
+	struct request_queue *q =
+		container_of(ref, struct request_queue, q_usage_counter);
+
+	wake_up_all(&q->mq_freeze_wq);
+}
 
 struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 {
@@ -690,11 +725,22 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 
 	init_waitqueue_head(&q->mq_freeze_wq);
 
-	if (blkcg_init_queue(q))
+	/*
+	 * Init percpu_ref in atomic mode so that it's faster to shutdown.
+	 * See blk_register_queue() for details.
+	 */
+	if (percpu_ref_init(&q->q_usage_counter,
+				blk_queue_usage_counter_release,
+				PERCPU_REF_INIT_ATOMIC, GFP_KERNEL))
 		goto fail_bdi;
+
+	if (blkcg_init_queue(q))
+		goto fail_ref;
 
 	return q;
 
+fail_ref:
+	percpu_ref_exit(&q->q_usage_counter);
 fail_bdi:
 	bdi_destroy(&q->backing_dev_info);
 fail_split:
@@ -1160,8 +1206,8 @@ rq_starved:
  * @bio: bio to allocate request for (can be %NULL)
  * @gfp_mask: allocation mask
  *
- * Get a free request from @q.  If %__GFP_WAIT is set in @gfp_mask, this
- * function keeps retrying under memory pressure and fails iff @q is dead.
+ * Get a free request from @q.  If %__GFP_DIRECT_RECLAIM is set in @gfp_mask,
+ * this function keeps retrying under memory pressure and fails iff @q is dead.
  *
  * Must be called with @q->queue_lock held and,
  * Returns ERR_PTR on failure, with @q->queue_lock held.
@@ -1181,7 +1227,7 @@ retry:
 	if (!IS_ERR(rq))
 		return rq;
 
-	if (!(gfp_mask & __GFP_WAIT) || unlikely(blk_queue_dying(q))) {
+	if (!gfpflags_allow_blocking(gfp_mask) || unlikely(blk_queue_dying(q))) {
 		blk_put_rl(rl);
 		return rq;
 	}
@@ -1259,11 +1305,11 @@ EXPORT_SYMBOL(blk_get_request);
  * BUG.
  *
  * WARNING: When allocating/cloning a bio-chain, careful consideration should be
- * given to how you allocate bios. In particular, you cannot use __GFP_WAIT for
- * anything but the first bio in the chain. Otherwise you risk waiting for IO
- * completion of a bio that hasn't been submitted yet, thus resulting in a
- * deadlock. Alternatively bios should be allocated using bio_kmalloc() instead
- * of bio_alloc(), as that avoids the mempool deadlock.
+ * given to how you allocate bios. In particular, you cannot use
+ * __GFP_DIRECT_RECLAIM for anything but the first bio in the chain. Otherwise
+ * you risk waiting for IO completion of a bio that hasn't been submitted yet,
+ * thus resulting in a deadlock. Alternatively bios should be allocated using
+ * bio_kmalloc() instead of bio_alloc(), as that avoids the mempool deadlock.
  * If possible a big IO should be split into smaller parts when allocation
  * fails. Partial allocation should not be an error, or you risk a live-lock.
  */
@@ -1594,6 +1640,30 @@ out:
 	return ret;
 }
 
+unsigned int blk_plug_queued_count(struct request_queue *q)
+{
+	struct blk_plug *plug;
+	struct request *rq;
+	struct list_head *plug_list;
+	unsigned int ret = 0;
+
+	plug = current->plug;
+	if (!plug)
+		goto out;
+
+	if (q->mq_ops)
+		plug_list = &plug->mq_list;
+	else
+		plug_list = &plug->list;
+
+	list_for_each_entry(rq, plug_list, queuelist) {
+		if (rq->q == q)
+			ret++;
+	}
+out:
+	return ret;
+}
+
 void init_request_from_bio(struct request *req, struct bio *bio)
 {
 	req->cmd_type = REQ_TYPE_FS;
@@ -1641,9 +1711,11 @@ static void blk_queue_bio(struct request_queue *q, struct bio *bio)
 	 * Check if we can merge with the plugged list before grabbing
 	 * any locks.
 	 */
-	if (!blk_queue_nomerges(q) &&
-	    blk_attempt_plug_merge(q, bio, &request_count, NULL))
-		return;
+	if (!blk_queue_nomerges(q)) {
+		if (blk_attempt_plug_merge(q, bio, &request_count, NULL))
+			return;
+	} else
+		request_count = blk_plug_queued_count(q);
 
 	spin_lock_irq(q->queue_lock);
 
@@ -1966,9 +2038,19 @@ void generic_make_request(struct bio *bio)
 	do {
 		struct request_queue *q = bdev_get_queue(bio->bi_bdev);
 
-		q->make_request_fn(q, bio);
+		if (likely(blk_queue_enter(q, __GFP_DIRECT_RECLAIM) == 0)) {
 
-		bio = bio_list_pop(current->bio_list);
+			q->make_request_fn(q, bio);
+
+			blk_queue_exit(q);
+
+			bio = bio_list_pop(current->bio_list);
+		} else {
+			struct bio *bio_next = bio_list_pop(current->bio_list);
+
+			bio_io_error(bio);
+			bio = bio_next;
+		}
 	} while (bio);
 	current->bio_list = NULL; /* deactivate */
 }

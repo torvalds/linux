@@ -126,5 +126,5 @@ void __init kasan_init(void)
 	__flush_tlb_all();
 	init_task.kasan_depth = 0;
 
-	pr_info("Kernel address sanitizer initialized\n");
+	pr_info("KernelAddressSanitizer initialized\n");
 }

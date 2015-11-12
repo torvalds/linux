@@ -100,6 +100,15 @@
 		clock-frequency = <19200000>;
 	};
 
+	smem {
+		compatible = "qcom,smem";
+
+		memory-region = <&smem_region>;
+		qcom,rpm-msg-ram = <&rpm_msg_ram>;
+
+		hwlocks = <&tcsr_mutex 3>;
+	};
+
 	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -112,6 +121,11 @@
 			#interrupt-cells = <3>;
 			reg = <0xf9000000 0x1000>,
 			      <0xf9002000 0x1000>;
+		};
+
+		apcs: syscon@f9011000 {
+			compatible = "syscon";
+			reg = <0xf9011000 0x1000>;
 		};
 
 		timer@f9020000 {
@@ -228,6 +242,7 @@
 			compatible = "qcom,gcc-msm8974";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
+			#power-domain-cells = <1>;
 			reg = <0xfc400000 0x4000>;
 		};
 
@@ -240,6 +255,7 @@
 			compatible = "qcom,mmcc-msm8974";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
+			#power-domain-cells = <1>;
 			reg = <0xfd8c0000 0x6000>;
 		};
 
@@ -250,13 +266,9 @@
 			#hwlock-cells = <1>;
 		};
 
-		smem@fa00000 {
-			compatible = "qcom,smem";
-
-			memory-region = <&smem_region>;
+		rpm_msg_ram: memory@fc428000 {
+			compatible = "qcom,rpm-msg-ram";
 			reg = <0xfc428000 0x4000>;
-
-			hwlocks = <&tcsr_mutex 3>;
 		};
 
 		blsp1_uart2: serial@f991e000 {
@@ -308,7 +320,7 @@
 		};
 
 		blsp_i2c11: i2c@f9967000 {
-			status = "disable";
+			status = "disabled";
 			compatible = "qcom,i2c-qup-v2.1.1";
 			reg = <0xf9967000 0x1000>;
 			interrupts = <0 105 IRQ_TYPE_NONE>;
@@ -332,6 +344,75 @@
 			#size-cells = <0>;
 			interrupt-controller;
 			#interrupt-cells = <4>;
+		};
+	};
+
+	smd {
+		compatible = "qcom,smd";
+
+		rpm {
+			interrupts = <0 168 1>;
+			qcom,ipc = <&apcs 8 0>;
+			qcom,smd-edge = <15>;
+
+			rpm_requests {
+				compatible = "qcom,rpm-msm8974";
+				qcom,smd-channels = "rpm_requests";
+
+				pm8841-regulators {
+					compatible = "qcom,rpm-pm8841-regulators";
+
+					pm8841_s1: s1 {};
+					pm8841_s2: s2 {};
+					pm8841_s3: s3 {};
+					pm8841_s4: s4 {};
+					pm8841_s5: s5 {};
+					pm8841_s6: s6 {};
+					pm8841_s7: s7 {};
+					pm8841_s8: s8 {};
+				};
+
+				pm8941-regulators {
+					compatible = "qcom,rpm-pm8941-regulators";
+
+					pm8941_s1: s1 {};
+					pm8941_s2: s2 {};
+					pm8941_s3: s3 {};
+					pm8941_5v: s4 {};
+
+					pm8941_l1: l1 {};
+					pm8941_l2: l2 {};
+					pm8941_l3: l3 {};
+					pm8941_l4: l4 {};
+					pm8941_l5: l5 {};
+					pm8941_l6: l6 {};
+					pm8941_l7: l7 {};
+					pm8941_l8: l8 {};
+					pm8941_l9: l9 {};
+					pm8941_l10: l10 {};
+					pm8941_l11: l11 {};
+					pm8941_l12: l12 {};
+					pm8941_l13: l13 {};
+					pm8941_l14: l14 {};
+					pm8941_l15: l15 {};
+					pm8941_l16: l16 {};
+					pm8941_l17: l17 {};
+					pm8941_l18: l18 {};
+					pm8941_l19: l19 {};
+					pm8941_l20: l20 {};
+					pm8941_l21: l21 {};
+					pm8941_l22: l22 {};
+					pm8941_l23: l23 {};
+					pm8941_l24: l24 {};
+
+					pm8941_lvs1: lvs1 {};
+					pm8941_lvs2: lvs2 {};
+					pm8941_lvs3: lvs3 {};
+
+					pm8941_5vs1: 5vs1 {};
+					pm8941_5vs2: 5vs2 {};
+				};
+			};
 		};
 	};
 };

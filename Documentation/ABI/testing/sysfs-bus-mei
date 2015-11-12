@@ -19,3 +19,10 @@ KernelVersion:	4.2
 Contact:	Tomas Winkler <tomas.winkler@intel.com>
 Description:	Stores mei client device uuid
 		Format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+
+What:		/sys/bus/mei/devices/.../version
+Date:		Aug 2015
+KernelVersion:	4.3
+Contact:	Tomas Winkler <tomas.winkler@intel.com>
+Description:	Stores mei client protocol version
+		Format: %d

@@ -17,7 +17,7 @@ static inline int nf_hook_ingress(struct sk_buff *skb)
 
 	nf_hook_state_init(&state, &skb->dev->nf_hooks_ingress,
 			   NF_NETDEV_INGRESS, INT_MIN, NFPROTO_NETDEV, NULL,
-			   skb->dev, NULL, NULL);
+			   skb->dev, NULL, dev_net(skb->dev), NULL);
 	return nf_hook_slow(skb, &state);
 }
 

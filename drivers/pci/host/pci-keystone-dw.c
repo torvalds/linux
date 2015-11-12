@@ -70,7 +70,7 @@ static inline void update_reg_offset_bit_pos(u32 offset, u32 *reg_offset,
 	*bit_pos = offset >> 3;
 }
 
-u32 ks_dw_pcie_get_msi_addr(struct pcie_port *pp)
+phys_addr_t ks_dw_pcie_get_msi_addr(struct pcie_port *pp)
 {
 	struct keystone_pcie *ks_pcie = to_keystone_pcie(pp);
 
@@ -322,7 +322,7 @@ static void ks_dw_pcie_clear_dbi_mode(void __iomem *reg_virt)
 void ks_dw_pcie_setup_rc_app_regs(struct keystone_pcie *ks_pcie)
 {
 	struct pcie_port *pp = &ks_pcie->pp;
-	u32 start = pp->mem.start, end = pp->mem.end;
+	u32 start = pp->mem->start, end = pp->mem->end;
 	int i, tr_size;
 
 	/* Disable BARs for inbound access */
@@ -398,7 +398,7 @@ int ks_dw_pcie_rd_other_conf(struct pcie_port *pp, struct pci_bus *bus,
 
 	addr = ks_pcie_cfg_setup(ks_pcie, bus_num, devfn);
 
-	return dw_pcie_cfg_read(addr + (where & ~0x3), where, size, val);
+	return dw_pcie_cfg_read(addr + where, size, val);
 }
 
 int ks_dw_pcie_wr_other_conf(struct pcie_port *pp, struct pci_bus *bus,
@@ -410,7 +410,7 @@ int ks_dw_pcie_wr_other_conf(struct pcie_port *pp, struct pci_bus *bus,
 
 	addr = ks_pcie_cfg_setup(ks_pcie, bus_num, devfn);
 
-	return dw_pcie_cfg_write(addr + (where & ~0x3), where, size, val);
+	return dw_pcie_cfg_write(addr + where, size, val);
 }
 
 /**

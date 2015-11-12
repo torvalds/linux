@@ -391,9 +391,11 @@ struct mlx5_core_health {
 	struct health_buffer __iomem   *health;
 	__be32 __iomem		       *health_counter;
 	struct timer_list		timer;
-	struct list_head		list;
 	u32				prev;
 	int				miss_counter;
+	bool				sick;
+	struct workqueue_struct	       *wq;
+	struct work_struct		work;
 };
 
 struct mlx5_cq_table {
@@ -485,8 +487,26 @@ struct mlx5_priv {
 	spinlock_t              ctx_lock;
 };
 
+enum mlx5_device_state {
+	MLX5_DEVICE_STATE_UP,
+	MLX5_DEVICE_STATE_INTERNAL_ERROR,
+};
+
+enum mlx5_interface_state {
+	MLX5_INTERFACE_STATE_DOWN,
+	MLX5_INTERFACE_STATE_UP,
+};
+
+enum mlx5_pci_status {
+	MLX5_PCI_STATUS_DISABLED,
+	MLX5_PCI_STATUS_ENABLED,
+};
+
 struct mlx5_core_dev {
 	struct pci_dev	       *pdev;
+	/* sync pci state */
+	struct mutex		pci_status_mutex;
+	enum mlx5_pci_status	pci_status;
 	u8			rev_id;
 	char			board_id[MLX5_BOARD_ID_LEN];
 	struct mlx5_cmd		cmd;
@@ -495,6 +515,10 @@ struct mlx5_core_dev {
 	u32 hca_caps_max[MLX5_CAP_NUM][MLX5_UN_SZ_DW(hca_cap_union)];
 	phys_addr_t		iseg_base;
 	struct mlx5_init_seg __iomem *iseg;
+	enum mlx5_device_state	state;
+	/* sync interface state */
+	struct mutex		intf_state_mutex;
+	enum mlx5_interface_state interface_state;
 	void			(*event) (struct mlx5_core_dev *dev,
 					  enum mlx5_dev_event event,
 					  unsigned long param);
@@ -676,8 +700,8 @@ int mlx5_alloc_uuars(struct mlx5_core_dev *dev, struct mlx5_uuar_info *uuari);
 int mlx5_free_uuars(struct mlx5_core_dev *dev, struct mlx5_uuar_info *uuari);
 int mlx5_alloc_map_uar(struct mlx5_core_dev *mdev, struct mlx5_uar *uar);
 void mlx5_unmap_free_uar(struct mlx5_core_dev *mdev, struct mlx5_uar *uar);
-void mlx5_health_cleanup(void);
-void  __init mlx5_health_init(void);
+void mlx5_health_cleanup(struct mlx5_core_dev *dev);
+int mlx5_health_init(struct mlx5_core_dev *dev);
 void mlx5_start_health_poll(struct mlx5_core_dev *dev);
 void mlx5_stop_health_poll(struct mlx5_core_dev *dev);
 int mlx5_buf_alloc_node(struct mlx5_core_dev *dev, int size,
@@ -731,7 +755,7 @@ void mlx5_eq_pagefault(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe);
 #endif
 void mlx5_srq_event(struct mlx5_core_dev *dev, u32 srqn, int event_type);
 struct mlx5_core_srq *mlx5_core_get_srq(struct mlx5_core_dev *dev, u32 srqn);
-void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, unsigned long vector);
+void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec);
 void mlx5_cq_event(struct mlx5_core_dev *dev, u32 cqn, int event_type);
 int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 		       int nent, u64 mask, const char *name, struct mlx5_uar *uar);
@@ -802,6 +826,11 @@ void mlx5_core_put_rsc(struct mlx5_core_rsc_common *common);
 int mlx5_query_odp_caps(struct mlx5_core_dev *dev,
 			struct mlx5_odp_caps *odp_caps);
 
+static inline int fw_initializing(struct mlx5_core_dev *dev)
+{
+	return ioread32be(&dev->iseg->initializing) >> 31;
+}
+
 static inline u32 mlx5_mkey_to_idx(u32 mkey)
 {
 	return mkey >> 8;
@@ -864,5 +893,9 @@ static inline int mlx5_get_gid_table_len(u16 param)
 
 	return 8 * (1 << param);
 }
+
+enum {
+	MLX5_TRIGGERED_CMD_COMP = (u64)1 << 32,
+};
 
 #endif /* MLX5_DRIVER_H */

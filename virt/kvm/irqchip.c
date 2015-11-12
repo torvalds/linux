@@ -31,16 +31,6 @@
 #include <trace/events/kvm.h>
 #include "irq.h"
 
-struct kvm_irq_routing_table {
-	int chip[KVM_NR_IRQCHIPS][KVM_IRQCHIP_NUM_PINS];
-	u32 nr_rt_entries;
-	/*
-	 * Array indexed by gsi. Each entry contains list of irq chips
-	 * the gsi is connected to.
-	 */
-	struct hlist_head map[0];
-};
-
 int kvm_irq_map_gsi(struct kvm *kvm,
 		    struct kvm_kernel_irq_routing_entry *entries, int gsi)
 {
@@ -154,11 +144,11 @@ static int setup_routing_entry(struct kvm_irq_routing_table *rt,
 
 	/*
 	 * Do not allow GSI to be mapped to the same irqchip more than once.
-	 * Allow only one to one mapping between GSI and MSI.
+	 * Allow only one to one mapping between GSI and non-irqchip routing.
 	 */
 	hlist_for_each_entry(ei, &rt->map[ue->gsi], link)
-		if (ei->type == KVM_IRQ_ROUTING_MSI ||
-		    ue->type == KVM_IRQ_ROUTING_MSI ||
+		if (ei->type != KVM_IRQ_ROUTING_IRQCHIP ||
+		    ue->type != KVM_IRQ_ROUTING_IRQCHIP ||
 		    ue->u.irqchip.irqchip == ei->irqchip.irqchip)
 			return r;
 
@@ -230,6 +220,8 @@ int kvm_set_irq_routing(struct kvm *kvm,
 	rcu_assign_pointer(kvm->irq_routing, new);
 	kvm_irq_routing_update(kvm);
 	mutex_unlock(&kvm->irq_lock);
+
+	kvm_arch_irq_routing_update(kvm);
 
 	synchronize_srcu_expedited(&kvm->irq_srcu);
 

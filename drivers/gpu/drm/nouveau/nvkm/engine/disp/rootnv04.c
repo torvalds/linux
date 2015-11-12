@@ -109,7 +109,7 @@ nv04_disp_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	return -EINVAL;
 }
 
-static struct nvkm_object_func
+static const struct nvkm_object_func
 nv04_disp_root = {
 	.mthd = nv04_disp_mthd,
 	.ntfy = nvkm_disp_ntfy,

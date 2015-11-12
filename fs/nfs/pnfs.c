@@ -1912,12 +1912,13 @@ static void pnfs_ld_handle_write_error(struct nfs_pgio_header *hdr)
  */
 void pnfs_ld_write_done(struct nfs_pgio_header *hdr)
 {
-	trace_nfs4_pnfs_write(hdr, hdr->pnfs_error);
-	if (!hdr->pnfs_error) {
+	if (likely(!hdr->pnfs_error)) {
 		pnfs_set_layoutcommit(hdr->inode, hdr->lseg,
 				hdr->mds_offset + hdr->res.count);
 		hdr->mds_ops->rpc_call_done(&hdr->task, hdr);
-	} else
+	}
+	trace_nfs4_pnfs_write(hdr, hdr->pnfs_error);
+	if (unlikely(hdr->pnfs_error))
 		pnfs_ld_handle_write_error(hdr);
 	hdr->mds_ops->rpc_release(hdr);
 }
@@ -2028,11 +2029,12 @@ static void pnfs_ld_handle_read_error(struct nfs_pgio_header *hdr)
  */
 void pnfs_ld_read_done(struct nfs_pgio_header *hdr)
 {
-	trace_nfs4_pnfs_read(hdr, hdr->pnfs_error);
 	if (likely(!hdr->pnfs_error)) {
 		__nfs4_read_done_cb(hdr);
 		hdr->mds_ops->rpc_call_done(&hdr->task, hdr);
-	} else
+	}
+	trace_nfs4_pnfs_read(hdr, hdr->pnfs_error);
+	if (unlikely(hdr->pnfs_error))
 		pnfs_ld_handle_read_error(hdr);
 	hdr->mds_ops->rpc_release(hdr);
 }

@@ -147,17 +147,6 @@ config 6xx
 	depends on PPC32 && PPC_BOOK3S
 	select PPC_HAVE_PMU_SUPPORT
 
-config TUNE_CELL
-	bool "Optimize for Cell Broadband Engine"
-	depends on PPC64 && PPC_BOOK3S
-	help
-	  Cause the compiler to optimize for the PPE of the Cell Broadband
-	  Engine. This will make the code run considerably faster on Cell
-	  but somewhat slower on other machines. This option only changes
-	  the scheduling of instructions, not the selection of instructions
-	  itself, so the resulting kernel will keep running on all other
-	  machines.
-
 # this is temp to handle compat with arch=ppc
 config 8xx
 	bool

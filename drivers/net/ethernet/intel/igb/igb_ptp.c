@@ -143,7 +143,7 @@ static void igb_ptp_write_i210(struct igb_adapter *adapter,
 	 * sub-nanosecond resolution.
 	 */
 	wr32(E1000_SYSTIML, ts->tv_nsec);
-	wr32(E1000_SYSTIMH, ts->tv_sec);
+	wr32(E1000_SYSTIMH, (u32)ts->tv_sec);
 }
 
 /**
@@ -479,7 +479,7 @@ static int igb_ptp_feature_enable_i210(struct ptp_clock_info *ptp,
 	struct e1000_hw *hw = &igb->hw;
 	u32 tsauxc, tsim, tsauxc_mask, tsim_mask, trgttiml, trgttimh, freqout;
 	unsigned long flags;
-	struct timespec ts;
+	struct timespec64 ts;
 	int use_freq = 0, pin = -1;
 	s64 ns;
 
@@ -523,14 +523,14 @@ static int igb_ptp_feature_enable_i210(struct ptp_clock_info *ptp,
 		}
 		ts.tv_sec = rq->perout.period.sec;
 		ts.tv_nsec = rq->perout.period.nsec;
-		ns = timespec_to_ns(&ts);
+		ns = timespec64_to_ns(&ts);
 		ns = ns >> 1;
 		if (on && ns <= 70000000LL) {
 			if (ns < 8LL)
 				return -EINVAL;
 			use_freq = 1;
 		}
-		ts = ns_to_timespec(ns);
+		ts = ns_to_timespec64(ns);
 		if (rq->perout.index == 1) {
 			if (use_freq) {
 				tsauxc_mask = TSAUXC_EN_CLK1 | TSAUXC_ST1;

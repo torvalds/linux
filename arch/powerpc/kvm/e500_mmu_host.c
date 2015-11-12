@@ -406,7 +406,7 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 
 			for (; tsize > BOOK3E_PAGESZ_4K; tsize -= 2) {
 				unsigned long gfn_start, gfn_end;
-				tsize_pages = 1 << (tsize - 2);
+				tsize_pages = 1UL << (tsize - 2);
 
 				gfn_start = gfn & ~(tsize_pages - 1);
 				gfn_end = gfn_start + tsize_pages;
@@ -447,7 +447,7 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 	}
 
 	if (likely(!pfnmap)) {
-		tsize_pages = 1 << (tsize + 10 - PAGE_SHIFT);
+		tsize_pages = 1UL << (tsize + 10 - PAGE_SHIFT);
 		pfn = gfn_to_pfn_memslot(slot, gfn);
 		if (is_error_noslot_pfn(pfn)) {
 			if (printk_ratelimit())
@@ -476,7 +476,7 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 	 * can't run hence pfn won't change.
 	 */
 	local_irq_save(flags);
-	ptep = find_linux_pte_or_hugepte(pgdir, hva, NULL);
+	ptep = find_linux_pte_or_hugepte(pgdir, hva, NULL, NULL);
 	if (ptep) {
 		pte_t pte = READ_ONCE(*ptep);
 

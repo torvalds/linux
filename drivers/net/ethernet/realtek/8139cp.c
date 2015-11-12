@@ -175,7 +175,7 @@ enum {
 	LastFrag	= (1 << 28), /* Final segment of a packet */
 	LargeSend	= (1 << 27), /* TCP Large Send Offload (TSO) */
 	MSSShift	= 16,	     /* MSS value position */
-	MSSMask		= 0xfff,     /* MSS value: 11 bits */
+	MSSMask		= 0x7ff,     /* MSS value: 11 bits */
 	TxError		= (1 << 23), /* Tx error summary */
 	RxError		= (1 << 20), /* Rx error summary */
 	IPCS		= (1 << 18), /* Calculate IP checksum */
@@ -754,10 +754,16 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 	eor = (entry == (CP_TX_RING_SIZE - 1)) ? RingEnd : 0;
 	mss = skb_shinfo(skb)->gso_size;
 
+	if (mss > MSSMask) {
+		WARN_ONCE(1, "Net bug: GSO size %d too large for 8139CP\n",
+			  mss);
+		goto out_dma_error;
+	}
+
 	opts2 = cpu_to_le32(cp_tx_vlan_tag(skb));
 	opts1 = DescOwn;
 	if (mss)
-		opts1 |= LargeSend | ((mss & MSSMask) << MSSShift);
+		opts1 |= LargeSend | (mss << MSSShift);
 	else if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		const struct iphdr *ip = ip_hdr(skb);
 		if (ip->protocol == IPPROTO_TCP)
@@ -1852,6 +1858,15 @@ static void cp_set_d3_state (struct cp_private *cp)
 	pci_set_power_state (cp->pdev, PCI_D3hot);
 }
 
+static netdev_features_t cp_features_check(struct sk_buff *skb,
+					   struct net_device *dev,
+					   netdev_features_t features)
+{
+	if (skb_shinfo(skb)->gso_size > MSSMask)
+		features &= ~NETIF_F_TSO;
+
+	return vlan_features_check(skb, features);
+}
 static const struct net_device_ops cp_netdev_ops = {
 	.ndo_open		= cp_open,
 	.ndo_stop		= cp_close,
@@ -1864,6 +1879,7 @@ static const struct net_device_ops cp_netdev_ops = {
 	.ndo_tx_timeout		= cp_tx_timeout,
 	.ndo_set_features	= cp_set_features,
 	.ndo_change_mtu		= cp_change_mtu,
+	.ndo_features_check	= cp_features_check,
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= cp_poll_controller,
@@ -1983,12 +1999,12 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->ethtool_ops = &cp_ethtool_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
-	dev->features |= NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
+	dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO |
+		NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
 
 	if (pci_using_dac)
 		dev->features |= NETIF_F_HIGHDMA;
 
-	/* disabled by default until verified */
 	dev->hw_features |= NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO |
 		NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
 	dev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO |

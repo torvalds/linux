@@ -89,7 +89,7 @@ int r8712_init_recv_priv(struct recv_priv *precvpriv, struct _adapter *padapter)
 		       RECVBUFF_ALIGN_SZ);
 		if (pskb) {
 			tmpaddr = (addr_t)pskb->data;
-			alignment = tmpaddr & (RECVBUFF_ALIGN_SZ-1);
+			alignment = tmpaddr & (RECVBUFF_ALIGN_SZ - 1);
 			skb_reserve(pskb, (RECVBUFF_ALIGN_SZ - alignment));
 			skb_queue_tail(&precvpriv->free_recv_skb_queue, pskb);
 		}
@@ -158,9 +158,9 @@ int r8712_free_recvframe(union recv_frame *precvframe,
 static void update_recvframe_attrib_from_recvstat(struct rx_pkt_attrib *pattrib,
 					   struct recv_stat *prxstat)
 {
-	u16 drvinfo_sz = 0;
+	u16 drvinfo_sz;
 
-	drvinfo_sz = (le32_to_cpu(prxstat->rxdw0)&0x000f0000)>>16;
+	drvinfo_sz = (le32_to_cpu(prxstat->rxdw0) & 0x000f0000) >> 16;
 	drvinfo_sz <<= 3;
 	/*TODO:
 	 * Offset 0 */
@@ -180,8 +180,9 @@ static void update_recvframe_attrib_from_recvstat(struct rx_pkt_attrib *pattrib,
 			pattrib->ip_chkrpt = 1; /* correct */
 		else
 			pattrib->ip_chkrpt = 0; /* incorrect */
-	} else
+	} else {
 		pattrib->tcpchk_valid = 0; /* invalid */
+	}
 	pattrib->mcs_rate = (u8)((le32_to_cpu(prxstat->rxdw3)) & 0x3f);
 	pattrib->htc = (u8)((le32_to_cpu(prxstat->rxdw3) >> 14) & 0x1);
 	/*Offset 16*/
@@ -217,7 +218,7 @@ static union recv_frame *recvframe_defrag(struct _adapter *adapter,
 	curfragnum++;
 	plist = &defrag_q->queue;
 	plist = plist->next;
-	while (end_of_queue_search(phead, plist) == false) {
+	while (!end_of_queue_search(phead, plist)) {
 		pnextrframe = LIST_CONTAINOR(plist, union recv_frame, u);
 		pnfhdr = &pnextrframe->u.hdr;
 		/*check the fragment sequence  (2nd ~n fragment frame) */
@@ -414,8 +415,9 @@ static int amsdu_to_msdu(struct _adapter *padapter, union recv_frame *prframe)
 			if ((pattrib->tcpchk_valid == 1) &&
 			    (pattrib->tcp_chkrpt == 1)) {
 				sub_skb->ip_summed = CHECKSUM_UNNECESSARY;
-			} else
+			} else {
 				sub_skb->ip_summed = CHECKSUM_NONE;
+			}
 			netif_rx(sub_skb);
 		}
 	}
@@ -489,7 +491,7 @@ static int enqueue_reorder_recvframe(struct recv_reorder_ctrl *preorder_ctrl,
 
 	phead = &ppending_recvframe_queue->queue;
 	plist = phead->next;
-	while (end_of_queue_search(phead, plist) == false) {
+	while (!end_of_queue_search(phead, plist)) {
 		pnextrframe = LIST_CONTAINOR(plist, union recv_frame, u);
 		pnextattrib = &pnextrframe->u.hdr.attrib;
 		if (SN_LESS(pnextattrib->seq_num, pattrib->seq_num))
@@ -519,7 +521,7 @@ int r8712_recv_indicatepkts_in_order(struct _adapter *padapter,
 	phead = &ppending_recvframe_queue->queue;
 	plist = phead->next;
 	/* Handling some condition for forced indicate case.*/
-	if (bforced == true) {
+	if (bforced) {
 		if (list_empty(phead))
 			return true;
 
@@ -541,8 +543,8 @@ int r8712_recv_indicatepkts_in_order(struct _adapter *padapter,
 				  (preorder_ctrl->indicate_seq + 1) % 4096;
 			/*indicate this recv_frame*/
 			if (!pattrib->amsdu) {
-				if ((padapter->bDriverStopped == false) &&
-				    (padapter->bSurpriseRemoved == false)) {
+				if (!padapter->bDriverStopped &&
+				    !padapter->bSurpriseRemoved) {
 					/* indicate this recv_frame */
 					r8712_recv_indicatepkt(padapter,
 							       prframe);
@@ -576,12 +578,13 @@ static int recv_indicatepkt_reorder(struct _adapter *padapter,
 		/* s1. */
 		r8712_wlanhdr_to_ethhdr(prframe);
 		if (pattrib->qos != 1) {
-			if ((padapter->bDriverStopped == false) &&
-			   (padapter->bSurpriseRemoved == false)) {
+			if (!padapter->bDriverStopped &&
+			    !padapter->bSurpriseRemoved) {
 				r8712_recv_indicatepkt(padapter, prframe);
 				return _SUCCESS;
-			} else
+			} else {
 				return _FAIL;
+			}
 		}
 	}
 	spin_lock_irqsave(&ppending_recvframe_queue->lock, irql);
@@ -643,20 +646,20 @@ static int r8712_process_recv_indicatepkts(struct _adapter *padapter,
 	if (phtpriv->ht_option == 1) { /*B/G/N Mode*/
 		if (recv_indicatepkt_reorder(padapter, prframe) != _SUCCESS) {
 			/* including perform A-MPDU Rx Ordering Buffer Control*/
-			if ((padapter->bDriverStopped == false) &&
-			    (padapter->bSurpriseRemoved == false))
+			if (!padapter->bDriverStopped &&
+			    !padapter->bSurpriseRemoved)
 				return _FAIL;
 		}
 	} else { /*B/G mode*/
 		retval = r8712_wlanhdr_to_ethhdr(prframe);
 		if (retval != _SUCCESS)
 			return retval;
-		if ((padapter->bDriverStopped == false) &&
-		    (padapter->bSurpriseRemoved == false)) {
+		if (!padapter->bDriverStopped && !padapter->bSurpriseRemoved) {
 			/* indicate this recv_frame */
 			r8712_recv_indicatepkt(padapter, prframe);
-		} else
+		} else {
 			return _FAIL;
+		}
 	}
 	return retval;
 }
@@ -813,16 +816,16 @@ static void query_rx_phy_status(struct _adapter *padapter,
 		/*
 		 * (3) Get Signal Quality (EVM)
 		 */
-		if (pwdb_all > 40)
+		if (pwdb_all > 40) {
 			sq = 100;
-		else {
+		} else {
 			sq = pcck_buf->sq_rpt;
 			if (pcck_buf->sq_rpt > 64)
 				sq = 0;
 			else if (pcck_buf->sq_rpt < 20)
 				sq = 100;
 			else
-				sq = ((64-sq) * 100) / 44;
+				sq = ((64 - sq) * 100) / 44;
 		}
 		prframe->u.hdr.attrib.signal_qual = sq;
 		prframe->u.hdr.attrib.rx_mimo_signal_qual[0] = sq;
@@ -962,12 +965,12 @@ int recv_func(struct _adapter *padapter, void *pcontext)
 	prframe = (union recv_frame *)pcontext;
 	orig_prframe = prframe;
 	pattrib = &prframe->u.hdr.attrib;
-	if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == true) {
+	if (check_fwstate(pmlmepriv, WIFI_MP_STATE)) {
 		if (pattrib->crc_err == 1)
 			padapter->mppriv.rx_crcerrpktcount++;
 		else
 			padapter->mppriv.rx_pktcount++;
-		if (check_fwstate(pmlmepriv, WIFI_MP_LPBK_STATE) == false) {
+		if (!check_fwstate(pmlmepriv, WIFI_MP_LPBK_STATE)) {
 			/* free this recv_frame */
 			r8712_free_recvframe(orig_prframe, pfree_recv_queue);
 			goto _exit_recv_func;
@@ -1019,8 +1022,8 @@ static int recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 	pfree_recv_queue = &(precvpriv->free_recv_queue);
 	pbuf = pskb->data;
 	prxstat = (struct recv_stat *)pbuf;
-	pkt_cnt = (le32_to_cpu(prxstat->rxdw2)>>16)&0xff;
-	pkt_len =  le32_to_cpu(prxstat->rxdw0)&0x00003fff;
+	pkt_cnt = (le32_to_cpu(prxstat->rxdw2) >> 16) & 0xff;
+	pkt_len =  le32_to_cpu(prxstat->rxdw0) & 0x00003fff;
 	transfer_len = pskb->len;
 	/* Test throughput with Netgear 3700 (No security) with Chariot 3T3R
 	 * pairs. The packet count will be a big number so that the containing
@@ -1032,7 +1035,7 @@ static int recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 	}
 	do {
 		prxstat = (struct recv_stat *)pbuf;
-		pkt_len =  le32_to_cpu(prxstat->rxdw0)&0x00003fff;
+		pkt_len =  le32_to_cpu(prxstat->rxdw0) & 0x00003fff;
 		/* more fragment bit */
 		mf = (le32_to_cpu(prxstat->rxdw1) >> 27) & 0x1;
 		/* ragmentation number */

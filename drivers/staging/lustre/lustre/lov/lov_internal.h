@@ -220,7 +220,6 @@ int lov_free_memmd(struct lov_stripe_md **lsmp);
 void lov_dump_lmm_v1(int level, struct lov_mds_md_v1 *lmm);
 void lov_dump_lmm_v3(int level, struct lov_mds_md_v3 *lmm);
 void lov_dump_lmm_common(int level, void *lmmp);
-void lov_dump_lmm(int level, void *lmm);
 
 /* lov_ea.c */
 struct lov_stripe_md *lsm_alloc_plain(__u16 stripe_count, int *size);
@@ -235,7 +234,7 @@ void lprocfs_lov_init_vars(struct lprocfs_static_vars *lvars);
 extern struct lu_device_type lov_device_type;
 
 /* pools */
-extern cfs_hash_ops_t pool_hash_operations;
+extern struct cfs_hash_ops pool_hash_operations;
 /* ost_pool methods */
 int lov_ost_pool_init(struct ost_pool *op, unsigned int count);
 int lov_ost_pool_extend(struct ost_pool *op, unsigned int min_count);
@@ -248,7 +247,6 @@ int lov_pool_new(struct obd_device *obd, char *poolname);
 int lov_pool_del(struct obd_device *obd, char *poolname);
 int lov_pool_add(struct obd_device *obd, char *poolname, char *ostname);
 int lov_pool_remove(struct obd_device *obd, char *poolname, char *ostname);
-void lov_dump_pool(int level, struct pool_desc *pool);
 struct pool_desc *lov_find_pool(struct lov_obd *lov, char *poolname);
 int lov_check_index_in_pool(__u32 idx, struct pool_desc *pool);
 void lov_pool_putref(struct pool_desc *pool);
@@ -270,6 +268,5 @@ static inline bool lov_oinfo_is_dummy(const struct lov_oinfo *loi)
 
 	return false;
 }
-
 
 #endif

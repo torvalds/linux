@@ -161,6 +161,7 @@ static const struct of_device_id spear_ohci_id_table[] = {
 	{ .compatible = "st,spear600-ohci", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, spear_ohci_id_table);
 
 /* Driver definition to register with the platform bus */
 static struct platform_driver spear_ohci_hcd_driver = {

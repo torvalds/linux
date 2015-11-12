@@ -27,7 +27,6 @@
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/of_address.h>
-#include <asm/setup.h>
 
 /* Register SCU_PCPPLL bit fields */
 #define N_DIV_RD(src)			(((src) & 0x000001ff))

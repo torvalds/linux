@@ -146,7 +146,7 @@ struct sisl_rc {
 #define SISL_FC_RC_ABORTFAIL	0x59	/* pending abort completed w/fail */
 #define SISL_FC_RC_RESID	0x5A	/* ioasa underrun/overrun flags set */
 #define SISL_FC_RC_RESIDERR	0x5B	/* actual data len does not match SCSI
-					   reported len, possbly due to dropped
+					   reported len, possibly due to dropped
 					   frames */
 #define SISL_FC_RC_TGTABORT	0x5C	/* command aborted by target */
 };
@@ -258,7 +258,7 @@ struct sisl_host_map {
 	__be64 rrq_start;	/* start & end are both inclusive */
 	__be64 rrq_end;		/* write sequence: start followed by end */
 	__be64 cmd_room;
-	__be64 ctx_ctrl;	/* least signiifcant byte or b56:63 is LISN# */
+	__be64 ctx_ctrl;	/* least significant byte or b56:63 is LISN# */
 	__be64 mbox_w;		/* restricted use */
 };
 
@@ -290,7 +290,7 @@ struct sisl_global_regs {
 #define SISL_ASTATUS_FC0_LOGO    0x4000ULL /* b49, target sent FLOGI/PLOGI/LOGO
 						   while logged in */
 #define SISL_ASTATUS_FC0_CRC_T   0x2000ULL /* b50, CRC threshold exceeded */
-#define SISL_ASTATUS_FC0_LOGI_R  0x1000ULL /* b51, login state mechine timed out
+#define SISL_ASTATUS_FC0_LOGI_R  0x1000ULL /* b51, login state machine timed out
 						   and retrying */
 #define SISL_ASTATUS_FC0_LOGI_F  0x0800ULL /* b52, login failed,
 					      FC_ERROR[19:0] */
@@ -340,7 +340,7 @@ struct sisl_global_regs {
 #define SISL_AFUCONF_MBOX_CLR_READ     0x0010ULL
 	__be64 afu_config;
 	__be64 rsvd[0xf8];
-	__be64 afu_version;
+	__le64 afu_version;
 	__be64 interface_version;
 };
 

@@ -1937,8 +1937,8 @@ out:
  * @journal: journal for operation
  * @page: to try and free
  * @gfp_mask: we use the mask to detect how hard should we try to release
- * buffers. If __GFP_WAIT and __GFP_FS is set, we wait for commit code to
- * release the buffers.
+ * buffers. If __GFP_DIRECT_RECLAIM and __GFP_FS is set, we wait for commit
+ * code to release the buffers.
  *
  *
  * For all the buffers on this page,

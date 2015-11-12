@@ -29,7 +29,8 @@ matrix-keyboard bindings:
 - nvidia,debounce-delay-ms: delay in milliseconds per row scan for debouncing
 - nvidia,repeat-delay-ms: delay in milliseconds before repeat starts
 - nvidia,ghost-filter: enable ghost filtering for this device
-- nvidia,wakeup-source: configure keyboard as a wakeup source for suspend/resume
+- wakeup-source: configure keyboard as a wakeup source for suspend/resume
+		 (Legacy property supported: "nvidia,wakeup-source")
 
 Example:
 

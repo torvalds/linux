@@ -344,7 +344,6 @@ static int ll_revalidate_nd(struct dentry *dentry, unsigned int flags)
 	return ll_revalidate_dentry(dentry, flags);
 }
 
-
 static void ll_d_iput(struct dentry *de, struct inode *inode)
 {
 	LASSERT(inode);

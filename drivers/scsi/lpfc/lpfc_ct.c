@@ -55,6 +55,7 @@
 #define HBA_PORTSPEED_10GBIT		0x0004	/* 10 GBit/sec */
 #define HBA_PORTSPEED_8GBIT		0x0010	/* 8 GBit/sec */
 #define HBA_PORTSPEED_16GBIT		0x0020	/* 16 GBit/sec */
+#define HBA_PORTSPEED_32GBIT		0x0040  /* 32 GBit/sec */
 #define HBA_PORTSPEED_UNKNOWN		0x0800	/* Unknown */
 
 #define FOURBYTES	4
@@ -575,7 +576,6 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_vport *vport = cmdiocb->vport;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	IOCB_t *irsp;
-	struct lpfc_dmabuf *bmp;
 	struct lpfc_dmabuf *outp;
 	struct lpfc_sli_ct_request *CTrsp;
 	struct lpfc_nodelist *ndlp;
@@ -588,7 +588,6 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	cmdiocb->context_un.rsp_iocb = rspiocb;
 
 	outp = (struct lpfc_dmabuf *) cmdiocb->context2;
-	bmp = (struct lpfc_dmabuf *) cmdiocb->context3;
 	irsp = &rspiocb->iocb;
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
@@ -1733,11 +1732,8 @@ hba_out:
 	case SLI_MGMT_RPRT:
 	case SLI_MGMT_RPA:
 		{
-			lpfc_vpd_t *vp;
 			struct serv_parm *hsp;
 			int len = 0;
-
-			vp = &phba->vpd;
 
 			if (cmdcode == SLI_MGMT_RPRT) {
 				rh = (struct lpfc_fdmi_reg_hba *)
@@ -1778,6 +1774,8 @@ hba_out:
 			ad->AttrType = cpu_to_be16(RPRT_SUPPORTED_SPEED);
 			ad->AttrLen = cpu_to_be16(FOURBYTES + 4);
 			ae->un.SupportSpeed = 0;
+			if (phba->lmt & LMT_32Gb)
+				ae->un.SupportSpeed |= HBA_PORTSPEED_32GBIT;
 			if (phba->lmt & LMT_16Gb)
 				ae->un.SupportSpeed |= HBA_PORTSPEED_16GBIT;
 			if (phba->lmt & LMT_10Gb)
@@ -1820,6 +1818,9 @@ hba_out:
 				break;
 			case LPFC_LINK_SPEED_16GHZ:
 				ae->un.PortSpeed = HBA_PORTSPEED_16GBIT;
+				break;
+			case LPFC_LINK_SPEED_32GHZ:
+				ae->un.PortSpeed = HBA_PORTSPEED_32GBIT;
 				break;
 			default:
 				ae->un.PortSpeed = HBA_PORTSPEED_UNKNOWN;

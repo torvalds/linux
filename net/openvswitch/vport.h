@@ -27,7 +27,6 @@
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <linux/u64_stats_sync.h>
-#include <net/route.h>
 
 #include "datapath.h"
 
@@ -52,16 +51,6 @@ int ovs_vport_get_options(const struct vport *, struct sk_buff *);
 int ovs_vport_set_upcall_portids(struct vport *, const struct nlattr *pids);
 int ovs_vport_get_upcall_portids(const struct vport *, struct sk_buff *);
 u32 ovs_vport_find_upcall_portid(const struct vport *, struct sk_buff *);
-
-int ovs_tunnel_get_egress_info(struct dp_upcall_info *upcall,
-			       struct net *net,
-			       struct sk_buff *,
-			       u8 ipproto,
-			       __be16 tp_src,
-			       __be16 tp_dst);
-
-int ovs_vport_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
-				  struct dp_upcall_info *upcall);
 
 /**
  * struct vport_portids - array of netlink portids of a vport.
@@ -140,8 +129,6 @@ struct vport_parms {
  * have any configuration.
  * @send: Send a packet on the device.
  * zero for dropped packets or negative for error.
- * @get_egress_tun_info: Get the egress tunnel 5-tuple and other info for
- * a packet.
  */
 struct vport_ops {
 	enum ovs_vport_type type;
@@ -153,10 +140,7 @@ struct vport_ops {
 	int (*set_options)(struct vport *, struct nlattr *);
 	int (*get_options)(const struct vport *, struct sk_buff *);
 
-	void (*send)(struct vport *, struct sk_buff *);
-	int (*get_egress_tun_info)(struct vport *, struct sk_buff *,
-				   struct dp_upcall_info *upcall);
-
+	netdev_tx_t (*send) (struct sk_buff *skb);
 	struct module *owner;
 	struct list_head list;
 };
@@ -234,9 +218,6 @@ static inline struct rtable *ovs_tunnel_route_lookup(struct net *net,
 	return rt;
 }
 
-static inline void ovs_vport_send(struct vport *vport, struct sk_buff *skb)
-{
-	vport->ops->send(vport, skb);
-}
+void ovs_vport_send(struct vport *vport, struct sk_buff *skb);
 
 #endif /* vport.h */

@@ -151,10 +151,10 @@ static void __intel_pmu_lbr_enable(bool pmi)
 	 * No need to reprogram LBR_SELECT in a PMI, as it
 	 * did not change.
 	 */
-	if (cpuc->lbr_sel && !pmi) {
+	if (cpuc->lbr_sel)
 		lbr_select = cpuc->lbr_sel->config;
+	if (!pmi)
 		wrmsrl(MSR_LBR_SELECT, lbr_select);
-	}
 
 	rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
 	orig_debugctl = debugctl;
@@ -555,6 +555,8 @@ static int intel_pmu_setup_sw_lbr_filter(struct perf_event *event)
 	if (br_type & PERF_SAMPLE_BRANCH_IND_JUMP)
 		mask |= X86_BR_IND_JMP;
 
+	if (br_type & PERF_SAMPLE_BRANCH_CALL)
+		mask |= X86_BR_CALL | X86_BR_ZERO_CALL;
 	/*
 	 * stash actual user request into reg, it may
 	 * be used by fixup code for some CPU
@@ -890,6 +892,7 @@ static const int snb_lbr_sel_map[PERF_SAMPLE_BRANCH_MAX_SHIFT] = {
 	[PERF_SAMPLE_BRANCH_IND_CALL_SHIFT]	= LBR_IND_CALL,
 	[PERF_SAMPLE_BRANCH_COND_SHIFT]		= LBR_JCC,
 	[PERF_SAMPLE_BRANCH_IND_JUMP_SHIFT]	= LBR_IND_JMP,
+	[PERF_SAMPLE_BRANCH_CALL_SHIFT]		= LBR_REL_CALL,
 };
 
 static const int hsw_lbr_sel_map[PERF_SAMPLE_BRANCH_MAX_SHIFT] = {
@@ -905,6 +908,7 @@ static const int hsw_lbr_sel_map[PERF_SAMPLE_BRANCH_MAX_SHIFT] = {
 	[PERF_SAMPLE_BRANCH_CALL_STACK_SHIFT]	= LBR_REL_CALL | LBR_IND_CALL
 						| LBR_RETURN | LBR_CALL_STACK,
 	[PERF_SAMPLE_BRANCH_IND_JUMP_SHIFT]	= LBR_IND_JMP,
+	[PERF_SAMPLE_BRANCH_CALL_SHIFT]		= LBR_REL_CALL,
 };
 
 /* core */

@@ -11,47 +11,95 @@ echo ' '
 uname -a
 echo ' '
 
-gcc -dumpversion 2>&1| awk \
-'NR==1{print "Gnu C                 ", $1}'
+gcc -dumpversion 2>&1 |
+awk '/[0-9]+([.]?[0-9]+)+/ && !/not found$/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("GNU C\t\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
-make --version 2>&1 | awk -F, '{print $1}' | awk \
-      '/GNU Make/{print "Gnu make              ",$NF}'
+make --version 2>&1 |
+awk '/GNU Make/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("GNU Make\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
-echo "binutils               $(ld -v | egrep -o '[0-9]+\.[0-9\.]+')"
+ld -v 2>&1 |
+awk '/[0-9]+([.]?[0-9]+)+/ && !/not found$/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("Binutils\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
-echo -n "util-linux             "
-fdformat --version | awk '{print $NF}' | sed -e s/^util-linux-// -e s/\)$//
+mount --version 2>&1 |
+awk '/[0-9]+([.]?[0-9]+)+/ && !/not found$/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	$0 = substr($0,RSTART,RLENGTH)
+	printf("Util-linux\t\t%s\nMount\t\t\t%s\n",$0,$0)
+}'
 
-echo -n "mount                  "
-mount --version | awk '{print $NF}' | sed -e s/^mount-// -e s/\)$//
+depmod -V  2>&1 |
+awk '/[0-9]+([.]?[0-9]+)+/ && !/not found$/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("Module-init-tools\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
-depmod -V  2>&1 | awk 'NR==1 {print "module-init-tools     ",$NF}'
+tune2fs 2>&1 |
+awk '/^tune2fs/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("E2fsprogs\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
-tune2fs 2>&1 | grep "^tune2fs" | sed 's/,//' |  awk \
-'NR==1 {print "e2fsprogs             ", $2}'
+fsck.jfs -V 2>&1 |
+awk '/version/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("Jfsutils\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
-fsck.jfs -V 2>&1 | grep version | sed 's/,//' |  awk \
-'NR==1 {print "jfsutils              ", $3}'
-
-reiserfsck -V 2>&1 | grep ^reiserfsck | awk \
-'NR==1{print "reiserfsprogs         ", $2}'
+reiserfsck -V 2>&1 |
+awk '/^reiserfsck/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("Reiserfsprogs\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
 fsck.reiser4 -V 2>&1 | grep ^fsck.reiser4 | awk \
 'NR==1{print "reiser4progs          ", $2}'
 
-xfs_db -V 2>&1 | grep version | awk \
-'NR==1{print "xfsprogs              ", $3}'
+xfs_db -V 2>&1 |
+awk '/version/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("Xfsprogs\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
-pccardctl -V 2>&1| grep pcmciautils | awk '{print "pcmciautils           ", $2}'
+pccardctl -V 2>&1 |
+awk '/pcmciautils/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("Pcmciautils\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
 cardmgr -V 2>&1| grep version | awk \
 'NR==1{print "pcmcia-cs             ", $3}'
 
-quota -V 2>&1 | grep version | awk \
-'NR==1{print "quota-tools           ", $NF}'
+quota -V 2>&1 |
+awk '/version/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("Quota-tools\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
-pppd --version 2>&1| grep version | awk \
-'NR==1{print "PPP                   ", $3}'
+pppd --version 2>&1 |
+awk '/version/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("PPP\t\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
 isdnctrl 2>&1 | grep version | awk \
 'NR==1{print "isdn4k-utils          ", $NF}'
@@ -59,40 +107,87 @@ isdnctrl 2>&1 | grep version | awk \
 showmount --version 2>&1 | grep nfs-utils | awk \
 'NR==1{print "nfs-utils             ", $NF}'
 
-echo -n "Linux C Library        "
-sed -n -e '/^.*\/libc-\([^/]*\)\.so$/{s//\1/;p;q}' < /proc/self/maps
+test -r /proc/self/maps &&
+sed '
+	/.*libc-\(.*\)\.so$/!d
+	s//Linux C Library\t\t\1/
+	q
+' /proc/self/maps
 
-ldd -v > /dev/null 2>&1 && ldd -v || ldd --version |head -n 1 | awk \
-'NR==1{print "Dynamic linker (ldd)  ", $NF}'
+ldd --version 2>&1 |
+awk '/^ldd/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("Dynamic linker (ldd)\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
-ls -l /usr/lib/libg++.so /usr/lib/libstdc++.so  2>/dev/null | awk -F. \
-       '{print "Linux C++ Library      " $4"."$5"."$6}'
+libcpp=`ldconfig -p 2>/dev/null |
+	awk '/(libg|stdc)[+]+\.so/ {
+	print $NF
+	exit
+	}
+'`
+test -r "$libcpp" &&
+ls -l $libcpp |
+sed '
+	s!.*so\.!!
+	s!^!Linux C++ Library\t!
+'
+ps --version 2>&1 |
+awk '/version/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("Procps\t\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
-ps --version 2>&1 | grep version | awk \
-'NR==1{print "Procps                ", $NF}'
+ifconfig --version 2>&1 |
+awk '/tools/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("Net-tools\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
-ifconfig --version 2>&1 | grep tools | awk \
-'NR==1{print "Net-tools             ", $NF}'
-
-# Kbd needs 'loadkeys -h',
-loadkeys -h 2>&1 | awk \
-'(NR==1 && ($3 !~ /option/)) {print "Kbd                   ", $3}'
-
-# while console-tools needs 'loadkeys -V'.
-loadkeys -V 2>&1 | awk \
-'(NR==1 && ($2 ~ /console-tools/)) {print "Console-tools         ", $3}'
+loadkeys -V 2>&1 |
+awk '/[0-9]+([.]?[0-9]+)+/ && !/not found$/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	$0 = substr($0,RSTART,RLENGTH)
+	printf("Kbd\t\t\t%s\nConsole-tools\t\t%s\n",$0,$0)
+}'
 
 oprofiled --version 2>&1 | awk \
 '(NR==1 && ($2 == "oprofile")) {print "oprofile              ", $3}'
 
-expr --v 2>&1 | awk 'NR==1{print "Sh-utils              ", $NF}'
+expr --v 2>&1 |
+awk '/^expr/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("Sh-utils\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
-udevinfo -V 2>&1 | grep version | awk '{print "udev                  ", $3}'
+udevadm --version 2>&1 |
+awk '/[0-9]+([.]?[0-9]+)+/ && !/not found$/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("Udev\t\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
-iwconfig --version 2>&1 | awk \
-'(NR==1 && ($3 == "version")) {print "wireless-tools        ",$4}'
+iwconfig --version 2>&1 |
+awk '/version/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("Wireless-tools\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
-if [ -e /proc/modules ]; then
-    X=`cat /proc/modules | sed -e "s/ .*$//"`
-    echo "Modules Loaded         "$X
-fi
+test -e /proc/modules &&
+sort /proc/modules |
+sed '
+	s/ .*//
+	H
+${
+	g
+	s/^\n/Modules Loaded\t\t/
+	y/\n/ /
+	q
+}
+	d
+'

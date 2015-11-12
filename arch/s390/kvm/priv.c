@@ -33,11 +33,9 @@
 /* Handle SCK (SET CLOCK) interception */
 static int handle_set_clock(struct kvm_vcpu *vcpu)
 {
-	struct kvm_vcpu *cpup;
-	s64 hostclk, val;
-	int i, rc;
+	int rc;
 	ar_t ar;
-	u64 op2;
+	u64 op2, val;
 
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
@@ -49,19 +47,8 @@ static int handle_set_clock(struct kvm_vcpu *vcpu)
 	if (rc)
 		return kvm_s390_inject_prog_cond(vcpu, rc);
 
-	if (store_tod_clock(&hostclk)) {
-		kvm_s390_set_psw_cc(vcpu, 3);
-		return 0;
-	}
 	VCPU_EVENT(vcpu, 3, "SCK: setting guest TOD to 0x%llx", val);
-	val = (val - hostclk) & ~0x3fUL;
-
-	mutex_lock(&vcpu->kvm->lock);
-	preempt_disable();
-	kvm_for_each_vcpu(i, cpup, vcpu->kvm)
-		cpup->arch.sie_block->epoch = val;
-	preempt_enable();
-	mutex_unlock(&vcpu->kvm->lock);
+	kvm_s390_set_tod_clock(vcpu->kvm, val);
 
 	kvm_s390_set_psw_cc(vcpu, 0);
 	return 0;

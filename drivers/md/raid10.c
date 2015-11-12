@@ -39,6 +39,7 @@
  *    far_copies (stored in second byte of layout)
  *    far_offset (stored in bit 16 of layout )
  *    use_far_sets (stored in bit 17 of layout )
+ *    use_far_sets_bugfixed (stored in bit 18 of layout )
  *
  * The data to be stored is divided into chunks using chunksize.  Each device
  * is divided into far_copies sections.   In each section, chunks are laid out
@@ -1497,6 +1498,8 @@ static void status(struct seq_file *seq, struct mddev *mddev)
 			seq_printf(seq, " %d offset-copies", conf->geo.far_copies);
 		else
 			seq_printf(seq, " %d far-copies", conf->geo.far_copies);
+		if (conf->geo.far_set_size != conf->geo.raid_disks)
+			seq_printf(seq, " %d devices per set", conf->geo.far_set_size);
 	}
 	seq_printf(seq, " [%d/%d] [", conf->geo.raid_disks,
 					conf->geo.raid_disks - mddev->degraded);
@@ -1736,7 +1739,9 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 		rcu_assign_pointer(p->rdev, rdev);
 		break;
 	}
+	mddev_suspend(mddev);
 	md_integrity_add_rdev(rdev, mddev);
+	mddev_resume(mddev);
 	if (mddev->queue && blk_queue_discard(bdev_get_queue(rdev->bdev)))
 		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, mddev->queue);
 
@@ -2467,7 +2472,7 @@ static int narrow_write_error(struct r10bio *r10_bio, int i)
 				   choose_data_offset(r10_bio, rdev) +
 				   (sector - r10_bio->sector));
 		wbio->bi_bdev = rdev->bdev;
-		if (submit_bio_wait(WRITE, wbio) == 0)
+		if (submit_bio_wait(WRITE, wbio) < 0)
 			/* Failure! */
 			ok = rdev_set_badblocks(rdev, sector,
 						sectors, 0)
@@ -2654,16 +2659,17 @@ static void handle_write_completed(struct r10conf *conf, struct r10bio *r10_bio)
 				rdev_dec_pending(rdev, conf->mddev);
 			}
 		}
-		if (test_bit(R10BIO_WriteError,
-			     &r10_bio->state))
-			close_write(r10_bio);
 		if (fail) {
 			spin_lock_irq(&conf->device_lock);
 			list_add(&r10_bio->retry_list, &conf->bio_end_io_list);
 			spin_unlock_irq(&conf->device_lock);
 			md_wakeup_thread(conf->mddev->thread);
-		} else
+		} else {
+			if (test_bit(R10BIO_WriteError,
+				     &r10_bio->state))
+				close_write(r10_bio);
 			raid_end_bio_io(r10_bio);
+		}
 	}
 }
 
@@ -2691,6 +2697,12 @@ static void raid10d(struct md_thread *thread)
 			r10_bio = list_first_entry(&tmp, struct r10bio,
 						   retry_list);
 			list_del(&r10_bio->retry_list);
+			if (mddev->degraded)
+				set_bit(R10BIO_Degraded, &r10_bio->state);
+
+			if (test_bit(R10BIO_WriteError,
+				     &r10_bio->state))
+				close_write(r10_bio);
 			raid_end_bio_io(r10_bio);
 		}
 	}
@@ -3137,7 +3149,7 @@ static sector_t sync_request(struct mddev *mddev, sector_t sector_nr,
 		/* resync. Schedule a read for every block at this virt offset */
 		int count = 0;
 
-		bitmap_cond_end_sync(mddev->bitmap, sector_nr);
+		bitmap_cond_end_sync(mddev->bitmap, sector_nr, 0);
 
 		if (!bitmap_start_sync(mddev->bitmap, sector_nr,
 				       &sync_blocks, mddev->degraded) &&
@@ -3387,7 +3399,7 @@ static int setup_geo(struct geom *geo, struct mddev *mddev, enum geo_type new)
 		disks = mddev->raid_disks + mddev->delta_disks;
 		break;
 	}
-	if (layout >> 18)
+	if (layout >> 19)
 		return -1;
 	if (chunk < (PAGE_SIZE >> 9) ||
 	    !is_power_of_2(chunk))
@@ -3399,7 +3411,22 @@ static int setup_geo(struct geom *geo, struct mddev *mddev, enum geo_type new)
 	geo->near_copies = nc;
 	geo->far_copies = fc;
 	geo->far_offset = fo;
-	geo->far_set_size = (layout & (1<<17)) ? disks / fc : disks;
+	switch (layout >> 17) {
+	case 0:	/* original layout.  simple but not always optimal */
+		geo->far_set_size = disks;
+		break;
+	case 1: /* "improved" layout which was buggy.  Hopefully no-one is
+		 * actually using this, but leave code here just in case.*/
+		geo->far_set_size = disks/fc;
+		WARN(geo->far_set_size < fc,
+		     "This RAID10 layout does not provide data safety - please backup and create new array\n");
+		break;
+	case 2: /* "improved" layout fixed to match documentation */
+		geo->far_set_size = fc * nc;
+		break;
+	default: /* Not a valid layout */
+		return -1;
+	}
 	geo->chunk_mask = chunk - 1;
 	geo->chunk_shift = ffz(~chunk);
 	return nc*fc;

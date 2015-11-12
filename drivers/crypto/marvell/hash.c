@@ -27,10 +27,10 @@ mv_cesa_ahash_req_iter_init(struct mv_cesa_ahash_dma_iter *iter,
 			    struct ahash_request *req)
 {
 	struct mv_cesa_ahash_req *creq = ahash_request_ctx(req);
-	unsigned int len = req->nbytes;
+	unsigned int len = req->nbytes + creq->cache_ptr;
 
 	if (!creq->last_req)
-		len = (len + creq->cache_ptr) & ~CESA_HASH_BLOCK_SIZE_MSK;
+		len &= ~CESA_HASH_BLOCK_SIZE_MSK;
 
 	mv_cesa_req_dma_iter_init(&iter->base, len);
 	mv_cesa_sg_dma_iter_init(&iter->src, req->src, DMA_TO_DEVICE);
@@ -179,7 +179,6 @@ static int mv_cesa_ahash_pad_len(struct mv_cesa_ahash_req *creq)
 
 static int mv_cesa_ahash_pad_req(struct mv_cesa_ahash_req *creq, u8 *buf)
 {
-	__be64 bits = cpu_to_be64(creq->len << 3);
 	unsigned int index, padlen;
 
 	buf[0] = 0x80;
@@ -187,7 +186,14 @@ static int mv_cesa_ahash_pad_req(struct mv_cesa_ahash_req *creq, u8 *buf)
 	index = creq->len & CESA_HASH_BLOCK_SIZE_MSK;
 	padlen = mv_cesa_ahash_pad_len(creq);
 	memset(buf + 1, 0, padlen - 1);
-	memcpy(buf + padlen, &bits, sizeof(bits));
+
+	if (creq->algo_le) {
+		__le64 bits = cpu_to_le64(creq->len << 3);
+		memcpy(buf + padlen, &bits, sizeof(bits));
+	} else {
+		__be64 bits = cpu_to_be64(creq->len << 3);
+		memcpy(buf + padlen, &bits, sizeof(bits));
+	}
 
 	return padlen + 8;
 }
@@ -203,8 +209,8 @@ static void mv_cesa_ahash_std_step(struct ahash_request *req)
 	size_t  len;
 
 	if (creq->cache_ptr)
-		memcpy(engine->sram + CESA_SA_DATA_SRAM_OFFSET, creq->cache,
-		       creq->cache_ptr);
+		memcpy_toio(engine->sram + CESA_SA_DATA_SRAM_OFFSET,
+			    creq->cache, creq->cache_ptr);
 
 	len = min_t(size_t, req->nbytes + creq->cache_ptr - sreq->offset,
 		    CESA_SA_SRAM_PAYLOAD_SIZE);
@@ -245,10 +251,10 @@ static void mv_cesa_ahash_std_step(struct ahash_request *req)
 			if (len + trailerlen > CESA_SA_SRAM_PAYLOAD_SIZE) {
 				len &= CESA_HASH_BLOCK_SIZE_MSK;
 				new_cache_ptr = 64 - trailerlen;
-				memcpy(creq->cache,
-				       engine->sram +
-				       CESA_SA_DATA_SRAM_OFFSET + len,
-				       new_cache_ptr);
+				memcpy_fromio(creq->cache,
+					      engine->sram +
+					      CESA_SA_DATA_SRAM_OFFSET + len,
+					      new_cache_ptr);
 			} else {
 				len += mv_cesa_ahash_pad_req(creq,
 						engine->sram + len +
@@ -266,7 +272,7 @@ static void mv_cesa_ahash_std_step(struct ahash_request *req)
 	mv_cesa_update_op_cfg(op, frag_mode, CESA_SA_DESC_CFG_FRAG_MSK);
 
 	/* FIXME: only update enc_len field */
-	memcpy(engine->sram, op, sizeof(*op));
+	memcpy_toio(engine->sram, op, sizeof(*op));
 
 	if (frag_mode == CESA_SA_DESC_CFG_FIRST_FRAG)
 		mv_cesa_update_op_cfg(op, CESA_SA_DESC_CFG_MID_FRAG,
@@ -275,7 +281,7 @@ static void mv_cesa_ahash_std_step(struct ahash_request *req)
 	creq->cache_ptr = new_cache_ptr;
 
 	mv_cesa_set_int_mask(engine, CESA_SA_INT_ACCEL0_DONE);
-	writel(CESA_SA_CFG_PARA_DIS, engine->regs + CESA_SA_CFG);
+	writel_relaxed(CESA_SA_CFG_PARA_DIS, engine->regs + CESA_SA_CFG);
 	writel(CESA_SA_CMD_EN_CESA_SA_ACCL0, engine->regs + CESA_SA_CMD);
 }
 
@@ -306,7 +312,7 @@ static void mv_cesa_ahash_std_prepare(struct ahash_request *req)
 
 	sreq->offset = 0;
 	mv_cesa_adjust_op(engine, &creq->op_tmpl);
-	memcpy(engine->sram, &creq->op_tmpl, sizeof(creq->op_tmpl));
+	memcpy_toio(engine->sram, &creq->op_tmpl, sizeof(creq->op_tmpl));
 }
 
 static void mv_cesa_ahash_step(struct crypto_async_request *req)
@@ -338,7 +344,7 @@ static int mv_cesa_ahash_process(struct crypto_async_request *req, u32 status)
 
 	digsize = crypto_ahash_digestsize(crypto_ahash_reqtfm(ahashreq));
 	for (i = 0; i < digsize / 4; i++)
-		creq->state[i] = readl(engine->regs + CESA_IVDIG(i));
+		creq->state[i] = readl_relaxed(engine->regs + CESA_IVDIG(i));
 
 	if (creq->cache_ptr)
 		sg_pcopy_to_buffer(ahashreq->src, creq->src_nents,
@@ -347,18 +353,21 @@ static int mv_cesa_ahash_process(struct crypto_async_request *req, u32 status)
 				   ahashreq->nbytes - creq->cache_ptr);
 
 	if (creq->last_req) {
-		for (i = 0; i < digsize / 4; i++) {
-			/*
-			 * Hardware provides MD5 digest in a different
-			 * endianness than SHA-1 and SHA-256 ones.
-			 */
-			if (digsize == MD5_DIGEST_SIZE)
-				creq->state[i] = cpu_to_le32(creq->state[i]);
-			else
-				creq->state[i] = cpu_to_be32(creq->state[i]);
-		}
+		/*
+		 * Hardware's MD5 digest is in little endian format, but
+		 * SHA in big endian format
+		 */
+		if (creq->algo_le) {
+			__le32 *result = (void *)ahashreq->result;
 
-		memcpy(ahashreq->result, creq->state, digsize);
+			for (i = 0; i < digsize / 4; i++)
+				result[i] = cpu_to_le32(creq->state[i]);
+		} else {
+			__be32 *result = (void *)ahashreq->result;
+
+			for (i = 0; i < digsize / 4; i++)
+				result[i] = cpu_to_be32(creq->state[i]);
+		}
 	}
 
 	return ret;
@@ -381,8 +390,7 @@ static void mv_cesa_ahash_prepare(struct crypto_async_request *req,
 
 	digsize = crypto_ahash_digestsize(crypto_ahash_reqtfm(ahashreq));
 	for (i = 0; i < digsize / 4; i++)
-		writel(creq->state[i],
-		       engine->regs + CESA_IVDIG(i));
+		writel_relaxed(creq->state[i], engine->regs + CESA_IVDIG(i));
 }
 
 static void mv_cesa_ahash_req_cleanup(struct crypto_async_request *req)
@@ -404,7 +412,7 @@ static const struct mv_cesa_req_ops mv_cesa_ahash_req_ops = {
 };
 
 static int mv_cesa_ahash_init(struct ahash_request *req,
-			      struct mv_cesa_op_ctx *tmpl)
+			      struct mv_cesa_op_ctx *tmpl, bool algo_le)
 {
 	struct mv_cesa_ahash_req *creq = ahash_request_ctx(req);
 
@@ -418,6 +426,7 @@ static int mv_cesa_ahash_init(struct ahash_request *req,
 	mv_cesa_set_mac_op_frag_len(tmpl, 0);
 	creq->op_tmpl = *tmpl;
 	creq->len = 0;
+	creq->algo_le = algo_le;
 
 	return 0;
 }
@@ -462,145 +471,114 @@ static int mv_cesa_ahash_cache_req(struct ahash_request *req, bool *cached)
 }
 
 static struct mv_cesa_op_ctx *
+mv_cesa_dma_add_frag(struct mv_cesa_tdma_chain *chain,
+		     struct mv_cesa_op_ctx *tmpl, unsigned int frag_len,
+		     gfp_t flags)
+{
+	struct mv_cesa_op_ctx *op;
+	int ret;
+
+	op = mv_cesa_dma_add_op(chain, tmpl, false, flags);
+	if (IS_ERR(op))
+		return op;
+
+	/* Set the operation block fragment length. */
+	mv_cesa_set_mac_op_frag_len(op, frag_len);
+
+	/* Append dummy desc to launch operation */
+	ret = mv_cesa_dma_add_dummy_launch(chain, flags);
+	if (ret)
+		return ERR_PTR(ret);
+
+	if (mv_cesa_mac_op_is_first_frag(tmpl))
+		mv_cesa_update_op_cfg(tmpl,
+				      CESA_SA_DESC_CFG_MID_FRAG,
+				      CESA_SA_DESC_CFG_FRAG_MSK);
+
+	return op;
+}
+
+static int
 mv_cesa_ahash_dma_add_cache(struct mv_cesa_tdma_chain *chain,
 			    struct mv_cesa_ahash_dma_iter *dma_iter,
 			    struct mv_cesa_ahash_req *creq,
 			    gfp_t flags)
 {
 	struct mv_cesa_ahash_dma_req *ahashdreq = &creq->req.dma;
-	struct mv_cesa_op_ctx *op = NULL;
-	int ret;
 
 	if (!creq->cache_ptr)
-		return NULL;
+		return 0;
 
-	ret = mv_cesa_dma_add_data_transfer(chain,
-					    CESA_SA_DATA_SRAM_OFFSET,
-					    ahashdreq->cache_dma,
-					    creq->cache_ptr,
-					    CESA_TDMA_DST_IN_SRAM,
-					    flags);
-	if (ret)
-		return ERR_PTR(ret);
-
-	if (!dma_iter->base.op_len) {
-		op = mv_cesa_dma_add_op(chain, &creq->op_tmpl, false, flags);
-		if (IS_ERR(op))
-			return op;
-
-		mv_cesa_set_mac_op_frag_len(op, creq->cache_ptr);
-
-		/* Add dummy desc to launch crypto operation */
-		ret = mv_cesa_dma_add_dummy_launch(chain, flags);
-		if (ret)
-			return ERR_PTR(ret);
-	}
-
-	return op;
-}
-
-static struct mv_cesa_op_ctx *
-mv_cesa_ahash_dma_add_data(struct mv_cesa_tdma_chain *chain,
-			   struct mv_cesa_ahash_dma_iter *dma_iter,
-			   struct mv_cesa_ahash_req *creq,
-			   gfp_t flags)
-{
-	struct mv_cesa_op_ctx *op;
-	int ret;
-
-	op = mv_cesa_dma_add_op(chain, &creq->op_tmpl, false, flags);
-	if (IS_ERR(op))
-		return op;
-
-	mv_cesa_set_mac_op_frag_len(op, dma_iter->base.op_len);
-
-	if ((mv_cesa_get_op_cfg(&creq->op_tmpl) & CESA_SA_DESC_CFG_FRAG_MSK) ==
-	    CESA_SA_DESC_CFG_FIRST_FRAG)
-		mv_cesa_update_op_cfg(&creq->op_tmpl,
-				      CESA_SA_DESC_CFG_MID_FRAG,
-				      CESA_SA_DESC_CFG_FRAG_MSK);
-
-	/* Add input transfers */
-	ret = mv_cesa_dma_add_op_transfers(chain, &dma_iter->base,
-					   &dma_iter->src, flags);
-	if (ret)
-		return ERR_PTR(ret);
-
-	/* Add dummy desc to launch crypto operation */
-	ret = mv_cesa_dma_add_dummy_launch(chain, flags);
-	if (ret)
-		return ERR_PTR(ret);
-
-	return op;
+	return mv_cesa_dma_add_data_transfer(chain,
+					     CESA_SA_DATA_SRAM_OFFSET,
+					     ahashdreq->cache_dma,
+					     creq->cache_ptr,
+					     CESA_TDMA_DST_IN_SRAM,
+					     flags);
 }
 
 static struct mv_cesa_op_ctx *
 mv_cesa_ahash_dma_last_req(struct mv_cesa_tdma_chain *chain,
 			   struct mv_cesa_ahash_dma_iter *dma_iter,
 			   struct mv_cesa_ahash_req *creq,
-			   struct mv_cesa_op_ctx *op,
-			   gfp_t flags)
+			   unsigned int frag_len, gfp_t flags)
 {
 	struct mv_cesa_ahash_dma_req *ahashdreq = &creq->req.dma;
 	unsigned int len, trailerlen, padoff = 0;
+	struct mv_cesa_op_ctx *op;
 	int ret;
 
-	if (!creq->last_req)
-		return op;
+	/*
+	 * If the transfer is smaller than our maximum length, and we have
+	 * some data outstanding, we can ask the engine to finish the hash.
+	 */
+	if (creq->len <= CESA_SA_DESC_MAC_SRC_TOTAL_LEN_MAX && frag_len) {
+		op = mv_cesa_dma_add_frag(chain, &creq->op_tmpl, frag_len,
+					  flags);
+		if (IS_ERR(op))
+			return op;
 
-	if (op && creq->len <= CESA_SA_DESC_MAC_SRC_TOTAL_LEN_MAX) {
-		u32 frag = CESA_SA_DESC_CFG_NOT_FRAG;
-
-		if ((mv_cesa_get_op_cfg(op) & CESA_SA_DESC_CFG_FRAG_MSK) !=
-		    CESA_SA_DESC_CFG_FIRST_FRAG)
-			frag = CESA_SA_DESC_CFG_LAST_FRAG;
-
-		mv_cesa_update_op_cfg(op, frag, CESA_SA_DESC_CFG_FRAG_MSK);
+		mv_cesa_set_mac_op_total_len(op, creq->len);
+		mv_cesa_update_op_cfg(op, mv_cesa_mac_op_is_first_frag(op) ?
+						CESA_SA_DESC_CFG_NOT_FRAG :
+						CESA_SA_DESC_CFG_LAST_FRAG,
+				      CESA_SA_DESC_CFG_FRAG_MSK);
 
 		return op;
 	}
 
+	/*
+	 * The request is longer than the engine can handle, or we have
+	 * no data outstanding. Manually generate the padding, adding it
+	 * as a "mid" fragment.
+	 */
 	ret = mv_cesa_ahash_dma_alloc_padding(ahashdreq, flags);
 	if (ret)
 		return ERR_PTR(ret);
 
 	trailerlen = mv_cesa_ahash_pad_req(creq, ahashdreq->padding);
 
-	if (op) {
-		len = min(CESA_SA_SRAM_PAYLOAD_SIZE - dma_iter->base.op_len,
-			  trailerlen);
-		if (len) {
-			ret = mv_cesa_dma_add_data_transfer(chain,
+	len = min(CESA_SA_SRAM_PAYLOAD_SIZE - frag_len, trailerlen);
+	if (len) {
+		ret = mv_cesa_dma_add_data_transfer(chain,
 						CESA_SA_DATA_SRAM_OFFSET +
-						dma_iter->base.op_len,
+						frag_len,
 						ahashdreq->padding_dma,
 						len, CESA_TDMA_DST_IN_SRAM,
 						flags);
-			if (ret)
-				return ERR_PTR(ret);
+		if (ret)
+			return ERR_PTR(ret);
 
-			mv_cesa_update_op_cfg(op, CESA_SA_DESC_CFG_MID_FRAG,
-					      CESA_SA_DESC_CFG_FRAG_MSK);
-			mv_cesa_set_mac_op_frag_len(op,
-					dma_iter->base.op_len + len);
-			padoff += len;
-		}
+		op = mv_cesa_dma_add_frag(chain, &creq->op_tmpl, frag_len + len,
+					  flags);
+		if (IS_ERR(op))
+			return op;
+
+		if (len == trailerlen)
+			return op;
+
+		padoff += len;
 	}
-
-	if (padoff >= trailerlen)
-		return op;
-
-	if ((mv_cesa_get_op_cfg(&creq->op_tmpl) & CESA_SA_DESC_CFG_FRAG_MSK) !=
-	    CESA_SA_DESC_CFG_FIRST_FRAG)
-		mv_cesa_update_op_cfg(&creq->op_tmpl,
-				      CESA_SA_DESC_CFG_MID_FRAG,
-				      CESA_SA_DESC_CFG_FRAG_MSK);
-
-	op = mv_cesa_dma_add_op(chain, &creq->op_tmpl, false, flags);
-	if (IS_ERR(op))
-		return op;
-
-	mv_cesa_set_mac_op_frag_len(op, trailerlen - padoff);
 
 	ret = mv_cesa_dma_add_data_transfer(chain,
 					    CESA_SA_DATA_SRAM_OFFSET,
@@ -612,12 +590,8 @@ mv_cesa_ahash_dma_last_req(struct mv_cesa_tdma_chain *chain,
 	if (ret)
 		return ERR_PTR(ret);
 
-	/* Add dummy desc to launch crypto operation */
-	ret = mv_cesa_dma_add_dummy_launch(chain, flags);
-	if (ret)
-		return ERR_PTR(ret);
-
-	return op;
+	return mv_cesa_dma_add_frag(chain, &creq->op_tmpl, trailerlen - padoff,
+				    flags);
 }
 
 static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
@@ -627,9 +601,9 @@ static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
 		      GFP_KERNEL : GFP_ATOMIC;
 	struct mv_cesa_ahash_dma_req *ahashdreq = &creq->req.dma;
 	struct mv_cesa_tdma_req *dreq = &ahashdreq->base;
-	struct mv_cesa_tdma_chain chain;
 	struct mv_cesa_ahash_dma_iter iter;
 	struct mv_cesa_op_ctx *op = NULL;
+	unsigned int frag_len;
 	int ret;
 
 	dreq->chain.first = NULL;
@@ -644,29 +618,59 @@ static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
 		}
 	}
 
-	mv_cesa_tdma_desc_iter_init(&chain);
+	mv_cesa_tdma_desc_iter_init(&dreq->chain);
 	mv_cesa_ahash_req_iter_init(&iter, req);
 
-	op = mv_cesa_ahash_dma_add_cache(&chain, &iter,
-					 creq, flags);
-	if (IS_ERR(op)) {
-		ret = PTR_ERR(op);
+	/*
+	 * Add the cache (left-over data from a previous block) first.
+	 * This will never overflow the SRAM size.
+	 */
+	ret = mv_cesa_ahash_dma_add_cache(&dreq->chain, &iter, creq, flags);
+	if (ret)
 		goto err_free_tdma;
+
+	if (iter.src.sg) {
+		/*
+		 * Add all the new data, inserting an operation block and
+		 * launch command between each full SRAM block-worth of
+		 * data. We intentionally do not add the final op block.
+		 */
+		while (true) {
+			ret = mv_cesa_dma_add_op_transfers(&dreq->chain,
+							   &iter.base,
+							   &iter.src, flags);
+			if (ret)
+				goto err_free_tdma;
+
+			frag_len = iter.base.op_len;
+
+			if (!mv_cesa_ahash_req_iter_next_op(&iter))
+				break;
+
+			op = mv_cesa_dma_add_frag(&dreq->chain, &creq->op_tmpl,
+						  frag_len, flags);
+			if (IS_ERR(op)) {
+				ret = PTR_ERR(op);
+				goto err_free_tdma;
+			}
+		}
+	} else {
+		/* Account for the data that was in the cache. */
+		frag_len = iter.base.op_len;
 	}
 
-	do {
-		if (!iter.base.op_len)
-			break;
+	/*
+	 * At this point, frag_len indicates whether we have any data
+	 * outstanding which needs an operation.  Queue up the final
+	 * operation, which depends whether this is the final request.
+	 */
+	if (creq->last_req)
+		op = mv_cesa_ahash_dma_last_req(&dreq->chain, &iter, creq,
+						frag_len, flags);
+	else if (frag_len)
+		op = mv_cesa_dma_add_frag(&dreq->chain, &creq->op_tmpl,
+					  frag_len, flags);
 
-		op = mv_cesa_ahash_dma_add_data(&chain, &iter,
-						creq, flags);
-		if (IS_ERR(op)) {
-			ret = PTR_ERR(op);
-			goto err_free_tdma;
-		}
-	} while (mv_cesa_ahash_req_iter_next_op(&iter));
-
-	op = mv_cesa_ahash_dma_last_req(&chain, &iter, creq, op, flags);
 	if (IS_ERR(op)) {
 		ret = PTR_ERR(op);
 		goto err_free_tdma;
@@ -674,7 +678,7 @@ static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
 
 	if (op) {
 		/* Add dummy desc to wait for crypto operation end */
-		ret = mv_cesa_dma_add_dummy_end(&chain, flags);
+		ret = mv_cesa_dma_add_dummy_end(&dreq->chain, flags);
 		if (ret)
 			goto err_free_tdma;
 	}
@@ -684,8 +688,6 @@ static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
 				  iter.base.len;
 	else
 		creq->cache_ptr = 0;
-
-	dreq->chain = chain;
 
 	return 0;
 
@@ -795,47 +797,50 @@ static int mv_cesa_ahash_finup(struct ahash_request *req)
 	return ret;
 }
 
-static int mv_cesa_md5_init(struct ahash_request *req)
+static int mv_cesa_ahash_export(struct ahash_request *req, void *hash,
+				u64 *len, void *cache)
 {
-	struct mv_cesa_op_ctx tmpl;
-
-	mv_cesa_set_op_cfg(&tmpl, CESA_SA_DESC_CFG_MACM_MD5);
-
-	mv_cesa_ahash_init(req, &tmpl);
-
-	return 0;
-}
-
-static int mv_cesa_md5_export(struct ahash_request *req, void *out)
-{
-	struct md5_state *out_state = out;
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
 	struct mv_cesa_ahash_req *creq = ahash_request_ctx(req);
 	unsigned int digsize = crypto_ahash_digestsize(ahash);
+	unsigned int blocksize;
 
-	out_state->byte_count = creq->len;
-	memcpy(out_state->hash, creq->state, digsize);
-	memset(out_state->block, 0, sizeof(out_state->block));
+	blocksize = crypto_ahash_blocksize(ahash);
+
+	*len = creq->len;
+	memcpy(hash, creq->state, digsize);
+	memset(cache, 0, blocksize);
 	if (creq->cache)
-		memcpy(out_state->block, creq->cache, creq->cache_ptr);
+		memcpy(cache, creq->cache, creq->cache_ptr);
 
 	return 0;
 }
 
-static int mv_cesa_md5_import(struct ahash_request *req, const void *in)
+static int mv_cesa_ahash_import(struct ahash_request *req, const void *hash,
+				u64 len, const void *cache)
 {
-	const struct md5_state *in_state = in;
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
 	struct mv_cesa_ahash_req *creq = ahash_request_ctx(req);
 	unsigned int digsize = crypto_ahash_digestsize(ahash);
+	unsigned int blocksize;
 	unsigned int cache_ptr;
 	int ret;
 
-	creq->len = in_state->byte_count;
-	memcpy(creq->state, in_state->hash, digsize);
+	ret = crypto_ahash_init(req);
+	if (ret)
+		return ret;
+
+	blocksize = crypto_ahash_blocksize(ahash);
+	if (len >= blocksize)
+		mv_cesa_update_op_cfg(&creq->op_tmpl,
+				      CESA_SA_DESC_CFG_MID_FRAG,
+				      CESA_SA_DESC_CFG_FRAG_MSK);
+
+	creq->len = len;
+	memcpy(creq->state, hash, digsize);
 	creq->cache_ptr = 0;
 
-	cache_ptr = creq->len % sizeof(in_state->block);
+	cache_ptr = do_div(len, blocksize);
 	if (!cache_ptr)
 		return 0;
 
@@ -843,10 +848,37 @@ static int mv_cesa_md5_import(struct ahash_request *req, const void *in)
 	if (ret)
 		return ret;
 
-	memcpy(creq->cache, in_state->block, cache_ptr);
+	memcpy(creq->cache, cache, cache_ptr);
 	creq->cache_ptr = cache_ptr;
 
 	return 0;
+}
+
+static int mv_cesa_md5_init(struct ahash_request *req)
+{
+	struct mv_cesa_op_ctx tmpl = { };
+
+	mv_cesa_set_op_cfg(&tmpl, CESA_SA_DESC_CFG_MACM_MD5);
+
+	mv_cesa_ahash_init(req, &tmpl, true);
+
+	return 0;
+}
+
+static int mv_cesa_md5_export(struct ahash_request *req, void *out)
+{
+	struct md5_state *out_state = out;
+
+	return mv_cesa_ahash_export(req, out_state->hash,
+				    &out_state->byte_count, out_state->block);
+}
+
+static int mv_cesa_md5_import(struct ahash_request *req, const void *in)
+{
+	const struct md5_state *in_state = in;
+
+	return mv_cesa_ahash_import(req, in_state->hash, in_state->byte_count,
+				    in_state->block);
 }
 
 static int mv_cesa_md5_digest(struct ahash_request *req)
@@ -870,6 +902,7 @@ struct ahash_alg mv_md5_alg = {
 	.import = mv_cesa_md5_import,
 	.halg = {
 		.digestsize = MD5_DIGEST_SIZE,
+		.statesize = sizeof(struct md5_state),
 		.base = {
 			.cra_name = "md5",
 			.cra_driver_name = "mv-md5",
@@ -886,11 +919,11 @@ struct ahash_alg mv_md5_alg = {
 
 static int mv_cesa_sha1_init(struct ahash_request *req)
 {
-	struct mv_cesa_op_ctx tmpl;
+	struct mv_cesa_op_ctx tmpl = { };
 
 	mv_cesa_set_op_cfg(&tmpl, CESA_SA_DESC_CFG_MACM_SHA1);
 
-	mv_cesa_ahash_init(req, &tmpl);
+	mv_cesa_ahash_init(req, &tmpl, false);
 
 	return 0;
 }
@@ -898,44 +931,17 @@ static int mv_cesa_sha1_init(struct ahash_request *req)
 static int mv_cesa_sha1_export(struct ahash_request *req, void *out)
 {
 	struct sha1_state *out_state = out;
-	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
-	struct mv_cesa_ahash_req *creq = ahash_request_ctx(req);
-	unsigned int digsize = crypto_ahash_digestsize(ahash);
 
-	out_state->count = creq->len;
-	memcpy(out_state->state, creq->state, digsize);
-	memset(out_state->buffer, 0, sizeof(out_state->buffer));
-	if (creq->cache)
-		memcpy(out_state->buffer, creq->cache, creq->cache_ptr);
-
-	return 0;
+	return mv_cesa_ahash_export(req, out_state->state, &out_state->count,
+				    out_state->buffer);
 }
 
 static int mv_cesa_sha1_import(struct ahash_request *req, const void *in)
 {
 	const struct sha1_state *in_state = in;
-	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
-	struct mv_cesa_ahash_req *creq = ahash_request_ctx(req);
-	unsigned int digsize = crypto_ahash_digestsize(ahash);
-	unsigned int cache_ptr;
-	int ret;
 
-	creq->len = in_state->count;
-	memcpy(creq->state, in_state->state, digsize);
-	creq->cache_ptr = 0;
-
-	cache_ptr = creq->len % SHA1_BLOCK_SIZE;
-	if (!cache_ptr)
-		return 0;
-
-	ret = mv_cesa_ahash_alloc_cache(req);
-	if (ret)
-		return ret;
-
-	memcpy(creq->cache, in_state->buffer, cache_ptr);
-	creq->cache_ptr = cache_ptr;
-
-	return 0;
+	return mv_cesa_ahash_import(req, in_state->state, in_state->count,
+				    in_state->buffer);
 }
 
 static int mv_cesa_sha1_digest(struct ahash_request *req)
@@ -959,6 +965,7 @@ struct ahash_alg mv_sha1_alg = {
 	.import = mv_cesa_sha1_import,
 	.halg = {
 		.digestsize = SHA1_DIGEST_SIZE,
+		.statesize = sizeof(struct sha1_state),
 		.base = {
 			.cra_name = "sha1",
 			.cra_driver_name = "mv-sha1",
@@ -975,11 +982,11 @@ struct ahash_alg mv_sha1_alg = {
 
 static int mv_cesa_sha256_init(struct ahash_request *req)
 {
-	struct mv_cesa_op_ctx tmpl;
+	struct mv_cesa_op_ctx tmpl = { };
 
 	mv_cesa_set_op_cfg(&tmpl, CESA_SA_DESC_CFG_MACM_SHA256);
 
-	mv_cesa_ahash_init(req, &tmpl);
+	mv_cesa_ahash_init(req, &tmpl, false);
 
 	return 0;
 }
@@ -998,44 +1005,17 @@ static int mv_cesa_sha256_digest(struct ahash_request *req)
 static int mv_cesa_sha256_export(struct ahash_request *req, void *out)
 {
 	struct sha256_state *out_state = out;
-	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
-	struct mv_cesa_ahash_req *creq = ahash_request_ctx(req);
-	unsigned int ds = crypto_ahash_digestsize(ahash);
 
-	out_state->count = creq->len;
-	memcpy(out_state->state, creq->state, ds);
-	memset(out_state->buf, 0, sizeof(out_state->buf));
-	if (creq->cache)
-		memcpy(out_state->buf, creq->cache, creq->cache_ptr);
-
-	return 0;
+	return mv_cesa_ahash_export(req, out_state->state, &out_state->count,
+				    out_state->buf);
 }
 
 static int mv_cesa_sha256_import(struct ahash_request *req, const void *in)
 {
 	const struct sha256_state *in_state = in;
-	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
-	struct mv_cesa_ahash_req *creq = ahash_request_ctx(req);
-	unsigned int digsize = crypto_ahash_digestsize(ahash);
-	unsigned int cache_ptr;
-	int ret;
 
-	creq->len = in_state->count;
-	memcpy(creq->state, in_state->state, digsize);
-	creq->cache_ptr = 0;
-
-	cache_ptr = creq->len % SHA256_BLOCK_SIZE;
-	if (!cache_ptr)
-		return 0;
-
-	ret = mv_cesa_ahash_alloc_cache(req);
-	if (ret)
-		return ret;
-
-	memcpy(creq->cache, in_state->buf, cache_ptr);
-	creq->cache_ptr = cache_ptr;
-
-	return 0;
+	return mv_cesa_ahash_import(req, in_state->state, in_state->count,
+				    in_state->buf);
 }
 
 struct ahash_alg mv_sha256_alg = {
@@ -1048,6 +1028,7 @@ struct ahash_alg mv_sha256_alg = {
 	.import = mv_cesa_sha256_import,
 	.halg = {
 		.digestsize = SHA256_DIGEST_SIZE,
+		.statesize = sizeof(struct sha256_state),
 		.base = {
 			.cra_name = "sha256",
 			.cra_driver_name = "mv-sha256",
@@ -1231,12 +1212,12 @@ static int mv_cesa_ahmac_cra_init(struct crypto_tfm *tfm)
 static int mv_cesa_ahmac_md5_init(struct ahash_request *req)
 {
 	struct mv_cesa_hmac_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
-	struct mv_cesa_op_ctx tmpl;
+	struct mv_cesa_op_ctx tmpl = { };
 
 	mv_cesa_set_op_cfg(&tmpl, CESA_SA_DESC_CFG_MACM_HMAC_MD5);
 	memcpy(tmpl.ctx.hash.iv, ctx->iv, sizeof(ctx->iv));
 
-	mv_cesa_ahash_init(req, &tmpl);
+	mv_cesa_ahash_init(req, &tmpl, true);
 
 	return 0;
 }
@@ -1301,12 +1282,12 @@ struct ahash_alg mv_ahmac_md5_alg = {
 static int mv_cesa_ahmac_sha1_init(struct ahash_request *req)
 {
 	struct mv_cesa_hmac_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
-	struct mv_cesa_op_ctx tmpl;
+	struct mv_cesa_op_ctx tmpl = { };
 
 	mv_cesa_set_op_cfg(&tmpl, CESA_SA_DESC_CFG_MACM_HMAC_SHA1);
 	memcpy(tmpl.ctx.hash.iv, ctx->iv, sizeof(ctx->iv));
 
-	mv_cesa_ahash_init(req, &tmpl);
+	mv_cesa_ahash_init(req, &tmpl, false);
 
 	return 0;
 }
@@ -1391,12 +1372,12 @@ static int mv_cesa_ahmac_sha256_setkey(struct crypto_ahash *tfm, const u8 *key,
 static int mv_cesa_ahmac_sha256_init(struct ahash_request *req)
 {
 	struct mv_cesa_hmac_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
-	struct mv_cesa_op_ctx tmpl;
+	struct mv_cesa_op_ctx tmpl = { };
 
 	mv_cesa_set_op_cfg(&tmpl, CESA_SA_DESC_CFG_MACM_HMAC_SHA256);
 	memcpy(tmpl.ctx.hash.iv, ctx->iv, sizeof(ctx->iv));
 
-	mv_cesa_ahash_init(req, &tmpl);
+	mv_cesa_ahash_init(req, &tmpl, false);
 
 	return 0;
 }

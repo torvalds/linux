@@ -126,6 +126,7 @@ int selinux_enabled = 1;
 #endif
 
 static struct kmem_cache *sel_inode_cache;
+static struct kmem_cache *file_security_cache;
 
 /**
  * selinux_secmark_enabled - Check to see if SECMARK is currently enabled
@@ -287,7 +288,7 @@ static int file_alloc_security(struct file *file)
 	struct file_security_struct *fsec;
 	u32 sid = current_sid();
 
-	fsec = kzalloc(sizeof(struct file_security_struct), GFP_KERNEL);
+	fsec = kmem_cache_zalloc(file_security_cache, GFP_KERNEL);
 	if (!fsec)
 		return -ENOMEM;
 
@@ -302,7 +303,7 @@ static void file_free_security(struct file *file)
 {
 	struct file_security_struct *fsec = file->f_security;
 	file->f_security = NULL;
-	kfree(fsec);
+	kmem_cache_free(file_security_cache, fsec);
 }
 
 static int superblock_alloc_security(struct super_block *sb)
@@ -674,10 +675,9 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 
 		if (flags[i] == SBLABEL_MNT)
 			continue;
-		rc = security_context_to_sid(mount_options[i],
-					     strlen(mount_options[i]), &sid, GFP_KERNEL);
+		rc = security_context_str_to_sid(mount_options[i], &sid, GFP_KERNEL);
 		if (rc) {
-			printk(KERN_WARNING "SELinux: security_context_to_sid"
+			printk(KERN_WARNING "SELinux: security_context_str_to_sid"
 			       "(%s) failed for (dev %s, type %s) errno=%d\n",
 			       mount_options[i], sb->s_id, name, rc);
 			goto out;
@@ -2617,15 +2617,12 @@ static int selinux_sb_remount(struct super_block *sb, void *data)
 
 	for (i = 0; i < opts.num_mnt_opts; i++) {
 		u32 sid;
-		size_t len;
 
 		if (flags[i] == SBLABEL_MNT)
 			continue;
-		len = strlen(mount_options[i]);
-		rc = security_context_to_sid(mount_options[i], len, &sid,
-					     GFP_KERNEL);
+		rc = security_context_str_to_sid(mount_options[i], &sid, GFP_KERNEL);
 		if (rc) {
-			printk(KERN_WARNING "SELinux: security_context_to_sid"
+			printk(KERN_WARNING "SELinux: security_context_str_to_sid"
 			       "(%s) failed for (dev %s, type %s) errno=%d\n",
 			       mount_options[i], sb->s_id, sb->s_type->name, rc);
 			goto out_free_opts;
@@ -2946,7 +2943,8 @@ static int selinux_inode_setattr(struct dentry *dentry, struct iattr *iattr)
 			ATTR_ATIME_SET | ATTR_MTIME_SET | ATTR_TIMES_SET))
 		return dentry_has_perm(cred, dentry, FILE__SETATTR);
 
-	if (selinux_policycap_openperm && (ia_valid & ATTR_SIZE))
+	if (selinux_policycap_openperm && (ia_valid & ATTR_SIZE)
+			&& !(ia_valid & ATTR_FILE))
 		av |= FILE__OPEN;
 
 	return dentry_has_perm(cred, dentry, av);
@@ -3166,7 +3164,7 @@ static int selinux_inode_setsecurity(struct inode *inode, const char *name,
 	if (!value || !size)
 		return -EACCES;
 
-	rc = security_context_to_sid((void *)value, size, &newsid, GFP_KERNEL);
+	rc = security_context_to_sid(value, size, &newsid, GFP_KERNEL);
 	if (rc)
 		return rc;
 
@@ -3238,7 +3236,7 @@ static void selinux_file_free_security(struct file *file)
  * Check whether a task has the ioctl permission and cmd
  * operation to an inode.
  */
-int ioctl_has_perm(const struct cred *cred, struct file *file,
+static int ioctl_has_perm(const struct cred *cred, struct file *file,
 		u32 requested, u16 cmd)
 {
 	struct common_audit_data ad;
@@ -4866,7 +4864,7 @@ static unsigned int selinux_ip_forward(struct sk_buff *skb,
 	return NF_ACCEPT;
 }
 
-static unsigned int selinux_ipv4_forward(const struct nf_hook_ops *ops,
+static unsigned int selinux_ipv4_forward(void *priv,
 					 struct sk_buff *skb,
 					 const struct nf_hook_state *state)
 {
@@ -4874,7 +4872,7 @@ static unsigned int selinux_ipv4_forward(const struct nf_hook_ops *ops,
 }
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-static unsigned int selinux_ipv6_forward(const struct nf_hook_ops *ops,
+static unsigned int selinux_ipv6_forward(void *priv,
 					 struct sk_buff *skb,
 					 const struct nf_hook_state *state)
 {
@@ -4898,7 +4896,7 @@ static unsigned int selinux_ip_output(struct sk_buff *skb,
 	if (sk) {
 		struct sk_security_struct *sksec;
 
-		if (sk->sk_state == TCP_LISTEN)
+		if (sk_listener(sk))
 			/* if the socket is the listening state then this
 			 * packet is a SYN-ACK packet which means it needs to
 			 * be labeled based on the connection/request_sock and
@@ -4924,7 +4922,7 @@ static unsigned int selinux_ip_output(struct sk_buff *skb,
 	return NF_ACCEPT;
 }
 
-static unsigned int selinux_ipv4_output(const struct nf_hook_ops *ops,
+static unsigned int selinux_ipv4_output(void *priv,
 					struct sk_buff *skb,
 					const struct nf_hook_state *state)
 {
@@ -5005,7 +5003,7 @@ static unsigned int selinux_ip_postroute(struct sk_buff *skb,
 	 *       unfortunately, this means more work, but it is only once per
 	 *       connection. */
 	if (skb_dst(skb) != NULL && skb_dst(skb)->xfrm != NULL &&
-	    !(sk != NULL && sk->sk_state == TCP_LISTEN))
+	    !(sk && sk_listener(sk)))
 		return NF_ACCEPT;
 #endif
 
@@ -5022,7 +5020,7 @@ static unsigned int selinux_ip_postroute(struct sk_buff *skb,
 			secmark_perm = PACKET__SEND;
 			peer_sid = SECINITSID_KERNEL;
 		}
-	} else if (sk->sk_state == TCP_LISTEN) {
+	} else if (sk_listener(sk)) {
 		/* Locally generated packet but the associated socket is in the
 		 * listening state which means this is a SYN-ACK packet.  In
 		 * this particular case the correct security label is assigned
@@ -5033,7 +5031,11 @@ static unsigned int selinux_ip_postroute(struct sk_buff *skb,
 		 * selinux_inet_conn_request().  See also selinux_ip_output()
 		 * for similar problems. */
 		u32 skb_sid;
-		struct sk_security_struct *sksec = sk->sk_security;
+		struct sk_security_struct *sksec;
+
+		if (sk->sk_state == TCP_NEW_SYN_RECV)
+			sk = inet_reqsk(sk)->rsk_listener;
+		sksec = sk->sk_security;
 		if (selinux_skb_peerlbl_sid(skb, family, &skb_sid))
 			return NF_DROP;
 		/* At this point, if the returned skb peerlbl is SECSID_NULL
@@ -5099,7 +5101,7 @@ static unsigned int selinux_ip_postroute(struct sk_buff *skb,
 	return NF_ACCEPT;
 }
 
-static unsigned int selinux_ipv4_postroute(const struct nf_hook_ops *ops,
+static unsigned int selinux_ipv4_postroute(void *priv,
 					   struct sk_buff *skb,
 					   const struct nf_hook_state *state)
 {
@@ -5107,7 +5109,7 @@ static unsigned int selinux_ipv4_postroute(const struct nf_hook_ops *ops,
 }
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-static unsigned int selinux_ipv6_postroute(const struct nf_hook_ops *ops,
+static unsigned int selinux_ipv6_postroute(void *priv,
 					   struct sk_buff *skb,
 					   const struct nf_hook_state *state)
 {
@@ -6089,6 +6091,9 @@ static __init int selinux_init(void)
 	sel_inode_cache = kmem_cache_create("selinux_inode_security",
 					    sizeof(struct inode_security_struct),
 					    0, SLAB_PANIC, NULL);
+	file_security_cache = kmem_cache_create("selinux_file_security",
+					    sizeof(struct file_security_struct),
+					    0, SLAB_PANIC, NULL);
 	avc_init();
 
 	security_add_hooks(selinux_hooks, ARRAY_SIZE(selinux_hooks));
@@ -6127,21 +6132,18 @@ security_initcall(selinux_init);
 static struct nf_hook_ops selinux_nf_ops[] = {
 	{
 		.hook =		selinux_ipv4_postroute,
-		.owner =	THIS_MODULE,
 		.pf =		NFPROTO_IPV4,
 		.hooknum =	NF_INET_POST_ROUTING,
 		.priority =	NF_IP_PRI_SELINUX_LAST,
 	},
 	{
 		.hook =		selinux_ipv4_forward,
-		.owner =	THIS_MODULE,
 		.pf =		NFPROTO_IPV4,
 		.hooknum =	NF_INET_FORWARD,
 		.priority =	NF_IP_PRI_SELINUX_FIRST,
 	},
 	{
 		.hook =		selinux_ipv4_output,
-		.owner =	THIS_MODULE,
 		.pf =		NFPROTO_IPV4,
 		.hooknum =	NF_INET_LOCAL_OUT,
 		.priority =	NF_IP_PRI_SELINUX_FIRST,
@@ -6149,14 +6151,12 @@ static struct nf_hook_ops selinux_nf_ops[] = {
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	{
 		.hook =		selinux_ipv6_postroute,
-		.owner =	THIS_MODULE,
 		.pf =		NFPROTO_IPV6,
 		.hooknum =	NF_INET_POST_ROUTING,
 		.priority =	NF_IP6_PRI_SELINUX_LAST,
 	},
 	{
 		.hook =		selinux_ipv6_forward,
-		.owner =	THIS_MODULE,
 		.pf =		NFPROTO_IPV6,
 		.hooknum =	NF_INET_FORWARD,
 		.priority =	NF_IP6_PRI_SELINUX_FIRST,

@@ -17,7 +17,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 #include <media/v4l2-mem2mem.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-fh.h>
@@ -583,32 +583,25 @@ unsigned int v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 		goto end;
 	}
 
-	if (m2m_ctx->m2m_dev->m2m_ops->unlock)
-		m2m_ctx->m2m_dev->m2m_ops->unlock(m2m_ctx->priv);
-	else if (m2m_ctx->q_lock)
-		mutex_unlock(m2m_ctx->q_lock);
-
+	spin_lock_irqsave(&src_q->done_lock, flags);
 	if (list_empty(&src_q->done_list))
 		poll_wait(file, &src_q->done_wq, wait);
+	spin_unlock_irqrestore(&src_q->done_lock, flags);
+
+	spin_lock_irqsave(&dst_q->done_lock, flags);
 	if (list_empty(&dst_q->done_list)) {
 		/*
 		 * If the last buffer was dequeued from the capture queue,
 		 * return immediately. DQBUF will return -EPIPE.
 		 */
-		if (dst_q->last_buffer_dequeued)
+		if (dst_q->last_buffer_dequeued) {
+			spin_unlock_irqrestore(&dst_q->done_lock, flags);
 			return rc | POLLIN | POLLRDNORM;
+		}
 
 		poll_wait(file, &dst_q->done_wq, wait);
 	}
-
-	if (m2m_ctx->m2m_dev->m2m_ops->lock)
-		m2m_ctx->m2m_dev->m2m_ops->lock(m2m_ctx->priv);
-	else if (m2m_ctx->q_lock) {
-		if (mutex_lock_interruptible(m2m_ctx->q_lock)) {
-			rc |= POLLERR;
-			goto end;
-		}
-	}
+	spin_unlock_irqrestore(&dst_q->done_lock, flags);
 
 	spin_lock_irqsave(&src_q->done_lock, flags);
 	if (!list_empty(&src_q->done_list))
@@ -773,13 +766,15 @@ EXPORT_SYMBOL_GPL(v4l2_m2m_ctx_release);
  *
  * Call from buf_queue(), videobuf_queue_ops callback.
  */
-void v4l2_m2m_buf_queue(struct v4l2_m2m_ctx *m2m_ctx, struct vb2_buffer *vb)
+void v4l2_m2m_buf_queue(struct v4l2_m2m_ctx *m2m_ctx,
+		struct vb2_v4l2_buffer *vbuf)
 {
-	struct v4l2_m2m_buffer *b = container_of(vb, struct v4l2_m2m_buffer, vb);
+	struct v4l2_m2m_buffer *b = container_of(vbuf,
+				struct v4l2_m2m_buffer, vb);
 	struct v4l2_m2m_queue_ctx *q_ctx;
 	unsigned long flags;
 
-	q_ctx = get_queue_ctx(m2m_ctx, vb->vb2_queue->type);
+	q_ctx = get_queue_ctx(m2m_ctx, vbuf->vb2_buf.vb2_queue->type);
 	if (!q_ctx)
 		return;
 

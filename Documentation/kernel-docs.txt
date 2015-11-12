@@ -696,18 +696,18 @@
        Memory related patches, HOWTOs, links, mm developers... Don't miss
        it if you are interested in memory management development!
 
-     * Name: "Kernel Newbies IRC Channel"
+     * Name: "Kernel Newbies IRC Channel and Website"
        URL: http://www.kernelnewbies.org
        Keywords: IRC, newbies, channel, asking doubts.
-       Description: #kernelnewbies on irc.openprojects.net. From the web
-       page: "#kernelnewbies is an IRC network dedicated to the 'newbie'
+       Description: #kernelnewbies on irc.oftc.net.
+       #kernelnewbies is an IRC network dedicated to the 'newbie'
        kernel hacker. The audience mostly consists of people who are
        learning about the kernel, working on kernel projects or
        professional kernel hackers that want to help less seasoned kernel
-       people. [...] #kernelnewbies is on the Open Projects IRC Network,
-       try irc.openprojects.net or irc.<country>.openprojects.net as your
-       server and then /join #kernelnewbies". It also hosts articles,
-       documents, FAQs...
+       people.
+       #kernelnewbies is on the OFTC IRC Network.
+       Try irc.oftc.net as your server and then /join #kernelnewbies.
+       The kernelnewbies website also hosts articles, documents, FAQs...
        
      * Name: "linux-kernel mailing list archives and search engines"
        URL: http://vger.kernel.org/vger-lists.html

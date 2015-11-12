@@ -560,15 +560,10 @@ static void iwl_mvm_check_ratid_empty(struct iwl_mvm *mvm,
 		IWL_DEBUG_TX_QUEUES(mvm,
 				    "Can continue DELBA flow ssn = next_recl = %d\n",
 				    tid_data->next_reclaimed);
-		iwl_mvm_disable_txq(mvm, tid_data->txq_id, CMD_ASYNC);
+		iwl_mvm_disable_txq(mvm, tid_data->txq_id,
+				    vif->hw_queue[tid_to_mac80211_ac[tid]], tid,
+				    CMD_ASYNC);
 		tid_data->state = IWL_AGG_OFF;
-		/*
-		 * we can't hold the mutex - but since we are after a sequence
-		 * point (call to iwl_mvm_disable_txq(), so we don't even need
-		 * a memory barrier.
-		 */
-		mvm->queue_to_mac80211[tid_data->txq_id] =
-					IWL_INVALID_MAC80211_QUEUE;
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
 
@@ -1104,15 +1099,13 @@ out:
  * 2) flush the Tx path
  * 3) wait for the transport queues to be empty
  */
-int iwl_mvm_flush_tx_path(struct iwl_mvm *mvm, u32 tfd_msk, bool sync)
+int iwl_mvm_flush_tx_path(struct iwl_mvm *mvm, u32 tfd_msk, u32 flags)
 {
 	int ret;
 	struct iwl_tx_path_flush_cmd flush_cmd = {
 		.queues_ctl = cpu_to_le32(tfd_msk),
 		.flush_ctl = cpu_to_le16(DUMP_TX_FIFO_FLUSH),
 	};
-
-	u32 flags = sync ? 0 : CMD_ASYNC;
 
 	ret = iwl_mvm_send_cmd_pdu(mvm, TXPATH_FLUSH, flags,
 				   sizeof(flush_cmd), &flush_cmd);

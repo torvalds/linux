@@ -128,7 +128,7 @@ static void h5_timed_event(unsigned long arg)
 {
 	const unsigned char sync_req[] = { 0x01, 0x7e };
 	unsigned char conf_req[] = { 0x03, 0xfc, 0x01 };
-	struct hci_uart *hu = (struct hci_uart *) arg;
+	struct hci_uart *hu = (struct hci_uart *)arg;
 	struct h5 *h5 = hu->priv;
 	struct sk_buff *skb;
 	unsigned long flags;
@@ -210,7 +210,7 @@ static int h5_open(struct hci_uart *hu)
 
 	init_timer(&h5->timer);
 	h5->timer.function = h5_timed_event;
-	h5->timer.data = (unsigned long) hu;
+	h5->timer.data = (unsigned long)hu;
 
 	h5->tx_win = H5_TX_WIN_MAX;
 
@@ -453,7 +453,7 @@ static int h5_rx_pkt_start(struct hci_uart *hu, unsigned char c)
 		return -ENOMEM;
 	}
 
-	h5->rx_skb->dev = (void *) hu->hdev;
+	h5->rx_skb->dev = (void *)hu->hdev;
 
 	return 0;
 }
@@ -696,7 +696,7 @@ static struct sk_buff *h5_dequeue(struct hci_uart *hu)
 	}
 
 	skb = skb_dequeue(&h5->unrel);
-	if (skb != NULL) {
+	if (skb) {
 		nskb = h5_prepare_pkt(hu, bt_cb(skb)->pkt_type,
 				      skb->data, skb->len);
 		if (nskb) {
@@ -714,7 +714,7 @@ static struct sk_buff *h5_dequeue(struct hci_uart *hu)
 		goto unlock;
 
 	skb = skb_dequeue(&h5->rel);
-	if (skb != NULL) {
+	if (skb) {
 		nskb = h5_prepare_pkt(hu, bt_cb(skb)->pkt_type,
 				      skb->data, skb->len);
 		if (nskb) {

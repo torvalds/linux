@@ -713,9 +713,9 @@ static inline bool blkcg_bio_issue_check(struct request_queue *q,
 
 	if (!throtl) {
 		blkg = blkg ?: q->root_blkg;
-		blkg_rwstat_add(&blkg->stat_bytes, bio->bi_flags,
+		blkg_rwstat_add(&blkg->stat_bytes, bio->bi_rw,
 				bio->bi_iter.bi_size);
-		blkg_rwstat_add(&blkg->stat_ios, bio->bi_flags, 1);
+		blkg_rwstat_add(&blkg->stat_ios, bio->bi_rw, 1);
 	}
 
 	rcu_read_unlock();

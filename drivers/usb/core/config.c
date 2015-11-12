@@ -853,6 +853,10 @@ int usb_get_bos_descriptor(struct usb_device *dev)
 			dev->bos->ss_cap =
 				(struct usb_ss_cap_descriptor *)buffer;
 			break;
+		case USB_SSP_CAP_TYPE:
+			dev->bos->ssp_cap =
+				(struct usb_ssp_cap_descriptor *)buffer;
+			break;
 		case CONTAINER_ID_TYPE:
 			dev->bos->ss_id =
 				(struct usb_ss_container_id_descriptor *)buffer;

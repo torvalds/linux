@@ -29,11 +29,13 @@
 #include <asm/asm-offsets.h>
 #include <asm/cache.h>
 #include <asm/cputype.h>
+#include <asm/kernel-pgtable.h>
 #include <asm/memory.h>
-#include <asm/thread_info.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
+#include <asm/sysreg.h>
+#include <asm/thread_info.h>
 #include <asm/virt.h>
 
 #define __PHYS_OFFSET	(KERNEL_START - TEXT_OFFSET)
@@ -46,30 +48,8 @@
 #error TEXT_OFFSET must be less than 2MB
 #endif
 
-#ifdef CONFIG_ARM64_64K_PAGES
-#define BLOCK_SHIFT	PAGE_SHIFT
-#define BLOCK_SIZE	PAGE_SIZE
-#define TABLE_SHIFT	PMD_SHIFT
-#else
-#define BLOCK_SHIFT	SECTION_SHIFT
-#define BLOCK_SIZE	SECTION_SIZE
-#define TABLE_SHIFT	PUD_SHIFT
-#endif
-
 #define KERNEL_START	_text
 #define KERNEL_END	_end
-
-/*
- * Initial memory map attributes.
- */
-#define PTE_FLAGS	PTE_TYPE_PAGE | PTE_AF | PTE_SHARED
-#define PMD_FLAGS	PMD_TYPE_SECT | PMD_SECT_AF | PMD_SECT_S
-
-#ifdef CONFIG_ARM64_64K_PAGES
-#define MM_MMUFLAGS	PTE_ATTRINDX(MT_NORMAL) | PTE_FLAGS
-#else
-#define MM_MMUFLAGS	PMD_ATTRINDX(MT_NORMAL) | PMD_FLAGS
-#endif
 
 /*
  * Kernel startup entry point.
@@ -120,8 +100,8 @@ efi_head:
 #endif
 
 #ifdef CONFIG_EFI
-	.globl	stext_offset
-	.set	stext_offset, stext - efi_head
+	.globl	__efistub_stext_offset
+	.set	__efistub_stext_offset, stext - efi_head
 	.align 3
 pe_header:
 	.ascii	"PE"
@@ -144,8 +124,8 @@ optional_header:
 	.long	_end - stext			// SizeOfCode
 	.long	0				// SizeOfInitializedData
 	.long	0				// SizeOfUninitializedData
-	.long	efi_stub_entry - efi_head	// AddressOfEntryPoint
-	.long	stext_offset			// BaseOfCode
+	.long	__efistub_entry - efi_head	// AddressOfEntryPoint
+	.long	__efistub_stext_offset		// BaseOfCode
 
 extra_header_fields:
 	.quad	0				// ImageBase
@@ -162,7 +142,7 @@ extra_header_fields:
 	.long	_end - efi_head			// SizeOfImage
 
 	// Everything before the kernel image is considered part of the header
-	.long	stext_offset			// SizeOfHeaders
+	.long	__efistub_stext_offset		// SizeOfHeaders
 	.long	0				// CheckSum
 	.short	0xa				// Subsystem (EFI application)
 	.short	0				// DllCharacteristics
@@ -207,9 +187,9 @@ section_table:
 	.byte	0
 	.byte	0        		// end of 0 padding of section name
 	.long	_end - stext		// VirtualSize
-	.long	stext_offset		// VirtualAddress
+	.long	__efistub_stext_offset	// VirtualAddress
 	.long	_edata - stext		// SizeOfRawData
-	.long	stext_offset		// PointerToRawData
+	.long	__efistub_stext_offset	// PointerToRawData
 
 	.long	0		// PointerToRelocations (0 for executables)
 	.long	0		// PointerToLineNumbers (0 for executables)
@@ -292,8 +272,11 @@ ENDPROC(preserve_boot_args)
  */
 	.macro	create_pgd_entry, tbl, virt, tmp1, tmp2
 	create_table_entry \tbl, \virt, PGDIR_SHIFT, PTRS_PER_PGD, \tmp1, \tmp2
-#if SWAPPER_PGTABLE_LEVELS == 3
-	create_table_entry \tbl, \virt, TABLE_SHIFT, PTRS_PER_PTE, \tmp1, \tmp2
+#if SWAPPER_PGTABLE_LEVELS > 3
+	create_table_entry \tbl, \virt, PUD_SHIFT, PTRS_PER_PUD, \tmp1, \tmp2
+#endif
+#if SWAPPER_PGTABLE_LEVELS > 2
+	create_table_entry \tbl, \virt, SWAPPER_TABLE_SHIFT, PTRS_PER_PTE, \tmp1, \tmp2
 #endif
 	.endm
 
@@ -305,15 +288,15 @@ ENDPROC(preserve_boot_args)
  * Corrupts:	phys, start, end, pstate
  */
 	.macro	create_block_map, tbl, flags, phys, start, end
-	lsr	\phys, \phys, #BLOCK_SHIFT
-	lsr	\start, \start, #BLOCK_SHIFT
+	lsr	\phys, \phys, #SWAPPER_BLOCK_SHIFT
+	lsr	\start, \start, #SWAPPER_BLOCK_SHIFT
 	and	\start, \start, #PTRS_PER_PTE - 1	// table index
-	orr	\phys, \flags, \phys, lsl #BLOCK_SHIFT	// table entry
-	lsr	\end, \end, #BLOCK_SHIFT
+	orr	\phys, \flags, \phys, lsl #SWAPPER_BLOCK_SHIFT	// table entry
+	lsr	\end, \end, #SWAPPER_BLOCK_SHIFT
 	and	\end, \end, #PTRS_PER_PTE - 1		// table end index
 9999:	str	\phys, [\tbl, \start, lsl #3]		// store the entry
 	add	\start, \start, #1			// next entry
-	add	\phys, \phys, #BLOCK_SIZE		// next block
+	add	\phys, \phys, #SWAPPER_BLOCK_SIZE		// next block
 	cmp	\start, \end
 	b.ls	9999b
 	.endm
@@ -350,7 +333,7 @@ __create_page_tables:
 	cmp	x0, x6
 	b.lo	1b
 
-	ldr	x7, =MM_MMUFLAGS
+	ldr	x7, =SWAPPER_MM_MMUFLAGS
 
 	/*
 	 * Create the identity mapping.
@@ -444,6 +427,9 @@ __mmap_switched:
 	str_l	x21, __fdt_pointer, x5		// Save FDT pointer
 	str_l	x24, memstart_addr, x6		// Save PHYS_OFFSET
 	mov	x29, #0
+#ifdef CONFIG_KASAN
+	bl	kasan_early_init
+#endif
 	b	start_kernel
 ENDPROC(__mmap_switched)
 
@@ -498,6 +484,8 @@ CPU_LE(	bic	x0, x0, #(3 << 24)	)	// Clear the EE and E0E bits for EL1
 	orr	x0, x0, #ICC_SRE_EL2_ENABLE	// Set ICC_SRE_EL2.Enable==1
 	msr_s	ICC_SRE_EL2, x0
 	isb					// Make sure SRE is now set
+	mrs_s	x0, ICC_SRE_EL2			// Read SRE back,
+	tbz	x0, #0, 3f			// and check that it sticks
 	msr_s	ICH_HCR_EL2, xzr		// Reset ICC_HCR_EL2 to defaults
 
 3:
@@ -628,10 +616,17 @@ ENDPROC(__secondary_switched)
  *  x0  = SCTLR_EL1 value for turning on the MMU.
  *  x27 = *virtual* address to jump to upon completion
  *
- * other registers depend on the function called upon completion
+ * Other registers depend on the function called upon completion.
+ *
+ * Checks if the selected granule size is supported by the CPU.
+ * If it isn't, park the CPU
  */
 	.section	".idmap.text", "ax"
 __enable_mmu:
+	mrs	x1, ID_AA64MMFR0_EL1
+	ubfx	x2, x1, #ID_AA64MMFR0_TGRAN_SHIFT, 4
+	cmp	x2, #ID_AA64MMFR0_TGRAN_SUPPORTED
+	b.ne	__no_granule_support
 	ldr	x5, =vectors
 	msr	vbar_el1, x5
 	msr	ttbr0_el1, x25			// load TTBR0
@@ -649,3 +644,8 @@ __enable_mmu:
 	isb
 	br	x27
 ENDPROC(__enable_mmu)
+
+__no_granule_support:
+	wfe
+	b __no_granule_support
+ENDPROC(__no_granule_support)

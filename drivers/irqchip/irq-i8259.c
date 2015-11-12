@@ -377,8 +377,8 @@ int __init i8259_of_init(struct device_node *node, struct device_node *parent)
 	}
 
 	domain = __init_i8259_irqs(node);
-	irq_set_handler_data(parent_irq, domain);
-	irq_set_chained_handler(parent_irq, i8259_irq_dispatch);
+	irq_set_chained_handler_and_data(parent_irq, i8259_irq_dispatch,
+					 domain);
 	return 0;
 }
 IRQCHIP_DECLARE(i8259, "intel,i8259", i8259_of_init);

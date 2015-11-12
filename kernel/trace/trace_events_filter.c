@@ -973,15 +973,15 @@ static bool is_string_field(struct ftrace_event_field *field)
 	       field->filter_type == FILTER_PTR_STRING;
 }
 
-static int is_legal_op(struct ftrace_event_field *field, int op)
+static bool is_legal_op(struct ftrace_event_field *field, int op)
 {
 	if (is_string_field(field) &&
 	    (op != OP_EQ && op != OP_NE && op != OP_GLOB))
-		return 0;
+		return false;
 	if (!is_string_field(field) && op == OP_GLOB)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
 static filter_pred_fn_t select_comparison_fn(int op, int field_size,

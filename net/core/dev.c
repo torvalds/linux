@@ -99,6 +99,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/stat.h>
 #include <net/dst.h>
+#include <net/dst_metadata.h>
 #include <net/pkt_sched.h>
 #include <net/checksum.h>
 #include <net/xfrm.h>
@@ -680,6 +681,32 @@ int dev_get_iflink(const struct net_device *dev)
 	return dev->ifindex;
 }
 EXPORT_SYMBOL(dev_get_iflink);
+
+/**
+ *	dev_fill_metadata_dst - Retrieve tunnel egress information.
+ *	@dev: targeted interface
+ *	@skb: The packet.
+ *
+ *	For better visibility of tunnel traffic OVS needs to retrieve
+ *	egress tunnel information for a packet. Following API allows
+ *	user to get this info.
+ */
+int dev_fill_metadata_dst(struct net_device *dev, struct sk_buff *skb)
+{
+	struct ip_tunnel_info *info;
+
+	if (!dev->netdev_ops  || !dev->netdev_ops->ndo_fill_metadata_dst)
+		return -EINVAL;
+
+	info = skb_tunnel_info_unclone(skb);
+	if (!info)
+		return -ENOMEM;
+	if (unlikely(!(info->mode & IP_TUNNEL_INFO_TX)))
+		return -EINVAL;
+
+	return dev->netdev_ops->ndo_fill_metadata_dst(dev, skb);
+}
+EXPORT_SYMBOL_GPL(dev_fill_metadata_dst);
 
 /**
  *	__dev_get_by_name	- find a device by its name
@@ -2915,9 +2942,11 @@ EXPORT_SYMBOL(xmit_recursion);
 
 /**
  *	dev_loopback_xmit - loop back @skb
+ *	@net: network namespace this loopback is happening in
+ *	@sk:  sk needed to be a netfilter okfn
  *	@skb: buffer to transmit
  */
-int dev_loopback_xmit(struct sock *sk, struct sk_buff *skb)
+int dev_loopback_xmit(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	skb_reset_mac_header(skb);
 	__skb_pull(skb, skb_network_offset(skb));
@@ -2972,6 +3001,7 @@ static u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb)
 			new_index = skb_tx_hash(dev, skb);
 
 		if (queue_index != new_index && sk &&
+		    sk_fullsock(sk) &&
 		    rcu_access_pointer(sk->sk_dst_cache))
 			sk_tx_queue_set(sk, new_index);
 
@@ -3143,11 +3173,11 @@ out:
 	return rc;
 }
 
-int dev_queue_xmit_sk(struct sock *sk, struct sk_buff *skb)
+int dev_queue_xmit(struct sk_buff *skb)
 {
 	return __dev_queue_xmit(skb, NULL);
 }
-EXPORT_SYMBOL(dev_queue_xmit_sk);
+EXPORT_SYMBOL(dev_queue_xmit);
 
 int dev_queue_xmit_accel(struct sk_buff *skb, void *accel_priv)
 {
@@ -3668,6 +3698,14 @@ static inline struct sk_buff *handle_ing(struct sk_buff *skb,
 	case TC_ACT_QUEUED:
 		kfree_skb(skb);
 		return NULL;
+	case TC_ACT_REDIRECT:
+		/* skb_mac_header check was done by cls/act_bpf, so
+		 * we can safely push the L2 header back before
+		 * redirecting to another netdev
+		 */
+		__skb_push(skb, skb->mac_len);
+		skb_do_redirect(skb);
+		return NULL;
 	default:
 		break;
 	}
@@ -3982,13 +4020,13 @@ static int netif_receive_skb_internal(struct sk_buff *skb)
  *	NET_RX_SUCCESS: no congestion
  *	NET_RX_DROP: packet was dropped
  */
-int netif_receive_skb_sk(struct sock *sk, struct sk_buff *skb)
+int netif_receive_skb(struct sk_buff *skb)
 {
 	trace_netif_receive_skb_entry(skb);
 
 	return netif_receive_skb_internal(skb);
 }
-EXPORT_SYMBOL(netif_receive_skb_sk);
+EXPORT_SYMBOL(netif_receive_skb);
 
 /* Network device is going away, flush any packets still pending
  * Called with irqs disabled.
@@ -4857,8 +4895,7 @@ struct netdev_adjacent {
 	struct rcu_head rcu;
 };
 
-static struct netdev_adjacent *__netdev_find_adj(struct net_device *dev,
-						 struct net_device *adj_dev,
+static struct netdev_adjacent *__netdev_find_adj(struct net_device *adj_dev,
 						 struct list_head *adj_list)
 {
 	struct netdev_adjacent *adj;
@@ -4884,7 +4921,7 @@ bool netdev_has_upper_dev(struct net_device *dev,
 {
 	ASSERT_RTNL();
 
-	return __netdev_find_adj(dev, upper_dev, &dev->all_adj_list.upper);
+	return __netdev_find_adj(upper_dev, &dev->all_adj_list.upper);
 }
 EXPORT_SYMBOL(netdev_has_upper_dev);
 
@@ -5146,7 +5183,7 @@ static int __netdev_adjacent_dev_insert(struct net_device *dev,
 	struct netdev_adjacent *adj;
 	int ret;
 
-	adj = __netdev_find_adj(dev, adj_dev, dev_list);
+	adj = __netdev_find_adj(adj_dev, dev_list);
 
 	if (adj) {
 		adj->ref_nr++;
@@ -5202,7 +5239,7 @@ static void __netdev_adjacent_dev_remove(struct net_device *dev,
 {
 	struct netdev_adjacent *adj;
 
-	adj = __netdev_find_adj(dev, adj_dev, dev_list);
+	adj = __netdev_find_adj(adj_dev, dev_list);
 
 	if (!adj) {
 		pr_err("tried to remove device %s from %s\n",
@@ -5323,10 +5360,10 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 		return -EBUSY;
 
 	/* To prevent loops, check if dev is not upper device to upper_dev. */
-	if (__netdev_find_adj(upper_dev, dev, &upper_dev->all_adj_list.upper))
+	if (__netdev_find_adj(dev, &upper_dev->all_adj_list.upper))
 		return -EBUSY;
 
-	if (__netdev_find_adj(dev, upper_dev, &dev->adj_list.upper))
+	if (__netdev_find_adj(upper_dev, &dev->adj_list.upper))
 		return -EEXIST;
 
 	if (master && netdev_master_upper_dev_get(dev))
@@ -5335,6 +5372,12 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 	changeupper_info.upper_dev = upper_dev;
 	changeupper_info.master = master;
 	changeupper_info.linking = true;
+
+	ret = call_netdevice_notifiers_info(NETDEV_PRECHANGEUPPER, dev,
+					    &changeupper_info.info);
+	ret = notifier_to_errno(ret);
+	if (ret)
+		return ret;
 
 	ret = __netdev_adjacent_dev_link_neighbour(dev, upper_dev, private,
 						   master);
@@ -5478,6 +5521,9 @@ void netdev_upper_dev_unlink(struct net_device *dev,
 	changeupper_info.master = netdev_master_upper_dev_get(dev) == upper_dev;
 	changeupper_info.linking = false;
 
+	call_netdevice_notifiers_info(NETDEV_PRECHANGEUPPER, dev,
+				      &changeupper_info.info);
+
 	__netdev_adjacent_dev_unlink_neighbour(dev, upper_dev);
 
 	/* Here is the tricky part. We must remove all dev's lower
@@ -5604,7 +5650,7 @@ void *netdev_lower_dev_get_private(struct net_device *dev,
 
 	if (!lower_dev)
 		return NULL;
-	lower = __netdev_find_adj(dev, lower_dev, &dev->adj_list.lower);
+	lower = __netdev_find_adj(lower_dev, &dev->adj_list.lower);
 	if (!lower)
 		return NULL;
 
@@ -6242,6 +6288,48 @@ static void rollback_registered(struct net_device *dev)
 	list_del(&single);
 }
 
+static netdev_features_t netdev_sync_upper_features(struct net_device *lower,
+	struct net_device *upper, netdev_features_t features)
+{
+	netdev_features_t upper_disables = NETIF_F_UPPER_DISABLES;
+	netdev_features_t feature;
+	int feature_bit;
+
+	for_each_netdev_feature(&upper_disables, feature_bit) {
+		feature = __NETIF_F_BIT(feature_bit);
+		if (!(upper->wanted_features & feature)
+		    && (features & feature)) {
+			netdev_dbg(lower, "Dropping feature %pNF, upper dev %s has it off.\n",
+				   &feature, upper->name);
+			features &= ~feature;
+		}
+	}
+
+	return features;
+}
+
+static void netdev_sync_lower_features(struct net_device *upper,
+	struct net_device *lower, netdev_features_t features)
+{
+	netdev_features_t upper_disables = NETIF_F_UPPER_DISABLES;
+	netdev_features_t feature;
+	int feature_bit;
+
+	for_each_netdev_feature(&upper_disables, feature_bit) {
+		feature = __NETIF_F_BIT(feature_bit);
+		if (!(features & feature) && (lower->features & feature)) {
+			netdev_dbg(upper, "Disabling feature %pNF on lower dev %s.\n",
+				   &feature, lower->name);
+			lower->wanted_features &= ~feature;
+			netdev_update_features(lower);
+
+			if (unlikely(lower->features & feature))
+				netdev_WARN(upper, "failed to disable %pNF on %s!\n",
+					    &feature, lower->name);
+		}
+	}
+}
+
 static netdev_features_t netdev_fix_features(struct net_device *dev,
 	netdev_features_t features)
 {
@@ -6311,7 +6399,9 @@ static netdev_features_t netdev_fix_features(struct net_device *dev,
 
 int __netdev_update_features(struct net_device *dev)
 {
+	struct net_device *upper, *lower;
 	netdev_features_t features;
+	struct list_head *iter;
 	int err = 0;
 
 	ASSERT_RTNL();
@@ -6323,6 +6413,10 @@ int __netdev_update_features(struct net_device *dev)
 
 	/* driver might be less strict about feature dependencies */
 	features = netdev_fix_features(dev, features);
+
+	/* some features can't be enabled if they're off an an upper device */
+	netdev_for_each_upper_dev_rcu(dev, upper, iter)
+		features = netdev_sync_upper_features(dev, upper, features);
 
 	if (dev->features == features)
 		return 0;
@@ -6339,6 +6433,12 @@ int __netdev_update_features(struct net_device *dev)
 			err, &features, &dev->features);
 		return -1;
 	}
+
+	/* some features must be disabled on lower devices when disabled
+	 * on an upper device (think: bonding master or bridge)
+	 */
+	netdev_for_each_lower_dev(dev, lower, iter)
+		netdev_sync_lower_features(dev, lower, features);
 
 	if (!err)
 		dev->features = features;

@@ -1405,6 +1405,10 @@ static const struct of_device_id pmc_match[] __initconst = {
 	{},
 };
 
+static struct tegra_audio_clk_info tegra30_audio_plls[] = {
+	{ "pll_a", &pll_a_params, tegra_clk_pll_a, "pll_p_out1" },
+};
+
 static void __init tegra30_clock_init(struct device_node *np)
 {
 	struct device_node *node;
@@ -1442,7 +1446,9 @@ static void __init tegra30_clock_init(struct device_node *np)
 	tegra30_pll_init();
 	tegra30_super_clk_init();
 	tegra30_periph_clk_init();
-	tegra_audio_clk_init(clk_base, pmc_base, tegra30_clks, &pll_a_params);
+	tegra_audio_clk_init(clk_base, pmc_base, tegra30_clks,
+			     tegra30_audio_plls,
+			     ARRAY_SIZE(tegra30_audio_plls));
 	tegra_pmc_clk_init(pmc_base, tegra30_clks);
 
 	tegra_init_dup_clks(tegra_clk_duplicates, clks, TEGRA30_CLK_CLK_MAX);

@@ -10,6 +10,7 @@
 #include <linux/interrupt.h>
 #include <linux/irqchip.h>
 #include <asm/mach_desc.h>
+#include <asm/smp.h>
 
 /*
  * Late Interrupt system init called from start_kernel for Boot CPU only
@@ -19,17 +20,20 @@
  */
 void __init init_IRQ(void)
 {
-	/* Any external intc can be setup here */
-	if (machine_desc->init_irq)
-		machine_desc->init_irq();
-
-	/* process the entire interrupt tree in one go */
+	/*
+	 * process the entire interrupt tree in one go
+	 * Any external intc will be setup provided DT chains them
+	 * properly
+	 */
 	irqchip_init();
 
 #ifdef CONFIG_SMP
-	/* Master CPU can initialize it's side of IPI */
-	if (machine_desc->init_smp)
-		machine_desc->init_smp(smp_processor_id());
+	/* a SMP H/w block could do IPI IRQ request here */
+	if (plat_smp_ops.init_irq_cpu)
+		plat_smp_ops.init_irq_cpu(smp_processor_id());
+
+	if (machine_desc->init_cpu_smp)
+		machine_desc->init_cpu_smp(smp_processor_id());
 #endif
 }
 

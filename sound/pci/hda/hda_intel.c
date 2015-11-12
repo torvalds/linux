@@ -334,10 +334,11 @@ enum {
 
 #define AZX_DCAPS_PRESET_CTHDA \
 	(AZX_DCAPS_NO_MSI | AZX_DCAPS_POSFIX_LPIB |\
+	 AZX_DCAPS_NO_64BIT |\
 	 AZX_DCAPS_4K_BDLE_BOUNDARY | AZX_DCAPS_SNOOP_OFF)
 
 /*
- * VGA-switcher support
+ * vga_switcheroo support
  */
 #ifdef SUPPORT_VGA_SWITCHEROO
 #define use_vga_switcheroo(chip)	((chip)->use_vga_switcheroo)
@@ -1076,12 +1077,12 @@ static void azx_vs_set_state(struct pci_dev *pci,
 			}
 		}
 	} else {
-		dev_info(chip->card->dev, "%s via VGA-switcheroo\n",
+		dev_info(chip->card->dev, "%s via vga_switcheroo\n",
 			 disabled ? "Disabling" : "Enabling");
 		if (disabled) {
 			pm_runtime_put_sync_suspend(card->dev);
 			azx_suspend(card->dev);
-			/* when we get suspended by vga switcheroo we end up in D3cold,
+			/* when we get suspended by vga_switcheroo we end up in D3cold,
 			 * however we have no ACPI handle, so pci/acpi can't put us there,
 			 * put ourselves there */
 			pci->current_state = PCI_D3cold;
@@ -1121,7 +1122,7 @@ static void init_vga_switcheroo(struct azx *chip)
 	struct pci_dev *p = get_bound_vga(chip->pci);
 	if (p) {
 		dev_info(chip->card->dev,
-			 "Handle VGA-switcheroo audio client\n");
+			 "Handle vga_switcheroo audio client\n");
 		hda->use_vga_switcheroo = 1;
 		pci_dev_put(p);
 	}
@@ -1143,8 +1144,7 @@ static int register_vga_switcheroo(struct azx *chip)
 	 * is there any machine with two switchable HDMI audio controllers?
 	 */
 	err = vga_switcheroo_register_audio_client(chip->pci, &azx_vs_ops,
-						    VGA_SWITCHEROO_DIS,
-						    hda->probe_continued);
+						   VGA_SWITCHEROO_DIS);
 	if (err < 0)
 		return err;
 	hda->vga_switcheroo_registered = 1;
@@ -1233,7 +1233,7 @@ static int azx_dev_free(struct snd_device *device)
 
 #ifdef SUPPORT_VGA_SWITCHEROO
 /*
- * Check of disabled HDMI controller by vga-switcheroo
+ * Check of disabled HDMI controller by vga_switcheroo
  */
 static struct pci_dev *get_bound_vga(struct pci_dev *pci)
 {
@@ -1918,7 +1918,7 @@ static int azx_probe(struct pci_dev *pci,
 
 	err = register_vga_switcheroo(chip);
 	if (err < 0) {
-		dev_err(card->dev, "Error registering VGA-switcheroo client\n");
+		dev_err(card->dev, "Error registering vga_switcheroo client\n");
 		goto out_free;
 	}
 
@@ -2104,6 +2104,11 @@ static const struct pci_device_id azx_ids[] = {
 	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_PCH },
 	{ PCI_DEVICE(0x8086, 0x8d21),
 	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_PCH },
+	/* Lewisburg */
+	{ PCI_DEVICE(0x8086, 0xa1f0),
+	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_PCH },
+	{ PCI_DEVICE(0x8086, 0xa270),
+	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_PCH },
 	/* Lynx Point-LP */
 	{ PCI_DEVICE(0x8086, 0x9c20),
 	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_PCH },
@@ -2284,11 +2289,13 @@ static const struct pci_device_id azx_ids[] = {
 	  .class = PCI_CLASS_MULTIMEDIA_HD_AUDIO << 8,
 	  .class_mask = 0xffffff,
 	  .driver_data = AZX_DRIVER_CTX | AZX_DCAPS_CTX_WORKAROUND |
+	  AZX_DCAPS_NO_64BIT |
 	  AZX_DCAPS_RIRB_PRE_DELAY | AZX_DCAPS_POSFIX_LPIB },
 #else
 	/* this entry seems still valid -- i.e. without emu20kx chip */
 	{ PCI_DEVICE(0x1102, 0x0009),
 	  .driver_data = AZX_DRIVER_CTX | AZX_DCAPS_CTX_WORKAROUND |
+	  AZX_DCAPS_NO_64BIT |
 	  AZX_DCAPS_RIRB_PRE_DELAY | AZX_DCAPS_POSFIX_LPIB },
 #endif
 	/* CM8888 */

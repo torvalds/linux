@@ -73,6 +73,7 @@ extern int watchdog_user_enabled;
 extern int watchdog_thresh;
 extern unsigned long *watchdog_cpumask_bits;
 extern int sysctl_softlockup_all_cpu_backtrace;
+extern int sysctl_hardlockup_all_cpu_backtrace;
 struct ctl_table;
 extern int proc_watchdog(struct ctl_table *, int ,
 			 void __user *, size_t *, loff_t *);

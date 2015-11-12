@@ -441,7 +441,7 @@ lst_group_info_ioctl(lstio_group_info_args_t *args)
 	if (args->lstio_grp_dentsp != NULL &&
 	    (copy_to_user(args->lstio_grp_idxp, &index, sizeof(index)) ||
 	     copy_to_user(args->lstio_grp_ndentp, &ndent, sizeof(ndent))))
-		rc = -EFAULT;
+		return -EFAULT;
 
 	return 0;
 }
@@ -837,7 +837,7 @@ lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_data *data)
 
 	mutex_lock(&console_session.ses_mutex);
 
-	console_session.ses_laststamp = get_seconds();
+	console_session.ses_laststamp = ktime_get_real_seconds();
 
 	if (console_session.ses_shutdown) {
 		rc = -ESHUTDOWN;

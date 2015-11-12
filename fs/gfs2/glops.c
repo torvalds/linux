@@ -146,11 +146,11 @@ static void rgrp_go_sync(struct gfs2_glock *gl)
 	struct gfs2_rgrpd *rgd;
 	int error;
 
-	spin_lock(&gl->gl_spin);
+	spin_lock(&gl->gl_lockref.lock);
 	rgd = gl->gl_object;
 	if (rgd)
 		gfs2_rgrp_brelse(rgd);
-	spin_unlock(&gl->gl_spin);
+	spin_unlock(&gl->gl_lockref.lock);
 
 	if (!test_and_clear_bit(GLF_DIRTY, &gl->gl_flags))
 		return;
@@ -162,11 +162,11 @@ static void rgrp_go_sync(struct gfs2_glock *gl)
 	mapping_set_error(mapping, error);
 	gfs2_ail_empty_gl(gl);
 
-	spin_lock(&gl->gl_spin);
+	spin_lock(&gl->gl_lockref.lock);
 	rgd = gl->gl_object;
 	if (rgd)
 		gfs2_free_clones(rgd);
-	spin_unlock(&gl->gl_spin);
+	spin_unlock(&gl->gl_lockref.lock);
 }
 
 /**
@@ -542,7 +542,7 @@ static int freeze_go_demote_ok(const struct gfs2_glock *gl)
  * iopen_go_callback - schedule the dcache entry for the inode to be deleted
  * @gl: the glock
  *
- * gl_spin lock is held while calling this
+ * gl_lockref.lock lock is held while calling this
  */
 static void iopen_go_callback(struct gfs2_glock *gl, bool remote)
 {

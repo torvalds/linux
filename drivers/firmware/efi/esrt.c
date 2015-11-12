@@ -20,7 +20,6 @@
 #include <linux/kobject.h>
 #include <linux/list.h>
 #include <linux/memblock.h>
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 
@@ -450,22 +449,10 @@ err:
 	esrt = NULL;
 	return error;
 }
+device_initcall(esrt_sysfs_init);
 
-static void __exit esrt_sysfs_exit(void)
-{
-	pr_debug("esrt-sysfs: unloading.\n");
-	cleanup_entry_list();
-	kset_unregister(esrt_kset);
-	sysfs_remove_group(esrt_kobj, &esrt_attr_group);
-	kfree(esrt);
-	esrt = NULL;
-	kobject_del(esrt_kobj);
-	kobject_put(esrt_kobj);
-}
-
-module_init(esrt_sysfs_init);
-module_exit(esrt_sysfs_exit);
-
+/*
 MODULE_AUTHOR("Peter Jones <pjones@redhat.com>");
 MODULE_DESCRIPTION("EFI System Resource Table support");
 MODULE_LICENSE("GPL");
+*/

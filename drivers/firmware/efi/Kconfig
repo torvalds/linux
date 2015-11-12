@@ -52,6 +52,28 @@ config EFI_RUNTIME_MAP
 
 	  See also Documentation/ABI/testing/sysfs-firmware-efi-runtime-map.
 
+config EFI_FAKE_MEMMAP
+	bool "Enable EFI fake memory map"
+	depends on EFI && X86
+	default n
+	help
+	  Saying Y here will enable "efi_fake_mem" boot option.
+	  By specifying this parameter, you can add arbitrary attribute
+	  to specific memory range by updating original (firmware provided)
+	  EFI memmap.
+	  This is useful for debugging of EFI memmap related feature.
+	  e.g. Address Range Mirroring feature.
+
+config EFI_MAX_FAKE_MEM
+	int "maximum allowable number of ranges in efi_fake_mem boot option"
+	depends on EFI_FAKE_MEMMAP
+	range 1 128
+	default 8
+	help
+	  Maximum allowable number of ranges in efi_fake_mem boot option.
+	  Ranges can be set up to this value using comma-separated list.
+	  The default value is 8.
+
 config EFI_PARAMS_FROM_FDT
 	bool
 	help

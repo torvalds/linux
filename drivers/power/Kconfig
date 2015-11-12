@@ -157,26 +157,25 @@ config BATTERY_SBS
 	  Say Y to include support for SBS battery driver for SBS-compliant
 	  gas gauges.
 
-config BATTERY_BQ27x00
-	tristate "BQ27x00 battery driver"
-	depends on I2C || I2C=n
+config BATTERY_BQ27XXX
+	tristate "BQ27xxx battery driver"
 	help
-	  Say Y here to enable support for batteries with BQ27x00 (I2C/HDQ) chips.
+	  Say Y here to enable support for batteries with BQ27xxx (I2C/HDQ) chips.
 
-config BATTERY_BQ27X00_I2C
-	bool "BQ27200/BQ27500 support"
-	depends on BATTERY_BQ27x00
+config BATTERY_BQ27XXX_I2C
+	bool "BQ27xxx I2C support"
+	depends on BATTERY_BQ27XXX
 	depends on I2C
 	default y
 	help
-	  Say Y here to enable support for batteries with BQ27x00 (I2C) chips.
+	  Say Y here to enable support for batteries with BQ27xxx (I2C) chips.
 
-config BATTERY_BQ27X00_PLATFORM
-	bool "BQ27000 support"
-	depends on BATTERY_BQ27x00
+config BATTERY_BQ27XXX_PLATFORM
+	bool "BQ27xxx HDQ support"
+	depends on BATTERY_BQ27XXX
 	default y
 	help
-	  Say Y here to enable support for batteries with BQ27000 (HDQ) chips.
+	  Say Y here to enable support for batteries with BQ27xxx (HDQ) chips.
 
 config BATTERY_DA9030
 	tristate "DA9030 battery driver"
@@ -203,6 +202,16 @@ config CHARGER_DA9150
 
 	  This driver can also be built as a module. If so, the module will be
 	  called da9150-charger.
+
+config BATTERY_DA9150
+	tristate "Dialog Semiconductor DA9150 Fuel Gauge support"
+	depends on MFD_DA9150
+	help
+	  Say Y here to enable support for the Fuel-Gauge unit of the DA9150
+	  Integrated Charger & Fuel-Gauge IC
+
+	  This driver can also be built as a module. If so, the module will be
+	  called da9150-fg.
 
 config AXP288_CHARGER
 	tristate "X-Powers AXP288 Charger"
@@ -313,7 +322,7 @@ config CHARGER_MAX8903
 
 config CHARGER_TWL4030
 	tristate "OMAP TWL4030 BCI charger driver"
-	depends on TWL4030_CORE
+	depends on IIO && TWL4030_CORE
 	help
 	  Say Y here to enable support for TWL4030 Battery Charge Interface.
 
@@ -379,6 +388,18 @@ config CHARGER_MAX8998
 	  Say Y to enable support for the battery charger control sysfs and
 	  platform data of MAX8998/LP3974 PMICs.
 
+config CHARGER_QCOM_SMBB
+	tristate "Qualcomm Switch-Mode Battery Charger and Boost"
+	depends on MFD_SPMI_PMIC || COMPILE_TEST
+	depends on OF
+	help
+	  Say Y to include support for the Switch-Mode Battery Charger and
+	  Boost (SMBB) hardware found in Qualcomm PM8941 PMICs.  The charger
+	  is an integrated, single-cell lithium-ion battery charger.  DT
+	  configuration is required for loading, see the devicetree
+	  documentation for more detail.  The base name for this driver is
+	  'pm8941_charger'.
+
 config CHARGER_BQ2415X
 	tristate "TI BQ2415x battery charger driver"
 	depends on I2C
@@ -397,12 +418,13 @@ config CHARGER_BQ24190
 	  Say Y to enable support for the TI BQ24190 battery charger.
 
 config CHARGER_BQ24257
-	tristate "TI BQ24257 battery charger driver"
+	tristate "TI BQ24250/24251/24257 battery charger driver"
 	depends on I2C
 	depends on GPIOLIB || COMPILE_TEST
 	depends on REGMAP_I2C
 	help
-	  Say Y to enable support for the TI BQ24257 battery charger.
+	  Say Y to enable support for the TI BQ24250, BQ24251, and BQ24257 battery
+	  chargers.
 
 config CHARGER_BQ24735
 	tristate "TI BQ24735 battery charger support"
@@ -432,6 +454,13 @@ config CHARGER_TPS65090
 	depends on MFD_TPS65090
 	help
 	 Say Y here to enable support for battery charging with TPS65090
+	 PMIC chips.
+
+config CHARGER_TPS65217
+	tristate "TPS65217 battery charger driver"
+	depends on MFD_TPS65217
+	help
+	 Say Y here to enable support for battery charging with TPS65217
 	 PMIC chips.
 
 config BATTERY_GAUGE_LTC2941
@@ -471,6 +500,13 @@ config CHARGER_RT9455
 	select REGMAP_I2C
 	help
 	  Say Y to enable support for Richtek RT9455 battery charger.
+
+config AXP20X_POWER
+	tristate "AXP20x power supply driver"
+	depends on MFD_AXP20X
+	help
+	  This driver provides support for the power supply features of
+	  AXP20x PMIC.
 
 source "drivers/power/reset/Kconfig"
 

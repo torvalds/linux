@@ -100,7 +100,7 @@ static ssize_t iio_bfin_tmr_frequency_store(struct device *dev,
 	if (enabled)
 		disable_gptimers(st->t->bit);
 
-	if (val == 0)
+	if (!val)
 		return count;
 
 	val = get_sclk() / val;
@@ -125,7 +125,7 @@ static ssize_t iio_bfin_tmr_frequency_show(struct device *dev,
 	unsigned int period = get_gptimer_period(st->t->id);
 	unsigned long val;
 
-	if (period == 0)
+	if (!period)
 		val = 0;
 	else
 		val = get_sclk() / get_gptimer_period(st->t->id);

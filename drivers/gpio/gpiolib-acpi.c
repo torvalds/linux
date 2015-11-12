@@ -304,7 +304,6 @@ void acpi_gpiochip_request_interrupts(struct gpio_chip *chip)
 	if (ACPI_FAILURE(status))
 		return;
 
-	INIT_LIST_HEAD(&acpi_gpio->events);
 	acpi_walk_resources(handle, "_AEI",
 			    acpi_gpiochip_request_interrupt, acpi_gpio);
 }
@@ -389,6 +388,8 @@ struct acpi_gpio_lookup {
 	struct acpi_gpio_info info;
 	int index;
 	int pin_index;
+	bool active_low;
+	struct acpi_device *adev;
 	struct gpio_desc *desc;
 	int n;
 };
@@ -425,6 +426,65 @@ static int acpi_find_gpio(struct acpi_resource *ares, void *data)
 	return 1;
 }
 
+static int acpi_gpio_resource_lookup(struct acpi_gpio_lookup *lookup,
+				     struct acpi_gpio_info *info)
+{
+	struct list_head res_list;
+	int ret;
+
+	INIT_LIST_HEAD(&res_list);
+
+	ret = acpi_dev_get_resources(lookup->adev, &res_list, acpi_find_gpio,
+				     lookup);
+	if (ret < 0)
+		return ret;
+
+	acpi_dev_free_resource_list(&res_list);
+
+	if (!lookup->desc)
+		return -ENOENT;
+
+	if (info) {
+		*info = lookup->info;
+		if (lookup->active_low)
+			info->active_low = lookup->active_low;
+	}
+	return 0;
+}
+
+static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode,
+				     const char *propname, int index,
+				     struct acpi_gpio_lookup *lookup)
+{
+	struct acpi_reference_args args;
+	int ret;
+
+	memset(&args, 0, sizeof(args));
+	ret = acpi_node_get_property_reference(fwnode, propname, index, &args);
+	if (ret) {
+		struct acpi_device *adev = to_acpi_device_node(fwnode);
+
+		if (!adev)
+			return ret;
+
+		if (!acpi_get_driver_gpio_data(adev, propname, index, &args))
+			return ret;
+	}
+	/*
+	 * The property was found and resolved, so need to lookup the GPIO based
+	 * on returned args.
+	 */
+	lookup->adev = args.adev;
+	if (args.nargs >= 2) {
+		lookup->index = args.args[0];
+		lookup->pin_index = args.args[1];
+		/* 3rd argument, if present is used to specify active_low. */
+		if (args.nargs >= 3)
+			lookup->active_low = !!args.args[2];
+	}
+	return 0;
+}
+
 /**
  * acpi_get_gpiod_by_index() - get a GPIO descriptor from device resources
  * @adev: pointer to a ACPI device to get GPIO from
@@ -452,8 +512,6 @@ struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
 					  struct acpi_gpio_info *info)
 {
 	struct acpi_gpio_lookup lookup;
-	struct list_head resource_list;
-	bool active_low = false;
 	int ret;
 
 	if (!adev)
@@ -463,58 +521,64 @@ struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
 	lookup.index = index;
 
 	if (propname) {
-		struct acpi_reference_args args;
-
 		dev_dbg(&adev->dev, "GPIO: looking up %s\n", propname);
 
-		memset(&args, 0, sizeof(args));
-		ret = acpi_dev_get_property_reference(adev, propname,
-						      index, &args);
-		if (ret) {
-			bool found = acpi_get_driver_gpio_data(adev, propname,
-							       index, &args);
-			if (!found)
-				return ERR_PTR(ret);
-		}
+		ret = acpi_gpio_property_lookup(acpi_fwnode_handle(adev),
+						propname, index, &lookup);
+		if (ret)
+			return ERR_PTR(ret);
 
-		/*
-		 * The property was found and resolved so need to
-		 * lookup the GPIO based on returned args instead.
-		 */
-		adev = args.adev;
-		if (args.nargs >= 2) {
-			lookup.index = args.args[0];
-			lookup.pin_index = args.args[1];
-			/*
-			 * 3rd argument, if present is used to
-			 * specify active_low.
-			 */
-			if (args.nargs >= 3)
-				active_low = !!args.args[2];
-		}
-
-		dev_dbg(&adev->dev, "GPIO: _DSD returned %s %zd %llu %llu %llu\n",
-			dev_name(&adev->dev), args.nargs,
-			args.args[0], args.args[1], args.args[2]);
+		dev_dbg(&adev->dev, "GPIO: _DSD returned %s %d %d %u\n",
+			dev_name(&lookup.adev->dev), lookup.index,
+			lookup.pin_index, lookup.active_low);
 	} else {
 		dev_dbg(&adev->dev, "GPIO: looking up %d in _CRS\n", index);
+		lookup.adev = adev;
 	}
 
-	INIT_LIST_HEAD(&resource_list);
-	ret = acpi_dev_get_resources(adev, &resource_list, acpi_find_gpio,
-				     &lookup);
-	if (ret < 0)
+	ret = acpi_gpio_resource_lookup(&lookup, info);
+	return ret ? ERR_PTR(ret) : lookup.desc;
+}
+
+/**
+ * acpi_node_get_gpiod() - get a GPIO descriptor from ACPI resources
+ * @fwnode: pointer to an ACPI firmware node to get the GPIO information from
+ * @propname: Property name of the GPIO
+ * @index: index of GpioIo/GpioInt resource (starting from %0)
+ * @info: info pointer to fill in (optional)
+ *
+ * If @fwnode is an ACPI device object, call %acpi_get_gpiod_by_index() for it.
+ * Otherwise (ie. it is a data-only non-device object), use the property-based
+ * GPIO lookup to get to the GPIO resource with the relevant information and use
+ * that to obtain the GPIO descriptor to return.
+ */
+struct gpio_desc *acpi_node_get_gpiod(struct fwnode_handle *fwnode,
+				      const char *propname, int index,
+				      struct acpi_gpio_info *info)
+{
+	struct acpi_gpio_lookup lookup;
+	struct acpi_device *adev;
+	int ret;
+
+	adev = to_acpi_device_node(fwnode);
+	if (adev)
+		return acpi_get_gpiod_by_index(adev, propname, index, info);
+
+	if (!is_acpi_data_node(fwnode))
+		return ERR_PTR(-ENODEV);
+
+	if (!propname)
+		return ERR_PTR(-EINVAL);
+
+	memset(&lookup, 0, sizeof(lookup));
+	lookup.index = index;
+
+	ret = acpi_gpio_property_lookup(fwnode, propname, index, &lookup);
+	if (ret)
 		return ERR_PTR(ret);
 
-	acpi_dev_free_resource_list(&resource_list);
-
-	if (lookup.desc && info) {
-		*info = lookup.info;
-		if (active_low)
-			info->active_low = active_low;
-	}
-
-	return lookup.desc ? lookup.desc : ERR_PTR(-ENOENT);
+	ret = acpi_gpio_resource_lookup(&lookup, info);
+	return ret ? ERR_PTR(ret) : lookup.desc;
 }
 
 /**
@@ -603,6 +667,25 @@ acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
 				break;
 			}
 		}
+
+		/*
+		 * The same GPIO can be shared between operation region and
+		 * event but only if the access here is ACPI_READ. In that
+		 * case we "borrow" the event GPIO instead.
+		 */
+		if (!found && agpio->sharable == ACPI_SHARED &&
+		     function == ACPI_READ) {
+			struct acpi_gpio_event *event;
+
+			list_for_each_entry(event, &achip->events, node) {
+				if (event->pin == pin) {
+					desc = event->desc;
+					found = true;
+					break;
+				}
+			}
+		}
+
 		if (!found) {
 			desc = gpiochip_request_own_desc(chip, pin,
 							 "ACPI:OpRegion");
@@ -719,6 +802,7 @@ void acpi_gpiochip_add(struct gpio_chip *chip)
 	}
 
 	acpi_gpio->chip = chip;
+	INIT_LIST_HEAD(&acpi_gpio->events);
 
 	status = acpi_attach_data(handle, acpi_gpio_chip_dh, acpi_gpio);
 	if (ACPI_FAILURE(status)) {

@@ -59,10 +59,10 @@ struct fsl_mc_driver {
  * a MC object device driver. The last entry of the table has vendor set to 0x0
  */
 struct fsl_mc_device_match_id {
-	uint16_t vendor;
+	u16 vendor;
 	const char obj_type[16];
-	uint32_t ver_major;
-	uint32_t ver_minor;
+	u32 ver_major;
+	u32 ver_minor;
 };
 
 /**
@@ -148,10 +148,10 @@ struct fsl_mc_resource {
  */
 struct fsl_mc_device {
 	struct device dev;
-	uint64_t dma_mask;
-	uint16_t flags;
-	uint16_t icid;
-	uint16_t mc_handle;
+	u64 dma_mask;
+	u16 flags;
+	u16 icid;
+	u16 mc_handle;
 	struct fsl_mc_io *mc_io;
 	struct dprc_obj_desc obj_desc;
 	struct resource *regions;
@@ -182,8 +182,10 @@ int __must_check __fsl_mc_driver_register(struct fsl_mc_driver *fsl_mc_driver,
 
 void fsl_mc_driver_unregister(struct fsl_mc_driver *driver);
 
+bool fsl_mc_bus_exists(void);
+
 int __must_check fsl_mc_portal_allocate(struct fsl_mc_device *mc_dev,
-					uint16_t mc_io_flags,
+					u16 mc_io_flags,
 					struct fsl_mc_io **new_mc_io);
 
 void fsl_mc_portal_free(struct fsl_mc_io *mc_io);

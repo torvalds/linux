@@ -1,5 +1,5 @@
 menuconfig STAGING_RDMA
-        bool "RDMA staging drivers"
+        tristate "RDMA staging drivers"
 	depends on INFINIBAND
 	depends on PCI || BROKEN
 	depends on HAS_IOMEM

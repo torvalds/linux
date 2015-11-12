@@ -129,8 +129,14 @@ static int xenkbd_probe(struct xenbus_device *dev,
 
 	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-abs-pointer", "%d", &abs) < 0)
 		abs = 0;
-	if (abs)
-		xenbus_printf(XBT_NIL, dev->nodename, "request-abs-pointer", "1");
+	if (abs) {
+		ret = xenbus_printf(XBT_NIL, dev->nodename,
+				    "request-abs-pointer", "1");
+		if (ret) {
+			pr_warning("xenkbd: can't request abs-pointer");
+			abs = 0;
+		}
+	}
 
 	/* keyboard */
 	kbd = input_allocate_device();

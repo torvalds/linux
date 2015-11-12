@@ -13,6 +13,7 @@
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <asm/compat.h>
+#include <asm/diag.h>
 #include <asm/sclp.h>
 #include "hypfs.h"
 
@@ -22,7 +23,7 @@
 
 #define DIAG304_CMD_MAX		2
 
-static unsigned long hypfs_sprp_diag304(void *data, unsigned long cmd)
+static inline unsigned long __hypfs_sprp_diag304(void *data, unsigned long cmd)
 {
 	register unsigned long _data asm("2") = (unsigned long) data;
 	register unsigned long _rc asm("3");
@@ -32,6 +33,12 @@ static unsigned long hypfs_sprp_diag304(void *data, unsigned long cmd)
 		     : "=d" (_rc) : "d" (_data), "d" (_cmd) : "memory");
 
 	return _rc;
+}
+
+static unsigned long hypfs_sprp_diag304(void *data, unsigned long cmd)
+{
+	diag_stat_inc(DIAG_STAT_X304);
+	return __hypfs_sprp_diag304(data, cmd);
 }
 
 static void hypfs_sprp_free(const void *data)

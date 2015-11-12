@@ -257,6 +257,7 @@ struct events_stats {
 	u64 total_non_filtered_period;
 	u64 total_lost;
 	u64 total_lost_samples;
+	u64 total_aux_lost;
 	u64 total_invalid_chains;
 	u32 nr_events[PERF_RECORD_HEADER_MAX];
 	u32 nr_non_filtered_samples;
@@ -477,6 +478,11 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type,
 				  u64 read_format,
 				  const struct perf_sample *sample,
 				  bool swapped);
+
+pid_t perf_event__synthesize_comm(struct perf_tool *tool,
+				  union perf_event *event, pid_t pid,
+				  perf_event__handler_t process,
+				  struct machine *machine);
 
 int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 				       union perf_event *event,

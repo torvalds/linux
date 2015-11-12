@@ -80,17 +80,21 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 	if (ret == 0) {
 		/*
 		 * We are resuming from reset with TTBR0_EL1 set to the
-		 * idmap to enable the MMU; restore the active_mm mappings in
-		 * TTBR0_EL1 unless the active_mm == &init_mm, in which case
-		 * the thread entered cpu_suspend with TTBR0_EL1 set to
-		 * reserved TTBR0 page tables and should be restored as such.
+		 * idmap to enable the MMU; set the TTBR0 to the reserved
+		 * page tables to prevent speculative TLB allocations, flush
+		 * the local tlb and set the default tcr_el1.t0sz so that
+		 * the TTBR0 address space set-up is properly restored.
+		 * If the current active_mm != &init_mm we entered cpu_suspend
+		 * with mappings in TTBR0 that must be restored, so we switch
+		 * them back to complete the address space configuration
+		 * restoration before returning.
 		 */
-		if (mm == &init_mm)
-			cpu_set_reserved_ttbr0();
-		else
-			cpu_switch_mm(mm->pgd, mm);
+		cpu_set_reserved_ttbr0();
+		local_flush_tlb_all();
+		cpu_set_default_tcr_t0sz();
 
-		flush_tlb_all();
+		if (mm != &init_mm)
+			cpu_switch_mm(mm->pgd, mm);
 
 		/*
 		 * Restore per-cpu offset before any kernel

@@ -4,9 +4,6 @@
 #include <linux/spi/spi.h>
 #include "fbtft.h"
 
-
-
-
 /*****************************************************************************
  *
  *   void (*write_reg)(struct fbtft_par *par, int len, ...);
@@ -41,7 +38,7 @@ void func(struct fbtft_par *par, int len, ...)                                \
 	*buf = modifier((type)va_arg(args, unsigned int));                    \
 	if (par->gpio.dc != -1)                                               \
 		gpio_set_value(par->gpio.dc, 0);                              \
-	ret = par->fbtftops.write(par, par->buf, sizeof(type)+offset);        \
+	ret = par->fbtftops.write(par, par->buf, sizeof(type) + offset);      \
 	if (ret < 0) {                                                        \
 		va_end(args);                                                 \
 		dev_err(par->info->device, "%s: write() failed and returned %d\n", __func__, ret); \
@@ -59,7 +56,8 @@ void func(struct fbtft_par *par, int len, ...)                                \
 		}                                                             \
 		if (par->gpio.dc != -1)                                       \
 			gpio_set_value(par->gpio.dc, 1);                      \
-		ret = par->fbtftops.write(par, par->buf, len * (sizeof(type)+offset)); \
+		ret = par->fbtftops.write(par, par->buf,		      \
+					  len * (sizeof(type) + offset));     \
 		if (ret < 0) {                                                \
 			va_end(args);                                         \
 			dev_err(par->info->device, "%s: write() failed and returned %d\n", __func__, ret); \
@@ -117,9 +115,6 @@ void fbtft_write_reg8_bus9(struct fbtft_par *par, int len, ...)
 }
 EXPORT_SYMBOL(fbtft_write_reg8_bus9);
 
-
-
-
 /*****************************************************************************
  *
  *   int (*write_vmem)(struct fbtft_par *par);
@@ -142,7 +137,7 @@ int fbtft_write_vmem16_bus8(struct fbtft_par *par, size_t offset, size_t len)
 		__func__, offset, len);
 
 	remain = len / 2;
-	vmem16 = (u16 *)(par->info->screen_base + offset);
+	vmem16 = (u16 *)(par->info->screen_buffer + offset);
 
 	if (par->gpio.dc != -1)
 		gpio_set_value(par->gpio.dc, 1);
@@ -184,7 +179,7 @@ EXPORT_SYMBOL(fbtft_write_vmem16_bus8);
 /* 16 bit pixel over 9-bit SPI bus: dc + high byte, dc + low byte */
 int fbtft_write_vmem16_bus9(struct fbtft_par *par, size_t offset, size_t len)
 {
-	u8 __iomem *vmem8;
+	u8 *vmem8;
 	u16 *txbuf16 = par->txbuf.buf;
 	size_t remain;
 	size_t to_copy;
@@ -201,7 +196,7 @@ int fbtft_write_vmem16_bus9(struct fbtft_par *par, size_t offset, size_t len)
 	}
 
 	remain = len;
-	vmem8 = par->info->screen_base + offset;
+	vmem8 = par->info->screen_buffer + offset;
 
 	tx_array_size = par->txbuf.len / 2;
 
@@ -212,15 +207,15 @@ int fbtft_write_vmem16_bus9(struct fbtft_par *par, size_t offset, size_t len)
 
 #ifdef __LITTLE_ENDIAN
 		for (i = 0; i < to_copy; i += 2) {
-			txbuf16[i]     = 0x0100 | ioread8(vmem8 + i + 1);
-			txbuf16[i + 1] = 0x0100 | ioread8(vmem8 + i);
+			txbuf16[i]     = 0x0100 | vmem8[i + 1];
+			txbuf16[i + 1] = 0x0100 | vmem8[i];
 		}
 #else
 		for (i = 0; i < to_copy; i++)
-			txbuf16[i]   = 0x0100 | ioread8(vmem8 + i);
+			txbuf16[i]   = 0x0100 | vmem8[i];
 #endif
 		vmem8 = vmem8 + to_copy;
-		ret = par->fbtftops.write(par, par->txbuf.buf, to_copy*2);
+		ret = par->fbtftops.write(par, par->txbuf.buf, to_copy * 2);
 		if (ret < 0)
 			return ret;
 		remain -= to_copy;
@@ -245,7 +240,7 @@ int fbtft_write_vmem16_bus16(struct fbtft_par *par, size_t offset, size_t len)
 	fbtft_par_dbg(DEBUG_WRITE_VMEM, par, "%s(offset=%zu, len=%zu)\n",
 		__func__, offset, len);
 
-	vmem16 = (u16 *)(par->info->screen_base + offset);
+	vmem16 = (u16 *)(par->info->screen_buffer + offset);
 
 	if (par->gpio.dc != -1)
 		gpio_set_value(par->gpio.dc, 1);

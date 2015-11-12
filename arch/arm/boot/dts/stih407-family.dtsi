@@ -152,6 +152,19 @@
 					<ST_IRQ_SYSCFG_DISABLED>;
 		};
 
+		/* Display */
+		vtg_main: sti-vtg-main@8d02800 {
+			compatible = "st,vtg";
+			reg = <0x8d02800 0x200>;
+			interrupts = <GIC_SPI 108 IRQ_TYPE_NONE>;
+		};
+
+		vtg_aux: sti-vtg-aux@8d00200 {
+			compatible = "st,vtg";
+			reg = <0x8d00200 0x100>;
+			interrupts = <GIC_SPI 109 IRQ_TYPE_NONE>;
+		};
+
 		serial@9830000 {
 			compatible = "st,asc";
 			reg = <0x9830000 0x2c>;
@@ -396,6 +409,8 @@
 			interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
 			clock-names = "ssc";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi1_default>;
 
 			status = "disabled";
 		};
@@ -406,6 +421,8 @@
 			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
 			clock-names = "ssc";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi2_default>;
 
 			status = "disabled";
 		};
@@ -416,6 +433,8 @@
 			interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
 			clock-names = "ssc";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi3_default>;
 
 			status = "disabled";
 		};
@@ -426,6 +445,8 @@
 			interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
 			clock-names = "ssc";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi4_default>;
 
 			status = "disabled";
 		};
@@ -437,6 +458,8 @@
 			interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk_sysin>;
 			clock-names = "ssc";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi10_default>;
 
 			status = "disabled";
 		};
@@ -447,6 +470,8 @@
 			interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk_sysin>;
 			clock-names = "ssc";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi11_default>;
 
 			status = "disabled";
 		};
@@ -457,6 +482,8 @@
 			interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk_sysin>;
 			clock-names = "ssc";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi12_default>;
 
 			status = "disabled";
 		};
@@ -585,7 +612,6 @@
 		/* COMMS PWM Module */
 		pwm0: pwm@9810000 {
 			compatible	= "st,sti-pwm";
-			status		= "okay";
 			#pwm-cells	= <2>;
 			reg		= <0x9810000 0x68>;
 			pinctrl-names	= "default";
@@ -593,12 +619,13 @@
 			clock-names	= "pwm";
 			clocks		= <&clk_sysin>;
 			st,pwm-num-chan = <1>;
+
+			status		= "disabled";
 		};
 
 		/* SBC PWM Module */
 		pwm1: pwm@9510000 {
 			compatible	= "st,sti-pwm";
-			status		= "okay";
 			#pwm-cells	= <2>;
 			reg		= <0x9510000 0x68>;
 			pinctrl-names	= "default";
@@ -609,6 +636,63 @@
 			clock-names	= "pwm";
 			clocks		= <&clk_sysin>;
 			st,pwm-num-chan = <4>;
+
+			status		= "disabled";
+		};
+
+		rng10: rng@08a89000 {
+			compatible      = "st,rng";
+			reg		= <0x08a89000 0x1000>;
+			clocks          = <&clk_sysin>;
+			status		= "okay";
+		};
+
+		rng11: rng@08a8a000 {
+			compatible      = "st,rng";
+			reg		= <0x08a8a000 0x1000>;
+			clocks          = <&clk_sysin>;
+			status		= "okay";
+		};
+
+		ethernet0: dwmac@9630000 {
+			device_type = "network";
+			status = "disabled";
+			compatible = "st,stih407-dwmac", "snps,dwmac", "snps,dwmac-3.710";
+			reg = <0x9630000 0x8000>, <0x80 0x4>;
+			reg-names = "stmmaceth", "sti-ethconf";
+
+			st,syscon = <&syscfg_sbc_reg 0x80>;
+			st,gmac_en;
+			resets = <&softreset STIH407_ETH1_SOFTRESET>;
+			reset-names = "stmmaceth";
+
+			interrupts = <GIC_SPI 98 IRQ_TYPE_NONE>,
+				     <GIC_SPI 99 IRQ_TYPE_NONE>;
+			interrupt-names = "macirq", "eth_wake_irq";
+
+			/* DMA Bus Mode */
+			snps,pbl = <8>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_rgmii1>;
+
+			clock-names = "stmmaceth", "sti-ethclk";
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>,
+				 <&clk_s_c0_flexgen CLK_ETH_PHY>;
+		};
+
+		rng10: rng@08a89000 {
+			compatible      = "st,rng";
+			reg		= <0x08a89000 0x1000>;
+			clocks          = <&clk_sysin>;
+			status		= "okay";
+		};
+
+		rng11: rng@08a8a000 {
+			compatible      = "st,rng";
+			reg		= <0x08a8a000 0x1000>;
+			clocks          = <&clk_sysin>;
+			status		= "okay";
 		};
 	};
 };

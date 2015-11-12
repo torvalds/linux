@@ -1431,7 +1431,7 @@ enum {
 };
 static int x2apic_state;
 
-static inline void __x2apic_disable(void)
+static void __x2apic_disable(void)
 {
 	u64 msr;
 
@@ -1447,7 +1447,7 @@ static inline void __x2apic_disable(void)
 	printk_once(KERN_INFO "x2apic disabled\n");
 }
 
-static inline void __x2apic_enable(void)
+static void __x2apic_enable(void)
 {
 	u64 msr;
 
@@ -1807,7 +1807,7 @@ int apic_version[MAX_LOCAL_APIC];
 /*
  * This interrupt should _never_ happen with our APIC/SMP architecture
  */
-static inline void __smp_spurious_interrupt(u8 vector)
+static void __smp_spurious_interrupt(u8 vector)
 {
 	u32 v;
 
@@ -1848,7 +1848,7 @@ __visible void smp_trace_spurious_interrupt(struct pt_regs *regs)
 /*
  * This interrupt should never happen with our APIC/SMP architecture
  */
-static inline void __smp_error_interrupt(struct pt_regs *regs)
+static void __smp_error_interrupt(struct pt_regs *regs)
 {
 	u32 v;
 	u32 i = 0;

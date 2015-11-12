@@ -1283,8 +1283,8 @@ static int ceph_filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		int ret1;
 		struct address_space *mapping = inode->i_mapping;
 		struct page *page = find_or_create_page(mapping, 0,
-						mapping_gfp_mask(mapping) &
-						~__GFP_FS);
+						mapping_gfp_constraint(mapping,
+						~__GFP_FS));
 		if (!page) {
 			ret = VM_FAULT_OOM;
 			goto out;
@@ -1428,7 +1428,8 @@ void ceph_fill_inline_data(struct inode *inode, struct page *locked_page,
 		if (i_size_read(inode) == 0)
 			return;
 		page = find_or_create_page(mapping, 0,
-					   mapping_gfp_mask(mapping) & ~__GFP_FS);
+					   mapping_gfp_constraint(mapping,
+					   ~__GFP_FS));
 		if (!page)
 			return;
 		if (PageUptodate(page)) {

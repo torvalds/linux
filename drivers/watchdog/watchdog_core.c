@@ -139,7 +139,7 @@ EXPORT_SYMBOL_GPL(watchdog_init_timeout);
 
 static int __watchdog_register_device(struct watchdog_device *wdd)
 {
-	int ret, id, devno;
+	int ret, id = -1, devno;
 
 	if (wdd == NULL || wdd->info == NULL || wdd->ops == NULL)
 		return -EINVAL;
@@ -157,7 +157,18 @@ static int __watchdog_register_device(struct watchdog_device *wdd)
 	 */
 
 	mutex_init(&wdd->lock);
-	id = ida_simple_get(&watchdog_ida, 0, MAX_DOGS, GFP_KERNEL);
+
+	/* Use alias for watchdog id if possible */
+	if (wdd->parent) {
+		ret = of_alias_get_id(wdd->parent->of_node, "watchdog");
+		if (ret >= 0)
+			id = ida_simple_get(&watchdog_ida, ret,
+					    ret + 1, GFP_KERNEL);
+	}
+
+	if (id < 0)
+		id = ida_simple_get(&watchdog_ida, 0, MAX_DOGS, GFP_KERNEL);
+
 	if (id < 0)
 		return id;
 	wdd->id = id;

@@ -74,14 +74,23 @@ static void fixup_rt_mutex_waiters(struct rt_mutex *lock)
  * set up.
  */
 #ifndef CONFIG_DEBUG_RT_MUTEXES
-# define rt_mutex_cmpxchg(l,c,n)	(cmpxchg(&l->owner, c, n) == c)
+# define rt_mutex_cmpxchg_relaxed(l,c,n) (cmpxchg_relaxed(&l->owner, c, n) == c)
+# define rt_mutex_cmpxchg_acquire(l,c,n) (cmpxchg_acquire(&l->owner, c, n) == c)
+# define rt_mutex_cmpxchg_release(l,c,n) (cmpxchg_release(&l->owner, c, n) == c)
+
+/*
+ * Callers must hold the ->wait_lock -- which is the whole purpose as we force
+ * all future threads that attempt to [Rmw] the lock to the slowpath. As such
+ * relaxed semantics suffice.
+ */
 static inline void mark_rt_mutex_waiters(struct rt_mutex *lock)
 {
 	unsigned long owner, *p = (unsigned long *) &lock->owner;
 
 	do {
 		owner = *p;
-	} while (cmpxchg(p, owner, owner | RT_MUTEX_HAS_WAITERS) != owner);
+	} while (cmpxchg_relaxed(p, owner,
+				 owner | RT_MUTEX_HAS_WAITERS) != owner);
 }
 
 /*
@@ -121,11 +130,14 @@ static inline bool unlock_rt_mutex_safe(struct rt_mutex *lock)
 	 *					lock(wait_lock);
 	 *					acquire(lock);
 	 */
-	return rt_mutex_cmpxchg(lock, owner, NULL);
+	return rt_mutex_cmpxchg_release(lock, owner, NULL);
 }
 
 #else
-# define rt_mutex_cmpxchg(l,c,n)	(0)
+# define rt_mutex_cmpxchg_relaxed(l,c,n)	(0)
+# define rt_mutex_cmpxchg_acquire(l,c,n)	(0)
+# define rt_mutex_cmpxchg_release(l,c,n)	(0)
+
 static inline void mark_rt_mutex_waiters(struct rt_mutex *lock)
 {
 	lock->owner = (struct task_struct *)
@@ -158,7 +170,8 @@ rt_mutex_waiter_less(struct rt_mutex_waiter *left,
 	 * then right waiter has a dl_prio() too.
 	 */
 	if (dl_prio(left->prio))
-		return (left->task->dl.deadline < right->task->dl.deadline);
+		return dl_time_before(left->task->dl.deadline,
+				      right->task->dl.deadline);
 
 	return 0;
 }
@@ -1321,7 +1334,7 @@ rt_mutex_fastlock(struct rt_mutex *lock, int state,
 				struct hrtimer_sleeper *timeout,
 				enum rtmutex_chainwalk chwalk))
 {
-	if (likely(rt_mutex_cmpxchg(lock, NULL, current))) {
+	if (likely(rt_mutex_cmpxchg_acquire(lock, NULL, current))) {
 		rt_mutex_deadlock_account_lock(lock, current);
 		return 0;
 	} else
@@ -1337,7 +1350,7 @@ rt_mutex_timed_fastlock(struct rt_mutex *lock, int state,
 				      enum rtmutex_chainwalk chwalk))
 {
 	if (chwalk == RT_MUTEX_MIN_CHAINWALK &&
-	    likely(rt_mutex_cmpxchg(lock, NULL, current))) {
+	    likely(rt_mutex_cmpxchg_acquire(lock, NULL, current))) {
 		rt_mutex_deadlock_account_lock(lock, current);
 		return 0;
 	} else
@@ -1348,7 +1361,7 @@ static inline int
 rt_mutex_fasttrylock(struct rt_mutex *lock,
 		     int (*slowfn)(struct rt_mutex *lock))
 {
-	if (likely(rt_mutex_cmpxchg(lock, NULL, current))) {
+	if (likely(rt_mutex_cmpxchg_acquire(lock, NULL, current))) {
 		rt_mutex_deadlock_account_lock(lock, current);
 		return 1;
 	}
@@ -1362,7 +1375,7 @@ rt_mutex_fastunlock(struct rt_mutex *lock,
 {
 	WAKE_Q(wake_q);
 
-	if (likely(rt_mutex_cmpxchg(lock, current, NULL))) {
+	if (likely(rt_mutex_cmpxchg_release(lock, current, NULL))) {
 		rt_mutex_deadlock_account_unlock(current);
 
 	} else {
@@ -1484,7 +1497,7 @@ EXPORT_SYMBOL_GPL(rt_mutex_unlock);
 bool __sched rt_mutex_futex_unlock(struct rt_mutex *lock,
 				   struct wake_q_head *wqh)
 {
-	if (likely(rt_mutex_cmpxchg(lock, current, NULL))) {
+	if (likely(rt_mutex_cmpxchg_release(lock, current, NULL))) {
 		rt_mutex_deadlock_account_unlock(current);
 		return false;
 	}

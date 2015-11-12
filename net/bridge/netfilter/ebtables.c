@@ -183,10 +183,11 @@ struct ebt_entry *ebt_next_entry(const struct ebt_entry *entry)
 }
 
 /* Do some firewalling */
-unsigned int ebt_do_table (unsigned int hook, struct sk_buff *skb,
-   const struct net_device *in, const struct net_device *out,
-   struct ebt_table *table)
+unsigned int ebt_do_table(struct sk_buff *skb,
+			  const struct nf_hook_state *state,
+			  struct ebt_table *table)
 {
+	unsigned int hook = state->hook;
 	int i, nentries;
 	struct ebt_entry *point;
 	struct ebt_counter *counter_base, *cb_base;
@@ -199,8 +200,9 @@ unsigned int ebt_do_table (unsigned int hook, struct sk_buff *skb,
 	struct xt_action_param acpar;
 
 	acpar.family  = NFPROTO_BRIDGE;
-	acpar.in      = in;
-	acpar.out     = out;
+	acpar.net     = state->net;
+	acpar.in      = state->in;
+	acpar.out     = state->out;
 	acpar.hotdrop = false;
 	acpar.hooknum = hook;
 
@@ -220,7 +222,7 @@ unsigned int ebt_do_table (unsigned int hook, struct sk_buff *skb,
 	base = private->entries;
 	i = 0;
 	while (i < nentries) {
-		if (ebt_basic_match(point, skb, in, out))
+		if (ebt_basic_match(point, skb, state->in, state->out))
 			goto letscontinue;
 
 		if (EBT_MATCH_ITERATE(point, ebt_do_match, skb, &acpar) != 0)

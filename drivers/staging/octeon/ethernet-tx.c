@@ -143,8 +143,8 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	cvmx_pko_command_word0_t pko_command;
 	union cvmx_buf_ptr hw_buffer;
-	uint64_t old_scratch;
-	uint64_t old_scratch2;
+	u64 old_scratch;
+	u64 old_scratch2;
 	int qos;
 	int i;
 	enum {QUEUE_CORE, QUEUE_HW, QUEUE_DROP} queue_type;
@@ -549,7 +549,7 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 	/* Get a work queue entry */
 	cvmx_wqe_t *work = cvmx_fpa_alloc(CVMX_FPA_WQE_POOL);
 
-	if (unlikely(work == NULL)) {
+	if (unlikely(!work)) {
 		printk_ratelimited("%s: Failed to allocate a work queue entry\n",
 				   dev->name);
 		priv->stats.tx_dropped++;
@@ -576,7 +576,7 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 	 * calculation may add a little extra, but that doesn't
 	 * hurt.
 	 */
-	copy_location = packet_buffer + sizeof(uint64_t);
+	copy_location = packet_buffer + sizeof(u64);
 	copy_location += ((CVMX_HELPER_FIRST_MBUFF_SKIP + 7) & 0xfff8) + 6;
 
 	/*

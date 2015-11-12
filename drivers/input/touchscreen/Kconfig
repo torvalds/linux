@@ -295,6 +295,19 @@ config TOUCHSCREEN_EGALAX
 	  To compile this driver as a module, choose M here: the
 	  module will be called egalax_ts.
 
+config TOUCHSCREEN_FT6236
+	tristate "FT6236 I2C touchscreen"
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  Say Y here to enable support for the I2C connected FT6x06 and
+	  FT6x36 family of capacitive touchscreen drivers.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ft6236.
+
 config TOUCHSCREEN_FUJITSU
 	tristate "Fujitsu serial touchscreen"
 	select SERIO
@@ -1006,6 +1019,7 @@ config TOUCHSCREEN_SUN4I
 config TOUCHSCREEN_SUR40
 	tristate "Samsung SUR40 (Surface 2.0/PixelSense) touchscreen"
 	depends on USB && MEDIA_USB_SUPPORT && HAS_DMA
+	depends on VIDEO_V4L2
 	select INPUT_POLLDEV
 	select VIDEOBUF2_DMA_SG
 	help
@@ -1063,5 +1077,16 @@ config TOUCHSCREEN_COLIBRI_VF50
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called colibri_vf50_ts.
+
+config TOUCHSCREEN_ROHM_BU21023
+	tristate "ROHM BU21023/24 Dual touch support resistive touchscreens"
+	depends on I2C
+	help
+	  Say Y here if you have a touchscreen using ROHM BU21023/24.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bu21023_ts.
 
 endif

@@ -53,7 +53,7 @@ EXPORT_SYMBOL_GPL(irq_of_parse_and_map);
  * Returns a pointer to the interrupt parent node, or NULL if the interrupt
  * parent could not be determined.
  */
-struct device_node *of_irq_find_parent(struct device_node *child)
+static struct device_node *of_irq_find_parent(struct device_node *child)
 {
 	struct device_node *p;
 	const __be32 *parp;
@@ -501,10 +501,12 @@ void __init of_irq_init(const struct of_device_id *matches)
 		 * pointer, interrupt-parent device_node etc.
 		 */
 		desc = kzalloc(sizeof(*desc), GFP_KERNEL);
-		if (WARN_ON(!desc))
+		if (WARN_ON(!desc)) {
+			of_node_put(np);
 			goto err;
+		}
 
-		desc->dev = np;
+		desc->dev = of_node_get(np);
 		desc->interrupt_parent = of_irq_find_parent(np);
 		if (desc->interrupt_parent == np)
 			desc->interrupt_parent = NULL;
@@ -575,8 +577,183 @@ void __init of_irq_init(const struct of_device_id *matches)
 err:
 	list_for_each_entry_safe(desc, temp_desc, &intc_desc_list, list) {
 		list_del(&desc->list);
+		of_node_put(desc->dev);
 		kfree(desc);
 	}
+}
+
+static u32 __of_msi_map_rid(struct device *dev, struct device_node **np,
+			    u32 rid_in)
+{
+	struct device *parent_dev;
+	struct device_node *msi_controller_node;
+	struct device_node *msi_np = *np;
+	u32 map_mask, masked_rid, rid_base, msi_base, rid_len, phandle;
+	int msi_map_len;
+	bool matched;
+	u32 rid_out = rid_in;
+	const __be32 *msi_map = NULL;
+
+	/*
+	 * Walk up the device parent links looking for one with a
+	 * "msi-map" property.
+	 */
+	for (parent_dev = dev; parent_dev; parent_dev = parent_dev->parent) {
+		if (!parent_dev->of_node)
+			continue;
+
+		msi_map = of_get_property(parent_dev->of_node,
+					  "msi-map", &msi_map_len);
+		if (!msi_map)
+			continue;
+
+		if (msi_map_len % (4 * sizeof(__be32))) {
+			dev_err(parent_dev, "Error: Bad msi-map length: %d\n",
+				msi_map_len);
+			return rid_out;
+		}
+		/* We have a good parent_dev and msi_map, let's use them. */
+		break;
+	}
+	if (!msi_map)
+		return rid_out;
+
+	/* The default is to select all bits. */
+	map_mask = 0xffffffff;
+
+	/*
+	 * Can be overridden by "msi-map-mask" property.  If
+	 * of_property_read_u32() fails, the default is used.
+	 */
+	of_property_read_u32(parent_dev->of_node, "msi-map-mask", &map_mask);
+
+	masked_rid = map_mask & rid_in;
+	matched = false;
+	while (!matched && msi_map_len >= 4 * sizeof(__be32)) {
+		rid_base = be32_to_cpup(msi_map + 0);
+		phandle = be32_to_cpup(msi_map + 1);
+		msi_base = be32_to_cpup(msi_map + 2);
+		rid_len = be32_to_cpup(msi_map + 3);
+
+		msi_controller_node = of_find_node_by_phandle(phandle);
+
+		matched = (masked_rid >= rid_base &&
+			   masked_rid < rid_base + rid_len);
+		if (msi_np)
+			matched &= msi_np == msi_controller_node;
+
+		if (matched && !msi_np) {
+			*np = msi_np = msi_controller_node;
+			break;
+		}
+
+		of_node_put(msi_controller_node);
+		msi_map_len -= 4 * sizeof(__be32);
+		msi_map += 4;
+	}
+	if (!matched)
+		return rid_out;
+
+	rid_out = masked_rid + msi_base;
+	dev_dbg(dev,
+		"msi-map at: %s, using mask %08x, rid-base: %08x, msi-base: %08x, length: %08x, rid: %08x -> %08x\n",
+		dev_name(parent_dev), map_mask, rid_base, msi_base,
+		rid_len, rid_in, rid_out);
+
+	return rid_out;
+}
+
+/**
+ * of_msi_map_rid - Map a MSI requester ID for a device.
+ * @dev: device for which the mapping is to be done.
+ * @msi_np: device node of the expected msi controller.
+ * @rid_in: unmapped MSI requester ID for the device.
+ *
+ * Walk up the device hierarchy looking for devices with a "msi-map"
+ * property.  If found, apply the mapping to @rid_in.
+ *
+ * Returns the mapped MSI requester ID.
+ */
+u32 of_msi_map_rid(struct device *dev, struct device_node *msi_np, u32 rid_in)
+{
+	return __of_msi_map_rid(dev, &msi_np, rid_in);
+}
+
+static struct irq_domain *__of_get_msi_domain(struct device_node *np,
+					      enum irq_domain_bus_token token)
+{
+	struct irq_domain *d;
+
+	d = irq_find_matching_host(np, token);
+	if (!d)
+		d = irq_find_host(np);
+
+	return d;
+}
+
+/**
+ * of_msi_map_get_device_domain - Use msi-map to find the relevant MSI domain
+ * @dev: device for which the mapping is to be done.
+ * @rid: Requester ID for the device.
+ *
+ * Walk up the device hierarchy looking for devices with a "msi-map"
+ * property.
+ *
+ * Returns: the MSI domain for this device (or NULL on failure)
+ */
+struct irq_domain *of_msi_map_get_device_domain(struct device *dev, u32 rid)
+{
+	struct device_node *np = NULL;
+
+	__of_msi_map_rid(dev, &np, rid);
+	return __of_get_msi_domain(np, DOMAIN_BUS_PCI_MSI);
+}
+
+/**
+ * of_msi_get_domain - Use msi-parent to find the relevant MSI domain
+ * @dev: device for which the domain is requested
+ * @np: device node for @dev
+ * @token: bus type for this domain
+ *
+ * Parse the msi-parent property (both the simple and the complex
+ * versions), and returns the corresponding MSI domain.
+ *
+ * Returns: the MSI domain for this device (or NULL on failure).
+ */
+struct irq_domain *of_msi_get_domain(struct device *dev,
+				     struct device_node *np,
+				     enum irq_domain_bus_token token)
+{
+	struct device_node *msi_np;
+	struct irq_domain *d;
+
+	/* Check for a single msi-parent property */
+	msi_np = of_parse_phandle(np, "msi-parent", 0);
+	if (msi_np && !of_property_read_bool(msi_np, "#msi-cells")) {
+		d = __of_get_msi_domain(msi_np, token);
+		if (!d)
+			of_node_put(msi_np);
+		return d;
+	}
+
+	if (token == DOMAIN_BUS_PLATFORM_MSI) {
+		/* Check for the complex msi-parent version */
+		struct of_phandle_args args;
+		int index = 0;
+
+		while (!of_parse_phandle_with_args(np, "msi-parent",
+						   "#msi-cells",
+						   index, &args)) {
+			d = __of_get_msi_domain(args.np, token);
+			if (d)
+				return d;
+
+			of_node_put(args.np);
+			index++;
+		}
+	}
+
+	return NULL;
 }
 
 /**
@@ -586,15 +763,6 @@ err:
  */
 void of_msi_configure(struct device *dev, struct device_node *np)
 {
-	struct device_node *msi_np;
-	struct irq_domain *d;
-
-	msi_np = of_parse_phandle(np, "msi-parent", 0);
-	if (!msi_np)
-		return;
-
-	d = irq_find_matching_host(msi_np, DOMAIN_BUS_PLATFORM_MSI);
-	if (!d)
-		d = irq_find_host(msi_np);
-	dev_set_msi_domain(dev, d);
+	dev_set_msi_domain(dev,
+			   of_msi_get_domain(dev, np, DOMAIN_BUS_PLATFORM_MSI));
 }

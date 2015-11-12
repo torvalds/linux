@@ -19,7 +19,7 @@
 #include <linux/random.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/etherdevice.h>
 
 #include "dot11d.h"
@@ -277,7 +277,6 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee
 			printk("%s():insert to waitqueue!\n",__func__);
 			skb_queue_tail(&ieee->skb_waitQ[tcb_desc->queue_index], skb);
 		} else {
-			//printk("TX packet!\n");
 			ieee->softmac_hard_start_xmit(skb, ieee->dev);
 			//dev_kfree_skb_any(skb);//edit by thomas
 		}
@@ -418,7 +417,6 @@ static void ieee80211_send_probe_requests(struct ieee80211_device *ieee)
 		ieee80211_send_probe(ieee);
 	}
 }
-EXPORT_SYMBOL(ieee80211_send_probe_requests);
 
 /* this performs syncro scan blocking the caller until all channels
  * in the allowed channel map has been checked.
@@ -467,12 +465,8 @@ void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 		/* this prevent excessive time wait when we
 		 * need to wait for a syncro scan to end..
 		 */
-		if(ieee->state < IEEE80211_LINKED)
-			;
-		else
-		if (ieee->sync_scan_hurryup)
+		if (ieee->state >= IEEE80211_LINKED && ieee->sync_scan_hurryup)
 			goto out;
-
 
 		msleep_interruptible_rsl(IEEE80211_SOFTMAC_SCAN_TIME);
 
@@ -1273,7 +1267,6 @@ static void ieee80211_associate_step1(struct ieee80211_device *ieee)
 	else{
 		ieee->state = IEEE80211_ASSOCIATING_AUTHENTICATING ;
 		IEEE80211_DEBUG_MGMT("Sending authentication request\n");
-		//printk(KERN_WARNING "Sending authentication request\n");
 		softmac_mgmt_xmit(skb, ieee);
 		//BUGON when you try to add_timer twice, using mod_timer may be better, john0709
 		if (!timer_pending(&ieee->associate_timer)) {
@@ -1465,10 +1458,8 @@ inline void ieee80211_softmac_new_net(struct ieee80211_device *ieee, struct ieee
 				}
 				memcpy(&ieee->current_network, net, sizeof(struct ieee80211_network));
 
-				if (!ssidbroad) {
-					strncpy(ieee->current_network.ssid, tmp_ssid, IW_ESSID_MAX_SIZE);
-					ieee->current_network.ssid_len = tmp_ssid_len;
-				}
+				strncpy(ieee->current_network.ssid, tmp_ssid, IW_ESSID_MAX_SIZE);
+				ieee->current_network.ssid_len = tmp_ssid_len;
 				printk(KERN_INFO"Linking with %s,channel:%d, qos:%d, myHT:%d, networkHT:%d\n",ieee->current_network.ssid,ieee->current_network.channel, ieee->current_network.qos_data.supported, ieee->pHTInfo->bEnableHT, ieee->current_network.bssht.bdSupportHT);
 
 				//ieee->pHTInfo->IOTAction = 0;
@@ -1736,11 +1727,9 @@ static short ieee80211_sta_ps_sleep(struct ieee80211_device *ieee, u32 *time_h,
 		return 0;
 	*/
 	dtim = ieee->current_network.dtim_data;
-	//printk("DTIM\n");
 	if(!(dtim & IEEE80211_DTIM_VALID))
 		return 0;
 	timeout = ieee->current_network.beacon_interval; //should we use ps_timeout value or beacon_interval
-	//printk("VALID\n");
 	ieee->current_network.dtim_data = IEEE80211_DTIM_INVALID;
 
 	if(dtim & ((IEEE80211_DTIM_UCAST | IEEE80211_DTIM_MBCAST)& ieee->ps))

@@ -17,6 +17,18 @@
 		};
 	};
 
+	mailbox: mhu@2b1f0000 {
+		compatible = "arm,mhu", "arm,primecell";
+		reg = <0x0 0x2b1f0000 0x0 0x1000>;
+		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "mhu_lpri_rx",
+				  "mhu_hpri_rx";
+		#mbox-cells = <1>;
+		clocks = <&soc_refclk100mhz>;
+		clock-names = "apb_pclk";
+	};
+
 	gic: interrupt-controller@2c010000 {
 		compatible = "arm,gic-400", "arm,cortex-a15-gic";
 		reg = <0x0 0x2c010000 0 0x1000>,
@@ -42,6 +54,53 @@
 			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>;
+	};
+
+	sram: sram@2e000000 {
+		compatible = "arm,juno-sram-ns", "mmio-sram";
+		reg = <0x0 0x2e000000 0x0 0x8000>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x0 0x2e000000 0x8000>;
+
+		cpu_scp_lpri: scp-shmem@0 {
+			compatible = "arm,juno-scp-shmem";
+			reg = <0x0 0x200>;
+		};
+
+		cpu_scp_hpri: scp-shmem@200 {
+			compatible = "arm,juno-scp-shmem";
+			reg = <0x200 0x200>;
+		};
+	};
+
+	scpi {
+		compatible = "arm,scpi";
+		mboxes = <&mailbox 1>;
+		shmem = <&cpu_scp_hpri>;
+
+		clocks {
+			compatible = "arm,scpi-clocks";
+
+			scpi_dvfs: scpi_clocks@0 {
+				compatible = "arm,scpi-dvfs-clocks";
+				#clock-cells = <1>;
+				clock-indices = <0>, <1>, <2>;
+				clock-output-names = "atlclk", "aplclk","gpuclk";
+			};
+			scpi_clk: scpi_clocks@3 {
+				compatible = "arm,scpi-variable-clocks";
+				#clock-cells = <1>;
+				clock-indices = <3>, <4>;
+				clock-output-names = "pxlclk0", "pxlclk1";
+			};
+		};
+
+		scpi_sensors0: sensors {
+			compatible = "arm,scpi-sensors";
+			#thermal-sensor-cells = <1>;
+		};
 	};
 
 	/include/ "juno-clocks.dtsi"

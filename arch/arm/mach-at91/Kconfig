@@ -102,6 +102,9 @@ config HAVE_AT91_SMD
 config HAVE_AT91_H32MX
 	bool
 
+config HAVE_AT91_GENERATED_CLK
+	bool
+
 config SOC_SAM_V4_V5
 	bool
 

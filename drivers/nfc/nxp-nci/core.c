@@ -109,7 +109,8 @@ static struct nci_ops nxp_nci_ops = {
 };
 
 int nxp_nci_probe(void *phy_id, struct device *pdev,
-		  struct nxp_nci_phy_ops *phy_ops, unsigned int max_payload,
+		  const struct nxp_nci_phy_ops *phy_ops,
+		  unsigned int max_payload,
 		  struct nci_dev **ndev)
 {
 	struct nxp_nci_info *info;

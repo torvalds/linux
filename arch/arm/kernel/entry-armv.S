@@ -427,8 +427,7 @@ ENDPROC(__fiq_abt)
 	.endm
 
 	.macro	kuser_cmpxchg_check
-#if !defined(CONFIG_CPU_32v6K) && defined(CONFIG_KUSER_HELPERS) && \
-    !defined(CONFIG_NEEDS_SYSCALL_FOR_CMPXCHG)
+#if !defined(CONFIG_CPU_32v6K) && defined(CONFIG_KUSER_HELPERS)
 #ifndef CONFIG_MMU
 #warning "NPTL on non MMU needs fixing"
 #else
@@ -859,20 +858,7 @@ __kuser_helper_start:
 
 __kuser_cmpxchg64:				@ 0xffff0f60
 
-#if defined(CONFIG_NEEDS_SYSCALL_FOR_CMPXCHG)
-
-	/*
-	 * Poor you.  No fast solution possible...
-	 * The kernel itself must perform the operation.
-	 * A special ghost syscall is used for that (see traps.c).
-	 */
-	stmfd	sp!, {r7, lr}
-	ldr	r7, 1f			@ it's 20 bits
-	swi	__ARM_NR_cmpxchg64
-	ldmfd	sp!, {r7, pc}
-1:	.word	__ARM_NR_cmpxchg64
-
-#elif defined(CONFIG_CPU_32v6K)
+#if defined(CONFIG_CPU_32v6K)
 
 	stmfd	sp!, {r4, r5, r6, r7}
 	ldrd	r4, r5, [r0]			@ load old val
@@ -948,20 +934,7 @@ __kuser_memory_barrier:				@ 0xffff0fa0
 
 __kuser_cmpxchg:				@ 0xffff0fc0
 
-#if defined(CONFIG_NEEDS_SYSCALL_FOR_CMPXCHG)
-
-	/*
-	 * Poor you.  No fast solution possible...
-	 * The kernel itself must perform the operation.
-	 * A special ghost syscall is used for that (see traps.c).
-	 */
-	stmfd	sp!, {r7, lr}
-	ldr	r7, 1f			@ it's 20 bits
-	swi	__ARM_NR_cmpxchg
-	ldmfd	sp!, {r7, pc}
-1:	.word	__ARM_NR_cmpxchg
-
-#elif __LINUX_ARM_ARCH__ < 6
+#if __LINUX_ARM_ARCH__ < 6
 
 #ifdef CONFIG_MMU
 

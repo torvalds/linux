@@ -23,6 +23,7 @@
 
 #define MIDR_CORTEX_A53 MIDR_CPU_PART(ARM_CPU_IMP_ARM, ARM_CPU_PART_CORTEX_A53)
 #define MIDR_CORTEX_A57 MIDR_CPU_PART(ARM_CPU_IMP_ARM, ARM_CPU_PART_CORTEX_A57)
+#define MIDR_THUNDERX	MIDR_CPU_PART(ARM_CPU_IMP_CAVIUM, CAVIUM_CPU_PART_THUNDERX)
 
 #define CPU_MODEL_MASK (MIDR_IMPLEMENTOR_MASK | MIDR_PARTNUM_MASK | \
 			MIDR_ARCHITECTURE_MASK)
@@ -82,11 +83,19 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 		MIDR_RANGE(MIDR_CORTEX_A53, 0x00, 0x04),
 	},
 #endif
+#ifdef CONFIG_CAVIUM_ERRATUM_23154
+	{
+	/* Cavium ThunderX, pass 1.x */
+		.desc = "Cavium erratum 23154",
+		.capability = ARM64_WORKAROUND_CAVIUM_23154,
+		MIDR_RANGE(MIDR_THUNDERX, 0x00, 0x01),
+	},
+#endif
 	{
 	}
 };
 
 void check_local_cpu_errata(void)
 {
-	check_cpu_capabilities(arm64_errata, "enabling workaround for");
+	update_cpu_capabilities(arm64_errata, "enabling workaround for");
 }

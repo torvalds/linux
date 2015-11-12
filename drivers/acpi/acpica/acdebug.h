@@ -44,6 +44,12 @@
 #ifndef __ACDEBUG_H__
 #define __ACDEBUG_H__
 
+/* The debugger is used in conjunction with the disassembler most of time */
+
+#ifdef ACPI_DISASSEMBLER
+#include "acdisasm.h"
+#endif
+
 #define ACPI_DEBUG_BUFFER_SIZE  0x4000	/* 16K buffer for return objects */
 
 struct acpi_db_command_info {

@@ -20,6 +20,18 @@ endmenu
 
 menu "Proximity sensors"
 
+config LIDAR_LITE_V2
+	tristate "PulsedLight LIDAR sensor"
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	depends on I2C
+	help
+	  Say Y to build a driver for PulsedLight LIDAR range finding
+	  sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pulsedlight-lite-v2
+
 config SX9500
 	tristate "SX9500 Semtech proximity sensor"
 	select IIO_BUFFER

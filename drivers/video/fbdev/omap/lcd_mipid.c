@@ -603,7 +603,6 @@ static int mipid_spi_remove(struct spi_device *spi)
 static struct spi_driver mipid_spi_driver = {
 	.driver = {
 		.name	= MIPID_MODULE_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe	= mipid_spi_probe,
 	.remove	= mipid_spi_remove,

@@ -33,6 +33,7 @@ show up in /proc/sys/kernel:
 - domainname
 - hostname
 - hotplug
+- hardlockup_all_cpu_backtrace
 - hung_task_panic
 - hung_task_check_count
 - hung_task_timeout_secs
@@ -292,6 +293,17 @@ Information Service) or YP (Yellow Pages) domainname. These two
 domain names are in general different. For a detailed discussion
 see the hostname(1) man page.
 
+==============================================================
+hardlockup_all_cpu_backtrace:
+
+This value controls the hard lockup detector behavior when a hard
+lockup condition is detected as to whether or not to gather further
+debug information. If enabled, arch-specific all-CPU stack dumping
+will be initiated.
+
+0: do nothing. This is the default behavior.
+
+1: on detection capture more debug information.
 ==============================================================
 
 hotplug:

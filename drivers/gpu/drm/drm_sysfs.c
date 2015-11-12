@@ -30,6 +30,8 @@ static struct device_type drm_sysfs_device_minor = {
 	.name = "drm_minor"
 };
 
+struct class *drm_class;
+
 /**
  * __drm_class_suspend - internal DRM class suspend routine
  * @dev: Linux device to suspend
@@ -112,41 +114,34 @@ static CLASS_ATTR_STRING(version, S_IRUGO,
 		CORE_DATE);
 
 /**
- * drm_sysfs_create - create a struct drm_sysfs_class structure
- * @owner: pointer to the module that is to "own" this struct drm_sysfs_class
- * @name: pointer to a string for the name of this class.
+ * drm_sysfs_init - initialize sysfs helpers
  *
- * This is used to create DRM class pointer that can then be used
- * in calls to drm_sysfs_device_add().
+ * This is used to create the DRM class, which is the implicit parent of any
+ * other top-level DRM sysfs objects.
  *
- * Note, the pointer created here is to be destroyed when finished by making a
- * call to drm_sysfs_destroy().
+ * You must call drm_sysfs_destroy() to release the allocated resources.
+ *
+ * Return: 0 on success, negative error code on failure.
  */
-struct class *drm_sysfs_create(struct module *owner, char *name)
+int drm_sysfs_init(void)
 {
-	struct class *class;
 	int err;
 
-	class = class_create(owner, name);
-	if (IS_ERR(class)) {
-		err = PTR_ERR(class);
-		goto err_out;
+	drm_class = class_create(THIS_MODULE, "drm");
+	if (IS_ERR(drm_class))
+		return PTR_ERR(drm_class);
+
+	drm_class->pm = &drm_class_dev_pm_ops;
+
+	err = class_create_file(drm_class, &class_attr_version.attr);
+	if (err) {
+		class_destroy(drm_class);
+		drm_class = NULL;
+		return err;
 	}
 
-	class->pm = &drm_class_dev_pm_ops;
-
-	err = class_create_file(class, &class_attr_version.attr);
-	if (err)
-		goto err_out_class;
-
-	class->devnode = drm_devnode;
-
-	return class;
-
-err_out_class:
-	class_destroy(class);
-err_out:
-	return ERR_PTR(err);
+	drm_class->devnode = drm_devnode;
+	return 0;
 }
 
 /**
@@ -156,7 +151,7 @@ err_out:
  */
 void drm_sysfs_destroy(void)
 {
-	if ((drm_class == NULL) || (IS_ERR(drm_class)))
+	if (IS_ERR_OR_NULL(drm_class))
 		return;
 	class_remove_file(drm_class, &class_attr_version.attr);
 	class_destroy(drm_class);
@@ -235,18 +230,12 @@ static ssize_t dpms_show(struct device *device,
 			   char *buf)
 {
 	struct drm_connector *connector = to_drm_connector(device);
-	struct drm_device *dev = connector->dev;
-	uint64_t dpms_status;
-	int ret;
+	int dpms;
 
-	ret = drm_object_property_get_value(&connector->base,
-					    dev->mode_config.dpms_property,
-					    &dpms_status);
-	if (ret)
-		return 0;
+	dpms = READ_ONCE(connector->dpms);
 
 	return snprintf(buf, PAGE_SIZE, "%s\n",
-			drm_get_dpms_name((int)dpms_status));
+			drm_get_dpms_name(dpms));
 }
 
 static ssize_t enabled_show(struct device *device,

@@ -18,6 +18,8 @@
 #include <linux/filter.h>
 #include <linux/version.h>
 
+int sysctl_unprivileged_bpf_disabled __read_mostly;
+
 static LIST_HEAD(bpf_map_types);
 
 static struct bpf_map *find_and_alloc_map(union bpf_attr *attr)
@@ -44,11 +46,38 @@ void bpf_register_map_type(struct bpf_map_type_list *tl)
 	list_add(&tl->list_node, &bpf_map_types);
 }
 
+static int bpf_map_charge_memlock(struct bpf_map *map)
+{
+	struct user_struct *user = get_current_user();
+	unsigned long memlock_limit;
+
+	memlock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+
+	atomic_long_add(map->pages, &user->locked_vm);
+
+	if (atomic_long_read(&user->locked_vm) > memlock_limit) {
+		atomic_long_sub(map->pages, &user->locked_vm);
+		free_uid(user);
+		return -EPERM;
+	}
+	map->user = user;
+	return 0;
+}
+
+static void bpf_map_uncharge_memlock(struct bpf_map *map)
+{
+	struct user_struct *user = map->user;
+
+	atomic_long_sub(map->pages, &user->locked_vm);
+	free_uid(user);
+}
+
 /* called from workqueue */
 static void bpf_map_free_deferred(struct work_struct *work)
 {
 	struct bpf_map *map = container_of(work, struct bpf_map, work);
 
+	bpf_map_uncharge_memlock(map);
 	/* implementation dependent freeing */
 	map->ops->map_free(map);
 }
@@ -82,6 +111,12 @@ static const struct file_operations bpf_map_fops = {
 	.release = bpf_map_release,
 };
 
+int bpf_map_new_fd(struct bpf_map *map)
+{
+	return anon_inode_getfd("bpf-map", &bpf_map_fops, map,
+				O_RDWR | O_CLOEXEC);
+}
+
 /* helper macro to check that unused fields 'union bpf_attr' are zero */
 #define CHECK_ATTR(CMD) \
 	memchr_inv((void *) &attr->CMD##_LAST_FIELD + \
@@ -108,8 +143,11 @@ static int map_create(union bpf_attr *attr)
 
 	atomic_set(&map->refcnt, 1);
 
-	err = anon_inode_getfd("bpf-map", &bpf_map_fops, map, O_RDWR | O_CLOEXEC);
+	err = bpf_map_charge_memlock(map);
+	if (err)
+		goto free_map;
 
+	err = bpf_map_new_fd(map);
 	if (err < 0)
 		/* failed to allocate fd */
 		goto free_map;
@@ -124,19 +162,29 @@ free_map:
 /* if error is returned, fd is released.
  * On success caller should complete fd access with matching fdput()
  */
-struct bpf_map *bpf_map_get(struct fd f)
+struct bpf_map *__bpf_map_get(struct fd f)
 {
-	struct bpf_map *map;
-
 	if (!f.file)
 		return ERR_PTR(-EBADF);
-
 	if (f.file->f_op != &bpf_map_fops) {
 		fdput(f);
 		return ERR_PTR(-EINVAL);
 	}
 
-	map = f.file->private_data;
+	return f.file->private_data;
+}
+
+struct bpf_map *bpf_map_get(u32 ufd)
+{
+	struct fd f = fdget(ufd);
+	struct bpf_map *map;
+
+	map = __bpf_map_get(f);
+	if (IS_ERR(map))
+		return map;
+
+	atomic_inc(&map->refcnt);
+	fdput(f);
 
 	return map;
 }
@@ -164,7 +212,7 @@ static int map_lookup_elem(union bpf_attr *attr)
 		return -EINVAL;
 
 	f = fdget(ufd);
-	map = bpf_map_get(f);
+	map = __bpf_map_get(f);
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 
@@ -223,7 +271,7 @@ static int map_update_elem(union bpf_attr *attr)
 		return -EINVAL;
 
 	f = fdget(ufd);
-	map = bpf_map_get(f);
+	map = __bpf_map_get(f);
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 
@@ -276,7 +324,7 @@ static int map_delete_elem(union bpf_attr *attr)
 		return -EINVAL;
 
 	f = fdget(ufd);
-	map = bpf_map_get(f);
+	map = __bpf_map_get(f);
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 
@@ -317,7 +365,7 @@ static int map_get_next_key(union bpf_attr *attr)
 		return -EINVAL;
 
 	f = fdget(ufd);
-	map = bpf_map_get(f);
+	map = __bpf_map_get(f);
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 
@@ -402,6 +450,10 @@ static void fixup_bpf_calls(struct bpf_prog *prog)
 			 */
 			BUG_ON(!prog->aux->ops->get_func_proto);
 
+			if (insn->imm == BPF_FUNC_get_route_realm)
+				prog->dst_needed = 1;
+			if (insn->imm == BPF_FUNC_get_prandom_u32)
+				bpf_user_rnd_init_once();
 			if (insn->imm == BPF_FUNC_tail_call) {
 				/* mark bpf_tail_call as different opcode
 				 * to avoid conditional branch in
@@ -436,29 +488,51 @@ static void free_used_maps(struct bpf_prog_aux *aux)
 	kfree(aux->used_maps);
 }
 
-static void __prog_put_rcu(struct rcu_head *rcu)
+static int bpf_prog_charge_memlock(struct bpf_prog *prog)
+{
+	struct user_struct *user = get_current_user();
+	unsigned long memlock_limit;
+
+	memlock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+
+	atomic_long_add(prog->pages, &user->locked_vm);
+	if (atomic_long_read(&user->locked_vm) > memlock_limit) {
+		atomic_long_sub(prog->pages, &user->locked_vm);
+		free_uid(user);
+		return -EPERM;
+	}
+	prog->aux->user = user;
+	return 0;
+}
+
+static void bpf_prog_uncharge_memlock(struct bpf_prog *prog)
+{
+	struct user_struct *user = prog->aux->user;
+
+	atomic_long_sub(prog->pages, &user->locked_vm);
+	free_uid(user);
+}
+
+static void __prog_put_common(struct rcu_head *rcu)
 {
 	struct bpf_prog_aux *aux = container_of(rcu, struct bpf_prog_aux, rcu);
 
 	free_used_maps(aux);
+	bpf_prog_uncharge_memlock(aux->prog);
 	bpf_prog_free(aux->prog);
 }
 
 /* version of bpf_prog_put() that is called after a grace period */
 void bpf_prog_put_rcu(struct bpf_prog *prog)
 {
-	if (atomic_dec_and_test(&prog->aux->refcnt)) {
-		prog->aux->prog = prog;
-		call_rcu(&prog->aux->rcu, __prog_put_rcu);
-	}
+	if (atomic_dec_and_test(&prog->aux->refcnt))
+		call_rcu(&prog->aux->rcu, __prog_put_common);
 }
 
 void bpf_prog_put(struct bpf_prog *prog)
 {
-	if (atomic_dec_and_test(&prog->aux->refcnt)) {
-		free_used_maps(prog->aux);
-		bpf_prog_free(prog);
-	}
+	if (atomic_dec_and_test(&prog->aux->refcnt))
+		__prog_put_common(&prog->aux->rcu);
 }
 EXPORT_SYMBOL_GPL(bpf_prog_put);
 
@@ -474,21 +548,22 @@ static const struct file_operations bpf_prog_fops = {
         .release = bpf_prog_release,
 };
 
-static struct bpf_prog *get_prog(struct fd f)
+int bpf_prog_new_fd(struct bpf_prog *prog)
 {
-	struct bpf_prog *prog;
+	return anon_inode_getfd("bpf-prog", &bpf_prog_fops, prog,
+				O_RDWR | O_CLOEXEC);
+}
 
+static struct bpf_prog *__bpf_prog_get(struct fd f)
+{
 	if (!f.file)
 		return ERR_PTR(-EBADF);
-
 	if (f.file->f_op != &bpf_prog_fops) {
 		fdput(f);
 		return ERR_PTR(-EINVAL);
 	}
 
-	prog = f.file->private_data;
-
-	return prog;
+	return f.file->private_data;
 }
 
 /* called by sockets/tracing/seccomp before attaching program to an event
@@ -499,13 +574,13 @@ struct bpf_prog *bpf_prog_get(u32 ufd)
 	struct fd f = fdget(ufd);
 	struct bpf_prog *prog;
 
-	prog = get_prog(f);
-
+	prog = __bpf_prog_get(f);
 	if (IS_ERR(prog))
 		return prog;
 
 	atomic_inc(&prog->aux->refcnt);
 	fdput(f);
+
 	return prog;
 }
 EXPORT_SYMBOL_GPL(bpf_prog_get);
@@ -540,10 +615,17 @@ static int bpf_prog_load(union bpf_attr *attr)
 	    attr->kern_version != LINUX_VERSION_CODE)
 		return -EINVAL;
 
+	if (type != BPF_PROG_TYPE_SOCKET_FILTER && !capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
 	/* plain bpf_prog allocation */
 	prog = bpf_prog_alloc(bpf_prog_size(attr->insn_cnt), GFP_USER);
 	if (!prog)
 		return -ENOMEM;
+
+	err = bpf_prog_charge_memlock(prog);
+	if (err)
+		goto free_prog_nouncharge;
 
 	prog->len = attr->insn_cnt;
 
@@ -553,10 +635,10 @@ static int bpf_prog_load(union bpf_attr *attr)
 		goto free_prog;
 
 	prog->orig_prog = NULL;
-	prog->jited = false;
+	prog->jited = 0;
 
 	atomic_set(&prog->aux->refcnt, 1);
-	prog->gpl_compatible = is_gpl;
+	prog->gpl_compatible = is_gpl ? 1 : 0;
 
 	/* find program type: socket_filter vs tracing_filter */
 	err = find_prog_type(type, prog);
@@ -576,7 +658,7 @@ static int bpf_prog_load(union bpf_attr *attr)
 	if (err < 0)
 		goto free_used_maps;
 
-	err = anon_inode_getfd("bpf-prog", &bpf_prog_fops, prog, O_RDWR | O_CLOEXEC);
+	err = bpf_prog_new_fd(prog);
 	if (err < 0)
 		/* failed to allocate fd */
 		goto free_used_maps;
@@ -586,8 +668,28 @@ static int bpf_prog_load(union bpf_attr *attr)
 free_used_maps:
 	free_used_maps(prog->aux);
 free_prog:
+	bpf_prog_uncharge_memlock(prog);
+free_prog_nouncharge:
 	bpf_prog_free(prog);
 	return err;
+}
+
+#define BPF_OBJ_LAST_FIELD bpf_fd
+
+static int bpf_obj_pin(const union bpf_attr *attr)
+{
+	if (CHECK_ATTR(BPF_OBJ))
+		return -EINVAL;
+
+	return bpf_obj_pin_user(attr->bpf_fd, u64_to_ptr(attr->pathname));
+}
+
+static int bpf_obj_get(const union bpf_attr *attr)
+{
+	if (CHECK_ATTR(BPF_OBJ) || attr->bpf_fd != 0)
+		return -EINVAL;
+
+	return bpf_obj_get_user(u64_to_ptr(attr->pathname));
 }
 
 SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, size)
@@ -595,11 +697,7 @@ SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, siz
 	union bpf_attr attr = {};
 	int err;
 
-	/* the syscall is limited to root temporarily. This restriction will be
-	 * lifted when security audit is clean. Note that eBPF+tracing must have
-	 * this restriction, since it may pass kernel data to user space
-	 */
-	if (!capable(CAP_SYS_ADMIN))
+	if (!capable(CAP_SYS_ADMIN) && sysctl_unprivileged_bpf_disabled)
 		return -EPERM;
 
 	if (!access_ok(VERIFY_READ, uattr, 1))
@@ -653,6 +751,12 @@ SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, siz
 		break;
 	case BPF_PROG_LOAD:
 		err = bpf_prog_load(&attr);
+		break;
+	case BPF_OBJ_PIN:
+		err = bpf_obj_pin(&attr);
+		break;
+	case BPF_OBJ_GET:
+		err = bpf_obj_get(&attr);
 		break;
 	default:
 		err = -EINVAL;

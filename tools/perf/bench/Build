@@ -1,6 +1,6 @@
 perf-y += sched-messaging.o
 perf-y += sched-pipe.o
-perf-y += mem-memcpy.o
+perf-y += mem-functions.o
 perf-y += futex-hash.o
 perf-y += futex-wake.o
 perf-y += futex-wake-parallel.o

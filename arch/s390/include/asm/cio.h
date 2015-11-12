@@ -5,6 +5,7 @@
 #define _ASM_S390_CIO_H_
 
 #include <linux/spinlock.h>
+#include <linux/bitops.h>
 #include <asm/types.h>
 
 #define LPM_ANYPATH 0xff
@@ -294,6 +295,15 @@ static inline int ccw_dev_id_is_equal(struct ccw_dev_id *dev_id1,
 	    (dev_id1->devno == dev_id2->devno))
 		return 1;
 	return 0;
+}
+
+/**
+ * pathmask_to_pos() - find the position of the left-most bit in a pathmask
+ * @mask: pathmask with at least one bit set
+ */
+static inline u8 pathmask_to_pos(u8 mask)
+{
+	return 8 - ffs(mask);
 }
 
 void channel_subsystem_reinit(void);

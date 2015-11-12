@@ -99,22 +99,28 @@ static const struct drm_plane_funcs mdp4_plane_funcs = {
 };
 
 static int mdp4_plane_prepare_fb(struct drm_plane *plane,
-		struct drm_framebuffer *fb,
 		const struct drm_plane_state *new_state)
 {
 	struct mdp4_plane *mdp4_plane = to_mdp4_plane(plane);
 	struct mdp4_kms *mdp4_kms = get_kms(plane);
+	struct drm_framebuffer *fb = new_state->fb;
+
+	if (!fb)
+		return 0;
 
 	DBG("%s: prepare: FB[%u]", mdp4_plane->name, fb->base.id);
 	return msm_framebuffer_prepare(fb, mdp4_kms->id);
 }
 
 static void mdp4_plane_cleanup_fb(struct drm_plane *plane,
-		struct drm_framebuffer *fb,
 		const struct drm_plane_state *old_state)
 {
 	struct mdp4_plane *mdp4_plane = to_mdp4_plane(plane);
 	struct mdp4_kms *mdp4_kms = get_kms(plane);
+	struct drm_framebuffer *fb = old_state->fb;
+
+	if (!fb)
+		return;
 
 	DBG("%s: cleanup: FB[%u]", mdp4_plane->name, fb->base.id);
 	msm_framebuffer_cleanup(fb, mdp4_kms->id);

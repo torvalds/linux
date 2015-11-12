@@ -215,8 +215,10 @@ static int bcm6358_leds_probe(struct platform_device *pdev)
 		}
 
 		rc = bcm6358_led(dev, child, reg, mem, lock);
-		if (rc < 0)
+		if (rc < 0) {
+			of_node_put(child);
 			return rc;
+		}
 	}
 
 	return 0;

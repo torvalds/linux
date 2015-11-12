@@ -261,7 +261,6 @@ struct ost_id {
 #define LL_IOC_OBD_STATFS       IOC_OBD_STATFS
 #define IOC_MDC_GETSTRIPE       IOC_MDC_GETFILESTRIPE
 
-
 #define MAX_OBD_NAME 128 /* If this changes, a NEW ioctl must be added */
 
 /* Define O_LOV_DELAY_CREATE to be a mask that is not useful for regular
@@ -313,7 +312,7 @@ struct lov_user_ost_data_v1 {     /* per-stripe data structure */
 	struct ost_id l_ost_oi;	  /* OST object ID */
 	__u32 l_ost_gen;	  /* generation of this OST index */
 	__u32 l_ost_idx;	  /* OST index in LOV */
-} __attribute__((packed));
+} __packed;
 
 #define lov_user_md lov_user_md_v1
 struct lov_user_md_v1 {	   /* LOV EA user data (host-endian) */
@@ -345,7 +344,7 @@ struct lov_user_md_v3 {	   /* LOV EA user data (host-endian) */
 	};
 	char  lmm_pool_name[LOV_MAXPOOLNAME]; /* pool name */
 	struct lov_user_ost_data_v1 lmm_objects[0]; /* per-stripe data */
-} __attribute__((packed));
+} __packed;
 
 static inline __u32 lov_user_md_size(__u16 stripes, __u32 lmm_magic)
 {
@@ -365,12 +364,12 @@ static inline __u32 lov_user_md_size(__u16 stripes, __u32 lmm_magic)
 struct lov_user_mds_data_v1 {
 	lstat_t lmd_st;		 /* MDS stat struct */
 	struct lov_user_md_v1 lmd_lmm;  /* LOV EA V1 user data */
-} __attribute__((packed));
+} __packed;
 
 struct lov_user_mds_data_v3 {
 	lstat_t lmd_st;		 /* MDS stat struct */
 	struct lov_user_md_v3 lmd_lmm;  /* LOV EA V3 user data */
-} __attribute__((packed));
+} __packed;
 #endif
 
 /* keep this to be the same size as lov_user_ost_data_v1 */
@@ -405,8 +404,6 @@ static inline int lmv_user_md_size(int stripes, int lmm_magic)
 	return sizeof(struct lmv_user_md) +
 		      stripes * sizeof(struct lmv_user_mds_data);
 }
-
-void lustre_swab_lmv_user_md(struct lmv_user_md *lum);
 
 struct ll_recreate_obj {
 	__u64 lrc_id;
@@ -449,6 +446,7 @@ static inline char *obd_uuid2str(const struct obd_uuid *uuid)
 		/* Obviously not safe, but for printfs, no real harm done...
 		   we're always null-terminated, even in a race. */
 		static char temp[sizeof(*uuid)];
+
 		memcpy(temp, uuid->uuid, sizeof(*uuid) - 1);
 		temp[sizeof(*uuid) - 1] = '\0';
 		return temp;
@@ -488,7 +486,6 @@ static inline void obd_uuid2fsname(char *buf, char *uuid, int buflen)
 	&((fid)->f_seq), \
 	&((fid)->f_oid), \
 	&((fid)->f_ver)
-
 
 /********* Quotas **********/
 
@@ -631,7 +628,6 @@ struct lustre_swap_layouts {
 	__u64	sl_dv2;
 };
 
-
 /********* Changelogs **********/
 /** Changelog record types */
 enum changelog_rec_type {
@@ -658,7 +654,8 @@ enum changelog_rec_type {
 	CL_LAST
 };
 
-static inline const char *changelog_type2str(int type) {
+static inline const char *changelog_type2str(int type)
+{
 	static const char *changelog_str[] = {
 		"MARK",  "CREAT", "MKDIR", "HLINK", "SLINK", "MKNOD", "UNLNK",
 		"RMDIR", "RENME", "RNMTO", "OPEN",  "CLOSE", "LYOUT", "TRUNC",
@@ -769,7 +766,7 @@ struct changelog_rec {
 	};
 	lustre_fid	    cr_pfid;	/**< parent fid */
 	char		  cr_name[0];     /**< last element */
-} __attribute__((packed));
+} __packed;
 
 /* changelog_ext_rec is 2*sizeof(lu_fid) bigger than changelog_rec, to save
  * space, only rename uses changelog_ext_rec, while others use changelog_rec to
@@ -791,21 +788,21 @@ struct changelog_ext_rec {
 	lustre_fid		cr_sfid;	/**< source fid, or zero */
 	lustre_fid		cr_spfid;       /**< source parent fid, or zero */
 	char			cr_name[0];     /**< last element */
-} __attribute__((packed));
+} __packed;
 
 #define CHANGELOG_REC_EXTENDED(rec) \
 	(((rec)->cr_flags & CLF_VERMASK) == CLF_EXT_VERSION)
 
 static inline int changelog_rec_size(struct changelog_rec *rec)
 {
-	return CHANGELOG_REC_EXTENDED(rec) ? sizeof(struct changelog_ext_rec):
+	return CHANGELOG_REC_EXTENDED(rec) ? sizeof(struct changelog_ext_rec) :
 					     sizeof(*rec);
 }
 
 static inline char *changelog_rec_name(struct changelog_rec *rec)
 {
 	return CHANGELOG_REC_EXTENDED(rec) ?
-		((struct changelog_ext_rec *)rec)->cr_name: rec->cr_name;
+		((struct changelog_ext_rec *)rec)->cr_name : rec->cr_name;
 }
 
 static inline int changelog_rec_snamelen(struct changelog_ext_rec *rec)
@@ -836,6 +833,7 @@ struct ioc_data_version {
 	__u64 idv_version;
 	__u64 idv_flags;     /* See LL_DV_xxx */
 };
+
 #define LL_DV_NOFLUSH 0x01   /* Do not take READ EXTENT LOCK before sampling
 				version. Dirty caches are left unchanged. */
 
@@ -844,7 +842,6 @@ struct ioc_data_version {
 #endif
 
 #define dot_lustre_name ".lustre"
-
 
 /********* HSM **********/
 
@@ -881,6 +878,7 @@ enum hsm_progress_states {
 	HPS_RUNNING	= 2,
 	HPS_DONE	= 3,
 };
+
 #define HPS_NONE	0
 
 static inline char *hsm_progress_state2name(enum hsm_progress_states s)
@@ -896,7 +894,7 @@ static inline char *hsm_progress_state2name(enum hsm_progress_states s)
 struct hsm_extent {
 	__u64 offset;
 	__u64 length;
-} __attribute__((packed));
+} __packed;
 
 /**
  * Current HSM states of a Lustre file.
@@ -980,7 +978,7 @@ struct hsm_request {
 struct hsm_user_item {
        lustre_fid	hui_fid;
        struct hsm_extent hui_extent;
-} __attribute__((packed));
+} __packed;
 
 struct hsm_user_request {
 	struct hsm_request	hur_request;
@@ -988,7 +986,7 @@ struct hsm_user_request {
 	/* extra data blob at end of struct (after all
 	 * hur_user_items), only use helpers to access it
 	 */
-} __attribute__((packed));
+} __packed;
 
 /** Return pointer to data field in a hsm user request */
 static inline void *hur_data(struct hsm_user_request *hur)
@@ -1054,7 +1052,7 @@ struct hsm_action_item {
 	__u64      hai_cookie;  /* action cookie from coordinator */
 	__u64      hai_gid;     /* grouplock id */
 	char       hai_data[0]; /* variable length */
-} __attribute__((packed));
+} __packed;
 
 /*
  * helper function which print in hexa the first bytes of
@@ -1098,13 +1096,14 @@ struct hsm_action_list {
 	char  hal_fsname[0];   /* null-terminated */
 	/* struct hsm_action_item[hal_count] follows, aligned on 8-byte
 	   boundaries. See hai_zero */
-} __attribute__((packed));
+} __packed;
 
 #ifndef HAVE_CFS_SIZE_ROUND
 static inline int cfs_size_round (int val)
 {
 	return (val + 7) & (~0x7);
 }
+
 #define HAVE_CFS_SIZE_ROUND
 #endif
 
@@ -1116,6 +1115,7 @@ static inline struct hsm_action_item *hai_zero(struct hsm_action_list *hal)
 								hal_fsname)
 							 + 1));
 }
+
 /* Return pointer to next hai */
 static inline struct hsm_action_item *hai_next(struct hsm_action_item *hai)
 {

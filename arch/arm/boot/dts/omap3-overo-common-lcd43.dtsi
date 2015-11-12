@@ -163,7 +163,7 @@
 
 		interrupt-parent = <&gpio4>;
 		interrupts = <18 0>;			/* gpio_114 */
-		pendown-gpio = <&gpio4 18 0>;
+		pendown-gpio = <&gpio4 18 GPIO_ACTIVE_HIGH>;
 
 		ti,x-min = /bits/ 16 <0x0>;
 		ti,x-max = /bits/ 16 <0x0fff>;

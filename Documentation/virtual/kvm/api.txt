@@ -401,10 +401,9 @@ Capability: basic
 Architectures: x86, ppc, mips
 Type: vcpu ioctl
 Parameters: struct kvm_interrupt (in)
-Returns: 0 on success, -1 on error
+Returns: 0 on success, negative on failure.
 
-Queues a hardware interrupt vector to be injected.  This is only
-useful if in-kernel local APIC or equivalent is not used.
+Queues a hardware interrupt vector to be injected.
 
 /* for KVM_INTERRUPT */
 struct kvm_interrupt {
@@ -414,7 +413,14 @@ struct kvm_interrupt {
 
 X86:
 
-Note 'irq' is an interrupt vector, not an interrupt pin or line.
+Returns: 0 on success,
+	 -EEXIST if an interrupt is already enqueued
+	 -EINVAL the the irq number is invalid
+	 -ENXIO if the PIC is in the kernel
+	 -EFAULT if the pointer is invalid
+
+Note 'irq' is an interrupt vector, not an interrupt pin or line. This
+ioctl is useful if the in-kernel PIC is not used.
 
 PPC:
 
@@ -1598,7 +1604,7 @@ provided event instead of triggering an exit.
 struct kvm_ioeventfd {
 	__u64 datamatch;
 	__u64 addr;        /* legal pio/mmio address */
-	__u32 len;         /* 1, 2, 4, or 8 bytes    */
+	__u32 len;         /* 0, 1, 2, 4, or 8 bytes    */
 	__s32 fd;
 	__u32 flags;
 	__u8  pad[36];
@@ -1621,6 +1627,10 @@ to the registered address is equal to datamatch in struct kvm_ioeventfd.
 For virtio-ccw devices, addr contains the subchannel id and datamatch the
 virtqueue index.
 
+With KVM_CAP_IOEVENTFD_ANY_LENGTH, a zero length ioeventfd is allowed, and
+the kernel will ignore the length of guest write and may get a faster vmexit.
+The speedup may only apply to specific architectures, but the ioeventfd will
+work anyway.
 
 4.60 KVM_DIRTY_TLB
 
@@ -1774,7 +1784,7 @@ has been called, this interface is completely emulated within the kernel.
 To use this to emulate the LINT1 input with KVM_CREATE_IRQCHIP, use the
 following algorithm:
 
-  - pause the vpcu
+  - pause the vcpu
   - read the local APIC's state (KVM_GET_LAPIC)
   - check whether changing LINT1 will queue an NMI (see the LVT entry for LINT1)
   - if so, issue KVM_NMI
@@ -2798,7 +2808,7 @@ Returns: = 0 on success,
          < 0 on generic error (e.g. -EFAULT or -ENOMEM),
          > 0 if an exception occurred while walking the page tables
 
-Read or write data from/to the logical (virtual) memory of a VPCU.
+Read or write data from/to the logical (virtual) memory of a VCPU.
 
 Parameters are specified via the following structure:
 
@@ -3309,6 +3319,18 @@ Valid values for 'type' are:
    to ignore the request, or to gather VM memory core dump and/or
    reset/shutdown of the VM.
 
+		/* KVM_EXIT_IOAPIC_EOI */
+		struct {
+			__u8 vector;
+		} eoi;
+
+Indicates that the VCPU's in-kernel local APIC received an EOI for a
+level-triggered IOAPIC interrupt.  This exit only triggers when the
+IOAPIC is implemented in userspace (i.e. KVM_CAP_SPLIT_IRQCHIP is enabled);
+the userspace IOAPIC should process the EOI and retrigger the interrupt if
+it is still asserted.  Vector is the LAPIC interrupt vector for which the
+EOI was received.
+
 		/* Fix the size of the union. */
 		char padding[256];
 	};
@@ -3626,6 +3648,26 @@ struct {
 @ar   - access register number
 
 KVM handlers should exit to userspace with rc = -EREMOTE.
+
+7.5 KVM_CAP_SPLIT_IRQCHIP
+
+Architectures: x86
+Parameters: args[0] - number of routes reserved for userspace IOAPICs
+Returns: 0 on success, -1 on error
+
+Create a local apic for each processor in the kernel. This can be used
+instead of KVM_CREATE_IRQCHIP if the userspace VMM wishes to emulate the
+IOAPIC and PIC (and also the PIT, even though this has to be enabled
+separately).
+
+This capability also enables in kernel routing of interrupt requests;
+when KVM_CAP_SPLIT_IRQCHIP only routes of KVM_IRQ_ROUTING_MSI type are
+used in the IRQ routing table.  The first args[0] MSI routes are reserved
+for the IOAPIC pins.  Whenever the LAPIC receives an EOI for these routes,
+a KVM_EXIT_IOAPIC_EOI vmexit will be reported to userspace.
+
+Fails if VCPU has already been created, or if the irqchip is already in the
+kernel (i.e. KVM_CREATE_IRQCHIP has already been called).
 
 
 8. Other capabilities.

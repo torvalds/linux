@@ -105,7 +105,7 @@ int __init integrity_load_x509(const unsigned int id, const char *path)
 				   rc,
 				   ((KEY_POS_ALL & ~KEY_POS_SETATTR) |
 				    KEY_USR_VIEW | KEY_USR_READ),
-				   KEY_ALLOC_NOT_IN_QUOTA | KEY_ALLOC_TRUSTED);
+				   KEY_ALLOC_NOT_IN_QUOTA);
 	if (IS_ERR(key)) {
 		rc = PTR_ERR(key);
 		pr_err("Problem loading X.509 certificate (%d): %s\n",

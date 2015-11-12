@@ -151,7 +151,7 @@ static void igb_setup_dca(struct igb_adapter *);
 #endif /* CONFIG_IGB_DCA */
 static int igb_poll(struct napi_struct *, int);
 static bool igb_clean_tx_irq(struct igb_q_vector *);
-static bool igb_clean_rx_irq(struct igb_q_vector *, int);
+static int igb_clean_rx_irq(struct igb_q_vector *, int);
 static int igb_ioctl(struct net_device *, struct ifreq *, int cmd);
 static void igb_tx_timeout(struct net_device *);
 static void igb_reset_task(struct work_struct *);
@@ -2986,6 +2986,9 @@ static int igb_sw_init(struct igb_adapter *adapter)
 	}
 #endif /* CONFIG_PCI_IOV */
 
+	/* Assume MSI-X interrupts, will be checked during IRQ allocation */
+	adapter->flags |= IGB_FLAG_HAS_MSIX;
+
 	igb_probe_vfs(adapter);
 
 	igb_init_queue_configuration(adapter);
@@ -5389,7 +5392,7 @@ static void igb_tsync_interrupt(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	struct ptp_clock_event event;
-	struct timespec ts;
+	struct timespec64 ts;
 	u32 ack = 0, tsauxc, sec, nsec, tsicr = rd32(E1000_TSICR);
 
 	if (tsicr & TSINTR_SYS_WRAP) {
@@ -5409,10 +5412,11 @@ static void igb_tsync_interrupt(struct igb_adapter *adapter)
 
 	if (tsicr & TSINTR_TT0) {
 		spin_lock(&adapter->tmreg_lock);
-		ts = timespec_add(adapter->perout[0].start,
-				  adapter->perout[0].period);
+		ts = timespec64_add(adapter->perout[0].start,
+				    adapter->perout[0].period);
+		/* u32 conversion of tv_sec is safe until y2106 */
 		wr32(E1000_TRGTTIML0, ts.tv_nsec);
-		wr32(E1000_TRGTTIMH0, ts.tv_sec);
+		wr32(E1000_TRGTTIMH0, (u32)ts.tv_sec);
 		tsauxc = rd32(E1000_TSAUXC);
 		tsauxc |= TSAUXC_EN_TT0;
 		wr32(E1000_TSAUXC, tsauxc);
@@ -5423,10 +5427,10 @@ static void igb_tsync_interrupt(struct igb_adapter *adapter)
 
 	if (tsicr & TSINTR_TT1) {
 		spin_lock(&adapter->tmreg_lock);
-		ts = timespec_add(adapter->perout[1].start,
-				  adapter->perout[1].period);
+		ts = timespec64_add(adapter->perout[1].start,
+				    adapter->perout[1].period);
 		wr32(E1000_TRGTTIML1, ts.tv_nsec);
-		wr32(E1000_TRGTTIMH1, ts.tv_sec);
+		wr32(E1000_TRGTTIMH1, (u32)ts.tv_sec);
 		tsauxc = rd32(E1000_TSAUXC);
 		tsauxc |= TSAUXC_EN_TT1;
 		wr32(E1000_TSAUXC, tsauxc);
@@ -6360,6 +6364,7 @@ static int igb_poll(struct napi_struct *napi, int budget)
 						     struct igb_q_vector,
 						     napi);
 	bool clean_complete = true;
+	int work_done = 0;
 
 #ifdef CONFIG_IGB_DCA
 	if (q_vector->adapter->flags & IGB_FLAG_DCA_ENABLED)
@@ -6368,15 +6373,19 @@ static int igb_poll(struct napi_struct *napi, int budget)
 	if (q_vector->tx.ring)
 		clean_complete = igb_clean_tx_irq(q_vector);
 
-	if (q_vector->rx.ring)
-		clean_complete &= igb_clean_rx_irq(q_vector, budget);
+	if (q_vector->rx.ring) {
+		int cleaned = igb_clean_rx_irq(q_vector, budget);
+
+		work_done += cleaned;
+		clean_complete &= (cleaned < budget);
+	}
 
 	/* If all work not completed, return budget and keep polling */
 	if (!clean_complete)
 		return budget;
 
 	/* If not enough Rx work done, exit the polling mode */
-	napi_complete(napi);
+	napi_complete_done(napi, work_done);
 	igb_ring_irq_enable(q_vector);
 
 	return 0;
@@ -6900,7 +6909,7 @@ static void igb_process_skb_fields(struct igb_ring *rx_ring,
 	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
 }
 
-static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, const int budget)
+static int igb_clean_rx_irq(struct igb_q_vector *q_vector, const int budget)
 {
 	struct igb_ring *rx_ring = q_vector->rx.ring;
 	struct sk_buff *skb = rx_ring->skb;
@@ -6974,7 +6983,7 @@ static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, const int budget)
 	if (cleaned_count)
 		igb_alloc_rx_buffers(rx_ring, cleaned_count);
 
-	return total_packets < budget;
+	return total_packets;
 }
 
 static bool igb_alloc_mapped_page(struct igb_ring *rx_ring,

@@ -260,6 +260,7 @@ static const struct pci_device_id wil6210_pcie_ids[] = {
 MODULE_DEVICE_TABLE(pci, wil6210_pcie_ids);
 
 #ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 
 static int wil6210_suspend(struct device *dev, bool is_runtime)
 {
@@ -307,7 +308,6 @@ static int wil6210_resume(struct device *dev, bool is_runtime)
 	return rc;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int wil6210_pm_suspend(struct device *dev)
 {
 	return wil6210_suspend(dev, false);
