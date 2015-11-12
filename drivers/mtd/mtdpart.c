@@ -703,13 +703,17 @@ static struct mtd_part_parser *get_partition_parser(const char *name)
 
 #define put_partition_parser(p) do { module_put((p)->owner); } while (0)
 
-void register_mtd_parser(struct mtd_part_parser *p)
+int __register_mtd_parser(struct mtd_part_parser *p, struct module *owner)
 {
+	p->owner = owner;
+
 	spin_lock(&part_parser_lock);
 	list_add(&p->list, &part_parsers);
 	spin_unlock(&part_parser_lock);
+
+	return 0;
 }
-EXPORT_SYMBOL_GPL(register_mtd_parser);
+EXPORT_SYMBOL_GPL(__register_mtd_parser);
 
 void deregister_mtd_parser(struct mtd_part_parser *p)
 {

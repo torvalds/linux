@@ -73,8 +73,20 @@ struct mtd_part_parser {
 			struct mtd_part_parser_data *);
 };
 
-extern void register_mtd_parser(struct mtd_part_parser *parser);
+extern int __register_mtd_parser(struct mtd_part_parser *parser,
+				 struct module *owner);
+#define register_mtd_parser(parser) __register_mtd_parser(parser, THIS_MODULE)
+
 extern void deregister_mtd_parser(struct mtd_part_parser *parser);
+
+/*
+ * module_mtd_part_parser() - Helper macro for MTD partition parsers that don't
+ * do anything special in module init/exit. Each driver may only use this macro
+ * once, and calling it replaces module_init() and module_exit().
+ */
+#define module_mtd_part_parser(__mtd_part_parser) \
+	module_driver(__mtd_part_parser, register_mtd_parser, \
+		      deregister_mtd_parser)
 
 int mtd_is_partition(const struct mtd_info *mtd);
 int mtd_add_partition(struct mtd_info *master, const char *name,
