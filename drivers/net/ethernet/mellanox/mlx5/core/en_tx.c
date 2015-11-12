@@ -118,8 +118,15 @@ static inline u16 mlx5e_get_inline_hdr_size(struct mlx5e_sq *sq,
 	 */
 #define MLX5E_MIN_INLINE ETH_HLEN
 
-	if (bf && (skb_headlen(skb) <= sq->max_inline))
-		return skb_headlen(skb);
+	if (bf) {
+		u16 ihs = skb_headlen(skb);
+
+		if (skb_vlan_tag_present(skb))
+			ihs += VLAN_HLEN;
+
+		if (ihs <= sq->max_inline)
+			return skb_headlen(skb);
+	}
 
 	return MLX5E_MIN_INLINE;
 }
