@@ -679,7 +679,7 @@ static void cap_set_hwcap(const struct arm64_cpu_capabilities *cap)
 }
 
 /* Check if we have a particular HWCAP enabled */
-static bool cpus_have_hwcap(const struct arm64_cpu_capabilities *cap)
+static bool __maybe_unused cpus_have_hwcap(const struct arm64_cpu_capabilities *cap)
 {
 	bool rc;
 
