@@ -62,3 +62,6 @@ fs2tar: LDFLAGS += -largp
 endif
 cpfromfs: cptofs
 	if ! [ -e $@ ]; then ln -s $< $@; fi
+
+test:
+	$(MAKE) -C tests

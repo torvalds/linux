@@ -56,15 +56,20 @@ void printk(const char *str, int len)
 		ret = write(STDOUT_FILENO, str, len);
 }
 
-#define TEST(name) do_test(#name, test_##name)
+static int g_test_pass = 0;
+#define TEST(name) {				\
+	int ret = do_test(#name, test_##name);	\
+	if (ret) g_test_pass = -1;		\
+	}
 
-static void do_test(char *name, int (*fn)(char *, int))
+static int do_test(char *name, int (*fn)(char *, int))
 {
 	char str[60];
 	int result;
 
 	result = fn(str, sizeof(str));
 	printf("%-20s %s [%s]\n", name, result ? "passed" : "failed", str);
+	return result;
 }
 
 #define sleep_ns 87654321
@@ -512,5 +517,5 @@ int main(int argc, char **argv)
 	close(bs.fd);
 	unlink(tmp_file);
 
-	return 0;
+	return g_test_pass;
 }
