@@ -27,6 +27,7 @@
 
 #include "vsp1.h"
 #include "vsp1_bru.h"
+#include "vsp1_clu.h"
 #include "vsp1_dl.h"
 #include "vsp1_drm.h"
 #include "vsp1_hsit.h"
@@ -249,6 +250,16 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 		}
 
 		list_add_tail(&vsp1->bru->entity.list_dev, &vsp1->entities);
+	}
+
+	if (vsp1->info->features & VSP1_HAS_CLU) {
+		vsp1->clu = vsp1_clu_create(vsp1);
+		if (IS_ERR(vsp1->clu)) {
+			ret = PTR_ERR(vsp1->clu);
+			goto done;
+		}
+
+		list_add_tail(&vsp1->clu->entity.list_dev, &vsp1->entities);
 	}
 
 	vsp1->hsi = vsp1_hsit_create(vsp1, true);
@@ -551,7 +562,8 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 	{
 		.version = VI6_IP_VERSION_MODEL_VSPS_H2,
 		.gen = 2,
-		.features = VSP1_HAS_BRU | VSP1_HAS_LUT | VSP1_HAS_SRU,
+		.features = VSP1_HAS_BRU | VSP1_HAS_CLU | VSP1_HAS_LUT
+			  | VSP1_HAS_SRU,
 		.rpf_count = 5,
 		.uds_count = 3,
 		.wpf_count = 4,
@@ -578,7 +590,8 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 	}, {
 		.version = VI6_IP_VERSION_MODEL_VSPS_M2,
 		.gen = 2,
-		.features = VSP1_HAS_BRU | VSP1_HAS_LUT | VSP1_HAS_SRU,
+		.features = VSP1_HAS_BRU | VSP1_HAS_CLU | VSP1_HAS_LUT
+			  | VSP1_HAS_SRU,
 		.rpf_count = 5,
 		.uds_count = 1,
 		.wpf_count = 4,
@@ -587,7 +600,7 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 	}, {
 		.version = VI6_IP_VERSION_MODEL_VSPI_GEN3,
 		.gen = 3,
-		.features = VSP1_HAS_LUT | VSP1_HAS_SRU,
+		.features = VSP1_HAS_CLU | VSP1_HAS_LUT | VSP1_HAS_SRU,
 		.rpf_count = 1,
 		.uds_count = 1,
 		.wpf_count = 1,
@@ -603,7 +616,7 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 	}, {
 		.version = VI6_IP_VERSION_MODEL_VSPBC_GEN3,
 		.gen = 3,
-		.features = VSP1_HAS_BRU | VSP1_HAS_LUT,
+		.features = VSP1_HAS_BRU | VSP1_HAS_CLU | VSP1_HAS_LUT,
 		.rpf_count = 5,
 		.wpf_count = 1,
 		.num_bru_inputs = 5,

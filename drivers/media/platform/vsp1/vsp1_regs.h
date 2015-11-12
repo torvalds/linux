@@ -444,6 +444,15 @@
  */
 
 #define VI6_CLU_CTRL			0x2900
+#define VI6_CLU_CTRL_AAI		(1 << 28)
+#define VI6_CLU_CTRL_MVS		(1 << 24)
+#define VI6_CLU_CTRL_AX1I_2D		(3 << 14)
+#define VI6_CLU_CTRL_AX2I_2D		(1 << 12)
+#define VI6_CLU_CTRL_OS0_2D		(3 << 8)
+#define VI6_CLU_CTRL_OS1_2D		(1 << 6)
+#define VI6_CLU_CTRL_OS2_2D		(3 << 4)
+#define VI6_CLU_CTRL_M2D		(1 << 1)
+#define VI6_CLU_CTRL_EN			(1 << 0)
 
 /* -----------------------------------------------------------------------------
  * HST Control Registers
