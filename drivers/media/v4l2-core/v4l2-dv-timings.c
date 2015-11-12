@@ -239,6 +239,8 @@ bool v4l2_match_dv_timings(const struct v4l2_dv_timings *t1,
 	    t1->bt.pixelclock >= t2->bt.pixelclock - pclock_delta &&
 	    t1->bt.pixelclock <= t2->bt.pixelclock + pclock_delta &&
 	    t1->bt.hfrontporch == t2->bt.hfrontporch &&
+	    t1->bt.hsync == t2->bt.hsync &&
+	    t1->bt.hbackporch == t2->bt.hbackporch &&
 	    t1->bt.vfrontporch == t2->bt.vfrontporch &&
 	    t1->bt.vsync == t2->bt.vsync &&
 	    t1->bt.vbackporch == t2->bt.vbackporch &&
