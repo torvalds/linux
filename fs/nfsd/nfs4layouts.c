@@ -201,6 +201,7 @@ nfsd4_alloc_layout_stateid(struct nfsd4_compound_state *cstate,
 	INIT_LIST_HEAD(&ls->ls_perfile);
 	spin_lock_init(&ls->ls_lock);
 	INIT_LIST_HEAD(&ls->ls_layouts);
+	mutex_init(&ls->ls_mutex);
 	ls->ls_layout_type = layout_type;
 	nfsd4_init_cb(&ls->ls_recall, clp, &nfsd4_cb_layout_ops,
 			NFSPROC4_CLNT_CB_LAYOUT);
@@ -262,19 +263,23 @@ nfsd4_preprocess_layout_stateid(struct svc_rqst *rqstp,
 		status = nfserr_jukebox;
 		if (!ls)
 			goto out;
+		mutex_lock(&ls->ls_mutex);
 	} else {
 		ls = container_of(stid, struct nfs4_layout_stateid, ls_stid);
 
 		status = nfserr_bad_stateid;
+		mutex_lock(&ls->ls_mutex);
 		if (stateid->si_generation > stid->sc_stateid.si_generation)
-			goto out_put_stid;
+			goto out_unlock_stid;
 		if (layout_type != ls->ls_layout_type)
-			goto out_put_stid;
+			goto out_unlock_stid;
 	}
 
 	*lsp = ls;
 	return 0;
 
+out_unlock_stid:
+	mutex_unlock(&ls->ls_mutex);
 out_put_stid:
 	nfs4_put_stid(stid);
 out:
@@ -296,8 +301,6 @@ nfsd4_recall_file_layout(struct nfs4_layout_stateid *ls)
 	trace_layout_recall(&ls->ls_stid.sc_stateid);
 
 	atomic_inc(&ls->ls_stid.sc_count);
-	update_stateid(&ls->ls_stid.sc_stateid);
-	memcpy(&ls->ls_recall_sid, &ls->ls_stid.sc_stateid, sizeof(stateid_t));
 	nfsd4_run_cb(&ls->ls_recall);
 
 out_unlock:
@@ -406,8 +409,7 @@ nfsd4_insert_layout(struct nfsd4_layoutget *lgp, struct nfs4_layout_stateid *ls)
 	list_add_tail(&new->lo_perstate, &ls->ls_layouts);
 	new = NULL;
 done:
-	update_stateid(&ls->ls_stid.sc_stateid);
-	memcpy(&lgp->lg_sid, &ls->ls_stid.sc_stateid, sizeof(stateid_t));
+	nfs4_inc_and_copy_stateid(&lgp->lg_sid, &ls->ls_stid);
 	spin_unlock(&ls->ls_lock);
 out:
 	spin_unlock(&fp->fi_lock);
@@ -481,11 +483,8 @@ nfsd4_return_file_layouts(struct svc_rqst *rqstp,
 		}
 	}
 	if (!list_empty(&ls->ls_layouts)) {
-		if (found) {
-			update_stateid(&ls->ls_stid.sc_stateid);
-			memcpy(&lrp->lr_sid, &ls->ls_stid.sc_stateid,
-				sizeof(stateid_t));
-		}
+		if (found)
+			nfs4_inc_and_copy_stateid(&lrp->lr_sid, &ls->ls_stid);
 		lrp->lrs_present = 1;
 	} else {
 		trace_layoutstate_unhash(&ls->ls_stid.sc_stateid);
@@ -494,6 +493,7 @@ nfsd4_return_file_layouts(struct svc_rqst *rqstp,
 	}
 	spin_unlock(&ls->ls_lock);
 
+	mutex_unlock(&ls->ls_mutex);
 	nfs4_put_stid(&ls->ls_stid);
 	nfsd4_free_layouts(&reaplist);
 	return nfs_ok;
@@ -608,6 +608,16 @@ nfsd4_cb_layout_fail(struct nfs4_layout_stateid *ls)
 	}
 }
 
+static void
+nfsd4_cb_layout_prepare(struct nfsd4_callback *cb)
+{
+	struct nfs4_layout_stateid *ls =
+		container_of(cb, struct nfs4_layout_stateid, ls_recall);
+
+	mutex_lock(&ls->ls_mutex);
+	nfs4_inc_and_copy_stateid(&ls->ls_recall_sid, &ls->ls_stid);
+}
+
 static int
 nfsd4_cb_layout_done(struct nfsd4_callback *cb, struct rpc_task *task)
 {
@@ -649,12 +659,14 @@ nfsd4_cb_layout_release(struct nfsd4_callback *cb)
 
 	trace_layout_recall_release(&ls->ls_stid.sc_stateid);
 
+	mutex_unlock(&ls->ls_mutex);
 	nfsd4_return_all_layouts(ls, &reaplist);
 	nfsd4_free_layouts(&reaplist);
 	nfs4_put_stid(&ls->ls_stid);
 }
 
 static struct nfsd4_callback_ops nfsd4_cb_layout_ops = {
+	.prepare	= nfsd4_cb_layout_prepare,
 	.done		= nfsd4_cb_layout_done,
 	.release	= nfsd4_cb_layout_release,
 };
