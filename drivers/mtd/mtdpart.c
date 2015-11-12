@@ -596,11 +596,10 @@ int mtd_add_partition(struct mtd_info *master, const char *name,
 	if (length <= 0)
 		return -EINVAL;
 
+	memset(&part, 0, sizeof(part));
 	part.name = name;
 	part.size = length;
 	part.offset = offset;
-	part.mask_flags = 0;
-	part.ecclayout = NULL;
 
 	new = allocate_partition(master, &part, -1, offset);
 	if (IS_ERR(new))
