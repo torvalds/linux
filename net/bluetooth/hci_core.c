@@ -1523,7 +1523,7 @@ int hci_dev_do_close(struct hci_dev *hdev)
 
 	cancel_delayed_work(&hdev->power_off);
 
-	hci_req_sync_cancel(hdev, ENODEV);
+	hci_request_cancel_all(hdev);
 	hci_req_sync_lock(hdev);
 
 	if (!test_and_clear_bit(HCI_UP, &hdev->flags)) {
@@ -1624,8 +1624,6 @@ int hci_dev_do_close(struct hci_dev *hdev)
 	bacpy(&hdev->random_addr, BDADDR_ANY);
 
 	hci_req_sync_unlock(hdev);
-
-	hci_request_cancel_all(hdev);
 
 	hci_dev_put(hdev);
 	return 0;
