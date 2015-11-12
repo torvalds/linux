@@ -1875,6 +1875,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			continue;
 		case 'd':
 			actions->dso = dso;
+			actions->ms.map = map;
 			do_zoom_dso(browser, actions);
 			continue;
 		case 'V':
