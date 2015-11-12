@@ -161,6 +161,8 @@ static const struct plat_sci_reg sci_regmap[SCIx_NR_REGTYPES][SCIx_NR_REGS] = {
 		[HSSRR]		= sci_reg_invalid,
 		[SCPCR]		= sci_reg_invalid,
 		[SCPDR]		= sci_reg_invalid,
+		[SCDL]		= sci_reg_invalid,
+		[SCCKS]		= sci_reg_invalid,
 	},
 
 	/*
@@ -183,6 +185,8 @@ static const struct plat_sci_reg sci_regmap[SCIx_NR_REGTYPES][SCIx_NR_REGS] = {
 		[HSSRR]		= sci_reg_invalid,
 		[SCPCR]		= sci_reg_invalid,
 		[SCPDR]		= sci_reg_invalid,
+		[SCDL]		= sci_reg_invalid,
+		[SCCKS]		= sci_reg_invalid,
 	},
 
 	/*
@@ -204,6 +208,8 @@ static const struct plat_sci_reg sci_regmap[SCIx_NR_REGTYPES][SCIx_NR_REGS] = {
 		[HSSRR]		= sci_reg_invalid,
 		[SCPCR]		= { 0x30, 16 },
 		[SCPDR]		= { 0x34, 16 },
+		[SCDL]		= sci_reg_invalid,
+		[SCCKS]		= sci_reg_invalid,
 	},
 
 	/*
@@ -225,6 +231,8 @@ static const struct plat_sci_reg sci_regmap[SCIx_NR_REGTYPES][SCIx_NR_REGS] = {
 		[HSSRR]		= sci_reg_invalid,
 		[SCPCR]		= { 0x30, 16 },
 		[SCPDR]		= { 0x34, 16 },
+		[SCDL]		= sci_reg_invalid,
+		[SCCKS]		= sci_reg_invalid,
 	},
 
 	/*
@@ -247,6 +255,8 @@ static const struct plat_sci_reg sci_regmap[SCIx_NR_REGTYPES][SCIx_NR_REGS] = {
 		[HSSRR]		= sci_reg_invalid,
 		[SCPCR]		= sci_reg_invalid,
 		[SCPDR]		= sci_reg_invalid,
+		[SCDL]		= sci_reg_invalid,
+		[SCCKS]		= sci_reg_invalid,
 	},
 
 	/*
@@ -268,6 +278,8 @@ static const struct plat_sci_reg sci_regmap[SCIx_NR_REGTYPES][SCIx_NR_REGS] = {
 		[HSSRR]		= sci_reg_invalid,
 		[SCPCR]		= sci_reg_invalid,
 		[SCPDR]		= sci_reg_invalid,
+		[SCDL]		= sci_reg_invalid,
+		[SCCKS]		= sci_reg_invalid,
 	},
 
 	/*
@@ -289,6 +301,32 @@ static const struct plat_sci_reg sci_regmap[SCIx_NR_REGTYPES][SCIx_NR_REGS] = {
 		[HSSRR]		= sci_reg_invalid,
 		[SCPCR]		= sci_reg_invalid,
 		[SCPDR]		= sci_reg_invalid,
+		[SCDL]		= sci_reg_invalid,
+		[SCCKS]		= sci_reg_invalid,
+	},
+
+	/*
+	 * Common SCIF definitions for ports with a Baud Rate Generator for
+	 * External Clock (BRG).
+	 */
+	[SCIx_SH4_SCIF_BRG_REGTYPE] = {
+		[SCSMR]		= { 0x00, 16 },
+		[SCBRR]		= { 0x04,  8 },
+		[SCSCR]		= { 0x08, 16 },
+		[SCxTDR]	= { 0x0c,  8 },
+		[SCxSR]		= { 0x10, 16 },
+		[SCxRDR]	= { 0x14,  8 },
+		[SCFCR]		= { 0x18, 16 },
+		[SCFDR]		= { 0x1c, 16 },
+		[SCTFDR]	= sci_reg_invalid,
+		[SCRFDR]	= sci_reg_invalid,
+		[SCSPTR]	= { 0x20, 16 },
+		[SCLSR]		= { 0x24, 16 },
+		[HSSRR]		= sci_reg_invalid,
+		[SCPCR]		= sci_reg_invalid,
+		[SCPDR]		= sci_reg_invalid,
+		[SCDL]		= { 0x30, 16 },
+		[SCCKS]		= { 0x34, 16 },
 	},
 
 	/*
@@ -310,6 +348,8 @@ static const struct plat_sci_reg sci_regmap[SCIx_NR_REGTYPES][SCIx_NR_REGS] = {
 		[HSSRR]		= { 0x40, 16 },
 		[SCPCR]		= sci_reg_invalid,
 		[SCPDR]		= sci_reg_invalid,
+		[SCDL]		= { 0x30, 16 },
+		[SCCKS]		= { 0x34, 16 },
 	},
 
 	/*
@@ -332,6 +372,8 @@ static const struct plat_sci_reg sci_regmap[SCIx_NR_REGTYPES][SCIx_NR_REGS] = {
 		[HSSRR]		= sci_reg_invalid,
 		[SCPCR]		= sci_reg_invalid,
 		[SCPDR]		= sci_reg_invalid,
+		[SCDL]		= sci_reg_invalid,
+		[SCCKS]		= sci_reg_invalid,
 	},
 
 	/*
@@ -354,6 +396,8 @@ static const struct plat_sci_reg sci_regmap[SCIx_NR_REGTYPES][SCIx_NR_REGS] = {
 		[HSSRR]		= sci_reg_invalid,
 		[SCPCR]		= sci_reg_invalid,
 		[SCPDR]		= sci_reg_invalid,
+		[SCDL]		= sci_reg_invalid,
+		[SCCKS]		= sci_reg_invalid,
 	},
 
 	/*
@@ -376,6 +420,8 @@ static const struct plat_sci_reg sci_regmap[SCIx_NR_REGTYPES][SCIx_NR_REGS] = {
 		[HSSRR]		= sci_reg_invalid,
 		[SCPCR]		= sci_reg_invalid,
 		[SCPDR]		= sci_reg_invalid,
+		[SCDL]		= sci_reg_invalid,
+		[SCCKS]		= sci_reg_invalid,
 	},
 };
 
