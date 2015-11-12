@@ -386,30 +386,6 @@ typedef struct tonga_hwmgr tonga_hwmgr;
 
 #define TONGA_UNUSED_GPIO_PIN                        0x7F
 
-/* Following flags shows PCIe link speed supported in driver which are decided by chipset and ASIC */
-#define CAIL_PCIE_LINK_SPEED_SUPPORT_GEN1        0x00010000
-#define CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2        0x00020000
-#define CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3        0x00040000
-#define CAIL_PCIE_LINK_SPEED_SUPPORT_MASK        0xFFFF0000
-#define CAIL_PCIE_LINK_SPEED_SUPPORT_SHIFT       16
-
-/* Following flags shows PCIe link speed supported by ASIC H/W.*/
-#define CAIL_ASIC_PCIE_LINK_SPEED_SUPPORT_GEN1   0x00000001
-#define CAIL_ASIC_PCIE_LINK_SPEED_SUPPORT_GEN2   0x00000002
-#define CAIL_ASIC_PCIE_LINK_SPEED_SUPPORT_GEN3   0x00000004
-#define CAIL_ASIC_PCIE_LINK_SPEED_SUPPORT_MASK   0x0000FFFF
-#define CAIL_ASIC_PCIE_LINK_SPEED_SUPPORT_SHIFT  0
-
-/* Following flags shows PCIe lane width switch supported in driver which are decided by chipset and ASIC */
-#define CAIL_PCIE_LINK_WIDTH_SUPPORT_X1          0x00010000
-#define CAIL_PCIE_LINK_WIDTH_SUPPORT_X2          0x00020000
-#define CAIL_PCIE_LINK_WIDTH_SUPPORT_X4          0x00040000
-#define CAIL_PCIE_LINK_WIDTH_SUPPORT_X8          0x00080000
-#define CAIL_PCIE_LINK_WIDTH_SUPPORT_X12         0x00100000
-#define CAIL_PCIE_LINK_WIDTH_SUPPORT_X16         0x00200000
-#define CAIL_PCIE_LINK_WIDTH_SUPPORT_X32         0x00400000
-#define CAIL_PCIE_LINK_WIDTH_SUPPORT_SHIFT       16
-
 #define PP_HOST_TO_SMC_UL(X) cpu_to_be32(X)
 #define PP_SMC_TO_HOST_UL(X) be32_to_cpu(X)
 

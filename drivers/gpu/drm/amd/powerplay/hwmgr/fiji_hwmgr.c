@@ -49,6 +49,7 @@
 #include "tonga_pptable.h"
 #include "pp_debug.h"
 #include "pp_acpi.h"
+#include "amd_pcie_helpers.h"
 
 #define VOLTAGE_SCALE	4
 #define SMC_RAM_END		0x40000

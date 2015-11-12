@@ -339,8 +339,6 @@ enum Fiji_I2CLineID {
 extern int tonga_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwmgr);
 extern int tonga_hwmgr_backend_fini(struct pp_hwmgr *hwmgr);
 extern int tonga_get_mc_microcode_version (struct pp_hwmgr *hwmgr);
-extern uint16_t get_pcie_gen_support(uint32_t pcie_link_speed_cap, uint16_t ns_pcie_gen);
-extern uint16_t get_pcie_lane_support(uint32_t pcie_lane_width_cap, uint16_t ns_pcie_lanes);
 
 #define PP_HOST_TO_SMC_UL(X) cpu_to_be32(X)
 #define PP_SMC_TO_HOST_UL(X) be32_to_cpu(X)
