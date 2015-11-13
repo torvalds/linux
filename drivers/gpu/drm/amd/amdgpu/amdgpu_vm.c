@@ -332,6 +332,8 @@ int amdgpu_vm_free_job(struct amdgpu_job *job)
  *
  * @adev: amdgpu_device pointer
  * @bo: bo to clear
+ *
+ * need to reserve bo first before calling it.
  */
 static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 			      struct amdgpu_bo *bo)
@@ -343,24 +345,20 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	uint64_t addr;
 	int r;
 
-	r = amdgpu_bo_reserve(bo, false);
-	if (r)
-		return r;
-
 	r = reservation_object_reserve_shared(bo->tbo.resv);
 	if (r)
 		return r;
 
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
 	if (r)
-		goto error_unreserve;
+		goto error;
 
 	addr = amdgpu_bo_gpu_offset(bo);
 	entries = amdgpu_bo_size(bo) / 8;
 
 	ib = kzalloc(sizeof(struct amdgpu_ib), GFP_KERNEL);
 	if (!ib)
-		goto error_unreserve;
+		goto error;
 
 	r = amdgpu_ib_get(ring, NULL, entries * 2 + 64, ib);
 	if (r)
@@ -378,16 +376,14 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	if (!r)
 		amdgpu_bo_fence(bo, fence, true);
 	fence_put(fence);
-	if (amdgpu_enable_scheduler) {
-		amdgpu_bo_unreserve(bo);
+	if (amdgpu_enable_scheduler)
 		return 0;
-	}
+
 error_free:
 	amdgpu_ib_free(adev, ib);
 	kfree(ib);
 
-error_unreserve:
-	amdgpu_bo_unreserve(bo);
+error:
 	return r;
 }
 
@@ -1087,11 +1083,12 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 				     AMDGPU_GEM_DOMAIN_VRAM,
 				     AMDGPU_GEM_CREATE_NO_CPU_ACCESS,
 				     NULL, resv, &pt);
-		ww_mutex_unlock(&resv->lock);
-		if (r)
+		if (r) {
+			ww_mutex_unlock(&resv->lock);
 			goto error_free;
-
+		}
 		r = amdgpu_vm_clear_bo(adev, pt);
+		ww_mutex_unlock(&resv->lock);
 		if (r) {
 			amdgpu_bo_unref(&pt);
 			goto error_free;
@@ -1280,8 +1277,14 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 			     NULL, NULL, &vm->page_directory);
 	if (r)
 		return r;
-
+	r = amdgpu_bo_reserve(vm->page_directory, false);
+	if (r) {
+		amdgpu_bo_unref(&vm->page_directory);
+		vm->page_directory = NULL;
+		return r;
+	}
 	r = amdgpu_vm_clear_bo(adev, vm->page_directory);
+	amdgpu_bo_unreserve(vm->page_directory);
 	if (r) {
 		amdgpu_bo_unref(&vm->page_directory);
 		vm->page_directory = NULL;
