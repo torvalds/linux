@@ -52,7 +52,7 @@ static int __verify_planes_array(struct vb2_buffer *vb, const struct v4l2_buffer
 		return 0;
 
 	/* Is memory for copying plane information present? */
-	if (NULL == b->m.planes) {
+	if (b->m.planes == NULL) {
 		dprintk(1, "multi-planar buffer passed but "
 			   "planes array not provided\n");
 		return -EINVAL;
