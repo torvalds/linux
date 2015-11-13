@@ -347,9 +347,6 @@ const struct file_operations nfs4_file_operations = {
 #endif /* CONFIG_NFS_V4_2 */
 	.check_flags	= nfs_check_flags,
 	.setlease	= simple_nosetlease,
-#ifdef CONFIG_COMPAT
 	.unlocked_ioctl = nfs4_ioctl,
-#else
 	.compat_ioctl	= nfs4_ioctl,
-#endif /* CONFIG_COMPAT */
 };
