@@ -60,7 +60,7 @@ struct da903x_chip_ops {
 struct da903x_chip {
 	struct i2c_client	*client;
 	struct device		*dev;
-	struct da903x_chip_ops	*ops;
+	const struct da903x_chip_ops *ops;
 
 	int			type;
 	uint32_t		events_mask;
@@ -424,7 +424,7 @@ static irqreturn_t da903x_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static struct da903x_chip_ops da903x_ops[] = {
+static const struct da903x_chip_ops da903x_ops[] = {
 	[0] = {
 		.init_chip	= da9030_init_chip,
 		.unmask_events	= da9030_unmask_events,
