@@ -66,6 +66,17 @@ static int gdsc_toggle_logic(struct gdsc *sc, bool en)
 	if (ret)
 		return ret;
 
+	/* If disabling votable gdscs, don't poll on status */
+	if ((sc->flags & VOTABLE) && !en) {
+		/*
+		 * Add a short delay here to ensure that an enable
+		 * right after it was disabled does not put it in an
+		 * unknown state
+		 */
+		udelay(TIMEOUT_US);
+		return 0;
+	}
+
 	if (sc->gds_hw_ctrl) {
 		status_reg = sc->gds_hw_ctrl;
 		/*
@@ -198,6 +209,13 @@ static int gdsc_init(struct gdsc *sc)
 	on = gdsc_is_enabled(sc, reg);
 	if (on < 0)
 		return on;
+
+	/*
+	 * Votable GDSCs can be ON due to Vote from other masters.
+	 * If a Votable GDSC is ON, make sure we have a Vote.
+	 */
+	if ((sc->flags & VOTABLE) && on)
+		gdsc_enable(&sc->pd);
 
 	if (on || (sc->pwrsts & PWRSTS_RET))
 		gdsc_force_mem_on(sc);
