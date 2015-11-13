@@ -247,6 +247,7 @@ int commit_inmem_pages(struct inode *inode, bool abort)
 				submit_bio = true;
 			}
 		} else {
+			ClearPageUptodate(cur->page);
 			trace_f2fs_commit_inmem_page(cur->page, INMEM_DROP);
 		}
 		set_page_private(cur->page, 0);
