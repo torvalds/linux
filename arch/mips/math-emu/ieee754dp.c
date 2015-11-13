@@ -37,8 +37,11 @@ static inline int ieee754dp_isnan(union ieee754dp x)
 
 static inline int ieee754dp_issnan(union ieee754dp x)
 {
+	int qbit;
+
 	assert(ieee754dp_isnan(x));
-	return (DPMANT(x) & DP_MBIT(DP_FBITS - 1)) == DP_MBIT(DP_FBITS - 1);
+	qbit = (DPMANT(x) & DP_MBIT(DP_FBITS - 1)) == DP_MBIT(DP_FBITS - 1);
+	return ieee754_csr.nan2008 ^ qbit;
 }
 
 
@@ -51,7 +54,12 @@ union ieee754dp __cold ieee754dp_nanxcpt(union ieee754dp r)
 	assert(ieee754dp_issnan(r));
 
 	ieee754_setcx(IEEE754_INVALID_OPERATION);
-	return ieee754dp_indef();
+	if (ieee754_csr.nan2008)
+		DPMANT(r) |= DP_MBIT(DP_FBITS - 1);
+	else
+		r = ieee754dp_indef();
+
+	return r;
 }
 
 static u64 ieee754dp_get_rounding(int sn, u64 xm)

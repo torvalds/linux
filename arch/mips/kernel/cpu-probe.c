@@ -113,6 +113,8 @@ static void cpu_set_nofpu_id(struct cpuinfo_mips *c)
 	if (c->isa_level & (MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2 |
 			    MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R6))
 		value |= MIPS_FPIR_F64 | MIPS_FPIR_L | MIPS_FPIR_W;
+	if (c->options & MIPS_CPU_NAN_2008)
+		value |= MIPS_FPIR_HAS2008;
 	c->fpu_id = value;
 }
 

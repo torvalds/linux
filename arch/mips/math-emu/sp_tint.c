@@ -38,9 +38,12 @@ int ieee754sp_tint(union ieee754sp x)
 	switch (xc) {
 	case IEEE754_CLASS_SNAN:
 	case IEEE754_CLASS_QNAN:
-	case IEEE754_CLASS_INF:
 		ieee754_setcx(IEEE754_INVALID_OPERATION);
 		return ieee754si_indef();
+
+	case IEEE754_CLASS_INF:
+		ieee754_setcx(IEEE754_INVALID_OPERATION);
+		return ieee754si_overflow(xs);
 
 	case IEEE754_CLASS_ZERO:
 		return 0;
@@ -56,7 +59,7 @@ int ieee754sp_tint(union ieee754sp x)
 		/* Set invalid. We will only use overflow for floating
 		   point overflow */
 		ieee754_setcx(IEEE754_INVALID_OPERATION);
-		return ieee754si_indef();
+		return ieee754si_overflow(xs);
 	}
 	/* oh gawd */
 	if (xe > SP_FBITS) {
@@ -97,7 +100,7 @@ int ieee754sp_tint(union ieee754sp x)
 		if ((xm >> 31) != 0) {
 			/* This can happen after rounding */
 			ieee754_setcx(IEEE754_INVALID_OPERATION);
-			return ieee754si_indef();
+			return ieee754si_overflow(xs);
 		}
 		if (round || sticky)
 			ieee754_setcx(IEEE754_INEXACT);
