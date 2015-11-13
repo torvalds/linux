@@ -668,7 +668,7 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
-static int pci171x_insn_counter_config(struct comedi_device *dev,
+static int pci1710_counter_insn_config(struct comedi_device *dev,
 				       struct comedi_subdevice *s,
 				       struct comedi_insn *insn,
 				       unsigned int *data)
@@ -857,7 +857,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		s = &dev->subdevices[subdev];
 		comedi_8254_subdevice_init(s, dev->pacer);
 
-		dev->pacer->insn_config = pci171x_insn_counter_config;
+		dev->pacer->insn_config = pci1710_counter_insn_config;
 
 		/* counters 1 and 2 are used internally for the pacer */
 		comedi_8254_set_busy(dev->pacer, 1, true);
