@@ -299,6 +299,7 @@ static struct platform_driver skylake_audio = {
 	.probe = skylake_audio_probe,
 	.driver = {
 		.name = "skl_alc286s_i2s",
+		.pm = &snd_soc_pm_ops,
 	},
 };
 
