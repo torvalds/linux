@@ -177,7 +177,7 @@ struct pci1710_private {
 	unsigned char unipolar_gain;	/* adjust for unipolar gain codes */
 };
 
-static int pci171x_ai_check_chanlist(struct comedi_device *dev,
+static int pci1710_ai_check_chanlist(struct comedi_device *dev,
 				     struct comedi_subdevice *s,
 				     struct comedi_cmd *cmd)
 {
@@ -243,7 +243,7 @@ static int pci171x_ai_check_chanlist(struct comedi_device *dev,
 	return 0;
 }
 
-static void pci171x_ai_setup_chanlist(struct comedi_device *dev,
+static void pci1710_ai_setup_chanlist(struct comedi_device *dev,
 				      struct comedi_subdevice *s,
 				      unsigned int *chanlist,
 				      unsigned int n_chan,
@@ -283,7 +283,7 @@ static void pci171x_ai_setup_chanlist(struct comedi_device *dev,
 	outw(devpriv->mux_scan, dev->iobase + PCI171X_MUX_REG);
 }
 
-static int pci171x_ai_eoc(struct comedi_device *dev,
+static int pci1710_ai_eoc(struct comedi_device *dev,
 			  struct comedi_subdevice *s,
 			  struct comedi_insn *insn,
 			  unsigned long context)
@@ -296,7 +296,7 @@ static int pci171x_ai_eoc(struct comedi_device *dev,
 	return -EBUSY;
 }
 
-static int pci171x_ai_read_sample(struct comedi_device *dev,
+static int pci1710_ai_read_sample(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  unsigned int cur_chan,
 				  unsigned int *val)
@@ -341,7 +341,7 @@ static int pci1710_ai_insn_read(struct comedi_device *dev,
 	outb(0, dev->iobase + PCI171X_CLRFIFO_REG);
 	outb(0, dev->iobase + PCI171X_CLRINT_REG);
 
-	pci171x_ai_setup_chanlist(dev, s, &insn->chanspec, 1, 1);
+	pci1710_ai_setup_chanlist(dev, s, &insn->chanspec, 1, 1);
 
 	for (i = 0; i < insn->n; i++) {
 		unsigned int val;
@@ -349,11 +349,11 @@ static int pci1710_ai_insn_read(struct comedi_device *dev,
 		/* start conversion */
 		outw(0, dev->iobase + PCI171X_SOFTTRG_REG);
 
-		ret = comedi_timeout(dev, s, insn, pci171x_ai_eoc, 0);
+		ret = comedi_timeout(dev, s, insn, pci1710_ai_eoc, 0);
 		if (ret)
 			break;
 
-		ret = pci171x_ai_read_sample(dev, s, 0, &val);
+		ret = pci1710_ai_read_sample(dev, s, 0, &val);
 		if (ret)
 			break;
 
@@ -413,7 +413,7 @@ static void pci1710_handle_every_sample(struct comedi_device *dev,
 	outb(0, dev->iobase + PCI171X_CLRINT_REG);
 
 	for (; !(inw(dev->iobase + PCI171X_STATUS_REG) & PCI171X_STATUS_FE);) {
-		ret = pci171x_ai_read_sample(dev, s, s->async->cur_chan, &val);
+		ret = pci1710_ai_read_sample(dev, s, s->async->cur_chan, &val);
 		if (ret) {
 			s->async->events |= COMEDI_CB_ERROR;
 			break;
@@ -457,7 +457,7 @@ static void pci1710_handle_fifo(struct comedi_device *dev,
 		unsigned int val;
 		int ret;
 
-		ret = pci171x_ai_read_sample(dev, s, s->async->cur_chan, &val);
+		ret = pci1710_ai_read_sample(dev, s, s->async->cur_chan, &val);
 		if (ret) {
 			s->async->events |= COMEDI_CB_ERROR;
 			break;
@@ -523,7 +523,7 @@ static int pci1710_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct pci1710_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	pci171x_ai_setup_chanlist(dev, s, cmd->chanlist, cmd->chanlist_len,
+	pci1710_ai_setup_chanlist(dev, s, cmd->chanlist, cmd->chanlist_len,
 				  devpriv->saved_seglen);
 
 	outb(0, dev->iobase + PCI171X_CLRFIFO_REG);
@@ -623,7 +623,7 @@ static int pci1710_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 5: check channel list */
 
-	err |= pci171x_ai_check_chanlist(dev, s, cmd);
+	err |= pci1710_ai_check_chanlist(dev, s, cmd);
 
 	if (err)
 		return 5;
