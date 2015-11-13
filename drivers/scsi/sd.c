@@ -637,11 +637,24 @@ static void sd_config_discard(struct scsi_disk *sdkp, unsigned int mode)
 	unsigned int max_blocks = 0;
 
 	q->limits.discard_zeroes_data = 0;
-	q->limits.discard_alignment = sdkp->unmap_alignment *
-		logical_block_size;
-	q->limits.discard_granularity =
-		max(sdkp->physical_block_size,
-		    sdkp->unmap_granularity * logical_block_size);
+
+	/*
+	 * When LBPRZ is reported, discard alignment and granularity
+	 * must be fixed to the logical block size. Otherwise the block
+	 * layer will drop misaligned portions of the request which can
+	 * lead to data corruption. If LBPRZ is not set, we honor the
+	 * device preference.
+	 */
+	if (sdkp->lbprz) {
+		q->limits.discard_alignment = 0;
+		q->limits.discard_granularity = 1;
+	} else {
+		q->limits.discard_alignment = sdkp->unmap_alignment *
+			logical_block_size;
+		q->limits.discard_granularity =
+			max(sdkp->physical_block_size,
+			    sdkp->unmap_granularity * logical_block_size);
+	}
 
 	sdkp->provisioning_mode = mode;
 
