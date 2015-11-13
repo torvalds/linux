@@ -1436,6 +1436,41 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			In such case C2/C3 won't be used again.
 			idle=nomwait: Disable mwait for CPU C-states
 
+	ieee754=	[MIPS] Select IEEE Std 754 conformance mode
+			Format: { strict | legacy | 2008 | relaxed }
+			Default: strict
+
+			Choose which programs will be accepted for execution
+			based on the IEEE 754 NaN encoding(s) supported by
+			the FPU and the NaN encoding requested with the value
+			of an ELF file header flag individually set by each
+			binary.  Hardware implementations are permitted to
+			support either or both of the legacy and the 2008 NaN
+			encoding mode.
+
+			Available settings are as follows:
+			strict	accept binaries that request a NaN encoding
+				supported by the FPU
+			legacy	only accept legacy-NaN binaries, if supported
+				by the FPU
+			2008	only accept 2008-NaN binaries, if supported
+				by the FPU
+			relaxed	accept any binaries regardless of whether
+				supported by the FPU
+
+			The FPU emulator is always able to support both NaN
+			encodings, so if no FPU hardware is present or it has
+			been disabled with 'nofpu', then the settings of
+			'legacy' and '2008' strap the emulator accordingly,
+			'relaxed' straps the emulator for both legacy-NaN and
+			2008-NaN, whereas 'strict' enables legacy-NaN only on
+			legacy processors and both NaN encodings on MIPS32 or
+			MIPS64 CPUs.
+
+			The setting for ABS.fmt/NEG.fmt instruction execution
+			mode generally follows that for the NaN encoding,
+			except where unsupported by hardware.
+
 	ignore_loglevel	[KNL]
 			Ignore loglevel setting - this will print /all/
 			kernel messages to the console. Useful for debugging.

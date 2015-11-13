@@ -13,6 +13,10 @@
 
 #include <asm/cpu-info.h>
 
+/* Whether to accept legacy-NaN and 2008-NaN user binaries.  */
+bool mips_use_nan_legacy;
+bool mips_use_nan_2008;
+
 /* FPU modes */
 enum {
 	FP_FRE,
@@ -150,16 +154,16 @@ int arch_check_elf(void *_ehdr, bool has_interpreter, void *_interp_ehdr,
 	flags = elf32 ? ehdr->e32.e_flags : ehdr->e64.e_flags;
 
 	/*
-	 * Determine the NaN personality, reject the binary if no hardware
-	 * support.  Also ensure that any interpreter matches the executable.
+	 * Determine the NaN personality, reject the binary if not allowed.
+	 * Also ensure that any interpreter matches the executable.
 	 */
 	if (flags & EF_MIPS_NAN2008) {
-		if (cpu_has_nan_2008)
+		if (mips_use_nan_2008)
 			state->nan_2008 = 1;
 		else
 			return -ENOEXEC;
 	} else {
-		if (cpu_has_nan_legacy)
+		if (mips_use_nan_legacy)
 			state->nan_2008 = 0;
 		else
 			return -ENOEXEC;
