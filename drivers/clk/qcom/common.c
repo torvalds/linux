@@ -185,6 +185,7 @@ int qcom_cc_really_probe(struct platform_device *pdev,
 	struct clk **clks;
 	struct qcom_reset_controller *reset;
 	struct qcom_cc *cc;
+	struct gdsc_desc *scd;
 	size_t num_clks = desc->num_clks;
 	struct clk_regmap **rclks = desc->clks;
 
@@ -230,14 +231,17 @@ int qcom_cc_really_probe(struct platform_device *pdev,
 	devm_add_action(dev, qcom_cc_reset_unregister, &reset->rcdev);
 
 	if (desc->gdscs && desc->num_gdscs) {
-		ret = gdsc_register(dev, desc->gdscs, desc->num_gdscs,
-				    &reset->rcdev, regmap);
+		scd = devm_kzalloc(dev, sizeof(*scd), GFP_KERNEL);
+		if (!scd)
+			return -ENOMEM;
+		scd->dev = dev;
+		scd->scs = desc->gdscs;
+		scd->num = desc->num_gdscs;
+		ret = gdsc_register(scd, &reset->rcdev, regmap);
 		if (ret)
 			return ret;
+		devm_add_action(dev, qcom_cc_gdsc_unregister, scd);
 	}
-
-	devm_add_action(dev, qcom_cc_gdsc_unregister, dev);
-
 
 	return 0;
 }

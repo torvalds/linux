@@ -201,11 +201,14 @@ static int gdsc_init(struct gdsc *sc)
 	return 0;
 }
 
-int gdsc_register(struct device *dev, struct gdsc **scs, size_t num,
+int gdsc_register(struct gdsc_desc *desc,
 		  struct reset_controller_dev *rcdev, struct regmap *regmap)
 {
 	int i, ret;
 	struct genpd_onecell_data *data;
+	struct device *dev = desc->dev;
+	struct gdsc **scs = desc->scs;
+	size_t num = desc->num;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -228,10 +231,30 @@ int gdsc_register(struct device *dev, struct gdsc **scs, size_t num,
 		data->domains[i] = &scs[i]->pd;
 	}
 
+	/* Add subdomains */
+	for (i = 0; i < num; i++) {
+		if (!scs[i])
+			continue;
+		if (scs[i]->parent)
+			pm_genpd_add_subdomain(scs[i]->parent, &scs[i]->pd);
+	}
+
 	return of_genpd_add_provider_onecell(dev->of_node, data);
 }
 
-void gdsc_unregister(struct device *dev)
+void gdsc_unregister(struct gdsc_desc *desc)
 {
+	int i;
+	struct device *dev = desc->dev;
+	struct gdsc **scs = desc->scs;
+	size_t num = desc->num;
+
+	/* Remove subdomains */
+	for (i = 0; i < num; i++) {
+		if (!scs[i])
+			continue;
+		if (scs[i]->parent)
+			pm_genpd_remove_subdomain(scs[i]->parent, &scs[i]->pd);
+	}
 	of_genpd_del_provider(dev->of_node);
 }
