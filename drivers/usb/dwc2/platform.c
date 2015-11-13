@@ -212,13 +212,40 @@ static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 	 */
 	hsotg->phy = devm_phy_get(hsotg->dev, "usb2-phy");
 	if (IS_ERR(hsotg->phy)) {
-		hsotg->phy = NULL;
-		hsotg->uphy = devm_usb_get_phy(hsotg->dev, USB_PHY_TYPE_USB2);
-		if (IS_ERR(hsotg->uphy))
-			hsotg->uphy = NULL;
-		else
-			hsotg->plat = dev_get_platdata(hsotg->dev);
+		ret = PTR_ERR(hsotg->phy);
+		switch (ret) {
+		case -ENODEV:
+		case -ENOSYS:
+			hsotg->phy = NULL;
+			break;
+		case -EPROBE_DEFER:
+			return ret;
+		default:
+			dev_err(hsotg->dev, "error getting phy %d\n", ret);
+			return ret;
+		}
 	}
+
+	if (!hsotg->phy) {
+		hsotg->uphy = devm_usb_get_phy(hsotg->dev, USB_PHY_TYPE_USB2);
+		if (IS_ERR(hsotg->uphy)) {
+			ret = PTR_ERR(hsotg->uphy);
+			switch (ret) {
+			case -ENODEV:
+			case -ENXIO:
+				hsotg->uphy = NULL;
+				break;
+			case -EPROBE_DEFER:
+				return ret;
+			default:
+				dev_err(hsotg->dev, "error getting usb phy %d\n",
+					ret);
+				return ret;
+			}
+		}
+	}
+
+	hsotg->plat = dev_get_platdata(hsotg->dev);
 
 	if (hsotg->phy) {
 		/*
