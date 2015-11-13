@@ -985,7 +985,7 @@ struct amdgpu_bo_va *amdgpu_vm_bo_add(struct amdgpu_device *adev,
  * Add a mapping of the BO at the specefied addr into the VM.
  * Returns 0 for success, error for failure.
  *
- * Object has to be reserved and gets unreserved by this function!
+ * Object has to be reserved and unreserved outside!
  */
 int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 		     struct amdgpu_bo_va *bo_va,
@@ -1001,23 +1001,18 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 
 	/* validate the parameters */
 	if (saddr & AMDGPU_GPU_PAGE_MASK || offset & AMDGPU_GPU_PAGE_MASK ||
-	    size == 0 || size & AMDGPU_GPU_PAGE_MASK) {
-		amdgpu_bo_unreserve(bo_va->bo);
+	    size == 0 || size & AMDGPU_GPU_PAGE_MASK)
 		return -EINVAL;
-	}
 
 	/* make sure object fit at this offset */
 	eaddr = saddr + size;
-	if ((saddr >= eaddr) || (offset + size > amdgpu_bo_size(bo_va->bo))) {
-		amdgpu_bo_unreserve(bo_va->bo);
+	if ((saddr >= eaddr) || (offset + size > amdgpu_bo_size(bo_va->bo)))
 		return -EINVAL;
-	}
 
 	last_pfn = eaddr / AMDGPU_GPU_PAGE_SIZE;
 	if (last_pfn > adev->vm_manager.max_pfn) {
 		dev_err(adev->dev, "va above limit (0x%08X > 0x%08X)\n",
 			last_pfn, adev->vm_manager.max_pfn);
-		amdgpu_bo_unreserve(bo_va->bo);
 		return -EINVAL;
 	}
 
@@ -1034,14 +1029,12 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 		dev_err(adev->dev, "bo %p va 0x%010Lx-0x%010Lx conflict with "
 			"0x%010lx-0x%010lx\n", bo_va->bo, saddr, eaddr,
 			tmp->it.start, tmp->it.last + 1);
-		amdgpu_bo_unreserve(bo_va->bo);
 		r = -EINVAL;
 		goto error;
 	}
 
 	mapping = kmalloc(sizeof(*mapping), GFP_KERNEL);
 	if (!mapping) {
-		amdgpu_bo_unreserve(bo_va->bo);
 		r = -ENOMEM;
 		goto error;
 	}
@@ -1067,8 +1060,6 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 	if (eaddr > vm->max_pde_used)
 		vm->max_pde_used = eaddr;
 
-	amdgpu_bo_unreserve(bo_va->bo);
-
 	/* walk over the address space and allocate the page tables */
 	for (pt_idx = saddr; pt_idx <= eaddr; ++pt_idx) {
 		struct reservation_object *resv = vm->page_directory->tbo.resv;
@@ -1077,18 +1068,15 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 		if (vm->page_tables[pt_idx].bo)
 			continue;
 
-		ww_mutex_lock(&resv->lock, NULL);
 		r = amdgpu_bo_create(adev, AMDGPU_VM_PTE_COUNT * 8,
 				     AMDGPU_GPU_PAGE_SIZE, true,
 				     AMDGPU_GEM_DOMAIN_VRAM,
 				     AMDGPU_GEM_CREATE_NO_CPU_ACCESS,
 				     NULL, resv, &pt);
-		if (r) {
-			ww_mutex_unlock(&resv->lock);
+		if (r)
 			goto error_free;
-		}
+
 		r = amdgpu_vm_clear_bo(adev, pt);
-		ww_mutex_unlock(&resv->lock);
 		if (r) {
 			amdgpu_bo_unref(&pt);
 			goto error_free;
@@ -1122,7 +1110,7 @@ error:
  * Remove a mapping of the BO at the specefied addr from the VM.
  * Returns 0 for success, error for failure.
  *
- * Object has to be reserved and gets unreserved by this function!
+ * Object has to be reserved and unreserved outside!
  */
 int amdgpu_vm_bo_unmap(struct amdgpu_device *adev,
 		       struct amdgpu_bo_va *bo_va,
@@ -1147,10 +1135,8 @@ int amdgpu_vm_bo_unmap(struct amdgpu_device *adev,
 				break;
 		}
 
-		if (&mapping->list == &bo_va->invalids) {
-			amdgpu_bo_unreserve(bo_va->bo);
+		if (&mapping->list == &bo_va->invalids)
 			return -ENOENT;
-		}
 	}
 
 	list_del(&mapping->list);
@@ -1163,7 +1149,6 @@ int amdgpu_vm_bo_unmap(struct amdgpu_device *adev,
 		list_add(&mapping->list, &vm->freed);
 	else
 		kfree(mapping);
-	amdgpu_bo_unreserve(bo_va->bo);
 
 	return 0;
 }
