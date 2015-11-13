@@ -325,7 +325,7 @@ static int pci171x_ai_read_sample(struct comedi_device *dev,
 	return 0;
 }
 
-static int pci171x_ai_insn_read(struct comedi_device *dev,
+static int pci1710_ai_insn_read(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn,
 				unsigned int *data)
@@ -334,9 +334,10 @@ static int pci171x_ai_insn_read(struct comedi_device *dev,
 	int ret = 0;
 	int i;
 
-	devpriv->ctrl &= PCI171X_CTRL_CNT0;
-	devpriv->ctrl |= PCI171X_CTRL_SW;	/*  set software trigger */
+	/* enable software trigger */
+	devpriv->ctrl |= PCI171X_CTRL_SW;
 	outw(devpriv->ctrl, dev->iobase + PCI171X_CTRL_REG);
+
 	outb(0, dev->iobase + PCI171X_CLRFIFO_REG);
 	outb(0, dev->iobase + PCI171X_CLRINT_REG);
 
@@ -358,6 +359,10 @@ static int pci171x_ai_insn_read(struct comedi_device *dev,
 
 		data[i] = val;
 	}
+
+	/* disable software trigger */
+	devpriv->ctrl &= ~PCI171X_CTRL_SW;
+	outw(devpriv->ctrl, dev->iobase + PCI171X_CTRL_REG);
 
 	outb(0, dev->iobase + PCI171X_CLRFIFO_REG);
 	outb(0, dev->iobase + PCI171X_CLRINT_REG);
@@ -802,7 +807,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 	s->n_chan	= board->is_pci1713 ? 32 : 16;
 	s->maxdata	= 0x0fff;
 	s->range_table	= board->ai_range;
-	s->insn_read	= pci171x_ai_insn_read;
+	s->insn_read	= pci1710_ai_insn_read;
 	if (dev->irq) {
 		dev->read_subdev = s;
 		s->subdev_flags	|= SDF_CMD_READ;
