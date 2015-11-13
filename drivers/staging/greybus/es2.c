@@ -22,7 +22,6 @@
 #define ES2_GBUF_MSG_SIZE_MAX	2048
 
 static const struct usb_device_id id_table[] = {
-	{ USB_DEVICE(0xffff, 0x0002) },	/* Made up number, delete once firmware is fixed to use real number */
 	{ USB_DEVICE(0x18d1, 0x1eaf) },
 	{ },
 };
