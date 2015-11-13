@@ -387,29 +387,6 @@ static int pci171x_ao_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int pci171x_di_insn_bits(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn,
-				unsigned int *data)
-{
-	data[1] = inw(dev->iobase + PCI171X_DI_REG);
-
-	return insn->n;
-}
-
-static int pci171x_do_insn_bits(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn,
-				unsigned int *data)
-{
-	if (comedi_dio_update_state(s, data))
-		outw(s->state, dev->iobase + PCI171X_DO_REG);
-
-	data[1] = s->state;
-
-	return insn->n;
-}
-
 static int pci171x_ai_cancel(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
@@ -668,6 +645,29 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
+static int pci1710_di_insn_bits(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
+{
+	data[1] = inw(dev->iobase + PCI171X_DI_REG);
+
+	return insn->n;
+}
+
+static int pci1710_do_insn_bits(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
+{
+	if (comedi_dio_update_state(s, data))
+		outw(s->state, dev->iobase + PCI171X_DO_REG);
+
+	data[1] = s->state;
+
+	return insn->n;
+}
+
 static int pci1710_counter_insn_config(struct comedi_device *dev,
 				       struct comedi_subdevice *s,
 				       struct comedi_insn *insn,
@@ -840,7 +840,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		s->n_chan	= 16;
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
-		s->insn_bits	= pci171x_di_insn_bits;
+		s->insn_bits	= pci1710_di_insn_bits;
 		subdev++;
 
 		/* Digital Output subdevice */
@@ -850,7 +850,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		s->n_chan	= 16;
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
-		s->insn_bits	= pci171x_do_insn_bits;
+		s->insn_bits	= pci1710_do_insn_bits;
 		subdev++;
 
 		/* Counter subdevice (8254) */
