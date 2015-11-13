@@ -188,7 +188,7 @@ static void __init fpu__init_task_struct_size(void)
  */
 static void __init fpu__init_system_xstate_size_legacy(void)
 {
-	static int on_boot_cpu = 1;
+	static int on_boot_cpu __initdata = 1;
 
 	WARN_ON_FPU(!on_boot_cpu);
 	on_boot_cpu = 0;
@@ -278,7 +278,7 @@ __setup("eagerfpu=", eager_fpu_setup);
  */
 static void __init fpu__init_system_ctx_switch(void)
 {
-	static bool on_boot_cpu = 1;
+	static bool on_boot_cpu __initdata = 1;
 
 	WARN_ON_FPU(!on_boot_cpu);
 	on_boot_cpu = 0;
