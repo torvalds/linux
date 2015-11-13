@@ -408,7 +408,7 @@ static int skl_tplg_bind_sinks(struct snd_soc_dapm_widget *w,
 				struct skl_module_cfg *src_mconfig)
 {
 	struct snd_soc_dapm_path *p;
-	struct snd_soc_dapm_widget *sink = NULL;
+	struct snd_soc_dapm_widget *sink = NULL, *next_sink = NULL;
 	struct skl_module_cfg *sink_mconfig;
 	struct skl_sst *ctx = skl->skl_sst;
 	int ret;
@@ -420,7 +420,7 @@ static int skl_tplg_bind_sinks(struct snd_soc_dapm_widget *w,
 		dev_dbg(ctx->dev, "%s: src widget=%s\n", __func__, w->name);
 		dev_dbg(ctx->dev, "%s: sink widget=%s\n", __func__, p->sink->name);
 
-		sink = p->sink;
+		next_sink = p->sink;
 		/*
 		 * here we will check widgets in sink pipelines, so that
 		 * can be any widgets type and we are only interested if
@@ -450,7 +450,7 @@ static int skl_tplg_bind_sinks(struct snd_soc_dapm_widget *w,
 	}
 
 	if (!sink)
-		return skl_tplg_bind_sinks(sink, skl, src_mconfig);
+		return skl_tplg_bind_sinks(next_sink, skl, src_mconfig);
 
 	return 0;
 }
