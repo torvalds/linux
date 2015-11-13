@@ -518,7 +518,7 @@ static irqreturn_t pci1710_irq_handler(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
+static int pci1710_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct pci1710_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
@@ -559,7 +559,7 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-static int pci171x_ai_cmdtest(struct comedi_device *dev,
+static int pci1710_ai_cmdtest(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_cmd *cmd)
 {
@@ -812,8 +812,8 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		dev->read_subdev = s;
 		s->subdev_flags	|= SDF_CMD_READ;
 		s->len_chanlist	= s->n_chan;
-		s->do_cmdtest	= pci171x_ai_cmdtest;
-		s->do_cmd	= pci171x_ai_cmd;
+		s->do_cmdtest	= pci1710_ai_cmdtest;
+		s->do_cmd	= pci1710_ai_cmd;
 		s->cancel	= pci1710_ai_cancel;
 	}
 
