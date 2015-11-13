@@ -132,7 +132,7 @@ DECLARE_EVENT_CLASS(gb_host_device,
 /*
  * tracepoint name	greybus:gb_host_device_send
  * description		tracepoint representing the point data are transmitted
- * location		es1.c/es2.c:message_send
+ * location		es2.c:message_send
  */
 DEFINE_EVENT(gb_host_device, gb_host_device_send,
 
@@ -145,7 +145,7 @@ DEFINE_EVENT(gb_host_device, gb_host_device_send,
 /*
  * tracepoint name	greybus:gb_host_device_recv
  * description		tracepoint representing the point data are received
- * location		es1.c/es2.c:cport_in_callback
+ * location		es2.c:cport_in_callback
  */
 DEFINE_EVENT(gb_host_device, gb_host_device_recv,
 
