@@ -229,11 +229,6 @@ static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 			hsotg->phyif = GUSBCFG_PHYIF8;
 	}
 
-	if (!hsotg->phy && !hsotg->uphy && !hsotg->plat) {
-		dev_err(hsotg->dev, "no platform data or transceiver defined\n");
-		return -EPROBE_DEFER;
-	}
-
 	/* Clock */
 	hsotg->clk = devm_clk_get(hsotg->dev, "otg");
 	if (IS_ERR(hsotg->clk)) {
