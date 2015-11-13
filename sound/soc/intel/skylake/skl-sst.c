@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/err.h>
 #include "../common/sst-dsp.h"
 #include "../common/sst-dsp-priv.h"
 #include "../common/sst-ipc.h"
@@ -176,10 +177,15 @@ static int skl_set_dsp_D3(struct sst_dsp *ctx)
 	dx.core_mask = SKL_DSP_CORE0_MASK;
 	dx.dx_mask = SKL_IPC_D3_MASK;
 	ret = skl_ipc_set_dx(&skl->ipc, SKL_INSTANCE_ID, SKL_BASE_FW_MODULE_ID, &dx);
-	if (ret < 0) {
-		dev_err(ctx->dev, "Failed to set DSP to D3 state\n");
-		return ret;
-	}
+	if (ret < 0)
+		dev_err(ctx->dev,
+			"D3 request to FW failed, continuing reset: %d", ret);
+
+	/* disable Interrupt */
+	ctx->cl_dev.ops.cl_cleanup_controller(ctx);
+	skl_cldma_int_disable(ctx);
+	skl_ipc_op_int_disable(ctx);
+	skl_ipc_int_disable(ctx);
 
 	ret = skl_dsp_disable_core(ctx);
 	if (ret < 0) {
@@ -187,12 +193,6 @@ static int skl_set_dsp_D3(struct sst_dsp *ctx)
 		ret = -EIO;
 	}
 	skl_dsp_set_state_locked(ctx, SKL_DSP_RESET);
-
-	/* disable Interrupt */
-	ctx->cl_dev.ops.cl_cleanup_controller(ctx);
-	skl_cldma_int_disable(ctx);
-	skl_ipc_op_int_disable(ctx);
-	skl_ipc_int_disable(ctx);
 
 	return ret;
 }
