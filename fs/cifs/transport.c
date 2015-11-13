@@ -124,41 +124,32 @@ cifs_delete_mid(struct mid_q_entry *mid)
 /*
  * smb_send_kvec - send an array of kvecs to the server
  * @server:	Server to send the data to
- * @iov:	Pointer to array of kvecs
- * @n_vec:	length of kvec array
+ * @smb_msg:	Message to send
  * @sent:	amount of data sent on socket is stored here
  *
  * Our basic "send data to server" function. Should be called with srv_mutex
  * held. The caller is responsible for handling the results.
  */
 static int
-smb_send_kvec(struct TCP_Server_Info *server, struct kvec *iov, size_t n_vec,
-		size_t *sent)
+smb_send_kvec(struct TCP_Server_Info *server, struct msghdr *smb_msg,
+	      size_t *sent)
 {
 	int rc = 0;
-	int i = 0;
-	struct msghdr smb_msg;
-	unsigned int remaining;
-	size_t first_vec = 0;
+	int retries = 0;
 	struct socket *ssocket = server->ssocket;
 
 	*sent = 0;
 
-	smb_msg.msg_name = (struct sockaddr *) &server->dstaddr;
-	smb_msg.msg_namelen = sizeof(struct sockaddr);
-	smb_msg.msg_control = NULL;
-	smb_msg.msg_controllen = 0;
+	smb_msg->msg_name = (struct sockaddr *) &server->dstaddr;
+	smb_msg->msg_namelen = sizeof(struct sockaddr);
+	smb_msg->msg_control = NULL;
+	smb_msg->msg_controllen = 0;
 	if (server->noblocksnd)
-		smb_msg.msg_flags = MSG_DONTWAIT + MSG_NOSIGNAL;
+		smb_msg->msg_flags = MSG_DONTWAIT + MSG_NOSIGNAL;
 	else
-		smb_msg.msg_flags = MSG_NOSIGNAL;
+		smb_msg->msg_flags = MSG_NOSIGNAL;
 
-	remaining = 0;
-	for (i = 0; i < n_vec; i++)
-		remaining += iov[i].iov_len;
-
-	i = 0;
-	while (remaining) {
+	while (msg_data_left(smb_msg)) {
 		/*
 		 * If blocking send, we try 3 times, since each can block
 		 * for 5 seconds. For nonblocking  we have to try more
@@ -177,35 +168,21 @@ smb_send_kvec(struct TCP_Server_Info *server, struct kvec *iov, size_t n_vec,
 		 * after the retries we will kill the socket and
 		 * reconnect which may clear the network problem.
 		 */
-		rc = kernel_sendmsg(ssocket, &smb_msg, &iov[first_vec],
-				    n_vec - first_vec, remaining);
+		rc = sock_sendmsg(ssocket, smb_msg);
 		if (rc == -EAGAIN) {
-			i++;
-			if (i >= 14 || (!server->noblocksnd && (i > 2))) {
+			retries++;
+			if (retries >= 14 ||
+			    (!server->noblocksnd && (retries > 2))) {
 				cifs_dbg(VFS, "sends on sock %p stuck for 15 seconds\n",
 					 ssocket);
-				rc = -EAGAIN;
-				break;
+				return -EAGAIN;
 			}
-			msleep(1 << i);
+			msleep(1 << retries);
 			continue;
 		}
 
 		if (rc < 0)
-			break;
-
-		/* send was at least partially successful */
-		*sent += rc;
-
-		if (rc == remaining) {
-			remaining = 0;
-			break;
-		}
-
-		if (rc > remaining) {
-			cifs_dbg(VFS, "sent %d requested %d\n", rc, remaining);
-			break;
-		}
+			return rc;
 
 		if (rc == 0) {
 			/* should never happen, letting socket clear before
@@ -215,59 +192,11 @@ smb_send_kvec(struct TCP_Server_Info *server, struct kvec *iov, size_t n_vec,
 			continue;
 		}
 
-		remaining -= rc;
-
-		/* the line below resets i */
-		for (i = first_vec; i < n_vec; i++) {
-			if (iov[i].iov_len) {
-				if (rc > iov[i].iov_len) {
-					rc -= iov[i].iov_len;
-					iov[i].iov_len = 0;
-				} else {
-					iov[i].iov_base += rc;
-					iov[i].iov_len -= rc;
-					first_vec = i;
-					break;
-				}
-			}
-		}
-
-		i = 0; /* in case we get ENOSPC on the next send */
-		rc = 0;
+		/* send was at least partially successful */
+		*sent += rc;
+		retries = 0; /* in case we get ENOSPC on the next send */
 	}
-	return rc;
-}
-
-/**
- * rqst_page_to_kvec - Turn a slot in the smb_rqst page array into a kvec
- * @rqst: pointer to smb_rqst
- * @idx: index into the array of the page
- * @iov: pointer to struct kvec that will hold the result
- *
- * Helper function to convert a slot in the rqst->rq_pages array into a kvec.
- * The page will be kmapped and the address placed into iov_base. The length
- * will then be adjusted according to the ptailoff.
- */
-void
-cifs_rqst_page_to_kvec(struct smb_rqst *rqst, unsigned int idx,
-			struct kvec *iov)
-{
-	/*
-	 * FIXME: We could avoid this kmap altogether if we used
-	 * kernel_sendpage instead of kernel_sendmsg. That will only
-	 * work if signing is disabled though as sendpage inlines the
-	 * page directly into the fraglist. If userspace modifies the
-	 * page after we calculate the signature, then the server will
-	 * reject it and may break the connection. kernel_sendmsg does
-	 * an extra copy of the data and avoids that issue.
-	 */
-	iov->iov_base = kmap(rqst->rq_pages[idx]);
-
-	/* if last page, don't send beyond this offset into page */
-	if (idx == (rqst->rq_npages - 1))
-		iov->iov_len = rqst->rq_tailsz;
-	else
-		iov->iov_len = rqst->rq_pagesz;
+	return 0;
 }
 
 static unsigned long
@@ -299,8 +228,9 @@ smb_send_rqst(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 	unsigned int smb_buf_length = get_rfc1002_length(iov[0].iov_base);
 	unsigned long send_length;
 	unsigned int i;
-	size_t total_len = 0, sent;
+	size_t total_len = 0, sent, size;
 	struct socket *ssocket = server->ssocket;
+	struct msghdr smb_msg;
 	int val = 1;
 
 	if (ssocket == NULL)
@@ -321,7 +251,13 @@ smb_send_rqst(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 	kernel_setsockopt(ssocket, SOL_TCP, TCP_CORK,
 				(char *)&val, sizeof(val));
 
-	rc = smb_send_kvec(server, iov, n_vec, &sent);
+	size = 0;
+	for (i = 0; i < n_vec; i++)
+		size += iov[i].iov_len;
+
+	iov_iter_kvec(&smb_msg.msg_iter, WRITE | ITER_KVEC, iov, n_vec, size);
+
+	rc = smb_send_kvec(server, &smb_msg, &sent);
 	if (rc < 0)
 		goto uncork;
 
@@ -329,11 +265,16 @@ smb_send_rqst(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 
 	/* now walk the page array and send each page in it */
 	for (i = 0; i < rqst->rq_npages; i++) {
-		struct kvec p_iov;
-
-		cifs_rqst_page_to_kvec(rqst, i, &p_iov);
-		rc = smb_send_kvec(server, &p_iov, 1, &sent);
-		kunmap(rqst->rq_pages[i]);
+		size_t len = i == rqst->rq_npages - 1
+				? rqst->rq_tailsz
+				: rqst->rq_pagesz;
+		struct bio_vec bvec = {
+			.bv_page = rqst->rq_pages[i],
+			.bv_len = len
+		};
+		iov_iter_bvec(&smb_msg.msg_iter, WRITE | ITER_BVEC,
+			      &bvec, 1, len);
+		rc = smb_send_kvec(server, &smb_msg, &sent);
 		if (rc < 0)
 			break;
 
