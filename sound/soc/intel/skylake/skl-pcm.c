@@ -112,12 +112,8 @@ static int skl_pcm_open(struct snd_pcm_substream *substream,
 	struct hdac_ext_stream *stream;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct skl_dma_params *dma_params;
-	int ret;
 
 	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
-	ret = pm_runtime_get_sync(dai->dev);
-	if (ret < 0)
-		return ret;
 
 	stream = snd_hdac_ext_stream_assign(ebus, substream,
 					skl_get_host_stream_type(ebus));
@@ -262,8 +258,6 @@ static void skl_pcm_close(struct snd_pcm_substream *substream,
 	 */
 	snd_soc_dai_set_dma_data(dai, substream, NULL);
 
-	pm_runtime_mark_last_busy(dai->dev);
-	pm_runtime_put_autosuspend(dai->dev);
 	kfree(dma_params);
 }
 
@@ -512,19 +506,6 @@ static int skl_link_hw_free(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int skl_be_startup(struct snd_pcm_substream *substream,
-		struct snd_soc_dai *dai)
-{
-	return pm_runtime_get_sync(dai->dev);
-}
-
-static void skl_be_shutdown(struct snd_pcm_substream *substream,
-		struct snd_soc_dai *dai)
-{
-	pm_runtime_mark_last_busy(dai->dev);
-	pm_runtime_put_autosuspend(dai->dev);
-}
-
 static struct snd_soc_dai_ops skl_pcm_dai_ops = {
 	.startup = skl_pcm_open,
 	.shutdown = skl_pcm_close,
@@ -535,24 +516,18 @@ static struct snd_soc_dai_ops skl_pcm_dai_ops = {
 };
 
 static struct snd_soc_dai_ops skl_dmic_dai_ops = {
-	.startup = skl_be_startup,
 	.hw_params = skl_be_hw_params,
-	.shutdown = skl_be_shutdown,
 };
 
 static struct snd_soc_dai_ops skl_be_ssp_dai_ops = {
-	.startup = skl_be_startup,
 	.hw_params = skl_be_hw_params,
-	.shutdown = skl_be_shutdown,
 };
 
 static struct snd_soc_dai_ops skl_link_dai_ops = {
-	.startup = skl_be_startup,
 	.prepare = skl_link_pcm_prepare,
 	.hw_params = skl_link_hw_params,
 	.hw_free = skl_link_hw_free,
 	.trigger = skl_link_pcm_trigger,
-	.shutdown = skl_be_shutdown,
 };
 
 static struct snd_soc_dai_driver skl_platform_dai[] = {
