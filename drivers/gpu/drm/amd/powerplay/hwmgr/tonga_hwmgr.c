@@ -1639,6 +1639,58 @@ static int tonga_populate_smc_link_level(struct pp_hwmgr *hwmgr, SMU72_Discrete_
 	return 0;
 }
 
+static int tonga_populate_smc_uvd_level(struct pp_hwmgr *hwmgr,
+					SMU72_Discrete_DpmTable *table)
+{
+	int result = 0;
+
+	uint8_t count;
+	pp_atomctrl_clock_dividers_vi dividers;
+	tonga_hwmgr *data = (tonga_hwmgr *)(hwmgr->backend);
+	struct phm_ppt_v1_information *pptable_info = (struct phm_ppt_v1_information *)(hwmgr->pptable);
+	phm_ppt_v1_mm_clock_voltage_dependency_table *mm_table = pptable_info->mm_dep_table;
+
+	table->UvdLevelCount = (uint8_t) (mm_table->count);
+	table->UvdBootLevel = 0;
+
+	for (count = 0; count < table->UvdLevelCount; count++) {
+		table->UvdLevel[count].VclkFrequency = mm_table->entries[count].vclk;
+		table->UvdLevel[count].DclkFrequency = mm_table->entries[count].dclk;
+		table->UvdLevel[count].MinVoltage.Vddc =
+			tonga_get_voltage_index(pptable_info->vddc_lookup_table,
+						mm_table->entries[count].vddc);
+		table->UvdLevel[count].MinVoltage.VddGfx =
+			(data->vdd_gfx_control == TONGA_VOLTAGE_CONTROL_BY_SVID2) ?
+			tonga_get_voltage_index(pptable_info->vddgfx_lookup_table,
+						mm_table->entries[count].vddgfx) : 0;
+		table->UvdLevel[count].MinVoltage.Vddci =
+			tonga_get_voltage_id(&data->vddci_voltage_table,
+					     mm_table->entries[count].vddc - data->vddc_vddci_delta);
+		table->UvdLevel[count].MinVoltage.Phases = 1;
+
+		/* retrieve divider value for VBIOS */
+		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr,
+							  table->UvdLevel[count].VclkFrequency, &dividers);
+		PP_ASSERT_WITH_CODE((0 == result),
+				    "can not find divide id for Vclk clock", return result);
+
+		table->UvdLevel[count].VclkDivider = (uint8_t)dividers.pll_post_divider;
+
+		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr,
+							  table->UvdLevel[count].DclkFrequency, &dividers);
+		PP_ASSERT_WITH_CODE((0 == result),
+				    "can not find divide id for Dclk clock", return result);
+
+		table->UvdLevel[count].DclkDivider = (uint8_t)dividers.pll_post_divider;
+
+		CONVERT_FROM_HOST_TO_SMC_UL(table->UvdLevel[count].VclkFrequency);
+		CONVERT_FROM_HOST_TO_SMC_UL(table->UvdLevel[count].DclkFrequency);
+		//CONVERT_FROM_HOST_TO_SMC_UL((uint32_t)table->UvdLevel[count].MinVoltage);
+    }
+
+    return result;
+
+}
 
 static int tonga_populate_smc_vce_level(struct pp_hwmgr *hwmgr,
 		SMU72_Discrete_DpmTable *table)
@@ -2923,6 +2975,10 @@ int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
 	result = tonga_program_memory_timing_parameters(hwmgr);
 	PP_ASSERT_WITH_CODE(0 == result,
 		"Failed to Write ARB settings for the initial state.", return result;);
+
+	result = tonga_populate_smc_uvd_level(hwmgr, table);
+	PP_ASSERT_WITH_CODE(0 == result,
+		"Failed to initialize UVD Level!", return result;);
 
 	result = tonga_populate_smc_boot_level(hwmgr, table);
 	PP_ASSERT_WITH_CODE(0 == result,
