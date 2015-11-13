@@ -107,7 +107,7 @@ static int sti_atomic_commit(struct drm_device *drm,
 	return 0;
 }
 
-static struct drm_mode_config_funcs sti_mode_config_funcs = {
+static const struct drm_mode_config_funcs sti_mode_config_funcs = {
 	.fb_create = drm_fb_cma_create,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = sti_atomic_commit,
@@ -123,8 +123,8 @@ static void sti_mode_config_init(struct drm_device *dev)
 	 * this value would be used to check framebuffer size limitation
 	 * at drm_mode_addfb().
 	 */
-	dev->mode_config.max_width = STI_MAX_FB_HEIGHT;
-	dev->mode_config.max_height = STI_MAX_FB_WIDTH;
+	dev->mode_config.max_width = STI_MAX_FB_WIDTH;
+	dev->mode_config.max_height = STI_MAX_FB_HEIGHT;
 
 	dev->mode_config.funcs = &sti_mode_config_funcs;
 }
@@ -160,11 +160,10 @@ static int sti_load(struct drm_device *dev, unsigned long flags)
 
 	drm_mode_config_reset(dev);
 
-#ifdef CONFIG_DRM_STI_FBDEV
 	drm_fbdev_cma_init(dev, 32,
 			   dev->mode_config.num_crtc,
 			   dev->mode_config.num_connector);
-#endif
+
 	return 0;
 }
 
@@ -287,7 +286,29 @@ static struct platform_driver sti_platform_driver = {
 	},
 };
 
-module_platform_driver(sti_platform_driver);
+static struct platform_driver * const drivers[] = {
+	&sti_tvout_driver,
+	&sti_vtac_driver,
+	&sti_hqvdp_driver,
+	&sti_hdmi_driver,
+	&sti_hda_driver,
+	&sti_dvo_driver,
+	&sti_vtg_driver,
+	&sti_compositor_driver,
+	&sti_platform_driver,
+};
+
+static int sti_drm_init(void)
+{
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
+}
+module_init(sti_drm_init);
+
+static void sti_drm_exit(void)
+{
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
+}
+module_exit(sti_drm_exit);
 
 MODULE_AUTHOR("Benjamin Gaignard <benjamin.gaignard@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics SoC DRM driver");

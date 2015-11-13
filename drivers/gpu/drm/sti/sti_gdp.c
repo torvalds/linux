@@ -492,7 +492,7 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 		/* Register gdp callback */
 		if (sti_vtg_register_client(mixer->id == STI_MIXER_MAIN ?
 				compo->vtg_main : compo->vtg_aux,
-				&gdp->vtg_field_nb, mixer->id)) {
+				&gdp->vtg_field_nb, crtc)) {
 			DRM_ERROR("Cannot register VTG notifier\n");
 			return;
 		}
