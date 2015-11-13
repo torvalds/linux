@@ -448,7 +448,7 @@ struct arch_elf_state {
 extern int arch_elf_pt_proc(void *ehdr, void *phdr, struct file *elf,
 			    bool is_interp, struct arch_elf_state *state);
 
-extern int arch_check_elf(void *ehdr, bool has_interpreter,
+extern int arch_check_elf(void *ehdr, bool has_interpreter, void *interp_ehdr,
 			  struct arch_elf_state *state);
 
 extern void mips_set_personality_fp(struct arch_elf_state *state);
