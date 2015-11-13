@@ -309,18 +309,6 @@ static long nfs42_ioctl_clone_range(struct file *dst_file, void __user *argp)
 	return nfs42_ioctl_clone(dst_file, args.src_fd, args.src_offset,
 				 args.dest_offset, args.src_length);
 }
-#else
-static long nfs42_ioctl_clone(struct file *dst_file, unsigned long srcfd,
-		u64 src_off, u64 dst_off, u64 count)
-{
-	return -ENOTTY;
-}
-
-static long nfs42_ioctl_clone_range(struct file *dst_file, void __user *argp)
-{
-	return -ENOTTY;
-}
-#endif /* CONFIG_NFS_V4_2 */
 
 long nfs4_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -335,13 +323,9 @@ long nfs4_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	return -ENOTTY;
 }
+#endif /* CONFIG_NFS_V4_2 */
 
 const struct file_operations nfs4_file_operations = {
-#ifdef CONFIG_NFS_V4_2
-	.llseek		= nfs4_file_llseek,
-#else
-	.llseek		= nfs_file_llseek,
-#endif
 	.read_iter	= nfs_file_read,
 	.write_iter	= nfs_file_write,
 	.mmap		= nfs_file_mmap,
@@ -353,11 +337,14 @@ const struct file_operations nfs4_file_operations = {
 	.flock		= nfs_flock,
 	.splice_read	= nfs_file_splice_read,
 	.splice_write	= iter_file_splice_write,
-#ifdef CONFIG_NFS_V4_2
-	.fallocate	= nfs42_fallocate,
-#endif /* CONFIG_NFS_V4_2 */
 	.check_flags	= nfs_check_flags,
 	.setlease	= simple_nosetlease,
+#ifdef CONFIG_NFS_V4_2
+	.llseek		= nfs4_file_llseek,
+	.fallocate	= nfs42_fallocate,
 	.unlocked_ioctl = nfs4_ioctl,
 	.compat_ioctl	= nfs4_ioctl,
+#else
+	.llseek		= nfs_file_llseek,
+#endif
 };
