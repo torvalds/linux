@@ -1870,7 +1870,7 @@ static unsigned int sci_scbrr_calc(struct sci_port *s, unsigned int bps,
 static void sci_baud_calc_hscif(unsigned int bps, unsigned long freq, int *brr,
 				unsigned int *srr, unsigned int *cks)
 {
-	unsigned int sr, br, c;
+	unsigned int sr, br, prediv, scrate, c;
 	int err, recv_margin;
 	int min_err = 1000; /* 100% */
 	int recv_max_margin = 0;
@@ -1880,12 +1880,25 @@ static void sci_baud_calc_hscif(unsigned int bps, unsigned long freq, int *brr,
 	for (sr = 8; sr <= 32; sr++) {
 		for (c = 0; c <= 3; c++) {
 			/* integerized formulas from HSCIF documentation */
-			br = DIV_ROUND_CLOSEST(freq, (sr *
-					      (1 << (2 * c + 1)) * bps));
+			prediv = sr * (1 << (2 * c + 1));
+
+			/*
+			 * We need to calculate:
+			 *
+			 *     br = freq / (prediv * bps) clamped to [1..256]
+			 *     err = (freq / (br * prediv * bps / 1000)) - 1000
+			 *
+			 * Watch out for overflow when calculating the desired
+			 * sampling clock rate!
+			 */
+			if (bps > UINT_MAX / prediv)
+				break;
+
+			scrate = prediv * bps;
+			br = DIV_ROUND_CLOSEST(freq, scrate);
 			br = clamp(br, 1U, 256U);
-			err = DIV_ROUND_CLOSEST(freq, (br * bps * sr *
-					       (1 << (2 * c + 1)) / 1000)) -
-					       1000;
+			err = DIV_ROUND_CLOSEST(freq, (br * scrate) / 1000) -
+			      1000;
 			/* Calc recv margin
 			 * M: Receive margin (%)
 			 * N: Ratio of bit rate to clock (N = sampling rate)
