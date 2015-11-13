@@ -793,7 +793,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 	/* Analog Input subdevice */
 	s = &dev->subdevices[subdev];
 	s->type		= COMEDI_SUBD_AI;
-	s->subdev_flags	= SDF_READABLE | SDF_COMMON | SDF_GROUND;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND;
 	if (!board->is_pci1711)
 		s->subdev_flags	|= SDF_DIFF;
 	s->n_chan	= board->is_pci1713 ? 32 : 16;
