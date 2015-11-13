@@ -137,6 +137,11 @@ static void skl_cldma_cleanup(struct sst_dsp  *ctx)
 
 	sst_dsp_shim_write(ctx, SKL_ADSP_REG_CL_SD_CBL, 0);
 	sst_dsp_shim_write(ctx, SKL_ADSP_REG_CL_SD_LVI, 0);
+
+	if (&ctx->cl_dev.dmab_data)
+		ctx->dsp_ops.free_dma_buf(ctx->dev, &ctx->cl_dev.dmab_data);
+	if (&ctx->cl_dev.dmab_bdl)
+		ctx->dsp_ops.free_dma_buf(ctx->dev, &ctx->cl_dev.dmab_bdl);
 }
 
 static int skl_cldma_wait_interruptible(struct sst_dsp *ctx)
