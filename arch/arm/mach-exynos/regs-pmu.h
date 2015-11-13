@@ -484,15 +484,6 @@
 
 #define EXYNOS5420_SWRESET_KFC_SEL				0x3
 
-#include <asm/cputype.h>
-#define MAX_CPUS_IN_CLUSTER	4
-
-static inline unsigned int exynos_pmu_cpunr(unsigned int mpidr)
-{
-	return ((MPIDR_AFFINITY_LEVEL(mpidr, 1) * MAX_CPUS_IN_CLUSTER)
-		 + MPIDR_AFFINITY_LEVEL(mpidr, 0));
-}
-
 /* Only for EXYNOS5420 */
 #define EXYNOS5420_ISP_ARM_OPTION				0x2488
 #define EXYNOS5420_L2RSTDISABLE_VALUE				BIT(3)
