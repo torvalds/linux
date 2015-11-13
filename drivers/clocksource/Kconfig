@@ -351,6 +351,7 @@ config CLKSRC_TANGO_XTAL
 	bool "Clocksource for Tango SoC" if COMPILE_TEST
 	depends on ARM
 	select CLKSRC_OF
+	select CLKSRC_MMIO
 	help
 	  This enables the clocksource for Tango SoC
 

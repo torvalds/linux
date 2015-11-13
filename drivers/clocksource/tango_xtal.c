@@ -19,19 +19,6 @@ static u64 notrace read_sched_clock(void)
 	return read_xtal_counter();
 }
 
-static cycle_t read_clocksource(struct clocksource *cs)
-{
-	return read_xtal_counter();
-}
-
-static struct clocksource tango_xtal = {
-	.name	= "tango-xtal",
-	.rating	= 350,
-	.read	= read_clocksource,
-	.mask	= CLOCKSOURCE_MASK(32),
-	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
-};
-
 static void __init tango_clocksource_init(struct device_node *np)
 {
 	struct clk *clk;
@@ -53,8 +40,9 @@ static void __init tango_clocksource_init(struct device_node *np)
 	delay_timer.freq = xtal_freq;
 	delay_timer.read_current_timer = read_xtal_counter;
 
-	ret = clocksource_register_hz(&tango_xtal, xtal_freq);
-	if (ret != 0) {
+	ret = clocksource_mmio_init(xtal_in_cnt, "tango-xtal", xtal_freq, 350,
+				    32, clocksource_mmio_readl_up);
+	if (!ret) {
 		pr_err("%s: registration failed\n", np->full_name);
 		return;
 	}
