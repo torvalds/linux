@@ -19,10 +19,6 @@ struct pvfs2_io_response {
 	__s64 amt_complete;
 };
 
-struct pvfs2_iox_response {
-	__s64 amt_complete;
-};
-
 struct pvfs2_lookup_response {
 	struct pvfs2_object_kref refn;
 };
@@ -111,7 +107,6 @@ struct pvfs2_downcall_s {
 
 	union {
 		struct pvfs2_io_response io;
-		struct pvfs2_iox_response iox;
 		struct pvfs2_lookup_response lookup;
 		struct pvfs2_create_response create;
 		struct pvfs2_symlink_response sym;

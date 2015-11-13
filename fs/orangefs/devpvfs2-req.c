@@ -139,20 +139,6 @@ static ssize_t pvfs2_devreq_read(struct file *file,
 				cur_op = op;
 				spin_lock(&cur_op->lock);
 				list_del(&cur_op->list);
-				cur_op->op_linger_tmp--;
-				/*
-				 * if there is a trailer, re-add it to
-				 * the request list.
-				 */
-				if (cur_op->op_linger == 2 &&
-				    cur_op->op_linger_tmp == 1) {
-					if (cur_op->upcall.trailer_size <= 0 ||
-					    cur_op->upcall.trailer_buf == NULL)
-						gossip_err("BUG:trailer_size is %ld and trailer buf is %p\n", (long)cur_op->upcall.trailer_size, cur_op->upcall.trailer_buf);
-					/* re-add it to the head of the list */
-					list_add(&cur_op->list,
-						 &pvfs2_request_list);
-				}
 				spin_unlock(&cur_op->lock);
 				break;
 			}
@@ -167,11 +153,8 @@ static ssize_t pvfs2_devreq_read(struct file *file,
 			     "client-core: reading op tag %llu %s\n",
 			     llu(cur_op->tag), get_opname_string(cur_op));
 		if (op_state_in_progress(cur_op) || op_state_serviced(cur_op)) {
-			if (cur_op->op_linger == 1)
-				gossip_err("WARNING: Current op already queued...skipping\n");
-		} else if (cur_op->op_linger == 1 ||
-			   (cur_op->op_linger == 2 &&
-			    cur_op->op_linger_tmp == 0)) {
+			gossip_err("WARNING: Current op already queued...skipping\n");
+		} else  {
 			/*
 			 * atomically move the operation to the
 			 * htable_ops_in_progress
@@ -182,71 +165,40 @@ static ssize_t pvfs2_devreq_read(struct file *file,
 
 		spin_unlock(&cur_op->lock);
 
-		/* 2 cases
-		 * a) OPs with no trailers
-		 * b) OPs with trailers, Stage 1
-		 * Either way push the upcall out
-		 */
-		if (cur_op->op_linger == 1 ||
-		   (cur_op->op_linger == 2 && cur_op->op_linger_tmp == 1)) {
-			len = MAX_ALIGNED_DEV_REQ_UPSIZE;
-			if ((size_t) len <= count) {
-			    ret = copy_to_user(buf,
-					       &proto_ver,
-					       sizeof(__s32));
+		/* Push the upcall out */
+		len = MAX_ALIGNED_DEV_REQ_UPSIZE;
+		if ((size_t) len <= count) {
+		    ret = copy_to_user(buf,
+				       &proto_ver,
+			       sizeof(__s32));
+		    if (ret == 0) {
+			ret = copy_to_user(buf + sizeof(__s32),
+					   &magic,
+					   sizeof(__s32));
+			if (ret == 0) {
+			    ret = copy_to_user(buf+2 * sizeof(__s32),
+					       &cur_op->tag,
+					       sizeof(__u64));
 			    if (ret == 0) {
-				ret = copy_to_user(buf + sizeof(__s32),
-						   &magic,
-						   sizeof(__s32));
-				if (ret == 0) {
-				    ret = copy_to_user(buf+2 * sizeof(__s32),
-						       &cur_op->tag,
-						       sizeof(__u64));
-				    if (ret == 0) {
-					ret = copy_to_user(
-						buf +
-						  2 *
-						  sizeof(__s32) +
-						  sizeof(__u64),
-						&cur_op->upcall,
-						sizeof(struct pvfs2_upcall_s));
-				    }
-				}
+				ret = copy_to_user(
+					buf +
+					  2 *
+					  sizeof(__s32) +
+					  sizeof(__u64),
+					&cur_op->upcall,
+					sizeof(struct pvfs2_upcall_s));
 			    }
+			}
+		    }
 
-			    if (ret) {
-				gossip_err("Failed to copy data to user space\n");
-				len = -EFAULT;
-			    }
-			} else {
-				gossip_err
-				    ("Failed to copy data to user space\n");
-				len = -EIO;
-			}
-		}
-		/* Stage 2: Push the trailer out */
-		else if (cur_op->op_linger == 2 && cur_op->op_linger_tmp == 0) {
-			len = cur_op->upcall.trailer_size;
-			if ((size_t) len <= count) {
-				ret = copy_to_user(buf,
-						   cur_op->upcall.trailer_buf,
-						   len);
-				if (ret) {
-					gossip_err("Failed to copy trailer to user space\n");
-					len = -EFAULT;
-				}
-			} else {
-				gossip_err("Read buffer for trailer is too small (%ld as opposed to %ld)\n",
-					(long)count,
-					(long)len);
-				len = -EIO;
-			}
+		    if (ret) {
+			gossip_err("Failed to copy data to user space\n");
+			len = -EFAULT;
+		    }
 		} else {
-			gossip_err("cur_op: %p (op_linger %d), (op_linger_tmp %d), erroneous request list?\n",
-				cur_op,
-				cur_op->op_linger,
-				cur_op->op_linger_tmp);
-			len = 0;
+			gossip_err
+			    ("Failed to copy data to user space\n");
+			len = -EIO;
 		}
 	} else if (file->f_flags & O_NONBLOCK) {
 		/*
@@ -413,9 +365,8 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 		 * application reading/writing this device to return until
 		 * the buffers are done being used.
 		 */
-		if ((op->upcall.type == PVFS2_VFS_OP_FILE_IO &&
-		     op->upcall.req.io.async_vfs_io == PVFS_VFS_SYNC_IO) ||
-		     op->upcall.type == PVFS2_VFS_OP_FILE_IOX) {
+		if (op->upcall.type == PVFS2_VFS_OP_FILE_IO &&
+		    op->upcall.req.io.async_vfs_io == PVFS_VFS_SYNC_IO) {
 			int timed_out = 0;
 			DECLARE_WAITQUEUE(wait_entry, current);
 

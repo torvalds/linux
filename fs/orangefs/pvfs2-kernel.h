@@ -279,19 +279,6 @@ struct pvfs2_kernel_op_s {
 	int io_completed;
 	wait_queue_head_t io_completion_waitq;
 
-	/*
-	 * upcalls requiring variable length trailers require that this struct
-	 * be in the request list even after client-core does a read() on the
-	 * device to dequeue the upcall.
-	 * if op_linger field goes to 0, we dequeue this op off the list.
-	 * else we let it stay. What gets passed to the read() is
-	 * a) if op_linger field is = 1, pvfs2_kernel_op_s itself
-	 * b) else if = 0, we pass ->upcall.trailer_buf
-	 * We expect to have only a single upcall trailer buffer,
-	 * so we expect callers with trailers
-	 * to set this field to 2 and others to set it to 1.
-	 */
-	__s32 op_linger, op_linger_tmp;
 	/* VFS aio fields */
 
 	/* used by the async I/O code to stash the pvfs2_kiocb_s structure */
@@ -507,7 +494,6 @@ static inline int match_handle(struct pvfs2_khandle resp_handle,
 int op_cache_initialize(void);
 int op_cache_finalize(void);
 struct pvfs2_kernel_op_s *op_alloc(__s32 type);
-struct pvfs2_kernel_op_s *op_alloc_trailer(__s32 type);
 char *get_opname_string(struct pvfs2_kernel_op_s *new_op);
 void op_release(struct pvfs2_kernel_op_s *op);
 

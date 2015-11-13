@@ -103,13 +103,11 @@ char *get_opname_string(struct pvfs2_kernel_op_s *new_op)
 			return "OP_FSYNC";
 		else if (type == PVFS2_VFS_OP_FSKEY)
 			return "OP_FSKEY";
-		else if (type == PVFS2_VFS_OP_FILE_IOX)
-			return "OP_FILE_IOX";
 	}
 	return "OP_UNKNOWN?";
 }
 
-static struct pvfs2_kernel_op_s *op_alloc_common(__s32 op_linger, __s32 type)
+struct pvfs2_kernel_op_s *op_alloc(__s32 type)
 {
 	struct pvfs2_kernel_op_s *new_op = NULL;
 
@@ -145,22 +143,10 @@ static struct pvfs2_kernel_op_s *op_alloc_common(__s32 op_linger, __s32 type)
 
 		new_op->upcall.gid = from_kgid(current_user_ns(),
 					       current_fsgid());
-
-		new_op->op_linger = new_op->op_linger_tmp = op_linger;
 	} else {
 		gossip_err("op_alloc: kmem_cache_alloc failed!\n");
 	}
 	return new_op;
-}
-
-struct pvfs2_kernel_op_s *op_alloc(__s32 type)
-{
-	return op_alloc_common(1, type);
-}
-
-struct pvfs2_kernel_op_s *op_alloc_trailer(__s32 type)
-{
-	return op_alloc_common(2, type);
 }
 
 void op_release(struct pvfs2_kernel_op_s *pvfs2_op)

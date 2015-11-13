@@ -23,14 +23,6 @@ struct pvfs2_io_request_s {
 	__s32 readahead_size;
 };
 
-struct pvfs2_iox_request_s {
-	__s32 buf_index;
-	__s32 count;
-	struct pvfs2_object_kref refn;
-	enum PVFS_io_type io_type;
-	__s32 __pad1;
-};
-
 struct pvfs2_lookup_request_s {
 	__s32 sym_follow;
 	__s32 __pad1;
@@ -218,13 +210,12 @@ struct pvfs2_upcall_s {
 	__u32 gid;
 	int pid;
 	int tgid;
-	/* currently trailer is used only by readx/writex (iox) */
+	/* Trailers unused but must be retained for protocol compatibility. */
 	__s64 trailer_size;
 	char *trailer_buf;
 
 	union {
 		struct pvfs2_io_request_s io;
-		struct pvfs2_iox_request_s iox;
 		struct pvfs2_lookup_request_s lookup;
 		struct pvfs2_create_request_s create;
 		struct pvfs2_symlink_request_s sym;

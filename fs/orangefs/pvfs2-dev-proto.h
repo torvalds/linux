@@ -41,7 +41,6 @@
 #define PVFS2_VFS_OP_FSYNC             0xFF00EE01
 #define PVFS2_VFS_OP_FSKEY             0xFF00EE02
 #define PVFS2_VFS_OP_READDIRPLUS       0xFF00EE03
-#define PVFS2_VFS_OP_FILE_IOX          0xFF00EE04
 
 /*
  * Misc constants. Please retain them as multiples of 8!
