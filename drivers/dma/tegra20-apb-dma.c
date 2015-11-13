@@ -1550,6 +1550,9 @@ static int tegra_dma_pm_suspend(struct device *dev)
 		ch_reg->apb_ptr = tdc_read(tdc, TEGRA_APBDMA_CHAN_APBPTR);
 		ch_reg->ahb_seq = tdc_read(tdc, TEGRA_APBDMA_CHAN_AHBSEQ);
 		ch_reg->apb_seq = tdc_read(tdc, TEGRA_APBDMA_CHAN_APBSEQ);
+		if (tdma->chip_data->support_separate_wcount_reg)
+			ch_reg->wcount = tdc_read(tdc,
+						  TEGRA_APBDMA_CHAN_WCOUNT);
 	}
 
 	/* Disable clock */
@@ -1576,6 +1579,9 @@ static int tegra_dma_pm_resume(struct device *dev)
 		struct tegra_dma_channel *tdc = &tdma->channels[i];
 		struct tegra_dma_channel_regs *ch_reg = &tdc->channel_reg;
 
+		if (tdma->chip_data->support_separate_wcount_reg)
+			tdc_write(tdc, TEGRA_APBDMA_CHAN_WCOUNT,
+				  ch_reg->wcount);
 		tdc_write(tdc, TEGRA_APBDMA_CHAN_APBSEQ, ch_reg->apb_seq);
 		tdc_write(tdc, TEGRA_APBDMA_CHAN_APBPTR, ch_reg->apb_ptr);
 		tdc_write(tdc, TEGRA_APBDMA_CHAN_AHBSEQ, ch_reg->ahb_seq);
