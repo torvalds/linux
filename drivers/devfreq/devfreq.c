@@ -921,12 +921,6 @@ unlock:
 	return ret;
 }
 
-static ssize_t min_freq_show(struct device *dev, struct device_attribute *attr,
-			     char *buf)
-{
-	return sprintf(buf, "%lu\n", to_devfreq(dev)->min_freq);
-}
-
 static ssize_t max_freq_store(struct device *dev, struct device_attribute *attr,
 			      const char *buf, size_t count)
 {
@@ -953,13 +947,17 @@ unlock:
 	mutex_unlock(&df->lock);
 	return ret;
 }
-static DEVICE_ATTR_RW(min_freq);
 
-static ssize_t max_freq_show(struct device *dev, struct device_attribute *attr,
-			     char *buf)
-{
-	return sprintf(buf, "%lu\n", to_devfreq(dev)->max_freq);
+#define show_one(name)						\
+static ssize_t name##_show					\
+(struct device *dev, struct device_attribute *attr, char *buf)	\
+{								\
+	return sprintf(buf, "%lu\n", to_devfreq(dev)->name);	\
 }
+show_one(min_freq);
+show_one(max_freq);
+
+static DEVICE_ATTR_RW(min_freq);
 static DEVICE_ATTR_RW(max_freq);
 
 static ssize_t available_frequencies_show(struct device *d,
