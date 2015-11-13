@@ -284,6 +284,7 @@ static int _nfs42_proc_clone(struct rpc_message *msg, struct file *src_f,
 		.dst_fh = NFS_FH(dst_inode),
 		.src_offset = src_offset,
 		.dst_offset = dst_offset,
+		.count = count,
 		.dst_bitmask = server->cache_consistency_bitmask,
 	};
 	struct nfs42_clone_res res = {
