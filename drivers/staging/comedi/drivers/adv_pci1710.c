@@ -882,18 +882,11 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void pci1710_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		pci1710_reset(dev);
-	comedi_pci_detach(dev);
-}
-
 static struct comedi_driver adv_pci1710_driver = {
 	.driver_name	= "adv_pci1710",
 	.module		= THIS_MODULE,
 	.auto_attach	= pci1710_auto_attach,
-	.detach		= pci1710_detach,
+	.detach		= comedi_pci_detach,
 };
 
 static int adv_pci1710_pci_probe(struct pci_dev *dev,
