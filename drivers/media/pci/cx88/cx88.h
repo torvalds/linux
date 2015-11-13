@@ -30,7 +30,7 @@
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/videobuf2-dma-sg.h>
-#include <media/cx2341x.h>
+#include <media/drv-intf/cx2341x.h>
 #include <media/videobuf2-dvb.h>
 #include <media/i2c/ir-kbd-i2c.h>
 #include <media/i2c/wm8775.h>

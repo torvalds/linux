@@ -30,7 +30,7 @@
 #include <media/rc-core.h>
 
 #include "cx23885-reg.h"
-#include "media/cx2341x.h"
+#include "media/drv-intf/cx2341x.h"
 
 #include <linux/mutex.h>
 

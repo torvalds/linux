@@ -30,7 +30,7 @@
 #include <linux/slab.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
-#include <media/cx2341x.h>
+#include <media/drv-intf/cx2341x.h>
 
 #include "cx23885.h"
 #include "cx23885-ioctl.h"

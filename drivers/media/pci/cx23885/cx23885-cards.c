@@ -19,7 +19,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
-#include <media/cx25840.h>
+#include <media/drv-intf/cx25840.h>
 #include <linux/firmware.h>
 #include <misc/altera.h>
 

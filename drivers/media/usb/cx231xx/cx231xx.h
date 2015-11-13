@@ -30,7 +30,7 @@
 #include <linux/mutex.h>
 #include <linux/usb.h>
 
-#include <media/cx2341x.h>
+#include <media/drv-intf/cx2341x.h>
 
 #include <media/videobuf-vmalloc.h>
 #include <media/v4l2-device.h>

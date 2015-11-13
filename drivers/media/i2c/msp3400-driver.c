@@ -56,7 +56,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
-#include <media/msp3400.h>
+#include <media/drv-intf/msp3400.h>
 #include <media/i2c/tvaudio.h>
 #include "msp3400-driver.h"
 

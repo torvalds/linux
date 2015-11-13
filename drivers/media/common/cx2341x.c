@@ -27,7 +27,7 @@
 #include <linux/videodev2.h>
 
 #include <media/tuner.h>
-#include <media/cx2341x.h>
+#include <media/drv-intf/cx2341x.h>
 #include <media/v4l2-common.h>
 
 MODULE_DESCRIPTION("cx23415/6/8 driver");

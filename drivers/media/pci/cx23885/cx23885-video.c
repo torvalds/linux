@@ -35,7 +35,7 @@
 #include "cx23885-ioctl.h"
 #include "tuner-xc2028.h"
 
-#include <media/cx25840.h>
+#include <media/drv-intf/cx25840.h>
 
 MODULE_DESCRIPTION("v4l2 driver module for cx23885 based TV cards");
 MODULE_AUTHOR("Steven Toth <stoth@linuxtv.org>");

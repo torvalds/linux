@@ -33,7 +33,7 @@
 #include <media/v4l2-dev.h>
 #include <media/videobuf-dma-sg.h>
 #include <media/soc_camera.h>
-#include <media/soc_mediabus.h>
+#include <media/drv-intf/soc_mediabus.h>
 #include <media/v4l2-of.h>
 
 #include <linux/videodev2.h>

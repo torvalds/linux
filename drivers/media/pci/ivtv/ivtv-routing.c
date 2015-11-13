@@ -24,7 +24,7 @@
 #include "ivtv-gpio.h"
 #include "ivtv-routing.h"
 
-#include <media/msp3400.h>
+#include <media/drv-intf/msp3400.h>
 #include <media/i2c/m52790.h>
 #include <media/i2c/upd64031a.h>
 #include <media/i2c/upd64083.h>

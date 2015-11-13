@@ -30,7 +30,7 @@
 #include <linux/i2c.h>
 #include <linux/usb.h>
 #include <media/tuner.h>
-#include <media/msp3400.h>
+#include <media/drv-intf/msp3400.h>
 #include <media/i2c/saa7115.h>
 #include <media/i2c/tvp5150.h>
 #include <media/i2c/tvaudio.h>
