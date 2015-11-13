@@ -701,7 +701,7 @@ static int pci1710_counter_insn_config(struct comedi_device *dev,
 			data[2] = 0;
 		} else {
 			data[1] = 0;
-			data[2] = I8254_OSC_BASE_10MHZ;
+			data[2] = I8254_OSC_BASE_1MHZ;
 		}
 		break;
 	default:
