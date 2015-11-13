@@ -296,7 +296,7 @@ static struct tegra_dma_desc *tegra_dma_desc_get(
 	spin_unlock_irqrestore(&tdc->lock, flags);
 
 	/* Allocate DMA desc */
-	dma_desc = kzalloc(sizeof(*dma_desc), GFP_ATOMIC);
+	dma_desc = kzalloc(sizeof(*dma_desc), GFP_NOWAIT);
 	if (!dma_desc) {
 		dev_err(tdc2dev(tdc), "dma_desc alloc failed\n");
 		return NULL;
@@ -336,7 +336,7 @@ static struct tegra_dma_sg_req *tegra_dma_sg_req_get(
 	}
 	spin_unlock_irqrestore(&tdc->lock, flags);
 
-	sg_req = kzalloc(sizeof(struct tegra_dma_sg_req), GFP_ATOMIC);
+	sg_req = kzalloc(sizeof(struct tegra_dma_sg_req), GFP_NOWAIT);
 	if (!sg_req)
 		dev_err(tdc2dev(tdc), "sg_req alloc failed\n");
 	return sg_req;
