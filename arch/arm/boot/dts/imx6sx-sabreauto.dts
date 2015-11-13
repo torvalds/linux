@@ -337,6 +337,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_qspi1_1>;
 	status = "okay";
+	ddrsmp=<2>;
 
 	flash0: n25q256a@0 {
 		#address-cells = <1>;

@@ -38,6 +38,8 @@
 	status = "okay";
 
 #ifndef SPANSIONFLASH
+	ddrsmp=<0>;
+
 	flash0: n25q256a@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
