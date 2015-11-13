@@ -1101,8 +1101,6 @@ tcmu_parse_cdb(struct se_cmd *cmd)
 
 static const struct target_backend_ops tcmu_ops = {
 	.name			= "user",
-	.inquiry_prod		= "USER",
-	.inquiry_rev		= TCMU_VERSION,
 	.owner			= THIS_MODULE,
 	.transport_flags	= TRANSPORT_FLAG_PASSTHROUGH,
 	.attach_hba		= tcmu_attach_hba,
