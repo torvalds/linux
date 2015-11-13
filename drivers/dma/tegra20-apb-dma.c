@@ -1396,8 +1396,7 @@ static int tegra_dma_probe(struct platform_device *pdev)
 		}
 		tdc->irq = res->start;
 		snprintf(tdc->name, sizeof(tdc->name), "apbdma.%d", i);
-		ret = devm_request_irq(&pdev->dev, tdc->irq,
-				tegra_dma_isr, 0, tdc->name, tdc);
+		ret = request_irq(tdc->irq, tegra_dma_isr, 0, tdc->name, tdc);
 		if (ret) {
 			dev_err(&pdev->dev,
 				"request_irq failed with err %d channel %d\n",
@@ -1478,6 +1477,8 @@ err_unregister_dma_dev:
 err_irq:
 	while (--i >= 0) {
 		struct tegra_dma_channel *tdc = &tdma->channels[i];
+
+		free_irq(tdc->irq, tdc);
 		tasklet_kill(&tdc->tasklet);
 	}
 
@@ -1497,6 +1498,7 @@ static int tegra_dma_remove(struct platform_device *pdev)
 
 	for (i = 0; i < tdma->chip_data->nr_channels; ++i) {
 		tdc = &tdma->channels[i];
+		free_irq(tdc->irq, tdc);
 		tasklet_kill(&tdc->tasklet);
 	}
 
