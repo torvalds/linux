@@ -41,6 +41,9 @@
 #define PCI171X_AD_DATA_REG	0x00	/* R:   A/D data */
 #define PCI171X_SOFTTRG_REG	0x00	/* W:   soft trigger for A/D */
 #define PCI171X_RANGE_REG	0x02	/* W:   A/D gain/range register */
+#define PCI171X_RANGE_DIFF	BIT(5)
+#define PCI171X_RANGE_UNI	BIT(4)
+#define PCI171X_RANGE_GAIN(x)	(((x) & 0x7) << 0)
 #define PCI171X_MUX_REG		0x04	/* W:   A/D multiplexor control */
 #define PCI171X_STATUS_REG	0x06	/* R:   status register */
 #define PCI171X_STATUS_IRQ	BIT(11)	/* 1=IRQ occurred */
@@ -63,55 +66,46 @@
 #define PCI171X_DO_REG		0x10	/* W:   digital outputs */
 #define PCI171X_TIMER_BASE	0x18	/* R/W: 8254 timer */
 
-static const struct comedi_lrange range_pci1710_3 = {
+static const struct comedi_lrange pci1710_ai_range = {
 	9, {
-		BIP_RANGE(5),
-		BIP_RANGE(2.5),
-		BIP_RANGE(1.25),
-		BIP_RANGE(0.625),
-		BIP_RANGE(10),
-		UNI_RANGE(10),
-		UNI_RANGE(5),
-		UNI_RANGE(2.5),
-		UNI_RANGE(1.25)
+		BIP_RANGE(5),		/* gain 1   (0x00) */
+		BIP_RANGE(2.5),		/* gain 2   (0x01) */
+		BIP_RANGE(1.25),	/* gain 4   (0x02) */
+		BIP_RANGE(0.625),	/* gain 8   (0x03) */
+		BIP_RANGE(10),		/* gain 0.5 (0x04) */
+		UNI_RANGE(10),		/* gain 1   (0x00 | UNI) */
+		UNI_RANGE(5),		/* gain 2   (0x01 | UNI) */
+		UNI_RANGE(2.5),		/* gain 4   (0x02 | UNI) */
+		UNI_RANGE(1.25)		/* gain 8   (0x03 | UNI) */
 	}
 };
 
-static const char range_codes_pci1710_3[] = { 0x00, 0x01, 0x02, 0x03, 0x04,
-					      0x10, 0x11, 0x12, 0x13 };
-
-static const struct comedi_lrange range_pci1710hg = {
+static const struct comedi_lrange pci1710hg_ai_range = {
 	12, {
-		BIP_RANGE(5),
-		BIP_RANGE(0.5),
-		BIP_RANGE(0.05),
-		BIP_RANGE(0.005),
-		BIP_RANGE(10),
-		BIP_RANGE(1),
-		BIP_RANGE(0.1),
-		BIP_RANGE(0.01),
-		UNI_RANGE(10),
-		UNI_RANGE(1),
-		UNI_RANGE(0.1),
-		UNI_RANGE(0.01)
+		BIP_RANGE(5),		/* gain 1    (0x00) */
+		BIP_RANGE(0.5),		/* gain 10   (0x01) */
+		BIP_RANGE(0.05),	/* gain 100  (0x02) */
+		BIP_RANGE(0.005),	/* gain 1000 (0x03) */
+		BIP_RANGE(10),		/* gain 0.5  (0x04) */
+		BIP_RANGE(1),		/* gain 5    (0x05) */
+		BIP_RANGE(0.1),		/* gain 50   (0x06) */
+		BIP_RANGE(0.01),	/* gain 500  (0x07) */
+		UNI_RANGE(10),		/* gain 1    (0x00 | UNI) */
+		UNI_RANGE(1),		/* gain 10   (0x01 | UNI) */
+		UNI_RANGE(0.1),		/* gain 100  (0x02 | UNI) */
+		UNI_RANGE(0.01)		/* gain 1000 (0x03 | UNI) */
 	}
 };
 
-static const char range_codes_pci1710hg[] = { 0x00, 0x01, 0x02, 0x03, 0x04,
-					      0x05, 0x06, 0x07, 0x10, 0x11,
-					      0x12, 0x13 };
-
-static const struct comedi_lrange range_pci17x1 = {
+static const struct comedi_lrange pci1711_ai_range = {
 	5, {
-		BIP_RANGE(10),
-		BIP_RANGE(5),
-		BIP_RANGE(2.5),
-		BIP_RANGE(1.25),
-		BIP_RANGE(0.625)
+		BIP_RANGE(10),		/* gain 1  (0x00) */
+		BIP_RANGE(5),		/* gain 2  (0x01) */
+		BIP_RANGE(2.5),		/* gain 4  (0x02) */
+		BIP_RANGE(1.25),	/* gain 8  (0x03) */
+		BIP_RANGE(0.625)	/* gain 16 (0x04) */
 	}
 };
-
-static const char range_codes_pci17x1[] = { 0x00, 0x01, 0x02, 0x03, 0x04 };
 
 static const struct comedi_lrange pci171x_ao_range = {
 	2, {
@@ -132,7 +126,6 @@ struct boardtype {
 	const char *name;	/*  board name */
 	int n_aichan;		/*  num of A/D chans */
 	const struct comedi_lrange *rangelist_ai;	/*  rangelist for A/D */
-	const char *rangecode_ai;	/*  range codes for programming */
 	unsigned int is_pci1713:1;
 	unsigned int has_large_fifo:1;	/* 4K or 1K FIFO */
 	unsigned int has_diff_ai:1;
@@ -144,8 +137,7 @@ static const struct boardtype boardtypes[] = {
 	[BOARD_PCI1710] = {
 		.name		= "pci1710",
 		.n_aichan	= 16,
-		.rangelist_ai	= &range_pci1710_3,
-		.rangecode_ai	= range_codes_pci1710_3,
+		.rangelist_ai	= &pci1710_ai_range,
 		.has_large_fifo	= 1,
 		.has_diff_ai	= 1,
 		.has_ao		= 1,
@@ -154,8 +146,7 @@ static const struct boardtype boardtypes[] = {
 	[BOARD_PCI1710HG] = {
 		.name		= "pci1710hg",
 		.n_aichan	= 16,
-		.rangelist_ai	= &range_pci1710hg,
-		.rangecode_ai	= range_codes_pci1710hg,
+		.rangelist_ai	= &pci1710hg_ai_range,
 		.has_large_fifo	= 1,
 		.has_diff_ai	= 1,
 		.has_ao		= 1,
@@ -164,16 +155,14 @@ static const struct boardtype boardtypes[] = {
 	[BOARD_PCI1711] = {
 		.name		= "pci1711",
 		.n_aichan	= 16,
-		.rangelist_ai	= &range_pci17x1,
-		.rangecode_ai	= range_codes_pci17x1,
+		.rangelist_ai	= &pci1711_ai_range,
 		.has_ao		= 1,
 		.has_di_do	= 1,
 	},
 	[BOARD_PCI1713] = {
 		.name		= "pci1713",
 		.n_aichan	= 32,
-		.rangelist_ai	= &range_pci1710_3,
-		.rangecode_ai	= range_codes_pci1710_3,
+		.rangelist_ai	= &pci1710_ai_range,
 		.is_pci1713	= 1,
 		.has_large_fifo	= 1,
 		.has_diff_ai	= 1,
@@ -181,8 +170,7 @@ static const struct boardtype boardtypes[] = {
 	[BOARD_PCI1731] = {
 		.name		= "pci1731",
 		.n_aichan	= 16,
-		.rangelist_ai	= &range_pci17x1,
-		.rangecode_ai	= range_codes_pci17x1,
+		.rangelist_ai	= &pci1711_ai_range,
 		.has_di_do	= 1,
 	},
 };
@@ -196,6 +184,7 @@ struct pci1710_private {
 	unsigned int act_chanlist[32];	/*  list of scanned channel */
 	unsigned char saved_seglen;	/* len of the non-repeating chanlist */
 	unsigned char da_ranges;	/*  copy of D/A outpit range register */
+	unsigned char unipolar_gain;	/* adjust for unipolar gain codes */
 };
 
 static int pci171x_ai_check_chanlist(struct comedi_device *dev,
@@ -270,7 +259,6 @@ static void pci171x_ai_setup_chanlist(struct comedi_device *dev,
 				      unsigned int n_chan,
 				      unsigned int seglen)
 {
-	const struct boardtype *board = dev->board_ptr;
 	struct pci1710_private *devpriv = dev->private;
 	unsigned int first_chan = CR_CHAN(chanlist[0]);
 	unsigned int last_chan = CR_CHAN(chanlist[seglen - 1]);
@@ -280,11 +268,15 @@ static void pci171x_ai_setup_chanlist(struct comedi_device *dev,
 		unsigned int chan = CR_CHAN(chanlist[i]);
 		unsigned int range = CR_RANGE(chanlist[i]);
 		unsigned int aref = CR_AREF(chanlist[i]);
-		unsigned int rangeval;
+		unsigned int rangeval = 0;
 
-		rangeval = board->rangecode_ai[range];
 		if (aref == AREF_DIFF)
-			rangeval |= 0x0020;
+			rangeval |= PCI171X_RANGE_DIFF;
+		if (comedi_range_is_unipolar(s, range)) {
+			rangeval |= PCI171X_RANGE_UNI;
+			range -= devpriv->unipolar_gain;
+		}
+		rangeval |= PCI171X_RANGE_GAIN(range);
 
 		/* select channel and set range */
 		outw(chan | (chan << 8), dev->iobase + PCI171X_MUX_REG);
@@ -758,6 +750,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 	struct pci1710_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret, subdev, n_subdevices;
+	int i;
 
 	if (context < ARRAY_SIZE(boardtypes))
 		board = &boardtypes[context];
@@ -823,6 +816,15 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 			s->do_cmd	= pci171x_ai_cmd;
 			s->cancel	= pci171x_ai_cancel;
 		}
+
+		/* find the value needed to adjust for unipolar gain codes */
+		for (i = 0; i < s->range_table->length; i++) {
+			if (comedi_range_is_unipolar(s, i)) {
+				devpriv->unipolar_gain = i;
+				break;
+			}
+		}
+
 		subdev++;
 	}
 
