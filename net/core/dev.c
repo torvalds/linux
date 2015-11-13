@@ -6433,7 +6433,7 @@ int __netdev_update_features(struct net_device *dev)
 		netdev_err(dev,
 			"set_features() failed (%d); wanted %pNF, left %pNF\n",
 			err, &features, &dev->features);
-		return -1;
+		return 0;
 	}
 
 sync_lower:
