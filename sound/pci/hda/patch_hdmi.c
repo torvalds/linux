@@ -1530,6 +1530,56 @@ static int hdmi_read_pin_conn(struct hda_codec *codec, int pin_idx)
 	return 0;
 }
 
+/* update per_pin ELD from the given new ELD;
+ * setup info frame and notification accordingly
+ */
+static void update_eld(struct hda_codec *codec,
+		       struct hdmi_spec_per_pin *per_pin,
+		       struct hdmi_eld *eld)
+{
+	struct hdmi_eld *pin_eld = &per_pin->sink_eld;
+	bool old_eld_valid = pin_eld->eld_valid;
+	bool eld_changed;
+
+	if (eld->eld_valid)
+		snd_hdmi_show_eld(codec, &eld->info);
+
+	eld_changed = (pin_eld->eld_valid != eld->eld_valid);
+	if (eld->eld_valid && pin_eld->eld_valid)
+		if (pin_eld->eld_size != eld->eld_size ||
+		    memcmp(pin_eld->eld_buffer, eld->eld_buffer,
+			   eld->eld_size) != 0)
+			eld_changed = true;
+
+	pin_eld->eld_valid = eld->eld_valid;
+	pin_eld->eld_size = eld->eld_size;
+	if (eld->eld_valid)
+		memcpy(pin_eld->eld_buffer, eld->eld_buffer, eld->eld_size);
+	pin_eld->info = eld->info;
+
+	/*
+	 * Re-setup pin and infoframe. This is needed e.g. when
+	 * - sink is first plugged-in
+	 * - transcoder can change during stream playback on Haswell
+	 *   and this can make HW reset converter selection on a pin.
+	 */
+	if (eld->eld_valid && !old_eld_valid && per_pin->setup) {
+		if (is_haswell_plus(codec) || is_valleyview_plus(codec)) {
+			intel_verify_pin_cvt_connect(codec, per_pin);
+			intel_not_share_assigned_cvt(codec, per_pin->pin_nid,
+						     per_pin->mux_idx);
+		}
+
+		hdmi_setup_audio_infoframe(codec, per_pin, per_pin->non_pcm);
+	}
+
+	if (eld_changed)
+		snd_ctl_notify(codec->card,
+			       SNDRV_CTL_EVENT_MASK_VALUE |
+			       SNDRV_CTL_EVENT_MASK_INFO,
+			       &per_pin->eld_ctl->id);
+}
+
 static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 {
 	struct hda_jack_tbl *jack;
@@ -1547,8 +1597,6 @@ static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 	 * the unsolicited response to avoid custom WARs.
 	 */
 	int present;
-	bool update_eld = false;
-	bool eld_changed = false;
 	bool ret;
 
 	snd_hda_power_up_pm(codec);
@@ -1574,61 +1622,13 @@ static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 						    eld->eld_size) < 0)
 				eld->eld_valid = false;
 		}
-
-		if (eld->eld_valid) {
-			snd_hdmi_show_eld(codec, &eld->info);
-			update_eld = true;
-		}
-		else if (repoll) {
-			schedule_delayed_work(&per_pin->work,
-					      msecs_to_jiffies(300));
-			goto unlock;
-		}
 	}
 
-	if (pin_eld->eld_valid != eld->eld_valid)
-		eld_changed = true;
+	if (!eld->eld_valid && repoll)
+		schedule_delayed_work(&per_pin->work, msecs_to_jiffies(300));
+	else
+		update_eld(codec, per_pin, eld);
 
-	if (pin_eld->eld_valid && !eld->eld_valid)
-		update_eld = true;
-
-	if (update_eld) {
-		bool old_eld_valid = pin_eld->eld_valid;
-		pin_eld->eld_valid = eld->eld_valid;
-		if (pin_eld->eld_size != eld->eld_size ||
-			      memcmp(pin_eld->eld_buffer, eld->eld_buffer,
-				     eld->eld_size) != 0) {
-			memcpy(pin_eld->eld_buffer, eld->eld_buffer,
-			       eld->eld_size);
-			eld_changed = true;
-		}
-		pin_eld->eld_size = eld->eld_size;
-		pin_eld->info = eld->info;
-
-		/*
-		 * Re-setup pin and infoframe. This is needed e.g. when
-		 * - sink is first plugged-in (infoframe is not set up if !monitor_present)
-		 * - transcoder can change during stream playback on Haswell
-		 *   and this can make HW reset converter selection on a pin.
-		 */
-		if (eld->eld_valid && !old_eld_valid && per_pin->setup) {
-			if (is_haswell_plus(codec) ||
-				is_valleyview_plus(codec)) {
-				intel_verify_pin_cvt_connect(codec, per_pin);
-				intel_not_share_assigned_cvt(codec, pin_nid,
-							per_pin->mux_idx);
-			}
-
-			hdmi_setup_audio_infoframe(codec, per_pin,
-						   per_pin->non_pcm);
-		}
-	}
-
-	if (eld_changed)
-		snd_ctl_notify(codec->card,
-			       SNDRV_CTL_EVENT_MASK_VALUE | SNDRV_CTL_EVENT_MASK_INFO,
-			       &per_pin->eld_ctl->id);
- unlock:
 	ret = !repoll || !pin_eld->monitor_present || pin_eld->eld_valid;
 
 	jack = snd_hda_jack_tbl_get(codec, pin_nid);
