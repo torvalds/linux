@@ -365,16 +365,19 @@ static int pci171x_ai_insn_read(struct comedi_device *dev,
 	return ret ? ret : insn->n;
 }
 
-static int pci171x_ai_cancel(struct comedi_device *dev,
+static int pci1710_ai_cancel(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
 	struct pci1710_private *devpriv = dev->private;
 
-	devpriv->ctrl &= PCI171X_CTRL_CNT0;
-	devpriv->ctrl |= PCI171X_CTRL_SW;
-	/* reset any operations */
+	/* disable A/D triggers and interrupt sources */
+	devpriv->ctrl &= PCI171X_CTRL_CNT0;	/* preserve counter 0 clk src */
 	outw(devpriv->ctrl, dev->iobase + PCI171X_CTRL_REG);
+
+	/* disable pacer */
 	comedi_8254_pacer_enable(dev->pacer, 1, 2, false);
+
+	/* clear A/D FIFO and any pending interrutps */
 	outb(0, dev->iobase + PCI171X_CLRFIFO_REG);
 	outb(0, dev->iobase + PCI171X_CLRINT_REG);
 
@@ -806,7 +809,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		s->len_chanlist	= s->n_chan;
 		s->do_cmdtest	= pci171x_ai_cmdtest;
 		s->do_cmd	= pci171x_ai_cmd;
-		s->cancel	= pci171x_ai_cancel;
+		s->cancel	= pci1710_ai_cancel;
 	}
 
 	/* find the value needed to adjust for unipolar gain codes */
