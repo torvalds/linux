@@ -203,6 +203,7 @@ nfs42_ioctl_clone(struct file *dst_file, unsigned long srcfd,
 	struct fd src_file;
 	struct inode *src_inode;
 	unsigned int bs = server->clone_blksize;
+	bool same_inode = false;
 	int ret;
 
 	/* dst file must be opened for writing */
@@ -221,10 +222,8 @@ nfs42_ioctl_clone(struct file *dst_file, unsigned long srcfd,
 
 	src_inode = file_inode(src_file.file);
 
-	/* src and dst must be different files */
-	ret = -EINVAL;
 	if (src_inode == dst_inode)
-		goto out_fput;
+		same_inode = true;
 
 	/* src file must be opened for reading */
 	if (!(src_file.file->f_mode & FMODE_READ))
@@ -249,8 +248,16 @@ nfs42_ioctl_clone(struct file *dst_file, unsigned long srcfd,
 			goto out_fput;
 	}
 
+	/* verify if ranges are overlapped within the same file */
+	if (same_inode) {
+		if (dst_off + count > src_off && dst_off < src_off + count)
+			goto out_fput;
+	}
+
 	/* XXX: do we lock at all? what if server needs CB_RECALL_LAYOUT? */
-	if (dst_inode < src_inode) {
+	if (same_inode) {
+		mutex_lock(&src_inode->i_mutex);
+	} else if (dst_inode < src_inode) {
 		mutex_lock_nested(&dst_inode->i_mutex, I_MUTEX_PARENT);
 		mutex_lock_nested(&src_inode->i_mutex, I_MUTEX_CHILD);
 	} else {
@@ -275,7 +282,9 @@ nfs42_ioctl_clone(struct file *dst_file, unsigned long srcfd,
 		truncate_inode_pages_range(&dst_inode->i_data, dst_off, dst_off + count - 1);
 
 out_unlock:
-	if (dst_inode < src_inode) {
+	if (same_inode) {
+		mutex_unlock(&src_inode->i_mutex);
+	} else if (dst_inode < src_inode) {
 		mutex_unlock(&src_inode->i_mutex);
 		mutex_unlock(&dst_inode->i_mutex);
 	} else {
