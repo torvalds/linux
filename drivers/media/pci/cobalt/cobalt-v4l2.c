@@ -649,7 +649,7 @@ static int cobalt_s_dv_timings(struct file *file, void *priv_fh,
 		return 0;
 	}
 
-	if (v4l2_match_dv_timings(timings, &s->timings, 0))
+	if (v4l2_match_dv_timings(timings, &s->timings, 0, false))
 		return 0;
 
 	if (vb2_is_busy(&s->q))

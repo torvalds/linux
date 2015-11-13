@@ -155,7 +155,7 @@ static bool adv7842_check_dv_timings(const struct v4l2_dv_timings *t, void *hdl)
 	int i;
 
 	for (i = 0; adv7842_timings_exceptions[i].bt.width; i++)
-		if (v4l2_match_dv_timings(t, adv7842_timings_exceptions + i, 0))
+		if (v4l2_match_dv_timings(t, adv7842_timings_exceptions + i, 0, false))
 			return false;
 	return true;
 }
@@ -1008,7 +1008,7 @@ static int find_and_set_predefined_video_timings(struct v4l2_subdev *sd,
 
 	for (i = 0; predef_vid_timings[i].timings.bt.width; i++) {
 		if (!v4l2_match_dv_timings(timings, &predef_vid_timings[i].timings,
-					  is_digital_input(sd) ? 250000 : 1000000))
+				  is_digital_input(sd) ? 250000 : 1000000, false))
 			continue;
 		/* video std */
 		io_write(sd, 0x00, predef_vid_timings[i].vid_std);
@@ -1659,7 +1659,7 @@ static int adv7842_s_dv_timings(struct v4l2_subdev *sd,
 	if (state->mode == ADV7842_MODE_SDP)
 		return -ENODATA;
 
-	if (v4l2_match_dv_timings(&state->timings, timings, 0)) {
+	if (v4l2_match_dv_timings(&state->timings, timings, 0, false)) {
 		v4l2_dbg(1, debug, sd, "%s: no change\n", __func__);
 		return 0;
 	}

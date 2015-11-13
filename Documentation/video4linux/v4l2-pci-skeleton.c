@@ -509,7 +509,7 @@ static int skeleton_s_dv_timings(struct file *file, void *_fh,
 		return -EINVAL;
 
 	/* Return 0 if the new timings are the same as the current timings. */
-	if (v4l2_match_dv_timings(timings, &skel->timings, 0))
+	if (v4l2_match_dv_timings(timings, &skel->timings, 0, false))
 		return 0;
 
 	/*

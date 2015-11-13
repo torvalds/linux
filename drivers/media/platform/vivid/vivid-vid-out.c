@@ -1156,7 +1156,7 @@ int vivid_vid_out_s_dv_timings(struct file *file, void *_fh,
 				0, NULL, NULL) &&
 	    !valid_cvt_gtf_timings(timings))
 		return -EINVAL;
-	if (v4l2_match_dv_timings(timings, &dev->dv_timings_out, 0))
+	if (v4l2_match_dv_timings(timings, &dev->dv_timings_out, 0, true))
 		return 0;
 	if (vb2_is_busy(&dev->vb_vid_out_q))
 		return -EBUSY;

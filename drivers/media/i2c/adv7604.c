@@ -905,7 +905,7 @@ static int find_and_set_predefined_video_timings(struct v4l2_subdev *sd,
 
 	for (i = 0; predef_vid_timings[i].timings.bt.width; i++) {
 		if (!v4l2_match_dv_timings(timings, &predef_vid_timings[i].timings,
-					is_digital_input(sd) ? 250000 : 1000000))
+				is_digital_input(sd) ? 250000 : 1000000, false))
 			continue;
 		io_write(sd, 0x00, predef_vid_timings[i].vid_std); /* video std */
 		io_write(sd, 0x01, (predef_vid_timings[i].v_freq << 4) +
@@ -1479,7 +1479,7 @@ static void adv76xx_fill_optional_dv_timings_fields(struct v4l2_subdev *sd,
 
 	for (i = 0; adv76xx_timings[i].bt.width; i++) {
 		if (v4l2_match_dv_timings(timings, &adv76xx_timings[i],
-					is_digital_input(sd) ? 250000 : 1000000)) {
+				is_digital_input(sd) ? 250000 : 1000000, false)) {
 			*timings = adv76xx_timings[i];
 			break;
 		}
@@ -1644,7 +1644,7 @@ static int adv76xx_s_dv_timings(struct v4l2_subdev *sd,
 	if (!timings)
 		return -EINVAL;
 
-	if (v4l2_match_dv_timings(&state->timings, timings, 0)) {
+	if (v4l2_match_dv_timings(&state->timings, timings, 0, false)) {
 		v4l2_dbg(1, debug, sd, "%s: no change\n", __func__);
 		return 0;
 	}

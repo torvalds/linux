@@ -107,12 +107,14 @@ bool v4l2_find_dv_timings_cap(struct v4l2_dv_timings *t,
  * @standard:	  the timings according to the standard.
  * @pclock_delta: maximum delta in Hz between standard->pixelclock and
  * 		the measured timings.
+ * @match_reduced_fps: if true, then fail if V4L2_DV_FL_REDUCED_FPS does not
+ * match.
  *
  * Returns true if the two timings match, returns false otherwise.
  */
 bool v4l2_match_dv_timings(const struct v4l2_dv_timings *measured,
 			   const struct v4l2_dv_timings *standard,
-			   unsigned pclock_delta);
+			   unsigned pclock_delta, bool match_reduced_fps);
 
 /**
  * v4l2_print_dv_timings() - log the contents of a dv_timings struct
