@@ -1545,6 +1545,10 @@ static int tegra_dma_pm_suspend(struct device *dev)
 		struct tegra_dma_channel *tdc = &tdma->channels[i];
 		struct tegra_dma_channel_regs *ch_reg = &tdc->channel_reg;
 
+		/* Only save the state of DMA channels that are in use */
+		if (!tdc->config_init)
+			continue;
+
 		ch_reg->csr = tdc_read(tdc, TEGRA_APBDMA_CHAN_CSR);
 		ch_reg->ahb_ptr = tdc_read(tdc, TEGRA_APBDMA_CHAN_AHBPTR);
 		ch_reg->apb_ptr = tdc_read(tdc, TEGRA_APBDMA_CHAN_APBPTR);
@@ -1578,6 +1582,10 @@ static int tegra_dma_pm_resume(struct device *dev)
 	for (i = 0; i < tdma->chip_data->nr_channels; i++) {
 		struct tegra_dma_channel *tdc = &tdma->channels[i];
 		struct tegra_dma_channel_regs *ch_reg = &tdc->channel_reg;
+
+		/* Only restore the state of DMA channels that are in use */
+		if (!tdc->config_init)
+			continue;
 
 		if (tdma->chip_data->support_separate_wcount_reg)
 			tdc_write(tdc, TEGRA_APBDMA_CHAN_WCOUNT,
