@@ -1246,7 +1246,7 @@ int debuginfo__find_trace_events(struct debuginfo *dbg,
 	struct trace_event_finder tf = {
 			.pf = {.pev = pev, .callback = add_probe_trace_event},
 			.max_tevs = probe_conf.max_probes, .mod = dbg->mod};
-	int ret;
+	int ret, i;
 
 	/* Allocate result tevs array */
 	*tevs = zalloc(sizeof(struct probe_trace_event) * tf.max_tevs);
@@ -1258,6 +1258,8 @@ int debuginfo__find_trace_events(struct debuginfo *dbg,
 
 	ret = debuginfo__find_probes(dbg, &tf.pf);
 	if (ret < 0) {
+		for (i = 0; i < tf.ntevs; i++)
+			clear_probe_trace_event(&tf.tevs[i]);
 		zfree(tevs);
 		return ret;
 	}
