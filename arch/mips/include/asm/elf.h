@@ -305,17 +305,16 @@ extern struct mips_abi mips_abi_n32;
 
 #define SET_PERSONALITY2(ex, state)					\
 do {									\
-	if (personality(current->personality) != PER_LINUX)		\
-		set_personality(PER_LINUX);				\
-									\
 	clear_thread_flag(TIF_HYBRID_FPREGS);				\
 	set_thread_flag(TIF_32BIT_FPREGS);				\
 									\
-	mips_set_personality_fp(state);					\
-									\
 	current->thread.abi = &mips_abi;				\
 									\
+	mips_set_personality_fp(state);					\
 	mips_set_personality_nan(state);				\
+									\
+	if (personality(current->personality) != PER_LINUX)		\
+		set_personality(PER_LINUX);				\
 } while (0)
 
 #endif /* CONFIG_32BIT */
@@ -326,6 +325,7 @@ do {									\
 #define __SET_PERSONALITY32_N32()					\
 	do {								\
 		set_thread_flag(TIF_32BIT_ADDR);			\
+									\
 		current->thread.abi = &mips_abi_n32;			\
 	} while (0)
 #else
@@ -341,9 +341,9 @@ do {									\
 		clear_thread_flag(TIF_HYBRID_FPREGS);			\
 		set_thread_flag(TIF_32BIT_FPREGS);			\
 									\
-		mips_set_personality_fp(state);				\
-									\
 		current->thread.abi = &mips_abi_32;			\
+									\
+		mips_set_personality_fp(state);				\
 	} while (0)
 #else
 #define __SET_PERSONALITY32_O32(ex, state)				\
