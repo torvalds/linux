@@ -126,8 +126,8 @@ enum pci1710_boardid {
 };
 
 struct boardtype {
-	const char *name;	/*  board name */
-	const struct comedi_lrange *rangelist_ai;	/*  rangelist for A/D */
+	const char *name;
+	const struct comedi_lrange *ai_range;
 	unsigned int is_pci1711:1;
 	unsigned int is_pci1713:1;
 	unsigned int has_ao:1;
@@ -136,28 +136,28 @@ struct boardtype {
 static const struct boardtype boardtypes[] = {
 	[BOARD_PCI1710] = {
 		.name		= "pci1710",
-		.rangelist_ai	= &pci1710_ai_range,
+		.ai_range	= &pci1710_ai_range,
 		.has_ao		= 1,
 	},
 	[BOARD_PCI1710HG] = {
 		.name		= "pci1710hg",
-		.rangelist_ai	= &pci1710hg_ai_range,
+		.ai_range	= &pci1710hg_ai_range,
 		.has_ao		= 1,
 	},
 	[BOARD_PCI1711] = {
 		.name		= "pci1711",
-		.rangelist_ai	= &pci1711_ai_range,
+		.ai_range	= &pci1711_ai_range,
 		.is_pci1711	= 1,
 		.has_ao		= 1,
 	},
 	[BOARD_PCI1713] = {
 		.name		= "pci1713",
-		.rangelist_ai	= &pci1710_ai_range,
+		.ai_range	= &pci1710_ai_range,
 		.is_pci1713	= 1,
 	},
 	[BOARD_PCI1731] = {
 		.name		= "pci1731",
-		.rangelist_ai	= &pci1711_ai_range,
+		.ai_range	= &pci1711_ai_range,
 		.is_pci1711	= 1,
 	},
 };
@@ -795,7 +795,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		s->subdev_flags	|= SDF_DIFF;
 	s->n_chan	= board->is_pci1713 ? 32 : 16;
 	s->maxdata	= 0x0fff;
-	s->range_table	= board->rangelist_ai;
+	s->range_table	= board->ai_range;
 	s->insn_read	= pci171x_ai_insn_read;
 	if (dev->irq) {
 		dev->read_subdev = s;
