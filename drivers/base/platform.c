@@ -949,8 +949,8 @@ static int platform_match(struct device *dev, struct device_driver *drv)
 		return !strcmp(pdev->driver_override, drv->name);
 
 	/* Attempt an OF style match first */
-	if (of_driver_match_device(dev, drv))
-		return 1;
+	if (pdev->dev.of_node)
+		return of_driver_match_device(dev, drv);
 
 	/* Then try ACPI style match */
 	if (acpi_driver_match_device(dev, drv))
