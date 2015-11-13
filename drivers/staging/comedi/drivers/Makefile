@@ -81,6 +81,7 @@ obj-$(CONFIG_COMEDI_ADV_PCI1710)	+= adv_pci1710.o
 obj-$(CONFIG_COMEDI_ADV_PCI1720)	+= adv_pci1720.o
 obj-$(CONFIG_COMEDI_ADV_PCI1723)	+= adv_pci1723.o
 obj-$(CONFIG_COMEDI_ADV_PCI1724)	+= adv_pci1724.o
+obj-$(CONFIG_COMEDI_ADV_PCI1760)	+= adv_pci1760.o
 obj-$(CONFIG_COMEDI_ADV_PCI_DIO)	+= adv_pci_dio.o
 obj-$(CONFIG_COMEDI_AMPLC_DIO200_PCI)	+= amplc_dio200_pci.o
 obj-$(CONFIG_COMEDI_AMPLC_PC236_PCI)	+= amplc_pci236.o
