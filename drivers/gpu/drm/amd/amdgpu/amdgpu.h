@@ -929,8 +929,6 @@ struct amdgpu_vm_id {
 };
 
 struct amdgpu_vm {
-	struct mutex		mutex;
-
 	struct rb_root		va;
 
 	/* protecting invalidated */

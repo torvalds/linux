@@ -1241,7 +1241,6 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 		vm->ids[i].id = 0;
 		vm->ids[i].flushed_updates = NULL;
 	}
-	mutex_init(&vm->mutex);
 	vm->va = RB_ROOT;
 	spin_lock_init(&vm->status_lock);
 	INIT_LIST_HEAD(&vm->invalidated);
@@ -1325,7 +1324,6 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 		fence_put(vm->ids[i].flushed_updates);
 	}
 
-	mutex_destroy(&vm->mutex);
 }
 
 /**
