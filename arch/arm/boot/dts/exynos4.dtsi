@@ -949,7 +949,6 @@
 		interrupts = <5 0>;
 		clock-names = "sysmmu", "master";
 		clocks = <&clock CLK_SMMU_ROTATOR>, <&clock CLK_ROTATOR>;
-		power-domains = <&pd_lcd0>;
 		#iommu-cells = <0>;
 	};
 

@@ -283,3 +283,7 @@
 &rotator {
 	power-domains = <&pd_lcd0>;
 };
+
+&sysmmu_rotator {
+	power-domains = <&pd_lcd0>;
+};
