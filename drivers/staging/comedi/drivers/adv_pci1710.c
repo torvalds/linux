@@ -820,9 +820,10 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 	subdev++;
 
 	if (board->has_ao) {
+		/* Analog Output subdevice */
 		s = &dev->subdevices[subdev];
 		s->type		= COMEDI_SUBD_AO;
-		s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
+		s->subdev_flags	= SDF_WRITABLE | SDF_GROUND;
 		s->n_chan	= 2;
 		s->maxdata	= 0x0fff;
 		s->range_table	= &pci171x_ao_range;
