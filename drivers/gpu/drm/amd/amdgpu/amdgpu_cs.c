@@ -858,10 +858,13 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		job->base.sched = &ring->sched;
 		job->base.s_entity = &parser.ctx->rings[ring->idx].entity;
 		job->adev = parser.adev;
-		job->ibs = parser.ibs;
-		job->num_ibs = parser.num_ibs;
 		job->owner = parser.filp;
 		job->free_job = amdgpu_cs_free_job;
+
+		job->ibs = parser.ibs;
+		job->num_ibs = parser.num_ibs;
+		parser.ibs = NULL;
+		parser.num_ibs = 0;
 
 		if (job->ibs[job->num_ibs - 1].user) {
 			job->uf = parser.uf;
@@ -883,9 +886,6 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		cs->out.handle = amdgpu_ctx_add_fence(parser.ctx, ring,
 						      &fence->base);
 		job->ibs[job->num_ibs - 1].sequence = cs->out.handle;
-
-		parser.ibs = NULL;
-		parser.num_ibs = 0;
 
 		trace_amdgpu_cs_ioctl(job);
 		amd_sched_entity_push_job(&job->base);
