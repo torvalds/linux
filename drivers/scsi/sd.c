@@ -2238,11 +2238,8 @@ got_data:
 		}
 	}
 
-	if (sdkp->capacity > 0xffffffff) {
+	if (sdkp->capacity > 0xffffffff)
 		sdp->use_16_for_rw = 1;
-		sdkp->max_xfer_blocks = SD_MAX_XFER_BLOCKS;
-	} else
-		sdkp->max_xfer_blocks = SD_DEF_XFER_BLOCKS;
 
 	/* Rescale capacity to 512-byte units */
 	if (sector_size == 4096)
@@ -2559,7 +2556,6 @@ static void sd_read_block_limits(struct scsi_disk *sdkp)
 {
 	unsigned int sector_sz = sdkp->device->sector_size;
 	const int vpd_len = 64;
-	u32 max_xfer_length;
 	unsigned char *buffer = kmalloc(vpd_len, GFP_KERNEL);
 
 	if (!buffer ||
@@ -2567,14 +2563,11 @@ static void sd_read_block_limits(struct scsi_disk *sdkp)
 	    scsi_get_vpd_page(sdkp->device, 0xb0, buffer, vpd_len))
 		goto out;
 
-	max_xfer_length = get_unaligned_be32(&buffer[8]);
-	if (max_xfer_length)
-		sdkp->max_xfer_blocks = max_xfer_length;
-
 	blk_queue_io_min(sdkp->disk->queue,
 			 get_unaligned_be16(&buffer[6]) * sector_sz);
-	blk_queue_io_opt(sdkp->disk->queue,
-			 get_unaligned_be32(&buffer[12]) * sector_sz);
+
+	sdkp->max_xfer_blocks = get_unaligned_be32(&buffer[8]);
+	sdkp->opt_xfer_blocks = get_unaligned_be32(&buffer[12]);
 
 	if (buffer[3] == 0x3c) {
 		unsigned int lba_count, desc_count;
@@ -2723,6 +2716,11 @@ static int sd_try_extended_inquiry(struct scsi_device *sdp)
 	return 0;
 }
 
+static inline u32 logical_to_sectors(struct scsi_device *sdev, u32 blocks)
+{
+	return blocks << (ilog2(sdev->sector_size) - 9);
+}
+
 /**
  *	sd_revalidate_disk - called the first time a new disk is seen,
  *	performs disk spin up, read_capacity, etc.
@@ -2732,8 +2730,9 @@ static int sd_revalidate_disk(struct gendisk *disk)
 {
 	struct scsi_disk *sdkp = scsi_disk(disk);
 	struct scsi_device *sdp = sdkp->device;
+	struct request_queue *q = sdkp->disk->queue;
 	unsigned char *buffer;
-	unsigned int max_xfer;
+	unsigned int dev_max, rw_max;
 
 	SCSI_LOG_HLQUEUE(3, sd_printk(KERN_INFO, sdkp,
 				      "sd_revalidate_disk\n"));
@@ -2781,11 +2780,26 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	 */
 	sd_set_flush_flag(sdkp);
 
-	max_xfer = sdkp->max_xfer_blocks;
-	max_xfer <<= ilog2(sdp->sector_size) - 9;
+	/* Initial block count limit based on CDB TRANSFER LENGTH field size. */
+	dev_max = sdp->use_16_for_rw ? SD_MAX_XFER_BLOCKS : SD_DEF_XFER_BLOCKS;
 
-	sdkp->disk->queue->limits.max_sectors =
-		min_not_zero(queue_max_hw_sectors(sdkp->disk->queue), max_xfer);
+	/* Some devices report a maximum block count for READ/WRITE requests. */
+	dev_max = min_not_zero(dev_max, sdkp->max_xfer_blocks);
+	q->limits.max_dev_sectors = logical_to_sectors(sdp, dev_max);
+
+	/*
+	 * Use the device's preferred I/O size for reads and writes
+	 * unless the reported value is unreasonably large (or garbage).
+	 */
+	if (sdkp->opt_xfer_blocks && sdkp->opt_xfer_blocks <= dev_max &&
+	    sdkp->opt_xfer_blocks <= SD_DEF_XFER_BLOCKS)
+		rw_max = q->limits.io_opt =
+			logical_to_sectors(sdp, sdkp->opt_xfer_blocks);
+	else
+		rw_max = BLK_DEF_MAX_SECTORS;
+
+	/* Combine with controller limits */
+	q->limits.max_sectors = min(rw_max, queue_max_hw_sectors(q));
 
 	set_capacity(disk, sdkp->capacity);
 	sd_config_write_same(sdkp);
