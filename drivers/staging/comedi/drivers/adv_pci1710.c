@@ -45,6 +45,9 @@
 #define PCI171X_RANGE_UNI	BIT(4)
 #define PCI171X_RANGE_GAIN(x)	(((x) & 0x7) << 0)
 #define PCI171X_MUX_REG		0x04	/* W:   A/D multiplexor control */
+#define PCI171X_MUX_CHANH(x)	(((x) & 0xf) << 8)
+#define PCI171X_MUX_CHANL(x)	(((x) & 0xf) << 0)
+#define PCI171X_MUX_CHAN(x)	(PCI171X_MUX_CHANH(x) | PCI171X_MUX_CHANL(x))
 #define PCI171X_STATUS_REG	0x06	/* R:   status register */
 #define PCI171X_STATUS_IRQ	BIT(11)	/* 1=IRQ occurred */
 #define PCI171X_STATUS_FF	BIT(10)	/* 1=FIFO is full, fatal error */
@@ -179,7 +182,7 @@ struct pci1710_private {
 	unsigned int max_samples;
 	unsigned int ctrl;	/* control register value */
 	unsigned int ctrl_ext;	/* used to switch from TRIG_EXT to TRIG_xxx */
-	unsigned int mux_ext;	/* used to set the channel interval to scan */
+	unsigned int mux_scan;	/* used to set the channel interval to scan */
 	unsigned char ai_et;
 	unsigned int act_chanlist[32];	/*  list of scanned channel */
 	unsigned char saved_seglen;	/* len of the non-repeating chanlist */
@@ -279,7 +282,7 @@ static void pci171x_ai_setup_chanlist(struct comedi_device *dev,
 		rangeval |= PCI171X_RANGE_GAIN(range);
 
 		/* select channel and set range */
-		outw(chan | (chan << 8), dev->iobase + PCI171X_MUX_REG);
+		outw(PCI171X_MUX_CHAN(chan), dev->iobase + PCI171X_MUX_REG);
 		outw(rangeval, dev->iobase + PCI171X_RANGE_REG);
 
 		devpriv->act_chanlist[i] = chan;
@@ -288,8 +291,9 @@ static void pci171x_ai_setup_chanlist(struct comedi_device *dev,
 		devpriv->act_chanlist[i] = CR_CHAN(chanlist[i]);
 
 	/* select channel interval to scan */
-	devpriv->mux_ext = first_chan | (last_chan << 8);
-	outw(devpriv->mux_ext, dev->iobase + PCI171X_MUX_REG);
+	devpriv->mux_scan = PCI171X_MUX_CHANL(first_chan) |
+			    PCI171X_MUX_CHANH(last_chan);
+	outw(devpriv->mux_scan, dev->iobase + PCI171X_MUX_REG);
 }
 
 static int pci171x_ai_eoc(struct comedi_device *dev,
@@ -551,7 +555,7 @@ static irqreturn_t interrupt_service_pci1710(int irq, void *d)
 		outb(0, dev->iobase + PCI171X_CLRFIFO_REG);
 		outb(0, dev->iobase + PCI171X_CLRINT_REG);
 		/* no sample on this interrupt; reset the channel interval */
-		outw(devpriv->mux_ext, dev->iobase + PCI171X_MUX_REG);
+		outw(devpriv->mux_scan, dev->iobase + PCI171X_MUX_REG);
 		outw(devpriv->ctrl, dev->iobase + PCI171X_CTRL_REG);
 		comedi_8254_pacer_enable(dev->pacer, 1, 2, true);
 		return IRQ_HANDLED;
