@@ -748,8 +748,12 @@ static void exynos5_powerdown_conf(enum sys_powerdown mode)
 void exynos_sys_powerdown_conf(enum sys_powerdown mode)
 {
 	unsigned int i;
+	const struct exynos_pmu_data *pmu_data;
 
-	const struct exynos_pmu_data *pmu_data = pmu_context->pmu_data;
+	if (!pmu_context)
+		return;
+
+	pmu_data = pmu_context->pmu_data;
 
 	if (pmu_data->powerdown_conf)
 		pmu_data->powerdown_conf(mode);
