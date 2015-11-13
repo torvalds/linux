@@ -99,6 +99,78 @@ static inline void cpu_set_fpu_fcsr_mask(struct cpuinfo_mips *c)
 }
 
 /*
+ * Determine the IEEE 754 NaN encodings and ABS.fmt/NEG.fmt execution modes
+ * supported by FPU hardware.
+ */
+static void cpu_set_fpu_2008(struct cpuinfo_mips *c)
+{
+	if (c->isa_level & (MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M64R1 |
+			    MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2 |
+			    MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R6)) {
+		unsigned long sr, fir, fcsr, fcsr0, fcsr1;
+
+		sr = read_c0_status();
+		__enable_fpu(FPU_AS_IS);
+
+		fir = read_32bit_cp1_register(CP1_REVISION);
+		if (fir & MIPS_FPIR_HAS2008) {
+			fcsr = read_32bit_cp1_register(CP1_STATUS);
+
+			fcsr0 = fcsr & ~(FPU_CSR_ABS2008 | FPU_CSR_NAN2008);
+			write_32bit_cp1_register(CP1_STATUS, fcsr0);
+			fcsr0 = read_32bit_cp1_register(CP1_STATUS);
+
+			fcsr1 = fcsr | FPU_CSR_ABS2008 | FPU_CSR_NAN2008;
+			write_32bit_cp1_register(CP1_STATUS, fcsr1);
+			fcsr1 = read_32bit_cp1_register(CP1_STATUS);
+
+			write_32bit_cp1_register(CP1_STATUS, fcsr);
+
+			if (!(fcsr0 & FPU_CSR_NAN2008))
+				c->options |= MIPS_CPU_NAN_LEGACY;
+			if (fcsr1 & FPU_CSR_NAN2008)
+				c->options |= MIPS_CPU_NAN_2008;
+
+			if ((fcsr0 ^ fcsr1) & FPU_CSR_ABS2008)
+				c->fpu_msk31 &= ~FPU_CSR_ABS2008;
+			else
+				c->fpu_csr31 |= fcsr & FPU_CSR_ABS2008;
+
+			if ((fcsr0 ^ fcsr1) & FPU_CSR_NAN2008)
+				c->fpu_msk31 &= ~FPU_CSR_NAN2008;
+			else
+				c->fpu_csr31 |= fcsr & FPU_CSR_NAN2008;
+		} else {
+			c->options |= MIPS_CPU_NAN_LEGACY;
+		}
+
+		write_c0_status(sr);
+	} else {
+		c->options |= MIPS_CPU_NAN_LEGACY;
+	}
+}
+
+/*
+ * Set the IEEE 754 NaN encodings and ABS.fmt/NEG.fmt execution modes
+ * for the FPU emulator.  Clear the flags where required in case called
+ * from `fpu_disable', to override details obtained from FPU hardware.
+ */
+static void cpu_set_nofpu_2008(struct cpuinfo_mips *c)
+{
+	c->fpu_csr31 &= ~(FPU_CSR_ABS2008 | FPU_CSR_NAN2008);
+	if (c->isa_level & (MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M64R1 |
+			    MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2 |
+			    MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R6)) {
+		c->options |= MIPS_CPU_NAN_2008 | MIPS_CPU_NAN_LEGACY;
+		c->fpu_msk31 &= ~(FPU_CSR_ABS2008 | FPU_CSR_NAN2008);
+	} else {
+		c->options &= ~MIPS_CPU_NAN_2008;
+		c->options |= MIPS_CPU_NAN_LEGACY;
+		c->fpu_msk31 |= FPU_CSR_ABS2008 | FPU_CSR_NAN2008;
+	}
+}
+
+/*
  * Set the FIR feature flags for the FPU emulator.
  */
 static void cpu_set_nofpu_id(struct cpuinfo_mips *c)
@@ -139,7 +211,7 @@ static void cpu_set_fpu_opts(struct cpuinfo_mips *c)
 	}
 
 	cpu_set_fpu_fcsr_mask(c);
-	c->options |= MIPS_CPU_NAN_LEGACY;
+	cpu_set_fpu_2008(c);
 }
 
 /*
@@ -150,7 +222,7 @@ static void cpu_set_nofpu_opts(struct cpuinfo_mips *c)
 	c->options &= ~MIPS_CPU_FPU;
 	c->fpu_msk31 = mips_nofpu_msk31;
 
-	c->options |= MIPS_CPU_NAN_LEGACY;
+	cpu_set_nofpu_2008(c);
 	cpu_set_nofpu_id(c);
 }
 
