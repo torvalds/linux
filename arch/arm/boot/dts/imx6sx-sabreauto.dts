@@ -213,6 +213,12 @@
 	status = "okay";
 };
 
+&gpmi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpmi_nand_1>;
+	status = "okay";
+};
+
 &i2c2 {
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
@@ -325,6 +331,28 @@
 &pcie {
 	reset-gpio = <&max7310_b 3 0>;
 	status = "okay";
+};
+
+&qspi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_qspi1_1>;
+	status = "okay";
+
+	flash0: n25q256a@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "micron,n25q256a";
+		spi-max-frequency = <29000000>;
+		reg = <0>;
+	};
+
+	flash1: n25q256a@1 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "micron,n25q256a";
+		spi-max-frequency = <29000000>;
+		reg = <1>;
+	};
 };
 
 &spdif {
@@ -478,6 +506,27 @@
 			>;
 		};
 
+		pinctrl_gpmi_nand_1: gpmi-nand-1 {
+			fsl,pins = <
+				MX6SX_PAD_NAND_CLE__RAWNAND_CLE         0xb0b1
+				MX6SX_PAD_NAND_ALE__RAWNAND_ALE         0xb0b1
+				MX6SX_PAD_NAND_WP_B__RAWNAND_WP_B       0xb0b1
+				MX6SX_PAD_NAND_READY_B__RAWNAND_READY_B 0xb000
+				MX6SX_PAD_NAND_CE0_B__RAWNAND_CE0_B     0xb0b1
+				MX6SX_PAD_NAND_CE1_B__RAWNAND_CE1_B     0xb0b1
+				MX6SX_PAD_NAND_RE_B__RAWNAND_RE_B       0xb0b1
+				MX6SX_PAD_NAND_WE_B__RAWNAND_WE_B       0xb0b1
+				MX6SX_PAD_NAND_DATA00__RAWNAND_DATA00   0xb0b1
+				MX6SX_PAD_NAND_DATA01__RAWNAND_DATA01   0xb0b1
+				MX6SX_PAD_NAND_DATA02__RAWNAND_DATA02   0xb0b1
+				MX6SX_PAD_NAND_DATA03__RAWNAND_DATA03   0xb0b1
+				MX6SX_PAD_NAND_DATA04__RAWNAND_DATA04   0xb0b1
+				MX6SX_PAD_NAND_DATA05__RAWNAND_DATA05   0xb0b1
+				MX6SX_PAD_NAND_DATA06__RAWNAND_DATA06   0xb0b1
+				MX6SX_PAD_NAND_DATA07__RAWNAND_DATA07   0xb0b1
+			>;
+		};
+
 		pinctrl_i2c2_1: i2c2grp-1 {
 			fsl,pins = <
 				MX6SX_PAD_GPIO1_IO03__I2C2_SDA          0x4001b8b1
@@ -495,6 +544,23 @@
 		pinctrl_pwm4_0: pwm4grp-0 {
 			fsl,pins = <
 				MX6SX_PAD_SD1_DATA1__PWM4_OUT 0x110b0
+			>;
+		};
+
+		pinctrl_qspi1_1: qspi1grp_1 {
+			fsl,pins = <
+				MX6SX_PAD_QSPI1A_DATA0__QSPI1_A_DATA_0  0x70a1
+				MX6SX_PAD_QSPI1A_DATA1__QSPI1_A_DATA_1  0x70a1
+				MX6SX_PAD_QSPI1A_DATA2__QSPI1_A_DATA_2  0x70a1
+				MX6SX_PAD_QSPI1A_DATA3__QSPI1_A_DATA_3  0x70a1
+				MX6SX_PAD_QSPI1A_SCLK__QSPI1_A_SCLK     0x70a1
+				MX6SX_PAD_QSPI1A_SS0_B__QSPI1_A_SS0_B   0x70a1
+				MX6SX_PAD_QSPI1B_DATA0__QSPI1_B_DATA_0  0x70a1
+				MX6SX_PAD_QSPI1B_DATA1__QSPI1_B_DATA_1  0x70a1
+				MX6SX_PAD_QSPI1B_DATA2__QSPI1_B_DATA_2  0x70a1
+				MX6SX_PAD_QSPI1B_DATA3__QSPI1_B_DATA_3  0x70a1
+				MX6SX_PAD_QSPI1B_SCLK__QSPI1_B_SCLK     0x70a1
+				MX6SX_PAD_QSPI1B_SS0_B__QSPI1_B_SS0_B   0x70a1
 			>;
 		};
 
