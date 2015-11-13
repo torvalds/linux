@@ -1114,7 +1114,8 @@ static int be_set_rss_hash_opts(struct be_adapter *adapter,
 		return 0;
 
 	status = be_cmd_rss_config(adapter, adapter->rss_info.rsstable,
-				   rss_flags, 128, adapter->rss_info.rss_hkey);
+				   rss_flags, RSS_INDIR_TABLE_LEN,
+				   adapter->rss_info.rss_hkey);
 	if (!status)
 		adapter->rss_info.rss_flags = rss_flags;
 
