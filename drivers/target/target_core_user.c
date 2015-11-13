@@ -638,7 +638,7 @@ static int tcmu_check_expired_cmd(int id, void *p, void *data)
 	if (test_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags))
 		return 0;
 
-	if (!time_after(cmd->deadline, jiffies))
+	if (!time_after(jiffies, cmd->deadline))
 		return 0;
 
 	set_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags);
