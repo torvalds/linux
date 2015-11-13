@@ -32,6 +32,7 @@ struct reset_controller_dev;
  * @pd: generic power domain
  * @regmap: regmap for MMIO accesses
  * @gdscr: gsdc control register
+ * @gds_hw_ctrl: gds_hw_ctrl register
  * @cxcs: offsets of branch registers to toggle mem/periph bits in
  * @cxc_count: number of @cxcs
  * @pwrsts: Possible powerdomain power states
@@ -44,6 +45,7 @@ struct gdsc {
 	struct generic_pm_domain	*parent;
 	struct regmap			*regmap;
 	unsigned int			gdscr;
+	unsigned int			gds_hw_ctrl;
 	unsigned int			*cxcs;
 	unsigned int			cxc_count;
 	const u8			pwrsts;
