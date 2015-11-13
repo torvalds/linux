@@ -339,6 +339,10 @@
 	compatible = "samsung,exynos4212-jpeg";
 };
 
+&rotator {
+	compatible = "samsung,exynos4212-rotator";
+};
+
 &mixer {
 	compatible = "samsung,exynos4212-mixer";
 	clock-names = "mixer", "hdmi", "sclk_hdmi", "vp";

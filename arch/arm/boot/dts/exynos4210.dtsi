@@ -279,3 +279,7 @@
 		<&clock CLK_OUT_CPU>, <&clock CLK_XXTI>, <&clock CLK_XUSBXTI>;
 	#clock-cells = <1>;
 };
+
+&rotator {
+	power-domains = <&pd_lcd0>;
+};

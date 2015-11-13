@@ -713,6 +713,15 @@
 		iommus = <&sysmmu_jpeg>;
 	};
 
+	rotator: rotator@12810000 {
+		compatible = "samsung,exynos4210-rotator";
+		reg = <0x12810000 0x64>;
+		interrupts = <0 83 0>;
+		clocks = <&clock CLK_ROTATOR>;
+		clock-names = "rotator";
+		iommus = <&sysmmu_rotator>;
+	};
+
 	hdmi: hdmi@12D00000 {
 		compatible = "samsung,exynos4210-hdmi";
 		reg = <0x12D00000 0x70000>;
