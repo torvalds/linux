@@ -1249,7 +1249,7 @@ static int ov2659_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
-static struct v4l2_ctrl_ops ov2659_ctrl_ops = {
+static const struct v4l2_ctrl_ops ov2659_ctrl_ops = {
 	.s_ctrl = ov2659_s_ctrl,
 };
 

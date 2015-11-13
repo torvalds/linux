@@ -671,7 +671,7 @@ static int mt9m032_set_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
-static struct v4l2_ctrl_ops mt9m032_ctrl_ops = {
+static const struct v4l2_ctrl_ops mt9m032_ctrl_ops = {
 	.s_ctrl = mt9m032_set_ctrl,
 	.try_ctrl = mt9m032_try_ctrl,
 };

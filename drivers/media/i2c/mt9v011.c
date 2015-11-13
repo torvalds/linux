@@ -454,7 +454,7 @@ static int mt9v011_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
-static struct v4l2_ctrl_ops mt9v011_ctrl_ops = {
+static const struct v4l2_ctrl_ops mt9v011_ctrl_ops = {
 	.s_ctrl = mt9v011_s_ctrl,
 };
 
