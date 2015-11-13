@@ -2646,11 +2646,13 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 	return;
 
 valid_fb:
-	plane_state->src_x = plane_state->src_y = 0;
+	plane_state->src_x = 0;
+	plane_state->src_y = 0;
 	plane_state->src_w = fb->width << 16;
 	plane_state->src_h = fb->height << 16;
 
-	plane_state->crtc_x = plane_state->src_y = 0;
+	plane_state->crtc_x = 0;
+	plane_state->crtc_y = 0;
 	plane_state->crtc_w = fb->width;
 	plane_state->crtc_h = fb->height;
 
