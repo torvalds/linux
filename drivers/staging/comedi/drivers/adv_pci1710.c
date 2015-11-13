@@ -65,6 +65,8 @@
 #define PCI171X_CLRFIFO_REG	0x09	/* W:   clear FIFO */
 #define PCI171X_DA_REG(x)	(0x0a + ((x) * 2)) /* W:   D/A register */
 #define PCI171X_DAREF_REG	0x0e	/* W:   D/A reference control */
+#define PCI171X_DAREF(c, r)	(((r) & 0x3) << ((c) * 2))
+#define PCI171X_DAREF_MASK(c)	PCI171X_DAREF((c), 0x3)
 #define PCI171X_DI_REG		0x10	/* R:   digital inputs */
 #define PCI171X_DO_REG		0x10	/* W:   digital outputs */
 #define PCI171X_TIMER_BASE	0x18	/* R/W: 8254 timer */
@@ -111,9 +113,10 @@ static const struct comedi_lrange pci1711_ai_range = {
 };
 
 static const struct comedi_lrange pci171x_ao_range = {
-	2, {
-		UNI_RANGE(5),
-		UNI_RANGE(10)
+	3, {
+		UNI_RANGE(5),		/* internal -5V ref */
+		UNI_RANGE(10),		/* internal -10V ref */
+		RANGE_ext(0, 1)		/* external -Vref (+/-10V max) */
 	}
 };
 
@@ -631,8 +634,8 @@ static int pci1710_ao_insn_write(struct comedi_device *dev,
 	unsigned int val = s->readback[chan];
 	int i;
 
-	devpriv->da_ranges &= ~(1 << (chan << 1));
-	devpriv->da_ranges |= (range << (chan << 1));
+	devpriv->da_ranges &= ~PCI171X_DAREF_MASK(chan);
+	devpriv->da_ranges |= PCI171X_DAREF(chan, range);
 	outw(devpriv->da_ranges, dev->iobase + PCI171X_DAREF_REG);
 
 	for (i = 0; i < insn->n; i++) {
