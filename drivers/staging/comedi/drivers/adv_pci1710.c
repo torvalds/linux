@@ -711,29 +711,29 @@ static int pci1710_counter_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int pci1710_reset(struct comedi_device *dev)
+static void pci1710_reset(struct comedi_device *dev)
 {
 	const struct boardtype *board = dev->board_ptr;
-	struct pci1710_private *devpriv = dev->private;
 
-	/* Software trigger, CNT0=external */
-	devpriv->ctrl = PCI171X_CTRL_SW | PCI171X_CTRL_CNT0;
-	/* reset any operations */
-	outw(devpriv->ctrl, dev->iobase + PCI171X_CTRL_REG);
+	/*
+	 * Disable A/D triggers and interrupt sources, set counter 0
+	 * to use internal 1 MHz clock.
+	 */
+	outw(0, dev->iobase + PCI171X_CTRL_REG);
+
+	/* clear A/D FIFO and any pending interrutps */
 	outb(0, dev->iobase + PCI171X_CLRFIFO_REG);
 	outb(0, dev->iobase + PCI171X_CLRINT_REG);
-	devpriv->da_ranges = 0;
+
 	if (board->has_ao) {
 		/* set DACs to 0..5V and outputs to 0V */
-		outb(devpriv->da_ranges, dev->iobase + PCI171X_DAREF_REG);
+		outb(0, dev->iobase + PCI171X_DAREF_REG);
 		outw(0, dev->iobase + PCI171X_DA_REG(0));
 		outw(0, dev->iobase + PCI171X_DA_REG(1));
 	}
-	outw(0, dev->iobase + PCI171X_DO_REG);	/*  digital outputs to 0 */
-	outb(0, dev->iobase + PCI171X_CLRFIFO_REG);
-	outb(0, dev->iobase + PCI171X_CLRINT_REG);
 
-	return 0;
+	/* set digital outputs to 0 */
+	outw(0, dev->iobase + PCI171X_DO_REG);
 }
 
 static int pci1710_auto_attach(struct comedi_device *dev,
