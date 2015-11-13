@@ -199,12 +199,8 @@ static int skl_runtime_resume(struct device *dev)
 	struct pci_dev *pci = to_pci_dev(dev);
 	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
-	struct skl *skl = ebus_to_skl(ebus);
 
 	dev_dbg(bus->dev, "in %s\n", __func__);
-
-	skl_init_pci(skl);
-	snd_hdac_bus_init_chip(bus, true);
 
 	return _skl_resume(ebus);
 }
