@@ -132,7 +132,6 @@ struct boardtype {
 	unsigned int has_large_fifo:1;	/* 4K or 1K FIFO */
 	unsigned int has_diff_ai:1;
 	unsigned int has_ao:1;
-	unsigned int has_di_do:1;
 };
 
 static const struct boardtype boardtypes[] = {
@@ -142,7 +141,6 @@ static const struct boardtype boardtypes[] = {
 		.has_large_fifo	= 1,
 		.has_diff_ai	= 1,
 		.has_ao		= 1,
-		.has_di_do	= 1,
 	},
 	[BOARD_PCI1710HG] = {
 		.name		= "pci1710hg",
@@ -150,13 +148,11 @@ static const struct boardtype boardtypes[] = {
 		.has_large_fifo	= 1,
 		.has_diff_ai	= 1,
 		.has_ao		= 1,
-		.has_di_do	= 1,
 	},
 	[BOARD_PCI1711] = {
 		.name		= "pci1711",
 		.rangelist_ai	= &pci1711_ai_range,
 		.has_ao		= 1,
-		.has_di_do	= 1,
 	},
 	[BOARD_PCI1713] = {
 		.name		= "pci1713",
@@ -168,7 +164,6 @@ static const struct boardtype boardtypes[] = {
 	[BOARD_PCI1731] = {
 		.name		= "pci1731",
 		.rangelist_ai	= &pci1711_ai_range,
-		.has_di_do	= 1,
 	},
 };
 
@@ -774,10 +769,13 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 	n_subdevices = 1;	/* all boards have analog inputs */
 	if (board->has_ao)
 		n_subdevices++;
-	if (board->has_di_do)
-		n_subdevices += 2;
-	if (!board->is_pci1713)	/* all other boards have a user counter */
-		n_subdevices++;
+	if (!board->is_pci1713) {
+		/*
+		 * All other boards have digital inputs and outputs as
+		 * well as a user counter.
+		 */
+		n_subdevices += 3;
+	}
 
 	ret = comedi_alloc_subdevices(dev, n_subdevices);
 	if (ret)
@@ -839,7 +837,8 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		subdev++;
 	}
 
-	if (board->has_di_do) {
+	if (!board->is_pci1713) {
+		/* Digital Input subdevice */
 		s = &dev->subdevices[subdev];
 		s->type		= COMEDI_SUBD_DI;
 		s->subdev_flags	= SDF_READABLE;
@@ -849,6 +848,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		s->insn_bits	= pci171x_di_insn_bits;
 		subdev++;
 
+		/* Digital Output subdevice */
 		s = &dev->subdevices[subdev];
 		s->type		= COMEDI_SUBD_DO;
 		s->subdev_flags	= SDF_WRITABLE;
@@ -857,9 +857,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		s->range_table	= &range_digital;
 		s->insn_bits	= pci171x_do_insn_bits;
 		subdev++;
-	}
 
-	if (!board->is_pci1713) {
 		/* Counter subdevice (8254) */
 		s = &dev->subdevices[subdev];
 		comedi_8254_subdevice_init(s, dev->pacer);
