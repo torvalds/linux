@@ -2853,7 +2853,7 @@ static int btrfs_relocate_chunk(struct btrfs_root *root, u64 chunk_offset)
 	if (ret)
 		return ret;
 
-	trans = btrfs_start_transaction(root, 0);
+	trans = btrfs_start_trans_remove_block_group(root->fs_info);
 	if (IS_ERR(trans)) {
 		ret = PTR_ERR(trans);
 		btrfs_std_error(root->fs_info, ret, NULL);
