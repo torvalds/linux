@@ -954,6 +954,8 @@ struct amdgpu_vm {
 
 	/* for id and flush management per ring */
 	struct amdgpu_vm_id	ids[AMDGPU_MAX_RINGS];
+	/* for interval tree */
+	spinlock_t		it_lock;
 };
 
 struct amdgpu_vm_manager {
