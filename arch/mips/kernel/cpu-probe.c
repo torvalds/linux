@@ -137,6 +137,7 @@ static void cpu_set_fpu_opts(struct cpuinfo_mips *c)
 	}
 
 	cpu_set_fpu_fcsr_mask(c);
+	c->options |= MIPS_CPU_NAN_LEGACY;
 }
 
 /*
@@ -147,6 +148,7 @@ static void cpu_set_nofpu_opts(struct cpuinfo_mips *c)
 	c->options &= ~MIPS_CPU_FPU;
 	c->fpu_msk31 = mips_nofpu_msk31;
 
+	c->options |= MIPS_CPU_NAN_LEGACY;
 	cpu_set_nofpu_id(c);
 }
 
