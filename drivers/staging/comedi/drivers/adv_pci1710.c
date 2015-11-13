@@ -362,31 +362,6 @@ static int pci171x_ai_insn_read(struct comedi_device *dev,
 	return ret ? ret : insn->n;
 }
 
-static int pci171x_ao_insn_write(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn,
-				 unsigned int *data)
-{
-	struct pci1710_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int range = CR_RANGE(insn->chanspec);
-	unsigned int val = s->readback[chan];
-	int i;
-
-	devpriv->da_ranges &= ~(1 << (chan << 1));
-	devpriv->da_ranges |= (range << (chan << 1));
-	outw(devpriv->da_ranges, dev->iobase + PCI171X_DAREF_REG);
-
-	for (i = 0; i < insn->n; i++) {
-		val = data[i];
-		outw(val, dev->iobase + PCI171X_DA_REG(chan));
-	}
-
-	s->readback[chan] = val;
-
-	return insn->n;
-}
-
 static int pci171x_ai_cancel(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
@@ -645,6 +620,31 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
+static int pci1710_ao_insn_write(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
+{
+	struct pci1710_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
+	unsigned int val = s->readback[chan];
+	int i;
+
+	devpriv->da_ranges &= ~(1 << (chan << 1));
+	devpriv->da_ranges |= (range << (chan << 1));
+	outw(devpriv->da_ranges, dev->iobase + PCI171X_DAREF_REG);
+
+	for (i = 0; i < insn->n; i++) {
+		val = data[i];
+		outw(val, dev->iobase + PCI171X_DA_REG(chan));
+	}
+
+	s->readback[chan] = val;
+
+	return insn->n;
+}
+
 static int pci1710_di_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn,
@@ -823,7 +823,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		s->n_chan	= 2;
 		s->maxdata	= 0x0fff;
 		s->range_table	= &pci171x_ao_range;
-		s->insn_write	= pci171x_ao_insn_write;
+		s->insn_write	= pci1710_ao_insn_write;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)
