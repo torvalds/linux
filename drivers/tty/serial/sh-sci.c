@@ -1866,26 +1866,9 @@ static unsigned int sci_scbrr_calc(struct sci_port *s, unsigned int bps,
 	return DIV_ROUND_CLOSEST(freq, s->sampling_rate * bps) - 1;
 }
 
-/* calculate frame length from SMR */
-static int sci_baud_calc_frame_len(unsigned int smr_val)
-{
-	int len = 10;
-
-	if (smr_val & SCSMR_CHR)
-		len--;
-	if (smr_val & SCSMR_PE)
-		len++;
-	if (smr_val & SCSMR_STOP)
-		len++;
-
-	return len;
-}
-
-
 /* calculate sample rate, BRR, and clock select for HSCIF */
-static void sci_baud_calc_hscif(unsigned int bps, unsigned long freq,
-				int *brr, unsigned int *srr,
-				unsigned int *cks, int frame_len)
+static void sci_baud_calc_hscif(unsigned int bps, unsigned long freq, int *brr,
+				unsigned int *srr, unsigned int *cks)
 {
 	int sr, c, br, err, recv_margin;
 	int min_err = 1000; /* 100% */
@@ -1987,9 +1970,8 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 	baud = uart_get_baud_rate(port, termios, old, 0, max_baud);
 	if (likely(baud && port->uartclk)) {
 		if (s->cfg->type == PORT_HSCIF) {
-			int frame_len = sci_baud_calc_frame_len(smr_val);
 			sci_baud_calc_hscif(baud, port->uartclk, &t, &srr,
-					    &cks, frame_len);
+					    &cks);
 		} else {
 			t = sci_scbrr_calc(s, baud, port->uartclk);
 			for (cks = 0; t >= 256 && cks <= 3; cks++)
