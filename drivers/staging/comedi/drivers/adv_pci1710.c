@@ -791,7 +791,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 	subdev = 0;
 
 	/* Analog Input subdevice */
-	s = &dev->subdevices[subdev];
+	s = &dev->subdevices[subdev++];
 	s->type		= COMEDI_SUBD_AI;
 	s->subdev_flags	= SDF_READABLE | SDF_GROUND;
 	if (!board->is_pci1711)
@@ -817,11 +817,9 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		}
 	}
 
-	subdev++;
-
 	if (board->has_ao) {
 		/* Analog Output subdevice */
-		s = &dev->subdevices[subdev];
+		s = &dev->subdevices[subdev++];
 		s->type		= COMEDI_SUBD_AO;
 		s->subdev_flags	= SDF_WRITABLE | SDF_GROUND;
 		s->n_chan	= 2;
@@ -832,33 +830,29 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)
 			return ret;
-
-		subdev++;
 	}
 
 	if (!board->is_pci1713) {
 		/* Digital Input subdevice */
-		s = &dev->subdevices[subdev];
+		s = &dev->subdevices[subdev++];
 		s->type		= COMEDI_SUBD_DI;
 		s->subdev_flags	= SDF_READABLE;
 		s->n_chan	= 16;
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
 		s->insn_bits	= pci1710_di_insn_bits;
-		subdev++;
 
 		/* Digital Output subdevice */
-		s = &dev->subdevices[subdev];
+		s = &dev->subdevices[subdev++];
 		s->type		= COMEDI_SUBD_DO;
 		s->subdev_flags	= SDF_WRITABLE;
 		s->n_chan	= 16;
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
 		s->insn_bits	= pci1710_do_insn_bits;
-		subdev++;
 
 		/* Counter subdevice (8254) */
-		s = &dev->subdevices[subdev];
+		s = &dev->subdevices[subdev++];
 		comedi_8254_subdevice_init(s, dev->pacer);
 
 		dev->pacer->insn_config = pci1710_counter_insn_config;
@@ -866,8 +860,6 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		/* counters 1 and 2 are used internally for the pacer */
 		comedi_8254_set_busy(dev->pacer, 1, true);
 		comedi_8254_set_busy(dev->pacer, 2, true);
-
-		subdev++;
 	}
 
 	/* max_samples is half the FIFO size (2 bytes/sample) */
