@@ -513,7 +513,7 @@ static void pci1710_handle_fifo(struct comedi_device *dev,
 	outb(0, dev->iobase + PCI171X_CLRINT_REG);
 }
 
-static irqreturn_t interrupt_service_pci1710(int irq, void *d)
+static irqreturn_t pci1710_irq_handler(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct pci1710_private *devpriv = dev->private;
@@ -779,7 +779,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 	pci1710_reset(dev);
 
 	if (pcidev->irq) {
-		ret = request_irq(pcidev->irq, interrupt_service_pci1710,
+		ret = request_irq(pcidev->irq, pci1710_irq_handler,
 				  IRQF_SHARED, dev->board_name, dev);
 		if (ret == 0)
 			dev->irq = pcidev->irq;
