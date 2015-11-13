@@ -356,7 +356,7 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 			size_t size;
 			gossip_debug(GOSSIP_DEV_DEBUG,
 				     "writev: trailer size %ld\n",
-				     (unsigned long)size);
+				     (unsigned long)trailer_size);
 			if (count != (notrailer_count + 1)) {
 				gossip_err("Error: trailer size (%ld) is non-zero, no trailer elements though? (%zu)\n", (unsigned long)trailer_size, count);
 				dev_req_release(buffer);
