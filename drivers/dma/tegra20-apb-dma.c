@@ -1509,8 +1509,7 @@ static int tegra_dma_remove(struct platform_device *pdev)
 
 static int tegra_dma_runtime_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct tegra_dma *tdma = platform_get_drvdata(pdev);
+	struct tegra_dma *tdma = dev_get_drvdata(dev);
 
 	clk_disable_unprepare(tdma->dma_clk);
 	return 0;
@@ -1518,8 +1517,7 @@ static int tegra_dma_runtime_suspend(struct device *dev)
 
 static int tegra_dma_runtime_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct tegra_dma *tdma = platform_get_drvdata(pdev);
+	struct tegra_dma *tdma = dev_get_drvdata(dev);
 	int ret;
 
 	ret = clk_prepare_enable(tdma->dma_clk);
