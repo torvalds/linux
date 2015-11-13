@@ -282,4 +282,21 @@
 #define FD_BCR						58
 #define MMSS_SPDM_RM_BCR				59
 
+/* Indexes for GDSCs */
+#define MMAGIC_VIDEO_GDSC	0
+#define MMAGIC_MDSS_GDSC	1
+#define MMAGIC_CAMSS_GDSC	2
+#define GPU_GDSC		3
+#define VENUS_GDSC		4
+#define VENUS_CORE0_GDSC	5
+#define VENUS_CORE1_GDSC	6
+#define CAMSS_GDSC		7
+#define VFE0_GDSC		8
+#define VFE1_GDSC		9
+#define JPEG_GDSC		10
+#define CPP_GDSC		11
+#define FD_GDSC			12
+#define MDSS_GDSC		13
+#define GPU_GX_GDSC		14
+
 #endif
