@@ -7,6 +7,7 @@
 #include <linux/file.h>
 #include <linux/falloc.h>
 #include <linux/nfs_fs.h>
+#include <uapi/linux/btrfs.h>	/* BTRFS_IOC_CLONE/BTRFS_IOC_CLONE_RANGE */
 #include "delegation.h"
 #include "internal.h"
 #include "iostat.h"
@@ -300,12 +301,13 @@ out_drop_write:
 
 static long nfs42_ioctl_clone_range(struct file *dst_file, void __user *argp)
 {
-	struct nfs_ioctl_clone_range_args args;
+	struct btrfs_ioctl_clone_range_args args;
 
 	if (copy_from_user(&args, argp, sizeof(args)))
 		return -EFAULT;
 
-	return nfs42_ioctl_clone(dst_file, args.src_fd, args.src_off, args.dst_off, args.count);
+	return nfs42_ioctl_clone(dst_file, args.src_fd, args.src_offset,
+				 args.dest_offset, args.src_length);
 }
 #else
 static long nfs42_ioctl_clone(struct file *dst_file, unsigned long srcfd,
@@ -325,9 +327,9 @@ long nfs4_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	void __user *argp = (void __user *)arg;
 
 	switch (cmd) {
-	case NFS_IOC_CLONE:
+	case BTRFS_IOC_CLONE:
 		return nfs42_ioctl_clone(file, arg, 0, 0, 0);
-	case NFS_IOC_CLONE_RANGE:
+	case BTRFS_IOC_CLONE_RANGE:
 		return nfs42_ioctl_clone_range(file, argp);
 	}
 
