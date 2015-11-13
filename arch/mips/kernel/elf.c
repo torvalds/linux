@@ -11,6 +11,8 @@
 #include <linux/elf.h>
 #include <linux/sched.h>
 
+#include <asm/cpu-info.h>
+
 /* FPU modes */
 enum {
 	FP_FRE,
@@ -135,6 +137,10 @@ int arch_check_elf(void *_ehdr, bool has_interpreter, void *_interp_ehdr,
 		struct elf32_hdr e32;
 		struct elf64_hdr e64;
 	} *ehdr = _ehdr;
+	union {
+		struct elf32_hdr e32;
+		struct elf64_hdr e64;
+	} *iehdr = _interp_ehdr;
 	struct mode_req prog_req, interp_req;
 	int fp_abi, interp_fp_abi, abi0, abi1, max_abi;
 	bool elf32;
@@ -142,6 +148,32 @@ int arch_check_elf(void *_ehdr, bool has_interpreter, void *_interp_ehdr,
 
 	elf32 = ehdr->e32.e_ident[EI_CLASS] == ELFCLASS32;
 	flags = elf32 ? ehdr->e32.e_flags : ehdr->e64.e_flags;
+
+	/*
+	 * Determine the NaN personality, reject the binary if no hardware
+	 * support.  Also ensure that any interpreter matches the executable.
+	 */
+	if (flags & EF_MIPS_NAN2008) {
+		if (cpu_has_nan_2008)
+			state->nan_2008 = 1;
+		else
+			return -ENOEXEC;
+	} else {
+		if (cpu_has_nan_legacy)
+			state->nan_2008 = 0;
+		else
+			return -ENOEXEC;
+	}
+	if (has_interpreter) {
+		bool ielf32;
+		u32 iflags;
+
+		ielf32 = iehdr->e32.e_ident[EI_CLASS] == ELFCLASS32;
+		iflags = ielf32 ? iehdr->e32.e_flags : iehdr->e64.e_flags;
+
+		if ((flags ^ iflags) & EF_MIPS_NAN2008)
+			return -ELIBBAD;
+	}
 
 	if (!config_enabled(CONFIG_MIPS_O32_FP64_SUPPORT))
 		return 0;
@@ -261,6 +293,30 @@ void mips_set_personality_fp(struct arch_elf_state *state)
 		break;
 	case FP_FR1:
 		set_thread_fp_mode(0, 0);
+		break;
+	default:
+		BUG();
+	}
+}
+
+/*
+ * Select the IEEE 754 NaN encoding and ABS.fmt/NEG.fmt execution mode
+ * in FCSR according to the ELF NaN personality.
+ */
+void mips_set_personality_nan(struct arch_elf_state *state)
+{
+	struct cpuinfo_mips *c = &boot_cpu_data;
+	struct task_struct *t = current;
+
+	t->thread.fpu.fcr31 = c->fpu_csr31;
+	switch (state->nan_2008) {
+	case 0:
+		break;
+	case 1:
+		if (!(c->fpu_msk31 & FPU_CSR_NAN2008))
+			t->thread.fpu.fcr31 |= FPU_CSR_NAN2008;
+		if (!(c->fpu_msk31 & FPU_CSR_ABS2008))
+			t->thread.fpu.fcr31 |= FPU_CSR_ABS2008;
 		break;
 	default:
 		BUG();
