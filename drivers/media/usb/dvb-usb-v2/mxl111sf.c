@@ -731,7 +731,7 @@ fail:
 	return ret;
 }
 
-static struct mxl111sf_demod_config mxl_demod_config = {
+static const struct mxl111sf_demod_config mxl_demod_config = {
 	.read_reg        = mxl111sf_read_reg,
 	.write_reg       = mxl111sf_write_reg,
 	.program_regs    = mxl111sf_ctrl_program_regs,
