@@ -134,7 +134,6 @@ struct boardtype {
 	const struct comedi_lrange *rangelist_ai;	/*  rangelist for A/D */
 	const char *rangecode_ai;	/*  range codes for programming */
 	unsigned int is_pci1713:1;
-	unsigned int has_irq:1;
 	unsigned int has_large_fifo:1;	/* 4K or 1K FIFO */
 	unsigned int has_diff_ai:1;
 	unsigned int has_ao:1;
@@ -148,7 +147,6 @@ static const struct boardtype boardtypes[] = {
 		.n_aichan	= 16,
 		.rangelist_ai	= &range_pci1710_3,
 		.rangecode_ai	= range_codes_pci1710_3,
-		.has_irq	= 1,
 		.has_large_fifo	= 1,
 		.has_diff_ai	= 1,
 		.has_ao		= 1,
@@ -160,7 +158,6 @@ static const struct boardtype boardtypes[] = {
 		.n_aichan	= 16,
 		.rangelist_ai	= &range_pci1710hg,
 		.rangecode_ai	= range_codes_pci1710hg,
-		.has_irq	= 1,
 		.has_large_fifo	= 1,
 		.has_diff_ai	= 1,
 		.has_ao		= 1,
@@ -172,7 +169,6 @@ static const struct boardtype boardtypes[] = {
 		.n_aichan	= 16,
 		.rangelist_ai	= &range_pci17x1,
 		.rangecode_ai	= range_codes_pci17x1,
-		.has_irq	= 1,
 		.has_ao		= 1,
 		.has_di_do	= 1,
 		.has_counter	= 1,
@@ -183,7 +179,6 @@ static const struct boardtype boardtypes[] = {
 		.rangelist_ai	= &range_pci1710_3,
 		.rangecode_ai	= range_codes_pci1710_3,
 		.is_pci1713	= 1,
-		.has_irq	= 1,
 		.has_large_fifo	= 1,
 		.has_diff_ai	= 1,
 	},
@@ -192,7 +187,6 @@ static const struct boardtype boardtypes[] = {
 		.n_aichan	= 16,
 		.rangelist_ai	= &range_pci17x1,
 		.rangecode_ai	= range_codes_pci17x1,
-		.has_irq	= 1,
 		.has_di_do	= 1,
 	},
 };
@@ -806,7 +800,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 
 	pci1710_reset(dev);
 
-	if (board->has_irq && pcidev->irq) {
+	if (pcidev->irq) {
 		ret = request_irq(pcidev->irq, interrupt_service_pci1710,
 				  IRQF_SHARED, dev->board_name, dev);
 		if (ret == 0)
