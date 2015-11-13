@@ -127,7 +127,6 @@ enum pci1710_boardid {
 
 struct boardtype {
 	const char *name;	/*  board name */
-	int n_aichan;		/*  num of A/D chans */
 	const struct comedi_lrange *rangelist_ai;	/*  rangelist for A/D */
 	unsigned int is_pci1713:1;
 	unsigned int has_large_fifo:1;	/* 4K or 1K FIFO */
@@ -139,7 +138,6 @@ struct boardtype {
 static const struct boardtype boardtypes[] = {
 	[BOARD_PCI1710] = {
 		.name		= "pci1710",
-		.n_aichan	= 16,
 		.rangelist_ai	= &pci1710_ai_range,
 		.has_large_fifo	= 1,
 		.has_diff_ai	= 1,
@@ -148,7 +146,6 @@ static const struct boardtype boardtypes[] = {
 	},
 	[BOARD_PCI1710HG] = {
 		.name		= "pci1710hg",
-		.n_aichan	= 16,
 		.rangelist_ai	= &pci1710hg_ai_range,
 		.has_large_fifo	= 1,
 		.has_diff_ai	= 1,
@@ -157,14 +154,12 @@ static const struct boardtype boardtypes[] = {
 	},
 	[BOARD_PCI1711] = {
 		.name		= "pci1711",
-		.n_aichan	= 16,
 		.rangelist_ai	= &pci1711_ai_range,
 		.has_ao		= 1,
 		.has_di_do	= 1,
 	},
 	[BOARD_PCI1713] = {
 		.name		= "pci1713",
-		.n_aichan	= 32,
 		.rangelist_ai	= &pci1710_ai_range,
 		.is_pci1713	= 1,
 		.has_large_fifo	= 1,
@@ -172,7 +167,6 @@ static const struct boardtype boardtypes[] = {
 	},
 	[BOARD_PCI1731] = {
 		.name		= "pci1731",
-		.n_aichan	= 16,
 		.rangelist_ai	= &pci1711_ai_range,
 		.has_di_do	= 1,
 	},
@@ -777,9 +771,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 	if (!dev->pacer)
 		return -ENOMEM;
 
-	n_subdevices = 0;
-	if (board->n_aichan)
-		n_subdevices++;
+	n_subdevices = 1;	/* all boards have analog inputs */
 	if (board->has_ao)
 		n_subdevices++;
 	if (board->has_di_do)
@@ -802,35 +794,34 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 
 	subdev = 0;
 
-	if (board->n_aichan) {
-		s = &dev->subdevices[subdev];
-		s->type		= COMEDI_SUBD_AI;
-		s->subdev_flags	= SDF_READABLE | SDF_COMMON | SDF_GROUND;
-		if (board->has_diff_ai)
-			s->subdev_flags	|= SDF_DIFF;
-		s->n_chan	= board->n_aichan;
-		s->maxdata	= 0x0fff;
-		s->range_table	= board->rangelist_ai;
-		s->insn_read	= pci171x_ai_insn_read;
-		if (dev->irq) {
-			dev->read_subdev = s;
-			s->subdev_flags	|= SDF_CMD_READ;
-			s->len_chanlist	= s->n_chan;
-			s->do_cmdtest	= pci171x_ai_cmdtest;
-			s->do_cmd	= pci171x_ai_cmd;
-			s->cancel	= pci171x_ai_cancel;
-		}
-
-		/* find the value needed to adjust for unipolar gain codes */
-		for (i = 0; i < s->range_table->length; i++) {
-			if (comedi_range_is_unipolar(s, i)) {
-				devpriv->unipolar_gain = i;
-				break;
-			}
-		}
-
-		subdev++;
+	/* Analog Input subdevice */
+	s = &dev->subdevices[subdev];
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_COMMON | SDF_GROUND;
+	if (board->has_diff_ai)
+		s->subdev_flags	|= SDF_DIFF;
+	s->n_chan	= board->is_pci1713 ? 32 : 16;
+	s->maxdata	= 0x0fff;
+	s->range_table	= board->rangelist_ai;
+	s->insn_read	= pci171x_ai_insn_read;
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags	|= SDF_CMD_READ;
+		s->len_chanlist	= s->n_chan;
+		s->do_cmdtest	= pci171x_ai_cmdtest;
+		s->do_cmd	= pci171x_ai_cmd;
+		s->cancel	= pci171x_ai_cancel;
 	}
+
+	/* find the value needed to adjust for unipolar gain codes */
+	for (i = 0; i < s->range_table->length; i++) {
+		if (comedi_range_is_unipolar(s, i)) {
+			devpriv->unipolar_gain = i;
+			break;
+		}
+	}
+
+	subdev++;
 
 	if (board->has_ao) {
 		s = &dev->subdevices[subdev];
