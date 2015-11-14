@@ -78,7 +78,6 @@ enum block_state {
 	BLOCKING,
 };
 
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
 /**
  * _ctl_sas_device_find_by_handle - sas device search
  * @ioc: per adapter object
@@ -254,8 +253,6 @@ _ctl_display_some_debug(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 	}
 }
 
-#endif
-
 /**
  * mpt3sas_ctl_done - ctl module completion routine
  * @ioc: per adapter object
@@ -302,9 +299,7 @@ mpt3sas_ctl_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 			}
 		}
 	}
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
 	_ctl_display_some_debug(ioc, smid, "ctl_done", mpi_reply);
-#endif
 	ioc->ctl_cmds.status &= ~MPT3_CMD_PENDING;
 	complete(&ioc->ctl_cmds.done);
 	return 1;
@@ -414,20 +409,31 @@ mpt3sas_ctl_event_callback(struct MPT3SAS_ADAPTER *ioc, u8 msix_index,
  * _ctl_verify_adapter - validates ioc_number passed from application
  * @ioc: per adapter object
  * @iocpp: The ioc pointer is returned in this.
+ * @mpi_version: will be MPI2_VERSION for mpt2ctl ioctl device &
+ *		MPI25_VERSION for mpt3ctl ioctl device.
  *
  * Return (-1) means error, else ioc_number.
  */
 static int
-_ctl_verify_adapter(int ioc_number, struct MPT3SAS_ADAPTER **iocpp)
+_ctl_verify_adapter(int ioc_number, struct MPT3SAS_ADAPTER **iocpp,
+							int mpi_version)
 {
 	struct MPT3SAS_ADAPTER *ioc;
-
+	/* global ioc lock to protect controller on list operations */
+	spin_lock(&gioc_lock);
 	list_for_each_entry(ioc, &mpt3sas_ioc_list, list) {
 		if (ioc->id != ioc_number)
 			continue;
+		/* Check whether this ioctl command is from right
+		 * ioctl device or not, if not continue the search.
+		 */
+		if (ioc->hba_mpi_version_belonged != mpi_version)
+			continue;
+		spin_unlock(&gioc_lock);
 		*iocpp = ioc;
 		return ioc_number;
 	}
+	spin_unlock(&gioc_lock);
 	*iocpp = NULL;
 	return -1;
 }
@@ -497,7 +503,7 @@ mpt3sas_ctl_reset_handler(struct MPT3SAS_ADAPTER *ioc, int reset_phase)
  *
  * Called when application request fasyn callback handler.
  */
-static int
+int
 _ctl_fasync(int fd, struct file *filep, int mode)
 {
 	return fasync_helper(fd, filep, mode, &async_queue);
@@ -509,17 +515,22 @@ _ctl_fasync(int fd, struct file *filep, int mode)
  * @wait -
  *
  */
-static unsigned int
+unsigned int
 _ctl_poll(struct file *filep, poll_table *wait)
 {
 	struct MPT3SAS_ADAPTER *ioc;
 
 	poll_wait(filep, &ctl_poll_wait, wait);
 
+	/* global ioc lock to protect controller on list operations */
+	spin_lock(&gioc_lock);
 	list_for_each_entry(ioc, &mpt3sas_ioc_list, list) {
-		if (ioc->aen_event_read_flag)
+		if (ioc->aen_event_read_flag) {
+			spin_unlock(&gioc_lock);
 			return POLLIN | POLLRDNORM;
+		}
 	}
+	spin_unlock(&gioc_lock);
 	return 0;
 }
 
@@ -759,9 +770,7 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 	psge = (void *)request + (karg.data_sge_offset*4);
 
 	/* send command to firmware */
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
 	_ctl_display_some_debug(ioc, smid, "ctl_request", NULL);
-#endif
 
 	init_completion(&ioc->ctl_cmds.done);
 	switch (mpi_request->Function) {
@@ -916,7 +925,6 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 	mpi_reply = ioc->ctl_cmds.reply;
 	ioc_status = le16_to_cpu(mpi_reply->IOCStatus) & MPI2_IOCSTATUS_MASK;
 
-#ifdef CONFIG_SCSI_MPT3SAS_LOGGING
 	if (mpi_reply->Function == MPI2_FUNCTION_SCSI_TASK_MGMT &&
 	    (ioc->logging_level & MPT_DEBUG_TM)) {
 		Mpi2SCSITaskManagementReply_t *tm_reply =
@@ -929,7 +937,7 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 		    le32_to_cpu(tm_reply->IOCLogInfo),
 		    le32_to_cpu(tm_reply->TerminationCount));
 	}
-#endif
+
 	/* copy out xdata to user */
 	if (data_in_sz) {
 		if (copy_to_user(karg.data_in_buf_ptr, data_in,
@@ -1023,7 +1031,6 @@ _ctl_getiocinfo(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 	    __func__));
 
 	memset(&karg, 0 , sizeof(karg));
-	karg.adapter_type = MPT3_IOCTL_INTERFACE_SAS3;
 	if (ioc->pfacts)
 		karg.port_number = ioc->pfacts[0].PortNumber;
 	karg.hw_rev = ioc->pdev->revision;
@@ -1035,9 +1042,21 @@ _ctl_getiocinfo(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 	karg.pci_information.u.bits.function = PCI_FUNC(ioc->pdev->devfn);
 	karg.pci_information.segment_id = pci_domain_nr(ioc->pdev->bus);
 	karg.firmware_version = ioc->facts.FWVersion.Word;
-	strcpy(karg.driver_version, MPT3SAS_DRIVER_NAME);
+	strcpy(karg.driver_version, ioc->driver_name);
 	strcat(karg.driver_version, "-");
-	strcat(karg.driver_version, MPT3SAS_DRIVER_VERSION);
+	switch  (ioc->hba_mpi_version_belonged) {
+	case MPI2_VERSION:
+		if (ioc->is_warpdrive)
+			karg.adapter_type = MPT2_IOCTL_INTERFACE_SAS2_SSS6200;
+		else
+			karg.adapter_type = MPT2_IOCTL_INTERFACE_SAS2;
+		strcat(karg.driver_version, MPT2SAS_DRIVER_VERSION);
+		break;
+	case MPI25_VERSION:
+		karg.adapter_type = MPT3_IOCTL_INTERFACE_SAS3;
+		strcat(karg.driver_version, MPT3SAS_DRIVER_VERSION);
+		break;
+	}
 	karg.bios_version = le32_to_cpu(ioc->bios_pg3.BiosVersion);
 
 	if (copy_to_user(arg, &karg, sizeof(karg))) {
@@ -2181,12 +2200,14 @@ _ctl_compat_mpt_command(struct MPT3SAS_ADAPTER *ioc, unsigned cmd,
  * _ctl_ioctl_main - main ioctl entry point
  * @file - (struct file)
  * @cmd - ioctl opcode
- * @arg -
- * compat - handles 32 bit applications in 64bit os
+ * @arg - user space data buffer
+ * @compat - handles 32 bit applications in 64bit os
+ * @mpi_version: will be MPI2_VERSION for mpt2ctl ioctl device &
+ *		MPI25_VERSION for mpt3ctl ioctl device.
  */
 static long
 _ctl_ioctl_main(struct file *file, unsigned int cmd, void __user *arg,
-	u8 compat)
+	u8 compat, u16 mpi_version)
 {
 	struct MPT3SAS_ADAPTER *ioc;
 	struct mpt3_ioctl_header ioctl_header;
@@ -2201,19 +2222,29 @@ _ctl_ioctl_main(struct file *file, unsigned int cmd, void __user *arg,
 		return -EFAULT;
 	}
 
-	if (_ctl_verify_adapter(ioctl_header.ioc_number, &ioc) == -1 || !ioc)
+	if (_ctl_verify_adapter(ioctl_header.ioc_number,
+				&ioc, mpi_version) == -1 || !ioc)
 		return -ENODEV;
 
+	/* pci_access_mutex lock acquired by ioctl path */
+	mutex_lock(&ioc->pci_access_mutex);
+
 	if (ioc->shost_recovery || ioc->pci_error_recovery ||
-	    ioc->is_driver_loading)
-		return -EAGAIN;
+	    ioc->is_driver_loading || ioc->remove_host) {
+		ret = -EAGAIN;
+		goto out_unlock_pciaccess;
+	}
 
 	state = (file->f_flags & O_NONBLOCK) ? NON_BLOCKING : BLOCKING;
 	if (state == NON_BLOCKING) {
-		if (!mutex_trylock(&ioc->ctl_cmds.mutex))
-			return -EAGAIN;
-	} else if (mutex_lock_interruptible(&ioc->ctl_cmds.mutex))
-		return -ERESTARTSYS;
+		if (!mutex_trylock(&ioc->ctl_cmds.mutex)) {
+			ret = -EAGAIN;
+			goto out_unlock_pciaccess;
+		}
+	} else if (mutex_lock_interruptible(&ioc->ctl_cmds.mutex)) {
+		ret = -ERESTARTSYS;
+		goto out_unlock_pciaccess;
+	}
 
 
 	switch (cmd) {
@@ -2294,39 +2325,78 @@ _ctl_ioctl_main(struct file *file, unsigned int cmd, void __user *arg,
 	}
 
 	mutex_unlock(&ioc->ctl_cmds.mutex);
+out_unlock_pciaccess:
+	mutex_unlock(&ioc->pci_access_mutex);
 	return ret;
 }
 
 /**
- * _ctl_ioctl - main ioctl entry point (unlocked)
+ * _ctl_ioctl - mpt3ctl main ioctl entry point (unlocked)
  * @file - (struct file)
  * @cmd - ioctl opcode
  * @arg -
  */
-static long
+long
 _ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	long ret;
 
-	ret = _ctl_ioctl_main(file, cmd, (void __user *)arg, 0);
+	/* pass MPI25_VERSION value, to indicate that this ioctl cmd
+	 * came from mpt3ctl ioctl device.
+	 */
+	ret = _ctl_ioctl_main(file, cmd, (void __user *)arg, 0, MPI25_VERSION);
 	return ret;
 }
 
+/**
+ * _ctl_mpt2_ioctl - mpt2ctl main ioctl entry point (unlocked)
+ * @file - (struct file)
+ * @cmd - ioctl opcode
+ * @arg -
+ */
+long
+_ctl_mpt2_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	long ret;
+
+	/* pass MPI2_VERSION value, to indicate that this ioctl cmd
+	 * came from mpt2ctl ioctl device.
+	 */
+	ret = _ctl_ioctl_main(file, cmd, (void __user *)arg, 0, MPI2_VERSION);
+	return ret;
+}
 #ifdef CONFIG_COMPAT
 /**
- * _ctl_ioctl_compat - main ioctl entry point (compat)
+ *_ ctl_ioctl_compat - main ioctl entry point (compat)
  * @file -
  * @cmd -
  * @arg -
  *
  * This routine handles 32 bit applications in 64bit os.
  */
-static long
+long
 _ctl_ioctl_compat(struct file *file, unsigned cmd, unsigned long arg)
 {
 	long ret;
 
-	ret = _ctl_ioctl_main(file, cmd, (void __user *)arg, 1);
+	ret = _ctl_ioctl_main(file, cmd, (void __user *)arg, 1, MPI25_VERSION);
+	return ret;
+}
+
+/**
+ *_ ctl_mpt2_ioctl_compat - main ioctl entry point (compat)
+ * @file -
+ * @cmd -
+ * @arg -
+ *
+ * This routine handles 32 bit applications in 64bit os.
+ */
+long
+_ctl_mpt2_ioctl_compat(struct file *file, unsigned cmd, unsigned long arg)
+{
+	long ret;
+
+	ret = _ctl_ioctl_main(file, cmd, (void __user *)arg, 1, MPI2_VERSION);
 	return ret;
 }
 #endif
@@ -2712,6 +2782,82 @@ _ctl_ioc_reply_queue_count_show(struct device *cdev,
 }
 static DEVICE_ATTR(reply_queue_count, S_IRUGO, _ctl_ioc_reply_queue_count_show,
 	NULL);
+
+/**
+ * _ctl_BRM_status_show - Backup Rail Monitor Status
+ * @cdev - pointer to embedded class device
+ * @buf - the buffer returned
+ *
+ * This is number of reply queues
+ *
+ * A sysfs 'read-only' shost attribute.
+ */
+static ssize_t
+_ctl_BRM_status_show(struct device *cdev, struct device_attribute *attr,
+	char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct MPT3SAS_ADAPTER *ioc = shost_priv(shost);
+	Mpi2IOUnitPage3_t *io_unit_pg3 = NULL;
+	Mpi2ConfigReply_t mpi_reply;
+	u16 backup_rail_monitor_status = 0;
+	u16 ioc_status;
+	int sz;
+	ssize_t rc = 0;
+
+	if (!ioc->is_warpdrive) {
+		pr_err(MPT3SAS_FMT "%s: BRM attribute is only for"
+		    " warpdrive\n", ioc->name, __func__);
+		goto out;
+	}
+	/* pci_access_mutex lock acquired by sysfs show path */
+	mutex_lock(&ioc->pci_access_mutex);
+	if (ioc->pci_error_recovery || ioc->remove_host) {
+		mutex_unlock(&ioc->pci_access_mutex);
+		return 0;
+	}
+
+	/* allocate upto GPIOVal 36 entries */
+	sz = offsetof(Mpi2IOUnitPage3_t, GPIOVal) + (sizeof(u16) * 36);
+	io_unit_pg3 = kzalloc(sz, GFP_KERNEL);
+	if (!io_unit_pg3) {
+		pr_err(MPT3SAS_FMT "%s: failed allocating memory "
+		    "for iounit_pg3: (%d) bytes\n", ioc->name, __func__, sz);
+		goto out;
+	}
+
+	if (mpt3sas_config_get_iounit_pg3(ioc, &mpi_reply, io_unit_pg3, sz) !=
+	    0) {
+		pr_err(MPT3SAS_FMT
+		    "%s: failed reading iounit_pg3\n", ioc->name,
+		    __func__);
+		goto out;
+	}
+
+	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) & MPI2_IOCSTATUS_MASK;
+	if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
+		pr_err(MPT3SAS_FMT "%s: iounit_pg3 failed with "
+		    "ioc_status(0x%04x)\n", ioc->name, __func__, ioc_status);
+		goto out;
+	}
+
+	if (io_unit_pg3->GPIOCount < 25) {
+		pr_err(MPT3SAS_FMT "%s: iounit_pg3->GPIOCount less than "
+		     "25 entries, detected (%d) entries\n", ioc->name, __func__,
+		    io_unit_pg3->GPIOCount);
+		goto out;
+	}
+
+	/* BRM status is in bit zero of GPIOVal[24] */
+	backup_rail_monitor_status = le16_to_cpu(io_unit_pg3->GPIOVal[24]);
+	rc = snprintf(buf, PAGE_SIZE, "%d\n", (backup_rail_monitor_status & 1));
+
+ out:
+	kfree(io_unit_pg3);
+	mutex_unlock(&ioc->pci_access_mutex);
+	return rc;
+}
+static DEVICE_ATTR(BRM_status, S_IRUGO, _ctl_BRM_status_show, NULL);
 
 struct DIAG_BUFFER_START {
 	__le32	Size;
@@ -3165,6 +3311,7 @@ struct device_attribute *mpt3sas_host_attrs[] = {
 	&dev_attr_diag_trigger_event,
 	&dev_attr_diag_trigger_scsi,
 	&dev_attr_diag_trigger_mpi,
+	&dev_attr_BRM_status,
 	NULL,
 };
 
@@ -3218,6 +3365,7 @@ struct device_attribute *mpt3sas_dev_attrs[] = {
 	NULL,
 };
 
+/* file operations table for mpt3ctl device */
 static const struct file_operations ctl_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = _ctl_ioctl,
@@ -3228,10 +3376,27 @@ static const struct file_operations ctl_fops = {
 #endif
 };
 
+/* file operations table for mpt2ctl device */
+static const struct file_operations ctl_gen2_fops = {
+	.owner = THIS_MODULE,
+	.unlocked_ioctl = _ctl_mpt2_ioctl,
+	.poll = _ctl_poll,
+	.fasync = _ctl_fasync,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = _ctl_mpt2_ioctl_compat,
+#endif
+};
+
 static struct miscdevice ctl_dev = {
 	.minor  = MPT3SAS_MINOR,
 	.name   = MPT3SAS_DEV_NAME,
 	.fops   = &ctl_fops,
+};
+
+static struct miscdevice gen2_ctl_dev = {
+	.minor  = MPT2SAS_MINOR,
+	.name   = MPT2SAS_DEV_NAME,
+	.fops   = &ctl_gen2_fops,
 };
 
 /**
@@ -3239,12 +3404,25 @@ static struct miscdevice ctl_dev = {
  *
  */
 void
-mpt3sas_ctl_init(void)
+mpt3sas_ctl_init(ushort hbas_to_enumerate)
 {
 	async_queue = NULL;
-	if (misc_register(&ctl_dev) < 0)
-		pr_err("%s can't register misc device [minor=%d]\n",
-		    MPT3SAS_DRIVER_NAME, MPT3SAS_MINOR);
+
+	/* Don't register mpt3ctl ioctl device if
+	 * hbas_to_enumarate is one.
+	 */
+	if (hbas_to_enumerate != 1)
+		if (misc_register(&ctl_dev) < 0)
+			pr_err("%s can't register misc device [minor=%d]\n",
+			    MPT3SAS_DRIVER_NAME, MPT3SAS_MINOR);
+
+	/* Don't register mpt3ctl ioctl device if
+	 * hbas_to_enumarate is two.
+	 */
+	if (hbas_to_enumerate != 2)
+		if (misc_register(&gen2_ctl_dev) < 0)
+			pr_err("%s can't register misc device [minor=%d]\n",
+			    MPT2SAS_DRIVER_NAME, MPT2SAS_MINOR);
 
 	init_waitqueue_head(&ctl_poll_wait);
 }
@@ -3254,7 +3432,7 @@ mpt3sas_ctl_init(void)
  *
  */
 void
-mpt3sas_ctl_exit(void)
+mpt3sas_ctl_exit(ushort hbas_to_enumerate)
 {
 	struct MPT3SAS_ADAPTER *ioc;
 	int i;
@@ -3279,5 +3457,8 @@ mpt3sas_ctl_exit(void)
 
 		kfree(ioc->event_log);
 	}
-	misc_deregister(&ctl_dev);
+	if (hbas_to_enumerate != 1)
+		misc_deregister(&ctl_dev);
+	if (hbas_to_enumerate != 2)
+		misc_deregister(&gen2_ctl_dev);
 }

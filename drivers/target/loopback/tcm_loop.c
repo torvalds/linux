@@ -376,7 +376,6 @@ static struct scsi_host_template tcm_loop_driver_template = {
 	.use_clustering		= DISABLE_CLUSTERING,
 	.slave_alloc		= tcm_loop_slave_alloc,
 	.module			= THIS_MODULE,
-	.use_blk_tags		= 1,
 	.track_queue_depth	= 1,
 };
 
