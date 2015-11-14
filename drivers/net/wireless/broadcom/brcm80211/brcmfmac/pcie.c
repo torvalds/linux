@@ -1413,7 +1413,7 @@ static int brcmf_pcie_get_memdump(struct device *dev, void *data, size_t len)
 }
 
 
-static struct brcmf_bus_ops brcmf_pcie_bus_ops = {
+static const struct brcmf_bus_ops brcmf_pcie_bus_ops = {
 	.txdata = brcmf_pcie_tx,
 	.stop = brcmf_pcie_down,
 	.txctl = brcmf_pcie_tx_ctlpkt,

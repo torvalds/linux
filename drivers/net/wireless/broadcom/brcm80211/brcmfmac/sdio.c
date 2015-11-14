@@ -4025,7 +4025,7 @@ brcmf_sdio_watchdog(unsigned long data)
 	}
 }
 
-static struct brcmf_bus_ops brcmf_sdio_bus_ops = {
+static const struct brcmf_bus_ops brcmf_sdio_bus_ops = {
 	.stop = brcmf_sdio_bus_stop,
 	.preinit = brcmf_sdio_bus_preinit,
 	.txdata = brcmf_sdio_bus_txdata,
