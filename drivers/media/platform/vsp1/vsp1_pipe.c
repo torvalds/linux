@@ -289,7 +289,8 @@ void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe)
 		vsp1_dl_irq_frame_end(pipe->dl);
 
 	/* Signal frame end to the pipeline handler. */
-	pipe->frame_end(pipe);
+	if (pipe->frame_end)
+		pipe->frame_end(pipe);
 
 	spin_lock_irqsave(&pipe->irqlock, flags);
 
@@ -298,8 +299,10 @@ void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe)
 	/* When using display lists in continuous frame mode the pipeline is
 	 * automatically restarted by the hardware.
 	 */
-	if (!pipe->dl)
-		pipe->state = VSP1_PIPELINE_STOPPED;
+	if (pipe->dl)
+		goto done;
+
+	pipe->state = VSP1_PIPELINE_STOPPED;
 
 	/* If a stop has been requested, mark the pipeline as stopped and
 	 * return.

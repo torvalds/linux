@@ -27,20 +27,6 @@
 #include "vsp1_rwpf.h"
 
 /* -----------------------------------------------------------------------------
- * Runtime Handling
- */
-
-static void vsp1_drm_pipeline_frame_end(struct vsp1_pipeline *pipe)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&pipe->irqlock, flags);
-	if (pipe->num_inputs)
-		vsp1_pipeline_run(pipe);
-	spin_unlock_irqrestore(&pipe->irqlock, flags);
-}
-
-/* -----------------------------------------------------------------------------
  * DU Driver API
  */
 
@@ -569,7 +555,6 @@ int vsp1_drm_init(struct vsp1_device *vsp1)
 	pipe = &vsp1->drm->pipe;
 
 	vsp1_pipeline_init(pipe);
-	pipe->frame_end = vsp1_drm_pipeline_frame_end;
 
 	/* The DRM pipeline is static, add entities manually. */
 	for (i = 0; i < vsp1->info->rpf_count; ++i) {
