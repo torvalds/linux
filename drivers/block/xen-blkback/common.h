@@ -291,6 +291,22 @@ struct xen_blkif_ring {
 	spinlock_t		pending_free_lock;
 	wait_queue_head_t	pending_free_wq;
 
+	/* Tree to store persistent grants. */
+	spinlock_t		pers_gnts_lock;
+	struct rb_root		persistent_gnts;
+	unsigned int		persistent_gnt_c;
+	atomic_t		persistent_gnt_in_use;
+	unsigned long           next_lru;
+
+	/* Used by the kworker that offload work from the persistent purge. */
+	struct list_head	persistent_purge_list;
+	struct work_struct	persistent_purge_work;
+
+	/* Buffer of free pages to map grant refs. */
+	spinlock_t		free_pages_lock;
+	int			free_pages_num;
+	struct list_head	free_pages;
+
 	struct work_struct	free_work;
 	/* Thread shutdown wait queue. */
 	wait_queue_head_t	shutdown_wq;
@@ -311,22 +327,6 @@ struct xen_blkif {
 	/* for barrier (drain) requests */
 	struct completion	drain_complete;
 	atomic_t		drain;
-
-	/* tree to store persistent grants */
-	spinlock_t		pers_gnts_lock;
-	struct rb_root		persistent_gnts;
-	unsigned int		persistent_gnt_c;
-	atomic_t		persistent_gnt_in_use;
-	unsigned long           next_lru;
-
-	/* used by the kworker that offload work from the persistent purge */
-	struct list_head	persistent_purge_list;
-	struct work_struct	persistent_purge_work;
-
-	/* buffer of free pages to map grant refs */
-	spinlock_t		free_pages_lock;
-	int			free_pages_num;
-	struct list_head	free_pages;
 
 	/* statistics */
 	unsigned long		st_print;

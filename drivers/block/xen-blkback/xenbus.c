@@ -150,6 +150,10 @@ static int xen_blkif_alloc_rings(struct xen_blkif *blkif)
 		spin_lock_init(&ring->blk_ring_lock);
 		init_waitqueue_head(&ring->wq);
 		INIT_LIST_HEAD(&ring->pending_free);
+		INIT_LIST_HEAD(&ring->persistent_purge_list);
+		INIT_WORK(&ring->persistent_purge_work, xen_blkbk_unmap_purged_grants);
+		spin_lock_init(&ring->free_pages_lock);
+		INIT_LIST_HEAD(&ring->free_pages);
 
 		spin_lock_init(&ring->pending_free_lock);
 		init_waitqueue_head(&ring->pending_free_wq);
@@ -175,11 +179,7 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 	atomic_set(&blkif->refcnt, 1);
 	init_completion(&blkif->drain_complete);
 	INIT_WORK(&blkif->free_work, xen_blkif_deferred_free);
-	spin_lock_init(&blkif->free_pages_lock);
-	INIT_LIST_HEAD(&blkif->free_pages);
-	INIT_LIST_HEAD(&blkif->persistent_purge_list);
 	blkif->st_print = jiffies;
-	INIT_WORK(&blkif->persistent_purge_work, xen_blkbk_unmap_purged_grants);
 
 	return blkif;
 }
@@ -290,6 +290,12 @@ static int xen_blkif_disconnect(struct xen_blkif *blkif)
 			i++;
 		}
 
+		BUG_ON(atomic_read(&ring->persistent_gnt_in_use) != 0);
+		BUG_ON(!list_empty(&ring->persistent_purge_list));
+		BUG_ON(!RB_EMPTY_ROOT(&ring->persistent_gnts));
+		BUG_ON(!list_empty(&ring->free_pages));
+		BUG_ON(ring->free_pages_num != 0);
+		BUG_ON(ring->persistent_gnt_c != 0);
 		WARN_ON(i != (XEN_BLKIF_REQS_PER_PAGE * blkif->nr_ring_pages));
 	}
 	blkif->nr_ring_pages = 0;
@@ -304,13 +310,6 @@ static void xen_blkif_free(struct xen_blkif *blkif)
 	xen_vbd_free(&blkif->vbd);
 
 	/* Make sure everything is drained before shutting down */
-	BUG_ON(blkif->persistent_gnt_c != 0);
-	BUG_ON(atomic_read(&blkif->persistent_gnt_in_use) != 0);
-	BUG_ON(blkif->free_pages_num != 0);
-	BUG_ON(!list_empty(&blkif->persistent_purge_list));
-	BUG_ON(!list_empty(&blkif->free_pages));
-	BUG_ON(!RB_EMPTY_ROOT(&blkif->persistent_gnts));
-
 	kfree(blkif->rings);
 	kmem_cache_free(xen_blkif_cachep, blkif);
 }
