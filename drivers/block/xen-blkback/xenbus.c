@@ -181,12 +181,6 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 	blkif->st_print = jiffies;
 	INIT_WORK(&blkif->persistent_purge_work, xen_blkbk_unmap_purged_grants);
 
-	blkif->nr_rings = 1;
-	if (xen_blkif_alloc_rings(blkif)) {
-		kmem_cache_free(xen_blkif_cachep, blkif);
-		return ERR_PTR(-ENOMEM);
-	}
-
 	return blkif;
 }
 
@@ -595,6 +589,12 @@ static int xen_blkbk_probe(struct xenbus_device *dev,
 		goto fail;
 	}
 
+	/* Multi-queue: advertise how many queues are supported by us.*/
+	err = xenbus_printf(XBT_NIL, dev->nodename,
+			    "multi-queue-max-queues", "%u", xenblk_max_queues);
+	if (err)
+		pr_warn("Error writing multi-queue-max-queues\n");
+
 	/* setup back pointer */
 	be->blkif->be = be;
 
@@ -980,6 +980,7 @@ static int connect_ring(struct backend_info *be)
 	char *xspath;
 	size_t xspathsize;
 	const size_t xenstore_path_ext_size = 11; /* sufficient for "/queue-NNN" */
+	unsigned int requested_num_queues = 0;
 
 	pr_debug("%s %s\n", __func__, dev->otherend);
 
@@ -1006,6 +1007,27 @@ static int connect_ring(struct backend_info *be)
 
 	be->blkif->vbd.feature_gnt_persistent = pers_grants;
 	be->blkif->vbd.overflow_max_grants = 0;
+
+	/*
+	 * Read the number of hardware queues from frontend.
+	 */
+	err = xenbus_scanf(XBT_NIL, dev->otherend, "multi-queue-num-queues",
+			   "%u", &requested_num_queues);
+	if (err < 0) {
+		requested_num_queues = 1;
+	} else {
+		if (requested_num_queues > xenblk_max_queues
+		    || requested_num_queues == 0) {
+			/* Buggy or malicious guest. */
+			xenbus_dev_fatal(dev, err,
+					"guest requested %u queues, exceeding the maximum of %u.",
+					requested_num_queues, xenblk_max_queues);
+			return -ENOSYS;
+		}
+	}
+	be->blkif->nr_rings = requested_num_queues;
+	if (xen_blkif_alloc_rings(be->blkif))
+		return -ENOMEM;
 
 	pr_info("%s: using %d queues, protocol %d (%s) %s\n", dev->nodename,
 		 be->blkif->nr_rings, be->blkif->blk_protocol, protocol,

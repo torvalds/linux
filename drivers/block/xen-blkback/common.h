@@ -46,6 +46,7 @@
 #include <xen/interface/io/protocols.h>
 
 extern unsigned int xen_blkif_max_ring_order;
+extern unsigned int xenblk_max_queues;
 /*
  * This is the maximum number of segments that would be allowed in indirect
  * requests. This value will also be passed to the frontend.
