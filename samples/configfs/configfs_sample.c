@@ -1,10 +1,9 @@
 /*
  * vim: noexpandtab ts=8 sts=0 sw=8:
  *
- * configfs_example_explicit.c - This file is a demonstration module
- *      containing a number of configfs subsystems.  It explicitly defines
- *      each structure without using the helper macros defined in
- *      configfs.h.
+ * configfs_example_macros.c - This file is a demonstration module
+ *      containing a number of configfs subsystems.  It uses the helper
+ *      macros defined by configfs.h
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public
@@ -53,20 +52,15 @@ struct childless {
 	int storeme;
 };
 
-struct childless_attribute {
-	struct configfs_attribute attr;
-	ssize_t (*show)(struct childless *, char *);
-	ssize_t (*store)(struct childless *, const char *, size_t);
-};
-
 static inline struct childless *to_childless(struct config_item *item)
 {
-	return item ? container_of(to_configfs_subsystem(to_config_group(item)), struct childless, subsys) : NULL;
+	return item ? container_of(to_configfs_subsystem(to_config_group(item)),
+			struct childless, subsys) : NULL;
 }
 
-static ssize_t childless_showme_read(struct childless *childless,
-				     char *page)
+static ssize_t childless_showme_show(struct config_item *item, char *page)
 {
+	struct childless *childless = to_childless(item);
 	ssize_t pos;
 
 	pos = sprintf(page, "%d\n", childless->showme);
@@ -75,21 +69,20 @@ static ssize_t childless_showme_read(struct childless *childless,
 	return pos;
 }
 
-static ssize_t childless_storeme_read(struct childless *childless,
-				      char *page)
+static ssize_t childless_storeme_show(struct config_item *item, char *page)
 {
-	return sprintf(page, "%d\n", childless->storeme);
+	return sprintf(page, "%d\n", to_childless(item)->storeme);
 }
 
-static ssize_t childless_storeme_write(struct childless *childless,
-				       const char *page,
-				       size_t count)
+static ssize_t childless_storeme_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct childless *childless = to_childless(item);
 	unsigned long tmp;
 	char *p = (char *) page;
 
 	tmp = simple_strtoul(p, &p, 10);
-	if ((*p != '\0') && (*p != '\n'))
+	if (!p || (*p && (*p != '\n')))
 		return -EINVAL;
 
 	if (tmp > INT_MAX)
@@ -100,8 +93,7 @@ static ssize_t childless_storeme_write(struct childless *childless,
 	return count;
 }
 
-static ssize_t childless_description_read(struct childless *childless,
-					  char *page)
+static ssize_t childless_description_show(struct config_item *item, char *page)
 {
 	return sprintf(page,
 "[01-childless]\n"
@@ -112,62 +104,18 @@ static ssize_t childless_description_read(struct childless *childless,
 "than a directory in /proc.\n");
 }
 
-static struct childless_attribute childless_attr_showme = {
-	.attr	= { .ca_owner = THIS_MODULE, .ca_name = "showme", .ca_mode = S_IRUGO },
-	.show	= childless_showme_read,
-};
-static struct childless_attribute childless_attr_storeme = {
-	.attr	= { .ca_owner = THIS_MODULE, .ca_name = "storeme", .ca_mode = S_IRUGO | S_IWUSR },
-	.show	= childless_storeme_read,
-	.store	= childless_storeme_write,
-};
-static struct childless_attribute childless_attr_description = {
-	.attr = { .ca_owner = THIS_MODULE, .ca_name = "description", .ca_mode = S_IRUGO },
-	.show = childless_description_read,
-};
+CONFIGFS_ATTR_RO(childless_, showme);
+CONFIGFS_ATTR(childless_, storeme);
+CONFIGFS_ATTR_RO(childless_, description);
 
 static struct configfs_attribute *childless_attrs[] = {
-	&childless_attr_showme.attr,
-	&childless_attr_storeme.attr,
-	&childless_attr_description.attr,
+	&childless_attr_showme,
+	&childless_attr_storeme,
+	&childless_attr_description,
 	NULL,
 };
 
-static ssize_t childless_attr_show(struct config_item *item,
-				   struct configfs_attribute *attr,
-				   char *page)
-{
-	struct childless *childless = to_childless(item);
-	struct childless_attribute *childless_attr =
-		container_of(attr, struct childless_attribute, attr);
-	ssize_t ret = 0;
-
-	if (childless_attr->show)
-		ret = childless_attr->show(childless, page);
-	return ret;
-}
-
-static ssize_t childless_attr_store(struct config_item *item,
-				    struct configfs_attribute *attr,
-				    const char *page, size_t count)
-{
-	struct childless *childless = to_childless(item);
-	struct childless_attribute *childless_attr =
-		container_of(attr, struct childless_attribute, attr);
-	ssize_t ret = -EINVAL;
-
-	if (childless_attr->store)
-		ret = childless_attr->store(childless, page, count);
-	return ret;
-}
-
-static struct configfs_item_operations childless_item_ops = {
-	.show_attribute		= childless_attr_show,
-	.store_attribute	= childless_attr_store,
-};
-
 static struct config_item_type childless_type = {
-	.ct_item_ops	= &childless_item_ops,
 	.ct_attrs	= childless_attrs,
 	.ct_owner	= THIS_MODULE,
 };
@@ -205,32 +153,13 @@ static inline struct simple_child *to_simple_child(struct config_item *item)
 	return item ? container_of(item, struct simple_child, item) : NULL;
 }
 
-static struct configfs_attribute simple_child_attr_storeme = {
-	.ca_owner = THIS_MODULE,
-	.ca_name = "storeme",
-	.ca_mode = S_IRUGO | S_IWUSR,
-};
-
-static struct configfs_attribute *simple_child_attrs[] = {
-	&simple_child_attr_storeme,
-	NULL,
-};
-
-static ssize_t simple_child_attr_show(struct config_item *item,
-				      struct configfs_attribute *attr,
-				      char *page)
+static ssize_t simple_child_storeme_show(struct config_item *item, char *page)
 {
-	ssize_t count;
-	struct simple_child *simple_child = to_simple_child(item);
-
-	count = sprintf(page, "%d\n", simple_child->storeme);
-
-	return count;
+	return sprintf(page, "%d\n", to_simple_child(item)->storeme);
 }
 
-static ssize_t simple_child_attr_store(struct config_item *item,
-				       struct configfs_attribute *attr,
-				       const char *page, size_t count)
+static ssize_t simple_child_storeme_store(struct config_item *item,
+		const char *page, size_t count)
 {
 	struct simple_child *simple_child = to_simple_child(item);
 	unsigned long tmp;
@@ -248,6 +177,13 @@ static ssize_t simple_child_attr_store(struct config_item *item,
 	return count;
 }
 
+CONFIGFS_ATTR(simple_child_, storeme);
+
+static struct configfs_attribute *simple_child_attrs[] = {
+	&simple_child_attr_storeme,
+	NULL,
+};
+
 static void simple_child_release(struct config_item *item)
 {
 	kfree(to_simple_child(item));
@@ -255,8 +191,6 @@ static void simple_child_release(struct config_item *item)
 
 static struct configfs_item_operations simple_child_item_ops = {
 	.release		= simple_child_release,
-	.show_attribute		= simple_child_attr_show,
-	.store_attribute	= simple_child_attr_store,
 };
 
 static struct config_item_type simple_child_type = {
@@ -272,10 +206,12 @@ struct simple_children {
 
 static inline struct simple_children *to_simple_children(struct config_item *item)
 {
-	return item ? container_of(to_config_group(item), struct simple_children, group) : NULL;
+	return item ? container_of(to_config_group(item),
+			struct simple_children, group) : NULL;
 }
 
-static struct config_item *simple_children_make_item(struct config_group *group, const char *name)
+static struct config_item *simple_children_make_item(struct config_group *group,
+		const char *name)
 {
 	struct simple_child *simple_child;
 
@@ -291,20 +227,8 @@ static struct config_item *simple_children_make_item(struct config_group *group,
 	return &simple_child->item;
 }
 
-static struct configfs_attribute simple_children_attr_description = {
-	.ca_owner = THIS_MODULE,
-	.ca_name = "description",
-	.ca_mode = S_IRUGO,
-};
-
-static struct configfs_attribute *simple_children_attrs[] = {
-	&simple_children_attr_description,
-	NULL,
-};
-
-static ssize_t simple_children_attr_show(struct config_item *item,
-					 struct configfs_attribute *attr,
-					 char *page)
+static ssize_t simple_children_description_show(struct config_item *item,
+		char *page)
 {
 	return sprintf(page,
 "[02-simple-children]\n"
@@ -313,6 +237,13 @@ static ssize_t simple_children_attr_show(struct config_item *item,
 "items have only one attribute that is readable and writeable.\n");
 }
 
+CONFIGFS_ATTR_RO(simple_children_, description);
+
+static struct configfs_attribute *simple_children_attrs[] = {
+	&simple_children_attr_description,
+	NULL,
+};
+
 static void simple_children_release(struct config_item *item)
 {
 	kfree(to_simple_children(item));
@@ -320,7 +251,6 @@ static void simple_children_release(struct config_item *item)
 
 static struct configfs_item_operations simple_children_item_ops = {
 	.release	= simple_children_release,
-	.show_attribute	= simple_children_attr_show,
 };
 
 /*
@@ -360,7 +290,8 @@ static struct configfs_subsystem simple_children_subsys = {
  * children of its own.
  */
 
-static struct config_group *group_children_make_group(struct config_group *group, const char *name)
+static struct config_group *group_children_make_group(
+		struct config_group *group, const char *name)
 {
 	struct simple_children *simple_children;
 
@@ -375,20 +306,8 @@ static struct config_group *group_children_make_group(struct config_group *group
 	return &simple_children->group;
 }
 
-static struct configfs_attribute group_children_attr_description = {
-	.ca_owner = THIS_MODULE,
-	.ca_name = "description",
-	.ca_mode = S_IRUGO,
-};
-
-static struct configfs_attribute *group_children_attrs[] = {
-	&group_children_attr_description,
-	NULL,
-};
-
-static ssize_t group_children_attr_show(struct config_item *item,
-					struct configfs_attribute *attr,
-					char *page)
+static ssize_t group_children_description_show(struct config_item *item,
+		char *page)
 {
 	return sprintf(page,
 "[03-group-children]\n"
@@ -397,8 +316,11 @@ static ssize_t group_children_attr_show(struct config_item *item,
 "groups are like the subsystem simple-children.\n");
 }
 
-static struct configfs_item_operations group_children_item_ops = {
-	.show_attribute	= group_children_attr_show,
+CONFIGFS_ATTR_RO(group_children_, description);
+
+static struct configfs_attribute *group_children_attrs[] = {
+	&group_children_attr_description,
+	NULL,
 };
 
 /*
@@ -410,7 +332,6 @@ static struct configfs_group_operations group_children_group_ops = {
 };
 
 static struct config_item_type group_children_type = {
-	.ct_item_ops	= &group_children_item_ops,
 	.ct_group_ops	= &group_children_group_ops,
 	.ct_attrs	= group_children_attrs,
 	.ct_owner	= THIS_MODULE,

@@ -23,8 +23,6 @@
 #include <linux/inet.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
-#include <target/target_core_fabric_configfs.h>
-#include <target/configfs_macros.h>
 #include <target/iscsi/iscsi_transport.h>
 
 #include <target/iscsi/iscsi_target_core.h>
@@ -37,20 +35,17 @@
 #include "iscsi_target.h"
 #include <target/iscsi/iscsi_target_stat.h>
 
-struct lio_target_configfs_attribute {
-	struct configfs_attribute attr;
-	ssize_t (*show)(void *, char *);
-	ssize_t (*store)(void *, const char *, size_t);
-};
 
 /* Start items for lio_target_portal_cit */
 
-static ssize_t lio_target_np_show_sctp(
-	struct se_tpg_np *se_tpg_np,
-	char *page)
+static inline struct iscsi_tpg_np *to_iscsi_tpg_np(struct config_item *item)
 {
-	struct iscsi_tpg_np *tpg_np = container_of(se_tpg_np,
-				struct iscsi_tpg_np, se_tpg_np);
+	return container_of(to_tpg_np(item), struct iscsi_tpg_np, se_tpg_np);
+}
+
+static ssize_t lio_target_np_sctp_show(struct config_item *item, char *page)
+{
+	struct iscsi_tpg_np *tpg_np = to_iscsi_tpg_np(item);
 	struct iscsi_tpg_np *tpg_np_sctp;
 	ssize_t rb;
 
@@ -63,15 +58,12 @@ static ssize_t lio_target_np_show_sctp(
 	return rb;
 }
 
-static ssize_t lio_target_np_store_sctp(
-	struct se_tpg_np *se_tpg_np,
-	const char *page,
-	size_t count)
+static ssize_t lio_target_np_sctp_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct iscsi_tpg_np *tpg_np = to_iscsi_tpg_np(item);
 	struct iscsi_np *np;
 	struct iscsi_portal_group *tpg;
-	struct iscsi_tpg_np *tpg_np = container_of(se_tpg_np,
-				struct iscsi_tpg_np, se_tpg_np);
 	struct iscsi_tpg_np *tpg_np_sctp = NULL;
 	u32 op;
 	int ret;
@@ -119,14 +111,9 @@ out:
 	return -EINVAL;
 }
 
-TF_NP_BASE_ATTR(lio_target, sctp, S_IRUGO | S_IWUSR);
-
-static ssize_t lio_target_np_show_iser(
-	struct se_tpg_np *se_tpg_np,
-	char *page)
+static ssize_t lio_target_np_iser_show(struct config_item *item, char *page)
 {
-	struct iscsi_tpg_np *tpg_np = container_of(se_tpg_np,
-				struct iscsi_tpg_np, se_tpg_np);
+	struct iscsi_tpg_np *tpg_np = to_iscsi_tpg_np(item);
 	struct iscsi_tpg_np *tpg_np_iser;
 	ssize_t rb;
 
@@ -139,15 +126,12 @@ static ssize_t lio_target_np_show_iser(
 	return rb;
 }
 
-static ssize_t lio_target_np_store_iser(
-	struct se_tpg_np *se_tpg_np,
-	const char *page,
-	size_t count)
+static ssize_t lio_target_np_iser_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct iscsi_tpg_np *tpg_np = to_iscsi_tpg_np(item);
 	struct iscsi_np *np;
 	struct iscsi_portal_group *tpg;
-	struct iscsi_tpg_np *tpg_np = container_of(se_tpg_np,
-				struct iscsi_tpg_np, se_tpg_np);
 	struct iscsi_tpg_np *tpg_np_iser = NULL;
 	char *endptr;
 	u32 op;
@@ -198,11 +182,12 @@ out:
 	return rc;
 }
 
-TF_NP_BASE_ATTR(lio_target, iser, S_IRUGO | S_IWUSR);
+CONFIGFS_ATTR(lio_target_np_, sctp);
+CONFIGFS_ATTR(lio_target_np_, iser);
 
 static struct configfs_attribute *lio_target_portal_attrs[] = {
-	&lio_target_np_sctp.attr,
-	&lio_target_np_iser.attr,
+	&lio_target_np_attr_sctp,
+	&lio_target_np_attr_iser,
 	NULL,
 };
 
@@ -360,22 +345,21 @@ out:
 
 /* Start items for lio_target_nacl_attrib_cit */
 
-#define DEF_NACL_ATTRIB(name)						\
-static ssize_t iscsi_nacl_attrib_show_##name(				\
-	struct se_node_acl *se_nacl,					\
-	char *page)							\
+#define ISCSI_NACL_ATTR(name)						\
+static ssize_t iscsi_nacl_attrib_##name##_show(struct config_item *item,\
+		char *page)						\
 {									\
+	struct se_node_acl *se_nacl = attrib_to_nacl(item);		\
 	struct iscsi_node_acl *nacl = container_of(se_nacl, struct iscsi_node_acl, \
 					se_node_acl);			\
 									\
 	return sprintf(page, "%u\n", nacl->node_attrib.name);		\
 }									\
 									\
-static ssize_t iscsi_nacl_attrib_store_##name(				\
-	struct se_node_acl *se_nacl,					\
-	const char *page,						\
-	size_t count)							\
+static ssize_t iscsi_nacl_attrib_##name##_store(struct config_item *item,\
+		const char *page, size_t count)				\
 {									\
+	struct se_node_acl *se_nacl = attrib_to_nacl(item);		\
 	struct iscsi_node_acl *nacl = container_of(se_nacl, struct iscsi_node_acl, \
 					se_node_acl);			\
 	u32 val;							\
@@ -389,59 +373,28 @@ static ssize_t iscsi_nacl_attrib_store_##name(				\
 		return ret;						\
 									\
 	return count;							\
-}
+}									\
+									\
+CONFIGFS_ATTR(iscsi_nacl_attrib_, name)
 
-#define NACL_ATTR(_name, _mode) TF_NACL_ATTRIB_ATTR(iscsi, _name, _mode);
-/*
- * Define iscsi_node_attrib_s_dataout_timeout
- */
-DEF_NACL_ATTRIB(dataout_timeout);
-NACL_ATTR(dataout_timeout, S_IRUGO | S_IWUSR);
-/*
- * Define iscsi_node_attrib_s_dataout_timeout_retries
- */
-DEF_NACL_ATTRIB(dataout_timeout_retries);
-NACL_ATTR(dataout_timeout_retries, S_IRUGO | S_IWUSR);
-/*
- * Define iscsi_node_attrib_s_default_erl
- */
-DEF_NACL_ATTRIB(default_erl);
-NACL_ATTR(default_erl, S_IRUGO | S_IWUSR);
-/*
- * Define iscsi_node_attrib_s_nopin_timeout
- */
-DEF_NACL_ATTRIB(nopin_timeout);
-NACL_ATTR(nopin_timeout, S_IRUGO | S_IWUSR);
-/*
- * Define iscsi_node_attrib_s_nopin_response_timeout
- */
-DEF_NACL_ATTRIB(nopin_response_timeout);
-NACL_ATTR(nopin_response_timeout, S_IRUGO | S_IWUSR);
-/*
- * Define iscsi_node_attrib_s_random_datain_pdu_offsets
- */
-DEF_NACL_ATTRIB(random_datain_pdu_offsets);
-NACL_ATTR(random_datain_pdu_offsets, S_IRUGO | S_IWUSR);
-/*
- * Define iscsi_node_attrib_s_random_datain_seq_offsets
- */
-DEF_NACL_ATTRIB(random_datain_seq_offsets);
-NACL_ATTR(random_datain_seq_offsets, S_IRUGO | S_IWUSR);
-/*
- * Define iscsi_node_attrib_s_random_r2t_offsets
- */
-DEF_NACL_ATTRIB(random_r2t_offsets);
-NACL_ATTR(random_r2t_offsets, S_IRUGO | S_IWUSR);
+ISCSI_NACL_ATTR(dataout_timeout);
+ISCSI_NACL_ATTR(dataout_timeout_retries);
+ISCSI_NACL_ATTR(default_erl);
+ISCSI_NACL_ATTR(nopin_timeout);
+ISCSI_NACL_ATTR(nopin_response_timeout);
+ISCSI_NACL_ATTR(random_datain_pdu_offsets);
+ISCSI_NACL_ATTR(random_datain_seq_offsets);
+ISCSI_NACL_ATTR(random_r2t_offsets);
 
 static struct configfs_attribute *lio_target_nacl_attrib_attrs[] = {
-	&iscsi_nacl_attrib_dataout_timeout.attr,
-	&iscsi_nacl_attrib_dataout_timeout_retries.attr,
-	&iscsi_nacl_attrib_default_erl.attr,
-	&iscsi_nacl_attrib_nopin_timeout.attr,
-	&iscsi_nacl_attrib_nopin_response_timeout.attr,
-	&iscsi_nacl_attrib_random_datain_pdu_offsets.attr,
-	&iscsi_nacl_attrib_random_datain_seq_offsets.attr,
-	&iscsi_nacl_attrib_random_r2t_offsets.attr,
+	&iscsi_nacl_attrib_attr_dataout_timeout,
+	&iscsi_nacl_attrib_attr_dataout_timeout_retries,
+	&iscsi_nacl_attrib_attr_default_erl,
+	&iscsi_nacl_attrib_attr_nopin_timeout,
+	&iscsi_nacl_attrib_attr_nopin_response_timeout,
+	&iscsi_nacl_attrib_attr_random_datain_pdu_offsets,
+	&iscsi_nacl_attrib_attr_random_datain_seq_offsets,
+	&iscsi_nacl_attrib_attr_random_r2t_offsets,
 	NULL,
 };
 
@@ -450,7 +403,7 @@ static struct configfs_attribute *lio_target_nacl_attrib_attrs[] = {
 /* Start items for lio_target_nacl_auth_cit */
 
 #define __DEF_NACL_AUTH_STR(prefix, name, flags)			\
-static ssize_t __iscsi_##prefix##_show_##name(				\
+static ssize_t __iscsi_##prefix##_##name##_show(			\
 	struct iscsi_node_acl *nacl,					\
 	char *page)							\
 {									\
@@ -461,7 +414,7 @@ static ssize_t __iscsi_##prefix##_show_##name(				\
 	return snprintf(page, PAGE_SIZE, "%s\n", auth->name);		\
 }									\
 									\
-static ssize_t __iscsi_##prefix##_store_##name(				\
+static ssize_t __iscsi_##prefix##_##name##_store(			\
 	struct iscsi_node_acl *nacl,					\
 	const char *page,						\
 	size_t count)							\
@@ -487,8 +440,35 @@ static ssize_t __iscsi_##prefix##_store_##name(				\
 	return count;							\
 }
 
+#define DEF_NACL_AUTH_STR(name, flags)					\
+	__DEF_NACL_AUTH_STR(nacl_auth, name, flags)			\
+static ssize_t iscsi_nacl_auth_##name##_show(struct config_item *item,	\
+		char *page)						\
+{									\
+	struct se_node_acl *nacl = auth_to_nacl(item);			\
+	return __iscsi_nacl_auth_##name##_show(container_of(nacl,	\
+			struct iscsi_node_acl, se_node_acl), page);	\
+}									\
+static ssize_t iscsi_nacl_auth_##name##_store(struct config_item *item,	\
+		const char *page, size_t count)				\
+{									\
+	struct se_node_acl *nacl = auth_to_nacl(item);			\
+	return __iscsi_nacl_auth_##name##_store(container_of(nacl,	\
+			struct iscsi_node_acl, se_node_acl), page, count); \
+}									\
+									\
+CONFIGFS_ATTR(iscsi_nacl_auth_, name)
+
+/*
+ * One-way authentication userid
+ */
+DEF_NACL_AUTH_STR(userid, NAF_USERID_SET);
+DEF_NACL_AUTH_STR(password, NAF_PASSWORD_SET);
+DEF_NACL_AUTH_STR(userid_mutual, NAF_USERID_IN_SET);
+DEF_NACL_AUTH_STR(password_mutual, NAF_PASSWORD_IN_SET);
+
 #define __DEF_NACL_AUTH_INT(prefix, name)				\
-static ssize_t __iscsi_##prefix##_show_##name(				\
+static ssize_t __iscsi_##prefix##_##name##_show(				\
 	struct iscsi_node_acl *nacl,					\
 	char *page)							\
 {									\
@@ -500,69 +480,26 @@ static ssize_t __iscsi_##prefix##_show_##name(				\
 	return snprintf(page, PAGE_SIZE, "%d\n", auth->name);		\
 }
 
-#define DEF_NACL_AUTH_STR(name, flags)					\
-	__DEF_NACL_AUTH_STR(nacl_auth, name, flags)			\
-static ssize_t iscsi_nacl_auth_show_##name(				\
-	struct se_node_acl *nacl,					\
-	char *page)							\
-{									\
-	return __iscsi_nacl_auth_show_##name(container_of(nacl,		\
-			struct iscsi_node_acl, se_node_acl), page);		\
-}									\
-static ssize_t iscsi_nacl_auth_store_##name(				\
-	struct se_node_acl *nacl,					\
-	const char *page,						\
-	size_t count)							\
-{									\
-	return __iscsi_nacl_auth_store_##name(container_of(nacl,	\
-			struct iscsi_node_acl, se_node_acl), page, count);	\
-}
-
 #define DEF_NACL_AUTH_INT(name)						\
 	__DEF_NACL_AUTH_INT(nacl_auth, name)				\
-static ssize_t iscsi_nacl_auth_show_##name(				\
-	struct se_node_acl *nacl,					\
-	char *page)							\
+static ssize_t iscsi_nacl_auth_##name##_show(struct config_item *item,	\
+		char *page)						\
 {									\
-	return __iscsi_nacl_auth_show_##name(container_of(nacl,		\
-			struct iscsi_node_acl, se_node_acl), page);		\
-}
+	struct se_node_acl *nacl = auth_to_nacl(item);			\
+	return __iscsi_nacl_auth_##name##_show(container_of(nacl,	\
+			struct iscsi_node_acl, se_node_acl), page);	\
+}									\
+									\
+CONFIGFS_ATTR_RO(iscsi_nacl_auth_, name)
 
-#define AUTH_ATTR(_name, _mode)	TF_NACL_AUTH_ATTR(iscsi, _name, _mode);
-#define AUTH_ATTR_RO(_name) TF_NACL_AUTH_ATTR_RO(iscsi, _name);
-
-/*
- * One-way authentication userid
- */
-DEF_NACL_AUTH_STR(userid, NAF_USERID_SET);
-AUTH_ATTR(userid, S_IRUGO | S_IWUSR);
-/*
- * One-way authentication password
- */
-DEF_NACL_AUTH_STR(password, NAF_PASSWORD_SET);
-AUTH_ATTR(password, S_IRUGO | S_IWUSR);
-/*
- * Enforce mutual authentication
- */
 DEF_NACL_AUTH_INT(authenticate_target);
-AUTH_ATTR_RO(authenticate_target);
-/*
- * Mutual authentication userid
- */
-DEF_NACL_AUTH_STR(userid_mutual, NAF_USERID_IN_SET);
-AUTH_ATTR(userid_mutual, S_IRUGO | S_IWUSR);
-/*
- * Mutual authentication password
- */
-DEF_NACL_AUTH_STR(password_mutual, NAF_PASSWORD_IN_SET);
-AUTH_ATTR(password_mutual, S_IRUGO | S_IWUSR);
 
 static struct configfs_attribute *lio_target_nacl_auth_attrs[] = {
-	&iscsi_nacl_auth_userid.attr,
-	&iscsi_nacl_auth_password.attr,
-	&iscsi_nacl_auth_authenticate_target.attr,
-	&iscsi_nacl_auth_userid_mutual.attr,
-	&iscsi_nacl_auth_password_mutual.attr,
+	&iscsi_nacl_auth_attr_userid,
+	&iscsi_nacl_auth_attr_password,
+	&iscsi_nacl_auth_attr_authenticate_target,
+	&iscsi_nacl_auth_attr_userid_mutual,
+	&iscsi_nacl_auth_attr_password_mutual,
 	NULL,
 };
 
@@ -570,11 +507,11 @@ static struct configfs_attribute *lio_target_nacl_auth_attrs[] = {
 
 /* Start items for lio_target_nacl_param_cit */
 
-#define DEF_NACL_PARAM(name)						\
-static ssize_t iscsi_nacl_param_show_##name(				\
-	struct se_node_acl *se_nacl,					\
-	char *page)							\
+#define ISCSI_NACL_PARAM(name)						\
+static ssize_t iscsi_nacl_param_##name##_show(struct config_item *item,	\
+		char *page)						\
 {									\
+	struct se_node_acl *se_nacl = param_to_nacl(item);		\
 	struct iscsi_session *sess;					\
 	struct se_session *se_sess;					\
 	ssize_t rb;							\
@@ -592,55 +529,34 @@ static ssize_t iscsi_nacl_param_show_##name(				\
 	spin_unlock_bh(&se_nacl->nacl_sess_lock);			\
 									\
 	return rb;							\
-}
+}									\
+									\
+CONFIGFS_ATTR_RO(iscsi_nacl_param_, name)
 
-#define NACL_PARAM_ATTR(_name) TF_NACL_PARAM_ATTR_RO(iscsi, _name);
-
-DEF_NACL_PARAM(MaxConnections);
-NACL_PARAM_ATTR(MaxConnections);
-
-DEF_NACL_PARAM(InitialR2T);
-NACL_PARAM_ATTR(InitialR2T);
-
-DEF_NACL_PARAM(ImmediateData);
-NACL_PARAM_ATTR(ImmediateData);
-
-DEF_NACL_PARAM(MaxBurstLength);
-NACL_PARAM_ATTR(MaxBurstLength);
-
-DEF_NACL_PARAM(FirstBurstLength);
-NACL_PARAM_ATTR(FirstBurstLength);
-
-DEF_NACL_PARAM(DefaultTime2Wait);
-NACL_PARAM_ATTR(DefaultTime2Wait);
-
-DEF_NACL_PARAM(DefaultTime2Retain);
-NACL_PARAM_ATTR(DefaultTime2Retain);
-
-DEF_NACL_PARAM(MaxOutstandingR2T);
-NACL_PARAM_ATTR(MaxOutstandingR2T);
-
-DEF_NACL_PARAM(DataPDUInOrder);
-NACL_PARAM_ATTR(DataPDUInOrder);
-
-DEF_NACL_PARAM(DataSequenceInOrder);
-NACL_PARAM_ATTR(DataSequenceInOrder);
-
-DEF_NACL_PARAM(ErrorRecoveryLevel);
-NACL_PARAM_ATTR(ErrorRecoveryLevel);
+ISCSI_NACL_PARAM(MaxConnections);
+ISCSI_NACL_PARAM(InitialR2T);
+ISCSI_NACL_PARAM(ImmediateData);
+ISCSI_NACL_PARAM(MaxBurstLength);
+ISCSI_NACL_PARAM(FirstBurstLength);
+ISCSI_NACL_PARAM(DefaultTime2Wait);
+ISCSI_NACL_PARAM(DefaultTime2Retain);
+ISCSI_NACL_PARAM(MaxOutstandingR2T);
+ISCSI_NACL_PARAM(DataPDUInOrder);
+ISCSI_NACL_PARAM(DataSequenceInOrder);
+ISCSI_NACL_PARAM(ErrorRecoveryLevel);
 
 static struct configfs_attribute *lio_target_nacl_param_attrs[] = {
-	&iscsi_nacl_param_MaxConnections.attr,
-	&iscsi_nacl_param_InitialR2T.attr,
-	&iscsi_nacl_param_ImmediateData.attr,
-	&iscsi_nacl_param_MaxBurstLength.attr,
-	&iscsi_nacl_param_FirstBurstLength.attr,
-	&iscsi_nacl_param_DefaultTime2Wait.attr,
-	&iscsi_nacl_param_DefaultTime2Retain.attr,
-	&iscsi_nacl_param_MaxOutstandingR2T.attr,
-	&iscsi_nacl_param_DataPDUInOrder.attr,
-	&iscsi_nacl_param_DataSequenceInOrder.attr,
-	&iscsi_nacl_param_ErrorRecoveryLevel.attr,
+	&iscsi_nacl_param_attr_MaxConnections,
+	&iscsi_nacl_param_attr_InitialR2T,
+	&iscsi_nacl_param_attr_ImmediateData,
+	&iscsi_nacl_param_attr_MaxBurstLength,
+	&iscsi_nacl_param_attr_FirstBurstLength,
+	&iscsi_nacl_param_attr_DefaultTime2Wait,
+	&iscsi_nacl_param_attr_DefaultTime2Retain,
+	&iscsi_nacl_param_attr_MaxOutstandingR2T,
+	&iscsi_nacl_param_attr_DataPDUInOrder,
+	&iscsi_nacl_param_attr_DataSequenceInOrder,
+	&iscsi_nacl_param_attr_ErrorRecoveryLevel,
 	NULL,
 };
 
@@ -648,10 +564,9 @@ static struct configfs_attribute *lio_target_nacl_param_attrs[] = {
 
 /* Start items for lio_target_acl_cit */
 
-static ssize_t lio_target_nacl_show_info(
-	struct se_node_acl *se_nacl,
-	char *page)
+static ssize_t lio_target_nacl_info_show(struct config_item *item, char *page)
 {
+	struct se_node_acl *se_nacl = acl_to_nacl(item);
 	struct iscsi_session *sess;
 	struct iscsi_conn *conn;
 	struct se_session *se_sess;
@@ -766,20 +681,16 @@ static ssize_t lio_target_nacl_show_info(
 	return rb;
 }
 
-TF_NACL_BASE_ATTR_RO(lio_target, info);
-
-static ssize_t lio_target_nacl_show_cmdsn_depth(
-	struct se_node_acl *se_nacl,
-	char *page)
+static ssize_t lio_target_nacl_cmdsn_depth_show(struct config_item *item,
+		char *page)
 {
-	return sprintf(page, "%u\n", se_nacl->queue_depth);
+	return sprintf(page, "%u\n", acl_to_nacl(item)->queue_depth);
 }
 
-static ssize_t lio_target_nacl_store_cmdsn_depth(
-	struct se_node_acl *se_nacl,
-	const char *page,
-	size_t count)
+static ssize_t lio_target_nacl_cmdsn_depth_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct se_node_acl *se_nacl = acl_to_nacl(item);
 	struct se_portal_group *se_tpg = se_nacl->se_tpg;
 	struct iscsi_portal_group *tpg = container_of(se_tpg,
 			struct iscsi_portal_group, tpg_se_tpg);
@@ -829,20 +740,15 @@ static ssize_t lio_target_nacl_store_cmdsn_depth(
 	return (!ret) ? count : (ssize_t)ret;
 }
 
-TF_NACL_BASE_ATTR(lio_target, cmdsn_depth, S_IRUGO | S_IWUSR);
-
-static ssize_t lio_target_nacl_show_tag(
-	struct se_node_acl *se_nacl,
-	char *page)
+static ssize_t lio_target_nacl_tag_show(struct config_item *item, char *page)
 {
-	return snprintf(page, PAGE_SIZE, "%s", se_nacl->acl_tag);
+	return snprintf(page, PAGE_SIZE, "%s", acl_to_nacl(item)->acl_tag);
 }
 
-static ssize_t lio_target_nacl_store_tag(
-	struct se_node_acl *se_nacl,
-	const char *page,
-	size_t count)
+static ssize_t lio_target_nacl_tag_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct se_node_acl *se_nacl = acl_to_nacl(item);
 	int ret;
 
 	ret = core_tpg_set_initiator_node_tag(se_nacl->se_tpg, se_nacl, page);
@@ -852,12 +758,14 @@ static ssize_t lio_target_nacl_store_tag(
 	return count;
 }
 
-TF_NACL_BASE_ATTR(lio_target, tag, S_IRUGO | S_IWUSR);
+CONFIGFS_ATTR_RO(lio_target_nacl_, info);
+CONFIGFS_ATTR(lio_target_nacl_, cmdsn_depth);
+CONFIGFS_ATTR(lio_target_nacl_, tag);
 
 static struct configfs_attribute *lio_target_initiator_attrs[] = {
-	&lio_target_nacl_info.attr,
-	&lio_target_nacl_cmdsn_depth.attr,
-	&lio_target_nacl_tag.attr,
+	&lio_target_nacl_attr_info,
+	&lio_target_nacl_attr_cmdsn_depth,
+	&lio_target_nacl_attr_tag,
 	NULL,
 };
 
@@ -907,10 +815,10 @@ static void lio_target_cleanup_nodeacl( struct se_node_acl *se_nacl)
 
 #define DEF_TPG_ATTRIB(name)						\
 									\
-static ssize_t iscsi_tpg_attrib_show_##name(				\
-	struct se_portal_group *se_tpg,				\
-	char *page)							\
+static ssize_t iscsi_tpg_attrib_##name##_show(struct config_item *item,	\
+		char *page)						\
 {									\
+	struct se_portal_group *se_tpg = attrib_to_tpg(item);		\
 	struct iscsi_portal_group *tpg = container_of(se_tpg,		\
 			struct iscsi_portal_group, tpg_se_tpg);	\
 	ssize_t rb;							\
@@ -923,11 +831,10 @@ static ssize_t iscsi_tpg_attrib_show_##name(				\
 	return rb;							\
 }									\
 									\
-static ssize_t iscsi_tpg_attrib_store_##name(				\
-	struct se_portal_group *se_tpg,				\
-	const char *page,						\
-	size_t count)							\
+static ssize_t iscsi_tpg_attrib_##name##_store(struct config_item *item,\
+		const char *page, size_t count)				\
 {									\
+	struct se_portal_group *se_tpg = attrib_to_tpg(item);		\
 	struct iscsi_portal_group *tpg = container_of(se_tpg,		\
 			struct iscsi_portal_group, tpg_se_tpg);	\
 	u32 val;							\
@@ -948,90 +855,37 @@ static ssize_t iscsi_tpg_attrib_store_##name(				\
 out:									\
 	iscsit_put_tpg(tpg);						\
 	return ret;							\
-}
+}									\
+CONFIGFS_ATTR(iscsi_tpg_attrib_, name)
 
-#define TPG_ATTR(_name, _mode) TF_TPG_ATTRIB_ATTR(iscsi, _name, _mode);
-
-/*
- * Define iscsi_tpg_attrib_s_authentication
- */
 DEF_TPG_ATTRIB(authentication);
-TPG_ATTR(authentication, S_IRUGO | S_IWUSR);
-/*
- * Define iscsi_tpg_attrib_s_login_timeout
- */
 DEF_TPG_ATTRIB(login_timeout);
-TPG_ATTR(login_timeout, S_IRUGO | S_IWUSR);
-/*
- * Define iscsi_tpg_attrib_s_netif_timeout
- */
 DEF_TPG_ATTRIB(netif_timeout);
-TPG_ATTR(netif_timeout, S_IRUGO | S_IWUSR);
-/*
- * Define iscsi_tpg_attrib_s_generate_node_acls
- */
 DEF_TPG_ATTRIB(generate_node_acls);
-TPG_ATTR(generate_node_acls, S_IRUGO | S_IWUSR);
-/*
- * Define iscsi_tpg_attrib_s_default_cmdsn_depth
- */
 DEF_TPG_ATTRIB(default_cmdsn_depth);
-TPG_ATTR(default_cmdsn_depth, S_IRUGO | S_IWUSR);
-/*
- Define iscsi_tpg_attrib_s_cache_dynamic_acls
- */
 DEF_TPG_ATTRIB(cache_dynamic_acls);
-TPG_ATTR(cache_dynamic_acls, S_IRUGO | S_IWUSR);
-/*
- * Define iscsi_tpg_attrib_s_demo_mode_write_protect
- */
 DEF_TPG_ATTRIB(demo_mode_write_protect);
-TPG_ATTR(demo_mode_write_protect, S_IRUGO | S_IWUSR);
-/*
- * Define iscsi_tpg_attrib_s_prod_mode_write_protect
- */
 DEF_TPG_ATTRIB(prod_mode_write_protect);
-TPG_ATTR(prod_mode_write_protect, S_IRUGO | S_IWUSR);
-/*
- * Define iscsi_tpg_attrib_s_demo_mode_discovery,
- */
 DEF_TPG_ATTRIB(demo_mode_discovery);
-TPG_ATTR(demo_mode_discovery, S_IRUGO | S_IWUSR);
-/*
- * Define iscsi_tpg_attrib_s_default_erl
- */
 DEF_TPG_ATTRIB(default_erl);
-TPG_ATTR(default_erl, S_IRUGO | S_IWUSR);
-/*
- * Define iscsi_tpg_attrib_s_t10_pi
- */
 DEF_TPG_ATTRIB(t10_pi);
-TPG_ATTR(t10_pi, S_IRUGO | S_IWUSR);
-/*
- * Define iscsi_tpg_attrib_s_fabric_prot_type
- */
 DEF_TPG_ATTRIB(fabric_prot_type);
-TPG_ATTR(fabric_prot_type, S_IRUGO | S_IWUSR);
-/*
- * Define iscsi_tpg_attrib_s_tpg_enabled_sendtargets
- */
 DEF_TPG_ATTRIB(tpg_enabled_sendtargets);
-TPG_ATTR(tpg_enabled_sendtargets, S_IRUGO | S_IWUSR);
 
 static struct configfs_attribute *lio_target_tpg_attrib_attrs[] = {
-	&iscsi_tpg_attrib_authentication.attr,
-	&iscsi_tpg_attrib_login_timeout.attr,
-	&iscsi_tpg_attrib_netif_timeout.attr,
-	&iscsi_tpg_attrib_generate_node_acls.attr,
-	&iscsi_tpg_attrib_default_cmdsn_depth.attr,
-	&iscsi_tpg_attrib_cache_dynamic_acls.attr,
-	&iscsi_tpg_attrib_demo_mode_write_protect.attr,
-	&iscsi_tpg_attrib_prod_mode_write_protect.attr,
-	&iscsi_tpg_attrib_demo_mode_discovery.attr,
-	&iscsi_tpg_attrib_default_erl.attr,
-	&iscsi_tpg_attrib_t10_pi.attr,
-	&iscsi_tpg_attrib_fabric_prot_type.attr,
-	&iscsi_tpg_attrib_tpg_enabled_sendtargets.attr,
+	&iscsi_tpg_attrib_attr_authentication,
+	&iscsi_tpg_attrib_attr_login_timeout,
+	&iscsi_tpg_attrib_attr_netif_timeout,
+	&iscsi_tpg_attrib_attr_generate_node_acls,
+	&iscsi_tpg_attrib_attr_default_cmdsn_depth,
+	&iscsi_tpg_attrib_attr_cache_dynamic_acls,
+	&iscsi_tpg_attrib_attr_demo_mode_write_protect,
+	&iscsi_tpg_attrib_attr_prod_mode_write_protect,
+	&iscsi_tpg_attrib_attr_demo_mode_discovery,
+	&iscsi_tpg_attrib_attr_default_erl,
+	&iscsi_tpg_attrib_attr_t10_pi,
+	&iscsi_tpg_attrib_attr_fabric_prot_type,
+	&iscsi_tpg_attrib_attr_tpg_enabled_sendtargets,
 	NULL,
 };
 
@@ -1040,9 +894,8 @@ static struct configfs_attribute *lio_target_tpg_attrib_attrs[] = {
 /* Start items for lio_target_tpg_auth_cit */
 
 #define __DEF_TPG_AUTH_STR(prefix, name, flags)					\
-static ssize_t __iscsi_##prefix##_show_##name(					\
-	struct se_portal_group *se_tpg,						\
-	char *page)								\
+static ssize_t __iscsi_##prefix##_##name##_show(struct se_portal_group *se_tpg,	\
+		char *page)							\
 {										\
 	struct iscsi_portal_group *tpg = container_of(se_tpg,			\
 				struct iscsi_portal_group, tpg_se_tpg);		\
@@ -1054,10 +907,8 @@ static ssize_t __iscsi_##prefix##_show_##name(					\
 	return snprintf(page, PAGE_SIZE, "%s\n", auth->name);			\
 }										\
 										\
-static ssize_t __iscsi_##prefix##_store_##name(					\
-	struct se_portal_group *se_tpg,						\
-	const char *page,							\
-	size_t count)								\
+static ssize_t __iscsi_##prefix##_##name##_store(struct se_portal_group *se_tpg,\
+		const char *page, size_t count)					\
 {										\
 	struct iscsi_portal_group *tpg = container_of(se_tpg,			\
 				struct iscsi_portal_group, tpg_se_tpg);		\
@@ -1081,10 +932,31 @@ static ssize_t __iscsi_##prefix##_store_##name(					\
 	return count;								\
 }
 
+#define DEF_TPG_AUTH_STR(name, flags)						\
+	__DEF_TPG_AUTH_STR(tpg_auth, name, flags)				\
+static ssize_t iscsi_tpg_auth_##name##_show(struct config_item *item,		\
+		char *page)							\
+{										\
+	return __iscsi_tpg_auth_##name##_show(auth_to_tpg(item), page);		\
+}										\
+										\
+static ssize_t iscsi_tpg_auth_##name##_store(struct config_item *item,		\
+		const char *page, size_t count)					\
+{										\
+	return __iscsi_tpg_auth_##name##_store(auth_to_tpg(item), page, count);	\
+}										\
+										\
+CONFIGFS_ATTR(iscsi_tpg_auth_, name);
+
+
+DEF_TPG_AUTH_STR(userid, NAF_USERID_SET);
+DEF_TPG_AUTH_STR(password, NAF_PASSWORD_SET);
+DEF_TPG_AUTH_STR(userid_mutual, NAF_USERID_IN_SET);
+DEF_TPG_AUTH_STR(password_mutual, NAF_PASSWORD_IN_SET);
+
 #define __DEF_TPG_AUTH_INT(prefix, name)					\
-static ssize_t __iscsi_##prefix##_show_##name(					\
-	struct se_portal_group *se_tpg,						\
-	char *page)								\
+static ssize_t __iscsi_##prefix##_##name##_show(struct se_portal_group *se_tpg,	\
+		char *page)								\
 {										\
 	struct iscsi_portal_group *tpg = container_of(se_tpg,			\
 				struct iscsi_portal_group, tpg_se_tpg);		\
@@ -1096,67 +968,23 @@ static ssize_t __iscsi_##prefix##_show_##name(					\
 	return snprintf(page, PAGE_SIZE, "%d\n", auth->name);			\
 }
 
-#define DEF_TPG_AUTH_STR(name, flags)						\
-	__DEF_TPG_AUTH_STR(tpg_auth, name, flags)				\
-static ssize_t iscsi_tpg_auth_show_##name(					\
-	struct se_portal_group *se_tpg,						\
-	char *page)								\
-{										\
-	return __iscsi_tpg_auth_show_##name(se_tpg, page);			\
-}										\
-										\
-static ssize_t iscsi_tpg_auth_store_##name(					\
-	struct se_portal_group *se_tpg,						\
-	const char *page,							\
-	size_t count)								\
-{										\
-	return __iscsi_tpg_auth_store_##name(se_tpg, page, count);		\
-}
-
 #define DEF_TPG_AUTH_INT(name)							\
 	__DEF_TPG_AUTH_INT(tpg_auth, name)					\
-static ssize_t iscsi_tpg_auth_show_##name(					\
-	struct se_portal_group *se_tpg,						\
-	char *page)								\
+static ssize_t iscsi_tpg_auth_##name##_show(struct config_item *item,		\
+		char *page) \
 {										\
-	return __iscsi_tpg_auth_show_##name(se_tpg, page);			\
-}
+	return __iscsi_tpg_auth_##name##_show(auth_to_tpg(item), page);		\
+}										\
+CONFIGFS_ATTR_RO(iscsi_tpg_auth_, name);
 
-#define TPG_AUTH_ATTR(_name, _mode) TF_TPG_AUTH_ATTR(iscsi, _name, _mode);
-#define TPG_AUTH_ATTR_RO(_name) TF_TPG_AUTH_ATTR_RO(iscsi, _name);
-
-/*
- *  * One-way authentication userid
- *   */
-DEF_TPG_AUTH_STR(userid, NAF_USERID_SET);
-TPG_AUTH_ATTR(userid, S_IRUGO | S_IWUSR);
-/*
- *  * One-way authentication password
- *   */
-DEF_TPG_AUTH_STR(password, NAF_PASSWORD_SET);
-TPG_AUTH_ATTR(password, S_IRUGO | S_IWUSR);
-/*
- *  * Enforce mutual authentication
- *   */
 DEF_TPG_AUTH_INT(authenticate_target);
-TPG_AUTH_ATTR_RO(authenticate_target);
-/*
- *  * Mutual authentication userid
- *   */
-DEF_TPG_AUTH_STR(userid_mutual, NAF_USERID_IN_SET);
-TPG_AUTH_ATTR(userid_mutual, S_IRUGO | S_IWUSR);
-/*
- *  * Mutual authentication password
- *   */
-DEF_TPG_AUTH_STR(password_mutual, NAF_PASSWORD_IN_SET);
-TPG_AUTH_ATTR(password_mutual, S_IRUGO | S_IWUSR);
 
 static struct configfs_attribute *lio_target_tpg_auth_attrs[] = {
-	&iscsi_tpg_auth_userid.attr,
-	&iscsi_tpg_auth_password.attr,
-	&iscsi_tpg_auth_authenticate_target.attr,
-	&iscsi_tpg_auth_userid_mutual.attr,
-	&iscsi_tpg_auth_password_mutual.attr,
+	&iscsi_tpg_auth_attr_userid,
+	&iscsi_tpg_auth_attr_password,
+	&iscsi_tpg_auth_attr_authenticate_target,
+	&iscsi_tpg_auth_attr_userid_mutual,
+	&iscsi_tpg_auth_attr_password_mutual,
 	NULL,
 };
 
@@ -1165,10 +993,10 @@ static struct configfs_attribute *lio_target_tpg_auth_attrs[] = {
 /* Start items for lio_target_tpg_param_cit */
 
 #define DEF_TPG_PARAM(name)						\
-static ssize_t iscsi_tpg_param_show_##name(				\
-	struct se_portal_group *se_tpg,					\
-	char *page)							\
+static ssize_t iscsi_tpg_param_##name##_show(struct config_item *item,	\
+		char *page)						\
 {									\
+	struct se_portal_group *se_tpg = param_to_tpg(item);		\
 	struct iscsi_portal_group *tpg = container_of(se_tpg,		\
 			struct iscsi_portal_group, tpg_se_tpg);		\
 	struct iscsi_param *param;					\
@@ -1188,11 +1016,10 @@ static ssize_t iscsi_tpg_param_show_##name(				\
 	iscsit_put_tpg(tpg);						\
 	return rb;							\
 }									\
-static ssize_t iscsi_tpg_param_store_##name(				\
-	struct se_portal_group *se_tpg,				\
-	const char *page,						\
-	size_t count)							\
+static ssize_t iscsi_tpg_param_##name##_store(struct config_item *item, \
+		const char *page, size_t count)				\
 {									\
+	struct se_portal_group *se_tpg = param_to_tpg(item);		\
 	struct iscsi_portal_group *tpg = container_of(se_tpg,		\
 			struct iscsi_portal_group, tpg_se_tpg);		\
 	char *buf;							\
@@ -1220,96 +1047,54 @@ static ssize_t iscsi_tpg_param_store_##name(				\
 out:									\
 	kfree(buf);							\
 	iscsit_put_tpg(tpg);						\
-	return -EINVAL;						\
-}
-
-#define TPG_PARAM_ATTR(_name, _mode) TF_TPG_PARAM_ATTR(iscsi, _name, _mode);
+	return -EINVAL;							\
+}									\
+CONFIGFS_ATTR(iscsi_tpg_param_, name)
 
 DEF_TPG_PARAM(AuthMethod);
-TPG_PARAM_ATTR(AuthMethod, S_IRUGO | S_IWUSR);
-
 DEF_TPG_PARAM(HeaderDigest);
-TPG_PARAM_ATTR(HeaderDigest, S_IRUGO | S_IWUSR);
-
 DEF_TPG_PARAM(DataDigest);
-TPG_PARAM_ATTR(DataDigest, S_IRUGO | S_IWUSR);
-
 DEF_TPG_PARAM(MaxConnections);
-TPG_PARAM_ATTR(MaxConnections, S_IRUGO | S_IWUSR);
-
 DEF_TPG_PARAM(TargetAlias);
-TPG_PARAM_ATTR(TargetAlias, S_IRUGO | S_IWUSR);
-
 DEF_TPG_PARAM(InitialR2T);
-TPG_PARAM_ATTR(InitialR2T, S_IRUGO | S_IWUSR);
-
 DEF_TPG_PARAM(ImmediateData);
-TPG_PARAM_ATTR(ImmediateData, S_IRUGO | S_IWUSR);
-
 DEF_TPG_PARAM(MaxRecvDataSegmentLength);
-TPG_PARAM_ATTR(MaxRecvDataSegmentLength, S_IRUGO | S_IWUSR);
-
 DEF_TPG_PARAM(MaxXmitDataSegmentLength);
-TPG_PARAM_ATTR(MaxXmitDataSegmentLength, S_IRUGO | S_IWUSR);
-
 DEF_TPG_PARAM(MaxBurstLength);
-TPG_PARAM_ATTR(MaxBurstLength, S_IRUGO | S_IWUSR);
-
 DEF_TPG_PARAM(FirstBurstLength);
-TPG_PARAM_ATTR(FirstBurstLength, S_IRUGO | S_IWUSR);
-
 DEF_TPG_PARAM(DefaultTime2Wait);
-TPG_PARAM_ATTR(DefaultTime2Wait, S_IRUGO | S_IWUSR);
-
 DEF_TPG_PARAM(DefaultTime2Retain);
-TPG_PARAM_ATTR(DefaultTime2Retain, S_IRUGO | S_IWUSR);
-
 DEF_TPG_PARAM(MaxOutstandingR2T);
-TPG_PARAM_ATTR(MaxOutstandingR2T, S_IRUGO | S_IWUSR);
-
 DEF_TPG_PARAM(DataPDUInOrder);
-TPG_PARAM_ATTR(DataPDUInOrder, S_IRUGO | S_IWUSR);
-
 DEF_TPG_PARAM(DataSequenceInOrder);
-TPG_PARAM_ATTR(DataSequenceInOrder, S_IRUGO | S_IWUSR);
-
 DEF_TPG_PARAM(ErrorRecoveryLevel);
-TPG_PARAM_ATTR(ErrorRecoveryLevel, S_IRUGO | S_IWUSR);
-
 DEF_TPG_PARAM(IFMarker);
-TPG_PARAM_ATTR(IFMarker, S_IRUGO | S_IWUSR);
-
 DEF_TPG_PARAM(OFMarker);
-TPG_PARAM_ATTR(OFMarker, S_IRUGO | S_IWUSR);
-
 DEF_TPG_PARAM(IFMarkInt);
-TPG_PARAM_ATTR(IFMarkInt, S_IRUGO | S_IWUSR);
-
 DEF_TPG_PARAM(OFMarkInt);
-TPG_PARAM_ATTR(OFMarkInt, S_IRUGO | S_IWUSR);
 
 static struct configfs_attribute *lio_target_tpg_param_attrs[] = {
-	&iscsi_tpg_param_AuthMethod.attr,
-	&iscsi_tpg_param_HeaderDigest.attr,
-	&iscsi_tpg_param_DataDigest.attr,
-	&iscsi_tpg_param_MaxConnections.attr,
-	&iscsi_tpg_param_TargetAlias.attr,
-	&iscsi_tpg_param_InitialR2T.attr,
-	&iscsi_tpg_param_ImmediateData.attr,
-	&iscsi_tpg_param_MaxRecvDataSegmentLength.attr,
-	&iscsi_tpg_param_MaxXmitDataSegmentLength.attr,
-	&iscsi_tpg_param_MaxBurstLength.attr,
-	&iscsi_tpg_param_FirstBurstLength.attr,
-	&iscsi_tpg_param_DefaultTime2Wait.attr,
-	&iscsi_tpg_param_DefaultTime2Retain.attr,
-	&iscsi_tpg_param_MaxOutstandingR2T.attr,
-	&iscsi_tpg_param_DataPDUInOrder.attr,
-	&iscsi_tpg_param_DataSequenceInOrder.attr,
-	&iscsi_tpg_param_ErrorRecoveryLevel.attr,
-	&iscsi_tpg_param_IFMarker.attr,
-	&iscsi_tpg_param_OFMarker.attr,
-	&iscsi_tpg_param_IFMarkInt.attr,
-	&iscsi_tpg_param_OFMarkInt.attr,
+	&iscsi_tpg_param_attr_AuthMethod,
+	&iscsi_tpg_param_attr_HeaderDigest,
+	&iscsi_tpg_param_attr_DataDigest,
+	&iscsi_tpg_param_attr_MaxConnections,
+	&iscsi_tpg_param_attr_TargetAlias,
+	&iscsi_tpg_param_attr_InitialR2T,
+	&iscsi_tpg_param_attr_ImmediateData,
+	&iscsi_tpg_param_attr_MaxRecvDataSegmentLength,
+	&iscsi_tpg_param_attr_MaxXmitDataSegmentLength,
+	&iscsi_tpg_param_attr_MaxBurstLength,
+	&iscsi_tpg_param_attr_FirstBurstLength,
+	&iscsi_tpg_param_attr_DefaultTime2Wait,
+	&iscsi_tpg_param_attr_DefaultTime2Retain,
+	&iscsi_tpg_param_attr_MaxOutstandingR2T,
+	&iscsi_tpg_param_attr_DataPDUInOrder,
+	&iscsi_tpg_param_attr_DataSequenceInOrder,
+	&iscsi_tpg_param_attr_ErrorRecoveryLevel,
+	&iscsi_tpg_param_attr_IFMarker,
+	&iscsi_tpg_param_attr_OFMarker,
+	&iscsi_tpg_param_attr_IFMarkInt,
+	&iscsi_tpg_param_attr_OFMarkInt,
 	NULL,
 };
 
@@ -1317,10 +1102,9 @@ static struct configfs_attribute *lio_target_tpg_param_attrs[] = {
 
 /* Start items for lio_target_tpg_cit */
 
-static ssize_t lio_target_tpg_show_enable(
-	struct se_portal_group *se_tpg,
-	char *page)
+static ssize_t lio_target_tpg_enable_show(struct config_item *item, char *page)
 {
+	struct se_portal_group *se_tpg = to_tpg(item);
 	struct iscsi_portal_group *tpg = container_of(se_tpg,
 			struct iscsi_portal_group, tpg_se_tpg);
 	ssize_t len;
@@ -1333,11 +1117,10 @@ static ssize_t lio_target_tpg_show_enable(
 	return len;
 }
 
-static ssize_t lio_target_tpg_store_enable(
-	struct se_portal_group *se_tpg,
-	const char *page,
-	size_t count)
+static ssize_t lio_target_tpg_enable_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct se_portal_group *se_tpg = to_tpg(item);
 	struct iscsi_portal_group *tpg = container_of(se_tpg,
 			struct iscsi_portal_group, tpg_se_tpg);
 	u32 op;
@@ -1375,20 +1158,19 @@ out:
 	return -EINVAL;
 }
 
-TF_TPG_BASE_ATTR(lio_target, enable, S_IRUGO | S_IWUSR);
 
-static ssize_t lio_target_tpg_show_dynamic_sessions(
-	struct se_portal_group *se_tpg,
-	char *page)
+static ssize_t lio_target_tpg_dynamic_sessions_show(struct config_item *item,
+		char *page)
 {
-	return target_show_dynamic_sessions(se_tpg, page);
+	return target_show_dynamic_sessions(to_tpg(item), page);
 }
 
-TF_TPG_BASE_ATTR_RO(lio_target, dynamic_sessions);
+CONFIGFS_ATTR(lio_target_tpg_, enable);
+CONFIGFS_ATTR_RO(lio_target_tpg_, dynamic_sessions);
 
 static struct configfs_attribute *lio_target_tpg_attrs[] = {
-	&lio_target_tpg_enable.attr,
-	&lio_target_tpg_dynamic_sessions.attr,
+	&lio_target_tpg_attr_enable,
+	&lio_target_tpg_attr_dynamic_sessions,
 	NULL,
 };
 
@@ -1463,17 +1245,16 @@ static void lio_target_tiqn_deltpg(struct se_portal_group *se_tpg)
 
 /* Start LIO-Target TIQN struct contig_item lio_target_cit */
 
-static ssize_t lio_target_wwn_show_attr_lio_version(
-	struct target_fabric_configfs *tf,
-	char *page)
+static ssize_t lio_target_wwn_lio_version_show(struct config_item *item,
+		char *page)
 {
 	return sprintf(page, "Datera Inc. iSCSI Target "ISCSIT_VERSION"\n");
 }
 
-TF_WWN_ATTR_RO(lio_target, lio_version);
+CONFIGFS_ATTR_RO(lio_target_wwn_, lio_version);
 
 static struct configfs_attribute *lio_target_wwn_attrs[] = {
-	&lio_target_wwn_lio_version.attr,
+	&lio_target_wwn_attr_lio_version,
 	NULL,
 };
 
@@ -1552,77 +1333,47 @@ static void lio_target_call_coredeltiqn(
 
 #define DEF_DISC_AUTH_STR(name, flags)					\
 	__DEF_NACL_AUTH_STR(disc, name, flags)				\
-static ssize_t iscsi_disc_show_##name(					\
-	struct target_fabric_configfs *tf,				\
-	char *page)							\
+static ssize_t iscsi_disc_##name##_show(struct config_item *item, char *page) \
 {									\
-	return __iscsi_disc_show_##name(&iscsit_global->discovery_acl,	\
+	return __iscsi_disc_##name##_show(&iscsit_global->discovery_acl,\
 		page);							\
 }									\
-static ssize_t iscsi_disc_store_##name(					\
-	struct target_fabric_configfs *tf,				\
-	const char *page,						\
-	size_t count)							\
+static ssize_t iscsi_disc_##name##_store(struct config_item *item,	\
+		const char *page, size_t count)				\
 {									\
-	return __iscsi_disc_store_##name(&iscsit_global->discovery_acl,	\
+	return __iscsi_disc_##name##_store(&iscsit_global->discovery_acl,	\
 		page, count);						\
-}
+									\
+}									\
+CONFIGFS_ATTR(iscsi_disc_, name)
+
+DEF_DISC_AUTH_STR(userid, NAF_USERID_SET);
+DEF_DISC_AUTH_STR(password, NAF_PASSWORD_SET);
+DEF_DISC_AUTH_STR(userid_mutual, NAF_USERID_IN_SET);
+DEF_DISC_AUTH_STR(password_mutual, NAF_PASSWORD_IN_SET);
 
 #define DEF_DISC_AUTH_INT(name)						\
 	__DEF_NACL_AUTH_INT(disc, name)					\
-static ssize_t iscsi_disc_show_##name(					\
-	struct target_fabric_configfs *tf,				\
-	char *page)							\
+static ssize_t iscsi_disc_##name##_show(struct config_item *item, char *page) \
 {									\
-	return __iscsi_disc_show_##name(&iscsit_global->discovery_acl,	\
+	return __iscsi_disc_##name##_show(&iscsit_global->discovery_acl, \
 			page);						\
-}
+}									\
+CONFIGFS_ATTR_RO(iscsi_disc_, name)
 
-#define DISC_AUTH_ATTR(_name, _mode) TF_DISC_ATTR(iscsi, _name, _mode)
-#define DISC_AUTH_ATTR_RO(_name) TF_DISC_ATTR_RO(iscsi, _name)
-
-/*
- * One-way authentication userid
- */
-DEF_DISC_AUTH_STR(userid, NAF_USERID_SET);
-DISC_AUTH_ATTR(userid, S_IRUGO | S_IWUSR);
-/*
- * One-way authentication password
- */
-DEF_DISC_AUTH_STR(password, NAF_PASSWORD_SET);
-DISC_AUTH_ATTR(password, S_IRUGO | S_IWUSR);
-/*
- * Enforce mutual authentication
- */
 DEF_DISC_AUTH_INT(authenticate_target);
-DISC_AUTH_ATTR_RO(authenticate_target);
-/*
- * Mutual authentication userid
- */
-DEF_DISC_AUTH_STR(userid_mutual, NAF_USERID_IN_SET);
-DISC_AUTH_ATTR(userid_mutual, S_IRUGO | S_IWUSR);
-/*
- * Mutual authentication password
- */
-DEF_DISC_AUTH_STR(password_mutual, NAF_PASSWORD_IN_SET);
-DISC_AUTH_ATTR(password_mutual, S_IRUGO | S_IWUSR);
 
-/*
- * enforce_discovery_auth
- */
-static ssize_t iscsi_disc_show_enforce_discovery_auth(
-	struct target_fabric_configfs *tf,
-	char *page)
+
+static ssize_t iscsi_disc_enforce_discovery_auth_show(struct config_item *item,
+		char *page)
 {
 	struct iscsi_node_auth *discovery_auth = &iscsit_global->discovery_acl.node_auth;
 
 	return sprintf(page, "%d\n", discovery_auth->enforce_discovery_auth);
 }
 
-static ssize_t iscsi_disc_store_enforce_discovery_auth(
-	struct target_fabric_configfs *tf,
-	const char *page,
-	size_t count)
+static ssize_t iscsi_disc_enforce_discovery_auth_store(struct config_item *item,
+		const char *page, size_t count)
 {
 	struct iscsi_param *param;
 	struct iscsi_portal_group *discovery_tpg = iscsit_global->discovery_tpg;
@@ -1677,15 +1428,15 @@ static ssize_t iscsi_disc_store_enforce_discovery_auth(
 	return count;
 }
 
-DISC_AUTH_ATTR(enforce_discovery_auth, S_IRUGO | S_IWUSR);
+CONFIGFS_ATTR(iscsi_disc_, enforce_discovery_auth);
 
 static struct configfs_attribute *lio_target_discovery_auth_attrs[] = {
-	&iscsi_disc_userid.attr,
-	&iscsi_disc_password.attr,
-	&iscsi_disc_authenticate_target.attr,
-	&iscsi_disc_userid_mutual.attr,
-	&iscsi_disc_password_mutual.attr,
-	&iscsi_disc_enforce_discovery_auth.attr,
+	&iscsi_disc_attr_userid,
+	&iscsi_disc_attr_password,
+	&iscsi_disc_attr_authenticate_target,
+	&iscsi_disc_attr_userid_mutual,
+	&iscsi_disc_attr_password_mutual,
+	&iscsi_disc_attr_enforce_discovery_auth,
 	NULL,
 };
 
