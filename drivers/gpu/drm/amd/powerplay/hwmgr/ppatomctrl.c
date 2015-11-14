@@ -313,6 +313,28 @@ int atomctrl_get_memory_pll_dividers_vi(struct pp_hwmgr *hwmgr,
 	return result;
 }
 
+int atomctrl_get_engine_pll_dividers_kong(struct pp_hwmgr *hwmgr,
+					  uint32_t clock_value,
+					  pp_atomctrl_clock_dividers_kong *dividers)
+{
+	COMPUTE_MEMORY_ENGINE_PLL_PARAMETERS_V4 pll_parameters;
+	int result;
+
+	pll_parameters.ulClock = clock_value;
+
+	result = cgs_atom_exec_cmd_table
+		(hwmgr->device,
+		 GetIndexIntoMasterTable(COMMAND, ComputeMemoryEnginePLL),
+		 &pll_parameters);
+
+	if (0 == result) {
+		dividers->pll_post_divider = pll_parameters.ucPostDiv;
+		dividers->real_clock = pll_parameters.ulClock;
+	}
+
+	return result;
+}
+
 int atomctrl_get_engine_pll_dividers_vi(
 		struct pp_hwmgr *hwmgr,
 		uint32_t clock_value,
