@@ -134,19 +134,21 @@ Description:
 		enabled for the device. Developer can write y/Y/1 or n/N/0 to
 		the file to enable/disable the feature.
 
-What:		/sys/bus/usb/devices/.../power/usb3_hardware_lpm
-Date:		June 2015
+What:		/sys/bus/usb/devices/.../power/usb3_hardware_lpm_u1
+		/sys/bus/usb/devices/.../power/usb3_hardware_lpm_u2
+Date:		November 2015
 Contact:	Kevin Strasser <kevin.strasser@linux.intel.com>
+		Lu Baolu <baolu.lu@linux.intel.com>
 Description:
 		If CONFIG_PM is set and a USB 3.0 lpm-capable device is plugged
 		in to a xHCI host which supports link PM, it will check if U1
 		and U2 exit latencies have been set in the BOS descriptor; if
-		the check is is passed and the host supports USB3 hardware LPM,
+		the check is passed and the host supports USB3 hardware LPM,
 		USB3 hardware LPM will be enabled for the device and the USB
-		device directory will contain a file named
-		power/usb3_hardware_lpm. The file holds a string value (enable
-		or disable) indicating whether or not USB3 hardware LPM is
-		enabled for the device.
+		device directory will contain two files named
+		power/usb3_hardware_lpm_u1 and power/usb3_hardware_lpm_u2. These
+		files hold a string value (enable or disable) indicating whether
+		or not USB3 hardware LPM U1 or U2 is enabled for the device.
 
 What:		/sys/bus/usb/devices/.../removable
 Date:		February 2012
