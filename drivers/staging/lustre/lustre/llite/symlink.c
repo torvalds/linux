@@ -146,7 +146,7 @@ static void ll_put_link(struct inode *unused, void *cookie)
 	ptlrpc_req_finished(cookie);
 }
 
-struct inode_operations ll_fast_symlink_inode_operations = {
+const struct inode_operations ll_fast_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.setattr	= ll_setattr,
 	.follow_link	= ll_follow_link,
