@@ -32,9 +32,10 @@
 
 
 static int
-xfs_xattr_get(struct dentry *dentry, const char *name,
-		void *value, size_t size, int xflags)
+xfs_xattr_get(const struct xattr_handler *handler, struct dentry *dentry,
+		const char *name, void *value, size_t size)
 {
+	int xflags = handler->flags;
 	struct xfs_inode *ip = XFS_I(d_inode(dentry));
 	int error, asize = size;
 
@@ -76,9 +77,10 @@ xfs_forget_acl(
 }
 
 static int
-xfs_xattr_set(struct dentry *dentry, const char *name, const void *value,
-		size_t size, int flags, int xflags)
+xfs_xattr_set(const struct xattr_handler *handler, struct dentry *dentry,
+		const char *name, const void *value, size_t size, int flags)
 {
+	int			xflags = handler->flags;
 	struct xfs_inode	*ip = XFS_I(d_inode(dentry));
 	int			error;
 
