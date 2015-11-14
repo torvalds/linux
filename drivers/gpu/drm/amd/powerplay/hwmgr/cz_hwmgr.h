@@ -25,6 +25,7 @@
 #define _CZ_HWMGR_H_
 
 #include "cgs_common.h"
+#include "ppatomctrl.h"
 
 #define CZ_NUM_NBPSTATES               4
 #define CZ_NUM_NBPMEMORYCLOCK          2

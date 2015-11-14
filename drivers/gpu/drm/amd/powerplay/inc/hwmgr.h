@@ -463,9 +463,9 @@ struct phm_dynamic_state_info {
 	struct phm_phase_shedding_limits_table	  *vddc_phase_shed_limits_table;
 
 	struct phm_vce_clock_voltage_dependency_table
-					    *vce_clocl_voltage_dependency_table;
+					    *vce_clock_voltage_dependency_table;
 	struct phm_uvd_clock_voltage_dependency_table
-					    *uvd_clocl_voltage_dependency_table;
+					    *uvd_clock_voltage_dependency_table;
 	struct phm_acp_clock_voltage_dependency_table
 					    *acp_clock_voltage_dependency_table;
 	struct phm_samu_clock_voltage_dependency_table
@@ -551,6 +551,7 @@ struct pp_hwmgr {
 	void *device;
 	struct pp_smumgr *smumgr;
 	const void *soft_pp_table;
+	bool need_pp_table_upload;
 	enum amd_dpm_forced_level dpm_level;
 	bool block_hw_access;
 	struct phm_gfx_arbiter gfx_arbiter;

@@ -1163,8 +1163,8 @@ static int init_clock_voltage_dependency(struct pp_hwmgr *hwmgr,
 	hwmgr->dyn_state.vddc_dependency_on_mclk = NULL;
 	hwmgr->dyn_state.vddc_dep_on_dal_pwrl = NULL;
 	hwmgr->dyn_state.mvdd_dependency_on_mclk = NULL;
-	hwmgr->dyn_state.vce_clocl_voltage_dependency_table = NULL;
-	hwmgr->dyn_state.uvd_clocl_voltage_dependency_table = NULL;
+	hwmgr->dyn_state.vce_clock_voltage_dependency_table = NULL;
+	hwmgr->dyn_state.uvd_clock_voltage_dependency_table = NULL;
 	hwmgr->dyn_state.samu_clock_voltage_dependency_table = NULL;
 	hwmgr->dyn_state.acp_clock_voltage_dependency_table = NULL;
 	hwmgr->dyn_state.ppm_parameter_table = NULL;
@@ -1182,7 +1182,7 @@ static int init_clock_voltage_dependency(struct pp_hwmgr *hwmgr,
 				(const ATOM_PPLIB_VCE_Clock_Voltage_Limit_Table *)
 				(((unsigned long) powerplay_table) + table_offset);
 		result = get_vce_clock_voltage_limit_table(hwmgr,
-				&hwmgr->dyn_state.vce_clocl_voltage_dependency_table,
+				&hwmgr->dyn_state.vce_clock_voltage_dependency_table,
 				table, array);
 	}
 
@@ -1197,7 +1197,7 @@ static int init_clock_voltage_dependency(struct pp_hwmgr *hwmgr,
 				(const ATOM_PPLIB_UVD_Clock_Voltage_Limit_Table *)
 				(((unsigned long) powerplay_table) + table_offset);
 		result = get_uvd_clock_voltage_limit_table(hwmgr,
-				&hwmgr->dyn_state.uvd_clocl_voltage_dependency_table, ptable, array);
+				&hwmgr->dyn_state.uvd_clock_voltage_dependency_table, ptable, array);
 	}
 
 	table_offset = get_samu_clock_voltage_limit_table_offset(hwmgr,
@@ -1533,6 +1533,8 @@ static int pp_tables_initialize(struct pp_hwmgr *hwmgr)
 	int result;
 	const ATOM_PPLIB_POWERPLAYTABLE *powerplay_table;
 
+	hwmgr->need_pp_table_upload = true;
+
 	powerplay_table = get_powerplay_table(hwmgr);
 
 	result = init_powerplay_tables(hwmgr, powerplay_table);
@@ -1607,14 +1609,14 @@ static int pp_tables_uninitialize(struct pp_hwmgr *hwmgr)
 		hwmgr->dyn_state.vddc_phase_shed_limits_table = NULL;
 	}
 
-	if (NULL != hwmgr->dyn_state.vce_clocl_voltage_dependency_table) {
-		kfree(hwmgr->dyn_state.vce_clocl_voltage_dependency_table);
-		hwmgr->dyn_state.vce_clocl_voltage_dependency_table = NULL;
+	if (NULL != hwmgr->dyn_state.vce_clock_voltage_dependency_table) {
+		kfree(hwmgr->dyn_state.vce_clock_voltage_dependency_table);
+		hwmgr->dyn_state.vce_clock_voltage_dependency_table = NULL;
 	}
 
-	if (NULL != hwmgr->dyn_state.uvd_clocl_voltage_dependency_table) {
-		kfree(hwmgr->dyn_state.uvd_clocl_voltage_dependency_table);
-		hwmgr->dyn_state.uvd_clocl_voltage_dependency_table = NULL;
+	if (NULL != hwmgr->dyn_state.uvd_clock_voltage_dependency_table) {
+		kfree(hwmgr->dyn_state.uvd_clock_voltage_dependency_table);
+		hwmgr->dyn_state.uvd_clock_voltage_dependency_table = NULL;
 	}
 
 	if (NULL != hwmgr->dyn_state.samu_clock_voltage_dependency_table) {

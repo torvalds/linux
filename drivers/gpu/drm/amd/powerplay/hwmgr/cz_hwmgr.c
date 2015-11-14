@@ -26,6 +26,7 @@
 #include "atom-types.h"
 #include "atombios.h"
 #include "processpptables.h"
+#include "pp_debug.h"
 #include "cgs_common.h"
 #include "smu/smu_8_0_d.h"
 #include "smu8_fusion.h"
@@ -70,7 +71,7 @@ uint32_t cz_get_eclk_level(struct pp_hwmgr *hwmgr,
 {
 	int i = 0;
 	struct phm_vce_clock_voltage_dependency_table *ptable =
-		hwmgr->dyn_state.vce_clocl_voltage_dependency_table;
+		hwmgr->dyn_state.vce_clock_voltage_dependency_table;
 
 	switch (msg) {
 	case PPSMC_MSG_SetEclkSoftMin:
@@ -131,7 +132,7 @@ static uint32_t cz_get_uvd_level(struct pp_hwmgr *hwmgr,
 {
 	int i = 0;
 	struct phm_uvd_clock_voltage_dependency_table *ptable =
-		hwmgr->dyn_state.uvd_clocl_voltage_dependency_table;
+		hwmgr->dyn_state.uvd_clock_voltage_dependency_table;
 
 	switch (msg) {
 	case PPSMC_MSG_SetUvdSoftMin:
@@ -448,9 +449,123 @@ static int cz_tf_reset_active_process_mask(struct pp_hwmgr *hwmgr, void *input,
 }
 
 static int cz_tf_upload_pptable_to_smu(struct pp_hwmgr *hwmgr, void *input,
-					void *output, void *storage, int result)
+				       void *output, void *storage, int result)
 {
-	return 0;
+	struct SMU8_Fusion_ClkTable *clock_table;
+	int ret;
+	uint32_t i;
+	void *table = NULL;
+	pp_atomctrl_clock_dividers_kong dividers;
+
+	struct phm_clock_voltage_dependency_table *vddc_table =
+		hwmgr->dyn_state.vddc_dependency_on_sclk;
+	struct phm_clock_voltage_dependency_table *vdd_gfx_table =
+		hwmgr->dyn_state.vdd_gfx_dependency_on_sclk;
+	struct phm_acp_clock_voltage_dependency_table *acp_table =
+		hwmgr->dyn_state.acp_clock_voltage_dependency_table;
+	struct phm_uvd_clock_voltage_dependency_table *uvd_table =
+		hwmgr->dyn_state.uvd_clock_voltage_dependency_table;
+	struct phm_vce_clock_voltage_dependency_table *vce_table =
+		hwmgr->dyn_state.vce_clock_voltage_dependency_table;
+
+	if (!hwmgr->need_pp_table_upload)
+		return 0;
+
+	ret = smum_download_powerplay_table(hwmgr->smumgr, &table);
+
+	PP_ASSERT_WITH_CODE((0 == ret && NULL != table),
+			    "Fail to get clock table from SMU!", return -EINVAL;);
+
+	clock_table = (struct SMU8_Fusion_ClkTable *)table;
+
+	/* patch clock table */
+	PP_ASSERT_WITH_CODE((vddc_table->count <= CZ_MAX_HARDWARE_POWERLEVELS),
+			    "Dependency table entry exceeds max limit!", return -EINVAL;);
+	PP_ASSERT_WITH_CODE((vdd_gfx_table->count <= CZ_MAX_HARDWARE_POWERLEVELS),
+			    "Dependency table entry exceeds max limit!", return -EINVAL;);
+	PP_ASSERT_WITH_CODE((acp_table->count <= CZ_MAX_HARDWARE_POWERLEVELS),
+			    "Dependency table entry exceeds max limit!", return -EINVAL;);
+	PP_ASSERT_WITH_CODE((uvd_table->count <= CZ_MAX_HARDWARE_POWERLEVELS),
+			    "Dependency table entry exceeds max limit!", return -EINVAL;);
+	PP_ASSERT_WITH_CODE((vce_table->count <= CZ_MAX_HARDWARE_POWERLEVELS),
+			    "Dependency table entry exceeds max limit!", return -EINVAL;);
+
+	for (i = 0; i < CZ_MAX_HARDWARE_POWERLEVELS; i++) {
+
+		/* vddc_sclk */
+		clock_table->SclkBreakdownTable.ClkLevel[i].GnbVid =
+			(i < vddc_table->count) ? (uint8_t)vddc_table->entries[i].v : 0;
+		clock_table->SclkBreakdownTable.ClkLevel[i].Frequency =
+			(i < vddc_table->count) ? vddc_table->entries[i].clk : 0;
+
+		atomctrl_get_engine_pll_dividers_kong(hwmgr,
+						      clock_table->SclkBreakdownTable.ClkLevel[i].Frequency,
+						      &dividers);
+
+		clock_table->SclkBreakdownTable.ClkLevel[i].DfsDid =
+			(uint8_t)dividers.pll_post_divider;
+
+		/* vddgfx_sclk */
+		clock_table->SclkBreakdownTable.ClkLevel[i].GfxVid =
+			(i < vdd_gfx_table->count) ? (uint8_t)vdd_gfx_table->entries[i].v : 0;
+
+		/* acp breakdown */
+		clock_table->AclkBreakdownTable.ClkLevel[i].GfxVid =
+			(i < acp_table->count) ? (uint8_t)acp_table->entries[i].v : 0;
+		clock_table->AclkBreakdownTable.ClkLevel[i].Frequency =
+			(i < acp_table->count) ? acp_table->entries[i].acpclk : 0;
+
+		atomctrl_get_engine_pll_dividers_kong(hwmgr,
+						      clock_table->AclkBreakdownTable.ClkLevel[i].Frequency,
+						      &dividers);
+
+		clock_table->AclkBreakdownTable.ClkLevel[i].DfsDid =
+			(uint8_t)dividers.pll_post_divider;
+
+
+		/* uvd breakdown */
+		clock_table->VclkBreakdownTable.ClkLevel[i].GfxVid =
+			(i < uvd_table->count) ? (uint8_t)uvd_table->entries[i].v : 0;
+		clock_table->VclkBreakdownTable.ClkLevel[i].Frequency =
+			(i < uvd_table->count) ? uvd_table->entries[i].vclk : 0;
+
+		atomctrl_get_engine_pll_dividers_kong(hwmgr,
+						      clock_table->VclkBreakdownTable.ClkLevel[i].Frequency,
+						      &dividers);
+
+		clock_table->VclkBreakdownTable.ClkLevel[i].DfsDid =
+			(uint8_t)dividers.pll_post_divider;
+
+		clock_table->DclkBreakdownTable.ClkLevel[i].GfxVid =
+			(i < uvd_table->count) ? (uint8_t)uvd_table->entries[i].v : 0;
+		clock_table->DclkBreakdownTable.ClkLevel[i].Frequency =
+			(i < uvd_table->count) ? uvd_table->entries[i].dclk : 0;
+
+		atomctrl_get_engine_pll_dividers_kong(hwmgr,
+						      clock_table->DclkBreakdownTable.ClkLevel[i].Frequency,
+						      &dividers);
+
+		clock_table->DclkBreakdownTable.ClkLevel[i].DfsDid =
+			(uint8_t)dividers.pll_post_divider;
+
+		/* vce breakdown */
+		clock_table->EclkBreakdownTable.ClkLevel[i].GfxVid =
+			(i < vce_table->count) ? (uint8_t)vce_table->entries[i].v : 0;
+		clock_table->EclkBreakdownTable.ClkLevel[i].Frequency =
+			(i < vce_table->count) ? vce_table->entries[i].ecclk : 0;
+
+
+		atomctrl_get_engine_pll_dividers_kong(hwmgr,
+						      clock_table->EclkBreakdownTable.ClkLevel[i].Frequency,
+						      &dividers);
+
+		clock_table->EclkBreakdownTable.ClkLevel[i].DfsDid =
+			(uint8_t)dividers.pll_post_divider;
+
+	}
+	ret = smum_upload_powerplay_table(hwmgr->smumgr);
+
+	return ret;
 }
 
 static int cz_tf_init_sclk_limit(struct pp_hwmgr *hwmgr, void *input,
@@ -485,7 +600,7 @@ static int cz_tf_init_uvd_limit(struct pp_hwmgr *hwmgr, void *input,
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 	struct phm_uvd_clock_voltage_dependency_table *table =
-				hwmgr->dyn_state.uvd_clocl_voltage_dependency_table;
+				hwmgr->dyn_state.uvd_clock_voltage_dependency_table;
 	unsigned long clock = 0, level;
 
 	if (NULL == table && table->count <= 0)
@@ -513,7 +628,7 @@ static int cz_tf_init_vce_limit(struct pp_hwmgr *hwmgr, void *input,
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 	struct phm_vce_clock_voltage_dependency_table *table =
-				hwmgr->dyn_state.vce_clocl_voltage_dependency_table;
+				hwmgr->dyn_state.vce_clock_voltage_dependency_table;
 	unsigned long clock = 0, level;
 
 	if (NULL == table && table->count <= 0)
@@ -1144,7 +1259,7 @@ int cz_dpm_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 	struct phm_uvd_clock_voltage_dependency_table *ptable =
-		hwmgr->dyn_state.uvd_clocl_voltage_dependency_table;
+		hwmgr->dyn_state.uvd_clock_voltage_dependency_table;
 
 	if (!bgate) {
 		/* Stable Pstate is enabled and we need to set the UVD DPM to highest level */
@@ -1172,7 +1287,7 @@ int  cz_dpm_update_vce_dpm(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 	struct phm_vce_clock_voltage_dependency_table *ptable =
-		hwmgr->dyn_state.vce_clocl_voltage_dependency_table;
+		hwmgr->dyn_state.vce_clock_voltage_dependency_table;
 
 	/* Stable Pstate is enabled and we need to set the VCE DPM to highest level */
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
@@ -1331,10 +1446,10 @@ cz_print_current_perforce_level(struct pp_hwmgr *hwmgr, struct seq_file *m)
 				hwmgr->dyn_state.vddc_dependency_on_sclk;
 
 	struct phm_vce_clock_voltage_dependency_table *vce_table =
-		hwmgr->dyn_state.vce_clocl_voltage_dependency_table;
+		hwmgr->dyn_state.vce_clock_voltage_dependency_table;
 
 	struct phm_uvd_clock_voltage_dependency_table *uvd_table =
-		hwmgr->dyn_state.uvd_clocl_voltage_dependency_table;
+		hwmgr->dyn_state.uvd_clock_voltage_dependency_table;
 
 	uint32_t sclk_index = PHM_GET_FIELD(cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixTARGET_AND_CURRENT_PROFILE_INDEX),
 					TARGET_AND_CURRENT_PROFILE_INDEX, CURR_SCLK_INDEX);
