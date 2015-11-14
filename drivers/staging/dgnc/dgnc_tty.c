@@ -448,7 +448,7 @@ void dgnc_tty_uninit(struct dgnc_board *brd)
  *	dgnc_wmove - Write data to transmit queue.
  *
  *		ch	- Pointer to channel structure.
- *		buf	- Poiter to characters to be moved.
+ *		buf	- Pointer to characters to be moved.
  *		n	- Number of characters to move.
  *
  *=======================================================================*/
