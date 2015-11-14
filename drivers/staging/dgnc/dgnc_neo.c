@@ -1108,9 +1108,9 @@ static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 	 * On the other hand, if the UART IS in FIFO mode, then ask
 	 * the UART to give us an approximation of data it has RX'ed.
 	 */
-	if (!(ch->ch_flags & CH_FIFO_ENABLED))
+	if (!(ch->ch_flags & CH_FIFO_ENABLED)) {
 		total = 0;
-	else {
+	} else {
 		total = readb(&ch->ch_neo_uart->rfifo);
 
 		/*
