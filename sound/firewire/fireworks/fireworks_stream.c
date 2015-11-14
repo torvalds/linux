@@ -214,8 +214,6 @@ int snd_efw_stream_start_duplex(struct snd_efw *efw, unsigned int rate)
 	unsigned int curr_rate;
 	int err = 0;
 
-	mutex_lock(&efw->mutex);
-
 	/* Need no substreams */
 	if ((atomic_read(&efw->playback_substreams) == 0) &&
 	    (atomic_read(&efw->capture_substreams)  == 0))
@@ -286,7 +284,6 @@ int snd_efw_stream_start_duplex(struct snd_efw *efw, unsigned int rate)
 		}
 	}
 end:
-	mutex_unlock(&efw->mutex);
 	return err;
 }
 
@@ -307,16 +304,12 @@ void snd_efw_stream_stop_duplex(struct snd_efw *efw)
 		master_substreams = &efw->capture_substreams;
 	}
 
-	mutex_lock(&efw->mutex);
-
 	if (atomic_read(slave_substreams) == 0) {
 		stop_stream(efw, slave);
 
 		if (atomic_read(master_substreams) == 0)
 			stop_stream(efw, master);
 	}
-
-	mutex_unlock(&efw->mutex);
 }
 
 void snd_efw_stream_update_duplex(struct snd_efw *efw)
