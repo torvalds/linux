@@ -252,7 +252,7 @@ static struct gpio_desc *gpio_name_to_desc(const char * const name)
  * Takes the names from gc->names and checks if they are all unique. If they
  * are, they are assigned to their gpio descriptors.
  *
- * Returns -EEXIST if one of the names is already used for a different GPIO.
+ * Warning if one of the names is already used for a different GPIO.
  */
 static int gpiochip_set_desc_names(struct gpio_chip *gc)
 {
