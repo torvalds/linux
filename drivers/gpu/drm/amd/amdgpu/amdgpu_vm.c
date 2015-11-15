@@ -1318,3 +1318,18 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 
 	mutex_destroy(&vm->mutex);
 }
+
+/**
+ * amdgpu_vm_manager_fini - cleanup VM manager
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Cleanup the VM manager and free resources.
+ */
+void amdgpu_vm_manager_fini(struct amdgpu_device *adev)
+{
+	unsigned i;
+
+	for (i = 0; i < AMDGPU_NUM_VM; ++i)
+		fence_put(adev->vm_manager.active[i]);
+}
