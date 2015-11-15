@@ -60,9 +60,9 @@ static int get_nvram_var(const char *prefix, const char *postfix,
 }
 
 #define NVRAM_READ_VAL(type)						\
-static void nvram_read_ ## type (const char *prefix,			\
-				 const char *postfix, const char *name, \
-				 type *val, type allset, bool fallback) \
+static void nvram_read_ ## type(const char *prefix,			\
+				const char *postfix, const char *name,	\
+				type *val, type allset, bool fallback)	\
 {									\
 	char buf[100];							\
 	int err;							\
@@ -422,7 +422,10 @@ static void bcm47xx_fill_sprom_path_r4589(struct ssb_sprom *sprom,
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(sprom->core_pwr_info); i++) {
-		struct ssb_sprom_core_pwr_info *pwr_info = &sprom->core_pwr_info[i];
+		struct ssb_sprom_core_pwr_info *pwr_info;
+
+		pwr_info = &sprom->core_pwr_info[i];
+
 		snprintf(postfix, sizeof(postfix), "%i", i);
 		nvram_read_u8(prefix, postfix, "maxp2ga",
 			      &pwr_info->maxpwr_2g, 0, fallback);
@@ -470,7 +473,10 @@ static void bcm47xx_fill_sprom_path_r45(struct ssb_sprom *sprom,
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(sprom->core_pwr_info); i++) {
-		struct ssb_sprom_core_pwr_info *pwr_info = &sprom->core_pwr_info[i];
+		struct ssb_sprom_core_pwr_info *pwr_info;
+
+		pwr_info = &sprom->core_pwr_info[i];
+
 		snprintf(postfix, sizeof(postfix), "%i", i);
 		nvram_read_u16(prefix, postfix, "pa2gw3a",
 			       &pwr_info->pa_2g[3], 0, fallback);
@@ -535,10 +541,11 @@ static void bcm47xx_fill_sprom_ethernet(struct ssb_sprom *sprom,
 	nvram_read_macaddr(prefix, "il0macaddr", sprom->il0mac, fallback);
 
 	/* The address prefix 00:90:4C is used by Broadcom in their initial
-	   configuration. When a mac address with the prefix 00:90:4C is used
-	   all devices from the same series are sharing the same mac address.
-	   To prevent mac address collisions we replace them with a mac address
-	   based on the base address. */
+	 * configuration. When a mac address with the prefix 00:90:4C is used
+	 * all devices from the same series are sharing the same mac address.
+	 * To prevent mac address collisions we replace them with a mac address
+	 * based on the base address.
+	 */
 	if (!bcm47xx_is_valid_mac(sprom->il0mac)) {
 		u8 mac[6];
 
@@ -592,32 +599,23 @@ void bcm47xx_fill_sprom(struct ssb_sprom *sprom, const char *prefix,
 	bcm47xx_sprom_fill_auto(sprom, prefix, fallback);
 }
 
-#ifdef CONFIG_BCM47XX_SSB
-void bcm47xx_fill_ssb_boardinfo(struct ssb_boardinfo *boardinfo,
-				const char *prefix)
-{
-	nvram_read_u16(prefix, NULL, "boardvendor", &boardinfo->vendor, 0,
-		       true);
-	if (!boardinfo->vendor)
-		boardinfo->vendor = SSB_BOARDVENDOR_BCM;
-
-	nvram_read_u16(prefix, NULL, "boardtype", &boardinfo->type, 0, true);
-}
-#endif
-
 #if defined(CONFIG_BCM47XX_SSB)
 static int bcm47xx_get_sprom_ssb(struct ssb_bus *bus, struct ssb_sprom *out)
 {
 	char prefix[10];
 
-	if (bus->bustype == SSB_BUSTYPE_PCI) {
+	switch (bus->bustype) {
+	case SSB_BUSTYPE_SSB:
+		bcm47xx_fill_sprom(out, NULL, false);
+		return 0;
+	case SSB_BUSTYPE_PCI:
 		memset(out, 0, sizeof(struct ssb_sprom));
 		snprintf(prefix, sizeof(prefix), "pci/%u/%u/",
 			 bus->host_pci->bus->number + 1,
 			 PCI_SLOT(bus->host_pci->devfn));
 		bcm47xx_fill_sprom(out, prefix, false);
 		return 0;
-	} else {
+	default:
 		pr_warn("Unable to fill SPROM for given bustype.\n");
 		return -EINVAL;
 	}
