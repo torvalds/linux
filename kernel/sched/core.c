@@ -731,7 +731,7 @@ bool sched_can_stop_tick(void)
 	if (current->policy == SCHED_RR) {
 		struct sched_rt_entity *rt_se = &current->rt;
 
-		return rt_se->run_list.prev == rt_se->run_list.next;
+		return list_is_singular(&rt_se->run_list);
 	}
 
 	/*
