@@ -520,7 +520,8 @@ static int ceph_tcp_recvmsg(struct socket *sock, void *buf, size_t len)
 	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL };
 	int r;
 
-	r = kernel_recvmsg(sock, &msg, &iov, 1, len, msg.msg_flags);
+	iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, &iov, 1, len);
+	r = sock_recvmsg(sock, &msg, msg.msg_flags);
 	if (r == -EAGAIN)
 		r = 0;
 	return r;
@@ -529,17 +530,20 @@ static int ceph_tcp_recvmsg(struct socket *sock, void *buf, size_t len)
 static int ceph_tcp_recvpage(struct socket *sock, struct page *page,
 		     int page_offset, size_t length)
 {
-	void *kaddr;
-	int ret;
+	struct bio_vec bvec = {
+		.bv_page = page,
+		.bv_offset = page_offset,
+		.bv_len = length
+	};
+	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL };
+	int r;
 
 	BUG_ON(page_offset + length > PAGE_SIZE);
-
-	kaddr = kmap(page);
-	BUG_ON(!kaddr);
-	ret = ceph_tcp_recvmsg(sock, kaddr + page_offset, length);
-	kunmap(page);
-
-	return ret;
+	iov_iter_bvec(&msg.msg_iter, READ | ITER_BVEC, &bvec, 1, length);
+	r = sock_recvmsg(sock, &msg, msg.msg_flags);
+	if (r == -EAGAIN)
+		r = 0;
+	return r;
 }
 
 /*
