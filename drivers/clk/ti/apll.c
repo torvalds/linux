@@ -323,7 +323,7 @@ static void omap2_apll_deny_idle(struct clk_hw_omap *clk)
 	omap2_apll_set_autoidle(clk, OMAP2_APLL_AUTOIDLE_DISABLE);
 }
 
-static struct clk_hw_omap_ops omap2_apll_hwops = {
+static const struct clk_hw_omap_ops omap2_apll_hwops = {
 	.allow_idle	= &omap2_apll_allow_idle,
 	.deny_idle	= &omap2_apll_deny_idle,
 };
