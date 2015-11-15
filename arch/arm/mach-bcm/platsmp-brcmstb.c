@@ -356,7 +356,7 @@ static int brcmstb_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	return 0;
 }
 
-static struct smp_operations brcmstb_smp_ops __initdata = {
+static const struct smp_operations brcmstb_smp_ops __initconst = {
 	.smp_prepare_cpus	= brcmstb_cpu_ctrl_setup,
 	.smp_boot_secondary	= brcmstb_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU

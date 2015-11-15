@@ -176,7 +176,7 @@ static void zx_secondary_init(unsigned int cpu)
 	scu_power_mode(scu_base, SCU_PM_NORMAL);
 }
 
-struct smp_operations zx_smp_ops __initdata = {
+static const struct smp_operations zx_smp_ops __initconst = {
 	.smp_prepare_cpus	= zx_smp_prepare_cpus,
 	.smp_secondary_init	= zx_secondary_init,
 	.smp_boot_secondary	= zx_boot_secondary,

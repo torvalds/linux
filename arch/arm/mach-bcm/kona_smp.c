@@ -194,7 +194,7 @@ static int bcm_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	return -ENOSYS;
 }
 
-static struct smp_operations bcm_smp_ops __initdata = {
+static const struct smp_operations bcm_smp_ops __initconst = {
 	.smp_prepare_cpus	= bcm_smp_prepare_cpus,
 	.smp_boot_secondary	= bcm_boot_secondary,
 };

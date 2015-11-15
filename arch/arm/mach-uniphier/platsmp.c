@@ -201,7 +201,7 @@ static int __init uniphier_smp_boot_secondary(unsigned int cpu,
 	return 0;
 }
 
-static struct smp_operations uniphier_smp_ops __initdata = {
+static const struct smp_operations uniphier_smp_ops __initconst = {
 	.smp_prepare_cpus	= uniphier_smp_prepare_cpus,
 	.smp_boot_secondary	= uniphier_smp_boot_secondary,
 };

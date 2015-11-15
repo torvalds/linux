@@ -42,7 +42,7 @@ static const char *const emev2_boards_compat_dt[] __initconst = {
 	NULL,
 };
 
-extern struct smp_operations emev2_smp_ops;
+extern const struct smp_operations emev2_smp_ops;
 
 DT_MACHINE_START(EMEV2_DT, "Generic Emma Mobile EV2 (Flattened Device Tree)")
 	.smp		= smp_ops(emev2_smp_ops),

@@ -64,7 +64,7 @@ static void __init vexpress_smp_dt_prepare_cpus(unsigned int max_cpus)
 	vexpress_flags_set(virt_to_phys(versatile_secondary_startup));
 }
 
-struct smp_operations __initdata vexpress_smp_dt_ops = {
+const struct smp_operations vexpress_smp_dt_ops __initconst = {
 	.smp_prepare_cpus	= vexpress_smp_dt_prepare_cpus,
 	.smp_secondary_init	= versatile_secondary_init,
 	.smp_boot_secondary	= versatile_boot_secondary,
