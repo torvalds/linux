@@ -48,10 +48,10 @@
 					 BCM6328_SERIAL_LED_SHIFT_DIR)
 
 #define BCM6328_LED_MODE_MASK		3
-#define BCM6328_LED_MODE_OFF		0
+#define BCM6328_LED_MODE_ON		0
 #define BCM6328_LED_MODE_FAST		1
 #define BCM6328_LED_MODE_BLINK		2
-#define BCM6328_LED_MODE_ON		3
+#define BCM6328_LED_MODE_OFF		3
 #define BCM6328_LED_SHIFT(X)		((X) << 1)
 
 /**
@@ -126,9 +126,9 @@ static void bcm6328_led_set(struct led_classdev *led_cdev,
 	*(led->blink_leds) &= ~BIT(led->pin);
 	if ((led->active_low && value == LED_OFF) ||
 	    (!led->active_low && value != LED_OFF))
-		bcm6328_led_mode(led, BCM6328_LED_MODE_OFF);
-	else
 		bcm6328_led_mode(led, BCM6328_LED_MODE_ON);
+	else
+		bcm6328_led_mode(led, BCM6328_LED_MODE_OFF);
 	spin_unlock_irqrestore(led->lock, flags);
 }
 
@@ -303,8 +303,8 @@ static int bcm6328_led(struct device *dev, struct device_node *nc, u32 reg,
 			val = bcm6328_led_read(mode) >>
 			      BCM6328_LED_SHIFT(shift % 16);
 			val &= BCM6328_LED_MODE_MASK;
-			if ((led->active_low && val == BCM6328_LED_MODE_ON) ||
-			    (!led->active_low && val == BCM6328_LED_MODE_OFF))
+			if ((led->active_low && val == BCM6328_LED_MODE_OFF) ||
+			    (!led->active_low && val == BCM6328_LED_MODE_ON))
 				led->cdev.brightness = LED_FULL;
 			else
 				led->cdev.brightness = LED_OFF;
