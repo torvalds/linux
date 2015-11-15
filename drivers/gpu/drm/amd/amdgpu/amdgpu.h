@@ -967,8 +967,6 @@ struct amdgpu_vm_manager {
 	u64				vram_base_offset;
 	/* is vm enabled? */
 	bool				enabled;
-	/* for hw to save the PD addr on suspend/resume */
-	uint32_t			saved_table_addr[AMDGPU_NUM_VM];
 	/* vm pte handling */
 	const struct amdgpu_vm_pte_funcs        *vm_pte_funcs;
 	struct amdgpu_ring                      *vm_pte_funcs_ring;
