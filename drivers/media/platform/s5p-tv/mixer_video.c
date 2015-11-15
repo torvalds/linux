@@ -1070,7 +1070,7 @@ static void mxr_vfd_release(struct video_device *vdev)
 }
 
 struct mxr_layer *mxr_base_layer_create(struct mxr_device *mdev,
-	int idx, char *name, struct mxr_layer_ops *ops)
+	int idx, char *name, const struct mxr_layer_ops *ops)
 {
 	struct mxr_layer *layer;
 
