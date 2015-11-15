@@ -68,6 +68,7 @@ Required properties:
 	"allwinner,sun5i-a13-usb-clk" - for usb gates + resets on A13
 	"allwinner,sun6i-a31-usb-clk" - for usb gates + resets on A31
 	"allwinner,sun8i-a23-usb-clk" - for usb gates + resets on A23
+	"allwinner,sun8i-h3-usb-clk" - for usb gates + resets on H3
 	"allwinner,sun9i-a80-usb-mod-clk" - for usb gates + resets on A80
 	"allwinner,sun9i-a80-usb-phy-clk" - for usb phy gates + resets on A80
 
