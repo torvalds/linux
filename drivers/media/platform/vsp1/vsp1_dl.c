@@ -28,8 +28,22 @@
  * - DL swap
  */
 
+#define VSP1_DL_HEADER_SIZE		76
 #define VSP1_DL_BODY_SIZE		(2 * 4 * 256)
 #define VSP1_DL_NUM_LISTS		3
+
+#define VSP1_DLH_INT_ENABLE		(1 << 1)
+#define VSP1_DLH_AUTO_START		(1 << 0)
+
+struct vsp1_dl_header {
+	u32 num_lists;
+	struct {
+		u32 num_bytes;
+		u32 addr;
+	} lists[8];
+	u32 next_header;
+	u32 flags;
+} __attribute__((__packed__));
 
 struct vsp1_dl_entry {
 	u32 addr;
@@ -41,6 +55,7 @@ struct vsp1_dl_list {
 
 	struct vsp1_dl_manager *dlm;
 
+	struct vsp1_dl_header *header;
 	struct vsp1_dl_entry *body;
 	dma_addr_t dma;
 	size_t size;
@@ -48,8 +63,15 @@ struct vsp1_dl_list {
 	int reg_count;
 };
 
+enum vsp1_dl_mode {
+	VSP1_DL_MODE_HEADER,
+	VSP1_DL_MODE_HEADERLESS,
+};
+
 /**
  * struct vsp1_dl_manager - Display List manager
+ * @index: index of the related WPF
+ * @mode: display list operation mode (header or headerless)
  * @vsp1: the VSP1 device
  * @lock: protects the active, queued and pending lists
  * @free: array of all free display lists
@@ -58,6 +80,8 @@ struct vsp1_dl_list {
  * @pending: list waiting to be queued to the hardware
  */
 struct vsp1_dl_manager {
+	unsigned int index;
+	enum vsp1_dl_mode mode;
 	struct vsp1_device *vsp1;
 
 	spinlock_t lock;
@@ -74,26 +98,43 @@ struct vsp1_dl_manager {
 static struct vsp1_dl_list *vsp1_dl_list_alloc(struct vsp1_dl_manager *dlm)
 {
 	struct vsp1_dl_list *dl;
+	size_t header_size;
+
+	/* The body needs to be aligned on a 8 bytes boundary, pad the header
+	 * size to allow allocating both in a single operation.
+	 */
+	header_size = dlm->mode == VSP1_DL_MODE_HEADER
+		    ? ALIGN(sizeof(struct vsp1_dl_header), 8)
+		    : 0;
 
 	dl = kzalloc(sizeof(*dl), GFP_KERNEL);
 	if (!dl)
 		return NULL;
 
 	dl->dlm = dlm;
-	dl->size = VSP1_DL_BODY_SIZE;
+	dl->size = header_size + VSP1_DL_BODY_SIZE;
 
-	dl->body = dma_alloc_wc(dlm->vsp1->dev, dl->size, &dl->dma, GFP_KERNEL);
-	if (!dl->body) {
+	dl->header = dma_alloc_wc(dlm->vsp1->dev, dl->size, &dl->dma,
+				  GFP_KERNEL);
+	if (!dl->header) {
 		kfree(dl);
 		return NULL;
 	}
+
+	if (dlm->mode == VSP1_DL_MODE_HEADER) {
+		memset(dl->header, 0, sizeof(*dl->header));
+		dl->header->lists[0].addr = dl->dma + header_size;
+		dl->header->flags = VSP1_DLH_INT_ENABLE;
+	}
+
+	dl->body = ((void *)dl->header) + header_size;
 
 	return dl;
 }
 
 static void vsp1_dl_list_free(struct vsp1_dl_list *dl)
 {
-	dma_free_wc(dl->dlm->vsp1->dev, dl->size, dl->body, dl->dma);
+	dma_free_wc(dl->dlm->vsp1->dev, dl->size, dl->header, dl->dma);
 	kfree(dl);
 }
 
@@ -159,6 +200,18 @@ void vsp1_dl_list_commit(struct vsp1_dl_list *dl)
 
 	spin_lock_irqsave(&dlm->lock, flags);
 
+	if (dl->dlm->mode == VSP1_DL_MODE_HEADER) {
+		/* Program the hardware with the display list body address and
+		 * size. In header mode the caller guarantees that the hardware
+		 * is idle at this point.
+		 */
+		dl->header->lists[0].num_bytes = dl->reg_count * 8;
+		vsp1_write(vsp1, VI6_DL_HDR_ADDR(dlm->index), dl->dma);
+
+		dlm->active = dl;
+		goto done;
+	}
+
 	/* Once the UPD bit has been set the hardware can start processing the
 	 * display list at any time and we can't touch the address and size
 	 * registers. In that case mark the update as pending, it will be
@@ -213,6 +266,13 @@ void vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 
 	vsp1_dl_list_put(dlm->active);
 	dlm->active = NULL;
+
+	/* Header mode is used for mem-to-mem pipelines only. We don't need to
+	 * perform any operation as there can't be any new display list queued
+	 * in that case.
+	 */
+	if (dlm->mode == VSP1_DL_MODE_HEADER)
+		goto done;
 
 	/* The UPD bit set indicates that the commit operation raced with the
 	 * interrupt and occurred after the frame end event and UPD clear but
@@ -276,6 +336,7 @@ void vsp1_dlm_reset(struct vsp1_dl_manager *dlm)
 }
 
 struct vsp1_dl_manager *vsp1_dlm_create(struct vsp1_device *vsp1,
+					unsigned int index,
 					unsigned int prealloc)
 {
 	struct vsp1_dl_manager *dlm;
@@ -285,6 +346,9 @@ struct vsp1_dl_manager *vsp1_dlm_create(struct vsp1_device *vsp1,
 	if (!dlm)
 		return NULL;
 
+	dlm->index = index;
+	dlm->mode = index == 0 && !vsp1->info->uapi
+		  ? VSP1_DL_MODE_HEADERLESS : VSP1_DL_MODE_HEADER;
 	dlm->vsp1 = vsp1;
 
 	spin_lock_init(&dlm->lock);

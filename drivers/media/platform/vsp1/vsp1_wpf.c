@@ -202,7 +202,7 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 
 	/* Initialize the display list manager if the WPF is used for display */
 	if ((vsp1->info->features & VSP1_HAS_LIF) && index == 0) {
-		wpf->dlm = vsp1_dlm_create(vsp1, 4);
+		wpf->dlm = vsp1_dlm_create(vsp1, index, 4);
 		if (!wpf->dlm) {
 			ret = -ENOMEM;
 			goto error;

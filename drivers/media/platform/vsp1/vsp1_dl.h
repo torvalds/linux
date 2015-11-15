@@ -22,6 +22,7 @@ struct vsp1_dl_manager;
 void vsp1_dlm_setup(struct vsp1_device *vsp1);
 
 struct vsp1_dl_manager *vsp1_dlm_create(struct vsp1_device *vsp1,
+					unsigned int index,
 					unsigned int prealloc);
 void vsp1_dlm_destroy(struct vsp1_dl_manager *dlm);
 void vsp1_dlm_reset(struct vsp1_dl_manager *dlm);
