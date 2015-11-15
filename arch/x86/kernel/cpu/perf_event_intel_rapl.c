@@ -107,12 +107,6 @@ static ssize_t __rapl_##_var##_show(struct kobject *kobj,	\
 static struct kobj_attribute format_attr_##_var =		\
 	__ATTR(_name, 0444, __rapl_##_var##_show, NULL)
 
-#define RAPL_EVENT_DESC(_name, _config)				\
-{								\
-	.attr	= __ATTR(_name, 0444, rapl_event_show, NULL),	\
-	.config	= _config,					\
-}
-
 #define RAPL_CNTR_WIDTH 32 /* 32-bit rapl counters */
 
 #define RAPL_EVENT_ATTR_STR(_name, v, str)				\

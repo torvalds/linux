@@ -1050,13 +1050,13 @@ retry:
 	/*
 	 * One of the few rules of preemptible RCU is that one cannot do
 	 * rcu_read_unlock() while holding a scheduler (or nested) lock when
-	 * part of the read side critical section was preemptible -- see
+	 * part of the read side critical section was irqs-enabled -- see
 	 * rcu_read_unlock_special().
 	 *
 	 * Since ctx->lock nests under rq->lock we must ensure the entire read
-	 * side critical section is non-preemptible.
+	 * side critical section has interrupts disabled.
 	 */
-	preempt_disable();
+	local_irq_save(*flags);
 	rcu_read_lock();
 	ctx = rcu_dereference(task->perf_event_ctxp[ctxn]);
 	if (ctx) {
@@ -1070,21 +1070,22 @@ retry:
 		 * if so.  If we locked the right context, then it
 		 * can't get swapped on us any more.
 		 */
-		raw_spin_lock_irqsave(&ctx->lock, *flags);
+		raw_spin_lock(&ctx->lock);
 		if (ctx != rcu_dereference(task->perf_event_ctxp[ctxn])) {
-			raw_spin_unlock_irqrestore(&ctx->lock, *flags);
+			raw_spin_unlock(&ctx->lock);
 			rcu_read_unlock();
-			preempt_enable();
+			local_irq_restore(*flags);
 			goto retry;
 		}
 
 		if (!atomic_inc_not_zero(&ctx->refcount)) {
-			raw_spin_unlock_irqrestore(&ctx->lock, *flags);
+			raw_spin_unlock(&ctx->lock);
 			ctx = NULL;
 		}
 	}
 	rcu_read_unlock();
-	preempt_enable();
+	if (!ctx)
+		local_irq_restore(*flags);
 	return ctx;
 }
 
@@ -6912,6 +6913,10 @@ static int perf_tp_filter_match(struct perf_event *event,
 				struct perf_sample_data *data)
 {
 	void *record = data->raw->data;
+
+	/* only top level events have filters set */
+	if (event->parent)
+		event = event->parent;
 
 	if (likely(!event->filter) || filter_match_preds(event->filter, record))
 		return 1;
