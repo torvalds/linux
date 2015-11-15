@@ -24,6 +24,7 @@
 #define RWPF_PAD_SOURCE				1
 
 struct v4l2_ctrl;
+struct vsp1_dl_manager;
 struct vsp1_rwpf;
 struct vsp1_video;
 
@@ -60,6 +61,8 @@ struct vsp1_rwpf {
 
 	unsigned int offsets[2];
 	dma_addr_t buf_addr[3];
+
+	struct vsp1_dl_manager *dlm;
 };
 
 static inline struct vsp1_rwpf *to_rwpf(struct v4l2_subdev *subdev)

@@ -31,11 +31,14 @@
  * Interrupt Handling
  */
 
+void vsp1_drm_display_start(struct vsp1_device *vsp1)
+{
+	vsp1_dlm_irq_display_start(vsp1->drm->pipe.output->dlm);
+}
+
 void vsp1_drm_frame_end(struct vsp1_pipeline *pipe)
 {
-	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
-
-	vsp1_dlm_irq_frame_end(&vsp1->drm->dlm);
+	vsp1_dlm_irq_frame_end(pipe->output->dlm);
 }
 
 /* -----------------------------------------------------------------------------
@@ -101,7 +104,7 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int width,
 
 		pipe->num_inputs = 0;
 
-		vsp1_dlm_reset(&vsp1->drm->dlm);
+		vsp1_dlm_reset(pipe->output->dlm);
 		vsp1_device_put(vsp1);
 
 		dev_dbg(vsp1->dev, "%s: pipeline disabled\n", __func__);
@@ -228,7 +231,7 @@ void vsp1_du_atomic_begin(struct device *dev)
 	spin_unlock_irqrestore(&pipe->irqlock, flags);
 
 	/* Prepare the display list. */
-	pipe->dl = vsp1_dl_list_get(&vsp1->drm->dlm);
+	pipe->dl = vsp1_dl_list_get(pipe->output->dlm);
 }
 EXPORT_SYMBOL_GPL(vsp1_du_atomic_begin);
 
@@ -555,15 +558,10 @@ int vsp1_drm_init(struct vsp1_device *vsp1)
 {
 	struct vsp1_pipeline *pipe;
 	unsigned int i;
-	int ret;
 
 	vsp1->drm = devm_kzalloc(vsp1->dev, sizeof(*vsp1->drm), GFP_KERNEL);
 	if (!vsp1->drm)
 		return -ENOMEM;
-
-	ret = vsp1_dlm_init(vsp1, &vsp1->drm->dlm, 4);
-	if (ret < 0)
-		return ret;
 
 	pipe = &vsp1->drm->pipe;
 
@@ -590,5 +588,4 @@ int vsp1_drm_init(struct vsp1_device *vsp1)
 
 void vsp1_drm_cleanup(struct vsp1_device *vsp1)
 {
-	vsp1_dlm_cleanup(&vsp1->drm->dlm);
 }

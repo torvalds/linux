@@ -48,6 +48,25 @@ struct vsp1_dl_list {
 	int reg_count;
 };
 
+/**
+ * struct vsp1_dl_manager - Display List manager
+ * @vsp1: the VSP1 device
+ * @lock: protects the active, queued and pending lists
+ * @free: array of all free display lists
+ * @active: list currently being processed (loaded) by hardware
+ * @queued: list queued to the hardware (written to the DL registers)
+ * @pending: list waiting to be queued to the hardware
+ */
+struct vsp1_dl_manager {
+	struct vsp1_device *vsp1;
+
+	spinlock_t lock;
+	struct list_head free;
+	struct vsp1_dl_list *active;
+	struct vsp1_dl_list *queued;
+	struct vsp1_dl_list *pending;
+};
+
 /* -----------------------------------------------------------------------------
  * Display List Transaction Management
  */
@@ -256,10 +275,15 @@ void vsp1_dlm_reset(struct vsp1_dl_manager *dlm)
 	dlm->pending = NULL;
 }
 
-int vsp1_dlm_init(struct vsp1_device *vsp1, struct vsp1_dl_manager *dlm,
-		  unsigned int prealloc)
+struct vsp1_dl_manager *vsp1_dlm_create(struct vsp1_device *vsp1,
+					unsigned int prealloc)
 {
+	struct vsp1_dl_manager *dlm;
 	unsigned int i;
+
+	dlm = devm_kzalloc(vsp1->dev, sizeof(*dlm), GFP_KERNEL);
+	if (!dlm)
+		return NULL;
 
 	dlm->vsp1 = vsp1;
 
@@ -271,17 +295,20 @@ int vsp1_dlm_init(struct vsp1_device *vsp1, struct vsp1_dl_manager *dlm,
 
 		dl = vsp1_dl_list_alloc(dlm);
 		if (!dl)
-			return -ENOMEM;
+			return NULL;
 
 		list_add_tail(&dl->list, &dlm->free);
 	}
 
-	return 0;
+	return dlm;
 }
 
-void vsp1_dlm_cleanup(struct vsp1_dl_manager *dlm)
+void vsp1_dlm_destroy(struct vsp1_dl_manager *dlm)
 {
 	struct vsp1_dl_list *dl, *next;
+
+	if (!dlm)
+		return;
 
 	list_for_each_entry_safe(dl, next, &dlm->free, list) {
 		list_del(&dl->list);

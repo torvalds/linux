@@ -16,6 +16,7 @@
 #include <media/v4l2-subdev.h>
 
 #include "vsp1.h"
+#include "vsp1_dl.h"
 #include "vsp1_rwpf.h"
 #include "vsp1_video.h"
 
@@ -218,6 +219,13 @@ static const struct vsp1_rwpf_operations wpf_vdev_ops = {
  * Initialization and Cleanup
  */
 
+static void vsp1_wpf_destroy(struct vsp1_entity *entity)
+{
+	struct vsp1_rwpf *wpf = container_of(entity, struct vsp1_rwpf, entity);
+
+	vsp1_dlm_destroy(wpf->dlm);
+}
+
 struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 {
 	struct v4l2_subdev *subdev;
@@ -233,12 +241,22 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 	wpf->max_width = WPF_MAX_WIDTH;
 	wpf->max_height = WPF_MAX_HEIGHT;
 
+	wpf->entity.destroy = vsp1_wpf_destroy;
 	wpf->entity.type = VSP1_ENTITY_WPF;
 	wpf->entity.index = index;
 
 	ret = vsp1_entity_init(vsp1, &wpf->entity, 2);
 	if (ret < 0)
 		return ERR_PTR(ret);
+
+	/* Initialize the display list manager if the WPF is used for display */
+	if ((vsp1->info->features & VSP1_HAS_LIF) && index == 0) {
+		wpf->dlm = vsp1_dlm_create(vsp1, 4);
+		if (!wpf->dlm) {
+			ret = -ENOMEM;
+			goto error;
+		}
+	}
 
 	/* Initialize the V4L2 subdev. */
 	subdev = &wpf->entity.subdev;

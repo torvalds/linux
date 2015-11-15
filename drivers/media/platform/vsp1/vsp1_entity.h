@@ -56,6 +56,8 @@ struct vsp1_route {
 struct vsp1_entity {
 	struct vsp1_device *vsp1;
 
+	void (*destroy)(struct vsp1_entity *);
+
 	enum vsp1_entity_type type;
 	unsigned int index;
 	const struct vsp1_route *route;
