@@ -199,6 +199,11 @@ static inline int irq_desc_get_node(struct irq_desc *desc)
 	return irq_common_data_get_node(&desc->irq_common_data);
 }
 
+static inline int irq_desc_is_chained(struct irq_desc *desc)
+{
+	return (desc->action && desc->action == &chained_action);
+}
+
 #ifdef CONFIG_PM_SLEEP
 bool irq_pm_check_wakeup(struct irq_desc *desc);
 void irq_pm_install_action(struct irq_desc *desc, struct irqaction *action);
