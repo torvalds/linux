@@ -389,4 +389,5 @@
 #define USB_PID_PCTV_2002E_SE                           0x025d
 #define USB_PID_SVEON_STV27                             0xd3af
 #define USB_PID_TURBOX_DTT_2000                         0xd3a4
+#define USB_PID_WINTV_SOLOHD                            0x0264
 #endif
