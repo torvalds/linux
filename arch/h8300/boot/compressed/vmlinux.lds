@@ -13,6 +13,7 @@ SECTIONS
 	{
 		*(.rodata)
 	}
+        . = ALIGN(0x4) ;
         .data :
 
         {
@@ -21,9 +22,9 @@ SECTIONS
         ___data_start = . ;
                 *(.data.*)
 	}
+        . = ALIGN(0x4) ;
         .bss :
         {
-        . = ALIGN(0x4) ;
         __sbss = . ;
                 *(.bss*)
         . = ALIGN(0x4) ;
