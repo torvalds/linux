@@ -44,7 +44,9 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	const struct v4l2_pix_format_mplane *format = &rpf->format;
 	const struct v4l2_mbus_framefmt *source_format;
 	const struct v4l2_mbus_framefmt *sink_format;
-	const struct v4l2_rect *crop = &rpf->crop;
+	const struct v4l2_rect *crop;
+	unsigned int left = 0;
+	unsigned int top = 0;
 	u32 pstride;
 	u32 infmt;
 
@@ -57,6 +59,8 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	 * left corner in the plane buffer. Only two offsets are needed, as
 	 * planes 2 and 3 always have identical strides.
 	 */
+	crop = vsp1_rwpf_get_crop(rpf, rpf->entity.config);
+
 	vsp1_rpf_write(rpf, VI6_RPF_SRC_BSIZE,
 		       (crop->width << VI6_RPF_SRC_BSIZE_BHSIZE_SHIFT) |
 		       (crop->height << VI6_RPF_SRC_BSIZE_BVSIZE_SHIFT));
@@ -103,9 +107,19 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	vsp1_rpf_write(rpf, VI6_RPF_DSWAP, fmtinfo->swap);
 
 	/* Output location */
+	if (pipe->bru) {
+		const struct v4l2_rect *compose;
+
+		compose = vsp1_entity_get_pad_compose(pipe->bru,
+						      pipe->bru->config,
+						      rpf->bru_input);
+		left = compose->left;
+		top = compose->top;
+	}
+
 	vsp1_rpf_write(rpf, VI6_RPF_LOC,
-		       (rpf->location.left << VI6_RPF_LOC_HCOORD_SHIFT) |
-		       (rpf->location.top << VI6_RPF_LOC_VCOORD_SHIFT));
+		       (left << VI6_RPF_LOC_HCOORD_SHIFT) |
+		       (top << VI6_RPF_LOC_VCOORD_SHIFT));
 
 	/* Use the alpha channel (extended to 8 bits) when available or an
 	 * alpha value set through the V4L2_CID_ALPHA_COMPONENT control

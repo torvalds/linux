@@ -76,19 +76,11 @@ int vsp1_rwpf_enum_frame_size(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static struct v4l2_rect *
-vsp1_rwpf_get_crop(struct vsp1_rwpf *rwpf, struct v4l2_subdev_pad_config *cfg,
-		   u32 which)
+struct v4l2_rect *vsp1_rwpf_get_crop(struct vsp1_rwpf *rwpf,
+				     struct v4l2_subdev_pad_config *config)
 {
-	switch (which) {
-	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_crop(&rwpf->entity.subdev, cfg,
-						RWPF_PAD_SINK);
-	case V4L2_SUBDEV_FORMAT_ACTIVE:
-		return &rwpf->crop;
-	default:
-		return NULL;
-	}
+	return v4l2_subdev_get_try_crop(&rwpf->entity.subdev, config,
+					RWPF_PAD_SINK);
 }
 
 int vsp1_rwpf_get_format(struct v4l2_subdev *subdev,
@@ -148,7 +140,7 @@ int vsp1_rwpf_set_format(struct v4l2_subdev *subdev,
 	fmt->format = *format;
 
 	/* Update the sink crop rectangle. */
-	crop = vsp1_rwpf_get_crop(rwpf, cfg, fmt->which);
+	crop = vsp1_rwpf_get_crop(rwpf, config);
 	crop->left = 0;
 	crop->top = 0;
 	crop->width = fmt->format.width;
@@ -180,7 +172,7 @@ int vsp1_rwpf_get_selection(struct v4l2_subdev *subdev,
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP:
-		sel->r = *vsp1_rwpf_get_crop(rwpf, cfg, sel->which);
+		sel->r = *vsp1_rwpf_get_crop(rwpf, config);
 		break;
 
 	case V4L2_SEL_TGT_CROP_BOUNDS:
@@ -246,7 +238,7 @@ int vsp1_rwpf_set_selection(struct v4l2_subdev *subdev,
 	sel->r.height = min_t(unsigned int, sel->r.height,
 			      format->height - sel->r.top);
 
-	crop = vsp1_rwpf_get_crop(rwpf, cfg, sel->which);
+	crop = vsp1_rwpf_get_crop(rwpf, config);
 	*crop = sel->r;
 
 	/* Propagate the format to the source pad. */

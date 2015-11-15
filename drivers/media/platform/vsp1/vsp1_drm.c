@@ -410,9 +410,8 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int rpf_index,
 		__func__, sel.r.left, sel.r.top, sel.r.width, sel.r.height,
 		sel.pad);
 
-	/* Store the compose rectangle coordinates in the RPF. */
-	rpf->location.left = dst->left;
-	rpf->location.top = dst->top;
+	/* Store the BRU input pad number in the RPF. */
+	rpf->bru_input = rpf->entity.index;
 
 	/* Cache the memory buffer address but don't apply the values to the
 	 * hardware as the crop offsets haven't been computed yet.

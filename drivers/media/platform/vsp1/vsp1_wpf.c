@@ -44,7 +44,7 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	struct vsp1_device *vsp1 = wpf->entity.vsp1;
 	const struct v4l2_mbus_framefmt *source_format;
 	const struct v4l2_mbus_framefmt *sink_format;
-	const struct v4l2_rect *crop = &wpf->crop;
+	const struct v4l2_rect *crop;
 	unsigned int i;
 	u32 srcrpf = 0;
 	u32 outfmt = 0;
@@ -87,6 +87,8 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 			vsp1_wpf_write(wpf, VI6_WPF_DSTM_STRIDE_C,
 				       format->plane_fmt[1].bytesperline);
 	}
+
+	crop = vsp1_rwpf_get_crop(wpf, wpf->entity.config);
 
 	vsp1_wpf_write(wpf, VI6_WPF_HSZCLIP, VI6_WPF_SZCLIP_EN |
 		       (crop->left << VI6_WPF_SZCLIP_OFST_SHIFT) |

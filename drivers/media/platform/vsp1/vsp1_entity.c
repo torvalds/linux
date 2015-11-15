@@ -88,6 +88,14 @@ vsp1_entity_get_pad_format(struct vsp1_entity *entity,
 	return v4l2_subdev_get_try_format(&entity->subdev, cfg, pad);
 }
 
+struct v4l2_rect *
+vsp1_entity_get_pad_compose(struct vsp1_entity *entity,
+			    struct v4l2_subdev_pad_config *cfg,
+			    unsigned int pad)
+{
+	return v4l2_subdev_get_try_compose(&entity->subdev, cfg, pad);
+}
+
 /*
  * vsp1_entity_init_cfg - Initialize formats on all pads
  * @subdev: V4L2 subdevice
