@@ -89,7 +89,7 @@ static int hi3xxx_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	return 0;
 }
 
-struct smp_operations hi3xxx_smp_ops __initdata = {
+static struct smp_operations hi3xxx_smp_ops __initdata = {
 	.smp_prepare_cpus	= hi3xxx_smp_prepare_cpus,
 	.smp_boot_secondary	= hi3xxx_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
@@ -126,7 +126,7 @@ static int hix5hd2_boot_secondary(unsigned int cpu, struct task_struct *idle)
 }
 
 
-struct smp_operations hix5hd2_smp_ops __initdata = {
+static struct smp_operations hix5hd2_smp_ops __initdata = {
 	.smp_prepare_cpus	= hisi_common_smp_prepare_cpus,
 	.smp_boot_secondary	= hix5hd2_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
@@ -176,7 +176,7 @@ static int hip01_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	return 0;
 }
 
-struct smp_operations hip01_smp_ops __initdata = {
+static struct smp_operations hip01_smp_ops __initdata = {
 	.smp_prepare_cpus       = hisi_common_smp_prepare_cpus,
 	.smp_boot_secondary     = hip01_boot_secondary,
 };
