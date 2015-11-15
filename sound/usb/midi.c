@@ -2376,6 +2376,9 @@ int snd_usbmidi_create(struct snd_card *card,
 
 		err = snd_usbmidi_detect_per_port_endpoints(umidi, endpoints);
 		break;
+	case QUIRK_MIDI_CH345:
+		err = snd_usbmidi_detect_per_port_endpoints(umidi, endpoints);
+		break;
 	default:
 		dev_err(&umidi->dev->dev, "invalid quirk type %d\n",
 			quirk->type);
