@@ -228,7 +228,8 @@ static struct v4l2_rect *bru_get_compose(struct vsp1_bru *bru,
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_crop(&bru->entity.subdev, cfg, pad);
+		return v4l2_subdev_get_try_compose(&bru->entity.subdev, cfg,
+						   pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &bru->inputs[pad].compose;
 	default:
