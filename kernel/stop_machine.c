@@ -128,9 +128,11 @@ int stop_one_cpu(unsigned int cpu, cpu_stop_fn_t fn, void *arg)
 	struct cpu_stop_work work = { .fn = fn, .arg = arg, .done = &done };
 
 	cpu_stop_init_done(&done, 1);
-	cpu_stop_queue_work(cpu, &work);
+	if (!cpu_stop_queue_work(cpu, &work))
+		return -ENOENT;
 	wait_for_completion(&done.completion);
-	return done.executed ? done.ret : -ENOENT;
+	WARN_ON(!done.executed);
+	return done.ret;
 }
 
 /* This controls the threads on each CPU. */
