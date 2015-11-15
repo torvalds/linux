@@ -81,7 +81,8 @@ static inline struct vsp1_entity *to_vsp1_entity(struct v4l2_subdev *subdev)
 }
 
 int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
-		     unsigned int num_pads);
+		     const char *name, unsigned int num_pads,
+		     const struct v4l2_subdev_ops *ops);
 void vsp1_entity_destroy(struct vsp1_entity *entity);
 
 extern const struct v4l2_subdev_internal_ops vsp1_subdev_internal_ops;
@@ -94,8 +95,6 @@ struct v4l2_mbus_framefmt *
 vsp1_entity_get_pad_format(struct vsp1_entity *entity,
 			   struct v4l2_subdev_pad_config *cfg,
 			   unsigned int pad, u32 which);
-void vsp1_entity_init_formats(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_pad_config *cfg);
 
 void vsp1_entity_route_setup(struct vsp1_entity *source);
 

@@ -221,7 +221,6 @@ static struct v4l2_subdev_ops lut_ops = {
 
 struct vsp1_lut *vsp1_lut_create(struct vsp1_device *vsp1)
 {
-	struct v4l2_subdev *subdev;
 	struct vsp1_lut *lut;
 	int ret;
 
@@ -231,22 +230,9 @@ struct vsp1_lut *vsp1_lut_create(struct vsp1_device *vsp1)
 
 	lut->entity.type = VSP1_ENTITY_LUT;
 
-	ret = vsp1_entity_init(vsp1, &lut->entity, 2);
+	ret = vsp1_entity_init(vsp1, &lut->entity, "lut", 2, &lut_ops);
 	if (ret < 0)
 		return ERR_PTR(ret);
-
-	/* Initialize the V4L2 subdev. */
-	subdev = &lut->entity.subdev;
-	v4l2_subdev_init(subdev, &lut_ops);
-
-	subdev->entity.ops = &vsp1->media_ops;
-	subdev->internal_ops = &vsp1_subdev_internal_ops;
-	snprintf(subdev->name, sizeof(subdev->name), "%s lut",
-		 dev_name(vsp1->dev));
-	v4l2_set_subdevdata(subdev, lut);
-	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-
-	vsp1_entity_init_formats(subdev, NULL);
 
 	return lut;
 }

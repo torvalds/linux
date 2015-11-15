@@ -70,8 +70,8 @@ vsp1_entity_get_pad_format(struct vsp1_entity *entity,
  * formats are initialized on the file handle. Otherwise active formats are
  * initialized on the device.
  */
-void vsp1_entity_init_formats(struct v4l2_subdev *subdev,
-			    struct v4l2_subdev_pad_config *cfg)
+static void vsp1_entity_init_formats(struct v4l2_subdev *subdev,
+				     struct v4l2_subdev_pad_config *cfg)
 {
 	struct v4l2_subdev_format format;
 	unsigned int pad;
@@ -159,9 +159,12 @@ static const struct vsp1_route vsp1_routes[] = {
 };
 
 int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
-		     unsigned int num_pads)
+		     const char *name, unsigned int num_pads,
+		     const struct v4l2_subdev_ops *ops)
 {
+	struct v4l2_subdev *subdev;
 	unsigned int i;
+	int ret;
 
 	for (i = 0; i < ARRAY_SIZE(vsp1_routes); ++i) {
 		if (vsp1_routes[i].type == entity->type &&
@@ -196,8 +199,25 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 	entity->pads[num_pads - 1].flags = MEDIA_PAD_FL_SOURCE;
 
 	/* Initialize the media entity. */
-	return media_entity_pads_init(&entity->subdev.entity, num_pads,
-				 entity->pads);
+	ret = media_entity_pads_init(&entity->subdev.entity, num_pads,
+				     entity->pads);
+	if (ret < 0)
+		return ret;
+
+	/* Initialize the V4L2 subdev. */
+	subdev = &entity->subdev;
+	v4l2_subdev_init(subdev, ops);
+
+	subdev->entity.ops = &vsp1->media_ops;
+	subdev->internal_ops = &vsp1_subdev_internal_ops;
+	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+
+	snprintf(subdev->name, sizeof(subdev->name), "%s %s",
+		 dev_name(vsp1->dev), name);
+
+	vsp1_entity_init_formats(subdev, NULL);
+
+	return 0;
 }
 
 void vsp1_entity_destroy(struct vsp1_entity *entity)

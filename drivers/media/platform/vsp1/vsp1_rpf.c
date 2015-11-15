@@ -164,8 +164,8 @@ static const struct vsp1_rwpf_operations rpf_vdev_ops = {
 
 struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 {
-	struct v4l2_subdev *subdev;
 	struct vsp1_rwpf *rpf;
+	char name[6];
 	int ret;
 
 	rpf = devm_kzalloc(vsp1->dev, sizeof(*rpf), GFP_KERNEL);
@@ -180,22 +180,10 @@ struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 	rpf->entity.type = VSP1_ENTITY_RPF;
 	rpf->entity.index = index;
 
-	ret = vsp1_entity_init(vsp1, &rpf->entity, 2);
+	sprintf(name, "rpf.%u", index);
+	ret = vsp1_entity_init(vsp1, &rpf->entity, name, 2, &rpf_ops);
 	if (ret < 0)
 		return ERR_PTR(ret);
-
-	/* Initialize the V4L2 subdev. */
-	subdev = &rpf->entity.subdev;
-	v4l2_subdev_init(subdev, &rpf_ops);
-
-	subdev->entity.ops = &vsp1->media_ops;
-	subdev->internal_ops = &vsp1_subdev_internal_ops;
-	snprintf(subdev->name, sizeof(subdev->name), "%s rpf.%u",
-		 dev_name(vsp1->dev), index);
-	v4l2_set_subdevdata(subdev, rpf);
-	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-
-	vsp1_entity_init_formats(subdev, NULL);
 
 	/* Initialize the control handler. */
 	ret = vsp1_rwpf_init_ctrls(rpf);

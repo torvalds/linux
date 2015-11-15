@@ -180,7 +180,6 @@ static struct v4l2_subdev_ops hsit_ops = {
 
 struct vsp1_hsit *vsp1_hsit_create(struct vsp1_device *vsp1, bool inverse)
 {
-	struct v4l2_subdev *subdev;
 	struct vsp1_hsit *hsit;
 	int ret;
 
@@ -195,22 +194,10 @@ struct vsp1_hsit *vsp1_hsit_create(struct vsp1_device *vsp1, bool inverse)
 	else
 		hsit->entity.type = VSP1_ENTITY_HST;
 
-	ret = vsp1_entity_init(vsp1, &hsit->entity, 2);
+	ret = vsp1_entity_init(vsp1, &hsit->entity, inverse ? "hsi" : "hst", 2,
+			       &hsit_ops);
 	if (ret < 0)
 		return ERR_PTR(ret);
-
-	/* Initialize the V4L2 subdev. */
-	subdev = &hsit->entity.subdev;
-	v4l2_subdev_init(subdev, &hsit_ops);
-
-	subdev->entity.ops = &vsp1->media_ops;
-	subdev->internal_ops = &vsp1_subdev_internal_ops;
-	snprintf(subdev->name, sizeof(subdev->name), "%s %s",
-		 dev_name(vsp1->dev), inverse ? "hsi" : "hst");
-	v4l2_set_subdevdata(subdev, hsit);
-	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-
-	vsp1_entity_init_formats(subdev, NULL);
 
 	return hsit;
 }
