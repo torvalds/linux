@@ -16,6 +16,7 @@ SECTIONS
         .data :
 
         {
+        . = ALIGN(0x4) ;
         __sdata = . ;
         ___data_start = . ;
                 *(.data.*)
