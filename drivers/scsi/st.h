@@ -148,8 +148,6 @@ struct scsi_tape {
 	int tape_type;
 	int long_timeout;	/* timeout for commands known to take long time */
 
-	unsigned long max_pfn;	/* the maximum page number reachable by the HBA */
-
 	/* Mode characteristics */
 	struct st_modedef modes[ST_NBR_MODES];
 	int current_mode;
