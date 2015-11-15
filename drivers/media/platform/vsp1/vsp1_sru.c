@@ -307,6 +307,7 @@ static struct v4l2_subdev_video_ops sru_video_ops = {
 };
 
 static struct v4l2_subdev_pad_ops sru_pad_ops = {
+	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = sru_enum_mbus_code,
 	.enum_frame_size = sru_enum_frame_size,
 	.get_fmt = sru_get_format,

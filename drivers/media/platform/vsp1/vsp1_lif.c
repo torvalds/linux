@@ -190,6 +190,7 @@ static struct v4l2_subdev_video_ops lif_video_ops = {
 };
 
 static struct v4l2_subdev_pad_ops lif_pad_ops = {
+	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = lif_enum_mbus_code,
 	.enum_frame_size = lif_enum_frame_size,
 	.get_fmt = lif_get_format,

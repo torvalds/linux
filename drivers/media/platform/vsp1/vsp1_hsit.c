@@ -163,6 +163,7 @@ static struct v4l2_subdev_video_ops hsit_video_ops = {
 };
 
 static struct v4l2_subdev_pad_ops hsit_pad_ops = {
+	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = hsit_enum_mbus_code,
 	.enum_frame_size = hsit_enum_frame_size,
 	.get_fmt = hsit_get_format,

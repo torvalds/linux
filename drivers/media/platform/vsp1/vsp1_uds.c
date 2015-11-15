@@ -305,6 +305,7 @@ static struct v4l2_subdev_video_ops uds_video_ops = {
 };
 
 static struct v4l2_subdev_pad_ops uds_pad_ops = {
+	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = uds_enum_mbus_code,
 	.enum_frame_size = uds_enum_frame_size,
 	.get_fmt = uds_get_format,

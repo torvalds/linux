@@ -62,16 +62,15 @@ vsp1_entity_get_pad_format(struct vsp1_entity *entity,
 }
 
 /*
- * vsp1_entity_init_formats - Initialize formats on all pads
+ * vsp1_entity_init_cfg - Initialize formats on all pads
  * @subdev: V4L2 subdevice
  * @cfg: V4L2 subdev pad configuration
  *
- * Initialize all pad formats with default values. If cfg is not NULL, try
- * formats are initialized on the file handle. Otherwise active formats are
- * initialized on the device.
+ * Initialize all pad formats with default values in the given pad config. This
+ * function can be used as a handler for the subdev pad::init_cfg operation.
  */
-static void vsp1_entity_init_formats(struct v4l2_subdev *subdev,
-				     struct v4l2_subdev_pad_config *cfg)
+int vsp1_entity_init_cfg(struct v4l2_subdev *subdev,
+			 struct v4l2_subdev_pad_config *cfg)
 {
 	struct v4l2_subdev_format format;
 	unsigned int pad;
@@ -85,19 +84,9 @@ static void vsp1_entity_init_formats(struct v4l2_subdev *subdev,
 
 		v4l2_subdev_call(subdev, pad, set_fmt, cfg, &format);
 	}
-}
-
-static int vsp1_entity_open(struct v4l2_subdev *subdev,
-			    struct v4l2_subdev_fh *fh)
-{
-	vsp1_entity_init_formats(subdev, fh->pad);
 
 	return 0;
 }
-
-const struct v4l2_subdev_internal_ops vsp1_subdev_internal_ops = {
-	.open = vsp1_entity_open,
-};
 
 /* -----------------------------------------------------------------------------
  * Media Operations
@@ -209,13 +198,12 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 	v4l2_subdev_init(subdev, ops);
 
 	subdev->entity.ops = &vsp1->media_ops;
-	subdev->internal_ops = &vsp1_subdev_internal_ops;
 	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 	snprintf(subdev->name, sizeof(subdev->name), "%s %s",
 		 dev_name(vsp1->dev), name);
 
-	vsp1_entity_init_formats(subdev, NULL);
+	vsp1_entity_init_cfg(subdev, NULL);
 
 	return 0;
 }
