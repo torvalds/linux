@@ -917,6 +917,7 @@ int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 		if (ret)
 			goto out;
 	}
+	ret = 0;
 out:
 	kfree(key_data.rsc_tsc);
 	return ret;
@@ -946,8 +947,11 @@ iwl_mvm_wowlan_config(struct iwl_mvm *mvm,
 		 * that isn't really a problem though.
 		 */
 		mutex_unlock(&mvm->mutex);
-		iwl_mvm_wowlan_config_key_params(mvm, vif, true, CMD_ASYNC);
+		ret = iwl_mvm_wowlan_config_key_params(mvm, vif, true,
+						       CMD_ASYNC);
 		mutex_lock(&mvm->mutex);
+		if (ret)
+			return ret;
 	}
 
 	ret = iwl_mvm_send_cmd_pdu(mvm, WOWLAN_CONFIGURATION, 0,
