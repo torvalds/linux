@@ -64,10 +64,8 @@ static void cpu_stop_init_done(struct cpu_stop_done *done, unsigned int nr_todo)
 /* signal completion unless @done is NULL */
 static void cpu_stop_signal_done(struct cpu_stop_done *done)
 {
-	if (done) {
-		if (atomic_dec_and_test(&done->nr_todo))
-			complete(&done->completion);
-	}
+	if (atomic_dec_and_test(&done->nr_todo))
+		complete(&done->completion);
 }
 
 static void __cpu_stop_queue_work(struct cpu_stopper *stopper,
@@ -88,7 +86,7 @@ static bool cpu_stop_queue_work(unsigned int cpu, struct cpu_stop_work *work)
 	enabled = stopper->enabled;
 	if (enabled)
 		__cpu_stop_queue_work(stopper, work);
-	else
+	else if (work->done)
 		cpu_stop_signal_done(work->done);
 	spin_unlock_irqrestore(&stopper->lock, flags);
 
@@ -457,12 +455,12 @@ repeat:
 
 		/* cpu stop callbacks are not allowed to sleep */
 		preempt_disable();
-
 		ret = fn(arg);
-		if (ret && done)
-			done->ret = ret;
-		cpu_stop_signal_done(done);
-
+		if (done) {
+			if (ret)
+				done->ret = ret;
+			cpu_stop_signal_done(done);
+		}
 		/* restore preemption and check it's still balanced */
 		preempt_enable();
 		WARN_ONCE(preempt_count(),
