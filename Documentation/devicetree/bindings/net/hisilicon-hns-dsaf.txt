@@ -1,0 +1,49 @@
+Hisilicon DSA Fabric device controller
+
+Required properties:
+- compatible: should be "hisilicon,hns-dsaf-v1" or "hisilicon,hns-dsaf-v2".
+  "hisilicon,hns-dsaf-v1" is for hip05.
+  "hisilicon,hns-dsaf-v2" is for Hi1610 and Hi1612.
+- dsa-name: dsa fabric name who provide this interface.
+  should be "dsafX", X is the dsaf id.
+- mode: dsa fabric mode string. only support one of dsaf modes like these:
+		"2port-64vf",
+		"6port-16rss",
+		"6port-16vf".
+- interrupt-parent: the interrupt parent of this device.
+- interrupts: should contain the DSA Fabric and rcb interrupt.
+- reg: specifies base physical address(es) and size of the device registers.
+  The first region is external interface control register base and size.
+  The second region is SerDes base register and size.
+  The third region is the PPE register base and size.
+  The fourth region is dsa fabric base register and size.
+  The fifth region is cpld base register and size, it is not required if do not use cpld.
+- phy-handle: phy handle of physicl port, 0 if not any phy device. see ethernet.txt [1].
+- buf-size: rx buffer size, should be 16-1024.
+- desc-num: number of description in TX and RX queue, should be 512, 1024, 2048 or 4096.
+
+[1] Documentation/devicetree/bindings/net/phy.txt
+
+Example:
+
+dsa: dsa@c7000000 {
+	compatible = "hisilicon,hns-dsaf-v1";
+	dsa_name = "dsaf0";
+	mode = "6port-16rss";
+	interrupt-parent = <&mbigen_dsa>;
+	reg = <0x0 0xC0000000 0x0 0x420000
+	       0x0 0xC2000000 0x0 0x300000
+	       0x0 0xc5000000 0x0 0x890000
+	       0x0 0xc7000000 0x0 0x60000>;
+	phy-handle = <0 0 0 0 &soc0_phy4 &soc0_phy5 0 0>;
+	interrupts = <131 4>,<132 4>, <133 4>,<134 4>,
+		     <135 4>,<136 4>, <137 4>,<138 4>,
+		     <139 4>,<140 4>, <141 4>,<142 4>,
+		     <143 4>,<144 4>, <145 4>,<146 4>,
+		     <147 4>,<148 4>, <384 1>,<385 1>,
+		     <386 1>,<387 1>, <388 1>,<389 1>,
+		     <390 1>,<391 1>,
+	buf-size = <4096>;
+	desc-num = <1024>;
+	dma-coherent;
+};

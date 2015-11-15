@@ -28,6 +28,7 @@
 #include <linux/io.h>
 #include <linux/kvm_para.h>
 #include <linux/notifier.h>
+#include <asm/diag.h>
 #include <asm/setup.h>
 #include <asm/irq.h>
 #include <asm/cio.h>
@@ -366,9 +367,9 @@ static void virtio_ccw_drop_indicator(struct virtio_ccw_device *vcdev,
 	kfree(thinint_area);
 }
 
-static inline long do_kvm_notify(struct subchannel_id schid,
-				 unsigned long queue_index,
-				 long cookie)
+static inline long __do_kvm_notify(struct subchannel_id schid,
+				   unsigned long queue_index,
+				   long cookie)
 {
 	register unsigned long __nr asm("1") = KVM_S390_VIRTIO_CCW_NOTIFY;
 	register struct subchannel_id __schid asm("2") = schid;
@@ -381,6 +382,14 @@ static inline long do_kvm_notify(struct subchannel_id schid,
 		      "d"(__cookie)
 		      : "memory", "cc");
 	return __rc;
+}
+
+static inline long do_kvm_notify(struct subchannel_id schid,
+				 unsigned long queue_index,
+				 long cookie)
+{
+	diag_stat_inc(DIAG_STAT_X500);
+	return __do_kvm_notify(schid, queue_index, cookie);
 }
 
 static bool virtio_ccw_kvm_notify(struct virtqueue *vq)
@@ -400,12 +409,16 @@ static bool virtio_ccw_kvm_notify(struct virtqueue *vq)
 static int virtio_ccw_read_vq_conf(struct virtio_ccw_device *vcdev,
 				   struct ccw1 *ccw, int index)
 {
+	int ret;
+
 	vcdev->config_block->index = index;
 	ccw->cmd_code = CCW_CMD_READ_VQ_CONF;
 	ccw->flags = 0;
 	ccw->count = sizeof(struct vq_config_block);
 	ccw->cda = (__u32)(unsigned long)(vcdev->config_block);
-	ccw_io_helper(vcdev, ccw, VIRTIO_CCW_DOING_READ_VQ_CONF);
+	ret = ccw_io_helper(vcdev, ccw, VIRTIO_CCW_DOING_READ_VQ_CONF);
+	if (ret)
+		return ret;
 	return vcdev->config_block->num;
 }
 
@@ -503,6 +516,10 @@ static struct virtqueue *virtio_ccw_setup_vq(struct virtio_device *vdev,
 		goto out_err;
 	}
 	info->num = virtio_ccw_read_vq_conf(vcdev, ccw, i);
+	if (info->num < 0) {
+		err = info->num;
+		goto out_err;
+	}
 	size = PAGE_ALIGN(vring_size(info->num, KVM_VIRTIO_CCW_RING_ALIGN));
 	info->queue = alloc_pages_exact(size, GFP_KERNEL | __GFP_ZERO);
 	if (info->queue == NULL) {

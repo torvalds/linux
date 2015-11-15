@@ -53,9 +53,6 @@ config GENERIC_IO
 config STMP_DEVICE
 	bool
 
-config PERCPU_RWSEM
-	bool
-
 config ARCH_USE_CMPXCHG_LOCKREF
 	bool
 
@@ -223,6 +220,7 @@ config ZLIB_INFLATE
 
 config ZLIB_DEFLATE
 	tristate
+	select BITREVERSE
 
 config LZO_COMPRESS
 	tristate
@@ -460,16 +458,6 @@ config ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 config LRU_CACHE
 	tristate
 
-config AVERAGE
-	bool "Averaging functions"
-	help
-	  This option is provided for the case where no in-kernel-tree
-	  modules require averaging functions, but a module built outside
-	  the kernel tree does. Such modules that use library averaging
-	  functions require Y here.
-
-	  If unsure, say N.
-
 config CLZ_TAB
 	bool
 
@@ -521,6 +509,13 @@ config UCS2_STRING
 
 source "lib/fonts/Kconfig"
 
+config SG_SPLIT
+	def_bool n
+	help
+	 Provides a heler to split scatterlists into chunks, each chunk being a
+	 scatterlist. This should be selected by a driver or an API which
+	 whishes to split a scatterlist amongst multiple DMA channel.
+
 #
 # sg chaining option
 #
@@ -529,6 +524,9 @@ config ARCH_HAS_SG_CHAIN
 	def_bool n
 
 config ARCH_HAS_PMEM_API
+	bool
+
+config ARCH_HAS_MMIO_FLUSH
 	bool
 
 endmenu

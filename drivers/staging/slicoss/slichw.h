@@ -307,9 +307,11 @@ struct slic_regs {
 
 	u32	slic_hbar;	/* Header buffer address reg */
 	u32	pad4;
-	/* 31-8 - phy addr of set of contiguous hdr buffers
-	    7-0 - number of buffers passed
-	   Buffers are 256 bytes long on 256-byte boundaries. */
+	/*
+	 * 31-8 - phy addr of set of contiguous hdr buffers
+	 *  7-0 - number of buffers passed
+	 * Buffers are 256 bytes long on 256-byte boundaries.
+	 */
 #define SLIC_HBAR		0x0020
 #define SLIC_HBAR_CNT_MSK	0x000000FF
 
@@ -321,10 +323,12 @@ struct slic_regs {
 #define SLIC_DBAR_SIZE		2048
 
 	u32	slic_cbar;	/* Xmt Cmd buf addr regs.*/
-	/* 1 per XMT interface
-	   31-5 - phy addr of host command buffer
-	    4-0 - length of cmd in multiples of 32 bytes
-	   Buffers are 32 bytes up to 512 bytes long */
+	/*
+	 * 1 per XMT interface
+	 * 31-5 - phy addr of host command buffer
+	 *  4-0 - length of cmd in multiples of 32 bytes
+	 * Buffers are 32 bytes up to 512 bytes long
+	 */
 #define SLIC_CBAR		0x0030
 #define SLIC_CBAR_LEN_MSK	0x0000001F
 #define SLIC_CBAR_ALIGN		0x00000020
@@ -336,9 +340,11 @@ struct slic_regs {
 
 	u32	slic_rbar;	/* Response buffer address reg.*/
 	u32	pad7;
-	 /*31-8 - phy addr of set of contiguous response buffers
-	  7-0 - number of buffers passed
-	 Buffers are 32 bytes long on 32-byte boundaries.*/
+	/*
+	 * 31-8 - phy addr of set of contiguous response buffers
+	 * 7-0 - number of buffers passed
+	 * Buffers are 32 bytes long on 32-byte boundaries.
+	 */
 #define SLIC_RBAR		0x0038
 #define SLIC_RBAR_CNT_MSK	0x000000FF
 #define SLIC_RBAR_SIZE		32
@@ -430,7 +436,8 @@ struct slic_regs {
 #define SLIC_LOW_POWER	0x00e0
 
 	u32	slic_quiesce;	/* force slic into quiescent state
-				   before soft reset */
+				 * before soft reset
+				 */
 	u32	pad30;
 #define SLIC_QUIESCE	0x00e8
 
@@ -718,7 +725,8 @@ struct slic_eeprom {
 	u16 DSize2Pci;		/* 15 DRAM size to PCI (bytes * 64K) */
 	u16 RSize2Pci;		/* 16 ROM extension size to PCI (bytes * 4k) */
 	u8 NetIntPin1;		/* 17 Network Interface Pin 1
-				    (simba/leone only) */
+				 *  (simba/leone only)
+				 */
 	u8 NetIntPin2;		/* Network Interface Pin 2 (simba/leone only)*/
 	union {
 		u8 NetIntPin3;	/* 18 Network Interface Pin 3 (simba only) */
@@ -748,7 +756,8 @@ struct slic_eeprom {
 	union oemfru OemFru;	/* optional OEM FRU information */
 	u8	Pad[4];		/* Pad to 128 bytes - includes 2 cksum bytes
 				 * (if OEM FRU info exists) and two unusable
-				 * bytes at the end */
+				 * bytes at the end
+				 */
 };
 
 /* SLIC EEPROM structure for Oasis */
@@ -772,7 +781,8 @@ struct oslic_eeprom {
 	u16 FlashSize;		/* 14 Flash size (bytes / 4K) */
 	u16 DSize2Pci;		/* 15 DRAM size to PCI (bytes / 64K) */
 	u16 RSize2Pci;		/* 16 Flash (ROM extension) size to PCI
-					(bytes / 4K) */
+				 *	(bytes / 4K)
+				 */
 	u16 DeviceId1;		/* 17 Device Id (function 1) */
 	u16 DeviceId2;		/* 18 Device Id (function 2) */
 	u16 CfgByte6;		/* 19 Device Status Config Bytes 6-7 */

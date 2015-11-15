@@ -1434,16 +1434,6 @@ verbose_printk(KERN_DEBUG "btrfs: find_extent_clone: data_offset=%llu, "
 	}
 
 	if (cur_clone_root) {
-		if (compressed != BTRFS_COMPRESS_NONE) {
-			/*
-			 * Offsets given by iterate_extent_inodes() are relative
-			 * to the start of the extent, we need to add logical
-			 * offset from the file extent item.
-			 * (See why at backref.c:check_extent_in_eb())
-			 */
-			cur_clone_root->offset += btrfs_file_extent_offset(eb,
-									   fi);
-		}
 		*found = cur_clone_root;
 		ret = 0;
 	} else {
@@ -1920,10 +1910,12 @@ static int did_overwrite_ref(struct send_ctx *sctx,
 	/*
 	 * We know that it is or will be overwritten. Check this now.
 	 * The current inode being processed might have been the one that caused
-	 * inode 'ino' to be orphanized, therefore ow_inode can actually be the
-	 * same as sctx->send_progress.
+	 * inode 'ino' to be orphanized, therefore check if ow_inode matches
+	 * the current inode being processed.
 	 */
-	if (ow_inode <= sctx->send_progress)
+	if ((ow_inode < sctx->send_progress) ||
+	    (ino != sctx->cur_ino && ow_inode == sctx->cur_ino &&
+	     gen == sctx->cur_inode_gen))
 		ret = 1;
 	else
 		ret = 0;
@@ -2351,8 +2343,14 @@ static int send_subvol_begin(struct send_ctx *sctx)
 	}
 
 	TLV_PUT_STRING(sctx, BTRFS_SEND_A_PATH, name, namelen);
-	TLV_PUT_UUID(sctx, BTRFS_SEND_A_UUID,
-			sctx->send_root->root_item.uuid);
+
+	if (!btrfs_is_empty_uuid(sctx->send_root->root_item.received_uuid))
+		TLV_PUT_UUID(sctx, BTRFS_SEND_A_UUID,
+			    sctx->send_root->root_item.received_uuid);
+	else
+		TLV_PUT_UUID(sctx, BTRFS_SEND_A_UUID,
+			    sctx->send_root->root_item.uuid);
+
 	TLV_PUT_U64(sctx, BTRFS_SEND_A_CTRANSID,
 		    le64_to_cpu(sctx->send_root->root_item.ctransid));
 	if (parent_root) {
@@ -2562,7 +2560,7 @@ verbose_printk("btrfs: send_create_inode %llu\n", ino);
 	} else if (S_ISSOCK(mode)) {
 		cmd = BTRFS_SEND_C_MKSOCK;
 	} else {
-		printk(KERN_WARNING "btrfs: unexpected inode type %o",
+		btrfs_warn(sctx->send_root->fs_info, "unexpected inode type %o",
 				(int)(mode & S_IFMT));
 		ret = -ENOTSUPP;
 		goto out;
@@ -4685,6 +4683,171 @@ tlv_put_failure:
 	return ret;
 }
 
+static int send_extent_data(struct send_ctx *sctx,
+			    const u64 offset,
+			    const u64 len)
+{
+	u64 sent = 0;
+
+	if (sctx->flags & BTRFS_SEND_FLAG_NO_FILE_DATA)
+		return send_update_extent(sctx, offset, len);
+
+	while (sent < len) {
+		u64 size = len - sent;
+		int ret;
+
+		if (size > BTRFS_SEND_READ_SIZE)
+			size = BTRFS_SEND_READ_SIZE;
+		ret = send_write(sctx, offset + sent, size);
+		if (ret < 0)
+			return ret;
+		if (!ret)
+			break;
+		sent += ret;
+	}
+	return 0;
+}
+
+static int clone_range(struct send_ctx *sctx,
+		       struct clone_root *clone_root,
+		       const u64 disk_byte,
+		       u64 data_offset,
+		       u64 offset,
+		       u64 len)
+{
+	struct btrfs_path *path;
+	struct btrfs_key key;
+	int ret;
+
+	path = alloc_path_for_send();
+	if (!path)
+		return -ENOMEM;
+
+	/*
+	 * We can't send a clone operation for the entire range if we find
+	 * extent items in the respective range in the source file that
+	 * refer to different extents or if we find holes.
+	 * So check for that and do a mix of clone and regular write/copy
+	 * operations if needed.
+	 *
+	 * Example:
+	 *
+	 * mkfs.btrfs -f /dev/sda
+	 * mount /dev/sda /mnt
+	 * xfs_io -f -c "pwrite -S 0xaa 0K 100K" /mnt/foo
+	 * cp --reflink=always /mnt/foo /mnt/bar
+	 * xfs_io -c "pwrite -S 0xbb 50K 50K" /mnt/foo
+	 * btrfs subvolume snapshot -r /mnt /mnt/snap
+	 *
+	 * If when we send the snapshot and we are processing file bar (which
+	 * has a higher inode number than foo) we blindly send a clone operation
+	 * for the [0, 100K[ range from foo to bar, the receiver ends up getting
+	 * a file bar that matches the content of file foo - iow, doesn't match
+	 * the content from bar in the original filesystem.
+	 */
+	key.objectid = clone_root->ino;
+	key.type = BTRFS_EXTENT_DATA_KEY;
+	key.offset = clone_root->offset;
+	ret = btrfs_search_slot(NULL, clone_root->root, &key, path, 0, 0);
+	if (ret < 0)
+		goto out;
+	if (ret > 0 && path->slots[0] > 0) {
+		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0] - 1);
+		if (key.objectid == clone_root->ino &&
+		    key.type == BTRFS_EXTENT_DATA_KEY)
+			path->slots[0]--;
+	}
+
+	while (true) {
+		struct extent_buffer *leaf = path->nodes[0];
+		int slot = path->slots[0];
+		struct btrfs_file_extent_item *ei;
+		u8 type;
+		u64 ext_len;
+		u64 clone_len;
+
+		if (slot >= btrfs_header_nritems(leaf)) {
+			ret = btrfs_next_leaf(clone_root->root, path);
+			if (ret < 0)
+				goto out;
+			else if (ret > 0)
+				break;
+			continue;
+		}
+
+		btrfs_item_key_to_cpu(leaf, &key, slot);
+
+		/*
+		 * We might have an implicit trailing hole (NO_HOLES feature
+		 * enabled). We deal with it after leaving this loop.
+		 */
+		if (key.objectid != clone_root->ino ||
+		    key.type != BTRFS_EXTENT_DATA_KEY)
+			break;
+
+		ei = btrfs_item_ptr(leaf, slot, struct btrfs_file_extent_item);
+		type = btrfs_file_extent_type(leaf, ei);
+		if (type == BTRFS_FILE_EXTENT_INLINE) {
+			ext_len = btrfs_file_extent_inline_len(leaf, slot, ei);
+			ext_len = PAGE_CACHE_ALIGN(ext_len);
+		} else {
+			ext_len = btrfs_file_extent_num_bytes(leaf, ei);
+		}
+
+		if (key.offset + ext_len <= clone_root->offset)
+			goto next;
+
+		if (key.offset > clone_root->offset) {
+			/* Implicit hole, NO_HOLES feature enabled. */
+			u64 hole_len = key.offset - clone_root->offset;
+
+			if (hole_len > len)
+				hole_len = len;
+			ret = send_extent_data(sctx, offset, hole_len);
+			if (ret < 0)
+				goto out;
+
+			len -= hole_len;
+			if (len == 0)
+				break;
+			offset += hole_len;
+			clone_root->offset += hole_len;
+			data_offset += hole_len;
+		}
+
+		if (key.offset >= clone_root->offset + len)
+			break;
+
+		clone_len = min_t(u64, ext_len, len);
+
+		if (btrfs_file_extent_disk_bytenr(leaf, ei) == disk_byte &&
+		    btrfs_file_extent_offset(leaf, ei) == data_offset)
+			ret = send_clone(sctx, offset, clone_len, clone_root);
+		else
+			ret = send_extent_data(sctx, offset, clone_len);
+
+		if (ret < 0)
+			goto out;
+
+		len -= clone_len;
+		if (len == 0)
+			break;
+		offset += clone_len;
+		clone_root->offset += clone_len;
+		data_offset += clone_len;
+next:
+		path->slots[0]++;
+	}
+
+	if (len > 0)
+		ret = send_extent_data(sctx, offset, len);
+	else
+		ret = 0;
+out:
+	btrfs_free_path(path);
+	return ret;
+}
+
 static int send_write_or_clone(struct send_ctx *sctx,
 			       struct btrfs_path *path,
 			       struct btrfs_key *key,
@@ -4693,9 +4856,7 @@ static int send_write_or_clone(struct send_ctx *sctx,
 	int ret = 0;
 	struct btrfs_file_extent_item *ei;
 	u64 offset = key->offset;
-	u64 pos = 0;
 	u64 len;
-	u32 l;
 	u8 type;
 	u64 bs = sctx->send_root->fs_info->sb->s_blocksize;
 
@@ -4723,22 +4884,15 @@ static int send_write_or_clone(struct send_ctx *sctx,
 	}
 
 	if (clone_root && IS_ALIGNED(offset + len, bs)) {
-		ret = send_clone(sctx, offset, len, clone_root);
-	} else if (sctx->flags & BTRFS_SEND_FLAG_NO_FILE_DATA) {
-		ret = send_update_extent(sctx, offset, len);
+		u64 disk_byte;
+		u64 data_offset;
+
+		disk_byte = btrfs_file_extent_disk_bytenr(path->nodes[0], ei);
+		data_offset = btrfs_file_extent_offset(path->nodes[0], ei);
+		ret = clone_range(sctx, clone_root, disk_byte, data_offset,
+				  offset, len);
 	} else {
-		while (pos < len) {
-			l = len - pos;
-			if (l > BTRFS_SEND_READ_SIZE)
-				l = BTRFS_SEND_READ_SIZE;
-			ret = send_write(sctx, pos + offset, l);
-			if (ret < 0)
-				goto out;
-			if (!ret)
-				break;
-			pos += ret;
-		}
-		ret = 0;
+		ret = send_extent_data(sctx, offset, len);
 	}
 out:
 	return ret;

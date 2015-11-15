@@ -177,8 +177,6 @@ static bool rs_mimo_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	mvmvif = iwl_mvm_vif_from_mac80211(mvmsta->vif);
-	if (iwl_mvm_vif_low_latency(mvmvif) && mvmsta->vif->p2p)
-		return false;
 
 	if (mvm->nvm_data->sku_cap_mimo_disabled)
 		return false;
@@ -523,14 +521,56 @@ static const char *rs_pretty_lq_type(enum iwl_table_type type)
 	return lq_types[type];
 }
 
+static char *rs_pretty_rate(const struct rs_rate *rate)
+{
+	static char buf[40];
+	static const char * const legacy_rates[] = {
+		[IWL_RATE_1M_INDEX] = "1M",
+		[IWL_RATE_2M_INDEX] = "2M",
+		[IWL_RATE_5M_INDEX] = "5.5M",
+		[IWL_RATE_11M_INDEX] = "11M",
+		[IWL_RATE_6M_INDEX] = "6M",
+		[IWL_RATE_9M_INDEX] = "9M",
+		[IWL_RATE_12M_INDEX] = "12M",
+		[IWL_RATE_18M_INDEX] = "18M",
+		[IWL_RATE_24M_INDEX] = "24M",
+		[IWL_RATE_36M_INDEX] = "36M",
+		[IWL_RATE_48M_INDEX] = "48M",
+		[IWL_RATE_54M_INDEX] = "54M",
+	};
+	static const char *const ht_vht_rates[] = {
+		[IWL_RATE_MCS_0_INDEX] = "MCS0",
+		[IWL_RATE_MCS_1_INDEX] = "MCS1",
+		[IWL_RATE_MCS_2_INDEX] = "MCS2",
+		[IWL_RATE_MCS_3_INDEX] = "MCS3",
+		[IWL_RATE_MCS_4_INDEX] = "MCS4",
+		[IWL_RATE_MCS_5_INDEX] = "MCS5",
+		[IWL_RATE_MCS_6_INDEX] = "MCS6",
+		[IWL_RATE_MCS_7_INDEX] = "MCS7",
+		[IWL_RATE_MCS_8_INDEX] = "MCS8",
+		[IWL_RATE_MCS_9_INDEX] = "MCS9",
+	};
+	const char *rate_str;
+
+	if (is_type_legacy(rate->type))
+		rate_str = legacy_rates[rate->index];
+	else if (is_type_ht(rate->type) || is_type_vht(rate->type))
+		rate_str = ht_vht_rates[rate->index];
+	else
+		rate_str = "BAD_RATE";
+
+	sprintf(buf, "(%s|%s|%s)", rs_pretty_lq_type(rate->type),
+		rs_pretty_ant(rate->ant), rate_str);
+	return buf;
+}
+
 static inline void rs_dump_rate(struct iwl_mvm *mvm, const struct rs_rate *rate,
 				const char *prefix)
 {
 	IWL_DEBUG_RATE(mvm,
-		       "%s: (%s: %d) ANT: %s BW: %d SGI: %d LDPC: %d STBC: %d\n",
-		       prefix, rs_pretty_lq_type(rate->type),
-		       rate->index, rs_pretty_ant(rate->ant),
-		       rate->bw, rate->sgi, rate->ldpc, rate->stbc);
+		       "%s: %s BW: %d SGI: %d LDPC: %d STBC: %d\n",
+		       prefix, rs_pretty_rate(rate), rate->bw,
+		       rate->sgi, rate->ldpc, rate->stbc);
 }
 
 static void rs_rate_scale_clear_window(struct iwl_rate_scale_data *window)
@@ -561,8 +601,8 @@ static inline u8 rs_is_valid_ant(u8 valid_antenna, u8 ant_type)
 }
 
 static int rs_tl_turn_on_agg_for_tid(struct iwl_mvm *mvm,
-				      struct iwl_lq_sta *lq_data, u8 tid,
-				      struct ieee80211_sta *sta)
+				     struct iwl_lq_sta *lq_data, u8 tid,
+				     struct ieee80211_sta *sta)
 {
 	int ret = -EAGAIN;
 
@@ -1484,7 +1524,7 @@ static s32 rs_get_best_rate(struct iwl_mvm *mvm,
 	u32 target_tpt;
 	int rate_idx;
 
-	if (success_ratio > IWL_MVM_RS_SR_NO_DECREASE) {
+	if (success_ratio >= RS_PERCENT(IWL_MVM_RS_SR_NO_DECREASE)) {
 		target_tpt = 100 * expected_current_tpt;
 		IWL_DEBUG_RATE(mvm,
 			       "SR %d high. Find rate exceeding EXPECTED_CURRENT %d\n",
@@ -1492,7 +1532,7 @@ static s32 rs_get_best_rate(struct iwl_mvm *mvm,
 	} else {
 		target_tpt = lq_sta->last_tpt;
 		IWL_DEBUG_RATE(mvm,
-			       "SR %d not thag good. Find rate exceeding ACTUAL_TPT %d\n",
+			       "SR %d not that good. Find rate exceeding ACTUAL_TPT %d\n",
 			       success_ratio, target_tpt);
 	}
 
@@ -1619,6 +1659,51 @@ static void rs_update_rate_tbl(struct iwl_mvm *mvm,
 {
 	rs_fill_lq_cmd(mvm, sta, lq_sta, &tbl->rate);
 	iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq, false);
+}
+
+static bool rs_tweak_rate_tbl(struct iwl_mvm *mvm,
+			      struct ieee80211_sta *sta,
+			      struct iwl_lq_sta *lq_sta,
+			      struct iwl_scale_tbl_info *tbl,
+			      enum rs_action scale_action)
+{
+	if (sta->bandwidth != IEEE80211_STA_RX_BW_80)
+		return false;
+
+	if (!is_vht_siso(&tbl->rate))
+		return false;
+
+	if ((tbl->rate.bw == RATE_MCS_CHAN_WIDTH_80) &&
+	    (tbl->rate.index == IWL_RATE_MCS_0_INDEX) &&
+	    (scale_action == RS_ACTION_DOWNSCALE)) {
+		tbl->rate.bw = RATE_MCS_CHAN_WIDTH_20;
+		tbl->rate.index = IWL_RATE_MCS_4_INDEX;
+		IWL_DEBUG_RATE(mvm, "Switch 80Mhz SISO MCS0 -> 20Mhz MCS4\n");
+		goto tweaked;
+	}
+
+	/* Go back to 80Mhz MCS1 only if we've established that 20Mhz MCS5 is
+	 * sustainable, i.e. we're past the test window. We can't go back
+	 * if MCS5 is just tested as this will happen always after switching
+	 * to 20Mhz MCS4 because the rate stats are cleared.
+	 */
+	if ((tbl->rate.bw == RATE_MCS_CHAN_WIDTH_20) &&
+	    (((tbl->rate.index == IWL_RATE_MCS_5_INDEX) &&
+	     (scale_action == RS_ACTION_STAY)) ||
+	     ((tbl->rate.index > IWL_RATE_MCS_5_INDEX) &&
+	      (scale_action == RS_ACTION_UPSCALE)))) {
+		tbl->rate.bw = RATE_MCS_CHAN_WIDTH_80;
+		tbl->rate.index = IWL_RATE_MCS_1_INDEX;
+		IWL_DEBUG_RATE(mvm, "Switch 20Mhz SISO MCS5 -> 80Mhz MCS1\n");
+		goto tweaked;
+	}
+
+	return false;
+
+tweaked:
+	rs_set_expected_tpt_table(lq_sta, tbl);
+	rs_rate_scale_clear_tbl_windows(mvm, tbl);
+	return true;
 }
 
 static enum rs_column rs_get_next_column(struct iwl_mvm *mvm,
@@ -2173,9 +2258,9 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 	if ((fail_count < IWL_MVM_RS_RATE_MIN_FAILURE_TH) &&
 	    (window->success_counter < IWL_MVM_RS_RATE_MIN_SUCCESS_TH)) {
 		IWL_DEBUG_RATE(mvm,
-			       "(%s: %d): Test Window: succ %d total %d\n",
-			       rs_pretty_lq_type(rate->type),
-			       index, window->success_counter, window->counter);
+			       "%s: Test Window: succ %d total %d\n",
+			       rs_pretty_rate(rate),
+			       window->success_counter, window->counter);
 
 		/* Can't calculate this yet; not enough history */
 		window->average_tpt = IWL_INVALID_VALUE;
@@ -2252,8 +2337,8 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 		high_tpt = tbl->win[high].average_tpt;
 
 	IWL_DEBUG_RATE(mvm,
-		       "(%s: %d): cur_tpt %d SR %d low %d high %d low_tpt %d high_tpt %d\n",
-		       rs_pretty_lq_type(rate->type), index, current_tpt, sr,
+		       "%s: cur_tpt %d SR %d low %d high %d low_tpt %d high_tpt %d\n",
+		       rs_pretty_rate(rate), current_tpt, sr,
 		       low, high, low_tpt, high_tpt);
 
 	scale_action = rs_get_rate_action(mvm, tbl, sr, low, high,
@@ -2304,6 +2389,8 @@ lq_update:
 	/* Replace uCode's rate table for the destination station. */
 	if (update_lq) {
 		tbl->rate.index = index;
+		if (IWL_MVM_RS_80_20_FAR_RANGE_TWEAK)
+			rs_tweak_rate_tbl(mvm, sta, lq_sta, tbl, scale_action);
 		rs_update_rate_tbl(mvm, sta, lq_sta, tbl);
 	}
 
@@ -2403,7 +2490,7 @@ struct rs_init_rate_info {
 	u8 rate_idx;
 };
 
-static const struct rs_init_rate_info rs_init_rates_24ghz[] = {
+static const struct rs_init_rate_info rs_optimal_rates_24ghz_legacy[] = {
 	{ -60, IWL_RATE_54M_INDEX },
 	{ -64, IWL_RATE_48M_INDEX },
 	{ -68, IWL_RATE_36M_INDEX },
@@ -2416,7 +2503,7 @@ static const struct rs_init_rate_info rs_init_rates_24ghz[] = {
 	{ S8_MIN, IWL_RATE_1M_INDEX },
 };
 
-static const struct rs_init_rate_info rs_init_rates_5ghz[] = {
+static const struct rs_init_rate_info rs_optimal_rates_5ghz_legacy[] = {
 	{ -60, IWL_RATE_54M_INDEX },
 	{ -64, IWL_RATE_48M_INDEX },
 	{ -72, IWL_RATE_36M_INDEX },
@@ -2426,6 +2513,123 @@ static const struct rs_init_rate_info rs_init_rates_5ghz[] = {
 	{ -87, IWL_RATE_9M_INDEX  },
 	{ S8_MIN, IWL_RATE_6M_INDEX },
 };
+
+static const struct rs_init_rate_info rs_optimal_rates_ht[] = {
+	{ -60, IWL_RATE_MCS_7_INDEX },
+	{ -64, IWL_RATE_MCS_6_INDEX },
+	{ -68, IWL_RATE_MCS_5_INDEX },
+	{ -72, IWL_RATE_MCS_4_INDEX },
+	{ -80, IWL_RATE_MCS_3_INDEX },
+	{ -84, IWL_RATE_MCS_2_INDEX },
+	{ -85, IWL_RATE_MCS_1_INDEX },
+	{ S8_MIN, IWL_RATE_MCS_0_INDEX},
+};
+
+static const struct rs_init_rate_info rs_optimal_rates_vht_20mhz[] = {
+	{ -60, IWL_RATE_MCS_8_INDEX },
+	{ -64, IWL_RATE_MCS_7_INDEX },
+	{ -68, IWL_RATE_MCS_6_INDEX },
+	{ -72, IWL_RATE_MCS_5_INDEX },
+	{ -80, IWL_RATE_MCS_4_INDEX },
+	{ -84, IWL_RATE_MCS_3_INDEX },
+	{ -85, IWL_RATE_MCS_2_INDEX },
+	{ -87, IWL_RATE_MCS_1_INDEX },
+	{ S8_MIN, IWL_RATE_MCS_0_INDEX},
+};
+
+static const struct rs_init_rate_info rs_optimal_rates_vht_40_80mhz[] = {
+	{ -60, IWL_RATE_MCS_9_INDEX },
+	{ -64, IWL_RATE_MCS_8_INDEX },
+	{ -68, IWL_RATE_MCS_7_INDEX },
+	{ -72, IWL_RATE_MCS_6_INDEX },
+	{ -80, IWL_RATE_MCS_5_INDEX },
+	{ -84, IWL_RATE_MCS_4_INDEX },
+	{ -85, IWL_RATE_MCS_3_INDEX },
+	{ -87, IWL_RATE_MCS_2_INDEX },
+	{ -88, IWL_RATE_MCS_1_INDEX },
+	{ S8_MIN, IWL_RATE_MCS_0_INDEX },
+};
+
+/* Init the optimal rate based on STA caps
+ * This combined with rssi is used to report the last tx rate
+ * to userspace when we haven't transmitted enough frames.
+ */
+static void rs_init_optimal_rate(struct iwl_mvm *mvm,
+				 struct ieee80211_sta *sta,
+				 struct iwl_lq_sta *lq_sta)
+{
+	struct rs_rate *rate = &lq_sta->optimal_rate;
+
+	if (lq_sta->max_mimo2_rate_idx != IWL_RATE_INVALID)
+		rate->type = lq_sta->is_vht ? LQ_VHT_MIMO2 : LQ_HT_MIMO2;
+	else if (lq_sta->max_siso_rate_idx != IWL_RATE_INVALID)
+		rate->type = lq_sta->is_vht ? LQ_VHT_SISO : LQ_HT_SISO;
+	else if (lq_sta->band == IEEE80211_BAND_5GHZ)
+		rate->type = LQ_LEGACY_A;
+	else
+		rate->type = LQ_LEGACY_G;
+
+	rate->bw = rs_bw_from_sta_bw(sta);
+	rate->sgi = rs_sgi_allow(mvm, sta, rate, NULL);
+
+	/* ANT/LDPC/STBC aren't relevant for the rate reported to userspace */
+
+	if (is_mimo(rate)) {
+		lq_sta->optimal_rate_mask = lq_sta->active_mimo2_rate;
+	} else if (is_siso(rate)) {
+		lq_sta->optimal_rate_mask = lq_sta->active_siso_rate;
+	} else {
+		lq_sta->optimal_rate_mask = lq_sta->active_legacy_rate;
+
+		if (lq_sta->band == IEEE80211_BAND_5GHZ) {
+			lq_sta->optimal_rates = rs_optimal_rates_5ghz_legacy;
+			lq_sta->optimal_nentries =
+				ARRAY_SIZE(rs_optimal_rates_5ghz_legacy);
+		} else {
+			lq_sta->optimal_rates = rs_optimal_rates_24ghz_legacy;
+			lq_sta->optimal_nentries =
+				ARRAY_SIZE(rs_optimal_rates_24ghz_legacy);
+		}
+	}
+
+	if (is_vht(rate)) {
+		if (rate->bw == RATE_MCS_CHAN_WIDTH_20) {
+			lq_sta->optimal_rates = rs_optimal_rates_vht_20mhz;
+			lq_sta->optimal_nentries =
+				ARRAY_SIZE(rs_optimal_rates_vht_20mhz);
+		} else {
+			lq_sta->optimal_rates = rs_optimal_rates_vht_40_80mhz;
+			lq_sta->optimal_nentries =
+				ARRAY_SIZE(rs_optimal_rates_vht_40_80mhz);
+		}
+	} else if (is_ht(rate)) {
+		lq_sta->optimal_rates = rs_optimal_rates_ht;
+		lq_sta->optimal_nentries = ARRAY_SIZE(rs_optimal_rates_ht);
+	}
+}
+
+/* Compute the optimal rate index based on RSSI */
+static struct rs_rate *rs_get_optimal_rate(struct iwl_mvm *mvm,
+					   struct iwl_lq_sta *lq_sta)
+{
+	struct rs_rate *rate = &lq_sta->optimal_rate;
+	int i;
+
+	rate->index = find_first_bit(&lq_sta->optimal_rate_mask,
+				     BITS_PER_LONG);
+
+	for (i = 0; i < lq_sta->optimal_nentries; i++) {
+		int rate_idx = lq_sta->optimal_rates[i].rate_idx;
+
+		if ((lq_sta->pers.last_rssi >= lq_sta->optimal_rates[i].rssi) &&
+		    (BIT(rate_idx) & lq_sta->optimal_rate_mask)) {
+			rate->index = rate_idx;
+			break;
+		}
+	}
+
+	return rate;
+}
 
 /* Choose an initial legacy rate and antenna to use based on the RSSI
  * of last Rx
@@ -2468,12 +2672,12 @@ static void rs_get_initial_rate(struct iwl_mvm *mvm,
 
 	if (band == IEEE80211_BAND_5GHZ) {
 		rate->type = LQ_LEGACY_A;
-		initial_rates = rs_init_rates_5ghz;
-		nentries = ARRAY_SIZE(rs_init_rates_5ghz);
+		initial_rates = rs_optimal_rates_5ghz_legacy;
+		nentries = ARRAY_SIZE(rs_optimal_rates_5ghz_legacy);
 	} else {
 		rate->type = LQ_LEGACY_G;
-		initial_rates = rs_init_rates_24ghz;
-		nentries = ARRAY_SIZE(rs_init_rates_24ghz);
+		initial_rates = rs_optimal_rates_24ghz_legacy;
+		nentries = ARRAY_SIZE(rs_optimal_rates_24ghz_legacy);
 	}
 
 	if (IWL_MVM_RS_RSSI_BASED_INIT_RATE) {
@@ -2496,10 +2700,21 @@ void rs_update_last_rssi(struct iwl_mvm *mvm,
 			 struct iwl_lq_sta *lq_sta,
 			 struct ieee80211_rx_status *rx_status)
 {
+	int i;
+
 	lq_sta->pers.chains = rx_status->chains;
 	lq_sta->pers.chain_signal[0] = rx_status->chain_signal[0];
 	lq_sta->pers.chain_signal[1] = rx_status->chain_signal[1];
 	lq_sta->pers.chain_signal[2] = rx_status->chain_signal[2];
+	lq_sta->pers.last_rssi = S8_MIN;
+
+	for (i = 0; i < ARRAY_SIZE(lq_sta->pers.chain_signal); i++) {
+		if (!(lq_sta->pers.chains & BIT(i)))
+			continue;
+
+		if (lq_sta->pers.chain_signal[i] > lq_sta->pers.last_rssi)
+			lq_sta->pers.last_rssi = lq_sta->pers.chain_signal[i];
+	}
 }
 
 /**
@@ -2538,6 +2753,7 @@ static void rs_initialize_lq(struct iwl_mvm *mvm,
 	rate = &tbl->rate;
 
 	rs_get_initial_rate(mvm, lq_sta, band, rate);
+	rs_init_optimal_rate(mvm, sta, lq_sta);
 
 	WARN_ON_ONCE(rate->ant != ANT_A && rate->ant != ANT_B);
 	if (rate->ant == ANT_A)
@@ -2560,6 +2776,8 @@ static void rs_get_rate(void *mvm_r, struct ieee80211_sta *sta, void *mvm_sta,
 	struct iwl_mvm *mvm __maybe_unused = IWL_OP_MODE_GET_MVM(op_mode);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct iwl_lq_sta *lq_sta = mvm_sta;
+	struct rs_rate *optimal_rate;
+	u32 last_ucode_rate;
 
 	if (sta && !iwl_mvm_sta_from_mac80211(sta)->vif) {
 		/* if vif isn't initialized mvm doesn't know about
@@ -2583,8 +2801,18 @@ static void rs_get_rate(void *mvm_r, struct ieee80211_sta *sta, void *mvm_sta,
 
 	iwl_mvm_hwrate_to_tx_rate(lq_sta->last_rate_n_flags,
 				  info->band, &info->control.rates[0]);
-
 	info->control.rates[0].count = 1;
+
+	/* Report the optimal rate based on rssi and STA caps if we haven't
+	 * converged yet (too little traffic) or exploring other modulations
+	 */
+	if (lq_sta->rs_state != RS_STATE_STAY_IN_COLUMN) {
+		optimal_rate = rs_get_optimal_rate(mvm, lq_sta);
+		last_ucode_rate = ucode_rate_from_rs_rate(mvm,
+							  optimal_rate);
+		iwl_mvm_hwrate_to_tx_rate(last_ucode_rate, info->band,
+					  &txrc->reported_rate);
+	}
 }
 
 static void *rs_alloc_sta(void *mvm_rate, struct ieee80211_sta *sta,
@@ -2605,6 +2833,7 @@ static void *rs_alloc_sta(void *mvm_rate, struct ieee80211_sta *sta,
 #endif
 	lq_sta->pers.chains = 0;
 	memset(lq_sta->pers.chain_signal, 0, sizeof(lq_sta->pers.chain_signal));
+	lq_sta->pers.last_rssi = S8_MIN;
 
 	return &sta_priv->lq_sta;
 }
@@ -2838,9 +3067,6 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		rs_ht_init(mvm, sta, lq_sta, ht_cap);
 	else
 		rs_vht_init(mvm, sta, lq_sta, vht_cap);
-
-	if (IWL_MVM_RS_DISABLE_P2P_MIMO && sta_priv->vif->p2p)
-		lq_sta->active_mimo2_rate = 0;
 
 	lq_sta->max_legacy_rate_idx =
 		rs_get_max_rate_from_mask(lq_sta->active_legacy_rate);

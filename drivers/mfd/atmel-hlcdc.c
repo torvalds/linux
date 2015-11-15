@@ -18,6 +18,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/iopoll.h>
 #include <linux/mfd/atmel-hlcdc.h>
 #include <linux/mfd/core.h>
 #include <linux/module.h>
@@ -25,6 +26,10 @@
 #include <linux/regmap.h>
 
 #define ATMEL_HLCDC_REG_MAX		(0x4000 - 0x4)
+
+struct atmel_hlcdc_regmap {
+	void __iomem *regs;
+};
 
 static const struct mfd_cell atmel_hlcdc_cells[] = {
 	{
@@ -37,28 +42,62 @@ static const struct mfd_cell atmel_hlcdc_cells[] = {
 	},
 };
 
+static int regmap_atmel_hlcdc_reg_write(void *context, unsigned int reg,
+					unsigned int val)
+{
+	struct atmel_hlcdc_regmap *hregmap = context;
+
+	if (reg <= ATMEL_HLCDC_DIS) {
+		u32 status;
+
+		readl_poll_timeout(hregmap->regs + ATMEL_HLCDC_SR, status,
+				   !(status & ATMEL_HLCDC_SIP), 1, 100);
+	}
+
+	writel(val, hregmap->regs + reg);
+
+	return 0;
+}
+
+static int regmap_atmel_hlcdc_reg_read(void *context, unsigned int reg,
+				       unsigned int *val)
+{
+	struct atmel_hlcdc_regmap *hregmap = context;
+
+	*val = readl(hregmap->regs + reg);
+
+	return 0;
+}
+
 static const struct regmap_config atmel_hlcdc_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
 	.max_register = ATMEL_HLCDC_REG_MAX,
+	.reg_write = regmap_atmel_hlcdc_reg_write,
+	.reg_read = regmap_atmel_hlcdc_reg_read,
+	.fast_io = true,
 };
 
 static int atmel_hlcdc_probe(struct platform_device *pdev)
 {
+	struct atmel_hlcdc_regmap *hregmap;
 	struct device *dev = &pdev->dev;
 	struct atmel_hlcdc *hlcdc;
 	struct resource *res;
-	void __iomem *regs;
+
+	hregmap = devm_kzalloc(dev, sizeof(*hregmap), GFP_KERNEL);
+	if (!hregmap)
+		return -ENOMEM;
 
 	hlcdc = devm_kzalloc(dev, sizeof(*hlcdc), GFP_KERNEL);
 	if (!hlcdc)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(regs))
-		return PTR_ERR(regs);
+	hregmap->regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(hregmap->regs))
+		return PTR_ERR(hregmap->regs);
 
 	hlcdc->irq = platform_get_irq(pdev, 0);
 	if (hlcdc->irq < 0)
@@ -82,8 +121,8 @@ static int atmel_hlcdc_probe(struct platform_device *pdev)
 		return PTR_ERR(hlcdc->slow_clk);
 	}
 
-	hlcdc->regmap = devm_regmap_init_mmio(dev, regs,
-					      &atmel_hlcdc_regmap_config);
+	hlcdc->regmap = devm_regmap_init(dev, NULL, hregmap,
+					 &atmel_hlcdc_regmap_config);
 	if (IS_ERR(hlcdc->regmap))
 		return PTR_ERR(hlcdc->regmap);
 
@@ -102,9 +141,14 @@ static int atmel_hlcdc_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id atmel_hlcdc_match[] = {
+	{ .compatible = "atmel,at91sam9n12-hlcdc" },
+	{ .compatible = "atmel,at91sam9x5-hlcdc" },
+	{ .compatible = "atmel,sama5d2-hlcdc" },
 	{ .compatible = "atmel,sama5d3-hlcdc" },
+	{ .compatible = "atmel,sama5d4-hlcdc" },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, atmel_hlcdc_match);
 
 static struct platform_driver atmel_hlcdc_driver = {
 	.probe = atmel_hlcdc_probe,

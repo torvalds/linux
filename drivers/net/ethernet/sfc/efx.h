@@ -35,6 +35,7 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index);
 int efx_setup_tc(struct net_device *net_dev, u8 num_tc);
 unsigned int efx_tx_max_skb_descs(struct efx_nic *efx);
 extern unsigned int efx_piobuf_size;
+extern bool efx_separate_tx_channels;
 
 /* RX */
 void efx_set_default_rx_indir_table(struct efx_nic *efx);

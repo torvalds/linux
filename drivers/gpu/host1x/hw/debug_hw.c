@@ -298,7 +298,7 @@ static void host1x_debug_show_mlocks(struct host1x *host, struct output *o)
 			host1x_sync_readl(host, HOST1X_SYNC_MLOCK_OWNER(i));
 		if (HOST1X_SYNC_MLOCK_OWNER_CH_OWNS_V(owner))
 			host1x_debug_output(o, "%d: locked by channel %d\n",
-				i, HOST1X_SYNC_MLOCK_OWNER_CHID_F(owner));
+				i, HOST1X_SYNC_MLOCK_OWNER_CHID_V(owner));
 		else if (HOST1X_SYNC_MLOCK_OWNER_CPU_OWNS_V(owner))
 			host1x_debug_output(o, "%d: locked by cpu\n", i);
 		else

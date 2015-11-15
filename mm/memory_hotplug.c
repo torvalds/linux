@@ -339,8 +339,8 @@ static int __ref ensure_zone_is_initialized(struct zone *zone,
 			unsigned long start_pfn, unsigned long num_pages)
 {
 	if (!zone_is_initialized(zone))
-		return init_currently_empty_zone(zone, start_pfn, num_pages,
-						 MEMMAP_HOTPLUG);
+		return init_currently_empty_zone(zone, start_pfn, num_pages);
+
 	return 0;
 }
 
@@ -446,7 +446,7 @@ static int __meminit __add_zone(struct zone *zone, unsigned long phys_start_pfn)
 	int nr_pages = PAGES_PER_SECTION;
 	int nid = pgdat->node_id;
 	int zone_type;
-	unsigned long flags;
+	unsigned long flags, pfn;
 	int ret;
 
 	zone_type = zone - pgdat->node_zones;
@@ -461,6 +461,14 @@ static int __meminit __add_zone(struct zone *zone, unsigned long phys_start_pfn)
 	pgdat_resize_unlock(zone->zone_pgdat, &flags);
 	memmap_init_zone(nr_pages, nid, zone_type,
 			 phys_start_pfn, MEMMAP_HOTPLUG);
+
+	/* online_page_range is called later and expects pages reserved */
+	for (pfn = phys_start_pfn; pfn < phys_start_pfn + nr_pages; pfn++) {
+		if (!pfn_valid(pfn))
+			continue;
+
+		SetPageReserved(pfn_to_page(pfn));
+	}
 	return 0;
 }
 
@@ -770,7 +778,10 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
 
 	start = phys_start_pfn << PAGE_SHIFT;
 	size = nr_pages * PAGE_SIZE;
-	ret = release_mem_region_adjustable(&iomem_resource, start, size);
+
+	/* in the ZONE_DEVICE case device driver owns the memory region */
+	if (!is_dev_zone(zone))
+		ret = release_mem_region_adjustable(&iomem_resource, start, size);
 	if (ret) {
 		resource_size_t endres = start + size - 1;
 
@@ -1207,8 +1218,13 @@ static int should_add_memory_movable(int nid, u64 start, u64 size)
 	return 0;
 }
 
-int zone_for_memory(int nid, u64 start, u64 size, int zone_default)
+int zone_for_memory(int nid, u64 start, u64 size, int zone_default,
+		bool for_device)
 {
+#ifdef CONFIG_ZONE_DEVICE
+	if (for_device)
+		return ZONE_DEVICE;
+#endif
 	if (should_add_memory_movable(nid, start, size))
 		return ZONE_MOVABLE;
 
@@ -1216,21 +1232,19 @@ int zone_for_memory(int nid, u64 start, u64 size, int zone_default)
 }
 
 /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
-int __ref add_memory(int nid, u64 start, u64 size)
+int __ref add_memory_resource(int nid, struct resource *res)
 {
+	u64 start, size;
 	pg_data_t *pgdat = NULL;
 	bool new_pgdat;
 	bool new_node;
-	struct resource *res;
 	int ret;
+
+	start = res->start;
+	size = resource_size(res);
 
 	ret = check_hotplug_memory_range(start, size);
 	if (ret)
-		return ret;
-
-	res = register_memory_resource(start, size);
-	ret = -EEXIST;
-	if (!res)
 		return ret;
 
 	{	/* Stupid hack to suppress address-never-null warning */
@@ -1239,6 +1253,14 @@ int __ref add_memory(int nid, u64 start, u64 size)
 	}
 
 	mem_hotplug_begin();
+
+	/*
+	 * Add new range to memblock so that when hotadd_new_pgdat() is called
+	 * to allocate new pgdat, get_pfn_range_for_nid() will be able to find
+	 * this new range and calculate total pages correctly.  The range will
+	 * be removed at hot-remove time.
+	 */
+	memblock_add_node(start, size, nid);
 
 	new_node = !node_online(nid);
 	if (new_node) {
@@ -1249,7 +1271,7 @@ int __ref add_memory(int nid, u64 start, u64 size)
 	}
 
 	/* call arch's memory hotadd */
-	ret = arch_add_memory(nid, start, size);
+	ret = arch_add_memory(nid, start, size, false);
 
 	if (ret < 0)
 		goto error;
@@ -1276,10 +1298,26 @@ error:
 	/* rollback pgdat allocation and others */
 	if (new_pgdat)
 		rollback_node_hotadd(nid, pgdat);
-	release_memory_resource(res);
+	memblock_remove(start, size);
 
 out:
 	mem_hotplug_done();
+	return ret;
+}
+EXPORT_SYMBOL_GPL(add_memory_resource);
+
+int __ref add_memory(int nid, u64 start, u64 size)
+{
+	struct resource *res;
+	int ret;
+
+	res = register_memory_resource(start, size);
+	if (!res)
+		return -EEXIST;
+
+	ret = add_memory_resource(nid, res);
+	if (ret < 0)
+		release_memory_resource(res);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(add_memory);
@@ -2005,6 +2043,8 @@ void __ref remove_memory(int nid, u64 start, u64 size)
 
 	/* remove memmap entry */
 	firmware_map_remove(start, start + size, "System RAM");
+	memblock_free(start, size);
+	memblock_remove(start, size);
 
 	arch_remove_memory(start, size);
 

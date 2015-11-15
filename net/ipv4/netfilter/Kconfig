@@ -58,6 +58,12 @@ config NFT_REJECT_IPV4
 	default NFT_REJECT
 	tristate
 
+config NFT_DUP_IPV4
+	tristate "IPv4 nf_tables packet duplication support"
+	select NF_DUP_IPV4
+	help
+	  This module enables IPv4 packet duplication support for nf_tables.
+
 endif # NF_TABLES_IPV4
 
 config NF_TABLES_ARP
@@ -66,6 +72,13 @@ config NF_TABLES_ARP
 	  This option enables the ARP support for nf_tables.
 
 endif # NF_TABLES
+
+config NF_DUP_IPV4
+	tristate "Netfilter IPv4 packet duplication to alternate destination"
+	depends on !NF_CONNTRACK || NF_CONNTRACK
+	help
+	  This option enables the nf_dup_ipv4 core, which duplicates an IPv4
+	  packet to be rerouted to another destination.
 
 config NF_LOG_ARP
 	tristate "ARP packet logging"

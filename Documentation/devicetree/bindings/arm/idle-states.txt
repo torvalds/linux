@@ -497,7 +497,7 @@ cpus {
 	};
 
 	idle-states {
-		entry-method = "arm,psci";
+		entry-method = "psci";
 
 		CPU_RETENTION_0_0: cpu-retention-0-0 {
 			compatible = "arm,idle-state";

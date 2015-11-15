@@ -4585,7 +4585,7 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 		wlc_hw->machwcap_backup = wlc_hw->machwcap;
 
 		/* init tx fifo size */
-		WARN_ON((wlc_hw->corerev - XMTFIFOTBL_STARTREV) < 0 ||
+		WARN_ON(wlc_hw->corerev < XMTFIFOTBL_STARTREV ||
 			(wlc_hw->corerev - XMTFIFOTBL_STARTREV) >
 				ARRAY_SIZE(xmtfifo_sz));
 		wlc_hw->xmtfifo_sz =

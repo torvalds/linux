@@ -34,6 +34,7 @@ struct machine {
 	struct list_head  dead_threads;
 	struct thread	  *last_match;
 	struct vdso_info  *vdso_info;
+	struct perf_env   *env;
 	struct dsos	  dsos;
 	struct map_groups kmaps;
 	struct map	  *vmlinux_maps[MAP__NR_TYPES];
@@ -47,9 +48,15 @@ struct machine {
 };
 
 static inline
-struct map *machine__kernel_map(struct machine *machine, enum map_type type)
+struct map *__machine__kernel_map(struct machine *machine, enum map_type type)
 {
 	return machine->vmlinux_maps[type];
+}
+
+static inline
+struct map *machine__kernel_map(struct machine *machine)
+{
+	return __machine__kernel_map(machine, MAP__FUNCTION);
 }
 
 int machine__get_kernel_start(struct machine *machine);
@@ -87,6 +94,8 @@ int machine__process_aux_event(struct machine *machine,
 			       union perf_event *event);
 int machine__process_itrace_start_event(struct machine *machine,
 					union perf_event *event);
+int machine__process_switch_event(struct machine *machine __maybe_unused,
+				  union perf_event *event);
 int machine__process_mmap_event(struct machine *machine, union perf_event *event,
 				struct perf_sample *sample);
 int machine__process_mmap2_event(struct machine *machine, union perf_event *event,
@@ -237,5 +246,9 @@ int machine__synthesize_threads(struct machine *machine, struct target *target,
 pid_t machine__get_current_tid(struct machine *machine, int cpu);
 int machine__set_current_tid(struct machine *machine, int cpu, pid_t pid,
 			     pid_t tid);
+/*
+ * For use with libtraceevent's pevent_set_function_resolver()
+ */
+char *machine__resolve_kernel_addr(void *vmachine, unsigned long long *addrp, char **modp);
 
 #endif /* __PERF_MACHINE_H */

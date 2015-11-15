@@ -412,7 +412,7 @@ static rx_handler_result_t macvlan_handle_frame(struct sk_buff **pskb)
 
 	port = macvlan_port_get_rcu(skb->dev);
 	if (is_multicast_ether_addr(eth->h_dest)) {
-		skb = ip_check_defrag(skb, IP_DEFRAG_MACVLAN);
+		skb = ip_check_defrag(dev_net(skb->dev), skb, IP_DEFRAG_MACVLAN);
 		if (!skb)
 			return RX_HANDLER_CONSUMED;
 		eth = eth_hdr(skb);
@@ -1047,6 +1047,7 @@ static const struct net_device_ops macvlan_netdev_ops = {
 	.ndo_netpoll_cleanup	= macvlan_dev_netpoll_cleanup,
 #endif
 	.ndo_get_iflink		= macvlan_dev_get_iflink,
+	.ndo_features_check	= passthru_features_check,
 };
 
 void macvlan_common_setup(struct net_device *dev)

@@ -173,7 +173,9 @@ enum {
 	VHOST_FEATURES = (1ULL << VIRTIO_F_NOTIFY_ON_EMPTY) |
 			 (1ULL << VIRTIO_RING_F_INDIRECT_DESC) |
 			 (1ULL << VIRTIO_RING_F_EVENT_IDX) |
-			 (1ULL << VHOST_F_LOG_ALL),
+			 (1ULL << VHOST_F_LOG_ALL) |
+			 (1ULL << VIRTIO_F_ANY_LAYOUT) |
+			 (1ULL << VIRTIO_F_VERSION_1)
 };
 
 static inline bool vhost_has_feature(struct vhost_virtqueue *vq, int bit)
@@ -181,10 +183,17 @@ static inline bool vhost_has_feature(struct vhost_virtqueue *vq, int bit)
 	return vq->acked_features & (1ULL << bit);
 }
 
+#ifdef CONFIG_VHOST_CROSS_ENDIAN_LEGACY
 static inline bool vhost_is_little_endian(struct vhost_virtqueue *vq)
 {
 	return vq->is_le;
 }
+#else
+static inline bool vhost_is_little_endian(struct vhost_virtqueue *vq)
+{
+	return virtio_legacy_is_little_endian() || vq->is_le;
+}
+#endif
 
 /* Memory accessors */
 static inline u16 vhost16_to_cpu(struct vhost_virtqueue *vq, __virtio16 val)

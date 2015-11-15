@@ -32,6 +32,7 @@ config TILE
 	select EDAC_SUPPORT
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
+	select HAVE_ARCH_SECCOMP_FILTER
 
 # FIXME: investigate whether we need/want these options.
 #	select HAVE_IOREMAP_PROT
@@ -204,6 +205,7 @@ source "kernel/Kconfig.hz"
 
 config KEXEC
 	bool "kexec system call"
+	select KEXEC_CORE
 	---help---
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
@@ -220,6 +222,22 @@ config COMPAT
 	---help---
 	  If enabled, the kernel will support running TILE-Gx binaries
 	  that were built with the -m32 option.
+
+config SECCOMP
+	bool "Enable seccomp to safely compute untrusted bytecode"
+	depends on PROC_FS
+	help
+	  This kernel feature is useful for number crunching applications
+	  that may need to compute untrusted bytecode during their
+	  execution. By using pipes or other transports made available to
+	  the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in
+	  their own address space using seccomp. Once seccomp is
+	  enabled via prctl, it cannot be disabled and the task is only
+	  allowed to execute a few safe syscalls defined by each seccomp
+	  mode.
+
+	  If unsure, say N.
 
 config SYSVIPC_COMPAT
 	def_bool y

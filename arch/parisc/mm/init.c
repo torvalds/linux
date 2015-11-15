@@ -23,6 +23,7 @@
 #include <linux/unistd.h>
 #include <linux/nodemask.h>	/* for node_online_map */
 #include <linux/pagemap.h>	/* for release_pages and page_cache_release */
+#include <linux/compat.h>
 
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
@@ -30,6 +31,7 @@
 #include <asm/pdc_chassis.h>
 #include <asm/mmzone.h>
 #include <asm/sections.h>
+#include <asm/msgbuf.h>
 
 extern int  data_start;
 extern void parisc_kernel_start(void);	/* Kernel entry point in head.S */
@@ -590,6 +592,20 @@ unsigned long pcxl_dma_start __read_mostly;
 
 void __init mem_init(void)
 {
+	/* Do sanity checks on IPC (compat) structures */
+	BUILD_BUG_ON(sizeof(struct ipc64_perm) != 48);
+#ifndef CONFIG_64BIT
+	BUILD_BUG_ON(sizeof(struct semid64_ds) != 80);
+	BUILD_BUG_ON(sizeof(struct msqid64_ds) != 104);
+	BUILD_BUG_ON(sizeof(struct shmid64_ds) != 104);
+#endif
+#ifdef CONFIG_COMPAT
+	BUILD_BUG_ON(sizeof(struct compat_ipc64_perm) != sizeof(struct ipc64_perm));
+	BUILD_BUG_ON(sizeof(struct compat_semid64_ds) != 80);
+	BUILD_BUG_ON(sizeof(struct compat_msqid64_ds) != 104);
+	BUILD_BUG_ON(sizeof(struct compat_shmid64_ds) != 104);
+#endif
+
 	/* Do sanity checks on page table constants */
 	BUILD_BUG_ON(PTE_ENTRY_SIZE != sizeof(pte_t));
 	BUILD_BUG_ON(PMD_ENTRY_SIZE != sizeof(pmd_t));

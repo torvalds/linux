@@ -28,16 +28,6 @@ extern void __iomem *mips_cpc_base;
 extern phys_addr_t mips_cpc_default_phys_base(void);
 
 /**
- * mips_cpc_phys_base - retrieve the physical base address of the CPC
- *
- * This function returns the physical base address of the Cluster Power
- * Controller memory mapped registers, or 0 if no Cluster Power Controller
- * is present. It may be overriden by individual platforms which determine
- * this address in a different way.
- */
-extern phys_addr_t __weak mips_cpc_phys_base(void);
-
-/**
  * mips_cpc_probe - probe for a Cluster Power Controller
  *
  * Attempt to detect the presence of a Cluster Power Controller. Returns 0 if

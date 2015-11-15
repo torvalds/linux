@@ -1,9 +1,24 @@
 /*
  * Copyright (c) 2013, Cisco Systems, Inc. All rights reserved.
  *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and/or other materials
+ *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
@@ -221,8 +236,8 @@ create_roce_custom_flow(struct usnic_ib_qp_grp *qp_grp,
 
 	/* Create Flow Handle */
 	qp_flow = kzalloc(sizeof(*qp_flow), GFP_ATOMIC);
-	if (IS_ERR_OR_NULL(qp_flow)) {
-		err = qp_flow ? PTR_ERR(qp_flow) : -ENOMEM;
+	if (!qp_flow) {
+		err = -ENOMEM;
 		goto out_dealloc_flow;
 	}
 	qp_flow->flow = flow;
@@ -296,8 +311,8 @@ create_udp_flow(struct usnic_ib_qp_grp *qp_grp,
 
 	/* Create qp_flow */
 	qp_flow = kzalloc(sizeof(*qp_flow), GFP_ATOMIC);
-	if (IS_ERR_OR_NULL(qp_flow)) {
-		err = qp_flow ? PTR_ERR(qp_flow) : -ENOMEM;
+	if (!qp_flow) {
+		err = -ENOMEM;
 		goto out_dealloc_flow;
 	}
 	qp_flow->flow = flow;

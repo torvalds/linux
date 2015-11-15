@@ -39,6 +39,7 @@
 	 mfc0	\dest, CP0_CONFIG, 3
 	andi	\dest, \dest, MIPS_CONF3_MT
 	beqz	\dest, \nomt
+	 nop
 	.endm
 
 .section .text.cps-vec
@@ -152,7 +153,7 @@ dcache_done:
 
 	/* Enter the coherent domain */
 	li	t0, 0xff
-	PTR_S	t0, GCR_CL_COHERENCE_OFS(v1)
+	sw	t0, GCR_CL_COHERENCE_OFS(v1)
 	ehb
 
 	/* Jump to kseg0 */
@@ -223,10 +224,9 @@ LEAF(excep_ejtag)
 	END(excep_ejtag)
 
 LEAF(mips_cps_core_init)
-#ifdef CONFIG_MIPS_MT
+#ifdef CONFIG_MIPS_MT_SMP
 	/* Check that the core implements the MT ASE */
 	has_mt	t0, 3f
-	 nop
 
 	.set	push
 	.set	mips64r2
@@ -302,7 +302,7 @@ LEAF(mips_cps_boot_vpes)
 	PTR_L	t0, 0(t0)
 
 	/* Calculate a pointer to this cores struct core_boot_config */
-	PTR_L	t0, GCR_CL_ID_OFS(t0)
+	lw	t0, GCR_CL_ID_OFS(t0)
 	li	t1, COREBOOTCFG_SIZE
 	mul	t0, t0, t1
 	PTR_LA	t1, mips_cps_core_bootcfg
@@ -310,8 +310,9 @@ LEAF(mips_cps_boot_vpes)
 	PTR_ADDU t0, t0, t1
 
 	/* Calculate this VPEs ID. If the core doesn't support MT use 0 */
+	li	t9, 0
+#ifdef CONFIG_MIPS_MT_SMP
 	has_mt	ta2, 1f
-	 li	t9, 0
 
 	/* Find the number of VPEs present in the core */
 	mfc0	t1, CP0_MVPCONF0
@@ -330,6 +331,7 @@ LEAF(mips_cps_boot_vpes)
 	/* Retrieve the VPE ID from EBase.CPUNum */
 	mfc0	t9, $15, 1
 	and	t9, t9, t1
+#endif
 
 1:	/* Calculate a pointer to this VPEs struct vpe_boot_config */
 	li	t1, VPEBOOTCFG_SIZE
@@ -337,7 +339,7 @@ LEAF(mips_cps_boot_vpes)
 	PTR_L	ta3, COREBOOTCFG_VPECONFIG(t0)
 	PTR_ADDU v0, v0, ta3
 
-#ifdef CONFIG_MIPS_MT
+#ifdef CONFIG_MIPS_MT_SMP
 
 	/* If the core doesn't support MT then return */
 	bnez	ta2, 1f
@@ -451,7 +453,7 @@ LEAF(mips_cps_boot_vpes)
 
 2:	.set	pop
 
-#endif /* CONFIG_MIPS_MT */
+#endif /* CONFIG_MIPS_MT_SMP */
 
 	/* Return */
 	jr	ra

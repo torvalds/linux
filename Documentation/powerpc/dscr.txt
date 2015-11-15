@@ -4,7 +4,7 @@
 DSCR register in powerpc allows user to have some control of prefetch of data
 stream in the processor. Please refer to the ISA documents or related manual
 for more detailed information regarding how to use this DSCR to attain this
-control of the pefetches . This document here provides an overview of kernel
+control of the prefetches . This document here provides an overview of kernel
 support for DSCR, related kernel objects, it's functionalities and exported
 user interface.
 
@@ -44,7 +44,7 @@ user interface.
 	value into every CPU's DSCR register right away and updates the current
 	thread's DSCR value as well.
 
-	Changing the CPU specif DSCR default value in the sysfs does exactly
+	Changing the CPU specific DSCR default value in the sysfs does exactly
 	the same thing as above but unlike the global one above, it just changes
 	stuff for that particular CPU instead for all the CPUs on the system.
 
@@ -62,7 +62,7 @@ user interface.
 
 	Accessing DSCR through user level SPR (0x03) from user space will first
 	create a facility unavailable exception. Inside this exception handler
-	all mfspr isntruction based read attempts will get emulated and returned
+	all mfspr instruction based read attempts will get emulated and returned
 	where as the first mtspr instruction based write attempts will enable
 	the DSCR facility for the next time around (both for read and write) by
 	setting DSCR facility in the FSCR register.

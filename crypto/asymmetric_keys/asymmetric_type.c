@@ -12,6 +12,7 @@
  */
 #include <keys/asymmetric-subtype.h>
 #include <keys/asymmetric-parser.h>
+#include <crypto/public_key.h>
 #include <linux/seq_file.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -19,6 +20,16 @@
 #include "asymmetric_keys.h"
 
 MODULE_LICENSE("GPL");
+
+const char *const key_being_used_for[NR__KEY_BEING_USED_FOR] = {
+	[VERIFYING_MODULE_SIGNATURE]		= "mod sig",
+	[VERIFYING_FIRMWARE_SIGNATURE]		= "firmware sig",
+	[VERIFYING_KEXEC_PE_SIGNATURE]		= "kexec PE sig",
+	[VERIFYING_KEY_SIGNATURE]		= "key sig",
+	[VERIFYING_KEY_SELF_SIGNATURE]		= "key self sig",
+	[VERIFYING_UNSPECIFIED_SIGNATURE]	= "unspec sig",
+};
+EXPORT_SYMBOL_GPL(key_being_used_for);
 
 static LIST_HEAD(asymmetric_key_parsers);
 static DECLARE_RWSEM(asymmetric_key_parsers_sem);
@@ -296,25 +307,34 @@ static int asymmetric_key_preparse(struct key_preparsed_payload *prep)
 }
 
 /*
- * Clean up the preparse data
+ * Clean up the key ID list
  */
-static void asymmetric_key_free_preparse(struct key_preparsed_payload *prep)
+static void asymmetric_key_free_kids(struct asymmetric_key_ids *kids)
 {
-	struct asymmetric_key_subtype *subtype = prep->type_data[0];
-	struct asymmetric_key_ids *kids = prep->type_data[1];
 	int i;
 
-	pr_devel("==>%s()\n", __func__);
-
-	if (subtype) {
-		subtype->destroy(prep->payload[0]);
-		module_put(subtype->owner);
-	}
 	if (kids) {
 		for (i = 0; i < ARRAY_SIZE(kids->id); i++)
 			kfree(kids->id[i]);
 		kfree(kids);
 	}
+}
+
+/*
+ * Clean up the preparse data
+ */
+static void asymmetric_key_free_preparse(struct key_preparsed_payload *prep)
+{
+	struct asymmetric_key_subtype *subtype = prep->payload.data[asym_subtype];
+	struct asymmetric_key_ids *kids = prep->payload.data[asym_key_ids];
+
+	pr_devel("==>%s()\n", __func__);
+
+	if (subtype) {
+		subtype->destroy(prep->payload.data[asym_crypto]);
+		module_put(subtype->owner);
+	}
+	asymmetric_key_free_kids(kids);
 	kfree(prep->description);
 }
 
@@ -324,20 +344,19 @@ static void asymmetric_key_free_preparse(struct key_preparsed_payload *prep)
 static void asymmetric_key_destroy(struct key *key)
 {
 	struct asymmetric_key_subtype *subtype = asymmetric_key_subtype(key);
-	struct asymmetric_key_ids *kids = key->type_data.p[1];
+	struct asymmetric_key_ids *kids = key->payload.data[asym_key_ids];
+	void *data = key->payload.data[asym_crypto];
+
+	key->payload.data[asym_crypto] = NULL;
+	key->payload.data[asym_subtype] = NULL;
+	key->payload.data[asym_key_ids] = NULL;
 
 	if (subtype) {
-		subtype->destroy(key->payload.data);
+		subtype->destroy(data);
 		module_put(subtype->owner);
-		key->type_data.p[0] = NULL;
 	}
 
-	if (kids) {
-		kfree(kids->id[0]);
-		kfree(kids->id[1]);
-		kfree(kids);
-		key->type_data.p[1] = NULL;
-	}
+	asymmetric_key_free_kids(kids);
 }
 
 struct key_type key_type_asymmetric = {

@@ -808,7 +808,7 @@ void mwifiex_uap_set_channel(struct mwifiex_private *priv,
 			     struct mwifiex_uap_bss_param *bss_cfg,
 			     struct cfg80211_chan_def chandef)
 {
-	u8 config_bands = 0;
+	u8 config_bands = 0, old_bands = priv->adapter->config_bands;
 
 	priv->bss_chandef = chandef;
 
@@ -834,28 +834,17 @@ void mwifiex_uap_set_channel(struct mwifiex_private *priv,
 	}
 
 	priv->adapter->config_bands = config_bands;
+
+	if (old_bands != config_bands) {
+		mwifiex_send_domain_info_cmd_fw(priv->adapter->wiphy);
+		mwifiex_dnld_txpwr_table(priv);
+	}
 }
 
 int mwifiex_config_start_uap(struct mwifiex_private *priv,
 			     struct mwifiex_uap_bss_param *bss_cfg)
 {
 	enum state_11d_t state_11d;
-
-	if (mwifiex_del_mgmt_ies(priv))
-		mwifiex_dbg(priv->adapter, ERROR,
-			    "Failed to delete mgmt IEs!\n");
-
-	if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_BSS_STOP,
-			     HostCmd_ACT_GEN_SET, 0, NULL, true)) {
-		mwifiex_dbg(priv->adapter, ERROR, "Failed to stop the BSS\n");
-		return -1;
-	}
-
-	if (mwifiex_send_cmd(priv, HOST_CMD_APCMD_SYS_RESET,
-			     HostCmd_ACT_GEN_SET, 0, NULL, true)) {
-		mwifiex_dbg(priv->adapter, ERROR, "Failed to reset BSS\n");
-		return -1;
-	}
 
 	if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_SYS_CONFIG,
 			     HostCmd_ACT_GEN_SET,

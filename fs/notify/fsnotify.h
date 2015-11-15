@@ -6,6 +6,8 @@
 #include <linux/srcu.h>
 #include <linux/types.h>
 
+#include "../mount.h"
+
 /* destroy all events sitting in this groups notification queue */
 extern void fsnotify_flush_notify(struct fsnotify_group *group);
 
@@ -38,15 +40,22 @@ extern int fsnotify_add_vfsmount_mark(struct fsnotify_mark *mark,
 extern void fsnotify_destroy_vfsmount_mark(struct fsnotify_mark *mark);
 /* inode specific destruction of a mark */
 extern void fsnotify_destroy_inode_mark(struct fsnotify_mark *mark);
-/* Destroy all marks in the given list */
-extern void fsnotify_destroy_marks(struct list_head *to_free);
 /* Find mark belonging to given group in the list of marks */
 extern struct fsnotify_mark *fsnotify_find_mark(struct hlist_head *head,
 						struct fsnotify_group *group);
-/* run the list of all marks associated with inode and flag them to be freed */
-extern void fsnotify_clear_marks_by_inode(struct inode *inode);
-/* run the list of all marks associated with vfsmount and flag them to be freed */
-extern void fsnotify_clear_marks_by_mount(struct vfsmount *mnt);
+/* Destroy all marks in the given list protected by 'lock' */
+extern void fsnotify_destroy_marks(struct hlist_head *head, spinlock_t *lock);
+/* run the list of all marks associated with inode and destroy them */
+static inline void fsnotify_clear_marks_by_inode(struct inode *inode)
+{
+	fsnotify_destroy_marks(&inode->i_fsnotify_marks, &inode->i_lock);
+}
+/* run the list of all marks associated with vfsmount and destroy them */
+static inline void fsnotify_clear_marks_by_mount(struct vfsmount *mnt)
+{
+	fsnotify_destroy_marks(&real_mount(mnt)->mnt_fsnotify_marks,
+			       &mnt->mnt_root->d_lock);
+}
 /*
  * update the dentry->d_flags of all of inode's children to indicate if inode cares
  * about events that happen to its children.

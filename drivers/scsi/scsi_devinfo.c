@@ -390,25 +390,57 @@ int scsi_dev_info_list_add_keyed(int compatible, char *vendor, char *model,
 EXPORT_SYMBOL(scsi_dev_info_list_add_keyed);
 
 /**
- * scsi_dev_info_list_del_keyed - remove one dev_info list entry.
+ * scsi_dev_info_list_find - find a matching dev_info list entry.
  * @vendor:	vendor string
  * @model:	model (product) string
  * @key:	specify list to use
  *
  * Description:
- * 	Remove and destroy one dev_info entry for @vendor, @model
+ *	Finds the first dev_info entry matching @vendor, @model
  * 	in list specified by @key.
  *
- * Returns: 0 OK, -error on failure.
+ * Returns: pointer to matching entry, or ERR_PTR on failure.
  **/
-int scsi_dev_info_list_del_keyed(char *vendor, char *model, int key)
+static struct scsi_dev_info_list *scsi_dev_info_list_find(const char *vendor,
+		const char *model, int key)
 {
-	struct scsi_dev_info_list *devinfo, *found = NULL;
+	struct scsi_dev_info_list *devinfo;
 	struct scsi_dev_info_list_table *devinfo_table =
 		scsi_devinfo_lookup_by_key(key);
+	size_t vmax, mmax;
+	const char *vskip, *mskip;
 
 	if (IS_ERR(devinfo_table))
-		return PTR_ERR(devinfo_table);
+		return (struct scsi_dev_info_list *) devinfo_table;
+
+	/* Prepare for "compatible" matches */
+
+	/*
+	 * XXX why skip leading spaces? If an odd INQUIRY
+	 * value, that should have been part of the
+	 * scsi_static_device_list[] entry, such as "  FOO"
+	 * rather than "FOO". Since this code is already
+	 * here, and we don't know what device it is
+	 * trying to work with, leave it as-is.
+	 */
+	vmax = 8;	/* max length of vendor */
+	vskip = vendor;
+	while (vmax > 0 && *vskip == ' ') {
+		vmax--;
+		vskip++;
+	}
+	/* Also skip trailing spaces */
+	while (vmax > 0 && vskip[vmax - 1] == ' ')
+		--vmax;
+
+	mmax = 16;	/* max length of model */
+	mskip = model;
+	while (mmax > 0 && *mskip == ' ') {
+		mmax--;
+		mskip++;
+	}
+	while (mmax > 0 && mskip[mmax - 1] == ' ')
+		--mmax;
 
 	list_for_each_entry(devinfo, &devinfo_table->scsi_dev_info_list,
 			    dev_info_list) {
@@ -416,61 +448,48 @@ int scsi_dev_info_list_del_keyed(char *vendor, char *model, int key)
 			/*
 			 * Behave like the older version of get_device_flags.
 			 */
-			size_t max;
-			/*
-			 * XXX why skip leading spaces? If an odd INQUIRY
-			 * value, that should have been part of the
-			 * scsi_static_device_list[] entry, such as "  FOO"
-			 * rather than "FOO". Since this code is already
-			 * here, and we don't know what device it is
-			 * trying to work with, leave it as-is.
-			 */
-			max = 8;	/* max length of vendor */
-			while ((max > 0) && *vendor == ' ') {
-				max--;
-				vendor++;
-			}
-			/*
-			 * XXX removing the following strlen() would be
-			 * good, using it means that for a an entry not in
-			 * the list, we scan every byte of every vendor
-			 * listed in scsi_static_device_list[], and never match
-			 * a single one (and still have to compare at
-			 * least the first byte of each vendor).
-			 */
-			if (memcmp(devinfo->vendor, vendor,
-				    min(max, strlen(devinfo->vendor))))
+			if (memcmp(devinfo->vendor, vskip, vmax) ||
+					devinfo->vendor[vmax])
 				continue;
-			/*
-			 * Skip spaces again.
-			 */
-			max = 16;	/* max length of model */
-			while ((max > 0) && *model == ' ') {
-				max--;
-				model++;
-			}
-			if (memcmp(devinfo->model, model,
-				   min(max, strlen(devinfo->model))))
+			if (memcmp(devinfo->model, mskip, mmax) ||
+					devinfo->model[mmax])
 				continue;
-			found = devinfo;
+			return devinfo;
 		} else {
 			if (!memcmp(devinfo->vendor, vendor,
 				     sizeof(devinfo->vendor)) &&
 			     !memcmp(devinfo->model, model,
 				      sizeof(devinfo->model)))
-				found = devinfo;
+				return devinfo;
 		}
-		if (found)
-			break;
 	}
 
-	if (found) {
-		list_del(&found->dev_info_list);
-		kfree(found);
-		return 0;
-	}
+	return ERR_PTR(-ENOENT);
+}
 
-	return -ENOENT;
+/**
+ * scsi_dev_info_list_del_keyed - remove one dev_info list entry.
+ * @vendor:	vendor string
+ * @model:	model (product) string
+ * @key:	specify list to use
+ *
+ * Description:
+ *	Remove and destroy one dev_info entry for @vendor, @model
+ *	in list specified by @key.
+ *
+ * Returns: 0 OK, -error on failure.
+ **/
+int scsi_dev_info_list_del_keyed(char *vendor, char *model, int key)
+{
+	struct scsi_dev_info_list *found;
+
+	found = scsi_dev_info_list_find(vendor, model, key);
+	if (IS_ERR(found))
+		return PTR_ERR(found);
+
+	list_del(&found->dev_info_list);
+	kfree(found);
+	return 0;
 }
 EXPORT_SYMBOL(scsi_dev_info_list_del_keyed);
 
@@ -565,64 +584,16 @@ int scsi_get_device_flags_keyed(struct scsi_device *sdev,
 				int key)
 {
 	struct scsi_dev_info_list *devinfo;
-	struct scsi_dev_info_list_table *devinfo_table;
+	int err;
 
-	devinfo_table = scsi_devinfo_lookup_by_key(key);
+	devinfo = scsi_dev_info_list_find(vendor, model, key);
+	if (!IS_ERR(devinfo))
+		return devinfo->flags;
 
-	if (IS_ERR(devinfo_table))
-		return PTR_ERR(devinfo_table);
+	err = PTR_ERR(devinfo);
+	if (err != -ENOENT)
+		return err;
 
-	list_for_each_entry(devinfo, &devinfo_table->scsi_dev_info_list,
-			    dev_info_list) {
-		if (devinfo->compatible) {
-			/*
-			 * Behave like the older version of get_device_flags.
-			 */
-			size_t max;
-			/*
-			 * XXX why skip leading spaces? If an odd INQUIRY
-			 * value, that should have been part of the
-			 * scsi_static_device_list[] entry, such as "  FOO"
-			 * rather than "FOO". Since this code is already
-			 * here, and we don't know what device it is
-			 * trying to work with, leave it as-is.
-			 */
-			max = 8;	/* max length of vendor */
-			while ((max > 0) && *vendor == ' ') {
-				max--;
-				vendor++;
-			}
-			/*
-			 * XXX removing the following strlen() would be
-			 * good, using it means that for a an entry not in
-			 * the list, we scan every byte of every vendor
-			 * listed in scsi_static_device_list[], and never match
-			 * a single one (and still have to compare at
-			 * least the first byte of each vendor).
-			 */
-			if (memcmp(devinfo->vendor, vendor,
-				    min(max, strlen(devinfo->vendor))))
-				continue;
-			/*
-			 * Skip spaces again.
-			 */
-			max = 16;	/* max length of model */
-			while ((max > 0) && *model == ' ') {
-				max--;
-				model++;
-			}
-			if (memcmp(devinfo->model, model,
-				   min(max, strlen(devinfo->model))))
-				continue;
-			return devinfo->flags;
-		} else {
-			if (!memcmp(devinfo->vendor, vendor,
-				     sizeof(devinfo->vendor)) &&
-			     !memcmp(devinfo->model, model,
-				      sizeof(devinfo->model)))
-				return devinfo->flags;
-		}
-	}
 	/* nothing found, return nothing */
 	if (key != SCSI_DEVINFO_GLOBAL)
 		return 0;

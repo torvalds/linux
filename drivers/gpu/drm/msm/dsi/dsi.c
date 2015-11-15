@@ -15,10 +15,10 @@
 
 struct drm_encoder *msm_dsi_get_encoder(struct msm_dsi *msm_dsi)
 {
-	if (!msm_dsi || !msm_dsi->panel)
+	if (!msm_dsi || !msm_dsi_device_connected(msm_dsi))
 		return NULL;
 
-	return (msm_dsi->panel_flags & MIPI_DSI_MODE_VIDEO) ?
+	return (msm_dsi->device_flags & MIPI_DSI_MODE_VIDEO) ?
 		msm_dsi->encoders[MSM_DSI_VIDEO_ENCODER_ID] :
 		msm_dsi->encoders[MSM_DSI_CMD_ENCODER_ID];
 }
@@ -74,19 +74,15 @@ static void dsi_destroy(struct msm_dsi *msm_dsi)
 
 static struct msm_dsi *dsi_init(struct platform_device *pdev)
 {
-	struct msm_dsi *msm_dsi = NULL;
+	struct msm_dsi *msm_dsi;
 	int ret;
 
-	if (!pdev) {
-		ret = -ENXIO;
-		goto fail;
-	}
+	if (!pdev)
+		return ERR_PTR(-ENXIO);
 
 	msm_dsi = devm_kzalloc(&pdev->dev, sizeof(*msm_dsi), GFP_KERNEL);
-	if (!msm_dsi) {
-		ret = -ENOMEM;
-		goto fail;
-	}
+	if (!msm_dsi)
+		return ERR_PTR(-ENOMEM);
 	DBG("dsi probed=%p", msm_dsi);
 
 	msm_dsi->pdev = pdev;
@@ -95,24 +91,22 @@ static struct msm_dsi *dsi_init(struct platform_device *pdev)
 	/* Init dsi host */
 	ret = msm_dsi_host_init(msm_dsi);
 	if (ret)
-		goto fail;
+		goto destroy_dsi;
 
 	/* GET dsi PHY */
 	ret = dsi_get_phy(msm_dsi);
 	if (ret)
-		goto fail;
+		goto destroy_dsi;
 
 	/* Register to dsi manager */
 	ret = msm_dsi_manager_register(msm_dsi);
 	if (ret)
-		goto fail;
+		goto destroy_dsi;
 
 	return msm_dsi;
 
-fail:
-	if (msm_dsi)
-		dsi_destroy(msm_dsi);
-
+destroy_dsi:
+	dsi_destroy(msm_dsi);
 	return ERR_PTR(ret);
 }
 
@@ -196,6 +190,7 @@ int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
 		struct drm_encoder *encoders[MSM_DSI_ENCODER_NUM])
 {
 	struct msm_drm_private *priv = dev->dev_private;
+	struct drm_bridge *ext_bridge;
 	int ret, i;
 
 	if (WARN_ON(!encoders[MSM_DSI_VIDEO_ENCODER_ID] ||
@@ -223,10 +218,25 @@ int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
 		msm_dsi->encoders[i] = encoders[i];
 	}
 
-	msm_dsi->connector = msm_dsi_manager_connector_init(msm_dsi->id);
+	/*
+	 * check if the dsi encoder output is connected to a panel or an
+	 * external bridge. We create a connector only if we're connected to a
+	 * drm_panel device. When we're connected to an external bridge, we
+	 * assume that the drm_bridge driver will create the connector itself.
+	 */
+	ext_bridge = msm_dsi_host_get_bridge(msm_dsi->host);
+
+	if (ext_bridge)
+		msm_dsi->connector =
+			msm_dsi_manager_ext_bridge_init(msm_dsi->id);
+	else
+		msm_dsi->connector =
+			msm_dsi_manager_connector_init(msm_dsi->id);
+
 	if (IS_ERR(msm_dsi->connector)) {
 		ret = PTR_ERR(msm_dsi->connector);
-		dev_err(dev->dev, "failed to create dsi connector: %d\n", ret);
+		dev_err(dev->dev,
+			"failed to create dsi connector: %d\n", ret);
 		msm_dsi->connector = NULL;
 		goto fail;
 	}
@@ -242,10 +252,12 @@ fail:
 			msm_dsi_manager_bridge_destroy(msm_dsi->bridge);
 			msm_dsi->bridge = NULL;
 		}
-		if (msm_dsi->connector) {
+
+		/* don't destroy connector if we didn't make it */
+		if (msm_dsi->connector && !msm_dsi->external_bridge)
 			msm_dsi->connector->funcs->destroy(msm_dsi->connector);
-			msm_dsi->connector = NULL;
-		}
+
+		msm_dsi->connector = NULL;
 	}
 
 	return ret;

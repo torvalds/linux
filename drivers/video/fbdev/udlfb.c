@@ -279,7 +279,7 @@ static int dlfb_set_video_mode(struct dlfb_data *dev,
 {
 	char *buf;
 	char *wrptr;
-	int retval = 0;
+	int retval;
 	int writesize;
 	struct urb *urb;
 
@@ -1505,8 +1505,7 @@ static int dlfb_parse_vendor_descriptor(struct dlfb_data *dev,
 	char *desc;
 	char *buf;
 	char *desc_end;
-
-	int total_len = 0;
+	int total_len;
 
 	buf = kzalloc(MAX_VENDOR_DESCRIPTOR_SIZE, GFP_KERNEL);
 	if (!buf)
@@ -1582,7 +1581,7 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 			const struct usb_device_id *id)
 {
 	struct usb_device *usbdev;
-	struct dlfb_data *dev = NULL;
+	struct dlfb_data *dev;
 	int retval = -ENOMEM;
 
 	/* usb initialization */
@@ -1665,7 +1664,6 @@ static void dlfb_init_framebuffer_work(struct work_struct *work)
 	/* allocates framebuffer driver structure, not framebuffer memory */
 	info = framebuffer_alloc(0, dev->gdev);
 	if (!info) {
-		retval = -ENOMEM;
 		pr_err("framebuffer_alloc failed\n");
 		goto error;
 	}
@@ -1912,7 +1910,7 @@ static int dlfb_alloc_urb_list(struct dlfb_data *dev, int count, size_t size)
 
 static struct urb *dlfb_get_urb(struct dlfb_data *dev)
 {
-	int ret = 0;
+	int ret;
 	struct list_head *entry;
 	struct urb_node *unode;
 	struct urb *urb = NULL;

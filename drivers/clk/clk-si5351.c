@@ -18,7 +18,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/clkdev.h>
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -439,7 +439,7 @@ static unsigned long si5351_pll_recalc_rate(struct clk_hw *hw,
 
 	dev_dbg(&hwdata->drvdata->client->dev,
 		"%s - %s: p1 = %lu, p2 = %lu, p3 = %lu, parent_rate = %lu, rate = %lu\n",
-		__func__, __clk_get_name(hwdata->hw.clk),
+		__func__, clk_hw_get_name(hw),
 		hwdata->params.p1, hwdata->params.p2, hwdata->params.p3,
 		parent_rate, (unsigned long)rate);
 
@@ -497,7 +497,7 @@ static long si5351_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 
 	dev_dbg(&hwdata->drvdata->client->dev,
 		"%s - %s: a = %lu, b = %lu, c = %lu, parent_rate = %lu, rate = %lu\n",
-		__func__, __clk_get_name(hwdata->hw.clk), a, b, c,
+		__func__, clk_hw_get_name(hw), a, b, c,
 		*parent_rate, rate);
 
 	return rate;
@@ -521,7 +521,7 @@ static int si5351_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	dev_dbg(&hwdata->drvdata->client->dev,
 		"%s - %s: p1 = %lu, p2 = %lu, p3 = %lu, parent_rate = %lu, rate = %lu\n",
-		__func__, __clk_get_name(hwdata->hw.clk),
+		__func__, clk_hw_get_name(hw),
 		hwdata->params.p1, hwdata->params.p2, hwdata->params.p3,
 		parent_rate, rate);
 
@@ -632,7 +632,7 @@ static unsigned long si5351_msynth_recalc_rate(struct clk_hw *hw,
 
 	dev_dbg(&hwdata->drvdata->client->dev,
 		"%s - %s: p1 = %lu, p2 = %lu, p3 = %lu, m = %lu, parent_rate = %lu, rate = %lu\n",
-		__func__, __clk_get_name(hwdata->hw.clk),
+		__func__, clk_hw_get_name(hw),
 		hwdata->params.p1, hwdata->params.p2, hwdata->params.p3,
 		m, parent_rate, (unsigned long)rate);
 
@@ -663,7 +663,7 @@ static long si5351_msynth_round_rate(struct clk_hw *hw, unsigned long rate,
 		divby4 = 1;
 
 	/* multisync can set pll */
-	if (__clk_get_flags(hwdata->hw.clk) & CLK_SET_RATE_PARENT) {
+	if (clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT) {
 		/*
 		 * find largest integer divider for max
 		 * vco frequency and given target rate
@@ -745,7 +745,7 @@ static long si5351_msynth_round_rate(struct clk_hw *hw, unsigned long rate,
 
 	dev_dbg(&hwdata->drvdata->client->dev,
 		"%s - %s: a = %lu, b = %lu, c = %lu, divby4 = %d, parent_rate = %lu, rate = %lu\n",
-		__func__, __clk_get_name(hwdata->hw.clk), a, b, c, divby4,
+		__func__, clk_hw_get_name(hw), a, b, c, divby4,
 		*parent_rate, rate);
 
 	return rate;
@@ -777,7 +777,7 @@ static int si5351_msynth_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	dev_dbg(&hwdata->drvdata->client->dev,
 		"%s - %s: p1 = %lu, p2 = %lu, p3 = %lu, divby4 = %d, parent_rate = %lu, rate = %lu\n",
-		__func__, __clk_get_name(hwdata->hw.clk),
+		__func__, clk_hw_get_name(hw),
 		hwdata->params.p1, hwdata->params.p2, hwdata->params.p3,
 		divby4, parent_rate, rate);
 
@@ -1013,7 +1013,7 @@ static long si5351_clkout_round_rate(struct clk_hw *hw, unsigned long rate,
 		rate = SI5351_CLKOUT_MIN_FREQ;
 
 	/* request frequency if multisync master */
-	if (__clk_get_flags(hwdata->hw.clk) & CLK_SET_RATE_PARENT) {
+	if (clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT) {
 		/* use r divider for frequencies below 1MHz */
 		rdiv = SI5351_OUTPUT_CLK_DIV_1;
 		while (rate < SI5351_MULTISYNTH_MIN_FREQ &&
@@ -1042,7 +1042,7 @@ static long si5351_clkout_round_rate(struct clk_hw *hw, unsigned long rate,
 
 	dev_dbg(&hwdata->drvdata->client->dev,
 		"%s - %s: rdiv = %u, parent_rate = %lu, rate = %lu\n",
-		__func__, __clk_get_name(hwdata->hw.clk), (1 << rdiv),
+		__func__, clk_hw_get_name(hw), (1 << rdiv),
 		*parent_rate, rate);
 
 	return rate;
@@ -1093,7 +1093,7 @@ static int si5351_clkout_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	dev_dbg(&hwdata->drvdata->client->dev,
 		"%s - %s: rdiv = %u, parent_rate = %lu, rate = %lu\n",
-		__func__, __clk_get_name(hwdata->hw.clk), (1 << rdiv),
+		__func__, clk_hw_get_name(hw), (1 << rdiv),
 		parent_rate, rate);
 
 	return 0;
@@ -1183,13 +1183,13 @@ static int si5351_dt_parse(struct i2c_client *client,
 		if (of_property_read_u32(child, "reg", &num)) {
 			dev_err(&client->dev, "missing reg property of %s\n",
 				child->name);
-			return -EINVAL;
+			goto put_child;
 		}
 
 		if (num >= 8 ||
 		    (variant == SI5351_VARIANT_A3 && num >= 3)) {
 			dev_err(&client->dev, "invalid clkout %d\n", num);
-			return -EINVAL;
+			goto put_child;
 		}
 
 		if (!of_property_read_u32(child, "silabs,multisynth-source",
@@ -1207,7 +1207,7 @@ static int si5351_dt_parse(struct i2c_client *client,
 				dev_err(&client->dev,
 					"invalid parent %d for multisynth %d\n",
 					val, num);
-				return -EINVAL;
+				goto put_child;
 			}
 		}
 
@@ -1230,7 +1230,7 @@ static int si5351_dt_parse(struct i2c_client *client,
 					dev_err(&client->dev,
 						"invalid parent %d for clkout %d\n",
 						val, num);
-					return -EINVAL;
+					goto put_child;
 				}
 				pdata->clkout[num].clkout_src =
 					SI5351_CLKOUT_SRC_CLKIN;
@@ -1239,7 +1239,7 @@ static int si5351_dt_parse(struct i2c_client *client,
 				dev_err(&client->dev,
 					"invalid parent %d for clkout %d\n",
 					val, num);
-				return -EINVAL;
+				goto put_child;
 			}
 		}
 
@@ -1256,7 +1256,7 @@ static int si5351_dt_parse(struct i2c_client *client,
 				dev_err(&client->dev,
 					"invalid drive strength %d for clkout %d\n",
 					val, num);
-				return -EINVAL;
+				goto put_child;
 			}
 		}
 
@@ -1283,7 +1283,7 @@ static int si5351_dt_parse(struct i2c_client *client,
 				dev_err(&client->dev,
 					"invalid disable state %d for clkout %d\n",
 					val, num);
-				return -EINVAL;
+				goto put_child;
 			}
 		}
 
@@ -1296,6 +1296,9 @@ static int si5351_dt_parse(struct i2c_client *client,
 	client->dev.platform_data = pdata;
 
 	return 0;
+put_child:
+	of_node_put(child);
+	return -EINVAL;
 }
 #else
 static int si5351_dt_parse(struct i2c_client *client, enum si5351_variant variant)

@@ -782,6 +782,7 @@ static const struct of_device_id serial_ids[] = {
 	{.compatible = "sprd,sc9836-uart",},
 	{}
 };
+MODULE_DEVICE_TABLE(of, serial_ids);
 
 static struct platform_driver sprd_platform_driver = {
 	.probe		= sprd_probe,

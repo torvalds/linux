@@ -296,7 +296,6 @@ static struct i2c_driver st1232_ts_driver = {
 	.id_table	= st1232_ts_id,
 	.driver = {
 		.name	= ST1232_TS_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(st1232_ts_dt_ids),
 		.pm	= &st1232_ts_pm_ops,
 	},

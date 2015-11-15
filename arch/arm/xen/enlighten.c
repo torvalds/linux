@@ -45,46 +45,39 @@ static struct vcpu_info __percpu *xen_vcpu_info;
 unsigned long xen_released_pages;
 struct xen_memory_region xen_extra_mem[XEN_EXTRA_MEM_MAX_REGIONS] __initdata;
 
-/* TODO: to be removed */
-__read_mostly int xen_have_vector_callback;
-EXPORT_SYMBOL_GPL(xen_have_vector_callback);
-
-int xen_platform_pci_unplug = XEN_UNPLUG_ALL;
-EXPORT_SYMBOL_GPL(xen_platform_pci_unplug);
-
 static __read_mostly unsigned int xen_events_irq;
 
 static __initdata struct device_node *xen_node;
 
-int xen_remap_domain_mfn_array(struct vm_area_struct *vma,
+int xen_remap_domain_gfn_array(struct vm_area_struct *vma,
 			       unsigned long addr,
-			       xen_pfn_t *mfn, int nr,
+			       xen_pfn_t *gfn, int nr,
 			       int *err_ptr, pgprot_t prot,
 			       unsigned domid,
 			       struct page **pages)
 {
-	return xen_xlate_remap_gfn_array(vma, addr, mfn, nr, err_ptr,
+	return xen_xlate_remap_gfn_array(vma, addr, gfn, nr, err_ptr,
 					 prot, domid, pages);
 }
-EXPORT_SYMBOL_GPL(xen_remap_domain_mfn_array);
+EXPORT_SYMBOL_GPL(xen_remap_domain_gfn_array);
 
 /* Not used by XENFEAT_auto_translated guests. */
-int xen_remap_domain_mfn_range(struct vm_area_struct *vma,
+int xen_remap_domain_gfn_range(struct vm_area_struct *vma,
                               unsigned long addr,
-                              xen_pfn_t mfn, int nr,
+                              xen_pfn_t gfn, int nr,
                               pgprot_t prot, unsigned domid,
                               struct page **pages)
 {
 	return -ENOSYS;
 }
-EXPORT_SYMBOL_GPL(xen_remap_domain_mfn_range);
+EXPORT_SYMBOL_GPL(xen_remap_domain_gfn_range);
 
-int xen_unmap_domain_mfn_range(struct vm_area_struct *vma,
+int xen_unmap_domain_gfn_range(struct vm_area_struct *vma,
 			       int nr, struct page **pages)
 {
 	return xen_xlate_unmap_gfn_range(vma, nr, pages);
 }
-EXPORT_SYMBOL_GPL(xen_unmap_domain_mfn_range);
+EXPORT_SYMBOL_GPL(xen_unmap_domain_gfn_range);
 
 static void xen_percpu_init(void)
 {
@@ -93,16 +86,25 @@ static void xen_percpu_init(void)
 	int err;
 	int cpu = get_cpu();
 
+	/* 
+	 * VCPUOP_register_vcpu_info cannot be called twice for the same
+	 * vcpu, so if vcpu_info is already registered, just get out. This
+	 * can happen with cpu-hotplug.
+	 */
+	if (per_cpu(xen_vcpu, cpu) != NULL)
+		goto after_register_vcpu_info;
+
 	pr_info("Xen: initializing cpu%d\n", cpu);
 	vcpup = per_cpu_ptr(xen_vcpu_info, cpu);
 
-	info.mfn = __pa(vcpup) >> PAGE_SHIFT;
-	info.offset = offset_in_page(vcpup);
+	info.mfn = virt_to_gfn(vcpup);
+	info.offset = xen_offset_in_page(vcpup);
 
 	err = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info, cpu, &info);
 	BUG_ON(err);
 	per_cpu(xen_vcpu, cpu) = vcpup;
 
+after_register_vcpu_info:
 	enable_percpu_irq(xen_events_irq, 0);
 	put_cpu();
 }
@@ -130,6 +132,9 @@ static int xen_cpu_notification(struct notifier_block *self,
 	switch (action) {
 	case CPU_STARTING:
 		xen_percpu_init();
+		break;
+	case CPU_DYING:
+		disable_percpu_irq(xen_events_irq);
 		break;
 	default:
 		break;
@@ -220,7 +225,7 @@ static int __init xen_guest_init(void)
 	xatp.domid = DOMID_SELF;
 	xatp.idx = 0;
 	xatp.space = XENMAPSPACE_shared_info;
-	xatp.gpfn = __pa(shared_info_page) >> PAGE_SHIFT;
+	xatp.gpfn = virt_to_gfn(shared_info_page);
 	if (HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp))
 		BUG();
 
@@ -291,7 +296,7 @@ void xen_arch_resume(void) { }
 void xen_arch_suspend(void) { }
 
 
-/* In the hypervisor.S file. */
+/* In the hypercall.S file. */
 EXPORT_SYMBOL_GPL(HYPERVISOR_event_channel_op);
 EXPORT_SYMBOL_GPL(HYPERVISOR_grant_table_op);
 EXPORT_SYMBOL_GPL(HYPERVISOR_xen_version);

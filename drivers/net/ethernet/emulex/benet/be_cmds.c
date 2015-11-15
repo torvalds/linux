@@ -88,19 +88,21 @@ static inline void *embedded_payload(struct be_mcc_wrb *wrb)
 	return wrb->payload.embedded_payload;
 }
 
-static void be_mcc_notify(struct be_adapter *adapter)
+static int be_mcc_notify(struct be_adapter *adapter)
 {
 	struct be_queue_info *mccq = &adapter->mcc_obj.q;
 	u32 val = 0;
 
 	if (be_check_error(adapter, BE_ERROR_ANY))
-		return;
+		return -EIO;
 
 	val |= mccq->id & DB_MCCQ_RING_ID_MASK;
 	val |= 1 << DB_MCCQ_NUM_POSTED_SHIFT;
 
 	wmb();
 	iowrite32(val, adapter->db + DB_MCCQ_OFFSET);
+
+	return 0;
 }
 
 /* To check if valid bit is set, check the entire word as we don't know
@@ -165,6 +167,12 @@ static void be_async_cmd_process(struct be_adapter *adapter,
 	}
 
 	if (opcode == OPCODE_LOWLEVEL_LOOPBACK_TEST &&
+	    subsystem == CMD_SUBSYSTEM_LOWLEVEL) {
+		complete(&adapter->et_cmd_compl);
+		return;
+	}
+
+	if (opcode == OPCODE_LOWLEVEL_SET_LOOPBACK_MODE &&
 	    subsystem == CMD_SUBSYSTEM_LOWLEVEL) {
 		complete(&adapter->et_cmd_compl);
 		return;
@@ -541,7 +549,9 @@ static int be_mcc_notify_wait(struct be_adapter *adapter)
 
 	resp = be_decode_resp_hdr(wrb->tag0, wrb->tag1);
 
-	be_mcc_notify(adapter);
+	status = be_mcc_notify(adapter);
+	if (status)
+		goto out;
 
 	status = be_mcc_wait_compl(adapter);
 	if (status == -EIO)
@@ -841,8 +851,10 @@ static int be_cmd_notify_wait(struct be_adapter *adapter,
 		return status;
 
 	dest_wrb = be_cmd_copy(adapter, wrb);
-	if (!dest_wrb)
-		return -EBUSY;
+	if (!dest_wrb) {
+		status = -EBUSY;
+		goto unlock;
+	}
 
 	if (use_mcc(adapter))
 		status = be_mcc_notify_wait(adapter);
@@ -852,6 +864,7 @@ static int be_cmd_notify_wait(struct be_adapter *adapter,
 	if (!status)
 		memcpy(wrb, dest_wrb, sizeof(*wrb));
 
+unlock:
 	be_cmd_unlock(adapter);
 	return status;
 }
@@ -1547,7 +1560,10 @@ int be_cmd_get_stats(struct be_adapter *adapter, struct be_dma_mem *nonemb_cmd)
 	else
 		hdr->version = 2;
 
-	be_mcc_notify(adapter);
+	status = be_mcc_notify(adapter);
+	if (status)
+		goto err;
+
 	adapter->stats_cmd_sent = true;
 
 err:
@@ -1583,7 +1599,10 @@ int lancer_cmd_get_pport_stats(struct be_adapter *adapter,
 	req->cmd_params.params.pport_num = cpu_to_le16(adapter->hba_port_num);
 	req->cmd_params.params.reset_stats = 0;
 
-	be_mcc_notify(adapter);
+	status = be_mcc_notify(adapter);
+	if (status)
+		goto err;
+
 	adapter->stats_cmd_sent = true;
 
 err:
@@ -1687,8 +1706,7 @@ int be_cmd_get_die_temperature(struct be_adapter *adapter)
 			       OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES,
 			       sizeof(*req), wrb, NULL);
 
-	be_mcc_notify(adapter);
-
+	status = be_mcc_notify(adapter);
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
@@ -1860,7 +1878,7 @@ static int __be_cmd_modify_eqd(struct be_adapter *adapter,
 				cpu_to_le32(set_eqd[i].delay_multiplier);
 	}
 
-	be_mcc_notify(adapter);
+	status = be_mcc_notify(adapter);
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
@@ -1969,6 +1987,8 @@ int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 value)
 			 be_if_cap_flags(adapter));
 	}
 	flags &= be_if_cap_flags(adapter);
+	if (!flags)
+		return -ENOTSUPP;
 
 	return __be_cmd_rx_filter(adapter, flags, value);
 }
@@ -2320,7 +2340,10 @@ int lancer_cmd_write_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
 	req->addr_high = cpu_to_le32(upper_32_bits(cmd->dma +
 				sizeof(struct lancer_cmd_req_write_object)));
 
-	be_mcc_notify(adapter);
+	status = be_mcc_notify(adapter);
+	if (status)
+		goto err_unlock;
+
 	spin_unlock_bh(&adapter->mcc_lock);
 
 	if (!wait_for_completion_timeout(&adapter->et_cmd_compl,
@@ -2491,7 +2514,10 @@ int be_cmd_write_flashrom(struct be_adapter *adapter, struct be_dma_mem *cmd,
 	req->params.op_code = cpu_to_le32(flash_opcode);
 	req->params.data_buf_size = cpu_to_le32(buf_size);
 
-	be_mcc_notify(adapter);
+	status = be_mcc_notify(adapter);
+	if (status)
+		goto err_unlock;
+
 	spin_unlock_bh(&adapter->mcc_lock);
 
 	if (!wait_for_completion_timeout(&adapter->et_cmd_compl,
@@ -2585,7 +2611,7 @@ int be_cmd_set_loopback(struct be_adapter *adapter, u8 port_num,
 	wrb = wrb_from_mccq(adapter);
 	if (!wrb) {
 		status = -EBUSY;
-		goto err;
+		goto err_unlock;
 	}
 
 	req = embedded_payload(wrb);
@@ -2599,8 +2625,19 @@ int be_cmd_set_loopback(struct be_adapter *adapter, u8 port_num,
 	req->loopback_type = loopback_type;
 	req->loopback_state = enable;
 
-	status = be_mcc_notify_wait(adapter);
-err:
+	status = be_mcc_notify(adapter);
+	if (status)
+		goto err_unlock;
+
+	spin_unlock_bh(&adapter->mcc_lock);
+
+	if (!wait_for_completion_timeout(&adapter->et_cmd_compl,
+					 msecs_to_jiffies(SET_LB_MODE_TIMEOUT)))
+		status = -ETIMEDOUT;
+
+	return status;
+
+err_unlock:
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }
@@ -2636,7 +2673,9 @@ int be_cmd_loopback_test(struct be_adapter *adapter, u32 port_num,
 	req->num_pkts = cpu_to_le32(num_pkts);
 	req->loopback_type = cpu_to_le32(loopback_type);
 
-	be_mcc_notify(adapter);
+	status = be_mcc_notify(adapter);
+	if (status)
+		goto err;
 
 	spin_unlock_bh(&adapter->mcc_lock);
 
@@ -2818,10 +2857,11 @@ int be_cmd_get_cntl_attributes(struct be_adapter *adapter)
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_cntl_attribs *req;
 	struct be_cmd_resp_cntl_attribs *resp;
-	int status;
+	int status, i;
 	int payload_len = max(sizeof(*req), sizeof(*resp));
 	struct mgmt_controller_attrib *attribs;
 	struct be_dma_mem attribs_cmd;
+	u32 *serial_num;
 
 	if (mutex_lock_interruptible(&adapter->mbox_lock))
 		return -1;
@@ -2852,6 +2892,11 @@ int be_cmd_get_cntl_attributes(struct be_adapter *adapter)
 	if (!status) {
 		attribs = attribs_cmd.va + sizeof(struct be_cmd_resp_hdr);
 		adapter->hba_port_num = attribs->hba_attribs.phy_port;
+		adapter->pci_func_num = attribs->pci_func_num;
+		serial_num = attribs->hba_attribs.controller_serial_number;
+		for (i = 0; i < CNTL_SERIAL_NUM_WORDS; i++)
+			adapter->serial_num[i] = le32_to_cpu(serial_num[i]) &
+				(BIT_MASK(16) - 1);
 	}
 
 err:
@@ -3670,7 +3715,6 @@ int be_cmd_get_func_config(struct be_adapter *adapter, struct be_resources *res)
 			status = -EINVAL;
 			goto err;
 		}
-
 		adapter->pf_number = desc->pf_num;
 		be_copy_nic_desc(res, desc);
 	}
@@ -3682,7 +3726,10 @@ err:
 	return status;
 }
 
-/* Will use MBOX only if MCCQ has not been created */
+/* Will use MBOX only if MCCQ has not been created
+ * non-zero domain => a PF is querying this on behalf of a VF
+ * zero domain => a PF or a VF is querying this for itself
+ */
 int be_cmd_get_profile_config(struct be_adapter *adapter,
 			      struct be_resources *res, u8 query, u8 domain)
 {
@@ -3709,10 +3756,15 @@ int be_cmd_get_profile_config(struct be_adapter *adapter,
 			       OPCODE_COMMON_GET_PROFILE_CONFIG,
 			       cmd.size, &wrb, &cmd);
 
-	req->hdr.domain = domain;
 	if (!lancer_chip(adapter))
 		req->hdr.version = 1;
 	req->type = ACTIVE_PROFILE_TYPE;
+	/* When a function is querying profile information relating to
+	 * itself hdr.pf_number must be set to it's pci_func_num + 1
+	 */
+	req->hdr.domain = domain;
+	if (domain == 0)
+		req->hdr.pf_num = adapter->pci_func_num + 1;
 
 	/* When QUERY_MODIFIABLE_FIELDS_TYPE bit is set, cmd returns the
 	 * descriptors with all bits set to "1" for the fields which can be
@@ -3882,12 +3934,16 @@ static void be_fill_vf_res_template(struct be_adapter *adapter,
 			vf_if_cap_flags &= ~(BE_IF_FLAGS_RSS |
 					     BE_IF_FLAGS_DEFQ_RSS);
 		}
-
-		nic_vft->cap_flags = cpu_to_le32(vf_if_cap_flags);
 	} else {
 		num_vf_qs = 1;
 	}
 
+	if (res_mod.vf_if_cap_flags & BE_IF_FLAGS_VLAN_PROMISCUOUS) {
+		nic_vft->flags |= BIT(IF_CAPS_FLAGS_VALID_SHIFT);
+		vf_if_cap_flags &= ~BE_IF_FLAGS_VLAN_PROMISCUOUS;
+	}
+
+	nic_vft->cap_flags = cpu_to_le32(vf_if_cap_flags);
 	nic_vft->rq_count = cpu_to_le16(num_vf_qs);
 	nic_vft->txq_count = cpu_to_le16(num_vf_qs);
 	nic_vft->rssq_count = cpu_to_le16(num_vf_qs);

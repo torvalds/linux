@@ -47,6 +47,9 @@ ENDPROC(atomic_##op##_return);
 
 ATOMIC_OPS(add)
 ATOMIC_OPS(sub)
+ATOMIC_OP(and)
+ATOMIC_OP(or)
+ATOMIC_OP(xor)
 
 #undef ATOMIC_OPS
 #undef ATOMIC_OP_RETURN
@@ -84,6 +87,9 @@ ENDPROC(atomic64_##op##_return);
 
 ATOMIC64_OPS(add)
 ATOMIC64_OPS(sub)
+ATOMIC64_OP(and)
+ATOMIC64_OP(or)
+ATOMIC64_OP(xor)
 
 #undef ATOMIC64_OPS
 #undef ATOMIC64_OP_RETURN

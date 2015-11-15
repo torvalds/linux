@@ -29,8 +29,10 @@ struct cxl_ioctl_start_work {
 
 #define CXL_START_WORK_AMR		0x0000000000000001ULL
 #define CXL_START_WORK_NUM_IRQS		0x0000000000000002ULL
+#define CXL_START_WORK_ERR_FF		0x0000000000000004ULL
 #define CXL_START_WORK_ALL		(CXL_START_WORK_AMR |\
-					 CXL_START_WORK_NUM_IRQS)
+					 CXL_START_WORK_NUM_IRQS |\
+					 CXL_START_WORK_ERR_FF)
 
 
 /* Possible modes that an afu can be in */

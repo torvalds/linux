@@ -3259,7 +3259,7 @@ il3945_show_measurement(struct device *d, struct device_attribute *attr,
 
 	while (size && PAGE_SIZE - len) {
 		hex_dump_to_buffer(data + ofs, size, 16, 1, buf + len,
-				   PAGE_SIZE - len, 1);
+				   PAGE_SIZE - len, true);
 		len = strlen(buf);
 		if (PAGE_SIZE - len)
 			buf[len++] = '\n';

@@ -147,6 +147,7 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL &&
 		pdev->device == PCI_DEVICE_ID_INTEL_LYNXPOINT_LP_XHCI) {
 		xhci->quirks |= XHCI_SPURIOUS_REBOOT;
+		xhci->quirks |= XHCI_SPURIOUS_WAKEUP;
 	}
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL &&
 		(pdev->device == PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_XHCI ||
@@ -180,51 +181,6 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 				"QUIRK: Resetting on resume");
 }
 
-/*
- * In some Intel xHCI controllers, in order to get D3 working,
- * through a vendor specific SSIC CONFIG register at offset 0x883c,
- * SSIC PORT need to be marked as "unused" before putting xHCI
- * into D3. After D3 exit, the SSIC port need to be marked as "used".
- * Without this change, xHCI might not enter D3 state.
- * Make sure PME works on some Intel xHCI controllers by writing 1 to clear
- * the Internal PME flag bit in vendor specific PMCTRL register at offset 0x80a4
- */
-static void xhci_pme_quirk(struct usb_hcd *hcd, bool suspend)
-{
-	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
-	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
-	u32 val;
-	void __iomem *reg;
-
-	if (pdev->vendor == PCI_VENDOR_ID_INTEL &&
-		 pdev->device == PCI_DEVICE_ID_INTEL_CHERRYVIEW_XHCI) {
-
-		reg = (void __iomem *) xhci->cap_regs + PORT2_SSIC_CONFIG_REG2;
-
-		/* Notify SSIC that SSIC profile programming is not done */
-		val = readl(reg) & ~PROG_DONE;
-		writel(val, reg);
-
-		/* Mark SSIC port as unused(suspend) or used(resume) */
-		val = readl(reg);
-		if (suspend)
-			val |= SSIC_PORT_UNUSED;
-		else
-			val &= ~SSIC_PORT_UNUSED;
-		writel(val, reg);
-
-		/* Notify SSIC that SSIC profile programming is done */
-		val = readl(reg) | PROG_DONE;
-		writel(val, reg);
-		readl(reg);
-	}
-
-	reg = (void __iomem *) xhci->cap_regs + 0x80a4;
-	val = readl(reg);
-	writel(val | BIT(28), reg);
-	readl(reg);
-}
-
 #ifdef CONFIG_ACPI
 static void xhci_pme_acpi_rtd3_enable(struct pci_dev *dev)
 {
@@ -245,15 +201,17 @@ static int xhci_pci_setup(struct usb_hcd *hcd)
 	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
 	int			retval;
 
+	xhci = hcd_to_xhci(hcd);
+	if (!xhci->sbrn)
+		pci_read_config_byte(pdev, XHCI_SBRN_OFFSET, &xhci->sbrn);
+
 	retval = xhci_gen_setup(hcd, xhci_pci_quirks);
 	if (retval)
 		return retval;
 
-	xhci = hcd_to_xhci(hcd);
 	if (!usb_hcd_is_primary_hcd(hcd))
 		return 0;
 
-	pci_read_config_byte(pdev, XHCI_SBRN_OFFSET, &xhci->sbrn);
 	xhci_dbg(xhci, "Got SBRN %u\n", (unsigned int) xhci->sbrn);
 
 	/* Find any debug ports */
@@ -345,6 +303,51 @@ static void xhci_pci_remove(struct pci_dev *dev)
 }
 
 #ifdef CONFIG_PM
+/*
+ * In some Intel xHCI controllers, in order to get D3 working,
+ * through a vendor specific SSIC CONFIG register at offset 0x883c,
+ * SSIC PORT need to be marked as "unused" before putting xHCI
+ * into D3. After D3 exit, the SSIC port need to be marked as "used".
+ * Without this change, xHCI might not enter D3 state.
+ * Make sure PME works on some Intel xHCI controllers by writing 1 to clear
+ * the Internal PME flag bit in vendor specific PMCTRL register at offset 0x80a4
+ */
+static void xhci_pme_quirk(struct usb_hcd *hcd, bool suspend)
+{
+	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
+	u32 val;
+	void __iomem *reg;
+
+	if (pdev->vendor == PCI_VENDOR_ID_INTEL &&
+		 pdev->device == PCI_DEVICE_ID_INTEL_CHERRYVIEW_XHCI) {
+
+		reg = (void __iomem *) xhci->cap_regs + PORT2_SSIC_CONFIG_REG2;
+
+		/* Notify SSIC that SSIC profile programming is not done */
+		val = readl(reg) & ~PROG_DONE;
+		writel(val, reg);
+
+		/* Mark SSIC port as unused(suspend) or used(resume) */
+		val = readl(reg);
+		if (suspend)
+			val |= SSIC_PORT_UNUSED;
+		else
+			val &= ~SSIC_PORT_UNUSED;
+		writel(val, reg);
+
+		/* Notify SSIC that SSIC profile programming is done */
+		val = readl(reg) | PROG_DONE;
+		writel(val, reg);
+		readl(reg);
+	}
+
+	reg = (void __iomem *) xhci->cap_regs + 0x80a4;
+	val = readl(reg);
+	writel(val | BIT(28), reg);
+	readl(reg);
+}
+
 static int xhci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 {
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);

@@ -276,6 +276,7 @@ process_start:
 		     !adapter->pm_wakeup_fw_try) &&
 		    (is_command_pending(adapter) ||
 		     !skb_queue_empty(&adapter->tx_data_q) ||
+		     !mwifiex_bypass_txlist_empty(adapter) ||
 		     !mwifiex_wmm_lists_empty(adapter))) {
 			adapter->pm_wakeup_fw_try = true;
 			mod_timer(&adapter->wakeup_timer, jiffies + (HZ*3));
@@ -293,15 +294,28 @@ process_start:
 			/* We have tried to wakeup the card already */
 			if (adapter->pm_wakeup_fw_try)
 				break;
-			if (adapter->ps_state != PS_STATE_AWAKE ||
-			    adapter->tx_lock_flag)
+			if (adapter->ps_state != PS_STATE_AWAKE)
 				break;
+			if (adapter->tx_lock_flag) {
+				if (adapter->iface_type == MWIFIEX_USB) {
+					if (!adapter->usb_mc_setup)
+						break;
+				} else
+					break;
+			}
 
 			if ((!adapter->scan_chan_gap_enabled &&
 			     adapter->scan_processing) || adapter->data_sent ||
+			     mwifiex_is_tdls_chan_switching
+			     (mwifiex_get_priv(adapter,
+					       MWIFIEX_BSS_ROLE_STA)) ||
 			    (mwifiex_wmm_lists_empty(adapter) &&
+			     mwifiex_bypass_txlist_empty(adapter) &&
 			     skb_queue_empty(&adapter->tx_data_q))) {
 				if (adapter->cmd_sent || adapter->curr_cmd ||
+					!mwifiex_is_send_cmd_allowed
+						(mwifiex_get_priv(adapter,
+						MWIFIEX_BSS_ROLE_STA)) ||
 				    (!is_command_pending(adapter)))
 					break;
 			}
@@ -337,17 +351,33 @@ process_start:
 		 */
 		if ((adapter->ps_state == PS_STATE_SLEEP) ||
 		    (adapter->ps_state == PS_STATE_PRE_SLEEP) ||
-		    (adapter->ps_state == PS_STATE_SLEEP_CFM) ||
-		    adapter->tx_lock_flag){
+		    (adapter->ps_state == PS_STATE_SLEEP_CFM)) {
 			continue;
 		}
 
-		if (!adapter->cmd_sent && !adapter->curr_cmd) {
+		if (adapter->tx_lock_flag) {
+			if (adapter->iface_type == MWIFIEX_USB) {
+				if (!adapter->usb_mc_setup)
+					continue;
+			} else
+				continue;
+		}
+
+		if (!adapter->cmd_sent && !adapter->curr_cmd &&
+		    mwifiex_is_send_cmd_allowed
+		    (mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA))) {
 			if (mwifiex_exec_next_cmd(adapter) == -1) {
 				ret = -1;
 				break;
 			}
 		}
+
+		/** If USB Multi channel setup ongoing,
+		 *  wait for ready to tx data.
+		 */
+		if (adapter->iface_type == MWIFIEX_USB &&
+		    adapter->usb_mc_setup)
+			continue;
 
 		if ((adapter->scan_chan_gap_enabled ||
 		     !adapter->scan_processing) &&
@@ -365,7 +395,25 @@ process_start:
 
 		if ((adapter->scan_chan_gap_enabled ||
 		     !adapter->scan_processing) &&
-		    !adapter->data_sent && !mwifiex_wmm_lists_empty(adapter)) {
+		    !adapter->data_sent &&
+		    !mwifiex_bypass_txlist_empty(adapter) &&
+		    !mwifiex_is_tdls_chan_switching
+			(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA))) {
+			mwifiex_process_bypass_tx(adapter);
+			if (adapter->hs_activated) {
+				adapter->is_hs_configured = false;
+				mwifiex_hs_activated_event
+					(mwifiex_get_priv
+					 (adapter, MWIFIEX_BSS_ROLE_ANY),
+					 false);
+			}
+		}
+
+		if ((adapter->scan_chan_gap_enabled ||
+		     !adapter->scan_processing) &&
+		    !adapter->data_sent && !mwifiex_wmm_lists_empty(adapter) &&
+		    !mwifiex_is_tdls_chan_switching
+			(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA))) {
 			mwifiex_wmm_process_tx(adapter);
 			if (adapter->hs_activated) {
 				adapter->is_hs_configured = false;
@@ -379,6 +427,7 @@ process_start:
 		if (adapter->delay_null_pkt && !adapter->cmd_sent &&
 		    !adapter->curr_cmd && !is_command_pending(adapter) &&
 		    (mwifiex_wmm_lists_empty(adapter) &&
+		     mwifiex_bypass_txlist_empty(adapter) &&
 		     skb_queue_empty(&adapter->tx_data_q))) {
 			if (!mwifiex_send_null_packet
 			    (mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA),
@@ -649,6 +698,26 @@ mwifiex_close(struct net_device *dev)
 	return 0;
 }
 
+static bool
+mwifiex_bypass_tx_queue(struct mwifiex_private *priv,
+			struct sk_buff *skb)
+{
+	struct ethhdr *eth_hdr = (struct ethhdr *)skb->data;
+
+	if (ntohs(eth_hdr->h_proto) == ETH_P_PAE ||
+	    mwifiex_is_skb_mgmt_frame(skb) ||
+	    (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA &&
+	     ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info) &&
+	     (ntohs(eth_hdr->h_proto) == ETH_P_TDLS))) {
+		mwifiex_dbg(priv->adapter, DATA,
+			    "bypass txqueue; eth type %#x, mgmt %d\n",
+			     ntohs(eth_hdr->h_proto),
+			     mwifiex_is_skb_mgmt_frame(skb));
+		return true;
+	}
+
+	return false;
+}
 /*
  * Add buffer into wmm tx queue and queue work to transmit it.
  */
@@ -666,8 +735,14 @@ int mwifiex_queue_tx_pkt(struct mwifiex_private *priv, struct sk_buff *skb)
 		}
 	}
 
-	atomic_inc(&priv->adapter->tx_pending);
-	mwifiex_wmm_add_buf_txqueue(priv, skb);
+	if (mwifiex_bypass_tx_queue(priv, skb)) {
+		atomic_inc(&priv->adapter->tx_pending);
+		atomic_inc(&priv->adapter->bypass_tx_pending);
+		mwifiex_wmm_add_buf_bypass_txqueue(priv, skb);
+	 } else {
+		atomic_inc(&priv->adapter->tx_pending);
+		mwifiex_wmm_add_buf_txqueue(priv, skb);
+	 }
 
 	mwifiex_queue_main_work(priv->adapter);
 
@@ -873,6 +948,32 @@ mwifiex_tx_timeout(struct net_device *dev)
 	}
 }
 
+void mwifiex_multi_chan_resync(struct mwifiex_adapter *adapter)
+{
+	struct usb_card_rec *card = adapter->card;
+	struct mwifiex_private *priv;
+	u16 tx_buf_size;
+	int i, ret;
+
+	card->mc_resync_flag = true;
+	for (i = 0; i < MWIFIEX_TX_DATA_PORT; i++) {
+		if (atomic_read(&card->port[i].tx_data_urb_pending)) {
+			mwifiex_dbg(adapter, WARN, "pending data urb in sys\n");
+			return;
+		}
+	}
+
+	card->mc_resync_flag = false;
+	tx_buf_size = 0xffff;
+	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
+	ret = mwifiex_send_cmd(priv, HostCmd_CMD_RECONFIGURE_TX_BUFF,
+			       HostCmd_ACT_GEN_SET, 0, &tx_buf_size, false);
+	if (ret)
+		mwifiex_dbg(adapter, ERROR,
+			    "send reconfig tx buf size cmd err\n");
+}
+EXPORT_SYMBOL_GPL(mwifiex_multi_chan_resync);
+
 void mwifiex_drv_info_dump(struct mwifiex_adapter *adapter)
 {
 	void *p;
@@ -908,8 +1009,10 @@ void mwifiex_drv_info_dump(struct mwifiex_adapter *adapter)
 		cardp = (struct usb_card_rec *)adapter->card;
 		p += sprintf(p, "tx_cmd_urb_pending = %d\n",
 			     atomic_read(&cardp->tx_cmd_urb_pending));
-		p += sprintf(p, "tx_data_urb_pending = %d\n",
-			     atomic_read(&cardp->tx_data_urb_pending));
+		p += sprintf(p, "tx_data_urb_pending_port_0 = %d\n",
+			     atomic_read(&cardp->port[0].tx_data_urb_pending));
+		p += sprintf(p, "tx_data_urb_pending_port_1 = %d\n",
+			     atomic_read(&cardp->port[1].tx_data_urb_pending));
 		p += sprintf(p, "rx_cmd_urb_pending = %d\n",
 			     atomic_read(&cardp->rx_cmd_urb_pending));
 		p += sprintf(p, "rx_data_urb_pending = %d\n",
@@ -1096,6 +1199,7 @@ static const struct net_device_ops mwifiex_netdev_ops = {
 	.ndo_stop = mwifiex_close,
 	.ndo_start_xmit = mwifiex_hard_start_xmit,
 	.ndo_set_mac_address = mwifiex_set_mac_address,
+	.ndo_validate_addr = eth_validate_addr,
 	.ndo_tx_timeout = mwifiex_tx_timeout,
 	.ndo_get_stats = mwifiex_get_stats,
 	.ndo_set_rx_mode = mwifiex_set_multicast_list,
@@ -1391,6 +1495,26 @@ exit_sem_err:
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mwifiex_remove_card);
+
+void _mwifiex_dbg(const struct mwifiex_adapter *adapter, int mask,
+		  const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	if (!adapter->dev || !(adapter->debug_mask & mask))
+		return;
+
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	dev_info(adapter->dev, "%pV", &vaf);
+
+	va_end(args);
+}
+EXPORT_SYMBOL_GPL(_mwifiex_dbg);
 
 /*
  * This function initializes the module.

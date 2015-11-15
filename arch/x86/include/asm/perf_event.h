@@ -159,6 +159,13 @@ struct x86_pmu_capability {
  */
 #define INTEL_PMC_IDX_FIXED_BTS				(INTEL_PMC_IDX_FIXED + 16)
 
+#define GLOBAL_STATUS_COND_CHG				BIT_ULL(63)
+#define GLOBAL_STATUS_BUFFER_OVF			BIT_ULL(62)
+#define GLOBAL_STATUS_UNC_OVF				BIT_ULL(61)
+#define GLOBAL_STATUS_ASIF				BIT_ULL(60)
+#define GLOBAL_STATUS_COUNTERS_FROZEN			BIT_ULL(59)
+#define GLOBAL_STATUS_LBRS_FROZEN			BIT_ULL(58)
+
 /*
  * IBS cpuid feature detection
  */

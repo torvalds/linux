@@ -1249,12 +1249,6 @@ out_nfserr:
 
 #ifdef CONFIG_NFSD_V3
 
-static inline int nfsd_create_is_exclusive(int createmode)
-{
-	return createmode == NFS3_CREATE_EXCLUSIVE
-	       || createmode == NFS4_CREATE_EXCLUSIVE4_1;
-}
-
 /*
  * NFSv3 and NFSv4 version of nfsd_create
  */
@@ -1637,7 +1631,7 @@ nfsd_rename(struct svc_rqst *rqstp, struct svc_fh *ffhp, char *fname, int flen,
 	/* cannot use fh_lock as we need deadlock protective ordering
 	 * so do it by hand */
 	trap = lock_rename(tdentry, fdentry);
-	ffhp->fh_locked = tfhp->fh_locked = 1;
+	ffhp->fh_locked = tfhp->fh_locked = true;
 	fill_pre_wcc(ffhp);
 	fill_pre_wcc(tfhp);
 
@@ -1687,7 +1681,7 @@ nfsd_rename(struct svc_rqst *rqstp, struct svc_fh *ffhp, char *fname, int flen,
 	fill_post_wcc(ffhp);
 	fill_post_wcc(tfhp);
 	unlock_rename(tdentry, fdentry);
-	ffhp->fh_locked = tfhp->fh_locked = 0;
+	ffhp->fh_locked = tfhp->fh_locked = false;
 	fh_drop_write(ffhp);
 
 out:

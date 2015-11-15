@@ -27,20 +27,6 @@
 #include <nvif/class.h>
 
 /*******************************************************************************
- * Graphics object classes
- ******************************************************************************/
-
-static struct nvkm_oclass
-gf108_gr_sclass[] = {
-	{ FERMI_TWOD_A, &nvkm_object_ofuncs },
-	{ FERMI_MEMORY_TO_MEMORY_FORMAT_A, &nvkm_object_ofuncs },
-	{ FERMI_A, &gf100_fermi_ofuncs, gf100_gr_9097_omthds },
-	{ FERMI_B, &gf100_fermi_ofuncs, gf100_gr_9097_omthds },
-	{ FERMI_COMPUTE_A, &nvkm_object_ofuncs, gf100_gr_90c0_omthds },
-	{}
-};
-
-/*******************************************************************************
  * PGRAPH register lists
  ******************************************************************************/
 
@@ -117,18 +103,25 @@ gf108_gr_pack_mmio[] = {
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
-struct nvkm_oclass *
-gf108_gr_oclass = &(struct gf100_gr_oclass) {
-	.base.handle = NV_ENGINE(GR, 0xc1),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_gr_ctor,
-		.dtor = gf100_gr_dtor,
-		.init = gf100_gr_init,
-		.fini = _nvkm_gr_fini,
-	},
-	.cclass = &gf108_grctx_oclass,
-	.sclass = gf108_gr_sclass,
+static const struct gf100_gr_func
+gf108_gr = {
+	.init = gf100_gr_init,
 	.mmio = gf108_gr_pack_mmio,
 	.fecs.ucode = &gf100_gr_fecs_ucode,
 	.gpccs.ucode = &gf100_gr_gpccs_ucode,
-}.base;
+	.grctx = &gf108_grctx,
+	.sclass = {
+		{ -1, -1, FERMI_TWOD_A },
+		{ -1, -1, FERMI_MEMORY_TO_MEMORY_FORMAT_A },
+		{ -1, -1, FERMI_A, &gf100_fermi },
+		{ -1, -1, FERMI_B, &gf100_fermi },
+		{ -1, -1, FERMI_COMPUTE_A },
+		{}
+	}
+};
+
+int
+gf108_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+{
+	return gf100_gr_new_(&gf108_gr, device, index, pgr);
+}

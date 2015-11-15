@@ -1861,8 +1861,12 @@ davinci_emac_of_get_pdata(struct platform_device *pdev, struct emac_priv *priv)
 	pdata->no_bd_ram = of_property_read_bool(np, "ti,davinci-no-bd-ram");
 
 	priv->phy_node = of_parse_phandle(np, "phy-handle", 0);
-	if (!priv->phy_node)
-		pdata->phy_id = NULL;
+	if (!priv->phy_node) {
+		if (!of_phy_is_fixed_link(np))
+			pdata->phy_id = NULL;
+		else if (of_phy_register_fixed_link(np) >= 0)
+			priv->phy_node = of_node_get(np);
+	}
 
 	auxdata = pdev->dev.platform_data;
 	if (auxdata) {
@@ -1882,51 +1886,13 @@ davinci_emac_of_get_pdata(struct platform_device *pdev, struct emac_priv *priv)
 	return  pdata;
 }
 
-static int davinci_emac_3517_get_macid(struct device *dev, u16 offset,
-				       int slave, u8 *mac_addr)
-{
-	u32 macid_lsb;
-	u32 macid_msb;
-	struct regmap *syscon;
-
-	syscon = syscon_regmap_lookup_by_phandle(dev->of_node, "syscon");
-	if (IS_ERR(syscon)) {
-		if (PTR_ERR(syscon) == -ENODEV)
-			return 0;
-		return PTR_ERR(syscon);
-	}
-
-	regmap_read(syscon, offset, &macid_lsb);
-	regmap_read(syscon, offset + 4, &macid_msb);
-
-	mac_addr[0] = (macid_msb >> 16) & 0xff;
-	mac_addr[1] = (macid_msb >> 8)  & 0xff;
-	mac_addr[2] = macid_msb & 0xff;
-	mac_addr[3] = (macid_lsb >> 16) & 0xff;
-	mac_addr[4] = (macid_lsb >> 8)  & 0xff;
-	mac_addr[5] = macid_lsb & 0xff;
-
-	return 0;
-}
-
 static int davinci_emac_try_get_mac(struct platform_device *pdev,
 				    int instance, u8 *mac_addr)
 {
-	int error = -EINVAL;
-
 	if (!pdev->dev.of_node)
-		return error;
+		return -EINVAL;
 
-	if (of_device_is_compatible(pdev->dev.of_node, "ti,am3517-emac"))
-		error = davinci_emac_3517_get_macid(&pdev->dev, 0x110,
-						    0, mac_addr);
-	else if (of_device_is_compatible(pdev->dev.of_node,
-					 "ti,dm816-emac"))
-		error = cpsw_am33xx_cm_get_macid(&pdev->dev, 0x30,
-						 instance,
-						 mac_addr);
-
-	return error;
+	return ti_cm_get_macid(&pdev->dev, instance, mac_addr);
 }
 
 /**
@@ -2004,8 +1970,10 @@ static int davinci_emac_probe(struct platform_device *pdev)
 	if (res_ctrl) {
 		priv->ctrl_base =
 			devm_ioremap_resource(&pdev->dev, res_ctrl);
-		if (IS_ERR(priv->ctrl_base))
+		if (IS_ERR(priv->ctrl_base)) {
+			rc = PTR_ERR(priv->ctrl_base);
 			goto no_pdata;
+		}
 	} else {
 		priv->ctrl_base = priv->remap_addr + pdata->ctrl_mod_reg_offset;
 	}

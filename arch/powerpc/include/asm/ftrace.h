@@ -2,7 +2,7 @@
 #define _ASM_POWERPC_FTRACE
 
 #ifdef CONFIG_FUNCTION_TRACER
-#define MCOUNT_ADDR		((long)(_mcount))
+#define MCOUNT_ADDR		((unsigned long)(_mcount))
 #define MCOUNT_INSN_SIZE	4 /* sizeof mcount call */
 
 #ifdef __ASSEMBLY__

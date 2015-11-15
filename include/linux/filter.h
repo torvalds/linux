@@ -12,6 +12,8 @@
 #include <linux/linkage.h>
 #include <linux/printk.h>
 #include <linux/workqueue.h>
+#include <linux/sched.h>
+#include <net/sch_generic.h>
 
 #include <asm/cacheflush.h>
 
@@ -301,10 +303,6 @@ struct bpf_prog_aux;
 	bpf_size;						\
 })
 
-/* Macro to invoke filter function. */
-#define SK_RUN_FILTER(filter, ctx) \
-	(*filter->prog->bpf_func)(ctx, filter->prog->insnsi)
-
 #ifdef CONFIG_COMPAT
 /* A struct sock_filter is architecture independent. */
 struct compat_sock_fprog {
@@ -325,8 +323,12 @@ struct bpf_binary_header {
 
 struct bpf_prog {
 	u16			pages;		/* Number of allocated pages */
-	bool			jited;		/* Is our filter JIT'ed? */
-	bool			gpl_compatible;	/* Is our filter GPL compatible? */
+	kmemcheck_bitfield_begin(meta);
+	u16			jited:1,	/* Is our filter JIT'ed? */
+				gpl_compatible:1, /* Is filter GPL compatible? */
+				cb_access:1,	/* Is control block accessed? */
+				dst_needed:1;	/* Do we need dst entry? */
+	kmemcheck_bitfield_end(meta);
 	u32			len;		/* Number of filter blocks */
 	enum bpf_prog_type	type;		/* Type of BPF program */
 	struct bpf_prog_aux	*aux;		/* Auxiliary fields */
@@ -348,10 +350,53 @@ struct sk_filter {
 
 #define BPF_PROG_RUN(filter, ctx)  (*filter->bpf_func)(ctx, filter->insnsi)
 
+static inline u32 bpf_prog_run_save_cb(const struct bpf_prog *prog,
+				       struct sk_buff *skb)
+{
+	u8 *cb_data = qdisc_skb_cb(skb)->data;
+	u8 saved_cb[QDISC_CB_PRIV_LEN];
+	u32 res;
+
+	BUILD_BUG_ON(FIELD_SIZEOF(struct __sk_buff, cb) !=
+		     QDISC_CB_PRIV_LEN);
+
+	if (unlikely(prog->cb_access)) {
+		memcpy(saved_cb, cb_data, sizeof(saved_cb));
+		memset(cb_data, 0, sizeof(saved_cb));
+	}
+
+	res = BPF_PROG_RUN(prog, skb);
+
+	if (unlikely(prog->cb_access))
+		memcpy(cb_data, saved_cb, sizeof(saved_cb));
+
+	return res;
+}
+
+static inline u32 bpf_prog_run_clear_cb(const struct bpf_prog *prog,
+					struct sk_buff *skb)
+{
+	u8 *cb_data = qdisc_skb_cb(skb)->data;
+
+	if (unlikely(prog->cb_access))
+		memset(cb_data, 0, QDISC_CB_PRIV_LEN);
+	return BPF_PROG_RUN(prog, skb);
+}
+
 static inline unsigned int bpf_prog_size(unsigned int proglen)
 {
 	return max(sizeof(struct bpf_prog),
 		   offsetof(struct bpf_prog, insns[proglen]));
+}
+
+static inline bool bpf_prog_was_classic(const struct bpf_prog *prog)
+{
+	/* When classic BPF programs have been loaded and the arch
+	 * does not have a classic BPF JIT (anymore), they have been
+	 * converted via bpf_migrate_filter() to eBPF and thus always
+	 * have an unspec program type.
+	 */
+	return prog->type == BPF_PROG_TYPE_UNSPEC;
 }
 
 #define bpf_classic_proglen(fprog) (fprog->len * sizeof(fprog->filter[0]))
@@ -397,7 +442,7 @@ typedef int (*bpf_aux_classic_check_t)(struct sock_filter *filter,
 
 int bpf_prog_create(struct bpf_prog **pfp, struct sock_fprog_kern *fprog);
 int bpf_prog_create_from_user(struct bpf_prog **pfp, struct sock_fprog *fprog,
-			      bpf_aux_classic_check_t trans);
+			      bpf_aux_classic_check_t trans, bool save_orig);
 void bpf_prog_destroy(struct bpf_prog *fp);
 
 int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk);
@@ -411,6 +456,7 @@ void sk_filter_uncharge(struct sock *sk, struct sk_filter *fp);
 
 u64 __bpf_call_base(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5);
 void bpf_int_jit_compile(struct bpf_prog *fp);
+bool bpf_helper_changes_skb_data(void *func);
 
 #ifdef CONFIG_BPF_JIT
 typedef void (*bpf_jit_fill_hole_t)(void *area, unsigned int size);
@@ -427,8 +473,9 @@ void bpf_jit_free(struct bpf_prog *fp);
 static inline void bpf_jit_dump(unsigned int flen, unsigned int proglen,
 				u32 pass, void *image)
 {
-	pr_err("flen=%u proglen=%u pass=%u image=%pK\n",
-	       flen, proglen, pass, image);
+	pr_err("flen=%u proglen=%u pass=%u image=%pK from=%s pid=%d\n", flen,
+	       proglen, pass, image, current->comm, task_pid_nr(current));
+
 	if (image)
 		print_hex_dump(KERN_ERR, "JIT code: ", DUMP_PREFIX_OFFSET,
 			       16, 1, image, proglen, false);

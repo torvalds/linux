@@ -63,7 +63,9 @@
 
 	soc {
 		ranges = <MBUS_ID(0xf0, 0x01) 0 0 0xd0000000 0x100000
-			  MBUS_ID(0x01, 0x1d) 0 0 0xfff00000 0x100000>;
+			  MBUS_ID(0x01, 0x1d) 0 0 0xfff00000 0x100000
+			  MBUS_ID(0x09, 0x09) 0 0 0xf8100000 0x10000
+			  MBUS_ID(0x09, 0x05) 0 0 0xf8110000 0x10000>;
 
 		pcie-controller {
 			status = "okay";
@@ -88,53 +90,16 @@
 		};
 
 		internal-regs {
-			/* Two rear eSATA ports */
-			sata@a0000 {
-				nr-ports = <2>;
-				status = "okay";
-			};
 
-			serial@12000 {
-				status = "okay";
-			};
-
-			mdio {
-				phy0: ethernet-phy@0 { /* Marvell 88E1318 */
-					reg = <0>;
-				};
-
-				phy1: ethernet-phy@1 { /* Marvell 88E1318 */
-					reg = <1>;
-				};
-			};
-
-			ethernet@70000 {
-				status = "okay";
-				phy = <&phy0>;
-				phy-mode = "rgmii-id";
-			};
-
-			ethernet@74000 {
-				status = "okay";
-				phy = <&phy1>;
-				phy-mode = "rgmii-id";
-			};
-
-			/* Front USB 2.0 port */
-			usb@50000 {
-				status = "okay";
+			/* RTC is provided by Intersil ISL12057 I2C RTC chip */
+			rtc@10300 {
+				status = "disabled";
 			};
 
 			i2c@11000 {
 				compatible = "marvell,mv64xxx-i2c";
 				clock-frequency = <400000>;
 				status = "okay";
-
-				isl12057: isl12057@68 {
-					compatible = "isil,isl12057";
-					reg = <0x68>;
-					isil,irq2-can-wakeup-machine;
-				};
 
 				/* Controller for rear fan #1 of 3 (Protechnic
 				 * MGT4012XB-O20, 8000RPM) near eSATA port */
@@ -172,6 +137,49 @@
 					compatible = "gmt,g751";
 					reg = <0x4c>;
 				};
+
+				isl12057: isl12057@68 {
+					compatible = "isil,isl12057";
+					reg = <0x68>;
+					isil,irq2-can-wakeup-machine;
+				};
+			};
+
+			serial@12000 {
+				status = "okay";
+			};
+
+			/* Front USB 2.0 port */
+			usb@50000 {
+				status = "okay";
+			};
+
+			mdio {
+				phy0: ethernet-phy@0 { /* Marvell 88E1318 */
+					reg = <0>;
+				};
+
+				phy1: ethernet-phy@1 { /* Marvell 88E1318 */
+					reg = <1>;
+				};
+			};
+
+			ethernet@70000 {
+				status = "okay";
+				phy = <&phy0>;
+				phy-mode = "rgmii-id";
+			};
+
+			ethernet@74000 {
+				status = "okay";
+				phy = <&phy1>;
+				phy-mode = "rgmii-id";
+			};
+
+			/* Two rear eSATA ports */
+			sata@a0000 {
+				nr-ports = <2>;
+				status = "okay";
 			};
 
 			nand@d0000 {

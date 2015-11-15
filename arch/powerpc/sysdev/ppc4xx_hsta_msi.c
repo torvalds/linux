@@ -51,7 +51,7 @@ static int hsta_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		return -EINVAL;
 	}
 
-	list_for_each_entry(entry, &dev->msi_list, list) {
+	for_each_pci_msi_entry(entry, dev) {
 		irq = msi_bitmap_alloc_hwirqs(&ppc4xx_hsta_msi.bmp, 1);
 		if (irq < 0) {
 			pr_debug("%s: Failed to allocate msi interrupt\n",
@@ -109,7 +109,7 @@ static void hsta_teardown_msi_irqs(struct pci_dev *dev)
 	struct msi_desc *entry;
 	int irq;
 
-	list_for_each_entry(entry, &dev->msi_list, list) {
+	for_each_pci_msi_entry(entry, dev) {
 		if (entry->irq == NO_IRQ)
 			continue;
 
@@ -132,7 +132,7 @@ static int hsta_msi_probe(struct platform_device *pdev)
 	struct pci_controller *phb;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (IS_ERR(mem)) {
+	if (!mem) {
 		dev_err(dev, "Unable to get mmio space\n");
 		return -EINVAL;
 	}
@@ -157,7 +157,7 @@ static int hsta_msi_probe(struct platform_device *pdev)
 		goto out;
 
 	ppc4xx_hsta_msi.irq_map = kmalloc(sizeof(int) * irq_count, GFP_KERNEL);
-	if (IS_ERR(ppc4xx_hsta_msi.irq_map)) {
+	if (!ppc4xx_hsta_msi.irq_map) {
 		ret = -ENOMEM;
 		goto out1;
 	}

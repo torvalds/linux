@@ -90,20 +90,23 @@ static unsigned long __mtk_pll_recalc_rate(struct mtk_clk_pll *pll, u32 fin,
 static void mtk_pll_set_rate_regs(struct mtk_clk_pll *pll, u32 pcw,
 		int postdiv)
 {
-	u32 con1, pd, val;
+	u32 con1, val;
 	int pll_en;
-
-	/* set postdiv */
-	pd = readl(pll->pd_addr);
-	pd &= ~(POSTDIV_MASK << pll->data->pd_shift);
-	pd |= (ffs(postdiv) - 1) << pll->data->pd_shift;
-	writel(pd, pll->pd_addr);
 
 	pll_en = readl(pll->base_addr + REG_CON0) & CON0_BASE_EN;
 
-	/* set pcw */
-	val = readl(pll->pcw_addr);
+	/* set postdiv */
+	val = readl(pll->pd_addr);
+	val &= ~(POSTDIV_MASK << pll->data->pd_shift);
+	val |= (ffs(postdiv) - 1) << pll->data->pd_shift;
 
+	/* postdiv and pcw need to set at the same time if on same register */
+	if (pll->pd_addr != pll->pcw_addr) {
+		writel(val, pll->pd_addr);
+		val = readl(pll->pcw_addr);
+	}
+
+	/* set pcw */
 	val &= ~GENMASK(pll->data->pcw_shift + pll->data->pcwbits - 1,
 			pll->data->pcw_shift);
 	val |= pcw << pll->data->pcw_shift;
@@ -135,16 +138,28 @@ static void mtk_pll_calc_values(struct mtk_clk_pll *pll, u32 *pcw, u32 *postdiv,
 		u32 freq, u32 fin)
 {
 	unsigned long fmin = 1000 * MHZ;
+	const struct mtk_pll_div_table *div_table = pll->data->div_table;
 	u64 _pcw;
 	u32 val;
 
 	if (freq > pll->data->fmax)
 		freq = pll->data->fmax;
 
-	for (val = 0; val < 4; val++) {
+	if (div_table) {
+		if (freq > div_table[0].freq)
+			freq = div_table[0].freq;
+
+		for (val = 0; div_table[val + 1].freq != 0; val++) {
+			if (freq > div_table[val + 1].freq)
+				break;
+		}
 		*postdiv = 1 << val;
-		if (freq * *postdiv >= fmin)
-			break;
+	} else {
+		for (val = 0; val < 5; val++) {
+			*postdiv = 1 << val;
+			if ((u64)freq * *postdiv >= fmin)
+				break;
+		}
 	}
 
 	/* _pcw = freq * postdiv / fin * 2^pcwfbits */
@@ -302,7 +317,7 @@ void __init mtk_clk_register_plls(struct device_node *node,
 		const struct mtk_pll_data *plls, int num_plls, struct clk_onecell_data *clk_data)
 {
 	void __iomem *base;
-	int r, i;
+	int i;
 	struct clk *clk;
 
 	base = of_iomap(node, 0);
@@ -324,9 +339,4 @@ void __init mtk_clk_register_plls(struct device_node *node,
 
 		clk_data->clks[pll->id] = clk;
 	}
-
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
-	if (r)
-		pr_err("%s(): could not register clock provider: %d\n",
-			__func__, r);
 }

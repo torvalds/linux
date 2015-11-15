@@ -583,7 +583,6 @@ MODULE_DEVICE_TABLE(i2c, mt9v011_id);
 
 static struct i2c_driver mt9v011_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "mt9v011",
 	},
 	.probe		= mt9v011_probe,

@@ -23,7 +23,7 @@
 #define ECHOCARD_HAS_INPUT_GAIN
 #define ECHOCARD_HAS_DIGITAL_IO
 #define ECHOCARD_HAS_EXTERNAL_CLOCK
-#define ECHOCARD_HAS_ADAT	FALSE
+#define ECHOCARD_HAS_ADAT	false
 
 /* Pipe indexes */
 #define PX_ANALOG_OUT	0	/* 8 */

@@ -105,25 +105,41 @@ static void mlx5e_del_eth_addr_from_flow_table(struct mlx5e_priv *priv,
 {
 	void *ft = priv->ft.main;
 
-	if (ai->tt_vec & (1 << MLX5E_TT_IPV6_TCP))
+	if (ai->tt_vec & BIT(MLX5E_TT_IPV6_IPSEC_ESP))
+		mlx5_del_flow_table_entry(ft,
+					  ai->ft_ix[MLX5E_TT_IPV6_IPSEC_ESP]);
+
+	if (ai->tt_vec & BIT(MLX5E_TT_IPV4_IPSEC_ESP))
+		mlx5_del_flow_table_entry(ft,
+					  ai->ft_ix[MLX5E_TT_IPV4_IPSEC_ESP]);
+
+	if (ai->tt_vec & BIT(MLX5E_TT_IPV6_IPSEC_AH))
+		mlx5_del_flow_table_entry(ft,
+					  ai->ft_ix[MLX5E_TT_IPV6_IPSEC_AH]);
+
+	if (ai->tt_vec & BIT(MLX5E_TT_IPV4_IPSEC_AH))
+		mlx5_del_flow_table_entry(ft,
+					  ai->ft_ix[MLX5E_TT_IPV4_IPSEC_AH]);
+
+	if (ai->tt_vec & BIT(MLX5E_TT_IPV6_TCP))
 		mlx5_del_flow_table_entry(ft, ai->ft_ix[MLX5E_TT_IPV6_TCP]);
 
-	if (ai->tt_vec & (1 << MLX5E_TT_IPV4_TCP))
+	if (ai->tt_vec & BIT(MLX5E_TT_IPV4_TCP))
 		mlx5_del_flow_table_entry(ft, ai->ft_ix[MLX5E_TT_IPV4_TCP]);
 
-	if (ai->tt_vec & (1 << MLX5E_TT_IPV6_UDP))
+	if (ai->tt_vec & BIT(MLX5E_TT_IPV6_UDP))
 		mlx5_del_flow_table_entry(ft, ai->ft_ix[MLX5E_TT_IPV6_UDP]);
 
-	if (ai->tt_vec & (1 << MLX5E_TT_IPV4_UDP))
+	if (ai->tt_vec & BIT(MLX5E_TT_IPV4_UDP))
 		mlx5_del_flow_table_entry(ft, ai->ft_ix[MLX5E_TT_IPV4_UDP]);
 
-	if (ai->tt_vec & (1 << MLX5E_TT_IPV6))
+	if (ai->tt_vec & BIT(MLX5E_TT_IPV6))
 		mlx5_del_flow_table_entry(ft, ai->ft_ix[MLX5E_TT_IPV6]);
 
-	if (ai->tt_vec & (1 << MLX5E_TT_IPV4))
+	if (ai->tt_vec & BIT(MLX5E_TT_IPV4))
 		mlx5_del_flow_table_entry(ft, ai->ft_ix[MLX5E_TT_IPV4]);
 
-	if (ai->tt_vec & (1 << MLX5E_TT_ANY))
+	if (ai->tt_vec & BIT(MLX5E_TT_ANY))
 		mlx5_del_flow_table_entry(ft, ai->ft_ix[MLX5E_TT_ANY]);
 }
 
@@ -156,33 +172,37 @@ static u32 mlx5e_get_tt_vec(struct mlx5e_eth_addr_info *ai, int type)
 		switch (eth_addr_type) {
 		case MLX5E_UC:
 			ret =
-				(1 << MLX5E_TT_IPV4_TCP) |
-				(1 << MLX5E_TT_IPV6_TCP) |
-				(1 << MLX5E_TT_IPV4_UDP) |
-				(1 << MLX5E_TT_IPV6_UDP) |
-				(1 << MLX5E_TT_IPV4)     |
-				(1 << MLX5E_TT_IPV6)     |
-				(1 << MLX5E_TT_ANY)      |
+				BIT(MLX5E_TT_IPV4_TCP)       |
+				BIT(MLX5E_TT_IPV6_TCP)       |
+				BIT(MLX5E_TT_IPV4_UDP)       |
+				BIT(MLX5E_TT_IPV6_UDP)       |
+				BIT(MLX5E_TT_IPV4_IPSEC_AH)  |
+				BIT(MLX5E_TT_IPV6_IPSEC_AH)  |
+				BIT(MLX5E_TT_IPV4_IPSEC_ESP) |
+				BIT(MLX5E_TT_IPV6_IPSEC_ESP) |
+				BIT(MLX5E_TT_IPV4)           |
+				BIT(MLX5E_TT_IPV6)           |
+				BIT(MLX5E_TT_ANY)            |
 				0;
 			break;
 
 		case MLX5E_MC_IPV4:
 			ret =
-				(1 << MLX5E_TT_IPV4_UDP) |
-				(1 << MLX5E_TT_IPV4)     |
+				BIT(MLX5E_TT_IPV4_UDP)       |
+				BIT(MLX5E_TT_IPV4)           |
 				0;
 			break;
 
 		case MLX5E_MC_IPV6:
 			ret =
-				(1 << MLX5E_TT_IPV6_UDP) |
-				(1 << MLX5E_TT_IPV6)     |
+				BIT(MLX5E_TT_IPV6_UDP)       |
+				BIT(MLX5E_TT_IPV6)           |
 				0;
 			break;
 
 		case MLX5E_MC_OTHER:
 			ret =
-				(1 << MLX5E_TT_ANY)      |
+				BIT(MLX5E_TT_ANY)            |
 				0;
 			break;
 		}
@@ -191,23 +211,27 @@ static u32 mlx5e_get_tt_vec(struct mlx5e_eth_addr_info *ai, int type)
 
 	case MLX5E_ALLMULTI:
 		ret =
-			(1 << MLX5E_TT_IPV4_UDP) |
-			(1 << MLX5E_TT_IPV6_UDP) |
-			(1 << MLX5E_TT_IPV4)     |
-			(1 << MLX5E_TT_IPV6)     |
-			(1 << MLX5E_TT_ANY)      |
+			BIT(MLX5E_TT_IPV4_UDP) |
+			BIT(MLX5E_TT_IPV6_UDP) |
+			BIT(MLX5E_TT_IPV4)     |
+			BIT(MLX5E_TT_IPV6)     |
+			BIT(MLX5E_TT_ANY)      |
 			0;
 		break;
 
 	default: /* MLX5E_PROMISC */
 		ret =
-			(1 << MLX5E_TT_IPV4_TCP) |
-			(1 << MLX5E_TT_IPV6_TCP) |
-			(1 << MLX5E_TT_IPV4_UDP) |
-			(1 << MLX5E_TT_IPV6_UDP) |
-			(1 << MLX5E_TT_IPV4)     |
-			(1 << MLX5E_TT_IPV6)     |
-			(1 << MLX5E_TT_ANY)      |
+			BIT(MLX5E_TT_IPV4_TCP)       |
+			BIT(MLX5E_TT_IPV6_TCP)       |
+			BIT(MLX5E_TT_IPV4_UDP)       |
+			BIT(MLX5E_TT_IPV6_UDP)       |
+			BIT(MLX5E_TT_IPV4_IPSEC_AH)  |
+			BIT(MLX5E_TT_IPV6_IPSEC_AH)  |
+			BIT(MLX5E_TT_IPV4_IPSEC_ESP) |
+			BIT(MLX5E_TT_IPV6_IPSEC_ESP) |
+			BIT(MLX5E_TT_IPV4)           |
+			BIT(MLX5E_TT_IPV6)           |
+			BIT(MLX5E_TT_ANY)            |
 			0;
 		break;
 	}
@@ -226,6 +250,7 @@ static int __mlx5e_add_eth_addr_rule(struct mlx5e_priv *priv,
 	u8   *match_criteria_dmac;
 	void *ft   = priv->ft.main;
 	u32  *tirn = priv->tirn;
+	u32  *ft_ix;
 	u32  tt_vec;
 	int  err;
 
@@ -261,51 +286,51 @@ static int __mlx5e_add_eth_addr_rule(struct mlx5e_priv *priv,
 
 	tt_vec = mlx5e_get_tt_vec(ai, type);
 
-	if (tt_vec & (1 << MLX5E_TT_ANY)) {
+	ft_ix = &ai->ft_ix[MLX5E_TT_ANY];
+	if (tt_vec & BIT(MLX5E_TT_ANY)) {
 		MLX5_SET(dest_format_struct, dest, destination_id,
 			 tirn[MLX5E_TT_ANY]);
 		err = mlx5_add_flow_table_entry(ft, match_criteria_enable,
 						match_criteria, flow_context,
-						&ai->ft_ix[MLX5E_TT_ANY]);
-		if (err) {
-			mlx5e_del_eth_addr_from_flow_table(priv, ai);
-			return err;
-		}
-		ai->tt_vec |= (1 << MLX5E_TT_ANY);
+						ft_ix);
+		if (err)
+			goto err_del_ai;
+
+		ai->tt_vec |= BIT(MLX5E_TT_ANY);
 	}
 
 	match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
 	MLX5_SET_TO_ONES(fte_match_param, match_criteria,
 			 outer_headers.ethertype);
 
-	if (tt_vec & (1 << MLX5E_TT_IPV4)) {
+	ft_ix = &ai->ft_ix[MLX5E_TT_IPV4];
+	if (tt_vec & BIT(MLX5E_TT_IPV4)) {
 		MLX5_SET(fte_match_param, match_value, outer_headers.ethertype,
 			 ETH_P_IP);
 		MLX5_SET(dest_format_struct, dest, destination_id,
 			 tirn[MLX5E_TT_IPV4]);
 		err = mlx5_add_flow_table_entry(ft, match_criteria_enable,
 						match_criteria, flow_context,
-						&ai->ft_ix[MLX5E_TT_IPV4]);
-		if (err) {
-			mlx5e_del_eth_addr_from_flow_table(priv, ai);
-			return err;
-		}
-		ai->tt_vec |= (1 << MLX5E_TT_IPV4);
+						ft_ix);
+		if (err)
+			goto err_del_ai;
+
+		ai->tt_vec |= BIT(MLX5E_TT_IPV4);
 	}
 
-	if (tt_vec & (1 << MLX5E_TT_IPV6)) {
+	ft_ix = &ai->ft_ix[MLX5E_TT_IPV6];
+	if (tt_vec & BIT(MLX5E_TT_IPV6)) {
 		MLX5_SET(fte_match_param, match_value, outer_headers.ethertype,
 			 ETH_P_IPV6);
 		MLX5_SET(dest_format_struct, dest, destination_id,
 			 tirn[MLX5E_TT_IPV6]);
 		err = mlx5_add_flow_table_entry(ft, match_criteria_enable,
 						match_criteria, flow_context,
-						&ai->ft_ix[MLX5E_TT_IPV6]);
-		if (err) {
-			mlx5e_del_eth_addr_from_flow_table(priv, ai);
-			return err;
-		}
-		ai->tt_vec |= (1 << MLX5E_TT_IPV6);
+						ft_ix);
+		if (err)
+			goto err_del_ai;
+
+		ai->tt_vec |= BIT(MLX5E_TT_IPV6);
 	}
 
 	MLX5_SET_TO_ONES(fte_match_param, match_criteria,
@@ -313,70 +338,141 @@ static int __mlx5e_add_eth_addr_rule(struct mlx5e_priv *priv,
 	MLX5_SET(fte_match_param, match_value, outer_headers.ip_protocol,
 		 IPPROTO_UDP);
 
-	if (tt_vec & (1 << MLX5E_TT_IPV4_UDP)) {
+	ft_ix = &ai->ft_ix[MLX5E_TT_IPV4_UDP];
+	if (tt_vec & BIT(MLX5E_TT_IPV4_UDP)) {
 		MLX5_SET(fte_match_param, match_value, outer_headers.ethertype,
 			 ETH_P_IP);
 		MLX5_SET(dest_format_struct, dest, destination_id,
 			 tirn[MLX5E_TT_IPV4_UDP]);
 		err = mlx5_add_flow_table_entry(ft, match_criteria_enable,
 						match_criteria, flow_context,
-						&ai->ft_ix[MLX5E_TT_IPV4_UDP]);
-		if (err) {
-			mlx5e_del_eth_addr_from_flow_table(priv, ai);
-			return err;
-		}
-		ai->tt_vec |= (1 << MLX5E_TT_IPV4_UDP);
+						ft_ix);
+		if (err)
+			goto err_del_ai;
+
+		ai->tt_vec |= BIT(MLX5E_TT_IPV4_UDP);
 	}
 
-	if (tt_vec & (1 << MLX5E_TT_IPV6_UDP)) {
+	ft_ix = &ai->ft_ix[MLX5E_TT_IPV6_UDP];
+	if (tt_vec & BIT(MLX5E_TT_IPV6_UDP)) {
 		MLX5_SET(fte_match_param, match_value, outer_headers.ethertype,
 			 ETH_P_IPV6);
 		MLX5_SET(dest_format_struct, dest, destination_id,
 			 tirn[MLX5E_TT_IPV6_UDP]);
 		err = mlx5_add_flow_table_entry(ft, match_criteria_enable,
 						match_criteria, flow_context,
-						&ai->ft_ix[MLX5E_TT_IPV6_UDP]);
-		if (err) {
-			mlx5e_del_eth_addr_from_flow_table(priv, ai);
-			return err;
-		}
-		ai->tt_vec |= (1 << MLX5E_TT_IPV6_UDP);
+						ft_ix);
+		if (err)
+			goto err_del_ai;
+
+		ai->tt_vec |= BIT(MLX5E_TT_IPV6_UDP);
 	}
 
 	MLX5_SET(fte_match_param, match_value, outer_headers.ip_protocol,
 		 IPPROTO_TCP);
 
-	if (tt_vec & (1 << MLX5E_TT_IPV4_TCP)) {
+	ft_ix = &ai->ft_ix[MLX5E_TT_IPV4_TCP];
+	if (tt_vec & BIT(MLX5E_TT_IPV4_TCP)) {
 		MLX5_SET(fte_match_param, match_value, outer_headers.ethertype,
 			 ETH_P_IP);
 		MLX5_SET(dest_format_struct, dest, destination_id,
 			 tirn[MLX5E_TT_IPV4_TCP]);
 		err = mlx5_add_flow_table_entry(ft, match_criteria_enable,
 						match_criteria, flow_context,
-						&ai->ft_ix[MLX5E_TT_IPV4_TCP]);
-		if (err) {
-			mlx5e_del_eth_addr_from_flow_table(priv, ai);
-			return err;
-		}
-		ai->tt_vec |= (1 << MLX5E_TT_IPV4_TCP);
+						ft_ix);
+		if (err)
+			goto err_del_ai;
+
+		ai->tt_vec |= BIT(MLX5E_TT_IPV4_TCP);
 	}
 
-	if (tt_vec & (1 << MLX5E_TT_IPV6_TCP)) {
+	ft_ix = &ai->ft_ix[MLX5E_TT_IPV6_TCP];
+	if (tt_vec & BIT(MLX5E_TT_IPV6_TCP)) {
 		MLX5_SET(fte_match_param, match_value, outer_headers.ethertype,
 			 ETH_P_IPV6);
 		MLX5_SET(dest_format_struct, dest, destination_id,
 			 tirn[MLX5E_TT_IPV6_TCP]);
 		err = mlx5_add_flow_table_entry(ft, match_criteria_enable,
 						match_criteria, flow_context,
-						&ai->ft_ix[MLX5E_TT_IPV6_TCP]);
-		if (err) {
-			mlx5e_del_eth_addr_from_flow_table(priv, ai);
-			return err;
-		}
-		ai->tt_vec |= (1 << MLX5E_TT_IPV6_TCP);
+						ft_ix);
+		if (err)
+			goto err_del_ai;
+
+		ai->tt_vec |= BIT(MLX5E_TT_IPV6_TCP);
+	}
+
+	MLX5_SET(fte_match_param, match_value, outer_headers.ip_protocol,
+		 IPPROTO_AH);
+
+	ft_ix = &ai->ft_ix[MLX5E_TT_IPV4_IPSEC_AH];
+	if (tt_vec & BIT(MLX5E_TT_IPV4_IPSEC_AH)) {
+		MLX5_SET(fte_match_param, match_value, outer_headers.ethertype,
+			 ETH_P_IP);
+		MLX5_SET(dest_format_struct, dest, destination_id,
+			 tirn[MLX5E_TT_IPV4_IPSEC_AH]);
+		err = mlx5_add_flow_table_entry(ft, match_criteria_enable,
+						match_criteria, flow_context,
+						ft_ix);
+		if (err)
+			goto err_del_ai;
+
+		ai->tt_vec |= BIT(MLX5E_TT_IPV4_IPSEC_AH);
+	}
+
+	ft_ix = &ai->ft_ix[MLX5E_TT_IPV6_IPSEC_AH];
+	if (tt_vec & BIT(MLX5E_TT_IPV6_IPSEC_AH)) {
+		MLX5_SET(fte_match_param, match_value, outer_headers.ethertype,
+			 ETH_P_IPV6);
+		MLX5_SET(dest_format_struct, dest, destination_id,
+			 tirn[MLX5E_TT_IPV6_IPSEC_AH]);
+		err = mlx5_add_flow_table_entry(ft, match_criteria_enable,
+						match_criteria, flow_context,
+						ft_ix);
+		if (err)
+			goto err_del_ai;
+
+		ai->tt_vec |= BIT(MLX5E_TT_IPV6_IPSEC_AH);
+	}
+
+	MLX5_SET(fte_match_param, match_value, outer_headers.ip_protocol,
+		 IPPROTO_ESP);
+
+	ft_ix = &ai->ft_ix[MLX5E_TT_IPV4_IPSEC_ESP];
+	if (tt_vec & BIT(MLX5E_TT_IPV4_IPSEC_ESP)) {
+		MLX5_SET(fte_match_param, match_value, outer_headers.ethertype,
+			 ETH_P_IP);
+		MLX5_SET(dest_format_struct, dest, destination_id,
+			 tirn[MLX5E_TT_IPV4_IPSEC_ESP]);
+		err = mlx5_add_flow_table_entry(ft, match_criteria_enable,
+						match_criteria, flow_context,
+						ft_ix);
+		if (err)
+			goto err_del_ai;
+
+		ai->tt_vec |= BIT(MLX5E_TT_IPV4_IPSEC_ESP);
+	}
+
+	ft_ix = &ai->ft_ix[MLX5E_TT_IPV6_IPSEC_ESP];
+	if (tt_vec & BIT(MLX5E_TT_IPV6_IPSEC_ESP)) {
+		MLX5_SET(fte_match_param, match_value, outer_headers.ethertype,
+			 ETH_P_IPV6);
+		MLX5_SET(dest_format_struct, dest, destination_id,
+			 tirn[MLX5E_TT_IPV6_IPSEC_ESP]);
+		err = mlx5_add_flow_table_entry(ft, match_criteria_enable,
+						match_criteria, flow_context,
+						ft_ix);
+		if (err)
+			goto err_del_ai;
+
+		ai->tt_vec |= BIT(MLX5E_TT_IPV6_IPSEC_ESP);
 	}
 
 	return 0;
+
+err_del_ai:
+	mlx5e_del_eth_addr_from_flow_table(priv, ai);
+
+	return err;
 }
 
 static int mlx5e_add_eth_addr_rule(struct mlx5e_priv *priv,
@@ -498,44 +594,32 @@ static void mlx5e_del_vlan_rule(struct mlx5e_priv *priv,
 
 void mlx5e_enable_vlan_filter(struct mlx5e_priv *priv)
 {
-	WARN_ON(!mutex_is_locked(&priv->state_lock));
+	if (!priv->vlan.filter_disabled)
+		return;
 
-	if (priv->vlan.filter_disabled) {
-		priv->vlan.filter_disabled = false;
-		if (test_bit(MLX5E_STATE_OPENED, &priv->state))
-			mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_VID,
-					    0);
-	}
+	priv->vlan.filter_disabled = false;
+	if (priv->netdev->flags & IFF_PROMISC)
+		return;
+	mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_VID, 0);
 }
 
 void mlx5e_disable_vlan_filter(struct mlx5e_priv *priv)
 {
-	WARN_ON(!mutex_is_locked(&priv->state_lock));
+	if (priv->vlan.filter_disabled)
+		return;
 
-	if (!priv->vlan.filter_disabled) {
-		priv->vlan.filter_disabled = true;
-		if (test_bit(MLX5E_STATE_OPENED, &priv->state))
-			mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_VID,
-					    0);
-	}
+	priv->vlan.filter_disabled = true;
+	if (priv->netdev->flags & IFF_PROMISC)
+		return;
+	mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_VID, 0);
 }
 
 int mlx5e_vlan_rx_add_vid(struct net_device *dev, __always_unused __be16 proto,
 			  u16 vid)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	int err = 0;
 
-	mutex_lock(&priv->state_lock);
-
-	set_bit(vid, priv->vlan.active_vlans);
-	if (test_bit(MLX5E_STATE_OPENED, &priv->state))
-		err = mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID,
-					  vid);
-
-	mutex_unlock(&priv->state_lock);
-
-	return err;
+	return mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID, vid);
 }
 
 int mlx5e_vlan_rx_kill_vid(struct net_device *dev, __always_unused __be16 proto,
@@ -543,54 +627,9 @@ int mlx5e_vlan_rx_kill_vid(struct net_device *dev, __always_unused __be16 proto,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
-	mutex_lock(&priv->state_lock);
-
-	clear_bit(vid, priv->vlan.active_vlans);
-	if (test_bit(MLX5E_STATE_OPENED, &priv->state))
-		mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID, vid);
-
-	mutex_unlock(&priv->state_lock);
+	mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID, vid);
 
 	return 0;
-}
-
-int mlx5e_add_all_vlan_rules(struct mlx5e_priv *priv)
-{
-	u16 vid;
-	int err;
-
-	for_each_set_bit(vid, priv->vlan.active_vlans, VLAN_N_VID) {
-		err = mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID,
-					  vid);
-		if (err)
-			return err;
-	}
-
-	err = mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_UNTAGGED, 0);
-	if (err)
-		return err;
-
-	if (priv->vlan.filter_disabled) {
-		err = mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_VID,
-					  0);
-		if (err)
-			return err;
-	}
-
-	return 0;
-}
-
-void mlx5e_del_all_vlan_rules(struct mlx5e_priv *priv)
-{
-	u16 vid;
-
-	if (priv->vlan.filter_disabled)
-		mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_VID, 0);
-
-	mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_UNTAGGED, 0);
-
-	for_each_set_bit(vid, priv->vlan.active_vlans, VLAN_N_VID)
-		mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID, vid);
 }
 
 #define mlx5e_for_each_hash_node(hn, tmp, hash, i) \
@@ -656,18 +695,21 @@ static void mlx5e_handle_netdev_addr(struct mlx5e_priv *priv)
 	mlx5e_for_each_hash_node(hn, tmp, priv->eth_addr.netdev_mc, i)
 		hn->action = MLX5E_ACTION_DEL;
 
-	if (test_bit(MLX5E_STATE_OPENED, &priv->state))
+	if (!test_bit(MLX5E_STATE_DESTROYING, &priv->state))
 		mlx5e_sync_netdev_addr(priv);
 
 	mlx5e_apply_netdev_addr(priv);
 }
 
-void mlx5e_set_rx_mode_core(struct mlx5e_priv *priv)
+void mlx5e_set_rx_mode_work(struct work_struct *work)
 {
+	struct mlx5e_priv *priv = container_of(work, struct mlx5e_priv,
+					       set_rx_mode_work);
+
 	struct mlx5e_eth_addr_db *ea = &priv->eth_addr;
 	struct net_device *ndev = priv->netdev;
 
-	bool rx_mode_enable   = test_bit(MLX5E_STATE_OPENED, &priv->state);
+	bool rx_mode_enable   = !test_bit(MLX5E_STATE_DESTROYING, &priv->state);
 	bool promisc_enabled   = rx_mode_enable && (ndev->flags & IFF_PROMISC);
 	bool allmulti_enabled  = rx_mode_enable && (ndev->flags & IFF_ALLMULTI);
 	bool broadcast_enabled = rx_mode_enable;
@@ -679,8 +721,12 @@ void mlx5e_set_rx_mode_core(struct mlx5e_priv *priv)
 	bool enable_broadcast  = !ea->broadcast_enabled &&  broadcast_enabled;
 	bool disable_broadcast =  ea->broadcast_enabled && !broadcast_enabled;
 
-	if (enable_promisc)
+	if (enable_promisc) {
 		mlx5e_add_eth_addr_rule(priv, &ea->promisc, MLX5E_PROMISC);
+		if (!priv->vlan.filter_disabled)
+			mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_VID,
+					    0);
+	}
 	if (enable_allmulti)
 		mlx5e_add_eth_addr_rule(priv, &ea->allmulti, MLX5E_ALLMULTI);
 	if (enable_broadcast)
@@ -692,23 +738,16 @@ void mlx5e_set_rx_mode_core(struct mlx5e_priv *priv)
 		mlx5e_del_eth_addr_from_flow_table(priv, &ea->broadcast);
 	if (disable_allmulti)
 		mlx5e_del_eth_addr_from_flow_table(priv, &ea->allmulti);
-	if (disable_promisc)
+	if (disable_promisc) {
+		if (!priv->vlan.filter_disabled)
+			mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_VID,
+					    0);
 		mlx5e_del_eth_addr_from_flow_table(priv, &ea->promisc);
+	}
 
 	ea->promisc_enabled   = promisc_enabled;
 	ea->allmulti_enabled  = allmulti_enabled;
 	ea->broadcast_enabled = broadcast_enabled;
-}
-
-void mlx5e_set_rx_mode_work(struct work_struct *work)
-{
-	struct mlx5e_priv *priv = container_of(work, struct mlx5e_priv,
-					       set_rx_mode_work);
-
-	mutex_lock(&priv->state_lock);
-	if (test_bit(MLX5E_STATE_OPENED, &priv->state))
-		mlx5e_set_rx_mode_core(priv);
-	mutex_unlock(&priv->state_lock);
 }
 
 void mlx5e_init_eth_addr(struct mlx5e_priv *priv)
@@ -725,7 +764,7 @@ static int mlx5e_create_main_flow_table(struct mlx5e_priv *priv)
 	if (!g)
 		return -ENOMEM;
 
-	g[0].log_sz = 2;
+	g[0].log_sz = 3;
 	g[0].match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
 	MLX5_SET_TO_ONES(fte_match_param, g[0].match_criteria,
 			 outer_headers.ethertype);
@@ -833,7 +872,7 @@ static void mlx5e_destroy_vlan_flow_table(struct mlx5e_priv *priv)
 	mlx5_destroy_flow_table(priv->ft.vlan);
 }
 
-int mlx5e_open_flow_table(struct mlx5e_priv *priv)
+int mlx5e_create_flow_tables(struct mlx5e_priv *priv)
 {
 	int err;
 
@@ -845,7 +884,14 @@ int mlx5e_open_flow_table(struct mlx5e_priv *priv)
 	if (err)
 		goto err_destroy_main_flow_table;
 
+	err = mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_UNTAGGED, 0);
+	if (err)
+		goto err_destroy_vlan_flow_table;
+
 	return 0;
+
+err_destroy_vlan_flow_table:
+	mlx5e_destroy_vlan_flow_table(priv);
 
 err_destroy_main_flow_table:
 	mlx5e_destroy_main_flow_table(priv);
@@ -853,8 +899,9 @@ err_destroy_main_flow_table:
 	return err;
 }
 
-void mlx5e_close_flow_table(struct mlx5e_priv *priv)
+void mlx5e_destroy_flow_tables(struct mlx5e_priv *priv)
 {
+	mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_UNTAGGED, 0);
 	mlx5e_destroy_vlan_flow_table(priv);
 	mlx5e_destroy_main_flow_table(priv);
 }

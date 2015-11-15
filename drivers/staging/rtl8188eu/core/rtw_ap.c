@@ -379,7 +379,8 @@ void	expire_timeout_chk(struct adapter *padapter)
 			if (pmlmeext->active_keep_alive_check) {
 				int stainfo_offset;
 
-				stainfo_offset = rtw_stainfo_offset(pstapriv, psta);
+				stainfo_offset =
+					rtw_stainfo_offset(pstapriv, psta);
 				if (stainfo_offset_valid(stainfo_offset))
 					chk_alive_list[chk_alive_num++] = stainfo_offset;
 				continue;
@@ -1584,7 +1585,7 @@ void bss_cap_update_on_sta_join(struct adapter *padapter, struct sta_info *psta)
 		}
 	}
 
-	if (!(psta->capability & WLAN_CAPABILITY_SHORT_SLOT)) {
+	if (!(psta->capability & WLAN_CAPABILITY_SHORT_SLOT_TIME)) {
 		if (!psta->no_short_slot_time_set) {
 			psta->no_short_slot_time_set = 1;
 
@@ -1794,7 +1795,7 @@ int rtw_ap_inform_ch_switch(struct adapter *padapter, u8 new_ch, u8 ch_offset)
 		plist = plist->next;
 
 		issue_action_spct_ch_switch(padapter, psta->hwaddr, new_ch, ch_offset);
-		psta->expire_to = ((pstapriv->expire_to * 2) > 5) ? 5 : (pstapriv->expire_to * 2);
+		psta->expire_to = min_t(unsigned int, pstapriv->expire_to * 2, 5);
 	}
 	spin_unlock_bh(&pstapriv->asoc_list_lock);
 

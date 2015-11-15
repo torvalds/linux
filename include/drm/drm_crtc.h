@@ -86,10 +86,12 @@ static inline uint64_t I642U64(int64_t val)
 }
 
 /* rotation property bits */
+#define DRM_ROTATE_MASK 0x0f
 #define DRM_ROTATE_0	0
 #define DRM_ROTATE_90	1
 #define DRM_ROTATE_180	2
 #define DRM_ROTATE_270	3
+#define DRM_REFLECT_MASK (~DRM_ROTATE_MASK)
 #define DRM_REFLECT_X	4
 #define DRM_REFLECT_Y	5
 
@@ -210,8 +212,6 @@ struct drm_framebuffer {
 	int flags;
 	uint32_t pixel_format; /* fourcc format */
 	struct list_head filp_head;
-	/* if you are using the helper */
-	void *helper_private;
 };
 
 struct drm_property_blob {
@@ -255,12 +255,13 @@ struct drm_atomic_state;
  * @crtc: backpointer to the CRTC
  * @enable: whether the CRTC should be enabled, gates all other state
  * @active: whether the CRTC is actively displaying (used for DPMS)
- * @mode_changed: for use by helpers and drivers when computing state updates
- * @active_changed: for use by helpers and drivers when computing state updates
+ * @planes_changed: planes on this crtc are updated
+ * @mode_changed: crtc_state->mode or crtc_state->enable has been changed
+ * @active_changed: crtc_state->active has been toggled.
+ * @connectors_changed: connectors to this crtc have been updated
  * @plane_mask: bitmask of (1 << drm_plane_index(plane)) of attached planes
  * @last_vblank_count: for helpers and drivers to capture the vblank of the
  * 	update to ensure framebuffer cleanup isn't done too early
- * @planes_changed: for use by helpers and drivers when computing state updates
  * @adjusted_mode: for use by helpers and drivers to compute adjusted mode timings
  * @mode: current mode timings
  * @event: optional pointer to a DRM event to signal upon completion of the
@@ -283,6 +284,7 @@ struct drm_crtc_state {
 	bool planes_changed : 1;
 	bool mode_changed : 1;
 	bool active_changed : 1;
+	bool connectors_changed : 1;
 
 	/* attached planes bitmask:
 	 * WARNING: transitional helpers do not maintain plane_mask so
@@ -405,17 +407,11 @@ struct drm_crtc_funcs {
  * @enabled: is this CRTC enabled?
  * @mode: current mode timings
  * @hwmode: mode timings as programmed to hw regs
- * @invert_dimensions: for purposes of error checking crtc vs fb sizes,
- *    invert the width/height of the crtc.  This is used if the driver
- *    is performing 90 or 270 degree rotated scanout
  * @x: x position on screen
  * @y: y position on screen
  * @funcs: CRTC control functions
  * @gamma_size: size of gamma ramp
  * @gamma_store: gamma ramp values
- * @framedur_ns: precise frame timing
- * @linedur_ns: precise line timing
- * @pixeldur_ns: precise pixel timing
  * @helper_private: mid-layer private data
  * @properties: property tracking for this CRTC
  * @state: current atomic state for this CRTC
@@ -459,17 +455,12 @@ struct drm_crtc {
 	 */
 	struct drm_display_mode hwmode;
 
-	bool invert_dimensions;
-
 	int x, y;
 	const struct drm_crtc_funcs *funcs;
 
 	/* CRTC gamma size for reporting to userspace */
 	uint32_t gamma_size;
 	uint16_t *gamma_store;
-
-	/* Constants needed for precise vblank and swap timestamping. */
-	int framedur_ns, linedur_ns, pixeldur_ns;
 
 	/* if you are using the helper */
 	const void *helper_private;
@@ -525,7 +516,7 @@ struct drm_connector_state {
  * etc.
  */
 struct drm_connector_funcs {
-	void (*dpms)(struct drm_connector *connector, int mode);
+	int (*dpms)(struct drm_connector *connector, int mode);
 	void (*save)(struct drm_connector *connector);
 	void (*restore)(struct drm_connector *connector);
 	void (*reset)(struct drm_connector *connector);
@@ -743,8 +734,6 @@ struct drm_connector {
 	uint8_t num_h_tile, num_v_tile;
 	uint8_t tile_h_loc, tile_v_loc;
 	uint16_t tile_h_size, tile_v_size;
-
-	struct list_head destroy_list;
 };
 
 /**
@@ -863,7 +852,7 @@ struct drm_plane {
 
 	uint32_t possible_crtcs;
 	uint32_t *format_types;
-	uint32_t format_count;
+	unsigned int format_count;
 	bool format_default;
 
 	struct drm_crtc *crtc;
@@ -913,7 +902,6 @@ struct drm_bridge_funcs {
  * @next: the next bridge in the encoder chain
  * @of_node: device node pointer to the bridge
  * @list: to keep track of all added bridges
- * @base: base mode object
  * @funcs: control functions
  * @driver_private: pointer to the bridge driver's internal context
  */
@@ -1015,29 +1003,6 @@ struct drm_mode_config_funcs {
 	struct drm_atomic_state *(*atomic_state_alloc)(struct drm_device *dev);
 	void (*atomic_state_clear)(struct drm_atomic_state *state);
 	void (*atomic_state_free)(struct drm_atomic_state *state);
-};
-
-/**
- * struct drm_mode_group - group of mode setting resources for potential sub-grouping
- * @num_crtcs: CRTC count
- * @num_encoders: encoder count
- * @num_connectors: connector count
- * @num_bridges: bridge count
- * @id_list: list of KMS object IDs in this group
- *
- * Currently this simply tracks the global mode setting state.  But in the
- * future it could allow groups of objects to be set aside into independent
- * control groups for use by different user level processes (e.g. two X servers
- * running simultaneously on different heads, each with their own mode
- * configuration and freedom of mode setting).
- */
-struct drm_mode_group {
-	uint32_t num_crtcs;
-	uint32_t num_encoders;
-	uint32_t num_connectors;
-
-	/* list of object IDs for this group */
-	uint32_t *id_list;
 };
 
 /**
@@ -1291,13 +1256,13 @@ extern int drm_universal_plane_init(struct drm_device *dev,
 				    unsigned long possible_crtcs,
 				    const struct drm_plane_funcs *funcs,
 				    const uint32_t *formats,
-				    uint32_t format_count,
+				    unsigned int format_count,
 				    enum drm_plane_type type);
 extern int drm_plane_init(struct drm_device *dev,
 			  struct drm_plane *plane,
 			  unsigned long possible_crtcs,
 			  const struct drm_plane_funcs *funcs,
-			  const uint32_t *formats, uint32_t format_count,
+			  const uint32_t *formats, unsigned int format_count,
 			  bool is_primary);
 extern void drm_plane_cleanup(struct drm_plane *plane);
 extern unsigned int drm_plane_index(struct drm_plane *plane);
@@ -1324,9 +1289,6 @@ extern const char *drm_get_tv_select_name(int val);
 extern void drm_fb_release(struct drm_file *file_priv);
 extern void drm_property_destroy_user_blobs(struct drm_device *dev,
                                             struct drm_file *file_priv);
-extern int drm_mode_group_init_legacy_group(struct drm_device *dev, struct drm_mode_group *group);
-extern void drm_mode_group_destroy(struct drm_mode_group *group);
-extern void drm_reinit_primary_mode_group(struct drm_device *dev);
 extern bool drm_probe_ddc(struct i2c_adapter *adapter);
 extern struct edid *drm_get_edid(struct drm_connector *connector,
 				 struct i2c_adapter *adapter);
@@ -1416,7 +1378,7 @@ extern int drm_property_add_enum(struct drm_property *property, int index,
 extern int drm_mode_create_dvi_i_properties(struct drm_device *dev);
 extern int drm_mode_create_tv_properties(struct drm_device *dev,
 					 unsigned int num_modes,
-					 char *modes[]);
+					 const char * const modes[]);
 extern int drm_mode_create_scaling_mode_property(struct drm_device *dev);
 extern int drm_mode_create_aspect_ratio_property(struct drm_device *dev);
 extern int drm_mode_create_dirty_info_property(struct drm_device *dev);
@@ -1579,8 +1541,45 @@ static inline struct drm_property *drm_property_find(struct drm_device *dev,
 }
 
 /* Plane list iterator for legacy (overlay only) planes. */
-#define drm_for_each_legacy_plane(plane, planelist) \
-	list_for_each_entry(plane, planelist, head) \
+#define drm_for_each_legacy_plane(plane, dev) \
+	list_for_each_entry(plane, &(dev)->mode_config.plane_list, head) \
 		if (plane->type == DRM_PLANE_TYPE_OVERLAY)
+
+#define drm_for_each_plane(plane, dev) \
+	list_for_each_entry(plane, &(dev)->mode_config.plane_list, head)
+
+#define drm_for_each_crtc(crtc, dev) \
+	list_for_each_entry(crtc, &(dev)->mode_config.crtc_list, head)
+
+static inline void
+assert_drm_connector_list_read_locked(struct drm_mode_config *mode_config)
+{
+	/*
+	 * The connector hotadd/remove code currently grabs both locks when
+	 * updating lists. Hence readers need only hold either of them to be
+	 * safe and the check amounts to
+	 *
+	 * WARN_ON(not_holding(A) && not_holding(B)).
+	 */
+	WARN_ON(!mutex_is_locked(&mode_config->mutex) &&
+		!drm_modeset_is_locked(&mode_config->connection_mutex));
+}
+
+#define drm_for_each_connector(connector, dev) \
+	for (assert_drm_connector_list_read_locked(&(dev)->mode_config),	\
+	     connector = list_first_entry(&(dev)->mode_config.connector_list,	\
+					  struct drm_connector, head);		\
+	     &connector->head != (&(dev)->mode_config.connector_list);		\
+	     connector = list_next_entry(connector, head))
+
+#define drm_for_each_encoder(encoder, dev) \
+	list_for_each_entry(encoder, &(dev)->mode_config.encoder_list, head)
+
+#define drm_for_each_fb(fb, dev) \
+	for (WARN_ON(!mutex_is_locked(&(dev)->mode_config.fb_lock)),		\
+	     fb = list_first_entry(&(dev)->mode_config.fb_list,	\
+					  struct drm_framebuffer, head);	\
+	     &fb->head != (&(dev)->mode_config.fb_list);			\
+	     fb = list_next_entry(fb, head))
 
 #endif /* __DRM_CRTC_H__ */

@@ -322,7 +322,6 @@ MODULE_DEVICE_TABLE(i2c, rc5t583_i2c_id);
 static struct i2c_driver rc5t583_i2c_driver = {
 	.driver = {
 		   .name = "rc5t583",
-		   .owner = THIS_MODULE,
 		   },
 	.probe = rc5t583_i2c_probe,
 	.remove = rc5t583_i2c_remove,

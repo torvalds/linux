@@ -51,8 +51,9 @@ static int i40evf_send_pf_msg(struct i40evf_adapter *adapter,
 
 	err = i40e_aq_send_msg_to_pf(hw, op, 0, msg, len, NULL);
 	if (err)
-		dev_err(&adapter->pdev->dev, "Unable to send opcode %d to PF, error %d, aq status %d\n",
-			op, err, hw->aq.asq_last_status);
+		dev_err(&adapter->pdev->dev, "Unable to send opcode %d to PF, err %s, aq_err %s\n",
+			op, i40evf_stat_str(hw, err),
+			i40evf_aq_str(hw, hw->aq.asq_last_status));
 	return err;
 }
 
@@ -125,8 +126,11 @@ int i40evf_verify_api_ver(struct i40evf_adapter *adapter)
 	}
 
 	pf_vvi = (struct i40e_virtchnl_version_info *)event.msg_buf;
-	if ((pf_vvi->major != I40E_VIRTCHNL_VERSION_MAJOR) ||
-	    (pf_vvi->minor != I40E_VIRTCHNL_VERSION_MINOR))
+	adapter->pf_version = *pf_vvi;
+
+	if ((pf_vvi->major > I40E_VIRTCHNL_VERSION_MAJOR) ||
+	    ((pf_vvi->major == I40E_VIRTCHNL_VERSION_MAJOR) &&
+	     (pf_vvi->minor > I40E_VIRTCHNL_VERSION_MINOR)))
 		err = -EIO;
 
 out_alloc:
@@ -145,8 +149,25 @@ out:
  **/
 int i40evf_send_vf_config_msg(struct i40evf_adapter *adapter)
 {
-	return i40evf_send_pf_msg(adapter, I40E_VIRTCHNL_OP_GET_VF_RESOURCES,
-				  NULL, 0);
+	u32 caps;
+
+	adapter->current_op = I40E_VIRTCHNL_OP_GET_VF_RESOURCES;
+	adapter->aq_required &= ~I40EVF_FLAG_AQ_GET_CONFIG;
+	caps = I40E_VIRTCHNL_VF_OFFLOAD_L2 |
+	       I40E_VIRTCHNL_VF_OFFLOAD_RSS_AQ |
+	       I40E_VIRTCHNL_VF_OFFLOAD_RSS_REG |
+	       I40E_VIRTCHNL_VF_OFFLOAD_VLAN |
+	       I40E_VIRTCHNL_VF_OFFLOAD_WB_ON_ITR;
+	adapter->current_op = I40E_VIRTCHNL_OP_GET_VF_RESOURCES;
+	adapter->aq_required &= ~I40EVF_FLAG_AQ_GET_CONFIG;
+	if (PF_IS_V11(adapter))
+		return i40evf_send_pf_msg(adapter,
+					  I40E_VIRTCHNL_OP_GET_VF_RESOURCES,
+					  (u8 *)&caps, sizeof(caps));
+	else
+		return i40evf_send_pf_msg(adapter,
+					  I40E_VIRTCHNL_OP_GET_VF_RESOURCES,
+					  NULL, 0);
 }
 
 /**
@@ -214,8 +235,8 @@ void i40evf_configure_queues(struct i40evf_adapter *adapter)
 
 	if (adapter->current_op != I40E_VIRTCHNL_OP_UNKNOWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "%s: command %d pending\n",
-			__func__, adapter->current_op);
+		dev_err(&adapter->pdev->dev, "Cannot configure queues, command %d pending\n",
+			adapter->current_op);
 		return;
 	}
 	adapter->current_op = I40E_VIRTCHNL_OP_CONFIG_VSI_QUEUES;
@@ -268,13 +289,13 @@ void i40evf_enable_queues(struct i40evf_adapter *adapter)
 
 	if (adapter->current_op != I40E_VIRTCHNL_OP_UNKNOWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "%s: command %d pending\n",
-			__func__, adapter->current_op);
+		dev_err(&adapter->pdev->dev, "Cannot enable queues, command %d pending\n",
+			adapter->current_op);
 		return;
 	}
 	adapter->current_op = I40E_VIRTCHNL_OP_ENABLE_QUEUES;
 	vqs.vsi_id = adapter->vsi_res->vsi_id;
-	vqs.tx_queues = (1 << adapter->num_active_queues) - 1;
+	vqs.tx_queues = BIT(adapter->num_active_queues) - 1;
 	vqs.rx_queues = vqs.tx_queues;
 	adapter->aq_required &= ~I40EVF_FLAG_AQ_ENABLE_QUEUES;
 	i40evf_send_pf_msg(adapter, I40E_VIRTCHNL_OP_ENABLE_QUEUES,
@@ -293,13 +314,13 @@ void i40evf_disable_queues(struct i40evf_adapter *adapter)
 
 	if (adapter->current_op != I40E_VIRTCHNL_OP_UNKNOWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "%s: command %d pending\n",
-			__func__, adapter->current_op);
+		dev_err(&adapter->pdev->dev, "Cannot disable queues, command %d pending\n",
+			adapter->current_op);
 		return;
 	}
 	adapter->current_op = I40E_VIRTCHNL_OP_DISABLE_QUEUES;
 	vqs.vsi_id = adapter->vsi_res->vsi_id;
-	vqs.tx_queues = (1 << adapter->num_active_queues) - 1;
+	vqs.tx_queues = BIT(adapter->num_active_queues) - 1;
 	vqs.rx_queues = vqs.tx_queues;
 	adapter->aq_required &= ~I40EVF_FLAG_AQ_DISABLE_QUEUES;
 	i40evf_send_pf_msg(adapter, I40E_VIRTCHNL_OP_DISABLE_QUEUES,
@@ -321,8 +342,8 @@ void i40evf_map_queues(struct i40evf_adapter *adapter)
 
 	if (adapter->current_op != I40E_VIRTCHNL_OP_UNKNOWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "%s: command %d pending\n",
-			__func__, adapter->current_op);
+		dev_err(&adapter->pdev->dev, "Cannot map queues to vectors, command %d pending\n",
+			adapter->current_op);
 		return;
 	}
 	adapter->current_op = I40E_VIRTCHNL_OP_CONFIG_IRQ_MAP;
@@ -373,8 +394,8 @@ void i40evf_add_ether_addrs(struct i40evf_adapter *adapter)
 
 	if (adapter->current_op != I40E_VIRTCHNL_OP_UNKNOWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "%s: command %d pending\n",
-			__func__, adapter->current_op);
+		dev_err(&adapter->pdev->dev, "Cannot add filters, command %d pending\n",
+			adapter->current_op);
 		return;
 	}
 	list_for_each_entry(f, &adapter->mac_filter_list, list) {
@@ -390,8 +411,7 @@ void i40evf_add_ether_addrs(struct i40evf_adapter *adapter)
 	len = sizeof(struct i40e_virtchnl_ether_addr_list) +
 	      (count * sizeof(struct i40e_virtchnl_ether_addr));
 	if (len > I40EVF_MAX_AQ_BUF_SIZE) {
-		dev_warn(&adapter->pdev->dev, "%s: Too many MAC address changes in one request\n",
-			 __func__);
+		dev_warn(&adapter->pdev->dev, "Too many add MAC changes in one request\n");
 		count = (I40EVF_MAX_AQ_BUF_SIZE -
 			 sizeof(struct i40e_virtchnl_ether_addr_list)) /
 			sizeof(struct i40e_virtchnl_ether_addr);
@@ -433,8 +453,8 @@ void i40evf_del_ether_addrs(struct i40evf_adapter *adapter)
 
 	if (adapter->current_op != I40E_VIRTCHNL_OP_UNKNOWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "%s: command %d pending\n",
-			__func__, adapter->current_op);
+		dev_err(&adapter->pdev->dev, "Cannot remove filters, command %d pending\n",
+			adapter->current_op);
 		return;
 	}
 	list_for_each_entry(f, &adapter->mac_filter_list, list) {
@@ -450,8 +470,7 @@ void i40evf_del_ether_addrs(struct i40evf_adapter *adapter)
 	len = sizeof(struct i40e_virtchnl_ether_addr_list) +
 	      (count * sizeof(struct i40e_virtchnl_ether_addr));
 	if (len > I40EVF_MAX_AQ_BUF_SIZE) {
-		dev_warn(&adapter->pdev->dev, "%s: Too many MAC address changes in one request\n",
-			 __func__);
+		dev_warn(&adapter->pdev->dev, "Too many delete MAC changes in one request\n");
 		count = (I40EVF_MAX_AQ_BUF_SIZE -
 			 sizeof(struct i40e_virtchnl_ether_addr_list)) /
 			sizeof(struct i40e_virtchnl_ether_addr);
@@ -493,8 +512,8 @@ void i40evf_add_vlans(struct i40evf_adapter *adapter)
 
 	if (adapter->current_op != I40E_VIRTCHNL_OP_UNKNOWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "%s: command %d pending\n",
-			__func__, adapter->current_op);
+		dev_err(&adapter->pdev->dev, "Cannot add VLANs, command %d pending\n",
+			adapter->current_op);
 		return;
 	}
 
@@ -511,8 +530,7 @@ void i40evf_add_vlans(struct i40evf_adapter *adapter)
 	len = sizeof(struct i40e_virtchnl_vlan_filter_list) +
 	      (count * sizeof(u16));
 	if (len > I40EVF_MAX_AQ_BUF_SIZE) {
-		dev_warn(&adapter->pdev->dev, "%s: Too many VLAN changes in one request\n",
-			 __func__);
+		dev_warn(&adapter->pdev->dev, "Too many add VLAN changes in one request\n");
 		count = (I40EVF_MAX_AQ_BUF_SIZE -
 			 sizeof(struct i40e_virtchnl_vlan_filter_list)) /
 			sizeof(u16);
@@ -552,8 +570,8 @@ void i40evf_del_vlans(struct i40evf_adapter *adapter)
 
 	if (adapter->current_op != I40E_VIRTCHNL_OP_UNKNOWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "%s: command %d pending\n",
-			__func__, adapter->current_op);
+		dev_err(&adapter->pdev->dev, "Cannot remove VLANs, command %d pending\n",
+			adapter->current_op);
 		return;
 	}
 
@@ -570,8 +588,7 @@ void i40evf_del_vlans(struct i40evf_adapter *adapter)
 	len = sizeof(struct i40e_virtchnl_vlan_filter_list) +
 	      (count * sizeof(u16));
 	if (len > I40EVF_MAX_AQ_BUF_SIZE) {
-		dev_warn(&adapter->pdev->dev, "%s: Too many VLAN changes in one request\n",
-			 __func__);
+		dev_warn(&adapter->pdev->dev, "Too many delete VLAN changes in one request\n");
 		count = (I40EVF_MAX_AQ_BUF_SIZE -
 			 sizeof(struct i40e_virtchnl_vlan_filter_list)) /
 			sizeof(u16);
@@ -609,8 +626,8 @@ void i40evf_set_promiscuous(struct i40evf_adapter *adapter, int flags)
 
 	if (adapter->current_op != I40E_VIRTCHNL_OP_UNKNOWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "%s: command %d pending\n",
-			__func__, adapter->current_op);
+		dev_err(&adapter->pdev->dev, "Cannot set promiscuous mode, command %d pending\n",
+			adapter->current_op);
 		return;
 	}
 	adapter->current_op = I40E_VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE;
@@ -700,16 +717,16 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 			}
 			break;
 		default:
-			dev_err(&adapter->pdev->dev,
-				"%s: Unknown event %d from pf\n",
-				__func__, vpe->event);
+			dev_err(&adapter->pdev->dev, "Unknown event %d from PF\n",
+				vpe->event);
 			break;
 		}
 		return;
 	}
 	if (v_retval) {
-		dev_err(&adapter->pdev->dev, "%s: PF returned error %d to our request %d\n",
-			__func__, v_retval, v_opcode);
+		dev_err(&adapter->pdev->dev, "PF returned error %d (%s) to our request %d\n",
+			v_retval, i40evf_stat_str(&adapter->hw, v_retval),
+			v_opcode);
 	}
 	switch (v_opcode) {
 	case I40E_VIRTCHNL_OP_GET_STATS: {
@@ -729,6 +746,17 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 		adapter->current_stats = *stats;
 		}
 		break;
+	case I40E_VIRTCHNL_OP_GET_VF_RESOURCES: {
+		u16 len = sizeof(struct i40e_virtchnl_vf_resource) +
+			  I40E_MAX_VF_VSI *
+			  sizeof(struct i40e_virtchnl_vsi_resource);
+		memcpy(adapter->vf_res, msg, min(msglen, len));
+		i40e_vf_parse_hw_config(&adapter->hw, adapter->vf_res);
+		/* restore current mac address */
+		ether_addr_copy(adapter->hw.mac.addr, netdev->dev_addr);
+		i40evf_process_config(adapter);
+		}
+		break;
 	case I40E_VIRTCHNL_OP_ENABLE_QUEUES:
 		/* enable transmits */
 		i40evf_irq_enable(adapter, true);
@@ -740,7 +768,6 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 		i40evf_free_all_rx_resources(adapter);
 		break;
 	case I40E_VIRTCHNL_OP_VERSION:
-	case I40E_VIRTCHNL_OP_GET_VF_RESOURCES:
 	case I40E_VIRTCHNL_OP_CONFIG_IRQ_MAP:
 		/* Don't display an error if we get these out of sequence.
 		 * If the firmware needed to get kicked, we'll get these and

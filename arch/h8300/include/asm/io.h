@@ -36,20 +36,20 @@ static inline void ctrl_outl(unsigned long b, unsigned long addr)
 	*(volatile unsigned long *)addr = b;
 }
 
-static inline void ctrl_bclr(int b, unsigned long addr)
+static inline void ctrl_bclr(int b, unsigned char *addr)
 {
 	if (__builtin_constant_p(b))
-		__asm__("bclr %1,%0" : : "WU"(addr), "i"(b));
+		__asm__("bclr %1,%0" : "+WU"(*addr): "i"(b));
 	else
-		__asm__("bclr %w1,%0" : : "WU"(addr), "r"(b));
+		__asm__("bclr %w1,%0" : "+WU"(*addr): "r"(b));
 }
 
-static inline void ctrl_bset(int b, unsigned long addr)
+static inline void ctrl_bset(int b, unsigned char *addr)
 {
 	if (__builtin_constant_p(b))
-		__asm__("bset %1,%0" : : "WU"(addr), "i"(b));
+		__asm__("bset %1,%0" : "+WU"(*addr): "i"(b));
 	else
-		__asm__("bset %w1,%0" : : "WU"(addr), "r"(b));
+		__asm__("bset %w1,%0" : "+WU"(*addr): "r"(b));
 }
 
 #endif /* __KERNEL__ */

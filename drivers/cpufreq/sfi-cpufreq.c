@@ -45,11 +45,9 @@ static int sfi_parse_freq(struct sfi_table_header *table)
 	pentry = (struct sfi_freq_table_entry *)sb->pentry;
 	totallen = num_freq_table_entries * sizeof(*pentry);
 
-	sfi_cpufreq_array = kzalloc(totallen, GFP_KERNEL);
+	sfi_cpufreq_array = kmemdup(pentry, totallen, GFP_KERNEL);
 	if (!sfi_cpufreq_array)
 		return -ENOMEM;
-
-	memcpy(sfi_cpufreq_array, pentry, totallen);
 
 	return 0;
 }

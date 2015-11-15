@@ -14,7 +14,7 @@
 #define __VSP1_ENTITY_H__
 
 #include <linux/list.h>
-#include <linux/mutex.h>
+#include <linux/spinlock.h>
 
 #include <media/v4l2-subdev.h>
 
@@ -73,7 +73,7 @@ struct vsp1_entity {
 
 	struct vsp1_video *video;
 
-	struct mutex lock;		/* Protects the streaming field */
+	spinlock_t lock;		/* Protects the streaming field */
 	bool streaming;
 };
 

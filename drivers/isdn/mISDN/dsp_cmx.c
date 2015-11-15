@@ -506,7 +506,7 @@ dsp_cmx_hardware(struct dsp_conf *conf, struct dsp *dsp)
 		       __func__, conf->id);
 
 	if (list_empty(&conf->mlist)) {
-		printk(KERN_ERR "%s: conference whithout members\n",
+		printk(KERN_ERR "%s: conference without members\n",
 		       __func__);
 		return;
 	}

@@ -57,7 +57,7 @@ static struct page *get_mapping_page(struct super_block *sb, pgoff_t index,
 	filler_t *filler = super->s_devops->readpage;
 	struct page *page;
 
-	BUG_ON(mapping_gfp_mask(mapping) & __GFP_FS);
+	BUG_ON(mapping_gfp_constraint(mapping, __GFP_FS));
 	if (use_filler)
 		page = read_cache_page(mapping, index, filler, sb);
 	else {

@@ -375,7 +375,8 @@ static inline int compute_score(struct sock *sk, struct net *net,
 			return -1;
 		score += 4;
 	}
-
+	if (sk->sk_incoming_cpu == raw_smp_processor_id())
+		score++;
 	return score;
 }
 
@@ -418,6 +419,9 @@ static inline int compute_score2(struct sock *sk, struct net *net,
 			return -1;
 		score += 4;
 	}
+
+	if (sk->sk_incoming_cpu == raw_smp_processor_id())
+		score++;
 
 	return score;
 }
@@ -1013,12 +1017,17 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 	if (!rt) {
 		struct net *net = sock_net(sk);
+		__u8 flow_flags = inet_sk_flowi_flags(sk);
 
 		fl4 = &fl4_stack;
+
 		flowi4_init_output(fl4, ipc.oif, sk->sk_mark, tos,
 				   RT_SCOPE_UNIVERSE, sk->sk_protocol,
-				   inet_sk_flowi_flags(sk),
+				   flow_flags,
 				   faddr, saddr, dport, inet->inet_sport);
+
+		if (!saddr && ipc.oif)
+			l3mdev_get_saddr(net, ipc.oif, fl4);
 
 		security_sk_classify_flow(sk, flowi4_to_flowi(fl4));
 		rt = ip_route_output_flow(net, fl4, sk);
@@ -1995,12 +2004,19 @@ void udp_v4_early_demux(struct sk_buff *skb)
 
 	skb->sk = sk;
 	skb->destructor = sock_efree;
-	dst = sk->sk_rx_dst;
+	dst = READ_ONCE(sk->sk_rx_dst);
 
 	if (dst)
 		dst = dst_check(dst, 0);
-	if (dst)
-		skb_dst_set_noref(skb, dst);
+	if (dst) {
+		/* DST_NOCACHE can not be used without taking a reference */
+		if (dst->flags & DST_NOCACHE) {
+			if (likely(atomic_inc_not_zero(&dst->__refcnt)))
+				skb_dst_set(skb, dst);
+		} else {
+			skb_dst_set_noref(skb, dst);
+		}
+	}
 }
 
 int udp_rcv(struct sk_buff *skb)

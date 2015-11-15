@@ -908,32 +908,30 @@ static int ocfs2_validate_extent_block(struct super_block *sb,
 	 */
 
 	if (!OCFS2_IS_VALID_EXTENT_BLOCK(eb)) {
-		ocfs2_error(sb,
-			    "Extent block #%llu has bad signature %.*s",
-			    (unsigned long long)bh->b_blocknr, 7,
-			    eb->h_signature);
-		return -EINVAL;
+		rc = ocfs2_error(sb,
+				 "Extent block #%llu has bad signature %.*s\n",
+				 (unsigned long long)bh->b_blocknr, 7,
+				 eb->h_signature);
+		goto bail;
 	}
 
 	if (le64_to_cpu(eb->h_blkno) != bh->b_blocknr) {
-		ocfs2_error(sb,
-			    "Extent block #%llu has an invalid h_blkno "
-			    "of %llu",
-			    (unsigned long long)bh->b_blocknr,
-			    (unsigned long long)le64_to_cpu(eb->h_blkno));
-		return -EINVAL;
+		rc = ocfs2_error(sb,
+				 "Extent block #%llu has an invalid h_blkno of %llu\n",
+				 (unsigned long long)bh->b_blocknr,
+				 (unsigned long long)le64_to_cpu(eb->h_blkno));
+		goto bail;
 	}
 
 	if (le32_to_cpu(eb->h_fs_generation) != OCFS2_SB(sb)->fs_generation) {
-		ocfs2_error(sb,
-			    "Extent block #%llu has an invalid "
-			    "h_fs_generation of #%u",
-			    (unsigned long long)bh->b_blocknr,
-			    le32_to_cpu(eb->h_fs_generation));
-		return -EINVAL;
+		rc = ocfs2_error(sb,
+				 "Extent block #%llu has an invalid h_fs_generation of #%u\n",
+				 (unsigned long long)bh->b_blocknr,
+				 le32_to_cpu(eb->h_fs_generation));
+		goto bail;
 	}
-
-	return 0;
+bail:
+	return rc;
 }
 
 int ocfs2_read_extent_block(struct ocfs2_caching_info *ci, u64 eb_blkno,
@@ -1446,8 +1444,7 @@ static int ocfs2_find_branch_target(struct ocfs2_extent_tree *et,
 	while(le16_to_cpu(el->l_tree_depth) > 1) {
 		if (le16_to_cpu(el->l_next_free_rec) == 0) {
 			ocfs2_error(ocfs2_metadata_cache_get_super(et->et_ci),
-				    "Owner %llu has empty "
-				    "extent list (next_free_rec == 0)",
+				    "Owner %llu has empty extent list (next_free_rec == 0)\n",
 				    (unsigned long long)ocfs2_metadata_cache_owner(et->et_ci));
 			status = -EIO;
 			goto bail;
@@ -1456,9 +1453,7 @@ static int ocfs2_find_branch_target(struct ocfs2_extent_tree *et,
 		blkno = le64_to_cpu(el->l_recs[i].e_blkno);
 		if (!blkno) {
 			ocfs2_error(ocfs2_metadata_cache_get_super(et->et_ci),
-				    "Owner %llu has extent "
-				    "list where extent # %d has no physical "
-				    "block start",
+				    "Owner %llu has extent list where extent # %d has no physical block start\n",
 				    (unsigned long long)ocfs2_metadata_cache_owner(et->et_ci), i);
 			status = -EIO;
 			goto bail;
@@ -1788,8 +1783,7 @@ static int __ocfs2_find_path(struct ocfs2_caching_info *ci,
 	while (el->l_tree_depth) {
 		if (le16_to_cpu(el->l_next_free_rec) == 0) {
 			ocfs2_error(ocfs2_metadata_cache_get_super(ci),
-				    "Owner %llu has empty extent list at "
-				    "depth %u\n",
+				    "Owner %llu has empty extent list at depth %u\n",
 				    (unsigned long long)ocfs2_metadata_cache_owner(ci),
 				    le16_to_cpu(el->l_tree_depth));
 			ret = -EROFS;
@@ -1814,8 +1808,7 @@ static int __ocfs2_find_path(struct ocfs2_caching_info *ci,
 		blkno = le64_to_cpu(el->l_recs[i].e_blkno);
 		if (blkno == 0) {
 			ocfs2_error(ocfs2_metadata_cache_get_super(ci),
-				    "Owner %llu has bad blkno in extent list "
-				    "at depth %u (index %d)\n",
+				    "Owner %llu has bad blkno in extent list at depth %u (index %d)\n",
 				    (unsigned long long)ocfs2_metadata_cache_owner(ci),
 				    le16_to_cpu(el->l_tree_depth), i);
 			ret = -EROFS;
@@ -1836,8 +1829,7 @@ static int __ocfs2_find_path(struct ocfs2_caching_info *ci,
 		if (le16_to_cpu(el->l_next_free_rec) >
 		    le16_to_cpu(el->l_count)) {
 			ocfs2_error(ocfs2_metadata_cache_get_super(ci),
-				    "Owner %llu has bad count in extent list "
-				    "at block %llu (next free=%u, count=%u)\n",
+				    "Owner %llu has bad count in extent list at block %llu (next free=%u, count=%u)\n",
 				    (unsigned long long)ocfs2_metadata_cache_owner(ci),
 				    (unsigned long long)bh->b_blocknr,
 				    le16_to_cpu(el->l_next_free_rec),
@@ -2116,8 +2108,7 @@ static int ocfs2_rotate_subtree_right(handle_t *handle,
 
 	if (left_el->l_next_free_rec != left_el->l_count) {
 		ocfs2_error(ocfs2_metadata_cache_get_super(et->et_ci),
-			    "Inode %llu has non-full interior leaf node %llu"
-			    "(next free = %u)",
+			    "Inode %llu has non-full interior leaf node %llu (next free = %u)\n",
 			    (unsigned long long)ocfs2_metadata_cache_owner(et->et_ci),
 			    (unsigned long long)left_leaf_bh->b_blocknr,
 			    le16_to_cpu(left_el->l_next_free_rec));
@@ -2256,8 +2247,7 @@ int ocfs2_find_cpos_for_left_leaf(struct super_block *sb,
 		 * If we got here, we never found a valid node where
 		 * the tree indicated one should be.
 		 */
-		ocfs2_error(sb,
-			    "Invalid extent tree at extent block %llu\n",
+		ocfs2_error(sb, "Invalid extent tree at extent block %llu\n",
 			    (unsigned long long)blkno);
 		ret = -EROFS;
 		goto out;
@@ -2872,8 +2862,7 @@ int ocfs2_find_cpos_for_right_leaf(struct super_block *sb,
 		 * If we got here, we never found a valid node where
 		 * the tree indicated one should be.
 		 */
-		ocfs2_error(sb,
-			    "Invalid extent tree at extent block %llu\n",
+		ocfs2_error(sb, "Invalid extent tree at extent block %llu\n",
 			    (unsigned long long)blkno);
 		ret = -EROFS;
 		goto out;
@@ -3131,6 +3120,30 @@ out:
 	return ret;
 }
 
+static int ocfs2_remove_rightmost_empty_extent(struct ocfs2_super *osb,
+				struct ocfs2_extent_tree *et,
+				struct ocfs2_path *path,
+				struct ocfs2_cached_dealloc_ctxt *dealloc)
+{
+	handle_t *handle;
+	int ret;
+	int credits = path->p_tree_depth * 2 + 1;
+
+	handle = ocfs2_start_trans(osb, credits);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		mlog_errno(ret);
+		return ret;
+	}
+
+	ret = ocfs2_remove_rightmost_path(handle, et, path, dealloc);
+	if (ret)
+		mlog_errno(ret);
+
+	ocfs2_commit_trans(osb, handle);
+	return ret;
+}
+
 /*
  * Left rotation of btree records.
  *
@@ -3200,7 +3213,7 @@ rightmost_no_delete:
 		if (le16_to_cpu(el->l_next_free_rec) == 0) {
 			ret = -EIO;
 			ocfs2_error(ocfs2_metadata_cache_get_super(et->et_ci),
-				    "Owner %llu has empty extent block at %llu",
+				    "Owner %llu has empty extent block at %llu\n",
 				    (unsigned long long)ocfs2_metadata_cache_owner(et->et_ci),
 				    (unsigned long long)le64_to_cpu(eb->h_blkno));
 			goto out;
@@ -3930,7 +3943,7 @@ static void ocfs2_adjust_rightmost_records(handle_t *handle,
 		next_free = le16_to_cpu(el->l_next_free_rec);
 		if (next_free == 0) {
 			ocfs2_error(ocfs2_metadata_cache_get_super(et->et_ci),
-				    "Owner %llu has a bad extent list",
+				    "Owner %llu has a bad extent list\n",
 				    (unsigned long long)ocfs2_metadata_cache_owner(et->et_ci));
 			ret = -EIO;
 			return;
@@ -4355,10 +4368,7 @@ static int ocfs2_figure_merge_contig_type(struct ocfs2_extent_tree *et,
 				bh = path_leaf_bh(left_path);
 				eb = (struct ocfs2_extent_block *)bh->b_data;
 				ocfs2_error(sb,
-					    "Extent block #%llu has an "
-					    "invalid l_next_free_rec of "
-					    "%d.  It should have "
-					    "matched the l_count of %d",
+					    "Extent block #%llu has an invalid l_next_free_rec of %d.  It should have matched the l_count of %d\n",
 					    (unsigned long long)le64_to_cpu(eb->h_blkno),
 					    le16_to_cpu(new_el->l_next_free_rec),
 					    le16_to_cpu(new_el->l_count));
@@ -4413,8 +4423,7 @@ static int ocfs2_figure_merge_contig_type(struct ocfs2_extent_tree *et,
 				bh = path_leaf_bh(right_path);
 				eb = (struct ocfs2_extent_block *)bh->b_data;
 				ocfs2_error(sb,
-					    "Extent block #%llu has an "
-					    "invalid l_next_free_rec of %d",
+					    "Extent block #%llu has an invalid l_next_free_rec of %d\n",
 					    (unsigned long long)le64_to_cpu(eb->h_blkno),
 					    le16_to_cpu(new_el->l_next_free_rec));
 				status = -EINVAL;
@@ -4970,10 +4979,9 @@ leftright:
 		split_index = ocfs2_search_extent_list(el, cpos);
 		if (split_index == -1) {
 			ocfs2_error(ocfs2_metadata_cache_get_super(et->et_ci),
-					"Owner %llu has an extent at cpos %u "
-					"which can no longer be found.\n",
-					(unsigned long long)ocfs2_metadata_cache_owner(et->et_ci),
-					cpos);
+				    "Owner %llu has an extent at cpos %u which can no longer be found\n",
+				    (unsigned long long)ocfs2_metadata_cache_owner(et->et_ci),
+				    cpos);
 			ret = -EROFS;
 			goto out;
 		}
@@ -5158,10 +5166,9 @@ int ocfs2_change_extent_flag(handle_t *handle,
 	index = ocfs2_search_extent_list(el, cpos);
 	if (index == -1) {
 		ocfs2_error(sb,
-			    "Owner %llu has an extent at cpos %u which can no "
-			    "longer be found.\n",
-			     (unsigned long long)
-			     ocfs2_metadata_cache_owner(et->et_ci), cpos);
+			    "Owner %llu has an extent at cpos %u which can no longer be found\n",
+			    (unsigned long long)ocfs2_metadata_cache_owner(et->et_ci),
+			    cpos);
 		ret = -EROFS;
 		goto out;
 	}
@@ -5228,9 +5235,7 @@ int ocfs2_mark_extent_written(struct inode *inode,
 		cpos, len, phys);
 
 	if (!ocfs2_writes_unwritten_extents(OCFS2_SB(inode->i_sb))) {
-		ocfs2_error(inode->i_sb, "Inode %llu has unwritten extents "
-			    "that are being written to, but the feature bit "
-			    "is not set in the super block.",
+		ocfs2_error(inode->i_sb, "Inode %llu has unwritten extents that are being written to, but the feature bit is not set in the super block\n",
 			    (unsigned long long)OCFS2_I(inode)->ip_blkno);
 		ret = -EROFS;
 		goto out;
@@ -5514,8 +5519,7 @@ int ocfs2_remove_extent(handle_t *handle,
 	index = ocfs2_search_extent_list(el, cpos);
 	if (index == -1) {
 		ocfs2_error(ocfs2_metadata_cache_get_super(et->et_ci),
-			    "Owner %llu has an extent at cpos %u which can no "
-			    "longer be found.\n",
+			    "Owner %llu has an extent at cpos %u which can no longer be found\n",
 			    (unsigned long long)ocfs2_metadata_cache_owner(et->et_ci),
 			    cpos);
 		ret = -EROFS;
@@ -5580,7 +5584,7 @@ int ocfs2_remove_extent(handle_t *handle,
 		index = ocfs2_search_extent_list(el, cpos);
 		if (index == -1) {
 			ocfs2_error(ocfs2_metadata_cache_get_super(et->et_ci),
-				    "Owner %llu: split at cpos %u lost record.",
+				    "Owner %llu: split at cpos %u lost record\n",
 				    (unsigned long long)ocfs2_metadata_cache_owner(et->et_ci),
 				    cpos);
 			ret = -EROFS;
@@ -5596,8 +5600,7 @@ int ocfs2_remove_extent(handle_t *handle,
 			ocfs2_rec_clusters(el, rec);
 		if (rec_range != trunc_range) {
 			ocfs2_error(ocfs2_metadata_cache_get_super(et->et_ci),
-				    "Owner %llu: error after split at cpos %u"
-				    "trunc len %u, existing record is (%u,%u)",
+				    "Owner %llu: error after split at cpos %u trunc len %u, existing record is (%u,%u)\n",
 				    (unsigned long long)ocfs2_metadata_cache_owner(et->et_ci),
 				    cpos, len, le32_to_cpu(rec->e_cpos),
 				    ocfs2_rec_clusters(el, rec));
@@ -6175,7 +6178,7 @@ bail:
 		iput(tl_inode);
 	brelse(tl_bh);
 
-	if (status < 0 && (*tl_copy)) {
+	if (status < 0) {
 		kfree(*tl_copy);
 		*tl_copy = NULL;
 		mlog_errno(status);
@@ -7108,15 +7111,23 @@ start:
 		 * to check it up here before changing the tree.
 		*/
 		if (root_el->l_tree_depth && rec->e_int_clusters == 0) {
-			ocfs2_error(inode->i_sb, "Inode %lu has an empty "
+			mlog(ML_ERROR, "Inode %lu has an empty "
 				    "extent record, depth %u\n", inode->i_ino,
 				    le16_to_cpu(root_el->l_tree_depth));
-			status = -EROFS;
-			goto bail;
+			status = ocfs2_remove_rightmost_empty_extent(osb,
+					&et, path, &dealloc);
+			if (status) {
+				mlog_errno(status);
+				goto bail;
+			}
+
+			ocfs2_reinit_path(path, 1);
+			goto start;
+		} else {
+			trunc_cpos = le32_to_cpu(rec->e_cpos);
+			trunc_len = 0;
+			blkno = 0;
 		}
-		trunc_cpos = le32_to_cpu(rec->e_cpos);
-		trunc_len = 0;
-		blkno = 0;
 	} else if (le32_to_cpu(rec->e_cpos) >= new_highest_cpos) {
 		/*
 		 * Truncate entire record.
@@ -7204,8 +7215,7 @@ int ocfs2_truncate_inline(struct inode *inode, struct buffer_head *di_bh,
 	    !(le16_to_cpu(di->i_dyn_features) & OCFS2_INLINE_DATA_FL) ||
 	    !ocfs2_supports_inline_data(osb)) {
 		ocfs2_error(inode->i_sb,
-			    "Inline data flags for inode %llu don't agree! "
-			    "Disk: 0x%x, Memory: 0x%x, Superblock: 0x%x\n",
+			    "Inline data flags for inode %llu don't agree! Disk: 0x%x, Memory: 0x%x, Superblock: 0x%x\n",
 			    (unsigned long long)OCFS2_I(inode)->ip_blkno,
 			    le16_to_cpu(di->i_dyn_features),
 			    OCFS2_I(inode)->ip_dyn_features,

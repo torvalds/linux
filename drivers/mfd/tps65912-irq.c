@@ -197,13 +197,7 @@ int tps65912_irq_init(struct tps65912 *tps65912, int irq,
 		irq_set_chip_and_handler(cur_irq, &tps65912_irq_chip,
 					 handle_edge_irq);
 		irq_set_nested_thread(cur_irq, 1);
-		/* ARM needs us to explicitly flag the IRQ as valid
-		 * and will set them noprobe when we do so. */
-#ifdef CONFIG_ARM
-		set_irq_flags(cur_irq, IRQF_VALID);
-#else
-		irq_set_noprobe(cur_irq);
-#endif
+		irq_clear_status_flags(cur_irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
 
 	ret = request_threaded_irq(irq, NULL, tps65912_irq, flags,

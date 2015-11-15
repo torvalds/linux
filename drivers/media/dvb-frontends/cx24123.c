@@ -1011,7 +1011,7 @@ static int cx24123_tune(struct dvb_frontend *fe,
 
 static int cx24123_get_algo(struct dvb_frontend *fe)
 {
-	return 1; /* FE_ALGO_HW */
+	return DVBFE_ALGO_HW;
 }
 
 static void cx24123_release(struct dvb_frontend *fe)

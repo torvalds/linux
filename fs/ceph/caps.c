@@ -1506,7 +1506,6 @@ static int __mark_caps_flushing(struct inode *inode,
 
 	swap(cf, ci->i_prealloc_cap_flush);
 	cf->caps = flushing;
-	cf->kick = false;
 
 	spin_lock(&mdsc->cap_dirty_lock);
 	list_del_init(&ci->i_dirty_item);
@@ -1656,9 +1655,8 @@ retry_locked:
 	    !S_ISDIR(inode->i_mode) &&		/* ignore readdir cache */
 	    ci->i_wrbuffer_ref == 0 &&		/* no dirty pages... */
 	    inode->i_data.nrpages &&		/* have cached pages */
-	    (file_wanted == 0 ||		/* no open files */
-	     (revoking & (CEPH_CAP_FILE_CACHE|
-			  CEPH_CAP_FILE_LAZYIO))) && /*  or revoking cache */
+	    (revoking & (CEPH_CAP_FILE_CACHE|
+			 CEPH_CAP_FILE_LAZYIO)) && /*  or revoking cache */
 	    !tried_invalidate) {
 		dout("check_caps trying to invalidate on %p\n", inode);
 		if (try_nonblocking_invalidate(inode) < 0) {
@@ -1972,49 +1970,46 @@ out:
 }
 
 /*
- * wait for any uncommitted directory operations to commit.
+ * wait for any unsafe requests to complete.
  */
-static int unsafe_dirop_wait(struct inode *inode)
+static int unsafe_request_wait(struct inode *inode)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct list_head *head = &ci->i_unsafe_dirops;
-	struct ceph_mds_request *req;
-	u64 last_tid;
-	int ret = 0;
-
-	if (!S_ISDIR(inode->i_mode))
-		return 0;
+	struct ceph_mds_request *req1 = NULL, *req2 = NULL;
+	int ret, err = 0;
 
 	spin_lock(&ci->i_unsafe_lock);
-	if (list_empty(head))
-		goto out;
-
-	req = list_last_entry(head, struct ceph_mds_request,
-			      r_unsafe_dir_item);
-	last_tid = req->r_tid;
-
-	do {
-		ceph_mdsc_get_request(req);
-		spin_unlock(&ci->i_unsafe_lock);
-
-		dout("unsafe_dirop_wait %p wait on tid %llu (until %llu)\n",
-		     inode, req->r_tid, last_tid);
-		ret = !wait_for_completion_timeout(&req->r_safe_completion,
-					ceph_timeout_jiffies(req->r_timeout));
-		if (ret)
-			ret = -EIO;  /* timed out */
-
-		ceph_mdsc_put_request(req);
-
-		spin_lock(&ci->i_unsafe_lock);
-		if (ret || list_empty(head))
-			break;
-		req = list_first_entry(head, struct ceph_mds_request,
-				       r_unsafe_dir_item);
-	} while (req->r_tid < last_tid);
-out:
+	if (S_ISDIR(inode->i_mode) && !list_empty(&ci->i_unsafe_dirops)) {
+		req1 = list_last_entry(&ci->i_unsafe_dirops,
+					struct ceph_mds_request,
+					r_unsafe_dir_item);
+		ceph_mdsc_get_request(req1);
+	}
+	if (!list_empty(&ci->i_unsafe_iops)) {
+		req2 = list_last_entry(&ci->i_unsafe_iops,
+					struct ceph_mds_request,
+					r_unsafe_target_item);
+		ceph_mdsc_get_request(req2);
+	}
 	spin_unlock(&ci->i_unsafe_lock);
-	return ret;
+
+	dout("unsafe_requeset_wait %p wait on tid %llu %llu\n",
+	     inode, req1 ? req1->r_tid : 0ULL, req2 ? req2->r_tid : 0ULL);
+	if (req1) {
+		ret = !wait_for_completion_timeout(&req1->r_safe_completion,
+					ceph_timeout_jiffies(req1->r_timeout));
+		if (ret)
+			err = -EIO;
+		ceph_mdsc_put_request(req1);
+	}
+	if (req2) {
+		ret = !wait_for_completion_timeout(&req2->r_safe_completion,
+					ceph_timeout_jiffies(req2->r_timeout));
+		if (ret)
+			err = -EIO;
+		ceph_mdsc_put_request(req2);
+	}
+	return err;
 }
 
 int ceph_fsync(struct file *file, loff_t start, loff_t end, int datasync)
@@ -2040,7 +2035,7 @@ int ceph_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	dirty = try_flush_caps(inode, &flush_tid);
 	dout("fsync dirty caps are %s\n", ceph_cap_string(dirty));
 
-	ret = unsafe_dirop_wait(inode);
+	ret = unsafe_request_wait(inode);
 
 	/*
 	 * only wait on non-file metadata writeback (the mds
@@ -2123,8 +2118,7 @@ static void kick_flushing_capsnaps(struct ceph_mds_client *mdsc,
 
 static int __kick_flushing_caps(struct ceph_mds_client *mdsc,
 				struct ceph_mds_session *session,
-				struct ceph_inode_info *ci,
-				bool kick_all)
+				struct ceph_inode_info *ci)
 {
 	struct inode *inode = &ci->vfs_inode;
 	struct ceph_cap *cap;
@@ -2150,9 +2144,7 @@ static int __kick_flushing_caps(struct ceph_mds_client *mdsc,
 
 		for (n = rb_first(&ci->i_cap_flush_tree); n; n = rb_next(n)) {
 			cf = rb_entry(n, struct ceph_cap_flush, i_node);
-			if (cf->tid < first_tid)
-				continue;
-			if (kick_all || cf->kick)
+			if (cf->tid >= first_tid)
 				break;
 		}
 		if (!n) {
@@ -2161,7 +2153,6 @@ static int __kick_flushing_caps(struct ceph_mds_client *mdsc,
 		}
 
 		cf = rb_entry(n, struct ceph_cap_flush, i_node);
-		cf->kick = false;
 
 		first_tid = cf->tid + 1;
 
@@ -2181,8 +2172,6 @@ void ceph_early_kick_flushing_caps(struct ceph_mds_client *mdsc,
 {
 	struct ceph_inode_info *ci;
 	struct ceph_cap *cap;
-	struct ceph_cap_flush *cf;
-	struct rb_node *n;
 
 	dout("early_kick_flushing_caps mds%d\n", session->s_mds);
 	list_for_each_entry(ci, &session->s_cap_flushing, i_flushing_item) {
@@ -2205,14 +2194,9 @@ void ceph_early_kick_flushing_caps(struct ceph_mds_client *mdsc,
 		if ((cap->issued & ci->i_flushing_caps) !=
 		    ci->i_flushing_caps) {
 			spin_unlock(&ci->i_ceph_lock);
-			if (!__kick_flushing_caps(mdsc, session, ci, true))
+			if (!__kick_flushing_caps(mdsc, session, ci))
 				continue;
 			spin_lock(&ci->i_ceph_lock);
-		}
-
-		for (n = rb_first(&ci->i_cap_flush_tree); n; n = rb_next(n)) {
-			cf = rb_entry(n, struct ceph_cap_flush, i_node);
-			cf->kick = true;
 		}
 
 		spin_unlock(&ci->i_ceph_lock);
@@ -2228,7 +2212,7 @@ void ceph_kick_flushing_caps(struct ceph_mds_client *mdsc,
 
 	dout("kick_flushing_caps mds%d\n", session->s_mds);
 	list_for_each_entry(ci, &session->s_cap_flushing, i_flushing_item) {
-		int delayed = __kick_flushing_caps(mdsc, session, ci, false);
+		int delayed = __kick_flushing_caps(mdsc, session, ci);
 		if (delayed) {
 			spin_lock(&ci->i_ceph_lock);
 			__cap_delay_requeue(mdsc, ci);
@@ -2261,7 +2245,7 @@ static void kick_flushing_inode_caps(struct ceph_mds_client *mdsc,
 
 		spin_unlock(&ci->i_ceph_lock);
 
-		delayed = __kick_flushing_caps(mdsc, session, ci, true);
+		delayed = __kick_flushing_caps(mdsc, session, ci);
 		if (delayed) {
 			spin_lock(&ci->i_ceph_lock);
 			__cap_delay_requeue(mdsc, ci);
@@ -2421,6 +2405,14 @@ again:
 			dout("get_cap_refs %p needed %s but mds%d readonly\n",
 			     inode, ceph_cap_string(need), ci->i_auth_cap->mds);
 			*err = -EROFS;
+			ret = 1;
+			goto out_unlock;
+		}
+
+		if (!__ceph_is_any_caps(ci) &&
+		    ACCESS_ONCE(mdsc->fsc->mount_state) == CEPH_MOUNT_SHUTDOWN) {
+			dout("get_cap_refs %p forced umount\n", inode);
+			*err = -EIO;
 			ret = 1;
 			goto out_unlock;
 		}

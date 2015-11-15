@@ -804,6 +804,8 @@ done:
 
 static void printer_reset_interface(struct printer_dev *dev)
 {
+	unsigned long	flags;
+
 	if (dev->interface < 0)
 		return;
 
@@ -815,9 +817,11 @@ static void printer_reset_interface(struct printer_dev *dev)
 	if (dev->out_ep->desc)
 		usb_ep_disable(dev->out_ep);
 
+	spin_lock_irqsave(&dev->lock, flags);
 	dev->in_ep->desc = NULL;
 	dev->out_ep->desc = NULL;
 	dev->interface = -1;
+	spin_unlock_irqrestore(&dev->lock, flags);
 }
 
 /* Change our operational Interface. */
@@ -1035,12 +1039,10 @@ autoconf_fail:
 			cdev->gadget->name);
 		return -ENODEV;
 	}
-	in_ep->driver_data = in_ep;	/* claim */
 
 	out_ep = usb_ep_autoconfig(cdev->gadget, &fs_ep_out_desc);
 	if (!out_ep)
 		goto autoconf_fail;
-	out_ep->driver_data = out_ep;	/* claim */
 
 	/* assumes that all endpoints are dual-speed */
 	hs_ep_in_desc.bEndpointAddress = fs_ep_in_desc.bEndpointAddress;
@@ -1131,13 +1133,10 @@ static int printer_func_set_alt(struct usb_function *f,
 static void printer_func_disable(struct usb_function *f)
 {
 	struct printer_dev *dev = func_to_printer(f);
-	unsigned long		flags;
 
 	DBG(dev, "%s\n", __func__);
 
-	spin_lock_irqsave(&dev->lock, flags);
 	printer_reset_interface(dev);
-	spin_unlock_irqrestore(&dev->lock, flags);
 }
 
 static inline struct f_printer_opts
@@ -1146,9 +1145,6 @@ static inline struct f_printer_opts
 	return container_of(to_config_group(item), struct f_printer_opts,
 			    func_inst.group);
 }
-
-CONFIGFS_ATTR_STRUCT(f_printer_opts);
-CONFIGFS_ATTR_OPS(f_printer_opts);
 
 static void printer_attr_release(struct config_item *item)
 {
@@ -1159,13 +1155,12 @@ static void printer_attr_release(struct config_item *item)
 
 static struct configfs_item_operations printer_item_ops = {
 	.release	= printer_attr_release,
-	.show_attribute	= f_printer_opts_attr_show,
-	.store_attribute = f_printer_opts_attr_store,
 };
 
-static ssize_t f_printer_opts_pnp_string_show(struct f_printer_opts *opts,
+static ssize_t f_printer_opts_pnp_string_show(struct config_item *item,
 					      char *page)
 {
+	struct f_printer_opts *opts = to_f_printer_opts(item);
 	int result;
 
 	mutex_lock(&opts->lock);
@@ -1175,9 +1170,10 @@ static ssize_t f_printer_opts_pnp_string_show(struct f_printer_opts *opts,
 	return result;
 }
 
-static ssize_t f_printer_opts_pnp_string_store(struct f_printer_opts *opts,
+static ssize_t f_printer_opts_pnp_string_store(struct config_item *item,
 					       const char *page, size_t len)
 {
+	struct f_printer_opts *opts = to_f_printer_opts(item);
 	int result, l;
 
 	mutex_lock(&opts->lock);
@@ -1190,14 +1186,12 @@ static ssize_t f_printer_opts_pnp_string_store(struct f_printer_opts *opts,
 	return result;
 }
 
-static struct f_printer_opts_attribute f_printer_opts_pnp_string =
-	__CONFIGFS_ATTR(pnp_string, S_IRUGO | S_IWUSR,
-			f_printer_opts_pnp_string_show,
-			f_printer_opts_pnp_string_store);
+CONFIGFS_ATTR(f_printer_opts_, pnp_string);
 
-static ssize_t f_printer_opts_q_len_show(struct f_printer_opts *opts,
+static ssize_t f_printer_opts_q_len_show(struct config_item *item,
 					 char *page)
 {
+	struct f_printer_opts *opts = to_f_printer_opts(item);
 	int result;
 
 	mutex_lock(&opts->lock);
@@ -1207,9 +1201,10 @@ static ssize_t f_printer_opts_q_len_show(struct f_printer_opts *opts,
 	return result;
 }
 
-static ssize_t f_printer_opts_q_len_store(struct f_printer_opts *opts,
+static ssize_t f_printer_opts_q_len_store(struct config_item *item,
 					  const char *page, size_t len)
 {
+	struct f_printer_opts *opts = to_f_printer_opts(item);
 	int ret;
 	u16 num;
 
@@ -1230,13 +1225,11 @@ end:
 	return ret;
 }
 
-static struct f_printer_opts_attribute f_printer_opts_q_len =
-	__CONFIGFS_ATTR(q_len, S_IRUGO | S_IWUSR, f_printer_opts_q_len_show,
-			f_printer_opts_q_len_store);
+CONFIGFS_ATTR(f_printer_opts_, q_len);
 
 static struct configfs_attribute *printer_attrs[] = {
-	&f_printer_opts_pnp_string.attr,
-	&f_printer_opts_q_len.attr,
+	&f_printer_opts_attr_pnp_string,
+	&f_printer_opts_attr_q_len,
 	NULL,
 };
 
@@ -1248,7 +1241,15 @@ static struct config_item_type printer_func_type = {
 
 static inline int gprinter_get_minor(void)
 {
-	return ida_simple_get(&printer_ida, 0, 0, GFP_KERNEL);
+	int ret;
+
+	ret = ida_simple_get(&printer_ida, 0, 0, GFP_KERNEL);
+	if (ret >= PRINTER_MINORS) {
+		ida_simple_remove(&printer_ida, ret);
+		ret = -ENODEV;
+	}
+
+	return ret;
 }
 
 static inline void gprinter_put_minor(int minor)

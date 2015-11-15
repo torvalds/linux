@@ -32,7 +32,7 @@
  */
 #define __SUPERVISOR_CHANNEL_H__
 
-#define SIGNATURE_16(A, B) ((A) | (B<<8))
+#define SIGNATURE_16(A, B) ((A) | (B << 8))
 #define SIGNATURE_32(A, B, C, D) \
 	(SIGNATURE_16(A, B) | (SIGNATURE_16(C, D) << 16))
 #define SIGNATURE_64(A, B, C, D, E, F, G, H) \
@@ -42,10 +42,10 @@
 #define lengthof(TYPE, MEMBER) (sizeof(((TYPE *)0)->MEMBER))
 #endif
 #ifndef COVERQ
-#define COVERQ(v, d)  (((v)+(d)-1) / (d))
+#define COVERQ(v, d)  (((v) + (d) - 1) / (d))
 #endif
 #ifndef COVER
-#define COVER(v, d)   ((d)*COVERQ(v, d))
+#define COVER(v, d)   ((d) * COVERQ(v, d))
 #endif
 
 #define ULTRA_CHANNEL_PROTOCOL_SIGNATURE  SIGNATURE_32('E', 'C', 'N', 'L')
@@ -152,7 +152,6 @@ ULTRA_CHANNELCLI_STRING(u32 v)
 #define ULTRA_IO_DRIVER_DISABLES_INTS (0x1ULL << 5)
 #define ULTRA_IO_DRIVER_SUPPORTS_ENHANCED_RCVBUF_CHECKING (0x1ULL << 6)
 
-#pragma pack(push, 1)		/* both GCC and VC now allow this pragma */
 /* Common Channel Header */
 struct channel_header {
 	u64 signature;		/* Signature */
@@ -192,7 +191,7 @@ struct channel_header {
 	u8 filler[1];		/* Pad out to 128 byte cacheline */
 	/* Please add all new single-byte values below here */
 	u8 recover_channel;
-};
+} __packed;
 
 #define ULTRA_CHANNEL_ENABLE_INTS (0x1ULL << 0)
 
@@ -230,9 +229,7 @@ struct signal_queue_header {
 				 * to denote trouble with client's
 				 * fields */
 	u8 filler[12];		/* Pad out to 64 byte cacheline */
-};
-
-#pragma pack(pop)
+} __packed;
 
 #define spar_signal_init(chan, QHDRFLD, QDATAFLD, QDATATYPE, ver, typ)	\
 	do {								\
@@ -241,11 +238,11 @@ struct signal_queue_header {
 		chan->QHDRFLD.chtype = typ;				\
 		chan->QHDRFLD.size = sizeof(chan->QDATAFLD);		\
 		chan->QHDRFLD.signal_size = sizeof(QDATATYPE);		\
-		chan->QHDRFLD.sig_base_offset = (u64)(chan->QDATAFLD)-	\
+		chan->QHDRFLD.sig_base_offset = (u64)(chan->QDATAFLD) -	\
 			(u64)(&chan->QHDRFLD);				\
 		chan->QHDRFLD.max_slots =				\
-			sizeof(chan->QDATAFLD)/sizeof(QDATATYPE);	\
-		chan->QHDRFLD.max_signals = chan->QHDRFLD.max_slots-1;	\
+			sizeof(chan->QDATAFLD) / sizeof(QDATATYPE);	\
+		chan->QHDRFLD.max_signals = chan->QHDRFLD.max_slots - 1;\
 	} while (0)
 
 /* Generic function useful for validating any type of channel when it is

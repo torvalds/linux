@@ -11,7 +11,7 @@ void hw_cursor_setPos(struct lynx_cursor *cursor,
 void hw_cursor_setColor(struct lynx_cursor *cursor,
 						u32 fg, u32 bg);
 void hw_cursor_setData(struct lynx_cursor *cursor,
-			u16 rop, const u8* data, const u8* mask);
+			u16 rop, const u8 *data, const u8 *mask);
 void hw_cursor_setData2(struct lynx_cursor *cursor,
-			u16 rop, const u8* data, const u8* mask);
+			u16 rop, const u8 *data, const u8 *mask);
 #endif

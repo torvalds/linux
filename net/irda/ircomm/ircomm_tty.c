@@ -335,8 +335,7 @@ static int ircomm_tty_block_til_ready(struct ircomm_tty_cb *self,
 		 * specified, we cannot return before the IrCOMM link is
 		 * ready
 		 */
-		if (!test_bit(ASYNCB_CLOSING, &port->flags) &&
-		    (do_clocal || tty_port_carrier_raised(port)) &&
+		if ((do_clocal || tty_port_carrier_raised(port)) &&
 		    self->state == IRCOMM_TTY_READY)
 		{
 			break;
@@ -442,34 +441,6 @@ static int ircomm_tty_open(struct tty_struct *tty, struct file *filp)
 
 	/* Not really used by us, but lets do it anyway */
 	self->port.low_latency = (self->port.flags & ASYNC_LOW_LATENCY) ? 1 : 0;
-
-	/*
-	 * If the port is the middle of closing, bail out now
-	 */
-	if (test_bit(ASYNCB_CLOSING, &self->port.flags)) {
-
-		/* Hm, why are we blocking on ASYNC_CLOSING if we
-		 * do return -EAGAIN/-ERESTARTSYS below anyway?
-		 * IMHO it's either not needed in the first place
-		 * or for some reason we need to make sure the async
-		 * closing has been finished - if so, wouldn't we
-		 * probably better sleep uninterruptible?
-		 */
-
-		if (wait_event_interruptible(self->port.close_wait,
-				!test_bit(ASYNCB_CLOSING, &self->port.flags))) {
-			net_warn_ratelimited("%s - got signal while blocking on ASYNC_CLOSING!\n",
-					     __func__);
-			return -ERESTARTSYS;
-		}
-
-#ifdef SERIAL_DO_RESTART
-		return (self->port.flags & ASYNC_HUP_NOTIFY) ?
-			-EAGAIN : -ERESTARTSYS;
-#else
-		return -EAGAIN;
-#endif
-	}
 
 	/* Check if this is a "normal" ircomm device, or an irlpt device */
 	if (self->line < 0x10) {

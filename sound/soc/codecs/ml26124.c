@@ -199,7 +199,7 @@ static const struct clk_coeff coeff_div[] = {
 	{12288000, 48000, 0xc, 0x0, 0x30, 0x0, 0x4},
 };
 
-static struct reg_default ml26124_reg[] = {
+static const struct reg_default ml26124_reg[] = {
 	/* CLOCK control Register */
 	{0x00, 0x00 },	/* Sampling Rate */
 	{0x02, 0x00},	/* PLL NL */
@@ -597,7 +597,6 @@ MODULE_DEVICE_TABLE(i2c, ml26124_i2c_id);
 static struct i2c_driver ml26124_i2c_driver = {
 	.driver = {
 		.name = "ml26124",
-		.owner = THIS_MODULE,
 	},
 	.probe = ml26124_i2c_probe,
 	.remove = ml26124_i2c_remove,

@@ -602,13 +602,16 @@ const struct kernel_symbol *find_symbol(const char *name,
 }
 EXPORT_SYMBOL_GPL(find_symbol);
 
-/* Search for module by name: must hold module_mutex. */
+/*
+ * Search for module by name: must hold module_mutex (or preempt disabled
+ * for read-only access).
+ */
 static struct module *find_module_all(const char *name, size_t len,
 				      bool even_unformed)
 {
 	struct module *mod;
 
-	module_assert_mutex();
+	module_assert_mutex_or_preempt();
 
 	list_for_each_entry(mod, &modules, list) {
 		if (!even_unformed && mod->state == MODULE_STATE_UNFORMED)
@@ -621,6 +624,7 @@ static struct module *find_module_all(const char *name, size_t len,
 
 struct module *find_module(const char *name)
 {
+	module_assert_mutex();
 	return find_module_all(name, strlen(name), false);
 }
 EXPORT_SYMBOL_GPL(find_module);
@@ -1059,11 +1063,15 @@ void symbol_put_addr(void *addr)
 	if (core_kernel_text(a))
 		return;
 
-	/* module_text_address is safe here: we're supposed to have reference
-	 * to module from symbol_get, so it can't go away. */
+	/*
+	 * Even though we hold a reference on the module; we still need to
+	 * disable preemption in order to safely traverse the data structure.
+	 */
+	preempt_disable();
 	modaddr = __module_text_address(a);
 	BUG_ON(!modaddr);
 	module_put(modaddr);
+	preempt_enable();
 }
 EXPORT_SYMBOL_GPL(symbol_put_addr);
 

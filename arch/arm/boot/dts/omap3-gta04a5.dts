@@ -12,6 +12,6 @@
 	model = "Goldelico GTA04A5";
 
 	sound {
-		ti,jack-det-gpio = <&twl_gpio 2 0>;    /* GTA04A5 only */
+		ti,jack-det-gpio = <&twl_gpio 2 GPIO_ACTIVE_HIGH>;    /* GTA04A5 only */
 	};
 };

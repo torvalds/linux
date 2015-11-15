@@ -87,7 +87,7 @@ static void fpga_mask_ack_irq(struct irq_data *d)
 	fpga_ack_irq(d);
 }
 
-static void innovator_fpga_IRQ_demux(unsigned int irq, struct irq_desc *desc)
+static void innovator_fpga_IRQ_demux(struct irq_desc *desc)
 {
 	u32 stat;
 	int fpga_irq;
@@ -169,7 +169,7 @@ void omap1510_fpga_init_irq(void)
 		}
 
 		irq_set_handler(i, handle_edge_irq);
-		set_irq_flags(i, IRQF_VALID);
+		irq_clear_status_flags(i, IRQ_NOREQUEST);
 	}
 
 	/*

@@ -80,6 +80,15 @@ config SSB_SDIOHOST
 
 	  If unsure, say N
 
+config SSB_HOST_SOC
+	bool "Support for SSB bus on SoC"
+	depends on SSB
+	help
+	  Host interface for a SSB directly mapped into memory. This is
+	  for some Broadcom SoCs from the BCM47xx and BCM53xx lines.
+
+	  If unsure, say N
+
 config SSB_SILENT
 	bool "No SSB kernel messages"
 	depends on SSB && EXPERT

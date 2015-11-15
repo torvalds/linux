@@ -232,12 +232,60 @@
 	.set	pop
 	.endm
 
+	.macro	ld_b	wd, off, base
+	.set	push
+	.set	mips32r2
+	.set	msa
+	ld.b	$w\wd, \off(\base)
+	.set	pop
+	.endm
+
+	.macro	ld_h	wd, off, base
+	.set	push
+	.set	mips32r2
+	.set	msa
+	ld.h	$w\wd, \off(\base)
+	.set	pop
+	.endm
+
+	.macro	ld_w	wd, off, base
+	.set	push
+	.set	mips32r2
+	.set	msa
+	ld.w	$w\wd, \off(\base)
+	.set	pop
+	.endm
+
 	.macro	ld_d	wd, off, base
 	.set	push
 	.set	mips32r2
 	.set	fp=64
 	.set	msa
 	ld.d	$w\wd, \off(\base)
+	.set	pop
+	.endm
+
+	.macro	st_b	wd, off, base
+	.set	push
+	.set	mips32r2
+	.set	msa
+	st.b	$w\wd, \off(\base)
+	.set	pop
+	.endm
+
+	.macro	st_h	wd, off, base
+	.set	push
+	.set	mips32r2
+	.set	msa
+	st.h	$w\wd, \off(\base)
+	.set	pop
+	.endm
+
+	.macro	st_w	wd, off, base
+	.set	push
+	.set	mips32r2
+	.set	msa
+	st.w	$w\wd, \off(\base)
 	.set	pop
 	.endm
 
@@ -290,7 +338,13 @@
 #ifdef CONFIG_CPU_MICROMIPS
 #define CFC_MSA_INSN		0x587e0056
 #define CTC_MSA_INSN		0x583e0816
+#define LDB_MSA_INSN		0x58000807
+#define LDH_MSA_INSN		0x58000817
+#define LDW_MSA_INSN		0x58000827
 #define LDD_MSA_INSN		0x58000837
+#define STB_MSA_INSN		0x5800080f
+#define STH_MSA_INSN		0x5800081f
+#define STW_MSA_INSN		0x5800082f
 #define STD_MSA_INSN		0x5800083f
 #define COPY_UW_MSA_INSN	0x58f00056
 #define COPY_UD_MSA_INSN	0x58f80056
@@ -299,7 +353,13 @@
 #else
 #define CFC_MSA_INSN		0x787e0059
 #define CTC_MSA_INSN		0x783e0819
+#define LDB_MSA_INSN		0x78000820
+#define LDH_MSA_INSN		0x78000821
+#define LDW_MSA_INSN		0x78000822
 #define LDD_MSA_INSN		0x78000823
+#define STB_MSA_INSN		0x78000824
+#define STH_MSA_INSN		0x78000825
+#define STW_MSA_INSN		0x78000826
 #define STD_MSA_INSN		0x78000827
 #define COPY_UW_MSA_INSN	0x78f00059
 #define COPY_UD_MSA_INSN	0x78f80059
@@ -329,12 +389,66 @@
 	.set	pop
 	.endm
 
+	.macro	ld_b	wd, off, base
+	.set	push
+	.set	noat
+	SET_HARDFLOAT
+	addu	$1, \base, \off
+	.word	LDB_MSA_INSN | (\wd << 6)
+	.set	pop
+	.endm
+
+	.macro	ld_h	wd, off, base
+	.set	push
+	.set	noat
+	SET_HARDFLOAT
+	addu	$1, \base, \off
+	.word	LDH_MSA_INSN | (\wd << 6)
+	.set	pop
+	.endm
+
+	.macro	ld_w	wd, off, base
+	.set	push
+	.set	noat
+	SET_HARDFLOAT
+	addu	$1, \base, \off
+	.word	LDW_MSA_INSN | (\wd << 6)
+	.set	pop
+	.endm
+
 	.macro	ld_d	wd, off, base
 	.set	push
 	.set	noat
 	SET_HARDFLOAT
 	addu	$1, \base, \off
 	.word	LDD_MSA_INSN | (\wd << 6)
+	.set	pop
+	.endm
+
+	.macro	st_b	wd, off, base
+	.set	push
+	.set	noat
+	SET_HARDFLOAT
+	addu	$1, \base, \off
+	.word	STB_MSA_INSN | (\wd << 6)
+	.set	pop
+	.endm
+
+	.macro	st_h	wd, off, base
+	.set	push
+	.set	noat
+	SET_HARDFLOAT
+	addu	$1, \base, \off
+	.word	STH_MSA_INSN | (\wd << 6)
+	.set	pop
+	.endm
+
+	.macro	st_w	wd, off, base
+	.set	push
+	.set	noat
+	SET_HARDFLOAT
+	addu	$1, \base, \off
+	.word	STW_MSA_INSN | (\wd << 6)
 	.set	pop
 	.endm
 

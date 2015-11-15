@@ -84,7 +84,7 @@ nouveau_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 
 	if (ret != -ENODEV)
 		nouveau_fbcon_gpu_lockup(info);
-	cfb_fillrect(info, rect);
+	drm_fb_helper_cfb_fillrect(info, rect);
 }
 
 static void
@@ -116,7 +116,7 @@ nouveau_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *image)
 
 	if (ret != -ENODEV)
 		nouveau_fbcon_gpu_lockup(info);
-	cfb_copyarea(info, image);
+	drm_fb_helper_cfb_copyarea(info, image);
 }
 
 static void
@@ -148,7 +148,7 @@ nouveau_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 
 	if (ret != -ENODEV)
 		nouveau_fbcon_gpu_lockup(info);
-	cfb_imageblit(info, image);
+	drm_fb_helper_cfb_imageblit(info, image);
 }
 
 static int
@@ -178,8 +178,30 @@ nouveau_fbcon_sync(struct fb_info *info)
 	return 0;
 }
 
+static int
+nouveau_fbcon_open(struct fb_info *info, int user)
+{
+	struct nouveau_fbdev *fbcon = info->par;
+	struct nouveau_drm *drm = nouveau_drm(fbcon->dev);
+	int ret = pm_runtime_get_sync(drm->dev->dev);
+	if (ret < 0 && ret != -EACCES)
+		return ret;
+	return 0;
+}
+
+static int
+nouveau_fbcon_release(struct fb_info *info, int user)
+{
+	struct nouveau_fbdev *fbcon = info->par;
+	struct nouveau_drm *drm = nouveau_drm(fbcon->dev);
+	pm_runtime_put(drm->dev->dev);
+	return 0;
+}
+
 static struct fb_ops nouveau_fbcon_ops = {
 	.owner = THIS_MODULE,
+	.fb_open = nouveau_fbcon_open,
+	.fb_release = nouveau_fbcon_release,
 	.fb_check_var = drm_fb_helper_check_var,
 	.fb_set_par = drm_fb_helper_set_par,
 	.fb_fillrect = nouveau_fbcon_fillrect,
@@ -195,11 +217,13 @@ static struct fb_ops nouveau_fbcon_ops = {
 
 static struct fb_ops nouveau_fbcon_sw_ops = {
 	.owner = THIS_MODULE,
+	.fb_open = nouveau_fbcon_open,
+	.fb_release = nouveau_fbcon_release,
 	.fb_check_var = drm_fb_helper_check_var,
 	.fb_set_par = drm_fb_helper_set_par,
-	.fb_fillrect = cfb_fillrect,
-	.fb_copyarea = cfb_copyarea,
-	.fb_imageblit = cfb_imageblit,
+	.fb_fillrect = drm_fb_helper_cfb_fillrect,
+	.fb_copyarea = drm_fb_helper_cfb_copyarea,
+	.fb_imageblit = drm_fb_helper_cfb_imageblit,
 	.fb_pan_display = drm_fb_helper_pan_display,
 	.fb_blank = drm_fb_helper_blank,
 	.fb_setcmap = drm_fb_helper_setcmap,
@@ -319,7 +343,6 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 	struct nouveau_channel *chan;
 	struct nouveau_bo *nvbo;
 	struct drm_mode_fb_cmd2 mode_cmd;
-	struct pci_dev *pdev = dev->pdev;
 	int size, ret;
 
 	mode_cmd.width = sizes->surface_width;
@@ -365,19 +388,12 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 
 	mutex_lock(&dev->struct_mutex);
 
-	info = framebuffer_alloc(0, &pdev->dev);
-	if (!info) {
-		ret = -ENOMEM;
+	info = drm_fb_helper_alloc_fbi(helper);
+	if (IS_ERR(info)) {
+		ret = PTR_ERR(info);
 		goto out_unlock;
 	}
 	info->skip_vt_switch = 1;
-
-	ret = fb_alloc_cmap(&info->cmap, 256, 0);
-	if (ret) {
-		ret = -ENOMEM;
-		framebuffer_release(info);
-		goto out_unlock;
-	}
 
 	info->par = fbcon;
 
@@ -388,7 +404,6 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 
 	/* setup helper */
 	fbcon->helper.fb = fb;
-	fbcon->helper.fbdev = info;
 
 	strcpy(info->fix.id, "nouveaufb");
 	if (!chan)
@@ -450,15 +465,9 @@ static int
 nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbdev *fbcon)
 {
 	struct nouveau_framebuffer *nouveau_fb = &fbcon->nouveau_fb;
-	struct fb_info *info;
 
-	if (fbcon->helper.fbdev) {
-		info = fbcon->helper.fbdev;
-		unregister_framebuffer(info);
-		if (info->cmap.len)
-			fb_dealloc_cmap(&info->cmap);
-		framebuffer_release(info);
-	}
+	drm_fb_helper_unregister_fbi(&fbcon->helper);
+	drm_fb_helper_release_fbi(&fbcon->helper);
 
 	if (nouveau_fb->nvbo) {
 		nouveau_bo_unmap(nouveau_fb->nvbo);
@@ -496,7 +505,7 @@ nouveau_fbcon_set_suspend(struct drm_device *dev, int state)
 		console_lock();
 		if (state == FBINFO_STATE_RUNNING)
 			nouveau_fbcon_accel_restore(dev);
-		fb_set_suspend(drm->fbcon->helper.fbdev, state);
+		drm_fb_helper_set_suspend(&drm->fbcon->helper, state);
 		if (state != FBINFO_STATE_RUNNING)
 			nouveau_fbcon_accel_save_disable(dev);
 		console_unlock();

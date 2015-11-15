@@ -53,10 +53,10 @@ config MPL3115
           will be called mpl3115.
 
 config MS5611
-	tristate "Measurement Specialities MS5611 pressure sensor driver"
+	tristate "Measurement Specialties MS5611 pressure sensor driver"
 	help
-	  Say Y here to build support for the Measurement Specialities
-	  MS5611 pressure and temperature sensor.
+	  Say Y here to build support for the Measurement Specialties
+	  MS5611, MS5607 pressure and temperature sensors.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called ms5611_core.
@@ -78,6 +78,19 @@ config MS5611_SPI
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called ms5611_spi.
+
+config MS5637
+	tristate "Measurement Specialties MS5637 pressure & temperature sensor"
+	depends on I2C
+        select IIO_MS_SENSORS_I2C
+	help
+	  If you say yes here you get support for the Measurement Specialties
+	  MS5637 pressure and temperature sensor.
+	  This driver is also used for MS8607 temperature, pressure & humidity
+	  sensor
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ms5637.
 
 config IIO_ST_PRESS
 	tristate "STMicroelectronics pressure sensor Driver"

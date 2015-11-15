@@ -48,6 +48,9 @@
 
 extern const char driver_version[];
 
+struct mwifiex_adapter;
+struct mwifiex_private;
+
 enum {
 	MWIFIEX_ASYNC_CMD,
 	MWIFIEX_SYNC_CMD
@@ -180,12 +183,11 @@ enum MWIFIEX_DEBUG_LEVEL {
 					MWIFIEX_DBG_FATAL | \
 					MWIFIEX_DBG_ERROR)
 
-#define mwifiex_dbg(adapter, dbg_mask, fmt, args...)		\
-do {								\
-	if ((adapter)->debug_mask & MWIFIEX_DBG_##dbg_mask)	\
-		if ((adapter)->dev)				\
-			dev_info((adapter)->dev, fmt, ## args);	\
-} while (0)
+__printf(3, 4)
+void _mwifiex_dbg(const struct mwifiex_adapter *adapter, int mask,
+		  const char *fmt, ...);
+#define mwifiex_dbg(adapter, mask, fmt, ...)				\
+	_mwifiex_dbg(adapter, MWIFIEX_DBG_##mask, fmt, ##__VA_ARGS__)
 
 #define DEBUG_DUMP_DATA_MAX_LEN		128
 #define mwifiex_dbg_dump(adapter, dbg_mask, str, buf, len)	\
@@ -281,6 +283,7 @@ struct mwifiex_ra_list_tbl {
 	u8 amsdu_in_ampdu;
 	u16 total_pkt_count;
 	bool tdls_link;
+	bool tx_paused;
 };
 
 struct mwifiex_tid_tbl {
@@ -294,6 +297,7 @@ struct mwifiex_tid_tbl {
 struct mwifiex_wmm_desc {
 	struct mwifiex_tid_tbl tid_tbl_ptr[MAX_NUM_TID];
 	u32 packets_out[MAX_NUM_TID];
+	u32 pkts_paused[MAX_NUM_TID];
 	/* spin lock to protect ra_list */
 	spinlock_t ra_list_spinlock;
 	struct mwifiex_wmm_ac_status ac_status[IEEE80211_NUM_ACS];
@@ -504,9 +508,6 @@ enum mwifiex_iface_work_flags {
 	MWIFIEX_IFACE_WORK_CARD_RESET,
 };
 
-struct mwifiex_adapter;
-struct mwifiex_private;
-
 struct mwifiex_private {
 	struct mwifiex_adapter *adapter;
 	u8 bss_type;
@@ -517,6 +518,8 @@ struct mwifiex_private {
 	u8 frame_type;
 	u8 curr_addr[ETH_ALEN];
 	u8 media_connected;
+	u8 port_open;
+	u8 usb_port;
 	u32 num_tx_timeout;
 	/* track consecutive timeout */
 	u8 tx_timeout_cnt;
@@ -662,6 +665,8 @@ struct mwifiex_private {
 	struct cfg80211_beacon_data beacon_after;
 	struct mwifiex_11h_intf_state state_11h;
 	struct mwifiex_ds_mem_rw mem_rw;
+	struct sk_buff_head bypass_txq;
+	struct mwifiex_user_scan_chan hidden_chan[MWIFIEX_USER_SCAN_CHAN_MAX];
 };
 
 
@@ -768,6 +773,7 @@ struct mwifiex_sta_node {
 	u8 tdls_status;
 	struct mwifiex_tdls_capab tdls_cap;
 	struct mwifiex_station_stats stats;
+	u8 tx_pause;
 };
 
 struct mwifiex_auto_tdls_peer {
@@ -810,6 +816,8 @@ struct mwifiex_if_ops {
 	void (*iface_work)(struct work_struct *work);
 	void (*submit_rem_rx_urbs)(struct mwifiex_adapter *adapter);
 	void (*deaggr_pkt)(struct mwifiex_adapter *, struct sk_buff *);
+	void (*multi_port_resync)(struct mwifiex_adapter *);
+	bool (*is_port_ready)(struct mwifiex_private *);
 };
 
 struct mwifiex_adapter {
@@ -831,6 +839,7 @@ struct mwifiex_adapter {
 	wait_queue_head_t init_wait_q;
 	void *card;
 	struct mwifiex_if_ops if_ops;
+	atomic_t bypass_tx_pending;
 	atomic_t rx_pending;
 	atomic_t tx_pending;
 	atomic_t cmd_pending;
@@ -854,6 +863,8 @@ struct mwifiex_adapter {
 	u8 more_task_flag;
 	u16 tx_buf_size;
 	u16 curr_tx_buf_size;
+	/* sdio single port rx aggregation capability */
+	bool host_disable_sdio_rx_aggr;
 	bool sdio_rx_aggr_enable;
 	u16 sdio_rx_block_size;
 	u32 ioport;
@@ -979,6 +990,10 @@ struct mwifiex_adapter {
 	u8 coex_win_size;
 	u8 coex_tx_win_size;
 	u8 coex_rx_win_size;
+	bool drcs_enabled;
+	u8 active_scan_triggered;
+	bool usb_mc_status;
+	bool usb_mc_setup;
 };
 
 void mwifiex_process_tx_queue(struct mwifiex_adapter *adapter);
@@ -1330,6 +1345,21 @@ static inline u8 mwifiex_is_any_intf_active(struct mwifiex_private *priv)
 	return 0;
 }
 
+static inline u8 mwifiex_is_tdls_link_setup(u8 status)
+{
+	switch (status) {
+	case TDLS_SETUP_COMPLETE:
+	case TDLS_CHAN_SWITCHING:
+	case TDLS_IN_BASE_CHAN:
+	case TDLS_IN_OFF_CHAN:
+		return true;
+	default:
+		break;
+	}
+
+	return false;
+}
+
 int mwifiex_init_shutdown_fw(struct mwifiex_private *priv,
 			     u32 func_init_shutdown);
 int mwifiex_add_card(void *, struct semaphore *, struct mwifiex_if_ops *, u8);
@@ -1458,6 +1488,9 @@ struct mwifiex_sta_node *
 mwifiex_add_sta_entry(struct mwifiex_private *priv, const u8 *mac);
 struct mwifiex_sta_node *
 mwifiex_get_sta_entry(struct mwifiex_private *priv, const u8 *mac);
+u8 mwifiex_is_tdls_chan_switching(struct mwifiex_private *priv);
+u8 mwifiex_is_tdls_off_chan(struct mwifiex_private *priv);
+u8 mwifiex_is_send_cmd_allowed(struct mwifiex_private *priv);
 int mwifiex_send_tdls_data_frame(struct mwifiex_private *priv, const u8 *peer,
 				 u8 action_code, u8 dialog_token,
 				 u16 status_code, const u8 *extra_ies,
@@ -1488,6 +1521,13 @@ void mwifiex_check_auto_tdls(unsigned long context);
 void mwifiex_add_auto_tdls_peer(struct mwifiex_private *priv, const u8 *mac);
 void mwifiex_setup_auto_tdls_timer(struct mwifiex_private *priv);
 void mwifiex_clean_auto_tdls(struct mwifiex_private *priv);
+int mwifiex_config_tdls_enable(struct mwifiex_private *priv);
+int mwifiex_config_tdls_disable(struct mwifiex_private *priv);
+int mwifiex_config_tdls_cs_params(struct mwifiex_private *priv);
+int mwifiex_stop_tdls_cs(struct mwifiex_private *priv, const u8 *peer_mac);
+int mwifiex_start_tdls_cs(struct mwifiex_private *priv, const u8 *peer_mac,
+			  u8 primary_chan, u8 second_chan_offset, u8 band);
+
 int mwifiex_cmd_issue_chan_report_request(struct mwifiex_private *priv,
 					  struct host_cmd_ds_command *cmd,
 					  void *data_buf);
@@ -1522,6 +1562,13 @@ void *mwifiex_alloc_dma_align_buf(int rx_len, gfp_t flags);
 void mwifiex_queue_main_work(struct mwifiex_adapter *adapter);
 void mwifiex_coex_ampdu_rxwinsize(struct mwifiex_adapter *adapter);
 void mwifiex_11n_delba(struct mwifiex_private *priv, int tid);
+int mwifiex_send_domain_info_cmd_fw(struct wiphy *wiphy);
+void mwifiex_process_tx_pause_event(struct mwifiex_private *priv,
+				    struct sk_buff *event);
+void mwifiex_process_multi_chan_event(struct mwifiex_private *priv,
+				      struct sk_buff *event_skb);
+void mwifiex_multi_chan_resync(struct mwifiex_adapter *adapter);
+
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);
 void mwifiex_debugfs_remove(void);

@@ -332,6 +332,7 @@ static const struct of_device_id of_pca963x_match[] = {
 	{ .compatible = "nxp,pca9635", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, of_pca963x_match);
 #else
 static struct pca963x_platform_data *
 pca963x_dt_init(struct i2c_client *client, struct pca963x_chipdef *chip)
@@ -458,7 +459,6 @@ static int pca963x_remove(struct i2c_client *client)
 static struct i2c_driver pca963x_driver = {
 	.driver = {
 		.name	= "leds-pca963x",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(of_pca963x_match),
 	},
 	.probe	= pca963x_probe,

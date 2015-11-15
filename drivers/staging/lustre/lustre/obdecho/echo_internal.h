@@ -43,5 +43,4 @@
 /* block size to use for data verification */
 #define OBD_ECHO_BLOCK_SIZE	(4<<10)
 
-
 #endif

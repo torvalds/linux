@@ -149,8 +149,10 @@ struct nx_crypto_ctx {
 	} priv;
 };
 
+struct crypto_aead;
+
 /* prototypes */
-int nx_crypto_ctx_aes_ccm_init(struct crypto_tfm *tfm);
+int nx_crypto_ctx_aes_ccm_init(struct crypto_aead *tfm);
 int nx_crypto_ctx_aes_gcm_init(struct crypto_aead *tfm);
 int nx_crypto_ctx_aes_xcbc_init(struct crypto_tfm *tfm);
 int nx_crypto_ctx_aes_ctr_init(struct crypto_tfm *tfm);
@@ -187,10 +189,9 @@ extern struct crypto_alg nx_cbc_aes_alg;
 extern struct crypto_alg nx_ecb_aes_alg;
 extern struct aead_alg nx_gcm_aes_alg;
 extern struct aead_alg nx_gcm4106_aes_alg;
-extern struct crypto_alg nx_ctr_aes_alg;
 extern struct crypto_alg nx_ctr3686_aes_alg;
-extern struct crypto_alg nx_ccm_aes_alg;
-extern struct crypto_alg nx_ccm4309_aes_alg;
+extern struct aead_alg nx_ccm_aes_alg;
+extern struct aead_alg nx_ccm4309_aes_alg;
 extern struct shash_alg nx_shash_aes_xcbc_alg;
 extern struct shash_alg nx_shash_sha512_alg;
 extern struct shash_alg nx_shash_sha256_alg;

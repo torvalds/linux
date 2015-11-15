@@ -66,12 +66,11 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state);
 
 static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 {
+	u32 aml_offset;
 
 	ACPI_FUNCTION_TRACE_PTR(ps_get_aml_opcode, walk_state);
 
-	walk_state->aml_offset =
-	    (u32)ACPI_PTR_DIFF(walk_state->parser_state.aml,
-			       walk_state->parser_state.aml_start);
+	walk_state->aml = walk_state->parser_state.aml;
 	walk_state->opcode = acpi_ps_peek_opcode(&(walk_state->parser_state));
 
 	/*
@@ -98,10 +97,14 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 		/* The opcode is unrecognized. Complain and skip unknown opcodes */
 
 		if (walk_state->pass_number == 2) {
+			aml_offset = (u32)ACPI_PTR_DIFF(walk_state->aml,
+							walk_state->
+							parser_state.aml_start);
+
 			ACPI_ERROR((AE_INFO,
 				    "Unknown opcode 0x%.2X at table offset 0x%.4X, ignoring",
 				    walk_state->opcode,
-				    (u32)(walk_state->aml_offset +
+				    (u32)(aml_offset +
 					  sizeof(struct acpi_table_header))));
 
 			ACPI_DUMP_BUFFER((walk_state->parser_state.aml - 16),
@@ -115,14 +118,14 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 			acpi_os_printf
 			    ("/*\nError: Unknown opcode 0x%.2X at table offset 0x%.4X, context:\n",
 			     walk_state->opcode,
-			     (u32)(walk_state->aml_offset +
+			     (u32)(aml_offset +
 				   sizeof(struct acpi_table_header)));
 
 			/* Dump the context surrounding the invalid opcode */
 
 			acpi_ut_dump_buffer(((u8 *)walk_state->parser_state.
 					     aml - 16), 48, DB_BYTE_DISPLAY,
-					    (walk_state->aml_offset +
+					    (aml_offset +
 					     sizeof(struct acpi_table_header) -
 					     16));
 			acpi_os_printf(" */\n");
@@ -294,7 +297,7 @@ acpi_ps_create_op(struct acpi_walk_state *walk_state,
 	/* Create Op structure and append to parent's argument list */
 
 	walk_state->op_info = acpi_ps_get_opcode_info(walk_state->opcode);
-	op = acpi_ps_alloc_op(walk_state->opcode);
+	op = acpi_ps_alloc_op(walk_state->opcode, aml_op_start);
 	if (!op) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}

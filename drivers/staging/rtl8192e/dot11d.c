@@ -6,10 +6,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -160,21 +156,6 @@ void Dot11d_UpdateCountryIe(struct rtllib_device *dev, u8 *pTaddr,
 	pDot11dInfo->State = DOT11D_STATE_LEARNED;
 }
 
-u8 DOT11D_GetMaxTxPwrInDbm(struct rtllib_device *dev, u8 Channel)
-{
-	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(dev);
-	u8 MaxTxPwrInDbm = 255;
-
-	if (MAX_CHANNEL_NUMBER < Channel) {
-		netdev_info(dev->dev, "DOT11D_GetMaxTxPwrInDbm(): Invalid Channel\n");
-		return MaxTxPwrInDbm;
-	}
-	if (pDot11dInfo->channel_map[Channel])
-		MaxTxPwrInDbm = pDot11dInfo->MaxTxPwrDbmList[Channel];
-
-	return MaxTxPwrInDbm;
-}
-
 void DOT11D_ScanComplete(struct rtllib_device *dev)
 {
 	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(dev);
@@ -189,28 +170,4 @@ void DOT11D_ScanComplete(struct rtllib_device *dev)
 	case DOT11D_STATE_NONE:
 		break;
 	}
-}
-
-int ToLegalChannel(struct rtllib_device *dev, u8 channel)
-{
-	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(dev);
-	u8 default_chn = 0;
-	u32 i;
-
-	for (i = 1; i <= MAX_CHANNEL_NUMBER; i++) {
-		if (pDot11dInfo->channel_map[i] > 0) {
-			default_chn = i;
-			break;
-		}
-	}
-
-	if (MAX_CHANNEL_NUMBER < channel) {
-		netdev_err(dev->dev, "%s(): Invalid Channel\n", __func__);
-		return default_chn;
-	}
-
-	if (pDot11dInfo->channel_map[channel] > 0)
-		return channel;
-
-	return default_chn;
 }

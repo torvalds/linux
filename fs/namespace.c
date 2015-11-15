@@ -3218,6 +3218,8 @@ static bool fs_fully_visible(struct file_system_type *type, int *new_mnt_flags)
 	down_read(&namespace_sem);
 	list_for_each_entry(mnt, &ns->list, mnt_list) {
 		struct mount *child;
+		int mnt_flags;
+
 		if (mnt->mnt.mnt_sb->s_type != type)
 			continue;
 
@@ -3227,17 +3229,30 @@ static bool fs_fully_visible(struct file_system_type *type, int *new_mnt_flags)
 		if (mnt->mnt.mnt_root != mnt->mnt.mnt_sb->s_root)
 			continue;
 
+		/* Read the mount flags and filter out flags that
+		 * may safely be ignored.
+		 */
+		mnt_flags = mnt->mnt.mnt_flags;
+		if (mnt->mnt.mnt_sb->s_iflags & SB_I_NOEXEC)
+			mnt_flags &= ~(MNT_LOCK_NOSUID | MNT_LOCK_NOEXEC);
+
 		/* Verify the mount flags are equal to or more permissive
 		 * than the proposed new mount.
 		 */
-		if ((mnt->mnt.mnt_flags & MNT_LOCK_READONLY) &&
+		if ((mnt_flags & MNT_LOCK_READONLY) &&
 		    !(new_flags & MNT_READONLY))
 			continue;
-		if ((mnt->mnt.mnt_flags & MNT_LOCK_NODEV) &&
+		if ((mnt_flags & MNT_LOCK_NODEV) &&
 		    !(new_flags & MNT_NODEV))
 			continue;
-		if ((mnt->mnt.mnt_flags & MNT_LOCK_ATIME) &&
-		    ((mnt->mnt.mnt_flags & MNT_ATIME_MASK) != (new_flags & MNT_ATIME_MASK)))
+		if ((mnt_flags & MNT_LOCK_NOSUID) &&
+		    !(new_flags & MNT_NOSUID))
+			continue;
+		if ((mnt_flags & MNT_LOCK_NOEXEC) &&
+		    !(new_flags & MNT_NOEXEC))
+			continue;
+		if ((mnt_flags & MNT_LOCK_ATIME) &&
+		    ((mnt_flags & MNT_ATIME_MASK) != (new_flags & MNT_ATIME_MASK)))
 			continue;
 
 		/* This mount is not fully visible if there are any
@@ -3247,16 +3262,18 @@ static bool fs_fully_visible(struct file_system_type *type, int *new_mnt_flags)
 		list_for_each_entry(child, &mnt->mnt_mounts, mnt_child) {
 			struct inode *inode = child->mnt_mountpoint->d_inode;
 			/* Only worry about locked mounts */
-			if (!(mnt->mnt.mnt_flags & MNT_LOCKED))
+			if (!(mnt_flags & MNT_LOCKED))
 				continue;
 			/* Is the directory permanetly empty? */
 			if (!is_empty_dir_inode(inode))
 				goto next;
 		}
 		/* Preserve the locked attributes */
-		*new_mnt_flags |= mnt->mnt.mnt_flags & (MNT_LOCK_READONLY | \
-							MNT_LOCK_NODEV    | \
-							MNT_LOCK_ATIME);
+		*new_mnt_flags |= mnt_flags & (MNT_LOCK_READONLY | \
+					       MNT_LOCK_NODEV    | \
+					       MNT_LOCK_NOSUID   | \
+					       MNT_LOCK_NOEXEC   | \
+					       MNT_LOCK_ATIME);
 		visible = true;
 		goto found;
 	next:	;

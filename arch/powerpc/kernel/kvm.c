@@ -649,7 +649,6 @@ static void kvm_check_ins(u32 *inst, u32 features)
 			kvm_patch_ins_mtsrin(inst, inst_rt, inst_rb);
 		}
 		break;
-		break;
 #endif
 	}
 

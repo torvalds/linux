@@ -215,20 +215,13 @@ static int tc3589x_irq_map(struct irq_domain *d, unsigned int virq,
 	irq_set_chip_and_handler(virq, &dummy_irq_chip,
 				handle_edge_irq);
 	irq_set_nested_thread(virq, 1);
-#ifdef CONFIG_ARM
-	set_irq_flags(virq, IRQF_VALID);
-#else
 	irq_set_noprobe(virq);
-#endif
 
 	return 0;
 }
 
 static void tc3589x_irq_unmap(struct irq_domain *d, unsigned int virq)
 {
-#ifdef CONFIG_ARM
-	set_irq_flags(virq, 0);
-#endif
 	irq_set_chip_and_handler(virq, NULL, NULL);
 	irq_set_chip_data(virq, NULL);
 }
@@ -492,7 +485,6 @@ MODULE_DEVICE_TABLE(i2c, tc3589x_id);
 static struct i2c_driver tc3589x_driver = {
 	.driver = {
 		.name	= "tc3589x",
-		.owner	= THIS_MODULE,
 		.pm	= &tc3589x_dev_pm_ops,
 		.of_match_table = of_match_ptr(tc3589x_match),
 	},

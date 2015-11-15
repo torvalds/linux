@@ -1257,6 +1257,9 @@ static int eps_init(struct mv_udc *udc)
 	ep->wedge = 0;
 	ep->stopped = 0;
 	usb_ep_set_maxpacket_limit(&ep->ep, EP0_MAX_PKT_SIZE);
+	ep->ep.caps.type_control = true;
+	ep->ep.caps.dir_in = true;
+	ep->ep.caps.dir_out = true;
 	ep->ep_num = 0;
 	ep->ep.desc = &mv_ep0_desc;
 	INIT_LIST_HEAD(&ep->queue);
@@ -1269,13 +1272,19 @@ static int eps_init(struct mv_udc *udc)
 		if (i % 2) {
 			snprintf(name, sizeof(name), "ep%din", i / 2);
 			ep->direction = EP_DIR_IN;
+			ep->ep.caps.dir_in = true;
 		} else {
 			snprintf(name, sizeof(name), "ep%dout", i / 2);
 			ep->direction = EP_DIR_OUT;
+			ep->ep.caps.dir_out = true;
 		}
 		ep->udc = udc;
 		strncpy(ep->name, name, sizeof(ep->name));
 		ep->ep.name = ep->name;
+
+		ep->ep.caps.type_iso = true;
+		ep->ep.caps.type_bulk = true;
+		ep->ep.caps.type_int = true;
 
 		ep->ep.ops = &mv_ep_ops;
 		ep->stopped = 0;
@@ -2091,8 +2100,7 @@ static int mv_udc_remove(struct platform_device *pdev)
 	}
 
 	/* free memory allocated in probe */
-	if (udc->dtd_pool)
-		dma_pool_destroy(udc->dtd_pool);
+	dma_pool_destroy(udc->dtd_pool);
 
 	if (udc->ep_dqh)
 		dma_free_coherent(&pdev->dev, udc->ep_dqh_size,

@@ -418,10 +418,7 @@ static int outmixer_event(struct snd_soc_dapm_widget *w,
 }
 
 /* INMIX dB values */
-static const unsigned int in_mix_tlv[] = {
-	TLV_DB_RANGE_HEAD(1),
-	0, 7, TLV_DB_SCALE_ITEM(-1200, 600, 0),
-};
+static const DECLARE_TLV_DB_SCALE(in_mix_tlv, -1200, 600, 0);
 
 /* Left In PGA Connections */
 static const struct snd_kcontrol_new wm8990_dapm_lin12_pga_controls[] = {
@@ -1356,7 +1353,6 @@ MODULE_DEVICE_TABLE(i2c, wm8990_i2c_id);
 static struct i2c_driver wm8990_i2c_driver = {
 	.driver = {
 		.name = "wm8990",
-		.owner = THIS_MODULE,
 	},
 	.probe =    wm8990_i2c_probe,
 	.remove =   wm8990_i2c_remove,

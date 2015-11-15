@@ -9,9 +9,9 @@
 	ocp {
 		i2c@0 {
 			compatible = "i2c-cbus-gpio";
-			gpios = <&gpio3 2 0 /* gpio66 clk */
-				 &gpio3 1 0 /* gpio65 dat */
-				 &gpio3 0 0 /* gpio64 sel */
+			gpios = <&gpio3 2 GPIO_ACTIVE_HIGH /* gpio66 clk */
+				 &gpio3 1 GPIO_ACTIVE_HIGH /* gpio65 dat */
+				 &gpio3 0 GPIO_ACTIVE_HIGH /* gpio64 sel */
 				>;
 			#address-cells = <1>;
 			#size-cells = <0>;

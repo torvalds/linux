@@ -729,7 +729,6 @@ MODULE_DEVICE_TABLE(i2c, m88rs6000t_id);
 
 static struct i2c_driver m88rs6000t_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "m88rs6000t",
 	},
 	.probe		= m88rs6000t_probe,

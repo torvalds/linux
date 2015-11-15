@@ -723,17 +723,11 @@ static struct snd_soc_codec_driver ssm2518_codec_driver = {
 	.num_dapm_routes = ARRAY_SIZE(ssm2518_routes),
 };
 
-static bool ssm2518_register_volatile(struct device *dev, unsigned int reg)
-{
-	return false;
-}
-
 static const struct regmap_config ssm2518_regmap_config = {
 	.val_bits = 8,
 	.reg_bits = 8,
 
 	.max_register = SSM2518_REG_DRC_9,
-	.volatile_reg = ssm2518_register_volatile,
 
 	.cache_type = REGCACHE_RBTREE,
 	.reg_defaults = ssm2518_reg_defaults,
@@ -806,6 +800,14 @@ static int ssm2518_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id ssm2518_dt_ids[] = {
+	{ .compatible = "adi,ssm2518", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ssm2518_dt_ids);
+#endif
+
 static const struct i2c_device_id ssm2518_i2c_ids[] = {
 	{ "ssm2518", 0 },
 	{ }
@@ -815,7 +817,7 @@ MODULE_DEVICE_TABLE(i2c, ssm2518_i2c_ids);
 static struct i2c_driver ssm2518_driver = {
 	.driver = {
 		.name = "ssm2518",
-		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(ssm2518_dt_ids),
 	},
 	.probe = ssm2518_i2c_probe,
 	.remove = ssm2518_i2c_remove,

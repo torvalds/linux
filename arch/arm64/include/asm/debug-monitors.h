@@ -18,6 +18,12 @@
 
 #ifdef __KERNEL__
 
+#include <linux/errno.h>
+#include <linux/types.h>
+#include <asm/esr.h>
+#include <asm/insn.h>
+#include <asm/ptrace.h>
+
 /* Low-level stepping controls. */
 #define DBG_MDSCR_SS		(1 << 0)
 #define DBG_SPSR_SS		(1 << 21)
@@ -38,12 +44,7 @@
 /*
  * Break point instruction encoding
  */
-#define BREAK_INSTR_SIZE		4
-
-/*
- * ESR values expected for dynamic and compile time BRK instruction
- */
-#define DBG_ESR_VAL_BRK(x)	(0xf2000000 | ((x) & 0xfffff))
+#define BREAK_INSTR_SIZE		AARCH64_INSN_SIZE
 
 /*
  * #imm16 values used for BRK instruction generation
@@ -51,10 +52,12 @@
  * 0x100: for triggering a fault on purpose (reserved)
  * 0x400: for dynamic BRK instruction
  * 0x401: for compile time BRK instruction
+ * 0x800: kernel-mode BUG() and WARN() traps
  */
 #define FAULT_BRK_IMM			0x100
 #define KGDB_DYN_DBG_BRK_IMM		0x400
 #define KGDB_COMPILED_DBG_BRK_IMM	0x401
+#define BUG_BRK_IMM			0x800
 
 /*
  * BRK instruction encoding
@@ -68,25 +71,10 @@
  */
 #define AARCH64_BREAK_FAULT	(AARCH64_BREAK_MON | (FAULT_BRK_IMM << 5))
 
-/*
- * Extract byte from BRK instruction
- */
-#define KGDB_DYN_DBG_BRK_INS_BYTE(x) \
-	((((AARCH64_BREAK_MON) & 0xffe0001f) >> (x * 8)) & 0xff)
-
-/*
- * Extract byte from BRK #imm16
- */
-#define KGBD_DYN_DBG_BRK_IMM_BYTE(x) \
-	(((((KGDB_DYN_DBG_BRK_IMM) & 0xffff) << 5) >> (x * 8)) & 0xff)
-
-#define KGDB_DYN_DBG_BRK_BYTE(x) \
-	(KGDB_DYN_DBG_BRK_INS_BYTE(x) | KGBD_DYN_DBG_BRK_IMM_BYTE(x))
-
-#define  KGDB_DYN_BRK_INS_BYTE0  KGDB_DYN_DBG_BRK_BYTE(0)
-#define  KGDB_DYN_BRK_INS_BYTE1  KGDB_DYN_DBG_BRK_BYTE(1)
-#define  KGDB_DYN_BRK_INS_BYTE2  KGDB_DYN_DBG_BRK_BYTE(2)
-#define  KGDB_DYN_BRK_INS_BYTE3  KGDB_DYN_DBG_BRK_BYTE(3)
+#define AARCH64_BREAK_KGDB_DYN_DBG	\
+	(AARCH64_BREAK_MON | (KGDB_DYN_DBG_BRK_IMM << 5))
+#define KGDB_DYN_BRK_INS_BYTE(x)	\
+	((AARCH64_BREAK_KGDB_DYN_DBG >> (8 * (x))) & 0xff)
 
 #define CACHE_FLUSH_IS_SAFE		1
 
@@ -127,13 +115,13 @@ void unregister_break_hook(struct break_hook *hook);
 
 u8 debug_monitors_arch(void);
 
-enum debug_el {
+enum dbg_active_el {
 	DBG_ACTIVE_EL0 = 0,
 	DBG_ACTIVE_EL1,
 };
 
-void enable_debug_monitors(enum debug_el el);
-void disable_debug_monitors(enum debug_el el);
+void enable_debug_monitors(enum dbg_active_el el);
+void disable_debug_monitors(enum dbg_active_el el);
 
 void user_rewind_single_step(struct task_struct *task);
 void user_fastforward_single_step(struct task_struct *task);

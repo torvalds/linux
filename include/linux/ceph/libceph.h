@@ -29,8 +29,9 @@
 #define CEPH_OPT_NOSHARE          (1<<1) /* don't share client with other sbs */
 #define CEPH_OPT_MYIP             (1<<2) /* specified my ip */
 #define CEPH_OPT_NOCRC            (1<<3) /* no data crc on writes */
-#define CEPH_OPT_NOMSGAUTH	  (1<<4) /* not require cephx message signature */
+#define CEPH_OPT_NOMSGAUTH	  (1<<4) /* don't require msg signing feat */
 #define CEPH_OPT_TCP_NODELAY	  (1<<5) /* TCP_NODELAY on TCP sockets */
+#define CEPH_OPT_NOMSGSIGN	  (1<<6) /* don't sign msgs */
 
 #define CEPH_OPT_DEFAULT   (CEPH_OPT_TCP_NODELAY)
 
@@ -46,6 +47,7 @@ struct ceph_options {
 	unsigned long mount_timeout;		/* jiffies */
 	unsigned long osd_idle_ttl;		/* jiffies */
 	unsigned long osd_keepalive_timeout;	/* jiffies */
+	unsigned long monc_ping_timeout;	/* jiffies */
 
 	/*
 	 * any type that can't be simply compared or doesn't need need
@@ -66,6 +68,7 @@ struct ceph_options {
 #define CEPH_MOUNT_TIMEOUT_DEFAULT	msecs_to_jiffies(60 * 1000)
 #define CEPH_OSD_KEEPALIVE_DEFAULT	msecs_to_jiffies(5 * 1000)
 #define CEPH_OSD_IDLE_TTL_DEFAULT	msecs_to_jiffies(60 * 1000)
+#define CEPH_MONC_PING_TIMEOUT_DEFAULT	msecs_to_jiffies(30 * 1000)
 
 #define CEPH_MSG_MAX_FRONT_LEN	(16*1024*1024)
 #define CEPH_MSG_MAX_MIDDLE_LEN	(16*1024*1024)
@@ -135,6 +138,7 @@ struct ceph_client {
 #endif
 };
 
+#define from_msgr(ms)	container_of(ms, struct ceph_client, msgr)
 
 
 /*

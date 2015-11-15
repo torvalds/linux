@@ -123,7 +123,7 @@ struct ib_mad_send_wr_private {
 	struct ib_mad_send_buf send_buf;
 	u64 header_mapping;
 	u64 payload_mapping;
-	struct ib_send_wr send_wr;
+	struct ib_ud_wr send_wr;
 	struct ib_sge sg_list[IB_MAD_SEND_REQ_MAX_SG];
 	__be64 tid;
 	unsigned long timeout;
@@ -199,7 +199,6 @@ struct ib_mad_port_private {
 	int port_num;
 	struct ib_cq *cq;
 	struct ib_pd *pd;
-	struct ib_mr *mr;
 
 	spinlock_t reg_lock;
 	struct ib_mad_mgmt_version_table version[MAX_MGMT_VERSION];

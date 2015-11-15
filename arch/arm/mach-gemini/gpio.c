@@ -126,7 +126,7 @@ static int gpio_set_irq_type(struct irq_data *d, unsigned int type)
 	return 0;
 }
 
-static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void gpio_irq_handler(struct irq_desc *desc)
 {
 	unsigned int port = (unsigned int)irq_desc_get_handler_data(desc);
 	unsigned int gpio_irq_no, irq_stat;
@@ -220,7 +220,7 @@ void __init gemini_gpio_init(void)
 		     j < GPIO_IRQ_BASE + (i + 1) * 32; j++) {
 			irq_set_chip_and_handler(j, &gpio_irq_chip,
 						 handle_edge_irq);
-			set_irq_flags(j, IRQF_VALID);
+			irq_clear_status_flags(j, IRQ_NOREQUEST);
 		}
 
 		irq_set_chained_handler_and_data(IRQ_GPIO(i), gpio_irq_handler,

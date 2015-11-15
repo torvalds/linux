@@ -61,6 +61,12 @@ $code=<<___;
 	mtspr		256,r0
 	li		r10,0x30
 	lvx_u		$H,0,r4			# load H
+	le?xor		r7,r7,r7
+	le?addi		r7,r7,0x8		# need a vperm start with 08
+	le?lvsr		5,0,r7
+	le?vspltisb	6,0x0f
+	le?vxor		5,5,6			# set a b-endian mask
+	le?vperm	$H,$H,$H,5
 
 	vspltisb	$xC2,-16		# 0xf0
 	vspltisb	$t0,1			# one

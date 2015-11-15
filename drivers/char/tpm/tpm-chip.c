@@ -119,6 +119,9 @@ struct tpm_chip *tpmm_chip_alloc(struct device *dev,
 	chip->dev.class = tpm_class;
 	chip->dev.release = tpm_dev_release;
 	chip->dev.parent = chip->pdev;
+#ifdef CONFIG_ACPI
+	chip->dev.groups = chip->groups;
+#endif
 
 	if (chip->dev_num == 0)
 		chip->dev.devt = MKDEV(MISC_MAJOR, TPM_MINOR);
@@ -182,12 +185,6 @@ static int tpm1_chip_register(struct tpm_chip *chip)
 	if (rc)
 		return rc;
 
-	rc = tpm_add_ppi(chip);
-	if (rc) {
-		tpm_sysfs_del_device(chip);
-		return rc;
-	}
-
 	chip->bios_dir = tpm_bios_log_setup(chip->devname);
 
 	return 0;
@@ -200,8 +197,6 @@ static void tpm1_chip_unregister(struct tpm_chip *chip)
 
 	if (chip->bios_dir)
 		tpm_bios_log_teardown(chip->bios_dir);
-
-	tpm_remove_ppi(chip);
 
 	tpm_sysfs_del_device(chip);
 }
@@ -225,16 +220,28 @@ int tpm_chip_register(struct tpm_chip *chip)
 	if (rc)
 		return rc;
 
+	tpm_add_ppi(chip);
+
 	rc = tpm_dev_add_device(chip);
 	if (rc)
 		goto out_err;
 
 	/* Make the chip available. */
 	spin_lock(&driver_lock);
-	list_add_rcu(&chip->list, &tpm_chip_list);
+	list_add_tail_rcu(&chip->list, &tpm_chip_list);
 	spin_unlock(&driver_lock);
 
 	chip->flags |= TPM_CHIP_FLAG_REGISTERED;
+
+	if (!(chip->flags & TPM_CHIP_FLAG_TPM2)) {
+		rc = __compat_only_sysfs_link_entry_to_kobj(&chip->pdev->kobj,
+							    &chip->dev.kobj,
+							    "ppi");
+		if (rc && rc != -ENOENT) {
+			tpm_chip_unregister(chip);
+			return rc;
+		}
+	}
 
 	return 0;
 out_err:
@@ -262,6 +269,9 @@ void tpm_chip_unregister(struct tpm_chip *chip)
 	list_del_rcu(&chip->list);
 	spin_unlock(&driver_lock);
 	synchronize_rcu();
+
+	if (!(chip->flags & TPM_CHIP_FLAG_TPM2))
+		sysfs_remove_link(&chip->pdev->kobj, "ppi");
 
 	tpm1_chip_unregister(chip);
 	tpm_dev_del_device(chip);

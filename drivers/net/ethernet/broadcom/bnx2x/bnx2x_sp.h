@@ -1,15 +1,17 @@
-/* bnx2x_sp.h: Broadcom Everest network driver.
+/* bnx2x_sp.h: Qlogic Everest network driver.
  *
- * Copyright (c) 2011-2013 Broadcom Corporation
+ * Copyright 2011-2013 Broadcom Corporation
+ * Copyright (c) 2014 QLogic Corporation
+ * All rights reserved
  *
- * Unless you and Broadcom execute a separate written software license
+ * Unless you and Qlogic execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2, available
- * at http://www.gnu.org/licenses/old-licenses/gpl-2.0.html (the "GPL").
+ * at http://www.gnu.org/licenses/gpl-2.0.html (the "GPL").
  *
  * Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a
- * license other than the GPL, without Broadcom's express prior written
+ * software in any way with any other Qlogic software provided under a
+ * license other than the GPL, without Qlogic's express prior written
  * consent.
  *
  * Maintained by: Ariel Elior <ariel.elior@qlogic.com>
@@ -711,7 +713,10 @@ enum {
 	BNX2X_RSS_IPV6,
 	BNX2X_RSS_IPV6_TCP,
 	BNX2X_RSS_IPV6_UDP,
-	BNX2X_RSS_GRE_INNER_HDRS,
+
+	BNX2X_RSS_IPV4_VXLAN,
+	BNX2X_RSS_IPV6_VXLAN,
+	BNX2X_RSS_TUNN_INNER_HDRS,
 };
 
 struct bnx2x_config_rss_params {
@@ -1105,8 +1110,10 @@ enum {
 	BNX2X_F_UPDATE_VLAN_FORCE_PRIO_CHNG,
 	BNX2X_F_UPDATE_VLAN_FORCE_PRIO_FLAG,
 	BNX2X_F_UPDATE_TUNNEL_CFG_CHNG,
-	BNX2X_F_UPDATE_TUNNEL_CLSS_EN,
-	BNX2X_F_UPDATE_TUNNEL_INNER_GRE_RSS_EN,
+	BNX2X_F_UPDATE_TUNNEL_INNER_CLSS_L2GRE,
+	BNX2X_F_UPDATE_TUNNEL_INNER_CLSS_VXLAN,
+	BNX2X_F_UPDATE_TUNNEL_INNER_CLSS_L2GENEVE,
+	BNX2X_F_UPDATE_TUNNEL_INNER_RSS,
 };
 
 /* Allowed Function states */
@@ -1171,19 +1178,23 @@ struct bnx2x_func_start_params {
 	/* Function cos mode */
 	u8 network_cos_mode;
 
-	/* TUNN_MODE_NONE/TUNN_MODE_VXLAN/TUNN_MODE_GRE */
-	u8 tunnel_mode;
+	/* UDP dest port for VXLAN */
+	u16 vxlan_dst_port;
 
-	/* tunneling classification enablement */
-	u8 tunn_clss_en;
+	/* UDP dest port for Geneve */
+	u16 geneve_dst_port;
 
-	/* NVGRE_TUNNEL/L2GRE_TUNNEL/IPGRE_TUNNEL */
-	u8 gre_tunnel_type;
+	/* Enable inner Rx classifications for L2GRE packets */
+	u8 inner_clss_l2gre;
 
-	/* Enables Inner GRE RSS on the function, depends on the client RSS
-	 * capailities
-	 */
-	u8 inner_gre_rss_en;
+	/* Enable inner Rx classifications for L2-Geneve packets */
+	u8 inner_clss_l2geneve;
+
+	/* Enable inner Rx classification for vxlan packets */
+	u8 inner_clss_vxlan;
+
+	/* Enable RSS according to inner header */
+	u8 inner_rss;
 
 	/* Allows accepting of packets failing MF classification, possibly
 	 * only matching a given ethertype
@@ -1200,6 +1211,11 @@ struct bnx2x_func_start_params {
 
 	/* Prevent inner vlans from being added by FW */
 	u8 no_added_tags;
+
+	/* Inner-to-Outer vlan priority mapping */
+	u8 c2s_pri[MAX_VLAN_PRIORITIES];
+	u8 c2s_pri_default;
+	u8 c2s_pri_valid;
 };
 
 struct bnx2x_func_switch_update_params {
@@ -1207,8 +1223,8 @@ struct bnx2x_func_switch_update_params {
 	u16 vlan;
 	u16 vlan_eth_type;
 	u8 vlan_force_prio;
-	u8 tunnel_mode;
-	u8 gre_tunnel_type;
+	u16 vxlan_dst_port;
+	u16 geneve_dst_port;
 };
 
 struct bnx2x_func_afex_update_params {
@@ -1229,6 +1245,7 @@ struct bnx2x_func_tx_start_params {
 	u8 dcb_enabled;
 	u8 dcb_version;
 	u8 dont_add_pri_0_en;
+	u8 dcb_outer_pri[MAX_TRAFFIC_TYPES];
 };
 
 struct bnx2x_func_set_timesync_params {
@@ -1396,6 +1413,14 @@ void bnx2x_init_vlan_obj(struct bnx2x *bp,
 			 unsigned long *pstate, bnx2x_obj_type type,
 			 struct bnx2x_credit_pool_obj *vlans_pool);
 
+void bnx2x_init_vlan_mac_obj(struct bnx2x *bp,
+			     struct bnx2x_vlan_mac_obj *vlan_mac_obj,
+			     u8 cl_id, u32 cid, u8 func_id, void *rdata,
+			     dma_addr_t rdata_mapping, int state,
+			     unsigned long *pstate, bnx2x_obj_type type,
+			     struct bnx2x_credit_pool_obj *macs_pool,
+			     struct bnx2x_credit_pool_obj *vlans_pool);
+
 int bnx2x_vlan_mac_h_read_lock(struct bnx2x *bp,
 					struct bnx2x_vlan_mac_obj *o);
 void bnx2x_vlan_mac_h_read_unlock(struct bnx2x *bp,
@@ -1466,6 +1491,8 @@ void bnx2x_init_mac_credit_pool(struct bnx2x *bp,
 void bnx2x_init_vlan_credit_pool(struct bnx2x *bp,
 				 struct bnx2x_credit_pool_obj *p, u8 func_id,
 				 u8 func_num);
+void bnx2x_init_credit_pool(struct bnx2x_credit_pool_obj *p,
+			    int base, int credit);
 
 /****************** RSS CONFIGURATION ****************/
 void bnx2x_init_rss_config_obj(struct bnx2x *bp,
@@ -1492,5 +1519,13 @@ int bnx2x_config_rss(struct bnx2x *bp,
  */
 void bnx2x_get_rss_ind_table(struct bnx2x_rss_config_obj *rss_obj,
 			     u8 *ind_table);
+
+#define PF_MAC_CREDIT_E2(bp, func_num)					\
+	((MAX_MAC_CREDIT_E2 - GET_NUM_VFS_PER_PATH(bp) * VF_MAC_CREDIT_CNT) / \
+	 func_num + GET_NUM_VFS_PER_PF(bp) * VF_MAC_CREDIT_CNT)
+
+#define PF_VLAN_CREDIT_E2(bp, func_num)					 \
+	((MAX_MAC_CREDIT_E2 - GET_NUM_VFS_PER_PATH(bp) * VF_VLAN_CREDIT_CNT) / \
+	 func_num + GET_NUM_VFS_PER_PF(bp) * VF_VLAN_CREDIT_CNT)
 
 #endif /* BNX2X_SP_VERBS */

@@ -59,8 +59,6 @@ static inline phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)
 
 static inline void dma_mark_clean(void *addr, size_t size) {}
 
-#include <asm-generic/dma-mapping-common.h>
-
 static inline void set_dma_ops(struct device *dev, struct dma_map_ops *ops)
 {
 	dev->archdata.dma_ops = ops;
@@ -74,18 +72,9 @@ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 	return addr + size - 1 <= *dev->dma_mask;
 }
 
-static inline int
-dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
-{
-	debug_dma_mapping_error(dev, dma_addr);
-	return get_dma_ops(dev)->mapping_error(dev, dma_addr);
-}
+#define HAVE_ARCH_DMA_SET_MASK 1
 
-static inline int
-dma_supported(struct device *dev, u64 mask)
-{
-	return get_dma_ops(dev)->dma_supported(dev, mask);
-}
+#include <asm-generic/dma-mapping-common.h>
 
 static inline int
 dma_set_mask(struct device *dev, u64 mask)
@@ -115,36 +104,6 @@ dma_set_mask(struct device *dev, u64 mask)
 
 	return 0;
 }
-
-static inline void *dma_alloc_attrs(struct device *dev, size_t size,
-				    dma_addr_t *dma_handle, gfp_t flag,
-				    struct dma_attrs *attrs)
-{
-	struct dma_map_ops *dma_ops = get_dma_ops(dev);
-	void *cpu_addr;
-
-	cpu_addr = dma_ops->alloc(dev, size, dma_handle, flag, attrs);
-
-	debug_dma_alloc_coherent(dev, size, *dma_handle, cpu_addr);
-
-	return cpu_addr;
-}
-
-static inline void dma_free_attrs(struct device *dev, size_t size,
-				  void *cpu_addr, dma_addr_t dma_handle,
-				  struct dma_attrs *attrs)
-{
-	struct dma_map_ops *dma_ops = get_dma_ops(dev);
-
-	debug_dma_free_coherent(dev, size, cpu_addr, dma_handle);
-
-	dma_ops->free(dev, size, cpu_addr, dma_handle, attrs);
-}
-
-#define dma_alloc_coherent(d, s, h, f) dma_alloc_attrs(d, s, h, f, NULL)
-#define dma_alloc_noncoherent(d, s, h, f) dma_alloc_attrs(d, s, h, f, NULL)
-#define dma_free_coherent(d, s, v, h) dma_free_attrs(d, s, v, h, NULL)
-#define dma_free_noncoherent(d, s, v, h) dma_free_attrs(d, s, v, h, NULL)
 
 /*
  * dma_alloc_noncoherent() is #defined to return coherent memory,

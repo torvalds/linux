@@ -632,7 +632,6 @@ MODULE_DEVICE_TABLE(i2c, fc2580_id_table);
 
 static struct i2c_driver fc2580_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "fc2580",
 		.suppress_bind_attrs = true,
 	},

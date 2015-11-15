@@ -164,8 +164,8 @@ static const struct option options[] = {
 	OPT_STRING('L', "mb_proc_locked", &p0.mb_proc_locked_str,"MB", "process serialized/locked memory access (MBs), <= process_memory"),
 	OPT_STRING('T', "mb_thread"	, &p0.mb_thread_str,	"MB", "thread  memory (MBs)"),
 
-	OPT_UINTEGER('l', "nr_loops"	, &p0.nr_loops,		"max number of loops to run"),
-	OPT_UINTEGER('s', "nr_secs"	, &p0.nr_secs,		"max number of seconds to run"),
+	OPT_UINTEGER('l', "nr_loops"	, &p0.nr_loops,		"max number of loops to run (default: unlimited)"),
+	OPT_UINTEGER('s', "nr_secs"	, &p0.nr_secs,		"max number of seconds to run (default: 5 secs)"),
 	OPT_UINTEGER('u', "usleep"	, &p0.sleep_usecs,	"usecs to sleep per loop iteration"),
 
 	OPT_BOOLEAN('R', "data_reads"	, &p0.data_reads,	"access the data via writes (can be mixed with -W)"),

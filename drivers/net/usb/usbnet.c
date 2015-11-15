@@ -42,6 +42,7 @@
 #include <linux/mii.h>
 #include <linux/usb.h>
 #include <linux/usb/usbnet.h>
+#include <linux/usb/cdc.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/pm_runtime.h>
@@ -428,12 +429,18 @@ static enum skb_state defer_bh(struct usbnet *dev, struct sk_buff *skb,
 	old_state = entry->state;
 	entry->state = state;
 	__skb_unlink(skb, list);
-	spin_unlock(&list->lock);
-	spin_lock(&dev->done.lock);
+
+	/* defer_bh() is never called with list == &dev->done.
+	 * spin_lock_nested() tells lockdep that it is OK to take
+	 * dev->done.lock here with list->lock held.
+	 */
+	spin_lock_nested(&dev->done.lock, SINGLE_DEPTH_NESTING);
+
 	__skb_queue_tail(&dev->done, skb);
 	if (dev->done.qlen == 1)
 		tasklet_schedule(&dev->bh);
-	spin_unlock_irqrestore(&dev->done.lock, flags);
+	spin_unlock(&dev->done.lock);
+	spin_unlock_irqrestore(&list->lock, flags);
 	return old_state;
 }
 
@@ -749,6 +756,20 @@ EXPORT_SYMBOL_GPL(usbnet_unlink_rx_urbs);
 
 /*-------------------------------------------------------------------------*/
 
+static void wait_skb_queue_empty(struct sk_buff_head *q)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&q->lock, flags);
+	while (!skb_queue_empty(q)) {
+		spin_unlock_irqrestore(&q->lock, flags);
+		schedule_timeout(msecs_to_jiffies(UNLINK_TIMEOUT_MS));
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		spin_lock_irqsave(&q->lock, flags);
+	}
+	spin_unlock_irqrestore(&q->lock, flags);
+}
+
 // precondition: never called in_interrupt
 static void usbnet_terminate_urbs(struct usbnet *dev)
 {
@@ -762,14 +783,11 @@ static void usbnet_terminate_urbs(struct usbnet *dev)
 		unlink_urbs(dev, &dev->rxq);
 
 	/* maybe wait for deletions to finish. */
-	while (!skb_queue_empty(&dev->rxq)
-		&& !skb_queue_empty(&dev->txq)
-		&& !skb_queue_empty(&dev->done)) {
-			schedule_timeout(msecs_to_jiffies(UNLINK_TIMEOUT_MS));
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			netif_dbg(dev, ifdown, dev->net,
-				  "waited for %d urb completions\n", temp);
-	}
+	wait_skb_queue_empty(&dev->rxq);
+	wait_skb_queue_empty(&dev->txq);
+	wait_skb_queue_empty(&dev->done);
+	netif_dbg(dev, ifdown, dev->net,
+		  "waited for %d urb completions\n", temp);
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&dev->wait, &wait);
 }
@@ -778,7 +796,7 @@ int usbnet_stop (struct net_device *net)
 {
 	struct usbnet		*dev = netdev_priv(net);
 	struct driver_info	*info = dev->driver_info;
-	int			retval, pm;
+	int			retval, pm, mpn;
 
 	clear_bit(EVENT_DEV_OPEN, &dev->flags);
 	netif_stop_queue (net);
@@ -809,6 +827,8 @@ int usbnet_stop (struct net_device *net)
 
 	usbnet_purge_paused_rxq(dev);
 
+	mpn = !test_and_clear_bit(EVENT_NO_RUNTIME_PM, &dev->flags);
+
 	/* deferred work (task, timer, softirq) must also stop.
 	 * can't flush_scheduled_work() until we drop rtnl (later),
 	 * else workers could deadlock; so make workers a NOP.
@@ -819,8 +839,7 @@ int usbnet_stop (struct net_device *net)
 	if (!pm)
 		usb_autopm_put_interface(dev->intf);
 
-	if (info->manage_power &&
-	    !test_and_clear_bit(EVENT_NO_RUNTIME_PM, &dev->flags))
+	if (info->manage_power && mpn)
 		info->manage_power(dev, 0);
 	else
 		usb_autopm_put_interface(dev->intf);
@@ -1643,12 +1662,6 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	 * bind() should set rx_urb_size in that case.
 	 */
 	dev->hard_mtu = net->mtu + net->hard_header_len;
-#if 0
-// dma_supported() is deeply broken on almost all architectures
-	// possible with some EHCI controllers
-	if (dma_supported (&udev->dev, DMA_BIT_MASK(64)))
-		net->features |= NETIF_F_HIGHDMA;
-#endif
 
 	net->netdev_ops = &usbnet_netdev_ops;
 	net->watchdog_timeo = TX_TIMEOUT_JIFFIES;
@@ -1943,6 +1956,143 @@ static int __usbnet_write_cmd(struct usbnet *dev, u8 cmd, u8 reqtype,
 out:
 	return err;
 }
+
+int cdc_parse_cdc_header(struct usb_cdc_parsed_header *hdr,
+				struct usb_interface *intf,
+				u8 *buffer,
+				int buflen)
+{
+	/* duplicates are ignored */
+	struct usb_cdc_union_desc *union_header = NULL;
+
+	/* duplicates are not tolerated */
+	struct usb_cdc_header_desc *header = NULL;
+	struct usb_cdc_ether_desc *ether = NULL;
+	struct usb_cdc_mdlm_detail_desc *detail = NULL;
+	struct usb_cdc_mdlm_desc *desc = NULL;
+
+	unsigned int elength;
+	int cnt = 0;
+
+	memset(hdr, 0x00, sizeof(struct usb_cdc_parsed_header));
+	hdr->phonet_magic_present = false;
+	while (buflen > 0) {
+		elength = buffer[0];
+		if (!elength) {
+			dev_err(&intf->dev, "skipping garbage byte\n");
+			elength = 1;
+			goto next_desc;
+		}
+		if (buffer[1] != USB_DT_CS_INTERFACE) {
+			dev_err(&intf->dev, "skipping garbage\n");
+			goto next_desc;
+		}
+
+		switch (buffer[2]) {
+		case USB_CDC_UNION_TYPE: /* we've found it */
+			if (elength < sizeof(struct usb_cdc_union_desc))
+				goto next_desc;
+			if (union_header) {
+				dev_err(&intf->dev, "More than one union descriptor, skipping ...\n");
+				goto next_desc;
+			}
+			union_header = (struct usb_cdc_union_desc *)buffer;
+			break;
+		case USB_CDC_COUNTRY_TYPE:
+			if (elength < sizeof(struct usb_cdc_country_functional_desc))
+				goto next_desc;
+			hdr->usb_cdc_country_functional_desc =
+				(struct usb_cdc_country_functional_desc *)buffer;
+			break;
+		case USB_CDC_HEADER_TYPE:
+			if (elength != sizeof(struct usb_cdc_header_desc))
+				goto next_desc;
+			if (header)
+				return -EINVAL;
+			header = (struct usb_cdc_header_desc *)buffer;
+			break;
+		case USB_CDC_ACM_TYPE:
+			if (elength < sizeof(struct usb_cdc_acm_descriptor))
+				goto next_desc;
+			hdr->usb_cdc_acm_descriptor =
+				(struct usb_cdc_acm_descriptor *)buffer;
+			break;
+		case USB_CDC_ETHERNET_TYPE:
+			if (elength != sizeof(struct usb_cdc_ether_desc))
+				goto next_desc;
+			if (ether)
+				return -EINVAL;
+			ether = (struct usb_cdc_ether_desc *)buffer;
+			break;
+		case USB_CDC_CALL_MANAGEMENT_TYPE:
+			if (elength < sizeof(struct usb_cdc_call_mgmt_descriptor))
+				goto next_desc;
+			hdr->usb_cdc_call_mgmt_descriptor =
+				(struct usb_cdc_call_mgmt_descriptor *)buffer;
+			break;
+		case USB_CDC_DMM_TYPE:
+			if (elength < sizeof(struct usb_cdc_dmm_desc))
+				goto next_desc;
+			hdr->usb_cdc_dmm_desc =
+				(struct usb_cdc_dmm_desc *)buffer;
+			break;
+		case USB_CDC_MDLM_TYPE:
+			if (elength < sizeof(struct usb_cdc_mdlm_desc *))
+				goto next_desc;
+			if (desc)
+				return -EINVAL;
+			desc = (struct usb_cdc_mdlm_desc *)buffer;
+			break;
+		case USB_CDC_MDLM_DETAIL_TYPE:
+			if (elength < sizeof(struct usb_cdc_mdlm_detail_desc *))
+				goto next_desc;
+			if (detail)
+				return -EINVAL;
+			detail = (struct usb_cdc_mdlm_detail_desc *)buffer;
+			break;
+		case USB_CDC_NCM_TYPE:
+			if (elength < sizeof(struct usb_cdc_ncm_desc))
+				goto next_desc;
+			hdr->usb_cdc_ncm_desc = (struct usb_cdc_ncm_desc *)buffer;
+			break;
+		case USB_CDC_MBIM_TYPE:
+			if (elength < sizeof(struct usb_cdc_mbim_desc))
+				goto next_desc;
+
+			hdr->usb_cdc_mbim_desc = (struct usb_cdc_mbim_desc *)buffer;
+			break;
+		case USB_CDC_MBIM_EXTENDED_TYPE:
+			if (elength < sizeof(struct usb_cdc_mbim_extended_desc))
+				break;
+			hdr->usb_cdc_mbim_extended_desc =
+				(struct usb_cdc_mbim_extended_desc *)buffer;
+			break;
+		case CDC_PHONET_MAGIC_NUMBER:
+			hdr->phonet_magic_present = true;
+			break;
+		default:
+			/*
+			 * there are LOTS more CDC descriptors that
+			 * could legitimately be found here.
+			 */
+			dev_dbg(&intf->dev, "Ignoring descriptor: type %02x, length %ud\n",
+					buffer[2], elength);
+			goto next_desc;
+		}
+		cnt++;
+next_desc:
+		buflen -= elength;
+		buffer += elength;
+	}
+	hdr->usb_cdc_union_desc = union_header;
+	hdr->usb_cdc_header_desc = header;
+	hdr->usb_cdc_mdlm_detail_desc = detail;
+	hdr->usb_cdc_mdlm_desc = desc;
+	hdr->usb_cdc_ether_desc = ether;
+	return cnt;
+}
+
+EXPORT_SYMBOL(cdc_parse_cdc_header);
 
 /*
  * The function can't be called inside suspend/resume callback,

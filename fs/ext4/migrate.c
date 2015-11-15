@@ -448,8 +448,7 @@ int ext4_ext_migrate(struct inode *inode)
 	 * If the filesystem does not support extents, or the inode
 	 * already is extent-based, error out.
 	 */
-	if (!EXT4_HAS_INCOMPAT_FEATURE(inode->i_sb,
-				       EXT4_FEATURE_INCOMPAT_EXTENTS) ||
+	if (!ext4_has_feature_extents(inode->i_sb) ||
 	    (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
 		return -EINVAL;
 
@@ -625,13 +624,11 @@ int ext4_ind_migrate(struct inode *inode)
 	handle_t			*handle;
 	int				ret;
 
-	if (!EXT4_HAS_INCOMPAT_FEATURE(inode->i_sb,
-				       EXT4_FEATURE_INCOMPAT_EXTENTS) ||
+	if (!ext4_has_feature_extents(inode->i_sb) ||
 	    (!ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
 		return -EINVAL;
 
-	if (EXT4_HAS_RO_COMPAT_FEATURE(inode->i_sb,
-				       EXT4_FEATURE_RO_COMPAT_BIGALLOC))
+	if (ext4_has_feature_bigalloc(inode->i_sb))
 		return -EOPNOTSUPP;
 
 	/*

@@ -30,10 +30,11 @@
 
 /* ------------------------------------------------------------------ */
 
-static int vbi_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+static int vbi_queue_setup(struct vb2_queue *vq, const void *parg,
 			   unsigned int *nbuffers, unsigned int *nplanes,
 			   unsigned int sizes[], void *alloc_ctxs[])
 {
+	const struct v4l2_format *fmt = parg;
 	struct au0828_dev *dev = vb2_get_drv_priv(vq);
 	unsigned long img_size = dev->vbi_width * dev->vbi_height * 2;
 	unsigned long size;
@@ -52,7 +53,6 @@ static int vbi_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 static int vbi_buffer_prepare(struct vb2_buffer *vb)
 {
 	struct au0828_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
-	struct au0828_buffer *buf = container_of(vb, struct au0828_buffer, vb);
 	unsigned long size;
 
 	size = dev->vbi_width * dev->vbi_height * 2;
@@ -62,7 +62,7 @@ static int vbi_buffer_prepare(struct vb2_buffer *vb)
 			__func__, vb2_plane_size(vb, 0), size);
 		return -EINVAL;
 	}
-	vb2_set_plane_payload(&buf->vb, 0, size);
+	vb2_set_plane_payload(vb, 0, size);
 
 	return 0;
 }
@@ -71,7 +71,9 @@ static void
 vbi_buffer_queue(struct vb2_buffer *vb)
 {
 	struct au0828_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
-	struct au0828_buffer *buf = container_of(vb, struct au0828_buffer, vb);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct au0828_buffer *buf =
+			container_of(vbuf, struct au0828_buffer, vb);
 	struct au0828_dmaqueue *vbiq = &dev->vbiq;
 	unsigned long flags = 0;
 

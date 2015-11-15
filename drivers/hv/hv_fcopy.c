@@ -116,7 +116,7 @@ static int fcopy_handle_handshake(u32 version)
 
 static void fcopy_send_data(struct work_struct *dummy)
 {
-	struct hv_start_fcopy smsg_out;
+	struct hv_start_fcopy *smsg_out = NULL;
 	int operation = fcopy_transaction.fcopy_msg->operation;
 	struct hv_start_fcopy *smsg_in;
 	void *out_src;
@@ -136,21 +136,24 @@ static void fcopy_send_data(struct work_struct *dummy)
 	switch (operation) {
 	case START_FILE_COPY:
 		out_len = sizeof(struct hv_start_fcopy);
-		memset(&smsg_out, 0, out_len);
-		smsg_out.hdr.operation = operation;
+		smsg_out = kzalloc(sizeof(*smsg_out), GFP_KERNEL);
+		if (!smsg_out)
+			return;
+
+		smsg_out->hdr.operation = operation;
 		smsg_in = (struct hv_start_fcopy *)fcopy_transaction.fcopy_msg;
 
 		utf16s_to_utf8s((wchar_t *)smsg_in->file_name, W_MAX_PATH,
 				UTF16_LITTLE_ENDIAN,
-				(__u8 *)&smsg_out.file_name, W_MAX_PATH - 1);
+				(__u8 *)&smsg_out->file_name, W_MAX_PATH - 1);
 
 		utf16s_to_utf8s((wchar_t *)smsg_in->path_name, W_MAX_PATH,
 				UTF16_LITTLE_ENDIAN,
-				(__u8 *)&smsg_out.path_name, W_MAX_PATH - 1);
+				(__u8 *)&smsg_out->path_name, W_MAX_PATH - 1);
 
-		smsg_out.copy_flags = smsg_in->copy_flags;
-		smsg_out.file_size = smsg_in->file_size;
-		out_src = &smsg_out;
+		smsg_out->copy_flags = smsg_in->copy_flags;
+		smsg_out->file_size = smsg_in->file_size;
+		out_src = smsg_out;
 		break;
 
 	default:
@@ -168,6 +171,8 @@ static void fcopy_send_data(struct work_struct *dummy)
 			fcopy_transaction.state = HVUTIL_READY;
 		}
 	}
+	kfree(smsg_out);
+
 	return;
 }
 

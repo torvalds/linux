@@ -23,6 +23,7 @@
 #include <linux/ioport.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/smc91x.h>
 
@@ -120,8 +121,9 @@ static struct irq_chip lpd270_irq_chip = {
 	.irq_unmask	= lpd270_unmask_irq,
 };
 
-static void lpd270_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void lpd270_irq_handler(struct irq_desc *desc)
 {
+	unsigned int irq;
 	unsigned long pending;
 
 	pending = __raw_readw(LPD270_INT_STATUS) & lpd270_irq_enabled;
@@ -151,7 +153,7 @@ static void __init lpd270_init_irq(void)
 	for (irq = LPD270_IRQ(2); irq <= LPD270_IRQ(4); irq++) {
 		irq_set_chip_and_handler(irq, &lpd270_irq_chip,
 					 handle_level_irq);
-		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+		irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
 	irq_set_chained_handler(PXA_GPIO_TO_IRQ(0), lpd270_irq_handler);
 	irq_set_irq_type(PXA_GPIO_TO_IRQ(0), IRQ_TYPE_EDGE_FALLING);
@@ -270,11 +272,14 @@ static struct platform_device lpd270_flash_device[2] = {
 	},
 };
 
+static struct pwm_lookup lpd270_pwm_lookup[] = {
+	PWM_LOOKUP("pxa27x-pwm.0", 0, "pwm-backlight.0", NULL, 78770,
+		   PWM_POLARITY_NORMAL),
+};
+
 static struct platform_pwm_backlight_data lpd270_backlight_data = {
-	.pwm_id		= 0,
 	.max_brightness	= 1,
 	.dft_brightness	= 1,
-	.pwm_period_ns	= 78770,
 	.enable_gpio	= -1,
 };
 
@@ -473,6 +478,7 @@ static void __init lpd270_init(void)
 	 */
 	ARB_CNTRL = ARB_CORE_PARK | 0x234;
 
+	pwm_add_table(lpd270_pwm_lookup, ARRAY_SIZE(lpd270_pwm_lookup));
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 
 	pxa_set_ac97_info(NULL);

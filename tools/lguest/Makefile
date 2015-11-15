@@ -11,3 +11,4 @@ lguest: include/linux/virtio_types.h
 
 clean:
 	rm -f lguest
+	rm -rf include

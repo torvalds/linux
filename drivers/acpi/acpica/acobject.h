@@ -176,6 +176,7 @@ struct acpi_object_method {
 	u8 param_count;
 	u8 sync_level;
 	union acpi_operand_object *mutex;
+	union acpi_operand_object *node;
 	u8 *aml_start;
 	union {
 		acpi_internal_method implementation;

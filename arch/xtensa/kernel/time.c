@@ -52,8 +52,6 @@ static struct clocksource ccount_clocksource = {
 
 static int ccount_timer_set_next_event(unsigned long delta,
 		struct clock_event_device *dev);
-static void ccount_timer_set_mode(enum clock_event_mode mode,
-		struct clock_event_device *evt);
 struct ccount_timer {
 	struct clock_event_device evt;
 	int irq_enabled;
@@ -77,35 +75,34 @@ static int ccount_timer_set_next_event(unsigned long delta,
 	return ret;
 }
 
-static void ccount_timer_set_mode(enum clock_event_mode mode,
-		struct clock_event_device *evt)
+/*
+ * There is no way to disable the timer interrupt at the device level,
+ * only at the intenable register itself. Since enable_irq/disable_irq
+ * calls are nested, we need to make sure that these calls are
+ * balanced.
+ */
+static int ccount_timer_shutdown(struct clock_event_device *evt)
 {
 	struct ccount_timer *timer =
 		container_of(evt, struct ccount_timer, evt);
 
-	/*
-	 * There is no way to disable the timer interrupt at the device level,
-	 * only at the intenable register itself. Since enable_irq/disable_irq
-	 * calls are nested, we need to make sure that these calls are
-	 * balanced.
-	 */
-	switch (mode) {
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	case CLOCK_EVT_MODE_UNUSED:
-		if (timer->irq_enabled) {
-			disable_irq(evt->irq);
-			timer->irq_enabled = 0;
-		}
-		break;
-	case CLOCK_EVT_MODE_RESUME:
-	case CLOCK_EVT_MODE_ONESHOT:
-		if (!timer->irq_enabled) {
-			enable_irq(evt->irq);
-			timer->irq_enabled = 1;
-		}
-	default:
-		break;
+	if (timer->irq_enabled) {
+		disable_irq(evt->irq);
+		timer->irq_enabled = 0;
 	}
+	return 0;
+}
+
+static int ccount_timer_set_oneshot(struct clock_event_device *evt)
+{
+	struct ccount_timer *timer =
+		container_of(evt, struct ccount_timer, evt);
+
+	if (!timer->irq_enabled) {
+		enable_irq(evt->irq);
+		timer->irq_enabled = 1;
+	}
+	return 0;
 }
 
 static irqreturn_t timer_interrupt(int irq, void *dev_id);
@@ -126,7 +123,9 @@ void local_timer_setup(unsigned cpu)
 	clockevent->features = CLOCK_EVT_FEAT_ONESHOT;
 	clockevent->rating = 300;
 	clockevent->set_next_event = ccount_timer_set_next_event;
-	clockevent->set_mode = ccount_timer_set_mode;
+	clockevent->set_state_shutdown = ccount_timer_shutdown;
+	clockevent->set_state_oneshot = ccount_timer_set_oneshot;
+	clockevent->tick_resume = ccount_timer_set_oneshot;
 	clockevent->cpumask = cpumask_of(cpu);
 	clockevent->irq = irq_create_mapping(NULL, LINUX_TIMER_INT);
 	if (WARN(!clockevent->irq, "error: can't map timer irq"))
@@ -149,7 +148,7 @@ void __init time_init(void)
 	local_timer_setup(0);
 	setup_irq(this_cpu_ptr(&ccount_timer)->evt.irq, &timer_irqaction);
 	sched_clock_register(ccount_sched_clock_read, 32, ccount_freq);
-	clocksource_of_init();
+	clocksource_probe();
 }
 
 /*

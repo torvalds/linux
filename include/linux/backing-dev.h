@@ -18,13 +18,17 @@
 #include <linux/slab.h>
 
 int __must_check bdi_init(struct backing_dev_info *bdi);
-void bdi_destroy(struct backing_dev_info *bdi);
+void bdi_exit(struct backing_dev_info *bdi);
 
 __printf(3, 4)
 int bdi_register(struct backing_dev_info *bdi, struct device *parent,
 		const char *fmt, ...);
 int bdi_register_dev(struct backing_dev_info *bdi, dev_t dev);
+void bdi_unregister(struct backing_dev_info *bdi);
+
 int __must_check bdi_setup_and_register(struct backing_dev_info *, char *);
+void bdi_destroy(struct backing_dev_info *bdi);
+
 void wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
 			bool range_cyclic, enum wb_reason reason);
 void wb_start_background_writeback(struct bdi_writeback *wb);
@@ -252,13 +256,19 @@ int inode_congested(struct inode *inode, int cong_bits);
  * @inode: inode of interest
  *
  * cgroup writeback requires support from both the bdi and filesystem.
- * Test whether @inode has both.
+ * Also, both memcg and iocg have to be on the default hierarchy.  Test
+ * whether all conditions are met.
+ *
+ * Note that the test result may change dynamically on the same inode
+ * depending on how memcg and iocg are configured.
  */
 static inline bool inode_cgwb_enabled(struct inode *inode)
 {
 	struct backing_dev_info *bdi = inode_to_bdi(inode);
 
-	return bdi_cap_account_dirty(bdi) &&
+	return cgroup_subsys_on_dfl(memory_cgrp_subsys) &&
+		cgroup_subsys_on_dfl(io_cgrp_subsys) &&
+		bdi_cap_account_dirty(bdi) &&
 		(bdi->capabilities & BDI_CAP_CGROUP_WRITEBACK) &&
 		(inode->i_sb->s_iflags & SB_I_CGROUPWB);
 }
@@ -286,7 +296,7 @@ static inline struct bdi_writeback *wb_find_current(struct backing_dev_info *bdi
 	 * %current's blkcg equals the effective blkcg of its memcg.  No
 	 * need to use the relatively expensive cgroup_get_e_css().
 	 */
-	if (likely(wb && wb->blkcg_css == task_css(current, blkio_cgrp_id)))
+	if (likely(wb && wb->blkcg_css == task_css(current, io_cgrp_id)))
 		return wb;
 	return NULL;
 }
@@ -401,61 +411,6 @@ static inline void unlocked_inode_to_wb_end(struct inode *inode, bool locked)
 	rcu_read_unlock();
 }
 
-struct wb_iter {
-	int			start_blkcg_id;
-	struct radix_tree_iter	tree_iter;
-	void			**slot;
-};
-
-static inline struct bdi_writeback *__wb_iter_next(struct wb_iter *iter,
-						   struct backing_dev_info *bdi)
-{
-	struct radix_tree_iter *titer = &iter->tree_iter;
-
-	WARN_ON_ONCE(!rcu_read_lock_held());
-
-	if (iter->start_blkcg_id >= 0) {
-		iter->slot = radix_tree_iter_init(titer, iter->start_blkcg_id);
-		iter->start_blkcg_id = -1;
-	} else {
-		iter->slot = radix_tree_next_slot(iter->slot, titer, 0);
-	}
-
-	if (!iter->slot)
-		iter->slot = radix_tree_next_chunk(&bdi->cgwb_tree, titer, 0);
-	if (iter->slot)
-		return *iter->slot;
-	return NULL;
-}
-
-static inline struct bdi_writeback *__wb_iter_init(struct wb_iter *iter,
-						   struct backing_dev_info *bdi,
-						   int start_blkcg_id)
-{
-	iter->start_blkcg_id = start_blkcg_id;
-
-	if (start_blkcg_id)
-		return __wb_iter_next(iter, bdi);
-	else
-		return &bdi->wb;
-}
-
-/**
- * bdi_for_each_wb - walk all wb's of a bdi in ascending blkcg ID order
- * @wb_cur: cursor struct bdi_writeback pointer
- * @bdi: bdi to walk wb's of
- * @iter: pointer to struct wb_iter to be used as iteration buffer
- * @start_blkcg_id: blkcg ID to start iteration from
- *
- * Iterate @wb_cur through the wb's (bdi_writeback's) of @bdi in ascending
- * blkcg ID order starting from @start_blkcg_id.  @iter is struct wb_iter
- * to be used as temp storage during iteration.  rcu_read_lock() must be
- * held throughout iteration.
- */
-#define bdi_for_each_wb(wb_cur, bdi, iter, start_blkcg_id)		\
-	for ((wb_cur) = __wb_iter_init(iter, bdi, start_blkcg_id);	\
-	     (wb_cur); (wb_cur) = __wb_iter_next(iter, bdi))
-
 #else	/* CONFIG_CGROUP_WRITEBACK */
 
 static inline bool inode_cgwb_enabled(struct inode *inode)
@@ -514,14 +469,6 @@ static inline void wb_memcg_offline(struct mem_cgroup *memcg)
 static inline void wb_blkcg_offline(struct blkcg *blkcg)
 {
 }
-
-struct wb_iter {
-	int		next_id;
-};
-
-#define bdi_for_each_wb(wb_cur, bdi, iter, start_blkcg_id)		\
-	for ((iter)->next_id = (start_blkcg_id);			\
-	     ({	(wb_cur) = !(iter)->next_id++ ? &(bdi)->wb : NULL; }); )
 
 static inline int inode_congested(struct inode *inode, int cong_bits)
 {

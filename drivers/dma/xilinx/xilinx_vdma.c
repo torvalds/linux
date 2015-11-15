@@ -1349,6 +1349,7 @@ static const struct of_device_id xilinx_vdma_of_ids[] = {
 	{ .compatible = "xlnx,axi-vdma-1.00.a",},
 	{}
 };
+MODULE_DEVICE_TABLE(of, xilinx_vdma_of_ids);
 
 static struct platform_driver xilinx_vdma_driver = {
 	.driver = {

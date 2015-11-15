@@ -196,7 +196,7 @@ static void slave_event(struct mlx4_dev *dev, u8 slave, struct mlx4_eqe *eqe)
 		return;
 	}
 
-	memcpy(s_eqe, eqe, dev->caps.eqe_size - 1);
+	memcpy(s_eqe, eqe, sizeof(struct mlx4_eqe) - 1);
 	s_eqe->slave_id = slave;
 	/* ensure all information is written before setting the ownersip bit */
 	dma_wmb();
@@ -601,7 +601,7 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 							continue;
 						mlx4_dbg(dev, "%s: Sending MLX4_PORT_CHANGE_SUBTYPE_DOWN to slave: %d, port:%d\n",
 							 __func__, i, port);
-						s_info = &priv->mfunc.master.vf_oper[slave].vport[port].state;
+						s_info = &priv->mfunc.master.vf_oper[i].vport[port].state;
 						if (IFLA_VF_LINK_STATE_AUTO == s_info->link_state) {
 							eqe->event.port_change.port =
 								cpu_to_be32(
@@ -640,7 +640,7 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 							continue;
 						if (i == mlx4_master_func_num(dev))
 							continue;
-						s_info = &priv->mfunc.master.vf_oper[slave].vport[port].state;
+						s_info = &priv->mfunc.master.vf_oper[i].vport[port].state;
 						if (IFLA_VF_LINK_STATE_AUTO == s_info->link_state) {
 							eqe->event.port_change.port =
 								cpu_to_be32(
@@ -1364,6 +1364,10 @@ int mlx4_test_interrupts(struct mlx4_dev *dev)
 	 * and performing a NOP command
 	 */
 	for(i = 0; !err && (i < dev->caps.num_comp_vectors); ++i) {
+		/* Make sure request_irq was called */
+		if (!priv->eq_table.eq[i].have_irq)
+			continue;
+
 		/* Temporary use polling for command completions */
 		mlx4_cmd_use_polling(dev);
 

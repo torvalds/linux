@@ -11,6 +11,7 @@ struct zone;
 struct pglist_data;
 struct mem_section;
 struct memory_block;
+struct resource;
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 
@@ -266,8 +267,10 @@ static inline void remove_memory(int nid, u64 start, u64 size) {}
 extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
 		void *arg, int (*func)(struct memory_block *, void *));
 extern int add_memory(int nid, u64 start, u64 size);
-extern int zone_for_memory(int nid, u64 start, u64 size, int zone_default);
-extern int arch_add_memory(int nid, u64 start, u64 size);
+extern int add_memory_resource(int nid, struct resource *resource);
+extern int zone_for_memory(int nid, u64 start, u64 size, int zone_default,
+		bool for_device);
+extern int arch_add_memory(int nid, u64 start, u64 size, bool for_device);
 extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
 extern bool is_memblock_offlined(struct memory_block *mem);
 extern void remove_memory(int nid, u64 start, u64 size);

@@ -100,7 +100,7 @@ static int lmv_intent_remote(struct obd_export *exp, void *lmm,
 	}
 
 	op_data = kzalloc(sizeof(*op_data), GFP_NOFS);
-	if (op_data == NULL) {
+	if (!op_data) {
 		rc = -ENOMEM;
 		goto out;
 	}

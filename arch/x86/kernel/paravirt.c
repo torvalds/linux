@@ -41,10 +41,18 @@
 #include <asm/timer.h>
 #include <asm/special_insns.h>
 
-/* nop stub */
-void _paravirt_nop(void)
-{
-}
+/*
+ * nop stub, which must not clobber anything *including the stack* to
+ * avoid confusing the entry prologues.
+ */
+extern void _paravirt_nop(void);
+asm (".pushsection .entry.text, \"ax\"\n"
+     ".global _paravirt_nop\n"
+     "_paravirt_nop:\n\t"
+     "ret\n\t"
+     ".size _paravirt_nop, . - _paravirt_nop\n\t"
+     ".type _paravirt_nop, @function\n\t"
+     ".popsection");
 
 /* identity function, which can be inlined */
 u32 _paravirt_ident_32(u32 x)
@@ -351,9 +359,7 @@ __visible struct pv_cpu_ops pv_cpu_ops = {
 	.wbinvd = native_wbinvd,
 	.read_msr = native_read_msr_safe,
 	.write_msr = native_write_msr_safe,
-	.read_tsc = native_read_tsc,
 	.read_pmc = native_read_pmc,
-	.read_tscp = native_read_tscp,
 	.load_tr_desc = native_load_tr_desc,
 	.set_ldt = native_set_ldt,
 	.load_gdt = native_load_gdt,

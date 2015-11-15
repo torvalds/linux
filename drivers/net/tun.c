@@ -858,7 +858,7 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(skb_orphan_frags(skb, GFP_ATOMIC)))
 		goto drop;
 
-	if (skb->sk) {
+	if (skb->sk && sk_fullsock(skb->sk)) {
 		sock_tx_timestamp(skb->sk, &skb_shinfo(skb)->tx_flags);
 		sw_tx_timestamp(skb);
 	}
@@ -961,6 +961,7 @@ static const struct net_device_ops tap_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= tun_poll_controller,
 #endif
+	.ndo_features_check	= passthru_features_check,
 };
 
 static void tun_flow_init(struct tun_struct *tun)

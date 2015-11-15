@@ -105,13 +105,12 @@ struct pnv_phb {
 			 unsigned int hwirq, unsigned int virq,
 			 unsigned int is_64, struct msi_msg *msg);
 	void (*dma_dev_setup)(struct pnv_phb *phb, struct pci_dev *pdev);
-	u64 (*dma_get_required_mask)(struct pnv_phb *phb,
-				     struct pci_dev *pdev);
 	void (*fixup_phb)(struct pci_controller *hose);
 	u32 (*bdfn_to_pe)(struct pnv_phb *phb, struct pci_bus *bus, u32 devfn);
 	int (*init_m64)(struct pnv_phb *phb);
-	void (*reserve_m64_pe)(struct pnv_phb *phb);
-	int (*pick_m64_pe)(struct pnv_phb *phb, struct pci_bus *bus, int all);
+	void (*reserve_m64_pe)(struct pci_bus *bus,
+			       unsigned long *pe_bitmap, bool all);
+	int (*pick_m64_pe)(struct pci_bus *bus, bool all);
 	int (*get_pe_state)(struct pnv_phb *phb, int pe_no);
 	void (*freeze_pe)(struct pnv_phb *phb, int pe_no);
 	int (*unfreeze_pe)(struct pnv_phb *phb, int pe_no, int opt);

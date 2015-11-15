@@ -419,16 +419,7 @@ static int twl4030_init_sih_modules(unsigned line)
 
 static inline void activate_irq(int irq)
 {
-#ifdef CONFIG_ARM
-	/*
-	 * ARM requires an extra step to clear IRQ_NOREQUEST, which it
-	 * sets on behalf of every irq_chip.  Also sets IRQ_NOPROBE.
-	 */
-	set_irq_flags(irq, IRQF_VALID);
-#else
-	/* same effect on other architectures */
-	irq_set_noprobe(irq);
-#endif
+	irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 }
 
 /*----------------------------------------------------------------------*/

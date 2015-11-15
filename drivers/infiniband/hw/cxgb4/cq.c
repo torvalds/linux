@@ -752,7 +752,7 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 			wc->opcode = IB_WC_LOCAL_INV;
 			break;
 		case FW_RI_FAST_REGISTER:
-			wc->opcode = IB_WC_FAST_REG_MR;
+			wc->opcode = IB_WC_REG_MR;
 			break;
 		default:
 			printk(KERN_ERR MOD "Unexpected opcode %d "
@@ -814,7 +814,7 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 			printk(KERN_ERR MOD
 			       "Unexpected cqe_status 0x%x for QPID=0x%0x\n",
 			       CQE_STATUS(&cqe), CQE_QPID(&cqe));
-			ret = -EINVAL;
+			wc->status = IB_WC_FATAL_ERR;
 		}
 	}
 out:

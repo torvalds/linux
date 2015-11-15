@@ -206,10 +206,33 @@ static int __add_prelim_ref(struct list_head *head, u64 root_id,
 		return -ENOMEM;
 
 	ref->root_id = root_id;
-	if (key)
+	if (key) {
 		ref->key_for_search = *key;
-	else
+		/*
+		 * We can often find data backrefs with an offset that is too
+		 * large (>= LLONG_MAX, maximum allowed file offset) due to
+		 * underflows when subtracting a file's offset with the data
+		 * offset of its corresponding extent data item. This can
+		 * happen for example in the clone ioctl.
+		 * So if we detect such case we set the search key's offset to
+		 * zero to make sure we will find the matching file extent item
+		 * at add_all_parents(), otherwise we will miss it because the
+		 * offset taken form the backref is much larger then the offset
+		 * of the file extent item. This can make us scan a very large
+		 * number of file extent items, but at least it will not make
+		 * us miss any.
+		 * This is an ugly workaround for a behaviour that should have
+		 * never existed, but it does and a fix for the clone ioctl
+		 * would touch a lot of places, cause backwards incompatibility
+		 * and would not fix the problem for extents cloned with older
+		 * kernels.
+		 */
+		if (ref->key_for_search.type == BTRFS_EXTENT_DATA_KEY &&
+		    ref->key_for_search.offset >= LLONG_MAX)
+			ref->key_for_search.offset = 0;
+	} else {
 		memset(&ref->key_for_search, 0, sizeof(ref->key_for_search));
+	}
 
 	ref->inode_list = NULL;
 	ref->level = level;
@@ -336,6 +359,12 @@ static int __resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 	if (IS_ERR(root)) {
 		srcu_read_unlock(&fs_info->subvol_srcu, index);
 		ret = PTR_ERR(root);
+		goto out;
+	}
+
+	if (btrfs_test_is_dummy_root(root)) {
+		srcu_read_unlock(&fs_info->subvol_srcu, index);
+		ret = -ENOENT;
 		goto out;
 	}
 
@@ -632,7 +661,7 @@ static int __add_delayed_refs(struct btrfs_delayed_ref_head *head, u64 seq,
 			struct btrfs_delayed_tree_ref *ref;
 
 			ref = btrfs_delayed_node_to_tree_ref(node);
-			ret = __add_prelim_ref(prefs, ref->root, NULL,
+			ret = __add_prelim_ref(prefs, 0, NULL,
 					       ref->level + 1, ref->parent,
 					       node->bytenr,
 					       node->ref_mod * sgn, GFP_ATOMIC);
@@ -664,11 +693,7 @@ static int __add_delayed_refs(struct btrfs_delayed_ref_head *head, u64 seq,
 			struct btrfs_delayed_data_ref *ref;
 
 			ref = btrfs_delayed_node_to_data_ref(node);
-
-			key.objectid = ref->objectid;
-			key.type = BTRFS_EXTENT_DATA_KEY;
-			key.offset = ref->offset;
-			ret = __add_prelim_ref(prefs, ref->root, &key, 0,
+			ret = __add_prelim_ref(prefs, 0, NULL, 0,
 					       ref->parent, node->bytenr,
 					       node->ref_mod * sgn, GFP_ATOMIC);
 			break;
@@ -1809,7 +1834,6 @@ static int iterate_inode_extrefs(u64 inum, struct btrfs_root *fs_root,
 	int found = 0;
 	struct extent_buffer *eb;
 	struct btrfs_inode_extref *extref;
-	struct extent_buffer *leaf;
 	u32 item_size;
 	u32 cur_offset;
 	unsigned long ptr;
@@ -1837,9 +1861,8 @@ static int iterate_inode_extrefs(u64 inum, struct btrfs_root *fs_root,
 		btrfs_set_lock_blocking_rw(eb, BTRFS_READ_LOCK);
 		btrfs_release_path(path);
 
-		leaf = path->nodes[0];
-		item_size = btrfs_item_size_nr(leaf, slot);
-		ptr = btrfs_item_ptr_offset(leaf, slot);
+		item_size = btrfs_item_size_nr(eb, slot);
+		ptr = btrfs_item_ptr_offset(eb, slot);
 		cur_offset = 0;
 
 		while (cur_offset < item_size) {
@@ -1853,7 +1876,7 @@ static int iterate_inode_extrefs(u64 inum, struct btrfs_root *fs_root,
 			if (ret)
 				break;
 
-			cur_offset += btrfs_inode_extref_name_len(leaf, extref);
+			cur_offset += btrfs_inode_extref_name_len(eb, extref);
 			cur_offset += sizeof(*extref);
 		}
 		btrfs_tree_read_unlock_blocking(eb);

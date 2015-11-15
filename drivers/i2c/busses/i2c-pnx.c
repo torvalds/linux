@@ -496,7 +496,7 @@ i2c_pnx_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	struct i2c_msg *pmsg;
 	int rc = 0, completed = 0, i;
 	struct i2c_pnx_algo_data *alg_data = adap->algo_data;
-	u32 stat = ioread32(I2C_REG_STS(alg_data));
+	u32 stat;
 
 	dev_dbg(&alg_data->adapter.dev,
 		"%s(): entering: %d messages, stat = %04x.\n",
@@ -600,7 +600,7 @@ static int i2c_pnx_controller_suspend(struct device *dev)
 {
 	struct i2c_pnx_algo_data *alg_data = dev_get_drvdata(dev);
 
-	clk_disable(alg_data->clk);
+	clk_disable_unprepare(alg_data->clk);
 
 	return 0;
 }
@@ -609,7 +609,7 @@ static int i2c_pnx_controller_resume(struct device *dev)
 {
 	struct i2c_pnx_algo_data *alg_data = dev_get_drvdata(dev);
 
-	return clk_enable(alg_data->clk);
+	return clk_prepare_enable(alg_data->clk);
 }
 
 static SIMPLE_DEV_PM_OPS(i2c_pnx_pm,
@@ -659,9 +659,8 @@ static int i2c_pnx_probe(struct platform_device *pdev)
 	if (IS_ERR(alg_data->clk))
 		return PTR_ERR(alg_data->clk);
 
-	init_timer(&alg_data->mif.timer);
-	alg_data->mif.timer.function = i2c_pnx_timeout;
-	alg_data->mif.timer.data = (unsigned long)alg_data;
+	setup_timer(&alg_data->mif.timer, i2c_pnx_timeout,
+			(unsigned long)alg_data);
 
 	snprintf(alg_data->adapter.name, sizeof(alg_data->adapter.name),
 		 "%s", pdev->name);
@@ -672,7 +671,7 @@ static int i2c_pnx_probe(struct platform_device *pdev)
 	if (IS_ERR(alg_data->ioaddr))
 		return PTR_ERR(alg_data->ioaddr);
 
-	ret = clk_enable(alg_data->clk);
+	ret = clk_prepare_enable(alg_data->clk);
 	if (ret)
 		return ret;
 
@@ -726,7 +725,7 @@ static int i2c_pnx_probe(struct platform_device *pdev)
 	return 0;
 
 out_clock:
-	clk_disable(alg_data->clk);
+	clk_disable_unprepare(alg_data->clk);
 	return ret;
 }
 
@@ -735,7 +734,7 @@ static int i2c_pnx_remove(struct platform_device *pdev)
 	struct i2c_pnx_algo_data *alg_data = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&alg_data->adapter);
-	clk_disable(alg_data->clk);
+	clk_disable_unprepare(alg_data->clk);
 
 	return 0;
 }

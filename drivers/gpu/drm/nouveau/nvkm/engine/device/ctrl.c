@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include "priv.h"
+#include "ctrl.h"
 
 #include <core/client.h>
 #include <subdev/clk.h>
@@ -31,18 +31,18 @@
 #include <nvif/unpack.h>
 
 static int
-nvkm_control_mthd_pstate_info(struct nvkm_object *object, void *data, u32 size)
+nvkm_control_mthd_pstate_info(struct nvkm_control *ctrl, void *data, u32 size)
 {
 	union {
 		struct nvif_control_pstate_info_v0 v0;
 	} *args = data;
-	struct nvkm_clk *clk = nvkm_clk(object);
+	struct nvkm_clk *clk = ctrl->device->clk;
 	int ret;
 
-	nv_ioctl(object, "control pstate info size %d\n", size);
+	nvif_ioctl(&ctrl->object, "control pstate info size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(object, "control pstate info vers %d\n",
-			 args->v0.version);
+		nvif_ioctl(&ctrl->object, "control pstate info vers %d\n",
+			   args->v0.version);
 	} else
 		return ret;
 
@@ -64,24 +64,24 @@ nvkm_control_mthd_pstate_info(struct nvkm_object *object, void *data, u32 size)
 }
 
 static int
-nvkm_control_mthd_pstate_attr(struct nvkm_object *object, void *data, u32 size)
+nvkm_control_mthd_pstate_attr(struct nvkm_control *ctrl, void *data, u32 size)
 {
 	union {
 		struct nvif_control_pstate_attr_v0 v0;
 	} *args = data;
-	struct nvkm_clk *clk = nvkm_clk(object);
-	struct nvkm_domain *domain;
+	struct nvkm_clk *clk = ctrl->device->clk;
+	const struct nvkm_domain *domain;
 	struct nvkm_pstate *pstate;
 	struct nvkm_cstate *cstate;
 	int i = 0, j = -1;
 	u32 lo, hi;
 	int ret;
 
-	nv_ioctl(object, "control pstate attr size %d\n", size);
+	nvif_ioctl(&ctrl->object, "control pstate attr size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(object, "control pstate attr vers %d state %d "
-				 "index %d\n",
-			 args->v0.version, args->v0.state, args->v0.index);
+		nvif_ioctl(&ctrl->object,
+			   "control pstate attr vers %d state %d index %d\n",
+			   args->v0.version, args->v0.state, args->v0.index);
 		if (!clk)
 			return -ENODEV;
 		if (args->v0.state < NVIF_CONTROL_PSTATE_ATTR_V0_STATE_CURRENT)
@@ -116,7 +116,7 @@ nvkm_control_mthd_pstate_attr(struct nvkm_object *object, void *data, u32 size)
 
 		args->v0.state = pstate->pstate;
 	} else {
-		lo = max(clk->read(clk, domain->name), 0);
+		lo = max(nvkm_clk_read(clk, domain->name), 0);
 		hi = lo;
 	}
 
@@ -137,19 +137,19 @@ nvkm_control_mthd_pstate_attr(struct nvkm_object *object, void *data, u32 size)
 }
 
 static int
-nvkm_control_mthd_pstate_user(struct nvkm_object *object, void *data, u32 size)
+nvkm_control_mthd_pstate_user(struct nvkm_control *ctrl, void *data, u32 size)
 {
 	union {
 		struct nvif_control_pstate_user_v0 v0;
 	} *args = data;
-	struct nvkm_clk *clk = nvkm_clk(object);
+	struct nvkm_clk *clk = ctrl->device->clk;
 	int ret;
 
-	nv_ioctl(object, "control pstate user size %d\n", size);
+	nvif_ioctl(&ctrl->object, "control pstate user size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(object, "control pstate user vers %d ustate %d "
-				 "pwrsrc %d\n", args->v0.version,
-			 args->v0.ustate, args->v0.pwrsrc);
+		nvif_ioctl(&ctrl->object,
+			   "control pstate user vers %d ustate %d pwrsrc %d\n",
+			   args->v0.version, args->v0.ustate, args->v0.pwrsrc);
 		if (!clk)
 			return -ENODEV;
 	} else
@@ -168,32 +168,44 @@ nvkm_control_mthd_pstate_user(struct nvkm_object *object, void *data, u32 size)
 static int
 nvkm_control_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
+	struct nvkm_control *ctrl = nvkm_control(object);
 	switch (mthd) {
 	case NVIF_CONTROL_PSTATE_INFO:
-		return nvkm_control_mthd_pstate_info(object, data, size);
+		return nvkm_control_mthd_pstate_info(ctrl, data, size);
 	case NVIF_CONTROL_PSTATE_ATTR:
-		return nvkm_control_mthd_pstate_attr(object, data, size);
+		return nvkm_control_mthd_pstate_attr(ctrl, data, size);
 	case NVIF_CONTROL_PSTATE_USER:
-		return nvkm_control_mthd_pstate_user(object, data, size);
+		return nvkm_control_mthd_pstate_user(ctrl, data, size);
 	default:
 		break;
 	}
 	return -EINVAL;
 }
 
-static struct nvkm_ofuncs
-nvkm_control_ofuncs = {
-	.ctor = _nvkm_object_ctor,
-	.dtor = nvkm_object_destroy,
-	.init = nvkm_object_init,
-	.fini = nvkm_object_fini,
+static const struct nvkm_object_func
+nvkm_control = {
 	.mthd = nvkm_control_mthd,
 };
 
-struct nvkm_oclass
-nvkm_control_oclass[] = {
-	{ .handle = NVIF_IOCTL_NEW_V0_CONTROL,
-	  .ofuncs = &nvkm_control_ofuncs
-	},
-	{}
+static int
+nvkm_control_new(struct nvkm_device *device, const struct nvkm_oclass *oclass,
+		 void *data, u32 size, struct nvkm_object **pobject)
+{
+	struct nvkm_control *ctrl;
+
+	if (!(ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL)))
+		return -ENOMEM;
+	*pobject = &ctrl->object;
+	ctrl->device = device;
+
+	nvkm_object_ctor(&nvkm_control, oclass, &ctrl->object);
+	return 0;
+}
+
+const struct nvkm_device_oclass
+nvkm_control_oclass = {
+	.base.oclass = NVIF_IOCTL_NEW_V0_CONTROL,
+	.base.minver = -1,
+	.base.maxver = -1,
+	.ctor = nvkm_control_new,
 };

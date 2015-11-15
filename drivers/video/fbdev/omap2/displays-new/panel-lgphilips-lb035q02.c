@@ -391,7 +391,6 @@ static struct spi_driver lb035q02_spi_driver = {
 	.remove		= lb035q02_panel_spi_remove,
 	.driver		= {
 		.name	= "panel_lgphilips_lb035q02",
-		.owner	= THIS_MODULE,
 		.of_match_table = lb035q02_of_match,
 		.suppress_bind_attrs = true,
 	},

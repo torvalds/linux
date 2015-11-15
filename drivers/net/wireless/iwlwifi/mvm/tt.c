@@ -33,6 +33,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2015 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -154,24 +155,20 @@ static bool iwl_mvm_temp_notif_wait(struct iwl_notif_wait_data *notif_wait,
 	return true;
 }
 
-int iwl_mvm_temp_notif(struct iwl_mvm *mvm,
-		       struct iwl_rx_cmd_buffer *rxb,
-		       struct iwl_device_cmd *cmd)
+void iwl_mvm_temp_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	int temp;
 
 	/* the notification is handled synchronously in ctkill, so skip here */
 	if (test_bit(IWL_MVM_STATUS_HW_CTKILL, &mvm->status))
-		return 0;
+		return;
 
 	temp = iwl_mvm_temp_notif_parse(mvm, pkt);
 	if (temp < 0)
-		return 0;
+		return;
 
 	iwl_mvm_tt_temp_changed(mvm, temp);
-
-	return 0;
 }
 
 static int iwl_mvm_get_temp_cmd(struct iwl_mvm *mvm)
@@ -179,16 +176,33 @@ static int iwl_mvm_get_temp_cmd(struct iwl_mvm *mvm)
 	struct iwl_dts_measurement_cmd cmd = {
 		.flags = cpu_to_le32(DTS_TRIGGER_CMD_FLAGS_TEMP),
 	};
+	struct iwl_ext_dts_measurement_cmd extcmd = {
+		.control_mode = cpu_to_le32(DTS_AUTOMATIC),
+	};
+	u32 cmdid;
 
-	return iwl_mvm_send_cmd_pdu(mvm, CMD_DTS_MEASUREMENT_TRIGGER, 0,
-				    sizeof(cmd), &cmd);
+	if (fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_WIDE_CMD_HDR))
+		cmdid = iwl_cmd_id(CMD_DTS_MEASUREMENT_TRIGGER_WIDE,
+				   PHY_OPS_GROUP, 0);
+	else
+		cmdid = CMD_DTS_MEASUREMENT_TRIGGER;
+
+	if (!fw_has_capa(&mvm->fw->ucode_capa,
+			 IWL_UCODE_TLV_CAPA_EXTENDED_DTS_MEASURE))
+		return iwl_mvm_send_cmd_pdu(mvm, cmdid, 0, sizeof(cmd), &cmd);
+
+	return iwl_mvm_send_cmd_pdu(mvm, cmdid, 0, sizeof(extcmd), &extcmd);
 }
 
 int iwl_mvm_get_temp(struct iwl_mvm *mvm)
 {
 	struct iwl_notification_wait wait_temp_notif;
-	static const u8 temp_notif[] = { DTS_MEASUREMENT_NOTIFICATION };
+	static u16 temp_notif[] = { WIDE_ID(PHY_OPS_GROUP,
+					    DTS_MEASUREMENT_NOTIF_WIDE) };
 	int ret, temp;
+
+	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_WIDE_CMD_HDR))
+		temp_notif[0] = DTS_MEASUREMENT_NOTIFICATION;
 
 	lockdep_assert_held(&mvm->mutex);
 

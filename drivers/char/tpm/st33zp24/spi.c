@@ -381,7 +381,6 @@ static SIMPLE_DEV_PM_OPS(st33zp24_spi_ops, st33zp24_pm_suspend,
 
 static struct spi_driver tpm_st33_spi_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = TPM_ST33_SPI,
 		.pm = &st33zp24_spi_ops,
 		.of_match_table = of_match_ptr(of_st33zp24_spi_match),

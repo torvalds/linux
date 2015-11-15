@@ -26,7 +26,7 @@
 		regulator-name = "vwl1271";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
-		gpio = <&gpio5 22 0>;	/* gpio150 */
+		gpio = <&gpio5 22 GPIO_ACTIVE_HIGH>;	/* gpio150 */
 		startup-delay-us = <70000>;
 		enable-active-high;
 		vin-supply = <&vmmc2>;
@@ -91,7 +91,7 @@
 	tsc2046@0 {
 		interrupt-parent = <&gpio6>;
 		interrupts = <15 0>;		/* gpio175 */
-		pendown-gpio = <&gpio6 15 0>;
+		pendown-gpio = <&gpio6 15 GPIO_ACTIVE_HIGH>;
 	};
 };
 

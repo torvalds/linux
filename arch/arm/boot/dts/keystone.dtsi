@@ -12,6 +12,7 @@
 #include "skeleton.dtsi"
 
 / {
+	compatible = "ti,keystone";
 	model = "Texas Instruments Keystone 2 SoC";
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -136,7 +137,7 @@
 		};
 
 		spi0: spi@21000400 {
-			compatible = "ti,dm6441-spi";
+			compatible = "ti,keystone-spi", "ti,dm6441-spi";
 			reg = <0x21000400 0x200>;
 			num-cs = <4>;
 			ti,davinci-spi-intr-line = <0>;
@@ -147,7 +148,7 @@
 		};
 
 		spi1: spi@21000600 {
-			compatible = "ti,dm6441-spi";
+			compatible = "ti,keystone-spi", "ti,dm6441-spi";
 			reg = <0x21000600 0x200>;
 			num-cs = <4>;
 			ti,davinci-spi-intr-line = <0>;
@@ -158,7 +159,7 @@
 		};
 
 		spi2: spi@21000800 {
-			compatible = "ti,dm6441-spi";
+			compatible = "ti,keystone-spi", "ti,dm6441-spi";
 			reg = <0x21000800 0x200>;
 			num-cs = <4>;
 			ti,davinci-spi-intr-line = <0>;
@@ -265,17 +266,6 @@
 			reg = <0x21000A00 0x00000100>;
 			ranges = <0 0 0x30000000 0x10000000
 				  1 0 0x21000A00 0x00000100>;
-		};
-
-		mdio: mdio@02090300 {
-			compatible	= "ti,keystone_mdio", "ti,davinci_mdio";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg		= <0x02090300 0x100>;
-			status = "disabled";
-			clocks = <&clkpa>;
-			clock-names = "fck";
-			bus_freq	= <2500000>;
 		};
 
 		kirq0: keystone_irq@26202a0 {

@@ -58,8 +58,10 @@
 #define QLA8044_PCI_QDR_NET_MAX		((unsigned long)0x043fffff)
 
 /*  PCI Windowing for DDR regions.  */
-#define QLA8044_ADDR_IN_RANGE(addr, low, high)		\
-	(((addr) <= (high)) && ((addr) >= (low)))
+static inline bool addr_in_range(u64 addr, u64 low, u64 high)
+{
+	return addr <= high && addr >= low;
+}
 
 /* Indirectly Mapped Registers */
 #define QLA8044_FLASH_SPI_STATUS	0x2808E010

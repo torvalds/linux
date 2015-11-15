@@ -139,10 +139,6 @@ static s32 igb_check_for_link_media_swap(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	/* reset page to 0 */
-	ret_val = phy->ops.write_reg(hw, E1000_M88E1112_PAGE_ADDR, 0);
-	if (ret_val)
-		return ret_val;
 
 	if (data & E1000_M88E1112_STATUS_LINK)
 		port = E1000_MEDIA_PORT_OTHER;
@@ -151,8 +147,20 @@ static s32 igb_check_for_link_media_swap(struct e1000_hw *hw)
 	if (port && (hw->dev_spec._82575.media_port != port)) {
 		hw->dev_spec._82575.media_port = port;
 		hw->dev_spec._82575.media_changed = true;
+	}
+
+	if (port == E1000_MEDIA_PORT_COPPER) {
+		/* reset page to 0 */
+		ret_val = phy->ops.write_reg(hw, E1000_M88E1112_PAGE_ADDR, 0);
+		if (ret_val)
+			return ret_val;
+		igb_check_for_link_82575(hw);
 	} else {
-		ret_val = igb_check_for_link_82575(hw);
+		igb_check_for_link_82575(hw);
+		/* reset page to 0 */
+		ret_val = phy->ops.write_reg(hw, E1000_M88E1112_PAGE_ADDR, 0);
+		if (ret_val)
+			return ret_val;
 	}
 
 	return 0;
@@ -223,6 +231,7 @@ static s32 igb_init_phy_params_82575(struct e1000_hw *hw)
 	/* Verify phy id and set remaining function pointers */
 	switch (phy->id) {
 	case M88E1543_E_PHY_ID:
+	case M88E1512_E_PHY_ID:
 	case I347AT4_E_PHY_ID:
 	case M88E1112_E_PHY_ID:
 	case M88E1111_I_PHY_ID:
@@ -235,7 +244,7 @@ static s32 igb_init_phy_params_82575(struct e1000_hw *hw)
 		else
 			phy->ops.get_cable_length = igb_get_cable_length_m88;
 		phy->ops.force_speed_duplex = igb_phy_force_speed_duplex_m88;
-		/* Check if this PHY is confgured for media swap. */
+		/* Check if this PHY is configured for media swap. */
 		if (phy->id == M88E1112_E_PHY_ID) {
 			u16 data;
 
@@ -257,6 +266,11 @@ static s32 igb_init_phy_params_82575(struct e1000_hw *hw)
 			    data == E1000_M88E1112_AUTO_COPPER_BASEX)
 				hw->mac.ops.check_for_link =
 						igb_check_for_link_media_swap;
+		}
+		if (phy->id == M88E1512_E_PHY_ID) {
+			ret_val = igb_initialize_M88E1512_phy(hw);
+			if (ret_val)
+				goto out;
 		}
 		break;
 	case IGP03E1000_E_PHY_ID:
@@ -889,6 +903,7 @@ out:
  **/
 static s32 igb_phy_hw_reset_sgmii_82575(struct e1000_hw *hw)
 {
+	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val;
 
 	/* This isn't a true "hard" reset, but is the only reset
@@ -905,7 +920,11 @@ static s32 igb_phy_hw_reset_sgmii_82575(struct e1000_hw *hw)
 		goto out;
 
 	ret_val = igb_phy_sw_reset(hw);
+	if (ret_val)
+		goto out;
 
+	if (phy->id == M88E1512_E_PHY_ID)
+		ret_val = igb_initialize_M88E1512_phy(hw);
 out:
 	return ret_val;
 }
@@ -1579,6 +1598,7 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 		case I347AT4_E_PHY_ID:
 		case M88E1112_E_PHY_ID:
 		case M88E1543_E_PHY_ID:
+		case M88E1512_E_PHY_ID:
 		case I210_I_PHY_ID:
 			ret_val = igb_copper_link_setup_m88_gen2(hw);
 			break;
@@ -2621,7 +2641,8 @@ s32 igb_set_eee_i354(struct e1000_hw *hw, bool adv1G, bool adv100M)
 	u16 phy_data;
 
 	if ((hw->phy.media_type != e1000_media_type_copper) ||
-	    (phy->id != M88E1543_E_PHY_ID))
+	    ((phy->id != M88E1543_E_PHY_ID) &&
+	     (phy->id != M88E1512_E_PHY_ID)))
 		goto out;
 
 	if (!hw->dev_spec._82575.eee_disable) {
@@ -2701,7 +2722,8 @@ s32 igb_get_eee_status_i354(struct e1000_hw *hw, bool *status)
 
 	/* Check if EEE is supported on this device. */
 	if ((hw->phy.media_type != e1000_media_type_copper) ||
-	    (phy->id != M88E1543_E_PHY_ID))
+	    ((phy->id != M88E1543_E_PHY_ID) &&
+	     (phy->id != M88E1512_E_PHY_ID)))
 		goto out;
 
 	ret_val = igb_read_xmdio_reg(hw, E1000_PCS_STATUS_ADDR_I354,

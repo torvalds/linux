@@ -188,15 +188,8 @@ struct txpowerinfo24g {
 
 #define EFUSE_PROTECT_BYTES_BANK	16
 
-/*  For RTL8723 regulator mode. */
-enum rt_regulator_mode {
-	RT_SWITCHING_REGULATOR = 0,
-	RT_LDO_REGULATOR = 1,
-};
-
 struct hal_data_8188e {
 	struct HAL_VERSION	VersionID;
-	enum rt_regulator_mode RegulatorMode; /*  switching regulator or LDO */
 	u16	CustomerID;
 	u8 *pfirmware;
 	u32 fwsize;
@@ -301,7 +294,6 @@ struct hal_data_8188e {
 	/* for host message to fw */
 	u8	LastHMEBoxNum;
 
-	u8	fw_ractrl;
 	u8	RegTxPause;
 	/*  Beacon function related global variable. */
 	u32	RegBcnCtrlVal;

@@ -524,6 +524,7 @@ static ssize_t uio_read(struct file *filep, char __user *buf,
 
 		event_count = atomic_read(&idev->event);
 		if (event_count != listener->event_count) {
+			__set_current_state(TASK_RUNNING);
 			if (copy_to_user(buf, &event_count, count))
 				retval = -EFAULT;
 			else {
@@ -896,6 +897,7 @@ static int __init uio_init(void)
 static void __exit uio_exit(void)
 {
 	release_uio_class();
+	idr_destroy(&uio_idr);
 }
 
 module_init(uio_init)

@@ -126,6 +126,8 @@ extern raw_spinlock_t devtree_lock;
 #define OF_POPULATED	3 /* device already created for the node */
 #define OF_POPULATED_BUS	4 /* of_platform_populate recursed to children of this node */
 
+#define OF_BAD_ADDR	((u64)-1)
+
 #ifdef CONFIG_OF
 void of_core_init(void);
 
@@ -136,7 +138,8 @@ static inline bool is_of_node(struct fwnode_handle *fwnode)
 
 static inline struct device_node *to_of_node(struct fwnode_handle *fwnode)
 {
-	return fwnode ? container_of(fwnode, struct device_node, fwnode) : NULL;
+	return is_of_node(fwnode) ?
+		container_of(fwnode, struct device_node, fwnode) : NULL;
 }
 
 static inline bool of_have_populated_dt(void)
@@ -227,8 +230,6 @@ static inline unsigned long of_read_ulong(const __be32 *cell, int size)
 
 #define OF_IS_DYNAMIC(x) test_bit(OF_DYNAMIC, &x->_flags)
 #define OF_MARK_DYNAMIC(x) set_bit(OF_DYNAMIC, &x->_flags)
-
-#define OF_BAD_ADDR	((u64)-1)
 
 static inline const char *of_node_full_name(const struct device_node *np)
 {

@@ -35,8 +35,6 @@
 #define MEN_Z135_BAUD_REG		0x810
 #define MEN_Z135_TIMEOUT		0x814
 
-#define MEN_Z135_MEM_SIZE		0x818
-
 #define IRQ_ID(x) ((x) & 0x1f)
 
 #define MEN_Z135_IER_RXCIEN BIT(0)		/* RX Space IRQ */
@@ -124,6 +122,7 @@ MODULE_PARM_DESC(rx_timeout, "RX timeout. "
 struct men_z135_port {
 	struct uart_port port;
 	struct mcb_device *mdev;
+	struct resource *mem;
 	unsigned char *rxbuf;
 	u32 stat_reg;
 	spinlock_t lock;
@@ -392,7 +391,6 @@ static irqreturn_t men_z135_intr(int irq, void *data)
 	struct men_z135_port *uart = (struct men_z135_port *)data;
 	struct uart_port *port = &uart->port;
 	bool handled = false;
-	unsigned long flags;
 	int irq_id;
 
 	uart->stat_reg = ioread32(port->membase + MEN_Z135_STAT_REG);
@@ -401,7 +399,7 @@ static irqreturn_t men_z135_intr(int irq, void *data)
 	if (!irq_id)
 		goto out;
 
-	spin_lock_irqsave(&port->lock, flags);
+	spin_lock(&port->lock);
 	/* It's save to write to IIR[7:6] RXC[9:8] */
 	iowrite8(irq_id, port->membase + MEN_Z135_STAT_REG);
 
@@ -427,7 +425,7 @@ static irqreturn_t men_z135_intr(int irq, void *data)
 		handled = true;
 	}
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	spin_unlock(&port->lock);
 out:
 	return IRQ_RETVAL(handled);
 }
@@ -717,7 +715,7 @@ static void men_z135_set_termios(struct uart_port *port,
 
 	baud = uart_get_baud_rate(port, termios, old, 0, uart_freq / 16);
 
-	spin_lock(&port->lock);
+	spin_lock_irq(&port->lock);
 	if (tty_termios_baud_rate(termios))
 		tty_termios_encode_baud_rate(termios, baud, baud);
 
@@ -725,7 +723,7 @@ static void men_z135_set_termios(struct uart_port *port,
 	iowrite32(bd_reg, port->membase + MEN_Z135_BAUD_REG);
 
 	uart_update_timeout(port, termios->c_cflag, baud);
-	spin_unlock(&port->lock);
+	spin_unlock_irq(&port->lock);
 }
 
 static const char *men_z135_type(struct uart_port *port)
@@ -735,22 +733,30 @@ static const char *men_z135_type(struct uart_port *port)
 
 static void men_z135_release_port(struct uart_port *port)
 {
+	struct men_z135_port *uart = to_men_z135(port);
+
 	iounmap(port->membase);
 	port->membase = NULL;
 
-	release_mem_region(port->mapbase, MEN_Z135_MEM_SIZE);
+	mcb_release_mem(uart->mem);
 }
 
 static int men_z135_request_port(struct uart_port *port)
 {
-	int size = MEN_Z135_MEM_SIZE;
+	struct men_z135_port *uart = to_men_z135(port);
+	struct mcb_device *mdev = uart->mdev;
+	struct resource *mem;
 
-	if (!request_mem_region(port->mapbase, size, "men_z135_port"))
-		return -EBUSY;
+	mem = mcb_request_mem(uart->mdev, dev_name(&mdev->dev));
+	if (IS_ERR(mem))
+		return PTR_ERR(mem);
 
-	port->membase = ioremap(port->mapbase, MEN_Z135_MEM_SIZE);
+	port->mapbase = mem->start;
+	uart->mem = mem;
+
+	port->membase = ioremap(mem->start, resource_size(mem));
 	if (port->membase == NULL) {
-		release_mem_region(port->mapbase, MEN_Z135_MEM_SIZE);
+		mcb_release_mem(mem);
 		return -ENOMEM;
 	}
 
@@ -840,7 +846,6 @@ static int men_z135_probe(struct mcb_device *mdev,
 	uart->port.membase = NULL;
 	uart->mdev = mdev;
 
-	spin_lock_init(&uart->port.lock);
 	spin_lock_init(&uart->lock);
 
 	err = uart_add_one_port(&men_z135_driver, &uart->port);

@@ -441,6 +441,7 @@ static int opal_recover_mce(struct pt_regs *regs,
 int opal_machine_check(struct pt_regs *regs)
 {
 	struct machine_check_event evt;
+	int ret;
 
 	if (!get_mce_event(&evt, MCE_EVENT_RELEASE))
 		return 0;
@@ -455,6 +456,43 @@ int opal_machine_check(struct pt_regs *regs)
 
 	if (opal_recover_mce(regs, &evt))
 		return 1;
+
+	/*
+	 * Unrecovered machine check, we are heading to panic path.
+	 *
+	 * We may have hit this MCE in very early stage of kernel
+	 * initialization even before opal-prd has started running. If
+	 * this is the case then this MCE error may go un-noticed or
+	 * un-analyzed if we go down panic path. We need to inform
+	 * BMC/OCC about this error so that they can collect relevant
+	 * data for error analysis before rebooting.
+	 * Use opal_cec_reboot2(OPAL_REBOOT_PLATFORM_ERROR) to do so.
+	 * This function may not return on BMC based system.
+	 */
+	ret = opal_cec_reboot2(OPAL_REBOOT_PLATFORM_ERROR,
+			"Unrecoverable Machine Check exception");
+	if (ret == OPAL_UNSUPPORTED) {
+		pr_emerg("Reboot type %d not supported\n",
+					OPAL_REBOOT_PLATFORM_ERROR);
+	}
+
+	/*
+	 * We reached here. There can be three possibilities:
+	 * 1. We are running on a firmware level that do not support
+	 *    opal_cec_reboot2()
+	 * 2. We are running on a firmware level that do not support
+	 *    OPAL_REBOOT_PLATFORM_ERROR reboot type.
+	 * 3. We are running on FSP based system that does not need opal
+	 *    to trigger checkstop explicitly for error analysis. The FSP
+	 *    PRD component would have already got notified about this
+	 *    error through other channels.
+	 *
+	 * If hardware marked this as an unrecoverable MCE, we are
+	 * going to panic anyway. Even if it didn't, it's not safe to
+	 * continue at this point, so we should explicitly panic.
+	 */
+
+	panic("PowerNV Unrecovered Machine Check");
 	return 0;
 }
 
@@ -648,7 +686,7 @@ static void opal_init_heartbeat(void)
 
 static int __init opal_init(void)
 {
-	struct device_node *np, *consoles;
+	struct device_node *np, *consoles, *leds;
 	int rc;
 
 	opal_node = of_find_node_by_path("/ibm,opal");
@@ -688,6 +726,13 @@ static int __init opal_init(void)
 
 	/* Setup a heatbeat thread if requested by OPAL */
 	opal_init_heartbeat();
+
+	/* Create leds platform devices */
+	leds = of_find_node_by_path("/ibm,opal/leds");
+	if (leds) {
+		of_platform_device_create(leds, "opal_leds", NULL);
+		of_node_put(leds);
+	}
 
 	/* Create "opal" kobject under /sys/firmware */
 	rc = opal_sysfs_init();
@@ -841,3 +886,6 @@ EXPORT_SYMBOL_GPL(opal_rtc_write);
 EXPORT_SYMBOL_GPL(opal_tpo_read);
 EXPORT_SYMBOL_GPL(opal_tpo_write);
 EXPORT_SYMBOL_GPL(opal_i2c_request);
+/* Export these symbols for PowerNV LED class driver */
+EXPORT_SYMBOL_GPL(opal_leds_get_ind);
+EXPORT_SYMBOL_GPL(opal_leds_set_ind);

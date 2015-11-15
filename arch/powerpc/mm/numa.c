@@ -80,7 +80,7 @@ static void __init setup_node_to_cpumask_map(void)
 		setup_nr_node_ids();
 
 	/* allocate the map */
-	for (node = 0; node < nr_node_ids; node++)
+	for_each_node(node)
 		alloc_bootmem_cpumask_var(&node_to_cpumask_map[node]);
 
 	/* cpumask_of_node() will now work */
@@ -225,7 +225,7 @@ static void initialize_distance_lookup_table(int nid,
 	for (i = 0; i < distance_ref_points_depth; i++) {
 		const __be32 *entry;
 
-		entry = &associativity[be32_to_cpu(distance_ref_points[i])];
+		entry = &associativity[be32_to_cpu(distance_ref_points[i]) - 1];
 		distance_lookup_table[nid][i] = of_read_number(entry, 1);
 	}
 }
@@ -248,8 +248,12 @@ static int associativity_to_nid(const __be32 *associativity)
 		nid = -1;
 
 	if (nid > 0 &&
-	    of_read_number(associativity, 1) >= distance_ref_points_depth)
-		initialize_distance_lookup_table(nid, associativity);
+		of_read_number(associativity, 1) >= distance_ref_points_depth) {
+		/*
+		 * Skip the length field and send start of associativity array
+		 */
+		initialize_distance_lookup_table(nid, associativity + 1);
+	}
 
 out:
 	return nid;
@@ -272,7 +276,6 @@ static int of_node_to_nid_single(struct device_node *device)
 /* Walk the device tree upwards, looking for an associativity id */
 int of_node_to_nid(struct device_node *device)
 {
-	struct device_node *tmp;
 	int nid = -1;
 
 	of_node_get(device);
@@ -281,9 +284,7 @@ int of_node_to_nid(struct device_node *device)
 		if (nid != -1)
 			break;
 
-	        tmp = device;
-		device = of_get_parent(tmp);
-		of_node_put(tmp);
+		device = of_get_next_parent(device);
 	}
 	of_node_put(device);
 
@@ -507,6 +508,12 @@ static int of_drconf_to_nid_single(struct of_drconf_cell *drmem,
 
 		if (nid == 0xffff || nid >= MAX_NUMNODES)
 			nid = default_nid;
+
+		if (nid > 0) {
+			index = drmem->aa_index * aa->array_sz;
+			initialize_distance_lookup_table(nid,
+							&aa->arrays[index]);
+		}
 	}
 
 	return nid;

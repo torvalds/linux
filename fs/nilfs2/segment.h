@@ -67,7 +67,8 @@ struct nilfs_recovery_info {
 
 /**
  * struct nilfs_cstage - Context of collection stage
- * @scnt: Stage count
+ * @scnt: Stage count, must be accessed via wrappers:
+ *        nilfs_sc_cstage_inc(), nilfs_sc_cstage_set(), nilfs_sc_cstage_get()
  * @flags: State flags
  * @dirty_file_ptr: Pointer on dirty_files list, or inode of a target file
  * @gc_inode_ptr: Pointer on the list of gc-inodes

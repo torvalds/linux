@@ -20,7 +20,7 @@
 #include <asm/clock.h>
 #include <asm/idle.h>
 
-#include <asm/mach-loongson/loongson.h>
+#include <asm/mach-loongson64/loongson.h>
 
 static uint nowait;
 

@@ -101,7 +101,7 @@ struct arizona_pdata {
 	 * useful for systems where and I2S bus with multiple data
 	 * lines is mastered.
 	 */
-	int max_channels_clocked[ARIZONA_MAX_AIF];
+	unsigned int max_channels_clocked[ARIZONA_MAX_AIF];
 
 	/** GPIO5 is used for jack detection */
 	bool jd_gpio5;
@@ -124,23 +124,26 @@ struct arizona_pdata {
 	/** Channel to use for headphone detection */
 	unsigned int hpdet_channel;
 
+	/** Use software comparison to determine mic presence */
+	bool micd_software_compare;
+
 	/** Extra debounce timeout used during initial mic detection (ms) */
-	int micd_detect_debounce;
+	unsigned int micd_detect_debounce;
 
 	/** GPIO for mic detection polarity */
 	int micd_pol_gpio;
 
 	/** Mic detect ramp rate */
-	int micd_bias_start_time;
+	unsigned int micd_bias_start_time;
 
 	/** Mic detect sample rate */
-	int micd_rate;
+	unsigned int micd_rate;
 
 	/** Mic detect debounce level */
-	int micd_dbtime;
+	unsigned int micd_dbtime;
 
 	/** Mic detect timeout (ms) */
-	int micd_timeout;
+	unsigned int micd_timeout;
 
 	/** Force MICBIAS on for mic detect */
 	bool micd_force_micbias;
@@ -162,6 +165,8 @@ struct arizona_pdata {
 	/**
 	 * Mode of input structures
 	 * One of the ARIZONA_INMODE_xxx values
+	 * wm5102/wm5110/wm8280/wm8997: [0]=IN1 [1]=IN2 [2]=IN3 [3]=IN4
+	 * wm8998: [0]=IN1A [1]=IN2A [2]=IN1B [3]=IN2B
 	 */
 	int inmode[ARIZONA_MAX_INPUT];
 
@@ -179,6 +184,9 @@ struct arizona_pdata {
 
 	/** GPIO for primary IRQ (used for edge triggered emulation) */
 	int irq_gpio;
+
+	/** General purpose switch control */
+	unsigned int gpsw;
 };
 
 #endif

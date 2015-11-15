@@ -111,7 +111,7 @@ TRACE_EVENT(amdgpu_vm_bo_unmap,
 		      __entry->offset, __entry->flags)
 );
 
-TRACE_EVENT(amdgpu_vm_bo_update,
+DECLARE_EVENT_CLASS(amdgpu_vm_mapping,
 	    TP_PROTO(struct amdgpu_bo_va_mapping *mapping),
 	    TP_ARGS(mapping),
 	    TP_STRUCT__entry(
@@ -127,6 +127,16 @@ TRACE_EVENT(amdgpu_vm_bo_update,
 			   ),
 	    TP_printk("soffs=%010llx, eoffs=%010llx, flags=%08x",
 		      __entry->soffset, __entry->eoffset, __entry->flags)
+);
+
+DEFINE_EVENT(amdgpu_vm_mapping, amdgpu_vm_bo_update,
+	    TP_PROTO(struct amdgpu_bo_va_mapping *mapping),
+	    TP_ARGS(mapping)
+);
+
+DEFINE_EVENT(amdgpu_vm_mapping, amdgpu_vm_bo_mapping,
+	    TP_PROTO(struct amdgpu_bo_va_mapping *mapping),
+	    TP_ARGS(mapping)
 );
 
 TRACE_EVENT(amdgpu_vm_set_page,

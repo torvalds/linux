@@ -22,7 +22,7 @@ At reset, the MAX6875 reads the configuration EEPROM into its configuration
 registers.  The chip then begins to operate according to the values in the
 registers.
 
-The Maxim MAX6874 is a similar, mostly compatible device, with more intputs
+The Maxim MAX6874 is a similar, mostly compatible device, with more inputs
 and outputs:
              vin     gpi    vout
 MAX6874        6       4       8

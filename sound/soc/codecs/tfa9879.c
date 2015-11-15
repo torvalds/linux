@@ -160,7 +160,7 @@ static int tfa9879_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
-static struct reg_default tfa9879_regs[] = {
+static const struct reg_default tfa9879_regs[] = {
 	{ TFA9879_DEVICE_CONTROL,	0x0000 }, /* 0x00 */
 	{ TFA9879_SERIAL_INTERFACE_1,	0x0a18 }, /* 0x01 */
 	{ TFA9879_PCM_IOM2_FORMAT_1,	0x0007 }, /* 0x02 */
@@ -314,7 +314,6 @@ MODULE_DEVICE_TABLE(i2c, tfa9879_i2c_id);
 static struct i2c_driver tfa9879_i2c_driver = {
 	.driver = {
 		.name = "tfa9879",
-		.owner = THIS_MODULE,
 	},
 	.probe = tfa9879_i2c_probe,
 	.remove = tfa9879_i2c_remove,

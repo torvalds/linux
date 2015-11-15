@@ -414,6 +414,11 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0x095A, 0x5590, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095B, 0x5290, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x5490, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5F10, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095B, 0x5212, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095B, 0x520A, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x9000, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x9400, iwl7265_2ac_cfg)},
 
 /* 8000 Series */
 	{IWL_PCI_DEVICE(0x24F3, 0x0010, iwl8260_2ac_cfg)},
@@ -614,6 +619,7 @@ static int iwl_pci_resume(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct iwl_trans *trans = pci_get_drvdata(pdev);
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	bool hw_rfkill;
 
 	/* Before you put code here, think about WoWLAN. You cannot check here
@@ -631,20 +637,16 @@ static int iwl_pci_resume(struct device *device)
 		return 0;
 
 	/*
-	 * On suspend, ict is disabled, and the interrupt mask
-	 * gets cleared. Reconfigure them both in case of d0i3
-	 * image. Otherwise, only enable rfkill interrupt (in
-	 * order to keep track of the rfkill status)
+	 * Enable rfkill interrupt (in order to keep track of
+	 * the rfkill status)
 	 */
-	if (trans->wowlan_d0i3) {
-		iwl_pcie_reset_ict(trans);
-		iwl_enable_interrupts(trans);
-	} else {
-		iwl_enable_rfkill_int(trans);
-	}
+	iwl_enable_rfkill_int(trans);
 
 	hw_rfkill = iwl_is_rfkill_set(trans);
+
+	mutex_lock(&trans_pcie->mutex);
 	iwl_trans_pcie_rf_kill(trans, hw_rfkill);
+	mutex_unlock(&trans_pcie->mutex);
 
 	return 0;
 }

@@ -27,38 +27,46 @@
 #define __LINUX_EXTCON_H__
 
 #include <linux/device.h>
-#include <linux/notifier.h>
-#include <linux/sysfs.h>
 
 /*
  * Define the unique id of supported external connectors
  */
-#define EXTCON_NONE			0
+#define EXTCON_NONE		0
 
-#define EXTCON_USB			1	/* USB connector */
-#define EXTCON_USB_HOST			2
+/* USB external connector */
+#define EXTCON_USB		1
+#define EXTCON_USB_HOST		2
 
-#define EXTCON_TA			3	/* Charger connector */
-#define EXTCON_FAST_CHARGER		4
-#define EXTCON_SLOW_CHARGER		5
-#define EXTCON_CHARGE_DOWNSTREAM	6
+/* Charging external connector */
+#define EXTCON_CHG_USB_SDP	5	/* Standard Downstream Port */
+#define EXTCON_CHG_USB_DCP	6	/* Dedicated Charging Port */
+#define EXTCON_CHG_USB_CDP	7	/* Charging Downstream Port */
+#define EXTCON_CHG_USB_ACA	8	/* Accessory Charger Adapter */
+#define EXTCON_CHG_USB_FAST	9
+#define EXTCON_CHG_USB_SLOW	10
 
-#define EXTCON_LINE_IN			7	/* Audio/Video connector */
-#define EXTCON_LINE_OUT			8
-#define EXTCON_MICROPHONE		9
-#define EXTCON_HEADPHONE		10
-#define EXTCON_HDMI			11
-#define EXTCON_MHL			12
-#define EXTCON_DVI			13
-#define EXTCON_VGA			14
-#define EXTCON_SPDIF_IN			15
-#define EXTCON_SPDIF_OUT		16
-#define EXTCON_VIDEO_IN			17
-#define EXTCON_VIDEO_OUT		18
+/* Jack external connector */
+#define EXTCON_JACK_MICROPHONE	20
+#define EXTCON_JACK_HEADPHONE	21
+#define EXTCON_JACK_LINE_IN	22
+#define EXTCON_JACK_LINE_OUT	23
+#define EXTCON_JACK_VIDEO_IN	24
+#define EXTCON_JACK_VIDEO_OUT	25
+#define EXTCON_JACK_SPDIF_IN	26	/* Sony Philips Digital InterFace */
+#define EXTCON_JACK_SPDIF_OUT	27
 
-#define EXTCON_DOCK			19	/* Misc connector */
-#define EXTCON_JIG			20
-#define EXTCON_MECHANICAL		21
+/* Display external connector */
+#define EXTCON_DISP_HDMI	40	/* High-Definition Multimedia Interface */
+#define EXTCON_DISP_MHL		41	/* Mobile High-Definition Link */
+#define EXTCON_DISP_DVI		42	/* Digital Visual Interface */
+#define EXTCON_DISP_VGA		43	/* Video Graphics Array */
+
+/* Miscellaneous external connector */
+#define EXTCON_DOCK		60
+#define EXTCON_JIG		61
+#define EXTCON_MECHANICAL	62
+
+#define EXTCON_NUM		63
 
 struct extcon_cable;
 
@@ -77,8 +85,6 @@ struct extcon_cable;
  *			be attached simulataneously. {0x7, 0} is equivalent to
  *			{0x3, 0x6, 0x5, 0}. If it is {0xFFFFFFFF, 0}, there
  *			can be no simultaneous connections.
- * @print_state:	An optional callback to override the method to print the
- *			status of the extcon device.
  * @dev:		Device of this extcon.
  * @state:		Attach/detach state of this extcon. Do not provide at
  *			register-time.
@@ -101,9 +107,6 @@ struct extcon_dev {
 	const char *name;
 	const unsigned int *supported_cable;
 	const u32 *mutually_exclusive;
-
-	/* Optional callbacks to override class functions */
-	ssize_t	(*print_state)(struct extcon_dev *edev, char *buf);
 
 	/* Internal data. Please do not set. */
 	struct device dev;

@@ -40,11 +40,11 @@
 #include <plat/cpu.h>
 #include <plat/cpu-freq.h>
 #include <plat/devs.h>
-#include <plat/nand-core.h>
 #include <plat/pm.h>
 #include <plat/regs-spi.h>
 
 #include "common.h"
+#include "nand-core.h"
 #include "regs-dsc.h"
 #include "s3c2412-power.h"
 

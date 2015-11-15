@@ -42,58 +42,21 @@ static inline unsigned long mpx_bt_size_bytes(struct mm_struct *mm)
  */
 static unsigned long mpx_mmap(unsigned long len)
 {
-	unsigned long ret;
-	unsigned long addr, pgoff;
 	struct mm_struct *mm = current->mm;
-	vm_flags_t vm_flags;
-	struct vm_area_struct *vma;
+	unsigned long addr, populate;
 
 	/* Only bounds table can be allocated here */
 	if (len != mpx_bt_size_bytes(mm))
 		return -EINVAL;
 
 	down_write(&mm->mmap_sem);
-
-	/* Too many mappings? */
-	if (mm->map_count > sysctl_max_map_count) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	/* Obtain the address to map to. we verify (or select) it and ensure
-	 * that it represents a valid section of the address space.
-	 */
-	addr = get_unmapped_area(NULL, 0, len, 0, MAP_ANONYMOUS | MAP_PRIVATE);
-	if (addr & ~PAGE_MASK) {
-		ret = addr;
-		goto out;
-	}
-
-	vm_flags = VM_READ | VM_WRITE | VM_MPX |
-			mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
-
-	/* Set pgoff according to addr for anon_vma */
-	pgoff = addr >> PAGE_SHIFT;
-
-	ret = mmap_region(NULL, addr, len, vm_flags, pgoff);
-	if (IS_ERR_VALUE(ret))
-		goto out;
-
-	vma = find_vma(mm, ret);
-	if (!vma) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	if (vm_flags & VM_LOCKED) {
-		up_write(&mm->mmap_sem);
-		mm_populate(ret, len);
-		return ret;
-	}
-
-out:
+	addr = do_mmap(NULL, 0, len, PROT_READ | PROT_WRITE,
+			MAP_ANONYMOUS | MAP_PRIVATE, VM_MPX, 0, &populate);
 	up_write(&mm->mmap_sem);
-	return ret;
+	if (populate)
+		mm_populate(addr, populate);
+
+	return addr;
 }
 
 enum reg_type {
@@ -274,7 +237,8 @@ bad_opcode:
  */
 siginfo_t *mpx_generate_siginfo(struct pt_regs *regs)
 {
-	const struct bndreg *bndregs, *bndreg;
+	const struct mpx_bndreg_state *bndregs;
+	const struct mpx_bndreg *bndreg;
 	siginfo_t *info = NULL;
 	struct insn insn;
 	uint8_t bndregno;
@@ -295,13 +259,13 @@ siginfo_t *mpx_generate_siginfo(struct pt_regs *regs)
 		goto err_out;
 	}
 	/* get bndregs field from current task's xsave area */
-	bndregs = get_xsave_field_ptr(XSTATE_BNDREGS);
+	bndregs = get_xsave_field_ptr(XFEATURE_MASK_BNDREGS);
 	if (!bndregs) {
 		err = -EINVAL;
 		goto err_out;
 	}
 	/* now go select the individual register in the set of 4 */
-	bndreg = &bndregs[bndregno];
+	bndreg = &bndregs->bndreg[bndregno];
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
@@ -343,7 +307,7 @@ err_out:
 
 static __user void *mpx_get_bounds_dir(void)
 {
-	const struct bndcsr *bndcsr;
+	const struct mpx_bndcsr *bndcsr;
 
 	if (!cpu_feature_enabled(X86_FEATURE_MPX))
 		return MPX_INVALID_BOUNDS_DIR;
@@ -352,7 +316,7 @@ static __user void *mpx_get_bounds_dir(void)
 	 * The bounds directory pointer is stored in a register
 	 * only accessible if we first do an xsave.
 	 */
-	bndcsr = get_xsave_field_ptr(XSTATE_BNDCSR);
+	bndcsr = get_xsave_field_ptr(XFEATURE_MASK_BNDCSR);
 	if (!bndcsr)
 		return MPX_INVALID_BOUNDS_DIR;
 
@@ -526,10 +490,10 @@ out_unmap:
 static int do_mpx_bt_fault(void)
 {
 	unsigned long bd_entry, bd_base;
-	const struct bndcsr *bndcsr;
+	const struct mpx_bndcsr *bndcsr;
 	struct mm_struct *mm = current->mm;
 
-	bndcsr = get_xsave_field_ptr(XSTATE_BNDCSR);
+	bndcsr = get_xsave_field_ptr(XFEATURE_MASK_BNDCSR);
 	if (!bndcsr)
 		return -EINVAL;
 	/*

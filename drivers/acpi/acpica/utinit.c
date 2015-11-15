@@ -204,11 +204,10 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_gbl_acpi_hardware_present = TRUE;
 	acpi_gbl_last_owner_id_index = 0;
 	acpi_gbl_next_owner_id_offset = 0;
-	acpi_gbl_trace_dbg_level = 0;
-	acpi_gbl_trace_dbg_layer = 0;
 	acpi_gbl_debugger_configuration = DEBUGGER_THREADING;
 	acpi_gbl_osi_mutex = NULL;
 	acpi_gbl_reg_methods_executed = FALSE;
+	acpi_gbl_max_loop_iterations = 0xFFFF;
 
 	/* Hardware oriented */
 
@@ -241,8 +240,6 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_gbl_display_final_mem_stats = FALSE;
 	acpi_gbl_disable_mem_tracking = FALSE;
 #endif
-
-	ACPI_DEBUGGER_EXEC(acpi_gbl_db_terminate_threads = FALSE);
 
 	return_ACPI_STATUS(AE_OK);
 }
@@ -284,6 +281,19 @@ static void acpi_ut_terminate(void)
 void acpi_ut_subsystem_shutdown(void)
 {
 	ACPI_FUNCTION_TRACE(ut_subsystem_shutdown);
+
+	/* Just exit if subsystem is already shutdown */
+
+	if (acpi_gbl_shutdown) {
+		ACPI_ERROR((AE_INFO, "ACPI Subsystem is already terminated"));
+		return_VOID;
+	}
+
+	/* Subsystem appears active, go ahead and shut it down */
+
+	acpi_gbl_shutdown = TRUE;
+	acpi_gbl_startup_flags = 0;
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Shutting down ACPI Subsystem\n"));
 
 #ifndef ACPI_ASL_COMPILER
 

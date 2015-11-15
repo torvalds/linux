@@ -7,6 +7,15 @@
 	compatible = "marvell,pxa27x";
 
 	pxabus {
+		pdma: dma-controller@40000000 {
+			compatible = "marvell,pdma-1.0";
+			reg = <0x40000000 0x10000>;
+			interrupts = <25>;
+			#dma-channels = <32>;
+			#dma-cells = <2>;
+			status = "okay";
+		};
+
 		pxairq: interrupt-controller@40d00000 {
 			marvell,intc-priority;
 			marvell,intc-nr-irqs = <34>;
@@ -15,6 +24,14 @@
 		gpio: gpio@40e00000 {
 			compatible = "intel,pxa27x-gpio";
 			clocks = <&clks CLK_NONE>;
+		};
+
+		pxa27x_ohci: usb@4c000000 {
+			compatible = "marvell,pxa-ohci";
+			reg = <0x4c000000 0x10000>;
+			interrupts = <3>;
+			clocks = <&clks CLK_USBHOST>;
+			status = "disabled";
 		};
 
 		pwm0: pwm@40b00000 {
@@ -50,6 +67,8 @@
 			reg = <0x40f00180 0x24>;
 			interrupts = <6>;
 			clocks = <&clks CLK_PWRI2C>;
+			#address-cells = <0x1>;
+			#size-cells = <0>;
 			status = "disabled";
 		};
 
@@ -66,6 +85,23 @@
 			reg = <0x41500000 0x4c>;
 			interrupts = <4>;
 			clocks = <&clks CLK_KEYPAD>;
+			status = "disabled";
+		};
+
+		pxa_camera: imaging@50000000 {
+			compatible = "marvell,pxa270-qci";
+			reg = <0x50000000 0x1000>;
+			interrupts = <33>;
+			dmas = <&pdma 68 0	/* Y channel */
+				&pdma 69 0	/* U channel */
+				&pdma 70 0>;	/* V channel */
+			dma-names = "CI_Y", "CI_U", "CI_V";
+
+			clocks = <&clks CLK_CAMERA>;
+			clock-names = "ciclk";
+			clock-frequency = <5000000>;
+			clock-output-names = "qci_mclk";
+
 			status = "disabled";
 		};
 	};

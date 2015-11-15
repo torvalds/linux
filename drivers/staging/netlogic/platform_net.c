@@ -58,7 +58,6 @@
 #define MAX_NUM_XLS_GMAC	8
 #define MAX_NUM_XLR_GMAC	4
 
-
 static u32 xlr_gmac_offsets[] = {
 	NETLOGIC_IO_GMAC_0_OFFSET, NETLOGIC_IO_GMAC_1_OFFSET,
 	NETLOGIC_IO_GMAC_2_OFFSET, NETLOGIC_IO_GMAC_3_OFFSET,
@@ -163,7 +162,7 @@ static void xls_gmac_init(void)
 	switch (nlm_prom_info.board_major_version) {
 	case 12:
 		/* first block RGMII or XAUI, use RGMII */
-		ndata0.phy_interface = PHY_INTERFACE_MODE_RGMII,
+		ndata0.phy_interface = PHY_INTERFACE_MODE_RGMII;
 		ndata0.tx_stnid[0] = FMN_STNID_GMAC0_TX0;
 		ndata0.phy_addr[0] = 0;
 

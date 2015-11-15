@@ -207,6 +207,34 @@ int snd_soc_info_volsw(struct snd_kcontrol *kcontrol,
 EXPORT_SYMBOL_GPL(snd_soc_info_volsw);
 
 /**
+ * snd_soc_info_volsw_sx - Mixer info callback for SX TLV controls
+ * @kcontrol: mixer control
+ * @uinfo: control element information
+ *
+ * Callback to provide information about a single mixer control, or a double
+ * mixer control that spans 2 registers of the SX TLV type. SX TLV controls
+ * have a range that represents both positive and negative values either side
+ * of zero but without a sign bit.
+ *
+ * Returns 0 for success.
+ */
+int snd_soc_info_volsw_sx(struct snd_kcontrol *kcontrol,
+			  struct snd_ctl_elem_info *uinfo)
+{
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+
+	snd_soc_info_volsw(kcontrol, uinfo);
+	/* Max represents the number of levels in an SX control not the
+	 * maximum value, so add the minimum value back on
+	 */
+	uinfo->value.integer.max += mc->min;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_info_volsw_sx);
+
+/**
  * snd_soc_get_volsw - single mixer get callback
  * @kcontrol: mixer control
  * @ucontrol: control element information
@@ -560,16 +588,16 @@ EXPORT_SYMBOL_GPL(snd_soc_get_volsw_range);
 /**
  * snd_soc_limit_volume - Set new limit to an existing volume control.
  *
- * @codec: where to look for the control
+ * @card: where to look for the control
  * @name: Name of the control
  * @max: new maximum limit
  *
  * Return 0 for success, else error.
  */
-int snd_soc_limit_volume(struct snd_soc_codec *codec,
+int snd_soc_limit_volume(struct snd_soc_card *card,
 	const char *name, int max)
 {
-	struct snd_card *card = codec->component.card->snd_card;
+	struct snd_card *snd_card = card->snd_card;
 	struct snd_kcontrol *kctl;
 	struct soc_mixer_control *mc;
 	int found = 0;
@@ -579,7 +607,7 @@ int snd_soc_limit_volume(struct snd_soc_codec *codec,
 	if (unlikely(!name || max <= 0))
 		return -EINVAL;
 
-	list_for_each_entry(kctl, &card->controls, list) {
+	list_for_each_entry(kctl, &snd_card->controls, list) {
 		if (!strncmp(kctl->id.name, name, sizeof(kctl->id.name))) {
 			found = 1;
 			break;

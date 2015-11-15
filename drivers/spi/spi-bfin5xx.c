@@ -661,11 +661,7 @@ static void bfin_spi_pump_transfers(unsigned long data)
 	message->state = RUNNING_STATE;
 	dma_config = 0;
 
-	/* Speed setup (surely valid because already checked) */
-	if (transfer->speed_hz)
-		bfin_write(&drv_data->regs->baud, hz_to_spi_baud(transfer->speed_hz));
-	else
-		bfin_write(&drv_data->regs->baud, chip->baud);
+	bfin_write(&drv_data->regs->baud, hz_to_spi_baud(transfer->speed_hz));
 
 	bfin_write(&drv_data->regs->stat, BIT_STAT_CLR);
 	bfin_spi_cs_active(drv_data, chip);

@@ -183,7 +183,9 @@
  * @seq_13_event: event causing the transition from 1 to 3.
  * @seq_curr_state: current value of the sequencer register.
  * @ctxid_idx: index for the context ID registers.
- * @ctxid_val: value for the context ID to trigger on.
+ * @ctxid_pid: value for the context ID to trigger on.
+ * @ctxid_vpid:	Virtual PID seen by users if PID namespace is enabled, otherwise
+ *		the same value of ctxid_pid.
  * @ctxid_mask: mask applicable to all the context IDs.
  * @sync_freq:	Synchronisation frequency.
  * @timestamp_event: Defines an event that requests the insertion
@@ -235,7 +237,8 @@ struct etm_drvdata {
 	u32				seq_13_event;
 	u32				seq_curr_state;
 	u8				ctxid_idx;
-	u32				ctxid_val[ETM_MAX_CTXID_CMP];
+	u32				ctxid_pid[ETM_MAX_CTXID_CMP];
+	u32				ctxid_vpid[ETM_MAX_CTXID_CMP];
 	u32				ctxid_mask;
 	u32				sync_freq;
 	u32				timestamp_event;

@@ -16,7 +16,7 @@
  * YOU _SHOULD_ CHANGE THIS LIST TO MATCH YOUR PRODUCT AND ITS TESTING!
  */
 
-static struct usb_device_id whitelist_table [] = {
+static struct usb_device_id whitelist_table[] = {
 
 /* hubs are optional in OTG, but very handy ... */
 { USB_DEVICE_INFO(USB_CLASS_HUB, 0, 0), },

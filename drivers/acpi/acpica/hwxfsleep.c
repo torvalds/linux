@@ -160,19 +160,8 @@ acpi_set_firmware_waking_vectors(acpi_physical_address physical_address,
 
 	ACPI_FUNCTION_TRACE(acpi_set_firmware_waking_vectors);
 
-	/* If Hardware Reduced flag is set, there is no FACS */
-
-	if (acpi_gbl_reduced_hardware) {
-		return_ACPI_STATUS (AE_OK);
-	}
-
-	if (acpi_gbl_facs32) {
-		(void)acpi_hw_set_firmware_waking_vectors(acpi_gbl_facs32,
-							  physical_address,
-							  physical_address64);
-	}
-	if (acpi_gbl_facs64) {
-		(void)acpi_hw_set_firmware_waking_vectors(acpi_gbl_facs64,
+	if (acpi_gbl_FACS) {
+		(void)acpi_hw_set_firmware_waking_vectors(acpi_gbl_FACS,
 							  physical_address,
 							  physical_address64);
 	}

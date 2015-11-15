@@ -30,6 +30,7 @@ counted. The following modifiers exist:
  G - guest counting (in KVM guests)
  H - host counting (not in KVM guests)
  p - precise level
+ P - use maximum detected precise level
  S - read sample value (PERF_SAMPLE_READ)
  D - pin the event to the PMU
 
@@ -124,6 +125,8 @@ To limit the list use:
 
 . If none of the above is matched, it will apply the supplied glob to all
   events, printing the ones that match.
+
+. As a last resort, it will do a substring search in all event names.
 
 One or more types can be used at the same time, listing the events for the
 types specified.

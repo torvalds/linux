@@ -31,6 +31,7 @@
 #if IS_ENABLED(CONFIG_IPV6)
 #include <linux/in6.h>
 #endif
+#include <asm/unaligned.h>
 
 static int verify_one_alg(struct nlattr **attrs, enum xfrm_attr_type_t type)
 {
@@ -728,7 +729,9 @@ static void copy_to_user_state(struct xfrm_state *x, struct xfrm_usersa_info *p)
 	memcpy(&p->sel, &x->sel, sizeof(p->sel));
 	memcpy(&p->lft, &x->lft, sizeof(p->lft));
 	memcpy(&p->curlft, &x->curlft, sizeof(p->curlft));
-	memcpy(&p->stats, &x->stats, sizeof(p->stats));
+	put_unaligned(x->stats.replay_window, &p->stats.replay_window);
+	put_unaligned(x->stats.replay, &p->stats.replay);
+	put_unaligned(x->stats.integrity_failed, &p->stats.integrity_failed);
 	memcpy(&p->saddr, &x->props.saddr, sizeof(p->saddr));
 	p->mode = x->props.mode;
 	p->replay_window = x->props.replay_window;
@@ -925,12 +928,10 @@ static int xfrm_dump_sa(struct sk_buff *skb, struct netlink_callback *cb)
 			return err;
 
 		if (attrs[XFRMA_ADDRESS_FILTER]) {
-			filter = kmalloc(sizeof(*filter), GFP_KERNEL);
+			filter = kmemdup(nla_data(attrs[XFRMA_ADDRESS_FILTER]),
+					 sizeof(*filter), GFP_KERNEL);
 			if (filter == NULL)
 				return -ENOMEM;
-
-			memcpy(filter, nla_data(attrs[XFRMA_ADDRESS_FILTER]),
-			       sizeof(*filter));
 		}
 
 		if (attrs[XFRMA_PROTO])
@@ -1930,8 +1931,10 @@ static int xfrm_new_ae(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct nlattr *rp = attrs[XFRMA_REPLAY_VAL];
 	struct nlattr *re = attrs[XFRMA_REPLAY_ESN_VAL];
 	struct nlattr *lt = attrs[XFRMA_LTIME_VAL];
+	struct nlattr *et = attrs[XFRMA_ETIMER_THRESH];
+	struct nlattr *rt = attrs[XFRMA_REPLAY_THRESH];
 
-	if (!lt && !rp && !re)
+	if (!lt && !rp && !re && !et && !rt)
 		return err;
 
 	/* pedantic mode - thou shalt sayeth replaceth */
@@ -2048,7 +2051,7 @@ static int xfrm_add_pol_expire(struct sk_buff *skb, struct nlmsghdr *nlh,
 		xfrm_audit_policy_delete(xp, 1, true);
 	} else {
 		// reset the timers here?
-		WARN(1, "Dont know what to do with soft policy expire\n");
+		WARN(1, "Don't know what to do with soft policy expire\n");
 	}
 	km_policy_expired(xp, p->dir, up->hard, nlh->nlmsg_pid);
 

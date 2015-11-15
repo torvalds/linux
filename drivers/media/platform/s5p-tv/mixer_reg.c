@@ -279,7 +279,7 @@ static void mxr_irq_layer_handle(struct mxr_layer *layer)
 	layer->ops.buffer_set(layer, layer->update_buf);
 
 	if (done && done != layer->shadow_buf)
-		vb2_buffer_done(&done->vb, VB2_BUF_STATE_DONE);
+		vb2_buffer_done(&done->vb.vb2_buf, VB2_BUF_STATE_DONE);
 
 done:
 	spin_unlock(&layer->enq_slock);
@@ -357,17 +357,15 @@ void mxr_reg_streamoff(struct mxr_device *mdev)
 
 int mxr_reg_wait4vsync(struct mxr_device *mdev)
 {
-	int ret;
+	long time_left;
 
 	clear_bit(MXR_EVENT_VSYNC, &mdev->event_flags);
 	/* TODO: consider adding interruptible */
-	ret = wait_event_timeout(mdev->event_queue,
-		test_bit(MXR_EVENT_VSYNC, &mdev->event_flags),
-		msecs_to_jiffies(1000));
-	if (ret > 0)
+	time_left = wait_event_timeout(mdev->event_queue,
+			test_bit(MXR_EVENT_VSYNC, &mdev->event_flags),
+				 msecs_to_jiffies(1000));
+	if (time_left > 0)
 		return 0;
-	if (ret < 0)
-		return ret;
 	mxr_warn(mdev, "no vsync detected - timeout\n");
 	return -ETIME;
 }

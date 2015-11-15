@@ -28,6 +28,8 @@
 #include <linux/delay.h>
 #include <linux/phy/omap_control_phy.h>
 #include <linux/of_platform.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 
 #define	PLL_STATUS		0x00000004
 #define	PLL_GO			0x00000008
@@ -51,6 +53,8 @@
 #define PLL_TICOPWDN		BIT(16)
 #define	PLL_LOCK		0x2
 #define	PLL_IDLE		0x1
+
+#define SATA_PLL_SOFT_RESET	BIT(18)
 
 /*
  * This is an Empirical value that works, need to confirm the actual
@@ -82,6 +86,9 @@ struct ti_pipe3 {
 	struct clk		*refclk;
 	struct clk		*div_clk;
 	struct pipe3_dpll_map	*dpll_map;
+	struct regmap		*dpll_reset_syscon; /* ctrl. reg. acces */
+	unsigned int		dpll_reset_reg; /* reg. index within syscon */
+	bool			sata_refclk_enabled;
 };
 
 static struct pipe3_dpll_map dpll_map_usb[] = {
@@ -249,8 +256,11 @@ static int ti_pipe3_exit(struct phy *x)
 	u32 val;
 	unsigned long timeout;
 
-	/* SATA DPLL can't be powered down due to Errata i783 */
-	if (of_device_is_compatible(phy->dev->of_node, "ti,phy-pipe3-sata"))
+	/* If dpll_reset_syscon is not present we wont power down SATA DPLL
+	 * due to Errata i783
+	 */
+	if (of_device_is_compatible(phy->dev->of_node, "ti,phy-pipe3-sata") &&
+	    !phy->dpll_reset_syscon)
 		return 0;
 
 	/* PCIe doesn't have internal DPLL */
@@ -276,11 +286,19 @@ static int ti_pipe3_exit(struct phy *x)
 		}
 	}
 
+	/* i783: SATA needs control bit toggle after PLL unlock */
+	if (of_device_is_compatible(phy->dev->of_node, "ti,phy-pipe3-sata")) {
+		regmap_update_bits(phy->dpll_reset_syscon, phy->dpll_reset_reg,
+				   SATA_PLL_SOFT_RESET, SATA_PLL_SOFT_RESET);
+		regmap_update_bits(phy->dpll_reset_syscon, phy->dpll_reset_reg,
+				   SATA_PLL_SOFT_RESET, 0);
+	}
+
 	ti_pipe3_disable_clocks(phy);
 
 	return 0;
 }
-static struct phy_ops ops = {
+static const struct phy_ops ops = {
 	.init		= ti_pipe3_init,
 	.exit		= ti_pipe3_exit,
 	.power_on	= ti_pipe3_power_on,
@@ -350,6 +368,21 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 		}
 	} else {
 		phy->wkupclk = ERR_PTR(-ENODEV);
+		phy->dpll_reset_syscon = syscon_regmap_lookup_by_phandle(node,
+							"syscon-pllreset");
+		if (IS_ERR(phy->dpll_reset_syscon)) {
+			dev_info(&pdev->dev,
+				 "can't get syscon-pllreset, sata dpll won't idle\n");
+			phy->dpll_reset_syscon = NULL;
+		} else {
+			if (of_property_read_u32_index(node,
+						       "syscon-pllreset", 1,
+						       &phy->dpll_reset_reg)) {
+				dev_err(&pdev->dev,
+					"couldn't get pllreset reg. offset\n");
+				return -EINVAL;
+			}
+		}
 	}
 
 	if (of_device_is_compatible(node, "ti,phy-pipe3-pcie")) {
@@ -402,10 +435,16 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, phy);
 	pm_runtime_enable(phy->dev);
-	/* Prevent auto-disable of refclk for SATA PHY due to Errata i783 */
-	if (of_device_is_compatible(node, "ti,phy-pipe3-sata"))
-		if (!IS_ERR(phy->refclk))
+
+	/*
+	 * Prevent auto-disable of refclk for SATA PHY due to Errata i783
+	 */
+	if (of_device_is_compatible(node, "ti,phy-pipe3-sata")) {
+		if (!IS_ERR(phy->refclk)) {
 			clk_prepare_enable(phy->refclk);
+			phy->sata_refclk_enabled = true;
+		}
+	}
 
 	generic_phy = devm_phy_create(phy->dev, NULL, &ops);
 	if (IS_ERR(generic_phy))
@@ -472,8 +511,18 @@ static void ti_pipe3_disable_clocks(struct ti_pipe3 *phy)
 {
 	if (!IS_ERR(phy->wkupclk))
 		clk_disable_unprepare(phy->wkupclk);
-	if (!IS_ERR(phy->refclk))
+	if (!IS_ERR(phy->refclk)) {
 		clk_disable_unprepare(phy->refclk);
+		/*
+		 * SATA refclk needs an additional disable as we left it
+		 * on in probe to avoid Errata i783
+		 */
+		if (phy->sata_refclk_enabled) {
+			clk_disable_unprepare(phy->refclk);
+			phy->sata_refclk_enabled = false;
+		}
+	}
+
 	if (!IS_ERR(phy->div_clk))
 		clk_disable_unprepare(phy->div_clk);
 }

@@ -4,12 +4,11 @@
  * Copyright 2015 Yoshinori Sato <ysato@users.sourceforge.jp>
  */
 
-#include <linux/clk.h>
-#include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/err.h>
 #include <linux/device.h>
 #include <linux/of_address.h>
+#include <linux/slab.h>
 
 static DEFINE_SPINLOCK(clklock);
 
@@ -28,7 +27,7 @@ static unsigned long pll_recalc_rate(struct clk_hw *hw,
 		unsigned long parent_rate)
 {
 	struct pll_clock *pll_clock = to_pll_clock(hw);
-	int mul = 1 << (ctrl_inb((unsigned long)pll_clock->pllcr) & 3);
+	int mul = 1 << (readb(pll_clock->pllcr) & 3);
 
 	return parent_rate * mul;
 }
@@ -65,13 +64,13 @@ static int pll_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	pll = ((rate / parent_rate) / 2) & 0x03;
 	spin_lock_irqsave(&clklock, flags);
-	val = ctrl_inb((unsigned long)pll_clock->sckcr);
+	val = readb(pll_clock->sckcr);
 	val |= 0x08;
-	ctrl_outb(val, (unsigned long)pll_clock->sckcr);
-	val = ctrl_inb((unsigned long)pll_clock->pllcr);
+	writeb(val, pll_clock->sckcr);
+	val = readb(pll_clock->pllcr);
 	val &= ~0x03;
 	val |= pll;
-	ctrl_outb(val, (unsigned long)pll_clock->pllcr);
+	writeb(val, pll_clock->pllcr);
 	spin_unlock_irqrestore(&clklock, flags);
 	return 0;
 }
@@ -84,7 +83,7 @@ static const struct clk_ops pll_ops = {
 
 static void __init h8s2678_pll_clk_setup(struct device_node *node)
 {
-	unsigned int num_parents;
+	int num_parents;
 	struct clk *clk;
 	const char *clk_name = node->name;
 	const char *parent_name;
@@ -98,11 +97,9 @@ static void __init h8s2678_pll_clk_setup(struct device_node *node)
 	}
 
 
-	pll_clock = kzalloc(sizeof(struct pll_clock), GFP_KERNEL);
-	if (!pll_clock) {
-		pr_err("%s: failed to alloc memory", clk_name);
+	pll_clock = kzalloc(sizeof(*pll_clock), GFP_KERNEL);
+	if (!pll_clock)
 		return;
-	}
 
 	pll_clock->sckcr = of_iomap(node, 0);
 	if (pll_clock->sckcr == NULL) {

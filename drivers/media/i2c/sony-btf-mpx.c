@@ -388,7 +388,6 @@ MODULE_DEVICE_TABLE(i2c, sony_btf_mpx_id);
 
 static struct i2c_driver sony_btf_mpx_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "sony-btf-mpx",
 	},
 	.probe = sony_btf_mpx_probe,

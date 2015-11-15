@@ -63,9 +63,6 @@ enum hv_cpuid_function {
 /* Define version of the synthetic interrupt controller. */
 #define HV_SYNIC_VERSION		(1)
 
-/* Define the expected SynIC version. */
-#define HV_SYNIC_VERSION_1		(0x1)
-
 /* Define synthetic interrupt controller message constants. */
 #define HV_MESSAGE_SIZE			(256)
 #define HV_MESSAGE_PAYLOAD_BYTE_COUNT	(240)
@@ -105,8 +102,6 @@ enum hv_message_type {
 	HVMSG_X64_LEGACY_FP_ERROR		= 0x80010005
 };
 
-/* Define the number of synthetic interrupt sources. */
-#define HV_SYNIC_SINT_COUNT		(16)
 #define HV_SYNIC_STIMER_COUNT		(4)
 
 /* Define invalid partition identifier. */
@@ -141,7 +136,7 @@ struct hv_port_info {
 		struct {
 			u32 target_sint;
 			u32 target_vp;
-			u16 base_flag_bumber;
+			u16 base_flag_number;
 			u16 flag_count;
 			u32 rsvdz;
 		} event_port_info;
@@ -517,6 +512,7 @@ struct hv_context {
 	u64 guestid;
 
 	void *hypercall_page;
+	void *tsc_page;
 
 	bool synic_initialized;
 
@@ -551,9 +547,22 @@ struct hv_context {
 	 * Support PV clockevent device.
 	 */
 	struct clock_event_device *clk_evt[NR_CPUS];
+	/*
+	 * To manage allocations in a NUMA node.
+	 * Array indexed by numa node ID.
+	 */
+	struct cpumask *hv_numa_map;
 };
 
 extern struct hv_context hv_context;
+
+struct ms_hyperv_tsc_page {
+	volatile u32 tsc_sequence;
+	u32 reserved1;
+	volatile u64 tsc_scale;
+	volatile s64 tsc_offset;
+	u64 reserved2[509];
+};
 
 struct hv_ring_buffer_debug_info {
 	u32 current_interrupt_mask;

@@ -32,10 +32,18 @@ config IEEE802154_AT86RF230
 	  This driver can also be built as a module. To do so, say M here.
 	  the module will be called 'at86rf230'.
 
+config IEEE802154_AT86RF230_DEBUGFS
+	depends on IEEE802154_AT86RF230
+	bool "AT86RF230 debugfs interface"
+	depends on DEBUG_FS
+	---help---
+	  This option compiles debugfs code for the at86rf230 driver.
+
 config IEEE802154_MRF24J40
 	tristate "Microchip MRF24J40 transceiver driver"
 	depends on IEEE802154_DRIVERS && MAC802154
 	depends on SPI
+	select REGMAP_SPI
 	---help---
 	  Say Y here to enable the MRF24J20 SPI 802.15.4 wireless
 	  controller.

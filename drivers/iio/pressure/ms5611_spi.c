@@ -103,11 +103,13 @@ static int ms5611_spi_probe(struct spi_device *spi)
 	st->read_adc_temp_and_pressure = ms5611_spi_read_adc_temp_and_pressure;
 	st->client = spi;
 
-	return ms5611_probe(indio_dev, &spi->dev);
+	return ms5611_probe(indio_dev, &spi->dev,
+			    spi_get_device_id(spi)->driver_data);
 }
 
 static const struct spi_device_id ms5611_id[] = {
-	{ "ms5611", 0 },
+	{ "ms5611", MS5611 },
+	{ "ms5607", MS5607 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ms5611_id);
@@ -115,7 +117,6 @@ MODULE_DEVICE_TABLE(spi, ms5611_id);
 static struct spi_driver ms5611_driver = {
 	.driver = {
 		.name = "ms5611",
-		.owner = THIS_MODULE,
 	},
 	.id_table = ms5611_id,
 	.probe = ms5611_spi_probe,

@@ -73,8 +73,8 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 	if (!info->table)
 		goto free_mem;
 
-	if (dma_common_get_sgtable
-	    (dev, info->table, info->cpu_addr, info->handle, len))
+	if (dma_get_sgtable(dev, info->table, info->cpu_addr, info->handle,
+			    len))
 		goto free_table;
 	/* keep this for memory release */
 	buffer->priv_virt = info;
@@ -180,8 +180,10 @@ struct ion_heap *ion_cma_heap_create(struct ion_platform_heap *data)
 		return ERR_PTR(-ENOMEM);
 
 	cma_heap->heap.ops = &ion_cma_ops;
-	/* get device from private heaps data, later it will be
-	 * used to make the link with reserved CMA memory */
+	/*
+	 * get device from private heaps data, later it will be
+	 * used to make the link with reserved CMA memory
+	 */
 	cma_heap->dev = data->priv;
 	cma_heap->heap.type = ION_HEAP_TYPE_DMA;
 	return &cma_heap->heap;

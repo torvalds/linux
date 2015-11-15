@@ -320,13 +320,12 @@ static const struct reg_default adau1373_reg_defaults[] = {
 	{ ADAU1373_DIGEN,		0x00 },
 };
 
-static const unsigned int adau1373_out_tlv[] = {
-	TLV_DB_RANGE_HEAD(4),
+static const DECLARE_TLV_DB_RANGE(adau1373_out_tlv,
 	0, 7, TLV_DB_SCALE_ITEM(-7900, 400, 1),
 	8, 15, TLV_DB_SCALE_ITEM(-4700, 300, 0),
 	16, 23, TLV_DB_SCALE_ITEM(-2300, 200, 0),
-	24, 31, TLV_DB_SCALE_ITEM(-700, 100, 0),
-};
+	24, 31, TLV_DB_SCALE_ITEM(-700, 100, 0)
+);
 
 static const DECLARE_TLV_DB_MINMAX(adau1373_digital_tlv, -9563, 0);
 static const DECLARE_TLV_DB_SCALE(adau1373_in_pga_tlv, -1300, 100, 1);
@@ -381,12 +380,11 @@ static const char *adau1373_bass_hpf_cutoff_text[] = {
 	"158Hz", "232Hz", "347Hz", "520Hz",
 };
 
-static const unsigned int adau1373_bass_tlv[] = {
-	TLV_DB_RANGE_HEAD(3),
+static const DECLARE_TLV_DB_RANGE(adau1373_bass_tlv,
 	0, 2, TLV_DB_SCALE_ITEM(-600, 600, 1),
 	3, 4, TLV_DB_SCALE_ITEM(950, 250, 0),
-	5, 7, TLV_DB_SCALE_ITEM(1400, 150, 0),
-};
+	5, 7, TLV_DB_SCALE_ITEM(1400, 150, 0)
+);
 
 static SOC_ENUM_SINGLE_DECL(adau1373_bass_lpf_cutoff_enum,
 	ADAU1373_BASS1, 5, adau1373_bass_lpf_cutoff_text);
@@ -414,11 +412,10 @@ static SOC_ENUM_SINGLE_DECL(adau1373_3d_level_enum,
 static SOC_ENUM_SINGLE_DECL(adau1373_3d_cutoff_enum,
 	ADAU1373_3D_CTRL1, 0, adau1373_3d_cutoff_text);
 
-static const unsigned int adau1373_3d_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(adau1373_3d_tlv,
 	0, 0, TLV_DB_SCALE_ITEM(0, 0, 0),
-	1, 7, TLV_DB_LINEAR_ITEM(-1800, -120),
-};
+	1, 7, TLV_DB_LINEAR_ITEM(-1800, -120)
+);
 
 static const char *adau1373_lr_mux_text[] = {
 	"Mute",
@@ -1534,7 +1531,6 @@ MODULE_DEVICE_TABLE(i2c, adau1373_i2c_id);
 static struct i2c_driver adau1373_i2c_driver = {
 	.driver = {
 		.name = "adau1373",
-		.owner = THIS_MODULE,
 	},
 	.probe = adau1373_i2c_probe,
 	.remove = adau1373_i2c_remove,

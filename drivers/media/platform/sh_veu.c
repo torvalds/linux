@@ -211,7 +211,7 @@ static enum v4l2_colorspace sh_veu_4cc2cspace(u32 fourcc)
 	case V4L2_PIX_FMT_NV12:
 	case V4L2_PIX_FMT_NV16:
 	case V4L2_PIX_FMT_NV24:
-		return V4L2_COLORSPACE_JPEG;
+		return V4L2_COLORSPACE_SMPTE170M;
 	case V4L2_PIX_FMT_RGB332:
 	case V4L2_PIX_FMT_RGB444:
 	case V4L2_PIX_FMT_RGB565:
@@ -865,10 +865,11 @@ static const struct v4l2_ioctl_ops sh_veu_ioctl_ops = {
 		/* ========== Queue operations ========== */
 
 static int sh_veu_queue_setup(struct vb2_queue *vq,
-			      const struct v4l2_format *f,
+			      const void *parg,
 			      unsigned int *nbuffers, unsigned int *nplanes,
 			      unsigned int sizes[], void *alloc_ctxs[])
 {
+	const struct v4l2_format *f = parg;
 	struct sh_veu_dev *veu = vb2_get_drv_priv(vq);
 	struct sh_veu_vfmt *vfmt;
 	unsigned int size, count = *nbuffers;
@@ -931,9 +932,10 @@ static int sh_veu_buf_prepare(struct vb2_buffer *vb)
 
 static void sh_veu_buf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct sh_veu_dev *veu = vb2_get_drv_priv(vb->vb2_queue);
-	dev_dbg(veu->dev, "%s(%d)\n", __func__, vb->v4l2_buf.type);
-	v4l2_m2m_buf_queue(veu->m2m_ctx, vb);
+	dev_dbg(veu->dev, "%s(%d)\n", __func__, vb->type);
+	v4l2_m2m_buf_queue(veu->m2m_ctx, vbuf);
 }
 
 static const struct vb2_ops sh_veu_qops = {
@@ -958,6 +960,7 @@ static int sh_veu_queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->ops = &sh_veu_qops;
 	src_vq->mem_ops = &vb2_dma_contig_memops;
 	src_vq->lock = &veu->fop_lock;
+	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 
 	ret = vb2_queue_init(src_vq);
 	if (ret < 0)
@@ -971,6 +974,7 @@ static int sh_veu_queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->ops = &sh_veu_qops;
 	dst_vq->mem_ops = &vb2_dma_contig_memops;
 	dst_vq->lock = &veu->fop_lock;
+	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 
 	return vb2_queue_init(dst_vq);
 }
@@ -1082,8 +1086,8 @@ static irqreturn_t sh_veu_bh(int irq, void *dev_id)
 static irqreturn_t sh_veu_isr(int irq, void *dev_id)
 {
 	struct sh_veu_dev *veu = dev_id;
-	struct vb2_buffer *dst;
-	struct vb2_buffer *src;
+	struct vb2_v4l2_buffer *dst;
+	struct vb2_v4l2_buffer *src;
 	u32 status = sh_veu_reg_read(veu, VEU_EVTR);
 
 	/* bundle read mode not used */
@@ -1102,6 +1106,12 @@ static irqreturn_t sh_veu_isr(int irq, void *dev_id)
 	src = v4l2_m2m_src_buf_remove(veu->m2m_ctx);
 	if (!src || !dst)
 		return IRQ_NONE;
+
+	dst->timestamp = src->timestamp;
+	dst->flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
+	dst->flags |=
+		src->flags & V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
+	dst->timecode = src->timecode;
 
 	spin_lock(&veu->lock);
 	v4l2_m2m_buf_done(src, VB2_BUF_STATE_DONE);

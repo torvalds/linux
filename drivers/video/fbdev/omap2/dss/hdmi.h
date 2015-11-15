@@ -351,13 +351,20 @@ struct omap_hdmi {
 	struct regulator *vdda_reg;
 
 	bool core_enabled;
-	bool display_enabled;
 
 	struct omap_dss_device output;
 
 	struct platform_device *audio_pdev;
 	void (*audio_abort_cb)(struct device *dev);
 	int wp_idlemode;
+
+	bool audio_configured;
+	struct omap_dss_audio audio_config;
+
+	/* This lock should be taken when booleans bellow are touched. */
+	spinlock_t audio_playing_lock;
+	bool audio_playing;
+	bool display_enabled;
 };
 
 #endif

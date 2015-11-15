@@ -136,10 +136,6 @@
 
 #define ACPI_ROOT_TABLE_SIZE_INCREMENT  4
 
-/* Maximum number of While() loop iterations before forced abort */
-
-#define ACPI_MAX_LOOP_ITERATIONS        0xFFFF
-
 /* Maximum sleep allowed via Sleep() operator */
 
 #define ACPI_MAX_SLEEP                  2000	/* 2000 millisec == two seconds */

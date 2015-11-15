@@ -62,8 +62,7 @@
 
 struct tipc_node;
 struct tipc_bearer;
-struct tipc_bcbearer;
-struct tipc_bclink;
+struct tipc_bc_base;
 struct tipc_link;
 struct tipc_name_table;
 struct tipc_server;
@@ -93,8 +92,8 @@ struct tipc_net {
 	struct tipc_bearer __rcu *bearer_list[MAX_BEARERS + 1];
 
 	/* Broadcast link */
-	struct tipc_bcbearer *bcbearer;
-	struct tipc_bclink *bclink;
+	spinlock_t bclock;
+	struct tipc_bc_base *bcbase;
 	struct tipc_link *bcl;
 
 	/* Socket hash table */
@@ -108,6 +107,16 @@ struct tipc_net {
 	struct tipc_server *topsrv;
 	atomic_t subscription_count;
 };
+
+static inline struct tipc_net *tipc_net(struct net *net)
+{
+	return net_generic(net, tipc_net_id);
+}
+
+static inline int tipc_netid(struct net *net)
+{
+	return tipc_net(net)->net_id;
+}
 
 static inline u16 mod(u16 x)
 {
@@ -127,6 +136,11 @@ static inline int more(u16 left, u16 right)
 static inline int less(u16 left, u16 right)
 {
 	return less_eq(left, right) && (mod(right) != mod(left));
+}
+
+static inline int in_range(u16 val, u16 min, u16 max)
+{
+	return !less(val, min) && !more(val, max);
 }
 
 #ifdef CONFIG_SYSCTL

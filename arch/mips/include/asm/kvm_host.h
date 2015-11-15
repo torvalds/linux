@@ -61,6 +61,7 @@
 #define KVM_PRIVATE_MEM_SLOTS 	0
 
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
+#define KVM_HALT_POLL_NS_DEFAULT 500000
 
 
 
@@ -128,6 +129,7 @@ struct kvm_vcpu_stat {
 	u32 msa_disabled_exits;
 	u32 flush_dcache_exits;
 	u32 halt_successful_poll;
+	u32 halt_attempted_poll;
 	u32 halt_wakeup;
 };
 
@@ -845,5 +847,7 @@ static inline void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
 		struct kvm_memory_slot *slot) {}
 static inline void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
+static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu) {}
 
 #endif /* __MIPS_KVM_HOST_H__ */

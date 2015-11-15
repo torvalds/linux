@@ -164,6 +164,43 @@ void snd_hdac_device_unregister(struct hdac_device *codec)
 EXPORT_SYMBOL_GPL(snd_hdac_device_unregister);
 
 /**
+ * snd_hdac_device_set_chip_name - set/update the codec name
+ * @codec: the HDAC device
+ * @name: name string to set
+ *
+ * Returns 0 if the name is set or updated, or a negative error code.
+ */
+int snd_hdac_device_set_chip_name(struct hdac_device *codec, const char *name)
+{
+	char *newname;
+
+	if (!name)
+		return 0;
+	newname = kstrdup(name, GFP_KERNEL);
+	if (!newname)
+		return -ENOMEM;
+	kfree(codec->chip_name);
+	codec->chip_name = newname;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_device_set_chip_name);
+
+/**
+ * snd_hdac_codec_modalias - give the module alias name
+ * @codec: HDAC device
+ * @buf: string buffer to store
+ * @size: string buffer size
+ *
+ * Returns the size of string, like snprintf(), or a negative error code.
+ */
+int snd_hdac_codec_modalias(struct hdac_device *codec, char *buf, size_t size)
+{
+	return snprintf(buf, size, "hdaudio:v%08Xr%08Xa%02X\n",
+			codec->vendor_id, codec->revision_id, codec->type);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_codec_modalias);
+
+/**
  * snd_hdac_make_cmd - compose a 32bit command word to be sent to the
  *	HD-audio controller
  * @codec: the codec object
@@ -372,6 +409,36 @@ int snd_hdac_refresh_widgets(struct hdac_device *codec)
 }
 EXPORT_SYMBOL_GPL(snd_hdac_refresh_widgets);
 
+/**
+ * snd_hdac_refresh_widget_sysfs - Reset the codec widgets and reinit the
+ * codec sysfs
+ * @codec: the codec object
+ *
+ * first we need to remove sysfs, then refresh widgets and lastly
+ * recreate it
+ */
+int snd_hdac_refresh_widget_sysfs(struct hdac_device *codec)
+{
+	int ret;
+
+	if (device_is_registered(&codec->dev))
+		hda_widget_sysfs_exit(codec);
+	ret = snd_hdac_refresh_widgets(codec);
+	if (ret) {
+		dev_err(&codec->dev, "failed to refresh widget: %d\n", ret);
+		return ret;
+	}
+	if (device_is_registered(&codec->dev)) {
+		ret = hda_widget_sysfs_init(codec);
+		if (ret) {
+			dev_err(&codec->dev, "failed to init sysfs: %d\n", ret);
+			return ret;
+		}
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_refresh_widget_sysfs);
+
 /* return CONNLIST_LEN parameter of the given widget */
 static unsigned int get_num_conns(struct hdac_device *codec, hda_nid_t nid)
 {
@@ -501,23 +568,27 @@ EXPORT_SYMBOL_GPL(snd_hdac_get_connections);
  * This function calls the runtime PM helper to power up the given codec.
  * Unlike snd_hdac_power_up_pm(), you should call this only for the code
  * path that isn't included in PM path.  Otherwise it gets stuck.
+ *
+ * Returns zero if successful, or a negative error code.
  */
-void snd_hdac_power_up(struct hdac_device *codec)
+int snd_hdac_power_up(struct hdac_device *codec)
 {
-	pm_runtime_get_sync(&codec->dev);
+	return pm_runtime_get_sync(&codec->dev);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_power_up);
 
 /**
  * snd_hdac_power_down - power down the codec
  * @codec: the codec object
+ *
+ * Returns zero if successful, or a negative error code.
  */
-void snd_hdac_power_down(struct hdac_device *codec)
+int snd_hdac_power_down(struct hdac_device *codec)
 {
 	struct device *dev = &codec->dev;
 
 	pm_runtime_mark_last_busy(dev);
-	pm_runtime_put_autosuspend(dev);
+	return pm_runtime_put_autosuspend(dev);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_power_down);
 
@@ -529,11 +600,14 @@ EXPORT_SYMBOL_GPL(snd_hdac_power_down);
  * which may be called by PM suspend/resume again.  OTOH, if a power-up
  * call must wake up the sleeper (e.g. in a kctl callback), use
  * snd_hdac_power_up() instead.
+ *
+ * Returns zero if successful, or a negative error code.
  */
-void snd_hdac_power_up_pm(struct hdac_device *codec)
+int snd_hdac_power_up_pm(struct hdac_device *codec)
 {
 	if (!atomic_inc_not_zero(&codec->in_pm))
-		snd_hdac_power_up(codec);
+		return snd_hdac_power_up(codec);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_power_up_pm);
 
@@ -543,17 +617,22 @@ EXPORT_SYMBOL_GPL(snd_hdac_power_up_pm);
  *
  * Like snd_hdac_power_up_pm(), this function is used in a recursive
  * code path like init code which may be called by PM suspend/resume again.
+ *
+ * Returns zero if successful, or a negative error code.
  */
-void snd_hdac_power_down_pm(struct hdac_device *codec)
+int snd_hdac_power_down_pm(struct hdac_device *codec)
 {
 	if (atomic_dec_if_positive(&codec->in_pm) < 0)
-		snd_hdac_power_down(codec);
+		return snd_hdac_power_down(codec);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_power_down_pm);
 #endif
 
-/*
- * Enable/disable the link power for a codec.
+/**
+ * snd_hdac_link_power - Enable/disable the link power for a codec
+ * @codec: the codec object
+ * @bool: enable or disable the link power
  */
 int snd_hdac_link_power(struct hdac_device *codec, bool enable)
 {
@@ -912,3 +991,84 @@ bool snd_hdac_is_supported_format(struct hdac_device *codec, hda_nid_t nid,
 	return true;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_is_supported_format);
+
+static unsigned int codec_read(struct hdac_device *hdac, hda_nid_t nid,
+			int flags, unsigned int verb, unsigned int parm)
+{
+	unsigned int cmd = snd_hdac_make_cmd(hdac, nid, verb, parm);
+	unsigned int res;
+
+	if (snd_hdac_exec_verb(hdac, cmd, flags, &res))
+		return -1;
+
+	return res;
+}
+
+static int codec_write(struct hdac_device *hdac, hda_nid_t nid,
+			int flags, unsigned int verb, unsigned int parm)
+{
+	unsigned int cmd = snd_hdac_make_cmd(hdac, nid, verb, parm);
+
+	return snd_hdac_exec_verb(hdac, cmd, flags, NULL);
+}
+
+/**
+ * snd_hdac_codec_read - send a command and get the response
+ * @hdac: the HDAC device
+ * @nid: NID to send the command
+ * @flags: optional bit flags
+ * @verb: the verb to send
+ * @parm: the parameter for the verb
+ *
+ * Send a single command and read the corresponding response.
+ *
+ * Returns the obtained response value, or -1 for an error.
+ */
+int snd_hdac_codec_read(struct hdac_device *hdac, hda_nid_t nid,
+			int flags, unsigned int verb, unsigned int parm)
+{
+	return codec_read(hdac, nid, flags, verb, parm);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_codec_read);
+
+/**
+ * snd_hdac_codec_write - send a single command without waiting for response
+ * @hdac: the HDAC device
+ * @nid: NID to send the command
+ * @flags: optional bit flags
+ * @verb: the verb to send
+ * @parm: the parameter for the verb
+ *
+ * Send a single command without waiting for response.
+ *
+ * Returns 0 if successful, or a negative error code.
+ */
+int snd_hdac_codec_write(struct hdac_device *hdac, hda_nid_t nid,
+			int flags, unsigned int verb, unsigned int parm)
+{
+	return codec_write(hdac, nid, flags, verb, parm);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_codec_write);
+
+/**
+ * snd_hdac_check_power_state - check whether the actual power state matches
+ * with the target state
+ *
+ * @hdac: the HDAC device
+ * @nid: NID to send the command
+ * @target_state: target state to check for
+ *
+ * Return true if state matches, false if not
+ */
+bool snd_hdac_check_power_state(struct hdac_device *hdac,
+		hda_nid_t nid, unsigned int target_state)
+{
+	unsigned int state = codec_read(hdac, nid, 0,
+				AC_VERB_GET_POWER_STATE, 0);
+
+	if (state & AC_PWRST_ERROR)
+		return true;
+	state = (state >> 4) & 0x0f;
+	return (state == target_state);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_check_power_state);

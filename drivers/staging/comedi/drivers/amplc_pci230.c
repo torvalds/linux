@@ -2275,7 +2275,7 @@ static int pci230_ai_cancel(struct comedi_device *dev,
 static irqreturn_t pci230_interrupt(int irq, void *d)
 {
 	unsigned char status_int, valid_status_int, temp_ier;
-	struct comedi_device *dev = (struct comedi_device *)d;
+	struct comedi_device *dev = d;
 	struct pci230_private *devpriv = dev->private;
 	struct comedi_subdevice *s_ao = dev->write_subdev;
 	struct comedi_subdevice *s_ai = dev->read_subdev;

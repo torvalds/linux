@@ -125,7 +125,7 @@ static void complete_commit(struct msm_commit *c)
 
 	drm_atomic_helper_commit_modeset_disables(dev, state);
 
-	drm_atomic_helper_commit_planes(dev, state);
+	drm_atomic_helper_commit_planes(dev, state, false);
 
 	drm_atomic_helper_commit_modeset_enables(dev, state);
 
@@ -283,12 +283,8 @@ int msm_atomic_commit(struct drm_device *dev,
 
 	timeout = ktime_add_ms(ktime_get(), 1000);
 
-	ret = msm_wait_fence_interruptable(dev, c->fence, &timeout);
-	if (ret) {
-		WARN_ON(ret);  // TODO unswap state back?  or??
-		commit_destroy(c);
-		return ret;
-	}
+	/* uninterruptible wait */
+	msm_wait_fence(dev, c->fence, &timeout, false);
 
 	complete_commit(c);
 

@@ -501,7 +501,7 @@ static int amdgpu_atpx_get_client_id(struct pci_dev *pdev)
 		return VGA_SWITCHEROO_DIS;
 }
 
-static struct vga_switcheroo_handler amdgpu_atpx_handler = {
+static const struct vga_switcheroo_handler amdgpu_atpx_handler = {
 	.switchto = amdgpu_atpx_switchto,
 	.power_state = amdgpu_atpx_power_state,
 	.init = amdgpu_atpx_init,
@@ -536,7 +536,7 @@ static bool amdgpu_atpx_detect(void)
 
 	if (has_atpx && vga_count == 2) {
 		acpi_get_name(amdgpu_atpx_priv.atpx.handle, ACPI_FULL_PATHNAME, &buffer);
-		printk(KERN_INFO "VGA switcheroo: detected switching method %s handle\n",
+		printk(KERN_INFO "vga_switcheroo: detected switching method %s handle\n",
 		       acpi_method_name);
 		amdgpu_atpx_priv.atpx_detected = true;
 		return true;

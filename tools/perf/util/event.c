@@ -26,6 +26,8 @@ static const char *perf_event__names[] = {
 	[PERF_RECORD_AUX]			= "AUX",
 	[PERF_RECORD_ITRACE_START]		= "ITRACE_START",
 	[PERF_RECORD_LOST_SAMPLES]		= "LOST_SAMPLES",
+	[PERF_RECORD_SWITCH]			= "SWITCH",
+	[PERF_RECORD_SWITCH_CPU_WIDE]		= "SWITCH_CPU_WIDE",
 	[PERF_RECORD_HEADER_ATTR]		= "ATTR",
 	[PERF_RECORD_HEADER_EVENT_TYPE]		= "EVENT_TYPE",
 	[PERF_RECORD_HEADER_TRACING_DATA]	= "TRACING_DATA",
@@ -65,7 +67,8 @@ static int perf_event__get_comm_ids(pid_t pid, char *comm, size_t len,
 	char filename[PATH_MAX];
 	char bf[4096];
 	int fd;
-	size_t size = 0, n;
+	size_t size = 0;
+	ssize_t n;
 	char *nl, *name, *tgids, *ppids;
 
 	*tgid = -1;
@@ -165,7 +168,7 @@ static int perf_event__prepare_comm(union perf_event *event, pid_t pid,
 	return 0;
 }
 
-static pid_t perf_event__synthesize_comm(struct perf_tool *tool,
+pid_t perf_event__synthesize_comm(struct perf_tool *tool,
 					 union perf_event *event, pid_t pid,
 					 perf_event__handler_t process,
 					 struct machine *machine)
@@ -376,7 +379,7 @@ int perf_event__synthesize_modules(struct perf_tool *tool,
 	for (pos = maps__first(maps); pos; pos = map__next(pos)) {
 		size_t size;
 
-		if (pos->dso->kernel)
+		if (__map__is_kernel(pos))
 			continue;
 
 		size = PERF_ALIGN(pos->dso->long_name_len + 1, sizeof(u64));
@@ -647,12 +650,12 @@ int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 	size_t size;
 	const char *mmap_name;
 	char name_buff[PATH_MAX];
-	struct map *map;
+	struct map *map = machine__kernel_map(machine);
 	struct kmap *kmap;
 	int err;
 	union perf_event *event;
 
-	if (machine->vmlinux_maps[0] == NULL)
+	if (map == NULL)
 		return -1;
 
 	/*
@@ -678,7 +681,6 @@ int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 		event->header.misc = PERF_RECORD_MISC_GUEST_KERNEL;
 	}
 
-	map = machine->vmlinux_maps[MAP__FUNCTION];
 	kmap = map__kmap(map);
 	size = snprintf(event->mmap.filename, sizeof(event->mmap.filename),
 			"%s%s", mmap_name, kmap->ref_reloc_sym->name) + 1;
@@ -747,6 +749,14 @@ int perf_event__process_lost_samples(struct perf_tool *tool __maybe_unused,
 				     struct machine *machine)
 {
 	return machine__process_lost_samples_event(machine, event, sample);
+}
+
+int perf_event__process_switch(struct perf_tool *tool __maybe_unused,
+			       union perf_event *event,
+			       struct perf_sample *sample __maybe_unused,
+			       struct machine *machine)
+{
+	return machine__process_switch_event(machine, event);
 }
 
 size_t perf_event__fprintf_mmap(union perf_event *event, FILE *fp)
@@ -827,6 +837,20 @@ size_t perf_event__fprintf_itrace_start(union perf_event *event, FILE *fp)
 		       event->itrace_start.pid, event->itrace_start.tid);
 }
 
+size_t perf_event__fprintf_switch(union perf_event *event, FILE *fp)
+{
+	bool out = event->header.misc & PERF_RECORD_MISC_SWITCH_OUT;
+	const char *in_out = out ? "OUT" : "IN ";
+
+	if (event->header.type == PERF_RECORD_SWITCH)
+		return fprintf(fp, " %s\n", in_out);
+
+	return fprintf(fp, " %s  %s pid/tid: %5u/%-5u\n",
+		       in_out, out ? "next" : "prev",
+		       event->context_switch.next_prev_pid,
+		       event->context_switch.next_prev_tid);
+}
+
 size_t perf_event__fprintf(union perf_event *event, FILE *fp)
 {
 	size_t ret = fprintf(fp, "PERF_RECORD_%s",
@@ -851,6 +875,10 @@ size_t perf_event__fprintf(union perf_event *event, FILE *fp)
 		break;
 	case PERF_RECORD_ITRACE_START:
 		ret += perf_event__fprintf_itrace_start(event, fp);
+		break;
+	case PERF_RECORD_SWITCH:
+	case PERF_RECORD_SWITCH_CPU_WIDE:
+		ret += perf_event__fprintf_switch(event, fp);
 		break;
 	default:
 		ret += fprintf(fp, "\n");
@@ -980,7 +1008,7 @@ int perf_event__preprocess_sample(const union perf_event *event,
 	 * it now.
 	 */
 	if (cpumode == PERF_RECORD_MISC_KERNEL &&
-	    machine->vmlinux_maps[MAP__FUNCTION] == NULL)
+	    machine__kernel_map(machine) == NULL)
 		machine__create_kernel_maps(machine);
 
 	thread__find_addr_map(thread, cpumode, MAP__FUNCTION, sample->ip, al);
@@ -993,6 +1021,14 @@ int perf_event__preprocess_sample(const union perf_event *event,
 
 	al->sym = NULL;
 	al->cpu = sample->cpu;
+	al->socket = -1;
+
+	if (al->cpu >= 0) {
+		struct perf_env *env = machine->env;
+
+		if (env && env->cpu)
+			al->socket = env->cpu[al->cpu].socket_id;
+	}
 
 	if (al->map) {
 		struct dso *dso = al->map->dso;

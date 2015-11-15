@@ -91,18 +91,18 @@
 static inline void task_name(struct seq_file *m, struct task_struct *p)
 {
 	char *buf;
+	size_t size;
 	char tcomm[sizeof(p->comm)];
+	int ret;
 
 	get_task_comm(tcomm, p);
 
 	seq_puts(m, "Name:\t");
-	buf = m->buf + m->count;
 
-	/* Ignore error for now */
-	buf += string_escape_str(tcomm, buf, m->size - m->count,
-				 ESCAPE_SPACE | ESCAPE_SPECIAL, "\n\\");
+	size = seq_get_buf(m, &buf);
+	ret = string_escape_str(tcomm, buf, size, ESCAPE_SPACE | ESCAPE_SPECIAL, "\n\\");
+	seq_commit(m, ret < size ? ret : -1);
 
-	m->count = buf - m->buf;
 	seq_putc(m, '\n');
 }
 
@@ -308,7 +308,8 @@ static void render_cap_t(struct seq_file *m, const char *header,
 static inline void task_cap(struct seq_file *m, struct task_struct *p)
 {
 	const struct cred *cred;
-	kernel_cap_t cap_inheritable, cap_permitted, cap_effective, cap_bset;
+	kernel_cap_t cap_inheritable, cap_permitted, cap_effective,
+			cap_bset, cap_ambient;
 
 	rcu_read_lock();
 	cred = __task_cred(p);
@@ -316,12 +317,14 @@ static inline void task_cap(struct seq_file *m, struct task_struct *p)
 	cap_permitted	= cred->cap_permitted;
 	cap_effective	= cred->cap_effective;
 	cap_bset	= cred->cap_bset;
+	cap_ambient	= cred->cap_ambient;
 	rcu_read_unlock();
 
 	render_cap_t(m, "CapInh:\t", &cap_inheritable);
 	render_cap_t(m, "CapPrm:\t", &cap_permitted);
 	render_cap_t(m, "CapEff:\t", &cap_effective);
 	render_cap_t(m, "CapBnd:\t", &cap_bset);
+	render_cap_t(m, "CapAmb:\t", &cap_ambient);
 }
 
 static inline void task_seccomp(struct seq_file *m, struct task_struct *p)
@@ -372,7 +375,7 @@ int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
 static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 			struct pid *pid, struct task_struct *task, int whole)
 {
-	unsigned long vsize, eip, esp, wchan = ~0UL;
+	unsigned long vsize, eip, esp, wchan = 0;
 	int priority, nice;
 	int tty_pgrp = -1, tty_nr = 0;
 	sigset_t sigign, sigcatch;
@@ -504,7 +507,19 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 	seq_put_decimal_ull(m, ' ', task->blocked.sig[0] & 0x7fffffffUL);
 	seq_put_decimal_ull(m, ' ', sigign.sig[0] & 0x7fffffffUL);
 	seq_put_decimal_ull(m, ' ', sigcatch.sig[0] & 0x7fffffffUL);
-	seq_put_decimal_ull(m, ' ', wchan);
+
+	/*
+	 * We used to output the absolute kernel address, but that's an
+	 * information leak - so instead we show a 0/1 flag here, to signal
+	 * to user-space whether there's a wchan field in /proc/PID/wchan.
+	 *
+	 * This works with older implementations of procps as well.
+	 */
+	if (wchan)
+		seq_puts(m, " 1");
+	else
+		seq_puts(m, " 0");
+
 	seq_put_decimal_ull(m, ' ', 0);
 	seq_put_decimal_ull(m, ' ', 0);
 	seq_put_decimal_ll(m, ' ', task->exit_signal);

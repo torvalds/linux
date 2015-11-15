@@ -17,7 +17,8 @@ Offset	Proto	Name		Meaning
 				(struct ist_info)
 080/010	ALL	hd0_info	hd0 disk parameter, OBSOLETE!!
 090/010	ALL	hd1_info	hd1 disk parameter, OBSOLETE!!
-0A0/010	ALL	sys_desc_table	System description table (struct sys_desc_table)
+0A0/010	ALL	sys_desc_table	System description table (struct sys_desc_table),
+				OBSOLETE!!
 0B0/010	ALL	olpc_ofw_header	OLPC's OpenFirmware CIF and friends
 0C0/004	ALL	ext_ramdisk_image ramdisk_image high 32bits
 0C4/004	ALL	ext_ramdisk_size  ramdisk_size high 32bits

@@ -86,7 +86,7 @@
 	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ | \
 	SNDRV_CTL_ELEM_ACCESS_READWRITE, \
 	.tlv.p  = (tlv_array),\
-	.info = snd_soc_info_volsw, \
+	.info = snd_soc_info_volsw_sx, \
 	.get = snd_soc_get_volsw_sx,\
 	.put = snd_soc_put_volsw_sx, \
 	.private_value = (unsigned long)&(struct soc_mixer_control) \
@@ -156,7 +156,7 @@
 	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ | \
 	SNDRV_CTL_ELEM_ACCESS_READWRITE, \
 	.tlv.p  = (tlv_array), \
-	.info = snd_soc_info_volsw, \
+	.info = snd_soc_info_volsw_sx, \
 	.get = snd_soc_get_volsw_sx, \
 	.put = snd_soc_put_volsw_sx, \
 	.private_value = (unsigned long)&(struct soc_mixer_control) \
@@ -217,6 +217,13 @@
 	.get = xhandler_get, .put = xhandler_put, \
 	.private_value = \
 		SOC_DOUBLE_VALUE(reg, shift_left, shift_right, max, invert, 0) }
+#define SOC_DOUBLE_R_EXT(xname, reg_left, reg_right, xshift, xmax, xinvert,\
+	 xhandler_get, xhandler_put) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
+	.info = snd_soc_info_volsw, \
+	.get = xhandler_get, .put = xhandler_put, \
+	.private_value = SOC_DOUBLE_R_VALUE(reg_left, reg_right, xshift, \
+					    xmax, xinvert) }
 #define SOC_SINGLE_EXT_TLV(xname, xreg, xshift, xmax, xinvert,\
 	 xhandler_get, xhandler_put, tlv_array) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
@@ -226,6 +233,18 @@
 	.info = snd_soc_info_volsw, \
 	.get = xhandler_get, .put = xhandler_put, \
 	.private_value = SOC_SINGLE_VALUE(xreg, xshift, xmax, xinvert, 0) }
+#define SOC_SINGLE_RANGE_EXT_TLV(xname, xreg, xshift, xmin, xmax, xinvert, \
+				 xhandler_get, xhandler_put, tlv_array) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname),\
+	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
+		 SNDRV_CTL_ELEM_ACCESS_READWRITE,\
+	.tlv.p = (tlv_array), \
+	.info = snd_soc_info_volsw_range, \
+	.get = xhandler_get, .put = xhandler_put, \
+	.private_value = (unsigned long)&(struct soc_mixer_control) \
+		{.reg = xreg, .rreg = xreg, .shift = xshift, \
+		 .rshift = xshift, .min = xmin, .max = xmax, \
+		 .platform_max = xmax, .invert = xinvert} }
 #define SOC_DOUBLE_EXT_TLV(xname, xreg, shift_left, shift_right, xmax, xinvert,\
 	 xhandler_get, xhandler_put, tlv_array) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
@@ -440,7 +459,9 @@ int snd_soc_platform_read(struct snd_soc_platform *platform,
 int snd_soc_platform_write(struct snd_soc_platform *platform,
 					unsigned int reg, unsigned int val);
 int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num);
-int soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num);
+#ifdef CONFIG_SND_SOC_COMPRESS
+int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num);
+#endif
 
 struct snd_pcm_substream *snd_soc_get_dai_substream(struct snd_soc_card *card,
 		const char *dai_link, int stream);
@@ -526,7 +547,8 @@ int snd_soc_test_bits(struct snd_soc_codec *codec, unsigned int reg,
 
 #ifdef CONFIG_SND_SOC_AC97_BUS
 struct snd_ac97 *snd_soc_alloc_ac97_codec(struct snd_soc_codec *codec);
-struct snd_ac97 *snd_soc_new_ac97_codec(struct snd_soc_codec *codec);
+struct snd_ac97 *snd_soc_new_ac97_codec(struct snd_soc_codec *codec,
+	unsigned int id, unsigned int id_mask);
 void snd_soc_free_ac97_codec(struct snd_ac97 *ac97);
 
 int snd_soc_set_ac97_ops(struct snd_ac97_bus_ops *ops);
@@ -573,6 +595,8 @@ int snd_soc_put_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_info_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo);
+int snd_soc_info_volsw_sx(struct snd_kcontrol *kcontrol,
+			  struct snd_ctl_elem_info *uinfo);
 #define snd_soc_info_bool_ext		snd_ctl_boolean_mono_info
 int snd_soc_get_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
@@ -590,7 +614,7 @@ int snd_soc_put_volsw_range(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_get_volsw_range(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
-int snd_soc_limit_volume(struct snd_soc_codec *codec,
+int snd_soc_limit_volume(struct snd_soc_card *card,
 	const char *name, int max);
 int snd_soc_bytes_info(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_info *uinfo);
@@ -619,6 +643,7 @@ int snd_soc_put_strobe(struct snd_kcontrol *kcontrol,
  * @pin:    name of the pin to update
  * @mask:   bits to check for in reported jack status
  * @invert: if non-zero then pin is enabled when status is not reported
+ * @list:   internal list entry
  */
 struct snd_soc_jack_pin {
 	struct list_head list;
@@ -635,7 +660,7 @@ struct snd_soc_jack_pin {
  * @jack_type: type of jack that is expected for this voltage
  * @debounce_time: debounce_time for jack, codec driver should wait for this
  *		duration before reading the adc for voltages
- * @:list: list container
+ * @list:   internal list entry
  */
 struct snd_soc_jack_zone {
 	unsigned int min_mv;
@@ -651,12 +676,12 @@ struct snd_soc_jack_zone {
  * @gpio:         legacy gpio number
  * @idx:          gpio descriptor index within the function of the GPIO
  *                consumer device
- * @gpiod_dev     GPIO consumer device
+ * @gpiod_dev:    GPIO consumer device
  * @name:         gpio name. Also as connection ID for the GPIO consumer
  *                device function name lookup
  * @report:       value to report when jack detected
  * @invert:       report presence in low state
- * @debouce_time: debouce time in ms
+ * @debounce_time: debounce time in ms
  * @wake:	  enable as wake source
  * @jack_status_check: callback function which overrides the detection
  *		       to provide more complex checks (eg, reading an
@@ -672,11 +697,13 @@ struct snd_soc_jack_gpio {
 	int debounce_time;
 	bool wake;
 
+	/* private: */
 	struct snd_soc_jack *jack;
 	struct delayed_work work;
 	struct gpio_desc *desc;
 
 	void *data;
+	/* public: */
 	int (*jack_status_check)(void *data);
 };
 
@@ -758,7 +785,6 @@ struct snd_soc_component {
 
 	unsigned int ignore_pmdown_time:1; /* pmdown_time is ignored at stop */
 	unsigned int registered_as_component:1;
-	unsigned int probed:1;
 
 	struct list_head list;
 
@@ -792,7 +818,6 @@ struct snd_soc_component {
 
 	/* Don't use these, use snd_soc_component_get_dapm() */
 	struct snd_soc_dapm_context dapm;
-	struct snd_soc_dapm_context *dapm_ptr;
 
 	const struct snd_kcontrol_new *controls;
 	unsigned int num_controls;
@@ -831,9 +856,6 @@ struct snd_soc_codec {
 
 	/* component */
 	struct snd_soc_component component;
-
-	/* Don't access this directly, use snd_soc_codec_get_dapm() */
-	struct snd_soc_dapm_context dapm;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_reg;
@@ -1277,7 +1299,7 @@ static inline struct snd_soc_component *snd_soc_dapm_to_component(
 static inline struct snd_soc_codec *snd_soc_dapm_to_codec(
 	struct snd_soc_dapm_context *dapm)
 {
-	return container_of(dapm, struct snd_soc_codec, dapm);
+	return snd_soc_component_to_codec(snd_soc_dapm_to_component(dapm));
 }
 
 /**
@@ -1302,7 +1324,7 @@ static inline struct snd_soc_platform *snd_soc_dapm_to_platform(
 static inline struct snd_soc_dapm_context *snd_soc_component_get_dapm(
 	struct snd_soc_component *component)
 {
-	return component->dapm_ptr;
+	return &component->dapm;
 }
 
 /**
@@ -1314,12 +1336,12 @@ static inline struct snd_soc_dapm_context *snd_soc_component_get_dapm(
 static inline struct snd_soc_dapm_context *snd_soc_codec_get_dapm(
 	struct snd_soc_codec *codec)
 {
-	return &codec->dapm;
+	return snd_soc_component_get_dapm(&codec->component);
 }
 
 /**
  * snd_soc_dapm_init_bias_level() - Initialize CODEC DAPM bias level
- * @dapm: The CODEC for which to initialize the DAPM bias level
+ * @codec: The CODEC for which to initialize the DAPM bias level
  * @level: The DAPM level to initialize to
  *
  * Initializes the CODEC DAPM bias level. See snd_soc_dapm_init_bias_level().
@@ -1602,8 +1624,14 @@ int snd_soc_of_parse_card_name(struct snd_soc_card *card,
 int snd_soc_of_parse_audio_simple_widgets(struct snd_soc_card *card,
 					  const char *propname);
 int snd_soc_of_parse_tdm_slot(struct device_node *np,
+			      unsigned int *tx_mask,
+			      unsigned int *rx_mask,
 			      unsigned int *slots,
 			      unsigned int *slot_width);
+void snd_soc_of_parse_audio_prefix(struct snd_soc_card *card,
+				   struct snd_soc_codec_conf *codec_conf,
+				   struct device_node *of_node,
+				   const char *propname);
 int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 				   const char *propname);
 unsigned int snd_soc_of_parse_daifmt(struct device_node *np,

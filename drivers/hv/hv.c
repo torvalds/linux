@@ -93,11 +93,14 @@ static int query_hypervisor_info(void)
  */
 static u64 do_hypercall(u64 control, void *input, void *output)
 {
-#ifdef CONFIG_X86_64
-	u64 hv_status = 0;
 	u64 input_address = (input) ? virt_to_phys(input) : 0;
 	u64 output_address = (output) ? virt_to_phys(output) : 0;
 	void *hypercall_page = hv_context.hypercall_page;
+#ifdef CONFIG_X86_64
+	u64 hv_status = 0;
+
+	if (!hypercall_page)
+		return (u64)ULLONG_MAX;
 
 	__asm__ __volatile__("mov %0, %%r8" : : "r" (output_address) : "r8");
 	__asm__ __volatile__("call *%3" : "=a" (hv_status) :
@@ -112,13 +115,13 @@ static u64 do_hypercall(u64 control, void *input, void *output)
 	u32 control_lo = control & 0xFFFFFFFF;
 	u32 hv_status_hi = 1;
 	u32 hv_status_lo = 1;
-	u64 input_address = (input) ? virt_to_phys(input) : 0;
 	u32 input_address_hi = input_address >> 32;
 	u32 input_address_lo = input_address & 0xFFFFFFFF;
-	u64 output_address = (output) ? virt_to_phys(output) : 0;
 	u32 output_address_hi = output_address >> 32;
 	u32 output_address_lo = output_address & 0xFFFFFFFF;
-	void *hypercall_page = hv_context.hypercall_page;
+
+	if (!hypercall_page)
+		return (u64)ULLONG_MAX;
 
 	__asm__ __volatile__ ("call *%8" : "=d"(hv_status_hi),
 			      "=a"(hv_status_lo) : "d" (control_hi),
@@ -130,6 +133,56 @@ static u64 do_hypercall(u64 control, void *input, void *output)
 #endif /* !x86_64 */
 }
 
+#ifdef CONFIG_X86_64
+static cycle_t read_hv_clock_tsc(struct clocksource *arg)
+{
+	cycle_t current_tick;
+	struct ms_hyperv_tsc_page *tsc_pg = hv_context.tsc_page;
+
+	if (tsc_pg->tsc_sequence != -1) {
+		/*
+		 * Use the tsc page to compute the value.
+		 */
+
+		while (1) {
+			cycle_t tmp;
+			u32 sequence = tsc_pg->tsc_sequence;
+			u64 cur_tsc;
+			u64 scale = tsc_pg->tsc_scale;
+			s64 offset = tsc_pg->tsc_offset;
+
+			rdtscll(cur_tsc);
+			/* current_tick = ((cur_tsc *scale) >> 64) + offset */
+			asm("mulq %3"
+				: "=d" (current_tick), "=a" (tmp)
+				: "a" (cur_tsc), "r" (scale));
+
+			current_tick += offset;
+			if (tsc_pg->tsc_sequence == sequence)
+				return current_tick;
+
+			if (tsc_pg->tsc_sequence != -1)
+				continue;
+			/*
+			 * Fallback using MSR method.
+			 */
+			break;
+		}
+	}
+	rdmsrl(HV_X64_MSR_TIME_REF_COUNT, current_tick);
+	return current_tick;
+}
+
+static struct clocksource hyperv_cs_tsc = {
+		.name           = "hyperv_clocksource_tsc_page",
+		.rating         = 425,
+		.read           = read_hv_clock_tsc,
+		.mask           = CLOCKSOURCE_MASK(64),
+		.flags          = CLOCK_SOURCE_IS_CONTINUOUS,
+};
+#endif
+
+
 /*
  * hv_init - Main initialization routine.
  *
@@ -139,7 +192,9 @@ int hv_init(void)
 {
 	int max_leaf;
 	union hv_x64_msr_hypercall_contents hypercall_msr;
+	union hv_x64_msr_hypercall_contents tsc_msr;
 	void *virtaddr = NULL;
+	void *va_tsc = NULL;
 
 	memset(hv_context.synic_event_page, 0, sizeof(void *) * NR_CPUS);
 	memset(hv_context.synic_message_page, 0,
@@ -183,6 +238,22 @@ int hv_init(void)
 
 	hv_context.hypercall_page = virtaddr;
 
+#ifdef CONFIG_X86_64
+	if (ms_hyperv.features & HV_X64_MSR_REFERENCE_TSC_AVAILABLE) {
+		va_tsc = __vmalloc(PAGE_SIZE, GFP_KERNEL, PAGE_KERNEL);
+		if (!va_tsc)
+			goto cleanup;
+		hv_context.tsc_page = va_tsc;
+
+		rdmsrl(HV_X64_MSR_REFERENCE_TSC, tsc_msr.as_uint64);
+
+		tsc_msr.enable = 1;
+		tsc_msr.guest_physical_address = vmalloc_to_pfn(va_tsc);
+
+		wrmsrl(HV_X64_MSR_REFERENCE_TSC, tsc_msr.as_uint64);
+		clocksource_register_hz(&hyperv_cs_tsc, NSEC_PER_SEC/100);
+	}
+#endif
 	return 0;
 
 cleanup:
@@ -216,6 +287,21 @@ void hv_cleanup(void)
 		vfree(hv_context.hypercall_page);
 		hv_context.hypercall_page = NULL;
 	}
+
+#ifdef CONFIG_X86_64
+	/*
+	 * Cleanup the TSC page based CS.
+	 */
+	if (ms_hyperv.features & HV_X64_MSR_REFERENCE_TSC_AVAILABLE) {
+		clocksource_change_rating(&hyperv_cs_tsc, 10);
+		clocksource_unregister(&hyperv_cs_tsc);
+
+		hypercall_msr.as_uint64 = 0;
+		wrmsrl(HV_X64_MSR_REFERENCE_TSC, hypercall_msr.as_uint64);
+		vfree(hv_context.tsc_page);
+		hv_context.tsc_page = NULL;
+	}
+#endif
 }
 
 /*
@@ -271,7 +357,7 @@ static int hv_ce_set_next_event(unsigned long delta,
 {
 	cycle_t current_tick;
 
-	WARN_ON(evt->mode != CLOCK_EVT_MODE_ONESHOT);
+	WARN_ON(!clockevent_state_oneshot(evt));
 
 	rdmsrl(HV_X64_MSR_TIME_REF_COUNT, current_tick);
 	current_tick += delta;
@@ -279,31 +365,24 @@ static int hv_ce_set_next_event(unsigned long delta,
 	return 0;
 }
 
-static void hv_ce_setmode(enum clock_event_mode mode,
-			  struct clock_event_device *evt)
+static int hv_ce_shutdown(struct clock_event_device *evt)
+{
+	wrmsrl(HV_X64_MSR_STIMER0_COUNT, 0);
+	wrmsrl(HV_X64_MSR_STIMER0_CONFIG, 0);
+
+	return 0;
+}
+
+static int hv_ce_set_oneshot(struct clock_event_device *evt)
 {
 	union hv_timer_config timer_cfg;
 
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		/* unsupported */
-		break;
+	timer_cfg.enable = 1;
+	timer_cfg.auto_enable = 1;
+	timer_cfg.sintx = VMBUS_MESSAGE_SINT;
+	wrmsrl(HV_X64_MSR_STIMER0_CONFIG, timer_cfg.as_uint64);
 
-	case CLOCK_EVT_MODE_ONESHOT:
-		timer_cfg.enable = 1;
-		timer_cfg.auto_enable = 1;
-		timer_cfg.sintx = VMBUS_MESSAGE_SINT;
-		wrmsrl(HV_X64_MSR_STIMER0_CONFIG, timer_cfg.as_uint64);
-		break;
-
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		wrmsrl(HV_X64_MSR_STIMER0_COUNT, 0);
-		wrmsrl(HV_X64_MSR_STIMER0_CONFIG, 0);
-		break;
-	case CLOCK_EVT_MODE_RESUME:
-		break;
-	}
+	return 0;
 }
 
 static void hv_init_clockevent_device(struct clock_event_device *dev, int cpu)
@@ -318,7 +397,8 @@ static void hv_init_clockevent_device(struct clock_event_device *dev, int cpu)
 	 * references to the hv_vmbus module making it impossible to unload.
 	 */
 
-	dev->set_mode = hv_ce_setmode;
+	dev->set_state_shutdown = hv_ce_shutdown;
+	dev->set_state_oneshot = hv_ce_set_oneshot;
 	dev->set_next_event = hv_ce_set_next_event;
 }
 
@@ -328,6 +408,13 @@ int hv_synic_alloc(void)
 	size_t size = sizeof(struct tasklet_struct);
 	size_t ced_size = sizeof(struct clock_event_device);
 	int cpu;
+
+	hv_context.hv_numa_map = kzalloc(sizeof(struct cpumask) * nr_node_ids,
+					 GFP_ATOMIC);
+	if (hv_context.hv_numa_map == NULL) {
+		pr_err("Unable to allocate NUMA map\n");
+		goto err;
+	}
 
 	for_each_online_cpu(cpu) {
 		hv_context.event_dpc[cpu] = kmalloc(size, GFP_ATOMIC);
@@ -342,6 +429,7 @@ int hv_synic_alloc(void)
 			pr_err("Unable to allocate clock event device\n");
 			goto err;
 		}
+
 		hv_init_clockevent_device(hv_context.clk_evt[cpu], cpu);
 
 		hv_context.synic_message_page[cpu] =
@@ -390,6 +478,7 @@ void hv_synic_free(void)
 {
 	int cpu;
 
+	kfree(hv_context.hv_numa_map);
 	for_each_online_cpu(cpu)
 		hv_synic_free_cpu(cpu);
 }
@@ -503,8 +592,7 @@ void hv_synic_cleanup(void *arg)
 
 	/* Turn off clockevent device */
 	if (ms_hyperv.features & HV_X64_MSR_SYNTIMER_AVAILABLE)
-		hv_ce_setmode(CLOCK_EVT_MODE_SHUTDOWN,
-			      hv_context.clk_evt[cpu]);
+		hv_ce_shutdown(hv_context.clk_evt[cpu]);
 
 	rdmsrl(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT, shared_sint.as_uint64);
 
@@ -530,6 +618,4 @@ void hv_synic_cleanup(void *arg)
 	rdmsrl(HV_X64_MSR_SCONTROL, sctrl.as_uint64);
 	sctrl.enable = 0;
 	wrmsrl(HV_X64_MSR_SCONTROL, sctrl.as_uint64);
-
-	hv_synic_free_cpu(cpu);
 }

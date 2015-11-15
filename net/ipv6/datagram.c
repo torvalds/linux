@@ -199,7 +199,7 @@ ipv4_connected:
 		      NULL);
 
 	sk->sk_state = TCP_ESTABLISHED;
-	ip6_set_txhash(sk);
+	sk_set_txhash(sk);
 out:
 	fl6_sock_release(flowlabel);
 	return err;
@@ -263,7 +263,7 @@ void ipv6_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 
 void ipv6_local_error(struct sock *sk, int err, struct flowi6 *fl6, u32 info)
 {
-	struct ipv6_pinfo *np = inet6_sk(sk);
+	const struct ipv6_pinfo *np = inet6_sk(sk);
 	struct sock_exterr_skb *serr;
 	struct ipv6hdr *iph;
 	struct sk_buff *skb;
@@ -568,8 +568,8 @@ void ip6_datagram_recv_specific_ctl(struct sock *sk, struct msghdr *msg,
 	}
 
 	/* HbH is allowed only once */
-	if (np->rxopt.bits.hopopts && opt->hop) {
-		u8 *ptr = nh + opt->hop;
+	if (np->rxopt.bits.hopopts && (opt->flags & IP6SKB_HOPBYHOP)) {
+		u8 *ptr = nh + sizeof(struct ipv6hdr);
 		put_cmsg(msg, SOL_IPV6, IPV6_HOPOPTS, (ptr[1]+1)<<3, ptr);
 	}
 
@@ -630,8 +630,8 @@ void ip6_datagram_recv_specific_ctl(struct sock *sk, struct msghdr *msg,
 		int hlim = ipv6_hdr(skb)->hop_limit;
 		put_cmsg(msg, SOL_IPV6, IPV6_2292HOPLIMIT, sizeof(hlim), &hlim);
 	}
-	if (np->rxopt.bits.ohopopts && opt->hop) {
-		u8 *ptr = nh + opt->hop;
+	if (np->rxopt.bits.ohopopts && (opt->flags & IP6SKB_HOPBYHOP)) {
+		u8 *ptr = nh + sizeof(struct ipv6hdr);
 		put_cmsg(msg, SOL_IPV6, IPV6_2292HOPOPTS, (ptr[1]+1)<<3, ptr);
 	}
 	if (np->rxopt.bits.odstopts && opt->dst0) {

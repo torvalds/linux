@@ -9,6 +9,7 @@
 #include <linux/device.h>
 #include <linux/firewire.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include "lib.h"
 
 #define ERROR_RETRY_DELAY_MS	20
@@ -65,6 +66,147 @@ int snd_fw_transaction(struct fw_unit *unit, int tcode,
 	}
 }
 EXPORT_SYMBOL(snd_fw_transaction);
+
+static void async_midi_port_callback(struct fw_card *card, int rcode,
+				     void *data, size_t length,
+				     void *callback_data)
+{
+	struct snd_fw_async_midi_port *port = callback_data;
+	struct snd_rawmidi_substream *substream = ACCESS_ONCE(port->substream);
+
+	/* This port is closed. */
+	if (substream == NULL)
+		return;
+
+	if (rcode == RCODE_COMPLETE)
+		snd_rawmidi_transmit_ack(substream, port->consume_bytes);
+	else if (!rcode_is_permanent_error(rcode))
+		/* To start next transaction immediately for recovery. */
+		port->next_ktime = ktime_set(0, 0);
+	else
+		/* Don't continue processing. */
+		port->error = true;
+
+	port->idling = true;
+
+	if (!snd_rawmidi_transmit_empty(substream))
+		schedule_work(&port->work);
+}
+
+static void midi_port_work(struct work_struct *work)
+{
+	struct snd_fw_async_midi_port *port =
+			container_of(work, struct snd_fw_async_midi_port, work);
+	struct snd_rawmidi_substream *substream = ACCESS_ONCE(port->substream);
+	int generation;
+	int type;
+
+	/* Under transacting or error state. */
+	if (!port->idling || port->error)
+		return;
+
+	/* Nothing to do. */
+	if (substream == NULL || snd_rawmidi_transmit_empty(substream))
+		return;
+
+	/* Do it in next chance. */
+	if (ktime_after(port->next_ktime, ktime_get())) {
+		schedule_work(&port->work);
+		return;
+	}
+
+	/*
+	 * Fill the buffer. The callee must use snd_rawmidi_transmit_peek().
+	 * Later, snd_rawmidi_transmit_ack() is called.
+	 */
+	memset(port->buf, 0, port->len);
+	port->consume_bytes = port->fill(substream, port->buf);
+	if (port->consume_bytes <= 0) {
+		/* Do it in next chance, immediately. */
+		if (port->consume_bytes == 0) {
+			port->next_ktime = ktime_set(0, 0);
+			schedule_work(&port->work);
+		} else {
+			/* Fatal error. */
+			port->error = true;
+		}
+		return;
+	}
+
+	/* Calculate type of transaction. */
+	if (port->len == 4)
+		type = TCODE_WRITE_QUADLET_REQUEST;
+	else
+		type = TCODE_WRITE_BLOCK_REQUEST;
+
+	/* Set interval to next transaction. */
+	port->next_ktime = ktime_add_ns(ktime_get(),
+				port->consume_bytes * 8 * NSEC_PER_SEC / 31250);
+
+	/* Start this transaction. */
+	port->idling = false;
+
+	/*
+	 * In Linux FireWire core, when generation is updated with memory
+	 * barrier, node id has already been updated. In this module, After
+	 * this smp_rmb(), load/store instructions to memory are completed.
+	 * Thus, both of generation and node id are available with recent
+	 * values. This is a light-serialization solution to handle bus reset
+	 * events on IEEE 1394 bus.
+	 */
+	generation = port->parent->generation;
+	smp_rmb();
+
+	fw_send_request(port->parent->card, &port->transaction, type,
+			port->parent->node_id, generation,
+			port->parent->max_speed, port->addr,
+			port->buf, port->len, async_midi_port_callback,
+			port);
+}
+
+/**
+ * snd_fw_async_midi_port_init - initialize asynchronous MIDI port structure
+ * @port: the asynchronous MIDI port to initialize
+ * @unit: the target of the asynchronous transaction
+ * @addr: the address to which transactions are transferred
+ * @len: the length of transaction
+ * @fill: the callback function to fill given buffer, and returns the
+ *	       number of consumed bytes for MIDI message.
+ *
+ */
+int snd_fw_async_midi_port_init(struct snd_fw_async_midi_port *port,
+		struct fw_unit *unit, u64 addr, unsigned int len,
+		snd_fw_async_midi_port_fill fill)
+{
+	port->len = DIV_ROUND_UP(len, 4) * 4;
+	port->buf = kzalloc(port->len, GFP_KERNEL);
+	if (port->buf == NULL)
+		return -ENOMEM;
+
+	port->parent = fw_parent_device(unit);
+	port->addr = addr;
+	port->fill = fill;
+	port->idling = true;
+	port->next_ktime = ktime_set(0, 0);
+	port->error = false;
+
+	INIT_WORK(&port->work, midi_port_work);
+
+	return 0;
+}
+EXPORT_SYMBOL(snd_fw_async_midi_port_init);
+
+/**
+ * snd_fw_async_midi_port_destroy - free asynchronous MIDI port structure
+ * @port: the asynchronous MIDI port structure
+ */
+void snd_fw_async_midi_port_destroy(struct snd_fw_async_midi_port *port)
+{
+	snd_fw_async_midi_port_finish(port);
+	cancel_work_sync(&port->work);
+	kfree(port->buf);
+}
+EXPORT_SYMBOL(snd_fw_async_midi_port_destroy);
 
 MODULE_DESCRIPTION("FireWire audio helper functions");
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");

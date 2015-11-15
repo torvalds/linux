@@ -345,6 +345,23 @@ static ssize_t btt_seed_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(btt_seed);
 
+static ssize_t pfn_seed_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nd_region *nd_region = to_nd_region(dev);
+	ssize_t rc;
+
+	nvdimm_bus_lock(dev);
+	if (nd_region->pfn_seed)
+		rc = sprintf(buf, "%s\n", dev_name(nd_region->pfn_seed));
+	else
+		rc = sprintf(buf, "\n");
+	nvdimm_bus_unlock(dev);
+
+	return rc;
+}
+static DEVICE_ATTR_RO(pfn_seed);
+
 static ssize_t read_only_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -373,6 +390,7 @@ static struct attribute *nd_region_attributes[] = {
 	&dev_attr_nstype.attr,
 	&dev_attr_mappings.attr,
 	&dev_attr_btt_seed.attr,
+	&dev_attr_pfn_seed.attr,
 	&dev_attr_read_only.attr,
 	&dev_attr_set_cookie.attr,
 	&dev_attr_available_size.attr,
@@ -740,10 +758,12 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 	nd_region->provider_data = ndr_desc->provider_data;
 	nd_region->nd_set = ndr_desc->nd_set;
 	nd_region->num_lanes = ndr_desc->num_lanes;
+	nd_region->flags = ndr_desc->flags;
 	nd_region->ro = ro;
 	nd_region->numa_node = ndr_desc->numa_node;
 	ida_init(&nd_region->ns_ida);
 	ida_init(&nd_region->btt_ida);
+	ida_init(&nd_region->pfn_ida);
 	dev = &nd_region->dev;
 	dev_set_name(dev, "region%d", nd_region->id);
 	dev->parent = &nvdimm_bus->dev;

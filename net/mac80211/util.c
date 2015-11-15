@@ -4,6 +4,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
+ * Copyright (C) 2015	Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -46,55 +47,6 @@ struct ieee80211_hw *wiphy_to_ieee80211_hw(struct wiphy *wiphy)
 	return &local->hw;
 }
 EXPORT_SYMBOL(wiphy_to_ieee80211_hw);
-
-u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
-			enum nl80211_iftype type)
-{
-	__le16 fc = hdr->frame_control;
-
-	 /* drop ACK/CTS frames and incorrect hdr len (ctrl) */
-	if (len < 16)
-		return NULL;
-
-	if (ieee80211_is_data(fc)) {
-		if (len < 24) /* drop incorrect hdr len (data) */
-			return NULL;
-
-		if (ieee80211_has_a4(fc))
-			return NULL;
-		if (ieee80211_has_tods(fc))
-			return hdr->addr1;
-		if (ieee80211_has_fromds(fc))
-			return hdr->addr2;
-
-		return hdr->addr3;
-	}
-
-	if (ieee80211_is_mgmt(fc)) {
-		if (len < 24) /* drop incorrect hdr len (mgmt) */
-			return NULL;
-		return hdr->addr3;
-	}
-
-	if (ieee80211_is_ctl(fc)) {
-		if (ieee80211_is_pspoll(fc))
-			return hdr->addr1;
-
-		if (ieee80211_is_back_req(fc)) {
-			switch (type) {
-			case NL80211_IFTYPE_STATION:
-				return hdr->addr2;
-			case NL80211_IFTYPE_AP:
-			case NL80211_IFTYPE_AP_VLAN:
-				return hdr->addr1;
-			default:
-				break; /* fall through to the return */
-			}
-		}
-	}
-
-	return NULL;
-}
 
 void ieee80211_tx_set_protected(struct ieee80211_tx_data *tx)
 {
@@ -752,7 +704,12 @@ EXPORT_SYMBOL_GPL(wdev_to_ieee80211_vif);
 
 struct wireless_dev *ieee80211_vif_to_wdev(struct ieee80211_vif *vif)
 {
-	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_sub_if_data *sdata;
+
+	if (!vif)
+		return NULL;
+
+	sdata = vif_to_sdata(vif);
 
 	if (!ieee80211_sdata_running(sdata) ||
 	    !(sdata->flags & IEEE80211_SDATA_IN_DRIVER))
@@ -1148,13 +1105,13 @@ u32 ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 }
 
 void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
-			       bool bss_notify)
+			       bool bss_notify, bool enable_qos)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_tx_queue_params qparam;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	int ac;
-	bool use_11b, enable_qos;
+	bool use_11b;
 	bool is_ocb; /* Use another EDCA parameters if dot11OCBActivated=true */
 	int aCWmin, aCWmax;
 
@@ -1172,13 +1129,6 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 		   chanctx_conf->def.chan->band == IEEE80211_BAND_2GHZ) &&
 		 !(sdata->flags & IEEE80211_SDATA_OPERATING_GMODE);
 	rcu_read_unlock();
-
-	/*
-	 * By default disable QoS in STA mode for old access points, which do
-	 * not support 802.11e. New APs will provide proper queue parameters,
-	 * that we will configure later.
-	 */
-	enable_qos = (sdata->vif.type != NL80211_IFTYPE_STATION);
 
 	is_ocb = (sdata->vif.type == NL80211_IFTYPE_OCB);
 
@@ -1708,7 +1658,7 @@ static void ieee80211_handle_reconfig_failure(struct ieee80211_local *local)
 
 	local->resuming = false;
 	local->suspended = false;
-	local->started = false;
+	local->in_reconfig = false;
 
 	/* scheduled scan clearly can't be running any more, but tell
 	 * cfg80211 and clear local state
@@ -1759,16 +1709,24 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	struct ieee80211_sub_if_data *sched_scan_sdata;
 	struct cfg80211_sched_scan_request *sched_scan_req;
 	bool sched_scan_stopped = false;
+	bool suspended = local->suspended;
 
 	/* nothing to do if HW shouldn't run */
 	if (!local->open_count)
 		goto wake_up;
 
 #ifdef CONFIG_PM
-	if (local->suspended)
+	if (suspended)
 		local->resuming = true;
 
 	if (local->wowlan) {
+		/*
+		 * In the wowlan case, both mac80211 and the device
+		 * are functional when the resume op is called, so
+		 * clear local->suspended so the device could operate
+		 * normally (e.g. pass rx frames).
+		 */
+		local->suspended = false;
 		res = drv_resume(local);
 		local->wowlan = false;
 		if (res < 0) {
@@ -1781,10 +1739,24 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		/*
 		 * res is 1, which means the driver requested
 		 * to go through a regular reset on wakeup.
+		 * restore local->suspended in this case.
 		 */
 		reconfig_due_to_wowlan = true;
+		local->suspended = true;
 	}
 #endif
+
+	/*
+	 * In case of hw_restart during suspend (without wowlan),
+	 * cancel restart work, as we are reconfiguring the device
+	 * anyway.
+	 * Note that restart_work is scheduled on a frozen workqueue,
+	 * so we can't deadlock in this case.
+	 */
+	if (suspended && local->in_reconfig && !reconfig_due_to_wowlan)
+		cancel_work_sync(&local->restart_work);
+
+	local->started = false;
 
 	/*
 	 * Upon resume hardware can sometimes be goofy due to
@@ -1794,7 +1766,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	 */
 	res = drv_start(local);
 	if (res) {
-		if (local->suspended)
+		if (suspended)
 			WARN(1, "Hardware became unavailable upon resume. This could be a software issue prior to suspend or a hardware issue.\n");
 		else
 			WARN(1, "Hardware became unavailable during restart.\n");
@@ -1984,7 +1956,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		}
 	}
 
-	ieee80211_recalc_ps(local, -1);
+	ieee80211_recalc_ps(local);
 
 	/*
 	 * The sta might be in psm against the ap (e.g. because
@@ -1999,7 +1971,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			if (!sdata->u.mgd.associated)
 				continue;
 
-			ieee80211_send_nullfunc(local, sdata, 0);
+			ieee80211_send_nullfunc(local, sdata, false);
 		}
 	}
 
@@ -2029,6 +2001,29 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		if (ieee80211_sdata_running(sdata))
 			ieee80211_enable_keys(sdata);
 
+	/* Reconfigure sched scan if it was interrupted by FW restart */
+	mutex_lock(&local->mtx);
+	sched_scan_sdata = rcu_dereference_protected(local->sched_scan_sdata,
+						lockdep_is_held(&local->mtx));
+	sched_scan_req = rcu_dereference_protected(local->sched_scan_req,
+						lockdep_is_held(&local->mtx));
+	if (sched_scan_sdata && sched_scan_req)
+		/*
+		 * Sched scan stopped, but we don't want to report it. Instead,
+		 * we're trying to reschedule. However, if more than one scan
+		 * plan was set, we cannot reschedule since we don't know which
+		 * scan plan was currently running (and some scan plans may have
+		 * already finished).
+		 */
+		if (sched_scan_req->n_scan_plans > 1 ||
+		    __ieee80211_request_sched_scan_start(sched_scan_sdata,
+							 sched_scan_req))
+			sched_scan_stopped = true;
+	mutex_unlock(&local->mtx);
+
+	if (sched_scan_stopped)
+		cfg80211_sched_scan_stopped_rtnl(local->hw.wiphy);
+
  wake_up:
 	local->in_reconfig = false;
 	barrier();
@@ -2050,8 +2045,9 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		mutex_lock(&local->sta_mtx);
 
 		list_for_each_entry(sta, &local->sta_list, list) {
-			ieee80211_sta_tear_down_BA_sessions(
-					sta, AGG_STOP_LOCAL_REQUEST);
+			if (!local->resuming)
+				ieee80211_sta_tear_down_BA_sessions(
+						sta, AGG_STOP_LOCAL_REQUEST);
 			clear_sta_flag(sta, WLAN_STA_BLOCK_BA);
 		}
 
@@ -2063,35 +2059,13 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 					false);
 
 	/*
-	 * Reconfigure sched scan if it was interrupted by FW restart or
-	 * suspend.
-	 */
-	mutex_lock(&local->mtx);
-	sched_scan_sdata = rcu_dereference_protected(local->sched_scan_sdata,
-						lockdep_is_held(&local->mtx));
-	sched_scan_req = rcu_dereference_protected(local->sched_scan_req,
-						lockdep_is_held(&local->mtx));
-	if (sched_scan_sdata && sched_scan_req)
-		/*
-		 * Sched scan stopped, but we don't want to report it. Instead,
-		 * we're trying to reschedule.
-		 */
-		if (__ieee80211_request_sched_scan_start(sched_scan_sdata,
-							 sched_scan_req))
-			sched_scan_stopped = true;
-	mutex_unlock(&local->mtx);
-
-	if (sched_scan_stopped)
-		cfg80211_sched_scan_stopped_rtnl(local->hw.wiphy);
-
-	/*
 	 * If this is for hw restart things are still running.
 	 * We may want to change that later, however.
 	 */
-	if (local->open_count && (!local->suspended || reconfig_due_to_wowlan))
+	if (local->open_count && (!suspended || reconfig_due_to_wowlan))
 		drv_reconfig_complete(local, IEEE80211_RECONFIG_TYPE_RESTART);
 
-	if (!local->suspended)
+	if (!suspended)
 		return 0;
 
 #ifdef CONFIG_PM
@@ -2168,7 +2142,13 @@ void ieee80211_recalc_smps(struct ieee80211_sub_if_data *sdata)
 	chanctx_conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
 					lockdep_is_held(&local->chanctx_mtx));
 
-	if (WARN_ON_ONCE(!chanctx_conf))
+	/*
+	 * This function can be called from a work, thus it may be possible
+	 * that the chanctx_conf is removed (due to a disconnection, for
+	 * example).
+	 * So nothing should be done in such case.
+	 */
+	if (!chanctx_conf)
 		goto unlock;
 
 	chanctx = container_of(chanctx_conf, struct ieee80211_chanctx, conf);
@@ -2305,7 +2285,7 @@ u8 *ieee80211_ie_build_vht_cap(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 
 u8 *ieee80211_ie_build_ht_oper(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 			       const struct cfg80211_chan_def *chandef,
-			       u16 prot_mode)
+			       u16 prot_mode, bool rifs_mode)
 {
 	struct ieee80211_ht_operation *ht_oper;
 	/* Build HT Information */
@@ -2333,6 +2313,9 @@ u8 *ieee80211_ie_build_ht_oper(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 	    chandef->width != NL80211_CHAN_WIDTH_20)
 		ht_oper->ht_param |= IEEE80211_HT_PARAM_CHAN_WIDTH_ANY;
 
+	if (rifs_mode)
+		ht_oper->ht_param |= IEEE80211_HT_PARAM_RIFS_MODE;
+
 	ht_oper->operation_mode = cpu_to_le16(prot_mode);
 	ht_oper->stbc_param = 0x0000;
 
@@ -2357,6 +2340,8 @@ u8 *ieee80211_ie_build_vht_oper(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 	if (chandef->center_freq2)
 		vht_oper->center_freq_seg2_idx =
 			ieee80211_frequency_to_channel(chandef->center_freq2);
+	else
+		vht_oper->center_freq_seg2_idx = 0x00;
 
 	switch (chandef->width) {
 	case NL80211_CHAN_WIDTH_160:
@@ -2574,7 +2559,7 @@ int ieee80211_ave_rssi(struct ieee80211_vif *vif)
 		/* non-managed type inferfaces */
 		return 0;
 	}
-	return ifmgd->ave_beacon_signal / 16;
+	return -ewma_beacon_signal_read(&ifmgd->ave_beacon_signal);
 }
 EXPORT_SYMBOL_GPL(ieee80211_ave_rssi);
 
@@ -2984,6 +2969,13 @@ ieee80211_extend_noa_desc(struct ieee80211_noa_data *data, u32 tsf, int i)
 	if (end > 0)
 		return false;
 
+	/* One shot NOA  */
+	if (data->count[i] == 1)
+		return false;
+
+	if (data->desc[i].interval == 0)
+		return false;
+
 	/* End time is in the past, check for repetitions */
 	skip = DIV_ROUND_UP(-end, data->desc[i].interval);
 	if (data->count[i] < 255) {
@@ -3331,9 +3323,11 @@ void ieee80211_init_tx_queue(struct ieee80211_sub_if_data *sdata,
 	if (sta) {
 		txqi->txq.sta = &sta->sta;
 		sta->sta.txq[tid] = &txqi->txq;
+		txqi->txq.tid = tid;
 		txqi->txq.ac = ieee802_1d_to_ac[tid & 7];
 	} else {
 		sdata->vif.txq = &txqi->txq;
+		txqi->txq.tid = 0;
 		txqi->txq.ac = IEEE80211_AC_BE;
 	}
 }

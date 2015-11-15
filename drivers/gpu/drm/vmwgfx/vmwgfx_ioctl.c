@@ -1,6 +1,6 @@
 /**************************************************************************
  *
- * Copyright © 2009 VMware, Inc., Palo Alto, CA., USA
+ * Copyright © 2009-2015 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -28,6 +28,7 @@
 #include "vmwgfx_drv.h"
 #include <drm/vmwgfx_drm.h>
 #include "vmwgfx_kms.h"
+#include "device_include/svga3d_caps.h"
 
 struct svga_3d_compat_cap {
 	SVGA3dCapsRecordHeader header;
@@ -63,7 +64,7 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 		break;
 	case DRM_VMW_PARAM_FIFO_HW_VERSION:
 	{
-		__le32 __iomem *fifo_mem = dev_priv->mmio_virt;
+		u32 *fifo_mem = dev_priv->mmio_virt;
 		const struct vmw_fifo_state *fifo = &dev_priv->fifo;
 
 		if ((dev_priv->capabilities & SVGA_CAP_GBOBJECTS)) {
@@ -72,11 +73,11 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 		}
 
 		param->value =
-			ioread32(fifo_mem +
-				 ((fifo->capabilities &
-				   SVGA_FIFO_CAP_3D_HWVERSION_REVISED) ?
-				  SVGA_FIFO_3D_HWVERSION_REVISED :
-				  SVGA_FIFO_3D_HWVERSION));
+			vmw_mmio_read(fifo_mem +
+				      ((fifo->capabilities &
+					SVGA_FIFO_CAP_3D_HWVERSION_REVISED) ?
+				       SVGA_FIFO_3D_HWVERSION_REVISED :
+				       SVGA_FIFO_3D_HWVERSION));
 		break;
 	}
 	case DRM_VMW_PARAM_MAX_SURF_MEMORY:
@@ -105,6 +106,13 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 	case DRM_VMW_PARAM_MAX_MOB_SIZE:
 		param->value = dev_priv->max_mob_size;
 		break;
+	case DRM_VMW_PARAM_SCREEN_TARGET:
+		param->value =
+			(dev_priv->active_display_unit == vmw_du_screen_target);
+		break;
+	case DRM_VMW_PARAM_DX:
+		param->value = dev_priv->has_dx;
+		break;
 	default:
 		DRM_ERROR("Illegal vmwgfx get param request: %d\n",
 			  param->param);
@@ -112,6 +120,22 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 	}
 
 	return 0;
+}
+
+static u32 vmw_mask_multisample(unsigned int cap, u32 fmt_value)
+{
+	/* If the header is updated, update the format test as well! */
+	BUILD_BUG_ON(SVGA3D_DEVCAP_DXFMT_BC5_UNORM + 1 != SVGA3D_DEVCAP_MAX);
+
+	if (cap >= SVGA3D_DEVCAP_DXFMT_X8R8G8B8 &&
+	    cap <= SVGA3D_DEVCAP_DXFMT_BC5_UNORM)
+		fmt_value &= ~(SVGADX_DXFMT_MULTISAMPLE_2 |
+			       SVGADX_DXFMT_MULTISAMPLE_4 |
+			       SVGADX_DXFMT_MULTISAMPLE_8);
+	else if (cap == SVGA3D_DEVCAP_MULTISAMPLE_MASKABLESAMPLES)
+		return 0;
+
+	return fmt_value;
 }
 
 static int vmw_fill_compat_cap(struct vmw_private *dev_priv, void *bounce,
@@ -139,7 +163,8 @@ static int vmw_fill_compat_cap(struct vmw_private *dev_priv, void *bounce,
 	for (i = 0; i < max_size; ++i) {
 		vmw_write(dev_priv, SVGA_REG_DEV_CAP, i);
 		compat_cap->pairs[i][0] = i;
-		compat_cap->pairs[i][1] = vmw_read(dev_priv, SVGA_REG_DEV_CAP);
+		compat_cap->pairs[i][1] = vmw_mask_multisample
+			(i, vmw_read(dev_priv, SVGA_REG_DEV_CAP));
 	}
 	spin_unlock(&dev_priv->cap_lock);
 
@@ -154,7 +179,7 @@ int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 		(struct drm_vmw_get_3d_cap_arg *) data;
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	uint32_t size;
-	__le32 __iomem *fifo_mem;
+	u32 *fifo_mem;
 	void __user *buffer = (void __user *)((unsigned long)(arg->buffer));
 	void *bounce;
 	int ret;
@@ -194,7 +219,8 @@ int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 		spin_lock(&dev_priv->cap_lock);
 		for (i = 0; i < num; ++i) {
 			vmw_write(dev_priv, SVGA_REG_DEV_CAP, i);
-			*bounce32++ = vmw_read(dev_priv, SVGA_REG_DEV_CAP);
+			*bounce32++ = vmw_mask_multisample
+				(i, vmw_read(dev_priv, SVGA_REG_DEV_CAP));
 		}
 		spin_unlock(&dev_priv->cap_lock);
 	} else if (gb_objects) {
@@ -203,7 +229,7 @@ int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 			goto out_err;
 	} else {
 		fifo_mem = dev_priv->mmio_virt;
-		memcpy_fromio(bounce, &fifo_mem[SVGA_FIFO_3D_CAPS], size);
+		memcpy(bounce, &fifo_mem[SVGA_FIFO_3D_CAPS], size);
 	}
 
 	ret = copy_to_user(buffer, bounce, size);
@@ -235,7 +261,7 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	num_clips = arg->num_clips;
-	clips_ptr = (struct drm_vmw_rect *)(unsigned long)arg->clips_ptr;
+	clips_ptr = (struct drm_vmw_rect __user *)(unsigned long)arg->clips_ptr;
 
 	if (unlikely(num_clips == 0))
 		return 0;
@@ -318,7 +344,7 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	num_clips = arg->num_clips;
-	clips_ptr = (struct drm_vmw_rect *)(unsigned long)arg->clips_ptr;
+	clips_ptr = (struct drm_vmw_rect __user *)(unsigned long)arg->clips_ptr;
 
 	if (unlikely(num_clips == 0))
 		return 0;

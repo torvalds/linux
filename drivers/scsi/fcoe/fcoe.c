@@ -287,7 +287,6 @@ static struct scsi_host_template fcoe_shost_template = {
 	.use_clustering = ENABLE_CLUSTERING,
 	.sg_tablesize = SG_ALL,
 	.max_sectors = 0xffff,
-	.use_blk_tags = 1,
 	.track_queue_depth = 1,
 };
 
@@ -364,7 +363,7 @@ static int fcoe_interface_setup(struct fcoe_interface *fcoe,
 	 * on the ethertype for the given device
 	 */
 	fcoe->fcoe_packet_type.func = fcoe_rcv;
-	fcoe->fcoe_packet_type.type = __constant_htons(ETH_P_FCOE);
+	fcoe->fcoe_packet_type.type = htons(ETH_P_FCOE);
 	fcoe->fcoe_packet_type.dev = netdev;
 	dev_add_pack(&fcoe->fcoe_packet_type);
 
@@ -1873,7 +1872,6 @@ static int fcoe_percpu_receive_thread(void *arg)
 
 	set_user_nice(current, MIN_NICE);
 
-retry:
 	while (!kthread_should_stop()) {
 
 		spin_lock_bh(&p->fcoe_rx_list.lock);
@@ -1883,7 +1881,7 @@ retry:
 			set_current_state(TASK_INTERRUPTIBLE);
 			spin_unlock_bh(&p->fcoe_rx_list.lock);
 			schedule();
-			goto retry;
+			continue;
 		}
 
 		spin_unlock_bh(&p->fcoe_rx_list.lock);

@@ -63,7 +63,7 @@
 
 struct mx3_camera_buffer {
 	/* common v4l buffer stuff -- must be first */
-	struct vb2_buffer			vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head			queue;
 
 	/* One descriptot per scatterlist (per frame) */
@@ -133,7 +133,7 @@ static void csi_reg_write(struct mx3_camera_dev *mx3, u32 value, off_t reg)
 	__raw_writel(value, mx3->base + reg);
 }
 
-static struct mx3_camera_buffer *to_mx3_vb(struct vb2_buffer *vb)
+static struct mx3_camera_buffer *to_mx3_vb(struct vb2_v4l2_buffer *vb)
 {
 	return container_of(vb, struct mx3_camera_buffer, vb);
 }
@@ -151,14 +151,14 @@ static void mx3_cam_dma_done(void *arg)
 
 	spin_lock(&mx3_cam->lock);
 	if (mx3_cam->active) {
-		struct vb2_buffer *vb = &mx3_cam->active->vb;
+		struct vb2_v4l2_buffer *vb = &mx3_cam->active->vb;
 		struct mx3_camera_buffer *buf = to_mx3_vb(vb);
 
 		list_del_init(&buf->queue);
-		v4l2_get_timestamp(&vb->v4l2_buf.timestamp);
-		vb->v4l2_buf.field = mx3_cam->field;
-		vb->v4l2_buf.sequence = mx3_cam->sequence++;
-		vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
+		v4l2_get_timestamp(&vb->timestamp);
+		vb->field = mx3_cam->field;
+		vb->sequence = mx3_cam->sequence++;
+		vb2_buffer_done(&vb->vb2_buf, VB2_BUF_STATE_DONE);
 	}
 
 	if (list_empty(&mx3_cam->capture)) {
@@ -185,10 +185,11 @@ static void mx3_cam_dma_done(void *arg)
  * Calculate the __buffer__ (not data) size and number of buffers.
  */
 static int mx3_videobuf_setup(struct vb2_queue *vq,
-			const struct v4l2_format *fmt,
+			const void *parg,
 			unsigned int *count, unsigned int *num_planes,
 			unsigned int sizes[], void *alloc_ctxs[])
 {
+	const struct v4l2_format *fmt = parg;
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
@@ -257,10 +258,11 @@ static enum pixel_fmt fourcc_to_ipu_pix(__u32 fourcc)
 
 static void mx3_videobuf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vb->vb2_queue);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
-	struct mx3_camera_buffer *buf = to_mx3_vb(vb);
+	struct mx3_camera_buffer *buf = to_mx3_vb(vbuf);
 	struct scatterlist *sg = &buf->sg;
 	struct dma_async_tx_descriptor *txd;
 	struct idmac_channel *ichan = mx3_cam->idmac_channel[0];
@@ -273,7 +275,7 @@ static void mx3_videobuf_queue(struct vb2_buffer *vb)
 
 	if (vb2_plane_size(vb, 0) < new_size) {
 		dev_err(icd->parent, "Buffer #%d too small (%lu < %zu)\n",
-			vb->v4l2_buf.index, vb2_plane_size(vb, 0), new_size);
+			vbuf->vb2_buf.index, vb2_plane_size(vb, 0), new_size);
 		goto error;
 	}
 
@@ -357,10 +359,11 @@ error:
 
 static void mx3_videobuf_release(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vb->vb2_queue);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
-	struct mx3_camera_buffer *buf = to_mx3_vb(vb);
+	struct mx3_camera_buffer *buf = to_mx3_vb(vbuf);
 	struct dma_async_tx_descriptor *txd = buf->txd;
 	unsigned long flags;
 
@@ -390,10 +393,11 @@ static void mx3_videobuf_release(struct vb2_buffer *vb)
 
 static int mx3_videobuf_init(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vb->vb2_queue);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
-	struct mx3_camera_buffer *buf = to_mx3_vb(vb);
+	struct mx3_camera_buffer *buf = to_mx3_vb(vbuf);
 
 	if (!buf->txd) {
 		/* This is for locking debugging only */
@@ -424,7 +428,7 @@ static void mx3_stop_streaming(struct vb2_queue *q)
 
 	list_for_each_entry_safe(buf, tmp, &mx3_cam->capture, queue) {
 		list_del_init(&buf->queue);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 
 	spin_unlock_irqrestore(&mx3_cam->lock, flags);

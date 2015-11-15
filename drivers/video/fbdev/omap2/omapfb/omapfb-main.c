@@ -1091,7 +1091,7 @@ static void mmap_user_close(struct vm_area_struct *vma)
 	omapfb_put_mem_region(rg);
 }
 
-static struct vm_operations_struct mmap_user_ops = {
+static const struct vm_operations_struct mmap_user_ops = {
 	.open = mmap_user_open,
 	.close = mmap_user_close,
 };

@@ -167,8 +167,6 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 		mwifiex_dbg(adapter, ERROR,
 			    "DNLD_CMD: FW in reset state, ignore cmd %#x\n",
 			cmd_code);
-		if (cmd_node->wait_q_enabled)
-			mwifiex_complete_cmd(adapter, cmd_node);
 		mwifiex_recycle_cmd_node(adapter, cmd_node);
 		queue_work(adapter->workqueue, &adapter->main_work);
 		return -1;
@@ -809,17 +807,6 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 	adapter->is_cmd_timedout = 0;
 
 	resp = (struct host_cmd_ds_command *) adapter->curr_cmd->resp_skb->data;
-	if (adapter->curr_cmd->cmd_flag & CMD_F_CANCELED) {
-		mwifiex_dbg(adapter, ERROR,
-			    "CMD_RESP: %#x been canceled\n",
-			    le16_to_cpu(resp->command));
-		mwifiex_recycle_cmd_node(adapter, adapter->curr_cmd);
-		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
-		adapter->curr_cmd = NULL;
-		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
-		return -1;
-	}
-
 	if (adapter->curr_cmd->cmd_flag & CMD_F_HOSTCMD) {
 		/* Copy original response back to response buffer */
 		struct mwifiex_ds_misc_cmd *hostcmd;
@@ -989,12 +976,13 @@ mwifiex_cmd_timeout_func(unsigned long function_context)
 
 		if (cmd_node->wait_q_enabled) {
 			adapter->cmd_wait_q.status = -ETIMEDOUT;
-			wake_up_interruptible(&adapter->cmd_wait_q.wait);
 			mwifiex_cancel_pending_ioctl(adapter);
 		}
 	}
-	if (adapter->hw_status == MWIFIEX_HW_STATUS_INITIALIZING)
+	if (adapter->hw_status == MWIFIEX_HW_STATUS_INITIALIZING) {
 		mwifiex_init_fw_complete(adapter);
+		return;
+	}
 
 	if (adapter->if_ops.device_dump)
 		adapter->if_ops.device_dump(adapter);
@@ -1024,6 +1012,7 @@ mwifiex_cancel_all_pending_cmd(struct mwifiex_adapter *adapter)
 		adapter->curr_cmd->wait_q_enabled = false;
 		adapter->cmd_wait_q.status = -1;
 		mwifiex_complete_cmd(adapter, adapter->curr_cmd);
+		/* no recycle probably wait for response */
 	}
 	/* Cancel all pending command */
 	spin_lock_irqsave(&adapter->cmd_pending_q_lock, flags);
@@ -1032,11 +1021,8 @@ mwifiex_cancel_all_pending_cmd(struct mwifiex_adapter *adapter)
 		list_del(&cmd_node->list);
 		spin_unlock_irqrestore(&adapter->cmd_pending_q_lock, flags);
 
-		if (cmd_node->wait_q_enabled) {
+		if (cmd_node->wait_q_enabled)
 			adapter->cmd_wait_q.status = -1;
-			mwifiex_complete_cmd(adapter, cmd_node);
-			cmd_node->wait_q_enabled = false;
-		}
 		mwifiex_recycle_cmd_node(adapter, cmd_node);
 		spin_lock_irqsave(&adapter->cmd_pending_q_lock, flags);
 	}
@@ -1094,12 +1080,18 @@ mwifiex_cancel_pending_ioctl(struct mwifiex_adapter *adapter)
 	    (adapter->curr_cmd->wait_q_enabled)) {
 		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, cmd_flags);
 		cmd_node = adapter->curr_cmd;
-		cmd_node->wait_q_enabled = false;
-		cmd_node->cmd_flag |= CMD_F_CANCELED;
-		mwifiex_recycle_cmd_node(adapter, cmd_node);
-		mwifiex_complete_cmd(adapter, adapter->curr_cmd);
+		/* setting curr_cmd to NULL is quite dangerous, because
+		 * mwifiex_process_cmdresp checks curr_cmd to be != NULL
+		 * at the beginning then relies on it and dereferences
+		 * it at will
+		 * this probably works since mwifiex_cmd_timeout_func
+		 * is the only caller of this function and responses
+		 * at that point
+		 */
 		adapter->curr_cmd = NULL;
 		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, cmd_flags);
+
+		mwifiex_recycle_cmd_node(adapter, cmd_node);
 	}
 
 	/* Cancel all pending scan command */
@@ -1129,7 +1121,6 @@ mwifiex_cancel_pending_ioctl(struct mwifiex_adapter *adapter)
 			}
 		}
 	}
-	adapter->cmd_wait_q.status = -1;
 }
 
 /*

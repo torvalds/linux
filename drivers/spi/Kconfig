@@ -88,6 +88,17 @@ config SPI_BCM2835
 	  is for the regular SPI controller. Slave mode operation is not also
 	  not supported.
 
+config SPI_BCM2835AUX
+	tristate "BCM2835 SPI auxiliary controller"
+	depends on ARCH_BCM2835 || COMPILE_TEST
+	depends on GPIOLIB
+	help
+	  This selects a driver for the Broadcom BCM2835 SPI aux master.
+
+	  The BCM2835 contains two types of SPI master controller; the
+	  "universal SPI master", and the regular SPI controller.
+	  This driver is for the universal/auxiliary SPI controller.
+
 config SPI_BFIN5XX
 	tristate "SPI controller driver for ADI Blackfin5xx"
 	depends on BLACKFIN && !BF60x
@@ -125,7 +136,7 @@ config SPI_BCM53XX
 
 config SPI_BCM63XX
 	tristate "Broadcom BCM63xx SPI controller"
-	depends on BCM63XX
+	depends on BCM63XX || COMPILE_TEST
 	help
           Enable support for the SPI controller on the Broadcom BCM63xx SoCs.
 
@@ -304,7 +315,7 @@ config SPI_FSL_SPI
 config SPI_FSL_DSPI
 	tristate "Freescale DSPI controller"
 	select REGMAP_MMIO
-	depends on SOC_VF610 || SOC_LS1021A || COMPILE_TEST
+	depends on SOC_VF610 || SOC_LS1021A || ARCH_LAYERSCAPE || COMPILE_TEST
 	help
 	  This enables support for the Freescale DSPI controller in master
 	  mode. VF610 platform uses the controller.
@@ -325,6 +336,15 @@ config SPI_MESON_SPIFC
 	help
 	  This enables master mode support for the SPIFC (SPI flash
 	  controller) available in Amlogic Meson SoCs.
+
+config SPI_MT65XX
+	tristate "MediaTek SPI controller"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	help
+	  This selects the MediaTek(R) SPI bus driver.
+	  If you want to use MediaTek(R) SPI interface,
+	  say Y or M here.If you are not sure, say N.
+	  SPI drivers for Mediatek MT65XX and MT81XX series ARM SoCs.
 
 config SPI_OC_TINY
 	tristate "OpenCores tiny SPI"
@@ -597,6 +617,17 @@ config SPI_XILINX
 	  Product Specification document (DS464) for hardware details.
 
 	  Or for the DS570, see "XPS Serial Peripheral Interface (SPI) (v2.00b)"
+
+config SPI_XLP
+	tristate "Netlogic XLP SPI controller driver"
+	depends on CPU_XLP || COMPILE_TEST
+	help
+	  Enable support for the SPI controller on the Netlogic XLP SoCs.
+	  Currently supported XLP variants are XLP8XX, XLP3XX, XLP2XX, XLP9XX
+	  and XLP5XX.
+
+	  If you have a Netlogic XLP platform say Y here.
+	  If unsure, say N.
 
 config SPI_XTENSA_XTFPGA
 	tristate "Xtensa SPI controller for xtfpga"

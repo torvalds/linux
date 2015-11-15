@@ -104,6 +104,20 @@ struct drm_fb_helper_connector {
 	struct drm_connector *connector;
 };
 
+/**
+ * struct drm_fb_helper - helper to emulate fbdev on top of kms
+ * @fb:  Scanout framebuffer object
+ * @dev:  DRM device
+ * @crtc_count: number of possible CRTCs
+ * @crtc_info: per-CRTC helper state (mode, x/y offset, etc)
+ * @connector_count: number of connected connectors
+ * @connector_info_alloc_count: size of connector_info
+ * @funcs: driver callbacks for fb helper
+ * @fbdev: emulated fbdev device info struct
+ * @pseudo_palette: fake palette of 16 colors
+ * @kernel_fb_list: list_head in kernel_fb_helper_list
+ * @delayed_hotplug: was there a hotplug while kms master active?
+ */
 struct drm_fb_helper {
 	struct drm_framebuffer *fb;
 	struct drm_device *dev;
@@ -120,8 +134,20 @@ struct drm_fb_helper {
 	/* we got a hotplug but fbdev wasn't running the console
 	   delay until next set_par */
 	bool delayed_hotplug;
+
+	/**
+	 * @atomic:
+	 *
+	 * Use atomic updates for restore_fbdev_mode(), etc.  This defaults to
+	 * true if driver has DRIVER_ATOMIC feature flag, but drivers can
+	 * override it to true after drm_fb_helper_init() if they support atomic
+	 * modeset but do not yet advertise DRIVER_ATOMIC (note that fb-helper
+	 * does not require ASYNC commits).
+	 */
+	bool atomic;
 };
 
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 void drm_fb_helper_prepare(struct drm_device *dev, struct drm_fb_helper *helper,
 			   const struct drm_fb_helper_funcs *funcs);
 int drm_fb_helper_init(struct drm_device *dev,
@@ -135,11 +161,38 @@ int drm_fb_helper_set_par(struct fb_info *info);
 int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 			    struct fb_info *info);
 
-bool drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper);
+int drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper);
+
+struct fb_info *drm_fb_helper_alloc_fbi(struct drm_fb_helper *fb_helper);
+void drm_fb_helper_unregister_fbi(struct drm_fb_helper *fb_helper);
+void drm_fb_helper_release_fbi(struct drm_fb_helper *fb_helper);
 void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helper,
 			    uint32_t fb_width, uint32_t fb_height);
 void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
 			    uint32_t depth);
+
+void drm_fb_helper_unlink_fbi(struct drm_fb_helper *fb_helper);
+
+ssize_t drm_fb_helper_sys_read(struct fb_info *info, char __user *buf,
+			       size_t count, loff_t *ppos);
+ssize_t drm_fb_helper_sys_write(struct fb_info *info, const char __user *buf,
+				size_t count, loff_t *ppos);
+
+void drm_fb_helper_sys_fillrect(struct fb_info *info,
+				const struct fb_fillrect *rect);
+void drm_fb_helper_sys_copyarea(struct fb_info *info,
+				const struct fb_copyarea *area);
+void drm_fb_helper_sys_imageblit(struct fb_info *info,
+				 const struct fb_image *image);
+
+void drm_fb_helper_cfb_fillrect(struct fb_info *info,
+				const struct fb_fillrect *rect);
+void drm_fb_helper_cfb_copyarea(struct fb_info *info,
+				const struct fb_copyarea *area);
+void drm_fb_helper_cfb_imageblit(struct fb_info *info,
+				 const struct fb_image *image);
+
+void drm_fb_helper_set_suspend(struct drm_fb_helper *fb_helper, int state);
 
 int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info);
 
@@ -158,4 +211,188 @@ drm_pick_cmdline_mode(struct drm_fb_helper_connector *fb_helper_conn,
 int drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper, struct drm_connector *connector);
 int drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
 				       struct drm_connector *connector);
+#else
+static inline void drm_fb_helper_prepare(struct drm_device *dev,
+					struct drm_fb_helper *helper,
+					const struct drm_fb_helper_funcs *funcs)
+{
+}
+
+static inline int drm_fb_helper_init(struct drm_device *dev,
+		       struct drm_fb_helper *helper, int crtc_count,
+		       int max_conn)
+{
+	return 0;
+}
+
+static inline void drm_fb_helper_fini(struct drm_fb_helper *helper)
+{
+}
+
+static inline int drm_fb_helper_blank(int blank, struct fb_info *info)
+{
+	return 0;
+}
+
+static inline int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
+					    struct fb_info *info)
+{
+	return 0;
+}
+
+static inline int drm_fb_helper_set_par(struct fb_info *info)
+{
+	return 0;
+}
+
+static inline int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
+					  struct fb_info *info)
+{
+	return 0;
+}
+
+static inline int
+drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper)
+{
+	return 0;
+}
+
+static inline struct fb_info *
+drm_fb_helper_alloc_fbi(struct drm_fb_helper *fb_helper)
+{
+	return NULL;
+}
+
+static inline void drm_fb_helper_unregister_fbi(struct drm_fb_helper *fb_helper)
+{
+}
+static inline void drm_fb_helper_release_fbi(struct drm_fb_helper *fb_helper)
+{
+}
+
+static inline void drm_fb_helper_fill_var(struct fb_info *info,
+					  struct drm_fb_helper *fb_helper,
+					  uint32_t fb_width, uint32_t fb_height)
+{
+}
+
+static inline void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
+					  uint32_t depth)
+{
+}
+
+static inline int drm_fb_helper_setcmap(struct fb_cmap *cmap,
+					struct fb_info *info)
+{
+	return 0;
+}
+
+static inline void drm_fb_helper_unlink_fbi(struct drm_fb_helper *fb_helper)
+{
+}
+
+static inline ssize_t drm_fb_helper_sys_read(struct fb_info *info,
+					     char __user *buf, size_t count,
+					     loff_t *ppos)
+{
+	return -ENODEV;
+}
+
+static inline ssize_t drm_fb_helper_sys_write(struct fb_info *info,
+					      const char __user *buf,
+					      size_t count, loff_t *ppos)
+{
+	return -ENODEV;
+}
+
+static inline void drm_fb_helper_sys_fillrect(struct fb_info *info,
+					      const struct fb_fillrect *rect)
+{
+}
+
+static inline void drm_fb_helper_sys_copyarea(struct fb_info *info,
+					      const struct fb_copyarea *area)
+{
+}
+
+static inline void drm_fb_helper_sys_imageblit(struct fb_info *info,
+					       const struct fb_image *image)
+{
+}
+
+static inline void drm_fb_helper_cfb_fillrect(struct fb_info *info,
+					      const struct fb_fillrect *rect)
+{
+}
+
+static inline void drm_fb_helper_cfb_copyarea(struct fb_info *info,
+					      const struct fb_copyarea *area)
+{
+}
+
+static inline void drm_fb_helper_cfb_imageblit(struct fb_info *info,
+					       const struct fb_image *image)
+{
+}
+
+static inline void drm_fb_helper_set_suspend(struct drm_fb_helper *fb_helper,
+					     int state)
+{
+}
+
+static inline int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
+{
+	return 0;
+}
+
+static inline int drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper,
+					       int bpp_sel)
+{
+	return 0;
+}
+
+static inline int
+drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
+{
+	return 0;
+}
+
+static inline int drm_fb_helper_debug_enter(struct fb_info *info)
+{
+	return 0;
+}
+
+static inline int drm_fb_helper_debug_leave(struct fb_info *info)
+{
+	return 0;
+}
+
+static inline struct drm_display_mode *
+drm_has_preferred_mode(struct drm_fb_helper_connector *fb_connector,
+		       int width, int height)
+{
+	return NULL;
+}
+
+static inline struct drm_display_mode *
+drm_pick_cmdline_mode(struct drm_fb_helper_connector *fb_helper_conn,
+		      int width, int height)
+{
+	return NULL;
+}
+
+static inline int
+drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper,
+				struct drm_connector *connector)
+{
+	return 0;
+}
+
+static inline int
+drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
+				   struct drm_connector *connector)
+{
+	return 0;
+}
+#endif
 #endif

@@ -65,11 +65,11 @@ static struct davinci_gpio_regs __iomem *gpio2regs(unsigned gpio)
 	return ptr;
 }
 
-static inline struct davinci_gpio_regs __iomem *irq2regs(int irq)
+static inline struct davinci_gpio_regs __iomem *irq2regs(struct irq_data *d)
 {
 	struct davinci_gpio_regs __iomem *g;
 
-	g = (__force struct davinci_gpio_regs __iomem *)irq_get_chip_data(irq);
+	g = (__force struct davinci_gpio_regs __iomem *)irq_data_get_irq_chip_data(d);
 
 	return g;
 }
@@ -287,7 +287,7 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 
 static void gpio_irq_disable(struct irq_data *d)
 {
-	struct davinci_gpio_regs __iomem *g = irq2regs(d->irq);
+	struct davinci_gpio_regs __iomem *g = irq2regs(d);
 	u32 mask = (u32) irq_data_get_irq_handler_data(d);
 
 	writel_relaxed(mask, &g->clr_falling);
@@ -296,7 +296,7 @@ static void gpio_irq_disable(struct irq_data *d)
 
 static void gpio_irq_enable(struct irq_data *d)
 {
-	struct davinci_gpio_regs __iomem *g = irq2regs(d->irq);
+	struct davinci_gpio_regs __iomem *g = irq2regs(d);
 	u32 mask = (u32) irq_data_get_irq_handler_data(d);
 	unsigned status = irqd_get_trigger_type(d);
 
@@ -326,9 +326,9 @@ static struct irq_chip gpio_irqchip = {
 	.flags		= IRQCHIP_SET_TYPE_MASKED,
 };
 
-static void
-gpio_irq_handler(unsigned irq, struct irq_desc *desc)
+static void gpio_irq_handler(struct irq_desc *desc)
 {
+	unsigned int irq = irq_desc_get_irq(desc);
 	struct davinci_gpio_regs __iomem *g;
 	u32 mask = 0xffff;
 	struct davinci_gpio_controller *d;
@@ -396,7 +396,7 @@ static int gpio_irq_type_unbanked(struct irq_data *data, unsigned trigger)
 	struct davinci_gpio_regs __iomem *g;
 	u32 mask;
 
-	d = (struct davinci_gpio_controller *)data->handler_data;
+	d = (struct davinci_gpio_controller *)irq_data_get_irq_handler_data(data);
 	g = (struct davinci_gpio_regs __iomem *)d->regs;
 	mask = __gpio_mask(data->irq - d->gpio_irq);
 
@@ -422,7 +422,6 @@ davinci_gpio_irq_map(struct irq_domain *d, unsigned int irq,
 	irq_set_irq_type(irq, IRQ_TYPE_NONE);
 	irq_set_chip_data(irq, (__force void *)g);
 	irq_set_handler_data(irq, (void *)__gpio_mask(hw));
-	set_irq_flags(irq, IRQF_VALID);
 
 	return 0;
 }
@@ -545,7 +544,7 @@ static int davinci_gpio_irq_setup(struct platform_device *pdev)
 		chips[0].chip.to_irq = gpio_to_irq_unbanked;
 		chips[0].gpio_irq = bank_irq;
 		chips[0].gpio_unbanked = pdata->gpio_unbanked;
-		binten = BIT(0);
+		binten = GENMASK(pdata->gpio_unbanked / 16, 0);
 
 		/* AINTC handles mask/unmask; GPIO handles triggering */
 		irq = bank_irq;

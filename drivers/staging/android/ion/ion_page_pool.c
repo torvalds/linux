@@ -19,7 +19,7 @@
 #include <linux/err.h>
 #include <linux/fs.h>
 #include <linux/list.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/swap.h>
 #include "ion_priv.h"
@@ -116,7 +116,7 @@ static int ion_page_pool_total(struct ion_page_pool *pool, bool high)
 int ion_page_pool_shrink(struct ion_page_pool *pool, gfp_t gfp_mask,
 				int nr_to_scan)
 {
-	int freed;
+	int freed = 0;
 	bool high;
 
 	if (current_is_kswapd())
@@ -127,7 +127,7 @@ int ion_page_pool_shrink(struct ion_page_pool *pool, gfp_t gfp_mask,
 	if (nr_to_scan == 0)
 		return ion_page_pool_total(pool, high);
 
-	for (freed = 0; freed < nr_to_scan; freed++) {
+	while (freed < nr_to_scan) {
 		struct page *page;
 
 		mutex_lock(&pool->mutex);
@@ -141,6 +141,7 @@ int ion_page_pool_shrink(struct ion_page_pool *pool, gfp_t gfp_mask,
 		}
 		mutex_unlock(&pool->mutex);
 		ion_page_pool_free_pages(pool, page);
+		freed += (1 << pool->order);
 	}
 
 	return freed;
@@ -173,10 +174,4 @@ static int __init ion_page_pool_init(void)
 {
 	return 0;
 }
-
-static void __exit ion_page_pool_exit(void)
-{
-}
-
-module_init(ion_page_pool_init);
-module_exit(ion_page_pool_exit);
+device_initcall(ion_page_pool_init);

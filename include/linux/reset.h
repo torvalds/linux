@@ -74,6 +74,20 @@ static inline int device_reset_optional(struct device *dev)
 	return -ENOSYS;
 }
 
+static inline struct reset_control *__must_check reset_control_get(
+					struct device *dev, const char *id)
+{
+	WARN_ON(1);
+	return ERR_PTR(-EINVAL);
+}
+
+static inline struct reset_control *__must_check devm_reset_control_get(
+					struct device *dev, const char *id)
+{
+	WARN_ON(1);
+	return ERR_PTR(-EINVAL);
+}
+
 static inline struct reset_control *reset_control_get_optional(
 					struct device *dev, const char *id)
 {

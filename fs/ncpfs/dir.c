@@ -597,7 +597,7 @@ ncp_fill_cache(struct file *file, struct dir_context *ctx,
 	qname.name = __name;
 
 	newdent = d_hash_and_lookup(dentry, &qname);
-	if (unlikely(IS_ERR(newdent)))
+	if (IS_ERR(newdent))
 		goto end_advance;
 	if (!newdent) {
 		newdent = d_alloc(dentry, &qname);
@@ -1165,8 +1165,6 @@ out:
 static int ncp_mknod(struct inode * dir, struct dentry *dentry,
 		     umode_t mode, dev_t rdev)
 {
-	if (!new_valid_dev(rdev))
-		return -EINVAL;
 	if (ncp_is_nfs_extras(NCP_SERVER(dir), NCP_FINFO(dir)->volNumber)) {
 		ncp_dbg(1, "mode = 0%ho\n", mode);
 		return ncp_create_new(dir, dentry, mode, rdev, 0);

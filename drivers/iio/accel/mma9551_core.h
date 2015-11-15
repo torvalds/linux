@@ -53,13 +53,13 @@ int mma9551_write_config_byte(struct i2c_client *client, u8 app_id,
 int mma9551_read_status_byte(struct i2c_client *client, u8 app_id,
 			     u16 reg, u8 *val);
 int mma9551_read_config_word(struct i2c_client *client, u8 app_id,
-			    u16 reg, u16 *val);
+			     u16 reg, u16 *val);
 int mma9551_write_config_word(struct i2c_client *client, u8 app_id,
-			     u16 reg, u16 val);
+			      u16 reg, u16 val);
 int mma9551_read_status_word(struct i2c_client *client, u8 app_id,
 			     u16 reg, u16 *val);
 int mma9551_read_config_words(struct i2c_client *client, u8 app_id,
-			     u16 reg, u8 len, u16 *buf);
+			      u16 reg, u8 len, u16 *buf);
 int mma9551_read_status_words(struct i2c_client *client, u8 app_id,
 			      u16 reg, u8 len, u16 *buf);
 int mma9551_write_config_words(struct i2c_client *client, u8 app_id,

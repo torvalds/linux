@@ -144,6 +144,7 @@ enum xgene_enet_rm {
 #define CFG_BYPASS_UNISEC_RX		BIT(1)
 #define CFG_CLE_BYPASS_EN0		BIT(31)
 #define CFG_TXCLK_MUXSEL0_SET(dst, val)	xgene_set_bits(dst, val, 29, 3)
+#define CFG_RXCLK_MUXSEL0_SET(dst, val)	xgene_set_bits(dst, val, 26, 3)
 
 #define CFG_CLE_IP_PROTOCOL0_SET(dst, val)	xgene_set_bits(dst, val, 16, 2)
 #define CFG_CLE_DSTQID0_SET(dst, val)		xgene_set_bits(dst, val, 0, 12)
@@ -180,6 +181,7 @@ enum xgene_enet_rm {
 #define ENET_LHD_MODE			BIT(25)
 #define ENET_GHD_MODE			BIT(26)
 #define FULL_DUPLEX2			BIT(0)
+#define PAD_CRC				BIT(2)
 #define SCAN_AUTO_INCR			BIT(5)
 #define TBYT_ADDR			0x38
 #define TPKT_ADDR			0x39
@@ -193,12 +195,16 @@ enum xgene_enet_rm {
 #define USERINFO_LEN			32
 #define FPQNUM_POS			32
 #define FPQNUM_LEN			12
+#define NV_POS				50
+#define NV_LEN				1
+#define LL_POS				51
+#define LL_LEN				1
 #define LERR_POS			60
 #define LERR_LEN			3
 #define STASH_POS			52
 #define STASH_LEN			2
 #define BUFDATALEN_POS			48
-#define BUFDATALEN_LEN			12
+#define BUFDATALEN_LEN			15
 #define DATAADDR_POS			0
 #define DATAADDR_LEN			42
 #define COHERENT_POS			63
@@ -215,9 +221,19 @@ enum xgene_enet_rm {
 #define IPHDR_LEN			6
 #define EC_POS				22	/* Enable checksum */
 #define EC_LEN				1
+#define ET_POS				23	/* Enable TSO */
 #define IS_POS				24	/* IP protocol select */
 #define IS_LEN				1
 #define TYPE_ETH_WORK_MESSAGE_POS	44
+#define LL_BYTES_MSB_POS		56
+#define LL_BYTES_MSB_LEN		8
+#define LL_BYTES_LSB_POS		48
+#define LL_BYTES_LSB_LEN		12
+#define LL_LEN_POS			48
+#define LL_LEN_LEN			8
+#define DATALEN_MASK			GENMASK(11, 0)
+
+#define LAST_BUFFER			(0x7800ULL << BUFDATALEN_POS)
 
 struct xgene_enet_raw_desc {
 	__le64 m0;

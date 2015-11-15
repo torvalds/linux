@@ -33,22 +33,22 @@ dcb_gpio_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 	u16 dcb = dcb_table(bios, ver, hdr, cnt, len);
 	if (dcb) {
 		if (*ver >= 0x30 && *hdr >= 0x0c)
-			data = nv_ro16(bios, dcb + 0x0a);
+			data = nvbios_rd16(bios, dcb + 0x0a);
 		else
-		if (*ver >= 0x22 && nv_ro08(bios, dcb - 1) >= 0x13)
-			data = nv_ro16(bios, dcb - 0x0f);
+		if (*ver >= 0x22 && nvbios_rd08(bios, dcb - 1) >= 0x13)
+			data = nvbios_rd16(bios, dcb - 0x0f);
 
 		if (data) {
-			*ver = nv_ro08(bios, data + 0x00);
+			*ver = nvbios_rd08(bios, data + 0x00);
 			if (*ver < 0x30) {
 				*hdr = 3;
-				*cnt = nv_ro08(bios, data + 0x02);
-				*len = nv_ro08(bios, data + 0x01);
+				*cnt = nvbios_rd08(bios, data + 0x02);
+				*len = nvbios_rd08(bios, data + 0x01);
 			} else
 			if (*ver <= 0x41) {
-				*hdr = nv_ro08(bios, data + 0x01);
-				*cnt = nv_ro08(bios, data + 0x02);
-				*len = nv_ro08(bios, data + 0x03);
+				*hdr = nvbios_rd08(bios, data + 0x01);
+				*cnt = nvbios_rd08(bios, data + 0x02);
+				*len = nvbios_rd08(bios, data + 0x03);
 			} else {
 				data = 0x0000;
 			}
@@ -81,7 +81,7 @@ dcb_gpio_parse(struct nvkm_bios *bios, int idx, int ent, u8 *ver, u8 *len,
 	u16 data = dcb_gpio_entry(bios, idx, ent, ver, len);
 	if (data) {
 		if (*ver < 0x40) {
-			u16 info = nv_ro16(bios, data);
+			u16 info = nvbios_rd16(bios, data);
 			*gpio = (struct dcb_gpio_func) {
 				.line = (info & 0x001f) >> 0,
 				.func = (info & 0x07e0) >> 5,
@@ -91,7 +91,7 @@ dcb_gpio_parse(struct nvkm_bios *bios, int idx, int ent, u8 *ver, u8 *len,
 			};
 		} else
 		if (*ver < 0x41) {
-			u32 info = nv_ro32(bios, data);
+			u32 info = nvbios_rd32(bios, data);
 			*gpio = (struct dcb_gpio_func) {
 				.line = (info & 0x0000001f) >> 0,
 				.func = (info & 0x0000ff00) >> 8,
@@ -100,8 +100,8 @@ dcb_gpio_parse(struct nvkm_bios *bios, int idx, int ent, u8 *ver, u8 *len,
 				.param = !!(info & 0x80000000),
 			};
 		} else {
-			u32 info = nv_ro32(bios, data + 0);
-			u8 info1 = nv_ro32(bios, data + 4);
+			u32 info = nvbios_rd32(bios, data + 0);
+			u8 info1 = nvbios_rd32(bios, data + 4);
 			*gpio = (struct dcb_gpio_func) {
 				.line = (info & 0x0000003f) >> 0,
 				.func = (info & 0x0000ff00) >> 8,
@@ -131,8 +131,8 @@ dcb_gpio_match(struct nvkm_bios *bios, int idx, u8 func, u8 line,
 	/* DCB 2.2, fixed TVDAC GPIO data */
 	if ((data = dcb_table(bios, ver, &hdr, &cnt, len))) {
 		if (*ver >= 0x22 && *ver < 0x30 && func == DCB_GPIO_TVDAC0) {
-			u8 conf = nv_ro08(bios, data - 5);
-			u8 addr = nv_ro08(bios, data - 4);
+			u8 conf = nvbios_rd08(bios, data - 5);
+			u8 addr = nvbios_rd08(bios, data - 4);
 			if (conf & 0x01) {
 				*gpio = (struct dcb_gpio_func) {
 					.func = DCB_GPIO_TVDAC0,

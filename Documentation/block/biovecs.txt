@@ -24,7 +24,7 @@ particular, presenting the illusion of partially completed biovecs so that
 normal code doesn't have to deal with bi_bvec_done.
 
  * Driver code should no longer refer to biovecs directly; we now have
-   bio_iovec() and bio_iovec_iter() macros that return literal struct biovecs,
+   bio_iovec() and bio_iter_iovec() macros that return literal struct biovecs,
    constructed from the raw biovecs but taking into account bi_bvec_done and
    bi_size.
 
@@ -109,3 +109,11 @@ Other implications:
    over all the biovecs in the new bio - which is silly as it's not needed.
 
    So, don't use bi_vcnt anymore.
+
+ * The current interface allows the block layer to split bios as needed, so we
+   could eliminate a lot of complexity particularly in stacked drivers. Code
+   that creates bios can then create whatever size bios are convenient, and
+   more importantly stacked drivers don't have to deal with both their own bio
+   size limitations and the limitations of the underlying devices. Thus
+   there's no need to define ->merge_bvec_fn() callbacks for individual block
+   drivers.

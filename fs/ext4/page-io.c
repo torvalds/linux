@@ -61,7 +61,6 @@ static void buffer_io_error(struct buffer_head *bh)
 static void ext4_finish_bio(struct bio *bio)
 {
 	int i;
-	int error = !test_bit(BIO_UPTODATE, &bio->bi_flags);
 	struct bio_vec *bvec;
 
 	bio_for_each_segment_all(bvec, bio, i) {
@@ -88,7 +87,7 @@ static void ext4_finish_bio(struct bio *bio)
 		}
 #endif
 
-		if (error) {
+		if (bio->bi_error) {
 			SetPageError(page);
 			set_bit(AS_EIO, &page->mapping->flags);
 		}
@@ -107,7 +106,7 @@ static void ext4_finish_bio(struct bio *bio)
 				continue;
 			}
 			clear_buffer_async_write(bh);
-			if (error)
+			if (bio->bi_error)
 				buffer_io_error(bh);
 		} while ((bh = bh->b_this_page) != head);
 		bit_spin_unlock(BH_Uptodate_Lock, &head->b_state);
@@ -310,27 +309,25 @@ ext4_io_end_t *ext4_get_io_end(ext4_io_end_t *io_end)
 }
 
 /* BIO completion function for page writeback */
-static void ext4_end_bio(struct bio *bio, int error)
+static void ext4_end_bio(struct bio *bio)
 {
 	ext4_io_end_t *io_end = bio->bi_private;
 	sector_t bi_sector = bio->bi_iter.bi_sector;
 
 	BUG_ON(!io_end);
 	bio->bi_end_io = NULL;
-	if (test_bit(BIO_UPTODATE, &bio->bi_flags))
-		error = 0;
 
-	if (error) {
+	if (bio->bi_error) {
 		struct inode *inode = io_end->inode;
 
 		ext4_warning(inode->i_sb, "I/O error %d writing to inode %lu "
 			     "(offset %llu size %ld starting block %llu)",
-			     error, inode->i_ino,
+			     bio->bi_error, inode->i_ino,
 			     (unsigned long long) io_end->offset,
 			     (long) io_end->size,
 			     (unsigned long long)
 			     bi_sector >> (inode->i_blkbits - 9));
-		mapping_set_error(inode->i_mapping, error);
+		mapping_set_error(inode->i_mapping, bio->bi_error);
 	}
 
 	if (io_end->flag & EXT4_IO_END_UNWRITTEN) {
@@ -357,8 +354,10 @@ void ext4_io_submit(struct ext4_io_submit *io)
 	struct bio *bio = io->io_bio;
 
 	if (bio) {
+		int io_op = io->io_wbc->sync_mode == WB_SYNC_ALL ?
+			    WRITE_SYNC : WRITE;
 		bio_get(io->io_bio);
-		submit_bio(io->io_op, io->io_bio);
+		submit_bio(io_op, io->io_bio);
 		bio_put(io->io_bio);
 	}
 	io->io_bio = NULL;
@@ -367,7 +366,7 @@ void ext4_io_submit(struct ext4_io_submit *io)
 void ext4_io_submit_init(struct ext4_io_submit *io,
 			 struct writeback_control *wbc)
 {
-	io->io_op = (wbc->sync_mode == WB_SYNC_ALL ?  WRITE_SYNC : WRITE);
+	io->io_wbc = wbc;
 	io->io_bio = NULL;
 	io->io_end = NULL;
 }
@@ -375,12 +374,12 @@ void ext4_io_submit_init(struct ext4_io_submit *io,
 static int io_submit_init_bio(struct ext4_io_submit *io,
 			      struct buffer_head *bh)
 {
-	int nvecs = bio_get_nr_vecs(bh->b_bdev);
 	struct bio *bio;
 
-	bio = bio_alloc(GFP_NOIO, min(nvecs, BIO_MAX_PAGES));
+	bio = bio_alloc(GFP_NOIO, BIO_MAX_PAGES);
 	if (!bio)
 		return -ENOMEM;
+	wbc_init_bio(io->io_wbc, bio);
 	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
 	bio->bi_bdev = bh->b_bdev;
 	bio->bi_end_io = ext4_end_bio;
@@ -409,6 +408,7 @@ submit_and_retry:
 	ret = bio_add_page(io->io_bio, page, bh->b_size, bh_offset(bh));
 	if (ret != bh->b_size)
 		goto submit_and_retry;
+	wbc_account_io(io->io_wbc, page, bh->b_size);
 	io->io_next_block++;
 	return 0;
 }
@@ -425,6 +425,7 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 	struct buffer_head *bh, *head;
 	int ret = 0;
 	int nr_submitted = 0;
+	int nr_to_submit = 0;
 
 	blocksize = 1 << inode->i_blkbits;
 
@@ -477,11 +478,13 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 			unmap_underlying_metadata(bh->b_bdev, bh->b_blocknr);
 		}
 		set_buffer_async_write(bh);
+		nr_to_submit++;
 	} while ((bh = bh->b_this_page) != head);
 
 	bh = head = page_buffers(page);
 
-	if (ext4_encrypted_inode(inode) && S_ISREG(inode->i_mode)) {
+	if (ext4_encrypted_inode(inode) && S_ISREG(inode->i_mode) &&
+	    nr_to_submit) {
 		data_page = ext4_encrypt(inode, page);
 		if (IS_ERR(data_page)) {
 			ret = PTR_ERR(data_page);

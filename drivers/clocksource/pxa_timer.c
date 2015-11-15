@@ -88,26 +88,12 @@ pxa_osmr0_set_next_event(unsigned long delta, struct clock_event_device *dev)
 	return (signed)(next - oscr) <= MIN_OSCR_DELTA ? -ETIME : 0;
 }
 
-static void
-pxa_osmr0_set_mode(enum clock_event_mode mode, struct clock_event_device *dev)
+static int pxa_osmr0_shutdown(struct clock_event_device *evt)
 {
-	switch (mode) {
-	case CLOCK_EVT_MODE_ONESHOT:
-		timer_writel(timer_readl(OIER) & ~OIER_E0, OIER);
-		timer_writel(OSSR_M0, OSSR);
-		break;
-
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		/* initializing, released, or preparing for suspend */
-		timer_writel(timer_readl(OIER) & ~OIER_E0, OIER);
-		timer_writel(OSSR_M0, OSSR);
-		break;
-
-	case CLOCK_EVT_MODE_RESUME:
-	case CLOCK_EVT_MODE_PERIODIC:
-		break;
-	}
+	/* initializing, released, or preparing for suspend */
+	timer_writel(timer_readl(OIER) & ~OIER_E0, OIER);
+	timer_writel(OSSR_M0, OSSR);
+	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -147,13 +133,14 @@ static void pxa_timer_resume(struct clock_event_device *cedev)
 #endif
 
 static struct clock_event_device ckevt_pxa_osmr0 = {
-	.name		= "osmr0",
-	.features	= CLOCK_EVT_FEAT_ONESHOT,
-	.rating		= 200,
-	.set_next_event	= pxa_osmr0_set_next_event,
-	.set_mode	= pxa_osmr0_set_mode,
-	.suspend	= pxa_timer_suspend,
-	.resume		= pxa_timer_resume,
+	.name			= "osmr0",
+	.features		= CLOCK_EVT_FEAT_ONESHOT,
+	.rating			= 200,
+	.set_next_event		= pxa_osmr0_set_next_event,
+	.set_state_shutdown	= pxa_osmr0_shutdown,
+	.set_state_oneshot	= pxa_osmr0_shutdown,
+	.suspend		= pxa_timer_suspend,
+	.resume			= pxa_timer_resume,
 };
 
 static struct irqaction pxa_ost0_irq = {

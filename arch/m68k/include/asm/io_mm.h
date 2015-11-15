@@ -468,6 +468,7 @@ static inline void __iomem *ioremap_nocache(unsigned long physaddr, unsigned lon
 {
 	return __ioremap(physaddr, size, IOMAP_NOCACHE_SER);
 }
+#define ioremap_uc ioremap_nocache
 static inline void __iomem *ioremap_wt(unsigned long physaddr,
 					 unsigned long size)
 {

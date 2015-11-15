@@ -11,18 +11,13 @@
 #include <linux/dma-mapping.h>
 #include <linux/hash.h>
 
-#ifndef	DMA_ERROR_CODE
-#define	DMA_ERROR_CODE (~(dma_addr_t)0x0)
-#endif
-
 static unsigned long iommu_large_alloc = 15;
 
 static	DEFINE_PER_CPU(unsigned int, iommu_hash_common);
 
 static inline bool need_flush(struct iommu_map_table *iommu)
 {
-	return (iommu->lazy_flush != NULL &&
-		(iommu->flags & IOMMU_NEED_FLUSH) != 0);
+	return ((iommu->flags & IOMMU_NEED_FLUSH) != 0);
 }
 
 static inline void set_flush(struct iommu_map_table *iommu)
@@ -119,12 +114,12 @@ unsigned long iommu_tbl_range_alloc(struct device *dev,
 	unsigned long align_mask = 0;
 
 	if (align_order > 0)
-		align_mask = 0xffffffffffffffffl >> (64 - align_order);
+		align_mask = ~0ul >> (BITS_PER_LONG - align_order);
 
 	/* Sanity check */
 	if (unlikely(npages == 0)) {
 		WARN_ON_ONCE(1);
-		return DMA_ERROR_CODE;
+		return IOMMU_ERROR_CODE;
 	}
 
 	if (largealloc) {
@@ -207,11 +202,12 @@ unsigned long iommu_tbl_range_alloc(struct device *dev,
 			goto again;
 		} else {
 			/* give up */
-			n = DMA_ERROR_CODE;
+			n = IOMMU_ERROR_CODE;
 			goto bail;
 		}
 	}
-	if (n < pool->hint || need_flush(iommu)) {
+	if (iommu->lazy_flush &&
+	    (n < pool->hint || need_flush(iommu))) {
 		clear_flush(iommu);
 		iommu->lazy_flush(iommu);
 	}
@@ -259,7 +255,7 @@ void iommu_tbl_range_free(struct iommu_map_table *iommu, u64 dma_addr,
 	unsigned long flags;
 	unsigned long shift = iommu->table_shift;
 
-	if (entry == DMA_ERROR_CODE) /* use default addr->entry mapping */
+	if (entry == IOMMU_ERROR_CODE) /* use default addr->entry mapping */
 		entry = (dma_addr - iommu->table_map_base) >> shift;
 	pool = get_pool(iommu, entry);
 

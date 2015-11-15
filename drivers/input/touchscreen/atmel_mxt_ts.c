@@ -22,17 +22,12 @@
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>
-#include <linux/i2c/atmel_mxt_ts.h>
+#include <linux/platform_data/atmel_mxt_ts.h>
 #include <linux/input/mt.h>
 #include <linux/interrupt.h>
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
-
-/* Version */
-#define MXT_VER_20		20
-#define MXT_VER_21		21
-#define MXT_VER_22		22
 
 /* Firmware files */
 #define MXT_FW_NAME		"maxtouch.fw"
@@ -40,16 +35,7 @@
 #define MXT_CFG_MAGIC		"OBP_RAW V1"
 
 /* Registers */
-#define MXT_INFO		0x00
-#define MXT_FAMILY_ID		0x00
-#define MXT_VARIANT_ID		0x01
-#define MXT_VERSION		0x02
-#define MXT_BUILD		0x03
-#define MXT_MATRIX_X_SIZE	0x04
-#define MXT_MATRIX_Y_SIZE	0x05
-#define MXT_OBJECT_NUM		0x06
 #define MXT_OBJECT_START	0x07
-
 #define MXT_OBJECT_SIZE		6
 #define MXT_INFO_CHECKSUM_SIZE	3
 #define MXT_MAX_BLOCK_WRITE	256
@@ -103,21 +89,16 @@
 #define MXT_T6_STATUS_COMSERR	(1 << 2)
 
 /* MXT_GEN_POWER_T7 field */
-#define MXT_POWER_IDLEACQINT	0
-#define MXT_POWER_ACTVACQINT	1
-#define MXT_POWER_ACTV2IDLETO	2
+struct t7_config {
+	u8 idle;
+	u8 active;
+} __packed;
 
-/* MXT_GEN_ACQUIRE_T8 field */
-#define MXT_ACQUIRE_CHRGTIME	0
-#define MXT_ACQUIRE_TCHDRIFT	2
-#define MXT_ACQUIRE_DRIFTST	3
-#define MXT_ACQUIRE_TCHAUTOCAL	4
-#define MXT_ACQUIRE_SYNC	5
-#define MXT_ACQUIRE_ATCHCALST	6
-#define MXT_ACQUIRE_ATCHCALSTHR	7
+#define MXT_POWER_CFG_RUN		0
+#define MXT_POWER_CFG_DEEPSLEEP		1
 
 /* MXT_TOUCH_MULTI_T9 field */
-#define MXT_TOUCH_CTRL		0
+#define MXT_T9_CTRL		0
 #define MXT_T9_ORIENT		9
 #define MXT_T9_RANGE		18
 
@@ -139,50 +120,9 @@ struct t9_range {
 /* MXT_TOUCH_MULTI_T9 orient */
 #define MXT_T9_ORIENT_SWITCH	(1 << 0)
 
-/* MXT_PROCI_GRIPFACE_T20 field */
-#define MXT_GRIPFACE_CTRL	0
-#define MXT_GRIPFACE_XLOGRIP	1
-#define MXT_GRIPFACE_XHIGRIP	2
-#define MXT_GRIPFACE_YLOGRIP	3
-#define MXT_GRIPFACE_YHIGRIP	4
-#define MXT_GRIPFACE_MAXTCHS	5
-#define MXT_GRIPFACE_SZTHR1	7
-#define MXT_GRIPFACE_SZTHR2	8
-#define MXT_GRIPFACE_SHPTHR1	9
-#define MXT_GRIPFACE_SHPTHR2	10
-#define MXT_GRIPFACE_SUPEXTTO	11
-
-/* MXT_PROCI_NOISE field */
-#define MXT_NOISE_CTRL		0
-#define MXT_NOISE_OUTFLEN	1
-#define MXT_NOISE_GCAFUL_LSB	3
-#define MXT_NOISE_GCAFUL_MSB	4
-#define MXT_NOISE_GCAFLL_LSB	5
-#define MXT_NOISE_GCAFLL_MSB	6
-#define MXT_NOISE_ACTVGCAFVALID	7
-#define MXT_NOISE_NOISETHR	8
-#define MXT_NOISE_FREQHOPSCALE	10
-#define MXT_NOISE_FREQ0		11
-#define MXT_NOISE_FREQ1		12
-#define MXT_NOISE_FREQ2		13
-#define MXT_NOISE_FREQ3		14
-#define MXT_NOISE_FREQ4		15
-#define MXT_NOISE_IDLEGCAFVALID	16
-
 /* MXT_SPT_COMMSCONFIG_T18 */
 #define MXT_COMMS_CTRL		0
 #define MXT_COMMS_CMD		1
-
-/* MXT_SPT_CTECONFIG_T28 field */
-#define MXT_CTE_CTRL		0
-#define MXT_CTE_CMD		1
-#define MXT_CTE_MODE		2
-#define MXT_CTE_IDLEGCAFDEPTH	3
-#define MXT_CTE_ACTVGCAFDEPTH	4
-#define MXT_CTE_VOLTAGE		5
-
-#define MXT_VOLTAGE_DEFAULT	2700000
-#define MXT_VOLTAGE_STEP	10000
 
 /* Define for MXT_GEN_COMMAND_T6 */
 #define MXT_BOOT_VALUE		0xa5
@@ -291,6 +231,7 @@ struct mxt_data {
 	u8 last_message_count;
 	u8 num_touchids;
 	u8 multitouch;
+	struct t7_config t7_cfg;
 
 	/* Cached parameters from object table */
 	u16 T5_address;
@@ -997,16 +938,15 @@ static irqreturn_t mxt_process_messages_t44(struct mxt_data *data)
 
 	count = data->msg_buf[0];
 
-	if (count == 0) {
-		/*
-		 * This condition is caused by the CHG line being configured
-		 * in Mode 0. It results in unnecessary I2C operations but it
-		 * is benign.
-		 */
-		dev_dbg(dev, "Interrupt triggered but zero messages\n");
+	/*
+	 * This condition may be caused by the CHG line being configured in
+	 * Mode 0. It results in unnecessary I2C operations but it is benign.
+	 */
+	if (count == 0)
 		return IRQ_NONE;
-	} else if (count > data->max_reportid) {
-		dev_err(dev, "T44 count %d exceeded max report id\n", count);
+
+	if (count > data->max_reportid) {
+		dev_warn(dev, "T44 count %d exceeded max report id\n", count);
 		count = data->max_reportid;
 	}
 
@@ -1157,13 +1097,20 @@ static int mxt_soft_reset(struct mxt_data *data)
 	struct device *dev = &data->client->dev;
 	int ret = 0;
 
-	dev_info(dev, "Resetting chip\n");
+	dev_info(dev, "Resetting device\n");
+
+	disable_irq(data->irq);
 
 	reinit_completion(&data->reset_completion);
 
 	ret = mxt_t6_command(data, MXT_COMMAND_RESET, MXT_RESET_VALUE, false);
 	if (ret)
 		return ret;
+
+	/* Ignore CHG line for 100ms after reset */
+	msleep(100);
+
+	enable_irq(data->irq);
 
 	ret = mxt_wait_for_completion(data, &data->reset_completion,
 				      MXT_RESET_TIMEOUT);
@@ -1361,6 +1308,8 @@ static int mxt_upload_cfg_mem(struct mxt_data *data, unsigned int cfg_start,
 	return 0;
 }
 
+static int mxt_init_t7_power_cfg(struct mxt_data *data);
+
 /*
  * mxt_update_cfg - download configuration to chip
  *
@@ -1508,6 +1457,9 @@ static int mxt_update_cfg(struct mxt_data *data, const struct firmware *cfg)
 
 	dev_info(dev, "Config successfully updated\n");
 
+	/* T7 config may have changed */
+	mxt_init_t7_power_cfg(data);
+
 release_mem:
 	kfree(config_mem);
 	return ret;
@@ -1533,7 +1485,7 @@ static int mxt_get_info(struct mxt_data *data)
 	int error;
 
 	/* Read 7-byte info block starting at address 0 */
-	error = __mxt_read_reg(client, MXT_INFO, sizeof(*info), info);
+	error = __mxt_read_reg(client, 0, sizeof(*info), info);
 	if (error)
 		return error;
 
@@ -1905,6 +1857,8 @@ static int mxt_initialize_input_device(struct mxt_data *data)
 	if (pdata->t19_num_keys) {
 		mxt_set_up_as_touchpad(input_dev, data);
 		mt_flags |= INPUT_MT_POINTER;
+	} else {
+		mt_flags |= INPUT_MT_DIRECT;
 	}
 
 	/* For multi touch */
@@ -2051,12 +2005,72 @@ err_free_object_table:
 	return error;
 }
 
+static int mxt_set_t7_power_cfg(struct mxt_data *data, u8 sleep)
+{
+	struct device *dev = &data->client->dev;
+	int error;
+	struct t7_config *new_config;
+	struct t7_config deepsleep = { .active = 0, .idle = 0 };
+
+	if (sleep == MXT_POWER_CFG_DEEPSLEEP)
+		new_config = &deepsleep;
+	else
+		new_config = &data->t7_cfg;
+
+	error = __mxt_write_reg(data->client, data->T7_address,
+				sizeof(data->t7_cfg), new_config);
+	if (error)
+		return error;
+
+	dev_dbg(dev, "Set T7 ACTV:%d IDLE:%d\n",
+		new_config->active, new_config->idle);
+
+	return 0;
+}
+
+static int mxt_init_t7_power_cfg(struct mxt_data *data)
+{
+	struct device *dev = &data->client->dev;
+	int error;
+	bool retry = false;
+
+recheck:
+	error = __mxt_read_reg(data->client, data->T7_address,
+				sizeof(data->t7_cfg), &data->t7_cfg);
+	if (error)
+		return error;
+
+	if (data->t7_cfg.active == 0 || data->t7_cfg.idle == 0) {
+		if (!retry) {
+			dev_dbg(dev, "T7 cfg zero, resetting\n");
+			mxt_soft_reset(data);
+			retry = true;
+			goto recheck;
+		} else {
+			dev_dbg(dev, "T7 cfg zero after reset, overriding\n");
+			data->t7_cfg.active = 20;
+			data->t7_cfg.idle = 100;
+			return mxt_set_t7_power_cfg(data, MXT_POWER_CFG_RUN);
+		}
+	}
+
+	dev_dbg(dev, "Initialized power cfg: ACTV %d, IDLE %d\n",
+		data->t7_cfg.active, data->t7_cfg.idle);
+	return 0;
+}
+
 static int mxt_configure_objects(struct mxt_data *data,
 				 const struct firmware *cfg)
 {
 	struct device *dev = &data->client->dev;
 	struct mxt_info *info = &data->info;
 	int error;
+
+	error = mxt_init_t7_power_cfg(data);
+	if (error) {
+		dev_err(dev, "Failed to initialize power cfg\n");
+		return error;
+	}
 
 	if (cfg) {
 		error = mxt_update_cfg(data, cfg);
@@ -2346,14 +2360,41 @@ static const struct attribute_group mxt_attr_group = {
 
 static void mxt_start(struct mxt_data *data)
 {
-	/* Touch enable */
-	mxt_write_object(data, data->multitouch, MXT_TOUCH_CTRL, 0x83);
+	switch (data->pdata->suspend_mode) {
+	case MXT_SUSPEND_T9_CTRL:
+		mxt_soft_reset(data);
+
+		/* Touch enable */
+		/* 0x83 = SCANEN | RPTEN | ENABLE */
+		mxt_write_object(data,
+				MXT_TOUCH_MULTI_T9, MXT_T9_CTRL, 0x83);
+		break;
+
+	case MXT_SUSPEND_DEEP_SLEEP:
+	default:
+		mxt_set_t7_power_cfg(data, MXT_POWER_CFG_RUN);
+
+		/* Recalibrate since chip has been in deep sleep */
+		mxt_t6_command(data, MXT_COMMAND_CALIBRATE, 1, false);
+		break;
+	}
+
 }
 
 static void mxt_stop(struct mxt_data *data)
 {
-	/* Touch disable */
-	mxt_write_object(data, data->multitouch, MXT_TOUCH_CTRL, 0);
+	switch (data->pdata->suspend_mode) {
+	case MXT_SUSPEND_T9_CTRL:
+		/* Touch disable */
+		mxt_write_object(data,
+				MXT_TOUCH_MULTI_T9, MXT_T9_CTRL, 0);
+		break;
+
+	case MXT_SUSPEND_DEEP_SLEEP:
+	default:
+		mxt_set_t7_power_cfg(data, MXT_POWER_CFG_DEEPSLEEP);
+		break;
+	}
 }
 
 static int mxt_input_open(struct input_dev *dev)
@@ -2376,19 +2417,18 @@ static void mxt_input_close(struct input_dev *dev)
 static const struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
 {
 	struct mxt_platform_data *pdata;
+	struct device_node *np = client->dev.of_node;
 	u32 *keymap;
-	u32 keycode;
-	int proplen, i, ret;
+	int proplen, ret;
 
-	if (!client->dev.of_node)
+	if (!np)
 		return ERR_PTR(-ENOENT);
 
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
-	if (of_find_property(client->dev.of_node, "linux,gpio-keymap",
-			     &proplen)) {
+	if (of_find_property(np, "linux,gpio-keymap", &proplen)) {
 		pdata->t19_num_keys = proplen / sizeof(u32);
 
 		keymap = devm_kzalloc(&client->dev,
@@ -2397,17 +2437,16 @@ static const struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
 		if (!keymap)
 			return ERR_PTR(-ENOMEM);
 
-		for (i = 0; i < pdata->t19_num_keys; i++) {
-			ret = of_property_read_u32_index(client->dev.of_node,
-					"linux,gpio-keymap", i, &keycode);
-			if (ret)
-				keycode = KEY_RESERVED;
-
-			keymap[i] = keycode;
-		}
+		ret = of_property_read_u32_array(np, "linux,gpio-keymap",
+						 keymap, pdata->t19_num_keys);
+		if (ret)
+			dev_warn(&client->dev,
+				 "Couldn't read linux,gpio-keymap: %d\n", ret);
 
 		pdata->t19_keymap = keymap;
 	}
+
+	pdata->suspend_mode = MXT_SUSPEND_DEEP_SLEEP;
 
 	return pdata;
 }
@@ -2609,6 +2648,9 @@ static int __maybe_unused mxt_suspend(struct device *dev)
 	struct mxt_data *data = i2c_get_clientdata(client);
 	struct input_dev *input_dev = data->input_dev;
 
+	if (!input_dev)
+		return 0;
+
 	mutex_lock(&input_dev->mutex);
 
 	if (input_dev->users)
@@ -2625,7 +2667,8 @@ static int __maybe_unused mxt_resume(struct device *dev)
 	struct mxt_data *data = i2c_get_clientdata(client);
 	struct input_dev *input_dev = data->input_dev;
 
-	mxt_soft_reset(data);
+	if (!input_dev)
+		return 0;
 
 	mutex_lock(&input_dev->mutex);
 
@@ -2666,7 +2709,6 @@ MODULE_DEVICE_TABLE(i2c, mxt_id);
 static struct i2c_driver mxt_driver = {
 	.driver = {
 		.name	= "atmel_mxt_ts",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(mxt_of_match),
 		.acpi_match_table = ACPI_PTR(mxt_acpi_id),
 		.pm	= &mxt_pm_ops,

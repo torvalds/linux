@@ -35,6 +35,33 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 
+static void amdgpu_flip_wait_fence(struct amdgpu_device *adev,
+				   struct fence **f)
+{
+	struct amdgpu_fence *fence;
+	long r;
+
+	if (*f == NULL)
+		return;
+
+	fence = to_amdgpu_fence(*f);
+	if (fence) {
+		r = fence_wait(&fence->base, false);
+		if (r == -EDEADLK)
+			r = amdgpu_gpu_reset(adev);
+	} else
+		r = fence_wait(*f, false);
+
+	if (r)
+		DRM_ERROR("failed to wait on page flip fence (%ld)!\n", r);
+
+	/* We continue with the page flip even if we failed to wait on
+	 * the fence, otherwise the DRM core and userspace will be
+	 * confused about which BO the CRTC is scanning out
+	 */
+	fence_put(*f);
+	*f = NULL;
+}
 
 static void amdgpu_flip_work_func(struct work_struct *__work)
 {
@@ -44,47 +71,22 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 	struct amdgpu_crtc *amdgpuCrtc = adev->mode_info.crtcs[work->crtc_id];
 
 	struct drm_crtc *crtc = &amdgpuCrtc->base;
-	struct amdgpu_fence *fence;
 	unsigned long flags;
-	int r;
+	unsigned i;
 
-	down_read(&adev->exclusive_lock);
-	if (work->fence) {
-		fence = to_amdgpu_fence(work->fence);
-		if (fence) {
-			r = amdgpu_fence_wait(fence, false);
-			if (r == -EDEADLK) {
-				up_read(&adev->exclusive_lock);
-				r = amdgpu_gpu_reset(adev);
-				down_read(&adev->exclusive_lock);
-			}
-		} else
-			r = fence_wait(work->fence, false);
-
-		if (r)
-			DRM_ERROR("failed to wait on page flip fence (%d)!\n", r);
-
-		/* We continue with the page flip even if we failed to wait on
-		 * the fence, otherwise the DRM core and userspace will be
-		 * confused about which BO the CRTC is scanning out
-		 */
-
-		fence_put(work->fence);
-		work->fence = NULL;
-	}
+	amdgpu_flip_wait_fence(adev, &work->excl);
+	for (i = 0; i < work->shared_count; ++i)
+		amdgpu_flip_wait_fence(adev, &work->shared[i]);
 
 	/* We borrow the event spin lock for protecting flip_status */
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
 
-	/* set the proper interrupt */
-	amdgpu_irq_get(adev, &adev->pageflip_irq, work->crtc_id);
 	/* do the flip (mmio) */
 	adev->mode_info.funcs->page_flip(adev, work->crtc_id, work->base);
 	/* set the flip status */
 	amdgpuCrtc->pflip_status = AMDGPU_FLIP_SUBMITTED;
 
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
-	up_read(&adev->exclusive_lock);
 }
 
 /*
@@ -108,6 +110,7 @@ static void amdgpu_unpin_work_func(struct work_struct *__work)
 		DRM_ERROR("failed to reserve buffer after flip\n");
 
 	drm_gem_object_unreference_unlocked(&work->old_rbo->gem_base);
+	kfree(work->shared);
 	kfree(work);
 }
 
@@ -127,7 +130,7 @@ int amdgpu_crtc_page_flip(struct drm_crtc *crtc,
 	unsigned long flags;
 	u64 tiling_flags;
 	u64 base;
-	int r;
+	int i, r;
 
 	work = kzalloc(sizeof *work, GFP_KERNEL);
 	if (work == NULL)
@@ -167,7 +170,15 @@ int amdgpu_crtc_page_flip(struct drm_crtc *crtc,
 		goto cleanup;
 	}
 
-	work->fence = fence_get(reservation_object_get_excl(new_rbo->tbo.resv));
+	r = reservation_object_get_fences_rcu(new_rbo->tbo.resv, &work->excl,
+					      &work->shared_count,
+					      &work->shared);
+	if (unlikely(r != 0)) {
+		amdgpu_bo_unreserve(new_rbo);
+		DRM_ERROR("failed to get fences for buffer\n");
+		goto cleanup;
+	}
+
 	amdgpu_bo_get_tiling_flags(new_rbo, &tiling_flags);
 	amdgpu_bo_unreserve(new_rbo);
 
@@ -212,7 +223,10 @@ pflip_cleanup:
 
 cleanup:
 	drm_gem_object_unreference_unlocked(&work->old_rbo->gem_base);
-	fence_put(work->fence);
+	fence_put(work->excl);
+	for (i = 0; i < work->shared_count; ++i)
+		fence_put(work->shared[i]);
+	kfree(work->shared);
 	kfree(work);
 
 	return r;
@@ -696,7 +710,7 @@ bool amdgpu_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
  * an optional accurate timestamp of when query happened.
  *
  * \param dev Device to query.
- * \param crtc Crtc to query.
+ * \param pipe Crtc to query.
  * \param flags Flags from caller (DRM_CALLED_FROM_VBLIRQ or 0).
  * \param *vpos Location where vertical scanout position should be stored.
  * \param *hpos Location where horizontal scanout position should go.
@@ -719,8 +733,10 @@ bool amdgpu_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
  * unknown small number of scanlines wrt. real scanout position.
  *
  */
-int amdgpu_get_crtc_scanoutpos(struct drm_device *dev, int crtc, unsigned int flags,
-			       int *vpos, int *hpos, ktime_t *stime, ktime_t *etime)
+int amdgpu_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
+			       unsigned int flags, int *vpos, int *hpos,
+			       ktime_t *stime, ktime_t *etime,
+			       const struct drm_display_mode *mode)
 {
 	u32 vbl = 0, position = 0;
 	int vbl_start, vbl_end, vtotal, ret = 0;
@@ -734,7 +750,7 @@ int amdgpu_get_crtc_scanoutpos(struct drm_device *dev, int crtc, unsigned int fl
 	if (stime)
 		*stime = ktime_get();
 
-	if (amdgpu_display_page_flip_get_scanoutpos(adev, crtc, &vbl, &position) == 0)
+	if (amdgpu_display_page_flip_get_scanoutpos(adev, pipe, &vbl, &position) == 0)
 		ret |= DRM_SCANOUTPOS_VALID;
 
 	/* Get optional system timestamp after query. */
@@ -756,7 +772,7 @@ int amdgpu_get_crtc_scanoutpos(struct drm_device *dev, int crtc, unsigned int fl
 	}
 	else {
 		/* No: Fake something reasonable which gives at least ok results. */
-		vbl_start = adev->mode_info.crtcs[crtc]->base.hwmode.crtc_vdisplay;
+		vbl_start = mode->crtc_vdisplay;
 		vbl_end = 0;
 	}
 
@@ -772,7 +788,7 @@ int amdgpu_get_crtc_scanoutpos(struct drm_device *dev, int crtc, unsigned int fl
 
 	/* Inside "upper part" of vblank area? Apply corrective offset if so: */
 	if (in_vbl && (*vpos >= vbl_start)) {
-		vtotal = adev->mode_info.crtcs[crtc]->base.hwmode.crtc_vtotal;
+		vtotal = mode->crtc_vtotal;
 		*vpos = *vpos - vtotal;
 	}
 
@@ -794,8 +810,8 @@ int amdgpu_get_crtc_scanoutpos(struct drm_device *dev, int crtc, unsigned int fl
 	 * We only do this if DRM_CALLED_FROM_VBLIRQ.
 	 */
 	if ((flags & DRM_CALLED_FROM_VBLIRQ) && !in_vbl) {
-		vbl_start = adev->mode_info.crtcs[crtc]->base.hwmode.crtc_vdisplay;
-		vtotal = adev->mode_info.crtcs[crtc]->base.hwmode.crtc_vtotal;
+		vbl_start = mode->crtc_vdisplay;
+		vtotal = mode->crtc_vtotal;
 
 		if (vbl_start - *vpos < vtotal / 100) {
 			*vpos -= vtotal;

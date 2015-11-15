@@ -166,6 +166,10 @@ static int si2157_init(struct dvb_frontend *fe)
 
 	for (remaining = fw->size; remaining > 0; remaining -= 17) {
 		len = fw->data[fw->size - remaining];
+		if (len > SI2157_ARGLEN) {
+			dev_err(&client->dev, "Bad firmware length\n");
+			goto err_release_firmware;
+		}
 		memcpy(cmd.args, &fw->data[(fw->size - remaining) + 1], len);
 		cmd.wlen = len;
 		cmd.rlen = 1;
@@ -469,7 +473,6 @@ MODULE_DEVICE_TABLE(i2c, si2157_id_table);
 
 static struct i2c_driver si2157_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "si2157",
 	},
 	.probe		= si2157_probe,

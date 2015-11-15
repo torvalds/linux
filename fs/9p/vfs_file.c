@@ -161,7 +161,7 @@ static int v9fs_file_do_lock(struct file *filp, int cmd, struct file_lock *fl)
 	if ((fl->fl_flags & FL_POSIX) != FL_POSIX)
 		BUG();
 
-	res = posix_lock_file_wait(filp, fl);
+	res = locks_lock_file_wait(filp, fl);
 	if (res < 0)
 		goto out;
 
@@ -231,7 +231,8 @@ out_unlock:
 	if (res < 0 && fl->fl_type != F_UNLCK) {
 		fl_type = fl->fl_type;
 		fl->fl_type = F_UNLCK;
-		res = posix_lock_file_wait(filp, fl);
+		/* Even if this fails we want to return the remote error */
+		locks_lock_file_wait(filp, fl);
 		fl->fl_type = fl_type;
 	}
 out:
@@ -381,7 +382,7 @@ static ssize_t
 v9fs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct p9_fid *fid = iocb->ki_filp->private_data;
-	int ret, err;
+	int ret, err = 0;
 
 	p9_debug(P9_DEBUG_VFS, "count %zu offset %lld\n",
 		 iov_iter_count(to), iocb->ki_pos);

@@ -177,24 +177,13 @@ up_fail:
 	return ret;
 }
 
-#if defined(CONFIG_X86_32) || defined(CONFIG_COMPAT)
+#if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
 static int load_vdso32(void)
 {
-	int ret;
-
 	if (vdso32_enabled != 1)  /* Other values all mean "disabled" */
 		return 0;
 
-	ret = map_vdso(selected_vdso32, false);
-	if (ret)
-		return ret;
-
-	if (selected_vdso32->sym_VDSO32_SYSENTER_RETURN)
-		current_thread_info()->sysenter_return =
-			current->mm->context.vdso +
-			selected_vdso32->sym_VDSO32_SYSENTER_RETURN;
-
-	return 0;
+	return map_vdso(&vdso_image_32, false);
 }
 #endif
 
@@ -219,8 +208,11 @@ int compat_arch_setup_additional_pages(struct linux_binprm *bprm,
 		return map_vdso(&vdso_image_x32, true);
 	}
 #endif
-
+#ifdef CONFIG_IA32_EMULATION
 	return load_vdso32();
+#else
+	return 0;
+#endif
 }
 #endif
 #else

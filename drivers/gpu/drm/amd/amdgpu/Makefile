@@ -3,7 +3,9 @@
 # Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
 
 ccflags-y := -Iinclude/drm -Idrivers/gpu/drm/amd/include/asic_reg \
-	-Idrivers/gpu/drm/amd/include
+	-Idrivers/gpu/drm/amd/include \
+	-Idrivers/gpu/drm/amd/amdgpu \
+	-Idrivers/gpu/drm/amd/scheduler
 
 amdgpu-y := amdgpu_drv.o
 
@@ -21,7 +23,8 @@ amdgpu-y += amdgpu_device.o amdgpu_kms.o \
 
 # add asic specific block
 amdgpu-$(CONFIG_DRM_AMDGPU_CIK)+= cik.o gmc_v7_0.o cik_ih.o kv_smc.o kv_dpm.o \
-	ci_smc.o ci_dpm.o dce_v8_0.o gfx_v7_0.o cik_sdma.o uvd_v4_2.o vce_v2_0.o
+	ci_smc.o ci_dpm.o dce_v8_0.o gfx_v7_0.o cik_sdma.o uvd_v4_2.o vce_v2_0.o \
+	amdgpu_amdkfd_gfx_v7.o
 
 amdgpu-y += \
 	vi.o
@@ -43,6 +46,7 @@ amdgpu-y += \
 	amdgpu_dpm.o \
 	cz_smc.o cz_dpm.o \
 	tonga_smc.o tonga_dpm.o \
+	fiji_smc.o fiji_dpm.o \
 	iceland_smc.o iceland_dpm.o
 
 # add DCE block
@@ -70,6 +74,20 @@ amdgpu-y += \
 amdgpu-y += \
 	amdgpu_vce.o \
 	vce_v3_0.o
+
+# add amdkfd interfaces
+amdgpu-y += \
+	 amdgpu_amdkfd.o \
+	 amdgpu_amdkfd_gfx_v8.o
+
+# add cgs
+amdgpu-y += amdgpu_cgs.o
+
+# GPU scheduler
+amdgpu-y += \
+	../scheduler/gpu_scheduler.o \
+	../scheduler/sched_fence.o \
+	amdgpu_sched.o
 
 amdgpu-$(CONFIG_COMPAT) += amdgpu_ioc32.o
 amdgpu-$(CONFIG_VGA_SWITCHEROO) += amdgpu_atpx_handler.o

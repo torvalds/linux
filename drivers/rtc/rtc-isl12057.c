@@ -466,9 +466,8 @@ static int isl12057_check_rtc_status(struct device *dev, struct regmap *regmap)
  * is for instance the case on ReadyNAS 102, 104 and 2120. On those
  * devices with no IRQ driectly connected to the SoC, the RTC chip
  * can be forced as a wakeup source by stating that explicitly in
- * the device's .dts file using the "isil,irq2-can-wakeup-machine"
- * boolean property. This will guarantee 'wakealarm' sysfs entry is
- * available on the device.
+ * the device's .dts file using the "wakeup-source" boolean property.
+ * This will guarantee 'wakealarm' sysfs entry is available on the device.
  *
  * The function below returns 1, i.e. the capability of the chip to
  * wakeup the device, based on IRQ availability or if the boolean
@@ -479,8 +478,9 @@ static bool isl12057_can_wakeup_machine(struct device *dev)
 {
 	struct isl12057_rtc_data *data = dev_get_drvdata(dev);
 
-	return (data->irq || of_property_read_bool(dev->of_node,
-					      "isil,irq2-can-wakeup-machine"));
+	return data->irq || of_property_read_bool(dev->of_node, "wakeup-source")
+		|| of_property_read_bool(dev->of_node, /* legacy */
+					 "isil,irq2-can-wakeup-machine");
 }
 #else
 static bool isl12057_can_wakeup_machine(struct device *dev)
@@ -648,6 +648,7 @@ static const struct of_device_id isl12057_dt_match[] = {
 	{ .compatible = "isil,isl12057" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, isl12057_dt_match);
 #endif
 
 static const struct i2c_device_id isl12057_id[] = {
@@ -659,7 +660,6 @@ MODULE_DEVICE_TABLE(i2c, isl12057_id);
 static struct i2c_driver isl12057_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.pm = &isl12057_rtc_pm_ops,
 		.of_match_table = of_match_ptr(isl12057_dt_match),
 	},

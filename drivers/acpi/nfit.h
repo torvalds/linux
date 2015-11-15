@@ -24,7 +24,7 @@
 #define UUID_NFIT_DIMM "4309ac30-0d11-11e4-9191-0800200c9a66"
 #define ACPI_NFIT_MEM_FAILED_MASK (ACPI_NFIT_MEM_SAVE_FAILED \
 		| ACPI_NFIT_MEM_RESTORE_FAILED | ACPI_NFIT_MEM_FLUSH_FAILED \
-		| ACPI_NFIT_MEM_ARMED)
+		| ACPI_NFIT_MEM_NOT_ARMED)
 
 enum nfit_uuids {
 	NFIT_SPA_VOLATILE,
@@ -41,12 +41,14 @@ enum nfit_uuids {
 };
 
 enum {
+	ND_BLK_READ_FLUSH = 1,
 	ND_BLK_DCR_LATCH = 2,
 };
 
 struct nfit_spa {
 	struct acpi_nfit_system_address *spa;
 	struct list_head list;
+	int is_registered;
 };
 
 struct nfit_dcr {
@@ -96,6 +98,7 @@ struct acpi_nfit_desc {
 	struct nvdimm_bus_descriptor nd_desc;
 	struct acpi_table_nfit *nfit;
 	struct mutex spa_map_mutex;
+	struct mutex init_mutex;
 	struct list_head spa_maps;
 	struct list_head memdevs;
 	struct list_head flushes;
@@ -107,6 +110,7 @@ struct acpi_nfit_desc {
 	struct nvdimm_bus *nvdimm_bus;
 	struct device *dev;
 	unsigned long dimm_dsm_force_en;
+	unsigned long bus_dsm_force_en;
 	int (*blk_do_io)(struct nd_blk_region *ndbr, resource_size_t dpa,
 			void *iobuf, u64 len, int rw);
 };
@@ -116,12 +120,16 @@ enum nd_blk_mmio_selector {
 	DCR,
 };
 
+struct nd_blk_addr {
+	union {
+		void __iomem *base;
+		void __pmem  *aperture;
+	};
+};
+
 struct nfit_blk {
 	struct nfit_blk_mmio {
-		union {
-			void __iomem *base;
-			void __pmem  *aperture;
-		};
+		struct nd_blk_addr addr;
 		u64 size;
 		u64 base_offset;
 		u32 line_size;
@@ -148,7 +156,8 @@ struct nfit_spa_mapping {
 	struct acpi_nfit_system_address *spa;
 	struct list_head list;
 	struct kref kref;
-	void __iomem *iomem;
+	enum spa_map_type type;
+	struct nd_blk_addr addr;
 };
 
 static inline struct nfit_spa_mapping *to_spa_map(struct kref *kref)

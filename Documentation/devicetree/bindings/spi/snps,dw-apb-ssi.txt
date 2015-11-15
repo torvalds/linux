@@ -10,6 +10,8 @@ Required properties:
 Optional properties:
 - cs-gpios : Specifies the gpio pis to be used for chipselects.
 - num-cs : The number of chipselects. If omitted, this will default to 4.
+- reg-io-width : The I/O register width (in bytes) implemented by this
+  device.  Supported values are 2 or 4 (the default).
 
 Child nodes as per the generic SPI binding.
 

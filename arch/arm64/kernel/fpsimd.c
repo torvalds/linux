@@ -158,6 +158,7 @@ void fpsimd_thread_switch(struct task_struct *next)
 void fpsimd_flush_thread(void)
 {
 	memset(&current->thread.fpsimd_state, 0, sizeof(struct fpsimd_state));
+	fpsimd_flush_task_state(current);
 	set_thread_flag(TIF_FOREIGN_FPSTATE);
 }
 
@@ -331,21 +332,15 @@ static inline void fpsimd_hotplug_init(void) { }
  */
 static int __init fpsimd_init(void)
 {
-	u64 pfr = read_cpuid(ID_AA64PFR0_EL1);
-
-	if (pfr & (0xf << 16)) {
+	if (elf_hwcap & HWCAP_FP) {
+		fpsimd_pm_init();
+		fpsimd_hotplug_init();
+	} else {
 		pr_notice("Floating-point is not implemented\n");
-		return 0;
 	}
-	elf_hwcap |= HWCAP_FP;
 
-	if (pfr & (0xf << 20))
+	if (!(elf_hwcap & HWCAP_ASIMD))
 		pr_notice("Advanced SIMD is not implemented\n");
-	else
-		elf_hwcap |= HWCAP_ASIMD;
-
-	fpsimd_pm_init();
-	fpsimd_hotplug_init();
 
 	return 0;
 }

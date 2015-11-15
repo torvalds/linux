@@ -669,6 +669,8 @@ struct iwl_priv {
 	/* ieee device used by generic ieee processing code */
 	struct ieee80211_hw *hw;
 
+	struct napi_struct *napi;
+
 	struct list_head calib_results;
 
 	struct workqueue_struct *workqueue;
@@ -678,9 +680,8 @@ struct iwl_priv {
 	enum ieee80211_band band;
 	u8 valid_contexts;
 
-	int (*rx_handlers[REPLY_MAX])(struct iwl_priv *priv,
-				       struct iwl_rx_cmd_buffer *rxb,
-				       struct iwl_device_cmd *cmd);
+	void (*rx_handlers[REPLY_MAX])(struct iwl_priv *priv,
+				       struct iwl_rx_cmd_buffer *rxb);
 
 	struct iwl_notif_wait_data notif_wait;
 

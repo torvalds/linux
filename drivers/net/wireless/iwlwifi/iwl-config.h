@@ -223,13 +223,13 @@ struct iwl_tt_tx_backoff {
  * @support_tx_backoff: Support tx-backoff?
  */
 struct iwl_tt_params {
-	s32 ct_kill_entry;
-	s32 ct_kill_exit;
+	u32 ct_kill_entry;
+	u32 ct_kill_exit;
 	u32 ct_kill_duration;
-	s32 dynamic_smps_entry;
-	s32 dynamic_smps_exit;
-	s32 tx_protection_entry;
-	s32 tx_protection_exit;
+	u32 dynamic_smps_entry;
+	u32 dynamic_smps_exit;
+	u32 tx_protection_entry;
+	u32 tx_protection_exit;
 	struct iwl_tt_tx_backoff tx_backoff[TT_TX_BACKOFF_SIZE];
 	bool support_ct_kill;
 	bool support_dynamic_smps;
@@ -297,6 +297,7 @@ struct iwl_pwr_tx_backoff {
  *	mode set
  * @d0i3: device uses d0i3 instead of d3
  * @nvm_hw_section_num: the ID of the HW NVM section
+ * @features: hw features, any combination of feature_whitelist
  * @pwr_tx_backoffs: translation table between power limits and backoffs
  * @max_rx_agg_size: max RX aggregation size of the ADDBA request/response
  * @max_tx_agg_size: max TX aggregation size of the ADDBA request/response
@@ -348,6 +349,7 @@ struct iwl_cfg {
 	bool no_power_up_nic_in_init;
 	const char *default_nvm_file_B_step;
 	const char *default_nvm_file_C_step;
+	netdev_features_t features;
 	unsigned int max_rx_agg_size;
 	bool disable_dummy_notification;
 	unsigned int max_tx_agg_size;

@@ -25,8 +25,6 @@
 #include <subdev/bios/bit.h>
 #include <subdev/bios/perf.h>
 
-#include <core/device.h>
-
 u16
 nvbios_perf_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr,
 		  u8 *cnt, u8 *len, u8 *snr, u8 *ssz)
@@ -36,22 +34,22 @@ nvbios_perf_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr,
 
 	if (!bit_entry(bios, 'P', &bit_P)) {
 		if (bit_P.version <= 2) {
-			perf = nv_ro16(bios, bit_P.offset + 0);
+			perf = nvbios_rd16(bios, bit_P.offset + 0);
 			if (perf) {
-				*ver = nv_ro08(bios, perf + 0);
-				*hdr = nv_ro08(bios, perf + 1);
+				*ver = nvbios_rd08(bios, perf + 0);
+				*hdr = nvbios_rd08(bios, perf + 1);
 				if (*ver >= 0x40 && *ver < 0x41) {
-					*cnt = nv_ro08(bios, perf + 5);
-					*len = nv_ro08(bios, perf + 2);
-					*snr = nv_ro08(bios, perf + 4);
-					*ssz = nv_ro08(bios, perf + 3);
+					*cnt = nvbios_rd08(bios, perf + 5);
+					*len = nvbios_rd08(bios, perf + 2);
+					*snr = nvbios_rd08(bios, perf + 4);
+					*ssz = nvbios_rd08(bios, perf + 3);
 					return perf;
 				} else
 				if (*ver >= 0x20 && *ver < 0x40) {
-					*cnt = nv_ro08(bios, perf + 2);
-					*len = nv_ro08(bios, perf + 3);
-					*snr = nv_ro08(bios, perf + 4);
-					*ssz = nv_ro08(bios, perf + 5);
+					*cnt = nvbios_rd08(bios, perf + 2);
+					*len = nvbios_rd08(bios, perf + 3);
+					*snr = nvbios_rd08(bios, perf + 4);
+					*ssz = nvbios_rd08(bios, perf + 5);
 					return perf;
 				}
 			}
@@ -59,13 +57,13 @@ nvbios_perf_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr,
 	}
 
 	if (bios->bmp_offset) {
-		if (nv_ro08(bios, bios->bmp_offset + 6) >= 0x25) {
-			perf = nv_ro16(bios, bios->bmp_offset + 0x94);
+		if (nvbios_rd08(bios, bios->bmp_offset + 6) >= 0x25) {
+			perf = nvbios_rd16(bios, bios->bmp_offset + 0x94);
 			if (perf) {
-				*hdr = nv_ro08(bios, perf + 0);
-				*ver = nv_ro08(bios, perf + 1);
-				*cnt = nv_ro08(bios, perf + 2);
-				*len = nv_ro08(bios, perf + 3);
+				*hdr = nvbios_rd08(bios, perf + 0);
+				*ver = nvbios_rd08(bios, perf + 1);
+				*cnt = nvbios_rd08(bios, perf + 2);
+				*len = nvbios_rd08(bios, perf + 3);
 				*snr = 0;
 				*ssz = 0;
 				return perf;
@@ -98,55 +96,55 @@ nvbios_perfEp(struct nvkm_bios *bios, int idx,
 {
 	u16 perf = nvbios_perf_entry(bios, idx, ver, hdr, cnt, len);
 	memset(info, 0x00, sizeof(*info));
-	info->pstate = nv_ro08(bios, perf + 0x00);
+	info->pstate = nvbios_rd08(bios, perf + 0x00);
 	switch (!!perf * *ver) {
 	case 0x12:
 	case 0x13:
 	case 0x14:
-		info->core     = nv_ro32(bios, perf + 0x01) * 10;
-		info->memory   = nv_ro32(bios, perf + 0x05) * 20;
-		info->fanspeed = nv_ro08(bios, perf + 0x37);
+		info->core     = nvbios_rd32(bios, perf + 0x01) * 10;
+		info->memory   = nvbios_rd32(bios, perf + 0x05) * 20;
+		info->fanspeed = nvbios_rd08(bios, perf + 0x37);
 		if (*hdr > 0x38)
-			info->voltage = nv_ro08(bios, perf + 0x38);
+			info->voltage = nvbios_rd08(bios, perf + 0x38);
 		break;
 	case 0x21:
 	case 0x23:
 	case 0x24:
-		info->fanspeed = nv_ro08(bios, perf + 0x04);
-		info->voltage  = nv_ro08(bios, perf + 0x05);
-		info->shader   = nv_ro16(bios, perf + 0x06) * 1000;
+		info->fanspeed = nvbios_rd08(bios, perf + 0x04);
+		info->voltage  = nvbios_rd08(bios, perf + 0x05);
+		info->shader   = nvbios_rd16(bios, perf + 0x06) * 1000;
 		info->core     = info->shader + (signed char)
-				 nv_ro08(bios, perf + 0x08) * 1000;
-		switch (nv_device(bios)->chipset) {
+				 nvbios_rd08(bios, perf + 0x08) * 1000;
+		switch (bios->subdev.device->chipset) {
 		case 0x49:
 		case 0x4b:
-			info->memory = nv_ro16(bios, perf + 0x0b) * 1000;
+			info->memory = nvbios_rd16(bios, perf + 0x0b) * 1000;
 			break;
 		default:
-			info->memory = nv_ro16(bios, perf + 0x0b) * 2000;
+			info->memory = nvbios_rd16(bios, perf + 0x0b) * 2000;
 			break;
 		}
 		break;
 	case 0x25:
-		info->fanspeed = nv_ro08(bios, perf + 0x04);
-		info->voltage  = nv_ro08(bios, perf + 0x05);
-		info->core     = nv_ro16(bios, perf + 0x06) * 1000;
-		info->shader   = nv_ro16(bios, perf + 0x0a) * 1000;
-		info->memory   = nv_ro16(bios, perf + 0x0c) * 1000;
+		info->fanspeed = nvbios_rd08(bios, perf + 0x04);
+		info->voltage  = nvbios_rd08(bios, perf + 0x05);
+		info->core     = nvbios_rd16(bios, perf + 0x06) * 1000;
+		info->shader   = nvbios_rd16(bios, perf + 0x0a) * 1000;
+		info->memory   = nvbios_rd16(bios, perf + 0x0c) * 1000;
 		break;
 	case 0x30:
-		info->script   = nv_ro16(bios, perf + 0x02);
+		info->script   = nvbios_rd16(bios, perf + 0x02);
 	case 0x35:
-		info->fanspeed = nv_ro08(bios, perf + 0x06);
-		info->voltage  = nv_ro08(bios, perf + 0x07);
-		info->core     = nv_ro16(bios, perf + 0x08) * 1000;
-		info->shader   = nv_ro16(bios, perf + 0x0a) * 1000;
-		info->memory   = nv_ro16(bios, perf + 0x0c) * 1000;
-		info->vdec     = nv_ro16(bios, perf + 0x10) * 1000;
-		info->disp     = nv_ro16(bios, perf + 0x14) * 1000;
+		info->fanspeed = nvbios_rd08(bios, perf + 0x06);
+		info->voltage  = nvbios_rd08(bios, perf + 0x07);
+		info->core     = nvbios_rd16(bios, perf + 0x08) * 1000;
+		info->shader   = nvbios_rd16(bios, perf + 0x0a) * 1000;
+		info->memory   = nvbios_rd16(bios, perf + 0x0c) * 1000;
+		info->vdec     = nvbios_rd16(bios, perf + 0x10) * 1000;
+		info->disp     = nvbios_rd16(bios, perf + 0x14) * 1000;
 		break;
 	case 0x40:
-		info->voltage  = nv_ro08(bios, perf + 0x02);
+		info->voltage  = nvbios_rd08(bios, perf + 0x02);
 		break;
 	default:
 		return 0x0000;
@@ -175,7 +173,7 @@ nvbios_perfSp(struct nvkm_bios *bios, u32 perfE, int idx,
 	memset(info, 0x00, sizeof(*info));
 	switch (!!data * *ver) {
 	case 0x40:
-		info->v40.freq = (nv_ro16(bios, data + 0x00) & 0x3fff) * 1000;
+		info->v40.freq = (nvbios_rd16(bios, data + 0x00) & 0x3fff) * 1000;
 		break;
 	default:
 		break;
@@ -193,7 +191,7 @@ nvbios_perf_fan_parse(struct nvkm_bios *bios,
 		return -ENODEV;
 
 	if (ver >= 0x20 && ver < 0x40 && hdr > 6)
-		fan->pwm_divisor = nv_ro16(bios, perf + 6);
+		fan->pwm_divisor = nvbios_rd16(bios, perf + 6);
 	else
 		fan->pwm_divisor = 0;
 

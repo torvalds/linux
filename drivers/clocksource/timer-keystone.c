@@ -72,10 +72,10 @@ static inline void keystone_timer_barrier(void)
 
 /**
  * keystone_timer_config: configures timer to work in oneshot/periodic modes.
- * @ mode: mode to configure
+ * @ mask: mask of the mode to configure
  * @ period: cycles number to configure for
  */
-static int keystone_timer_config(u64 period, enum clock_event_mode mode)
+static int keystone_timer_config(u64 period, int mask)
 {
 	u32 tcr;
 	u32 off;
@@ -84,16 +84,7 @@ static int keystone_timer_config(u64 period, enum clock_event_mode mode)
 	off = tcr & ~(TCR_ENAMODE_MASK);
 
 	/* set enable mode */
-	switch (mode) {
-	case CLOCK_EVT_MODE_ONESHOT:
-		tcr |= TCR_ENAMODE_ONESHOT_MASK;
-		break;
-	case CLOCK_EVT_MODE_PERIODIC:
-		tcr |= TCR_ENAMODE_PERIODIC_MASK;
-		break;
-	default:
-		return -1;
-	}
+	tcr |= mask;
 
 	/* disable timer */
 	keystone_timer_writel(off, TCR);
@@ -138,24 +129,19 @@ static irqreturn_t keystone_timer_interrupt(int irq, void *dev_id)
 static int keystone_set_next_event(unsigned long cycles,
 				  struct clock_event_device *evt)
 {
-	return keystone_timer_config(cycles, evt->mode);
+	return keystone_timer_config(cycles, TCR_ENAMODE_ONESHOT_MASK);
 }
 
-static void keystone_set_mode(enum clock_event_mode mode,
-			     struct clock_event_device *evt)
+static int keystone_shutdown(struct clock_event_device *evt)
 {
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		keystone_timer_config(timer.hz_period, CLOCK_EVT_MODE_PERIODIC);
-		break;
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	case CLOCK_EVT_MODE_ONESHOT:
-		keystone_timer_disable();
-		break;
-	default:
-		break;
-	}
+	keystone_timer_disable();
+	return 0;
+}
+
+static int keystone_set_periodic(struct clock_event_device *evt)
+{
+	keystone_timer_config(timer.hz_period, TCR_ENAMODE_PERIODIC_MASK);
+	return 0;
 }
 
 static void __init keystone_timer_init(struct device_node *np)
@@ -166,7 +152,7 @@ static void __init keystone_timer_init(struct device_node *np)
 	int irq, error;
 
 	irq  = irq_of_parse_and_map(np, 0);
-	if (irq == NO_IRQ) {
+	if (!irq) {
 		pr_err("%s: failed to map interrupts\n", __func__);
 		return;
 	}
@@ -222,7 +208,9 @@ static void __init keystone_timer_init(struct device_node *np)
 	/* setup clockevent */
 	event_dev->features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT;
 	event_dev->set_next_event = keystone_set_next_event;
-	event_dev->set_mode = keystone_set_mode;
+	event_dev->set_state_shutdown = keystone_shutdown;
+	event_dev->set_state_periodic = keystone_set_periodic;
+	event_dev->set_state_oneshot = keystone_shutdown;
 	event_dev->cpumask = cpu_all_mask;
 	event_dev->owner = THIS_MODULE;
 	event_dev->name = TIMER_NAME;

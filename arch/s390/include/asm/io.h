@@ -57,6 +57,8 @@ static inline void ioport_unmap(void __iomem *p)
  */
 #define pci_iomap pci_iomap
 #define pci_iounmap pci_iounmap
+#define pci_iomap_wc pci_iomap
+#define pci_iomap_wc_range pci_iomap_range
 
 #define memcpy_fromio(dst, src, count)	zpci_memcpy_fromio(dst, src, count)
 #define memcpy_toio(dst, src, count)	zpci_memcpy_toio(dst, src, count)

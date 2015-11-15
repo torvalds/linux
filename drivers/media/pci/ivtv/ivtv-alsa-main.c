@@ -41,6 +41,7 @@
 #include "ivtv-alsa-pcm.h"
 
 int ivtv_alsa_debug;
+static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 
 #define IVTV_DEBUG_ALSA_INFO(fmt, arg...) \
 	do { \
@@ -53,6 +54,10 @@ MODULE_PARM_DESC(debug,
 		 "Debug level (bitmask). Default: 0\n"
 		 "\t\t\t  1/0x0001: warning\n"
 		 "\t\t\t  2/0x0002: info\n");
+
+module_param_array(index, int, NULL, 0444);
+MODULE_PARM_DESC(index,
+		 "Index value for IVTV ALSA capture interface(s).\n");
 
 MODULE_AUTHOR("Andy Walls");
 MODULE_DESCRIPTION("CX23415/CX23416 ALSA Interface");
@@ -137,7 +142,7 @@ static int snd_ivtv_init(struct v4l2_device *v4l2_dev)
 	struct ivtv *itv = to_ivtv(v4l2_dev);
 	struct snd_card *sc = NULL;
 	struct snd_ivtv_card *itvsc;
-	int ret;
+	int ret, idx;
 
 	/* Numbrs steps from "Writing an ALSA Driver" by Takashi Iwai */
 
@@ -145,8 +150,10 @@ static int snd_ivtv_init(struct v4l2_device *v4l2_dev)
 	/* This is a no-op for us.  We'll use the itv->instance */
 
 	/* (2) Create a card instance */
+	/* use first available id if not specified otherwise*/
+	idx = index[itv->instance] == -1 ? SNDRV_DEFAULT_IDX1 : index[itv->instance];
 	ret = snd_card_new(&itv->pdev->dev,
-			   SNDRV_DEFAULT_IDX1, /* use first available id */
+			   idx,
 			   SNDRV_DEFAULT_STR1, /* xid from end of shortname*/
 			   THIS_MODULE, 0, &sc);
 	if (ret) {
@@ -195,6 +202,9 @@ static int snd_ivtv_init(struct v4l2_device *v4l2_dev)
 			      __func__, ret);
 		goto err_exit_free;
 	}
+
+	IVTV_ALSA_INFO("%s: Instance %d registered as ALSA card %d\n",
+			 __func__, itv->instance, sc->number);
 
 	return 0;
 

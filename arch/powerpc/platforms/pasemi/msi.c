@@ -63,17 +63,18 @@ static struct irq_chip mpic_pasemi_msi_chip = {
 static void pasemi_msi_teardown_msi_irqs(struct pci_dev *pdev)
 {
 	struct msi_desc *entry;
+	irq_hw_number_t hwirq;
 
 	pr_debug("pasemi_msi_teardown_msi_irqs, pdev %p\n", pdev);
 
-	list_for_each_entry(entry, &pdev->msi_list, list) {
+	for_each_pci_msi_entry(entry, pdev) {
 		if (entry->irq == NO_IRQ)
 			continue;
 
+		hwirq = virq_to_hw(entry->irq);
 		irq_set_msi_desc(entry->irq, NULL);
-		msi_bitmap_free_hwirqs(&msi_mpic->msi_bitmap,
-				       virq_to_hw(entry->irq), ALLOC_CHUNK);
 		irq_dispose_mapping(entry->irq);
+		msi_bitmap_free_hwirqs(&msi_mpic->msi_bitmap, hwirq, ALLOC_CHUNK);
 	}
 
 	return;
@@ -94,7 +95,7 @@ static int pasemi_msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	msg.address_hi = 0;
 	msg.address_lo = PASEMI_MSI_ADDR;
 
-	list_for_each_entry(entry, &pdev->msi_list, list) {
+	for_each_pci_msi_entry(entry, pdev) {
 		/* Allocate 16 interrupts for now, since that's the grouping for
 		 * affinity. This can be changed later if it turns out 32 is too
 		 * few MSIs for someone, but restrictions will apply to how the
@@ -143,9 +144,11 @@ int mpic_pasemi_msi_init(struct mpic *mpic)
 {
 	int rc;
 	struct pci_controller *phb;
+	struct device_node *of_node;
 
-	if (!mpic->irqhost->of_node ||
-	    !of_device_is_compatible(mpic->irqhost->of_node,
+	of_node = irq_domain_get_of_node(mpic->irqhost);
+	if (!of_node ||
+	    !of_device_is_compatible(of_node,
 				     "pasemi,pwrficient-openpic"))
 		return -ENODEV;
 

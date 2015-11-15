@@ -16,6 +16,7 @@
 #include <linux/phy.h>
 #include <linux/phy_fixed.h>
 #include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/of_mdio.h>
 #include <linux/module.h>
@@ -196,7 +197,8 @@ static int of_phy_match(struct device *dev, void *phy_np)
  * of_phy_find_device - Give a PHY node, find the phy_device
  * @phy_np: Pointer to the phy's device tree node
  *
- * Returns a pointer to the phy_device.
+ * If successful, returns a pointer to the phy_device with the embedded
+ * struct device refcount incremented by one, or NULL on failure.
  */
 struct phy_device *of_phy_find_device(struct device_node *phy_np)
 {
@@ -216,7 +218,9 @@ EXPORT_SYMBOL(of_phy_find_device);
  * @hndlr: Link state callback for the network device
  * @iface: PHY data interface type
  *
- * Returns a pointer to the phy_device if successful.  NULL otherwise
+ * If successful, returns a pointer to the phy_device with the embedded
+ * struct device refcount incremented by one, or NULL on failure. The
+ * refcount must be dropped by calling phy_disconnect() or phy_detach().
  */
 struct phy_device *of_phy_connect(struct net_device *dev,
 				  struct device_node *phy_np,
@@ -224,13 +228,19 @@ struct phy_device *of_phy_connect(struct net_device *dev,
 				  phy_interface_t iface)
 {
 	struct phy_device *phy = of_phy_find_device(phy_np);
+	int ret;
 
 	if (!phy)
 		return NULL;
 
 	phy->dev_flags = flags;
 
-	return phy_connect_direct(dev, phy, hndlr, iface) ? NULL : phy;
+	ret = phy_connect_direct(dev, phy, hndlr, iface);
+
+	/* refcount is held by phy_connect_direct() on success */
+	put_device(&phy->dev);
+
+	return ret ? NULL : phy;
 }
 EXPORT_SYMBOL(of_phy_connect);
 
@@ -240,17 +250,27 @@ EXPORT_SYMBOL(of_phy_connect);
  * @phy_np: Node pointer for the PHY
  * @flags: flags to pass to the PHY
  * @iface: PHY data interface type
+ *
+ * If successful, returns a pointer to the phy_device with the embedded
+ * struct device refcount incremented by one, or NULL on failure. The
+ * refcount must be dropped by calling phy_disconnect() or phy_detach().
  */
 struct phy_device *of_phy_attach(struct net_device *dev,
 				 struct device_node *phy_np, u32 flags,
 				 phy_interface_t iface)
 {
 	struct phy_device *phy = of_phy_find_device(phy_np);
+	int ret;
 
 	if (!phy)
 		return NULL;
 
-	return phy_attach_direct(dev, phy, flags, iface) ? NULL : phy;
+	ret = phy_attach_direct(dev, phy, flags, iface);
+
+	/* refcount is held by phy_attach_direct() on success */
+	put_device(&phy->dev);
+
+	return ret ? NULL : phy;
 }
 EXPORT_SYMBOL(of_phy_attach);
 
@@ -266,7 +286,8 @@ EXPORT_SYMBOL(of_phy_attach);
 bool of_phy_is_fixed_link(struct device_node *np)
 {
 	struct device_node *dn;
-	int len;
+	int len, err;
+	const char *managed;
 
 	/* New binding */
 	dn = of_get_child_by_name(np, "fixed-link");
@@ -274,6 +295,10 @@ bool of_phy_is_fixed_link(struct device_node *np)
 		of_node_put(dn);
 		return true;
 	}
+
+	err = of_property_read_string(np, "managed", &managed);
+	if (err == 0 && strcmp(managed, "auto") != 0)
+		return true;
 
 	/* Old binding */
 	if (of_get_property(np, "fixed-link", &len) &&
@@ -289,8 +314,19 @@ int of_phy_register_fixed_link(struct device_node *np)
 	struct fixed_phy_status status = {};
 	struct device_node *fixed_link_node;
 	const __be32 *fixed_link_prop;
-	int len;
+	int link_gpio;
+	int len, err;
 	struct phy_device *phy;
+	const char *managed;
+
+	err = of_property_read_string(np, "managed", &managed);
+	if (err == 0) {
+		if (strcmp(managed, "in-band-status") == 0) {
+			/* status is zeroed, namely its .link member */
+			phy = fixed_phy_register(PHY_POLL, &status, -1, np);
+			return IS_ERR(phy) ? PTR_ERR(phy) : 0;
+		}
+	}
 
 	/* New binding */
 	fixed_link_node = of_get_child_by_name(np, "fixed-link");
@@ -303,8 +339,13 @@ int of_phy_register_fixed_link(struct device_node *np)
 		status.pause = of_property_read_bool(fixed_link_node, "pause");
 		status.asym_pause = of_property_read_bool(fixed_link_node,
 							  "asym-pause");
+		link_gpio = of_get_named_gpio_flags(fixed_link_node,
+						    "link-gpios", 0, NULL);
 		of_node_put(fixed_link_node);
-		phy = fixed_phy_register(PHY_POLL, &status, np);
+		if (link_gpio == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+
+		phy = fixed_phy_register(PHY_POLL, &status, link_gpio, np);
 		return IS_ERR(phy) ? PTR_ERR(phy) : 0;
 	}
 
@@ -316,7 +357,7 @@ int of_phy_register_fixed_link(struct device_node *np)
 		status.speed = be32_to_cpu(fixed_link_prop[2]);
 		status.pause = be32_to_cpu(fixed_link_prop[3]);
 		status.asym_pause = be32_to_cpu(fixed_link_prop[4]);
-		phy = fixed_phy_register(PHY_POLL, &status, np);
+		phy = fixed_phy_register(PHY_POLL, &status, -1, np);
 		return IS_ERR(phy) ? PTR_ERR(phy) : 0;
 	}
 

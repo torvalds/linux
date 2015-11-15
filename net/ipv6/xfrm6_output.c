@@ -79,6 +79,7 @@ static int xfrm6_tunnel_check_size(struct sk_buff *skb)
 
 	if (!skb->ignore_df && skb->len > mtu) {
 		skb->dev = dst->dev;
+		skb->protocol = htons(ETH_P_IPV6);
 
 		if (xfrm6_local_dontfrag(skb))
 			xfrm6_local_rxpmtu(skb, mtu);
@@ -131,44 +132,57 @@ int xfrm6_output_finish(struct sock *sk, struct sk_buff *skb)
 	return xfrm_output(sk, skb);
 }
 
-static int __xfrm6_output(struct sock *sk, struct sk_buff *skb)
+static int __xfrm6_output_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
+{
+	struct xfrm_state *x = skb_dst(skb)->xfrm;
+
+	return x->outer_mode->afinfo->output_finish(sk, skb);
+}
+
+static int __xfrm6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
 	struct xfrm_state *x = dst->xfrm;
 	int mtu;
+	bool toobig;
 
 #ifdef CONFIG_NETFILTER
 	if (!x) {
 		IP6CB(skb)->flags |= IP6SKB_REROUTED;
-		return dst_output_sk(sk, skb);
+		return dst_output(net, sk, skb);
 	}
 #endif
+
+	if (x->props.mode != XFRM_MODE_TUNNEL)
+		goto skip_frag;
 
 	if (skb->protocol == htons(ETH_P_IPV6))
 		mtu = ip6_skb_dst_mtu(skb);
 	else
 		mtu = dst_mtu(skb_dst(skb));
 
-	if (skb->len > mtu && xfrm6_local_dontfrag(skb)) {
+	toobig = skb->len > mtu && !skb_is_gso(skb);
+
+	if (toobig && xfrm6_local_dontfrag(skb)) {
 		xfrm6_local_rxpmtu(skb, mtu);
 		return -EMSGSIZE;
-	} else if (!skb->ignore_df && skb->len > mtu && skb->sk) {
+	} else if (!skb->ignore_df && toobig && skb->sk) {
 		xfrm_local_error(skb, mtu);
 		return -EMSGSIZE;
 	}
 
-	if (x->props.mode == XFRM_MODE_TUNNEL &&
-	    ((skb->len > mtu && !skb_is_gso(skb)) ||
-		dst_allfrag(skb_dst(skb)))) {
-		return ip6_fragment(sk, skb,
-				    x->outer_mode->afinfo->output_finish);
-	}
+	if (toobig || dst_allfrag(skb_dst(skb)))
+		return ip6_fragment(net, sk, skb,
+				    __xfrm6_output_finish);
+
+skip_frag:
 	return x->outer_mode->afinfo->output_finish(sk, skb);
 }
 
-int xfrm6_output(struct sock *sk, struct sk_buff *skb)
+int xfrm6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	return NF_HOOK_COND(NFPROTO_IPV6, NF_INET_POST_ROUTING, sk, skb,
-			    NULL, skb_dst(skb)->dev, __xfrm6_output,
+	return NF_HOOK_COND(NFPROTO_IPV6, NF_INET_POST_ROUTING,
+			    net, sk, skb,  NULL, skb_dst(skb)->dev,
+			    __xfrm6_output,
 			    !(IP6CB(skb)->flags & IP6SKB_REROUTED));
 }

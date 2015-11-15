@@ -325,7 +325,6 @@ static int ocfb_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "I/O resource request failed\n");
 		return -ENXIO;
 	}
-	res->flags &= ~IORESOURCE_CACHEABLE;
 	fbdev->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(fbdev->regs))
 		return PTR_ERR(fbdev->regs);

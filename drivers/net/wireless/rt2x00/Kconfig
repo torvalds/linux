@@ -240,7 +240,6 @@ config RT2X00_LIB_USB
 
 config RT2X00_LIB
 	tristate
-	select AVERAGE
 
 config RT2X00_LIB_FIRMWARE
 	bool

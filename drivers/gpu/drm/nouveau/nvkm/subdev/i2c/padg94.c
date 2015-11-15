@@ -22,64 +22,55 @@
  * Authors: Ben Skeggs
  */
 #include "pad.h"
+#include "aux.h"
+#include "bus.h"
 
-struct g94_i2c_pad {
-	struct nvkm_i2c_pad base;
-	int addr;
-};
-
-static int
-g94_i2c_pad_fini(struct nvkm_object *object, bool suspend)
+void
+g94_i2c_pad_mode(struct nvkm_i2c_pad *pad, enum nvkm_i2c_pad_mode mode)
 {
-	struct nvkm_i2c *i2c = (void *)nvkm_i2c(object);
-	struct g94_i2c_pad *pad = (void *)object;
-	nv_mask(i2c, 0x00e50c + pad->addr, 0x00000001, 0x00000001);
-	return nvkm_i2c_pad_fini(&pad->base, suspend);
-}
+	struct nvkm_subdev *subdev = &pad->i2c->subdev;
+	struct nvkm_device *device = subdev->device;
+	const u32 base = (pad->id - NVKM_I2C_PAD_HYBRID(0)) * 0x50;
 
-static int
-g94_i2c_pad_init(struct nvkm_object *object)
-{
-	struct nvkm_i2c *i2c = (void *)nvkm_i2c(object);
-	struct g94_i2c_pad *pad = (void *)object;
-
-	switch (nv_oclass(pad->base.next)->handle) {
-	case NV_I2C_TYPE_DCBI2C(DCB_I2C_NVIO_AUX):
-		nv_mask(i2c, 0x00e500 + pad->addr, 0x0000c003, 0x00000002);
+	switch (mode) {
+	case NVKM_I2C_PAD_OFF:
+		nvkm_mask(device, 0x00e50c + base, 0x00000001, 0x00000001);
 		break;
-	case NV_I2C_TYPE_DCBI2C(DCB_I2C_NVIO_BIT):
+	case NVKM_I2C_PAD_I2C:
+		nvkm_mask(device, 0x00e500 + base, 0x0000c003, 0x0000c001);
+		nvkm_mask(device, 0x00e50c + base, 0x00000001, 0x00000000);
+		break;
+	case NVKM_I2C_PAD_AUX:
+		nvkm_mask(device, 0x00e500 + base, 0x0000c003, 0x00000002);
+		nvkm_mask(device, 0x00e50c + base, 0x00000001, 0x00000000);
+		break;
 	default:
-		nv_mask(i2c, 0x00e500 + pad->addr, 0x0000c003, 0x0000c001);
+		WARN_ON(1);
 		break;
 	}
-
-	nv_mask(i2c, 0x00e50c + pad->addr, 0x00000001, 0x00000000);
-	return nvkm_i2c_pad_init(&pad->base);
 }
 
-static int
-g94_i2c_pad_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		 struct nvkm_oclass *oclass, void *data, u32 index,
-		 struct nvkm_object **pobject)
-{
-	struct g94_i2c_pad *pad;
-	int ret;
-
-	ret = nvkm_i2c_pad_create(parent, engine, oclass, index, &pad);
-	*pobject = nv_object(pad);
-	if (ret)
-		return ret;
-
-	pad->addr = index * 0x50;;
-	return 0;
-}
-
-struct nvkm_oclass
-g94_i2c_pad_oclass = {
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = g94_i2c_pad_ctor,
-		.dtor = _nvkm_i2c_pad_dtor,
-		.init = g94_i2c_pad_init,
-		.fini = g94_i2c_pad_fini,
-	},
+static const struct nvkm_i2c_pad_func
+g94_i2c_pad_s_func = {
+	.bus_new_4 = nv50_i2c_bus_new,
+	.aux_new_6 = g94_i2c_aux_new,
+	.mode = g94_i2c_pad_mode,
 };
+
+int
+g94_i2c_pad_s_new(struct nvkm_i2c *i2c, int id, struct nvkm_i2c_pad **ppad)
+{
+	return nvkm_i2c_pad_new_(&g94_i2c_pad_s_func, i2c, id, ppad);
+}
+
+static const struct nvkm_i2c_pad_func
+g94_i2c_pad_x_func = {
+	.bus_new_4 = nv50_i2c_bus_new,
+	.aux_new_6 = g94_i2c_aux_new,
+};
+
+int
+g94_i2c_pad_x_new(struct nvkm_i2c *i2c, int id, struct nvkm_i2c_pad **ppad)
+{
+	return nvkm_i2c_pad_new_(&g94_i2c_pad_x_func, i2c, id, ppad);
+}

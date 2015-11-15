@@ -396,10 +396,9 @@ static int __init bcm47xx_buttons_copy(const struct gpio_keys_button *buttons,
 {
 	size_t size = nbuttons * sizeof(*buttons);
 
-	bcm47xx_button_pdata.buttons = kmalloc(size, GFP_KERNEL);
+	bcm47xx_button_pdata.buttons = kmemdup(buttons, size, GFP_KERNEL);
 	if (!bcm47xx_button_pdata.buttons)
 		return -ENOMEM;
-	memcpy(bcm47xx_button_pdata.buttons, buttons, size);
 	bcm47xx_button_pdata.nbuttons = nbuttons;
 
 	return 0;

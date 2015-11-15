@@ -65,12 +65,12 @@ rwlock_t global_state_lock;
 /* used for synchronous meta data and bitmap IO
  * submitted by drbd_md_sync_page_io()
  */
-void drbd_md_endio(struct bio *bio, int error)
+void drbd_md_endio(struct bio *bio)
 {
 	struct drbd_device *device;
 
 	device = bio->bi_private;
-	device->md_io.error = error;
+	device->md_io.error = bio->bi_error;
 
 	/* We grabbed an extra reference in _drbd_md_sync_page_io() to be able
 	 * to timeout on the lower level device, and eventually detach from it.
@@ -170,31 +170,20 @@ void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __releases(l
 /* writes on behalf of the partner, or resync writes,
  * "submitted" by the receiver.
  */
-void drbd_peer_request_endio(struct bio *bio, int error)
+void drbd_peer_request_endio(struct bio *bio)
 {
 	struct drbd_peer_request *peer_req = bio->bi_private;
 	struct drbd_device *device = peer_req->peer_device->device;
-	int uptodate = bio_flagged(bio, BIO_UPTODATE);
 	int is_write = bio_data_dir(bio) == WRITE;
 	int is_discard = !!(bio->bi_rw & REQ_DISCARD);
 
-	if (error && __ratelimit(&drbd_ratelimit_state))
+	if (bio->bi_error && __ratelimit(&drbd_ratelimit_state))
 		drbd_warn(device, "%s: error=%d s=%llus\n",
 				is_write ? (is_discard ? "discard" : "write")
-					: "read", error,
+					: "read", bio->bi_error,
 				(unsigned long long)peer_req->i.sector);
-	if (!error && !uptodate) {
-		if (__ratelimit(&drbd_ratelimit_state))
-			drbd_warn(device, "%s: setting error to -EIO s=%llus\n",
-					is_write ? "write" : "read",
-					(unsigned long long)peer_req->i.sector);
-		/* strange behavior of some lower level drivers...
-		 * fail the request by clearing the uptodate flag,
-		 * but do not return any error?! */
-		error = -EIO;
-	}
 
-	if (error)
+	if (bio->bi_error)
 		set_bit(__EE_WAS_ERROR, &peer_req->flags);
 
 	bio_put(bio); /* no need for the bio anymore */
@@ -208,24 +197,13 @@ void drbd_peer_request_endio(struct bio *bio, int error)
 
 /* read, readA or write requests on R_PRIMARY coming from drbd_make_request
  */
-void drbd_request_endio(struct bio *bio, int error)
+void drbd_request_endio(struct bio *bio)
 {
 	unsigned long flags;
 	struct drbd_request *req = bio->bi_private;
 	struct drbd_device *device = req->device;
 	struct bio_and_error m;
 	enum drbd_req_event what;
-	int uptodate = bio_flagged(bio, BIO_UPTODATE);
-
-	if (!error && !uptodate) {
-		drbd_warn(device, "p %s: setting error to -EIO\n",
-			 bio_data_dir(bio) == WRITE ? "write" : "read");
-		/* strange behavior of some lower level drivers...
-		 * fail the request by clearing the uptodate flag,
-		 * but do not return any error?! */
-		error = -EIO;
-	}
-
 
 	/* If this request was aborted locally before,
 	 * but now was completed "successfully",
@@ -259,14 +237,14 @@ void drbd_request_endio(struct bio *bio, int error)
 		if (__ratelimit(&drbd_ratelimit_state))
 			drbd_emerg(device, "delayed completion of aborted local request; disk-timeout may be too aggressive\n");
 
-		if (!error)
+		if (!bio->bi_error)
 			panic("possible random memory corruption caused by delayed completion of aborted local request\n");
 	}
 
 	/* to avoid recursion in __req_mod */
-	if (unlikely(error)) {
+	if (unlikely(bio->bi_error)) {
 		if (bio->bi_rw & REQ_DISCARD)
-			what = (error == -EOPNOTSUPP)
+			what = (bio->bi_error == -EOPNOTSUPP)
 				? DISCARD_COMPLETED_NOTSUPP
 				: DISCARD_COMPLETED_WITH_ERROR;
 		else
@@ -279,7 +257,7 @@ void drbd_request_endio(struct bio *bio, int error)
 		what = COMPLETED_OK;
 
 	bio_put(req->private_bio);
-	req->private_bio = ERR_PTR(error);
+	req->private_bio = ERR_PTR(bio->bi_error);
 
 	/* not req_mod(), we need irqsave here! */
 	spin_lock_irqsave(&device->resource->req_lock, flags);

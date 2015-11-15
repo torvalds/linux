@@ -42,6 +42,14 @@
 #define PECR_IS(n)	((1 << ((n) * 2)) << 29)
 
 extern void __init pxa_dt_irq_init(int (*fn)(struct irq_data *, unsigned int));
+
+/*
+ * NAND NFC: DFI bus arbitration subset
+ */
+#define NDCR			(*(volatile u32 __iomem*)(NAND_VIRT + 0))
+#define NDCR_ND_ARB_EN		(1 << 12)
+#define NDCR_ND_ARB_CNTL	(1 << 19)
+
 #ifdef CONFIG_PM
 
 #define ISRAM_START	0x5c000000
@@ -325,7 +333,7 @@ static void __init pxa_init_ext_wakeup_irq(int (*fn)(struct irq_data *,
 	for (irq = IRQ_WAKEUP0; irq <= IRQ_WAKEUP1; irq++) {
 		irq_set_chip_and_handler(irq, &pxa_ext_wakeup_chip,
 					 handle_edge_irq);
-		set_irq_flags(irq, IRQF_VALID);
+		irq_clear_status_flags(irq, IRQ_NOREQUEST);
 	}
 
 	pxa_ext_wakeup_chip.irq_set_wake = fn;
@@ -362,7 +370,12 @@ static struct map_desc pxa3xx_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(PXA3XX_SMEMC_BASE),
 		.length		= SMEMC_SIZE,
 		.type		= MT_DEVICE
-	}
+	}, {
+		.virtual	= (unsigned long)NAND_VIRT,
+		.pfn		= __phys_to_pfn(NAND_PHYS),
+		.length		= NAND_SIZE,
+		.type		= MT_DEVICE
+	},
 };
 
 void __init pxa3xx_map_io(void)
@@ -394,7 +407,6 @@ static struct platform_device *devices[] __initdata = {
 	&pxa_device_asoc_ssp3,
 	&pxa_device_asoc_ssp4,
 	&pxa_device_asoc_platform,
-	&sa1100_device_rtc,
 	&pxa_device_rtc,
 	&pxa3xx_device_ssp1,
 	&pxa3xx_device_ssp2,
@@ -420,6 +432,13 @@ static int __init pxa3xx_init(void)
 		 */
 		ASCR &= ~(ASCR_RDH | ASCR_D1S | ASCR_D2S | ASCR_D3S);
 
+		/*
+		 * Disable DFI bus arbitration, to prevent a system bus lock if
+		 * somebody disables the NAND clock (unused clock) while this
+		 * bit remains set.
+		 */
+		NDCR = (NDCR & ~NDCR_ND_ARB_EN) | NDCR_ND_ARB_CNTL;
+
 		if ((ret = pxa_init_dma(IRQ_DMA, 32)))
 			return ret;
 
@@ -431,6 +450,7 @@ static int __init pxa3xx_init(void)
 		if (of_have_populated_dt())
 			return 0;
 
+		pxa2xx_set_dmac_info(32);
 		ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 		if (ret)
 			return ret;

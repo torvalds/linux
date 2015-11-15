@@ -498,16 +498,6 @@ static void dlm_lockres_release(struct kref *kref)
 	mlog(0, "destroying lockres %.*s\n", res->lockname.len,
 	     res->lockname.name);
 
-	spin_lock(&dlm->track_lock);
-	if (!list_empty(&res->tracking))
-		list_del_init(&res->tracking);
-	else {
-		mlog(ML_ERROR, "Resource %.*s not on the Tracking list\n",
-		     res->lockname.len, res->lockname.name);
-		dlm_print_one_lock_resource(res);
-	}
-	spin_unlock(&dlm->track_lock);
-
 	atomic_dec(&dlm->res_cur_count);
 
 	if (!hlist_unhashed(&res->hash_node) ||
@@ -795,8 +785,18 @@ lookup:
 		dlm_lockres_grab_inflight_ref(dlm, tmpres);
 
 		spin_unlock(&tmpres->spinlock);
-		if (res)
+		if (res) {
+			spin_lock(&dlm->track_lock);
+			if (!list_empty(&res->tracking))
+				list_del_init(&res->tracking);
+			else
+				mlog(ML_ERROR, "Resource %.*s not "
+						"on the Tracking list\n",
+						res->lockname.len,
+						res->lockname.name);
+			spin_unlock(&dlm->track_lock);
 			dlm_lockres_put(res);
+		}
 		res = tmpres;
 		goto leave;
 	}
@@ -1439,6 +1439,7 @@ int dlm_master_request_handler(struct o2net_msg *msg, u32 len, void *data,
 	int found, ret;
 	int set_maybe;
 	int dispatch_assert = 0;
+	int dispatched = 0;
 
 	if (!dlm_grab(dlm))
 		return DLM_MASTER_RESP_NO;
@@ -1657,16 +1658,20 @@ send_response:
 		if (ret < 0) {
 			mlog(ML_ERROR, "failed to dispatch assert master work\n");
 			response = DLM_MASTER_RESP_ERROR;
+			spin_unlock(&res->spinlock);
 			dlm_lockres_put(res);
-		} else
+		} else {
+			dispatched = 1;
 			__dlm_lockres_grab_inflight_worker(dlm, res);
-		spin_unlock(&res->spinlock);
+			spin_unlock(&res->spinlock);
+		}
 	} else {
 		if (res)
 			dlm_lockres_put(res);
 	}
 
-	dlm_put(dlm);
+	if (!dispatched)
+		dlm_put(dlm);
 	return response;
 }
 
@@ -2090,7 +2095,6 @@ int dlm_dispatch_assert_master(struct dlm_ctxt *dlm,
 
 
 	/* queue up work for dlm_assert_master_worker */
-	dlm_grab(dlm);  /* get an extra ref for the work item */
 	dlm_init_work_item(dlm, item, dlm_assert_master_worker, NULL);
 	item->u.am.lockres = res; /* already have a ref */
 	/* can optionally ignore node numbers higher than this node */

@@ -6,6 +6,14 @@
 	model = "Qualcomm MSM8660 SURF";
 	compatible = "qcom,msm8660-surf", "qcom,msm8660";
 
+	aliases {
+		serial0 = &gsbi12_serial;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	soc {
 		gsbi@19c00000 {
 			status = "ok";

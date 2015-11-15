@@ -44,7 +44,7 @@ struct rcu_ctrlblk;
 static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp);
 static void rcu_process_callbacks(struct softirq_action *unused);
 static void __call_rcu(struct rcu_head *head,
-		       void (*func)(struct rcu_head *rcu),
+		       rcu_callback_t func,
 		       struct rcu_ctrlblk *rcp);
 
 #include "tiny_plugin.h"
@@ -191,10 +191,10 @@ static void rcu_process_callbacks(struct softirq_action *unused)
  */
 void synchronize_sched(void)
 {
-	rcu_lockdep_assert(!lock_is_held(&rcu_bh_lock_map) &&
-			   !lock_is_held(&rcu_lock_map) &&
-			   !lock_is_held(&rcu_sched_lock_map),
-			   "Illegal synchronize_sched() in RCU read-side critical section");
+	RCU_LOCKDEP_WARN(lock_is_held(&rcu_bh_lock_map) ||
+			 lock_is_held(&rcu_lock_map) ||
+			 lock_is_held(&rcu_sched_lock_map),
+			 "Illegal synchronize_sched() in RCU read-side critical section");
 	cond_resched();
 }
 EXPORT_SYMBOL_GPL(synchronize_sched);
@@ -203,7 +203,7 @@ EXPORT_SYMBOL_GPL(synchronize_sched);
  * Helper function for call_rcu() and call_rcu_bh().
  */
 static void __call_rcu(struct rcu_head *head,
-		       void (*func)(struct rcu_head *rcu),
+		       rcu_callback_t func,
 		       struct rcu_ctrlblk *rcp)
 {
 	unsigned long flags;
@@ -229,7 +229,7 @@ static void __call_rcu(struct rcu_head *head,
  * period.  But since we have but one CPU, that would be after any
  * quiescent state.
  */
-void call_rcu_sched(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
+void call_rcu_sched(struct rcu_head *head, rcu_callback_t func)
 {
 	__call_rcu(head, func, &rcu_sched_ctrlblk);
 }
@@ -239,7 +239,7 @@ EXPORT_SYMBOL_GPL(call_rcu_sched);
  * Post an RCU bottom-half callback to be invoked after any subsequent
  * quiescent state.
  */
-void call_rcu_bh(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
+void call_rcu_bh(struct rcu_head *head, rcu_callback_t func)
 {
 	__call_rcu(head, func, &rcu_bh_ctrlblk);
 }

@@ -369,11 +369,11 @@ static void b43legacy_add_dynamic_debug(struct b43legacy_wldev *dev)
 		e->dyn_debug_dentries[id] = d;		\
 				} while (0)
 
-	add_dyn_dbg("debug_xmitpower", B43legacy_DBG_XMITPOWER, 0);
-	add_dyn_dbg("debug_dmaoverflow", B43legacy_DBG_DMAOVERFLOW, 0);
-	add_dyn_dbg("debug_dmaverbose", B43legacy_DBG_DMAVERBOSE, 0);
-	add_dyn_dbg("debug_pwork_fast", B43legacy_DBG_PWORK_FAST, 0);
-	add_dyn_dbg("debug_pwork_stop", B43legacy_DBG_PWORK_STOP, 0);
+	add_dyn_dbg("debug_xmitpower", B43legacy_DBG_XMITPOWER, false);
+	add_dyn_dbg("debug_dmaoverflow", B43legacy_DBG_DMAOVERFLOW, false);
+	add_dyn_dbg("debug_dmaverbose", B43legacy_DBG_DMAVERBOSE, false);
+	add_dyn_dbg("debug_pwork_fast", B43legacy_DBG_PWORK_FAST, false);
+	add_dyn_dbg("debug_pwork_stop", B43legacy_DBG_PWORK_STOP, false);
 
 #undef add_dyn_dbg
 }

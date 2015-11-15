@@ -17,6 +17,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/mfd/tc3589x.h>
+#include <linux/device.h>
 
 /* Maximum supported keypad matrix row/columns size */
 #define TC3589x_MAX_KPROW               8
@@ -352,7 +353,10 @@ tc3589x_keypad_of_probe(struct device *dev)
 	}
 
 	plat->no_autorepeat = of_property_read_bool(np, "linux,no-autorepeat");
-	plat->enable_wakeup = of_property_read_bool(np, "linux,wakeup");
+
+	plat->enable_wakeup = of_property_read_bool(np, "wakeup-source") ||
+			      /* legacy name */
+			      of_property_read_bool(np, "linux,wakeup");
 
 	/* The custom delay format is ms/16 */
 	of_property_read_u32(np, "debounce-delay-ms", &debounce_ms);
@@ -386,12 +390,15 @@ static int tc3589x_keypad_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	keypad = kzalloc(sizeof(struct tc_keypad), GFP_KERNEL);
-	input = input_allocate_device();
-	if (!keypad || !input) {
-		dev_err(&pdev->dev, "failed to allocate keypad memory\n");
-		error = -ENOMEM;
-		goto err_free_mem;
+	keypad = devm_kzalloc(&pdev->dev, sizeof(struct tc_keypad),
+			      GFP_KERNEL);
+	if (!keypad)
+		return -ENOMEM;
+
+	input = devm_input_allocate_device(&pdev->dev);
+	if (!input) {
+		dev_err(&pdev->dev, "failed to allocate input device\n");
+		return -ENOMEM;
 	}
 
 	keypad->board = plat;
@@ -410,7 +417,7 @@ static int tc3589x_keypad_probe(struct platform_device *pdev)
 					   NULL, input);
 	if (error) {
 		dev_err(&pdev->dev, "Failed to build keymap\n");
-		goto err_free_mem;
+		return error;
 	}
 
 	keypad->keymap = input->keycode;
@@ -421,20 +428,23 @@ static int tc3589x_keypad_probe(struct platform_device *pdev)
 
 	input_set_drvdata(input, keypad);
 
-	error = request_threaded_irq(irq, NULL, tc3589x_keypad_irq,
-				     plat->irqtype | IRQF_ONESHOT,
-				     "tc3589x-keypad", keypad);
-	if (error < 0) {
+	tc3589x_keypad_disable(keypad);
+
+	error = devm_request_threaded_irq(&pdev->dev, irq,
+					  NULL, tc3589x_keypad_irq,
+					  plat->irqtype | IRQF_ONESHOT,
+					  "tc3589x-keypad", keypad);
+	if (error) {
 		dev_err(&pdev->dev,
 				"Could not allocate irq %d,error %d\n",
 				irq, error);
-		goto err_free_mem;
+		return error;
 	}
 
 	error = input_register_device(input);
 	if (error) {
 		dev_err(&pdev->dev, "Could not register input device\n");
-		goto err_free_irq;
+		return error;
 	}
 
 	/* let platform decide if keypad is a wakeup source or not */
@@ -442,30 +452,6 @@ static int tc3589x_keypad_probe(struct platform_device *pdev)
 	device_set_wakeup_capable(&pdev->dev, plat->enable_wakeup);
 
 	platform_set_drvdata(pdev, keypad);
-
-	return 0;
-
-err_free_irq:
-	free_irq(irq, keypad);
-err_free_mem:
-	input_free_device(input);
-	kfree(keypad);
-	return error;
-}
-
-static int tc3589x_keypad_remove(struct platform_device *pdev)
-{
-	struct tc_keypad *keypad = platform_get_drvdata(pdev);
-	int irq = platform_get_irq(pdev, 0);
-
-	if (!keypad->keypad_stopped)
-		tc3589x_keypad_disable(keypad);
-
-	free_irq(irq, keypad);
-
-	input_unregister_device(keypad->input);
-
-	kfree(keypad);
 
 	return 0;
 }
@@ -518,7 +504,6 @@ static struct platform_driver tc3589x_keypad_driver = {
 		.pm	= &tc3589x_keypad_dev_pm_ops,
 	},
 	.probe	= tc3589x_keypad_probe,
-	.remove	= tc3589x_keypad_remove,
 };
 module_platform_driver(tc3589x_keypad_driver);
 

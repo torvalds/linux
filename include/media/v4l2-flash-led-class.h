@@ -48,13 +48,13 @@ struct v4l2_flash_ops {
 /**
  * struct v4l2_flash_config - V4L2 Flash sub-device initialization data
  * @dev_name:			the name of the media entity,
-				unique in the system
+ *				unique in the system
  * @torch_intensity:		constraints for the LED in torch mode
  * @indicator_intensity:	constraints for the indicator LED
  * @flash_faults:		bitmask of flash faults that the LED flash class
-				device can report; corresponding LED_FAULT* bit
-				definitions are available in the header file
-				<linux/led-class-flash.h>
+ *				device can report; corresponding LED_FAULT* bit
+ *				definitions are available in the header file
+ *				<linux/led-class-flash.h>
  * @has_external_strobe:	external strobe capability
  */
 struct v4l2_flash_config {
@@ -105,7 +105,7 @@ static inline struct v4l2_flash *v4l2_ctrl_to_v4l2_flash(struct v4l2_ctrl *c)
  * @fled_cdev:	LED flash class device to wrap
  * @iled_cdev:	LED flash class device representing indicator LED associated
  *		with fled_cdev, may be NULL
- * @flash_ops:	V4L2 Flash device ops
+ * @ops:	V4L2 Flash device ops
  * @config:	initialization data for V4L2 Flash sub-device
  *
  * Create V4L2 Flash sub-device wrapping given LED subsystem device.
@@ -123,7 +123,7 @@ struct v4l2_flash *v4l2_flash_init(
 
 /**
  * v4l2_flash_release - release V4L2 Flash sub-device
- * @flash: the V4L2 Flash sub-device to release
+ * @v4l2_flash: the V4L2 Flash sub-device to release
  *
  * Release V4L2 Flash sub-device.
  */

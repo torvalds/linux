@@ -128,14 +128,6 @@ static inline void FNAME(protect_clean_gpte)(unsigned *access, unsigned gpte)
 	*access &= mask;
 }
 
-static bool FNAME(is_rsvd_bits_set)(struct kvm_mmu *mmu, u64 gpte, int level)
-{
-	int bit7 = (gpte >> 7) & 1, low6 = gpte & 0x3f;
-
-	return (gpte & mmu->rsvd_bits_mask[bit7][level-1]) |
-		((mmu->bad_mt_xwr & (1ull << low6)) != 0);
-}
-
 static inline int FNAME(is_present_gpte)(unsigned long pte)
 {
 #if PTTYPE != PTTYPE_EPT
@@ -172,7 +164,7 @@ static bool FNAME(prefetch_invalid_gpte)(struct kvm_vcpu *vcpu,
 				  struct kvm_mmu_page *sp, u64 *spte,
 				  u64 gpte)
 {
-	if (FNAME(is_rsvd_bits_set)(&vcpu->arch.mmu, gpte, PT_PAGE_TABLE_LEVEL))
+	if (is_rsvd_bits_set(&vcpu->arch.mmu, gpte, PT_PAGE_TABLE_LEVEL))
 		goto no_present;
 
 	if (!FNAME(is_present_gpte)(gpte))
@@ -353,8 +345,7 @@ retry_walk:
 		if (unlikely(!FNAME(is_present_gpte)(pte)))
 			goto error;
 
-		if (unlikely(FNAME(is_rsvd_bits_set)(mmu, pte,
-					             walker->level))) {
+		if (unlikely(is_rsvd_bits_set(mmu, pte, walker->level))) {
 			errcode |= PFERR_RSVD_MASK | PFERR_PRESENT_MASK;
 			goto error;
 		}
@@ -707,15 +698,14 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 	int r;
 	pfn_t pfn;
 	int level = PT_PAGE_TABLE_LEVEL;
-	int force_pt_level;
+	bool force_pt_level = false;
 	unsigned long mmu_seq;
 	bool map_writable, is_self_change_mapping;
 
 	pgprintk("%s: addr %lx err %x\n", __func__, addr, error_code);
 
 	if (unlikely(error_code & PFERR_RSVD_MASK)) {
-		r = handle_mmio_page_fault(vcpu, addr, error_code,
-					      mmu_is_nested(vcpu));
+		r = handle_mmio_page_fault(vcpu, addr, mmu_is_nested(vcpu));
 		if (likely(r != RET_MMIO_PF_INVALID))
 			return r;
 
@@ -752,15 +742,14 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 	is_self_change_mapping = FNAME(is_self_change_mapping)(vcpu,
 	      &walker, user_fault, &vcpu->arch.write_fault_to_shadow_pgtable);
 
-	if (walker.level >= PT_DIRECTORY_LEVEL)
-		force_pt_level = mapping_level_dirty_bitmap(vcpu, walker.gfn)
-		   || is_self_change_mapping;
-	else
-		force_pt_level = 1;
-	if (!force_pt_level) {
-		level = min(walker.level, mapping_level(vcpu, walker.gfn));
-		walker.gfn = walker.gfn & ~(KVM_PAGES_PER_HPAGE(level) - 1);
-	}
+	if (walker.level >= PT_DIRECTORY_LEVEL && !is_self_change_mapping) {
+		level = mapping_level(vcpu, walker.gfn, &force_pt_level);
+		if (likely(!force_pt_level)) {
+			level = min(walker.level, level);
+			walker.gfn = walker.gfn & ~(KVM_PAGES_PER_HPAGE(level) - 1);
+		}
+	} else
+		force_pt_level = true;
 
 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
 	smp_rmb();

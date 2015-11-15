@@ -13,6 +13,7 @@
 
 #include <linux/led-class-flash.h>
 #include <linux/mfd/max77693.h>
+#include <linux/mfd/max77693-common.h>
 #include <linux/mfd/max77693-private.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -1079,6 +1080,7 @@ static const struct of_device_id max77693_led_dt_match[] = {
 	{ .compatible = "maxim,max77693-led" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, max77693_led_dt_match);
 
 static struct platform_driver max77693_led_driver = {
 	.probe		= max77693_led_probe,

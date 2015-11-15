@@ -338,20 +338,20 @@ static void workqueue_sysfs_unregister(struct workqueue_struct *wq);
 #include <trace/events/workqueue.h>
 
 #define assert_rcu_or_pool_mutex()					\
-	rcu_lockdep_assert(rcu_read_lock_sched_held() ||		\
-			   lockdep_is_held(&wq_pool_mutex),		\
-			   "sched RCU or wq_pool_mutex should be held")
+	RCU_LOCKDEP_WARN(!rcu_read_lock_sched_held() &&			\
+			 !lockdep_is_held(&wq_pool_mutex),		\
+			 "sched RCU or wq_pool_mutex should be held")
 
 #define assert_rcu_or_wq_mutex(wq)					\
-	rcu_lockdep_assert(rcu_read_lock_sched_held() ||		\
-			   lockdep_is_held(&wq->mutex),			\
-			   "sched RCU or wq->mutex should be held")
+	RCU_LOCKDEP_WARN(!rcu_read_lock_sched_held() &&			\
+			 !lockdep_is_held(&wq->mutex),			\
+			 "sched RCU or wq->mutex should be held")
 
 #define assert_rcu_or_wq_mutex_or_pool_mutex(wq)			\
-	rcu_lockdep_assert(rcu_read_lock_sched_held() ||		\
-			   lockdep_is_held(&wq->mutex) ||		\
-			   lockdep_is_held(&wq_pool_mutex),		\
-			   "sched RCU, wq->mutex or wq_pool_mutex should be held")
+	RCU_LOCKDEP_WARN(!rcu_read_lock_sched_held() &&			\
+			 !lockdep_is_held(&wq->mutex) &&		\
+			 !lockdep_is_held(&wq_pool_mutex),		\
+			 "sched RCU, wq->mutex or wq_pool_mutex should be held")
 
 #define for_each_cpu_worker_pool(pool, cpu)				\
 	for ((pool) = &per_cpu(cpu_worker_pools, cpu)[0];		\
@@ -1458,13 +1458,13 @@ static void __queue_delayed_work(int cpu, struct workqueue_struct *wq,
 	timer_stats_timer_set_start_info(&dwork->timer);
 
 	dwork->wq = wq;
+	/* timer isn't guaranteed to run in this cpu, record earlier */
+	if (cpu == WORK_CPU_UNBOUND)
+		cpu = raw_smp_processor_id();
 	dwork->cpu = cpu;
 	timer->expires = jiffies + delay;
 
-	if (unlikely(cpu != WORK_CPU_UNBOUND))
-		add_timer_on(timer, cpu);
-	else
-		add_timer(timer);
+	add_timer_on(timer, cpu);
 }
 
 /**
@@ -1714,9 +1714,7 @@ static struct worker *create_worker(struct worker_pool *pool)
 		goto fail;
 
 	set_user_nice(worker->task, pool->attrs->nice);
-
-	/* prevent userland from meddling with cpumask of workqueue workers */
-	worker->task->flags |= PF_NO_SETAFFINITY;
+	kthread_bind_mask(worker->task, pool->attrs->cpumask);
 
 	/* successful, attach the worker to the pool */
 	worker_attach_to_pool(worker, pool);
@@ -2614,7 +2612,7 @@ void flush_workqueue(struct workqueue_struct *wq)
 out_unlock:
 	mutex_unlock(&wq->mutex);
 }
-EXPORT_SYMBOL_GPL(flush_workqueue);
+EXPORT_SYMBOL(flush_workqueue);
 
 /**
  * drain_workqueue - drain a workqueue
@@ -3201,6 +3199,7 @@ static struct worker_pool *get_unbound_pool(const struct workqueue_attrs *attrs)
 	u32 hash = wqattrs_hash(attrs);
 	struct worker_pool *pool;
 	int node;
+	int target_node = NUMA_NO_NODE;
 
 	lockdep_assert_held(&wq_pool_mutex);
 
@@ -3212,30 +3211,31 @@ static struct worker_pool *get_unbound_pool(const struct workqueue_attrs *attrs)
 		}
 	}
 
+	/* if cpumask is contained inside a NUMA node, we belong to that node */
+	if (wq_numa_enabled) {
+		for_each_node(node) {
+			if (cpumask_subset(attrs->cpumask,
+					   wq_numa_possible_cpumask[node])) {
+				target_node = node;
+				break;
+			}
+		}
+	}
+
 	/* nope, create a new one */
-	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	pool = kzalloc_node(sizeof(*pool), GFP_KERNEL, target_node);
 	if (!pool || init_worker_pool(pool) < 0)
 		goto fail;
 
 	lockdep_set_subclass(&pool->lock, 1);	/* see put_pwq() */
 	copy_workqueue_attrs(pool->attrs, attrs);
+	pool->node = target_node;
 
 	/*
 	 * no_numa isn't a worker_pool attribute, always clear it.  See
 	 * 'struct workqueue_attrs' comments for detail.
 	 */
 	pool->attrs->no_numa = false;
-
-	/* if cpumask is contained inside a NUMA node, we belong to that node */
-	if (wq_numa_enabled) {
-		for_each_node(node) {
-			if (cpumask_subset(pool->attrs->cpumask,
-					   wq_numa_possible_cpumask[node])) {
-				pool->node = node;
-				break;
-			}
-		}
-	}
 
 	if (worker_pool_assign_id(pool) < 0)
 		goto fail;
@@ -3856,7 +3856,7 @@ struct workqueue_struct *__alloc_workqueue_key(const char *fmt,
 		}
 
 		wq->rescuer = rescuer;
-		rescuer->task->flags |= PF_NO_SETAFFINITY;
+		kthread_bind_mask(rescuer->task, cpu_possible_mask);
 		wake_up_process(rescuer->task);
 	}
 

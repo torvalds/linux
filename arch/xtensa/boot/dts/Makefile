@@ -12,4 +12,9 @@ ifneq ($(CONFIG_BUILTIN_DTB),"")
 obj-$(CONFIG_OF) += $(BUILTIN_DTB)
 endif
 
-clean-files := *.dtb.S
+dtstree := $(srctree)/$(src)
+dtb-$(CONFIG_OF_ALL_DTBS) := $(patsubst $(dtstree)/%.dts,%.dtb, $(wildcard $(dtstree)/*.dts))
+
+always += $(dtb-y)
+clean-files += *.dtb *.dtb.S
+

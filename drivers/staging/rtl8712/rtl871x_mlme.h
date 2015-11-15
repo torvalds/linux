@@ -153,7 +153,7 @@ static inline void clr_fwstate(struct mlme_priv *pmlmepriv, sint state)
 	unsigned long irqL;
 
 	spin_lock_irqsave(&pmlmepriv->lock, irqL);
-	if (check_fwstate(pmlmepriv, state) == true)
+	if (check_fwstate(pmlmepriv, state))
 		pmlmepriv->fw_state ^= state;
 	spin_unlock_irqrestore(&pmlmepriv->lock, irqL);
 }
@@ -202,7 +202,7 @@ sint r8712_set_key(struct _adapter *adapter,
 		   struct security_priv *psecuritypriv, sint keyid);
 sint r8712_set_auth(struct _adapter *adapter,
 		    struct security_priv *psecuritypriv);
-uint r8712_get_ndis_wlan_bssid_ex_sz(struct ndis_wlan_bssid_ex *bss);
+uint r8712_get_wlan_bssid_ex_sz(struct wlan_bssid_ex *bss);
 void r8712_generate_random_ibss(u8 *pibss);
 u8 *r8712_get_capability_from_ie(u8 *ie);
 struct wlan_network *r8712_get_oldest_wlan_network(

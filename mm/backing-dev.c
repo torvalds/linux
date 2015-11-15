@@ -55,13 +55,13 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
 
 	nr_dirty = nr_io = nr_more_io = nr_dirty_time = 0;
 	spin_lock(&wb->list_lock);
-	list_for_each_entry(inode, &wb->b_dirty, i_wb_list)
+	list_for_each_entry(inode, &wb->b_dirty, i_io_list)
 		nr_dirty++;
-	list_for_each_entry(inode, &wb->b_io, i_wb_list)
+	list_for_each_entry(inode, &wb->b_io, i_io_list)
 		nr_io++;
-	list_for_each_entry(inode, &wb->b_more_io, i_wb_list)
+	list_for_each_entry(inode, &wb->b_more_io, i_io_list)
 		nr_more_io++;
-	list_for_each_entry(inode, &wb->b_dirty_time, i_wb_list)
+	list_for_each_entry(inode, &wb->b_dirty_time, i_io_list)
 		if (inode->i_state & I_DIRTY_TIME)
 			nr_dirty_time++;
 	spin_unlock(&wb->list_lock);
@@ -480,6 +480,10 @@ static void cgwb_release_workfn(struct work_struct *work)
 						release_work);
 	struct backing_dev_info *bdi = wb->bdi;
 
+	spin_lock_irq(&cgwb_lock);
+	list_del_rcu(&wb->bdi_node);
+	spin_unlock_irq(&cgwb_lock);
+
 	wb_shutdown(wb);
 
 	css_put(wb->memcg_css);
@@ -523,7 +527,7 @@ static int cgwb_create(struct backing_dev_info *bdi,
 	int ret = 0;
 
 	memcg = mem_cgroup_from_css(memcg_css);
-	blkcg_css = cgroup_get_e_css(memcg_css->cgroup, &blkio_cgrp_subsys);
+	blkcg_css = cgroup_get_e_css(memcg_css->cgroup, &io_cgrp_subsys);
 	blkcg = css_to_blkcg(blkcg_css);
 	memcg_cgwb_list = mem_cgroup_cgwb_list(memcg);
 	blkcg_cgwb_list = &blkcg->cgwb_list;
@@ -575,6 +579,7 @@ static int cgwb_create(struct backing_dev_info *bdi,
 		ret = radix_tree_insert(&bdi->cgwb_tree, memcg_css->id, wb);
 		if (!ret) {
 			atomic_inc(&bdi->usage_cnt);
+			list_add_tail_rcu(&wb->bdi_node, &bdi->wb_list);
 			list_add(&wb->memcg_node, memcg_cgwb_list);
 			list_add(&wb->blkcg_node, blkcg_cgwb_list);
 			css_get(memcg_css);
@@ -632,7 +637,7 @@ struct bdi_writeback *wb_get_create(struct backing_dev_info *bdi,
 {
 	struct bdi_writeback *wb;
 
-	might_sleep_if(gfp & __GFP_WAIT);
+	might_sleep_if(gfpflags_allow_blocking(gfp));
 
 	if (!memcg_css->parent)
 		return &bdi->wb;
@@ -645,7 +650,7 @@ struct bdi_writeback *wb_get_create(struct backing_dev_info *bdi,
 
 			/* see whether the blkcg association has changed */
 			blkcg_css = cgroup_get_e_css(memcg_css->cgroup,
-						     &blkio_cgrp_subsys);
+						     &io_cgrp_subsys);
 			if (unlikely(wb->blkcg_css != blkcg_css ||
 				     !wb_tryget(wb)))
 				wb = NULL;
@@ -676,7 +681,7 @@ static int cgwb_bdi_init(struct backing_dev_info *bdi)
 static void cgwb_bdi_destroy(struct backing_dev_info *bdi)
 {
 	struct radix_tree_iter iter;
-	struct bdi_writeback_congested *congested, *congested_n;
+	struct rb_node *rbn;
 	void **slot;
 
 	WARN_ON(test_bit(WB_registered, &bdi->wb.state));
@@ -686,9 +691,11 @@ static void cgwb_bdi_destroy(struct backing_dev_info *bdi)
 	radix_tree_for_each_slot(slot, &bdi->cgwb_tree, &iter, 0)
 		cgwb_kill(*slot);
 
-	rbtree_postorder_for_each_entry_safe(congested, congested_n,
-					&bdi->cgwb_congested_tree, rb_node) {
-		rb_erase(&congested->rb_node, &bdi->cgwb_congested_tree);
+	while ((rbn = rb_first(&bdi->cgwb_congested_tree))) {
+		struct bdi_writeback_congested *congested =
+			rb_entry(rbn, struct bdi_writeback_congested, rb_node);
+
+		rb_erase(rbn, &bdi->cgwb_congested_tree);
 		congested->bdi = NULL;	/* mark @congested unlinked */
 	}
 
@@ -764,15 +771,22 @@ static void cgwb_bdi_destroy(struct backing_dev_info *bdi) { }
 
 int bdi_init(struct backing_dev_info *bdi)
 {
+	int ret;
+
 	bdi->dev = NULL;
 
 	bdi->min_ratio = 0;
 	bdi->max_ratio = 100;
 	bdi->max_prop_frac = FPROP_FRAC_BASE;
 	INIT_LIST_HEAD(&bdi->bdi_list);
+	INIT_LIST_HEAD(&bdi->wb_list);
 	init_waitqueue_head(&bdi->wb_waitq);
 
-	return cgwb_bdi_init(bdi);
+	ret = cgwb_bdi_init(bdi);
+
+	list_add_tail_rcu(&bdi->wb.bdi_node, &bdi->wb_list);
+
+	return ret;
 }
 EXPORT_SYMBOL(bdi_init);
 
@@ -823,7 +837,7 @@ static void bdi_remove_from_list(struct backing_dev_info *bdi)
 	synchronize_rcu_expedited();
 }
 
-void bdi_destroy(struct backing_dev_info *bdi)
+void bdi_unregister(struct backing_dev_info *bdi)
 {
 	/* make sure nobody finds us on the bdi_list anymore */
 	bdi_remove_from_list(bdi);
@@ -835,8 +849,18 @@ void bdi_destroy(struct backing_dev_info *bdi)
 		device_unregister(bdi->dev);
 		bdi->dev = NULL;
 	}
+}
 
+void bdi_exit(struct backing_dev_info *bdi)
+{
+	WARN_ON_ONCE(bdi->dev);
 	wb_exit(&bdi->wb);
+}
+
+void bdi_destroy(struct backing_dev_info *bdi)
+{
+	bdi_unregister(bdi);
+	bdi_exit(bdi);
 }
 EXPORT_SYMBOL(bdi_destroy);
 

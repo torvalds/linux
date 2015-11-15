@@ -180,7 +180,7 @@ ebt_log_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct ebt_log_info *info = par->targinfo;
 	struct nf_loginfo li;
-	struct net *net = dev_net(par->in ? par->in : par->out);
+	struct net *net = par->net;
 
 	li.type = NF_LOG_TYPE_LOG;
 	li.u.log.level = info->loglevel;

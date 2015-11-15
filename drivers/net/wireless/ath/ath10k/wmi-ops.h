@@ -37,8 +37,10 @@ struct wmi_ops {
 			      struct wmi_peer_kick_ev_arg *arg);
 	int (*pull_swba)(struct ath10k *ar, struct sk_buff *skb,
 			 struct wmi_swba_ev_arg *arg);
-	int (*pull_phyerr)(struct ath10k *ar, struct sk_buff *skb,
-			   struct wmi_phyerr_ev_arg *arg);
+	int (*pull_phyerr_hdr)(struct ath10k *ar, struct sk_buff *skb,
+			       struct wmi_phyerr_hdr_arg *arg);
+	int (*pull_phyerr)(struct ath10k *ar, const void *phyerr_buf,
+			   int left_len, struct wmi_phyerr_ev_arg *arg);
 	int (*pull_svc_rdy)(struct ath10k *ar, struct sk_buff *skb,
 			    struct wmi_svc_rdy_ev_arg *arg);
 	int (*pull_rdy)(struct ath10k *ar, struct sk_buff *skb,
@@ -49,6 +51,7 @@ struct wmi_ops {
 			    struct wmi_roam_ev_arg *arg);
 	int (*pull_wow_event)(struct ath10k *ar, struct sk_buff *skb,
 			      struct wmi_wow_ev_arg *arg);
+	enum wmi_txbf_conf (*get_txbf_conf_scheme)(struct ath10k *ar);
 
 	struct sk_buff *(*gen_pdev_suspend)(struct ath10k *ar, u32 suspend_opt);
 	struct sk_buff *(*gen_pdev_resume)(struct ath10k *ar);
@@ -174,6 +177,15 @@ struct wmi_ops {
 						const struct wmi_tdls_peer_capab_arg *cap,
 						const struct wmi_channel_arg *chan);
 	struct sk_buff *(*gen_adaptive_qcs)(struct ath10k *ar, bool enable);
+	struct sk_buff *(*gen_pdev_get_tpc_config)(struct ath10k *ar,
+						   u32 param);
+	void (*fw_stats_fill)(struct ath10k *ar,
+			      struct ath10k_fw_stats *fw_stats,
+			      char *buf);
+	struct sk_buff *(*gen_pdev_enable_adaptive_cca)(struct ath10k *ar,
+							u8 enable,
+							u32 detect_level,
+							u32 detect_margin);
 };
 
 int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
@@ -260,13 +272,23 @@ ath10k_wmi_pull_swba(struct ath10k *ar, struct sk_buff *skb,
 }
 
 static inline int
-ath10k_wmi_pull_phyerr(struct ath10k *ar, struct sk_buff *skb,
-		       struct wmi_phyerr_ev_arg *arg)
+ath10k_wmi_pull_phyerr_hdr(struct ath10k *ar, struct sk_buff *skb,
+			   struct wmi_phyerr_hdr_arg *arg)
+{
+	if (!ar->wmi.ops->pull_phyerr_hdr)
+		return -EOPNOTSUPP;
+
+	return ar->wmi.ops->pull_phyerr_hdr(ar, skb, arg);
+}
+
+static inline int
+ath10k_wmi_pull_phyerr(struct ath10k *ar, const void *phyerr_buf,
+		       int left_len, struct wmi_phyerr_ev_arg *arg)
 {
 	if (!ar->wmi.ops->pull_phyerr)
 		return -EOPNOTSUPP;
 
-	return ar->wmi.ops->pull_phyerr(ar, skb, arg);
+	return ar->wmi.ops->pull_phyerr(ar, phyerr_buf, left_len, arg);
 }
 
 static inline int
@@ -317,6 +339,15 @@ ath10k_wmi_pull_wow_event(struct ath10k *ar, struct sk_buff *skb,
 		return -EOPNOTSUPP;
 
 	return ar->wmi.ops->pull_wow_event(ar, skb, arg);
+}
+
+static inline enum wmi_txbf_conf
+ath10k_wmi_get_txbf_conf_scheme(struct ath10k *ar)
+{
+	if (!ar->wmi.ops->get_txbf_conf_scheme)
+		return WMI_TXBF_CONF_UNSUPPORTED;
+
+	return ar->wmi.ops->get_txbf_conf_scheme(ar);
 }
 
 static inline int
@@ -1246,6 +1277,54 @@ ath10k_wmi_adaptive_qcs(struct ath10k *ar, bool enable)
 		return PTR_ERR(skb);
 
 	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->adaptive_qcs_cmdid);
+}
+
+static inline int
+ath10k_wmi_pdev_get_tpc_config(struct ath10k *ar, u32 param)
+{
+	struct sk_buff *skb;
+
+	if (!ar->wmi.ops->gen_pdev_get_tpc_config)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_pdev_get_tpc_config(ar, param);
+
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb,
+				   ar->wmi.cmd->pdev_get_tpc_config_cmdid);
+}
+
+static inline int
+ath10k_wmi_fw_stats_fill(struct ath10k *ar, struct ath10k_fw_stats *fw_stats,
+			 char *buf)
+{
+	if (!ar->wmi.ops->fw_stats_fill)
+		return -EOPNOTSUPP;
+
+	ar->wmi.ops->fw_stats_fill(ar, fw_stats, buf);
+	return 0;
+}
+
+static inline int
+ath10k_wmi_pdev_enable_adaptive_cca(struct ath10k *ar, u8 enable,
+				    u32 detect_level, u32 detect_margin)
+{
+	struct sk_buff *skb;
+
+	if (!ar->wmi.ops->gen_pdev_enable_adaptive_cca)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_pdev_enable_adaptive_cca(ar, enable,
+							detect_level,
+							detect_margin);
+
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb,
+				   ar->wmi.cmd->pdev_enable_adaptive_cca_cmdid);
 }
 
 #endif

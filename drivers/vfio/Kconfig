@@ -31,5 +31,21 @@ menuconfig VFIO
 
 	  If you don't know what to do here, say N.
 
+menuconfig VFIO_NOIOMMU
+	bool "VFIO No-IOMMU support"
+	depends on VFIO
+	help
+	  VFIO is built on the ability to isolate devices using the IOMMU.
+	  Only with an IOMMU can userspace access to DMA capable devices be
+	  considered secure.  VFIO No-IOMMU mode enables IOMMU groups for
+	  devices without IOMMU backing for the purpose of re-using the VFIO
+	  infrastructure in a non-secure mode.  Use of this mode will result
+	  in an unsupportable kernel and will therefore taint the kernel.
+	  Device assignment to virtual machines is also not possible with
+	  this mode since there is no IOMMU to provide DMA translation.
+
+	  If you don't know what to do here, say N.
+
 source "drivers/vfio/pci/Kconfig"
 source "drivers/vfio/platform/Kconfig"
+source "virt/lib/Kconfig"

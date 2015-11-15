@@ -301,7 +301,7 @@ static int tpu_pwm_config(struct pwm_chip *chip, struct pwm_device *_pwm,
 	pwm->duty = duty;
 
 	/* If the channel is disabled we're done. */
-	if (!test_bit(PWMF_ENABLED, &_pwm->flags))
+	if (!pwm_is_enabled(_pwm))
 		return 0;
 
 	if (duty_only && pwm->timer_on) {

@@ -94,7 +94,7 @@
 #define CMD(op, opm, f, lm, fl, ...)				\
 	{							\
 		.flags = (fl) | ((f) ? CMD_DESC_FIXED : 0),	\
-		.cmd = { (op), (opm) }, 			\
+		.cmd = { (op), (opm) },				\
 		.length = { (lm) },				\
 		__VA_ARGS__					\
 	}
@@ -124,14 +124,14 @@ static const struct drm_i915_cmd_descriptor common_cmds[] = {
 	CMD(  MI_STORE_DWORD_INDEX,             SMI,   !F,  0xFF,   R  ),
 	CMD(  MI_LOAD_REGISTER_IMM(1),          SMI,   !F,  0xFF,   W,
 	      .reg = { .offset = 1, .mask = 0x007FFFFC, .step = 2 }    ),
-	CMD(  MI_STORE_REGISTER_MEM(1),         SMI,   !F,  0xFF,   W | B,
+	CMD(  MI_STORE_REGISTER_MEM,            SMI,    F,  3,     W | B,
 	      .reg = { .offset = 1, .mask = 0x007FFFFC },
 	      .bits = {{
 			.offset = 0,
 			.mask = MI_GLOBAL_GTT,
 			.expected = 0,
 	      }},						       ),
-	CMD(  MI_LOAD_REGISTER_MEM,             SMI,   !F,  0xFF,   W | B,
+	CMD(  MI_LOAD_REGISTER_MEM,             SMI,    F,  3,     W | B,
 	      .reg = { .offset = 1, .mask = 0x007FFFFC },
 	      .bits = {{
 			.offset = 0,
@@ -151,8 +151,8 @@ static const struct drm_i915_cmd_descriptor render_cmds[] = {
 	CMD(  MI_ARB_ON_OFF,                    SMI,    F,  1,      R  ),
 	CMD(  MI_PREDICATE,                     SMI,    F,  1,      S  ),
 	CMD(  MI_TOPOLOGY_FILTER,               SMI,    F,  1,      S  ),
-	CMD(  MI_DISPLAY_FLIP,                  SMI,   !F,  0xFF,   R  ),
 	CMD(  MI_SET_APPID,                     SMI,    F,  1,      S  ),
+	CMD(  MI_DISPLAY_FLIP,                  SMI,   !F,  0xFF,   R  ),
 	CMD(  MI_SET_CONTEXT,                   SMI,   !F,  0xFF,   R  ),
 	CMD(  MI_URB_CLEAR,                     SMI,   !F,  0xFF,   S  ),
 	CMD(  MI_STORE_DWORD_IMM,               SMI,   !F,  0x3F,   B,
@@ -448,6 +448,9 @@ static const struct drm_i915_reg_descriptor gen7_render_regs[] = {
 	REG32(GEN7_3DPRIM_INSTANCE_COUNT),
 	REG32(GEN7_3DPRIM_START_INSTANCE),
 	REG32(GEN7_3DPRIM_BASE_VERTEX),
+	REG32(GEN7_GPGPU_DISPATCHDIMX),
+	REG32(GEN7_GPGPU_DISPATCHDIMY),
+	REG32(GEN7_GPGPU_DISPATCHDIMZ),
 	REG64(GEN7_SO_NUM_PRIMS_WRITTEN(0)),
 	REG64(GEN7_SO_NUM_PRIMS_WRITTEN(1)),
 	REG64(GEN7_SO_NUM_PRIMS_WRITTEN(2)),
@@ -564,7 +567,7 @@ static bool validate_cmds_sorted(struct intel_engine_cs *ring,
 
 		for (j = 0; j < table->count; j++) {
 			const struct drm_i915_cmd_descriptor *desc =
-				&table->table[i];
+				&table->table[j];
 			u32 curr = desc->cmd.value & desc->cmd.mask;
 
 			if (curr < previous) {
@@ -1213,6 +1216,8 @@ int i915_cmd_parser_get_version(void)
 	 * 2. Allow access to the MI_PREDICATE_SRC0 and
 	 *    MI_PREDICATE_SRC1 registers.
 	 * 3. Allow access to the GPGPU_THREADS_DISPATCHED register.
+	 * 4. L3 atomic chicken bits of HSW_SCRATCH1 and HSW_ROW_CHICKEN3.
+	 * 5. GPGPU dispatch compute indirect registers.
 	 */
-	return 3;
+	return 5;
 }

@@ -409,7 +409,6 @@
 #define	ID	76
 #define CABLE	77
 #define CONNECT	78
-#define	IO	79
 #define	MEM	80
 #define DPSZ	81
 
@@ -1152,8 +1151,6 @@ struct cnode {
 	union {
 		struct {
 			char  type;	/* Board Type           */
-			long  port;	/* I/O Address		*/
-			char  *portstr; /* I/O Address in string */
 			long  addr;	/* Memory Address	*/
 			char  *addrstr; /* Memory Address in string */
 			long  pcibus;	/* PCI BUS		*/
@@ -1164,7 +1161,6 @@ struct cnode {
 			char  *id;	/* tty id		*/
 			long  start;	/* start of tty counting */
 			char  *method;  /* Install method       */
-			char  v_port;
 			char  v_addr;
 			char  v_pcibus;
 			char  v_pcislot;

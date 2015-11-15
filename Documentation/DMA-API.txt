@@ -104,6 +104,13 @@ crossing restrictions, pass 0 for alloc; passing 4096 says memory allocated
 from this pool must not cross 4KByte boundaries.
 
 
+	void *dma_pool_zalloc(struct dma_pool *pool, gfp_t mem_flags,
+			      dma_addr_t *handle)
+
+Wraps dma_pool_alloc() and also zeroes the returned memory if the
+allocation attempt succeeded.
+
+
 	void *dma_pool_alloc(struct dma_pool *pool, gfp_t gfp_flags,
 			dma_addr_t *dma_handle);
 
@@ -133,19 +140,6 @@ memory back to the pool before you destroy it.
 
 Part Ic - DMA addressing limitations
 ------------------------------------
-
-int
-dma_supported(struct device *dev, u64 mask)
-
-Checks to see if the device can support DMA to the memory described by
-mask.
-
-Returns: 1 if it can and 0 if it can't.
-
-Notes: This routine merely tests to see if the mask is possible.  It
-won't change the current mask settings.  It is more intended as an
-internal API for use by the platform than an external API for use by
-driver writers.
 
 int
 dma_set_mask_and_coherent(struct device *dev, u64 mask)
@@ -333,7 +327,7 @@ accessed sg->address and sg->length as shown above.
 
 	void
 	dma_unmap_sg(struct device *dev, struct scatterlist *sg,
-		int nhwentries, enum dma_data_direction direction)
+		int nents, enum dma_data_direction direction)
 
 Unmap the previously mapped scatter/gather list.  All the parameters
 must be the same as those and passed in to the scatter/gather mapping
@@ -349,10 +343,10 @@ void
 dma_sync_single_for_device(struct device *dev, dma_addr_t dma_handle, size_t size,
 			   enum dma_data_direction direction)
 void
-dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nelems,
+dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nents,
 		    enum dma_data_direction direction)
 void
-dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nelems,
+dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nents,
 		       enum dma_data_direction direction)
 
 Synchronise a single contiguous or scatter/gather mapping for the CPU

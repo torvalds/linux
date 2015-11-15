@@ -1936,9 +1936,9 @@ enum {
 };
 
 enum {
-	MLX5_TIRC_RX_HASH_FN_HASH_NONE           = 0x0,
-	MLX5_TIRC_RX_HASH_FN_HASH_INVERTED_XOR8  = 0x1,
-	MLX5_TIRC_RX_HASH_FN_HASH_TOEPLITZ       = 0x2,
+	MLX5_RX_HASH_FN_NONE           = 0x0,
+	MLX5_RX_HASH_FN_INVERTED_XOR8  = 0x1,
+	MLX5_RX_HASH_FN_TOEPLITZ       = 0x2,
 };
 
 enum {
@@ -4050,6 +4050,13 @@ struct mlx5_ifc_modify_tis_in_bits {
 	struct mlx5_ifc_tisc_bits ctx;
 };
 
+struct mlx5_ifc_modify_tir_bitmask_bits {
+	u8	   reserved[0x20];
+
+	u8         reserved1[0x1f];
+	u8         lro[0x1];
+};
+
 struct mlx5_ifc_modify_tir_out_bits {
 	u8         status[0x8];
 	u8         reserved_0[0x18];
@@ -4071,7 +4078,7 @@ struct mlx5_ifc_modify_tir_in_bits {
 
 	u8         reserved_3[0x20];
 
-	u8         modify_bitmask[0x40];
+	struct mlx5_ifc_modify_tir_bitmask_bits bitmask;
 
 	u8         reserved_4[0x40];
 
@@ -4116,6 +4123,13 @@ struct mlx5_ifc_modify_rqt_out_bits {
 	u8         reserved_1[0x40];
 };
 
+struct mlx5_ifc_rqt_bitmask_bits {
+	u8	   reserved[0x20];
+
+	u8         reserved1[0x1f];
+	u8         rqn_list[0x1];
+};
+
 struct mlx5_ifc_modify_rqt_in_bits {
 	u8         opcode[0x10];
 	u8         reserved_0[0x10];
@@ -4128,7 +4142,7 @@ struct mlx5_ifc_modify_rqt_in_bits {
 
 	u8         reserved_3[0x20];
 
-	u8         modify_bitmask[0x40];
+	struct mlx5_ifc_rqt_bitmask_bits bitmask;
 
 	u8         reserved_4[0x40];
 

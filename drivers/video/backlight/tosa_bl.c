@@ -158,6 +158,7 @@ static const struct i2c_device_id tosa_bl_id[] = {
 	{ "tosa-bl", 0 },
 	{ },
 };
+MODULE_DEVICE_TABLE(i2c, tosa_bl_id);
 
 static struct i2c_driver tosa_bl_driver = {
 	.driver = {

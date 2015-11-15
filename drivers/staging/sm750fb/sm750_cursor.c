@@ -1,19 +1,19 @@
-#include<linux/module.h>
-#include<linux/kernel.h>
-#include<linux/errno.h>
-#include<linux/string.h>
-#include<linux/mm.h>
-#include<linux/slab.h>
-#include<linux/delay.h>
-#include<linux/fb.h>
-#include<linux/ioport.h>
-#include<linux/init.h>
-#include<linux/pci.h>
-#include<linux/vmalloc.h>
-#include<linux/pagemap.h>
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/errno.h>
+#include <linux/string.h>
+#include <linux/mm.h>
+#include <linux/slab.h>
+#include <linux/delay.h>
+#include <linux/fb.h>
+#include <linux/ioport.h>
+#include <linux/init.h>
+#include <linux/pci.h>
+#include <linux/vmalloc.h>
+#include <linux/pagemap.h>
 #include <linux/console.h>
-#include<linux/platform_device.h>
-#include<linux/screen_info.h>
+#include <linux/platform_device.h>
+#include <linux/screen_info.h>
 
 #include "sm750.h"
 #include "sm750_help.h"
@@ -61,6 +61,7 @@ writel((data), cursor->mmio + (addr))
 void hw_cursor_enable(struct lynx_cursor *cursor)
 {
 	u32 reg;
+
 	reg = FIELD_VALUE(0, HWC_ADDRESS, ADDRESS, cursor->offset)|
 			FIELD_SET(0, HWC_ADDRESS, EXT, LOCAL)|
 			FIELD_SET(0, HWC_ADDRESS, ENABLE, ENABLE);
@@ -81,6 +82,7 @@ void hw_cursor_setPos(struct lynx_cursor *cursor,
 						int x, int y)
 {
 	u32 reg;
+
 	reg = FIELD_VALUE(0, HWC_LOCATION, Y, y)|
 			FIELD_VALUE(0, HWC_LOCATION, X, x);
 	POKE32(HWC_LOCATION, reg);
@@ -93,7 +95,7 @@ void hw_cursor_setColor(struct lynx_cursor *cursor,
 }
 
 void hw_cursor_setData(struct lynx_cursor *cursor,
-			u16 rop, const u8* pcol, const u8* pmsk)
+			u16 rop, const u8 *pcol, const u8 *pmsk)
 {
 	int i, j, count, pitch, offset;
 	u8 color, mask, opr;
@@ -122,36 +124,14 @@ void hw_cursor_setData(struct lynx_cursor *cursor,
 		odd=0;
 */
 
-	for(i=0;i<count;i++)
-	{
+	for (i = 0; i < count; i++) {
 		color = *pcol++;
 		mask = *pmsk++;
 		data = 0;
 
-		/* either method below works well,
-		 * but method 2 shows no lag
-		 * and method 1 seems a bit wrong*/
-#if 0
-		if(rop == ROP_XOR)
-			opr = mask ^ color;
-		else
-			opr = mask & color;
-
-		for(j=0;j<8;j++)
-		{
-
-			if(opr & (0x80 >> j))
-			{	/* use fg color,id = 2 */
-				data |= 2 << (j*2);
-			}else{
-				/* use bg color,id = 1 */
-				data |= 1 << (j*2);
-			}
-		}
-#else
-		for(j=0;j<8;j++){
-			if(mask & (0x80>>j)){
-				if(rop == ROP_XOR)
+		for (j = 0; j < 8; j++) {
+			if (mask & (0x80>>j)) {
+				if (rop == ROP_XOR)
 					opr = mask ^ color;
 				else
 					opr = mask & color;
@@ -160,20 +140,15 @@ void hw_cursor_setData(struct lynx_cursor *cursor,
 				data |= ((opr & (0x80>>j))?2:1)<<(j*2);
 			}
 		}
-#endif
 		iowrite16(data, pbuffer);
 
 		/* assume pitch is 1,2,4,8,...*/
-#if 0
-		if(!((i+1)&(pitch-1)))   /* below line equal to is line */
-#else
-		if((i+1) % pitch == 0)
-#endif
+		if ((i+1) % pitch == 0)
 		{
 			/* need a return */
 			pstart += offset;
 			pbuffer = pstart;
-		}else{
+		} else {
 			pbuffer += sizeof(u16);
 		}
 
@@ -184,7 +159,7 @@ void hw_cursor_setData(struct lynx_cursor *cursor,
 
 
 void hw_cursor_setData2(struct lynx_cursor *cursor,
-			u16 rop, const u8* pcol, const u8* pmsk)
+			u16 rop, const u8 *pcol, const u8 *pmsk)
 {
 	int i, j, count, pitch, offset;
 	u8 color, mask;
@@ -204,45 +179,23 @@ void hw_cursor_setData2(struct lynx_cursor *cursor,
 	pstart = cursor->vstart;
 	pbuffer = pstart;
 
-	for(i=0;i<count;i++)
-	{
+	for (i = 0; i < count; i++) {
 		color = *pcol++;
 		mask = *pmsk++;
 		data = 0;
 
-		/* either method below works well, but method 2 shows no lag */
-#if 0
-		if(rop == ROP_XOR)
-			opr = mask ^ color;
-		else
-			opr = mask & color;
-
-		for(j=0;j<8;j++)
-		{
-
-			if(opr & (0x80 >> j))
-			{	/* use fg color,id = 2 */
-				data |= 2 << (j*2);
-			}else{
-				/* use bg color,id = 1 */
-				data |= 1 << (j*2);
-			}
-		}
-#else
-		for(j=0;j<8;j++){
-			if(mask & (1<<j))
+		for (j = 0; j < 8; j++) {
+			if (mask & (1<<j))
 				data |= ((color & (1<<j))?1:2)<<(j*2);
 		}
-#endif
 		iowrite16(data, pbuffer);
 
 		/* assume pitch is 1,2,4,8,...*/
-		if(!(i&(pitch-1)))
-		{
+		if (!(i&(pitch-1))) {
 			/* need a return */
 			pstart += offset;
 			pbuffer = pstart;
-		}else{
+		} else {
 			pbuffer += sizeof(u16);
 		}
 

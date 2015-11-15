@@ -718,6 +718,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	u32 index, bf_index;
 	__be32 op_own;
 	u16 vlan_tag = 0;
+	u16 vlan_proto = 0;
 	int i_frag;
 	int lso_header_size;
 	void *fragptr = NULL;
@@ -750,9 +751,10 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto tx_drop;
 	}
 
-	if (skb_vlan_tag_present(skb))
+	if (skb_vlan_tag_present(skb)) {
 		vlan_tag = skb_vlan_tag_get(skb);
-
+		vlan_proto = be16_to_cpu(skb->vlan_proto);
+	}
 
 	netdev_txq_bql_enqueue_prefetchw(ring->tx_queue);
 
@@ -958,8 +960,13 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		ring->bf.offset ^= ring->bf.buf_size;
 	} else {
 		tx_desc->ctrl.vlan_tag = cpu_to_be16(vlan_tag);
-		tx_desc->ctrl.ins_vlan = MLX4_WQE_CTRL_INS_VLAN *
-			!!skb_vlan_tag_present(skb);
+		if (vlan_proto == ETH_P_8021AD)
+			tx_desc->ctrl.ins_vlan = MLX4_WQE_CTRL_INS_SVLAN;
+		else if (vlan_proto == ETH_P_8021Q)
+			tx_desc->ctrl.ins_vlan = MLX4_WQE_CTRL_INS_CVLAN;
+		else
+			tx_desc->ctrl.ins_vlan = 0;
+
 		tx_desc->ctrl.fence_size = real_size;
 
 		/* Ensure new descriptor hits memory

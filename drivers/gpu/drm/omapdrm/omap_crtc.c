@@ -388,11 +388,13 @@ static void omap_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	copy_timings_drm_to_omap(&omap_crtc->timings, mode);
 }
 
-static void omap_crtc_atomic_begin(struct drm_crtc *crtc)
+static void omap_crtc_atomic_begin(struct drm_crtc *crtc,
+                                  struct drm_crtc_state *old_crtc_state)
 {
 }
 
-static void omap_crtc_atomic_flush(struct drm_crtc *crtc)
+static void omap_crtc_atomic_flush(struct drm_crtc *crtc,
+                                  struct drm_crtc_state *old_crtc_state)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 
@@ -410,9 +412,6 @@ static void omap_crtc_atomic_flush(struct drm_crtc *crtc)
 		dispc_mgr_go(omap_crtc->channel);
 		omap_irq_register(crtc->dev, &omap_crtc->vblank_irq);
 	}
-
-	crtc->invert_dimensions = !!(crtc->primary->state->rotation &
-				    (BIT(DRM_ROTATE_90) | BIT(DRM_ROTATE_270)));
 }
 
 static int omap_crtc_atomic_set_property(struct drm_crtc *crtc,

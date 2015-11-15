@@ -171,7 +171,7 @@ __be32 inet_confirm_addr(struct net *net, struct in_device *in_dev, __be32 dst,
 			 __be32 local, int scope);
 struct in_ifaddr *inet_ifa_byprefix(struct in_device *in_dev, __be32 prefix,
 				    __be32 mask);
-static __inline__ int inet_ifa_match(__be32 addr, struct in_ifaddr *ifa)
+static __inline__ bool inet_ifa_match(__be32 addr, struct in_ifaddr *ifa)
 {
 	return !((addr^ifa->ifa_address)&ifa->ifa_mask);
 }
@@ -180,15 +180,15 @@ static __inline__ int inet_ifa_match(__be32 addr, struct in_ifaddr *ifa)
  *	Check if a mask is acceptable.
  */
  
-static __inline__ int bad_mask(__be32 mask, __be32 addr)
+static __inline__ bool bad_mask(__be32 mask, __be32 addr)
 {
 	__u32 hmask;
 	if (addr & (mask = ~mask))
-		return 1;
+		return true;
 	hmask = ntohl(mask);
 	if (hmask & (hmask+1))
-		return 1;
-	return 0;
+		return true;
+	return false;
 }
 
 #define for_primary_ifa(in_dev)	{ struct in_ifaddr *ifa; \

@@ -6,6 +6,7 @@ Device			 Description
 ------			 -----------
 da9150-gpadc		: General Purpose ADC
 da9150-charger		: Battery Charger
+da9150-fg		: Battery Fuel-Gauge
 
 ======
 
@@ -16,13 +17,13 @@ Required properties:
   the IRQs from da9150 are delivered to.
 - interrupts: IRQ line info for da9150 chip.
 - interrupt-controller: da9150 has internal IRQs (own IRQ domain).
-  (See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt for
+  (See ../interrupt-controller/interrupts.txt for
    further information relating to interrupt properties)
 
 Sub-devices:
-- da9150-gpadc: See Documentation/devicetree/bindings/iio/adc/da9150-gpadc.txt
-- da9150-charger: See Documentation/devicetree/bindings/power/da9150-charger.txt
-
+- da9150-gpadc: See ../iio/adc/da9150-gpadc.txt
+- da9150-charger: See ../power/da9150-charger.txt
+- da9150-fg: See ../power/da9150-fg.txt
 
 Example:
 
@@ -34,10 +35,28 @@ Example:
 		interrupt-controller;
 
 		gpadc: da9150-gpadc {
-			...
+			compatible = "dlg,da9150-gpadc";
+			#io-channel-cells = <1>;
 		};
 
-		da9150-charger {
-			...
+		charger {
+			compatible = "dlg,da9150-charger";
+
+			io-channels = <&gpadc 0>,
+				      <&gpadc 2>,
+				      <&gpadc 8>,
+				      <&gpadc 5>;
+			io-channel-names = "CHAN_IBUS",
+					   "CHAN_VBUS",
+					   "CHAN_TJUNC",
+					   "CHAN_VBAT";
+		};
+
+		fuel-gauge {
+			compatible = "dlg,da9150-fuel-gauge";
+
+			dlg,update-interval = <10000>;
+			dlg,warn-soc-level = /bits/ 8 <15>;
+			dlg,crit-soc-level = /bits/ 8 <5>
 		};
 	};

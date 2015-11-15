@@ -25,13 +25,11 @@
 
 #include <linux/kernel.h>
 #include <linux/clk-provider.h>
-#include <linux/clkdev.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/slab.h>
-#include <linux/clk.h>
 
 #include <dt-bindings/clock/hi3620-clock.h>
 
@@ -294,34 +292,29 @@ static unsigned long mmc_clk_recalc_rate(struct clk_hw *hw,
 	}
 }
 
-static long mmc_clk_determine_rate(struct clk_hw *hw, unsigned long rate,
-			      unsigned long min_rate,
-			      unsigned long max_rate,
-			      unsigned long *best_parent_rate,
-			      struct clk_hw **best_parent_p)
+static int mmc_clk_determine_rate(struct clk_hw *hw,
+				  struct clk_rate_request *req)
 {
 	struct clk_mmc *mclk = to_mmc(hw);
-	unsigned long best = 0;
 
-	if ((rate <= 13000000) && (mclk->id == HI3620_MMC_CIUCLK1)) {
-		rate = 13000000;
-		best = 26000000;
-	} else if (rate <= 26000000) {
-		rate = 25000000;
-		best = 180000000;
-	} else if (rate <= 52000000) {
-		rate = 50000000;
-		best = 360000000;
-	} else if (rate <= 100000000) {
-		rate = 100000000;
-		best = 720000000;
+	if ((req->rate <= 13000000) && (mclk->id == HI3620_MMC_CIUCLK1)) {
+		req->rate = 13000000;
+		req->best_parent_rate = 26000000;
+	} else if (req->rate <= 26000000) {
+		req->rate = 25000000;
+		req->best_parent_rate = 180000000;
+	} else if (req->rate <= 52000000) {
+		req->rate = 50000000;
+		req->best_parent_rate = 360000000;
+	} else if (req->rate <= 100000000) {
+		req->rate = 100000000;
+		req->best_parent_rate = 720000000;
 	} else {
 		/* max is 180M */
-		rate = 180000000;
-		best = 1440000000;
+		req->rate = 180000000;
+		req->best_parent_rate = 1440000000;
 	}
-	*best_parent_rate = best;
-	return rate;
+	return -EINVAL;
 }
 
 static u32 mmc_clk_delay(u32 val, u32 para, u32 off, u32 len)

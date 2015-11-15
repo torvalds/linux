@@ -111,7 +111,7 @@ static ssize_t ad9834_write(struct device *dev,
 		break;
 	case AD9834_FSEL:
 	case AD9834_PSEL:
-		if (val == 0) {
+		if (!val) {
 			st->control &= ~(this_attr->address | AD9834_PIN_SW);
 		} else if (val == 1) {
 			st->control |= this_attr->address;
@@ -446,7 +446,6 @@ MODULE_DEVICE_TABLE(spi, ad9834_id);
 static struct spi_driver ad9834_driver = {
 	.driver = {
 		.name	= "ad9834",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ad9834_probe,
 	.remove		= ad9834_remove,

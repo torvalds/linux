@@ -908,6 +908,7 @@ static const struct of_device_id sun6i_dma_match[] = {
 	{ .compatible = "allwinner,sun8i-h3-dma", .data = &sun8i_h3_dma_cfg },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, sun6i_dma_match);
 
 static int sun6i_dma_probe(struct platform_device *pdev)
 {
@@ -969,7 +970,7 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 	sdc->slave.device_issue_pending		= sun6i_dma_issue_pending;
 	sdc->slave.device_prep_slave_sg		= sun6i_dma_prep_slave_sg;
 	sdc->slave.device_prep_dma_memcpy	= sun6i_dma_prep_dma_memcpy;
-	sdc->slave.copy_align			= 4;
+	sdc->slave.copy_align			= DMAENGINE_ALIGN_4_BYTES;
 	sdc->slave.device_config		= sun6i_dma_config;
 	sdc->slave.device_pause			= sun6i_dma_pause;
 	sdc->slave.device_resume		= sun6i_dma_resume;

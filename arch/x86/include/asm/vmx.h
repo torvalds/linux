@@ -47,6 +47,7 @@
 #define CPU_BASED_MOV_DR_EXITING                0x00800000
 #define CPU_BASED_UNCOND_IO_EXITING             0x01000000
 #define CPU_BASED_USE_IO_BITMAPS                0x02000000
+#define CPU_BASED_MONITOR_TRAP_FLAG             0x08000000
 #define CPU_BASED_USE_MSR_BITMAPS               0x10000000
 #define CPU_BASED_MONITOR_EXITING               0x20000000
 #define CPU_BASED_PAUSE_EXITING                 0x40000000
@@ -71,7 +72,8 @@
 #define SECONDARY_EXEC_SHADOW_VMCS              0x00004000
 #define SECONDARY_EXEC_ENABLE_PML               0x00020000
 #define SECONDARY_EXEC_XSAVES			0x00100000
-
+#define SECONDARY_EXEC_PCOMMIT			0x00200000
+#define SECONDARY_EXEC_TSC_SCALING              0x02000000
 
 #define PIN_BASED_EXT_INTR_MASK                 0x00000001
 #define PIN_BASED_NMI_EXITING                   0x00000008
@@ -166,6 +168,8 @@ enum vmcs_field {
 	VMWRITE_BITMAP                  = 0x00002028,
 	XSS_EXIT_BITMAP                 = 0x0000202C,
 	XSS_EXIT_BITMAP_HIGH            = 0x0000202D,
+	TSC_MULTIPLIER                  = 0x00002032,
+	TSC_MULTIPLIER_HIGH             = 0x00002033,
 	GUEST_PHYSICAL_ADDRESS          = 0x00002400,
 	GUEST_PHYSICAL_ADDRESS_HIGH     = 0x00002401,
 	VMCS_LINK_POINTER               = 0x00002800,
@@ -367,29 +371,29 @@ enum vmcs_field {
 #define TYPE_PHYSICAL_APIC_EVENT        (10 << 12)
 #define TYPE_PHYSICAL_APIC_INST         (15 << 12)
 
-/* segment AR */
-#define SEGMENT_AR_L_MASK (1 << 13)
+/* segment AR in VMCS -- these are different from what LAR reports */
+#define VMX_SEGMENT_AR_L_MASK (1 << 13)
 
-#define AR_TYPE_ACCESSES_MASK 1
-#define AR_TYPE_READABLE_MASK (1 << 1)
-#define AR_TYPE_WRITEABLE_MASK (1 << 2)
-#define AR_TYPE_CODE_MASK (1 << 3)
-#define AR_TYPE_MASK 0x0f
-#define AR_TYPE_BUSY_64_TSS 11
-#define AR_TYPE_BUSY_32_TSS 11
-#define AR_TYPE_BUSY_16_TSS 3
-#define AR_TYPE_LDT 2
+#define VMX_AR_TYPE_ACCESSES_MASK 1
+#define VMX_AR_TYPE_READABLE_MASK (1 << 1)
+#define VMX_AR_TYPE_WRITEABLE_MASK (1 << 2)
+#define VMX_AR_TYPE_CODE_MASK (1 << 3)
+#define VMX_AR_TYPE_MASK 0x0f
+#define VMX_AR_TYPE_BUSY_64_TSS 11
+#define VMX_AR_TYPE_BUSY_32_TSS 11
+#define VMX_AR_TYPE_BUSY_16_TSS 3
+#define VMX_AR_TYPE_LDT 2
 
-#define AR_UNUSABLE_MASK (1 << 16)
-#define AR_S_MASK (1 << 4)
-#define AR_P_MASK (1 << 7)
-#define AR_L_MASK (1 << 13)
-#define AR_DB_MASK (1 << 14)
-#define AR_G_MASK (1 << 15)
-#define AR_DPL_SHIFT 5
-#define AR_DPL(ar) (((ar) >> AR_DPL_SHIFT) & 3)
+#define VMX_AR_UNUSABLE_MASK (1 << 16)
+#define VMX_AR_S_MASK (1 << 4)
+#define VMX_AR_P_MASK (1 << 7)
+#define VMX_AR_L_MASK (1 << 13)
+#define VMX_AR_DB_MASK (1 << 14)
+#define VMX_AR_G_MASK (1 << 15)
+#define VMX_AR_DPL_SHIFT 5
+#define VMX_AR_DPL(ar) (((ar) >> VMX_AR_DPL_SHIFT) & 3)
 
-#define AR_RESERVD_MASK 0xfffe0f00
+#define VMX_AR_RESERVD_MASK 0xfffe0f00
 
 #define TSS_PRIVATE_MEMSLOT			(KVM_USER_MEM_SLOTS + 0)
 #define APIC_ACCESS_PAGE_PRIVATE_MEMSLOT	(KVM_USER_MEM_SLOTS + 1)
@@ -415,6 +419,7 @@ enum vmcs_field {
 #define VMX_EPT_EXTENT_CONTEXT_BIT		(1ull << 25)
 #define VMX_EPT_EXTENT_GLOBAL_BIT		(1ull << 26)
 
+#define VMX_VPID_INVVPID_BIT                    (1ull << 0) /* (32 - 32) */
 #define VMX_VPID_EXTENT_SINGLE_CONTEXT_BIT      (1ull << 9) /* (41 - 32) */
 #define VMX_VPID_EXTENT_GLOBAL_CONTEXT_BIT      (1ull << 10) /* (42 - 32) */
 

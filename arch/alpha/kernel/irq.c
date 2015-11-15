@@ -59,7 +59,7 @@ int irq_select_affinity(unsigned int irq)
 		cpu = (cpu < (NR_CPUS-1) ? cpu + 1 : 0);
 	last_cpu = cpu;
 
-	cpumask_copy(data->affinity, cpumask_of(cpu));
+	cpumask_copy(irq_data_get_affinity_mask(data), cpumask_of(cpu));
 	chip->irq_set_affinity(data, cpumask_of(cpu), false);
 	return 0;
 }
@@ -117,6 +117,6 @@ handle_irq(int irq)
 	}
 
 	irq_enter();
-	generic_handle_irq_desc(irq, desc);
+	generic_handle_irq_desc(desc);
 	irq_exit();
 }

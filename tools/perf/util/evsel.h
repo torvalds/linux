@@ -9,7 +9,7 @@
 #include "xyarray.h"
 #include "symbol.h"
 #include "cpumap.h"
-#include "stat.h"
+#include "counts.h"
 
 struct perf_evsel;
 
@@ -31,8 +31,40 @@ struct perf_sample_id {
 
 struct cgroup_sel;
 
+/*
+ * The 'struct perf_evsel_config_term' is used to pass event
+ * specific configuration data to perf_evsel__config routine.
+ * It is allocated within event parsing and attached to
+ * perf_evsel::config_terms list head.
+*/
+enum {
+	PERF_EVSEL__CONFIG_TERM_PERIOD,
+	PERF_EVSEL__CONFIG_TERM_FREQ,
+	PERF_EVSEL__CONFIG_TERM_TIME,
+	PERF_EVSEL__CONFIG_TERM_CALLGRAPH,
+	PERF_EVSEL__CONFIG_TERM_STACK_USER,
+	PERF_EVSEL__CONFIG_TERM_INHERIT,
+	PERF_EVSEL__CONFIG_TERM_MAX,
+};
+
+struct perf_evsel_config_term {
+	struct list_head	list;
+	int	type;
+	union {
+		u64	period;
+		u64	freq;
+		bool	time;
+		char	*callgraph;
+		u64	stack_user;
+		bool	inherit;
+	} val;
+};
+
 /** struct perf_evsel - event selector
  *
+ * @evlist - evlist this evsel is in, if it is in one.
+ * @node - To insert it into evlist->entries or in other list_heads, say in
+ *         the event parsing routines.
  * @name - Can be set to retain the original event name passed by the user,
  *         so that when showing results in tools such as 'perf stat', we
  *         show the name used, not some alias.
@@ -46,6 +78,7 @@ struct cgroup_sel;
  */
 struct perf_evsel {
 	struct list_head	node;
+	struct perf_evlist	*evlist;
 	struct perf_event_attr	attr;
 	char			*filter;
 	struct xyarray		*fd;
@@ -59,14 +92,15 @@ struct perf_evsel {
 	double			scale;
 	const char		*unit;
 	struct event_format	*tp_format;
+	off_t			id_offset;
 	union {
 		void		*priv;
-		off_t		id_offset;
 		u64		db_id;
 	};
 	struct cgroup_sel	*cgrp;
 	void			*handler;
 	struct cpu_map		*cpus;
+	struct cpu_map		*own_cpus;
 	struct thread_map	*threads;
 	unsigned int		sample_size;
 	int			id_pos;
@@ -79,6 +113,7 @@ struct perf_evsel {
 	bool			system_wide;
 	bool			tracking;
 	bool			per_pkg;
+	bool			precise_max;
 	/* parse modifier helper */
 	int			exclude_GH;
 	int			nr_members;
@@ -86,6 +121,9 @@ struct perf_evsel {
 	unsigned long		*per_pkg_mask;
 	struct perf_evsel	*leader;
 	char			*group_name;
+	bool			cmdline_group_boundary;
+	struct list_head	config_terms;
+	int			bpf_fd;
 };
 
 union u64_swap {
@@ -96,7 +134,6 @@ union u64_swap {
 struct cpu_map;
 struct target;
 struct thread_map;
-struct perf_evlist;
 struct record_opts;
 
 static inline struct cpu_map *perf_evsel__cpus(struct perf_evsel *evsel)
@@ -128,6 +165,9 @@ static inline struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr)
 
 struct perf_evsel *perf_evsel__newtp_idx(const char *sys, const char *name, int idx);
 
+/*
+ * Returns pointer with encoded error via <linux/err.h> interface.
+ */
 static inline struct perf_evsel *perf_evsel__newtp(const char *sys, const char *name)
 {
 	return perf_evsel__newtp_idx(sys, name, 0);
@@ -182,8 +222,11 @@ void __perf_evsel__reset_sample_bit(struct perf_evsel *evsel,
 void perf_evsel__set_sample_id(struct perf_evsel *evsel,
 			       bool use_sample_identifier);
 
-int perf_evsel__set_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
-			   const char *filter);
+int perf_evsel__set_filter(struct perf_evsel *evsel, const char *filter);
+int perf_evsel__append_filter(struct perf_evsel *evsel,
+			      const char *op, const char *filter);
+int perf_evsel__apply_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
+			     const char *filter);
 int perf_evsel__enable(struct perf_evsel *evsel, int ncpus, int nthreads);
 
 int perf_evsel__open_per_cpu(struct perf_evsel *evsel,

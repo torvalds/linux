@@ -112,14 +112,14 @@ static inline int fh_want_write(struct svc_fh *fh)
 	int ret = mnt_want_write(fh->fh_export->ex_path.mnt);
 
 	if (!ret)
-		fh->fh_want_write = 1;
+		fh->fh_want_write = true;
 	return ret;
 }
 
 static inline void fh_drop_write(struct svc_fh *fh)
 {
 	if (fh->fh_want_write) {
-		fh->fh_want_write = 0;
+		fh->fh_want_write = false;
 		mnt_drop_write(fh->fh_export->ex_path.mnt);
 	}
 }
@@ -129,6 +129,12 @@ static inline __be32 fh_getattr(struct svc_fh *fh, struct kstat *stat)
 	struct path p = {.mnt = fh->fh_export->ex_path.mnt,
 			 .dentry = fh->fh_dentry};
 	return nfserrno(vfs_getattr(&p, stat));
+}
+
+static inline int nfsd_create_is_exclusive(int createmode)
+{
+	return createmode == NFS3_CREATE_EXCLUSIVE
+	       || createmode == NFS4_CREATE_EXCLUSIVE4_1;
 }
 
 #endif /* LINUX_NFSD_VFS_H */

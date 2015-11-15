@@ -609,7 +609,6 @@ MODULE_DEVICE_TABLE(i2c, ak4641_i2c_id);
 static struct i2c_driver ak4641_i2c_driver = {
 	.driver = {
 		.name = "ak4641",
-		.owner = THIS_MODULE,
 	},
 	.probe =    ak4641_i2c_probe,
 	.remove =   ak4641_i2c_remove,

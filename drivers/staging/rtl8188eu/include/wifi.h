@@ -20,18 +20,7 @@
 #ifndef _WIFI_H_
 #define _WIFI_H_
 
-
-#ifdef BIT
-/* error	"BIT define occurred earlier elsewhere!\n" */
-#undef BIT
-#endif
-#define BIT(x)	(1 << (x))
-
-
-#define WLAN_ETHHDR_LEN		14
-#define WLAN_ETHADDR_LEN	6
 #define WLAN_IEEE_OUI_LEN	3
-#define WLAN_ADDR_LEN		6
 #define WLAN_CRC_LEN		4
 #define WLAN_BSSID_LEN		6
 #define WLAN_BSS_TS_LEN		8
@@ -47,7 +36,6 @@
 
 #define WLAN_MIN_ETHFRM_LEN	60
 #define WLAN_MAX_ETHFRM_LEN	1514
-#define WLAN_ETHHDR_LEN		14
 
 #define P80211CAPTURE_VERSION	0x80211001
 
@@ -647,13 +635,6 @@ enum ht_cap_ampdu_factor {
  */
 #define IEEE80211_MIN_AMPDU_BUF 0x8
 #define IEEE80211_MAX_AMPDU_BUF 0x40
-
-
-/* Spatial Multiplexing Power Save Modes */
-#define WLAN_HT_CAP_SM_PS_STATIC	0
-#define WLAN_HT_CAP_SM_PS_DYNAMIC	1
-#define WLAN_HT_CAP_SM_PS_INVALID	2
-#define WLAN_HT_CAP_SM_PS_DISABLED	3
 
 
 #define OP_MODE_PURE                    0

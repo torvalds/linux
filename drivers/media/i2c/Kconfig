@@ -22,7 +22,7 @@ config VIDEO_IR_I2C
 #
 
 menu "Encoders, decoders, sensors and other helper chips"
-	visible if !MEDIA_SUBDRV_AUTOSELECT
+	visible if !MEDIA_SUBDRV_AUTOSELECT || COMPILE_TEST
 
 comment "Audio decoders, processors and mixers"
 
@@ -196,7 +196,8 @@ config VIDEO_ADV7183
 
 config VIDEO_ADV7604
 	tristate "Analog Devices ADV7604 decoder"
-	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API && GPIOLIB
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	depends on GPIOLIB || COMPILE_TEST
 	select HDMI
 	---help---
 	  Support for the Analog Devices ADV7604 video decoder.
@@ -285,6 +286,16 @@ config VIDEO_SAA711X
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa7115.
+
+config VIDEO_TC358743
+	tristate "Toshiba TC358743 decoder"
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	select HDMI
+	---help---
+	  Support for the Toshiba TC358743 HDMI to MIPI CSI-2 bridge.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tc358743.
 
 config VIDEO_TVP514X
 	tristate "Texas Instruments TVP514x video decoder"

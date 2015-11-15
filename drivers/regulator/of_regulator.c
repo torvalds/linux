@@ -76,6 +76,9 @@ static void of_get_regulation_constraints(struct device_node *np,
 	if (of_property_read_bool(np, "regulator-allow-bypass"))
 		constraints->valid_ops_mask |= REGULATOR_CHANGE_BYPASS;
 
+	if (of_property_read_bool(np, "regulator-allow-set-load"))
+		constraints->valid_ops_mask |= REGULATOR_CHANGE_DRMS;
+
 	ret = of_property_read_u32(np, "regulator-ramp-delay", &pval);
 	if (!ret) {
 		if (pval)
@@ -106,6 +109,9 @@ static void of_get_regulation_constraints(struct device_node *np,
 
 	if (!of_property_read_u32(np, "regulator-system-load", &pval))
 		constraints->system_load = pval;
+
+	constraints->over_current_protection = of_property_read_bool(np,
+					"regulator-over-current-protection");
 
 	for (i = 0; i < ARRAY_SIZE(regulator_states); i++) {
 		switch (i) {

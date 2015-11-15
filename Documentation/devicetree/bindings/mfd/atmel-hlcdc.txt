@@ -2,7 +2,11 @@ Device-Tree bindings for Atmel's HLCDC (High LCD Controller) MFD driver
 
 Required properties:
  - compatible: value should be one of the following:
+   "atmel,at91sam9n12-hlcdc"
+   "atmel,at91sam9x5-hlcdc"
+   "atmel,sama5d2-hlcdc"
    "atmel,sama5d3-hlcdc"
+   "atmel,sama5d4-hlcdc"
  - reg: base address and size of the HLCDC device registers.
  - clock-names: the name of the 3 clocks requested by the HLCDC device.
    Should contain "periph_clk", "sys_clk" and "slow_clk".
@@ -11,7 +15,7 @@ Required properties:
 
 The HLCDC IP exposes two subdevices:
  - a PWM chip: see ../pwm/atmel-hlcdc-pwm.txt
- - a Display Controller: see ../drm/atmel-hlcdc-dc.txt
+ - a Display Controller: see ../display/atmel-hlcdc-dc.txt
 
 Example:
 

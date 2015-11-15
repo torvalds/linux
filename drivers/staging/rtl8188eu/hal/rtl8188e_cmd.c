@@ -127,27 +127,6 @@ exit:
 	return ret;
 }
 
-u8 rtl8188e_set_raid_cmd(struct adapter *adapt, u32 mask)
-{
-	u8 buf[3];
-	u8 res = _SUCCESS;
-	struct hal_data_8188e *haldata = GET_HAL_DATA(adapt);
-
-	if (haldata->fw_ractrl) {
-
-		memset(buf, 0, 3);
-		put_unaligned_le32(mask, buf);
-
-		FillH2CCmd_88E(adapt, H2C_DM_MACID_CFG, 3, buf);
-	} else {
-		DBG_88E("==>%s fw dont support RA\n", __func__);
-		res = _FAIL;
-	}
-
-
-	return res;
-}
-
 /* bitmap[0:27] = tx_rate_bitmap */
 /* bitmap[28:31]= Rate Adaptive id */
 /* arg[0:4] = macid */
@@ -170,7 +149,7 @@ void rtl8188e_Add_RateATid(struct adapter *pAdapter, u32 bitmap, u8 arg, u8 rssi
 
 	init_rate = get_highest_rate_idx(bitmap&0x0fffffff)&0x3f;
 
-	shortGIrate = (arg&BIT(5)) ? true : false;
+	shortGIrate = (arg & BIT(5)) ? true : false;
 
 	if (shortGIrate)
 		init_rate |= BIT(6);
@@ -298,7 +277,7 @@ static void ConstructBeacon(struct adapter *adapt, u8 *pframe, u32 *pLength)
 
 	/*  supported rates... */
 	rate_len = rtw_get_rateset_len(cur_network->SupportedRates);
-	pframe = rtw_set_ie(pframe, _SUPPORTEDRATES_IE_, ((rate_len > 8) ? 8 : rate_len), cur_network->SupportedRates, &pktlen);
+	pframe = rtw_set_ie(pframe, _SUPPORTEDRATES_IE_, min_t(u32, rate_len, 8), cur_network->SupportedRates, &pktlen);
 
 	/*  DS parameter set */
 	pframe = rtw_set_ie(pframe, _DSSET_IE_, 1, (unsigned char *)&(cur_network->Configuration.DSConfig), &pktlen);
@@ -488,7 +467,7 @@ static void SetFwRsvdPagePkt(struct adapter *adapt, bool bDLFinished)
 
 	DBG_88E("%s\n", __func__);
 	ReservedPagePacket = kzalloc(1000, GFP_KERNEL);
-	if (ReservedPagePacket == NULL) {
+	if (!ReservedPagePacket) {
 		DBG_88E("%s: alloc ReservedPagePacket fail!\n", __func__);
 		return;
 	}
@@ -558,7 +537,7 @@ static void SetFwRsvdPagePkt(struct adapter *adapt, bool bDLFinished)
 
 	TotalPacketLen = BufIndex + QosNullLength;
 	pmgntframe = alloc_mgtxmitframe(pxmitpriv);
-	if (pmgntframe == NULL)
+	if (!pmgntframe)
 		goto exit;
 
 	/*  update attribute */
@@ -598,23 +577,23 @@ void rtl8188e_set_FwJoinBssReport_cmd(struct adapter *adapt, u8 mstatus)
 		/*  Do not set TSF again here or vWiFi beacon DMA INT will not work. */
 
 		/* Set REG_CR bit 8. DMA beacon by SW. */
-		haldata->RegCR_1 |= BIT0;
+		haldata->RegCR_1 |= BIT(0);
 		usb_write8(adapt,  REG_CR+1, haldata->RegCR_1);
 
 		/*  Disable Hw protection for a time which revserd for Hw sending beacon. */
 		/*  Fix download reserved page packet fail that access collision with the protection time. */
 		/*  2010.05.11. Added by tynli. */
 		usb_write8(adapt, REG_BCN_CTRL, usb_read8(adapt, REG_BCN_CTRL)&(~BIT(3)));
-		usb_write8(adapt, REG_BCN_CTRL, usb_read8(adapt, REG_BCN_CTRL)|BIT(4));
+		usb_write8(adapt, REG_BCN_CTRL, usb_read8(adapt, REG_BCN_CTRL) | BIT(4));
 
-		if (haldata->RegFwHwTxQCtrl&BIT6) {
+		if (haldata->RegFwHwTxQCtrl & BIT(6)) {
 			DBG_88E("HalDownloadRSVDPage(): There is an Adapter is sending beacon.\n");
 			bSendBeacon = true;
 		}
 
 		/*  Set FWHW_TXQ_CTRL 0x422[6]=0 to tell Hw the packet is not a real beacon frame. */
-		usb_write8(adapt, REG_FWHW_TXQ_CTRL+2, (haldata->RegFwHwTxQCtrl&(~BIT6)));
-		haldata->RegFwHwTxQCtrl &= (~BIT6);
+		usb_write8(adapt, REG_FWHW_TXQ_CTRL+2, (haldata->RegFwHwTxQCtrl&(~BIT(6))));
+		haldata->RegFwHwTxQCtrl &= (~BIT(6));
 
 		/*  Clear beacon valid check bit. */
 		rtw_hal_set_hwreg(adapt, HW_VAR_BCN_VALID, NULL);
@@ -647,7 +626,7 @@ void rtl8188e_set_FwJoinBssReport_cmd(struct adapter *adapt, u8 mstatus)
 		/*  */
 
 		/*  Enable Bcn */
-		usb_write8(adapt, REG_BCN_CTRL, usb_read8(adapt, REG_BCN_CTRL)|BIT(3));
+		usb_write8(adapt, REG_BCN_CTRL, usb_read8(adapt, REG_BCN_CTRL) | BIT(3));
 		usb_write8(adapt, REG_BCN_CTRL, usb_read8(adapt, REG_BCN_CTRL)&(~BIT(4)));
 
 		/*  To make sure that if there exists an adapter which would like to send beacon. */
@@ -656,8 +635,8 @@ void rtl8188e_set_FwJoinBssReport_cmd(struct adapter *adapt, u8 mstatus)
 		/*  the beacon cannot be sent by HW. */
 		/*  2010.06.23. Added by tynli. */
 		if (bSendBeacon) {
-			usb_write8(adapt, REG_FWHW_TXQ_CTRL+2, (haldata->RegFwHwTxQCtrl|BIT6));
-			haldata->RegFwHwTxQCtrl |= BIT6;
+			usb_write8(adapt, REG_FWHW_TXQ_CTRL+2, (haldata->RegFwHwTxQCtrl | BIT(6)));
+			haldata->RegFwHwTxQCtrl |= BIT(6);
 		}
 
 		/*  Update RSVD page location H2C to Fw. */
@@ -668,7 +647,7 @@ void rtl8188e_set_FwJoinBssReport_cmd(struct adapter *adapt, u8 mstatus)
 
 		/*  Do not enable HW DMA BCN or it will cause Pcie interface hang by timing issue. 2011.11.24. by tynli. */
 		/*  Clear CR[8] or beacon packet will not be send to TxBuf anymore. */
-		haldata->RegCR_1 &= (~BIT0);
+		haldata->RegCR_1 &= (~BIT(0));
 		usb_write8(adapt,  REG_CR+1, haldata->RegCR_1);
 	}
 }

@@ -441,7 +441,7 @@ void migrate_irqs(void)
 
 		chip = irq_data_get_irq_chip(data);
 
-		cpumask_and(mask, data->affinity, map);
+		cpumask_and(mask, irq_data_get_affinity_mask(data), map);
 		if (cpumask_any(mask) >= nr_cpu_ids) {
 			pr_warn("Breaking affinity for irq %i\n", irq);
 			cpumask_copy(mask, map);

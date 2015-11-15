@@ -385,8 +385,6 @@ enum {
 	SATA_SSP		= 0x06,	/* Software Settings Preservation */
 	SATA_DEVSLP		= 0x09,	/* Device Sleep */
 
-	SETFEATURE_SENSE_DATA = 0xC3, /* Sense Data Reporting feature */
-
 	/* feature values for SET_MAX */
 	ATA_SET_MAX_ADDR	= 0x00,
 	ATA_SET_MAX_PASSWD	= 0x01,
@@ -530,8 +528,6 @@ struct ata_bmdma_prd {
 #define ata_id_cdb_intr(id)	(((id)[ATA_ID_CONFIG] & 0x60) == 0x20)
 #define ata_id_has_da(id)	((id)[ATA_ID_SATA_CAPABILITY_2] & (1 << 4))
 #define ata_id_has_devslp(id)	((id)[ATA_ID_FEATURE_SUPP] & (1 << 8))
-#define ata_id_has_ncq_autosense(id) \
-				((id)[ATA_ID_FEATURE_SUPP] & (1 << 7))
 
 static inline bool ata_id_has_hipm(const u16 *id)
 {
@@ -718,20 +714,6 @@ static inline bool ata_id_has_read_log_dma_ext(const u16 *id)
 		return true;
 
 	return false;
-}
-
-static inline bool ata_id_has_sense_reporting(const u16 *id)
-{
-	if (!(id[ATA_ID_CFS_ENABLE_2] & (1 << 15)))
-		return false;
-	return id[ATA_ID_COMMAND_SET_3] & (1 << 6);
-}
-
-static inline bool ata_id_sense_reporting_enabled(const u16 *id)
-{
-	if (!(id[ATA_ID_CFS_ENABLE_2] & (1 << 15)))
-		return false;
-	return id[ATA_ID_COMMAND_SET_4] & (1 << 6);
 }
 
 /**

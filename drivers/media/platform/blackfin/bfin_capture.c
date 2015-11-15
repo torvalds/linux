@@ -54,7 +54,7 @@ struct bcap_format {
 };
 
 struct bcap_buffer {
-	struct vb2_buffer vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head list;
 };
 
@@ -149,7 +149,7 @@ static const struct bcap_format bcap_formats[] = {
 
 static irqreturn_t bcap_isr(int irq, void *dev_id);
 
-static struct bcap_buffer *to_bcap_vb(struct vb2_buffer *vb)
+static struct bcap_buffer *to_bcap_vb(struct vb2_v4l2_buffer *vb)
 {
 	return container_of(vb, struct bcap_buffer, vb);
 }
@@ -202,10 +202,11 @@ static void bcap_free_sensor_formats(struct bcap_device *bcap_dev)
 }
 
 static int bcap_queue_setup(struct vb2_queue *vq,
-				const struct v4l2_format *fmt,
+				const void *parg,
 				unsigned int *nbuffers, unsigned int *nplanes,
 				unsigned int sizes[], void *alloc_ctxs[])
 {
+	const struct v4l2_format *fmt = parg;
 	struct bcap_device *bcap_dev = vb2_get_drv_priv(vq);
 
 	if (fmt && fmt->fmt.pix.sizeimage < bcap_dev->fmt.sizeimage)
@@ -223,6 +224,7 @@ static int bcap_queue_setup(struct vb2_queue *vq,
 
 static int bcap_buffer_prepare(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct bcap_device *bcap_dev = vb2_get_drv_priv(vb->vb2_queue);
 	unsigned long size = bcap_dev->fmt.sizeimage;
 
@@ -233,15 +235,16 @@ static int bcap_buffer_prepare(struct vb2_buffer *vb)
 	}
 	vb2_set_plane_payload(vb, 0, size);
 
-	vb->v4l2_buf.field = bcap_dev->fmt.field;
+	vbuf->field = bcap_dev->fmt.field;
 
 	return 0;
 }
 
 static void bcap_buffer_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct bcap_device *bcap_dev = vb2_get_drv_priv(vb->vb2_queue);
-	struct bcap_buffer *buf = to_bcap_vb(vb);
+	struct bcap_buffer *buf = to_bcap_vb(vbuf);
 	unsigned long flags;
 
 	spin_lock_irqsave(&bcap_dev->lock, flags);
@@ -251,8 +254,9 @@ static void bcap_buffer_queue(struct vb2_buffer *vb)
 
 static void bcap_buffer_cleanup(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct bcap_device *bcap_dev = vb2_get_drv_priv(vb->vb2_queue);
-	struct bcap_buffer *buf = to_bcap_vb(vb);
+	struct bcap_buffer *buf = to_bcap_vb(vbuf);
 	unsigned long flags;
 
 	spin_lock_irqsave(&bcap_dev->lock, flags);
@@ -333,7 +337,8 @@ static int bcap_start_streaming(struct vb2_queue *vq, unsigned int count)
 					struct bcap_buffer, list);
 	/* remove buffer from the dma queue */
 	list_del_init(&bcap_dev->cur_frm->list);
-	addr = vb2_dma_contig_plane_dma_addr(&bcap_dev->cur_frm->vb, 0);
+	addr = vb2_dma_contig_plane_dma_addr(&bcap_dev->cur_frm->vb.vb2_buf,
+						0);
 	/* update DMA address */
 	ppi->ops->update_addr(ppi, (unsigned long)addr);
 	/* enable ppi */
@@ -344,7 +349,7 @@ static int bcap_start_streaming(struct vb2_queue *vq, unsigned int count)
 err:
 	list_for_each_entry_safe(buf, tmp, &bcap_dev->dma_queue, list) {
 		list_del(&buf->list);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_QUEUED);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_QUEUED);
 	}
 
 	return ret;
@@ -367,13 +372,15 @@ static void bcap_stop_streaming(struct vb2_queue *vq)
 
 	/* release all active buffers */
 	if (bcap_dev->cur_frm)
-		vb2_buffer_done(&bcap_dev->cur_frm->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&bcap_dev->cur_frm->vb.vb2_buf,
+				VB2_BUF_STATE_ERROR);
 
 	while (!list_empty(&bcap_dev->dma_queue)) {
 		bcap_dev->cur_frm = list_entry(bcap_dev->dma_queue.next,
 						struct bcap_buffer, list);
 		list_del_init(&bcap_dev->cur_frm->list);
-		vb2_buffer_done(&bcap_dev->cur_frm->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&bcap_dev->cur_frm->vb.vb2_buf,
+				VB2_BUF_STATE_ERROR);
 	}
 }
 
@@ -392,18 +399,19 @@ static irqreturn_t bcap_isr(int irq, void *dev_id)
 {
 	struct ppi_if *ppi = dev_id;
 	struct bcap_device *bcap_dev = ppi->priv;
-	struct vb2_buffer *vb = &bcap_dev->cur_frm->vb;
+	struct vb2_v4l2_buffer *vbuf = &bcap_dev->cur_frm->vb;
+	struct vb2_buffer *vb = &vbuf->vb2_buf;
 	dma_addr_t addr;
 
 	spin_lock(&bcap_dev->lock);
 
 	if (!list_empty(&bcap_dev->dma_queue)) {
-		v4l2_get_timestamp(&vb->v4l2_buf.timestamp);
+		v4l2_get_timestamp(&vbuf->timestamp);
 		if (ppi->err) {
 			vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
 			ppi->err = false;
 		} else {
-			vb->v4l2_buf.sequence = bcap_dev->sequence++;
+			vbuf->sequence = bcap_dev->sequence++;
 			vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
 		}
 		bcap_dev->cur_frm = list_entry(bcap_dev->dma_queue.next,
@@ -420,7 +428,8 @@ static irqreturn_t bcap_isr(int irq, void *dev_id)
 	if (bcap_dev->stop) {
 		complete(&bcap_dev->comp);
 	} else {
-		addr = vb2_dma_contig_plane_dma_addr(&bcap_dev->cur_frm->vb, 0);
+		addr = vb2_dma_contig_plane_dma_addr(
+				&bcap_dev->cur_frm->vb.vb2_buf, 0);
 		ppi->ops->update_addr(ppi, (unsigned long)addr);
 		ppi->ops->start(ppi);
 	}

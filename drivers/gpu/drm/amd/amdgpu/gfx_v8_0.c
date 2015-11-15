@@ -73,6 +73,12 @@ MODULE_FIRMWARE("amdgpu/carrizo_mec.bin");
 MODULE_FIRMWARE("amdgpu/carrizo_mec2.bin");
 MODULE_FIRMWARE("amdgpu/carrizo_rlc.bin");
 
+MODULE_FIRMWARE("amdgpu/stoney_ce.bin");
+MODULE_FIRMWARE("amdgpu/stoney_pfp.bin");
+MODULE_FIRMWARE("amdgpu/stoney_me.bin");
+MODULE_FIRMWARE("amdgpu/stoney_mec.bin");
+MODULE_FIRMWARE("amdgpu/stoney_rlc.bin");
+
 MODULE_FIRMWARE("amdgpu/tonga_ce.bin");
 MODULE_FIRMWARE("amdgpu/tonga_pfp.bin");
 MODULE_FIRMWARE("amdgpu/tonga_me.bin");
@@ -86,6 +92,13 @@ MODULE_FIRMWARE("amdgpu/topaz_me.bin");
 MODULE_FIRMWARE("amdgpu/topaz_mec.bin");
 MODULE_FIRMWARE("amdgpu/topaz_mec2.bin");
 MODULE_FIRMWARE("amdgpu/topaz_rlc.bin");
+
+MODULE_FIRMWARE("amdgpu/fiji_ce.bin");
+MODULE_FIRMWARE("amdgpu/fiji_pfp.bin");
+MODULE_FIRMWARE("amdgpu/fiji_me.bin");
+MODULE_FIRMWARE("amdgpu/fiji_mec.bin");
+MODULE_FIRMWARE("amdgpu/fiji_mec2.bin");
+MODULE_FIRMWARE("amdgpu/fiji_rlc.bin");
 
 static const struct amdgpu_gds_reg_offset amdgpu_gds_reg_offset[] =
 {
@@ -214,6 +227,79 @@ static const u32 tonga_mgcg_cgcg_init[] =
 	mmCGTS_SM_CTRL_REG, 0xffffffff, 0x96e00200,
 	mmCP_RB_WPTR_POLL_CNTL, 0xffffffff, 0x00900100,
 	mmRLC_CGCG_CGLS_CTRL, 0xffffffff, 0x0020003c,
+	mmCP_MEM_SLP_CNTL, 0x00000001, 0x00000001,
+};
+
+static const u32 fiji_golden_common_all[] =
+{
+	mmGRBM_GFX_INDEX, 0xffffffff, 0xe0000000,
+	mmPA_SC_RASTER_CONFIG, 0xffffffff, 0x3a00161a,
+	mmPA_SC_RASTER_CONFIG_1, 0xffffffff, 0x0000002e,
+	mmGB_ADDR_CONFIG, 0xffffffff, 0x22011003,
+	mmSPI_RESOURCE_RESERVE_CU_0, 0xffffffff, 0x00000800,
+	mmSPI_RESOURCE_RESERVE_CU_1, 0xffffffff, 0x00000800,
+	mmSPI_RESOURCE_RESERVE_EN_CU_0, 0xffffffff, 0x00007FBF,
+	mmSPI_RESOURCE_RESERVE_EN_CU_1, 0xffffffff, 0x00007FAF,
+	mmGRBM_GFX_INDEX, 0xffffffff, 0xe0000000,
+	mmSPI_CONFIG_CNTL_1, 0x0000000f, 0x00000009,
+};
+
+static const u32 golden_settings_fiji_a10[] =
+{
+	mmCB_HW_CONTROL_3, 0x000001ff, 0x00000040,
+	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
+	mmPA_SC_ENHANCE, 0xffffffff, 0x20000001,
+	mmPA_SC_LINE_STIPPLE_STATE, 0x0000ff0f, 0x00000000,
+	mmRLC_CGCG_CGLS_CTRL, 0x00000003, 0x0001003c,
+	mmSQ_RANDOM_WAVE_PRI, 0x001fffff, 0x000006fd,
+	mmTA_CNTL_AUX, 0x000f000f, 0x000b0000,
+	mmTCC_CTRL, 0x00100000, 0xf31fff7f,
+	mmTCC_EXE_DISABLE, 0x00000002, 0x00000002,
+	mmTCP_ADDR_CONFIG, 0x000003ff, 0x000000ff,
+	mmVGT_RESET_DEBUG, 0x00000004, 0x00000004,
+};
+
+static const u32 fiji_mgcg_cgcg_init[] =
+{
+	mmRLC_CGTT_MGCG_OVERRIDE, 0xffffffff, 0xffffffff,
+	mmGRBM_GFX_INDEX, 0xffffffff, 0xe0000000,
+	mmCB_CGTT_SCLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_BCI_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_CP_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_CPC_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_CPF_CLK_CTRL, 0xffffffff, 0x40000100,
+	mmCGTT_DRM_CLK_CTRL0, 0xffffffff, 0x00600100,
+	mmCGTT_GDS_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_IA_CLK_CTRL, 0xffffffff, 0x06000100,
+	mmCGTT_PA_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_WD_CLK_CTRL, 0xffffffff, 0x06000100,
+	mmCGTT_PC_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_RLC_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_SC_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_SPI_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_SQ_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_SQG_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_SX_CLK_CTRL0, 0xffffffff, 0x00000100,
+	mmCGTT_SX_CLK_CTRL1, 0xffffffff, 0x00000100,
+	mmCGTT_SX_CLK_CTRL2, 0xffffffff, 0x00000100,
+	mmCGTT_SX_CLK_CTRL3, 0xffffffff, 0x00000100,
+	mmCGTT_SX_CLK_CTRL4, 0xffffffff, 0x00000100,
+	mmCGTT_TCI_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_TCP_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_VGT_CLK_CTRL, 0xffffffff, 0x06000100,
+	mmDB_CGTT_CLK_CTRL_0, 0xffffffff, 0x00000100,
+	mmTA_CGTT_CTRL, 0xffffffff, 0x00000100,
+	mmTCA_CGTT_SCLK_CTRL, 0xffffffff, 0x00000100,
+	mmTCC_CGTT_SCLK_CTRL, 0xffffffff, 0x00000100,
+	mmTD_CGTT_CTRL, 0xffffffff, 0x00000100,
+	mmGRBM_GFX_INDEX, 0xffffffff, 0xe0000000,
+	mmCGTS_SM_CTRL_REG, 0xffffffff, 0x96e00200,
+	mmCP_RB_WPTR_POLL_CNTL, 0xffffffff, 0x00900100,
+	mmRLC_CGCG_CGLS_CTRL, 0xffffffff, 0x0020003c,
+	mmPCIE_INDEX, 0xffffffff, 0x0140001c,
+	mmPCIE_DATA, 0x000f0000, 0x00000000,
+	mmCGTT_DRM_CLK_CTRL0, 0xff000fff, 0x00000100,
+	mmHDP_XDP_CGTT_BLK_CTRL, 0xc0000fff, 0x00000104,
 	mmCP_MEM_SLP_CNTL, 0x00000001, 0x00000001,
 };
 
@@ -421,6 +507,42 @@ static const u32 cz_mgcg_cgcg_init[] =
 	mmCP_MEM_SLP_CNTL, 0x00000001, 0x00000001,
 };
 
+static const u32 stoney_golden_settings_a11[] =
+{
+	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
+	mmGB_GPU_ID, 0x0000000f, 0x00000000,
+	mmPA_SC_ENHANCE, 0xffffffff, 0x20000001,
+	mmPA_SC_LINE_STIPPLE_STATE, 0x0000ff0f, 0x00000000,
+	mmRLC_CGCG_CGLS_CTRL, 0x00000003, 0x0001003c,
+	mmTA_CNTL_AUX, 0x000f000f, 0x000b0000,
+  	mmTCC_CTRL, 0x00100000, 0xf31fff7f,
+	mmTCC_EXE_DISABLE, 0x00000002, 0x00000002,
+	mmTCP_ADDR_CONFIG, 0x0000000f, 0x000000f1,
+	mmTCP_CHAN_STEER_LO, 0xffffffff, 0x10101010,
+};
+
+static const u32 stoney_golden_common_all[] =
+{
+	mmGRBM_GFX_INDEX, 0xffffffff, 0xe0000000,
+	mmPA_SC_RASTER_CONFIG, 0xffffffff, 0x00000000,
+	mmPA_SC_RASTER_CONFIG_1, 0xffffffff, 0x00000000,
+	mmGB_ADDR_CONFIG, 0xffffffff, 0x12010001,
+	mmSPI_RESOURCE_RESERVE_CU_0, 0xffffffff, 0x00000800,
+	mmSPI_RESOURCE_RESERVE_CU_1, 0xffffffff, 0x00000800,
+	mmSPI_RESOURCE_RESERVE_EN_CU_0, 0xffffffff, 0x00007FBF,
+	mmSPI_RESOURCE_RESERVE_EN_CU_1, 0xffffffff, 0x00007FAF,
+};
+
+static const u32 stoney_mgcg_cgcg_init[] =
+{
+	mmGRBM_GFX_INDEX, 0xffffffff, 0xe0000000,
+	mmRLC_CGCG_CGLS_CTRL, 0xffffffff, 0x0020003f,
+	mmCP_MEM_SLP_CNTL, 0xffffffff, 0x00020201,
+	mmRLC_MEM_SLP_CNTL, 0xffffffff, 0x00020201,
+	mmCGTS_SM_CTRL_REG, 0xffffffff, 0x96940200,
+	mmATC_MISC_CG, 0xffffffff, 0x000c0200,
+};
+
 static void gfx_v8_0_set_ring_funcs(struct amdgpu_device *adev);
 static void gfx_v8_0_set_irq_funcs(struct amdgpu_device *adev);
 static void gfx_v8_0_set_gds_init(struct amdgpu_device *adev);
@@ -439,6 +561,18 @@ static void gfx_v8_0_init_golden_registers(struct amdgpu_device *adev)
 						 iceland_golden_common_all,
 						 (const u32)ARRAY_SIZE(iceland_golden_common_all));
 		break;
+	case CHIP_FIJI:
+		amdgpu_program_register_sequence(adev,
+						 fiji_mgcg_cgcg_init,
+						 (const u32)ARRAY_SIZE(fiji_mgcg_cgcg_init));
+		amdgpu_program_register_sequence(adev,
+						 golden_settings_fiji_a10,
+						 (const u32)ARRAY_SIZE(golden_settings_fiji_a10));
+		amdgpu_program_register_sequence(adev,
+						 fiji_golden_common_all,
+						 (const u32)ARRAY_SIZE(fiji_golden_common_all));
+		break;
+
 	case CHIP_TONGA:
 		amdgpu_program_register_sequence(adev,
 						 tonga_mgcg_cgcg_init,
@@ -460,6 +594,17 @@ static void gfx_v8_0_init_golden_registers(struct amdgpu_device *adev)
 		amdgpu_program_register_sequence(adev,
 						 cz_golden_common_all,
 						 (const u32)ARRAY_SIZE(cz_golden_common_all));
+		break;
+	case CHIP_STONEY:
+		amdgpu_program_register_sequence(adev,
+						 stoney_mgcg_cgcg_init,
+						 (const u32)ARRAY_SIZE(stoney_mgcg_cgcg_init));
+		amdgpu_program_register_sequence(adev,
+						 stoney_golden_settings_a11,
+						 (const u32)ARRAY_SIZE(stoney_golden_settings_a11));
+		amdgpu_program_register_sequence(adev,
+						 stoney_golden_common_all,
+						 (const u32)ARRAY_SIZE(stoney_golden_common_all));
 		break;
 	default:
 		break;
@@ -526,6 +671,7 @@ static int gfx_v8_0_ring_test_ib(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_ib ib;
+	struct fence *f = NULL;
 	uint32_t scratch;
 	uint32_t tmp = 0;
 	unsigned i;
@@ -537,29 +683,27 @@ static int gfx_v8_0_ring_test_ib(struct amdgpu_ring *ring)
 		return r;
 	}
 	WREG32(scratch, 0xCAFEDEAD);
+	memset(&ib, 0, sizeof(ib));
 	r = amdgpu_ib_get(ring, NULL, 256, &ib);
 	if (r) {
 		DRM_ERROR("amdgpu: failed to get ib (%d).\n", r);
-		amdgpu_gfx_scratch_free(adev, scratch);
-		return r;
+		goto err1;
 	}
 	ib.ptr[0] = PACKET3(PACKET3_SET_UCONFIG_REG, 1);
 	ib.ptr[1] = ((scratch - PACKET3_SET_UCONFIG_REG_START));
 	ib.ptr[2] = 0xDEADBEEF;
 	ib.length_dw = 3;
-	r = amdgpu_ib_schedule(adev, 1, &ib, AMDGPU_FENCE_OWNER_UNDEFINED);
-	if (r) {
-		amdgpu_gfx_scratch_free(adev, scratch);
-		amdgpu_ib_free(adev, &ib);
-		DRM_ERROR("amdgpu: failed to schedule ib (%d).\n", r);
-		return r;
-	}
-	r = amdgpu_fence_wait(ib.fence, false);
+
+	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, &ib, 1, NULL,
+						 AMDGPU_FENCE_OWNER_UNDEFINED,
+						 &f);
+	if (r)
+		goto err2;
+
+	r = fence_wait(f, false);
 	if (r) {
 		DRM_ERROR("amdgpu: fence wait failed (%d).\n", r);
-		amdgpu_gfx_scratch_free(adev, scratch);
-		amdgpu_ib_free(adev, &ib);
-		return r;
+		goto err2;
 	}
 	for (i = 0; i < adev->usec_timeout; i++) {
 		tmp = RREG32(scratch);
@@ -569,14 +713,18 @@ static int gfx_v8_0_ring_test_ib(struct amdgpu_ring *ring)
 	}
 	if (i < adev->usec_timeout) {
 		DRM_INFO("ib test on ring %d succeeded in %u usecs\n",
-			 ib.fence->ring->idx, i);
+			 ring->idx, i);
+		goto err2;
 	} else {
 		DRM_ERROR("amdgpu: ib test failed (scratch(0x%04X)=0x%08X)\n",
 			  scratch, tmp);
 		r = -EINVAL;
 	}
-	amdgpu_gfx_scratch_free(adev, scratch);
+err2:
+	fence_put(f);
 	amdgpu_ib_free(adev, &ib);
+err1:
+	amdgpu_gfx_scratch_free(adev, scratch);
 	return r;
 }
 
@@ -587,6 +735,7 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 	int err;
 	struct amdgpu_firmware_info *info = NULL;
 	const struct common_firmware_header *header = NULL;
+	const struct gfx_firmware_header_v1_0 *cp_hdr;
 
 	DRM_DEBUG("\n");
 
@@ -600,6 +749,12 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 	case CHIP_CARRIZO:
 		chip_name = "carrizo";
 		break;
+	case CHIP_FIJI:
+		chip_name = "fiji";
+		break;
+	case CHIP_STONEY:
+		chip_name = "stoney";
+		break;
 	default:
 		BUG();
 	}
@@ -611,6 +766,9 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 	err = amdgpu_ucode_validate(adev->gfx.pfp_fw);
 	if (err)
 		goto out;
+	cp_hdr = (const struct gfx_firmware_header_v1_0 *)adev->gfx.pfp_fw->data;
+	adev->gfx.pfp_fw_version = le32_to_cpu(cp_hdr->header.ucode_version);
+	adev->gfx.pfp_feature_version = le32_to_cpu(cp_hdr->ucode_feature_version);
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_me.bin", chip_name);
 	err = request_firmware(&adev->gfx.me_fw, fw_name, adev->dev);
@@ -619,6 +777,9 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 	err = amdgpu_ucode_validate(adev->gfx.me_fw);
 	if (err)
 		goto out;
+	cp_hdr = (const struct gfx_firmware_header_v1_0 *)adev->gfx.me_fw->data;
+	adev->gfx.me_fw_version = le32_to_cpu(cp_hdr->header.ucode_version);
+	adev->gfx.me_feature_version = le32_to_cpu(cp_hdr->ucode_feature_version);
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_ce.bin", chip_name);
 	err = request_firmware(&adev->gfx.ce_fw, fw_name, adev->dev);
@@ -627,12 +788,18 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 	err = amdgpu_ucode_validate(adev->gfx.ce_fw);
 	if (err)
 		goto out;
+	cp_hdr = (const struct gfx_firmware_header_v1_0 *)adev->gfx.ce_fw->data;
+	adev->gfx.ce_fw_version = le32_to_cpu(cp_hdr->header.ucode_version);
+	adev->gfx.ce_feature_version = le32_to_cpu(cp_hdr->ucode_feature_version);
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_rlc.bin", chip_name);
 	err = request_firmware(&adev->gfx.rlc_fw, fw_name, adev->dev);
 	if (err)
 		goto out;
 	err = amdgpu_ucode_validate(adev->gfx.rlc_fw);
+	cp_hdr = (const struct gfx_firmware_header_v1_0 *)adev->gfx.rlc_fw->data;
+	adev->gfx.rlc_fw_version = le32_to_cpu(cp_hdr->header.ucode_version);
+	adev->gfx.rlc_feature_version = le32_to_cpu(cp_hdr->ucode_feature_version);
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mec.bin", chip_name);
 	err = request_firmware(&adev->gfx.mec_fw, fw_name, adev->dev);
@@ -641,16 +808,27 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 	err = amdgpu_ucode_validate(adev->gfx.mec_fw);
 	if (err)
 		goto out;
+	cp_hdr = (const struct gfx_firmware_header_v1_0 *)adev->gfx.mec_fw->data;
+	adev->gfx.mec_fw_version = le32_to_cpu(cp_hdr->header.ucode_version);
+	adev->gfx.mec_feature_version = le32_to_cpu(cp_hdr->ucode_feature_version);
 
-	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mec2.bin", chip_name);
-	err = request_firmware(&adev->gfx.mec2_fw, fw_name, adev->dev);
-	if (!err) {
-		err = amdgpu_ucode_validate(adev->gfx.mec2_fw);
-		if (err)
-			goto out;
-	} else {
-		err = 0;
-		adev->gfx.mec2_fw = NULL;
+	if (adev->asic_type != CHIP_STONEY) {
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mec2.bin", chip_name);
+		err = request_firmware(&adev->gfx.mec2_fw, fw_name, adev->dev);
+		if (!err) {
+			err = amdgpu_ucode_validate(adev->gfx.mec2_fw);
+			if (err)
+				goto out;
+			cp_hdr = (const struct gfx_firmware_header_v1_0 *)
+				adev->gfx.mec2_fw->data;
+			adev->gfx.mec2_fw_version =
+				le32_to_cpu(cp_hdr->header.ucode_version);
+			adev->gfx.mec2_feature_version =
+				le32_to_cpu(cp_hdr->ucode_feature_version);
+		} else {
+			err = 0;
+			adev->gfx.mec2_fw = NULL;
+		}
 	}
 
 	if (adev->firmware.smu_load) {
@@ -756,7 +934,7 @@ static int gfx_v8_0_mec_init(struct amdgpu_device *adev)
 		r = amdgpu_bo_create(adev,
 				     adev->gfx.mec.num_mec *adev->gfx.mec.num_pipe * MEC_HPD_SIZE * 2,
 				     PAGE_SIZE, true,
-				     AMDGPU_GEM_DOMAIN_GTT, 0, NULL,
+				     AMDGPU_GEM_DOMAIN_GTT, 0, NULL, NULL,
 				     &adev->gfx.mec.hpd_eop_obj);
 		if (r) {
 			dev_warn(adev->dev, "(%d) create HDP EOP bo failed\n", r);
@@ -789,6 +967,232 @@ static int gfx_v8_0_mec_init(struct amdgpu_device *adev)
 	amdgpu_bo_unreserve(adev->gfx.mec.hpd_eop_obj);
 
 	return 0;
+}
+
+static void gfx_v8_0_gpu_early_init(struct amdgpu_device *adev)
+{
+	u32 gb_addr_config;
+	u32 mc_shared_chmap, mc_arb_ramcfg;
+	u32 dimm00_addr_map, dimm01_addr_map, dimm10_addr_map, dimm11_addr_map;
+	u32 tmp;
+
+	switch (adev->asic_type) {
+	case CHIP_TOPAZ:
+		adev->gfx.config.max_shader_engines = 1;
+		adev->gfx.config.max_tile_pipes = 2;
+		adev->gfx.config.max_cu_per_sh = 6;
+		adev->gfx.config.max_sh_per_se = 1;
+		adev->gfx.config.max_backends_per_se = 2;
+		adev->gfx.config.max_texture_channel_caches = 2;
+		adev->gfx.config.max_gprs = 256;
+		adev->gfx.config.max_gs_threads = 32;
+		adev->gfx.config.max_hw_contexts = 8;
+
+		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
+		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
+		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
+		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x130;
+		gb_addr_config = TOPAZ_GB_ADDR_CONFIG_GOLDEN;
+		break;
+	case CHIP_FIJI:
+		adev->gfx.config.max_shader_engines = 4;
+		adev->gfx.config.max_tile_pipes = 16;
+		adev->gfx.config.max_cu_per_sh = 16;
+		adev->gfx.config.max_sh_per_se = 1;
+		adev->gfx.config.max_backends_per_se = 4;
+		adev->gfx.config.max_texture_channel_caches = 8;
+		adev->gfx.config.max_gprs = 256;
+		adev->gfx.config.max_gs_threads = 32;
+		adev->gfx.config.max_hw_contexts = 8;
+
+		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
+		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
+		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
+		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x130;
+		gb_addr_config = TONGA_GB_ADDR_CONFIG_GOLDEN;
+		break;
+	case CHIP_TONGA:
+		adev->gfx.config.max_shader_engines = 4;
+		adev->gfx.config.max_tile_pipes = 8;
+		adev->gfx.config.max_cu_per_sh = 8;
+		adev->gfx.config.max_sh_per_se = 1;
+		adev->gfx.config.max_backends_per_se = 2;
+		adev->gfx.config.max_texture_channel_caches = 8;
+		adev->gfx.config.max_gprs = 256;
+		adev->gfx.config.max_gs_threads = 32;
+		adev->gfx.config.max_hw_contexts = 8;
+
+		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
+		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
+		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
+		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x130;
+		gb_addr_config = TONGA_GB_ADDR_CONFIG_GOLDEN;
+		break;
+	case CHIP_CARRIZO:
+		adev->gfx.config.max_shader_engines = 1;
+		adev->gfx.config.max_tile_pipes = 2;
+		adev->gfx.config.max_sh_per_se = 1;
+		adev->gfx.config.max_backends_per_se = 2;
+
+		switch (adev->pdev->revision) {
+		case 0xc4:
+		case 0x84:
+		case 0xc8:
+		case 0xcc:
+		case 0xe1:
+		case 0xe3:
+			/* B10 */
+			adev->gfx.config.max_cu_per_sh = 8;
+			break;
+		case 0xc5:
+		case 0x81:
+		case 0x85:
+		case 0xc9:
+		case 0xcd:
+		case 0xe2:
+		case 0xe4:
+			/* B8 */
+			adev->gfx.config.max_cu_per_sh = 6;
+			break;
+		case 0xc6:
+		case 0xca:
+		case 0xce:
+		case 0x88:
+			/* B6 */
+			adev->gfx.config.max_cu_per_sh = 6;
+			break;
+		case 0xc7:
+		case 0x87:
+		case 0xcb:
+		case 0xe5:
+		case 0x89:
+		default:
+			/* B4 */
+			adev->gfx.config.max_cu_per_sh = 4;
+			break;
+		}
+
+		adev->gfx.config.max_texture_channel_caches = 2;
+		adev->gfx.config.max_gprs = 256;
+		adev->gfx.config.max_gs_threads = 32;
+		adev->gfx.config.max_hw_contexts = 8;
+
+		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
+		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
+		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
+		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x130;
+		gb_addr_config = CARRIZO_GB_ADDR_CONFIG_GOLDEN;
+		break;
+	case CHIP_STONEY:
+		adev->gfx.config.max_shader_engines = 1;
+		adev->gfx.config.max_tile_pipes = 2;
+		adev->gfx.config.max_sh_per_se = 1;
+		adev->gfx.config.max_backends_per_se = 1;
+
+		switch (adev->pdev->revision) {
+		case 0xc0:
+		case 0xc1:
+		case 0xc2:
+		case 0xc4:
+		case 0xc8:
+		case 0xc9:
+			adev->gfx.config.max_cu_per_sh = 3;
+			break;
+		case 0xd0:
+		case 0xd1:
+		case 0xd2:
+		default:
+			adev->gfx.config.max_cu_per_sh = 2;
+			break;
+		}
+
+		adev->gfx.config.max_texture_channel_caches = 2;
+		adev->gfx.config.max_gprs = 256;
+		adev->gfx.config.max_gs_threads = 16;
+		adev->gfx.config.max_hw_contexts = 8;
+
+		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
+		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
+		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
+		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x130;
+		gb_addr_config = CARRIZO_GB_ADDR_CONFIG_GOLDEN;
+		break;
+	default:
+		adev->gfx.config.max_shader_engines = 2;
+		adev->gfx.config.max_tile_pipes = 4;
+		adev->gfx.config.max_cu_per_sh = 2;
+		adev->gfx.config.max_sh_per_se = 1;
+		adev->gfx.config.max_backends_per_se = 2;
+		adev->gfx.config.max_texture_channel_caches = 4;
+		adev->gfx.config.max_gprs = 256;
+		adev->gfx.config.max_gs_threads = 32;
+		adev->gfx.config.max_hw_contexts = 8;
+
+		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
+		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
+		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
+		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x130;
+		gb_addr_config = TONGA_GB_ADDR_CONFIG_GOLDEN;
+		break;
+	}
+
+	mc_shared_chmap = RREG32(mmMC_SHARED_CHMAP);
+	adev->gfx.config.mc_arb_ramcfg = RREG32(mmMC_ARB_RAMCFG);
+	mc_arb_ramcfg = adev->gfx.config.mc_arb_ramcfg;
+
+	adev->gfx.config.num_tile_pipes = adev->gfx.config.max_tile_pipes;
+	adev->gfx.config.mem_max_burst_length_bytes = 256;
+	if (adev->flags & AMD_IS_APU) {
+		/* Get memory bank mapping mode. */
+		tmp = RREG32(mmMC_FUS_DRAM0_BANK_ADDR_MAPPING);
+		dimm00_addr_map = REG_GET_FIELD(tmp, MC_FUS_DRAM0_BANK_ADDR_MAPPING, DIMM0ADDRMAP);
+		dimm01_addr_map = REG_GET_FIELD(tmp, MC_FUS_DRAM0_BANK_ADDR_MAPPING, DIMM1ADDRMAP);
+
+		tmp = RREG32(mmMC_FUS_DRAM1_BANK_ADDR_MAPPING);
+		dimm10_addr_map = REG_GET_FIELD(tmp, MC_FUS_DRAM1_BANK_ADDR_MAPPING, DIMM0ADDRMAP);
+		dimm11_addr_map = REG_GET_FIELD(tmp, MC_FUS_DRAM1_BANK_ADDR_MAPPING, DIMM1ADDRMAP);
+
+		/* Validate settings in case only one DIMM installed. */
+		if ((dimm00_addr_map == 0) || (dimm00_addr_map == 3) || (dimm00_addr_map == 4) || (dimm00_addr_map > 12))
+			dimm00_addr_map = 0;
+		if ((dimm01_addr_map == 0) || (dimm01_addr_map == 3) || (dimm01_addr_map == 4) || (dimm01_addr_map > 12))
+			dimm01_addr_map = 0;
+		if ((dimm10_addr_map == 0) || (dimm10_addr_map == 3) || (dimm10_addr_map == 4) || (dimm10_addr_map > 12))
+			dimm10_addr_map = 0;
+		if ((dimm11_addr_map == 0) || (dimm11_addr_map == 3) || (dimm11_addr_map == 4) || (dimm11_addr_map > 12))
+			dimm11_addr_map = 0;
+
+		/* If DIMM Addr map is 8GB, ROW size should be 2KB. Otherwise 1KB. */
+		/* If ROW size(DIMM1) != ROW size(DMIMM0), ROW size should be larger one. */
+		if ((dimm00_addr_map == 11) || (dimm01_addr_map == 11) || (dimm10_addr_map == 11) || (dimm11_addr_map == 11))
+			adev->gfx.config.mem_row_size_in_kb = 2;
+		else
+			adev->gfx.config.mem_row_size_in_kb = 1;
+	} else {
+		tmp = REG_GET_FIELD(mc_arb_ramcfg, MC_ARB_RAMCFG, NOOFCOLS);
+		adev->gfx.config.mem_row_size_in_kb = (4 * (1 << (8 + tmp))) / 1024;
+		if (adev->gfx.config.mem_row_size_in_kb > 4)
+			adev->gfx.config.mem_row_size_in_kb = 4;
+	}
+
+	adev->gfx.config.shader_engine_tile_size = 32;
+	adev->gfx.config.num_gpus = 1;
+	adev->gfx.config.multi_gpu_tile_size = 64;
+
+	/* fix up row size */
+	switch (adev->gfx.config.mem_row_size_in_kb) {
+	case 1:
+	default:
+		gb_addr_config = REG_SET_FIELD(gb_addr_config, GB_ADDR_CONFIG, ROW_SIZE, 0);
+		break;
+	case 2:
+		gb_addr_config = REG_SET_FIELD(gb_addr_config, GB_ADDR_CONFIG, ROW_SIZE, 1);
+		break;
+	case 4:
+		gb_addr_config = REG_SET_FIELD(gb_addr_config, GB_ADDR_CONFIG, ROW_SIZE, 2);
+		break;
+	}
+	adev->gfx.config.gb_addr_config = gb_addr_config;
 }
 
 static int gfx_v8_0_sw_init(void *handle)
@@ -825,12 +1229,6 @@ static int gfx_v8_0_sw_init(void *handle)
 	r = gfx_v8_0_mec_init(adev);
 	if (r) {
 		DRM_ERROR("Failed to init MEC BOs!\n");
-		return r;
-	}
-
-	r = amdgpu_wb_get(adev, &adev->gfx.ce_sync_offs);
-	if (r) {
-		DRM_ERROR("(%d) gfx.ce_sync_offs wb alloc failed\n", r);
 		return r;
 	}
 
@@ -883,26 +1281,28 @@ static int gfx_v8_0_sw_init(void *handle)
 	/* reserve GDS, GWS and OA resource for gfx */
 	r = amdgpu_bo_create(adev, adev->gds.mem.gfx_partition_size,
 			PAGE_SIZE, true,
-			AMDGPU_GEM_DOMAIN_GDS, 0,
+			AMDGPU_GEM_DOMAIN_GDS, 0, NULL,
 			NULL, &adev->gds.gds_gfx_bo);
 	if (r)
 		return r;
 
 	r = amdgpu_bo_create(adev, adev->gds.gws.gfx_partition_size,
 		PAGE_SIZE, true,
-		AMDGPU_GEM_DOMAIN_GWS, 0,
+		AMDGPU_GEM_DOMAIN_GWS, 0, NULL,
 		NULL, &adev->gds.gws_gfx_bo);
 	if (r)
 		return r;
 
 	r = amdgpu_bo_create(adev, adev->gds.oa.gfx_partition_size,
 			PAGE_SIZE, true,
-			AMDGPU_GEM_DOMAIN_OA, 0,
+			AMDGPU_GEM_DOMAIN_OA, 0, NULL,
 			NULL, &adev->gds.oa_gfx_bo);
 	if (r)
 		return r;
 
 	adev->gfx.ce_ram_size = 0x8000;
+
+	gfx_v8_0_gpu_early_init(adev);
 
 	return 0;
 }
@@ -920,8 +1320,6 @@ static int gfx_v8_0_sw_fini(void *handle)
 		amdgpu_ring_fini(&adev->gfx.gfx_ring[i]);
 	for (i = 0; i < adev->gfx.num_compute_rings; i++)
 		amdgpu_ring_fini(&adev->gfx.compute_ring[i]);
-
-	amdgpu_wb_free(adev, adev->gfx.ce_sync_offs);
 
 	gfx_v8_0_mec_fini(adev);
 
@@ -1214,6 +1612,7 @@ static void gfx_v8_0_tiling_mode_table_init(struct amdgpu_device *adev)
 			adev->gfx.config.macrotile_mode_array[reg_offset] = gb_tile_moden;
 			WREG32(mmGB_MACROTILE_MODE0 + reg_offset, gb_tile_moden);
 		}
+	case CHIP_FIJI:
 	case CHIP_TONGA:
 		for (reg_offset = 0; reg_offset < num_tile_mode_states; reg_offset++) {
 			switch (reg_offset) {
@@ -1493,6 +1892,273 @@ static void gfx_v8_0_tiling_mode_table_init(struct amdgpu_device *adev)
 						BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_1) |
 						MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_1) |
 						NUM_BANKS(ADDR_SURF_4_BANK));
+				break;
+			case 7:
+				/* unused idx */
+				continue;
+			default:
+				gb_tile_moden = 0;
+				break;
+			};
+			adev->gfx.config.macrotile_mode_array[reg_offset] = gb_tile_moden;
+			WREG32(mmGB_MACROTILE_MODE0 + reg_offset, gb_tile_moden);
+		}
+		break;
+	case CHIP_STONEY:
+		for (reg_offset = 0; reg_offset < num_tile_mode_states; reg_offset++) {
+			switch (reg_offset) {
+			case 0:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
+						PIPE_CONFIG(ADDR_SURF_P2) |
+						TILE_SPLIT(ADDR_SURF_TILE_SPLIT_64B) |
+						MICRO_TILE_MODE_NEW(ADDR_SURF_DEPTH_MICRO_TILING));
+				break;
+			case 1:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
+						PIPE_CONFIG(ADDR_SURF_P2) |
+						TILE_SPLIT(ADDR_SURF_TILE_SPLIT_128B) |
+						MICRO_TILE_MODE_NEW(ADDR_SURF_DEPTH_MICRO_TILING));
+				break;
+			case 2:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
+						PIPE_CONFIG(ADDR_SURF_P2) |
+						TILE_SPLIT(ADDR_SURF_TILE_SPLIT_256B) |
+						MICRO_TILE_MODE_NEW(ADDR_SURF_DEPTH_MICRO_TILING));
+				break;
+			case 3:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
+						PIPE_CONFIG(ADDR_SURF_P2) |
+						TILE_SPLIT(ADDR_SURF_TILE_SPLIT_512B) |
+						MICRO_TILE_MODE_NEW(ADDR_SURF_DEPTH_MICRO_TILING));
+				break;
+			case 4:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
+						PIPE_CONFIG(ADDR_SURF_P2) |
+						TILE_SPLIT(ADDR_SURF_TILE_SPLIT_2KB) |
+						MICRO_TILE_MODE_NEW(ADDR_SURF_DEPTH_MICRO_TILING));
+				break;
+			case 5:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+						PIPE_CONFIG(ADDR_SURF_P2) |
+						TILE_SPLIT(ADDR_SURF_TILE_SPLIT_2KB) |
+						MICRO_TILE_MODE_NEW(ADDR_SURF_DEPTH_MICRO_TILING));
+				break;
+			case 6:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_PRT_TILED_THIN1) |
+						PIPE_CONFIG(ADDR_SURF_P2) |
+						TILE_SPLIT(ADDR_SURF_TILE_SPLIT_2KB) |
+						MICRO_TILE_MODE_NEW(ADDR_SURF_DEPTH_MICRO_TILING));
+				break;
+			case 8:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_LINEAR_ALIGNED) |
+						PIPE_CONFIG(ADDR_SURF_P2));
+				break;
+			case 9:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+						PIPE_CONFIG(ADDR_SURF_P2) |
+						MICRO_TILE_MODE_NEW(ADDR_SURF_DISPLAY_MICRO_TILING) |
+						SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_2));
+				break;
+			case 10:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
+						PIPE_CONFIG(ADDR_SURF_P2) |
+						MICRO_TILE_MODE_NEW(ADDR_SURF_DISPLAY_MICRO_TILING) |
+						SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_2));
+				break;
+			case 11:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_PRT_TILED_THIN1) |
+						PIPE_CONFIG(ADDR_SURF_P2) |
+						MICRO_TILE_MODE_NEW(ADDR_SURF_DISPLAY_MICRO_TILING) |
+						SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_8));
+				break;
+			case 13:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+						PIPE_CONFIG(ADDR_SURF_P2) |
+						MICRO_TILE_MODE_NEW(ADDR_SURF_THIN_MICRO_TILING) |
+						SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_2));
+				break;
+			case 14:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
+						PIPE_CONFIG(ADDR_SURF_P2) |
+						MICRO_TILE_MODE_NEW(ADDR_SURF_THIN_MICRO_TILING) |
+						SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_2));
+				break;
+			case 15:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_3D_TILED_THIN1) |
+						PIPE_CONFIG(ADDR_SURF_P2) |
+						MICRO_TILE_MODE_NEW(ADDR_SURF_THIN_MICRO_TILING) |
+						SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_2));
+				break;
+			case 16:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_PRT_TILED_THIN1) |
+						PIPE_CONFIG(ADDR_SURF_P2) |
+						MICRO_TILE_MODE_NEW(ADDR_SURF_THIN_MICRO_TILING) |
+						SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_8));
+				break;
+			case 18:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THICK) |
+						PIPE_CONFIG(ADDR_SURF_P2) |
+						MICRO_TILE_MODE_NEW(ADDR_SURF_THIN_MICRO_TILING) |
+						SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_1));
+				break;
+			case 19:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THICK) |
+						PIPE_CONFIG(ADDR_SURF_P2) |
+						MICRO_TILE_MODE_NEW(ADDR_SURF_THICK_MICRO_TILING) |
+						SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_1));
+				break;
+			case 20:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THICK) |
+						PIPE_CONFIG(ADDR_SURF_P2) |
+						MICRO_TILE_MODE_NEW(ADDR_SURF_THICK_MICRO_TILING) |
+						SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_1));
+				break;
+			case 21:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_3D_TILED_THICK) |
+						PIPE_CONFIG(ADDR_SURF_P2) |
+						MICRO_TILE_MODE_NEW(ADDR_SURF_THICK_MICRO_TILING) |
+						SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_1));
+				break;
+			case 22:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_PRT_TILED_THICK) |
+						PIPE_CONFIG(ADDR_SURF_P2) |
+						MICRO_TILE_MODE_NEW(ADDR_SURF_THICK_MICRO_TILING) |
+						SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_1));
+				break;
+			case 24:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THICK) |
+						PIPE_CONFIG(ADDR_SURF_P2) |
+						MICRO_TILE_MODE_NEW(ADDR_SURF_THIN_MICRO_TILING) |
+						SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_1));
+				break;
+			case 25:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_XTHICK) |
+						PIPE_CONFIG(ADDR_SURF_P2) |
+						MICRO_TILE_MODE_NEW(ADDR_SURF_THICK_MICRO_TILING) |
+						SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_1));
+				break;
+			case 26:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_3D_TILED_XTHICK) |
+						PIPE_CONFIG(ADDR_SURF_P2) |
+						MICRO_TILE_MODE_NEW(ADDR_SURF_THICK_MICRO_TILING) |
+						SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_1));
+				break;
+			case 27:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+						PIPE_CONFIG(ADDR_SURF_P2) |
+						MICRO_TILE_MODE_NEW(ADDR_SURF_ROTATED_MICRO_TILING) |
+						SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_2));
+				break;
+			case 28:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
+						PIPE_CONFIG(ADDR_SURF_P2) |
+						MICRO_TILE_MODE_NEW(ADDR_SURF_ROTATED_MICRO_TILING) |
+						SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_2));
+				break;
+			case 29:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_PRT_TILED_THIN1) |
+						PIPE_CONFIG(ADDR_SURF_P2) |
+						MICRO_TILE_MODE_NEW(ADDR_SURF_ROTATED_MICRO_TILING) |
+						SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_8));
+				break;
+			case 7:
+			case 12:
+			case 17:
+			case 23:
+				/* unused idx */
+				continue;
+			default:
+				gb_tile_moden = 0;
+				break;
+			};
+			adev->gfx.config.tile_mode_array[reg_offset] = gb_tile_moden;
+			WREG32(mmGB_TILE_MODE0 + reg_offset, gb_tile_moden);
+		}
+		for (reg_offset = 0; reg_offset < num_secondary_tile_mode_states; reg_offset++) {
+			switch (reg_offset) {
+			case 0:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
+						BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_4) |
+						MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_4) |
+						NUM_BANKS(ADDR_SURF_8_BANK));
+				break;
+			case 1:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
+						BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_2) |
+						MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_4) |
+						NUM_BANKS(ADDR_SURF_8_BANK));
+				break;
+			case 2:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
+						BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_1) |
+						MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2) |
+						NUM_BANKS(ADDR_SURF_8_BANK));
+				break;
+			case 3:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
+						BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_1) |
+						MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2) |
+						NUM_BANKS(ADDR_SURF_8_BANK));
+				break;
+			case 4:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
+						BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_1) |
+						MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2) |
+						NUM_BANKS(ADDR_SURF_8_BANK));
+				break;
+			case 5:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
+						BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_1) |
+						MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2) |
+						NUM_BANKS(ADDR_SURF_8_BANK));
+				break;
+			case 6:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
+						BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_1) |
+						MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2) |
+						NUM_BANKS(ADDR_SURF_8_BANK));
+				break;
+			case 8:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_4) |
+						BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_8) |
+						MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_4) |
+						NUM_BANKS(ADDR_SURF_16_BANK));
+				break;
+			case 9:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_4) |
+						BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_4) |
+						MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_4) |
+						NUM_BANKS(ADDR_SURF_16_BANK));
+				break;
+			case 10:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_2) |
+						BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_4) |
+						MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_4) |
+						NUM_BANKS(ADDR_SURF_16_BANK));
+				break;
+			case 11:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_2) |
+						BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_2) |
+						MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_4) |
+						NUM_BANKS(ADDR_SURF_16_BANK));
+				break;
+			case 12:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
+						BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_2) |
+						MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_4) |
+						NUM_BANKS(ADDR_SURF_16_BANK));
+				break;
+			case 13:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
+						BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_1) |
+						MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_4) |
+						NUM_BANKS(ADDR_SURF_16_BANK));
+				break;
+			case 14:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
+						BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_1) |
+						MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2) |
+						NUM_BANKS(ADDR_SURF_8_BANK));
 				break;
 			case 7:
 				/* unused idx */
@@ -1892,7 +2558,7 @@ static void gfx_v8_0_setup_rb(struct amdgpu_device *adev,
 }
 
 /**
- * gmc_v8_0_init_compute_vmid - gart enable
+ * gfx_v8_0_init_compute_vmid - gart enable
  *
  * @rdev: amdgpu_device pointer
  *
@@ -1902,7 +2568,7 @@ static void gfx_v8_0_setup_rb(struct amdgpu_device *adev,
 #define DEFAULT_SH_MEM_BASES	(0x6000)
 #define FIRST_COMPUTE_VMID	(8)
 #define LAST_COMPUTE_VMID	(16)
-static void gmc_v8_0_init_compute_vmid(struct amdgpu_device *adev)
+static void gfx_v8_0_init_compute_vmid(struct amdgpu_device *adev)
 {
 	int i;
 	uint32_t sh_mem_config;
@@ -1938,189 +2604,23 @@ static void gmc_v8_0_init_compute_vmid(struct amdgpu_device *adev)
 
 static void gfx_v8_0_gpu_init(struct amdgpu_device *adev)
 {
-	u32 gb_addr_config;
-	u32 mc_shared_chmap, mc_arb_ramcfg;
-	u32 dimm00_addr_map, dimm01_addr_map, dimm10_addr_map, dimm11_addr_map;
 	u32 tmp;
 	int i;
-
-	switch (adev->asic_type) {
-	case CHIP_TOPAZ:
-		adev->gfx.config.max_shader_engines = 1;
-		adev->gfx.config.max_tile_pipes = 2;
-		adev->gfx.config.max_cu_per_sh = 6;
-		adev->gfx.config.max_sh_per_se = 1;
-		adev->gfx.config.max_backends_per_se = 2;
-		adev->gfx.config.max_texture_channel_caches = 2;
-		adev->gfx.config.max_gprs = 256;
-		adev->gfx.config.max_gs_threads = 32;
-		adev->gfx.config.max_hw_contexts = 8;
-
-		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
-		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
-		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
-		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x130;
-		gb_addr_config = TOPAZ_GB_ADDR_CONFIG_GOLDEN;
-		break;
-	case CHIP_TONGA:
-		adev->gfx.config.max_shader_engines = 4;
-		adev->gfx.config.max_tile_pipes = 8;
-		adev->gfx.config.max_cu_per_sh = 8;
-		adev->gfx.config.max_sh_per_se = 1;
-		adev->gfx.config.max_backends_per_se = 2;
-		adev->gfx.config.max_texture_channel_caches = 8;
-		adev->gfx.config.max_gprs = 256;
-		adev->gfx.config.max_gs_threads = 32;
-		adev->gfx.config.max_hw_contexts = 8;
-
-		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
-		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
-		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
-		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x130;
-		gb_addr_config = TONGA_GB_ADDR_CONFIG_GOLDEN;
-		break;
-	case CHIP_CARRIZO:
-		adev->gfx.config.max_shader_engines = 1;
-		adev->gfx.config.max_tile_pipes = 2;
-		adev->gfx.config.max_sh_per_se = 1;
-
-		switch (adev->pdev->revision) {
-		case 0xc4:
-		case 0x84:
-		case 0xc8:
-		case 0xcc:
-			/* B10 */
-			adev->gfx.config.max_cu_per_sh = 8;
-			adev->gfx.config.max_backends_per_se = 2;
-			break;
-		case 0xc5:
-		case 0x81:
-		case 0x85:
-		case 0xc9:
-		case 0xcd:
-			/* B8 */
-			adev->gfx.config.max_cu_per_sh = 6;
-			adev->gfx.config.max_backends_per_se = 2;
-			break;
-		case 0xc6:
-		case 0xca:
-		case 0xce:
-			/* B6 */
-			adev->gfx.config.max_cu_per_sh = 6;
-			adev->gfx.config.max_backends_per_se = 2;
-			break;
-		case 0xc7:
-		case 0x87:
-		case 0xcb:
-		default:
-			/* B4 */
-			adev->gfx.config.max_cu_per_sh = 4;
-			adev->gfx.config.max_backends_per_se = 1;
-			break;
-		}
-
-		adev->gfx.config.max_texture_channel_caches = 2;
-		adev->gfx.config.max_gprs = 256;
-		adev->gfx.config.max_gs_threads = 32;
-		adev->gfx.config.max_hw_contexts = 8;
-
-		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
-		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
-		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
-		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x130;
-		gb_addr_config = CARRIZO_GB_ADDR_CONFIG_GOLDEN;
-		break;
-	default:
-		adev->gfx.config.max_shader_engines = 2;
-		adev->gfx.config.max_tile_pipes = 4;
-		adev->gfx.config.max_cu_per_sh = 2;
-		adev->gfx.config.max_sh_per_se = 1;
-		adev->gfx.config.max_backends_per_se = 2;
-		adev->gfx.config.max_texture_channel_caches = 4;
-		adev->gfx.config.max_gprs = 256;
-		adev->gfx.config.max_gs_threads = 32;
-		adev->gfx.config.max_hw_contexts = 8;
-
-		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
-		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
-		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
-		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x130;
-		gb_addr_config = TONGA_GB_ADDR_CONFIG_GOLDEN;
-		break;
-	}
 
 	tmp = RREG32(mmGRBM_CNTL);
 	tmp = REG_SET_FIELD(tmp, GRBM_CNTL, READ_TIMEOUT, 0xff);
 	WREG32(mmGRBM_CNTL, tmp);
 
-	mc_shared_chmap = RREG32(mmMC_SHARED_CHMAP);
-	adev->gfx.config.mc_arb_ramcfg = RREG32(mmMC_ARB_RAMCFG);
-	mc_arb_ramcfg = adev->gfx.config.mc_arb_ramcfg;
-
-	adev->gfx.config.num_tile_pipes = adev->gfx.config.max_tile_pipes;
-	adev->gfx.config.mem_max_burst_length_bytes = 256;
-	if (adev->flags & AMDGPU_IS_APU) {
-		/* Get memory bank mapping mode. */
-		tmp = RREG32(mmMC_FUS_DRAM0_BANK_ADDR_MAPPING);
-		dimm00_addr_map = REG_GET_FIELD(tmp, MC_FUS_DRAM0_BANK_ADDR_MAPPING, DIMM0ADDRMAP);
-		dimm01_addr_map = REG_GET_FIELD(tmp, MC_FUS_DRAM0_BANK_ADDR_MAPPING, DIMM1ADDRMAP);
-
-		tmp = RREG32(mmMC_FUS_DRAM1_BANK_ADDR_MAPPING);
-		dimm10_addr_map = REG_GET_FIELD(tmp, MC_FUS_DRAM1_BANK_ADDR_MAPPING, DIMM0ADDRMAP);
-		dimm11_addr_map = REG_GET_FIELD(tmp, MC_FUS_DRAM1_BANK_ADDR_MAPPING, DIMM1ADDRMAP);
-
-		/* Validate settings in case only one DIMM installed. */
-		if ((dimm00_addr_map == 0) || (dimm00_addr_map == 3) || (dimm00_addr_map == 4) || (dimm00_addr_map > 12))
-			dimm00_addr_map = 0;
-		if ((dimm01_addr_map == 0) || (dimm01_addr_map == 3) || (dimm01_addr_map == 4) || (dimm01_addr_map > 12))
-			dimm01_addr_map = 0;
-		if ((dimm10_addr_map == 0) || (dimm10_addr_map == 3) || (dimm10_addr_map == 4) || (dimm10_addr_map > 12))
-			dimm10_addr_map = 0;
-		if ((dimm11_addr_map == 0) || (dimm11_addr_map == 3) || (dimm11_addr_map == 4) || (dimm11_addr_map > 12))
-			dimm11_addr_map = 0;
-
-		/* If DIMM Addr map is 8GB, ROW size should be 2KB. Otherwise 1KB. */
-		/* If ROW size(DIMM1) != ROW size(DMIMM0), ROW size should be larger one. */
-		if ((dimm00_addr_map == 11) || (dimm01_addr_map == 11) || (dimm10_addr_map == 11) || (dimm11_addr_map == 11))
-			adev->gfx.config.mem_row_size_in_kb = 2;
-		else
-			adev->gfx.config.mem_row_size_in_kb = 1;
-	} else {
-		tmp = REG_GET_FIELD(mc_arb_ramcfg, MC_ARB_RAMCFG, NOOFCOLS);
-		adev->gfx.config.mem_row_size_in_kb = (4 * (1 << (8 + tmp))) / 1024;
-		if (adev->gfx.config.mem_row_size_in_kb > 4)
-			adev->gfx.config.mem_row_size_in_kb = 4;
-	}
-
-	adev->gfx.config.shader_engine_tile_size = 32;
-	adev->gfx.config.num_gpus = 1;
-	adev->gfx.config.multi_gpu_tile_size = 64;
-
-	/* fix up row size */
-	switch (adev->gfx.config.mem_row_size_in_kb) {
-	case 1:
-	default:
-		gb_addr_config = REG_SET_FIELD(gb_addr_config, GB_ADDR_CONFIG, ROW_SIZE, 0);
-		break;
-	case 2:
-		gb_addr_config = REG_SET_FIELD(gb_addr_config, GB_ADDR_CONFIG, ROW_SIZE, 1);
-		break;
-	case 4:
-		gb_addr_config = REG_SET_FIELD(gb_addr_config, GB_ADDR_CONFIG, ROW_SIZE, 2);
-		break;
-	}
-	adev->gfx.config.gb_addr_config = gb_addr_config;
-
-	WREG32(mmGB_ADDR_CONFIG, gb_addr_config);
-	WREG32(mmHDP_ADDR_CONFIG, gb_addr_config);
-	WREG32(mmDMIF_ADDR_CALC, gb_addr_config);
+	WREG32(mmGB_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
+	WREG32(mmHDP_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
+	WREG32(mmDMIF_ADDR_CALC, adev->gfx.config.gb_addr_config);
 	WREG32(mmSDMA0_TILING_CONFIG + SDMA0_REGISTER_OFFSET,
-	       gb_addr_config & 0x70);
+	       adev->gfx.config.gb_addr_config & 0x70);
 	WREG32(mmSDMA0_TILING_CONFIG + SDMA1_REGISTER_OFFSET,
-	       gb_addr_config & 0x70);
-	WREG32(mmUVD_UDEC_ADDR_CONFIG, gb_addr_config);
-	WREG32(mmUVD_UDEC_DB_ADDR_CONFIG, gb_addr_config);
-	WREG32(mmUVD_UDEC_DBW_ADDR_CONFIG, gb_addr_config);
+	       adev->gfx.config.gb_addr_config & 0x70);
+	WREG32(mmUVD_UDEC_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
+	WREG32(mmUVD_UDEC_DB_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
+	WREG32(mmUVD_UDEC_DBW_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
 
 	gfx_v8_0_tiling_mode_table_init(adev);
 
@@ -2137,13 +2637,13 @@ static void gfx_v8_0_gpu_init(struct amdgpu_device *adev)
 		if (i == 0) {
 			tmp = REG_SET_FIELD(0, SH_MEM_CONFIG, DEFAULT_MTYPE, MTYPE_UC);
 			tmp = REG_SET_FIELD(tmp, SH_MEM_CONFIG, APE1_MTYPE, MTYPE_UC);
-			tmp = REG_SET_FIELD(tmp, SH_MEM_CONFIG, ALIGNMENT_MODE, 
+			tmp = REG_SET_FIELD(tmp, SH_MEM_CONFIG, ALIGNMENT_MODE,
 					    SH_MEM_ALIGNMENT_MODE_UNALIGNED);
 			WREG32(mmSH_MEM_CONFIG, tmp);
 		} else {
 			tmp = REG_SET_FIELD(0, SH_MEM_CONFIG, DEFAULT_MTYPE, MTYPE_NC);
 			tmp = REG_SET_FIELD(tmp, SH_MEM_CONFIG, APE1_MTYPE, MTYPE_NC);
-			tmp = REG_SET_FIELD(tmp, SH_MEM_CONFIG, ALIGNMENT_MODE, 
+			tmp = REG_SET_FIELD(tmp, SH_MEM_CONFIG, ALIGNMENT_MODE,
 					    SH_MEM_ALIGNMENT_MODE_UNALIGNED);
 			WREG32(mmSH_MEM_CONFIG, tmp);
 		}
@@ -2155,7 +2655,7 @@ static void gfx_v8_0_gpu_init(struct amdgpu_device *adev)
 	vi_srbm_select(adev, 0, 0, 0, 0);
 	mutex_unlock(&adev->srbm_mutex);
 
-	gmc_v8_0_init_compute_vmid(adev);
+	gfx_v8_0_init_compute_vmid(adev);
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	/*
@@ -2258,7 +2758,7 @@ static void gfx_v8_0_rlc_start(struct amdgpu_device *adev)
 	WREG32(mmRLC_CNTL, tmp);
 
 	/* carrizo do enable cp interrupt after cp inited */
-	if (adev->asic_type != CHIP_CARRIZO)
+	if (!(adev->flags & AMD_IS_APU))
 		gfx_v8_0_enable_gui_idle_interrupt(adev, true);
 
 	udelay(50);
@@ -2275,7 +2775,6 @@ static int gfx_v8_0_rlc_load_microcode(struct amdgpu_device *adev)
 
 	hdr = (const struct rlc_firmware_header_v2_0 *)adev->gfx.rlc_fw->data;
 	amdgpu_ucode_print_rlc_hdr(&hdr->header);
-	adev->gfx.rlc_fw_version = le32_to_cpu(hdr->header.ucode_version);
 
 	fw_data = (const __le32 *)(adev->gfx.rlc_fw->data +
 			   le32_to_cpu(hdr->header.ucode_array_offset_bytes));
@@ -2361,12 +2860,6 @@ static int gfx_v8_0_cp_gfx_load_microcode(struct amdgpu_device *adev)
 	amdgpu_ucode_print_gfx_hdr(&pfp_hdr->header);
 	amdgpu_ucode_print_gfx_hdr(&ce_hdr->header);
 	amdgpu_ucode_print_gfx_hdr(&me_hdr->header);
-	adev->gfx.pfp_fw_version = le32_to_cpu(pfp_hdr->header.ucode_version);
-	adev->gfx.ce_fw_version = le32_to_cpu(ce_hdr->header.ucode_version);
-	adev->gfx.me_fw_version = le32_to_cpu(me_hdr->header.ucode_version);
-	adev->gfx.me_feature_version = le32_to_cpu(me_hdr->ucode_feature_version);
-	adev->gfx.ce_feature_version = le32_to_cpu(ce_hdr->ucode_feature_version);
-	adev->gfx.pfp_feature_version = le32_to_cpu(pfp_hdr->ucode_feature_version);
 
 	gfx_v8_0_cp_gfx_enable(adev, false);
 
@@ -2478,12 +2971,17 @@ static int gfx_v8_0_cp_gfx_start(struct amdgpu_device *adev)
 	amdgpu_ring_write(ring, mmPA_SC_RASTER_CONFIG - PACKET3_SET_CONTEXT_REG_START);
 	switch (adev->asic_type) {
 	case CHIP_TONGA:
+	case CHIP_FIJI:
 		amdgpu_ring_write(ring, 0x16000012);
 		amdgpu_ring_write(ring, 0x0000002A);
 		break;
 	case CHIP_TOPAZ:
 	case CHIP_CARRIZO:
 		amdgpu_ring_write(ring, 0x00000002);
+		amdgpu_ring_write(ring, 0x00000000);
+		break;
+	case CHIP_STONEY:
+		amdgpu_ring_write(ring, 0x00000000);
 		amdgpu_ring_write(ring, 0x00000000);
 		break;
 	default:
@@ -2622,7 +3120,6 @@ static int gfx_v8_0_cp_compute_load_microcode(struct amdgpu_device *adev)
 
 	mec_hdr = (const struct gfx_firmware_header_v1_0 *)adev->gfx.mec_fw->data;
 	amdgpu_ucode_print_gfx_hdr(&mec_hdr->header);
-	adev->gfx.mec_fw_version = le32_to_cpu(mec_hdr->header.ucode_version);
 
 	fw_data = (const __le32 *)
 		(adev->gfx.mec_fw->data +
@@ -2641,7 +3138,6 @@ static int gfx_v8_0_cp_compute_load_microcode(struct amdgpu_device *adev)
 
 		mec2_hdr = (const struct gfx_firmware_header_v1_0 *)adev->gfx.mec2_fw->data;
 		amdgpu_ucode_print_gfx_hdr(&mec2_hdr->header);
-		adev->gfx.mec2_fw_version = le32_to_cpu(mec2_hdr->header.ucode_version);
 
 		fw_data = (const __le32 *)
 			(adev->gfx.mec2_fw->data +
@@ -2987,7 +3483,7 @@ static int gfx_v8_0_cp_compute_resume(struct amdgpu_device *adev)
 					     sizeof(struct vi_mqd),
 					     PAGE_SIZE, true,
 					     AMDGPU_GEM_DOMAIN_GTT, 0, NULL,
-					     &ring->mqd_obj);
+					     NULL, &ring->mqd_obj);
 			if (r) {
 				dev_warn(adev->dev, "(%d) create MQD bo failed\n", r);
 				return r;
@@ -3121,11 +3617,13 @@ static int gfx_v8_0_cp_compute_resume(struct amdgpu_device *adev)
 
 		/* enable the doorbell if requested */
 		if (use_doorbell) {
-			if (adev->asic_type == CHIP_CARRIZO) {
+			if ((adev->asic_type == CHIP_CARRIZO) ||
+			    (adev->asic_type == CHIP_FIJI) ||
+			    (adev->asic_type == CHIP_STONEY)) {
 				WREG32(mmCP_MEC_DOORBELL_RANGE_LOWER,
 				       AMDGPU_DOORBELL_KIQ << 2);
 				WREG32(mmCP_MEC_DOORBELL_RANGE_UPPER,
-						0x7FFFF << 2);
+				       AMDGPU_DOORBELL_MEC_RING7 << 2);
 			}
 			tmp = RREG32(mmCP_HQD_PQ_DOORBELL_CONTROL);
 			tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_DOORBELL_CONTROL,
@@ -3193,7 +3691,7 @@ static int gfx_v8_0_cp_resume(struct amdgpu_device *adev)
 {
 	int r;
 
-	if (adev->asic_type != CHIP_CARRIZO)
+	if (!(adev->flags & AMD_IS_APU))
 		gfx_v8_0_enable_gui_idle_interrupt(adev, false);
 
 	if (!adev->firmware.smu_load) {
@@ -3753,7 +4251,7 @@ static void gfx_v8_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, 0x20); /* poll interval */
 }
 
-static void gfx_v8_0_ring_emit_ib(struct amdgpu_ring *ring,
+static void gfx_v8_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 				  struct amdgpu_ib *ib)
 {
 	bool need_ctx_switch = ring->current_ctx != ib->ctx;
@@ -3761,15 +4259,10 @@ static void gfx_v8_0_ring_emit_ib(struct amdgpu_ring *ring,
 	u32 next_rptr = ring->wptr + 5;
 
 	/* drop the CE preamble IB for the same context */
-	if ((ring->type == AMDGPU_RING_TYPE_GFX) &&
-	    (ib->flags & AMDGPU_IB_FLAG_PREAMBLE) &&
-	    !need_ctx_switch)
+	if ((ib->flags & AMDGPU_IB_FLAG_PREAMBLE) && !need_ctx_switch)
 		return;
 
-	if (ring->type == AMDGPU_RING_TYPE_COMPUTE)
-		control |= INDIRECT_BUFFER_VALID;
-
-	if (need_ctx_switch && ring->type == AMDGPU_RING_TYPE_GFX)
+	if (need_ctx_switch)
 		next_rptr += 2;
 
 	next_rptr += 4;
@@ -3780,7 +4273,7 @@ static void gfx_v8_0_ring_emit_ib(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, next_rptr);
 
 	/* insert SWITCH_BUFFER packet before first IB in the ring frame */
-	if (need_ctx_switch && ring->type == AMDGPU_RING_TYPE_GFX) {
+	if (need_ctx_switch) {
 		amdgpu_ring_write(ring, PACKET3(PACKET3_SWITCH_BUFFER, 0));
 		amdgpu_ring_write(ring, 0);
 	}
@@ -3803,6 +4296,36 @@ static void gfx_v8_0_ring_emit_ib(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, control);
 }
 
+static void gfx_v8_0_ring_emit_ib_compute(struct amdgpu_ring *ring,
+				  struct amdgpu_ib *ib)
+{
+	u32 header, control = 0;
+	u32 next_rptr = ring->wptr + 5;
+
+	control |= INDIRECT_BUFFER_VALID;
+
+	next_rptr += 4;
+	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
+	amdgpu_ring_write(ring, WRITE_DATA_DST_SEL(5) | WR_CONFIRM);
+	amdgpu_ring_write(ring, ring->next_rptr_gpu_addr & 0xfffffffc);
+	amdgpu_ring_write(ring, upper_32_bits(ring->next_rptr_gpu_addr) & 0xffffffff);
+	amdgpu_ring_write(ring, next_rptr);
+
+	header = PACKET3(PACKET3_INDIRECT_BUFFER, 2);
+
+	control |= ib->length_dw |
+			   (ib->vm ? (ib->vm->ids[ring->idx].id << 24) : 0);
+
+	amdgpu_ring_write(ring, header);
+	amdgpu_ring_write(ring,
+#ifdef __BIG_ENDIAN
+					  (2 << 0) |
+#endif
+					  (ib->gpu_addr & 0xFFFFFFFC));
+	amdgpu_ring_write(ring, upper_32_bits(ib->gpu_addr) & 0xFFFF);
+	amdgpu_ring_write(ring, control);
+}
+
 static void gfx_v8_0_ring_emit_fence_gfx(struct amdgpu_ring *ring, u64 addr,
 					 u64 seq, unsigned flags)
 {
@@ -3820,6 +4343,7 @@ static void gfx_v8_0_ring_emit_fence_gfx(struct amdgpu_ring *ring, u64 addr,
 			  DATA_SEL(write64bit ? 2 : 1) | INT_SEL(int_sel ? 2 : 0));
 	amdgpu_ring_write(ring, lower_32_bits(seq));
 	amdgpu_ring_write(ring, upper_32_bits(seq));
+
 }
 
 /**
@@ -3840,7 +4364,8 @@ static bool gfx_v8_0_ring_emit_semaphore(struct amdgpu_ring *ring,
 	unsigned sel = emit_wait ? PACKET3_SEM_SEL_WAIT : PACKET3_SEM_SEL_SIGNAL;
 
 	if (ring->adev->asic_type == CHIP_TOPAZ ||
-	    ring->adev->asic_type == CHIP_TONGA)
+	    ring->adev->asic_type == CHIP_TONGA ||
+	    ring->adev->asic_type == CHIP_FIJI)
 		/* we got a hw semaphore bug in VI TONGA, return false to switch back to sw fence wait */
 		return false;
 	else {
@@ -3859,49 +4384,34 @@ static bool gfx_v8_0_ring_emit_semaphore(struct amdgpu_ring *ring,
 	return true;
 }
 
-static void gfx_v8_0_ce_sync_me(struct amdgpu_ring *ring)
-{
-	struct amdgpu_device *adev = ring->adev;
-	u64 gpu_addr = adev->wb.gpu_addr + adev->gfx.ce_sync_offs * 4;
-
-	/* instruct DE to set a magic number */
-	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
-	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
-							 WRITE_DATA_DST_SEL(5)));
-	amdgpu_ring_write(ring, gpu_addr & 0xfffffffc);
-	amdgpu_ring_write(ring, upper_32_bits(gpu_addr) & 0xffffffff);
-	amdgpu_ring_write(ring, 1);
-
-	/* let CE wait till condition satisfied */
-	amdgpu_ring_write(ring, PACKET3(PACKET3_WAIT_REG_MEM, 5));
-	amdgpu_ring_write(ring, (WAIT_REG_MEM_OPERATION(0) | /* wait */
-							 WAIT_REG_MEM_MEM_SPACE(1) | /* memory */
-							 WAIT_REG_MEM_FUNCTION(3) |  /* == */
-							 WAIT_REG_MEM_ENGINE(2)));   /* ce */
-	amdgpu_ring_write(ring, gpu_addr & 0xfffffffc);
-	amdgpu_ring_write(ring, upper_32_bits(gpu_addr) & 0xffffffff);
-	amdgpu_ring_write(ring, 1);
-	amdgpu_ring_write(ring, 0xffffffff);
-	amdgpu_ring_write(ring, 4); /* poll interval */
-
-	/* instruct CE to reset wb of ce_sync to zero */
-	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
-	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(2) |
-							 WRITE_DATA_DST_SEL(5) |
-							 WR_CONFIRM));
-	amdgpu_ring_write(ring, gpu_addr & 0xfffffffc);
-	amdgpu_ring_write(ring, upper_32_bits(gpu_addr) & 0xffffffff);
-	amdgpu_ring_write(ring, 0);
-}
-
 static void gfx_v8_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					unsigned vm_id, uint64_t pd_addr)
 {
 	int usepfp = (ring->type == AMDGPU_RING_TYPE_GFX);
+	uint32_t seq = ring->fence_drv.sync_seq[ring->idx];
+	uint64_t addr = ring->fence_drv.gpu_addr;
+
+	amdgpu_ring_write(ring, PACKET3(PACKET3_WAIT_REG_MEM, 5));
+	amdgpu_ring_write(ring, (WAIT_REG_MEM_MEM_SPACE(1) | /* memory */
+		 WAIT_REG_MEM_FUNCTION(3))); /* equal */
+	amdgpu_ring_write(ring, addr & 0xfffffffc);
+	amdgpu_ring_write(ring, upper_32_bits(addr) & 0xffffffff);
+	amdgpu_ring_write(ring, seq);
+	amdgpu_ring_write(ring, 0xffffffff);
+	amdgpu_ring_write(ring, 4); /* poll interval */
+
+	if (usepfp) {
+		/* synce CE with ME to prevent CE fetch CEIB before context switch done */
+		amdgpu_ring_write(ring, PACKET3(PACKET3_SWITCH_BUFFER, 0));
+		amdgpu_ring_write(ring, 0);
+		amdgpu_ring_write(ring, PACKET3(PACKET3_SWITCH_BUFFER, 0));
+		amdgpu_ring_write(ring, 0);
+	}
 
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
 	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(usepfp) |
-				 WRITE_DATA_DST_SEL(0)));
+				 WRITE_DATA_DST_SEL(0)) |
+				 WR_CONFIRM);
 	if (vm_id < 8) {
 		amdgpu_ring_write(ring,
 				  (mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR + vm_id));
@@ -3937,19 +4447,11 @@ static void gfx_v8_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 		/* sync PFP to ME, otherwise we might get invalid PFP reads */
 		amdgpu_ring_write(ring, PACKET3(PACKET3_PFP_SYNC_ME, 0));
 		amdgpu_ring_write(ring, 0x0);
-
-		/* synce CE with ME to prevent CE fetch CEIB before context switch done */
-		gfx_v8_0_ce_sync_me(ring);
+		amdgpu_ring_write(ring, PACKET3(PACKET3_SWITCH_BUFFER, 0));
+		amdgpu_ring_write(ring, 0);
+		amdgpu_ring_write(ring, PACKET3(PACKET3_SWITCH_BUFFER, 0));
+		amdgpu_ring_write(ring, 0);
 	}
-}
-
-static bool gfx_v8_0_ring_is_lockup(struct amdgpu_ring *ring)
-{
-	if (gfx_v8_0_is_idle(ring->adev)) {
-		amdgpu_ring_lockup_update(ring);
-		return false;
-	}
-	return amdgpu_ring_test_lockup(ring);
 }
 
 static u32 gfx_v8_0_ring_get_rptr_compute(struct amdgpu_ring *ring)
@@ -3982,6 +4484,7 @@ static void gfx_v8_0_ring_emit_fence_compute(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, PACKET3(PACKET3_RELEASE_MEM, 5));
 	amdgpu_ring_write(ring, (EOP_TCL1_ACTION_EN |
 				 EOP_TC_ACTION_EN |
+				 EOP_TC_WB_ACTION_EN |
 				 EVENT_TYPE(CACHE_FLUSH_AND_INV_TS_EVENT) |
 				 EVENT_INDEX(5)));
 	amdgpu_ring_write(ring, DATA_SEL(write64bit ? 2 : 1) | INT_SEL(int_sel ? 2 : 0));
@@ -4224,7 +4727,7 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_gfx = {
 	.get_wptr = gfx_v8_0_ring_get_wptr_gfx,
 	.set_wptr = gfx_v8_0_ring_set_wptr_gfx,
 	.parse_cs = NULL,
-	.emit_ib = gfx_v8_0_ring_emit_ib,
+	.emit_ib = gfx_v8_0_ring_emit_ib_gfx,
 	.emit_fence = gfx_v8_0_ring_emit_fence_gfx,
 	.emit_semaphore = gfx_v8_0_ring_emit_semaphore,
 	.emit_vm_flush = gfx_v8_0_ring_emit_vm_flush,
@@ -4232,7 +4735,7 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_gfx = {
 	.emit_hdp_flush = gfx_v8_0_ring_emit_hdp_flush,
 	.test_ring = gfx_v8_0_ring_test_ring,
 	.test_ib = gfx_v8_0_ring_test_ib,
-	.is_lockup = gfx_v8_0_ring_is_lockup,
+	.insert_nop = amdgpu_ring_insert_nop,
 };
 
 static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_compute = {
@@ -4240,7 +4743,7 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_compute = {
 	.get_wptr = gfx_v8_0_ring_get_wptr_compute,
 	.set_wptr = gfx_v8_0_ring_set_wptr_compute,
 	.parse_cs = NULL,
-	.emit_ib = gfx_v8_0_ring_emit_ib,
+	.emit_ib = gfx_v8_0_ring_emit_ib_compute,
 	.emit_fence = gfx_v8_0_ring_emit_fence_compute,
 	.emit_semaphore = gfx_v8_0_ring_emit_semaphore,
 	.emit_vm_flush = gfx_v8_0_ring_emit_vm_flush,
@@ -4248,7 +4751,7 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_compute = {
 	.emit_hdp_flush = gfx_v8_0_ring_emit_hdp_flush,
 	.test_ring = gfx_v8_0_ring_test_ring,
 	.test_ib = gfx_v8_0_ring_test_ib,
-	.is_lockup = gfx_v8_0_ring_is_lockup,
+	.insert_nop = amdgpu_ring_insert_nop,
 };
 
 static void gfx_v8_0_set_ring_funcs(struct amdgpu_device *adev)

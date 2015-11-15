@@ -52,12 +52,7 @@ struct talitos_ptr {
 	__be32 ptr;     /* address */
 };
 
-static const struct talitos_ptr zero_entry = {
-	.len = 0,
-	.j_extent = 0,
-	.eptr = 0,
-	.ptr = 0
-};
+static const struct talitos_ptr zero_entry;
 
 /* descriptor */
 struct talitos_desc {
@@ -154,6 +149,7 @@ struct talitos_private {
 
 	/* hwrng device */
 	struct hwrng rng;
+	bool rng_registered;
 };
 
 extern int talitos_submit(struct device *dev, int ch, struct talitos_desc *desc,

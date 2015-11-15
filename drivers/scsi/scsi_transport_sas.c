@@ -1222,13 +1222,6 @@ show_sas_rphy_enclosure_identifier(struct device *dev,
 	u64 identifier;
 	int error;
 
-	/*
-	 * Only devices behind an expander are supported, because the
-	 * enclosure identifier is a SMP feature.
-	 */
-	if (scsi_is_sas_phy_local(phy))
-		return -EINVAL;
-
 	error = i->f->get_enclosure_identifier(rphy, &identifier);
 	if (error)
 		return error;
@@ -1247,9 +1240,6 @@ show_sas_rphy_bay_identifier(struct device *dev,
 	struct Scsi_Host *shost = dev_to_shost(phy->dev.parent);
 	struct sas_internal *i = to_sas_internal(shost->transportt);
 	int val;
-
-	if (scsi_is_sas_phy_local(phy))
-		return -EINVAL;
 
 	val = i->f->get_bay_identifier(rphy);
 	if (val < 0)

@@ -93,6 +93,6 @@ int asoc_qcom_lpass_platform_register(struct platform_device *);
 int asoc_qcom_lpass_cpu_platform_remove(struct platform_device *pdev);
 int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev);
 int asoc_qcom_lpass_cpu_dai_probe(struct snd_soc_dai *dai);
-extern struct snd_soc_dai_ops asoc_qcom_lpass_cpu_dai_ops;
+extern const struct snd_soc_dai_ops asoc_qcom_lpass_cpu_dai_ops;
 
 #endif /* __LPASS_H__ */

@@ -452,7 +452,7 @@ static int wm8903_put_deemph(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
-	int deemph = ucontrol->value.integer.value[0];
+	unsigned int deemph = ucontrol->value.integer.value[0];
 	int ret = 0;
 
 	if (deemph > 1)
@@ -2193,7 +2193,6 @@ MODULE_DEVICE_TABLE(i2c, wm8903_i2c_id);
 static struct i2c_driver wm8903_i2c_driver = {
 	.driver = {
 		.name = "wm8903",
-		.owner = THIS_MODULE,
 		.of_match_table = wm8903_of_match,
 	},
 	.probe =    wm8903_i2c_probe,

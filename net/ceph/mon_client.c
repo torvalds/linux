@@ -149,6 +149,10 @@ static int __open_session(struct ceph_mon_client *monc)
 			      CEPH_ENTITY_TYPE_MON, monc->cur_mon,
 			      &monc->monmap->mon_inst[monc->cur_mon].addr);
 
+		/* send an initial keepalive to ensure our timestamp is
+		 * valid by the time we are in an OPENED state */
+		ceph_con_keepalive(&monc->con);
+
 		/* initiatiate authentication handshake */
 		ret = ceph_auth_build_hello(monc->auth,
 					    monc->m_auth->front.iov_base,
@@ -170,14 +174,19 @@ static bool __sub_expired(struct ceph_mon_client *monc)
  */
 static void __schedule_delayed(struct ceph_mon_client *monc)
 {
-	unsigned int delay;
+	struct ceph_options *opt = monc->client->options;
+	unsigned long delay;
 
-	if (monc->cur_mon < 0 || __sub_expired(monc))
+	if (monc->cur_mon < 0 || __sub_expired(monc)) {
 		delay = 10 * HZ;
-	else
+	} else {
 		delay = 20 * HZ;
-	dout("__schedule_delayed after %u\n", delay);
-	schedule_delayed_work(&monc->delayed_work, delay);
+		if (opt->monc_ping_timeout > 0)
+			delay = min(delay, opt->monc_ping_timeout / 3);
+	}
+	dout("__schedule_delayed after %lu\n", delay);
+	schedule_delayed_work(&monc->delayed_work,
+			      round_jiffies_relative(delay));
 }
 
 /*
@@ -743,11 +752,23 @@ static void delayed_work(struct work_struct *work)
 		__close_session(monc);
 		__open_session(monc);  /* continue hunting */
 	} else {
-		ceph_con_keepalive(&monc->con);
+		struct ceph_options *opt = monc->client->options;
+		int is_auth = ceph_auth_is_authenticated(monc->auth);
+		if (ceph_con_keepalive_expired(&monc->con,
+					       opt->monc_ping_timeout)) {
+			dout("monc keepalive timeout\n");
+			is_auth = 0;
+			__close_session(monc);
+			monc->hunting = true;
+			__open_session(monc);
+		}
 
-		__validate_auth(monc);
+		if (!monc->hunting) {
+			ceph_con_keepalive(&monc->con);
+			__validate_auth(monc);
+		}
 
-		if (ceph_auth_is_authenticated(monc->auth))
+		if (is_auth)
 			__send_subscribe(monc);
 	}
 	__schedule_delayed(monc);

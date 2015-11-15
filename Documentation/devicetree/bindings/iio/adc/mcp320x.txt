@@ -18,6 +18,7 @@ Required properties:
 				"mcp3202"
 				"mcp3204"
 				"mcp3208"
+				"mcp3301"
 
 
 Examples:

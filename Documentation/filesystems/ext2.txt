@@ -360,8 +360,8 @@ and are copied into the filesystem.  If a transaction is incomplete at
 the time of the crash, then there is no guarantee of consistency for
 the blocks in that transaction so they are discarded (which means any
 filesystem changes they represent are also lost).
-Check Documentation/filesystems/ext3.txt if you want to read more about
-ext3 and journaling.
+Check Documentation/filesystems/ext4.txt if you want to read more about
+ext4 and journaling.
 
 References
 ==========

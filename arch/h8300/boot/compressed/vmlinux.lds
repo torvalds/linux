@@ -27,6 +27,6 @@ SECTIONS
                 *(.bss*)
         . = ALIGN(0x4) ;
         __ebss = . ;
-        __end = . ;
         }
+        _end = . ;
 }

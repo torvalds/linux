@@ -108,6 +108,14 @@ static void setup_tlb_core_data(void)
 	for_each_possible_cpu(cpu) {
 		int first = cpu_first_thread_sibling(cpu);
 
+		/*
+		 * If we boot via kdump on a non-primary thread,
+		 * make sure we point at the thread that actually
+		 * set up this TLB.
+		 */
+		if (cpu_first_thread_sibling(boot_cpuid) == first)
+			first = boot_cpuid;
+
 		paca[cpu].tcd_ptr = &paca[first].tcd;
 
 		/*
@@ -332,10 +340,25 @@ void early_setup_secondary(void)
 #endif /* CONFIG_SMP */
 
 #if defined(CONFIG_SMP) || defined(CONFIG_KEXEC)
+static bool use_spinloop(void)
+{
+	if (!IS_ENABLED(CONFIG_PPC_BOOK3E))
+		return true;
+
+	/*
+	 * When book3e boots from kexec, the ePAPR spin table does
+	 * not get used.
+	 */
+	return of_property_read_bool(of_chosen, "linux,booted-from-kexec");
+}
+
 void smp_release_cpus(void)
 {
 	unsigned long *ptr;
 	int i;
+
+	if (!use_spinloop())
+		return;
 
 	DBG(" -> smp_release_cpus()\n");
 
@@ -516,7 +539,7 @@ void __init setup_system(void)
 	 * Freescale Book3e parts spin in a loop provided by firmware,
 	 * so smp_release_cpus() does nothing for them
 	 */
-#if defined(CONFIG_SMP) && !defined(CONFIG_PPC_FSL_BOOK3E)
+#if defined(CONFIG_SMP)
 	/* Release secondary cpus out of their spinloops at 0x60 now that
 	 * we can map physical -> logical CPU ids
 	 */

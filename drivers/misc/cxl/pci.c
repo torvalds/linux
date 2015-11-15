@@ -24,6 +24,7 @@
 #include <asm/io.h>
 
 #include "cxl.h"
+#include <misc/cxl.h>
 
 
 #define CXL_PCI_VSEC_ID	0x1280
@@ -133,7 +134,7 @@ u8 cxl_afu_cr_read8(struct cxl_afu *afu, int cr, u64 off)
 	return (val >> ((off & 0x3) * 8)) & 0xff;
 }
 
-static DEFINE_PCI_DEVICE_TABLE(cxl_pci_tbl) = {
+static const struct pci_device_id cxl_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_IBM, 0x0477), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_IBM, 0x044b), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_IBM, 0x04cf), },
@@ -369,6 +370,55 @@ static int init_implementation_adapter_regs(struct cxl *adapter, struct pci_dev 
 	return 0;
 }
 
+#define TBSYNC_CNT(n) (((u64)n & 0x7) << (63-6))
+#define _2048_250MHZ_CYCLES 1
+
+static int cxl_setup_psl_timebase(struct cxl *adapter, struct pci_dev *dev)
+{
+	u64 psl_tb;
+	int delta;
+	unsigned int retry = 0;
+	struct device_node *np;
+
+	if (!(np = pnv_pci_get_phb_node(dev)))
+		return -ENODEV;
+
+	/* Do not fail when CAPP timebase sync is not supported by OPAL */
+	of_node_get(np);
+	if (! of_get_property(np, "ibm,capp-timebase-sync", NULL)) {
+		of_node_put(np);
+		pr_err("PSL: Timebase sync: OPAL support missing\n");
+		return 0;
+	}
+	of_node_put(np);
+
+	/*
+	 * Setup PSL Timebase Control and Status register
+	 * with the recommended Timebase Sync Count value
+	 */
+	cxl_p1_write(adapter, CXL_PSL_TB_CTLSTAT,
+		     TBSYNC_CNT(2 * _2048_250MHZ_CYCLES));
+
+	/* Enable PSL Timebase */
+	cxl_p1_write(adapter, CXL_PSL_Control, 0x0000000000000000);
+	cxl_p1_write(adapter, CXL_PSL_Control, CXL_PSL_Control_tb);
+
+	/* Wait until CORE TB and PSL TB difference <= 16usecs */
+	do {
+		msleep(1);
+		if (retry++ > 5) {
+			pr_err("PSL: Timebase sync: giving up!\n");
+			return -EIO;
+		}
+		psl_tb = cxl_p1_read(adapter, CXL_PSL_Timebase);
+		delta = mftb() - psl_tb;
+		if (delta < 0)
+			delta = -delta;
+	} while (cputime_to_usecs(delta) > 16);
+
+	return 0;
+}
+
 static int init_implementation_afu_regs(struct cxl_afu *afu)
 {
 	/* read/write masks for this slice */
@@ -539,10 +589,18 @@ err:
 
 static void cxl_unmap_slice_regs(struct cxl_afu *afu)
 {
-	if (afu->p2n_mmio)
+	if (afu->p2n_mmio) {
 		iounmap(afu->p2n_mmio);
-	if (afu->p1n_mmio)
+		afu->p2n_mmio = NULL;
+	}
+	if (afu->p1n_mmio) {
 		iounmap(afu->p1n_mmio);
+		afu->p1n_mmio = NULL;
+	}
+	if (afu->afu_desc_mmio) {
+		iounmap(afu->afu_desc_mmio);
+		afu->afu_desc_mmio = NULL;
+	}
 }
 
 static void cxl_release_afu(struct device *dev)
@@ -550,6 +608,9 @@ static void cxl_release_afu(struct device *dev)
 	struct cxl_afu *afu = to_cxl_afu(dev);
 
 	pr_devel("cxl_release_afu\n");
+
+	idr_destroy(&afu->contexts_idr);
+	cxl_release_spa(afu);
 
 	kfree(afu);
 }
@@ -656,7 +717,7 @@ static int sanitise_afu_regs(struct cxl_afu *afu)
 	 */
 	reg = cxl_p2n_read(afu, CXL_AFU_Cntl_An);
 	if ((reg & CXL_AFU_Cntl_An_ES_MASK) != CXL_AFU_Cntl_An_ES_Disabled) {
-		dev_warn(&afu->dev, "WARNING: AFU was not disabled: %#.16llx\n", reg);
+		dev_warn(&afu->dev, "WARNING: AFU was not disabled: %#016llx\n", reg);
 		if (__cxl_afu_reset(afu))
 			return -EIO;
 		if (cxl_afu_disable(afu))
@@ -677,7 +738,7 @@ static int sanitise_afu_regs(struct cxl_afu *afu)
 	cxl_p2n_write(afu, CXL_SSTP0_An, 0x0000000000000000);
 	reg = cxl_p2n_read(afu, CXL_PSL_DSISR_An);
 	if (reg) {
-		dev_warn(&afu->dev, "AFU had pending DSISR: %#.16llx\n", reg);
+		dev_warn(&afu->dev, "AFU had pending DSISR: %#016llx\n", reg);
 		if (reg & CXL_PSL_DSISR_TRANS)
 			cxl_p2n_write(afu, CXL_PSL_TFC_An, CXL_PSL_TFC_An_AE);
 		else
@@ -686,12 +747,12 @@ static int sanitise_afu_regs(struct cxl_afu *afu)
 	reg = cxl_p1n_read(afu, CXL_PSL_SERR_An);
 	if (reg) {
 		if (reg & ~0xffff)
-			dev_warn(&afu->dev, "AFU had pending SERR: %#.16llx\n", reg);
+			dev_warn(&afu->dev, "AFU had pending SERR: %#016llx\n", reg);
 		cxl_p1n_write(afu, CXL_PSL_SERR_An, reg & ~0xffff);
 	}
 	reg = cxl_p2n_read(afu, CXL_PSL_ErrStat_An);
 	if (reg) {
-		dev_warn(&afu->dev, "AFU had pending error status: %#.16llx\n", reg);
+		dev_warn(&afu->dev, "AFU had pending error status: %#016llx\n", reg);
 		cxl_p2n_write(afu, CXL_PSL_ErrStat_An, reg);
 	}
 
@@ -742,45 +803,70 @@ ssize_t cxl_afu_read_err_buffer(struct cxl_afu *afu, char *buf,
 	return count;
 }
 
-static int cxl_init_afu(struct cxl *adapter, int slice, struct pci_dev *dev)
+static int cxl_configure_afu(struct cxl_afu *afu, struct cxl *adapter, struct pci_dev *dev)
 {
-	struct cxl_afu *afu;
-	bool free = true;
 	int rc;
 
-	if (!(afu = cxl_alloc_afu(adapter, slice)))
-		return -ENOMEM;
-
-	if ((rc = dev_set_name(&afu->dev, "afu%i.%i", adapter->adapter_num, slice)))
-		goto err1;
-
 	if ((rc = cxl_map_slice_regs(afu, adapter, dev)))
-		goto err1;
+		return rc;
 
 	if ((rc = sanitise_afu_regs(afu)))
-		goto err2;
+		goto err1;
 
 	/* We need to reset the AFU before we can read the AFU descriptor */
 	if ((rc = __cxl_afu_reset(afu)))
-		goto err2;
+		goto err1;
 
 	if (cxl_verbose)
 		dump_afu_descriptor(afu);
 
 	if ((rc = cxl_read_afu_descriptor(afu)))
-		goto err2;
+		goto err1;
 
 	if ((rc = cxl_afu_descriptor_looks_ok(afu)))
-		goto err2;
+		goto err1;
 
 	if ((rc = init_implementation_afu_regs(afu)))
-		goto err2;
+		goto err1;
 
 	if ((rc = cxl_register_serr_irq(afu)))
-		goto err2;
+		goto err1;
 
 	if ((rc = cxl_register_psl_irq(afu)))
-		goto err3;
+		goto err2;
+
+	return 0;
+
+err2:
+	cxl_release_serr_irq(afu);
+err1:
+	cxl_unmap_slice_regs(afu);
+	return rc;
+}
+
+static void cxl_deconfigure_afu(struct cxl_afu *afu)
+{
+	cxl_release_psl_irq(afu);
+	cxl_release_serr_irq(afu);
+	cxl_unmap_slice_regs(afu);
+}
+
+static int cxl_init_afu(struct cxl *adapter, int slice, struct pci_dev *dev)
+{
+	struct cxl_afu *afu;
+	int rc;
+
+	afu = cxl_alloc_afu(adapter, slice);
+	if (!afu)
+		return -ENOMEM;
+
+	rc = dev_set_name(&afu->dev, "afu%i.%i", adapter->adapter_num, slice);
+	if (rc)
+		goto err_free;
+
+	rc = cxl_configure_afu(afu, adapter, dev);
+	if (rc)
+		goto err_free;
 
 	/* Don't care if this fails */
 	cxl_debugfs_afu_add(afu);
@@ -795,10 +881,6 @@ static int cxl_init_afu(struct cxl *adapter, int slice, struct pci_dev *dev)
 	if ((rc = cxl_sysfs_afu_add(afu)))
 		goto err_put1;
 
-
-	if ((rc = cxl_afu_select_best_mode(afu)))
-		goto err_put2;
-
 	adapter->afu[afu->slice] = afu;
 
 	if ((rc = cxl_pci_vphb_add(afu)))
@@ -806,21 +888,16 @@ static int cxl_init_afu(struct cxl *adapter, int slice, struct pci_dev *dev)
 
 	return 0;
 
-err_put2:
-	cxl_sysfs_afu_remove(afu);
 err_put1:
-	device_unregister(&afu->dev);
-	free = false;
+	cxl_deconfigure_afu(afu);
 	cxl_debugfs_afu_remove(afu);
-	cxl_release_psl_irq(afu);
-err3:
-	cxl_release_serr_irq(afu);
-err2:
-	cxl_unmap_slice_regs(afu);
-err1:
-	if (free)
-		kfree(afu);
+	device_unregister(&afu->dev);
 	return rc;
+
+err_free:
+	kfree(afu);
+	return rc;
+
 }
 
 static void cxl_remove_afu(struct cxl_afu *afu)
@@ -840,10 +917,7 @@ static void cxl_remove_afu(struct cxl_afu *afu)
 	cxl_context_detach_all(afu);
 	cxl_afu_deactivate_mode(afu);
 
-	cxl_release_psl_irq(afu);
-	cxl_release_serr_irq(afu);
-	cxl_unmap_slice_regs(afu);
-
+	cxl_deconfigure_afu(afu);
 	device_unregister(&afu->dev);
 }
 
@@ -851,15 +925,14 @@ int cxl_reset(struct cxl *adapter)
 {
 	struct pci_dev *dev = to_pci_dev(adapter->dev.parent);
 	int rc;
-	int i;
-	u32 val;
+
+	if (adapter->perst_same_image) {
+		dev_warn(&dev->dev,
+			 "cxl: refusing to reset/reflash when perst_reloads_same_image is set.\n");
+		return -EINVAL;
+	}
 
 	dev_info(&dev->dev, "CXL reset\n");
-
-	for (i = 0; i < adapter->slices; i++) {
-		cxl_pci_vphb_remove(adapter->afu[i]);
-		cxl_remove_afu(adapter->afu[i]);
-	}
 
 	/* pcie_warm_reset requests a fundamental pci reset which includes a
 	 * PERST assert/deassert.  PERST triggers a loading of the image
@@ -868,20 +941,6 @@ int cxl_reset(struct cxl *adapter)
 		dev_err(&dev->dev, "cxl: pcie_warm_reset failed\n");
 		return rc;
 	}
-
-	/* the PERST done above fences the PHB.  So, reset depends on EEH
-	 * to unbind the driver, tell Sapphire to reinit the PHB, and rebind
-	 * the driver.  Do an mmio read explictly to ensure EEH notices the
-	 * fenced PHB.  Retry for a few seconds before giving up. */
-	i = 0;
-	while (((val = mmio_read32be(adapter->p1_mmio)) != 0xffffffff) &&
-		(i < 5)) {
-		msleep(500);
-		i++;
-	}
-
-	if (val != 0xffffffff)
-		dev_err(&dev->dev, "cxl: PERST failed to trigger EEH\n");
 
 	return rc;
 }
@@ -893,7 +952,7 @@ static int cxl_map_adapter_regs(struct cxl *adapter, struct pci_dev *dev)
 	if (pci_request_region(dev, 0, "priv 1 regs"))
 		goto err2;
 
-	pr_devel("cxl_map_adapter_regs: p1: %#.16llx %#llx, p2: %#.16llx %#llx",
+	pr_devel("cxl_map_adapter_regs: p1: %#016llx %#llx, p2: %#016llx %#llx",
 			p1_base(dev), p1_size(dev), p2_base(dev), p2_size(dev));
 
 	if (!(adapter->p1_mmio = ioremap(p1_base(dev), p1_size(dev))))
@@ -917,10 +976,16 @@ err1:
 
 static void cxl_unmap_adapter_regs(struct cxl *adapter)
 {
-	if (adapter->p1_mmio)
+	if (adapter->p1_mmio) {
 		iounmap(adapter->p1_mmio);
-	if (adapter->p2_mmio)
+		adapter->p1_mmio = NULL;
+		pci_release_region(to_pci_dev(adapter->dev.parent), 2);
+	}
+	if (adapter->p2_mmio) {
 		iounmap(adapter->p2_mmio);
+		adapter->p2_mmio = NULL;
+		pci_release_region(to_pci_dev(adapter->dev.parent), 0);
+	}
 }
 
 static int cxl_read_vsec(struct cxl *adapter, struct pci_dev *dev)
@@ -949,7 +1014,6 @@ static int cxl_read_vsec(struct cxl *adapter, struct pci_dev *dev)
 	CXL_READ_VSEC_BASE_IMAGE(dev, vsec, &adapter->base_image);
 	CXL_READ_VSEC_IMAGE_STATE(dev, vsec, &image_state);
 	adapter->user_image_loaded = !!(image_state & CXL_VSEC_USER_IMAGE_LOADED);
-	adapter->perst_loads_image = true;
 	adapter->perst_select_user = !!(image_state & CXL_VSEC_USER_IMAGE_LOADED);
 
 	CXL_READ_VSEC_NAFUS(dev, vsec, &adapter->slices);
@@ -969,6 +1033,32 @@ static int cxl_read_vsec(struct cxl *adapter, struct pci_dev *dev)
 	adapter->user_irqs = pnv_cxl_get_irq_count(dev) - 1 - 2*adapter->slices;
 
 	return 0;
+}
+
+/*
+ * Workaround a PCIe Host Bridge defect on some cards, that can cause
+ * malformed Transaction Layer Packet (TLP) errors to be erroneously
+ * reported. Mask this error in the Uncorrectable Error Mask Register.
+ *
+ * The upper nibble of the PSL revision is used to distinguish between
+ * different cards. The affected ones have it set to 0.
+ */
+static void cxl_fixup_malformed_tlp(struct cxl *adapter, struct pci_dev *dev)
+{
+	int aer;
+	u32 data;
+
+	if (adapter->psl_rev & 0xf000)
+		return;
+	if (!(aer = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR)))
+		return;
+	pci_read_config_dword(dev, aer + PCI_ERR_UNCOR_MASK, &data);
+	if (data & PCI_ERR_UNC_MALF_TLP)
+		if (data & PCI_ERR_UNC_INTN)
+			return;
+	data |= PCI_ERR_UNC_MALF_TLP;
+	data |= PCI_ERR_UNC_INTN;
+	pci_write_config_dword(dev, aer + PCI_ERR_UNCOR_MASK, data);
 }
 
 static int cxl_vsec_looks_ok(struct cxl *adapter, struct pci_dev *dev)
@@ -1009,81 +1099,140 @@ static void cxl_release_adapter(struct device *dev)
 
 	pr_devel("cxl_release_adapter\n");
 
+	cxl_remove_adapter_nr(adapter);
+
 	kfree(adapter);
 }
 
-static struct cxl *cxl_alloc_adapter(struct pci_dev *dev)
+static struct cxl *cxl_alloc_adapter(void)
 {
 	struct cxl *adapter;
 
 	if (!(adapter = kzalloc(sizeof(struct cxl), GFP_KERNEL)))
 		return NULL;
 
-	adapter->dev.parent = &dev->dev;
-	adapter->dev.release = cxl_release_adapter;
-	pci_set_drvdata(dev, adapter);
 	spin_lock_init(&adapter->afu_list_lock);
 
+	if (cxl_alloc_adapter_nr(adapter))
+		goto err1;
+
+	if (dev_set_name(&adapter->dev, "card%i", adapter->adapter_num))
+		goto err2;
+
 	return adapter;
+
+err2:
+	cxl_remove_adapter_nr(adapter);
+err1:
+	kfree(adapter);
+	return NULL;
 }
+
+#define CXL_PSL_ErrIVTE_tberror (0x1ull << (63-31))
 
 static int sanitise_adapter_regs(struct cxl *adapter)
 {
-	cxl_p1_write(adapter, CXL_PSL_ErrIVTE, 0x0000000000000000);
+	/* Clear PSL tberror bit by writing 1 to it */
+	cxl_p1_write(adapter, CXL_PSL_ErrIVTE, CXL_PSL_ErrIVTE_tberror);
 	return cxl_tlb_slb_invalidate(adapter);
+}
+
+/* This should contain *only* operations that can safely be done in
+ * both creation and recovery.
+ */
+static int cxl_configure_adapter(struct cxl *adapter, struct pci_dev *dev)
+{
+	int rc;
+
+	adapter->dev.parent = &dev->dev;
+	adapter->dev.release = cxl_release_adapter;
+	pci_set_drvdata(dev, adapter);
+
+	rc = pci_enable_device(dev);
+	if (rc) {
+		dev_err(&dev->dev, "pci_enable_device failed: %i\n", rc);
+		return rc;
+	}
+
+	if ((rc = cxl_read_vsec(adapter, dev)))
+		return rc;
+
+	if ((rc = cxl_vsec_looks_ok(adapter, dev)))
+	        return rc;
+
+	cxl_fixup_malformed_tlp(adapter, dev);
+
+	if ((rc = setup_cxl_bars(dev)))
+		return rc;
+
+	if ((rc = switch_card_to_cxl(dev)))
+		return rc;
+
+	if ((rc = cxl_update_image_control(adapter)))
+		return rc;
+
+	if ((rc = cxl_map_adapter_regs(adapter, dev)))
+		return rc;
+
+	if ((rc = sanitise_adapter_regs(adapter)))
+		goto err;
+
+	if ((rc = init_implementation_adapter_regs(adapter, dev)))
+		goto err;
+
+	if ((rc = pnv_phb_to_cxl_mode(dev, OPAL_PHB_CAPI_MODE_CAPI)))
+		goto err;
+
+	/* If recovery happened, the last step is to turn on snooping.
+	 * In the non-recovery case this has no effect */
+	if ((rc = pnv_phb_to_cxl_mode(dev, OPAL_PHB_CAPI_MODE_SNOOP_ON)))
+		goto err;
+
+	if ((rc = cxl_setup_psl_timebase(adapter, dev)))
+		goto err;
+
+	if ((rc = cxl_register_psl_err_irq(adapter)))
+		goto err;
+
+	return 0;
+
+err:
+	cxl_unmap_adapter_regs(adapter);
+	return rc;
+
+}
+
+static void cxl_deconfigure_adapter(struct cxl *adapter)
+{
+	struct pci_dev *pdev = to_pci_dev(adapter->dev.parent);
+
+	cxl_release_psl_err_irq(adapter);
+	cxl_unmap_adapter_regs(adapter);
+
+	pci_disable_device(pdev);
 }
 
 static struct cxl *cxl_init_adapter(struct pci_dev *dev)
 {
 	struct cxl *adapter;
-	bool free = true;
 	int rc;
 
-
-	if (!(adapter = cxl_alloc_adapter(dev)))
+	adapter = cxl_alloc_adapter();
+	if (!adapter)
 		return ERR_PTR(-ENOMEM);
 
-	if ((rc = cxl_read_vsec(adapter, dev)))
-		goto err1;
+	/* Set defaults for parameters which need to persist over
+	 * configure/reconfigure
+	 */
+	adapter->perst_loads_image = true;
+	adapter->perst_same_image = false;
 
-	if ((rc = cxl_vsec_looks_ok(adapter, dev)))
-		goto err1;
-
-	if ((rc = setup_cxl_bars(dev)))
-		goto err1;
-
-	if ((rc = switch_card_to_cxl(dev)))
-		goto err1;
-
-	if ((rc = cxl_alloc_adapter_nr(adapter)))
-		goto err1;
-
-	if ((rc = dev_set_name(&adapter->dev, "card%i", adapter->adapter_num)))
-		goto err2;
-
-	if ((rc = cxl_update_image_control(adapter)))
-		goto err2;
-
-	if ((rc = cxl_map_adapter_regs(adapter, dev)))
-		goto err2;
-
-	if ((rc = sanitise_adapter_regs(adapter)))
-		goto err2;
-
-	if ((rc = init_implementation_adapter_regs(adapter, dev)))
-		goto err3;
-
-	if ((rc = pnv_phb_to_cxl_mode(dev, OPAL_PHB_CAPI_MODE_CAPI)))
-		goto err3;
-
-	/* If recovery happened, the last step is to turn on snooping.
-	 * In the non-recovery case this has no effect */
-	if ((rc = pnv_phb_to_cxl_mode(dev, OPAL_PHB_CAPI_MODE_SNOOP_ON))) {
-		goto err3;
+	rc = cxl_configure_adapter(adapter, dev);
+	if (rc) {
+		pci_disable_device(dev);
+		cxl_release_adapter(&adapter->dev);
+		return ERR_PTR(rc);
 	}
-
-	if ((rc = cxl_register_psl_err_irq(adapter)))
-		goto err3;
 
 	/* Don't care if this one fails: */
 	cxl_debugfs_adapter_add(adapter);
@@ -1101,37 +1250,25 @@ static struct cxl *cxl_init_adapter(struct pci_dev *dev)
 	return adapter;
 
 err_put1:
-	device_unregister(&adapter->dev);
-	free = false;
+	/* This should mirror cxl_remove_adapter, except without the
+	 * sysfs parts
+	 */
 	cxl_debugfs_adapter_remove(adapter);
-	cxl_release_psl_err_irq(adapter);
-err3:
-	cxl_unmap_adapter_regs(adapter);
-err2:
-	cxl_remove_adapter_nr(adapter);
-err1:
-	if (free)
-		kfree(adapter);
+	cxl_deconfigure_adapter(adapter);
+	device_unregister(&adapter->dev);
 	return ERR_PTR(rc);
 }
 
 static void cxl_remove_adapter(struct cxl *adapter)
 {
-	struct pci_dev *pdev = to_pci_dev(adapter->dev.parent);
-
-	pr_devel("cxl_release_adapter\n");
+	pr_devel("cxl_remove_adapter\n");
 
 	cxl_sysfs_adapter_remove(adapter);
 	cxl_debugfs_adapter_remove(adapter);
-	cxl_release_psl_err_irq(adapter);
-	cxl_unmap_adapter_regs(adapter);
-	cxl_remove_adapter_nr(adapter);
+
+	cxl_deconfigure_adapter(adapter);
 
 	device_unregister(&adapter->dev);
-
-	pci_release_region(pdev, 0);
-	pci_release_region(pdev, 2);
-	pci_disable_device(pdev);
 }
 
 static int cxl_probe(struct pci_dev *dev, const struct pci_device_id *id)
@@ -1140,26 +1277,24 @@ static int cxl_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	int slice;
 	int rc;
 
-	pci_dev_get(dev);
-
 	if (cxl_verbose)
 		dump_cxl_config_space(dev);
-
-	if ((rc = pci_enable_device(dev))) {
-		dev_err(&dev->dev, "pci_enable_device failed: %i\n", rc);
-		return rc;
-	}
 
 	adapter = cxl_init_adapter(dev);
 	if (IS_ERR(adapter)) {
 		dev_err(&dev->dev, "cxl_init_adapter failed: %li\n", PTR_ERR(adapter));
-		pci_disable_device(dev);
 		return PTR_ERR(adapter);
 	}
 
 	for (slice = 0; slice < adapter->slices; slice++) {
-		if ((rc = cxl_init_afu(adapter, slice, dev)))
+		if ((rc = cxl_init_afu(adapter, slice, dev))) {
 			dev_err(&dev->dev, "AFU %i failed to initialise: %i\n", slice, rc);
+			continue;
+		}
+
+		rc = cxl_afu_select_best_mode(adapter->afu[slice]);
+		if (rc)
+			dev_err(&dev->dev, "AFU %i failed to start: %i\n", slice, rc);
 	}
 
 	return 0;
@@ -1183,10 +1318,262 @@ static void cxl_remove(struct pci_dev *dev)
 	cxl_remove_adapter(adapter);
 }
 
+static pci_ers_result_t cxl_vphb_error_detected(struct cxl_afu *afu,
+						pci_channel_state_t state)
+{
+	struct pci_dev *afu_dev;
+	pci_ers_result_t result = PCI_ERS_RESULT_NEED_RESET;
+	pci_ers_result_t afu_result = PCI_ERS_RESULT_NEED_RESET;
+
+	/* There should only be one entry, but go through the list
+	 * anyway
+	 */
+	list_for_each_entry(afu_dev, &afu->phb->bus->devices, bus_list) {
+		if (!afu_dev->driver)
+			continue;
+
+		afu_dev->error_state = state;
+
+		if (afu_dev->driver->err_handler)
+			afu_result = afu_dev->driver->err_handler->error_detected(afu_dev,
+										  state);
+		/* Disconnect trumps all, NONE trumps NEED_RESET */
+		if (afu_result == PCI_ERS_RESULT_DISCONNECT)
+			result = PCI_ERS_RESULT_DISCONNECT;
+		else if ((afu_result == PCI_ERS_RESULT_NONE) &&
+			 (result == PCI_ERS_RESULT_NEED_RESET))
+			result = PCI_ERS_RESULT_NONE;
+	}
+	return result;
+}
+
+static pci_ers_result_t cxl_pci_error_detected(struct pci_dev *pdev,
+					       pci_channel_state_t state)
+{
+	struct cxl *adapter = pci_get_drvdata(pdev);
+	struct cxl_afu *afu;
+	pci_ers_result_t result = PCI_ERS_RESULT_NEED_RESET;
+	int i;
+
+	/* At this point, we could still have an interrupt pending.
+	 * Let's try to get them out of the way before they do
+	 * anything we don't like.
+	 */
+	schedule();
+
+	/* If we're permanently dead, give up. */
+	if (state == pci_channel_io_perm_failure) {
+		/* Tell the AFU drivers; but we don't care what they
+		 * say, we're going away.
+		 */
+		for (i = 0; i < adapter->slices; i++) {
+			afu = adapter->afu[i];
+			cxl_vphb_error_detected(afu, state);
+		}
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	/* Are we reflashing?
+	 *
+	 * If we reflash, we could come back as something entirely
+	 * different, including a non-CAPI card. As such, by default
+	 * we don't participate in the process. We'll be unbound and
+	 * the slot re-probed. (TODO: check EEH doesn't blindly rebind
+	 * us!)
+	 *
+	 * However, this isn't the entire story: for reliablity
+	 * reasons, we usually want to reflash the FPGA on PERST in
+	 * order to get back to a more reliable known-good state.
+	 *
+	 * This causes us a bit of a problem: if we reflash we can't
+	 * trust that we'll come back the same - we could have a new
+	 * image and been PERSTed in order to load that
+	 * image. However, most of the time we actually *will* come
+	 * back the same - for example a regular EEH event.
+	 *
+	 * Therefore, we allow the user to assert that the image is
+	 * indeed the same and that we should continue on into EEH
+	 * anyway.
+	 */
+	if (adapter->perst_loads_image && !adapter->perst_same_image) {
+		/* TODO take the PHB out of CXL mode */
+		dev_info(&pdev->dev, "reflashing, so opting out of EEH!\n");
+		return PCI_ERS_RESULT_NONE;
+	}
+
+	/*
+	 * At this point, we want to try to recover.  We'll always
+	 * need a complete slot reset: we don't trust any other reset.
+	 *
+	 * Now, we go through each AFU:
+	 *  - We send the driver, if bound, an error_detected callback.
+	 *    We expect it to clean up, but it can also tell us to give
+	 *    up and permanently detach the card. To simplify things, if
+	 *    any bound AFU driver doesn't support EEH, we give up on EEH.
+	 *
+	 *  - We detach all contexts associated with the AFU. This
+	 *    does not free them, but puts them into a CLOSED state
+	 *    which causes any the associated files to return useful
+	 *    errors to userland. It also unmaps, but does not free,
+	 *    any IRQs.
+	 *
+	 *  - We clean up our side: releasing and unmapping resources we hold
+	 *    so we can wire them up again when the hardware comes back up.
+	 *
+	 * Driver authors should note:
+	 *
+	 *  - Any contexts you create in your kernel driver (except
+	 *    those associated with anonymous file descriptors) are
+	 *    your responsibility to free and recreate. Likewise with
+	 *    any attached resources.
+	 *
+	 *  - We will take responsibility for re-initialising the
+	 *    device context (the one set up for you in
+	 *    cxl_pci_enable_device_hook and accessed through
+	 *    cxl_get_context). If you've attached IRQs or other
+	 *    resources to it, they remains yours to free.
+	 *
+	 * You can call the same functions to release resources as you
+	 * normally would: we make sure that these functions continue
+	 * to work when the hardware is down.
+	 *
+	 * Two examples:
+	 *
+	 * 1) If you normally free all your resources at the end of
+	 *    each request, or if you use anonymous FDs, your
+	 *    error_detected callback can simply set a flag to tell
+	 *    your driver not to start any new calls. You can then
+	 *    clear the flag in the resume callback.
+	 *
+	 * 2) If you normally allocate your resources on startup:
+	 *     * Set a flag in error_detected as above.
+	 *     * Let CXL detach your contexts.
+	 *     * In slot_reset, free the old resources and allocate new ones.
+	 *     * In resume, clear the flag to allow things to start.
+	 */
+	for (i = 0; i < adapter->slices; i++) {
+		afu = adapter->afu[i];
+
+		result = cxl_vphb_error_detected(afu, state);
+
+		/* Only continue if everyone agrees on NEED_RESET */
+		if (result != PCI_ERS_RESULT_NEED_RESET)
+			return result;
+
+		cxl_context_detach_all(afu);
+		cxl_afu_deactivate_mode(afu);
+		cxl_deconfigure_afu(afu);
+	}
+	cxl_deconfigure_adapter(adapter);
+
+	return result;
+}
+
+static pci_ers_result_t cxl_pci_slot_reset(struct pci_dev *pdev)
+{
+	struct cxl *adapter = pci_get_drvdata(pdev);
+	struct cxl_afu *afu;
+	struct cxl_context *ctx;
+	struct pci_dev *afu_dev;
+	pci_ers_result_t afu_result = PCI_ERS_RESULT_RECOVERED;
+	pci_ers_result_t result = PCI_ERS_RESULT_RECOVERED;
+	int i;
+
+	if (cxl_configure_adapter(adapter, pdev))
+		goto err;
+
+	for (i = 0; i < adapter->slices; i++) {
+		afu = adapter->afu[i];
+
+		if (cxl_configure_afu(afu, adapter, pdev))
+			goto err;
+
+		if (cxl_afu_select_best_mode(afu))
+			goto err;
+
+		cxl_pci_vphb_reconfigure(afu);
+
+		list_for_each_entry(afu_dev, &afu->phb->bus->devices, bus_list) {
+			/* Reset the device context.
+			 * TODO: make this less disruptive
+			 */
+			ctx = cxl_get_context(afu_dev);
+
+			if (ctx && cxl_release_context(ctx))
+				goto err;
+
+			ctx = cxl_dev_context_init(afu_dev);
+			if (!ctx)
+				goto err;
+
+			afu_dev->dev.archdata.cxl_ctx = ctx;
+
+			if (cxl_afu_check_and_enable(afu))
+				goto err;
+
+			afu_dev->error_state = pci_channel_io_normal;
+
+			/* If there's a driver attached, allow it to
+			 * chime in on recovery. Drivers should check
+			 * if everything has come back OK, but
+			 * shouldn't start new work until we call
+			 * their resume function.
+			 */
+			if (!afu_dev->driver)
+				continue;
+
+			if (afu_dev->driver->err_handler &&
+			    afu_dev->driver->err_handler->slot_reset)
+				afu_result = afu_dev->driver->err_handler->slot_reset(afu_dev);
+
+			if (afu_result == PCI_ERS_RESULT_DISCONNECT)
+				result = PCI_ERS_RESULT_DISCONNECT;
+		}
+	}
+	return result;
+
+err:
+	/* All the bits that happen in both error_detected and cxl_remove
+	 * should be idempotent, so we don't need to worry about leaving a mix
+	 * of unconfigured and reconfigured resources.
+	 */
+	dev_err(&pdev->dev, "EEH recovery failed. Asking to be disconnected.\n");
+	return PCI_ERS_RESULT_DISCONNECT;
+}
+
+static void cxl_pci_resume(struct pci_dev *pdev)
+{
+	struct cxl *adapter = pci_get_drvdata(pdev);
+	struct cxl_afu *afu;
+	struct pci_dev *afu_dev;
+	int i;
+
+	/* Everything is back now. Drivers should restart work now.
+	 * This is not the place to be checking if everything came back up
+	 * properly, because there's no return value: do that in slot_reset.
+	 */
+	for (i = 0; i < adapter->slices; i++) {
+		afu = adapter->afu[i];
+
+		list_for_each_entry(afu_dev, &afu->phb->bus->devices, bus_list) {
+			if (afu_dev->driver && afu_dev->driver->err_handler &&
+			    afu_dev->driver->err_handler->resume)
+				afu_dev->driver->err_handler->resume(afu_dev);
+		}
+	}
+}
+
+static const struct pci_error_handlers cxl_err_handler = {
+	.error_detected = cxl_pci_error_detected,
+	.slot_reset = cxl_pci_slot_reset,
+	.resume = cxl_pci_resume,
+};
+
 struct pci_driver cxl_pci_driver = {
 	.name = "cxl-pci",
 	.id_table = cxl_pci_tbl,
 	.probe = cxl_probe,
 	.remove = cxl_remove,
 	.shutdown = cxl_remove,
+	.err_handler = &cxl_err_handler,
 };

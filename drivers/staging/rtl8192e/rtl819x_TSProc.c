@@ -6,10 +6,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -113,7 +109,7 @@ static void TsAddBaProcess(unsigned long data)
 
 static void ResetTsCommonInfo(struct ts_common_info *pTsCommonInfo)
 {
-	memset(pTsCommonInfo->Addr, 0, 6);
+	eth_zero_addr(pTsCommonInfo->Addr);
 	memset(&pTsCommonInfo->TSpec, 0, sizeof(union tspec_body));
 	memset(&pTsCommonInfo->TClass, 0, sizeof(union qos_tclas)*TCLAS_NUM);
 	pTsCommonInfo->TClasProc = 0;

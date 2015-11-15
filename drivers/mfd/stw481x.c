@@ -231,6 +231,7 @@ static const struct i2c_device_id stw481x_id[] = {
 	{ "stw481x", 0 },
 	{ },
 };
+MODULE_DEVICE_TABLE(i2c, stw481x_id);
 
 static const struct of_device_id stw481x_match[] = {
 	{ .compatible = "st,stw4810", },

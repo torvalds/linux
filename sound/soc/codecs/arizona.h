@@ -93,11 +93,16 @@ struct arizona_priv {
 	bool dvfs_cached;
 };
 
-#define ARIZONA_NUM_MIXER_INPUTS 103
+#define ARIZONA_NUM_MIXER_INPUTS 104
 
 extern const unsigned int arizona_mixer_tlv[];
 extern const char *arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS];
 extern int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
+
+#define ARIZONA_GAINMUX_CONTROLS(name, base) \
+	SOC_SINGLE_RANGE_TLV(name " Input Volume", base + 1,		\
+			     ARIZONA_MIXER_VOL_SHIFT, 0x20, 0x50, 0,	\
+			     arizona_mixer_tlv)
 
 #define ARIZONA_MIXER_CONTROLS(name, base) \
 	SOC_SINGLE_RANGE_TLV(name " Input 1 Volume", base + 1,		\
@@ -194,9 +199,27 @@ extern int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 	ARIZONA_MIXER_ROUTES(name " Preloader", name "L"), \
 	ARIZONA_MIXER_ROUTES(name " Preloader", name "R")
 
+#define ARIZONA_EQ_CONTROL(xname, xbase)                      \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,   \
+	.info = snd_soc_bytes_info, .get = snd_soc_bytes_get, \
+	.put = arizona_eq_coeff_put, .private_value =         \
+	((unsigned long)&(struct soc_bytes) { .base = xbase,  \
+	 .num_regs = 20, .mask = ~ARIZONA_EQ1_B1_MODE }) }
+
+#define ARIZONA_LHPF_CONTROL(xname, xbase)                    \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,   \
+	.info = snd_soc_bytes_info, .get = snd_soc_bytes_get, \
+	.put = arizona_lhpf_coeff_put, .private_value =       \
+	((unsigned long)&(struct soc_bytes) { .base = xbase,  \
+	 .num_regs = 1 }) }
+
 #define ARIZONA_RATE_ENUM_SIZE 4
+#define ARIZONA_SAMPLE_RATE_ENUM_SIZE 14
+
 extern const char *arizona_rate_text[ARIZONA_RATE_ENUM_SIZE];
 extern const int arizona_rate_val[ARIZONA_RATE_ENUM_SIZE];
+extern const char * const arizona_sample_rate_text[ARIZONA_SAMPLE_RATE_ENUM_SIZE];
+extern const unsigned int arizona_sample_rate_val[ARIZONA_SAMPLE_RATE_ENUM_SIZE];
 
 extern const struct soc_enum arizona_isrc_fsl[];
 extern const struct soc_enum arizona_isrc_fsh[];
@@ -229,6 +252,11 @@ extern int arizona_hp_ev(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol,
 			 int event);
 
+extern int arizona_eq_coeff_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol);
+extern int arizona_lhpf_coeff_put(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol);
+
 extern int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 			      int source, unsigned int freq, int dir);
 
@@ -242,7 +270,6 @@ struct arizona_fll {
 	int id;
 	unsigned int base;
 	unsigned int vco_mult;
-	struct completion ok;
 
 	unsigned int fout;
 	int sync_src;
@@ -276,4 +303,7 @@ extern int arizona_init_dai(struct arizona_priv *priv, int dai);
 int arizona_set_output_mode(struct snd_soc_codec *codec, int output,
 			    bool diff);
 
+extern bool arizona_input_analog(struct snd_soc_codec *codec, int shift);
+
+extern const char *arizona_sample_rate_val_to_name(unsigned int rate_val);
 #endif

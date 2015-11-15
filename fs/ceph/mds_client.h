@@ -236,6 +236,9 @@ struct ceph_mds_request {
 	struct inode	*r_unsafe_dir;
 	struct list_head r_unsafe_dir_item;
 
+	/* unsafe requests that modify the target inode */
+	struct list_head r_unsafe_target_item;
+
 	struct ceph_mds_session *r_session;
 
 	int               r_attempts;   /* resend attempts */
@@ -366,6 +369,7 @@ extern int ceph_send_msg_mds(struct ceph_mds_client *mdsc,
 
 extern int ceph_mdsc_init(struct ceph_fs_client *fsc);
 extern void ceph_mdsc_close_sessions(struct ceph_mds_client *mdsc);
+extern void ceph_mdsc_force_umount(struct ceph_mds_client *mdsc);
 extern void ceph_mdsc_destroy(struct ceph_fs_client *fsc);
 
 extern void ceph_mdsc_sync(struct ceph_mds_client *mdsc);

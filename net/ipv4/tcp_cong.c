@@ -114,16 +114,19 @@ void tcp_unregister_congestion_control(struct tcp_congestion_ops *ca)
 }
 EXPORT_SYMBOL_GPL(tcp_unregister_congestion_control);
 
-u32 tcp_ca_get_key_by_name(const char *name)
+u32 tcp_ca_get_key_by_name(const char *name, bool *ecn_ca)
 {
 	const struct tcp_congestion_ops *ca;
-	u32 key;
+	u32 key = TCP_CA_UNSPEC;
 
 	might_sleep();
 
 	rcu_read_lock();
 	ca = __tcp_ca_find_autoload(name);
-	key = ca ? ca->key : TCP_CA_UNSPEC;
+	if (ca) {
+		key = ca->key;
+		*ecn_ca = ca->flags & TCP_CONG_NEEDS_ECN;
+	}
 	rcu_read_unlock();
 
 	return key;
@@ -170,6 +173,10 @@ out:
 	 */
 	if (ca->get_info)
 		memset(icsk->icsk_ca_priv, 0, sizeof(icsk->icsk_ca_priv));
+	if (ca->flags & TCP_CONG_NEEDS_ECN)
+		INET_ECN_xmit(sk);
+	else
+		INET_ECN_dontxmit(sk);
 }
 
 void tcp_init_congestion_control(struct sock *sk)
@@ -178,6 +185,10 @@ void tcp_init_congestion_control(struct sock *sk)
 
 	if (icsk->icsk_ca_ops->init)
 		icsk->icsk_ca_ops->init(sk);
+	if (tcp_ca_needs_ecn(sk))
+		INET_ECN_xmit(sk);
+	else
+		INET_ECN_dontxmit(sk);
 }
 
 static void tcp_reinit_congestion_control(struct sock *sk,
@@ -189,8 +200,8 @@ static void tcp_reinit_congestion_control(struct sock *sk,
 	icsk->icsk_ca_ops = ca;
 	icsk->icsk_ca_setsockopt = 1;
 
-	if (sk->sk_state != TCP_CLOSE && icsk->icsk_ca_ops->init)
-		icsk->icsk_ca_ops->init(sk);
+	if (sk->sk_state != TCP_CLOSE)
+		tcp_init_congestion_control(sk);
 }
 
 /* Manage refcounts on socket close. */
@@ -365,10 +376,8 @@ int tcp_set_congestion_control(struct sock *sk, const char *name)
  */
 u32 tcp_slow_start(struct tcp_sock *tp, u32 acked)
 {
-	u32 cwnd = tp->snd_cwnd + acked;
+	u32 cwnd = min(tp->snd_cwnd + acked, tp->snd_ssthresh);
 
-	if (cwnd > tp->snd_ssthresh)
-		cwnd = tp->snd_ssthresh + 1;
 	acked -= cwnd - tp->snd_cwnd;
 	tp->snd_cwnd = min(cwnd, tp->snd_cwnd_clamp);
 
@@ -413,7 +422,7 @@ void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		return;
 
 	/* In "safe" area, increase. */
-	if (tp->snd_cwnd <= tp->snd_ssthresh) {
+	if (tcp_in_slow_start(tp)) {
 		acked = tcp_slow_start(tp, acked);
 		if (!acked)
 			return;

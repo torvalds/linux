@@ -156,6 +156,7 @@ struct cp2112_device {
 	wait_queue_head_t wait;
 	u8 read_data[61];
 	u8 read_length;
+	u8 hwversion;
 	int xfer_status;
 	atomic_t read_avail;
 	atomic_t xfer_avail;
@@ -446,6 +447,24 @@ static int cp2112_i2c_write_req(void *buf, u8 slave_address, u8 *data,
 	return data_length + 3;
 }
 
+static int cp2112_i2c_write_read_req(void *buf, u8 slave_address,
+				     u8 *addr, int addr_length,
+				     int read_length)
+{
+	struct cp2112_write_read_req_report *report = buf;
+
+	if (read_length < 1 || read_length > 512 ||
+	    addr_length > sizeof(report->target_address))
+		return -EINVAL;
+
+	report->report = CP2112_DATA_WRITE_READ_REQUEST;
+	report->slave_address = slave_address << 1;
+	report->length = cpu_to_be16(read_length);
+	report->target_address_length = addr_length;
+	memcpy(report->target_address, addr, addr_length);
+	return addr_length + 5;
+}
+
 static int cp2112_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 			   int num)
 {
@@ -453,25 +472,45 @@ static int cp2112_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	struct hid_device *hdev = dev->hdev;
 	u8 buf[64];
 	ssize_t count;
+	ssize_t read_length = 0;
+	u8 *read_buf = NULL;
 	unsigned int retries;
 	int ret;
 
 	hid_dbg(hdev, "I2C %d messages\n", num);
 
-	if (num != 1) {
+	if (num == 1) {
+		if (msgs->flags & I2C_M_RD) {
+			hid_dbg(hdev, "I2C read %#04x len %d\n",
+				msgs->addr, msgs->len);
+			read_length = msgs->len;
+			read_buf = msgs->buf;
+			count = cp2112_read_req(buf, msgs->addr, msgs->len);
+		} else {
+			hid_dbg(hdev, "I2C write %#04x len %d\n",
+				msgs->addr, msgs->len);
+			count = cp2112_i2c_write_req(buf, msgs->addr,
+						     msgs->buf, msgs->len);
+		}
+		if (count < 0)
+			return count;
+	} else if (dev->hwversion > 1 &&  /* no repeated start in rev 1 */
+		   num == 2 &&
+		   msgs[0].addr == msgs[1].addr &&
+		   !(msgs[0].flags & I2C_M_RD) && (msgs[1].flags & I2C_M_RD)) {
+		hid_dbg(hdev, "I2C write-read %#04x wlen %d rlen %d\n",
+			msgs[0].addr, msgs[0].len, msgs[1].len);
+		read_length = msgs[1].len;
+		read_buf = msgs[1].buf;
+		count = cp2112_i2c_write_read_req(buf, msgs[0].addr,
+				msgs[0].buf, msgs[0].len, msgs[1].len);
+		if (count < 0)
+			return count;
+	} else {
 		hid_err(hdev,
 			"Multi-message I2C transactions not supported\n");
 		return -EOPNOTSUPP;
 	}
-
-	if (msgs->flags & I2C_M_RD)
-		count = cp2112_read_req(buf, msgs->addr, msgs->len);
-	else
-		count = cp2112_i2c_write_req(buf, msgs->addr, msgs->buf,
-					     msgs->len);
-
-	if (count < 0)
-		return count;
 
 	ret = hid_hw_power(hdev, PM_HINT_FULLON);
 	if (ret < 0) {
@@ -508,21 +547,34 @@ static int cp2112_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 		goto power_normal;
 	}
 
-	if (!(msgs->flags & I2C_M_RD))
-		goto finish;
-
-	ret = cp2112_read(dev, msgs->buf, msgs->len);
-	if (ret < 0)
-		goto power_normal;
-	if (ret != msgs->len) {
-		hid_warn(hdev, "short read: %d < %d\n", ret, msgs->len);
-		ret = -EIO;
-		goto power_normal;
+	for (count = 0; count < read_length;) {
+		ret = cp2112_read(dev, read_buf + count, read_length - count);
+		if (ret < 0)
+			goto power_normal;
+		if (ret == 0) {
+			hid_err(hdev, "read returned 0\n");
+			ret = -EIO;
+			goto power_normal;
+		}
+		count += ret;
+		if (count > read_length) {
+			/*
+			 * The hardware returned too much data.
+			 * This is mostly harmless because cp2112_read()
+			 * has a limit check so didn't overrun our
+			 * buffer.  Nevertheless, we return an error
+			 * because something is seriously wrong and
+			 * it shouldn't go unnoticed.
+			 */
+			hid_err(hdev, "long read: %d > %zd\n",
+				ret, read_length - count + ret);
+			ret = -EIO;
+			goto power_normal;
+		}
 	}
 
-finish:
 	/* return the number of transferred messages */
-	ret = 1;
+	ret = num;
 
 power_normal:
 	hid_hw_power(hdev, PM_HINT_NORMAL);
@@ -537,7 +589,7 @@ static int cp2112_xfer(struct i2c_adapter *adap, u16 addr,
 	struct cp2112_device *dev = (struct cp2112_device *)adap->algo_data;
 	struct hid_device *hdev = dev->hdev;
 	u8 buf[64];
-	__be16 word;
+	__le16 word;
 	ssize_t count;
 	size_t read_length = 0;
 	unsigned int retries;
@@ -554,7 +606,7 @@ static int cp2112_xfer(struct i2c_adapter *adap, u16 addr,
 		if (I2C_SMBUS_READ == read_write)
 			count = cp2112_read_req(buf, addr, read_length);
 		else
-			count = cp2112_write_req(buf, addr, data->byte, NULL,
+			count = cp2112_write_req(buf, addr, command, NULL,
 						 0);
 		break;
 	case I2C_SMBUS_BYTE_DATA:
@@ -569,7 +621,7 @@ static int cp2112_xfer(struct i2c_adapter *adap, u16 addr,
 		break;
 	case I2C_SMBUS_WORD_DATA:
 		read_length = 2;
-		word = cpu_to_be16(data->word);
+		word = cpu_to_le16(data->word);
 
 		if (I2C_SMBUS_READ == read_write)
 			count = cp2112_write_read_req(buf, addr, read_length,
@@ -582,7 +634,7 @@ static int cp2112_xfer(struct i2c_adapter *adap, u16 addr,
 		size = I2C_SMBUS_WORD_DATA;
 		read_write = I2C_SMBUS_READ;
 		read_length = 2;
-		word = cpu_to_be16(data->word);
+		word = cpu_to_le16(data->word);
 
 		count = cp2112_write_read_req(buf, addr, read_length, command,
 					      (u8 *)&word, 2);
@@ -675,7 +727,7 @@ static int cp2112_xfer(struct i2c_adapter *adap, u16 addr,
 		data->byte = buf[0];
 		break;
 	case I2C_SMBUS_WORD_DATA:
-		data->word = be16_to_cpup((__be16 *)buf);
+		data->word = le16_to_cpup((__le16 *)buf);
 		break;
 	case I2C_SMBUS_BLOCK_DATA:
 		if (read_length > I2C_SMBUS_BLOCK_MAX) {
@@ -1030,6 +1082,7 @@ static int cp2112_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	dev->adap.dev.parent	= &hdev->dev;
 	snprintf(dev->adap.name, sizeof(dev->adap.name),
 		 "CP2112 SMBus Bridge on hiddev%d", hdev->minor);
+	dev->hwversion = buf[2];
 	init_waitqueue_head(&dev->wait);
 
 	hid_device_io_start(hdev);

@@ -24,26 +24,25 @@
 #include "priv.h"
 #include "fuc/gt215.fuc3.h"
 
-static int
-gt215_pmu_init(struct nvkm_object *object)
+static void
+gt215_pmu_reset(struct nvkm_pmu *pmu)
 {
-	struct nvkm_pmu *pmu = (void *)object;
-	nv_mask(pmu, 0x022210, 0x00000001, 0x00000000);
-	nv_mask(pmu, 0x022210, 0x00000001, 0x00000001);
-	return nvkm_pmu_init(pmu);
+	struct nvkm_device *device = pmu->subdev.device;
+	nvkm_mask(device, 0x022210, 0x00000001, 0x00000000);
+	nvkm_mask(device, 0x022210, 0x00000001, 0x00000001);
 }
 
-struct nvkm_oclass *
-gt215_pmu_oclass = &(struct nvkm_pmu_impl) {
-	.base.handle = NV_SUBDEV(PMU, 0xa3),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_pmu_ctor,
-		.dtor = _nvkm_pmu_dtor,
-		.init = gt215_pmu_init,
-		.fini = _nvkm_pmu_fini,
-	},
+static const struct nvkm_pmu_func
+gt215_pmu = {
+	.reset = gt215_pmu_reset,
 	.code.data = gt215_pmu_code,
 	.code.size = sizeof(gt215_pmu_code),
 	.data.data = gt215_pmu_data,
 	.data.size = sizeof(gt215_pmu_data),
-}.base;
+};
+
+int
+gt215_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
+{
+	return nvkm_pmu_new_(&gt215_pmu, device, index, ppmu);
+}

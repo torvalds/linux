@@ -41,12 +41,20 @@
 
 /* Shared Global Counter */
 #define GIC_SH_COUNTER_31_00_OFS	0x0010
+/* 64-bit counter register for CM3 */
+#define GIC_SH_COUNTER_OFS		GIC_SH_COUNTER_31_00_OFS
 #define GIC_SH_COUNTER_63_32_OFS	0x0014
 #define GIC_SH_REVISIONID_OFS		0x0020
 
 /* Convert an interrupt number to a byte offset/bit for multi-word registers */
-#define GIC_INTR_OFS(intr)		(((intr) / 32) * 4)
-#define GIC_INTR_BIT(intr)		((intr) % 32)
+#define GIC_INTR_OFS(intr) ({				\
+	unsigned bits = mips_cm_is64 ? 64 : 32;		\
+	unsigned reg_idx = (intr) / bits;		\
+	unsigned reg_width = bits / 8;			\
+							\
+	reg_idx * reg_width;				\
+})
+#define GIC_INTR_BIT(intr)		((intr) % (mips_cm_is64 ? 64 : 32))
 
 /* Polarity : Reset Value is always 0 */
 #define GIC_SH_SET_POLARITY_OFS		0x0100
@@ -98,6 +106,8 @@
 #define GIC_VPE_WD_COUNT0_OFS		0x0094
 #define GIC_VPE_WD_INITIAL0_OFS		0x0098
 #define GIC_VPE_COMPARE_LO_OFS		0x00a0
+/* 64-bit Compare register on CM3 */
+#define GIC_VPE_COMPARE_OFS		GIC_VPE_COMPARE_LO_OFS
 #define GIC_VPE_COMPARE_HI_OFS		0x00a4
 
 #define GIC_VPE_EIC_SHADOW_SET_BASE_OFS	0x0100

@@ -13,7 +13,7 @@
 #include "k2l.dtsi"
 
 / {
-	compatible =  "ti,k2l-evm","ti,keystone";
+	compatible = "ti,k2l-evm", "ti,k2l", "ti,keystone";
 	model = "Texas Instruments Keystone 2 Lamarr EVM";
 
 	soc {

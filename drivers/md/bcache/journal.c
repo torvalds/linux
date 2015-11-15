@@ -24,7 +24,7 @@
  * bit.
  */
 
-static void journal_read_endio(struct bio *bio, int error)
+static void journal_read_endio(struct bio *bio)
 {
 	struct closure *cl = bio->bi_private;
 	closure_put(cl);
@@ -61,7 +61,7 @@ reread:		left = ca->sb.bucket_size - offset;
 		bio->bi_private = &cl;
 		bch_bio_map(bio, data);
 
-		closure_bio_submit(bio, &cl, ca);
+		closure_bio_submit(bio, &cl);
 		closure_sync(&cl);
 
 		/* This function could be simpler now since we no longer write
@@ -401,7 +401,7 @@ retry:
 
 #define last_seq(j)	((j)->seq - fifo_used(&(j)->pin) + 1)
 
-static void journal_discard_endio(struct bio *bio, int error)
+static void journal_discard_endio(struct bio *bio)
 {
 	struct journal_device *ja =
 		container_of(bio, struct journal_device, discard_bio);
@@ -547,11 +547,11 @@ void bch_journal_next(struct journal *j)
 		pr_debug("journal_pin full (%zu)", fifo_used(&j->pin));
 }
 
-static void journal_write_endio(struct bio *bio, int error)
+static void journal_write_endio(struct bio *bio)
 {
 	struct journal_write *w = bio->bi_private;
 
-	cache_set_err_on(error, w->c, "journal io error");
+	cache_set_err_on(bio->bi_error, w->c, "journal io error");
 	closure_put(&w->c->journal.io);
 }
 
@@ -648,7 +648,7 @@ static void journal_write_unlocked(struct closure *cl)
 	spin_unlock(&c->journal.lock);
 
 	while ((bio = bio_list_pop(&list)))
-		closure_bio_submit(bio, cl, c->cache[0]);
+		closure_bio_submit(bio, cl);
 
 	continue_at(cl, journal_write_done, NULL);
 }

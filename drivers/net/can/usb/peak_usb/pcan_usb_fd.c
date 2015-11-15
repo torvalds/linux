@@ -990,6 +990,30 @@ static void pcan_usb_fd_free(struct peak_usb_device *dev)
 }
 
 /* describes the PCAN-USB FD adapter */
+static const struct can_bittiming_const pcan_usb_fd_const = {
+	.name = "pcan_usb_fd",
+	.tseg1_min = 1,
+	.tseg1_max = 64,
+	.tseg2_min = 1,
+	.tseg2_max = 16,
+	.sjw_max = 16,
+	.brp_min = 1,
+	.brp_max = 1024,
+	.brp_inc = 1,
+};
+
+static const struct can_bittiming_const pcan_usb_fd_data_const = {
+	.name = "pcan_usb_fd",
+	.tseg1_min = 1,
+	.tseg1_max = 16,
+	.tseg2_min = 1,
+	.tseg2_max = 8,
+	.sjw_max = 4,
+	.brp_min = 1,
+	.brp_max = 1024,
+	.brp_inc = 1,
+};
+
 const struct peak_usb_adapter pcan_usb_fd = {
 	.name = "PCAN-USB FD",
 	.device_id = PCAN_USBFD_PRODUCT_ID,
@@ -999,28 +1023,8 @@ const struct peak_usb_adapter pcan_usb_fd = {
 	.clock = {
 		.freq = PCAN_UFD_CRYSTAL_HZ,
 	},
-	.bittiming_const = {
-		.name = "pcan_usb_fd",
-		.tseg1_min = 1,
-		.tseg1_max = 64,
-		.tseg2_min = 1,
-		.tseg2_max = 16,
-		.sjw_max = 16,
-		.brp_min = 1,
-		.brp_max = 1024,
-		.brp_inc = 1,
-	},
-	.data_bittiming_const = {
-		.name = "pcan_usb_fd",
-		.tseg1_min = 1,
-		.tseg1_max = 16,
-		.tseg2_min = 1,
-		.tseg2_max = 8,
-		.sjw_max = 4,
-		.brp_min = 1,
-		.brp_max = 1024,
-		.brp_inc = 1,
-	},
+	.bittiming_const = &pcan_usb_fd_const,
+	.data_bittiming_const = &pcan_usb_fd_data_const,
 
 	/* size of device private data */
 	.sizeof_dev_private = sizeof(struct pcan_usb_fd_device),
@@ -1058,6 +1062,30 @@ const struct peak_usb_adapter pcan_usb_fd = {
 };
 
 /* describes the PCAN-USB Pro FD adapter */
+static const struct can_bittiming_const pcan_usb_pro_fd_const = {
+	.name = "pcan_usb_pro_fd",
+	.tseg1_min = 1,
+	.tseg1_max = 64,
+	.tseg2_min = 1,
+	.tseg2_max = 16,
+	.sjw_max = 16,
+	.brp_min = 1,
+	.brp_max = 1024,
+	.brp_inc = 1,
+};
+
+static const struct can_bittiming_const pcan_usb_pro_fd_data_const = {
+	.name = "pcan_usb_pro_fd",
+	.tseg1_min = 1,
+	.tseg1_max = 16,
+	.tseg2_min = 1,
+	.tseg2_max = 8,
+	.sjw_max = 4,
+	.brp_min = 1,
+	.brp_max = 1024,
+	.brp_inc = 1,
+};
+
 const struct peak_usb_adapter pcan_usb_pro_fd = {
 	.name = "PCAN-USB Pro FD",
 	.device_id = PCAN_USBPROFD_PRODUCT_ID,
@@ -1067,28 +1095,8 @@ const struct peak_usb_adapter pcan_usb_pro_fd = {
 	.clock = {
 		.freq = PCAN_UFD_CRYSTAL_HZ,
 	},
-	.bittiming_const = {
-		.name = "pcan_usb_pro_fd",
-		.tseg1_min = 1,
-		.tseg1_max = 64,
-		.tseg2_min = 1,
-		.tseg2_max = 16,
-		.sjw_max = 16,
-		.brp_min = 1,
-		.brp_max = 1024,
-		.brp_inc = 1,
-	},
-	.data_bittiming_const = {
-		.name = "pcan_usb_pro_fd",
-		.tseg1_min = 1,
-		.tseg1_max = 16,
-		.tseg2_min = 1,
-		.tseg2_max = 8,
-		.sjw_max = 4,
-		.brp_min = 1,
-		.brp_max = 1024,
-		.brp_inc = 1,
-	},
+	.bittiming_const = &pcan_usb_pro_fd_const,
+	.data_bittiming_const = &pcan_usb_pro_fd_data_const,
 
 	/* size of device private data */
 	.sizeof_dev_private = sizeof(struct pcan_usb_fd_device),

@@ -15,6 +15,189 @@ import sys
 import struct
 import datetime
 
+# To use this script you will need to have installed package python-pyside which
+# provides LGPL-licensed Python bindings for Qt.  You will also need the package
+# libqt4-sql-psql for Qt postgresql support.
+#
+# The script assumes postgresql is running on the local machine and that the
+# user has postgresql permissions to create databases. Examples of installing
+# postgresql and adding such a user are:
+#
+# fedora:
+#
+#	$ sudo yum install postgresql postgresql-server python-pyside qt-postgresql
+#	$ sudo su - postgres -c initdb
+#	$ sudo service postgresql start
+#	$ sudo su - postgres
+#	$ createuser <your user id here>
+#	Shall the new role be a superuser? (y/n) y
+#
+# ubuntu:
+#
+#	$ sudo apt-get install postgresql
+#	$ sudo su - postgres
+#	$ createuser <your user id here>
+#	Shall the new role be a superuser? (y/n) y
+#
+# An example of using this script with Intel PT:
+#
+#	$ perf record -e intel_pt//u ls
+#	$ perf script -s ~/libexec/perf-core/scripts/python/export-to-postgresql.py pt_example branches calls
+#	2015-05-29 12:49:23.464364 Creating database...
+#	2015-05-29 12:49:26.281717 Writing to intermediate files...
+#	2015-05-29 12:49:27.190383 Copying to database...
+#	2015-05-29 12:49:28.140451 Removing intermediate files...
+#	2015-05-29 12:49:28.147451 Adding primary keys
+#	2015-05-29 12:49:28.655683 Adding foreign keys
+#	2015-05-29 12:49:29.365350 Done
+#
+# To browse the database, psql can be used e.g.
+#
+#	$ psql pt_example
+#	pt_example=# select * from samples_view where id < 100;
+#	pt_example=# \d+
+#	pt_example=# \d+ samples_view
+#	pt_example=# \q
+#
+# An example of using the database is provided by the script
+# call-graph-from-postgresql.py.  Refer to that script for details.
+#
+# Tables:
+#
+#	The tables largely correspond to perf tools' data structures.  They are largely self-explanatory.
+#
+#	samples
+#
+#		'samples' is the main table. It represents what instruction was executing at a point in time
+#		when something (a selected event) happened.  The memory address is the instruction pointer or 'ip'.
+#
+#	calls
+#
+#		'calls' represents function calls and is related to 'samples' by 'call_id' and 'return_id'.
+#		'calls' is only created when the 'calls' option to this script is specified.
+#
+#	call_paths
+#
+#		'call_paths' represents all the call stacks.  Each 'call' has an associated record in 'call_paths'.
+#		'calls_paths' is only created when the 'calls' option to this script is specified.
+#
+#	branch_types
+#
+#		'branch_types' provides descriptions for each type of branch.
+#
+#	comm_threads
+#
+#		'comm_threads' shows how 'comms' relates to 'threads'.
+#
+#	comms
+#
+#		'comms' contains a record for each 'comm' - the name given to the executable that is running.
+#
+#	dsos
+#
+#		'dsos' contains a record for each executable file or library.
+#
+#	machines
+#
+#		'machines' can be used to distinguish virtual machines if virtualization is supported.
+#
+#	selected_events
+#
+#		'selected_events' contains a record for each kind of event that has been sampled.
+#
+#	symbols
+#
+#		'symbols' contains a record for each symbol.  Only symbols that have samples are present.
+#
+#	threads
+#
+#		'threads' contains a record for each thread.
+#
+# Views:
+#
+#	Most of the tables have views for more friendly display.  The views are:
+#
+#		calls_view
+#		call_paths_view
+#		comm_threads_view
+#		dsos_view
+#		machines_view
+#		samples_view
+#		symbols_view
+#		threads_view
+#
+# More examples of browsing the database with psql:
+#   Note that some of the examples are not the most optimal SQL query.
+#   Note that call information is only available if the script's 'calls' option has been used.
+#
+#	Top 10 function calls (not aggregated by symbol):
+#
+#		SELECT * FROM calls_view ORDER BY elapsed_time DESC LIMIT 10;
+#
+#	Top 10 function calls (aggregated by symbol):
+#
+#		SELECT symbol_id,(SELECT name FROM symbols WHERE id = symbol_id) AS symbol,
+#			SUM(elapsed_time) AS tot_elapsed_time,SUM(branch_count) AS tot_branch_count
+#			FROM calls_view GROUP BY symbol_id ORDER BY tot_elapsed_time DESC LIMIT 10;
+#
+#		Note that the branch count gives a rough estimation of cpu usage, so functions
+#		that took a long time but have a relatively low branch count must have spent time
+#		waiting.
+#
+#	Find symbols by pattern matching on part of the name (e.g. names containing 'alloc'):
+#
+#		SELECT * FROM symbols_view WHERE name LIKE '%alloc%';
+#
+#	Top 10 function calls for a specific symbol (e.g. whose symbol_id is 187):
+#
+#		SELECT * FROM calls_view WHERE symbol_id = 187 ORDER BY elapsed_time DESC LIMIT 10;
+#
+#	Show function calls made by function in the same context (i.e. same call path) (e.g. one with call_path_id 254):
+#
+#		SELECT * FROM calls_view WHERE parent_call_path_id = 254;
+#
+#	Show branches made during a function call (e.g. where call_id is 29357 and return_id is 29370 and tid is 29670)
+#
+#		SELECT * FROM samples_view WHERE id >= 29357 AND id <= 29370 AND tid = 29670 AND event LIKE 'branches%';
+#
+#	Show transactions:
+#
+#		SELECT * FROM samples_view WHERE event = 'transactions';
+#
+#		Note transaction start has 'in_tx' true whereas, transaction end has 'in_tx' false.
+#		Transaction aborts have branch_type_name 'transaction abort'
+#
+#	Show transaction aborts:
+#
+#		SELECT * FROM samples_view WHERE event = 'transactions' AND branch_type_name = 'transaction abort';
+#
+# To print a call stack requires walking the call_paths table.  For example this python script:
+#   #!/usr/bin/python2
+#
+#   import sys
+#   from PySide.QtSql import *
+#
+#   if __name__ == '__main__':
+#           if (len(sys.argv) < 3):
+#                   print >> sys.stderr, "Usage is: printcallstack.py <database name> <call_path_id>"
+#                   raise Exception("Too few arguments")
+#           dbname = sys.argv[1]
+#           call_path_id = sys.argv[2]
+#           db = QSqlDatabase.addDatabase('QPSQL')
+#           db.setDatabaseName(dbname)
+#           if not db.open():
+#                   raise Exception("Failed to open database " + dbname + " error: " + db.lastError().text())
+#           query = QSqlQuery(db)
+#           print "    id          ip  symbol_id  symbol                          dso_id  dso_short_name"
+#           while call_path_id != 0 and call_path_id != 1:
+#                   ret = query.exec_('SELECT * FROM call_paths_view WHERE id = ' + str(call_path_id))
+#                   if not ret:
+#                           raise Exception("Query failed: " + query.lastError().text())
+#                   if not query.next():
+#                           raise Exception("Query failed")
+#                   print "{0:>6}  {1:>10}  {2:>9}  {3:<30}  {4:>6}  {5:<30}".format(query.value(0), query.value(1), query.value(2), query.value(3), query.value(4), query.value(5))
+#                   call_path_id = query.value(6)
+
 from PySide.QtSql import *
 
 # Need to access PostgreSQL C library directly to use COPY FROM STDIN
@@ -196,6 +379,91 @@ if perf_db_export_calls:
 		'return_id	bigint,'
 		'parent_call_path_id	bigint,'
 		'flags		integer)')
+
+do_query(query, 'CREATE VIEW machines_view AS '
+	'SELECT '
+		'id,'
+		'pid,'
+		'root_dir,'
+		'CASE WHEN id=0 THEN \'unknown\' WHEN pid=-1 THEN \'host\' ELSE \'guest\' END AS host_or_guest'
+	' FROM machines')
+
+do_query(query, 'CREATE VIEW dsos_view AS '
+	'SELECT '
+		'id,'
+		'machine_id,'
+		'(SELECT host_or_guest FROM machines_view WHERE id = machine_id) AS host_or_guest,'
+		'short_name,'
+		'long_name,'
+		'build_id'
+	' FROM dsos')
+
+do_query(query, 'CREATE VIEW symbols_view AS '
+	'SELECT '
+		'id,'
+		'name,'
+		'(SELECT short_name FROM dsos WHERE id=dso_id) AS dso,'
+		'dso_id,'
+		'sym_start,'
+		'sym_end,'
+		'CASE WHEN binding=0 THEN \'local\' WHEN binding=1 THEN \'global\' ELSE \'weak\' END AS binding'
+	' FROM symbols')
+
+do_query(query, 'CREATE VIEW threads_view AS '
+	'SELECT '
+		'id,'
+		'machine_id,'
+		'(SELECT host_or_guest FROM machines_view WHERE id = machine_id) AS host_or_guest,'
+		'process_id,'
+		'pid,'
+		'tid'
+	' FROM threads')
+
+do_query(query, 'CREATE VIEW comm_threads_view AS '
+	'SELECT '
+		'comm_id,'
+		'(SELECT comm FROM comms WHERE id = comm_id) AS command,'
+		'thread_id,'
+		'(SELECT pid FROM threads WHERE id = thread_id) AS pid,'
+		'(SELECT tid FROM threads WHERE id = thread_id) AS tid'
+	' FROM comm_threads')
+
+if perf_db_export_calls:
+	do_query(query, 'CREATE VIEW call_paths_view AS '
+		'SELECT '
+			'c.id,'
+			'to_hex(c.ip) AS ip,'
+			'c.symbol_id,'
+			'(SELECT name FROM symbols WHERE id = c.symbol_id) AS symbol,'
+			'(SELECT dso_id FROM symbols WHERE id = c.symbol_id) AS dso_id,'
+			'(SELECT dso FROM symbols_view  WHERE id = c.symbol_id) AS dso_short_name,'
+			'c.parent_id,'
+			'to_hex(p.ip) AS parent_ip,'
+			'p.symbol_id AS parent_symbol_id,'
+			'(SELECT name FROM symbols WHERE id = p.symbol_id) AS parent_symbol,'
+			'(SELECT dso_id FROM symbols WHERE id = p.symbol_id) AS parent_dso_id,'
+			'(SELECT dso FROM symbols_view  WHERE id = p.symbol_id) AS parent_dso_short_name'
+		' FROM call_paths c INNER JOIN call_paths p ON p.id = c.parent_id')
+	do_query(query, 'CREATE VIEW calls_view AS '
+		'SELECT '
+			'calls.id,'
+			'thread_id,'
+			'(SELECT pid FROM threads WHERE id = thread_id) AS pid,'
+			'(SELECT tid FROM threads WHERE id = thread_id) AS tid,'
+			'(SELECT comm FROM comms WHERE id = comm_id) AS command,'
+			'call_path_id,'
+			'to_hex(ip) AS ip,'
+			'symbol_id,'
+			'(SELECT name FROM symbols WHERE id = symbol_id) AS symbol,'
+			'call_time,'
+			'return_time,'
+			'return_time - call_time AS elapsed_time,'
+			'branch_count,'
+			'call_id,'
+			'return_id,'
+			'CASE WHEN flags=1 THEN \'no call\' WHEN flags=2 THEN \'no return\' WHEN flags=3 THEN \'no call/return\' ELSE \'\' END AS flags,'
+			'parent_call_path_id'
+		' FROM calls INNER JOIN call_paths ON call_paths.id = call_path_id')
 
 do_query(query, 'CREATE VIEW samples_view AS '
 	'SELECT '

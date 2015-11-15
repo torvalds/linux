@@ -229,7 +229,6 @@ static const struct fib_rules_ops __net_initconst dn_fib_rules_ops_template = {
 	.configure	= dn_fib_rule_configure,
 	.compare	= dn_fib_rule_compare,
 	.fill		= dn_fib_rule_fill,
-	.default_pref	= fib_default_rule_pref,
 	.flush_cache	= dn_fib_rule_flush_cache,
 	.nlgroup	= RTNLGRP_DECnet_RULE,
 	.policy		= dn_fib_rule_policy,

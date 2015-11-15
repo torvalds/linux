@@ -281,7 +281,7 @@ static void nv04_dfp_mode_set(struct drm_encoder *encoder,
 			      struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;
-	struct nvif_device *device = &nouveau_drm(dev)->device;
+	struct nvif_object *device = &nouveau_drm(dev)->device.object;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct nv04_crtc_reg *regp = &nv04_display(dev)->mode_reg.crtc_reg[nv_crtc->index];
@@ -485,7 +485,7 @@ static void nv04_dfp_update_backlight(struct drm_encoder *encoder, int mode)
 {
 #ifdef __powerpc__
 	struct drm_device *dev = encoder->dev;
-	struct nvif_device *device = &nouveau_drm(dev)->device;
+	struct nvif_object *device = &nouveau_drm(dev)->device.object;
 
 	/* BIOS scripts usually take care of the backlight, thanks
 	 * Apple for your consistency.
@@ -493,11 +493,11 @@ static void nv04_dfp_update_backlight(struct drm_encoder *encoder, int mode)
 	if (dev->pdev->device == 0x0174 || dev->pdev->device == 0x0179 ||
 	    dev->pdev->device == 0x0189 || dev->pdev->device == 0x0329) {
 		if (mode == DRM_MODE_DPMS_ON) {
-			nv_mask(device, NV_PBUS_DEBUG_DUALHEAD_CTL, 1 << 31, 1 << 31);
-			nv_mask(device, NV_PCRTC_GPIO_EXT, 3, 1);
+			nvif_mask(device, NV_PBUS_DEBUG_DUALHEAD_CTL, 1 << 31, 1 << 31);
+			nvif_mask(device, NV_PCRTC_GPIO_EXT, 3, 1);
 		} else {
-			nv_mask(device, NV_PBUS_DEBUG_DUALHEAD_CTL, 1 << 31, 0);
-			nv_mask(device, NV_PCRTC_GPIO_EXT, 3, 0);
+			nvif_mask(device, NV_PBUS_DEBUG_DUALHEAD_CTL, 1 << 31, 0);
+			nvif_mask(device, NV_PCRTC_GPIO_EXT, 3, 0);
 		}
 	}
 #endif
@@ -624,8 +624,8 @@ static void nv04_tmds_slave_init(struct drm_encoder *encoder)
 	struct dcb_output *dcb = nouveau_encoder(encoder)->dcb;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvkm_i2c *i2c = nvxx_i2c(&drm->device);
-	struct nvkm_i2c_port *port = i2c->find(i2c, 2);
-	struct nvkm_i2c_board_info info[] = {
+	struct nvkm_i2c_bus *bus = nvkm_i2c_bus_find(i2c, NVKM_I2C_BUS_PRI);
+	struct nvkm_i2c_bus_probe info[] = {
 		{
 		    {
 		        .type = "sil164",
@@ -639,16 +639,15 @@ static void nv04_tmds_slave_init(struct drm_encoder *encoder)
 	};
 	int type;
 
-	if (!nv_gf4_disp_arch(dev) || !port ||
-	    get_tmds_slave(encoder))
+	if (!nv_gf4_disp_arch(dev) || !bus || get_tmds_slave(encoder))
 		return;
 
-	type = i2c->identify(i2c, 2, "TMDS transmitter", info, NULL, NULL);
+	type = nvkm_i2c_bus_probe(bus, "TMDS transmitter", info, NULL, NULL);
 	if (type < 0)
 		return;
 
 	drm_i2c_encoder_init(dev, to_encoder_slave(encoder),
-			     &port->adapter, &info[type].dev);
+			     &bus->i2c, &info[type].dev);
 }
 
 static const struct drm_encoder_helper_funcs nv04_lvds_helper_funcs = {

@@ -701,6 +701,8 @@ int sst_byt_dsp_init(struct device *dev, struct sst_pdata *pdata)
 	if (byt == NULL)
 		return -ENOMEM;
 
+	byt->dev = dev;
+
 	ipc = &byt->ipc;
 	ipc->dev = dev;
 	ipc->ops.tx_msg = byt_tx_msg;

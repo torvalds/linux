@@ -610,9 +610,9 @@ register_intr (unsigned int gsi, int irq, unsigned char delivery,
 			       chip->name, irq_type->name);
 		chip = irq_type;
 	}
-	__irq_set_chip_handler_name_locked(irq, chip, trigger == IOSAPIC_EDGE ?
-					   handle_edge_irq : handle_level_irq,
-					   NULL);
+	irq_set_chip_handler_name_locked(irq_get_irq_data(irq), chip,
+		trigger == IOSAPIC_EDGE ? handle_edge_irq : handle_level_irq,
+		NULL);
 	return 0;
 }
 
@@ -838,7 +838,7 @@ iosapic_unregister_intr (unsigned int gsi)
 	if (iosapic_intr_info[irq].count == 0) {
 #ifdef CONFIG_SMP
 		/* Clear affinity */
-		cpumask_setall(irq_get_irq_data(irq)->affinity);
+		cpumask_setall(irq_get_affinity_mask(irq));
 #endif
 		/* Clear the interrupt information */
 		iosapic_intr_info[irq].dest = 0;

@@ -324,6 +324,7 @@ static const struct of_device_id aemif_of_match[] = {
 	{ .compatible = "ti,da850-aemif", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, aemif_of_match);
 
 static int aemif_probe(struct platform_device *pdev)
 {

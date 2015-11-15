@@ -6,7 +6,7 @@
  * Inspired by st-asc.c from STMicroelectronics (c)
  */
 
-#if defined(CONFIG_SERIAL_STM32_USART_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
+#if defined(CONFIG_SERIAL_STM32_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
 #endif
 
@@ -322,8 +322,7 @@ static int stm32_startup(struct uart_port *port)
 	u32 val;
 	int ret;
 
-	ret = request_irq(port->irq, stm32_interrupt, IRQF_NO_SUSPEND,
-			  name, port);
+	ret = request_irq(port->irq, stm32_interrupt, 0, name, port);
 	if (ret)
 		return ret;
 

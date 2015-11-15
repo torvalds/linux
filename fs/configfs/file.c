@@ -65,7 +65,6 @@ static int fill_read_buffer(struct dentry * dentry, struct configfs_buffer * buf
 {
 	struct configfs_attribute * attr = to_attr(dentry);
 	struct config_item * item = to_item(dentry->d_parent);
-	struct configfs_item_operations * ops = buffer->ops;
 	int ret = 0;
 	ssize_t count;
 
@@ -74,7 +73,8 @@ static int fill_read_buffer(struct dentry * dentry, struct configfs_buffer * buf
 	if (!buffer->page)
 		return -ENOMEM;
 
-	count = ops->show_attribute(item,attr,buffer->page);
+	count = attr->show(item, buffer->page);
+
 	buffer->needs_read_fill = 0;
 	BUG_ON(count > (ssize_t)SIMPLE_ATTR_SIZE);
 	if (count >= 0)
@@ -171,9 +171,8 @@ flush_write_buffer(struct dentry * dentry, struct configfs_buffer * buffer, size
 {
 	struct configfs_attribute * attr = to_attr(dentry);
 	struct config_item * item = to_item(dentry->d_parent);
-	struct configfs_item_operations * ops = buffer->ops;
 
-	return ops->store_attribute(item,attr,buffer->page,count);
+	return attr->store(item, buffer->page, count);
 }
 
 
@@ -237,8 +236,7 @@ static int check_perm(struct inode * inode, struct file * file)
 	 * and we must have a store method.
 	 */
 	if (file->f_mode & FMODE_WRITE) {
-
-		if (!(inode->i_mode & S_IWUGO) || !ops->store_attribute)
+		if (!(inode->i_mode & S_IWUGO) || !attr->store)
 			goto Eaccess;
 
 	}
@@ -248,7 +246,7 @@ static int check_perm(struct inode * inode, struct file * file)
 	 * must be a show method for it.
 	 */
 	if (file->f_mode & FMODE_READ) {
-		if (!(inode->i_mode & S_IRUGO) || !ops->show_attribute)
+		if (!(inode->i_mode & S_IRUGO) || !attr->show)
 			goto Eaccess;
 	}
 

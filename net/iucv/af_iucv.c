@@ -95,11 +95,10 @@ static void afiucv_hs_callback_txnotify(struct sk_buff *, enum iucv_tx_notify);
 /* Call Back functions */
 static void iucv_callback_rx(struct iucv_path *, struct iucv_message *);
 static void iucv_callback_txdone(struct iucv_path *, struct iucv_message *);
-static void iucv_callback_connack(struct iucv_path *, u8 ipuser[16]);
-static int iucv_callback_connreq(struct iucv_path *, u8 ipvmid[8],
-				 u8 ipuser[16]);
-static void iucv_callback_connrej(struct iucv_path *, u8 ipuser[16]);
-static void iucv_callback_shutdown(struct iucv_path *, u8 ipuser[16]);
+static void iucv_callback_connack(struct iucv_path *, u8 *);
+static int iucv_callback_connreq(struct iucv_path *, u8 *, u8 *);
+static void iucv_callback_connrej(struct iucv_path *, u8 *);
+static void iucv_callback_shutdown(struct iucv_path *, u8 *);
 
 static struct iucv_sock_list iucv_sk_list = {
 	.lock = __RW_LOCK_UNLOCKED(iucv_sk_list.lock),

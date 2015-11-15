@@ -2163,5 +2163,10 @@
 #define SDMA_PKT_NOP_HEADER_sub_op_shift  8
 #define SDMA_PKT_NOP_HEADER_SUB_OP(x) (((x) & SDMA_PKT_NOP_HEADER_sub_op_mask) << SDMA_PKT_NOP_HEADER_sub_op_shift)
 
+/*define for count field*/
+#define SDMA_PKT_NOP_HEADER_count_offset 0
+#define SDMA_PKT_NOP_HEADER_count_mask   0x00003FFF
+#define SDMA_PKT_NOP_HEADER_count_shift  16
+#define SDMA_PKT_NOP_HEADER_COUNT(x) (((x) & SDMA_PKT_NOP_HEADER_count_mask) << SDMA_PKT_NOP_HEADER_count_shift)
 
 #endif /* __ICELAND_SDMA_PKT_OPEN_H_ */

@@ -87,27 +87,27 @@ static inline void dc_timer_set_count(struct clock_event_device *ce,
 	writel(count, dt->base + COUNT(dt->timer_id));
 }
 
-static void digicolor_clkevt_mode(enum clock_event_mode mode,
-				  struct clock_event_device *ce)
+static int digicolor_clkevt_shutdown(struct clock_event_device *ce)
+{
+	dc_timer_disable(ce);
+	return 0;
+}
+
+static int digicolor_clkevt_set_oneshot(struct clock_event_device *ce)
+{
+	dc_timer_disable(ce);
+	dc_timer_enable(ce, CONTROL_MODE_ONESHOT);
+	return 0;
+}
+
+static int digicolor_clkevt_set_periodic(struct clock_event_device *ce)
 {
 	struct digicolor_timer *dt = dc_timer(ce);
 
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		dc_timer_disable(ce);
-		dc_timer_set_count(ce, dt->ticks_per_jiffy);
-		dc_timer_enable(ce, CONTROL_MODE_PERIODIC);
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-		dc_timer_disable(ce);
-		dc_timer_enable(ce, CONTROL_MODE_ONESHOT);
-		break;
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	default:
-		dc_timer_disable(ce);
-		break;
-	}
+	dc_timer_disable(ce);
+	dc_timer_set_count(ce, dt->ticks_per_jiffy);
+	dc_timer_enable(ce, CONTROL_MODE_PERIODIC);
+	return 0;
 }
 
 static int digicolor_clkevt_next_event(unsigned long evt,
@@ -125,7 +125,10 @@ static struct digicolor_timer dc_timer_dev = {
 		.name = "digicolor_tick",
 		.rating = 340,
 		.features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-		.set_mode = digicolor_clkevt_mode,
+		.set_state_shutdown = digicolor_clkevt_shutdown,
+		.set_state_periodic = digicolor_clkevt_set_periodic,
+		.set_state_oneshot = digicolor_clkevt_set_oneshot,
+		.tick_resume = digicolor_clkevt_shutdown,
 		.set_next_event = digicolor_clkevt_next_event,
 	},
 	.timer_id = TIMER_C,
@@ -140,7 +143,7 @@ static irqreturn_t digicolor_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static u64 digicolor_timer_sched_read(void)
+static u64 notrace digicolor_timer_sched_read(void)
 {
 	return ~readl(dc_timer_dev.base + COUNT(TIMER_B));
 }

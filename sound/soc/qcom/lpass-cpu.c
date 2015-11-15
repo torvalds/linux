@@ -235,7 +235,7 @@ static int lpass_cpu_daiops_trigger(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-struct snd_soc_dai_ops asoc_qcom_lpass_cpu_dai_ops = {
+const struct snd_soc_dai_ops asoc_qcom_lpass_cpu_dai_ops = {
 	.set_sysclk	= lpass_cpu_daiops_set_sysclk,
 	.startup	= lpass_cpu_daiops_startup,
 	.shutdown	= lpass_cpu_daiops_shutdown,
@@ -438,7 +438,8 @@ int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev)
 		if (IS_ERR(drvdata->mi2s_bit_clk[dai_id])) {
 			dev_err(&pdev->dev,
 				"%s() error getting mi2s-bit-clk: %ld\n",
-				__func__, PTR_ERR(drvdata->mi2s_bit_clk[i]));
+				__func__,
+				PTR_ERR(drvdata->mi2s_bit_clk[dai_id]));
 			return PTR_ERR(drvdata->mi2s_bit_clk[dai_id]);
 		}
 	}

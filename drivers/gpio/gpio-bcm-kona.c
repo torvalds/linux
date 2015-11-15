@@ -433,12 +433,12 @@ static int bcm_kona_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	return 0;
 }
 
-static void bcm_kona_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void bcm_kona_gpio_irq_handler(struct irq_desc *desc)
 {
 	void __iomem *reg_base;
 	int bit, bank_id;
 	unsigned long sta;
-	struct bcm_kona_gpio_bank *bank = irq_get_handler_data(irq);
+	struct bcm_kona_gpio_bank *bank = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 
 	chained_irq_enter(chip, desc);
@@ -525,11 +525,7 @@ static int bcm_kona_gpio_irq_map(struct irq_domain *d, unsigned int irq,
 		return ret;
 	irq_set_lockdep_class(irq, &gpio_lock_class);
 	irq_set_chip_and_handler(irq, &bcm_gpio_irq_chip, handle_simple_irq);
-#ifdef CONFIG_ARM
-	set_irq_flags(irq, IRQF_VALID);
-#else
 	irq_set_noprobe(irq);
-#endif
 
 	return 0;
 }
@@ -643,17 +639,6 @@ static int bcm_kona_gpio_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(dev, "Couldn't add GPIO chip -- %d\n", ret);
 		goto err_irq_domain;
-	}
-	for (i = 0; i < chip->ngpio; i++) {
-		int irq = bcm_kona_gpio_to_irq(chip, i);
-		irq_set_lockdep_class(irq, &gpio_lock_class);
-		irq_set_chip_and_handler(irq, &bcm_gpio_irq_chip,
-					 handle_simple_irq);
-#ifdef CONFIG_ARM
-		set_irq_flags(irq, IRQF_VALID);
-#else
-		irq_set_noprobe(irq);
-#endif
 	}
 	for (i = 0; i < kona_gpio->num_bank; i++) {
 		bank = &kona_gpio->banks[i];

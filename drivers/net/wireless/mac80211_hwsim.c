@@ -787,7 +787,7 @@ static void mac80211_hwsim_set_tsf(struct ieee80211_hw *hw,
 	struct mac80211_hwsim_data *data = hw->priv;
 	u64 now = mac80211_hwsim_get_tsf(hw, vif);
 	u32 bcn_int = data->beacon_int;
-	u64 delta = abs64(tsf - now);
+	u64 delta = abs(tsf - now);
 
 	/* adjust after beaconing with new timestamp at old TBTT */
 	if (tsf > now) {
@@ -1819,7 +1819,7 @@ static int mac80211_hwsim_ampdu_action(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
 				       enum ieee80211_ampdu_mlme_action action,
 				       struct ieee80211_sta *sta, u16 tid, u16 *ssn,
-				       u8 buf_size)
+				       u8 buf_size, bool amsdu)
 {
 	switch (action) {
 	case IEEE80211_AMPDU_TX_START:
@@ -2190,9 +2190,8 @@ static void hwsim_mcast_config_msg(struct sk_buff *mcast_skb,
 				   struct genl_info *info)
 {
 	if (info)
-		genl_notify(&hwsim_genl_family, mcast_skb,
-			    genl_info_net(info), info->snd_portid,
-			    HWSIM_MCGRP_CONFIG, info->nlhdr, GFP_KERNEL);
+		genl_notify(&hwsim_genl_family, mcast_skb, info,
+			    HWSIM_MCGRP_CONFIG, GFP_KERNEL);
 	else
 		genlmsg_multicast(&hwsim_genl_family, mcast_skb, 0,
 				  HWSIM_MCGRP_CONFIG, GFP_KERNEL);
@@ -2399,6 +2398,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	ieee80211_hw_set(hw, AMPDU_AGGREGATION);
 	ieee80211_hw_set(hw, MFP_CAPABLE);
 	ieee80211_hw_set(hw, SIGNAL_DBM);
+	ieee80211_hw_set(hw, TDLS_WIDER_BW);
 	if (rctbl)
 		ieee80211_hw_set(hw, SUPPORTS_RC_TABLE);
 
@@ -2676,7 +2676,7 @@ static void hwsim_mon_setup(struct net_device *dev)
 	dev->netdev_ops = &hwsim_netdev_ops;
 	dev->destructor = free_netdev;
 	ether_setup(dev);
-	dev->tx_queue_len = 0;
+	dev->priv_flags |= IFF_NO_QUEUE;
 	dev->type = ARPHRD_IEEE80211_RADIOTAP;
 	eth_zero_addr(dev->dev_addr);
 	dev->dev_addr[0] = 0x12;
@@ -3120,8 +3120,10 @@ static int hwsim_init_netlink(void)
 		goto failure;
 
 	rc = netlink_register_notifier(&hwsim_netlink_notifier);
-	if (rc)
+	if (rc) {
+		genl_unregister_family(&hwsim_genl_family);
 		goto failure;
+	}
 
 	return 0;
 

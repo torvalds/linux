@@ -480,33 +480,26 @@ static int ocfs2_check_dir_trailer(struct inode *dir, struct buffer_head *bh)
 
 	trailer = ocfs2_trailer_from_bh(bh, dir->i_sb);
 	if (!OCFS2_IS_VALID_DIR_TRAILER(trailer)) {
-		rc = -EINVAL;
-		ocfs2_error(dir->i_sb,
-			    "Invalid dirblock #%llu: "
-			    "signature = %.*s\n",
-			    (unsigned long long)bh->b_blocknr, 7,
-			    trailer->db_signature);
+		rc = ocfs2_error(dir->i_sb,
+				 "Invalid dirblock #%llu: signature = %.*s\n",
+				 (unsigned long long)bh->b_blocknr, 7,
+				 trailer->db_signature);
 		goto out;
 	}
 	if (le64_to_cpu(trailer->db_blkno) != bh->b_blocknr) {
-		rc = -EINVAL;
-		ocfs2_error(dir->i_sb,
-			    "Directory block #%llu has an invalid "
-			    "db_blkno of %llu",
-			    (unsigned long long)bh->b_blocknr,
-			    (unsigned long long)le64_to_cpu(trailer->db_blkno));
+		rc = ocfs2_error(dir->i_sb,
+				 "Directory block #%llu has an invalid db_blkno of %llu\n",
+				 (unsigned long long)bh->b_blocknr,
+				 (unsigned long long)le64_to_cpu(trailer->db_blkno));
 		goto out;
 	}
 	if (le64_to_cpu(trailer->db_parent_dinode) !=
 	    OCFS2_I(dir)->ip_blkno) {
-		rc = -EINVAL;
-		ocfs2_error(dir->i_sb,
-			    "Directory block #%llu on dinode "
-			    "#%llu has an invalid parent_dinode "
-			    "of %llu",
-			    (unsigned long long)bh->b_blocknr,
-			    (unsigned long long)OCFS2_I(dir)->ip_blkno,
-			    (unsigned long long)le64_to_cpu(trailer->db_blkno));
+		rc = ocfs2_error(dir->i_sb,
+				 "Directory block #%llu on dinode #%llu has an invalid parent_dinode of %llu\n",
+				 (unsigned long long)bh->b_blocknr,
+				 (unsigned long long)OCFS2_I(dir)->ip_blkno,
+				 (unsigned long long)le64_to_cpu(trailer->db_blkno));
 		goto out;
 	}
 out:
@@ -604,14 +597,13 @@ static int ocfs2_validate_dx_root(struct super_block *sb,
 	}
 
 	if (!OCFS2_IS_VALID_DX_ROOT(dx_root)) {
-		ocfs2_error(sb,
-			    "Dir Index Root # %llu has bad signature %.*s",
-			    (unsigned long long)le64_to_cpu(dx_root->dr_blkno),
-			    7, dx_root->dr_signature);
-		return -EINVAL;
+		ret = ocfs2_error(sb,
+				  "Dir Index Root # %llu has bad signature %.*s\n",
+				  (unsigned long long)le64_to_cpu(dx_root->dr_blkno),
+				  7, dx_root->dr_signature);
 	}
 
-	return 0;
+	return ret;
 }
 
 static int ocfs2_read_dx_root(struct inode *dir, struct ocfs2_dinode *di,
@@ -648,12 +640,11 @@ static int ocfs2_validate_dx_leaf(struct super_block *sb,
 	}
 
 	if (!OCFS2_IS_VALID_DX_LEAF(dx_leaf)) {
-		ocfs2_error(sb, "Dir Index Leaf has bad signature %.*s",
-			    7, dx_leaf->dl_signature);
-		return -EROFS;
+		ret = ocfs2_error(sb, "Dir Index Leaf has bad signature %.*s\n",
+				  7, dx_leaf->dl_signature);
 	}
 
-	return 0;
+	return ret;
 }
 
 static int ocfs2_read_dx_leaf(struct inode *dir, u64 blkno,
@@ -812,11 +803,10 @@ static int ocfs2_dx_dir_lookup_rec(struct inode *inode,
 		el = &eb->h_list;
 
 		if (el->l_tree_depth) {
-			ocfs2_error(inode->i_sb,
-				    "Inode %lu has non zero tree depth in "
-				    "btree tree block %llu\n", inode->i_ino,
-				    (unsigned long long)eb_bh->b_blocknr);
-			ret = -EROFS;
+			ret = ocfs2_error(inode->i_sb,
+					  "Inode %lu has non zero tree depth in btree tree block %llu\n",
+					  inode->i_ino,
+					  (unsigned long long)eb_bh->b_blocknr);
 			goto out;
 		}
 	}
@@ -832,11 +822,11 @@ static int ocfs2_dx_dir_lookup_rec(struct inode *inode,
 	}
 
 	if (!found) {
-		ocfs2_error(inode->i_sb, "Inode %lu has bad extent "
-			    "record (%u, %u, 0) in btree", inode->i_ino,
-			    le32_to_cpu(rec->e_cpos),
-			    ocfs2_rec_clusters(el, rec));
-		ret = -EROFS;
+		ret = ocfs2_error(inode->i_sb,
+				  "Inode %lu has bad extent record (%u, %u, 0) in btree\n",
+				  inode->i_ino,
+				  le32_to_cpu(rec->e_cpos),
+				  ocfs2_rec_clusters(el, rec));
 		goto out;
 	}
 

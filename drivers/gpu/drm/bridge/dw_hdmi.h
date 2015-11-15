@@ -7,8 +7,8 @@
  * (at your option) any later version.
  */
 
-#ifndef __IMX_HDMI_H__
-#define __IMX_HDMI_H__
+#ifndef __DW_HDMI_H__
+#define __DW_HDMI_H__
 
 /* Identification Registers */
 #define HDMI_DESIGN_ID                          0x0000
@@ -525,7 +525,7 @@
 
 /* I2C Master Registers (E-DDC) */
 #define HDMI_I2CM_SLAVE                         0x7E00
-#define HDMI_I2CMESS                            0x7E01
+#define HDMI_I2CM_ADDRESS                       0x7E01
 #define HDMI_I2CM_DATAO                         0x7E02
 #define HDMI_I2CM_DATAI                         0x7E03
 #define HDMI_I2CM_OPERATION                     0x7E04
@@ -545,6 +545,9 @@
 #define HDMI_I2CM_FS_SCL_LCNT_0_ADDR            0x7E12
 
 enum {
+/* CONFIG1_ID field values */
+	HDMI_CONFIG1_AHB = 0x01,
+
 /* IH_FC_INT2 field values */
 	HDMI_IH_FC_INT2_OVERFLOW_MASK = 0x03,
 	HDMI_IH_FC_INT2_LOW_PRIORITY_OVERFLOW = 0x02,
@@ -1031,4 +1034,4 @@ enum {
 	HDMI_A_VIDPOLCFG_HSYNCPOL_ACTIVE_LOW = 0x0,
 };
 
-#endif /* __IMX_HDMI_H__ */
+#endif /* __DW_HDMI_H__ */

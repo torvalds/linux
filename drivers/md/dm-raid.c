@@ -329,8 +329,7 @@ static int validate_region_size(struct raid_set *rs, unsigned long region_size)
 		 */
 		if (min_region_size > (1 << 13)) {
 			/* If not a power of 2, make it the next power of 2 */
-			if (min_region_size & (min_region_size - 1))
-				region_size = 1 << fls(region_size);
+			region_size = roundup_pow_of_two(min_region_size);
 			DMINFO("Choosing default region size of %lu sectors",
 			       region_size);
 		} else {
@@ -1717,24 +1716,6 @@ static void raid_resume(struct dm_target *ti)
 	mddev_resume(&rs->md);
 }
 
-static int raid_merge(struct dm_target *ti, struct bvec_merge_data *bvm,
-		      struct bio_vec *biovec, int max_size)
-{
-	struct raid_set *rs = ti->private;
-	struct md_personality *pers = rs->md.pers;
-
-	if (pers && pers->mergeable_bvec)
-		return min(max_size, pers->mergeable_bvec(&rs->md, bvm, biovec));
-
-	/*
-	 * In case we can't request the personality because
-	 * the raid set is not running yet
-	 *
-	 * -> return safe minimum
-	 */
-	return rs->md.chunk_sectors;
-}
-
 static struct target_type raid_target = {
 	.name = "raid",
 	.version = {1, 7, 0},
@@ -1749,7 +1730,6 @@ static struct target_type raid_target = {
 	.presuspend = raid_presuspend,
 	.postsuspend = raid_postsuspend,
 	.resume = raid_resume,
-	.merge = raid_merge,
 };
 
 static int __init dm_raid_init(void)

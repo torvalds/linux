@@ -56,25 +56,6 @@ static int metag_timer_set_next_event(unsigned long delta,
 	return 0;
 }
 
-static void metag_timer_set_mode(enum clock_event_mode mode,
-				 struct clock_event_device *evt)
-{
-	switch (mode) {
-	case CLOCK_EVT_MODE_ONESHOT:
-	case CLOCK_EVT_MODE_RESUME:
-		break;
-
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		/* We should disable the IRQ here */
-		break;
-
-	case CLOCK_EVT_MODE_PERIODIC:
-	case CLOCK_EVT_MODE_UNUSED:
-		WARN_ON(1);
-		break;
-	};
-}
-
 static cycle_t metag_clocksource_read(struct clocksource *cs)
 {
 	return __core_reg_get(TXTIMER);
@@ -129,7 +110,6 @@ static void arch_timer_setup(unsigned int cpu)
 	clk->rating = 200,
 	clk->shift = 12,
 	clk->irq = tbisig_map(TBID_SIGNUM_TRT),
-	clk->set_mode = metag_timer_set_mode,
 	clk->set_next_event = metag_timer_set_next_event,
 
 	clk->mult = div_sc(hwtimer_freq, NSEC_PER_SEC, clk->shift);

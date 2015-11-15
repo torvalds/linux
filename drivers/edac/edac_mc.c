@@ -1302,7 +1302,7 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 	grain_bits = fls_long(e->grain) + 1;
 	trace_mc_event(type, e->msg, e->label, e->error_count,
 		       mci->mc_idx, e->top_layer, e->mid_layer, e->low_layer,
-		       PAGES_TO_MiB(e->page_frame_number) | e->offset_in_page,
+		       (e->page_frame_number << PAGE_SHIFT) | e->offset_in_page,
 		       grain_bits, e->syndrome, e->other_detail);
 
 	edac_raw_mc_handle_error(type, mci, e);

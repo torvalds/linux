@@ -134,22 +134,10 @@ static irqreturn_t solo_isr(int irq, void *data)
 
 static void free_solo_dev(struct solo_dev *solo_dev)
 {
-	struct pci_dev *pdev;
-
-	if (!solo_dev)
-		return;
+	struct pci_dev *pdev = solo_dev->pdev;
 
 	if (solo_dev->dev.parent)
 		device_unregister(&solo_dev->dev);
-
-	pdev = solo_dev->pdev;
-
-	/* If we never initialized the PCI device, then nothing else
-	 * below here needs cleanup */
-	if (!pdev) {
-		kfree(solo_dev);
-		return;
-	}
 
 	if (solo_dev->reg_base) {
 		/* Bring down the sub-devices first */
@@ -164,9 +152,8 @@ static void free_solo_dev(struct solo_dev *solo_dev)
 
 		/* Now cleanup the PCI device */
 		solo_irq_off(solo_dev, ~0);
+		free_irq(pdev->irq, solo_dev);
 		pci_iounmap(pdev, solo_dev->reg_base);
-		if (pdev->irq)
-			free_irq(pdev->irq, solo_dev);
 	}
 
 	pci_release_regions(pdev);
@@ -483,7 +470,6 @@ static int solo_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	solo_dev->type = id->driver_data;
 	solo_dev->pdev = pdev;
-	spin_lock_init(&solo_dev->reg_io_lock);
 	ret = v4l2_device_register(&pdev->dev, &solo_dev->v4l2_dev);
 	if (ret)
 		goto fail_probe;

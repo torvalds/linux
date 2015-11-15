@@ -75,7 +75,7 @@ u8 acpi_ut_is_pci_root_bridge(char *id)
 	return (FALSE);
 }
 
-#if (defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP)
+#if (defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP || defined ACPI_NAMES_APP)
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_is_aml_table
@@ -376,7 +376,7 @@ acpi_ut_display_init_pathname(u8 type,
 	/* Get the full pathname to the node */
 
 	buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
-	status = acpi_ns_handle_to_pathname(obj_handle, &buffer);
+	status = acpi_ns_handle_to_pathname(obj_handle, &buffer, TRUE);
 	if (ACPI_FAILURE(status)) {
 		return;
 	}

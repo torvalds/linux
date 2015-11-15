@@ -18,6 +18,8 @@
 #include <linux/cpu.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+
+#include "of_helpers.h"
 #include "offline_states.h"
 #include "pseries.h"
 
@@ -244,36 +246,13 @@ cc_error:
 	return first_dn;
 }
 
-static struct device_node *derive_parent(const char *path)
-{
-	struct device_node *parent;
-	char *last_slash;
-
-	last_slash = strrchr(path, '/');
-	if (last_slash == path) {
-		parent = of_find_node_by_path("/");
-	} else {
-		char *parent_path;
-		int parent_path_len = last_slash - path + 1;
-		parent_path = kmalloc(parent_path_len, GFP_KERNEL);
-		if (!parent_path)
-			return NULL;
-
-		strlcpy(parent_path, path, parent_path_len);
-		parent = of_find_node_by_path(parent_path);
-		kfree(parent_path);
-	}
-
-	return parent;
-}
-
 int dlpar_attach_node(struct device_node *dn)
 {
 	int rc;
 
-	dn->parent = derive_parent(dn->full_name);
-	if (!dn->parent)
-		return -ENOMEM;
+	dn->parent = pseries_of_derive_parent(dn->full_name);
+	if (IS_ERR(dn->parent))
+		return PTR_ERR(dn->parent);
 
 	rc = of_attach_node(dn);
 	if (rc) {
@@ -422,8 +401,10 @@ static ssize_t dlpar_cpu_probe(const char *buf, size_t count)
 
 	dn = dlpar_configure_connector(cpu_to_be32(drc_index), parent);
 	of_node_put(parent);
-	if (!dn)
+	if (!dn) {
+		dlpar_release_drc(drc_index);
 		return -EINVAL;
+	}
 
 	rc = dlpar_attach_node(dn);
 	if (rc) {

@@ -283,12 +283,22 @@ static int rsvp_init(struct tcf_proto *tp)
 	return -ENOBUFS;
 }
 
-static void
-rsvp_delete_filter(struct tcf_proto *tp, struct rsvp_filter *f)
+static void rsvp_delete_filter_rcu(struct rcu_head *head)
+{
+	struct rsvp_filter *f = container_of(head, struct rsvp_filter, rcu);
+
+	tcf_exts_destroy(&f->exts);
+	kfree(f);
+}
+
+static void rsvp_delete_filter(struct tcf_proto *tp, struct rsvp_filter *f)
 {
 	tcf_unbind_filter(tp, &f->res);
-	tcf_exts_destroy(&f->exts);
-	kfree_rcu(f, rcu);
+	/* all classifiers are required to call tcf_exts_destroy() after rcu
+	 * grace period, since converted-to-rcu actions are relying on that
+	 * in cleanup() callback
+	 */
+	call_rcu(&f->rcu, rsvp_delete_filter_rcu);
 }
 
 static bool rsvp_destroy(struct tcf_proto *tp, bool force)

@@ -57,7 +57,7 @@ void mlx5e_send_nop(struct mlx5e_sq *sq, bool notify_hw)
 
 	if (notify_hw) {
 		cseg->fm_ce_se = MLX5_WQE_CTRL_CQ_UPDATE;
-		mlx5e_tx_notify_hw(sq, wqe);
+		mlx5e_tx_notify_hw(sq, wqe, 0);
 	}
 }
 
@@ -106,14 +106,37 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		 priv->default_vlan_prio;
 	int tc = netdev_get_prio_tc_map(dev, up);
 
-	return priv->channel[channel_ix]->tc_to_txq_map[tc];
+	return priv->channeltc_to_txq_map[channel_ix][tc];
 }
 
 static inline u16 mlx5e_get_inline_hdr_size(struct mlx5e_sq *sq,
-					    struct sk_buff *skb)
+					    struct sk_buff *skb, bool bf)
 {
-#define MLX5E_MIN_INLINE 16 /* eth header with vlan (w/o next ethertype) */
+	/* Some NIC TX decisions, e.g loopback, are based on the packet
+	 * headers and occur before the data gather.
+	 * Therefore these headers must be copied into the WQE
+	 */
+#define MLX5E_MIN_INLINE ETH_HLEN
+
+	if (bf && (skb_headlen(skb) <= sq->max_inline))
+		return skb_headlen(skb);
+
 	return MLX5E_MIN_INLINE;
+}
+
+static inline void mlx5e_insert_vlan(void *start, struct sk_buff *skb, u16 ihs)
+{
+	struct vlan_ethhdr *vhdr = (struct vlan_ethhdr *)start;
+	int cpy1_sz = 2 * ETH_ALEN;
+	int cpy2_sz = ihs - cpy1_sz;
+
+	skb_copy_from_linear_data(skb, vhdr, cpy1_sz);
+	skb_pull_inline(skb, cpy1_sz);
+	vhdr->h_vlan_proto = skb->vlan_proto;
+	vhdr->h_vlan_TCI = cpu_to_be16(skb_vlan_tag_get(skb));
+	skb_copy_from_linear_data(skb, &vhdr->h_vlan_encapsulated_proto,
+				  cpy2_sz);
+	skb_pull_inline(skb, cpy2_sz);
 }
 
 static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
@@ -129,6 +152,7 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 
 	u8  opcode = MLX5_OPCODE_SEND;
 	dma_addr_t dma_addr = 0;
+	bool bf = false;
 	u16 headlen;
 	u16 ds_cnt;
 	u16 ihs;
@@ -140,6 +164,11 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 		eseg->cs_flags	= MLX5_ETH_WQE_L3_CSUM | MLX5_ETH_WQE_L4_CSUM;
 	else
 		sq->stats.csum_offload_none++;
+
+	if (sq->cc != sq->prev_cc) {
+		sq->prev_cc = sq->cc;
+		sq->bf_budget = (sq->cc == sq->pc) ? MLX5E_SQ_BF_BUDGET : 0;
+	}
 
 	if (skb_is_gso(skb)) {
 		u32 payload_len;
@@ -153,13 +182,21 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 		sq->stats.tso_packets++;
 		sq->stats.tso_bytes += payload_len;
 	} else {
-		ihs = mlx5e_get_inline_hdr_size(sq, skb);
+		bf = sq->bf_budget &&
+		     !skb->xmit_more &&
+		     !skb_shinfo(skb)->nr_frags;
+		ihs = mlx5e_get_inline_hdr_size(sq, skb, bf);
 		MLX5E_TX_SKB_CB(skb)->num_bytes = max_t(unsigned int, skb->len,
 							ETH_ZLEN);
 	}
 
-	skb_copy_from_linear_data(skb, eseg->inline_hdr_start, ihs);
-	skb_pull_inline(skb, ihs);
+	if (skb_vlan_tag_present(skb)) {
+		mlx5e_insert_vlan(eseg->inline_hdr_start, skb, ihs);
+		ihs += VLAN_HLEN;
+	} else {
+		skb_copy_from_linear_data(skb, eseg->inline_hdr_start, ihs);
+		skb_pull_inline(skb, ihs);
+	}
 
 	eseg->inline_hdr_sz = cpu_to_be16(ihs);
 
@@ -225,13 +262,20 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 	}
 
 	if (!skb->xmit_more || netif_xmit_stopped(sq->txq)) {
+		int bf_sz = 0;
+
+		if (bf && sq->uar_bf_map)
+			bf_sz = MLX5E_TX_SKB_CB(skb)->num_wqebbs << 3;
+
 		cseg->fm_ce_se = MLX5_WQE_CTRL_CQ_UPDATE;
-		mlx5e_tx_notify_hw(sq, wqe);
+		mlx5e_tx_notify_hw(sq, wqe, bf_sz);
 	}
 
 	/* fill sq edge with nops to avoid wqe wrap around */
 	while ((sq->pc & wq->sz_m1) > sq->edge)
 		mlx5e_send_nop(sq, false);
+
+	sq->bf_budget = bf ? sq->bf_budget - 1 : 0;
 
 	sq->stats.packets++;
 	return NETDEV_TX_OK;

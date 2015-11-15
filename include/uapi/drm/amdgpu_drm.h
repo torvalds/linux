@@ -32,7 +32,7 @@
 #ifndef __AMDGPU_DRM_H__
 #define __AMDGPU_DRM_H__
 
-#include <drm/drm.h>
+#include "drm.h"
 
 #define DRM_AMDGPU_GEM_CREATE		0x00
 #define DRM_AMDGPU_GEM_MMAP		0x01
@@ -640,6 +640,6 @@ struct drm_amdgpu_info_hw_ip {
 #define AMDGPU_FAMILY_CI			120 /* Bonaire, Hawaii */
 #define AMDGPU_FAMILY_KV			125 /* Kaveri, Kabini, Mullins */
 #define AMDGPU_FAMILY_VI			130 /* Iceland, Tonga */
-#define AMDGPU_FAMILY_CZ			135 /* Carrizo */
+#define AMDGPU_FAMILY_CZ			135 /* Carrizo, Stoney */
 
 #endif

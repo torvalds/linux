@@ -532,7 +532,6 @@ static int tce_setrange_multi_pSeriesLP_walk(unsigned long start_pfn,
 	return tce_setrange_multi_pSeriesLP(start_pfn, num_pfn, arg);
 }
 
-#ifdef CONFIG_PCI
 static void iommu_table_setparms(struct pci_controller *phb,
 				 struct device_node *dn,
 				 struct iommu_table *tbl)
@@ -1253,11 +1252,10 @@ static int dma_set_mask_pSeriesLP(struct device *dev, u64 dma_mask)
 		}
 	}
 
-	/* fall back on iommu ops, restore table pointer with ops */
+	/* fall back on iommu ops */
 	if (!ddw_enabled && get_dma_ops(dev) != &dma_iommu_ops) {
 		dev_info(dev, "Restoring 32-bit DMA via iommu\n");
 		set_dma_ops(dev, &dma_iommu_ops);
-		pci_dma_dev_setup_pSeriesLP(pdev);
 	}
 
 check_mask:
@@ -1292,15 +1290,6 @@ static u64 dma_get_required_mask_pSeriesLP(struct device *dev)
 
 	return dma_iommu_ops.get_required_mask(dev);
 }
-
-#else  /* CONFIG_PCI */
-#define pci_dma_bus_setup_pSeries	NULL
-#define pci_dma_dev_setup_pSeries	NULL
-#define pci_dma_bus_setup_pSeriesLP	NULL
-#define pci_dma_dev_setup_pSeriesLP	NULL
-#define dma_set_mask_pSeriesLP		NULL
-#define dma_get_required_mask_pSeriesLP	NULL
-#endif /* !CONFIG_PCI */
 
 static int iommu_mem_notifier(struct notifier_block *nb, unsigned long action,
 		void *data)

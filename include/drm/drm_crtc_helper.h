@@ -108,8 +108,10 @@ struct drm_crtc_helper_funcs {
 	/* atomic helpers */
 	int (*atomic_check)(struct drm_crtc *crtc,
 			    struct drm_crtc_state *state);
-	void (*atomic_begin)(struct drm_crtc *crtc);
-	void (*atomic_flush)(struct drm_crtc *crtc);
+	void (*atomic_begin)(struct drm_crtc *crtc,
+			     struct drm_crtc_state *old_crtc_state);
+	void (*atomic_flush)(struct drm_crtc *crtc,
+			     struct drm_crtc_state *old_crtc_state);
 };
 
 /**
@@ -168,6 +170,7 @@ struct drm_encoder_helper_funcs {
  * @get_modes: get mode list for this connector
  * @mode_valid: is this mode valid on the given connector? (optional)
  * @best_encoder: return the preferred encoder for this connector
+ * @atomic_best_encoder: atomic version of @best_encoder
  *
  * The helper operations are called by the mid-layer CRTC helper.
  */
@@ -176,6 +179,8 @@ struct drm_connector_helper_funcs {
 	enum drm_mode_status (*mode_valid)(struct drm_connector *connector,
 					   struct drm_display_mode *mode);
 	struct drm_encoder *(*best_encoder)(struct drm_connector *connector);
+	struct drm_encoder *(*atomic_best_encoder)(struct drm_connector *connector,
+						   struct drm_connector_state *connector_state);
 };
 
 extern void drm_helper_disable_unused_functions(struct drm_device *dev);
@@ -187,7 +192,7 @@ extern bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 extern bool drm_helper_crtc_in_use(struct drm_crtc *crtc);
 extern bool drm_helper_encoder_in_use(struct drm_encoder *encoder);
 
-extern void drm_helper_connector_dpms(struct drm_connector *connector, int mode);
+extern int drm_helper_connector_dpms(struct drm_connector *connector, int mode);
 
 extern void drm_helper_move_panel_connectors_to_head(struct drm_device *);
 
@@ -235,5 +240,6 @@ extern void drm_kms_helper_hotplug_event(struct drm_device *dev);
 
 extern void drm_kms_helper_poll_disable(struct drm_device *dev);
 extern void drm_kms_helper_poll_enable(struct drm_device *dev);
+extern void drm_kms_helper_poll_enable_locked(struct drm_device *dev);
 
 #endif

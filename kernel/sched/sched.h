@@ -84,6 +84,10 @@ static inline void update_cpu_load_active(struct rq *this_rq) { }
  */
 #define RUNTIME_INF	((u64)~0ULL)
 
+static inline int idle_policy(int policy)
+{
+	return policy == SCHED_IDLE;
+}
 static inline int fair_policy(int policy)
 {
 	return policy == SCHED_NORMAL || policy == SCHED_BATCH;
@@ -98,6 +102,11 @@ static inline int dl_policy(int policy)
 {
 	return policy == SCHED_DEADLINE;
 }
+static inline bool valid_policy(int policy)
+{
+	return idle_policy(policy) || fair_policy(policy) ||
+		rt_policy(policy) || dl_policy(policy);
+}
 
 static inline int task_has_rt_policy(struct task_struct *p)
 {
@@ -107,11 +116,6 @@ static inline int task_has_rt_policy(struct task_struct *p)
 static inline int task_has_dl_policy(struct task_struct *p)
 {
 	return dl_policy(p->policy);
-}
-
-static inline bool dl_time_before(u64 a, u64 b)
-{
-	return (s64)(a - b) < 0;
 }
 
 /*
@@ -245,7 +249,6 @@ struct task_group {
 
 #ifdef	CONFIG_SMP
 	atomic_long_t load_avg;
-	atomic_t runnable_avg;
 #endif
 #endif
 
@@ -366,27 +369,20 @@ struct cfs_rq {
 
 #ifdef CONFIG_SMP
 	/*
-	 * CFS Load tracking
-	 * Under CFS, load is tracked on a per-entity basis and aggregated up.
-	 * This allows for the description of both thread and group usage (in
-	 * the FAIR_GROUP_SCHED case).
-	 * runnable_load_avg is the sum of the load_avg_contrib of the
-	 * sched_entities on the rq.
-	 * blocked_load_avg is similar to runnable_load_avg except that its
-	 * the blocked sched_entities on the rq.
-	 * utilization_load_avg is the sum of the average running time of the
-	 * sched_entities on the rq.
+	 * CFS load tracking
 	 */
-	unsigned long runnable_load_avg, blocked_load_avg, utilization_load_avg;
-	atomic64_t decay_counter;
-	u64 last_decay;
-	atomic_long_t removed_load;
+	struct sched_avg avg;
+	u64 runnable_load_sum;
+	unsigned long runnable_load_avg;
+#ifdef CONFIG_FAIR_GROUP_SCHED
+	unsigned long tg_load_avg_contrib;
+#endif
+	atomic_long_t removed_load_avg, removed_util_avg;
+#ifndef CONFIG_64BIT
+	u64 load_last_update_time_copy;
+#endif
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
-	/* Required to track per-cpu representation of a task_group */
-	u32 tg_runnable_contrib;
-	unsigned long tg_load_contrib;
-
 	/*
 	 *   h_load = weight * f(tg)
 	 *
@@ -595,8 +591,6 @@ struct rq {
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	/* list of leaf cfs_rq on this cpu: */
 	struct list_head leaf_cfs_rq_list;
-
-	struct sched_avg avg;
 #endif /* CONFIG_FAIR_GROUP_SCHED */
 
 	/*
@@ -1013,17 +1007,7 @@ extern struct static_key sched_feat_keys[__SCHED_FEAT_NR];
 #define sched_feat(x) (sysctl_sched_features & (1UL << __SCHED_FEAT_##x))
 #endif /* SCHED_DEBUG && HAVE_JUMP_LABEL */
 
-#ifdef CONFIG_NUMA_BALANCING
-#define sched_feat_numa(x) sched_feat(x)
-#ifdef CONFIG_SCHED_DEBUG
-#define numabalancing_enabled sched_feat_numa(NUMA)
-#else
-extern bool numabalancing_enabled;
-#endif /* CONFIG_SCHED_DEBUG */
-#else
-#define sched_feat_numa(x) (0)
-#define numabalancing_enabled (0)
-#endif /* CONFIG_NUMA_BALANCING */
+extern struct static_key_false sched_numa_balancing;
 
 static inline u64 global_rt_period(void)
 {
@@ -1065,9 +1049,6 @@ static inline int task_on_rq_migrating(struct task_struct *p)
 #ifndef prepare_arch_switch
 # define prepare_arch_switch(next)	do { } while (0)
 #endif
-#ifndef finish_arch_switch
-# define finish_arch_switch(prev)	do { } while (0)
-#endif
 #ifndef finish_arch_post_lock_switch
 # define finish_arch_post_lock_switch()	do { } while (0)
 #endif
@@ -1091,9 +1072,10 @@ static inline void finish_lock_switch(struct rq *rq, struct task_struct *prev)
 	 * After ->on_cpu is cleared, the task can be moved to a different CPU.
 	 * We must ensure this doesn't happen until the switch is completely
 	 * finished.
+	 *
+	 * Pairs with the control dependency and rmb in try_to_wake_up().
 	 */
-	smp_wmb();
-	prev->on_cpu = 0;
+	smp_store_release(&prev->on_cpu, 0);
 #endif
 #ifdef CONFIG_DEBUG_SPINLOCK
 	/* this is a valid case when another task releases the spinlock */
@@ -1169,16 +1151,18 @@ static const u32 prio_to_wmult[40] = {
  /*  15 */ 119304647, 148102320, 186737708, 238609294, 286331153,
 };
 
-#define ENQUEUE_WAKEUP		1
-#define ENQUEUE_HEAD		2
+#define ENQUEUE_WAKEUP		0x01
+#define ENQUEUE_HEAD		0x02
 #ifdef CONFIG_SMP
-#define ENQUEUE_WAKING		4	/* sched_class::task_waking was called */
+#define ENQUEUE_WAKING		0x04	/* sched_class::task_waking was called */
 #else
-#define ENQUEUE_WAKING		0
+#define ENQUEUE_WAKING		0x00
 #endif
-#define ENQUEUE_REPLENISH	8
+#define ENQUEUE_REPLENISH	0x08
+#define ENQUEUE_RESTORE	0x10
 
-#define DEQUEUE_SLEEP		1
+#define DEQUEUE_SLEEP		0x01
+#define DEQUEUE_SAVE		0x02
 
 #define RETRY_TASK		((void *)-1UL)
 
@@ -1206,7 +1190,7 @@ struct sched_class {
 
 #ifdef CONFIG_SMP
 	int  (*select_task_rq)(struct task_struct *p, int task_cpu, int sd_flag, int flags);
-	void (*migrate_task_rq)(struct task_struct *p, int next_cpu);
+	void (*migrate_task_rq)(struct task_struct *p);
 
 	void (*task_waking) (struct task_struct *task);
 	void (*task_woken) (struct rq *this_rq, struct task_struct *task);
@@ -1239,7 +1223,7 @@ struct sched_class {
 	void (*update_curr) (struct rq *rq);
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
-	void (*task_move_group) (struct task_struct *p, int on_rq);
+	void (*task_move_group) (struct task_struct *p);
 #endif
 };
 
@@ -1267,6 +1251,8 @@ extern void trigger_load_balance(struct rq *rq);
 
 extern void idle_enter_fair(struct rq *this_rq);
 extern void idle_exit_fair(struct rq *this_rq);
+
+extern void set_cpus_allowed_common(struct task_struct *p, const struct cpumask *new_mask);
 
 #else
 
@@ -1319,7 +1305,7 @@ extern void init_dl_task_timer(struct sched_dl_entity *dl_se);
 
 unsigned long to_ratio(u64 period, u64 runtime);
 
-extern void init_task_runnable_average(struct task_struct *p);
+extern void init_entity_runnable_average(struct sched_entity *se);
 
 static inline void add_nr_running(struct rq *rq, unsigned count)
 {
@@ -1411,6 +1397,17 @@ extern void sched_avg_update(struct rq *rq);
 static __always_inline
 unsigned long arch_scale_freq_capacity(struct sched_domain *sd, int cpu)
 {
+	return SCHED_CAPACITY_SCALE;
+}
+#endif
+
+#ifndef arch_scale_cpu_capacity
+static __always_inline
+unsigned long arch_scale_cpu_capacity(struct sched_domain *sd, int cpu)
+{
+	if (sd && (sd->flags & SD_SHARE_CPUCAPACITY) && (sd->span_weight > 1))
+		return sd->smt_gain / sd->span_weight;
+
 	return SCHED_CAPACITY_SCALE;
 }
 #endif

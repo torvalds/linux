@@ -35,6 +35,7 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/io.h>
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include "clk.h"
 

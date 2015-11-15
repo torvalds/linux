@@ -402,7 +402,7 @@ static const char *str_supported(int is_supported);
 #else
 static inline const char *str_supported(int is_supported) { return ""; }
 #define vdbg_printk(a_dbg_level, format, arg...)	\
-	no_printk(format, ##arg)
+	do { if (0) no_printk(format, ##arg); } while (0)
 #endif
 
 static void tpacpi_log_usertask(const char * const what)
@@ -6459,8 +6459,7 @@ static void __init tpacpi_detect_brightness_capabilities(void)
 		pr_info("detected a 8-level brightness capable ThinkPad\n");
 		break;
 	default:
-		pr_err("Unsupported brightness interface, "
-		       "please contact %s\n", TPACPI_MAIL);
+		pr_info("Unsupported brightness interface\n");
 		tp_features.bright_unkfw = 1;
 		bright_maxlvl = b - 1;
 	}

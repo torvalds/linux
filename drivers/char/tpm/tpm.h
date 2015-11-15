@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2004 IBM Corporation
+ * Copyright (C) 2015 Intel Corporation
  *
  * Authors:
  * Leendert van Doorn <leendert@watson.ibm.com>
@@ -28,6 +29,7 @@
 #include <linux/tpm.h>
 #include <linux/acpi.h>
 #include <linux/cdev.h>
+#include <linux/highmem.h>
 
 enum tpm_const {
 	TPM_MINOR = 224,	/* officially assigned */
@@ -88,6 +90,9 @@ enum tpm2_return_codes {
 
 enum tpm2_algorithms {
 	TPM2_ALG_SHA1		= 0x0004,
+	TPM2_ALG_KEYEDHASH	= 0x0008,
+	TPM2_ALG_SHA256		= 0x000B,
+	TPM2_ALG_NULL		= 0x0010
 };
 
 enum tpm2_command_codes {
@@ -95,6 +100,10 @@ enum tpm2_command_codes {
 	TPM2_CC_SELF_TEST	= 0x0143,
 	TPM2_CC_STARTUP		= 0x0144,
 	TPM2_CC_SHUTDOWN	= 0x0145,
+	TPM2_CC_CREATE		= 0x0153,
+	TPM2_CC_LOAD		= 0x0157,
+	TPM2_CC_UNSEAL		= 0x015E,
+	TPM2_CC_FLUSH_CONTEXT	= 0x0165,
 	TPM2_CC_GET_CAPABILITY	= 0x017A,
 	TPM2_CC_GET_RANDOM	= 0x017B,
 	TPM2_CC_PCR_READ	= 0x017E,
@@ -113,6 +122,13 @@ enum tpm2_capabilities {
 enum tpm2_startup_types {
 	TPM2_SU_CLEAR	= 0x0000,
 	TPM2_SU_STATE	= 0x0001,
+};
+
+enum tpm2_start_method {
+	TPM2_START_ACPI = 2,
+	TPM2_START_FIFO = 6,
+	TPM2_START_CRB = 7,
+	TPM2_START_CRB_WITH_ACPI = 8,
 };
 
 struct tpm_chip;
@@ -151,8 +167,7 @@ struct tpm_vendor_specific {
 
 enum tpm_chip_flags {
 	TPM_CHIP_FLAG_REGISTERED	= BIT(0),
-	TPM_CHIP_FLAG_PPI		= BIT(1),
-	TPM_CHIP_FLAG_TPM2		= BIT(2),
+	TPM_CHIP_FLAG_TPM2		= BIT(1),
 };
 
 struct tpm_chip {
@@ -175,6 +190,8 @@ struct tpm_chip {
 	struct dentry **bios_dir;
 
 #ifdef CONFIG_ACPI
+	const struct attribute_group *groups[2];
+	unsigned int groups_cnt;
 	acpi_handle acpi_dev_handle;
 	char ppi_version[TPM_PPI_VERSION_LEN + 1];
 #endif /* CONFIG_ACPI */
@@ -182,7 +199,7 @@ struct tpm_chip {
 	struct list_head list;
 };
 
-#define to_tpm_chip(n) container_of(n, struct tpm_chip, vendor)
+#define to_tpm_chip(d) container_of(d, struct tpm_chip, dev)
 
 static inline void tpm_chip_put(struct tpm_chip *chip)
 {
@@ -382,6 +399,101 @@ struct tpm_cmd_t {
 	tpm_cmd_params	params;
 } __packed;
 
+/* A string buffer type for constructing TPM commands. This is based on the
+ * ideas of string buffer code in security/keys/trusted.h but is heap based
+ * in order to keep the stack usage minimal.
+ */
+
+enum tpm_buf_flags {
+	TPM_BUF_OVERFLOW	= BIT(0),
+};
+
+struct tpm_buf {
+	struct page *data_page;
+	unsigned int flags;
+	u8 *data;
+};
+
+static inline int tpm_buf_init(struct tpm_buf *buf, u16 tag, u32 ordinal)
+{
+	struct tpm_input_header *head;
+
+	buf->data_page = alloc_page(GFP_HIGHUSER);
+	if (!buf->data_page)
+		return -ENOMEM;
+
+	buf->flags = 0;
+	buf->data = kmap(buf->data_page);
+
+	head = (struct tpm_input_header *) buf->data;
+
+	head->tag = cpu_to_be16(tag);
+	head->length = cpu_to_be32(sizeof(*head));
+	head->ordinal = cpu_to_be32(ordinal);
+
+	return 0;
+}
+
+static inline void tpm_buf_destroy(struct tpm_buf *buf)
+{
+	kunmap(buf->data_page);
+	__free_page(buf->data_page);
+}
+
+static inline u32 tpm_buf_length(struct tpm_buf *buf)
+{
+	struct tpm_input_header *head = (struct tpm_input_header *) buf->data;
+
+	return be32_to_cpu(head->length);
+}
+
+static inline u16 tpm_buf_tag(struct tpm_buf *buf)
+{
+	struct tpm_input_header *head = (struct tpm_input_header *) buf->data;
+
+	return be16_to_cpu(head->tag);
+}
+
+static inline void tpm_buf_append(struct tpm_buf *buf,
+				  const unsigned char *new_data,
+				  unsigned int new_len)
+{
+	struct tpm_input_header *head = (struct tpm_input_header *) buf->data;
+	u32 len = tpm_buf_length(buf);
+
+	/* Return silently if overflow has already happened. */
+	if (buf->flags & TPM_BUF_OVERFLOW)
+		return;
+
+	if ((len + new_len) > PAGE_SIZE) {
+		WARN(1, "tpm_buf: overflow\n");
+		buf->flags |= TPM_BUF_OVERFLOW;
+		return;
+	}
+
+	memcpy(&buf->data[len], new_data, new_len);
+	head->length = cpu_to_be32(len + new_len);
+}
+
+static inline void tpm_buf_append_u8(struct tpm_buf *buf, const u8 value)
+{
+	tpm_buf_append(buf, &value, 1);
+}
+
+static inline void tpm_buf_append_u16(struct tpm_buf *buf, const u16 value)
+{
+	__be16 value2 = cpu_to_be16(value);
+
+	tpm_buf_append(buf, (u8 *) &value2, 2);
+}
+
+static inline void tpm_buf_append_u32(struct tpm_buf *buf, const u32 value)
+{
+	__be32 value2 = cpu_to_be32(value);
+
+	tpm_buf_append(buf, (u8 *) &value2, 4);
+}
+
 extern struct class *tpm_class;
 extern dev_t tpm_devt;
 extern const struct file_operations tpm_fops;
@@ -412,15 +524,9 @@ void tpm_sysfs_del_device(struct tpm_chip *chip);
 int tpm_pcr_read_dev(struct tpm_chip *chip, int pcr_idx, u8 *res_buf);
 
 #ifdef CONFIG_ACPI
-extern int tpm_add_ppi(struct tpm_chip *chip);
-extern void tpm_remove_ppi(struct tpm_chip *chip);
+extern void tpm_add_ppi(struct tpm_chip *chip);
 #else
-static inline int tpm_add_ppi(struct tpm_chip *chip)
-{
-	return 0;
-}
-
-static inline void tpm_remove_ppi(struct tpm_chip *chip)
+static inline void tpm_add_ppi(struct tpm_chip *chip)
 {
 }
 #endif
@@ -428,6 +534,12 @@ static inline void tpm_remove_ppi(struct tpm_chip *chip)
 int tpm2_pcr_read(struct tpm_chip *chip, int pcr_idx, u8 *res_buf);
 int tpm2_pcr_extend(struct tpm_chip *chip, int pcr_idx, const u8 *hash);
 int tpm2_get_random(struct tpm_chip *chip, u8 *out, size_t max);
+int tpm2_seal_trusted(struct tpm_chip *chip,
+		      struct trusted_key_payload *payload,
+		      struct trusted_key_options *options);
+int tpm2_unseal_trusted(struct tpm_chip *chip,
+			struct trusted_key_payload *payload,
+			struct trusted_key_options *options);
 ssize_t tpm2_get_tpm_pt(struct tpm_chip *chip, u32 property_id,
 			u32 *value, const char *desc);
 

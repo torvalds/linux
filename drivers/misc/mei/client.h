@@ -68,6 +68,18 @@ static inline const uuid_le *mei_me_cl_uuid(const struct mei_me_client *me_cl)
 	return &me_cl->props.protocol_name;
 }
 
+/**
+ * mei_me_cl_ver - return me client protocol version
+ *
+ * @me_cl: me client
+ *
+ * Return: me client protocol version
+ */
+static inline u8 mei_me_cl_ver(const struct mei_me_client *me_cl)
+{
+	return me_cl->props.protocol_version;
+}
+
 /*
  * MEI IO Functions
  */
@@ -218,6 +230,14 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 void mei_cl_complete(struct mei_cl *cl, struct mei_cl_cb *cb);
 
 void mei_host_client_init(struct work_struct *work);
+
+u8 mei_cl_notify_fop2req(enum mei_cb_file_ops fop);
+enum mei_cb_file_ops mei_cl_notify_req2fop(u8 request);
+int mei_cl_notify_request(struct mei_cl *cl, struct file *file, u8 request);
+int mei_cl_irq_notify(struct mei_cl *cl, struct mei_cl_cb *cb,
+		      struct mei_cl_cb *cmpl_list);
+int mei_cl_notify_get(struct mei_cl *cl, bool block, bool *notify_ev);
+void mei_cl_notify(struct mei_cl *cl);
 
 void mei_cl_all_disconnect(struct mei_device *dev);
 void mei_cl_all_wakeup(struct mei_device *dev);

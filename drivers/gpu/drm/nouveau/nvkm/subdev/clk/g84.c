@@ -23,25 +23,26 @@
  */
 #include "nv50.h"
 
-static struct nvkm_domain
-g84_domains[] = {
-	{ nv_clk_src_crystal, 0xff },
-	{ nv_clk_src_href   , 0xff },
-	{ nv_clk_src_core   , 0xff, 0, "core", 1000 },
-	{ nv_clk_src_shader , 0xff, 0, "shader", 1000 },
-	{ nv_clk_src_mem    , 0xff, 0, "memory", 1000 },
-	{ nv_clk_src_vdec   , 0xff },
-	{ nv_clk_src_max }
+static const struct nvkm_clk_func
+g84_clk = {
+	.read = nv50_clk_read,
+	.calc = nv50_clk_calc,
+	.prog = nv50_clk_prog,
+	.tidy = nv50_clk_tidy,
+	.domains = {
+		{ nv_clk_src_crystal, 0xff },
+		{ nv_clk_src_href   , 0xff },
+		{ nv_clk_src_core   , 0xff, 0, "core", 1000 },
+		{ nv_clk_src_shader , 0xff, 0, "shader", 1000 },
+		{ nv_clk_src_mem    , 0xff, 0, "memory", 1000 },
+		{ nv_clk_src_vdec   , 0xff },
+		{ nv_clk_src_max }
+	}
 };
 
-struct nvkm_oclass *
-g84_clk_oclass = &(struct nv50_clk_oclass) {
-	.base.handle = NV_SUBDEV(CLK, 0x84),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_clk_ctor,
-		.dtor = _nvkm_clk_dtor,
-		.init = _nvkm_clk_init,
-		.fini = _nvkm_clk_fini,
-	},
-	.domains = g84_domains,
-}.base;
+int
+g84_clk_new(struct nvkm_device *device, int index, struct nvkm_clk **pclk)
+{
+	return nv50_clk_new_(&g84_clk, device, index,
+			     (device->chipset >= 0x94), pclk);
+}

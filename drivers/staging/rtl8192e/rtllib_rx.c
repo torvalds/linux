@@ -44,6 +44,9 @@
 #include "rtllib.h"
 #include "dot11d.h"
 
+static void rtllib_rx_mgt(struct rtllib_device *ieee, struct sk_buff *skb,
+			  struct rtllib_rx_stats *stats);
+
 static inline void rtllib_monitor_rx(struct rtllib_device *ieee,
 				     struct sk_buff *skb,
 				     struct rtllib_rx_stats *rx_status,
@@ -317,7 +320,6 @@ rtllib_rx_frame_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 			netdev_dbg(ieee->dev,
 				   "Decryption failed ICV mismatch (key %d)\n",
 				   skb->data[hdrlen + 3] >> 6);
-		ieee->ieee_stats.rx_discards_undecryptable++;
 		return -1;
 	}
 
@@ -1077,7 +1079,6 @@ static int rtllib_rx_get_crypt(struct rtllib_device *ieee, struct sk_buff *skb,
 			netdev_dbg(ieee->dev,
 				   "Decryption failed (not set) (SA= %pM)\n",
 				   hdr->addr2);
-			ieee->ieee_stats.rx_discards_undecryptable++;
 			return -1;
 		}
 	}
@@ -1199,11 +1200,9 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 
 	if (crypt && !(fc & RTLLIB_FCTL_WEP) &&
 	    rtllib_is_eapol_frame(ieee, skb, hdrlen)) {
-			struct eapol *eap = (struct eapol *)(skb->data +
-				24);
-			netdev_dbg(ieee->dev,
-				   "RX: IEEE 802.1X EAPOL frame: %s\n",
-				   eap_get_type(eap->type));
+		struct eapol *eap = (struct eapol *)(skb->data + 24);
+		netdev_dbg(ieee->dev, "RX: IEEE 802.1X EAPOL frame: %s\n",
+			   eap_get_type(eap->type));
 	}
 
 	if (crypt && !(fc & RTLLIB_FCTL_WEP) && !ieee->open_wep &&
@@ -1531,7 +1530,7 @@ int rtllib_rx(struct rtllib_device *ieee, struct sk_buff *skb,
 {
 	int ret = 0;
 
-	if ((NULL == ieee) || (NULL == skb) || (NULL == rx_stats)) {
+	if (!ieee || !skb || !rx_stats) {
 		pr_info("%s: Input parameters NULL!\n", __func__);
 		goto rx_dropped;
 	}
@@ -1743,37 +1742,61 @@ static int rtllib_parse_qos_info_param_IE(struct rtllib_device *ieee,
 	return rc;
 }
 
-#define MFIE_STRING(x) case MFIE_TYPE_ ##x: return #x
-
 static const char *get_info_element_string(u16 id)
 {
 	switch (id) {
-	MFIE_STRING(SSID);
-	MFIE_STRING(RATES);
-	MFIE_STRING(FH_SET);
-	MFIE_STRING(DS_SET);
-	MFIE_STRING(CF_SET);
-	MFIE_STRING(TIM);
-	MFIE_STRING(IBSS_SET);
-	MFIE_STRING(COUNTRY);
-	MFIE_STRING(HOP_PARAMS);
-	MFIE_STRING(HOP_TABLE);
-	MFIE_STRING(REQUEST);
-	MFIE_STRING(CHALLENGE);
-	MFIE_STRING(POWER_CONSTRAINT);
-	MFIE_STRING(POWER_CAPABILITY);
-	MFIE_STRING(TPC_REQUEST);
-	MFIE_STRING(TPC_REPORT);
-	MFIE_STRING(SUPP_CHANNELS);
-	MFIE_STRING(CSA);
-	MFIE_STRING(MEASURE_REQUEST);
-	MFIE_STRING(MEASURE_REPORT);
-	MFIE_STRING(QUIET);
-	MFIE_STRING(IBSS_DFS);
-	MFIE_STRING(RSN);
-	MFIE_STRING(RATES_EX);
-	MFIE_STRING(GENERIC);
-	MFIE_STRING(QOS_PARAMETER);
+	case MFIE_TYPE_SSID:
+		return "SSID";
+	case MFIE_TYPE_RATES:
+		return "RATES";
+	case MFIE_TYPE_FH_SET:
+		return "FH_SET";
+	case MFIE_TYPE_DS_SET:
+		return "DS_SET";
+	case MFIE_TYPE_CF_SET:
+		return "CF_SET";
+	case MFIE_TYPE_TIM:
+		return "TIM";
+	case MFIE_TYPE_IBSS_SET:
+		return "IBSS_SET";
+	case MFIE_TYPE_COUNTRY:
+		return "COUNTRY";
+	case MFIE_TYPE_HOP_PARAMS:
+		return "HOP_PARAMS";
+	case MFIE_TYPE_HOP_TABLE:
+		return "HOP_TABLE";
+	case MFIE_TYPE_REQUEST:
+		return "REQUEST";
+	case MFIE_TYPE_CHALLENGE:
+		return "CHALLENGE";
+	case MFIE_TYPE_POWER_CONSTRAINT:
+		return "POWER_CONSTRAINT";
+	case MFIE_TYPE_POWER_CAPABILITY:
+		return "POWER_CAPABILITY";
+	case MFIE_TYPE_TPC_REQUEST:
+		return "TPC_REQUEST";
+	case MFIE_TYPE_TPC_REPORT:
+		return "TPC_REPORT";
+	case MFIE_TYPE_SUPP_CHANNELS:
+		return "SUPP_CHANNELS";
+	case MFIE_TYPE_CSA:
+		return "CSA";
+	case MFIE_TYPE_MEASURE_REQUEST:
+		return "MEASURE_REQUEST";
+	case MFIE_TYPE_MEASURE_REPORT:
+		return "MEASURE_REPORT";
+	case MFIE_TYPE_QUIET:
+		return "QUIET";
+	case MFIE_TYPE_IBSS_DFS:
+		return "IBSS_DFS";
+	case MFIE_TYPE_RSN:
+		return "RSN";
+	case MFIE_TYPE_RATES_EX:
+		return "RATES_EX";
+	case MFIE_TYPE_GENERIC:
+		return "GENERIC";
+	case MFIE_TYPE_QOS_PARAMETER:
+		return "QOS_PARAMETER";
 	default:
 		return "UNKNOWN";
 	}
@@ -2531,7 +2554,7 @@ static inline int is_beacon(u16 fc)
 
 static int IsPassiveChannel(struct rtllib_device *rtllib, u8 channel)
 {
-	if (MAX_CHANNEL_NUMBER < channel) {
+	if (channel > MAX_CHANNEL_NUMBER) {
 		netdev_info(rtllib->dev, "%s(): Invalid Channel\n", __func__);
 		return 0;
 	}
@@ -2544,7 +2567,7 @@ static int IsPassiveChannel(struct rtllib_device *rtllib, u8 channel)
 
 int rtllib_legal_channel(struct rtllib_device *rtllib, u8 channel)
 {
-	if (MAX_CHANNEL_NUMBER < channel) {
+	if (channel > MAX_CHANNEL_NUMBER) {
 		netdev_info(rtllib->dev, "%s(): Invalid Channel\n", __func__);
 		return 0;
 	}
@@ -2717,9 +2740,9 @@ free_network:
 	kfree(network);
 }
 
-void rtllib_rx_mgt(struct rtllib_device *ieee,
-		      struct sk_buff *skb,
-		      struct rtllib_rx_stats *stats)
+static void rtllib_rx_mgt(struct rtllib_device *ieee,
+			  struct sk_buff *skb,
+			  struct rtllib_rx_stats *stats)
 {
 	struct rtllib_hdr_4addr *header = (struct rtllib_hdr_4addr *)skb->data;
 

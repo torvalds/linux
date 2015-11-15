@@ -17,7 +17,6 @@ int nfs42_proc_deallocate(struct file *, loff_t, loff_t);
 loff_t nfs42_proc_llseek(struct file *, loff_t, int);
 int nfs42_proc_layoutstats_generic(struct nfs_server *,
 				   struct nfs42_layoutstat_data *);
-/* nfs4.2xdr.h */
-extern struct rpc_procinfo nfs4_2_procedures[];
+int nfs42_proc_clone(struct file *, struct file *, loff_t, loff_t, loff_t);
 
 #endif /* __LINUX_FS_NFS_NFS4_2_H */

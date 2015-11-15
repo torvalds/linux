@@ -188,8 +188,6 @@ struct soundbus_driver {
 	int	(*probe)(struct soundbus_dev* dev);
 	int	(*remove)(struct soundbus_dev* dev);
 
-	int	(*suspend)(struct soundbus_dev* dev, pm_message_t state);
-	int	(*resume)(struct soundbus_dev* dev);
 	int	(*shutdown)(struct soundbus_dev* dev);
 
 	struct device_driver driver;

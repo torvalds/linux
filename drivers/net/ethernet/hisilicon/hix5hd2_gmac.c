@@ -371,7 +371,7 @@ static void hix5hd2_port_enable(struct hix5hd2_priv *priv)
 
 static void hix5hd2_port_disable(struct hix5hd2_priv *priv)
 {
-	writel_relaxed(~(BITS_RX_EN | BITS_TX_EN), priv->base + PORT_EN);
+	writel_relaxed(~(u32)(BITS_RX_EN | BITS_TX_EN), priv->base + PORT_EN);
 	writel_relaxed(0, priv->base + DESC_WR_RD_ENA);
 }
 

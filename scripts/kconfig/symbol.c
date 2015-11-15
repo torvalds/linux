@@ -467,8 +467,7 @@ void sym_clear_all_valid(void)
 	for_all_symbols(i, sym)
 		sym->flags &= ~SYMBOL_VALID;
 	sym_add_change_count(1);
-	if (modules_sym)
-		sym_calc_value(modules_sym);
+	sym_calc_value(modules_sym);
 }
 
 bool sym_tristate_within_range(struct symbol *sym, tristate val)
@@ -1117,6 +1116,8 @@ static void sym_check_print_recursive(struct symbol *last_sym)
 		if (stack->sym == last_sym)
 			fprintf(stderr, "%s:%d:error: recursive dependency detected!\n",
 				prop->file->name, prop->lineno);
+			fprintf(stderr, "For a resolution refer to Documentation/kbuild/kconfig-language.txt\n");
+			fprintf(stderr, "subsection \"Kconfig recursive dependency limitations\"\n");
 		if (stack->expr) {
 			fprintf(stderr, "%s:%d:\tsymbol %s %s value contains %s\n",
 				prop->file->name, prop->lineno,

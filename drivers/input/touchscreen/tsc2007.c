@@ -482,7 +482,6 @@ MODULE_DEVICE_TABLE(of, tsc2007_of_match);
 
 static struct i2c_driver tsc2007_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "tsc2007",
 		.of_match_table = of_match_ptr(tsc2007_of_match),
 	},

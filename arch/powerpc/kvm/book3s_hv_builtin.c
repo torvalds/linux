@@ -110,14 +110,15 @@ void __init kvm_cma_reserve(void)
 long int kvmppc_rm_h_confer(struct kvm_vcpu *vcpu, int target,
 			    unsigned int yield_count)
 {
-	struct kvmppc_vcore *vc = vcpu->arch.vcore;
+	struct kvmppc_vcore *vc = local_paca->kvm_hstate.kvm_vcore;
+	int ptid = local_paca->kvm_hstate.ptid;
 	int threads_running;
 	int threads_ceded;
 	int threads_conferring;
 	u64 stop = get_tb() + 10 * tb_ticks_per_usec;
 	int rv = H_SUCCESS; /* => don't yield */
 
-	set_bit(vcpu->arch.ptid, &vc->conferring_threads);
+	set_bit(ptid, &vc->conferring_threads);
 	while ((get_tb() < stop) && !VCORE_IS_EXITING(vc)) {
 		threads_running = VCORE_ENTRY_MAP(vc);
 		threads_ceded = vc->napping_threads;
@@ -127,7 +128,7 @@ long int kvmppc_rm_h_confer(struct kvm_vcpu *vcpu, int target,
 			break;
 		}
 	}
-	clear_bit(vcpu->arch.ptid, &vc->conferring_threads);
+	clear_bit(ptid, &vc->conferring_threads);
 	return rv;
 }
 
@@ -238,7 +239,8 @@ void kvmhv_commence_exit(int trap)
 {
 	struct kvmppc_vcore *vc = local_paca->kvm_hstate.kvm_vcore;
 	int ptid = local_paca->kvm_hstate.ptid;
-	int me, ee;
+	struct kvm_split_mode *sip = local_paca->kvm_hstate.kvm_split_mode;
+	int me, ee, i;
 
 	/* Set our bit in the threads-exiting-guest map in the 0xff00
 	   bits of vcore->entry_exit_map */
@@ -258,4 +260,26 @@ void kvmhv_commence_exit(int trap)
 	 */
 	if (trap != BOOK3S_INTERRUPT_HV_DECREMENTER)
 		kvmhv_interrupt_vcore(vc, ee & ~(1 << ptid));
+
+	/*
+	 * If we are doing dynamic micro-threading, interrupt the other
+	 * subcores to pull them out of their guests too.
+	 */
+	if (!sip)
+		return;
+
+	for (i = 0; i < MAX_SUBCORES; ++i) {
+		vc = sip->master_vcs[i];
+		if (!vc)
+			break;
+		do {
+			ee = vc->entry_exit_map;
+			/* Already asked to exit? */
+			if ((ee >> 8) != 0)
+				break;
+		} while (cmpxchg(&vc->entry_exit_map, ee,
+				 ee | VCORE_EXIT_REQ) != ee);
+		if ((ee >> 8) == 0)
+			kvmhv_interrupt_vcore(vc, ee);
+	}
 }

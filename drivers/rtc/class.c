@@ -202,6 +202,7 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 	rtc->max_user_freq = 64;
 	rtc->dev.parent = dev;
 	rtc->dev.class = rtc_class;
+	rtc->dev.groups = rtc_get_dev_attribute_groups();
 	rtc->dev.release = rtc_device_release;
 
 	mutex_init(&rtc->ops_lock);
@@ -234,21 +235,18 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 
 	err = device_register(&rtc->dev);
 	if (err) {
+		/* This will free both memory and the ID */
 		put_device(&rtc->dev);
-		goto exit_kfree;
+		goto exit;
 	}
 
 	rtc_dev_add_device(rtc);
-	rtc_sysfs_add_device(rtc);
 	rtc_proc_add_device(rtc);
 
 	dev_info(dev, "rtc core: registered %s as %s\n",
 			rtc->name, dev_name(&rtc->dev));
 
 	return rtc;
-
-exit_kfree:
-	kfree(rtc);
 
 exit_ida:
 	ida_simple_remove(&rtc_ida, id);
@@ -268,19 +266,17 @@ EXPORT_SYMBOL_GPL(rtc_device_register);
  */
 void rtc_device_unregister(struct rtc_device *rtc)
 {
-	if (get_device(&rtc->dev) != NULL) {
-		mutex_lock(&rtc->ops_lock);
-		/* remove innards of this RTC, then disable it, before
-		 * letting any rtc_class_open() users access it again
-		 */
-		rtc_sysfs_del_device(rtc);
-		rtc_dev_del_device(rtc);
-		rtc_proc_del_device(rtc);
-		device_unregister(&rtc->dev);
-		rtc->ops = NULL;
-		mutex_unlock(&rtc->ops_lock);
-		put_device(&rtc->dev);
-	}
+	mutex_lock(&rtc->ops_lock);
+	/*
+	 * Remove innards of this RTC, then disable it, before
+	 * letting any rtc_class_open() users access it again
+	 */
+	rtc_dev_del_device(rtc);
+	rtc_proc_del_device(rtc);
+	device_del(&rtc->dev);
+	rtc->ops = NULL;
+	mutex_unlock(&rtc->ops_lock);
+	put_device(&rtc->dev);
 }
 EXPORT_SYMBOL_GPL(rtc_device_unregister);
 
@@ -363,7 +359,6 @@ static int __init rtc_init(void)
 	}
 	rtc_class->pm = RTC_CLASS_DEV_PM_OPS;
 	rtc_dev_init();
-	rtc_sysfs_init(rtc_class);
 	return 0;
 }
 

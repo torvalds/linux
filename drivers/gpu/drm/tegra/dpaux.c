@@ -119,6 +119,7 @@ static ssize_t tegra_dpaux_transfer(struct drm_dp_aux *aux,
 	 */
 	if (msg->size < 1) {
 		switch (msg->request & ~DP_AUX_I2C_MOT) {
+		case DP_AUX_I2C_WRITE_STATUS_UPDATE:
 		case DP_AUX_I2C_WRITE:
 		case DP_AUX_I2C_READ:
 			value = DPAUX_DP_AUXCTL_CMD_ADDRESS_ONLY;
@@ -149,7 +150,7 @@ static ssize_t tegra_dpaux_transfer(struct drm_dp_aux *aux,
 
 		break;
 
-	case DP_AUX_I2C_STATUS:
+	case DP_AUX_I2C_WRITE_STATUS_UPDATE:
 		if (msg->request & DP_AUX_I2C_MOT)
 			value |= DPAUX_DP_AUXCTL_CMD_MOT_RQ;
 		else
@@ -294,26 +295,41 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 	}
 
 	dpaux->rst = devm_reset_control_get(&pdev->dev, "dpaux");
-	if (IS_ERR(dpaux->rst))
+	if (IS_ERR(dpaux->rst)) {
+		dev_err(&pdev->dev, "failed to get reset control: %ld\n",
+			PTR_ERR(dpaux->rst));
 		return PTR_ERR(dpaux->rst);
+	}
 
 	dpaux->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(dpaux->clk))
+	if (IS_ERR(dpaux->clk)) {
+		dev_err(&pdev->dev, "failed to get module clock: %ld\n",
+			PTR_ERR(dpaux->clk));
 		return PTR_ERR(dpaux->clk);
+	}
 
 	err = clk_prepare_enable(dpaux->clk);
-	if (err < 0)
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to enable module clock: %d\n",
+			err);
 		return err;
+	}
 
 	reset_control_deassert(dpaux->rst);
 
 	dpaux->clk_parent = devm_clk_get(&pdev->dev, "parent");
-	if (IS_ERR(dpaux->clk_parent))
+	if (IS_ERR(dpaux->clk_parent)) {
+		dev_err(&pdev->dev, "failed to get parent clock: %ld\n",
+			PTR_ERR(dpaux->clk_parent));
 		return PTR_ERR(dpaux->clk_parent);
+	}
 
 	err = clk_prepare_enable(dpaux->clk_parent);
-	if (err < 0)
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to enable parent clock: %d\n",
+			err);
 		return err;
+	}
 
 	err = clk_set_rate(dpaux->clk_parent, 270000000);
 	if (err < 0) {
@@ -323,8 +339,11 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 	}
 
 	dpaux->vdd = devm_regulator_get(&pdev->dev, "vdd");
-	if (IS_ERR(dpaux->vdd))
+	if (IS_ERR(dpaux->vdd)) {
+		dev_err(&pdev->dev, "failed to get VDD supply: %ld\n",
+			PTR_ERR(dpaux->vdd));
 		return PTR_ERR(dpaux->vdd);
+	}
 
 	err = devm_request_irq(dpaux->dev, dpaux->irq, tegra_dpaux_irq, 0,
 			       dev_name(dpaux->dev), dpaux);
@@ -334,12 +353,32 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	disable_irq(dpaux->irq);
+
 	dpaux->aux.transfer = tegra_dpaux_transfer;
 	dpaux->aux.dev = &pdev->dev;
 
 	err = drm_dp_aux_register(&dpaux->aux);
 	if (err < 0)
 		return err;
+
+	/*
+	 * Assume that by default the DPAUX/I2C pads will be used for HDMI,
+	 * so power them up and configure them in I2C mode.
+	 *
+	 * The DPAUX code paths reconfigure the pads in AUX mode, but there
+	 * is no possibility to perform the I2C mode configuration in the
+	 * HDMI path.
+	 */
+	value = tegra_dpaux_readl(dpaux, DPAUX_HYBRID_SPARE);
+	value &= ~DPAUX_HYBRID_SPARE_PAD_POWER_DOWN;
+	tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_SPARE);
+
+	value = tegra_dpaux_readl(dpaux, DPAUX_HYBRID_PADCTL);
+	value = DPAUX_HYBRID_PADCTL_I2C_SDA_INPUT_RCV |
+		DPAUX_HYBRID_PADCTL_I2C_SCL_INPUT_RCV |
+		DPAUX_HYBRID_PADCTL_MODE_I2C;
+	tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_PADCTL);
 
 	/* enable and clear all interrupts */
 	value = DPAUX_INTR_AUX_DONE | DPAUX_INTR_IRQ_EVENT |
@@ -359,6 +398,12 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 static int tegra_dpaux_remove(struct platform_device *pdev)
 {
 	struct tegra_dpaux *dpaux = platform_get_drvdata(pdev);
+	u32 value;
+
+	/* make sure pads are powered down when not in use */
+	value = tegra_dpaux_readl(dpaux, DPAUX_HYBRID_SPARE);
+	value |= DPAUX_HYBRID_SPARE_PAD_POWER_DOWN;
+	tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_SPARE);
 
 	drm_dp_aux_unregister(&dpaux->aux);
 
@@ -376,6 +421,7 @@ static int tegra_dpaux_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id tegra_dpaux_of_match[] = {
+	{ .compatible = "nvidia,tegra210-dpaux", },
 	{ .compatible = "nvidia,tegra124-dpaux", },
 	{ },
 };
@@ -425,8 +471,10 @@ int tegra_dpaux_attach(struct tegra_dpaux *dpaux, struct tegra_output *output)
 		enum drm_connector_status status;
 
 		status = tegra_dpaux_detect(dpaux);
-		if (status == connector_status_connected)
+		if (status == connector_status_connected) {
+			enable_irq(dpaux->irq);
 			return 0;
+		}
 
 		usleep_range(1000, 2000);
 	}
@@ -438,6 +486,8 @@ int tegra_dpaux_detach(struct tegra_dpaux *dpaux)
 {
 	unsigned long timeout;
 	int err;
+
+	disable_irq(dpaux->irq);
 
 	err = regulator_disable(dpaux->vdd);
 	if (err < 0)

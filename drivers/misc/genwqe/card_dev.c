@@ -418,7 +418,7 @@ static void genwqe_vma_close(struct vm_area_struct *vma)
 	kfree(dma_map);
 }
 
-static struct vm_operations_struct genwqe_vma_ops = {
+static const struct vm_operations_struct genwqe_vma_ops = {
 	.open   = genwqe_vma_open,
 	.close  = genwqe_vma_close,
 };
@@ -449,7 +449,7 @@ static int genwqe_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (get_order(vsize) > MAX_ORDER)
 		return -ENOMEM;
 
-	dma_map = kzalloc(sizeof(struct dma_mapping), GFP_ATOMIC);
+	dma_map = kzalloc(sizeof(struct dma_mapping), GFP_KERNEL);
 	if (dma_map == NULL)
 		return -ENOMEM;
 
@@ -785,7 +785,7 @@ static int genwqe_pin_mem(struct genwqe_file *cfile, struct genwqe_mem *m)
 	map_addr = (m->addr & PAGE_MASK);
 	map_size = round_up(m->size + (m->addr & ~PAGE_MASK), PAGE_SIZE);
 
-	dma_map = kzalloc(sizeof(struct dma_mapping), GFP_ATOMIC);
+	dma_map = kzalloc(sizeof(struct dma_mapping), GFP_KERNEL);
 	if (dma_map == NULL)
 		return -ENOMEM;
 

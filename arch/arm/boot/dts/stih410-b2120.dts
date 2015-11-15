@@ -25,6 +25,7 @@
 
 	aliases {
 		ttyAS0 = &sbc_serial0;
+		ethernet0 = &ethernet0;
 	};
 
 	soc {
@@ -34,6 +35,30 @@
 			sd-uhs-sdr50;
 			sd-uhs-sdr104;
 			sd-uhs-ddr50;
+		};
+
+		usb2_picophy1: phy2 {
+			status = "okay";
+		};
+
+		usb2_picophy2: phy3 {
+			status = "okay";
+		};
+
+		ohci0: usb@9a03c00 {
+			status = "okay";
+		};
+
+		ehci0: usb@9a03e00 {
+			status = "okay";
+		};
+
+		ohci1: usb@9a83c00 {
+			status = "okay";
+		};
+
+		ehci1: usb@9a83e00 {
+			status = "okay";
 		};
 	};
 };

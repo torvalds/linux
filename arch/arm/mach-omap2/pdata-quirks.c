@@ -14,9 +14,18 @@
 #include <linux/kernel.h>
 #include <linux/of_platform.h>
 #include <linux/ti_wilink_st.h>
+#include <linux/wl12xx.h>
+#include <linux/mmc/card.h>
+#include <linux/mmc/host.h>
+#include <linux/regulator/machine.h>
+#include <linux/regulator/fixed.h>
 
 #include <linux/platform_data/pinctrl-single.h>
 #include <linux/platform_data/iommu-omap.h>
+#include <linux/platform_data/wkup_m3.h>
+
+#include <asm/siginfo.h>
+#include <asm/signal.h>
 
 #include "common.h"
 #include "common-board-devices.h"
@@ -25,13 +34,14 @@
 #include "omap_device.h"
 #include "omap-secure.h"
 #include "soc.h"
+#include "hsmmc.h"
 
 struct pdata_init {
 	const char *compatible;
 	void (*fn)(void);
 };
 
-struct of_dev_auxdata omap_auxdata_lookup[];
+static struct of_dev_auxdata omap_auxdata_lookup[];
 static struct twl4030_gpio_platform_data twl_gpio_auxdata;
 
 #ifdef CONFIG_MACH_NOKIA_N8X0
@@ -128,7 +138,7 @@ static void __init omap3_sbc_t3530_legacy_init(void)
 	omap3_sbc_t3x_usb_hub_init(167, "sb-t35 usb hub");
 }
 
-struct ti_st_plat_data wilink_pdata = {
+static struct ti_st_plat_data wilink_pdata = {
 	.nshutdown_gpio = 137,
 	.dev_name = "/dev/ttyO1",
 	.flow_cntrl = 1,
@@ -268,11 +278,147 @@ static void __init omap3_tao3530_legacy_init(void)
 {
 	hsmmc2_internal_input_clk();
 }
+
+/* omap3pandora legacy devices */
+#define PANDORA_WIFI_IRQ_GPIO		21
+#define PANDORA_WIFI_NRESET_GPIO	23
+
+static struct platform_device pandora_backlight = {
+	.name	= "pandora-backlight",
+	.id	= -1,
+};
+
+static struct regulator_consumer_supply pandora_vmmc3_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.2"),
+};
+
+static struct regulator_init_data pandora_vmmc3 = {
+	.constraints = {
+		.valid_ops_mask		= REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(pandora_vmmc3_supply),
+	.consumer_supplies	= pandora_vmmc3_supply,
+};
+
+static struct fixed_voltage_config pandora_vwlan = {
+	.supply_name		= "vwlan",
+	.microvolts		= 1800000, /* 1.8V */
+	.gpio			= PANDORA_WIFI_NRESET_GPIO,
+	.startup_delay		= 50000, /* 50ms */
+	.enable_high		= 1,
+	.init_data		= &pandora_vmmc3,
+};
+
+static struct platform_device pandora_vwlan_device = {
+	.name		= "reg-fixed-voltage",
+	.id		= 1,
+	.dev = {
+		.platform_data = &pandora_vwlan,
+	},
+};
+
+static void pandora_wl1251_init_card(struct mmc_card *card)
+{
+	/*
+	 * We have TI wl1251 attached to MMC3. Pass this information to
+	 * SDIO core because it can't be probed by normal methods.
+	 */
+	if (card->type == MMC_TYPE_SDIO || card->type == MMC_TYPE_SD_COMBO) {
+		card->quirks |= MMC_QUIRK_NONSTD_SDIO;
+		card->cccr.wide_bus = 1;
+		card->cis.vendor = 0x104c;
+		card->cis.device = 0x9066;
+		card->cis.blksize = 512;
+		card->cis.max_dtr = 24000000;
+		card->ocr = 0x80;
+	}
+}
+
+static struct omap2_hsmmc_info pandora_mmc3[] = {
+	{
+		.mmc		= 3,
+		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_POWER_OFF_CARD,
+		.gpio_cd	= -EINVAL,
+		.gpio_wp	= -EINVAL,
+		.init_card	= pandora_wl1251_init_card,
+	},
+	{}	/* Terminator */
+};
+
+static void __init pandora_wl1251_init(void)
+{
+	struct wl1251_platform_data pandora_wl1251_pdata;
+	int ret;
+
+	memset(&pandora_wl1251_pdata, 0, sizeof(pandora_wl1251_pdata));
+
+	pandora_wl1251_pdata.power_gpio = -1;
+
+	ret = gpio_request_one(PANDORA_WIFI_IRQ_GPIO, GPIOF_IN, "wl1251 irq");
+	if (ret < 0)
+		goto fail;
+
+	pandora_wl1251_pdata.irq = gpio_to_irq(PANDORA_WIFI_IRQ_GPIO);
+	if (pandora_wl1251_pdata.irq < 0)
+		goto fail_irq;
+
+	pandora_wl1251_pdata.use_eeprom = true;
+	ret = wl1251_set_platform_data(&pandora_wl1251_pdata);
+	if (ret < 0)
+		goto fail_irq;
+
+	return;
+
+fail_irq:
+	gpio_free(PANDORA_WIFI_IRQ_GPIO);
+fail:
+	pr_err("wl1251 board initialisation failed\n");
+}
+
+static void __init omap3_pandora_legacy_init(void)
+{
+	platform_device_register(&pandora_backlight);
+	platform_device_register(&pandora_vwlan_device);
+	omap_hsmmc_init(pandora_mmc3);
+	omap_hsmmc_late_init(pandora_mmc3);
+	pandora_wl1251_init();
+}
 #endif /* CONFIG_ARCH_OMAP3 */
+
+#ifdef CONFIG_SOC_TI81XX
+static int fault_fixed_up;
+
+static int t410_abort_handler(unsigned long addr, unsigned int fsr,
+			      struct pt_regs *regs)
+{
+	if ((fsr == 0x406 || fsr == 0xc06) && !fault_fixed_up) {
+		pr_warn("External imprecise Data abort at addr=%#lx, fsr=%#x ignored.\n",
+			addr, fsr);
+		fault_fixed_up = 1;
+		return 0;
+	}
+
+	return 1;
+}
+
+static void __init t410_abort_init(void)
+{
+	hook_fault_code(16 + 6, t410_abort_handler, SIGBUS, BUS_OBJERR,
+			"imprecise external abort");
+}
+#endif
 
 #if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5)
 static struct iommu_platform_data omap4_iommu_pdata = {
 	.reset_name = "mmu_cache",
+	.assert_reset = omap_device_assert_hardreset,
+	.deassert_reset = omap_device_deassert_hardreset,
+};
+#endif
+
+#if defined(CONFIG_SOC_AM33XX) || defined(CONFIG_SOC_AM43XX)
+static struct wkup_m3_platform_data wkup_m3_data = {
+	.reset_name = "wkup_m3",
 	.assert_reset = omap_device_assert_hardreset,
 	.deassert_reset = omap_device_deassert_hardreset,
 };
@@ -323,7 +469,7 @@ static struct pdata_init auxdata_quirks[] __initdata = {
 	{ /* sentinel */ },
 };
 
-struct of_dev_auxdata omap_auxdata_lookup[] __initdata = {
+static struct of_dev_auxdata omap_auxdata_lookup[] __initdata = {
 #ifdef CONFIG_MACH_NOKIA_N8X0
 	OF_DEV_AUXDATA("ti,omap2420-mmc", 0x4809c000, "mmci-omap.0", NULL),
 	OF_DEV_AUXDATA("menelaus", 0x72, "1-0072", &n8x0_menelaus_platform_data),
@@ -340,6 +486,10 @@ struct of_dev_auxdata omap_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("ti,am3517-emac", 0x5c000000, "davinci_emac.0",
 		       &am35xx_emac_pdata),
 #endif
+#ifdef CONFIG_SOC_AM33XX
+	OF_DEV_AUXDATA("ti,am3352-wkup-m3", 0x44d00000, "44d00000.wkup_m3",
+		       &wkup_m3_data),
+#endif
 #ifdef CONFIG_ARCH_OMAP4
 	OF_DEV_AUXDATA("ti,omap4-padconf", 0x4a100040, "4a100040.pinmux", &pcs_pdata),
 	OF_DEV_AUXDATA("ti,omap4-padconf", 0x4a31e040, "4a31e040.pinmux", &pcs_pdata),
@@ -353,6 +503,8 @@ struct of_dev_auxdata omap_auxdata_lookup[] __initdata = {
 #endif
 #ifdef CONFIG_SOC_AM43XX
 	OF_DEV_AUXDATA("ti,am437-padconf", 0x44e10800, "44e10800.pinmux", &pcs_pdata),
+	OF_DEV_AUXDATA("ti,am4372-wkup-m3", 0x44d00000, "44d00000.wkup_m3",
+		       &wkup_m3_data),
 #endif
 #if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5)
 	OF_DEV_AUXDATA("ti,omap4-iommu", 0x4a066000, "4a066000.mmu",
@@ -381,6 +533,11 @@ static struct pdata_init pdata_quirks[] __initdata = {
 	{ "ti,omap3-evm-37xx", omap3_evm_legacy_init, },
 	{ "ti,am3517-evm", am3517_evm_legacy_init, },
 	{ "technexion,omap3-tao3530", omap3_tao3530_legacy_init, },
+	{ "openpandora,omap3-pandora-600mhz", omap3_pandora_legacy_init, },
+	{ "openpandora,omap3-pandora-1ghz", omap3_pandora_legacy_init, },
+#endif
+#ifdef CONFIG_SOC_TI81XX
+	{ "hp,t410", t410_abort_init, },
 #endif
 #ifdef CONFIG_SOC_OMAP5
 	{ "ti,omap5-uevm", omap5_uevm_legacy_init, },
@@ -402,7 +559,14 @@ static void pdata_quirks_check(struct pdata_init *quirks)
 
 void __init pdata_quirks_init(const struct of_device_id *omap_dt_match_table)
 {
-	omap_sdrc_init(NULL, NULL);
+	/*
+	 * We still need this for omap2420 and omap3 PM to work, others are
+	 * using drivers/misc/sram.c already.
+	 */
+	if (of_machine_is_compatible("ti,omap2420") ||
+	    of_machine_is_compatible("ti,omap3"))
+		omap_sdrc_init(NULL, NULL);
+
 	pdata_quirks_check(auxdata_quirks);
 	of_platform_populate(NULL, omap_dt_match_table,
 			     omap_auxdata_lookup, NULL);

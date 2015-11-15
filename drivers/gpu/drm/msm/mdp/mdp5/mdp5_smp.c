@@ -34,21 +34,43 @@
  * and CANNOT be re-allocated (eg: MMB0 and MMB1 both tied to RGB0).
  *
  * For each block that can be dynamically allocated, it can be either
- * free, or pending/in-use by a client. The updates happen in three steps:
+ *     free:
+ *     The block is free.
+ *
+ *     pending:
+ *     The block is allocated to some client and not free.
+ *
+ *     configured:
+ *     The block is allocated to some client, and assigned to that
+ *     client in MDP5_MDP_SMP_ALLOC registers.
+ *
+ *     inuse:
+ *     The block is being actively used by a client.
+ *
+ * The updates happen in the following steps:
  *
  *  1) mdp5_smp_request():
  *     When plane scanout is setup, calculate required number of
- *     blocks needed per client, and request.  Blocks not inuse or
- *     pending by any other client are added to client's pending
- *     set.
+ *     blocks needed per client, and request. Blocks neither inuse nor
+ *     configured nor pending by any other client are added to client's
+ *     pending set.
+ *     For shrinking, blocks in pending but not in configured can be freed
+ *     directly, but those already in configured will be freed later by
+ *     mdp5_smp_commit.
  *
  *  2) mdp5_smp_configure():
  *     As hw is programmed, before FLUSH, MDP5_MDP_SMP_ALLOC registers
  *     are configured for the union(pending, inuse)
+ *     Current pending is copied to configured.
+ *     It is assumed that mdp5_smp_request and mdp5_smp_configure not run
+ *     concurrently for the same pipe.
  *
  *  3) mdp5_smp_commit():
- *     After next vblank, copy pending -> inuse.  Optionally update
+ *     After next vblank, copy configured -> inuse.  Optionally update
  *     MDP5_SMP_ALLOC registers if there are newly unused blocks
+ *
+ *  4) mdp5_smp_release():
+ *     Must be called after the pipe is disabled and no longer uses any SMB
  *
  * On the next vblank after changes have been committed to hw, the
  * client's pending blocks become it's in-use blocks (and no-longer
@@ -68,6 +90,8 @@
 struct mdp5_smp {
 	struct drm_device *dev;
 
+	uint8_t reserved[MAX_CLIENTS]; /* fixed MMBs allocation per client */
+
 	int blk_cnt;
 	int blk_size;
 
@@ -76,6 +100,9 @@ struct mdp5_smp {
 
 	struct mdp5_client_smp_state client_state[MAX_CLIENTS];
 };
+
+static void update_smp_state(struct mdp5_smp *smp,
+		u32 cid, mdp5_smp_state_t *assigned);
 
 static inline
 struct mdp5_kms *get_kms(struct mdp5_smp *smp)
@@ -112,14 +139,12 @@ static int smp_request_block(struct mdp5_smp *smp,
 		u32 cid, int nblks)
 {
 	struct mdp5_kms *mdp5_kms = get_kms(smp);
-	const struct mdp5_cfg_hw *hw_cfg;
 	struct mdp5_client_smp_state *ps = &smp->client_state[cid];
 	int i, ret, avail, cur_nblks, cnt = smp->blk_cnt;
-	int reserved;
+	uint8_t reserved;
 	unsigned long flags;
 
-	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
-	reserved = hw_cfg->smp.reserved[cid];
+	reserved = smp->reserved[cid];
 
 	spin_lock_irqsave(&smp->state_lock, flags);
 
@@ -149,7 +174,12 @@ static int smp_request_block(struct mdp5_smp *smp,
 		for (i = cur_nblks; i > nblks; i--) {
 			int blk = find_first_bit(ps->pending, cnt);
 			clear_bit(blk, ps->pending);
-			/* don't clear in global smp_state until _commit() */
+
+			/* clear in global smp_state if not in configured
+			 * otherwise until _commit()
+			 */
+			if (!test_bit(blk, ps->configured))
+				clear_bit(blk, smp->state);
 		}
 	}
 
@@ -179,18 +209,35 @@ static void set_fifo_thresholds(struct mdp5_smp *smp,
  * decimated width.  Ie. SMP buffering sits downstream of decimation (which
  * presumably happens during the dma from scanout buffer).
  */
-int mdp5_smp_request(struct mdp5_smp *smp, enum mdp5_pipe pipe, u32 fmt, u32 width)
+int mdp5_smp_request(struct mdp5_smp *smp, enum mdp5_pipe pipe,
+		const struct mdp_format *format, u32 width, bool hdecim)
 {
 	struct mdp5_kms *mdp5_kms = get_kms(smp);
 	struct drm_device *dev = mdp5_kms->dev;
 	int rev = mdp5_cfg_get_hw_rev(mdp5_kms->cfg);
 	int i, hsub, nplanes, nlines, nblks, ret;
+	u32 fmt = format->base.pixel_format;
 
 	nplanes = drm_format_num_planes(fmt);
 	hsub = drm_format_horz_chroma_subsampling(fmt);
 
 	/* different if BWC (compressed framebuffer?) enabled: */
 	nlines = 2;
+
+	/* Newer MDPs have split/packing logic, which fetches sub-sampled
+	 * U and V components (splits them from Y if necessary) and packs
+	 * them together, writes to SMP using a single client.
+	 */
+	if ((rev > 0) && (format->chroma_sample > CHROMA_FULL)) {
+		fmt = DRM_FORMAT_NV24;
+		nplanes = 2;
+
+		/* if decimation is enabled, HW decimates less on the
+		 * sub sampled chroma components
+		 */
+		if (hdecim && (hsub > 1))
+			hsub = 1;
+	}
 
 	for (i = 0, nblks = 0; i < nplanes; i++) {
 		int n, fetch_stride, cpp;
@@ -223,10 +270,33 @@ int mdp5_smp_request(struct mdp5_smp *smp, enum mdp5_pipe pipe, u32 fmt, u32 wid
 /* Release SMP blocks for all clients of the pipe */
 void mdp5_smp_release(struct mdp5_smp *smp, enum mdp5_pipe pipe)
 {
-	int i, nblks;
+	int i;
+	unsigned long flags;
+	int cnt = smp->blk_cnt;
 
-	for (i = 0, nblks = 0; i < pipe2nclients(pipe); i++)
-		smp_request_block(smp, pipe2client(pipe, i), 0);
+	for (i = 0; i < pipe2nclients(pipe); i++) {
+		mdp5_smp_state_t assigned;
+		u32 cid = pipe2client(pipe, i);
+		struct mdp5_client_smp_state *ps = &smp->client_state[cid];
+
+		spin_lock_irqsave(&smp->state_lock, flags);
+
+		/* clear hw assignment */
+		bitmap_or(assigned, ps->inuse, ps->configured, cnt);
+		update_smp_state(smp, CID_UNUSED, &assigned);
+
+		/* free to global pool */
+		bitmap_andnot(smp->state, smp->state, ps->pending, cnt);
+		bitmap_andnot(smp->state, smp->state, assigned, cnt);
+
+		/* clear client's infor */
+		bitmap_zero(ps->pending, cnt);
+		bitmap_zero(ps->configured, cnt);
+		bitmap_zero(ps->inuse, cnt);
+
+		spin_unlock_irqrestore(&smp->state_lock, flags);
+	}
+
 	set_fifo_thresholds(smp, pipe, 0);
 }
 
@@ -274,12 +344,20 @@ void mdp5_smp_configure(struct mdp5_smp *smp, enum mdp5_pipe pipe)
 		u32 cid = pipe2client(pipe, i);
 		struct mdp5_client_smp_state *ps = &smp->client_state[cid];
 
-		bitmap_or(assigned, ps->inuse, ps->pending, cnt);
+		/*
+		 * if vblank has not happened since last smp_configure
+		 * skip the configure for now
+		 */
+		if (!bitmap_equal(ps->inuse, ps->configured, cnt))
+			continue;
+
+		bitmap_copy(ps->configured, ps->pending, cnt);
+		bitmap_or(assigned, ps->inuse, ps->configured, cnt);
 		update_smp_state(smp, cid, &assigned);
 	}
 }
 
-/* step #3: after vblank, copy pending -> inuse: */
+/* step #3: after vblank, copy configured -> inuse: */
 void mdp5_smp_commit(struct mdp5_smp *smp, enum mdp5_pipe pipe)
 {
 	int cnt = smp->blk_cnt;
@@ -295,7 +373,7 @@ void mdp5_smp_commit(struct mdp5_smp *smp, enum mdp5_pipe pipe)
 		 * using, which can be released and made available to other
 		 * clients:
 		 */
-		if (bitmap_andnot(released, ps->inuse, ps->pending, cnt)) {
+		if (bitmap_andnot(released, ps->inuse, ps->configured, cnt)) {
 			unsigned long flags;
 
 			spin_lock_irqsave(&smp->state_lock, flags);
@@ -306,7 +384,7 @@ void mdp5_smp_commit(struct mdp5_smp *smp, enum mdp5_pipe pipe)
 			update_smp_state(smp, CID_UNUSED, &released);
 		}
 
-		bitmap_copy(ps->inuse, ps->pending, cnt);
+		bitmap_copy(ps->inuse, ps->configured, cnt);
 	}
 }
 
@@ -332,6 +410,7 @@ struct mdp5_smp *mdp5_smp_init(struct drm_device *dev, const struct mdp5_smp_blo
 
 	/* statically tied MMBs cannot be re-allocated: */
 	bitmap_copy(smp->state, cfg->reserved_state, smp->blk_cnt);
+	memcpy(smp->reserved, cfg->reserved, sizeof(smp->reserved));
 	spin_lock_init(&smp->state_lock);
 
 	return smp;

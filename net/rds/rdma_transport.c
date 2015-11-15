@@ -34,6 +34,7 @@
 #include <rdma/rdma_cm.h>
 
 #include "rdma_transport.h"
+#include "ib.h"
 
 static struct rdma_cm_id *rds_rdma_listen_id;
 
@@ -82,8 +83,18 @@ int rds_rdma_cm_event_handler(struct rdma_cm_id *cm_id,
 		break;
 
 	case RDMA_CM_EVENT_ROUTE_RESOLVED:
-		/* XXX worry about racing with listen acceptance */
-		ret = trans->cm_initiate_connect(cm_id);
+		/* Connection could have been dropped so make sure the
+		 * cm_id is valid before proceeding
+		 */
+		if (conn) {
+			struct rds_ib_connection *ibic;
+
+			ibic = conn->c_transport_data;
+			if (ibic && ibic->i_cm_id == cm_id)
+				ret = trans->cm_initiate_connect(cm_id);
+			else
+				rds_conn_drop(conn);
+		}
 		break;
 
 	case RDMA_CM_EVENT_ESTABLISHED:
@@ -131,8 +142,8 @@ static int rds_rdma_listen_init(void)
 	struct rdma_cm_id *cm_id;
 	int ret;
 
-	cm_id = rdma_create_id(rds_rdma_cm_event_handler, NULL, RDMA_PS_TCP,
-			       IB_QPT_RC);
+	cm_id = rdma_create_id(&init_net, rds_rdma_cm_event_handler, NULL,
+			       RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(cm_id)) {
 		ret = PTR_ERR(cm_id);
 		printk(KERN_ERR "RDS/RDMA: failed to setup listener, "

@@ -42,6 +42,11 @@ static inline int arch_spin_is_locked(arch_spinlock_t *lock)
 	return ((counters >> 16) ^ counters) & 0xffff;
 }
 
+static inline int arch_spin_value_unlocked(arch_spinlock_t lock)
+{
+	return lock.h.serving_now == lock.h.ticket;
+}
+
 #define arch_spin_lock_flags(lock, flags) arch_spin_lock(lock)
 #define arch_spin_unlock_wait(x) \
 	while (arch_spin_is_locked(x)) { cpu_relax(); }

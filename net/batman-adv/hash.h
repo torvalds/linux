@@ -39,17 +39,17 @@ typedef int (*batadv_hashdata_compare_cb)(const struct hlist_node *,
  * based on the key in the data of the first
  * argument and the size the second
  */
-typedef uint32_t (*batadv_hashdata_choose_cb)(const void *, uint32_t);
+typedef u32 (*batadv_hashdata_choose_cb)(const void *, u32);
 typedef void (*batadv_hashdata_free_cb)(struct hlist_node *, void *);
 
 struct batadv_hashtable {
 	struct hlist_head *table;   /* the hashtable itself with the buckets */
 	spinlock_t *list_locks;     /* spinlock for each hash list entry */
-	uint32_t size;		    /* size of hashtable */
+	u32 size;		    /* size of hashtable */
 };
 
 /* allocates and clears the hash */
-struct batadv_hashtable *batadv_hash_new(uint32_t size);
+struct batadv_hashtable *batadv_hash_new(u32 size);
 
 /* set class key for all locks */
 void batadv_hash_set_lock_class(struct batadv_hashtable *hash,
@@ -69,7 +69,7 @@ static inline void batadv_hash_delete(struct batadv_hashtable *hash,
 	struct hlist_head *head;
 	struct hlist_node *node, *node_tmp;
 	spinlock_t *list_lock; /* spinlock to protect write access */
-	uint32_t i;
+	u32 i;
 
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
@@ -105,7 +105,7 @@ static inline int batadv_hash_add(struct batadv_hashtable *hash,
 				  const void *data,
 				  struct hlist_node *data_node)
 {
-	uint32_t index;
+	u32 index;
 	int ret = -1;
 	struct hlist_head *head;
 	struct hlist_node *node;
@@ -149,7 +149,7 @@ static inline void *batadv_hash_remove(struct batadv_hashtable *hash,
 				       batadv_hashdata_choose_cb choose,
 				       void *data)
 {
-	uint32_t index;
+	u32 index;
 	struct hlist_node *node;
 	struct hlist_head *head;
 	void *data_save = NULL;

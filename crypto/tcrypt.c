@@ -48,6 +48,8 @@
 #define ENCRYPT 1
 #define DECRYPT 0
 
+#define MAX_DIGEST_SIZE		64
+
 /*
  * return a string with the driver name
  */
@@ -72,6 +74,22 @@ static char *check[] = {
 	"camellia", "seed", "salsa20", "rmd128", "rmd160", "rmd256", "rmd320",
 	"lzo", "cts", "zlib", NULL
 };
+
+struct tcrypt_result {
+	struct completion completion;
+	int err;
+};
+
+static void tcrypt_complete(struct crypto_async_request *req, int err)
+{
+	struct tcrypt_result *res = req->data;
+
+	if (err == -EINPROGRESS)
+		return;
+
+	res->err = err;
+	complete(&res->completion);
+}
 
 static int test_cipher_jiffies(struct blkcipher_desc *desc, int enc,
 			       struct scatterlist *sg, int blen, int secs)
@@ -143,6 +161,20 @@ out:
 	return ret;
 }
 
+static inline int do_one_aead_op(struct aead_request *req, int ret)
+{
+	if (ret == -EINPROGRESS || ret == -EBUSY) {
+		struct tcrypt_result *tr = req->base.data;
+
+		ret = wait_for_completion_interruptible(&tr->completion);
+		if (!ret)
+			ret = tr->err;
+		reinit_completion(&tr->completion);
+	}
+
+	return ret;
+}
+
 static int test_aead_jiffies(struct aead_request *req, int enc,
 				int blen, int secs)
 {
@@ -153,9 +185,9 @@ static int test_aead_jiffies(struct aead_request *req, int enc,
 	for (start = jiffies, end = start + secs * HZ, bcount = 0;
 	     time_before(jiffies, end); bcount++) {
 		if (enc)
-			ret = crypto_aead_encrypt(req);
+			ret = do_one_aead_op(req, crypto_aead_encrypt(req));
 		else
-			ret = crypto_aead_decrypt(req);
+			ret = do_one_aead_op(req, crypto_aead_decrypt(req));
 
 		if (ret)
 			return ret;
@@ -177,9 +209,9 @@ static int test_aead_cycles(struct aead_request *req, int enc, int blen)
 	/* Warm-up run. */
 	for (i = 0; i < 4; i++) {
 		if (enc)
-			ret = crypto_aead_encrypt(req);
+			ret = do_one_aead_op(req, crypto_aead_encrypt(req));
 		else
-			ret = crypto_aead_decrypt(req);
+			ret = do_one_aead_op(req, crypto_aead_decrypt(req));
 
 		if (ret)
 			goto out;
@@ -191,9 +223,9 @@ static int test_aead_cycles(struct aead_request *req, int enc, int blen)
 
 		start = get_cycles();
 		if (enc)
-			ret = crypto_aead_encrypt(req);
+			ret = do_one_aead_op(req, crypto_aead_encrypt(req));
 		else
-			ret = crypto_aead_decrypt(req);
+			ret = do_one_aead_op(req, crypto_aead_decrypt(req));
 		end = get_cycles();
 
 		if (ret)
@@ -286,6 +318,7 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 	char *axbuf[XBUFSIZE];
 	unsigned int *b_size;
 	unsigned int iv_len;
+	struct tcrypt_result result;
 
 	iv = kzalloc(MAX_IVLEN, GFP_KERNEL);
 	if (!iv)
@@ -321,6 +354,7 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 		goto out_notfm;
 	}
 
+	init_completion(&result.completion);
 	printk(KERN_INFO "\ntesting speed of %s (%s) %s\n", algo,
 			get_driver_name(crypto_aead, tfm), e);
 
@@ -330,6 +364,9 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 		       algo);
 		goto out_noreq;
 	}
+
+	aead_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+				  tcrypt_complete, &result);
 
 	i = 0;
 	do {
@@ -749,22 +786,6 @@ out:
 	crypto_free_hash(tfm);
 }
 
-struct tcrypt_result {
-	struct completion completion;
-	int err;
-};
-
-static void tcrypt_complete(struct crypto_async_request *req, int err)
-{
-	struct tcrypt_result *res = req->data;
-
-	if (err == -EINPROGRESS)
-		return;
-
-	res->err = err;
-	complete(&res->completion);
-}
-
 static inline int do_one_ahash_op(struct ahash_request *req, int ret)
 {
 	if (ret == -EINPROGRESS || ret == -EBUSY) {
@@ -931,7 +952,7 @@ static void test_ahash_speed(const char *algo, unsigned int secs,
 	struct tcrypt_result tresult;
 	struct ahash_request *req;
 	struct crypto_ahash *tfm;
-	static char output[1024];
+	char *output;
 	int i, ret;
 
 	tfm = crypto_alloc_ahash(algo, 0, 0);
@@ -944,9 +965,9 @@ static void test_ahash_speed(const char *algo, unsigned int secs,
 	printk(KERN_INFO "\ntesting speed of async %s (%s)\n", algo,
 			get_driver_name(crypto_ahash, tfm));
 
-	if (crypto_ahash_digestsize(tfm) > sizeof(output)) {
-		pr_err("digestsize(%u) > outputbuffer(%zu)\n",
-		       crypto_ahash_digestsize(tfm), sizeof(output));
+	if (crypto_ahash_digestsize(tfm) > MAX_DIGEST_SIZE) {
+		pr_err("digestsize(%u) > %d\n", crypto_ahash_digestsize(tfm),
+		       MAX_DIGEST_SIZE);
 		goto out;
 	}
 
@@ -960,6 +981,10 @@ static void test_ahash_speed(const char *algo, unsigned int secs,
 	init_completion(&tresult.completion);
 	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
 				   tcrypt_complete, &tresult);
+
+	output = kmalloc(MAX_DIGEST_SIZE, GFP_KERNEL);
+	if (!output)
+		goto out_nomem;
 
 	for (i = 0; speed[i].blen != 0; i++) {
 		if (speed[i].blen > TVMEMSIZE * PAGE_SIZE) {
@@ -987,6 +1012,9 @@ static void test_ahash_speed(const char *algo, unsigned int secs,
 		}
 	}
 
+	kfree(output);
+
+out_nomem:
 	ahash_request_free(req);
 
 out:
@@ -1759,13 +1787,26 @@ static int do_test(const char *alg, u32 type, u32 mask, int m)
 
 	case 211:
 		test_aead_speed("rfc4106(gcm(aes))", ENCRYPT, sec,
+				NULL, 0, 16, 16, aead_speed_template_20);
+		test_aead_speed("gcm(aes)", ENCRYPT, sec,
 				NULL, 0, 16, 8, aead_speed_template_20);
 		break;
 
 	case 212:
 		test_aead_speed("rfc4309(ccm(aes))", ENCRYPT, sec,
-				NULL, 0, 16, 8, aead_speed_template_19);
+				NULL, 0, 16, 16, aead_speed_template_19);
 		break;
+
+	case 213:
+		test_aead_speed("rfc7539esp(chacha20,poly1305)", ENCRYPT, sec,
+				NULL, 0, 16, 8, aead_speed_template_36);
+		break;
+
+	case 214:
+		test_cipher_speed("chacha20", ENCRYPT, sec, NULL, 0,
+				  speed_template_32);
+		break;
+
 
 	case 300:
 		if (alg) {
@@ -1853,6 +1894,10 @@ static int do_test(const char *alg, u32 type, u32 mask, int m)
 
 	case 320:
 		test_hash_speed("crct10dif", sec, generic_hash_speed_template);
+		if (mode > 300 && mode < 400) break;
+
+	case 321:
+		test_hash_speed("poly1305", sec, poly1305_speed_template);
 		if (mode > 300 && mode < 400) break;
 
 	case 399:

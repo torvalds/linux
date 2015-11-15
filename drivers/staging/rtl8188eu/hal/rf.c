@@ -102,7 +102,7 @@ void rtl88eu_phy_rf6052_set_cck_txpower(struct adapter *adapt, u8 *powerlevel)
 		}
 	}
 	rtl88eu_dm_txpower_track_adjust(&hal_data->odmpriv, 1, &direction,
-				        &pwrtrac_value);
+					&pwrtrac_value);
 
 	if (direction == 1) {
 		/*  Increase TX power */

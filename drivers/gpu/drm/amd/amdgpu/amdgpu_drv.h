@@ -31,7 +31,7 @@
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
 
-#include "amdgpu_family.h"
+#include "amd_shared.h"
 
 /* General customization:
  */

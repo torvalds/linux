@@ -60,14 +60,14 @@ static const struct mfd_cell mt6397_devs[] = {
 
 static void mt6397_irq_lock(struct irq_data *data)
 {
-	struct mt6397_chip *mt6397 = irq_get_chip_data(data->irq);
+	struct mt6397_chip *mt6397 = irq_data_get_irq_chip_data(data);
 
 	mutex_lock(&mt6397->irqlock);
 }
 
 static void mt6397_irq_sync_unlock(struct irq_data *data)
 {
-	struct mt6397_chip *mt6397 = irq_get_chip_data(data->irq);
+	struct mt6397_chip *mt6397 = irq_data_get_irq_chip_data(data);
 
 	regmap_write(mt6397->regmap, MT6397_INT_CON0, mt6397->irq_masks_cur[0]);
 	regmap_write(mt6397->regmap, MT6397_INT_CON1, mt6397->irq_masks_cur[1]);
@@ -77,7 +77,7 @@ static void mt6397_irq_sync_unlock(struct irq_data *data)
 
 static void mt6397_irq_disable(struct irq_data *data)
 {
-	struct mt6397_chip *mt6397 = irq_get_chip_data(data->irq);
+	struct mt6397_chip *mt6397 = irq_data_get_irq_chip_data(data);
 	int shift = data->hwirq & 0xf;
 	int reg = data->hwirq >> 4;
 
@@ -86,12 +86,30 @@ static void mt6397_irq_disable(struct irq_data *data)
 
 static void mt6397_irq_enable(struct irq_data *data)
 {
-	struct mt6397_chip *mt6397 = irq_get_chip_data(data->irq);
+	struct mt6397_chip *mt6397 = irq_data_get_irq_chip_data(data);
 	int shift = data->hwirq & 0xf;
 	int reg = data->hwirq >> 4;
 
 	mt6397->irq_masks_cur[reg] |= BIT(shift);
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int mt6397_irq_set_wake(struct irq_data *irq_data, unsigned int on)
+{
+	struct mt6397_chip *mt6397 = irq_data_get_irq_chip_data(irq_data);
+	int shift = irq_data->hwirq & 0xf;
+	int reg = irq_data->hwirq >> 4;
+
+	if (on)
+		mt6397->wake_mask[reg] |= BIT(shift);
+	else
+		mt6397->wake_mask[reg] &= ~BIT(shift);
+
+	return 0;
+}
+#else
+#define mt6397_irq_set_wake NULL
+#endif
 
 static struct irq_chip mt6397_irq_chip = {
 	.name = "mt6397-irq",
@@ -99,6 +117,7 @@ static struct irq_chip mt6397_irq_chip = {
 	.irq_bus_sync_unlock = mt6397_irq_sync_unlock,
 	.irq_enable = mt6397_irq_enable,
 	.irq_disable = mt6397_irq_disable,
+	.irq_set_wake = mt6397_irq_set_wake,
 };
 
 static void mt6397_irq_handle_reg(struct mt6397_chip *mt6397, int reg,
@@ -142,11 +161,7 @@ static int mt6397_irq_domain_map(struct irq_domain *d, unsigned int irq,
 	irq_set_chip_data(irq, mt6397);
 	irq_set_chip_and_handler(irq, &mt6397_irq_chip, handle_level_irq);
 	irq_set_nested_thread(irq, 1);
-#ifdef CONFIG_ARM
-	set_irq_flags(irq, IRQF_VALID);
-#else
 	irq_set_noprobe(irq);
-#endif
 
 	return 0;
 }
@@ -182,6 +197,35 @@ static int mt6397_irq_init(struct mt6397_chip *mt6397)
 
 	return 0;
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int mt6397_irq_suspend(struct device *dev)
+{
+	struct mt6397_chip *chip = dev_get_drvdata(dev);
+
+	regmap_write(chip->regmap, MT6397_INT_CON0, chip->wake_mask[0]);
+	regmap_write(chip->regmap, MT6397_INT_CON1, chip->wake_mask[1]);
+
+	enable_irq_wake(chip->irq);
+
+	return 0;
+}
+
+static int mt6397_irq_resume(struct device *dev)
+{
+	struct mt6397_chip *chip = dev_get_drvdata(dev);
+
+	regmap_write(chip->regmap, MT6397_INT_CON0, chip->irq_masks_cur[0]);
+	regmap_write(chip->regmap, MT6397_INT_CON1, chip->irq_masks_cur[1]);
+
+	disable_irq_wake(chip->irq);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(mt6397_pm_ops, mt6397_irq_suspend,
+			mt6397_irq_resume);
 
 static int mt6397_probe(struct platform_device *pdev)
 {
@@ -237,6 +281,7 @@ static struct platform_driver mt6397_driver = {
 	.driver = {
 		.name = "mt6397",
 		.of_match_table = of_match_ptr(mt6397_of_match),
+		.pm = &mt6397_pm_ops,
 	},
 };
 

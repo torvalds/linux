@@ -8,8 +8,6 @@
  * Common Clock Framework support for S3C2443 and following SoCs.
  */
 
-#include <linux/clk.h>
-#include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/of_address.h>

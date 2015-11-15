@@ -37,7 +37,7 @@
 /*
  * This is a non-standardized way to represent ADR or NVDIMM regions that
  * persist over a reboot.  The kernel will ignore their special capabilities
- * unless the CONFIG_X86_PMEM_LEGACY=y option is set.
+ * unless the CONFIG_X86_PMEM_LEGACY option is set.
  *
  * ( Note that older platforms also used 6 for the same type of memory,
  *   but newer versions switched to 12 as 6 was assigned differently.  Some

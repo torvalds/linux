@@ -45,6 +45,7 @@
 #include "accommon.h"
 #include "actables.h"
 #include "acapps.h"
+#include "errno.h"
 
 #ifdef ACPI_ASL_COMPILER
 #include "aslcompiler.h"
@@ -301,6 +302,11 @@ acpi_ut_read_table_from_file(char *filename, struct acpi_table_header ** table)
 	file = fopen(filename, "rb");
 	if (!file) {
 		perror("Could not open input file");
+
+		if (errno == ENOENT) {
+			return (AE_NOT_EXIST);
+		}
+
 		return (status);
 	}
 
@@ -312,7 +318,7 @@ acpi_ut_read_table_from_file(char *filename, struct acpi_table_header ** table)
 	/* Get the entire file */
 
 	fprintf(stderr,
-		"Reading ACPI table from file %10s - Length %.8u (0x%06X)\n",
+		"Reading ACPI table from file %12s - Length %.8u (0x%06X)\n",
 		filename, file_size, file_size);
 
 	status = acpi_ut_read_table(file, table, &table_length);

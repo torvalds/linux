@@ -6,6 +6,7 @@ Required properties:
 
 - compatible				: "renesas,rsrc-card,<board>"
 					  Examples with soctypes are:
+					    - "renesas,rsrc-card"
 					    - "renesas,rsrc-card,lager"
 					    - "renesas,rsrc-card,koelsch"
 Optional properties:
@@ -29,6 +30,12 @@ Optional subnode properties:
 - frame-inversion			: bool property. Add this if the
 					  dai-link uses frame clock inversion.
 - convert-rate				: platform specified sampling rate convert
+- audio-prefix				: see audio-routing
+- audio-routing				: A list of the connections between audio components.
+					  Each entry is a pair of strings, the first being the connection's sink,
+					  the second being the connection's source. Valid names for sources.
+					  use audio-prefix if some components is using same sink/sources naming.
+					  it can be used if compatible was "renesas,rsrc-card";
 
 Required CPU/CODEC subnodes properties:
 

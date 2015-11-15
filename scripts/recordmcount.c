@@ -42,6 +42,7 @@
 
 #ifndef EM_AARCH64
 #define EM_AARCH64	183
+#define R_AARCH64_NONE		0
 #define R_AARCH64_ABS64	257
 #endif
 
@@ -157,6 +158,22 @@ static int make_nop_x86(void *map, size_t const offset)
 	/* convert to nop */
 	ulseek(fd_map, offset - 1, SEEK_SET);
 	uwrite(fd_map, ideal_nop, 5);
+	return 0;
+}
+
+static unsigned char ideal_nop4_arm64[4] = {0x1f, 0x20, 0x03, 0xd5};
+static int make_nop_arm64(void *map, size_t const offset)
+{
+	uint32_t *ptr;
+
+	ptr = map + offset;
+	/* bl <_mcount> is 0x94000000 before relocation */
+	if (*ptr != 0x94000000)
+		return -1;
+
+	/* Convert to nop */
+	ulseek(fd_map, offset, SEEK_SET);
+	uwrite(fd_map, ideal_nop, 4);
 	return 0;
 }
 
@@ -345,6 +362,7 @@ do_file(char const *const fname)
 		break;
 	case EM_386:
 		reltype = R_386_32;
+		rel_type_nop = R_386_NONE;
 		make_nop = make_nop_x86;
 		ideal_nop = ideal_nop5_x86_32;
 		mcount_adjust_32 = -1;
@@ -353,7 +371,12 @@ do_file(char const *const fname)
 			 altmcount = "__gnu_mcount_nc";
 			 break;
 	case EM_AARCH64:
-			 reltype = R_AARCH64_ABS64; gpfx = '_'; break;
+			reltype = R_AARCH64_ABS64;
+			make_nop = make_nop_arm64;
+			rel_type_nop = R_AARCH64_NONE;
+			ideal_nop = ideal_nop4_arm64;
+			gpfx = '_';
+			break;
 	case EM_IA_64:	 reltype = R_IA64_IMM64;   gpfx = '_'; break;
 	case EM_METAG:	 reltype = R_METAG_ADDR32;
 			 altmcount = "_mcount_wrapper";
@@ -371,6 +394,7 @@ do_file(char const *const fname)
 		make_nop = make_nop_x86;
 		ideal_nop = ideal_nop5_x86_64;
 		reltype = R_X86_64_64;
+		rel_type_nop = R_X86_64_NONE;
 		mcount_adjust_64 = -1;
 		break;
 	}  /* end switch */

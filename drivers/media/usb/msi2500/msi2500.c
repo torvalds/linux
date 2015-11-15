@@ -28,6 +28,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
 #include <linux/usb.h>
+#include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-vmalloc.h>
 #include <linux/spi/spi.h>
 
@@ -112,7 +113,8 @@ static const unsigned int NUM_FORMATS = ARRAY_SIZE(formats);
 
 /* intermediate buffers with raw data from the USB device */
 struct msi2500_frame_buf {
-	struct vb2_buffer vb;   /* common v4l buffer stuff -- must be first */
+	/* common v4l buffer stuff -- must be first */
+	struct vb2_v4l2_buffer vb;
 	struct list_head list;
 };
 
@@ -431,10 +433,10 @@ static void msi2500_isoc_handler(struct urb *urb)
 		}
 
 		/* fill framebuffer */
-		ptr = vb2_plane_vaddr(&fbuf->vb, 0);
+		ptr = vb2_plane_vaddr(&fbuf->vb.vb2_buf, 0);
 		flen = msi2500_convert_stream(dev, ptr, iso_buf, flen);
-		vb2_set_plane_payload(&fbuf->vb, 0, flen);
-		vb2_buffer_done(&fbuf->vb, VB2_BUF_STATE_DONE);
+		vb2_set_plane_payload(&fbuf->vb.vb2_buf, 0, flen);
+		vb2_buffer_done(&fbuf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 	}
 
 handler_end:
@@ -569,7 +571,7 @@ static void msi2500_cleanup_queued_bufs(struct msi2500_dev *dev)
 		buf = list_entry(dev->queued_bufs.next,
 				 struct msi2500_frame_buf, list);
 		list_del(&buf->list);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 	spin_unlock_irqrestore(&dev->queued_bufs_lock, flags);
 }
@@ -614,7 +616,7 @@ static int msi2500_querycap(struct file *file, void *fh,
 
 /* Videobuf2 operations */
 static int msi2500_queue_setup(struct vb2_queue *vq,
-			       const struct v4l2_format *fmt,
+			       const void *parg,
 			       unsigned int *nbuffers,
 			       unsigned int *nplanes, unsigned int sizes[],
 			       void *alloc_ctxs[])
@@ -633,15 +635,16 @@ static int msi2500_queue_setup(struct vb2_queue *vq,
 
 static void msi2500_buf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct msi2500_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
-	struct msi2500_frame_buf *buf = container_of(vb,
+	struct msi2500_frame_buf *buf = container_of(vbuf,
 						     struct msi2500_frame_buf,
 						     vb);
 	unsigned long flags;
 
 	/* Check the device has not disconnected between prep and queuing */
 	if (unlikely(!dev->udev)) {
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 		return;
 	}
 

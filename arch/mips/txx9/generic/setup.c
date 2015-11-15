@@ -117,22 +117,6 @@ void clk_put(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_put);
 
-/* GPIO support */
-
-#ifdef CONFIG_GPIOLIB
-int gpio_to_irq(unsigned gpio)
-{
-	return -EINVAL;
-}
-EXPORT_SYMBOL(gpio_to_irq);
-
-int irq_to_gpio(unsigned irq)
-{
-	return -EINVAL;
-}
-EXPORT_SYMBOL(irq_to_gpio);
-#endif
-
 #define BOARD_VEC(board)	extern struct txx9_board_vec board;
 #include <asm/txx9/boards.h>
 #undef BOARD_VEC

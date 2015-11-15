@@ -313,8 +313,10 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		/* check to make sure this item is what we want */
 		if (found_key.objectid != key.objectid)
 			break;
-		if (found_key.type != BTRFS_XATTR_ITEM_KEY)
+		if (found_key.type > BTRFS_XATTR_ITEM_KEY)
 			break;
+		if (found_key.type < BTRFS_XATTR_ITEM_KEY)
+			goto next;
 
 		di = btrfs_item_ptr(leaf, slot, struct btrfs_dir_item);
 		if (verify_dir_item(root, leaf, di))

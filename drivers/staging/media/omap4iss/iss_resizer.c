@@ -143,7 +143,7 @@ static void resizer_set_outaddr(struct iss_resizer_device *resizer, u32 addr)
 	informat = &resizer->formats[RESIZER_PAD_SINK];
 	outformat = &resizer->formats[RESIZER_PAD_SOURCE_MEM];
 
-	/* Save address splitted in Base Address H & L */
+	/* Save address split in Base Address H & L */
 	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_RESIZER, RZA_SDR_Y_BAD_H,
 		      (addr >> 16) & 0xffff);
 	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_RESIZER, RZA_SDR_Y_BAD_L,
@@ -168,7 +168,7 @@ static void resizer_set_outaddr(struct iss_resizer_device *resizer, u32 addr)
 			c_addr |= addr & 0x7f;
 		}
 
-		/* Save address splitted in Base Address H & L */
+		/* Save address split in Base Address H & L */
 		iss_reg_write(iss, OMAP4_ISS_MEM_ISP_RESIZER, RZA_SDR_C_BAD_H,
 			      (c_addr >> 16) & 0xffff);
 		iss_reg_write(iss, OMAP4_ISS_MEM_ISP_RESIZER, RZA_SDR_C_BAD_L,
@@ -274,7 +274,7 @@ static void resizer_isr_buffer(struct iss_resizer_device *resizer)
 	resizer_enable(resizer, 0);
 
 	buffer = omap4iss_video_buffer_next(&resizer->video_out);
-	if (buffer == NULL)
+	if (!buffer)
 		return;
 
 	resizer_set_outaddr(resizer, buffer->iss_addr);
@@ -482,7 +482,6 @@ resizer_try_format(struct iss_resizer_device *resizer,
 		fmt->width &= ~15;
 		fmt->height = clamp_t(u32, height, 32, fmt->height);
 		break;
-
 	}
 
 	fmt->colorspace = V4L2_COLORSPACE_JPEG;
@@ -497,8 +496,8 @@ resizer_try_format(struct iss_resizer_device *resizer,
  * return -EINVAL or zero on success
  */
 static int resizer_enum_mbus_code(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_pad_config *cfg,
-			       struct v4l2_subdev_mbus_code_enum *code)
+				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct iss_resizer_device *resizer = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
@@ -542,8 +541,8 @@ static int resizer_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int resizer_enum_frame_size(struct v4l2_subdev *sd,
-				struct v4l2_subdev_pad_config *cfg,
-				struct v4l2_subdev_frame_size_enum *fse)
+				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct iss_resizer_device *resizer = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt format;
@@ -588,7 +587,7 @@ static int resizer_get_format(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 
 	format = __resizer_get_format(resizer, cfg, fmt->pad, fmt->which);
-	if (format == NULL)
+	if (!format)
 		return -EINVAL;
 
 	fmt->format = *format;
@@ -612,7 +611,7 @@ static int resizer_set_format(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 
 	format = __resizer_get_format(resizer, cfg, fmt->pad, fmt->which);
-	if (format == NULL)
+	if (!format)
 		return -EINVAL;
 
 	resizer_try_format(resizer, cfg, fmt->pad, &fmt->format, fmt->which);
@@ -625,7 +624,7 @@ static int resizer_set_format(struct v4l2_subdev *sd,
 					      fmt->which);
 		*format = fmt->format;
 		resizer_try_format(resizer, cfg, RESIZER_PAD_SOURCE_MEM, format,
-				fmt->which);
+				   fmt->which);
 	}
 
 	return 0;
@@ -711,8 +710,8 @@ static const struct v4l2_subdev_internal_ops resizer_v4l2_internal_ops = {
  * return -EINVAL or zero on success
  */
 static int resizer_link_setup(struct media_entity *entity,
-			   const struct media_pad *local,
-			   const struct media_pad *remote, u32 flags)
+			      const struct media_pad *local,
+			      const struct media_pad *remote, u32 flags)
 {
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct iss_resizer_device *resizer = v4l2_get_subdevdata(sd);
@@ -733,7 +732,6 @@ static int resizer_link_setup(struct media_entity *entity,
 			resizer->input = RESIZER_INPUT_IPIPEIF;
 		else if (remote->entity == &iss->ipipe.subdev.entity)
 			resizer->input = RESIZER_INPUT_IPIPE;
-
 
 		break;
 
@@ -822,7 +820,7 @@ void omap4iss_resizer_unregister_entities(struct iss_resizer_device *resizer)
 }
 
 int omap4iss_resizer_register_entities(struct iss_resizer_device *resizer,
-	struct v4l2_device *vdev)
+				       struct v4l2_device *vdev)
 {
 	int ret;
 

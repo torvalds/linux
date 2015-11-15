@@ -1,11 +1,10 @@
 #ifndef __NVIF_IOCTL_H__
 #define __NVIF_IOCTL_H__
 
+#define NVIF_VERSION_LATEST                               0x0000000000000000ULL
+
 struct nvif_ioctl_v0 {
 	__u8  version;
-#define NVIF_IOCTL_V0_OWNER_NVIF                                           0x00
-#define NVIF_IOCTL_V0_OWNER_ANY                                            0xff
-	__u8  owner;
 #define NVIF_IOCTL_V0_NOP                                                  0x00
 #define NVIF_IOCTL_V0_SCLASS                                               0x01
 #define NVIF_IOCTL_V0_NEW                                                  0x02
@@ -20,17 +19,20 @@ struct nvif_ioctl_v0 {
 #define NVIF_IOCTL_V0_NTFY_GET                                             0x0b
 #define NVIF_IOCTL_V0_NTFY_PUT                                             0x0c
 	__u8  type;
-	__u8  path_nr;
+	__u8  pad02[4];
+#define NVIF_IOCTL_V0_OWNER_NVIF                                           0x00
+#define NVIF_IOCTL_V0_OWNER_ANY                                            0xff
+	__u8  owner;
 #define NVIF_IOCTL_V0_ROUTE_NVIF                                           0x00
 #define NVIF_IOCTL_V0_ROUTE_HIDDEN                                         0xff
-	__u8  pad04[3];
 	__u8  route;
 	__u64 token;
-	__u32 path[8];		/* in reverse */
+	__u64 object;
 	__u8  data[];		/* ioctl data (below) */
 };
 
-struct nvif_ioctl_nop {
+struct nvif_ioctl_nop_v0 {
+	__u64 version;
 };
 
 struct nvif_ioctl_sclass_v0 {
@@ -38,7 +40,11 @@ struct nvif_ioctl_sclass_v0 {
 	__u8  version;
 	__u8  count;
 	__u8  pad02[6];
-	__u32 oclass[];
+	struct nvif_ioctl_sclass_oclass_v0 {
+		__s32 oclass;
+		__s16 minver;
+		__s16 maxver;
+	} oclass[];
 };
 
 struct nvif_ioctl_new_v0 {
@@ -47,11 +53,17 @@ struct nvif_ioctl_new_v0 {
 	__u8  pad01[6];
 	__u8  route;
 	__u64 token;
+	__u64 object;
 	__u32 handle;
 /* these class numbers are made up by us, and not nvidia-assigned */
-#define NVIF_IOCTL_NEW_V0_PERFCTR                                    0x0000ffff
-#define NVIF_IOCTL_NEW_V0_CONTROL                                    0x0000fffe
-	__u32 oclass;
+#define NVIF_IOCTL_NEW_V0_CONTROL                                            -1
+#define NVIF_IOCTL_NEW_V0_PERFMON                                            -2
+#define NVIF_IOCTL_NEW_V0_PERFDOM                                            -3
+#define NVIF_IOCTL_NEW_V0_SW_NV04                                            -4
+#define NVIF_IOCTL_NEW_V0_SW_NV10                                            -5
+#define NVIF_IOCTL_NEW_V0_SW_NV50                                            -6
+#define NVIF_IOCTL_NEW_V0_SW_GF100                                           -7
+	__s32 oclass;
 	__u8  data[];		/* class data (class.h) */
 };
 

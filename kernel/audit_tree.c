@@ -197,13 +197,13 @@ struct audit_chunk *audit_tree_lookup(const struct inode *inode)
 	return NULL;
 }
 
-int audit_tree_match(struct audit_chunk *chunk, struct audit_tree *tree)
+bool audit_tree_match(struct audit_chunk *chunk, struct audit_tree *tree)
 {
 	int n;
 	for (n = 0; n < chunk->count; n++)
 		if (chunk->owners[n].owner == tree)
-			return 1;
-	return 0;
+			return true;
+	return false;
 }
 
 /* tagging and untagging inodes with trees */
@@ -479,6 +479,8 @@ static void kill_rules(struct audit_tree *tree)
 		if (rule->tree) {
 			/* not a half-baked one */
 			audit_tree_log_remove_rule(rule);
+			if (entry->rule.exe)
+				audit_remove_mark(entry->rule.exe);
 			rule->tree = NULL;
 			list_del_rcu(&entry->list);
 			list_del(&entry->rule.list);

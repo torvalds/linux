@@ -16,10 +16,16 @@
 
 #include "skeleton.dtsi"
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/reset/altr,rst-mgr-a10.h>
 
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+	};
 
 	cpus {
 		#address-cells = <1>;
@@ -409,6 +415,8 @@
 			rx-fifo-depth = <16384>;
 			clocks = <&l4_mp_clk>;
 			clock-names = "stmmaceth";
+			resets = <&rst EMAC0_RESET>;
+			reset-names = "stmmaceth";
 			status = "disabled";
 		};
 
@@ -426,6 +434,8 @@
 			rx-fifo-depth = <16384>;
 			clocks = <&l4_mp_clk>;
 			clock-names = "stmmaceth";
+			resets = <&rst EMAC1_RESET>;
+			reset-names = "stmmaceth";
 			status = "disabled";
 		};
 
@@ -509,6 +519,7 @@
 			compatible = "snps,designware-i2c";
 			reg = <0xffc02200 0x100>;
 			interrupts = <0 105 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&l4_sp_clk>;
 			status = "disabled";
 		};
 
@@ -518,6 +529,7 @@
 			compatible = "snps,designware-i2c";
 			reg = <0xffc02300 0x100>;
 			interrupts = <0 106 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&l4_sp_clk>;
 			status = "disabled";
 		};
 
@@ -527,6 +539,7 @@
 			compatible = "snps,designware-i2c";
 			reg = <0xffc02400 0x100>;
 			interrupts = <0 107 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&l4_sp_clk>;
 			status = "disabled";
 		};
 
@@ -536,6 +549,7 @@
 			compatible = "snps,designware-i2c";
 			reg = <0xffc02500 0x100>;
 			interrupts = <0 108 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&l4_sp_clk>;
 			status = "disabled";
 		};
 
@@ -545,6 +559,7 @@
 			compatible = "snps,designware-i2c";
 			reg = <0xffc02600 0x100>;
 			interrupts = <0 109 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&l4_sp_clk>;
 			status = "disabled";
 		};
 
@@ -588,6 +603,7 @@
 			#reset-cells = <1>;
 			compatible = "altr,rst-mgr";
 			reg = <0xffd05000 0x100>;
+			altr,modrst-offset = <0x20>;
 		};
 
 		scu: snoop-control-unit@ffffc000 {
@@ -647,6 +663,7 @@
 			interrupts = <0 110 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			clocks = <&l4_sp_clk>;
 			status = "disabled";
 		};
 
@@ -681,6 +698,8 @@
 			compatible = "snps,dwc2";
 			reg = <0xffb40000 0xffff>;
 			interrupts = <0 96 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&usb_clk>;
+			clock-names = "otg";
 			phys = <&usbphy0>;
 			phy-names = "usb2-phy";
 			status = "disabled";

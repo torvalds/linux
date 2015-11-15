@@ -1,0 +1,73 @@
+/*
+ * Author: Anthoine Bourgeois <anthoine.bourgois@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "omap3-devkit8000-common.dtsi"
+/ {
+	aliases {
+		display0 = &lcd0;
+		display1 = &dvi0;
+		display2 = &tv0;
+	};
+
+	lcd0: display@0 {
+		compatible = "panel-dpi";
+		label = "lcd";
+
+		enable-gpios = <&twl_gpio 18 GPIO_ACTIVE_HIGH>;
+
+		port {
+			lcd_in: endpoint {
+				remote-endpoint = <&dpi_lcd_out>;
+			};
+		};
+	};
+};
+
+&dss {
+	port {
+		dpi_lcd_out: endpoint@1 {
+			remote-endpoint = <&lcd_in>;
+			data-lines = <24>;
+		};
+	};
+};
+
+&vio {
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+};
+
+&mcspi2 {
+
+	/* touch controller */
+	ads7846@0 {
+		compatible = "ti,ads7846";
+		vcc-supply = <&vio>;
+
+		reg = <0>;			/* CS0 */
+		spi-max-frequency = <1500000>;
+
+		interrupt-parent = <&gpio1>;
+		interrupts = <27 0>;		/* gpio_27 */
+		pendown-gpio = <&gpio1 27 GPIO_ACTIVE_HIGH>;
+
+		ti,x-min = /bits/ 16 <0x0>;
+		ti,x-max = /bits/ 16 <0x0fff>;
+		ti,y-min = /bits/ 16 <0x0>;
+		ti,y-max = /bits/ 16 <0x0fff>;
+		ti,x-plate-ohms = /bits/ 16 <180>;
+		ti,pressure-max = /bits/ 16 <255>;
+		ti,debounce-max = /bits/ 16 <10>;
+		ti,debounce-tol = /bits/ 16 <5>;
+		ti,debounce-rep = /bits/ 16 <1>;
+		ti,keep-vref-on = <1>;
+		ti,settle-delay-usec = /bits/ 16 <150>;
+
+		linux,wakeup;
+	};
+};

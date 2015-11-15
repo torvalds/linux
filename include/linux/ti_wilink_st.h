@@ -86,7 +86,6 @@ struct st_proto_s {
 extern long st_register(struct st_proto_s *);
 extern long st_unregister(struct st_proto_s *);
 
-extern struct ti_st_plat_data   *dt_pdata;
 
 /*
  * header information used by st_core.c
@@ -159,6 +158,7 @@ struct st_data_s {
 	unsigned long ll_state;
 	void *kim_data;
 	struct tty_struct *tty;
+	struct work_struct work_write_wakeup;
 };
 
 /*

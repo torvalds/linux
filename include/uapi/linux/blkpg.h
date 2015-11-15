@@ -1,5 +1,5 @@
-#ifndef _LINUX_BLKPG_H
-#define _LINUX_BLKPG_H
+#ifndef _UAPI__LINUX_BLKPG_H
+#define _UAPI__LINUX_BLKPG_H
 
 /*
  * Partition table and disk geometry handling
@@ -56,4 +56,4 @@ struct blkpg_partition {
 	char volname[BLKPG_VOLNAMELTH];	/* volume label */
 };
 
-#endif /* _LINUX_BLKPG_H */
+#endif /* _UAPI__LINUX_BLKPG_H */

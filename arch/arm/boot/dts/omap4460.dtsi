@@ -46,7 +46,7 @@
 			       0x4a002378 0x18>;
 			compatible = "ti,omap4460-bandgap";
 			interrupts = <0 126 IRQ_TYPE_LEVEL_HIGH>; /* talert */
-			gpios = <&gpio3 22 0>; /* tshut */
+			gpios = <&gpio3 22 GPIO_ACTIVE_HIGH>; /* tshut */
 
 			#thermal-sensor-cells = <0>;
 		};

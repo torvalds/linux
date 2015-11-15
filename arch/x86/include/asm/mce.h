@@ -123,19 +123,27 @@ struct mca_config {
 };
 
 struct mce_vendor_flags {
-			/*
-			 * overflow recovery cpuid bit indicates that overflow
-			 * conditions are not fatal
-			 */
-	__u64		overflow_recov	: 1,
+	/*
+	 * Indicates that overflow conditions are not fatal, when set.
+	 */
+	__u64 overflow_recov	: 1,
 
-			/*
-			 * SUCCOR stands for S/W UnCorrectable error COntainment
-			 * and Recovery. It indicates support for data poisoning
-			 * in HW and deferred error interrupts.
-			 */
-			succor		: 1,
-			__reserved_0	: 62;
+	/*
+	 * (AMD) SUCCOR stands for S/W UnCorrectable error COntainment and
+	 * Recovery. It indicates support for data poisoning in HW and deferred
+	 * error interrupts.
+	 */
+	      succor		: 1,
+
+	/*
+	 * (AMD) SMCA: This bit indicates support for Scalable MCA which expands
+	 * the register space for each MCA bank and also increases number of
+	 * banks. Also, to accommodate the new banks and registers, the MCA
+	 * register space is moved to a new MSR range.
+	 */
+	      smca		: 1,
+
+	      __reserved_0	: 61;
 };
 extern struct mce_vendor_flags mce_flags;
 
@@ -151,10 +159,12 @@ extern int mce_p5_enabled;
 #ifdef CONFIG_X86_MCE
 int mcheck_init(void);
 void mcheck_cpu_init(struct cpuinfo_x86 *c);
+void mcheck_cpu_clear(struct cpuinfo_x86 *c);
 void mcheck_vendor_init_severity(void);
 #else
 static inline int mcheck_init(void) { return 0; }
 static inline void mcheck_cpu_init(struct cpuinfo_x86 *c) {}
+static inline void mcheck_cpu_clear(struct cpuinfo_x86 *c) {}
 static inline void mcheck_vendor_init_severity(void) {}
 #endif
 
@@ -181,20 +191,18 @@ DECLARE_PER_CPU(struct device *, mce_device);
 
 #ifdef CONFIG_X86_MCE_INTEL
 void mce_intel_feature_init(struct cpuinfo_x86 *c);
+void mce_intel_feature_clear(struct cpuinfo_x86 *c);
 void cmci_clear(void);
 void cmci_reenable(void);
 void cmci_rediscover(void);
 void cmci_recheck(void);
-void lmce_clear(void);
-void lmce_enable(void);
 #else
 static inline void mce_intel_feature_init(struct cpuinfo_x86 *c) { }
+static inline void mce_intel_feature_clear(struct cpuinfo_x86 *c) { }
 static inline void cmci_clear(void) {}
 static inline void cmci_reenable(void) {}
 static inline void cmci_rediscover(void) {}
 static inline void cmci_recheck(void) {}
-static inline void lmce_clear(void) {}
-static inline void lmce_enable(void) {}
 #endif
 
 #ifdef CONFIG_X86_MCE_AMD

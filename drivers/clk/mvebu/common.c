@@ -13,8 +13,8 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/clk.h>
-#include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -165,7 +165,7 @@ void __init mvebu_coreclk_setup(struct device_node *np,
 		clk_data.clks[2+n] = clk_register_fixed_factor(NULL, rclk_name,
 				       cpuclk_name, 0, mult, div);
 		WARN_ON(IS_ERR(clk_data.clks[2+n]));
-	};
+	}
 
 	/* Register optional refclk */
 	if (desc->get_refclk_freq) {

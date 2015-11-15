@@ -1054,18 +1054,23 @@ static void l2cap_sock_kill(struct sock *sk)
 	sock_put(sk);
 }
 
-static int __l2cap_wait_ack(struct sock *sk)
+static int __l2cap_wait_ack(struct sock *sk, struct l2cap_chan *chan)
 {
-	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
 	DECLARE_WAITQUEUE(wait, current);
 	int err = 0;
-	int timeo = HZ/5;
+	int timeo = L2CAP_WAIT_ACK_POLL_PERIOD;
+	/* Timeout to prevent infinite loop */
+	unsigned long timeout = jiffies + L2CAP_WAIT_ACK_TIMEOUT;
 
 	add_wait_queue(sk_sleep(sk), &wait);
 	set_current_state(TASK_INTERRUPTIBLE);
-	while (chan->unacked_frames > 0 && chan->conn) {
+	do {
+		BT_DBG("Waiting for %d ACKs, timeout %04d ms",
+		       chan->unacked_frames, time_after(jiffies, timeout) ? 0 :
+		       jiffies_to_msecs(timeout - jiffies));
+
 		if (!timeo)
-			timeo = HZ/5;
+			timeo = L2CAP_WAIT_ACK_POLL_PERIOD;
 
 		if (signal_pending(current)) {
 			err = sock_intr_errno(timeo);
@@ -1080,7 +1085,15 @@ static int __l2cap_wait_ack(struct sock *sk)
 		err = sock_error(sk);
 		if (err)
 			break;
-	}
+
+		if (time_after(jiffies, timeout)) {
+			err = -ENOLINK;
+			break;
+		}
+
+	} while (chan->unacked_frames > 0 &&
+		 chan->state == BT_CONNECTED);
+
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(sk_sleep(sk), &wait);
 	return err;
@@ -1098,41 +1111,76 @@ static int l2cap_sock_shutdown(struct socket *sock, int how)
 	if (!sk)
 		return 0;
 
+	lock_sock(sk);
+
+	if (sk->sk_shutdown)
+		goto shutdown_already;
+
+	BT_DBG("Handling sock shutdown");
+
+	/* prevent sk structure from being freed whilst unlocked */
+	sock_hold(sk);
+
 	chan = l2cap_pi(sk)->chan;
-	conn = chan->conn;
+	/* prevent chan structure from being freed whilst unlocked */
+	l2cap_chan_hold(chan);
 
 	BT_DBG("chan %p state %s", chan, state_to_string(chan->state));
 
+	if (chan->mode == L2CAP_MODE_ERTM &&
+	    chan->unacked_frames > 0 &&
+	    chan->state == BT_CONNECTED) {
+		err = __l2cap_wait_ack(sk, chan);
+
+		/* After waiting for ACKs, check whether shutdown
+		 * has already been actioned to close the L2CAP
+		 * link such as by l2cap_disconnection_req().
+		 */
+		if (sk->sk_shutdown)
+			goto has_shutdown;
+	}
+
+	sk->sk_shutdown = SHUTDOWN_MASK;
+	release_sock(sk);
+
+	l2cap_chan_lock(chan);
+	conn = chan->conn;
 	if (conn)
+		/* prevent conn structure from being freed */
+		l2cap_conn_get(conn);
+	l2cap_chan_unlock(chan);
+
+	if (conn)
+		/* mutex lock must be taken before l2cap_chan_lock() */
 		mutex_lock(&conn->chan_lock);
 
 	l2cap_chan_lock(chan);
-	lock_sock(sk);
+	l2cap_chan_close(chan, 0);
+	l2cap_chan_unlock(chan);
 
-	if (!sk->sk_shutdown) {
-		if (chan->mode == L2CAP_MODE_ERTM)
-			err = __l2cap_wait_ack(sk);
-
-		sk->sk_shutdown = SHUTDOWN_MASK;
-
-		release_sock(sk);
-		l2cap_chan_close(chan, 0);
-		lock_sock(sk);
-
-		if (sock_flag(sk, SOCK_LINGER) && sk->sk_lingertime &&
-		    !(current->flags & PF_EXITING))
-			err = bt_sock_wait_state(sk, BT_CLOSED,
-						 sk->sk_lingertime);
+	if (conn) {
+		mutex_unlock(&conn->chan_lock);
+		l2cap_conn_put(conn);
 	}
 
+	lock_sock(sk);
+
+	if (sock_flag(sk, SOCK_LINGER) && sk->sk_lingertime &&
+	    !(current->flags & PF_EXITING))
+		err = bt_sock_wait_state(sk, BT_CLOSED,
+					 sk->sk_lingertime);
+
+has_shutdown:
+	l2cap_chan_put(chan);
+	sock_put(sk);
+
+shutdown_already:
 	if (!err && sk->sk_err)
 		err = -sk->sk_err;
 
 	release_sock(sk);
-	l2cap_chan_unlock(chan);
 
-	if (conn)
-		mutex_unlock(&conn->chan_lock);
+	BT_DBG("Sock shutdown complete err: %d", err);
 
 	return err;
 }

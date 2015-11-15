@@ -126,11 +126,6 @@ static int fmr_cache = 1;
 module_param(fmr_cache, int, 0444);
 MODULE_PARM_DESC(fmr_cache, "non-zero to enable FMR caching");
 
-/* NB: this value is shared by all CPTs, it can grow at runtime */
-static int pmr_pool_size = 512;
-module_param(pmr_pool_size, int, 0444);
-MODULE_PARM_DESC(pmr_pool_size, "size of MR cache pmr pool on each CPT");
-
 /*
  * 0: disable failover
  * 1: enable failover if necessary
@@ -139,7 +134,6 @@ MODULE_PARM_DESC(pmr_pool_size, "size of MR cache pmr pool on each CPT");
 static int dev_failover;
 module_param(dev_failover, int, 0444);
 MODULE_PARM_DESC(dev_failover, "HCA failover for bonding (0 off, 1 on, other values reserved)");
-
 
 static int require_privileged_port;
 module_param(require_privileged_port, int, 0644);
@@ -170,7 +164,6 @@ kib_tunables_t kiblnd_tunables = {
 	.kib_fmr_pool_size     = &fmr_pool_size,
 	.kib_fmr_flush_trigger = &fmr_flush_trigger,
 	.kib_fmr_cache         = &fmr_cache,
-	.kib_pmr_pool_size     = &pmr_pool_size,
 	.kib_require_priv_port = &require_privileged_port,
 	.kib_use_priv_port     = &use_privileged_port,
 	.kib_nscheds           = &nscheds

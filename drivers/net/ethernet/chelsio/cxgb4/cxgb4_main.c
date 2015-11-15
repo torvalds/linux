@@ -83,7 +83,7 @@ char cxgb4_driver_name[] = KBUILD_MODNAME;
 #endif
 #define DRV_VERSION "2.0.0-ko"
 const char cxgb4_driver_version[] = DRV_VERSION;
-#define DRV_DESC "Chelsio T4/T5 Network Driver"
+#define DRV_DESC "Chelsio T4/T5/T6 Network Driver"
 
 /* Host shadow copy of ingress filter entry.  This is in host native format
  * and doesn't match the ordering or bit order, etc. of the hardware of the
@@ -151,6 +151,7 @@ MODULE_VERSION(DRV_VERSION);
 MODULE_DEVICE_TABLE(pci, cxgb4_pci_tbl);
 MODULE_FIRMWARE(FW4_FNAME);
 MODULE_FIRMWARE(FW5_FNAME);
+MODULE_FIRMWARE(FW6_FNAME);
 
 /*
  * Normally we're willing to become the firmware's Master PF but will be happy
@@ -275,7 +276,7 @@ static void link_report(struct net_device *dev)
 	else {
 		static const char *fc[] = { "no", "Rx", "Tx", "Tx/Rx" };
 
-		const char *s = "10Mbps";
+		const char *s;
 		const struct port_info *p = netdev_priv(dev);
 
 		switch (p->link_cfg.speed) {
@@ -291,6 +292,10 @@ static void link_report(struct net_device *dev)
 		case 40000:
 			s = "40Gbps";
 			break;
+		default:
+			pr_info("%s: unsupported speed: %d\n",
+				dev->name, p->link_cfg.speed);
+			return;
 		}
 
 		netdev_info(dev, "link up, %s, full-duplex, %s PAUSE\n", s,
@@ -1548,7 +1553,7 @@ int cxgb4_alloc_sftid(struct tid_info *t, int family, void *data)
 		t->stid_tab[stid].data = data;
 		stid -= t->nstids;
 		stid += t->sftid_base;
-		t->stids_in_use++;
+		t->sftids_in_use++;
 	}
 	spin_unlock_bh(&t->stid_lock);
 	return stid;
@@ -1573,10 +1578,14 @@ void cxgb4_free_stid(struct tid_info *t, unsigned int stid, int family)
 	else
 		bitmap_release_region(t->stid_bmap, stid, 2);
 	t->stid_tab[stid].data = NULL;
-	if (family == PF_INET)
-		t->stids_in_use--;
-	else
-		t->stids_in_use -= 4;
+	if (stid < t->nstids) {
+		if (family == PF_INET)
+			t->stids_in_use--;
+		else
+			t->stids_in_use -= 4;
+	} else {
+		t->sftids_in_use--;
+	}
 	spin_unlock_bh(&t->stid_lock);
 }
 EXPORT_SYMBOL(cxgb4_free_stid);
@@ -1654,20 +1663,25 @@ static void process_tid_release_list(struct work_struct *work)
  */
 void cxgb4_remove_tid(struct tid_info *t, unsigned int chan, unsigned int tid)
 {
-	void *old;
 	struct sk_buff *skb;
 	struct adapter *adap = container_of(t, struct adapter, tids);
 
-	old = t->tid_tab[tid];
+	WARN_ON(tid >= t->ntids);
+
+	if (t->tid_tab[tid]) {
+		t->tid_tab[tid] = NULL;
+		if (t->hash_base && (tid >= t->hash_base))
+			atomic_dec(&t->hash_tids_in_use);
+		else
+			atomic_dec(&t->tids_in_use);
+	}
+
 	skb = alloc_skb(sizeof(struct cpl_tid_release), GFP_ATOMIC);
 	if (likely(skb)) {
-		t->tid_tab[tid] = NULL;
 		mk_tid_release(skb, chan, tid);
 		t4_ofld_send(adap, skb);
 	} else
 		cxgb4_queue_tid_release(t, chan, tid);
-	if (old)
-		atomic_dec(&t->tids_in_use);
 }
 EXPORT_SYMBOL(cxgb4_remove_tid);
 
@@ -1702,9 +1716,11 @@ static int tid_init(struct tid_info *t)
 	spin_lock_init(&t->atid_lock);
 
 	t->stids_in_use = 0;
+	t->sftids_in_use = 0;
 	t->afree = NULL;
 	t->atids_in_use = 0;
 	atomic_set(&t->tids_in_use, 0);
+	atomic_set(&t->hash_tids_in_use, 0);
 
 	/* Setup the free list for atid_tab and clear the stid bitmap. */
 	if (natids) {
@@ -1923,6 +1939,28 @@ unsigned int cxgb4_best_aligned_mtu(const unsigned short *mtus,
 	return mtus[mtu_idx];
 }
 EXPORT_SYMBOL(cxgb4_best_aligned_mtu);
+
+/**
+ *	cxgb4_tp_smt_idx - Get the Source Mac Table index for this VI
+ *	@chip: chip type
+ *	@viid: VI id of the given port
+ *
+ *	Return the SMT index for this VI.
+ */
+unsigned int cxgb4_tp_smt_idx(enum chip_type chip, unsigned int viid)
+{
+	/* In T4/T5, SMT contains 256 SMAC entries organized in
+	 * 128 rows of 2 entries each.
+	 * In T6, SMT contains 256 SMAC entries in 256 rows.
+	 * TODO: The below code needs to be updated when we add support
+	 * for 256 VFs.
+	 */
+	if (CHELSIO_CHIP_VERSION(chip) <= CHELSIO_T5)
+		return ((viid & 0x7f) << 1);
+	else
+		return (viid & 0x7f);
+}
+EXPORT_SYMBOL(cxgb4_tp_smt_idx);
 
 /**
  *	cxgb4_port_chan - get the HW channel of a port
@@ -2948,6 +2986,30 @@ static int cxgb_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 			ret = t4_mdio_wr(pi->adapter, mbox, prtad, devad,
 					 data->reg_num, data->val_in);
 		break;
+	case SIOCGHWTSTAMP:
+		return copy_to_user(req->ifr_data, &pi->tstamp_config,
+				    sizeof(pi->tstamp_config)) ?
+			-EFAULT : 0;
+	case SIOCSHWTSTAMP:
+		if (copy_from_user(&pi->tstamp_config, req->ifr_data,
+				   sizeof(pi->tstamp_config)))
+			return -EFAULT;
+
+		switch (pi->tstamp_config.rx_filter) {
+		case HWTSTAMP_FILTER_NONE:
+			pi->rxtstamp = false;
+			break;
+		case HWTSTAMP_FILTER_ALL:
+			pi->rxtstamp = true;
+			break;
+		default:
+			pi->tstamp_config.rx_filter = HWTSTAMP_FILTER_NONE;
+			return -ERANGE;
+		}
+
+		return copy_to_user(req->ifr_data, &pi->tstamp_config,
+				    sizeof(pi->tstamp_config)) ?
+			-EFAULT : 0;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -3657,6 +3719,10 @@ static int adap_init0(struct adapter *adap)
 	 */
 	t4_get_fw_version(adap, &adap->params.fw_vers);
 	t4_get_tp_version(adap, &adap->params.tp_vers);
+	ret = t4_check_fw_version(adap);
+	/* If firmware is too old (not supported by driver) force an update. */
+	if (ret)
+		state = DEV_STATE_UNINIT;
 	if ((adap->flags & MASTER_PF) && state != DEV_STATE_INIT) {
 		struct fw_info *fw_info;
 		struct fw_hdr *card_fw;
@@ -4442,6 +4508,10 @@ static int enable_msix(struct adapter *adap)
 	}
 	for (i = 0; i < allocated; ++i)
 		adap->msix_info[i].vec = entries[i].vector;
+	dev_info(adap->pdev_dev, "%d MSI-X vectors allocated, "
+		 "nic %d iscsi %d rdma cpl %d rdma ciq %d\n",
+		 allocated, s->max_ethqsets, s->ofldqsets, s->rdmaqs,
+		 s->rdmaciqs);
 
 	kfree(entries);
 	return 0;
@@ -4551,6 +4621,27 @@ static void free_some_resources(struct adapter *adapter)
 		   NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA)
 #define SEGMENT_SIZE 128
 
+static int get_chip_type(struct pci_dev *pdev, u32 pl_rev)
+{
+	u16 device_id;
+
+	/* Retrieve adapter's device ID */
+	pci_read_config_word(pdev, PCI_DEVICE_ID, &device_id);
+
+	switch (device_id >> 12) {
+	case CHELSIO_T4:
+		return CHELSIO_CHIP_CODE(CHELSIO_T4, pl_rev);
+	case CHELSIO_T5:
+		return CHELSIO_CHIP_CODE(CHELSIO_T5, pl_rev);
+	case CHELSIO_T6:
+		return CHELSIO_CHIP_CODE(CHELSIO_T6, pl_rev);
+	default:
+		dev_err(&pdev->dev, "Device %d is not supported\n",
+			device_id);
+	}
+	return -EINVAL;
+}
+
 static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int func, i, err, s_qpp, qpp, num_seg;
@@ -4558,6 +4649,8 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	bool highdma = false;
 	struct adapter *adapter = NULL;
 	void __iomem *regs;
+	u32 whoami, pl_rev;
+	enum chip_type chip;
 
 	printk_once(KERN_INFO "%s - version %s\n", DRV_DESC, DRV_VERSION);
 
@@ -4586,7 +4679,11 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_unmap_bar0;
 
 	/* We control everything through one PF */
-	func = SOURCEPF_G(readl(regs + PL_WHOAMI_A));
+	whoami = readl(regs + PL_WHOAMI_A);
+	pl_rev = REV_G(readl(regs + PL_REV_A));
+	chip = get_chip_type(pdev, pl_rev);
+	func = CHELSIO_CHIP_VERSION(chip) <= CHELSIO_T5 ?
+		SOURCEPF_G(whoami) : T6_SOURCEPF_G(whoami);
 	if (func != ent->driver_data) {
 		iounmap(regs);
 		pci_disable_device(pdev);
@@ -4677,8 +4774,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			err = -ENOMEM;
 			goto out_free_adapter;
 		}
-		t4_write_reg(adapter, SGE_STAT_CFG_A,
-			     STATSOURCE_T5_V(7) | STATMODE_V(0));
 	}
 
 	setup_memwin(adapter);
@@ -4689,6 +4784,11 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	setup_memwin_rdma(adapter);
 	if (err)
 		goto out_unmap_bar;
+
+	/* configure SGE_STAT_CFG_A to read WC stats */
+	if (!is_t4(adapter->params.chip))
+		t4_write_reg(adapter, SGE_STAT_CFG_A,
+			     STATSOURCE_T5_V(7) | STATMODE_V(0));
 
 	for_each_port(adapter, i) {
 		struct net_device *netdev;
@@ -4757,7 +4857,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	cfg_queues(adapter);
 
-	adapter->l2t = t4_init_l2t();
+	adapter->l2t = t4_init_l2t(adapter->l2t_start, adapter->l2t_end);
 	if (!adapter->l2t) {
 		/* We tolerate a lack of L2T, giving up some functionality */
 		dev_warn(&pdev->dev, "could not allocate L2T, continuing\n");
@@ -4780,6 +4880,22 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_warn(&pdev->dev, "could not allocate TID table, "
 			 "continuing\n");
 		adapter->params.offload = 0;
+	}
+
+	if (is_offload(adapter)) {
+		if (t4_read_reg(adapter, LE_DB_CONFIG_A) & HASHEN_F) {
+			u32 hash_base, hash_reg;
+
+			if (chip <= CHELSIO_T5) {
+				hash_reg = LE_DB_TID_HASHBASE_A;
+				hash_base = t4_read_reg(adapter, hash_reg);
+				adapter->tids.hash_base = hash_base / 4;
+			} else {
+				hash_reg = T6_LE_DB_HASH_TID_BASE_A;
+				hash_base = t4_read_reg(adapter, hash_reg);
+				adapter->tids.hash_base = hash_base;
+			}
+		}
 	}
 
 	/* See what interrupts we'll be using */

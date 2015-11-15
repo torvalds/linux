@@ -73,7 +73,7 @@ blkcnt_t dirty_cnt(struct inode *inode)
 	struct ccc_object *vob = cl_inode2ccc(inode);
 	void	      *results[1];
 
-	if (inode->i_mapping != NULL)
+	if (inode->i_mapping)
 		cnt += radix_tree_gang_lookup_tag(&inode->i_mapping->page_tree,
 						  results, 0, 1,
 						  PAGECACHE_TAG_DIRTY);
@@ -129,7 +129,7 @@ int cl_glimpse_lock(const struct lu_env *env, struct cl_io *io,
 					       current);
 			cio->cui_glimpse = 0;
 
-			if (lock == NULL)
+			if (!lock)
 				return 0;
 
 			if (IS_ERR(lock))
@@ -255,7 +255,7 @@ int cl_local_size(struct inode *inode)
 		*descr = whole_file;
 		descr->cld_obj = clob;
 		lock = cl_lock_peek(env, io, descr, "localsize", current);
-		if (lock != NULL) {
+		if (lock) {
 			cl_merge_lvb(env, inode);
 			cl_unuse(env, lock);
 			cl_lock_release(env, lock, "localsize", current);

@@ -30,6 +30,7 @@
 #include <asm/proto.h>
 #include <asm/apic.h>
 #include <asm/nmi.h>
+#include <asm/mce.h>
 #include <asm/trace/irq_vectors.h>
 /*
  *	Some notes on x86 processor bugs affecting SMP operation:
@@ -243,6 +244,7 @@ static void native_stop_other_cpus(int wait)
 finish:
 	local_irq_save(flags);
 	disable_local_APIC();
+	mcheck_cpu_clear(this_cpu_ptr(&cpu_info));
 	local_irq_restore(flags);
 }
 

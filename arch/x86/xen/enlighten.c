@@ -33,6 +33,10 @@
 #include <linux/memblock.h>
 #include <linux/edd.h>
 
+#ifdef CONFIG_KEXEC_CORE
+#include <linux/kexec.h>
+#endif
+
 #include <xen/xen.h>
 #include <xen/events.h>
 #include <xen/interface/xen.h>
@@ -71,6 +75,7 @@
 #include <asm/mwait.h>
 #include <asm/pci_x86.h>
 #include <asm/pat.h>
+#include <asm/cpu.h>
 
 #ifdef CONFIG_ACPI
 #include <linux/acpi.h>
@@ -84,6 +89,7 @@
 #include "mmu.h"
 #include "smp.h"
 #include "multicalls.h"
+#include "pmu.h"
 
 EXPORT_SYMBOL_GPL(hypercall_page);
 
@@ -483,6 +489,7 @@ static void set_aliased_prot(void *v, pgprot_t prot)
 	pte_t pte;
 	unsigned long pfn;
 	struct page *page;
+	unsigned char dummy;
 
 	ptep = lookup_address((unsigned long)v, &level);
 	BUG_ON(ptep == NULL);
@@ -491,6 +498,32 @@ static void set_aliased_prot(void *v, pgprot_t prot)
 	page = pfn_to_page(pfn);
 
 	pte = pfn_pte(pfn, prot);
+
+	/*
+	 * Careful: update_va_mapping() will fail if the virtual address
+	 * we're poking isn't populated in the page tables.  We don't
+	 * need to worry about the direct map (that's always in the page
+	 * tables), but we need to be careful about vmap space.  In
+	 * particular, the top level page table can lazily propagate
+	 * entries between processes, so if we've switched mms since we
+	 * vmapped the target in the first place, we might not have the
+	 * top-level page table entry populated.
+	 *
+	 * We disable preemption because we want the same mm active when
+	 * we probe the target and when we issue the hypercall.  We'll
+	 * have the same nominal mm, but if we're a kernel thread, lazy
+	 * mm dropping could change our pgd.
+	 *
+	 * Out of an abundance of caution, this uses __get_user() to fault
+	 * in the target address just in case there's some obscure case
+	 * in which the target address isn't readable.
+	 */
+
+	preempt_disable();
+
+	pagefault_disable();	/* Avoid warnings due to being atomic. */
+	__get_user(dummy, (unsigned char __user __force *)v);
+	pagefault_enable();
 
 	if (HYPERVISOR_update_va_mapping((unsigned long)v, pte, 0))
 		BUG();
@@ -503,12 +536,25 @@ static void set_aliased_prot(void *v, pgprot_t prot)
 				BUG();
 	} else
 		kmap_flush_unused();
+
+	preempt_enable();
 }
 
 static void xen_alloc_ldt(struct desc_struct *ldt, unsigned entries)
 {
 	const unsigned entries_per_page = PAGE_SIZE / LDT_ENTRY_SIZE;
 	int i;
+
+	/*
+	 * We need to mark the all aliases of the LDT pages RO.  We
+	 * don't need to call vm_flush_aliases(), though, since that's
+	 * only responsible for flushing aliases out the TLBs, not the
+	 * page tables, and Xen will flush the TLB for us if needed.
+	 *
+	 * To avoid confusing future readers: none of this is necessary
+	 * to load the LDT.  The hypervisor only checks this when the
+	 * LDT is faulted in due to subsequent descriptor access.
+	 */
 
 	for(i = 0; i < entries; i += entries_per_page)
 		set_aliased_prot(ldt + i, PAGE_KERNEL_RO);
@@ -970,8 +1016,7 @@ static void xen_write_cr0(unsigned long cr0)
 
 static void xen_write_cr4(unsigned long cr4)
 {
-	cr4 &= ~X86_CR4_PGE;
-	cr4 &= ~X86_CR4_PSE;
+	cr4 &= ~(X86_CR4_PGE | X86_CR4_PSE | X86_CR4_PCE);
 
 	native_write_cr4(cr4);
 }
@@ -989,6 +1034,9 @@ static inline void xen_write_cr8(unsigned long val)
 static u64 xen_read_msr_safe(unsigned int msr, int *err)
 {
 	u64 val;
+
+	if (pmu_msr_read(msr, &val, err))
+		return val;
 
 	val = native_read_msr_safe(msr, err);
 	switch (msr) {
@@ -1034,9 +1082,11 @@ static int xen_write_msr_safe(unsigned int msr, unsigned low, unsigned high)
 		/* Fast syscall setup is all done in hypercalls, so
 		   these are all ignored.  Stub them out here to stop
 		   Xen console noise. */
+		break;
 
 	default:
-		ret = native_write_msr_safe(msr, low, high);
+		if (!pmu_msr_write(msr, low, high, &ret))
+			ret = native_write_msr_safe(msr, low, high);
 	}
 
 	return ret;
@@ -1175,10 +1225,7 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 	.read_msr = xen_read_msr_safe,
 	.write_msr = xen_write_msr_safe,
 
-	.read_tsc = native_read_tsc,
-	.read_pmc = native_read_pmc,
-
-	.read_tscp = native_read_tscp,
+	.read_pmc = xen_read_pmc,
 
 	.iret = xen_iret,
 #ifdef CONFIG_X86_64
@@ -1227,6 +1274,10 @@ static const struct pv_apic_ops xen_apic_ops __initconst = {
 static void xen_reboot(int reason)
 {
 	struct sched_shutdown r = { .reason = reason };
+	int cpu;
+
+	for_each_online_cpu(cpu)
+		xen_pmu_finish(cpu);
 
 	if (HYPERVISOR_sched_op(SCHEDOP_shutdown, &r))
 		BUG();
@@ -1570,7 +1621,9 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	early_boot_irqs_disabled = true;
 
 	xen_raw_console_write("mapping kernel into physical memory\n");
-	xen_setup_kernel_pagetable((pgd_t *)xen_start_info->pt_base, xen_start_info->nr_pages);
+	xen_setup_kernel_pagetable((pgd_t *)xen_start_info->pt_base,
+				   xen_start_info->nr_pages);
+	xen_reserve_special_pages();
 
 	/*
 	 * Modify the cache mode translation tables to match Xen's PAT
@@ -1760,6 +1813,21 @@ static struct notifier_block xen_hvm_cpu_notifier = {
 	.notifier_call	= xen_hvm_cpu_notify,
 };
 
+#ifdef CONFIG_KEXEC_CORE
+static void xen_hvm_shutdown(void)
+{
+	native_machine_shutdown();
+	if (kexec_in_progress)
+		xen_reboot(SHUTDOWN_soft_reset);
+}
+
+static void xen_hvm_crash_shutdown(struct pt_regs *regs)
+{
+	native_machine_crash_shutdown(regs);
+	xen_reboot(SHUTDOWN_soft_reset);
+}
+#endif
+
 static void __init xen_hvm_guest_init(void)
 {
 	if (xen_pv_domain())
@@ -1779,6 +1847,10 @@ static void __init xen_hvm_guest_init(void)
 	x86_init.irqs.intr_init = xen_init_IRQ;
 	xen_hvm_init_time_ops();
 	xen_hvm_init_mmu_ops();
+#ifdef CONFIG_KEXEC_CORE
+	machine_ops.shutdown = xen_hvm_shutdown;
+	machine_ops.crash_shutdown = xen_hvm_crash_shutdown;
+#endif
 }
 #endif
 
@@ -1828,3 +1900,17 @@ const struct hypervisor_x86 x86_hyper_xen = {
 	.set_cpu_features       = xen_set_cpu_features,
 };
 EXPORT_SYMBOL(x86_hyper_xen);
+
+#ifdef CONFIG_HOTPLUG_CPU
+void xen_arch_register_cpu(int num)
+{
+	arch_register_cpu(num);
+}
+EXPORT_SYMBOL(xen_arch_register_cpu);
+
+void xen_arch_unregister_cpu(int num)
+{
+	arch_unregister_cpu(num);
+}
+EXPORT_SYMBOL(xen_arch_unregister_cpu);
+#endif

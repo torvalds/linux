@@ -433,42 +433,34 @@ static int pseries_eeh_get_state(struct eeh_pe *pe, int *state)
 		return ret;
 
 	/* Parse the result out */
-	result = 0;
-	if (rets[1]) {
-		switch(rets[0]) {
-		case 0:
-			result &= ~EEH_STATE_RESET_ACTIVE;
-			result |= EEH_STATE_MMIO_ACTIVE;
-			result |= EEH_STATE_DMA_ACTIVE;
-			break;
-		case 1:
-			result |= EEH_STATE_RESET_ACTIVE;
-			result |= EEH_STATE_MMIO_ACTIVE;
-			result |= EEH_STATE_DMA_ACTIVE;
-			break;
-		case 2:
-			result &= ~EEH_STATE_RESET_ACTIVE;
-			result &= ~EEH_STATE_MMIO_ACTIVE;
-			result &= ~EEH_STATE_DMA_ACTIVE;
-			break;
-		case 4:
-			result &= ~EEH_STATE_RESET_ACTIVE;
-			result &= ~EEH_STATE_MMIO_ACTIVE;
-			result &= ~EEH_STATE_DMA_ACTIVE;
-			result |= EEH_STATE_MMIO_ENABLED;
-			break;
-		case 5:
-			if (rets[2]) {
-				if (state) *state = rets[2];
-				result = EEH_STATE_UNAVAILABLE;
-			} else {
-				result = EEH_STATE_NOT_SUPPORT;
-			}
-			break;
-		default:
+	if (!rets[1])
+		return EEH_STATE_NOT_SUPPORT;
+
+	switch(rets[0]) {
+	case 0:
+		result = EEH_STATE_MMIO_ACTIVE |
+			 EEH_STATE_DMA_ACTIVE;
+		break;
+	case 1:
+		result = EEH_STATE_RESET_ACTIVE |
+			 EEH_STATE_MMIO_ACTIVE  |
+			 EEH_STATE_DMA_ACTIVE;
+		break;
+	case 2:
+		result = 0;
+		break;
+	case 4:
+		result = EEH_STATE_MMIO_ENABLED;
+		break;
+	case 5:
+		if (rets[2]) {
+			if (state) *state = rets[2];
+			result = EEH_STATE_UNAVAILABLE;
+		} else {
 			result = EEH_STATE_NOT_SUPPORT;
 		}
-	} else {
+		break;
+	default:
 		result = EEH_STATE_NOT_SUPPORT;
 	}
 

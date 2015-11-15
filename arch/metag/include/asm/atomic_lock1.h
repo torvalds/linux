@@ -10,7 +10,7 @@
 
 static inline int atomic_read(const atomic_t *v)
 {
-	return (v)->counter;
+	return READ_ONCE((v)->counter);
 }
 
 /*
@@ -68,30 +68,13 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
 
 ATOMIC_OPS(add, +=)
 ATOMIC_OPS(sub, -=)
+ATOMIC_OP(and, &=)
+ATOMIC_OP(or, |=)
+ATOMIC_OP(xor, ^=)
 
 #undef ATOMIC_OPS
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
-
-static inline void atomic_clear_mask(unsigned int mask, atomic_t *v)
-{
-	unsigned long flags;
-
-	__global_lock1(flags);
-	fence();
-	v->counter &= ~mask;
-	__global_unlock1(flags);
-}
-
-static inline void atomic_set_mask(unsigned int mask, atomic_t *v)
-{
-	unsigned long flags;
-
-	__global_lock1(flags);
-	fence();
-	v->counter |= mask;
-	__global_unlock1(flags);
-}
 
 static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 {

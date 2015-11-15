@@ -53,6 +53,10 @@
 	interrupt-parent = <&gic>;
 
 	aliases {
+		crypto = &crypto;
+		ethernet0 = &enet0;
+		ethernet1 = &enet1;
+		ethernet2 = &enet2;
 		serial0 = &lpuart0;
 		serial1 = &lpuart1;
 		serial2 = &lpuart2;
@@ -145,6 +149,45 @@
 			big-endian;
 		};
 
+		crypto: crypto@1700000 {
+			compatible = "fsl,sec-v5.0", "fsl,sec-v4.0";
+			fsl,sec-era = <7>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg		 = <0x0 0x1700000 0x0 0x100000>;
+			ranges		 = <0x0 0x0 0x1700000 0x100000>;
+			interrupts	 = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
+
+			sec_jr0: jr@10000 {
+				compatible = "fsl,sec-v5.0-job-ring",
+				     "fsl,sec-v4.0-job-ring";
+				reg = <0x10000 0x10000>;
+				interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			sec_jr1: jr@20000 {
+				compatible = "fsl,sec-v5.0-job-ring",
+				     "fsl,sec-v4.0-job-ring";
+				reg = <0x20000 0x10000>;
+				interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			sec_jr2: jr@30000 {
+				compatible = "fsl,sec-v5.0-job-ring",
+				     "fsl,sec-v4.0-job-ring";
+				reg = <0x30000 0x10000>;
+				interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			sec_jr3: jr@40000 {
+				compatible = "fsl,sec-v5.0-job-ring",
+				     "fsl,sec-v4.0-job-ring";
+				reg = <0x40000 0x10000>;
+				interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+		};
+
 		clockgen: clocking@1ee1000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -184,7 +227,7 @@
 		};
 
 		dspi0: dspi@2100000 {
-			compatible = "fsl,vf610-dspi";
+			compatible = "fsl,ls1021a-v1.0-dspi";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x2100000 0x0 0x10000>;
@@ -197,7 +240,7 @@
 		};
 
 		dspi1: dspi@2110000 {
-			compatible = "fsl,vf610-dspi";
+			compatible = "fsl,ls1021a-v1.0-dspi";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x2110000 0x0 0x10000>;
@@ -342,28 +385,30 @@
 		};
 
 		sai1: sai@2b50000 {
+			#sound-dai-cells = <0>;
 			compatible = "fsl,vf610-sai";
 			reg = <0x0 0x2b50000 0x0 0x10000>;
 			interrupts = <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&platform_clk 1>;
-			clock-names = "sai";
+			clocks = <&platform_clk 1>, <&platform_clk 1>,
+				 <&platform_clk 1>, <&platform_clk 1>;
+			clock-names = "bus", "mclk1", "mclk2", "mclk3";
 			dma-names = "tx", "rx";
 			dmas = <&edma0 1 47>,
 			       <&edma0 1 46>;
-			big-endian;
 			status = "disabled";
 		};
 
 		sai2: sai@2b60000 {
+			#sound-dai-cells = <0>;
 			compatible = "fsl,vf610-sai";
 			reg = <0x0 0x2b60000 0x0 0x10000>;
 			interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&platform_clk 1>;
-			clock-names = "sai";
+			clocks = <&platform_clk 1>, <&platform_clk 1>,
+				 <&platform_clk 1>, <&platform_clk 1>;
+			clock-names = "bus", "mclk1", "mclk2", "mclk3";
 			dma-names = "tx", "rx";
 			dmas = <&edma0 1 45>,
 			       <&edma0 1 44>;
-			big-endian;
 			status = "disabled";
 		};
 
@@ -391,6 +436,94 @@
 			reg = <0x0 0x2d24000 0x0 0x4000>;
 		};
 
+		enet0: ethernet@2d10000 {
+			compatible = "fsl,etsec2";
+			device_type = "network";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			interrupt-parent = <&gic>;
+			model = "eTSEC";
+			fsl,magic-packet;
+			ranges;
+			dma-coherent;
+
+			queue-group@2d10000 {
+				#address-cells = <2>;
+				#size-cells = <2>;
+				reg = <0x0 0x2d10000 0x0 0x1000>;
+				interrupts = <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			queue-group@2d14000  {
+				#address-cells = <2>;
+				#size-cells = <2>;
+				reg = <0x0 0x2d14000 0x0 0x1000>;
+				interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		enet1: ethernet@2d50000 {
+			compatible = "fsl,etsec2";
+			device_type = "network";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			interrupt-parent = <&gic>;
+			model = "eTSEC";
+			ranges;
+			dma-coherent;
+
+			queue-group@2d50000  {
+				#address-cells = <2>;
+				#size-cells = <2>;
+				reg = <0x0 0x2d50000 0x0 0x1000>;
+				interrupts = <GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			queue-group@2d54000  {
+				#address-cells = <2>;
+				#size-cells = <2>;
+				reg = <0x0 0x2d54000 0x0 0x1000>;
+				interrupts = <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		enet2: ethernet@2d90000 {
+			compatible = "fsl,etsec2";
+			device_type = "network";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			interrupt-parent = <&gic>;
+			model = "eTSEC";
+			ranges;
+			dma-coherent;
+
+			queue-group@2d90000  {
+				#address-cells = <2>;
+				#size-cells = <2>;
+				reg = <0x0 0x2d90000 0x0 0x1000>;
+				interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			queue-group@2d94000  {
+				#address-cells = <2>;
+				#size-cells = <2>;
+				reg = <0x0 0x2d94000 0x0 0x1000>;
+				interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
 		usb@8600000 {
 			compatible = "fsl-usb2-dr-v2.5", "fsl-usb2-dr";
 			reg = <0x0 0x8600000 0x0 0x1000>;
@@ -404,6 +537,7 @@
 			reg = <0x0 0x3100000 0x0 0x10000>;
 			interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
 			dr_mode = "host";
+			snps,quirk-frame-length-adjustment = <0x20>;
 		};
 	};
 };

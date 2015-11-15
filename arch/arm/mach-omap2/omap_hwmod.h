@@ -576,6 +576,8 @@ struct omap_hwmod_omap4_prcm {
  * @pre_shutdown: ptr to fn to be executed immediately prior to device shutdown
  * @reset: ptr to fn to be executed in place of the standard hwmod reset fn
  * @enable_preprogram:  ptr to fn to be executed during device enable
+ * @lock: ptr to fn to be executed to lock IP registers
+ * @unlock: ptr to fn to be executed to unlock IP registers
  *
  * Represent the class of a OMAP hardware "modules" (e.g. timer,
  * smartreflex, gpio, uart...)
@@ -600,6 +602,8 @@ struct omap_hwmod_class {
 	int					(*pre_shutdown)(struct omap_hwmod *oh);
 	int					(*reset)(struct omap_hwmod *oh);
 	int					(*enable_preprogram)(struct omap_hwmod *oh);
+	void					(*lock)(struct omap_hwmod *oh);
+	void					(*unlock)(struct omap_hwmod *oh);
 };
 
 /**
@@ -755,7 +759,8 @@ extern int omap3xxx_hwmod_init(void);
 extern int omap44xx_hwmod_init(void);
 extern int omap54xx_hwmod_init(void);
 extern int am33xx_hwmod_init(void);
-extern int ti81xx_hwmod_init(void);
+extern int dm814x_hwmod_init(void);
+extern int dm816x_hwmod_init(void);
 extern int dra7xx_hwmod_init(void);
 int am43xx_hwmod_init(void);
 

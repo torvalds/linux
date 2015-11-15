@@ -207,8 +207,7 @@ struct exynos_tmu_data {
 	int (*tmu_initialize)(struct platform_device *pdev);
 	void (*tmu_control)(struct platform_device *pdev, bool on);
 	int (*tmu_read)(struct exynos_tmu_data *data);
-	void (*tmu_set_emulation)(struct exynos_tmu_data *data,
-				  unsigned long temp);
+	void (*tmu_set_emulation)(struct exynos_tmu_data *data, int temp);
 	void (*tmu_clear_irqs)(struct exynos_tmu_data *data);
 };
 
@@ -216,7 +215,7 @@ static void exynos_report_trigger(struct exynos_tmu_data *p)
 {
 	char data[10], *envp[] = { data, NULL };
 	struct thermal_zone_device *tz = p->tzd;
-	unsigned long temp;
+	int temp;
 	unsigned int i;
 
 	if (!tz) {
@@ -517,7 +516,7 @@ static int exynos5433_tmu_initialize(struct platform_device *pdev)
 	struct thermal_zone_device *tz = data->tzd;
 	unsigned int status, trim_info;
 	unsigned int rising_threshold = 0, falling_threshold = 0;
-	unsigned long temp, temp_hist;
+	int temp, temp_hist;
 	int ret = 0, threshold_code, i, sensor_id, cal_type;
 
 	status = readb(data->base + EXYNOS_TMU_REG_STATUS);
@@ -549,7 +548,7 @@ static int exynos5433_tmu_initialize(struct platform_device *pdev)
 	default:
 		pdata->cal_type = TYPE_ONE_POINT_TRIMMING;
 		break;
-	};
+	}
 
 	dev_info(&pdev->dev, "Calibration type is %d-point calibration\n",
 			cal_type ?  2 : 1);
@@ -609,8 +608,8 @@ static int exynos5440_tmu_initialize(struct platform_device *pdev)
 {
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
 	unsigned int trim_info = 0, con, rising_threshold;
-	int ret = 0, threshold_code;
-	unsigned long crit_temp = 0;
+	int threshold_code;
+	int crit_temp = 0;
 
 	/*
 	 * For exynos5440 soc triminfo value is swapped between TMU0 and
@@ -652,7 +651,8 @@ static int exynos5440_tmu_initialize(struct platform_device *pdev)
 	/* Clear the PMIN in the common TMU register */
 	if (!data->id)
 		writel(0, data->base_second + EXYNOS5440_TMU_PMIN);
-	return ret;
+
+	return 0;
 }
 
 static int exynos7_tmu_initialize(struct platform_device *pdev)
@@ -663,7 +663,7 @@ static int exynos7_tmu_initialize(struct platform_device *pdev)
 	unsigned int status, trim_info;
 	unsigned int rising_threshold = 0, falling_threshold = 0;
 	int ret = 0, threshold_code, i;
-	unsigned long temp, temp_hist;
+	int temp, temp_hist;
 	unsigned int reg_off, bit_off;
 
 	status = readb(data->base + EXYNOS_TMU_REG_STATUS);
@@ -876,7 +876,7 @@ static void exynos7_tmu_control(struct platform_device *pdev, bool on)
 	writel(con, data->base + EXYNOS_TMU_REG_CONTROL);
 }
 
-static int exynos_get_temp(void *p, long *temp)
+static int exynos_get_temp(void *p, int *temp)
 {
 	struct exynos_tmu_data *data = p;
 
@@ -896,7 +896,7 @@ static int exynos_get_temp(void *p, long *temp)
 
 #ifdef CONFIG_THERMAL_EMULATION
 static u32 get_emul_con_reg(struct exynos_tmu_data *data, unsigned int val,
-			    unsigned long temp)
+			    int temp)
 {
 	if (temp) {
 		temp /= MCELSIUS;
@@ -926,14 +926,14 @@ static u32 get_emul_con_reg(struct exynos_tmu_data *data, unsigned int val,
 }
 
 static void exynos4412_tmu_set_emulation(struct exynos_tmu_data *data,
-					 unsigned long temp)
+					 int temp)
 {
 	unsigned int val;
 	u32 emul_con;
 
 	if (data->soc == SOC_ARCH_EXYNOS5260)
 		emul_con = EXYNOS5260_EMUL_CON;
-	if (data->soc == SOC_ARCH_EXYNOS5433)
+	else if (data->soc == SOC_ARCH_EXYNOS5433)
 		emul_con = EXYNOS5433_TMU_EMUL_CON;
 	else if (data->soc == SOC_ARCH_EXYNOS7)
 		emul_con = EXYNOS7_TMU_REG_EMUL_CON;
@@ -946,7 +946,7 @@ static void exynos4412_tmu_set_emulation(struct exynos_tmu_data *data,
 }
 
 static void exynos5440_tmu_set_emulation(struct exynos_tmu_data *data,
-					 unsigned long temp)
+					 int temp)
 {
 	unsigned int val;
 
@@ -955,7 +955,7 @@ static void exynos5440_tmu_set_emulation(struct exynos_tmu_data *data,
 	writel(val, data->base + EXYNOS5440_TMU_S0_7_DEBUG);
 }
 
-static int exynos_tmu_set_emulation(void *drv_data, unsigned long temp)
+static int exynos_tmu_set_emulation(void *drv_data, int temp)
 {
 	struct exynos_tmu_data *data = drv_data;
 	int ret = -EINVAL;
@@ -978,7 +978,7 @@ out:
 #else
 #define exynos4412_tmu_set_emulation NULL
 #define exynos5440_tmu_set_emulation NULL
-static int exynos_tmu_set_emulation(void *drv_data,	unsigned long temp)
+static int exynos_tmu_set_emulation(void *drv_data, int temp)
 	{ return -EINVAL; }
 #endif /* CONFIG_THERMAL_EMULATION */
 
@@ -1169,26 +1169,9 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
 	struct exynos_tmu_platform_data *pdata;
 	struct resource res;
-	int ret;
 
 	if (!data || !pdev->dev.of_node)
 		return -ENODEV;
-
-	/*
-	 * Try enabling the regulator if found
-	 * TODO: Add regulator as an SOC feature, so that regulator enable
-	 * is a compulsory call.
-	 */
-	data->regulator = devm_regulator_get(&pdev->dev, "vtmu");
-	if (!IS_ERR(data->regulator)) {
-		ret = regulator_enable(data->regulator);
-		if (ret) {
-			dev_err(&pdev->dev, "failed to enable vtmu\n");
-			return ret;
-		}
-	} else {
-		dev_info(&pdev->dev, "Regulator node (vtmu) not found\n");
-	}
 
 	data->id = of_alias_get_id(pdev->dev.of_node, "tmuctrl");
 	if (data->id < 0)
@@ -1296,7 +1279,6 @@ static struct thermal_zone_of_device_ops exynos_sensor_ops = {
 
 static int exynos_tmu_probe(struct platform_device *pdev)
 {
-	struct exynos_tmu_platform_data *pdata;
 	struct exynos_tmu_data *data;
 	int ret;
 
@@ -1308,17 +1290,25 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, data);
 	mutex_init(&data->lock);
 
-	data->tzd = thermal_zone_of_sensor_register(&pdev->dev, 0, data,
-						    &exynos_sensor_ops);
-	if (IS_ERR(data->tzd)) {
-		pr_err("thermal: tz: %p ERROR\n", data->tzd);
-		return PTR_ERR(data->tzd);
+	/*
+	 * Try enabling the regulator if found
+	 * TODO: Add regulator as an SOC feature, so that regulator enable
+	 * is a compulsory call.
+	 */
+	data->regulator = devm_regulator_get(&pdev->dev, "vtmu");
+	if (!IS_ERR(data->regulator)) {
+		ret = regulator_enable(data->regulator);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to enable vtmu\n");
+			return ret;
+		}
+	} else {
+		dev_info(&pdev->dev, "Regulator node (vtmu) not found\n");
 	}
+
 	ret = exynos_map_dt_data(pdev);
 	if (ret)
 		goto err_sensor;
-
-	pdata = data->pdata;
 
 	INIT_WORK(&data->irq_work, exynos_tmu_work);
 
@@ -1367,23 +1357,38 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 		break;
 	default:
 		break;
-	};
+	}
+
+	/*
+	 * data->tzd must be registered before calling exynos_tmu_initialize(),
+	 * requesting irq and calling exynos_tmu_control().
+	 */
+	data->tzd = thermal_zone_of_sensor_register(&pdev->dev, 0, data,
+						    &exynos_sensor_ops);
+	if (IS_ERR(data->tzd)) {
+		ret = PTR_ERR(data->tzd);
+		dev_err(&pdev->dev, "Failed to register sensor: %d\n", ret);
+		goto err_sclk;
+	}
 
 	ret = exynos_tmu_initialize(pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to initialize TMU\n");
-		goto err_sclk;
+		goto err_thermal;
 	}
 
 	ret = devm_request_irq(&pdev->dev, data->irq, exynos_tmu_irq,
 		IRQF_TRIGGER_RISING | IRQF_SHARED, dev_name(&pdev->dev), data);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to request irq: %d\n", data->irq);
-		goto err_sclk;
+		goto err_thermal;
 	}
 
 	exynos_tmu_control(pdev, true);
 	return 0;
+
+err_thermal:
+	thermal_zone_of_sensor_unregister(&pdev->dev, data->tzd);
 err_sclk:
 	clk_disable_unprepare(data->sclk);
 err_clk:
@@ -1392,7 +1397,8 @@ err_clk_sec:
 	if (!IS_ERR(data->clk_sec))
 		clk_unprepare(data->clk_sec);
 err_sensor:
-	thermal_zone_of_sensor_unregister(&pdev->dev, data->tzd);
+	if (!IS_ERR(data->regulator))
+		regulator_disable(data->regulator);
 
 	return ret;
 }

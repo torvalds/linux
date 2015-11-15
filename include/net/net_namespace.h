@@ -118,6 +118,9 @@ struct net {
 #endif
 	struct sock		*nfnl;
 	struct sock		*nfnl_stash;
+#if IS_ENABLED(CONFIG_NETFILTER_NETLINK_ACCT)
+	struct list_head        nfnl_acct_list;
+#endif
 #endif
 #ifdef CONFIG_WEXT_CORE
 	struct sk_buff_head	wext_nlevents;

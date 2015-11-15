@@ -225,7 +225,7 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 			 */
 			diff = tp->snd_cwnd * (rtt-vegas->baseRTT) / vegas->baseRTT;
 
-			if (diff > gamma && tp->snd_cwnd <= tp->snd_ssthresh) {
+			if (diff > gamma && tcp_in_slow_start(tp)) {
 				/* Going too fast. Time to slow down
 				 * and switch to congestion avoidance.
 				 */
@@ -240,7 +240,7 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 				tp->snd_cwnd = min(tp->snd_cwnd, (u32)target_cwnd+1);
 				tp->snd_ssthresh = tcp_vegas_ssthresh(tp);
 
-			} else if (tp->snd_cwnd <= tp->snd_ssthresh) {
+			} else if (tcp_in_slow_start(tp)) {
 				/* Slow start.  */
 				tcp_slow_start(tp, acked);
 			} else {
@@ -281,7 +281,7 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		vegas->minRTT = 0x7fffffff;
 	}
 	/* Use normal slow start */
-	else if (tp->snd_cwnd <= tp->snd_ssthresh)
+	else if (tcp_in_slow_start(tp))
 		tcp_slow_start(tp, acked);
 }
 

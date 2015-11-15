@@ -266,12 +266,17 @@ static const struct pci_device_id mwifiex_ids[] = {
 	{
 		PCIE_VENDOR_ID_MARVELL, PCIE_DEVICE_ID_MARVELL_88W8766P,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-		.driver_data = (unsigned long) &mwifiex_pcie8766,
+		.driver_data = (unsigned long)&mwifiex_pcie8766,
 	},
 	{
 		PCIE_VENDOR_ID_MARVELL, PCIE_DEVICE_ID_MARVELL_88W8897,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-		.driver_data = (unsigned long) &mwifiex_pcie8897,
+		.driver_data = (unsigned long)&mwifiex_pcie8897,
+	},
+	{
+		PCIE_VENDOR_ID_MARVELL, PCIE_DEVICE_ID_MARVELL_88W8997,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		.driver_data = (unsigned long)&mwifiex_pcie8997,
 	},
 	{},
 };
@@ -1082,6 +1087,7 @@ static int mwifiex_pcie_send_data_complete(struct mwifiex_adapter *adapter)
 			card->txbd_rdptr++;
 			break;
 		case PCIE_DEVICE_ID_MARVELL_88W8897:
+		case PCIE_DEVICE_ID_MARVELL_88W8997:
 			card->txbd_rdptr += reg->ring_tx_start_ptr;
 			break;
 		}
@@ -1179,6 +1185,7 @@ mwifiex_pcie_send_data(struct mwifiex_adapter *adapter, struct sk_buff *skb,
 			card->txbd_wrptr++;
 			break;
 		case PCIE_DEVICE_ID_MARVELL_88W8897:
+		case PCIE_DEVICE_ID_MARVELL_88W8997:
 			card->txbd_wrptr += reg->ring_tx_start_ptr;
 			break;
 		}
@@ -1807,6 +1814,7 @@ static int mwifiex_pcie_event_complete(struct mwifiex_adapter *adapter,
 
 	if (!card->evt_buf_list[rdptr]) {
 		skb_push(skb, INTF_HEADER_LEN);
+		skb_put(skb, MAX_EVENT_SIZE - skb->len);
 		if (mwifiex_map_pci_memory(adapter, skb,
 					   MAX_EVENT_SIZE,
 					   PCI_DMA_FROMDEVICE))
@@ -2731,3 +2739,4 @@ MODULE_VERSION(PCIE_VERSION);
 MODULE_LICENSE("GPL v2");
 MODULE_FIRMWARE(PCIE8766_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(PCIE8897_DEFAULT_FW_NAME);
+MODULE_FIRMWARE(PCIE8997_DEFAULT_FW_NAME);

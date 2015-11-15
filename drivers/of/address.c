@@ -330,6 +330,12 @@ int of_pci_range_to_resource(struct of_pci_range *range,
 		}
 		res->start = port;
 	} else {
+		if ((sizeof(resource_size_t) < 8) &&
+		    upper_32_bits(range->cpu_addr)) {
+			err = -EINVAL;
+			goto invalid_range;
+		}
+
 		res->start = range->cpu_addr;
 	}
 	res->end = res->start + range->size - 1;
@@ -845,10 +851,10 @@ struct device_node *of_find_matching_node_by_address(struct device_node *from,
 	struct resource res;
 
 	while (dn) {
-		if (of_address_to_resource(dn, 0, &res))
-			continue;
-		if (res.start == base_address)
+		if (!of_address_to_resource(dn, 0, &res) &&
+		    res.start == base_address)
 			return dn;
+
 		dn = of_find_matching_node(dn, matches);
 	}
 

@@ -126,7 +126,7 @@ void inet_put_port(struct sock *sk)
 }
 EXPORT_SYMBOL(inet_put_port);
 
-int __inet_inherit_port(struct sock *sk, struct sock *child)
+int __inet_inherit_port(const struct sock *sk, struct sock *child)
 {
 	struct inet_hashinfo *table = sk->sk_prot->h.hashinfo;
 	unsigned short port = inet_sk(child)->inet_num;
@@ -137,6 +137,10 @@ int __inet_inherit_port(struct sock *sk, struct sock *child)
 
 	spin_lock(&head->lock);
 	tb = inet_csk(sk)->icsk_bind_hash;
+	if (unlikely(!tb)) {
+		spin_unlock(&head->lock);
+		return -ENOENT;
+	}
 	if (tb->port != port) {
 		/* NOTE: using tproxy and redirecting skbs to a proxy
 		 * on a different listener port breaks the assumption
@@ -185,6 +189,8 @@ static inline int compute_score(struct sock *sk, struct net *net,
 				return -1;
 			score += 4;
 		}
+		if (sk->sk_incoming_cpu == raw_smp_processor_id())
+			score++;
 	}
 	return score;
 }
@@ -343,7 +349,6 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 	struct sock *sk2;
 	const struct hlist_nulls_node *node;
 	struct inet_timewait_sock *tw = NULL;
-	int twrefcnt = 0;
 
 	spin_lock(lock);
 
@@ -371,21 +376,17 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 	WARN_ON(!sk_unhashed(sk));
 	__sk_nulls_add_node_rcu(sk, &head->chain);
 	if (tw) {
-		twrefcnt = inet_twsk_unhash(tw);
+		sk_nulls_del_node_init_rcu((struct sock *)tw);
 		NET_INC_STATS_BH(net, LINUX_MIB_TIMEWAITRECYCLED);
 	}
 	spin_unlock(lock);
-	if (twrefcnt)
-		inet_twsk_put(tw);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 
 	if (twp) {
 		*twp = tw;
 	} else if (tw) {
 		/* Silly. Should hash-dance instead... */
-		inet_twsk_deschedule(tw);
-
-		inet_twsk_put(tw);
+		inet_twsk_deschedule_put(tw);
 	}
 	return 0;
 
@@ -403,15 +404,18 @@ static u32 inet_sk_port_offset(const struct sock *sk)
 					  inet->inet_dport);
 }
 
-int __inet_hash_nolisten(struct sock *sk, struct inet_timewait_sock *tw)
+/* insert a socket into ehash, and eventually remove another one
+ * (The another one can be a SYN_RECV or TIMEWAIT
+ */
+bool inet_ehash_insert(struct sock *sk, struct sock *osk)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
 	struct hlist_nulls_head *list;
 	struct inet_ehash_bucket *head;
 	spinlock_t *lock;
-	int twrefcnt = 0;
+	bool ret = true;
 
-	WARN_ON(!sk_unhashed(sk));
+	WARN_ON_ONCE(!sk_unhashed(sk));
 
 	sk->sk_hash = sk_ehashfn(sk);
 	head = inet_ehash_bucket(hashinfo, sk->sk_hash);
@@ -419,25 +423,41 @@ int __inet_hash_nolisten(struct sock *sk, struct inet_timewait_sock *tw)
 	lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
 
 	spin_lock(lock);
-	__sk_nulls_add_node_rcu(sk, list);
-	if (tw) {
-		WARN_ON(sk->sk_hash != tw->tw_hash);
-		twrefcnt = inet_twsk_unhash(tw);
+	if (osk) {
+		WARN_ON_ONCE(sk->sk_hash != osk->sk_hash);
+		ret = sk_nulls_del_node_init_rcu(osk);
 	}
+	if (ret)
+		__sk_nulls_add_node_rcu(sk, list);
 	spin_unlock(lock);
-	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
-	return twrefcnt;
+	return ret;
 }
-EXPORT_SYMBOL_GPL(__inet_hash_nolisten);
 
-int __inet_hash(struct sock *sk, struct inet_timewait_sock *tw)
+bool inet_ehash_nolisten(struct sock *sk, struct sock *osk)
+{
+	bool ok = inet_ehash_insert(sk, osk);
+
+	if (ok) {
+		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
+	} else {
+		percpu_counter_inc(sk->sk_prot->orphan_count);
+		sk->sk_state = TCP_CLOSE;
+		sock_set_flag(sk, SOCK_DEAD);
+		inet_csk_destroy_sock(sk);
+	}
+	return ok;
+}
+EXPORT_SYMBOL_GPL(inet_ehash_nolisten);
+
+void __inet_hash(struct sock *sk, struct sock *osk)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
 	struct inet_listen_hashbucket *ilb;
 
-	if (sk->sk_state != TCP_LISTEN)
-		return __inet_hash_nolisten(sk, tw);
-
+	if (sk->sk_state != TCP_LISTEN) {
+		inet_ehash_nolisten(sk, osk);
+		return;
+	}
 	WARN_ON(!sk_unhashed(sk));
 	ilb = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
 
@@ -445,7 +465,6 @@ int __inet_hash(struct sock *sk, struct inet_timewait_sock *tw)
 	__sk_nulls_add_node_rcu(sk, &ilb->head);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	spin_unlock(&ilb->lock);
-	return 0;
 }
 EXPORT_SYMBOL(__inet_hash);
 
@@ -492,7 +511,6 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 	struct inet_bind_bucket *tb;
 	int ret;
 	struct net *net = sock_net(sk);
-	int twrefcnt = 1;
 
 	if (!snum) {
 		int i, remaining, low, high, port;
@@ -560,19 +578,14 @@ ok:
 		inet_bind_hash(sk, tb, port);
 		if (sk_unhashed(sk)) {
 			inet_sk(sk)->inet_sport = htons(port);
-			twrefcnt += __inet_hash_nolisten(sk, tw);
+			inet_ehash_nolisten(sk, (struct sock *)tw);
 		}
 		if (tw)
-			twrefcnt += inet_twsk_bind_unhash(tw, hinfo);
+			inet_twsk_bind_unhash(tw, hinfo);
 		spin_unlock(&head->lock);
 
-		if (tw) {
-			inet_twsk_deschedule(tw);
-			while (twrefcnt) {
-				twrefcnt--;
-				inet_twsk_put(tw);
-			}
-		}
+		if (tw)
+			inet_twsk_deschedule_put(tw);
 
 		ret = 0;
 		goto out;
@@ -582,7 +595,7 @@ ok:
 	tb  = inet_csk(sk)->icsk_bind_hash;
 	spin_lock_bh(&head->lock);
 	if (sk_head(&tb->owners) == sk && !sk->sk_bind_node.next) {
-		__inet_hash_nolisten(sk, NULL);
+		inet_ehash_nolisten(sk, NULL);
 		spin_unlock_bh(&head->lock);
 		return 0;
 	} else {

@@ -138,6 +138,14 @@ out_free:
  */
 int xprt_setup_backchannel(struct rpc_xprt *xprt, unsigned int min_reqs)
 {
+	if (!xprt->ops->bc_setup)
+		return 0;
+	return xprt->ops->bc_setup(xprt, min_reqs);
+}
+EXPORT_SYMBOL_GPL(xprt_setup_backchannel);
+
+int xprt_setup_bc(struct rpc_xprt *xprt, unsigned int min_reqs)
+{
 	struct rpc_rqst *req;
 	struct list_head tmp_list;
 	int i;
@@ -192,7 +200,6 @@ out_free:
 	dprintk("RPC:       setup backchannel transport failed\n");
 	return -ENOMEM;
 }
-EXPORT_SYMBOL_GPL(xprt_setup_backchannel);
 
 /**
  * xprt_destroy_backchannel - Destroys the backchannel preallocated structures.
@@ -204,6 +211,13 @@ EXPORT_SYMBOL_GPL(xprt_setup_backchannel);
  * of reqs specified by the caller.
  */
 void xprt_destroy_backchannel(struct rpc_xprt *xprt, unsigned int max_reqs)
+{
+	if (xprt->ops->bc_destroy)
+		xprt->ops->bc_destroy(xprt, max_reqs);
+}
+EXPORT_SYMBOL_GPL(xprt_destroy_backchannel);
+
+void xprt_destroy_bc(struct rpc_xprt *xprt, unsigned int max_reqs)
 {
 	struct rpc_rqst *req = NULL, *tmp = NULL;
 
@@ -227,7 +241,6 @@ out:
 	dprintk("RPC:        backchannel list empty= %s\n",
 		list_empty(&xprt->bc_pa_list) ? "true" : "false");
 }
-EXPORT_SYMBOL_GPL(xprt_destroy_backchannel);
 
 static struct rpc_rqst *xprt_alloc_bc_request(struct rpc_xprt *xprt, __be32 xid)
 {
@@ -240,8 +253,8 @@ static struct rpc_rqst *xprt_alloc_bc_request(struct rpc_xprt *xprt, __be32 xid)
 		req = xprt_alloc_bc_req(xprt, GFP_ATOMIC);
 		if (!req)
 			goto not_found;
-		/* Note: this 'free' request adds it to xprt->bc_pa_list */
-		xprt_free_bc_request(req);
+		list_add_tail(&req->rq_bc_pa_list, &xprt->bc_pa_list);
+		xprt->bc_alloc_count++;
 	}
 	req = list_first_entry(&xprt->bc_pa_list, struct rpc_rqst,
 				rq_bc_pa_list);
@@ -261,6 +274,13 @@ not_found:
  * associated with this rpc_task.
  */
 void xprt_free_bc_request(struct rpc_rqst *req)
+{
+	struct rpc_xprt *xprt = req->rq_xprt;
+
+	xprt->ops->bc_free_rqst(req);
+}
+
+void xprt_free_bc_rqst(struct rpc_rqst *req)
 {
 	struct rpc_xprt *xprt = req->rq_xprt;
 
@@ -336,7 +356,7 @@ void xprt_complete_bc_request(struct rpc_rqst *req, uint32_t copied)
 
 	spin_lock(&xprt->bc_pa_lock);
 	list_del(&req->rq_bc_pa_list);
-	xprt->bc_alloc_count--;
+	xprt_dec_alloc_count(xprt, 1);
 	spin_unlock(&xprt->bc_pa_lock);
 
 	req->rq_private_buf.len = copied;

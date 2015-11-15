@@ -13,6 +13,7 @@
 #include <linux/kgdb.h>
 #include <linux/smp.h>
 #include <linux/io.h>
+#include <linux/syscore_ops.h>
 
 #include <asm/stackprotector.h>
 #include <asm/perf_event.h>
@@ -669,6 +670,7 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
 
 		c->x86_virt_bits = (eax >> 8) & 0xff;
 		c->x86_phys_bits = eax & 0xff;
+		c->x86_capability[13] = cpuid_ebx(0x80000008);
 	}
 #ifdef CONFIG_X86_32
 	else if (cpu_has(c, X86_FEATURE_PAE) || cpu_has(c, X86_FEATURE_PSE36))
@@ -1109,10 +1111,10 @@ void print_cpu_info(struct cpuinfo_x86 *c)
 	else
 		printk(KERN_CONT "%d86", c->x86);
 
-	printk(KERN_CONT " (fam: %02x, model: %02x", c->x86, c->x86_model);
+	printk(KERN_CONT " (family: 0x%x, model: 0x%x", c->x86, c->x86_model);
 
 	if (c->x86_mask || c->cpuid_level >= 0)
-		printk(KERN_CONT ", stepping: %02x)\n", c->x86_mask);
+		printk(KERN_CONT ", stepping: 0x%x)\n", c->x86_mask);
 	else
 		printk(KERN_CONT ")\n");
 
@@ -1185,10 +1187,10 @@ void syscall_init(void)
 	 * set CS/DS but only a 32bit target. LSTAR sets the 64bit rip.
 	 */
 	wrmsrl(MSR_STAR,  ((u64)__USER32_CS)<<48  | ((u64)__KERNEL_CS)<<32);
-	wrmsrl(MSR_LSTAR, entry_SYSCALL_64);
+	wrmsrl(MSR_LSTAR, (unsigned long)entry_SYSCALL_64);
 
 #ifdef CONFIG_IA32_EMULATION
-	wrmsrl(MSR_CSTAR, entry_SYSCALL_compat);
+	wrmsrl(MSR_CSTAR, (unsigned long)entry_SYSCALL_compat);
 	/*
 	 * This only works on Intel CPUs.
 	 * On AMD CPUs these MSRs are 32-bit, CPU truncates MSR_IA32_SYSENTER_EIP.
@@ -1199,7 +1201,7 @@ void syscall_init(void)
 	wrmsrl_safe(MSR_IA32_SYSENTER_ESP, 0ULL);
 	wrmsrl_safe(MSR_IA32_SYSENTER_EIP, (u64)entry_SYSENTER_compat);
 #else
-	wrmsrl(MSR_CSTAR, ignore_sysret);
+	wrmsrl(MSR_CSTAR, (unsigned long)ignore_sysret);
 	wrmsrl_safe(MSR_IA32_SYSENTER_CS, (u64)GDT_ENTRY_INVALID_SEG);
 	wrmsrl_safe(MSR_IA32_SYSENTER_ESP, 0ULL);
 	wrmsrl_safe(MSR_IA32_SYSENTER_EIP, 0ULL);
@@ -1410,7 +1412,7 @@ void cpu_init(void)
 	load_sp0(t, &current->thread);
 	set_tss_desc(cpu, t);
 	load_TR_desc();
-	load_LDT(&init_mm.context);
+	load_mm_ldt(&init_mm);
 
 	clear_all_debug_regs();
 	dbg_restore_debug_regs();
@@ -1459,7 +1461,7 @@ void cpu_init(void)
 	load_sp0(t, thread);
 	set_tss_desc(cpu, t);
 	load_TR_desc();
-	load_LDT(&init_mm.context);
+	load_mm_ldt(&init_mm);
 
 	t->x86_tss.io_bitmap_base = offsetof(struct tss_struct, io_bitmap);
 
@@ -1488,3 +1490,20 @@ inline bool __static_cpu_has_safe(u16 bit)
 	return boot_cpu_has(bit);
 }
 EXPORT_SYMBOL_GPL(__static_cpu_has_safe);
+
+static void bsp_resume(void)
+{
+	if (this_cpu->c_bsp_resume)
+		this_cpu->c_bsp_resume(&boot_cpu_data);
+}
+
+static struct syscore_ops cpu_syscore_ops = {
+	.resume		= bsp_resume,
+};
+
+static int __init init_cpu_syscore(void)
+{
+	register_syscore_ops(&cpu_syscore_ops);
+	return 0;
+}
+core_initcall(init_cpu_syscore);

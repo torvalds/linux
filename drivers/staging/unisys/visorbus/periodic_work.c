@@ -1,12 +1,11 @@
 /* periodic_work.c
  *
- * Copyright (C) 2010 - 2013 UNISYS CORPORATION
+ * Copyright (C) 2010 - 2015 UNISYS CORPORATION
  * All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -87,8 +86,8 @@ bool visor_periodic_work_nextperiod(struct periodic_work *pw)
 		pw->want_to_stop = false;
 		rc = true;  /* yes, true; see visor_periodic_work_stop() */
 		goto unlock;
-	} else if (queue_delayed_work(pw->workqueue, &pw->work,
-				      pw->jiffy_interval) < 0) {
+	} else if (!queue_delayed_work(pw->workqueue, &pw->work,
+				       pw->jiffy_interval)) {
 		pw->is_scheduled = false;
 		rc = false;
 		goto unlock;
@@ -118,8 +117,8 @@ bool visor_periodic_work_start(struct periodic_work *pw)
 		goto unlock;
 	}
 	INIT_DELAYED_WORK(&pw->work, &periodic_work_func);
-	if (queue_delayed_work(pw->workqueue, &pw->work,
-			       pw->jiffy_interval) < 0) {
+	if (!queue_delayed_work(pw->workqueue, &pw->work,
+				pw->jiffy_interval)) {
 		rc = false;
 		goto unlock;
 	}

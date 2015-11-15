@@ -104,22 +104,22 @@ struct mt9t112_priv {
 static const struct mt9t112_format mt9t112_cfmts[] = {
 	{
 		.code		= MEDIA_BUS_FMT_UYVY8_2X8,
-		.colorspace	= V4L2_COLORSPACE_JPEG,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.fmt		= 1,
 		.order		= 0,
 	}, {
 		.code		= MEDIA_BUS_FMT_VYUY8_2X8,
-		.colorspace	= V4L2_COLORSPACE_JPEG,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.fmt		= 1,
 		.order		= 1,
 	}, {
 		.code		= MEDIA_BUS_FMT_YUYV8_2X8,
-		.colorspace	= V4L2_COLORSPACE_JPEG,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.fmt		= 1,
 		.order		= 2,
 	}, {
 		.code		= MEDIA_BUS_FMT_YVYU8_2X8,
-		.colorspace	= V4L2_COLORSPACE_JPEG,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.fmt		= 1,
 		.order		= 3,
 	}, {

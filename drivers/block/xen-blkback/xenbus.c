@@ -176,21 +176,24 @@ static int xen_blkif_map(struct xen_blkif *blkif, grant_ref_t *gref,
 	{
 		struct blkif_sring *sring;
 		sring = (struct blkif_sring *)blkif->blk_ring;
-		BACK_RING_INIT(&blkif->blk_rings.native, sring, PAGE_SIZE * nr_grefs);
+		BACK_RING_INIT(&blkif->blk_rings.native, sring,
+			       XEN_PAGE_SIZE * nr_grefs);
 		break;
 	}
 	case BLKIF_PROTOCOL_X86_32:
 	{
 		struct blkif_x86_32_sring *sring_x86_32;
 		sring_x86_32 = (struct blkif_x86_32_sring *)blkif->blk_ring;
-		BACK_RING_INIT(&blkif->blk_rings.x86_32, sring_x86_32, PAGE_SIZE * nr_grefs);
+		BACK_RING_INIT(&blkif->blk_rings.x86_32, sring_x86_32,
+			       XEN_PAGE_SIZE * nr_grefs);
 		break;
 	}
 	case BLKIF_PROTOCOL_X86_64:
 	{
 		struct blkif_x86_64_sring *sring_x86_64;
 		sring_x86_64 = (struct blkif_x86_64_sring *)blkif->blk_ring;
-		BACK_RING_INIT(&blkif->blk_rings.x86_64, sring_x86_64, PAGE_SIZE * nr_grefs);
+		BACK_RING_INIT(&blkif->blk_rings.x86_64, sring_x86_64,
+			       XEN_PAGE_SIZE * nr_grefs);
 		break;
 	}
 	default:
@@ -212,6 +215,9 @@ static int xen_blkif_map(struct xen_blkif *blkif, grant_ref_t *gref,
 
 static int xen_blkif_disconnect(struct xen_blkif *blkif)
 {
+	struct pending_req *req, *n;
+	int i = 0, j;
+
 	if (blkif->xenblkd) {
 		kthread_stop(blkif->xenblkd);
 		wake_up(&blkif->shutdown_wq);
@@ -238,25 +244,6 @@ static int xen_blkif_disconnect(struct xen_blkif *blkif)
 	/* Remove all persistent grants and the cache of ballooned pages. */
 	xen_blkbk_free_caches(blkif);
 
-	return 0;
-}
-
-static void xen_blkif_free(struct xen_blkif *blkif)
-{
-	struct pending_req *req, *n;
-	int i = 0, j;
-
-	xen_blkif_disconnect(blkif);
-	xen_vbd_free(&blkif->vbd);
-
-	/* Make sure everything is drained before shutting down */
-	BUG_ON(blkif->persistent_gnt_c != 0);
-	BUG_ON(atomic_read(&blkif->persistent_gnt_in_use) != 0);
-	BUG_ON(blkif->free_pages_num != 0);
-	BUG_ON(!list_empty(&blkif->persistent_purge_list));
-	BUG_ON(!list_empty(&blkif->free_pages));
-	BUG_ON(!RB_EMPTY_ROOT(&blkif->persistent_gnts));
-
 	/* Check that there is no request in use */
 	list_for_each_entry_safe(req, n, &blkif->pending_free, free_list) {
 		list_del(&req->free_list);
@@ -272,6 +259,24 @@ static void xen_blkif_free(struct xen_blkif *blkif)
 	}
 
 	WARN_ON(i != (XEN_BLKIF_REQS_PER_PAGE * blkif->nr_ring_pages));
+	blkif->nr_ring_pages = 0;
+
+	return 0;
+}
+
+static void xen_blkif_free(struct xen_blkif *blkif)
+{
+
+	xen_blkif_disconnect(blkif);
+	xen_vbd_free(&blkif->vbd);
+
+	/* Make sure everything is drained before shutting down */
+	BUG_ON(blkif->persistent_gnt_c != 0);
+	BUG_ON(atomic_read(&blkif->persistent_gnt_in_use) != 0);
+	BUG_ON(blkif->free_pages_num != 0);
+	BUG_ON(!list_empty(&blkif->persistent_purge_list));
+	BUG_ON(!list_empty(&blkif->free_pages));
+	BUG_ON(!RB_EMPTY_ROOT(&blkif->persistent_gnts));
 
 	kmem_cache_free(xen_blkif_cachep, blkif);
 }
@@ -824,7 +829,7 @@ again:
 static int connect_ring(struct backend_info *be)
 {
 	struct xenbus_device *dev = be->dev;
-	unsigned int ring_ref[XENBUS_MAX_RING_PAGES];
+	unsigned int ring_ref[XENBUS_MAX_RING_GRANTS];
 	unsigned int evtchn, nr_grefs, ring_page_order;
 	unsigned int pers_grants;
 	char protocol[64] = "";

@@ -41,7 +41,6 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-
 #include "../include/obd.h"
 #include "../include/lustre_lite.h"
 
@@ -109,7 +108,7 @@ static int vvp_io_fault_iter_init(const struct lu_env *env,
 
 	LASSERT(inode ==
 		file_inode(cl2ccc_io(env, ios)->cui_fd->fd_file));
-	vio->u.fault.ft_mtime = LTIME_S(inode->i_mtime);
+	vio->u.fault.ft_mtime = inode->i_mtime.tv_sec;
 	return 0;
 }
 
@@ -455,12 +454,11 @@ static void vvp_io_setattr_end(const struct lu_env *env,
 	struct cl_io *io    = ios->cis_io;
 	struct inode *inode = ccc_object_inode(io->ci_obj);
 
-	if (cl_io_is_trunc(io)) {
+	if (cl_io_is_trunc(io))
 		/* Truncate in memory pages - they must be clean pages
 		 * because osc has already notified to destroy osc_extents. */
 		vvp_do_vmtruncate(inode, io->u.ci_setattr.sa_attr.lvb_size);
-		inode_dio_write_done(inode);
-	}
+
 	mutex_unlock(&inode->i_mutex);
 }
 
@@ -644,7 +642,6 @@ static int vvp_io_kernel_fault(struct vvp_fault_io *cfio)
 	return -EINVAL;
 }
 
-
 static int vvp_io_fault_start(const struct lu_env *env,
 			      const struct cl_io_slice *ios)
 {
@@ -662,7 +659,7 @@ static int vvp_io_fault_start(const struct lu_env *env,
 	pgoff_t	      last; /* last page in a file data region */
 
 	if (fio->ft_executable &&
-	    LTIME_S(inode->i_mtime) != vio->u.fault.ft_mtime)
+	    inode->i_mtime.tv_sec != vio->u.fault.ft_mtime)
 		CWARN("binary "DFID
 		      " changed while waiting for the page fault lock\n",
 		      PFID(lu_object_fid(&obj->co_lu)));
@@ -699,10 +696,9 @@ static int vvp_io_fault_start(const struct lu_env *env,
 
 		/* return +1 to stop cl_io_loop() and ll_fault() will catch
 		 * and retry. */
-		result = +1;
+		result = 1;
 		goto out;
 	}
-
 
 	if (fio->ft_mkwrite) {
 		pgoff_t last_index;
@@ -1040,6 +1036,7 @@ static int vvp_io_commit_write(const struct lu_env *env,
 				need_clip = false;
 			} else if (last_index == pg->cp_index) {
 				int size_to = i_size_read(inode) & ~CFS_PAGE_MASK;
+
 				if (to < size_to)
 					to = size_to;
 			}

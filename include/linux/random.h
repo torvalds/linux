@@ -7,6 +7,8 @@
 #define _LINUX_RANDOM_H
 
 #include <linux/list.h>
+#include <linux/once.h>
+
 #include <uapi/linux/random.h>
 
 struct random_ready_callback {
@@ -45,6 +47,10 @@ struct rnd_state {
 
 u32 prandom_u32_state(struct rnd_state *state);
 void prandom_bytes_state(struct rnd_state *state, void *buf, size_t nbytes);
+void prandom_seed_full_state(struct rnd_state __percpu *pcpu_state);
+
+#define prandom_init_once(pcpu_state)			\
+	DO_ONCE(prandom_seed_full_state, (pcpu_state))
 
 /**
  * prandom_u32_max - returns a pseudo-random number in interval [0, ep_ro)

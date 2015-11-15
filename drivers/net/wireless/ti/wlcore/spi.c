@@ -408,7 +408,6 @@ static int wl1271_remove(struct spi_device *spi)
 static struct spi_driver wl1271_spi_driver = {
 	.driver = {
 		.name		= "wl1271_spi",
-		.owner		= THIS_MODULE,
 	},
 
 	.probe		= wl1271_probe,

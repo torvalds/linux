@@ -127,16 +127,6 @@ struct RGF_ICR {
 	u32 IMC; /* Mask Clear, write 1 to clear */
 } __packed;
 
-struct RGF_BL {
-	u32 ready;		/* 0x880A3C bit [0] */
-#define BIT_BL_READY	BIT(0)
-	u32 version;		/* 0x880A40 version of the BL struct */
-	u32 rf_type;		/* 0x880A44 ID of the connected RF */
-	u32 baseband_type;	/* 0x880A48 ID of the baseband */
-	u8  mac_address[ETH_ALEN]; /* 0x880A4C permanent MAC */
-	u8 pad[2];
-} __packed;
-
 /* registers - FW addresses */
 #define RGF_USER_USAGE_1		(0x880004)
 #define RGF_USER_USAGE_6		(0x880018)
@@ -256,15 +246,18 @@ struct RGF_BL {
 #define RGF_USER_JTAG_DEV_ID	(0x880b34) /* device ID */
 	#define JTAG_DEV_ID_SPARROW_B0	(0x2632072f)
 
+/* crash codes for FW/Ucode stored here */
+#define RGF_FW_ASSERT_CODE		(0x91f020)
+#define RGF_UCODE_ASSERT_CODE		(0x91f028)
+
 enum {
 	HW_VER_UNKNOWN,
 	HW_VER_SPARROW_B0, /* JTAG_DEV_ID_SPARROW_B0 */
 };
 
 /* popular locations */
-#define HOST_MBOX   HOSTADDR(RGF_USER_USER_SCRATCH_PAD)
-#define HOST_SW_INT (HOSTADDR(RGF_USER_USER_ICR) + \
-	offsetof(struct RGF_ICR, ICS))
+#define RGF_MBOX   RGF_USER_USER_SCRATCH_PAD
+#define HOST_MBOX   HOSTADDR(RGF_MBOX)
 #define SW_INT_MBOX BIT_USER_USER_ICR_SW_INT_2
 
 /* ISR register bits */
@@ -409,13 +402,14 @@ struct vring_tx_data {
 };
 
 enum { /* for wil6210_priv.status */
-	wil_status_fwready = 0,
+	wil_status_fwready = 0, /* FW operational */
 	wil_status_fwconnecting,
 	wil_status_fwconnected,
 	wil_status_dontscan,
-	wil_status_reset_done,
+	wil_status_mbox_ready, /* MBOX structures ready */
 	wil_status_irqen, /* FIXME: interrupts enabled - for debug */
 	wil_status_napi_en, /* NAPI enabled protected by wil->mutex */
+	wil_status_resetting, /* reset in progress */
 	wil_status_last /* keep last */
 };
 
@@ -434,12 +428,12 @@ struct pci_dev;
  * @ssn: Starting Sequence Number expected to be aggregated.
  * @buf_size: buffer size for incoming A-MPDUs
  * @timeout: reset timer value (in TUs).
+ * @ssn_last_drop: SSN of the last dropped frame
+ * @total: total number of processed incoming frames
+ * @drop_dup: duplicate frames dropped for this reorder buffer
+ * @drop_old: old frames dropped for this reorder buffer
  * @dialog_token: dialog token for aggregation session
- * @rcu_head: RCU head used for freeing this struct
- *
- * This structure's lifetime is managed by RCU, assignments to
- * the array holding it must hold the aggregation mutex.
- *
+ * @first_time: true when this buffer used 1-st time
  */
 struct wil_tid_ampdu_rx {
 	struct sk_buff **reorder_buf;
@@ -453,6 +447,9 @@ struct wil_tid_ampdu_rx {
 	u16 buf_size;
 	u16 timeout;
 	u16 ssn_last_drop;
+	unsigned long long total; /* frames processed */
+	unsigned long long drop_dup;
+	unsigned long long drop_old;
 	u8 dialog_token;
 	bool first_time; /* is it 1-st time this buffer used? */
 };
@@ -473,6 +470,9 @@ struct wil_net_stats {
 	unsigned long	tx_bytes;
 	unsigned long	tx_errors;
 	unsigned long	rx_dropped;
+	unsigned long	rx_non_data_frame;
+	unsigned long	rx_short_frame;
+	unsigned long	rx_large_frame;
 	u16 last_mcs_rx;
 	u64 rx_per_mcs[WIL_MCS_MAX + 1];
 };
@@ -543,7 +543,6 @@ struct pmc_ctx {
 
 struct wil6210_priv {
 	struct pci_dev *pdev;
-	int n_msi;
 	struct wireless_dev *wdev;
 	void __iomem *csr;
 	DECLARE_BITMAP(status, wil_status_last);
@@ -559,6 +558,8 @@ struct wil6210_priv {
 	/* profile */
 	u32 monitor_flags;
 	u32 privacy; /* secure connection? */
+	u8 hidden_ssid; /* relevant in AP mode */
+	u16 channel; /* relevant in AP mode */
 	int sinfo_gen;
 	u32 ap_isolate; /* no intra-BSS communication */
 	/* interrupt moderation */
@@ -654,6 +655,33 @@ void wil_info(struct wil6210_priv *wil, const char *fmt, ...);
 #define wil_dbg_txrx(wil, fmt, arg...) wil_dbg(wil, "DBG[TXRX]" fmt, ##arg)
 #define wil_dbg_wmi(wil, fmt, arg...) wil_dbg(wil, "DBG[ WMI]" fmt, ##arg)
 #define wil_dbg_misc(wil, fmt, arg...) wil_dbg(wil, "DBG[MISC]" fmt, ##arg)
+#define wil_dbg_pm(wil, fmt, arg...) wil_dbg(wil, "DBG[ PM ]" fmt, ##arg)
+
+/* target operations */
+/* register read */
+static inline u32 wil_r(struct wil6210_priv *wil, u32 reg)
+{
+	return readl(wil->csr + HOSTADDR(reg));
+}
+
+/* register write. wmb() to make sure it is completed */
+static inline void wil_w(struct wil6210_priv *wil, u32 reg, u32 val)
+{
+	writel(val, wil->csr + HOSTADDR(reg));
+	wmb(); /* wait for write to propagate to the HW */
+}
+
+/* register set = read, OR, write */
+static inline void wil_s(struct wil6210_priv *wil, u32 reg, u32 val)
+{
+	wil_w(wil, reg, wil_r(wil, reg) | val);
+}
+
+/* register clear = read, AND with inverted, write */
+static inline void wil_c(struct wil6210_priv *wil, u32 reg, u32 val)
+{
+	wil_w(wil, reg, wil_r(wil, reg) & ~val);
+}
 
 #if defined(CONFIG_DYNAMIC_DEBUG)
 #define wil_hex_dump_txrx(prefix_str, prefix_type, rowsize,	\
@@ -744,7 +772,7 @@ void wil_back_tx_worker(struct work_struct *work);
 void wil_back_tx_flush(struct wil6210_priv *wil);
 
 void wil6210_clear_irq(struct wil6210_priv *wil);
-int wil6210_init_irq(struct wil6210_priv *wil, int irq);
+int wil6210_init_irq(struct wil6210_priv *wil, int irq, bool use_msi);
 void wil6210_fini_irq(struct wil6210_priv *wil, int irq);
 void wil_mask_irq(struct wil6210_priv *wil);
 void wil_unmask_irq(struct wil6210_priv *wil);
@@ -795,5 +823,11 @@ int wil_iftype_nl2wmi(enum nl80211_iftype type);
 
 int wil_ioctl(struct wil6210_priv *wil, void __user *data, int cmd);
 int wil_request_firmware(struct wil6210_priv *wil, const char *name);
+
+int wil_can_suspend(struct wil6210_priv *wil, bool is_runtime);
+int wil_suspend(struct wil6210_priv *wil, bool is_runtime);
+int wil_resume(struct wil6210_priv *wil, bool is_runtime);
+
+void wil_fw_core_dump(struct wil6210_priv *wil);
 
 #endif /* __WIL6210_H__ */

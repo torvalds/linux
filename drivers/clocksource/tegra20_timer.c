@@ -72,33 +72,36 @@ static int tegra_timer_set_next_event(unsigned long cycles,
 	return 0;
 }
 
-static void tegra_timer_set_mode(enum clock_event_mode mode,
-				    struct clock_event_device *evt)
+static inline void timer_shutdown(struct clock_event_device *evt)
 {
-	u32 reg;
-
 	timer_writel(0, TIMER3_BASE + TIMER_PTV);
+}
 
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		reg = 0xC0000000 | ((1000000/HZ)-1);
-		timer_writel(reg, TIMER3_BASE + TIMER_PTV);
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-		break;
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	case CLOCK_EVT_MODE_RESUME:
-		break;
-	}
+static int tegra_timer_shutdown(struct clock_event_device *evt)
+{
+	timer_shutdown(evt);
+	return 0;
+}
+
+static int tegra_timer_set_periodic(struct clock_event_device *evt)
+{
+	u32 reg = 0xC0000000 | ((1000000 / HZ) - 1);
+
+	timer_shutdown(evt);
+	timer_writel(reg, TIMER3_BASE + TIMER_PTV);
+	return 0;
 }
 
 static struct clock_event_device tegra_clockevent = {
-	.name		= "timer0",
-	.rating		= 300,
-	.features	= CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PERIODIC,
-	.set_next_event	= tegra_timer_set_next_event,
-	.set_mode	= tegra_timer_set_mode,
+	.name			= "timer0",
+	.rating			= 300,
+	.features		= CLOCK_EVT_FEAT_ONESHOT |
+				  CLOCK_EVT_FEAT_PERIODIC,
+	.set_next_event		= tegra_timer_set_next_event,
+	.set_state_shutdown	= tegra_timer_shutdown,
+	.set_state_periodic	= tegra_timer_set_periodic,
+	.set_state_oneshot	= tegra_timer_shutdown,
+	.tick_resume		= tegra_timer_shutdown,
 };
 
 static u64 notrace tegra_read_sched_clock(void)

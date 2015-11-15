@@ -31,36 +31,24 @@
 #include "../comedi_pci.h"
 
 /* Registers present in BAR0 memory region */
-#define MF624_GPIOC_R					0x54
+#define MF624_GPIOC_REG		0x54
 
-#define MF6X4_GPIOC_EOLC /* End Of Last Conversion */	(1 << 17)
-#define MF6X4_GPIOC_LDAC /* Load DACs */		(1 << 23)
-#define MF6X4_GPIOC_DACEN				(1 << 26)
+#define MF6X4_GPIOC_EOLC	BIT(17)	/* End Of Last Conversion */
+#define MF6X4_GPIOC_LDAC	BIT(23)	/* Load DACs */
+#define MF6X4_GPIOC_DACEN	BIT(26)
 
 /* BAR1 registers */
-#define MF6X4_DIN_R					0x10
-#define MF6X4_DIN_M					0xff
-#define MF6X4_DOUT_R					0x10
-#define MF6X4_DOUT_M					0xff
-
-#define MF6X4_ADSTART_R					0x20
-#define MF6X4_ADDATA_R					0x00
-#define MF6X4_ADCTRL_R					0x00
-#define MF6X4_ADCTRL_M					0xff
-
-#define MF6X4_DA0_R					0x20
-#define MF6X4_DA1_R					0x22
-#define MF6X4_DA2_R					0x24
-#define MF6X4_DA3_R					0x26
-#define MF6X4_DA4_R					0x28
-#define MF6X4_DA5_R					0x2a
-#define MF6X4_DA6_R					0x2c
-#define MF6X4_DA7_R					0x2e
-/* Map DAC cahnnel id to real HW-dependent offset value */
-#define MF6X4_DAC_R(x)					(0x20 + ((x) * 2))
+#define MF6X4_ADDATA_REG	0x00
+#define MF6X4_ADCTRL_REG	0x00
+#define MF6X4_ADCTRL_CHAN(x)	BIT(chan)
+#define MF6X4_DIN_REG		0x10
+#define MF6X4_DIN_MASK		0xff
+#define MF6X4_DOUT_REG		0x10
+#define MF6X4_ADSTART_REG	0x20
+#define MF6X4_DAC_REG(x)	(0x20 + ((x) * 2))
 
 /* BAR2 registers */
-#define MF634_GPIOC_R					0x68
+#define MF634_GPIOC_REG		0x68
 
 enum mf6x4_boardid {
 	BOARD_MF634,
@@ -69,8 +57,8 @@ enum mf6x4_boardid {
 
 struct mf6x4_board {
 	const char *name;
-	unsigned int bar_nums[3]; /* We need to keep track of the
-				     order of BARs used by the cards */
+	/* We need to keep track of the order of BARs used by the cards */
+	unsigned int bar_nums[3];
 };
 
 static const struct mf6x4_board mf6x4_boards[] = {
@@ -99,7 +87,7 @@ struct mf6x4_private {
 	 * for both cards however it lies in different BARs on different
 	 * offsets -- this variable makes the access easier
 	 */
-	void __iomem *gpioc_R;
+	void __iomem *gpioc_reg;
 };
 
 static int mf6x4_di_insn_bits(struct comedi_device *dev,
@@ -107,7 +95,7 @@ static int mf6x4_di_insn_bits(struct comedi_device *dev,
 			      struct comedi_insn *insn,
 			      unsigned int *data)
 {
-	data[1] = ioread16(dev->mmio + MF6X4_DIN_R) & MF6X4_DIN_M;
+	data[1] = ioread16(dev->mmio + MF6X4_DIN_REG) & MF6X4_DIN_MASK;
 
 	return insn->n;
 }
@@ -118,7 +106,7 @@ static int mf6x4_do_insn_bits(struct comedi_device *dev,
 			      unsigned int *data)
 {
 	if (comedi_dio_update_state(s, data))
-		iowrite16(s->state & MF6X4_DOUT_M, dev->mmio + MF6X4_DOUT_R);
+		iowrite16(s->state, dev->mmio + MF6X4_DOUT_REG);
 
 	data[1] = s->state;
 
@@ -133,7 +121,7 @@ static int mf6x4_ai_eoc(struct comedi_device *dev,
 	struct mf6x4_private *devpriv = dev->private;
 	unsigned int status;
 
-	status = ioread32(devpriv->gpioc_R);
+	status = ioread32(devpriv->gpioc_reg);
 	if (status & MF6X4_GPIOC_EOLC)
 		return 0;
 	return -EBUSY;
@@ -144,29 +132,30 @@ static int mf6x4_ai_insn_read(struct comedi_device *dev,
 			      struct comedi_insn *insn,
 			      unsigned int *data)
 {
-	int chan = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int d;
 	int ret;
 	int i;
-	int d;
 
 	/* Set the ADC channel number in the scan list */
-	iowrite16((1 << chan) & MF6X4_ADCTRL_M, dev->mmio + MF6X4_ADCTRL_R);
+	iowrite16(MF6X4_ADCTRL_CHAN(chan), dev->mmio + MF6X4_ADCTRL_REG);
 
 	for (i = 0; i < insn->n; i++) {
 		/* Trigger ADC conversion by reading ADSTART */
-		ioread16(dev->mmio + MF6X4_ADSTART_R);
+		ioread16(dev->mmio + MF6X4_ADSTART_REG);
 
 		ret = comedi_timeout(dev, s, insn, mf6x4_ai_eoc, 0);
 		if (ret)
 			return ret;
 
 		/* Read the actual value */
-		d = ioread16(dev->mmio + MF6X4_ADDATA_R);
+		d = ioread16(dev->mmio + MF6X4_ADDATA_REG);
 		d &= s->maxdata;
-		data[i] = d;
+		/* munge the 2's complement data to offset binary */
+		data[i] = comedi_offset_munge(s, d);
 	}
 
-	iowrite16(0x0, dev->mmio + MF6X4_ADCTRL_R);
+	iowrite16(0x0, dev->mmio + MF6X4_ADCTRL_REG);
 
 	return insn->n;
 }
@@ -179,17 +168,17 @@ static int mf6x4_ao_insn_write(struct comedi_device *dev,
 	struct mf6x4_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int val = s->readback[chan];
-	uint32_t gpioc;
+	unsigned int gpioc;
 	int i;
 
 	/* Enable instantaneous update of converters outputs + Enable DACs */
-	gpioc = ioread32(devpriv->gpioc_R);
+	gpioc = ioread32(devpriv->gpioc_reg);
 	iowrite32((gpioc & ~MF6X4_GPIOC_LDAC) | MF6X4_GPIOC_DACEN,
-		  devpriv->gpioc_R);
+		  devpriv->gpioc_reg);
 
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
-		iowrite16(val, dev->mmio + MF6X4_DAC_R(chan));
+		iowrite16(val, dev->mmio + MF6X4_DAC_REG(chan));
 	}
 	s->readback[chan] = val;
 
@@ -233,53 +222,53 @@ static int mf6x4_auto_attach(struct comedi_device *dev, unsigned long context)
 		return -ENODEV;
 
 	if (board == &mf6x4_boards[BOARD_MF634])
-		devpriv->gpioc_R = devpriv->bar2_mem + MF634_GPIOC_R;
+		devpriv->gpioc_reg = devpriv->bar2_mem + MF634_GPIOC_REG;
 	else
-		devpriv->gpioc_R = devpriv->bar0_mem + MF624_GPIOC_R;
+		devpriv->gpioc_reg = devpriv->bar0_mem + MF624_GPIOC_REG;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
 		return ret;
 
-	/* ADC */
+	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND;
-	s->n_chan = 8;
-	s->maxdata = 0x3fff; /* 14 bits ADC */
-	s->range_table = &range_bipolar10;
-	s->insn_read = mf6x4_ai_insn_read;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND;
+	s->n_chan	= 8;
+	s->maxdata	= 0x3fff;
+	s->range_table	= &range_bipolar10;
+	s->insn_read	= mf6x4_ai_insn_read;
 
-	/* DAC */
+	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 8;
-	s->maxdata = 0x3fff; /* 14 bits DAC */
-	s->range_table = &range_bipolar10;
-	s->insn_write = mf6x4_ao_insn_write;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 8;
+	s->maxdata	= 0x3fff;
+	s->range_table	= &range_bipolar10;
+	s->insn_write	= mf6x4_ao_insn_write;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)
 		return ret;
 
-	/* DIN */
+	/* Digital Input subdevice */
 	s = &dev->subdevices[2];
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 8;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = mf6x4_di_insn_bits;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 8;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= mf6x4_di_insn_bits;
 
-	/* DOUT */
+	/* Digital Output subdevice */
 	s = &dev->subdevices[3];
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 8;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = mf6x4_do_insn_bits;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 8;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= mf6x4_do_insn_bits;
 
 	return 0;
 }

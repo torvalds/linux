@@ -524,12 +524,11 @@ static const struct snd_kcontrol_new twl4030_dapm_abypassv_control =
 	SOC_DAPM_SINGLE("Switch", TWL4030_REG_VDL_APGA_CTL, 2, 1, 0);
 
 /* Digital bypass gain, mute instead of -30dB */
-static const unsigned int twl4030_dapm_dbypass_tlv[] = {
-	TLV_DB_RANGE_HEAD(3),
+static const DECLARE_TLV_DB_RANGE(twl4030_dapm_dbypass_tlv,
 	0, 1, TLV_DB_SCALE_ITEM(-3000, 600, 1),
 	2, 3, TLV_DB_SCALE_ITEM(-2400, 0, 0),
-	4, 7, TLV_DB_SCALE_ITEM(-1800, 600, 0),
-};
+	4, 7, TLV_DB_SCALE_ITEM(-1800, 600, 0)
+);
 
 /* Digital bypass left (TX1L -> RX2L) */
 static const struct snd_kcontrol_new twl4030_dapm_dbypassl_control =
@@ -1613,19 +1612,16 @@ static void twl4030_constraints(struct twl4030_priv *twl4030,
 		return;
 
 	/* Set the constraints according to the already configured stream */
-	snd_pcm_hw_constraint_minmax(slv_substream->runtime,
+	snd_pcm_hw_constraint_single(slv_substream->runtime,
 				SNDRV_PCM_HW_PARAM_RATE,
-				twl4030->rate,
 				twl4030->rate);
 
-	snd_pcm_hw_constraint_minmax(slv_substream->runtime,
+	snd_pcm_hw_constraint_single(slv_substream->runtime,
 				SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
-				twl4030->sample_bits,
 				twl4030->sample_bits);
 
-	snd_pcm_hw_constraint_minmax(slv_substream->runtime,
+	snd_pcm_hw_constraint_single(slv_substream->runtime,
 				SNDRV_PCM_HW_PARAM_CHANNELS,
-				twl4030->channels,
 				twl4030->channels);
 }
 
@@ -1670,9 +1666,9 @@ static int twl4030_startup(struct snd_pcm_substream *substream,
 			/* In option2 4 channel is not supported, set the
 			 * constraint for the first stream for channels, the
 			 * second stream will 'inherit' this cosntraint */
-			snd_pcm_hw_constraint_minmax(substream->runtime,
+			snd_pcm_hw_constraint_single(substream->runtime,
 						     SNDRV_PCM_HW_PARAM_CHANNELS,
-						     2, 2);
+						     2);
 		}
 		twl4030->master_substream = substream;
 	}

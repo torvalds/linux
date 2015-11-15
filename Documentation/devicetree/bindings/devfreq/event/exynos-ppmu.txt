@@ -11,15 +11,14 @@ to various devfreq devices. The devfreq devices would use the event data when
 derterming the current state of each IP.
 
 Required properties:
-- compatible: Should be "samsung,exynos-ppmu".
+- compatible: Should be "samsung,exynos-ppmu" or "samsung,exynos-ppmu-v2.
 - reg: physical base address of each PPMU and length of memory mapped region.
 
 Optional properties:
 - clock-names : the name of clock used by the PPMU, "ppmu"
 - clocks : phandles for clock specified in "clock-names" property
-- #clock-cells: should be 1.
 
-Example1 : PPMU nodes in exynos3250.dtsi are listed below.
+Example1 : PPMUv1 nodes in exynos3250.dtsi are listed below.
 
 		ppmu_dmc0: ppmu_dmc0@106a0000 {
 			compatible = "samsung,exynos-ppmu";
@@ -108,3 +107,41 @@ Example2 : Events of each PPMU node in exynos3250-rinato.dts are listed below.
 			};
 		};
 	};
+
+Example3 : PPMUv2 nodes in exynos5433.dtsi are listed below.
+
+		ppmu_d0_cpu: ppmu_d0_cpu@10480000 {
+			compatible = "samsung,exynos-ppmu-v2";
+			reg = <0x10480000 0x2000>;
+			status = "disabled";
+		};
+
+		ppmu_d0_general: ppmu_d0_general@10490000 {
+			compatible = "samsung,exynos-ppmu-v2";
+			reg = <0x10490000 0x2000>;
+			status = "disabled";
+		};
+
+		ppmu_d0_rt: ppmu_d0_rt@104a0000 {
+			compatible = "samsung,exynos-ppmu-v2";
+			reg = <0x104a0000 0x2000>;
+			status = "disabled";
+		};
+
+		ppmu_d1_cpu: ppmu_d1_cpu@104b0000 {
+			compatible = "samsung,exynos-ppmu-v2";
+			reg = <0x104b0000 0x2000>;
+			status = "disabled";
+		};
+
+		ppmu_d1_general: ppmu_d1_general@104c0000 {
+			compatible = "samsung,exynos-ppmu-v2";
+			reg = <0x104c0000 0x2000>;
+			status = "disabled";
+		};
+
+		ppmu_d1_rt: ppmu_d1_rt@104d0000 {
+			compatible = "samsung,exynos-ppmu-v2";
+			reg = <0x104d0000 0x2000>;
+			status = "disabled";
+		};

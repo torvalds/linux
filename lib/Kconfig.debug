@@ -197,6 +197,7 @@ config ENABLE_MUST_CHECK
 config FRAME_WARN
 	int "Warn for stack frames larger than (needs gcc 4.4)"
 	range 0 8192
+	default 0 if KASAN
 	default 1024 if !64BIT
 	default 2048 if 64BIT
 	help
@@ -310,6 +311,15 @@ config DEBUG_SECTION_MISMATCH
 	    reported at least twice.
 	  - Enable verbose reporting from modpost in order to help resolve
 	    the section mismatches that are reported.
+
+config SECTION_MISMATCH_WARN_ONLY
+	bool "Make section mismatch errors non-fatal"
+	default y
+	help
+	  If you say N here, the build process will fail if there are any
+	  section mismatch, instead of just throwing warnings.
+
+	  If unsure, say Y.
 
 #
 # Select this config option from the architecture Kconfig, if it
@@ -916,12 +926,6 @@ config DEBUG_RT_MUTEXES
 	 This allows rt mutex semantics violations and rt mutex related
 	 deadlocks (lockups) to be detected and reported automatically.
 
-config RT_MUTEX_TESTER
-	bool "Built-in scriptable tester for rt-mutexes"
-	depends on DEBUG_KERNEL && RT_MUTEXES && BROKEN
-	help
-	  This option enables a rt-mutex tester.
-
 config DEBUG_SPINLOCK
 	bool "Spinlock and rw-lock debugging: basic checks"
 	depends on DEBUG_KERNEL
@@ -1353,20 +1357,6 @@ config RCU_CPU_STALL_TIMEOUT
 	  RCU grace period persists, additional CPU stall warnings are
 	  printed at more widely spaced intervals.
 
-config RCU_CPU_STALL_INFO
-	bool "Print additional diagnostics on RCU CPU stall"
-	depends on (TREE_RCU || PREEMPT_RCU) && DEBUG_KERNEL
-	default y
-	help
-	  For each stalled CPU that is aware of the current RCU grace
-	  period, print out additional per-CPU diagnostic information
-	  regarding scheduling-clock ticks, idle state, and,
-	  for RCU_FAST_NO_HZ kernels, idle-entry state.
-
-	  Say N if you are unsure.
-
-	  Say Y if you want to enable such diagnostics.
-
 config RCU_TRACE
 	bool "Enable tracing for RCU"
 	depends on DEBUG_KERNEL
@@ -1379,7 +1369,7 @@ config RCU_TRACE
 	  Say N if you are unsure.
 
 config RCU_EQS_DEBUG
-	bool "Use this when adding any sort of NO_HZ support to your arch"
+	bool "Provide debugging asserts for adding NO_HZ support to an arch"
 	depends on DEBUG_KERNEL
 	help
 	  This option provides consistency checks in RCU's handling of
@@ -1542,6 +1532,13 @@ config FAIL_MMC_REQUEST
 	  and to test how the mmc host driver handles retries from
 	  the block device.
 
+config FAIL_FUTEX
+	bool "Fault-injection capability for futexes"
+	select DEBUG_FS
+	depends on FAULT_INJECTION && FUTEX
+	help
+	  Provide fault-injection capability for futexes.
+
 config FAULT_INJECTION_DEBUG_FS
 	bool "Debugfs entries for fault-injection capabilities"
 	depends on FAULT_INJECTION && SYSFS && DEBUG_FS
@@ -1698,6 +1695,9 @@ config TEST_STRING_HELPERS
 config TEST_KSTRTOX
 	tristate "Test kstrto*() family of functions at runtime"
 
+config TEST_PRINTF
+	tristate "Test printf() family of functions at runtime"
+
 config TEST_RHASHTABLE
 	tristate "Perform selftest on resizable hash table"
 	default n
@@ -1839,6 +1839,15 @@ config MEMTEST
 	        ...
 	        memtest=17, mean do 17 test patterns.
 	  If you are unsure how to answer this question, answer N.
+
+config TEST_STATIC_KEYS
+	tristate "Test static keys"
+	default n
+	depends on m
+	help
+	  Test the static key interfaces.
+
+	  If unsure, say N.
 
 source "samples/Kconfig"
 

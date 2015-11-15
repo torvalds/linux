@@ -17,4 +17,7 @@
 
 extern const u8 ALLFFMAC[ETH_ALEN];
 
+/* Sets dongle media info (drv_version, mac address). */
+int brcmf_c_preinit_dcmds(struct brcmf_if *ifp);
+
 #endif /* BRCMFMAC_COMMON_H */

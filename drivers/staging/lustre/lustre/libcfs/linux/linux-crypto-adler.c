@@ -82,6 +82,7 @@ static int adler32_update(struct shash_desc *desc, const u8 *data,
 	*cksump = __adler32(*cksump, data, len);
 	return 0;
 }
+
 static int __adler32_finup(u32 *cksump, const u8 *data, unsigned int len,
 			   u8 *out)
 {
@@ -109,6 +110,7 @@ static int adler32_digest(struct shash_desc *desc, const u8 *data,
 	return __adler32_finup(crypto_shash_ctx(desc->tfm), data, len,
 				    out);
 }
+
 static struct shash_alg alg = {
 	.setkey		= adler32_setkey,
 	.init		= adler32_init,
@@ -128,7 +130,6 @@ static struct shash_alg alg = {
 		.cra_init		= adler32_cra_init,
 	}
 };
-
 
 int cfs_crypto_adler32_register(void)
 {

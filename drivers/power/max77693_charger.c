@@ -20,6 +20,7 @@
 #include <linux/power_supply.h>
 #include <linux/regmap.h>
 #include <linux/mfd/max77693.h>
+#include <linux/mfd/max77693-common.h>
 #include <linux/mfd/max77693-private.h>
 
 #define MAX77693_CHARGER_NAME				"max77693-charger"

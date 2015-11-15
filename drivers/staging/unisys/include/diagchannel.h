@@ -16,11 +16,6 @@
 #ifndef _DIAG_CHANNEL_H_
 #define _DIAG_CHANNEL_H_
 
-#define MAX_MODULE_NAME_SIZE 128	/* Maximum length of module name... */
-#define MAX_ADDITIONAL_INFO_SIZE 256	/* Maximum length of any additional
-					 * info accompanying event...
-					 */
-
 /* Levels of severity for diagnostic events, in order from lowest severity to
  * highest (i.e. fatal errors are the most severe, and should always be logged,
  * but info events rarely need to be logged except during debugging). The

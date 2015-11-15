@@ -11,10 +11,6 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc., 59
-  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-
   The full GNU General Public License is included in this distribution in the
   file called LICENSE.
 
@@ -151,7 +147,7 @@
 static u8 P802_1H_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0xf8 };
 static u8 RFC1042_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0x00 };
 
-inline int rtllib_put_snap(u8 *data, u16 h_proto)
+static int rtllib_put_snap(u8 *data, u16 h_proto)
 {
 	struct rtllib_snap_hdr *snap;
 	u8 *oui;
@@ -205,7 +201,6 @@ int rtllib_encrypt_fragment(struct rtllib_device *ieee, struct sk_buff *frag,
 	if (res < 0) {
 		netdev_info(ieee->dev, "%s: Encryption failed: len=%d.\n",
 			    ieee->dev->name, frag->len);
-		ieee->ieee_stats.tx_discards++;
 		return -1;
 	}
 
@@ -488,7 +483,7 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 	if (ieee->current_network.capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
 		tcb_desc->bUseShortPreamble = true;
 	if (ieee->iw_mode == IW_MODE_MASTER)
-			goto NO_PROTECTION;
+		goto NO_PROTECTION;
 	return;
 NO_PROTECTION:
 	tcb_desc->bRTSEnable	= false;
@@ -515,8 +510,8 @@ static void rtllib_txrate_selectmode(struct rtllib_device *ieee,
 	}
 }
 
-u16 rtllib_query_seqnum(struct rtllib_device *ieee, struct sk_buff *skb,
-			u8 *dst)
+static u16 rtllib_query_seqnum(struct rtllib_device *ieee, struct sk_buff *skb,
+			       u8 *dst)
 {
 	u16 seqnum = 0;
 
@@ -566,7 +561,7 @@ static u8 rtllib_current_rate(struct rtllib_device *ieee)
 		return ieee->rate & 0x7F;
 }
 
-int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
+static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 {
 	struct rtllib_device *ieee = (struct rtllib_device *)
 				     netdev_priv_rsl(dev);
@@ -636,10 +631,10 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		if (skb->len > 282) {
-			if (ETH_P_IP == ether_type) {
+			if (ether_type == ETH_P_IP) {
 				const struct iphdr *ip = (struct iphdr *)
 					((u8 *)skb->data+14);
-				if (IPPROTO_UDP == ip->protocol) {
+				if (ip->protocol == IPPROTO_UDP) {
 					struct udphdr *udp;
 
 					udp = (struct udphdr *)((u8 *)ip +
@@ -652,7 +647,7 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 						ieee->LPSDelayCnt = 200;
 					}
 				}
-			} else if (ETH_P_ARP == ether_type) {
+			} else if (ether_type == ETH_P_ARP) {
 				netdev_info(ieee->dev,
 					    "=================>DHCP Protocol start tx ARP pkt!!\n");
 				bdhcp = true;

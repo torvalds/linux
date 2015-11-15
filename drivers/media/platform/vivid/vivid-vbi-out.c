@@ -27,7 +27,7 @@
 #include "vivid-vbi-out.h"
 #include "vivid-vbi-cap.h"
 
-static int vbi_out_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+static int vbi_out_queue_setup(struct vb2_queue *vq, const void *parg,
 		       unsigned *nbuffers, unsigned *nplanes,
 		       unsigned sizes[], void *alloc_ctxs[])
 {
@@ -79,8 +79,9 @@ static int vbi_out_buf_prepare(struct vb2_buffer *vb)
 
 static void vbi_out_buf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vivid_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
-	struct vivid_buffer *buf = container_of(vb, struct vivid_buffer, vb);
+	struct vivid_buffer *buf = container_of(vbuf, struct vivid_buffer, vb);
 
 	dprintk(dev, 1, "%s\n", __func__);
 
@@ -107,7 +108,8 @@ static int vbi_out_start_streaming(struct vb2_queue *vq, unsigned count)
 
 		list_for_each_entry_safe(buf, tmp, &dev->vbi_out_active, list) {
 			list_del(&buf->list);
-			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_QUEUED);
+			vb2_buffer_done(&buf->vb.vb2_buf,
+					VB2_BUF_STATE_QUEUED);
 		}
 	}
 	return err;
@@ -201,7 +203,8 @@ int vidioc_try_fmt_sliced_vbi_out(struct file *file, void *fh, struct v4l2_forma
 	return 0;
 }
 
-int vidioc_s_fmt_sliced_vbi_out(struct file *file, void *fh, struct v4l2_format *fmt)
+int vidioc_s_fmt_sliced_vbi_out(struct file *file, void *fh,
+		struct v4l2_format *fmt)
 {
 	struct vivid_dev *dev = video_drvdata(file);
 	struct v4l2_sliced_vbi_format *vbi = &fmt->fmt.sliced;
@@ -217,10 +220,13 @@ int vidioc_s_fmt_sliced_vbi_out(struct file *file, void *fh, struct v4l2_format 
 	return 0;
 }
 
-void vivid_sliced_vbi_out_process(struct vivid_dev *dev, struct vivid_buffer *buf)
+void vivid_sliced_vbi_out_process(struct vivid_dev *dev,
+		struct vivid_buffer *buf)
 {
-	struct v4l2_sliced_vbi_data *vbi = vb2_plane_vaddr(&buf->vb, 0);
-	unsigned elems = vb2_get_plane_payload(&buf->vb, 0) / sizeof(*vbi);
+	struct v4l2_sliced_vbi_data *vbi =
+		vb2_plane_vaddr(&buf->vb.vb2_buf, 0);
+	unsigned elems =
+		vb2_get_plane_payload(&buf->vb.vb2_buf, 0) / sizeof(*vbi);
 
 	dev->vbi_out_have_cc[0] = false;
 	dev->vbi_out_have_cc[1] = false;

@@ -56,6 +56,7 @@
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
+static struct svcxprt_rdma *rdma_create_xprt(struct svc_serv *, int);
 static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 					struct net *net,
 					struct sockaddr *sa, int salen,
@@ -91,9 +92,66 @@ struct svc_xprt_class svc_rdma_class = {
 	.xcl_name = "rdma",
 	.xcl_owner = THIS_MODULE,
 	.xcl_ops = &svc_rdma_ops,
-	.xcl_max_payload = RPCRDMA_MAXPAYLOAD,
+	.xcl_max_payload = RPCSVC_MAXPAYLOAD_RDMA,
 	.xcl_ident = XPRT_TRANSPORT_RDMA,
 };
+
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
+static struct svc_xprt *svc_rdma_bc_create(struct svc_serv *, struct net *,
+					   struct sockaddr *, int, int);
+static void svc_rdma_bc_detach(struct svc_xprt *);
+static void svc_rdma_bc_free(struct svc_xprt *);
+
+static struct svc_xprt_ops svc_rdma_bc_ops = {
+	.xpo_create = svc_rdma_bc_create,
+	.xpo_detach = svc_rdma_bc_detach,
+	.xpo_free = svc_rdma_bc_free,
+	.xpo_prep_reply_hdr = svc_rdma_prep_reply_hdr,
+	.xpo_secure_port = svc_rdma_secure_port,
+};
+
+struct svc_xprt_class svc_rdma_bc_class = {
+	.xcl_name = "rdma-bc",
+	.xcl_owner = THIS_MODULE,
+	.xcl_ops = &svc_rdma_bc_ops,
+	.xcl_max_payload = (1024 - RPCRDMA_HDRLEN_MIN)
+};
+
+static struct svc_xprt *svc_rdma_bc_create(struct svc_serv *serv,
+					   struct net *net,
+					   struct sockaddr *sa, int salen,
+					   int flags)
+{
+	struct svcxprt_rdma *cma_xprt;
+	struct svc_xprt *xprt;
+
+	cma_xprt = rdma_create_xprt(serv, 0);
+	if (!cma_xprt)
+		return ERR_PTR(-ENOMEM);
+	xprt = &cma_xprt->sc_xprt;
+
+	svc_xprt_init(net, &svc_rdma_bc_class, xprt, serv);
+	serv->sv_bc_xprt = xprt;
+
+	dprintk("svcrdma: %s(%p)\n", __func__, xprt);
+	return xprt;
+}
+
+static void svc_rdma_bc_detach(struct svc_xprt *xprt)
+{
+	dprintk("svcrdma: %s(%p)\n", __func__, xprt);
+}
+
+static void svc_rdma_bc_free(struct svc_xprt *xprt)
+{
+	struct svcxprt_rdma *rdma =
+		container_of(xprt, struct svcxprt_rdma, sc_xprt);
+
+	dprintk("svcrdma: %s(%p)\n", __func__, xprt);
+	if (xprt)
+		kfree(rdma);
+}
+#endif	/* CONFIG_SUNRPC_BACKCHANNEL */
 
 struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *xprt)
 {
@@ -659,6 +717,7 @@ static int rdma_cma_handler(struct rdma_cm_id *cma_id,
 		if (xprt) {
 			set_bit(XPT_CLOSE, &xprt->xpt_flags);
 			svc_xprt_enqueue(xprt);
+			svc_xprt_put(xprt);
 		}
 		break;
 	default:
@@ -691,8 +750,8 @@ static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 	if (!cma_xprt)
 		return ERR_PTR(-ENOMEM);
 
-	listen_id = rdma_create_id(rdma_listen_handler, cma_xprt, RDMA_PS_TCP,
-				   IB_QPT_RC);
+	listen_id = rdma_create_id(&init_net, rdma_listen_handler, cma_xprt,
+				   RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(listen_id)) {
 		ret = PTR_ERR(listen_id);
 		dprintk("svcrdma: rdma_create_id failed = %d\n", ret);
@@ -731,24 +790,27 @@ static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 static struct svc_rdma_fastreg_mr *rdma_alloc_frmr(struct svcxprt_rdma *xprt)
 {
 	struct ib_mr *mr;
-	struct ib_fast_reg_page_list *pl;
+	struct scatterlist *sg;
 	struct svc_rdma_fastreg_mr *frmr;
+	u32 num_sg;
 
 	frmr = kmalloc(sizeof(*frmr), GFP_KERNEL);
 	if (!frmr)
 		goto err;
 
-	mr = ib_alloc_fast_reg_mr(xprt->sc_pd, RPCSVC_MAXPAGES);
+	num_sg = min_t(u32, RPCSVC_MAXPAGES, xprt->sc_frmr_pg_list_len);
+	mr = ib_alloc_mr(xprt->sc_pd, IB_MR_TYPE_MEM_REG, num_sg);
 	if (IS_ERR(mr))
 		goto err_free_frmr;
 
-	pl = ib_alloc_fast_reg_page_list(xprt->sc_cm_id->device,
-					 RPCSVC_MAXPAGES);
-	if (IS_ERR(pl))
+	sg = kcalloc(RPCSVC_MAXPAGES, sizeof(*sg), GFP_KERNEL);
+	if (!sg)
 		goto err_free_mr;
 
+	sg_init_table(sg, RPCSVC_MAXPAGES);
+
 	frmr->mr = mr;
-	frmr->page_list = pl;
+	frmr->sg = sg;
 	INIT_LIST_HEAD(&frmr->frmr_list);
 	return frmr;
 
@@ -768,8 +830,8 @@ static void rdma_dealloc_frmr_q(struct svcxprt_rdma *xprt)
 		frmr = list_entry(xprt->sc_frmr_q.next,
 				  struct svc_rdma_fastreg_mr, frmr_list);
 		list_del_init(&frmr->frmr_list);
+		kfree(frmr->sg);
 		ib_dereg_mr(frmr->mr);
-		ib_free_fast_reg_page_list(frmr->page_list);
 		kfree(frmr);
 	}
 }
@@ -783,8 +845,7 @@ struct svc_rdma_fastreg_mr *svc_rdma_get_frmr(struct svcxprt_rdma *rdma)
 		frmr = list_entry(rdma->sc_frmr_q.next,
 				  struct svc_rdma_fastreg_mr, frmr_list);
 		list_del_init(&frmr->frmr_list);
-		frmr->map_len = 0;
-		frmr->page_list_len = 0;
+		frmr->sg_nents = 0;
 	}
 	spin_unlock_bh(&rdma->sc_frmr_q_lock);
 	if (frmr)
@@ -793,25 +854,13 @@ struct svc_rdma_fastreg_mr *svc_rdma_get_frmr(struct svcxprt_rdma *rdma)
 	return rdma_alloc_frmr(rdma);
 }
 
-static void frmr_unmap_dma(struct svcxprt_rdma *xprt,
-			   struct svc_rdma_fastreg_mr *frmr)
-{
-	int page_no;
-	for (page_no = 0; page_no < frmr->page_list_len; page_no++) {
-		dma_addr_t addr = frmr->page_list->page_list[page_no];
-		if (ib_dma_mapping_error(frmr->mr->device, addr))
-			continue;
-		atomic_dec(&xprt->sc_dma_used);
-		ib_dma_unmap_page(frmr->mr->device, addr, PAGE_SIZE,
-				  frmr->direction);
-	}
-}
-
 void svc_rdma_put_frmr(struct svcxprt_rdma *rdma,
 		       struct svc_rdma_fastreg_mr *frmr)
 {
 	if (frmr) {
-		frmr_unmap_dma(rdma, frmr);
+		ib_dma_unmap_sg(rdma->sc_cm_id->device,
+				frmr->sg, frmr->sg_nents, frmr->direction);
+		atomic_dec(&rdma->sc_dma_used);
 		spin_lock_bh(&rdma->sc_frmr_q_lock);
 		WARN_ON_ONCE(!list_empty(&frmr->frmr_list));
 		list_add(&frmr->frmr_list, &rdma->sc_frmr_q);
@@ -872,6 +921,8 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	 * capabilities of this particular device */
 	newxprt->sc_max_sge = min((size_t)devattr.max_sge,
 				  (size_t)RPCSVC_MAXPAGES);
+	newxprt->sc_max_sge_rd = min_t(size_t, devattr.max_sge_rd,
+				       RPCSVC_MAXPAGES);
 	newxprt->sc_max_requests = min((size_t)devattr.max_qp_wr,
 				   (size_t)svcrdma_max_requests);
 	newxprt->sc_sq_depth = RPCRDMA_SQ_DEPTH_MULT * newxprt->sc_max_requests;
@@ -1046,6 +1097,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 		"    remote_ip       : %pI4\n"
 		"    remote_port     : %d\n"
 		"    max_sge         : %d\n"
+		"    max_sge_rd      : %d\n"
 		"    sq_depth        : %d\n"
 		"    max_requests    : %d\n"
 		"    ord             : %d\n",
@@ -1059,6 +1111,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 		ntohs(((struct sockaddr_in *)&newxprt->sc_cm_id->
 		       route.addr.dst_addr)->sin_port),
 		newxprt->sc_max_sge,
+		newxprt->sc_max_sge_rd,
 		newxprt->sc_sq_depth,
 		newxprt->sc_max_requests,
 		newxprt->sc_ord);
@@ -1199,40 +1252,6 @@ static int svc_rdma_has_wspace(struct svc_xprt *xprt)
 static int svc_rdma_secure_port(struct svc_rqst *rqstp)
 {
 	return 1;
-}
-
-/*
- * Attempt to register the kvec representing the RPC memory with the
- * device.
- *
- * Returns:
- *  NULL : The device does not support fastreg or there were no more
- *         fastreg mr.
- *  frmr : The kvec register request was successfully posted.
- *    <0 : An error was encountered attempting to register the kvec.
- */
-int svc_rdma_fastreg(struct svcxprt_rdma *xprt,
-		     struct svc_rdma_fastreg_mr *frmr)
-{
-	struct ib_send_wr fastreg_wr;
-	u8 key;
-
-	/* Bump the key */
-	key = (u8)(frmr->mr->lkey & 0x000000FF);
-	ib_update_fast_reg_key(frmr->mr, ++key);
-
-	/* Prepare FASTREG WR */
-	memset(&fastreg_wr, 0, sizeof fastreg_wr);
-	fastreg_wr.opcode = IB_WR_FAST_REG_MR;
-	fastreg_wr.send_flags = IB_SEND_SIGNALED;
-	fastreg_wr.wr.fast_reg.iova_start = (unsigned long)frmr->kva;
-	fastreg_wr.wr.fast_reg.page_list = frmr->page_list;
-	fastreg_wr.wr.fast_reg.page_list_len = frmr->page_list_len;
-	fastreg_wr.wr.fast_reg.page_shift = PAGE_SHIFT;
-	fastreg_wr.wr.fast_reg.length = frmr->map_len;
-	fastreg_wr.wr.fast_reg.access_flags = frmr->access_flags;
-	fastreg_wr.wr.fast_reg.rkey = frmr->mr->lkey;
-	return svc_rdma_send(xprt, &fastreg_wr);
 }
 
 int svc_rdma_send(struct svcxprt_rdma *xprt, struct ib_send_wr *wr)

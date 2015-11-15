@@ -2664,6 +2664,15 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	USB_DEVICE(0x1235, 0x000a),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		/* .vendor_name = "Novation", */
+		/* .product_name = "Nocturn", */
+		.ifnum = 0,
+		.type = QUIRK_MIDI_RAW_BYTES
+	}
+},
+{
 	USB_DEVICE(0x1235, 0x000e),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		/* .vendor_name = "Novation", */
@@ -3182,10 +3191,9 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 {
 	/*
 	 * ZOOM R16/24 in audio interface mode.
-	 * Mixer descriptors are garbage, further quirks will be needed
-	 * to make any of it functional, thus disabled for now.
-	 * Playback stream appears to start and run fine but no sound
-	 * is produced, so also disabled for now.
+	 * Playback requires an extra four byte LE length indicator
+	 * at the start of each isochronous packet. This quirk is
+	 * enabled in create_standard_audio_quirk().
 	 */
 	USB_DEVICE(0x1686, 0x00dd),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
@@ -3193,14 +3201,9 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 		.type = QUIRK_COMPOSITE,
 		.data = (const struct snd_usb_audio_quirk[]) {
 			{
-				/* Mixer */
-				.ifnum = 0,
-				.type = QUIRK_IGNORE_INTERFACE,
-			},
-			{
 				/* Playback  */
 				.ifnum = 1,
-				.type = QUIRK_IGNORE_INTERFACE,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE,
 			},
 			{
 				/* Capture */

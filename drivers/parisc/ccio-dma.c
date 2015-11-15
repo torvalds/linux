@@ -704,8 +704,6 @@ ccio_mark_invalid(struct ioc *ioc, dma_addr_t iova, size_t byte_cnt)
  * ccio_dma_supported - Verify the IOMMU supports the DMA address range.
  * @dev: The PCI device.
  * @mask: A bit mask describing the DMA address range of the device.
- *
- * This function implements the pci_dma_supported function.
  */
 static int 
 ccio_dma_supported(struct device *dev, u64 mask)
@@ -1103,16 +1101,9 @@ static int ccio_proc_bitmap_info(struct seq_file *m, void *p)
 	struct ioc *ioc = ioc_list;
 
 	while (ioc != NULL) {
-		u32 *res_ptr = (u32 *)ioc->res_map;
-		int j;
-
-		for (j = 0; j < (ioc->res_size / sizeof(u32)); j++) {
-			if ((j & 7) == 0)
-				seq_puts(m, "\n   ");
-			seq_printf(m, "%08x", *res_ptr);
-			res_ptr++;
-		}
-		seq_puts(m, "\n\n");
+		seq_hex_dump(m, "   ", DUMP_PREFIX_NONE, 32, 4, ioc->res_map,
+			     ioc->res_size, false);
+		seq_putc(m, '\n');
 		ioc = ioc->next;
 		break; /* XXX - remove me */
 	}

@@ -599,9 +599,10 @@ static void ipr_trc_hook(struct ipr_cmnd *ipr_cmd,
 {
 	struct ipr_trace_entry *trace_entry;
 	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
+	unsigned int trace_index;
 
-	trace_entry = &ioa_cfg->trace[atomic_add_return
-			(1, &ioa_cfg->trace_index)%IPR_NUM_TRACE_ENTRIES];
+	trace_index = atomic_add_return(1, &ioa_cfg->trace_index) & IPR_TRACE_INDEX_MASK;
+	trace_entry = &ioa_cfg->trace[trace_index];
 	trace_entry->time = jiffies;
 	trace_entry->op_code = ipr_cmd->ioarcb.cmd_pkt.cdb[0];
 	trace_entry->type = type;
@@ -1051,10 +1052,15 @@ static void ipr_send_blocking_cmd(struct ipr_cmnd *ipr_cmd,
 
 static int ipr_get_hrrq_index(struct ipr_ioa_cfg *ioa_cfg)
 {
+	unsigned int hrrq;
+
 	if (ioa_cfg->hrrq_num == 1)
-		return 0;
-	else
-		return (atomic_add_return(1, &ioa_cfg->hrrq_index) % (ioa_cfg->hrrq_num - 1)) + 1;
+		hrrq = 0;
+	else {
+		hrrq = atomic_add_return(1, &ioa_cfg->hrrq_index);
+		hrrq = (hrrq % (ioa_cfg->hrrq_num - 1)) + 1;
+	}
+	return hrrq;
 }
 
 /**
@@ -1159,7 +1165,8 @@ static void ipr_init_res_entry(struct ipr_resource_entry *res,
 
 	if (ioa_cfg->sis64) {
 		proto = cfgtew->u.cfgte64->proto;
-		res->res_flags = cfgtew->u.cfgte64->res_flags;
+		res->flags = be16_to_cpu(cfgtew->u.cfgte64->flags);
+		res->res_flags = be16_to_cpu(cfgtew->u.cfgte64->res_flags);
 		res->qmodel = IPR_QUEUEING_MODEL64(res);
 		res->type = cfgtew->u.cfgte64->res_type;
 
@@ -1307,8 +1314,8 @@ static void ipr_update_res_entry(struct ipr_resource_entry *res,
 	int new_path = 0;
 
 	if (res->ioa_cfg->sis64) {
-		res->flags = cfgtew->u.cfgte64->flags;
-		res->res_flags = cfgtew->u.cfgte64->res_flags;
+		res->flags = be16_to_cpu(cfgtew->u.cfgte64->flags);
+		res->res_flags = be16_to_cpu(cfgtew->u.cfgte64->res_flags);
 		res->type = cfgtew->u.cfgte64->res_type;
 
 		memcpy(&res->std_inq_data, &cfgtew->u.cfgte64->std_inq_data,
@@ -1894,7 +1901,7 @@ static void ipr_log_array_error(struct ipr_ioa_cfg *ioa_cfg,
  * Return value:
  * 	none
  **/
-static void ipr_log_hex_data(struct ipr_ioa_cfg *ioa_cfg, u32 *data, int len)
+static void ipr_log_hex_data(struct ipr_ioa_cfg *ioa_cfg, __be32 *data, int len)
 {
 	int i;
 
@@ -2264,7 +2271,7 @@ static void ipr_log_fabric_error(struct ipr_ioa_cfg *ioa_cfg,
 			((unsigned long)fabric + be16_to_cpu(fabric->length));
 	}
 
-	ipr_log_hex_data(ioa_cfg, (u32 *)fabric, add_len);
+	ipr_log_hex_data(ioa_cfg, (__be32 *)fabric, add_len);
 }
 
 /**
@@ -2358,7 +2365,7 @@ static void ipr_log_sis64_fabric_error(struct ipr_ioa_cfg *ioa_cfg,
 			((unsigned long)fabric + be16_to_cpu(fabric->length));
 	}
 
-	ipr_log_hex_data(ioa_cfg, (u32 *)fabric, add_len);
+	ipr_log_hex_data(ioa_cfg, (__be32 *)fabric, add_len);
 }
 
 /**
@@ -4449,7 +4456,7 @@ static ssize_t ipr_show_device_id(struct device *dev, struct device_attribute *a
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
 	res = (struct ipr_resource_entry *)sdev->hostdata;
 	if (res && ioa_cfg->sis64)
-		len = snprintf(buf, PAGE_SIZE, "0x%llx\n", res->dev_id);
+		len = snprintf(buf, PAGE_SIZE, "0x%llx\n", be64_to_cpu(res->dev_id));
 	else if (res)
 		len = snprintf(buf, PAGE_SIZE, "0x%llx\n", res->lun_wwn);
 
@@ -4548,7 +4555,7 @@ static ssize_t ipr_store_raw_mode(struct device *dev,
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
 	res = (struct ipr_resource_entry *)sdev->hostdata;
 	if (res) {
-		if (ioa_cfg->sis64 && ipr_is_af_dasd_device(res)) {
+		if (ipr_is_af_dasd_device(res)) {
 			res->raw_mode = simple_strtoul(buf, NULL, 10);
 			len = strlen(buf);
 			if (res->sdev)
@@ -6263,21 +6270,23 @@ static void ipr_scsi_done(struct ipr_cmnd *ipr_cmd)
 	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
 	struct scsi_cmnd *scsi_cmd = ipr_cmd->scsi_cmd;
 	u32 ioasc = be32_to_cpu(ipr_cmd->s.ioasa.hdr.ioasc);
-	unsigned long hrrq_flags;
+	unsigned long lock_flags;
 
 	scsi_set_resid(scsi_cmd, be32_to_cpu(ipr_cmd->s.ioasa.hdr.residual_data_len));
 
 	if (likely(IPR_IOASC_SENSE_KEY(ioasc) == 0)) {
 		scsi_dma_unmap(scsi_cmd);
 
-		spin_lock_irqsave(ipr_cmd->hrrq->lock, hrrq_flags);
+		spin_lock_irqsave(ipr_cmd->hrrq->lock, lock_flags);
 		list_add_tail(&ipr_cmd->queue, &ipr_cmd->hrrq->hrrq_free_q);
 		scsi_cmd->scsi_done(scsi_cmd);
-		spin_unlock_irqrestore(ipr_cmd->hrrq->lock, hrrq_flags);
+		spin_unlock_irqrestore(ipr_cmd->hrrq->lock, lock_flags);
 	} else {
-		spin_lock_irqsave(ipr_cmd->hrrq->lock, hrrq_flags);
+		spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+		spin_lock(&ipr_cmd->hrrq->_lock);
 		ipr_erp_start(ioa_cfg, ipr_cmd);
-		spin_unlock_irqrestore(ipr_cmd->hrrq->lock, hrrq_flags);
+		spin_unlock(&ipr_cmd->hrrq->_lock);
+		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 	}
 }
 
@@ -6354,15 +6363,19 @@ static int ipr_queuecommand(struct Scsi_Host *shost,
 	ipr_cmd->scsi_cmd = scsi_cmd;
 	ipr_cmd->done = ipr_scsi_eh_done;
 
-	if (ipr_is_gscsi(res) || ipr_is_vset_device(res)) {
+	if (ipr_is_gscsi(res)) {
 		if (scsi_cmd->underflow == 0)
 			ioarcb->cmd_pkt.flags_hi |= IPR_FLAGS_HI_NO_ULEN_CHK;
 
-		ioarcb->cmd_pkt.flags_hi |= IPR_FLAGS_HI_NO_LINK_DESC;
-		if (ipr_is_gscsi(res) && res->reset_occurred) {
+		if (res->reset_occurred) {
 			res->reset_occurred = 0;
 			ioarcb->cmd_pkt.flags_lo |= IPR_FLAGS_LO_DELAY_AFTER_RST;
 		}
+	}
+
+	if (ipr_is_gscsi(res) || ipr_is_vset_device(res)) {
+		ioarcb->cmd_pkt.flags_hi |= IPR_FLAGS_HI_NO_LINK_DESC;
+
 		ioarcb->cmd_pkt.flags_lo |= IPR_FLAGS_LO_ALIGNED_BFR;
 		if (scsi_cmd->flags & SCMD_TAGGED)
 			ioarcb->cmd_pkt.flags_lo |= IPR_FLAGS_LO_SIMPLE_TASK;
@@ -6374,8 +6387,12 @@ static int ipr_queuecommand(struct Scsi_Host *shost,
 	    (!ipr_is_gscsi(res) || scsi_cmd->cmnd[0] == IPR_QUERY_RSRC_STATE)) {
 		ioarcb->cmd_pkt.request_type = IPR_RQTYPE_IOACMD;
 	}
-	if (res->raw_mode && ipr_is_af_dasd_device(res))
+	if (res->raw_mode && ipr_is_af_dasd_device(res)) {
 		ioarcb->cmd_pkt.request_type = IPR_RQTYPE_PIPE;
+
+		if (scsi_cmd->underflow == 0)
+			ioarcb->cmd_pkt.flags_hi |= IPR_FLAGS_HI_NO_ULEN_CHK;
+	}
 
 	if (ioa_cfg->sis64)
 		rc = ipr_build_ioadl64(ioa_cfg, ipr_cmd);
@@ -6489,7 +6506,6 @@ static struct scsi_host_template driver_template = {
 	.shost_attrs = ipr_ioa_attrs,
 	.sdev_attrs = ipr_dev_attrs,
 	.proc_name = IPR_NAME,
-	.use_blk_tags = 1,
 };
 
 /**
@@ -7658,6 +7674,63 @@ static int ipr_ioafp_query_ioa_cfg(struct ipr_cmnd *ipr_cmd)
 	return IPR_RC_JOB_RETURN;
 }
 
+static int ipr_ioa_service_action_failed(struct ipr_cmnd *ipr_cmd)
+{
+	u32 ioasc = be32_to_cpu(ipr_cmd->s.ioasa.hdr.ioasc);
+
+	if (ioasc == IPR_IOASC_IR_INVALID_REQ_TYPE_OR_PKT)
+		return IPR_RC_JOB_CONTINUE;
+
+	return ipr_reset_cmd_failed(ipr_cmd);
+}
+
+static void ipr_build_ioa_service_action(struct ipr_cmnd *ipr_cmd,
+					 __be32 res_handle, u8 sa_code)
+{
+	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
+
+	ioarcb->res_handle = res_handle;
+	ioarcb->cmd_pkt.cdb[0] = IPR_IOA_SERVICE_ACTION;
+	ioarcb->cmd_pkt.cdb[1] = sa_code;
+	ioarcb->cmd_pkt.request_type = IPR_RQTYPE_IOACMD;
+}
+
+/**
+ * ipr_ioafp_set_caching_parameters - Issue Set Cache parameters service
+ * action
+ *
+ * Return value:
+ *	none
+ **/
+static int ipr_ioafp_set_caching_parameters(struct ipr_cmnd *ipr_cmd)
+{
+	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
+	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
+	struct ipr_inquiry_pageC4 *pageC4 = &ioa_cfg->vpd_cbs->pageC4_data;
+
+	ENTER;
+
+	ipr_cmd->job_step = ipr_ioafp_query_ioa_cfg;
+
+	if (pageC4->cache_cap[0] & IPR_CAP_SYNC_CACHE) {
+		ipr_build_ioa_service_action(ipr_cmd,
+					     cpu_to_be32(IPR_IOA_RES_HANDLE),
+					     IPR_IOA_SA_CHANGE_CACHE_PARAMS);
+
+		ioarcb->cmd_pkt.cdb[2] = 0x40;
+
+		ipr_cmd->job_step_failed = ipr_ioa_service_action_failed;
+		ipr_do_req(ipr_cmd, ipr_reset_ioa_job, ipr_timeout,
+			   IPR_SET_SUP_DEVICE_TIMEOUT);
+
+		LEAVE;
+		return IPR_RC_JOB_RETURN;
+	}
+
+	LEAVE;
+	return IPR_RC_JOB_CONTINUE;
+}
+
 /**
  * ipr_ioafp_inquiry - Send an Inquiry to the adapter.
  * @ipr_cmd:	ipr command struct
@@ -7709,6 +7782,39 @@ static int ipr_inquiry_page_supported(struct ipr_inquiry_page0 *page0, u8 page)
 }
 
 /**
+ * ipr_ioafp_pageC4_inquiry - Send a Page 0xC4 Inquiry to the adapter.
+ * @ipr_cmd:	ipr command struct
+ *
+ * This function sends a Page 0xC4 inquiry to the adapter
+ * to retrieve software VPD information.
+ *
+ * Return value:
+ *	IPR_RC_JOB_CONTINUE / IPR_RC_JOB_RETURN
+ **/
+static int ipr_ioafp_pageC4_inquiry(struct ipr_cmnd *ipr_cmd)
+{
+	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
+	struct ipr_inquiry_page0 *page0 = &ioa_cfg->vpd_cbs->page0_data;
+	struct ipr_inquiry_pageC4 *pageC4 = &ioa_cfg->vpd_cbs->pageC4_data;
+
+	ENTER;
+	ipr_cmd->job_step = ipr_ioafp_set_caching_parameters;
+	memset(pageC4, 0, sizeof(*pageC4));
+
+	if (ipr_inquiry_page_supported(page0, 0xC4)) {
+		ipr_ioafp_inquiry(ipr_cmd, 1, 0xC4,
+				  (ioa_cfg->vpd_cbs_dma
+				   + offsetof(struct ipr_misc_cbs,
+					      pageC4_data)),
+				  sizeof(struct ipr_inquiry_pageC4));
+		return IPR_RC_JOB_RETURN;
+	}
+
+	LEAVE;
+	return IPR_RC_JOB_CONTINUE;
+}
+
+/**
  * ipr_ioafp_cap_inquiry - Send a Page 0xD0 Inquiry to the adapter.
  * @ipr_cmd:	ipr command struct
  *
@@ -7725,7 +7831,7 @@ static int ipr_ioafp_cap_inquiry(struct ipr_cmnd *ipr_cmd)
 	struct ipr_inquiry_cap *cap = &ioa_cfg->vpd_cbs->cap;
 
 	ENTER;
-	ipr_cmd->job_step = ipr_ioafp_query_ioa_cfg;
+	ipr_cmd->job_step = ipr_ioafp_pageC4_inquiry;
 	memset(cap, 0, sizeof(*cap));
 
 	if (ipr_inquiry_page_supported(page0, 0xD0)) {
@@ -8264,6 +8370,42 @@ static int ipr_reset_get_unit_check_job(struct ipr_cmnd *ipr_cmd)
 	return IPR_RC_JOB_RETURN;
 }
 
+static int ipr_dump_mailbox_wait(struct ipr_cmnd *ipr_cmd)
+{
+	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
+
+	ENTER;
+
+	if (ioa_cfg->sdt_state != GET_DUMP)
+		return IPR_RC_JOB_RETURN;
+
+	if (!ioa_cfg->sis64 || !ipr_cmd->u.time_left ||
+	    (readl(ioa_cfg->regs.sense_interrupt_reg) &
+	     IPR_PCII_MAILBOX_STABLE)) {
+
+		if (!ipr_cmd->u.time_left)
+			dev_err(&ioa_cfg->pdev->dev,
+				"Timed out waiting for Mailbox register.\n");
+
+		ioa_cfg->sdt_state = READ_DUMP;
+		ioa_cfg->dump_timeout = 0;
+		if (ioa_cfg->sis64)
+			ipr_reset_start_timer(ipr_cmd, IPR_SIS64_DUMP_TIMEOUT);
+		else
+			ipr_reset_start_timer(ipr_cmd, IPR_SIS32_DUMP_TIMEOUT);
+		ipr_cmd->job_step = ipr_reset_wait_for_dump;
+		schedule_work(&ioa_cfg->work_q);
+
+	} else {
+		ipr_cmd->u.time_left -= IPR_CHECK_FOR_RESET_TIMEOUT;
+		ipr_reset_start_timer(ipr_cmd,
+				      IPR_CHECK_FOR_RESET_TIMEOUT);
+	}
+
+	LEAVE;
+	return IPR_RC_JOB_RETURN;
+}
+
 /**
  * ipr_reset_restore_cfg_space - Restore PCI config space.
  * @ipr_cmd:	ipr command struct
@@ -8313,20 +8455,11 @@ static int ipr_reset_restore_cfg_space(struct ipr_cmnd *ipr_cmd)
 
 	if (ioa_cfg->in_ioa_bringdown) {
 		ipr_cmd->job_step = ipr_ioa_bringdown_done;
+	} else if (ioa_cfg->sdt_state == GET_DUMP) {
+		ipr_cmd->job_step = ipr_dump_mailbox_wait;
+		ipr_cmd->u.time_left = IPR_WAIT_FOR_MAILBOX;
 	} else {
 		ipr_cmd->job_step = ipr_reset_enable_ioa;
-
-		if (GET_DUMP == ioa_cfg->sdt_state) {
-			ioa_cfg->sdt_state = READ_DUMP;
-			ioa_cfg->dump_timeout = 0;
-			if (ioa_cfg->sis64)
-				ipr_reset_start_timer(ipr_cmd, IPR_SIS64_DUMP_TIMEOUT);
-			else
-				ipr_reset_start_timer(ipr_cmd, IPR_SIS32_DUMP_TIMEOUT);
-			ipr_cmd->job_step = ipr_reset_wait_for_dump;
-			schedule_work(&ioa_cfg->work_q);
-			return IPR_RC_JOB_RETURN;
-		}
 	}
 
 	LEAVE;

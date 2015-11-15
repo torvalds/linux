@@ -1540,6 +1540,10 @@ static int psmouse_connect(struct serio *serio, struct serio_driver *drv)
 	if (error)
 		goto err_clear_drvdata;
 
+	/* give PT device some time to settle down before probing */
+	if (serio->id.type == SERIO_PS_PSTHRU)
+		usleep_range(10000, 15000);
+
 	if (psmouse_probe(psmouse) < 0) {
 		error = -ENODEV;
 		goto err_close_serio;

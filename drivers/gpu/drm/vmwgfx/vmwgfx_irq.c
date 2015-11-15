@@ -1,6 +1,6 @@
 /**************************************************************************
  *
- * Copyright © 2009 VMware, Inc., Palo Alto, CA., USA
+ * Copyright © 2009-2015 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -36,15 +36,13 @@ irqreturn_t vmw_irq_handler(int irq, void *arg)
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	uint32_t status, masked_status;
 
-	spin_lock(&dev_priv->irq_lock);
 	status = inl(dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
-	masked_status = status & dev_priv->irq_mask;
-	spin_unlock(&dev_priv->irq_lock);
+	masked_status = status & READ_ONCE(dev_priv->irq_mask);
 
 	if (likely(status))
 		outl(status, dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
 
-	if (!masked_status)
+	if (!status)
 		return IRQ_NONE;
 
 	if (masked_status & (SVGA_IRQFLAG_ANY_FENCE |
@@ -56,6 +54,9 @@ irqreturn_t vmw_irq_handler(int irq, void *arg)
 	if (masked_status & SVGA_IRQFLAG_FIFO_PROGRESS)
 		wake_up_all(&dev_priv->fifo_queue);
 
+	if (masked_status & (SVGA_IRQFLAG_COMMAND_BUFFER |
+			     SVGA_IRQFLAG_ERROR))
+		vmw_cmdbuf_tasklet_schedule(dev_priv->cman);
 
 	return IRQ_HANDLED;
 }
@@ -69,8 +70,8 @@ static bool vmw_fifo_idle(struct vmw_private *dev_priv, uint32_t seqno)
 void vmw_update_seqno(struct vmw_private *dev_priv,
 			 struct vmw_fifo_state *fifo_state)
 {
-	__le32 __iomem *fifo_mem = dev_priv->mmio_virt;
-	uint32_t seqno = ioread32(fifo_mem + SVGA_FIFO_FENCE);
+	u32 *fifo_mem = dev_priv->mmio_virt;
+	uint32_t seqno = vmw_mmio_read(fifo_mem + SVGA_FIFO_FENCE);
 
 	if (dev_priv->last_read_seqno != seqno) {
 		dev_priv->last_read_seqno = seqno;
@@ -131,8 +132,16 @@ int vmw_fallback_wait(struct vmw_private *dev_priv,
 	 * Block command submission while waiting for idle.
 	 */
 
-	if (fifo_idle)
+	if (fifo_idle) {
 		down_read(&fifo_state->rwsem);
+		if (dev_priv->cman) {
+			ret = vmw_cmdbuf_idle(dev_priv->cman, interruptible,
+					      10*HZ);
+			if (ret)
+				goto out_err;
+		}
+	}
+
 	signal_seq = atomic_read(&dev_priv->marker_seq);
 	ret = 0;
 
@@ -167,75 +176,63 @@ int vmw_fallback_wait(struct vmw_private *dev_priv,
 	}
 	finish_wait(&dev_priv->fence_queue, &__wait);
 	if (ret == 0 && fifo_idle) {
-		__le32 __iomem *fifo_mem = dev_priv->mmio_virt;
-		iowrite32(signal_seq, fifo_mem + SVGA_FIFO_FENCE);
+		u32 *fifo_mem = dev_priv->mmio_virt;
+
+		vmw_mmio_write(signal_seq, fifo_mem + SVGA_FIFO_FENCE);
 	}
 	wake_up_all(&dev_priv->fence_queue);
+out_err:
 	if (fifo_idle)
 		up_read(&fifo_state->rwsem);
 
 	return ret;
 }
 
+void vmw_generic_waiter_add(struct vmw_private *dev_priv,
+			    u32 flag, int *waiter_count)
+{
+	spin_lock_bh(&dev_priv->waiter_lock);
+	if ((*waiter_count)++ == 0) {
+		outl(flag, dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
+		dev_priv->irq_mask |= flag;
+		vmw_write(dev_priv, SVGA_REG_IRQMASK, dev_priv->irq_mask);
+	}
+	spin_unlock_bh(&dev_priv->waiter_lock);
+}
+
+void vmw_generic_waiter_remove(struct vmw_private *dev_priv,
+			       u32 flag, int *waiter_count)
+{
+	spin_lock_bh(&dev_priv->waiter_lock);
+	if (--(*waiter_count) == 0) {
+		dev_priv->irq_mask &= ~flag;
+		vmw_write(dev_priv, SVGA_REG_IRQMASK, dev_priv->irq_mask);
+	}
+	spin_unlock_bh(&dev_priv->waiter_lock);
+}
+
 void vmw_seqno_waiter_add(struct vmw_private *dev_priv)
 {
-	spin_lock(&dev_priv->waiter_lock);
-	if (dev_priv->fence_queue_waiters++ == 0) {
-		unsigned long irq_flags;
-
-		spin_lock_irqsave(&dev_priv->irq_lock, irq_flags);
-		outl(SVGA_IRQFLAG_ANY_FENCE,
-		     dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
-		dev_priv->irq_mask |= SVGA_IRQFLAG_ANY_FENCE;
-		vmw_write(dev_priv, SVGA_REG_IRQMASK, dev_priv->irq_mask);
-		spin_unlock_irqrestore(&dev_priv->irq_lock, irq_flags);
-	}
-	spin_unlock(&dev_priv->waiter_lock);
+	vmw_generic_waiter_add(dev_priv, SVGA_IRQFLAG_ANY_FENCE,
+			       &dev_priv->fence_queue_waiters);
 }
 
 void vmw_seqno_waiter_remove(struct vmw_private *dev_priv)
 {
-	spin_lock(&dev_priv->waiter_lock);
-	if (--dev_priv->fence_queue_waiters == 0) {
-		unsigned long irq_flags;
-
-		spin_lock_irqsave(&dev_priv->irq_lock, irq_flags);
-		dev_priv->irq_mask &= ~SVGA_IRQFLAG_ANY_FENCE;
-		vmw_write(dev_priv, SVGA_REG_IRQMASK, dev_priv->irq_mask);
-		spin_unlock_irqrestore(&dev_priv->irq_lock, irq_flags);
-	}
-	spin_unlock(&dev_priv->waiter_lock);
+	vmw_generic_waiter_remove(dev_priv, SVGA_IRQFLAG_ANY_FENCE,
+				  &dev_priv->fence_queue_waiters);
 }
-
 
 void vmw_goal_waiter_add(struct vmw_private *dev_priv)
 {
-	spin_lock(&dev_priv->waiter_lock);
-	if (dev_priv->goal_queue_waiters++ == 0) {
-		unsigned long irq_flags;
-
-		spin_lock_irqsave(&dev_priv->irq_lock, irq_flags);
-		outl(SVGA_IRQFLAG_FENCE_GOAL,
-		     dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
-		dev_priv->irq_mask |= SVGA_IRQFLAG_FENCE_GOAL;
-		vmw_write(dev_priv, SVGA_REG_IRQMASK, dev_priv->irq_mask);
-		spin_unlock_irqrestore(&dev_priv->irq_lock, irq_flags);
-	}
-	spin_unlock(&dev_priv->waiter_lock);
+	vmw_generic_waiter_add(dev_priv, SVGA_IRQFLAG_FENCE_GOAL,
+			       &dev_priv->goal_queue_waiters);
 }
 
 void vmw_goal_waiter_remove(struct vmw_private *dev_priv)
 {
-	spin_lock(&dev_priv->waiter_lock);
-	if (--dev_priv->goal_queue_waiters == 0) {
-		unsigned long irq_flags;
-
-		spin_lock_irqsave(&dev_priv->irq_lock, irq_flags);
-		dev_priv->irq_mask &= ~SVGA_IRQFLAG_FENCE_GOAL;
-		vmw_write(dev_priv, SVGA_REG_IRQMASK, dev_priv->irq_mask);
-		spin_unlock_irqrestore(&dev_priv->irq_lock, irq_flags);
-	}
-	spin_unlock(&dev_priv->waiter_lock);
+	vmw_generic_waiter_remove(dev_priv, SVGA_IRQFLAG_FENCE_GOAL,
+				  &dev_priv->goal_queue_waiters);
 }
 
 int vmw_wait_seqno(struct vmw_private *dev_priv,
@@ -292,7 +289,6 @@ void vmw_irq_preinstall(struct drm_device *dev)
 	if (!(dev_priv->capabilities & SVGA_CAP_IRQMASK))
 		return;
 
-	spin_lock_init(&dev_priv->irq_lock);
 	status = inl(dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
 	outl(status, dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
 }

@@ -62,7 +62,7 @@
 #define SND_QUEUE_CNT		8
 #define CMP_QUEUE_CNT		8 /* Max of RCV and SND qcount */
 
-#define SND_QSIZE		SND_QUEUE_SIZE4
+#define SND_QSIZE		SND_QUEUE_SIZE2
 #define SND_QUEUE_LEN		(1ULL << (SND_QSIZE + 10))
 #define MAX_SND_QUEUE_LEN	(1ULL << (SND_QUEUE_SIZE6 + 10))
 #define SND_QUEUE_THRESH	2ULL
@@ -70,7 +70,10 @@
 /* Since timestamp not enabled, otherwise 2 */
 #define MAX_CQE_PER_PKT_XMIT		1
 
-#define CMP_QSIZE		CMP_QUEUE_SIZE4
+/* Keep CQ and SQ sizes same, if timestamping
+ * is enabled this equation will change.
+ */
+#define CMP_QSIZE		CMP_QUEUE_SIZE2
 #define CMP_QUEUE_LEN		(1ULL << (CMP_QSIZE + 10))
 #define CMP_QUEUE_CQE_THRESH	0
 #define CMP_QUEUE_TIMER_THRESH	220 /* 10usec */
@@ -87,7 +90,12 @@
 
 #define MAX_CQES_FOR_TX		((SND_QUEUE_LEN / MIN_SQ_DESC_PER_PKT_XMIT) * \
 				 MAX_CQE_PER_PKT_XMIT)
-#define RQ_CQ_DROP		((CMP_QUEUE_LEN - MAX_CQES_FOR_TX) / 256)
+/* Calculate number of CQEs to reserve for all SQEs.
+ * Its 1/256th level of CQ size.
+ * '+ 1' to account for pipelining
+ */
+#define RQ_CQ_DROP		((256 / (CMP_QUEUE_LEN / \
+				 (CMP_QUEUE_LEN - MAX_CQES_FOR_TX))) + 1)
 
 /* Descriptor size in bytes */
 #define SND_QUEUE_DESC_SIZE	16
@@ -173,47 +181,6 @@ enum CQ_TX_ERROP_E {
 };
 
 struct cmp_queue_stats {
-	struct rx_stats {
-		struct {
-			u64 mac_errs;
-			u64 l2_errs;
-			u64 l3_errs;
-			u64 l4_errs;
-		} errlvl;
-		struct {
-			u64 good;
-			u64 partial_pkts;
-			u64 jabber_errs;
-			u64 fcs_errs;
-			u64 terminate_errs;
-			u64 bgx_rx_errs;
-			u64 prel2_errs;
-			u64 l2_frags;
-			u64 l2_overruns;
-			u64 l2_pfcs;
-			u64 l2_puny;
-			u64 l2_hdr_malformed;
-			u64 l2_oversize;
-			u64 l2_undersize;
-			u64 l2_len_mismatch;
-			u64 l2_pclp;
-			u64 non_ip;
-			u64 ip_csum_err;
-			u64 ip_hdr_malformed;
-			u64 ip_payload_malformed;
-			u64 ip_hop_errs;
-			u64 l3_icrc_errs;
-			u64 l3_pclp;
-			u64 l4_malformed;
-			u64 l4_csum_errs;
-			u64 udp_len_err;
-			u64 bad_l4_port;
-			u64 bad_tcp_flag;
-			u64 tcp_offset_errs;
-			u64 l4_pclp;
-			u64 pkt_truncated;
-		} errop;
-	} rx;
 	struct tx_stats {
 		u64 good;
 		u64 desc_fault;
@@ -284,6 +251,7 @@ struct cmp_queue {
 	void		*desc;
 	struct q_desc_mem   dmem;
 	struct cmp_queue_stats	stats;
+	int		irq;
 } ____cacheline_aligned_in_smp;
 
 struct snd_queue {
@@ -339,6 +307,8 @@ struct queue_set {
 
 #define	CQ_ERR_MASK	(CQ_WR_FULL | CQ_WR_DISABLE | CQ_WR_FAULT)
 
+void nicvf_config_vlan_stripping(struct nicvf *nic,
+				 netdev_features_t features);
 int nicvf_set_qset_resources(struct nicvf *nic);
 int nicvf_config_data_transfer(struct nicvf *nic, bool enable);
 void nicvf_qset_config(struct nicvf *nic, bool enable);

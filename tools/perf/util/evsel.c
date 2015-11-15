@@ -9,10 +9,11 @@
 
 #include <byteswap.h>
 #include <linux/bitops.h>
-#include <api/fs/debugfs.h>
+#include <api/fs/tracing_path.h>
 #include <traceevent/event-parse.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/perf_event.h>
+#include <linux/err.h>
 #include <sys/resource.h>
 #include "asm/bug.h"
 #include "callchain.h"
@@ -206,10 +207,14 @@ void perf_evsel__init(struct perf_evsel *evsel,
 	evsel->leader	   = evsel;
 	evsel->unit	   = "";
 	evsel->scale	   = 1.0;
+	evsel->evlist	   = NULL;
+	evsel->bpf_fd	   = -1;
 	INIT_LIST_HEAD(&evsel->node);
+	INIT_LIST_HEAD(&evsel->config_terms);
 	perf_evsel__object.init(evsel);
 	evsel->sample_size = __perf_evsel__sample_size(attr->sample_type);
 	perf_evsel__calc_id_pos(evsel);
+	evsel->cmdline_group_boundary = false;
 }
 
 struct perf_evsel *perf_evsel__new_idx(struct perf_event_attr *attr, int idx)
@@ -222,11 +227,17 @@ struct perf_evsel *perf_evsel__new_idx(struct perf_event_attr *attr, int idx)
 	return evsel;
 }
 
+/*
+ * Returns pointer with encoded error via <linux/err.h> interface.
+ */
 struct perf_evsel *perf_evsel__newtp_idx(const char *sys, const char *name, int idx)
 {
 	struct perf_evsel *evsel = zalloc(perf_evsel__object.size);
+	int err = -ENOMEM;
 
-	if (evsel != NULL) {
+	if (evsel == NULL) {
+		goto out_err;
+	} else {
 		struct perf_event_attr attr = {
 			.type	       = PERF_TYPE_TRACEPOINT,
 			.sample_type   = (PERF_SAMPLE_RAW | PERF_SAMPLE_TIME |
@@ -237,8 +248,10 @@ struct perf_evsel *perf_evsel__newtp_idx(const char *sys, const char *name, int 
 			goto out_free;
 
 		evsel->tp_format = trace_event__tp_format(sys, name);
-		if (evsel->tp_format == NULL)
+		if (IS_ERR(evsel->tp_format)) {
+			err = PTR_ERR(evsel->tp_format);
 			goto out_free;
+		}
 
 		event_attr_init(&attr);
 		attr.config = evsel->tp_format->id;
@@ -251,7 +264,8 @@ struct perf_evsel *perf_evsel__newtp_idx(const char *sys, const char *name, int 
 out_free:
 	zfree(&evsel->name);
 	free(evsel);
-	return NULL;
+out_err:
+	return ERR_PTR(err);
 }
 
 const char *perf_evsel__hw_names[PERF_COUNT_HW_MAX] = {
@@ -543,14 +557,15 @@ int perf_evsel__group_desc(struct perf_evsel *evsel, char *buf, size_t size)
 
 static void
 perf_evsel__config_callgraph(struct perf_evsel *evsel,
-			     struct record_opts *opts)
+			     struct record_opts *opts,
+			     struct callchain_param *param)
 {
 	bool function = perf_evsel__is_function_event(evsel);
 	struct perf_event_attr *attr = &evsel->attr;
 
 	perf_evsel__set_sample_bit(evsel, CALLCHAIN);
 
-	if (callchain_param.record_mode == CALLCHAIN_LBR) {
+	if (param->record_mode == CALLCHAIN_LBR) {
 		if (!opts->branch_stack) {
 			if (attr->exclude_user) {
 				pr_warning("LBR callstack option is only available "
@@ -566,12 +581,12 @@ perf_evsel__config_callgraph(struct perf_evsel *evsel,
 				    "Falling back to framepointers.\n");
 	}
 
-	if (callchain_param.record_mode == CALLCHAIN_DWARF) {
+	if (param->record_mode == CALLCHAIN_DWARF) {
 		if (!function) {
 			perf_evsel__set_sample_bit(evsel, REGS_USER);
 			perf_evsel__set_sample_bit(evsel, STACK_USER);
 			attr->sample_regs_user = PERF_REGS_MASK;
-			attr->sample_stack_user = callchain_param.dump_size;
+			attr->sample_stack_user = param->dump_size;
 			attr->exclude_callchain_user = 1;
 		} else {
 			pr_info("Cannot use DWARF unwind for function trace event,"
@@ -582,6 +597,106 @@ perf_evsel__config_callgraph(struct perf_evsel *evsel,
 	if (function) {
 		pr_info("Disabling user space callchains for function trace event.\n");
 		attr->exclude_callchain_user = 1;
+	}
+}
+
+static void
+perf_evsel__reset_callgraph(struct perf_evsel *evsel,
+			    struct callchain_param *param)
+{
+	struct perf_event_attr *attr = &evsel->attr;
+
+	perf_evsel__reset_sample_bit(evsel, CALLCHAIN);
+	if (param->record_mode == CALLCHAIN_LBR) {
+		perf_evsel__reset_sample_bit(evsel, BRANCH_STACK);
+		attr->branch_sample_type &= ~(PERF_SAMPLE_BRANCH_USER |
+					      PERF_SAMPLE_BRANCH_CALL_STACK);
+	}
+	if (param->record_mode == CALLCHAIN_DWARF) {
+		perf_evsel__reset_sample_bit(evsel, REGS_USER);
+		perf_evsel__reset_sample_bit(evsel, STACK_USER);
+	}
+}
+
+static void apply_config_terms(struct perf_evsel *evsel,
+			       struct record_opts *opts)
+{
+	struct perf_evsel_config_term *term;
+	struct list_head *config_terms = &evsel->config_terms;
+	struct perf_event_attr *attr = &evsel->attr;
+	struct callchain_param param;
+	u32 dump_size = 0;
+	char *callgraph_buf = NULL;
+
+	/* callgraph default */
+	param.record_mode = callchain_param.record_mode;
+
+	list_for_each_entry(term, config_terms, list) {
+		switch (term->type) {
+		case PERF_EVSEL__CONFIG_TERM_PERIOD:
+			attr->sample_period = term->val.period;
+			attr->freq = 0;
+			break;
+		case PERF_EVSEL__CONFIG_TERM_FREQ:
+			attr->sample_freq = term->val.freq;
+			attr->freq = 1;
+			break;
+		case PERF_EVSEL__CONFIG_TERM_TIME:
+			if (term->val.time)
+				perf_evsel__set_sample_bit(evsel, TIME);
+			else
+				perf_evsel__reset_sample_bit(evsel, TIME);
+			break;
+		case PERF_EVSEL__CONFIG_TERM_CALLGRAPH:
+			callgraph_buf = term->val.callgraph;
+			break;
+		case PERF_EVSEL__CONFIG_TERM_STACK_USER:
+			dump_size = term->val.stack_user;
+			break;
+		case PERF_EVSEL__CONFIG_TERM_INHERIT:
+			/*
+			 * attr->inherit should has already been set by
+			 * perf_evsel__config. If user explicitly set
+			 * inherit using config terms, override global
+			 * opt->no_inherit setting.
+			 */
+			attr->inherit = term->val.inherit ? 1 : 0;
+			break;
+		default:
+			break;
+		}
+	}
+
+	/* User explicitly set per-event callgraph, clear the old setting and reset. */
+	if ((callgraph_buf != NULL) || (dump_size > 0)) {
+
+		/* parse callgraph parameters */
+		if (callgraph_buf != NULL) {
+			if (!strcmp(callgraph_buf, "no")) {
+				param.enabled = false;
+				param.record_mode = CALLCHAIN_NONE;
+			} else {
+				param.enabled = true;
+				if (parse_callchain_record(callgraph_buf, &param)) {
+					pr_err("per-event callgraph setting for %s failed. "
+					       "Apply callgraph global setting for it\n",
+					       evsel->name);
+					return;
+				}
+			}
+		}
+		if (dump_size > 0) {
+			dump_size = round_up(dump_size, sizeof(u64));
+			param.dump_size = dump_size;
+		}
+
+		/* If global callgraph set, clear it */
+		if (callchain_param.enabled)
+			perf_evsel__reset_callgraph(evsel, &callchain_param);
+
+		/* set perf-event callgraph */
+		if (param.enabled)
+			perf_evsel__config_callgraph(evsel, opts, &param);
 	}
 }
 
@@ -689,10 +804,10 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts)
 		evsel->attr.exclude_callchain_user = 1;
 
 	if (callchain_param.enabled && !evsel->no_aux_samples)
-		perf_evsel__config_callgraph(evsel, opts);
+		perf_evsel__config_callgraph(evsel, opts, &callchain_param);
 
 	if (opts->sample_intr_regs) {
-		attr->sample_regs_intr = PERF_REGS_MASK;
+		attr->sample_regs_intr = opts->sample_intr_regs;
 		perf_evsel__set_sample_bit(evsel, REGS_INTR);
 	}
 
@@ -707,7 +822,8 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts)
 	 */
 	if (opts->sample_time &&
 	    (!perf_missing_features.sample_id_all &&
-	    (!opts->no_inherit || target__has_cpu(&opts->target) || per_cpu)))
+	    (!opts->no_inherit || target__has_cpu(&opts->target) || per_cpu ||
+	     opts->sample_time_set)))
 		perf_evsel__set_sample_bit(evsel, TIME);
 
 	if (opts->raw_samples && !evsel->no_aux_samples) {
@@ -735,6 +851,9 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts)
 	attr->mmap  = track;
 	attr->mmap2 = track && !perf_missing_features.mmap2;
 	attr->comm  = track;
+
+	if (opts->record_switch_events)
+		attr->context_switch = track;
 
 	if (opts->sample_transaction)
 		perf_evsel__set_sample_bit(evsel, TRANSACTION);
@@ -772,6 +891,15 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts)
 		attr->use_clockid = 1;
 		attr->clockid = opts->clockid;
 	}
+
+	if (evsel->precise_max)
+		perf_event_attr__set_max_precise_ip(attr);
+
+	/*
+	 * Apply event specific term settings,
+	 * it overloads any global configuration.
+	 */
+	apply_config_terms(evsel, opts);
 }
 
 static int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
@@ -815,12 +943,42 @@ static int perf_evsel__run_ioctl(struct perf_evsel *evsel, int ncpus, int nthrea
 	return 0;
 }
 
-int perf_evsel__set_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
-			   const char *filter)
+int perf_evsel__apply_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
+			     const char *filter)
 {
 	return perf_evsel__run_ioctl(evsel, ncpus, nthreads,
 				     PERF_EVENT_IOC_SET_FILTER,
 				     (void *)filter);
+}
+
+int perf_evsel__set_filter(struct perf_evsel *evsel, const char *filter)
+{
+	char *new_filter = strdup(filter);
+
+	if (new_filter != NULL) {
+		free(evsel->filter);
+		evsel->filter = new_filter;
+		return 0;
+	}
+
+	return -1;
+}
+
+int perf_evsel__append_filter(struct perf_evsel *evsel,
+			      const char *op, const char *filter)
+{
+	char *new_filter;
+
+	if (evsel->filter == NULL)
+		return perf_evsel__set_filter(evsel, filter);
+
+	if (asprintf(&new_filter,"(%s) %s (%s)", evsel->filter, op, filter) > 0) {
+		free(evsel->filter);
+		evsel->filter = new_filter;
+		return 0;
+	}
+
+	return -1;
 }
 
 int perf_evsel__enable(struct perf_evsel *evsel, int ncpus, int nthreads)
@@ -865,6 +1023,16 @@ static void perf_evsel__free_id(struct perf_evsel *evsel)
 	zfree(&evsel->id);
 }
 
+static void perf_evsel__free_config_terms(struct perf_evsel *evsel)
+{
+	struct perf_evsel_config_term *term, *h;
+
+	list_for_each_entry_safe(term, h, &evsel->config_terms, list) {
+		list_del(&term->list);
+		free(term);
+	}
+}
+
 void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 {
 	int cpu, thread;
@@ -882,10 +1050,13 @@ void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 void perf_evsel__exit(struct perf_evsel *evsel)
 {
 	assert(list_empty(&evsel->node));
+	assert(evsel->evlist == NULL);
 	perf_evsel__free_fd(evsel);
 	perf_evsel__free_id(evsel);
+	perf_evsel__free_config_terms(evsel);
 	close_cgroup(evsel->cgrp);
 	cpu_map__put(evsel->cpus);
+	cpu_map__put(evsel->own_cpus);
 	thread_map__put(evsel->threads);
 	zfree(&evsel->group_name);
 	zfree(&evsel->name);
@@ -1020,7 +1191,7 @@ static void __p_sample_type(char *buf, size_t size, u64 value)
 		bit_name(READ), bit_name(CALLCHAIN), bit_name(ID), bit_name(CPU),
 		bit_name(PERIOD), bit_name(STREAM_ID), bit_name(RAW),
 		bit_name(BRANCH_STACK), bit_name(REGS_USER), bit_name(STACK_USER),
-		bit_name(IDENTIFIER), bit_name(REGS_INTR),
+		bit_name(IDENTIFIER), bit_name(REGS_INTR), bit_name(DATA_SRC),
 		{ .name = NULL, }
 	};
 #undef bit_name
@@ -1095,11 +1266,13 @@ int perf_event_attr__fprintf(FILE *fp, struct perf_event_attr *attr,
 	PRINT_ATTRf(mmap2, p_unsigned);
 	PRINT_ATTRf(comm_exec, p_unsigned);
 	PRINT_ATTRf(use_clockid, p_unsigned);
+	PRINT_ATTRf(context_switch, p_unsigned);
 
 	PRINT_ATTRn("{ wakeup_events, wakeup_watermark }", wakeup_events, p_unsigned);
 	PRINT_ATTRf(bp_type, p_unsigned);
 	PRINT_ATTRn("{ bp_addr, config1 }", bp_addr, p_hex);
 	PRINT_ATTRn("{ bp_len, config2 }", bp_len, p_hex);
+	PRINT_ATTRf(branch_sample_type, p_unsigned);
 	PRINT_ATTRf(sample_regs_user, p_hex);
 	PRINT_ATTRf(sample_stack_user, p_unsigned);
 	PRINT_ATTRf(clockid, p_signed);
@@ -1184,6 +1357,22 @@ retry_open:
 					  err);
 				goto try_fallback;
 			}
+
+			if (evsel->bpf_fd >= 0) {
+				int evt_fd = FD(evsel, cpu, thread);
+				int bpf_fd = evsel->bpf_fd;
+
+				err = ioctl(evt_fd,
+					    PERF_EVENT_IOC_SET_BPF,
+					    bpf_fd);
+				if (err && errno != EEXIST) {
+					pr_err("failed to attach bpf fd %d: %s\n",
+					       bpf_fd, strerror(errno));
+					err = -EINVAL;
+					goto out_close;
+				}
+			}
+
 			set_rlimit = NO_CHANGE;
 
 			/*
@@ -2075,8 +2264,13 @@ int perf_evsel__fprintf(struct perf_evsel *evsel,
 		printed += perf_event_attr__fprintf(fp, &evsel->attr,
 						    __print_attr__fprintf, &first);
 	} else if (details->freq) {
-		printed += comma_fprintf(fp, &first, " sample_freq=%" PRIu64,
-					 (u64)evsel->attr.sample_freq);
+		const char *term = "sample_freq";
+
+		if (!evsel->attr.freq)
+			term = "sample_period";
+
+		printed += comma_fprintf(fp, &first, " %s=%" PRIu64,
+					 term, (u64)evsel->attr.sample_freq);
 	}
 out:
 	fputc('\n', fp);

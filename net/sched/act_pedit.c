@@ -57,7 +57,8 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	if (!tcf_hash_check(parm->index, a, bind)) {
 		if (!parm->nkeys)
 			return -EINVAL;
-		ret = tcf_hash_create(parm->index, est, a, sizeof(*p), bind);
+		ret = tcf_hash_create(parm->index, est, a, sizeof(*p),
+				      bind, false);
 		if (ret)
 			return ret;
 		p = to_pedit(a);
@@ -68,13 +69,12 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 		}
 		ret = ACT_P_CREATED;
 	} else {
-		p = to_pedit(a);
-		tcf_hash_release(a, bind);
 		if (bind)
 			return 0;
+		tcf_hash_release(a, bind);
 		if (!ovr)
 			return -EEXIST;
-
+		p = to_pedit(a);
 		if (p->tcfp_nkeys && p->tcfp_nkeys != parm->nkeys) {
 			keys = kmalloc(ksize, GFP_KERNEL);
 			if (keys == NULL)

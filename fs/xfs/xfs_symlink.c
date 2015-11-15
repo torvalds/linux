@@ -240,7 +240,8 @@ xfs_symlink(
 	if (error)
 		goto out_trans_cancel;
 
-	xfs_ilock(dp, XFS_ILOCK_EXCL | XFS_ILOCK_PARENT);
+	xfs_ilock(dp, XFS_IOLOCK_EXCL | XFS_ILOCK_EXCL |
+		      XFS_IOLOCK_PARENT | XFS_ILOCK_PARENT);
 	unlock_dp_on_error = true;
 
 	/*
@@ -288,7 +289,7 @@ xfs_symlink(
 	 * the transaction cancel unlocking dp so don't do it explicitly in the
 	 * error path.
 	 */
-	xfs_trans_ijoin(tp, dp, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, dp, XFS_IOLOCK_EXCL | XFS_ILOCK_EXCL);
 	unlock_dp_on_error = false;
 
 	/*
@@ -421,7 +422,7 @@ out_release_inode:
 	xfs_qm_dqrele(pdqp);
 
 	if (unlock_dp_on_error)
-		xfs_iunlock(dp, XFS_ILOCK_EXCL);
+		xfs_iunlock(dp, XFS_IOLOCK_EXCL | XFS_ILOCK_EXCL);
 	return error;
 }
 
@@ -501,7 +502,7 @@ xfs_inactive_symlink_rmt(
 	/*
 	 * Unmap the dead block(s) to the free_list.
 	 */
-	error = xfs_bunmapi(tp, ip, 0, size, XFS_BMAPI_METADATA, nmaps,
+	error = xfs_bunmapi(tp, ip, 0, size, 0, nmaps,
 			    &first_block, &free_list, &done);
 	if (error)
 		goto error_bmap_cancel;

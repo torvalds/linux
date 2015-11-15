@@ -78,7 +78,7 @@ typedef struct user_fxsr_struct elf_fpxregset_t;
 #ifdef CONFIG_X86_64
 extern unsigned int vdso64_enabled;
 #endif
-#if defined(CONFIG_X86_32) || defined(CONFIG_COMPAT)
+#if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
 extern unsigned int vdso32_enabled;
 #endif
 
@@ -171,11 +171,11 @@ do {						\
 static inline void elf_common_init(struct thread_struct *t,
 				   struct pt_regs *regs, const u16 ds)
 {
-	/* Commented-out registers are cleared in stub_execve */
-	/*regs->ax = regs->bx =*/ regs->cx = regs->dx = 0;
-	regs->si = regs->di /*= regs->bp*/ = 0;
+	/* ax gets execve's return value. */
+	/*regs->ax = */ regs->bx = regs->cx = regs->dx = 0;
+	regs->si = regs->di = regs->bp = 0;
 	regs->r8 = regs->r9 = regs->r10 = regs->r11 = 0;
-	/*regs->r12 = regs->r13 = regs->r14 = regs->r15 = 0;*/
+	regs->r12 = regs->r13 = regs->r14 = regs->r15 = 0;
 	t->fs = t->gs = 0;
 	t->fsindex = t->gsindex = 0;
 	t->ds = t->es = ds;
@@ -187,8 +187,8 @@ static inline void elf_common_init(struct thread_struct *t,
 #define	COMPAT_ELF_PLAT_INIT(regs, load_addr)		\
 	elf_common_init(&current->thread, regs, __USER_DS)
 
-void start_thread_ia32(struct pt_regs *regs, u32 new_ip, u32 new_sp);
-#define compat_start_thread start_thread_ia32
+void compat_start_thread(struct pt_regs *regs, u32 new_ip, u32 new_sp);
+#define compat_start_thread compat_start_thread
 
 void set_personality_ia32(bool);
 #define COMPAT_SET_PERSONALITY(ex)			\
@@ -328,7 +328,7 @@ else									\
 
 #define VDSO_ENTRY							\
 	((unsigned long)current->mm->context.vdso +			\
-	 selected_vdso32->sym___kernel_vsyscall)
+	 vdso_image_32.sym___kernel_vsyscall)
 
 struct linux_binprm;
 
@@ -344,14 +344,9 @@ extern int compat_arch_setup_additional_pages(struct linux_binprm *bprm,
  */
 static inline int mmap_is_ia32(void)
 {
-#ifdef CONFIG_X86_32
-	return 1;
-#endif
-#ifdef CONFIG_IA32_EMULATION
-	if (test_thread_flag(TIF_ADDR32))
-		return 1;
-#endif
-	return 0;
+	return config_enabled(CONFIG_X86_32) ||
+	       (config_enabled(CONFIG_COMPAT) &&
+		test_thread_flag(TIF_ADDR32));
 }
 
 /* Do not change the values. See get_align_mask() */

@@ -36,7 +36,6 @@
 #define NPS_ENET_REG_RX_CTL		0x810
 #define NPS_ENET_REG_RX_BUF		0x818
 #define NPS_ENET_REG_BUF_INT_ENABLE	0x8C0
-#define NPS_ENET_REG_BUF_INT_CAUSE	0x8C4
 #define NPS_ENET_REG_GE_MAC_CFG_0	0x1000
 #define NPS_ENET_REG_GE_MAC_CFG_1	0x1004
 #define NPS_ENET_REG_GE_MAC_CFG_2	0x1008
@@ -96,25 +95,6 @@ struct nps_enet_buf_int_enable {
 		 *          is ready in Rx buffer
 		 * rx_rdy:  Interrupt generation in the case when current frame
 		 *          was read from TX buffer
-		 */
-		struct {
-			u32
-			__reserved:30,
-			tx_done:1,
-			rx_rdy:1;
-		};
-
-		u32 value;
-	};
-};
-
-/* Interrupt cause for data buffer events register */
-struct nps_enet_buf_int_cause {
-	union {
-		/* tx_done: Interrupt in the case when current frame was
-		 *          read from TX buffer.
-		 * rx_rdy:  Interrupt in the case when new frame is ready
-		 *          in RX buffer.
 		 */
 		struct {
 			u32

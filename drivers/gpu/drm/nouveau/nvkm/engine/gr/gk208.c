@@ -29,19 +29,6 @@
 #include <nvif/class.h>
 
 /*******************************************************************************
- * Graphics object classes
- ******************************************************************************/
-
-static struct nvkm_oclass
-gk208_gr_sclass[] = {
-	{ FERMI_TWOD_A, &nvkm_object_ofuncs },
-	{ KEPLER_INLINE_TO_MEMORY_B, &nvkm_object_ofuncs },
-	{ KEPLER_B, &gf100_fermi_ofuncs },
-	{ KEPLER_COMPUTE_B, &nvkm_object_ofuncs },
-	{}
-};
-
-/*******************************************************************************
  * PGRAPH register lists
  ******************************************************************************/
 
@@ -172,19 +159,25 @@ gk208_gr_gpccs_ucode = {
 	.data.size = sizeof(gk208_grgpc_data),
 };
 
-struct nvkm_oclass *
-gk208_gr_oclass = &(struct gf100_gr_oclass) {
-	.base.handle = NV_ENGINE(GR, 0x08),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gk104_gr_ctor,
-		.dtor = gf100_gr_dtor,
-		.init = gk104_gr_init,
-		.fini = _nvkm_gr_fini,
-	},
-	.cclass = &gk208_grctx_oclass,
-	.sclass =  gk208_gr_sclass,
+static const struct gf100_gr_func
+gk208_gr = {
+	.init = gk104_gr_init,
 	.mmio = gk208_gr_pack_mmio,
 	.fecs.ucode = &gk208_gr_fecs_ucode,
 	.gpccs.ucode = &gk208_gr_gpccs_ucode,
 	.ppc_nr = 1,
-}.base;
+	.grctx = &gk208_grctx,
+	.sclass = {
+		{ -1, -1, FERMI_TWOD_A },
+		{ -1, -1, KEPLER_INLINE_TO_MEMORY_B },
+		{ -1, -1, KEPLER_B, &gf100_fermi },
+		{ -1, -1, KEPLER_COMPUTE_B },
+		{}
+	}
+};
+
+int
+gk208_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+{
+	return gf100_gr_new_(&gk208_gr, device, index, pgr);
+}

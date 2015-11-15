@@ -144,14 +144,17 @@ static void qxl_dirty_update(struct qxl_fbdev *qfbdev,
 
 	spin_lock_irqsave(&qfbdev->dirty.lock, flags);
 
-	if (qfbdev->dirty.y1 < y)
-		y = qfbdev->dirty.y1;
-	if (qfbdev->dirty.y2 > y2)
-		y2 = qfbdev->dirty.y2;
-	if (qfbdev->dirty.x1 < x)
-		x = qfbdev->dirty.x1;
-	if (qfbdev->dirty.x2 > x2)
-		x2 = qfbdev->dirty.x2;
+	if ((qfbdev->dirty.y2 - qfbdev->dirty.y1) &&
+	    (qfbdev->dirty.x2 - qfbdev->dirty.x1)) {
+		if (qfbdev->dirty.y1 < y)
+			y = qfbdev->dirty.y1;
+		if (qfbdev->dirty.y2 > y2)
+			y2 = qfbdev->dirty.y2;
+		if (qfbdev->dirty.x1 < x)
+			x = qfbdev->dirty.x1;
+		if (qfbdev->dirty.x2 > x2)
+			x2 = qfbdev->dirty.x2;
+	}
 
 	qfbdev->dirty.x1 = x;
 	qfbdev->dirty.x2 = x2;
@@ -197,7 +200,7 @@ static void qxl_fb_fillrect(struct fb_info *info,
 {
 	struct qxl_fbdev *qfbdev = info->par;
 
-	sys_fillrect(info, rect);
+	drm_fb_helper_sys_fillrect(info, rect);
 	qxl_dirty_update(qfbdev, rect->dx, rect->dy, rect->width,
 			 rect->height);
 }
@@ -207,7 +210,7 @@ static void qxl_fb_copyarea(struct fb_info *info,
 {
 	struct qxl_fbdev *qfbdev = info->par;
 
-	sys_copyarea(info, area);
+	drm_fb_helper_sys_copyarea(info, area);
 	qxl_dirty_update(qfbdev, area->dx, area->dy, area->width,
 			 area->height);
 }
@@ -217,7 +220,7 @@ static void qxl_fb_imageblit(struct fb_info *info,
 {
 	struct qxl_fbdev *qfbdev = info->par;
 
-	sys_imageblit(info, image);
+	drm_fb_helper_sys_imageblit(info, image);
 	qxl_dirty_update(qfbdev, image->dx, image->dy, image->width,
 			 image->height);
 }
@@ -345,7 +348,6 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 	struct drm_mode_fb_cmd2 mode_cmd;
 	struct drm_gem_object *gobj = NULL;
 	struct qxl_bo *qbo = NULL;
-	struct device *device = &qdev->pdev->dev;
 	int ret;
 	int size;
 	int bpp = sizes->surface_bpp;
@@ -374,9 +376,9 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 		 shadow);
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 
-	info = framebuffer_alloc(0, device);
-	if (info == NULL) {
-		ret = -ENOMEM;
+	info = drm_fb_helper_alloc_fbi(&qfbdev->helper);
+	if (IS_ERR(info)) {
+		ret = PTR_ERR(info);
 		goto out_unref;
 	}
 
@@ -388,7 +390,7 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 
 	/* setup helper with fb data */
 	qfbdev->helper.fb = fb;
-	qfbdev->helper.fbdev = info;
+
 	qfbdev->shadow = shadow;
 	strcpy(info->fix.id, "qxldrmfb");
 
@@ -410,11 +412,6 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 			       sizes->fb_height);
 
 	/* setup aperture base/size for vesafb takeover */
-	info->apertures = alloc_apertures(1);
-	if (!info->apertures) {
-		ret = -ENOMEM;
-		goto out_unref;
-	}
 	info->apertures->ranges[0].base = qdev->ddev->mode_config.fb_base;
 	info->apertures->ranges[0].size = qdev->vram_size;
 
@@ -423,13 +420,7 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 
 	if (info->screen_base == NULL) {
 		ret = -ENOSPC;
-		goto out_unref;
-	}
-
-	ret = fb_alloc_cmap(&info->cmap, 256, 0);
-	if (ret) {
-		ret = -ENOMEM;
-		goto out_unref;
+		goto out_destroy_fbi;
 	}
 
 	info->fbdefio = &qxl_defio;
@@ -441,6 +432,8 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 	DRM_INFO("fb: depth %d, pitch %d, width %d, height %d\n", fb->depth, fb->pitches[0], fb->width, fb->height);
 	return 0;
 
+out_destroy_fbi:
+	drm_fb_helper_release_fbi(&qfbdev->helper);
 out_unref:
 	if (qbo) {
 		ret = qxl_bo_reserve(qbo, false);
@@ -479,15 +472,11 @@ static int qxl_fb_find_or_create_single(
 
 static int qxl_fbdev_destroy(struct drm_device *dev, struct qxl_fbdev *qfbdev)
 {
-	struct fb_info *info;
 	struct qxl_framebuffer *qfb = &qfbdev->qfb;
 
-	if (qfbdev->helper.fbdev) {
-		info = qfbdev->helper.fbdev;
+	drm_fb_helper_unregister_fbi(&qfbdev->helper);
+	drm_fb_helper_release_fbi(&qfbdev->helper);
 
-		unregister_framebuffer(info);
-		framebuffer_release(info);
-	}
 	if (qfb->obj) {
 		qxlfb_destroy_pinned_object(qfb->obj);
 		qfb->obj = NULL;
@@ -557,7 +546,7 @@ void qxl_fbdev_fini(struct qxl_device *qdev)
 
 void qxl_fbdev_set_suspend(struct qxl_device *qdev, int state)
 {
-	fb_set_suspend(qdev->mode_info.qfbdev->helper.fbdev, state);
+	drm_fb_helper_set_suspend(&qdev->mode_info.qfbdev->helper, state);
 }
 
 bool qxl_fbdev_qobj_is_fb(struct qxl_device *qdev, struct qxl_bo *qobj)

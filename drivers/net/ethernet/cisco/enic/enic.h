@@ -33,7 +33,7 @@
 
 #define DRV_NAME		"enic"
 #define DRV_DESCRIPTION		"Cisco VIC Ethernet NIC Driver"
-#define DRV_VERSION		"2.1.1.83"
+#define DRV_VERSION		"2.3.0.12"
 #define DRV_COPYRIGHT		"Copyright 2008-2013 Cisco Systems, Inc"
 
 #define ENIC_BARS_MAX		6
@@ -50,6 +50,7 @@ struct enic_msix_entry {
 	char devname[IFNAMSIZ];
 	irqreturn_t (*isr)(int, void *);
 	void *devid;
+	cpumask_var_t affinity_mask;
 };
 
 /* Store only the lower range.  Higher range is given by fw. */
@@ -143,6 +144,7 @@ struct enic {
 	struct vnic_dev *vdev;
 	struct timer_list notify_timer;
 	struct work_struct reset;
+	struct work_struct tx_hang_reset;
 	struct work_struct change_mtu_work;
 	struct msix_entry msix_entry[ENIC_INTR_MAX];
 	struct enic_msix_entry msix[ENIC_INTR_MAX];
@@ -190,6 +192,25 @@ struct enic {
 	u8 rss_key[ENIC_RSS_LEN];
 	struct vnic_gen_stats gen_stats;
 };
+
+static inline struct net_device *vnic_get_netdev(struct vnic_dev *vdev)
+{
+	struct enic *enic = vdev->priv;
+
+	return enic->netdev;
+}
+
+/* wrappers function for kernel log
+ * Make sure variable vdev of struct vnic_dev is available in the block where
+ * these macros are used
+ */
+#define vdev_info(args...)	dev_info(&vdev->pdev->dev, args)
+#define vdev_warn(args...)	dev_warn(&vdev->pdev->dev, args)
+#define vdev_err(args...)	dev_err(&vdev->pdev->dev, args)
+
+#define vdev_netinfo(args...)	netdev_info(vnic_get_netdev(vdev), args)
+#define vdev_netwarn(args...)	netdev_warn(vnic_get_netdev(vdev), args)
+#define vdev_neterr(args...)	netdev_err(vnic_get_netdev(vdev), args)
 
 static inline struct device *enic_get_dev(struct enic *enic)
 {
@@ -241,6 +262,32 @@ static inline unsigned int enic_msix_err_intr(struct enic *enic)
 static inline unsigned int enic_msix_notify_intr(struct enic *enic)
 {
 	return enic->rq_count + enic->wq_count + 1;
+}
+
+static inline bool enic_is_err_intr(struct enic *enic, int intr)
+{
+	switch (vnic_dev_get_intr_mode(enic->vdev)) {
+	case VNIC_DEV_INTR_MODE_INTX:
+		return intr == enic_legacy_err_intr();
+	case VNIC_DEV_INTR_MODE_MSIX:
+		return intr == enic_msix_err_intr(enic);
+	case VNIC_DEV_INTR_MODE_MSI:
+	default:
+		return false;
+	}
+}
+
+static inline bool enic_is_notify_intr(struct enic *enic, int intr)
+{
+	switch (vnic_dev_get_intr_mode(enic->vdev)) {
+	case VNIC_DEV_INTR_MODE_INTX:
+		return intr == enic_legacy_notify_intr();
+	case VNIC_DEV_INTR_MODE_MSIX:
+		return intr == enic_msix_notify_intr(enic);
+	case VNIC_DEV_INTR_MODE_MSI:
+	default:
+		return false;
+	}
 }
 
 static inline int enic_dma_map_check(struct enic *enic, dma_addr_t dma_addr)

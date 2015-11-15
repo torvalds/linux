@@ -336,10 +336,10 @@ HYPERVISOR_update_descriptor(u64 ma, u64 desc)
 	return _hypercall4(int, update_descriptor, ma, ma>>32, desc, desc>>32);
 }
 
-static inline int
+static inline long
 HYPERVISOR_memory_op(unsigned int cmd, void *arg)
 {
-	return _hypercall2(int, memory_op, cmd, arg);
+	return _hypercall2(long, memory_op, cmd, arg);
 }
 
 static inline int
@@ -463,6 +463,12 @@ HYPERVISOR_tmem_op(
 	struct tmem_op *op)
 {
 	return _hypercall1(int, tmem_op, op);
+}
+
+static inline int
+HYPERVISOR_xenpmu_op(unsigned int op, void *arg)
+{
+	return _hypercall2(int, xenpmu_op, op, arg);
 }
 
 static inline void

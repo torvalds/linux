@@ -302,7 +302,7 @@ out:
 	return ret;
 }
 
-static struct reg_default lp8860_reg_defs[] = {
+static const struct reg_default lp8860_reg_defs[] = {
 	{ LP8860_DISP_CL1_BRT_MSB, 0x00},
 	{ LP8860_DISP_CL1_BRT_LSB, 0x00},
 	{ LP8860_DISP_CL1_CURR_MSB, 0x00},
@@ -332,7 +332,7 @@ static const struct regmap_config lp8860_regmap_config = {
 	.cache_type = REGCACHE_NONE,
 };
 
-static struct reg_default lp8860_eeprom_defs[] = {
+static const struct reg_default lp8860_eeprom_defs[] = {
 	{ LP8860_EEPROM_REG_0, 0x00 },
 	{ LP8860_EEPROM_REG_1, 0x00 },
 	{ LP8860_EEPROM_REG_2, 0x00 },

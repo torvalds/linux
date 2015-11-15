@@ -1,7 +1,9 @@
-#ifndef __NVKM_CLK_NV50_H__
-#define __NVKM_CLK_NV50_H__
+#ifndef __NV50_CLK_H__
+#define __NV50_CLK_H__
+#define nv50_clk(p) container_of((p), struct nv50_clk, base)
+#include "priv.h"
+
 #include <subdev/bus/hwsq.h>
-#include <subdev/clk.h>
 
 struct nv50_clk_hwsq {
 	struct hwsq base;
@@ -12,17 +14,15 @@ struct nv50_clk_hwsq {
 	struct hwsq_reg r_mast;
 };
 
-struct nv50_clk_priv {
+struct nv50_clk {
 	struct nvkm_clk base;
 	struct nv50_clk_hwsq hwsq;
 };
 
-int  nv50_clk_ctor(struct nvkm_object *, struct nvkm_object *,
-		     struct nvkm_oclass *, void *, u32,
-		     struct nvkm_object **);
-
-struct nv50_clk_oclass {
-	struct nvkm_oclass base;
-	struct nvkm_domain *domains;
-};
+int nv50_clk_new_(const struct nvkm_clk_func *, struct nvkm_device *, int,
+		  bool, struct nvkm_clk **);
+int nv50_clk_read(struct nvkm_clk *, enum nv_clk_src);
+int nv50_clk_calc(struct nvkm_clk *, struct nvkm_cstate *);
+int nv50_clk_prog(struct nvkm_clk *);
+void nv50_clk_tidy(struct nvkm_clk *);
 #endif

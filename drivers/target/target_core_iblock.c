@@ -105,6 +105,8 @@ static int iblock_configure_device(struct se_device *dev)
 	mode = FMODE_READ|FMODE_EXCL;
 	if (!ib_dev->ibd_readonly)
 		mode |= FMODE_WRITE;
+	else
+		dev->dev_flags |= DF_READ_ONLY;
 
 	bd = blkdev_get_by_path(ib_dev->ibd_udev_path, mode, ib_dev);
 	if (IS_ERR(bd)) {
@@ -153,17 +155,17 @@ static int iblock_configure_device(struct se_device *dev)
 	if (bi) {
 		struct bio_set *bs = ib_dev->ibd_bio_set;
 
-		if (!strcmp(bi->name, "T10-DIF-TYPE3-IP") ||
-		    !strcmp(bi->name, "T10-DIF-TYPE1-IP")) {
+		if (!strcmp(bi->profile->name, "T10-DIF-TYPE3-IP") ||
+		    !strcmp(bi->profile->name, "T10-DIF-TYPE1-IP")) {
 			pr_err("IBLOCK export of blk_integrity: %s not"
-			       " supported\n", bi->name);
+			       " supported\n", bi->profile->name);
 			ret = -ENOSYS;
 			goto out_blkdev_put;
 		}
 
-		if (!strcmp(bi->name, "T10-DIF-TYPE3-CRC")) {
+		if (!strcmp(bi->profile->name, "T10-DIF-TYPE3-CRC")) {
 			dev->dev_attrib.pi_prot_type = TARGET_DIF_TYPE3_PROT;
-		} else if (!strcmp(bi->name, "T10-DIF-TYPE1-CRC")) {
+		} else if (!strcmp(bi->profile->name, "T10-DIF-TYPE1-CRC")) {
 			dev->dev_attrib.pi_prot_type = TARGET_DIF_TYPE1_PROT;
 		}
 
@@ -306,20 +308,13 @@ static void iblock_complete_cmd(struct se_cmd *cmd)
 	kfree(ibr);
 }
 
-static void iblock_bio_done(struct bio *bio, int err)
+static void iblock_bio_done(struct bio *bio)
 {
 	struct se_cmd *cmd = bio->bi_private;
 	struct iblock_req *ibr = cmd->priv;
 
-	/*
-	 * Set -EIO if !BIO_UPTODATE and the passed is still err=0
-	 */
-	if (!test_bit(BIO_UPTODATE, &bio->bi_flags) && !err)
-		err = -EIO;
-
-	if (err != 0) {
-		pr_err("test_bit(BIO_UPTODATE) failed for bio: %p,"
-			" err: %d\n", bio, err);
+	if (bio->bi_error) {
+		pr_err("bio error: %p,  err: %d\n", bio, bio->bi_error);
 		/*
 		 * Bump the ib_bio_err_cnt and release bio.
 		 */
@@ -370,15 +365,15 @@ static void iblock_submit_bios(struct bio_list *list, int rw)
 	blk_finish_plug(&plug);
 }
 
-static void iblock_end_io_flush(struct bio *bio, int err)
+static void iblock_end_io_flush(struct bio *bio)
 {
 	struct se_cmd *cmd = bio->bi_private;
 
-	if (err)
-		pr_err("IBLOCK: cache flush failed: %d\n", err);
+	if (bio->bi_error)
+		pr_err("IBLOCK: cache flush failed: %d\n", bio->bi_error);
 
 	if (cmd) {
-		if (err)
+		if (bio->bi_error)
 			target_complete_cmd(cmd, SAM_STAT_CHECK_CONDITION);
 		else
 			target_complete_cmd(cmd, SAM_STAT_GOOD);

@@ -437,7 +437,6 @@ static void tdo24m_shutdown(struct spi_device *spi)
 static struct spi_driver tdo24m_driver = {
 	.driver = {
 		.name		= "tdo24m",
-		.owner		= THIS_MODULE,
 		.pm		= &tdo24m_pm_ops,
 	},
 	.probe		= tdo24m_probe,

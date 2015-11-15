@@ -54,21 +54,6 @@ static u64 notrace bcm2835_sched_read(void)
 	return readl_relaxed(system_clock);
 }
 
-static void bcm2835_time_set_mode(enum clock_event_mode mode,
-	struct clock_event_device *evt_dev)
-{
-	switch (mode) {
-	case CLOCK_EVT_MODE_ONESHOT:
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	case CLOCK_EVT_MODE_RESUME:
-		break;
-	default:
-		WARN(1, "%s: unhandled event mode %d\n", __func__, mode);
-		break;
-	}
-}
-
 static int bcm2835_time_set_next_event(unsigned long event,
 	struct clock_event_device *evt_dev)
 {
@@ -129,7 +114,6 @@ static void __init bcm2835_timer_init(struct device_node *node)
 	timer->evt.name = node->name;
 	timer->evt.rating = 300;
 	timer->evt.features = CLOCK_EVT_FEAT_ONESHOT;
-	timer->evt.set_mode = bcm2835_time_set_mode;
 	timer->evt.set_next_event = bcm2835_time_set_next_event;
 	timer->evt.cpumask = cpumask_of(0);
 	timer->act.name = node->name;
