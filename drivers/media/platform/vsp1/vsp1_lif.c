@@ -48,7 +48,8 @@ static int lif_s_stream(struct v4l2_subdev *subdev, int enable)
 		return 0;
 	}
 
-	format = &lif->entity.formats[LIF_PAD_SOURCE];
+	format = vsp1_entity_get_pad_format(&lif->entity, lif->entity.config,
+					    LIF_PAD_SOURCE);
 
 	obth = min(obth, (format->width + 1) / 2 * format->height - 4);
 
@@ -84,6 +85,7 @@ static int lif_enum_mbus_code(struct v4l2_subdev *subdev,
 
 		code->code = codes[code->index];
 	} else {
+		struct v4l2_subdev_pad_config *config;
 		struct v4l2_mbus_framefmt *format;
 
 		/* The LIF can't perform format conversion, the sink format is
@@ -92,8 +94,13 @@ static int lif_enum_mbus_code(struct v4l2_subdev *subdev,
 		if (code->index)
 			return -EINVAL;
 
-		format = vsp1_entity_get_pad_format(&lif->entity, cfg,
-						    LIF_PAD_SINK, code->which);
+		config = vsp1_entity_get_pad_config(&lif->entity, cfg,
+						    code->which);
+		if (!config)
+			return -EINVAL;
+
+		format = vsp1_entity_get_pad_format(&lif->entity, config,
+						    LIF_PAD_SINK);
 		code->code = format->code;
 	}
 
@@ -105,10 +112,14 @@ static int lif_enum_frame_size(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct vsp1_lif *lif = to_lif(subdev);
+	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
 
-	format = vsp1_entity_get_pad_format(&lif->entity, cfg, LIF_PAD_SINK,
-					    fse->which);
+	config = vsp1_entity_get_pad_config(&lif->entity, cfg, fse->which);
+	if (!config)
+		return -EINVAL;
+
+	format = vsp1_entity_get_pad_format(&lif->entity, config, LIF_PAD_SINK);
 
 	if (fse->index || fse->code != format->code)
 		return -EINVAL;
@@ -133,9 +144,14 @@ static int lif_get_format(struct v4l2_subdev *subdev,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_lif *lif = to_lif(subdev);
+	struct v4l2_subdev_pad_config *config;
 
-	fmt->format = *vsp1_entity_get_pad_format(&lif->entity, cfg, fmt->pad,
-						  fmt->which);
+	config = vsp1_entity_get_pad_config(&lif->entity, cfg, fmt->which);
+	if (!config)
+		return -EINVAL;
+
+	fmt->format = *vsp1_entity_get_pad_format(&lif->entity, config,
+						  fmt->pad);
 
 	return 0;
 }
@@ -145,15 +161,19 @@ static int lif_set_format(struct v4l2_subdev *subdev,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_lif *lif = to_lif(subdev);
+	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
+
+	config = vsp1_entity_get_pad_config(&lif->entity, cfg, fmt->which);
+	if (!config)
+		return -EINVAL;
 
 	/* Default to YUV if the requested format is not supported. */
 	if (fmt->format.code != MEDIA_BUS_FMT_ARGB8888_1X32 &&
 	    fmt->format.code != MEDIA_BUS_FMT_AYUV8_1X32)
 		fmt->format.code = MEDIA_BUS_FMT_AYUV8_1X32;
 
-	format = vsp1_entity_get_pad_format(&lif->entity, cfg, fmt->pad,
-					    fmt->which);
+	format = vsp1_entity_get_pad_format(&lif->entity, config, fmt->pad);
 
 	if (fmt->pad == LIF_PAD_SOURCE) {
 		/* The LIF source format is always identical to its sink
@@ -174,8 +194,8 @@ static int lif_set_format(struct v4l2_subdev *subdev,
 	fmt->format = *format;
 
 	/* Propagate the format to the source pad. */
-	format = vsp1_entity_get_pad_format(&lif->entity, cfg, LIF_PAD_SOURCE,
-					    fmt->which);
+	format = vsp1_entity_get_pad_format(&lif->entity, config,
+					    LIF_PAD_SOURCE);
 	*format = fmt->format;
 
 	return 0;

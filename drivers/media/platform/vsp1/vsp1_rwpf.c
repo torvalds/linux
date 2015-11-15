@@ -46,10 +46,14 @@ int vsp1_rwpf_enum_frame_size(struct v4l2_subdev *subdev,
 			      struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct vsp1_rwpf *rwpf = to_rwpf(subdev);
+	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
 
-	format = vsp1_entity_get_pad_format(&rwpf->entity, cfg, fse->pad,
-					    fse->which);
+	config = vsp1_entity_get_pad_config(&rwpf->entity, cfg, fse->which);
+	if (!config)
+		return -EINVAL;
+
+	format = vsp1_entity_get_pad_format(&rwpf->entity, config, fse->pad);
 
 	if (fse->index || fse->code != format->code)
 		return -EINVAL;
@@ -92,9 +96,14 @@ int vsp1_rwpf_get_format(struct v4l2_subdev *subdev,
 			 struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_rwpf *rwpf = to_rwpf(subdev);
+	struct v4l2_subdev_pad_config *config;
 
-	fmt->format = *vsp1_entity_get_pad_format(&rwpf->entity, cfg, fmt->pad,
-						  fmt->which);
+	config = vsp1_entity_get_pad_config(&rwpf->entity, cfg, fmt->which);
+	if (!config)
+		return -EINVAL;
+
+	fmt->format = *vsp1_entity_get_pad_format(&rwpf->entity, config,
+						  fmt->pad);
 
 	return 0;
 }
@@ -104,16 +113,20 @@ int vsp1_rwpf_set_format(struct v4l2_subdev *subdev,
 			 struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_rwpf *rwpf = to_rwpf(subdev);
+	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *crop;
+
+	config = vsp1_entity_get_pad_config(&rwpf->entity, cfg, fmt->which);
+	if (!config)
+		return -EINVAL;
 
 	/* Default to YUV if the requested format is not supported. */
 	if (fmt->format.code != MEDIA_BUS_FMT_ARGB8888_1X32 &&
 	    fmt->format.code != MEDIA_BUS_FMT_AYUV8_1X32)
 		fmt->format.code = MEDIA_BUS_FMT_AYUV8_1X32;
 
-	format = vsp1_entity_get_pad_format(&rwpf->entity, cfg, fmt->pad,
-					    fmt->which);
+	format = vsp1_entity_get_pad_format(&rwpf->entity, config, fmt->pad);
 
 	if (fmt->pad == RWPF_PAD_SOURCE) {
 		/* The RWPF performs format conversion but can't scale, only the
@@ -142,8 +155,8 @@ int vsp1_rwpf_set_format(struct v4l2_subdev *subdev,
 	crop->height = fmt->format.height;
 
 	/* Propagate the format to the source pad. */
-	format = vsp1_entity_get_pad_format(&rwpf->entity, cfg, RWPF_PAD_SOURCE,
-					    fmt->which);
+	format = vsp1_entity_get_pad_format(&rwpf->entity, config,
+					    RWPF_PAD_SOURCE);
 	*format = fmt->format;
 
 	return 0;
@@ -154,10 +167,15 @@ int vsp1_rwpf_get_selection(struct v4l2_subdev *subdev,
 			    struct v4l2_subdev_selection *sel)
 {
 	struct vsp1_rwpf *rwpf = to_rwpf(subdev);
+	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
 
 	/* Cropping is implemented on the sink pad. */
 	if (sel->pad != RWPF_PAD_SINK)
+		return -EINVAL;
+
+	config = vsp1_entity_get_pad_config(&rwpf->entity, cfg, sel->which);
+	if (!config)
 		return -EINVAL;
 
 	switch (sel->target) {
@@ -166,8 +184,8 @@ int vsp1_rwpf_get_selection(struct v4l2_subdev *subdev,
 		break;
 
 	case V4L2_SEL_TGT_CROP_BOUNDS:
-		format = vsp1_entity_get_pad_format(&rwpf->entity, cfg,
-						    RWPF_PAD_SINK, sel->which);
+		format = vsp1_entity_get_pad_format(&rwpf->entity, config,
+						    RWPF_PAD_SINK);
 		sel->r.left = 0;
 		sel->r.top = 0;
 		sel->r.width = format->width;
@@ -186,6 +204,7 @@ int vsp1_rwpf_set_selection(struct v4l2_subdev *subdev,
 			    struct v4l2_subdev_selection *sel)
 {
 	struct vsp1_rwpf *rwpf = to_rwpf(subdev);
+	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *crop;
 
@@ -196,11 +215,15 @@ int vsp1_rwpf_set_selection(struct v4l2_subdev *subdev,
 	if (sel->target != V4L2_SEL_TGT_CROP)
 		return -EINVAL;
 
+	config = vsp1_entity_get_pad_config(&rwpf->entity, cfg, sel->which);
+	if (!config)
+		return -EINVAL;
+
 	/* Make sure the crop rectangle is entirely contained in the image. The
 	 * WPF top and left offsets are limited to 255.
 	 */
-	format = vsp1_entity_get_pad_format(&rwpf->entity, cfg, RWPF_PAD_SINK,
-					    sel->which);
+	format = vsp1_entity_get_pad_format(&rwpf->entity, config,
+					    RWPF_PAD_SINK);
 
 	/* Restrict the crop rectangle coordinates to multiples of 2 to avoid
 	 * shifting the color plane.
@@ -227,8 +250,8 @@ int vsp1_rwpf_set_selection(struct v4l2_subdev *subdev,
 	*crop = sel->r;
 
 	/* Propagate the format to the source pad. */
-	format = vsp1_entity_get_pad_format(&rwpf->entity, cfg, RWPF_PAD_SOURCE,
-					    sel->which);
+	format = vsp1_entity_get_pad_format(&rwpf->entity, config,
+					    RWPF_PAD_SOURCE);
 	format->width = crop->width;
 	format->height = crop->height;
 

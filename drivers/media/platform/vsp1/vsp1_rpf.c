@@ -42,6 +42,8 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	struct vsp1_rwpf *rpf = to_rwpf(subdev);
 	const struct vsp1_format_info *fmtinfo = rpf->fmtinfo;
 	const struct v4l2_pix_format_mplane *format = &rpf->format;
+	const struct v4l2_mbus_framefmt *source_format;
+	const struct v4l2_mbus_framefmt *sink_format;
 	const struct v4l2_rect *crop = &rpf->crop;
 	u32 pstride;
 	u32 infmt;
@@ -79,6 +81,13 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	vsp1_rpf_write(rpf, VI6_RPF_SRCM_PSTRIDE, pstride);
 
 	/* Format */
+	sink_format = vsp1_entity_get_pad_format(&rpf->entity,
+						 rpf->entity.config,
+						 RWPF_PAD_SINK);
+	source_format = vsp1_entity_get_pad_format(&rpf->entity,
+						   rpf->entity.config,
+						   RWPF_PAD_SOURCE);
+
 	infmt = VI6_RPF_INFMT_CIPM
 	      | (fmtinfo->hwfmt << VI6_RPF_INFMT_RDFMT_SHIFT);
 
@@ -87,8 +96,7 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	if (fmtinfo->swap_uv)
 		infmt |= VI6_RPF_INFMT_SPUVS;
 
-	if (rpf->entity.formats[RWPF_PAD_SINK].code !=
-	    rpf->entity.formats[RWPF_PAD_SOURCE].code)
+	if (sink_format->code != source_format->code)
 		infmt |= VI6_RPF_INFMT_CSC;
 
 	vsp1_rpf_write(rpf, VI6_RPF_INFMT, infmt);

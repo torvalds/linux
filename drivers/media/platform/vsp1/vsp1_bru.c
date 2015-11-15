@@ -70,7 +70,8 @@ static int bru_s_stream(struct v4l2_subdev *subdev, int enable)
 	if (!enable)
 		return 0;
 
-	format = &bru->entity.formats[bru->entity.source_pad];
+	format = vsp1_entity_get_pad_format(&bru->entity, bru->entity.config,
+					    bru->entity.source_pad);
 
 	/* The hardware is extremely flexible but we have no userspace API to
 	 * expose all the parameters, nor is it clear whether we would have use
@@ -183,7 +184,6 @@ static int bru_enum_mbus_code(struct v4l2_subdev *subdev,
 		MEDIA_BUS_FMT_AYUV8_1X32,
 	};
 	struct vsp1_bru *bru = to_bru(subdev);
-	struct v4l2_mbus_framefmt *format;
 
 	if (code->pad == BRU_PAD_SINK(0)) {
 		if (code->index >= ARRAY_SIZE(codes))
@@ -191,12 +191,19 @@ static int bru_enum_mbus_code(struct v4l2_subdev *subdev,
 
 		code->code = codes[code->index];
 	} else {
+		struct v4l2_subdev_pad_config *config;
+		struct v4l2_mbus_framefmt *format;
+
 		if (code->index)
 			return -EINVAL;
 
-		format = vsp1_entity_get_pad_format(&bru->entity, cfg,
-						    BRU_PAD_SINK(0),
+		config = vsp1_entity_get_pad_config(&bru->entity, cfg,
 						    code->which);
+		if (!config)
+			return -EINVAL;
+
+		format = vsp1_entity_get_pad_format(&bru->entity, config,
+						    BRU_PAD_SINK(0));
 		code->code = format->code;
 	}
 
@@ -242,17 +249,21 @@ static int bru_get_format(struct v4l2_subdev *subdev,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_bru *bru = to_bru(subdev);
+	struct v4l2_subdev_pad_config *config;
 
-	fmt->format = *vsp1_entity_get_pad_format(&bru->entity, cfg, fmt->pad,
-						  fmt->which);
+	config = vsp1_entity_get_pad_config(&bru->entity, cfg, fmt->which);
+	if (!config)
+		return -EINVAL;
+
+	fmt->format = *vsp1_entity_get_pad_format(&bru->entity, config,
+						  fmt->pad);
 
 	return 0;
 }
 
 static void bru_try_format(struct vsp1_bru *bru,
-			   struct v4l2_subdev_pad_config *cfg,
-			   unsigned int pad, struct v4l2_mbus_framefmt *fmt,
-			   enum v4l2_subdev_format_whence which)
+			   struct v4l2_subdev_pad_config *config,
+			   unsigned int pad, struct v4l2_mbus_framefmt *fmt)
 {
 	struct v4l2_mbus_framefmt *format;
 
@@ -266,8 +277,8 @@ static void bru_try_format(struct vsp1_bru *bru,
 
 	default:
 		/* The BRU can't perform format conversion. */
-		format = vsp1_entity_get_pad_format(&bru->entity, cfg,
-						    BRU_PAD_SINK(0), which);
+		format = vsp1_entity_get_pad_format(&bru->entity, config,
+						    BRU_PAD_SINK(0));
 		fmt->code = format->code;
 		break;
 	}
@@ -283,12 +294,16 @@ static int bru_set_format(struct v4l2_subdev *subdev,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_bru *bru = to_bru(subdev);
+	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
 
-	bru_try_format(bru, cfg, fmt->pad, &fmt->format, fmt->which);
+	config = vsp1_entity_get_pad_config(&bru->entity, cfg, fmt->which);
+	if (!config)
+		return -EINVAL;
 
-	format = vsp1_entity_get_pad_format(&bru->entity, cfg, fmt->pad,
-					    fmt->which);
+	bru_try_format(bru, config, fmt->pad, &fmt->format);
+
+	format = vsp1_entity_get_pad_format(&bru->entity, config, fmt->pad);
 	*format = fmt->format;
 
 	/* Reset the compose rectangle */
@@ -307,8 +322,8 @@ static int bru_set_format(struct v4l2_subdev *subdev,
 		unsigned int i;
 
 		for (i = 0; i <= bru->entity.source_pad; ++i) {
-			format = vsp1_entity_get_pad_format(&bru->entity, cfg,
-							    i, fmt->which);
+			format = vsp1_entity_get_pad_format(&bru->entity,
+							    config, i);
 			format->code = fmt->format.code;
 		}
 	}
@@ -347,6 +362,7 @@ static int bru_set_selection(struct v4l2_subdev *subdev,
 			     struct v4l2_subdev_selection *sel)
 {
 	struct vsp1_bru *bru = to_bru(subdev);
+	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *compose;
 
@@ -356,19 +372,22 @@ static int bru_set_selection(struct v4l2_subdev *subdev,
 	if (sel->target != V4L2_SEL_TGT_COMPOSE)
 		return -EINVAL;
 
+	config = vsp1_entity_get_pad_config(&bru->entity, cfg, sel->which);
+	if (!config)
+		return -EINVAL;
+
 	/* The compose rectangle top left corner must be inside the output
 	 * frame.
 	 */
-	format = vsp1_entity_get_pad_format(&bru->entity, cfg,
-					    bru->entity.source_pad, sel->which);
+	format = vsp1_entity_get_pad_format(&bru->entity, config,
+					    bru->entity.source_pad);
 	sel->r.left = clamp_t(unsigned int, sel->r.left, 0, format->width - 1);
 	sel->r.top = clamp_t(unsigned int, sel->r.top, 0, format->height - 1);
 
 	/* Scaling isn't supported, the compose rectangle size must be identical
 	 * to the sink format size.
 	 */
-	format = vsp1_entity_get_pad_format(&bru->entity, cfg, sel->pad,
-					    sel->which);
+	format = vsp1_entity_get_pad_format(&bru->entity, config, sel->pad);
 	sel->r.width = format->width;
 	sel->r.height = format->height;
 

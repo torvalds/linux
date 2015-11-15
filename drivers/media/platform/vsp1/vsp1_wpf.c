@@ -42,6 +42,8 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&subdev->entity);
 	struct vsp1_rwpf *wpf = to_rwpf(subdev);
 	struct vsp1_device *vsp1 = wpf->entity.vsp1;
+	const struct v4l2_mbus_framefmt *source_format;
+	const struct v4l2_mbus_framefmt *sink_format;
 	const struct v4l2_rect *crop = &wpf->crop;
 	unsigned int i;
 	u32 srcrpf = 0;
@@ -94,6 +96,13 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 		       (crop->height << VI6_WPF_SZCLIP_SIZE_SHIFT));
 
 	/* Format */
+	sink_format = vsp1_entity_get_pad_format(&wpf->entity,
+						 wpf->entity.config,
+						 RWPF_PAD_SINK);
+	source_format = vsp1_entity_get_pad_format(&wpf->entity,
+						   wpf->entity.config,
+						   RWPF_PAD_SOURCE);
+
 	if (!pipe->lif) {
 		const struct vsp1_format_info *fmtinfo = wpf->fmtinfo;
 
@@ -109,8 +118,7 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 		vsp1_wpf_write(wpf, VI6_WPF_DSWAP, fmtinfo->swap);
 	}
 
-	if (wpf->entity.formats[RWPF_PAD_SINK].code !=
-	    wpf->entity.formats[RWPF_PAD_SOURCE].code)
+	if (sink_format->code != source_format->code)
 		outfmt |= VI6_WPF_OUTFMT_CSC;
 
 	outfmt |= wpf->alpha << VI6_WPF_OUTFMT_PDV_SHIFT;

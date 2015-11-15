@@ -117,8 +117,10 @@ static int sru_s_stream(struct v4l2_subdev *subdev, int enable)
 	if (!enable)
 		return 0;
 
-	input = &sru->entity.formats[SRU_PAD_SINK];
-	output = &sru->entity.formats[SRU_PAD_SOURCE];
+	input = vsp1_entity_get_pad_format(&sru->entity, sru->entity.config,
+					   SRU_PAD_SINK);
+	output = vsp1_entity_get_pad_format(&sru->entity, sru->entity.config,
+					    SRU_PAD_SOURCE);
 
 	if (input->code == MEDIA_BUS_FMT_ARGB8888_1X32)
 		ctrl0 = VI6_SRU_CTRL0_PARAM2 | VI6_SRU_CTRL0_PARAM3
@@ -153,7 +155,6 @@ static int sru_enum_mbus_code(struct v4l2_subdev *subdev,
 		MEDIA_BUS_FMT_AYUV8_1X32,
 	};
 	struct vsp1_sru *sru = to_sru(subdev);
-	struct v4l2_mbus_framefmt *format;
 
 	if (code->pad == SRU_PAD_SINK) {
 		if (code->index >= ARRAY_SIZE(codes))
@@ -161,14 +162,22 @@ static int sru_enum_mbus_code(struct v4l2_subdev *subdev,
 
 		code->code = codes[code->index];
 	} else {
+		struct v4l2_subdev_pad_config *config;
+		struct v4l2_mbus_framefmt *format;
+
 		/* The SRU can't perform format conversion, the sink format is
 		 * always identical to the source format.
 		 */
 		if (code->index)
 			return -EINVAL;
 
-		format = vsp1_entity_get_pad_format(&sru->entity, cfg,
-						    SRU_PAD_SINK, code->which);
+		config = vsp1_entity_get_pad_config(&sru->entity, cfg,
+						    code->which);
+		if (!config)
+			return -EINVAL;
+
+		format = vsp1_entity_get_pad_format(&sru->entity, config,
+						    SRU_PAD_SINK);
 		code->code = format->code;
 	}
 
@@ -180,10 +189,14 @@ static int sru_enum_frame_size(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct vsp1_sru *sru = to_sru(subdev);
+	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
 
-	format = vsp1_entity_get_pad_format(&sru->entity, cfg,
-					    SRU_PAD_SINK, fse->which);
+	config = vsp1_entity_get_pad_config(&sru->entity, cfg, fse->which);
+	if (!config)
+		return -EINVAL;
+
+	format = vsp1_entity_get_pad_format(&sru->entity, config, SRU_PAD_SINK);
 
 	if (fse->index || fse->code != format->code)
 		return -EINVAL;
@@ -214,17 +227,21 @@ static int sru_get_format(struct v4l2_subdev *subdev,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_sru *sru = to_sru(subdev);
+	struct v4l2_subdev_pad_config *config;
 
-	fmt->format = *vsp1_entity_get_pad_format(&sru->entity, cfg, fmt->pad,
-						  fmt->which);
+	config = vsp1_entity_get_pad_config(&sru->entity, cfg, fmt->which);
+	if (!config)
+		return -EINVAL;
+
+	fmt->format = *vsp1_entity_get_pad_format(&sru->entity, config,
+						  fmt->pad);
 
 	return 0;
 }
 
 static void sru_try_format(struct vsp1_sru *sru,
-			   struct v4l2_subdev_pad_config *cfg,
-			   unsigned int pad, struct v4l2_mbus_framefmt *fmt,
-			   enum v4l2_subdev_format_whence which)
+			   struct v4l2_subdev_pad_config *config,
+			   unsigned int pad, struct v4l2_mbus_framefmt *fmt)
 {
 	struct v4l2_mbus_framefmt *format;
 	unsigned int input_area;
@@ -243,8 +260,8 @@ static void sru_try_format(struct vsp1_sru *sru,
 
 	case SRU_PAD_SOURCE:
 		/* The SRU can't perform format conversion. */
-		format = vsp1_entity_get_pad_format(&sru->entity, cfg,
-						    SRU_PAD_SINK, which);
+		format = vsp1_entity_get_pad_format(&sru->entity, config,
+						    SRU_PAD_SINK);
 		fmt->code = format->code;
 
 		/* We can upscale by 2 in both direction, but not independently.
@@ -278,21 +295,25 @@ static int sru_set_format(struct v4l2_subdev *subdev,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_sru *sru = to_sru(subdev);
+	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
 
-	sru_try_format(sru, cfg, fmt->pad, &fmt->format, fmt->which);
+	config = vsp1_entity_get_pad_config(&sru->entity, cfg, fmt->which);
+	if (!config)
+		return -EINVAL;
 
-	format = vsp1_entity_get_pad_format(&sru->entity, cfg, fmt->pad,
-					    fmt->which);
+	sru_try_format(sru, config, fmt->pad, &fmt->format);
+
+	format = vsp1_entity_get_pad_format(&sru->entity, config, fmt->pad);
 	*format = fmt->format;
 
 	if (fmt->pad == SRU_PAD_SINK) {
 		/* Propagate the format to the source pad. */
-		format = vsp1_entity_get_pad_format(&sru->entity, cfg,
-						    SRU_PAD_SOURCE, fmt->which);
+		format = vsp1_entity_get_pad_format(&sru->entity, config,
+						    SRU_PAD_SOURCE);
 		*format = fmt->format;
 
-		sru_try_format(sru, cfg, SRU_PAD_SOURCE, format, fmt->which);
+		sru_try_format(sru, config, SRU_PAD_SOURCE, format);
 	}
 
 	return 0;

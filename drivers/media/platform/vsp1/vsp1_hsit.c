@@ -77,10 +77,14 @@ static int hsit_enum_frame_size(struct v4l2_subdev *subdev,
 				struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct vsp1_hsit *hsit = to_hsit(subdev);
+	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
 
-	format = vsp1_entity_get_pad_format(&hsit->entity, cfg, fse->pad,
-					    fse->which);
+	config = vsp1_entity_get_pad_config(&hsit->entity, cfg, fse->which);
+	if (!config)
+		return -EINVAL;
+
+	format = vsp1_entity_get_pad_format(&hsit->entity, config, fse->pad);
 
 	if (fse->index || fse->code != format->code)
 		return -EINVAL;
@@ -108,9 +112,14 @@ static int hsit_get_format(struct v4l2_subdev *subdev,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_hsit *hsit = to_hsit(subdev);
+	struct v4l2_subdev_pad_config *config;
 
-	fmt->format = *vsp1_entity_get_pad_format(&hsit->entity, cfg, fmt->pad,
-						  fmt->which);
+	config = vsp1_entity_get_pad_config(&hsit->entity, cfg, fmt->which);
+	if (!config)
+		return -EINVAL;
+
+	fmt->format = *vsp1_entity_get_pad_format(&hsit->entity, config,
+						  fmt->pad);
 
 	return 0;
 }
@@ -120,10 +129,14 @@ static int hsit_set_format(struct v4l2_subdev *subdev,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_hsit *hsit = to_hsit(subdev);
+	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
 
-	format = vsp1_entity_get_pad_format(&hsit->entity, cfg, fmt->pad,
-					    fmt->which);
+	config = vsp1_entity_get_pad_config(&hsit->entity, cfg, fmt->which);
+	if (!config)
+		return -EINVAL;
+
+	format = vsp1_entity_get_pad_format(&hsit->entity, config, fmt->pad);
 
 	if (fmt->pad == HSIT_PAD_SOURCE) {
 		/* The HST and HSI output format code and resolution can't be
@@ -145,8 +158,8 @@ static int hsit_set_format(struct v4l2_subdev *subdev,
 	fmt->format = *format;
 
 	/* Propagate the format to the source pad. */
-	format = vsp1_entity_get_pad_format(&hsit->entity, cfg, HSIT_PAD_SOURCE,
-					    fmt->which);
+	format = vsp1_entity_get_pad_format(&hsit->entity, config,
+					    HSIT_PAD_SOURCE);
 	*format = fmt->format;
 	format->code = hsit->inverse ? MEDIA_BUS_FMT_ARGB8888_1X32
 		     : MEDIA_BUS_FMT_AHSV8888_1X32;

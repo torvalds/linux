@@ -120,8 +120,10 @@ static int uds_s_stream(struct v4l2_subdev *subdev, int enable)
 	if (!enable)
 		return 0;
 
-	input = &uds->entity.formats[UDS_PAD_SINK];
-	output = &uds->entity.formats[UDS_PAD_SOURCE];
+	input = vsp1_entity_get_pad_format(&uds->entity, uds->entity.config,
+					   UDS_PAD_SINK);
+	output = vsp1_entity_get_pad_format(&uds->entity, uds->entity.config,
+					    UDS_PAD_SOURCE);
 
 	hscale = uds_compute_ratio(input->width, output->width);
 	vscale = uds_compute_ratio(input->height, output->height);
@@ -178,7 +180,13 @@ static int uds_enum_mbus_code(struct v4l2_subdev *subdev,
 
 		code->code = codes[code->index];
 	} else {
+		struct v4l2_subdev_pad_config *config;
 		struct v4l2_mbus_framefmt *format;
+
+		config = vsp1_entity_get_pad_config(&uds->entity, cfg,
+						    code->which);
+		if (!config)
+			return -EINVAL;
 
 		/* The UDS can't perform format conversion, the sink format is
 		 * always identical to the source format.
@@ -186,8 +194,8 @@ static int uds_enum_mbus_code(struct v4l2_subdev *subdev,
 		if (code->index)
 			return -EINVAL;
 
-		format = vsp1_entity_get_pad_format(&uds->entity, cfg,
-						    UDS_PAD_SINK, code->which);
+		format = vsp1_entity_get_pad_format(&uds->entity, config,
+						    UDS_PAD_SINK);
 		code->code = format->code;
 	}
 
@@ -199,10 +207,15 @@ static int uds_enum_frame_size(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct vsp1_uds *uds = to_uds(subdev);
+	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
 
-	format = vsp1_entity_get_pad_format(&uds->entity, cfg,
-					    UDS_PAD_SINK, fse->which);
+	config = vsp1_entity_get_pad_config(&uds->entity, cfg, fse->which);
+	if (!config)
+		return -EINVAL;
+
+	format = vsp1_entity_get_pad_format(&uds->entity, config,
+					    UDS_PAD_SINK);
 
 	if (fse->index || fse->code != format->code)
 		return -EINVAL;
@@ -227,17 +240,21 @@ static int uds_get_format(struct v4l2_subdev *subdev,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_uds *uds = to_uds(subdev);
+	struct v4l2_subdev_pad_config *config;
 
-	fmt->format = *vsp1_entity_get_pad_format(&uds->entity, cfg, fmt->pad,
-						  fmt->which);
+	config = vsp1_entity_get_pad_config(&uds->entity, cfg, fmt->which);
+	if (!config)
+		return -EINVAL;
+
+	fmt->format = *vsp1_entity_get_pad_format(&uds->entity, config,
+						  fmt->pad);
 
 	return 0;
 }
 
 static void uds_try_format(struct vsp1_uds *uds,
-			   struct v4l2_subdev_pad_config *cfg,
-			   unsigned int pad, struct v4l2_mbus_framefmt *fmt,
-			   enum v4l2_subdev_format_whence which)
+			   struct v4l2_subdev_pad_config *config,
+			   unsigned int pad, struct v4l2_mbus_framefmt *fmt)
 {
 	struct v4l2_mbus_framefmt *format;
 	unsigned int minimum;
@@ -256,8 +273,8 @@ static void uds_try_format(struct vsp1_uds *uds,
 
 	case UDS_PAD_SOURCE:
 		/* The UDS scales but can't perform format conversion. */
-		format = vsp1_entity_get_pad_format(&uds->entity, cfg,
-						    UDS_PAD_SINK, which);
+		format = vsp1_entity_get_pad_format(&uds->entity, config,
+						    UDS_PAD_SINK);
 		fmt->code = format->code;
 
 		uds_output_limits(format->width, &minimum, &maximum);
@@ -276,21 +293,25 @@ static int uds_set_format(struct v4l2_subdev *subdev,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_uds *uds = to_uds(subdev);
+	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
 
-	uds_try_format(uds, cfg, fmt->pad, &fmt->format, fmt->which);
+	config = vsp1_entity_get_pad_config(&uds->entity, cfg, fmt->which);
+	if (!config)
+		return -EINVAL;
 
-	format = vsp1_entity_get_pad_format(&uds->entity, cfg, fmt->pad,
-					    fmt->which);
+	uds_try_format(uds, config, fmt->pad, &fmt->format);
+
+	format = vsp1_entity_get_pad_format(&uds->entity, config, fmt->pad);
 	*format = fmt->format;
 
 	if (fmt->pad == UDS_PAD_SINK) {
 		/* Propagate the format to the source pad. */
-		format = vsp1_entity_get_pad_format(&uds->entity, cfg,
-						    UDS_PAD_SOURCE, fmt->which);
+		format = vsp1_entity_get_pad_format(&uds->entity, config,
+						    UDS_PAD_SOURCE);
 		*format = fmt->format;
 
-		uds_try_format(uds, cfg, UDS_PAD_SOURCE, format, fmt->which);
+		uds_try_format(uds, config, UDS_PAD_SOURCE, format);
 	}
 
 	return 0;
