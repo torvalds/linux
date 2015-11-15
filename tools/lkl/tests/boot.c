@@ -64,7 +64,7 @@ void printk(const char *str, int len)
 static int g_test_pass = 0;
 #define TEST(name) {				\
 	int ret = do_test(#name, test_##name);	\
-	if (ret) g_test_pass = -1;		\
+	if (!ret) g_test_pass = -1;		\
 	}
 
 static int do_test(char *name, int (*fn)(char *, int))
