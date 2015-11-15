@@ -5709,13 +5709,6 @@ M:	Juanjo Ciarlante <jjciarla@raiz.uncu.edu.ar>
 S:	Maintained
 F:	net/ipv4/netfilter/ipt_MASQUERADE.c
 
-IP1000A 10/100/1000 GIGABIT ETHERNET DRIVER
-M:	Francois Romieu <romieu@fr.zoreil.com>
-M:	Sorbica Shieh <sorbica@icplus.com.tw>
-L:	netdev@vger.kernel.org
-S:	Maintained
-F:	drivers/net/ethernet/icplus/ipg.*
-
 IPATH DRIVER
 M:	Mike Marciniszyn <infinipath@intel.com>
 L:	linux-rdma@vger.kernel.org
