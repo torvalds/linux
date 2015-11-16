@@ -3,7 +3,16 @@
 
 struct task_struct;
 
-#define cpu_relax() barrier()
+static inline void cpu_relax(void)
+{
+	unsigned long flags;
+
+	/* since this is usually called in a tight loop waiting for some
+	 * external condition (e.g. jiffies) lets run interrupts now to allow
+	 * the external condition to propagate */
+	local_irq_save(flags);
+	local_irq_restore(flags);
+}
 
 #define current_text_addr() ({ __label__ _l; _l: &&_l; })
 
