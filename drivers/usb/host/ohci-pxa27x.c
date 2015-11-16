@@ -365,19 +365,19 @@ static int ohci_pxa_of_init(struct platform_device *pdev)
 	if (!pdata)
 		return -ENOMEM;
 
-	if (of_get_property(np, "marvell,enable-port1", NULL))
+	if (of_property_read_bool(np, "marvell,enable-port1"))
 		pdata->flags |= ENABLE_PORT1;
-	if (of_get_property(np, "marvell,enable-port2", NULL))
+	if (of_property_read_bool(np, "marvell,enable-port2"))
 		pdata->flags |= ENABLE_PORT2;
-	if (of_get_property(np, "marvell,enable-port3", NULL))
+	if (of_property_read_bool(np, "marvell,enable-port3"))
 		pdata->flags |= ENABLE_PORT3;
-	if (of_get_property(np, "marvell,port-sense-low", NULL))
+	if (of_property_read_bool(np, "marvell,port-sense-low"))
 		pdata->flags |= POWER_SENSE_LOW;
-	if (of_get_property(np, "marvell,power-control-low", NULL))
+	if (of_property_read_bool(np, "marvell,power-control-low"))
 		pdata->flags |= POWER_CONTROL_LOW;
-	if (of_get_property(np, "marvell,no-oc-protection", NULL))
+	if (of_property_read_bool(np, "marvell,no-oc-protection"))
 		pdata->flags |= NO_OC_PROTECTION;
-	if (of_get_property(np, "marvell,oc-mode-perport", NULL))
+	if (of_property_read_bool(np, "marvell,oc-mode-perport"))
 		pdata->flags |= OC_MODE_PERPORT;
 	if (!of_property_read_u32(np, "marvell,power-on-delay", &tmp))
 		pdata->power_on_delay = tmp;
