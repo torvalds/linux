@@ -235,7 +235,7 @@ static void board_hwcontrol(struct mtd_info *mtd, int cmd)
 		<programlisting>
 static void board_hwcontrol(struct mtd_info *mtd, int cmd)
 {
-	struct nand_chip *this = (struct nand_chip *) mtd->priv;
+	struct nand_chip *this = mtd_to_nand(mtd);
 	switch(cmd){
 		case NAND_CTL_SETCLE: this->IO_ADDR_W |= CLE_ADRR_BIT;  break;
 		case NAND_CTL_CLRCLE: this->IO_ADDR_W &amp;= ~CLE_ADRR_BIT; break;
@@ -399,7 +399,7 @@ static void board_select_chip (struct mtd_info *mtd, int chip)
 		<programlisting>
 static void board_select_chip (struct mtd_info *mtd, int chip)
 {
-	struct nand_chip *this = (struct nand_chip *) mtd->priv;
+	struct nand_chip *this = mtd_to_nand(mtd);
 	
 	/* Deselect all chips */
 	this->IO_ADDR_R &amp;= ~BOARD_NAND_ADDR_MASK;
