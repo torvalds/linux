@@ -3694,8 +3694,7 @@ static int __init d40_probe(struct platform_device *pdev)
 
 failure:
 	if (base) {
-		if (base->desc_slab)
-			kmem_cache_destroy(base->desc_slab);
+		kmem_cache_destroy(base->desc_slab);
 		if (base->virtbase)
 			iounmap(base->virtbase);
 
