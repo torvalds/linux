@@ -160,11 +160,6 @@ int nvm_erase_blk(struct nvm_dev *dev, struct nvm_block *blk)
 }
 EXPORT_SYMBOL(nvm_erase_blk);
 
-static void nvm_core_free(struct nvm_dev *dev)
-{
-	kfree(dev);
-}
-
 static int nvm_core_init(struct nvm_dev *dev)
 {
 	struct nvm_id *id = &dev->identity;
@@ -223,8 +218,6 @@ static void nvm_free(struct nvm_dev *dev)
 
 	if (dev->mt)
 		dev->mt->unregister_mgr(dev);
-
-	nvm_core_free(dev);
 }
 
 static int nvm_init(struct nvm_dev *dev)
@@ -351,11 +344,12 @@ void nvm_unregister(char *disk_name)
 		return;
 	}
 
-	nvm_exit(dev);
-
 	down_write(&nvm_lock);
 	list_del(&dev->devices);
 	up_write(&nvm_lock);
+
+	nvm_exit(dev);
+	kfree(dev);
 }
 EXPORT_SYMBOL(nvm_unregister);
 
