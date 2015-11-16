@@ -110,6 +110,113 @@ bpf_prog_priv__clear(struct bpf_program *prog __maybe_unused,
 }
 
 static int
+config__exec(const char *value, struct perf_probe_event *pev)
+{
+	pev->uprobes = true;
+	pev->target = strdup(value);
+	if (!pev->target)
+		return -ENOMEM;
+	return 0;
+}
+
+static struct {
+	const char *key;
+	const char *usage;
+	const char *desc;
+	int (*func)(const char *, struct perf_probe_event *);
+} bpf_config_terms[] = {
+	{
+		.key	= "exec",
+		.usage	= "exec=<full path of file>",
+		.desc	= "Set uprobe target",
+		.func	= config__exec,
+	},
+};
+
+static int
+do_config(const char *key, const char *value,
+	  struct perf_probe_event *pev)
+{
+	unsigned int i;
+
+	pr_debug("config bpf program: %s=%s\n", key, value);
+	for (i = 0; i < ARRAY_SIZE(bpf_config_terms); i++)
+		if (strcmp(key, bpf_config_terms[i].key) == 0)
+			return bpf_config_terms[i].func(value, pev);
+
+	pr_debug("BPF: ERROR: invalid config option in object: %s=%s\n",
+		 key, value);
+
+	pr_debug("\nHint: Currently valid options are:\n");
+	for (i = 0; i < ARRAY_SIZE(bpf_config_terms); i++)
+		pr_debug("\t%s:\t%s\n", bpf_config_terms[i].usage,
+			 bpf_config_terms[i].desc);
+	pr_debug("\n");
+
+	return -BPF_LOADER_ERRNO__CONFIG_TERM;
+}
+
+static const char *
+parse_config_kvpair(const char *config_str, struct perf_probe_event *pev)
+{
+	char *text = strdup(config_str);
+	char *sep, *line;
+	const char *main_str = NULL;
+	int err = 0;
+
+	if (!text) {
+		pr_debug("No enough memory: dup config_str failed\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	line = text;
+	while ((sep = strchr(line, ';'))) {
+		char *equ;
+
+		*sep = '\0';
+		equ = strchr(line, '=');
+		if (!equ) {
+			pr_warning("WARNING: invalid config in BPF object: %s\n",
+				   line);
+			pr_warning("\tShould be 'key=value'.\n");
+			goto nextline;
+		}
+		*equ = '\0';
+
+		err = do_config(line, equ + 1, pev);
+		if (err)
+			break;
+nextline:
+		line = sep + 1;
+	}
+
+	if (!err)
+		main_str = config_str + (line - text);
+	free(text);
+
+	return err ? ERR_PTR(err) : main_str;
+}
+
+static int
+parse_config(const char *config_str, struct perf_probe_event *pev)
+{
+	int err;
+	const char *main_str = parse_config_kvpair(config_str, pev);
+
+	if (IS_ERR(main_str))
+		return PTR_ERR(main_str);
+
+	err = parse_perf_probe_command(main_str, pev);
+	if (err < 0) {
+		pr_debug("bpf: '%s' is not a valid config string\n",
+			 config_str);
+		/* parse failed, don't need clear pev. */
+		return -BPF_LOADER_ERRNO__CONFIG;
+	}
+	return 0;
+}
+
+static int
 config_bpf_program(struct bpf_program *prog)
 {
 	struct perf_probe_event *pev = NULL;
@@ -131,13 +238,9 @@ config_bpf_program(struct bpf_program *prog)
 	pev = &priv->pev;
 
 	pr_debug("bpf: config program '%s'\n", config_str);
-	err = parse_perf_probe_command(config_str, pev);
-	if (err < 0) {
-		pr_debug("bpf: '%s' is not a valid config string\n",
-			 config_str);
-		err = -BPF_LOADER_ERRNO__CONFIG;
+	err = parse_config(config_str, pev);
+	if (err)
 		goto errout;
-	}
 
 	if (pev->group && strcmp(pev->group, PERF_BPF_PROBE_GROUP)) {
 		pr_debug("bpf: '%s': group for event is set and not '%s'.\n",
@@ -340,6 +443,7 @@ static const char *bpf_loader_strerror_table[NR_ERRNO] = {
 	[ERRCODE_OFFSET(EVENTNAME)]	= "No event name found in config string",
 	[ERRCODE_OFFSET(INTERNAL)]	= "BPF loader internal error",
 	[ERRCODE_OFFSET(COMPILE)]	= "Error when compiling BPF scriptlet",
+	[ERRCODE_OFFSET(CONFIG_TERM)]	= "Invalid config term in config string",
 };
 
 static int
@@ -420,6 +524,10 @@ int bpf__strerror_probe(struct bpf_object *obj __maybe_unused,
 			int err, char *buf, size_t size)
 {
 	bpf__strerror_head(err, buf, size);
+	case BPF_LOADER_ERRNO__CONFIG_TERM: {
+		scnprintf(buf, size, "%s (add -v to see detail)", emsg);
+		break;
+	}
 	bpf__strerror_entry(EEXIST, "Probe point exist. Try use 'perf probe -d \"*\"'");
 	bpf__strerror_entry(EACCES, "You need to be root");
 	bpf__strerror_entry(EPERM, "You need to be root, and /proc/sys/kernel/kptr_restrict should be 0");

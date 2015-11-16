@@ -20,6 +20,7 @@ enum bpf_loader_errno {
 	BPF_LOADER_ERRNO__EVENTNAME,	/* Event name is missing */
 	BPF_LOADER_ERRNO__INTERNAL,	/* BPF loader internal error */
 	BPF_LOADER_ERRNO__COMPILE,	/* Error when compiling BPF scriptlet */
+	BPF_LOADER_ERRNO__CONFIG_TERM,	/* Invalid config term in config term */
 	__BPF_LOADER_ERRNO__END,
 };
 
