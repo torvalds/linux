@@ -44,6 +44,8 @@ static struct net_device_stats *mac_stats(struct net_device *dev);
 static int  mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd);
 static void wilc_set_multicast_list(struct net_device *dev);
 struct wilc *wilc_dev;
+EXPORT_SYMBOL_GPL(wilc_dev);
+
 bool wilc_enable_ps = true;
 
 static const struct net_device_ops wilc_netdev_ops = {
@@ -1411,6 +1413,7 @@ void wilc_netdev_cleanup(struct wilc *wilc)
 	wilc_debugfs_remove();
 #endif
 }
+EXPORT_SYMBOL_GPL(wilc_netdev_cleanup);
 
 int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 		     int gpio, const struct wilc_hif_func *ops)
@@ -1487,3 +1490,4 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(wilc_netdev_init);

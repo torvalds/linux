@@ -1181,6 +1181,7 @@ void wilc_handle_isr(void *wilc)
 	}
 	release_bus(RELEASE_ALLOW_SLEEP);
 }
+EXPORT_SYMBOL_GPL(wilc_handle_isr);
 
 int wilc_wlan_firmware_download(const u8 *buffer, u32 buffer_size)
 {
