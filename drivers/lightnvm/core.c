@@ -460,10 +460,10 @@ static void nvm_remove_target(struct nvm_target *t)
 	lockdep_assert_held(&nvm_lock);
 
 	del_gendisk(tdisk);
+	blk_cleanup_queue(q);
+
 	if (tt->exit)
 		tt->exit(tdisk->private_data);
-
-	blk_cleanup_queue(q);
 
 	put_disk(tdisk);
 
