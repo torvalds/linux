@@ -32,6 +32,7 @@
 #include <linux/types.h>	/* For standard types */
 #include <linux/errno.h>	/* For the -ENODEV/... values */
 #include <linux/kernel.h>	/* For printk/panic/... */
+#include <linux/reboot.h>	/* For restart handler */
 #include <linux/watchdog.h>	/* For watchdog specific items */
 #include <linux/init.h>		/* For __init/__exit/... */
 #include <linux/idr.h>		/* For ida_* macros */
@@ -137,6 +138,41 @@ int watchdog_init_timeout(struct watchdog_device *wdd,
 }
 EXPORT_SYMBOL_GPL(watchdog_init_timeout);
 
+static int watchdog_restart_notifier(struct notifier_block *nb,
+				     unsigned long action, void *data)
+{
+	struct watchdog_device *wdd = container_of(nb, struct watchdog_device,
+						   restart_nb);
+
+	int ret;
+
+	ret = wdd->ops->restart(wdd);
+	if (ret)
+		return NOTIFY_BAD;
+
+	return NOTIFY_DONE;
+}
+
+/**
+ * watchdog_set_restart_priority - Change priority of restart handler
+ * @wdd: watchdog device
+ * @priority: priority of the restart handler, should follow these guidelines:
+ *   0:   use watchdog's restart function as last resort, has limited restart
+ *        capabilies
+ *   128: default restart handler, use if no other handler is expected to be
+ *        available and/or if restart is sufficient to restart the entire system
+ *   255: preempt all other handlers
+ *
+ * If a wdd->ops->restart function is provided when watchdog_register_device is
+ * called, it will be registered as a restart handler with the priority given
+ * here.
+ */
+void watchdog_set_restart_priority(struct watchdog_device *wdd, int priority)
+{
+	wdd->restart_nb.priority = priority;
+}
+EXPORT_SYMBOL_GPL(watchdog_set_restart_priority);
+
 static int __watchdog_register_device(struct watchdog_device *wdd)
 {
 	int ret, id = -1, devno;
@@ -202,6 +238,15 @@ static int __watchdog_register_device(struct watchdog_device *wdd)
 		return ret;
 	}
 
+	if (wdd->ops->restart) {
+		wdd->restart_nb.notifier_call = watchdog_restart_notifier;
+
+		ret = register_restart_handler(&wdd->restart_nb);
+		if (ret)
+			dev_warn(wdd->dev, "Cannot register restart handler (%d)\n",
+				 ret);
+	}
+
 	return 0;
 }
 
@@ -237,6 +282,9 @@ static void __watchdog_unregister_device(struct watchdog_device *wdd)
 
 	if (wdd == NULL)
 		return;
+
+	if (wdd->ops->restart)
+		unregister_restart_handler(&wdd->restart_nb);
 
 	devno = wdd->cdev.dev;
 	ret = watchdog_dev_unregister(wdd);
