@@ -777,9 +777,9 @@ static struct class rc_class = {
  * used by the sysfs protocols file. Note that the order
  * of the entries is relevant.
  */
-static struct {
+static const struct {
 	u64	type;
-	char	*name;
+	const char	*name;
 	const char	*module_name;
 } proto_names[] = {
 	{ RC_BIT_NONE,		"none",		NULL			},
