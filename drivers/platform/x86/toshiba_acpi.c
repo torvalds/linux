@@ -2808,7 +2808,8 @@ static void toshiba_acpi_notify(struct acpi_device *acpi_dev, u32 event)
 
 	acpi_bus_generate_netlink_event(acpi_dev->pnp.device_class,
 					dev_name(&acpi_dev->dev),
-					event, 0);
+					event, (event == 0x80) ?
+					dev->last_key_event : 0);
 }
 
 #ifdef CONFIG_PM_SLEEP
