@@ -362,17 +362,7 @@ EXPORT_SYMBOL(ir_raw_handler_unregister);
 void ir_raw_init(void)
 {
 	/* Load the decoder modules */
-
-	load_nec_decode();
-	load_rc5_decode();
-	load_rc6_decode();
-	load_jvc_decode();
-	load_sony_decode();
-	load_sanyo_decode();
-	load_sharp_decode();
-	load_mce_kbd_decode();
 	load_lirc_codec();
-	load_xmp_decode();
 
 	/* If needed, we may later add some init code. In this case,
 	   it is needed to change the CONFIG_MODULE test at rc-core.h
