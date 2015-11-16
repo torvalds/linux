@@ -118,8 +118,8 @@ MODULE_PARM_DESC(max_ring_page_order, "Maximum order of pages to be used for the
 	__CONST_RING_SIZE(blkif, XEN_PAGE_SIZE * XENBUS_MAX_RING_GRANTS)
 
 /*
- * ring-ref%i i=(-1UL) would take 11 characters + 'ring-ref' is 8, so 19
- * characters are enough. Define to 20 to keep consist with backend.
+ * ring-ref%u i=(-1UL) would take 11 characters + 'ring-ref' is 8, so 19
+ * characters are enough. Define to 20 to keep consistent with backend.
  */
 #define RINGREF_NAME_LEN (20)
 /*
@@ -238,7 +238,7 @@ static int get_id_from_freelist(struct blkfront_ring_info *rinfo)
 }
 
 static int add_id_to_freelist(struct blkfront_ring_info *rinfo,
-			       unsigned long id)
+			      unsigned long id)
 {
 	if (rinfo->shadow[id].req.u.rw.id != id)
 		return -EINVAL;
@@ -257,7 +257,7 @@ static int fill_grant_buffer(struct blkfront_ring_info *rinfo, int num)
 	struct grant *gnt_list_entry, *n;
 	int i = 0;
 
-	while(i < num) {
+	while (i < num) {
 		gnt_list_entry = kzalloc(sizeof(struct grant), GFP_NOIO);
 		if (!gnt_list_entry)
 			goto out_of_memory;
@@ -776,7 +776,7 @@ static inline bool blkif_request_flush_invalid(struct request *req,
 }
 
 static int blkif_queue_rq(struct blk_mq_hw_ctx *hctx,
-			   const struct blk_mq_queue_data *qd)
+			  const struct blk_mq_queue_data *qd)
 {
 	unsigned long flags;
 	struct blkfront_ring_info *rinfo = (struct blkfront_ring_info *)hctx->driver_data;
@@ -1968,8 +1968,7 @@ static int blkfront_resume(struct xenbus_device *dev)
 	return err;
 }
 
-static void
-blkfront_closing(struct blkfront_info *info)
+static void blkfront_closing(struct blkfront_info *info)
 {
 	struct xenbus_device *xbdev = info->xbdev;
 	struct block_device *bdev = NULL;
