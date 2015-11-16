@@ -662,6 +662,9 @@ static void __xiic_start_xfer(struct xiic_i2c *i2c)
 
 static void xiic_start_xfer(struct xiic_i2c *i2c)
 {
+	spin_lock(&i2c->lock);
+	xiic_reinit(i2c);
+	spin_unlock(&i2c->lock);
 
 	__xiic_start_xfer(i2c);
 }
