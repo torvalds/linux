@@ -3,9 +3,9 @@
 #include "wilc_wlan_cfg.h"
 
 #ifdef WILC_SDIO
-extern struct wilc_hif_func hif_sdio;
+extern struct wilc_hif_func wilc_hif_sdio;
 #else
-extern struct wilc_hif_func hif_spi;
+extern struct wilc_hif_func wilc_hif_spi;
 #endif
 u32 wilc_get_chipid(u8 update);
 
@@ -64,7 +64,7 @@ static CHIP_PS_STATE_T chip_ps_state = CHIP_WAKEDUP;
 
 static inline void acquire_bus(BUS_ACQUIRE_T acquire)
 {
-	mutex_lock(&g_linux_wlan->hif_cs);
+	mutex_lock(&wilc_dev->hif_cs);
 	#ifndef WILC_OPTIMIZE_SLEEP_INT
 	if (chip_ps_state != CHIP_WAKEDUP)
 	#endif
@@ -80,7 +80,7 @@ static inline void release_bus(BUS_RELEASE_T release)
 	if (release == RELEASE_ALLOW_SLEEP)
 		chip_allow_sleep();
 	#endif
-	mutex_unlock(&g_linux_wlan->hif_cs);
+	mutex_unlock(&wilc_dev->hif_cs);
 }
 
 #ifdef TCP_ACK_FILTER
@@ -169,11 +169,11 @@ static int wilc_wlan_txq_add_to_head(struct txq_entry_t *tqe)
 {
 	wilc_wlan_dev_t *p = &g_wlan;
 	unsigned long flags;
-	if (linux_wlan_lock_timeout(&g_linux_wlan->txq_add_to_head_cs,
+	if (linux_wlan_lock_timeout(&wilc_dev->txq_add_to_head_cs,
 				    CFG_PKTS_TIMEOUT))
 		return -1;
 
-	spin_lock_irqsave(&g_linux_wlan->txq_spinlock, flags);
+	spin_lock_irqsave(&wilc_dev->txq_spinlock, flags);
 
 	if (!p->txq_head) {
 		tqe->next = NULL;
@@ -189,9 +189,9 @@ static int wilc_wlan_txq_add_to_head(struct txq_entry_t *tqe)
 	p->txq_entries += 1;
 	PRINT_D(TX_DBG, "Number of entries in TxQ = %d\n", p->txq_entries);
 
-	spin_unlock_irqrestore(&g_linux_wlan->txq_spinlock, flags);
-	up(&g_linux_wlan->txq_add_to_head_cs);
-	up(&g_linux_wlan->txq_event);
+	spin_unlock_irqrestore(&wilc_dev->txq_spinlock, flags);
+	up(&wilc_dev->txq_add_to_head_cs);
+	up(&wilc_dev->txq_event);
 	PRINT_D(TX_DBG, "Wake up the txq_handler\n");
 
 	return 0;
@@ -266,9 +266,9 @@ static inline int remove_TCP_related(void)
 	wilc_wlan_dev_t *p = &g_wlan;
 	unsigned long flags;
 
-	spin_lock_irqsave(&g_linux_wlan->txq_spinlock, flags);
+	spin_lock_irqsave(&wilc_dev->txq_spinlock, flags);
 
-	spin_unlock_irqrestore(&g_linux_wlan->txq_spinlock, flags);
+	spin_unlock_irqrestore(&wilc_dev->txq_spinlock, flags);
 	return 0;
 }
 
@@ -393,7 +393,7 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(struct net_device *dev)
 
 static bool enabled = false;
 
-void enable_tcp_ack_filter(bool value)
+void wilc_enable_tcp_ack_filter(bool value)
 {
 	enabled = value;
 }
@@ -413,7 +413,7 @@ static int wilc_wlan_txq_add_cfg_pkt(u8 *buffer, u32 buffer_size)
 	PRINT_D(TX_DBG, "Adding config packet ...\n");
 	if (p->quit) {
 		PRINT_D(TX_DBG, "Return due to clear function\n");
-		up(&g_linux_wlan->cfg_event);
+		up(&wilc_dev->cfg_event);
 		return 0;
 	}
 
@@ -684,7 +684,7 @@ static inline void chip_wakeup(void)
 	chip_ps_state = CHIP_WAKEDUP;
 }
 #endif
-void chip_sleep_manually(void)
+void wilc_chip_sleep_manually(void)
 {
 	if (chip_ps_state != CHIP_WAKEDUP)
 		return;
@@ -1520,7 +1520,7 @@ int wilc_wlan_cfg_set(int start, u32 wid, u8 *buffer, u32 buffer_size,
 		if (wilc_wlan_cfg_commit(WILC_CFG_SET, drv_handler))
 			ret_size = 0;
 
-		if (linux_wlan_lock_timeout(&g_linux_wlan->cfg_event,
+		if (linux_wlan_lock_timeout(&wilc_dev->cfg_event,
 					    CFG_PKTS_TIMEOUT)) {
 			PRINT_D(TX_DBG, "Set Timed Out\n");
 			ret_size = 0;
@@ -1556,7 +1556,7 @@ int wilc_wlan_cfg_get(int start, u32 wid, int commit, u32 drv_handler)
 		if (wilc_wlan_cfg_commit(WILC_CFG_QUERY, drv_handler))
 			ret_size = 0;
 
-		if (linux_wlan_lock_timeout(&g_linux_wlan->cfg_event,
+		if (linux_wlan_lock_timeout(&wilc_dev->cfg_event,
 					    CFG_PKTS_TIMEOUT)) {
 			PRINT_D(TX_DBG, "Get Timed Out\n");
 			ret_size = 0;
@@ -1670,18 +1670,18 @@ int wilc_wlan_init(struct net_device *dev, wilc_wlan_inp_t *inp)
 	       sizeof(wilc_wlan_io_func_t));
 
 #ifdef WILC_SDIO
-	if (!hif_sdio.hif_init(wilc, wilc_debug)) {
+	if (!wilc_hif_sdio.hif_init(wilc, wilc_debug)) {
 		ret = -EIO;
 		goto _fail_;
 	}
-	memcpy((void *)&g_wlan.hif_func, &hif_sdio,
+	memcpy((void *)&g_wlan.hif_func, &wilc_hif_sdio,
 	       sizeof(struct wilc_hif_func));
 #else
-	if (!hif_spi.hif_init(wilc, wilc_debug)) {
+	if (!wilc_hif_spi.hif_init(wilc, wilc_debug)) {
 		ret = -EIO;
 		goto _fail_;
 	}
-	memcpy((void *)&g_wlan.hif_func, &hif_spi,
+	memcpy((void *)&g_wlan.hif_func, &wilc_hif_spi,
 	       sizeof(struct wilc_hif_func));
 #endif
 
@@ -1733,7 +1733,7 @@ _fail_:
 	return ret;
 }
 
-u16 set_machw_change_vir_if(struct net_device *dev, bool value)
+u16 wilc_set_machw_change_vir_if(struct net_device *dev, bool value)
 {
 	u16 ret;
 	u32 reg;

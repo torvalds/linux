@@ -26,8 +26,8 @@ static struct dentry *wilc_dir;
 
 #define DBG_REGION_ALL	(GENERIC_DBG | HOSTAPD_DBG | HOSTINF_DBG | CORECONFIG_DBG | CFG80211_DBG | INT_DBG | TX_DBG | RX_DBG | LOCK_DBG | INIT_DBG | BUS_DBG | MEM_DBG)
 #define DBG_LEVEL_ALL	(DEBUG | INFO | WRN | ERR)
-atomic_t REGION = ATOMIC_INIT(INIT_DBG | GENERIC_DBG | CFG80211_DBG | FIRM_DBG | HOSTAPD_DBG);
-atomic_t DEBUG_LEVEL = ATOMIC_INIT(ERR);
+atomic_t WILC_REGION = ATOMIC_INIT(INIT_DBG | GENERIC_DBG | CFG80211_DBG | FIRM_DBG | HOSTAPD_DBG);
+atomic_t WILC_DEBUG_LEVEL = ATOMIC_INIT(ERR);
 
 /*
  * --------------------------------------------------------------------------------
@@ -43,7 +43,7 @@ static ssize_t wilc_debug_level_read(struct file *file, char __user *userbuf, si
 	if (*ppos > 0)
 		return 0;
 
-	res = scnprintf(buf, sizeof(buf), "Debug Level: %x\n", atomic_read(&DEBUG_LEVEL));
+	res = scnprintf(buf, sizeof(buf), "Debug Level: %x\n", atomic_read(&WILC_DEBUG_LEVEL));
 
 	return simple_read_from_buffer(userbuf, count, ppos, buf, res);
 }
@@ -59,11 +59,11 @@ static ssize_t wilc_debug_level_write(struct file *filp, const char __user *buf,
 		return ret;
 
 	if (flag > DBG_LEVEL_ALL) {
-		printk("%s, value (0x%08x) is out of range, stay previous flag (0x%08x)\n", __func__, flag, atomic_read(&DEBUG_LEVEL));
+		printk("%s, value (0x%08x) is out of range, stay previous flag (0x%08x)\n", __func__, flag, atomic_read(&WILC_DEBUG_LEVEL));
 		return -EINVAL;
 	}
 
-	atomic_set(&DEBUG_LEVEL, (int)flag);
+	atomic_set(&WILC_DEBUG_LEVEL, (int)flag);
 
 	if (flag == 0)
 		printk("Debug-level disabled\n");
@@ -82,7 +82,7 @@ static ssize_t wilc_debug_region_read(struct file *file, char __user *userbuf, s
 	if (*ppos > 0)
 		return 0;
 
-	res = scnprintf(buf, sizeof(buf), "Debug region: %x\n", atomic_read(&REGION));
+	res = scnprintf(buf, sizeof(buf), "Debug region: %x\n", atomic_read(&WILC_REGION));
 
 	return simple_read_from_buffer(userbuf, count, ppos, buf, res);
 }
@@ -102,12 +102,12 @@ static ssize_t wilc_debug_region_write(struct file *filp, const char *buf, size_
 	flag = buffer[0] - '0';
 
 	if (flag > DBG_REGION_ALL) {
-		printk("%s, value (0x%08x) is out of range, stay previous flag (0x%08x)\n", __func__, flag, atomic_read(&REGION));
+		printk("%s, value (0x%08x) is out of range, stay previous flag (0x%08x)\n", __func__, flag, atomic_read(&WILC_REGION));
 		return -EFAULT;
 	}
 
-	atomic_set(&REGION, (int)flag);
-	printk("new debug-region is %x\n", atomic_read(&REGION));
+	atomic_set(&WILC_REGION, (int)flag);
+	printk("new debug-region is %x\n", atomic_read(&WILC_REGION));
 
 	return count;
 }

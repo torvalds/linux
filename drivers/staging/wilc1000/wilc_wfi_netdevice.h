@@ -206,7 +206,7 @@ struct WILC_WFI_mon_priv {
 	struct net_device *real_ndev;
 };
 
-extern struct wilc *g_linux_wlan;
+extern struct wilc *wilc_dev;
 extern struct net_device *WILC_WFI_devs[];
 void frmw_to_linux(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset);
 void linux_wlan_mac_indicate(struct wilc *wilc, int flag);
@@ -217,7 +217,7 @@ void wl_wlan_cleanup(struct wilc *wilc);
 int wilc_netdev_init(struct wilc **wilc);
 void wilc1000_wlan_deinit(struct net_device *dev);
 void WILC_WFI_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size);
-u16 set_machw_change_vir_if(struct net_device *dev, bool value);
-int linux_wlan_get_firmware(struct net_device *dev);
-int linux_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid);
+u16 wilc_set_machw_change_vir_if(struct net_device *dev, bool value);
+int wilc_wlan_get_firmware(struct net_device *dev);
+int wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid);
 #endif

@@ -22,8 +22,8 @@ typedef struct {
 
 static wilc_spi_t g_spi;
 
-static int wilc_spi_read(u32, u8 *, u32);
-static int wilc_spi_write(u32, u8 *, u32);
+static int _wilc_spi_read(u32, u8 *, u32);
+static int _wilc_spi_write(u32, u8 *, u32);
 
 /********************************************
  *
@@ -249,7 +249,7 @@ static int spi_cmd_complete(u8 cmd, u32 adr, u8 *b, u32 sz, u8 clockless)
 	}
 	rix = len;
 
-	if (!linux_spi_write_read(wb, rb, len2)) {
+	if (!wilc_spi_write_read(wb, rb, len2)) {
 		PRINT_ER("[wilc spi]: Failed cmd write, bus error...\n");
 		result = N_FAIL;
 		return result;
@@ -364,7 +364,7 @@ static int spi_cmd_complete(u8 cmd, u32 adr, u8 *b, u32 sz, u8 clockless)
 				/**
 				 * Read bytes
 				 **/
-				if (!linux_spi_read(&b[ix], nbytes)) {
+				if (!wilc_spi_read(&b[ix], nbytes)) {
 					PRINT_ER("[wilc spi]: Failed data block read, bus error...\n");
 					result = N_FAIL;
 					goto _error_;
@@ -374,7 +374,7 @@ static int spi_cmd_complete(u8 cmd, u32 adr, u8 *b, u32 sz, u8 clockless)
 				 * Read Crc
 				 **/
 				if (!g_spi.crc_off) {
-					if (!linux_spi_read(crc, 2)) {
+					if (!wilc_spi_read(crc, 2)) {
 						PRINT_ER("[wilc spi]: Failed data block crc read, bus error...\n");
 						result = N_FAIL;
 						goto _error_;
@@ -405,7 +405,7 @@ static int spi_cmd_complete(u8 cmd, u32 adr, u8 *b, u32 sz, u8 clockless)
 				 **/
 				retry = 10;
 				do {
-					if (!linux_spi_read(&rsp, 1)) {
+					if (!wilc_spi_read(&rsp, 1)) {
 						PRINT_ER("[wilc spi]: Failed data response read, bus error...\n");
 						result = N_FAIL;
 						break;
@@ -421,7 +421,7 @@ static int spi_cmd_complete(u8 cmd, u32 adr, u8 *b, u32 sz, u8 clockless)
 				/**
 				 * Read bytes
 				 **/
-				if (!linux_spi_read(&b[ix], nbytes)) {
+				if (!wilc_spi_read(&b[ix], nbytes)) {
 					PRINT_ER("[wilc spi]: Failed data block read, bus error...\n");
 					result = N_FAIL;
 					break;
@@ -431,7 +431,7 @@ static int spi_cmd_complete(u8 cmd, u32 adr, u8 *b, u32 sz, u8 clockless)
 				 * Read Crc
 				 **/
 				if (!g_spi.crc_off) {
-					if (!linux_spi_read(crc, 2)) {
+					if (!wilc_spi_read(crc, 2)) {
 						PRINT_ER("[wilc spi]: Failed data block crc read, bus error...\n");
 						result = N_FAIL;
 						break;
@@ -481,7 +481,7 @@ static int spi_data_write(u8 *b, u32 sz)
 				order = 0x2;
 		}
 		cmd |= order;
-		if (!linux_spi_write(&cmd, 1)) {
+		if (!wilc_spi_write(&cmd, 1)) {
 			PRINT_ER("[wilc spi]: Failed data block cmd write, bus error...\n");
 			result = N_FAIL;
 			break;
@@ -490,7 +490,7 @@ static int spi_data_write(u8 *b, u32 sz)
 		/**
 		 *      Write data
 		 **/
-		if (!linux_spi_write(&b[ix], nbytes)) {
+		if (!wilc_spi_write(&b[ix], nbytes)) {
 			PRINT_ER("[wilc spi]: Failed data block write, bus error...\n");
 			result = N_FAIL;
 			break;
@@ -500,7 +500,7 @@ static int spi_data_write(u8 *b, u32 sz)
 		 *      Write Crc
 		 **/
 		if (!g_spi.crc_off) {
-			if (!linux_spi_write(crc, 2)) {
+			if (!wilc_spi_write(crc, 2)) {
 				PRINT_ER("[wilc spi]: Failed data block crc write, bus error...\n");
 				result = N_FAIL;
 				break;
@@ -585,7 +585,7 @@ static int wilc_spi_write_reg(u32 addr, u32 data)
 	return result;
 }
 
-static int wilc_spi_write(u32 addr, u8 *buf, u32 size)
+static int _wilc_spi_write(u32 addr, u8 *buf, u32 size)
 {
 	int result;
 	u8 cmd = CMD_DMA_EXT_WRITE;
@@ -639,7 +639,7 @@ static int wilc_spi_read_reg(u32 addr, u32 *data)
 	return 1;
 }
 
-static int wilc_spi_read(u32 addr, u8 *buf, u32 size)
+static int _wilc_spi_read(u32 addr, u8 *buf, u32 size)
 {
 	u8 cmd = CMD_DMA_EXT_READ;
 	int result;
@@ -675,7 +675,7 @@ static int wilc_spi_clear_int(void)
 	return 1;
 }
 
-static int wilc_spi_deinit(void *pv)
+static int _wilc_spi_deinit(void *pv)
 {
 	/**
 	 *      TODO:
@@ -721,7 +721,7 @@ static int wilc_spi_sync(void)
 	return 1;
 }
 
-static int wilc_spi_init(struct wilc *wilc, wilc_debug_func func)
+static int _wilc_spi_init(struct wilc *wilc, wilc_debug_func func)
 {
 	u32 reg;
 	u32 chipid;
@@ -740,7 +740,7 @@ static int wilc_spi_init(struct wilc *wilc, wilc_debug_func func)
 	memset(&g_spi, 0, sizeof(wilc_spi_t));
 
 	g_spi.dPrint = func;
-	if (!linux_spi_init()) {
+	if (!wilc_spi_init()) {
 		PRINT_ER("[wilc spi]: Failed io init bus...\n");
 		return 0;
 	} else {
@@ -795,7 +795,7 @@ static int wilc_spi_init(struct wilc *wilc, wilc_debug_func func)
 
 static void wilc_spi_max_bus_speed(void)
 {
-	linux_spi_set_max_speed();
+	wilc_spi_set_max_speed();
 }
 
 static void wilc_spi_default_bus_speed(void)
@@ -1021,20 +1021,20 @@ static int wilc_spi_sync_ext(int nint /*  how mant interrupts to enable. */)
  *      Global spi HIF function table
  *
  ********************************************/
-struct wilc_hif_func hif_spi = {
-	wilc_spi_init,
-	wilc_spi_deinit,
+struct wilc_hif_func wilc_hif_spi = {
+	_wilc_spi_init,
+	_wilc_spi_deinit,
 	wilc_spi_read_reg,
 	wilc_spi_write_reg,
-	wilc_spi_read,
-	wilc_spi_write,
+	_wilc_spi_read,
+	_wilc_spi_write,
 	wilc_spi_sync,
 	wilc_spi_clear_int,
 	wilc_spi_read_int,
 	wilc_spi_clear_int_ext,
 	wilc_spi_read_size,
-	wilc_spi_write,
-	wilc_spi_read,
+	_wilc_spi_write,
+	_wilc_spi_read,
 	wilc_spi_sync_ext,
 	wilc_spi_max_bus_speed,
 	wilc_spi_default_bus_speed,

@@ -344,7 +344,7 @@ static u8 get_current_channel_802_11n(u8 *pu8msa, u16 u16RxLen)
  *  @date			1 Mar 2012
  *  @version		1.0
  */
-s32 parse_network_info(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
+s32 wilc_parse_network_info(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
 {
 	tstrNetworkInfo *pstrNetworkInfo = NULL;
 	u8 u8MsgType = 0;
@@ -466,7 +466,7 @@ s32 parse_network_info(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
  *  @date		1 Mar 2012
  *  @version		1.0
  */
-s32 DeallocateNetworkInfo(tstrNetworkInfo *pstrNetworkInfo)
+s32 wilc_dealloc_network_info(tstrNetworkInfo *pstrNetworkInfo)
 {
 	s32 s32Error = 0;
 
@@ -499,7 +499,7 @@ s32 DeallocateNetworkInfo(tstrNetworkInfo *pstrNetworkInfo)
  *  @date			2 Apr 2012
  *  @version		1.0
  */
-s32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
+s32 wilc_parse_assoc_resp_info(u8 *pu8Buffer, u32 u32BufferLen,
 			       tstrConnectRespInfo **ppstrConnectRespInfo)
 {
 	s32 s32Error = 0;
@@ -551,7 +551,7 @@ s32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
  *  @date			2 Apr 2012
  *  @version		1.0
  */
-s32 DeallocateAssocRespInfo(tstrConnectRespInfo *pstrConnectRespInfo)
+s32 wilc_dealloc_assoc_resp_info(tstrConnectRespInfo *pstrConnectRespInfo)
 {
 	s32 s32Error = 0;
 
@@ -588,7 +588,7 @@ s32 DeallocateAssocRespInfo(tstrConnectRespInfo *pstrConnectRespInfo)
  *  @date		1 Mar 2012
  *  @version	1.0
  */
-s32 send_config_pkt(u8 mode, struct wid *wids, u32 count, u32 drv)
+s32 wilc_send_config_pkt(u8 mode, struct wid *wids, u32 count, u32 drv)
 {
 	s32 counter = 0, ret = 0;
 

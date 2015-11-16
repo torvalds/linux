@@ -37,9 +37,9 @@
  #define _linux_wlan_device_detection()		{}
  #define _linux_wlan_device_removal()		{}
 
-extern bool g_obtainingIP;
-extern u8 multicast_mac_addr_list[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
-extern struct timer_list hDuringIpTimer;
+extern bool wilc_optaining_ip;
+extern u8 wilc_multicast_mac_addr_list[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
+extern struct timer_list wilc_during_ip_timer;
 
 static int linux_wlan_device_power(int on_off)
 {
@@ -86,20 +86,20 @@ extern void WILC_WFI_p2p_rx(struct net_device *dev, u8 *buff, u32 size);
 
 static void linux_wlan_tx_complete(void *priv, int status);
 static int  mac_init_fn(struct net_device *ndev);
-int  mac_xmit(struct sk_buff *skb, struct net_device *dev);
-int  mac_open(struct net_device *ndev);
-int  mac_close(struct net_device *ndev);
+int  wilc_mac_xmit(struct sk_buff *skb, struct net_device *dev);
+int  wilc_mac_open(struct net_device *ndev);
+int  wilc_mac_close(struct net_device *ndev);
 static struct net_device_stats *mac_stats(struct net_device *dev);
 static int  mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd);
 static void wilc_set_multicast_list(struct net_device *dev);
-struct wilc *g_linux_wlan;
-bool bEnablePS = true;
+struct wilc *wilc_dev;
+bool wilc_enable_ps = true;
 
 static const struct net_device_ops wilc_netdev_ops = {
 	.ndo_init = mac_init_fn,
-	.ndo_open = mac_open,
-	.ndo_stop = mac_close,
-	.ndo_start_xmit = mac_xmit,
+	.ndo_open = wilc_mac_open,
+	.ndo_stop = wilc_mac_close,
+	.ndo_start_xmit = wilc_mac_xmit,
 	.ndo_do_ioctl = mac_ioctl,
 	.ndo_get_stats = mac_stats,
 	.ndo_set_rx_mode  = wilc_set_multicast_list,
@@ -155,13 +155,13 @@ static int dev_state_ev_handler(struct notifier_block *this, unsigned long event
 
 		if (nic->iftype == STATION_MODE || nic->iftype == CLIENT_MODE) {
 			hif_drv->IFC_UP = 1;
-			g_obtainingIP = false;
-			del_timer(&hDuringIpTimer);
+			wilc_optaining_ip = false;
+			del_timer(&wilc_during_ip_timer);
 			PRINT_D(GENERIC_DBG, "IP obtained , enable scan\n");
 		}
 
-		if (bEnablePS)
-			host_int_set_power_mgmt(hif_drv, 1, 0);
+		if (wilc_enable_ps)
+			wilc_set_power_mgmt(hif_drv, 1, 0);
 
 		PRINT_D(GENERIC_DBG, "[%s] Up IP\n", dev_iface->ifa_label);
 
@@ -169,7 +169,7 @@ static int dev_state_ev_handler(struct notifier_block *this, unsigned long event
 		PRINT_D(GENERIC_DBG, "IP add=%d:%d:%d:%d\n",
 			ip_addr_buf[0], ip_addr_buf[1],
 			ip_addr_buf[2], ip_addr_buf[3]);
-		host_int_setup_ipaddress(hif_drv, ip_addr_buf, nic->u8IfIdx);
+		wilc_setup_ipaddress(hif_drv, ip_addr_buf, nic->u8IfIdx);
 
 		break;
 
@@ -179,13 +179,13 @@ static int dev_state_ev_handler(struct notifier_block *this, unsigned long event
 		PRINT_INFO(GENERIC_DBG, "\n ============== IP Address Released ===============\n\n");
 		if (nic->iftype == STATION_MODE || nic->iftype == CLIENT_MODE) {
 			hif_drv->IFC_UP = 0;
-			g_obtainingIP = false;
+			wilc_optaining_ip = false;
 		}
 
 		if (memcmp(dev_iface->ifa_label, wlan_dev_name, 5) == 0)
-			host_int_set_power_mgmt(hif_drv, 0, 0);
+			wilc_set_power_mgmt(hif_drv, 0, 0);
 
-		resolve_disconnect_aberration(hif_drv);
+		wilc_resolve_disconnect_aberration(hif_drv);
 
 		PRINT_D(GENERIC_DBG, "[%s] Down IP\n", dev_iface->ifa_label);
 
@@ -194,7 +194,7 @@ static int dev_state_ev_handler(struct notifier_block *this, unsigned long event
 			ip_addr_buf[0], ip_addr_buf[1],
 			ip_addr_buf[2], ip_addr_buf[3]);
 
-		host_int_setup_ipaddress(hif_drv, ip_addr_buf, nic->u8IfIdx);
+		wilc_setup_ipaddress(hif_drv, ip_addr_buf, nic->u8IfIdx);
 
 		break;
 
@@ -358,7 +358,7 @@ static struct net_device *get_if_handler(struct wilc *wilc, u8 *mac_header)
 	return NULL;
 }
 
-int linux_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid)
+int wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid)
 {
 	int i = 0;
 	int ret = -1;
@@ -378,14 +378,14 @@ int linux_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid)
 	return ret;
 }
 
-int linux_wlan_get_num_conn_ifcs(void)
+int wilc_wlan_get_num_conn_ifcs(void)
 {
 	u8 i = 0;
 	u8 null_bssid[6] = {0};
 	u8 ret_val = 0;
 
-	for (i = 0; i < g_linux_wlan->vif_num; i++)
-		if (memcmp(g_linux_wlan->vif[i].bssid, null_bssid, 6))
+	for (i = 0; i < wilc_dev->vif_num; i++)
+		if (memcmp(wilc_dev->vif[i].bssid, null_bssid, 6))
 			ret_val++;
 
 	return ret_val;
@@ -466,7 +466,7 @@ void linux_wlan_rx_complete(void)
 	PRINT_D(RX_DBG, "RX completed\n");
 }
 
-int linux_wlan_get_firmware(struct net_device *dev)
+int wilc_wlan_get_firmware(struct net_device *dev)
 {
 	perInterface_wlan_t *nic;
 	struct wilc *wilc;
@@ -799,7 +799,7 @@ void wilc1000_wlan_deinit(struct net_device *dev)
 		PRINT_D(INIT_DBG, "Disabling IRQ\n");
 #ifdef WILC_SDIO
 		mutex_lock(&wl->hif_cs);
-		disable_sdio_interrupt();
+		wilc_sdio_disable_interrupt();
 		mutex_unlock(&wl->hif_cs);
 #endif
 		if (&wl->txq_event)
@@ -820,7 +820,7 @@ void wilc1000_wlan_deinit(struct net_device *dev)
 		PRINT_D(INIT_DBG, "Disabling IRQ 2\n");
 
 		mutex_lock(&wl->hif_cs);
-		disable_sdio_interrupt();
+		wilc_sdio_disable_interrupt();
 		mutex_unlock(&wl->hif_cs);
   #endif
 #endif
@@ -972,14 +972,14 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 		}
 
 #if (defined WILC_SDIO) && (!defined WILC_SDIO_IRQ_GPIO)
-		if (enable_sdio_interrupt()) {
+		if (wilc_sdio_enable_interrupt()) {
 			PRINT_ER("couldn't initialize IRQ\n");
 			ret = -EIO;
 			goto _fail_irq_init_;
 		}
 #endif
 
-		if (linux_wlan_get_firmware(dev)) {
+		if (wilc_wlan_get_firmware(dev)) {
 			PRINT_ER("Can't get firmware\n");
 			ret = -EIO;
 			goto _fail_irq_enable_;
@@ -1027,7 +1027,7 @@ _fail_fw_start_:
 
 _fail_irq_enable_:
 #if (defined WILC_SDIO) && (!defined WILC_SDIO_IRQ_GPIO)
-		disable_sdio_interrupt();
+		wilc_sdio_disable_interrupt();
 _fail_irq_init_:
 #endif
 #if (!defined WILC_SDIO) || (defined WILC_SDIO_IRQ_GPIO)
@@ -1054,7 +1054,7 @@ static int mac_init_fn(struct net_device *ndev)
 	return 0;
 }
 
-int mac_open(struct net_device *ndev)
+int wilc_mac_open(struct net_device *ndev)
 {
 	perInterface_wlan_t *nic;
 
@@ -1092,9 +1092,9 @@ int mac_open(struct net_device *ndev)
 		return ret;
 	}
 
-	set_machw_change_vir_if(ndev, false);
+	wilc_set_machw_change_vir_if(ndev, false);
 
-	hif_get_mac_address(priv->hWILCWFIDrv, mac_add);
+	wilc_get_mac_address(priv->hWILCWFIDrv, mac_add);
 	PRINT_D(INIT_DBG, "Mac address: %pM\n", mac_add);
 
 	for (i = 0; i < wl->vif_num; i++) {
@@ -1159,29 +1159,29 @@ static void wilc_set_multicast_list(struct net_device *dev)
 	if ((dev->flags & IFF_ALLMULTI) ||
 	    (dev->mc.count) > WILC_MULTICAST_TABLE_SIZE) {
 		PRINT_D(INIT_DBG, "Disable multicast filter, retrive all multicast packets\n");
-		host_int_setup_multicast_filter(hif_drv, false, 0);
+		wilc_setup_multicast_filter(hif_drv, false, 0);
 		return;
 	}
 
 	if ((dev->mc.count) == 0) {
 		PRINT_D(INIT_DBG, "Enable multicast filter, retrive directed packets only.\n");
-		host_int_setup_multicast_filter(hif_drv, true, 0);
+		wilc_setup_multicast_filter(hif_drv, true, 0);
 		return;
 	}
 
 	netdev_for_each_mc_addr(ha, dev) {
-		memcpy(multicast_mac_addr_list[i], ha->addr, ETH_ALEN);
+		memcpy(wilc_multicast_mac_addr_list[i], ha->addr, ETH_ALEN);
 		PRINT_D(INIT_DBG, "Entry[%d]: %x:%x:%x:%x:%x:%x\n", i,
-			multicast_mac_addr_list[i][0],
-			multicast_mac_addr_list[i][1],
-			multicast_mac_addr_list[i][2],
-			multicast_mac_addr_list[i][3],
-			multicast_mac_addr_list[i][4],
-			multicast_mac_addr_list[i][5]);
+			wilc_multicast_mac_addr_list[i][0],
+			wilc_multicast_mac_addr_list[i][1],
+			wilc_multicast_mac_addr_list[i][2],
+			wilc_multicast_mac_addr_list[i][3],
+			wilc_multicast_mac_addr_list[i][4],
+			wilc_multicast_mac_addr_list[i][5]);
 		i++;
 	}
 
-	host_int_setup_multicast_filter(hif_drv, true, (dev->mc.count));
+	wilc_setup_multicast_filter(hif_drv, true, (dev->mc.count));
 
 	return;
 }
@@ -1198,7 +1198,7 @@ static void linux_wlan_tx_complete(void *priv, int status)
 	kfree(pv_data);
 }
 
-int mac_xmit(struct sk_buff *skb, struct net_device *ndev)
+int wilc_mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	perInterface_wlan_t *nic;
 	struct tx_complete_data *tx_data = NULL;
@@ -1259,7 +1259,7 @@ int mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 	return 0;
 }
 
-int mac_close(struct net_device *ndev)
+int wilc_mac_close(struct net_device *ndev)
 {
 	struct wilc_priv *priv;
 	perInterface_wlan_t *nic;
@@ -1353,8 +1353,7 @@ static int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 
 			if (strncasecmp(buff, "RSSI", length) == 0) {
 				priv = wiphy_priv(nic->wilc_netdev->ieee80211_ptr->wiphy);
-				ret = host_int_get_rssi(priv->hWILCWFIDrv,
-							&rssi);
+				ret = wilc_get_rssi(priv->hWILCWFIDrv, &rssi);
 				if (ret)
 					PRINT_ER("Failed to send get rssi param's message queue ");
 				PRINT_INFO(GENERIC_DBG, "RSSI :%d\n", rssi);
@@ -1472,7 +1471,7 @@ void wl_wlan_cleanup(struct wilc *wilc)
 		for (i = 0; i < NUM_CONCURRENT_IFC; i++)
 			if (wilc->vif[i].ndev)
 				if (nic[i]->mac_opened)
-					mac_close(wilc->vif[i].ndev);
+					wilc_mac_close(wilc->vif[i].ndev);
 
 		for (i = 0; i < NUM_CONCURRENT_IFC; i++) {
 			unregister_netdev(wilc->vif[i].ndev);
@@ -1498,11 +1497,11 @@ int wilc_netdev_init(struct wilc **wilc)
 
 	sema_init(&close_exit_sync, 0);
 
-	g_linux_wlan = kzalloc(sizeof(*g_linux_wlan), GFP_KERNEL);
-	if (!g_linux_wlan)
+	wilc_dev = kzalloc(sizeof(*wilc_dev), GFP_KERNEL);
+	if (!wilc_dev)
 		return -ENOMEM;
 
-	*wilc = g_linux_wlan;
+	*wilc = wilc_dev;
 
 	register_inetaddr_notifier(&g_dev_notifier);
 
@@ -1521,11 +1520,11 @@ int wilc_netdev_init(struct wilc **wilc)
 		else
 			strcpy(ndev->name, "p2p%d");
 
-		nic->u8IfIdx = g_linux_wlan->vif_num;
+		nic->u8IfIdx = wilc_dev->vif_num;
 		nic->wilc_netdev = ndev;
 		nic->wilc = *wilc;
-		g_linux_wlan->vif[g_linux_wlan->vif_num].ndev = ndev;
-		g_linux_wlan->vif_num++;
+		wilc_dev->vif[wilc_dev->vif_num].ndev = ndev;
+		wilc_dev->vif_num++;
 		ndev->netdev_ops = &wilc_netdev_ops;
 
 		{
@@ -1533,7 +1532,7 @@ int wilc_netdev_init(struct wilc **wilc)
 			wdev = wilc_create_wiphy(ndev);
 
 			#ifdef WILC_SDIO
-			SET_NETDEV_DEV(ndev, &local_sdio_func->dev);
+			SET_NETDEV_DEV(ndev, &wilc_sdio_func->dev);
 			#endif
 
 			if (!wdev) {
@@ -1561,13 +1560,13 @@ int wilc_netdev_init(struct wilc **wilc)
 	}
 
 	#ifndef WILC_SDIO
-	if (!linux_spi_init()) {
+	if (!wilc_spi_init()) {
 		PRINT_ER("Can't initialize SPI\n");
 		return -1;
 	}
-	g_linux_wlan->wilc_spidev = wilc_spi_dev;
+	wilc_dev->wilc_spidev = wilc_spi_dev;
 	#else
-	g_linux_wlan->wilc_sdio_func = local_sdio_func;
+	wilc_dev->wilc_sdio_func = wilc_sdio_func;
 	#endif
 
 	return 0;

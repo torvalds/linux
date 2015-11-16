@@ -303,95 +303,95 @@ struct add_sta_param {
 	u16 flags_set;
 };
 
-s32 host_int_remove_key(struct host_if_drv *hWFIDrv, const u8 *pu8StaAddress);
-int host_int_remove_wep_key(struct host_if_drv *wfi_drv, u8 index);
-int host_int_set_wep_default_key(struct host_if_drv *hif_drv, u8 index);
-int host_int_add_wep_key_bss_sta(struct host_if_drv *hif_drv,
+s32 wilc_remove_key(struct host_if_drv *hWFIDrv, const u8 *pu8StaAddress);
+int wilc_remove_wep_key(struct host_if_drv *wfi_drv, u8 index);
+int wilc_set_wep_default_keyid(struct host_if_drv *hif_drv, u8 index);
+int wilc_add_wep_key_bss_sta(struct host_if_drv *hif_drv,
 				 const u8 *key, u8 len, u8 index);
-int host_int_add_wep_key_bss_ap(struct host_if_drv *hif_drv,
+int wilc_add_wep_key_bss_ap(struct host_if_drv *hif_drv,
 				const u8 *key, u8 len, u8 index, u8 mode,
 				enum AUTHTYPE auth_type);
-s32 host_int_add_ptk(struct host_if_drv *hWFIDrv, const u8 *pu8Ptk,
+s32 wilc_add_ptk(struct host_if_drv *hWFIDrv, const u8 *pu8Ptk,
 		     u8 u8PtkKeylen, const u8 *mac_addr,
 		     const u8 *pu8RxMic, const u8 *pu8TxMic,
 		     u8 mode, u8 u8Ciphermode, u8 u8Idx);
-s32 host_int_get_inactive_time(struct host_if_drv *hWFIDrv, const u8 *mac,
+s32 wilc_get_inactive_time(struct host_if_drv *hWFIDrv, const u8 *mac,
 			       u32 *pu32InactiveTime);
-s32 host_int_add_rx_gtk(struct host_if_drv *hWFIDrv, const u8 *pu8RxGtk,
+s32 wilc_add_rx_gtk(struct host_if_drv *hWFIDrv, const u8 *pu8RxGtk,
 			u8 u8GtkKeylen,	u8 u8KeyIdx,
 			u32 u32KeyRSClen, const u8 *KeyRSC,
 			const u8 *pu8RxMic, const u8 *pu8TxMic,
 			u8 mode, u8 u8Ciphermode);
-s32 host_int_add_tx_gtk(struct host_if_drv *hWFIDrv, u8 u8KeyLen,
+s32 wilc_add_tx_gtk(struct host_if_drv *hWFIDrv, u8 u8KeyLen,
 			u8 *pu8TxGtk, u8 u8KeyIdx);
-s32 host_int_set_pmkid_info(struct host_if_drv *hWFIDrv,
+s32 wilc_set_pmkid_info(struct host_if_drv *hWFIDrv,
 			    struct host_if_pmkid_attr *pu8PmkidInfoArray);
-s32 hif_get_mac_address(struct host_if_drv *hWFIDrv, u8 *pu8MacAddress);
-s32 host_int_set_MacAddress(struct host_if_drv *hWFIDrv, u8 *pu8MacAddress);
-int host_int_wait_msg_queue_idle(void);
-s32 host_int_set_start_scan_req(struct host_if_drv *hWFIDrv, u8 scanSource);
-s32 host_int_set_join_req(struct host_if_drv *hWFIDrv, u8 *pu8bssid,
+s32 wilc_get_mac_address(struct host_if_drv *hWFIDrv, u8 *pu8MacAddress);
+s32 wilc_set_mac_address(struct host_if_drv *hWFIDrv, u8 *pu8MacAddress);
+int wilc_wait_msg_queue_idle(void);
+s32 wilc_set_start_scan_req(struct host_if_drv *hWFIDrv, u8 scanSource);
+s32 wilc_set_join_req(struct host_if_drv *hWFIDrv, u8 *pu8bssid,
 			  const u8 *pu8ssid, size_t ssidLen,
 			  const u8 *pu8IEs, size_t IEsLen,
 			  wilc_connect_result pfConnectResult, void *pvUserArg,
 			  u8 u8security, enum AUTHTYPE tenuAuth_type,
 			  u8 u8channel, void *pJoinParams);
-s32 host_int_flush_join_req(struct host_if_drv *hWFIDrv);
-s32 host_int_disconnect(struct host_if_drv *hWFIDrv, u16 u16ReasonCode);
-int host_int_set_mac_chnl_num(struct host_if_drv *wfi_drv, u8 channel);
-s32 host_int_get_rssi(struct host_if_drv *hWFIDrv, s8 *ps8Rssi);
-s32 host_int_scan(struct host_if_drv *hWFIDrv, u8 u8ScanSource,
+s32 wilc_flush_join_req(struct host_if_drv *hWFIDrv);
+s32 wilc_disconnect(struct host_if_drv *hWFIDrv, u16 u16ReasonCode);
+int wilc_set_mac_chnl_num(struct host_if_drv *wfi_drv, u8 channel);
+s32 wilc_get_rssi(struct host_if_drv *hWFIDrv, s8 *ps8Rssi);
+s32 wilc_scan(struct host_if_drv *hWFIDrv, u8 u8ScanSource,
 		  u8 u8ScanType, u8 *pu8ChnlFreqList,
 		  u8 u8ChnlListLen, const u8 *pu8IEs,
 		  size_t IEsLen, wilc_scan_result ScanResult,
 		  void *pvUserArg, struct hidden_network *pstrHiddenNetwork);
-s32 hif_set_cfg(struct host_if_drv *hWFIDrv,
+s32 wilc_hif_set_cfg(struct host_if_drv *hWFIDrv,
 		struct cfg_param_val *pstrCfgParamVal);
-s32 host_int_init(struct net_device *dev, struct host_if_drv **phWFIDrv);
-s32 host_int_deinit(struct host_if_drv *hWFIDrv);
-s32 host_int_add_beacon(struct host_if_drv *hWFIDrv, u32 u32Interval,
+s32 wilc_init(struct net_device *dev, struct host_if_drv **phWFIDrv);
+s32 wilc_deinit(struct host_if_drv *hWFIDrv);
+s32 wilc_add_beacon(struct host_if_drv *hWFIDrv, u32 u32Interval,
 			u32 u32DTIMPeriod,
 			u32 u32HeadLen,
 			u8 *pu8Head,
 			u32 u32TailLen,
 			u8 *pu8tail);
-int host_int_del_beacon(struct host_if_drv *hif_drv);
-int host_int_add_station(struct host_if_drv *hif_drv,
+int wilc_del_beacon(struct host_if_drv *hif_drv);
+int wilc_add_station(struct host_if_drv *hif_drv,
 			 struct add_sta_param *sta_param);
-s32 host_int_del_allstation(struct host_if_drv *hWFIDrv,
+s32 wilc_del_allstation(struct host_if_drv *hWFIDrv,
 			    u8 pu8MacAddr[][ETH_ALEN]);
-int host_int_del_station(struct host_if_drv *hif_drv, const u8 *mac_addr);
-s32 host_int_edit_station(struct host_if_drv *hWFIDrv,
+int wilc_del_station(struct host_if_drv *hif_drv, const u8 *mac_addr);
+s32 wilc_edit_station(struct host_if_drv *hWFIDrv,
 			  struct add_sta_param *pstrStaParams);
-s32 host_int_set_power_mgmt(struct host_if_drv *hWFIDrv,
+s32 wilc_set_power_mgmt(struct host_if_drv *hWFIDrv,
 			    bool bIsEnabled,
 			    u32 u32Timeout);
-s32 host_int_setup_multicast_filter(struct host_if_drv *hWFIDrv,
+s32 wilc_setup_multicast_filter(struct host_if_drv *hWFIDrv,
 				    bool bIsEnabled,
 				    u32 u32count);
-s32 host_int_setup_ipaddress(struct host_if_drv *hWFIDrv,
+s32 wilc_setup_ipaddress(struct host_if_drv *hWFIDrv,
 			     u8 *pu8IPAddr,
 			     u8 idx);
-s32 host_int_del_All_Rx_BASession(struct host_if_drv *hWFIDrv,
+s32 wilc_del_all_rx_ba_session(struct host_if_drv *hWFIDrv,
 				  char *pBSSID,
 				  char TID);
-s32 host_int_remain_on_channel(struct host_if_drv *hWFIDrv,
+s32 wilc_remain_on_channel(struct host_if_drv *hWFIDrv,
 			       u32 u32SessionID,
 			       u32 u32duration,
 			       u16 chan,
 			       wilc_remain_on_chan_expired RemainOnChanExpired,
 			       wilc_remain_on_chan_ready RemainOnChanReady,
 			       void *pvUserArg);
-s32 host_int_ListenStateExpired(struct host_if_drv *hWFIDrv, u32 u32SessionID);
-s32 host_int_frame_register(struct host_if_drv *hWFIDrv,
+s32 wilc_listen_state_expired(struct host_if_drv *hWFIDrv, u32 u32SessionID);
+s32 wilc_frame_register(struct host_if_drv *hWFIDrv,
 			    u16 u16FrameType,
 			    bool bReg);
-int host_int_set_wfi_drv_handler(struct host_if_drv *address);
-int host_int_set_operation_mode(struct host_if_drv *wfi_drv, u32 mode);
+int wilc_set_wfi_drv_handler(struct host_if_drv *address);
+int wilc_set_operation_mode(struct host_if_drv *wfi_drv, u32 mode);
 
-void host_int_freeJoinParams(void *pJoinParams);
+void wilc_free_join_params(void *pJoinParams);
 
-s32 host_int_get_statistics(struct host_if_drv *hWFIDrv,
+s32 wilc_get_statistics(struct host_if_drv *hWFIDrv,
 			    struct rf_info *pstrStatistics);
-void resolve_disconnect_aberration(struct host_if_drv *hif_drv);
+void wilc_resolve_disconnect_aberration(struct host_if_drv *hif_drv);
 #endif

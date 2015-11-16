@@ -26,7 +26,7 @@ struct wilc_sdio {
 	struct wilc *wilc;
 };
 
-struct sdio_func *local_sdio_func;
+struct sdio_func *wilc_sdio_func;
 
 static unsigned int sdio_default_speed;
 
@@ -53,9 +53,9 @@ static void wilc_sdio_interrupt(struct sdio_func *func)
 #endif
 
 
-int linux_sdio_cmd52(sdio_cmd52_t *cmd)
+int wilc_sdio_cmd52(sdio_cmd52_t *cmd)
 {
-	struct sdio_func *func = g_linux_wlan->wilc_sdio_func;
+	struct sdio_func *func = wilc_dev->wilc_sdio_func;
 	int ret;
 	u8 data;
 
@@ -85,9 +85,9 @@ int linux_sdio_cmd52(sdio_cmd52_t *cmd)
 }
 
 
-int linux_sdio_cmd53(sdio_cmd53_t *cmd)
+int wilc_sdio_cmd53(sdio_cmd53_t *cmd)
 {
-	struct sdio_func *func = g_linux_wlan->wilc_sdio_func;
+	struct sdio_func *func = wilc_dev->wilc_sdio_func;
 	int size, ret;
 
 	sdio_claim_host(func);
@@ -127,7 +127,7 @@ static int linux_sdio_probe(struct sdio_func *func, const struct sdio_device_id 
 		return -ENOMEM;
 
 	PRINT_D(INIT_DBG, "Initializing netdev\n");
-	local_sdio_func = func;
+	wilc_sdio_func = func;
 	if (wilc_netdev_init(&wilc)) {
 		PRINT_ER("Couldn't initialize netdev\n");
 		kfree(wl_sdio);
@@ -157,14 +157,14 @@ struct sdio_driver wilc_bus = {
 	.remove		= linux_sdio_remove,
 };
 
-int enable_sdio_interrupt(void)
+int wilc_sdio_enable_interrupt(void)
 {
 	int ret = 0;
 #ifndef WILC_SDIO_IRQ_GPIO
 
-	sdio_claim_host(local_sdio_func);
-	ret = sdio_claim_irq(local_sdio_func, wilc_sdio_interrupt);
-	sdio_release_host(local_sdio_func);
+	sdio_claim_host(wilc_sdio_func);
+	ret = sdio_claim_irq(wilc_sdio_func, wilc_sdio_interrupt);
+	sdio_release_host(wilc_sdio_func);
 
 	if (ret < 0) {
 		PRINT_ER("can't claim sdio_irq, err(%d)\n", ret);
@@ -174,22 +174,22 @@ int enable_sdio_interrupt(void)
 	return ret;
 }
 
-void disable_sdio_interrupt(void)
+void wilc_sdio_disable_interrupt(void)
 {
 
 #ifndef WILC_SDIO_IRQ_GPIO
 	int ret;
 
-	PRINT_D(INIT_DBG, "disable_sdio_interrupt IN\n");
+	PRINT_D(INIT_DBG, "wilc_sdio_disable_interrupt IN\n");
 
-	sdio_claim_host(local_sdio_func);
-	ret = sdio_release_irq(local_sdio_func);
+	sdio_claim_host(wilc_sdio_func);
+	ret = sdio_release_irq(wilc_sdio_func);
 	if (ret < 0) {
 		PRINT_ER("can't release sdio_irq, err(%d)\n", ret);
 	}
-	sdio_release_host(local_sdio_func);
+	sdio_release_host(wilc_sdio_func);
 
-	PRINT_D(INIT_DBG, "disable_sdio_interrupt OUT\n");
+	PRINT_D(INIT_DBG, "wilc_sdio_disable_interrupt OUT\n");
 #endif
 }
 
@@ -197,13 +197,13 @@ static int linux_sdio_set_speed(int speed)
 {
 	struct mmc_ios ios;
 
-	sdio_claim_host(local_sdio_func);
+	sdio_claim_host(wilc_sdio_func);
 
-	memcpy((void *)&ios, (void *)&local_sdio_func->card->host->ios, sizeof(struct mmc_ios));
-	local_sdio_func->card->host->ios.clock = speed;
+	memcpy((void *)&ios, (void *)&wilc_sdio_func->card->host->ios, sizeof(struct mmc_ios));
+	wilc_sdio_func->card->host->ios.clock = speed;
 	ios.clock = speed;
-	local_sdio_func->card->host->ops->set_ios(local_sdio_func->card->host, &ios);
-	sdio_release_host(local_sdio_func);
+	wilc_sdio_func->card->host->ops->set_ios(wilc_sdio_func->card->host, &ios);
+	sdio_release_host(wilc_sdio_func);
 	PRINT_INFO(INIT_DBG, "@@@@@@@@@@@@ change SDIO speed to %d @@@@@@@@@\n", speed);
 
 	return 1;
@@ -211,10 +211,10 @@ static int linux_sdio_set_speed(int speed)
 
 static int linux_sdio_get_speed(void)
 {
-	return local_sdio_func->card->host->ios.clock;
+	return wilc_sdio_func->card->host->ios.clock;
 }
 
-int linux_sdio_init(void)
+int wilc_sdio_init(void)
 {
 
 	/**
@@ -226,12 +226,12 @@ int linux_sdio_init(void)
 	return 1;
 }
 
-int linux_sdio_set_max_speed(void)
+int wilc_sdio_set_max_speed(void)
 {
 	return linux_sdio_set_speed(MAX_SPEED);
 }
 
-int linux_sdio_set_default_speed(void)
+int wilc_sdio_set_default_speed(void)
 {
 	return linux_sdio_set_speed(sdio_default_speed);
 }

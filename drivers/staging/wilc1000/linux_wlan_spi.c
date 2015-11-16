@@ -79,7 +79,7 @@ struct spi_driver wilc_bus __refdata = {
 	.remove = __exit_p(wilc_bus_remove),
 };
 
-int linux_spi_init(void)
+int wilc_spi_init(void)
 {
 	int ret = 1;
 	static int called;
@@ -102,7 +102,7 @@ int linux_spi_init(void)
 
 #if defined(TXRX_PHASE_SIZE)
 
-int linux_spi_write(u8 *b, u32 len)
+int wilc_spi_write(u8 *b, u32 len)
 {
 	int ret;
 
@@ -179,7 +179,7 @@ int linux_spi_write(u8 *b, u32 len)
 }
 
 #else
-int linux_spi_write(u8 *b, u32 len)
+int wilc_spi_write(u8 *b, u32 len)
 {
 
 	int ret;
@@ -230,7 +230,7 @@ int linux_spi_write(u8 *b, u32 len)
 
 #if defined(TXRX_PHASE_SIZE)
 
-int linux_spi_read(u8 *rb, u32 rlen)
+int wilc_spi_read(u8 *rb, u32 rlen)
 {
 	int ret;
 
@@ -304,7 +304,7 @@ int linux_spi_read(u8 *rb, u32 rlen)
 }
 
 #else
-int linux_spi_read(u8 *rb, u32 rlen)
+int wilc_spi_read(u8 *rb, u32 rlen)
 {
 
 	int ret;
@@ -349,7 +349,7 @@ int linux_spi_read(u8 *rb, u32 rlen)
 
 #endif
 
-int linux_spi_write_read(u8 *wb, u8 *rb, u32 rlen)
+int wilc_spi_write_read(u8 *wb, u8 *rb, u32 rlen)
 {
 
 	int ret;
@@ -386,7 +386,7 @@ int linux_spi_write_read(u8 *wb, u8 *rb, u32 rlen)
 	return ret;
 }
 
-int linux_spi_set_max_speed(void)
+int wilc_spi_set_max_speed(void)
 {
 	SPEED = MAX_SPEED;
 

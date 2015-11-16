@@ -103,6 +103,6 @@ void wilc_mgmt_frame_register(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 #define TCP_ACK_FILTER_LINK_SPEED_THRESH	54
 #define DEFAULT_LINK_SPEED			72
-void enable_tcp_ack_filter(bool value);
+void wilc_enable_tcp_ack_filter(bool value);
 
 #endif
