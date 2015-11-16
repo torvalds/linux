@@ -509,6 +509,9 @@ static const char *bpf_loader_strerror_table[NR_ERRNO] = {
 	[ERRCODE_OFFSET(INTERNAL)]	= "BPF loader internal error",
 	[ERRCODE_OFFSET(COMPILE)]	= "Error when compiling BPF scriptlet",
 	[ERRCODE_OFFSET(CONFIG_TERM)]	= "Invalid config term in config string",
+	[ERRCODE_OFFSET(PROLOGUE)]	= "Failed to generate prologue",
+	[ERRCODE_OFFSET(PROLOGUE2BIG)]	= "Prologue too big for program",
+	[ERRCODE_OFFSET(PROLOGUEOOB)]	= "Offset out of bound for prologue",
 };
 
 static int

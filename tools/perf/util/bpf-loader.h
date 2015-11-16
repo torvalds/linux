@@ -21,6 +21,9 @@ enum bpf_loader_errno {
 	BPF_LOADER_ERRNO__INTERNAL,	/* BPF loader internal error */
 	BPF_LOADER_ERRNO__COMPILE,	/* Error when compiling BPF scriptlet */
 	BPF_LOADER_ERRNO__CONFIG_TERM,	/* Invalid config term in config term */
+	BPF_LOADER_ERRNO__PROLOGUE,	/* Failed to generate prologue */
+	BPF_LOADER_ERRNO__PROLOGUE2BIG,	/* Prologue too big for program */
+	BPF_LOADER_ERRNO__PROLOGUEOOB,	/* Offset out of bound for prologue */
 	__BPF_LOADER_ERRNO__END,
 };
 

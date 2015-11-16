@@ -89,6 +89,7 @@ libperf-y += parse-branch-options.o
 libperf-y += parse-regs-options.o
 
 libperf-$(CONFIG_LIBBPF) += bpf-loader.o
+libperf-$(CONFIG_BPF_PROLOGUE) += bpf-prologue.o
 libperf-$(CONFIG_LIBELF) += symbol-elf.o
 libperf-$(CONFIG_LIBELF) += probe-file.o
 libperf-$(CONFIG_LIBELF) += probe-event.o
