@@ -4956,12 +4956,12 @@ static int tonga_get_pp_table_entry_callback_func(struct pp_hwmgr *hwmgr,
 
 	ATOM_Tonga_SCLK_Dependency_Table *sclk_dep_table =
 			(ATOM_Tonga_SCLK_Dependency_Table *)
-			(((uint64_t)powerplay_table) +
+			(((unsigned long)powerplay_table) +
 			le16_to_cpu(powerplay_table->usSclkDependencyTableOffset));
 
 	ATOM_Tonga_MCLK_Dependency_Table *mclk_dep_table =
 			(ATOM_Tonga_MCLK_Dependency_Table *)
-			(((uint64_t)powerplay_table) +
+			(((unsigned long)powerplay_table) +
 			le16_to_cpu(powerplay_table->usMclkDependencyTableOffset));
 
 	/* The following fields are not initialized here: id orderedList allStatesList */
