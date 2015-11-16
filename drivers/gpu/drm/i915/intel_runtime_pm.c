@@ -417,6 +417,11 @@ static void gen9_set_dc_state(struct drm_i915_private *dev_priv, uint32_t state)
 
 	WARN_ON_ONCE(state & ~mask);
 
+	if (i915.enable_dc == 0)
+		state = DC_STATE_DISABLE;
+	else if (i915.enable_dc == 1 && state > DC_STATE_EN_UPTO_DC5)
+		state = DC_STATE_EN_UPTO_DC5;
+
 	if (state & DC_STATE_EN_UPTO_DC5_DC6_MASK)
 		gen9_set_dc_state_debugmask_memory_up(dev_priv);
 
@@ -525,7 +530,9 @@ static void assert_can_disable_dc6(struct drm_i915_private *dev_priv)
 static void gen9_disable_dc5_dc6(struct drm_i915_private *dev_priv)
 {
 	assert_can_disable_dc5(dev_priv);
-	assert_can_disable_dc6(dev_priv);
+
+	if (IS_SKYLAKE(dev_priv) && i915.enable_dc != 0 && i915.enable_dc != 1)
+		assert_can_disable_dc6(dev_priv);
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 }
@@ -712,7 +719,7 @@ static void gen9_dc_off_power_well_enable(struct drm_i915_private *dev_priv,
 static void gen9_dc_off_power_well_disable(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
-	if (IS_SKYLAKE(dev_priv))
+	if (IS_SKYLAKE(dev_priv) && i915.enable_dc != 0 && i915.enable_dc != 1)
 		skl_enable_dc6(dev_priv);
 	else
 		gen9_enable_dc5(dev_priv);
@@ -724,7 +731,8 @@ static void gen9_dc_off_power_well_sync_hw(struct drm_i915_private *dev_priv,
 	if (power_well->count > 0) {
 		gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 	} else {
-		if (IS_SKYLAKE(dev_priv))
+		if (IS_SKYLAKE(dev_priv) && i915.enable_dc != 0 &&
+		    i915.enable_dc != 1)
 			gen9_set_dc_state(dev_priv, DC_STATE_EN_UPTO_DC6);
 		else
 			gen9_set_dc_state(dev_priv, DC_STATE_EN_UPTO_DC5);

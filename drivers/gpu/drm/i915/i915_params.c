@@ -32,6 +32,7 @@ struct i915_params i915 __read_mostly = {
 	.panel_use_ssc = -1,
 	.vbt_sdvo_panel_type = -1,
 	.enable_rc6 = -1,
+	.enable_dc = -1,
 	.enable_fbc = -1,
 	.enable_execlists = -1,
 	.enable_hangcheck = true,
@@ -78,6 +79,11 @@ MODULE_PARM_DESC(enable_rc6,
 	"(0 = disable; 1 = enable rc6; 2 = enable deep rc6; 4 = enable deepest rc6). "
 	"For example, 3 would enable rc6 and deep rc6, and 7 would enable everything. "
 	"default: -1 (use per-chip default)");
+
+module_param_named_unsafe(enable_dc, i915.enable_dc, int, 0400);
+MODULE_PARM_DESC(enable_dc,
+	"Enable power-saving display C-states. "
+	"(-1=auto [default]; 0=disable; 1=up to DC5; 2=up to DC6)");
 
 module_param_named_unsafe(enable_fbc, i915.enable_fbc, int, 0600);
 MODULE_PARM_DESC(enable_fbc,
