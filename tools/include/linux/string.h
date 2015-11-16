@@ -6,4 +6,6 @@
 
 void *memdup(const void *src, size_t len);
 
+int strtobool(const char *s, bool *res);
+
 #endif /* _LINUX_STRING_H_ */
