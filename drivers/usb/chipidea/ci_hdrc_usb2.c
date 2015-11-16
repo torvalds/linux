@@ -12,6 +12,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/usb/chipidea.h>
@@ -30,16 +31,34 @@ static const struct ci_hdrc_platform_data ci_default_pdata = {
 	.flags		= CI_HDRC_DISABLE_STREAMING,
 };
 
+static struct ci_hdrc_platform_data ci_zynq_pdata = {
+	.capoffset	= DEF_CAPOFFSET,
+};
+
+static const struct of_device_id ci_hdrc_usb2_of_match[] = {
+	{ .compatible = "chipidea,usb2"},
+	{ .compatible = "xlnx,zynq-usb-2.20a", .data = &ci_zynq_pdata},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ci_hdrc_usb2_of_match);
+
 static int ci_hdrc_usb2_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ci_hdrc_usb2_priv *priv;
 	struct ci_hdrc_platform_data *ci_pdata = dev_get_platdata(dev);
 	int ret;
+	const struct of_device_id *match;
 
 	if (!ci_pdata) {
 		ci_pdata = devm_kmalloc(dev, sizeof(*ci_pdata), GFP_KERNEL);
 		*ci_pdata = ci_default_pdata;	/* struct copy */
+	}
+
+	match = of_match_device(ci_hdrc_usb2_of_match, &pdev->dev);
+	if (match && match->data) {
+		/* struct copy */
+		*ci_pdata = *(struct ci_hdrc_platform_data *)match->data;
 	}
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -95,12 +114,6 @@ static int ci_hdrc_usb2_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id ci_hdrc_usb2_of_match[] = {
-	{ .compatible = "chipidea,usb2" },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, ci_hdrc_usb2_of_match);
 
 static struct platform_driver ci_hdrc_usb2_driver = {
 	.probe	= ci_hdrc_usb2_probe,

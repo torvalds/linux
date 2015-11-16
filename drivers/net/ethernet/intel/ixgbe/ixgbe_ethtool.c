@@ -943,9 +943,6 @@ static void ixgbe_get_drvinfo(struct net_device *netdev,
 
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
-	drvinfo->n_stats = IXGBE_STATS_LEN;
-	drvinfo->testinfo_len = IXGBE_TEST_LEN;
-	drvinfo->regdump_len = ixgbe_get_regs_len(netdev);
 }
 
 static void ixgbe_get_ringparam(struct net_device *netdev,
@@ -2286,7 +2283,7 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		adapter->tx_itr_setting = ec->tx_coalesce_usecs;
 
 	if (adapter->tx_itr_setting == 1)
-		tx_itr_param = IXGBE_10K_ITR;
+		tx_itr_param = IXGBE_12K_ITR;
 	else
 		tx_itr_param = adapter->tx_itr_setting;
 

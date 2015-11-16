@@ -498,10 +498,26 @@ static struct sk_buff *gre_handle_offloads(struct sk_buff *skb,
 					csum ? SKB_GSO_GRE_CSUM : SKB_GSO_GRE);
 }
 
+static struct rtable *gre_get_rt(struct sk_buff *skb,
+				 struct net_device *dev,
+				 struct flowi4 *fl,
+				 const struct ip_tunnel_key *key)
+{
+	struct net *net = dev_net(dev);
+
+	memset(fl, 0, sizeof(*fl));
+	fl->daddr = key->u.ipv4.dst;
+	fl->saddr = key->u.ipv4.src;
+	fl->flowi4_tos = RT_TOS(key->tos);
+	fl->flowi4_mark = skb->mark;
+	fl->flowi4_proto = IPPROTO_GRE;
+
+	return ip_route_output_key(net, fl);
+}
+
 static void gre_fb_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip_tunnel_info *tun_info;
-	struct net *net = dev_net(dev);
 	const struct ip_tunnel_key *key;
 	struct flowi4 fl;
 	struct rtable *rt;
@@ -516,14 +532,7 @@ static void gre_fb_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto err_free_skb;
 
 	key = &tun_info->key;
-	memset(&fl, 0, sizeof(fl));
-	fl.daddr = key->u.ipv4.dst;
-	fl.saddr = key->u.ipv4.src;
-	fl.flowi4_tos = RT_TOS(key->tos);
-	fl.flowi4_mark = skb->mark;
-	fl.flowi4_proto = IPPROTO_GRE;
-
-	rt = ip_route_output_key(net, &fl);
+	rt = gre_get_rt(skb, dev, &fl, key);
 	if (IS_ERR(rt))
 		goto err_free_skb;
 
@@ -564,6 +573,24 @@ err_free_rt:
 err_free_skb:
 	kfree_skb(skb);
 	dev->stats.tx_dropped++;
+}
+
+static int gre_fill_metadata_dst(struct net_device *dev, struct sk_buff *skb)
+{
+	struct ip_tunnel_info *info = skb_tunnel_info(skb);
+	struct rtable *rt;
+	struct flowi4 fl4;
+
+	if (ip_tunnel_info_af(info) != AF_INET)
+		return -EINVAL;
+
+	rt = gre_get_rt(skb, dev, &fl4, &info->key);
+	if (IS_ERR(rt))
+		return PTR_ERR(rt);
+
+	ip_rt_put(rt);
+	info->key.u.ipv4.src = fl4.saddr;
+	return 0;
 }
 
 static netdev_tx_t ipgre_xmit(struct sk_buff *skb,
@@ -1023,6 +1050,7 @@ static const struct net_device_ops gre_tap_netdev_ops = {
 	.ndo_change_mtu		= ip_tunnel_change_mtu,
 	.ndo_get_stats64	= ip_tunnel_get_stats64,
 	.ndo_get_iflink		= ip_tunnel_get_iflink,
+	.ndo_fill_metadata_dst	= gre_fill_metadata_dst,
 };
 
 static void ipgre_tap_setup(struct net_device *dev)

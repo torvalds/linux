@@ -17,6 +17,7 @@
  */
 
 #include <traceevent/event-parse.h>
+#include <api/fs/tracing_path.h>
 #include "builtin.h"
 #include "util/color.h"
 #include "util/debug.h"
@@ -37,6 +38,7 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <linux/futex.h>
+#include <linux/err.h>
 
 /* For older distros: */
 #ifndef MAP_STACK
@@ -244,13 +246,14 @@ static struct perf_evsel *perf_evsel__syscall_newtp(const char *direction, void 
 	struct perf_evsel *evsel = perf_evsel__newtp("raw_syscalls", direction);
 
 	/* older kernel (e.g., RHEL6) use syscalls:{enter,exit} */
-	if (evsel == NULL)
+	if (IS_ERR(evsel))
 		evsel = perf_evsel__newtp("syscalls", direction);
 
-	if (evsel) {
-		if (perf_evsel__init_syscall_tp(evsel, handler))
-			goto out_delete;
-	}
+	if (IS_ERR(evsel))
+		return NULL;
+
+	if (perf_evsel__init_syscall_tp(evsel, handler))
+		goto out_delete;
 
 	return evsel;
 
@@ -581,6 +584,12 @@ static size_t syscall_arg__scnprintf_futex_op(char *bf, size_t size, struct sysc
 }
 
 #define SCA_FUTEX_OP  syscall_arg__scnprintf_futex_op
+
+static const char *bpf_cmd[] = {
+	"MAP_CREATE", "MAP_LOOKUP_ELEM", "MAP_UPDATE_ELEM", "MAP_DELETE_ELEM",
+	"MAP_GET_NEXT_KEY", "PROG_LOAD",
+};
+static DEFINE_STRARRAY(bpf_cmd);
 
 static const char *epoll_ctl_ops[] = { "ADD", "DEL", "MOD", };
 static DEFINE_STRARRAY_OFFSET(epoll_ctl_ops, 1);
@@ -1008,6 +1017,7 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [0] = SCA_FILENAME, /* filename */
 			     [1] = SCA_ACCMODE,  /* mode */ }, },
 	{ .name	    = "arch_prctl", .errmsg = true, .alias = "prctl", },
+	{ .name	    = "bpf",	    .errmsg = true, STRARRAY(0, cmd, bpf_cmd), },
 	{ .name	    = "brk",	    .hexret = true,
 	  .arg_scnprintf = { [0] = SCA_HEX, /* brk */ }, },
 	{ .name	    = "chdir",	    .errmsg = true,
@@ -1704,12 +1714,12 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	snprintf(tp_name, sizeof(tp_name), "sys_enter_%s", sc->name);
 	sc->tp_format = trace_event__tp_format("syscalls", tp_name);
 
-	if (sc->tp_format == NULL && sc->fmt && sc->fmt->alias) {
+	if (IS_ERR(sc->tp_format) && sc->fmt && sc->fmt->alias) {
 		snprintf(tp_name, sizeof(tp_name), "sys_enter_%s", sc->fmt->alias);
 		sc->tp_format = trace_event__tp_format("syscalls", tp_name);
 	}
 
-	if (sc->tp_format == NULL)
+	if (IS_ERR(sc->tp_format))
 		return -1;
 
 	sc->args = sc->tp_format->format.fields;
@@ -2389,7 +2399,8 @@ static size_t trace__fprintf_thread_summary(struct trace *trace, FILE *fp);
 static bool perf_evlist__add_vfs_getname(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel = perf_evsel__newtp("probe", "vfs_getname");
-	if (evsel == NULL)
+
+	if (IS_ERR(evsel))
 		return false;
 
 	if (perf_evsel__field(evsel, "pathname") == NULL) {
@@ -2686,11 +2697,11 @@ out_delete_evlist:
 	char errbuf[BUFSIZ];
 
 out_error_sched_stat_runtime:
-	debugfs__strerror_open_tp(errno, errbuf, sizeof(errbuf), "sched", "sched_stat_runtime");
+	tracing_path__strerror_open_tp(errno, errbuf, sizeof(errbuf), "sched", "sched_stat_runtime");
 	goto out_error;
 
 out_error_raw_syscalls:
-	debugfs__strerror_open_tp(errno, errbuf, sizeof(errbuf), "raw_syscalls", "sys_(enter|exit)");
+	tracing_path__strerror_open_tp(errno, errbuf, sizeof(errbuf), "raw_syscalls", "sys_(enter|exit)");
 	goto out_error;
 
 out_error_mmap:

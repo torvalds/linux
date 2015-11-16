@@ -79,11 +79,11 @@ bool RFbInit(
 	struct vnt_private *
 );
 bool RFvWriteWakeProgSyn(struct vnt_private *, unsigned char byRFType, u16);
-bool RFbSetPower(struct vnt_private *, unsigned int uRATE, u16);
+bool RFbSetPower(struct vnt_private *, unsigned int rate, u16);
 bool RFbRawSetPower(
 	struct vnt_private *,
 	unsigned char byPwr,
-	unsigned int uRATE
+	unsigned int rate
 );
 
 void

@@ -319,7 +319,8 @@ static int exynos_ppmu_v2_get_event(struct devfreq_event_dev *edev,
 	case PPMU_PMNCNT3:
 		pmcnt_high = __raw_readl(info->ppmu.base + PPMU_V2_PMCNT3_HIGH);
 		pmcnt_low = __raw_readl(info->ppmu.base + PPMU_V2_PMCNT3_LOW);
-		load_count = (u64)((pmcnt_high & 0xff) << 32) + (u64)pmcnt_low;
+		load_count = ((u64)((pmcnt_high & 0xff)) << 32)
+			   + (u64)pmcnt_low;
 		break;
 	}
 	edata->load_count = load_count;

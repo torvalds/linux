@@ -37,10 +37,10 @@
  * DECON stands for Display and Enhancement controller.
  */
 
-#define DECON_DEFAULT_FRAMERATE 60
 #define MIN_FB_WIDTH_FOR_16WORD_BURST 128
 
 #define WINDOWS_NR	2
+#define CURSOR_WIN	1
 
 struct decon_context {
 	struct device			*dev;
@@ -52,7 +52,6 @@ struct decon_context {
 	struct clk			*eclk;
 	struct clk			*vclk;
 	void __iomem			*regs;
-	unsigned int			default_win;
 	unsigned long			irq_flags;
 	bool				i80_if;
 	bool				suspended;
@@ -163,16 +162,6 @@ static u32 decon_calc_clkdiv(struct decon_context *ctx,
 	clkdiv = DIV_ROUND_UP(clk_get_rate(ctx->vclk), ideal_clk);
 
 	return (clkdiv < 0x100) ? clkdiv : 0xff;
-}
-
-static bool decon_mode_fixup(struct exynos_drm_crtc *crtc,
-		const struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
-{
-	if (adjusted_mode->vrefresh == 0)
-		adjusted_mode->vrefresh = DECON_DEFAULT_FRAMERATE;
-
-	return true;
 }
 
 static void decon_commit(struct exynos_drm_crtc *crtc)
@@ -637,7 +626,6 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 static const struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.enable = decon_enable,
 	.disable = decon_disable,
-	.mode_fixup = decon_mode_fixup,
 	.commit = decon_commit,
 	.enable_vblank = decon_enable_vblank,
 	.disable_vblank = decon_disable_vblank,
@@ -702,8 +690,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	for (zpos = 0; zpos < WINDOWS_NR; zpos++) {
-		type = (zpos == ctx->default_win) ? DRM_PLANE_TYPE_PRIMARY :
-						DRM_PLANE_TYPE_OVERLAY;
+		type = exynos_plane_get_type(zpos, CURSOR_WIN);
 		ret = exynos_plane_init(drm_dev, &ctx->planes[zpos],
 					1 << ctx->pipe, type, decon_formats,
 					ARRAY_SIZE(decon_formats), zpos);
@@ -711,7 +698,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 			return ret;
 	}
 
-	exynos_plane = &ctx->planes[ctx->default_win];
+	exynos_plane = &ctx->planes[DEFAULT_WIN];
 	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,
 					   ctx->pipe, EXYNOS_DISPLAY_TYPE_LCD,
 					   &decon_crtc_ops, ctx);

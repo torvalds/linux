@@ -1309,6 +1309,7 @@ nfsd4_layoutget(struct svc_rqst *rqstp,
 	nfserr = nfsd4_insert_layout(lgp, ls);
 
 out_put_stid:
+	mutex_unlock(&ls->ls_mutex);
 	nfs4_put_stid(&ls->ls_stid);
 out:
 	return nfserr;
@@ -1361,6 +1362,9 @@ nfsd4_layoutcommit(struct svc_rqst *rqstp,
 			nfserr = nfserr_badlayout;
 		goto out;
 	}
+
+	/* LAYOUTCOMMIT does not require any serialization */
+	mutex_unlock(&ls->ls_mutex);
 
 	if (new_size > i_size_read(inode)) {
 		lcp->lc_size_chg = 1;

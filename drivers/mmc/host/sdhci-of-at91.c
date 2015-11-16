@@ -43,6 +43,7 @@ static const struct sdhci_ops sdhci_at91_sama5d2_ops = {
 
 static const struct sdhci_pltfm_data soc_data_sama5d2 = {
 	.ops = &sdhci_at91_sama5d2_ops,
+	.quirks2 = SDHCI_QUIRK2_NEED_DELAY_AFTER_INT_CLK_RST,
 };
 
 static const struct of_device_id sdhci_at91_dt_match[] = {
@@ -110,7 +111,6 @@ static int sdhci_at91_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to set gck");
 		goto hclock_disable_unprepare;
-		return -EINVAL;
 	}
 	/*
 	 * We need to check if we have the requested rate for gck because in

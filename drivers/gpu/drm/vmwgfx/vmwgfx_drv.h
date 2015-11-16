@@ -375,8 +375,7 @@ struct vmw_private {
 	uint32_t stdu_max_height;
 	uint32_t initial_width;
 	uint32_t initial_height;
-	u32 __iomem *mmio_virt;
-	int mmio_mtrr;
+	u32 *mmio_virt;
 	uint32_t capabilities;
 	uint32_t max_gmr_ids;
 	uint32_t max_gmr_pages;
@@ -441,13 +440,12 @@ struct vmw_private {
 	spinlock_t waiter_lock;
 	int fence_queue_waiters; /* Protected by waiter_lock */
 	int goal_queue_waiters; /* Protected by waiter_lock */
-	int cmdbuf_waiters; /* Protected by irq_lock */
-	int error_waiters; /* Protected by irq_lock */
-	atomic_t fifo_queue_waiters;
+	int cmdbuf_waiters; /* Protected by waiter_lock */
+	int error_waiters; /* Protected by waiter_lock */
+	int fifo_queue_waiters; /* Protected by waiter_lock */
 	uint32_t last_read_seqno;
-	spinlock_t irq_lock;
 	struct vmw_fence_manager *fman;
-	uint32_t irq_mask;
+	uint32_t irq_mask; /* Updates protected by waiter_lock */
 
 	/*
 	 * Device state
@@ -631,7 +629,8 @@ extern int vmw_user_dmabuf_alloc(struct vmw_private *dev_priv,
 				 uint32_t size,
 				 bool shareable,
 				 uint32_t *handle,
-				 struct vmw_dma_buffer **p_dma_buf);
+				 struct vmw_dma_buffer **p_dma_buf,
+				 struct ttm_base_object **p_base);
 extern int vmw_user_dmabuf_reference(struct ttm_object_file *tfile,
 				     struct vmw_dma_buffer *dma_buf,
 				     uint32_t *handle);
@@ -645,7 +644,8 @@ extern uint32_t vmw_dmabuf_validate_node(struct ttm_buffer_object *bo,
 					 uint32_t cur_validate_node);
 extern void vmw_dmabuf_validate_clear(struct ttm_buffer_object *bo);
 extern int vmw_user_dmabuf_lookup(struct ttm_object_file *tfile,
-				  uint32_t id, struct vmw_dma_buffer **out);
+				  uint32_t id, struct vmw_dma_buffer **out,
+				  struct ttm_base_object **base);
 extern int vmw_stream_claim_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv);
 extern int vmw_stream_unref_ioctl(struct drm_device *dev, void *data,
@@ -913,9 +913,9 @@ void vmw_kms_idle_workqueues(struct vmw_master *vmaster);
 bool vmw_kms_validate_mode_vram(struct vmw_private *dev_priv,
 				uint32_t pitch,
 				uint32_t height);
-u32 vmw_get_vblank_counter(struct drm_device *dev, int crtc);
-int vmw_enable_vblank(struct drm_device *dev, int crtc);
-void vmw_disable_vblank(struct drm_device *dev, int crtc);
+u32 vmw_get_vblank_counter(struct drm_device *dev, unsigned int pipe);
+int vmw_enable_vblank(struct drm_device *dev, unsigned int pipe);
+void vmw_disable_vblank(struct drm_device *dev, unsigned int pipe);
 int vmw_kms_present(struct vmw_private *dev_priv,
 		    struct drm_file *file_priv,
 		    struct vmw_framebuffer *vfb,
@@ -1204,5 +1204,31 @@ static inline void vmw_fifo_resource_inc(struct vmw_private *dev_priv)
 static inline void vmw_fifo_resource_dec(struct vmw_private *dev_priv)
 {
 	atomic_dec(&dev_priv->num_fifo_resources);
+}
+
+/**
+ * vmw_mmio_read - Perform a MMIO read from volatile memory
+ *
+ * @addr: The address to read from
+ *
+ * This function is intended to be equivalent to ioread32() on
+ * memremap'd memory, but without byteswapping.
+ */
+static inline u32 vmw_mmio_read(u32 *addr)
+{
+	return READ_ONCE(*addr);
+}
+
+/**
+ * vmw_mmio_write - Perform a MMIO write to volatile memory
+ *
+ * @addr: The address to write to
+ *
+ * This function is intended to be equivalent to iowrite32 on
+ * memremap'd memory, but without byteswapping.
+ */
+static inline void vmw_mmio_write(u32 value, u32 *addr)
+{
+	WRITE_ONCE(*addr, value);
 }
 #endif

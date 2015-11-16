@@ -163,6 +163,7 @@ void bcmgenet_mii_setup(struct net_device *dev)
 	phy_print_status(phydev);
 }
 
+
 static int bcmgenet_fixed_phy_link_update(struct net_device *dev,
 					  struct fixed_phy_status *status)
 {
@@ -170,6 +171,22 @@ static int bcmgenet_fixed_phy_link_update(struct net_device *dev,
 		status->link = dev->phydev->link;
 
 	return 0;
+}
+
+/* Perform a voluntary PHY software reset, since the EPHY is very finicky about
+ * not doing it and will start corrupting packets
+ */
+void bcmgenet_mii_reset(struct net_device *dev)
+{
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+
+	if (GENET_IS_V4(priv))
+		return;
+
+	if (priv->phydev) {
+		phy_init_hw(priv->phydev);
+		phy_start_aneg(priv->phydev);
+	}
 }
 
 void bcmgenet_phy_power_set(struct net_device *dev, bool enable)
@@ -214,6 +231,7 @@ static void bcmgenet_internal_phy_setup(struct net_device *dev)
 	reg = bcmgenet_ext_readl(priv, EXT_EXT_PWR_MGMT);
 	reg |= EXT_PWR_DN_EN_LD;
 	bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
+	bcmgenet_mii_reset(dev);
 }
 
 static void bcmgenet_moca_phy_setup(struct bcmgenet_priv *priv)

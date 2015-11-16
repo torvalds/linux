@@ -78,6 +78,8 @@ struct scripting_ops {
 	int (*generate_script) (struct pevent *pevent, const char *outfile);
 };
 
+extern unsigned int scripting_max_stack;
+
 int script_spec_register(const char *spec, struct scripting_ops *ops);
 
 void setup_perl_scripting(void);

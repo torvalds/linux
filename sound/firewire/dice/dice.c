@@ -29,7 +29,8 @@ static int dice_interface_check(struct fw_unit *unit)
 	struct fw_csr_iterator it;
 	int key, val, vendor = -1, model = -1, err;
 	unsigned int category, i;
-	__be32 *pointers, value;
+	__be32 *pointers;
+	u32 value;
 	__be32 version;
 
 	pointers = kmalloc_array(ARRAY_SIZE(min_values), sizeof(__be32),

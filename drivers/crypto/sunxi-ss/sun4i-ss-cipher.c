@@ -104,7 +104,7 @@ static int sun4i_ss_opti_poll(struct ablkcipher_request *areq)
 			sg_miter_next(&mo);
 			oo = 0;
 		}
-	} while (mo.length > 0);
+	} while (oleft > 0);
 
 	if (areq->info) {
 		for (i = 0; i < 4 && i < ivsize / 4; i++) {

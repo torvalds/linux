@@ -224,11 +224,11 @@ static int uvd_v4_2_suspend(void *handle)
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = uvd_v4_2_hw_fini(adev);
+	r = amdgpu_uvd_suspend(adev);
 	if (r)
 		return r;
 
-	r = amdgpu_uvd_suspend(adev);
+	r = uvd_v4_2_hw_fini(adev);
 	if (r)
 		return r;
 
@@ -885,7 +885,6 @@ static const struct amdgpu_ring_funcs uvd_v4_2_ring_funcs = {
 	.emit_semaphore = uvd_v4_2_ring_emit_semaphore,
 	.test_ring = uvd_v4_2_ring_test_ring,
 	.test_ib = uvd_v4_2_ring_test_ib,
-	.is_lockup = amdgpu_ring_test_lockup,
 	.insert_nop = amdgpu_ring_insert_nop,
 };
 

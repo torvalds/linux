@@ -297,7 +297,6 @@ MODULE_DEVICE_TABLE(of, m25p_of_table);
 static struct spi_driver m25p80_driver = {
 	.driver = {
 		.name	= "m25p80",
-		.owner	= THIS_MODULE,
 		.of_match_table = m25p_of_table,
 	},
 	.id_table	= m25p_ids,

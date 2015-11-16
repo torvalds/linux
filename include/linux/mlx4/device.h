@@ -214,6 +214,8 @@ enum {
 	MLX4_DEV_CAP_FLAG2_IGNORE_FCS		= 1LL <<  28,
 	MLX4_DEV_CAP_FLAG2_PHV_EN		= 1LL <<  29,
 	MLX4_DEV_CAP_FLAG2_SKIP_OUTER_VLAN	= 1LL <<  30,
+	MLX4_DEV_CAP_FLAG2_UPDATE_QP_SRC_CHECK_LB = 1ULL << 31,
+	MLX4_DEV_CAP_FLAG2_LB_SRC_CHK           = 1ULL << 32,
 };
 
 enum {
@@ -833,6 +835,7 @@ struct mlx4_dev {
 	struct mlx4_quotas	quotas;
 	struct radix_tree_root	qp_table_tree;
 	u8			rev_id;
+	u8			port_random_macs;
 	char			board_id[MLX4_BOARD_ID_LEN];
 	int			numa_node;
 	int			oper_log_mgm_entry_size;

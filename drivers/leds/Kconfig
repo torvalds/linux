@@ -170,6 +170,7 @@ config LEDS_SUNFIRE
 
 config LEDS_IPAQ_MICRO
 	tristate "LED Support for the Compaq iPAQ h3xxx"
+	depends on LEDS_CLASS
 	depends on MFD_IPAQ_MICRO
 	help
 	  Choose this option if you want to use the notification LED on
@@ -229,7 +230,7 @@ config LEDS_LP55XX_COMMON
 	tristate "Common Driver for TI/National LP5521/5523/55231/5562/8501"
 	depends on LEDS_LP5521 || LEDS_LP5523 || LEDS_LP5562 || LEDS_LP8501
 	select FW_LOADER
-	select FW_LOADER_USER_HELPER_FALLBACK
+	select FW_LOADER_USER_HELPER
 	help
 	  This option supports common operations for LP5521/5523/55231/5562/8501
 	  devices.
@@ -554,6 +555,16 @@ config LEDS_KTD2692
 	  through ExpressWire interface.
 
 	  Say Y to enable this driver.
+
+config LEDS_SEAD3
+	tristate "LED support for the MIPS SEAD 3 board"
+	depends on LEDS_CLASS && MIPS_SEAD3
+	help
+	  Say Y here to include support for the FLED and PLED LEDs on SEAD3 eval
+	  boards.
+
+	  This driver can also be built as a module. If so the module
+	  will be called leds-sead3.
 
 comment "LED driver for blink(1) USB RGB LED is under Special HID drivers (HID_THINGM)"
 

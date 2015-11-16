@@ -24,7 +24,7 @@ static int zpci_refresh_global(struct zpci_dev *zdev)
 				  zdev->iommu_pages * PAGE_SIZE);
 }
 
-static unsigned long *dma_alloc_cpu_table(void)
+unsigned long *dma_alloc_cpu_table(void)
 {
 	unsigned long *table, *entry;
 
@@ -114,12 +114,12 @@ static unsigned long *dma_walk_cpu_trans(unsigned long *rto, dma_addr_t dma_addr
 	return &pto[px];
 }
 
-static void dma_update_cpu_trans(struct zpci_dev *zdev, void *page_addr,
-				 dma_addr_t dma_addr, int flags)
+void dma_update_cpu_trans(unsigned long *dma_table, void *page_addr,
+			  dma_addr_t dma_addr, int flags)
 {
 	unsigned long *entry;
 
-	entry = dma_walk_cpu_trans(zdev->dma_table, dma_addr);
+	entry = dma_walk_cpu_trans(dma_table, dma_addr);
 	if (!entry) {
 		WARN_ON_ONCE(1);
 		return;
@@ -156,7 +156,8 @@ static int dma_update_trans(struct zpci_dev *zdev, unsigned long pa,
 		goto no_refresh;
 
 	for (i = 0; i < nr_pages; i++) {
-		dma_update_cpu_trans(zdev, page_addr, dma_addr, flags);
+		dma_update_cpu_trans(zdev->dma_table, page_addr, dma_addr,
+				     flags);
 		page_addr += PAGE_SIZE;
 		dma_addr += PAGE_SIZE;
 	}
@@ -181,7 +182,7 @@ no_refresh:
 	return rc;
 }
 
-static void dma_free_seg_table(unsigned long entry)
+void dma_free_seg_table(unsigned long entry)
 {
 	unsigned long *sto = get_rt_sto(entry);
 	int sx;
@@ -193,21 +194,18 @@ static void dma_free_seg_table(unsigned long entry)
 	dma_free_cpu_table(sto);
 }
 
-static void dma_cleanup_tables(struct zpci_dev *zdev)
+void dma_cleanup_tables(unsigned long *table)
 {
-	unsigned long *table;
 	int rtx;
 
-	if (!zdev || !zdev->dma_table)
+	if (!table)
 		return;
 
-	table = zdev->dma_table;
 	for (rtx = 0; rtx < ZPCI_TABLE_ENTRIES; rtx++)
 		if (reg_entry_isvalid(table[rtx]))
 			dma_free_seg_table(table[rtx]);
 
 	dma_free_cpu_table(table);
-	zdev->dma_table = NULL;
 }
 
 static unsigned long __dma_alloc_iommu(struct zpci_dev *zdev,
@@ -416,6 +414,13 @@ int zpci_dma_init_device(struct zpci_dev *zdev)
 {
 	int rc;
 
+	/*
+	 * At this point, if the device is part of an IOMMU domain, this would
+	 * be a strong hint towards a bug in the IOMMU API (common) code and/or
+	 * simultaneous access via IOMMU and DMA API. So let's issue a warning.
+	 */
+	WARN_ON(zdev->s390_domain);
+
 	spin_lock_init(&zdev->iommu_bitmap_lock);
 	spin_lock_init(&zdev->dma_table_lock);
 
@@ -450,8 +455,16 @@ out_clean:
 
 void zpci_dma_exit_device(struct zpci_dev *zdev)
 {
+	/*
+	 * At this point, if the device is part of an IOMMU domain, this would
+	 * be a strong hint towards a bug in the IOMMU API (common) code and/or
+	 * simultaneous access via IOMMU and DMA API. So let's issue a warning.
+	 */
+	WARN_ON(zdev->s390_domain);
+
 	zpci_unregister_ioat(zdev, 0);
-	dma_cleanup_tables(zdev);
+	dma_cleanup_tables(zdev->dma_table);
+	zdev->dma_table = NULL;
 	vfree(zdev->iommu_bitmap);
 	zdev->iommu_bitmap = NULL;
 	zdev->next_bit = 0;

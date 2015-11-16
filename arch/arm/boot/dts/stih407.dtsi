@@ -10,19 +10,6 @@
 #include "stih407-family.dtsi"
 / {
 	soc {
-		/* Display */
-		vtg_main: sti-vtg-main@8d02800 {
-			compatible = "st,vtg";
-			reg = <0x8d02800 0x200>;
-			interrupts = <GIC_SPI 108 IRQ_TYPE_NONE>;
-		};
-
-		vtg_aux: sti-vtg-aux@8d00200 {
-			compatible = "st,vtg";
-			reg = <0x8d00200 0x100>;
-			interrupts = <GIC_SPI 109 IRQ_TYPE_NONE>;
-		};
-
 		sti-display-subsystem {
 			compatible = "st,sti-display-subsystem";
 			#address-cells = <1>;
@@ -103,48 +90,46 @@
 							 <&clk_s_d0_quadfs 0>,
 							 <&clk_s_d2_quadfs 0>,
 							 <&clk_s_d2_quadfs 0>;
-				ranges;
+			};
 
-				sti-hdmi@8d04000 {
-					compatible = "st,stih407-hdmi";
-					reg = <0x8d04000 0x1000>;
-					reg-names = "hdmi-reg";
-					interrupts = <GIC_SPI 106 IRQ_TYPE_NONE>;
-					interrupt-names	= "irq";
-					clock-names = "pix",
-						      "tmds",
-						      "phy",
-						      "audio",
-						      "main_parent",
-						      "aux_parent";
+			sti-hdmi@8d04000 {
+				compatible = "st,stih407-hdmi";
+				reg = <0x8d04000 0x1000>;
+				reg-names = "hdmi-reg";
+				interrupts = <GIC_SPI 106 IRQ_TYPE_NONE>;
+				interrupt-names	= "irq";
+				clock-names = "pix",
+					      "tmds",
+					      "phy",
+					      "audio",
+					      "main_parent",
+					      "aux_parent";
 
-					clocks = <&clk_s_d2_flexgen CLK_PIX_HDMI>,
-						 <&clk_s_d2_flexgen CLK_TMDS_HDMI>,
-						 <&clk_s_d2_flexgen CLK_REF_HDMIPHY>,
-						 <&clk_s_d0_flexgen CLK_PCM_0>,
-						 <&clk_s_d2_quadfs 0>,
-						 <&clk_s_d2_quadfs 1>;
+				clocks = <&clk_s_d2_flexgen CLK_PIX_HDMI>,
+					 <&clk_s_d2_flexgen CLK_TMDS_HDMI>,
+					 <&clk_s_d2_flexgen CLK_REF_HDMIPHY>,
+					 <&clk_s_d0_flexgen CLK_PCM_0>,
+					 <&clk_s_d2_quadfs 0>,
+					 <&clk_s_d2_quadfs 1>;
 
-					hdmi,hpd-gpio = <&pio5 3>;
-					reset-names = "hdmi";
-					resets = <&softreset STIH407_HDMI_TX_PHY_SOFTRESET>;
-					ddc = <&hdmiddc>;
+				hdmi,hpd-gpio = <&pio5 3>;
+				reset-names = "hdmi";
+				resets = <&softreset STIH407_HDMI_TX_PHY_SOFTRESET>;
+				ddc = <&hdmiddc>;
+			};
 
-				};
-
-				sti-hda@8d02000 {
-					compatible = "st,stih407-hda";
-					reg = <0x8d02000 0x400>, <0x92b0120 0x4>;
-					reg-names = "hda-reg", "video-dacs-ctrl";
-					clock-names = "pix",
-						      "hddac",
-						      "main_parent",
-						      "aux_parent";
-					clocks = <&clk_s_d2_flexgen CLK_PIX_HDDAC>,
-						 <&clk_s_d2_flexgen CLK_HDDAC>,
-						 <&clk_s_d2_quadfs 0>,
-						 <&clk_s_d2_quadfs 1>;
-				};
+			sti-hda@8d02000 {
+				compatible = "st,stih407-hda";
+				reg = <0x8d02000 0x400>, <0x92b0120 0x4>;
+				reg-names = "hda-reg", "video-dacs-ctrl";
+				clock-names = "pix",
+					      "hddac",
+					      "main_parent",
+					      "aux_parent";
+				clocks = <&clk_s_d2_flexgen CLK_PIX_HDDAC>,
+					 <&clk_s_d2_flexgen CLK_HDDAC>,
+					 <&clk_s_d2_quadfs 0>,
+					 <&clk_s_d2_quadfs 1>;
 			};
 		};
 	};

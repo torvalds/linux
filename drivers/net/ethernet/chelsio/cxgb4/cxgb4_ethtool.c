@@ -35,79 +35,79 @@ static void set_msglevel(struct net_device *dev, u32 val)
 }
 
 static const char stats_strings[][ETH_GSTRING_LEN] = {
-	"TxOctetsOK         ",
-	"TxFramesOK         ",
-	"TxBroadcastFrames  ",
-	"TxMulticastFrames  ",
-	"TxUnicastFrames    ",
-	"TxErrorFrames      ",
+	"tx_octets_ok		",
+	"tx_frames_ok		",
+	"tx_broadcast_frames	",
+	"tx_multicast_frames	",
+	"tx_unicast_frames	",
+	"tx_error_frames	",
 
-	"TxFrames64         ",
-	"TxFrames65To127    ",
-	"TxFrames128To255   ",
-	"TxFrames256To511   ",
-	"TxFrames512To1023  ",
-	"TxFrames1024To1518 ",
-	"TxFrames1519ToMax  ",
+	"tx_frames_64		",
+	"tx_frames_65_to_127	",
+	"tx_frames_128_to_255	",
+	"tx_frames_256_to_511	",
+	"tx_frames_512_to_1023	",
+	"tx_frames_1024_to_1518	",
+	"tx_frames_1519_to_max	",
 
-	"TxFramesDropped    ",
-	"TxPauseFrames      ",
-	"TxPPP0Frames       ",
-	"TxPPP1Frames       ",
-	"TxPPP2Frames       ",
-	"TxPPP3Frames       ",
-	"TxPPP4Frames       ",
-	"TxPPP5Frames       ",
-	"TxPPP6Frames       ",
-	"TxPPP7Frames       ",
+	"tx_frames_dropped	",
+	"tx_pause_frames	",
+	"tx_ppp0_frames		",
+	"tx_ppp1_frames		",
+	"tx_ppp2_frames		",
+	"tx_ppp3_frames		",
+	"tx_ppp4_frames		",
+	"tx_ppp5_frames		",
+	"tx_ppp6_frames		",
+	"tx_ppp7_frames		",
 
-	"RxOctetsOK         ",
-	"RxFramesOK         ",
-	"RxBroadcastFrames  ",
-	"RxMulticastFrames  ",
-	"RxUnicastFrames    ",
+	"rx_octets_ok		",
+	"rx_frames_ok		",
+	"rx_broadcast_frames	",
+	"rx_multicast_frames	",
+	"rx_unicast_frames	",
 
-	"RxFramesTooLong    ",
-	"RxJabberErrors     ",
-	"RxFCSErrors        ",
-	"RxLengthErrors     ",
-	"RxSymbolErrors     ",
-	"RxRuntFrames       ",
+	"rx_frames_too_long	",
+	"rx_jabber_errors	",
+	"rx_fcs_errors		",
+	"rx_length_errors	",
+	"rx_symbol_errors	",
+	"rx_runt_frames		",
 
-	"RxFrames64         ",
-	"RxFrames65To127    ",
-	"RxFrames128To255   ",
-	"RxFrames256To511   ",
-	"RxFrames512To1023  ",
-	"RxFrames1024To1518 ",
-	"RxFrames1519ToMax  ",
+	"rx_frames_64		",
+	"rx_frames_65_to_127	",
+	"rx_frames_128_to_255	",
+	"rx_frames_256_to_511	",
+	"rx_frames_512_to_1023	",
+	"rx_frames_1024_to_1518	",
+	"rx_frames_1519_to_max	",
 
-	"RxPauseFrames      ",
-	"RxPPP0Frames       ",
-	"RxPPP1Frames       ",
-	"RxPPP2Frames       ",
-	"RxPPP3Frames       ",
-	"RxPPP4Frames       ",
-	"RxPPP5Frames       ",
-	"RxPPP6Frames       ",
-	"RxPPP7Frames       ",
+	"rx_pause_frames	",
+	"rx_ppp0_frames		",
+	"rx_ppp1_frames		",
+	"rx_ppp2_frames		",
+	"rx_ppp3_frames		",
+	"rx_ppp4_frames		",
+	"rx_ppp5_frames		",
+	"rx_ppp6_frames		",
+	"rx_ppp7_frames		",
 
-	"RxBG0FramesDropped ",
-	"RxBG1FramesDropped ",
-	"RxBG2FramesDropped ",
-	"RxBG3FramesDropped ",
-	"RxBG0FramesTrunc   ",
-	"RxBG1FramesTrunc   ",
-	"RxBG2FramesTrunc   ",
-	"RxBG3FramesTrunc   ",
+	"rx_bg0_frames_dropped	",
+	"rx_bg1_frames_dropped	",
+	"rx_bg2_frames_dropped	",
+	"rx_bg3_frames_dropped	",
+	"rx_bg0_frames_trunc	",
+	"rx_bg1_frames_trunc	",
+	"rx_bg2_frames_trunc	",
+	"rx_bg3_frames_trunc	",
 
-	"TSO                ",
-	"TxCsumOffload      ",
-	"RxCsumGood         ",
-	"VLANextractions    ",
-	"VLANinsertions     ",
-	"GROpackets         ",
-	"GROmerged          ",
+	"tso			",
+	"tx_csum_offload	",
+	"rx_csum_good		",
+	"vlan_extractions	",
+	"vlan_insertions	",
+	"gro_packets		",
+	"gro_merged		",
 };
 
 static char adapter_stats_strings[][ETH_GSTRING_LEN] = {
@@ -211,8 +211,11 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 		sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(adapter->pdev),
 		sizeof(info->bus_info));
+	info->regdump_len = get_regs_len(dev);
 
-	if (adapter->params.fw_vers)
+	if (!adapter->params.fw_vers)
+		strcpy(info->fw_version, "N/A");
+	else
 		snprintf(info->fw_version, sizeof(info->fw_version),
 			 "%u.%u.%u.%u, TP %u.%u.%u.%u",
 			 FW_HDR_FW_VER_MAJOR_G(adapter->params.fw_vers),
@@ -612,6 +615,8 @@ static int set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	struct port_info *p = netdev_priv(dev);
 	struct link_config *lc = &p->link_cfg;
 	u32 speed = ethtool_cmd_speed(cmd);
+	struct link_config old_lc;
+	int ret;
 
 	if (cmd->duplex != DUPLEX_FULL)     /* only full-duplex supported */
 		return -EINVAL;
@@ -626,13 +631,11 @@ static int set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		return -EINVAL;
 	}
 
+	old_lc = *lc;
 	if (cmd->autoneg == AUTONEG_DISABLE) {
 		cap = speed_to_caps(speed);
 
-		if (!(lc->supported & cap) ||
-		    (speed == 1000) ||
-		    (speed == 10000) ||
-		    (speed == 40000))
+		if (!(lc->supported & cap))
 			return -EINVAL;
 		lc->requested_speed = cap;
 		lc->advertising = 0;
@@ -645,10 +648,14 @@ static int set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	}
 	lc->autoneg = cmd->autoneg;
 
-	if (netif_running(dev))
-		return t4_link_l1cfg(p->adapter, p->adapter->pf, p->tx_chan,
-				     lc);
-	return 0;
+	/* If the firmware rejects the Link Configuration request, back out
+	 * the changes and report the error.
+	 */
+	ret = t4_link_l1cfg(p->adapter, p->adapter->mbox, p->tx_chan, lc);
+	if (ret)
+		*lc = old_lc;
+
+	return ret;
 }
 
 static void get_pauseparam(struct net_device *dev,
@@ -847,7 +854,7 @@ static int get_eeprom(struct net_device *dev, struct ethtool_eeprom *e,
 {
 	int i, err = 0;
 	struct adapter *adapter = netdev2adap(dev);
-	u8 *buf = kmalloc(EEPROMSIZE, GFP_KERNEL);
+	u8 *buf = t4_alloc_mem(EEPROMSIZE);
 
 	if (!buf)
 		return -ENOMEM;
@@ -858,7 +865,7 @@ static int get_eeprom(struct net_device *dev, struct ethtool_eeprom *e,
 
 	if (!err)
 		memcpy(data, buf + e->offset, e->len);
-	kfree(buf);
+	t4_free_mem(buf);
 	return err;
 }
 
@@ -887,7 +894,7 @@ static int set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	if (aligned_offset != eeprom->offset || aligned_len != eeprom->len) {
 		/* RMW possibly needed for first or last words.
 		 */
-		buf = kmalloc(aligned_len, GFP_KERNEL);
+		buf = t4_alloc_mem(aligned_len);
 		if (!buf)
 			return -ENOMEM;
 		err = eeprom_rd_phys(adapter, aligned_offset, (u32 *)buf);
@@ -915,7 +922,7 @@ static int set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 		err = t4_seeprom_wp(adapter, true);
 out:
 	if (buf != data)
-		kfree(buf);
+		t4_free_mem(buf);
 	return err;
 }
 
@@ -961,6 +968,20 @@ static int set_flash(struct net_device *netdev, struct ethtool_flash *ef)
 	return ret;
 }
 
+static int get_ts_info(struct net_device *dev, struct ethtool_ts_info *ts_info)
+{
+	ts_info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
+				   SOF_TIMESTAMPING_RX_SOFTWARE |
+				   SOF_TIMESTAMPING_SOFTWARE;
+
+	ts_info->so_timestamping |= SOF_TIMESTAMPING_RX_HARDWARE |
+				    SOF_TIMESTAMPING_RAW_HARDWARE;
+
+	ts_info->phc_index = -1;
+
+	return 0;
+}
+
 static u32 get_rss_table_size(struct net_device *dev)
 {
 	const struct port_info *pi = netdev_priv(dev);
@@ -997,11 +1018,15 @@ static int set_rss_table(struct net_device *dev, const u32 *p, const u8 *key,
 	if (!p)
 		return 0;
 
-	for (i = 0; i < pi->rss_size; i++)
-		pi->rss[i] = p[i];
-	if (pi->adapter->flags & FULL_INIT_DONE)
+	/* Interface must be brought up atleast once */
+	if (pi->adapter->flags & FULL_INIT_DONE) {
+		for (i = 0; i < pi->rss_size; i++)
+			pi->rss[i] = p[i];
+
 		return cxgb4_write_rss(pi, pi->rss);
-	return 0;
+	}
+
+	return -EPERM;
 }
 
 static int get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
@@ -1095,6 +1120,7 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_rxfh	   = get_rss_table,
 	.set_rxfh	   = set_rss_table,
 	.flash_device      = set_flash,
+	.get_ts_info       = get_ts_info
 };
 
 void cxgb4_set_ethtool_ops(struct net_device *netdev)

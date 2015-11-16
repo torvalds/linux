@@ -143,9 +143,7 @@ static int fjes_hw_alloc_epbuf(struct epbuf_handler *epbh)
 
 static void fjes_hw_free_epbuf(struct epbuf_handler *epbh)
 {
-	if (epbh->buffer)
-		vfree(epbh->buffer);
-
+	vfree(epbh->buffer);
 	epbh->buffer = NULL;
 	epbh->size = 0;
 
@@ -1011,11 +1009,11 @@ static void fjes_hw_update_zone_task(struct work_struct *work)
 					set_bit(epidx, &irq_bit);
 				break;
 			}
+
+			hw->ep_shm_info[epidx].es_status =
+				info[epidx].es_status;
+			hw->ep_shm_info[epidx].zone = info[epidx].zone;
 		}
-
-		hw->ep_shm_info[epidx].es_status = info[epidx].es_status;
-		hw->ep_shm_info[epidx].zone = info[epidx].zone;
-
 		break;
 	}
 

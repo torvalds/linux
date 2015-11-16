@@ -109,53 +109,53 @@
 /*
  * Bits defined in the send DMA descriptor.
  */
-#define SDMA_DESC0_FIRST_DESC_FLAG      (1ULL<<63)
-#define SDMA_DESC0_LAST_DESC_FLAG       (1ULL<<62)
+#define SDMA_DESC0_FIRST_DESC_FLAG      (1ULL << 63)
+#define SDMA_DESC0_LAST_DESC_FLAG       (1ULL << 62)
 #define SDMA_DESC0_BYTE_COUNT_SHIFT     48
 #define SDMA_DESC0_BYTE_COUNT_WIDTH     14
 #define SDMA_DESC0_BYTE_COUNT_MASK \
-	((1ULL<<SDMA_DESC0_BYTE_COUNT_WIDTH)-1ULL)
+	((1ULL << SDMA_DESC0_BYTE_COUNT_WIDTH) - 1)
 #define SDMA_DESC0_BYTE_COUNT_SMASK \
-	(SDMA_DESC0_BYTE_COUNT_MASK<<SDMA_DESC0_BYTE_COUNT_SHIFT)
+	(SDMA_DESC0_BYTE_COUNT_MASK << SDMA_DESC0_BYTE_COUNT_SHIFT)
 #define SDMA_DESC0_PHY_ADDR_SHIFT       0
 #define SDMA_DESC0_PHY_ADDR_WIDTH       48
 #define SDMA_DESC0_PHY_ADDR_MASK \
-	((1ULL<<SDMA_DESC0_PHY_ADDR_WIDTH)-1ULL)
+	((1ULL << SDMA_DESC0_PHY_ADDR_WIDTH) - 1)
 #define SDMA_DESC0_PHY_ADDR_SMASK \
-	(SDMA_DESC0_PHY_ADDR_MASK<<SDMA_DESC0_PHY_ADDR_SHIFT)
+	(SDMA_DESC0_PHY_ADDR_MASK << SDMA_DESC0_PHY_ADDR_SHIFT)
 
 #define SDMA_DESC1_HEADER_UPDATE1_SHIFT 32
 #define SDMA_DESC1_HEADER_UPDATE1_WIDTH 32
 #define SDMA_DESC1_HEADER_UPDATE1_MASK \
-	((1ULL<<SDMA_DESC1_HEADER_UPDATE1_WIDTH)-1ULL)
+	((1ULL << SDMA_DESC1_HEADER_UPDATE1_WIDTH) - 1)
 #define SDMA_DESC1_HEADER_UPDATE1_SMASK \
-	(SDMA_DESC1_HEADER_UPDATE1_MASK<<SDMA_DESC1_HEADER_UPDATE1_SHIFT)
+	(SDMA_DESC1_HEADER_UPDATE1_MASK << SDMA_DESC1_HEADER_UPDATE1_SHIFT)
 #define SDMA_DESC1_HEADER_MODE_SHIFT    13
 #define SDMA_DESC1_HEADER_MODE_WIDTH    3
 #define SDMA_DESC1_HEADER_MODE_MASK \
-	((1ULL<<SDMA_DESC1_HEADER_MODE_WIDTH)-1ULL)
+	((1ULL << SDMA_DESC1_HEADER_MODE_WIDTH) - 1)
 #define SDMA_DESC1_HEADER_MODE_SMASK \
-	(SDMA_DESC1_HEADER_MODE_MASK<<SDMA_DESC1_HEADER_MODE_SHIFT)
+	(SDMA_DESC1_HEADER_MODE_MASK << SDMA_DESC1_HEADER_MODE_SHIFT)
 #define SDMA_DESC1_HEADER_INDEX_SHIFT   8
 #define SDMA_DESC1_HEADER_INDEX_WIDTH   5
 #define SDMA_DESC1_HEADER_INDEX_MASK \
-	((1ULL<<SDMA_DESC1_HEADER_INDEX_WIDTH)-1ULL)
+	((1ULL << SDMA_DESC1_HEADER_INDEX_WIDTH) - 1)
 #define SDMA_DESC1_HEADER_INDEX_SMASK \
-	(SDMA_DESC1_HEADER_INDEX_MASK<<SDMA_DESC1_HEADER_INDEX_SHIFT)
+	(SDMA_DESC1_HEADER_INDEX_MASK << SDMA_DESC1_HEADER_INDEX_SHIFT)
 #define SDMA_DESC1_HEADER_DWS_SHIFT     4
 #define SDMA_DESC1_HEADER_DWS_WIDTH     4
 #define SDMA_DESC1_HEADER_DWS_MASK \
-	((1ULL<<SDMA_DESC1_HEADER_DWS_WIDTH)-1ULL)
+	((1ULL << SDMA_DESC1_HEADER_DWS_WIDTH) - 1)
 #define SDMA_DESC1_HEADER_DWS_SMASK \
-	(SDMA_DESC1_HEADER_DWS_MASK<<SDMA_DESC1_HEADER_DWS_SHIFT)
+	(SDMA_DESC1_HEADER_DWS_MASK << SDMA_DESC1_HEADER_DWS_SHIFT)
 #define SDMA_DESC1_GENERATION_SHIFT     2
 #define SDMA_DESC1_GENERATION_WIDTH     2
 #define SDMA_DESC1_GENERATION_MASK \
-	((1ULL<<SDMA_DESC1_GENERATION_WIDTH)-1ULL)
+	((1ULL << SDMA_DESC1_GENERATION_WIDTH) - 1)
 #define SDMA_DESC1_GENERATION_SMASK \
-	(SDMA_DESC1_GENERATION_MASK<<SDMA_DESC1_GENERATION_SHIFT)
-#define SDMA_DESC1_INT_REQ_FLAG         (1ULL<<1)
-#define SDMA_DESC1_HEAD_TO_HOST_FLAG    (1ULL<<0)
+	(SDMA_DESC1_GENERATION_MASK << SDMA_DESC1_GENERATION_SHIFT)
+#define SDMA_DESC1_INT_REQ_FLAG         (1ULL << 1)
+#define SDMA_DESC1_HEAD_TO_HOST_FLAG    (1ULL << 0)
 
 enum sdma_states {
 	sdma_state_s00_hw_down,
@@ -351,6 +351,8 @@ struct sdma_txreq {
 	struct sdma_desc *descp;
 	/* private: */
 	void *coalesce_buf;
+	/* private: */
+	u16 coalesce_idx;
 	/* private: */
 	struct iowait *wait;
 	/* private: */
@@ -735,7 +737,9 @@ static inline void make_tx_sdma_desc(
 }
 
 /* helper to extend txreq */
-int _extend_sdma_tx_descs(struct hfi1_devdata *, struct sdma_txreq *);
+int ext_coal_sdma_tx_descs(struct hfi1_devdata *dd, struct sdma_txreq *tx,
+			   int type, void *kvaddr, struct page *page,
+			   unsigned long offset, u16 len);
 int _pad_sdma_tx_descs(struct hfi1_devdata *, struct sdma_txreq *);
 void sdma_txclean(struct hfi1_devdata *, struct sdma_txreq *);
 
@@ -762,11 +766,6 @@ static inline int _sdma_txadd_daddr(
 {
 	int rval = 0;
 
-	if ((unlikely(tx->num_desc == tx->desc_limit))) {
-		rval = _extend_sdma_tx_descs(dd, tx);
-		if (rval)
-			return rval;
-	}
 	make_tx_sdma_desc(
 		tx,
 		type,
@@ -798,9 +797,7 @@ static inline int _sdma_txadd_daddr(
  *
  * Return:
  * 0 - success, -ENOSPC - mapping fail, -ENOMEM - couldn't
- * extend descriptor array or couldn't allocate coalesce
- * buffer.
- *
+ * extend/coalesce descriptor array
  */
 static inline int sdma_txadd_page(
 	struct hfi1_devdata *dd,
@@ -809,17 +806,28 @@ static inline int sdma_txadd_page(
 	unsigned long offset,
 	u16 len)
 {
-	dma_addr_t addr =
-		dma_map_page(
-			&dd->pcidev->dev,
-			page,
-			offset,
-			len,
-			DMA_TO_DEVICE);
+	dma_addr_t addr;
+	int rval;
+
+	if ((unlikely(tx->num_desc == tx->desc_limit))) {
+		rval = ext_coal_sdma_tx_descs(dd, tx, SDMA_MAP_PAGE,
+					      NULL, page, offset, len);
+		if (rval <= 0)
+			return rval;
+	}
+
+	addr = dma_map_page(
+		       &dd->pcidev->dev,
+		       page,
+		       offset,
+		       len,
+		       DMA_TO_DEVICE);
+
 	if (unlikely(dma_mapping_error(&dd->pcidev->dev, addr))) {
 		sdma_txclean(dd, tx);
 		return -ENOSPC;
 	}
+
 	return _sdma_txadd_daddr(
 			dd, SDMA_MAP_PAGE, tx, addr, len);
 }
@@ -846,6 +854,15 @@ static inline int sdma_txadd_daddr(
 	dma_addr_t addr,
 	u16 len)
 {
+	int rval;
+
+	if ((unlikely(tx->num_desc == tx->desc_limit))) {
+		rval = ext_coal_sdma_tx_descs(dd, tx, SDMA_MAP_NONE,
+					      NULL, NULL, 0, 0);
+		if (rval <= 0)
+			return rval;
+	}
+
 	return _sdma_txadd_daddr(dd, SDMA_MAP_NONE, tx, addr, len);
 }
 
@@ -862,7 +879,7 @@ static inline int sdma_txadd_daddr(
  * The mapping/unmapping of the kvaddr and len is automatically handled.
  *
  * Return:
- * 0 - success, -ENOSPC - mapping fail, -ENOMEM - couldn't extend
+ * 0 - success, -ENOSPC - mapping fail, -ENOMEM - couldn't extend/coalesce
  * descriptor array
  */
 static inline int sdma_txadd_kvaddr(
@@ -871,16 +888,27 @@ static inline int sdma_txadd_kvaddr(
 	void *kvaddr,
 	u16 len)
 {
-	dma_addr_t addr =
-		dma_map_single(
-			&dd->pcidev->dev,
-			kvaddr,
-			len,
-			DMA_TO_DEVICE);
+	dma_addr_t addr;
+	int rval;
+
+	if ((unlikely(tx->num_desc == tx->desc_limit))) {
+		rval = ext_coal_sdma_tx_descs(dd, tx, SDMA_MAP_SINGLE,
+					      kvaddr, NULL, 0, len);
+		if (rval <= 0)
+			return rval;
+	}
+
+	addr = dma_map_single(
+		       &dd->pcidev->dev,
+		       kvaddr,
+		       len,
+		       DMA_TO_DEVICE);
+
 	if (unlikely(dma_mapping_error(&dd->pcidev->dev, addr))) {
 		sdma_txclean(dd, tx);
 		return -ENOSPC;
 	}
+
 	return _sdma_txadd_daddr(
 			dd, SDMA_MAP_SINGLE, tx, addr, len);
 }

@@ -24,6 +24,7 @@
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pxa-i2c.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 
 #include <media/mt9v022.h>
@@ -148,11 +149,14 @@ static struct pxafb_mach_info pcm990_fbinfo __initdata = {
 };
 #endif
 
+static struct pwm_lookup pcm990_pwm_lookup[] = {
+	PWM_LOOKUP("pxa27x-pwm.0", 0, "pwm-backlight.0", NULL, 78770,
+		   PWM_POLARITY_NORMAL),
+};
+
 static struct platform_pwm_backlight_data pcm990_backlight_data = {
-	.pwm_id		= 0,
 	.max_brightness	= 1023,
 	.dft_brightness	= 1023,
-	.pwm_period_ns	= 78770,
 	.enable_gpio	= -1,
 };
 
@@ -284,7 +288,7 @@ static struct irq_chip pcm990_irq_chip = {
 	.irq_unmask	= pcm990_unmask_irq,
 };
 
-static void pcm990_irq_handler(unsigned int __irq, struct irq_desc *desc)
+static void pcm990_irq_handler(struct irq_desc *desc)
 {
 	unsigned int irq;
 	unsigned long pending;
@@ -542,6 +546,7 @@ void __init pcm990_baseboard_init(void)
 #ifndef CONFIG_PCM990_DISPLAY_NONE
 	pxa_set_fb_info(NULL, &pcm990_fbinfo);
 #endif
+	pwm_add_table(pcm990_pwm_lookup, ARRAY_SIZE(pcm990_pwm_lookup));
 	platform_device_register(&pcm990_backlight_device);
 
 	/* MMC */

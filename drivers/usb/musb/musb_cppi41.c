@@ -551,6 +551,9 @@ static int cppi41_dma_channel_abort(struct dma_channel *channel)
 	} else {
 		cppi41_set_autoreq_mode(cppi41_channel, EP_MODE_AUTOREQ_NONE);
 
+		/* delay to drain to cppi dma pipeline for isoch */
+		udelay(250);
+
 		csr = musb_readw(epio, MUSB_RXCSR);
 		csr &= ~(MUSB_RXCSR_H_REQPKT | MUSB_RXCSR_DMAENAB);
 		musb_writew(epio, MUSB_RXCSR, csr);

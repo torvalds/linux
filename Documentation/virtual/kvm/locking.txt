@@ -166,3 +166,15 @@ Comment:	The srcu read lock must be held while accessing memslots (e.g.
 		MMIO/PIO address->device structure mapping (kvm->buses).
 		The srcu index can be stored in kvm_vcpu->srcu_idx per vcpu
 		if it is needed by multiple functions.
+
+Name:		blocked_vcpu_on_cpu_lock
+Type:		spinlock_t
+Arch:		x86
+Protects:	blocked_vcpu_on_cpu
+Comment:	This is a per-CPU lock and it is used for VT-d posted-interrupts.
+		When VT-d posted-interrupts is supported and the VM has assigned
+		devices, we put the blocked vCPU on the list blocked_vcpu_on_cpu
+		protected by blocked_vcpu_on_cpu_lock, when VT-d hardware issues
+		wakeup notification event since external interrupts from the
+		assigned devices happens, we will find the vCPU on the list to
+		wakeup.

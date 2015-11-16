@@ -2400,6 +2400,7 @@ bna_rx_create(struct bna *bna, struct bnad *bnad,
 		q0->rcb->id = 0;
 		q0->rx_packets = q0->rx_bytes = 0;
 		q0->rx_packets_with_error = q0->rxbuf_alloc_failed = 0;
+		q0->rxbuf_map_failed = 0;
 
 		bna_rxq_qpt_setup(q0, rxp, dpage_count, PAGE_SIZE,
 			&dqpt_mem[i], &dsqpt_mem[i], &dpage_mem[i]);
@@ -2428,6 +2429,7 @@ bna_rx_create(struct bna *bna, struct bnad *bnad,
 					: rx_cfg->q1_buf_size;
 			q1->rx_packets = q1->rx_bytes = 0;
 			q1->rx_packets_with_error = q1->rxbuf_alloc_failed = 0;
+			q1->rxbuf_map_failed = 0;
 
 			bna_rxq_qpt_setup(q1, rxp, hpage_count, PAGE_SIZE,
 				&hqpt_mem[i], &hsqpt_mem[i],

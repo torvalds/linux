@@ -280,10 +280,6 @@ void omap3_vc_set_pmic_signaling(int core_next_state)
 	}
 }
 
-#define PRM_POLCTRL_TWL_MASK	(OMAP3430_PRM_POLCTRL_CLKREQ_POL | \
-					OMAP3430_PRM_POLCTRL_CLKREQ_POL)
-#define PRM_POLCTRL_TWL_VAL	OMAP3430_PRM_POLCTRL_CLKREQ_POL
-
 /*
  * Configure signal polarity for sys_clkreq and sys_off_mode pins
  * as the default values are wrong and can cause the system to hang
@@ -300,7 +296,7 @@ static void __init omap3_vc_init_pmic_signaling(struct voltagedomain *voltdm)
 
 	val = voltdm->read(OMAP3_PRM_POLCTRL_OFFSET);
 	if (!(val & OMAP3430_PRM_POLCTRL_CLKREQ_POL) ||
-	    (val & OMAP3430_PRM_POLCTRL_CLKREQ_POL)) {
+	    (val & OMAP3430_PRM_POLCTRL_OFFMODE_POL)) {
 		val |= OMAP3430_PRM_POLCTRL_CLKREQ_POL;
 		val &= ~OMAP3430_PRM_POLCTRL_OFFMODE_POL;
 		pr_debug("PM: fixing sys_clkreq and sys_off_mode polarity to 0x%x\n",

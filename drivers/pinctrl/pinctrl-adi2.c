@@ -530,8 +530,7 @@ static inline void preflow_handler(struct irq_desc *desc)
 static inline void preflow_handler(struct irq_desc *desc) { }
 #endif
 
-static void adi_gpio_handle_pint_irq(unsigned int inta_irq,
-			struct irq_desc *desc)
+static void adi_gpio_handle_pint_irq(struct irq_desc *desc)
 {
 	u32 request;
 	u32 level_mask, hwirq;
@@ -713,16 +712,6 @@ static struct pinctrl_desc adi_pinmux_desc = {
 	.pmxops = &adi_pinmux_ops,
 	.owner = THIS_MODULE,
 };
-
-static int adi_gpio_request(struct gpio_chip *chip, unsigned offset)
-{
-	return pinctrl_request_gpio(chip->base + offset);
-}
-
-static void adi_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-	pinctrl_free_gpio(chip->base + offset);
-}
 
 static int adi_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
@@ -995,8 +984,8 @@ static int adi_gpio_probe(struct platform_device *pdev)
 	port->chip.get			= adi_gpio_get_value;
 	port->chip.direction_output	= adi_gpio_direction_output;
 	port->chip.set			= adi_gpio_set_value;
-	port->chip.request		= adi_gpio_request;
-	port->chip.free			= adi_gpio_free;
+	port->chip.request		= gpiochip_generic_request,
+	port->chip.free			= gpiochip_generic_free,
 	port->chip.to_irq		= adi_gpio_to_irq;
 	if (pdata->port_gpio_base > 0)
 		port->chip.base		= pdata->port_gpio_base;

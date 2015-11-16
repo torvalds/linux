@@ -63,20 +63,8 @@ static int platform_msi_init(struct irq_domain *domain,
 			     unsigned int virq, irq_hw_number_t hwirq,
 			     msi_alloc_info_t *arg)
 {
-	struct irq_data *data;
-
-	irq_domain_set_hwirq_and_chip(domain, virq, hwirq,
-				      info->chip, info->chip_data);
-
-	/*
-	 * Save the MSI descriptor in handler_data so that the
-	 * irq_write_msi_msg callback can retrieve it (and the
-	 * associated device).
-	 */
-	data = irq_domain_get_irq_data(domain, virq);
-	data->handler_data = arg->desc;
-
-	return 0;
+	return irq_domain_set_hwirq_and_chip(domain, virq, hwirq,
+					     info->chip, info->chip_data);
 }
 #else
 #define platform_msi_set_desc		NULL
@@ -97,7 +85,7 @@ static void platform_msi_update_dom_ops(struct msi_domain_info *info)
 
 static void platform_msi_write_msg(struct irq_data *data, struct msi_msg *msg)
 {
-	struct msi_desc *desc = irq_data_get_irq_handler_data(data);
+	struct msi_desc *desc = irq_data_get_msi_desc(data);
 	struct platform_msi_priv_data *priv_data;
 
 	priv_data = desc->platform.msi_priv_data;
@@ -164,7 +152,7 @@ static int platform_msi_alloc_descs(struct device *dev, int nvec,
 
 /**
  * platform_msi_create_irq_domain - Create a platform MSI interrupt domain
- * @np:		Optional device-tree node of the interrupt controller
+ * @fwnode:		Optional fwnode of the interrupt controller
  * @info:	MSI domain info
  * @parent:	Parent irq domain
  *
@@ -174,7 +162,7 @@ static int platform_msi_alloc_descs(struct device *dev, int nvec,
  * Returns:
  * A domain pointer or NULL in case of failure.
  */
-struct irq_domain *platform_msi_create_irq_domain(struct device_node *np,
+struct irq_domain *platform_msi_create_irq_domain(struct fwnode_handle *fwnode,
 						  struct msi_domain_info *info,
 						  struct irq_domain *parent)
 {
@@ -185,7 +173,7 @@ struct irq_domain *platform_msi_create_irq_domain(struct device_node *np,
 	if (info->flags & MSI_FLAG_USE_DEF_CHIP_OPS)
 		platform_msi_update_chip_ops(info);
 
-	domain = msi_create_irq_domain(np, info, parent);
+	domain = msi_create_irq_domain(fwnode, info, parent);
 	if (domain)
 		domain->bus_token = DOMAIN_BUS_PLATFORM_MSI;
 

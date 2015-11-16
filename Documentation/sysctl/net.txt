@@ -54,13 +54,15 @@ default_qdisc
 --------------
 
 The default queuing discipline to use for network devices. This allows
-overriding the default queue discipline of pfifo_fast with an
-alternative. Since the default queuing discipline is created with the
-no additional parameters so is best suited to queuing disciplines that
-work well without configuration like stochastic fair queue (sfq),
-CoDel (codel) or fair queue CoDel (fq_codel). Don't use queuing disciplines
-like Hierarchical Token Bucket or Deficit Round Robin which require setting
-up classes and bandwidths.
+overriding the default of pfifo_fast with an alternative. Since the default
+queuing discipline is created without additional parameters so is best suited
+to queuing disciplines that work well without configuration like stochastic
+fair queue (sfq), CoDel (codel) or fair queue CoDel (fq_codel). Don't use
+queuing disciplines like Hierarchical Token Bucket or Deficit Round Robin
+which require setting up classes and bandwidths. Note that physical multiqueue
+interfaces still use mq as root qdisc, which in turn uses this default for its
+leaves. Virtual devices (like e.g. lo or veth) ignore this setting and instead
+default to noqueue.
 Default: pfifo_fast
 
 busy_read

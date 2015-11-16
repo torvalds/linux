@@ -256,7 +256,7 @@ static int xgene_allocate_domains(struct xgene_msi *msi)
 	if (!msi->inner_domain)
 		return -ENOMEM;
 
-	msi->msi_domain = pci_msi_create_irq_domain(msi->node,
+	msi->msi_domain = pci_msi_create_irq_domain(of_node_to_fwnode(msi->node),
 						    &xgene_msi_domain_info,
 						    msi->inner_domain);
 
@@ -295,7 +295,7 @@ static int xgene_msi_init_allocator(struct xgene_msi *xgene_msi)
 	return 0;
 }
 
-static void xgene_msi_isr(unsigned int irq, struct irq_desc *desc)
+static void xgene_msi_isr(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct xgene_msi_group *msi_groups;

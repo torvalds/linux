@@ -860,7 +860,7 @@ static void __nmk_gpio_irq_handler(struct irq_desc *desc, u32 status)
 	chained_irq_exit(host_chip, desc);
 }
 
-static void nmk_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void nmk_gpio_irq_handler(struct irq_desc *desc)
 {
 	struct gpio_chip *chip = irq_desc_get_handler_data(desc);
 	struct nmk_gpio_chip *nmk_chip = container_of(chip, struct nmk_gpio_chip, chip);
@@ -873,7 +873,7 @@ static void nmk_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 	__nmk_gpio_irq_handler(desc, status);
 }
 
-static void nmk_gpio_latent_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void nmk_gpio_latent_irq_handler(struct irq_desc *desc)
 {
 	struct gpio_chip *chip = irq_desc_get_handler_data(desc);
 	struct nmk_gpio_chip *nmk_chip = container_of(chip, struct nmk_gpio_chip, chip);
@@ -883,24 +883,6 @@ static void nmk_gpio_latent_irq_handler(unsigned int irq, struct irq_desc *desc)
 }
 
 /* I/O Functions */
-
-static int nmk_gpio_request(struct gpio_chip *chip, unsigned offset)
-{
-	/*
-	 * Map back to global GPIO space and request muxing, the direction
-	 * parameter does not matter for this controller.
-	 */
-	int gpio = chip->base + offset;
-
-	return pinctrl_request_gpio(gpio);
-}
-
-static void nmk_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-	int gpio = chip->base + offset;
-
-	pinctrl_free_gpio(gpio);
-}
 
 static int nmk_gpio_make_input(struct gpio_chip *chip, unsigned offset)
 {
@@ -1267,8 +1249,8 @@ static int nmk_gpio_probe(struct platform_device *dev)
 	spin_lock_init(&nmk_chip->lock);
 
 	chip = &nmk_chip->chip;
-	chip->request = nmk_gpio_request;
-	chip->free = nmk_gpio_free;
+	chip->request = gpiochip_generic_request;
+	chip->free = gpiochip_generic_free;
 	chip->direction_input = nmk_gpio_make_input;
 	chip->get = nmk_gpio_get_input;
 	chip->direction_output = nmk_gpio_make_output;

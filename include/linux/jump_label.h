@@ -21,8 +21,8 @@
  *
  * DEFINE_STATIC_KEY_TRUE(key);
  * DEFINE_STATIC_KEY_FALSE(key);
- * static_key_likely()
- * statick_key_unlikely()
+ * static_branch_likely()
+ * static_branch_unlikely()
  *
  * Jump labels provide an interface to generate dynamic branches using
  * self-modifying code. Assuming toolchain and architecture support, if we
@@ -45,12 +45,10 @@
  * statement, setting the key to true requires us to patch in a jump
  * to the out-of-line of true branch.
  *
- * In addtion to static_branch_{enable,disable}, we can also reference count
+ * In addition to static_branch_{enable,disable}, we can also reference count
  * the key or branch direction via static_branch_{inc,dec}. Thus,
  * static_branch_inc() can be thought of as a 'make more true' and
- * static_branch_dec() as a 'make more false'. The inc()/dec()
- * interface is meant to be used exclusively from the inc()/dec() for a given
- * key.
+ * static_branch_dec() as a 'make more false'.
  *
  * Since this relies on modifying code, the branch modifying functions
  * must be considered absolute slow paths (machine wide synchronization etc.).
@@ -216,11 +214,6 @@ static inline int jump_label_apply_nops(struct module *mod)
 #define STATIC_KEY_INIT STATIC_KEY_INIT_FALSE
 #define jump_label_enabled static_key_enabled
 
-static inline bool static_key_enabled(struct static_key *key)
-{
-	return static_key_count(key) > 0;
-}
-
 static inline void static_key_enable(struct static_key *key)
 {
 	int count = static_key_count(key);
@@ -266,6 +259,17 @@ struct static_key_false {
 
 #define DEFINE_STATIC_KEY_FALSE(name)	\
 	struct static_key_false name = STATIC_KEY_FALSE_INIT
+
+extern bool ____wrong_branch_error(void);
+
+#define static_key_enabled(x)							\
+({										\
+	if (!__builtin_types_compatible_p(typeof(*x), struct static_key) &&	\
+	    !__builtin_types_compatible_p(typeof(*x), struct static_key_true) &&\
+	    !__builtin_types_compatible_p(typeof(*x), struct static_key_false))	\
+		____wrong_branch_error();					\
+	static_key_count((struct static_key *)x) > 0;				\
+})
 
 #ifdef HAVE_JUMP_LABEL
 
@@ -324,8 +328,6 @@ struct static_key_false {
  *
  * See jump_label_type() / jump_label_init_type().
  */
-
-extern bool ____wrong_branch_error(void);
 
 #define static_branch_likely(x)							\
 ({										\

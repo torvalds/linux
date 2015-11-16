@@ -61,6 +61,7 @@ static const struct of_device_id ccf_matches[] = {
 	},
 	{}
 };
+MODULE_DEVICE_TABLE(of, ccf_matches);
 
 struct ccf_err_regs {
 	u32 errdet;		/* 0x00 Error Detect Register */

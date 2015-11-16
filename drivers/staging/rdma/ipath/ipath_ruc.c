@@ -31,7 +31,6 @@
  * SOFTWARE.
  */
 
-#include <linux/sched.h>
 #include <linux/spinlock.h>
 
 #include "ipath_verbs.h"
@@ -353,8 +352,8 @@ again:
 		if (wqe->length == 0)
 			break;
 		if (unlikely(!ipath_rkey_ok(qp, &qp->r_sge, wqe->length,
-					    wqe->wr.wr.rdma.remote_addr,
-					    wqe->wr.wr.rdma.rkey,
+					    wqe->rdma_wr.remote_addr,
+					    wqe->rdma_wr.rkey,
 					    IB_ACCESS_REMOTE_WRITE)))
 			goto acc_err;
 		break;
@@ -363,8 +362,8 @@ again:
 		if (unlikely(!(qp->qp_access_flags & IB_ACCESS_REMOTE_READ)))
 			goto inv_err;
 		if (unlikely(!ipath_rkey_ok(qp, &sqp->s_sge, wqe->length,
-					    wqe->wr.wr.rdma.remote_addr,
-					    wqe->wr.wr.rdma.rkey,
+					    wqe->rdma_wr.remote_addr,
+					    wqe->rdma_wr.rkey,
 					    IB_ACCESS_REMOTE_READ)))
 			goto acc_err;
 		qp->r_sge.sge = wqe->sg_list[0];
@@ -377,18 +376,18 @@ again:
 		if (unlikely(!(qp->qp_access_flags & IB_ACCESS_REMOTE_ATOMIC)))
 			goto inv_err;
 		if (unlikely(!ipath_rkey_ok(qp, &qp->r_sge, sizeof(u64),
-					    wqe->wr.wr.atomic.remote_addr,
-					    wqe->wr.wr.atomic.rkey,
+					    wqe->atomic_wr.remote_addr,
+					    wqe->atomic_wr.rkey,
 					    IB_ACCESS_REMOTE_ATOMIC)))
 			goto acc_err;
 		/* Perform atomic OP and save result. */
 		maddr = (atomic64_t *) qp->r_sge.sge.vaddr;
-		sdata = wqe->wr.wr.atomic.compare_add;
+		sdata = wqe->atomic_wr.compare_add;
 		*(u64 *) sqp->s_sge.sge.vaddr =
 			(wqe->wr.opcode == IB_WR_ATOMIC_FETCH_AND_ADD) ?
 			(u64) atomic64_add_return(sdata, maddr) - sdata :
 			(u64) cmpxchg((u64 *) qp->r_sge.sge.vaddr,
-				      sdata, wqe->wr.wr.atomic.swap);
+				      sdata, wqe->atomic_wr.swap);
 		goto send_comp;
 
 	default:

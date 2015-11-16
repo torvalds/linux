@@ -909,7 +909,6 @@ static int dataflash_remove(struct spi_device *spi)
 static struct spi_driver dataflash_driver = {
 	.driver = {
 		.name		= "mtd_dataflash",
-		.owner		= THIS_MODULE,
 		.of_match_table = of_match_ptr(dataflash_dt_ids),
 	},
 

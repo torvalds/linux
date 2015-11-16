@@ -95,7 +95,7 @@ void it8152_init_irq(void)
 	}
 }
 
-void it8152_irq_demux(unsigned int irq, struct irq_desc *desc)
+void it8152_irq_demux(struct irq_desc *desc)
 {
        int bits_pd, bits_lp, bits_ld;
        int i;

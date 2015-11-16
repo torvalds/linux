@@ -333,7 +333,8 @@ int clk_add_alias(const char *alias, const char *alias_dev_name,
 	if (IS_ERR(r))
 		return PTR_ERR(r);
 
-	l = clkdev_create(r, alias, "%s", alias_dev_name);
+	l = clkdev_create(r, alias, alias_dev_name ? "%s" : NULL,
+			  alias_dev_name);
 	clk_put(r);
 
 	return l ? 0 : -ENODEV;

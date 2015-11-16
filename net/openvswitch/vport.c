@@ -280,35 +280,19 @@ void ovs_vport_del(struct vport *vport)
  */
 void ovs_vport_get_stats(struct vport *vport, struct ovs_vport_stats *stats)
 {
-	struct net_device *dev = vport->dev;
-	int i;
+	const struct rtnl_link_stats64 *dev_stats;
+	struct rtnl_link_stats64 temp;
 
-	memset(stats, 0, sizeof(*stats));
-	stats->rx_errors  = dev->stats.rx_errors;
-	stats->tx_errors  = dev->stats.tx_errors;
-	stats->tx_dropped = dev->stats.tx_dropped;
-	stats->rx_dropped = dev->stats.rx_dropped;
+	dev_stats = dev_get_stats(vport->dev, &temp);
+	stats->rx_errors  = dev_stats->rx_errors;
+	stats->tx_errors  = dev_stats->tx_errors;
+	stats->tx_dropped = dev_stats->tx_dropped;
+	stats->rx_dropped = dev_stats->rx_dropped;
 
-	stats->rx_dropped += atomic_long_read(&dev->rx_dropped);
-	stats->tx_dropped += atomic_long_read(&dev->tx_dropped);
-
-	for_each_possible_cpu(i) {
-		const struct pcpu_sw_netstats *percpu_stats;
-		struct pcpu_sw_netstats local_stats;
-		unsigned int start;
-
-		percpu_stats = per_cpu_ptr(dev->tstats, i);
-
-		do {
-			start = u64_stats_fetch_begin_irq(&percpu_stats->syncp);
-			local_stats = *percpu_stats;
-		} while (u64_stats_fetch_retry_irq(&percpu_stats->syncp, start));
-
-		stats->rx_bytes		+= local_stats.rx_bytes;
-		stats->rx_packets	+= local_stats.rx_packets;
-		stats->tx_bytes		+= local_stats.tx_bytes;
-		stats->tx_packets	+= local_stats.tx_packets;
-	}
+	stats->rx_bytes	  = dev_stats->rx_bytes;
+	stats->rx_packets = dev_stats->rx_packets;
+	stats->tx_bytes	  = dev_stats->tx_bytes;
+	stats->tx_packets = dev_stats->tx_packets;
 }
 
 /**
@@ -460,6 +444,15 @@ int ovs_vport_receive(struct vport *vport, struct sk_buff *skb,
 
 	OVS_CB(skb)->input_vport = vport;
 	OVS_CB(skb)->mru = 0;
+	if (unlikely(dev_net(skb->dev) != ovs_dp_get_net(vport->dp))) {
+		u32 mark;
+
+		mark = skb->mark;
+		skb_scrub_packet(skb, true);
+		skb->mark = mark;
+		tun_info = NULL;
+	}
+
 	/* Extract flow from 'skb' into 'key'. */
 	error = ovs_flow_key_extract(tun_info, skb, &key);
 	if (unlikely(error)) {
@@ -487,60 +480,32 @@ void ovs_vport_deferred_free(struct vport *vport)
 }
 EXPORT_SYMBOL_GPL(ovs_vport_deferred_free);
 
-int ovs_tunnel_get_egress_info(struct dp_upcall_info *upcall,
-			       struct net *net,
-			       struct sk_buff *skb,
-			       u8 ipproto,
-			       __be16 tp_src,
-			       __be16 tp_dst)
+static unsigned int packet_length(const struct sk_buff *skb)
 {
-	struct ip_tunnel_info *egress_tun_info = upcall->egress_tun_info;
-	const struct ip_tunnel_info *tun_info = skb_tunnel_info(skb);
-	const struct ip_tunnel_key *tun_key;
-	u32 skb_mark = skb->mark;
-	struct rtable *rt;
-	struct flowi4 fl;
+	unsigned int length = skb->len - ETH_HLEN;
 
-	if (unlikely(!tun_info))
-		return -EINVAL;
-	if (ip_tunnel_info_af(tun_info) != AF_INET)
-		return -EINVAL;
+	if (skb->protocol == htons(ETH_P_8021Q))
+		length -= VLAN_HLEN;
 
-	tun_key = &tun_info->key;
-
-	/* Route lookup to get srouce IP address.
-	 * The process may need to be changed if the corresponding process
-	 * in vports ops changed.
-	 */
-	rt = ovs_tunnel_route_lookup(net, tun_key, skb_mark, &fl, ipproto);
-	if (IS_ERR(rt))
-		return PTR_ERR(rt);
-
-	ip_rt_put(rt);
-
-	/* Generate egress_tun_info based on tun_info,
-	 * saddr, tp_src and tp_dst
-	 */
-	ip_tunnel_key_init(&egress_tun_info->key,
-			   fl.saddr, tun_key->u.ipv4.dst,
-			   tun_key->tos,
-			   tun_key->ttl,
-			   tp_src, tp_dst,
-			   tun_key->tun_id,
-			   tun_key->tun_flags);
-	egress_tun_info->options_len = tun_info->options_len;
-	egress_tun_info->mode = tun_info->mode;
-	upcall->egress_tun_opts = ip_tunnel_info_opts(egress_tun_info);
-	return 0;
+	return length;
 }
-EXPORT_SYMBOL_GPL(ovs_tunnel_get_egress_info);
 
-int ovs_vport_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
-				  struct dp_upcall_info *upcall)
+void ovs_vport_send(struct vport *vport, struct sk_buff *skb)
 {
-	/* get_egress_tun_info() is only implemented on tunnel ports. */
-	if (unlikely(!vport->ops->get_egress_tun_info))
-		return -EINVAL;
+	int mtu = vport->dev->mtu;
 
-	return vport->ops->get_egress_tun_info(vport, skb, upcall);
+	if (unlikely(packet_length(skb) > mtu && !skb_is_gso(skb))) {
+		net_warn_ratelimited("%s: dropped over-mtu packet: %d > %d\n",
+				     vport->dev->name,
+				     packet_length(skb), mtu);
+		vport->dev->stats.tx_errors++;
+		goto drop;
+	}
+
+	skb->dev = vport->dev;
+	vport->ops->send(skb);
+	return;
+
+drop:
+	kfree_skb(skb);
 }

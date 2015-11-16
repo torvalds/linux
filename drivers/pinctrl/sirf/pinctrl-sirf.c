@@ -545,7 +545,7 @@ static struct irq_chip sirfsoc_irq_chip = {
 	.irq_set_type = sirfsoc_gpio_irq_type,
 };
 
-static void sirfsoc_gpio_handle_irq(unsigned int __irq, struct irq_desc *desc)
+static void sirfsoc_gpio_handle_irq(struct irq_desc *desc)
 {
 	unsigned int irq = irq_desc_get_irq(desc);
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
@@ -570,7 +570,7 @@ static void sirfsoc_gpio_handle_irq(unsigned int __irq, struct irq_desc *desc)
 		printk(KERN_WARNING
 			"%s: gpio id %d status %#x no interrupt is flagged\n",
 			__func__, bank->id, status);
-		handle_bad_irq(irq, desc);
+		handle_bad_irq(desc);
 		return;
 	}
 

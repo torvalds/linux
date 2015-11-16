@@ -2,6 +2,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+u8 kallsyms2elf_type(char type)
+{
+	type = tolower(type);
+	return (type == 't' || type == 'w') ? STT_FUNC : STT_OBJECT;
+}
+
 int kallsyms__parse(const char *filename, void *arg,
 		    int (*process_symbol)(void *arg, const char *name,
 					  char type, u64 start))

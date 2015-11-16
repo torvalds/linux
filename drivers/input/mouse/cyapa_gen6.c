@@ -241,14 +241,10 @@ static int cyapa_gen6_read_sys_info(struct cyapa *cyapa)
 	memcpy(&cyapa->product_id[13], &resp_data[62], 2);
 	cyapa->product_id[15] = '\0';
 
+	/* Get the number of Rx electrodes. */
 	rotat_align = resp_data[68];
-	if (rotat_align) {
-		cyapa->electrodes_rx = cyapa->electrodes_y;
-		cyapa->electrodes_rx = cyapa->electrodes_y;
-	} else {
-		cyapa->electrodes_rx = cyapa->electrodes_x;
-		cyapa->electrodes_rx = cyapa->electrodes_y;
-	}
+	cyapa->electrodes_rx =
+		rotat_align ? cyapa->electrodes_y : cyapa->electrodes_x;
 	cyapa->aligned_electrodes_rx = (cyapa->electrodes_rx + 3) & ~3u;
 
 	if (!cyapa->electrodes_x || !cyapa->electrodes_y ||

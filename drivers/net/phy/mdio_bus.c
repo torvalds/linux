@@ -167,7 +167,9 @@ static int of_mdio_bus_match(struct device *dev, const void *mdio_bus_np)
  * of_mdio_find_bus - Given an mii_bus node, find the mii_bus.
  * @mdio_bus_np: Pointer to the mii_bus.
  *
- * Returns a pointer to the mii_bus, or NULL if none found.
+ * Returns a reference to the mii_bus, or NULL if none found.  The
+ * embedded struct device will have its reference count incremented,
+ * and this must be put once the bus is finished with.
  *
  * Because the association of a device_node and mii_bus is made via
  * of_mdiobus_register(), the mii_bus cannot be found before it is
@@ -234,15 +236,18 @@ static inline void of_mdiobus_link_phydev(struct mii_bus *mdio,
 #endif
 
 /**
- * mdiobus_register - bring up all the PHYs on a given bus and attach them to bus
+ * __mdiobus_register - bring up all the PHYs on a given bus and attach them to bus
  * @bus: target mii_bus
+ * @owner: module containing bus accessor functions
  *
  * Description: Called by a bus driver to bring up all the PHYs
- *   on a given bus, and attach them to the bus.
+ *   on a given bus, and attach them to the bus. Drivers should use
+ *   mdiobus_register() rather than __mdiobus_register() unless they
+ *   need to pass a specific owner module.
  *
  * Returns 0 on success or < 0 on error.
  */
-int mdiobus_register(struct mii_bus *bus)
+int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 {
 	int i, err;
 
@@ -253,6 +258,7 @@ int mdiobus_register(struct mii_bus *bus)
 	BUG_ON(bus->state != MDIOBUS_ALLOCATED &&
 	       bus->state != MDIOBUS_UNREGISTERED);
 
+	bus->owner = owner;
 	bus->dev.parent = bus->parent;
 	bus->dev.class = &mdio_bus_class;
 	bus->dev.groups = NULL;
@@ -288,13 +294,16 @@ int mdiobus_register(struct mii_bus *bus)
 
 error:
 	while (--i >= 0) {
-		if (bus->phy_map[i])
-			device_unregister(&bus->phy_map[i]->dev);
+		struct phy_device *phydev = bus->phy_map[i];
+		if (phydev) {
+			phy_device_remove(phydev);
+			phy_device_free(phydev);
+		}
 	}
 	device_del(&bus->dev);
 	return err;
 }
-EXPORT_SYMBOL(mdiobus_register);
+EXPORT_SYMBOL(__mdiobus_register);
 
 void mdiobus_unregister(struct mii_bus *bus)
 {
@@ -304,9 +313,11 @@ void mdiobus_unregister(struct mii_bus *bus)
 	bus->state = MDIOBUS_UNREGISTERED;
 
 	for (i = 0; i < PHY_MAX_ADDR; i++) {
-		if (bus->phy_map[i])
-			device_unregister(&bus->phy_map[i]->dev);
-		bus->phy_map[i] = NULL;
+		struct phy_device *phydev = bus->phy_map[i];
+		if (phydev) {
+			phy_device_remove(phydev);
+			phy_device_free(phydev);
+		}
 	}
 	device_del(&bus->dev);
 }
@@ -361,6 +372,33 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr)
 EXPORT_SYMBOL(mdiobus_scan);
 
 /**
+ * mdiobus_read_nested - Nested version of the mdiobus_read function
+ * @bus: the mii_bus struct
+ * @addr: the phy address
+ * @regnum: register number to read
+ *
+ * In case of nested MDIO bus access avoid lockdep false positives by
+ * using mutex_lock_nested().
+ *
+ * NOTE: MUST NOT be called from interrupt context,
+ * because the bus read/write functions may wait for an interrupt
+ * to conclude the operation.
+ */
+int mdiobus_read_nested(struct mii_bus *bus, int addr, u32 regnum)
+{
+	int retval;
+
+	BUG_ON(in_interrupt());
+
+	mutex_lock_nested(&bus->mdio_lock, SINGLE_DEPTH_NESTING);
+	retval = bus->read(bus, addr, regnum);
+	mutex_unlock(&bus->mdio_lock);
+
+	return retval;
+}
+EXPORT_SYMBOL(mdiobus_read_nested);
+
+/**
  * mdiobus_read - Convenience function for reading a given MII mgmt register
  * @bus: the mii_bus struct
  * @addr: the phy address
@@ -383,6 +421,34 @@ int mdiobus_read(struct mii_bus *bus, int addr, u32 regnum)
 	return retval;
 }
 EXPORT_SYMBOL(mdiobus_read);
+
+/**
+ * mdiobus_write_nested - Nested version of the mdiobus_write function
+ * @bus: the mii_bus struct
+ * @addr: the phy address
+ * @regnum: register number to write
+ * @val: value to write to @regnum
+ *
+ * In case of nested MDIO bus access avoid lockdep false positives by
+ * using mutex_lock_nested().
+ *
+ * NOTE: MUST NOT be called from interrupt context,
+ * because the bus read/write functions may wait for an interrupt
+ * to conclude the operation.
+ */
+int mdiobus_write_nested(struct mii_bus *bus, int addr, u32 regnum, u16 val)
+{
+	int err;
+
+	BUG_ON(in_interrupt());
+
+	mutex_lock_nested(&bus->mdio_lock, SINGLE_DEPTH_NESTING);
+	err = bus->write(bus, addr, regnum, val);
+	mutex_unlock(&bus->mdio_lock);
+
+	return err;
+}
+EXPORT_SYMBOL(mdiobus_write_nested);
 
 /**
  * mdiobus_write - Convenience function for writing a given MII mgmt register

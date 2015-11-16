@@ -96,7 +96,11 @@ struct scif_endpt_qp_info {
  * @conn_port: Connection port
  * @conn_err: Errors during connection
  * @conn_async_state: Async connection
+ * @conn_pend_wq: Used by poll while waiting for incoming connections
  * @conn_list: List of async connection requests
+ * @rma_info: Information for triggering SCIF RMA and DMA operations
+ * @mmu_list: link to list of MMU notifier cleanup work
+ * @anon: anonymous file for use in kernel mode scif poll
  */
 struct scif_endpt {
 	enum scif_epd_state state;
@@ -125,12 +129,53 @@ struct scif_endpt {
 	struct scif_port_id conn_port;
 	int conn_err;
 	int conn_async_state;
+	wait_queue_head_t conn_pend_wq;
 	struct list_head conn_list;
+	struct scif_endpt_rma_info rma_info;
+	struct list_head mmu_list;
+	struct file *anon;
 };
 
 static inline int scifdev_alive(struct scif_endpt *ep)
 {
 	return _scifdev_alive(ep->remote_dev);
+}
+
+/*
+ * scif_verify_epd:
+ * ep: SCIF endpoint
+ *
+ * Checks several generic error conditions and returns the
+ * appropriate error.
+ */
+static inline int scif_verify_epd(struct scif_endpt *ep)
+{
+	if (ep->state == SCIFEP_DISCONNECTED)
+		return -ECONNRESET;
+
+	if (ep->state != SCIFEP_CONNECTED)
+		return -ENOTCONN;
+
+	if (!scifdev_alive(ep))
+		return -ENODEV;
+
+	return 0;
+}
+
+static inline int scif_anon_inode_getfile(scif_epd_t epd)
+{
+	epd->anon = anon_inode_getfile("scif", &scif_anon_fops, NULL, 0);
+	if (IS_ERR(epd->anon))
+		return PTR_ERR(epd->anon);
+	return 0;
+}
+
+static inline void scif_anon_inode_fput(scif_epd_t epd)
+{
+	if (epd->anon) {
+		fput(epd->anon);
+		epd->anon = NULL;
+	}
 }
 
 void scif_cleanup_zombie_epd(void);
@@ -157,4 +202,9 @@ void scif_clientsend(struct scif_dev *scifdev, struct scifmsg *msg);
 void scif_clientrcvd(struct scif_dev *scifdev, struct scifmsg *msg);
 int __scif_connect(scif_epd_t epd, struct scif_port_id *dst, bool non_block);
 int __scif_flush(scif_epd_t epd);
+int scif_mmap(struct vm_area_struct *vma, scif_epd_t epd);
+unsigned int __scif_pollfd(struct file *f, poll_table *wait,
+			   struct scif_endpt *ep);
+int __scif_pin_pages(void *addr, size_t len, int *out_prot,
+		     int map_flags, scif_pinned_pages_t *pages);
 #endif /* SCIF_EPD_H */

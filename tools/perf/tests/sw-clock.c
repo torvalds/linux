@@ -34,6 +34,8 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 		.disabled = 1,
 		.freq = 1,
 	};
+	struct cpu_map *cpus;
+	struct thread_map *threads;
 
 	attr.sample_freq = 500;
 
@@ -50,13 +52,18 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 	}
 	perf_evlist__add(evlist, evsel);
 
-	evlist->cpus = cpu_map__dummy_new();
-	evlist->threads = thread_map__new_by_tid(getpid());
-	if (!evlist->cpus || !evlist->threads) {
+	cpus = cpu_map__dummy_new();
+	threads = thread_map__new_by_tid(getpid());
+	if (!cpus || !threads) {
 		err = -ENOMEM;
 		pr_debug("Not enough memory to create thread/cpu maps\n");
-		goto out_delete_evlist;
+		goto out_free_maps;
 	}
+
+	perf_evlist__set_maps(evlist, cpus, threads);
+
+	cpus	= NULL;
+	threads = NULL;
 
 	if (perf_evlist__open(evlist)) {
 		const char *knob = "/proc/sys/kernel/perf_event_max_sample_rate";
@@ -107,6 +114,9 @@ next_event:
 		err = -1;
 	}
 
+out_free_maps:
+	cpu_map__put(cpus);
+	thread_map__put(threads);
 out_delete_evlist:
 	perf_evlist__delete(evlist);
 	return err;

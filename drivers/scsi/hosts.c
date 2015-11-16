@@ -217,6 +217,13 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 		error = scsi_mq_setup_tags(shost);
 		if (error)
 			goto fail;
+	} else {
+		shost->bqt = blk_init_tags(shost->can_queue,
+				shost->hostt->tag_alloc_policy);
+		if (!shost->bqt) {
+			error = -ENOMEM;
+			goto fail;
+		}
 	}
 
 	/*

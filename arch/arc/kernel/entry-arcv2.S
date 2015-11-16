@@ -24,7 +24,7 @@
 	.align 4
 
 # Initial 16 slots are Exception Vectors
-VECTOR	stext			; Restart Vector (jump to entry point)
+VECTOR	res_service		; Reset Vector
 VECTOR	mem_service		; Mem exception
 VECTOR	instr_service		; Instrn Error
 VECTOR	EV_MachineCheck		; Fatal Machine check
@@ -90,6 +90,25 @@ END(EV_DivZero)
 ENTRY(EV_DCError)
 	flag 1
 END(EV_DCError)
+
+; ---------------------------------------------
+; Memory Error Exception Handler
+;   - Unlike ARCompact, handles Bus errors for both User/Kernel mode,
+;     Instruction fetch or Data access, under a single Exception Vector
+; ---------------------------------------------
+
+ENTRY(mem_service)
+
+	EXCEPTION_PROLOGUE
+
+	lr  r0, [efa]
+	mov r1, sp
+
+	FAKE_RET_FROM_EXCPN
+
+	bl  do_memory_error
+	b   ret_from_exception
+END(mem_service)
 
 ENTRY(EV_Misaligned)
 

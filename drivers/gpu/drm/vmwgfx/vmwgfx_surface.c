@@ -46,6 +46,7 @@ struct vmw_user_surface {
 	struct vmw_surface srf;
 	uint32_t size;
 	struct drm_master *master;
+	struct ttm_base_object *backup_base;
 };
 
 /**
@@ -656,6 +657,8 @@ static void vmw_user_surface_base_release(struct ttm_base_object **p_base)
 	struct vmw_resource *res = &user_srf->srf.res;
 
 	*p_base = NULL;
+	if (user_srf->backup_base)
+		ttm_base_object_unref(&user_srf->backup_base);
 	vmw_resource_unreference(&res);
 }
 
@@ -851,7 +854,8 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 					    res->backup_size,
 					    true,
 					    &backup_handle,
-					    &res->backup);
+					    &res->backup,
+					    &user_srf->backup_base);
 		if (unlikely(ret != 0)) {
 			vmw_resource_unreference(&res);
 			goto out_unlock;
@@ -1287,6 +1291,8 @@ int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 	uint32_t size;
 	uint32_t backup_handle;
 
+	if (req->multisample_count != 0)
+		return -EINVAL;
 
 	if (unlikely(vmw_user_surface_size == 0))
 		vmw_user_surface_size = ttm_round_pot(sizeof(*user_srf)) +
@@ -1321,7 +1327,8 @@ int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 
 	if (req->buffer_handle != SVGA3D_INVALID_ID) {
 		ret = vmw_user_dmabuf_lookup(tfile, req->buffer_handle,
-					     &res->backup);
+					     &res->backup,
+					     &user_srf->backup_base);
 		if (ret == 0 && res->backup->base.num_pages * PAGE_SIZE <
 		    res->backup_size) {
 			DRM_ERROR("Surface backup buffer is too small.\n");
@@ -1335,7 +1342,8 @@ int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 					    req->drm_surface_flags &
 					    drm_vmw_surface_flag_shareable,
 					    &backup_handle,
-					    &res->backup);
+					    &res->backup,
+					    &user_srf->backup_base);
 
 	if (unlikely(ret != 0)) {
 		vmw_resource_unreference(&res);

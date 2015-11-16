@@ -161,7 +161,8 @@
 #endif /* defined(CONFIG_MMU) && XCHAL_HAVE_PTP_MMU &&
 	  XCHAL_HAVE_SPANNING_WAY */
 
-#if !defined(CONFIG_MMU) && XCHAL_HAVE_TLBS
+#if !defined(CONFIG_MMU) && XCHAL_HAVE_TLBS && \
+		(XCHAL_DCACHE_SIZE || XCHAL_ICACHE_SIZE)
 	/* Enable data and instruction cache in the DEFAULT_MEMORY region
 	 * if the processor has DTLB and ITLB.
 	 */
@@ -175,14 +176,18 @@
 1:
 	sub	a9, a9, a8
 2:
+#if XCHAL_DCACHE_SIZE
 	rdtlb1	a3, a5
-	ritlb1	a4, a5
 	and	a3, a3, a6
-	and	a4, a4, a6
 	or	a3, a3, a7
-	or	a4, a4, a7
 	wdtlb	a3, a5
+#endif
+#if XCHAL_ICACHE_SIZE
+	ritlb1	a4, a5
+	and	a4, a4, a6
+	or	a4, a4, a7
 	witlb	a4, a5
+#endif
 	add	a5, a5, a8
 	bltu	a8, a9, 1b
 

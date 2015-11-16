@@ -10470,7 +10470,6 @@ static void ipw_ethtool_get_drvinfo(struct net_device *dev,
 		 vers, date);
 	strlcpy(info->bus_info, pci_name(p->pci_dev),
 		sizeof(info->bus_info));
-	info->eedump_len = IPW_EEPROM_IMAGE_SIZE;
 }
 
 static u32 ipw_ethtool_get_link(struct net_device *dev)

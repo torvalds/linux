@@ -51,8 +51,9 @@ static struct kmem_cache *ll_inode_cachep;
 static struct inode *ll_alloc_inode(struct super_block *sb)
 {
 	struct ll_inode_info *lli;
+
 	ll_stats_ops_tally(ll_s2sbi(sb), LPROC_LL_ALLOC_INODE, 1);
-	OBD_SLAB_ALLOC_PTR_GFP(lli, ll_inode_cachep, GFP_NOFS);
+	lli = kmem_cache_alloc(ll_inode_cachep, GFP_NOFS | __GFP_ZERO);
 	if (lli == NULL)
 		return NULL;
 
@@ -64,7 +65,8 @@ static void ll_inode_destroy_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
 	struct ll_inode_info *ptr = ll_i2info(inode);
-	OBD_SLAB_FREE_PTR(ptr, ll_inode_cachep);
+
+	kmem_cache_free(ll_inode_cachep, ptr);
 }
 
 static void ll_destroy_inode(struct inode *inode)
@@ -90,7 +92,7 @@ void lustre_register_client_process_config(int (*cpc)(struct lustre_cfg *lcfg));
 static int __init init_lustre_lite(void)
 {
 	lnet_process_id_t lnet_id;
-	struct timeval tv;
+	struct timespec64 ts;
 	int i, rc, seed[2];
 
 	CLASSERT(sizeof(LUSTRE_VOLATILE_HDR) == LUSTRE_VOLATILE_HDR_LEN + 1);
@@ -152,16 +154,12 @@ static int __init init_lustre_lite(void)
 			seed[0] ^= LNET_NIDADDR(lnet_id.nid);
 	}
 
-	do_gettimeofday(&tv);
-	cfs_srand(tv.tv_sec ^ seed[0], tv.tv_usec ^ seed[1]);
-	setup_timer(&ll_capa_timer, ll_capa_timer_callback, 0);
-	rc = ll_capa_thread_start();
-	if (rc != 0)
-		goto out_sysfs;
+	ktime_get_ts64(&ts);
+	cfs_srand(ts.tv_sec ^ seed[0], ts.tv_nsec ^ seed[1]);
 
 	rc = vvp_global_init();
 	if (rc != 0)
-		goto out_capa;
+		goto out_sysfs;
 
 	rc = ll_xattr_init();
 	if (rc != 0)
@@ -175,26 +173,15 @@ static int __init init_lustre_lite(void)
 
 out_vvp:
 	vvp_global_fini();
-out_capa:
-	del_timer(&ll_capa_timer);
-	ll_capa_thread_stop();
 out_sysfs:
 	kset_unregister(llite_kset);
 out_debugfs:
 	debugfs_remove(llite_root);
 out_cache:
-	if (ll_inode_cachep != NULL)
-		kmem_cache_destroy(ll_inode_cachep);
-
-	if (ll_file_data_slab != NULL)
-		kmem_cache_destroy(ll_file_data_slab);
-
-	if (ll_remote_perm_cachep != NULL)
-		kmem_cache_destroy(ll_remote_perm_cachep);
-
-	if (ll_rmtperm_hash_cachep != NULL)
-		kmem_cache_destroy(ll_rmtperm_hash_cachep);
-
+	kmem_cache_destroy(ll_inode_cachep);
+	kmem_cache_destroy(ll_file_data_slab);
+	kmem_cache_destroy(ll_remote_perm_cachep);
+	kmem_cache_destroy(ll_rmtperm_hash_cachep);
 	return rc;
 }
 
@@ -209,11 +196,6 @@ static void __exit exit_lustre_lite(void)
 
 	ll_xattr_fini();
 	vvp_global_fini();
-	del_timer(&ll_capa_timer);
-	ll_capa_thread_stop();
-	LASSERTF(capa_count[CAPA_SITE_CLIENT] == 0,
-		 "client remaining capa count %d\n",
-		 capa_count[CAPA_SITE_CLIENT]);
 
 	kmem_cache_destroy(ll_inode_cachep);
 	kmem_cache_destroy(ll_rmtperm_hash_cachep);

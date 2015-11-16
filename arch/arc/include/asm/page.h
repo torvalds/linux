@@ -43,7 +43,6 @@ typedef struct {
 typedef struct {
 	unsigned long pgprot;
 } pgprot_t;
-typedef unsigned long pgtable_t;
 
 #define pte_val(x)      ((x).pte)
 #define pgd_val(x)      ((x).pgd)
@@ -57,19 +56,25 @@ typedef unsigned long pgtable_t;
 
 #else /* !STRICT_MM_TYPECHECKS */
 
+#ifdef CONFIG_ARC_HAS_PAE40
+typedef unsigned long long pte_t;
+#else
 typedef unsigned long pte_t;
+#endif
 typedef unsigned long pgd_t;
 typedef unsigned long pgprot_t;
-typedef unsigned long pgtable_t;
 
 #define pte_val(x)	(x)
 #define pgd_val(x)	(x)
 #define pgprot_val(x)	(x)
 #define __pte(x)	(x)
+#define __pgd(x)	(x)
 #define __pgprot(x)	(x)
 #define pte_pgprot(x)	(x)
 
 #endif
+
+typedef pte_t * pgtable_t;
 
 #define ARCH_PFN_OFFSET     (CONFIG_LINUX_LINK_BASE >> PAGE_SHIFT)
 

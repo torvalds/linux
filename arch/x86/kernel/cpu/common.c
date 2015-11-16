@@ -670,6 +670,7 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
 
 		c->x86_virt_bits = (eax >> 8) & 0xff;
 		c->x86_phys_bits = eax & 0xff;
+		c->x86_capability[13] = cpuid_ebx(0x80000008);
 	}
 #ifdef CONFIG_X86_32
 	else if (cpu_has(c, X86_FEATURE_PAE) || cpu_has(c, X86_FEATURE_PSE36))
@@ -1110,10 +1111,10 @@ void print_cpu_info(struct cpuinfo_x86 *c)
 	else
 		printk(KERN_CONT "%d86", c->x86);
 
-	printk(KERN_CONT " (fam: %02x, model: %02x", c->x86, c->x86_model);
+	printk(KERN_CONT " (family: 0x%x, model: 0x%x", c->x86, c->x86_model);
 
 	if (c->x86_mask || c->cpuid_level >= 0)
-		printk(KERN_CONT ", stepping: %02x)\n", c->x86_mask);
+		printk(KERN_CONT ", stepping: 0x%x)\n", c->x86_mask);
 	else
 		printk(KERN_CONT ")\n");
 

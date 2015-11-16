@@ -102,7 +102,8 @@ background_gc=%s       Turn on/off cleaning operations, namely garbage
                        collection, triggered in background when I/O subsystem is
                        idle. If background_gc=on, it will turn on the garbage
                        collection and if background_gc=off, garbage collection
-                       will be truned off.
+                       will be truned off. If background_gc=sync, it will turn
+                       on synchronous garbage collection running in background.
                        Default value for this option is on. So garbage
                        collection is on by default.
 disable_roll_forward   Disable the roll-forward recovery routine
