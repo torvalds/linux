@@ -182,7 +182,7 @@ EXPORT_SYMBOL_GPL(gpiod_get_direction);
 
 /*
  * Add a new chip to the global chips list, keeping the list of chips sorted
- * by base order.
+ * by range(means [base, base + ngpio - 1]) order.
  *
  * Return -EBUSY if the new chip overlaps with some other chip's integer
  * space.
@@ -190,31 +190,48 @@ EXPORT_SYMBOL_GPL(gpiod_get_direction);
 static int gpiochip_add_to_list(struct gpio_chip *chip)
 {
 	struct list_head *pos;
-	struct gpio_chip *_chip;
-	int err = 0;
+	struct gpio_chip *iterator;
+	struct gpio_chip *previous = NULL;
 
-	/* find where to insert our chip */
+	if (list_empty(&gpio_chips)) {
+		pos = gpio_chips.next;
+		goto found;
+	}
+
 	list_for_each(pos, &gpio_chips) {
-		_chip = list_entry(pos, struct gpio_chip, list);
-		/* shall we insert before _chip? */
-		if (_chip->base >= chip->base + chip->ngpio)
-			break;
-	}
-
-	/* are we stepping on the chip right before? */
-	if (pos != &gpio_chips && pos->prev != &gpio_chips) {
-		_chip = list_entry(pos->prev, struct gpio_chip, list);
-		if (_chip->base + _chip->ngpio > chip->base) {
-			dev_err(chip->parent,
-				"GPIO integer space overlap, cannot add chip\n");
-			err = -EBUSY;
+		iterator = list_entry(pos, struct gpio_chip, list);
+		if (iterator->base >= chip->base + chip->ngpio) {
+			/*
+			 * Iterator is the first GPIO chip so there is no
+			 * previous one
+			 */
+			if (previous == NULL) {
+				goto found;
+			} else {
+				/*
+				 * We found a valid range(means
+				 * [base, base + ngpio - 1]) between previous
+				 * and iterator chip.
+				 */
+				if (previous->base + previous->ngpio
+						<= chip->base)
+					goto found;
+			}
 		}
+		previous = iterator;
 	}
 
-	if (!err)
-		list_add_tail(&chip->list, pos);
+	/* We are beyond the last chip in the list */
+	if (iterator->base + iterator->ngpio <= chip->base)
+		goto found;
 
-	return err;
+	dev_err(chip->parent,
+	       "GPIO integer space overlap, cannot add chip\n");
+	return -EBUSY;
+
+found:
+	list_add_tail(&chip->list, pos);
+	return 0;
 }
 
 /**
