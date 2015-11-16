@@ -246,13 +246,13 @@ static const struct spi_device_id m25p_ids[] = {
 
 	/*
 	 * Entries not used in DTs that should be safe to drop after replacing
-	 * them with "nor-jedec" in platform data.
+	 * them with "spi-nor" in platform data.
 	 */
 	{"s25sl064a"},	{"w25x16"},	{"m25p10"},	{"m25px64"},
 
 	/*
-	 * Entries that were used in DTs without "nor-jedec" fallback and should
-	 * be kept for backward compatibility.
+	 * Entries that were used in DTs without "jedec,spi-nor" fallback and
+	 * should be kept for backward compatibility.
 	 */
 	{"at25df321a"},	{"at25df641"},	{"at26df081a"},
 	{"mr25h256"},
