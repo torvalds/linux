@@ -1,5 +1,6 @@
 menuconfig ARCH_MESON
-	bool "Amlogic Meson SoCs" if ARCH_MULTI_V7
+	bool "Amlogic Meson SoCs"
+	depends on ARCH_MULTI_V7
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_IRQ_CHIP
 	select ARM_GIC
