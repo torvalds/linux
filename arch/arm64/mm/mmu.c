@@ -146,7 +146,7 @@ static void alloc_init_pte(pmd_t *pmd, unsigned long addr,
 		if (((addr | next | phys) & ~CONT_MASK) == 0) {
 			/* a block of CONT_PTES  */
 			__populate_init_pte(pte, addr, next, phys,
-					    prot | __pgprot(PTE_CONT));
+					    __pgprot(pgprot_val(prot) | PTE_CONT));
 		} else {
 			/*
 			 * If the range being split is already inside of a
@@ -165,7 +165,7 @@ static void alloc_init_pte(pmd_t *pmd, unsigned long addr,
 	} while (addr != end);
 }
 
-void split_pud(pud_t *old_pud, pmd_t *pmd)
+static void split_pud(pud_t *old_pud, pmd_t *pmd)
 {
 	unsigned long addr = pud_pfn(*old_pud) << PAGE_SHIFT;
 	pgprot_t prot = __pgprot(pud_val(*old_pud) ^ addr);
@@ -447,7 +447,7 @@ static void __init map_mem(void)
 	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
 }
 
-void __init fixup_executable(void)
+static void __init fixup_executable(void)
 {
 #ifdef CONFIG_DEBUG_RODATA
 	/* now that we are actually fully mapped, make the start/end more fine grained */
@@ -691,7 +691,7 @@ void __set_fixmap(enum fixed_addresses idx,
 void *__init fixmap_remap_fdt(phys_addr_t dt_phys)
 {
 	const u64 dt_virt_base = __fix_to_virt(FIX_FDT);
-	pgprot_t prot = PAGE_KERNEL | PTE_RDONLY;
+	pgprot_t prot = PAGE_KERNEL_RO;
 	int size, offset;
 	void *dt_virt;
 

@@ -667,7 +667,6 @@ extern int DYN_FTRACE_TEST_NAME2(void);
 
 extern bool ring_buffer_expanded;
 extern bool tracing_selftest_disabled;
-DECLARE_PER_CPU(int, ftrace_cpu_disabled);
 
 #ifdef CONFIG_FTRACE_STARTUP_TEST
 extern int trace_selftest_startup_function(struct tracer *trace,

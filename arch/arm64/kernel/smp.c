@@ -473,7 +473,7 @@ acpi_parse_gic_cpu_interface(struct acpi_subtable_header *header,
  * cpu logical map array containing MPIDR values related to logical
  * cpus. Assumes that cpu_logical_map(0) has already been initialized.
  */
-void __init of_parse_and_init_cpus(void)
+static void __init of_parse_and_init_cpus(void)
 {
 	struct device_node *dn = NULL;
 

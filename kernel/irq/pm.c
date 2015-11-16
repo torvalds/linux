@@ -70,7 +70,8 @@ void irq_pm_remove_action(struct irq_desc *desc, struct irqaction *action)
 
 static bool suspend_device_irq(struct irq_desc *desc)
 {
-	if (!desc->action || desc->no_suspend_depth)
+	if (!desc->action || irq_desc_is_chained(desc) ||
+	    desc->no_suspend_depth)
 		return false;
 
 	if (irqd_is_wakeup_set(&desc->irq_data)) {

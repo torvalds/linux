@@ -174,8 +174,10 @@ static ssize_t dax_io(struct inode *inode, struct iov_iter *iter,
 		else
 			len = iov_iter_zero(max - pos, iter);
 
-		if (!len)
+		if (!len) {
+			retval = -EFAULT;
 			break;
+		}
 
 		pos += len;
 		addr += len;
@@ -625,6 +627,13 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
 			goto out;
 		}
 		if ((length < PMD_SIZE) || (pfn & PG_PMD_COLOUR))
+			goto fallback;
+
+		/*
+		 * TODO: teach vmf_insert_pfn_pmd() to support
+		 * 'pte_special' for pmds
+		 */
+		if (pfn_valid(pfn))
 			goto fallback;
 
 		if (buffer_unwritten(&bh) || buffer_new(&bh)) {
