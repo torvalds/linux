@@ -157,67 +157,11 @@ static int sdio_clear_int(void)
 
 }
 
-u32 sdio_xfer_cnt(void)
-{
-	u32 cnt = 0;
-	sdio_cmd52_t cmd;
-
-	cmd.read_write = 0;
-	cmd.function = 1;
-	cmd.raw = 0;
-	cmd.address = 0x1C;
-	cmd.data = 0;
-	linux_sdio_cmd52(&cmd);
-	cnt = cmd.data;
-
-	cmd.read_write = 0;
-	cmd.function = 1;
-	cmd.raw = 0;
-	cmd.address = 0x1D;
-	cmd.data = 0;
-	linux_sdio_cmd52(&cmd);
-	cnt |= (cmd.data << 8);
-
-	cmd.read_write = 0;
-	cmd.function = 1;
-	cmd.raw = 0;
-	cmd.address = 0x1E;
-	cmd.data = 0;
-	linux_sdio_cmd52(&cmd);
-	cnt |= (cmd.data << 16);
-
-	return cnt;
-}
-
 /********************************************
  *
  *      Sdio interfaces
  *
  ********************************************/
-int sdio_check_bs(void)
-{
-	sdio_cmd52_t cmd;
-
-	/**
-	 *      poll until BS is 0
-	 **/
-	cmd.read_write = 0;
-	cmd.function = 0;
-	cmd.raw = 0;
-	cmd.address = 0xc;
-	cmd.data = 0;
-	if (!linux_sdio_cmd52(&cmd)) {
-		g_sdio.dPrint(N_ERR, "[wilc sdio]: Fail cmd 52, get BS register...\n");
-		goto _fail_;
-	}
-
-	return 1;
-
-_fail_:
-
-	return 0;
-}
-
 static int sdio_write_reg(u32 addr, u32 data)
 {
 #ifdef BIG_ENDIAN

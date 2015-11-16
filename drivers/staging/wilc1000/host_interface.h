@@ -326,18 +326,10 @@ s32 host_int_add_tx_gtk(struct host_if_drv *hWFIDrv, u8 u8KeyLen,
 			u8 *pu8TxGtk, u8 u8KeyIdx);
 s32 host_int_set_pmkid_info(struct host_if_drv *hWFIDrv,
 			    struct host_if_pmkid_attr *pu8PmkidInfoArray);
-s32 host_int_get_pmkid_info(struct host_if_drv *hWFIDrv, u8 *pu8PmkidInfoArray,
-			    u32 u32PmkidInfoLen);
-s32 host_int_set_RSNAConfigPSKPassPhrase(struct host_if_drv *hWFIDrv,
-					 u8 *pu8PassPhrase,
-					 u8 u8Psklength);
-s32 host_int_get_RSNAConfigPSKPassPhrase(struct host_if_drv *hWFIDrv,
-					 u8 *pu8PassPhrase, u8 u8Psklength);
 s32 hif_get_mac_address(struct host_if_drv *hWFIDrv, u8 *pu8MacAddress);
 s32 host_int_set_MacAddress(struct host_if_drv *hWFIDrv, u8 *pu8MacAddress);
 int host_int_wait_msg_queue_idle(void);
 s32 host_int_set_start_scan_req(struct host_if_drv *hWFIDrv, u8 scanSource);
-s32 host_int_get_start_scan_req(struct host_if_drv *hWFIDrv, u8 *pu8ScanSource);
 s32 host_int_set_join_req(struct host_if_drv *hWFIDrv, u8 *pu8bssid,
 			  const u8 *pu8ssid, size_t ssidLen,
 			  const u8 *pu8IEs, size_t IEsLen,
@@ -346,21 +338,12 @@ s32 host_int_set_join_req(struct host_if_drv *hWFIDrv, u8 *pu8bssid,
 			  u8 u8channel, void *pJoinParams);
 s32 host_int_flush_join_req(struct host_if_drv *hWFIDrv);
 s32 host_int_disconnect(struct host_if_drv *hWFIDrv, u16 u16ReasonCode);
-s32 host_int_disconnect_station(struct host_if_drv *hWFIDrv, u8 assoc_id);
-s32 host_int_get_assoc_req_info(struct host_if_drv *hWFIDrv,
-				u8 *pu8AssocReqInfo,
-				u32 u32AssocReqInfoLen);
 s32 host_int_get_assoc_res_info(struct host_if_drv *hWFIDrv,
 				u8 *pu8AssocRespInfo,
 				u32 u32MaxAssocRespInfoLen,
 				u32 *pu32RcvdAssocRespInfoLen);
-s32 host_int_get_rx_power_level(struct host_if_drv *hWFIDrv,
-				u8 *pu8RxPowerLevel,
-				u32 u32RxPowerLevelLen);
 int host_int_set_mac_chnl_num(struct host_if_drv *wfi_drv, u8 channel);
-s32 host_int_get_host_chnl_num(struct host_if_drv *hWFIDrv, u8 *pu8ChNo);
 s32 host_int_get_rssi(struct host_if_drv *hWFIDrv, s8 *ps8Rssi);
-s32 host_int_get_link_speed(struct host_if_drv *hWFIDrv, s8 *ps8lnkspd);
 s32 host_int_scan(struct host_if_drv *hWFIDrv, u8 u8ScanSource,
 		  u8 u8ScanType, u8 *pu8ChnlFreqList,
 		  u8 u8ChnlListLen, const u8 *pu8IEs,
@@ -368,7 +351,6 @@ s32 host_int_scan(struct host_if_drv *hWFIDrv, u8 u8ScanSource,
 		  void *pvUserArg, struct hidden_network *pstrHiddenNetwork);
 s32 hif_set_cfg(struct host_if_drv *hWFIDrv,
 		struct cfg_param_val *pstrCfgParamVal);
-s32 hif_get_cfg(struct host_if_drv *hWFIDrv, u16 u16WID, u16 *pu16WID_Value);
 s32 host_int_init(struct net_device *dev, struct host_if_drv **phWFIDrv);
 s32 host_int_deinit(struct host_if_drv *hWFIDrv);
 s32 host_int_add_beacon(struct host_if_drv *hWFIDrv, u32 u32Interval,
@@ -394,7 +376,6 @@ s32 host_int_setup_multicast_filter(struct host_if_drv *hWFIDrv,
 s32 host_int_setup_ipaddress(struct host_if_drv *hWFIDrv,
 			     u8 *pu8IPAddr,
 			     u8 idx);
-s32 host_int_delBASession(struct host_if_drv *hWFIDrv, char *pBSSID, char TID);
 s32 host_int_del_All_Rx_BASession(struct host_if_drv *hWFIDrv,
 				  char *pBSSID,
 				  char TID);

@@ -226,17 +226,6 @@ int linux_sdio_init(void)
 	return 1;
 }
 
-void linux_sdio_deinit(void *pv)
-{
-
-	/**
-	 *      TODO :
-	 **/
-
-
-	sdio_unregister_driver(&wilc_bus);
-}
-
 int linux_sdio_set_max_speed(void)
 {
 	return linux_sdio_set_speed(MAX_SPEED);

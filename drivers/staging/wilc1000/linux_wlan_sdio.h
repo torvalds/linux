@@ -4,7 +4,6 @@ extern struct sdio_driver wilc_bus;
 #include <linux/mmc/sdio_func.h>
 
 int linux_sdio_init(void);
-void linux_sdio_deinit(void *);
 int linux_sdio_cmd52(sdio_cmd52_t *cmd);
 int linux_sdio_cmd53(sdio_cmd53_t *cmd);
 int enable_sdio_interrupt(void);

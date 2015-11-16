@@ -3366,36 +3366,6 @@ s32 host_int_set_pmkid_info(struct host_if_drv *hif_drv, struct host_if_pmkid_at
 	return result;
 }
 
-s32 host_int_get_pmkid_info(struct host_if_drv *hif_drv,
-			    u8 *pu8PmkidInfoArray,
-			    u32 u32PmkidInfoLen)
-{
-	struct wid wid;
-
-	wid.id = (u16)WID_PMKID_INFO;
-	wid.type = WID_STR;
-	wid.size = u32PmkidInfoLen;
-	wid.val = pu8PmkidInfoArray;
-
-	return 0;
-}
-
-s32 host_int_set_RSNAConfigPSKPassPhrase(struct host_if_drv *hif_drv,
-					 u8 *pu8PassPhrase,
-					 u8 u8Psklength)
-{
-	struct wid wid;
-
-	if ((u8Psklength > 7) && (u8Psklength < 65)) {
-		wid.id = (u16)WID_11I_PSK;
-		wid.type = WID_STR;
-		wid.val = pu8PassPhrase;
-		wid.size = u8Psklength;
-	}
-
-	return 0;
-}
-
 s32 hif_get_mac_address(struct host_if_drv *hif_drv, u8 *pu8MacAddress)
 {
 	s32 result = 0;
@@ -3436,19 +3406,6 @@ s32 host_int_set_MacAddress(struct host_if_drv *hif_drv, u8 *pu8MacAddress)
 	return result;
 }
 
-s32 host_int_get_RSNAConfigPSKPassPhrase(struct host_if_drv *hif_drv,
-					 u8 *pu8PassPhrase, u8 u8Psklength)
-{
-	struct wid wid;
-
-	wid.id = (u16)WID_11I_PSK;
-	wid.type = WID_STR;
-	wid.size = u8Psklength;
-	wid.val = pu8PassPhrase;
-
-	return 0;
-}
-
 s32 host_int_set_start_scan_req(struct host_if_drv *hif_drv, u8 scanSource)
 {
 	struct wid wid;
@@ -3456,18 +3413,6 @@ s32 host_int_set_start_scan_req(struct host_if_drv *hif_drv, u8 scanSource)
 	wid.id = (u16)WID_START_SCAN_REQ;
 	wid.type = WID_CHAR;
 	wid.val = (s8 *)&scanSource;
-	wid.size = sizeof(char);
-
-	return 0;
-}
-
-s32 host_int_get_start_scan_req(struct host_if_drv *hif_drv, u8 *pu8ScanSource)
-{
-	struct wid wid;
-
-	wid.id = (u16)WID_START_SCAN_REQ;
-	wid.type = WID_CHAR;
-	wid.val = (s8 *)pu8ScanSource;
 	wid.size = sizeof(char);
 
 	return 0;
@@ -3589,31 +3534,6 @@ s32 host_int_disconnect(struct host_if_drv *hif_drv, u16 u16ReasonCode)
 	return result;
 }
 
-s32 host_int_disconnect_station(struct host_if_drv *hif_drv, u8 assoc_id)
-{
-	struct wid wid;
-
-	wid.id = (u16)WID_DISCONNECT;
-	wid.type = WID_CHAR;
-	wid.val = (s8 *)&assoc_id;
-	wid.size = sizeof(char);
-
-	return 0;
-}
-
-s32 host_int_get_assoc_req_info(struct host_if_drv *hif_drv,
-				u8 *pu8AssocReqInfo,
-				u32 u32AssocReqInfoLen)
-{
-	struct wid wid;
-
-	wid.id = (u16)WID_ASSOC_REQ_INFO;
-	wid.type = WID_STR;
-	wid.val = pu8AssocReqInfo;
-	wid.size = u32AssocReqInfoLen;
-
-	return 0;
-}
 
 s32 host_int_get_assoc_res_info(struct host_if_drv *hif_drv,
 				u8 *pu8AssocRespInfo,
@@ -3644,20 +3564,6 @@ s32 host_int_get_assoc_res_info(struct host_if_drv *hif_drv,
 	}
 
 	return result;
-}
-
-s32 host_int_get_rx_power_level(struct host_if_drv *hif_drv,
-				u8 *pu8RxPowerLevel,
-				u32 u32RxPowerLevelLen)
-{
-	struct wid wid;
-
-	wid.id = (u16)WID_RX_POWER_LEVEL;
-	wid.type = WID_STR;
-	wid.val = pu8RxPowerLevel;
-	wid.size = u32RxPowerLevelLen;
-
-	return 0;
 }
 
 int host_int_set_mac_chnl_num(struct host_if_drv *hif_drv, u8 channel)
@@ -3740,31 +3646,6 @@ int host_int_set_operation_mode(struct host_if_drv *hif_drv, u32 mode)
 	return result;
 }
 
-s32 host_int_get_host_chnl_num(struct host_if_drv *hif_drv, u8 *pu8ChNo)
-{
-	s32 result = 0;
-	struct host_if_msg msg;
-
-	if (!hif_drv) {
-		PRINT_ER("driver is null\n");
-		return -EFAULT;
-	}
-
-	memset(&msg, 0, sizeof(struct host_if_msg));
-
-	msg.id = HOST_IF_MSG_GET_CHNL;
-	msg.drv = hif_drv;
-
-	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
-	if (result)
-		PRINT_ER("wilc mq send fail\n");
-	down(&hif_drv->sem_get_chnl);
-
-	*pu8ChNo = ch_no;
-
-	return result;
-}
-
 s32 host_int_get_inactive_time(struct host_if_drv *hif_drv,
 			       const u8 *mac, u32 *pu32InactiveTime)
 {
@@ -3793,34 +3674,6 @@ s32 host_int_get_inactive_time(struct host_if_drv *hif_drv,
 	return result;
 }
 
-s32 host_int_test_get_int_wid(struct host_if_drv *hif_drv, u32 *pu32TestMemAddr)
-{
-	s32 result = 0;
-	struct wid wid;
-
-	if (!hif_drv) {
-		PRINT_ER("driver is null\n");
-		return -EFAULT;
-	}
-
-	wid.id = (u16)WID_MEMORY_ADDRESS;
-	wid.type = WID_INT;
-	wid.val = (s8 *)pu32TestMemAddr;
-	wid.size = sizeof(u32);
-
-	result = send_config_pkt(GET_CFG, &wid, 1,
-				 get_id_from_handler(hif_drv));
-
-	if (result) {
-		PRINT_ER("Failed to get wid value\n");
-		return -EINVAL;
-	} else {
-		PRINT_D(HOSTINF_DBG, "Successfully got wid value\n");
-	}
-
-	return result;
-}
-
 s32 host_int_get_rssi(struct host_if_drv *hif_drv, s8 *ps8Rssi)
 {
 	s32 result = 0;
@@ -3844,33 +3697,6 @@ s32 host_int_get_rssi(struct host_if_drv *hif_drv, s8 *ps8Rssi)
 	}
 
 	*ps8Rssi = rssi;
-
-	return result;
-}
-
-s32 host_int_get_link_speed(struct host_if_drv *hif_drv, s8 *ps8lnkspd)
-{
-	struct host_if_msg msg;
-	s32 result = 0;
-
-	memset(&msg, 0, sizeof(struct host_if_msg));
-	msg.id = HOST_IF_MSG_GET_LINKSPEED;
-	msg.drv = hif_drv;
-
-	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
-	if (result) {
-		PRINT_ER("Failed to send GET_LINKSPEED to message queue ");
-		return -EFAULT;
-	}
-
-	down(&hif_drv->sem_get_link_speed);
-
-	if (!ps8lnkspd) {
-		PRINT_ER("LINKSPEED pointer value is null");
-		return -EFAULT;
-	}
-
-	*ps8lnkspd = link_speed;
 
 	return result;
 }
@@ -3965,99 +3791,6 @@ s32 hif_set_cfg(struct host_if_drv *hif_drv,
 	msg.drv = hif_drv;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
-
-	return result;
-}
-
-s32 hif_get_cfg(struct host_if_drv *hif_drv, u16 u16WID, u16 *pu16WID_Value)
-{
-	s32 result = 0;
-
-	down(&hif_drv->sem_cfg_values);
-
-	if (!hif_drv) {
-		PRINT_ER("hif_drv NULL\n");
-		return -EFAULT;
-	}
-	PRINT_D(HOSTINF_DBG, "Getting configuration parameters\n");
-	switch (u16WID)	{
-	case WID_BSS_TYPE:
-		*pu16WID_Value = (u16)hif_drv->cfg_values.bss_type;
-		break;
-
-	case WID_AUTH_TYPE:
-		*pu16WID_Value = (u16)hif_drv->cfg_values.auth_type;
-		break;
-
-	case WID_AUTH_TIMEOUT:
-		*pu16WID_Value = hif_drv->cfg_values.auth_timeout;
-		break;
-
-	case WID_POWER_MANAGEMENT:
-		*pu16WID_Value = (u16)hif_drv->cfg_values.power_mgmt_mode;
-		break;
-
-	case WID_SHORT_RETRY_LIMIT:
-		*pu16WID_Value = hif_drv->cfg_values.short_retry_limit;
-		break;
-
-	case WID_LONG_RETRY_LIMIT:
-		*pu16WID_Value = hif_drv->cfg_values.long_retry_limit;
-		break;
-
-	case WID_FRAG_THRESHOLD:
-		*pu16WID_Value = hif_drv->cfg_values.frag_threshold;
-		break;
-
-	case WID_RTS_THRESHOLD:
-		*pu16WID_Value = hif_drv->cfg_values.rts_threshold;
-		break;
-
-	case WID_PREAMBLE:
-		*pu16WID_Value = (u16)hif_drv->cfg_values.preamble_type;
-		break;
-
-	case WID_SHORT_SLOT_ALLOWED:
-		*pu16WID_Value = (u16)hif_drv->cfg_values.short_slot_allowed;
-		break;
-
-	case WID_11N_TXOP_PROT_DISABLE:
-		*pu16WID_Value = (u16)hif_drv->cfg_values.txop_prot_disabled;
-		break;
-
-	case WID_BEACON_INTERVAL:
-		*pu16WID_Value = hif_drv->cfg_values.beacon_interval;
-		break;
-
-	case WID_DTIM_PERIOD:
-		*pu16WID_Value = (u16)hif_drv->cfg_values.dtim_period;
-		break;
-
-	case WID_SITE_SURVEY:
-		*pu16WID_Value = (u16)hif_drv->cfg_values.site_survey_enabled;
-		break;
-
-	case WID_SITE_SURVEY_SCAN_TIME:
-		*pu16WID_Value = hif_drv->cfg_values.site_survey_scan_time;
-		break;
-
-	case WID_ACTIVE_SCAN_TIME:
-		*pu16WID_Value = hif_drv->cfg_values.active_scan_time;
-		break;
-
-	case WID_PASSIVE_SCAN_TIME:
-		*pu16WID_Value = hif_drv->cfg_values.passive_scan_time;
-		break;
-
-	case WID_CURRENT_TX_RATE:
-		*pu16WID_Value = hif_drv->cfg_values.curr_tx_rate;
-		break;
-
-	default:
-		break;
-	}
-
-	up(&hif_drv->sem_cfg_values);
 
 	return result;
 }
@@ -4914,34 +4647,6 @@ void host_int_freeJoinParams(void *pJoinParams)
 		kfree((struct bss_param *)pJoinParams);
 	else
 		PRINT_ER("Unable to FREE null pointer\n");
-}
-
-s32 host_int_delBASession(struct host_if_drv *hif_drv, char *pBSSID, char TID)
-{
-	s32 result = 0;
-	struct host_if_msg msg;
-	struct ba_session_info *pBASessionInfo = &msg.body.session_info;
-
-	if (!hif_drv) {
-		PRINT_ER("driver is null\n");
-		return -EFAULT;
-	}
-
-	memset(&msg, 0, sizeof(struct host_if_msg));
-
-	msg.id = HOST_IF_MSG_DEL_BA_SESSION;
-
-	memcpy(pBASessionInfo->bssid, pBSSID, ETH_ALEN);
-	pBASessionInfo->tid = TID;
-	msg.drv = hif_drv;
-
-	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
-	if (result)
-		PRINT_ER("wilc_mq_send fail\n");
-
-	down(&hif_sema_wait_response);
-
-	return result;
 }
 
 s32 host_int_del_All_Rx_BASession(struct host_if_drv *hif_drv,

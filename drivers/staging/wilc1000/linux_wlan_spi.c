@@ -42,7 +42,6 @@
 static u32 SPEED = MIN_SPEED;
 
 struct spi_device *wilc_spi_dev;
-void linux_spi_deinit(void *vp);
 
 static int __init wilc_bus_probe(struct spi_device *spi)
 {
@@ -79,19 +78,6 @@ struct spi_driver wilc_bus __refdata = {
 	.probe =  wilc_bus_probe,
 	.remove = __exit_p(wilc_bus_remove),
 };
-
-
-void linux_spi_deinit(void *vp)
-{
-
-	spi_unregister_driver(&wilc_bus);
-
-	SPEED = MIN_SPEED;
-	PRINT_ER("@@@@@@@@@@@@ restore SPI speed to %d @@@@@@@@@\n", SPEED);
-
-}
-
-
 
 int linux_spi_init(void)
 {

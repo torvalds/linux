@@ -471,42 +471,6 @@ static void CfgScanResult(enum scan_event enuScanEvent, tstrNetworkInfo *pstrNet
 
 
 /**
- *  @brief      WILC_WFI_Set_PMKSA
- *  @details  Check if pmksa is cached and set it.
- *  @param[in]
- *  @return     int : Return 0 on Success
- *  @author	mdaftedar
- *  @date	01 MAR 2012
- *  @version	1.0
- */
-int WILC_WFI_Set_PMKSA(u8 *bssid, struct wilc_priv *priv)
-{
-	u32 i;
-	s32 s32Error = 0;
-
-
-	for (i = 0; i < priv->pmkid_list.numpmkid; i++)	{
-
-		if (!memcmp(bssid, priv->pmkid_list.pmkidlist[i].bssid,
-				 ETH_ALEN)) {
-			PRINT_D(CFG80211_DBG, "PMKID successful comparison");
-
-			/*If bssid is found, set the values*/
-			s32Error = host_int_set_pmkid_info(priv->hWILCWFIDrv, &priv->pmkid_list);
-
-			if (s32Error != 0)
-				PRINT_ER("Error in pmkid\n");
-
-			break;
-		}
-	}
-
-	return s32Error;
-
-
-}
-
-/**
  *  @brief      CfgConnectResult
  *  @details
  *  @param[in] tenuConnDisconnEvent enuConnDisconnEvent: Type of connection response either
