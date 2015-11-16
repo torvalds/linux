@@ -279,6 +279,11 @@ static inline void __kvm_extend_hypmap(pgd_t *boot_hyp_pgd,
 				       pgd_t *merged_hyp_pgd,
 				       unsigned long hyp_idmap_start) { }
 
+static inline unsigned int kvm_get_vmid_bits(void)
+{
+	return 8;
+}
+
 #endif	/* !__ASSEMBLY__ */
 
 #endif /* __ARM_KVM_MMU_H__ */
