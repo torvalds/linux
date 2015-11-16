@@ -1867,12 +1867,13 @@ static unsigned int sci_scbrr_calc(struct sci_port *s, unsigned int bps,
 }
 
 /* calculate sample rate, BRR, and clock select for HSCIF */
-static void sci_baud_calc_hscif(unsigned int bps, unsigned long freq, int *brr,
+static void sci_baud_calc_hscif(struct sci_port *s, unsigned int bps,
+				unsigned long freq, int *brr,
 				unsigned int *srr, unsigned int *cks)
 {
 	unsigned int sr, br, prediv, scrate, c;
 	int err, recv_margin;
-	int min_err = 1000; /* 100% */
+	int min_err = INT_MAX;
 	int recv_max_margin = 0;
 
 	/* Find the combination of sample rate and clock select with the
@@ -1886,7 +1887,7 @@ static void sci_baud_calc_hscif(unsigned int bps, unsigned long freq, int *brr,
 			 * We need to calculate:
 			 *
 			 *     br = freq / (prediv * bps) clamped to [1..256]
-			 *     err = (freq / (br * prediv * bps / 1000)) - 1000
+			 *     err = freq / (br * prediv) - bps
 			 *
 			 * Watch out for overflow when calculating the desired
 			 * sampling clock rate!
@@ -1897,8 +1898,7 @@ static void sci_baud_calc_hscif(unsigned int bps, unsigned long freq, int *brr,
 			scrate = prediv * bps;
 			br = DIV_ROUND_CLOSEST(freq, scrate);
 			br = clamp(br, 1U, 256U);
-			err = DIV_ROUND_CLOSEST(freq, (br * scrate) / 1000) -
-			      1000;
+			err = DIV_ROUND_CLOSEST(freq, br * prediv) - bps;
 			/* Calc recv margin
 			 * M: Receive margin (%)
 			 * N: Ratio of bit rate to clock (N = sampling rate)
@@ -1928,13 +1928,8 @@ static void sci_baud_calc_hscif(unsigned int bps, unsigned long freq, int *brr,
 		}
 	}
 
-	if (min_err == 1000) {
-		WARN_ON(1);
-		/* use defaults */
-		*brr = 255;
-		*srr = 15;
-		*cks = 0;
-	}
+	dev_dbg(s->port.dev, "BRR: %u%+d bps using N %u SR %u cks %u\n", bps,
+		min_err, *brr, *srr + 1, *cks);
 }
 
 static void sci_reset(struct uart_port *port)
@@ -1984,7 +1979,7 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 	baud = uart_get_baud_rate(port, termios, old, 0, max_baud);
 	if (likely(baud && port->uartclk)) {
 		if (s->cfg->type == PORT_HSCIF) {
-			sci_baud_calc_hscif(baud, port->uartclk, &t, &srr,
+			sci_baud_calc_hscif(s, baud, port->uartclk, &t, &srr,
 					    &cks);
 		} else {
 			t = sci_scbrr_calc(s, baud, port->uartclk);
