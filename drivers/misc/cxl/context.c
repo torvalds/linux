@@ -97,6 +97,12 @@ int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master,
 	ctx->pe = i;
 	ctx->elem = &ctx->afu->spa[i];
 	ctx->pe_inserted = false;
+
+	/*
+	 * take a ref on the afu so that it stays alive at-least till
+	 * this context is reclaimed inside reclaim_ctx.
+	 */
+	cxl_afu_get(afu);
 	return 0;
 }
 
@@ -277,6 +283,9 @@ static void reclaim_ctx(struct rcu_head *rcu)
 
 	if (ctx->irq_bitmap)
 		kfree(ctx->irq_bitmap);
+
+	/* Drop ref to the afu device taken during cxl_context_init */
+	cxl_afu_put(ctx->afu);
 
 	kfree(ctx);
 }

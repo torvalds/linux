@@ -67,7 +67,13 @@ static int __afu_open(struct inode *inode, struct file *file, bool master)
 		spin_unlock(&adapter->afu_list_lock);
 		goto err_put_adapter;
 	}
-	get_device(&afu->dev);
+
+	/*
+	 * taking a ref to the afu so that it doesn't go away
+	 * for rest of the function. This ref is released before
+	 * we return.
+	 */
+	cxl_afu_get(afu);
 	spin_unlock(&adapter->afu_list_lock);
 
 	if (!afu->current_mode)
@@ -90,13 +96,12 @@ static int __afu_open(struct inode *inode, struct file *file, bool master)
 	file->private_data = ctx;
 	cxl_ctx_get();
 
-	/* Our ref on the AFU will now hold the adapter */
-	put_device(&adapter->dev);
-
-	return 0;
+	/* indicate success */
+	rc = 0;
 
 err_put_afu:
-	put_device(&afu->dev);
+	/* release the ref taken earlier */
+	cxl_afu_put(afu);
 err_put_adapter:
 	put_device(&adapter->dev);
 	return rc;
@@ -130,8 +135,6 @@ int afu_release(struct inode *inode, struct file *file)
 		ctx->mapping = NULL;
 		mutex_unlock(&ctx->mapping_lock);
 	}
-
-	put_device(&ctx->afu->dev);
 
 	/*
 	 * At this this point all bottom halfs have finished and we should be
