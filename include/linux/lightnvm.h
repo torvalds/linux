@@ -74,6 +74,7 @@ struct nvm_id_group {
 	u32	tbet;
 	u32	tbem;
 	u32	mpos;
+	u32	mccap;
 	u16	cpar;
 	u8	res[913];
 } __packed;

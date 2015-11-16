@@ -169,8 +169,9 @@ struct nvme_nvm_id_group {
 	__le32			tbet;
 	__le32			tbem;
 	__le32			mpos;
+	__le32			mccap;
 	__le16			cpar;
-	__u8			reserved[910];
+	__u8			reserved[906];
 } __packed;
 
 struct nvme_nvm_addr_format {
@@ -265,6 +266,7 @@ static int init_grps(struct nvm_id *nvm_id, struct nvme_nvm_id *nvme_nvm_id)
 		dst->tbet = le32_to_cpu(src->tbet);
 		dst->tbem = le32_to_cpu(src->tbem);
 		dst->mpos = le32_to_cpu(src->mpos);
+		dst->mccap = le32_to_cpu(src->mccap);
 
 		dst->cpar = le16_to_cpu(src->cpar);
 	}
