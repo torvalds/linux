@@ -1634,7 +1634,7 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 	spin_lock(&udc->lock);
 
 	int_enb = usba_int_enb_get(udc);
-	status = usba_readl(udc, INT_STA) & int_enb;
+	status = usba_readl(udc, INT_STA) & (int_enb | USBA_HIGH_SPEED);
 	DBG(DBG_INT, "irq, status=%#08x\n", status);
 
 	if (status & USBA_DET_SUSPEND) {
