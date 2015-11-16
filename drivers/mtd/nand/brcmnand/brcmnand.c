@@ -1405,6 +1405,8 @@ static int brcmnand_read_by_pio(struct mtd_info *mtd, struct nand_chip *chip,
 	/* Clear error addresses */
 	brcmnand_write_reg(ctrl, BRCMNAND_UNCORR_ADDR, 0);
 	brcmnand_write_reg(ctrl, BRCMNAND_CORR_ADDR, 0);
+	brcmnand_write_reg(ctrl, BRCMNAND_UNCORR_EXT_ADDR, 0);
+	brcmnand_write_reg(ctrl, BRCMNAND_CORR_EXT_ADDR, 0);
 
 	brcmnand_write_reg(ctrl, BRCMNAND_CMD_EXT_ADDRESS,
 			(host->cs << 16) | ((addr >> 32) & 0xffff));
