@@ -163,7 +163,7 @@ static int m25p_probe(struct spi_device *spi)
 	struct m25p *flash;
 	struct spi_nor *nor;
 	enum read_mode mode = SPI_NOR_NORMAL;
-	char *flash_name = NULL;
+	char *flash_name;
 	int ret;
 
 	data = dev_get_platdata(&spi->dev);
@@ -202,6 +202,8 @@ static int m25p_probe(struct spi_device *spi)
 	 */
 	if (data && data->type)
 		flash_name = data->type;
+	else if (!strcmp(spi->modalias, "spi-nor"))
+		flash_name = NULL; /* auto-detect */
 	else
 		flash_name = spi->modalias;
 
@@ -235,6 +237,13 @@ static int m25p_remove(struct spi_device *spi)
  * keep them available as module aliases for existing platforms.
  */
 static const struct spi_device_id m25p_ids[] = {
+	/*
+	 * Allow non-DT platform devices to bind to the "spi-nor" modalias, and
+	 * hack around the fact that the SPI core does not provide uevent
+	 * matching for .of_match_table
+	 */
+	{"spi-nor"},
+
 	/*
 	 * Entries not used in DTs that should be safe to drop after replacing
 	 * them with "nor-jedec" in platform data.
