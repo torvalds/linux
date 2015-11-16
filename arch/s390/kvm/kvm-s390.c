@@ -2163,7 +2163,6 @@ static int vcpu_pre_run(struct kvm_vcpu *vcpu)
 
 static int vcpu_post_run_fault_in_sie(struct kvm_vcpu *vcpu)
 {
-	psw_t *psw = &vcpu->arch.sie_block->gpsw;
 	u8 opcode;
 	int rc;
 
@@ -2178,7 +2177,7 @@ static int vcpu_post_run_fault_in_sie(struct kvm_vcpu *vcpu)
 	 * to look up the current opcode to get the length of the instruction
 	 * to be able to forward the PSW.
 	 */
-	rc = read_guest(vcpu, psw->addr, 0, &opcode, 1);
+	rc = read_guest_instr(vcpu, &opcode, 1);
 	if (rc)
 		return kvm_s390_inject_prog_cond(vcpu, rc);
 	kvm_s390_forward_psw(vcpu, insn_length(opcode));
