@@ -9,9 +9,9 @@
 #include <linux/device.h>
 #include <linux/spi/spi.h>
 
+#include "linux_wlan_spi.h"
 #include "wilc_wfi_netdevice.h"
 #include "linux_wlan_common.h"
-#include "linux_wlan_spi.h"
 #include "wilc_wlan_if.h"
 
 #define USE_SPI_DMA     0       /* johnny add */
@@ -404,7 +404,7 @@ static int __init init_wilc_spi_driver(void)
 
 	wilc_debugfs_init();
 
-	ret = wilc_netdev_init(&wilc);
+	ret = wilc_netdev_init(&wilc, NULL, HIF_SPI);
 	if (ret) {
 		wilc_debugfs_remove();
 		return ret;

@@ -25,11 +25,7 @@
 
 #include <linux/semaphore.h>
 
-#ifdef WILC_SDIO
 #include "linux_wlan_sdio.h"
-#else
-#include "linux_wlan_spi.h"
-#endif
 
 static int dev_state_ev_handler(struct notifier_block *this, unsigned long event, void *ptr);
 
@@ -884,11 +880,6 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 
 		wlan_init_locks(dev);
 
-#ifdef WILC_SDIO
-		wl->io_type = HIF_SDIO;
-#else
-		wl->io_type = HIF_SPI;
-#endif
 		ret = wilc_wlan_init(dev);
 		if (ret < 0) {
 			PRINT_ER("Initializing WILC_Wlan FAILED\n");
@@ -1426,7 +1417,7 @@ void wilc_netdev_cleanup(struct wilc *wilc)
 #endif
 }
 
-int wilc_netdev_init(struct wilc **wilc)
+int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type)
 {
 	int i;
 	perInterface_wlan_t *nic;
@@ -1439,7 +1430,7 @@ int wilc_netdev_init(struct wilc **wilc)
 		return -ENOMEM;
 
 	*wilc = wilc_dev;
-
+	wilc_dev->io_type = io_type;
 	register_inetaddr_notifier(&g_dev_notifier);
 
 	for (i = 0; i < NUM_CONCURRENT_IFC; i++) {
@@ -1468,9 +1459,8 @@ int wilc_netdev_init(struct wilc **wilc)
 			struct wireless_dev *wdev;
 			wdev = wilc_create_wiphy(ndev);
 
-			#ifdef WILC_SDIO
-			SET_NETDEV_DEV(ndev, &wilc_sdio_func->dev);
-			#endif
+			if (dev)
+				SET_NETDEV_DEV(ndev, dev);
 
 			if (!wdev) {
 				PRINT_ER("Can't register WILC Wiphy\n");

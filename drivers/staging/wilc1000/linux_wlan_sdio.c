@@ -1,4 +1,5 @@
 #include "wilc_wfi_netdevice.h"
+#include "linux_wlan_sdio.h"
 
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/card.h>
@@ -113,7 +114,7 @@ static int linux_sdio_probe(struct sdio_func *func, const struct sdio_device_id 
 
 	PRINT_D(INIT_DBG, "Initializing netdev\n");
 	wilc_sdio_func = func;
-	if (wilc_netdev_init(&wilc)) {
+	if (wilc_netdev_init(&wilc, &func->dev, HIF_SDIO)) {
 		PRINT_ER("Couldn't initialize netdev\n");
 		return -1;
 	}
@@ -214,7 +215,6 @@ int wilc_sdio_set_default_speed(void)
 {
 	return linux_sdio_set_speed(sdio_default_speed);
 }
-
 
 static int __init init_wilc_sdio_driver(void)
 {
