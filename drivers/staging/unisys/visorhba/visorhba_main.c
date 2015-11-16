@@ -453,7 +453,6 @@ visorhba_queue_command_lck(struct scsi_cmnd *scsicmd,
 	struct uiscmdrsp *cmdrsp;
 	struct scsi_device *scsidev = scsicmd->device;
 	int insert_location;
-	unsigned char op;
 	unsigned char *cdb = scsicmd->cmnd;
 	struct Scsi_Host *scsihost = scsidev->host;
 	unsigned int i;
@@ -511,7 +510,6 @@ visorhba_queue_command_lck(struct scsi_cmnd *scsicmd,
 	}
 	cmdrsp->scsi.guest_phys_entries = scsi_sg_count(scsicmd);
 
-	op = cdb[0];
 	if (!visorchannel_signalinsert(devdata->dev->visorchannel,
 				       IOCHAN_TO_IOPART,
 				       cmdrsp)) {
@@ -759,11 +757,9 @@ do_scsi_linuxstat(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
 	struct visorhba_devdata *devdata;
 	struct visordisk_info *vdisk;
 	struct scsi_device *scsidev;
-	struct sense_data *sd;
 
 	scsidev = scsicmd->device;
 	memcpy(scsicmd->sense_buffer, cmdrsp->scsi.sensebuf, MAX_SENSE_SIZE);
-	sd = (struct sense_data *)scsicmd->sense_buffer;
 
 	/* Do not log errors for disk-not-present inquiries */
 	if ((cmdrsp->scsi.cmnd[0] == INQUIRY) &&
