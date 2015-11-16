@@ -16,6 +16,7 @@
 #define WILC_SDIO_BLOCK_SIZE 512
 
 typedef struct {
+	bool irq_gpio;
 	u32 block_size;
 	wilc_debug_func dPrint;
 	int nint;
@@ -25,10 +26,8 @@ typedef struct {
 
 static wilc_sdio_t g_sdio;
 
-#ifdef WILC_SDIO_IRQ_GPIO
 static int sdio_write_reg(u32 addr, u32 data);
 static int sdio_read_reg(u32 addr, u32 *data);
-#endif
 
 /********************************************
  *
@@ -131,29 +130,29 @@ _fail_:
 
 static int sdio_clear_int(void)
 {
-#ifndef WILC_SDIO_IRQ_GPIO
-	/* u32 sts; */
-	sdio_cmd52_t cmd;
+	if (!g_sdio.irq_gpio) {
+		/* u32 sts; */
+		sdio_cmd52_t cmd;
 
-	cmd.read_write = 0;
-	cmd.function = 1;
-	cmd.raw = 0;
-	cmd.address = 0x4;
-	cmd.data = 0;
-	wilc_sdio_cmd52(&cmd);
+		cmd.read_write = 0;
+		cmd.function = 1;
+		cmd.raw = 0;
+		cmd.address = 0x4;
+		cmd.data = 0;
+		wilc_sdio_cmd52(&cmd);
 
-	return cmd.data;
-#else
-	u32 reg;
+		return cmd.data;
+	} else {
+		u32 reg;
 
-	if (!sdio_read_reg(WILC_HOST_RX_CTRL_0, &reg)) {
-		g_sdio.dPrint(N_ERR, "[wilc spi]: Failed read reg (%08x)...\n", WILC_HOST_RX_CTRL_0);
-		return 0;
+		if (!sdio_read_reg(WILC_HOST_RX_CTRL_0, &reg)) {
+			g_sdio.dPrint(N_ERR, "[wilc spi]: Failed read reg (%08x)...\n", WILC_HOST_RX_CTRL_0);
+			return 0;
+		}
+		reg &= ~0x1;
+		sdio_write_reg(WILC_HOST_RX_CTRL_0, reg);
+		return 1;
 	}
-	reg &= ~0x1;
-	sdio_write_reg(WILC_HOST_RX_CTRL_0, reg);
-	return 1;
-#endif
 
 }
 
@@ -455,8 +454,7 @@ static int sdio_sync(void)
 		return 0;
 	}
 
-#ifdef WILC_SDIO_IRQ_GPIO
-	{
+	if (g_sdio.irq_gpio) {
 		u32 reg;
 		int ret;
 
@@ -490,7 +488,6 @@ static int sdio_sync(void)
 			return 0;
 		}
 	}
-#endif
 
 	return 1;
 }
@@ -504,6 +501,7 @@ static int sdio_init(struct wilc *wilc, wilc_debug_func func)
 	memset(&g_sdio, 0, sizeof(wilc_sdio_t));
 
 	g_sdio.dPrint = func;
+	g_sdio.irq_gpio = (wilc->dev_irq_num);
 
 	if (!wilc_sdio_init()) {
 		g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed io init bus...\n");
@@ -662,36 +660,33 @@ static int sdio_read_int(u32 *int_status)
 	/**
 	 *      Read IRQ flags
 	 **/
-#ifndef WILC_SDIO_IRQ_GPIO
-	cmd.function = 1;
-	cmd.address = 0x04;
-	cmd.data = 0;
-	wilc_sdio_cmd52(&cmd);
-
-	if (cmd.data & BIT(0))
-		tmp |= INT_0;
-	if (cmd.data & BIT(2))
-		tmp |= INT_1;
-	if (cmd.data & BIT(3))
-		tmp |= INT_2;
-	if (cmd.data & BIT(4))
-		tmp |= INT_3;
-	if (cmd.data & BIT(5))
-		tmp |= INT_4;
-	if (cmd.data & BIT(6))
-		tmp |= INT_5;
-	{
+	if (!g_sdio.irq_gpio) {
 		int i;
 
+		cmd.function = 1;
+		cmd.address = 0x04;
+		cmd.data = 0;
+		wilc_sdio_cmd52(&cmd);
+
+		if (cmd.data & BIT(0))
+			tmp |= INT_0;
+		if (cmd.data & BIT(2))
+			tmp |= INT_1;
+		if (cmd.data & BIT(3))
+			tmp |= INT_2;
+		if (cmd.data & BIT(4))
+			tmp |= INT_3;
+		if (cmd.data & BIT(5))
+			tmp |= INT_4;
+		if (cmd.data & BIT(6))
+			tmp |= INT_5;
 		for (i = g_sdio.nint; i < MAX_NUM_INT; i++) {
 			if ((tmp >> (IRG_FLAGS_OFFSET + i)) & 0x1) {
 				g_sdio.dPrint(N_ERR, "[wilc sdio]: Unexpected interrupt (1) : tmp=%x, data=%x\n", tmp, cmd.data);
 				break;
 			}
 		}
-	}
-#else
-	{
+	} else {
 		u32 irq_flags;
 
 		cmd.read_write = 0;
@@ -703,8 +698,6 @@ static int sdio_read_int(u32 *int_status)
 		irq_flags = cmd.data & 0x1f;
 		tmp |= ((irq_flags >> 0) << IRG_FLAGS_OFFSET);
 	}
-
-#endif
 
 	*int_status = tmp;
 
@@ -718,16 +711,14 @@ static int sdio_clear_int_ext(u32 val)
 	if (g_sdio.has_thrpt_enh3) {
 		u32 reg;
 
-#ifdef WILC_SDIO_IRQ_GPIO
-		{
+		if (g_sdio.irq_gpio) {
 			u32 flags;
 
 			flags = val & (BIT(MAX_NUN_INT_THRPT_ENH2) - 1);
 			reg = flags;
+		} else {
+			reg = 0;
 		}
-#else
-		reg = 0;
-#endif
 		/* select VMM table 0 */
 		if ((val & SEL_VMM_TBL0) == SEL_VMM_TBL0)
 			reg |= BIT(5);
@@ -754,8 +745,7 @@ static int sdio_clear_int_ext(u32 val)
 
 		}
 	} else {
-#ifdef WILC_SDIO_IRQ_GPIO
-		{
+		if (g_sdio.irq_gpio) {
 			/* see below. has_thrpt_enh2 uses register 0xf8 to clear interrupts. */
 			/* Cannot clear multiple interrupts. Must clear each interrupt individually */
 			u32 flags;
@@ -795,7 +785,6 @@ static int sdio_clear_int_ext(u32 val)
 				}
 			}
 		}
-#endif /* WILC_SDIO_IRQ_GPIO */
 
 		{
 			u32 vmm_ctl;
@@ -862,8 +851,7 @@ static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
 		return 0;
 	}
 
-#ifdef WILC_SDIO_IRQ_GPIO
-	{
+	if (g_sdio.irq_gpio) {
 		u32 reg;
 		int ret, i;
 
@@ -915,7 +903,6 @@ static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
 			}
 		}
 	}
-#endif /* WILC_SDIO_IRQ_GPIO */
 	return 1;
 }
 

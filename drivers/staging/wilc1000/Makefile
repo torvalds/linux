@@ -1,7 +1,6 @@
 obj-$(CONFIG_WILC1000) += wilc1000.o
 
 ccflags-$(CONFIG_WILC1000_SDIO) += -DWILC_SDIO -DCOMPLEMENT_BOOT
-ccflags-$(CONFIG_WILC1000_HW_OOB_INTR) += -DWILC_SDIO_IRQ_GPIO
 ccflags-$(CONFIG_WILC1000_SPI) += -DWILC_SPI
 
 ccflags-y += -DSTA_FIRMWARE=\"atmel/wilc1000_fw.bin\" \

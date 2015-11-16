@@ -158,10 +158,9 @@ struct wilc_vif {
 struct wilc {
 	int io_type;
 	int mac_status;
+	int gpio;
 	bool initialized;
-	#if (!defined WILC_SDIO) || (defined WILC_SDIO_IRQ_GPIO)
-	unsigned short dev_irq_num;
-	#endif
+	int dev_irq_num;
 	int close;
 	u8 vif_num;
 	struct wilc_vif vif[NUM_CONCURRENT_IFC];
@@ -213,7 +212,7 @@ void linux_wlan_rx_complete(void);
 void linux_wlan_dbg(u8 *buff);
 int linux_wlan_lock_timeout(void *vp, u32 timeout);
 void wilc_netdev_cleanup(struct wilc *wilc);
-int wilc_netdev_init(struct wilc **wilc, struct device *, int io_type);
+int wilc_netdev_init(struct wilc **wilc, struct device *, int io_type, int gpio);
 void wilc1000_wlan_deinit(struct net_device *dev);
 void WILC_WFI_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size);
 u16 wilc_set_machw_change_vir_if(struct net_device *dev, bool value);
