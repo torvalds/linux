@@ -324,6 +324,7 @@ config SENSORS_APPLESMC
 config SENSORS_ARM_SCPI
 	tristate "ARM SCPI Sensors"
 	depends on ARM_SCPI_PROTOCOL
+	depends on THERMAL || !THERMAL_OF
 	help
 	  This driver provides support for temperature, voltage, current
 	  and power sensors available on ARM Ltd's SCP based platforms. The
