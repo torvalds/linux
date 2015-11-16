@@ -111,6 +111,7 @@ static int lut_set_format(struct v4l2_subdev *subdev,
 		return 0;
 	}
 
+	format->code = fmt->format.code;
 	format->width = clamp_t(unsigned int, fmt->format.width,
 				LUT_MIN_SIZE, LUT_MAX_SIZE);
 	format->height = clamp_t(unsigned int, fmt->format.height,
