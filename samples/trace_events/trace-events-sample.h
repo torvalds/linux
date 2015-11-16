@@ -95,7 +95,7 @@
  *         __entry->bar.x = y;
 
  *   __array: There are three fields (type, name, size). The type is the
- *         type of elements in teh array, the name is the name of the array.
+ *         type of elements in the array, the name is the name of the array.
  *         size is the number of items in the array (not the total size).
  *
  *         __array( char, foo, 10) is the same as saying: char foo[10];
