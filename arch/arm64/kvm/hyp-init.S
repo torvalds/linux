@@ -96,6 +96,14 @@ __do_hyp_init:
 
 	ldr	x4, =VTCR_EL2_FLAGS
 	bfi	x4, x5, #16, #3
+	/*
+	 * Read the VMIDBits bits from ID_AA64MMFR1_EL1 and set the VS bit in
+	 * VTCR_EL2.
+	 */
+	mrs	x5, ID_AA64MMFR1_EL1
+	ubfx	x5, x5, #5, #1
+	lsl	x5, x5, #VTCR_EL2_VS
+	orr	x4, x4, x5
 
 	msr	vtcr_el2, x4
 

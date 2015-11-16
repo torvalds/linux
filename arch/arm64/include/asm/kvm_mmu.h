@@ -20,6 +20,7 @@
 
 #include <asm/page.h>
 #include <asm/memory.h>
+#include <asm/cpufeature.h>
 
 /*
  * As we only have the TTBR0_EL2 register, we cannot express
@@ -299,6 +300,13 @@ static inline void __kvm_extend_hypmap(pgd_t *boot_hyp_pgd,
 	idmap_idx = hyp_idmap_start >> VA_BITS;
 	VM_BUG_ON(pgd_val(merged_hyp_pgd[idmap_idx]));
 	merged_hyp_pgd[idmap_idx] = __pgd(__pa(boot_hyp_pgd) | PMD_TYPE_TABLE);
+}
+
+static inline unsigned int kvm_get_vmid_bits(void)
+{
+	int reg = read_system_reg(SYS_ID_AA64MMFR1_EL1);
+
+	return (cpuid_feature_extract_field(reg, ID_AA64MMFR1_VMIDBITS_SHIFT) == 2) ? 16 : 8;
 }
 
 #endif /* __ASSEMBLY__ */
