@@ -348,7 +348,12 @@ struct hfi1_mr {
  * in qp->s_max_sge.
  */
 struct hfi1_swqe {
-	struct ib_send_wr wr;   /* don't use wr.sg_list */
+	union {
+		struct ib_send_wr wr;   /* don't use wr.sg_list */
+		struct ib_rdma_wr rdma_wr;
+		struct ib_atomic_wr atomic_wr;
+		struct ib_ud_wr ud_wr;
+	};
 	u32 psn;                /* first packet sequence number */
 	u32 lpsn;               /* last packet sequence number */
 	u32 ssn;                /* send sequence number */
@@ -754,6 +759,7 @@ struct hfi1_ibdev {
 	u64 n_piowait;
 	u64 n_txwait;
 	u64 n_kmem_wait;
+	u64 n_send_schedule;
 
 	u32 n_pds_allocated;    /* number of PDs allocated for device */
 	spinlock_t n_pds_lock;
@@ -1020,13 +1026,6 @@ struct ib_mr *hfi1_alloc_mr(struct ib_pd *pd,
 			    enum ib_mr_type mr_type,
 			    u32 max_entries);
 
-struct ib_fast_reg_page_list *hfi1_alloc_fast_reg_page_list(
-				struct ib_device *ibdev, int page_list_len);
-
-void hfi1_free_fast_reg_page_list(struct ib_fast_reg_page_list *pl);
-
-int hfi1_fast_reg_mr(struct hfi1_qp *qp, struct ib_send_wr *wr);
-
 struct ib_fmr *hfi1_alloc_fmr(struct ib_pd *pd, int mr_access_flags,
 			      struct ib_fmr_attr *fmr_attr);
 
@@ -1077,8 +1076,6 @@ int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct hfi1_ib_header *hdr,
 
 u32 hfi1_make_grh(struct hfi1_ibport *ibp, struct ib_grh *hdr,
 		  struct ib_global_route *grh, u32 hwords, u32 nwords);
-
-void clear_ahg(struct hfi1_qp *qp);
 
 void hfi1_make_ruc_header(struct hfi1_qp *qp, struct hfi1_other_headers *ohdr,
 			  u32 bth0, u32 bth2, int middle);

@@ -1383,28 +1383,6 @@ static int exynos_dp_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int exynos_dp_suspend(struct device *dev)
-{
-	struct exynos_dp_device *dp = dev_get_drvdata(dev);
-
-	exynos_dp_disable(&dp->encoder);
-	return 0;
-}
-
-static int exynos_dp_resume(struct device *dev)
-{
-	struct exynos_dp_device *dp = dev_get_drvdata(dev);
-
-	exynos_dp_enable(&dp->encoder);
-	return 0;
-}
-#endif
-
-static const struct dev_pm_ops exynos_dp_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(exynos_dp_suspend, exynos_dp_resume)
-};
-
 static const struct of_device_id exynos_dp_match[] = {
 	{ .compatible = "samsung,exynos5-dp" },
 	{},
@@ -1417,7 +1395,6 @@ struct platform_driver dp_driver = {
 	.driver		= {
 		.name	= "exynos-dp",
 		.owner	= THIS_MODULE,
-		.pm	= &exynos_dp_pm_ops,
 		.of_match_table = exynos_dp_match,
 	},
 };

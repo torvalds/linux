@@ -263,4 +263,9 @@ enum {
 #undef FLASH_START
 #undef FLASH_MAX_SIZE
 
+#define SGE_TIMESTAMP_S 0
+#define SGE_TIMESTAMP_M 0xfffffffffffffffULL
+#define SGE_TIMESTAMP_V(x) ((__u64)(x) << SGE_TIMESTAMP_S)
+#define SGE_TIMESTAMP_G(x) (((__u64)(x) >> SGE_TIMESTAMP_S) & SGE_TIMESTAMP_M)
+
 #endif /* __T4_HW_H */

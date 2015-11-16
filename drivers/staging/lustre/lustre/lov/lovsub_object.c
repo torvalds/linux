@@ -91,7 +91,7 @@ static void lovsub_object_free(const struct lu_env *env, struct lu_object *obj)
 
 	lu_object_fini(obj);
 	lu_object_header_fini(&los->lso_header.coh_lu);
-	OBD_SLAB_FREE_PTR(los, lovsub_object_kmem);
+	kmem_cache_free(lovsub_object_kmem, los);
 }
 
 static int lovsub_object_print(const struct lu_env *env, void *cookie,
@@ -120,8 +120,6 @@ static int lovsub_object_glimpse(const struct lu_env *env,
 	return cl_object_glimpse(env, &los->lso_super->lo_cl, lvb);
 }
 
-
-
 static const struct cl_object_operations lovsub_ops = {
 	.coo_page_init = lovsub_page_init,
 	.coo_lock_init = lovsub_lock_init,
@@ -145,7 +143,7 @@ struct lu_object *lovsub_object_alloc(const struct lu_env *env,
 	struct lovsub_object *los;
 	struct lu_object     *obj;
 
-	OBD_SLAB_ALLOC_PTR_GFP(los, lovsub_object_kmem, GFP_NOFS);
+	los = kmem_cache_alloc(lovsub_object_kmem, GFP_NOFS | __GFP_ZERO);
 	if (los != NULL) {
 		struct cl_object_header *hdr;
 

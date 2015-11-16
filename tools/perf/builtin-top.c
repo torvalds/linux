@@ -655,7 +655,7 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 {
 	const char *name = sym->name;
 
-	if (!map->dso->kernel)
+	if (!__map__is_kernel(map))
 		return 0;
 	/*
 	 * ppc64 uses function descriptors and appends a '.' to the
@@ -857,9 +857,12 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 			 * TODO: we don't process guest user from host side
 			 * except simple counting.
 			 */
-			/* Fall thru */
-		default:
 			goto next_event;
+		default:
+			if (event->header.type == PERF_RECORD_SAMPLE)
+				goto next_event;
+			machine = &session->machines.host;
+			break;
 		}
 
 
@@ -952,7 +955,7 @@ static int __cmd_top(struct perf_top *top)
 	machines__set_symbol_filter(&top->session->machines, symbol_filter);
 
 	if (!objdump_path) {
-		ret = perf_session_env__lookup_objdump(&top->session->header.env);
+		ret = perf_env__lookup_objdump(&top->session->header.env);
 		if (ret)
 			goto out_delete;
 	}
@@ -961,8 +964,18 @@ static int __cmd_top(struct perf_top *top)
 	if (ret)
 		goto out_delete;
 
+	if (perf_session__register_idle_thread(top->session) == NULL)
+		goto out_delete;
+
 	machine__synthesize_threads(&top->session->machines.host, &opts->target,
 				    top->evlist->threads, false, opts->proc_map_timeout);
+
+	if (sort__has_socket) {
+		ret = perf_env__read_cpu_topology_map(&perf_env);
+		if (ret < 0)
+			goto out_err_cpu_topo;
+	}
+
 	ret = perf_top__start_counters(top);
 	if (ret)
 		goto out_delete;
@@ -1020,6 +1033,14 @@ out_delete:
 	top->session = NULL;
 
 	return ret;
+
+out_err_cpu_topo: {
+	char errbuf[BUFSIZ];
+	const char *err = strerror_r(-ret, errbuf, sizeof(errbuf));
+
+	ui__error("Could not read the CPU topology map: %s\n", err);
+	goto out_delete;
+}
 }
 
 static int
@@ -1032,8 +1053,22 @@ callchain_opt(const struct option *opt, const char *arg, int unset)
 static int
 parse_callchain_opt(const struct option *opt, const char *arg, int unset)
 {
-	symbol_conf.use_callchain = true;
-	return record_parse_callchain_opt(opt, arg, unset);
+	struct record_opts *record = (struct record_opts *)opt->value;
+
+	record->callgraph_set = true;
+	callchain_param.enabled = !unset;
+	callchain_param.record_mode = CALLCHAIN_FP;
+
+	/*
+	 * --no-call-graph
+	 */
+	if (unset) {
+		symbol_conf.use_callchain = false;
+		callchain_param.record_mode = CALLCHAIN_NONE;
+		return 0;
+	}
+
+	return parse_callchain_top_opt(arg);
 }
 
 static int perf_top_config(const char *var, const char *value, void *cb)
@@ -1057,6 +1092,9 @@ parse_percent_limit(const struct option *opt, const char *arg,
 	top->min_percent = strtof(arg, NULL);
 	return 0;
 }
+
+const char top_callchain_help[] = CALLCHAIN_RECORD_HELP CALLCHAIN_REPORT_HELP
+	"\n\t\t\t\tDefault: fp,graph,0.5,caller,function";
 
 int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 {
@@ -1133,11 +1171,11 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN('n', "show-nr-samples", &symbol_conf.show_nr_samples,
 		    "Show a column with the number of samples"),
 	OPT_CALLBACK_NOOPT('g', NULL, &top.record_opts,
-			   NULL, "enables call-graph recording",
+			   NULL, "enables call-graph recording and display",
 			   &callchain_opt),
 	OPT_CALLBACK(0, "call-graph", &top.record_opts,
-		     "mode[,dump_size]", record_callchain_help,
-		     &parse_callchain_opt),
+		     "record_mode[,record_size],print_type,threshold[,print_limit],order,sort_key[,branch]",
+		     top_callchain_help, &parse_callchain_opt),
 	OPT_BOOLEAN(0, "children", &symbol_conf.cumulate_callchain,
 		    "Accumulate callchains of children and show total overhead as well"),
 	OPT_INTEGER(0, "max-stack", &top.max_stack,
@@ -1266,6 +1304,9 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		symbol_conf.cumulate_callchain = false;
 		perf_hpp__cancel_cumulate();
 	}
+
+	if (symbol_conf.cumulate_callchain && !callchain_param.order_set)
+		callchain_param.order = ORDER_CALLER;
 
 	symbol_conf.priv_size = sizeof(struct annotation);
 

@@ -354,7 +354,7 @@ static int __meminit split_mem_range(struct map_range *mr, int nr_range,
 	}
 
 	for (i = 0; i < nr_range; i++)
-		printk(KERN_DEBUG " [mem %#010lx-%#010lx] page %s\n",
+		pr_debug(" [mem %#010lx-%#010lx] page %s\n",
 				mr[i].start, mr[i].end - 1,
 				page_size_string(&mr[i]));
 
@@ -401,7 +401,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	unsigned long ret = 0;
 	int nr_range, i;
 
-	pr_info("init_memory_mapping: [mem %#010lx-%#010lx]\n",
+	pr_debug("init_memory_mapping: [mem %#010lx-%#010lx]\n",
 	       start, end - 1);
 
 	memset(mr, 0, sizeof(mr));
@@ -693,14 +693,12 @@ void free_initmem(void)
 #ifdef CONFIG_BLK_DEV_INITRD
 void __init free_initrd_mem(unsigned long start, unsigned long end)
 {
-#ifdef CONFIG_MICROCODE_EARLY
 	/*
 	 * Remember, initrd memory may contain microcode or other useful things.
 	 * Before we lose initrd mem, we need to find a place to hold them
 	 * now that normal virtual memory is enabled.
 	 */
 	save_microcode_in_initrd();
-#endif
 
 	/*
 	 * end could be not aligned, and We can not align that,

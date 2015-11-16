@@ -14,6 +14,7 @@
 
 /dts-v1/;
 #include "exynos4412.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 
 / {
@@ -45,7 +46,7 @@
 			regulator-name = "VMEM_VDD_2.8V";
 			regulator-min-microvolt = <2800000>;
 			regulator-max-microvolt = <2800000>;
-			gpio = <&gpx1 1 0>;
+			gpio = <&gpx1 1 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};
 	};
@@ -107,13 +108,13 @@
 
 		s5m8767,pmic-buck-default-dvs-idx = <3>;
 
-		s5m8767,pmic-buck-dvs-gpios = <&gpx2 3 0>,
-						 <&gpx2 4 0>,
-						 <&gpx2 5 0>;
+		s5m8767,pmic-buck-dvs-gpios = <&gpx2 3 GPIO_ACTIVE_HIGH>,
+						 <&gpx2 4 GPIO_ACTIVE_HIGH>,
+						 <&gpx2 5 GPIO_ACTIVE_HIGH>;
 
-		s5m8767,pmic-buck-ds-gpios = <&gpm3 5 0>,
-						<&gpm3 6 0>,
-						<&gpm3 7 0>;
+		s5m8767,pmic-buck-ds-gpios = <&gpm3 5 GPIO_ACTIVE_HIGH>,
+						<&gpm3 6 GPIO_ACTIVE_HIGH>,
+						<&gpm3 7 GPIO_ACTIVE_HIGH>;
 
 		s5m8767,pmic-buck2-dvs-voltage = <1250000>, <1200000>,
 						 <1200000>, <1200000>,

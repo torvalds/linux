@@ -141,7 +141,7 @@
 	flash: m25p80@1 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "micron,n25q128a11";
+		compatible = "micron,n25q128a11", "jedec,spi-nor";
 		spi-max-frequency = <20000000>;
 		reg = <1>;
 	};

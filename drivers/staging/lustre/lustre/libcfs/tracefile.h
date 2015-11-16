@@ -65,8 +65,6 @@ void cfs_trace_stop_thread(void);
 int cfs_tracefile_init(int max_pages);
 void cfs_tracefile_exit(void);
 
-
-
 int cfs_trace_copyin_string(char *knl_buffer, int knl_buffer_nob,
 			    const char __user *usr_buffer, int usr_buffer_nob);
 int cfs_trace_copyout_string(char __user *usr_buffer, int usr_buffer_nob,
@@ -308,7 +306,6 @@ cfs_trace_put_tcd (struct cfs_trace_cpu_data *tcd)
 
 int cfs_trace_refill_stock(struct cfs_trace_cpu_data *tcd, gfp_t gfp,
 			   struct list_head *stock);
-
 
 int cfs_tcd_owns_tage(struct cfs_trace_cpu_data *tcd,
 		      struct cfs_trace_page *tage);

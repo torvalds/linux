@@ -206,59 +206,73 @@ my $type_env = '(\$\w+)';
 #  One for each output format
 
 # these work fairly well
-my %highlights_html = ( $type_constant, "<i>\$1</i>",
-			$type_func, "<b>\$1</b>",
-			$type_struct_xml, "<i>\$1</i>",
-			$type_env, "<b><i>\$1</i></b>",
-			$type_param, "<tt><b>\$1</b></tt>" );
+my @highlights_html = (
+                       [$type_constant, "<i>\$1</i>"],
+                       [$type_func, "<b>\$1</b>"],
+                       [$type_struct_xml, "<i>\$1</i>"],
+                       [$type_env, "<b><i>\$1</i></b>"],
+                       [$type_param, "<tt><b>\$1</b></tt>"]
+                      );
 my $local_lt = "\\\\\\\\lt:";
 my $local_gt = "\\\\\\\\gt:";
 my $blankline_html = $local_lt . "p" . $local_gt;	# was "<p>"
 
 # html version 5
-my %highlights_html5 = ( $type_constant, "<span class=\"const\">\$1</span>",
-			$type_func, "<span class=\"func\">\$1</span>",
-			$type_struct_xml, "<span class=\"struct\">\$1</span>",
-			$type_env, "<span class=\"env\">\$1</span>",
-			$type_param, "<span class=\"param\">\$1</span>" );
+my @highlights_html5 = (
+                        [$type_constant, "<span class=\"const\">\$1</span>"],
+                        [$type_func, "<span class=\"func\">\$1</span>"],
+                        [$type_struct_xml, "<span class=\"struct\">\$1</span>"],
+                        [$type_env, "<span class=\"env\">\$1</span>"],
+                        [$type_param, "<span class=\"param\">\$1</span>]"]
+		       );
 my $blankline_html5 = $local_lt . "br /" . $local_gt;
 
 # XML, docbook format
-my %highlights_xml = ( "([^=])\\\"([^\\\"<]+)\\\"", "\$1<quote>\$2</quote>",
-			$type_constant, "<constant>\$1</constant>",
-			$type_func, "<function>\$1</function>",
-			$type_struct_xml, "<structname>\$1</structname>",
-			$type_env, "<envar>\$1</envar>",
-			$type_param, "<parameter>\$1</parameter>" );
+my @highlights_xml = (
+                      ["([^=])\\\"([^\\\"<]+)\\\"", "\$1<quote>\$2</quote>"],
+                      [$type_constant, "<constant>\$1</constant>"],
+                      [$type_struct_xml, "<structname>\$1</structname>"],
+                      [$type_param, "<parameter>\$1</parameter>"],
+                      [$type_func, "<function>\$1</function>"],
+                      [$type_env, "<envar>\$1</envar>"]
+		     );
 my $blankline_xml = $local_lt . "/para" . $local_gt . $local_lt . "para" . $local_gt . "\n";
 
 # gnome, docbook format
-my %highlights_gnome = ( $type_constant, "<replaceable class=\"option\">\$1</replaceable>",
-			 $type_func, "<function>\$1</function>",
-			 $type_struct, "<structname>\$1</structname>",
-			 $type_env, "<envar>\$1</envar>",
-			 $type_param, "<parameter>\$1</parameter>" );
+my @highlights_gnome = (
+                        [$type_constant, "<replaceable class=\"option\">\$1</replaceable>"],
+                        [$type_func, "<function>\$1</function>"],
+                        [$type_struct, "<structname>\$1</structname>"],
+                        [$type_env, "<envar>\$1</envar>"],
+                        [$type_param, "<parameter>\$1</parameter>" ]
+		       );
 my $blankline_gnome = "</para><para>\n";
 
 # these are pretty rough
-my %highlights_man = ( $type_constant, "\$1",
-		       $type_func, "\\\\fB\$1\\\\fP",
-		       $type_struct, "\\\\fI\$1\\\\fP",
-		       $type_param, "\\\\fI\$1\\\\fP" );
+my @highlights_man = (
+                      [$type_constant, "\$1"],
+                      [$type_func, "\\\\fB\$1\\\\fP"],
+                      [$type_struct, "\\\\fI\$1\\\\fP"],
+                      [$type_param, "\\\\fI\$1\\\\fP"]
+		     );
 my $blankline_man = "";
 
 # text-mode
-my %highlights_text = ( $type_constant, "\$1",
-			$type_func, "\$1",
-			$type_struct, "\$1",
-			$type_param, "\$1" );
+my @highlights_text = (
+                       [$type_constant, "\$1"],
+                       [$type_func, "\$1"],
+                       [$type_struct, "\$1"],
+                       [$type_param, "\$1"]
+		      );
 my $blankline_text = "";
 
 # list mode
-my %highlights_list = ( $type_constant, "\$1",
-			$type_func, "\$1",
-			$type_struct, "\$1",
-			$type_param, "\$1" );
+my @highlights_list = (
+                       [$type_constant, "\$1"],
+                       [$type_func, "\$1"],
+                       [$type_struct, "\$1"],
+                       [$type_param, "\$1"]
+		      );
 my $blankline_list = "";
 
 # read arguments
@@ -273,7 +287,7 @@ my $verbose = 0;
 my $output_mode = "man";
 my $output_preformatted = 0;
 my $no_doc_sections = 0;
-my %highlights = %highlights_man;
+my @highlights = @highlights_man;
 my $blankline = $blankline_man;
 my $modulename = "Kernel API";
 my $function_only = 0;
@@ -374,31 +388,31 @@ while ($ARGV[0] =~ m/^-(.*)/) {
     my $cmd = shift @ARGV;
     if ($cmd eq "-html") {
 	$output_mode = "html";
-	%highlights = %highlights_html;
+	@highlights = @highlights_html;
 	$blankline = $blankline_html;
     } elsif ($cmd eq "-html5") {
 	$output_mode = "html5";
-	%highlights = %highlights_html5;
+	@highlights = @highlights_html5;
 	$blankline = $blankline_html5;
     } elsif ($cmd eq "-man") {
 	$output_mode = "man";
-	%highlights = %highlights_man;
+	@highlights = @highlights_man;
 	$blankline = $blankline_man;
     } elsif ($cmd eq "-text") {
 	$output_mode = "text";
-	%highlights = %highlights_text;
+	@highlights = @highlights_text;
 	$blankline = $blankline_text;
     } elsif ($cmd eq "-docbook") {
 	$output_mode = "xml";
-	%highlights = %highlights_xml;
+	@highlights = @highlights_xml;
 	$blankline = $blankline_xml;
     } elsif ($cmd eq "-list") {
 	$output_mode = "list";
-	%highlights = %highlights_list;
+	@highlights = @highlights_list;
 	$blankline = $blankline_list;
     } elsif ($cmd eq "-gnome") {
 	$output_mode = "gnome";
-	%highlights = %highlights_gnome;
+	@highlights = @highlights_gnome;
 	$blankline = $blankline_gnome;
     } elsif ($cmd eq "-module") { # not needed for XML, inherits from calling document
 	$modulename = shift @ARGV;
@@ -1746,7 +1760,7 @@ sub output_declaration {
     my $func = "output_${functype}_$output_mode";
     if (($function_only==0) ||
 	( $function_only == 1 && defined($function_table{$name})) ||
-	( $function_only == 2 && !defined($function_table{$name})))
+	( $function_only == 2 && !($functype eq "function" && defined($function_table{$name}))))
     {
 	&$func(@_);
 	$section_counter++;
@@ -1791,8 +1805,8 @@ sub dump_struct($$) {
 	$nested = $1;
 
 	# ignore members marked private:
-	$members =~ s/\/\*\s*private:.*?\/\*\s*public:.*?\*\///gos;
-	$members =~ s/\/\*\s*private:.*//gos;
+	$members =~ s/\/\*\s*private:.*?\/\*\s*public:.*?\*\///gosi;
+	$members =~ s/\/\*\s*private:.*//gosi;
 	# strip comments:
 	$members =~ s/\/\*.*?\*\///gos;
 	$nested =~ s/\/\*.*?\*\///gos;
@@ -1869,6 +1883,31 @@ sub dump_typedef($$) {
     my $file = shift;
 
     $x =~ s@/\*.*?\*/@@gos;	# strip comments.
+
+    # Parse function prototypes
+    if ($x =~ /typedef\s+(\w+)\s*\(\*\s*(\w\S+)\s*\)\s*\((.*)\);/) {
+	# Function typedefs
+	$return_type = $1;
+	$declaration_name = $2;
+	my $args = $3;
+
+	create_parameterlist($args, ',', $file);
+
+	output_declaration($declaration_name,
+			   'function',
+			   {'function' => $declaration_name,
+			    'module' => $modulename,
+			    'functiontype' => $return_type,
+			    'parameterlist' => \@parameterlist,
+			    'parameterdescs' => \%parameterdescs,
+			    'parametertypes' => \%parametertypes,
+			    'sectionlist' => \@sectionlist,
+			    'sections' => \%sections,
+			    'purpose' => $declaration_purpose
+			   });
+	return;
+    }
+
     while (($x =~ /\(*.\)\s*;$/) || ($x =~ /\[*.\]\s*;$/)) {
 	$x =~ s/\(*.\)\s*;$/;/;
 	$x =~ s/\[*.\]\s*;$/;/;
@@ -2391,12 +2430,13 @@ sub process_file($) {
     my $descr;
     my $in_purpose = 0;
     my $initial_section_counter = $section_counter;
+    my ($orig_file) = @_;
 
     if (defined($ENV{'SRCTREE'})) {
-	$file = "$ENV{'SRCTREE'}" . "/" . "@_";
+	$file = "$ENV{'SRCTREE'}" . "/" . $orig_file;
     }
     else {
-	$file = "@_";
+	$file = $orig_file;
     }
     if (defined($source_map{$file})) {
 	$file = $source_map{$file};
@@ -2640,7 +2680,7 @@ sub process_file($) {
 	    print "<refentry>\n";
 	    print " <refnamediv>\n";
 	    print "  <refname>\n";
-	    print "   ${file}\n";
+	    print "   ${orig_file}\n";
 	    print "  </refname>\n";
 	    print "  <refpurpose>\n";
 	    print "   Document generation inconsistency\n";
@@ -2654,7 +2694,7 @@ sub process_file($) {
 	    print "   <para>\n";
 	    print "    The template for this document tried to insert\n";
 	    print "    the structured comment from the file\n";
-	    print "    <filename>${file}</filename> at this point,\n";
+	    print "    <filename>${orig_file}</filename> at this point,\n";
 	    print "    but none was found.\n";
 	    print "    This dummy section is inserted to allow\n";
 	    print "    generation to continue.\n";
@@ -2671,9 +2711,11 @@ $kernelversion = get_kernel_version();
 
 # generate a sequence of code that will splice in highlighting information
 # using the s// operator.
-foreach my $pattern (sort keys %highlights) {
-#   print STDERR "scanning pattern:$pattern, highlight:($highlights{$pattern})\n";
-    $dohighlight .=  "\$contents =~ s:$pattern:$highlights{$pattern}:gs;\n";
+foreach my $k (keys @highlights) {
+    my $pattern = $highlights[$k][0];
+    my $result = $highlights[$k][1];
+#   print STDERR "scanning pattern:$pattern, highlight:($result)\n";
+    $dohighlight .=  "\$contents =~ s:$pattern:$result:gs;\n";
 }
 
 # Read the file that maps relative names to absolute names for

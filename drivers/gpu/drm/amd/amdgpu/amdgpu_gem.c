@@ -115,9 +115,10 @@ int amdgpu_gem_object_open(struct drm_gem_object *obj, struct drm_file *file_pri
 	struct amdgpu_vm *vm = &fpriv->vm;
 	struct amdgpu_bo_va *bo_va;
 	int r;
-
+	mutex_lock(&vm->mutex);
 	r = amdgpu_bo_reserve(rbo, false);
 	if (r) {
+		mutex_unlock(&vm->mutex);
 		return r;
 	}
 
@@ -128,7 +129,7 @@ int amdgpu_gem_object_open(struct drm_gem_object *obj, struct drm_file *file_pri
 		++bo_va->ref_count;
 	}
 	amdgpu_bo_unreserve(rbo);
-
+	mutex_unlock(&vm->mutex);
 	return 0;
 }
 
@@ -141,9 +142,10 @@ void amdgpu_gem_object_close(struct drm_gem_object *obj,
 	struct amdgpu_vm *vm = &fpriv->vm;
 	struct amdgpu_bo_va *bo_va;
 	int r;
-
+	mutex_lock(&vm->mutex);
 	r = amdgpu_bo_reserve(rbo, true);
 	if (r) {
+		mutex_unlock(&vm->mutex);
 		dev_err(adev->dev, "leaking bo va because "
 			"we fail to reserve bo (%d)\n", r);
 		return;
@@ -155,6 +157,7 @@ void amdgpu_gem_object_close(struct drm_gem_object *obj,
 		}
 	}
 	amdgpu_bo_unreserve(rbo);
+	mutex_unlock(&vm->mutex);
 }
 
 static int amdgpu_gem_handle_lockup(struct amdgpu_device *adev, int r)
@@ -181,7 +184,6 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 	bool kernel = false;
 	int r;
 
-	down_read(&adev->exclusive_lock);
 	/* create a gem object to contain this object in */
 	if (args->in.domains & (AMDGPU_GEM_DOMAIN_GDS |
 	    AMDGPU_GEM_DOMAIN_GWS | AMDGPU_GEM_DOMAIN_OA)) {
@@ -214,11 +216,9 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 
 	memset(args, 0, sizeof(*args));
 	args->out.handle = handle;
-	up_read(&adev->exclusive_lock);
 	return 0;
 
 error_unlock:
-	up_read(&adev->exclusive_lock);
 	r = amdgpu_gem_handle_lockup(adev, r);
 	return r;
 }
@@ -249,8 +249,6 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 		   memory and install a MMU notifier */
 		return -EACCES;
 	}
-
-	down_read(&adev->exclusive_lock);
 
 	/* create a gem object to contain this object in */
 	r = amdgpu_gem_object_create(adev, args->size, 0,
@@ -293,14 +291,12 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 		goto handle_lockup;
 
 	args->handle = handle;
-	up_read(&adev->exclusive_lock);
 	return 0;
 
 release_object:
 	drm_gem_object_unreference_unlocked(gobj);
 
 handle_lockup:
-	up_read(&adev->exclusive_lock);
 	r = amdgpu_gem_handle_lockup(adev, r);
 
 	return r;
@@ -488,17 +484,12 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 			goto error_unreserve;
 	}
 
-	mutex_lock(&bo_va->vm->mutex);
 	r = amdgpu_vm_clear_freed(adev, bo_va->vm);
 	if (r)
-		goto error_unlock;
-
+		goto error_unreserve;
 
 	if (operation == AMDGPU_VA_OP_MAP)
 		r = amdgpu_vm_bo_update(adev, bo_va, &bo_va->bo->tbo.mem);
-
-error_unlock:
-	mutex_unlock(&bo_va->vm->mutex);
 
 error_unreserve:
 	ttm_eu_backoff_reservation(&ticket, &list);
@@ -556,10 +547,11 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	gobj = drm_gem_object_lookup(dev, filp, args->handle);
 	if (gobj == NULL)
 		return -ENOENT;
-
+	mutex_lock(&fpriv->vm.mutex);
 	rbo = gem_to_amdgpu_bo(gobj);
 	r = amdgpu_bo_reserve(rbo, false);
 	if (r) {
+		mutex_unlock(&fpriv->vm.mutex);
 		drm_gem_object_unreference_unlocked(gobj);
 		return r;
 	}
@@ -567,6 +559,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	bo_va = amdgpu_vm_bo_find(&fpriv->vm, rbo);
 	if (!bo_va) {
 		amdgpu_bo_unreserve(rbo);
+		mutex_unlock(&fpriv->vm.mutex);
 		return -ENOENT;
 	}
 
@@ -591,7 +584,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 
 	if (!r && !(args->flags & AMDGPU_VM_DELAY_UPDATE))
 		amdgpu_gem_va_update_vm(adev, bo_va, args->operation);
-
+	mutex_unlock(&fpriv->vm.mutex);
 	drm_gem_object_unreference_unlocked(gobj);
 	return r;
 }

@@ -34,7 +34,7 @@
 #include <linux/tty_ldisc.h>
 #include <linux/errno.h>
 #include <linux/string.h>
-#include <asm-generic/bug.h>
+#include <linux/bug.h>
 #include "n_tracesink.h"
 
 /*

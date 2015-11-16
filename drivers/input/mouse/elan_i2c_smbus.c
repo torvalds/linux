@@ -183,7 +183,7 @@ static int elan_smbus_get_sm_version(struct i2c_client *client,
 	return 0;
 }
 
-static int elan_smbus_get_product_id(struct i2c_client *client, u8 *id)
+static int elan_smbus_get_product_id(struct i2c_client *client, u16 *id)
 {
 	int error;
 	u8 val[3];
@@ -195,7 +195,7 @@ static int elan_smbus_get_product_id(struct i2c_client *client, u8 *id)
 		return error;
 	}
 
-	*id = val[1];
+	*id = be16_to_cpup((__be16 *)val);
 	return 0;
 }
 

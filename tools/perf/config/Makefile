@@ -106,8 +106,13 @@ ifdef LIBBABELTRACE
   FEATURE_CHECK_LDFLAGS-libbabeltrace := $(LIBBABELTRACE_LDFLAGS) -lbabeltrace-ctf
 endif
 
+FEATURE_CHECK_CFLAGS-bpf = -I. -I$(srctree)/tools/include -I$(srctree)/arch/$(ARCH)/include/uapi -I$(srctree)/include/uapi
 # include ARCH specific config
 -include $(src-perf)/arch/$(ARCH)/Makefile
+
+ifdef PERF_HAVE_ARCH_REGS_QUERY_REGISTER_OFFSET
+  CFLAGS += -DHAVE_ARCH_REGS_QUERY_REGISTER_OFFSET
+endif
 
 include $(src-perf)/config/utilities.mak
 
@@ -233,6 +238,7 @@ ifdef NO_LIBELF
   NO_DEMANGLE := 1
   NO_LIBUNWIND := 1
   NO_LIBDW_DWARF_UNWIND := 1
+  NO_LIBBPF := 1
 else
   ifeq ($(feature-libelf), 0)
     ifeq ($(feature-glibc), 1)
@@ -242,13 +248,14 @@ else
       LIBC_SUPPORT := 1
     endif
     ifeq ($(LIBC_SUPPORT),1)
-      msg := $(warning No libelf found, disables 'probe' tool, please install elfutils-libelf-devel/libelf-dev);
+      msg := $(warning No libelf found, disables 'probe' tool and BPF support in 'perf record', please install elfutils-libelf-devel/libelf-dev);
 
       NO_LIBELF := 1
       NO_DWARF := 1
       NO_DEMANGLE := 1
       NO_LIBUNWIND := 1
       NO_LIBDW_DWARF_UNWIND := 1
+      NO_LIBBPF := 1
     else
       ifneq ($(filter s% -static%,$(LDFLAGS),),)
         msg := $(error No static glibc found, please install glibc-static);
@@ -305,6 +312,13 @@ ifndef NO_LIBELF
       $(call detected,CONFIG_DWARF)
     endif # PERF_HAVE_DWARF_REGS
   endif # NO_DWARF
+
+  ifndef NO_LIBBPF
+    ifeq ($(feature-bpf), 1)
+      CFLAGS += -DHAVE_LIBBPF_SUPPORT
+      $(call detected,CONFIG_LIBBPF)
+    endif
+  endif # NO_LIBBPF
 endif # NO_LIBELF
 
 ifeq ($(ARCH),powerpc)
@@ -317,6 +331,13 @@ ifndef NO_LIBUNWIND
   ifneq ($(feature-libunwind), 1)
     msg := $(warning No libunwind found. Please install libunwind-dev[el] >= 1.1 and/or set LIBUNWIND_DIR);
     NO_LIBUNWIND := 1
+  endif
+endif
+
+ifndef NO_LIBBPF
+  ifneq ($(feature-bpf), 1)
+    msg := $(warning BPF API too old. Please install recent kernel headers. BPF support in 'perf record' is disabled.)
+    NO_LIBBPF := 1
   endif
 endif
 
@@ -573,9 +594,14 @@ ifndef NO_LIBNUMA
     msg := $(warning No numa.h found, disables 'perf bench numa mem' benchmark, please install numactl-devel/libnuma-devel/libnuma-dev);
     NO_LIBNUMA := 1
   else
-    CFLAGS += -DHAVE_LIBNUMA_SUPPORT
-    EXTLIBS += -lnuma
-    $(call detected,CONFIG_NUMA)
+    ifeq ($(feature-numa_num_possible_cpus), 0)
+      msg := $(warning Old numa library found, disables 'perf bench numa mem' benchmark, please install numactl-devel/libnuma-devel/libnuma-dev >= 2.0.8);
+      NO_LIBNUMA := 1
+    else
+      CFLAGS += -DHAVE_LIBNUMA_SUPPORT
+      EXTLIBS += -lnuma
+      $(call detected,CONFIG_NUMA)
+    endif
   endif
 endif
 
@@ -621,8 +647,13 @@ ifdef LIBBABELTRACE
 endif
 
 ifndef NO_AUXTRACE
-  $(call detected,CONFIG_AUXTRACE)
-  CFLAGS += -DHAVE_AUXTRACE_SUPPORT
+  ifeq ($(feature-get_cpuid), 0)
+    msg := $(warning Your gcc lacks the __get_cpuid() builtin, disables support for auxtrace/Intel PT, please install a newer gcc);
+    NO_AUXTRACE := 1
+  else
+    $(call detected,CONFIG_AUXTRACE)
+    CFLAGS += -DHAVE_AUXTRACE_SUPPORT
+  endif
 endif
 
 # Among the variables below, these:

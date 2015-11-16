@@ -228,7 +228,6 @@ static int em_sti_register_clocksource(struct em_sti_priv *p)
 {
 	struct clocksource *cs = &p->cs;
 
-	memset(cs, 0, sizeof(*cs));
 	cs->name = dev_name(&p->pdev->dev);
 	cs->rating = 200;
 	cs->read = em_sti_clocksource_read;
@@ -285,7 +284,6 @@ static void em_sti_register_clockevent(struct em_sti_priv *p)
 {
 	struct clock_event_device *ced = &p->ced;
 
-	memset(ced, 0, sizeof(*ced));
 	ced->name = dev_name(&p->pdev->dev);
 	ced->features = CLOCK_EVT_FEAT_ONESHOT;
 	ced->rating = 200;

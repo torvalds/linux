@@ -162,7 +162,3 @@ int obd_sysctl_init(void)
 {
 	return sysfs_create_group(lustre_kobj, &lustre_attr_group);
 }
-
-void obd_sysctl_clean(void)
-{
-}

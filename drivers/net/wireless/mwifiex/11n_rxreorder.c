@@ -615,10 +615,10 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
 	    ((end_win > start_win) && ((seq_num > end_win) ||
 				       (seq_num < start_win)))) {
 		end_win = seq_num;
-		if (((seq_num - win_size) + 1) >= 0)
+		if (((end_win - win_size) + 1) >= 0)
 			start_win = (end_win - win_size) + 1;
 		else
-			start_win = (MAX_TID_VALUE - (win_size - seq_num)) + 1;
+			start_win = (MAX_TID_VALUE - (win_size - end_win)) + 1;
 		mwifiex_11n_dispatch_pkt_until_start_win(priv, tbl, start_win);
 	}
 

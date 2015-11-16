@@ -1,3 +1,23 @@
+What:		/sys/bus/usb/devices/INTERFACE/authorized
+Date:		August 2015
+Description:
+		This allows to authorize (1) or deauthorize (0)
+		individual interfaces instead a whole device
+		in contrast to the device authorization.
+		If a deauthorized interface will be authorized
+		so the driver probing must be triggered manually
+		by writing INTERFACE to /sys/bus/usb/drivers_probe
+		This allows to avoid side-effects with drivers
+		that need multiple interfaces.
+		A deauthorized interface cannot be probed or claimed.
+
+What:		/sys/bus/usb/devices/usbX/interface_authorized_default
+Date:		August 2015
+Description:
+		This is used as value that determines if interfaces
+		would be authorized by default.
+		The value can be 1 or 0. It's by default 1.
+
 What:		/sys/bus/usb/device/.../authorized
 Date:		July 2008
 KernelVersion:	2.6.26

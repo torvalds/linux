@@ -31,7 +31,8 @@
  */
 static bool
 mwifiex_uap_del_tx_pkts_in_ralist(struct mwifiex_private *priv,
-				  struct list_head *ra_list_head)
+				  struct list_head *ra_list_head,
+				  int tid)
 {
 	struct mwifiex_ra_list_tbl *ra_list;
 	struct sk_buff *skb, *tmp;
@@ -49,7 +50,10 @@ mwifiex_uap_del_tx_pkts_in_ralist(struct mwifiex_private *priv,
 				__skb_unlink(skb, &ra_list->skb_head);
 				mwifiex_write_data_complete(adapter, skb, 0,
 							    -1);
-				atomic_dec(&priv->wmm.tx_pkts_queued);
+				if (ra_list->tx_paused)
+					priv->wmm.pkts_paused[tid]--;
+				else
+					atomic_dec(&priv->wmm.tx_pkts_queued);
 				pkt_deleted = true;
 			}
 			if ((atomic_read(&adapter->pending_bridged_pkts) <=
@@ -77,7 +81,7 @@ static void mwifiex_uap_cleanup_tx_queues(struct mwifiex_private *priv)
 		if (priv->del_list_idx == MAX_NUM_TID)
 			priv->del_list_idx = 0;
 		ra_list = &priv->wmm.tid_tbl_ptr[priv->del_list_idx].ra_list;
-		if (mwifiex_uap_del_tx_pkts_in_ralist(priv, ra_list)) {
+		if (mwifiex_uap_del_tx_pkts_in_ralist(priv, ra_list, i)) {
 			priv->del_list_idx++;
 			break;
 		}

@@ -29,7 +29,7 @@ Detection
 
 The ISL29003 does not have an ID register which could be used to identify
 it, so the detection routine will just try to read from the configured I2C
-addess and consider the device to be present as soon as it ACKs the
+address and consider the device to be present as soon as it ACKs the
 transfer.
 
 

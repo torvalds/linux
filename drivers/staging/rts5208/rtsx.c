@@ -647,8 +647,6 @@ static void rtsx_release_resources(struct rtsx_dev *dev)
 	wait_timeout(200);
 
 	if (dev->rtsx_resv_buf) {
-		dma_free_coherent(&(dev->pci->dev), RTSX_RESV_BUF_LEN,
-				dev->rtsx_resv_buf, dev->rtsx_resv_buf_addr);
 		dev->chip->host_cmds_ptr = NULL;
 		dev->chip->host_sg_tbl_ptr = NULL;
 	}
@@ -918,8 +916,8 @@ static int rtsx_probe(struct pci_dev *pci,
 	dev_info(&pci->dev, "Original address: 0x%lx, remapped address: 0x%lx\n",
 		 (unsigned long)(dev->addr), (unsigned long)(dev->remap_addr));
 
-	dev->rtsx_resv_buf = dma_alloc_coherent(&(pci->dev), RTSX_RESV_BUF_LEN,
-			&(dev->rtsx_resv_buf_addr), GFP_KERNEL);
+	dev->rtsx_resv_buf = dmam_alloc_coherent(&pci->dev, RTSX_RESV_BUF_LEN,
+			&dev->rtsx_resv_buf_addr, GFP_KERNEL);
 	if (dev->rtsx_resv_buf == NULL) {
 		dev_err(&pci->dev, "alloc dma buffer fail\n");
 		err = -ENXIO;

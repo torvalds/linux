@@ -218,6 +218,7 @@ static int ll_site_stats_seq_show(struct seq_file *m, void *v)
 	 */
 	return cl_site_stats_print(lu2cl_site(ll_s2sbi(sb)->ll_site), m);
 }
+
 LPROC_SEQ_FOPS_RO(ll_site_stats);
 
 static ssize_t max_read_ahead_mb_show(struct kobject *kobj,
@@ -478,6 +479,7 @@ out:
 	}
 	return rc;
 }
+
 LPROC_SEQ_FOPS(ll_max_cached_mb);
 
 static ssize_t checksum_pages_show(struct kobject *kobj, struct attribute *attr,
@@ -684,6 +686,7 @@ static int ll_statahead_stats_seq_show(struct seq_file *m, void *v)
 		   atomic_read(&sbi->ll_agl_total));
 	return 0;
 }
+
 LPROC_SEQ_FOPS_RO(ll_statahead_stats);
 
 static ssize_t lazystatfs_show(struct kobject *kobj,
@@ -775,6 +778,7 @@ static int ll_sbi_flags_seq_show(struct seq_file *m, void *v)
 	seq_printf(m, "\b\n");
 	return 0;
 }
+
 LPROC_SEQ_FOPS_RO(ll_sbi_flags);
 
 static ssize_t xattr_cache_show(struct kobject *kobj,
@@ -960,7 +964,6 @@ int ldebugfs_register_mountpoint(struct dentry *parent,
 	char name[MAX_STRING_SIZE + 1], *ptr;
 	int err, id, len, rc;
 
-
 	name[MAX_STRING_SIZE] = '\0';
 
 	LASSERT(sbi != NULL);
@@ -1017,6 +1020,7 @@ int ldebugfs_register_mountpoint(struct dentry *parent,
 	for (id = 0; id < LPROC_LL_FILE_OPCODES; id++) {
 		__u32 type = llite_opcode_table[id].type;
 		void *ptr = NULL;
+
 		if (type & LPROCFS_TYPE_REGS)
 			ptr = "regs";
 		else if (type & LPROCFS_TYPE_BYTES)
@@ -1048,7 +1052,6 @@ int ldebugfs_register_mountpoint(struct dentry *parent,
 				     sbi->ll_ra_stats);
 	if (err)
 		goto out;
-
 
 	err = ldebugfs_add_vars(sbi->ll_debugfs_entry,
 				lprocfs_llite_obd_vars, sb);
@@ -1094,6 +1097,7 @@ void ldebugfs_unregister_mountpoint(struct ll_sb_info *sbi)
 		lprocfs_free_stats(&sbi->ll_stats);
 	}
 }
+
 #undef MAX_STRING_SIZE
 
 #define pct(a, b) (b ? a * 100 / b : 0)
@@ -1140,20 +1144,20 @@ static void ll_display_extents_info(struct ll_rw_extents_info *io_extents,
 
 static int ll_rw_extents_stats_pp_seq_show(struct seq_file *seq, void *v)
 {
-	struct timeval now;
+	struct timespec64 now;
 	struct ll_sb_info *sbi = seq->private;
 	struct ll_rw_extents_info *io_extents = &sbi->ll_rw_extents_info;
 	int k;
 
-	do_gettimeofday(&now);
+	ktime_get_real_ts64(&now);
 
 	if (!sbi->ll_rw_stats_on) {
 		seq_printf(seq, "disabled\n"
 			   "write anything in this file to activate, then 0 or \"[D/d]isabled\" to deactivate\n");
 		return 0;
 	}
-	seq_printf(seq, "snapshot_time:	 %lu.%lu (secs.usecs)\n",
-		   now.tv_sec, (unsigned long)now.tv_usec);
+	seq_printf(seq, "snapshot_time:	 %llu.%09lu (secs.usecs)\n",
+		   (s64)now.tv_sec, (unsigned long)now.tv_nsec);
 	seq_printf(seq, "%15s %19s       | %20s\n", " ", "read", "write");
 	seq_printf(seq, "%13s   %14s %4s %4s  | %14s %4s %4s\n",
 		   "extents", "calls", "%", "cum%",
@@ -1219,19 +1223,19 @@ LPROC_SEQ_FOPS(ll_rw_extents_stats_pp);
 
 static int ll_rw_extents_stats_seq_show(struct seq_file *seq, void *v)
 {
-	struct timeval now;
+	struct timespec64 now;
 	struct ll_sb_info *sbi = seq->private;
 	struct ll_rw_extents_info *io_extents = &sbi->ll_rw_extents_info;
 
-	do_gettimeofday(&now);
+	ktime_get_real_ts64(&now);
 
 	if (!sbi->ll_rw_stats_on) {
 		seq_printf(seq, "disabled\n"
 			   "write anything in this file to activate, then 0 or \"[D/d]isabled\" to deactivate\n");
 		return 0;
 	}
-	seq_printf(seq, "snapshot_time:	 %lu.%lu (secs.usecs)\n",
-		   now.tv_sec, (unsigned long)now.tv_usec);
+	seq_printf(seq, "snapshot_time:	 %llu.%09lu (secs.usecs)\n",
+		   (u64)now.tv_sec, (unsigned long)now.tv_nsec);
 
 	seq_printf(seq, "%15s %19s       | %20s\n", " ", "read", "write");
 	seq_printf(seq, "%13s   %14s %4s %4s  | %14s %4s %4s\n",
@@ -1288,6 +1292,7 @@ static ssize_t ll_rw_extents_stats_seq_write(struct file *file,
 
 	return len;
 }
+
 LPROC_SEQ_FOPS(ll_rw_extents_stats);
 
 void ll_rw_stats_tally(struct ll_sb_info *sbi, pid_t pid,
@@ -1325,8 +1330,9 @@ void ll_rw_stats_tally(struct ll_sb_info *sbi, pid_t pid,
 		lprocfs_oh_clear(&io_extents->pp_extents[cur].pp_w_hist);
 	}
 
-	for(i = 0; (count >= (1 << LL_HIST_START << i)) &&
-	     (i < (LL_HIST_MAX - 1)); i++);
+	for (i = 0; (count >= (1 << LL_HIST_START << i)) &&
+	     (i < (LL_HIST_MAX - 1)); i++)
+		;
 	if (rw == 0) {
 		io_extents->pp_extents[cur].pp_r_hist.oh_buckets[i]++;
 		io_extents->pp_extents[LL_PROCESS_HIST_MAX].pp_r_hist.oh_buckets[i]++;
@@ -1395,13 +1401,13 @@ void ll_rw_stats_tally(struct ll_sb_info *sbi, pid_t pid,
 
 static int ll_rw_offset_stats_seq_show(struct seq_file *seq, void *v)
 {
-	struct timeval now;
+	struct timespec64 now;
 	struct ll_sb_info *sbi = seq->private;
 	struct ll_rw_process_info *offset = sbi->ll_rw_offset_info;
 	struct ll_rw_process_info *process = sbi->ll_rw_process_info;
 	int i;
 
-	do_gettimeofday(&now);
+	ktime_get_real_ts64(&now);
 
 	if (!sbi->ll_rw_stats_on) {
 		seq_printf(seq, "disabled\n"
@@ -1410,8 +1416,8 @@ static int ll_rw_offset_stats_seq_show(struct seq_file *seq, void *v)
 	}
 	spin_lock(&sbi->ll_process_lock);
 
-	seq_printf(seq, "snapshot_time:	 %lu.%lu (secs.usecs)\n",
-		   now.tv_sec, (unsigned long)now.tv_usec);
+	seq_printf(seq, "snapshot_time:	 %llu.%09lu (secs.usecs)\n",
+		   (s64)now.tv_sec, (unsigned long)now.tv_nsec);
 	seq_printf(seq, "%3s %10s %14s %14s %17s %17s %14s\n",
 		   "R/W", "PID", "RANGE START", "RANGE END",
 		   "SMALLEST EXTENT", "LARGEST EXTENT", "OFFSET");

@@ -158,7 +158,7 @@ int rxrpc_client_sendmsg(struct rxrpc_sock *rx, struct rxrpc_transport *trans,
 			service_id = htons(srx->srx_service);
 		}
 		key = rx->key;
-		if (key && !rx->key->payload.data)
+		if (key && !rx->key->payload.data[0])
 			key = NULL;
 		bundle = rxrpc_get_bundle(rx, trans, key, service_id,
 					  GFP_KERNEL);

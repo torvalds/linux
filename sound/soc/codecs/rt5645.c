@@ -42,6 +42,8 @@
 
 #define RT5645_PR_BASE (RT5645_PR_RANGE_BASE + (0 * RT5645_PR_SPACING))
 
+#define RT5645_HWEQ_NUM 57
+
 static const struct regmap_range_cfg rt5645_ranges[] = {
 	{
 		.name = "PR",
@@ -224,6 +226,11 @@ static const struct reg_default rt5645_reg[] = {
 	{ 0xff, 0x6308 },
 };
 
+struct rt5645_eq_param_s {
+	unsigned short reg;
+	unsigned short val;
+};
+
 static const char *const rt5645_supply_names[] = {
 	"avdd",
 	"cpvdd",
@@ -240,6 +247,7 @@ struct rt5645_priv {
 	struct snd_soc_jack *btn_jack;
 	struct delayed_work jack_detect_work;
 	struct regulator_bulk_data supplies[ARRAY_SIZE(rt5645_supply_names)];
+	struct rt5645_eq_param_s *eq_param;
 
 	int codec_type;
 	int sysclk;
@@ -469,12 +477,104 @@ static const DECLARE_TLV_DB_RANGE(bst_tlv,
 	8, 8, TLV_DB_SCALE_ITEM(5200, 0, 0)
 );
 
+/* {-6, -4.5, -3, -1.5, 0, 0.82, 1.58, 2.28} dB */
+static const DECLARE_TLV_DB_RANGE(spk_clsd_tlv,
+	0, 4, TLV_DB_SCALE_ITEM(-600, 150, 0),
+	5, 5, TLV_DB_SCALE_ITEM(82, 0, 0),
+	6, 6, TLV_DB_SCALE_ITEM(158, 0, 0),
+	7, 7, TLV_DB_SCALE_ITEM(228, 0, 0)
+);
+
+static int rt5645_hweq_info(struct snd_kcontrol *kcontrol,
+			 struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_BYTES;
+	uinfo->count = RT5645_HWEQ_NUM * sizeof(struct rt5645_eq_param_s);
+
+	return 0;
+}
+
+static int rt5645_hweq_get(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct rt5645_priv *rt5645 = snd_soc_component_get_drvdata(component);
+	struct rt5645_eq_param_s *eq_param =
+		(struct rt5645_eq_param_s *)ucontrol->value.bytes.data;
+	int i;
+
+	for (i = 0; i < RT5645_HWEQ_NUM; i++) {
+		eq_param[i].reg = cpu_to_be16(rt5645->eq_param[i].reg);
+		eq_param[i].val = cpu_to_be16(rt5645->eq_param[i].val);
+	}
+
+	return 0;
+}
+
+static bool rt5645_validate_hweq(unsigned short reg)
+{
+	if ((reg >= 0x1a4 && reg <= 0x1cd) | (reg >= 0x1e5 && reg <= 0x1f8) |
+		(reg == RT5645_EQ_CTRL2))
+		return true;
+
+	return false;
+}
+
+static int rt5645_hweq_put(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct rt5645_priv *rt5645 = snd_soc_component_get_drvdata(component);
+	struct rt5645_eq_param_s *eq_param =
+		(struct rt5645_eq_param_s *)ucontrol->value.bytes.data;
+	int i;
+
+	for (i = 0; i < RT5645_HWEQ_NUM; i++) {
+		eq_param[i].reg = be16_to_cpu(eq_param[i].reg);
+		eq_param[i].val = be16_to_cpu(eq_param[i].val);
+	}
+
+	/* The final setting of the table should be RT5645_EQ_CTRL2 */
+	for (i = RT5645_HWEQ_NUM - 1; i >= 0; i--) {
+		if (eq_param[i].reg == 0)
+			continue;
+		else if (eq_param[i].reg != RT5645_EQ_CTRL2)
+			return 0;
+		else
+			break;
+	}
+
+	for (i = 0; i < RT5645_HWEQ_NUM; i++) {
+		if (!rt5645_validate_hweq(eq_param[i].reg) &&
+			eq_param[i].reg != 0)
+			return 0;
+		else if (eq_param[i].reg == 0)
+			break;
+	}
+
+	memcpy(rt5645->eq_param, eq_param,
+		RT5645_HWEQ_NUM * sizeof(struct rt5645_eq_param_s));
+
+	return 0;
+}
+
+#define RT5645_HWEQ(xname) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.info = rt5645_hweq_info, \
+	.get = rt5645_hweq_get, \
+	.put = rt5645_hweq_put \
+}
+
 static const struct snd_kcontrol_new rt5645_snd_controls[] = {
 	/* Speaker Output Volume */
 	SOC_DOUBLE("Speaker Channel Switch", RT5645_SPK_VOL,
 		RT5645_VOL_L_SFT, RT5645_VOL_R_SFT, 1, 1),
 	SOC_DOUBLE_TLV("Speaker Playback Volume", RT5645_SPK_VOL,
 		RT5645_L_VOL_SFT, RT5645_R_VOL_SFT, 39, 1, out_vol_tlv),
+
+	/* ClassD modulator Speaker Gain Ratio */
+	SOC_SINGLE_TLV("Speaker ClassD Playback Volume", RT5645_SPO_CLSD_RATIO,
+		RT5645_SPK_G_CLSD_SFT, 7, 0, spk_clsd_tlv),
 
 	/* Headphone Output Volume */
 	SOC_DOUBLE("Headphone Channel Switch", RT5645_HP_VOL,
@@ -519,16 +619,17 @@ static const struct snd_kcontrol_new rt5645_snd_controls[] = {
 		RT5645_L_VOL_SFT + 1, RT5645_R_VOL_SFT + 1, 63, 0, adc_vol_tlv),
 
 	/* ADC Boost Volume Control */
-	SOC_DOUBLE_TLV("STO1 ADC Boost Gain", RT5645_ADC_BST_VOL1,
+	SOC_DOUBLE_TLV("ADC Boost Capture Volume", RT5645_ADC_BST_VOL1,
 		RT5645_STO1_ADC_L_BST_SFT, RT5645_STO1_ADC_R_BST_SFT, 3, 0,
 		adc_bst_tlv),
-	SOC_DOUBLE_TLV("STO2 ADC Boost Gain", RT5645_ADC_BST_VOL1,
-		RT5645_STO2_ADC_L_BST_SFT, RT5645_STO2_ADC_R_BST_SFT, 3, 0,
+	SOC_DOUBLE_TLV("Mono ADC Boost Capture Volume", RT5645_ADC_BST_VOL2,
+		RT5645_MONO_ADC_L_BST_SFT, RT5645_MONO_ADC_R_BST_SFT, 3, 0,
 		adc_bst_tlv),
 
 	/* I2S2 function select */
 	SOC_SINGLE("I2S2 Func Switch", RT5645_GPIO_CTRL1, RT5645_I2S2_SEL_SFT,
 		1, 1),
+	RT5645_HWEQ("Speaker HWEQ"),
 };
 
 /**
@@ -617,6 +718,22 @@ static int is_using_asrc(struct snd_soc_dapm_widget *source,
 		return 0;
 	}
 
+}
+
+static int rt5645_enable_hweq(struct snd_soc_codec *codec)
+{
+	struct rt5645_priv *rt5645 = snd_soc_codec_get_drvdata(codec);
+	int i;
+
+	for (i = 0; i < RT5645_HWEQ_NUM; i++) {
+		if (rt5645_validate_hweq(rt5645->eq_param[i].reg))
+			regmap_write(rt5645->regmap, rt5645->eq_param[i].reg,
+					rt5645->eq_param[i].val);
+		else
+			break;
+	}
+
+	return 0;
 }
 
 /**
@@ -1523,6 +1640,7 @@ static int rt5645_spk_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
+		rt5645_enable_hweq(codec);
 		snd_soc_update_bits(codec, RT5645_PWR_DIG1,
 			RT5645_PWR_CLS_D | RT5645_PWR_CLS_D_R |
 			RT5645_PWR_CLS_D_L,
@@ -1531,6 +1649,7 @@ static int rt5645_spk_event(struct snd_soc_dapm_widget *w,
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
+		snd_soc_write(codec, RT5645_EQ_CTRL2, 0);
 		snd_soc_update_bits(codec, RT5645_PWR_DIG1,
 			RT5645_PWR_CLS_D | RT5645_PWR_CLS_D_R |
 			RT5645_PWR_CLS_D_L, 0);
@@ -2733,6 +2852,10 @@ static int rt5645_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_update_bits(codec, RT5645_PWR_ANLG1,
 			RT5645_PWR_FV1 | RT5645_PWR_FV2,
 			RT5645_PWR_FV1 | RT5645_PWR_FV2);
+		if (rt5645->en_button_func &&
+			snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF)
+			queue_delayed_work(system_power_efficient_wq,
+				&rt5645->jack_detect_work, msecs_to_jiffies(0));
 		break;
 
 	case SND_SOC_BIAS_OFF:
@@ -2829,6 +2952,9 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 			snd_soc_dapm_sync(dapm);
 			rt5645->jack_type = SND_JACK_HEADPHONE;
 		}
+		if (rt5645->pdata.jd_invert)
+			regmap_update_bits(rt5645->regmap, RT5645_IRQ_CTRL2,
+				RT5645_JD_1_1_MASK, RT5645_JD_1_1_INV);
 	} else { /* jack out */
 		rt5645->jack_type = 0;
 
@@ -2847,6 +2973,9 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 			snd_soc_dapm_disable_pin(dapm, "LDO2");
 		snd_soc_dapm_disable_pin(dapm, "Mic Det Power");
 		snd_soc_dapm_sync(dapm);
+		if (rt5645->pdata.jd_invert)
+			regmap_update_bits(rt5645->regmap, RT5645_IRQ_CTRL2,
+				RT5645_JD_1_1_MASK, RT5645_JD_1_1_NOR);
 	}
 
 	return rt5645->jack_type;
@@ -3038,6 +3167,9 @@ static int rt5645_probe(struct snd_soc_codec *codec)
 		snd_soc_dapm_sync(dapm);
 	}
 
+	rt5645->eq_param = devm_kzalloc(codec->dev,
+		RT5645_HWEQ_NUM * sizeof(struct rt5645_eq_param_s), GFP_KERNEL);
+
 	return 0;
 }
 
@@ -3098,7 +3230,7 @@ static struct snd_soc_dai_driver rt5645_dai[] = {
 		.capture = {
 			.stream_name = "AIF1 Capture",
 			.channels_min = 1,
-			.channels_max = 2,
+			.channels_max = 4,
 			.rates = RT5645_STEREO_RATES,
 			.formats = RT5645_FORMATS,
 		},
@@ -3209,8 +3341,41 @@ static const struct dmi_system_id dmi_platform_intel_braswell[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Ultima"),
 		},
 	},
+	{
+		.ident = "Google Reks",
+		.callback = strago_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Reks"),
+		},
+	},
 	{ }
 };
+
+static struct rt5645_platform_data buddy_platform_data = {
+	.dmic1_data_pin = RT5645_DMIC_DATA_GPIO5,
+	.dmic2_data_pin = RT5645_DMIC_DATA_IN2P,
+	.jd_mode = 3,
+	.jd_invert = true,
+};
+
+static int buddy_quirk_cb(const struct dmi_system_id *id)
+{
+	rt5645_pdata = &buddy_platform_data;
+
+	return 1;
+}
+
+static struct dmi_system_id dmi_platform_intel_broadwell[] = {
+	{
+		.ident = "Chrome Buddy",
+		.callback = buddy_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Buddy"),
+		},
+	},
+	{ }
+};
+
 
 static int rt5645_parse_dt(struct rt5645_priv *rt5645, struct device *dev)
 {
@@ -3244,7 +3409,8 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 
 	if (pdata)
 		rt5645->pdata = *pdata;
-	else if (dmi_check_system(dmi_platform_intel_braswell))
+	else if (dmi_check_system(dmi_platform_intel_braswell) ||
+			dmi_check_system(dmi_platform_intel_broadwell))
 		rt5645->pdata = *rt5645_pdata;
 	else
 		rt5645_parse_dt(rt5645, &i2c->dev);
@@ -3472,6 +3638,8 @@ static void rt5645_i2c_shutdown(struct i2c_client *i2c)
 		RT5645_CBJ_MN_JD);
 	regmap_update_bits(rt5645->regmap, RT5645_IN1_CTRL1, RT5645_CBJ_BST1_EN,
 		0);
+	msleep(20);
+	regmap_write(rt5645->regmap, RT5645_RESET, 0);
 }
 
 static struct i2c_driver rt5645_i2c_driver = {

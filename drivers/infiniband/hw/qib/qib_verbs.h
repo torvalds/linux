@@ -330,6 +330,8 @@ struct qib_mr {
 	struct ib_mr ibmr;
 	struct ib_umem *umem;
 	struct qib_mregion mr;  /* must be last */
+	u64 *pages;
+	u32 npages;
 };
 
 /*
@@ -338,7 +340,13 @@ struct qib_mr {
  * in qp->s_max_sge.
  */
 struct qib_swqe {
-	struct ib_send_wr wr;   /* don't use wr.sg_list */
+	union {
+		struct ib_send_wr wr;   /* don't use wr.sg_list */
+		struct ib_ud_wr ud_wr;
+		struct ib_reg_wr reg_wr;
+		struct ib_rdma_wr rdma_wr;
+		struct ib_atomic_wr atomic_wr;
+	};
 	u32 psn;                /* first packet sequence number */
 	u32 lpsn;               /* last packet sequence number */
 	u32 ssn;                /* send sequence number */
@@ -1038,12 +1046,11 @@ struct ib_mr *qib_alloc_mr(struct ib_pd *pd,
 			   enum ib_mr_type mr_type,
 			   u32 max_entries);
 
-struct ib_fast_reg_page_list *qib_alloc_fast_reg_page_list(
-				struct ib_device *ibdev, int page_list_len);
+int qib_map_mr_sg(struct ib_mr *ibmr,
+		  struct scatterlist *sg,
+		  int sg_nents);
 
-void qib_free_fast_reg_page_list(struct ib_fast_reg_page_list *pl);
-
-int qib_fast_reg_mr(struct qib_qp *qp, struct ib_send_wr *wr);
+int qib_reg_mr(struct qib_qp *qp, struct ib_reg_wr *wr);
 
 struct ib_fmr *qib_alloc_fmr(struct ib_pd *pd, int mr_access_flags,
 			     struct ib_fmr_attr *fmr_attr);

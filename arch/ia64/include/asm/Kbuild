@@ -8,3 +8,4 @@ generic-y += mm-arch-hooks.h
 generic-y += preempt.h
 generic-y += trace_clock.h
 generic-y += vtime.h
+generic-y += word-at-a-time.h

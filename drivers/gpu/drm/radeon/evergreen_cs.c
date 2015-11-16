@@ -34,6 +34,8 @@
 #define MAX(a,b)                   (((a)>(b))?(a):(b))
 #define MIN(a,b)                   (((a)<(b))?(a):(b))
 
+#define REG_SAFE_BM_SIZE ARRAY_SIZE(evergreen_reg_safe_bm)
+
 int r600_dma_cs_next_reloc(struct radeon_cs_parser *p,
 			   struct radeon_bo_list **cs_reloc);
 struct evergreen_cs_track {
@@ -84,6 +86,7 @@ struct evergreen_cs_track {
 	u32			htile_surface;
 	struct radeon_bo	*htile_bo;
 	unsigned long		indirect_draw_buffer_size;
+	const unsigned		*reg_safe_bm;
 };
 
 static u32 evergreen_cs_get_aray_mode(u32 tiling_flags)
@@ -444,7 +447,7 @@ static int evergreen_cs_track_validate_cb(struct radeon_cs_parser *p, unsigned i
 		 * command stream.
 		 */
 		if (!surf.mode) {
-			volatile u32 *ib = p->ib.ptr;
+			uint32_t *ib = p->ib.ptr;
 			unsigned long tmp, nby, bsize, size, min = 0;
 
 			/* find the height the ddx wants */
@@ -1083,41 +1086,18 @@ static int evergreen_cs_parse_packet0(struct radeon_cs_parser *p,
 }
 
 /**
- * evergreen_cs_check_reg() - check if register is authorized or not
+ * evergreen_cs_handle_reg() - process registers that need special handling.
  * @parser: parser structure holding parsing context
  * @reg: register we are testing
  * @idx: index into the cs buffer
- *
- * This function will test against evergreen_reg_safe_bm and return 0
- * if register is safe. If register is not flag as safe this function
- * will test it against a list of register needind special handling.
  */
-static int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
+static int evergreen_cs_handle_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 {
 	struct evergreen_cs_track *track = (struct evergreen_cs_track *)p->track;
 	struct radeon_bo_list *reloc;
-	u32 last_reg;
-	u32 m, i, tmp, *ib;
+	u32 tmp, *ib;
 	int r;
 
-	if (p->rdev->family >= CHIP_CAYMAN)
-		last_reg = ARRAY_SIZE(cayman_reg_safe_bm);
-	else
-		last_reg = ARRAY_SIZE(evergreen_reg_safe_bm);
-
-	i = (reg >> 7);
-	if (i >= last_reg) {
-		dev_warn(p->dev, "forbidden register 0x%08x at %d\n", reg, idx);
-		return -EINVAL;
-	}
-	m = 1 << ((reg >> 2) & 31);
-	if (p->rdev->family >= CHIP_CAYMAN) {
-		if (!(cayman_reg_safe_bm[i] & m))
-			return 0;
-	} else {
-		if (!(evergreen_reg_safe_bm[i] & m))
-			return 0;
-	}
 	ib = p->ib.ptr;
 	switch (reg) {
 	/* force following reg to 0 in an attempt to disable out buffer
@@ -1764,29 +1744,27 @@ static int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	return 0;
 }
 
-static bool evergreen_is_safe_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
+/**
+ * evergreen_is_safe_reg() - check if register is authorized or not
+ * @parser: parser structure holding parsing context
+ * @reg: register we are testing
+ *
+ * This function will test against reg_safe_bm and return true
+ * if register is safe or false otherwise.
+ */
+static inline bool evergreen_is_safe_reg(struct radeon_cs_parser *p, u32 reg)
 {
-	u32 last_reg, m, i;
-
-	if (p->rdev->family >= CHIP_CAYMAN)
-		last_reg = ARRAY_SIZE(cayman_reg_safe_bm);
-	else
-		last_reg = ARRAY_SIZE(evergreen_reg_safe_bm);
+	struct evergreen_cs_track *track = p->track;
+	u32 m, i;
 
 	i = (reg >> 7);
-	if (i >= last_reg) {
-		dev_warn(p->dev, "forbidden register 0x%08x at %d\n", reg, idx);
+	if (unlikely(i >= REG_SAFE_BM_SIZE)) {
 		return false;
 	}
 	m = 1 << ((reg >> 2) & 31);
-	if (p->rdev->family >= CHIP_CAYMAN) {
-		if (!(cayman_reg_safe_bm[i] & m))
-			return true;
-	} else {
-		if (!(evergreen_reg_safe_bm[i] & m))
-			return true;
-	}
-	dev_warn(p->dev, "forbidden register 0x%08x at %d\n", reg, idx);
+	if (!(track->reg_safe_bm[i] & m))
+		return true;
+
 	return false;
 }
 
@@ -1795,7 +1773,7 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 {
 	struct radeon_bo_list *reloc;
 	struct evergreen_cs_track *track;
-	volatile u32 *ib;
+	uint32_t *ib;
 	unsigned idx;
 	unsigned i;
 	unsigned start_reg, end_reg, reg;
@@ -2321,9 +2299,10 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 			DRM_ERROR("bad PACKET3_SET_CONFIG_REG\n");
 			return -EINVAL;
 		}
-		for (i = 0; i < pkt->count; i++) {
-			reg = start_reg + (4 * i);
-			r = evergreen_cs_check_reg(p, reg, idx+1+i);
+		for (reg = start_reg, idx++; reg <= end_reg; reg += 4, idx++) {
+			if (evergreen_is_safe_reg(p, reg))
+				continue;
+			r = evergreen_cs_handle_reg(p, reg, idx);
 			if (r)
 				return r;
 		}
@@ -2337,9 +2316,10 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 			DRM_ERROR("bad PACKET3_SET_CONTEXT_REG\n");
 			return -EINVAL;
 		}
-		for (i = 0; i < pkt->count; i++) {
-			reg = start_reg + (4 * i);
-			r = evergreen_cs_check_reg(p, reg, idx+1+i);
+		for (reg = start_reg, idx++; reg <= end_reg; reg += 4, idx++) {
+			if (evergreen_is_safe_reg(p, reg))
+				continue;
+			r = evergreen_cs_handle_reg(p, reg, idx);
 			if (r)
 				return r;
 		}
@@ -2594,8 +2574,11 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 		} else {
 			/* SRC is a reg. */
 			reg = radeon_get_ib_value(p, idx+1) << 2;
-			if (!evergreen_is_safe_reg(p, reg, idx+1))
+			if (!evergreen_is_safe_reg(p, reg)) {
+				dev_warn(p->dev, "forbidden register 0x%08x at %d\n",
+					 reg, idx + 1);
 				return -EINVAL;
+			}
 		}
 		if (idx_value & 0x2) {
 			u64 offset;
@@ -2618,8 +2601,11 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 		} else {
 			/* DST is a reg. */
 			reg = radeon_get_ib_value(p, idx+3) << 2;
-			if (!evergreen_is_safe_reg(p, reg, idx+3))
+			if (!evergreen_is_safe_reg(p, reg)) {
+				dev_warn(p->dev, "forbidden register 0x%08x at %d\n",
+					 reg, idx + 3);
 				return -EINVAL;
+			}
 		}
 		break;
 	case PACKET3_NOP:
@@ -2644,11 +2630,15 @@ int evergreen_cs_parse(struct radeon_cs_parser *p)
 		if (track == NULL)
 			return -ENOMEM;
 		evergreen_cs_track_init(track);
-		if (p->rdev->family >= CHIP_CAYMAN)
+		if (p->rdev->family >= CHIP_CAYMAN) {
 			tmp = p->rdev->config.cayman.tile_config;
-		else
+			track->reg_safe_bm = cayman_reg_safe_bm;
+		} else {
 			tmp = p->rdev->config.evergreen.tile_config;
-
+			track->reg_safe_bm = evergreen_reg_safe_bm;
+		}
+		BUILD_BUG_ON(ARRAY_SIZE(cayman_reg_safe_bm) != REG_SAFE_BM_SIZE);
+		BUILD_BUG_ON(ARRAY_SIZE(evergreen_reg_safe_bm) != REG_SAFE_BM_SIZE);
 		switch (tmp & 0xf) {
 		case 0:
 			track->npipes = 1;
@@ -2757,7 +2747,7 @@ int evergreen_dma_cs_parse(struct radeon_cs_parser *p)
 	struct radeon_cs_chunk *ib_chunk = p->chunk_ib;
 	struct radeon_bo_list *src_reloc, *dst_reloc, *dst2_reloc;
 	u32 header, cmd, count, sub_cmd;
-	volatile u32 *ib = p->ib.ptr;
+	uint32_t *ib = p->ib.ptr;
 	u32 idx;
 	u64 src_offset, dst_offset, dst2_offset;
 	int r;

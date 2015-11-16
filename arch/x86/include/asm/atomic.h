@@ -24,7 +24,7 @@
  */
 static __always_inline int atomic_read(const atomic_t *v)
 {
-	return ACCESS_ONCE((v)->counter);
+	return READ_ONCE((v)->counter);
 }
 
 /**
@@ -36,7 +36,7 @@ static __always_inline int atomic_read(const atomic_t *v)
  */
 static __always_inline void atomic_set(atomic_t *v, int i)
 {
-	v->counter = i;
+	WRITE_ONCE(v->counter, i);
 }
 
 /**

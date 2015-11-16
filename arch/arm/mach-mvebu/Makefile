@@ -13,4 +13,3 @@ endif
 
 obj-$(CONFIG_MACH_DOVE)		 += dove.o
 obj-$(CONFIG_MACH_KIRKWOOD)	 += kirkwood.o kirkwood-pm.o
-obj-$(CONFIG_MACH_NETXBIG)	 += netxbig.o

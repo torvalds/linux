@@ -400,9 +400,9 @@ static int alloc_sdma(struct ipath_devdata *dd)
 	}
 	dd->ipath_sdma_head_dma[0] = 0;
 
-	init_timer(&dd->ipath_sdma_vl15_timer);
-	dd->ipath_sdma_vl15_timer.function = vl15_watchdog_timeout;
-	dd->ipath_sdma_vl15_timer.data = (unsigned long)dd;
+	setup_timer(&dd->ipath_sdma_vl15_timer, vl15_watchdog_timeout,
+			(unsigned long)dd);
+
 	atomic_set(&dd->ipath_sdma_vl15_count, 0);
 
 	goto done;

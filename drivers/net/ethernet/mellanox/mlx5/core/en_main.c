@@ -442,12 +442,12 @@ static void mlx5e_disable_rq(struct mlx5e_rq *rq)
 
 static int mlx5e_wait_for_min_rx_wqes(struct mlx5e_rq *rq)
 {
+	unsigned long exp_time = jiffies + msecs_to_jiffies(20000);
 	struct mlx5e_channel *c = rq->channel;
 	struct mlx5e_priv *priv = c->priv;
 	struct mlx5_wq_ll *wq = &rq->wq;
-	int i;
 
-	for (i = 0; i < 1000; i++) {
+	while (time_before(jiffies, exp_time)) {
 		if (wq->cur_sz >= priv->params.min_rx_wqes)
 			return 0;
 
@@ -1367,13 +1367,13 @@ int mlx5e_open_locked(struct net_device *netdev)
 
 	err = mlx5e_set_dev_port_mtu(netdev);
 	if (err)
-		return err;
+		goto err_clear_state_opened_flag;
 
 	err = mlx5e_open_channels(priv);
 	if (err) {
 		netdev_err(netdev, "%s: mlx5e_open_channels failed, %d\n",
 			   __func__, err);
-		return err;
+		goto err_clear_state_opened_flag;
 	}
 
 	mlx5e_update_carrier(priv);
@@ -1382,6 +1382,10 @@ int mlx5e_open_locked(struct net_device *netdev)
 	schedule_delayed_work(&priv->update_stats_work, 0);
 
 	return 0;
+
+err_clear_state_opened_flag:
+	clear_bit(MLX5E_STATE_OPENED, &priv->state);
+	return err;
 }
 
 static int mlx5e_open(struct net_device *netdev)
@@ -1399,6 +1403,12 @@ static int mlx5e_open(struct net_device *netdev)
 int mlx5e_close_locked(struct net_device *netdev)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	/* May already be CLOSED in case a previous configuration operation
+	 * (e.g RX/TX queue size change) that involves close&open failed.
+	 */
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
+		return 0;
 
 	clear_bit(MLX5E_STATE_OPENED, &priv->state);
 
@@ -1833,7 +1843,7 @@ static int mlx5e_set_features(struct net_device *netdev,
 			mlx5e_disable_vlan_filter(priv);
 	}
 
-	return 0;
+	return err;
 }
 
 static int mlx5e_change_mtu(struct net_device *netdev, int new_mtu)
@@ -1994,6 +2004,7 @@ static void mlx5e_build_netdev(struct net_device *netdev)
 		netdev->vlan_features    |= NETIF_F_LRO;
 
 	netdev->hw_features       = netdev->vlan_features;
+	netdev->hw_features      |= NETIF_F_HW_VLAN_CTAG_TX;
 	netdev->hw_features      |= NETIF_F_HW_VLAN_CTAG_RX;
 	netdev->hw_features      |= NETIF_F_HW_VLAN_CTAG_FILTER;
 
@@ -2037,8 +2048,7 @@ static void *mlx5e_create_netdev(struct mlx5_core_dev *mdev)
 {
 	struct net_device *netdev;
 	struct mlx5e_priv *priv;
-	int nch = min_t(int, mdev->priv.eq_table.num_comp_vectors,
-			MLX5E_MAX_NUM_CHANNELS);
+	int nch = mlx5e_get_max_num_channels(mdev);
 	int err;
 
 	if (mlx5e_check_required_hca_cap(mdev))

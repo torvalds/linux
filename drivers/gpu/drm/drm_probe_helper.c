@@ -94,7 +94,18 @@ static int drm_helper_probe_add_cmdline_mode(struct drm_connector *connector)
 }
 
 #define DRM_OUTPUT_POLL_PERIOD (10*HZ)
-static void __drm_kms_helper_poll_enable(struct drm_device *dev)
+/**
+ * drm_kms_helper_poll_enable_locked - re-enable output polling.
+ * @dev: drm_device
+ *
+ * This function re-enables the output polling work without
+ * locking the mode_config mutex.
+ *
+ * This is like drm_kms_helper_poll_enable() however it is to be
+ * called from a context where the mode_config mutex is locked
+ * already.
+ */
+void drm_kms_helper_poll_enable_locked(struct drm_device *dev)
 {
 	bool poll = false;
 	struct drm_connector *connector;
@@ -113,6 +124,8 @@ static void __drm_kms_helper_poll_enable(struct drm_device *dev)
 	if (poll)
 		schedule_delayed_work(&dev->mode_config.output_poll_work, DRM_OUTPUT_POLL_PERIOD);
 }
+EXPORT_SYMBOL(drm_kms_helper_poll_enable_locked);
+
 
 static int drm_helper_probe_single_connector_modes_merge_bits(struct drm_connector *connector,
 							      uint32_t maxX, uint32_t maxY, bool merge_type_bits)
@@ -174,7 +187,7 @@ static int drm_helper_probe_single_connector_modes_merge_bits(struct drm_connect
 
 	/* Re-enable polling in case the global poll config changed. */
 	if (drm_kms_helper_poll != dev->mode_config.poll_running)
-		__drm_kms_helper_poll_enable(dev);
+		drm_kms_helper_poll_enable_locked(dev);
 
 	dev->mode_config.poll_running = drm_kms_helper_poll;
 
@@ -428,7 +441,7 @@ EXPORT_SYMBOL(drm_kms_helper_poll_disable);
 void drm_kms_helper_poll_enable(struct drm_device *dev)
 {
 	mutex_lock(&dev->mode_config.mutex);
-	__drm_kms_helper_poll_enable(dev);
+	drm_kms_helper_poll_enable_locked(dev);
 	mutex_unlock(&dev->mode_config.mutex);
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_enable);

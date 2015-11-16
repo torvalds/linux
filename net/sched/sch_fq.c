@@ -224,13 +224,16 @@ static struct fq_flow *fq_classify(struct sk_buff *skb, struct fq_sched_data *q)
 	if (unlikely((skb->priority & TC_PRIO_MAX) == TC_PRIO_CONTROL))
 		return &q->internal;
 
-	/* SYNACK messages are attached to a listener socket.
-	 * 1) They are not part of a 'flow' yet
-	 * 2) We do not want to rate limit them (eg SYNFLOOD attack),
+	/* SYNACK messages are attached to a TCP_NEW_SYN_RECV request socket
+	 * or a listener (SYNCOOKIE mode)
+	 * 1) request sockets are not full blown,
+	 *    they do not contain sk_pacing_rate
+	 * 2) They are not part of a 'flow' yet
+	 * 3) We do not want to rate limit them (eg SYNFLOOD attack),
 	 *    especially if the listener set SO_MAX_PACING_RATE
-	 * 3) We pretend they are orphaned
+	 * 4) We pretend they are orphaned
 	 */
-	if (!sk || sk->sk_state == TCP_LISTEN) {
+	if (!sk || sk_listener(sk)) {
 		unsigned long hash = skb_get_hash(skb) & q->orphan_mask;
 
 		/* By forcing low order bit to 1, we make sure to not

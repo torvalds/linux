@@ -49,6 +49,7 @@
 __u32 get_uuid2int(const char *name, int len)
 {
 	__u32 key0 = 0x12a3fe2d, key1 = 0x37abe8f9;
+
 	while (len--) {
 		__u32 key = key1 + (key0 ^ (*name++ * 7152373));
 
@@ -78,8 +79,7 @@ void get_uuid2fsid(const char *name, int len, __kernel_fsid_t *fsid)
 
 static int ll_nfs_test_inode(struct inode *inode, void *opaque)
 {
-	return lu_fid_eq(&ll_i2info(inode)->lli_fid,
-			 (struct lu_fid *)opaque);
+	return lu_fid_eq(&ll_i2info(inode)->lli_fid, opaque);
 }
 
 struct inode *search_inode_for_lustre(struct super_block *sb,
@@ -168,11 +168,8 @@ ll_iget_for_nfs(struct super_block *sb, struct lu_fid *fid, struct lu_fid *paren
 		spin_unlock(&lli->lli_lock);
 	}
 
+	/* N.B. d_obtain_alias() drops inode ref on error */
 	result = d_obtain_alias(inode);
-	if (IS_ERR(result)) {
-		iput(inode);
-		return result;
-	}
 
 	return result;
 }

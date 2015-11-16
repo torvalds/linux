@@ -28,15 +28,7 @@
 
 #include <linux/compiler.h>
 
-#ifdef BIT
-#undef BIT
-#endif
-#define BIT(x)	(1 << (x))
-
-#define WLAN_ETHHDR_LEN		14
-#define WLAN_ETHADDR_LEN	6
 #define WLAN_IEEE_OUI_LEN	3
-#define WLAN_ADDR_LEN		6
 #define WLAN_CRC_LEN		4
 #define WLAN_BSSID_LEN		6
 #define WLAN_BSS_TS_LEN		8
@@ -52,7 +44,6 @@
 
 #define WLAN_MIN_ETHFRM_LEN	60
 #define WLAN_MAX_ETHFRM_LEN	1514
-#define WLAN_ETHHDR_LEN		14
 
 #define P80211CAPTURE_VERSION	0x80211001
 

@@ -16,9 +16,13 @@ menuconfig VIRTUALIZATION
 
 if VIRTUALIZATION
 
+config KVM_ARM_VGIC_V3
+	bool
+
 config KVM
 	bool "Kernel-based Virtual Machine (KVM) support"
 	depends on OF
+	depends on !ARM64_16K_PAGES
 	select MMU_NOTIFIER
 	select PREEMPT_NOTIFIERS
 	select ANON_INODES
@@ -31,8 +35,11 @@ config KVM
 	select KVM_VFIO
 	select HAVE_KVM_EVENTFD
 	select HAVE_KVM_IRQFD
+	select KVM_ARM_VGIC_V3
 	---help---
 	  Support hosting virtualized guest machines.
+	  We don't support KVM with 16K page tables yet, due to the multiple
+	  levels of fake page tables.
 
 	  If unsure, say N.
 
@@ -40,5 +47,7 @@ config KVM_ARM_HOST
 	bool
 	---help---
 	  Provides host support for ARM processors.
+
+source drivers/vhost/Kconfig
 
 endif # VIRTUALIZATION

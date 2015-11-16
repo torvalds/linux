@@ -21,6 +21,17 @@
 
 #include "irq-gic-common.h"
 
+void gic_enable_quirks(u32 iidr, const struct gic_quirk *quirks,
+		void *data)
+{
+	for (; quirks->desc; quirks++) {
+		if (quirks->iidr != (quirks->mask & iidr))
+			continue;
+		quirks->init(data);
+		pr_info("GIC: enabling workaround for %s\n", quirks->desc);
+	}
+}
+
 int gic_configure_irq(unsigned int irq, unsigned int type,
 		       void __iomem *base, void (*sync_access)(void))
 {
