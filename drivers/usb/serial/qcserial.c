@@ -212,6 +212,10 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 	__u8 ifnum;
 	int altsetting = -1;
 
+	/* we only support vendor specific functions */
+	if (intf->desc.bInterfaceClass != USB_CLASS_VENDOR_SPEC)
+		goto done;
+
 	nintf = serial->dev->actconfig->desc.bNumInterfaces;
 	dev_dbg(dev, "Num Interfaces = %d\n", nintf);
 	ifnum = intf->desc.bInterfaceNumber;
@@ -337,29 +341,39 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 		break;
 	case QCSERIAL_HWI:
 		/*
-		 * Huawei layout:
-		 * 0: AT-capable modem port
-		 * 1: DM/DIAG
-		 * 2: AT-capable modem port
-		 * 3: CCID-compatible PCSC interface
-		 * 4: QMI/net
-		 * 5: NMEA
+		 * Huawei devices map functions by subclass + protocol
+		 * instead of interface numbers. The protocol identify
+		 * a specific function, while the subclass indicate a
+		 * specific firmware source
+		 *
+		 * This is a blacklist of functions known to be
+		 * non-serial.  The rest are assumed to be serial and
+		 * will be handled by this driver
 		 */
-		switch (ifnum) {
-		case 0:
-		case 2:
-			dev_dbg(dev, "Modem port found\n");
-			break;
-		case 1:
-			dev_dbg(dev, "DM/DIAG interface found\n");
-			break;
-		case 5:
-			dev_dbg(dev, "NMEA GPS interface found\n");
-			break;
-		default:
-			/* don't claim any unsupported interface */
+		switch (intf->desc.bInterfaceProtocol) {
+			/* QMI combined (qmi_wwan) */
+		case 0x07:
+		case 0x37:
+		case 0x67:
+			/* QMI data (qmi_wwan) */
+		case 0x08:
+		case 0x38:
+		case 0x68:
+			/* QMI control (qmi_wwan) */
+		case 0x09:
+		case 0x39:
+		case 0x69:
+			/* NCM like (huawei_cdc_ncm) */
+		case 0x16:
+		case 0x46:
+		case 0x76:
 			altsetting = -1;
 			break;
+		default:
+			dev_dbg(dev, "Huawei type serial port found (%02x/%02x/%02x)\n",
+				intf->desc.bInterfaceClass,
+				intf->desc.bInterfaceSubClass,
+				intf->desc.bInterfaceProtocol);
 		}
 		break;
 	default:
