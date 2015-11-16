@@ -94,11 +94,9 @@ the process.
 
 2-1. Mounting
 
-Currently, unified hierarchy can be mounted with the following mount
-command.  Note that this is still under development and scheduled to
-change soon.
+Unified hierarchy can be mounted with the following mount command.
 
- mount -t cgroup -o __DEVEL__sane_behavior cgroup $MOUNT_POINT
+ mount -t cgroup2 none $MOUNT_POINT
 
 All controllers which support the unified hierarchy and are not bound
 to other hierarchies are automatically bound to unified hierarchy and
