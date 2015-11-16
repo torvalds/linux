@@ -2806,6 +2806,7 @@ static int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu,
 		return -EEXIST;
 
 	vcpu->arch.pending_external_vector = irq->irq;
+	kvm_make_request(KVM_REQ_EVENT, vcpu);
 	return 0;
 }
 
