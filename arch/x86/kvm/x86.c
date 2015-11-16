@@ -2769,6 +2769,20 @@ static int kvm_cpu_accept_dm_intr(struct kvm_vcpu *vcpu)
 		kvm_apic_accept_pic_intr(vcpu));
 }
 
+/*
+ * if userspace requested an interrupt window, check that the
+ * interrupt window is open.
+ *
+ * No need to exit to userspace if we already have an interrupt queued.
+ */
+static int kvm_vcpu_ready_for_interrupt_injection(struct kvm_vcpu *vcpu)
+{
+	return kvm_arch_interrupt_allowed(vcpu) &&
+		!kvm_cpu_has_interrupt(vcpu) &&
+		!kvm_event_needs_reinjection(vcpu) &&
+		kvm_cpu_accept_dm_intr(vcpu);
+}
+
 static int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu,
 				    struct kvm_interrupt *irq)
 {
@@ -5916,27 +5930,10 @@ static int emulator_fix_hypercall(struct x86_emulate_ctxt *ctxt)
 	return emulator_write_emulated(ctxt, rip, instruction, 3, NULL);
 }
 
-/*
- * Check if userspace requested an interrupt window, and that the
- * interrupt window is open.
- *
- * No need to exit to userspace if we already have an interrupt queued.
- */
 static int dm_request_for_irq_injection(struct kvm_vcpu *vcpu)
 {
-	if (!vcpu->run->request_interrupt_window || pic_in_kernel(vcpu->kvm))
-		return false;
-
-	if (!kvm_arch_interrupt_allowed(vcpu))
-		return false;
-
-	if (kvm_cpu_has_interrupt(vcpu))
-		return false;
-
-	if (kvm_event_needs_reinjection(vcpu))
-		return false;
-
-	return kvm_cpu_accept_dm_intr(vcpu);
+	return vcpu->run->request_interrupt_window &&
+		likely(!pic_in_kernel(vcpu->kvm));
 }
 
 static void post_kvm_run_save(struct kvm_vcpu *vcpu)
@@ -5949,10 +5946,7 @@ static void post_kvm_run_save(struct kvm_vcpu *vcpu)
 	kvm_run->apic_base = kvm_get_apic_base(vcpu);
 	kvm_run->ready_for_interrupt_injection =
 		pic_in_kernel(vcpu->kvm) ||
-		(kvm_arch_interrupt_allowed(vcpu) &&
-		 !kvm_cpu_has_interrupt(vcpu) &&
-		 !kvm_event_needs_reinjection(vcpu) &&
-		 kvm_cpu_accept_dm_intr(vcpu));
+		kvm_vcpu_ready_for_interrupt_injection(vcpu);
 }
 
 static void update_cr8_intercept(struct kvm_vcpu *vcpu)
@@ -6668,7 +6662,8 @@ static int vcpu_run(struct kvm_vcpu *vcpu)
 		if (kvm_cpu_has_pending_timer(vcpu))
 			kvm_inject_pending_timer_irqs(vcpu);
 
-		if (dm_request_for_irq_injection(vcpu)) {
+		if (dm_request_for_irq_injection(vcpu) &&
+			kvm_vcpu_ready_for_interrupt_injection(vcpu)) {
 			r = 0;
 			vcpu->run->exit_reason = KVM_EXIT_IRQ_WINDOW_OPEN;
 			++vcpu->stat.request_irq_exits;
