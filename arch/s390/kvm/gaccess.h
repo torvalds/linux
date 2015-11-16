@@ -158,6 +158,7 @@ int read_guest_lc(struct kvm_vcpu *vcpu, unsigned long gra, void *data,
 enum gacc_mode {
 	GACC_FETCH,
 	GACC_STORE,
+	GACC_IFETCH,
 };
 
 int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva,
@@ -241,6 +242,26 @@ int read_guest(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar, void *data,
 	       unsigned long len)
 {
 	return access_guest(vcpu, ga, ar, data, len, GACC_FETCH);
+}
+
+/**
+ * read_guest_instr - copy instruction data from guest space to kernel space
+ * @vcpu: virtual cpu
+ * @data: destination address in kernel space
+ * @len: number of bytes to copy
+ *
+ * Copy @len bytes from the current psw address (guest space) to @data (kernel
+ * space).
+ *
+ * The behaviour of read_guest_instr is identical to read_guest, except that
+ * instruction data will be read from primary space when in home-space or
+ * address-space mode.
+ */
+static inline __must_check
+int read_guest_instr(struct kvm_vcpu *vcpu, void *data, unsigned long len)
+{
+	return access_guest(vcpu, vcpu->arch.sie_block->gpsw.addr, 0, data, len,
+			    GACC_IFETCH);
 }
 
 /**

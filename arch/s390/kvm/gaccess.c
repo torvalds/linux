@@ -480,22 +480,25 @@ static int get_vcpu_asce(struct kvm_vcpu *vcpu, union asce *asce,
 			 ar_t ar, enum gacc_mode mode)
 {
 	int rc;
-	psw_t *psw = &vcpu->arch.sie_block->gpsw;
+	struct psw_bits psw = psw_bits(vcpu->arch.sie_block->gpsw);
 	struct kvm_s390_pgm_info *pgm = &vcpu->arch.pgm;
 	struct trans_exc_code_bits *tec_bits;
 
 	memset(pgm, 0, sizeof(*pgm));
 	tec_bits = (struct trans_exc_code_bits *)&pgm->trans_exc_code;
 	tec_bits->fsi = mode == GACC_STORE ? FSI_STORE : FSI_FETCH;
-	tec_bits->as = psw_bits(*psw).as;
+	tec_bits->as = psw.as;
 
-	if (!psw_bits(*psw).t) {
+	if (!psw.t) {
 		asce->val = 0;
 		asce->r = 1;
 		return 0;
 	}
 
-	switch (psw_bits(vcpu->arch.sie_block->gpsw).as) {
+	if (mode == GACC_IFETCH)
+		psw.as = psw.as == PSW_AS_HOME ? PSW_AS_HOME : PSW_AS_PRIMARY;
+
+	switch (psw.as) {
 	case PSW_AS_PRIMARY:
 		asce->val = vcpu->arch.sie_block->gcr[1];
 		return 0;
