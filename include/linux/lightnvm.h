@@ -191,11 +191,11 @@ static inline void *nvm_rq_to_pdu(struct nvm_rq *rqdata)
 struct nvm_block;
 
 typedef int (nvm_l2p_update_fn)(u64, u32, __le64 *, void *);
-typedef int (nvm_bb_update_fn)(u32, void *, unsigned int, void *);
+typedef int (nvm_bb_update_fn)(struct ppa_addr, int, u8 *, void *);
 typedef int (nvm_id_fn)(struct request_queue *, struct nvm_id *);
 typedef int (nvm_get_l2p_tbl_fn)(struct request_queue *, u64, u32,
 				nvm_l2p_update_fn *, void *);
-typedef int (nvm_op_bb_tbl_fn)(struct request_queue *, int, unsigned int,
+typedef int (nvm_op_bb_tbl_fn)(struct request_queue *, struct ppa_addr, int,
 				nvm_bb_update_fn *, void *);
 typedef int (nvm_op_set_bb_fn)(struct request_queue *, struct nvm_rq *, int);
 typedef int (nvm_submit_io_fn)(struct request_queue *, struct nvm_rq *);
@@ -210,7 +210,7 @@ struct nvm_dev_ops {
 	nvm_id_fn		*identity;
 	nvm_get_l2p_tbl_fn	*get_l2p_tbl;
 	nvm_op_bb_tbl_fn	*get_bb_tbl;
-	nvm_op_set_bb_fn	*set_bb;
+	nvm_op_set_bb_fn	*set_bb_tbl;
 
 	nvm_submit_io_fn	*submit_io;
 	nvm_erase_blk_fn	*erase_block;

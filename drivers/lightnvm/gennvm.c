@@ -64,19 +64,22 @@ static int gennvm_luns_init(struct nvm_dev *dev, struct gen_nvm *gn)
 	return 0;
 }
 
-static int gennvm_block_bb(u32 lun_id, void *bb_bitmap, unsigned int nr_blocks,
+static int gennvm_block_bb(struct ppa_addr ppa, int nr_blocks, u8 *blks,
 								void *private)
 {
 	struct gen_nvm *gn = private;
-	struct gen_lun *lun = &gn->luns[lun_id];
+	struct nvm_dev *dev = gn->dev;
+	struct gen_lun *lun;
 	struct nvm_block *blk;
 	int i;
 
-	if (unlikely(bitmap_empty(bb_bitmap, nr_blocks)))
-		return 0;
+	ppa = addr_to_generic_mode(gn->dev, ppa);
+	lun = &gn->luns[(dev->nr_luns * ppa.g.ch) + ppa.g.lun];
 
-	i = -1;
-	while ((i = find_next_bit(bb_bitmap, nr_blocks, i + 1)) < nr_blocks) {
+	for (i = 0; i < nr_blocks; i++) {
+		if (blks[i] == 0)
+			continue;
+
 		blk = &lun->vlun.blocks[i];
 		if (!blk) {
 			pr_err("gennvm: BB data is out of bounds.\n");
@@ -171,8 +174,16 @@ static int gennvm_blocks_init(struct nvm_dev *dev, struct gen_nvm *gn)
 		}
 
 		if (dev->ops->get_bb_tbl) {
-			ret = dev->ops->get_bb_tbl(dev->q, lun->vlun.id,
-					dev->blks_per_lun, gennvm_block_bb, gn);
+			struct ppa_addr ppa;
+
+			ppa.ppa = 0;
+			ppa.g.ch = lun->vlun.chnl_id;
+			ppa.g.lun = lun->vlun.id;
+			ppa = generic_to_addr_mode(dev, ppa);
+
+			ret = dev->ops->get_bb_tbl(dev->q, ppa,
+						dev->blks_per_lun,
+						gennvm_block_bb, gn);
 			if (ret)
 				pr_err("gennvm: could not read BB table\n");
 		}
@@ -199,6 +210,7 @@ static int gennvm_register(struct nvm_dev *dev)
 	if (!gn)
 		return -ENOMEM;
 
+	gn->dev = dev;
 	gn->nr_luns = dev->nr_luns;
 	dev->mp = gn;
 
@@ -354,10 +366,10 @@ static void gennvm_mark_blk_bad(struct nvm_dev *dev, struct nvm_rq *rqd)
 {
 	int i;
 
-	if (!dev->ops->set_bb)
+	if (!dev->ops->set_bb_tbl)
 		return;
 
-	if (dev->ops->set_bb(dev->q, rqd, 1))
+	if (dev->ops->set_bb_tbl(dev->q, rqd, 1))
 		return;
 
 	gennvm_addr_to_generic_mode(dev, rqd);
