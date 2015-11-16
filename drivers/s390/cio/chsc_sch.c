@@ -185,8 +185,7 @@ static int __init chsc_init_dbfs(void)
 	debug_set_level(chsc_debug_log_id, 2);
 	return 0;
 out:
-	if (chsc_debug_msg_id)
-		debug_unregister(chsc_debug_msg_id);
+	debug_unregister(chsc_debug_msg_id);
 	return -ENOMEM;
 }
 

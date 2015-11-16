@@ -76,12 +76,9 @@ static int __init cio_debug_init(void)
 	return 0;
 
 out_unregister:
-	if (cio_debug_msg_id)
-		debug_unregister(cio_debug_msg_id);
-	if (cio_debug_trace_id)
-		debug_unregister(cio_debug_trace_id);
-	if (cio_debug_crw_id)
-		debug_unregister(cio_debug_crw_id);
+	debug_unregister(cio_debug_msg_id);
+	debug_unregister(cio_debug_trace_id);
+	debug_unregister(cio_debug_crw_id);
 	return -1;
 }
 
