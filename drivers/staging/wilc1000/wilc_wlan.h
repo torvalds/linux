@@ -256,6 +256,8 @@ struct wilc_hif_func {
 	int (*hif_sync_ext)(int);
 	void (*hif_set_max_bus_speed)(void);
 	void (*hif_set_default_bus_speed)(void);
+	int (*enable_interrupt)(struct wilc *nic);
+	void (*disable_interrupt)(struct wilc *nic);
 };
 
 extern const struct wilc_hif_func wilc_hif_spi;

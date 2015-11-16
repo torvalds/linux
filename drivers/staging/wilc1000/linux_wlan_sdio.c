@@ -1,5 +1,4 @@
 #include "wilc_wfi_netdevice.h"
-#include "linux_wlan_sdio.h"
 
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/card.h>
@@ -8,7 +7,7 @@
 #include <linux/mmc/host.h>
 #include <linux/of_gpio.h>
 
-
+#include "linux_wlan_sdio.h"
 
 #define SDIO_MODALIAS "wilc1000_sdio"
 
@@ -143,13 +142,14 @@ static struct sdio_driver wilc_bus = {
 	.remove		= linux_sdio_remove,
 };
 
-int wilc_sdio_enable_interrupt(void)
+int wilc_sdio_enable_interrupt(struct wilc *dev)
 {
+	struct sdio_func *func = container_of(dev->dev, struct sdio_func, dev);
 	int ret = 0;
 
-	sdio_claim_host(wilc_sdio_func);
-	ret = sdio_claim_irq(wilc_sdio_func, wilc_sdio_interrupt);
-	sdio_release_host(wilc_sdio_func);
+	sdio_claim_host(func);
+	ret = sdio_claim_irq(func, wilc_sdio_interrupt);
+	sdio_release_host(func);
 
 	if (ret < 0) {
 		PRINT_ER("can't claim sdio_irq, err(%d)\n", ret);
@@ -158,18 +158,19 @@ int wilc_sdio_enable_interrupt(void)
 	return ret;
 }
 
-void wilc_sdio_disable_interrupt(void)
+void wilc_sdio_disable_interrupt(struct wilc *dev)
 {
+	struct sdio_func *func = container_of(dev->dev, struct sdio_func, dev);
 	int ret;
 
 	PRINT_D(INIT_DBG, "wilc_sdio_disable_interrupt IN\n");
 
-	sdio_claim_host(wilc_sdio_func);
-	ret = sdio_release_irq(wilc_sdio_func);
+	sdio_claim_host(func);
+	ret = sdio_release_irq(func);
 	if (ret < 0) {
 		PRINT_ER("can't release sdio_irq, err(%d)\n", ret);
 	}
-	sdio_release_host(wilc_sdio_func);
+	sdio_release_host(func);
 
 	PRINT_D(INIT_DBG, "wilc_sdio_disable_interrupt OUT\n");
 }

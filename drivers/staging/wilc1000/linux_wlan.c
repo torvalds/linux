@@ -25,8 +25,6 @@
 
 #include <linux/semaphore.h>
 
-#include "linux_wlan_sdio.h"
-
 static int dev_state_ev_handler(struct notifier_block *this, unsigned long event, void *ptr);
 
 static struct notifier_block g_dev_notifier = {
@@ -739,9 +737,10 @@ void wilc1000_wlan_deinit(struct net_device *dev)
 #endif
 
 		PRINT_D(INIT_DBG, "Disabling IRQ\n");
-		if (!wl->dev_irq_num) {
+		if (!wl->dev_irq_num &&
+		    wl->ops->disable_interrupt) {
 			mutex_lock(&wl->hif_cs);
-			wilc_sdio_disable_interrupt();
+			wl->ops->disable_interrupt(wl);
 			mutex_unlock(&wl->hif_cs);
 		}
 		if (&wl->txq_event)
@@ -758,11 +757,13 @@ void wilc1000_wlan_deinit(struct net_device *dev)
 		PRINT_D(INIT_DBG, "Deinitializing WILC Wlan\n");
 		wilc_wlan_cleanup(dev);
 #if defined(PLAT_ALLWINNER_A20) || defined(PLAT_ALLWINNER_A23) || defined(PLAT_ALLWINNER_A31)
-		if (!wl->dev_irq_num) {
+		if (!wl->dev_irq_num &&
+		    wl->ops->disable_interrupt) {
+
 			PRINT_D(INIT_DBG, "Disabling IRQ 2\n");
 
 			mutex_lock(&wl->hif_cs);
-			wilc_sdio_disable_interrupt();
+			wl->ops->disable_interrupt(wl);
 			mutex_unlock(&wl->hif_cs);
 		}
 #endif
@@ -897,7 +898,9 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 			goto _fail_wilc_wlan_;
 		}
 
-		if (!wl->dev_irq_num && wilc_sdio_enable_interrupt()) {
+		if (!wl->dev_irq_num &&
+		    wl->ops->enable_interrupt &&
+		    wl->ops->enable_interrupt(wl)) {
 			PRINT_ER("couldn't initialize IRQ\n");
 			ret = -EIO;
 			goto _fail_irq_init_;
@@ -950,8 +953,9 @@ _fail_fw_start_:
 		wilc_wlan_stop();
 
 _fail_irq_enable_:
-		if (!wl->dev_irq_num)
-			wilc_sdio_disable_interrupt();
+		if (!wl->dev_irq_num &&
+		    wl->ops->disable_interrupt)
+			wl->ops->disable_interrupt(wl);
 _fail_irq_init_:
 		if (wl->dev_irq_num)
 			deinit_irq(dev);
