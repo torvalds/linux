@@ -18,6 +18,7 @@
  */
 
 #include <linux/gfp.h>
+#include <linux/acpi.h>
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/genalloc.h>
@@ -27,9 +28,6 @@
 #include <linux/swiotlb.h>
 
 #include <asm/cacheflush.h>
-
-struct dma_map_ops *dma_ops;
-EXPORT_SYMBOL(dma_ops);
 
 static pgprot_t __get_dma_pgprot(struct dma_attrs *attrs, pgprot_t prot,
 				 bool coherent)
@@ -515,13 +513,7 @@ EXPORT_SYMBOL(dummy_dma_ops);
 
 static int __init arm64_dma_init(void)
 {
-	int ret;
-
-	dma_ops = &swiotlb_dma_ops;
-
-	ret = atomic_pool_init();
-
-	return ret;
+	return atomic_pool_init();
 }
 arch_initcall(arm64_dma_init);
 
@@ -991,8 +983,8 @@ static void __iommu_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 			struct iommu_ops *iommu, bool coherent)
 {
-	if (!acpi_disabled && !dev->archdata.dma_ops)
-		dev->archdata.dma_ops = dma_ops;
+	if (!dev->archdata.dma_ops)
+		dev->archdata.dma_ops = &swiotlb_dma_ops;
 
 	dev->archdata.dma_coherent = coherent;
 	__iommu_setup_dma_ops(dev, dma_base, size, iommu);
