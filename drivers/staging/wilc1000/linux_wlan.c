@@ -453,19 +453,11 @@ int wilc_wlan_get_firmware(struct net_device *dev)
 		goto _fail_;
 	}
 
-#ifdef WILC_SDIO
-	if (request_firmware(&wilc_firmware, firmware, &wilc->wilc_sdio_func->dev) != 0) {
+	if (request_firmware(&wilc_firmware, firmware, wilc->dev) != 0) {
 		PRINT_ER("%s - firmare not available\n", firmware);
 		ret = -1;
 		goto _fail_;
 	}
-#else
-	if (request_firmware(&wilc_firmware, firmware, &wilc->wilc_spidev->dev) != 0) {
-		PRINT_ER("%s - firmare not available\n", firmware);
-		ret = -1;
-		goto _fail_;
-	}
-#endif
 	wilc->firmware = wilc_firmware;
 
 _fail_:
@@ -1015,12 +1007,11 @@ int wilc_mac_open(struct net_device *ndev)
 	nic = netdev_priv(ndev);
 	wl = nic->wilc;
 
-#ifdef WILC_SPI
-	if (!wl || !wl->wilc_spidev) {
+	if (!wl|| !wl->dev) {
 		netdev_err(ndev, "wilc1000: SPI device not ready\n");
 		return -ENODEV;
 	}
-#endif
+
 	nic = netdev_priv(ndev);
 	priv = wiphy_priv(nic->wilc_netdev->ieee80211_ptr->wiphy);
 	PRINT_D(INIT_DBG, "MAC OPEN[%p]\n", ndev);
@@ -1504,16 +1495,6 @@ int wilc_netdev_init(struct wilc **wilc)
 		nic->iftype = STATION_MODE;
 		nic->mac_opened = 0;
 	}
-
-	#ifndef WILC_SDIO
-	if (!wilc_spi_init()) {
-		PRINT_ER("Can't initialize SPI\n");
-		return -1;
-	}
-	wilc_dev->wilc_spidev = wilc_spi_dev;
-	#else
-	wilc_dev->wilc_sdio_func = wilc_sdio_func;
-	#endif
 
 	return 0;
 }

@@ -21,13 +21,7 @@
  #define MAX_SPEED (6 * 1000000) /* Max 50M */
 #endif
 
-struct wilc_sdio {
-	struct sdio_func *func;
-	struct wilc *wilc;
-};
-
 struct sdio_func *wilc_sdio_func;
-
 static unsigned int sdio_default_speed;
 
 #define SDIO_VENDOR_ID_WILC 0x0296
@@ -42,12 +36,8 @@ static const struct sdio_device_id wilc_sdio_ids[] = {
 #ifndef WILC_SDIO_IRQ_GPIO
 static void wilc_sdio_interrupt(struct sdio_func *func)
 {
-	struct wilc_sdio *wl_sdio;
-
-	wl_sdio = sdio_get_drvdata(func);
-
 	sdio_release_host(func);
-	wilc_handle_isr(wl_sdio->wilc);
+	wilc_handle_isr(sdio_get_drvdata(func));
 	sdio_claim_host(func);
 }
 #endif
@@ -55,7 +45,7 @@ static void wilc_sdio_interrupt(struct sdio_func *func)
 
 int wilc_sdio_cmd52(sdio_cmd52_t *cmd)
 {
-	struct sdio_func *func = wilc_dev->wilc_sdio_func;
+	struct sdio_func *func = container_of(wilc_dev->dev, struct sdio_func, dev);
 	int ret;
 	u8 data;
 
@@ -87,7 +77,7 @@ int wilc_sdio_cmd52(sdio_cmd52_t *cmd)
 
 int wilc_sdio_cmd53(sdio_cmd53_t *cmd)
 {
-	struct sdio_func *func = wilc_dev->wilc_sdio_func;
+	struct sdio_func *func = container_of(wilc_dev->dev, struct sdio_func, dev);
 	int size, ret;
 
 	sdio_claim_host(func);
@@ -118,24 +108,17 @@ int wilc_sdio_cmd53(sdio_cmd53_t *cmd)
 
 static int linux_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 {
-	struct wilc_sdio *wl_sdio;
 	struct wilc *wilc;
 
-	PRINT_D(INIT_DBG, "probe function\n");
-	wl_sdio = kzalloc(sizeof(struct wilc_sdio), GFP_KERNEL);
-	if (!wl_sdio)
-		return -ENOMEM;
 
 	PRINT_D(INIT_DBG, "Initializing netdev\n");
 	wilc_sdio_func = func;
 	if (wilc_netdev_init(&wilc)) {
 		PRINT_ER("Couldn't initialize netdev\n");
-		kfree(wl_sdio);
 		return -1;
 	}
-	wl_sdio->func = func;
-	wl_sdio->wilc = wilc;
-	sdio_set_drvdata(func, wl_sdio);
+	sdio_set_drvdata(func, wilc);
+	wilc->dev = &func->dev;
 
 	printk("Driver Initializing success\n");
 	return 0;
@@ -143,11 +126,7 @@ static int linux_sdio_probe(struct sdio_func *func, const struct sdio_device_id 
 
 static void linux_sdio_remove(struct sdio_func *func)
 {
-	struct wilc_sdio *wl_sdio;
-
-	wl_sdio = sdio_get_drvdata(func);
-	wilc_netdev_cleanup(wl_sdio->wilc);
-	kfree(wl_sdio);
+	wilc_netdev_cleanup(sdio_get_drvdata(func));
 }
 
 static struct sdio_driver wilc_bus = {

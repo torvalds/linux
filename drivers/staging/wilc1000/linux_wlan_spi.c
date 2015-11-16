@@ -9,9 +9,10 @@
 #include <linux/device.h>
 #include <linux/spi/spi.h>
 
+#include "wilc_wfi_netdevice.h"
 #include "linux_wlan_common.h"
 #include "linux_wlan_spi.h"
-#include "wilc_wfi_netdevice.h"
+#include "wilc_wlan_if.h"
 
 #define USE_SPI_DMA     0       /* johnny add */
 
@@ -399,8 +400,25 @@ static struct wilc *wilc;
 
 static int __init init_wilc_spi_driver(void)
 {
+	int ret;
+
 	wilc_debugfs_init();
-	return wilc_netdev_init(&wilc);
+
+	ret = wilc_netdev_init(&wilc);
+	if (ret) {
+		wilc_debugfs_remove();
+		return ret;
+	}
+
+	if (!wilc_spi_init() || !wilc_spi_dev) {
+		PRINT_ER("Can't initialize SPI\n");
+		wilc_netdev_cleanup(wilc);
+		wilc_debugfs_remove();
+		return -ENXIO;
+	}
+	wilc_dev->dev = &wilc_spi_dev->dev;
+
+	return ret;
 }
 late_initcall(init_wilc_spi_driver);
 

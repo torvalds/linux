@@ -185,11 +185,7 @@ struct wilc {
 
 	const struct firmware *firmware;
 
-#ifdef WILC_SDIO
-	struct sdio_func *wilc_sdio_func;
-#else
-	struct spi_device *wilc_spidev;
-#endif
+	struct device *dev;
 };
 
 typedef struct {
