@@ -58,7 +58,6 @@ enum {
 struct nvm_id_group {
 	u8	mtype;
 	u8	fmtype;
-	u16	res16;
 	u8	num_ch;
 	u8	num_lun;
 	u8	num_pln;
@@ -76,8 +75,7 @@ struct nvm_id_group {
 	u32	mpos;
 	u32	mccap;
 	u16	cpar;
-	u8	res[913];
-} __packed;
+};
 
 struct nvm_addr_format {
 	u8	ch_offset;
@@ -92,19 +90,16 @@ struct nvm_addr_format {
 	u8	pg_len;
 	u8	sect_offset;
 	u8	sect_len;
-	u8	res[4];
 };
 
 struct nvm_id {
 	u8	ver_id;
 	u8	vmnt;
 	u8	cgrps;
-	u8	res[5];
 	u32	cap;
 	u32	dom;
 	struct nvm_addr_format ppaf;
 	u8	ppat;
-	u8	resv[224];
 	struct nvm_id_group groups[4];
 } __packed;
 
