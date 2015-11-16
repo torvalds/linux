@@ -377,3 +377,12 @@ config SERIAL_8250_MID
 	  Selecting this option will enable handling of the extra features
 	  present on the UART found on Intel Medfield SOC and various other
 	  Intel platforms.
+
+config SERIAL_OF_PLATFORM
+	tristate "Devicetree based probing for 8250 ports"
+	depends on SERIAL_8250 && OF
+	help
+	  This option is used for all 8250 compatible serial ports that
+	  are probed through devicetree, including Open Firmware based
+	  PowerPC systems and embedded systems on architectures using the
+	  flattened device tree format.
