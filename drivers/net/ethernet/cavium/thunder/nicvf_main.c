@@ -1583,8 +1583,14 @@ err_disable_device:
 static void nicvf_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct nicvf *nic = netdev_priv(netdev);
-	struct net_device *pnetdev = nic->pnicvf->netdev;
+	struct nicvf *nic;
+	struct net_device *pnetdev;
+
+	if (!netdev)
+		return;
+
+	nic = netdev_priv(netdev);
+	pnetdev = nic->pnicvf->netdev;
 
 	/* Check if this Qset is assigned to different VF.
 	 * If yes, clean primary and all secondary Qsets.
@@ -1600,9 +1606,6 @@ static void nicvf_remove(struct pci_dev *pdev)
 
 static void nicvf_shutdown(struct pci_dev *pdev)
 {
-	if (!pci_get_drvdata(pdev))
-		return;
-
 	nicvf_remove(pdev);
 }
 
