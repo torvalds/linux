@@ -2484,6 +2484,14 @@ static int toshiba_acpi_setup_backlight(struct toshiba_acpi_dev *dev)
 	brightness = __get_lcd_brightness(dev);
 	if (brightness < 0)
 		return 0;
+	/*
+	 * If transflective backlight is supported and the brightness is zero
+	 * (lowest brightness level), the set_lcd_brightness function will
+	 * activate the transflective backlight, making the LCD appear to be
+	 * turned off, simply increment the brightness level to avoid that.
+	 */
+	if (dev->tr_backlight_supported && brightness == 0)
+		brightness++;
 	ret = set_lcd_brightness(dev, brightness);
 	if (ret) {
 		pr_debug("Backlight method is read-only, disabling backlight support\n");
