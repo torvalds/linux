@@ -19,6 +19,29 @@ static int epoll_pwait_loop(void)
 	return 0;
 }
 
+#ifdef HAVE_BPF_PROLOGUE
+
+static int llseek_loop(void)
+{
+	int fds[2], i;
+
+	fds[0] = open("/dev/null", O_RDONLY);
+	fds[1] = open("/dev/null", O_RDWR);
+
+	if (fds[0] < 0 || fds[1] < 0)
+		return -1;
+
+	for (i = 0; i < NR_ITERS; i++) {
+		lseek(fds[i % 2], i, (i / 2) % 2 ? SEEK_CUR : SEEK_SET);
+		lseek(fds[(i + 1) % 2], i, (i / 2) % 2 ? SEEK_CUR : SEEK_SET);
+	}
+	close(fds[0]);
+	close(fds[1]);
+	return 0;
+}
+
+#endif
+
 static struct {
 	enum test_llvm__testcase prog_id;
 	const char *desc;
@@ -37,6 +60,17 @@ static struct {
 		&epoll_pwait_loop,
 		(NR_ITERS + 1) / 2,
 	},
+#ifdef HAVE_BPF_PROLOGUE
+	{
+		LLVM_TESTCASE_BPF_PROLOGUE,
+		"Test BPF prologue generation",
+		"[bpf_prologue_test]",
+		"fix kbuild first",
+		"check your vmlinux setting?",
+		&llseek_loop,
+		(NR_ITERS + 1) / 4,
+	},
+#endif
 };
 
 static int do_test(struct bpf_object *obj, int (*func)(void),
