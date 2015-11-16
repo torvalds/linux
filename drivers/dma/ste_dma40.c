@@ -3544,7 +3544,7 @@ static int __init d40_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	int ret = -ENOENT;
 	struct d40_base *base;
-	struct resource *res = NULL;
+	struct resource *res;
 	int num_reserved_chans;
 	u32 val;
 
