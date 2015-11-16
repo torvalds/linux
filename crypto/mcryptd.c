@@ -128,13 +128,9 @@ static void mcryptd_opportunistic_flush(void)
 	flist = per_cpu_ptr(mcryptd_flist, smp_processor_id());
 	while (single_task_running()) {
 		mutex_lock(&flist->lock);
-		if (list_empty(&flist->list)) {
-			mutex_unlock(&flist->lock);
-			return;
-		}
-		cstate = list_entry(flist->list.next,
+		cstate = list_first_entry_or_null(&flist->list,
 				struct mcryptd_alg_cstate, flush_list);
-		if (!cstate->flusher_engaged) {
+		if (!cstate || !cstate->flusher_engaged) {
 			mutex_unlock(&flist->lock);
 			return;
 		}
