@@ -719,6 +719,11 @@ struct nand_chip {
 	void *priv;
 };
 
+static inline struct nand_chip *mtd_to_nand(struct mtd_info *mtd)
+{
+	return mtd->priv;
+}
+
 /*
  * NAND Flash Manufacturer ID Codes
  */
