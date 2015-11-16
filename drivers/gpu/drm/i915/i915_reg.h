@@ -609,6 +609,7 @@
 
 /* See the PUNIT HAS v0.8 for the below bits */
 enum punit_power_well {
+	/* These numbers are fixed and must match the position of the pw bits */
 	PUNIT_POWER_WELL_RENDER			= 0,
 	PUNIT_POWER_WELL_MEDIA			= 1,
 	PUNIT_POWER_WELL_DISP2D			= 3,
@@ -621,10 +622,12 @@ enum punit_power_well {
 	PUNIT_POWER_WELL_DPIO_RX1		= 11,
 	PUNIT_POWER_WELL_DPIO_CMN_D		= 12,
 
+	/* Not actual bit groups. Used as IDs for lookup_power_well() */
 	PUNIT_POWER_WELL_ALWAYS_ON,
 };
 
 enum skl_disp_power_wells {
+	/* These numbers are fixed and must match the position of the pw bits */
 	SKL_DISP_PW_MISC_IO,
 	SKL_DISP_PW_DDI_A_E,
 	SKL_DISP_PW_DDI_B,
@@ -633,6 +636,7 @@ enum skl_disp_power_wells {
 	SKL_DISP_PW_1 = 14,
 	SKL_DISP_PW_2,
 
+	/* Not actual bit groups. Used as IDs for lookup_power_well() */
 	SKL_DISP_PW_ALWAYS_ON,
 };
 
