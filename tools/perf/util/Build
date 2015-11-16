@@ -21,6 +21,7 @@ libperf-y += parse-events.o
 libperf-y += perf_regs.o
 libperf-y += path.o
 libperf-y += rbtree.o
+libperf-y += libstring.o
 libperf-y += bitmap.o
 libperf-y += hweight.o
 libperf-y += run-command.o
@@ -138,6 +139,7 @@ $(OUTPUT)util/pmu.o: $(OUTPUT)util/pmu-flex.c $(OUTPUT)util/pmu-bison.c
 
 CFLAGS_find_next_bit.o += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 CFLAGS_rbtree.o        += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
+CFLAGS_libstring.o     += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 CFLAGS_hweight.o       += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 CFLAGS_parse-events.o  += -Wno-redundant-decls
 
@@ -150,6 +152,10 @@ $(OUTPUT)util/find_next_bit.o: ../lib/util/find_next_bit.c FORCE
 	$(call if_changed_dep,cc_o_c)
 
 $(OUTPUT)util/rbtree.o: ../lib/rbtree.c FORCE
+	$(call rule_mkdir)
+	$(call if_changed_dep,cc_o_c)
+
+$(OUTPUT)util/libstring.o: ../lib/string.c FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)
 

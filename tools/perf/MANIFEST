@@ -22,6 +22,7 @@ tools/lib/api
 tools/lib/bpf
 tools/lib/hweight.c
 tools/lib/rbtree.c
+tools/lib/string.c
 tools/lib/symbol/kallsyms.c
 tools/lib/symbol/kallsyms.h
 tools/lib/util/find_next_bit.c
@@ -50,6 +51,7 @@ tools/include/linux/log2.h
 tools/include/linux/poison.h
 tools/include/linux/rbtree.h
 tools/include/linux/rbtree_augmented.h
+tools/include/linux/string.h
 tools/include/linux/types.h
 tools/include/linux/err.h
 include/asm-generic/bitops/arch_hweight.h
