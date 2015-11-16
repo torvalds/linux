@@ -187,6 +187,7 @@ static const struct drm_plane_helper_funcs fsl_dcu_drm_plane_helper_funcs = {
 static void fsl_dcu_drm_plane_destroy(struct drm_plane *plane)
 {
 	drm_plane_cleanup(plane);
+	kfree(plane);
 }
 
 static const struct drm_plane_funcs fsl_dcu_drm_plane_funcs = {
