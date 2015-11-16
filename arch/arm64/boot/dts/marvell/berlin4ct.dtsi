@@ -251,6 +251,29 @@
 				interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
+			wdt0: watchdog@3000 {
+				compatible = "snps,dw-wdt";
+				reg = <0x3000 0x100>;
+				clocks = <&osc>;
+				interrupts = <0>;
+			};
+
+			wdt1: watchdog@4000 {
+				compatible = "snps,dw-wdt";
+				reg = <0x4000 0x100>;
+				clocks = <&osc>;
+				interrupts = <1>;
+				status = "disabled";
+			};
+
+			wdt2: watchdog@5000 {
+				compatible = "snps,dw-wdt";
+				reg = <0x5000 0x100>;
+				clocks = <&osc>;
+				interrupts = <2>;
+				status = "disabled";
+			};
+
 			sm_gpio0: gpio@8000 {
 				compatible = "snps,dw-apb-gpio";
 				reg = <0x8000 0x400>;
