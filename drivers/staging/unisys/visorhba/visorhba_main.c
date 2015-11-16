@@ -460,7 +460,6 @@ visorhba_queue_command_lck(struct scsi_cmnd *scsicmd,
 		(struct visorhba_devdata *)scsihost->hostdata;
 	struct scatterlist *sg = NULL;
 	struct scatterlist *sglist = NULL;
-	int err = 0;
 
 	if (devdata->serverdown || devdata->serverchangingstate)
 		return SCSI_MLQUEUE_DEVICE_BUSY;
@@ -495,10 +494,8 @@ visorhba_queue_command_lck(struct scsi_cmnd *scsicmd,
 	if (cmdrsp->scsi.bufflen > devdata->max_buff_len)
 		devdata->max_buff_len = cmdrsp->scsi.bufflen;
 
-	if (scsi_sg_count(scsicmd) > MAX_PHYS_INFO) {
-		err = SCSI_MLQUEUE_DEVICE_BUSY;
+	if (scsi_sg_count(scsicmd) > MAX_PHYS_INFO)
 		goto err_del_scsipending_ent;
-	}
 
 	/* convert buffer to phys information  */
 	/* buffer is scatterlist - copy it out */
@@ -512,16 +509,15 @@ visorhba_queue_command_lck(struct scsi_cmnd *scsicmd,
 
 	if (!visorchannel_signalinsert(devdata->dev->visorchannel,
 				       IOCHAN_TO_IOPART,
-				       cmdrsp)) {
+				       cmdrsp))
 		/* queue must be full and we aren't going to wait */
-		err = SCSI_MLQUEUE_DEVICE_BUSY;
 		goto err_del_scsipending_ent;
-	}
+
 	return 0;
 
 err_del_scsipending_ent:
 	del_scsipending_ent(devdata, insert_location);
-	return err;
+	return SCSI_MLQUEUE_DEVICE_BUSY;
 }
 
 /**
