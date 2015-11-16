@@ -1485,12 +1485,12 @@ retry:
 	drm_atomic_set_fb_for_plane(plane_state, fb);
 	plane_state->crtc_x = crtc_x;
 	plane_state->crtc_y = crtc_y;
-	plane_state->crtc_h = crtc_h;
 	plane_state->crtc_w = crtc_w;
+	plane_state->crtc_h = crtc_h;
 	plane_state->src_x = src_x;
 	plane_state->src_y = src_y;
-	plane_state->src_h = src_h;
 	plane_state->src_w = src_w;
+	plane_state->src_h = src_h;
 
 	if (plane == crtc->cursor)
 		state->legacy_cursor_update = true;
@@ -1609,12 +1609,12 @@ int __drm_atomic_helper_disable_plane(struct drm_plane *plane,
 	drm_atomic_set_fb_for_plane(plane_state, NULL);
 	plane_state->crtc_x = 0;
 	plane_state->crtc_y = 0;
-	plane_state->crtc_h = 0;
 	plane_state->crtc_w = 0;
+	plane_state->crtc_h = 0;
 	plane_state->src_x = 0;
 	plane_state->src_y = 0;
-	plane_state->src_h = 0;
 	plane_state->src_w = 0;
+	plane_state->src_h = 0;
 
 	return 0;
 }
@@ -1797,16 +1797,16 @@ int __drm_atomic_helper_set_config(struct drm_mode_set *set,
 	drm_atomic_set_fb_for_plane(primary_state, set->fb);
 	primary_state->crtc_x = 0;
 	primary_state->crtc_y = 0;
-	primary_state->crtc_h = vdisplay;
 	primary_state->crtc_w = hdisplay;
+	primary_state->crtc_h = vdisplay;
 	primary_state->src_x = set->x << 16;
 	primary_state->src_y = set->y << 16;
 	if (primary_state->rotation & (BIT(DRM_ROTATE_90) | BIT(DRM_ROTATE_270))) {
-		primary_state->src_h = hdisplay << 16;
 		primary_state->src_w = vdisplay << 16;
+		primary_state->src_h = hdisplay << 16;
 	} else {
-		primary_state->src_h = vdisplay << 16;
 		primary_state->src_w = hdisplay << 16;
+		primary_state->src_h = vdisplay << 16;
 	}
 
 commit:
