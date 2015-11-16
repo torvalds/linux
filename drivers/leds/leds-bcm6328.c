@@ -314,13 +314,9 @@ static int bcm6328_led(struct device *dev, struct device_node *nc, u32 reg,
 	} else {
 		led->cdev.brightness = LED_OFF;
 	}
-
-	if ((led->active_low && led->cdev.brightness == LED_FULL) ||
-	    (!led->active_low && led->cdev.brightness == LED_OFF))
-		bcm6328_led_mode(led, BCM6328_LED_MODE_ON);
-	else
-		bcm6328_led_mode(led, BCM6328_LED_MODE_OFF);
 	spin_unlock_irqrestore(lock, flags);
+
+	bcm6328_led_set(&led->cdev, led->cdev.brightness);
 
 	led->cdev.brightness_set = bcm6328_led_set;
 	led->cdev.blink_set = bcm6328_blink_set;
