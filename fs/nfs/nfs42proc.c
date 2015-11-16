@@ -14,7 +14,7 @@
 #include "pnfs.h"
 #include "internal.h"
 
-#define NFSDBG_FACILITY NFSDBG_PNFS
+#define NFSDBG_FACILITY NFSDBG_PROC
 
 static int nfs42_set_rw_stateid(nfs4_stateid *dst, struct file *file,
 				fmode_t fmode)
