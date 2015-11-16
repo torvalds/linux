@@ -604,9 +604,12 @@ static void gic_dist_restore(unsigned int gic_nr)
 		writel_relaxed(gic_data[gic_nr].saved_spi_target[i],
 			dist_base + GIC_DIST_TARGET + i * 4);
 
-	for (i = 0; i < DIV_ROUND_UP(gic_irqs, 32); i++)
+	for (i = 0; i < DIV_ROUND_UP(gic_irqs, 32); i++) {
+		writel_relaxed(GICD_INT_EN_CLR_X32,
+			dist_base + GIC_DIST_ENABLE_CLEAR + i * 4);
 		writel_relaxed(gic_data[gic_nr].saved_spi_enable[i],
 			dist_base + GIC_DIST_ENABLE_SET + i * 4);
+	}
 
 	writel_relaxed(GICD_ENABLE, dist_base + GIC_DIST_CTRL);
 }
@@ -654,8 +657,11 @@ static void gic_cpu_restore(unsigned int gic_nr)
 		return;
 
 	ptr = raw_cpu_ptr(gic_data[gic_nr].saved_ppi_enable);
-	for (i = 0; i < DIV_ROUND_UP(32, 32); i++)
+	for (i = 0; i < DIV_ROUND_UP(32, 32); i++) {
+		writel_relaxed(GICD_INT_EN_CLR_X32,
+			       dist_base + GIC_DIST_ENABLE_CLEAR + i * 4);
 		writel_relaxed(ptr[i], dist_base + GIC_DIST_ENABLE_SET + i * 4);
+	}
 
 	ptr = raw_cpu_ptr(gic_data[gic_nr].saved_ppi_conf);
 	for (i = 0; i < DIV_ROUND_UP(32, 16); i++)
