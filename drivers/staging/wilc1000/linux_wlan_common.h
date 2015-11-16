@@ -121,6 +121,16 @@ extern atomic_t WILC_DEBUG_LEVEL;
 		printk("ERR [%s: %d]", __func__, __LINE__);		\
 		printk(__VA_ARGS__);					\
 	} while (0)
+
+static inline int wilc_debugfs_init(void)
+{
+	return 0;
+}
+
+static inline void wilc_debugfs_remove(void)
+{
+}
+
 #endif
 
 #define FN_IN   /* PRINT_D(">>> \n") */

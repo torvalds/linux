@@ -1398,7 +1398,7 @@ void WILC_WFI_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size)
 		WILC_WFI_p2p_rx(wilc->vif[1].ndev, buff, size);
 }
 
-void wl_wlan_cleanup(struct wilc *wilc)
+void wilc_netdev_cleanup(struct wilc *wilc)
 {
 	int i = 0;
 	perInterface_wlan_t *nic[NUM_CONCURRENT_IFC];
@@ -1517,52 +1517,3 @@ int wilc_netdev_init(struct wilc **wilc)
 
 	return 0;
 }
-
-static int __init init_wilc_driver(void)
-{
-#ifdef WILC_SPI
-	struct wilc *wilc;
-#endif
-
-#if defined(WILC_DEBUGFS)
-	if (wilc_debugfs_init() < 0) {
-		PRINT_D(GENERIC_DBG, "fail to create debugfs for wilc driver\n");
-		return -1;
-	}
-#endif
-
-	printk("IN INIT FUNCTION\n");
-	printk("*** WILC1000 driver VERSION=[10.2] FW_VER=[10.2] ***\n");
-
-#ifdef WILC_SDIO
-	{
-		int ret;
-
-		ret = sdio_register_driver(&wilc_bus);
-		if (ret < 0)
-			PRINT_D(INIT_DBG, "init_wilc_driver: Failed register sdio driver\n");
-
-		return ret;
-	}
-#else
-	PRINT_D(INIT_DBG, "Initializing netdev\n");
-	if (wilc_netdev_init(&wilc))
-		PRINT_ER("Couldn't initialize netdev\n");
-	return 0;
-#endif
-}
-late_initcall(init_wilc_driver);
-
-static void __exit exit_wilc_driver(void)
-{
-#ifndef WILC_SDIO
-	PRINT_D(INIT_DBG, "SPI unregister...\n");
-	spi_unregister_driver(&wilc_bus);
-#else
-	PRINT_D(INIT_DBG, "SDIO unregister...\n");
-	sdio_unregister_driver(&wilc_bus);
-#endif
-}
-module_exit(exit_wilc_driver);
-
-MODULE_LICENSE("GPL");

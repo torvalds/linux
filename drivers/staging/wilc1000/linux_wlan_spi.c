@@ -11,6 +11,7 @@
 
 #include "linux_wlan_common.h"
 #include "linux_wlan_spi.h"
+#include "wilc_wfi_netdevice.h"
 
 #define USE_SPI_DMA     0       /* johnny add */
 
@@ -68,7 +69,7 @@ static const struct of_device_id wilc1000_of_match[] = {
 MODULE_DEVICE_TABLE(of, wilc1000_of_match);
 #endif
 
-struct spi_driver wilc_bus __refdata = {
+static struct spi_driver wilc_bus __refdata = {
 	.driver = {
 		.name = MODALIAS,
 #ifdef CONFIG_OF
@@ -393,3 +394,23 @@ int wilc_spi_set_max_speed(void)
 	PRINT_INFO(BUS_DBG, "@@@@@@@@@@@@ change SPI speed to %d @@@@@@@@@\n", SPEED);
 	return 1;
 }
+
+static struct wilc *wilc;
+
+static int __init init_wilc_spi_driver(void)
+{
+	wilc_debugfs_init();
+	return wilc_netdev_init(&wilc);
+}
+late_initcall(init_wilc_spi_driver);
+
+static void __exit exit_wilc_spi_driver(void)
+{
+	if (wilc)
+		wilc_netdev_cleanup(wilc);
+	spi_unregister_driver(&wilc_bus);
+	wilc_debugfs_remove();
+}
+module_exit(exit_wilc_spi_driver);
+
+MODULE_LICENSE("GPL");

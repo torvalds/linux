@@ -146,11 +146,11 @@ static void linux_sdio_remove(struct sdio_func *func)
 	struct wilc_sdio *wl_sdio;
 
 	wl_sdio = sdio_get_drvdata(func);
-	wl_wlan_cleanup(wl_sdio->wilc);
+	wilc_netdev_cleanup(wl_sdio->wilc);
 	kfree(wl_sdio);
 }
 
-struct sdio_driver wilc_bus = {
+static struct sdio_driver wilc_bus = {
 	.name		= SDIO_MODALIAS,
 	.id_table	= wilc_sdio_ids,
 	.probe		= linux_sdio_probe,
@@ -237,4 +237,16 @@ int wilc_sdio_set_default_speed(void)
 }
 
 
+static int __init init_wilc_sdio_driver(void)
+{
+	return sdio_register_driver(&wilc_bus);
+}
+late_initcall(init_wilc_sdio_driver);
 
+static void __exit exit_wilc_sdio_driver(void)
+{
+	sdio_unregister_driver(&wilc_bus);
+}
+module_exit(exit_wilc_sdio_driver);
+
+MODULE_LICENSE("GPL");
