@@ -246,6 +246,14 @@ static int change_protocol(struct rc_dev *dev, u64 *rc_type)
 	return 0;
 }
 
+static void ir_raw_disable_protocols(struct rc_dev *dev, u64 protocols)
+{
+	mutex_lock(&dev->lock);
+	dev->enabled_protocols &= ~protocols;
+	dev->enabled_wakeup_protocols &= ~protocols;
+	mutex_unlock(&dev->lock);
+}
+
 /*
  * Used to (un)register raw event clients
  */
@@ -337,13 +345,16 @@ EXPORT_SYMBOL(ir_raw_handler_register);
 void ir_raw_handler_unregister(struct ir_raw_handler *ir_raw_handler)
 {
 	struct ir_raw_event_ctrl *raw;
+	u64 protocols = ir_raw_handler->protocols;
 
 	mutex_lock(&ir_raw_handler_lock);
 	list_del(&ir_raw_handler->list);
-	if (ir_raw_handler->raw_unregister)
-		list_for_each_entry(raw, &ir_raw_client_list, list)
+	list_for_each_entry(raw, &ir_raw_client_list, list) {
+		ir_raw_disable_protocols(raw->dev, protocols);
+		if (ir_raw_handler->raw_unregister)
 			ir_raw_handler->raw_unregister(raw->dev);
-	available_protocols &= ~ir_raw_handler->protocols;
+	}
+	available_protocols &= ~protocols;
 	mutex_unlock(&ir_raw_handler_lock);
 }
 EXPORT_SYMBOL(ir_raw_handler_unregister);
