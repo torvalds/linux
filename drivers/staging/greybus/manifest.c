@@ -60,6 +60,18 @@ static void release_manifest_descriptors(struct gb_interface *intf)
 		release_manifest_descriptor(descriptor);
 }
 
+static struct manifest_desc *get_next_bundle_desc(struct gb_interface *intf)
+{
+	struct manifest_desc *descriptor;
+	struct manifest_desc *next;
+
+	list_for_each_entry_safe(descriptor, next, &intf->manifest_descs, links)
+		if (descriptor->type == GREYBUS_TYPE_BUNDLE)
+			return descriptor;
+
+	return NULL;
+}
+
 /*
  * Validate the given descriptor.  Its reported size must fit within
  * the number of bytes remaining, and it must have a recognized
@@ -282,17 +294,13 @@ exit:
 static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 {
 	struct manifest_desc *desc;
-	struct manifest_desc *next;
 	struct gb_bundle *bundle;
 	struct gb_bundle *bundle_next;
 	u32 count = 0;
 	u8 bundle_id;
 
-	list_for_each_entry_safe(desc, next, &intf->manifest_descs, links) {
+	while ((desc = get_next_bundle_desc(intf))) {
 		struct greybus_descriptor_bundle *desc_bundle;
-
-		if (desc->type != GREYBUS_TYPE_BUNDLE)
-			continue;
 
 		/* Found one.  Set up its bundle structure*/
 		desc_bundle = desc->data;
