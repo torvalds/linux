@@ -220,7 +220,7 @@ struct nvm_dev_ops {
 	nvm_dev_dma_alloc_fn	*dev_dma_alloc;
 	nvm_dev_dma_free_fn	*dev_dma_free;
 
-	uint8_t			max_phys_sect;
+	unsigned int		max_phys_sect;
 };
 
 struct nvm_lun {
