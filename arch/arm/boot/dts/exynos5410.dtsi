@@ -104,6 +104,12 @@
 		sromc: sromc@12250000 {
 			compatible = "samsung,exynos-srom";
 			reg = <0x12250000 0x14>;
+			#address-cells = <2>;
+			#size-cells = <1>;
+			ranges = <0 0 0x04000000 0x20000
+				  1 0 0x05000000 0x20000
+				  2 0 0x06000000 0x20000
+				  3 0 0x07000000 0x20000>;
 		};
 
 		pmu_system_controller: system-controller@10040000 {
