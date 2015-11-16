@@ -225,9 +225,8 @@ static irqreturn_t isr_uh_routine(int irq, void *user_data)
 	}
 	return IRQ_WAKE_THREAD;
 }
-#endif
 
-irqreturn_t isr_bh_routine(int irq, void *userdata)
+static irqreturn_t isr_bh_routine(int irq, void *userdata)
 {
 	perInterface_wlan_t *nic;
 	struct wilc *wilc;
@@ -246,7 +245,6 @@ irqreturn_t isr_bh_routine(int irq, void *userdata)
 	return IRQ_HANDLED;
 }
 
-#if (defined WILC_SPI) || (defined WILC_SDIO_IRQ_GPIO)
 static int init_irq(struct net_device *dev)
 {
 	int ret = 0;
@@ -333,7 +331,7 @@ void linux_wlan_mac_indicate(struct wilc *wilc, int flag)
 	}
 }
 
-struct net_device *get_if_handler(struct wilc *wilc, u8 *mac_header)
+static struct net_device *get_if_handler(struct wilc *wilc, u8 *mac_header)
 {
 	u8 *bssid, *bssid1;
 	int i = 0;
@@ -839,7 +837,7 @@ void wilc1000_wlan_deinit(struct net_device *dev)
 	}
 }
 
-int wlan_init_locks(struct net_device *dev)
+static int wlan_init_locks(struct net_device *dev)
 {
 	perInterface_wlan_t *nic;
 	struct wilc *wl;
@@ -884,7 +882,7 @@ static int wlan_deinit_locks(struct net_device *dev)
 	return 0;
 }
 
-void linux_to_wlan(wilc_wlan_inp_t *nwi, struct wilc *nic)
+static void linux_to_wlan(wilc_wlan_inp_t *nwi, struct wilc *nic)
 {
 	PRINT_D(INIT_DBG, "Linux to Wlan services ...\n");
 
@@ -895,7 +893,7 @@ void linux_to_wlan(wilc_wlan_inp_t *nwi, struct wilc *nic)
 #endif
 }
 
-int wlan_initialize_threads(struct net_device *dev)
+static int wlan_initialize_threads(struct net_device *dev)
 {
 	perInterface_wlan_t *nic;
 	struct wilc *wilc;
@@ -921,7 +919,6 @@ static void wlan_deinitialize_threads(struct net_device *dev)
 {
 	perInterface_wlan_t *nic;
 	struct wilc *wl;
-
 	nic = netdev_priv(dev);
 	wl = nic->wilc;
 
@@ -1049,7 +1046,7 @@ _fail_locks_:
 	return ret;
 }
 
-int mac_init_fn(struct net_device *ndev)
+static int mac_init_fn(struct net_device *ndev)
 {
 	netif_start_queue(ndev);
 	netif_stop_queue(ndev);
@@ -1131,7 +1128,7 @@ int mac_open(struct net_device *ndev)
 	return 0;
 }
 
-struct net_device_stats *mac_stats(struct net_device *dev)
+static struct net_device_stats *mac_stats(struct net_device *dev)
 {
 	perInterface_wlan_t *nic = netdev_priv(dev);
 
@@ -1325,7 +1322,7 @@ int mac_close(struct net_device *ndev)
 	return 0;
 }
 
-int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
+static int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 {
 	u8 *buff = NULL;
 	s8 rssi;

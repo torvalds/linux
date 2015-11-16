@@ -338,10 +338,6 @@ s32 host_int_set_join_req(struct host_if_drv *hWFIDrv, u8 *pu8bssid,
 			  u8 u8channel, void *pJoinParams);
 s32 host_int_flush_join_req(struct host_if_drv *hWFIDrv);
 s32 host_int_disconnect(struct host_if_drv *hWFIDrv, u16 u16ReasonCode);
-s32 host_int_get_assoc_res_info(struct host_if_drv *hWFIDrv,
-				u8 *pu8AssocRespInfo,
-				u32 u32MaxAssocRespInfoLen,
-				u32 *pu32RcvdAssocRespInfoLen);
 int host_int_set_mac_chnl_num(struct host_if_drv *wfi_drv, u8 channel);
 s32 host_int_get_rssi(struct host_if_drv *hWFIDrv, s8 *ps8Rssi);
 s32 host_int_scan(struct host_if_drv *hWFIDrv, u8 u8ScanSource,
@@ -379,7 +375,6 @@ s32 host_int_setup_ipaddress(struct host_if_drv *hWFIDrv,
 s32 host_int_del_All_Rx_BASession(struct host_if_drv *hWFIDrv,
 				  char *pBSSID,
 				  char TID);
-s32 host_int_get_ipaddress(struct host_if_drv *hWFIDrv, u8 *pu8IPAddr, u8 idx);
 s32 host_int_remain_on_channel(struct host_if_drv *hWFIDrv,
 			       u32 u32SessionID,
 			       u32 u32duration,
@@ -393,9 +388,6 @@ s32 host_int_frame_register(struct host_if_drv *hWFIDrv,
 			    bool bReg);
 int host_int_set_wfi_drv_handler(struct host_if_drv *address);
 int host_int_set_operation_mode(struct host_if_drv *wfi_drv, u32 mode);
-
-static s32 Handle_ScanDone(struct host_if_drv *drvHandler,
-			   enum scan_event enuEvent);
 
 void host_int_freeJoinParams(void *pJoinParams);
 

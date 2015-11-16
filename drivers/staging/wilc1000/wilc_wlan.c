@@ -40,7 +40,9 @@ typedef struct {
 
 static wilc_wlan_dev_t g_wlan;
 
+#ifdef WILC_OPTIMIZE_SLEEP_INT
 static inline void chip_allow_sleep(void);
+#endif
 static inline void chip_wakeup(void);
 static u32 dbgflag = N_INIT | N_ERR | N_INTR | N_TXQ | N_RXQ;
 
@@ -81,6 +83,7 @@ static inline void release_bus(BUS_RELEASE_T release)
 	mutex_unlock(&g_linux_wlan->hif_cs);
 }
 
+#ifdef TCP_ACK_FILTER
 static void wilc_wlan_txq_remove(struct txq_entry_t *tqe)
 {
 	wilc_wlan_dev_t *p = &g_wlan;
@@ -99,6 +102,7 @@ static void wilc_wlan_txq_remove(struct txq_entry_t *tqe)
 	}
 	p->txq_entries -= 1;
 }
+#endif
 
 static struct txq_entry_t *
 wilc_wlan_txq_remove_from_head(struct net_device *dev)
@@ -209,16 +213,17 @@ struct pending_acks_info {
 	struct txq_entry_t  *txqe;
 };
 
+
 #define NOT_TCP_ACK			(-1)
 
 #define MAX_TCP_SESSION		25
 #define MAX_PENDING_ACKS		256
-struct ack_session_info ack_session_info[2 * MAX_TCP_SESSION];
-struct pending_acks_info pending_acks_info[MAX_PENDING_ACKS];
+static struct ack_session_info ack_session_info[2 * MAX_TCP_SESSION];
+static struct pending_acks_info pending_acks_info[MAX_PENDING_ACKS];
 
-u32 pending_base;
-u32 tcp_session;
-u32 pending_acks;
+static u32 pending_base;
+static u32 tcp_session;
+static u32 pending_acks;
 
 static inline int init_tcp_tracking(void)
 {
@@ -386,17 +391,19 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(struct net_device *dev)
 }
 #endif
 
-bool enabled = false;
+static bool enabled = false;
 
 void enable_tcp_ack_filter(bool value)
 {
 	enabled = value;
 }
 
-bool is_tcp_ack_filter_enabled(void)
+#ifdef TCP_ACK_FILTER
+static bool is_tcp_ack_filter_enabled(void)
 {
 	return enabled;
 }
+#endif
 
 static int wilc_wlan_txq_add_cfg_pkt(u8 *buffer, u32 buffer_size)
 {
@@ -1582,7 +1589,7 @@ void wilc_bus_set_default_speed(void)
 	g_wlan.hif_func.hif_set_default_bus_speed();
 }
 
-u32 init_chip(struct net_device *dev)
+static u32 init_chip(struct net_device *dev)
 {
 	u32 chipid;
 	u32 reg, ret = 0;

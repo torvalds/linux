@@ -29,9 +29,9 @@ static struct net_device *wilc_wfi_mon; /* global monitor netdev */
 extern int  mac_xmit(struct sk_buff *skb, struct net_device *dev);
 
 
-u8 srcAdd[6];
-u8 bssid[6];
-u8 broadcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+static u8 srcAdd[6];
+static u8 bssid[6];
+static u8 broadcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 /**
  *  @brief      WILC_WFI_monitor_rx
  *  @details
