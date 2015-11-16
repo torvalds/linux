@@ -61,8 +61,12 @@ void hci_req_add_le_passive_scan(struct hci_request *req);
 /* Returns true if HCI commands were queued */
 bool hci_req_stop_discovery(struct hci_request *req);
 
-void hci_update_page_scan(struct hci_dev *hdev);
-void __hci_update_page_scan(struct hci_request *req);
+static inline void hci_req_update_scan(struct hci_dev *hdev)
+{
+	queue_work(hdev->req_workqueue, &hdev->scan_update);
+}
+
+void __hci_req_update_scan(struct hci_request *req);
 
 int hci_update_random_address(struct hci_request *req, bool require_privacy,
 			      u8 *own_addr_type);

@@ -637,7 +637,7 @@ static bool disconnected_whitelist_entries(struct hci_dev *hdev)
 	return false;
 }
 
-void __hci_update_page_scan(struct hci_request *req)
+void __hci_req_update_scan(struct hci_request *req)
 {
 	struct hci_dev *hdev = req->hdev;
 	u8 scan;
@@ -657,22 +657,29 @@ void __hci_update_page_scan(struct hci_request *req)
 	else
 		scan = SCAN_DISABLED;
 
-	if (test_bit(HCI_PSCAN, &hdev->flags) == !!(scan & SCAN_PAGE))
-		return;
-
 	if (hci_dev_test_flag(hdev, HCI_DISCOVERABLE))
 		scan |= SCAN_INQUIRY;
+
+	if (test_bit(HCI_PSCAN, &hdev->flags) == !!(scan & SCAN_PAGE) &&
+	    test_bit(HCI_ISCAN, &hdev->flags) == !!(scan & SCAN_INQUIRY))
+		return;
 
 	hci_req_add(req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
 }
 
-void hci_update_page_scan(struct hci_dev *hdev)
+static int update_scan(struct hci_request *req, unsigned long opt)
 {
-	struct hci_request req;
+	hci_dev_lock(req->hdev);
+	__hci_req_update_scan(req);
+	hci_dev_unlock(req->hdev);
+	return 0;
+}
 
-	hci_req_init(&req, hdev);
-	__hci_update_page_scan(&req);
-	hci_req_run(&req, NULL);
+static void scan_update_work(struct work_struct *work)
+{
+	struct hci_dev *hdev = container_of(work, struct hci_dev, scan_update);
+
+	hci_req_sync(hdev, update_scan, 0, HCI_CMD_TIMEOUT, NULL);
 }
 
 /* This function controls the background scanning based on hdev->pend_le_conns
@@ -1270,6 +1277,7 @@ void hci_request_setup(struct hci_dev *hdev)
 {
 	INIT_WORK(&hdev->discov_update, discov_update);
 	INIT_WORK(&hdev->bg_scan_update, bg_scan_update);
+	INIT_WORK(&hdev->scan_update, scan_update_work);
 	INIT_DELAYED_WORK(&hdev->le_scan_disable, le_scan_disable_work);
 	INIT_DELAYED_WORK(&hdev->le_scan_restart, le_scan_restart_work);
 }
@@ -1280,6 +1288,7 @@ void hci_request_cancel_all(struct hci_dev *hdev)
 
 	cancel_work_sync(&hdev->discov_update);
 	cancel_work_sync(&hdev->bg_scan_update);
+	cancel_work_sync(&hdev->scan_update);
 	cancel_delayed_work_sync(&hdev->le_scan_disable);
 	cancel_delayed_work_sync(&hdev->le_scan_restart);
 }

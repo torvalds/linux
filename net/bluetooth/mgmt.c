@@ -1810,7 +1810,7 @@ static void set_discoverable_complete(struct hci_dev *hdev, u8 status,
 	 * entries.
 	 */
 	hci_req_init(&req, hdev);
-	__hci_update_page_scan(&req);
+	__hci_req_update_scan(&req);
 	update_class(&req);
 	hci_req_run(&req, NULL);
 
@@ -2058,7 +2058,7 @@ static void set_connectable_complete(struct hci_dev *hdev, u8 status,
 
 	if (conn_changed || discov_changed) {
 		new_settings(hdev, cmd->sk);
-		hci_update_page_scan(hdev);
+		hci_req_update_scan(hdev);
 		if (discov_changed)
 			mgmt_update_adv_data(hdev);
 		hci_update_background_scan(hdev);
@@ -2092,7 +2092,7 @@ static int set_connectable_update_settings(struct hci_dev *hdev,
 		return err;
 
 	if (changed) {
-		hci_update_page_scan(hdev);
+		hci_req_update_scan(hdev);
 		hci_update_background_scan(hdev);
 		return new_settings(hdev, sk);
 	}
@@ -5041,7 +5041,7 @@ static int set_bredr(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 	hci_req_init(&req, hdev);
 
 	write_fast_connectable(&req, false);
-	__hci_update_page_scan(&req);
+	__hci_req_update_scan(&req);
 
 	/* Since only the advertising data flags will change, there
 	 * is no need to update the scan response data.
@@ -5927,7 +5927,7 @@ static int add_device(struct sock *sk, struct hci_dev *hdev,
 		if (err)
 			goto unlock;
 
-		hci_update_page_scan(hdev);
+		hci_req_update_scan(hdev);
 
 		goto added;
 	}
@@ -6024,7 +6024,7 @@ static int remove_device(struct sock *sk, struct hci_dev *hdev,
 				goto unlock;
 			}
 
-			hci_update_page_scan(hdev);
+			hci_req_update_scan(hdev);
 
 			device_removed(sk, hdev, &cp->addr.bdaddr,
 				       cp->addr.type);
@@ -6089,7 +6089,7 @@ static int remove_device(struct sock *sk, struct hci_dev *hdev,
 			kfree(b);
 		}
 
-		hci_update_page_scan(hdev);
+		hci_req_update_scan(hdev);
 
 		list_for_each_entry_safe(p, tmp, &hdev->le_conn_params, list) {
 			if (p->auto_connect == HCI_AUTO_CONN_DISABLED)
@@ -7397,7 +7397,7 @@ static int powered_update_hci(struct hci_dev *hdev)
 			write_fast_connectable(&req, true);
 		else
 			write_fast_connectable(&req, false);
-		__hci_update_page_scan(&req);
+		__hci_req_update_scan(&req);
 		update_class(&req);
 		update_name(&req);
 		update_eir(&req);
