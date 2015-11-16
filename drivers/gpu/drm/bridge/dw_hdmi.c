@@ -1648,8 +1648,6 @@ static int dw_hdmi_register(struct drm_device *drm, struct dw_hdmi *hdmi)
 	drm_connector_init(drm, &hdmi->connector, &dw_hdmi_connector_funcs,
 			   DRM_MODE_CONNECTOR_HDMIA);
 
-	hdmi->connector.encoder = encoder;
-
 	drm_mode_connector_attach_encoder(&hdmi->connector, encoder);
 
 	return 0;

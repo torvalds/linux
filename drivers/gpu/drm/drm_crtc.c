@@ -5054,6 +5054,20 @@ int drm_mode_connector_attach_encoder(struct drm_connector *connector,
 {
 	int i;
 
+	/*
+	 * In the past, drivers have attempted to model the static association
+	 * of connector to encoder in simple connector/encoder devices using a
+	 * direct assignment of connector->encoder = encoder. This connection
+	 * is a logical one and the responsibility of the core, so drivers are
+	 * expected not to mess with this.
+	 *
+	 * Note that the error return should've been enough here, but a large
+	 * majority of drivers ignores the return value, so add in a big WARN
+	 * to get people's attention.
+	 */
+	if (WARN_ON(connector->encoder))
+		return -EINVAL;
+
 	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
 		if (connector->encoder_ids[i] == 0) {
 			connector->encoder_ids[i] = encoder->base.id;
