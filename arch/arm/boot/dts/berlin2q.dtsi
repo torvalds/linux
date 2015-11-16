@@ -309,7 +309,6 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0x1400 0x100>;
-				interrupt-parent = <&aic>;
 				interrupts = <4>;
 				clocks = <&chip_clk CLKID_CFG>;
 				pinctrl-0 = <&twsi0_pmux>;
@@ -322,7 +321,6 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0x1800 0x100>;
-				interrupt-parent = <&aic>;
 				interrupts = <5>;
 				clocks = <&chip_clk CLKID_CFG>;
 				pinctrl-0 = <&twsi1_pmux>;
@@ -528,7 +526,6 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0x7000 0x100>;
-				interrupt-parent = <&sic>;
 				interrupts = <6>;
 				clocks = <&refclk>;
 				pinctrl-0 = <&twsi2_pmux>;
@@ -541,7 +538,6 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0x8000 0x100>;
-				interrupt-parent = <&sic>;
 				interrupts = <7>;
 				clocks = <&refclk>;
 				pinctrl-0 = <&twsi3_pmux>;
@@ -552,7 +548,6 @@
 			uart0: uart@9000 {
 				compatible = "snps,dw-apb-uart";
 				reg = <0x9000 0x100>;
-				interrupt-parent = <&sic>;
 				interrupts = <8>;
 				clocks = <&refclk>;
 				reg-shift = <2>;
@@ -564,7 +559,6 @@
 			uart1: uart@a000 {
 				compatible = "snps,dw-apb-uart";
 				reg = <0xa000 0x100>;
-				interrupt-parent = <&sic>;
 				interrupts = <9>;
 				clocks = <&refclk>;
 				reg-shift = <2>;
