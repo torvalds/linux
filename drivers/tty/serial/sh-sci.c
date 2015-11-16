@@ -1860,19 +1860,23 @@ static void sci_shutdown(struct uart_port *port)
 	sci_free_irq(s);
 }
 
-static unsigned int sci_scbrr_calc(struct sci_port *s, unsigned int bps,
-				   unsigned long freq)
+/* calculate sample rate, BRR, and clock select */
+static void sci_scbrr_calc(struct sci_port *s, unsigned int bps,
+			   unsigned long freq, int *brr, unsigned int *srr,
+			   unsigned int *cks)
 {
-	return DIV_ROUND_CLOSEST(freq, s->sampling_rate * bps) - 1;
-}
-
-/* calculate sample rate, BRR, and clock select for HSCIF */
-static void sci_baud_calc_hscif(struct sci_port *s, unsigned int bps,
-				unsigned long freq, int *brr,
-				unsigned int *srr, unsigned int *cks)
-{
-	unsigned int sr, br, prediv, scrate, c;
+	unsigned int min_sr, max_sr, shift, sr, br, prediv, scrate, c;
 	int err, min_err = INT_MAX;
+
+	if (s->sampling_rate) {
+		min_sr = max_sr = s->sampling_rate;
+		shift = 0;
+	} else {
+		/* HSCIF has a variable sample rate */
+		min_sr = 8;
+		max_sr = 32;
+		shift = 1;
+	}
 
 	/*
 	 * Find the combination of sample rate and clock select with the
@@ -1889,10 +1893,10 @@ static void sci_baud_calc_hscif(struct sci_port *s, unsigned int bps,
 	 *      (|D - 0.5| / N * (1 + F))|
 	 *  NOTE: Usually, treat D for 0.5, F is 0 by this calculation.
 	 */
-	for (sr = 32; sr >= 8; sr--) {
+	for (sr = max_sr; sr >= min_sr; sr--) {
 		for (c = 0; c <= 3; c++) {
 			/* integerized formulas from HSCIF documentation */
-			prediv = sr * (1 << (2 * c + 1));
+			prediv = sr * (1 << (2 * c + shift));
 
 			/*
 			 * We need to calculate:
@@ -1974,16 +1978,8 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 	max_baud = port->uartclk ? port->uartclk / 16 : 115200;
 
 	baud = uart_get_baud_rate(port, termios, old, 0, max_baud);
-	if (likely(baud && port->uartclk)) {
-		if (s->cfg->type == PORT_HSCIF) {
-			sci_baud_calc_hscif(s, baud, port->uartclk, &t, &srr,
-					    &cks);
-		} else {
-			t = sci_scbrr_calc(s, baud, port->uartclk);
-			for (cks = 0; t >= 256 && cks <= 3; cks++)
-				t >>= 2;
-		}
-	}
+	if (likely(baud && port->uartclk))
+		sci_scbrr_calc(s, baud, port->uartclk, &t, &srr, &cks);
 
 	sci_port_enable(s);
 
