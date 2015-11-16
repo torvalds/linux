@@ -7,6 +7,7 @@
 
 #include <bpf/libbpf.h>
 #include <linux/err.h>
+#include <linux/string.h>
 #include "perf.h"
 #include "debug.h"
 #include "bpf-loader.h"
@@ -129,6 +130,38 @@ config__module(const char *value, struct perf_probe_event *pev)
 	return 0;
 }
 
+static int
+config__bool(const char *value,
+	     bool *pbool, bool invert)
+{
+	int err;
+	bool bool_value;
+
+	if (!pbool)
+		return -EINVAL;
+
+	err = strtobool(value, &bool_value);
+	if (err)
+		return err;
+
+	*pbool = invert ? !bool_value : bool_value;
+	return 0;
+}
+
+static int
+config__inlines(const char *value,
+		struct perf_probe_event *pev __maybe_unused)
+{
+	return config__bool(value, &probe_conf.no_inlines, true);
+}
+
+static int
+config__force(const char *value,
+	      struct perf_probe_event *pev __maybe_unused)
+{
+	return config__bool(value, &probe_conf.force_add, false);
+}
+
 static struct {
 	const char *key;
 	const char *usage;
@@ -146,7 +179,19 @@ static struct {
 		.usage	= "module=<module name>    ",
 		.desc	= "Set kprobe module",
 		.func	= config__module,
-	}
+	},
+	{
+		.key	= "inlines",
+		.usage	= "inlines=[yes|no]        ",
+		.desc	= "Probe at inline symbol",
+		.func	= config__inlines,
+	},
+	{
+		.key	= "force",
+		.usage	= "force=[yes|no]          ",
+		.desc	= "Forcibly add events with existing name",
+		.func	= config__force,
+	},
 };
 
 static int
@@ -239,6 +284,10 @@ config_bpf_program(struct bpf_program *prog)
 	struct bpf_prog_priv *priv = NULL;
 	const char *config_str;
 	int err;
+
+	/* Initialize per-program probing setting */
+	probe_conf.no_inlines = false;
+	probe_conf.force_add = false;
 
 	config_str = bpf_program__title(prog, false);
 	if (IS_ERR(config_str)) {
@@ -544,7 +593,7 @@ int bpf__strerror_probe(struct bpf_object *obj __maybe_unused,
 		scnprintf(buf, size, "%s (add -v to see detail)", emsg);
 		break;
 	}
-	bpf__strerror_entry(EEXIST, "Probe point exist. Try use 'perf probe -d \"*\"'");
+	bpf__strerror_entry(EEXIST, "Probe point exist. Try 'perf probe -d \"*\"' and set 'force=yes'");
 	bpf__strerror_entry(EACCES, "You need to be root");
 	bpf__strerror_entry(EPERM, "You need to be root, and /proc/sys/kernel/kptr_restrict should be 0");
 	bpf__strerror_entry(ENOENT, "You need to check probing points in BPF file");
