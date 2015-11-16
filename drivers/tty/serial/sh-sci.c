@@ -1872,13 +1872,24 @@ static void sci_baud_calc_hscif(struct sci_port *s, unsigned int bps,
 				unsigned int *srr, unsigned int *cks)
 {
 	unsigned int sr, br, prediv, scrate, c;
-	int err, recv_margin;
-	int min_err = INT_MAX;
-	int recv_max_margin = 0;
+	int err, min_err = INT_MAX;
 
-	/* Find the combination of sample rate and clock select with the
-	   smallest deviation from the desired baud rate. */
-	for (sr = 8; sr <= 32; sr++) {
+	/*
+	 * Find the combination of sample rate and clock select with the
+	 * smallest deviation from the desired baud rate.
+	 * Prefer high sample rates to maximise the receive margin.
+	 *
+	 * M: Receive margin (%)
+	 * N: Ratio of bit rate to clock (N = sampling rate)
+	 * D: Clock duty (D = 0 to 1.0)
+	 * L: Frame length (L = 9 to 12)
+	 * F: Absolute value of clock frequency deviation
+	 *
+	 *  M = |(0.5 - 1 / 2 * N) - ((L - 0.5) * F) -
+	 *      (|D - 0.5| / N * (1 + F))|
+	 *  NOTE: Usually, treat D for 0.5, F is 0 by this calculation.
+	 */
+	for (sr = 32; sr >= 8; sr--) {
 		for (c = 0; c <= 3; c++) {
 			/* integerized formulas from HSCIF documentation */
 			prediv = sr * (1 << (2 * c + 1));
@@ -1898,36 +1909,22 @@ static void sci_baud_calc_hscif(struct sci_port *s, unsigned int bps,
 			scrate = prediv * bps;
 			br = DIV_ROUND_CLOSEST(freq, scrate);
 			br = clamp(br, 1U, 256U);
+
 			err = DIV_ROUND_CLOSEST(freq, br * prediv) - bps;
-			/* Calc recv margin
-			 * M: Receive margin (%)
-			 * N: Ratio of bit rate to clock (N = sampling rate)
-			 * D: Clock duty (D = 0 to 1.0)
-			 * L: Frame length (L = 9 to 12)
-			 * F: Absolute value of clock frequency deviation
-			 *
-			 *  M = |(0.5 - 1 / 2 * N) - ((L - 0.5) * F) -
-			 *      (|D - 0.5| / N * (1 + F))|
-			 *  NOTE: Usually, treat D for 0.5, F is 0 by this
-			 *        calculation.
-			 */
-			recv_margin = abs((500 -
-					DIV_ROUND_CLOSEST(1000, sr << 1)) / 10);
-			if (abs(min_err) > abs(err)) {
-				min_err = err;
-				recv_max_margin = recv_margin;
-			} else if ((min_err == err) &&
-				   (recv_margin > recv_max_margin))
-				recv_max_margin = recv_margin;
-			else
+			if (abs(err) >= abs(min_err))
 				continue;
 
+			min_err = err;
 			*brr = br - 1;
 			*srr = sr - 1;
 			*cks = c;
+
+			if (!err)
+				goto found;
 		}
 	}
 
+found:
 	dev_dbg(s->port.dev, "BRR: %u%+d bps using N %u SR %u cks %u\n", bps,
 		min_err, *brr, *srr + 1, *cks);
 }
