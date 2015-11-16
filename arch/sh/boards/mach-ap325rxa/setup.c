@@ -29,7 +29,7 @@
 #include <linux/sh_intc.h>
 #include <media/i2c/ov772x.h>
 #include <media/soc_camera.h>
-#include <media/soc_camera_platform.h>
+#include <linux/platform_data/media/soc_camera_platform.h>
 #include <media/drv-intf/sh_mobile_ceu.h>
 #include <video/sh_mobile_lcdc.h>
 #include <asm/io.h>

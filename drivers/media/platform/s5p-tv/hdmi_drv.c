@@ -33,7 +33,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/v4l2-dv-timings.h>
 
-#include <media/s5p_hdmi.h>
+#include <linux/platform_data/media/s5p_hdmi.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>

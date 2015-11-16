@@ -26,7 +26,7 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <media/timb_radio.h>
+#include <linux/platform_data/media/timb_radio.h>
 
 #define DRIVER_NAME "timb-radio"
 

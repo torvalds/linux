@@ -6895,6 +6895,7 @@ F:	Documentation/video4linux/
 F:	Documentation/DocBook/media/
 F:	drivers/media/
 F:	drivers/staging/media/
+F:	include/linux/platform_data/media/
 F:	include/media/
 F:	include/uapi/linux/dvb/
 F:	include/uapi/linux/videodev2.h
