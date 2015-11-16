@@ -1,7 +1,7 @@
 /*
  * trace event based perf event profiling/tracing
  *
- * Copyright (C) 2009 Red Hat Inc, Peter Zijlstra <pzijlstr@redhat.com>
+ * Copyright (C) 2009 Red Hat Inc, Peter Zijlstra
  * Copyright (C) 2009-2010 Frederic Weisbecker <fweisbec@gmail.com>
  */
 
