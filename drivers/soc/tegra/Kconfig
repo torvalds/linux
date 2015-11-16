@@ -65,5 +65,23 @@ config ARCH_TEGRA_132_SOC
 	  but contains an NVIDIA Denver CPU complex in place of
 	  Tegra124's "4+1" Cortex-A15 CPU complex.
 
+config ARCH_TEGRA_210_SOC
+	bool "NVIDIA Tegra210 SoC"
+	select PINCTRL_TEGRA210
+	select USB_ULPI if USB_PHY
+	select USB_ULPI_VIEWPORT if USB_PHY
+	help
+	  Enable support for the NVIDIA Tegra210 SoC. Also known as Tegra X1,
+	  the Tegra210 has four Cortex-A57 cores paired with four Cortex-A53
+	  cores in a switched configuration. It features a GPU of the Maxwell
+	  architecture with support for DX11, SM4, OpenGL 4.5, OpenGL ES 3.1
+	  and providing 256 CUDA cores. It supports hardware-accelerated en-
+	  and decoding of various video standards including H.265, H.264 and
+	  VP8 at 4K resolution and up to 60 fps.
+
+	  Besides the multimedia features it also comes with a variety of I/O
+	  controllers, such as GPIO, I2C, SPI, SDHCI, PCIe, SATA and XHCI, to
+	  name only a few.
+
 endif
 endif
