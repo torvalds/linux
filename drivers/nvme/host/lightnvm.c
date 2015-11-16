@@ -155,11 +155,13 @@ struct nvme_nvm_id_group {
 	__u8			num_ch;
 	__u8			num_lun;
 	__u8			num_pln;
+	__u8			rsvd1;
 	__le16			num_blk;
 	__le16			num_pg;
 	__le16			fpg_sz;
 	__le16			csecs;
 	__le16			sos;
+	__le16			rsvd2;
 	__le32			trdt;
 	__le32			trdm;
 	__le32			tprt;
@@ -168,7 +170,7 @@ struct nvme_nvm_id_group {
 	__le32			tbem;
 	__le32			mpos;
 	__le16			cpar;
-	__u8			reserved[913];
+	__u8			reserved[910];
 } __packed;
 
 struct nvme_nvm_addr_format {
