@@ -142,6 +142,8 @@ struct blkfront_ring_info {
 	struct gnttab_free_callback callback;
 	struct blk_shadow shadow[BLK_MAX_RING_SIZE];
 	struct list_head indirect_pages;
+	struct list_head grants;
+	unsigned int persistent_gnts_c;
 	unsigned long shadow_free;
 	struct blkfront_info *dev_info;
 };
@@ -162,13 +164,6 @@ struct blkfront_info
 	/* Number of pages per ring buffer. */
 	unsigned int nr_ring_pages;
 	struct request_queue *rq;
-	/*
-	 * Lock to protect info->grants list and persistent_gnts_c shared by all
-	 * rings.
-	 */
-	spinlock_t dev_lock;
-	struct list_head grants;
-	unsigned int persistent_gnts_c;
 	unsigned int feature_flush;
 	unsigned int feature_discard:1;
 	unsigned int feature_secdiscard:1;
@@ -272,9 +267,7 @@ static int fill_grant_buffer(struct blkfront_ring_info *rinfo, int num)
 		}
 
 		gnt_list_entry->gref = GRANT_INVALID_REF;
-		spin_lock_irq(&info->dev_lock);
-		list_add(&gnt_list_entry->node, &info->grants);
-		spin_unlock_irq(&info->dev_lock);
+		list_add(&gnt_list_entry->node, &rinfo->grants);
 		i++;
 	}
 
@@ -282,10 +275,8 @@ static int fill_grant_buffer(struct blkfront_ring_info *rinfo, int num)
 
 out_of_memory:
 	list_for_each_entry_safe(gnt_list_entry, n,
-	                         &info->grants, node) {
-		spin_lock_irq(&info->dev_lock);
+	                         &rinfo->grants, node) {
 		list_del(&gnt_list_entry->node);
-		spin_unlock_irq(&info->dev_lock);
 		if (info->feature_persistent)
 			__free_page(gnt_list_entry->page);
 		kfree(gnt_list_entry);
@@ -295,20 +286,17 @@ out_of_memory:
 	return -ENOMEM;
 }
 
-static struct grant *get_free_grant(struct blkfront_info *info)
+static struct grant *get_free_grant(struct blkfront_ring_info *rinfo)
 {
 	struct grant *gnt_list_entry;
-	unsigned long flags;
 
-	spin_lock_irqsave(&info->dev_lock, flags);
-	BUG_ON(list_empty(&info->grants));
-	gnt_list_entry = list_first_entry(&info->grants, struct grant,
+	BUG_ON(list_empty(&rinfo->grants));
+	gnt_list_entry = list_first_entry(&rinfo->grants, struct grant,
 					  node);
 	list_del(&gnt_list_entry->node);
 
 	if (gnt_list_entry->gref != GRANT_INVALID_REF)
-		info->persistent_gnts_c--;
-	spin_unlock_irqrestore(&info->dev_lock, flags);
+		rinfo->persistent_gnts_c--;
 
 	return gnt_list_entry;
 }
@@ -324,9 +312,10 @@ static inline void grant_foreign_access(const struct grant *gnt_list_entry,
 
 static struct grant *get_grant(grant_ref_t *gref_head,
 			       unsigned long gfn,
-			       struct blkfront_info *info)
+			       struct blkfront_ring_info *rinfo)
 {
-	struct grant *gnt_list_entry = get_free_grant(info);
+	struct grant *gnt_list_entry = get_free_grant(rinfo);
+	struct blkfront_info *info = rinfo->dev_info;
 
 	if (gnt_list_entry->gref != GRANT_INVALID_REF)
 		return gnt_list_entry;
@@ -347,9 +336,10 @@ static struct grant *get_grant(grant_ref_t *gref_head,
 }
 
 static struct grant *get_indirect_grant(grant_ref_t *gref_head,
-					struct blkfront_info *info)
+					struct blkfront_ring_info *rinfo)
 {
-	struct grant *gnt_list_entry = get_free_grant(info);
+	struct grant *gnt_list_entry = get_free_grant(rinfo);
+	struct blkfront_info *info = rinfo->dev_info;
 
 	if (gnt_list_entry->gref != GRANT_INVALID_REF)
 		return gnt_list_entry;
@@ -361,8 +351,8 @@ static struct grant *get_indirect_grant(grant_ref_t *gref_head,
 		struct page *indirect_page;
 
 		/* Fetch a pre-allocated page to use for indirect grefs */
-		BUG_ON(list_empty(&info->rinfo->indirect_pages));
-		indirect_page = list_first_entry(&info->rinfo->indirect_pages,
+		BUG_ON(list_empty(&rinfo->indirect_pages));
+		indirect_page = list_first_entry(&rinfo->indirect_pages,
 						 struct page, lru);
 		list_del(&indirect_page->lru);
 		gnt_list_entry->page = indirect_page;
@@ -543,7 +533,6 @@ static void blkif_setup_rw_req_grant(unsigned long gfn, unsigned int offset,
 	unsigned int grant_idx = setup->grant_idx;
 	struct blkif_request *ring_req = setup->ring_req;
 	struct blkfront_ring_info *rinfo = setup->rinfo;
-	struct blkfront_info *info = rinfo->dev_info;
 	struct blk_shadow *shadow = &rinfo->shadow[setup->id];
 
 	if ((ring_req->operation == BLKIF_OP_INDIRECT) &&
@@ -552,13 +541,13 @@ static void blkif_setup_rw_req_grant(unsigned long gfn, unsigned int offset,
 			kunmap_atomic(setup->segments);
 
 		n = grant_idx / GRANTS_PER_INDIRECT_FRAME;
-		gnt_list_entry = get_indirect_grant(&setup->gref_head, info);
+		gnt_list_entry = get_indirect_grant(&setup->gref_head, rinfo);
 		shadow->indirect_grants[n] = gnt_list_entry;
 		setup->segments = kmap_atomic(gnt_list_entry->page);
 		ring_req->u.indirect.indirect_grefs[n] = gnt_list_entry->gref;
 	}
 
-	gnt_list_entry = get_grant(&setup->gref_head, gfn, info);
+	gnt_list_entry = get_grant(&setup->gref_head, gfn, rinfo);
 	ref = gnt_list_entry->gref;
 	shadow->grants_used[grant_idx] = gnt_list_entry;
 
@@ -1129,7 +1118,7 @@ static void blkif_restart_queue(struct work_struct *work)
 
 static void blkif_free_ring(struct blkfront_ring_info *rinfo)
 {
-	struct grant *persistent_gnt;
+	struct grant *persistent_gnt, *n;
 	struct blkfront_info *info = rinfo->dev_info;
 	int i, j, segs;
 
@@ -1146,6 +1135,23 @@ static void blkif_free_ring(struct blkfront_ring_info *rinfo)
 			__free_page(indirect_page);
 		}
 	}
+
+	/* Remove all persistent grants. */
+	if (!list_empty(&rinfo->grants)) {
+		list_for_each_entry_safe(persistent_gnt, n,
+					 &rinfo->grants, node) {
+			list_del(&persistent_gnt->node);
+			if (persistent_gnt->gref != GRANT_INVALID_REF) {
+				gnttab_end_foreign_access(persistent_gnt->gref,
+							  0, 0UL);
+				rinfo->persistent_gnts_c--;
+			}
+			if (info->feature_persistent)
+				__free_page(persistent_gnt->page);
+			kfree(persistent_gnt);
+		}
+	}
+	BUG_ON(rinfo->persistent_gnts_c != 0);
 
 	for (i = 0; i < BLK_RING_SIZE(info); i++) {
 		/*
@@ -1212,7 +1218,6 @@ free_shadow:
 
 static void blkif_free(struct blkfront_info *info, int suspend)
 {
-	struct grant *persistent_gnt, *n;
 	unsigned int i;
 
 	/* Prevent new requests being issued until we fix things up. */
@@ -1221,25 +1226,6 @@ static void blkif_free(struct blkfront_info *info, int suspend)
 	/* No more blkif_request(). */
 	if (info->rq)
 		blk_mq_stop_hw_queues(info->rq);
-
-	/* Remove all persistent grants */
-	spin_lock_irq(&info->dev_lock);
-	if (!list_empty(&info->grants)) {
-		list_for_each_entry_safe(persistent_gnt, n,
-					 &info->grants, node) {
-			list_del(&persistent_gnt->node);
-			if (persistent_gnt->gref != GRANT_INVALID_REF) {
-				gnttab_end_foreign_access(persistent_gnt->gref,
-							  0, 0UL);
-				info->persistent_gnts_c--;
-			}
-			if (info->feature_persistent)
-				__free_page(persistent_gnt->page);
-			kfree(persistent_gnt);
-		}
-	}
-	BUG_ON(info->persistent_gnts_c != 0);
-	spin_unlock_irq(&info->dev_lock);
 
 	for (i = 0; i < info->nr_rings; i++)
 		blkif_free_ring(&info->rinfo[i]);
@@ -1281,7 +1267,6 @@ static void blkif_completion(struct blk_shadow *s, struct blkfront_ring_info *ri
 	int i = 0;
 	struct scatterlist *sg;
 	int num_sg, num_grant;
-	unsigned long flags;
 	struct blkfront_info *info = rinfo->dev_info;
 	struct copy_from_grant data = {
 		.s = s,
@@ -1320,10 +1305,8 @@ static void blkif_completion(struct blk_shadow *s, struct blkfront_ring_info *ri
 			if (!info->feature_persistent)
 				pr_alert_ratelimited("backed has not unmapped grant: %u\n",
 						     s->grants_used[i]->gref);
-			spin_lock_irqsave(&info->dev_lock, flags);
-			list_add(&s->grants_used[i]->node, &info->grants);
-			info->persistent_gnts_c++;
-			spin_unlock_irqrestore(&info->dev_lock, flags);
+			list_add(&s->grants_used[i]->node, &rinfo->grants);
+			rinfo->persistent_gnts_c++;
 		} else {
 			/*
 			 * If the grant is not mapped by the backend we end the
@@ -1333,9 +1316,7 @@ static void blkif_completion(struct blk_shadow *s, struct blkfront_ring_info *ri
 			 */
 			gnttab_end_foreign_access(s->grants_used[i]->gref, 0, 0UL);
 			s->grants_used[i]->gref = GRANT_INVALID_REF;
-			spin_lock_irqsave(&info->dev_lock, flags);
-			list_add_tail(&s->grants_used[i]->node, &info->grants);
-			spin_unlock_irqrestore(&info->dev_lock, flags);
+			list_add_tail(&s->grants_used[i]->node, &rinfo->grants);
 		}
 	}
 	if (s->req.operation == BLKIF_OP_INDIRECT) {
@@ -1344,10 +1325,8 @@ static void blkif_completion(struct blk_shadow *s, struct blkfront_ring_info *ri
 				if (!info->feature_persistent)
 					pr_alert_ratelimited("backed has not unmapped grant: %u\n",
 							     s->indirect_grants[i]->gref);
-				spin_lock_irqsave(&info->dev_lock, flags);
-				list_add(&s->indirect_grants[i]->node, &info->grants);
-				info->persistent_gnts_c++;
-				spin_unlock_irqrestore(&info->dev_lock, flags);
+				list_add(&s->indirect_grants[i]->node, &rinfo->grants);
+				rinfo->persistent_gnts_c++;
 			} else {
 				struct page *indirect_page;
 
@@ -1361,9 +1340,7 @@ static void blkif_completion(struct blk_shadow *s, struct blkfront_ring_info *ri
 					list_add(&indirect_page->lru, &rinfo->indirect_pages);
 				}
 				s->indirect_grants[i]->gref = GRANT_INVALID_REF;
-				spin_lock_irqsave(&info->dev_lock, flags);
-				list_add_tail(&s->indirect_grants[i]->node, &info->grants);
-				spin_unlock_irqrestore(&info->dev_lock, flags);
+				list_add_tail(&s->indirect_grants[i]->node, &rinfo->grants);
 			}
 		}
 	}
@@ -1785,15 +1762,14 @@ static int blkfront_probe(struct xenbus_device *dev,
 
 		rinfo = &info->rinfo[r_index];
 		INIT_LIST_HEAD(&rinfo->indirect_pages);
+		INIT_LIST_HEAD(&rinfo->grants);
 		rinfo->dev_info = info;
 		INIT_WORK(&rinfo->work, blkif_restart_queue);
 		spin_lock_init(&rinfo->ring_lock);
 	}
 
 	mutex_init(&info->mutex);
-	spin_lock_init(&info->dev_lock);
 	info->vdevice = vdevice;
-	INIT_LIST_HEAD(&info->grants);
 	info->connected = BLKIF_STATE_DISCONNECTED;
 
 	/* Front end dir is a number, which is used as the id. */
