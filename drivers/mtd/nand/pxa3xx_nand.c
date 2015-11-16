@@ -1113,7 +1113,8 @@ static int prepare_set_command(struct pxa3xx_nand_info *info, int command,
 static void nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 			 int column, int page_addr)
 {
-	struct pxa3xx_nand_host *host = mtd->priv;
+	struct nand_chip *chip = mtd->priv;
+	struct pxa3xx_nand_host *host = chip->priv;
 	struct pxa3xx_nand_info *info = host->info_data;
 	int exec_cmd;
 
@@ -1161,7 +1162,8 @@ static void nand_cmdfunc_extended(struct mtd_info *mtd,
 				  const unsigned command,
 				  int column, int page_addr)
 {
-	struct pxa3xx_nand_host *host = mtd->priv;
+	struct nand_chip *chip = mtd->priv;
+	struct pxa3xx_nand_host *host = chip->priv;
 	struct pxa3xx_nand_info *info = host->info_data;
 	int exec_cmd, ext_cmd_type;
 
@@ -1281,7 +1283,7 @@ static int pxa3xx_nand_read_page_hwecc(struct mtd_info *mtd,
 		struct nand_chip *chip, uint8_t *buf, int oob_required,
 		int page)
 {
-	struct pxa3xx_nand_host *host = mtd->priv;
+	struct pxa3xx_nand_host *host = chip->priv;
 	struct pxa3xx_nand_info *info = host->info_data;
 
 	chip->read_buf(mtd, buf, mtd->writesize);
@@ -1307,7 +1309,8 @@ static int pxa3xx_nand_read_page_hwecc(struct mtd_info *mtd,
 
 static uint8_t pxa3xx_nand_read_byte(struct mtd_info *mtd)
 {
-	struct pxa3xx_nand_host *host = mtd->priv;
+	struct nand_chip *chip = mtd->priv;
+	struct pxa3xx_nand_host *host = chip->priv;
 	struct pxa3xx_nand_info *info = host->info_data;
 	char retval = 0xFF;
 
@@ -1320,7 +1323,8 @@ static uint8_t pxa3xx_nand_read_byte(struct mtd_info *mtd)
 
 static u16 pxa3xx_nand_read_word(struct mtd_info *mtd)
 {
-	struct pxa3xx_nand_host *host = mtd->priv;
+	struct nand_chip *chip = mtd->priv;
+	struct pxa3xx_nand_host *host = chip->priv;
 	struct pxa3xx_nand_info *info = host->info_data;
 	u16 retval = 0xFFFF;
 
@@ -1333,7 +1337,8 @@ static u16 pxa3xx_nand_read_word(struct mtd_info *mtd)
 
 static void pxa3xx_nand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 {
-	struct pxa3xx_nand_host *host = mtd->priv;
+	struct nand_chip *chip = mtd->priv;
+	struct pxa3xx_nand_host *host = chip->priv;
 	struct pxa3xx_nand_info *info = host->info_data;
 	int real_len = min_t(size_t, len, info->buf_count - info->buf_start);
 
@@ -1344,7 +1349,8 @@ static void pxa3xx_nand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 static void pxa3xx_nand_write_buf(struct mtd_info *mtd,
 		const uint8_t *buf, int len)
 {
-	struct pxa3xx_nand_host *host = mtd->priv;
+	struct nand_chip *chip = mtd->priv;
+	struct pxa3xx_nand_host *host = chip->priv;
 	struct pxa3xx_nand_info *info = host->info_data;
 	int real_len = min_t(size_t, len, info->buf_count - info->buf_start);
 
@@ -1359,7 +1365,8 @@ static void pxa3xx_nand_select_chip(struct mtd_info *mtd, int chip)
 
 static int pxa3xx_nand_waitfunc(struct mtd_info *mtd, struct nand_chip *this)
 {
-	struct pxa3xx_nand_host *host = mtd->priv;
+	struct nand_chip *chip = mtd->priv;
+	struct pxa3xx_nand_host *host = chip->priv;
 	struct pxa3xx_nand_info *info = host->info_data;
 
 	if (info->need_wait) {
@@ -1565,11 +1572,11 @@ static int pxa_ecc_init(struct pxa3xx_nand_info *info,
 
 static int pxa3xx_nand_scan(struct mtd_info *mtd)
 {
-	struct pxa3xx_nand_host *host = mtd->priv;
+	struct nand_chip *chip = mtd->priv;
+	struct pxa3xx_nand_host *host = chip->priv;
 	struct pxa3xx_nand_info *info = host->info_data;
 	struct platform_device *pdev = info->pdev;
 	struct pxa3xx_nand_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	struct nand_chip *chip = mtd->priv;
 	int ret;
 	uint16_t ecc_strength, ecc_step;
 
@@ -1701,11 +1708,12 @@ static int alloc_nand_resource(struct platform_device *pdev)
 		host->mtd = mtd;
 		host->cs = cs;
 		host->info_data = info;
-		mtd->priv = host;
+		mtd->priv = chip;
 		mtd->dev.parent = &pdev->dev;
 		/* FIXME: all chips use the same device tree partitions */
 		nand_set_flash_node(chip, np);
 
+		chip->priv = host;
 		chip->ecc.read_page	= pxa3xx_nand_read_page_hwecc;
 		chip->ecc.write_page	= pxa3xx_nand_write_page_hwecc;
 		chip->controller        = &info->controller;
