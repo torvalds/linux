@@ -415,7 +415,7 @@ static int mt65xx_u3phy_probe(struct platform_device *pdev)
 	struct resource *sif_res;
 	struct mt65xx_u3phy *u3phy;
 	struct resource res;
-	int port;
+	int port, retval;
 
 	u3phy = devm_kzalloc(dev, sizeof(*u3phy), GFP_KERNEL);
 	if (!u3phy)
@@ -447,31 +447,34 @@ static int mt65xx_u3phy_probe(struct platform_device *pdev)
 	for_each_child_of_node(np, child_np) {
 		struct mt65xx_phy_instance *instance;
 		struct phy *phy;
-		int retval;
 
 		instance = devm_kzalloc(dev, sizeof(*instance), GFP_KERNEL);
-		if (!instance)
-			return -ENOMEM;
+		if (!instance) {
+			retval = -ENOMEM;
+			goto put_child;
+		}
 
 		u3phy->phys[port] = instance;
 
 		phy = devm_phy_create(dev, child_np, &mt65xx_u3phy_ops);
 		if (IS_ERR(phy)) {
 			dev_err(dev, "failed to create phy\n");
-			return PTR_ERR(phy);
+			retval = PTR_ERR(phy);
+			goto put_child;
 		}
 
 		retval = of_address_to_resource(child_np, 0, &res);
 		if (retval) {
 			dev_err(dev, "failed to get address resource(id-%d)\n",
 				port);
-			return retval;
+			goto put_child;
 		}
 
 		instance->port_base = devm_ioremap_resource(&phy->dev, &res);
 		if (IS_ERR(instance->port_base)) {
 			dev_err(dev, "failed to remap phy regs\n");
-			return PTR_ERR(instance->port_base);
+			retval = PTR_ERR(instance->port_base);
+			goto put_child;
 		}
 
 		instance->phy = phy;
@@ -483,6 +486,9 @@ static int mt65xx_u3phy_probe(struct platform_device *pdev)
 	provider = devm_of_phy_provider_register(dev, mt65xx_phy_xlate);
 
 	return PTR_ERR_OR_ZERO(provider);
+put_child:
+	of_node_put(child_np);
+	return retval;
 }
 
 static const struct of_device_id mt65xx_u3phy_id_table[] = {
