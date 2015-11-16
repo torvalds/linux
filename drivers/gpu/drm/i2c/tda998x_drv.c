@@ -1453,7 +1453,6 @@ static int tda998x_bind(struct device *dev, struct device *master, void *data)
 	if (ret)
 		goto err_sysfs;
 
-	priv->connector.encoder = &priv->encoder;
 	drm_mode_connector_attach_encoder(&priv->connector, &priv->encoder);
 
 	return 0;
