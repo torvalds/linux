@@ -1792,7 +1792,6 @@ static int blkfront_probe(struct xenbus_device *dev,
 
 	mutex_init(&info->mutex);
 	spin_lock_init(&info->dev_lock);
-	info->xbdev = dev;
 	info->vdevice = vdevice;
 	INIT_LIST_HEAD(&info->grants);
 	info->connected = BLKIF_STATE_DISCONNECTED;
