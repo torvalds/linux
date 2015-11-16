@@ -37,6 +37,8 @@
 #define ISA_INIT_STATUS_BITS	(STATUS_IE_MASK | STATUS_AD_MASK | \
 					(ARCV2_IRQ_DEF_PRIO << 1))
 
+#define ISA_SLEEP_ARG		0x10
+
 #ifndef __ASSEMBLY__
 
 /*
