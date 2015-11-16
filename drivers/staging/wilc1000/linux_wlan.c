@@ -1457,7 +1457,7 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type)
 
 		{
 			struct wireless_dev *wdev;
-			wdev = wilc_create_wiphy(ndev);
+			wdev = wilc_create_wiphy(ndev, dev);
 
 			if (dev)
 				SET_NETDEV_DEV(ndev, dev);

@@ -11,9 +11,6 @@
  */
 
 #include "wilc_wfi_cfgoperations.h"
-#ifdef WILC_SDIO
-#include "linux_wlan_sdio.h"
-#endif
 #include "host_interface.h"
 #include <linux/errno.h>
 
@@ -3414,7 +3411,7 @@ _fail_:
  *  @date	01 MAR 2012
  *  @version	1.0
  */
-struct wireless_dev *wilc_create_wiphy(struct net_device *net)
+struct wireless_dev *wilc_create_wiphy(struct net_device *net, struct device *dev)
 {
 	struct wilc_priv *priv;
 	struct wireless_dev *wdev;
@@ -3466,9 +3463,7 @@ struct wireless_dev *wilc_create_wiphy(struct net_device *net)
 		   wdev->wiphy->max_scan_ssids, wdev->wiphy->max_scan_ie_len, wdev->wiphy->signal_type,
 		   wdev->wiphy->interface_modes, wdev->iftype);
 
-	#ifdef WILC_SDIO
-	set_wiphy_dev(wdev->wiphy, &wilc_sdio_func->dev);
-	#endif
+	set_wiphy_dev(wdev->wiphy, dev);
 
 	/*Register wiphy structure*/
 	s32Error = wiphy_register(wdev->wiphy);

@@ -22,7 +22,7 @@
  #define MAX_SPEED (6 * 1000000) /* Max 50M */
 #endif
 
-struct sdio_func *wilc_sdio_func;
+static struct sdio_func *wilc_sdio_func;
 static unsigned int sdio_default_speed;
 
 #define SDIO_VENDOR_ID_WILC 0x0296

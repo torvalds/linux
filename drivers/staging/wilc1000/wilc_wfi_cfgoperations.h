@@ -10,7 +10,7 @@
 #define NM_WFI_CFGOPERATIONS
 #include "wilc_wfi_netdevice.h"
 
-struct wireless_dev *wilc_create_wiphy(struct net_device *net);
+struct wireless_dev *wilc_create_wiphy(struct net_device *net, struct device *dev);
 void wilc_free_wiphy(struct net_device *net);
 int WILC_WFI_update_stats(struct wiphy *wiphy, u32 pktlen, u8 changed);
 int wilc_deinit_host_int(struct net_device *net);
