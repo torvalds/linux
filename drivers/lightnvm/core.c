@@ -185,6 +185,16 @@ static int nvm_core_init(struct nvm_dev *dev)
 	dev->plane_mode = NVM_PLANE_SINGLE;
 	dev->max_rq_size = dev->ops->max_phys_sect * dev->sec_size;
 
+	if (grp->mtype != 0) {
+		pr_err("nvm: memory type not supported\n");
+		return -EINVAL;
+	}
+
+	if (grp->fmtype != 0 && grp->fmtype != 1) {
+		pr_err("nvm: flash type not supported\n");
+		return -EINVAL;
+	}
+
 	if (grp->mpos & 0x020202)
 		dev->plane_mode = NVM_PLANE_DOUBLE;
 	if (grp->mpos & 0x040404)
