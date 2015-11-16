@@ -13354,6 +13354,9 @@ static int intel_atomic_commit(struct drm_device *dev,
 			to_intel_crtc_state(crtc->state)->update_pipe;
 		unsigned long put_domains = 0;
 
+		if (modeset)
+			intel_display_power_get(dev_priv, POWER_DOMAIN_MODESET);
+
 		if (modeset && crtc->state->active) {
 			update_scanline_offset(to_intel_crtc(crtc));
 			dev_priv->display.crtc_enable(crtc);
@@ -13377,6 +13380,9 @@ static int intel_atomic_commit(struct drm_device *dev,
 			modeset_put_power_domains(dev_priv, put_domains);
 
 		intel_post_plane_update(intel_crtc);
+
+		if (modeset)
+			intel_display_power_put(dev_priv, POWER_DOMAIN_MODESET);
 	}
 
 	/* FIXME: add subpixel order */

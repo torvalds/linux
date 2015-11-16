@@ -49,9 +49,6 @@
  * present for a given platform.
  */
 
-#define GEN9_ENABLE_DC5(dev) 0
-#define SKL_ENABLE_DC6(dev) IS_SKYLAKE(dev)
-
 #define for_each_power_well(i, power_well, domain_mask, power_domains)	\
 	for (i = 0;							\
 	     i < (power_domains)->power_well_count &&			\
@@ -309,9 +306,15 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 #define SKL_DISPLAY_DDI_D_POWER_DOMAINS (		\
 	BIT(POWER_DOMAIN_PORT_DDI_D_LANES) |		\
 	BIT(POWER_DOMAIN_INIT))
+#define SKL_DISPLAY_DC_OFF_POWER_DOMAINS (		\
+	SKL_DISPLAY_POWERWELL_2_POWER_DOMAINS |		\
+	BIT(POWER_DOMAIN_MODESET) |			\
+	BIT(POWER_DOMAIN_AUX_A) |			\
+	BIT(POWER_DOMAIN_INIT))
 #define SKL_DISPLAY_ALWAYS_ON_POWER_DOMAINS (		\
 	(POWER_DOMAIN_MASK & ~(				\
-	SKL_DISPLAY_POWERWELL_2_POWER_DOMAINS)) |	\
+	SKL_DISPLAY_POWERWELL_2_POWER_DOMAINS |		\
+	SKL_DISPLAY_DC_OFF_POWER_DOMAINS)) |		\
 	BIT(POWER_DOMAIN_INIT))
 
 #define BXT_DISPLAY_POWERWELL_2_POWER_DOMAINS (		\
@@ -338,6 +341,11 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 	BIT(POWER_DOMAIN_PORT_DDI_A_LANES) |		\
 	BIT(POWER_DOMAIN_AUX_A) |			\
 	BIT(POWER_DOMAIN_PLLS) |			\
+	BIT(POWER_DOMAIN_INIT))
+#define BXT_DISPLAY_DC_OFF_POWER_DOMAINS (		\
+	BXT_DISPLAY_POWERWELL_2_POWER_DOMAINS |		\
+	BIT(POWER_DOMAIN_MODESET) |			\
+	BIT(POWER_DOMAIN_AUX_A) |			\
 	BIT(POWER_DOMAIN_INIT))
 #define BXT_DISPLAY_ALWAYS_ON_POWER_DOMAINS (		\
 	(POWER_DOMAIN_MASK & ~(BXT_DISPLAY_POWERWELL_1_POWER_DOMAINS |	\
@@ -487,15 +495,6 @@ static void gen9_enable_dc5(struct drm_i915_private *dev_priv)
 	gen9_set_dc_state(dev_priv, DC_STATE_EN_UPTO_DC5);
 }
 
-static void gen9_disable_dc5(struct drm_i915_private *dev_priv)
-{
-	assert_can_disable_dc5(dev_priv);
-
-	DRM_DEBUG_KMS("Disabling DC5\n");
-
-	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
-}
-
 static void assert_can_enable_dc6(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
@@ -521,6 +520,14 @@ static void assert_can_disable_dc6(struct drm_i915_private *dev_priv)
 
 	WARN_ONCE(!(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC6),
 		  "DC6 already programmed to be disabled.\n");
+}
+
+static void gen9_disable_dc5_dc6(struct drm_i915_private *dev_priv)
+{
+	assert_can_disable_dc5(dev_priv);
+	assert_can_disable_dc6(dev_priv);
+
+	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 }
 
 void skl_enable_dc6(struct drm_i915_private *dev_priv)
@@ -590,17 +597,15 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 				"Invalid for power well status to be enabled, unless done by the BIOS, \
 				when request is to disable!\n");
 			if (power_well->data == SKL_DISP_PW_2) {
-				if (GEN9_ENABLE_DC5(dev))
-					gen9_disable_dc5(dev_priv);
-				if (SKL_ENABLE_DC6(dev)) {
-					/*
-					 * DDI buffer programming unnecessary during driver-load/resume
-					 * as it's already done during modeset initialization then.
-					 * It's also invalid here as encoder list is still uninitialized.
-					 */
-					if (!dev_priv->power_domains.initializing)
-						intel_prepare_ddi(dev);
-				}
+				/*
+				 * DDI buffer programming unnecessary during
+				 * driver-load/resume as it's already done
+				 * during modeset initialization then. It's
+				 * also invalid here as encoder list is still
+				 * uninitialized.
+				 */
+				if (!dev_priv->power_domains.initializing)
+					intel_prepare_ddi(dev);
 			}
 			I915_WRITE(HSW_PWR_WELL_DRIVER, tmp | req_mask);
 		}
@@ -618,10 +623,6 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 			I915_WRITE(HSW_PWR_WELL_DRIVER,	tmp & ~req_mask);
 			POSTING_READ(HSW_PWR_WELL_DRIVER);
 			DRM_DEBUG_KMS("Disabling %s\n", power_well->name);
-
-			if (GEN9_ENABLE_DC5(dev) &&
-				power_well->data == SKL_DISP_PW_2)
-					gen9_enable_dc5(dev_priv);
 		}
 	}
 
@@ -694,6 +695,40 @@ static void skl_power_well_disable(struct drm_i915_private *dev_priv,
 				struct i915_power_well *power_well)
 {
 	skl_set_power_well(dev_priv, power_well, false);
+}
+
+static bool gen9_dc_off_power_well_enabled(struct drm_i915_private *dev_priv,
+					   struct i915_power_well *power_well)
+{
+	return (I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5_DC6_MASK) == 0;
+}
+
+static void gen9_dc_off_power_well_enable(struct drm_i915_private *dev_priv,
+					  struct i915_power_well *power_well)
+{
+	gen9_disable_dc5_dc6(dev_priv);
+}
+
+static void gen9_dc_off_power_well_disable(struct drm_i915_private *dev_priv,
+					   struct i915_power_well *power_well)
+{
+	if (IS_SKYLAKE(dev_priv))
+		skl_enable_dc6(dev_priv);
+	else
+		gen9_enable_dc5(dev_priv);
+}
+
+static void gen9_dc_off_power_well_sync_hw(struct drm_i915_private *dev_priv,
+					   struct i915_power_well *power_well)
+{
+	if (power_well->count > 0) {
+		gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
+	} else {
+		if (IS_SKYLAKE(dev_priv))
+			gen9_set_dc_state(dev_priv, DC_STATE_EN_UPTO_DC6);
+		else
+			gen9_set_dc_state(dev_priv, DC_STATE_EN_UPTO_DC5);
+	}
 }
 
 static void i9xx_always_on_power_well_noop(struct drm_i915_private *dev_priv,
@@ -1518,6 +1553,13 @@ static const struct i915_power_well_ops skl_power_well_ops = {
 	.is_enabled = skl_power_well_enabled,
 };
 
+static const struct i915_power_well_ops gen9_dc_off_power_well_ops = {
+	.sync_hw = gen9_dc_off_power_well_sync_hw,
+	.enable = gen9_dc_off_power_well_enable,
+	.disable = gen9_dc_off_power_well_disable,
+	.is_enabled = gen9_dc_off_power_well_enabled,
+};
+
 static struct i915_power_well hsw_power_wells[] = {
 	{
 		.name = "always-on",
@@ -1692,6 +1734,12 @@ static struct i915_power_well skl_power_wells[] = {
 		.data = SKL_DISP_PW_MISC_IO,
 	},
 	{
+		.name = "DC off",
+		.domains = SKL_DISPLAY_DC_OFF_POWER_DOMAINS,
+		.ops = &gen9_dc_off_power_well_ops,
+		.data = SKL_DISP_PW_DC_OFF,
+	},
+	{
 		.name = "power well 2",
 		.domains = SKL_DISPLAY_POWERWELL_2_POWER_DOMAINS,
 		.ops = &skl_power_well_ops,
@@ -1765,11 +1813,17 @@ static struct i915_power_well bxt_power_wells[] = {
 		.data = SKL_DISP_PW_1,
 	},
 	{
+		.name = "DC off",
+		.domains = BXT_DISPLAY_DC_OFF_POWER_DOMAINS,
+		.ops = &gen9_dc_off_power_well_ops,
+		.data = SKL_DISP_PW_DC_OFF,
+	},
+	{
 		.name = "power well 2",
 		.domains = BXT_DISPLAY_POWERWELL_2_POWER_DOMAINS,
 		.ops = &skl_power_well_ops,
 		.data = SKL_DISP_PW_2,
-	}
+	},
 };
 
 #define set_power_wells(power_domains, __power_wells) ({		\
