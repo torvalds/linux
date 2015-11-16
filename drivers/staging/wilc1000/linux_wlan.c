@@ -245,13 +245,14 @@ static void deinit_irq(struct net_device *dev)
 	}
 }
 
-void linux_wlan_dbg(u8 *buff)
+void wilc_dbg(struct wilc *wilc, u8 *buff)
 {
 	PRINT_D(INIT_DBG, "%d\n", *buff);
 }
 
-int linux_wlan_lock_timeout(void *vp, u32 timeout)
+int wilc_lock_timeout(struct wilc *nic, void *vp, u32 timeout)
 {
+	/* FIXME: replace with mutex_lock or wait_for_completion */
 	int error = -1;
 
 	PRINT_D(LOCK_DBG, "Locking %p\n", vp);
@@ -263,7 +264,7 @@ int linux_wlan_lock_timeout(void *vp, u32 timeout)
 	return error;
 }
 
-void linux_wlan_mac_indicate(struct wilc *wilc, int flag)
+void wilc_mac_indicate(struct wilc *wilc, int flag)
 {
 	int status;
 
@@ -328,14 +329,14 @@ int wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid)
 	return ret;
 }
 
-int wilc_wlan_get_num_conn_ifcs(void)
+int wilc_wlan_get_num_conn_ifcs(struct wilc *wilc)
 {
 	u8 i = 0;
 	u8 null_bssid[6] = {0};
 	u8 ret_val = 0;
 
-	for (i = 0; i < wilc_dev->vif_num; i++)
-		if (memcmp(wilc_dev->vif[i].bssid, null_bssid, 6))
+	for (i = 0; i < wilc->vif_num; i++)
+		if (memcmp(wilc->vif[i].bssid, null_bssid, 6))
 			ret_val++;
 
 	return ret_val;
@@ -411,7 +412,7 @@ static int linux_wlan_txq_task(void *vp)
 	return 0;
 }
 
-void linux_wlan_rx_complete(void)
+void wilc_rx_complete(struct wilc *nic)
 {
 	PRINT_D(RX_DBG, "RX completed\n");
 }
@@ -468,14 +469,14 @@ static int linux_wlan_start_firmware(struct net_device *dev)
 	wilc = nic->wilc;
 
 	PRINT_D(INIT_DBG, "Starting Firmware ...\n");
-	ret = wilc_wlan_start();
+	ret = wilc_wlan_start(wilc);
 	if (ret < 0) {
 		PRINT_ER("Failed to start Firmware\n");
 		return ret;
 	}
 
 	PRINT_D(INIT_DBG, "Waiting for Firmware to get ready ...\n");
-	ret = linux_wlan_lock_timeout(&wilc->sync_event, 5000);
+	ret = wilc_lock_timeout(wilc, &wilc->sync_event, 5000);
 	if (ret) {
 		PRINT_D(INIT_DBG, "Firmware start timed out");
 		return ret;
@@ -485,7 +486,7 @@ static int linux_wlan_start_firmware(struct net_device *dev)
 	return 0;
 }
 
-static int linux_wlan_firmware_download(struct net_device *dev)
+static int wilc1000_firmware_download(struct net_device *dev)
 {
 	perInterface_wlan_t *nic;
 	struct wilc *wilc;
@@ -499,7 +500,7 @@ static int linux_wlan_firmware_download(struct net_device *dev)
 		return -ENOBUFS;
 	}
 	PRINT_D(INIT_DBG, "Downloading Firmware ...\n");
-	ret = wilc_wlan_firmware_download(wilc->firmware->data,
+	ret = wilc_wlan_firmware_download(wilc, wilc->firmware->data,
 					  wilc->firmware->size);
 	if (ret < 0)
 		return ret;
@@ -754,7 +755,7 @@ void wilc1000_wlan_deinit(struct net_device *dev)
 		PRINT_D(INIT_DBG, "Deinitializing IRQ\n");
 		deinit_irq(dev);
 
-		wilc_wlan_stop();
+		wilc_wlan_stop(wl);
 
 		PRINT_D(INIT_DBG, "Deinitializing WILC Wlan\n");
 		wilc_wlan_cleanup(dev);
@@ -914,7 +915,7 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 			goto _fail_irq_enable_;
 		}
 
-		ret = linux_wlan_firmware_download(dev);
+		ret = wilc1000_firmware_download(dev);
 		if (ret < 0) {
 			PRINT_ER("Failed to download firmware\n");
 			ret = -EIO;
@@ -952,7 +953,7 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 		return 0;
 
 _fail_fw_start_:
-		wilc_wlan_stop();
+		wilc_wlan_stop(wl);
 
 _fail_irq_enable_:
 		if (!wl->dev_irq_num &&
@@ -985,6 +986,7 @@ static int mac_init_fn(struct net_device *ndev)
 int wilc_mac_open(struct net_device *ndev)
 {
 	perInterface_wlan_t *nic;
+	struct wilc *wilc;
 
 	unsigned char mac_add[ETH_ALEN] = {0};
 	int ret = 0;
@@ -1001,6 +1003,7 @@ int wilc_mac_open(struct net_device *ndev)
 	}
 
 	nic = netdev_priv(ndev);
+	wilc = nic->wilc;
 	priv = wiphy_priv(nic->wilc_netdev->ieee80211_ptr->wiphy);
 	PRINT_D(INIT_DBG, "MAC OPEN[%p]\n", ndev);
 
@@ -1314,7 +1317,7 @@ done:
 	return ret;
 }
 
-void frmw_to_linux(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset)
+void wilc_frmw_to_linux(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset)
 {
 	unsigned int frame_len = 0;
 	int stats;
@@ -1393,7 +1396,7 @@ void wilc_netdev_cleanup(struct wilc *wilc)
 		release_firmware(wilc->firmware);
 
 	if (wilc && (wilc->vif[0].ndev || wilc->vif[1].ndev)) {
-		linux_wlan_lock_timeout(&close_exit_sync, 12 * 1000);
+		wilc_lock_timeout(wilc, &close_exit_sync, 12 * 1000);
 
 		for (i = 0; i < NUM_CONCURRENT_IFC; i++)
 			if (wilc->vif[i].ndev)
@@ -1417,17 +1420,18 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 	int i;
 	perInterface_wlan_t *nic;
 	struct net_device *ndev;
+	struct wilc *wl;
 
 	sema_init(&close_exit_sync, 0);
 
-	wilc_dev = kzalloc(sizeof(*wilc_dev), GFP_KERNEL);
-	if (!wilc_dev)
+	wl = kzalloc(sizeof(*wilc_dev), GFP_KERNEL);
+	if (!wl)
 		return -ENOMEM;
 
-	*wilc = wilc_dev;
-	wilc_dev->io_type = io_type;
-	wilc_dev->gpio = gpio;
-	wilc_dev->ops = ops;
+	*wilc = wl;
+	wl->io_type = io_type;
+	wl->gpio = gpio;
+	wl->ops = ops;
 
 	register_inetaddr_notifier(&g_dev_notifier);
 
@@ -1446,11 +1450,11 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 		else
 			strcpy(ndev->name, "p2p%d");
 
-		nic->u8IfIdx = wilc_dev->vif_num;
+		nic->u8IfIdx = wl->vif_num;
 		nic->wilc_netdev = ndev;
 		nic->wilc = *wilc;
-		wilc_dev->vif[wilc_dev->vif_num].ndev = ndev;
-		wilc_dev->vif_num++;
+		wl->vif[wl->vif_num].ndev = ndev;
+		wl->vif_num++;
 		ndev->netdev_ops = &wilc_netdev_ops;
 
 		{
@@ -1483,6 +1487,7 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 		nic->iftype = STATION_MODE;
 		nic->mac_opened = 0;
 	}
+	wilc_dev = *wilc = wl;
 
 	return 0;
 }

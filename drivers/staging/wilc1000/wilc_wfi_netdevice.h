@@ -207,11 +207,12 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic);
 
 extern struct wilc *wilc_dev;
 extern struct net_device *WILC_WFI_devs[];
-void frmw_to_linux(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset);
-void linux_wlan_mac_indicate(struct wilc *wilc, int flag);
-void linux_wlan_rx_complete(void);
-void linux_wlan_dbg(u8 *buff);
-int linux_wlan_lock_timeout(void *vp, u32 timeout);
+void wilc_frmw_to_linux(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset);
+void wilc_mac_indicate(struct wilc *wilc, int flag);
+void wilc_rx_complete(struct wilc *wilc);
+void wilc_dbg(struct wilc *, u8 *buff);
+
+int wilc_lock_timeout(struct wilc *wilc, void *, u32 timeout);
 void wilc_netdev_cleanup(struct wilc *wilc);
 int wilc_netdev_init(struct wilc **wilc, struct device *, int io_type, int gpio,
 		     const struct wilc_hif_func *ops);
@@ -220,4 +221,5 @@ void WILC_WFI_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size);
 u16 wilc_set_machw_change_vir_if(struct net_device *dev, bool value);
 int wilc_wlan_get_firmware(struct net_device *dev);
 int wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid);
+
 #endif
