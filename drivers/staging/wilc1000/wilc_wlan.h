@@ -134,11 +134,8 @@
 #define WILC_CFG_RSP_STATUS	2
 #define WILC_CFG_RSP_SCAN	3
 
-#ifdef WILC_SDIO
-#define WILC_PLL_TO		4
-#else
-#define WILC_PLL_TO		2
-#endif
+#define WILC_PLL_TO_SDIO	4
+#define WILC_PLL_TO_SPI		2
 #define ABORT_INT		BIT(31)
 
 /*******************************************/
