@@ -23,9 +23,6 @@
 #include <linux/ceph/pagelist.h>
 #include <linux/export.h>
 
-#define list_entry_next(pos, member)					\
-	list_entry(pos->member.next, typeof(*pos), member)
-
 /*
  * Ceph uses the messenger to exchange ceph_msg messages with other
  * hosts in the system.  The messenger provides ordered and reliable
@@ -1042,7 +1039,7 @@ static bool ceph_msg_data_pagelist_advance(struct ceph_msg_data_cursor *cursor,
 	/* Move on to the next page */
 
 	BUG_ON(list_is_last(&cursor->page->lru, &pagelist->head));
-	cursor->page = list_entry_next(cursor->page, lru);
+	cursor->page = list_next_entry(cursor->page, lru);
 	cursor->last_piece = cursor->resid <= PAGE_SIZE;
 
 	return true;
@@ -1166,7 +1163,7 @@ static bool ceph_msg_data_advance(struct ceph_msg_data_cursor *cursor,
 	if (!cursor->resid && cursor->total_resid) {
 		WARN_ON(!cursor->last_piece);
 		BUG_ON(list_is_last(&cursor->data->links, cursor->data_head));
-		cursor->data = list_entry_next(cursor->data, links);
+		cursor->data = list_next_entry(cursor->data, links);
 		__ceph_msg_data_cursor_init(cursor);
 		new_piece = true;
 	}
