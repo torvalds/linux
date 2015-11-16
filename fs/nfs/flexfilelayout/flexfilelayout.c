@@ -505,9 +505,17 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 	}
 
 	p = xdr_inline_decode(&stream, 4);
-	if (p)
-		fls->flags = be32_to_cpup(p);
+	if (!p)
+		goto out_sort_mirrors;
+	fls->flags = be32_to_cpup(p);
 
+	p = xdr_inline_decode(&stream, 4);
+	if (!p)
+		goto out_sort_mirrors;
+	for (i=0; i < fls->mirror_array_cnt; i++)
+		fls->mirror_array[i]->report_interval = be32_to_cpup(p);
+
+out_sort_mirrors:
 	ff_layout_sort_mirrors(fls);
 	rc = ff_layout_check_layout(lgr);
 	if (rc)
@@ -603,7 +611,9 @@ nfs4_ff_layoutstat_start_io(struct nfs4_ff_layout_mirror *mirror,
 		mirror->start_time = now;
 	if (ktime_equal(mirror->last_report_time, notime))
 		mirror->last_report_time = now;
-	if (layoutstats_timer != 0)
+	if (mirror->report_interval != 0)
+		report_interval = (s64)mirror->report_interval * 1000LL;
+	else if (layoutstats_timer != 0)
 		report_interval = (s64)layoutstats_timer * 1000LL;
 	if (ktime_to_ms(ktime_sub(now, mirror->last_report_time)) >=
 			report_interval) {
