@@ -38,9 +38,6 @@ medusa_answer_t medusa_unlink(struct dentry *dentry)
 		process_kobj_validate_task(current) <= 0)
 		return MED_OK;
 
-	if (dentry->d_inode->i_security == NULL) // dont know why??? !!! TODO: find out 
-		medusa_l1_inode_alloc_security(dentry->d_inode);
-
 	if (!MED_MAGIC_VALID(&inode_security(dentry->d_inode)) &&
 			file_kobj_validate_dentry(dentry,NULL) <= 0) {
 		return MED_OK;

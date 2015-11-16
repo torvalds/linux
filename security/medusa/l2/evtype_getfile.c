@@ -188,10 +188,6 @@ int file_kobj_validate_dentry(struct dentry * dentry, struct vfsmount * mnt)
 	struct path ndupper;
 	struct path ndparent;
 
-	if (dentry->d_inode->i_security == NULL) {
-		printk("medusaerror: inode uninitialized: %pd\n", dentry);
-		medusa_l1_inode_alloc_security(dentry->d_inode);
-	}
 	INIT_MEDUSA_OBJECT_VARS(&inode_security(dentry->d_inode));
 #ifdef CONFIG_MEDUSA_FILE_CAPABILITIES
 	cap_clear(inode_security(dentry->d_inode).pcap);

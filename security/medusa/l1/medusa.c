@@ -61,17 +61,6 @@
 #include "../l2/kobject_process.h"
 #include "../l2/kobject_file.h"
 
-#define work (min > 10)
-
-static int min = 0;
-
-#define MEDUSA_CHECK(d) if (min++ < 40) { \
-	printk("medusa: current %s - %p - %p - %s\n", __func__, current, &task_security(current), current->comm);  \
-	if (d != NULL) \
-		printk("medusa: denty: %s - %p - %p - %s\n", __func__, d, ((struct dentry*)d)->d_inode, ((struct dentry*)d)->d_name.name); \
-	else  \
-		min--; \
-	}
 #ifdef CONFIG_SECURITY_MEDUSA
 
 static int medusa_l1_cred_alloc_blank(struct cred *cred, gfp_t gfp);
@@ -159,7 +148,7 @@ static int medusa_l1_sb_pivotroot(struct path *old_path, struct path *new_path)
 }
 
 static int medusa_l1_sb_set_mnt_opts(struct super_block *sb,
-				   struct security_mnt_opts *opts,
+				struct security_mnt_opts *opts,
 								unsigned long kern_flags,
 								unsigned long *set_kern_flags)
 {
@@ -169,7 +158,7 @@ static int medusa_l1_sb_set_mnt_opts(struct super_block *sb,
 }
 
 static int medusa_l1_sb_clone_mnt_opts(const struct super_block *oldsb,
-				  struct super_block *newsb)
+				struct super_block *newsb)
 {
 	return 0;
 }
@@ -228,9 +217,6 @@ static int medusa_l1_inode_init_security(struct inode *inode, struct inode *dir,
 static int medusa_l1_inode_create(struct inode *inode, struct dentry *dentry,
 				umode_t mode)
 {
-	return 0;
-	if (!work)
-		return 0;
 	if (medusa_create(dentry, mode) == MED_NO)
 		return -EACCES;
 
@@ -238,13 +224,8 @@ static int medusa_l1_inode_create(struct inode *inode, struct dentry *dentry,
 }
 
 static int medusa_l1_inode_link(struct dentry *old_dentry, struct inode *inode,
-			  struct dentry *new_dentry)
+			struct dentry *new_dentry)
 {
-
-	if (!work) {
-		return 0;
-	}
-	
 	if (medusa_link(old_dentry, new_dentry->d_name.name) == MED_NO)
 		return -EPERM;
 
@@ -253,11 +234,6 @@ static int medusa_l1_inode_link(struct dentry *old_dentry, struct inode *inode,
 
 static int medusa_l1_inode_unlink(struct inode *inode, struct dentry *dentry)
 {
-	return 0;
-
-	if (!work) {
-		return 0;
-	}
 	if (medusa_unlink(dentry) == MED_NO)
 		return -EPERM;
 	return 0;
@@ -266,12 +242,6 @@ static int medusa_l1_inode_unlink(struct inode *inode, struct dentry *dentry)
 static int medusa_l1_inode_symlink(struct inode *inode, struct dentry *dentry,
 				 const char *name)
 {
-	MEDUSA_CHECK(dentry)
-	//return 0;
-	if (!work) {
-		return 0;
-	}
-	
 	if (medusa_symlink(dentry, name) == MED_NO)
 		return -EPERM;
 	
@@ -279,11 +249,8 @@ static int medusa_l1_inode_symlink(struct inode *inode, struct dentry *dentry,
 }
 
 static int medusa_l1_inode_mkdir(struct inode *inode, struct dentry *dentry,
-				   umode_t mask)
+				umode_t mask)
 {
-	return 0;
-	if (!work)
-		return 0;
 	if(medusa_mkdir(dentry, mask) == MED_NO)
 		return -EPERM;
 	return 0;
@@ -291,20 +258,14 @@ static int medusa_l1_inode_mkdir(struct inode *inode, struct dentry *dentry,
 
 static int medusa_l1_inode_rmdir(struct inode *inode, struct dentry *dentry)
 {
-	return 0;
-	if (!work)
-		return 0;
 	if (medusa_rmdir(dentry) == MED_NO)
 		return -EPERM;
 	return 0;
 }
 
 static int medusa_l1_inode_mknod(struct inode *inode, struct dentry *dentry,
-			   umode_t mode, dev_t dev)
+			umode_t mode, dev_t dev)
 {
-	return 0;
-	if (!work)
-		return 0;
 	if(medusa_mknod(dentry, dev, mode) == MED_NO)
 		return -EPERM;
 	return 0;
@@ -313,9 +274,6 @@ static int medusa_l1_inode_mknod(struct inode *inode, struct dentry *dentry,
 static int medusa_l1_inode_rename(struct inode *old_inode, struct dentry *old_dentry,
 				struct inode *new_inode, struct dentry *new_dentry)
 {
-	return 0;
-	if (!work)
-		return 0;
 	if (medusa_rename(old_dentry, new_dentry->d_name.name) == MED_NO)
 		return -EPERM;
 	return 0;
@@ -377,7 +335,7 @@ static int medusa_l1_inode_setsecurity(struct inode *inode, const char *name,
 }
 
 static int medusa_l1_inode_listsecurity(struct inode *inode, char *buffer,
-				  size_t buffer_size)
+				size_t buffer_size)
 {
 	return 0;
 }
@@ -389,7 +347,7 @@ static void medusa_l1_inode_getsecid(const struct inode *inode, u32 *secid)
 
 #ifdef CONFIG_SECURITY_PATH
 static int medusa_l1_path_mknod(struct path *dir, struct dentry *dentry, umode_t mode,
-				  unsigned int dev)
+				unsigned int dev)
 {
 	return 0;
 }
@@ -422,7 +380,7 @@ static int medusa_l1_path_link(struct dentry *old_dentry, struct path *new_dir,
 }
 
 static int medusa_l1_path_rename(struct path *old_path, struct dentry *old_dentry,
-			   struct path *new_path, struct dentry *new_dentry)
+			struct path *new_path, struct dentry *new_dentry)
 {
 	return 0;
 }
@@ -433,7 +391,7 @@ static int medusa_l1_path_truncate(struct path *path)
 }
 
 static int medusa_l1_path_chmod(struct path *path,
-			  umode_t mode)
+			umode_t mode)
 {
 	return 0;
 }
@@ -465,7 +423,7 @@ static void medusa_l1_file_free_security(struct file *file)
 }
 
 static int medusa_l1_file_ioctl(struct file *file, unsigned int command,
-			  unsigned long arg)
+			unsigned long arg)
 {
 	return 0;
 }
@@ -482,7 +440,7 @@ static int medusa_l1_file_lock(struct file *file, unsigned int cmd)
 }
 
 static int medusa_l1_file_fcntl(struct file *file, unsigned int cmd,
-			  unsigned long arg)
+			unsigned long arg)
 {
 	return 0;
 }
@@ -493,7 +451,7 @@ static void medusa_l1_file_set_fowner(struct file *file)
 }
 
 static int medusa_l1_file_send_sigiotask(struct task_struct *tsk,
-				   struct fown_struct *fown, int sig)
+				struct fown_struct *fown, int sig)
 {
 	return 0;
 }
@@ -760,7 +718,7 @@ static int medusa_l1_sem_semop(struct sem_array *sma, struct sembuf *sops,
 
 #ifdef CONFIG_SECURITY_NETWORK
 static int medusa_l1_unix_stream_connect(struct sock *sock, struct sock *other,
-				   struct sock *newsk)
+				struct sock *newsk)
 {
 	//printk("medusa: unix_stream_connect called\n");
 	return 0;
@@ -778,19 +736,19 @@ static int medusa_l1_socket_create(int family, int type, int protocol, int kern)
 }
 
 static int medusa_l1_socket_post_create(struct socket *sock, int family, int type,
-				  int protocol, int kern)
+				int protocol, int kern)
 {
 	return 0;
 }
 
 static int medusa_l1_socket_bind(struct socket *sock, struct sockaddr *address,
-			   int addrlen)
+				int addrlen)
 {
 	return 0;
 }
 
 static int medusa_l1_socket_connect(struct socket *sock, struct sockaddr *address,
-				  int addrlen)
+				int addrlen)
 {
 	//printk("medusa: socket_connect called\n");
 	return 0;
@@ -812,7 +770,7 @@ static int medusa_l1_socket_sendmsg(struct socket *sock, struct msghdr *msg, int
 }
 
 static int medusa_l1_socket_recvmsg(struct socket *sock, struct msghdr *msg,
-				  int size, int flags)
+				int size, int flags)
 {
 	return 0;
 }
@@ -855,7 +813,7 @@ static int medusa_l1_socket_getpeersec_stream(struct socket *sock,
 }
 
 static int medusa_l1_socket_getpeersec_dgram(struct socket *sock,
-					   struct sk_buff *skb, u32 *secid)
+					struct sk_buff *skb, u32 *secid)
 {
 	return 0;
 }
@@ -888,7 +846,7 @@ static int medusa_l1_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 }
 
 static void medusa_l1_inet_csk_clone(struct sock *newsk,
-				   const struct request_sock *req)
+				const struct request_sock *req)
 {
 }
 
@@ -913,7 +871,7 @@ static void medusa_l1_secmark_refcount_dec(void)
 
 
 static void medusa_l1_req_classify_flow(const struct request_sock *req,
-				  struct flowi *fl)
+				struct flowi *fl)
 {
 }
 
@@ -958,15 +916,15 @@ static void medusa_l1_skb_owned_by(struct sk_buff *skb, struct sock *sk)
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 static int medusa_l1_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp,
-										  struct xfrm_user_sec_ctx *sec_ctx,
-										  gfp_t gfp)
+										struct xfrm_user_sec_ctx *sec_ctx,
+										gfp_t gfp)
 
 {
 	return 0;
 }
 
 static int medusa_l1_xfrm_policy_clone(struct xfrm_sec_ctx *old_ctx,
-					  struct xfrm_sec_ctx **new_ctxp)
+					struct xfrm_sec_ctx **new_ctxp)
 {
 	return 0;
 }
@@ -1030,7 +988,7 @@ static int medusa_l1_getprocattr(struct task_struct *p, char *name, char **value
 }
 
 static int medusa_l1_setprocattr(struct task_struct *p, char *name, void *value,
-			   size_t size)
+			size_t size)
 {
 	return -EINVAL;
 }
@@ -1080,7 +1038,7 @@ static void medusa_l1_key_free(struct key *key)
 }
 
 static int medusa_l1_key_permission(key_ref_t key_ref, const struct cred *cred,
-				  key_perm_t perm)
+				key_perm_t perm)
 {
 	return 0;
 }
@@ -1128,22 +1086,22 @@ static int medusa_l1_ptrace_traceme(struct task_struct *parent)
 }
 
 static int medusa_l1_capget(struct task_struct *target, kernel_cap_t *effective,
-			  kernel_cap_t *inheritable, kernel_cap_t *permitted)
+			kernel_cap_t *inheritable, kernel_cap_t *permitted)
 {
 	return 0;
 }
 
 static int medusa_l1_capset(struct cred *new, const struct cred *old,
-			  const kernel_cap_t *effective,
-			  const kernel_cap_t *inheritable,
-			  const kernel_cap_t *permitted)
+			const kernel_cap_t *effective,
+			const kernel_cap_t *inheritable,
+			const kernel_cap_t *permitted)
 {
 	return 0;	
 }
 
 
 static int medusa_l1_capable(const struct cred *cred,
-			  struct user_namespace *ns, int cap, int audit)
+			struct user_namespace *ns, int cap, int audit)
 {
 	return 0;
 }
@@ -1204,7 +1162,7 @@ static int medusa_l1_bprm_set_creds(struct linux_binprm *bprm)
 //#ifndef CONFIG_MEDUSA_FILE_CAPABILITIES
 //			|| !cap_issubset(new_permitted, current->cap_permitted)
 //#endif
-//		   ) {
+//		) {
 //			if ((retval = medusa_sexec(bprm)) == MED_NO)
 //				return -EPERM;
 //			if (retval == MED_SKIP) {
@@ -1223,11 +1181,7 @@ static int medusa_l1_bprm_set_creds(struct linux_binprm *bprm)
 
 static int medusa_l1_bprm_secureexec(struct linux_binprm *bprm)
 {
-	if (!work)
-		return 0;
-
 	return 0;
-
 	if (medusa_sexec(bprm) == MED_NO)
 		return -EPERM;
 
@@ -1236,7 +1190,7 @@ static int medusa_l1_bprm_secureexec(struct linux_binprm *bprm)
 	
 
 static int medusa_l1_inode_setxattr(struct dentry *dentry, const char *name,
-				  const void *value, size_t size, int flags)
+					const void *value, size_t size, int flags)
 {
 	return cap_inode_setxattr(dentry, name, value, size, flags);
 } 
@@ -1262,9 +1216,7 @@ static int medusa_l1_mmap_addr(unsigned long addr)
 	return cap_mmap_addr(addr);
 }
 
-static int medusa_l1_mmap_file(struct file *file,
-						  unsigned long reqprot, unsigned long prot,
-						  unsigned long flags)
+static int medusa_l1_mmap_file(struct file *file, unsigned long reqprot, unsigned long prot, unsigned long flags)
 {
 	//printk("medusa: file_mmap called\n");
 	return 0;
@@ -1291,8 +1243,8 @@ static int medusa_l1_task_setscheduler(struct task_struct *p)
 
 
 static int medusa_l1_task_prctl(int option, unsigned long arg2,
-						   unsigned long arg3, unsigned long arg4,
-						   unsigned long arg5)
+						unsigned long arg3, unsigned long arg4,
+						unsigned long arg5)
 {
 	return cap_task_prctl(option, arg2, arg3, arg4, arg5);
 }
@@ -1367,7 +1319,7 @@ static struct security_hook_list medusa_l1_hooks[] = {
 	LSM_HOOK_INIT(inode_listxattr, medusa_l1_inode_listxattr),
 	LSM_HOOK_INIT(inode_removexattr, medusa_l1_inode_removexattr),
 	LSM_HOOK_INIT(inode_need_killpriv, medusa_l1_inode_need_killpriv),
-	LSM_HOOK_INIT(inode_killpriv   , medusa_l1_inode_killpriv),
+	LSM_HOOK_INIT(inode_killpriv, medusa_l1_inode_killpriv),
 	LSM_HOOK_INIT(inode_getsecurity, medusa_l1_inode_getsecurity),
 	LSM_HOOK_INIT(inode_setsecurity, medusa_l1_inode_setsecurity),
 	LSM_HOOK_INIT(inode_listsecurity, medusa_l1_inode_listsecurity),
@@ -1498,7 +1450,7 @@ static struct security_hook_list medusa_l1_hooks[] = {
 	LSM_HOOK_INIT(tun_dev_attach, medusa_l1_tun_dev_attach),
 	LSM_HOOK_INIT(tun_dev_open, medusa_l1_tun_dev_open),
 	//LSM_HOOK_INIT(skb_owned_by, medusa_l1_skb_owned_by),
-#endif  /* CONFIG_SECURITY_NETWORK */
+#endif /* CONFIG_SECURITY_NETWORK */
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	LSM_HOOK_INIT(xfrm_policy_alloc_security, medusa_l1_xfrm_policy_alloc),
@@ -1532,7 +1484,19 @@ static struct security_hook_list medusa_l1_hooks[] = {
 void __init medusa_init(void);
 
 static void medusa_l1_init_sb(struct super_block *sb, void *unused) {
+        struct list_head *tmp;
+        struct inode *entry;
+
 	medusa_l1_sb_kern_mount(sb, 0, NULL);
+	printk("medusa: sb: %s\n", sb->s_root->d_name.name);
+
+        tmp = &sb->s_inodes;
+        list_for_each(tmp, &sb->s_inodes) {
+                entry = list_entry(tmp, struct inode, i_sb_list);
+                if (&inode_security(entry)==NULL) {
+                        medusa_l1_inode_alloc_security(entry);
+                }
+        }
 }
 
 
@@ -1574,9 +1538,6 @@ static int __init medusa_l1_init(void){
 	}
 
 	iterate_supers(medusa_l1_init_sb, NULL);
-	
-
-	min = -10;
 
 	return 0;
 }
