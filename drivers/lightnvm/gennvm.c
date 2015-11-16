@@ -73,7 +73,7 @@ static int gennvm_block_bb(struct ppa_addr ppa, int nr_blocks, u8 *blks,
 	struct nvm_block *blk;
 	int i;
 
-	ppa = addr_to_generic_mode(gn->dev, ppa);
+	ppa = dev_to_generic_addr(gn->dev, ppa);
 	lun = &gn->luns[(dev->nr_luns * ppa.g.ch) + ppa.g.lun];
 
 	for (i = 0; i < nr_blocks; i++) {
@@ -179,7 +179,7 @@ static int gennvm_blocks_init(struct nvm_dev *dev, struct gen_nvm *gn)
 			ppa.ppa = 0;
 			ppa.g.ch = lun->vlun.chnl_id;
 			ppa.g.lun = lun->vlun.id;
-			ppa = generic_to_addr_mode(dev, ppa);
+			ppa = generic_to_dev_addr(dev, ppa);
 
 			ret = dev->ops->get_bb_tbl(dev->q, ppa,
 						dev->blks_per_lun,
@@ -304,10 +304,10 @@ static void gennvm_addr_to_generic_mode(struct nvm_dev *dev, struct nvm_rq *rqd)
 
 	if (rqd->nr_pages > 1) {
 		for (i = 0; i < rqd->nr_pages; i++)
-			rqd->ppa_list[i] = addr_to_generic_mode(dev,
+			rqd->ppa_list[i] = dev_to_generic_addr(dev,
 							rqd->ppa_list[i]);
 	} else {
-		rqd->ppa_addr = addr_to_generic_mode(dev, rqd->ppa_addr);
+		rqd->ppa_addr = dev_to_generic_addr(dev, rqd->ppa_addr);
 	}
 }
 
@@ -317,10 +317,10 @@ static void gennvm_generic_to_addr_mode(struct nvm_dev *dev, struct nvm_rq *rqd)
 
 	if (rqd->nr_pages > 1) {
 		for (i = 0; i < rqd->nr_pages; i++)
-			rqd->ppa_list[i] = generic_to_addr_mode(dev,
+			rqd->ppa_list[i] = generic_to_dev_addr(dev,
 							rqd->ppa_list[i]);
 	} else {
-		rqd->ppa_addr = generic_to_addr_mode(dev, rqd->ppa_addr);
+		rqd->ppa_addr = generic_to_dev_addr(dev, rqd->ppa_addr);
 	}
 }
 

@@ -174,8 +174,7 @@ static int nvm_core_init(struct nvm_dev *dev)
 	dev->sec_size = grp->csecs;
 	dev->oob_size = grp->sos;
 	dev->sec_per_pg = grp->fpg_sz / grp->csecs;
-	dev->addr_mode = id->ppat;
-	dev->addr_format = id->ppaf;
+	memcpy(&dev->ppaf, &id->ppaf, sizeof(struct nvm_addr_format));
 
 	dev->plane_mode = NVM_PLANE_SINGLE;
 	dev->max_rq_size = dev->ops->max_phys_sect * dev->sec_size;

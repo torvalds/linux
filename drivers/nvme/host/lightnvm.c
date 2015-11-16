@@ -198,8 +198,7 @@ struct nvme_nvm_id {
 	__le32			cap;
 	__le32			dom;
 	struct nvme_nvm_addr_format ppaf;
-	__u8			ppat;
-	__u8			resv[223];
+	__u8			resv[224];
 	struct nvme_nvm_id_group groups[4];
 } __packed;
 
