@@ -262,7 +262,7 @@ static unsigned int pl011_read(const struct uart_amba_port *uap,
 {
 	void __iomem *addr = uap->port.membase + pl011_reg_to_offset(uap, reg);
 
-	return uap->access_32b ? readl(addr) : readw(addr);
+	return uap->access_32b ? readl_relaxed(addr) : readw_relaxed(addr);
 }
 
 static void pl011_write(unsigned int val, const struct uart_amba_port *uap,
@@ -271,9 +271,9 @@ static void pl011_write(unsigned int val, const struct uart_amba_port *uap,
 	void __iomem *addr = uap->port.membase + pl011_reg_to_offset(uap, reg);
 
 	if (uap->access_32b)
-		writel(val, addr);
+		writel_relaxed(val, addr);
 	else
-		writew(val, addr);
+		writew_relaxed(val, addr);
 }
 
 /*
