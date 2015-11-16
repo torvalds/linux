@@ -6360,8 +6360,10 @@ void kvm_arch_mmu_notifier_invalidate_page(struct kvm *kvm,
 static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 {
 	int r;
-	bool req_int_win = !lapic_in_kernel(vcpu) &&
-		vcpu->run->request_interrupt_window;
+	bool req_int_win =
+		dm_request_for_irq_injection(vcpu) &&
+		kvm_cpu_accept_dm_intr(vcpu);
+
 	bool req_immediate_exit = false;
 
 	if (vcpu->requests) {
