@@ -1290,7 +1290,7 @@ static void vop_win_state_complete(struct vop_win *vop_win,
 
 	if (state->event) {
 		spin_lock_irqsave(&drm->event_lock, flags);
-		drm_send_vblank_event(drm, -1, state->event);
+		drm_crtc_send_vblank_event(crtc, state->event);
 		spin_unlock_irqrestore(&drm->event_lock, flags);
 	}
 
