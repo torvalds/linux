@@ -206,6 +206,8 @@ struct WILC_WFI_mon_priv {
 	struct net_device *real_ndev;
 };
 
+int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic);
+
 extern struct wilc *wilc_dev;
 extern struct net_device *WILC_WFI_devs[];
 void frmw_to_linux(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset);

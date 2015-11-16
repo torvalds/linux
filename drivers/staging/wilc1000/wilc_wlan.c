@@ -1,13 +1,7 @@
 #include "wilc_wlan_if.h"
+#include "wilc_wlan.h"
 #include "wilc_wfi_netdevice.h"
 #include "wilc_wlan_cfg.h"
-
-#ifdef WILC_SDIO
-extern struct wilc_hif_func wilc_hif_sdio;
-#else
-extern struct wilc_hif_func wilc_hif_spi;
-#endif
-u32 wilc_get_chipid(u8 update);
 
 typedef struct {
 	int quit;

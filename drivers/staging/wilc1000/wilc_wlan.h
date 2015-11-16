@@ -1,7 +1,10 @@
 #ifndef WILC_WLAN_H
 #define WILC_WLAN_H
 
+#include <linux/types.h>
+
 #define ISWILC1000(id)			((id & 0xfffff000) == 0x100000 ? 1 : 0)
+
 /********************************************
  *
  *      Mac eth header length
@@ -255,6 +258,9 @@ struct wilc_hif_func {
 	void (*hif_set_default_bus_speed)(void);
 };
 
+extern struct wilc_hif_func wilc_hif_spi;
+extern struct wilc_hif_func wilc_hif_sdio;
+
 /********************************************
  *
  *      Configuration Structure
@@ -276,6 +282,8 @@ struct wilc_cfg_rsp {
 	u32 seq_no;
 };
 
+struct wilc;
+
 int wilc_wlan_firmware_download(const u8 *buffer, u32 buffer_size);
 int wilc_wlan_start(void);
 int wilc_wlan_stop(void);
@@ -291,4 +299,17 @@ int wilc_wlan_cfg_get_val(u32 wid, u8 *buffer, u32 buffer_size);
 int wilc_wlan_txq_add_mgmt_pkt(struct net_device *dev, void *priv, u8 *buffer,
 			       u32 buffer_size, wilc_tx_complete_func_t func);
 void wilc_chip_sleep_manually(void);
+
+void wilc_enable_tcp_ack_filter(bool value);
+int wilc_wlan_get_num_conn_ifcs(void);
+int wilc_mac_xmit(struct sk_buff *skb, struct net_device *dev);
+
+int wilc_mac_open(struct net_device *ndev);
+int wilc_mac_close(struct net_device *ndev);
+
+int wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *pBSSID);
+void WILC_WFI_p2p_rx(struct net_device *dev, u8 *buff, u32 size);
+
+extern bool wilc_enable_ps;
+
 #endif

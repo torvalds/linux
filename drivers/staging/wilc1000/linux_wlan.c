@@ -37,10 +37,6 @@
  #define _linux_wlan_device_detection()		{}
  #define _linux_wlan_device_removal()		{}
 
-extern bool wilc_optaining_ip;
-extern u8 wilc_multicast_mac_addr_list[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
-extern struct timer_list wilc_during_ip_timer;
-
 static int linux_wlan_device_power(int on_off)
 {
 	PRINT_D(INIT_DBG, "linux_wlan_device_power.. (%d)\n", on_off);
@@ -81,14 +77,9 @@ static struct semaphore close_exit_sync;
 
 static int wlan_deinit_locks(struct net_device *dev);
 static void wlan_deinitialize_threads(struct net_device *dev);
-extern void WILC_WFI_monitor_rx(u8 *buff, u32 size);
-extern void WILC_WFI_p2p_rx(struct net_device *dev, u8 *buff, u32 size);
 
 static void linux_wlan_tx_complete(void *priv, int status);
 static int  mac_init_fn(struct net_device *ndev);
-int  wilc_mac_xmit(struct sk_buff *skb, struct net_device *dev);
-int  wilc_mac_open(struct net_device *ndev);
-int  wilc_mac_close(struct net_device *ndev);
 static struct net_device_stats *mac_stats(struct net_device *dev);
 static int  mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd);
 static void wilc_set_multicast_list(struct net_device *dev);

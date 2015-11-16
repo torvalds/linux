@@ -14,6 +14,7 @@
 #ifdef WILC_SDIO
 #include "linux_wlan_sdio.h"
 #endif
+#include "host_interface.h"
 #include <linux/errno.h>
 
 #define IS_MANAGMEMENT				0x100
@@ -29,10 +30,8 @@ static u32 u32LastScannedNtwrksCountShadow;
 struct timer_list wilc_during_ip_timer;
 static struct timer_list hAgingTimer;
 static u8 op_ifcs;
-extern u8 wilc_connected_SSID[6];
 
 u8 wilc_initialized = 1;
-extern bool wilc_optaining_ip;
 
 #define CHAN2G(_channel, _freq, _flags) {	 \
 		.band             = IEEE80211_BAND_2GHZ, \
@@ -2149,7 +2148,6 @@ static int cancel_remain_on_channel(struct wiphy *wiphy,
  *  @date	01 JUL 2012
  *  @version
  */
-extern bool wilc_enable_ps;
 static int mgmt_tx(struct wiphy *wiphy,
 		   struct wireless_dev *wdev,
 		   struct cfg80211_mgmt_tx_params *params,
@@ -2484,8 +2482,6 @@ static int set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
  *  @date	01 MAR 2012
  *  @version	1.0
  */
-int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic);
-
 static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 			       enum nl80211_iftype type, u32 *flags, struct vif_params *params)
 {
