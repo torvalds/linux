@@ -981,11 +981,12 @@ static int handle_tprot(struct kvm_vcpu *vcpu)
 		return -EOPNOTSUPP;
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_DAT)
 		ipte_lock(vcpu);
-	ret = guest_translate_address(vcpu, address1, ar, &gpa, 1);
+	ret = guest_translate_address(vcpu, address1, ar, &gpa, GACC_STORE);
 	if (ret == PGM_PROTECTION) {
 		/* Write protected? Try again with read-only... */
 		cc = 1;
-		ret = guest_translate_address(vcpu, address1, ar, &gpa, 0);
+		ret = guest_translate_address(vcpu, address1, ar, &gpa,
+					      GACC_FETCH);
 	}
 	if (ret) {
 		if (ret == PGM_ADDRESSING || ret == PGM_TRANSLATION_SPEC) {
