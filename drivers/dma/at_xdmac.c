@@ -455,6 +455,15 @@ static struct at_xdmac_desc *at_xdmac_alloc_desc(struct dma_chan *chan,
 	return desc;
 }
 
+void at_xdmac_init_used_desc(struct at_xdmac_desc *desc)
+{
+	memset(&desc->lld, 0, sizeof(desc->lld));
+	INIT_LIST_HEAD(&desc->descs_list);
+	desc->direction = DMA_TRANS_NONE;
+	desc->xfer_size = 0;
+	desc->active_xfer = false;
+}
+
 /* Call must be protected by lock. */
 static struct at_xdmac_desc *at_xdmac_get_desc(struct at_xdmac_chan *atchan)
 {
@@ -466,7 +475,7 @@ static struct at_xdmac_desc *at_xdmac_get_desc(struct at_xdmac_chan *atchan)
 		desc = list_first_entry(&atchan->free_descs_list,
 					struct at_xdmac_desc, desc_node);
 		list_del(&desc->desc_node);
-		desc->active_xfer = false;
+		at_xdmac_init_used_desc(desc);
 	}
 
 	return desc;
@@ -875,14 +884,14 @@ at_xdmac_interleaved_queue_desc(struct dma_chan *chan,
 
 	if (xt->src_inc) {
 		if (xt->src_sgl)
-			chan_cc |=  AT_XDMAC_CC_SAM_UBS_DS_AM;
+			chan_cc |=  AT_XDMAC_CC_SAM_UBS_AM;
 		else
 			chan_cc |=  AT_XDMAC_CC_SAM_INCREMENTED_AM;
 	}
 
 	if (xt->dst_inc) {
 		if (xt->dst_sgl)
-			chan_cc |=  AT_XDMAC_CC_DAM_UBS_DS_AM;
+			chan_cc |=  AT_XDMAC_CC_DAM_UBS_AM;
 		else
 			chan_cc |=  AT_XDMAC_CC_DAM_INCREMENTED_AM;
 	}
@@ -929,13 +938,19 @@ at_xdmac_prep_interleaved(struct dma_chan *chan,
 {
 	struct at_xdmac_chan	*atchan = to_at_xdmac_chan(chan);
 	struct at_xdmac_desc	*prev = NULL, *first = NULL;
-	struct data_chunk	*chunk, *prev_chunk = NULL;
 	dma_addr_t		dst_addr, src_addr;
-	size_t			dst_skip, src_skip, len = 0;
-	size_t			prev_dst_icg = 0, prev_src_icg = 0;
+	size_t			src_skip = 0, dst_skip = 0, len = 0;
+	struct data_chunk	*chunk;
 	int			i;
 
-	if (!xt || (xt->numf != 1) || (xt->dir != DMA_MEM_TO_MEM))
+	if (!xt || !xt->numf || (xt->dir != DMA_MEM_TO_MEM))
+		return NULL;
+
+	/*
+	 * TODO: Handle the case where we have to repeat a chain of
+	 * descriptors...
+	 */
+	if ((xt->numf > 1) && (xt->frame_size > 1))
 		return NULL;
 
 	dev_dbg(chan2dev(chan), "%s: src=0x%08x, dest=0x%08x, numf=%d, frame_size=%d, flags=0x%lx\n",
@@ -945,66 +960,60 @@ at_xdmac_prep_interleaved(struct dma_chan *chan,
 	src_addr = xt->src_start;
 	dst_addr = xt->dst_start;
 
-	for (i = 0; i < xt->frame_size; i++) {
-		struct at_xdmac_desc *desc;
-		size_t src_icg, dst_icg;
-
-		chunk = xt->sgl + i;
-
-		dst_icg = dmaengine_get_dst_icg(xt, chunk);
-		src_icg = dmaengine_get_src_icg(xt, chunk);
-
-		src_skip = chunk->size + src_icg;
-		dst_skip = chunk->size + dst_icg;
-
-		dev_dbg(chan2dev(chan),
-			"%s: chunk size=%d, src icg=%d, dst icg=%d\n",
-			__func__, chunk->size, src_icg, dst_icg);
-
-		/*
-		 * Handle the case where we just have the same
-		 * transfer to setup, we can just increase the
-		 * block number and reuse the same descriptor.
-		 */
-		if (prev_chunk && prev &&
-		    (prev_chunk->size == chunk->size) &&
-		    (prev_src_icg == src_icg) &&
-		    (prev_dst_icg == dst_icg)) {
-			dev_dbg(chan2dev(chan),
-				"%s: same configuration that the previous chunk, merging the descriptors...\n",
-				__func__);
-			at_xdmac_increment_block_count(chan, prev);
-			continue;
-		}
-
-		desc = at_xdmac_interleaved_queue_desc(chan, atchan,
-						       prev,
-						       src_addr, dst_addr,
-						       xt, chunk);
-		if (!desc) {
-			list_splice_init(&first->descs_list,
-					 &atchan->free_descs_list);
-			return NULL;
-		}
-
-		if (!first)
-			first = desc;
+	if (xt->numf > 1) {
+		first = at_xdmac_interleaved_queue_desc(chan, atchan,
+							NULL,
+							src_addr, dst_addr,
+							xt, xt->sgl);
+		for (i = 0; i < xt->numf; i++)
+			at_xdmac_increment_block_count(chan, first);
 
 		dev_dbg(chan2dev(chan), "%s: add desc 0x%p to descs_list 0x%p\n",
-			__func__, desc, first);
-		list_add_tail(&desc->desc_node, &first->descs_list);
+			__func__, first, first);
+		list_add_tail(&first->desc_node, &first->descs_list);
+	} else {
+		for (i = 0; i < xt->frame_size; i++) {
+			size_t src_icg = 0, dst_icg = 0;
+			struct at_xdmac_desc *desc;
 
-		if (xt->src_sgl)
-			src_addr += src_skip;
+			chunk = xt->sgl + i;
 
-		if (xt->dst_sgl)
-			dst_addr += dst_skip;
+			dst_icg = dmaengine_get_dst_icg(xt, chunk);
+			src_icg = dmaengine_get_src_icg(xt, chunk);
 
-		len += chunk->size;
-		prev_chunk = chunk;
-		prev_dst_icg = dst_icg;
-		prev_src_icg = src_icg;
-		prev = desc;
+			src_skip = chunk->size + src_icg;
+			dst_skip = chunk->size + dst_icg;
+
+			dev_dbg(chan2dev(chan),
+				"%s: chunk size=%d, src icg=%d, dst icg=%d\n",
+				__func__, chunk->size, src_icg, dst_icg);
+
+			desc = at_xdmac_interleaved_queue_desc(chan, atchan,
+							       prev,
+							       src_addr, dst_addr,
+							       xt, chunk);
+			if (!desc) {
+				list_splice_init(&first->descs_list,
+						 &atchan->free_descs_list);
+				return NULL;
+			}
+
+			if (!first)
+				first = desc;
+
+			dev_dbg(chan2dev(chan), "%s: add desc 0x%p to descs_list 0x%p\n",
+				__func__, desc, first);
+			list_add_tail(&desc->desc_node, &first->descs_list);
+
+			if (xt->src_sgl)
+				src_addr += src_skip;
+
+			if (xt->dst_sgl)
+				dst_addr += dst_skip;
+
+			len += chunk->size;
+			prev = desc;
+		}
 	}
 
 	first->tx_dma_desc.cookie = -EBUSY;

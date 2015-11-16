@@ -1047,13 +1047,15 @@ int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget)
 
 	/* If we used up all the quota - we're probably not done yet... */
 	if (done == budget) {
-		int cpu_curr;
 		const struct cpumask *aff;
+		struct irq_data *idata;
+		int cpu_curr;
 
 		INC_PERF_COUNTER(priv->pstats.napi_quota);
 
 		cpu_curr = smp_processor_id();
-		aff = irq_desc_get_irq_data(cq->irq_desc)->affinity;
+		idata = irq_desc_get_irq_data(cq->irq_desc);
+		aff = irq_data_get_affinity_mask(idata);
 
 		if (likely(cpumask_test_cpu(cpu_curr, aff)))
 			return budget;
@@ -1268,8 +1270,6 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 		rss_context->hash_fn = MLX4_RSS_HASH_TOP;
 		memcpy(rss_context->rss_key, priv->rss_key,
 		       MLX4_EN_RSS_KEY_SIZE);
-		netdev_rss_key_fill(rss_context->rss_key,
-				    MLX4_EN_RSS_KEY_SIZE);
 	} else {
 		en_err(priv, "Unknown RSS hash function requested\n");
 		err = -EINVAL;

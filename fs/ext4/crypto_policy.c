@@ -150,7 +150,8 @@ int ext4_is_child_context_consistent_with_parent(struct inode *parent,
 
 	if ((parent == NULL) || (child == NULL)) {
 		pr_err("parent %p child %p\n", parent, child);
-		BUG_ON(1);
+		WARN_ON(1);	/* Should never happen */
+		return 0;
 	}
 	/* no restrictions if the parent directory is not encrypted */
 	if (!ext4_encrypted_inode(parent))

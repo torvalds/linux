@@ -361,7 +361,7 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 
 dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 {
-	const struct bndcsr *bndcsr;
+	const struct mpx_bndcsr *bndcsr;
 	siginfo_t *info;
 
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
@@ -384,7 +384,7 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 	 * which is all zeros which indicates MPX was not
 	 * responsible for the exception.
 	 */
-	bndcsr = get_xsave_field_ptr(XSTATE_BNDCSR);
+	bndcsr = get_xsave_field_ptr(XFEATURE_MASK_BNDCSR);
 	if (!bndcsr)
 		goto exit_trap;
 

@@ -401,7 +401,7 @@ static int pxa_gpio_irq_type(struct irq_data *d, unsigned int type)
 	return 0;
 }
 
-static void pxa_gpio_demux_handler(unsigned int irq, struct irq_desc *desc)
+static void pxa_gpio_demux_handler(struct irq_desc *desc)
 {
 	struct pxa_gpio_chip *c;
 	int loop, gpio, gpio_base, n;

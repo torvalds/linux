@@ -34,6 +34,14 @@ static int rtl28xxu_ctrl_msg(struct dvb_usb_device *d, struct rtl28xxu_req *req)
 	unsigned int pipe;
 	u8 requesttype;
 
+	mutex_lock(&d->usb_mutex);
+
+	if (req->size > sizeof(dev->buf)) {
+		dev_err(&d->intf->dev, "too large message %u\n", req->size);
+		ret = -EINVAL;
+		goto err_mutex_unlock;
+	}
+
 	if (req->index & CMD_WR_FLAG) {
 		/* write */
 		memcpy(dev->buf, req->data, req->size);
@@ -50,14 +58,17 @@ static int rtl28xxu_ctrl_msg(struct dvb_usb_device *d, struct rtl28xxu_req *req)
 	dvb_usb_dbg_usb_control_msg(d->udev, 0, requesttype, req->value,
 			req->index, dev->buf, req->size);
 	if (ret < 0)
-		goto err;
+		goto err_mutex_unlock;
 
 	/* read request, copy returned data to return buf */
 	if (requesttype == (USB_TYPE_VENDOR | USB_DIR_IN))
 		memcpy(req->data, dev->buf, req->size);
 
+	mutex_unlock(&d->usb_mutex);
+
 	return 0;
-err:
+err_mutex_unlock:
+	mutex_unlock(&d->usb_mutex);
 	dev_dbg(&d->intf->dev, "failed=%d\n", ret);
 	return ret;
 }

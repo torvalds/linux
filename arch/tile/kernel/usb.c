@@ -22,6 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/usb/tilegx.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include <linux/types.h>
 
 static u64 ehci_dmamask = DMA_BIT_MASK(32);

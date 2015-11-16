@@ -407,7 +407,7 @@ static int gpio_irq_set_type(struct irq_data *d, u32 type)
 	return 0;
 }
 
-static void gpio_irq_handler(unsigned __irq, struct irq_desc *desc)
+static void gpio_irq_handler(struct irq_desc *desc)
 {
 	struct orion_gpio_chip *ochip = irq_desc_get_handler_data(desc);
 	u32 cause, type;

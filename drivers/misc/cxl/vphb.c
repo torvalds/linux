@@ -48,6 +48,12 @@ static bool cxl_pci_enable_device_hook(struct pci_dev *dev)
 
 	phb = pci_bus_to_host(dev->bus);
 	afu = (struct cxl_afu *)phb->private_data;
+
+	if (!cxl_adapter_link_ok(afu->adapter)) {
+		dev_warn(&dev->dev, "%s: Device link is down, refusing to enable AFU\n", __func__);
+		return false;
+	}
+
 	set_dma_ops(&dev->dev, &dma_direct_ops);
 	set_dma_offset(&dev->dev, PAGE_OFFSET);
 
@@ -284,8 +290,10 @@ void cxl_pci_vphb_remove(struct cxl_afu *afu)
 		return;
 
 	phb = afu->phb;
+	afu->phb = NULL;
 
 	pci_remove_root_bus(phb->bus);
+	pcibios_free_controller(phb);
 }
 
 struct cxl_afu *cxl_pci_to_afu(struct pci_dev *dev)

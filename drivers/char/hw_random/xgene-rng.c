@@ -344,11 +344,12 @@ static int xgene_rng_probe(struct platform_device *pdev)
 	if (IS_ERR(ctx->csr_base))
 		return PTR_ERR(ctx->csr_base);
 
-	ctx->irq = platform_get_irq(pdev, 0);
-	if (ctx->irq < 0) {
+	rc = platform_get_irq(pdev, 0);
+	if (rc < 0) {
 		dev_err(&pdev->dev, "No IRQ resource\n");
-		return ctx->irq;
+		return rc;
 	}
+	ctx->irq = rc;
 
 	dev_dbg(&pdev->dev, "APM X-Gene RNG BASE %p ALARM IRQ %d",
 		ctx->csr_base, ctx->irq);

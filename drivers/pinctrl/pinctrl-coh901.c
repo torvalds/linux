@@ -217,24 +217,6 @@ static inline struct u300_gpio *to_u300_gpio(struct gpio_chip *chip)
 	return container_of(chip, struct u300_gpio, chip);
 }
 
-static int u300_gpio_request(struct gpio_chip *chip, unsigned offset)
-{
-	/*
-	 * Map back to global GPIO space and request muxing, the direction
-	 * parameter does not matter for this controller.
-	 */
-	int gpio = chip->base + offset;
-
-	return pinctrl_request_gpio(gpio);
-}
-
-static void u300_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-	int gpio = chip->base + offset;
-
-	pinctrl_free_gpio(gpio);
-}
-
 static int u300_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct u300_gpio *gpio = to_u300_gpio(chip);
@@ -417,8 +399,8 @@ int u300_gpio_config_set(struct gpio_chip *chip, unsigned offset,
 static struct gpio_chip u300_gpio_chip = {
 	.label			= "u300-gpio-chip",
 	.owner			= THIS_MODULE,
-	.request		= u300_gpio_request,
-	.free			= u300_gpio_free,
+	.request		= gpiochip_generic_request,
+	.free			= gpiochip_generic_free,
 	.get			= u300_gpio_get,
 	.set			= u300_gpio_set,
 	.direction_input	= u300_gpio_direction_input,
@@ -519,7 +501,7 @@ static struct irq_chip u300_gpio_irqchip = {
 	.irq_set_type		= u300_gpio_irq_type,
 };
 
-static void u300_gpio_irq_handler(unsigned __irq, struct irq_desc *desc)
+static void u300_gpio_irq_handler(struct irq_desc *desc)
 {
 	unsigned int irq = irq_desc_get_irq(desc);
 	struct irq_chip *parent_chip = irq_desc_get_chip(desc);

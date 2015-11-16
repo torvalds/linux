@@ -620,6 +620,7 @@ static int lg_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 			usage->code == ABS_Y || usage->code == ABS_Z ||
 			usage->code == ABS_RZ)) {
 		switch (hdev->product) {
+		case USB_DEVICE_ID_LOGITECH_G29_WHEEL:
 		case USB_DEVICE_ID_LOGITECH_WHEEL:
 		case USB_DEVICE_ID_LOGITECH_MOMO_WHEEL:
 		case USB_DEVICE_ID_LOGITECH_DFP_WHEEL:
@@ -658,9 +659,17 @@ static int lg_event(struct hid_device *hdev, struct hid_field *field,
 
 static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
+	struct usb_interface *iface = to_usb_interface(hdev->dev.parent);
+	__u8 iface_num = iface->cur_altsetting->desc.bInterfaceNumber;
 	unsigned int connect_mask = HID_CONNECT_DEFAULT;
 	struct lg_drv_data *drv_data;
 	int ret;
+
+	/* Only work with the 1st interface (G29 presents multiple) */
+	if (iface_num != 0) {
+		dbg_hid("%s: ignoring ifnum %d\n", __func__, iface_num);
+		return -ENODEV;
+	}
 
 	drv_data = kzalloc(sizeof(struct lg_drv_data), GFP_KERNEL);
 	if (!drv_data) {

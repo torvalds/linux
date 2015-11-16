@@ -1903,11 +1903,14 @@ static void snd_usbmidi_switch_roland_altsetting(struct snd_usb_midi *umidi)
 
 	hostif = &intf->altsetting[1];
 	intfd = get_iface_desc(hostif);
+       /* If either or both of the endpoints support interrupt transfer,
+        * then use the alternate setting
+        */
 	if (intfd->bNumEndpoints != 2 ||
-	    (get_endpoint(hostif, 0)->bmAttributes &
-	     USB_ENDPOINT_XFERTYPE_MASK) != USB_ENDPOINT_XFER_BULK ||
-	    (get_endpoint(hostif, 1)->bmAttributes &
-	     USB_ENDPOINT_XFERTYPE_MASK) != USB_ENDPOINT_XFER_INT)
+	    !((get_endpoint(hostif, 0)->bmAttributes &
+	       USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_INT ||
+	      (get_endpoint(hostif, 1)->bmAttributes &
+	       USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_INT))
 		return;
 
 	dev_dbg(&umidi->dev->dev, "switching to altsetting %d with int ep\n",

@@ -7,7 +7,7 @@
 #include <linux/pagemap.h>
 #include <linux/sched.h>
 
-/*
+/**
  * get_vaddr_frames() - map virtual addresses to pfns
  * @start:	starting user address
  * @nr_frames:	number of pages / pfns from start to map

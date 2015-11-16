@@ -287,7 +287,6 @@ static void bcm_sysport_get_drvinfo(struct net_device *dev,
 	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
 	strlcpy(info->version, "0.1", sizeof(info->version));
 	strlcpy(info->bus_info, "platform", sizeof(info->bus_info));
-	info->n_stats = BCM_SYSPORT_STATS_LEN;
 }
 
 static u32 bcm_sysport_get_msglvl(struct net_device *dev)
@@ -2079,6 +2078,7 @@ static const struct of_device_id bcm_sysport_of_match[] = {
 	{ .compatible = "brcm,systemport" },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, bcm_sysport_of_match);
 
 static struct platform_driver bcm_sysport_driver = {
 	.probe	= bcm_sysport_probe,

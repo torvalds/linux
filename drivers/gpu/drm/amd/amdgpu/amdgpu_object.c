@@ -132,6 +132,8 @@ static void amdgpu_ttm_placement_init(struct amdgpu_device *adev,
 		placements[c].fpfn = 0;
 		placements[c++].flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
 			TTM_PL_FLAG_VRAM;
+		if (!(flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED))
+			placements[c - 1].flags |= TTM_PL_FLAG_TOPDOWN;
 	}
 
 	if (domain & AMDGPU_GEM_DOMAIN_GTT) {
@@ -215,6 +217,7 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 				bool kernel, u32 domain, u64 flags,
 				struct sg_table *sg,
 				struct ttm_placement *placement,
+				struct reservation_object *resv,
 				struct amdgpu_bo **bo_ptr)
 {
 	struct amdgpu_bo *bo;
@@ -261,7 +264,7 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 	/* Kernel allocation are uninterruptible */
 	r = ttm_bo_init(&adev->mman.bdev, &bo->tbo, size, type,
 			&bo->placement, page_align, !kernel, NULL,
-			acc_size, sg, NULL, &amdgpu_ttm_bo_destroy);
+			acc_size, sg, resv, &amdgpu_ttm_bo_destroy);
 	if (unlikely(r != 0)) {
 		return r;
 	}
@@ -275,7 +278,9 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 int amdgpu_bo_create(struct amdgpu_device *adev,
 		     unsigned long size, int byte_align,
 		     bool kernel, u32 domain, u64 flags,
-		     struct sg_table *sg, struct amdgpu_bo **bo_ptr)
+		     struct sg_table *sg,
+		     struct reservation_object *resv,
+		     struct amdgpu_bo **bo_ptr)
 {
 	struct ttm_placement placement = {0};
 	struct ttm_place placements[AMDGPU_GEM_DOMAIN_MAX + 1];
@@ -286,11 +291,9 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 	amdgpu_ttm_placement_init(adev, &placement,
 				  placements, domain, flags);
 
-	return amdgpu_bo_create_restricted(adev, size, byte_align,
-					   kernel, domain, flags,
-					   sg,
-					   &placement,
-					   bo_ptr);
+	return amdgpu_bo_create_restricted(adev, size, byte_align, kernel,
+					   domain, flags, sg, &placement,
+					   resv, bo_ptr);
 }
 
 int amdgpu_bo_kmap(struct amdgpu_bo *bo, void **ptr)
@@ -535,11 +538,9 @@ int amdgpu_bo_set_metadata (struct amdgpu_bo *bo, void *metadata,
 	if (metadata == NULL)
 		return -EINVAL;
 
-	buffer = kzalloc(metadata_size, GFP_KERNEL);
+	buffer = kmemdup(metadata, metadata_size, GFP_KERNEL);
 	if (buffer == NULL)
 		return -ENOMEM;
-
-	memcpy(buffer, metadata, metadata_size);
 
 	kfree(bo->metadata);
 	bo->metadata_flags = flags;

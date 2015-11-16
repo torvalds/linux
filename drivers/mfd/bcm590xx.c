@@ -128,4 +128,3 @@ module_i2c_driver(bcm590xx_i2c_driver);
 MODULE_AUTHOR("Matt Porter <mporter@linaro.org>");
 MODULE_DESCRIPTION("BCM590xx multi-function driver");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("i2c:bcm590xx");

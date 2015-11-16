@@ -30,3 +30,14 @@ config MLXSW_SWITCHX2
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mlxsw_switchx2.
+
+config MLXSW_SPECTRUM
+	tristate "Mellanox Technologies Spectrum support"
+	depends on MLXSW_CORE && NET_SWITCHDEV
+	default m
+	---help---
+	  This driver supports Mellanox Technologies Spectrum Ethernet
+	  Switch ASICs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mlxsw_spectrum.

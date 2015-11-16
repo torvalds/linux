@@ -49,6 +49,7 @@
 #define FIRMWARE_TONGA		"amdgpu/tonga_vce.bin"
 #define FIRMWARE_CARRIZO	"amdgpu/carrizo_vce.bin"
 #define FIRMWARE_FIJI		"amdgpu/fiji_vce.bin"
+#define FIRMWARE_STONEY		"amdgpu/stoney_vce.bin"
 
 #ifdef CONFIG_DRM_AMDGPU_CIK
 MODULE_FIRMWARE(FIRMWARE_BONAIRE);
@@ -60,6 +61,7 @@ MODULE_FIRMWARE(FIRMWARE_MULLINS);
 MODULE_FIRMWARE(FIRMWARE_TONGA);
 MODULE_FIRMWARE(FIRMWARE_CARRIZO);
 MODULE_FIRMWARE(FIRMWARE_FIJI);
+MODULE_FIRMWARE(FIRMWARE_STONEY);
 
 static void amdgpu_vce_idle_work_handler(struct work_struct *work);
 
@@ -106,6 +108,9 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 	case CHIP_FIJI:
 		fw_name = FIRMWARE_FIJI;
 		break;
+	case CHIP_STONEY:
+		fw_name = FIRMWARE_STONEY;
+		break;
 
 	default:
 		return -EINVAL;
@@ -143,7 +148,7 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 	r = amdgpu_bo_create(adev, size, PAGE_SIZE, true,
 			     AMDGPU_GEM_DOMAIN_VRAM,
 			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
-			     NULL, &adev->vce.vcpu_bo);
+			     NULL, NULL, &adev->vce.vcpu_bo);
 	if (r) {
 		dev_err(adev->dev, "(%d) failed to allocate VCE bo\n", r);
 		return r;
@@ -342,10 +347,10 @@ void amdgpu_vce_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
 }
 
 static int amdgpu_vce_free_job(
-	struct amdgpu_job *sched_job)
+	struct amdgpu_job *job)
 {
-	amdgpu_ib_free(sched_job->adev, sched_job->ibs);
-	kfree(sched_job->ibs);
+	amdgpu_ib_free(job->adev, job->ibs);
+	kfree(job->ibs);
 	return 0;
 }
 

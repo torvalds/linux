@@ -484,7 +484,7 @@ int vmw_overlay_ioctl(struct drm_device *dev, void *data,
 		goto out_unlock;
 	}
 
-	ret = vmw_user_dmabuf_lookup(tfile, arg->handle, &buf);
+	ret = vmw_user_dmabuf_lookup(tfile, arg->handle, &buf, NULL);
 	if (ret)
 		goto out_unlock;
 

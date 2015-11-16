@@ -103,8 +103,8 @@ sprintf_gamma(struct fbtft_par *par, unsigned long *curves, char *buf)
 	for (i = 0; i < par->gamma.num_curves; i++) {
 		for (j = 0; j < par->gamma.num_values; j++)
 			len += scnprintf(&buf[len], PAGE_SIZE,
-				"%04lx ", curves[i*par->gamma.num_values + j]);
-		buf[len-1] = '\n';
+			     "%04lx ", curves[i * par->gamma.num_values + j]);
+		buf[len - 1] = '\n';
 	}
 	mutex_unlock(&par->gamma.lock);
 
@@ -148,7 +148,6 @@ static ssize_t show_gamma_curve(struct device *device,
 static struct device_attribute gamma_device_attrs[] = {
 	__ATTR(gamma, 0660, show_gamma_curve, store_gamma_curve),
 };
-
 
 void fbtft_expand_debug_value(unsigned long *debug)
 {
@@ -204,7 +203,6 @@ static ssize_t show_debug(struct device *device,
 
 static struct device_attribute debug_device_attr = \
 	__ATTR(debug, 0660, show_debug, store_debug);
-
 
 void fbtft_sysfs_init(struct fbtft_par *par)
 {

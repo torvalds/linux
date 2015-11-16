@@ -388,22 +388,22 @@ static inline void s3c_irq_demux_eint(unsigned int start, unsigned int end)
 	}
 }
 
-static void s3c_irq_demux_eint0_3(unsigned int irq, struct irq_desc *desc)
+static void s3c_irq_demux_eint0_3(struct irq_desc *desc)
 {
 	s3c_irq_demux_eint(0, 3);
 }
 
-static void s3c_irq_demux_eint4_11(unsigned int irq, struct irq_desc *desc)
+static void s3c_irq_demux_eint4_11(struct irq_desc *desc)
 {
 	s3c_irq_demux_eint(4, 11);
 }
 
-static void s3c_irq_demux_eint12_19(unsigned int irq, struct irq_desc *desc)
+static void s3c_irq_demux_eint12_19(struct irq_desc *desc)
 {
 	s3c_irq_demux_eint(12, 19);
 }
 
-static void s3c_irq_demux_eint20_27(unsigned int irq, struct irq_desc *desc)
+static void s3c_irq_demux_eint20_27(struct irq_desc *desc)
 {
 	s3c_irq_demux_eint(20, 27);
 }

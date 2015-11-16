@@ -21,13 +21,26 @@
 #include <variant/core.h>
 #include <platform/hardware.h>
 
+#if XCHAL_HAVE_PTP_MMU
 #define XCHAL_KIO_CACHED_VADDR		0xe0000000
 #define XCHAL_KIO_BYPASS_VADDR		0xf0000000
 #define XCHAL_KIO_DEFAULT_PADDR		0xf0000000
+#else
+#define XCHAL_KIO_BYPASS_VADDR		XCHAL_KIO_PADDR
+#define XCHAL_KIO_DEFAULT_PADDR		0x90000000
+#endif
 #define XCHAL_KIO_SIZE			0x10000000
 
-#if XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY && defined(CONFIG_OF)
+#if (!XCHAL_HAVE_PTP_MMU || XCHAL_HAVE_SPANNING_WAY) && defined(CONFIG_OF)
 #define XCHAL_KIO_PADDR			xtensa_get_kio_paddr()
+#ifndef __ASSEMBLY__
+extern unsigned long xtensa_kio_paddr;
+
+static inline unsigned long xtensa_get_kio_paddr(void)
+{
+	return xtensa_kio_paddr;
+}
+#endif
 #else
 #define XCHAL_KIO_PADDR			XCHAL_KIO_DEFAULT_PADDR
 #endif
@@ -48,6 +61,9 @@
   #define LOAD_MEMORY_ADDRESS		0xD0003000
 #endif
 
+#define RESET_VECTOR1_VADDR		(VIRTUAL_MEMORY_ADDRESS + \
+					 XCHAL_RESET_VECTOR1_PADDR)
+
 #else /* !defined(CONFIG_MMU) */
   /* MMU Not being used - Virtual == Physical */
 
@@ -60,20 +76,14 @@
   /* Loaded just above possibly live vectors */
   #define LOAD_MEMORY_ADDRESS		(PLATFORM_DEFAULT_MEM_START + 0x3000)
 
+#define RESET_VECTOR1_VADDR		(XCHAL_RESET_VECTOR1_VADDR)
+
 #endif /* CONFIG_MMU */
 
 #define XC_VADDR(offset)		(VIRTUAL_MEMORY_ADDRESS  + offset)
 
 /* Used to set VECBASE register */
 #define VECBASE_RESET_VADDR		VIRTUAL_MEMORY_ADDRESS
-
-#define RESET_VECTOR_VECOFS		(XCHAL_RESET_VECTOR_VADDR - \
-						VECBASE_RESET_VADDR)
-#define RESET_VECTOR_VADDR		XC_VADDR(RESET_VECTOR_VECOFS)
-
-#define RESET_VECTOR1_VECOFS		(XCHAL_RESET_VECTOR1_VADDR - \
-						VECBASE_RESET_VADDR)
-#define RESET_VECTOR1_VADDR		XC_VADDR(RESET_VECTOR1_VECOFS)
 
 #if defined(XCHAL_HAVE_VECBASE) && XCHAL_HAVE_VECBASE
 

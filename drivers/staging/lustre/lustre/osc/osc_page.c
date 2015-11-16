@@ -166,6 +166,7 @@ static void osc_page_fini(const struct lu_env *env,
 			  struct cl_page_slice *slice)
 {
 	struct osc_page *opg = cl2osc_page(slice);
+
 	CDEBUG(D_TRACE, "%p\n", opg);
 	LASSERT(opg->ops_lock == NULL);
 }
@@ -346,7 +347,6 @@ static int osc_page_fail(const struct lu_env *env,
 	return 0;
 }
 
-
 static const char *osc_list(struct list_head *head)
 {
 	return list_empty(head) ? "-" : "+";
@@ -512,6 +512,7 @@ int osc_page_init(const struct lu_env *env, struct cl_object *obj,
 					cl_offset(obj, page->cp_index));
 	if (result == 0) {
 		struct osc_io *oio = osc_env_io(env);
+
 		opg->ops_srvlock = osc_io_srvlock(oio);
 		cl_page_slice_add(page, &opg->ops_cl, obj,
 				&osc_page_ops);
@@ -553,7 +554,7 @@ void osc_page_submit(const struct lu_env *env, struct osc_page *opg,
 	oap->oap_cmd = crt == CRT_WRITE ? OBD_BRW_WRITE : OBD_BRW_READ;
 	oap->oap_page_off = opg->ops_from;
 	oap->oap_count = opg->ops_to - opg->ops_from;
-	oap->oap_brw_flags = OBD_BRW_SYNC | brw_flags;
+	oap->oap_brw_flags = brw_flags | OBD_BRW_SYNC;
 
 	if (!client_is_remote(osc_export(obj)) &&
 			capable(CFS_CAP_SYS_RESOURCE)) {
@@ -624,6 +625,7 @@ static int discard_pagevec(const struct lu_env *env, struct cl_io *io,
 
 	for (count = 0, i = 0; i < max_index; i++) {
 		struct cl_page *page = pvec[i];
+
 		if (cl_page_own_try(env, io, page) == 0) {
 			/* free LRU page only if nobody is using it.
 			 * This check is necessary to avoid freeing the pages
@@ -818,7 +820,6 @@ static int osc_lru_reclaim(struct client_obd *cli)
 	int rc;
 
 	LASSERT(cache != NULL);
-	LASSERT(!list_empty(&cache->ccc_lru));
 
 	rc = osc_lru_shrink(cli, lru_shrink_min);
 	if (rc != 0) {
@@ -835,6 +836,8 @@ static int osc_lru_reclaim(struct client_obd *cli)
 	/* Reclaim LRU slots from other client_obd as it can't free enough
 	 * from its own. This should rarely happen. */
 	spin_lock(&cache->ccc_lru_lock);
+	LASSERT(!list_empty(&cache->ccc_lru));
+
 	cache->ccc_lru_shrinkers++;
 	list_move_tail(&cli->cl_lru_osc, &cache->ccc_lru);
 

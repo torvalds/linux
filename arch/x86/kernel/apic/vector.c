@@ -361,7 +361,11 @@ int __init arch_probe_nr_irqs(void)
 	if (nr < nr_irqs)
 		nr_irqs = nr;
 
-	return nr_legacy_irqs();
+	/*
+	 * We don't know if PIC is present at this point so we need to do
+	 * probe() to get the right number of legacy IRQs.
+	 */
+	return legacy_pic->probe();
 }
 
 #ifdef	CONFIG_X86_IO_APIC
@@ -489,10 +493,8 @@ static int apic_set_affinity(struct irq_data *irq_data,
 
 	err = assign_irq_vector(irq, data, dest);
 	if (err) {
-		struct irq_data *top = irq_get_irq_data(irq);
-
 		if (assign_irq_vector(irq, data,
-				      irq_data_get_affinity_mask(top)))
+				      irq_data_get_affinity_mask(irq_data)))
 			pr_err("Failed to recover vector for irq %d\n", irq);
 		return err;
 	}

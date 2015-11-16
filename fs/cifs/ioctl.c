@@ -67,6 +67,12 @@ static long cifs_ioctl_clone(unsigned int xid, struct file *dst_file,
 		goto out_drop_write;
 	}
 
+	if (src_file.file->f_op->unlocked_ioctl != cifs_ioctl) {
+		rc = -EBADF;
+		cifs_dbg(VFS, "src file seems to be from a different filesystem type\n");
+		goto out_fput;
+	}
+
 	if ((!src_file.file->private_data) || (!dst_file->private_data)) {
 		rc = -EBADF;
 		cifs_dbg(VFS, "missing cifsFileInfo on copy range src file\n");
@@ -79,9 +85,14 @@ static long cifs_ioctl_clone(unsigned int xid, struct file *dst_file,
 	src_tcon = tlink_tcon(smb_file_src->tlink);
 	target_tcon = tlink_tcon(smb_file_target->tlink);
 
-	/* check if source and target are on same tree connection */
-	if (src_tcon != target_tcon) {
-		cifs_dbg(VFS, "file copy src and target on different volume\n");
+	/* check source and target on same server (or volume if dup_extents) */
+	if (dup_extents && (src_tcon != target_tcon)) {
+		cifs_dbg(VFS, "source and target of copy not on same share\n");
+		goto out_fput;
+	}
+
+	if (!dup_extents && (src_tcon->ses != target_tcon->ses)) {
+		cifs_dbg(VFS, "source and target of copy not on same server\n");
 		goto out_fput;
 	}
 

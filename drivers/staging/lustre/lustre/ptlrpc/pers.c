@@ -42,7 +42,6 @@
 
 #include "ptlrpc_internal.h"
 
-
 void ptlrpc_fill_bulk_md(lnet_md_t *md, struct ptlrpc_bulk_desc *desc,
 			 int mdidx)
 {

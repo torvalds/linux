@@ -17,6 +17,3 @@ config SHARP_PARAM
 
 config SHARP_SCOOP
 	bool
-
-config TI_PRIV_EDMA
-	bool

@@ -1274,6 +1274,10 @@ int ti_bandgap_probe(struct platform_device *pdev)
 	}
 	bgp->dev = &pdev->dev;
 
+	if (TI_BANDGAP_HAS(bgp, UNRELIABLE))
+		dev_warn(&pdev->dev,
+			 "This OMAP thermal sensor is unreliable. You've been warned\n");
+
 	if (TI_BANDGAP_HAS(bgp, TSHUT)) {
 		ret = ti_bandgap_tshut_init(bgp, pdev);
 		if (ret) {
@@ -1579,6 +1583,16 @@ static SIMPLE_DEV_PM_OPS(ti_bandgap_dev_pm_ops, ti_bandgap_suspend,
 #endif
 
 static const struct of_device_id of_ti_bandgap_match[] = {
+#ifdef CONFIG_OMAP3_THERMAL
+	{
+		.compatible = "ti,omap34xx-bandgap",
+		.data = (void *)&omap34xx_data,
+	},
+	{
+		.compatible = "ti,omap36xx-bandgap",
+		.data = (void *)&omap36xx_data,
+	},
+#endif
 #ifdef CONFIG_OMAP4_THERMAL
 	{
 		.compatible = "ti,omap4430-bandgap",

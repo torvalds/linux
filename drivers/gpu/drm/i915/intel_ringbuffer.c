@@ -347,6 +347,7 @@ gen7_render_ring_flush(struct drm_i915_gem_request *req,
 	if (flush_domains) {
 		flags |= PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH;
 		flags |= PIPE_CONTROL_DEPTH_CACHE_FLUSH;
+		flags |= PIPE_CONTROL_FLUSH_ENABLE;
 	}
 	if (invalidate_domains) {
 		flags |= PIPE_CONTROL_TLB_INVALIDATE;
@@ -418,6 +419,7 @@ gen8_render_ring_flush(struct drm_i915_gem_request *req,
 	if (flush_domains) {
 		flags |= PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH;
 		flags |= PIPE_CONTROL_DEPTH_CACHE_FLUSH;
+		flags |= PIPE_CONTROL_FLUSH_ENABLE;
 	}
 	if (invalidate_domains) {
 		flags |= PIPE_CONTROL_TLB_INVALIDATE;
@@ -717,7 +719,7 @@ static int intel_ring_workarounds_emit(struct drm_i915_gem_request *req)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_workarounds *w = &dev_priv->workarounds;
 
-	if (WARN_ON_ONCE(w->count == 0))
+	if (w->count == 0)
 		return 0;
 
 	ring->gpu_caches_dirty = true;
@@ -800,42 +802,29 @@ static int wa_add(struct drm_i915_private *dev_priv,
 
 #define WA_WRITE(addr, val) WA_REG(addr, 0xffffffff, val)
 
-static int bdw_init_workarounds(struct intel_engine_cs *ring)
+static int gen8_init_workarounds(struct intel_engine_cs *ring)
 {
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	WA_SET_BIT_MASKED(INSTPM, INSTPM_FORCE_ORDERING);
 
-	/* WaDisableAsyncFlipPerfMode:bdw */
+	/* WaDisableAsyncFlipPerfMode:bdw,chv */
 	WA_SET_BIT_MASKED(MI_MODE, ASYNC_FLIP_PERF_DISABLE);
 
-	/* WaDisablePartialInstShootdown:bdw */
-	/* WaDisableThreadStallDopClockGating:bdw (pre-production) */
+	/* WaDisablePartialInstShootdown:bdw,chv */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
-			  PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE |
-			  STALL_DOP_GATING_DISABLE);
-
-	/* WaDisableDopClockGating:bdw */
-	WA_SET_BIT_MASKED(GEN7_ROW_CHICKEN2,
-			  DOP_CLOCK_GATING_DISABLE);
-
-	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3,
-			  GEN8_SAMPLER_POWER_BYPASS_DIS);
+			  PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE);
 
 	/* Use Force Non-Coherent whenever executing a 3D context. This is a
 	 * workaround for for a possible hang in the unlikely event a TLB
 	 * invalidation occurs during a PSD flush.
 	 */
+	/* WaForceEnableNonCoherent:bdw,chv */
+	/* WaHdcDisableFetchWhenMasked:bdw,chv */
 	WA_SET_BIT_MASKED(HDC_CHICKEN0,
-			  /* WaForceEnableNonCoherent:bdw */
-			  HDC_FORCE_NON_COHERENT |
-			  /* WaForceContextSaveRestoreNonCoherent:bdw */
-			  HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT |
-			  /* WaHdcDisableFetchWhenMasked:bdw */
 			  HDC_DONOT_FETCH_MEM_WHEN_MASKED |
-			  /* WaDisableFenceDestinationToSLM:bdw (pre-prod) */
-			  (IS_BDW_GT3(dev) ? HDC_FENCE_DEST_SLM_DISABLE : 0));
+			  HDC_FORCE_NON_COHERENT);
 
 	/* From the Haswell PRM, Command Reference: Registers, CACHE_MODE_0:
 	 * "The Hierarchical Z RAW Stall Optimization allows non-overlapping
@@ -843,13 +832,12 @@ static int bdw_init_workarounds(struct intel_engine_cs *ring)
 	 *  stalling waiting for the earlier ones to write to Hierarchical Z
 	 *  buffer."
 	 *
-	 * This optimization is off by default for Broadwell; turn it on.
+	 * This optimization is off by default for BDW and CHV; turn it on.
 	 */
 	WA_CLR_BIT_MASKED(CACHE_MODE_0_GEN7, HIZ_RAW_STALL_OPT_DISABLE);
 
-	/* Wa4x4STCOptimizationDisable:bdw */
-	WA_SET_BIT_MASKED(CACHE_MODE_1,
-			  GEN8_4x4_STC_OPTIMIZATION_DISABLE);
+	/* Wa4x4STCOptimizationDisable:bdw,chv */
+	WA_SET_BIT_MASKED(CACHE_MODE_1, GEN8_4x4_STC_OPTIMIZATION_DISABLE);
 
 	/*
 	 * BSpec recommends 8x4 when MSAA is used,
@@ -866,55 +854,50 @@ static int bdw_init_workarounds(struct intel_engine_cs *ring)
 	return 0;
 }
 
-static int chv_init_workarounds(struct intel_engine_cs *ring)
+static int bdw_init_workarounds(struct intel_engine_cs *ring)
 {
+	int ret;
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	WA_SET_BIT_MASKED(INSTPM, INSTPM_FORCE_ORDERING);
+	ret = gen8_init_workarounds(ring);
+	if (ret)
+		return ret;
 
-	/* WaDisableAsyncFlipPerfMode:chv */
-	WA_SET_BIT_MASKED(MI_MODE, ASYNC_FLIP_PERF_DISABLE);
+	/* WaDisableThreadStallDopClockGating:bdw (pre-production) */
+	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN, STALL_DOP_GATING_DISABLE);
 
-	/* WaDisablePartialInstShootdown:chv */
-	/* WaDisableThreadStallDopClockGating:chv */
-	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
-			  PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE |
-			  STALL_DOP_GATING_DISABLE);
+	/* WaDisableDopClockGating:bdw */
+	WA_SET_BIT_MASKED(GEN7_ROW_CHICKEN2,
+			  DOP_CLOCK_GATING_DISABLE);
 
-	/* Use Force Non-Coherent whenever executing a 3D context. This is a
-	 * workaround for a possible hang in the unlikely event a TLB
-	 * invalidation occurs during a PSD flush.
-	 */
-	/* WaForceEnableNonCoherent:chv */
-	/* WaHdcDisableFetchWhenMasked:chv */
+	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3,
+			  GEN8_SAMPLER_POWER_BYPASS_DIS);
+
 	WA_SET_BIT_MASKED(HDC_CHICKEN0,
-			  HDC_FORCE_NON_COHERENT |
-			  HDC_DONOT_FETCH_MEM_WHEN_MASKED);
+			  /* WaForceContextSaveRestoreNonCoherent:bdw */
+			  HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT |
+			  /* WaDisableFenceDestinationToSLM:bdw (pre-prod) */
+			  (IS_BDW_GT3(dev) ? HDC_FENCE_DEST_SLM_DISABLE : 0));
 
-	/* According to the CACHE_MODE_0 default value documentation, some
-	 * CHV platforms disable this optimization by default.  Turn it on.
-	 */
-	WA_CLR_BIT_MASKED(CACHE_MODE_0_GEN7, HIZ_RAW_STALL_OPT_DISABLE);
+	return 0;
+}
 
-	/* Wa4x4STCOptimizationDisable:chv */
-	WA_SET_BIT_MASKED(CACHE_MODE_1,
-			  GEN8_4x4_STC_OPTIMIZATION_DISABLE);
+static int chv_init_workarounds(struct intel_engine_cs *ring)
+{
+	int ret;
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	ret = gen8_init_workarounds(ring);
+	if (ret)
+		return ret;
+
+	/* WaDisableThreadStallDopClockGating:chv */
+	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN, STALL_DOP_GATING_DISABLE);
 
 	/* Improve HiZ throughput on CHV. */
 	WA_SET_BIT_MASKED(HIZ_CHICKEN, CHV_HZ_8X8_MODE_IN_1X);
-
-	/*
-	 * BSpec recommends 8x4 when MSAA is used,
-	 * however in practice 16x4 seems fastest.
-	 *
-	 * Note that PS/WM thread counts depend on the WIZ hashing
-	 * disable bit, which we don't touch here, but it's good
-	 * to keep in mind (see 3DSTATE_PS and 3DSTATE_WM).
-	 */
-	WA_SET_FIELD_MASKED(GEN7_GT_MODE,
-			    GEN6_WIZ_HASHING_MASK,
-			    GEN6_WIZ_HASHING_16x4);
 
 	return 0;
 }
@@ -924,6 +907,14 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t tmp;
+
+	/* WaEnableLbsSlaRetryTimerDecrement:skl */
+	I915_WRITE(BDW_SCRATCH1, I915_READ(BDW_SCRATCH1) |
+		   GEN9_LBS_SLA_RETRY_TIMER_DECREMENT_ENABLE);
+
+	/* WaDisableKillLogic:bxt,skl */
+	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
+		   ECOCHK_DIS_TLB);
 
 	/* WaDisablePartialInstShootdown:skl,bxt */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
@@ -961,10 +952,9 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 	}
 
 	/* Wa4x4STCOptimizationDisable:skl,bxt */
-	WA_SET_BIT_MASKED(CACHE_MODE_1, GEN8_4x4_STC_OPTIMIZATION_DISABLE);
-
 	/* WaDisablePartialResolveInVc:skl,bxt */
-	WA_SET_BIT_MASKED(CACHE_MODE_1, GEN9_PARTIAL_RESOLVE_IN_VC_DISABLE);
+	WA_SET_BIT_MASKED(CACHE_MODE_1, (GEN8_4x4_STC_OPTIMIZATION_DISABLE |
+					 GEN9_PARTIAL_RESOLVE_IN_VC_DISABLE));
 
 	/* WaCcsTlbPrefetchDisable:skl,bxt */
 	WA_CLR_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN5,
@@ -982,6 +972,16 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 	    (IS_BROXTON(dev) && INTEL_REVID(dev) >= BXT_REVID_B0))
 		tmp |= HDC_FORCE_CSR_NON_COHERENT_OVR_DISABLE;
 	WA_SET_BIT_MASKED(HDC_CHICKEN0, tmp);
+
+	/* WaDisableSamplerPowerBypassForSOPingPong:skl,bxt */
+	if (IS_SKYLAKE(dev) ||
+	    (IS_BROXTON(dev) && INTEL_REVID(dev) <= BXT_REVID_B0)) {
+		WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3,
+				  GEN8_SAMPLER_POWER_BYPASS_DIS);
+	}
+
+	/* WaDisableSTUnitPowerOptimization:skl,bxt */
+	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN2, GEN8_ST_PO_DISABLE);
 
 	return 0;
 }
@@ -1028,13 +1028,39 @@ static int skl_tune_iz_hashing(struct intel_engine_cs *ring)
 	return 0;
 }
 
-
 static int skl_init_workarounds(struct intel_engine_cs *ring)
 {
+	int ret;
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	gen9_init_workarounds(ring);
+	ret = gen9_init_workarounds(ring);
+	if (ret)
+		return ret;
+
+	if (INTEL_REVID(dev) <= SKL_REVID_D0) {
+		/* WaDisableHDCInvalidation:skl */
+		I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
+			   BDW_DISABLE_HDC_INVALIDATION);
+
+		/* WaDisableChickenBitTSGBarrierAckForFFSliceCS:skl */
+		I915_WRITE(FF_SLICE_CS_CHICKEN2,
+			   _MASKED_BIT_ENABLE(GEN9_TSG_BARRIER_ACK_DISABLE));
+	}
+
+	/* GEN8_L3SQCREG4 has a dependency with WA batch so any new changes
+	 * involving this register should also be added to WA batch as required.
+	 */
+	if (INTEL_REVID(dev) <= SKL_REVID_E0)
+		/* WaDisableLSQCROPERFforOCL:skl */
+		I915_WRITE(GEN8_L3SQCREG4, I915_READ(GEN8_L3SQCREG4) |
+			   GEN8_LQSC_RO_PERF_DIS);
+
+	/* WaEnableGapsTsvCreditFix:skl */
+	if (IS_SKYLAKE(dev) && (INTEL_REVID(dev) >= SKL_REVID_C0)) {
+		I915_WRITE(GEN8_GARBCNTL, (I915_READ(GEN8_GARBCNTL) |
+					   GEN9_GAPS_TSV_CREDIT_DISABLE));
+	}
 
 	/* WaDisablePowerCompilerClockGating:skl */
 	if (INTEL_REVID(dev) == SKL_REVID_B0)
@@ -1071,10 +1097,24 @@ static int skl_init_workarounds(struct intel_engine_cs *ring)
 
 static int bxt_init_workarounds(struct intel_engine_cs *ring)
 {
+	int ret;
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	gen9_init_workarounds(ring);
+	ret = gen9_init_workarounds(ring);
+	if (ret)
+		return ret;
+
+	/* WaStoreMultiplePTEenable:bxt */
+	/* This is a requirement according to Hardware specification */
+	if (INTEL_REVID(dev) == BXT_REVID_A0)
+		I915_WRITE(TILECTL, I915_READ(TILECTL) | TILECTL_TLBPF);
+
+	/* WaSetClckGatingDisableMedia:bxt */
+	if (INTEL_REVID(dev) == BXT_REVID_A0) {
+		I915_WRITE(GEN7_MISCCPCTL, (I915_READ(GEN7_MISCCPCTL) &
+					    ~GEN8_DOP_CLOCK_GATE_MEDIA_ENABLE));
+	}
 
 	/* WaDisableThreadStallDopClockGating:bxt */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
@@ -1996,14 +2036,14 @@ int intel_pin_and_map_ringbuffer_obj(struct drm_device *dev,
 	return 0;
 }
 
-void intel_destroy_ringbuffer_obj(struct intel_ringbuffer *ringbuf)
+static void intel_destroy_ringbuffer_obj(struct intel_ringbuffer *ringbuf)
 {
 	drm_gem_object_unreference(&ringbuf->obj->base);
 	ringbuf->obj = NULL;
 }
 
-int intel_alloc_ringbuffer_obj(struct drm_device *dev,
-			       struct intel_ringbuffer *ringbuf)
+static int intel_alloc_ringbuffer_obj(struct drm_device *dev,
+				      struct intel_ringbuffer *ringbuf)
 {
 	struct drm_i915_gem_object *obj;
 
@@ -2023,6 +2063,48 @@ int intel_alloc_ringbuffer_obj(struct drm_device *dev,
 	return 0;
 }
 
+struct intel_ringbuffer *
+intel_engine_create_ringbuffer(struct intel_engine_cs *engine, int size)
+{
+	struct intel_ringbuffer *ring;
+	int ret;
+
+	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
+	if (ring == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	ring->ring = engine;
+
+	ring->size = size;
+	/* Workaround an erratum on the i830 which causes a hang if
+	 * the TAIL pointer points to within the last 2 cachelines
+	 * of the buffer.
+	 */
+	ring->effective_size = size;
+	if (IS_I830(engine->dev) || IS_845G(engine->dev))
+		ring->effective_size -= 2 * CACHELINE_BYTES;
+
+	ring->last_retired_head = -1;
+	intel_ring_update_space(ring);
+
+	ret = intel_alloc_ringbuffer_obj(engine->dev, ring);
+	if (ret) {
+		DRM_ERROR("Failed to allocate ringbuffer %s: %d\n",
+			  engine->name, ret);
+		kfree(ring);
+		return ERR_PTR(ret);
+	}
+
+	return ring;
+}
+
+void
+intel_ringbuffer_free(struct intel_ringbuffer *ring)
+{
+	intel_destroy_ringbuffer_obj(ring);
+	kfree(ring);
+}
+
 static int intel_init_ring_buffer(struct drm_device *dev,
 				  struct intel_engine_cs *ring)
 {
@@ -2031,21 +2113,19 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 
 	WARN_ON(ring->buffer);
 
-	ringbuf = kzalloc(sizeof(*ringbuf), GFP_KERNEL);
-	if (!ringbuf)
-		return -ENOMEM;
-	ring->buffer = ringbuf;
-
 	ring->dev = dev;
 	INIT_LIST_HEAD(&ring->active_list);
 	INIT_LIST_HEAD(&ring->request_list);
 	INIT_LIST_HEAD(&ring->execlist_queue);
 	i915_gem_batch_pool_init(dev, &ring->batch_pool);
-	ringbuf->size = 32 * PAGE_SIZE;
-	ringbuf->ring = ring;
 	memset(ring->semaphore.sync_seqno, 0, sizeof(ring->semaphore.sync_seqno));
 
 	init_waitqueue_head(&ring->irq_queue);
+
+	ringbuf = intel_engine_create_ringbuffer(ring, 32 * PAGE_SIZE);
+	if (IS_ERR(ringbuf))
+		return PTR_ERR(ringbuf);
+	ring->buffer = ringbuf;
 
 	if (I915_NEED_GFX_HWS(dev)) {
 		ret = init_status_page(ring);
@@ -2058,15 +2138,6 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 			goto error;
 	}
 
-	WARN_ON(ringbuf->obj);
-
-	ret = intel_alloc_ringbuffer_obj(dev, ringbuf);
-	if (ret) {
-		DRM_ERROR("Failed to allocate ringbuffer %s: %d\n",
-				ring->name, ret);
-		goto error;
-	}
-
 	ret = intel_pin_and_map_ringbuffer_obj(dev, ringbuf);
 	if (ret) {
 		DRM_ERROR("Failed to pin and map ringbuffer %s: %d\n",
@@ -2075,14 +2146,6 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 		goto error;
 	}
 
-	/* Workaround an erratum on the i830 which causes a hang if
-	 * the TAIL pointer points to within the last 2 cachelines
-	 * of the buffer.
-	 */
-	ringbuf->effective_size = ringbuf->size;
-	if (IS_I830(dev) || IS_845G(dev))
-		ringbuf->effective_size -= 2 * CACHELINE_BYTES;
-
 	ret = i915_cmd_parser_init_ring(ring);
 	if (ret)
 		goto error;
@@ -2090,7 +2153,7 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	return 0;
 
 error:
-	kfree(ringbuf);
+	intel_ringbuffer_free(ringbuf);
 	ring->buffer = NULL;
 	return ret;
 }
@@ -2098,19 +2161,18 @@ error:
 void intel_cleanup_ring_buffer(struct intel_engine_cs *ring)
 {
 	struct drm_i915_private *dev_priv;
-	struct intel_ringbuffer *ringbuf;
 
 	if (!intel_ring_initialized(ring))
 		return;
 
 	dev_priv = to_i915(ring->dev);
-	ringbuf = ring->buffer;
 
 	intel_stop_ring_buffer(ring);
 	WARN_ON(!IS_GEN2(ring->dev) && (I915_READ_MODE(ring) & MODE_IDLE) == 0);
 
-	intel_unpin_ringbuffer_obj(ringbuf);
-	intel_destroy_ringbuffer_obj(ringbuf);
+	intel_unpin_ringbuffer_obj(ring->buffer);
+	intel_ringbuffer_free(ring->buffer);
+	ring->buffer = NULL;
 
 	if (ring->cleanup)
 		ring->cleanup(ring);
@@ -2119,9 +2181,6 @@ void intel_cleanup_ring_buffer(struct intel_engine_cs *ring)
 
 	i915_cmd_parser_fini_ring(ring);
 	i915_gem_batch_pool_fini(&ring->batch_pool);
-
-	kfree(ringbuf);
-	ring->buffer = NULL;
 }
 
 static int ring_wait_for_space(struct intel_engine_cs *ring, int n)
@@ -2608,6 +2667,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 			GEN8_RING_SEMAPHORE_INIT;
 		}
 	} else if (INTEL_INFO(dev)->gen >= 6) {
+		ring->init_context = intel_rcs_ctx_init;
 		ring->add_request = gen6_add_request;
 		ring->flush = gen7_render_ring_flush;
 		if (INTEL_INFO(dev)->gen == 6)

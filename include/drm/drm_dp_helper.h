@@ -46,7 +46,7 @@
 
 #define DP_AUX_I2C_WRITE		0x0
 #define DP_AUX_I2C_READ			0x1
-#define DP_AUX_I2C_STATUS		0x2
+#define DP_AUX_I2C_WRITE_STATUS_UPDATE	0x2
 #define DP_AUX_I2C_MOT			0x4
 #define DP_AUX_NATIVE_WRITE		0x8
 #define DP_AUX_NATIVE_READ		0x9
@@ -568,6 +568,10 @@
 #define MODE_I2C_READ	4
 #define MODE_I2C_STOP	8
 
+/* DP 1.2 MST PORTs - Section 2.5.1 v1.2a spec */
+#define DP_MST_PHYSICAL_PORT_0 0
+#define DP_MST_LOGICAL_PORT_0 8
+
 #define DP_LINK_STATUS_SIZE	   6
 bool drm_dp_channel_eq_ok(const u8 link_status[DP_LINK_STATUS_SIZE],
 			  int lane_count);
@@ -632,6 +636,13 @@ drm_dp_enhanced_frame_cap(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
 	return dpcd[DP_DPCD_REV] >= 0x11 &&
 		(dpcd[DP_MAX_LANE_COUNT] & DP_ENHANCED_FRAME_CAP);
+}
+
+static inline bool
+drm_dp_tps3_supported(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return dpcd[DP_DPCD_REV] >= 0x12 &&
+		dpcd[DP_MAX_LANE_COUNT] & DP_TPS3_SUPPORTED;
 }
 
 /*

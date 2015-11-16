@@ -26,16 +26,15 @@
 #include <mach/gpio-samsung.h>
 #include "s3c24xx-i2s.h"
 
-static unsigned int rates[] = {
+static const unsigned int rates[] = {
 	11025,
 	22050,
 	44100,
 };
 
-static struct snd_pcm_hw_constraint_list hw_rates = {
+static const struct snd_pcm_hw_constraint_list hw_rates = {
 	.count = ARRAY_SIZE(rates),
 	.list = rates,
-	.mask = 0,
 };
 
 static struct snd_soc_jack hp_jack;

@@ -1138,7 +1138,7 @@ out:
 	return ret;
 }
 
-/* Create accelerometer ressources */
+/* Create accelerometer resources */
 static int applesmc_create_accelerometer(void)
 {
 	struct input_dev *idev;
@@ -1191,7 +1191,7 @@ out:
 	return ret;
 }
 
-/* Release all ressources used by the accelerometer */
+/* Release all resources used by the accelerometer */
 static void applesmc_release_accelerometer(void)
 {
 	if (!smcreg.has_accelerometer)

@@ -551,8 +551,7 @@ static void ecard_check_lockup(struct irq_desc *desc)
 	}
 }
 
-static void
-ecard_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void ecard_irq_handler(struct irq_desc *desc)
 {
 	ecard_t *ec;
 	int called = 0;

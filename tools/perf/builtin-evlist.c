@@ -61,8 +61,8 @@ int cmd_evlist(int argc, const char **argv, const char *prefix __maybe_unused)
 		usage_with_options(evlist_usage, options);
 
 	if (details.event_group && (details.verbose || details.freq)) {
-		pr_err("--group option is not compatible with other options\n");
-		usage_with_options(evlist_usage, options);
+		usage_with_options_msg(evlist_usage, options,
+			"--group option is not compatible with other options\n");
 	}
 
 	return __cmd_evlist(input_name, &details);

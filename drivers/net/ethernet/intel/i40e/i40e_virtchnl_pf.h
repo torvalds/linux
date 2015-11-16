@@ -29,8 +29,6 @@
 
 #include "i40e.h"
 
-#define I40E_MAX_MACVLAN_FILTERS 256
-#define I40E_MAX_VLAN_FILTERS 256
 #define I40E_MAX_VLANID 4095
 
 #define I40E_VIRTCHNL_SUPPORTED_QTYPES 2
@@ -98,7 +96,8 @@ struct i40e_vf {
 
 	u8 num_queue_pairs;	/* num of qps assigned to VF vsis */
 	u64 num_mdd_events;	/* num of mdd events detected */
-	u64 num_invalid_msgs;	/* num of malformed or invalid msgs detected */
+	/* num of continuous malformed or invalid msgs detected */
+	u64 num_invalid_msgs;
 	u64 num_valid_msgs;	/* num of valid msgs detected */
 
 	unsigned long vf_caps;	/* vf's adv. capabilities */

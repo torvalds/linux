@@ -205,7 +205,7 @@ int dlm_launch_recovery_thread(struct dlm_ctxt *dlm)
 	mlog(0, "starting dlm recovery thread...\n");
 
 	dlm->dlm_reco_thread_task = kthread_run(dlm_recovery_thread, dlm,
-						"dlm_reco_thread");
+			"dlm_reco-%s", dlm->name);
 	if (IS_ERR(dlm->dlm_reco_thread_task)) {
 		mlog_errno(PTR_ERR(dlm->dlm_reco_thread_task));
 		dlm->dlm_reco_thread_task = NULL;
@@ -1694,6 +1694,7 @@ int dlm_master_requery_handler(struct o2net_msg *msg, u32 len, void *data,
 	unsigned int hash;
 	int master = DLM_LOCK_RES_OWNER_UNKNOWN;
 	u32 flags = DLM_ASSERT_MASTER_REQUERY;
+	int dispatched = 0;
 
 	if (!dlm_grab(dlm)) {
 		/* since the domain has gone away on this
@@ -1719,9 +1720,11 @@ int dlm_master_requery_handler(struct o2net_msg *msg, u32 len, void *data,
 				dlm_put(dlm);
 				/* sender will take care of this and retry */
 				return ret;
-			} else
+			} else {
+				dispatched = 1;
 				__dlm_lockres_grab_inflight_worker(dlm, res);
-			spin_unlock(&res->spinlock);
+				spin_unlock(&res->spinlock);
+			}
 		} else {
 			/* put.. incase we are not the master */
 			spin_unlock(&res->spinlock);
@@ -1730,7 +1733,8 @@ int dlm_master_requery_handler(struct o2net_msg *msg, u32 len, void *data,
 	}
 	spin_unlock(&dlm->spinlock);
 
-	dlm_put(dlm);
+	if (!dispatched)
+		dlm_put(dlm);
 	return master;
 }
 

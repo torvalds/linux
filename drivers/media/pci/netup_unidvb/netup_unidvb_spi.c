@@ -80,11 +80,9 @@ irqreturn_t netup_spi_interrupt(struct netup_spi *spi)
 	u16 reg;
 	unsigned long flags;
 
-	if (!spi) {
-		dev_dbg(&spi->master->dev,
-			"%s(): SPI not initialized\n", __func__);
+	if (!spi)
 		return IRQ_NONE;
-	}
+
 	spin_lock_irqsave(&spi->lock, flags);
 	reg = readw(&spi->regs->control_stat);
 	if (!(reg & NETUP_SPI_CTRL_IRQ)) {
@@ -234,11 +232,9 @@ void netup_spi_release(struct netup_unidvb_dev *ndev)
 	unsigned long flags;
 	struct netup_spi *spi = ndev->spi;
 
-	if (!spi) {
-		dev_dbg(&spi->master->dev,
-			"%s(): SPI not initialized\n", __func__);
+	if (!spi)
 		return;
-	}
+
 	spin_lock_irqsave(&spi->lock, flags);
 	reg = readw(&spi->regs->control_stat);
 	writew(reg | NETUP_SPI_CTRL_IRQ, &spi->regs->control_stat);

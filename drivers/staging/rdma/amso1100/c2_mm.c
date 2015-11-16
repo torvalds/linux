@@ -164,7 +164,7 @@ send_pbl_messages(struct c2_dev *c2dev, __be32 stag_index,
 	err = c2_errno(reply);
 
 	vq_repbuf_free(c2dev, reply);
-      bail0:
+bail0:
 	kfree(wr);
 	return err;
 }
@@ -304,11 +304,11 @@ c2_nsmr_register_phys_kern(struct c2_dev *c2dev, u64 *addr_list,
 
 	return err;
 
-      bail2:
+bail2:
 	vq_repbuf_free(c2dev, reply);
-      bail1:
+bail1:
 	kfree(wr);
-      bail0:
+bail0:
 	vq_req_free(c2dev, vq_req);
 	return err;
 }
@@ -371,7 +371,7 @@ int c2_stag_dealloc(struct c2_dev *c2dev, u32 stag_index)
 	err = c2_errno(reply);
 
 	vq_repbuf_free(c2dev, reply);
-      bail0:
+bail0:
 	vq_req_free(c2dev, vq_req);
 	return err;
 }

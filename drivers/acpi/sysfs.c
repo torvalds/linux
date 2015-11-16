@@ -878,6 +878,9 @@ int __init acpi_sysfs_init(void)
 		return result;
 
 	hotplug_kobj = kobject_create_and_add("hotplug", acpi_kobj);
+	if (!hotplug_kobj)
+		return -ENOMEM;
+
 	result = sysfs_create_file(hotplug_kobj, &force_remove_attr.attr);
 	if (result)
 		return result;

@@ -69,7 +69,7 @@ static struct irqaction ar2315_ahb_err_interrupt  = {
 	.name		= "ar2315-ahb-error",
 };
 
-static void ar2315_misc_irq_handler(unsigned irq, struct irq_desc *desc)
+static void ar2315_misc_irq_handler(struct irq_desc *desc)
 {
 	u32 pending = ar2315_rst_reg_read(AR2315_ISR) &
 		      ar2315_rst_reg_read(AR2315_IMR);

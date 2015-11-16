@@ -58,7 +58,6 @@ void ll_xattr_fini(void)
 static void ll_xattr_cache_init(struct ll_inode_info *lli)
 {
 
-
 	LASSERT(lli != NULL);
 
 	INIT_LIST_HEAD(&lli->lli_xattrs);
@@ -79,8 +78,6 @@ static int ll_xattr_cache_find(struct list_head *cache,
 			       struct ll_xattr_entry **xattr)
 {
 	struct ll_xattr_entry *entry;
-
-
 
 	list_for_each_entry(entry, cache, xe_list) {
 		/* xattr_name == NULL means look for any entry */
@@ -113,14 +110,12 @@ static int ll_xattr_cache_add(struct list_head *cache,
 {
 	struct ll_xattr_entry *xattr;
 
-
-
 	if (ll_xattr_cache_find(cache, xattr_name, &xattr) == 0) {
 		CDEBUG(D_CACHE, "duplicate xattr: [%s]\n", xattr_name);
 		return -EPROTO;
 	}
 
-	OBD_SLAB_ALLOC_PTR_GFP(xattr, xattr_kmem, GFP_NOFS);
+	xattr = kmem_cache_alloc(xattr_kmem, GFP_NOFS | __GFP_ZERO);
 	if (xattr == NULL) {
 		CDEBUG(D_CACHE, "failed to allocate xattr\n");
 		return -ENOMEM;
@@ -146,7 +141,7 @@ static int ll_xattr_cache_add(struct list_head *cache,
 err_value:
 	kfree(xattr->xe_name);
 err_name:
-	OBD_SLAB_FREE_PTR(xattr, xattr_kmem);
+	kmem_cache_free(xattr_kmem, xattr);
 
 	return -ENOMEM;
 }
@@ -164,15 +159,13 @@ static int ll_xattr_cache_del(struct list_head *cache,
 {
 	struct ll_xattr_entry *xattr;
 
-
-
 	CDEBUG(D_CACHE, "del xattr: %s\n", xattr_name);
 
 	if (ll_xattr_cache_find(cache, xattr_name, &xattr) == 0) {
 		list_del(&xattr->xe_list);
 		kfree(xattr->xe_name);
 		kfree(xattr->xe_value);
-		OBD_SLAB_FREE_PTR(xattr, xattr_kmem);
+		kmem_cache_free(xattr_kmem, xattr);
 
 		return 0;
 	}
@@ -196,8 +189,6 @@ static int ll_xattr_cache_list(struct list_head *cache,
 {
 	struct ll_xattr_entry *xattr, *tmp;
 	int xld_tail = 0;
-
-
 
 	list_for_each_entry_safe(xattr, tmp, cache, xe_list) {
 		CDEBUG(D_CACHE, "list: buffer=%p[%d] name=%s\n",
@@ -240,7 +231,6 @@ static int ll_xattr_cache_valid(struct ll_inode_info *lli)
 static int ll_xattr_cache_destroy_locked(struct ll_inode_info *lli)
 {
 
-
 	if (!ll_xattr_cache_valid(lli))
 		return 0;
 
@@ -255,8 +245,6 @@ int ll_xattr_cache_destroy(struct inode *inode)
 {
 	struct ll_inode_info *lli = ll_i2info(inode);
 	int rc;
-
-
 
 	down_write(&lli->lli_xattrs_list_rwsem);
 	rc = ll_xattr_cache_destroy_locked(lli);
@@ -291,8 +279,6 @@ static int ll_xattr_find_get_lock(struct inode *inode,
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
 	struct obd_export *exp = sbi->ll_md_exp;
 	int rc;
-
-
 
 	mutex_lock(&lli->lli_xattrs_enq_lock);
 	/* inode may have been shrunk and recreated, so data is gone, match lock
@@ -358,8 +344,6 @@ static int ll_xattr_cache_refill(struct inode *inode, struct lookup_intent *oit)
 	struct mdt_body *body;
 	__u32 *xsizes;
 	int rc, i;
-
-
 
 	rc = ll_xattr_find_get_lock(inode, oit, &req);
 	if (rc)
@@ -494,8 +478,6 @@ int ll_xattr_cache_get(struct inode *inode,
 	struct lookup_intent oit = { .it_op = IT_GETXATTR };
 	struct ll_inode_info *lli = ll_i2info(inode);
 	int rc = 0;
-
-
 
 	LASSERT(!!(valid & OBD_MD_FLXATTR) ^ !!(valid & OBD_MD_FLXATTRLS));
 

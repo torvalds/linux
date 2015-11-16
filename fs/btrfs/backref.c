@@ -362,6 +362,12 @@ static int __resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 		goto out;
 	}
 
+	if (btrfs_test_is_dummy_root(root)) {
+		srcu_read_unlock(&fs_info->subvol_srcu, index);
+		ret = -ENOENT;
+		goto out;
+	}
+
 	if (path->search_commit_root)
 		root_level = btrfs_header_level(root->commit_root);
 	else if (time_seq == (u64)-1)
@@ -1828,7 +1834,6 @@ static int iterate_inode_extrefs(u64 inum, struct btrfs_root *fs_root,
 	int found = 0;
 	struct extent_buffer *eb;
 	struct btrfs_inode_extref *extref;
-	struct extent_buffer *leaf;
 	u32 item_size;
 	u32 cur_offset;
 	unsigned long ptr;
@@ -1856,9 +1861,8 @@ static int iterate_inode_extrefs(u64 inum, struct btrfs_root *fs_root,
 		btrfs_set_lock_blocking_rw(eb, BTRFS_READ_LOCK);
 		btrfs_release_path(path);
 
-		leaf = path->nodes[0];
-		item_size = btrfs_item_size_nr(leaf, slot);
-		ptr = btrfs_item_ptr_offset(leaf, slot);
+		item_size = btrfs_item_size_nr(eb, slot);
+		ptr = btrfs_item_ptr_offset(eb, slot);
 		cur_offset = 0;
 
 		while (cur_offset < item_size) {
@@ -1872,7 +1876,7 @@ static int iterate_inode_extrefs(u64 inum, struct btrfs_root *fs_root,
 			if (ret)
 				break;
 
-			cur_offset += btrfs_inode_extref_name_len(leaf, extref);
+			cur_offset += btrfs_inode_extref_name_len(eb, extref);
 			cur_offset += sizeof(*extref);
 		}
 		btrfs_tree_read_unlock_blocking(eb);

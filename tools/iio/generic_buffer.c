@@ -328,6 +328,15 @@ int main(int argc, char **argv)
 			"diag %s\n", dev_dir_name);
 		goto error_free_triggername;
 	}
+	if (!num_channels) {
+		fprintf(stderr,
+			"No channels are enabled, we have nothing to scan.\n");
+		fprintf(stderr, "Enable channels manually in "
+			FORMAT_SCAN_ELEMENTS_DIR
+			"/*_en and try again.\n", dev_dir_name);
+		ret = -ENOENT;
+		goto error_free_triggername;
+	}
 
 	/*
 	 * Construct the directory name for the associated buffer.

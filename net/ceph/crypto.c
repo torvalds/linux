@@ -537,7 +537,7 @@ static int ceph_key_preparse(struct key_preparsed_payload *prep)
 	if (ret < 0)
 		goto err_ckey;
 
-	prep->payload[0] = ckey;
+	prep->payload.data[0] = ckey;
 	prep->quotalen = datalen;
 	return 0;
 
@@ -549,14 +549,14 @@ err:
 
 static void ceph_key_free_preparse(struct key_preparsed_payload *prep)
 {
-	struct ceph_crypto_key *ckey = prep->payload[0];
+	struct ceph_crypto_key *ckey = prep->payload.data[0];
 	ceph_crypto_key_destroy(ckey);
 	kfree(ckey);
 }
 
 static void ceph_key_destroy(struct key *key)
 {
-	struct ceph_crypto_key *ckey = key->payload.data;
+	struct ceph_crypto_key *ckey = key->payload.data[0];
 
 	ceph_crypto_key_destroy(ckey);
 	kfree(ckey);

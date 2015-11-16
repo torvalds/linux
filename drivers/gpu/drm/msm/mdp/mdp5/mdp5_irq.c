@@ -178,7 +178,6 @@ static int mdp5_hw_irqdomain_map(struct irq_domain *d,
 
 	irq_set_chip_and_handler(irq, &mdp5_hw_irq_chip, handle_level_irq);
 	irq_set_chip_data(irq, mdp5_kms);
-	set_irq_flags(irq, IRQF_VALID);
 
 	return 0;
 }

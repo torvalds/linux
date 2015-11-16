@@ -100,6 +100,7 @@ void pcibios_free_controller(struct pci_controller *phb)
 	if (phb->is_dynamic)
 		kfree(phb);
 }
+EXPORT_SYMBOL_GPL(pcibios_free_controller);
 
 /*
  * The function is used to return the minimal alignment
@@ -1032,7 +1033,13 @@ void pcibios_set_master(struct pci_dev *dev)
 
 void pcibios_fixup_bus(struct pci_bus *bus)
 {
-	/* Fixup the bus */
+	/* When called from the generic PCI probe, read PCI<->PCI bridge
+	 * bases. This is -not- called when generating the PCI tree from
+	 * the OF device-tree.
+	 */
+	pci_read_bridge_bases(bus);
+
+	/* Now fixup the bus bus */
 	pcibios_setup_bus_self(bus);
 
 	/* Now fixup devices on that bus */

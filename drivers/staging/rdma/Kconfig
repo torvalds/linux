@@ -1,5 +1,5 @@
 menuconfig STAGING_RDMA
-        bool "RDMA staging drivers"
+        tristate "RDMA staging drivers"
 	depends on INFINIBAND
 	depends on PCI || BROKEN
 	depends on HAS_IOMEM
@@ -23,6 +23,8 @@ menuconfig STAGING_RDMA
 if STAGING_RDMA
 
 source "drivers/staging/rdma/amso1100/Kconfig"
+
+source "drivers/staging/rdma/ehca/Kconfig"
 
 source "drivers/staging/rdma/hfi1/Kconfig"
 

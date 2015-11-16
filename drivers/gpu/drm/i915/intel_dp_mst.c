@@ -39,8 +39,8 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 	struct drm_atomic_state *state;
 	int bpp, i;
-	int lane_count, slots, rate;
-	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
+	int lane_count, slots;
+	const struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	struct drm_connector *drm_connector;
 	struct intel_connector *connector, *found = NULL;
 	struct drm_connector_state *connector_state;
@@ -56,20 +56,11 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	 */
 	lane_count = drm_dp_max_lane_count(intel_dp->dpcd);
 
-	rate = intel_dp_max_link_rate(intel_dp);
 
-	if (intel_dp->num_sink_rates) {
-		intel_dp->link_bw = 0;
-		intel_dp->rate_select = intel_dp_rate_select(intel_dp, rate);
-	} else {
-		intel_dp->link_bw = drm_dp_link_rate_to_bw_code(rate);
-		intel_dp->rate_select = 0;
-	}
-
-	intel_dp->lane_count = lane_count;
+	pipe_config->lane_count = lane_count;
 
 	pipe_config->pipe_bpp = 24;
-	pipe_config->port_clock = rate;
+	pipe_config->port_clock = intel_dp_max_link_rate(intel_dp);
 
 	state = pipe_config->base.state;
 
@@ -87,7 +78,7 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 		return false;
 	}
 
-	mst_pbn = drm_dp_calc_pbn_mode(adjusted_mode->clock, bpp);
+	mst_pbn = drm_dp_calc_pbn_mode(adjusted_mode->crtc_clock, bpp);
 
 	pipe_config->pbn = mst_pbn;
 	slots = drm_dp_find_vcpi_slots(&intel_dp->mst_mgr, mst_pbn);
@@ -184,6 +175,8 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder)
 	if (intel_dp->active_mst_links == 0) {
 		enum port port = intel_ddi_get_encoder_port(encoder);
 
+		intel_dp_set_link_params(intel_dp, intel_crtc->config);
+
 		/* FIXME: add support for SKL */
 		if (INTEL_INFO(dev)->gen < 9)
 			I915_WRITE(PORT_CLK_SEL(port),
@@ -195,7 +188,6 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder)
 
 
 		intel_dp_start_link_train(intel_dp);
-		intel_dp_complete_link_train(intel_dp);
 		intel_dp_stop_link_train(intel_dp);
 	}
 
@@ -286,6 +278,10 @@ static void intel_dp_mst_enc_get_config(struct intel_encoder *encoder,
 		break;
 	}
 	pipe_config->base.adjusted_mode.flags |= flags;
+
+	pipe_config->lane_count =
+		((temp & DDI_PORT_WIDTH_MASK) >> DDI_PORT_WIDTH_SHIFT) + 1;
+
 	intel_dp_get_m_n(crtc, pipe_config);
 
 	intel_ddi_clock_get(&intel_dig_port->base, pipe_config);
@@ -462,11 +458,17 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 	drm_object_attach_property(&connector->base, dev->mode_config.tile_property, 0);
 
 	drm_mode_connector_set_path_property(connector, pathprop);
+	return connector;
+}
+
+static void intel_dp_register_mst_connector(struct drm_connector *connector)
+{
+	struct intel_connector *intel_connector = to_intel_connector(connector);
+	struct drm_device *dev = connector->dev;
 	drm_modeset_lock_all(dev);
 	intel_connector_add_to_fbdev(intel_connector);
 	drm_modeset_unlock_all(dev);
 	drm_connector_register(&intel_connector->base);
-	return connector;
 }
 
 static void intel_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
@@ -512,6 +514,7 @@ static void intel_dp_mst_hotplug(struct drm_dp_mst_topology_mgr *mgr)
 
 static struct drm_dp_mst_topology_cbs mst_cbs = {
 	.add_connector = intel_dp_add_mst_connector,
+	.register_connector = intel_dp_register_mst_connector,
 	.destroy_connector = intel_dp_destroy_mst_connector,
 	.hotplug = intel_dp_mst_hotplug,
 };

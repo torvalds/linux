@@ -264,7 +264,6 @@ static const struct of_device_id pl022_dummy_dt_match[] = {
 static struct spi_driver pl022_dummy_driver = {
 	.driver = {
 		.name	= "spi-dummy",
-		.owner	= THIS_MODULE,
 		.of_match_table = pl022_dummy_dt_match,
 	},
 	.probe	= pl022_dummy_probe,

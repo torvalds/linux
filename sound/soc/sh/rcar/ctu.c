@@ -35,7 +35,7 @@ static int rsnd_ctu_init(struct rsnd_mod *mod,
 			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
-	rsnd_mod_hw_start(mod);
+	rsnd_mod_power_on(mod);
 
 	rsnd_ctu_initialize_lock(mod);
 
@@ -50,7 +50,7 @@ static int rsnd_ctu_quit(struct rsnd_mod *mod,
 			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
-	rsnd_mod_hw_stop(mod);
+	rsnd_mod_power_off(mod);
 
 	return 0;
 }
@@ -66,7 +66,7 @@ struct rsnd_mod *rsnd_ctu_mod_get(struct rsnd_priv *priv, int id)
 	if (WARN_ON(id < 0 || id >= rsnd_ctu_nr(priv)))
 		id = 0;
 
-	return &((struct rsnd_ctu *)(priv->ctu) + id)->mod;
+	return rsnd_mod_get((struct rsnd_ctu *)(priv->ctu) + id);
 }
 
 static void rsnd_of_parse_ctu(struct platform_device *pdev,
@@ -118,10 +118,8 @@ int rsnd_ctu_probe(struct platform_device *pdev,
 	int i, nr, ret;
 
 	/* This driver doesn't support Gen1 at this point */
-	if (rsnd_is_gen1(priv)) {
-		dev_warn(dev, "CTU is not supported on Gen1\n");
-		return -EINVAL;
-	}
+	if (rsnd_is_gen1(priv))
+		return 0;
 
 	rsnd_of_parse_ctu(pdev, of_data, priv);
 
@@ -150,7 +148,7 @@ int rsnd_ctu_probe(struct platform_device *pdev,
 
 		ctu->info = &info->ctu_info[i];
 
-		ret = rsnd_mod_init(priv, &ctu->mod, &rsnd_ctu_ops,
+		ret = rsnd_mod_init(priv, rsnd_mod_get(ctu), &rsnd_ctu_ops,
 				    clk, RSND_MOD_CTU, i);
 		if (ret)
 			return ret;
@@ -166,6 +164,6 @@ void rsnd_ctu_remove(struct platform_device *pdev,
 	int i;
 
 	for_each_rsnd_ctu(ctu, priv, i) {
-		rsnd_mod_quit(&ctu->mod);
+		rsnd_mod_quit(rsnd_mod_get(ctu));
 	}
 }

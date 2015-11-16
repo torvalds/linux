@@ -29,6 +29,7 @@ struct gic_pcpu_mask {
 	DECLARE_BITMAP(pcpu_mask, GIC_MAX_INTRS);
 };
 
+static unsigned long __gic_base_addr;
 static void __iomem *gic_base;
 static struct gic_pcpu_mask pcpu_masks[NR_CPUS];
 static DEFINE_SPINLOCK(gic_lock);
@@ -301,6 +302,17 @@ int gic_get_c0_fdc_int(void)
 				  GIC_LOCAL_TO_HWIRQ(GIC_LOCAL_INT_FDC));
 }
 
+int gic_get_usm_range(struct resource *gic_usm_res)
+{
+	if (!gic_present)
+		return -1;
+
+	gic_usm_res->start = __gic_base_addr + USM_VISIBLE_SECTION_OFS;
+	gic_usm_res->end = gic_usm_res->start + (USM_VISIBLE_SECTION_SIZE - 1);
+
+	return 0;
+}
+
 static void gic_handle_shared_int(bool chained)
 {
 	unsigned int i, intr, virq, gic_reg_step = mips_cm_is64 ? 8 : 4;
@@ -318,6 +330,14 @@ static void gic_handle_shared_int(bool chained)
 	for (i = 0; i < BITS_TO_LONGS(gic_shared_intrs); i++) {
 		pending[i] = gic_read(pending_reg);
 		intrmask[i] = gic_read(intrmask_reg);
+		pending_reg += gic_reg_step;
+		intrmask_reg += gic_reg_step;
+
+		if (!config_enabled(CONFIG_64BIT) || mips_cm_is64)
+			continue;
+
+		pending[i] |= (u64)gic_read(pending_reg) << 32;
+		intrmask[i] |= (u64)gic_read(intrmask_reg) << 32;
 		pending_reg += gic_reg_step;
 		intrmask_reg += gic_reg_step;
 	}
@@ -426,7 +446,7 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *cpumask,
 	spin_lock_irqsave(&gic_lock, flags);
 
 	/* Re-route this IRQ */
-	gic_map_to_vpe(irq, cpumask_first(&tmp));
+	gic_map_to_vpe(irq, mips_cm_vp_id(cpumask_first(&tmp)));
 
 	/* Update the pcpu_masks */
 	for (i = 0; i < NR_CPUS; i++)
@@ -546,7 +566,7 @@ static void __gic_irq_dispatch(void)
 	gic_handle_shared_int(false);
 }
 
-static void gic_irq_dispatch(unsigned int irq, struct irq_desc *desc)
+static void gic_irq_dispatch(struct irq_desc *desc)
 {
 	gic_handle_local_int(true);
 	gic_handle_shared_int(true);
@@ -599,7 +619,7 @@ static __init void gic_ipi_init_one(unsigned int intr, int cpu,
 				      GIC_SHARED_TO_HWIRQ(intr));
 	int i;
 
-	gic_map_to_vpe(intr, cpu);
+	gic_map_to_vpe(intr, mips_cm_vp_id(cpu));
 	for (i = 0; i < NR_CPUS; i++)
 		clear_bit(intr, pcpu_masks[i].pcpu_mask);
 	set_bit(intr, pcpu_masks[cpu].pcpu_mask);
@@ -789,6 +809,8 @@ static void __init __gic_init(unsigned long gic_base_addr,
 			      struct device_node *node)
 {
 	unsigned int gicconfig;
+
+	__gic_base_addr = gic_base_addr;
 
 	gic_base = ioremap_nocache(gic_base_addr, gic_addrspace_size);
 

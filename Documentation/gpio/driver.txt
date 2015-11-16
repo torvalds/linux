@@ -62,6 +62,11 @@ Any debugfs dump method should normally ignore signals which haven't been
 requested as GPIOs. They can use gpiochip_is_requested(), which returns either
 NULL or the label associated with that GPIO when it was requested.
 
+RT_FULL: GPIO driver should not use spinlock_t or any sleepable APIs
+(like PM runtime) in its gpio_chip implementation (.get/.set and direction
+control callbacks) if it is expected to call GPIO APIs from atomic context
+on -RT (inside hard IRQ handlers and similar contexts). Normally this should
+not be required.
 
 GPIO drivers providing IRQs
 ---------------------------
@@ -72,6 +77,13 @@ cases the GPIO logic is melded with a SoC's primary interrupt controller.
 The IRQ portions of the GPIO block are implemented using an irqchip, using
 the header <linux/irq.h>. So basically such a driver is utilizing two sub-
 systems simultaneously: gpio and irq.
+
+RT_FULL: GPIO driver should not use spinlock_t or any sleepable APIs
+(like PM runtime) as part of its irq_chip implementation on -RT.
+- spinlock_t should be replaced with raw_spinlock_t [1].
+- If sleepable APIs have to be used, these can be done from the .irq_bus_lock()
+  and .irq_bus_unlock() callbacks, as these are the only slowpath callbacks
+  on an irqchip. Create the callbacks if needed [2].
 
 GPIO irqchips usually fall in one of two categories:
 
@@ -92,6 +104,38 @@ GPIO irqchips usually fall in one of two categories:
 
   Chained GPIO irqchips typically can NOT set the .can_sleep flag on
   struct gpio_chip, as everything happens directly in the callbacks.
+
+  RT_FULL: Note, chained IRQ handlers will not be forced threaded on -RT.
+  As result, spinlock_t or any sleepable APIs (like PM runtime) can't be used
+  in chained IRQ handler.
+  if required (and if it can't be converted to the nested threaded GPIO irqchip)
+  - chained IRQ handler can be converted to generic irq handler and this way
+  it will be threaded IRQ handler on -RT and hard IRQ handler on non-RT
+  (for example, see [3]).
+  Know W/A: The generic_handle_irq() is expected to be called with IRQ disabled,
+  so IRQ core will complain if it will be called from IRQ handler wich is forced
+  thread. The "fake?" raw lock can be used to W/A this problem:
+
+	raw_spinlock_t wa_lock;
+	static irqreturn_t omap_gpio_irq_handler(int irq, void *gpiobank)
+		unsigned long wa_lock_flags;
+		raw_spin_lock_irqsave(&bank->wa_lock, wa_lock_flags);
+		generic_handle_irq(irq_find_mapping(bank->chip.irqdomain, bit));
+		raw_spin_unlock_irqrestore(&bank->wa_lock, wa_lock_flags);
+
+* GENERIC CHAINED GPIO irqchips: these are the same as "CHAINED GPIO irqchips",
+  but chained IRQ handlers are not used. Instead GPIO IRQs dispatching is
+  performed by generic IRQ handler which is configured using request_irq().
+  The GPIO irqchip will then end up calling something like this sequence in
+  its interrupt handler:
+
+  static irqreturn_t gpio_rcar_irq_handler(int irq, void *dev_id)
+	for each detected GPIO IRQ
+		generic_handle_irq(...);
+
+  RT_FULL: Such kind of handlers will be forced threaded on -RT, as result IRQ
+  core will complain that generic_handle_irq() is called with IRQ enabled and
+  the same W/A as for "CHAINED GPIO irqchips" can be applied.
 
 * NESTED THREADED GPIO irqchips: these are off-chip GPIO expanders and any
   other GPIO irqchip residing on the other side of a sleeping bus. Of course
@@ -133,6 +177,13 @@ To use the helpers please keep the following in mind:
   the irqchip can initialize. E.g. .dev and .can_sleep shall be set up
   properly.
 
+- Nominally set all handlers to handle_bad_irq() in the setup call and pass
+  handle_bad_irq() as flow handler parameter in gpiochip_irqchip_add() if it is
+  expected for GPIO driver that irqchip .set_type() callback have to be called
+  before using/enabling GPIO IRQ. Then set the handler to handle_level_irq()
+  and/or handle_edge_irq() in the irqchip .set_type() callback depending on
+  what your controller supports.
+
 It is legal for any IRQ consumer to request an IRQ from any irqchip no matter
 if that is a combined GPIO+IRQ driver. The basic premise is that gpio_chip and
 irq_chip are orthogonal, and offering their services independent of each
@@ -169,6 +220,31 @@ When implementing an irqchip inside a GPIO driver, these two functions should
 typically be called in the .startup() and .shutdown() callbacks from the
 irqchip.
 
+Real-Time compliance for GPIO IRQ chips
+---------------------------------------
+
+Any provider of irqchips needs to be carefully tailored to support Real Time
+preemption. It is desireable that all irqchips in the GPIO subsystem keep this
+in mind and does the proper testing to assure they are real time-enabled.
+So, pay attention on above " RT_FULL:" notes, please.
+The following is a checklist to follow when preparing a driver for real
+time-compliance:
+
+- ensure spinlock_t is not used as part irq_chip implementation;
+- ensure that sleepable APIs are not used as part irq_chip implementation.
+  If sleepable APIs have to be used, these can be done from the .irq_bus_lock()
+  and .irq_bus_unlock() callbacks;
+- Chained GPIO irqchips: ensure spinlock_t or any sleepable APIs are not used
+  from chained IRQ handler;
+- Generic chained GPIO irqchips: take care about generic_handle_irq() calls and
+  apply corresponding W/A;
+- Chained GPIO irqchips: get rid of chained IRQ handler and use generic irq
+  handler if possible :)
+- regmap_mmio: Sry, but you are in trouble :( if MMIO regmap is used as for
+  GPIO IRQ chip implementation;
+- Test your driver with the appropriate in-kernel real time test cases for both
+  level and edge IRQs.
+
 
 Requesting self-owned GPIO pins
 -------------------------------
@@ -190,3 +266,7 @@ gpiochip_free_own_desc().
 These functions must be used with care since they do not affect module use
 count. Do not use the functions to request gpio descriptors not owned by the
 calling driver.
+
+[1] http://www.spinics.net/lists/linux-omap/msg120425.html
+[2] https://lkml.org/lkml/2015/9/25/494
+[3] https://lkml.org/lkml/2015/9/25/495

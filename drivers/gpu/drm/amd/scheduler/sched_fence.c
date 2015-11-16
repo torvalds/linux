@@ -36,7 +36,7 @@ struct amd_sched_fence *amd_sched_fence_create(struct amd_sched_entity *s_entity
 	if (fence == NULL)
 		return NULL;
 	fence->owner = owner;
-	fence->scheduler = s_entity->scheduler;
+	fence->sched = s_entity->sched;
 	spin_lock_init(&fence->lock);
 
 	seq = atomic_inc_return(&s_entity->fence_seq);
@@ -63,7 +63,7 @@ static const char *amd_sched_fence_get_driver_name(struct fence *fence)
 static const char *amd_sched_fence_get_timeline_name(struct fence *f)
 {
 	struct amd_sched_fence *fence = to_amd_sched_fence(f);
-	return (const char *)fence->scheduler->name;
+	return (const char *)fence->sched->name;
 }
 
 static bool amd_sched_fence_enable_signaling(struct fence *f)

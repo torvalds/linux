@@ -59,7 +59,7 @@ cgroups. Here is what you can do.
 - At macro level, first dd should finish first. To get more precise data, keep
   on looking at (with the help of script), at blkio.disk_time and
   blkio.disk_sectors files of both test1 and test2 groups. This will tell how
-  much disk time (in milli seconds), each group got and how many secotors each
+  much disk time (in milliseconds), each group got and how many sectors each
   group dispatched to the disk. We provide fairness in terms of disk time, so
   ideally io.disk_time of cgroups should be in proportion to the weight.
 

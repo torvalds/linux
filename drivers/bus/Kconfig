@@ -36,7 +36,6 @@ config ARM_CCI400_PORT_CTRL
 
 config ARM_CCI500_PMU
 	bool "ARM CCI500 PMU support"
-	default y
 	depends on (ARM && CPU_V7) || ARM64
 	depends on PERF_EVENTS
 	select ARM_CCI_PMU
@@ -120,6 +119,17 @@ config SIMPLE_PM_BUS
 	  An example of such a bus controller is the Renesas Bus State
 	  Controller (BSC, sometimes called "LBSC within Bus Bridge", or
 	  "External Bus Interface") as found on several Renesas ARM SoCs.
+
+config SUNXI_RSB
+	tristate "Allwinner sunXi Reduced Serial Bus Driver"
+	  default MACH_SUN8I || MACH_SUN9I
+	  depends on ARCH_SUNXI
+	  select REGMAP
+	  help
+	  Say y here to enable support for Allwinner's Reduced Serial Bus
+	  (RSB) support. This controller is responsible for communicating
+	  with various RSB based devices, such as AXP223, AXP8XX PMICs,
+	  and AC100/AC200 ICs.
 
 config VEXPRESS_CONFIG
 	bool "Versatile Express configuration bus"

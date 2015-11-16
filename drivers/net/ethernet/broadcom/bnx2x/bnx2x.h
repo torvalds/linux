@@ -1946,6 +1946,7 @@ struct bnx2x {
 	u16 vlan_cnt;
 	u16 vlan_credit;
 	u16 vxlan_dst_port;
+	u8 vxlan_dst_port_count;
 	bool accept_any_vlan;
 };
 

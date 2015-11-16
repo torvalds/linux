@@ -1426,7 +1426,7 @@ found:
 			    nh->nh_flags & RTNH_F_LINKDOWN &&
 			    !(fib_flags & FIB_LOOKUP_IGNORE_LINKSTATE))
 				continue;
-			if (!(flp->flowi4_flags & FLOWI_FLAG_VRFSRC)) {
+			if (!(flp->flowi4_flags & FLOWI_FLAG_SKIP_NH_OIF)) {
 				if (flp->flowi4_oif &&
 				    flp->flowi4_oif != nh->nh_oif)
 					continue;
@@ -1569,7 +1569,7 @@ static struct key_vector *leaf_walk_rcu(struct key_vector **tn, t_key key)
 	do {
 		/* record parent and next child index */
 		pn = n;
-		cindex = key ? get_index(key, pn) : 0;
+		cindex = (key > pn->key) ? get_index(key, pn) : 0;
 
 		if (cindex >> pn->bits)
 			break;

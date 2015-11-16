@@ -10,6 +10,7 @@ Required properties:
 			- "renesas,iic-r8a7792" (R-Car V2H)
 			- "renesas,iic-r8a7793" (R-Car M2-N)
 			- "renesas,iic-r8a7794" (R-Car E2)
+			- "renesas,iic-r8a7795" (R-Car H3)
 			- "renesas,iic-sh73a0" (SH-Mobile AG5)
 - reg             : address start and address range size of device
 - interrupts      : interrupt of device

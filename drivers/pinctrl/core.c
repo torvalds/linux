@@ -349,6 +349,9 @@ static bool pinctrl_ready_for_gpio_range(unsigned gpio)
 	struct pinctrl_gpio_range *range = NULL;
 	struct gpio_chip *chip = gpio_to_chip(gpio);
 
+	if (WARN(!chip, "no gpio_chip for gpio%i?", gpio))
+		return false;
+
 	mutex_lock(&pinctrldev_list_mutex);
 
 	/* Loop over the pin controllers */
@@ -1236,6 +1239,38 @@ int pinctrl_force_default(struct pinctrl_dev *pctldev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pinctrl_force_default);
+
+/**
+ * pinctrl_init_done() - tell pinctrl probe is done
+ *
+ * We'll use this time to switch the pins from "init" to "default" unless the
+ * driver selected some other state.
+ *
+ * @dev: device to that's done probing
+ */
+int pinctrl_init_done(struct device *dev)
+{
+	struct dev_pin_info *pins = dev->pins;
+	int ret;
+
+	if (!pins)
+		return 0;
+
+	if (IS_ERR(pins->init_state))
+		return 0; /* No such state */
+
+	if (pins->p->state != pins->init_state)
+		return 0; /* Not at init anyway */
+
+	if (IS_ERR(pins->default_state))
+		return 0; /* No default state */
+
+	ret = pinctrl_select_state(pins->p, pins->default_state);
+	if (ret)
+		dev_err(dev, "failed to activate default pinctrl state\n");
+
+	return ret;
+}
 
 #ifdef CONFIG_PM
 

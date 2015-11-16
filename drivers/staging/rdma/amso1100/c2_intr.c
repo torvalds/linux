@@ -122,7 +122,7 @@ static void handle_vq(struct c2_dev *c2dev, u32 mq_index)
 	struct iw_cm_event cm_event;
 	int err;
 
-	reply_vq = (struct c2_mq *) c2dev->qptr_array[mq_index];
+	reply_vq = c2dev->qptr_array[mq_index];
 
 	/*
 	 * get next msg from mq_index into adapter_msg.

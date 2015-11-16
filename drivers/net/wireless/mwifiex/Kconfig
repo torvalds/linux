@@ -33,12 +33,12 @@ config MWIFIEX_PCIE
 	  mwifiex_pcie.
 
 config MWIFIEX_USB
-	tristate "Marvell WiFi-Ex Driver for USB8766/8797/8897/8997"
+	tristate "Marvell WiFi-Ex Driver for USB8766/8797/8997"
 	depends on MWIFIEX && USB
 	select FW_LOADER
 	---help---
 	  This adds support for wireless adapters based on Marvell
-	  8797/8897/8997 chipset with USB interface.
+	  8797/8997 chipset with USB interface.
 
 	  If you choose to build it as a module, it will be called
 	  mwifiex_usb.

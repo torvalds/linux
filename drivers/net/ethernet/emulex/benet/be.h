@@ -582,6 +582,7 @@ struct be_adapter {
 	u16 pvid;
 	__be16 vxlan_port;
 	int vxlan_port_count;
+	int vxlan_port_aliases;
 	struct phy_info phy;
 	u8 wol_cap;
 	bool wol_en;
@@ -591,6 +592,7 @@ struct be_adapter {
 	int be_get_temp_freq;
 	struct be_hwmon hwmon_info;
 	u8 pf_number;
+	u8 pci_func_num;
 	struct rss_info rss_info;
 	/* Filters for packets that need to be sent to BMC */
 	u32 bmc_filt_mask;

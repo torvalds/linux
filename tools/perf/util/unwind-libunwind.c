@@ -330,6 +330,7 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 	struct map *map;
 	unw_dyn_info_t di;
 	u64 table_data, segbase, fde_count;
+	int ret = -EINVAL;
 
 	map = find_map(ip, ui);
 	if (!map || !map->dso)
@@ -348,29 +349,33 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 		di.u.rti.table_data = map->start + table_data;
 		di.u.rti.table_len  = fde_count * sizeof(struct table_entry)
 				      / sizeof(unw_word_t);
-		return dwarf_search_unwind_table(as, ip, &di, pi,
-						 need_unwind_info, arg);
+		ret = dwarf_search_unwind_table(as, ip, &di, pi,
+						need_unwind_info, arg);
 	}
 
 #ifndef NO_LIBUNWIND_DEBUG_FRAME
 	/* Check the .debug_frame section for unwinding info */
-	if (!read_unwind_spec_debug_frame(map->dso, ui->machine, &segbase)) {
+	if (ret < 0 &&
+	    !read_unwind_spec_debug_frame(map->dso, ui->machine, &segbase)) {
 		int fd = dso__data_get_fd(map->dso, ui->machine);
 		int is_exec = elf_is_exec(fd, map->dso->name);
 		unw_word_t base = is_exec ? 0 : map->start;
+		const char *symfile;
 
 		if (fd >= 0)
 			dso__data_put_fd(map->dso);
 
+		symfile = map->dso->symsrc_filename ?: map->dso->name;
+
 		memset(&di, 0, sizeof(di));
-		if (dwarf_find_debug_frame(0, &di, ip, base, map->dso->name,
+		if (dwarf_find_debug_frame(0, &di, ip, base, symfile,
 					   map->start, map->end))
 			return dwarf_search_unwind_table(as, ip, &di, pi,
 							 need_unwind_info, arg);
 	}
 #endif
 
-	return -EINVAL;
+	return ret;
 }
 
 static int access_fpreg(unw_addr_space_t __maybe_unused as,
@@ -461,7 +466,7 @@ static int access_mem(unw_addr_space_t __maybe_unused as,
 		if (ret) {
 			pr_debug("unwind: access_mem %p not inside range"
 				 " 0x%" PRIx64 "-0x%" PRIx64 "\n",
-				 (void *) addr, start, end);
+				 (void *) (uintptr_t) addr, start, end);
 			*valp = 0;
 			return ret;
 		}
@@ -471,7 +476,7 @@ static int access_mem(unw_addr_space_t __maybe_unused as,
 	offset = addr - start;
 	*valp  = *(unw_word_t *)&stack->data[offset];
 	pr_debug("unwind: access_mem addr %p val %lx, offset %d\n",
-		 (void *) addr, (unsigned long)*valp, offset);
+		 (void *) (uintptr_t) addr, (unsigned long)*valp, offset);
 	return 0;
 }
 
