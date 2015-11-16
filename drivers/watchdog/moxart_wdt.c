@@ -15,9 +15,7 @@
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
-#include <linux/notifier.h>
 #include <linux/platform_device.h>
-#include <linux/reboot.h>
 #include <linux/watchdog.h>
 #include <linux/moduleparam.h>
 
@@ -29,22 +27,19 @@ struct moxart_wdt_dev {
 	struct watchdog_device dev;
 	void __iomem *base;
 	unsigned int clock_frequency;
-	struct notifier_block restart_handler;
 };
 
 static int heartbeat;
 
-static int moxart_restart_handle(struct notifier_block *this,
-				 unsigned long mode, void *cmd)
+static int moxart_wdt_restart(struct watchdog_device *wdt_dev)
 {
-	struct moxart_wdt_dev *moxart_wdt = container_of(this,
-							 struct moxart_wdt_dev,
-							 restart_handler);
+	struct moxart_wdt_dev *moxart_wdt = watchdog_get_drvdata(wdt_dev);
+
 	writel(1, moxart_wdt->base + REG_COUNT);
 	writel(0x5ab9, moxart_wdt->base + REG_MODE);
 	writel(0x03, moxart_wdt->base + REG_ENABLE);
 
-	return NOTIFY_DONE;
+	return 0;
 }
 
 static int moxart_wdt_stop(struct watchdog_device *wdt_dev)
@@ -87,6 +82,7 @@ static const struct watchdog_ops moxart_wdt_ops = {
 	.start          = moxart_wdt_start,
 	.stop           = moxart_wdt_stop,
 	.set_timeout    = moxart_wdt_set_timeout,
+	.restart        = moxart_wdt_restart,
 };
 
 static int moxart_wdt_probe(struct platform_device *pdev)
@@ -134,19 +130,13 @@ static int moxart_wdt_probe(struct platform_device *pdev)
 
 	watchdog_init_timeout(&moxart_wdt->dev, heartbeat, dev);
 	watchdog_set_nowayout(&moxart_wdt->dev, nowayout);
+	watchdog_set_restart_priority(&moxart_wdt->dev, 128);
 
 	watchdog_set_drvdata(&moxart_wdt->dev, moxart_wdt);
 
 	err = watchdog_register_device(&moxart_wdt->dev);
 	if (err)
 		return err;
-
-	moxart_wdt->restart_handler.notifier_call = moxart_restart_handle;
-	moxart_wdt->restart_handler.priority = 128;
-	err = register_restart_handler(&moxart_wdt->restart_handler);
-	if (err)
-		dev_err(dev, "cannot register restart notifier (err=%d)\n",
-			err);
 
 	dev_dbg(dev, "Watchdog enabled (heartbeat=%d sec, nowayout=%d)\n",
 		moxart_wdt->dev.timeout, nowayout);
@@ -158,7 +148,6 @@ static int moxart_wdt_remove(struct platform_device *pdev)
 {
 	struct moxart_wdt_dev *moxart_wdt = platform_get_drvdata(pdev);
 
-	unregister_restart_handler(&moxart_wdt->restart_handler);
 	moxart_wdt_stop(&moxart_wdt->dev);
 
 	return 0;
