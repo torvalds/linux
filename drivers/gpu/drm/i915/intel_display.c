@@ -4239,6 +4239,7 @@ struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc,
 	struct intel_shared_dpll *pll;
 	struct intel_shared_dpll_config *shared_dpll;
 	enum intel_dpll_id i;
+	int max = dev_priv->num_shared_dpll;
 
 	shared_dpll = intel_atomic_get_shared_dpll_state(crtc_state->base.state);
 
@@ -4273,9 +4274,11 @@ struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc,
 		WARN_ON(shared_dpll[i].crtc_mask);
 
 		goto found;
-	}
+	} else if (INTEL_INFO(dev_priv)->gen < 9 && HAS_DDI(dev_priv))
+		/* Do not consider SPLL */
+		max = 2;
 
-	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
+	for (i = 0; i < max; i++) {
 		pll = &dev_priv->shared_dplls[i];
 
 		/* Only want to check enabled timings first */
@@ -9725,6 +9728,8 @@ static void haswell_get_ddi_pll(struct drm_i915_private *dev_priv,
 	case PORT_CLK_SEL_WRPLL2:
 		pipe_config->shared_dpll = DPLL_ID_WRPLL2;
 		break;
+	case PORT_CLK_SEL_SPLL:
+		pipe_config->shared_dpll = DPLL_ID_SPLL;
 	}
 }
 
@@ -12005,9 +12010,10 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 			      pipe_config->dpll_hw_state.cfgcr1,
 			      pipe_config->dpll_hw_state.cfgcr2);
 	} else if (HAS_DDI(dev)) {
-		DRM_DEBUG_KMS("ddi_pll_sel: %u; dpll_hw_state: wrpll: 0x%x\n",
+		DRM_DEBUG_KMS("ddi_pll_sel: %u; dpll_hw_state: wrpll: 0x%x spll: 0x%x\n",
 			      pipe_config->ddi_pll_sel,
-			      pipe_config->dpll_hw_state.wrpll);
+			      pipe_config->dpll_hw_state.wrpll,
+			      pipe_config->dpll_hw_state.spll);
 	} else {
 		DRM_DEBUG_KMS("dpll_hw_state: dpll: 0x%x, dpll_md: 0x%x, "
 			      "fp0: 0x%x, fp1: 0x%x\n",
@@ -12530,6 +12536,7 @@ intel_pipe_config_compare(struct drm_device *dev,
 	PIPE_CONF_CHECK_X(dpll_hw_state.fp0);
 	PIPE_CONF_CHECK_X(dpll_hw_state.fp1);
 	PIPE_CONF_CHECK_X(dpll_hw_state.wrpll);
+	PIPE_CONF_CHECK_X(dpll_hw_state.spll);
 	PIPE_CONF_CHECK_X(dpll_hw_state.ctrl1);
 	PIPE_CONF_CHECK_X(dpll_hw_state.cfgcr1);
 	PIPE_CONF_CHECK_X(dpll_hw_state.cfgcr2);
