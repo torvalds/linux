@@ -86,7 +86,7 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 		prob = MINSTREL_TRUNC(mrs->cur_prob * 1000);
 		eprob = MINSTREL_TRUNC(mrs->prob_ewma * 1000);
 
-		p += sprintf(p, "%4u.%1u   %4u.%1u   %3u.%1u    %3u.%1u"
+		p += sprintf(p, "%4u.%1u    %4u.%1u     %3u.%1u    %3u.%1u"
 				"     %3u.%1u %3u   %3u %-3u   "
 				"%9llu   %-9llu\n",
 				tp_max / 10, tp_max % 10,
@@ -129,12 +129,10 @@ minstrel_ht_stats_open(struct inode *inode, struct file *file)
 	p = ms->buf;
 
 	p += sprintf(p, "\n");
-	p += sprintf(p, "              best   ____________rate__________    "
-			"______statistics______    ________last_______    "
-			"______sum-of________\n");
-	p += sprintf(p, "mode guard #  rate  [name   idx airtime  max_tp]  "
-			"[ ø(tp) ø(prob) sd(prob)]  [prob.|retry|suc|att]  [#success | "
-			"#attempts]\n");
+	p += sprintf(p,
+		     "              best   ____________rate__________    ________statistics________    ________last_______    ______sum-of________\n");
+	p += sprintf(p,
+		     "mode guard #  rate  [name   idx airtime  max_tp]  [avg(tp) avg(prob) sd(prob)]  [prob.|retry|suc|att]  [#success | #attempts]\n");
 
 	p = minstrel_ht_stats_dump(mi, MINSTREL_CCK_GROUP, p);
 	for (i = 0; i < MINSTREL_CCK_GROUP; i++)

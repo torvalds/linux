@@ -14,9 +14,11 @@
 
 struct nft_pktinfo {
 	struct sk_buff			*skb;
+	struct net			*net;
 	const struct net_device		*in;
 	const struct net_device		*out;
-	const struct nf_hook_ops	*ops;
+	u8				pf;
+	u8				hook;
 	u8				nhoff;
 	u8				thoff;
 	u8				tprot;
@@ -25,16 +27,15 @@ struct nft_pktinfo {
 };
 
 static inline void nft_set_pktinfo(struct nft_pktinfo *pkt,
-				   const struct nf_hook_ops *ops,
 				   struct sk_buff *skb,
 				   const struct nf_hook_state *state)
 {
 	pkt->skb = skb;
+	pkt->net = pkt->xt.net = state->net;
 	pkt->in = pkt->xt.in = state->in;
 	pkt->out = pkt->xt.out = state->out;
-	pkt->ops = ops;
-	pkt->xt.hooknum = ops->hooknum;
-	pkt->xt.family = ops->pf;
+	pkt->hook = pkt->xt.hooknum = state->hook;
+	pkt->pf = pkt->xt.family = state->pf;
 }
 
 /**
@@ -815,8 +816,7 @@ int nft_register_basechain(struct nft_base_chain *basechain,
 void nft_unregister_basechain(struct nft_base_chain *basechain,
 			      unsigned int hook_nops);
 
-unsigned int nft_do_chain(struct nft_pktinfo *pkt,
-			  const struct nf_hook_ops *ops);
+unsigned int nft_do_chain(struct nft_pktinfo *pkt, void *priv);
 
 /**
  *	struct nft_table - nf_tables table

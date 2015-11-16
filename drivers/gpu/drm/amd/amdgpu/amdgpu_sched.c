@@ -54,7 +54,8 @@ static struct fence *amdgpu_sched_run_job(struct amd_sched_job *sched_job)
 		goto err;
 	}
 
-	fence = amdgpu_fence_ref(job->ibs[job->num_ibs - 1].fence);
+	fence = job->ibs[job->num_ibs - 1].fence;
+	fence_get(&fence->base);
 
 err:
 	if (job->free_job)

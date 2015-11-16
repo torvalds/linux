@@ -8,8 +8,8 @@
 struct mei_cl_device;
 struct mei_device;
 
-typedef void (*mei_cl_event_cb_t)(struct mei_cl_device *device,
-			       u32 events, void *context);
+typedef void (*mei_cldev_event_cb_t)(struct mei_cl_device *cldev,
+				     u32 events, void *context);
 
 /**
  * struct mei_cl_device - MEI device handle
@@ -45,7 +45,7 @@ struct mei_cl_device {
 	char name[MEI_CL_NAME_SIZE];
 
 	struct work_struct event_work;
-	mei_cl_event_cb_t event_cb;
+	mei_cldev_event_cb_t event_cb;
 	void *event_context;
 	unsigned long events_mask;
 	unsigned long events;
@@ -62,33 +62,37 @@ struct mei_cl_driver {
 
 	const struct mei_cl_device_id *id_table;
 
-	int (*probe)(struct mei_cl_device *dev,
+	int (*probe)(struct mei_cl_device *cldev,
 		     const struct mei_cl_device_id *id);
-	int (*remove)(struct mei_cl_device *dev);
+	int (*remove)(struct mei_cl_device *cldev);
 };
 
-int __mei_cl_driver_register(struct mei_cl_driver *driver,
+int __mei_cldev_driver_register(struct mei_cl_driver *cldrv,
 				struct module *owner);
-#define mei_cl_driver_register(driver)             \
-	__mei_cl_driver_register(driver, THIS_MODULE)
+#define mei_cldev_driver_register(cldrv)             \
+	__mei_cldev_driver_register(cldrv, THIS_MODULE)
 
-void mei_cl_driver_unregister(struct mei_cl_driver *driver);
+void mei_cldev_driver_unregister(struct mei_cl_driver *cldrv);
 
-ssize_t mei_cl_send(struct mei_cl_device *device, u8 *buf, size_t length);
-ssize_t  mei_cl_recv(struct mei_cl_device *device, u8 *buf, size_t length);
+ssize_t mei_cldev_send(struct mei_cl_device *cldev, u8 *buf, size_t length);
+ssize_t  mei_cldev_recv(struct mei_cl_device *cldev, u8 *buf, size_t length);
 
-int mei_cl_register_event_cb(struct mei_cl_device *device,
-			  unsigned long event_mask,
-			  mei_cl_event_cb_t read_cb, void *context);
+int mei_cldev_register_event_cb(struct mei_cl_device *cldev,
+				unsigned long event_mask,
+				mei_cldev_event_cb_t read_cb, void *context);
 
 #define MEI_CL_EVENT_RX 0
 #define MEI_CL_EVENT_TX 1
 #define MEI_CL_EVENT_NOTIF 2
 
-void *mei_cl_get_drvdata(const struct mei_cl_device *device);
-void mei_cl_set_drvdata(struct mei_cl_device *device, void *data);
+const uuid_le *mei_cldev_uuid(const struct mei_cl_device *cldev);
+u8 mei_cldev_ver(const struct mei_cl_device *cldev);
 
-int mei_cl_enable_device(struct mei_cl_device *device);
-int mei_cl_disable_device(struct mei_cl_device *device);
+void *mei_cldev_get_drvdata(const struct mei_cl_device *cldev);
+void mei_cldev_set_drvdata(struct mei_cl_device *cldev, void *data);
+
+int mei_cldev_enable(struct mei_cl_device *cldev);
+int mei_cldev_disable(struct mei_cl_device *cldev);
+bool mei_cldev_enabled(struct mei_cl_device *cldev);
 
 #endif /* _LINUX_MEI_CL_BUS_H */

@@ -362,6 +362,12 @@ static int __resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 		goto out;
 	}
 
+	if (btrfs_test_is_dummy_root(root)) {
+		srcu_read_unlock(&fs_info->subvol_srcu, index);
+		ret = -ENOENT;
+		goto out;
+	}
+
 	if (path->search_commit_root)
 		root_level = btrfs_header_level(root->commit_root);
 	else if (time_seq == (u64)-1)

@@ -1,5 +1,5 @@
 config PSTORE
-	bool "Persistent store support"
+	tristate "Persistent store support"
 	default n
 	select ZLIB_DEFLATE
 	select ZLIB_INFLATE

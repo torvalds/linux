@@ -72,7 +72,7 @@ static inline struct nilfs_mdt_info *NILFS_MDT(const struct inode *inode)
 }
 
 /* Default GFP flags using highmem */
-#define NILFS_MDT_GFP      (__GFP_WAIT | __GFP_IO | __GFP_HIGHMEM)
+#define NILFS_MDT_GFP      (__GFP_RECLAIM | __GFP_IO | __GFP_HIGHMEM)
 
 int nilfs_mdt_get_block(struct inode *, unsigned long, int,
 			void (*init_block)(struct inode *,

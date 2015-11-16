@@ -2204,7 +2204,6 @@ static void emac_ethtool_get_drvinfo(struct net_device *ndev,
 	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	snprintf(info->bus_info, sizeof(info->bus_info), "PPC 4xx EMAC-%d %s",
 		 dev->cell_index, dev->ofdev->dev.of_node->full_name);
-	info->regdump_len = emac_ethtool_get_regs_len(ndev);
 }
 
 static const struct ethtool_ops emac_ethtool_ops = {

@@ -522,7 +522,7 @@ static int brcmf_msgbuf_set_dcmd(struct brcmf_pub *drvr, int ifidx,
 
 
 static int brcmf_msgbuf_hdrpull(struct brcmf_pub *drvr, bool do_fws,
-				u8 *ifidx, struct sk_buff *skb)
+				struct sk_buff *skb, struct brcmf_if **ifp)
 {
 	return -ENODEV;
 }
@@ -873,7 +873,8 @@ brcmf_msgbuf_process_txstatus(struct brcmf_msgbuf *msgbuf, void *buf)
 	commonring = msgbuf->flowrings[flowid];
 	atomic_dec(&commonring->outstanding_tx);
 
-	brcmf_txfinalize(msgbuf->drvr, skb, tx_status->msg.ifidx, true);
+	brcmf_txfinalize(brcmf_get_ifp(msgbuf->drvr, tx_status->msg.ifidx),
+			 skb, true);
 }
 
 
@@ -1081,15 +1082,7 @@ brcmf_msgbuf_rx_skb(struct brcmf_msgbuf *msgbuf, struct sk_buff *skb,
 {
 	struct brcmf_if *ifp;
 
-	/* The ifidx is the idx to map to matching netdev/ifp. When receiving
-	 * events this is easy because it contains the bssidx which maps
-	 * 1-on-1 to the netdev/ifp. But for data frames the ifidx is rcvd.
-	 * bssidx 1 is used for p2p0 and no data can be received or
-	 * transmitted on it. Therefor bssidx is ifidx + 1 if ifidx > 0
-	 */
-	if (ifidx)
-		(ifidx)++;
-	ifp = msgbuf->drvr->iflist[ifidx];
+	ifp = brcmf_get_ifp(msgbuf->drvr, ifidx);
 	if (!ifp || !ifp->ndev) {
 		brcmf_err("Received pkt for invalid ifidx %d\n", ifidx);
 		brcmu_pkt_buf_free_skb(skb);

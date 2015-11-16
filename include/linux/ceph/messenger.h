@@ -43,10 +43,9 @@ struct ceph_connection_operations {
 	struct ceph_msg * (*alloc_msg) (struct ceph_connection *con,
 					struct ceph_msg_header *hdr,
 					int *skip);
-	int (*sign_message) (struct ceph_connection *con, struct ceph_msg *msg);
 
-	int (*check_message_signature) (struct ceph_connection *con,
-					struct ceph_msg *msg);
+	int (*sign_message) (struct ceph_msg *msg);
+	int (*check_message_signature) (struct ceph_msg *msg);
 };
 
 /* use format string %s%d */
@@ -58,8 +57,6 @@ struct ceph_messenger {
 
 	atomic_t stopping;
 	possible_net_t net;
-	bool nocrc;
-	bool tcp_nodelay;
 
 	/*
 	 * the global_seq counts connections i (attempt to) initiate
@@ -67,9 +64,6 @@ struct ceph_messenger {
 	 */
 	u32 global_seq;
 	spinlock_t global_seq_lock;
-
-	u64 supported_features;
-	u64 required_features;
 };
 
 enum ceph_msg_data_type {
@@ -268,11 +262,7 @@ extern void ceph_msgr_exit(void);
 extern void ceph_msgr_flush(void);
 
 extern void ceph_messenger_init(struct ceph_messenger *msgr,
-			struct ceph_entity_addr *myaddr,
-			u64 supported_features,
-			u64 required_features,
-			bool nocrc,
-			bool tcp_nodelay);
+				struct ceph_entity_addr *myaddr);
 extern void ceph_messenger_fini(struct ceph_messenger *msgr);
 
 extern void ceph_con_init(struct ceph_connection *con, void *private,

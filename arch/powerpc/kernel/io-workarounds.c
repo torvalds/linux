@@ -76,7 +76,7 @@ struct iowa_bus *iowa_mem_find_bus(const PCI_IO_ADDR addr)
 		 * a page table free due to init_mm
 		 */
 		ptep = __find_linux_pte_or_hugepte(init_mm.pgd, vaddr,
-						 &hugepage_shift);
+						   NULL, &hugepage_shift);
 		if (ptep == NULL)
 			paddr = 0;
 		else {

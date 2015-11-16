@@ -2246,6 +2246,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_VT3336, quirk_disab
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_VT3351, quirk_disable_all_msi);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_VT3364, quirk_disable_all_msi);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8380_0, quirk_disable_all_msi);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_SI, 0x0761, quirk_disable_all_msi);
 
 /* Disable MSI on chipsets that are known to not support it */
 static void quirk_disable_msi(struct pci_dev *dev)
@@ -3706,6 +3707,63 @@ DECLARE_PCI_FIXUP_CLASS_EARLY(0x1797, 0x6868, PCI_CLASS_NOT_DEFINED, 8,
 			      quirk_tw686x_class);
 DECLARE_PCI_FIXUP_CLASS_EARLY(0x1797, 0x6869, PCI_CLASS_NOT_DEFINED, 8,
 			      quirk_tw686x_class);
+
+/*
+ * Per PCIe r3.0, sec 2.2.9, "Completion headers must supply the same
+ * values for the Attribute as were supplied in the header of the
+ * corresponding Request, except as explicitly allowed when IDO is used."
+ *
+ * If a non-compliant device generates a completion with a different
+ * attribute than the request, the receiver may accept it (which itself
+ * seems non-compliant based on sec 2.3.2), or it may handle it as a
+ * Malformed TLP or an Unexpected Completion, which will probably lead to a
+ * device access timeout.
+ *
+ * If the non-compliant device generates completions with zero attributes
+ * (instead of copying the attributes from the request), we can work around
+ * this by disabling the "Relaxed Ordering" and "No Snoop" attributes in
+ * upstream devices so they always generate requests with zero attributes.
+ *
+ * This affects other devices under the same Root Port, but since these
+ * attributes are performance hints, there should be no functional problem.
+ *
+ * Note that Configuration Space accesses are never supposed to have TLP
+ * Attributes, so we're safe waiting till after any Configuration Space
+ * accesses to do the Root Port fixup.
+ */
+static void quirk_disable_root_port_attributes(struct pci_dev *pdev)
+{
+	struct pci_dev *root_port = pci_find_pcie_root_port(pdev);
+
+	if (!root_port) {
+		dev_warn(&pdev->dev, "PCIe Completion erratum may cause device errors\n");
+		return;
+	}
+
+	dev_info(&root_port->dev, "Disabling No Snoop/Relaxed Ordering Attributes to avoid PCIe Completion erratum in %s\n",
+		 dev_name(&pdev->dev));
+	pcie_capability_clear_and_set_word(root_port, PCI_EXP_DEVCTL,
+					   PCI_EXP_DEVCTL_RELAX_EN |
+					   PCI_EXP_DEVCTL_NOSNOOP_EN, 0);
+}
+
+/*
+ * The Chelsio T5 chip fails to copy TLP Attributes from a Request to the
+ * Completion it generates.
+ */
+static void quirk_chelsio_T5_disable_root_port_attributes(struct pci_dev *pdev)
+{
+	/*
+	 * This mask/compare operation selects for Physical Function 4 on a
+	 * T5.  We only need to fix up the Root Port once for any of the
+	 * PFs.  PF[0..3] have PCI Device IDs of 0x50xx, but PF4 is uniquely
+	 * 0x54xx so we use that one,
+	 */
+	if ((pdev->device & 0xff00) == 0x5400)
+		quirk_disable_root_port_attributes(pdev);
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_CHELSIO, PCI_ANY_ID,
+			 quirk_chelsio_T5_disable_root_port_attributes);
 
 /*
  * AMD has indicated that the devices below do not support peer-to-peer

@@ -512,7 +512,7 @@ static int dn_return_long(struct sk_buff *skb)
  *
  * Returns: result of input function if route is found, error code otherwise
  */
-static int dn_route_rx_packet(struct sock *sk, struct sk_buff *skb)
+static int dn_route_rx_packet(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct dn_skb_cb *cb;
 	int err;
@@ -573,8 +573,8 @@ static int dn_route_rx_long(struct sk_buff *skb)
 	ptr++;
 	cb->hops = *ptr++; /* Visit Count */
 
-	return NF_HOOK(NFPROTO_DECNET, NF_DN_PRE_ROUTING, NULL, skb,
-		       skb->dev, NULL,
+	return NF_HOOK(NFPROTO_DECNET, NF_DN_PRE_ROUTING,
+		       &init_net, NULL, skb, skb->dev, NULL,
 		       dn_route_rx_packet);
 
 drop_it:
@@ -601,8 +601,8 @@ static int dn_route_rx_short(struct sk_buff *skb)
 	ptr += 2;
 	cb->hops = *ptr & 0x3f;
 
-	return NF_HOOK(NFPROTO_DECNET, NF_DN_PRE_ROUTING, NULL, skb,
-		       skb->dev, NULL,
+	return NF_HOOK(NFPROTO_DECNET, NF_DN_PRE_ROUTING,
+		       &init_net, NULL, skb, skb->dev, NULL,
 		       dn_route_rx_packet);
 
 drop_it:
@@ -610,7 +610,7 @@ drop_it:
 	return NET_RX_DROP;
 }
 
-static int dn_route_discard(struct sock *sk, struct sk_buff *skb)
+static int dn_route_discard(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	/*
 	 * I know we drop the packet here, but thats considered success in
@@ -620,7 +620,7 @@ static int dn_route_discard(struct sock *sk, struct sk_buff *skb)
 	return NET_RX_SUCCESS;
 }
 
-static int dn_route_ptp_hello(struct sock *sk, struct sk_buff *skb)
+static int dn_route_ptp_hello(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	dn_dev_hello(skb);
 	dn_neigh_pointopoint_hello(skb);
@@ -706,22 +706,22 @@ int dn_route_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type
 		switch (flags & DN_RT_CNTL_MSK) {
 		case DN_RT_PKT_HELO:
 			return NF_HOOK(NFPROTO_DECNET, NF_DN_HELLO,
-				       NULL, skb, skb->dev, NULL,
+				       &init_net, NULL, skb, skb->dev, NULL,
 				       dn_route_ptp_hello);
 
 		case DN_RT_PKT_L1RT:
 		case DN_RT_PKT_L2RT:
 			return NF_HOOK(NFPROTO_DECNET, NF_DN_ROUTE,
-				       NULL, skb, skb->dev, NULL,
+				       &init_net, NULL, skb, skb->dev, NULL,
 				       dn_route_discard);
 		case DN_RT_PKT_ERTH:
 			return NF_HOOK(NFPROTO_DECNET, NF_DN_HELLO,
-				       NULL, skb, skb->dev, NULL,
+				       &init_net, NULL, skb, skb->dev, NULL,
 				       dn_neigh_router_hello);
 
 		case DN_RT_PKT_EEDH:
 			return NF_HOOK(NFPROTO_DECNET, NF_DN_HELLO,
-				       NULL, skb, skb->dev, NULL,
+				       &init_net, NULL, skb, skb->dev, NULL,
 				       dn_neigh_endnode_hello);
 		}
 	} else {
@@ -744,7 +744,7 @@ out:
 	return NET_RX_DROP;
 }
 
-static int dn_output(struct sock *sk, struct sk_buff *skb)
+static int dn_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
 	struct dn_route *rt = (struct dn_route *)dst;
@@ -770,8 +770,8 @@ static int dn_output(struct sock *sk, struct sk_buff *skb)
 	cb->rt_flags |= DN_RT_F_IE;
 	cb->hops = 0;
 
-	return NF_HOOK(NFPROTO_DECNET, NF_DN_LOCAL_OUT, sk, skb,
-		       NULL, dev,
+	return NF_HOOK(NFPROTO_DECNET, NF_DN_LOCAL_OUT,
+		       &init_net, sk, skb, NULL, dev,
 		       dn_to_neigh_output);
 
 error:
@@ -789,9 +789,7 @@ static int dn_forward(struct sk_buff *skb)
 	struct dn_dev *dn_db = rcu_dereference(dst->dev->dn_ptr);
 	struct dn_route *rt;
 	int header_len;
-#ifdef CONFIG_NETFILTER
 	struct net_device *dev = skb->dev;
-#endif
 
 	if (skb->pkt_type != PACKET_HOST)
 		goto drop;
@@ -819,8 +817,8 @@ static int dn_forward(struct sk_buff *skb)
 	if (rt->rt_flags & RTCF_DOREDIRECT)
 		cb->rt_flags |= DN_RT_F_IE;
 
-	return NF_HOOK(NFPROTO_DECNET, NF_DN_FORWARD, NULL, skb,
-		       dev, skb->dev,
+	return NF_HOOK(NFPROTO_DECNET, NF_DN_FORWARD,
+		       &init_net, NULL, skb, dev, skb->dev,
 		       dn_to_neigh_output);
 
 drop:
@@ -832,7 +830,7 @@ drop:
  * Used to catch bugs. This should never normally get
  * called.
  */
-static int dn_rt_bug_sk(struct sock *sk, struct sk_buff *skb)
+static int dn_rt_bug_out(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct dn_skb_cb *cb = DN_SKB_CB(skb);
 
@@ -1469,7 +1467,7 @@ make_route:
 
 	rt->n = neigh;
 	rt->dst.lastuse = jiffies;
-	rt->dst.output = dn_rt_bug_sk;
+	rt->dst.output = dn_rt_bug_out;
 	switch (res.type) {
 	case RTN_UNICAST:
 		rt->dst.input = dn_forward;

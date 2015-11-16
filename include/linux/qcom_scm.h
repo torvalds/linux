@@ -23,6 +23,8 @@ struct qcom_scm_hdcp_req {
 	u32 val;
 };
 
+extern bool qcom_scm_is_available(void);
+
 extern bool qcom_scm_hdcp_available(void);
 extern int qcom_scm_hdcp_req(struct qcom_scm_hdcp_req *req, u32 req_cnt,
 		u32 *resp);

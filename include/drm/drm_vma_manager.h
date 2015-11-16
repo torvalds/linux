@@ -54,9 +54,6 @@ void drm_vma_offset_manager_init(struct drm_vma_offset_manager *mgr,
 				 unsigned long page_offset, unsigned long size);
 void drm_vma_offset_manager_destroy(struct drm_vma_offset_manager *mgr);
 
-struct drm_vma_offset_node *drm_vma_offset_lookup(struct drm_vma_offset_manager *mgr,
-						  unsigned long start,
-						  unsigned long pages);
 struct drm_vma_offset_node *drm_vma_offset_lookup_locked(struct drm_vma_offset_manager *mgr,
 							   unsigned long start,
 							   unsigned long pages);
@@ -71,25 +68,25 @@ bool drm_vma_node_is_allowed(struct drm_vma_offset_node *node,
 			     struct file *filp);
 
 /**
- * drm_vma_offset_exact_lookup() - Look up node by exact address
+ * drm_vma_offset_exact_lookup_locked() - Look up node by exact address
  * @mgr: Manager object
  * @start: Start address (page-based, not byte-based)
  * @pages: Size of object (page-based)
  *
- * Same as drm_vma_offset_lookup() but does not allow any offset into the node.
+ * Same as drm_vma_offset_lookup_locked() but does not allow any offset into the node.
  * It only returns the exact object with the given start address.
  *
  * RETURNS:
  * Node at exact start address @start.
  */
 static inline struct drm_vma_offset_node *
-drm_vma_offset_exact_lookup(struct drm_vma_offset_manager *mgr,
-			    unsigned long start,
-			    unsigned long pages)
+drm_vma_offset_exact_lookup_locked(struct drm_vma_offset_manager *mgr,
+				   unsigned long start,
+				   unsigned long pages)
 {
 	struct drm_vma_offset_node *node;
 
-	node = drm_vma_offset_lookup(mgr, start, pages);
+	node = drm_vma_offset_lookup_locked(mgr, start, pages);
 	return (node && node->vm_node.start == start) ? node : NULL;
 }
 
@@ -97,7 +94,7 @@ drm_vma_offset_exact_lookup(struct drm_vma_offset_manager *mgr,
  * drm_vma_offset_lock_lookup() - Lock lookup for extended private use
  * @mgr: Manager object
  *
- * Lock VMA manager for extended lookups. Only *_locked() VMA function calls
+ * Lock VMA manager for extended lookups. Only locked VMA function calls
  * are allowed while holding this lock. All other contexts are blocked from VMA
  * until the lock is released via drm_vma_offset_unlock_lookup().
  *
@@ -108,13 +105,6 @@ drm_vma_offset_exact_lookup(struct drm_vma_offset_manager *mgr,
  * not call any other VMA helpers while holding this lock.
  *
  * Note: You're in atomic-context while holding this lock!
- *
- * Example:
- *   drm_vma_offset_lock_lookup(mgr);
- *   node = drm_vma_offset_lookup_locked(mgr);
- *   if (node)
- *       kref_get_unless_zero(container_of(node, sth, entr));
- *   drm_vma_offset_unlock_lookup(mgr);
  */
 static inline void drm_vma_offset_lock_lookup(struct drm_vma_offset_manager *mgr)
 {

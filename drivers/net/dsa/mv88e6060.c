@@ -26,7 +26,7 @@ static int reg_read(struct dsa_switch *ds, int addr, int reg)
 	if (bus == NULL)
 		return -EINVAL;
 
-	return mdiobus_read(bus, ds->pd->sw_addr + addr, reg);
+	return mdiobus_read_nested(bus, ds->pd->sw_addr + addr, reg);
 }
 
 #define REG_READ(addr, reg)					\
@@ -47,7 +47,7 @@ static int reg_write(struct dsa_switch *ds, int addr, int reg, u16 val)
 	if (bus == NULL)
 		return -EINVAL;
 
-	return mdiobus_write(bus, ds->pd->sw_addr + addr, reg, val);
+	return mdiobus_write_nested(bus, ds->pd->sw_addr + addr, reg, val);
 }
 
 #define REG_WRITE(addr, reg, val)				\

@@ -24,9 +24,9 @@
 					};
 					pinctrl_mmc2_dat1_3: mmc2_dat1_3 {
 						atmel,pins =
-							<AT91_PIOC 12 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC12 periph A MCI2_DA1 with pullup, conflicts with TIOA1 */
-							 AT91_PIOC 13 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC13 periph A MCI2_DA2 with pullup, conflicts with TIOB1 */
-							 AT91_PIOC 14 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* PC14 periph A MCI2_DA3 with pullup, conflicts with TCLK1 */
+							<AT91_PIOC 12 AT91_PERIPH_A AT91_PINCTRL_PULL_UP	/* PC12 periph A MCI2_DA1 with pullup, conflicts with TIOA1 */
+							 AT91_PIOC 13 AT91_PERIPH_A AT91_PINCTRL_PULL_UP	/* PC13 periph A MCI2_DA2 with pullup, conflicts with TIOB1 */
+							 AT91_PIOC 14 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;	/* PC14 periph A MCI2_DA3 with pullup, conflicts with TCLK1 */
 					};
 				};
 			};

@@ -1362,7 +1362,7 @@ static struct spi_driver ifx_spi_driver = {
 	.driver = {
 		.name = DRVNAME,
 		.pm = &ifx_spi_pm,
-		.owner = THIS_MODULE},
+	},
 	.probe = ifx_spi_spi_probe,
 	.shutdown = ifx_spi_spi_shutdown,
 	.remove = ifx_spi_spi_remove,

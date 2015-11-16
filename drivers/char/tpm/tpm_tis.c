@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2005, 2006 IBM Corporation
- * Copyright (C) 2014 Intel Corporation
+ * Copyright (C) 2014, 2015 Intel Corporation
  *
  * Authors:
  * Leendert van Doorn <leendert@watson.ibm.com>
@@ -28,6 +28,7 @@
 #include <linux/wait.h>
 #include <linux/acpi.h>
 #include <linux/freezer.h>
+#include <acpi/actbl2.h>
 #include "tpm.h"
 
 enum tis_access {
@@ -65,6 +66,17 @@ enum tis_defaults {
 	TIS_LONG_TIMEOUT = 2000,	/* 2 sec */
 };
 
+struct tpm_info {
+	unsigned long start;
+	unsigned long len;
+	unsigned int irq;
+};
+
+static struct tpm_info tis_default_info = {
+	.start = TIS_MEM_BASE,
+	.len = TIS_MEM_LEN,
+	.irq = 0,
+};
 
 /* Some timeout values are needed before it is known whether the chip is
  * TPM 1.0 or TPM 2.0.
@@ -91,25 +103,53 @@ struct priv_data {
 };
 
 #if defined(CONFIG_PNP) && defined(CONFIG_ACPI)
-static int is_itpm(struct pnp_dev *dev)
+static int has_hid(struct acpi_device *dev, const char *hid)
 {
-	struct acpi_device *acpi = pnp_acpi_device(dev);
 	struct acpi_hardware_id *id;
 
-	if (!acpi)
-		return 0;
-
-	list_for_each_entry(id, &acpi->pnp.ids, list) {
-		if (!strcmp("INTC0102", id->id))
+	list_for_each_entry(id, &dev->pnp.ids, list)
+		if (!strcmp(hid, id->id))
 			return 1;
-	}
 
 	return 0;
 }
+
+static inline int is_itpm(struct acpi_device *dev)
+{
+	return has_hid(dev, "INTC0102");
+}
+
+static inline int is_fifo(struct acpi_device *dev)
+{
+	struct acpi_table_tpm2 *tbl;
+	acpi_status st;
+
+	/* TPM 1.2 FIFO */
+	if (!has_hid(dev, "MSFT0101"))
+		return 1;
+
+	st = acpi_get_table(ACPI_SIG_TPM2, 1,
+			    (struct acpi_table_header **) &tbl);
+	if (ACPI_FAILURE(st)) {
+		dev_err(&dev->dev, "failed to get TPM2 ACPI table\n");
+		return 0;
+	}
+
+	if (le32_to_cpu(tbl->start_method) != TPM2_START_FIFO)
+		return 0;
+
+	/* TPM 2.0 FIFO */
+	return 1;
+}
 #else
-static inline int is_itpm(struct pnp_dev *dev)
+static inline int is_itpm(struct acpi_device *dev)
 {
 	return 0;
+}
+
+static inline int is_fifo(struct acpi_device *dev)
+{
+	return 1;
 }
 #endif
 
@@ -600,12 +640,12 @@ static void tpm_tis_remove(struct tpm_chip *chip)
 	release_locality(chip, chip->vendor.locality, 1);
 }
 
-static int tpm_tis_init(struct device *dev, acpi_handle acpi_dev_handle,
-			resource_size_t start, resource_size_t len,
-			unsigned int irq)
+static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info,
+			acpi_handle acpi_dev_handle)
 {
 	u32 vendor, intfcaps, intmask;
 	int rc, i, irq_s, irq_e, probe;
+	int irq_r = -1;
 	struct tpm_chip *chip;
 	struct priv_data *priv;
 
@@ -622,7 +662,7 @@ static int tpm_tis_init(struct device *dev, acpi_handle acpi_dev_handle,
 	chip->acpi_dev_handle = acpi_dev_handle;
 #endif
 
-	chip->vendor.iobase = devm_ioremap(dev, start, len);
+	chip->vendor.iobase = devm_ioremap(dev, tpm_info->start, tpm_info->len);
 	if (!chip->vendor.iobase)
 		return -EIO;
 
@@ -707,11 +747,12 @@ static int tpm_tis_init(struct device *dev, acpi_handle acpi_dev_handle,
 		  chip->vendor.iobase +
 		  TPM_INT_ENABLE(chip->vendor.locality));
 	if (interrupts)
-		chip->vendor.irq = irq;
+		chip->vendor.irq = tpm_info->irq;
 	if (interrupts && !chip->vendor.irq) {
 		irq_s =
 		    ioread8(chip->vendor.iobase +
 			    TPM_INT_VECTOR(chip->vendor.locality));
+		irq_r = irq_s;
 		if (irq_s) {
 			irq_e = irq_s;
 		} else {
@@ -766,6 +807,8 @@ static int tpm_tis_init(struct device *dev, acpi_handle acpi_dev_handle,
 			iowrite32(intmask,
 				  chip->vendor.iobase +
 				  TPM_INT_ENABLE(chip->vendor.locality));
+
+			devm_free_irq(dev, i, chip);
 		}
 	}
 	if (chip->vendor.irq) {
@@ -792,7 +835,9 @@ static int tpm_tis_init(struct device *dev, acpi_handle acpi_dev_handle,
 				  chip->vendor.iobase +
 				  TPM_INT_ENABLE(chip->vendor.locality));
 		}
-	}
+	} else if (irq_r != -1)
+		iowrite8(irq_r, chip->vendor.iobase +
+			 TPM_INT_VECTOR(chip->vendor.locality));
 
 	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
 		chip->vendor.timeout_a = msecs_to_jiffies(TPM2_TIMEOUT_A);
@@ -890,27 +935,27 @@ static SIMPLE_DEV_PM_OPS(tpm_tis_pm, tpm_pm_suspend, tpm_tis_resume);
 static int tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 				      const struct pnp_device_id *pnp_id)
 {
-	resource_size_t start, len;
-	unsigned int irq = 0;
+	struct tpm_info tpm_info = tis_default_info;
 	acpi_handle acpi_dev_handle = NULL;
 
-	start = pnp_mem_start(pnp_dev, 0);
-	len = pnp_mem_len(pnp_dev, 0);
+	tpm_info.start = pnp_mem_start(pnp_dev, 0);
+	tpm_info.len = pnp_mem_len(pnp_dev, 0);
 
 	if (pnp_irq_valid(pnp_dev, 0))
-		irq = pnp_irq(pnp_dev, 0);
+		tpm_info.irq = pnp_irq(pnp_dev, 0);
 	else
 		interrupts = false;
 
-	if (is_itpm(pnp_dev))
-		itpm = true;
-
 #ifdef CONFIG_ACPI
-	if (pnp_acpi_device(pnp_dev))
+	if (pnp_acpi_device(pnp_dev)) {
+		if (is_itpm(pnp_acpi_device(pnp_dev)))
+			itpm = true;
+
 		acpi_dev_handle = pnp_acpi_device(pnp_dev)->handle;
+	}
 #endif
 
-	return tpm_tis_init(&pnp_dev->dev, acpi_dev_handle, start, len, irq);
+	return tpm_tis_init(&pnp_dev->dev, &tpm_info, acpi_dev_handle);
 }
 
 static struct pnp_device_id tpm_pnp_tbl[] = {
@@ -930,6 +975,7 @@ MODULE_DEVICE_TABLE(pnp, tpm_pnp_tbl);
 static void tpm_tis_pnp_remove(struct pnp_dev *dev)
 {
 	struct tpm_chip *chip = pnp_get_drvdata(dev);
+
 	tpm_chip_unregister(chip);
 	tpm_tis_remove(chip);
 }
@@ -950,6 +996,79 @@ module_param_string(hid, tpm_pnp_tbl[TIS_HID_USR_IDX].id,
 MODULE_PARM_DESC(hid, "Set additional specific HID for this driver to probe");
 #endif
 
+#ifdef CONFIG_ACPI
+static int tpm_check_resource(struct acpi_resource *ares, void *data)
+{
+	struct tpm_info *tpm_info = (struct tpm_info *) data;
+	struct resource res;
+
+	if (acpi_dev_resource_interrupt(ares, 0, &res)) {
+		tpm_info->irq = res.start;
+	} else if (acpi_dev_resource_memory(ares, &res)) {
+		tpm_info->start = res.start;
+		tpm_info->len = resource_size(&res);
+	}
+
+	return 1;
+}
+
+static int tpm_tis_acpi_init(struct acpi_device *acpi_dev)
+{
+	struct list_head resources;
+	struct tpm_info tpm_info = tis_default_info;
+	int ret;
+
+	if (!is_fifo(acpi_dev))
+		return -ENODEV;
+
+	INIT_LIST_HEAD(&resources);
+	ret = acpi_dev_get_resources(acpi_dev, &resources, tpm_check_resource,
+				     &tpm_info);
+	if (ret < 0)
+		return ret;
+
+	acpi_dev_free_resource_list(&resources);
+
+	if (!tpm_info.irq)
+		interrupts = false;
+
+	if (is_itpm(acpi_dev))
+		itpm = true;
+
+	return tpm_tis_init(&acpi_dev->dev, &tpm_info, acpi_dev->handle);
+}
+
+static int tpm_tis_acpi_remove(struct acpi_device *dev)
+{
+	struct tpm_chip *chip = dev_get_drvdata(&dev->dev);
+
+	tpm_chip_unregister(chip);
+	tpm_tis_remove(chip);
+
+	return 0;
+}
+
+static struct acpi_device_id tpm_acpi_tbl[] = {
+	{"MSFT0101", 0},	/* TPM 2.0 */
+	/* Add new here */
+	{"", 0},		/* User Specified */
+	{"", 0}			/* Terminator */
+};
+MODULE_DEVICE_TABLE(acpi, tpm_acpi_tbl);
+
+static struct acpi_driver tis_acpi_driver = {
+	.name = "tpm_tis",
+	.ids = tpm_acpi_tbl,
+	.ops = {
+		.add = tpm_tis_acpi_init,
+		.remove = tpm_tis_acpi_remove,
+	},
+	.drv = {
+		.pm = &tpm_tis_pm,
+	},
+};
+#endif
+
 static struct platform_driver tis_drv = {
 	.driver = {
 		.name		= "tpm_tis",
@@ -966,9 +1085,25 @@ static int __init init_tis(void)
 {
 	int rc;
 #ifdef CONFIG_PNP
-	if (!force)
-		return pnp_register_driver(&tis_pnp_driver);
+	if (!force) {
+		rc = pnp_register_driver(&tis_pnp_driver);
+		if (rc)
+			return rc;
+	}
 #endif
+#ifdef CONFIG_ACPI
+	if (!force) {
+		rc = acpi_bus_register_driver(&tis_acpi_driver);
+		if (rc) {
+#ifdef CONFIG_PNP
+			pnp_unregister_driver(&tis_pnp_driver);
+#endif
+			return rc;
+		}
+	}
+#endif
+	if (!force)
+		return 0;
 
 	rc = platform_driver_register(&tis_drv);
 	if (rc < 0)
@@ -978,7 +1113,7 @@ static int __init init_tis(void)
 		rc = PTR_ERR(pdev);
 		goto err_dev;
 	}
-	rc = tpm_tis_init(&pdev->dev, NULL, TIS_MEM_BASE, TIS_MEM_LEN, 0);
+	rc = tpm_tis_init(&pdev->dev, &tis_default_info, NULL);
 	if (rc)
 		goto err_init;
 	return 0;
@@ -992,9 +1127,14 @@ err_dev:
 static void __exit cleanup_tis(void)
 {
 	struct tpm_chip *chip;
-#ifdef CONFIG_PNP
+#if defined(CONFIG_PNP) || defined(CONFIG_ACPI)
 	if (!force) {
+#ifdef CONFIG_ACPI
+		acpi_bus_unregister_driver(&tis_acpi_driver);
+#endif
+#ifdef CONFIG_PNP
 		pnp_unregister_driver(&tis_pnp_driver);
+#endif
 		return;
 	}
 #endif

@@ -353,6 +353,7 @@ static const struct of_device_id of_tps65090_charger_match[] = {
 	{ .compatible = "ti,tps65090-charger", },
 	{ /* end */ }
 };
+MODULE_DEVICE_TABLE(of, of_tps65090_charger_match);
 
 static struct platform_driver tps65090_charger_driver = {
 	.driver	= {

@@ -77,7 +77,7 @@ struct clk_pllv2 {
 static unsigned long __clk_pllv2_recalc_rate(unsigned long parent_rate,
 		u32 dp_ctl, u32 dp_op, u32 dp_mfd, u32 dp_mfn)
 {
-	long mfi, mfn, mfd, pdf, ref_clk, mfn_abs;
+	long mfi, mfn, mfd, pdf, ref_clk;
 	unsigned long dbl;
 	s64 temp;
 
@@ -87,19 +87,15 @@ static unsigned long __clk_pllv2_recalc_rate(unsigned long parent_rate,
 	mfi = (dp_op & MXC_PLL_DP_OP_MFI_MASK) >> MXC_PLL_DP_OP_MFI_OFFSET;
 	mfi = (mfi <= 5) ? 5 : mfi;
 	mfd = dp_mfd & MXC_PLL_DP_MFD_MASK;
-	mfn = mfn_abs = dp_mfn & MXC_PLL_DP_MFN_MASK;
-	/* Sign extend to 32-bits */
-	if (mfn >= 0x04000000) {
-		mfn |= 0xFC000000;
-		mfn_abs = -mfn;
-	}
+	mfn = dp_mfn & MXC_PLL_DP_MFN_MASK;
+	mfn = sign_extend32(mfn, 26);
 
 	ref_clk = 2 * parent_rate;
 	if (dbl != 0)
 		ref_clk *= 2;
 
 	ref_clk /= (pdf + 1);
-	temp = (u64) ref_clk * mfn_abs;
+	temp = (u64) ref_clk * abs(mfn);
 	do_div(temp, mfd + 1);
 	if (mfn < 0)
 		temp = -temp;

@@ -248,29 +248,15 @@ static struct config_llog_data *config_recover_log_add(struct obd_device *obd,
 	struct super_block *sb)
 {
 	struct config_llog_instance lcfg = *cfg;
-	struct lustre_sb_info *lsi = s2lsi(sb);
 	struct config_llog_data *cld;
 	char logname[32];
-
-	if (IS_OST(lsi))
-		return NULL;
-
-	/* for osp-on-ost, see lustre_start_osp() */
-	if (IS_MDT(lsi) && lcfg.cfg_instance)
-		return NULL;
 
 	/* we have to use different llog for clients and mdts for cmd
 	 * where only clients are notified if one of cmd server restarts */
 	LASSERT(strlen(fsname) < sizeof(logname) / 2);
 	strcpy(logname, fsname);
-	if (IS_SERVER(lsi)) { /* mdt */
-		LASSERT(lcfg.cfg_instance == NULL);
-		lcfg.cfg_instance = sb;
-		strcat(logname, "-mdtir");
-	} else {
-		LASSERT(lcfg.cfg_instance != NULL);
-		strcat(logname, "-cliir");
-	}
+	LASSERT(lcfg.cfg_instance);
+	strcat(logname, "-cliir");
 
 	cld = do_config_log_add(obd, logname, CONFIG_T_RECOVER, &lcfg, sb);
 	return cld;
@@ -454,8 +440,12 @@ int lprocfs_mgc_rd_ir_state(struct seq_file *m, void *data)
 	struct obd_import       *imp;
 	struct obd_connect_data *ocd;
 	struct config_llog_data *cld;
+	int rc;
 
-	LPROCFS_CLIMP_CHECK(obd);
+	rc = lprocfs_climp_check(obd);
+	if (rc)
+		return rc;
+
 	imp = obd->u.cli.cl_import;
 	ocd = &imp->imp_connect_data;
 
@@ -770,7 +760,7 @@ static int mgc_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 			    void *data, int flag)
 {
 	struct lustre_handle lockh;
-	struct config_llog_data *cld = (struct config_llog_data *)data;
+	struct config_llog_data *cld = data;
 	int rc = 0;
 
 	switch (flag) {
@@ -874,7 +864,7 @@ static int mgc_enqueue(struct obd_export *exp, struct lov_stripe_md *lsm,
 		       void *data, __u32 lvb_len, void *lvb_swabber,
 		       struct lustre_handle *lockh)
 {
-	struct config_llog_data *cld = (struct config_llog_data *)data;
+	struct config_llog_data *cld = data;
 	struct ldlm_enqueue_info einfo = {
 		.ei_type	= type,
 		.ei_mode	= mode,
@@ -899,12 +889,6 @@ static int mgc_enqueue(struct obd_export *exp, struct lov_stripe_md *lsm,
 	req_capsule_set_size(&req->rq_pill, &RMF_DLM_LVB, RCL_SERVER, 0);
 	ptlrpc_request_set_replen(req);
 
-	/* check if this is server or client */
-	if (cld->cld_cfg.cfg_sb) {
-		struct lustre_sb_info *lsi = s2lsi(cld->cld_cfg.cfg_sb);
-		if (lsi && IS_SERVER(lsi))
-			short_limit = 1;
-	}
 	/* Limit how long we will wait for the enqueue to complete */
 	req->rq_delay_limit = short_limit ? 5 : MGC_ENQUEUE_LIMIT;
 	rc = ldlm_cli_enqueue(exp, &req, &einfo, &cld->cld_resid, NULL, flags,
@@ -975,6 +959,7 @@ static int mgc_set_info_async(const struct lu_env *env, struct obd_export *exp,
 	if (KEY_IS(KEY_INIT_RECOV_BACKUP)) {
 		struct obd_import *imp = class_exp2cliimp(exp);
 		int value;
+
 		if (vallen != sizeof(int))
 			return -EINVAL;
 		value = *(int *)val;
@@ -992,7 +977,7 @@ static int mgc_set_info_async(const struct lu_env *env, struct obd_export *exp,
 	if (KEY_IS(KEY_SET_INFO)) {
 		struct mgs_send_param *msp;
 
-		msp = (struct mgs_send_param *)val;
+		msp = val;
 		rc =  mgc_set_mgs_param(exp, msp);
 		return rc;
 	}
@@ -1078,6 +1063,7 @@ static int mgc_import_event(struct obd_device *obd,
 		break;
 	case IMP_EVENT_INVALIDATE: {
 		struct ldlm_namespace *ns = obd->obd_namespace;
+
 		ldlm_namespace_cleanup(ns, LDLM_FL_LOCAL_ONLY);
 		break;
 	}
@@ -1112,7 +1098,6 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 				  void *data, int datalen, bool mne_swab)
 {
 	struct config_llog_instance *cfg = &cld->cld_cfg;
-	struct lustre_sb_info       *lsi = s2lsi(cfg->cfg_sb);
 	struct mgs_nidtbl_entry *entry;
 	struct lustre_cfg       *lcfg;
 	struct lustre_cfg_bufs   bufs;
@@ -1127,25 +1112,14 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 	LASSERT(cfg->cfg_instance != NULL);
 	LASSERT(cfg->cfg_sb == cfg->cfg_instance);
 
-	inst = kzalloc(PAGE_CACHE_SIZE, GFP_NOFS);
+	inst = kzalloc(PAGE_CACHE_SIZE, GFP_KERNEL);
 	if (!inst)
 		return -ENOMEM;
 
-	if (!IS_SERVER(lsi)) {
-		pos = snprintf(inst, PAGE_CACHE_SIZE, "%p", cfg->cfg_instance);
-		if (pos >= PAGE_CACHE_SIZE) {
-			kfree(inst);
-			return -E2BIG;
-		}
-	} else {
-		LASSERT(IS_MDT(lsi));
-		rc = server_name2svname(lsi->lsi_svname, inst, NULL,
-					PAGE_CACHE_SIZE);
-		if (rc) {
-			kfree(inst);
-			return -EINVAL;
-		}
-		pos = strlen(inst);
+	pos = snprintf(inst, PAGE_CACHE_SIZE, "%p", cfg->cfg_instance);
+	if (pos >= PAGE_CACHE_SIZE) {
+		kfree(inst);
+		return -E2BIG;
 	}
 
 	++pos;
@@ -1334,14 +1308,14 @@ static int mgc_process_recover_log(struct obd_device *obd,
 	if (cfg->cfg_last_idx == 0) /* the first time */
 		nrpages = CONFIG_READ_NRPAGES_INIT;
 
-	pages = kcalloc(nrpages, sizeof(*pages), GFP_NOFS);
+	pages = kcalloc(nrpages, sizeof(*pages), GFP_KERNEL);
 	if (pages == NULL) {
 		rc = -ENOMEM;
 		goto out;
 	}
 
 	for (i = 0; i < nrpages; i++) {
-		pages[i] = alloc_page(GFP_IOFS);
+		pages[i] = alloc_page(GFP_KERNEL);
 		if (pages[i] == NULL) {
 			rc = -ENOMEM;
 			goto out;
@@ -1492,7 +1466,7 @@ static int mgc_process_cfg_log(struct obd_device *mgc,
 	if (cld->cld_cfg.cfg_sb)
 		lsi = s2lsi(cld->cld_cfg.cfg_sb);
 
-	env = kzalloc(sizeof(*env), GFP_NOFS);
+	env = kzalloc(sizeof(*env), GFP_KERNEL);
 	if (!env)
 		return -ENOMEM;
 
@@ -1588,7 +1562,6 @@ int mgc_process_log(struct obd_device *mgc, struct config_llog_data *cld)
 		config_log_get(cld);
 	}
 
-
 	if (cld_is_recover(cld)) {
 		rc = 0; /* this is not a fatal error for recover log */
 		if (rcl == 0)
@@ -1608,7 +1581,6 @@ int mgc_process_log(struct obd_device *mgc, struct config_llog_data *cld)
 
 	return rc;
 }
-
 
 /** Called from lustre_process_log.
  * LCFG_LOG_START gets the config log from the MGS, processes it to start
@@ -1680,6 +1652,7 @@ static int mgc_process_config(struct obd_device *obd, u32 len, void *buf)
 				rc = mgc_process_log(obd, cld->cld_recover);
 			} else {
 				struct config_llog_data *cir = cld->cld_recover;
+
 				cld->cld_recover = NULL;
 				config_log_put(cir);
 			}
@@ -1724,7 +1697,7 @@ out:
 	return rc;
 }
 
-struct obd_ops mgc_obd_ops = {
+static struct obd_ops mgc_obd_ops = {
 	.o_owner	= THIS_MODULE,
 	.o_setup	= mgc_setup,
 	.o_precleanup   = mgc_precleanup,

@@ -149,7 +149,6 @@ static int ad7879_spi_remove(struct spi_device *spi)
 static struct spi_driver ad7879_spi_driver = {
 	.driver = {
 		.name	= "ad7879",
-		.owner	= THIS_MODULE,
 		.pm	= &ad7879_pm_ops,
 	},
 	.probe		= ad7879_spi_probe,

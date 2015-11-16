@@ -633,7 +633,7 @@ static int atmel_hlcdc_plane_atomic_check(struct drm_plane *p,
 		if (!state->bpp[i])
 			return -EINVAL;
 
-		switch (state->base.rotation & 0xf) {
+		switch (state->base.rotation & DRM_ROTATE_MASK) {
 		case BIT(DRM_ROTATE_90):
 			offset = ((y_offset + state->src_y + patched_src_w - 1) /
 				  ydiv) * fb->pitches[i];
@@ -712,10 +712,12 @@ static int atmel_hlcdc_plane_atomic_check(struct drm_plane *p,
 }
 
 static int atmel_hlcdc_plane_prepare_fb(struct drm_plane *p,
-					struct drm_framebuffer *fb,
 					const struct drm_plane_state *new_state)
 {
 	struct atmel_hlcdc_plane *plane = drm_plane_to_atmel_hlcdc_plane(p);
+
+	if (!new_state->fb)
+		return 0;
 
 	return atmel_hlcdc_layer_update_start(&plane->layer);
 }

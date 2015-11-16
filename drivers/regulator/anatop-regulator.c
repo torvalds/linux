@@ -30,6 +30,7 @@
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/of_regulator.h>
+#include <linux/regulator/machine.h>
 
 #define LDO_RAMP_UP_UNIT_IN_CYCLES      64 /* 64 cycles per step */
 #define LDO_RAMP_UP_FREQ_IN_MHZ         24 /* cycle based on 24M OSC */
@@ -199,6 +200,7 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 	rdesc->owner = THIS_MODULE;
 
 	initdata = of_get_regulator_init_data(dev, np, rdesc);
+	initdata->supply_regulator = "vin";
 	sreg->initdata = initdata;
 
 	anatop_np = of_get_parent(np);
@@ -262,6 +264,7 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 	rdesc->vsel_reg = sreg->control_reg;
 	rdesc->vsel_mask = ((1 << sreg->vol_bit_width) - 1) <<
 			   sreg->vol_bit_shift;
+	rdesc->min_dropout_uV = 125000;
 
 	config.dev = &pdev->dev;
 	config.init_data = initdata;

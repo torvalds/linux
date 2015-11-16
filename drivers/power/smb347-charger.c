@@ -1332,4 +1332,3 @@ MODULE_AUTHOR("Bruce E. Robertson <bruce.e.robertson@intel.com>");
 MODULE_AUTHOR("Mika Westerberg <mika.westerberg@linux.intel.com>");
 MODULE_DESCRIPTION("SMB347 battery charger driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("i2c:smb347");

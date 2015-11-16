@@ -529,7 +529,7 @@ static void __eoi_ioapic_pin(int apic, int pin, int vector)
 	}
 }
 
-void eoi_ioapic_pin(int vector, struct mp_chip_data *data)
+static void eoi_ioapic_pin(int vector, struct mp_chip_data *data)
 {
 	unsigned long flags;
 	struct irq_pin_list *entry;
@@ -2547,7 +2547,9 @@ void __init setup_ioapic_dest(void)
 			mask = apic->target_cpus();
 
 		chip = irq_data_get_irq_chip(idata);
-		chip->irq_set_affinity(idata, mask, false);
+		/* Might be lapic_chip for irq 0 */
+		if (chip->irq_set_affinity)
+			chip->irq_set_affinity(idata, mask, false);
 	}
 }
 #endif

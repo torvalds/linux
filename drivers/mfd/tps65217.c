@@ -39,6 +39,10 @@ static const struct mfd_cell tps65217s[] = {
 		.name = "tps65217-bl",
 		.of_compatible = "ti,tps65217-bl",
 	},
+	{
+		.name = "tps65217-charger",
+		.of_compatible = "ti,tps65217-charger",
+	},
 };
 
 /**

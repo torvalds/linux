@@ -49,7 +49,6 @@ MODULE_DEVICE_TABLE(spi, ad193x_spi_id);
 static struct spi_driver ad193x_spi_driver = {
 	.driver = {
 		.name	= "ad193x",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ad193x_spi_probe,
 	.remove		= ad193x_spi_remove,

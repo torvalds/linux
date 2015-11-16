@@ -17,6 +17,7 @@ tools/build
 tools/arch/x86/include/asm/atomic.h
 tools/arch/x86/include/asm/rmwcc.h
 tools/lib/traceevent
+tools/lib/bpf
 tools/lib/api
 tools/lib/bpf
 tools/lib/hweight.c
@@ -41,6 +42,7 @@ tools/include/asm-generic/bitops.h
 tools/include/linux/atomic.h
 tools/include/linux/bitops.h
 tools/include/linux/compiler.h
+tools/include/linux/filter.h
 tools/include/linux/hash.h
 tools/include/linux/kernel.h
 tools/include/linux/list.h
@@ -49,6 +51,7 @@ tools/include/linux/poison.h
 tools/include/linux/rbtree.h
 tools/include/linux/rbtree_augmented.h
 tools/include/linux/types.h
+tools/include/linux/err.h
 include/asm-generic/bitops/arch_hweight.h
 include/asm-generic/bitops/const_hweight.h
 include/asm-generic/bitops/fls64.h
@@ -67,6 +70,8 @@ arch/*/lib/memset*.S
 include/linux/poison.h
 include/linux/hw_breakpoint.h
 include/uapi/linux/perf_event.h
+include/uapi/linux/bpf.h
+include/uapi/linux/bpf_common.h
 include/uapi/linux/const.h
 include/uapi/linux/swab.h
 include/uapi/linux/hw_breakpoint.h

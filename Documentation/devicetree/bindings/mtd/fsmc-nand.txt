@@ -30,6 +30,12 @@ Optional properties:
                  command is asserted. Zero means one cycle, 255 means 256
                  cycles.
 - bank: default NAND bank to use (0-3 are valid, 0 is the default).
+- nand-ecc-mode      : see nand.txt
+- nand-ecc-strength  : see nand.txt
+- nand-ecc-step-size : see nand.txt
+
+Can support 1-bit HW ECC (default) or if stronger correction is required,
+software-based BCH.
 
 Example:
 
