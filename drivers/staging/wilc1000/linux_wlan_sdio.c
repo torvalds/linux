@@ -135,12 +135,14 @@ static void linux_sdio_remove(struct sdio_func *func)
 	wilc_netdev_cleanup(sdio_get_drvdata(func));
 }
 
-static struct sdio_driver wilc_bus = {
+static struct sdio_driver wilc1000_sdio_driver = {
 	.name		= SDIO_MODALIAS,
 	.id_table	= wilc_sdio_ids,
 	.probe		= linux_sdio_probe,
 	.remove		= linux_sdio_remove,
 };
+module_driver(wilc1000_sdio_driver, sdio_register_driver, sdio_unregister_driver);
+MODULE_LICENSE("GPL");
 
 int wilc_sdio_enable_interrupt(struct wilc *dev)
 {
@@ -178,14 +180,15 @@ void wilc_sdio_disable_interrupt(struct wilc *dev)
 static int linux_sdio_set_speed(int speed)
 {
 	struct mmc_ios ios;
+	struct sdio_func *func = container_of(wilc_dev->dev, struct sdio_func, dev);
 
-	sdio_claim_host(wilc_sdio_func);
+	sdio_claim_host(func);
 
-	memcpy((void *)&ios, (void *)&wilc_sdio_func->card->host->ios, sizeof(struct mmc_ios));
-	wilc_sdio_func->card->host->ios.clock = speed;
+	memcpy((void *)&ios, (void *)&func->card->host->ios, sizeof(struct mmc_ios));
+	func->card->host->ios.clock = speed;
 	ios.clock = speed;
-	wilc_sdio_func->card->host->ops->set_ios(wilc_sdio_func->card->host, &ios);
-	sdio_release_host(wilc_sdio_func);
+	func->card->host->ops->set_ios(func->card->host, &ios);
+	sdio_release_host(func);
 	PRINT_INFO(INIT_DBG, "@@@@@@@@@@@@ change SDIO speed to %d @@@@@@@@@\n", speed);
 
 	return 1;
@@ -193,7 +196,8 @@ static int linux_sdio_set_speed(int speed)
 
 static int linux_sdio_get_speed(void)
 {
-	return wilc_sdio_func->card->host->ios.clock;
+	struct sdio_func *func = container_of(wilc_dev->dev, struct sdio_func, dev);
+	return func->card->host->ios.clock;
 }
 
 int wilc_sdio_init(void)
@@ -217,17 +221,5 @@ int wilc_sdio_set_default_speed(void)
 {
 	return linux_sdio_set_speed(sdio_default_speed);
 }
-
-static int __init init_wilc_sdio_driver(void)
-{
-	return sdio_register_driver(&wilc_bus);
-}
-late_initcall(init_wilc_sdio_driver);
-
-static void __exit exit_wilc_sdio_driver(void)
-{
-	sdio_unregister_driver(&wilc_bus);
-}
-module_exit(exit_wilc_sdio_driver);
 
 MODULE_LICENSE("GPL");

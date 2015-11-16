@@ -138,7 +138,7 @@ static struct wilc_debugfs_info_t debugfs_info[] = {
 	{ "wilc_debug_region",	0666,	(INIT_DBG | GENERIC_DBG | CFG80211_DBG), FOPS(NULL, wilc_debug_region_read, wilc_debug_region_write, NULL), },
 };
 
-int wilc_debugfs_init(void)
+static int __init wilc_debugfs_init(void)
 {
 	int i;
 
@@ -173,11 +173,13 @@ int wilc_debugfs_init(void)
 	}
 	return 0;
 }
+module_init(wilc_debugfs_init);
 
-void wilc_debugfs_remove(void)
+static void __exit wilc_debugfs_remove(void)
 {
 	debugfs_remove_recursive(wilc_dir);
 }
+module_exit(wilc_debugfs_remove);
 
 #endif
 

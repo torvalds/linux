@@ -1408,10 +1408,6 @@ void wilc_netdev_cleanup(struct wilc *wilc)
 	}
 
 	kfree(wilc);
-
-#if defined(WILC_DEBUGFS)
-	wilc_debugfs_remove();
-#endif
 }
 EXPORT_SYMBOL_GPL(wilc_netdev_cleanup);
 
@@ -1491,3 +1487,5 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wilc_netdev_init);
+
+MODULE_LICENSE("GPL");

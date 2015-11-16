@@ -38,9 +38,6 @@ enum debug_region {
 #define FIRM_DBG                (1 << Firmware_debug)
 
 #if defined (WILC_DEBUGFS)
-int wilc_debugfs_init(void);
-void wilc_debugfs_remove(void);
-
 extern atomic_t WILC_REGION;
 extern atomic_t WILC_DEBUG_LEVEL;
 
@@ -121,15 +118,6 @@ extern atomic_t WILC_DEBUG_LEVEL;
 		printk("ERR [%s: %d]", __func__, __LINE__);		\
 		printk(__VA_ARGS__);					\
 	} while (0)
-
-static inline int wilc_debugfs_init(void)
-{
-	return 0;
-}
-
-static inline void wilc_debugfs_remove(void)
-{
-}
 
 #endif
 
