@@ -653,5 +653,5 @@ rx_handler_result_t ipvlan_handle_frame(struct sk_buff **pskb)
 	WARN_ONCE(true, "ipvlan_handle_frame() called for mode = [%hx]\n",
 			  port->mode);
 	kfree_skb(skb);
-	return NET_RX_DROP;
+	return RX_HANDLER_CONSUMED;
 }
