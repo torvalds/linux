@@ -79,6 +79,8 @@ struct ak4613_priv {
 
 	unsigned int fmt;
 	u8 fmt_ctrl;
+	u8 oc;
+	u8 ic;
 	int cnt;
 };
 
@@ -343,6 +345,9 @@ static int ak4613_dai_hw_params(struct snd_pcm_substream *substream,
 	snd_soc_update_bits(codec, CTRL1, FMT_MASK, fmt_ctrl);
 	snd_soc_write(codec, CTRL2, ctrl2);
 
+	snd_soc_write(codec, ICTRL, priv->ic);
+	snd_soc_write(codec, OCTRL, priv->oc);
+
 hw_params_end:
 	if (ret < 0)
 		dev_warn(dev, "unsupported data width/format combination\n");
@@ -431,6 +436,28 @@ static struct snd_soc_codec_driver soc_codec_dev_ak4613 = {
 	.num_dapm_routes	= ARRAY_SIZE(ak4613_intercon),
 };
 
+static void ak4613_parse_of(struct ak4613_priv *priv,
+			    struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	char prop[32];
+	int i;
+
+	/* Input 1 - 2 */
+	for (i = 0; i < 2; i++) {
+		snprintf(prop, sizeof(prop), "ak4613,in%d-single-end", i + 1);
+		if (!of_get_property(np, prop, NULL))
+			priv->ic |= 1 << i;
+	}
+
+	/* Output 1 - 6 */
+	for (i = 0; i < 6; i++) {
+		snprintf(prop, sizeof(prop), "ak4613,out%d-single-end", i + 1);
+		if (!of_get_property(np, prop, NULL))
+			priv->oc |= 1 << i;
+	}
+}
+
 static int ak4613_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -457,6 +484,8 @@ static int ak4613_i2c_probe(struct i2c_client *i2c,
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
+	ak4613_parse_of(priv, dev);
 
 	priv->fmt_ctrl		= NO_FMT;
 	priv->cnt		= 0;
