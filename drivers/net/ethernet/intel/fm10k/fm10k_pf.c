@@ -1250,7 +1250,7 @@ s32 fm10k_iov_msg_mac_vlan_pf(struct fm10k_hw *hw, u32 **results,
 
 		/* block attempts to set MAC for a locked device */
 		if (is_valid_ether_addr(vf_info->mac) &&
-		    memcmp(mac, vf_info->mac, ETH_ALEN))
+		    !ether_addr_equal(mac, vf_info->mac))
 			return FM10K_ERR_PARAM;
 
 		set = !(vlan & FM10K_VLAN_CLEAR);
