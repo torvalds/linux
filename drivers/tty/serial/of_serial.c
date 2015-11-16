@@ -216,11 +216,6 @@ static int of_platform_serial_probe(struct platform_device *ofdev)
 		break;
 	}
 #endif
-#ifdef CONFIG_SERIAL_OF_PLATFORM_NWPSERIAL
-	case PORT_NWPSERIAL:
-		ret = nwpserial_register_port(&port);
-		break;
-#endif
 	default:
 		/* need to add code for these */
 	case PORT_UNKNOWN:
@@ -251,11 +246,6 @@ static int of_platform_serial_remove(struct platform_device *ofdev)
 #ifdef CONFIG_SERIAL_8250
 	case PORT_8250 ... PORT_MAX_8250:
 		serial8250_unregister_port(info->line);
-		break;
-#endif
-#ifdef CONFIG_SERIAL_OF_PLATFORM_NWPSERIAL
-	case PORT_NWPSERIAL:
-		nwpserial_unregister_port(info->line);
 		break;
 #endif
 	default:
@@ -356,10 +346,6 @@ static const struct of_device_id of_platform_serial_table[] = {
 		.data = (void *)PORT_XSCALE, },
 	{ .compatible = "mrvl,pxa-uart",
 		.data = (void *)PORT_XSCALE, },
-#ifdef CONFIG_SERIAL_OF_PLATFORM_NWPSERIAL
-	{ .compatible = "ibm,qpace-nwp-serial",
-		.data = (void *)PORT_NWPSERIAL, },
-#endif
 	{ /* end of list */ },
 };
 MODULE_DEVICE_TABLE(of, of_platform_serial_table);
