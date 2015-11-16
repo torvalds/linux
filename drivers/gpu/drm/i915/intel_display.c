@@ -13034,6 +13034,9 @@ static int intel_atomic_check(struct drm_device *dev,
 		struct intel_crtc_state *pipe_config =
 			to_intel_crtc_state(crtc_state);
 
+		memset(&to_intel_crtc(crtc)->atomic, 0,
+		       sizeof(struct intel_crtc_atomic_commit));
+
 		/* Catch I915_MODE_FLAG_INHERITED */
 		if (crtc_state->mode.private_flags != crtc->state->mode.private_flags)
 			crtc_state->mode_changed = true;
