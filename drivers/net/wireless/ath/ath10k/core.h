@@ -668,6 +668,9 @@ struct ath10k {
 		 */
 		u32 max_probe_resp_desc_thres;
 
+		/* The padding bytes's location is different on various chips */
+		enum ath10k_hw_4addr_pad hw_4addr_pad;
+
 		struct ath10k_hw_params_fw {
 			const char *dir;
 			const char *fw;

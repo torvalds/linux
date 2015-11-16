@@ -304,6 +304,11 @@ enum ath10k_hw_rate_cck {
 	ATH10K_HW_RATE_CCK_SP_2M,
 };
 
+enum ath10k_hw_4addr_pad {
+	ATH10K_HW_4ADDR_PAD_AFTER,
+	ATH10K_HW_4ADDR_PAD_BEFORE,
+};
+
 /* Target specific defines for MAIN firmware */
 #define TARGET_NUM_VDEVS			8
 #define TARGET_NUM_PEER_AST			2
