@@ -1285,11 +1285,7 @@ static void _nbu2ss_restert_transfer(struct nbu2ss_ep *ep)
 	bool	bflag = FALSE;
 	struct nbu2ss_req *req;
 
-	if (list_empty(&ep->queue))
-		req = NULL;
-	else
-		req = list_entry(ep->queue.next, struct nbu2ss_req, queue);
-
+	req = list_first_entry_or_null(&ep->queue, struct nbu2ss_req, queue);
 	if (!req)
 		return;
 
@@ -1784,11 +1780,7 @@ static inline int _nbu2ss_ep0_in_data_stage(struct nbu2ss_udc *udc)
 	struct nbu2ss_req	*req;
 	struct nbu2ss_ep	*ep = &udc->ep[0];
 
-	if (list_empty(&ep->queue))
-		req = NULL;
-	else
-		req = list_entry(ep->queue.next, struct nbu2ss_req, queue);
-
+	req = list_first_entry_or_null(&ep->queue, struct nbu2ss_req, queue);
 	if (!req)
 		req = &udc->ep0_req;
 
@@ -1811,11 +1803,7 @@ static inline int _nbu2ss_ep0_out_data_stage(struct nbu2ss_udc *udc)
 	struct nbu2ss_req	*req;
 	struct nbu2ss_ep	*ep = &udc->ep[0];
 
-	if (list_empty(&ep->queue))
-		req = NULL;
-	else
-		req = list_entry(ep->queue.next, struct nbu2ss_req, queue);
-
+	req = list_first_entry_or_null(&ep->queue, struct nbu2ss_req, queue);
 	if (!req)
 		req = &udc->ep0_req;
 
@@ -1838,11 +1826,7 @@ static inline int _nbu2ss_ep0_status_stage(struct nbu2ss_udc *udc)
 	struct nbu2ss_req	*req;
 	struct nbu2ss_ep	*ep = &udc->ep[0];
 
-	if (list_empty(&ep->queue))
-		req = NULL;
-	else
-		req = list_entry(ep->queue.next, struct nbu2ss_req, queue);
-
+	req = list_first_entry_or_null(&ep->queue, struct nbu2ss_req, queue);
 	if (!req) {
 		req = &udc->ep0_req;
 		if (req->req.complete)
@@ -2145,11 +2129,7 @@ static inline void _nbu2ss_epn_int(struct nbu2ss_udc *udc, u32 epnum)
 	/* Interrupt Clear */
 	_nbu2ss_writel(&udc->p_regs->EP_REGS[num].EP_STATUS, ~(u32)status);
 
-	if (list_empty(&ep->queue))
-		req = NULL;
-	else
-		req = list_entry(ep->queue.next, struct nbu2ss_req, queue);
-
+	req = list_first_entry_or_null(&ep->queue, struct nbu2ss_req, queue);
 	if (!req) {
 		/* pr_warn("=== %s(%d) req == NULL\n", __func__, epnum); */
 		return;
