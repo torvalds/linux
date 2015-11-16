@@ -553,8 +553,6 @@ fail2:
 }
 
 
-#define list_entry_next(pos, member) \
-	list_entry(pos->member.next, typeof(*pos), member)
 #define list_entry_is_head(pos, head, member) (&pos->member == (head))
 
 /**
@@ -585,7 +583,7 @@ static struct aa_namespace *__next_namespace(struct aa_namespace *root,
 	parent = ns->parent;
 	while (ns != root) {
 		mutex_unlock(&ns->lock);
-		next = list_entry_next(ns, base.list);
+		next = list_next_entry(ns, base.list);
 		if (!list_entry_is_head(next, &parent->sub_ns, base.list)) {
 			mutex_lock(&next->lock);
 			return next;
@@ -639,7 +637,7 @@ static struct aa_profile *__next_profile(struct aa_profile *p)
 	parent = rcu_dereference_protected(p->parent,
 					   mutex_is_locked(&p->ns->lock));
 	while (parent) {
-		p = list_entry_next(p, base.list);
+		p = list_next_entry(p, base.list);
 		if (!list_entry_is_head(p, &parent->base.profiles, base.list))
 			return p;
 		p = parent;
@@ -648,7 +646,7 @@ static struct aa_profile *__next_profile(struct aa_profile *p)
 	}
 
 	/* is next another profile in the namespace */
-	p = list_entry_next(p, base.list);
+	p = list_next_entry(p, base.list);
 	if (!list_entry_is_head(p, &ns->base.profiles, base.list))
 		return p;
 
