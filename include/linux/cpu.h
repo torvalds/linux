@@ -292,4 +292,6 @@ bool cpu_wait_death(unsigned int cpu, int seconds);
 bool cpu_report_death(void);
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
 
+void cpu_yield_to_irqs(void);
+
 #endif /* _LINUX_CPU_H_ */

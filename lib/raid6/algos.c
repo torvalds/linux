@@ -23,6 +23,7 @@
 #else
 #include <linux/module.h>
 #include <linux/gfp.h>
+#include <linux/cpu.h>
 #if !RAID6_USE_EMPTY_ZERO_PAGE
 /* In .bss so it's zeroed */
 const char raid6_empty_zero_page[PAGE_SIZE] __attribute__((aligned(256)));
@@ -151,6 +152,7 @@ static inline const struct raid6_calls *raid6_choose_gen(
 					    j1 + (1<<RAID6_TIME_JIFFIES_LG2))) {
 				(*algo)->gen_syndrome(disks, PAGE_SIZE, *dptrs);
 				perf++;
+				cpu_yield_to_irqs();
 			}
 			preempt_enable();
 
@@ -175,6 +177,7 @@ static inline const struct raid6_calls *raid6_choose_gen(
 				(*algo)->xor_syndrome(disks, start, stop,
 						      PAGE_SIZE, *dptrs);
 				perf++;
+				cpu_yield_to_irqs();
 			}
 			preempt_enable();
 
