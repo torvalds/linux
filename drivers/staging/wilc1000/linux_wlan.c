@@ -1408,7 +1408,8 @@ void wilc_netdev_cleanup(struct wilc *wilc)
 #endif
 }
 
-int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type, int gpio)
+int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
+		     int gpio, const struct wilc_hif_func *ops)
 {
 	int i;
 	perInterface_wlan_t *nic;
@@ -1423,6 +1424,7 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type, int gp
 	*wilc = wilc_dev;
 	wilc_dev->io_type = io_type;
 	wilc_dev->gpio = gpio;
+	wilc_dev->ops = ops;
 
 	register_inetaddr_notifier(&g_dev_notifier);
 

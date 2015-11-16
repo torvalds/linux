@@ -404,7 +404,7 @@ static int __init init_wilc_spi_driver(void)
 
 	wilc_debugfs_init();
 
-	ret = wilc_netdev_init(&wilc, NULL, HIF_SPI, GPIO_NUM);
+	ret = wilc_netdev_init(&wilc, NULL, HIF_SPI, GPIO_NUM, &wilc_hif_spi);
 	if (ret) {
 		wilc_debugfs_remove();
 		return ret;

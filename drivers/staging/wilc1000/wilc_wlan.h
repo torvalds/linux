@@ -258,8 +258,8 @@ struct wilc_hif_func {
 	void (*hif_set_default_bus_speed)(void);
 };
 
-extern struct wilc_hif_func wilc_hif_spi;
-extern struct wilc_hif_func wilc_hif_sdio;
+extern const struct wilc_hif_func wilc_hif_spi;
+extern const struct wilc_hif_func wilc_hif_sdio;
 
 /********************************************
  *

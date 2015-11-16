@@ -1657,22 +1657,11 @@ int wilc_wlan_init(struct net_device *dev)
 
 	memset((void *)&g_wlan, 0, sizeof(wilc_wlan_dev_t));
 	g_wlan.io_type = wilc->io_type;
-
-#ifdef WILC_SDIO
-	if (!wilc_hif_sdio.hif_init(wilc, wilc_debug)) {
+	g_wlan.hif_func = *wilc->ops;
+	if (!g_wlan.hif_func.hif_init(wilc, wilc_debug)) {
 		ret = -EIO;
 		goto _fail_;
 	}
-	memcpy((void *)&g_wlan.hif_func, &wilc_hif_sdio,
-	       sizeof(struct wilc_hif_func));
-#else
-	if (!wilc_hif_spi.hif_init(wilc, wilc_debug)) {
-		ret = -EIO;
-		goto _fail_;
-	}
-	memcpy((void *)&g_wlan.hif_func, &wilc_hif_spi,
-	       sizeof(struct wilc_hif_func));
-#endif
 
 	if (!wilc_wlan_cfg_init(wilc_debug)) {
 		ret = -ENOBUFS;

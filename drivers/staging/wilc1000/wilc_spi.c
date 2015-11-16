@@ -1021,21 +1021,21 @@ static int wilc_spi_sync_ext(int nint /*  how mant interrupts to enable. */)
  *      Global spi HIF function table
  *
  ********************************************/
-struct wilc_hif_func wilc_hif_spi = {
-	_wilc_spi_init,
-	_wilc_spi_deinit,
-	wilc_spi_read_reg,
-	wilc_spi_write_reg,
-	_wilc_spi_read,
-	_wilc_spi_write,
-	wilc_spi_sync,
-	wilc_spi_clear_int,
-	wilc_spi_read_int,
-	wilc_spi_clear_int_ext,
-	wilc_spi_read_size,
-	_wilc_spi_write,
-	_wilc_spi_read,
-	wilc_spi_sync_ext,
-	wilc_spi_max_bus_speed,
-	wilc_spi_default_bus_speed,
+const struct wilc_hif_func wilc_hif_spi = {
+	.hif_init = _wilc_spi_init,
+	.hif_deinit = _wilc_spi_deinit,
+	.hif_read_reg = wilc_spi_read_reg,
+	.hif_write_reg = wilc_spi_write_reg,
+	.hif_block_rx = _wilc_spi_read,
+	.hif_block_tx = _wilc_spi_write,
+	.hif_sync = wilc_spi_sync,
+	.hif_clear_int = wilc_spi_clear_int,
+	.hif_read_int = wilc_spi_read_int,
+	.hif_clear_int_ext = wilc_spi_clear_int_ext,
+	.hif_read_size = wilc_spi_read_size,
+	.hif_block_tx_ext = _wilc_spi_write,
+	.hif_block_rx_ext = _wilc_spi_read,
+	.hif_sync_ext = wilc_spi_sync_ext,
+	.hif_set_max_bus_speed = wilc_spi_max_bus_speed,
+	.hif_set_default_bus_speed = wilc_spi_default_bus_speed,
 };

@@ -912,23 +912,22 @@ static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
  *
  ********************************************/
 
-struct wilc_hif_func wilc_hif_sdio = {
-	sdio_init,
-	sdio_deinit,
-	sdio_read_reg,
-	sdio_write_reg,
-	sdio_read,
-	sdio_write,
-	sdio_sync,
-	sdio_clear_int,
-	sdio_read_int,
-	sdio_clear_int_ext,
-	sdio_read_size,
-	sdio_write,
-	sdio_read,
-	sdio_sync_ext,
-
-	sdio_set_max_speed,
-	sdio_set_default_speed,
+const struct wilc_hif_func wilc_hif_sdio = {
+	.hif_init = sdio_init,
+	.hif_deinit = sdio_deinit,
+	.hif_read_reg = sdio_read_reg,
+	.hif_write_reg = sdio_write_reg,
+	.hif_block_rx = sdio_read,
+	.hif_block_tx = sdio_write,
+	.hif_sync = sdio_sync,
+	.hif_clear_int = sdio_clear_int,
+	.hif_read_int = sdio_read_int,
+	.hif_clear_int_ext = sdio_clear_int_ext,
+	.hif_read_size = sdio_read_size,
+	.hif_block_tx_ext = sdio_write,
+	.hif_block_rx_ext = sdio_read,
+	.hif_sync_ext = sdio_sync_ext,
+	.hif_set_max_bus_speed = sdio_set_max_speed,
+	.hif_set_default_bus_speed = sdio_set_default_speed,
 };
 
