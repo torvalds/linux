@@ -306,21 +306,24 @@ static int ktd2692_parse_dt(struct ktd2692_context *led, struct device *dev,
 				   &cfg->movie_max_microamp);
 	if (ret) {
 		dev_err(dev, "failed to parse led-max-microamp\n");
-		return ret;
+		goto err_parse_dt;
 	}
 
 	ret = of_property_read_u32(child_node, "flash-max-microamp",
 				   &cfg->flash_max_microamp);
 	if (ret) {
 		dev_err(dev, "failed to parse flash-max-microamp\n");
-		return ret;
+		goto err_parse_dt;
 	}
 
 	ret = of_property_read_u32(child_node, "flash-max-timeout-us",
 				   &cfg->flash_max_timeout);
-	if (ret)
+	if (ret) {
 		dev_err(dev, "failed to parse flash-max-timeout-us\n");
+		goto err_parse_dt;
+	}
 
+err_parse_dt:
 	of_node_put(child_node);
 	return ret;
 }
