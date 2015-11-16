@@ -2481,7 +2481,7 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 		if (features->pktlen == WACOM_PKGLEN_BBTOUCH3) {
 			if (features->touch_max)
 				features->device_type |= WACOM_DEVICETYPE_TOUCH;
-			if (features->type >= INTUOSHT || features->type <= BAMBOO_PT)
+			if (features->type >= INTUOSHT && features->type <= BAMBOO_PT)
 				features->device_type |= WACOM_DEVICETYPE_PAD;
 
 			features->x_max = 4096;
