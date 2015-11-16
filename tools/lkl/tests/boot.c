@@ -19,6 +19,7 @@
 static struct cl_args {
 	int printk;
 	const char *disk_filename;
+	const char *fstype;
 } cla;
 
 static struct cl_option {
@@ -29,6 +30,7 @@ static struct cl_option {
 } options[] = {
 	{"enable-printk", 'p', "show Linux printks", 0},
 	{"disk-file", 'd', "disk file to use", 1},
+	{"type", 't', "filesystem type", 1},
 	{0},
 };
 
@@ -40,6 +42,9 @@ static int parse_opt(int key, char *arg)
 		break;
 	case 'd':
 		cla.disk_filename = arg;
+		break;
+	case 't':
+		cla.fstype = arg;
 		break;
 	default:
 		return -1;
@@ -331,7 +336,7 @@ static int test_mount(char *str, int len)
 {
 	long ret;
 
-	ret = lkl_mount_dev(disk_id, "ext4", 0, NULL, mnt_point,
+	ret = lkl_mount_dev(disk_id, cla.fstype, 0, NULL, mnt_point,
 			    sizeof(mnt_point));
 
 	snprintf(str, len, "%ld", ret);
