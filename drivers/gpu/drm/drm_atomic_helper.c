@@ -1741,6 +1741,7 @@ int __drm_atomic_helper_set_config(struct drm_mode_set *set,
 	struct drm_crtc_state *crtc_state;
 	struct drm_plane_state *primary_state;
 	struct drm_crtc *crtc = set->crtc;
+	int hdisplay, vdisplay;
 	int ret;
 
 	crtc_state = drm_atomic_get_crtc_state(state, crtc);
@@ -1783,19 +1784,21 @@ int __drm_atomic_helper_set_config(struct drm_mode_set *set,
 	if (ret != 0)
 		return ret;
 
+	drm_crtc_get_hv_timing(set->mode, &hdisplay, &vdisplay);
+
 	drm_atomic_set_fb_for_plane(primary_state, set->fb);
 	primary_state->crtc_x = 0;
 	primary_state->crtc_y = 0;
-	primary_state->crtc_h = set->mode->vdisplay;
-	primary_state->crtc_w = set->mode->hdisplay;
+	primary_state->crtc_h = vdisplay;
+	primary_state->crtc_w = hdisplay;
 	primary_state->src_x = set->x << 16;
 	primary_state->src_y = set->y << 16;
 	if (primary_state->rotation & (BIT(DRM_ROTATE_90) | BIT(DRM_ROTATE_270))) {
-		primary_state->src_h = set->mode->hdisplay << 16;
-		primary_state->src_w = set->mode->vdisplay << 16;
+		primary_state->src_h = hdisplay << 16;
+		primary_state->src_w = vdisplay << 16;
 	} else {
-		primary_state->src_h = set->mode->vdisplay << 16;
-		primary_state->src_w = set->mode->hdisplay << 16;
+		primary_state->src_h = vdisplay << 16;
+		primary_state->src_w = hdisplay << 16;
 	}
 
 commit:
