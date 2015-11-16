@@ -3328,7 +3328,7 @@ static int rtllib_wpa_set_encryption(struct rtllib_device *ieee,
 			goto done;
 		}
 		new_crypt->ops = ops;
-		if (new_crypt->ops)
+		if (new_crypt->ops && try_module_get(new_crypt->ops->owner))
 			new_crypt->priv =
 				new_crypt->ops->init(param->u.crypt.idx);
 
