@@ -156,6 +156,7 @@ struct wilc_vif {
 };
 
 struct wilc {
+	int io_type;
 	int mac_status;
 	bool initialized;
 	#if (!defined WILC_SDIO) || (defined WILC_SDIO_IRQ_GPIO)

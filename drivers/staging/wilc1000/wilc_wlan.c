@@ -5,7 +5,7 @@
 
 typedef struct {
 	int quit;
-	wilc_wlan_io_func_t io_func;
+	int io_type;
 	struct wilc_hif_func hif_func;
 	int cfg_frame_in_use;
 	struct wilc_cfg_frame cfg_frame;
@@ -576,7 +576,7 @@ static inline void chip_wakeup(void)
 	u32 reg, clk_status_reg, trials = 0;
 	u32 sleep_time;
 
-	if ((g_wlan.io_func.io_type & 0x1) == HIF_SPI) {
+	if ((g_wlan.io_type & 0x1) == HIF_SPI) {
 		do {
 			g_wlan.hif_func.hif_read_reg(1, &reg);
 			g_wlan.hif_func.hif_write_reg(1, reg | BIT(1));
@@ -590,7 +590,7 @@ static inline void chip_wakeup(void)
 			} while ((wilc_get_chipid(true) == 0) && ((++trials % 3) == 0));
 
 		} while (wilc_get_chipid(true) == 0);
-	} else if ((g_wlan.io_func.io_type & 0x1) == HIF_SDIO)	 {
+	} else if ((g_wlan.io_type & 0x1) == HIF_SDIO)	 {
 		g_wlan.hif_func.hif_read_reg(0xf0, &reg);
 		do {
 			g_wlan.hif_func.hif_write_reg(0xf0, reg | BIT(0));
@@ -636,12 +636,12 @@ static inline void chip_wakeup(void)
 	u32 reg, trials = 0;
 
 	do {
-		if ((g_wlan.io_func.io_type & 0x1) == HIF_SPI) {
+		if ((g_wlan.io_type & 0x1) == HIF_SPI) {
 			g_wlan.hif_func.hif_read_reg(1, &reg);
 			g_wlan.hif_func.hif_write_reg(1, reg & ~BIT(1));
 			g_wlan.hif_func.hif_write_reg(1, reg | BIT(1));
 			g_wlan.hif_func.hif_write_reg(1, reg  & ~BIT(1));
-		} else if ((g_wlan.io_func.io_type & 0x1) == HIF_SDIO)	 {
+		} else if ((g_wlan.io_type & 0x1) == HIF_SDIO)	 {
 			g_wlan.hif_func.hif_read_reg(0xf0, &reg);
 			g_wlan.hif_func.hif_write_reg(0xf0, reg & ~BIT(0));
 			g_wlan.hif_func.hif_write_reg(0xf0, reg | BIT(0));
@@ -1252,10 +1252,10 @@ int wilc_wlan_start(void)
 	int ret;
 	u32 chipid;
 
-	if (p->io_func.io_type == HIF_SDIO) {
+	if (p->io_type == HIF_SDIO) {
 		reg = 0;
 		reg |= BIT(3);
-	} else if (p->io_func.io_type == HIF_SPI) {
+	} else if (p->io_type == HIF_SPI) {
 		reg = 1;
 	}
 	acquire_bus(ACQUIRE_ONLY);
@@ -1649,7 +1649,7 @@ _fail_:
 	return chipid;
 }
 
-int wilc_wlan_init(struct net_device *dev, wilc_wlan_inp_t *inp)
+int wilc_wlan_init(struct net_device *dev)
 {
 	int ret = 0;
 	perInterface_wlan_t *nic = netdev_priv(dev);
@@ -1660,8 +1660,7 @@ int wilc_wlan_init(struct net_device *dev, wilc_wlan_inp_t *inp)
 	PRINT_D(INIT_DBG, "Initializing WILC_Wlan ...\n");
 
 	memset((void *)&g_wlan, 0, sizeof(wilc_wlan_dev_t));
-	memcpy((void *)&g_wlan.io_func, (void *)&inp->io_func,
-	       sizeof(wilc_wlan_io_func_t));
+	g_wlan.io_type = wilc->io_type;
 
 #ifdef WILC_SDIO
 	if (!wilc_hif_sdio.hif_init(wilc, wilc_debug)) {

@@ -839,17 +839,6 @@ static int wlan_deinit_locks(struct net_device *dev)
 	return 0;
 }
 
-static void linux_to_wlan(wilc_wlan_inp_t *nwi, struct wilc *nic)
-{
-	PRINT_D(INIT_DBG, "Linux to Wlan services ...\n");
-
-#ifdef WILC_SDIO
-	nwi->io_func.io_type = HIF_SDIO;
-#else
-	nwi->io_func.io_type = HIF_SPI;
-#endif
-}
-
 static int wlan_initialize_threads(struct net_device *dev)
 {
 	perInterface_wlan_t *nic;
@@ -893,7 +882,6 @@ static void wlan_deinitialize_threads(struct net_device *dev)
 
 int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 {
-	wilc_wlan_inp_t nwi;
 	perInterface_wlan_t *nic = p_nic;
 	int ret = 0;
 	struct wilc *wl = nic->wilc;
@@ -904,9 +892,12 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 
 		wlan_init_locks(dev);
 
-		linux_to_wlan(&nwi, wl);
-
-		ret = wilc_wlan_init(dev, &nwi);
+#ifdef WILC_SDIO
+		wl->io_type = HIF_SDIO;
+#else
+		wl->io_type = HIF_SPI;
+#endif
+		ret = wilc_wlan_init(dev);
 		if (ret < 0) {
 			PRINT_ER("Initializing WILC_Wlan FAILED\n");
 			ret = -EIO;

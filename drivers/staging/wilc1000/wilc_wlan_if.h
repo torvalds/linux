@@ -72,20 +72,12 @@ typedef struct {
 	u32 block_size;
 } sdio_cmd53_t;
 
-typedef struct {
-	int io_type;
-} wilc_wlan_io_func_t;
-
 #define WILC_MAC_INDICATE_STATUS	0x1
 #define WILC_MAC_STATUS_INIT		-1
 #define WILC_MAC_STATUS_READY		0
 #define WILC_MAC_STATUS_CONNECT		1
 
 #define WILC_MAC_INDICATE_SCAN		0x2
-
-typedef struct {
-	wilc_wlan_io_func_t io_func;
-} wilc_wlan_inp_t;
 
 struct tx_complete_data {
 	int size;
@@ -917,8 +909,7 @@ typedef enum {
 	WID_MAX				= 0xFFFF
 } WID_T;
 
-int wilc_wlan_init(struct net_device *dev, wilc_wlan_inp_t *inp);
-
+int wilc_wlan_init(struct net_device *dev);
 void wilc_bus_set_max_speed(void);
 void wilc_bus_set_default_speed(void);
 u32 wilc_get_chipid(u8 update);
