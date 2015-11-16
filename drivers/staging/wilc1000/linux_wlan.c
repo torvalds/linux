@@ -643,7 +643,7 @@ static int linux_wlan_init_test_config(struct net_device *dev, struct wilc *p_ni
 	if (!wilc_wlan_cfg_set(0, WID_POWER_MANAGEMENT, c_val, 1, 0, 0))
 		goto _fail_;
 
-	c_val[0] = NO_ENCRYPT;
+	c_val[0] = NO_SECURITY; /* NO_ENCRYPT, 0x79 */
 	if (!wilc_wlan_cfg_set(0, WID_11I_MODE, c_val, 1, 0, 0))
 		goto _fail_;
 
