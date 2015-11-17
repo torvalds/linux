@@ -388,7 +388,7 @@ ADM8211 WIRELESS DRIVER
 L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/
 S:	Orphan
-F:	drivers/net/wireless/adm8211.*
+F:	drivers/net/wireless/admtek/adm8211.*
 
 ADP1653 FLASH CONTROLLER DRIVER
 M:	Sakari Ailus <sakari.ailus@iki.fi>

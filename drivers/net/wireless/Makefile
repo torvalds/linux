@@ -2,6 +2,8 @@
 # Makefile for the Linux Wireless network device drivers.
 #
 
+obj-$(CONFIG_WLAN_VENDOR_ADMTEK) += admtek/
+
 obj-$(CONFIG_IPW2100) += ipw2x00/
 obj-$(CONFIG_IPW2200) += ipw2x00/
 
@@ -34,8 +36,6 @@ obj-$(CONFIG_USB_ZD1201)	+= zd1201.o
 obj-$(CONFIG_LIBERTAS)		+= libertas/
 
 obj-$(CONFIG_LIBERTAS_THINFIRM)	+= libertas_tf/
-
-obj-$(CONFIG_ADM8211)	+= adm8211.o
 
 obj-$(CONFIG_MWL8K)	+= mwl8k.o
 
