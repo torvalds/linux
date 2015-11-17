@@ -1,7 +1,10 @@
+general:
+  artifacts:
+
 ## Customize dependencies
 dependencies:
   pre:
-    - sudo apt-get update; sudo apt-get install bc libfuse-dev libarchive-dev xfsprogs
+    - sudo apt-get update; sudo apt-get install bc libfuse-dev libarchive-dev xfsprogs valgrind
   post:
     - make defconfig ARCH=lkl
     - make ARCH=lkl -j8
@@ -10,3 +13,8 @@ test:
   override:
     - cd tools/lkl && make -j8
     - cd tools/lkl && make test
+    - cd tools/lkl && make valgrind:
+         timeout: 1800 # timeout to 30mins
+  post:
+    - mkdir -p $CIRCLE_TEST_REPORTS/junit/
+    - find ./tools/lkl/ -type f -name "*.xml" -exec cp {} $CIRCLE_TEST_REPORTS/ \;

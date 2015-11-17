@@ -3,3 +3,4 @@ fs2tar
 cptofs
 cpfromfs
 lklfuse
+tests/valgrind*.xml

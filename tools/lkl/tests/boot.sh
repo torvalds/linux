@@ -15,6 +15,6 @@ dd if=/dev/zero of=$file bs=1024 count=20480
 
 yes | mkfs.$fstype $file >/dev/null
 
-./boot -d $file -t $fstype $@
+${VALGRIND_CMD} ./boot -d $file -t $fstype $@
 
 rm $file
