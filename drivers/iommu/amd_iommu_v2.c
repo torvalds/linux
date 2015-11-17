@@ -514,10 +514,10 @@ static void do_fault(struct work_struct *work)
 {
 	struct fault *fault = container_of(work, struct fault, work);
 	struct vm_area_struct *vma;
+	int ret = VM_FAULT_ERROR;
 	unsigned int flags = 0;
 	struct mm_struct *mm;
 	u64 address;
-	int ret;
 
 	mm = fault->state->mm;
 	address = fault->address;
@@ -529,31 +529,23 @@ static void do_fault(struct work_struct *work)
 
 	down_read(&mm->mmap_sem);
 	vma = find_extend_vma(mm, address);
-	if (!vma || address < vma->vm_start) {
+	if (!vma || address < vma->vm_start)
 		/* failed to get a vma in the right range */
-		up_read(&mm->mmap_sem);
-		handle_fault_error(fault);
 		goto out;
-	}
 
 	/* Check if we have the right permissions on the vma */
-	if (access_error(vma, fault)) {
-		up_read(&mm->mmap_sem);
-		handle_fault_error(fault);
+	if (access_error(vma, fault))
 		goto out;
-	}
 
 	ret = handle_mm_fault(mm, vma, address, flags);
-	if (ret & VM_FAULT_ERROR) {
-		/* failed to service fault */
-		up_read(&mm->mmap_sem);
-		handle_fault_error(fault);
-		goto out;
-	}
-
-	up_read(&mm->mmap_sem);
 
 out:
+	up_read(&mm->mmap_sem);
+
+	if (ret & VM_FAULT_ERROR)
+		/* failed to service fault */
+		handle_fault_error(fault);
+
 	finish_pri_tag(fault->dev_state, fault->state, fault->tag);
 
 	put_pasid_state(fault->state);
