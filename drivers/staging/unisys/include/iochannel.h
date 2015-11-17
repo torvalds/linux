@@ -566,8 +566,7 @@ struct spar_io_channel_protocol {
  * pfn-off-size entires.
  */
 
-/* we deal with 4K page sizes when we it comes to passing page information
- * between */
+/* use 4K page sizes when we it comes to passing page information between */
 /* Guest and IOPartition. */
 #define PI_PAGE_SIZE  0x1000
 #define PI_PAGE_MASK  0x0FFF
