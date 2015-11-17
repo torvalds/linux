@@ -45,6 +45,11 @@ struct hisi_sas_port {
 	struct asd_sas_port	sas_port;
 };
 
+struct hisi_sas_cq {
+	struct hisi_hba *hisi_hba;
+	int	id;
+};
+
 struct hisi_sas_slot {
 };
 
@@ -73,6 +78,8 @@ struct hisi_hba {
 	/* SCSI/SAS glue */
 	struct sas_ha_struct sha;
 	struct Scsi_Host *shost;
+
+	struct hisi_sas_cq cq[HISI_SAS_MAX_QUEUES];
 	struct hisi_sas_phy phy[HISI_SAS_MAX_PHYS];
 	struct hisi_sas_port port[HISI_SAS_MAX_PHYS];
 
