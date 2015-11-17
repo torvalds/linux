@@ -513,15 +513,19 @@ static bool access_error(struct vm_area_struct *vma, struct fault *fault)
 static void do_fault(struct work_struct *work)
 {
 	struct fault *fault = container_of(work, struct fault, work);
-	struct mm_struct *mm;
 	struct vm_area_struct *vma;
+	unsigned int flags = 0;
+	struct mm_struct *mm;
 	u64 address;
-	int ret, write;
-
-	write = !!(fault->flags & PPR_FAULT_WRITE);
+	int ret;
 
 	mm = fault->state->mm;
 	address = fault->address;
+
+	if (fault->flags & PPR_FAULT_USER)
+		flags |= FAULT_FLAG_USER;
+	if (fault->flags & PPR_FAULT_WRITE)
+		flags |= FAULT_FLAG_WRITE;
 
 	down_read(&mm->mmap_sem);
 	vma = find_extend_vma(mm, address);
@@ -539,7 +543,7 @@ static void do_fault(struct work_struct *work)
 		goto out;
 	}
 
-	ret = handle_mm_fault(mm, vma, address, write);
+	ret = handle_mm_fault(mm, vma, address, flags);
 	if (ret & VM_FAULT_ERROR) {
 		/* failed to service fault */
 		up_read(&mm->mmap_sem);
