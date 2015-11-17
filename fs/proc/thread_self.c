@@ -27,13 +27,12 @@ static const char *proc_thread_self_get_link(struct dentry *dentry,
 	pid_t pid = task_pid_nr_ns(current, ns);
 	char *name;
 
-	if (!dentry)
-		return ERR_PTR(-ECHILD);
 	if (!pid)
 		return ERR_PTR(-ENOENT);
-	name = kmalloc(PROC_NUMBUF + 6 + PROC_NUMBUF, GFP_KERNEL);
-	if (!name)
-		return ERR_PTR(-ENOMEM);
+	name = kmalloc(PROC_NUMBUF + 6 + PROC_NUMBUF,
+				dentry ? GFP_KERNEL : GFP_ATOMIC);
+	if (unlikely(!name))
+		return dentry ? ERR_PTR(-ENOMEM) : ERR_PTR(-ECHILD);
 	sprintf(name, "%d/task/%d", tgid, pid);
 	return *cookie = name;
 }
