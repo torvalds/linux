@@ -56,117 +56,7 @@ static const struct v4l2_ctrl_ops bru_ctrl_ops = {
 };
 
 /* -----------------------------------------------------------------------------
- * V4L2 Subdevice Core Operations
- */
-
-static int bru_s_stream(struct v4l2_subdev *subdev, int enable)
-{
-	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&subdev->entity);
-	struct vsp1_bru *bru = to_bru(subdev);
-	struct v4l2_mbus_framefmt *format;
-	unsigned int flags;
-	unsigned int i;
-
-	if (!enable)
-		return 0;
-
-	format = vsp1_entity_get_pad_format(&bru->entity, bru->entity.config,
-					    bru->entity.source_pad);
-
-	/* The hardware is extremely flexible but we have no userspace API to
-	 * expose all the parameters, nor is it clear whether we would have use
-	 * cases for all the supported modes. Let's just harcode the parameters
-	 * to sane default values for now.
-	 */
-
-	/* Disable dithering and enable color data normalization unless the
-	 * format at the pipeline output is premultiplied.
-	 */
-	flags = pipe->output ? pipe->output->format.flags : 0;
-	vsp1_bru_write(bru, VI6_BRU_INCTRL,
-		       flags & V4L2_PIX_FMT_FLAG_PREMUL_ALPHA ?
-		       0 : VI6_BRU_INCTRL_NRM);
-
-	/* Set the background position to cover the whole output image and
-	 * configure its color.
-	 */
-	vsp1_bru_write(bru, VI6_BRU_VIRRPF_SIZE,
-		       (format->width << VI6_BRU_VIRRPF_SIZE_HSIZE_SHIFT) |
-		       (format->height << VI6_BRU_VIRRPF_SIZE_VSIZE_SHIFT));
-	vsp1_bru_write(bru, VI6_BRU_VIRRPF_LOC, 0);
-
-	vsp1_bru_write(bru, VI6_BRU_VIRRPF_COL, bru->bgcolor |
-		       (0xff << VI6_BRU_VIRRPF_COL_A_SHIFT));
-
-	/* Route BRU input 1 as SRC input to the ROP unit and configure the ROP
-	 * unit with a NOP operation to make BRU input 1 available as the
-	 * Blend/ROP unit B SRC input.
-	 */
-	vsp1_bru_write(bru, VI6_BRU_ROP, VI6_BRU_ROP_DSTSEL_BRUIN(1) |
-		       VI6_BRU_ROP_CROP(VI6_ROP_NOP) |
-		       VI6_BRU_ROP_AROP(VI6_ROP_NOP));
-
-	for (i = 0; i < bru->entity.source_pad; ++i) {
-		bool premultiplied = false;
-		u32 ctrl = 0;
-
-		/* Configure all Blend/ROP units corresponding to an enabled BRU
-		 * input for alpha blending. Blend/ROP units corresponding to
-		 * disabled BRU inputs are used in ROP NOP mode to ignore the
-		 * SRC input.
-		 */
-		if (bru->inputs[i].rpf) {
-			ctrl |= VI6_BRU_CTRL_RBC;
-
-			premultiplied = bru->inputs[i].rpf->format.flags
-				      & V4L2_PIX_FMT_FLAG_PREMUL_ALPHA;
-		} else {
-			ctrl |= VI6_BRU_CTRL_CROP(VI6_ROP_NOP)
-			     |  VI6_BRU_CTRL_AROP(VI6_ROP_NOP);
-		}
-
-		/* Select the virtual RPF as the Blend/ROP unit A DST input to
-		 * serve as a background color.
-		 */
-		if (i == 0)
-			ctrl |= VI6_BRU_CTRL_DSTSEL_VRPF;
-
-		/* Route BRU inputs 0 to 3 as SRC inputs to Blend/ROP units A to
-		 * D in that order. The Blend/ROP unit B SRC is hardwired to the
-		 * ROP unit output, the corresponding register bits must be set
-		 * to 0.
-		 */
-		if (i != 1)
-			ctrl |= VI6_BRU_CTRL_SRCSEL_BRUIN(i);
-
-		vsp1_bru_write(bru, VI6_BRU_CTRL(i), ctrl);
-
-		/* Harcode the blending formula to
-		 *
-		 *	DSTc = DSTc * (1 - SRCa) + SRCc * SRCa
-		 *	DSTa = DSTa * (1 - SRCa) + SRCa
-		 *
-		 * when the SRC input isn't premultiplied, and to
-		 *
-		 *	DSTc = DSTc * (1 - SRCa) + SRCc
-		 *	DSTa = DSTa * (1 - SRCa) + SRCa
-		 *
-		 * otherwise.
-		 */
-		vsp1_bru_write(bru, VI6_BRU_BLD(i),
-			       VI6_BRU_BLD_CCMDX_255_SRC_A |
-			       (premultiplied ? VI6_BRU_BLD_CCMDY_COEFY :
-						VI6_BRU_BLD_CCMDY_SRC_A) |
-			       VI6_BRU_BLD_ACMDX_255_SRC_A |
-			       VI6_BRU_BLD_ACMDY_COEFY |
-			       (0xff << VI6_BRU_BLD_COEFY_SHIFT));
-	}
-
-	return 0;
-}
-
-/* -----------------------------------------------------------------------------
- * V4L2 Subdevice Pad Operations
+ * V4L2 Subdevice Operations
  */
 
 /*
@@ -395,14 +285,6 @@ static int bru_set_selection(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-/* -----------------------------------------------------------------------------
- * V4L2 Subdevice Operations
- */
-
-static struct v4l2_subdev_video_ops bru_video_ops = {
-	.s_stream = bru_s_stream,
-};
-
 static struct v4l2_subdev_pad_ops bru_pad_ops = {
 	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = bru_enum_mbus_code,
@@ -414,8 +296,116 @@ static struct v4l2_subdev_pad_ops bru_pad_ops = {
 };
 
 static struct v4l2_subdev_ops bru_ops = {
-	.video	= &bru_video_ops,
 	.pad    = &bru_pad_ops,
+};
+
+/* -----------------------------------------------------------------------------
+ * VSP1 Entity Operations
+ */
+
+static void bru_configure(struct vsp1_entity *entity)
+{
+	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&entity->subdev.entity);
+	struct vsp1_bru *bru = to_bru(&entity->subdev);
+	struct v4l2_mbus_framefmt *format;
+	unsigned int flags;
+	unsigned int i;
+
+	format = vsp1_entity_get_pad_format(&bru->entity, bru->entity.config,
+					    bru->entity.source_pad);
+
+	/* The hardware is extremely flexible but we have no userspace API to
+	 * expose all the parameters, nor is it clear whether we would have use
+	 * cases for all the supported modes. Let's just harcode the parameters
+	 * to sane default values for now.
+	 */
+
+	/* Disable dithering and enable color data normalization unless the
+	 * format at the pipeline output is premultiplied.
+	 */
+	flags = pipe->output ? pipe->output->format.flags : 0;
+	vsp1_bru_write(bru, VI6_BRU_INCTRL,
+		       flags & V4L2_PIX_FMT_FLAG_PREMUL_ALPHA ?
+		       0 : VI6_BRU_INCTRL_NRM);
+
+	/* Set the background position to cover the whole output image and
+	 * configure its color.
+	 */
+	vsp1_bru_write(bru, VI6_BRU_VIRRPF_SIZE,
+		       (format->width << VI6_BRU_VIRRPF_SIZE_HSIZE_SHIFT) |
+		       (format->height << VI6_BRU_VIRRPF_SIZE_VSIZE_SHIFT));
+	vsp1_bru_write(bru, VI6_BRU_VIRRPF_LOC, 0);
+
+	vsp1_bru_write(bru, VI6_BRU_VIRRPF_COL, bru->bgcolor |
+		       (0xff << VI6_BRU_VIRRPF_COL_A_SHIFT));
+
+	/* Route BRU input 1 as SRC input to the ROP unit and configure the ROP
+	 * unit with a NOP operation to make BRU input 1 available as the
+	 * Blend/ROP unit B SRC input.
+	 */
+	vsp1_bru_write(bru, VI6_BRU_ROP, VI6_BRU_ROP_DSTSEL_BRUIN(1) |
+		       VI6_BRU_ROP_CROP(VI6_ROP_NOP) |
+		       VI6_BRU_ROP_AROP(VI6_ROP_NOP));
+
+	for (i = 0; i < bru->entity.source_pad; ++i) {
+		bool premultiplied = false;
+		u32 ctrl = 0;
+
+		/* Configure all Blend/ROP units corresponding to an enabled BRU
+		 * input for alpha blending. Blend/ROP units corresponding to
+		 * disabled BRU inputs are used in ROP NOP mode to ignore the
+		 * SRC input.
+		 */
+		if (bru->inputs[i].rpf) {
+			ctrl |= VI6_BRU_CTRL_RBC;
+
+			premultiplied = bru->inputs[i].rpf->format.flags
+				      & V4L2_PIX_FMT_FLAG_PREMUL_ALPHA;
+		} else {
+			ctrl |= VI6_BRU_CTRL_CROP(VI6_ROP_NOP)
+			     |  VI6_BRU_CTRL_AROP(VI6_ROP_NOP);
+		}
+
+		/* Select the virtual RPF as the Blend/ROP unit A DST input to
+		 * serve as a background color.
+		 */
+		if (i == 0)
+			ctrl |= VI6_BRU_CTRL_DSTSEL_VRPF;
+
+		/* Route BRU inputs 0 to 3 as SRC inputs to Blend/ROP units A to
+		 * D in that order. The Blend/ROP unit B SRC is hardwired to the
+		 * ROP unit output, the corresponding register bits must be set
+		 * to 0.
+		 */
+		if (i != 1)
+			ctrl |= VI6_BRU_CTRL_SRCSEL_BRUIN(i);
+
+		vsp1_bru_write(bru, VI6_BRU_CTRL(i), ctrl);
+
+		/* Harcode the blending formula to
+		 *
+		 *	DSTc = DSTc * (1 - SRCa) + SRCc * SRCa
+		 *	DSTa = DSTa * (1 - SRCa) + SRCa
+		 *
+		 * when the SRC input isn't premultiplied, and to
+		 *
+		 *	DSTc = DSTc * (1 - SRCa) + SRCc
+		 *	DSTa = DSTa * (1 - SRCa) + SRCa
+		 *
+		 * otherwise.
+		 */
+		vsp1_bru_write(bru, VI6_BRU_BLD(i),
+			       VI6_BRU_BLD_CCMDX_255_SRC_A |
+			       (premultiplied ? VI6_BRU_BLD_CCMDY_COEFY :
+						VI6_BRU_BLD_CCMDY_SRC_A) |
+			       VI6_BRU_BLD_ACMDX_255_SRC_A |
+			       VI6_BRU_BLD_ACMDY_COEFY |
+			       (0xff << VI6_BRU_BLD_COEFY_SHIFT));
+	}
+}
+
+static const struct vsp1_entity_operations bru_entity_ops = {
+	.configure = bru_configure,
 };
 
 /* -----------------------------------------------------------------------------
@@ -431,6 +421,7 @@ struct vsp1_bru *vsp1_bru_create(struct vsp1_device *vsp1)
 	if (bru == NULL)
 		return ERR_PTR(-ENOMEM);
 
+	bru->entity.ops = &bru_entity_ops;
 	bru->entity.type = VSP1_ENTITY_BRU;
 
 	ret = vsp1_entity_init(vsp1, &bru->entity, "bru",

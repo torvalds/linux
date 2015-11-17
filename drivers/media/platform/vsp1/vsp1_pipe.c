@@ -253,9 +253,9 @@ int vsp1_pipeline_stop(struct vsp1_pipeline *pipe)
 		if (entity->route && entity->route->reg)
 			vsp1_write(entity->vsp1, entity->route->reg,
 				   VI6_DPR_NODE_UNUSED);
-
-		v4l2_subdev_call(&entity->subdev, video, s_stream, 0);
 	}
+
+	v4l2_subdev_call(&pipe->output->entity.subdev, video, s_stream, 0);
 
 	return ret;
 }

@@ -32,26 +32,7 @@ static inline void vsp1_hsit_write(struct vsp1_hsit *hsit, u32 reg, u32 data)
 }
 
 /* -----------------------------------------------------------------------------
- * V4L2 Subdevice Core Operations
- */
-
-static int hsit_s_stream(struct v4l2_subdev *subdev, int enable)
-{
-	struct vsp1_hsit *hsit = to_hsit(subdev);
-
-	if (!enable)
-		return 0;
-
-	if (hsit->inverse)
-		vsp1_hsit_write(hsit, VI6_HSI_CTRL, VI6_HSI_CTRL_EN);
-	else
-		vsp1_hsit_write(hsit, VI6_HST_CTRL, VI6_HST_CTRL_EN);
-
-	return 0;
-}
-
-/* -----------------------------------------------------------------------------
- * V4L2 Subdevice Pad Operations
+ * V4L2 Subdevice Operations
  */
 
 static int hsit_enum_mbus_code(struct v4l2_subdev *subdev,
@@ -167,14 +148,6 @@ static int hsit_set_format(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-/* -----------------------------------------------------------------------------
- * V4L2 Subdevice Operations
- */
-
-static struct v4l2_subdev_video_ops hsit_video_ops = {
-	.s_stream = hsit_s_stream,
-};
-
 static struct v4l2_subdev_pad_ops hsit_pad_ops = {
 	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = hsit_enum_mbus_code,
@@ -184,8 +157,25 @@ static struct v4l2_subdev_pad_ops hsit_pad_ops = {
 };
 
 static struct v4l2_subdev_ops hsit_ops = {
-	.video	= &hsit_video_ops,
 	.pad    = &hsit_pad_ops,
+};
+
+/* -----------------------------------------------------------------------------
+ * VSP1 Entity Operations
+ */
+
+static void hsit_configure(struct vsp1_entity *entity)
+{
+	struct vsp1_hsit *hsit = to_hsit(&entity->subdev);
+
+	if (hsit->inverse)
+		vsp1_hsit_write(hsit, VI6_HSI_CTRL, VI6_HSI_CTRL_EN);
+	else
+		vsp1_hsit_write(hsit, VI6_HST_CTRL, VI6_HST_CTRL_EN);
+}
+
+static const struct vsp1_entity_operations hsit_entity_ops = {
+	.configure = hsit_configure,
 };
 
 /* -----------------------------------------------------------------------------
@@ -202,6 +192,8 @@ struct vsp1_hsit *vsp1_hsit_create(struct vsp1_device *vsp1, bool inverse)
 		return ERR_PTR(-ENOMEM);
 
 	hsit->inverse = inverse;
+
+	hsit->entity.ops = &hsit_entity_ops;
 
 	if (inverse)
 		hsit->entity.type = VSP1_ENTITY_HSI;

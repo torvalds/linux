@@ -591,7 +591,6 @@ static void vsp1_video_buffer_queue(struct vb2_buffer *vb)
 static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 {
 	struct vsp1_entity *entity;
-	int ret;
 
 	/* Prepare the display list. */
 	pipe->dl = vsp1_dl_list_get(pipe->output->dlm);
@@ -619,18 +618,14 @@ static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 	list_for_each_entry(entity, &pipe->entities, list_pipe) {
 		vsp1_entity_route_setup(entity);
 
-		ret = v4l2_subdev_call(&entity->subdev, video, s_stream, 1);
-		if (ret < 0)
-			goto error;
+		if (entity->ops->configure)
+			entity->ops->configure(entity);
 	}
 
+	/* We know that the WPF s_stream operation never fails. */
+	v4l2_subdev_call(&pipe->output->entity.subdev, video, s_stream, 1);
+
 	return 0;
-
-error:
-	vsp1_dl_list_put(pipe->dl);
-	pipe->dl = NULL;
-
-	return ret;
 }
 
 static int vsp1_video_start_streaming(struct vb2_queue *vq, unsigned int count)

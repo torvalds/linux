@@ -32,41 +32,7 @@ static inline void vsp1_lif_write(struct vsp1_lif *lif, u32 reg, u32 data)
 }
 
 /* -----------------------------------------------------------------------------
- * V4L2 Subdevice Core Operations
- */
-
-static int lif_s_stream(struct v4l2_subdev *subdev, int enable)
-{
-	const struct v4l2_mbus_framefmt *format;
-	struct vsp1_lif *lif = to_lif(subdev);
-	unsigned int hbth = 1300;
-	unsigned int obth = 400;
-	unsigned int lbth = 200;
-
-	if (!enable) {
-		vsp1_write(lif->entity.vsp1, VI6_LIF_CTRL, 0);
-		return 0;
-	}
-
-	format = vsp1_entity_get_pad_format(&lif->entity, lif->entity.config,
-					    LIF_PAD_SOURCE);
-
-	obth = min(obth, (format->width + 1) / 2 * format->height - 4);
-
-	vsp1_lif_write(lif, VI6_LIF_CSBTH,
-			(hbth << VI6_LIF_CSBTH_HBTH_SHIFT) |
-			(lbth << VI6_LIF_CSBTH_LBTH_SHIFT));
-
-	vsp1_lif_write(lif, VI6_LIF_CTRL,
-			(obth << VI6_LIF_CTRL_OBTH_SHIFT) |
-			(format->code == 0 ? VI6_LIF_CTRL_CFMT : 0) |
-			VI6_LIF_CTRL_REQSEL | VI6_LIF_CTRL_LIF_EN);
-
-	return 0;
-}
-
-/* -----------------------------------------------------------------------------
- * V4L2 Subdevice Pad Operations
+ * V4L2 Subdevice Operations
  */
 
 static int lif_enum_mbus_code(struct v4l2_subdev *subdev,
@@ -201,14 +167,6 @@ static int lif_set_format(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-/* -----------------------------------------------------------------------------
- * V4L2 Subdevice Operations
- */
-
-static struct v4l2_subdev_video_ops lif_video_ops = {
-	.s_stream = lif_s_stream,
-};
-
 static struct v4l2_subdev_pad_ops lif_pad_ops = {
 	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = lif_enum_mbus_code,
@@ -218,8 +176,38 @@ static struct v4l2_subdev_pad_ops lif_pad_ops = {
 };
 
 static struct v4l2_subdev_ops lif_ops = {
-	.video	= &lif_video_ops,
 	.pad    = &lif_pad_ops,
+};
+
+/* -----------------------------------------------------------------------------
+ * VSP1 Entity Operations
+ */
+
+static void lif_configure(struct vsp1_entity *entity)
+{
+	const struct v4l2_mbus_framefmt *format;
+	struct vsp1_lif *lif = to_lif(&entity->subdev);
+	unsigned int hbth = 1300;
+	unsigned int obth = 400;
+	unsigned int lbth = 200;
+
+	format = vsp1_entity_get_pad_format(&lif->entity, lif->entity.config,
+					    LIF_PAD_SOURCE);
+
+	obth = min(obth, (format->width + 1) / 2 * format->height - 4);
+
+	vsp1_lif_write(lif, VI6_LIF_CSBTH,
+			(hbth << VI6_LIF_CSBTH_HBTH_SHIFT) |
+			(lbth << VI6_LIF_CSBTH_LBTH_SHIFT));
+
+	vsp1_lif_write(lif, VI6_LIF_CTRL,
+			(obth << VI6_LIF_CTRL_OBTH_SHIFT) |
+			(format->code == 0 ? VI6_LIF_CTRL_CFMT : 0) |
+			VI6_LIF_CTRL_REQSEL | VI6_LIF_CTRL_LIF_EN);
+}
+
+static const struct vsp1_entity_operations lif_entity_ops = {
+	.configure = lif_configure,
 };
 
 /* -----------------------------------------------------------------------------
@@ -235,6 +223,7 @@ struct vsp1_lif *vsp1_lif_create(struct vsp1_device *vsp1)
 	if (lif == NULL)
 		return ERR_PTR(-ENOMEM);
 
+	lif->entity.ops = &lif_entity_ops;
 	lif->entity.type = VSP1_ENTITY_LIF;
 
 	ret = vsp1_entity_init(vsp1, &lif->entity, "lif", 2, &lif_ops);

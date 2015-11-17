@@ -36,7 +36,7 @@ static inline void vsp1_lut_write(struct vsp1_lut *lut, u32 reg, u32 data)
  * V4L2 Subdevice Core Operations
  */
 
-static void lut_configure(struct vsp1_lut *lut, struct vsp1_lut_config *config)
+static void lut_set_table(struct vsp1_lut *lut, struct vsp1_lut_config *config)
 {
 	memcpy_toio(lut->entity.vsp1->mmio + VI6_LUT_TABLE, config->lut,
 		    sizeof(config->lut));
@@ -48,28 +48,12 @@ static long lut_ioctl(struct v4l2_subdev *subdev, unsigned int cmd, void *arg)
 
 	switch (cmd) {
 	case VIDIOC_VSP1_LUT_CONFIG:
-		lut_configure(lut, arg);
+		lut_set_table(lut, arg);
 		return 0;
 
 	default:
 		return -ENOIOCTLCMD;
 	}
-}
-
-/* -----------------------------------------------------------------------------
- * V4L2 Subdevice Video Operations
- */
-
-static int lut_s_stream(struct v4l2_subdev *subdev, int enable)
-{
-	struct vsp1_lut *lut = to_lut(subdev);
-
-	if (!enable)
-		return 0;
-
-	vsp1_lut_write(lut, VI6_LUT_CTRL, VI6_LUT_CTRL_EN);
-
-	return 0;
 }
 
 /* -----------------------------------------------------------------------------
@@ -218,10 +202,6 @@ static struct v4l2_subdev_core_ops lut_core_ops = {
 	.ioctl = lut_ioctl,
 };
 
-static struct v4l2_subdev_video_ops lut_video_ops = {
-	.s_stream = lut_s_stream,
-};
-
 static struct v4l2_subdev_pad_ops lut_pad_ops = {
 	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = lut_enum_mbus_code,
@@ -232,8 +212,22 @@ static struct v4l2_subdev_pad_ops lut_pad_ops = {
 
 static struct v4l2_subdev_ops lut_ops = {
 	.core	= &lut_core_ops,
-	.video	= &lut_video_ops,
 	.pad    = &lut_pad_ops,
+};
+
+/* -----------------------------------------------------------------------------
+ * VSP1 Entity Operations
+ */
+
+static void lut_configure(struct vsp1_entity *entity)
+{
+	struct vsp1_lut *lut = to_lut(&entity->subdev);
+
+	vsp1_lut_write(lut, VI6_LUT_CTRL, VI6_LUT_CTRL_EN);
+}
+
+static const struct vsp1_entity_operations lut_entity_ops = {
+	.configure = lut_configure,
 };
 
 /* -----------------------------------------------------------------------------
@@ -249,6 +243,7 @@ struct vsp1_lut *vsp1_lut_create(struct vsp1_device *vsp1)
 	if (lut == NULL)
 		return ERR_PTR(-ENOMEM);
 
+	lut->entity.ops = &lut_entity_ops;
 	lut->entity.type = VSP1_ENTITY_LUT;
 
 	ret = vsp1_entity_init(vsp1, &lut->entity, "lut", 2, &lut_ops);

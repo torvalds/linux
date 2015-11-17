@@ -33,13 +33,43 @@ static inline void vsp1_rpf_write(struct vsp1_rwpf *rpf, u32 reg, u32 data)
 }
 
 /* -----------------------------------------------------------------------------
- * V4L2 Subdevice Core Operations
+ * V4L2 Subdevice Operations
  */
 
-static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
+static struct v4l2_subdev_pad_ops rpf_pad_ops = {
+	.init_cfg = vsp1_entity_init_cfg,
+	.enum_mbus_code = vsp1_rwpf_enum_mbus_code,
+	.enum_frame_size = vsp1_rwpf_enum_frame_size,
+	.get_fmt = vsp1_rwpf_get_format,
+	.set_fmt = vsp1_rwpf_set_format,
+	.get_selection = vsp1_rwpf_get_selection,
+	.set_selection = vsp1_rwpf_set_selection,
+};
+
+static struct v4l2_subdev_ops rpf_ops = {
+	.pad    = &rpf_pad_ops,
+};
+
+/* -----------------------------------------------------------------------------
+ * VSP1 Entity Operations
+ */
+
+static void rpf_set_memory(struct vsp1_entity *entity)
 {
-	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&subdev->entity);
-	struct vsp1_rwpf *rpf = to_rwpf(subdev);
+	struct vsp1_rwpf *rpf = entity_to_rwpf(entity);
+
+	vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_Y,
+		       rpf->mem.addr[0] + rpf->offsets[0]);
+	vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C0,
+		       rpf->mem.addr[1] + rpf->offsets[1]);
+	vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C1,
+		       rpf->mem.addr[2] + rpf->offsets[1]);
+}
+
+static void rpf_configure(struct vsp1_entity *entity)
+{
+	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&entity->subdev.entity);
+	struct vsp1_rwpf *rpf = to_rwpf(&entity->subdev);
 	const struct vsp1_format_info *fmtinfo = rpf->fmtinfo;
 	const struct v4l2_pix_format_mplane *format = &rpf->format;
 	const struct v4l2_mbus_framefmt *source_format;
@@ -49,9 +79,6 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	unsigned int top = 0;
 	u32 pstride;
 	u32 infmt;
-
-	if (!enable)
-		return 0;
 
 	/* Source size, stride and crop offsets.
 	 *
@@ -136,51 +163,11 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 
 	vsp1_rpf_write(rpf, VI6_RPF_MSK_CTRL, 0);
 	vsp1_rpf_write(rpf, VI6_RPF_CKEY_CTRL, 0);
-
-	return 0;
-}
-
-/* -----------------------------------------------------------------------------
- * V4L2 Subdevice Operations
- */
-
-static struct v4l2_subdev_video_ops rpf_video_ops = {
-	.s_stream = rpf_s_stream,
-};
-
-static struct v4l2_subdev_pad_ops rpf_pad_ops = {
-	.init_cfg = vsp1_entity_init_cfg,
-	.enum_mbus_code = vsp1_rwpf_enum_mbus_code,
-	.enum_frame_size = vsp1_rwpf_enum_frame_size,
-	.get_fmt = vsp1_rwpf_get_format,
-	.set_fmt = vsp1_rwpf_set_format,
-	.get_selection = vsp1_rwpf_get_selection,
-	.set_selection = vsp1_rwpf_set_selection,
-};
-
-static struct v4l2_subdev_ops rpf_ops = {
-	.video	= &rpf_video_ops,
-	.pad    = &rpf_pad_ops,
-};
-
-/* -----------------------------------------------------------------------------
- * VSP1 Entity Operations
- */
-
-static void rpf_set_memory(struct vsp1_entity *entity)
-{
-	struct vsp1_rwpf *rpf = entity_to_rwpf(entity);
-
-	vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_Y,
-		       rpf->mem.addr[0] + rpf->offsets[0]);
-	vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C0,
-		       rpf->mem.addr[1] + rpf->offsets[1]);
-	vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C1,
-		       rpf->mem.addr[2] + rpf->offsets[1]);
 }
 
 static const struct vsp1_entity_operations rpf_entity_ops = {
 	.set_memory = rpf_set_memory,
+	.configure = rpf_configure,
 };
 
 /* -----------------------------------------------------------------------------

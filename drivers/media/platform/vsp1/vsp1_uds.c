@@ -105,62 +105,6 @@ static unsigned int uds_compute_ratio(unsigned int input, unsigned int output)
 }
 
 /* -----------------------------------------------------------------------------
- * V4L2 Subdevice Core Operations
- */
-
-static int uds_s_stream(struct v4l2_subdev *subdev, int enable)
-{
-	struct vsp1_uds *uds = to_uds(subdev);
-	const struct v4l2_mbus_framefmt *output;
-	const struct v4l2_mbus_framefmt *input;
-	unsigned int hscale;
-	unsigned int vscale;
-	bool multitap;
-
-	if (!enable)
-		return 0;
-
-	input = vsp1_entity_get_pad_format(&uds->entity, uds->entity.config,
-					   UDS_PAD_SINK);
-	output = vsp1_entity_get_pad_format(&uds->entity, uds->entity.config,
-					    UDS_PAD_SOURCE);
-
-	hscale = uds_compute_ratio(input->width, output->width);
-	vscale = uds_compute_ratio(input->height, output->height);
-
-	dev_dbg(uds->entity.vsp1->dev, "hscale %u vscale %u\n", hscale, vscale);
-
-	/* Multi-tap scaling can't be enabled along with alpha scaling when
-	 * scaling down with a factor lower than or equal to 1/2 in either
-	 * direction.
-	 */
-	if (uds->scale_alpha && (hscale >= 8192 || vscale >= 8192))
-		multitap = false;
-	else
-		multitap = true;
-
-	vsp1_uds_write(uds, VI6_UDS_CTRL,
-		       (uds->scale_alpha ? VI6_UDS_CTRL_AON : 0) |
-		       (multitap ? VI6_UDS_CTRL_BC : 0));
-
-	vsp1_uds_write(uds, VI6_UDS_PASS_BWIDTH,
-		       (uds_passband_width(hscale)
-				<< VI6_UDS_PASS_BWIDTH_H_SHIFT) |
-		       (uds_passband_width(vscale)
-				<< VI6_UDS_PASS_BWIDTH_V_SHIFT));
-
-	/* Set the scaling ratios and the output size. */
-	vsp1_uds_write(uds, VI6_UDS_SCALE,
-		       (hscale << VI6_UDS_SCALE_HFRAC_SHIFT) |
-		       (vscale << VI6_UDS_SCALE_VFRAC_SHIFT));
-	vsp1_uds_write(uds, VI6_UDS_CLIP_SIZE,
-		       (output->width << VI6_UDS_CLIP_SIZE_HSIZE_SHIFT) |
-		       (output->height << VI6_UDS_CLIP_SIZE_VSIZE_SHIFT));
-
-	return 0;
-}
-
-/* -----------------------------------------------------------------------------
  * V4L2 Subdevice Pad Operations
  */
 
@@ -321,10 +265,6 @@ static int uds_set_format(struct v4l2_subdev *subdev,
  * V4L2 Subdevice Operations
  */
 
-static struct v4l2_subdev_video_ops uds_video_ops = {
-	.s_stream = uds_s_stream,
-};
-
 static struct v4l2_subdev_pad_ops uds_pad_ops = {
 	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = uds_enum_mbus_code,
@@ -334,8 +274,62 @@ static struct v4l2_subdev_pad_ops uds_pad_ops = {
 };
 
 static struct v4l2_subdev_ops uds_ops = {
-	.video	= &uds_video_ops,
 	.pad    = &uds_pad_ops,
+};
+
+/* -----------------------------------------------------------------------------
+ * VSP1 Entity Operations
+ */
+
+static void uds_configure(struct vsp1_entity *entity)
+{
+	struct vsp1_uds *uds = to_uds(&entity->subdev);
+	const struct v4l2_mbus_framefmt *output;
+	const struct v4l2_mbus_framefmt *input;
+	unsigned int hscale;
+	unsigned int vscale;
+	bool multitap;
+
+	input = vsp1_entity_get_pad_format(&uds->entity, uds->entity.config,
+					   UDS_PAD_SINK);
+	output = vsp1_entity_get_pad_format(&uds->entity, uds->entity.config,
+					    UDS_PAD_SOURCE);
+
+	hscale = uds_compute_ratio(input->width, output->width);
+	vscale = uds_compute_ratio(input->height, output->height);
+
+	dev_dbg(uds->entity.vsp1->dev, "hscale %u vscale %u\n", hscale, vscale);
+
+	/* Multi-tap scaling can't be enabled along with alpha scaling when
+	 * scaling down with a factor lower than or equal to 1/2 in either
+	 * direction.
+	 */
+	if (uds->scale_alpha && (hscale >= 8192 || vscale >= 8192))
+		multitap = false;
+	else
+		multitap = true;
+
+	vsp1_uds_write(uds, VI6_UDS_CTRL,
+		       (uds->scale_alpha ? VI6_UDS_CTRL_AON : 0) |
+		       (multitap ? VI6_UDS_CTRL_BC : 0));
+
+	vsp1_uds_write(uds, VI6_UDS_PASS_BWIDTH,
+		       (uds_passband_width(hscale)
+				<< VI6_UDS_PASS_BWIDTH_H_SHIFT) |
+		       (uds_passband_width(vscale)
+				<< VI6_UDS_PASS_BWIDTH_V_SHIFT));
+
+	/* Set the scaling ratios and the output size. */
+	vsp1_uds_write(uds, VI6_UDS_SCALE,
+		       (hscale << VI6_UDS_SCALE_HFRAC_SHIFT) |
+		       (vscale << VI6_UDS_SCALE_VFRAC_SHIFT));
+	vsp1_uds_write(uds, VI6_UDS_CLIP_SIZE,
+		       (output->width << VI6_UDS_CLIP_SIZE_HSIZE_SHIFT) |
+		       (output->height << VI6_UDS_CLIP_SIZE_VSIZE_SHIFT));
+}
+
+static const struct vsp1_entity_operations uds_entity_ops = {
+	.configure = uds_configure,
 };
 
 /* -----------------------------------------------------------------------------
@@ -352,6 +346,7 @@ struct vsp1_uds *vsp1_uds_create(struct vsp1_device *vsp1, unsigned int index)
 	if (uds == NULL)
 		return ERR_PTR(-ENOMEM);
 
+	uds->entity.ops = &uds_entity_ops;
 	uds->entity.type = VSP1_ENTITY_UDS;
 	uds->entity.index = index;
 

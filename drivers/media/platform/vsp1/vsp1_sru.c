@@ -103,47 +103,7 @@ static const struct v4l2_ctrl_config sru_intensity_control = {
 };
 
 /* -----------------------------------------------------------------------------
- * V4L2 Subdevice Core Operations
- */
-
-static int sru_s_stream(struct v4l2_subdev *subdev, int enable)
-{
-	const struct vsp1_sru_param *param;
-	struct vsp1_sru *sru = to_sru(subdev);
-	struct v4l2_mbus_framefmt *input;
-	struct v4l2_mbus_framefmt *output;
-	u32 ctrl0;
-
-	if (!enable)
-		return 0;
-
-	input = vsp1_entity_get_pad_format(&sru->entity, sru->entity.config,
-					   SRU_PAD_SINK);
-	output = vsp1_entity_get_pad_format(&sru->entity, sru->entity.config,
-					    SRU_PAD_SOURCE);
-
-	if (input->code == MEDIA_BUS_FMT_ARGB8888_1X32)
-		ctrl0 = VI6_SRU_CTRL0_PARAM2 | VI6_SRU_CTRL0_PARAM3
-		      | VI6_SRU_CTRL0_PARAM4;
-	else
-		ctrl0 = VI6_SRU_CTRL0_PARAM3;
-
-	if (input->width != output->width)
-		ctrl0 |= VI6_SRU_CTRL0_MODE_UPSCALE;
-
-	param = &vsp1_sru_params[sru->intensity - 1];
-
-	ctrl0 |= param->ctrl0;
-
-	vsp1_sru_write(sru, VI6_SRU_CTRL0, ctrl0);
-	vsp1_sru_write(sru, VI6_SRU_CTRL1, VI6_SRU_CTRL1_PARAM5);
-	vsp1_sru_write(sru, VI6_SRU_CTRL2, param->ctrl2);
-
-	return 0;
-}
-
-/* -----------------------------------------------------------------------------
- * V4L2 Subdevice Pad Operations
+ * V4L2 Subdevice Operations
  */
 
 static int sru_enum_mbus_code(struct v4l2_subdev *subdev,
@@ -319,14 +279,6 @@ static int sru_set_format(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-/* -----------------------------------------------------------------------------
- * V4L2 Subdevice Operations
- */
-
-static struct v4l2_subdev_video_ops sru_video_ops = {
-	.s_stream = sru_s_stream,
-};
-
 static struct v4l2_subdev_pad_ops sru_pad_ops = {
 	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = sru_enum_mbus_code,
@@ -336,8 +288,46 @@ static struct v4l2_subdev_pad_ops sru_pad_ops = {
 };
 
 static struct v4l2_subdev_ops sru_ops = {
-	.video	= &sru_video_ops,
 	.pad    = &sru_pad_ops,
+};
+
+/* -----------------------------------------------------------------------------
+ * VSP1 Entity Operations
+ */
+
+static void sru_configure(struct vsp1_entity *entity)
+{
+	const struct vsp1_sru_param *param;
+	struct vsp1_sru *sru = to_sru(&entity->subdev);
+	struct v4l2_mbus_framefmt *input;
+	struct v4l2_mbus_framefmt *output;
+	u32 ctrl0;
+
+	input = vsp1_entity_get_pad_format(&sru->entity, sru->entity.config,
+					   SRU_PAD_SINK);
+	output = vsp1_entity_get_pad_format(&sru->entity, sru->entity.config,
+					    SRU_PAD_SOURCE);
+
+	if (input->code == MEDIA_BUS_FMT_ARGB8888_1X32)
+		ctrl0 = VI6_SRU_CTRL0_PARAM2 | VI6_SRU_CTRL0_PARAM3
+		      | VI6_SRU_CTRL0_PARAM4;
+	else
+		ctrl0 = VI6_SRU_CTRL0_PARAM3;
+
+	if (input->width != output->width)
+		ctrl0 |= VI6_SRU_CTRL0_MODE_UPSCALE;
+
+	param = &vsp1_sru_params[sru->intensity - 1];
+
+	ctrl0 |= param->ctrl0;
+
+	vsp1_sru_write(sru, VI6_SRU_CTRL0, ctrl0);
+	vsp1_sru_write(sru, VI6_SRU_CTRL1, VI6_SRU_CTRL1_PARAM5);
+	vsp1_sru_write(sru, VI6_SRU_CTRL2, param->ctrl2);
+}
+
+static const struct vsp1_entity_operations sru_entity_ops = {
+	.configure = sru_configure,
 };
 
 /* -----------------------------------------------------------------------------
@@ -353,6 +343,7 @@ struct vsp1_sru *vsp1_sru_create(struct vsp1_device *vsp1)
 	if (sru == NULL)
 		return ERR_PTR(-ENOMEM);
 
+	sru->entity.ops = &sru_entity_ops;
 	sru->entity.type = VSP1_ENTITY_SRU;
 
 	ret = vsp1_entity_init(vsp1, &sru->entity, "sru", 2, &sru_ops);

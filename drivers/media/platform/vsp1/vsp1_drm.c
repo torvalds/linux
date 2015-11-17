@@ -448,7 +448,6 @@ void vsp1_du_atomic_flush(struct device *dev)
 	struct vsp1_entity *entity;
 	unsigned long flags;
 	bool stop = false;
-	int ret;
 
 	list_for_each_entry(entity, &pipe->entities, list_pipe) {
 		/* Disconnect unused RPFs from the pipeline. */
@@ -464,18 +463,15 @@ void vsp1_du_atomic_flush(struct device *dev)
 
 		vsp1_entity_route_setup(entity);
 
-		ret = v4l2_subdev_call(&entity->subdev, video,
-				       s_stream, 1);
-		if (ret < 0) {
-			dev_err(vsp1->dev,
-				"DRM pipeline start failure on entity %s\n",
-				entity->subdev.name);
-			return;
-		}
+		if (entity->ops->configure)
+			entity->ops->configure(entity);
 
 		if (entity->type == VSP1_ENTITY_RPF)
 			vsp1_rwpf_set_memory(to_rwpf(&entity->subdev));
 	}
+
+	/* We know that the WPF s_stream operation never fails. */
+	v4l2_subdev_call(&pipe->output->entity.subdev, video, s_stream, 1);
 
 	vsp1_dl_list_commit(pipe->dl);
 	pipe->dl = NULL;
