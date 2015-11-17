@@ -217,5 +217,14 @@
 
 			brcm,nand-has-wp;
 		};
+
+		i2c0: i2c@38000 {
+			compatible = "brcm,iproc-i2c";
+			reg = <0x38000 0x50>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <GIC_SPI 89 IRQ_TYPE_NONE>;
+			clock-frequency = <100000>;
+		};
 	};
 };
