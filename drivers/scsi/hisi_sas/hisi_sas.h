@@ -35,6 +35,8 @@
 #define HISI_SAS_COMMAND_TABLE_SZ \
 		(((sizeof(union hisi_sas_command_table)+3)/4)*4)
 
+#define HISI_SAS_MAX_SSP_RESP_SZ (sizeof(struct ssp_frame_hdr) + 1024)
+
 #define HISI_SAS_NAME_LEN 32
 
 
@@ -80,15 +82,41 @@ struct hisi_sas_cq {
 struct hisi_sas_device {
 	enum sas_device_type	dev_type;
 	u64 device_id;
+	u64 running_req;
 	u8 dev_status;
 };
 
 struct hisi_sas_slot {
+	struct list_head entry;
+	struct sas_task *task;
+	struct hisi_sas_port	*port;
+	u64	n_elem;
+	int	dlvry_queue;
+	int	dlvry_queue_slot;
+	int	idx;
+	void	*cmd_hdr;
+	dma_addr_t cmd_hdr_dma;
+	void	*status_buffer;
+	dma_addr_t status_buffer_dma;
+	void *command_table;
+	dma_addr_t command_table_dma;
+	struct hisi_sas_sge_page *sge_page;
+	dma_addr_t sge_page_dma;
+};
+
+struct hisi_sas_tmf_task {
+	u8 tmf;
+	u16 tag_of_task_to_be_managed;
 };
 
 struct hisi_sas_hw {
 	int (*hw_init)(struct hisi_hba *hisi_hba);
 	void (*sl_notify)(struct hisi_hba *hisi_hba, int phy_no);
+	int (*get_free_slot)(struct hisi_hba *hisi_hba, int *q, int *s);
+	void (*start_delivery)(struct hisi_hba *hisi_hba);
+	int (*prep_ssp)(struct hisi_hba *hisi_hba,
+			struct hisi_sas_slot *slot, int is_tmf,
+			struct hisi_sas_tmf_task *tmf);
 	int complete_hdr_size;
 };
 
@@ -122,7 +150,9 @@ struct hisi_hba {
 	struct hisi_sas_port port[HISI_SAS_MAX_PHYS];
 
 	int	queue_count;
+	int	queue;
 	char	*int_names;
+	struct hisi_sas_slot	*slot_prep;
 
 	struct dma_pool *sge_page_pool;
 	struct hisi_sas_device	devices[HISI_SAS_MAX_DEVICES];
