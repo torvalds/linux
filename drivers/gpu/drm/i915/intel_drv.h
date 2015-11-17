@@ -1412,7 +1412,8 @@ void intel_psr_single_frame_update(struct drm_device *dev,
 /* intel_runtime_pm.c */
 int intel_power_domains_init(struct drm_i915_private *);
 void intel_power_domains_fini(struct drm_i915_private *);
-void intel_power_domains_init_hw(struct drm_i915_private *dev_priv);
+void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume);
+void intel_power_domains_suspend(struct drm_i915_private *dev_priv);
 void skl_pw1_misc_io_init(struct drm_i915_private *dev_priv);
 void skl_pw1_misc_io_fini(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_enable(struct drm_i915_private *dev_priv);

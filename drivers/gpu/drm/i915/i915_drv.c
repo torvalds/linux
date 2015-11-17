@@ -704,10 +704,13 @@ static int i915_drm_suspend_late(struct drm_device *drm_dev, bool hibernation)
 	struct drm_i915_private *dev_priv = drm_dev->dev_private;
 	int ret;
 
+	intel_power_domains_suspend(dev_priv);
+
 	ret = intel_suspend_complete(dev_priv);
 
 	if (ret) {
 		DRM_ERROR("Suspend complete failed: %d\n", ret);
+		intel_power_domains_init_hw(dev_priv, true);
 
 		return ret;
 	}
@@ -861,7 +864,7 @@ static int i915_drm_resume_early(struct drm_device *dev)
 		hsw_disable_pc8(dev_priv);
 
 	intel_uncore_sanitize(dev);
-	intel_power_domains_init_hw(dev_priv);
+	intel_power_domains_init_hw(dev_priv, true);
 
 	return ret;
 }
@@ -1070,8 +1073,6 @@ static int i915_pm_resume(struct device *dev)
 
 static int skl_suspend_complete(struct drm_i915_private *dev_priv)
 {
-	skl_uninit_cdclk(dev_priv);
-
 	if (dev_priv->csr.dmc_payload)
 		skl_enable_dc6(dev_priv);
 
@@ -1121,9 +1122,6 @@ static int skl_resume_prepare(struct drm_i915_private *dev_priv)
 {
 	if (dev_priv->csr.dmc_payload)
 		skl_disable_dc6(dev_priv);
-
-	skl_init_cdclk(dev_priv);
-	intel_csr_load_program(dev_priv);
 
 	return 0;
 }

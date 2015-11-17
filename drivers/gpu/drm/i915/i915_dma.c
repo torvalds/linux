@@ -424,7 +424,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		goto cleanup_vga_switcheroo;
 
-	intel_power_domains_init_hw(dev_priv);
+	intel_power_domains_init_hw(dev_priv, false);
 
 	intel_csr_ucode_init(dev_priv);
 

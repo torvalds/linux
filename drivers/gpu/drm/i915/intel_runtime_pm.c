@@ -1903,6 +1903,43 @@ static void intel_power_domains_sync_hw(struct drm_i915_private *dev_priv)
 	mutex_unlock(&power_domains->lock);
 }
 
+static void skl_display_core_init(struct drm_i915_private *dev_priv,
+				  bool resume)
+{
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	uint32_t val;
+
+	/* enable PCH reset handshake */
+	val = I915_READ(HSW_NDE_RSTWRN_OPT);
+	I915_WRITE(HSW_NDE_RSTWRN_OPT, val | RESET_PCH_HANDSHAKE_ENABLE);
+
+	/* enable PG1 and Misc I/O */
+	mutex_lock(&power_domains->lock);
+	skl_pw1_misc_io_init(dev_priv);
+	mutex_unlock(&power_domains->lock);
+
+	if (!resume)
+		return;
+
+	skl_init_cdclk(dev_priv);
+
+	if (dev_priv->csr.dmc_payload)
+		intel_csr_load_program(dev_priv);
+}
+
+static void skl_display_core_uninit(struct drm_i915_private *dev_priv)
+{
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+
+	skl_uninit_cdclk(dev_priv);
+
+	/* The spec doesn't call for removing the reset handshake flag */
+	/* disable PG1 and Misc I/O */
+	mutex_lock(&power_domains->lock);
+	skl_pw1_misc_io_fini(dev_priv);
+	mutex_unlock(&power_domains->lock);
+}
+
 static void chv_phy_control_init(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_well *cmn_bc =
@@ -2025,14 +2062,16 @@ static void vlv_cmnlane_wa(struct drm_i915_private *dev_priv)
  * This function initializes the hardware power domain state and enables all
  * power domains using intel_display_set_init_power().
  */
-void intel_power_domains_init_hw(struct drm_i915_private *dev_priv)
+void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume)
 {
 	struct drm_device *dev = dev_priv->dev;
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 
 	power_domains->initializing = true;
 
-	if (IS_CHERRYVIEW(dev)) {
+	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
+		skl_display_core_init(dev_priv, resume);
+	} else if (IS_CHERRYVIEW(dev)) {
 		mutex_lock(&power_domains->lock);
 		chv_phy_control_init(dev_priv);
 		mutex_unlock(&power_domains->lock);
@@ -2046,6 +2085,19 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv)
 	intel_display_set_init_power(dev_priv, true);
 	intel_power_domains_sync_hw(dev_priv);
 	power_domains->initializing = false;
+}
+
+/**
+ * intel_power_domains_suspend - suspend power domain state
+ * @dev_priv: i915 device instance
+ *
+ * This function prepares the hardware power domain state before entering
+ * system suspend. It must be paired with intel_power_domains_init_hw().
+ */
+void intel_power_domains_suspend(struct drm_i915_private *dev_priv)
+{
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
+		skl_display_core_uninit(dev_priv);
 }
 
 /**

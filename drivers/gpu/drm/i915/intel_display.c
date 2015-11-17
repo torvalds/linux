@@ -5712,22 +5712,11 @@ void skl_uninit_cdclk(struct drm_i915_private *dev_priv)
 		if (wait_for(!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_LOCK), 1))
 			DRM_ERROR("Couldn't disable DPLL0\n");
 	}
-
-	/* disable PG1 and Misc I/O */
-	skl_pw1_misc_io_fini(dev_priv);
 }
 
 void skl_init_cdclk(struct drm_i915_private *dev_priv)
 {
-	u32 val;
 	unsigned int required_vco;
-
-	/* enable PCH reset handshake */
-	val = I915_READ(HSW_NDE_RSTWRN_OPT);
-	I915_WRITE(HSW_NDE_RSTWRN_OPT, val | RESET_PCH_HANDSHAKE_ENABLE);
-
-	/* enable PG1 and Misc I/O */
-	skl_pw1_misc_io_init(dev_priv);
 
 	/* DPLL0 not enabled (happens on early BIOS versions) */
 	if (!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_ENABLE)) {
