@@ -234,12 +234,9 @@ static ssize_t hfi1_file_write(struct file *fp, const char __user *data,
 		break;
 	case HFI1_CMD_EP_INFO:
 	case HFI1_CMD_EP_ERASE_CHIP:
-	case HFI1_CMD_EP_ERASE_P0:
-	case HFI1_CMD_EP_ERASE_P1:
-	case HFI1_CMD_EP_READ_P0:
-	case HFI1_CMD_EP_READ_P1:
-	case HFI1_CMD_EP_WRITE_P0:
-	case HFI1_CMD_EP_WRITE_P1:
+	case HFI1_CMD_EP_ERASE_RANGE:
+	case HFI1_CMD_EP_READ_RANGE:
+	case HFI1_CMD_EP_WRITE_RANGE:
 		uctxt_required = 0;	/* assigned user context not required */
 		must_be_root = 1;	/* validate user */
 		copy = 0;
@@ -393,12 +390,9 @@ static ssize_t hfi1_file_write(struct file *fp, const char __user *data,
 	}
 	case HFI1_CMD_EP_INFO:
 	case HFI1_CMD_EP_ERASE_CHIP:
-	case HFI1_CMD_EP_ERASE_P0:
-	case HFI1_CMD_EP_ERASE_P1:
-	case HFI1_CMD_EP_READ_P0:
-	case HFI1_CMD_EP_READ_P1:
-	case HFI1_CMD_EP_WRITE_P0:
-	case HFI1_CMD_EP_WRITE_P1:
+	case HFI1_CMD_EP_ERASE_RANGE:
+	case HFI1_CMD_EP_READ_RANGE:
+	case HFI1_CMD_EP_WRITE_RANGE:
 		ret = handle_eprom_command(&cmd);
 		break;
 	}

@@ -137,12 +137,10 @@
 /* separate EPROM commands from normal PSM commands */
 #define HFI1_CMD_EP_INFO         64      /* read EPROM device ID */
 #define HFI1_CMD_EP_ERASE_CHIP   65      /* erase whole EPROM */
-#define HFI1_CMD_EP_ERASE_P0     66      /* erase EPROM partition 0 */
-#define HFI1_CMD_EP_ERASE_P1     67      /* erase EPROM partition 1 */
-#define HFI1_CMD_EP_READ_P0      68      /* read EPROM partition 0 */
-#define HFI1_CMD_EP_READ_P1      69      /* read EPROM partition 1 */
-#define HFI1_CMD_EP_WRITE_P0     70      /* write EPROM partition 0 */
-#define HFI1_CMD_EP_WRITE_P1     71      /* write EPROM partition 1 */
+/* range 66-74 no longer used */
+#define HFI1_CMD_EP_ERASE_RANGE  75      /* erase EPROM range */
+#define HFI1_CMD_EP_READ_RANGE   76      /* read EPROM range */
+#define HFI1_CMD_EP_WRITE_RANGE  77      /* write EPROM range */
 
 #define _HFI1_EVENT_FROZEN_BIT         0
 #define _HFI1_EVENT_LINKDOWN_BIT       1
