@@ -26,7 +26,6 @@ struct atp_unit
 	unsigned long baseport;
 	unsigned long ioport[2];
 	unsigned long pciport[2];
-	unsigned long irq;
 	unsigned char last_cmd[2];
 	unsigned char in_snd[2];
 	unsigned char in_int[2];
