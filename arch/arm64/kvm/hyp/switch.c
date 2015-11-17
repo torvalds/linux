@@ -210,11 +210,34 @@ __alias(__guest_run) int __kvm_vcpu_run(struct kvm_vcpu *vcpu);
 
 static const char __hyp_panic_string[] = "HYP panic:\nPS:%08llx PC:%016llx ESR:%08llx\nFAR:%016llx HPFAR:%016llx PAR:%016llx\nVCPU:%p\n";
 
-void __hyp_text __noreturn __hyp_panic(void)
+static void __hyp_text __hyp_call_panic_nvhe(u64 spsr, u64 elr, u64 par)
 {
 	unsigned long str_va = (unsigned long)__hyp_panic_string;
-	u64 spsr = read_sysreg(spsr_el2);
-	u64 elr = read_sysreg(elr_el2);
+
+	__hyp_do_panic(hyp_kern_va(str_va),
+		       spsr,  elr,
+		       read_sysreg(esr_el2),   read_sysreg_el2(far),
+		       read_sysreg(hpfar_el2), par,
+		       (void *)read_sysreg(tpidr_el2));
+}
+
+static void __hyp_text __hyp_call_panic_vhe(u64 spsr, u64 elr, u64 par)
+{
+	panic(__hyp_panic_string,
+	      spsr,  elr,
+	      read_sysreg_el2(esr),   read_sysreg_el2(far),
+	      read_sysreg(hpfar_el2), par,
+	      (void *)read_sysreg(tpidr_el2));
+}
+
+static hyp_alternate_select(__hyp_call_panic,
+			    __hyp_call_panic_nvhe, __hyp_call_panic_vhe,
+			    ARM64_HAS_VIRT_HOST_EXTN);
+
+void __hyp_text __noreturn __hyp_panic(void)
+{
+	u64 spsr = read_sysreg_el2(spsr);
+	u64 elr = read_sysreg_el2(elr);
 	u64 par = read_sysreg(par_el1);
 
 	if (read_sysreg(vttbr_el2)) {
@@ -229,11 +252,7 @@ void __hyp_text __noreturn __hyp_panic(void)
 	}
 
 	/* Call panic for real */
-	__hyp_do_panic(hyp_kern_va(str_va),
-		       spsr,  elr,
-		       read_sysreg(esr_el2),   read_sysreg(far_el2),
-		       read_sysreg(hpfar_el2), par,
-		       (void *)read_sysreg(tpidr_el2));
+	__hyp_call_panic()(spsr, elr, par);
 
 	unreachable();
 }
