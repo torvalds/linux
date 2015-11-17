@@ -32,7 +32,6 @@ struct atp_unit
 	unsigned char quhd[2];
 	unsigned char quend[2];
 	unsigned char global_map[2];
-	unsigned char chip_ver;
 	unsigned char scam_on;
 	unsigned char host_id[2];
 	unsigned int working[2];
