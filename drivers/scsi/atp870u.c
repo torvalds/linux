@@ -880,34 +880,28 @@ static unsigned char fun_scam(struct atp_unit *dev, unsigned short int *val)
 	unsigned char j;
 
 	outw(*val, dev->ioport[0] + 0x1c);
-FUN_D7:
 	for (i = 0; i < 10; i++) {	/* stable >= bus settle delay(400 ns)  */
 		k = inw(dev->ioport[0] + 0x1c);
 		j = (unsigned char) (k >> 8);
-		if ((k & 0x8000) != 0) {	/* DB7 all release?    */
-			goto FUN_D7;
-		}
+		if ((k & 0x8000) != 0)	/* DB7 all release?    */
+			i = 0;
 	}
 	*val |= 0x4000;		/* assert DB6           */
 	outw(*val, dev->ioport[0] + 0x1c);
 	*val &= 0xdfff;		/* assert DB5           */
 	outw(*val, dev->ioport[0] + 0x1c);
-FUN_D5:
 	for (i = 0; i < 10; i++) {	/* stable >= bus settle delay(400 ns) */
-		if ((inw(dev->ioport[0] + 0x1c) & 0x2000) != 0) {	/* DB5 all release?       */
-			goto FUN_D5;
-		}
+		if ((inw(dev->ioport[0] + 0x1c) & 0x2000) != 0)	/* DB5 all release?       */
+			i = 0;
 	}
 	*val |= 0x8000;		/* no DB4-0, assert DB7    */
 	*val &= 0xe0ff;
 	outw(*val, dev->ioport[0] + 0x1c);
 	*val &= 0xbfff;		/* release DB6             */
 	outw(*val, dev->ioport[0] + 0x1c);
-FUN_D6:
 	for (i = 0; i < 10; i++) {	/* stable >= bus settle delay(400 ns)  */
-		if ((inw(dev->ioport[0] + 0x1c) & 0x4000) != 0) {	/* DB6 all release?  */
-			goto FUN_D6;
-		}
+		if ((inw(dev->ioport[0] + 0x1c) & 0x4000) != 0)	/* DB6 all release?  */
+			i = 0;
 	}
 
 	return j;
