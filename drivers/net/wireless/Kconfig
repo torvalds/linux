@@ -19,6 +19,7 @@ if WLAN
 
 source "drivers/net/wireless/admtek/Kconfig"
 source "drivers/net/wireless/atmel/Kconfig"
+source "drivers/net/wireless/broadcom/Kconfig"
 source "drivers/net/wireless/cisco/Kconfig"
 
 config PCMCIA_RAYCS
@@ -158,7 +159,6 @@ config MWL8K
 	  will be called mwl8k.  If unsure, say N.
 
 source "drivers/net/wireless/ath/Kconfig"
-source "drivers/net/wireless/b43/Kconfig"
 source "drivers/net/wireless/b43legacy/Kconfig"
 source "drivers/net/wireless/brcm80211/Kconfig"
 source "drivers/net/wireless/hostap/Kconfig"
