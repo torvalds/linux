@@ -40,7 +40,7 @@ static inline __u32 ceph_frag_mask_shift(__u32 f)
 	return 24 - ceph_frag_bits(f);
 }
 
-static inline int ceph_frag_contains_value(__u32 f, __u32 v)
+static inline bool ceph_frag_contains_value(__u32 f, __u32 v)
 {
 	return (v & ceph_frag_mask(f)) == ceph_frag_value(f);
 }
