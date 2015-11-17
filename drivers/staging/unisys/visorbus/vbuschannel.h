@@ -36,10 +36,11 @@ static const uuid_le spar_vbus_channel_protocol_uuid =
 #define SPAR_VBUS_CHANNEL_PROTOCOL_SIGNATURE ULTRA_CHANNEL_PROTOCOL_SIGNATURE
 
 /* Must increment this whenever you insert or delete fields within this channel
-* struct.  Also increment whenever you change the meaning of fields within this
-* channel struct so as to break pre-existing software.  Note that you can
-* usually add fields to the END of the channel struct withOUT needing to
-* increment this. */
+ * struct.  Also increment whenever you change the meaning of fields within this
+ * channel struct so as to break pre-existing software.  Note that you can
+ * usually add fields to the END of the channel struct withOUT needing to
+ * increment this.
+ */
 #define SPAR_VBUS_CHANNEL_PROTOCOL_VERSIONID 1
 
 #define SPAR_VBUS_CHANNEL_OK_CLIENT(ch)       \
