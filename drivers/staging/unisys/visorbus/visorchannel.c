@@ -41,8 +41,8 @@ struct visorchannel {
 	struct channel_header chan_hdr;
 	uuid_le guid;
 	ulong size;
-	bool needs_lock;	/* channel creator knows if more than one
-				 * thread will be inserting or removing */
+	bool needs_lock;	/* channel creator knows if more than one */
+				/* thread will be inserting or removing */
 	spinlock_t insert_lock; /* protect head writes in chan_hdr */
 	spinlock_t remove_lock;	/* protect tail writes in chan_hdr */
 
