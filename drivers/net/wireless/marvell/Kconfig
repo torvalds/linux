@@ -13,5 +13,6 @@ if WLAN_VENDOR_MARVELL
 
 source "drivers/net/wireless/marvell/libertas/Kconfig"
 source "drivers/net/wireless/marvell/libertas_tf/Kconfig"
+source "drivers/net/wireless/marvell/mwifiex/Kconfig"
 
 endif # WLAN_VENDOR_MARVELL
