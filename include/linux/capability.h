@@ -171,12 +171,6 @@ static inline int cap_issubset(const kernel_cap_t a, const kernel_cap_t set)
 
 /* Used to decide between falling back on the old suser() or fsuser(). */
 
-static inline int cap_is_fs_cap(int cap)
-{
-	const kernel_cap_t __cap_fs_set = CAP_FS_SET;
-	return !!(CAP_TO_MASK(cap) & __cap_fs_set.cap[CAP_TO_INDEX(cap)]);
-}
-
 static inline kernel_cap_t cap_drop_fs_set(const kernel_cap_t a)
 {
 	const kernel_cap_t __cap_fs_set = CAP_FS_SET;
