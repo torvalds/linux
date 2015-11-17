@@ -166,6 +166,17 @@
 			status = "disabled";
 		};
 
+		eeprom: eeprom@4000e000 {
+			compatible = "nxp,lpc1857-eeprom";
+			reg = <0x4000e000 0x1000>, <0x20040000 0x4000>;
+			reg-names = "reg", "mem";
+			clocks = <&ccu1 CLK_CPU_EEPROM>;
+			clock-names = "eeprom";
+			resets = <&rgu 27>;
+			interrupts = <4>;
+			status = "disabled";
+		};
+
 		mac: ethernet@40010000 {
 			compatible = "nxp,lpc1850-dwmac", "snps,dwmac-3.611", "snps,dwmac";
 			reg = <0x40010000 0x2000>;
