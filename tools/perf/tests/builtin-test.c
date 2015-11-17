@@ -226,6 +226,18 @@ static int run_test(struct test *test, int subtest)
 
 	if (!child) {
 		pr_debug("test child forked, pid %d\n", getpid());
+		if (!verbose) {
+			int nullfd = open("/dev/null", O_WRONLY);
+			if (nullfd >= 0) {
+				close(STDERR_FILENO);
+				close(STDOUT_FILENO);
+
+				dup2(nullfd, STDOUT_FILENO);
+				dup2(STDOUT_FILENO, STDERR_FILENO);
+				close(nullfd);
+			}
+		}
+
 		err = test->func(subtest);
 		exit(err);
 	}
