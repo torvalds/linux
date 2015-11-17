@@ -42,7 +42,6 @@
 static struct scsi_host_template atp870u_template;
 static void send_s870(struct atp_unit *dev,unsigned char c);
 static void atp_is(struct atp_unit *dev, unsigned char c, bool wide_chip, unsigned char lvdmode);
-static void tscam_885(void);
 
 static inline void atp_writeb_base(struct atp_unit *atp, u8 reg, u8 val)
 {
@@ -1518,7 +1517,7 @@ flash_ok_885:
 		   k = (k & 0x07) | 0x40;
 		atp_set_host_id(p, 1, k);
 
-		tscam_885();
+		mdelay(600); /* this delay used to be called tscam_885() */
 		printk(KERN_INFO "   Scanning Channel A SCSI Device ...\n");
 		atp_is(p, 0, true, atp_readb_io(p, 0, 0x1b) >> 7);
 		atp_writeb_io(p, 0, 0x16, 0x80);
@@ -1801,18 +1800,6 @@ static void __exit atp870u_exit(void)
 #endif
 	pci_unregister_driver(&atp870u_driver);
 }
-
-static void tscam_885(void)
-{
-	unsigned char i;
-
-	for (i = 0; i < 0x2; i++) {
-		mdelay(300);
-	}
-	return;
-}
-
-
 
 static void atp_is(struct atp_unit *dev, unsigned char c, bool wide_chip, unsigned char lvdmode)
 {
