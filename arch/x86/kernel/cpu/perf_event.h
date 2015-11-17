@@ -318,6 +318,10 @@ struct cpu_hw_events {
 #define INTEL_UEVENT_CONSTRAINT(c, n)	\
 	EVENT_CONSTRAINT(c, n, INTEL_ARCH_EVENT_MASK)
 
+/* Constraint on specific umask bit only + event */
+#define INTEL_UBIT_EVENT_CONSTRAINT(c, n)	\
+	EVENT_CONSTRAINT(c, n, ARCH_PERFMON_EVENTSEL_EVENT|(c))
+
 /* Like UEVENT_CONSTRAINT, but match flags too */
 #define INTEL_FLAGS_UEVENT_CONSTRAINT(c, n)	\
 	EVENT_CONSTRAINT(c, n, INTEL_ARCH_EVENT_MASK|X86_ALL_EVENT_FLAGS)
