@@ -1250,7 +1250,6 @@ static int atp870u_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct Scsi_Host *shpnt = NULL;
 	struct atp_unit *atpdev, *p;
 	unsigned char setupdata[2][16];
-	int count = 0;
 
 	atpdev = kzalloc(sizeof(*atpdev), GFP_KERNEL);
 	if (!atpdev)
@@ -1298,8 +1297,8 @@ static int atp870u_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		host_id = atp_readb_base(atpdev, 0x39);
 		host_id >>= 0x04;
 
-		printk(KERN_INFO "   ACARD AEC-67160 PCI Ultra3 LVD Host Adapter: %d"
-			"    IO:%x, IRQ:%d.\n", count, base_io, pdev->irq);
+		printk(KERN_INFO "   ACARD AEC-67160 PCI Ultra3 LVD Host Adapter:"
+			"    IO:%x, IRQ:%d.\n", base_io, pdev->irq);
 		atpdev->dev_id = ent->device;
 		atpdev->host_id[0] = host_id;
 
@@ -1546,8 +1545,8 @@ flash_ok_885:
 	} else {
 		error = pci_read_config_byte(pdev, 0x49, &host_id);
 
-		printk(KERN_INFO "   ACARD AEC-671X PCI Ultra/W SCSI-2/3 Host Adapter: %d "
-			"IO:%x, IRQ:%d.\n", count, base_io, pdev->irq);
+		printk(KERN_INFO "   ACARD AEC-671X PCI Ultra/W SCSI-2/3 Host Adapter: "
+			"IO:%x, IRQ:%d.\n", base_io, pdev->irq);
 
 		atpdev->ioport[0] = base_io;
 		atpdev->pciport[0] = base_io + 0x20;
@@ -1612,7 +1611,6 @@ flash_ok_885:
 		spin_unlock_irqrestore(shpnt->host_lock, flags);
 		if (!request_region(base_io, shpnt->n_io_port, "atp870u"))
 			goto request_io_fail;
-		count++;
 		if (scsi_add_host(shpnt, &pdev->dev))
 			goto scsi_add_fail;
 		scsi_scan_host(shpnt);
