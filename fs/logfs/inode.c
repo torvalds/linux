@@ -65,6 +65,7 @@ static void logfs_inode_setops(struct inode *inode)
 		break;
 	case S_IFLNK:
 		inode->i_op = &page_symlink_inode_operations;
+		inode_nohighmem(inode);
 		inode->i_mapping->a_ops = &logfs_reg_aops;
 		break;
 	case S_IFSOCK:	/* fall through */

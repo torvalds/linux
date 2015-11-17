@@ -1170,6 +1170,7 @@ static int reiserfs_symlink(struct inode *parent_dir,
 	reiserfs_update_inode_transaction(parent_dir);
 
 	inode->i_op = &reiserfs_symlink_inode_operations;
+	inode_nohighmem(inode);
 	inode->i_mapping->a_ops = &reiserfs_address_space_operations;
 
 	retval = reiserfs_add_entry(&th, parent_dir, dentry->d_name.name,

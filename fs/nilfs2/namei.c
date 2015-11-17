@@ -161,6 +161,7 @@ static int nilfs_symlink(struct inode *dir, struct dentry *dentry,
 
 	/* slow symlink */
 	inode->i_op = &nilfs_symlink_inode_operations;
+	inode_nohighmem(inode);
 	inode->i_mapping->a_ops = &nilfs_aops;
 	err = page_symlink(inode, symname, l);
 	if (err)

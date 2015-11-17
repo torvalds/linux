@@ -1541,6 +1541,7 @@ reread:
 	case ICBTAG_FILE_TYPE_SYMLINK:
 		inode->i_data.a_ops = &udf_symlink_aops;
 		inode->i_op = &page_symlink_inode_operations;
+		inode_nohighmem(inode);
 		inode->i_mode = S_IFLNK | S_IRWXUGO;
 		break;
 	case ICBTAG_FILE_TYPE_MAIN:

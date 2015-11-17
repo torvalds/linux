@@ -408,9 +408,10 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr, st
 				inode->i_fop = NULL;
 				inode->i_flags |= S_AUTOMOUNT;
 			}
-		} else if (S_ISLNK(inode->i_mode))
+		} else if (S_ISLNK(inode->i_mode)) {
 			inode->i_op = &nfs_symlink_inode_operations;
-		else
+			inode_nohighmem(inode);
+		} else
 			init_special_inode(inode, inode->i_mode, fattr->rdev);
 
 		memset(&inode->i_atime, 0, sizeof(inode->i_atime));

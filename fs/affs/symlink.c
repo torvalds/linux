@@ -14,7 +14,7 @@ static int affs_symlink_readpage(struct file *file, struct page *page)
 {
 	struct buffer_head *bh;
 	struct inode *inode = page->mapping->host;
-	char *link = kmap(page);
+	char *link = page_address(page);
 	struct slink_front *lf;
 	int			 i, j;
 	char			 c;
@@ -57,12 +57,10 @@ static int affs_symlink_readpage(struct file *file, struct page *page)
 	link[i] = '\0';
 	affs_brelse(bh);
 	SetPageUptodate(page);
-	kunmap(page);
 	unlock_page(page);
 	return 0;
 fail:
 	SetPageError(page);
-	kunmap(page);
 	unlock_page(page);
 	return -EIO;
 }

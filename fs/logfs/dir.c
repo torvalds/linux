@@ -529,6 +529,7 @@ static int logfs_symlink(struct inode *dir, struct dentry *dentry,
 		return PTR_ERR(inode);
 
 	inode->i_op = &page_symlink_inode_operations;
+	inode_nohighmem(inode);
 	inode->i_mapping->a_ops = &logfs_reg_aops;
 
 	return __logfs_create(dir, dentry, inode, target, destlen);

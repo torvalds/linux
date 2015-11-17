@@ -397,6 +397,7 @@ static struct inode *befs_iget(struct super_block *sb, unsigned long ino)
 	} else if (S_ISLNK(inode->i_mode)) {
 		if (befs_ino->i_flags & BEFS_LONG_SYMLINK) {
 			inode->i_op = &page_symlink_inode_operations;
+			inode_nohighmem(inode);
 			inode->i_mapping->a_ops = &befs_symlink_aops;
 		} else {
 			inode->i_link = befs_ino->i_data.symlink;
@@ -469,7 +470,7 @@ static int befs_symlink_readpage(struct file *unused, struct page *page)
 	struct befs_inode_info *befs_ino = BEFS_I(inode);
 	befs_data_stream *data = &befs_ino->i_data.ds;
 	befs_off_t len = data->size;
-	char *link = kmap(page);
+	char *link = page_address(page);
 
 	if (len == 0 || len > PAGE_SIZE) {
 		befs_error(sb, "Long symlink with illegal length");
@@ -483,12 +484,10 @@ static int befs_symlink_readpage(struct file *unused, struct page *page)
 	}
 	link[len - 1] = '\0';
 	SetPageUptodate(page);
-	kunmap(page);
 	unlock_page(page);
 	return 0;
 fail:
 	SetPageError(page);
-	kunmap(page);
 	unlock_page(page);
 	return -EIO;
 }

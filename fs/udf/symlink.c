@@ -107,7 +107,7 @@ static int udf_symlink_filler(struct file *file, struct page *page)
 	struct buffer_head *bh = NULL;
 	unsigned char *symlink;
 	int err;
-	unsigned char *p = kmap(page);
+	unsigned char *p = page_address(page);
 	struct udf_inode_info *iinfo;
 	uint32_t pos;
 
@@ -141,7 +141,6 @@ static int udf_symlink_filler(struct file *file, struct page *page)
 
 	up_read(&iinfo->i_data_sem);
 	SetPageUptodate(page);
-	kunmap(page);
 	unlock_page(page);
 	return 0;
 
@@ -149,7 +148,6 @@ out_unlock_inode:
 	up_read(&iinfo->i_data_sem);
 	SetPageError(page);
 out_unmap:
-	kunmap(page);
 	unlock_page(page);
 	return err;
 }

@@ -283,6 +283,7 @@ ncp_iget(struct super_block *sb, struct ncp_entry_info *info)
 #if defined(CONFIG_NCPFS_EXTRAS) || defined(CONFIG_NCPFS_NFS_NS)
 		} else if (S_ISLNK(inode->i_mode)) {
 			inode->i_op = &ncp_symlink_inode_operations;
+			inode_nohighmem(inode);
 			inode->i_data.a_ops = &ncp_symlink_aops;
 #endif
 		} else {

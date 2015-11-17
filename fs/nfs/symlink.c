@@ -56,7 +56,7 @@ static const char *nfs_follow_link(struct dentry *dentry, void **cookie)
 	if (IS_ERR(page))
 		return ERR_CAST(page);
 	*cookie = page;
-	return kmap(page);
+	return page_address(page);
 }
 
 /*
