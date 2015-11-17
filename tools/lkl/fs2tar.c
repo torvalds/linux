@@ -26,7 +26,7 @@ static struct argp_option options[] = {
 	{"filesystem-type", 't', "string", 0,
 	 "select filesystem type - mandatory"},
 	{"selinux-contexts", 's', "file", 0,
-	 "export sexlinux contexts to file"},
+	 "export selinux contexts to file"},
 	{0},
 };
 
