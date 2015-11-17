@@ -60,6 +60,41 @@ static void hisi_sas_slot_index_init(struct hisi_hba *hisi_hba)
 	for (i = 0; i < hisi_hba->slot_index_count; ++i)
 		hisi_sas_slot_index_clear(hisi_hba, i);
 }
+
+void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
+			     struct hisi_sas_slot *slot)
+{
+	struct device *dev = &hisi_hba->pdev->dev;
+
+	if (!slot->task)
+		return;
+
+	if (!sas_protocol_ata(task->task_proto))
+		if (slot->n_elem)
+			dma_unmap_sg(dev, task->scatter, slot->n_elem,
+				     task->data_dir);
+
+	if (slot->command_table)
+		dma_pool_free(hisi_hba->command_table_pool,
+			      slot->command_table, slot->command_table_dma);
+
+	if (slot->status_buffer)
+		dma_pool_free(hisi_hba->status_buffer_pool,
+			      slot->status_buffer, slot->status_buffer_dma);
+
+	if (slot->sge_page)
+		dma_pool_free(hisi_hba->sge_page_pool, slot->sge_page,
+			      slot->sge_page_dma);
+
+	list_del_init(&slot->entry);
+	task->lldd_task = NULL;
+	slot->task = NULL;
+	slot->port = NULL;
+	hisi_sas_slot_index_free(hisi_hba, slot->idx);
+	memset(slot, 0, sizeof(*slot));
+}
+EXPORT_SYMBOL_GPL(hisi_sas_slot_task_free);
+
 static int hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
 				  struct hisi_sas_slot *slot, int is_tmf,
 				  struct hisi_sas_tmf_task *tmf)

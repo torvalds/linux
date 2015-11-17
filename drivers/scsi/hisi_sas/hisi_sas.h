@@ -93,6 +93,8 @@ struct hisi_sas_slot {
 	u64	n_elem;
 	int	dlvry_queue;
 	int	dlvry_queue_slot;
+	int	cmplt_queue;
+	int	cmplt_queue_slot;
 	int	idx;
 	void	*cmd_hdr;
 	dma_addr_t cmd_hdr_dma;
@@ -117,6 +119,10 @@ struct hisi_sas_hw {
 	int (*prep_ssp)(struct hisi_hba *hisi_hba,
 			struct hisi_sas_slot *slot, int is_tmf,
 			struct hisi_sas_tmf_task *tmf);
+	int (*slot_complete)(struct hisi_hba *hisi_hba,
+			     struct hisi_sas_slot *slot, int abort);
+	void (*free_device)(struct hisi_hba *hisi_hba,
+			    struct hisi_sas_device *dev);
 	int complete_hdr_size;
 };
 
@@ -311,4 +317,7 @@ extern int hisi_sas_probe(struct platform_device *pdev,
 			  const struct hisi_sas_hw *ops);
 extern int hisi_sas_remove(struct platform_device *pdev);
 
+extern void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba,
+				    struct sas_task *task,
+				    struct hisi_sas_slot *slot);
 #endif
