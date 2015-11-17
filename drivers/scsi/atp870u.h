@@ -39,7 +39,6 @@ struct atp_unit
 	unsigned short active_id[2];
 	unsigned short ultra_map[2];
 	unsigned short async[2];
-	unsigned short dev_id;
 	unsigned char sp[2][16];
 	unsigned char r1f[2][16];		
 	struct scsi_cmnd *quereq[2][qcnt];
