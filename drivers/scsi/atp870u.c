@@ -1260,9 +1260,7 @@ static int atp870u_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (pci_enable_device(pdev))
 		goto err_eio;
 
-        if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
-                printk(KERN_INFO "atp870u: use 32bit DMA mask.\n");
-        } else {
+	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
                 printk(KERN_ERR "atp870u: DMA mask required but not available.\n");
 		goto err_eio;
         }
@@ -1742,12 +1740,9 @@ static void atp870u_remove (struct pci_dev *pdev)
 	
 	
 	scsi_remove_host(pshost);
-	printk(KERN_INFO "free_irq : %d\n",pshost->irq);
 	free_irq(pshost->irq, pshost);
 	release_region(pshost->io_port, pshost->n_io_port);
-	printk(KERN_INFO "atp870u_free_tables : %p\n",pshost);
 	atp870u_free_tables(pshost);
-	printk(KERN_INFO "scsi_host_put : %p\n",pshost);
 	scsi_host_put(pshost);
 }
 MODULE_LICENSE("GPL");
