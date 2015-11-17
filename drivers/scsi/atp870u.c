@@ -970,19 +970,19 @@ static void tscam(struct Scsi_Host *host)
 		} else {
 			outb(0x00, dev->ioport[0] + 0x1b);
 		}
-wait_rdyok:
-		outb(0x09, dev->ioport[0] + 0x18);
+		do {
+			outb(0x09, dev->ioport[0] + 0x18);
 
-		while ((inb(dev->ioport[0] + 0x1f) & 0x80) == 0x00)
-			cpu_relax();
-		k = inb(dev->ioport[0] + 0x17);
-		if (k != 0x16) {
-			if ((k == 0x85) || (k == 0x42)) {
-				continue;
-			}
-			outb(0x41, dev->ioport[0] + 0x10);
-			goto wait_rdyok;
-		}
+			while ((inb(dev->ioport[0] + 0x1f) & 0x80) == 0x00)
+				cpu_relax();
+			k = inb(dev->ioport[0] + 0x17);
+			if ((k == 0x85) || (k == 0x42))
+				break;
+			if (k != 0x16)
+				outb(0x41, dev->ioport[0] + 0x10);
+		} while (k != 0x16);
+		if ((k == 0x85) || (k == 0x42))
+			continue;
 		assignid_map |= m;
 
 	}
@@ -1003,10 +1003,8 @@ wait_rdyok:
 	mdelay(128);
 	val &= 0x00fb;		/* after 1ms no msg */
 	outw(val, dev->ioport[0] + 0x1c);
-wait_nomsg:
-	if ((inb(dev->ioport[0] + 0x1c) & 0x04) != 0) {
-		goto wait_nomsg;
-	}
+	while ((inb(dev->ioport[0] + 0x1c) & 0x04) != 0)
+		;
 	outb(1, 0x80);
 	udelay(100);
 	for (n = 0; n < 0x30000; n++) {
