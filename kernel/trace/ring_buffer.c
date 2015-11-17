@@ -1001,17 +1001,13 @@ static int rb_head_page_replace(struct buffer_page *old,
 
 /*
  * rb_tail_page_update - move the tail page forward
- *
- * Returns 1 if moved tail page, 0 if someone else did.
  */
-static int rb_tail_page_update(struct ring_buffer_per_cpu *cpu_buffer,
+static void rb_tail_page_update(struct ring_buffer_per_cpu *cpu_buffer,
 			       struct buffer_page *tail_page,
 			       struct buffer_page *next_page)
 {
-	struct buffer_page *old_tail;
 	unsigned long old_entries;
 	unsigned long old_write;
-	int ret = 0;
 
 	/*
 	 * The tail page now needs to be moved forward.
@@ -1061,14 +1057,9 @@ static int rb_tail_page_update(struct ring_buffer_per_cpu *cpu_buffer,
 		 */
 		local_set(&next_page->page->commit, 0);
 
-		old_tail = cmpxchg(&cpu_buffer->tail_page,
-				   tail_page, next_page);
-
-		if (old_tail == tail_page)
-			ret = 1;
+		/* Again, either we update tail_page or an interrupt does */
+		(void)cmpxchg(&cpu_buffer->tail_page, tail_page, next_page);
 	}
-
-	return ret;
 }
 
 static int rb_check_bpage(struct ring_buffer_per_cpu *cpu_buffer,
@@ -2150,7 +2141,6 @@ rb_move_tail(struct ring_buffer_per_cpu *cpu_buffer,
 	struct ring_buffer *buffer = cpu_buffer->buffer;
 	struct buffer_page *next_page;
 	int ret;
-	u64 ts;
 
 	next_page = tail_page;
 
@@ -2224,15 +2214,7 @@ rb_move_tail(struct ring_buffer_per_cpu *cpu_buffer,
 		}
 	}
 
-	ret = rb_tail_page_update(cpu_buffer, tail_page, next_page);
-	if (ret) {
-		/*
-		 * Nested commits always have zero deltas, so
-		 * just reread the time stamp
-		 */
-		ts = rb_time_stamp(buffer);
-		next_page->page->time_stamp = ts;
-	}
+	rb_tail_page_update(cpu_buffer, tail_page, next_page);
 
  out_again:
 
@@ -2422,8 +2404,10 @@ rb_set_commit_to_write(struct ring_buffer_per_cpu *cpu_buffer)
 		local_set(&cpu_buffer->commit_page->page->commit,
 			  rb_page_write(cpu_buffer->commit_page));
 		rb_inc_page(cpu_buffer, &cpu_buffer->commit_page);
-		cpu_buffer->write_stamp =
-			cpu_buffer->commit_page->page->time_stamp;
+		/* Only update the write stamp if the page has an event */
+		if (rb_page_write(cpu_buffer->commit_page))
+			cpu_buffer->write_stamp =
+				cpu_buffer->commit_page->page->time_stamp;
 		/* add barrier to keep gcc from optimizing too much */
 		barrier();
 	}
