@@ -951,7 +951,7 @@ void sbus_request(struct hfi1_devdata *dd,
 static void turn_off_spicos(struct hfi1_devdata *dd, int flags)
 {
 	/* only needed on A0 */
-	if (!is_a0(dd))
+	if (!is_ax(dd))
 		return;
 
 	dd_dev_info(dd, "Turning off spicos:%s%s\n",

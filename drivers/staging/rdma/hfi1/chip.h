@@ -664,7 +664,6 @@ void get_linkup_link_widths(struct hfi1_pportdata *ppd);
 void read_ltp_rtt(struct hfi1_devdata *dd);
 void clear_linkup_counters(struct hfi1_devdata *dd);
 u32 hdrqempty(struct hfi1_ctxtdata *rcd);
-int is_a0(struct hfi1_devdata *dd);
 int is_ax(struct hfi1_devdata *dd);
 int is_bx(struct hfi1_devdata *dd);
 u32 read_physical_state(struct hfi1_devdata *dd);

@@ -917,7 +917,7 @@ int do_pcie_gen3_transition(struct hfi1_devdata *dd)
 	/*
 	 * A0 needs an additional SBR
 	 */
-	if (is_a0(dd))
+	if (is_ax(dd))
 		nsbr++;
 
 	/*
@@ -1193,7 +1193,7 @@ retry:
 	write_csr(dd, CCE_DC_CTRL, 0);
 
 	/* Set the LED off */
-	if (is_a0(dd))
+	if (is_ax(dd))
 		setextled(dd, 0);
 
 	/* check for any per-lane errors */
