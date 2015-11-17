@@ -58,14 +58,30 @@
 			};
 		};
 
-		L2: l2-cache {
-			compatible = "arm,pl310-cache";
-			reg = <0x2000 0x1000>;
-			cache-unified;
-			cache-level = <2>;
+		timer@0200 {
+			compatible = "arm,cortex-a9-global-timer";
+			reg = <0x0200 0x100>;
+			interrupts = <GIC_PPI 11 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&periph_clk>;
 		};
 
-		gic: interrupt-controller@19021000 {
+		twd-timer@0600 {
+			compatible = "arm,cortex-a9-twd-timer";
+			reg = <0x0600 0x20>;
+			interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(2) |
+						  IRQ_TYPE_LEVEL_HIGH)>;
+			clocks = <&periph_clk>;
+		};
+
+		twd-watchdog@0620 {
+			compatible = "arm,cortex-a9-twd-wdt";
+			reg = <0x0620 0x20>;
+			interrupts = <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(2) |
+						  IRQ_TYPE_LEVEL_HIGH)>;
+			clocks = <&periph_clk>;
+		};
+
+		gic: interrupt-controller@1000 {
 			compatible = "arm,cortex-a9-gic";
 			#interrupt-cells = <3>;
 			#address-cells = <0>;
@@ -74,27 +90,11 @@
 			      <0x0100 0x100>;
 		};
 
-		timer@19020200 {
-			compatible = "arm,cortex-a9-global-timer";
-			reg = <0x0200 0x100>;
-			interrupts = <GIC_PPI 11 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&periph_clk>;
-		};
-
-		twd-timer@19020600 {
-			compatible = "arm,cortex-a9-twd-timer";
-			reg = <0x0600 0x20>;
-			interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(2) |
-						  IRQ_TYPE_LEVEL_HIGH)>;
-			clocks = <&periph_clk>;
-		};
-
-		twd-watchdog@19020620 {
-			compatible = "arm,cortex-a9-twd-wdt";
-			reg = <0x0620 0x20>;
-			interrupts = <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(2) |
-						  IRQ_TYPE_LEVEL_HIGH)>;
-			clocks = <&periph_clk>;
+		L2: l2-cache {
+			compatible = "arm,pl310-cache";
+			reg = <0x2000 0x1000>;
+			cache-unified;
+			cache-level = <2>;
 		};
 	};
 
@@ -116,7 +116,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		uart0: serial@18000300 {
+		uart0: serial@0300 {
 			compatible = "ns16550a";
 			reg = <0x0300 0x100>;
 			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
@@ -124,7 +124,7 @@
 			status = "disabled";
 		};
 
-		uart1: serial@18000400 {
+		uart1: serial@0400 {
 			compatible = "ns16550a";
 			reg = <0x0400 0x100>;
 			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
@@ -132,7 +132,7 @@
 			status = "disabled";
 		};
 
-		pcie0: pcie@18012000 {
+		pcie0: pcie@12000 {
 			compatible = "brcm,iproc-pcie";
 			reg = <0x12000 0x1000>;
 
@@ -156,7 +156,7 @@
 			status = "disabled";
 		};
 
-		pcie1: pcie@18013000 {
+		pcie1: pcie@13000 {
 			compatible = "brcm,iproc-pcie";
 			reg = <0x13000 0x1000>;
 
@@ -180,7 +180,7 @@
 			status = "disabled";
 		};
 
-		pcie2: pcie@18014000 {
+		pcie2: pcie@14000 {
 			compatible = "brcm,iproc-pcie";
 			reg = <0x14000 0x1000>;
 
@@ -204,7 +204,7 @@
 			status = "disabled";
 		};
 
-		nand: nand@18026000 {
+		nand: nand@26000 {
 			compatible = "brcm,nand-iproc", "brcm,brcmnand-v6.1";
 			reg = <0x026000 0x600>,
 			      <0x11b408 0x600>,
