@@ -26,8 +26,6 @@ obj-$(CONFIG_USB_NET_RNDIS_WLAN)	+= rndis_wlan.o
 
 obj-$(CONFIG_USB_ZD1201)	+= zd1201.o
 
-obj-$(CONFIG_LIBERTAS_THINFIRM)	+= libertas_tf/
-
 obj-$(CONFIG_MWL8K)	+= mwl8k.o
 
 obj-$(CONFIG_RT2X00)	+= rt2x00/
