@@ -1905,6 +1905,97 @@ static void ttwu_queue(struct task_struct *p, int cpu)
 	raw_spin_unlock(&rq->lock);
 }
 
+/*
+ * Notes on Program-Order guarantees on SMP systems.
+ *
+ *  MIGRATION
+ *
+ * The basic program-order guarantee on SMP systems is that when a task [t]
+ * migrates, all its activity on its old cpu [c0] happens-before any subsequent
+ * execution on its new cpu [c1].
+ *
+ * For migration (of runnable tasks) this is provided by the following means:
+ *
+ *  A) UNLOCK of the rq(c0)->lock scheduling out task t
+ *  B) migration for t is required to synchronize *both* rq(c0)->lock and
+ *     rq(c1)->lock (if not at the same time, then in that order).
+ *  C) LOCK of the rq(c1)->lock scheduling in task
+ *
+ * Transitivity guarantees that B happens after A and C after B.
+ * Note: we only require RCpc transitivity.
+ * Note: the cpu doing B need not be c0 or c1
+ *
+ * Example:
+ *
+ *   CPU0            CPU1            CPU2
+ *
+ *   LOCK rq(0)->lock
+ *   sched-out X
+ *   sched-in Y
+ *   UNLOCK rq(0)->lock
+ *
+ *                                   LOCK rq(0)->lock // orders against CPU0
+ *                                   dequeue X
+ *                                   UNLOCK rq(0)->lock
+ *
+ *                                   LOCK rq(1)->lock
+ *                                   enqueue X
+ *                                   UNLOCK rq(1)->lock
+ *
+ *                   LOCK rq(1)->lock // orders against CPU2
+ *                   sched-out Z
+ *                   sched-in X
+ *                   UNLOCK rq(1)->lock
+ *
+ *
+ *  BLOCKING -- aka. SLEEP + WAKEUP
+ *
+ * For blocking we (obviously) need to provide the same guarantee as for
+ * migration. However the means are completely different as there is no lock
+ * chain to provide order. Instead we do:
+ *
+ *   1) smp_store_release(X->on_cpu, 0)
+ *   2) smp_cond_acquire(!X->on_cpu)
+ *
+ * Example:
+ *
+ *   CPU0 (schedule)  CPU1 (try_to_wake_up) CPU2 (schedule)
+ *
+ *   LOCK rq(0)->lock LOCK X->pi_lock
+ *   dequeue X
+ *   sched-out X
+ *   smp_store_release(X->on_cpu, 0);
+ *
+ *                    smp_cond_acquire(!X->on_cpu);
+ *                    X->state = WAKING
+ *                    set_task_cpu(X,2)
+ *
+ *                    LOCK rq(2)->lock
+ *                    enqueue X
+ *                    X->state = RUNNING
+ *                    UNLOCK rq(2)->lock
+ *
+ *                                          LOCK rq(2)->lock // orders against CPU1
+ *                                          sched-out Z
+ *                                          sched-in X
+ *                                          UNLOCK rq(2)->lock
+ *
+ *                    UNLOCK X->pi_lock
+ *   UNLOCK rq(0)->lock
+ *
+ *
+ * However; for wakeups there is a second guarantee we must provide, namely we
+ * must observe the state that lead to our wakeup. That is, not only must our
+ * task observe its own prior state, it must also observe the stores prior to
+ * its wakeup.
+ *
+ * This means that any means of doing remote wakeups must order the CPU doing
+ * the wakeup against the CPU the task is going to end up running on. This,
+ * however, is already required for the regular Program-Order guarantee above,
+ * since the waking CPU is the one issueing the ACQUIRE (smp_cond_acquire).
+ *
+ */
+
 /**
  * try_to_wake_up - wake up a thread
  * @p: the thread to be awakened
