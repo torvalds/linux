@@ -6708,7 +6708,7 @@ F:	drivers/net/ethernet/marvell/sk*
 MARVELL LIBERTAS WIRELESS DRIVER
 L:	libertas-dev@lists.infradead.org
 S:	Orphan
-F:	drivers/net/wireless/libertas/
+F:	drivers/net/wireless/marvell/libertas/
 
 MARVELL MV643XX ETHERNET DRIVER
 M:	Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
