@@ -1847,7 +1847,7 @@ S:	Supported
 F:	drivers/net/wireless/ath/ath6kl/
 
 WILOCITY WIL6210 WIRELESS DRIVER
-M:	Vladimir Kondratiev <qca_vkondrat@qca.qualcomm.com>
+M:	Maya Erez <qca_merez@qca.qualcomm.com>
 L:	linux-wireless@vger.kernel.org
 L:	wil6210@qca.qualcomm.com
 S:	Supported
