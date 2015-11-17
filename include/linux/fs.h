@@ -2291,9 +2291,9 @@ static inline void iterate_bdevs(void (*f)(struct block_device *, void *), void 
 {
 }
 
-static inline int sb_is_blkdev_sb(struct super_block *sb)
+static inline bool sb_is_blkdev_sb(struct super_block *sb)
 {
-	return 0;
+	return false;
 }
 #endif
 extern int sync_filesystem(struct super_block *);
