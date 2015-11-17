@@ -173,6 +173,11 @@ static struct test generic_tests[] = {
 	{
 		.desc = "Test BPF filter",
 		.func = test__bpf,
+		.subtest = {
+			.skip_if_fail	= true,
+			.get_nr		= test__bpf_subtest_get_nr,
+			.get_desc	= test__bpf_subtest_get_desc,
+		},
 	},
 	{
 		.func = NULL,

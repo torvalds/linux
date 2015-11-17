@@ -215,28 +215,46 @@ out:
 	return ret;
 }
 
-int test__bpf(int subtest __maybe_unused)
+int test__bpf_subtest_get_nr(void)
 {
-	unsigned int i;
+	return (int)ARRAY_SIZE(bpf_testcase_table);
+}
+
+const char *test__bpf_subtest_get_desc(int i)
+{
+	if (i < 0 || i >= (int)ARRAY_SIZE(bpf_testcase_table))
+		return NULL;
+	return bpf_testcase_table[i].desc;
+}
+
+int test__bpf(int i)
+{
 	int err;
+
+	if (i < 0 || i >= (int)ARRAY_SIZE(bpf_testcase_table))
+		return TEST_FAIL;
 
 	if (geteuid() != 0) {
 		pr_debug("Only root can run BPF test\n");
 		return TEST_SKIP;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(bpf_testcase_table); i++) {
-		err = __test__bpf(i);
-
-		if (err != TEST_OK)
-			return err;
-	}
-
-	return TEST_OK;
+	err = __test__bpf(i);
+	return err;
 }
 
 #else
-int test__bpf(void)
+int test__bpf_subtest_get_nr(void)
+{
+	return 0;
+}
+
+const char *test__bpf_subtest_get_desc(int i __maybe_unused)
+{
+	return NULL;
+}
+
+int test__bpf(int i __maybe_unused)
 {
 	pr_debug("Skip BPF test because BPF support is not compiled\n");
 	return TEST_SKIP;

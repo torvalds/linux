@@ -76,6 +76,8 @@ int test__llvm(int subtest);
 const char *test__llvm_subtest_get_desc(int subtest);
 int test__llvm_subtest_get_nr(void);
 int test__bpf(int subtest);
+const char *test__bpf_subtest_get_desc(int subtest);
+int test__bpf_subtest_get_nr(void);
 int test_session_topology(int subtest);
 
 #if defined(__arm__) || defined(__aarch64__)
