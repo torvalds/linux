@@ -292,11 +292,7 @@ ex_saved_reg1:
 	sr  TLBGetIndex, [ARC_REG_TLBCOMMAND]
 
 	/* Commit the Write */
-#if (CONFIG_ARC_MMU_VER >= 2)   /* introduced in v2 */
 	sr TLBWriteNI, [ARC_REG_TLBCOMMAND]
-#else
-	sr TLBWrite, [ARC_REG_TLBCOMMAND]
-#endif
 
 #else
 	sr TLBInsertEntry, [ARC_REG_TLBCOMMAND]

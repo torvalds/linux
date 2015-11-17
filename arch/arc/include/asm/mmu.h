@@ -67,6 +67,8 @@
 #if (CONFIG_ARC_MMU_VER >= 2)
 #define TLBWriteNI  0x5		/* write JTLB without inv uTLBs */
 #define TLBIVUTLB   0x6		/* explicitly inv uTLBs */
+#else
+#define TLBWriteNI  TLBWrite	/* Not present in hardware, fallback */
 #endif
 
 #if (CONFIG_ARC_MMU_VER >= 4)
