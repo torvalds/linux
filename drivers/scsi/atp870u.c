@@ -1610,16 +1610,8 @@ flash_ok_885:
 		shpnt->irq = pdev->irq;		
 	} 
 		spin_unlock_irqrestore(shpnt->host_lock, flags);
-		if(ent->device==ATP885_DEVID) {
-			if(!request_region(base_io, 0xff, "atp870u")) /* Register the IO ports that we use */
-				goto request_io_fail;
-		} else if((ent->device==ATP880_DEVID1)||(ent->device==ATP880_DEVID2)) {
-			if(!request_region(base_io, 0x60, "atp870u")) /* Register the IO ports that we use */
-				goto request_io_fail;
-		} else {
-			if(!request_region(base_io, 0x40, "atp870u")) /* Register the IO ports that we use */
-				goto request_io_fail;
-		}				
+		if (!request_region(base_io, shpnt->n_io_port, "atp870u"))
+			goto request_io_fail;
 		count++;
 		if (scsi_add_host(shpnt, &pdev->dev))
 			goto scsi_add_fail;
@@ -1631,13 +1623,7 @@ flash_ok_885:
 
 scsi_add_fail:
 	printk("atp870u_prob:scsi_add_fail\n");
-	if(ent->device==ATP885_DEVID) {
-		release_region(base_io, 0xff);
-	} else if((ent->device==ATP880_DEVID1)||(ent->device==ATP880_DEVID2)) {
-		release_region(base_io, 0x60);
-	} else {
-		release_region(base_io, 0x40);
-	}
+	release_region(base_io, shpnt->n_io_port);
 request_io_fail:
 	printk("atp870u_prob:request_io_fail\n");
 	free_irq(pdev->irq, shpnt);
