@@ -591,7 +591,7 @@ retry:
 
 out:
 	dm_put_live_table(md, *srcu_idx);
-	if (r == -ENOTCONN) {
+	if (r == -ENOTCONN && !fatal_signal_pending(current)) {
 		msleep(10);
 		goto retry;
 	}

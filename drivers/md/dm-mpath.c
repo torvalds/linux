@@ -1562,7 +1562,7 @@ static int multipath_prepare_ioctl(struct dm_target *ti,
 
 	spin_unlock_irqrestore(&m->lock, flags);
 
-	if (r == -ENOTCONN && !fatal_signal_pending(current)) {
+	if (r == -ENOTCONN) {
 		spin_lock_irqsave(&m->lock, flags);
 		if (!m->current_pg) {
 			/* Path status changed, redo selection */
