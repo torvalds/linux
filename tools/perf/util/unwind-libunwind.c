@@ -614,9 +614,21 @@ void unwind__finish_access(struct thread *thread)
 static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 		       void *arg, int max_stack)
 {
+	u64 val;
 	unw_addr_space_t addr_space;
 	unw_cursor_t c;
 	int ret;
+
+	ret = perf_reg_value(&val, &ui->sample->user_regs, PERF_REG_IP);
+	if (ret)
+		return ret;
+
+	ret = entry(val, ui->thread, cb, arg);
+	if (ret)
+		return -ENOMEM;
+
+	if (--max_stack == 0)
+		return 0;
 
 	addr_space = thread__priv(ui->thread);
 	if (addr_space == NULL)
@@ -640,24 +652,17 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 			struct thread *thread,
 			struct perf_sample *data, int max_stack)
 {
-	u64 ip;
 	struct unwind_info ui = {
 		.sample       = data,
 		.thread       = thread,
 		.machine      = thread->mg->machine,
 	};
-	int ret;
 
 	if (!data->user_regs.regs)
 		return -EINVAL;
 
-	ret = perf_reg_value(&ip, &data->user_regs, PERF_REG_IP);
-	if (ret)
-		return ret;
+	if (max_stack <= 0)
+		return -EINVAL;
 
-	ret = entry(ip, thread, cb, arg);
-	if (ret)
-		return -ENOMEM;
-
-	return --max_stack > 0 ? get_entries(&ui, cb, arg, max_stack) : 0;
+	return get_entries(&ui, cb, arg, max_stack);
 }
