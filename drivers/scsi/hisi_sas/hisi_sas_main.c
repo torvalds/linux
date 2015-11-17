@@ -12,6 +12,9 @@
 #include "hisi_sas.h"
 #define DRV_NAME "hisi_sas"
 
+#define DEV_IS_EXPANDER(type) \
+	((type == SAS_EDGE_EXPANDER_DEVICE) || \
+	(type == SAS_FANOUT_EXPANDER_DEVICE))
 
 #define DEV_IS_GONE(dev) \
 	((!dev) || (dev->dev_type == SAS_PHY_UNUSED))
@@ -325,6 +328,72 @@ static void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int phy_no)
 	sas_ha->notify_port_event(sas_phy, PORTE_BYTES_DMAED);
 }
 
+static struct hisi_sas_device *hisi_sas_alloc_dev(struct domain_device *device)
+{
+	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
+	struct hisi_sas_device *sas_dev = NULL;
+	int i;
+
+	spin_lock(&hisi_hba->lock);
+	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {
+		if (hisi_hba->devices[i].dev_type == SAS_PHY_UNUSED) {
+			hisi_hba->devices[i].device_id = i;
+			sas_dev = &hisi_hba->devices[i];
+			sas_dev->dev_status = HISI_SAS_DEV_NORMAL;
+			sas_dev->dev_type = device->dev_type;
+			sas_dev->hisi_hba = hisi_hba;
+			sas_dev->sas_device = device;
+			break;
+		}
+	}
+	spin_unlock(&hisi_hba->lock);
+
+	return sas_dev;
+}
+
+static int hisi_sas_dev_found(struct domain_device *device)
+{
+	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
+	struct domain_device *parent_dev = device->parent;
+	struct hisi_sas_device *sas_dev;
+	struct device *dev = &hisi_hba->pdev->dev;
+
+	sas_dev = hisi_sas_alloc_dev(device);
+	if (!sas_dev) {
+		dev_err(dev, "fail alloc dev: max support %d devices\n",
+			HISI_SAS_MAX_DEVICES);
+		return -EINVAL;
+	}
+
+	device->lldd_dev = sas_dev;
+	hisi_hba->hw->setup_itct(hisi_hba, sas_dev);
+
+	if (parent_dev && DEV_IS_EXPANDER(parent_dev->dev_type)) {
+		int phy_no;
+		u8 phy_num = parent_dev->ex_dev.num_phys;
+		struct ex_phy *phy;
+
+		for (phy_no = 0; phy_no < phy_num; phy_no++) {
+			phy = &parent_dev->ex_dev.ex_phy[phy_no];
+			if (SAS_ADDR(phy->attached_sas_addr) ==
+				SAS_ADDR(device->sas_addr)) {
+				sas_dev->attached_phy = phy_no;
+				break;
+			}
+		}
+
+		if (phy_no == phy_num) {
+			dev_info(dev, "dev found: no attached "
+				 "dev:%016llx at ex:%016llx\n",
+				 SAS_ADDR(device->sas_addr),
+				 SAS_ADDR(parent_dev->sas_addr));
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static void hisi_sas_phyup_work(struct work_struct *work)
 {
 	struct hisi_sas_phy *phy =
@@ -362,6 +431,23 @@ static void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int phy_no)
 	INIT_WORK(&phy->phyup_ws, hisi_sas_phyup_work);
 }
 
+static void hisi_sas_dev_gone(struct domain_device *device)
+{
+	struct hisi_sas_device *sas_dev = device->lldd_dev;
+	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
+	struct device *dev = &hisi_hba->pdev->dev;
+	u64 dev_id = sas_dev->device_id;
+
+	dev_info(dev, "found dev[%lld:%x] is gone\n",
+		 sas_dev->device_id, sas_dev->dev_type);
+
+	hisi_hba->hw->free_device(hisi_hba, sas_dev);
+	device->lldd_dev = NULL;
+	memset(sas_dev, 0, sizeof(*sas_dev));
+	sas_dev->device_id = dev_id;
+	sas_dev->dev_type = SAS_PHY_UNUSED;
+	sas_dev->dev_status = HISI_SAS_DEV_NORMAL;
+}
 
 static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 {
@@ -390,6 +476,8 @@ static struct scsi_host_template hisi_sas_sht = {
 };
 
 static struct sas_domain_function_template hisi_sas_transport_ops = {
+	.lldd_dev_found		= hisi_sas_dev_found,
+	.lldd_dev_gone		= hisi_sas_dev_gone,
 	.lldd_execute_task	= hisi_sas_queue_command,
 };
 
