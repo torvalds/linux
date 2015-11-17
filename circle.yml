@@ -1,7 +1,7 @@
 ## Customize dependencies
 dependencies:
   pre:
-    - sudo apt-get update; sudo apt-get install bc libfuse-dev libarchive-dev
+    - sudo apt-get update; sudo apt-get install bc libfuse-dev libarchive-dev xfsprogs
   post:
     - make defconfig ARCH=lkl
     - make ARCH=lkl -j8
