@@ -53,6 +53,7 @@ struct hisi_sas_phy {
 	struct asd_sas_phy	sas_phy;
 	struct sas_identify	identify;
 	struct timer_list	timer;
+	struct work_struct	phyup_ws;
 	u64		port_id; /* from hw */
 	u64		dev_sas_addr;
 	u64		phy_type;
@@ -87,6 +88,7 @@ struct hisi_sas_slot {
 
 struct hisi_sas_hw {
 	int (*hw_init)(struct hisi_hba *hisi_hba);
+	void (*sl_notify)(struct hisi_hba *hisi_hba, int phy_no);
 	int complete_hdr_size;
 };
 
