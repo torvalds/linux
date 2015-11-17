@@ -366,23 +366,6 @@ static inline void pte_update(struct mm_struct *mm, unsigned long addr,
 {
 	PVOP_VCALL3(pv_mmu_ops.pte_update, mm, addr, ptep);
 }
-static inline void pmd_update(struct mm_struct *mm, unsigned long addr,
-			      pmd_t *pmdp)
-{
-	PVOP_VCALL3(pv_mmu_ops.pmd_update, mm, addr, pmdp);
-}
-
-static inline void pte_update_defer(struct mm_struct *mm, unsigned long addr,
-				    pte_t *ptep)
-{
-	PVOP_VCALL3(pv_mmu_ops.pte_update_defer, mm, addr, ptep);
-}
-
-static inline void pmd_update_defer(struct mm_struct *mm, unsigned long addr,
-				    pmd_t *pmdp)
-{
-	PVOP_VCALL3(pv_mmu_ops.pmd_update_defer, mm, addr, pmdp);
-}
 
 static inline pte_t __pte(pteval_t val)
 {
