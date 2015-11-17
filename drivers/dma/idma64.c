@@ -178,19 +178,11 @@ static irqreturn_t idma64_irq(int irq, void *dev)
 	if (!status)
 		return IRQ_NONE;
 
-	/* Disable interrupts */
-	channel_clear_bit(idma64, MASK(XFER), idma64->all_chan_mask);
-	channel_clear_bit(idma64, MASK(ERROR), idma64->all_chan_mask);
-
 	status_xfer = dma_readl(idma64, RAW(XFER));
 	status_err = dma_readl(idma64, RAW(ERROR));
 
 	for (i = 0; i < idma64->dma.chancnt; i++)
 		idma64_chan_irq(idma64, i, status_err, status_xfer);
-
-	/* Re-enable interrupts */
-	channel_set_bit(idma64, MASK(XFER), idma64->all_chan_mask);
-	channel_set_bit(idma64, MASK(ERROR), idma64->all_chan_mask);
 
 	return IRQ_HANDLED;
 }
