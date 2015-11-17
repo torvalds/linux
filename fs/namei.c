@@ -842,7 +842,7 @@ static inline void path_to_nameidata(const struct path *path,
 }
 
 /*
- * Helper to directly jump to a known parsed path from ->follow_link,
+ * Helper to directly jump to a known parsed path from ->get_link,
  * caller must have taken a reference to path beforehand.
  */
 void nd_jump_link(struct path *path)
@@ -1005,10 +1005,18 @@ const char *get_link(struct nameidata *nd)
 	res = inode->i_link;
 	if (!res) {
 		if (nd->flags & LOOKUP_RCU) {
-			if (unlikely(unlazy_walk(nd, NULL, 0)))
-				return ERR_PTR(-ECHILD);
+			res = inode->i_op->get_link(NULL, inode,
+						    &last->cookie);
+			if (res == ERR_PTR(-ECHILD)) {
+				if (unlikely(unlazy_walk(nd, NULL, 0)))
+					return ERR_PTR(-ECHILD);
+				res = inode->i_op->get_link(dentry, inode,
+						            &last->cookie);
+			}
+		} else {
+			res = inode->i_op->get_link(dentry, inode,
+						    &last->cookie);
 		}
-		res = inode->i_op->follow_link(dentry, &last->cookie);
 		if (IS_ERR_OR_NULL(res)) {
 			last->cookie = NULL;
 			return res;
@@ -4495,8 +4503,8 @@ EXPORT_SYMBOL(readlink_copy);
 
 /*
  * A helper for ->readlink().  This should be used *ONLY* for symlinks that
- * have ->follow_link() touching nd only in nd_set_link().  Using (or not
- * using) it for any given inode is up to filesystem.
+ * have ->get_link() not calling nd_jump_link().  Using (or not using) it
+ * for any given inode is up to filesystem.
  */
 int generic_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 {
@@ -4506,7 +4514,7 @@ int generic_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 	int res;
 
 	if (!link) {
-		link = inode->i_op->follow_link(dentry, &cookie);
+		link = inode->i_op->get_link(dentry, inode, &cookie);
 		if (IS_ERR(link))
 			return PTR_ERR(link);
 	}
@@ -4518,26 +4526,27 @@ int generic_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 EXPORT_SYMBOL(generic_readlink);
 
 /* get the link contents into pagecache */
-static const char *page_getlink(struct dentry * dentry, void **cookie)
+const char *page_get_link(struct dentry *dentry, struct inode *inode,
+				 void **cookie)
 {
 	char *kaddr;
 	struct page *page;
-	struct address_space *mapping = dentry->d_inode->i_mapping;
+	struct address_space *mapping = inode->i_mapping;
+
+	if (!dentry)
+		return ERR_PTR(-ECHILD);
+
 	page = read_mapping_page(mapping, 0, NULL);
 	if (IS_ERR(page))
 		return (char*)page;
 	*cookie = page;
 	BUG_ON(mapping_gfp_mask(mapping) & __GFP_HIGHMEM);
 	kaddr = page_address(page);
-	nd_terminate_link(kaddr, dentry->d_inode->i_size, PAGE_SIZE - 1);
+	nd_terminate_link(kaddr, inode->i_size, PAGE_SIZE - 1);
 	return kaddr;
 }
 
-const char *page_follow_link_light(struct dentry *dentry, void **cookie)
-{
-	return page_getlink(dentry, cookie);
-}
-EXPORT_SYMBOL(page_follow_link_light);
+EXPORT_SYMBOL(page_get_link);
 
 void page_put_link(struct inode *unused, void *cookie)
 {
@@ -4549,7 +4558,9 @@ EXPORT_SYMBOL(page_put_link);
 int page_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 {
 	void *cookie = NULL;
-	int res = readlink_copy(buffer, buflen, page_getlink(dentry, &cookie));
+	int res = readlink_copy(buffer, buflen,
+				page_get_link(dentry, d_inode(dentry),
+					      &cookie));
 	if (cookie)
 		page_put_link(NULL, cookie);
 	return res;
@@ -4600,7 +4611,7 @@ EXPORT_SYMBOL(page_symlink);
 
 const struct inode_operations page_symlink_inode_operations = {
 	.readlink	= generic_readlink,
-	.follow_link	= page_follow_link_light,
+	.get_link	= page_get_link,
 	.put_link	= page_put_link,
 };
 EXPORT_SYMBOL(page_symlink_inode_operations);

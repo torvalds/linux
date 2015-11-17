@@ -146,7 +146,7 @@ static inline void write3byte(struct sysv_sb_info *sbi,
 
 static const struct inode_operations sysv_symlink_inode_operations = {
 	.readlink	= generic_readlink,
-	.follow_link	= page_follow_link_light,
+	.get_link	= page_get_link,
 	.put_link	= page_put_link,
 	.getattr	= sysv_getattr,
 };

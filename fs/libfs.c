@@ -1092,14 +1092,15 @@ simple_nosetlease(struct file *filp, long arg, struct file_lock **flp,
 }
 EXPORT_SYMBOL(simple_nosetlease);
 
-const char *simple_follow_link(struct dentry *dentry, void **cookie)
+const char *simple_get_link(struct dentry *dentry, struct inode *inode,
+			    void **cookie)
 {
-	return d_inode(dentry)->i_link;
+	return inode->i_link;
 }
-EXPORT_SYMBOL(simple_follow_link);
+EXPORT_SYMBOL(simple_get_link);
 
 const struct inode_operations simple_symlink_inode_operations = {
-	.follow_link = simple_follow_link,
+	.get_link = simple_get_link,
 	.readlink = generic_readlink
 };
 EXPORT_SYMBOL(simple_symlink_inode_operations);

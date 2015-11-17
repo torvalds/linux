@@ -42,11 +42,14 @@ error:
 	return -EIO;
 }
 
-static const char *nfs_follow_link(struct dentry *dentry, void **cookie)
+static const char *nfs_get_link(struct dentry *dentry,
+				struct inode *inode, void **cookie)
 {
-	struct inode *inode = d_inode(dentry);
 	struct page *page;
 	void *err;
+
+	if (!dentry)
+		return ERR_PTR(-ECHILD);
 
 	err = ERR_PTR(nfs_revalidate_mapping(inode, inode->i_mapping));
 	if (err)
@@ -64,7 +67,7 @@ static const char *nfs_follow_link(struct dentry *dentry, void **cookie)
  */
 const struct inode_operations nfs_symlink_inode_operations = {
 	.readlink	= generic_readlink,
-	.follow_link	= nfs_follow_link,
+	.get_link	= nfs_get_link,
 	.put_link	= page_put_link,
 	.getattr	= nfs_getattr,
 	.setattr	= nfs_setattr,

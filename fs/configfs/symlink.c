@@ -279,11 +279,16 @@ static int configfs_getlink(struct dentry *dentry, char * path)
 
 }
 
-static const char *configfs_follow_link(struct dentry *dentry, void **cookie)
+static const char *configfs_get_link(struct dentry *dentry,
+				     struct inode *inode, void **cookie)
 {
-	unsigned long page = get_zeroed_page(GFP_KERNEL);
+	unsigned long page;
 	int error;
 
+	if (!dentry)
+		return ERR_PTR(-ECHILD);
+
+	page = get_zeroed_page(GFP_KERNEL);
 	if (!page)
 		return ERR_PTR(-ENOMEM);
 
@@ -297,7 +302,7 @@ static const char *configfs_follow_link(struct dentry *dentry, void **cookie)
 }
 
 const struct inode_operations configfs_symlink_inode_operations = {
-	.follow_link = configfs_follow_link,
+	.get_link = configfs_get_link,
 	.readlink = generic_readlink,
 	.put_link = free_page_put_link,
 	.setattr = configfs_setattr,

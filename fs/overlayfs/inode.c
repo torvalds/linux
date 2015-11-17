@@ -137,17 +137,21 @@ struct ovl_link_data {
 	void *cookie;
 };
 
-static const char *ovl_follow_link(struct dentry *dentry, void **cookie)
+static const char *ovl_get_link(struct dentry *dentry,
+				struct inode *inode, void **cookie)
 {
 	struct dentry *realdentry;
 	struct inode *realinode;
 	struct ovl_link_data *data = NULL;
 	const char *ret;
 
+	if (!dentry)
+		return ERR_PTR(-ECHILD);
+
 	realdentry = ovl_dentry_real(dentry);
 	realinode = realdentry->d_inode;
 
-	if (WARN_ON(!realinode->i_op->follow_link))
+	if (WARN_ON(!realinode->i_op->get_link))
 		return ERR_PTR(-EPERM);
 
 	if (realinode->i_op->put_link) {
@@ -157,7 +161,7 @@ static const char *ovl_follow_link(struct dentry *dentry, void **cookie)
 		data->realdentry = realdentry;
 	}
 
-	ret = realinode->i_op->follow_link(realdentry, cookie);
+	ret = realinode->i_op->get_link(realdentry, realinode, cookie);
 	if (IS_ERR_OR_NULL(ret)) {
 		kfree(data);
 		return ret;
@@ -378,7 +382,7 @@ static const struct inode_operations ovl_file_inode_operations = {
 
 static const struct inode_operations ovl_symlink_inode_operations = {
 	.setattr	= ovl_setattr,
-	.follow_link	= ovl_follow_link,
+	.get_link	= ovl_get_link,
 	.put_link	= ovl_put_link,
 	.readlink	= ovl_readlink,
 	.getattr	= ovl_getattr,

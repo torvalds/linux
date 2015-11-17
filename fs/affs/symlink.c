@@ -20,7 +20,7 @@ static int affs_symlink_readpage(struct file *file, struct page *page)
 	char			 c;
 	char			 lc;
 
-	pr_debug("follow_link(ino=%lu)\n", inode->i_ino);
+	pr_debug("get_link(ino=%lu)\n", inode->i_ino);
 
 	bh = affs_bread(inode->i_sb, inode->i_ino);
 	if (!bh)
@@ -71,7 +71,7 @@ const struct address_space_operations affs_symlink_aops = {
 
 const struct inode_operations affs_symlink_inode_operations = {
 	.readlink	= generic_readlink,
-	.follow_link	= page_follow_link_light,
+	.get_link	= page_get_link,
 	.put_link	= page_put_link,
 	.setattr	= affs_notify_change,
 };

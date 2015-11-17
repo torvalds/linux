@@ -627,9 +627,8 @@ cifs_hl_exit:
 }
 
 const char *
-cifs_follow_link(struct dentry *direntry, void **cookie)
+cifs_get_link(struct dentry *direntry, struct inode *inode, void **cookie)
 {
-	struct inode *inode = d_inode(direntry);
 	int rc = -ENOMEM;
 	unsigned int xid;
 	char *full_path = NULL;
@@ -638,6 +637,9 @@ cifs_follow_link(struct dentry *direntry, void **cookie)
 	struct tcon_link *tlink = NULL;
 	struct cifs_tcon *tcon;
 	struct TCP_Server_Info *server;
+
+	if (!direntry)
+		return ERR_PTR(-ECHILD);
 
 	xid = get_xid();
 

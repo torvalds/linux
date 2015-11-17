@@ -892,9 +892,13 @@ static const struct inode_operations hostfs_dir_iops = {
 	.setattr	= hostfs_setattr,
 };
 
-static const char *hostfs_follow_link(struct dentry *dentry, void **cookie)
+static const char *hostfs_get_link(struct dentry *dentry,
+				   struct inode *inode, void **cookie)
 {
-	char *link = __getname();
+	char *link;
+	if (!dentry)
+		return ERR_PTR(-ECHILD);
+	link = __getname();
 	if (link) {
 		char *path = dentry_name(dentry);
 		int err = -ENOMEM;
@@ -922,7 +926,7 @@ static void hostfs_put_link(struct inode *unused, void *cookie)
 
 static const struct inode_operations hostfs_link_iops = {
 	.readlink	= generic_readlink,
-	.follow_link	= hostfs_follow_link,
+	.get_link	= hostfs_get_link,
 	.put_link	= hostfs_put_link,
 };
 

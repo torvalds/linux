@@ -509,3 +509,9 @@ in your dentry operations instead.
 	any symlink that might use page_follow_link_light/page_put_link() must
 	have inode_nohighmem(inode) called before anything might start playing with
 	its pagecache.
+--
+[mandatory]
+	->follow_link() is replaced with ->get_link(); same API, except that
+		* ->get_link() gets inode as a separate argument
+		* ->get_link() may be called in RCU mode - in that case NULL
+		  dentry is passed

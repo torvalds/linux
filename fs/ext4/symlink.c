@@ -23,16 +23,19 @@
 #include "xattr.h"
 
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
-static const char *ext4_encrypted_follow_link(struct dentry *dentry, void **cookie)
+static const char *ext4_encrypted_get_link(struct dentry *dentry,
+					   struct inode *inode, void **cookie)
 {
 	struct page *cpage = NULL;
 	char *caddr, *paddr = NULL;
 	struct ext4_str cstr, pstr;
-	struct inode *inode = d_inode(dentry);
 	struct ext4_encrypted_symlink_data *sd;
 	loff_t size = min_t(loff_t, i_size_read(inode), PAGE_SIZE - 1);
 	int res;
 	u32 plen, max_size = inode->i_sb->s_blocksize;
+
+	if (!dentry)
+		return ERR_PTR(-ECHILD);
 
 	res = ext4_get_encryption_info(inode);
 	if (res)
@@ -87,7 +90,7 @@ errout:
 
 const struct inode_operations ext4_encrypted_symlink_inode_operations = {
 	.readlink	= generic_readlink,
-	.follow_link    = ext4_encrypted_follow_link,
+	.get_link	= ext4_encrypted_get_link,
 	.put_link       = kfree_put_link,
 	.setattr	= ext4_setattr,
 	.setxattr	= generic_setxattr,
@@ -99,7 +102,7 @@ const struct inode_operations ext4_encrypted_symlink_inode_operations = {
 
 const struct inode_operations ext4_symlink_inode_operations = {
 	.readlink	= generic_readlink,
-	.follow_link	= page_follow_link_light,
+	.get_link	= page_get_link,
 	.put_link	= page_put_link,
 	.setattr	= ext4_setattr,
 	.setxattr	= generic_setxattr,
@@ -110,7 +113,7 @@ const struct inode_operations ext4_symlink_inode_operations = {
 
 const struct inode_operations ext4_fast_symlink_inode_operations = {
 	.readlink	= generic_readlink,
-	.follow_link    = simple_follow_link,
+	.get_link	= simple_get_link,
 	.setattr	= ext4_setattr,
 	.setxattr	= generic_setxattr,
 	.getxattr	= generic_getxattr,
