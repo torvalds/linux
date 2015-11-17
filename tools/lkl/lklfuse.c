@@ -595,10 +595,6 @@ int main(int argc, char **argv)
 		goto out_free;
 	}
 
-	ret = init_lkl();
-	if (ret)
-		goto out_free;
-
 	ch = fuse_mount(mnt, &args);
 	if (!ch) {
 		ret = -1;
@@ -617,11 +613,16 @@ int main(int argc, char **argv)
 		goto out_fuse_destroy;
 	}
 
+	ret = init_lkl();
+	if (ret)
+		goto out_remove_signals;
+
 	if (mt)
 		ret = fuse_loop_mt(fuse);
 	else
 		ret = fuse_loop(fuse);
 
+out_remove_signals:
 	fuse_remove_signal_handlers(fuse_get_session(fuse));
 
 out_fuse_destroy:
