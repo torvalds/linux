@@ -2084,13 +2084,10 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			mask = m_EDP_OUT_EN | m_RGB_OUT_EN;
 			val = v_EDP_OUT_EN(1) | v_RGB_OUT_EN(0);
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
-			/*because edp have to sent aaa fmt */
-			mask = m_DITHER_DOWN_EN;
-			val = v_DITHER_DOWN_EN(0);
 
-			mask |= m_EDP_HSYNC_POL | m_EDP_VSYNC_POL |
+			mask = m_EDP_HSYNC_POL | m_EDP_VSYNC_POL |
 			    m_EDP_DEN_POL | m_EDP_DCLK_POL;
-			val |= v_EDP_HSYNC_POL(screen->pin_hsync) |
+			val = v_EDP_HSYNC_POL(screen->pin_hsync) |
 			    v_EDP_VSYNC_POL(screen->pin_vsync) |
 			    v_EDP_DEN_POL(screen->pin_den) |
 			    v_EDP_DCLK_POL(screen->pin_dclk);
