@@ -1551,16 +1551,6 @@ static int brcmnand_read_oob_raw(struct mtd_info *mtd, struct nand_chip *chip,
 	return 0;
 }
 
-static int brcmnand_read_subpage(struct mtd_info *mtd, struct nand_chip *chip,
-				 uint32_t data_offs, uint32_t readlen,
-				 uint8_t *bufpoi, int page)
-{
-	struct brcmnand_host *host = chip->priv;
-
-	return brcmnand_read(mtd, chip, host->last_addr + data_offs,
-			readlen >> FC_SHIFT, (u32 *)bufpoi, NULL);
-}
-
 static int brcmnand_write(struct mtd_info *mtd, struct nand_chip *chip,
 			  u64 addr, const u32 *buf, u8 *oob)
 {
@@ -1949,7 +1939,6 @@ static int brcmnand_init_cs(struct brcmnand_host *host)
 
 	chip->ecc.mode = NAND_ECC_HW;
 	chip->ecc.read_page = brcmnand_read_page;
-	chip->ecc.read_subpage = brcmnand_read_subpage;
 	chip->ecc.write_page = brcmnand_write_page;
 	chip->ecc.read_page_raw = brcmnand_read_page_raw;
 	chip->ecc.write_page_raw = brcmnand_write_page_raw;
