@@ -51,7 +51,7 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 	unsigned char i, j, c, target_id, lun,cmdp;
 	unsigned char *prd;
 	struct scsi_cmnd *workreq;
-	unsigned int tmport, tmport1;
+	unsigned int tmport;
 	unsigned long adrcnt, k;
 #ifdef ED_DBGP
 	unsigned long l;
@@ -78,9 +78,8 @@ ch_sel:
 	cmdp = inb(dev->ioport[c] + 0x10);
 	if (dev->working[c] != 0) {
 		if (dev->dev_id == ATP885_DEVID) {
-			tmport1 = dev->ioport[c] + 0x16;
-			if ((inb(tmport1) & 0x80) == 0)
-				outb((inb(tmport1) | 0x80), tmport1);
+			if ((inb(dev->ioport[c] + 0x16) & 0x80) == 0)
+				outb((inb(dev->ioport[c] + 0x16) | 0x80), dev->ioport[c] + 0x16);
 		}		
 		tmpcip = dev->pciport[c];
 		if ((inb(tmpcip) & 0x08) != 0)
