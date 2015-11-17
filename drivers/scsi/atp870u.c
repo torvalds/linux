@@ -1298,6 +1298,12 @@ static int atp870u_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	shpnt->unique_id = shpnt->io_port;
 	shpnt->irq = pdev->irq;
 
+	err = atp870u_init_tables(shpnt);
+	if (err) {
+		dev_err(&pdev->dev, "Unable to allocate tables for Acard controller\n");
+		goto unregister;
+	}
+
 	if (is880(atpdev)) {
 		pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 0x80);//JCC082803
 
@@ -1366,11 +1372,6 @@ flash_ok_880:
 		atpdev->async[0] = ~(atpdev->async[0]);
 		atp_writeb_base(atpdev, 0x35, atpdev->global_map[0]);
  
-		if (atp870u_init_tables(shpnt) < 0) {
-			printk(KERN_ERR "Unable to allocate tables for Acard controller\n");
-			err = -ENOMEM;
-			goto unregister;
-		}
 
 		k = atp_readb_base(atpdev, 0x38) & 0x80;
 		atp_writeb_base(atpdev, 0x38, k);
@@ -1398,11 +1399,6 @@ flash_ok_880:
 		atpdev->pciport[0] = shpnt->io_port + 0x40;
 		atpdev->pciport[1] = shpnt->io_port + 0x50;
 				
-		if (atp870u_init_tables(shpnt) < 0) {
-			err = -ENOMEM;
-			goto unregister;
-		}
-			
 		c = atp_readb_base(atpdev, 0x29);
 		atp_writeb_base(atpdev, 0x29, c | 0x04);
         	
@@ -1531,12 +1527,6 @@ flash_ok_885:
 			scam_on = 0x00;
 			atpdev->global_map[0] = 0x20;
 			atpdev->ultra_map[0] = 0xffff;
-		}
-
-
-		if (atp870u_init_tables(shpnt) < 0) {
-			err = -ENOMEM;
-			goto unregister;
 		}
 
 		if (pdev->revision > 0x07)	/* check if atp876 chip then enable terminator */
