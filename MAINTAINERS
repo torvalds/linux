@@ -5651,7 +5651,7 @@ L:	linux-wireless@vger.kernel.org
 W:	http://intellinuxwireless.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/iwlwifi/iwlwifi.git
 S:	Supported
-F:	drivers/net/wireless/iwlwifi/
+F:	drivers/net/wireless/intel/iwlwifi/
 
 INTEL MANAGEMENT ENGINE (mei)
 M:	Tomas Winkler <tomas.winkler@intel.com>
