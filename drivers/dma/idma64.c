@@ -231,7 +231,7 @@ static void idma64_vdesc_free(struct virt_dma_desc *vdesc)
 	idma64_desc_free(idma64c, to_idma64_desc(vdesc));
 }
 
-static u64 idma64_hw_desc_fill(struct idma64_hw_desc *hw,
+static void idma64_hw_desc_fill(struct idma64_hw_desc *hw,
 		struct dma_slave_config *config,
 		enum dma_transfer_direction direction, u64 llp)
 {
@@ -268,7 +268,6 @@ static u64 idma64_hw_desc_fill(struct idma64_hw_desc *hw,
 		     IDMA64C_CTLL_SRC_WIDTH(src_width);
 
 	lli->llp = llp;
-	return hw->llp;
 }
 
 static void idma64_desc_fill(struct idma64_chan *idma64c,
@@ -283,7 +282,8 @@ static void idma64_desc_fill(struct idma64_chan *idma64c,
 	/* Fill the hardware descriptors and link them to a list */
 	do {
 		hw = &desc->hw[--i];
-		llp = idma64_hw_desc_fill(hw, config, desc->direction, llp);
+		idma64_hw_desc_fill(hw, config, desc->direction, llp);
+		llp = hw->llp;
 		desc->length += hw->len;
 	} while (i);
 
