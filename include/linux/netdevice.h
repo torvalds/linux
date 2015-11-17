@@ -3857,6 +3857,11 @@ static inline bool netif_is_bridge_master(const struct net_device *dev)
 	return dev->priv_flags & IFF_EBRIDGE;
 }
 
+static inline bool netif_is_bridge_port(const struct net_device *dev)
+{
+	return dev->priv_flags & IFF_BRIDGE_PORT;
+}
+
 static inline bool netif_is_ovs_master(const struct net_device *dev)
 {
 	return dev->priv_flags & IFF_OPENVSWITCH;
