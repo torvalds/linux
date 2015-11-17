@@ -20,15 +20,18 @@
 
 struct component;
 
+struct component_match_array {
+	void *data;
+	int (*compare)(struct device *, void *);
+	void (*release)(struct device *, void *);
+	struct component *component;
+	bool duplicate;
+};
+
 struct component_match {
 	size_t alloc;
 	size_t num;
-	struct {
-		void *data;
-		int (*fn)(struct device *, void *);
-		struct component *component;
-		bool duplicate;
-	} compare[0];
+	struct component_match_array *compare;
 };
 
 struct master {
@@ -92,6 +95,7 @@ static int find_components(struct master *master)
 	 * any components which are found to this master.
 	 */
 	for (i = 0; i < match->num; i++) {
+		struct component_match_array *mc = &match->compare[i];
 		struct component *c;
 
 		dev_dbg(master->dev, "Looking for component %zu\n", i);
@@ -99,8 +103,7 @@ static int find_components(struct master *master)
 		if (match->compare[i].component)
 			continue;
 
-		c = find_component(master, match->compare[i].fn,
-				   match->compare[i].data);
+		c = find_component(master, mc->compare, mc->data);
 		if (!c) {
 			ret = -ENXIO;
 			break;
@@ -192,41 +195,55 @@ static void take_down_master(struct master *master)
 	}
 }
 
-static size_t component_match_size(size_t num)
+static void component_match_release(struct device *master,
+	struct component_match *match)
 {
-	return offsetof(struct component_match, compare[num]);
+	unsigned int i;
+
+	for (i = 0; i < match->num; i++) {
+		struct component_match_array *mc = &match->compare[i];
+
+		if (mc->release)
+			mc->release(master, mc->data);
+	}
 }
 
-static struct component_match *component_match_realloc(struct device *dev,
+static void devm_component_match_release(struct device *dev, void *res)
+{
+	component_match_release(dev, res);
+}
+
+static int component_match_realloc(struct device *dev,
 	struct component_match *match, size_t num)
 {
-	struct component_match *new;
+	struct component_match_array *new;
 
-	if (match && match->alloc == num)
-		return match;
+	if (match->alloc == num)
+		return 0;
 
-	new = devm_kmalloc(dev, component_match_size(num), GFP_KERNEL);
+	new = devm_kmalloc_array(dev, num, sizeof(*new), GFP_KERNEL);
 	if (!new)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
-	if (match) {
-		memcpy(new, match, component_match_size(min(match->num, num)));
-		devm_kfree(dev, match);
-	} else {
-		new->num = 0;
+	if (match->compare) {
+		memcpy(new, match->compare, sizeof(*new) *
+					    min(match->num, num));
+		devm_kfree(dev, match->compare);
 	}
+	match->compare = new;
+	match->alloc = num;
 
-	new->alloc = num;
-
-	return new;
+	return 0;
 }
 
 /*
- * Add a component to be matched.
+ * Add a component to be matched, with a release function.
  *
  * The match array is first created or extended if necessary.
  */
-void component_match_add(struct device *dev, struct component_match **matchptr,
+void component_match_add_release(struct device *master,
+	struct component_match **matchptr,
+	void (*release)(struct device *, void *),
 	int (*compare)(struct device *, void *), void *compare_data)
 {
 	struct component_match *match = *matchptr;
@@ -234,23 +251,37 @@ void component_match_add(struct device *dev, struct component_match **matchptr,
 	if (IS_ERR(match))
 		return;
 
-	if (!match || match->num == match->alloc) {
-		size_t new_size = match ? match->alloc + 16 : 15;
+	if (!match) {
+		match = devres_alloc(devm_component_match_release,
+				     sizeof(*match), GFP_KERNEL);
+		if (!match) {
+			*matchptr = ERR_PTR(-ENOMEM);
+			return;
+		}
 
-		match = component_match_realloc(dev, match, new_size);
+		devres_add(master, match);
 
 		*matchptr = match;
-
-		if (IS_ERR(match))
-			return;
 	}
 
-	match->compare[match->num].fn = compare;
+	if (match->num == match->alloc) {
+		size_t new_size = match ? match->alloc + 16 : 15;
+		int ret;
+
+		ret = component_match_realloc(master, match, new_size);
+		if (ret) {
+			*matchptr = ERR_PTR(ret);
+			return;
+		}
+	}
+
+	match->compare[match->num].compare = compare;
+	match->compare[match->num].release = release;
 	match->compare[match->num].data = compare_data;
 	match->compare[match->num].component = NULL;
 	match->num++;
 }
-EXPORT_SYMBOL(component_match_add);
+EXPORT_SYMBOL(component_match_add_release);
 
 int component_master_add_with_match(struct device *dev,
 	const struct component_master_ops *ops,
@@ -260,9 +291,9 @@ int component_master_add_with_match(struct device *dev,
 	int ret;
 
 	/* Reallocate the match array for its true size */
-	match = component_match_realloc(dev, match, match->num);
-	if (IS_ERR(match))
-		return PTR_ERR(match);
+	ret = component_match_realloc(dev, match, match->num);
+	if (ret)
+		return ret;
 
 	master = kzalloc(sizeof(*master), GFP_KERNEL);
 	if (!master)
