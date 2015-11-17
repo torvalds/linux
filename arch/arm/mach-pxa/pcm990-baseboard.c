@@ -30,7 +30,7 @@
 #include <media/i2c/mt9v022.h>
 #include <media/soc_camera.h>
 
-#include <linux/platform_data/camera-pxa.h>
+#include <linux/platform_data/media/camera-pxa.h>
 #include <asm/mach/map.h>
 #include <mach/pxa27x.h>
 #include <mach/audio.h>

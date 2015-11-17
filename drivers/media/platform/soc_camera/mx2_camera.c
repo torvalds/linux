@@ -39,7 +39,7 @@
 
 #include <linux/videodev2.h>
 
-#include <linux/platform_data/camera-mx2.h>
+#include <linux/platform_data/media/camera-mx2.h>
 
 #include <asm/dma.h>
 

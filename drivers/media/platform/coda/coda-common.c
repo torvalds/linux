@@ -28,7 +28,7 @@
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <linux/of.h>
-#include <linux/platform_data/coda.h>
+#include <linux/platform_data/media/coda.h>
 #include <linux/reset.h>
 
 #include <media/v4l2-ctrls.h>
