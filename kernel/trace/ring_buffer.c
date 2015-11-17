@@ -1036,7 +1036,7 @@ static int rb_tail_page_update(struct ring_buffer_per_cpu *cpu_buffer,
 	 * it is, then it is up to us to update the tail
 	 * pointer.
 	 */
-	if (tail_page == cpu_buffer->tail_page) {
+	if (tail_page == READ_ONCE(cpu_buffer->tail_page)) {
 		/* Zero the write counter */
 		unsigned long val = old_write & ~RB_WRITE_MASK;
 		unsigned long eval = old_entries & ~RB_WRITE_MASK;
@@ -2036,12 +2036,15 @@ rb_handle_head_page(struct ring_buffer_per_cpu *cpu_buffer,
 	 * the tail page would have moved.
 	 */
 	if (ret == RB_PAGE_NORMAL) {
+		struct buffer_page *buffer_tail_page;
+
+		buffer_tail_page = READ_ONCE(cpu_buffer->tail_page);
 		/*
 		 * If the tail had moved passed next, then we need
 		 * to reset the pointer.
 		 */
-		if (cpu_buffer->tail_page != tail_page &&
-		    cpu_buffer->tail_page != next_page)
+		if (buffer_tail_page != tail_page &&
+		    buffer_tail_page != next_page)
 			rb_head_page_set_normal(cpu_buffer, new_head,
 						next_page,
 						RB_PAGE_HEAD);
@@ -2362,7 +2365,7 @@ rb_try_to_discard(struct ring_buffer_per_cpu *cpu_buffer,
 	addr = (unsigned long)event;
 	addr &= PAGE_MASK;
 
-	bpage = cpu_buffer->tail_page;
+	bpage = READ_ONCE(cpu_buffer->tail_page);
 
 	if (bpage->page == (void *)addr && rb_page_write(bpage) == old_index) {
 		unsigned long write_mask =
@@ -2410,7 +2413,7 @@ rb_set_commit_to_write(struct ring_buffer_per_cpu *cpu_buffer)
  again:
 	max_count = cpu_buffer->nr_pages * 100;
 
-	while (cpu_buffer->commit_page != cpu_buffer->tail_page) {
+	while (cpu_buffer->commit_page != READ_ONCE(cpu_buffer->tail_page)) {
 		if (RB_WARN_ON(cpu_buffer, !(--max_count)))
 			return;
 		if (RB_WARN_ON(cpu_buffer,
@@ -2443,7 +2446,7 @@ rb_set_commit_to_write(struct ring_buffer_per_cpu *cpu_buffer)
 	 * and pushed the tail page forward, we will be left with
 	 * a dangling commit that will never go forward.
 	 */
-	if (unlikely(cpu_buffer->commit_page != cpu_buffer->tail_page))
+	if (unlikely(cpu_buffer->commit_page != READ_ONCE(cpu_buffer->tail_page)))
 		goto again;
 }
 
@@ -2699,7 +2702,8 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 	if (unlikely(info->add_timestamp))
 		info->length += RB_LEN_TIME_EXTEND;
 
-	tail_page = info->tail_page = cpu_buffer->tail_page;
+	/* Don't let the compiler play games with cpu_buffer->tail_page */
+	tail_page = info->tail_page = READ_ONCE(cpu_buffer->tail_page);
 	write = local_add_return(info->length, &tail_page->write);
 
 	/* set write to only the index of the write */
