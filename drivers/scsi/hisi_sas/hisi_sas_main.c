@@ -39,9 +39,13 @@ static struct sas_domain_function_template hisi_sas_transport_ops = {
 static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 					      const struct hisi_sas_hw *hw)
 {
+	struct resource *res;
 	struct Scsi_Host *shost;
 	struct hisi_hba *hisi_hba;
 	struct device *dev = &pdev->dev;
+	struct device_node *np = pdev->dev.of_node;
+	struct property *sas_addr_prop;
+	int num;
 
 	shost = scsi_host_alloc(&hisi_sas_sht, sizeof(*hisi_hba));
 	if (!shost)
@@ -52,6 +56,46 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 	hisi_hba->pdev = pdev;
 	hisi_hba->shost = shost;
 	SHOST_TO_SAS_HA(shost) = &hisi_hba->sha;
+
+	sas_addr_prop = of_find_property(np, "sas-addr", NULL);
+	if (!sas_addr_prop || (sas_addr_prop->length != SAS_ADDR_SIZE))
+		goto err_out;
+	memcpy(hisi_hba->sas_addr, sas_addr_prop->value, SAS_ADDR_SIZE);
+
+	if (of_property_read_u32(np, "ctrl-reset-reg",
+				 &hisi_hba->ctrl_reset_reg))
+		goto err_out;
+
+	if (of_property_read_u32(np, "ctrl-reset-sts-reg",
+				 &hisi_hba->ctrl_reset_sts_reg))
+		goto err_out;
+
+	if (of_property_read_u32(np, "ctrl-clock-ena-reg",
+				 &hisi_hba->ctrl_clock_ena_reg))
+		goto err_out;
+
+	if (of_property_read_u32(np, "phy-count", &hisi_hba->n_phy))
+		goto err_out;
+
+	if (of_property_read_u32(np, "queue-count", &hisi_hba->queue_count))
+		goto err_out;
+
+	num = of_irq_count(np);
+	hisi_hba->int_names = devm_kcalloc(dev, num,
+					   HISI_SAS_NAME_LEN,
+					   GFP_KERNEL);
+	if (!hisi_hba->int_names)
+		goto err_out;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	hisi_hba->regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(hisi_hba->regs))
+		goto err_out;
+
+	hisi_hba->ctrl = syscon_regmap_lookup_by_phandle(
+				np, "hisilicon,sas-syscon");
+	if (IS_ERR(hisi_hba->ctrl))
+		goto err_out;
 
 	return shost;
 err_out:
@@ -79,7 +123,6 @@ int hisi_sas_probe(struct platform_device *pdev,
 	sha = SHOST_TO_SAS_HA(shost);
 	hisi_hba = shost_priv(shost);
 	platform_set_drvdata(pdev, sha);
-	hisi_hba->n_phy = HISI_SAS_MAX_PHYS;
 	phy_nr = port_nr = hisi_hba->n_phy;
 
 	arr_phy = devm_kcalloc(dev, phy_nr, sizeof(void *), GFP_KERNEL);

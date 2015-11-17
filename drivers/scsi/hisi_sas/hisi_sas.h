@@ -28,6 +28,8 @@
 #define HISI_SAS_MAX_DEVICES HISI_SAS_MAX_ITCT_ENTRIES
 #define HISI_SAS_COMMAND_ENTRIES 8192
 
+#define HISI_SAS_NAME_LEN 32
+
 struct hisi_sas_phy {
 	struct asd_sas_phy	sas_phy;
 };
@@ -44,6 +46,11 @@ struct hisi_hba {
 	struct sas_ha_struct *p;
 
 	struct platform_device *pdev;
+	void __iomem *regs;
+	struct regmap *ctrl;
+	u32 ctrl_reset_reg;
+	u32 ctrl_reset_sts_reg;
+	u32 ctrl_clock_ena_reg;
 	u8 sas_addr[SAS_ADDR_SIZE];
 
 	int n_phy;
@@ -53,6 +60,9 @@ struct hisi_hba {
 	struct Scsi_Host *shost;
 	struct hisi_sas_phy phy[HISI_SAS_MAX_PHYS];
 	struct hisi_sas_port port[HISI_SAS_MAX_PHYS];
+
+	int	queue_count;
+	char	*int_names;
 	const struct hisi_sas_hw *hw;	/* Low level hw interface */
 };
 
