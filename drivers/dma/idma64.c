@@ -274,10 +274,10 @@ static void idma64_desc_fill(struct idma64_chan *idma64c,
 		struct idma64_desc *desc)
 {
 	struct dma_slave_config *config = &idma64c->config;
-	struct idma64_hw_desc *hw = &desc->hw[desc->ndesc - 1];
+	unsigned int i = desc->ndesc;
+	struct idma64_hw_desc *hw = &desc->hw[i - 1];
 	struct idma64_lli *lli = hw->lli;
 	u64 llp = 0;
-	unsigned int i = desc->ndesc;
 
 	/* Fill the hardware descriptors and link them to a list */
 	do {
@@ -287,7 +287,7 @@ static void idma64_desc_fill(struct idma64_chan *idma64c,
 		desc->length += hw->len;
 	} while (i);
 
-	/* Trigger interrupt after last block */
+	/* Trigger an interrupt after the last block is transfered */
 	lli->ctllo |= IDMA64C_CTLL_INT_EN;
 }
 
