@@ -5711,13 +5711,6 @@ M:	Juanjo Ciarlante <jjciarla@raiz.uncu.edu.ar>
 S:	Maintained
 F:	net/ipv4/netfilter/ipt_MASQUERADE.c
 
-IP1000A 10/100/1000 GIGABIT ETHERNET DRIVER
-M:	Francois Romieu <romieu@fr.zoreil.com>
-M:	Sorbica Shieh <sorbica@icplus.com.tw>
-L:	netdev@vger.kernel.org
-S:	Maintained
-F:	drivers/net/ethernet/icplus/ipg.*
-
 IPATH DRIVER
 M:	Mike Marciniszyn <infinipath@intel.com>
 L:	linux-rdma@vger.kernel.org
@@ -6923,12 +6916,20 @@ F:	drivers/scsi/megaraid.*
 F:	drivers/scsi/megaraid/
 
 MELLANOX ETHERNET DRIVER (mlx4_en)
-M:	Amir Vadai <amirv@mellanox.com>
+M: 	Eugenia Emantayev <eugenia@mellanox.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 W:	http://www.mellanox.com
 Q:	http://patchwork.ozlabs.org/project/netdev/list/
 F:	drivers/net/ethernet/mellanox/mlx4/en_*
+
+MELLANOX ETHERNET DRIVER (mlx5e)
+M:	Saeed Mahameed <saeedm@mellanox.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+W:	http://www.mellanox.com
+Q:	http://patchwork.ozlabs.org/project/netdev/list/
+F:	drivers/net/ethernet/mellanox/mlx5/core/en_*
 
 MELLANOX ETHERNET SWITCH DRIVERS
 M:	Jiri Pirko <jiri@mellanox.com>

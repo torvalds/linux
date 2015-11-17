@@ -13207,7 +13207,7 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 
 	/* VF with OLD Hypervisor or old PF do not support filtering */
 	if (IS_PF(bp)) {
-		if (CHIP_IS_E1x(bp))
+		if (chip_is_e1x)
 			bp->accept_any_vlan = true;
 		else
 			dev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER;

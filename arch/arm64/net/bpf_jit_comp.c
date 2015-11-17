@@ -50,7 +50,7 @@ static const int bpf2a64[] = {
 	[BPF_REG_8] = A64_R(21),
 	[BPF_REG_9] = A64_R(22),
 	/* read-only frame pointer to access stack */
-	[BPF_REG_FP] = A64_FP,
+	[BPF_REG_FP] = A64_R(25),
 	/* temporary register for internal BPF JIT */
 	[TMP_REG_1] = A64_R(23),
 	[TMP_REG_2] = A64_R(24),
@@ -155,17 +155,48 @@ static void build_prologue(struct jit_ctx *ctx)
 	stack_size += 4; /* extra for skb_copy_bits buffer */
 	stack_size = STACK_ALIGN(stack_size);
 
+	/*
+	 * BPF prog stack layout
+	 *
+	 *                         high
+	 * original A64_SP =>   0:+-----+ BPF prologue
+	 *                        |FP/LR|
+	 * current A64_FP =>  -16:+-----+
+	 *                        | ... | callee saved registers
+	 *                        +-----+
+	 *                        |     | x25/x26
+	 * BPF fp register => -80:+-----+
+	 *                        |     |
+	 *                        | ... | BPF prog stack
+	 *                        |     |
+	 *                        |     |
+	 * current A64_SP =>      +-----+
+	 *                        |     |
+	 *                        | ... | Function call stack
+	 *                        |     |
+	 *                        +-----+
+	 *                          low
+	 *
+	 */
+
+	/* Save FP and LR registers to stay align with ARM64 AAPCS */
+	emit(A64_PUSH(A64_FP, A64_LR, A64_SP), ctx);
+	emit(A64_MOV(1, A64_FP, A64_SP), ctx);
+
 	/* Save callee-saved register */
 	emit(A64_PUSH(r6, r7, A64_SP), ctx);
 	emit(A64_PUSH(r8, r9, A64_SP), ctx);
 	if (ctx->tmp_used)
 		emit(A64_PUSH(tmp1, tmp2, A64_SP), ctx);
 
-	/* Set up BPF stack */
-	emit(A64_SUB_I(1, A64_SP, A64_SP, stack_size), ctx);
+	/* Save fp (x25) and x26. SP requires 16 bytes alignment */
+	emit(A64_PUSH(fp, A64_R(26), A64_SP), ctx);
 
-	/* Set up frame pointer */
+	/* Set up BPF prog stack base register (x25) */
 	emit(A64_MOV(1, fp, A64_SP), ctx);
+
+	/* Set up function call stack */
+	emit(A64_SUB_I(1, A64_SP, A64_SP, stack_size), ctx);
 
 	/* Clear registers A and X */
 	emit_a64_mov_i64(ra, 0, ctx);
@@ -190,14 +221,17 @@ static void build_epilogue(struct jit_ctx *ctx)
 	/* We're done with BPF stack */
 	emit(A64_ADD_I(1, A64_SP, A64_SP, stack_size), ctx);
 
+	/* Restore fs (x25) and x26 */
+	emit(A64_POP(fp, A64_R(26), A64_SP), ctx);
+
 	/* Restore callee-saved register */
 	if (ctx->tmp_used)
 		emit(A64_POP(tmp1, tmp2, A64_SP), ctx);
 	emit(A64_POP(r8, r9, A64_SP), ctx);
 	emit(A64_POP(r6, r7, A64_SP), ctx);
 
-	/* Restore frame pointer */
-	emit(A64_MOV(1, fp, A64_SP), ctx);
+	/* Restore FP/LR registers */
+	emit(A64_POP(A64_FP, A64_LR, A64_SP), ctx);
 
 	/* Set return value */
 	emit(A64_MOV(1, A64_R(0), r0), ctx);
@@ -758,7 +792,7 @@ void bpf_int_jit_compile(struct bpf_prog *prog)
 	if (bpf_jit_enable > 1)
 		bpf_jit_dump(prog->len, image_size, 2, ctx.image);
 
-	bpf_flush_icache(ctx.image, ctx.image + ctx.idx);
+	bpf_flush_icache(header, ctx.image + ctx.idx);
 
 	set_memory_ro((unsigned long)header, header->pages);
 	prog->bpf_func = (void *)ctx.image;
