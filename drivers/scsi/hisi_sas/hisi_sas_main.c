@@ -36,6 +36,97 @@ static struct scsi_host_template hisi_sas_sht = {
 static struct sas_domain_function_template hisi_sas_transport_ops = {
 };
 
+static int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
+{
+	int i, s;
+	struct platform_device *pdev = hisi_hba->pdev;
+	struct device *dev = &pdev->dev;
+
+	for (i = 0; i < hisi_hba->queue_count; i++) {
+		/* Delivery queue */
+		s = sizeof(struct hisi_sas_cmd_hdr) * HISI_SAS_QUEUE_SLOTS;
+		hisi_hba->cmd_hdr[i] = dma_alloc_coherent(dev, s,
+					&hisi_hba->cmd_hdr_dma[i], GFP_KERNEL);
+		if (!hisi_hba->cmd_hdr[i])
+			goto err_out;
+		memset(hisi_hba->cmd_hdr[i], 0, s);
+
+		/* Completion queue */
+		s = hisi_hba->hw->complete_hdr_size * HISI_SAS_QUEUE_SLOTS;
+		hisi_hba->complete_hdr[i] = dma_alloc_coherent(dev, s,
+				&hisi_hba->complete_hdr_dma[i], GFP_KERNEL);
+		if (!hisi_hba->complete_hdr[i])
+			goto err_out;
+		memset(hisi_hba->complete_hdr[i], 0, s);
+	}
+
+	s = HISI_SAS_STATUS_BUF_SZ;
+	hisi_hba->status_buffer_pool = dma_pool_create("status_buffer",
+						       dev, s, 16, 0);
+	if (!hisi_hba->status_buffer_pool)
+		goto err_out;
+
+	s = HISI_SAS_COMMAND_TABLE_SZ;
+	hisi_hba->command_table_pool = dma_pool_create("command_table",
+						       dev, s, 16, 0);
+	if (!hisi_hba->command_table_pool)
+		goto err_out;
+
+	s = HISI_SAS_MAX_ITCT_ENTRIES * sizeof(struct hisi_sas_itct);
+	hisi_hba->itct = dma_alloc_coherent(dev, s, &hisi_hba->itct_dma,
+					    GFP_KERNEL);
+	if (!hisi_hba->itct)
+		goto err_out;
+
+	memset(hisi_hba->itct, 0, s);
+
+	hisi_hba->slot_info = devm_kcalloc(dev, HISI_SAS_COMMAND_ENTRIES,
+					   sizeof(struct hisi_sas_slot),
+					   GFP_KERNEL);
+	if (!hisi_hba->slot_info)
+		goto err_out;
+
+	s = HISI_SAS_COMMAND_ENTRIES * sizeof(struct hisi_sas_iost);
+	hisi_hba->iost = dma_alloc_coherent(dev, s, &hisi_hba->iost_dma,
+					    GFP_KERNEL);
+	if (!hisi_hba->iost)
+		goto err_out;
+
+	memset(hisi_hba->iost, 0, s);
+
+	s = HISI_SAS_COMMAND_ENTRIES * sizeof(struct hisi_sas_breakpoint);
+	hisi_hba->breakpoint = dma_alloc_coherent(dev, s,
+				&hisi_hba->breakpoint_dma, GFP_KERNEL);
+	if (!hisi_hba->breakpoint)
+		goto err_out;
+
+	memset(hisi_hba->breakpoint, 0, s);
+
+	hisi_hba->sge_page_pool = dma_pool_create("status_sge", dev,
+				sizeof(struct hisi_sas_sge_page), 16, 0);
+	if (!hisi_hba->sge_page_pool)
+		goto err_out;
+
+	s = sizeof(struct hisi_sas_initial_fis) * HISI_SAS_MAX_PHYS;
+	hisi_hba->initial_fis = dma_alloc_coherent(dev, s,
+				&hisi_hba->initial_fis_dma, GFP_KERNEL);
+	if (!hisi_hba->initial_fis)
+		goto err_out;
+	memset(hisi_hba->initial_fis, 0, s);
+
+	s = HISI_SAS_COMMAND_ENTRIES * sizeof(struct hisi_sas_breakpoint) * 2;
+	hisi_hba->sata_breakpoint = dma_alloc_coherent(dev, s,
+				&hisi_hba->sata_breakpoint_dma, GFP_KERNEL);
+	if (!hisi_hba->sata_breakpoint)
+		goto err_out;
+	memset(hisi_hba->sata_breakpoint, 0, s);
+
+	return 0;
+err_out:
+	return -ENOMEM;
+}
+
+
 static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 					      const struct hisi_sas_hw *hw)
 {
@@ -95,6 +186,9 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 	hisi_hba->ctrl = syscon_regmap_lookup_by_phandle(
 				np, "hisilicon,sas-syscon");
 	if (IS_ERR(hisi_hba->ctrl))
+		goto err_out;
+
+	if (hisi_sas_alloc(hisi_hba, shost))
 		goto err_out;
 
 	return shost;

@@ -24,9 +24,16 @@
 #define DRV_VERSION "v1.0"
 
 #define HISI_SAS_MAX_PHYS	9
+#define HISI_SAS_MAX_QUEUES	32
+#define HISI_SAS_QUEUE_SLOTS 512
 #define HISI_SAS_MAX_ITCT_ENTRIES 4096
 #define HISI_SAS_MAX_DEVICES HISI_SAS_MAX_ITCT_ENTRIES
 #define HISI_SAS_COMMAND_ENTRIES 8192
+
+#define HISI_SAS_STATUS_BUF_SZ \
+		(sizeof(struct hisi_sas_err_record) + 1024)
+#define HISI_SAS_COMMAND_TABLE_SZ \
+		(((sizeof(union hisi_sas_command_table)+3)/4)*4)
 
 #define HISI_SAS_NAME_LEN 32
 
@@ -38,7 +45,11 @@ struct hisi_sas_port {
 	struct asd_sas_port	sas_port;
 };
 
+struct hisi_sas_slot {
+};
+
 struct hisi_sas_hw {
+	int complete_hdr_size;
 };
 
 struct hisi_hba {
@@ -63,6 +74,25 @@ struct hisi_hba {
 
 	int	queue_count;
 	char	*int_names;
+
+	struct dma_pool *sge_page_pool;
+	struct dma_pool *command_table_pool;
+	struct dma_pool *status_buffer_pool;
+	struct hisi_sas_cmd_hdr	*cmd_hdr[HISI_SAS_MAX_QUEUES];
+	dma_addr_t cmd_hdr_dma[HISI_SAS_MAX_QUEUES];
+	void *complete_hdr[HISI_SAS_MAX_QUEUES];
+	dma_addr_t complete_hdr_dma[HISI_SAS_MAX_QUEUES];
+	struct hisi_sas_initial_fis *initial_fis;
+	dma_addr_t initial_fis_dma;
+	struct hisi_sas_itct *itct;
+	dma_addr_t itct_dma;
+	struct hisi_sas_iost *iost;
+	dma_addr_t iost_dma;
+	struct hisi_sas_breakpoint *breakpoint;
+	dma_addr_t breakpoint_dma;
+	struct hisi_sas_breakpoint *sata_breakpoint;
+	dma_addr_t sata_breakpoint_dma;
+	struct hisi_sas_slot	*slot_info;
 	const struct hisi_sas_hw *hw;	/* Low level hw interface */
 };
 
