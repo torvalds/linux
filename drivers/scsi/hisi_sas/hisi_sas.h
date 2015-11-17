@@ -43,12 +43,27 @@ enum dev_status {
 	HISI_SAS_DEV_EH,
 };
 struct hisi_sas_phy {
+	struct hisi_hba	*hisi_hba;
+	struct hisi_sas_port	*port;
 	struct asd_sas_phy	sas_phy;
+	struct sas_identify	identify;
+	struct timer_list	timer;
+	u64		port_id; /* from hw */
 	u64		dev_sas_addr;
+	u64		phy_type;
+	u64		frame_rcvd_size;
+	u8		frame_rcvd[32];
+	u8		phy_attached;
+	u8		reserved[3];
+	enum sas_linkrate	minimum_linkrate;
+	enum sas_linkrate	maximum_linkrate;
 };
 
 struct hisi_sas_port {
 	struct asd_sas_port	sas_port;
+	u8	port_attached;
+	u8	id; /* from hw */
+	struct list_head	list;
 };
 
 struct hisi_sas_cq {
