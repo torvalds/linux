@@ -15,4 +15,13 @@ source "drivers/net/wireless/marvell/libertas/Kconfig"
 source "drivers/net/wireless/marvell/libertas_tf/Kconfig"
 source "drivers/net/wireless/marvell/mwifiex/Kconfig"
 
+config MWL8K
+	tristate "Marvell 88W8xxx PCI/PCIe Wireless support"
+	depends on MAC80211 && PCI
+	---help---
+	  This driver supports Marvell TOPDOG 802.11 wireless cards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mwl8k.  If unsure, say N.
+
 endif # WLAN_VENDOR_MARVELL
