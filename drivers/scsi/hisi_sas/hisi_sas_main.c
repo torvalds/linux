@@ -403,6 +403,29 @@ static int hisi_sas_dev_found(struct domain_device *device)
 	return 0;
 }
 
+static void hisi_sas_scan_start(struct Scsi_Host *shost)
+{
+	struct hisi_hba *hisi_hba = shost_priv(shost);
+	int i;
+
+	for (i = 0; i < hisi_hba->n_phy; ++i)
+		hisi_sas_bytes_dmaed(hisi_hba, i);
+
+	hisi_hba->scan_finished = 1;
+}
+
+static int hisi_sas_scan_finished(struct Scsi_Host *shost, unsigned long time)
+{
+	struct hisi_hba *hisi_hba = shost_priv(shost);
+	struct sas_ha_struct *sha = &hisi_hba->sha;
+
+	if (hisi_hba->scan_finished == 0)
+		return 0;
+
+	sas_drain_work(sha);
+	return 1;
+}
+
 static void hisi_sas_phyup_work(struct work_struct *work)
 {
 	struct hisi_sas_phy *phy =
@@ -587,6 +610,8 @@ static struct scsi_host_template hisi_sas_sht = {
 	.queuecommand		= sas_queuecommand,
 	.target_alloc		= sas_target_alloc,
 	.slave_configure	= sas_slave_configure,
+	.scan_finished		= hisi_sas_scan_finished,
+	.scan_start		= hisi_sas_scan_start,
 	.change_queue_depth	= sas_change_queue_depth,
 	.bios_param		= sas_bios_param,
 	.can_queue		= 1,
