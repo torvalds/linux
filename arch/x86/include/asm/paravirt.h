@@ -285,15 +285,6 @@ static inline void slow_down_io(void)
 #endif
 }
 
-#ifdef CONFIG_SMP
-static inline void startup_ipi_hook(int phys_apicid, unsigned long start_eip,
-				    unsigned long start_esp)
-{
-	PVOP_VCALL3(pv_apic_ops.startup_ipi_hook,
-		    phys_apicid, start_eip, start_esp);
-}
-#endif
-
 static inline void paravirt_activate_mm(struct mm_struct *prev,
 					struct mm_struct *next)
 {

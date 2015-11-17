@@ -215,14 +215,6 @@ struct pv_irq_ops {
 #endif
 };
 
-struct pv_apic_ops {
-#ifdef CONFIG_X86_LOCAL_APIC
-	void (*startup_ipi_hook)(int phys_apicid,
-				 unsigned long start_eip,
-				 unsigned long start_esp);
-#endif
-};
-
 struct pv_mmu_ops {
 	unsigned long (*read_cr2)(void);
 	void (*write_cr2)(unsigned long);
@@ -354,7 +346,6 @@ struct paravirt_patch_template {
 	struct pv_time_ops pv_time_ops;
 	struct pv_cpu_ops pv_cpu_ops;
 	struct pv_irq_ops pv_irq_ops;
-	struct pv_apic_ops pv_apic_ops;
 	struct pv_mmu_ops pv_mmu_ops;
 	struct pv_lock_ops pv_lock_ops;
 };
@@ -364,7 +355,6 @@ extern struct pv_init_ops pv_init_ops;
 extern struct pv_time_ops pv_time_ops;
 extern struct pv_cpu_ops pv_cpu_ops;
 extern struct pv_irq_ops pv_irq_ops;
-extern struct pv_apic_ops pv_apic_ops;
 extern struct pv_mmu_ops pv_mmu_ops;
 extern struct pv_lock_ops pv_lock_ops;
 

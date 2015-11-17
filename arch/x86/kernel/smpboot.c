@@ -629,13 +629,6 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 		num_starts = 0;
 
 	/*
-	 * Paravirt / VMI wants a startup IPI hook here to set up the
-	 * target processor state.
-	 */
-	startup_ipi_hook(phys_apicid, (unsigned long) start_secondary,
-			 stack_start);
-
-	/*
 	 * Run STARTUP IPI loop.
 	 */
 	pr_debug("#startup loops: %d\n", num_starts);
