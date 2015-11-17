@@ -12,6 +12,21 @@
 #include "hisi_sas.h"
 #define DRV_NAME "hisi_sas"
 
+static void hisi_sas_slot_index_clear(struct hisi_hba *hisi_hba, int slot_idx)
+{
+	void *bitmap = hisi_hba->slot_index_tags;
+
+	clear_bit(slot_idx, bitmap);
+}
+
+static void hisi_sas_slot_index_init(struct hisi_hba *hisi_hba)
+{
+	int i;
+
+	for (i = 0; i < hisi_hba->slot_index_count; ++i)
+		hisi_sas_slot_index_clear(hisi_hba, i);
+}
+
 static struct scsi_transport_template *hisi_sas_stt;
 
 static struct scsi_host_template hisi_sas_sht = {
@@ -102,6 +117,12 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 
 	memset(hisi_hba->breakpoint, 0, s);
 
+	hisi_hba->slot_index_count = HISI_SAS_COMMAND_ENTRIES;
+	s = hisi_hba->slot_index_count / sizeof(unsigned long);
+	hisi_hba->slot_index_tags = devm_kzalloc(dev, s, GFP_KERNEL);
+	if (!hisi_hba->slot_index_tags)
+		goto err_out;
+
 	hisi_hba->sge_page_pool = dma_pool_create("status_sge", dev,
 				sizeof(struct hisi_sas_sge_page), 16, 0);
 	if (!hisi_hba->sge_page_pool)
@@ -120,6 +141,8 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 	if (!hisi_hba->sata_breakpoint)
 		goto err_out;
 	memset(hisi_hba->sata_breakpoint, 0, s);
+
+	hisi_sas_slot_index_init(hisi_hba);
 
 	return 0;
 err_out:

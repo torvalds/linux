@@ -66,6 +66,10 @@ struct hisi_hba {
 
 	int n_phy;
 
+
+	int slot_index_count;
+	unsigned long *slot_index_tags;
+
 	/* SCSI/SAS glue */
 	struct sas_ha_struct sha;
 	struct Scsi_Host *shost;
