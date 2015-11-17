@@ -1252,6 +1252,11 @@ static int atp870u_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	unsigned char setupdata[2][16];
 	int err;
 
+	if (ent->device == PCI_DEVICE_ID_ARTOP_AEC7610 && pdev->revision < 2) {
+		dev_err(&pdev->dev, "ATP850S chips (AEC6710L/F cards) are not supported.\n");
+		return -ENODEV;
+	}
+
 	err = pci_enable_device(pdev);
 	if (err)
 		goto fail;
@@ -1273,19 +1278,10 @@ static int atp870u_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	atpdev->pdev = pdev;
 	pci_set_drvdata(pdev, atpdev);
 
-	/*
-	 * It's probably easier to weed out some revisions like
-	 * this than via the PCI device table
-	 */
-	if (ent->device == PCI_DEVICE_ID_ARTOP_AEC7610) {
-		atpdev->chip_ver = pdev->revision;
-		if (atpdev->chip_ver < 2) {
-			err = -ENODEV;
-			goto unregister;
-		}
-	}
-
 	switch (ent->device) {
+	case PCI_DEVICE_ID_ARTOP_AEC7610:
+		atpdev->chip_ver = pdev->revision;
+		break;
 	case PCI_DEVICE_ID_ARTOP_AEC7612UW:
 	case PCI_DEVICE_ID_ARTOP_AEC7612SUW:
 	case ATP880_DEVID1:	
