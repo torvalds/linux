@@ -141,11 +141,13 @@ static struct v4l2_subdev_ops rpf_ops = {
 };
 
 /* -----------------------------------------------------------------------------
- * Video Device Operations
+ * VSP1 Entity Operations
  */
 
-static void rpf_set_memory(struct vsp1_rwpf *rpf)
+static void rpf_set_memory(struct vsp1_entity *entity)
 {
+	struct vsp1_rwpf *rpf = entity_to_rwpf(entity);
+
 	vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_Y,
 		       rpf->mem.addr[0] + rpf->offsets[0]);
 	vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C0,
@@ -154,7 +156,7 @@ static void rpf_set_memory(struct vsp1_rwpf *rpf)
 		       rpf->mem.addr[2] + rpf->offsets[1]);
 }
 
-static const struct vsp1_rwpf_operations rpf_vdev_ops = {
+static const struct vsp1_entity_operations rpf_entity_ops = {
 	.set_memory = rpf_set_memory,
 };
 
@@ -172,11 +174,10 @@ struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 	if (rpf == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	rpf->ops = &rpf_vdev_ops;
-
 	rpf->max_width = RPF_MAX_WIDTH;
 	rpf->max_height = RPF_MAX_HEIGHT;
 
+	rpf->entity.ops = &rpf_entity_ops;
 	rpf->entity.type = VSP1_ENTITY_RPF;
 	rpf->entity.index = index;
 

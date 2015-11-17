@@ -152,30 +152,33 @@ static struct v4l2_subdev_ops wpf_ops = {
 };
 
 /* -----------------------------------------------------------------------------
- * Video Device Operations
+ * VSP1 Entity Operations
  */
 
-static void wpf_set_memory(struct vsp1_rwpf *wpf)
+static void vsp1_wpf_destroy(struct vsp1_entity *entity)
 {
+	struct vsp1_rwpf *wpf = entity_to_rwpf(entity);
+
+	vsp1_dlm_destroy(wpf->dlm);
+}
+
+static void wpf_set_memory(struct vsp1_entity *entity)
+{
+	struct vsp1_rwpf *wpf = entity_to_rwpf(entity);
+
 	vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_Y, wpf->mem.addr[0]);
 	vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_C0, wpf->mem.addr[1]);
 	vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_C1, wpf->mem.addr[2]);
 }
 
-static const struct vsp1_rwpf_operations wpf_vdev_ops = {
+static const struct vsp1_entity_operations wpf_entity_ops = {
+	.destroy = vsp1_wpf_destroy,
 	.set_memory = wpf_set_memory,
 };
 
 /* -----------------------------------------------------------------------------
  * Initialization and Cleanup
  */
-
-static void vsp1_wpf_destroy(struct vsp1_entity *entity)
-{
-	struct vsp1_rwpf *wpf = container_of(entity, struct vsp1_rwpf, entity);
-
-	vsp1_dlm_destroy(wpf->dlm);
-}
 
 struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 {
@@ -187,12 +190,10 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 	if (wpf == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	wpf->ops = &wpf_vdev_ops;
-
 	wpf->max_width = WPF_MAX_WIDTH;
 	wpf->max_height = WPF_MAX_HEIGHT;
 
-	wpf->entity.destroy = vsp1_wpf_destroy;
+	wpf->entity.ops = &wpf_entity_ops;
 	wpf->entity.type = VSP1_ENTITY_WPF;
 	wpf->entity.index = index;
 

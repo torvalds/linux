@@ -53,10 +53,22 @@ struct vsp1_route {
 	unsigned int inputs[VSP1_ENTITY_MAX_INPUTS];
 };
 
+/**
+ * struct vsp1_entity_operations - Entity operations
+ * @destroy:	Destroy the entity.
+ * @set_memory:	Setup memory buffer access. This operation applies the settings
+ *		stored in the rwpf mem field to the hardware. Valid for RPF and
+ *		WPF only.
+ */
+struct vsp1_entity_operations {
+	void (*destroy)(struct vsp1_entity *);
+	void (*set_memory)(struct vsp1_entity *);
+};
+
 struct vsp1_entity {
 	struct vsp1_device *vsp1;
 
-	void (*destroy)(struct vsp1_entity *);
+	const struct vsp1_entity_operations *ops;
 
 	enum vsp1_entity_type type;
 	unsigned int index;
