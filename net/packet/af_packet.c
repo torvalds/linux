@@ -4121,8 +4121,8 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 		if (unlikely(req->tp_frame_size & (TPACKET_ALIGNMENT - 1)))
 			goto out;
 
-		rb->frames_per_block = req->tp_block_size/req->tp_frame_size;
-		if (unlikely(rb->frames_per_block <= 0))
+		rb->frames_per_block = req->tp_block_size / req->tp_frame_size;
+		if (unlikely(rb->frames_per_block == 0))
 			goto out;
 		if (unlikely((rb->frames_per_block * req->tp_block_nr) !=
 					req->tp_frame_nr))
