@@ -2533,7 +2533,7 @@ extern struct file * open_exec(const char *);
  
 /* fs/dcache.c -- generic fs support functions */
 extern int is_subdir(struct dentry *, struct dentry *);
-extern int path_is_under(struct path *, struct path *);
+extern bool path_is_under(struct path *, struct path *);
 
 extern char *file_path(struct file *, char *, int);
 
