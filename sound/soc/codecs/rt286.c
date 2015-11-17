@@ -1114,6 +1114,12 @@ static const struct dmi_system_id force_combo_jack_table[] = {
 			DMI_MATCH(DMI_BOARD_NAME, "Wilson Beach SDS")
 		}
 	},
+	{
+		.ident = "Intel Skylake RVP",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Skylake Client platform")
+		}
+	},
 	{ }
 };
 
