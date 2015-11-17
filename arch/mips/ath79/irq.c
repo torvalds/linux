@@ -256,7 +256,6 @@ asmlinkage void plat_irq_dispatch(void)
 	}
 }
 
-#ifdef CONFIG_IRQCHIP
 static int misc_map(struct irq_domain *d, unsigned int irq, irq_hw_number_t hw)
 {
 	irq_set_chip_and_handler(irq, &ath79_misc_irq_chip, handle_level_irq);
@@ -348,8 +347,6 @@ static int __init ar79_cpu_intc_of_init(
 }
 IRQCHIP_DECLARE(ar79_cpu_intc, "qca,ar7100-cpu-intc",
 		ar79_cpu_intc_of_init);
-
-#endif
 
 void __init arch_init_irq(void)
 {
