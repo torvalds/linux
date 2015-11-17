@@ -3907,18 +3907,32 @@ void handle_verify_cap(struct work_struct *work)
  */
 void apply_link_downgrade_policy(struct hfi1_pportdata *ppd, int refresh_widths)
 {
-	int skip = 1;
 	int do_bounce = 0;
-	u16 lwde = ppd->link_width_downgrade_enabled;
+	int tries;
+	u16 lwde;
 	u16 tx, rx;
 
+	/* use the hls lock to avoid a race with actual link up */
+	tries = 0;
+retry:
 	mutex_lock(&ppd->hls_lock);
 	/* only apply if the link is up */
-	if (ppd->host_link_state & HLS_UP)
-		skip = 0;
-	mutex_unlock(&ppd->hls_lock);
-	if (skip)
-		return;
+	if (!(ppd->host_link_state & HLS_UP)) {
+		/* still going up..wait and retry */
+		if (ppd->host_link_state & HLS_GOING_UP) {
+			if (++tries < 1000) {
+				mutex_unlock(&ppd->hls_lock);
+				usleep_range(100, 120); /* arbitrary */
+				goto retry;
+			}
+			dd_dev_err(ppd->dd,
+				   "%s: giving up waiting for link state change\n",
+				   __func__);
+		}
+		goto done;
+	}
+
+	lwde = ppd->link_width_downgrade_enabled;
 
 	if (refresh_widths) {
 		get_link_widths(ppd->dd, &tx, &rx);
@@ -3955,6 +3969,9 @@ void apply_link_downgrade_policy(struct hfi1_pportdata *ppd, int refresh_widths)
 			ppd->link_width_downgrade_rx_active);
 		do_bounce = 1;
 	}
+
+done:
+	mutex_unlock(&ppd->hls_lock);
 
 	if (do_bounce) {
 		set_link_down_reason(ppd, OPA_LINKDOWN_REASON_WIDTH_POLICY, 0,
