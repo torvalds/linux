@@ -4869,6 +4869,28 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
 void ieee80211_sta_eosp(struct ieee80211_sta *pubsta);
 
 /**
+ * ieee80211_send_eosp_nullfunc - ask mac80211 to send NDP with EOSP
+ * @pubsta: the station
+ * @tid: the tid of the NDP
+ *
+ * Sometimes the device understands that it needs to close
+ * the Service Period unexpectedly. This can happen when
+ * sending frames that are filling holes in the BA window.
+ * In this case, the device can ask mac80211 to send a
+ * Nullfunc frame with EOSP set. When that happens, the
+ * driver must have called ieee80211_sta_set_buffered() to
+ * let mac80211 know that there are no buffered frames any
+ * more, otherwise mac80211 will get the more_data bit wrong.
+ * The low level driver must have made sure that the frame
+ * will be sent despite the station being in power-save.
+ * Mac80211 won't call allow_buffered_frames().
+ * Note that calling this function, doesn't exempt the driver
+ * from closing the EOSP properly, it will still have to call
+ * ieee80211_sta_eosp when the NDP is sent.
+ */
+void ieee80211_send_eosp_nullfunc(struct ieee80211_sta *pubsta, int tid);
+
+/**
  * ieee80211_iter_keys - iterate keys programmed into the device
  * @hw: pointer obtained from ieee80211_alloc_hw()
  * @vif: virtual interface to iterate, may be %NULL for all
