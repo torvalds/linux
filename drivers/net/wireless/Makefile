@@ -3,18 +3,13 @@
 #
 
 obj-$(CONFIG_WLAN_VENDOR_ADMTEK) += admtek/
+obj-$(CONFIG_WLAN_VENDOR_ATMEL) += atmel/
 obj-$(CONFIG_WLAN_VENDOR_CISCO) += cisco/
 
 obj-$(CONFIG_IPW2100) += ipw2x00/
 obj-$(CONFIG_IPW2200) += ipw2x00/
 
 obj-$(CONFIG_HERMES)		+= orinoco/
-
-obj-$(CONFIG_ATMEL)             += atmel.o
-obj-$(CONFIG_PCI_ATMEL)         += atmel_pci.o 
-obj-$(CONFIG_PCMCIA_ATMEL)      += atmel_cs.o
-
-obj-$(CONFIG_AT76C50X_USB)      += at76c50x-usb.o
 
 obj-$(CONFIG_PRISM54)		+= prism54/
 
