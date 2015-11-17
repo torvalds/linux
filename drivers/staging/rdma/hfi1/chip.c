@@ -63,6 +63,7 @@
 #include "pio.h"
 #include "sdma.h"
 #include "eprom.h"
+#include "efivar.h"
 
 #define NUM_IB_PORTS 1
 
@@ -10461,6 +10462,32 @@ static void asic_should_init(struct hfi1_devdata *dd)
 	spin_unlock_irqrestore(&hfi1_devs_lock, flags);
 }
 
+/*
+ * Set dd->boardname.  Use a generic name if a name is not returned from
+ * EFI variable space.
+ *
+ * Return 0 on success, -ENOMEM if space could not be allocated.
+ */
+static int obtain_boardname(struct hfi1_devdata *dd)
+{
+	/* generic board description */
+	const char generic[] =
+		"Intel Omni-Path Host Fabric Interface Adapter 100 Series";
+	unsigned long size;
+	int ret;
+
+	ret = read_hfi1_efi_var(dd, "description", &size,
+				(void **)&dd->boardname);
+	if (ret) {
+		dd_dev_err(dd, "Board description not found\n");
+		/* use generic description */
+		dd->boardname = kstrdup(generic, GFP_KERNEL);
+		if (!dd->boardname)
+			return -ENOMEM;
+	}
+	return 0;
+}
+
 /**
  * Allocate and initialize the device structure for the hfi.
  * @dev: the pci_dev for hfi1_ib device
@@ -10658,18 +10685,13 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 
 	parse_platform_config(dd);
 
-	/* add board names as they are defined */
-	dd->boardname = kmalloc(64, GFP_KERNEL);
-	if (!dd->boardname)
+	ret = obtain_boardname(dd);
+	if (ret)
 		goto bail_cleanup;
-	snprintf(dd->boardname, 64, "Board ID 0x%llx",
-		 dd->revision >> CCE_REVISION_BOARD_ID_LOWER_NIBBLE_SHIFT
-		    & CCE_REVISION_BOARD_ID_LOWER_NIBBLE_MASK);
 
 	snprintf(dd->boardversion, BOARD_VERS_MAX,
-		 "ChipABI %u.%u, %s, ChipRev %u.%u, SW Compat %llu\n",
+		 "ChipABI %u.%u, ChipRev %u.%u, SW Compat %llu\n",
 		 HFI1_CHIP_VERS_MAJ, HFI1_CHIP_VERS_MIN,
-		 dd->boardname,
 		 (u32)dd->majrev,
 		 (u32)dd->minrev,
 		 (dd->revision >> CCE_REVISION_SW_SHIFT)
