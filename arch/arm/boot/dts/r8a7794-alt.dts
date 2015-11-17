@@ -80,6 +80,8 @@
 };
 
 &du {
+	pinctrl-0 = <&du_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 
 	clocks = <&mstp7_clks R8A7794_CLK_DU0>,
@@ -101,6 +103,11 @@
 };
 
 &pfc {
+	du_pins: du {
+		renesas,groups = "du1_rgb666", "du1_sync", "du1_disp", "du1_dotclkout0";
+		renesas,function = "du";
+	};
+
 	scif2_pins: serial2 {
 		renesas,groups = "scif2_data";
 		renesas,function = "scif2";
