@@ -3757,7 +3757,7 @@ static void synchronize_sched_expedited_wait(struct rcu_state *rsp)
 				rsp->expedited_wq,
 				sync_rcu_preempt_exp_done(rnp_root),
 				jiffies_stall);
-		if (ret > 0)
+		if (ret > 0 || sync_rcu_preempt_exp_done(rnp_root))
 			return;
 		if (ret < 0) {
 			/* Hit a signal, disable CPU stall warnings. */
