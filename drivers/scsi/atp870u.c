@@ -1785,21 +1785,7 @@ static struct pci_driver atp870u_driver = {
 	.remove		= atp870u_remove,
 };
 
-static int __init atp870u_init(void)
-{
-#ifdef ED_DBGP	
-	printk("atp870u_init: Entry\n");
-#endif	
-	return pci_register_driver(&atp870u_driver);
-}
-
-static void __exit atp870u_exit(void)
-{
-#ifdef ED_DBGP	
-	printk("atp870u_exit: Entry\n");
-#endif
-	pci_unregister_driver(&atp870u_driver);
-}
+module_pci_driver(atp870u_driver);
 
 static void atp_is(struct atp_unit *dev, unsigned char c, bool wide_chip, unsigned char lvdmode)
 {
@@ -2406,7 +2392,3 @@ set_syn_ok:
 #endif
 	}
 }
-
-module_init(atp870u_init);
-module_exit(atp870u_exit);
-
