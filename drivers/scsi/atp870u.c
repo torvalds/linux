@@ -1276,10 +1276,15 @@ static int atp870u_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
                 goto disable_device;
         }
 
+	err = pci_request_regions(pdev, "atp870u");
+	if (err)
+		goto disable_device;
+	pci_set_master(pdev);
+
         err = -ENOMEM;
 	shpnt = scsi_host_alloc(&atp870u_template, sizeof(struct atp_unit));
 	if (!shpnt)
-		goto disable_device;
+		goto release_region;
 
 	atpdev = shost_priv(shpnt);
 
@@ -1582,10 +1587,6 @@ flash_ok_885:
 
 	} 
 		spin_unlock_irqrestore(shpnt->host_lock, flags);
-		if (!request_region(shpnt->io_port, shpnt->n_io_port, "atp870u")) {
-			err = -EBUSY;
-			goto request_io_fail;
-		}
 		err = scsi_add_host(shpnt, &pdev->dev);
 		if (err)
 			goto scsi_add_fail;
@@ -1596,16 +1597,13 @@ flash_ok_885:
 		return 0;
 
 scsi_add_fail:
-	printk("atp870u_prob:scsi_add_fail\n");
-	release_region(shpnt->io_port, shpnt->n_io_port);
-request_io_fail:
-	printk("atp870u_prob:request_io_fail\n");
 	free_irq(shpnt->irq, shpnt);
 free_tables:
-	printk("atp870u_prob:free_table\n");
 	atp870u_free_tables(shpnt);
 unregister:
 	scsi_host_put(shpnt);
+release_region:
+	pci_release_regions(pdev);
 disable_device:
 	pci_disable_device(pdev);
 fail:
@@ -1696,7 +1694,8 @@ static void atp870u_remove (struct pci_dev *pdev)
 	
 	scsi_remove_host(pshost);
 	free_irq(pshost->irq, pshost);
-	release_region(pshost->io_port, pshost->n_io_port);
+	pci_release_regions(pdev);
+	pci_disable_device(pdev);
 	atp870u_free_tables(pshost);
 	scsi_host_put(pshost);
 }
