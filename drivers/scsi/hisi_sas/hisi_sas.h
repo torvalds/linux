@@ -269,5 +269,8 @@ union hisi_sas_command_table {
 	struct hisi_sas_command_table_smp smp;
 	struct hisi_sas_command_table_stp stp;
 };
+extern int hisi_sas_probe(struct platform_device *pdev,
+			  const struct hisi_sas_hw *ops);
+extern int hisi_sas_remove(struct platform_device *pdev);
 
 #endif
