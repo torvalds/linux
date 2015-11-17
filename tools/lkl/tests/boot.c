@@ -494,7 +494,7 @@ int main(int argc, char **argv)
 
 	TEST(disk_add);
 
-	lkl_start_kernel(&lkl_host_ops, 10 * 1024 * 1024, "");
+	lkl_start_kernel(&lkl_host_ops, 16 * 1024 * 1024, "");
 
 	TEST(getpid);
 	TEST(umask);
