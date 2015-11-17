@@ -4533,12 +4533,19 @@ const char *page_get_link(struct dentry *dentry, struct inode *inode,
 	struct page *page;
 	struct address_space *mapping = inode->i_mapping;
 
-	if (!dentry)
-		return ERR_PTR(-ECHILD);
-
-	page = read_mapping_page(mapping, 0, NULL);
-	if (IS_ERR(page))
-		return (char*)page;
+	if (!dentry) {
+		page = find_get_page(mapping, 0);
+		if (!page)
+			return ERR_PTR(-ECHILD);
+		if (!PageUptodate(page)) {
+			put_page(page);
+			return ERR_PTR(-ECHILD);
+		}
+	} else {
+		page = read_mapping_page(mapping, 0, NULL);
+		if (IS_ERR(page))
+			return (char*)page;
+	}
 	*cookie = page;
 	BUG_ON(mapping_gfp_mask(mapping) & __GFP_HIGHMEM);
 	kaddr = page_address(page);
