@@ -1813,8 +1813,11 @@ alloc_skb:
 	skb->truesize += size;
 	atomic_add(size, &sk->sk_wmem_alloc);
 
-	if (newskb)
+	if (newskb) {
+		spin_lock(&other->sk_receive_queue.lock);
 		__skb_queue_tail(&other->sk_receive_queue, newskb);
+		spin_unlock(&other->sk_receive_queue.lock);
+	}
 
 	unix_state_unlock(other);
 	mutex_unlock(&unix_sk(other)->readlock);
