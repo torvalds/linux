@@ -4918,6 +4918,30 @@ void ieee80211_iter_keys(struct ieee80211_hw *hw,
 			 void *iter_data);
 
 /**
+ * ieee80211_iter_keys_rcu - iterate keys programmed into the device
+ * @hw: pointer obtained from ieee80211_alloc_hw()
+ * @vif: virtual interface to iterate, may be %NULL for all
+ * @iter: iterator function that will be called for each key
+ * @iter_data: custom data to pass to the iterator function
+ *
+ * This function can be used to iterate all the keys known to
+ * mac80211, even those that weren't previously programmed into
+ * the device. Note that due to locking reasons, keys of station
+ * in removal process will be skipped.
+ *
+ * This function requires being called in an RCU critical section,
+ * and thus iter must be atomic.
+ */
+void ieee80211_iter_keys_rcu(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
+			     void (*iter)(struct ieee80211_hw *hw,
+					  struct ieee80211_vif *vif,
+					  struct ieee80211_sta *sta,
+					  struct ieee80211_key_conf *key,
+					  void *data),
+			     void *iter_data);
+
+/**
  * ieee80211_iter_chan_contexts_atomic - iterate channel contexts
  * @hw: pointre obtained from ieee80211_alloc_hw().
  * @iter: iterator function
