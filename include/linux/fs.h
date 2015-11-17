@@ -2532,7 +2532,7 @@ extern ssize_t __kernel_write(struct file *, const char *, size_t, loff_t *);
 extern struct file * open_exec(const char *);
  
 /* fs/dcache.c -- generic fs support functions */
-extern int is_subdir(struct dentry *, struct dentry *);
+extern bool is_subdir(struct dentry *, struct dentry *);
 extern bool path_is_under(struct path *, struct path *);
 
 extern char *file_path(struct file *, char *, int);
