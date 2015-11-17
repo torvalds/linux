@@ -40,7 +40,7 @@
 static void gmc_v7_0_set_gart_funcs(struct amdgpu_device *adev);
 static void gmc_v7_0_set_irq_funcs(struct amdgpu_device *adev);
 
-MODULE_FIRMWARE("radeon/boniare_mc.bin");
+MODULE_FIRMWARE("radeon/bonaire_mc.bin");
 MODULE_FIRMWARE("radeon/hawaii_mc.bin");
 
 /**
