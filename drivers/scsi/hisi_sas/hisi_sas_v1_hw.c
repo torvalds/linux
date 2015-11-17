@@ -764,12 +764,32 @@ static void enable_phy_v1_hw(struct hisi_hba *hisi_hba, int phy_no)
 	hisi_sas_phy_write32(hisi_hba, phy_no, PHY_CFG, cfg);
 }
 
+static void disable_phy_v1_hw(struct hisi_hba *hisi_hba, int phy_no)
+{
+	u32 cfg = hisi_sas_phy_read32(hisi_hba, phy_no, PHY_CFG);
+
+	cfg &= ~PHY_CFG_ENA_MSK;
+	hisi_sas_phy_write32(hisi_hba, phy_no, PHY_CFG, cfg);
+}
+
 static void start_phy_v1_hw(struct hisi_hba *hisi_hba, int phy_no)
 {
 	config_id_frame_v1_hw(hisi_hba, phy_no);
 	config_phy_opt_mode_v1_hw(hisi_hba, phy_no);
 	config_tx_tfe_autoneg_v1_hw(hisi_hba, phy_no);
 	enable_phy_v1_hw(hisi_hba, phy_no);
+}
+
+static void stop_phy_v1_hw(struct hisi_hba *hisi_hba, int phy_no)
+{
+	disable_phy_v1_hw(hisi_hba, phy_no);
+}
+
+static void phy_hard_reset_v1_hw(struct hisi_hba *hisi_hba, int phy_no)
+{
+	stop_phy_v1_hw(hisi_hba, phy_no);
+	msleep(100);
+	start_phy_v1_hw(hisi_hba, phy_no);
 }
 
 static void start_phys_v1_hw(unsigned long data)
@@ -1687,6 +1707,9 @@ static const struct hisi_sas_hw hisi_sas_v1_hw = {
 	.get_free_slot = get_free_slot_v1_hw,
 	.start_delivery = start_delivery_v1_hw,
 	.slot_complete = slot_complete_v1_hw,
+	.phy_enable = enable_phy_v1_hw,
+	.phy_disable = disable_phy_v1_hw,
+	.phy_hard_reset = phy_hard_reset_v1_hw,
 	.get_wideport_bitmap = get_wideport_bitmap_v1_hw,
 	.complete_hdr_size = sizeof(struct hisi_sas_complete_v1_hdr),
 };

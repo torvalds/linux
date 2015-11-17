@@ -552,6 +552,34 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 	return hisi_sas_task_exec(task, gfp_flags, 0, NULL);
 }
 
+static int hisi_sas_control_phy(struct asd_sas_phy *sas_phy, enum phy_func func,
+				void *funcdata)
+{
+	struct sas_ha_struct *sas_ha = sas_phy->ha;
+	struct hisi_hba *hisi_hba = sas_ha->lldd_ha;
+	int phy_no = sas_phy->id;
+
+	switch (func) {
+	case PHY_FUNC_HARD_RESET:
+		hisi_hba->hw->phy_hard_reset(hisi_hba, phy_no);
+		break;
+
+	case PHY_FUNC_LINK_RESET:
+		hisi_hba->hw->phy_enable(hisi_hba, phy_no);
+		hisi_hba->hw->phy_hard_reset(hisi_hba, phy_no);
+		break;
+
+	case PHY_FUNC_DISABLE:
+		hisi_hba->hw->phy_disable(hisi_hba, phy_no);
+		break;
+
+	case PHY_FUNC_SET_LINK_RATE:
+	case PHY_FUNC_RELEASE_SPINUP_HOLD:
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
 
 static void hisi_sas_task_done(struct sas_task *task)
 {
@@ -932,6 +960,7 @@ static struct sas_domain_function_template hisi_sas_transport_ops = {
 	.lldd_dev_found		= hisi_sas_dev_found,
 	.lldd_dev_gone		= hisi_sas_dev_gone,
 	.lldd_execute_task	= hisi_sas_queue_command,
+	.lldd_control_phy	= hisi_sas_control_phy,
 	.lldd_abort_task	= hisi_sas_abort_task,
 	.lldd_abort_task_set	= hisi_sas_abort_task_set,
 	.lldd_clear_aca		= hisi_sas_clear_aca,
