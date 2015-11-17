@@ -1036,7 +1036,7 @@ static void tscam(struct Scsi_Host *host)
 	atp_writeb_io(dev, 0, 0x02, 0x7f);
 	atp_writeb_io(dev, 0, 0x1b, 0x02);
 
-	outb(0, 0x80);
+	udelay(2);
 
 	val = 0x0080;		/* bsy  */
 	atp_writew_io(dev, 0, 0x1c, val);
@@ -1044,7 +1044,7 @@ static void tscam(struct Scsi_Host *host)
 	atp_writew_io(dev, 0, 0x1c, val);
 	val |= 0x0004;		/* msg  */
 	atp_writew_io(dev, 0, 0x1c, val);
-	inb(0x80);		/* 2 deskew delay(45ns*2=90ns) */
+	udelay(2);		/* 2 deskew delay(45ns*2=90ns) */
 	val &= 0x007f;		/* no bsy  */
 	atp_writew_io(dev, 0, 0x1c, val);
 	mdelay(128);
@@ -1052,7 +1052,7 @@ static void tscam(struct Scsi_Host *host)
 	atp_writew_io(dev, 0, 0x1c, val);
 	while ((atp_readb_io(dev, 0, 0x1c) & 0x04) != 0)
 		;
-	outb(1, 0x80);
+	udelay(2);
 	udelay(100);
 	for (n = 0; n < 0x30000; n++)
 		if ((atp_readb_io(dev, 0, 0x1c) & 0x80) != 0)	/* bsy ? */
@@ -1060,13 +1060,13 @@ static void tscam(struct Scsi_Host *host)
 	if (n < 0x30000)
 		for (n = 0; n < 0x30000; n++)
 			if ((atp_readb_io(dev, 0, 0x1c) & 0x81) == 0x0081) {
-				inb(0x80);
+				udelay(2);
 				val |= 0x8003;		/* io,cd,db7  */
 				atp_writew_io(dev, 0, 0x1c, val);
-				inb(0x80);
+				udelay(2);
 				val &= 0x00bf;		/* no sel     */
 				atp_writew_io(dev, 0, 0x1c, val);
-				outb(2, 0x80);
+				udelay(2);
 				break;
 			}
 	while (1) {
@@ -1093,18 +1093,18 @@ static void tscam(struct Scsi_Host *host)
 	val &= 0x00ff;		/* synchronization  */
 	val |= 0x3f00;
 	fun_scam(dev, &val);
-	outb(3, 0x80);
+	udelay(2);
 	val &= 0x00ff;		/* isolation        */
 	val |= 0x2000;
 	fun_scam(dev, &val);
-	outb(4, 0x80);
+	udelay(2);
 	i = 8;
 	j = 0;
 
 	while (1) {
 		if ((atp_readw_io(dev, 0, 0x1c) & 0x2000) == 0)
 			continue;
-		outb(5, 0x80);
+		udelay(2);
 		val &= 0x00ff;		/* get ID_STRING */
 		val |= 0x2000;
 		k = fun_scam(dev, &val);
