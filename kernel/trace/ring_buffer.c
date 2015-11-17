@@ -2129,6 +2129,8 @@ rb_reset_tail(struct ring_buffer_per_cpu *cpu_buffer,
 	local_sub(length, &tail_page->write);
 }
 
+static inline void rb_end_commit(struct ring_buffer_per_cpu *cpu_buffer);
+
 /*
  * This is the slow path, force gcc not to inline it.
  */
@@ -2219,6 +2221,11 @@ rb_move_tail(struct ring_buffer_per_cpu *cpu_buffer,
  out_again:
 
 	rb_reset_tail(cpu_buffer, tail, info);
+
+	/* Commit what we have for now. */
+	rb_end_commit(cpu_buffer);
+	/* rb_end_commit() decs committing */
+	local_inc(&cpu_buffer->committing);
 
 	/* fail and let the caller try again */
 	return ERR_PTR(-EAGAIN);
