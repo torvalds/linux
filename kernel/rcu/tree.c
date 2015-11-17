@@ -3745,6 +3745,7 @@ static void synchronize_sched_expedited_wait(struct rcu_state *rsp)
 	unsigned long jiffies_stall;
 	unsigned long jiffies_start;
 	unsigned long mask;
+	int ndetected;
 	struct rcu_node *rnp;
 	struct rcu_node *rnp_root = rcu_get_root(rsp);
 	int ret;
@@ -3767,14 +3768,16 @@ static void synchronize_sched_expedited_wait(struct rcu_state *rsp)
 		}
 		pr_err("INFO: %s detected expedited stalls on CPUs/tasks: {",
 		       rsp->name);
+		ndetected = 0;
 		rcu_for_each_leaf_node(rsp, rnp) {
-			(void)rcu_print_task_exp_stall(rnp);
+			ndetected = rcu_print_task_exp_stall(rnp);
 			mask = 1;
 			for (cpu = rnp->grplo; cpu <= rnp->grphi; cpu++, mask <<= 1) {
 				struct rcu_data *rdp;
 
 				if (!(rnp->expmask & mask))
 					continue;
+				ndetected++;
 				rdp = per_cpu_ptr(rsp->rda, cpu);
 				pr_cont(" %d-%c%c%c", cpu,
 					"O."[cpu_online(cpu)],
@@ -3783,8 +3786,23 @@ static void synchronize_sched_expedited_wait(struct rcu_state *rsp)
 			}
 			mask <<= 1;
 		}
-		pr_cont(" } %lu jiffies s: %lu\n",
-			jiffies - jiffies_start, rsp->expedited_sequence);
+		pr_cont(" } %lu jiffies s: %lu root: %#lx/%c\n",
+			jiffies - jiffies_start, rsp->expedited_sequence,
+			rnp_root->expmask, ".T"[!!rnp_root->exp_tasks]);
+		if (!ndetected) {
+			pr_err("blocking rcu_node structures:");
+			rcu_for_each_node_breadth_first(rsp, rnp) {
+				if (rnp == rnp_root)
+					continue; /* printed unconditionally */
+				if (sync_rcu_preempt_exp_done(rnp))
+					continue;
+				pr_cont(" l=%u:%d-%d:%#lx/%c",
+					rnp->level, rnp->grplo, rnp->grphi,
+					rnp->expmask,
+					".T"[!!rnp->exp_tasks]);
+			}
+			pr_cont("\n");
+		}
 		rcu_for_each_leaf_node(rsp, rnp) {
 			mask = 1;
 			for (cpu = rnp->grplo; cpu <= rnp->grphi; cpu++, mask <<= 1) {
