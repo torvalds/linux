@@ -810,6 +810,18 @@ static void sl_notify_v1_hw(struct hisi_hba *hisi_hba, int phy_no)
 	hisi_sas_phy_write32(hisi_hba, phy_no, SL_CONTROL, sl_control);
 }
 
+static int get_wideport_bitmap_v1_hw(struct hisi_hba *hisi_hba, int port_id)
+{
+	int i, bitmap = 0;
+	u32 phy_port_num_ma = hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA);
+
+	for (i = 0; i < hisi_hba->n_phy; i++)
+		if (((phy_port_num_ma >> (i * 4)) & 0xf) == port_id)
+			bitmap |= 1 << i;
+
+	return bitmap;
+}
+
 /**
  * This function allocates across all queues to load balance.
  * Slots are allocated from queues in a round-robin fashion.
@@ -1321,6 +1333,61 @@ end:
 	return res;
 }
 
+static irqreturn_t int_abnormal_v1_hw(int irq, void *p)
+{
+	struct hisi_sas_phy *phy = p;
+	struct hisi_hba *hisi_hba = phy->hisi_hba;
+	struct device *dev = &hisi_hba->pdev->dev;
+	struct asd_sas_phy *sas_phy = &phy->sas_phy;
+	u32 irq_value, irq_mask_old;
+	int phy_no = sas_phy->id;
+
+	/* mask_int0 */
+	irq_mask_old = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0_MSK);
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK, 0x3fffff);
+
+	/* read int0 */
+	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0);
+
+	if (irq_value & CHL_INT0_PHYCTRL_NOTRDY_MSK) {
+		u32 phy_state = hisi_sas_read32(hisi_hba, PHY_STATE);
+
+		hisi_sas_phy_down(hisi_hba, phy_no,
+				  (phy_state & 1 << phy_no) ? 1 : 0);
+	}
+
+	if (irq_value & CHL_INT0_ID_TIMEOUT_MSK)
+		dev_dbg(dev, "abnormal: ID_TIMEOUT phy%d identify timeout\n",
+			phy_no);
+
+	if (irq_value & CHL_INT0_DWS_LOST_MSK)
+		dev_dbg(dev, "abnormal: DWS_LOST phy%d dws lost\n", phy_no);
+
+	if (irq_value & CHL_INT0_SN_FAIL_NGR_MSK)
+		dev_dbg(dev, "abnormal: SN_FAIL_NGR phy%d sn fail ngr\n",
+			phy_no);
+
+	if (irq_value & CHL_INT0_SL_IDAF_FAIL_MSK ||
+		irq_value & CHL_INT0_SL_OPAF_FAIL_MSK)
+		dev_dbg(dev, "abnormal: SL_ID/OPAF_FAIL phy%d check adr frm err\n",
+			phy_no);
+
+	if (irq_value & CHL_INT0_SL_PS_FAIL_OFF)
+		dev_dbg(dev, "abnormal: SL_PS_FAIL phy%d fail\n", phy_no);
+
+	/* write to zero */
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0, irq_value);
+
+	if (irq_value & CHL_INT0_PHYCTRL_NOTRDY_MSK)
+		hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK,
+				0x3fffff & ~CHL_INT0_MSK_PHYCTRL_NOTRDY_MSK);
+	else
+		hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK,
+				irq_mask_old);
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t cq_interrupt_v1_hw(int irq, void *p)
 {
 	struct hisi_sas_cq *cq = p;
@@ -1372,11 +1439,13 @@ static irqreturn_t cq_interrupt_v1_hw(int irq, void *p)
 
 static const char phy_int_names[HISI_SAS_PHY_INT_NR][32] = {
 	{"Phy Up"},
+	{"Abnormal"},
 };
 
 static const char cq_int_name[32] = "cq";
 static irq_handler_t phy_interrupts[HISI_SAS_PHY_INT_NR] = {
 	int_phyup_v1_hw,
+	int_abnormal_v1_hw
 };
 
 static int interrupt_init_v1_hw(struct hisi_hba *hisi_hba)
@@ -1499,6 +1568,7 @@ static const struct hisi_sas_hw hisi_sas_v1_hw = {
 	.get_free_slot = get_free_slot_v1_hw,
 	.start_delivery = start_delivery_v1_hw,
 	.slot_complete = slot_complete_v1_hw,
+	.get_wideport_bitmap = get_wideport_bitmap_v1_hw,
 	.complete_hdr_size = sizeof(struct hisi_sas_complete_v1_hdr),
 };
 
