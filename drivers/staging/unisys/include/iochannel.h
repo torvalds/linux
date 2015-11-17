@@ -366,7 +366,8 @@ struct net_pkt_xmtdone {
  */
 #define RCVPOST_BUF_SIZE 4032
 #define MAX_NET_RCV_CHAIN \
-	((ETH_MAX_MTU+ETH_HEADER_SIZE + RCVPOST_BUF_SIZE-1) / RCVPOST_BUF_SIZE)
+	((ETH_MAX_MTU + ETH_HEADER_SIZE + RCVPOST_BUF_SIZE - 1) \
+	/ RCVPOST_BUF_SIZE)
 
 struct net_pkt_rcvpost {
 	    /* rcv buf size must be large enough to include ethernet data len +
