@@ -857,7 +857,7 @@
 						<&clks IMX7D_MIPI_DPHY_ROOT_CLK>;
 				clock-names = "mipi_clk", "phy_clk";
 				mipi-phy-supply = <&reg_1p0d>;
-				csis-phy-reset = <&src 0x28 1>;
+				csis-phy-reset = <&src 0x28 2>;
 				bus-width = <4>;
 				status = "disabled";
 			};
