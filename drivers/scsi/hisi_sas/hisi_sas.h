@@ -72,6 +72,7 @@ struct hisi_hba {
 
 	int n_phy;
 
+	struct workqueue_struct *wq;
 
 	int slot_index_count;
 	unsigned long *slot_index_tags;

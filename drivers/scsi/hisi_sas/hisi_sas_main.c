@@ -150,6 +150,12 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 
 	hisi_sas_slot_index_init(hisi_hba);
 
+	hisi_hba->wq = create_singlethread_workqueue(dev_name(dev));
+	if (!hisi_hba->wq) {
+		dev_err(dev, "sas_alloc: failed to create workqueue\n");
+		goto err_out;
+	}
+
 	return 0;
 err_out:
 	return -ENOMEM;
@@ -207,6 +213,8 @@ static void hisi_sas_free(struct hisi_hba *hisi_hba)
 				  hisi_hba->sata_breakpoint,
 				  hisi_hba->sata_breakpoint_dma);
 
+	if (hisi_hba->wq)
+		destroy_workqueue(hisi_hba->wq);
 }
 
 static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
