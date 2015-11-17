@@ -39,6 +39,7 @@
 
 struct hisi_sas_phy {
 	struct asd_sas_phy	sas_phy;
+	u64		dev_sas_addr;
 };
 
 struct hisi_sas_port {

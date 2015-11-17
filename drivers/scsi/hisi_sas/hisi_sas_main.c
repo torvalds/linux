@@ -281,6 +281,16 @@ err_out:
 	return NULL;
 }
 
+static void hisi_sas_init_add(struct hisi_hba *hisi_hba)
+{
+	int i;
+
+	for (i = 0; i < hisi_hba->n_phy; i++)
+		memcpy(&hisi_hba->phy[i].dev_sas_addr,
+		       hisi_hba->sas_addr,
+		       SAS_ADDR_SIZE);
+}
+
 int hisi_sas_probe(struct platform_device *pdev,
 			 const struct hisi_sas_hw *hw)
 {
@@ -333,6 +343,8 @@ int hisi_sas_probe(struct platform_device *pdev,
 		sha->sas_phy[i] = &hisi_hba->phy[i].sas_phy;
 		sha->sas_port[i] = &hisi_hba->port[i].sas_port;
 	}
+
+	hisi_sas_init_add(hisi_hba);
 
 	rc = scsi_add_host(shost, &pdev->dev);
 	if (rc)
