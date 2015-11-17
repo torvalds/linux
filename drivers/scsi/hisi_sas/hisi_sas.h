@@ -81,6 +81,7 @@ struct hisi_sas_slot {
 };
 
 struct hisi_sas_hw {
+	int (*hw_init)(struct hisi_hba *hisi_hba);
 	int complete_hdr_size;
 };
 
