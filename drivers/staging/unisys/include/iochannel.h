@@ -575,18 +575,8 @@ struct spar_io_channel_protocol {
  * room)
  */
 static inline  u16
-add_physinfo_entries(u32 inp_pfn,	/* input - specifies the pfn to be used
-					 * to add entries */
-		     u16 inp_off,	/* input - specifies the off to be used
-					 * to add entries */
-		     u32 inp_len,	/* input - specifies the len to be used
-					 * to add entries */
-		     u16 index,		/* input - index in array at which new
-					 * entries are added */
-		     u16 max_pi_arr_entries,	/* input - specifies the maximum
-						 * entries pi_arr can hold */
-		     struct phys_info pi_arr[]) /* input & output - array to
-						  * which entries are added */
+add_physinfo_entries(u32 inp_pfn, u16 inp_off, u32 inp_len, u16 index,
+		     u16 max_pi_arr_entries, struct phys_info pi_arr[])
 {
 	u32 len;
 	u16 i, firstlen;
