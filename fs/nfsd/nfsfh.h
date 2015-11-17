@@ -7,6 +7,7 @@
 #ifndef _LINUX_NFSD_NFSFH_H
 #define _LINUX_NFSD_NFSFH_H
 
+#include <linux/crc32.h>
 #include <linux/sunrpc/svc.h>
 #include <uapi/linux/nfsd/nfsfh.h>
 
@@ -204,6 +205,28 @@ static inline bool fh_fsid_match(struct knfsd_fh *fh1, struct knfsd_fh *fh2)
 		return false;
 	return true;
 }
+
+#ifdef CONFIG_CRC32
+/**
+ * knfsd_fh_hash - calculate the crc32 hash for the filehandle
+ * @fh - pointer to filehandle
+ *
+ * returns a crc32 hash for the filehandle that is compatible with
+ * the one displayed by "wireshark".
+ */
+
+static inline u32
+knfsd_fh_hash(struct knfsd_fh *fh)
+{
+	return ~crc32_le(0xFFFFFFFF, (unsigned char *)&fh->fh_base, fh->fh_size);
+}
+#else
+static inline u32
+knfsd_fh_hash(struct knfsd_fh *fh)
+{
+	return 0;
+}
+#endif
 
 #ifdef CONFIG_NFSD_V3
 /*
