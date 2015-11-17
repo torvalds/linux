@@ -37,6 +37,11 @@
 
 #define HISI_SAS_NAME_LEN 32
 
+
+enum dev_status {
+	HISI_SAS_DEV_NORMAL,
+	HISI_SAS_DEV_EH,
+};
 struct hisi_sas_phy {
 	struct asd_sas_phy	sas_phy;
 	u64		dev_sas_addr;
@@ -49,6 +54,12 @@ struct hisi_sas_port {
 struct hisi_sas_cq {
 	struct hisi_hba *hisi_hba;
 	int	id;
+};
+
+struct hisi_sas_device {
+	enum sas_device_type	dev_type;
+	u64 device_id;
+	u8 dev_status;
 };
 
 struct hisi_sas_slot {
@@ -89,6 +100,7 @@ struct hisi_hba {
 	char	*int_names;
 
 	struct dma_pool *sge_page_pool;
+	struct hisi_sas_device	devices[HISI_SAS_MAX_DEVICES];
 	struct dma_pool *command_table_pool;
 	struct dma_pool *status_buffer_pool;
 	struct hisi_sas_cmd_hdr	*cmd_hdr[HISI_SAS_MAX_QUEUES];

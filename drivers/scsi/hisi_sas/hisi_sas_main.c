@@ -57,6 +57,12 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 	struct platform_device *pdev = hisi_hba->pdev;
 	struct device *dev = &pdev->dev;
 
+	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {
+		hisi_hba->devices[i].dev_type = SAS_PHY_UNUSED;
+		hisi_hba->devices[i].device_id = i;
+		hisi_hba->devices[i].dev_status = HISI_SAS_DEV_NORMAL;
+	}
+
 	for (i = 0; i < hisi_hba->queue_count; i++) {
 		struct hisi_sas_cq *cq = &hisi_hba->cq[i];
 
