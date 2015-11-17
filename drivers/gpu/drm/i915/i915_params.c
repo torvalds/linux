@@ -125,7 +125,7 @@ module_param_named_unsafe(preliminary_hw_support, i915.preliminary_hw_support, i
 MODULE_PARM_DESC(preliminary_hw_support,
 	"Enable preliminary hardware support.");
 
-module_param_named_unsafe(disable_power_well, i915.disable_power_well, int, 0600);
+module_param_named_unsafe(disable_power_well, i915.disable_power_well, int, 0400);
 MODULE_PARM_DESC(disable_power_well,
 	"Disable the power well when possible (default: true)");
 

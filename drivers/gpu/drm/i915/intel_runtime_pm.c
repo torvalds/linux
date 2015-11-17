@@ -1413,7 +1413,7 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	for_each_power_well_rev(i, power_well, BIT(domain), power_domains) {
 		WARN_ON(!power_well->count);
 
-		if (!--power_well->count && i915.disable_power_well)
+		if (!--power_well->count)
 			intel_power_well_disable(dev_priv, power_well);
 	}
 
@@ -1854,6 +1854,10 @@ void intel_power_domains_fini(struct drm_i915_private *dev_priv)
 	 * the power well is not enabled, so just enable it in case
 	 * we're going to unload/reload. */
 	intel_display_set_init_power(dev_priv, true);
+
+	/* Remove the refcount we took to keep power well support disabled. */
+	if (!i915.disable_power_well)
+		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
 }
 
 static void intel_power_domains_sync_hw(struct drm_i915_private *dev_priv)
@@ -2055,6 +2059,9 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume)
 
 	/* For now, we need the power well to be always enabled. */
 	intel_display_set_init_power(dev_priv, true);
+	/* Disable power support if the user asked so. */
+	if (!i915.disable_power_well)
+		intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 	intel_power_domains_sync_hw(dev_priv);
 	power_domains->initializing = false;
 }
@@ -2070,6 +2077,13 @@ void intel_power_domains_suspend(struct drm_i915_private *dev_priv)
 {
 	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		skl_display_core_uninit(dev_priv);
+
+	/*
+	 * Even if power well support was disabled we still want to disable
+	 * power wells while we are system suspended.
+	 */
+	if (!i915.disable_power_well)
+		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
 }
 
 /**
