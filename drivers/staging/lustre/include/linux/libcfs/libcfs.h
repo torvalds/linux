@@ -42,13 +42,6 @@
 
 #include "curproc.h"
 
-static inline int __is_po2(unsigned long long val)
-{
-	return !(val & (val - 1));
-}
-
-#define IS_PO2(val) __is_po2((unsigned long long)(val))
-
 #define LOWEST_BIT_SET(x)       ((x) & ~((x) - 1))
 
 /*
