@@ -158,7 +158,7 @@ const char *get_unit_name(int unit)
 {
 	static char iname[16];
 
-	snprintf(iname, sizeof(iname), DRIVER_NAME"_%u", unit);
+	snprintf(iname, sizeof(iname), DRIVER_NAME "_%u", unit);
 	return iname;
 }
 

@@ -8903,8 +8903,8 @@ static int request_intx_irq(struct hfi1_devdata *dd)
 {
 	int ret;
 
-	snprintf(dd->intx_name, sizeof(dd->intx_name), DRIVER_NAME"_%d",
-		dd->unit);
+	snprintf(dd->intx_name, sizeof(dd->intx_name), DRIVER_NAME "_%d",
+		 dd->unit);
 	ret = request_irq(dd->pcidev->irq, general_interrupt,
 				  IRQF_SHARED, dd->intx_name, dd);
 	if (ret)
@@ -9003,7 +9003,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 			handler = general_interrupt;
 			arg = dd;
 			snprintf(me->name, sizeof(me->name),
-				DRIVER_NAME"_%d", dd->unit);
+				 DRIVER_NAME "_%d", dd->unit);
 			err_info = "general";
 		} else if (first_sdma <= i && i < last_sdma) {
 			idx = i - first_sdma;
@@ -9011,7 +9011,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 			handler = sdma_interrupt;
 			arg = sde;
 			snprintf(me->name, sizeof(me->name),
-				DRIVER_NAME"_%d sdma%d", dd->unit, idx);
+				 DRIVER_NAME "_%d sdma%d", dd->unit, idx);
 			err_info = "sdma";
 			remap_sdma_interrupts(dd, idx, i);
 		} else if (first_rx <= i && i < last_rx) {
@@ -9031,7 +9031,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 			thread = receive_context_thread;
 			arg = rcd;
 			snprintf(me->name, sizeof(me->name),
-				DRIVER_NAME"_%d kctxt%d", dd->unit, idx);
+				 DRIVER_NAME "_%d kctxt%d", dd->unit, idx);
 			err_info = "receive context";
 			remap_intr(dd, IS_RCVAVAIL_START + idx, i);
 		} else {
