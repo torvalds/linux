@@ -951,6 +951,7 @@ static void gc_attach(struct parport *pp)
 	pads = gc_cfg[port_idx].args + 1;
 	n_pads = gc_cfg[port_idx].nargs - 1;
 
+	memset(&gc_parport_cb, 0, sizeof(gc_parport_cb));
 	gc_parport_cb.flags = PARPORT_FLAG_EXCL;
 
 	pd = parport_register_dev_model(pp, "gamecon", &gc_parport_cb,
