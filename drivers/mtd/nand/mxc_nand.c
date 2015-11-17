@@ -1067,8 +1067,7 @@ static void preset_v3(struct mtd_info *mtd)
 
 	/* Blocks to be unlocked */
 	for (i = 0; i < NAND_MAX_CHIPS; i++)
-		writel(0x0 |	(0xffff << 16),
-				NFC_V3_WRPROT_UNLOCK_BLK_ADD0 + (i << 2));
+		writel(0xffff << 16, NFC_V3_WRPROT_UNLOCK_BLK_ADD0 + (i << 2));
 
 	writel(0, NFC_V3_IPC);
 
