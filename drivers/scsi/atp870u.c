@@ -2716,7 +2716,6 @@ static int atp870u_abort(struct scsi_cmnd * SCpnt)
 {
 	unsigned char  j, k, c;
 	struct scsi_cmnd *workrequ;
-	unsigned int tmport;
 	struct atp_unit *dev;	
 	struct Scsi_Host *host;
 	host = SCpnt->device->host;
@@ -2726,18 +2725,13 @@ static int atp870u_abort(struct scsi_cmnd * SCpnt)
 	printk(" atp870u: abort Channel = %x \n", c);
 	printk("working=%x last_cmd=%x ", dev->working[c], dev->last_cmd[c]);
 	printk(" quhdu=%x quendu=%x ", dev->quhd[c], dev->quend[c]);
-	tmport = dev->ioport[c];
 	for (j = 0; j < 0x18; j++) {
-		printk(" r%2x=%2x", j, inb(tmport++));
+		printk(" r%2x=%2x", j, inb(dev->ioport[c] + j));
 	}
-	tmport += 0x04;
-	printk(" r1c=%2x", inb(tmport));
-	tmport += 0x03;
-	printk(" r1f=%2x in_snd=%2x ", inb(tmport), dev->in_snd[c]);
-	tmport= dev->pciport[c];
-	printk(" d00=%2x", inb(tmport));
-	tmport += 0x02;
-	printk(" d02=%2x", inb(tmport));
+	printk(" r1c=%2x", inb(dev->ioport[c] + 0x1c));
+	printk(" r1f=%2x in_snd=%2x ", inb(dev->ioport[c] + 0x1f), dev->in_snd[c]);
+	printk(" d00=%2x", inb(dev->pciport[c]));
+	printk(" d02=%2x", inb(dev->pciport[c] + 0x02));
 	for(j=0;j<16;j++) {
 	   if (dev->id[c][j].curr_req != NULL) {
 		workrequ = dev->id[c][j].curr_req;
