@@ -36,6 +36,7 @@
 		(((sizeof(union hisi_sas_command_table)+3)/4)*4)
 
 #define HISI_SAS_MAX_SSP_RESP_SZ (sizeof(struct ssp_frame_hdr) + 1024)
+#define HISI_SAS_MAX_SMP_RESP_SZ 1028
 
 #define HISI_SAS_NAME_LEN 32
 
@@ -132,6 +133,8 @@ struct hisi_sas_hw {
 	int (*prep_ssp)(struct hisi_hba *hisi_hba,
 			struct hisi_sas_slot *slot, int is_tmf,
 			struct hisi_sas_tmf_task *tmf);
+	int (*prep_smp)(struct hisi_hba *hisi_hba,
+			struct hisi_sas_slot *slot);
 	int (*slot_complete)(struct hisi_hba *hisi_hba,
 			     struct hisi_sas_slot *slot, int abort);
 	void (*free_device)(struct hisi_hba *hisi_hba,
