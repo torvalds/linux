@@ -869,6 +869,13 @@ irqreturn_t ci_otg_fsm_irq(struct ci_hdrc *ci)
 				fsm->a_bus_drop = 0;
 				fsm->a_bus_req = 1;
 				ci->id_event = true;
+			} else {
+				/*
+				 * Disable term select override and data pulse
+				 * for B device.
+				 */
+				ci->platdata->notify_event(ci,
+					CI_HDRC_IMX_TERM_SELECT_OVERRIDE_OFF);
 			}
 		} else if (otg_int_src & OTGSC_BSVIS) {
 			hw_write_otgsc(ci, OTGSC_BSVIS, OTGSC_BSVIS);
