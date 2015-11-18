@@ -169,7 +169,14 @@ static long mdp4_round_pixclk(struct msm_kms *kms, unsigned long rate,
 		struct drm_encoder *encoder)
 {
 	/* if we had >1 encoder, we'd need something more clever: */
-	return mdp4_dtv_round_pixclk(encoder, rate);
+	switch (encoder->encoder_type) {
+	case DRM_MODE_ENCODER_TMDS:
+		return mdp4_dtv_round_pixclk(encoder, rate);
+	case DRM_MODE_ENCODER_LVDS:
+	case DRM_MODE_ENCODER_DSI:
+	default:
+		return rate;
+	}
 }
 
 static void mdp4_preclose(struct msm_kms *kms, struct drm_file *file)
