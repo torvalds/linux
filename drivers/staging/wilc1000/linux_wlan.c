@@ -514,7 +514,8 @@ static int wilc1000_firmware_download(struct net_device *dev)
 	return 0;
 }
 
-static int linux_wlan_init_test_config(struct net_device *dev, struct wilc *p_nic)
+static int linux_wlan_init_test_config(struct net_device *dev,
+				       struct wilc *wilc)
 {
 	unsigned char c_val[64];
 	unsigned char mac_add[] = {0x00, 0x80, 0xC2, 0x5E, 0xa2, 0xff};
@@ -532,7 +533,7 @@ static int linux_wlan_init_test_config(struct net_device *dev, struct wilc *p_ni
 	PRINT_D(INIT_DBG, "MAC address is : %02x-%02x-%02x-%02x-%02x-%02x\n",
 		mac_add[0], mac_add[1], mac_add[2],
 		mac_add[3], mac_add[4], mac_add[5]);
-	wilc_get_chipid(0);
+	wilc_get_chipid(wilc, 0);
 
 	*(int *)c_val = 1;
 

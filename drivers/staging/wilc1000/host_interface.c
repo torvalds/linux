@@ -2834,6 +2834,7 @@ static int hostIFthread(void *pvArg)
 	u32 u32Ret;
 	struct host_if_msg msg;
 	struct host_if_drv *hif_drv;
+	struct wilc *wilc = (struct wilc*)pvArg;
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
@@ -2906,7 +2907,7 @@ static int hostIFthread(void *pvArg)
 			PRINT_D(HOSTINF_DBG, "scan completed successfully\n");
 
 			if (!wilc_wlan_get_num_conn_ifcs(wilc_dev))
-				wilc_chip_sleep_manually();
+				wilc_chip_sleep_manually(wilc);
 
 			Handle_ScanDone(msg.drv, SCAN_EVENT_DONE);
 

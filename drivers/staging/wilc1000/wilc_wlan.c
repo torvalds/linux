@@ -35,9 +35,9 @@ typedef struct {
 static wilc_wlan_dev_t g_wlan;
 
 #ifdef WILC_OPTIMIZE_SLEEP_INT
-static inline void chip_allow_sleep(void);
+static inline void chip_allow_sleep(struct wilc *wilc);
 #endif
-static inline void chip_wakeup(void);
+static inline void chip_wakeup(struct wilc *wilc);
 static u32 dbgflag = N_INIT | N_ERR | N_INTR | N_TXQ | N_RXQ;
 
 /* FIXME: replace with dev_debug() */
@@ -65,7 +65,7 @@ static inline void acquire_bus(struct wilc *wilc, BUS_ACQUIRE_T acquire)
 	#endif
 	{
 		if (acquire == ACQUIRE_AND_WAKEUP)
-			chip_wakeup();
+			chip_wakeup(wilc);
 	}
 }
 
@@ -73,7 +73,7 @@ static inline void release_bus(struct wilc *wilc, BUS_RELEASE_T release)
 {
 	#ifdef WILC_OPTIMIZE_SLEEP_INT
 	if (release == RELEASE_ALLOW_SLEEP)
-		chip_allow_sleep();
+		chip_allow_sleep(wilc);
 	#endif
 	mutex_unlock(&wilc->hif_cs);
 }
@@ -562,7 +562,7 @@ static struct rxq_entry_t *wilc_wlan_rxq_remove(struct wilc *wilc)
 
 #ifdef WILC_OPTIMIZE_SLEEP_INT
 
-static inline void chip_allow_sleep(void)
+static inline void chip_allow_sleep(struct wilc *wilc)
 {
 	u32 reg = 0;
 
@@ -571,7 +571,7 @@ static inline void chip_allow_sleep(void)
 	g_wlan.hif_func.hif_write_reg(0xf0, reg & ~BIT(0));
 }
 
-static inline void chip_wakeup(void)
+static inline void chip_wakeup(struct wilc *wilc)
 {
 	u32 reg, clk_status_reg, trials = 0;
 	u32 sleep_time;
@@ -584,12 +584,12 @@ static inline void chip_wakeup(void)
 
 			do {
 				usleep_range(2 * 1000, 2 * 1000);
-				if ((wilc_get_chipid(true) == 0))
+				if ((wilc_get_chipid(wilc, true) == 0))
 					wilc_debug(N_ERR, "Couldn't read chip id. Wake up failed\n");
 
-			} while ((wilc_get_chipid(true) == 0) && ((++trials % 3) == 0));
+			} while ((wilc_get_chipid(wilc, true) == 0) && ((++trials % 3) == 0));
 
-		} while (wilc_get_chipid(true) == 0);
+		} while (wilc_get_chipid(wilc, true) == 0);
 	} else if ((g_wlan.io_type & 0x1) == HIF_SDIO)	 {
 		g_wlan.hif_func.hif_read_reg(0xf0, &reg);
 		do {
@@ -616,7 +616,7 @@ static inline void chip_wakeup(void)
 		reg &= ~BIT(0);
 		g_wlan.hif_func.hif_write_reg(0x1C0C, reg);
 
-		if (wilc_get_chipid(false) >= 0x1002b0) {
+		if (wilc_get_chipid(wilc, false) >= 0x1002b0) {
 			u32 val32;
 
 			g_wlan.hif_func.hif_read_reg(0x1e1c, &val32);
@@ -631,7 +631,7 @@ static inline void chip_wakeup(void)
 	chip_ps_state = CHIP_WAKEDUP;
 }
 #else
-static inline void chip_wakeup(void)
+static inline void chip_wakeup(struct wilc *wilc)
 {
 	u32 reg, trials = 0;
 
@@ -651,19 +651,19 @@ static inline void chip_wakeup(void)
 		do {
 			mdelay(3);
 
-			if ((wilc_get_chipid(true) == 0))
+			if ((wilc_get_chipid(wilc, true) == 0))
 				wilc_debug(N_ERR, "Couldn't read chip id. Wake up failed\n");
 
-		} while ((wilc_get_chipid(true) == 0) && ((++trials % 3) == 0));
+		} while ((wilc_get_chipid(wilc, true) == 0) && ((++trials % 3) == 0));
 
-	} while (wilc_get_chipid(true) == 0);
+	} while (wilc_get_chipid(wilc, true) == 0);
 
 	if (chip_ps_state == CHIP_SLEEPING_MANUAL) {
 		g_wlan.hif_func.hif_read_reg(0x1C0C, &reg);
 		reg &= ~BIT(0);
 		g_wlan.hif_func.hif_write_reg(0x1C0C, reg);
 
-		if (wilc_get_chipid(false) >= 0x1002b0) {
+		if (wilc_get_chipid(wilc, false) >= 0x1002b0) {
 			u32 val32;
 
 			g_wlan.hif_func.hif_read_reg(0x1e1c, &val32);
@@ -678,19 +678,19 @@ static inline void chip_wakeup(void)
 	chip_ps_state = CHIP_WAKEDUP;
 }
 #endif
-void wilc_chip_sleep_manually(void)
+void wilc_chip_sleep_manually(struct wilc *wilc)
 {
 	if (chip_ps_state != CHIP_WAKEDUP)
 		return;
-	acquire_bus(wilc_dev, ACQUIRE_ONLY);
+	acquire_bus(wilc, ACQUIRE_ONLY);
 
 #ifdef WILC_OPTIMIZE_SLEEP_INT
-	chip_allow_sleep();
+	chip_allow_sleep(wilc);
 #endif
 	g_wlan.hif_func.hif_write_reg(0x10a8, 1);
 
 	chip_ps_state = CHIP_SLEEPING_MANUAL;
-	release_bus(wilc_dev, RELEASE_ONLY);
+	release_bus(wilc, RELEASE_ONLY);
 }
 
 int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
@@ -1056,12 +1056,12 @@ static void wilc_wlan_handle_rxq(struct wilc *wilc)
 	PRINT_D(RX_DBG, "THREAD: Exiting RX thread\n");
 }
 
-static void wilc_unknown_isr_ext(void)
+static void wilc_unknown_isr_ext(struct wilc *wilc)
 {
 	g_wlan.hif_func.hif_clear_int_ext(0);
 }
 
-static void wilc_pllupdate_isr_ext(u32 int_stats)
+static void wilc_pllupdate_isr_ext(struct wilc *wilc, u32 int_stats)
 {
 	int trials = 10;
 
@@ -1072,13 +1072,13 @@ static void wilc_pllupdate_isr_ext(u32 int_stats)
 	else
 		mdelay(WILC_PLL_TO_SPI);
 
-	while (!(ISWILC1000(wilc_get_chipid(true)) && --trials)) {
+	while (!(ISWILC1000(wilc_get_chipid(wilc, true)) && --trials)) {
 		PRINT_D(TX_DBG, "PLL update retrying\n");
 		mdelay(1);
 	}
 }
 
-static void wilc_sleeptimer_isr_ext(u32 int_stats1)
+static void wilc_sleeptimer_isr_ext(struct wilc *wilc, u32 int_stats1)
 {
 	g_wlan.hif_func.hif_clear_int_ext(SLEEP_INT_CLR);
 #ifndef WILC_OPTIMIZE_SLEEP_INT
@@ -1165,7 +1165,7 @@ void wilc_handle_isr(struct wilc *wilc)
 	g_wlan.hif_func.hif_read_int(&int_status);
 
 	if (int_status & PLL_INT_EXT)
-		wilc_pllupdate_isr_ext(int_status);
+		wilc_pllupdate_isr_ext(wilc, int_status);
 
 	if (int_status & DATA_INT_EXT) {
 		wilc_wlan_handle_isr_ext(wilc, int_status);
@@ -1174,10 +1174,10 @@ void wilc_handle_isr(struct wilc *wilc)
 	#endif
 	}
 	if (int_status & SLEEP_INT_EXT)
-		wilc_sleeptimer_isr_ext(int_status);
+		wilc_sleeptimer_isr_ext(wilc, int_status);
 
 	if (!(int_status & (ALL_INT_EXT))) {
-		wilc_unknown_isr_ext();
+		wilc_unknown_isr_ext(wilc);
 	}
 	release_bus(wilc, RELEASE_ALLOW_SLEEP);
 }
@@ -1587,7 +1587,7 @@ static u32 init_chip(struct net_device *dev)
 
 	acquire_bus(wilc, ACQUIRE_ONLY);
 
-	chipid = wilc_get_chipid(true);
+	chipid = wilc_get_chipid(wilc, true);
 
 	if ((chipid & 0xfff) != 0xa0) {
 		ret = g_wlan.hif_func.hif_read_reg(0x1118, &reg);
@@ -1613,7 +1613,7 @@ static u32 init_chip(struct net_device *dev)
 	return ret;
 }
 
-u32 wilc_get_chipid(u8 update)
+u32 wilc_get_chipid(struct wilc *wilc, u8 update)
 {
 	static u32 chipid;
 	u32 tempchipid = 0;
