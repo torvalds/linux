@@ -4677,10 +4677,11 @@ static struct napi_struct *napi_by_id(unsigned int napi_id)
 }
 
 #if defined(CONFIG_NET_RX_BUSY_POLL)
+#define BUSY_POLL_BUDGET 8
 bool sk_busy_loop(struct sock *sk, int nonblock)
 {
 	unsigned long end_time = !nonblock ? sk_busy_loop_end_time(sk) : 0;
-	const struct net_device_ops *ops;
+	int (*busy_poll)(struct napi_struct *dev);
 	struct napi_struct *napi;
 	int rc = false;
 
@@ -4690,13 +4691,27 @@ bool sk_busy_loop(struct sock *sk, int nonblock)
 	if (!napi)
 		goto out;
 
-	ops = napi->dev->netdev_ops;
-	if (!ops->ndo_busy_poll)
-		goto out;
+	/* Note: ndo_busy_poll method is optional in linux-4.5 */
+	busy_poll = napi->dev->netdev_ops->ndo_busy_poll;
 
 	do {
+		rc = 0;
 		local_bh_disable();
-		rc = ops->ndo_busy_poll(napi);
+		if (busy_poll) {
+			rc = busy_poll(napi);
+		} else if (napi_schedule_prep(napi)) {
+			void *have = netpoll_poll_lock(napi);
+
+			if (test_bit(NAPI_STATE_SCHED, &napi->state)) {
+				rc = napi->poll(napi, BUSY_POLL_BUDGET);
+				trace_napi_poll(napi);
+				if (rc == BUSY_POLL_BUDGET) {
+					napi_complete_done(napi, rc);
+					napi_schedule(napi);
+				}
+			}
+			netpoll_poll_unlock(have);
+		}
 		if (rc > 0)
 			NET_ADD_STATS_BH(sock_net(sk),
 					 LINUX_MIB_BUSYPOLLRXPACKETS, rc);
