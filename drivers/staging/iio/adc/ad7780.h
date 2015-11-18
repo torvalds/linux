@@ -24,7 +24,6 @@
 
 struct ad7780_platform_data {
 	u16				vref_mv;
-	int				gpio_pdrst;
 };
 
 #endif /* IIO_ADC_AD7780_H_ */

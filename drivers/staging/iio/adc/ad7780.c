@@ -15,7 +15,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
 #include <linux/sched.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/module.h>
 
 #include <linux/iio/iio.h>
@@ -42,7 +42,7 @@ struct ad7780_chip_info {
 struct ad7780_state {
 	const struct ad7780_chip_info	*chip_info;
 	struct regulator		*reg;
-	int				powerdown_gpio;
+	struct gpio_desc		*powerdown_gpio;
 	unsigned int	gain;
 	u16				int_vref_mv;
 
@@ -77,8 +77,7 @@ static int ad7780_set_mode(struct ad_sigma_delta *sigma_delta,
 		break;
 	}
 
-	if (gpio_is_valid(st->powerdown_gpio))
-		gpio_set_value(st->powerdown_gpio, val);
+	gpiod_set_value(st->powerdown_gpio, val);
 
 	return 0;
 }
@@ -205,18 +204,14 @@ static int ad7780_probe(struct spi_device *spi)
 	indio_dev->num_channels = 1;
 	indio_dev->info = &ad7780_info;
 
-	if (pdata && gpio_is_valid(pdata->gpio_pdrst)) {
-		ret = devm_gpio_request_one(&spi->dev,
-					    pdata->gpio_pdrst,
-					    GPIOF_OUT_INIT_LOW,
-					    "AD7780 /PDRST");
-		if (ret) {
-			dev_err(&spi->dev, "failed to request GPIO PDRST\n");
-			goto error_disable_reg;
-		}
-		st->powerdown_gpio = pdata->gpio_pdrst;
-	} else {
-		st->powerdown_gpio = -1;
+	st->powerdown_gpio = devm_gpiod_get_optional(&spi->dev,
+						     "powerdown",
+						     GPIOD_OUT_LOW);
+	if (IS_ERR(st->powerdown_gpio)) {
+		ret = PTR_ERR(st->powerdown_gpio);
+		dev_err(&spi->dev, "Failed to request powerdown GPIO: %d\n",
+			ret);
+		goto error_disable_reg;
 	}
 
 	ret = ad_sd_setup_buffer_and_trigger(indio_dev);
