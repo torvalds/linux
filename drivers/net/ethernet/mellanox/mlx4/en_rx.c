@@ -873,10 +873,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		 * - TCP/IP (v4)
 		 * - without IP options
 		 * - not an IP fragment
-		 * - no LLS polling in progress
 		 */
-		if (!mlx4_en_cq_busy_polling(cq) &&
-		    (dev->features & NETIF_F_GRO)) {
+		if (dev->features & NETIF_F_GRO) {
 			struct sk_buff *gro_skb = napi_get_frags(&cq->napi);
 			if (!gro_skb)
 				goto next;
@@ -992,11 +990,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 
 		skb_mark_napi_id(skb, &cq->napi);
 
-		if (!mlx4_en_cq_busy_polling(cq))
-			napi_gro_receive(&cq->napi, skb);
-		else
-			netif_receive_skb(skb);
-
+		napi_gro_receive(&cq->napi, skb);
 next:
 		for (nr = 0; nr < priv->num_frags; nr++)
 			mlx4_en_free_frag(priv, frags, nr);
@@ -1038,12 +1032,7 @@ int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget)
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	int done;
 
-	if (!mlx4_en_cq_lock_napi(cq))
-		return budget;
-
 	done = mlx4_en_process_rx_cq(dev, cq, budget);
-
-	mlx4_en_cq_unlock_napi(cq);
 
 	/* If we used up all the quota - we're probably not done yet... */
 	if (done == budget) {
