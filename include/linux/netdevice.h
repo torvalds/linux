@@ -466,6 +466,9 @@ static inline void napi_complete(struct napi_struct *n)
  *	@napi: napi context
  *
  * generate a new napi_id and store a @napi under it in napi_hash
+ * Used for busy polling (CONFIG_NET_RX_BUSY_POLL)
+ * Note: This is normally automatically done from netif_napi_add(),
+ * so might disappear in a future linux version.
  */
 void napi_hash_add(struct napi_struct *napi);
 
@@ -476,6 +479,10 @@ void napi_hash_add(struct napi_struct *napi);
  * Warning: caller must observe rcu grace period
  * before freeing memory containing @napi, if
  * this function returns true.
+ * Note: core networking stack automatically calls it
+ * from netif_napi_del()
+ * Drivers might want to call this helper to combine all
+ * the needed rcu grace periods into a single one.
  */
 bool napi_hash_del(struct napi_struct *napi);
 

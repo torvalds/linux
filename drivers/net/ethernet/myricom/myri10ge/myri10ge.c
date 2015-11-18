@@ -3814,7 +3814,6 @@ static int myri10ge_alloc_slices(struct myri10ge_priv *mgp)
 		ss->dev = mgp->dev;
 		netif_napi_add(ss->dev, &ss->napi, myri10ge_poll,
 			       myri10ge_napi_weight);
-		napi_hash_add(&ss->napi);
 	}
 	return 0;
 abort:

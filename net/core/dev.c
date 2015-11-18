@@ -4807,6 +4807,7 @@ void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
 	napi->poll_owner = -1;
 #endif
 	set_bit(NAPI_STATE_SCHED, &napi->state);
+	napi_hash_add(napi);
 }
 EXPORT_SYMBOL(netif_napi_add);
 
@@ -4826,8 +4827,12 @@ void napi_disable(struct napi_struct *n)
 }
 EXPORT_SYMBOL(napi_disable);
 
+/* Must be called in process context */
 void netif_napi_del(struct napi_struct *napi)
 {
+	might_sleep();
+	if (napi_hash_del(napi))
+		synchronize_net();
 	list_del_init(&napi->dev_list);
 	napi_free_frags(napi);
 
@@ -7227,11 +7232,13 @@ EXPORT_SYMBOL(alloc_netdev_mqs);
  *	This function does the last stage of destroying an allocated device
  * 	interface. The reference to the device object is released.
  *	If this is the last reference then it will be freed.
+ *	Must be called in process context.
  */
 void free_netdev(struct net_device *dev)
 {
 	struct napi_struct *p, *n;
 
+	might_sleep();
 	netif_free_tx_queues(dev);
 #ifdef CONFIG_SYSFS
 	kvfree(dev->_rx);

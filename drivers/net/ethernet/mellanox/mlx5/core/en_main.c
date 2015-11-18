@@ -982,7 +982,6 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	mlx5e_build_channeltc_to_txq_map(priv, ix);
 
 	netif_napi_add(netdev, &c->napi, mlx5e_napi_poll, 64);
-	napi_hash_add(&c->napi);
 
 	err = mlx5e_open_tx_cqs(c, cparam);
 	if (err)

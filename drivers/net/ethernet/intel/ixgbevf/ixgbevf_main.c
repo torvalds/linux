@@ -2483,9 +2483,6 @@ static int ixgbevf_alloc_q_vectors(struct ixgbevf_adapter *adapter)
 		q_vector->v_idx = q_idx;
 		netif_napi_add(adapter->netdev, &q_vector->napi,
 			       ixgbevf_poll, 64);
-#ifdef CONFIG_NET_RX_BUSY_POLL
-		napi_hash_add(&q_vector->napi);
-#endif
 		adapter->q_vector[q_idx] = q_vector;
 	}
 
