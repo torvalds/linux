@@ -2357,16 +2357,13 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 			break;
 		}
 
-		n = nbytes;
-
-		m = n;
+		/* Allocate all free buffer space. */
+		comedi_buf_write_alloc(s, async->prealloc_bufsz);
+		m = comedi_buf_write_n_allocated(s);
+		/* Avoid buffer wraparound. */
 		if (async->buf_write_ptr + m > async->prealloc_bufsz)
 			m = async->prealloc_bufsz - async->buf_write_ptr;
-		comedi_buf_write_alloc(s, async->prealloc_bufsz);
-		if (m > comedi_buf_write_n_allocated(s))
-			m = comedi_buf_write_n_allocated(s);
-		if (m < n)
-			n = m;
+		n = min_t(size_t, m, nbytes);
 
 		if (n == 0) {
 			if (file->f_flags & O_NONBLOCK) {
