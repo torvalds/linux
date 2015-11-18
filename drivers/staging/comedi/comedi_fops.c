@@ -2331,8 +2331,6 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 	}
 
 	async = s->async;
-	if (!nbytes)
-		goto out;
 	if (s->busy != file || !(async->cmd.flags & CMDF_WRITE)) {
 		retval = -EINVAL;
 		goto out;
@@ -2349,9 +2347,12 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 		if (!comedi_is_runflags_running(runflags)) {
 			if (comedi_is_runflags_in_error(runflags))
 				retval = -EPIPE;
-			become_nonbusy = true;
+			if (retval || nbytes)
+				become_nonbusy = true;
 			break;
 		}
+		if (nbytes == 0)
+			break;
 
 		/* Allocate all free buffer space. */
 		comedi_buf_write_alloc(s, async->prealloc_bufsz);
