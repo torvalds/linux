@@ -306,7 +306,7 @@ static int gpiochip_set_desc_names(struct gpio_chip *gc)
  * different chip.  Otherwise it returns zero as a success code.
  *
  * When gpiochip_add() is called very early during boot, so that GPIOs
- * can be freely used, the chip->dev device must be registered before
+ * can be freely used, the chip->parent device must be registered before
  * the gpio framework's arch_initcall().  Otherwise sysfs initialization
  * for GPIOs will fail rudely.
  *
@@ -714,7 +714,8 @@ int _gpiochip_irqchip_add(struct gpio_chip *gpiochip,
 #ifdef CONFIG_OF_GPIO
 	/*
 	 * If the gpiochip has an assigned OF node this takes precedence
-	 * FIXME: get rid of this and use gpiochip->dev->of_node everywhere
+	 * FIXME: get rid of this and use gpiochip->parent->of_node
+	 * everywhere
 	 */
 	if (gpiochip->of_node)
 		of_node = gpiochip->of_node;
