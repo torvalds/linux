@@ -3335,24 +3335,24 @@ unlock:
 	return ret;
 }
 
-static void ath10k_mac_tx(struct ath10k *ar, struct sk_buff *skb)
+static void ath10k_mac_tx(struct ath10k *ar, enum ath10k_hw_txrx_mode txmode,
+			  struct sk_buff *skb)
 {
-	struct ath10k_skb_cb *cb = ATH10K_SKB_CB(skb);
 	struct ath10k_htt *htt = &ar->htt;
 	int ret = 0;
 
-	switch (cb->txmode) {
+	switch (txmode) {
 	case ATH10K_HW_TXRX_RAW:
 	case ATH10K_HW_TXRX_NATIVE_WIFI:
 	case ATH10K_HW_TXRX_ETHERNET:
-		ret = ath10k_htt_tx(htt, skb);
+		ret = ath10k_htt_tx(htt, txmode, skb);
 		break;
 	case ATH10K_HW_TXRX_MGMT:
 		if (test_bit(ATH10K_FW_FEATURE_HAS_WMI_MGMT_TX,
 			     ar->fw_features))
 			ret = ath10k_mac_tx_wmi_mgmt(ar, skb);
 		else if (ar->htt.target_version_major >= 3)
-			ret = ath10k_htt_tx(htt, skb);
+			ret = ath10k_htt_tx(htt, txmode, skb);
 		else
 			ret = ath10k_htt_mgmt_tx(htt, skb);
 		break;
@@ -3382,9 +3382,13 @@ void ath10k_offchan_tx_work(struct work_struct *work)
 {
 	struct ath10k *ar = container_of(work, struct ath10k, offchan_tx_work);
 	struct ath10k_peer *peer;
+	struct ath10k_vif *arvif;
 	struct ieee80211_hdr *hdr;
+	struct ieee80211_vif *vif;
+	struct ieee80211_sta *sta;
 	struct sk_buff *skb;
 	const u8 *peer_addr;
+	enum ath10k_hw_txrx_mode txmode;
 	int vdev_id;
 	int ret;
 	unsigned long time_left;
@@ -3434,7 +3438,22 @@ void ath10k_offchan_tx_work(struct work_struct *work)
 		ar->offchan_tx_skb = skb;
 		spin_unlock_bh(&ar->data_lock);
 
-		ath10k_mac_tx(ar, skb);
+		/* It's safe to access vif and sta - conf_mutex guarantees that
+		 * sta_state() and remove_interface() are locked exclusively
+		 * out wrt to this offchannel worker.
+		 */
+		arvif = ath10k_get_arvif(ar, vdev_id);
+		if (arvif) {
+			vif = arvif->vif;
+			sta = ieee80211_find_sta(vif, peer_addr);
+		} else {
+			vif = NULL;
+			sta = NULL;
+		}
+
+		txmode = ath10k_mac_tx_h_get_txmode(ar, vif, sta, skb);
+
+		ath10k_mac_tx(ar, txmode, skb);
 
 		time_left =
 		wait_for_completion_timeout(&ar->offchan_tx_completed, 3 * HZ);
@@ -3656,20 +3675,21 @@ static void ath10k_tx(struct ieee80211_hw *hw,
 	struct ieee80211_vif *vif = info->control.vif;
 	struct ieee80211_sta *sta = control->sta;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	enum ath10k_hw_txrx_mode txmode;
 
 	/* We should disable CCK RATE due to P2P */
 	if (info->flags & IEEE80211_TX_CTL_NO_CCK_RATE)
 		ath10k_dbg(ar, ATH10K_DBG_MAC, "IEEE80211_TX_CTL_NO_CCK_RATE\n");
+
+	txmode = ath10k_mac_tx_h_get_txmode(ar, vif, sta, skb);
 
 	ATH10K_SKB_CB(skb)->htt.is_offchan = false;
 	ATH10K_SKB_CB(skb)->htt.freq = 0;
 	ATH10K_SKB_CB(skb)->htt.tid = ath10k_tx_h_get_tid(hdr);
 	ATH10K_SKB_CB(skb)->htt.nohwcrypt = !ath10k_tx_h_use_hwcrypto(vif, skb);
 	ATH10K_SKB_CB(skb)->vdev_id = ath10k_tx_h_get_vdev_id(ar, vif);
-	ATH10K_SKB_CB(skb)->txmode = ath10k_mac_tx_h_get_txmode(ar, vif, sta,
-								skb);
 
-	switch (ATH10K_SKB_CB(skb)->txmode) {
+	switch (txmode) {
 	case ATH10K_HW_TXRX_MGMT:
 	case ATH10K_HW_TXRX_NATIVE_WIFI:
 		ath10k_tx_h_nwifi(hw, skb);
@@ -3706,7 +3726,7 @@ static void ath10k_tx(struct ieee80211_hw *hw,
 		}
 	}
 
-	ath10k_mac_tx(ar, skb);
+	ath10k_mac_tx(ar, txmode, skb);
 }
 
 /* Must not be called with conf_mutex held as workers can use that also. */
