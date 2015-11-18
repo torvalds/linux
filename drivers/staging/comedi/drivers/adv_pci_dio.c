@@ -67,7 +67,8 @@ enum hw_cards_id {
 /* PCI-1754, PCI-1756 interrupt control registers */
 #define PCI1754_INT_REG(x)	(0x08 + (x) * 2) /* R/W: control group 0 to 3 */
 
-#define PCI1752_6_CFC	0x12	/* R/W: set/read channel freeze function */
+/* PCI-1752, PCI-1756 special registers */
+#define PCI1752_CFC_REG		0x12	/* R/W: channel freeze function */
 
 /*  Advantech PCI-1762 registers */
 #define PCI1762_ICR	   6	/* W:   Interrupt control register */
@@ -286,7 +287,7 @@ static int pci_dio_reset(struct comedi_device *dev)
 
 	/* disable channel freeze function on the PCI-1752/1756 boards */
 	if (board->cardtype == TYPE_PCI1752 || board->cardtype == TYPE_PCI1756)
-		outw(0, dev->iobase + PCI1752_6_CFC);
+		outw(0, dev->iobase + PCI1752_CFC_REG);
 
 	/* disable and clear interrupts */
 	switch (board->cardtype) {
