@@ -115,6 +115,11 @@
 		renesas,groups = "eth_link_b", "eth_mdio_b", "eth_rmii_b";
 		renesas,function = "eth";
 	};
+
+	i2c1_pins: i2c1 {
+		renesas,groups = "i2c1";
+		renesas,function = "i2c1";
+	};
 };
 
 &cmt0 {
@@ -132,6 +137,14 @@
 		interrupts = <8 IRQ_TYPE_LEVEL_LOW>;
 		micrel,led-mode = <1>;
 	};
+};
+
+&i2c1 {
+	pinctrl-0 = <&i2c1_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+	clock-frequency = <400000>;
 };
 
 &scif2 {
