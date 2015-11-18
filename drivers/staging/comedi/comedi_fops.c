@@ -2420,10 +2420,15 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 		 * sufficient (unless there have been 2**32 detaches in the
 		 * meantime!), but check the subdevice pointer as well just in
 		 * case.
+		 *
+		 * Also check the subdevice is still in a suitable state to
+		 * become non-busy in case it changed behind our back.
 		 */
 		new_s = comedi_file_write_subdevice(file);
 		if (dev->attached && old_detach_count == dev->detach_count &&
-		    s == new_s && new_s->async == async)
+		    s == new_s && new_s->async == async && s->busy == file &&
+		    (async->cmd.flags & CMDF_WRITE) &&
+		    !comedi_is_subdevice_running(s))
 			do_become_nonbusy(dev, s);
 		mutex_unlock(&dev->mutex);
 	}
