@@ -1390,18 +1390,32 @@ void pm_runtime_init(struct device *dev)
 }
 
 /**
+ * pm_runtime_reinit - Re-initialize runtime PM fields in given device object.
+ * @dev: Device object to re-initialize.
+ */
+void pm_runtime_reinit(struct device *dev)
+{
+	if (!pm_runtime_enabled(dev)) {
+		if (dev->power.runtime_status == RPM_ACTIVE)
+			pm_runtime_set_suspended(dev);
+		if (dev->power.irq_safe) {
+			spin_lock_irq(&dev->power.lock);
+			dev->power.irq_safe = 0;
+			spin_unlock_irq(&dev->power.lock);
+			if (dev->parent)
+				pm_runtime_put(dev->parent);
+		}
+	}
+}
+
+/**
  * pm_runtime_remove - Prepare for removing a device from device hierarchy.
  * @dev: Device object being removed from device hierarchy.
  */
 void pm_runtime_remove(struct device *dev)
 {
 	__pm_runtime_disable(dev, false);
-
-	/* Change the status back to 'suspended' to match the initial status. */
-	if (dev->power.runtime_status == RPM_ACTIVE)
-		pm_runtime_set_suspended(dev);
-	if (dev->power.irq_safe && dev->parent)
-		pm_runtime_put(dev->parent);
+	pm_runtime_reinit(dev);
 }
 
 /**
