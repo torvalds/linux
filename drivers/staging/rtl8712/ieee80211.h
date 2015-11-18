@@ -61,7 +61,6 @@
 #define IEEE_CRYPT_ERR_TX_KEY_SET_FAILED	6
 #define IEEE_CRYPT_ERR_CARD_CONF_FAILED		7
 
-
 #define	IEEE_CRYPT_ALG_NAME_LEN			16
 
 #define WPA_CIPHER_NONE				BIT(0)
@@ -69,8 +68,6 @@
 #define WPA_CIPHER_WEP104			BIT(2)
 #define WPA_CIPHER_TKIP				BIT(3)
 #define WPA_CIPHER_CCMP				BIT(4)
-
-
 
 #define WPA_SELECTOR_LEN			4
 #define RSN_HEADER_LEN				4
@@ -87,7 +84,6 @@ enum NETWORK_TYPE {
 	WIRELESS_11GN		= (WIRELESS_11G | WIRELESS_11N),
 	WIRELESS_11BGN		= (WIRELESS_11B | WIRELESS_11G | WIRELESS_11N),
 };
-
 
 struct ieee_param {
 	u32 cmd;
@@ -161,7 +157,6 @@ struct ieee80211_hdr_3addr {
 	u16 seq_ctl;
 } __packed;
 
-
 struct	ieee80211_hdr_qos {
 	u16 frame_ctl;
 	u16 duration_id;
@@ -190,7 +185,6 @@ struct eapol {
 	u8 type;
 	u16 length;
 } __packed;
-
 
 enum eap_type {
 	EAP_PACKET = 0,
@@ -331,13 +325,11 @@ struct ieee80211_snap_hdr {
 #define IEEE80211_DATA_HDR3_LEN 24
 #define IEEE80211_DATA_HDR4_LEN 30
 
-
 #define IEEE80211_STATMASK_SIGNAL (1<<0)
 #define IEEE80211_STATMASK_RSSI (1<<1)
 #define IEEE80211_STATMASK_NOISE (1<<2)
 #define IEEE80211_STATMASK_RATE (1<<3)
 #define IEEE80211_STATMASK_WEMASK 0x7
-
 
 #define IEEE80211_CCK_MODULATION    (1<<0)
 #define IEEE80211_OFDM_MODULATION   (1<<1)
@@ -347,7 +339,6 @@ struct ieee80211_snap_hdr {
 
 #define IEEE80211_CCK_RATE_LEN			4
 #define IEEE80211_NUM_OFDM_RATESLEN	8
-
 
 #define IEEE80211_CCK_RATE_1MB		        0x02
 #define IEEE80211_CCK_RATE_2MB		        0x04
@@ -400,9 +391,6 @@ struct ieee80211_snap_hdr {
 #define IEEE80211_NUM_OFDM_RATES	    8
 #define IEEE80211_NUM_CCK_RATES	            4
 #define IEEE80211_OFDM_SHIFT_MASK_A         4
-
-
-
 
 /* NOTE: This data is for statistical purposes; not all hardware provides this
  *       information for frames received.  Not setting these will not cause
