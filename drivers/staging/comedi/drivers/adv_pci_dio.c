@@ -53,8 +53,6 @@ enum hw_io_access {
 #define MAX_DIO_SUBDEVG	2	/* max number of DIO subdevices group per
 				 * card */
 
-#define PCIDIO_MAINREG	   2	/* main I/O region for all Advantech cards? */
-
 /* Register offset definitions */
 /*  Advantech PCI-1730/3/4 */
 #define PCI1730_IDI	   0	/* R:   Isolated digital input  0-15 */
@@ -83,7 +81,6 @@ enum hw_io_access {
 					 * interrupts */
 #define PCI1736_3_INT_CLR       0x10	/* R/W: clear interrupts */
 #define PCI1736_BOARDID    4	/* R:   Board I/D switch for 1736UP */
-#define PCI1736_MAINREG    0	/* Normal register (2) doesn't work */
 
 /* Advantech PCI-1739U */
 #define PCI1739_DIO	   0	/* R/W: begin of 8255 registers block */
@@ -144,7 +141,6 @@ struct diosubd_data {
 
 struct dio_boardtype {
 	const char *name;	/*  board name */
-	int main_pci_region;	/*  main I/O PCI region */
 	enum hw_cards_id cardtype;
 	int nsubdevs;
 	struct diosubd_data sdi[MAX_DI_SUBDEVS];	/*  DI chans */
@@ -158,7 +154,6 @@ struct dio_boardtype {
 static const struct dio_boardtype boardtypes[] = {
 	[TYPE_PCI1730] = {
 		.name		= "pci1730",
-		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1730,
 		.nsubdevs	= 5,
 		.sdi[0]		= { 16, PCI1730_DI, 2, 0, },
@@ -170,7 +165,6 @@ static const struct dio_boardtype boardtypes[] = {
 	},
 	[TYPE_PCI1733] = {
 		.name		= "pci1733",
-		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1733,
 		.nsubdevs	= 2,
 		.sdi[1]		= { 32, PCI1733_IDI, 4, 0, },
@@ -179,7 +173,6 @@ static const struct dio_boardtype boardtypes[] = {
 	},
 	[TYPE_PCI1734] = {
 		.name		= "pci1734",
-		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1734,
 		.nsubdevs	= 2,
 		.sdo[1]		= { 32, PCI1734_IDO, 4, 0, },
@@ -188,7 +181,6 @@ static const struct dio_boardtype boardtypes[] = {
 	},
 	[TYPE_PCI1735] = {
 		.name		= "pci1735",
-		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1735,
 		.nsubdevs	= 4,
 		.sdi[0]		= { 32, PCI1735_DI, 4, 0, },
@@ -199,7 +191,6 @@ static const struct dio_boardtype boardtypes[] = {
 	},
 	[TYPE_PCI1736] = {
 		.name		= "pci1736",
-		.main_pci_region = PCI1736_MAINREG,
 		.cardtype	= TYPE_PCI1736,
 		.nsubdevs	= 3,
 		.sdi[1]		= { 16, PCI1736_IDI, 2, 0, },
@@ -209,7 +200,6 @@ static const struct dio_boardtype boardtypes[] = {
 	},
 	[TYPE_PCI1739] = {
 		.name		= "pci1739",
-		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1739,
 		.nsubdevs	= 2,
 		.sdio[0]	= { 48, PCI1739_DIO, 2, 0, },
@@ -217,7 +207,6 @@ static const struct dio_boardtype boardtypes[] = {
 	},
 	[TYPE_PCI1750] = {
 		.name		= "pci1750",
-		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1750,
 		.nsubdevs	= 2,
 		.sdi[1]		= { 16, PCI1750_IDI, 2, 0, },
@@ -226,7 +215,6 @@ static const struct dio_boardtype boardtypes[] = {
 	},
 	[TYPE_PCI1751] = {
 		.name		= "pci1751",
-		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1751,
 		.nsubdevs	= 3,
 		.sdio[0]	= { 48, PCI1751_DIO, 2, 0, },
@@ -235,7 +223,6 @@ static const struct dio_boardtype boardtypes[] = {
 	},
 	[TYPE_PCI1752] = {
 		.name		= "pci1752",
-		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1752,
 		.nsubdevs	= 3,
 		.sdo[0]		= { 32, PCI1752_IDO, 2, 0, },
@@ -245,7 +232,6 @@ static const struct dio_boardtype boardtypes[] = {
 	},
 	[TYPE_PCI1753] = {
 		.name		= "pci1753",
-		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1753,
 		.nsubdevs	= 4,
 		.sdio[0]	= { 96, PCI1753_DIO, 4, 0, },
@@ -253,7 +239,6 @@ static const struct dio_boardtype boardtypes[] = {
 	},
 	[TYPE_PCI1753E] = {
 		.name		= "pci1753e",
-		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1753E,
 		.nsubdevs	= 8,
 		.sdio[0]	= { 96, PCI1753_DIO, 4, 0, },
@@ -262,7 +247,6 @@ static const struct dio_boardtype boardtypes[] = {
 	},
 	[TYPE_PCI1754] = {
 		.name		= "pci1754",
-		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1754,
 		.nsubdevs	= 3,
 		.sdi[0]		= { 32, PCI1754_IDI, 2, 0, },
@@ -272,7 +256,6 @@ static const struct dio_boardtype boardtypes[] = {
 	},
 	[TYPE_PCI1756] = {
 		.name		= "pci1756",
-		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1756,
 		.nsubdevs	= 3,
 		.sdi[1]		= { 32, PCI1756_IDI, 2, 0, },
@@ -282,7 +265,6 @@ static const struct dio_boardtype boardtypes[] = {
 	},
 	[TYPE_PCI1762] = {
 		.name		= "pci1762",
-		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1762,
 		.nsubdevs	= 3,
 		.sdi[1]		= { 16, PCI1762_IDI, 1, 0, },
@@ -525,14 +507,13 @@ static unsigned long pci_dio_override_cardtype(struct pci_dev *pcidev,
 		return cardtype;
 	if (pci_enable_device(pcidev) < 0)
 		return cardtype;
-	if (pci_request_region(pcidev, PCIDIO_MAINREG, "adv_pci_dio") == 0) {
+	if (pci_request_region(pcidev, 2, "adv_pci_dio") == 0) {
 		/*
 		 * This test is based on Advantech's "advdaq" driver source
 		 * (which declares its module licence as "GPL" although the
 		 * driver source does not include a "COPYING" file).
 		 */
-		unsigned long reg =
-			pci_resource_start(pcidev, PCIDIO_MAINREG) + 53;
+		unsigned long reg = pci_resource_start(pcidev, 2) + 53;
 
 		outb(0x05, reg);
 		if ((inb(reg) & 0x07) == 0x02) {
@@ -540,7 +521,7 @@ static unsigned long pci_dio_override_cardtype(struct pci_dev *pcidev,
 			if ((inb(reg) & 0x07) == 0x05)
 				cardtype = TYPE_PCI1753E;
 		}
-		pci_release_region(pcidev, PCIDIO_MAINREG);
+		pci_release_region(pcidev, 2);
 	}
 	pci_disable_device(pcidev);
 	return cardtype;
@@ -564,7 +545,10 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
-	dev->iobase = pci_resource_start(pcidev, board->main_pci_region);
+	if (board->cardtype == TYPE_PCI1736)
+		dev->iobase = pci_resource_start(pcidev, 0);
+	else
+		dev->iobase = pci_resource_start(pcidev, 2);
 
 	ret = comedi_alloc_subdevices(dev, board->nsubdevs);
 	if (ret)
