@@ -307,62 +307,50 @@ static int pci_dio_reset(struct comedi_device *dev)
 	if (board->cardtype == TYPE_PCI1752 || board->cardtype == TYPE_PCI1756)
 		outw(0, dev->iobase + PCI1752_6_CFC);
 
+	/* disable and clear interrupts */
 	switch (board->cardtype) {
 	case TYPE_PCI1730:
 	case TYPE_PCI1733:
-		/* disable interrupts */
 		outb(0, dev->iobase + PCI1730_3_INT_EN);
-		/* clear interrupts */
 		outb(0x0f, dev->iobase + PCI1730_3_INT_CLR);
-		/* set rising edge trigger */
 		outb(0, dev->iobase + PCI1730_3_INT_RF);
 		break;
 	case TYPE_PCI1736:
-		/* disable interrupts */
 		outb(0, dev->iobase + PCI1736_3_INT_EN);
-		/* clear interrupts */
 		outb(0x0f, dev->iobase + PCI1736_3_INT_CLR);
-		/* set rising edge trigger */
 		outb(0, dev->iobase + PCI1736_3_INT_RF);
 		break;
 	case TYPE_PCI1739:
-		/* disable & clear interrupts */
 		outb(0x88, dev->iobase + PCI1739_ICR);
 		break;
 	case TYPE_PCI1750:
 	case TYPE_PCI1751:
-		/* disable & clear interrupts */
 		outb(0x88, dev->iobase + PCI1750_ICR);
 		break;
 	case TYPE_PCI1753E:
-		outb(0x88, dev->iobase + PCI1753E_ICR0); /* disable & clear
-							  * interrupts */
+		outb(0x88, dev->iobase + PCI1753E_ICR0);
 		outb(0x80, dev->iobase + PCI1753E_ICR1);
 		outb(0x80, dev->iobase + PCI1753E_ICR2);
 		outb(0x80, dev->iobase + PCI1753E_ICR3);
 		/* fallthrough */
 	case TYPE_PCI1753:
-		outb(0x88, dev->iobase + PCI1753_ICR0); /* disable & clear
-							 * interrupts */
+		outb(0x88, dev->iobase + PCI1753_ICR0);
 		outb(0x80, dev->iobase + PCI1753_ICR1);
 		outb(0x80, dev->iobase + PCI1753_ICR2);
 		outb(0x80, dev->iobase + PCI1753_ICR3);
 		break;
 	case TYPE_PCI1754:
-		outw(0x08, dev->iobase + PCI1754_6_ICR0); /* disable and clear
-							   * interrupts */
+		outw(0x08, dev->iobase + PCI1754_6_ICR0);
 		outw(0x08, dev->iobase + PCI1754_6_ICR1);
 		outw(0x08, dev->iobase + PCI1754_ICR2);
 		outw(0x08, dev->iobase + PCI1754_ICR3);
 		break;
 	case TYPE_PCI1756:
-		outw(0x08, dev->iobase + PCI1754_6_ICR0); /* disable and clear
-							   * interrupts */
+		outw(0x08, dev->iobase + PCI1754_6_ICR0);
 		outw(0x08, dev->iobase + PCI1754_6_ICR1);
 		break;
 	case TYPE_PCI1762:
-		outw(0x0101, dev->iobase + PCI1762_ICR); /* disable & clear
-							  * interrupts */
+		outw(0x0101, dev->iobase + PCI1762_ICR);
 		break;
 	default:
 		break;
