@@ -12,8 +12,6 @@ obj-$(CONFIG_WLAN_VENDOR_MARVELL) += marvell/
 obj-$(CONFIG_WLAN_VENDOR_ST) += st/
 obj-$(CONFIG_WLAN_VENDOR_ZYDAS) += zydas/
 
-obj-$(CONFIG_HERMES)		+= orinoco/
-
 obj-$(CONFIG_PRISM54)		+= prism54/
 
 obj-$(CONFIG_WLAN)		+= realtek/
