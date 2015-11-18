@@ -695,7 +695,7 @@ enum ieee80211_state {
 #define IEEE_A            BIT(0)
 #define IEEE_B            BIT(1)
 #define IEEE_G            BIT(2)
-#define IEEE_MODE_MASK    (IEEE_A|IEEE_B|IEEE_G)
+#define IEEE_MODE_MASK    (IEEE_A | IEEE_B | IEEE_G)
 
 static inline int ieee80211_is_empty_essid(const char *essid, int essid_len)
 {
