@@ -93,12 +93,8 @@ struct ath10k_skb_cb {
 	dma_addr_t paddr;
 	u8 flags;
 	u8 eid;
+	u16 msdu_id;
 	struct ieee80211_vif *vif;
-
-	struct {
-		struct ath10k_htt_txbuf *txbuf;
-		u32 txbuf_paddr;
-	} __packed htt;
 } __packed;
 
 struct ath10k_skb_rxcb {
