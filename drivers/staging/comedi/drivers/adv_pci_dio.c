@@ -31,11 +31,6 @@
 #include "8255.h"
 #include "comedi_8254.h"
 
-#define MAX_DI_SUBDEVS	2	/* max number of DI subdevices per card */
-#define MAX_DO_SUBDEVS	2	/* max number of DO subdevices per card */
-#define MAX_DIO_SUBDEVG	2	/* max number of DIO subdevices group per
-				 * card */
-
 /*
  * Register offset definitions
  */
@@ -60,6 +55,11 @@
 
 /* PCI-1762 interrupt control registers */
 #define PCI1762_INT_REG		0x06	/* R/W: status/control */
+
+/* maximum number of subdevice descriptions in the boardinfo */
+#define PCI_DIO_MAX_DI_SUBDEVS	2	/* 2 x 8/16/32 input channels max */
+#define PCI_DIO_MAX_DO_SUBDEVS	2	/* 2 x 8/16/32 output channels max */
+#define PCI_DIO_MAX_DIO_SUBDEVG	2	/* 2 x any number of 8255 devices max */
 
 enum pci_dio_boardid {
 	TYPE_PCI1730,
@@ -86,9 +86,9 @@ struct diosubd_data {
 struct dio_boardtype {
 	const char *name;	/*  board name */
 	int nsubdevs;
-	struct diosubd_data sdi[MAX_DI_SUBDEVS];	/*  DI chans */
-	struct diosubd_data sdo[MAX_DO_SUBDEVS];	/*  DO chans */
-	struct diosubd_data sdio[MAX_DIO_SUBDEVG];	/*  DIO 8255 chans */
+	struct diosubd_data sdi[PCI_DIO_MAX_DI_SUBDEVS];
+	struct diosubd_data sdo[PCI_DIO_MAX_DO_SUBDEVS];
+	struct diosubd_data sdio[PCI_DIO_MAX_DIO_SUBDEVG];
 	unsigned long id_reg;
 	unsigned long timer_regbase;
 	unsigned int is_16bit:1;
@@ -385,7 +385,7 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	subdev = 0;
-	for (i = 0; i < MAX_DI_SUBDEVS; i++) {
+	for (i = 0; i < PCI_DIO_MAX_DI_SUBDEVS; i++) {
 		d = &board->sdi[i];
 		if (d->chans) {
 			s = &dev->subdevices[subdev++];
@@ -401,7 +401,7 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 		}
 	}
 
-	for (i = 0; i < MAX_DO_SUBDEVS; i++) {
+	for (i = 0; i < PCI_DIO_MAX_DO_SUBDEVS; i++) {
 		d = &board->sdo[i];
 		if (d->chans) {
 			s = &dev->subdevices[subdev++];
@@ -432,7 +432,7 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 		}
 	}
 
-	for (i = 0; i < MAX_DIO_SUBDEVG; i++) {
+	for (i = 0; i < PCI_DIO_MAX_DIO_SUBDEVG; i++) {
 		d = &board->sdio[i];
 		for (j = 0; j < d->chans; j++) {
 			s = &dev->subdevices[subdev++];
