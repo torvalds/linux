@@ -14,6 +14,7 @@
 #include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinmux.h>
@@ -693,16 +694,15 @@ static int pmic_gpio_probe(struct platform_device *pdev)
 	struct pmic_gpio_pad *pad, *pads;
 	struct pmic_gpio_state *state;
 	int ret, npins, i;
-	u32 res[2];
+	u32 reg;
 
-	ret = of_property_read_u32_array(dev->of_node, "reg", res, 2);
+	ret = of_property_read_u32(dev->of_node, "reg", &reg);
 	if (ret < 0) {
-		dev_err(dev, "missing base address and/or range");
+		dev_err(dev, "missing base address");
 		return ret;
 	}
 
-	npins = res[1] / PMIC_GPIO_ADDRESS_RANGE;
-
+	npins = of_irq_count(dev->of_node);
 	if (!npins)
 		return -EINVAL;
 
@@ -752,7 +752,7 @@ static int pmic_gpio_probe(struct platform_device *pdev)
 		if (pad->irq < 0)
 			return pad->irq;
 
-		pad->base = res[0] + i * PMIC_GPIO_ADDRESS_RANGE;
+		pad->base = reg + i * PMIC_GPIO_ADDRESS_RANGE;
 
 		ret = pmic_gpio_populate(state, pad);
 		if (ret < 0)
