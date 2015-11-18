@@ -532,6 +532,7 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct dio_boardtype *board = NULL;
+	const struct diosubd_data *d;
 	struct comedi_subdevice *s;
 	int ret, subdev, i, j;
 
@@ -555,32 +556,38 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	subdev = 0;
-	for (i = 0; i < MAX_DI_SUBDEVS; i++)
-		if (board->sdi[i].chans) {
+	for (i = 0; i < MAX_DI_SUBDEVS; i++) {
+		d = &board->sdi[i];
+		if (d->chans) {
 			s = &dev->subdevices[subdev++];
-			pci_dio_add_di(dev, s, &board->sdi[i]);
+			pci_dio_add_di(dev, s, d);
 		}
+	}
 
-	for (i = 0; i < MAX_DO_SUBDEVS; i++)
-		if (board->sdo[i].chans) {
+	for (i = 0; i < MAX_DO_SUBDEVS; i++) {
+		d = &board->sdo[i];
+		if (d->chans) {
 			s = &dev->subdevices[subdev++];
-			pci_dio_add_do(dev, s, &board->sdo[i]);
+			pci_dio_add_do(dev, s, d);
 		}
+	}
 
-	for (i = 0; i < MAX_DIO_SUBDEVG; i++)
-		for (j = 0; j < board->sdio[i].regs; j++) {
+	for (i = 0; i < MAX_DIO_SUBDEVG; i++) {
+		d = &board->sdio[i];
+		for (j = 0; j < d->regs; j++) {
 			s = &dev->subdevices[subdev++];
 			ret = subdev_8255_init(dev, s, NULL,
-					       board->sdio[i].addr +
-					       j * I8255_SIZE);
+					       d->addr + j * I8255_SIZE);
 			if (ret)
 				return ret;
 		}
+	}
 
-	if (board->boardid.chans) {
+	d = &board->boardid;
+	if (d->chans) {
 		s = &dev->subdevices[subdev++];
 		s->type = COMEDI_SUBD_DI;
-		pci_dio_add_di(dev, s, &board->boardid);
+		pci_dio_add_di(dev, s, d);
 	}
 
 	if (board->timer_regbase) {
