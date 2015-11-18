@@ -303,6 +303,10 @@ static int pci_dio_reset(struct comedi_device *dev)
 {
 	const struct dio_boardtype *board = dev->board_ptr;
 
+	/* disable channel freeze function on the PCI-1752/1756 boards */
+	if (board->cardtype == TYPE_PCI1752 || board->cardtype == TYPE_PCI1756)
+		outw(0, dev->iobase + PCI1752_6_CFC);
+
 	switch (board->cardtype) {
 	case TYPE_PCI1730:
 	case TYPE_PCI1733:
@@ -330,10 +334,6 @@ static int pci_dio_reset(struct comedi_device *dev)
 		/* disable & clear interrupts */
 		outb(0x88, dev->iobase + PCI1750_ICR);
 		break;
-	case TYPE_PCI1752:
-		outw(0, dev->iobase + PCI1752_6_CFC); /* disable channel freeze
-						       * function */
-		break;
 	case TYPE_PCI1753E:
 		outb(0x88, dev->iobase + PCI1753E_ICR0); /* disable & clear
 							  * interrupts */
@@ -356,8 +356,6 @@ static int pci_dio_reset(struct comedi_device *dev)
 		outw(0x08, dev->iobase + PCI1754_ICR3);
 		break;
 	case TYPE_PCI1756:
-		outw(0, dev->iobase + PCI1752_6_CFC); /* disable channel freeze
-						       * function */
 		outw(0x08, dev->iobase + PCI1754_6_ICR0); /* disable and clear
 							   * interrupts */
 		outw(0x08, dev->iobase + PCI1754_6_ICR1);
