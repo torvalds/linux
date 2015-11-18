@@ -1042,6 +1042,8 @@ int dso__load_sym(struct dso *dso, struct map *map,
 				}
 				curr_dso->symtab_type = dso->symtab_type;
 				map_groups__insert(kmaps, curr_map);
+				/* kmaps already got it */
+				map__put(curr_map);
 				dsos__add(&map->groups->machine->dsos, curr_dso);
 				dso__set_loaded(curr_dso, map->type);
 			} else
