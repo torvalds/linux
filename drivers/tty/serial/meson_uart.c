@@ -285,7 +285,7 @@ static void meson_uart_change_speed(struct uart_port *port, unsigned long baud)
 {
 	u32 val;
 
-	while (!(readl(port->membase + AML_UART_STATUS) & AML_UART_TX_EMPTY))
+	while (!meson_uart_tx_empty(port))
 		cpu_relax();
 
 	val = readl(port->membase + AML_UART_REG5);
