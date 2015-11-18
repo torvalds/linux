@@ -47,8 +47,11 @@ static int fsl_dcu_drm_plane_atomic_check(struct drm_plane *plane,
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_RGB565:
 	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_ARGB8888:
-	case DRM_FORMAT_BGRA4444:
+	case DRM_FORMAT_XRGB4444:
+	case DRM_FORMAT_ARGB4444:
+	case DRM_FORMAT_XRGB1555:
 	case DRM_FORMAT_ARGB1555:
 	case DRM_FORMAT_YUV422:
 		return 0;
@@ -81,7 +84,7 @@ static void fsl_dcu_drm_plane_atomic_update(struct drm_plane *plane,
 	struct drm_plane_state *state = plane->state;
 	struct drm_framebuffer *fb = plane->state->fb;
 	struct drm_gem_cma_object *gem;
-	unsigned int alpha, bpp;
+	unsigned int alpha = DCU_LAYER_AB_NONE, bpp;
 	int index;
 
 	if (!fb)
@@ -96,27 +99,30 @@ static void fsl_dcu_drm_plane_atomic_update(struct drm_plane *plane,
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_RGB565:
 		bpp = FSL_DCU_RGB565;
-		alpha = 0xff;
 		break;
 	case DRM_FORMAT_RGB888:
 		bpp = FSL_DCU_RGB888;
-		alpha = 0xff;
 		break;
 	case DRM_FORMAT_ARGB8888:
+		alpha = DCU_LAYER_AB_WHOLE_FRAME;
+		/* fall-through */
+	case DRM_FORMAT_XRGB8888:
 		bpp = FSL_DCU_ARGB8888;
-		alpha = 0xff;
 		break;
-	case DRM_FORMAT_BGRA4444:
+	case DRM_FORMAT_ARGB4444:
+		alpha = DCU_LAYER_AB_WHOLE_FRAME;
+		/* fall-through */
+	case DRM_FORMAT_XRGB4444:
 		bpp = FSL_DCU_ARGB4444;
-		alpha = 0xff;
 		break;
 	case DRM_FORMAT_ARGB1555:
+		alpha = DCU_LAYER_AB_WHOLE_FRAME;
+		/* fall-through */
+	case DRM_FORMAT_XRGB1555:
 		bpp = FSL_DCU_ARGB1555;
-		alpha = 0xff;
 		break;
 	case DRM_FORMAT_YUV422:
 		bpp = FSL_DCU_YUV422;
-		alpha = 0xff;
 		break;
 	default:
 		return;
@@ -132,9 +138,9 @@ static void fsl_dcu_drm_plane_atomic_update(struct drm_plane *plane,
 		     DCU_CTRLDESCLN(index, 3), gem->paddr);
 	regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(index, 4),
 		     DCU_LAYER_EN |
-		     DCU_LAYER_TRANS(alpha) |
+		     DCU_LAYER_TRANS(0xff) |
 		     DCU_LAYER_BPP(bpp) |
-		     DCU_LAYER_AB(0));
+		     alpha);
 	regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(index, 5),
 		     DCU_LAYER_CKMAX_R(0xFF) |
 		     DCU_LAYER_CKMAX_G(0xFF) |
@@ -202,8 +208,11 @@ static const struct drm_plane_funcs fsl_dcu_drm_plane_funcs = {
 static const u32 fsl_dcu_drm_plane_formats[] = {
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_RGB888,
+	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_XRGB4444,
 	DRM_FORMAT_ARGB4444,
+	DRM_FORMAT_XRGB1555,
 	DRM_FORMAT_ARGB1555,
 	DRM_FORMAT_YUV422,
 };
