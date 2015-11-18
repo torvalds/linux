@@ -108,7 +108,7 @@ static ssize_t flash_strobe_store(struct device *dev,
 	if (ret)
 		goto unlock;
 
-	if (state < 0 || state > 1) {
+	if (state > 1) {
 		ret = -EINVAL;
 		goto unlock;
 	}
