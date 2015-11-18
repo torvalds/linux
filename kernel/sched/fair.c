@@ -5058,8 +5058,7 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 /*
  * Called immediately before a task is migrated to a new cpu; task_cpu(p) and
  * cfs_rq_of(p) references at time of call are still valid and identify the
- * previous cpu.  However, the caller only guarantees p->pi_lock is held; no
- * other assumptions, including the state of rq->lock, should be made.
+ * previous cpu. The caller guarantees p->pi_lock or task_rq(p)->lock is held.
  */
 static void migrate_task_rq_fair(struct task_struct *p)
 {
