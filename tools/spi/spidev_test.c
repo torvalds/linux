@@ -249,13 +249,30 @@ static void parse_opts(int argc, char *argv[])
 	}
 }
 
+static void transfer_escaped_string(int fd, char *str)
+{
+	size_t size = strlen(str + 1);
+	uint8_t *tx;
+	uint8_t *rx;
+
+	tx = malloc(size);
+	if (!tx)
+		pabort("can't allocate tx buffer");
+
+	rx = malloc(size);
+	if (!rx)
+		pabort("can't allocate rx buffer");
+
+	size = unescape((char *)tx, str, size);
+	transfer(fd, tx, rx, size);
+	free(rx);
+	free(tx);
+}
+
 int main(int argc, char *argv[])
 {
 	int ret = 0;
 	int fd;
-	uint8_t *tx;
-	uint8_t *rx;
-	int size;
 
 	parse_opts(argc, argv);
 
@@ -300,17 +317,10 @@ int main(int argc, char *argv[])
 	printf("bits per word: %d\n", bits);
 	printf("max speed: %d Hz (%d KHz)\n", speed, speed/1000);
 
-	if (input_tx) {
-		size = strlen(input_tx+1);
-		tx = malloc(size);
-		rx = malloc(size);
-		size = unescape((char *)tx, input_tx, size);
-		transfer(fd, tx, rx, size);
-		free(rx);
-		free(tx);
-	} else {
+	if (input_tx)
+		transfer_escaped_string(fd, input_tx);
+	else
 		transfer(fd, default_tx, default_rx, sizeof(default_tx));
-	}
 
 	close(fd);
 
