@@ -583,7 +583,7 @@ static unsigned long tegra30_input_freq[] = {
 	[5] = 38400000,
 	[8] = 12000000,
 	[9] = 48000000,
-	[12] = 260000000,
+	[12] = 26000000,
 };
 
 static struct tegra_devclk devclks[] __initdata = {

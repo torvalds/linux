@@ -625,7 +625,7 @@ static unsigned long tegra114_input_freq[] = {
 	[5] = 38400000,
 	[8] = 12000000,
 	[9] = 48000000,
-	[12] = 260000000,
+	[12] = 26000000,
 };
 
 #define MASK(x) (BIT(x) - 1)
