@@ -871,7 +871,6 @@ static void OV5640_stream_off(void)
 	ov5640_write_reg(0x4202, 0x0f);
 }
 
-
 static int OV5640_get_sysclk(void)
 {
 	 /* calculate sysclk */
@@ -1304,8 +1303,6 @@ static int ov5640_change_mode_exposure_calc(enum ov5640_frame_rate frame_rate,
 	}
 	OV5640_set_shutter(cap_shutter);
 
-	OV5640_stream_on();
-
 err:
 	return retval;
 }
@@ -1344,8 +1341,6 @@ static int ov5640_change_mode_direct(enum ov5640_frame_rate frame_rate,
 	retval = ov5640_download_firmware(pModeSetting, ArySize);
 	if (retval < 0)
 		goto err;
-
-	OV5640_stream_on();
 
 	OV5640_turn_on_AE_AG(1);
 
@@ -1757,9 +1752,19 @@ static int init_device(void)
 	return ret;
 }
 
+static int ov5640_s_stream(struct v4l2_subdev *sd, int enable)
+{
+	if (enable)
+		OV5640_stream_on();
+	else
+		OV5640_stream_off();
+	return 0;
+}
+
 static struct v4l2_subdev_video_ops ov5640_subdev_video_ops = {
 	.g_parm = ov5640_g_parm,
 	.s_parm = ov5640_s_parm,
+	.s_stream = ov5640_s_stream,
 
 	.s_mbus_fmt	= ov5640_s_fmt,
 	.g_mbus_fmt	= ov5640_g_fmt,

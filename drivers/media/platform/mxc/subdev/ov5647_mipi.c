@@ -1047,8 +1047,6 @@ static int ov5647_change_mode_exposure_calc(enum ov5647_frame_rate frame_rate,
 	}
 	ov5647_set_shutter(cap_shutter);
 
-	ov5647_stream_on();
-
 err:
 	return retval;
 }
@@ -1087,8 +1085,6 @@ static int ov5647_change_mode_direct(enum ov5647_frame_rate frame_rate,
 	retval = ov5647_download_firmware(pModeSetting, ArySize);
 	if (retval < 0)
 		goto err;
-
-	ov5647_stream_on();
 
 	ov5647_turn_on_AE_AG(1);
 
@@ -1503,9 +1499,19 @@ static int init_device(void)
 	return ret;
 }
 
+static int ov5647_s_stream(struct v4l2_subdev *sd, int enable)
+{
+	if (enable)
+		ov5647_stream_on();
+	else
+		ov5647_stream_off();
+	return 0;
+}
+
 static struct v4l2_subdev_video_ops ov5647_subdev_video_ops = {
 	.g_parm = ov5647_g_parm,
 	.s_parm = ov5647_s_parm,
+	.s_stream = ov5647_s_stream,
 
 	.s_mbus_fmt	= ov5647_s_fmt,
 	.g_mbus_fmt	= ov5647_g_fmt,

@@ -664,8 +664,10 @@ static int mipi_csis_s_stream(struct v4l2_subdev *mipi_sd, int enable)
 			goto unlock;
 		}
 		mipi_csis_start_stream(state);
+		v4l2_subdev_call(state->sensor_sd, video, s_stream, true);
 		state->flags |= ST_STREAMING;
 	} else {
+		v4l2_subdev_call(state->sensor_sd, video, s_stream, false);
 		mipi_csis_stop_stream(state);
 		state->flags &= ~ST_STREAMING;
 		if (debug > 0)
