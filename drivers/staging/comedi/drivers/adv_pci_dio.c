@@ -60,15 +60,9 @@ enum hw_cards_id {
 /* PCI-1739U, PCI-1750, PCI1751 interrupt control registers */
 #define PCI1750_INT_REG		0x20	/* R/W: status/control */
 
-/*  Advantech PCI-1751/3/3E */
-#define PCI1753_ICR0	  16	/* R/W: Interrupt control register group 0 */
-#define PCI1753_ICR1	  17	/* R/W: Interrupt control register group 1 */
-#define PCI1753_ICR2	  18	/* R/W: Interrupt control register group 2 */
-#define PCI1753_ICR3	  19	/* R/W: Interrupt control register group 3 */
-#define PCI1753E_ICR0	  48	/* R/W: Interrupt control register group 0 */
-#define PCI1753E_ICR1	  49	/* R/W: Interrupt control register group 1 */
-#define PCI1753E_ICR2	  50	/* R/W: Interrupt control register group 2 */
-#define PCI1753E_ICR3	  51	/* R/W: Interrupt control register group 3 */
+/* PCI-1753, PCI-1753E interrupt control registers */
+#define PCI1753_INT_REG(x)	(0x10 + (x)) /* R/W: control group 0 to 3 */
+#define PCI1753E_INT_REG(x)	(0x30 + (x)) /* R/W: control group 0 to 3 */
 
 /*  Advantech PCI-1752/4/6 */
 #define PCI1754_6_ICR0	0x08	/* R/W: Interrupt control register group 0 */
@@ -310,17 +304,18 @@ static int pci_dio_reset(struct comedi_device *dev)
 	case TYPE_PCI1751:
 		outb(0x88, dev->iobase + PCI1750_INT_REG);
 		break;
-	case TYPE_PCI1753E:
-		outb(0x88, dev->iobase + PCI1753E_ICR0);
-		outb(0x80, dev->iobase + PCI1753E_ICR1);
-		outb(0x80, dev->iobase + PCI1753E_ICR2);
-		outb(0x80, dev->iobase + PCI1753E_ICR3);
-		/* fallthrough */
 	case TYPE_PCI1753:
-		outb(0x88, dev->iobase + PCI1753_ICR0);
-		outb(0x80, dev->iobase + PCI1753_ICR1);
-		outb(0x80, dev->iobase + PCI1753_ICR2);
-		outb(0x80, dev->iobase + PCI1753_ICR3);
+	case TYPE_PCI1753E:
+		outb(0x88, dev->iobase + PCI1753_INT_REG(0));
+		outb(0x80, dev->iobase + PCI1753_INT_REG(1));
+		outb(0x80, dev->iobase + PCI1753_INT_REG(2));
+		outb(0x80, dev->iobase + PCI1753_INT_REG(3));
+		if (board->cardtype == TYPE_PCI1753E) {
+			outb(0x88, dev->iobase + PCI1753E_INT_REG(0));
+			outb(0x80, dev->iobase + PCI1753E_INT_REG(1));
+			outb(0x80, dev->iobase + PCI1753E_INT_REG(2));
+			outb(0x80, dev->iobase + PCI1753E_INT_REG(3));
+		}
 		break;
 	case TYPE_PCI1754:
 		outw(0x08, dev->iobase + PCI1754_6_ICR0);
