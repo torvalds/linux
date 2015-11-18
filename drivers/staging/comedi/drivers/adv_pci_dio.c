@@ -321,11 +321,6 @@ static int pci_dio_reset(struct comedi_device *dev)
 
 	switch (board->cardtype) {
 	case TYPE_PCI1730:
-		outb(0, dev->iobase + PCI1730_DO);	/*  clear outputs */
-		outb(0, dev->iobase + PCI1730_DO + 1);
-		outb(0, dev->iobase + PCI1730_IDO);
-		outb(0, dev->iobase + PCI1730_IDO + 1);
-		/* fallthrough */
 	case TYPE_PCI1733:
 		/* disable interrupts */
 		outb(0, dev->iobase + PCI1730_3_INT_EN);
@@ -335,21 +330,11 @@ static int pci_dio_reset(struct comedi_device *dev)
 		outb(0, dev->iobase + PCI1730_3_INT_RF);
 		break;
 	case TYPE_PCI1734:
-		outb(0, dev->iobase + PCI1734_IDO);	/*  clear outputs */
-		outb(0, dev->iobase + PCI1734_IDO + 1);
-		outb(0, dev->iobase + PCI1734_IDO + 2);
-		outb(0, dev->iobase + PCI1734_IDO + 3);
 		break;
 	case TYPE_PCI1735:
-		outb(0, dev->iobase + PCI1735_DO);	/*  clear outputs */
-		outb(0, dev->iobase + PCI1735_DO + 1);
-		outb(0, dev->iobase + PCI1735_DO + 2);
-		outb(0, dev->iobase + PCI1735_DO + 3);
 		break;
 
 	case TYPE_PCI1736:
-		outb(0, dev->iobase + PCI1736_IDO);
-		outb(0, dev->iobase + PCI1736_IDO + 1);
 		/* disable interrupts */
 		outb(0, dev->iobase + PCI1736_3_INT_EN);
 		/* clear interrupts */
@@ -371,10 +356,6 @@ static int pci_dio_reset(struct comedi_device *dev)
 	case TYPE_PCI1752:
 		outw(0, dev->iobase + PCI1752_6_CFC); /* disable channel freeze
 						       * function */
-		outw(0, dev->iobase + PCI1752_IDO);	/*  clear outputs */
-		outw(0, dev->iobase + PCI1752_IDO + 2);
-		outw(0, dev->iobase + PCI1752_IDO2);
-		outw(0, dev->iobase + PCI1752_IDO2 + 2);
 		break;
 	case TYPE_PCI1753E:
 		outb(0x88, dev->iobase + PCI1753E_ICR0); /* disable & clear
@@ -403,8 +384,6 @@ static int pci_dio_reset(struct comedi_device *dev)
 		outw(0x08, dev->iobase + PCI1754_6_ICR0); /* disable and clear
 							   * interrupts */
 		outw(0x08, dev->iobase + PCI1754_6_ICR1);
-		outw(0, dev->iobase + PCI1756_IDO);	/*  clear outputs */
-		outw(0, dev->iobase + PCI1756_IDO + 2);
 		break;
 	case TYPE_PCI1762:
 		outw(0x0101, dev->iobase + PCI1762_ICR); /* disable & clear
@@ -507,6 +486,21 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 						? pci_dio_insn_bits_do_w
 						: pci_dio_insn_bits_do_b;
 			s->private	= (void *)d->addr;
+
+			/* reset all outputs to 0 */
+			if (board->is_16bit) {
+				outw(0, dev->iobase + d->addr);
+				if (s->n_chan > 16)
+					outw(0, dev->iobase + d->addr + 2);
+			} else {
+				outb(0, dev->iobase + d->addr);
+				if (s->n_chan > 8)
+					outb(0, dev->iobase + d->addr + 1);
+				if (s->n_chan > 16)
+					outb(0, dev->iobase + d->addr + 2);
+				if (s->n_chan > 24)
+					outb(0, dev->iobase + d->addr + 3);
+			}
 		}
 	}
 
