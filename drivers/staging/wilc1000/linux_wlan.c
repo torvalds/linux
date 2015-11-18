@@ -245,7 +245,7 @@ static void deinit_irq(struct net_device *dev)
 	}
 }
 
-void wilc_dbg(struct wilc *wilc, u8 *buff)
+void wilc_dbg(u8 *buff)
 {
 	PRINT_D(INIT_DBG, "%d\n", *buff);
 }
