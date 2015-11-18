@@ -549,7 +549,8 @@ static ssize_t _name##_store(struct config_item *item, const char *page,\
 		size_t count)						\
 {									\
 	printk_once(KERN_WARNING					\
-		"ignoring deprecated ##_name## attribute\n");	\
+		"ignoring deprecated %s attribute\n",			\
+		__stringify(_name));					\
 	return count;							\
 }
 
