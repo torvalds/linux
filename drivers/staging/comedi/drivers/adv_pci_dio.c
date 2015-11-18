@@ -298,9 +298,6 @@ static const struct dio_boardtype boardtypes[] = {
 	},
 };
 
-/*
-==============================================================================
-*/
 static int pci_dio_insn_bits_di_b(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data)
@@ -315,9 +312,6 @@ static int pci_dio_insn_bits_di_b(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-==============================================================================
-*/
 static int pci_dio_insn_bits_di_w(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data)
@@ -497,9 +491,6 @@ static int pci_dio_add_di(struct comedi_device *dev,
 	return 0;
 }
 
-/*
-==============================================================================
-*/
 static int pci_dio_add_do(struct comedi_device *dev,
 			  struct comedi_subdevice *s,
 			  const struct diosubd_data *d)
