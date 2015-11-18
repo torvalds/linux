@@ -3843,6 +3843,7 @@ s32 wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 		result = -ENOMEM;
 		goto _fail_;
 	}
+	hif_drv->wilc = wilc;
 	*hif_drv_handler = hif_drv;
 	err = add_handler_in_list(hif_drv);
 	if (err) {
