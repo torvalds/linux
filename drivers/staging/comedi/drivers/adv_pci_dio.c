@@ -43,11 +43,6 @@ enum hw_cards_id {
 	TYPE_PCI1762
 };
 
-/* which I/O instructions to use */
-enum hw_io_access {
-	IO_8b, IO_16b
-};
-
 #define MAX_DI_SUBDEVS	2	/* max number of DI subdevices per card */
 #define MAX_DO_SUBDEVS	2	/* max number of DO subdevices per card */
 #define MAX_DIO_SUBDEVG	2	/* max number of DIO subdevices group per
@@ -147,7 +142,7 @@ struct dio_boardtype {
 	struct diosubd_data sdio[MAX_DIO_SUBDEVG];	/*  DIO 8255 chans */
 	struct diosubd_data boardid;	/*  card supports board ID switch */
 	unsigned long timer_regbase;
-	enum hw_io_access io_access;
+	unsigned int is_16bit:1;
 };
 
 static const struct dio_boardtype boardtypes[] = {
@@ -160,7 +155,6 @@ static const struct dio_boardtype boardtypes[] = {
 		.sdo[0]		= { 16, PCI1730_DO, 2, },
 		.sdo[1]		= { 16, PCI1730_IDO, 2, },
 		.boardid	= { 4, PCI173x_BOARDID, 1, },
-		.io_access	= IO_8b,
 	},
 	[TYPE_PCI1733] = {
 		.name		= "pci1733",
@@ -168,7 +162,6 @@ static const struct dio_boardtype boardtypes[] = {
 		.nsubdevs	= 2,
 		.sdi[1]		= { 32, PCI1733_IDI, 4, },
 		.boardid	= { 4, PCI173x_BOARDID, 1, },
-		.io_access	= IO_8b,
 	},
 	[TYPE_PCI1734] = {
 		.name		= "pci1734",
@@ -176,7 +169,6 @@ static const struct dio_boardtype boardtypes[] = {
 		.nsubdevs	= 2,
 		.sdo[1]		= { 32, PCI1734_IDO, 4, },
 		.boardid	= { 4, PCI173x_BOARDID, 1, },
-		.io_access	= IO_8b,
 	},
 	[TYPE_PCI1735] = {
 		.name		= "pci1735",
@@ -186,7 +178,6 @@ static const struct dio_boardtype boardtypes[] = {
 		.sdo[0]		= { 32, PCI1735_DO, 4, },
 		.boardid	= { 4, PCI1735_BOARDID, 1, },
 		.timer_regbase	= PCI1735_C8254,
-		.io_access	= IO_8b,
 	},
 	[TYPE_PCI1736] = {
 		.name		= "pci1736",
@@ -195,14 +186,12 @@ static const struct dio_boardtype boardtypes[] = {
 		.sdi[1]		= { 16, PCI1736_IDI, 2, },
 		.sdo[1]		= { 16, PCI1736_IDO, 2, },
 		.boardid	= { 4, PCI1736_BOARDID, 1, },
-		.io_access	= IO_8b,
 	},
 	[TYPE_PCI1739] = {
 		.name		= "pci1739",
 		.cardtype	= TYPE_PCI1739,
 		.nsubdevs	= 2,
 		.sdio[0]	= { 48, PCI1739_DIO, 2, },
-		.io_access	= IO_8b,
 	},
 	[TYPE_PCI1750] = {
 		.name		= "pci1750",
@@ -210,7 +199,6 @@ static const struct dio_boardtype boardtypes[] = {
 		.nsubdevs	= 2,
 		.sdi[1]		= { 16, PCI1750_IDI, 2, },
 		.sdo[1]		= { 16, PCI1750_IDO, 2, },
-		.io_access	= IO_8b,
 	},
 	[TYPE_PCI1751] = {
 		.name		= "pci1751",
@@ -218,7 +206,6 @@ static const struct dio_boardtype boardtypes[] = {
 		.nsubdevs	= 3,
 		.sdio[0]	= { 48, PCI1751_DIO, 2, },
 		.timer_regbase	= PCI1751_CNT,
-		.io_access	= IO_8b,
 	},
 	[TYPE_PCI1752] = {
 		.name		= "pci1752",
@@ -227,14 +214,13 @@ static const struct dio_boardtype boardtypes[] = {
 		.sdo[0]		= { 32, PCI1752_IDO, 2, },
 		.sdo[1]		= { 32, PCI1752_IDO2, 2, },
 		.boardid	= { 4, PCI175x_BOARDID, 1, },
-		.io_access	= IO_16b,
+		.is_16bit	= 1,
 	},
 	[TYPE_PCI1753] = {
 		.name		= "pci1753",
 		.cardtype	= TYPE_PCI1753,
 		.nsubdevs	= 4,
 		.sdio[0]	= { 96, PCI1753_DIO, 4, },
-		.io_access	= IO_8b,
 	},
 	[TYPE_PCI1753E] = {
 		.name		= "pci1753e",
@@ -242,7 +228,6 @@ static const struct dio_boardtype boardtypes[] = {
 		.nsubdevs	= 8,
 		.sdio[0]	= { 96, PCI1753_DIO, 4, },
 		.sdio[1]	= { 96, PCI1753E_DIO, 4, },
-		.io_access	= IO_8b,
 	},
 	[TYPE_PCI1754] = {
 		.name		= "pci1754",
@@ -251,7 +236,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.sdi[0]		= { 32, PCI1754_IDI, 2, },
 		.sdi[1]		= { 32, PCI1754_IDI2, 2, },
 		.boardid	= { 4, PCI175x_BOARDID, 1, },
-		.io_access	= IO_16b,
+		.is_16bit	= 1,
 	},
 	[TYPE_PCI1756] = {
 		.name		= "pci1756",
@@ -260,7 +245,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.sdi[1]		= { 32, PCI1756_IDI, 2, },
 		.sdo[1]		= { 32, PCI1756_IDO, 2, },
 		.boardid	= { 4, PCI175x_BOARDID, 1, },
-		.io_access	= IO_16b,
+		.is_16bit	= 1,
 	},
 	[TYPE_PCI1762] = {
 		.name		= "pci1762",
@@ -269,7 +254,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.sdi[1]		= { 16, PCI1762_IDI, 1, },
 		.sdo[1]		= { 16, PCI1762_RO, 1, },
 		.boardid	= { 4, PCI1762_BOARDID, 1, },
-		.io_access	= IO_16b,
+		.is_16bit	= 1,
 	},
 };
 
@@ -509,14 +494,9 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 			s->n_chan	= d->chans;
 			s->maxdata	= 1;
 			s->range_table	= &range_digital;
-			switch (board->io_access) {
-			case IO_8b:
-				s->insn_bits	= pci_dio_insn_bits_di_b;
-				break;
-			case IO_16b:
-				s->insn_bits	= pci_dio_insn_bits_di_w;
-			break;
-			}
+			s->insn_bits	= board->is_16bit
+						? pci_dio_insn_bits_di_w
+						: pci_dio_insn_bits_di_b;
 			s->private	= (void *)d;
 		}
 	}
@@ -530,14 +510,9 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 			s->n_chan	= d->chans;
 			s->maxdata	= 1;
 			s->range_table	= &range_digital;
-			switch (board->io_access) {
-			case IO_8b:
-				s->insn_bits	= pci_dio_insn_bits_do_b;
-				break;
-			case IO_16b:
-				s->insn_bits	= pci_dio_insn_bits_do_w;
-				break;
-			}
+			s->insn_bits	= board->is_16bit
+						? pci_dio_insn_bits_do_w
+						: pci_dio_insn_bits_do_b;
 			s->private	= (void *)d;
 		}
 	}
@@ -561,14 +536,8 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 		s->n_chan	= d->chans;
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
-		switch (board->io_access) {
-		case IO_8b:
-			s->insn_bits	= pci_dio_insn_bits_di_b;
-			break;
-		case IO_16b:
-			s->insn_bits	= pci_dio_insn_bits_di_w;
-		break;
-		}
+		s->insn_bits	= board->is_16bit ? pci_dio_insn_bits_di_w
+						  : pci_dio_insn_bits_di_b;
 		s->private	= (void *)d;
 	}
 
