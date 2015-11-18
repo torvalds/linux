@@ -86,16 +86,16 @@ enum ath10k_skb_flags {
 	ATH10K_SKB_F_DTIM_ZERO = BIT(1),
 	ATH10K_SKB_F_DELIVER_CAB = BIT(2),
 	ATH10K_SKB_F_MGMT = BIT(3),
+	ATH10K_SKB_F_QOS = BIT(4),
 };
 
 struct ath10k_skb_cb {
 	dma_addr_t paddr;
 	u8 flags;
 	u8 eid;
-	u8 vdev_id;
+	struct ieee80211_vif *vif;
 
 	struct {
-		u8 tid;
 		struct ath10k_htt_txbuf *txbuf;
 		u32 txbuf_paddr;
 	} __packed htt;

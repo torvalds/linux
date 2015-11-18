@@ -439,6 +439,35 @@ int ath10k_htt_h2t_aggr_cfg_msg(struct ath10k_htt *htt,
 	return 0;
 }
 
+static u8 ath10k_htt_tx_get_vdev_id(struct ath10k *ar, struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ath10k_skb_cb *cb = ATH10K_SKB_CB(skb);
+	struct ath10k_vif *arvif = (void *)cb->vif->drv_priv;
+
+	if (info->flags & IEEE80211_TX_CTL_TX_OFFCHAN)
+		return ar->scan.vdev_id;
+	else if (cb->vif)
+		return arvif->vdev_id;
+	else if (ar->monitor_started)
+		return ar->monitor_vdev_id;
+	else
+		return 0;
+}
+
+static u8 ath10k_htt_tx_get_tid(struct sk_buff *skb, bool is_eth)
+{
+	struct ieee80211_hdr *hdr = (void *)skb->data;
+	struct ath10k_skb_cb *cb = ATH10K_SKB_CB(skb);
+
+	if (!is_eth && ieee80211_is_mgmt(hdr->frame_control))
+		return HTT_DATA_TX_EXT_TID_MGMT;
+	else if (cb->flags & ATH10K_SKB_F_QOS)
+		return skb->priority % IEEE80211_QOS_CTL_TID_MASK;
+	else
+		return HTT_DATA_TX_EXT_TID_NON_QOS_MCAST_BCAST;
+}
+
 int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 {
 	struct ath10k *ar = htt->ar;
@@ -446,7 +475,7 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	struct sk_buff *txdesc = NULL;
 	struct htt_cmd *cmd;
 	struct ath10k_skb_cb *skb_cb = ATH10K_SKB_CB(msdu);
-	u8 vdev_id = skb_cb->vdev_id;
+	u8 vdev_id = ath10k_htt_tx_get_vdev_id(ar, msdu);
 	int len = 0;
 	int msdu_id = -1;
 	int res;
@@ -542,8 +571,9 @@ int ath10k_htt_tx(struct ath10k_htt *htt, enum ath10k_hw_txrx_mode txmode,
 	struct ath10k_skb_cb *skb_cb = ATH10K_SKB_CB(msdu);
 	struct ath10k_hif_sg_item sg_items[2];
 	struct htt_data_tx_desc_frag *frags;
-	u8 vdev_id = skb_cb->vdev_id;
-	u8 tid = skb_cb->htt.tid;
+	bool is_eth = (txmode == ATH10K_HW_TXRX_ETHERNET);
+	u8 vdev_id = ath10k_htt_tx_get_vdev_id(ar, msdu);
+	u8 tid = ath10k_htt_tx_get_tid(msdu, is_eth);
 	int prefetch_len;
 	int res;
 	u8 flags0 = 0;
