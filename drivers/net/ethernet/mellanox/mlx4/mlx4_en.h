@@ -660,11 +660,12 @@ static inline bool mlx4_en_cq_unlock_napi(struct mlx4_en_cq *cq)
 	return rc;
 }
 
-/* called from mlx4_en_low_latency_poll() */
+/* called from mlx4_en_low_latency_recv(), BH are disabled */
 static inline bool mlx4_en_cq_lock_poll(struct mlx4_en_cq *cq)
 {
 	int rc = true;
-	spin_lock_bh(&cq->poll_lock);
+
+	spin_lock(&cq->poll_lock);
 	if ((cq->state & MLX4_CQ_LOCKED)) {
 		struct net_device *dev = cq->dev;
 		struct mlx4_en_priv *priv = netdev_priv(dev);
@@ -676,7 +677,7 @@ static inline bool mlx4_en_cq_lock_poll(struct mlx4_en_cq *cq)
 	} else
 		/* preserve yield marks */
 		cq->state |= MLX4_EN_CQ_STATE_POLL;
-	spin_unlock_bh(&cq->poll_lock);
+	spin_unlock(&cq->poll_lock);
 	return rc;
 }
 
@@ -684,13 +685,14 @@ static inline bool mlx4_en_cq_lock_poll(struct mlx4_en_cq *cq)
 static inline bool mlx4_en_cq_unlock_poll(struct mlx4_en_cq *cq)
 {
 	int rc = false;
-	spin_lock_bh(&cq->poll_lock);
+
+	spin_lock(&cq->poll_lock);
 	WARN_ON(cq->state & (MLX4_EN_CQ_STATE_NAPI));
 
 	if (cq->state & MLX4_EN_CQ_STATE_POLL_YIELD)
 		rc = true;
 	cq->state = MLX4_EN_CQ_STATE_IDLE;
-	spin_unlock_bh(&cq->poll_lock);
+	spin_unlock(&cq->poll_lock);
 	return rc;
 }
 
