@@ -57,6 +57,7 @@
 #define AML_UART_RX_EMPTY		BIT(20)
 #define AML_UART_TX_FULL		BIT(21)
 #define AML_UART_TX_EMPTY		BIT(22)
+#define AML_UART_XMIT_BUSY		BIT(25)
 #define AML_UART_ERR			(AML_UART_PARITY_ERR | \
 					 AML_UART_FRAME_ERR  | \
 					 AML_UART_TX_FIFO_WERR)
@@ -100,7 +101,8 @@ static unsigned int meson_uart_tx_empty(struct uart_port *port)
 	u32 val;
 
 	val = readl(port->membase + AML_UART_STATUS);
-	return (val & AML_UART_TX_EMPTY) ? TIOCSER_TEMT : 0;
+	val &= (AML_UART_TX_EMPTY | AML_UART_XMIT_BUSY);
+	return (val == AML_UART_TX_EMPTY) ? TIOCSER_TEMT : 0;
 }
 
 static void meson_uart_stop_tx(struct uart_port *port)
