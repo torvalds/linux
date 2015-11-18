@@ -26,8 +26,8 @@ typedef struct {
 
 static wilc_sdio_t g_sdio;
 
-static int sdio_write_reg(u32 addr, u32 data);
-static int sdio_read_reg(u32 addr, u32 *data);
+static int sdio_write_reg(struct wilc *wilc, u32 addr, u32 data);
+static int sdio_read_reg(struct wilc *wilc, u32 addr, u32 *data);
 
 /********************************************
  *
@@ -35,7 +35,7 @@ static int sdio_read_reg(u32 addr, u32 *data);
  *
  ********************************************/
 
-static int sdio_set_func0_csa_address(u32 adr)
+static int sdio_set_func0_csa_address(struct wilc *wilc, u32 adr)
 {
 	sdio_cmd52_t cmd;
 
@@ -71,7 +71,7 @@ _fail_:
 	return 0;
 }
 
-static int sdio_set_func0_block_size(u32 block_size)
+static int sdio_set_func0_block_size(struct wilc *wilc, u32 block_size)
 {
 	sdio_cmd52_t cmd;
 
@@ -103,7 +103,7 @@ _fail_:
  *
  ********************************************/
 
-static int sdio_set_func1_block_size(u32 block_size)
+static int sdio_set_func1_block_size(struct wilc *wilc, u32 block_size)
 {
 	sdio_cmd52_t cmd;
 
@@ -128,7 +128,7 @@ _fail_:
 	return 0;
 }
 
-static int sdio_clear_int(void)
+static int sdio_clear_int(struct wilc *wilc)
 {
 	if (!g_sdio.irq_gpio) {
 		/* u32 sts; */
@@ -145,12 +145,12 @@ static int sdio_clear_int(void)
 	} else {
 		u32 reg;
 
-		if (!sdio_read_reg(WILC_HOST_RX_CTRL_0, &reg)) {
+		if (!sdio_read_reg(wilc, WILC_HOST_RX_CTRL_0, &reg)) {
 			g_sdio.dPrint(N_ERR, "[wilc spi]: Failed read reg (%08x)...\n", WILC_HOST_RX_CTRL_0);
 			return 0;
 		}
 		reg &= ~0x1;
-		sdio_write_reg(WILC_HOST_RX_CTRL_0, reg);
+		sdio_write_reg(wilc, WILC_HOST_RX_CTRL_0, reg);
 		return 1;
 	}
 
@@ -161,7 +161,7 @@ static int sdio_clear_int(void)
  *      Sdio interfaces
  *
  ********************************************/
-static int sdio_write_reg(u32 addr, u32 data)
+static int sdio_write_reg(struct wilc *wilc, u32 addr, u32 data)
 {
 #ifdef BIG_ENDIAN
 	data = BYTE_SWAP(data);
@@ -185,7 +185,7 @@ static int sdio_write_reg(u32 addr, u32 data)
 		/**
 		 *      set the AHB address
 		 **/
-		if (!sdio_set_func0_csa_address(addr))
+		if (!sdio_set_func0_csa_address(wilc, addr))
 			goto _fail_;
 
 		cmd.read_write = 1;
@@ -210,7 +210,7 @@ _fail_:
 	return 0;
 }
 
-static int sdio_write(u32 addr, u8 *buf, u32 size)
+static int sdio_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 {
 	u32 block_size = g_sdio.block_size;
 	sdio_cmd53_t cmd;
@@ -257,7 +257,7 @@ static int sdio_write(u32 addr, u8 *buf, u32 size)
 		cmd.buffer = buf;
 		cmd.block_size = block_size;
 		if (addr > 0) {
-			if (!sdio_set_func0_csa_address(addr))
+			if (!sdio_set_func0_csa_address(wilc, addr))
 				goto _fail_;
 		}
 		if (!wilc_sdio_cmd53(&cmd)) {
@@ -278,7 +278,7 @@ static int sdio_write(u32 addr, u8 *buf, u32 size)
 		cmd.block_size = block_size; /* johnny : prevent it from setting unexpected value */
 
 		if (addr > 0) {
-			if (!sdio_set_func0_csa_address(addr))
+			if (!sdio_set_func0_csa_address(wilc, addr))
 				goto _fail_;
 		}
 		if (!wilc_sdio_cmd53(&cmd)) {
@@ -294,7 +294,7 @@ _fail_:
 	return 0;
 }
 
-static int sdio_read_reg(u32 addr, u32 *data)
+static int sdio_read_reg(struct wilc *wilc, u32 addr, u32 *data)
 {
 	if ((addr >= 0xf0) && (addr <= 0xff)) {
 		sdio_cmd52_t cmd;
@@ -311,7 +311,7 @@ static int sdio_read_reg(u32 addr, u32 *data)
 	} else {
 		sdio_cmd53_t cmd;
 
-		if (!sdio_set_func0_csa_address(addr))
+		if (!sdio_set_func0_csa_address(wilc, addr))
 			goto _fail_;
 
 		cmd.read_write = 0;
@@ -341,7 +341,7 @@ _fail_:
 	return 0;
 }
 
-static int sdio_read(u32 addr, u8 *buf, u32 size)
+static int sdio_read(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 {
 	u32 block_size = g_sdio.block_size;
 	sdio_cmd53_t cmd;
@@ -388,7 +388,7 @@ static int sdio_read(u32 addr, u8 *buf, u32 size)
 		cmd.buffer = buf;
 		cmd.block_size = block_size;
 		if (addr > 0) {
-			if (!sdio_set_func0_csa_address(addr))
+			if (!sdio_set_func0_csa_address(wilc, addr))
 				goto _fail_;
 		}
 		if (!wilc_sdio_cmd53(&cmd)) {
@@ -409,7 +409,7 @@ static int sdio_read(u32 addr, u8 *buf, u32 size)
 		cmd.block_size = block_size; /* johnny : prevent it from setting unexpected value */
 
 		if (addr > 0) {
-			if (!sdio_set_func0_csa_address(addr))
+			if (!sdio_set_func0_csa_address(wilc, addr))
 				goto _fail_;
 		}
 		if (!wilc_sdio_cmd53(&cmd)) {
@@ -431,25 +431,25 @@ _fail_:
  *
  ********************************************/
 
-static int sdio_deinit(void *pv)
+static int sdio_deinit(struct wilc *wilc)
 {
 	return 1;
 }
 
-static int sdio_sync(void)
+static int sdio_sync(struct wilc *wilc)
 {
 	u32 reg;
 
 	/**
 	 *      Disable power sequencer
 	 **/
-	if (!sdio_read_reg(WILC_MISC, &reg)) {
+	if (!sdio_read_reg(wilc, WILC_MISC, &reg)) {
 		g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed read misc reg...\n");
 		return 0;
 	}
 
 	reg &= ~BIT(8);
-	if (!sdio_write_reg(WILC_MISC, reg)) {
+	if (!sdio_write_reg(wilc, WILC_MISC, reg)) {
 		g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed write misc reg...\n");
 		return 0;
 	}
@@ -461,13 +461,13 @@ static int sdio_sync(void)
 		/**
 		 *      interrupt pin mux select
 		 **/
-		ret = sdio_read_reg(WILC_PIN_MUX_0, &reg);
+		ret = sdio_read_reg(wilc, WILC_PIN_MUX_0, &reg);
 		if (!ret) {
 			g_sdio.dPrint(N_ERR, "[wilc spi]: Failed read reg (%08x)...\n", WILC_PIN_MUX_0);
 			return 0;
 		}
 		reg |= BIT(8);
-		ret = sdio_write_reg(WILC_PIN_MUX_0, reg);
+		ret = sdio_write_reg(wilc, WILC_PIN_MUX_0, reg);
 		if (!ret) {
 			g_sdio.dPrint(N_ERR, "[wilc spi]: Failed write reg (%08x)...\n", WILC_PIN_MUX_0);
 			return 0;
@@ -476,13 +476,13 @@ static int sdio_sync(void)
 		/**
 		 *      interrupt enable
 		 **/
-		ret = sdio_read_reg(WILC_INTR_ENABLE, &reg);
+		ret = sdio_read_reg(wilc, WILC_INTR_ENABLE, &reg);
 		if (!ret) {
 			g_sdio.dPrint(N_ERR, "[wilc spi]: Failed read reg (%08x)...\n", WILC_INTR_ENABLE);
 			return 0;
 		}
 		reg |= BIT(16);
-		ret = sdio_write_reg(WILC_INTR_ENABLE, reg);
+		ret = sdio_write_reg(wilc, WILC_INTR_ENABLE, reg);
 		if (!ret) {
 			g_sdio.dPrint(N_ERR, "[wilc spi]: Failed write reg (%08x)...\n", WILC_INTR_ENABLE);
 			return 0;
@@ -526,7 +526,7 @@ static int sdio_init(struct wilc *wilc, wilc_debug_func func)
 	/**
 	 *      function 0 block size
 	 **/
-	if (!sdio_set_func0_block_size(WILC_SDIO_BLOCK_SIZE)) {
+	if (!sdio_set_func0_block_size(wilc, WILC_SDIO_BLOCK_SIZE)) {
 		g_sdio.dPrint(N_ERR, "[wilc sdio]: Fail cmd 52, set func 0 block size...\n");
 		goto _fail_;
 	}
@@ -571,7 +571,7 @@ static int sdio_init(struct wilc *wilc, wilc_debug_func func)
 	/**
 	 *      func 1 is ready, set func 1 block size
 	 **/
-	if (!sdio_set_func1_block_size(WILC_SDIO_BLOCK_SIZE)) {
+	if (!sdio_set_func1_block_size(wilc, WILC_SDIO_BLOCK_SIZE)) {
 		g_sdio.dPrint(N_ERR, "[wilc sdio]: Fail set func 1 block size...\n");
 		goto _fail_;
 	}
@@ -592,7 +592,7 @@ static int sdio_init(struct wilc *wilc, wilc_debug_func func)
 	/**
 	 *      make sure can read back chip id correctly
 	 **/
-	if (!sdio_read_reg(0x1000, &chipid)) {
+	if (!sdio_read_reg(wilc, 0x1000, &chipid)) {
 		g_sdio.dPrint(N_ERR, "[wilc sdio]: Fail cmd read chip id...\n");
 		goto _fail_;
 	}
@@ -610,7 +610,7 @@ _fail_:
 	return 0;
 }
 
-static int sdio_read_size(u32 *size)
+static int sdio_read_size(struct wilc *wilc, u32 *size)
 {
 
 	u32 tmp;
@@ -639,13 +639,13 @@ static int sdio_read_size(u32 *size)
 	return 1;
 }
 
-static int sdio_read_int(u32 *int_status)
+static int sdio_read_int(struct wilc *wilc, u32 *int_status)
 {
 
 	u32 tmp;
 	sdio_cmd52_t cmd;
 
-	sdio_read_size(&tmp);
+	sdio_read_size(wilc, &tmp);
 
 	/**
 	 *      Read IRQ flags
@@ -694,7 +694,7 @@ static int sdio_read_int(u32 *int_status)
 	return 1;
 }
 
-static int sdio_clear_int_ext(u32 val)
+static int sdio_clear_int_ext(struct wilc *wilc, u32 val)
 {
 	int ret;
 
@@ -812,7 +812,7 @@ _fail_:
 	return 0;
 }
 
-static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
+static int sdio_sync_ext(struct wilc *wilc, int nint)
 {
 	u32 reg;
 
@@ -830,13 +830,13 @@ static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
 	/**
 	 *      Disable power sequencer
 	 **/
-	if (!sdio_read_reg(WILC_MISC, &reg)) {
+	if (!sdio_read_reg(wilc, WILC_MISC, &reg)) {
 		g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed read misc reg...\n");
 		return 0;
 	}
 
 	reg &= ~BIT(8);
-	if (!sdio_write_reg(WILC_MISC, reg)) {
+	if (!sdio_write_reg(wilc, WILC_MISC, reg)) {
 		g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed write misc reg...\n");
 		return 0;
 	}
@@ -848,13 +848,13 @@ static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
 		/**
 		 *      interrupt pin mux select
 		 **/
-		ret = sdio_read_reg(WILC_PIN_MUX_0, &reg);
+		ret = sdio_read_reg(wilc, WILC_PIN_MUX_0, &reg);
 		if (!ret) {
 			g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed read reg (%08x)...\n", WILC_PIN_MUX_0);
 			return 0;
 		}
 		reg |= BIT(8);
-		ret = sdio_write_reg(WILC_PIN_MUX_0, reg);
+		ret = sdio_write_reg(wilc, WILC_PIN_MUX_0, reg);
 		if (!ret) {
 			g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed write reg (%08x)...\n", WILC_PIN_MUX_0);
 			return 0;
@@ -863,7 +863,7 @@ static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
 		/**
 		 *      interrupt enable
 		 **/
-		ret = sdio_read_reg(WILC_INTR_ENABLE, &reg);
+		ret = sdio_read_reg(wilc, WILC_INTR_ENABLE, &reg);
 		if (!ret) {
 			g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed read reg (%08x)...\n", WILC_INTR_ENABLE);
 			return 0;
@@ -871,13 +871,13 @@ static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
 
 		for (i = 0; (i < 5) && (nint > 0); i++, nint--)
 			reg |= BIT((27 + i));
-		ret = sdio_write_reg(WILC_INTR_ENABLE, reg);
+		ret = sdio_write_reg(wilc, WILC_INTR_ENABLE, reg);
 		if (!ret) {
 			g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed write reg (%08x)...\n", WILC_INTR_ENABLE);
 			return 0;
 		}
 		if (nint) {
-			ret = sdio_read_reg(WILC_INTR2_ENABLE, &reg);
+			ret = sdio_read_reg(wilc, WILC_INTR2_ENABLE, &reg);
 			if (!ret) {
 				g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed read reg (%08x)...\n", WILC_INTR2_ENABLE);
 				return 0;
@@ -886,7 +886,7 @@ static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
 			for (i = 0; (i < 3) && (nint > 0); i++, nint--)
 				reg |= BIT(i);
 
-			ret = sdio_read_reg(WILC_INTR2_ENABLE, &reg);
+			ret = sdio_read_reg(wilc, WILC_INTR2_ENABLE, &reg);
 			if (!ret) {
 				g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed write reg (%08x)...\n", WILC_INTR2_ENABLE);
 				return 0;
