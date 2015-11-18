@@ -823,7 +823,7 @@ static int _nbu2ss_out_dma(
 	u32		length
 )
 {
-	u8		*pBuffer;
+	dma_addr_t	pBuffer;
 	u32		mpkt;
 	u32		lmpkt;
 	u32		dmacnt;
@@ -836,7 +836,7 @@ static int _nbu2ss_out_dma(
 		return 1;		/* DMA is forwarded */
 
 	req->dma_flag = TRUE;
-	pBuffer = (u8 *)req->req.dma;
+	pBuffer = req->req.dma;
 	pBuffer += req->req.actual;
 
 	/* DMA Address */
@@ -1034,7 +1034,7 @@ static int _nbu2ss_in_dma(
 	u32		length
 )
 {
-	u8		*pBuffer;
+	dma_addr_t	pBuffer;
 	u32		mpkt;		/* MaxPacketSize */
 	u32		lmpkt;		/* Last Packet Data Size */
 	u32		dmacnt;		/* IN Data Size */
@@ -1080,7 +1080,7 @@ static int _nbu2ss_in_dma(
 	_nbu2ss_writel(&preg->EP_DCR[num].EP_DCR2, data);
 
 	/* Address setting */
-	pBuffer = (u8 *)req->req.dma;
+	pBuffer = req->req.dma;
 	pBuffer += req->req.actual;
 	_nbu2ss_writel(&preg->EP_DCR[num].EP_TADR, (u32)pBuffer);
 
@@ -2728,7 +2728,7 @@ static int nbu2ss_ep_queue(
 	spin_lock_irqsave(&udc->lock, flags);
 
 #ifdef USE_DMA
-	if ((u32)req->req.buf & 0x3)
+	if ((uintptr_t)req->req.buf & 0x3)
 		req->unaligned = TRUE;
 	else
 		req->unaligned = FALSE;
