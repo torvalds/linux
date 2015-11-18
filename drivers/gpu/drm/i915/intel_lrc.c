@@ -191,7 +191,7 @@
 #define GEN8_CTX_PRIVILEGE (1<<8)
 
 #define ASSIGN_CTX_REG(reg_state, pos, reg, val) do { \
-	(reg_state)[(pos)+0] = (reg); \
+	(reg_state)[(pos)+0] = i915_mmio_reg_offset(reg); \
 	(reg_state)[(pos)+1] = (val); \
 } while (0)
 
@@ -1124,7 +1124,7 @@ static int intel_logical_ring_workarounds_emit(struct drm_i915_gem_request *req)
 	} while (0)
 
 #define wa_ctx_emit_reg(batch, index, reg) \
-	wa_ctx_emit((batch), (index), (reg))
+	wa_ctx_emit((batch), (index), i915_mmio_reg_offset(reg))
 
 /*
  * In this WA we need to set GEN8_L3SQCREG4[21:21] and reset it after

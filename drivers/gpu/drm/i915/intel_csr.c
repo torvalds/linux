@@ -334,7 +334,7 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 				  dmc_header->mmioaddr[i]);
 			return NULL;
 		}
-		csr->mmioaddr[i] = dmc_header->mmioaddr[i];
+		csr->mmioaddr[i] = _MMIO(dmc_header->mmioaddr[i]);
 		csr->mmiodata[i] = dmc_header->mmiodata[i];
 	}
 

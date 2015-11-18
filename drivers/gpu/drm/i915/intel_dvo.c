@@ -178,7 +178,7 @@ static void intel_disable_dvo(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
-	u32 dvo_reg = intel_dvo->dev.dvo_reg;
+	i915_reg_t dvo_reg = intel_dvo->dev.dvo_reg;
 	u32 temp = I915_READ(dvo_reg);
 
 	intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, false);
@@ -191,7 +191,7 @@ static void intel_enable_dvo(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
-	u32 dvo_reg = intel_dvo->dev.dvo_reg;
+	i915_reg_t dvo_reg = intel_dvo->dev.dvo_reg;
 	u32 temp = I915_READ(dvo_reg);
 
 	intel_dvo->dev.dev_ops->mode_set(&intel_dvo->dev,
@@ -262,8 +262,8 @@ static void intel_dvo_pre_enable(struct intel_encoder *encoder)
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
 	int pipe = crtc->pipe;
 	u32 dvo_val;
-	u32 dvo_reg = intel_dvo->dev.dvo_reg;
-	u32 dvo_srcdim_reg = intel_dvo->dev.dvo_srcdim_reg;
+	i915_reg_t dvo_reg = intel_dvo->dev.dvo_reg;
+	i915_reg_t dvo_srcdim_reg = intel_dvo->dev.dvo_srcdim_reg;
 
 	/* Save the data order, since I don't know what it should be set to. */
 	dvo_val = I915_READ(dvo_reg) &

@@ -36,7 +36,7 @@
 
 struct gmbus_pin {
 	const char *name;
-	int reg;
+	i915_reg_t reg;
 };
 
 /* Map gmbus pin pairs to names and registers. */
@@ -96,7 +96,8 @@ bool intel_gmbus_is_valid_pin(struct drm_i915_private *dev_priv,
 	else
 		size = ARRAY_SIZE(gmbus_pins);
 
-	return pin < size && get_gmbus_pin(dev_priv, pin)->reg;
+	return pin < size &&
+		i915_mmio_reg_valid(get_gmbus_pin(dev_priv, pin)->reg);
 }
 
 /* Intel GPIO access functions */
@@ -240,9 +241,8 @@ intel_gpio_setup(struct intel_gmbus *bus, unsigned int pin)
 
 	algo = &bus->bit_algo;
 
-	bus->gpio_reg = dev_priv->gpio_mmio_base +
-		get_gmbus_pin(dev_priv, pin)->reg;
-
+	bus->gpio_reg = _MMIO(dev_priv->gpio_mmio_base +
+			      i915_mmio_reg_offset(get_gmbus_pin(dev_priv, pin)->reg));
 	bus->adapter.algo_data = algo;
 	algo->setsda = set_data;
 	algo->setscl = set_clock;
@@ -631,8 +631,10 @@ int intel_setup_gmbus(struct drm_device *dev)
 
 	if (IS_VALLEYVIEW(dev))
 		dev_priv->gpio_mmio_base = VLV_DISPLAY_BASE;
-	else if (!HAS_GMCH_DISPLAY(dev))
-		dev_priv->gpio_mmio_base = PCH_GPIOA - GPIOA;
+	else if (!HAS_GMCH_DISPLAY(dev_priv))
+		dev_priv->gpio_mmio_base =
+			i915_mmio_reg_offset(PCH_GPIOA) -
+			i915_mmio_reg_offset(GPIOA);
 
 	mutex_init(&dev_priv->gmbus_mutex);
 	init_waitqueue_head(&dev_priv->gmbus_wait_queue);

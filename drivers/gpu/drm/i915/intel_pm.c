@@ -3285,7 +3285,8 @@ static void skl_compute_wm_results(struct drm_device *dev,
 	r->wm_linetime[pipe] = p_wm->linetime;
 }
 
-static void skl_ddb_entry_write(struct drm_i915_private *dev_priv, uint32_t reg,
+static void skl_ddb_entry_write(struct drm_i915_private *dev_priv,
+				i915_reg_t reg,
 				const struct skl_ddb_entry *entry)
 {
 	if (entry->end)
@@ -3759,7 +3760,7 @@ static void ilk_pipe_wm_get_hw_state(struct drm_crtc *crtc)
 	struct intel_crtc_state *cstate = to_intel_crtc_state(crtc->state);
 	struct intel_pipe_wm *active = &cstate->wm.optimal.ilk;
 	enum pipe pipe = intel_crtc->pipe;
-	static const unsigned int wm0_pipe_reg[] = {
+	static const i915_reg_t wm0_pipe_reg[] = {
 		[PIPE_A] = WM0_PIPEA_ILK,
 		[PIPE_B] = WM0_PIPEB_ILK,
 		[PIPE_C] = WM0_PIPEC_IVB,

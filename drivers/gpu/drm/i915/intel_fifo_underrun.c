@@ -87,7 +87,7 @@ static bool cpt_can_enable_serr_int(struct drm_device *dev)
 static void i9xx_check_fifo_underruns(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	u32 reg = PIPESTAT(crtc->pipe);
+	i915_reg_t reg = PIPESTAT(crtc->pipe);
 	u32 pipestat = I915_READ(reg) & 0xffff0000;
 
 	assert_spin_locked(&dev_priv->irq_lock);
@@ -106,7 +106,7 @@ static void i9xx_set_fifo_underrun_reporting(struct drm_device *dev,
 					     bool enable, bool old)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 reg = PIPESTAT(pipe);
+	i915_reg_t reg = PIPESTAT(pipe);
 	u32 pipestat = I915_READ(reg) & 0xffff0000;
 
 	assert_spin_locked(&dev_priv->irq_lock);

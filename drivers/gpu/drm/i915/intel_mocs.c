@@ -159,7 +159,7 @@ static bool get_mocs_settings(struct drm_device *dev,
 	return result;
 }
 
-static uint32_t mocs_register(enum intel_ring_id ring, int index)
+static i915_reg_t mocs_register(enum intel_ring_id ring, int index)
 {
 	switch (ring) {
 	case RCS:
@@ -174,7 +174,7 @@ static uint32_t mocs_register(enum intel_ring_id ring, int index)
 		return GEN9_MFX1_MOCS(index);
 	default:
 		MISSING_CASE(ring);
-		return 0;
+		return INVALID_MMIO_REG;
 	}
 }
 

@@ -104,7 +104,7 @@ struct vgt_if {
 } __packed;
 
 #define vgtif_reg(x) \
-	(VGT_PVINFO_PAGE + (long)&((struct vgt_if *)NULL)->x)
+	_MMIO((VGT_PVINFO_PAGE + (long)&((struct vgt_if *)NULL)->x))
 
 /* vGPU display status to be used by the host side */
 #define VGT_DRV_DISPLAY_NOT_READY 0

@@ -1095,7 +1095,7 @@ enum transcoder intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
 static bool pipe_dsl_stopped(struct drm_device *dev, enum pipe pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 reg = PIPEDSL(pipe);
+	i915_reg_t reg = PIPEDSL(pipe);
 	u32 line1, line2;
 	u32 line_mask;
 
@@ -1135,7 +1135,7 @@ static void intel_wait_for_pipe_off(struct intel_crtc *crtc)
 	enum pipe pipe = crtc->pipe;
 
 	if (INTEL_INFO(dev)->gen >= 4) {
-		int reg = PIPECONF(cpu_transcoder);
+		i915_reg_t reg = PIPECONF(cpu_transcoder);
 
 		/* Wait for the Pipe State to go off */
 		if (wait_for((I915_READ(reg) & I965_PIPECONF_ACTIVE) == 0,
@@ -1285,7 +1285,7 @@ void assert_panel_unlocked(struct drm_i915_private *dev_priv,
 			   enum pipe pipe)
 {
 	struct drm_device *dev = dev_priv->dev;
-	int pp_reg;
+	i915_reg_t pp_reg;
 	u32 val;
 	enum pipe panel_pipe = PIPE_A;
 	bool locked = true;
@@ -1480,8 +1480,7 @@ static bool dp_pipe_enabled(struct drm_i915_private *dev_priv,
 		return false;
 
 	if (HAS_PCH_CPT(dev_priv->dev)) {
-		u32	trans_dp_ctl_reg = TRANS_DP_CTL(pipe);
-		u32	trans_dp_ctl = I915_READ(trans_dp_ctl_reg);
+		u32 trans_dp_ctl = I915_READ(TRANS_DP_CTL(pipe));
 		if ((trans_dp_ctl & TRANS_DP_PORT_SEL_MASK) != port_sel)
 			return false;
 	} else if (IS_CHERRYVIEW(dev_priv->dev)) {
@@ -1545,12 +1544,13 @@ static bool adpa_pipe_enabled(struct drm_i915_private *dev_priv,
 }
 
 static void assert_pch_dp_disabled(struct drm_i915_private *dev_priv,
-				   enum pipe pipe, int reg, u32 port_sel)
+				   enum pipe pipe, i915_reg_t reg,
+				   u32 port_sel)
 {
 	u32 val = I915_READ(reg);
 	I915_STATE_WARN(dp_pipe_enabled(dev_priv, pipe, port_sel, val),
 	     "PCH DP (0x%08x) enabled on transcoder %c, should be disabled\n",
-	     reg, pipe_name(pipe));
+	     i915_mmio_reg_offset(reg), pipe_name(pipe));
 
 	I915_STATE_WARN(HAS_PCH_IBX(dev_priv->dev) && (val & DP_PORT_EN) == 0
 	     && (val & DP_PIPEB_SELECT),
@@ -1558,12 +1558,12 @@ static void assert_pch_dp_disabled(struct drm_i915_private *dev_priv,
 }
 
 static void assert_pch_hdmi_disabled(struct drm_i915_private *dev_priv,
-				     enum pipe pipe, int reg)
+				     enum pipe pipe, i915_reg_t reg)
 {
 	u32 val = I915_READ(reg);
 	I915_STATE_WARN(hdmi_pipe_enabled(dev_priv, pipe, val),
 	     "PCH HDMI (0x%08x) enabled on transcoder %c, should be disabled\n",
-	     reg, pipe_name(pipe));
+	     i915_mmio_reg_offset(reg), pipe_name(pipe));
 
 	I915_STATE_WARN(HAS_PCH_IBX(dev_priv->dev) && (val & SDVO_ENABLE) == 0
 	     && (val & SDVO_PIPE_B_SELECT),
@@ -1599,7 +1599,7 @@ static void vlv_enable_pll(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int reg = DPLL(crtc->pipe);
+	i915_reg_t reg = DPLL(crtc->pipe);
 	u32 dpll = pipe_config->dpll_hw_state.dpll;
 
 	assert_pipe_disabled(dev_priv, crtc->pipe);
@@ -1688,7 +1688,7 @@ static void i9xx_enable_pll(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int reg = DPLL(crtc->pipe);
+	i915_reg_t reg = DPLL(crtc->pipe);
 	u32 dpll = crtc->config->dpll_hw_state.dpll;
 
 	assert_pipe_disabled(dev_priv, crtc->pipe);
@@ -1828,7 +1828,7 @@ void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 			 unsigned int expected_mask)
 {
 	u32 port_mask;
-	int dpll_reg;
+	i915_reg_t dpll_reg;
 
 	switch (dport->port) {
 	case PORT_B:
@@ -1953,7 +1953,8 @@ static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 	struct drm_device *dev = dev_priv->dev;
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	uint32_t reg, val, pipeconf_val;
+	i915_reg_t reg;
+	uint32_t val, pipeconf_val;
 
 	/* PCH only available on ILK+ */
 	BUG_ON(!HAS_PCH_SPLIT(dev));
@@ -2042,7 +2043,8 @@ static void ironlake_disable_pch_transcoder(struct drm_i915_private *dev_priv,
 					    enum pipe pipe)
 {
 	struct drm_device *dev = dev_priv->dev;
-	uint32_t reg, val;
+	i915_reg_t reg;
+	uint32_t val;
 
 	/* FDI relies on the transcoder */
 	assert_fdi_tx_disabled(dev_priv, pipe);
@@ -2099,7 +2101,7 @@ static void intel_enable_pipe(struct intel_crtc *crtc)
 	enum pipe pipe = crtc->pipe;
 	enum transcoder cpu_transcoder = crtc->config->cpu_transcoder;
 	enum pipe pch_transcoder;
-	int reg;
+	i915_reg_t reg;
 	u32 val;
 
 	DRM_DEBUG_KMS("enabling pipe %c\n", pipe_name(pipe));
@@ -2160,7 +2162,7 @@ static void intel_disable_pipe(struct intel_crtc *crtc)
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 	enum transcoder cpu_transcoder = crtc->config->cpu_transcoder;
 	enum pipe pipe = crtc->pipe;
-	int reg;
+	i915_reg_t reg;
 	u32 val;
 
 	DRM_DEBUG_KMS("disabling pipe %c\n", pipe_name(pipe));
@@ -2659,7 +2661,7 @@ static void i9xx_update_primary_plane(struct drm_crtc *crtc,
 	int plane = intel_crtc->plane;
 	unsigned long linear_offset;
 	u32 dspcntr;
-	u32 reg = DSPCNTR(plane);
+	i915_reg_t reg = DSPCNTR(plane);
 	int pixel_size;
 
 	if (!visible || !fb) {
@@ -2789,7 +2791,7 @@ static void ironlake_update_primary_plane(struct drm_crtc *crtc,
 	int plane = intel_crtc->plane;
 	unsigned long linear_offset;
 	u32 dspcntr;
-	u32 reg = DSPCNTR(plane);
+	i915_reg_t reg = DSPCNTR(plane);
 	int pixel_size;
 
 	if (!visible || !fb) {
@@ -3340,7 +3342,8 @@ static void intel_fdi_normal_train(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	u32 reg, temp;
+	i915_reg_t reg;
+	u32 temp;
 
 	/* enable normal train */
 	reg = FDI_TX_CTL(pipe);
@@ -3382,7 +3385,8 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	u32 reg, temp, tries;
+	i915_reg_t reg;
+	u32 temp, tries;
 
 	/* FDI needs bits from pipe first */
 	assert_pipe_enabled(dev_priv, pipe);
@@ -3482,7 +3486,8 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	u32 reg, temp, i, retry;
+	i915_reg_t reg;
+	u32 temp, i, retry;
 
 	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
 	   for train result */
@@ -3614,7 +3619,8 @@ static void ivb_manual_fdi_link_train(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	u32 reg, temp, i, j;
+	i915_reg_t reg;
+	u32 temp, i, j;
 
 	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
 	   for train result */
@@ -3731,8 +3737,8 @@ static void ironlake_fdi_pll_enable(struct intel_crtc *intel_crtc)
 	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe = intel_crtc->pipe;
-	u32 reg, temp;
-
+	i915_reg_t reg;
+	u32 temp;
 
 	/* enable PCH FDI RX PLL, wait warmup plus DMI latency */
 	reg = FDI_RX_CTL(pipe);
@@ -3768,7 +3774,8 @@ static void ironlake_fdi_pll_disable(struct intel_crtc *intel_crtc)
 	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe = intel_crtc->pipe;
-	u32 reg, temp;
+	i915_reg_t reg;
+	u32 temp;
 
 	/* Switch from PCDclk to Rawclk */
 	reg = FDI_RX_CTL(pipe);
@@ -3798,7 +3805,8 @@ static void ironlake_fdi_disable(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	u32 reg, temp;
+	i915_reg_t reg;
+	u32 temp;
 
 	/* disable CPU FDI tx and PCH FDI rx */
 	reg = FDI_TX_CTL(pipe);
@@ -4108,7 +4116,7 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	u32 reg, temp;
+	u32 temp;
 
 	assert_pch_transcoder_disabled(dev_priv, pipe);
 
@@ -4158,7 +4166,7 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 		const struct drm_display_mode *adjusted_mode =
 			&intel_crtc->config->base.adjusted_mode;
 		u32 bpc = (I915_READ(PIPECONF(pipe)) & PIPECONF_BPC_MASK) >> 5;
-		reg = TRANS_DP_CTL(pipe);
+		i915_reg_t reg = TRANS_DP_CTL(pipe);
 		temp = I915_READ(reg);
 		temp &= ~(TRANS_DP_PORT_SEL_MASK |
 			  TRANS_DP_SYNC_MASK |
@@ -4315,7 +4323,7 @@ static void intel_shared_dpll_commit(struct drm_atomic_state *state)
 static void cpt_verify_modeset(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int dslreg = PIPEDSL(pipe);
+	i915_reg_t dslreg = PIPEDSL(pipe);
 	u32 temp;
 
 	temp = I915_READ(dslreg);
@@ -4625,7 +4633,7 @@ static void intel_crtc_load_lut(struct drm_crtc *crtc)
 	}
 
 	for (i = 0; i < 256; i++) {
-		u32 palreg;
+		i915_reg_t palreg;
 
 		if (HAS_GMCH_DISPLAY(dev))
 			palreg = PALETTE(pipe, i);
@@ -5032,7 +5040,6 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
-	u32 reg, temp;
 
 	if (intel_crtc->config->has_pch_encoder)
 		intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, false);
@@ -5058,6 +5065,9 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 		ironlake_disable_pch_transcoder(dev_priv, pipe);
 
 		if (HAS_PCH_CPT(dev)) {
+			i915_reg_t reg;
+			u32 temp;
+
 			/* disable TRANS_DP_CTL */
 			reg = TRANS_DP_CTL(pipe);
 			temp = I915_READ(reg);
@@ -7413,7 +7423,7 @@ static void chv_prepare_pll(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe = crtc->pipe;
-	int dpll_reg = DPLL(crtc->pipe);
+	i915_reg_t dpll_reg = DPLL(crtc->pipe);
 	enum dpio_channel port = vlv_pipe_to_channel(pipe);
 	u32 loopfilter, tribuf_calcntr;
 	u32 bestn, bestm1, bestm2, bestp1, bestp2, bestm2_frac;
@@ -11226,10 +11236,9 @@ static void ilk_do_mmio_flip(struct intel_crtc *intel_crtc,
 	struct intel_framebuffer *intel_fb =
 		to_intel_framebuffer(intel_crtc->base.primary->fb);
 	struct drm_i915_gem_object *obj = intel_fb->obj;
+	i915_reg_t reg = DSPCNTR(intel_crtc->plane);
 	u32 dspcntr;
-	u32 reg;
 
-	reg = DSPCNTR(intel_crtc->plane);
 	dspcntr = I915_READ(reg);
 
 	if (obj->tiling_mode != I915_TILING_NONE)
@@ -14991,7 +15000,7 @@ static void i915_disable_vga(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u8 sr1;
-	u32 vga_reg = i915_vgacntrl_reg(dev);
+	i915_reg_t vga_reg = i915_vgacntrl_reg(dev);
 
 	/* WaEnableVGAAccessThroughIOPort:ctg,elk,ilk,snb,ivb,vlv,hsw */
 	vga_get_uninterruptible(dev->pdev, VGA_RSRC_LEGACY_IO);
@@ -15193,10 +15202,9 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 reg;
+	i915_reg_t reg = PIPECONF(crtc->config->cpu_transcoder);
 
 	/* Clear any frame start delays used for debugging left by the BIOS */
-	reg = PIPECONF(crtc->config->cpu_transcoder);
 	I915_WRITE(reg, I915_READ(reg) & ~PIPECONF_FRAME_START_DELAY_MASK);
 
 	/* restore vblank interrupts to correct state */
@@ -15350,7 +15358,7 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 void i915_redisable_vga_power_on(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 vga_reg = i915_vgacntrl_reg(dev);
+	i915_reg_t vga_reg = i915_vgacntrl_reg(dev);
 
 	if (!(I915_READ(vga_reg) & VGA_DISP_DISABLE)) {
 		DRM_DEBUG_KMS("Something enabled VGA plane, disabling it\n");

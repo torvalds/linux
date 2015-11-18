@@ -249,7 +249,7 @@ struct  intel_engine_cs {
 				/* our mbox written by others */
 				u32		wait[I915_NUM_RINGS];
 				/* mboxes this ring signals to */
-				u32		signal[I915_NUM_RINGS];
+				i915_reg_t	signal[I915_NUM_RINGS];
 			} mbox;
 			u64		signal_ggtt[I915_NUM_RINGS];
 		};
@@ -444,9 +444,9 @@ static inline void intel_ring_emit(struct intel_engine_cs *ring,
 	ringbuf->tail += 4;
 }
 static inline void intel_ring_emit_reg(struct intel_engine_cs *ring,
-				       u32 reg)
+				       i915_reg_t reg)
 {
-	intel_ring_emit(ring, reg);
+	intel_ring_emit(ring, i915_mmio_reg_offset(reg));
 }
 static inline void intel_ring_advance(struct intel_engine_cs *ring)
 {

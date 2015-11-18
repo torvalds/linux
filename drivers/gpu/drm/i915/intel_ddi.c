@@ -345,7 +345,7 @@ enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
 static bool
 intel_dig_port_supports_hdmi(const struct intel_digital_port *intel_dig_port)
 {
-	return intel_dig_port->hdmi.hdmi_reg;
+	return i915_mmio_reg_valid(intel_dig_port->hdmi.hdmi_reg);
 }
 
 static const struct ddi_buf_trans *skl_get_buf_trans_dp(struct drm_device *dev,
@@ -576,7 +576,7 @@ void intel_prepare_ddi(struct drm_device *dev)
 static void intel_wait_ddi_buf_idle(struct drm_i915_private *dev_priv,
 				    enum port port)
 {
-	uint32_t reg = DDI_BUF_CTL(port);
+	i915_reg_t reg = DDI_BUF_CTL(port);
 	int i;
 
 	for (i = 0; i < 16; i++) {
@@ -931,7 +931,8 @@ static void hsw_wrpll_update_rnp(uint64_t freq2k, unsigned budget,
 	/* Otherwise a < c && b >= d, do nothing */
 }
 
-static int hsw_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv, int reg)
+static int hsw_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv,
+				   i915_reg_t reg)
 {
 	int refclk = LC_FREQ;
 	int n, p, r;
@@ -967,7 +968,7 @@ static int hsw_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv, int reg)
 static int skl_calc_wrpll_link(struct drm_i915_private *dev_priv,
 			       uint32_t dpll)
 {
-	uint32_t cfgcr1_reg, cfgcr2_reg;
+	i915_reg_t cfgcr1_reg, cfgcr2_reg;
 	uint32_t cfgcr1_val, cfgcr2_val;
 	uint32_t p0, p1, p2, dco_freq;
 
@@ -1930,7 +1931,7 @@ void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc)
 void intel_ddi_disable_transcoder_func(struct drm_i915_private *dev_priv,
 				       enum transcoder cpu_transcoder)
 {
-	uint32_t reg = TRANS_DDI_FUNC_CTL(cpu_transcoder);
+	i915_reg_t reg = TRANS_DDI_FUNC_CTL(cpu_transcoder);
 	uint32_t val = I915_READ(reg);
 
 	val &= ~(TRANS_DDI_FUNC_ENABLE | TRANS_DDI_PORT_MASK | TRANS_DDI_DP_VC_PAYLOAD_ALLOC);
@@ -2507,7 +2508,7 @@ static const char * const skl_ddi_pll_names[] = {
 };
 
 struct skl_dpll_regs {
-	u32 ctl, cfgcr1, cfgcr2;
+	i915_reg_t ctl, cfgcr1, cfgcr2;
 };
 
 /* this array is indexed by the *shared* pll id */

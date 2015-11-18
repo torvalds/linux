@@ -407,7 +407,7 @@ static const struct drm_i915_cmd_table hsw_blt_ring_cmds[] = {
  * LRI.
  */
 struct drm_i915_reg_descriptor {
-	u32 addr;
+	i915_reg_t addr;
 	u32 mask;
 	u32 value;
 };
@@ -597,7 +597,7 @@ static bool check_sorted(int ring_id,
 	bool ret = true;
 
 	for (i = 0; i < reg_count; i++) {
-		u32 curr = reg_table[i].addr;
+		u32 curr = i915_mmio_reg_offset(reg_table[i].addr);
 
 		if (curr < previous) {
 			DRM_ERROR("CMD: table not sorted ring=%d entry=%d reg=0x%08X prev=0x%08X\n",
@@ -852,7 +852,7 @@ find_reg(const struct drm_i915_reg_descriptor *table,
 		int i;
 
 		for (i = 0; i < count; i++) {
-			if (table[i].addr == addr)
+			if (i915_mmio_reg_offset(table[i].addr) == addr)
 				return &table[i];
 		}
 	}
@@ -1028,7 +1028,7 @@ static bool check_cmd(const struct intel_engine_cs *ring,
 			 * to the register. Hence, limit OACONTROL writes to
 			 * only MI_LOAD_REGISTER_IMM commands.
 			 */
-			if (reg_addr == OACONTROL) {
+			if (reg_addr == i915_mmio_reg_offset(OACONTROL)) {
 				if (desc->cmd.value == MI_LOAD_REGISTER_MEM) {
 					DRM_DEBUG_DRIVER("CMD: Rejected LRM to OACONTROL\n");
 					return false;

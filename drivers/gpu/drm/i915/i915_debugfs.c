@@ -3267,7 +3267,8 @@ static int i915_wa_registers(struct seq_file *m, void *unused)
 
 	seq_printf(m, "Workarounds applied: %d\n", dev_priv->workarounds.count);
 	for (i = 0; i < dev_priv->workarounds.count; ++i) {
-		u32 addr, mask, value, read;
+		i915_reg_t addr;
+		u32 mask, value, read;
 		bool ok;
 
 		addr = dev_priv->workarounds.reg[i].addr;
@@ -3276,7 +3277,7 @@ static int i915_wa_registers(struct seq_file *m, void *unused)
 		read = I915_READ(addr);
 		ok = (value & mask) == (read & mask);
 		seq_printf(m, "0x%X: 0x%08X, mask: 0x%08X, read: 0x%08x, status: %s\n",
-			   addr, value, mask, read, ok ? "OK" : "FAIL");
+			   i915_mmio_reg_offset(addr), value, mask, read, ok ? "OK" : "FAIL");
 	}
 
 	intel_runtime_pm_put(dev_priv);

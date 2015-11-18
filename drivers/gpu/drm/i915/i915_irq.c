@@ -139,7 +139,8 @@ static const u32 hpd_bxt[HPD_NUM_PINS] = {
 /*
  * We should clear IMR at preinstall/uninstall, and just check at postinstall.
  */
-static void gen5_assert_iir_is_zero(struct drm_i915_private *dev_priv, u32 reg)
+static void gen5_assert_iir_is_zero(struct drm_i915_private *dev_priv,
+				    i915_reg_t reg)
 {
 	u32 val = I915_READ(reg);
 
@@ -147,7 +148,7 @@ static void gen5_assert_iir_is_zero(struct drm_i915_private *dev_priv, u32 reg)
 		return;
 
 	WARN(1, "Interrupt register 0x%x is not zero: 0x%08x\n",
-	     reg, val);
+	     i915_mmio_reg_offset(reg), val);
 	I915_WRITE(reg, 0xffffffff);
 	POSTING_READ(reg);
 	I915_WRITE(reg, 0xffffffff);
@@ -283,17 +284,17 @@ void gen5_disable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 	ilk_update_gt_irq(dev_priv, mask, 0);
 }
 
-static u32 gen6_pm_iir(struct drm_i915_private *dev_priv)
+static i915_reg_t gen6_pm_iir(struct drm_i915_private *dev_priv)
 {
 	return INTEL_INFO(dev_priv)->gen >= 8 ? GEN8_GT_IIR(2) : GEN6_PMIIR;
 }
 
-static u32 gen6_pm_imr(struct drm_i915_private *dev_priv)
+static i915_reg_t gen6_pm_imr(struct drm_i915_private *dev_priv)
 {
 	return INTEL_INFO(dev_priv)->gen >= 8 ? GEN8_GT_IMR(2) : GEN6_PMIMR;
 }
 
-static u32 gen6_pm_ier(struct drm_i915_private *dev_priv)
+static i915_reg_t gen6_pm_ier(struct drm_i915_private *dev_priv)
 {
 	return INTEL_INFO(dev_priv)->gen >= 8 ? GEN8_GT_IER(2) : GEN6_PMIER;
 }
@@ -350,7 +351,7 @@ void gen6_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 void gen6_reset_rps_interrupts(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t reg = gen6_pm_iir(dev_priv);
+	i915_reg_t reg = gen6_pm_iir(dev_priv);
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	I915_WRITE(reg, dev_priv->pm_rps_events);
@@ -477,7 +478,7 @@ static void
 __i915_enable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 		       u32 enable_mask, u32 status_mask)
 {
-	u32 reg = PIPESTAT(pipe);
+	i915_reg_t reg = PIPESTAT(pipe);
 	u32 pipestat = I915_READ(reg) & PIPESTAT_INT_ENABLE_MASK;
 
 	assert_spin_locked(&dev_priv->irq_lock);
@@ -504,7 +505,7 @@ static void
 __i915_disable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 		        u32 enable_mask, u32 status_mask)
 {
-	u32 reg = PIPESTAT(pipe);
+	i915_reg_t reg = PIPESTAT(pipe);
 	u32 pipestat = I915_READ(reg) & PIPESTAT_INT_ENABLE_MASK;
 
 	assert_spin_locked(&dev_priv->irq_lock);
@@ -665,8 +666,7 @@ static u32 i8xx_get_vblank_counter(struct drm_device *dev, int pipe)
 static u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long high_frame;
-	unsigned long low_frame;
+	i915_reg_t high_frame, low_frame;
 	u32 high1, high2, low, pixel, vbl_start, hsync_start, htotal;
 	struct intel_crtc *intel_crtc =
 		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
@@ -1186,7 +1186,7 @@ static void ivybridge_parity_work(struct work_struct *work)
 	POSTING_READ(GEN7_MISCCPCTL);
 
 	while ((slice = ffs(dev_priv->l3_parity.which_slice)) != 0) {
-		u32 reg;
+		i915_reg_t reg;
 
 		slice--;
 		if (WARN_ON_ONCE(slice >= NUM_L3_SLICES(dev_priv->dev)))
@@ -1622,7 +1622,7 @@ static void valleyview_pipestat_irq_handler(struct drm_device *dev, u32 iir)
 
 	spin_lock(&dev_priv->irq_lock);
 	for_each_pipe(dev_priv, pipe) {
-		int reg;
+		i915_reg_t reg;
 		u32 mask, iir_bit = 0;
 
 		/*
@@ -3870,7 +3870,7 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 			DRM_DEBUG("Command parser error, iir 0x%08x\n", iir);
 
 		for_each_pipe(dev_priv, pipe) {
-			int reg = PIPESTAT(pipe);
+			i915_reg_t reg = PIPESTAT(pipe);
 			pipe_stats[pipe] = I915_READ(reg);
 
 			/*
@@ -4051,7 +4051,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 			DRM_DEBUG("Command parser error, iir 0x%08x\n", iir);
 
 		for_each_pipe(dev_priv, pipe) {
-			int reg = PIPESTAT(pipe);
+			i915_reg_t reg = PIPESTAT(pipe);
 			pipe_stats[pipe] = I915_READ(reg);
 
 			/* Clear the PIPE*STAT regs before the IIR */
@@ -4272,7 +4272,7 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 			DRM_DEBUG("Command parser error, iir 0x%08x\n", iir);
 
 		for_each_pipe(dev_priv, pipe) {
-			int reg = PIPESTAT(pipe);
+			i915_reg_t reg = PIPESTAT(pipe);
 			pipe_stats[pipe] = I915_READ(reg);
 
 			/*

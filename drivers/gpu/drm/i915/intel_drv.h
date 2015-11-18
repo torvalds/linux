@@ -696,7 +696,7 @@ struct cxsr_latency {
 #define intel_fb_obj(x) (x ? to_intel_framebuffer(x)->obj : NULL)
 
 struct intel_hdmi {
-	u32 hdmi_reg;
+	i915_reg_t hdmi_reg;
 	int ddc_bus;
 	bool limited_color_range;
 	bool color_range_auto;
@@ -739,9 +739,9 @@ enum link_m_n_set {
 };
 
 struct intel_dp {
-	uint32_t output_reg;
-	uint32_t aux_ch_ctl_reg;
-	uint32_t aux_ch_data_reg[5];
+	i915_reg_t output_reg;
+	i915_reg_t aux_ch_ctl_reg;
+	i915_reg_t aux_ch_data_reg[5];
 	uint32_t DP;
 	int link_rate;
 	uint8_t lane_count;
@@ -1221,7 +1221,7 @@ void intel_csr_load_program(struct drm_i915_private *);
 void intel_csr_ucode_fini(struct drm_i915_private *);
 
 /* intel_dp.c */
-void intel_dp_init(struct drm_device *dev, int output_reg, enum port port);
+void intel_dp_init(struct drm_device *dev, i915_reg_t output_reg, enum port port);
 bool intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 			     struct intel_connector *intel_connector);
 void intel_dp_set_link_params(struct intel_dp *intel_dp,
@@ -1331,7 +1331,7 @@ void intel_fbc_flush(struct drm_i915_private *dev_priv,
 void intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv);
 
 /* intel_hdmi.c */
-void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port);
+void intel_hdmi_init(struct drm_device *dev, i915_reg_t hdmi_reg, enum port port);
 void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 			       struct intel_connector *intel_connector);
 struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder);
@@ -1465,7 +1465,8 @@ void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
 uint32_t ilk_pipe_pixel_rate(const struct intel_crtc_state *pipe_config);
 
 /* intel_sdvo.c */
-bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, enum port port);
+bool intel_sdvo_init(struct drm_device *dev,
+		     i915_reg_t reg, enum port port);
 
 
 /* intel_sprite.c */

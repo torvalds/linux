@@ -479,7 +479,7 @@ static void intel_ring_setup_status_page(struct intel_engine_cs *ring)
 {
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
-	u32 mmio = 0;
+	i915_reg_t mmio;
 
 	/* The ring status page addresses are no longer next to the rest of
 	 * the ring registers as of gen7.
@@ -522,7 +522,7 @@ static void intel_ring_setup_status_page(struct intel_engine_cs *ring)
 	 * invalidating the TLB?
 	 */
 	if (INTEL_INFO(dev)->gen >= 6 && INTEL_INFO(dev)->gen < 8) {
-		u32 reg = RING_INSTPM(ring->mmio_base);
+		i915_reg_t reg = RING_INSTPM(ring->mmio_base);
 
 		/* ring should be idle before issuing a sync flush*/
 		WARN_ON((I915_READ_MODE(ring) & MODE_IDLE) == 0);
@@ -764,7 +764,8 @@ static int intel_rcs_ctx_init(struct drm_i915_gem_request *req)
 }
 
 static int wa_add(struct drm_i915_private *dev_priv,
-		  const u32 addr, const u32 mask, const u32 val)
+		  i915_reg_t addr,
+		  const u32 mask, const u32 val)
 {
 	const u32 idx = dev_priv->workarounds.count;
 
@@ -1309,9 +1310,11 @@ static int gen6_signal(struct drm_i915_gem_request *signaller_req,
 		return ret;
 
 	for_each_ring(useless, dev_priv, i) {
-		u32 mbox_reg = signaller->semaphore.mbox.signal[i];
-		if (mbox_reg != GEN6_NOSYNC) {
+		i915_reg_t mbox_reg = signaller->semaphore.mbox.signal[i];
+
+		if (i915_mmio_reg_valid(mbox_reg)) {
 			u32 seqno = i915_gem_request_get_seqno(signaller_req);
+
 			intel_ring_emit(signaller, MI_LOAD_REGISTER_IMM(1));
 			intel_ring_emit_reg(signaller, mbox_reg);
 			intel_ring_emit(signaller, seqno);

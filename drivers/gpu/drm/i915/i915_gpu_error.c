@@ -910,7 +910,7 @@ static void i915_record_ring_state(struct drm_device *dev,
 	ering->ctl = I915_READ_CTL(ring);
 
 	if (I915_NEED_GFX_HWS(dev)) {
-		int mmio;
+		i915_reg_t mmio;
 
 		if (IS_GEN7(dev)) {
 			switch (ring->id) {

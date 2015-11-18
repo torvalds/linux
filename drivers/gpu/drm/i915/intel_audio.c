@@ -161,9 +161,9 @@ static bool audio_rate_need_prog(struct intel_crtc *crtc,
 }
 
 static bool intel_eld_uptodate(struct drm_connector *connector,
-			       int reg_eldv, uint32_t bits_eldv,
-			       int reg_elda, uint32_t bits_elda,
-			       int reg_edid)
+			       i915_reg_t reg_eldv, uint32_t bits_eldv,
+			       i915_reg_t reg_elda, uint32_t bits_elda,
+			       i915_reg_t reg_edid)
 {
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 	uint8_t *eld = connector->eld;
@@ -364,8 +364,7 @@ static void ilk_audio_codec_disable(struct intel_encoder *encoder)
 	enum port port = intel_dig_port->port;
 	enum pipe pipe = intel_crtc->pipe;
 	uint32_t tmp, eldv;
-	int aud_config;
-	int aud_cntrl_st2;
+	i915_reg_t aud_config, aud_cntrl_st2;
 
 	DRM_DEBUG_KMS("Disable audio codec on port %c, pipe %c\n",
 		      port_name(port), pipe_name(pipe));
@@ -416,10 +415,7 @@ static void ilk_audio_codec_enable(struct drm_connector *connector,
 	uint32_t eldv;
 	uint32_t tmp;
 	int len, i;
-	int hdmiw_hdmiedid;
-	int aud_config;
-	int aud_cntl_st;
-	int aud_cntrl_st2;
+	i915_reg_t hdmiw_hdmiedid, aud_config, aud_cntl_st, aud_cntrl_st2;
 
 	DRM_DEBUG_KMS("Enable audio codec on port %c, pipe %c, %u bytes ELD\n",
 		      port_name(port), pipe_name(pipe), drm_eld_size(eld));

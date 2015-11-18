@@ -258,7 +258,7 @@ static void guc_disable_doorbell(struct intel_guc *guc,
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct guc_doorbell_info *doorbell;
 	void *base;
-	int drbreg = GEN8_DRBREGL(client->doorbell_id);
+	i915_reg_t drbreg = GEN8_DRBREGL(client->doorbell_id);
 	int value;
 
 	base = kmap_atomic(i915_gem_object_get_page(client->client_obj, 0));
