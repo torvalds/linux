@@ -313,11 +313,6 @@ static int pci_dio_reset(struct comedi_device *dev)
 		/* set rising edge trigger */
 		outb(0, dev->iobase + PCI1730_3_INT_RF);
 		break;
-	case TYPE_PCI1734:
-		break;
-	case TYPE_PCI1735:
-		break;
-
 	case TYPE_PCI1736:
 		/* disable interrupts */
 		outb(0, dev->iobase + PCI1736_3_INT_EN);
@@ -326,12 +321,10 @@ static int pci_dio_reset(struct comedi_device *dev)
 		/* set rising edge trigger */
 		outb(0, dev->iobase + PCI1736_3_INT_RF);
 		break;
-
 	case TYPE_PCI1739:
 		/* disable & clear interrupts */
 		outb(0x88, dev->iobase + PCI1739_ICR);
 		break;
-
 	case TYPE_PCI1750:
 	case TYPE_PCI1751:
 		/* disable & clear interrupts */
@@ -372,6 +365,8 @@ static int pci_dio_reset(struct comedi_device *dev)
 	case TYPE_PCI1762:
 		outw(0x0101, dev->iobase + PCI1762_ICR); /* disable & clear
 							  * interrupts */
+		break;
+	default:
 		break;
 	}
 
