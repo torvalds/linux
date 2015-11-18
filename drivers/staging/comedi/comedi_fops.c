@@ -2333,15 +2333,7 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 	async = s->async;
 	if (!nbytes)
 		goto out;
-	if (!s->busy) {
-		retval = -EINVAL;
-		goto out;
-	}
-	if (s->busy != file) {
-		retval = -EACCES;
-		goto out;
-	}
-	if (!(async->cmd.flags & CMDF_WRITE)) {
+	if (s->busy != file || !(async->cmd.flags & CMDF_WRITE)) {
 		retval = -EINVAL;
 		goto out;
 	}
@@ -2376,15 +2368,8 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 				retval = -ERESTARTSYS;
 				break;
 			}
-			if (!s->busy) {
-				retval = -EINVAL;
-				break;
-			}
-			if (s->busy != file) {
-				retval = -EACCES;
-				break;
-			}
-			if (!(async->cmd.flags & CMDF_WRITE)) {
+			if (s->busy != file ||
+			    !(async->cmd.flags & CMDF_WRITE)) {
 				retval = -EINVAL;
 				break;
 			}
