@@ -29,9 +29,9 @@ static void wilc_sdio_interrupt(struct sdio_func *func)
 	sdio_claim_host(func);
 }
 
-int wilc_sdio_cmd52(sdio_cmd52_t *cmd)
+int wilc_sdio_cmd52(struct wilc *wilc, sdio_cmd52_t *cmd)
 {
-	struct sdio_func *func = container_of(wilc_dev->dev, struct sdio_func, dev);
+	struct sdio_func *func = container_of(wilc->dev, struct sdio_func, dev);
 	int ret;
 	u8 data;
 
