@@ -80,7 +80,6 @@ struct diosubd_data {
 
 struct dio_boardtype {
 	const char *name;	/*  board name */
-	enum hw_cards_id cardtype;
 	int nsubdevs;
 	struct diosubd_data sdi[MAX_DI_SUBDEVS];	/*  DI chans */
 	struct diosubd_data sdo[MAX_DO_SUBDEVS];	/*  DO chans */
@@ -93,7 +92,6 @@ struct dio_boardtype {
 static const struct dio_boardtype boardtypes[] = {
 	[TYPE_PCI1730] = {
 		.name		= "pci1730",
-		.cardtype	= TYPE_PCI1730,
 		.nsubdevs	= 5,
 		.sdi[0]		= { 16, 0x02, },	/* DI 0-15 */
 		.sdi[1]		= { 16, 0x00, },	/* ISO DI 0-15 */
@@ -103,21 +101,18 @@ static const struct dio_boardtype boardtypes[] = {
 	},
 	[TYPE_PCI1733] = {
 		.name		= "pci1733",
-		.cardtype	= TYPE_PCI1733,
 		.nsubdevs	= 2,
 		.sdi[1]		= { 32, 0x00, },	/* ISO DI 0-31 */
 		.id_reg		= 0x04,
 	},
 	[TYPE_PCI1734] = {
 		.name		= "pci1734",
-		.cardtype	= TYPE_PCI1734,
 		.nsubdevs	= 2,
 		.sdo[1]		= { 32, 0x00, },	/* ISO DO 0-31 */
 		.id_reg		= 0x04,
 	},
 	[TYPE_PCI1735] = {
 		.name		= "pci1735",
-		.cardtype	= TYPE_PCI1735,
 		.nsubdevs	= 4,
 		.sdi[0]		= { 32, 0x00, },	/* DI 0-31 */
 		.sdo[0]		= { 32, 0x00, },	/* DO 0-31 */
@@ -126,7 +121,6 @@ static const struct dio_boardtype boardtypes[] = {
 	},
 	[TYPE_PCI1736] = {
 		.name		= "pci1736",
-		.cardtype	= TYPE_PCI1736,
 		.nsubdevs	= 3,
 		.sdi[1]		= { 16, 0x00, },	/* ISO DI 0-15 */
 		.sdo[1]		= { 16, 0x00, },	/* ISO DO 0-15 */
@@ -134,28 +128,24 @@ static const struct dio_boardtype boardtypes[] = {
 	},
 	[TYPE_PCI1739] = {
 		.name		= "pci1739",
-		.cardtype	= TYPE_PCI1739,
 		.nsubdevs	= 3,
 		.sdio[0]	= { 2, 0x00, },		/* 8255 DIO */
 		.id_reg		= 0x08,
 	},
 	[TYPE_PCI1750] = {
 		.name		= "pci1750",
-		.cardtype	= TYPE_PCI1750,
 		.nsubdevs	= 2,
 		.sdi[1]		= { 16, 0x00, },	/* ISO DI 0-15 */
 		.sdo[1]		= { 16, 0x00, },	/* ISO DO 0-15 */
 	},
 	[TYPE_PCI1751] = {
 		.name		= "pci1751",
-		.cardtype	= TYPE_PCI1751,
 		.nsubdevs	= 3,
 		.sdio[0]	= { 2, 0x00, },		/* 8255 DIO */
 		.timer_regbase	= 0x18,
 	},
 	[TYPE_PCI1752] = {
 		.name		= "pci1752",
-		.cardtype	= TYPE_PCI1752,
 		.nsubdevs	= 3,
 		.sdo[0]		= { 32, 0x00, },	/* DO 0-31 */
 		.sdo[1]		= { 32, 0x04, },	/* DO 32-63 */
@@ -164,20 +154,17 @@ static const struct dio_boardtype boardtypes[] = {
 	},
 	[TYPE_PCI1753] = {
 		.name		= "pci1753",
-		.cardtype	= TYPE_PCI1753,
 		.nsubdevs	= 4,
 		.sdio[0]	= { 4, 0x00, },		/* 8255 DIO */
 	},
 	[TYPE_PCI1753E] = {
 		.name		= "pci1753e",
-		.cardtype	= TYPE_PCI1753E,
 		.nsubdevs	= 8,
 		.sdio[0]	= { 4, 0x00, },		/* 8255 DIO */
 		.sdio[1]	= { 4, 0x20, },		/* 8255 DIO */
 	},
 	[TYPE_PCI1754] = {
 		.name		= "pci1754",
-		.cardtype	= TYPE_PCI1754,
 		.nsubdevs	= 3,
 		.sdi[0]		= { 32, 0x00, },	/* DI 0-31 */
 		.sdi[1]		= { 32, 0x04, },	/* DI 32-63 */
@@ -186,7 +173,6 @@ static const struct dio_boardtype boardtypes[] = {
 	},
 	[TYPE_PCI1756] = {
 		.name		= "pci1756",
-		.cardtype	= TYPE_PCI1756,
 		.nsubdevs	= 3,
 		.sdi[1]		= { 32, 0x00, },	/* DI 0-31 */
 		.sdo[1]		= { 32, 0x04, },	/* DO 0-31 */
@@ -195,7 +181,6 @@ static const struct dio_boardtype boardtypes[] = {
 	},
 	[TYPE_PCI1762] = {
 		.name		= "pci1762",
-		.cardtype	= TYPE_PCI1762,
 		.nsubdevs	= 3,
 		.sdi[1]		= { 16, 0x02, },	/* ISO DI 0-15 */
 		.sdo[1]		= { 16, 0x00, },	/* ISO DO 0-15 */
@@ -280,16 +265,14 @@ static int pci_dio_insn_bits_do_w(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int pci_dio_reset(struct comedi_device *dev)
+static int pci_dio_reset(struct comedi_device *dev, unsigned long cardtype)
 {
-	const struct dio_boardtype *board = dev->board_ptr;
-
 	/* disable channel freeze function on the PCI-1752/1756 boards */
-	if (board->cardtype == TYPE_PCI1752 || board->cardtype == TYPE_PCI1756)
+	if (cardtype == TYPE_PCI1752 || cardtype == TYPE_PCI1756)
 		outw(0, dev->iobase + PCI1752_CFC_REG);
 
 	/* disable and clear interrupts */
-	switch (board->cardtype) {
+	switch (cardtype) {
 	case TYPE_PCI1730:
 	case TYPE_PCI1733:
 	case TYPE_PCI1736:
@@ -308,7 +291,7 @@ static int pci_dio_reset(struct comedi_device *dev)
 		outb(0x80, dev->iobase + PCI1753_INT_REG(1));
 		outb(0x80, dev->iobase + PCI1753_INT_REG(2));
 		outb(0x80, dev->iobase + PCI1753_INT_REG(3));
-		if (board->cardtype == TYPE_PCI1753E) {
+		if (cardtype == TYPE_PCI1753E) {
 			outb(0x88, dev->iobase + PCI1753E_INT_REG(0));
 			outb(0x80, dev->iobase + PCI1753E_INT_REG(1));
 			outb(0x80, dev->iobase + PCI1753E_INT_REG(2));
@@ -319,7 +302,7 @@ static int pci_dio_reset(struct comedi_device *dev)
 	case TYPE_PCI1756:
 		outw(0x08, dev->iobase + PCI1754_INT_REG(0));
 		outw(0x08, dev->iobase + PCI1754_INT_REG(1));
-		if (board->cardtype == TYPE_PCI1754) {
+		if (cardtype == TYPE_PCI1754) {
 			outw(0x08, dev->iobase + PCI1754_INT_REG(2));
 			outw(0x08, dev->iobase + PCI1754_INT_REG(3));
 		}
@@ -385,12 +368,12 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
-	if (board->cardtype == TYPE_PCI1736)
+	if (context == TYPE_PCI1736)
 		dev->iobase = pci_resource_start(pcidev, 0);
 	else
 		dev->iobase = pci_resource_start(pcidev, 2);
 
-	pci_dio_reset(dev);
+	pci_dio_reset(dev, context);
 
 	ret = comedi_alloc_subdevices(dev, board->nsubdevs);
 	if (ret)
