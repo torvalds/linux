@@ -1391,8 +1391,10 @@ static int sunxi_nand_chips_init(struct device *dev, struct sunxi_nfc *nfc)
 
 	for_each_child_of_node(np, nand_np) {
 		ret = sunxi_nand_chip_init(dev, nfc, nand_np);
-		if (ret)
+		if (ret) {
+			of_node_put(nand_np);
 			return ret;
+		}
 	}
 
 	return 0;
