@@ -215,7 +215,7 @@ static struct tegra_clk_pll_params pll_c_params = {
 	.input_min = 12000000,
 	.input_max = 800000000,
 	.cf_min = 12000000,
-	.cf_max = 19200000,	/* s/w policy, h/w capability 50 MHz */
+	.cf_max = 19200000, /* s/w policy, h/w capability 50 MHz */
 	.vco_min = 600000000,
 	.vco_max = 1400000000,
 	.base_reg = PLLC_BASE,
@@ -337,7 +337,7 @@ static struct tegra_clk_pll_params pll_m_params = {
 	.input_min = 12000000,
 	.input_max = 500000000,
 	.cf_min = 12000000,
-	.cf_max = 19200000,	/* s/w policy, h/w capability 50 MHz */
+	.cf_max = 19200000, /* s/w policy, h/w capability 50 MHz */
 	.vco_min = 400000000,
 	.vco_max = 1066000000,
 	.base_reg = PLLM_BASE,
@@ -534,7 +534,7 @@ static struct tegra_clk_pll_params pll_x_params = {
 	.input_min = 12000000,
 	.input_max = 800000000,
 	.cf_min = 12000000,
-	.cf_max = 19200000,	/* s/w policy, h/w capability 50 MHz */
+	.cf_max = 19200000, /* s/w policy, h/w capability 50 MHz */
 	.vco_min = 700000000,
 	.vco_max = 2400000000U,
 	.base_reg = PLLX_BASE,
@@ -965,8 +965,8 @@ static void __init tegra114_fixed_clk_init(void __iomem *clk_base)
 
 static __init void tegra114_utmi_param_configure(void __iomem *clk_base)
 {
+	unsigned int i;
 	u32 reg;
-	int i;
 
 	for (i = 0; i < ARRAY_SIZE(utmi_parameters); i++) {
 		if (osc_freq == utmi_parameters[i].osc_frequency)
@@ -1173,7 +1173,7 @@ static __init void tegra114_periph_clk_init(void __iomem *clk_base,
 {
 	struct clk *clk;
 	struct tegra_periph_init_data *data;
-	int i;
+	unsigned int i;
 
 	/* xusb_ss_div2 */
 	clk = clk_register_fixed_factor(NULL, "xusb_ss_div2", "xusb_ss_src", 0,
@@ -1278,7 +1278,7 @@ static struct tegra_cpu_car_ops tegra114_cpu_car_ops = {
 
 static const struct of_device_id pmc_match[] __initconst = {
 	{ .compatible = "nvidia,tegra114-pmc" },
-	{},
+	{ },
 };
 
 /*

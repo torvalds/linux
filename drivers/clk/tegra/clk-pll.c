@@ -439,7 +439,7 @@ static int _calc_rate(struct clk_hw *hw, struct tegra_clk_pll_freq_table *cfg,
 		/*
 		 * PLL_P_OUT1 rate is not listed in PLLA table
 		 */
-		cfreq = parent_rate/(parent_rate/1000000);
+		cfreq = parent_rate / (parent_rate / 1000000);
 		break;
 	default:
 		pr_err("%s Unexpected reference rate %lu\n",
@@ -936,8 +936,8 @@ static int _calc_dynamic_ramp_rate(struct clk_hw *hw,
 	p_div = _p_div_to_hw(hw, p);
 	if (p_div < 0)
 		return p_div;
-	else
-		cfg->p = p_div;
+
+	cfg->p = p_div;
 
 	if (cfg->n > divn_max(pll) || cfg->output_rate > pll->params->vco_max)
 		return -EINVAL;

@@ -235,7 +235,7 @@ static struct tegra_clk_pll_params pll_c_params = {
 	.input_min = 12000000,
 	.input_max = 800000000,
 	.cf_min = 12000000,
-	.cf_max = 19200000,	/* s/w policy, h/w capability 50 MHz */
+	.cf_max = 19200000, /* s/w policy, h/w capability 50 MHz */
 	.vco_min = 600000000,
 	.vco_max = 1400000000,
 	.base_reg = PLLC_BASE,
@@ -1024,8 +1024,8 @@ static struct clk **clks;
 
 static void tegra124_utmi_param_configure(void __iomem *clk_base)
 {
+	unsigned int i;
 	u32 reg;
-	int i;
 
 	for (i = 0; i < ARRAY_SIZE(utmi_parameters); i++) {
 		if (osc_freq == utmi_parameters[i].osc_frequency)
@@ -1356,7 +1356,7 @@ static struct tegra_cpu_car_ops tegra124_cpu_car_ops = {
 
 static const struct of_device_id pmc_match[] __initconst = {
 	{ .compatible = "nvidia,tegra124-pmc" },
-	{},
+	{ },
 };
 
 static struct tegra_clk_init_table common_init_table[] __initdata = {

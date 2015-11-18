@@ -759,7 +759,6 @@ static void __init tegra20_audio_clk_init(void)
 				    CLK_SET_RATE_PARENT, 89,
 				    periph_clk_enb_refcnt);
 	clks[TEGRA20_CLK_AUDIO_2X] = clk;
-
 }
 
 static const char *i2s1_parents[] = {"pll_a_out0", "audio_2x", "pll_p",
@@ -802,7 +801,7 @@ static void __init tegra20_periph_clk_init(void)
 {
 	struct tegra_periph_init_data *data;
 	struct clk *clk;
-	int i;
+	unsigned int i;
 
 	/* ac97 */
 	clk = tegra_clk_register_periph_gate("ac97", "pll_a_out0",
@@ -1085,7 +1084,7 @@ static struct tegra_clk_duplicate tegra_clk_duplicates[] = {
 
 static const struct of_device_id pmc_match[] __initconst = {
 	{ .compatible = "nvidia,tegra20-pmc" },
-	{},
+	{ },
 };
 
 static void __init tegra20_clock_init(struct device_node *np)

@@ -505,7 +505,6 @@ static struct tegra_clk_pll_params pll_d_params = {
 	.freq_table = pll_d_freq_table,
 	.flags = TEGRA_PLL_HAS_CPCON | TEGRA_PLL_SET_LFCON |
 		 TEGRA_PLL_USE_LOCK,
-
 };
 
 static struct tegra_clk_pll_params pll_d2_params = {
@@ -861,13 +860,12 @@ static struct tegra_clk tegra30_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_pll_p_out4] = { .dt_id = TEGRA30_CLK_PLL_P_OUT4, .present = true },
 	[tegra_clk_pll_a] = { .dt_id = TEGRA30_CLK_PLL_A, .present = true },
 	[tegra_clk_pll_a_out0] = { .dt_id = TEGRA30_CLK_PLL_A_OUT0, .present = true },
-
 };
 
 static void tegra30_utmi_param_configure(void)
 {
+	unsigned int i;
 	u32 reg;
-	int i;
 
 	for (i = 0; i < ARRAY_SIZE(utmi_parameters); i++) {
 		if (input_freq == utmi_parameters[i].osc_frequency)
@@ -925,7 +923,7 @@ static void __init tegra30_pll_init(void)
 
 	/* PLLC */
 	clk = tegra_clk_register_pll("pll_c", "pll_ref", clk_base, pmc_base, 0,
-				&pll_c_params, NULL);
+				     &pll_c_params, NULL);
 	clks[TEGRA30_CLK_PLL_C] = clk;
 
 	/* PLLC_OUT1 */
@@ -1135,7 +1133,7 @@ static void __init tegra30_periph_clk_init(void)
 {
 	struct tegra_periph_init_data *data;
 	struct clk *clk;
-	int i;
+	unsigned int i;
 
 	/* dsia */
 	clk = tegra_clk_register_periph_gate("dsia", "pll_d_out0", 0, clk_base,
@@ -1224,7 +1222,6 @@ static void tegra30_cpu_out_of_reset(u32 cpu)
 	wmb();
 }
 
-
 static void tegra30_enable_cpu_clock(u32 cpu)
 {
 	unsigned int reg;
@@ -1237,7 +1234,6 @@ static void tegra30_enable_cpu_clock(u32 cpu)
 
 static void tegra30_disable_cpu_clock(u32 cpu)
 {
-
 	unsigned int reg;
 
 	reg = readl(clk_base + TEGRA_CLK_RST_CONTROLLER_CLK_CPU_CMPLX);
@@ -1268,7 +1264,7 @@ static void tegra30_cpu_clock_suspend(void)
 	/* switch coresite to clk_m, save off original source */
 	tegra30_cpu_clk_sctx.clk_csite_src =
 				readl(clk_base + CLK_RESET_SOURCE_CSITE);
-	writel(3<<30, clk_base + CLK_RESET_SOURCE_CSITE);
+	writel(3 << 30, clk_base + CLK_RESET_SOURCE_CSITE);
 
 	tegra30_cpu_clk_sctx.cpu_burst =
 				readl(clk_base + CLK_RESET_CCLK_BURST);
@@ -1402,7 +1398,7 @@ static struct tegra_clk_duplicate tegra_clk_duplicates[] = {
 
 static const struct of_device_id pmc_match[] __initconst = {
 	{ .compatible = "nvidia,tegra30-pmc" },
-	{},
+	{ },
 };
 
 static struct tegra_audio_clk_info tegra30_audio_plls[] = {
@@ -1440,7 +1436,6 @@ static void __init tegra30_clock_init(struct device_node *np)
 			       ARRAY_SIZE(tegra30_input_freq), 1, &input_freq,
 			       NULL) < 0)
 		return;
-
 
 	tegra_fixed_clk_init(tegra30_clks);
 	tegra30_pll_init();
