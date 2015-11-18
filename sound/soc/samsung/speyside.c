@@ -25,8 +25,12 @@ static int speyside_set_bias_level(struct snd_soc_card *card,
 				   struct snd_soc_dapm_context *dapm,
 				   enum snd_soc_bias_level level)
 {
-	struct snd_soc_dai *codec_dai = card->rtd[1].codec_dai;
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai *codec_dai;
 	int ret;
+
+	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[1].name);
+	codec_dai = rtd->codec_dai;
 
 	if (dapm->dev != codec_dai->dev)
 		return 0;
@@ -57,8 +61,12 @@ static int speyside_set_bias_level_post(struct snd_soc_card *card,
 					struct snd_soc_dapm_context *dapm,
 					enum snd_soc_bias_level level)
 {
-	struct snd_soc_dai *codec_dai = card->rtd[1].codec_dai;
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai *codec_dai;
 	int ret;
+
+	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[1].name);
+	codec_dai = rtd->codec_dai;
 
 	if (dapm->dev != codec_dai->dev)
 		return 0;
