@@ -69,12 +69,6 @@ static unsigned int ipv6_defrag(void *priv,
 	if (reasm == NULL)
 		return NF_STOLEN;
 
-	/* error occurred or not fragmented */
-	if (reasm == skb)
-		return NF_ACCEPT;
-
-	nf_ct_frag6_consume_orig(reasm);
-
 	NF_HOOK_THRESH(NFPROTO_IPV6, state->hook, state->net, state->sk, reasm,
 		       state->in, state->out,
 		       state->okfn, NF_IP6_PRI_CONNTRACK_DEFRAG + 1);
