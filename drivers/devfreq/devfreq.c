@@ -85,6 +85,46 @@ static int devfreq_get_freq_level(struct devfreq *devfreq, unsigned long freq)
 }
 
 /**
+ * devfreq_set_freq_table() - Initialize freq_table for the frequency
+ * @devfreq:	the devfreq instance
+ */
+static void devfreq_set_freq_table(struct devfreq *devfreq)
+{
+	struct devfreq_dev_profile *profile = devfreq->profile;
+	struct dev_pm_opp *opp;
+	unsigned long freq;
+	int i, count;
+
+	/* Initialize the freq_table from OPP table */
+	count = dev_pm_opp_get_opp_count(devfreq->dev.parent);
+	if (count <= 0)
+		return;
+
+	profile->max_state = count;
+	profile->freq_table = devm_kcalloc(devfreq->dev.parent,
+					profile->max_state,
+					sizeof(*profile->freq_table),
+					GFP_KERNEL);
+	if (!profile->freq_table) {
+		profile->max_state = 0;
+		return;
+	}
+
+	rcu_read_lock();
+	for (i = 0, freq = 0; i < profile->max_state; i++, freq++) {
+		opp = dev_pm_opp_find_freq_ceil(devfreq->dev.parent, &freq);
+		if (IS_ERR(opp)) {
+			devm_kfree(devfreq->dev.parent, profile->freq_table);
+			profile->max_state = 0;
+			rcu_read_unlock();
+			return;
+		}
+		profile->freq_table[i] = freq;
+	}
+	rcu_read_unlock();
+}
+
+/**
  * devfreq_update_status() - Update statistics of devfreq behavior
  * @devfreq:	the devfreq instance
  * @freq:	the update target frequency
@@ -477,6 +517,12 @@ struct devfreq *devfreq_add_device(struct device *dev,
 	devfreq->previous_freq = profile->initial_freq;
 	devfreq->data = data;
 	devfreq->nb.notifier_call = devfreq_notifier_call;
+
+	if (!devfreq->profile->max_state && !devfreq->profile->freq_table) {
+		mutex_unlock(&devfreq->lock);
+		devfreq_set_freq_table(devfreq);
+		mutex_lock(&devfreq->lock);
+	}
 
 	devfreq->trans_table =	devm_kzalloc(dev, sizeof(unsigned int) *
 						devfreq->profile->max_state *
@@ -1007,7 +1053,7 @@ static ssize_t trans_stat_show(struct device *dev,
 	len = sprintf(buf, "   From  :   To\n");
 	len += sprintf(buf + len, "         :");
 	for (i = 0; i < max_state; i++)
-		len += sprintf(buf + len, "%8u",
+		len += sprintf(buf + len, "%8lu",
 				devfreq->profile->freq_table[i]);
 
 	len += sprintf(buf + len, "   time(ms)\n");
@@ -1019,7 +1065,7 @@ static ssize_t trans_stat_show(struct device *dev,
 		} else {
 			len += sprintf(buf + len, " ");
 		}
-		len += sprintf(buf + len, "%8u:",
+		len += sprintf(buf + len, "%8lu:",
 				devfreq->profile->freq_table[i]);
 		for (j = 0; j < max_state; j++)
 			len += sprintf(buf + len, "%8u",
