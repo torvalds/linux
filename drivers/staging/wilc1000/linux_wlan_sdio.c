@@ -61,9 +61,9 @@ int wilc_sdio_cmd52(struct wilc *wilc, sdio_cmd52_t *cmd)
 }
 
 
-int wilc_sdio_cmd53(sdio_cmd53_t *cmd)
+int wilc_sdio_cmd53(struct wilc *wilc, sdio_cmd53_t *cmd)
 {
-	struct sdio_func *func = container_of(wilc_dev->dev, struct sdio_func, dev);
+	struct sdio_func *func = container_of(wilc->dev, struct sdio_func, dev);
 	int size, ret;
 
 	sdio_claim_host(func);

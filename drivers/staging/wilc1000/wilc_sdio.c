@@ -197,7 +197,7 @@ static int sdio_write_reg(struct wilc *wilc, u32 addr, u32 data)
 		cmd.buffer = (u8 *)&data;
 		cmd.block_size = g_sdio.block_size; /* johnny : prevent it from setting unexpected value */
 
-		if (!wilc_sdio_cmd53(&cmd)) {
+		if (!wilc_sdio_cmd53(wilc, &cmd)) {
 			g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53, write reg (%08x)...\n", addr);
 			goto _fail_;
 		}
@@ -260,7 +260,7 @@ static int sdio_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 			if (!sdio_set_func0_csa_address(wilc, addr))
 				goto _fail_;
 		}
-		if (!wilc_sdio_cmd53(&cmd)) {
+		if (!wilc_sdio_cmd53(wilc, &cmd)) {
 			g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53 [%x], block send...\n", addr);
 			goto _fail_;
 		}
@@ -281,7 +281,7 @@ static int sdio_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 			if (!sdio_set_func0_csa_address(wilc, addr))
 				goto _fail_;
 		}
-		if (!wilc_sdio_cmd53(&cmd)) {
+		if (!wilc_sdio_cmd53(wilc, &cmd)) {
 			g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53 [%x], bytes send...\n", addr);
 			goto _fail_;
 		}
@@ -324,7 +324,7 @@ static int sdio_read_reg(struct wilc *wilc, u32 addr, u32 *data)
 
 		cmd.block_size = g_sdio.block_size; /* johnny : prevent it from setting unexpected value */
 
-		if (!wilc_sdio_cmd53(&cmd)) {
+		if (!wilc_sdio_cmd53(wilc, &cmd)) {
 			g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53, read reg (%08x)...\n", addr);
 			goto _fail_;
 		}
@@ -391,7 +391,7 @@ static int sdio_read(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 			if (!sdio_set_func0_csa_address(wilc, addr))
 				goto _fail_;
 		}
-		if (!wilc_sdio_cmd53(&cmd)) {
+		if (!wilc_sdio_cmd53(wilc, &cmd)) {
 			g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53 [%x], block read...\n", addr);
 			goto _fail_;
 		}
@@ -412,7 +412,7 @@ static int sdio_read(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 			if (!sdio_set_func0_csa_address(wilc, addr))
 				goto _fail_;
 		}
-		if (!wilc_sdio_cmd53(&cmd)) {
+		if (!wilc_sdio_cmd53(wilc, &cmd)) {
 			g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53 [%x], bytes read...\n", addr);
 			goto _fail_;
 		}
