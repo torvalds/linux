@@ -74,7 +74,7 @@ static void fsl_dcu_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
 	struct drm_display_mode *mode = &crtc->state->mode;
-	unsigned int hbp, hfp, hsw, vbp, vfp, vsw, div, index;
+	unsigned int hbp, hfp, hsw, vbp, vfp, vsw, div, index, pol = 0;
 	unsigned long dcuclk;
 
 	index = drm_crtc_index(crtc);
@@ -89,6 +89,12 @@ static void fsl_dcu_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	vfp = mode->vsync_start - mode->vdisplay;
 	vsw = mode->vsync_end - mode->vsync_start;
 
+	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+		pol |= DCU_SYN_POL_INV_HS_LOW;
+
+	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+		pol |= DCU_SYN_POL_INV_VS_LOW;
+
 	regmap_write(fsl_dev->regmap, DCU_HSYN_PARA,
 		     DCU_HSYN_PARA_BP(hbp) |
 		     DCU_HSYN_PARA_PW(hsw) |
@@ -101,8 +107,7 @@ static void fsl_dcu_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 		     DCU_DISP_SIZE_DELTA_Y(mode->vdisplay) |
 		     DCU_DISP_SIZE_DELTA_X(mode->hdisplay));
 	regmap_write(fsl_dev->regmap, DCU_DIV_RATIO, div);
-	regmap_write(fsl_dev->regmap, DCU_SYN_POL,
-		     DCU_SYN_POL_INV_VS_LOW | DCU_SYN_POL_INV_HS_LOW);
+	regmap_write(fsl_dev->regmap, DCU_SYN_POL, pol);
 	regmap_write(fsl_dev->regmap, DCU_BGND, DCU_BGND_R(0) |
 		     DCU_BGND_G(0) | DCU_BGND_B(0));
 	regmap_write(fsl_dev->regmap, DCU_DCU_MODE,
