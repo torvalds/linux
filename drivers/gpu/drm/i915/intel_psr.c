@@ -734,25 +734,9 @@ void intel_psr_flush(struct drm_device *dev,
 	frontbuffer_bits &= INTEL_FRONTBUFFER_ALL_MASK(pipe);
 	dev_priv->psr.busy_frontbuffer_bits &= ~frontbuffer_bits;
 
-	if (HAS_DDI(dev)) {
-		/*
-		 * By definition every flush should mean invalidate + flush,
-		 * however on core platforms let's minimize the
-		 * disable/re-enable so we can avoid the invalidate when flip
-		 * originated the flush.
-		 */
-		if (frontbuffer_bits && origin != ORIGIN_FLIP)
-			intel_psr_exit(dev);
-	} else {
-		/*
-		 * On Valleyview and Cherryview we don't use hardware tracking
-		 * so any plane updates or cursor moves don't result in a PSR
-		 * invalidating. Which means we need to manually fake this in
-		 * software for all flushes.
-		 */
-		if (frontbuffer_bits)
-			intel_psr_exit(dev);
-	}
+	/* By definition flush = invalidate + flush */
+	if (frontbuffer_bits)
+		intel_psr_exit(dev);
 
 	if (!dev_priv->psr.active && !dev_priv->psr.busy_frontbuffer_bits)
 		if (!work_busy(&dev_priv->psr.work.work))
