@@ -131,16 +131,17 @@ static int show_mountinfo(struct seq_file *m, struct vfsmount *mnt)
 	struct mount *r = real_mount(mnt);
 	struct super_block *sb = mnt->mnt_sb;
 	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
-	int err = 0;
+	int err;
 
 	seq_printf(m, "%i %i %u:%u ", r->mnt_id, r->mnt_parent->mnt_id,
 		   MAJOR(sb->s_dev), MINOR(sb->s_dev));
-	if (sb->s_op->show_path)
+	if (sb->s_op->show_path) {
 		err = sb->s_op->show_path(m, mnt->mnt_root);
-	else
+		if (err)
+			goto out;
+	} else {
 		seq_dentry(m, mnt->mnt_root, " \t\n\\");
-	if (err)
-		goto out;
+	}
 	seq_putc(m, ' ');
 
 	/* mountpoints outside of chroot jail will give SEQ_SKIP on this */
@@ -168,12 +169,13 @@ static int show_mountinfo(struct seq_file *m, struct vfsmount *mnt)
 	seq_puts(m, " - ");
 	show_type(m, sb);
 	seq_putc(m, ' ');
-	if (sb->s_op->show_devname)
+	if (sb->s_op->show_devname) {
 		err = sb->s_op->show_devname(m, mnt->mnt_root);
-	else
+		if (err)
+			goto out;
+	} else {
 		mangle(m, r->mnt_devname ? r->mnt_devname : "none");
-	if (err)
-		goto out;
+	}
 	seq_puts(m, sb->s_flags & MS_RDONLY ? " ro" : " rw");
 	err = show_sb_opts(m, sb);
 	if (err)
