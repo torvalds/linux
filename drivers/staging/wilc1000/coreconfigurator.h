@@ -127,7 +127,8 @@ typedef struct {
 	size_t ie_len;
 } tstrDisconnectNotifInfo;
 
-s32 wilc_send_config_pkt(u8 mode, struct wid *wids, u32 count, u32 drv);
+s32 wilc_send_config_pkt(struct wilc *wilc, u8 mode, struct wid *wids,
+			 u32 count, u32 drv);
 s32 wilc_parse_network_info(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo);
 s32 wilc_dealloc_network_info(tstrNetworkInfo *pstrNetworkInfo);
 
