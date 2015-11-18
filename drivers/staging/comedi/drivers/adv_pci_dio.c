@@ -557,38 +557,34 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 	subdev = 0;
 	for (i = 0; i < MAX_DI_SUBDEVS; i++)
 		if (board->sdi[i].chans) {
-			s = &dev->subdevices[subdev];
+			s = &dev->subdevices[subdev++];
 			pci_dio_add_di(dev, s, &board->sdi[i]);
-			subdev++;
 		}
 
 	for (i = 0; i < MAX_DO_SUBDEVS; i++)
 		if (board->sdo[i].chans) {
-			s = &dev->subdevices[subdev];
+			s = &dev->subdevices[subdev++];
 			pci_dio_add_do(dev, s, &board->sdo[i]);
-			subdev++;
 		}
 
 	for (i = 0; i < MAX_DIO_SUBDEVG; i++)
 		for (j = 0; j < board->sdio[i].regs; j++) {
-			s = &dev->subdevices[subdev];
+			s = &dev->subdevices[subdev++];
 			ret = subdev_8255_init(dev, s, NULL,
 					       board->sdio[i].addr +
 					       j * I8255_SIZE);
 			if (ret)
 				return ret;
-			subdev++;
 		}
 
 	if (board->boardid.chans) {
-		s = &dev->subdevices[subdev];
+		s = &dev->subdevices[subdev++];
 		s->type = COMEDI_SUBD_DI;
 		pci_dio_add_di(dev, s, &board->boardid);
-		subdev++;
 	}
 
 	if (board->timer_regbase) {
-		s = &dev->subdevices[subdev];
+		s = &dev->subdevices[subdev++];
 
 		dev->pacer = comedi_8254_init(dev->iobase +
 					      board->timer_regbase,
@@ -597,8 +593,6 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 			return -ENOMEM;
 
 		comedi_8254_subdevice_init(s, dev->pacer);
-
-		subdev++;
 	}
 
 	pci_dio_reset(dev);
