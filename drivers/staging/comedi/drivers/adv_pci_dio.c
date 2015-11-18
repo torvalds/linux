@@ -128,7 +128,7 @@ enum hw_cards_id {
 
 struct diosubd_data {
 	int chans;		/*  num of chans or 8255 devices */
-	int addr;		/*  PCI address ofset */
+	unsigned long addr;	/*  PCI address ofset */
 };
 
 struct dio_boardtype {
@@ -261,8 +261,8 @@ static int pci_dio_insn_bits_di_b(struct comedi_device *dev,
 				  struct comedi_insn *insn,
 				  unsigned int *data)
 {
-	const struct diosubd_data *d = (const struct diosubd_data *)s->private;
-	unsigned long iobase = dev->iobase + d->addr;
+	unsigned long reg = (unsigned long)s->private;
+	unsigned long iobase = dev->iobase + reg;
 
 	data[1] = inb(iobase);
 	if (s->n_chan > 8)
@@ -280,8 +280,8 @@ static int pci_dio_insn_bits_di_w(struct comedi_device *dev,
 				  struct comedi_insn *insn,
 				  unsigned int *data)
 {
-	const struct diosubd_data *d = (const struct diosubd_data *)s->private;
-	unsigned long iobase = dev->iobase + d->addr;
+	unsigned long reg = (unsigned long)s->private;
+	unsigned long iobase = dev->iobase + reg;
 
 	data[1] = inw(iobase);
 	if (s->n_chan > 16)
@@ -295,8 +295,8 @@ static int pci_dio_insn_bits_do_b(struct comedi_device *dev,
 				  struct comedi_insn *insn,
 				  unsigned int *data)
 {
-	const struct diosubd_data *d = (const struct diosubd_data *)s->private;
-	unsigned long iobase = dev->iobase + d->addr;
+	unsigned long reg = (unsigned long)s->private;
+	unsigned long iobase = dev->iobase + reg;
 
 	if (comedi_dio_update_state(s, data)) {
 		outb(s->state & 0xff, iobase);
@@ -318,8 +318,8 @@ static int pci_dio_insn_bits_do_w(struct comedi_device *dev,
 				  struct comedi_insn *insn,
 				  unsigned int *data)
 {
-	const struct diosubd_data *d = (const struct diosubd_data *)s->private;
-	unsigned long iobase = dev->iobase + d->addr;
+	unsigned long reg = (unsigned long)s->private;
+	unsigned long iobase = dev->iobase + reg;
 
 	if (comedi_dio_update_state(s, data)) {
 		outw(s->state & 0xffff, iobase);
@@ -505,7 +505,7 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 			s->insn_bits	= board->is_16bit
 						? pci_dio_insn_bits_di_w
 						: pci_dio_insn_bits_di_b;
-			s->private	= (void *)d;
+			s->private	= (void *)d->addr;
 		}
 	}
 
@@ -521,7 +521,7 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 			s->insn_bits	= board->is_16bit
 						? pci_dio_insn_bits_do_w
 						: pci_dio_insn_bits_do_b;
-			s->private	= (void *)d;
+			s->private	= (void *)d->addr;
 		}
 	}
 
@@ -546,7 +546,7 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 		s->range_table	= &range_digital;
 		s->insn_bits	= board->is_16bit ? pci_dio_insn_bits_di_w
 						  : pci_dio_insn_bits_di_b;
-		s->private	= (void *)d;
+		s->private	= (void *)d->addr;
 	}
 
 	if (board->timer_regbase) {
