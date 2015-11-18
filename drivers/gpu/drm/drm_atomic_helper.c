@@ -210,6 +210,14 @@ update_connector_routing(struct drm_atomic_state *state, int conn_idx)
 		return -EINVAL;
 	}
 
+	if (!drm_encoder_crtc_ok(new_encoder, connector_state->crtc)) {
+		DRM_DEBUG_ATOMIC("[ENCODER:%d:%s] incompatible with [CRTC:%d]\n",
+				 new_encoder->base.id,
+				 new_encoder->name,
+				 connector_state->crtc->base.id);
+		return -EINVAL;
+	}
+
 	if (new_encoder == connector_state->best_encoder) {
 		DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] keeps [ENCODER:%d:%s], now on [CRTC:%d]\n",
 				 connector->base.id,
