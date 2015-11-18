@@ -23,7 +23,6 @@
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
 
-#include <mach/dma.h>
 #include <mach/gpio-samsung.h>
 #include <plat/gpio-cfg.h>
 #include "regs-iis.h"
@@ -482,7 +481,8 @@ static int s3c24xx_iis_dev_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = samsung_asoc_dma_platform_register(&pdev->dev);
+	ret = samsung_asoc_dma_platform_register(&pdev->dev,
+						 pdata->dma_filter);
 	if (ret)
 		pr_err("failed to register the dma: %d\n", ret);
 

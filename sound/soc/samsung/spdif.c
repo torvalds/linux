@@ -361,6 +361,7 @@ static int spdif_probe(struct platform_device *pdev)
 	struct s3c_audio_pdata *spdif_pdata;
 	struct resource *mem_res;
 	struct samsung_spdif_info *spdif;
+	dma_filter_fn filter;
 	int ret;
 
 	spdif_pdata = pdev->dev.platform_data;
@@ -426,11 +427,15 @@ static int spdif_probe(struct platform_device *pdev)
 
 	spdif_stereo_out.dma_size = 2;
 	spdif_stereo_out.dma_addr = mem_res->start + DATA_OUTBUF;
-	spdif_stereo_out.slave = spdif_pdata ? spdif_pdata->dma_playback : NULL;
+	filter = NULL;
+	if (spdif_pdata) {
+		spdif_stereo_out.slave = spdif_pdata->dma_playback;
+		filter = spdif_pdata->dma_filter;
+	}
 
 	spdif->dma_playback = &spdif_stereo_out;
 
-	ret = samsung_asoc_dma_platform_register(&pdev->dev);
+	ret = samsung_asoc_dma_platform_register(&pdev->dev, filter);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register DMA: %d\n", ret);
 		goto err4;
