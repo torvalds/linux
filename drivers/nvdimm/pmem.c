@@ -64,7 +64,7 @@ static void pmem_do_bvec(struct pmem_device *pmem, struct page *page,
 	kunmap_atomic(mem);
 }
 
-static void pmem_make_request(struct request_queue *q, struct bio *bio)
+static blk_qc_t pmem_make_request(struct request_queue *q, struct bio *bio)
 {
 	bool do_acct;
 	unsigned long start;
@@ -84,6 +84,7 @@ static void pmem_make_request(struct request_queue *q, struct bio *bio)
 		wmb_pmem();
 
 	bio_endio(bio);
+	return BLK_QC_T_NONE;
 }
 
 static int pmem_rw_page(struct block_device *bdev, sector_t sector,
@@ -104,22 +105,11 @@ static long pmem_direct_access(struct block_device *bdev, sector_t sector,
 {
 	struct pmem_device *pmem = bdev->bd_disk->private_data;
 	resource_size_t offset = sector * 512 + pmem->data_offset;
-	resource_size_t size;
 
-	if (pmem->data_offset) {
-		/*
-		 * Limit the direct_access() size to what is covered by
-		 * the memmap
-		 */
-		size = (pmem->size - offset) & ~ND_PFN_MASK;
-	} else
-		size = pmem->size - offset;
-
-	/* FIXME convert DAX to comprehend that this mapping has a lifetime */
 	*kaddr = pmem->virt_addr + offset;
 	*pfn = (pmem->phys_addr + offset) >> PAGE_SHIFT;
 
-	return size;
+	return pmem->size - offset;
 }
 
 static const struct block_device_operations pmem_fops = {

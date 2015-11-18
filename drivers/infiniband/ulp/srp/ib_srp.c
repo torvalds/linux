@@ -2798,7 +2798,6 @@ static struct scsi_host_template srp_template = {
 	.cmd_per_lun			= SRP_DEFAULT_CMD_SQ_SIZE,
 	.use_clustering			= ENABLE_CLUSTERING,
 	.shost_attrs			= srp_host_attrs,
-	.use_blk_tags			= 1,
 	.track_queue_depth		= 1,
 };
 
@@ -3226,10 +3225,6 @@ static ssize_t srp_create_target(struct device *dev,
 	mutex_lock(&host->add_target_mutex);
 
 	ret = srp_parse_options(buf, target);
-	if (ret)
-		goto out;
-
-	ret = scsi_init_shared_tag_map(target_host, target_host->can_queue);
 	if (ret)
 		goto out;
 

@@ -157,7 +157,6 @@ void __init plat_mem_setup(void)
 		panic("no dtb found");
 
 	__dt_setup_arch(dtb);
-	strlcpy(arcs_cmdline, boot_command_line, COMMAND_LINE_SIZE);
 
 	for (q = bmips_quirk_list; q->quirk_fn; q++) {
 		if (of_flat_dt_is_compatible(of_get_flat_dt_root(),
