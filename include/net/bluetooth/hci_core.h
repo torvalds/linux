@@ -1434,9 +1434,7 @@ void mgmt_index_added(struct hci_dev *hdev);
 void mgmt_index_removed(struct hci_dev *hdev);
 void mgmt_set_powered_failed(struct hci_dev *hdev, int err);
 int mgmt_powered(struct hci_dev *hdev, u8 powered);
-int mgmt_update_adv_data(struct hci_dev *hdev);
 void mgmt_discoverable_timeout(struct hci_dev *hdev);
-void mgmt_adv_timeout_expired(struct hci_dev *hdev);
 void mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
 		       bool persistent);
 void mgmt_device_connected(struct hci_dev *hdev, struct hci_conn *conn,
@@ -1491,8 +1489,13 @@ void mgmt_new_csrk(struct hci_dev *hdev, struct smp_csrk *csrk,
 void mgmt_new_conn_param(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			 u8 bdaddr_type, u8 store_hint, u16 min_interval,
 			 u16 max_interval, u16 latency, u16 timeout);
-void mgmt_reenable_advertising(struct hci_dev *hdev);
 void mgmt_smp_complete(struct hci_conn *conn, bool complete);
+bool mgmt_get_connectable(struct hci_dev *hdev);
+u8 mgmt_get_adv_discov_flags(struct hci_dev *hdev);
+void mgmt_advertising_added(struct sock *sk, struct hci_dev *hdev,
+			    u8 instance);
+void mgmt_advertising_removed(struct sock *sk, struct hci_dev *hdev,
+			      u8 instance);
 
 u8 hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max, u16 latency,
 		      u16 to_multiplier);

@@ -1549,11 +1549,6 @@ int hci_dev_do_close(struct hci_dev *hdev)
 	if (hci_dev_test_flag(hdev, HCI_MGMT))
 		cancel_delayed_work_sync(&hdev->rpa_expired);
 
-	if (hdev->adv_instance_timeout) {
-		cancel_delayed_work_sync(&hdev->adv_instance_expire);
-		hdev->adv_instance_timeout = 0;
-	}
-
 	/* Avoid potential lockdep warnings from the *_flush() calls by
 	 * ensuring the workqueue is empty up front.
 	 */
@@ -1774,7 +1769,7 @@ static void hci_update_scan_state(struct hci_dev *hdev, u8 scan)
 		hci_dev_set_flag(hdev, HCI_BREDR_ENABLED);
 
 		if (hci_dev_test_flag(hdev, HCI_LE_ENABLED))
-			mgmt_update_adv_data(hdev);
+			hci_req_update_adv_data(hdev, HCI_ADV_CURRENT);
 
 		mgmt_new_settings(hdev);
 	}
@@ -2110,17 +2105,6 @@ static void hci_discov_off(struct work_struct *work)
 	BT_DBG("%s", hdev->name);
 
 	mgmt_discoverable_timeout(hdev);
-}
-
-static void hci_adv_timeout_expire(struct work_struct *work)
-{
-	struct hci_dev *hdev;
-
-	hdev = container_of(work, struct hci_dev, adv_instance_expire.work);
-
-	BT_DBG("%s", hdev->name);
-
-	mgmt_adv_timeout_expired(hdev);
 }
 
 void hci_uuids_clear(struct hci_dev *hdev)
@@ -3003,7 +2987,6 @@ struct hci_dev *hci_alloc_dev(void)
 
 	INIT_DELAYED_WORK(&hdev->power_off, hci_power_off);
 	INIT_DELAYED_WORK(&hdev->discov_off, hci_discov_off);
-	INIT_DELAYED_WORK(&hdev->adv_instance_expire, hci_adv_timeout_expire);
 
 	skb_queue_head_init(&hdev->rx_q);
 	skb_queue_head_init(&hdev->cmd_q);
