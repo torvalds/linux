@@ -60,13 +60,11 @@ enum hw_cards_id {
 					 * interrupts */
 #define	PCI1730_3_INT_CLR	0x10	/* R/W: clear interrupts */
 #define PCI1734_IDO	   0	/* W:   Isolated digital output 0-31 */
-#define PCI173x_BOARDID	   4	/* R:   Board I/D switch for 1730/3/4 */
 
 /* Advantech PCI-1735U */
 #define PCI1735_DI	   0	/* R:   Digital input  0-31 */
 #define PCI1735_DO	   0	/* W:   Digital output 0-31 */
 #define PCI1735_C8254	   4	/* R/W: 8254 counter */
-#define PCI1735_BOARDID	   8    /* R:   Board I/D switch for 1735U */
 
 /*  Advantech PCI-1736UP */
 #define PCI1736_IDI        0	/* R:   Isolated digital input  0-15 */
@@ -75,13 +73,11 @@ enum hw_cards_id {
 #define PCI1736_3_INT_RF        0x0c	/* R/W: set falling/raising edge for
 					 * interrupts */
 #define PCI1736_3_INT_CLR       0x10	/* R/W: clear interrupts */
-#define PCI1736_BOARDID    4	/* R:   Board I/D switch for 1736UP */
 
 /* Advantech PCI-1739U */
 #define PCI1739_DIO	   0	/* R/W: begin of 8255 registers block */
 #define PCI1739_ICR	  32	/* W:   Interrupt control register */
 #define PCI1739_ISR	  32	/* R:   Interrupt status register */
-#define PCI1739_BOARDID	   8    /* R:   Board I/D switch for 1739U */
 
 /*  Advantech PCI-1750 */
 #define PCI1750_IDI	   0	/* R:   Isolated digital input  0-15 */
@@ -117,12 +113,10 @@ enum hw_cards_id {
 #define PCI1754_ICR2	0x0c	/* R/W: Interrupt control register group 2 */
 #define PCI1754_ICR3	0x0e	/* R/W: Interrupt control register group 3 */
 #define PCI1752_6_CFC	0x12	/* R/W: set/read channel freeze function */
-#define PCI175x_BOARDID	0x10	/* R:   Board I/D switch for 1752/4/6 */
 
 /*  Advantech PCI-1762 registers */
 #define PCI1762_RO	   0	/* R/W: Relays status/output */
 #define PCI1762_IDI	   2	/* R:   Isolated input status */
-#define PCI1762_BOARDID	   4	/* R:   Board I/D switch */
 #define PCI1762_ICR	   6	/* W:   Interrupt control register */
 #define PCI1762_ISR	   6	/* R:   Interrupt status register */
 
@@ -138,7 +132,7 @@ struct dio_boardtype {
 	struct diosubd_data sdi[MAX_DI_SUBDEVS];	/*  DI chans */
 	struct diosubd_data sdo[MAX_DO_SUBDEVS];	/*  DO chans */
 	struct diosubd_data sdio[MAX_DIO_SUBDEVG];	/*  DIO 8255 chans */
-	struct diosubd_data boardid;	/*  card supports board ID switch */
+	unsigned long id_reg;
 	unsigned long timer_regbase;
 	unsigned int is_16bit:1;
 };
@@ -152,21 +146,21 @@ static const struct dio_boardtype boardtypes[] = {
 		.sdi[1]		= { 16, PCI1730_IDI, },
 		.sdo[0]		= { 16, PCI1730_DO, },
 		.sdo[1]		= { 16, PCI1730_IDO, },
-		.boardid	= { 4, PCI173x_BOARDID, },
+		.id_reg		= 0x04,
 	},
 	[TYPE_PCI1733] = {
 		.name		= "pci1733",
 		.cardtype	= TYPE_PCI1733,
 		.nsubdevs	= 2,
 		.sdi[1]		= { 32, PCI1733_IDI, },
-		.boardid	= { 4, PCI173x_BOARDID, },
+		.id_reg		= 0x04,
 	},
 	[TYPE_PCI1734] = {
 		.name		= "pci1734",
 		.cardtype	= TYPE_PCI1734,
 		.nsubdevs	= 2,
 		.sdo[1]		= { 32, PCI1734_IDO, },
-		.boardid	= { 4, PCI173x_BOARDID, },
+		.id_reg		= 0x04,
 	},
 	[TYPE_PCI1735] = {
 		.name		= "pci1735",
@@ -174,7 +168,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.nsubdevs	= 4,
 		.sdi[0]		= { 32, PCI1735_DI, },
 		.sdo[0]		= { 32, PCI1735_DO, },
-		.boardid	= { 4, PCI1735_BOARDID, },
+		.id_reg		= 0x08,
 		.timer_regbase	= PCI1735_C8254,
 	},
 	[TYPE_PCI1736] = {
@@ -183,13 +177,14 @@ static const struct dio_boardtype boardtypes[] = {
 		.nsubdevs	= 3,
 		.sdi[1]		= { 16, PCI1736_IDI, },
 		.sdo[1]		= { 16, PCI1736_IDO, },
-		.boardid	= { 4, PCI1736_BOARDID, },
+		.id_reg		= 0x04,
 	},
 	[TYPE_PCI1739] = {
 		.name		= "pci1739",
 		.cardtype	= TYPE_PCI1739,
-		.nsubdevs	= 2,
+		.nsubdevs	= 3,
 		.sdio[0]	= { 2, PCI1739_DIO, },
+		.id_reg		= 0x08,
 	},
 	[TYPE_PCI1750] = {
 		.name		= "pci1750",
@@ -211,7 +206,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.nsubdevs	= 3,
 		.sdo[0]		= { 32, PCI1752_IDO, },
 		.sdo[1]		= { 32, PCI1752_IDO2, },
-		.boardid	= { 4, PCI175x_BOARDID, },
+		.id_reg		= 0x10,
 		.is_16bit	= 1,
 	},
 	[TYPE_PCI1753] = {
@@ -233,7 +228,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.nsubdevs	= 3,
 		.sdi[0]		= { 32, PCI1754_IDI, },
 		.sdi[1]		= { 32, PCI1754_IDI2, },
-		.boardid	= { 4, PCI175x_BOARDID, },
+		.id_reg		= 0x10,
 		.is_16bit	= 1,
 	},
 	[TYPE_PCI1756] = {
@@ -242,7 +237,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.nsubdevs	= 3,
 		.sdi[1]		= { 32, PCI1756_IDI, },
 		.sdo[1]		= { 32, PCI1756_IDO, },
-		.boardid	= { 4, PCI175x_BOARDID, },
+		.id_reg		= 0x10,
 		.is_16bit	= 1,
 	},
 	[TYPE_PCI1762] = {
@@ -251,7 +246,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.nsubdevs	= 3,
 		.sdi[1]		= { 16, PCI1762_IDI, },
 		.sdo[1]		= { 16, PCI1762_RO, },
-		.boardid	= { 4, PCI1762_BOARDID, },
+		.id_reg		= 0x04,
 		.is_16bit	= 1,
 	},
 };
@@ -536,17 +531,16 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 		}
 	}
 
-	d = &board->boardid;
-	if (d->chans) {
+	if (board->id_reg) {
 		s = &dev->subdevices[subdev++];
 		s->type		= COMEDI_SUBD_DI;
 		s->subdev_flags	= SDF_READABLE | SDF_INTERNAL;
-		s->n_chan	= d->chans;
+		s->n_chan	= 4;
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
 		s->insn_bits	= board->is_16bit ? pci_dio_insn_bits_di_w
 						  : pci_dio_insn_bits_di_b;
-		s->private	= (void *)d->addr;
+		s->private	= (void *)board->id_reg;
 	}
 
 	if (board->timer_regbase) {
