@@ -1990,7 +1990,7 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 
 	/* NAPI register */
 	netif_napi_add(ndev, &netcp->rx_napi, netcp_rx_poll, NETCP_NAPI_WEIGHT);
-	netif_napi_add(ndev, &netcp->tx_napi, netcp_tx_poll, NETCP_NAPI_WEIGHT);
+	netif_tx_napi_add(ndev, &netcp->tx_napi, netcp_tx_poll, NETCP_NAPI_WEIGHT);
 
 	/* Register the network device */
 	ndev->dev_id		= 0;
