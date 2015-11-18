@@ -48,18 +48,14 @@ enum hw_cards_id {
 #define MAX_DIO_SUBDEVG	2	/* max number of DIO subdevices group per
 				 * card */
 
-/* Register offset definitions */
-/*  Advantech PCI-1730/3/4 */
-#define	PCI1730_3_INT_EN	0x08	/* R/W: enable/disable interrupts */
-#define	PCI1730_3_INT_RF	0x0c	/* R/W: set falling/raising edge for
-					 * interrupts */
-#define	PCI1730_3_INT_CLR	0x10	/* R/W: clear interrupts */
+/*
+ * Register offset definitions
+ */
 
-/*  Advantech PCI-1736UP */
-#define PCI1736_3_INT_EN        0x08	/* R/W: enable/disable interrupts */
-#define PCI1736_3_INT_RF        0x0c	/* R/W: set falling/raising edge for
-					 * interrupts */
-#define PCI1736_3_INT_CLR       0x10	/* R/W: clear interrupts */
+/* PCI-1730, PCI-1733, PCI-1736 interrupt control registers */
+#define PCI173X_INT_EN_REG	0x08	/* R/W: enable/disable */
+#define PCI173X_INT_RF_REG	0x0c	/* R/W: falling/rising edge */
+#define PCI173X_INT_CLR_REG	0x10	/* R/W: clear */
 
 /* Advantech PCI-1739U */
 #define PCI1739_ICR	  32	/* W:   Interrupt control register */
@@ -311,14 +307,10 @@ static int pci_dio_reset(struct comedi_device *dev)
 	switch (board->cardtype) {
 	case TYPE_PCI1730:
 	case TYPE_PCI1733:
-		outb(0, dev->iobase + PCI1730_3_INT_EN);
-		outb(0x0f, dev->iobase + PCI1730_3_INT_CLR);
-		outb(0, dev->iobase + PCI1730_3_INT_RF);
-		break;
 	case TYPE_PCI1736:
-		outb(0, dev->iobase + PCI1736_3_INT_EN);
-		outb(0x0f, dev->iobase + PCI1736_3_INT_CLR);
-		outb(0, dev->iobase + PCI1736_3_INT_RF);
+		outb(0, dev->iobase + PCI173X_INT_EN_REG);
+		outb(0x0f, dev->iobase + PCI173X_INT_CLR_REG);
+		outb(0, dev->iobase + PCI173X_INT_RF_REG);
 		break;
 	case TYPE_PCI1739:
 		outb(0x88, dev->iobase + PCI1739_ICR);
