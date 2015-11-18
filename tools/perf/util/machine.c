@@ -565,7 +565,7 @@ struct map *machine__findnew_module_map(struct machine *machine, u64 start,
 					const char *filename)
 {
 	struct map *map = NULL;
-	struct dso *dso;
+	struct dso *dso = NULL;
 	struct kmod_path m;
 
 	if (kmod_path__parse_name(&m, filename))
@@ -589,6 +589,8 @@ struct map *machine__findnew_module_map(struct machine *machine, u64 start,
 	/* Put the map here because map_groups__insert alread got it */
 	map__put(map);
 out:
+	/* put the dso here, corresponding to  machine__findnew_module_dso */
+	dso__put(dso);
 	free(m.name);
 	return map;
 }
