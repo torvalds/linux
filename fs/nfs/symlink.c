@@ -48,16 +48,26 @@ static const char *nfs_get_link(struct dentry *dentry,
 	struct page *page;
 	void *err;
 
-	if (!dentry)
-		return ERR_PTR(-ECHILD);
-
-	err = ERR_PTR(nfs_revalidate_mapping(inode, inode->i_mapping));
-	if (err)
-		return err;
-	page = read_cache_page(&inode->i_data, 0,
-				(filler_t *)nfs_symlink_filler, inode);
-	if (IS_ERR(page))
-		return ERR_CAST(page);
+	if (!dentry) {
+		err = ERR_PTR(nfs_revalidate_mapping_rcu(inode));
+		if (err)
+			return err;
+		page = find_get_page(inode->i_mapping, 0);
+		if (!page)
+			return ERR_PTR(-ECHILD);
+		if (!PageUptodate(page)) {
+			put_page(page);
+			return ERR_PTR(-ECHILD);
+		}
+	} else {
+		err = ERR_PTR(nfs_revalidate_mapping(inode, inode->i_mapping));
+		if (err)
+			return err;
+		page = read_cache_page(&inode->i_data, 0,
+					(filler_t *)nfs_symlink_filler, inode);
+		if (IS_ERR(page))
+			return ERR_CAST(page);
+	}
 	*cookie = page;
 	return page_address(page);
 }
