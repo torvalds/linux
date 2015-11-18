@@ -1101,6 +1101,8 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 	    policy->max >= policy->cpuinfo.max_freq) {
 		pr_debug("intel_pstate: set performance\n");
 		limits = &performance_limits;
+		if (hwp_active)
+			intel_pstate_hwp_set();
 		return 0;
 	}
 
