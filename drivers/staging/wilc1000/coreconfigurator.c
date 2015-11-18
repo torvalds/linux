@@ -597,7 +597,7 @@ s32 wilc_send_config_pkt(struct wilc *wilc, u8 mode, struct wid *wids,
 		for (counter = 0; counter < count; counter++) {
 			PRINT_INFO(CORECONFIG_DBG, "Sending CFG packet [%d][%d]\n", !counter,
 				   (counter == count - 1));
-			if (!wilc_wlan_cfg_get(!counter,
+			if (!wilc_wlan_cfg_get(wilc, !counter,
 					       wids[counter].id,
 					       (counter == count - 1),
 					       drv)) {

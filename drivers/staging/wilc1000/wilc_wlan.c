@@ -1540,10 +1540,10 @@ int wilc_wlan_cfg_set(struct wilc *wilc, int start, u32 wid, u8 *buffer,
 	return ret_size;
 }
 
-int wilc_wlan_cfg_get(int start, u32 wid, int commit, u32 drv_handler)
+int wilc_wlan_cfg_get(struct wilc *wilc, int start, u32 wid, int commit,
+		      u32 drv_handler)
 {
 	wilc_wlan_dev_t *p = &g_wlan;
-	struct wilc *wilc = wilc_dev;
 	u32 offset;
 	int ret_size;
 
