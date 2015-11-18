@@ -2346,6 +2346,7 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 	add_wait_queue(&async->wait_head, &wait);
 	while (count == 0 && !retval) {
 		unsigned runflags;
+		unsigned int wp, n1, n2;
 
 		set_current_state(TASK_INTERRUPTIBLE);
 
@@ -2360,9 +2361,6 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 		/* Allocate all free buffer space. */
 		comedi_buf_write_alloc(s, async->prealloc_bufsz);
 		m = comedi_buf_write_n_allocated(s);
-		/* Avoid buffer wraparound. */
-		if (async->buf_write_ptr + m > async->prealloc_bufsz)
-			m = async->prealloc_bufsz - async->buf_write_ptr;
 		n = min_t(size_t, m, nbytes);
 
 		if (n == 0) {
@@ -2388,8 +2386,14 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 			continue;
 		}
 
-		m = copy_from_user(async->prealloc_buf + async->buf_write_ptr,
-				   buf, n);
+		wp = async->buf_write_ptr;
+		n1 = min(n, async->prealloc_bufsz - wp);
+		n2 = n - n1;
+		m = copy_from_user(async->prealloc_buf + wp, buf, n1);
+		if (m)
+			m += n2;
+		else if (n2)
+			m = copy_from_user(async->prealloc_buf, buf + n1, n2);
 		if (m) {
 			n -= m;
 			retval = -EFAULT;
