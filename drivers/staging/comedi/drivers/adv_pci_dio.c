@@ -62,7 +62,6 @@ enum hw_cards_id {
 #define PCI1736_3_INT_CLR       0x10	/* R/W: clear interrupts */
 
 /* Advantech PCI-1739U */
-#define PCI1739_DIO	   0	/* R/W: begin of 8255 registers block */
 #define PCI1739_ICR	  32	/* W:   Interrupt control register */
 #define PCI1739_ISR	  32	/* R:   Interrupt status register */
 
@@ -71,15 +70,12 @@ enum hw_cards_id {
 #define PCI1750_ISR	  32	/* R:   Interrupt status register */
 
 /*  Advantech PCI-1751/3/3E */
-#define PCI1751_DIO	   0	/* R/W: begin of 8255 registers block */
 #define PCI1751_ICR	  32	/* W:   Interrupt control register */
 #define PCI1751_ISR	  32	/* R:   Interrupt status register */
-#define PCI1753_DIO	   0	/* R/W: begin of 8255 registers block */
 #define PCI1753_ICR0	  16	/* R/W: Interrupt control register group 0 */
 #define PCI1753_ICR1	  17	/* R/W: Interrupt control register group 1 */
 #define PCI1753_ICR2	  18	/* R/W: Interrupt control register group 2 */
 #define PCI1753_ICR3	  19	/* R/W: Interrupt control register group 3 */
-#define PCI1753E_DIO	  32	/* R/W: begin of 8255 registers block */
 #define PCI1753E_ICR0	  48	/* R/W: Interrupt control register group 0 */
 #define PCI1753E_ICR1	  49	/* R/W: Interrupt control register group 1 */
 #define PCI1753E_ICR2	  50	/* R/W: Interrupt control register group 2 */
@@ -159,7 +155,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.name		= "pci1739",
 		.cardtype	= TYPE_PCI1739,
 		.nsubdevs	= 3,
-		.sdio[0]	= { 2, PCI1739_DIO, },
+		.sdio[0]	= { 2, 0x00, },		/* 8255 DIO */
 		.id_reg		= 0x08,
 	},
 	[TYPE_PCI1750] = {
@@ -173,7 +169,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.name		= "pci1751",
 		.cardtype	= TYPE_PCI1751,
 		.nsubdevs	= 3,
-		.sdio[0]	= { 2, PCI1751_DIO, },
+		.sdio[0]	= { 2, 0x00, },		/* 8255 DIO */
 		.timer_regbase	= 0x18,
 	},
 	[TYPE_PCI1752] = {
@@ -189,14 +185,14 @@ static const struct dio_boardtype boardtypes[] = {
 		.name		= "pci1753",
 		.cardtype	= TYPE_PCI1753,
 		.nsubdevs	= 4,
-		.sdio[0]	= { 4, PCI1753_DIO, },
+		.sdio[0]	= { 4, 0x00, },		/* 8255 DIO */
 	},
 	[TYPE_PCI1753E] = {
 		.name		= "pci1753e",
 		.cardtype	= TYPE_PCI1753E,
 		.nsubdevs	= 8,
-		.sdio[0]	= { 4, PCI1753_DIO, },
-		.sdio[1]	= { 4, PCI1753E_DIO, },
+		.sdio[0]	= { 4, 0x00, },		/* 8255 DIO */
+		.sdio[1]	= { 4, 0x20, },		/* 8255 DIO */
 	},
 	[TYPE_PCI1754] = {
 		.name		= "pci1754",
