@@ -25,6 +25,7 @@ source "drivers/net/wireless/intel/Kconfig"
 source "drivers/net/wireless/intersil/Kconfig"
 source "drivers/net/wireless/marvell/Kconfig"
 source "drivers/net/wireless/realtek/Kconfig"
+source "drivers/net/wireless/rsi/Kconfig"
 source "drivers/net/wireless/st/Kconfig"
 source "drivers/net/wireless/zydas/Kconfig"
 
@@ -99,6 +100,5 @@ source "drivers/net/wireless/ath/Kconfig"
 source "drivers/net/wireless/rt2x00/Kconfig"
 source "drivers/net/wireless/mediatek/Kconfig"
 source "drivers/net/wireless/ti/Kconfig"
-source "drivers/net/wireless/rsi/Kconfig"
 
 endif # WLAN
