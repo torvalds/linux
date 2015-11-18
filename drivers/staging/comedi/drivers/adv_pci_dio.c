@@ -471,6 +471,8 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 	else
 		dev->iobase = pci_resource_start(pcidev, 2);
 
+	pci_dio_reset(dev);
+
 	ret = comedi_alloc_subdevices(dev, board->nsubdevs);
 	if (ret)
 		return ret;
@@ -542,8 +544,6 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 
 		comedi_8254_subdevice_init(s, dev->pacer);
 	}
-
-	pci_dio_reset(dev);
 
 	return 0;
 }
