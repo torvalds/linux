@@ -17,33 +17,6 @@
 
 #define USE_SPI_DMA     0       /* johnny add */
 
-#ifdef WILC_ASIC_A0
- #if defined(PLAT_PANDA_ES_OMAP4460)
-  #define MIN_SPEED 12000000
-  #define MAX_SPEED 24000000
- #elif defined(PLAT_WMS8304)
-  #define MIN_SPEED 12000000
-  #define MAX_SPEED 24000000 /* 4000000 */
- #elif defined(CUSTOMER_PLATFORM)
-/*
-  TODO : define Clock speed under 48M.
- *
- * ex)
- * #define MIN_SPEED 24000000
- * #define MAX_SPEED 48000000
- */
- #else
-  #define MIN_SPEED 24000000
-  #define MAX_SPEED 48000000
- #endif
-#else /* WILC_ASIC_A0 */
-/* Limit clk to 6MHz on FPGA. */
- #define MIN_SPEED 6000000
- #define MAX_SPEED 6000000
-#endif /* WILC_ASIC_A0 */
-
-static u32 SPEED = MIN_SPEED;
-
 static const struct wilc1000_ops wilc1000_spi_ops;
 
 static int wilc_bus_probe(struct spi_device *spi)
@@ -119,7 +92,6 @@ int wilc_spi_write(u8 *b, u32 len)
 				struct spi_transfer tr = {
 					.tx_buf = b + (i * TXRX_PHASE_SIZE),
 					.len = TXRX_PHASE_SIZE,
-					.speed_hz = SPEED,
 					.bits_per_word = 8,
 					.delay_usecs = 0,
 				};
@@ -145,7 +117,6 @@ int wilc_spi_write(u8 *b, u32 len)
 			struct spi_transfer tr = {
 				.tx_buf = b + (blk * TXRX_PHASE_SIZE),
 				.len = remainder,
-				.speed_hz = SPEED,
 				.bits_per_word = 8,
 				.delay_usecs = 0,
 			};
@@ -187,7 +158,6 @@ int wilc_spi_write(u8 *b, u32 len)
 		struct spi_transfer tr = {
 			.tx_buf = b,
 			.len = len,
-			.speed_hz = SPEED,
 			.delay_usecs = 0,
 		};
 		char *r_buffer = kzalloc(len, GFP_KERNEL);
@@ -249,7 +219,6 @@ int wilc_spi_read(u8 *rb, u32 rlen)
 				struct spi_transfer tr = {
 					.rx_buf = rb + (i * TXRX_PHASE_SIZE),
 					.len = TXRX_PHASE_SIZE,
-					.speed_hz = SPEED,
 					.bits_per_word = 8,
 					.delay_usecs = 0,
 				};
@@ -273,7 +242,6 @@ int wilc_spi_read(u8 *rb, u32 rlen)
 			struct spi_transfer tr = {
 				.rx_buf = rb + (blk * TXRX_PHASE_SIZE),
 				.len = remainder,
-				.speed_hz = SPEED,
 				.bits_per_word = 8,
 				.delay_usecs = 0,
 			};
@@ -313,7 +281,6 @@ int wilc_spi_read(u8 *rb, u32 rlen)
 		struct spi_transfer tr = {
 			.rx_buf = rb,
 			.len = rlen,
-			.speed_hz = SPEED,
 			.delay_usecs = 0,
 
 		};
@@ -359,7 +326,6 @@ int wilc_spi_write_read(u8 *wb, u8 *rb, u32 rlen)
 			.rx_buf = rb,
 			.tx_buf = wb,
 			.len = rlen,
-			.speed_hz = SPEED,
 			.bits_per_word = 8,
 			.delay_usecs = 0,
 
@@ -383,12 +349,4 @@ int wilc_spi_write_read(u8 *wb, u8 *rb, u32 rlen)
 	(ret < 0) ? (ret = 0) : (ret = 1);
 
 	return ret;
-}
-
-int wilc_spi_set_max_speed(void)
-{
-	SPEED = MAX_SPEED;
-
-	PRINT_INFO(BUS_DBG, "@@@@@@@@@@@@ change SPI speed to %d @@@@@@@@@\n", SPEED);
-	return 1;
 }

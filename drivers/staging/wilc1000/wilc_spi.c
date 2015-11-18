@@ -793,15 +793,6 @@ static int _wilc_spi_init(struct wilc *wilc, wilc_debug_func func)
 	return 1;
 }
 
-static void wilc_spi_max_bus_speed(void)
-{
-	wilc_spi_set_max_speed();
-}
-
-static void wilc_spi_default_bus_speed(void)
-{
-}
-
 static int wilc_spi_read_size(u32 *size)
 {
 	int ret;
@@ -1036,6 +1027,4 @@ const struct wilc_hif_func wilc_hif_spi = {
 	.hif_block_tx_ext = _wilc_spi_write,
 	.hif_block_rx_ext = _wilc_spi_read,
 	.hif_sync_ext = wilc_spi_sync_ext,
-	.hif_set_max_bus_speed = wilc_spi_max_bus_speed,
-	.hif_set_default_bus_speed = wilc_spi_default_bus_speed,
 };
