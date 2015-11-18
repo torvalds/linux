@@ -70,9 +70,8 @@ enum hw_cards_id {
 /* PCI-1752, PCI-1756 special registers */
 #define PCI1752_CFC_REG		0x12	/* R/W: channel freeze function */
 
-/*  Advantech PCI-1762 registers */
-#define PCI1762_ICR	   6	/* W:   Interrupt control register */
-#define PCI1762_ISR	   6	/* R:   Interrupt status register */
+/* PCI-1762 interrupt control registers */
+#define PCI1762_INT_REG		0x06	/* R/W: status/control */
 
 struct diosubd_data {
 	int chans;		/*  num of chans or 8255 devices */
@@ -326,7 +325,7 @@ static int pci_dio_reset(struct comedi_device *dev)
 		}
 		break;
 	case TYPE_PCI1762:
-		outw(0x0101, dev->iobase + PCI1762_ICR);
+		outw(0x0101, dev->iobase + PCI1762_INT_REG);
 		break;
 	default:
 		break;
