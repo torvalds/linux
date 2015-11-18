@@ -960,6 +960,8 @@ static const struct drm_display_mode nec_nl4827hc19_05b_mode = {
 	.vsync_end = 272 + 2 + 4,
 	.vtotal = 272 + 2 + 4 + 2,
 	.vrefresh = 74,
+	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC |
+		 DISPLAY_FLAGS_PIXDATA_POSEDGE,
 };
 
 static const struct panel_desc nec_nl4827hc19_05b = {
