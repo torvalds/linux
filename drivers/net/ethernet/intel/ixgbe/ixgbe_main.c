@@ -7063,6 +7063,7 @@ static void ixgbe_tx_csum(struct ixgbe_ring *tx_ring,
 			struct tcphdr *tcphdr;
 			u8 *raw;
 		} transport_hdr;
+		__be16 frag_off;
 
 		if (skb->encapsulation) {
 			network_hdr.raw = skb_inner_network_header(skb);
@@ -7086,13 +7087,17 @@ static void ixgbe_tx_csum(struct ixgbe_ring *tx_ring,
 		case 6:
 			vlan_macip_lens |= transport_hdr.raw - network_hdr.raw;
 			l4_hdr = network_hdr.ipv6->nexthdr;
+			if (likely((transport_hdr.raw - network_hdr.raw) ==
+				   sizeof(struct ipv6hdr)))
+				break;
+			ipv6_skip_exthdr(skb, network_hdr.raw - skb->data +
+					      sizeof(struct ipv6hdr),
+					 &l4_hdr, &frag_off);
+			if (unlikely(frag_off))
+				l4_hdr = NEXTHDR_FRAGMENT;
 			break;
 		default:
-			if (unlikely(net_ratelimit())) {
-				dev_warn(tx_ring->dev,
-					 "partial checksum but version=%d\n",
-					 network_hdr.ipv4->version);
-			}
+			break;
 		}
 
 		switch (l4_hdr) {
@@ -7113,16 +7118,18 @@ static void ixgbe_tx_csum(struct ixgbe_ring *tx_ring,
 		default:
 			if (unlikely(net_ratelimit())) {
 				dev_warn(tx_ring->dev,
-				 "partial checksum but l4 proto=%x!\n",
-				 l4_hdr);
+					 "partial checksum, version=%d, l4 proto=%x\n",
+					 network_hdr.ipv4->version, l4_hdr);
 			}
-			break;
+			skb_checksum_help(skb);
+			goto no_csum;
 		}
 
 		/* update TX checksum flag */
 		first->tx_flags |= IXGBE_TX_FLAGS_CSUM;
 	}
 
+no_csum:
 	/* vlan_macip_lens: MACLEN, VLAN tag */
 	vlan_macip_lens |= first->tx_flags & IXGBE_TX_FLAGS_VLAN_MASK;
 
