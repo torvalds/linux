@@ -91,6 +91,23 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
+		pcie_phy: phy@0301d0a0 {
+			compatible = "brcm,cygnus-pcie-phy";
+			reg = <0x0301d0a0 0x14>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			pcie0_phy: phy@0 {
+				reg = <0>;
+				#phy-cells = <0>;
+			};
+
+			pcie1_phy: phy@1 {
+				reg = <1>;
+				#phy-cells = <0>;
+			};
+		};
+
 		pinctrl: pinctrl@0x0301d0c8 {
 			compatible = "brcm,cygnus-pinmux";
 			reg = <0x0301d0c8 0x30>,
@@ -163,6 +180,9 @@
 			ranges = <0x81000000 0 0	  0x28000000 0 0x00010000
 				  0x82000000 0 0x20000000 0x20000000 0 0x04000000>;
 
+			phys = <&pcie0_phy>;
+			phy-names = "pcie-phy";
+
 			status = "disabled";
 		};
 
@@ -183,6 +203,9 @@
 			device_type = "pci";
 			ranges = <0x81000000 0 0	  0x48000000 0 0x00010000
 				  0x82000000 0 0x40000000 0x40000000 0 0x04000000>;
+
+			phys = <&pcie1_phy>;
+			phy-names = "pcie-phy";
 
 			status = "disabled";
 		};
