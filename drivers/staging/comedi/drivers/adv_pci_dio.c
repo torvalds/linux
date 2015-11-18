@@ -57,17 +57,10 @@ enum hw_cards_id {
 #define PCI173X_INT_RF_REG	0x0c	/* R/W: falling/rising edge */
 #define PCI173X_INT_CLR_REG	0x10	/* R/W: clear */
 
-/* Advantech PCI-1739U */
-#define PCI1739_ICR	  32	/* W:   Interrupt control register */
-#define PCI1739_ISR	  32	/* R:   Interrupt status register */
-
-/*  Advantech PCI-1750 */
-#define PCI1750_ICR	  32	/* W:   Interrupt control register */
-#define PCI1750_ISR	  32	/* R:   Interrupt status register */
+/* PCI-1739U, PCI-1750, PCI1751 interrupt control registers */
+#define PCI1750_INT_REG		0x20	/* R/W: status/control */
 
 /*  Advantech PCI-1751/3/3E */
-#define PCI1751_ICR	  32	/* W:   Interrupt control register */
-#define PCI1751_ISR	  32	/* R:   Interrupt status register */
 #define PCI1753_ICR0	  16	/* R/W: Interrupt control register group 0 */
 #define PCI1753_ICR1	  17	/* R/W: Interrupt control register group 1 */
 #define PCI1753_ICR2	  18	/* R/W: Interrupt control register group 2 */
@@ -313,11 +306,9 @@ static int pci_dio_reset(struct comedi_device *dev)
 		outb(0, dev->iobase + PCI173X_INT_RF_REG);
 		break;
 	case TYPE_PCI1739:
-		outb(0x88, dev->iobase + PCI1739_ICR);
-		break;
 	case TYPE_PCI1750:
 	case TYPE_PCI1751:
-		outb(0x88, dev->iobase + PCI1750_ICR);
+		outb(0x88, dev->iobase + PCI1750_INT_REG);
 		break;
 	case TYPE_PCI1753E:
 		outb(0x88, dev->iobase + PCI1753E_ICR0);
