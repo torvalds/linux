@@ -8,14 +8,11 @@
 
 /*
  * Driver: adv_pci_dio
- * Description: Advantech PCI-1730, PCI-1733, PCI-1734, PCI-1735U,
- *   PCI-1736UP, PCI-1739U, PCI-1750, PCI-1751, PCI-1752,
- *   PCI-1753/E, PCI-1754, PCI-1756, PCI-1762
+ * Description: Advantech Digital I/O Cards
  * Devices: [Advantech] PCI-1730 (adv_pci_dio), PCI-1733,
  *   PCI-1734, PCI-1735U, PCI-1736UP, PCI-1739U, PCI-1750,
- *   PCI-1751, PCI-1752, PCI-1753,
- *   PCI-1753+PCI-1753E, PCI-1754, PCI-1756,
- *   PCI-1762
+ *   PCI-1751, PCI-1752, PCI-1753, PCI-1753+PCI-1753E,
+ *   PCI-1754, PCI-1756, PCI-1762
  * Author: Michal Dobes <dobes@tesnet.cz>
  * Updated: Mon, 09 Jan 2012 12:40:46 +0000
  * Status: untested
