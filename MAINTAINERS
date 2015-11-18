@@ -9035,7 +9035,7 @@ L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.git
 S:	Orphan
-F:	drivers/net/wireless/rtl818x/rtl8180/
+F:	drivers/net/wireless/realtek/rtl818x/rtl8180/
 
 RTL8187 WIRELESS DRIVER
 M:	Herton Ronaldo Krzesinski <herton@canonical.com>
@@ -9045,7 +9045,7 @@ L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.git
 S:	Maintained
-F:	drivers/net/wireless/rtl818x/rtl8187/
+F:	drivers/net/wireless/realtek/rtl818x/rtl8187/
 
 RTL8192CE WIRELESS DRIVER
 M:	Larry Finger <Larry.Finger@lwfinger.net>
@@ -9054,8 +9054,8 @@ L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.git
 S:	Maintained
-F:	drivers/net/wireless/rtlwifi/
-F:	drivers/net/wireless/rtlwifi/rtl8192ce/
+F:	drivers/net/wireless/realtek/rtlwifi/
+F:	drivers/net/wireless/realtek/rtlwifi/rtl8192ce/
 
 RTL8XXXU WIRELESS DRIVER (rtl8xxxu)
 M:	Jes Sorensen <Jes.Sorensen@redhat.com>
