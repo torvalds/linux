@@ -133,7 +133,9 @@
 #define DCU_LAYER_RLE_EN		BIT(15)
 #define DCU_LAYER_LUOFFS(x)		((x) << 4)
 #define DCU_LAYER_BB_ON			BIT(2)
-#define DCU_LAYER_AB(x)			(x)
+#define DCU_LAYER_AB_NONE		0
+#define DCU_LAYER_AB_CHROMA_KEYING	1
+#define DCU_LAYER_AB_WHOLE_FRAME	2
 
 #define DCU_LAYER_CKMAX_R(x)		((x) << 16)
 #define DCU_LAYER_CKMAX_G(x)		((x) << 8)
