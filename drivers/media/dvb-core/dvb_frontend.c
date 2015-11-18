@@ -899,14 +899,13 @@ static void dvb_frontend_stop(struct dvb_frontend *fe)
  */
 void dvb_frontend_sleep_until(ktime_t *waketime, u32 add_usec)
 {
-	s32 delta, newdelta;
+	s32 delta;
 
-	ktime_add_us(*waketime, add_usec);
+	*waketime = ktime_add_us(*waketime, add_usec);
 	delta = ktime_us_delta(ktime_get_real(), *waketime);
 	if (delta > 2500) {
 		msleep((delta - 1500) / 1000);
-		newdelta = ktime_us_delta(ktime_get_real(), *waketime);
-		delta = (newdelta > delta) ? 0 : newdelta;
+		delta = ktime_us_delta(ktime_get_real(), *waketime);
 	}
 	if (delta > 0)
 		udelay(delta);
