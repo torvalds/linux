@@ -1088,11 +1088,14 @@ int machine__create_kernel_maps(struct machine *machine)
 	struct dso *kernel = machine__get_kernel(machine);
 	const char *name;
 	u64 addr = machine__get_running_kernel_start(machine, &name);
-	if (!addr)
+	int ret;
+
+	if (!addr || kernel == NULL)
 		return -1;
 
-	if (kernel == NULL ||
-	    __machine__create_kernel_maps(machine, kernel) < 0)
+	ret = __machine__create_kernel_maps(machine, kernel);
+	dso__put(kernel);
+	if (ret < 0)
 		return -1;
 
 	if (symbol_conf.use_modules && machine__create_modules(machine) < 0) {
