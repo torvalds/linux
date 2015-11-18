@@ -2919,7 +2919,7 @@ static int hostIFthread(void *pvArg)
 			del_timer(&hif_drv->scan_timer);
 			PRINT_D(HOSTINF_DBG, "scan completed successfully\n");
 
-			if (!wilc_wlan_get_num_conn_ifcs(wilc_dev))
+			if (!wilc_wlan_get_num_conn_ifcs(wilc))
 				wilc_chip_sleep_manually(wilc);
 
 			Handle_ScanDone(msg.drv, SCAN_EVENT_DONE);

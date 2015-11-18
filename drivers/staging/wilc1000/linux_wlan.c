@@ -43,8 +43,6 @@ static int  mac_init_fn(struct net_device *ndev);
 static struct net_device_stats *mac_stats(struct net_device *dev);
 static int  mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd);
 static void wilc_set_multicast_list(struct net_device *dev);
-struct wilc *wilc_dev;
-EXPORT_SYMBOL_GPL(wilc_dev);
 
 bool wilc_enable_ps = true;
 
@@ -1432,7 +1430,7 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 
 	sema_init(&close_exit_sync, 0);
 
-	wl = kzalloc(sizeof(*wilc_dev), GFP_KERNEL);
+	wl = kzalloc(sizeof(*wl), GFP_KERNEL);
 	if (!wl)
 		return -ENOMEM;
 
@@ -1495,7 +1493,6 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 		nic->iftype = STATION_MODE;
 		nic->mac_opened = 0;
 	}
-	wilc_dev = *wilc = wl;
 
 	return 0;
 }
