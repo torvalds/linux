@@ -212,10 +212,10 @@ struct drm_encoder *mdp4_dtv_encoder_init(struct drm_device *dev);
 
 long mdp4_lcdc_round_pixclk(struct drm_encoder *encoder, unsigned long rate);
 struct drm_encoder *mdp4_lcdc_encoder_init(struct drm_device *dev,
-		struct drm_panel *panel);
+		struct device_node *panel_node);
 
 struct drm_connector *mdp4_lvds_connector_init(struct drm_device *dev,
-		struct drm_panel *panel, struct drm_encoder *encoder);
+		struct device_node *panel_node, struct drm_encoder *encoder);
 
 #ifdef CONFIG_COMMON_CLK
 struct clk *mpd4_lvds_pll_init(struct drm_device *dev);

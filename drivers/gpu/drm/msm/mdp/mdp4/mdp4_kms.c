@@ -240,18 +240,18 @@ int mdp4_enable(struct mdp4_kms *mdp4_kms)
 	return 0;
 }
 
-static struct drm_panel *detect_panel(struct drm_device *dev)
+static struct device_node *mdp4_detect_lcdc_panel(struct drm_device *dev)
 {
 	struct device_node *endpoint, *panel_node;
 	struct device_node *np = dev->dev->of_node;
-	struct drm_panel *panel = NULL;
 
 	endpoint = of_graph_get_next_endpoint(np, NULL);
 	if (!endpoint) {
-		dev_err(dev->dev, "no valid endpoint\n");
-		return ERR_PTR(-ENODEV);
+		DBG("no endpoint in MDP4 to fetch LVDS panel\n");
+		return NULL;
 	}
 
+	/* don't proceed if we have an endpoint but no panel_node tied to it */
 	panel_node = of_graph_get_remote_port_parent(endpoint);
 	if (!panel_node) {
 		dev_err(dev->dev, "no valid panel node\n");
@@ -261,13 +261,7 @@ static struct drm_panel *detect_panel(struct drm_device *dev)
 
 	of_node_put(endpoint);
 
-	panel = of_drm_find_panel(panel_node);
-	if (!panel) {
-		of_node_put(panel_node);
-		return ERR_PTR(-EPROBE_DEFER);
-	}
-
-	return panel;
+	return panel_node;
 }
 
 static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
@@ -277,18 +271,22 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
-	struct drm_panel *panel;
+	struct device_node *panel_node;
 	int ret;
 
 	switch (intf_type) {
 	case DRM_MODE_ENCODER_LVDS:
-		panel = detect_panel(dev);
-		if (IS_ERR(panel)) {
-			dev_err(dev->dev, "failed to detect LVDS panel\n");
-			return PTR_ERR(panel);
-		}
+		/*
+		 * bail out early if:
+		 * - there is no panel node (no need to initialize lcdc
+		 *   encoder and lvds connector), or
+		 * - panel node is a bad pointer
+		 */
+		panel_node = mdp4_detect_lcdc_panel(dev);
+		if (IS_ERR_OR_NULL(panel_node))
+			return PTR_ERR(panel_node);
 
-		encoder = mdp4_lcdc_encoder_init(dev, panel);
+		encoder = mdp4_lcdc_encoder_init(dev, panel_node);
 		if (IS_ERR(encoder)) {
 			dev_err(dev->dev, "failed to construct LCDC encoder\n");
 			return PTR_ERR(encoder);
@@ -297,7 +295,7 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 		/* LCDC can be hooked to DMA_P (TODO: Add DMA_S later?) */
 		encoder->possible_crtcs = 1 << DMA_P;
 
-		connector = mdp4_lvds_connector_init(dev, panel, encoder);
+		connector = mdp4_lvds_connector_init(dev, panel_node, encoder);
 		if (IS_ERR(connector)) {
 			dev_err(dev->dev, "failed to initialize LVDS connector\n");
 			return PTR_ERR(connector);
