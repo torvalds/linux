@@ -118,7 +118,6 @@ config MAC80211_HWSIM
 
 source "drivers/net/wireless/ath/Kconfig"
 source "drivers/net/wireless/orinoco/Kconfig"
-source "drivers/net/wireless/p54/Kconfig"
 source "drivers/net/wireless/rt2x00/Kconfig"
 source "drivers/net/wireless/mediatek/Kconfig"
 source "drivers/net/wireless/realtek/rtlwifi/Kconfig"

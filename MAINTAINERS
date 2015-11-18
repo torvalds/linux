@@ -7956,7 +7956,7 @@ M:	Christian Lamparter <chunkeey@googlemail.com>
 L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/en/users/Drivers/p54
 S:	Maintained
-F:	drivers/net/wireless/p54/
+F:	drivers/net/wireless/intersil/p54/
 
 PA SEMI ETHERNET DRIVER
 M:	Olof Johansson <olof@lixom.net>
