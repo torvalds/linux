@@ -411,9 +411,14 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 				skl_psr_setup_su_vsc(intel_dp);
 		}
 
-		/* Avoid continuous PSR exit by masking memup and hpd */
+		/*
+		 * Per Spec: Avoid continuous PSR exit by masking MEMUP and HPD.
+		 * Also mask LPSP to avoid dependency on other drivers that
+		 * might block runtime_pm besides preventing other hw tracking
+		 * issues now we can rely on frontbuffer tracking.
+		 */
 		I915_WRITE(EDP_PSR_DEBUG_CTL, EDP_PSR_DEBUG_MASK_MEMUP |
-			   EDP_PSR_DEBUG_MASK_HPD);
+			   EDP_PSR_DEBUG_MASK_HPD | EDP_PSR_DEBUG_MASK_LPSP);
 
 		/* Enable PSR on the panel */
 		hsw_psr_enable_sink(intel_dp);
