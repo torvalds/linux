@@ -3689,6 +3689,9 @@ static void ath10k_tx(struct ieee80211_hw *hw,
 	if (!ath10k_tx_h_use_hwcrypto(vif, skb))
 		skb_cb->flags |= ATH10K_SKB_F_NO_HWCRYPT;
 
+	if (ieee80211_is_mgmt(hdr->frame_control))
+		skb_cb->flags |= ATH10K_SKB_F_MGMT;
+
 	skb_cb->htt.tid = ath10k_tx_h_get_tid(hdr);
 	skb_cb->vdev_id = ath10k_tx_h_get_vdev_id(ar, vif);
 

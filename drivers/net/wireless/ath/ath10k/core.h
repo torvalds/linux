@@ -85,6 +85,7 @@ enum ath10k_skb_flags {
 	ATH10K_SKB_F_NO_HWCRYPT = BIT(0),
 	ATH10K_SKB_F_DTIM_ZERO = BIT(1),
 	ATH10K_SKB_F_DELIVER_CAB = BIT(2),
+	ATH10K_SKB_F_MGMT = BIT(3),
 };
 
 struct ath10k_skb_cb {
