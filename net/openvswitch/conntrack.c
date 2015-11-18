@@ -300,10 +300,10 @@ static int handle_fragments(struct net *net, struct sw_flow_key *key,
 			    u16 zone, struct sk_buff *skb)
 {
 	struct ovs_skb_cb ovs_cb = *OVS_CB(skb);
+	int err;
 
 	if (key->eth.type == htons(ETH_P_IP)) {
 		enum ip_defrag_users user = IP_DEFRAG_CONNTRACK_IN + zone;
-		int err;
 
 		memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
 		err = ip_defrag(net, skb, user);
@@ -314,14 +314,13 @@ static int handle_fragments(struct net *net, struct sw_flow_key *key,
 #if IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
 	} else if (key->eth.type == htons(ETH_P_IPV6)) {
 		enum ip6_defrag_users user = IP6_DEFRAG_CONNTRACK_IN + zone;
-		struct sk_buff *reasm;
 
 		memset(IP6CB(skb), 0, sizeof(struct inet6_skb_parm));
-		reasm = nf_ct_frag6_gather(net, skb, user);
-		if (!reasm)
-			return -EINPROGRESS;
+		err = nf_ct_frag6_gather(net, skb, user);
+		if (err)
+			return err;
 
-		key->ip.proto = ipv6_hdr(reasm)->nexthdr;
+		key->ip.proto = ipv6_hdr(skb)->nexthdr;
 		ovs_cb.mru = IP6CB(skb)->frag_max_size;
 #endif
 	} else {

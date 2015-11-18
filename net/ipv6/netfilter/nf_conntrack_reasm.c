@@ -361,14 +361,15 @@ err:
 
 /*
  *	Check if this packet is complete.
- *	Returns NULL on failure by any reason, and pointer
- *	to current nexthdr field in reassembled frame.
  *
  *	It is called with locked fq, and caller must check that
  *	queue is eligible for reassembly i.e. it is not COMPLETE,
  *	the last and the first frames arrived and all the bits are here.
+ *
+ *	returns true if *prev skb has been transformed into the reassembled
+ *	skb, false otherwise.
  */
-static struct sk_buff *
+static bool
 nf_ct_frag6_reasm(struct frag_queue *fq, struct sk_buff *prev,  struct net_device *dev)
 {
 	struct sk_buff *fp, *head = fq->q.fragments;
@@ -382,22 +383,21 @@ nf_ct_frag6_reasm(struct frag_queue *fq, struct sk_buff *prev,  struct net_devic
 
 	ecn = ip_frag_ecn_table[fq->ecn];
 	if (unlikely(ecn == 0xff))
-		goto out_fail;
+		return false;
 
 	/* Unfragmented part is taken from the first segment. */
 	payload_len = ((head->data - skb_network_header(head)) -
 		       sizeof(struct ipv6hdr) + fq->q.len -
 		       sizeof(struct frag_hdr));
 	if (payload_len > IPV6_MAXPLEN) {
-		pr_debug("payload len is too large.\n");
-		goto out_oversize;
+		net_dbg_ratelimited("nf_ct_frag6_reasm: payload len = %d\n",
+				    payload_len);
+		return false;
 	}
 
 	/* Head of list must not be cloned. */
-	if (skb_unclone(head, GFP_ATOMIC)) {
-		pr_debug("skb is cloned but can't expand head");
-		goto out_oom;
-	}
+	if (skb_unclone(head, GFP_ATOMIC))
+		return false;
 
 	/* If the first fragment is fragmented itself, we split
 	 * it to two chunks: the first with data and paged part
@@ -408,7 +408,7 @@ nf_ct_frag6_reasm(struct frag_queue *fq, struct sk_buff *prev,  struct net_devic
 
 		clone = alloc_skb(0, GFP_ATOMIC);
 		if (clone == NULL)
-			goto out_oom;
+			return false;
 
 		clone->next = head->next;
 		head->next = clone;
@@ -438,7 +438,7 @@ nf_ct_frag6_reasm(struct frag_queue *fq, struct sk_buff *prev,  struct net_devic
 
 		fp = skb_clone(prev, GFP_ATOMIC);
 		if (!fp)
-			goto out_oom;
+			return false;
 
 		fp->next = prev->next;
 		skb_queue_walk(head, iter) {
@@ -494,16 +494,7 @@ nf_ct_frag6_reasm(struct frag_queue *fq, struct sk_buff *prev,  struct net_devic
 	fq->q.fragments = NULL;
 	fq->q.fragments_tail = NULL;
 
-	return head;
-
-out_oversize:
-	net_dbg_ratelimited("nf_ct_frag6_reasm: payload len = %d\n",
-			    payload_len);
-	goto out_fail;
-out_oom:
-	net_dbg_ratelimited("nf_ct_frag6_reasm: no memory for reassembly\n");
-out_fail:
-	return NULL;
+	return true;
 }
 
 /*
@@ -569,27 +560,26 @@ find_prev_fhdr(struct sk_buff *skb, u8 *prevhdrp, int *prevhoff, int *fhoff)
 	return 0;
 }
 
-struct sk_buff *nf_ct_frag6_gather(struct net *net, struct sk_buff *skb, u32 user)
+int nf_ct_frag6_gather(struct net *net, struct sk_buff *skb, u32 user)
 {
 	struct net_device *dev = skb->dev;
+	int fhoff, nhoff, ret;
 	struct frag_hdr *fhdr;
 	struct frag_queue *fq;
 	struct ipv6hdr *hdr;
-	int fhoff, nhoff;
 	u8 prevhdr;
-	struct sk_buff *ret_skb = NULL;
 
 	/* Jumbo payload inhibits frag. header */
 	if (ipv6_hdr(skb)->payload_len == 0) {
 		pr_debug("payload len = 0\n");
-		return skb;
+		return -EINVAL;
 	}
 
 	if (find_prev_fhdr(skb, &prevhdr, &nhoff, &fhoff) < 0)
-		return skb;
+		return -EINVAL;
 
 	if (!pskb_may_pull(skb, fhoff + sizeof(*fhdr)))
-		return skb;
+		return -ENOMEM;
 
 	skb_set_transport_header(skb, fhoff);
 	hdr = ipv6_hdr(skb);
@@ -598,27 +588,28 @@ struct sk_buff *nf_ct_frag6_gather(struct net *net, struct sk_buff *skb, u32 use
 	fq = fq_find(net, fhdr->identification, user, &hdr->saddr, &hdr->daddr,
 		     ip6_frag_ecn(hdr));
 	if (fq == NULL)
-		return skb;
+		return -ENOMEM;
 
 	spin_lock_bh(&fq->q.lock);
 
 	if (nf_ct_frag6_queue(fq, skb, fhdr, nhoff) < 0) {
-		spin_unlock_bh(&fq->q.lock);
-		pr_debug("Can't insert skb to queue\n");
-		inet_frag_put(&fq->q, &nf_frags);
-		return skb;
+		ret = -EINVAL;
+		goto out_unlock;
 	}
 
+	/* after queue has assumed skb ownership, only 0 or -EINPROGRESS
+	 * must be returned.
+	 */
+	ret = -EINPROGRESS;
 	if (fq->q.flags == (INET_FRAG_FIRST_IN | INET_FRAG_LAST_IN) &&
-	    fq->q.meat == fq->q.len) {
-		ret_skb = nf_ct_frag6_reasm(fq, skb, dev);
-		if (ret_skb == NULL)
-			pr_debug("Can't reassemble fragmented packets\n");
-	}
-	spin_unlock_bh(&fq->q.lock);
+	    fq->q.meat == fq->q.len &&
+	    nf_ct_frag6_reasm(fq, skb, dev))
+		ret = 0;
 
+out_unlock:
+	spin_unlock_bh(&fq->q.lock);
 	inet_frag_put(&fq->q, &nf_frags);
-	return ret_skb;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_ct_frag6_gather);
 
