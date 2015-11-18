@@ -240,7 +240,6 @@ int mdp4_enable(struct mdp4_kms *mdp4_kms)
 	return 0;
 }
 
-#ifdef CONFIG_OF
 static struct drm_panel *detect_panel(struct drm_device *dev)
 {
 	struct device_node *endpoint, *panel_node;
@@ -270,12 +269,6 @@ static struct drm_panel *detect_panel(struct drm_device *dev)
 
 	return panel;
 }
-#else
-static struct drm_panel *detect_panel(struct drm_device *dev)
-{
-	// ??? maybe use a module param to specify which panel is attached?
-}
-#endif
 
 static int modeset_init(struct mdp4_kms *mdp4_kms)
 {
@@ -558,17 +551,10 @@ fail:
 static struct mdp4_platform_config *mdp4_get_config(struct platform_device *dev)
 {
 	static struct mdp4_platform_config config = {};
-#ifdef CONFIG_OF
-	/* TODO */
+
+	/* TODO: Chips that aren't apq8064 have a 200 Mhz max_clk */
 	config.max_clk = 266667000;
 	config.iommu = iommu_domain_alloc(&platform_bus_type);
-#else
-	if (cpu_is_apq8064())
-		config.max_clk = 266667000;
-	else
-		config.max_clk = 200000000;
 
-	config.iommu = msm_get_iommu_domain(DISPLAY_READ_DOMAIN);
-#endif
 	return &config;
 }
