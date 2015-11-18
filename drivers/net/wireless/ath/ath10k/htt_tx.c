@@ -586,7 +586,7 @@ int ath10k_htt_tx(struct ath10k_htt *htt, enum ath10k_hw_txrx_mode txmode,
 	     ieee80211_is_disassoc(hdr->frame_control)) &&
 	     ieee80211_has_protected(hdr->frame_control)) {
 		skb_put(msdu, IEEE80211_CCMP_MIC_LEN);
-	} else if (!skb_cb->htt.nohwcrypt &&
+	} else if (!(skb_cb->flags & ATH10K_SKB_F_NO_HWCRYPT) &&
 		   txmode == ATH10K_HW_TXRX_RAW &&
 		   ieee80211_has_protected(hdr->frame_control)) {
 		skb_put(msdu, IEEE80211_CCMP_MIC_LEN);
@@ -666,7 +666,7 @@ int ath10k_htt_tx(struct ath10k_htt *htt, enum ath10k_hw_txrx_mode txmode,
 			prefetch_len);
 	skb_cb->htt.txbuf->htc_hdr.flags = 0;
 
-	if (skb_cb->htt.nohwcrypt)
+	if (skb_cb->flags & ATH10K_SKB_F_NO_HWCRYPT)
 		flags0 |= HTT_DATA_TX_DESC_FLAGS0_NO_ENCRYPT;
 
 	flags1 |= SM((u16)vdev_id, HTT_DATA_TX_DESC_FLAGS1_VDEV_ID);

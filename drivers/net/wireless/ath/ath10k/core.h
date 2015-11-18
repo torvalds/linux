@@ -81,22 +81,23 @@ static inline const char *ath10k_bus_str(enum ath10k_bus bus)
 	return "unknown";
 }
 
+enum ath10k_skb_flags {
+	ATH10K_SKB_F_NO_HWCRYPT = BIT(0),
+	ATH10K_SKB_F_DTIM_ZERO = BIT(1),
+	ATH10K_SKB_F_DELIVER_CAB = BIT(2),
+};
+
 struct ath10k_skb_cb {
 	dma_addr_t paddr;
+	u8 flags;
 	u8 eid;
 	u8 vdev_id;
 
 	struct {
 		u8 tid;
-		bool nohwcrypt;
 		struct ath10k_htt_txbuf *txbuf;
 		u32 txbuf_paddr;
 	} __packed htt;
-
-	struct {
-		bool dtim_zero;
-		bool deliver_cab;
-	} bcn;
 } __packed;
 
 struct ath10k_skb_rxcb {

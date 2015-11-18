@@ -1715,6 +1715,8 @@ static void ath10k_wmi_tx_beacon_nowait(struct ath10k_vif *arvif)
 	struct ath10k *ar = arvif->ar;
 	struct ath10k_skb_cb *cb;
 	struct sk_buff *bcn;
+	bool dtim_zero;
+	bool deliver_cab;
 	int ret;
 
 	spin_lock_bh(&ar->data_lock);
@@ -1734,12 +1736,14 @@ static void ath10k_wmi_tx_beacon_nowait(struct ath10k_vif *arvif)
 		arvif->beacon_state = ATH10K_BEACON_SENDING;
 		spin_unlock_bh(&ar->data_lock);
 
+		dtim_zero = !!(cb->flags & ATH10K_SKB_F_DTIM_ZERO);
+		deliver_cab = !!(cb->flags & ATH10K_SKB_F_DELIVER_CAB);
 		ret = ath10k_wmi_beacon_send_ref_nowait(arvif->ar,
 							arvif->vdev_id,
 							bcn->data, bcn->len,
 							cb->paddr,
-							cb->bcn.dtim_zero,
-							cb->bcn.deliver_cab);
+							dtim_zero,
+							deliver_cab);
 
 		spin_lock_bh(&ar->data_lock);
 
@@ -3157,10 +3161,10 @@ static void ath10k_wmi_update_tim(struct ath10k *ar,
 	memcpy(tim->virtual_map, arvif->u.ap.tim_bitmap, pvm_len);
 
 	if (tim->dtim_count == 0) {
-		ATH10K_SKB_CB(bcn)->bcn.dtim_zero = true;
+		ATH10K_SKB_CB(bcn)->flags |= ATH10K_SKB_F_DTIM_ZERO;
 
 		if (__le32_to_cpu(tim_info->tim_mcast) == 1)
-			ATH10K_SKB_CB(bcn)->bcn.deliver_cab = true;
+			ATH10K_SKB_CB(bcn)->flags |= ATH10K_SKB_F_DELIVER_CAB;
 	}
 
 	ath10k_dbg(ar, ATH10K_DBG_MGMT, "dtim %d/%d mcast %d pvmlen %d\n",
