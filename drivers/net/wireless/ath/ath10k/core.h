@@ -88,7 +88,6 @@ struct ath10k_skb_cb {
 
 	struct {
 		u8 tid;
-		u16 freq;
 		bool nohwcrypt;
 		struct ath10k_htt_txbuf *txbuf;
 		u32 txbuf_paddr;
