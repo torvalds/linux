@@ -241,16 +241,27 @@ static const char *meson_uart_type(struct uart_port *port)
 	return (port->type == PORT_MESON) ? "meson_uart" : NULL;
 }
 
-static int meson_uart_startup(struct uart_port *port)
+static void meson_uart_reset(struct uart_port *port)
 {
 	u32 val;
-	int ret = 0;
 
 	val = readl(port->membase + AML_UART_CONTROL);
 	val |= (AML_UART_RX_RST | AML_UART_TX_RST | AML_UART_CLR_ERR);
 	writel(val, port->membase + AML_UART_CONTROL);
 
 	val &= ~(AML_UART_RX_RST | AML_UART_TX_RST | AML_UART_CLR_ERR);
+	writel(val, port->membase + AML_UART_CONTROL);
+}
+
+static int meson_uart_startup(struct uart_port *port)
+{
+	u32 val;
+	int ret = 0;
+
+	val = readl(port->membase + AML_UART_CONTROL);
+	val |= AML_UART_CLR_ERR;
+	writel(val, port->membase + AML_UART_CONTROL);
+	val &= ~AML_UART_CLR_ERR;
 	writel(val, port->membase + AML_UART_CONTROL);
 
 	val |= (AML_UART_RX_EN | AML_UART_TX_EN);
@@ -580,6 +591,12 @@ static int meson_uart_probe(struct platform_device *pdev)
 
 	meson_ports[pdev->id] = port;
 	platform_set_drvdata(pdev, port);
+
+	/* reset port before registering (and possibly registering console) */
+	if (meson_uart_request_port(port) >= 0) {
+		meson_uart_reset(port);
+		meson_uart_release_port(port);
+	}
 
 	ret = uart_add_one_port(&meson_uart_driver, port);
 	if (ret)
