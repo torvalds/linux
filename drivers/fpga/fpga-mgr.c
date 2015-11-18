@@ -122,12 +122,10 @@ int fpga_mgr_firmware_load(struct fpga_manager *mgr, u32 flags,
 	}
 
 	ret = fpga_mgr_buf_load(mgr, flags, fw->data, fw->size);
-	if (ret)
-		return ret;
 
 	release_firmware(fw);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(fpga_mgr_firmware_load);
 
