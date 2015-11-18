@@ -134,8 +134,6 @@ static int iwl_led_cmd(struct iwl_priv *priv,
 		on = IWL_LED_SOLID;
 	}
 
-	IWL_DEBUG_LED(priv, "Led blink time compensation=%u\n",
-			priv->cfg->base_params->led_compensation);
 	led_cmd.on = iwl_blink_compensation(priv, on,
 				priv->cfg->base_params->led_compensation);
 	led_cmd.off = iwl_blink_compensation(priv, off,
