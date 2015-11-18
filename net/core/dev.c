@@ -4684,11 +4684,7 @@ bool sk_busy_loop(struct sock *sk, int nonblock)
 	struct napi_struct *napi;
 	int rc = false;
 
-	/*
-	 * rcu read lock for napi hash
-	 * bh so we don't race with net_rx_action
-	 */
-	rcu_read_lock_bh();
+	rcu_read_lock();
 
 	napi = napi_by_id(sk->sk_napi_id);
 	if (!napi)
@@ -4699,23 +4695,23 @@ bool sk_busy_loop(struct sock *sk, int nonblock)
 		goto out;
 
 	do {
+		local_bh_disable();
 		rc = ops->ndo_busy_poll(napi);
+		if (rc > 0)
+			NET_ADD_STATS_BH(sock_net(sk),
+					 LINUX_MIB_BUSYPOLLRXPACKETS, rc);
+		local_bh_enable();
 
 		if (rc == LL_FLUSH_FAILED)
 			break; /* permanent failure */
 
-		if (rc > 0)
-			/* local bh are disabled so it is ok to use _BH */
-			NET_ADD_STATS_BH(sock_net(sk),
-					 LINUX_MIB_BUSYPOLLRXPACKETS, rc);
 		cpu_relax();
-
 	} while (!nonblock && skb_queue_empty(&sk->sk_receive_queue) &&
 		 !need_resched() && !busy_loop_timeout(end_time));
 
 	rc = !skb_queue_empty(&sk->sk_receive_queue);
 out:
-	rcu_read_unlock_bh();
+	rcu_read_unlock();
 	return rc;
 }
 EXPORT_SYMBOL(sk_busy_loop);
