@@ -64,11 +64,9 @@ enum hw_cards_id {
 #define PCI1753_INT_REG(x)	(0x10 + (x)) /* R/W: control group 0 to 3 */
 #define PCI1753E_INT_REG(x)	(0x30 + (x)) /* R/W: control group 0 to 3 */
 
-/*  Advantech PCI-1752/4/6 */
-#define PCI1754_6_ICR0	0x08	/* R/W: Interrupt control register group 0 */
-#define PCI1754_6_ICR1	0x0a	/* R/W: Interrupt control register group 1 */
-#define PCI1754_ICR2	0x0c	/* R/W: Interrupt control register group 2 */
-#define PCI1754_ICR3	0x0e	/* R/W: Interrupt control register group 3 */
+/* PCI-1754, PCI-1756 interrupt control registers */
+#define PCI1754_INT_REG(x)	(0x08 + (x) * 2) /* R/W: control group 0 to 3 */
+
 #define PCI1752_6_CFC	0x12	/* R/W: set/read channel freeze function */
 
 /*  Advantech PCI-1762 registers */
@@ -318,14 +316,13 @@ static int pci_dio_reset(struct comedi_device *dev)
 		}
 		break;
 	case TYPE_PCI1754:
-		outw(0x08, dev->iobase + PCI1754_6_ICR0);
-		outw(0x08, dev->iobase + PCI1754_6_ICR1);
-		outw(0x08, dev->iobase + PCI1754_ICR2);
-		outw(0x08, dev->iobase + PCI1754_ICR3);
-		break;
 	case TYPE_PCI1756:
-		outw(0x08, dev->iobase + PCI1754_6_ICR0);
-		outw(0x08, dev->iobase + PCI1754_6_ICR1);
+		outw(0x08, dev->iobase + PCI1754_INT_REG(0));
+		outw(0x08, dev->iobase + PCI1754_INT_REG(1));
+		if (board->cardtype == TYPE_PCI1754) {
+			outw(0x08, dev->iobase + PCI1754_INT_REG(2));
+			outw(0x08, dev->iobase + PCI1754_INT_REG(3));
+		}
 		break;
 	case TYPE_PCI1762:
 		outw(0x0101, dev->iobase + PCI1762_ICR);
