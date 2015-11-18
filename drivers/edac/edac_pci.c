@@ -178,41 +178,6 @@ static void del_edac_pci_from_global_list(struct edac_pci_ctl_info *pci)
 	INIT_LIST_HEAD(&pci->link);
 }
 
-#if 0
-/* Older code, but might use in the future */
-
-/*
- * edac_pci_find()
- * 	Search for an edac_pci_ctl_info structure whose index is 'idx'
- *
- * If found, return a pointer to the structure
- * Else return NULL.
- *
- * Caller must hold pci_ctls_mutex.
- */
-struct edac_pci_ctl_info *edac_pci_find(int idx)
-{
-	struct list_head *item;
-	struct edac_pci_ctl_info *pci;
-
-	/* Iterage over list, looking for exact match of ID */
-	list_for_each(item, &edac_pci_list) {
-		pci = list_entry(item, struct edac_pci_ctl_info, link);
-
-		if (pci->pci_idx >= idx) {
-			if (pci->pci_idx == idx)
-				return pci;
-
-			/* not on list, so terminate early */
-			break;
-		}
-	}
-
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(edac_pci_find);
-#endif
-
 /*
  * edac_pci_workq_function()
  *
