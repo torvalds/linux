@@ -28,11 +28,21 @@
 #include "fsl_dcu_drm_crtc.h"
 #include "fsl_dcu_drm_drv.h"
 
+static bool fsl_dcu_drm_is_volatile_reg(struct device *dev, unsigned int reg)
+{
+	if (reg == DCU_INT_STATUS || reg == DCU_UPDATE_MODE)
+		return true;
+
+	return false;
+}
+
 static const struct regmap_config fsl_dcu_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
 	.cache_type = REGCACHE_RBTREE,
+
+	.volatile_reg = fsl_dcu_drm_is_volatile_reg,
 };
 
 static int fsl_dcu_drm_irq_init(struct drm_device *dev)
@@ -125,7 +135,7 @@ static irqreturn_t fsl_dcu_drm_irq(int irq, void *arg)
 	if (int_status & DCU_INT_STATUS_VBLANK)
 		drm_handle_vblank(dev, 0);
 
-	ret = regmap_write(fsl_dev->regmap, DCU_INT_STATUS, 0xffffffff);
+	ret = regmap_write(fsl_dev->regmap, DCU_INT_STATUS, int_status);
 	if (ret)
 		dev_err(dev->dev, "set DCU_INT_STATUS failed\n");
 	ret = regmap_write(fsl_dev->regmap, DCU_UPDATE_MODE,
