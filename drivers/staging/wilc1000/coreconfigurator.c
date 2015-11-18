@@ -616,7 +616,7 @@ s32 wilc_send_config_pkt(struct wilc *wilc, u8 mode, struct wid *wids,
 	} else if (mode == SET_CFG) {
 		for (counter = 0; counter < count; counter++) {
 			PRINT_D(CORECONFIG_DBG, "Sending config SET PACKET WID:%x\n", wids[counter].id);
-			if (!wilc_wlan_cfg_set(!counter,
+			if (!wilc_wlan_cfg_set(wilc, !counter,
 					       wids[counter].id,
 					       wids[counter].val,
 					       wids[counter].size,

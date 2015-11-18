@@ -1499,11 +1499,10 @@ static int wilc_wlan_cfg_commit(struct wilc *wilc, int type, u32 drv_handler)
 	return 0;
 }
 
-int wilc_wlan_cfg_set(int start, u32 wid, u8 *buffer, u32 buffer_size,
-		      int commit, u32 drv_handler)
+int wilc_wlan_cfg_set(struct wilc *wilc, int start, u32 wid, u8 *buffer,
+		      u32 buffer_size, int commit, u32 drv_handler)
 {
 	wilc_wlan_dev_t *p = &g_wlan;
-	struct wilc *wilc = wilc_dev;
 	u32 offset;
 	int ret_size;
 
