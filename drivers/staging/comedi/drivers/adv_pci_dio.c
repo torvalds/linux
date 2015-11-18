@@ -64,7 +64,6 @@ enum hw_cards_id {
 /* Advantech PCI-1735U */
 #define PCI1735_DI	   0	/* R:   Digital input  0-31 */
 #define PCI1735_DO	   0	/* W:   Digital output 0-31 */
-#define PCI1735_C8254	   4	/* R/W: 8254 counter */
 
 /*  Advantech PCI-1736UP */
 #define PCI1736_IDI        0	/* R:   Isolated digital input  0-15 */
@@ -87,7 +86,6 @@ enum hw_cards_id {
 
 /*  Advantech PCI-1751/3/3E */
 #define PCI1751_DIO	   0	/* R/W: begin of 8255 registers block */
-#define PCI1751_CNT	  24	/* R/W: begin of 8254 registers block */
 #define PCI1751_ICR	  32	/* W:   Interrupt control register */
 #define PCI1751_ISR	  32	/* R:   Interrupt status register */
 #define PCI1753_DIO	   0	/* R/W: begin of 8255 registers block */
@@ -169,7 +167,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.sdi[0]		= { 32, PCI1735_DI, },
 		.sdo[0]		= { 32, PCI1735_DO, },
 		.id_reg		= 0x08,
-		.timer_regbase	= PCI1735_C8254,
+		.timer_regbase	= 0x04,
 	},
 	[TYPE_PCI1736] = {
 		.name		= "pci1736",
@@ -198,7 +196,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.cardtype	= TYPE_PCI1751,
 		.nsubdevs	= 3,
 		.sdio[0]	= { 2, PCI1751_DIO, },
-		.timer_regbase	= PCI1751_CNT,
+		.timer_regbase	= 0x18,
 	},
 	[TYPE_PCI1752] = {
 		.name		= "pci1752",
