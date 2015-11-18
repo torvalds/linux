@@ -365,7 +365,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 				/**
 				 * Read bytes
 				 **/
-				if (!wilc_spi_read(&b[ix], nbytes)) {
+				if (!wilc_spi_read(wilc, &b[ix], nbytes)) {
 					PRINT_ER("[wilc spi]: Failed data block read, bus error...\n");
 					result = N_FAIL;
 					goto _error_;
@@ -375,7 +375,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 				 * Read Crc
 				 **/
 				if (!g_spi.crc_off) {
-					if (!wilc_spi_read(crc, 2)) {
+					if (!wilc_spi_read(wilc, crc, 2)) {
 						PRINT_ER("[wilc spi]: Failed data block crc read, bus error...\n");
 						result = N_FAIL;
 						goto _error_;
@@ -406,7 +406,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 				 **/
 				retry = 10;
 				do {
-					if (!wilc_spi_read(&rsp, 1)) {
+					if (!wilc_spi_read(wilc, &rsp, 1)) {
 						PRINT_ER("[wilc spi]: Failed data response read, bus error...\n");
 						result = N_FAIL;
 						break;
@@ -422,7 +422,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 				/**
 				 * Read bytes
 				 **/
-				if (!wilc_spi_read(&b[ix], nbytes)) {
+				if (!wilc_spi_read(wilc, &b[ix], nbytes)) {
 					PRINT_ER("[wilc spi]: Failed data block read, bus error...\n");
 					result = N_FAIL;
 					break;
@@ -432,7 +432,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 				 * Read Crc
 				 **/
 				if (!g_spi.crc_off) {
-					if (!wilc_spi_read(crc, 2)) {
+					if (!wilc_spi_read(wilc, crc, 2)) {
 						PRINT_ER("[wilc spi]: Failed data block crc read, bus error...\n");
 						result = N_FAIL;
 						break;
