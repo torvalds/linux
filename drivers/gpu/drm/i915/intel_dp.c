@@ -4533,31 +4533,6 @@ bool intel_digital_port_connected(struct drm_i915_private *dev_priv,
 		return g4x_digital_port_connected(dev_priv, port);
 }
 
-static enum drm_connector_status
-ironlake_dp_detect(struct intel_dp *intel_dp)
-{
-	struct drm_device *dev = intel_dp_to_dev(intel_dp);
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-
-	if (!intel_digital_port_connected(dev_priv, intel_dig_port))
-		return connector_status_disconnected;
-
-	return intel_dp_detect_dpcd(intel_dp);
-}
-
-static enum drm_connector_status
-g4x_dp_detect(struct intel_dp *intel_dp)
-{
-	struct drm_device *dev = intel_dp_to_dev(intel_dp);
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-
-	if (!intel_digital_port_connected(dev->dev_private, intel_dig_port))
-		return connector_status_disconnected;
-
-	return intel_dp_detect_dpcd(intel_dp);
-}
-
 static struct edid *
 intel_dp_get_edid(struct intel_dp *intel_dp)
 {
@@ -4630,10 +4605,12 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 	/* Can't disconnect eDP, but you can close the lid... */
 	if (is_edp(intel_dp))
 		status = edp_detect(intel_dp);
-	else if (HAS_PCH_SPLIT(dev))
-		status = ironlake_dp_detect(intel_dp);
+	else if (intel_digital_port_connected(to_i915(dev),
+					      dp_to_dig_port(intel_dp)))
+		status = intel_dp_detect_dpcd(intel_dp);
 	else
-		status = g4x_dp_detect(intel_dp);
+		status = connector_status_disconnected;
+
 	if (status != connector_status_connected) {
 		intel_dp->compliance_test_active = 0;
 		intel_dp->compliance_test_type = 0;
