@@ -122,6 +122,7 @@ void machine__delete_threads(struct machine *machine)
 
 void machine__exit(struct machine *machine)
 {
+	machine__destroy_kernel_maps(machine);
 	map_groups__exit(&machine->kmaps);
 	dsos__exit(&machine->dsos);
 	machine__exit_vdso(machine);
