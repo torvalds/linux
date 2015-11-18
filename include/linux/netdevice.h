@@ -474,9 +474,10 @@ void napi_hash_add(struct napi_struct *napi);
  *	@napi: napi context
  *
  * Warning: caller must observe rcu grace period
- * before freeing memory containing @napi
+ * before freeing memory containing @napi, if
+ * this function returns true.
  */
-void napi_hash_del(struct napi_struct *napi);
+bool napi_hash_del(struct napi_struct *napi);
 
 /**
  *	napi_disable - prevent NAPI from scheduling
