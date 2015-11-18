@@ -124,7 +124,6 @@ source "drivers/net/wireless/mediatek/Kconfig"
 source "drivers/net/wireless/realtek/rtlwifi/Kconfig"
 source "drivers/net/wireless/realtek/rtl8xxxu/Kconfig"
 source "drivers/net/wireless/ti/Kconfig"
-source "drivers/net/wireless/zd1211rw/Kconfig"
 source "drivers/net/wireless/rsi/Kconfig"
 
 endif # WLAN

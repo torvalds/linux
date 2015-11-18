@@ -30,4 +30,6 @@ config USB_ZD1201
 	  To compile this driver as a module, choose M here: the
 	  module will be called zd1201.
 
+source "drivers/net/wireless/zydas/zd1211rw/Kconfig"
+
 endif # WLAN_VENDOR_ZYDAS
