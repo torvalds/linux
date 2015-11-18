@@ -322,38 +322,6 @@ static int pci_dio_reset(struct comedi_device *dev, unsigned long cardtype)
 	return 0;
 }
 
-static unsigned long pci_dio_override_cardtype(struct pci_dev *pcidev,
-					       unsigned long cardtype)
-{
-	/*
-	 * Change cardtype from TYPE_PCI1753 to TYPE_PCI1753E if expansion
-	 * board available.  Need to enable PCI device and request the main
-	 * registers PCI BAR temporarily to perform the test.
-	 */
-	if (cardtype != TYPE_PCI1753)
-		return cardtype;
-	if (pci_enable_device(pcidev) < 0)
-		return cardtype;
-	if (pci_request_region(pcidev, 2, "adv_pci_dio") == 0) {
-		/*
-		 * This test is based on Advantech's "advdaq" driver source
-		 * (which declares its module licence as "GPL" although the
-		 * driver source does not include a "COPYING" file).
-		 */
-		unsigned long reg = pci_resource_start(pcidev, 2) + 53;
-
-		outb(0x05, reg);
-		if ((inb(reg) & 0x07) == 0x02) {
-			outb(0x02, reg);
-			if ((inb(reg) & 0x07) == 0x05)
-				cardtype = TYPE_PCI1753E;
-		}
-		pci_release_region(pcidev, 2);
-	}
-	pci_disable_device(pcidev);
-	return cardtype;
-}
-
 static int pci_dio_auto_attach(struct comedi_device *dev,
 			       unsigned long context)
 {
@@ -476,6 +444,38 @@ static struct comedi_driver adv_pci_dio_driver = {
 	.auto_attach	= pci_dio_auto_attach,
 	.detach		= comedi_pci_detach,
 };
+
+static unsigned long pci_dio_override_cardtype(struct pci_dev *pcidev,
+					       unsigned long cardtype)
+{
+	/*
+	 * Change cardtype from TYPE_PCI1753 to TYPE_PCI1753E if expansion
+	 * board available.  Need to enable PCI device and request the main
+	 * registers PCI BAR temporarily to perform the test.
+	 */
+	if (cardtype != TYPE_PCI1753)
+		return cardtype;
+	if (pci_enable_device(pcidev) < 0)
+		return cardtype;
+	if (pci_request_region(pcidev, 2, "adv_pci_dio") == 0) {
+		/*
+		 * This test is based on Advantech's "advdaq" driver source
+		 * (which declares its module licence as "GPL" although the
+		 * driver source does not include a "COPYING" file).
+		 */
+		unsigned long reg = pci_resource_start(pcidev, 2) + 53;
+
+		outb(0x05, reg);
+		if ((inb(reg) & 0x07) == 0x02) {
+			outb(0x02, reg);
+			if ((inb(reg) & 0x07) == 0x05)
+				cardtype = TYPE_PCI1753E;
+		}
+		pci_release_region(pcidev, 2);
+	}
+	pci_disable_device(pcidev);
+	return cardtype;
+}
 
 static int adv_pci_dio_pci_probe(struct pci_dev *dev,
 				 const struct pci_device_id *id)
