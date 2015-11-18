@@ -13,6 +13,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -80,6 +81,13 @@ static inline void pwm_lpss_write(const struct pwm_device *pwm, u32 value)
 	writel(value, lpwm->regs + pwm->hwpwm * PWM_SIZE + PWM);
 }
 
+static void pwm_lpss_update(struct pwm_device *pwm)
+{
+	pwm_lpss_write(pwm, pwm_lpss_read(pwm) | PWM_SW_UPDATE);
+	/* Give it some time to propagate */
+	usleep_range(10, 50);
+}
+
 static int pwm_lpss_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			   int duty_ns, int period_ns)
 {
@@ -117,9 +125,14 @@ static int pwm_lpss_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	base_unit &= (base_unit_range - 1);
 	ctrl |= (u32) base_unit << PWM_BASE_UNIT_SHIFT;
 	ctrl |= on_time_div;
-	/* request PWM to update on next cycle */
-	ctrl |= PWM_SW_UPDATE;
 	pwm_lpss_write(pwm, ctrl);
+
+	/*
+	 * If the PWM is already enabled we need to notify the hardware
+	 * about the change by setting PWM_SW_UPDATE.
+	 */
+	if (pwm_is_enabled(pwm))
+		pwm_lpss_update(pwm);
 
 	pm_runtime_put(chip->dev);
 
@@ -129,6 +142,12 @@ static int pwm_lpss_config(struct pwm_chip *chip, struct pwm_device *pwm,
 static int pwm_lpss_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	pm_runtime_get_sync(chip->dev);
+
+	/*
+	 * Hardware must first see PWM_SW_UPDATE before the PWM can be
+	 * enabled.
+	 */
+	pwm_lpss_update(pwm);
 	pwm_lpss_write(pwm, pwm_lpss_read(pwm) | PWM_ENABLE);
 	return 0;
 }
