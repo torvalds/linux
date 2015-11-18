@@ -7,6 +7,13 @@ menuconfig MTD_SPI_NOR
 
 if MTD_SPI_NOR
 
+config MTD_MT81xx_NOR
+	tristate "Mediatek MT81xx SPI NOR flash controller"
+	help
+	  This enables access to SPI NOR flash, using MT81xx SPI NOR flash
+	  controller. This controller does not support generic SPI BUS, it only
+	  supports SPI NOR Flash.
+
 config MTD_SPI_NOR_USE_4K_SECTORS
 	bool "Use small 4096 B erase sectors"
 	default y
