@@ -1849,7 +1849,7 @@ static void complicated_callback(struct urb *urb)
 			goto done;
 		default:
 			dev_err(&ctx->dev->intf->dev,
-					"iso resubmit err %d\n",
+					"resubmit err %d\n",
 					status);
 			/* FALLTHROUGH */
 		case -ENODEV:			/* disconnected */
@@ -1863,7 +1863,7 @@ static void complicated_callback(struct urb *urb)
 	if (ctx->pending == 0) {
 		if (ctx->errors)
 			dev_err(&ctx->dev->intf->dev,
-				"iso test, %lu errors out of %lu\n",
+				"during the test, %lu errors out of %lu\n",
 				ctx->errors, ctx->packet_count);
 		complete(&ctx->done);
 	}
