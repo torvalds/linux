@@ -467,34 +467,6 @@ static int pci_dio_add_di(struct comedi_device *dev,
 	return 0;
 }
 
-static int pci_dio_add_do(struct comedi_device *dev,
-			  struct comedi_subdevice *s,
-			  const struct diosubd_data *d)
-{
-	const struct dio_boardtype *board = dev->board_ptr;
-
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE;
-	if (d->chans > 16)
-		s->subdev_flags |= SDF_LSAMPL;
-	s->n_chan = d->chans;
-	s->maxdata = 1;
-	s->len_chanlist = d->chans;
-	s->range_table = &range_digital;
-	s->state = 0;
-	switch (board->io_access) {
-	case IO_8b:
-		s->insn_bits = pci_dio_insn_bits_do_b;
-		break;
-	case IO_16b:
-		s->insn_bits = pci_dio_insn_bits_do_w;
-		break;
-	}
-	s->private = (void *)d;
-
-	return 0;
-}
-
 static unsigned long pci_dio_override_cardtype(struct pci_dev *pcidev,
 					       unsigned long cardtype)
 {
@@ -568,7 +540,20 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 		d = &board->sdo[i];
 		if (d->chans) {
 			s = &dev->subdevices[subdev++];
-			pci_dio_add_do(dev, s, d);
+			s->type		= COMEDI_SUBD_DO;
+			s->subdev_flags	= SDF_WRITABLE;
+			s->n_chan	= d->chans;
+			s->maxdata	= 1;
+			s->range_table	= &range_digital;
+			switch (board->io_access) {
+			case IO_8b:
+				s->insn_bits	= pci_dio_insn_bits_do_b;
+				break;
+			case IO_16b:
+				s->insn_bits	= pci_dio_insn_bits_do_w;
+				break;
+			}
+			s->private	= (void *)d;
 		}
 	}
 
