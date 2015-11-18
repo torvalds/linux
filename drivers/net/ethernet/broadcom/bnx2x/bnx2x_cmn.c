@@ -1094,8 +1094,6 @@ reuse_rx:
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 					       le16_to_cpu(cqe_fp->vlan_tag));
 
-		skb_mark_napi_id(skb, &fp->napi);
-
 		napi_gro_receive(&fp->napi, skb);
 next_rx:
 		rx_buf->data = NULL;

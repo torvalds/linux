@@ -243,7 +243,6 @@ int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 		wqe            = mlx5_wq_ll_get_wqe(&rq->wq, wqe_counter);
 		skb            = rq->skb[wqe_counter];
 		prefetch(skb->data);
-		skb_mark_napi_id(skb, cq->napi);
 		rq->skb[wqe_counter] = NULL;
 
 		dma_unmap_single(rq->pdev,

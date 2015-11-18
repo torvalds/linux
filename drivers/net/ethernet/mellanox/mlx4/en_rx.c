@@ -925,7 +925,6 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 						PKT_HASH_TYPE_L3);
 
 			skb_record_rx_queue(gro_skb, cq->ring);
-			skb_mark_napi_id(gro_skb, &cq->napi);
 
 			if (ring->hwtstamp_rx_filter == HWTSTAMP_FILTER_ALL) {
 				timestamp = mlx4_en_get_cqe_ts(cqe);
@@ -987,8 +986,6 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 			mlx4_en_fill_hwtstamps(mdev, skb_hwtstamps(skb),
 					       timestamp);
 		}
-
-		skb_mark_napi_id(skb, &cq->napi);
 
 		napi_gro_receive(&cq->napi, skb);
 next:

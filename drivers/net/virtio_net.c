@@ -516,8 +516,6 @@ static void receive_buf(struct virtnet_info *vi, struct receive_queue *rq,
 		skb_shinfo(skb)->gso_segs = 0;
 	}
 
-	skb_mark_napi_id(skb, &rq->napi);
-
 	napi_gro_receive(&rq->napi, skb);
 	return;
 
