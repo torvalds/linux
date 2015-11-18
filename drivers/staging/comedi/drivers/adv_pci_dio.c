@@ -50,11 +50,8 @@ enum hw_cards_id {
 
 /* Register offset definitions */
 /*  Advantech PCI-1730/3/4 */
-#define PCI1730_IDI	   0	/* R:   Isolated digital input  0-15 */
 #define PCI1730_IDO	   0	/* W:   Isolated digital output 0-15 */
-#define PCI1730_DI	   2	/* R:   Digital input  0-15 */
 #define PCI1730_DO	   2	/* W:   Digital output 0-15 */
-#define PCI1733_IDI	   0	/* R:   Isolated digital input  0-31 */
 #define	PCI1730_3_INT_EN	0x08	/* R/W: enable/disable interrupts */
 #define	PCI1730_3_INT_RF	0x0c	/* R/W: set falling/raising edge for
 					 * interrupts */
@@ -62,11 +59,9 @@ enum hw_cards_id {
 #define PCI1734_IDO	   0	/* W:   Isolated digital output 0-31 */
 
 /* Advantech PCI-1735U */
-#define PCI1735_DI	   0	/* R:   Digital input  0-31 */
 #define PCI1735_DO	   0	/* W:   Digital output 0-31 */
 
 /*  Advantech PCI-1736UP */
-#define PCI1736_IDI        0	/* R:   Isolated digital input  0-15 */
 #define PCI1736_IDO        0	/* W:   Isolated digital output 0-15 */
 #define PCI1736_3_INT_EN        0x08	/* R/W: enable/disable interrupts */
 #define PCI1736_3_INT_RF        0x0c	/* R/W: set falling/raising edge for
@@ -79,7 +74,6 @@ enum hw_cards_id {
 #define PCI1739_ISR	  32	/* R:   Interrupt status register */
 
 /*  Advantech PCI-1750 */
-#define PCI1750_IDI	   0	/* R:   Isolated digital input  0-15 */
 #define PCI1750_IDO	   0	/* W:   Isolated digital output 0-15 */
 #define PCI1750_ICR	  32	/* W:   Interrupt control register */
 #define PCI1750_ISR	  32	/* R:   Interrupt status register */
@@ -102,9 +96,6 @@ enum hw_cards_id {
 /*  Advantech PCI-1752/4/6 */
 #define PCI1752_IDO	   0	/* R/W: Digital output  0-31 */
 #define PCI1752_IDO2	   4	/* R/W: Digital output 32-63 */
-#define PCI1754_IDI	   0	/* R:   Digital input   0-31 */
-#define PCI1754_IDI2	   4	/* R:   Digital input  32-64 */
-#define PCI1756_IDI	   0	/* R:   Digital input   0-31 */
 #define PCI1756_IDO	   4	/* R/W: Digital output  0-31 */
 #define PCI1754_6_ICR0	0x08	/* R/W: Interrupt control register group 0 */
 #define PCI1754_6_ICR1	0x0a	/* R/W: Interrupt control register group 1 */
@@ -114,7 +105,6 @@ enum hw_cards_id {
 
 /*  Advantech PCI-1762 registers */
 #define PCI1762_RO	   0	/* R/W: Relays status/output */
-#define PCI1762_IDI	   2	/* R:   Isolated input status */
 #define PCI1762_ICR	   6	/* W:   Interrupt control register */
 #define PCI1762_ISR	   6	/* R:   Interrupt status register */
 
@@ -140,8 +130,8 @@ static const struct dio_boardtype boardtypes[] = {
 		.name		= "pci1730",
 		.cardtype	= TYPE_PCI1730,
 		.nsubdevs	= 5,
-		.sdi[0]		= { 16, PCI1730_DI, },
-		.sdi[1]		= { 16, PCI1730_IDI, },
+		.sdi[0]		= { 16, 0x02, },	/* DI 0-15 */
+		.sdi[1]		= { 16, 0x00, },	/* ISO DI 0-15 */
 		.sdo[0]		= { 16, PCI1730_DO, },
 		.sdo[1]		= { 16, PCI1730_IDO, },
 		.id_reg		= 0x04,
@@ -150,7 +140,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.name		= "pci1733",
 		.cardtype	= TYPE_PCI1733,
 		.nsubdevs	= 2,
-		.sdi[1]		= { 32, PCI1733_IDI, },
+		.sdi[1]		= { 32, 0x00, },	/* ISO DI 0-31 */
 		.id_reg		= 0x04,
 	},
 	[TYPE_PCI1734] = {
@@ -164,7 +154,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.name		= "pci1735",
 		.cardtype	= TYPE_PCI1735,
 		.nsubdevs	= 4,
-		.sdi[0]		= { 32, PCI1735_DI, },
+		.sdi[0]		= { 32, 0x00, },	/* DI 0-31 */
 		.sdo[0]		= { 32, PCI1735_DO, },
 		.id_reg		= 0x08,
 		.timer_regbase	= 0x04,
@@ -173,7 +163,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.name		= "pci1736",
 		.cardtype	= TYPE_PCI1736,
 		.nsubdevs	= 3,
-		.sdi[1]		= { 16, PCI1736_IDI, },
+		.sdi[1]		= { 16, 0x00, },	/* ISO DI 0-15 */
 		.sdo[1]		= { 16, PCI1736_IDO, },
 		.id_reg		= 0x04,
 	},
@@ -188,7 +178,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.name		= "pci1750",
 		.cardtype	= TYPE_PCI1750,
 		.nsubdevs	= 2,
-		.sdi[1]		= { 16, PCI1750_IDI, },
+		.sdi[1]		= { 16, 0x00, },	/* ISO DI 0-15 */
 		.sdo[1]		= { 16, PCI1750_IDO, },
 	},
 	[TYPE_PCI1751] = {
@@ -224,8 +214,8 @@ static const struct dio_boardtype boardtypes[] = {
 		.name		= "pci1754",
 		.cardtype	= TYPE_PCI1754,
 		.nsubdevs	= 3,
-		.sdi[0]		= { 32, PCI1754_IDI, },
-		.sdi[1]		= { 32, PCI1754_IDI2, },
+		.sdi[0]		= { 32, 0x00, },	/* DI 0-31 */
+		.sdi[1]		= { 32, 0x04, },	/* DI 32-63 */
 		.id_reg		= 0x10,
 		.is_16bit	= 1,
 	},
@@ -233,7 +223,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.name		= "pci1756",
 		.cardtype	= TYPE_PCI1756,
 		.nsubdevs	= 3,
-		.sdi[1]		= { 32, PCI1756_IDI, },
+		.sdi[1]		= { 32, 0x00, },	/* DI 0-31 */
 		.sdo[1]		= { 32, PCI1756_IDO, },
 		.id_reg		= 0x10,
 		.is_16bit	= 1,
@@ -242,7 +232,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.name		= "pci1762",
 		.cardtype	= TYPE_PCI1762,
 		.nsubdevs	= 3,
-		.sdi[1]		= { 16, PCI1762_IDI, },
+		.sdi[1]		= { 16, 0x02, },	/* ISO DI 0-15 */
 		.sdo[1]		= { 16, PCI1762_RO, },
 		.id_reg		= 0x04,
 		.is_16bit	= 1,
