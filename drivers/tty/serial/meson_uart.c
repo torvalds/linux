@@ -237,8 +237,10 @@ static irqreturn_t meson_uart_interrupt(int irq, void *dev_id)
 	if (!(readl(port->membase + AML_UART_STATUS) & AML_UART_RX_EMPTY))
 		meson_receive_chars(port);
 
-	if (!(readl(port->membase + AML_UART_STATUS) & AML_UART_TX_FULL))
-		meson_uart_start_tx(port);
+	if (!(readl(port->membase + AML_UART_STATUS) & AML_UART_TX_FULL)) {
+		if (readl(port->membase + AML_UART_CONTROL) & AML_UART_TX_INT_EN)
+			meson_uart_start_tx(port);
+	}
 
 	spin_unlock(&port->lock);
 
