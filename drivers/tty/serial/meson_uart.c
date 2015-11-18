@@ -472,6 +472,7 @@ static void meson_serial_console_write(struct console *co, const char *s,
 	struct uart_port *port;
 	unsigned long flags;
 	int locked;
+	u32 val;
 
 	port = meson_ports[co->index];
 	if (!port)
@@ -486,6 +487,9 @@ static void meson_serial_console_write(struct console *co, const char *s,
 		spin_lock(&port->lock);
 		locked = 1;
 	}
+
+	val = readl(port->membase + AML_UART_CONTROL);
+	writel(val | AML_UART_TX_EN, port->membase + AML_UART_CONTROL);
 
 	uart_console_write(port, s, count, meson_console_putchar);
 
