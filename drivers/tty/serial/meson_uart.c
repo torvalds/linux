@@ -367,9 +367,26 @@ static int meson_uart_verify_port(struct uart_port *port,
 	return ret;
 }
 
+static int meson_uart_res_size(struct uart_port *port)
+{
+	struct platform_device *pdev = to_platform_device(port->dev);
+	struct resource *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(port->dev, "cannot obtain I/O memory region");
+		return -ENODEV;
+	}
+
+	return resource_size(res);
+}
+
 static void meson_uart_release_port(struct uart_port *port)
 {
+	int size = meson_uart_res_size(port);
+
 	if (port->flags & UPF_IOREMAP) {
+		devm_release_mem_region(port->dev, port->mapbase, size);
 		devm_iounmap(port->dev, port->membase);
 		port->membase = NULL;
 	}
@@ -377,16 +394,10 @@ static void meson_uart_release_port(struct uart_port *port)
 
 static int meson_uart_request_port(struct uart_port *port)
 {
-	struct platform_device *pdev = to_platform_device(port->dev);
-	struct resource *res;
-	int size;
+	int size = meson_uart_res_size(port);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "cannot obtain I/O memory region");
-		return -ENODEV;
-	}
-	size = resource_size(res);
+	if (size < 0)
+		return size;
 
 	if (!devm_request_mem_region(port->dev, port->mapbase, size,
 				     dev_name(port->dev))) {
