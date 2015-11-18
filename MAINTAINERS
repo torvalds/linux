@@ -8498,7 +8498,7 @@ M:	"Luis R. Rodriguez" <mcgrof@gmail.com>
 L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/en/users/Drivers/p54
 S:	Obsolete
-F:	drivers/net/wireless/prism54/
+F:	drivers/net/wireless/intersil/prism54/
 
 PS3 NETWORK SUPPORT
 M:	Geoff Levand <geoff@infradead.org>
