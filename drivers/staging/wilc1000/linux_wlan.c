@@ -733,12 +733,6 @@ void wilc1000_wlan_deinit(struct net_device *dev)
 	if (wl->initialized)	{
 		netdev_info(dev, "Deinitializing wilc1000...\n");
 
-#if defined(PLAT_ALLWINNER_A20) || defined(PLAT_ALLWINNER_A23) || defined(PLAT_ALLWINNER_A31)
-		PRINT_D(INIT_DBG, "skip wilc_bus_set_default_speed\n");
-#else
-		wilc_bus_set_default_speed();
-#endif
-
 		PRINT_D(INIT_DBG, "Disabling IRQ\n");
 		if (!wl->dev_irq_num &&
 		    wl->ops->disable_interrupt) {
@@ -928,8 +922,6 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 			ret = -EIO;
 			goto _fail_irq_enable_;
 		}
-
-		wilc_bus_set_max_speed();
 
 		if (wilc_wlan_cfg_get(1, WID_FIRMWARE_VERSION, 1, 0)) {
 			int size;

@@ -610,16 +610,6 @@ _fail_:
 	return 0;
 }
 
-static void sdio_set_max_speed(void)
-{
-	wilc_sdio_set_max_speed();
-}
-
-static void sdio_set_default_speed(void)
-{
-	wilc_sdio_set_default_speed();
-}
-
 static int sdio_read_size(u32 *size)
 {
 
@@ -927,8 +917,6 @@ const struct wilc_hif_func wilc_hif_sdio = {
 	.hif_block_tx_ext = sdio_write,
 	.hif_block_rx_ext = sdio_read,
 	.hif_sync_ext = sdio_sync_ext,
-	.hif_set_max_bus_speed = sdio_set_max_speed,
-	.hif_set_default_bus_speed = sdio_set_default_speed,
 	.enable_interrupt = wilc_sdio_enable_interrupt,
 	.disable_interrupt = wilc_sdio_disable_interrupt,
 };

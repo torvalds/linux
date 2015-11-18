@@ -1575,16 +1575,6 @@ int wilc_wlan_cfg_get_val(u32 wid, u8 *buffer, u32 buffer_size)
 	return ret;
 }
 
-void wilc_bus_set_max_speed(void)
-{
-	g_wlan.hif_func.hif_set_max_bus_speed();
-}
-
-void wilc_bus_set_default_speed(void)
-{
-	g_wlan.hif_func.hif_set_default_bus_speed();
-}
-
 static u32 init_chip(struct net_device *dev)
 {
 	u32 chipid;

@@ -11,19 +11,7 @@
 
 #define SDIO_MODALIAS "wilc1000_sdio"
 
-#if defined(CUSTOMER_PLATFORM)
-/* TODO : User have to stable bus clock as user's environment. */
- #ifdef MAX_BUS_SPEED
- #define MAX_SPEED MAX_BUS_SPEED
- #else
- #define MAX_SPEED 50000000
- #endif
-#else
- #define MAX_SPEED (6 * 1000000) /* Max 50M */
-#endif
-
 static struct sdio_func *wilc_sdio_func;
-static unsigned int sdio_default_speed;
 
 #define SDIO_VENDOR_ID_WILC 0x0296
 #define SDIO_DEVICE_ID_WILC 0x5347
@@ -177,49 +165,9 @@ void wilc_sdio_disable_interrupt(struct wilc *dev)
 	PRINT_D(INIT_DBG, "wilc_sdio_disable_interrupt OUT\n");
 }
 
-static int linux_sdio_set_speed(int speed)
-{
-	struct mmc_ios ios;
-	struct sdio_func *func = container_of(wilc_dev->dev, struct sdio_func, dev);
-
-	sdio_claim_host(func);
-
-	memcpy((void *)&ios, (void *)&func->card->host->ios, sizeof(struct mmc_ios));
-	func->card->host->ios.clock = speed;
-	ios.clock = speed;
-	func->card->host->ops->set_ios(func->card->host, &ios);
-	sdio_release_host(func);
-	PRINT_INFO(INIT_DBG, "@@@@@@@@@@@@ change SDIO speed to %d @@@@@@@@@\n", speed);
-
-	return 1;
-}
-
-static int linux_sdio_get_speed(void)
-{
-	struct sdio_func *func = container_of(wilc_dev->dev, struct sdio_func, dev);
-	return func->card->host->ios.clock;
-}
-
 int wilc_sdio_init(void)
 {
-
-	/**
-	 *      TODO :
-	 **/
-
-
-	sdio_default_speed = linux_sdio_get_speed();
 	return 1;
-}
-
-int wilc_sdio_set_max_speed(void)
-{
-	return linux_sdio_set_speed(MAX_SPEED);
-}
-
-int wilc_sdio_set_default_speed(void)
-{
-	return linux_sdio_set_speed(sdio_default_speed);
 }
 
 MODULE_LICENSE("GPL");
