@@ -790,6 +790,7 @@ void machine__destroy_kernel_maps(struct machine *machine)
 				kmap->ref_reloc_sym = NULL;
 		}
 
+		map__put(machine->vmlinux_maps[type]);
 		machine->vmlinux_maps[type] = NULL;
 	}
 }
