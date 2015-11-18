@@ -615,34 +615,47 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 		       void *arg, int max_stack)
 {
 	u64 val;
+	unw_word_t ips[max_stack];
 	unw_addr_space_t addr_space;
 	unw_cursor_t c;
-	int ret;
+	int ret, i = 0;
 
 	ret = perf_reg_value(&val, &ui->sample->user_regs, PERF_REG_IP);
 	if (ret)
 		return ret;
 
-	ret = entry(val, ui->thread, cb, arg);
-	if (ret)
-		return -ENOMEM;
+	ips[i++] = (unw_word_t) val;
 
-	if (--max_stack == 0)
-		return 0;
+	/*
+	 * If we need more than one entry, do the DWARF
+	 * unwind itself.
+	 */
+	if (max_stack - 1 > 0) {
+		addr_space = thread__priv(ui->thread);
+		if (addr_space == NULL)
+			return -1;
 
-	addr_space = thread__priv(ui->thread);
-	if (addr_space == NULL)
-		return -1;
+		ret = unw_init_remote(&c, addr_space, ui);
+		if (ret)
+			display_error(ret);
 
-	ret = unw_init_remote(&c, addr_space, ui);
-	if (ret)
-		display_error(ret);
+		while (!ret && (unw_step(&c) > 0) && i < max_stack) {
+			unw_get_reg(&c, UNW_REG_IP, &ips[i]);
+			++i;
+		}
 
-	while (!ret && (unw_step(&c) > 0) && max_stack--) {
-		unw_word_t ip;
+		max_stack = i;
+	}
 
-		unw_get_reg(&c, UNW_REG_IP, &ip);
-		ret = ip ? entry(ip, ui->thread, cb, arg) : 0;
+	/*
+	 * Display what we got based on the order setup.
+	 */
+	for (i = 0; i < max_stack && !ret; i++) {
+		int j = i;
+
+		if (callchain_param.order == ORDER_CALLER)
+			j = max_stack - i - 1;
+		ret = ips[j] ? entry(ips[j], ui->thread, cb, arg) : 0;
 	}
 
 	return ret;
