@@ -33,14 +33,14 @@
 #include "regs-i2s-v2.h"
 #include "s3c2412-i2s.h"
 
+#include <linux/platform_data/asoc-s3c.h>
+
 static struct s3c_dma_params s3c2412_i2s_pcm_stereo_out = {
-	.slave		= (void *)(uintptr_t)DMACH_I2S_OUT,
 	.ch_name	= "tx",
 	.dma_size	= 4,
 };
 
 static struct s3c_dma_params s3c2412_i2s_pcm_stereo_in = {
-	.slave		= (void *)(uintptr_t)DMACH_I2S_IN,
 	.ch_name	= "rx",
 	.dma_size	= 4,
 };
@@ -152,6 +152,12 @@ static int s3c2412_iis_dev_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct resource *res;
+	struct s3c_audio_pdata *pdata = dev_get_platdata(&pdev->dev);
+
+	if (!pdata) {
+		dev_err(&pdev->dev, "missing platform data");
+		return -ENXIO;
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	s3c2412_i2s.regs = devm_ioremap_resource(&pdev->dev, res);
@@ -159,7 +165,9 @@ static int s3c2412_iis_dev_probe(struct platform_device *pdev)
 		return PTR_ERR(s3c2412_i2s.regs);
 
 	s3c2412_i2s_pcm_stereo_out.dma_addr = res->start + S3C2412_IISTXD;
+	s3c2412_i2s_pcm_stereo_out.slave = pdata->dma_playback;
 	s3c2412_i2s_pcm_stereo_in.dma_addr = res->start + S3C2412_IISRXD;
+	s3c2412_i2s_pcm_stereo_in.slave = pdata->dma_capture;
 
 	ret = s3c_i2sv2_register_component(&pdev->dev, -1,
 					   &s3c2412_i2s_component,
