@@ -96,6 +96,7 @@
 #include <linux/skbuff.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
+#include <net/busy_poll.h>
 #include <linux/rtnetlink.h>
 #include <linux/stat.h>
 #include <net/dst.h>
@@ -4663,7 +4664,7 @@ void napi_complete_done(struct napi_struct *n, int work_done)
 EXPORT_SYMBOL(napi_complete_done);
 
 /* must be called under rcu_read_lock(), as we dont take a reference */
-struct napi_struct *napi_by_id(unsigned int napi_id)
+static struct napi_struct *napi_by_id(unsigned int napi_id)
 {
 	unsigned int hash = napi_id % HASH_SIZE(napi_hash);
 	struct napi_struct *napi;
@@ -4674,7 +4675,52 @@ struct napi_struct *napi_by_id(unsigned int napi_id)
 
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(napi_by_id);
+
+#if defined(CONFIG_NET_RX_BUSY_POLL)
+bool sk_busy_loop(struct sock *sk, int nonblock)
+{
+	unsigned long end_time = !nonblock ? sk_busy_loop_end_time(sk) : 0;
+	const struct net_device_ops *ops;
+	struct napi_struct *napi;
+	int rc = false;
+
+	/*
+	 * rcu read lock for napi hash
+	 * bh so we don't race with net_rx_action
+	 */
+	rcu_read_lock_bh();
+
+	napi = napi_by_id(sk->sk_napi_id);
+	if (!napi)
+		goto out;
+
+	ops = napi->dev->netdev_ops;
+	if (!ops->ndo_busy_poll)
+		goto out;
+
+	do {
+		rc = ops->ndo_busy_poll(napi);
+
+		if (rc == LL_FLUSH_FAILED)
+			break; /* permanent failure */
+
+		if (rc > 0)
+			/* local bh are disabled so it is ok to use _BH */
+			NET_ADD_STATS_BH(sock_net(sk),
+					 LINUX_MIB_BUSYPOLLRXPACKETS, rc);
+		cpu_relax();
+
+	} while (!nonblock && skb_queue_empty(&sk->sk_receive_queue) &&
+		 !need_resched() && !busy_loop_timeout(end_time));
+
+	rc = !skb_queue_empty(&sk->sk_receive_queue);
+out:
+	rcu_read_unlock_bh();
+	return rc;
+}
+EXPORT_SYMBOL(sk_busy_loop);
+
+#endif /* CONFIG_NET_RX_BUSY_POLL */
 
 void napi_hash_add(struct napi_struct *napi)
 {
