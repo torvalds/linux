@@ -66,9 +66,9 @@ int wilc_spi_init(void)
 	return 1;
 }
 
-int wilc_spi_write(u8 *b, u32 len)
+int wilc_spi_write(struct wilc *wilc, u8 *b, u32 len)
 {
-	struct spi_device *spi = to_spi_device(wilc_dev->dev);
+	struct spi_device *spi = to_spi_device(wilc->dev);
 	int ret;
 	struct spi_message msg;
 
