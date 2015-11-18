@@ -663,9 +663,6 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	if (skb_cb->htt.nohwcrypt)
 		flags0 |= HTT_DATA_TX_DESC_FLAGS0_NO_ENCRYPT;
 
-	if (!skb_cb->is_protected)
-		flags0 |= HTT_DATA_TX_DESC_FLAGS0_NO_ENCRYPT;
-
 	flags1 |= SM((u16)vdev_id, HTT_DATA_TX_DESC_FLAGS1_VDEV_ID);
 	flags1 |= SM((u16)tid, HTT_DATA_TX_DESC_FLAGS1_EXT_TID);
 	if (msdu->ip_summed == CHECKSUM_PARTIAL &&
