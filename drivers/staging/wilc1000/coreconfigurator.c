@@ -436,7 +436,7 @@ s32 wilc_parse_network_info(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo
 
 		/* Get DTIM Period */
 		pu8TimElm = get_tim_elm(pu8msa, u16RxLen + FCS_LEN, u8index);
-		if (pu8TimElm != NULL)
+		if (pu8TimElm)
 			pstrNetworkInfo->u8DtimPeriod = pu8TimElm[3];
 		pu8IEs = &pu8msa[MAC_HDR_LEN + TIME_STAMP_LEN + BEACON_INTERVAL_LEN + CAP_INFO_LEN];
 		u16IEsLen = u16RxLen - (MAC_HDR_LEN + TIME_STAMP_LEN + BEACON_INTERVAL_LEN + CAP_INFO_LEN);
@@ -470,8 +470,8 @@ s32 wilc_dealloc_network_info(tstrNetworkInfo *pstrNetworkInfo)
 {
 	s32 s32Error = 0;
 
-	if (pstrNetworkInfo != NULL) {
-		if (pstrNetworkInfo->pu8IEs != NULL) {
+	if (pstrNetworkInfo) {
+		if (pstrNetworkInfo->pu8IEs) {
 			kfree(pstrNetworkInfo->pu8IEs);
 			pstrNetworkInfo->pu8IEs = NULL;
 		} else {
@@ -555,8 +555,8 @@ s32 wilc_dealloc_assoc_resp_info(tstrConnectRespInfo *pstrConnectRespInfo)
 {
 	s32 s32Error = 0;
 
-	if (pstrConnectRespInfo != NULL) {
-		if (pstrConnectRespInfo->pu8RespIEs != NULL) {
+	if (pstrConnectRespInfo) {
+		if (pstrConnectRespInfo->pu8RespIEs) {
 			kfree(pstrConnectRespInfo->pu8RespIEs);
 			pstrConnectRespInfo->pu8RespIEs = NULL;
 		} else {
