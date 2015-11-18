@@ -144,6 +144,7 @@ static void meson_uart_start_tx(struct uart_port *port)
 {
 	struct circ_buf *xmit = &port->state->xmit;
 	unsigned int ch;
+	u32 val;
 
 	if (uart_tx_stopped(port)) {
 		meson_uart_stop_tx(port);
@@ -165,6 +166,12 @@ static void meson_uart_start_tx(struct uart_port *port)
 		writel(ch, port->membase + AML_UART_WFIFO);
 		xmit->tail = (xmit->tail+1) & (SERIAL_XMIT_SIZE - 1);
 		port->icount.tx++;
+	}
+
+	if (!uart_circ_empty(xmit)) {
+		val = readl(port->membase + AML_UART_CONTROL);
+		val |= AML_UART_TX_INT_EN;
+		writel(val, port->membase + AML_UART_CONTROL);
 	}
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
