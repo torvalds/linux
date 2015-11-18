@@ -31,18 +31,6 @@
 #include "8255.h"
 #include "comedi_8254.h"
 
-/* hardware types of the cards */
-enum hw_cards_id {
-	TYPE_PCI1730, TYPE_PCI1733, TYPE_PCI1734, TYPE_PCI1735, TYPE_PCI1736,
-	TYPE_PCI1739,
-	TYPE_PCI1750,
-	TYPE_PCI1751,
-	TYPE_PCI1752,
-	TYPE_PCI1753, TYPE_PCI1753E,
-	TYPE_PCI1754, TYPE_PCI1756,
-	TYPE_PCI1762
-};
-
 #define MAX_DI_SUBDEVS	2	/* max number of DI subdevices per card */
 #define MAX_DO_SUBDEVS	2	/* max number of DO subdevices per card */
 #define MAX_DIO_SUBDEVG	2	/* max number of DIO subdevices group per
@@ -72,6 +60,23 @@ enum hw_cards_id {
 
 /* PCI-1762 interrupt control registers */
 #define PCI1762_INT_REG		0x06	/* R/W: status/control */
+
+enum pci_dio_boardid {
+	TYPE_PCI1730,
+	TYPE_PCI1733,
+	TYPE_PCI1734,
+	TYPE_PCI1735,
+	TYPE_PCI1736,
+	TYPE_PCI1739,
+	TYPE_PCI1750,
+	TYPE_PCI1751,
+	TYPE_PCI1752,
+	TYPE_PCI1753,
+	TYPE_PCI1753E,
+	TYPE_PCI1754,
+	TYPE_PCI1756,
+	TYPE_PCI1762
+};
 
 struct diosubd_data {
 	int chans;		/*  num of chans or 8255 devices */
