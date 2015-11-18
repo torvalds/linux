@@ -624,6 +624,14 @@ static int vlv_resume_prepare(struct drm_i915_private *dev_priv,
 			      bool rpm_resume);
 static int bxt_resume_prepare(struct drm_i915_private *dev_priv);
 
+static bool suspend_to_idle(struct drm_i915_private *dev_priv)
+{
+#if IS_ENABLED(CONFIG_ACPI_SLEEP)
+	if (acpi_target_system_state() < ACPI_STATE_S3)
+		return true;
+#endif
+	return false;
+}
 
 static int i915_drm_suspend(struct drm_device *dev)
 {
@@ -676,11 +684,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	i915_save_state(dev);
 
-	opregion_target_state = PCI_D3cold;
-#if IS_ENABLED(CONFIG_ACPI_SLEEP)
-	if (acpi_target_system_state() < ACPI_STATE_S3)
-		opregion_target_state = PCI_D1;
-#endif
+	opregion_target_state = suspend_to_idle(dev_priv) ? PCI_D1 : PCI_D3cold;
 	intel_opregion_notify_adapter(dev, opregion_target_state);
 
 	intel_uncore_forcewake_reset(dev, false);
@@ -701,15 +705,26 @@ static int i915_drm_suspend(struct drm_device *dev)
 static int i915_drm_suspend_late(struct drm_device *drm_dev, bool hibernation)
 {
 	struct drm_i915_private *dev_priv = drm_dev->dev_private;
+	bool fw_csr;
 	int ret;
 
-	intel_power_domains_suspend(dev_priv);
+	fw_csr = suspend_to_idle(dev_priv) && dev_priv->csr.dmc_payload;
+	/*
+	 * In case of firmware assisted context save/restore don't manually
+	 * deinit the power domains. This also means the CSR/DMC firmware will
+	 * stay active, it will power down any HW resources as required and
+	 * also enable deeper system power states that would be blocked if the
+	 * firmware was inactive.
+	 */
+	if (!fw_csr)
+		intel_power_domains_suspend(dev_priv);
 
 	ret = intel_suspend_complete(dev_priv);
 
 	if (ret) {
 		DRM_ERROR("Suspend complete failed: %d\n", ret);
-		intel_power_domains_init_hw(dev_priv, true);
+		if (!fw_csr)
+			intel_power_domains_init_hw(dev_priv, true);
 
 		return ret;
 	}
@@ -729,6 +744,8 @@ static int i915_drm_suspend_late(struct drm_device *drm_dev, bool hibernation)
 	 */
 	if (!(hibernation && INTEL_INFO(dev_priv)->gen < 6))
 		pci_set_power_state(drm_dev->pdev, PCI_D3hot);
+
+	dev_priv->suspended_to_idle = suspend_to_idle(dev_priv);
 
 	return 0;
 }
@@ -842,8 +859,10 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	 * FIXME: This should be solved with a special hdmi sink device or
 	 * similar so that power domains can be employed.
 	 */
-	if (pci_enable_device(dev->pdev))
-		return -EIO;
+	if (pci_enable_device(dev->pdev)) {
+		ret = -EIO;
+		goto out;
+	}
 
 	pci_set_master(dev->pdev);
 
@@ -861,7 +880,12 @@ static int i915_drm_resume_early(struct drm_device *dev)
 		hsw_disable_pc8(dev_priv);
 
 	intel_uncore_sanitize(dev);
-	intel_power_domains_init_hw(dev_priv, true);
+
+	if (!(dev_priv->suspended_to_idle && dev_priv->csr.dmc_payload))
+		intel_power_domains_init_hw(dev_priv, true);
+
+out:
+	dev_priv->suspended_to_idle = false;
 
 	return ret;
 }
