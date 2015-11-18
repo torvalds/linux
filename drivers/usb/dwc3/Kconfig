@@ -87,6 +87,15 @@ config USB_DWC3_KEYSTONE
 	  Support of USB2/3 functionality in TI Keystone2 platforms.
 	  Say 'Y' or 'M' here if you have one such device
 
+config USB_DWC3_OF_SIMPLE
+       tristate "Generic OF Simple Glue Layer"
+       depends on OF && COMMON_CLK
+       default USB_DWC3
+       help
+         Support USB2/3 functionality in simple SoC integrations.
+	 Currently supports Xilinx and Qualcomm DWC USB3 IP.
+	 Say 'Y' or 'M' if you have one such device.
+
 config USB_DWC3_ST
 	tristate "STMicroelectronics Platforms"
 	depends on ARCH_STI && OF
