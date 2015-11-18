@@ -250,7 +250,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 	}
 	rix = len;
 
-	if (!wilc_spi_write_read(wb, rb, len2)) {
+	if (!wilc_spi_write_read(wilc, wb, rb, len2)) {
 		PRINT_ER("[wilc spi]: Failed cmd write, bus error...\n");
 		result = N_FAIL;
 		return result;

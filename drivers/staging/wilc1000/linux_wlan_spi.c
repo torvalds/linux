@@ -154,9 +154,9 @@ int wilc_spi_read(struct wilc *wilc, u8 *rb, u32 rlen)
 	return ret;
 }
 
-int wilc_spi_write_read(u8 *wb, u8 *rb, u32 rlen)
+int wilc_spi_write_read(struct wilc *wilc, u8 *wb, u8 *rb, u32 rlen)
 {
-	struct spi_device *spi = to_spi_device(wilc_dev->dev);
+	struct spi_device *spi = to_spi_device(wilc->dev);
 	int ret;
 
 	if (rlen > 0) {
