@@ -1,0 +1,1 @@
+obj-$(CONFIG_USB_ZD1201)	+= zd1201.o

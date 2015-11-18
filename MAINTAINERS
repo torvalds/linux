@@ -11252,7 +11252,7 @@ USB ZD1201 DRIVER
 L:	linux-wireless@vger.kernel.org
 W:	http://linux-lc100020.sourceforge.net
 S:	Orphan
-F:	drivers/net/wireless/zd1201.*
+F:	drivers/net/wireless/zydas/zd1201.*
 
 USB ZR364XX DRIVER
 M:	Antoine Jacquet <royale@zerezo.com>

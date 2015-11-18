@@ -24,6 +24,7 @@ source "drivers/net/wireless/cisco/Kconfig"
 source "drivers/net/wireless/intel/Kconfig"
 source "drivers/net/wireless/marvell/Kconfig"
 source "drivers/net/wireless/st/Kconfig"
+source "drivers/net/wireless/zydas/Kconfig"
 
 config PCMCIA_RAYCS
 	tristate "Aviator/Raytheon 2.4GHz wireless support"
@@ -69,25 +70,6 @@ config PRISM54
 	  Note: You need a motherboard with DMA support to use any of these cards
 
 	  When built as module you get the module prism54
-
-config USB_ZD1201
-	tristate "USB ZD1201 based Wireless device support"
-	depends on CFG80211 && USB
-	select WIRELESS_EXT
-	select WEXT_PRIV
-	select FW_LOADER
-	---help---
-	  Say Y if you want to use wireless LAN adapters based on the ZyDAS
-	  ZD1201 chip.
-
-	  This driver makes the adapter appear as a normal Ethernet interface,
-	  typically on wlan0.
-
-	  The zd1201 device requires external firmware to be loaded.
-	  This can be found at http://linux-lc100020.sourceforge.net/
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called zd1201.
 
 config USB_NET_RNDIS_WLAN
 	tristate "Wireless RNDIS USB support"
