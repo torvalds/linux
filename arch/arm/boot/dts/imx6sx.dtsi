@@ -239,6 +239,10 @@
 			compatible = "fsl,imx6q-caam-secvio";
 			interrupts = <0 20 0x04>;
 			secvio_src = <0x8000001d>;
+			jtag-tamper = "disabled";
+			watchdog-tamper = "enabled";
+			internal-boot-tamper = "enabled";
+			external-pin-tamper = "disabled";
 		};
 
 		gpu: gpu@01800000 {

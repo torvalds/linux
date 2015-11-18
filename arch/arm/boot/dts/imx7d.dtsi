@@ -343,8 +343,12 @@
 		};
 
 		irq_sec_vio: caam_secvio {
-			     compatible = "fsl,imx7d-caam-secvio", "fsl,imx6q-caam-secvio";
-			     interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+			compatible = "fsl,imx7d-caam-secvio", "fsl,imx6q-caam-secvio";
+			interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+			jtag-tamper = "disabled";
+			watchdog-tamper = "enabled";
+			internal-boot-tamper = "enabled";
+			external-pin-tamper = "disabled";
 		};
 
 		pmu {
