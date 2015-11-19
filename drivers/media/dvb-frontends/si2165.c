@@ -42,7 +42,7 @@
 struct si2165_state {
 	struct i2c_adapter *i2c;
 
-	struct dvb_frontend frontend;
+	struct dvb_frontend fe;
 
 	struct si2165_config config;
 
@@ -988,9 +988,9 @@ struct dvb_frontend *si2165_attach(const struct si2165_config *config,
 	}
 
 	/* create dvb_frontend */
-	memcpy(&state->frontend.ops, &si2165_ops,
+	memcpy(&state->fe.ops, &si2165_ops,
 		sizeof(struct dvb_frontend_ops));
-	state->frontend.demodulator_priv = state;
+	state->fe.demodulator_priv = state;
 
 	/* powerup */
 	io_ret = si2165_writereg8(state, 0x0000, state->config.chip_mode);
@@ -1042,20 +1042,20 @@ struct dvb_frontend *si2165_attach(const struct si2165_config *config,
 		KBUILD_MODNAME, chip_name, rev_char, state->chip_type,
 		state->chip_revcode);
 
-	strlcat(state->frontend.ops.info.name, chip_name,
-			sizeof(state->frontend.ops.info.name));
+	strlcat(state->fe.ops.info.name, chip_name,
+			sizeof(state->fe.ops.info.name));
 
 	n = 0;
 	if (state->has_dvbt) {
-		state->frontend.ops.delsys[n++] = SYS_DVBT;
-		strlcat(state->frontend.ops.info.name, " DVB-T",
-			sizeof(state->frontend.ops.info.name));
+		state->fe.ops.delsys[n++] = SYS_DVBT;
+		strlcat(state->fe.ops.info.name, " DVB-T",
+			sizeof(state->fe.ops.info.name));
 	}
 	if (state->has_dvbc)
 		dev_warn(&state->i2c->dev, "%s: DVB-C is not yet supported.\n",
 		       KBUILD_MODNAME);
 
-	return &state->frontend;
+	return &state->fe;
 
 error:
 	kfree(state);
