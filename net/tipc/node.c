@@ -1187,6 +1187,7 @@ static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
 		if (msg_peer_node_is_up(hdr))
 			return false;
 		tipc_node_fsm_evt(n, PEER_LOST_CONTACT_EVT);
+		return true;
 	}
 
 	/* Ignore duplicate packets */
@@ -1232,12 +1233,10 @@ static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
 			tipc_link_fsm_evt(l, LINK_SYNCH_BEGIN_EVT);
 			tipc_node_fsm_evt(n, NODE_SYNCH_BEGIN_EVT);
 		}
-		if (less(syncpt, n->sync_point))
-			n->sync_point = syncpt;
 	}
 
 	/* Open tunnel link when parallel link reaches synch point */
-	if ((n->state == NODE_SYNCHING) && tipc_link_is_synching(l)) {
+	if (n->state == NODE_SYNCHING) {
 		if (tipc_link_is_synching(l)) {
 			tnl = l;
 		} else {
