@@ -254,12 +254,12 @@ static void refresh_scan(void *user_void, u8 all, bool direct_scan)
 		network_info = &last_scanned_shadow[i];
 
 		if (!network_info->u8Found || all) {
-			s32 s32Freq;
+			s32 freq;
 			struct ieee80211_channel *channel;
 
 			if (network_info) {
-				s32Freq = ieee80211_channel_to_frequency((s32)network_info->u8channel, IEEE80211_BAND_2GHZ);
-				channel = ieee80211_get_channel(wiphy, s32Freq);
+				freq = ieee80211_channel_to_frequency((s32)network_info->u8channel, IEEE80211_BAND_2GHZ);
+				channel = ieee80211_get_channel(wiphy, freq);
 
 				rssi = get_rssi_avg(network_info);
 				if (memcmp("DIRECT-", network_info->au8ssid, 7) ||
