@@ -436,7 +436,6 @@ static int sunxi_rtc_probe(struct platform_device *pdev)
 {
 	struct sunxi_rtc_dev *chip;
 	struct resource *res;
-	const struct of_device_id *of_id;
 	int ret;
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
@@ -463,12 +462,11 @@ static int sunxi_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	of_id = of_match_device(sunxi_rtc_dt_ids, &pdev->dev);
-	if (!of_id) {
+	chip->data_year = of_device_get_match_data(&pdev->dev);
+	if (!chip->data_year) {
 		dev_err(&pdev->dev, "Unable to setup RTC data\n");
 		return -ENODEV;
 	}
-	chip->data_year = of_id->data;
 
 	/* clear the alarm count value */
 	writel(0, chip->base + SUNXI_ALRM_DHMS);
