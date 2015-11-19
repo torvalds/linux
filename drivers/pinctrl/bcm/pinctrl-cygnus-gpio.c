@@ -641,35 +641,11 @@ static void cygnus_gpio_unregister_pinconf(struct cygnus_gpio *chip)
 	pinctrl_unregister(chip->pctl);
 }
 
-struct cygnus_gpio_data {
-	unsigned num_gpios;
-};
-
-static const struct cygnus_gpio_data cygnus_cmm_gpio_data = {
-	.num_gpios = 24,
-};
-
-static const struct cygnus_gpio_data cygnus_asiu_gpio_data = {
-	.num_gpios = 146,
-};
-
-static const struct cygnus_gpio_data cygnus_crmu_gpio_data = {
-	.num_gpios = 6,
-};
-
 static const struct of_device_id cygnus_gpio_of_match[] = {
-	{
-		.compatible = "brcm,cygnus-ccm-gpio",
-		.data = &cygnus_cmm_gpio_data,
-	},
-	{
-		.compatible = "brcm,cygnus-asiu-gpio",
-		.data = &cygnus_asiu_gpio_data,
-	},
-	{
-		.compatible = "brcm,cygnus-crmu-gpio",
-		.data = &cygnus_crmu_gpio_data,
-	}
+	{ .compatible = "brcm,cygnus-ccm-gpio" },
+	{ .compatible = "brcm,cygnus-asiu-gpio" },
+	{ .compatible = "brcm,cygnus-crmu-gpio" },
+	{ }
 };
 
 static int cygnus_gpio_probe(struct platform_device *pdev)
@@ -680,14 +656,6 @@ static int cygnus_gpio_probe(struct platform_device *pdev)
 	struct gpio_chip *gc;
 	u32 ngpios;
 	int irq, ret;
-	const struct of_device_id *match;
-	const struct cygnus_gpio_data *gpio_data;
-
-	match = of_match_device(cygnus_gpio_of_match, dev);
-	if (!match)
-		return -ENODEV;
-	gpio_data = match->data;
-	ngpios = gpio_data->num_gpios;
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -710,6 +678,11 @@ static int cygnus_gpio_probe(struct platform_device *pdev)
 			dev_err(dev, "unable to map I/O memory\n");
 			return PTR_ERR(chip->io_ctrl);
 		}
+	}
+
+	if (of_property_read_u32(dev->of_node, "ngpios", &ngpios)) {
+		dev_err(&pdev->dev, "missing ngpios DT property\n");
+		return -ENODEV;
 	}
 
 	spin_lock_init(&chip->lock);
