@@ -398,7 +398,7 @@ s32 wilc_get_statistics(struct host_if_drv *hWFIDrv,
 void wilc_resolve_disconnect_aberration(struct host_if_drv *hif_drv);
 
 extern bool wilc_optaining_ip;
-extern u8 wilc_connected_SSID[6];
+extern u8 wilc_connected_ssid[6];
 extern u8 wilc_multicast_mac_addr_list[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
 
 extern int wilc_connecting;

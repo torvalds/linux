@@ -588,7 +588,7 @@ static void CfgConnectResult(enum conn_event enuConnDisconnEvent,
 			 *  = SUCCESSFUL_STATUSCODE, while mac status is MAC_DISCONNECTED (which means something wrong happened) */
 			u16ConnectStatus = WLAN_STATUS_UNSPECIFIED_FAILURE;
 			wilc_wlan_set_bssid(priv->dev, NullBssid);
-			eth_zero_addr(wilc_connected_SSID);
+			eth_zero_addr(wilc_connected_ssid);
 
 			if (!pstrWFIDrv->p2p_connect)
 				wlan_channel = INVALID_CHANNEL;
@@ -646,7 +646,7 @@ static void CfgConnectResult(enum conn_event enuConnDisconnEvent,
 		wilc_ie = false;
 		eth_zero_addr(priv->au8AssociatedBss);
 		wilc_wlan_set_bssid(priv->dev, NullBssid);
-		eth_zero_addr(wilc_connected_SSID);
+		eth_zero_addr(wilc_connected_ssid);
 
 		if (!pstrWFIDrv->p2p_connect)
 			wlan_channel = INVALID_CHANNEL;

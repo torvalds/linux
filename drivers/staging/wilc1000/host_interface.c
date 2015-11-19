@@ -987,7 +987,7 @@ static s32 Handle_ScanDone(struct host_if_drv *hif_drv,
 	return result;
 }
 
-u8 wilc_connected_SSID[6] = {0};
+u8 wilc_connected_ssid[6] = {0};
 static s32 Handle_Connect(struct host_if_drv *hif_drv,
 			  struct connect_attr *pstrHostIFconnectAttr)
 {
@@ -999,7 +999,7 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 
 	PRINT_D(GENERIC_DBG, "Handling connect request\n");
 
-	if (memcmp(pstrHostIFconnectAttr->bssid, wilc_connected_SSID, ETH_ALEN) == 0) {
+	if (memcmp(pstrHostIFconnectAttr->bssid, wilc_connected_ssid, ETH_ALEN) == 0) {
 		result = 0;
 		PRINT_ER("Trying to connect to an already connected AP, Discard connect request\n");
 		return result;
@@ -1212,10 +1212,11 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 	PRINT_D(GENERIC_DBG, "send HOST_IF_WAITING_CONN_RESP\n");
 
 	if (pstrHostIFconnectAttr->bssid) {
-		memcpy(wilc_connected_SSID, pstrHostIFconnectAttr->bssid, ETH_ALEN);
-
-		PRINT_D(GENERIC_DBG, "save Bssid = %pM\n", pstrHostIFconnectAttr->bssid);
-		PRINT_D(GENERIC_DBG, "save bssid = %pM\n", wilc_connected_SSID);
+		memcpy(wilc_connected_ssid,
+		       pstrHostIFconnectAttr->bssid, ETH_ALEN);
+		PRINT_D(GENERIC_DBG, "save Bssid = %pM\n",
+			pstrHostIFconnectAttr->bssid);
+		PRINT_D(GENERIC_DBG, "save bssid = %pM\n", wilc_connected_ssid);
 	}
 
 	result = wilc_send_config_pkt(hif_drv->wilc, SET_CFG, strWIDList,
@@ -1389,7 +1390,7 @@ static s32 Handle_ConnectTimeout(struct host_if_drv *hif_drv)
 	hif_drv->usr_conn_req.ies_len = 0;
 	kfree(hif_drv->usr_conn_req.ies);
 
-	eth_zero_addr(wilc_connected_SSID);
+	eth_zero_addr(wilc_connected_ssid);
 
 	if (join_req && join_req_drv == hif_drv) {
 		kfree(join_req);
@@ -1585,11 +1586,10 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct host_if_drv *hif_drv,
 			if ((u8MacStatus == MAC_CONNECTED) &&
 			    (strConnectInfo.u16ConnectStatus != SUCCESSFUL_STATUSCODE))	{
 				PRINT_ER("Received MAC status is MAC_CONNECTED while the received status code in Asoc Resp is not SUCCESSFUL_STATUSCODE\n");
-				eth_zero_addr(wilc_connected_SSID);
-
+				eth_zero_addr(wilc_connected_ssid);
 			} else if (u8MacStatus == MAC_DISCONNECTED)    {
 				PRINT_ER("Received MAC status is MAC_DISCONNECTED\n");
-				eth_zero_addr(wilc_connected_SSID);
+				eth_zero_addr(wilc_connected_ssid);
 			}
 
 			if (hif_drv->usr_conn_req.pu8bssid) {
@@ -2007,7 +2007,7 @@ static void Handle_Disconnect(struct host_if_drv *hif_drv)
 	wilc_optaining_ip = false;
 	wilc_set_power_mgmt(hif_drv, 0, 0);
 
-	eth_zero_addr(wilc_connected_SSID);
+	eth_zero_addr(wilc_connected_ssid);
 
 	result = wilc_send_config_pkt(hif_drv->wilc, SET_CFG, &wid, 1,
 				 get_id_from_handler(hif_drv));
