@@ -531,8 +531,7 @@ static int iproc_pin_config_get(struct pinctrl_dev *pctldev, unsigned pin,
 		ret = iproc_gpio_get_strength(chip, gpio, &arg);
 		if (ret)
 			return ret;
-		else
-			*config = pinconf_to_config_packed(param, arg);
+		*config = pinconf_to_config_packed(param, arg);
 
 		return 0;
 
