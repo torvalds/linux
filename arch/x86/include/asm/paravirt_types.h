@@ -157,15 +157,6 @@ struct pv_cpu_ops {
 
 	u64 (*read_pmc)(int counter);
 
-#ifdef CONFIG_X86_32
-	/*
-	 * Atomically enable interrupts and return to userspace.  This
-	 * is only used in 32-bit kernels.  64-bit kernels use
-	 * usergs_sysret32 instead.
-	 */
-	void (*irq_enable_sysexit)(void);
-#endif
-
 	/*
 	 * Switch to usermode gs and return to 64-bit usermode using
 	 * sysret.  Only used in 64-bit kernels to return to 64-bit
