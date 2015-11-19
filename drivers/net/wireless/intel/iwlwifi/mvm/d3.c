@@ -104,9 +104,13 @@ void iwl_mvm_ipv6_addr_change(struct ieee80211_hw *hw,
 	struct inet6_ifaddr *ifa;
 	int idx = 0;
 
+	memset(mvmvif->tentative_addrs, 0, sizeof(mvmvif->tentative_addrs));
+
 	read_lock_bh(&idev->lock);
 	list_for_each_entry(ifa, &idev->addr_list, if_list) {
 		mvmvif->target_ipv6_addrs[idx] = ifa->addr;
+		if (ifa->flags & IFA_F_TENTATIVE)
+			__set_bit(idx, mvmvif->tentative_addrs);
 		idx++;
 		if (idx >= IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_MAX)
 			break;
@@ -964,7 +968,7 @@ iwl_mvm_wowlan_config(struct iwl_mvm *mvm,
 	if (ret)
 		return ret;
 
-	ret = iwl_mvm_send_proto_offload(mvm, vif, false, 0);
+	ret = iwl_mvm_send_proto_offload(mvm, vif, false, true, 0);
 	if (ret)
 		return ret;
 

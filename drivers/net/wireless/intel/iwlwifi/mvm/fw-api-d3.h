@@ -94,10 +94,14 @@ struct iwl_d3_manager_config {
  * enum iwl_d3_proto_offloads - enabled protocol offloads
  * @IWL_D3_PROTO_OFFLOAD_ARP: ARP data is enabled
  * @IWL_D3_PROTO_OFFLOAD_NS: NS (Neighbor Solicitation) is enabled
+ * @IWL_D3_PROTO_IPV4_VALID: IPv4 data is valid
+ * @IWL_D3_PROTO_IPV6_VALID: IPv6 data is valid
  */
 enum iwl_proto_offloads {
 	IWL_D3_PROTO_OFFLOAD_ARP = BIT(0),
 	IWL_D3_PROTO_OFFLOAD_NS = BIT(1),
+	IWL_D3_PROTO_IPV4_VALID = BIT(2),
+	IWL_D3_PROTO_IPV6_VALID = BIT(3),
 };
 
 #define IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V1	2

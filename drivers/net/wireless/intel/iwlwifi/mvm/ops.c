@@ -1153,7 +1153,8 @@ static void iwl_mvm_enter_d0i3_iterator(void *_data, u8 *mac,
 		data->disable_offloading = true;
 
 	iwl_mvm_update_d0i3_power_mode(mvm, vif, true, flags);
-	iwl_mvm_send_proto_offload(mvm, vif, data->disable_offloading, flags);
+	iwl_mvm_send_proto_offload(mvm, vif, data->disable_offloading,
+				   false, flags);
 
 	/*
 	 * on init/association, mvm already configures POWER_TABLE_CMD
