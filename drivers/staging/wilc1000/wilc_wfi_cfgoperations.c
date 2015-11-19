@@ -202,7 +202,7 @@ static bool g_wep_keys_saved;
 #define AGING_TIME	(9 * 1000)
 #define during_ip_time	15000
 
-static void clear_shadow_scan(void *pUserVoid)
+static void clear_shadow_scan(void)
 {
 	int i;
 
@@ -3523,7 +3523,7 @@ int wilc_deinit_host_int(struct net_device *net)
 	s32Error = wilc_deinit(priv->hWILCWFIDrv);
 
 	/* Clear the Shadow scan */
-	clear_shadow_scan(priv);
+	clear_shadow_scan();
 	if (op_ifcs == 0) {
 		PRINT_D(CORECONFIG_DBG, "destroy during ip\n");
 		del_timer_sync(&wilc_during_ip_timer);
