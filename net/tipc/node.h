@@ -69,6 +69,7 @@ enum {
 
 struct tipc_link_entry {
 	struct tipc_link *link;
+	spinlock_t lock;   /* per-link */
 	u32 mtu;
 	struct sk_buff_head inputq;
 	struct tipc_media_addr maddr;
@@ -86,7 +87,7 @@ struct tipc_bclink_entry {
  * struct tipc_node - TIPC node structure
  * @addr: network address of node
  * @ref: reference counter to node object
- * @lock: spinlock governing access to structure
+ * @lock: rwlock governing access to structure
  * @net: the applicable net namespace
  * @hash: links to adjacent nodes in unsorted hash chain
  * @inputq: pointer to input queue containing messages for msg event

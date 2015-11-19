@@ -1995,6 +1995,7 @@ int tipc_nl_link_reset_stats(struct sk_buff *skb, struct genl_info *info)
 	struct tipc_node *node;
 	struct nlattr *attrs[TIPC_NLA_LINK_MAX + 1];
 	struct net *net = sock_net(skb->sk);
+	struct tipc_link_entry *le;
 
 	if (!info->attrs[TIPC_NLA_LINK])
 		return -EINVAL;
@@ -2020,17 +2021,17 @@ int tipc_nl_link_reset_stats(struct sk_buff *skb, struct genl_info *info)
 	node = tipc_link_find_owner(net, link_name, &bearer_id);
 	if (!node)
 		return -EINVAL;
-
+	le = &node->links[bearer_id];
 	tipc_node_lock(node);
-
-	link = node->links[bearer_id].link;
+	spin_lock_bh(&le->lock);
+	link = le->link;
 	if (!link) {
 		tipc_node_unlock(node);
 		return -EINVAL;
 	}
 
 	link_reset_statistics(link);
-
+	spin_unlock_bh(&le->lock);
 	tipc_node_unlock(node);
 
 	return 0;
