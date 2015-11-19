@@ -1916,11 +1916,13 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 
 	/* Now process 'del_list' outside the lock */
 	if (!list_empty(&tmp_del_list)) {
+		int del_list_size;
+
 		filter_list_len = pf->hw.aq.asq_buf_size /
 			    sizeof(struct i40e_aqc_remove_macvlan_element_data);
-		del_list = kcalloc(filter_list_len,
-			    sizeof(struct i40e_aqc_remove_macvlan_element_data),
-			    GFP_KERNEL);
+		del_list_size = filter_list_len *
+			    sizeof(struct i40e_aqc_remove_macvlan_element_data);
+		del_list = kzalloc(del_list_size, GFP_KERNEL);
 		if (!del_list) {
 			i40e_cleanup_add_list(&tmp_add_list);
 
@@ -1955,7 +1957,7 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 								NULL);
 				aq_err = pf->hw.aq.asq_last_status;
 				num_del = 0;
-				memset(del_list, 0, sizeof(*del_list));
+				memset(del_list, 0, del_list_size);
 
 				if (aq_ret && aq_err != I40E_AQ_RC_ENOENT) {
 					retval = -EIO;
@@ -1991,13 +1993,14 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 	}
 
 	if (!list_empty(&tmp_add_list)) {
+		int add_list_size;
 
 		/* do all the adds now */
 		filter_list_len = pf->hw.aq.asq_buf_size /
 			       sizeof(struct i40e_aqc_add_macvlan_element_data),
-		add_list = kcalloc(filter_list_len,
-			       sizeof(struct i40e_aqc_add_macvlan_element_data),
-			       GFP_KERNEL);
+		add_list_size = filter_list_len *
+			       sizeof(struct i40e_aqc_add_macvlan_element_data);
+		add_list = kzalloc(add_list_size, GFP_KERNEL);
 		if (!add_list) {
 			/* Purge element from temporary lists */
 			i40e_cleanup_add_list(&tmp_add_list);
@@ -2036,7 +2039,7 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 
 				if (aq_ret)
 					break;
-				memset(add_list, 0, sizeof(*add_list));
+				memset(add_list, 0, add_list_size);
 			}
 			/* Entries from tmp_add_list were cloned from MAC
 			 * filter list, hence clean those cloned entries
