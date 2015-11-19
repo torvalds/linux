@@ -300,13 +300,12 @@ static int get_subaction(struct ima_rule_entry *rule, enum ima_hooks func)
 		return IMA_MMAP_APPRAISE;
 	case BPRM_CHECK:
 		return IMA_BPRM_APPRAISE;
-	case MODULE_CHECK:
-		return IMA_MODULE_APPRAISE;
-	case FIRMWARE_CHECK:
-		return IMA_FIRMWARE_APPRAISE;
 	case FILE_CHECK:
-	default:
+	case POST_SETATTR:
 		return IMA_FILE_APPRAISE;
+	case MODULE_CHECK ... MAX_CHECK - 1:
+	default:
+		return IMA_READ_APPRAISE;
 	}
 }
 

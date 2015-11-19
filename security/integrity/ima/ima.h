@@ -144,9 +144,10 @@ enum ima_hooks {
 	FILE_CHECK = 1,
 	MMAP_CHECK,
 	BPRM_CHECK,
+	POST_SETATTR,
 	MODULE_CHECK,
 	FIRMWARE_CHECK,
-	POST_SETATTR
+	MAX_CHECK
 };
 
 /* LIM API function definitions */
