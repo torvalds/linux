@@ -690,23 +690,6 @@ static int si2165_init(struct dvb_frontend *fe)
 			goto error;
 	}
 
-	/* write adc values after each reset*/
-	ret = si2165_writereg8(state, 0x012a, 0x46);
-	if (ret < 0)
-		goto error;
-	ret = si2165_writereg8(state, 0x012c, 0x00);
-	if (ret < 0)
-		goto error;
-	ret = si2165_writereg8(state, 0x012e, 0x0a);
-	if (ret < 0)
-		goto error;
-	ret = si2165_writereg8(state, 0x012f, 0xff);
-	if (ret < 0)
-		goto error;
-	ret = si2165_writereg8(state, 0x0123, 0x70);
-	if (ret < 0)
-		goto error;
-
 	return 0;
 error:
 	return ret;
@@ -787,6 +770,14 @@ static int si2165_set_if_freq_shift(struct si2165_state *state, u32 IF)
 	/* if_freq_shift, usbdump contained 0x023ee08f; */
 	return si2165_writereg32(state, 0x00e8, reg_value);
 }
+
+static const struct si2165_reg_value_pair agc_rewrite[] = {
+	{ 0x012a, 0x46 },
+	{ 0x012c, 0x00 },
+	{ 0x012e, 0x0a },
+	{ 0x012f, 0xff },
+	{ 0x0123, 0x70 }
+};
 
 static int si2165_set_frontend(struct dvb_frontend *fe)
 {
@@ -924,6 +915,13 @@ static int si2165_set_frontend(struct dvb_frontend *fe)
 	ret = si2165_writereg32(state, 0x0384, 0x00000000);
 	if (ret < 0)
 		return ret;
+
+	/* write adc values after each reset*/
+	ret = si2165_write_reg_list(state, agc_rewrite,
+				    ARRAY_SIZE(agc_rewrite));
+	if (ret < 0)
+		return ret;
+
 	/* start_synchro */
 	ret = si2165_writereg8(state, 0x02e0, 0x01);
 	if (ret < 0)
