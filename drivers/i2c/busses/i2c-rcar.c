@@ -650,19 +650,23 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->clk);
 	}
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	priv->io = devm_ioremap_resource(dev, res);
+	if (IS_ERR(priv->io))
+		return PTR_ERR(priv->io);
+
 	bus_speed = 100000; /* default 100 kHz */
 	of_property_read_u32(dev->of_node, "clock-frequency", &bus_speed);
 
 	priv->devtype = (enum rcar_i2c_type)of_match_device(rcar_i2c_dt_ids, dev)->data;
 
+	pm_runtime_enable(dev);
+	pm_runtime_get_sync(dev);
 	ret = rcar_i2c_clock_calculate(priv, bus_speed, dev);
 	if (ret < 0)
-		return ret;
+		goto out_pm_put;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->io = devm_ioremap_resource(dev, res);
-	if (IS_ERR(priv->io))
-		return PTR_ERR(priv->io);
+	pm_runtime_put(dev);
 
 	irq = platform_get_irq(pdev, 0);
 	init_waitqueue_head(&priv->wait);
@@ -682,22 +686,26 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 			       dev_name(dev), priv);
 	if (ret < 0) {
 		dev_err(dev, "cannot get irq %d\n", irq);
-		return ret;
+		goto out_pm_disable;
 	}
 
-	pm_runtime_enable(dev);
 	platform_set_drvdata(pdev, priv);
 
 	ret = i2c_add_numbered_adapter(adap);
 	if (ret < 0) {
 		dev_err(dev, "reg adap failed: %d\n", ret);
-		pm_runtime_disable(dev);
-		return ret;
+		goto out_pm_disable;
 	}
 
 	dev_info(dev, "probed\n");
 
 	return 0;
+
+ out_pm_put:
+	pm_runtime_put(dev);
+ out_pm_disable:
+	pm_runtime_disable(dev);
+	return ret;
 }
 
 static int rcar_i2c_remove(struct platform_device *pdev)
