@@ -245,6 +245,9 @@
 #define NTB_UNSAFE_DB			BIT_ULL(0)
 #define NTB_UNSAFE_SPAD			BIT_ULL(1)
 
+#define NTB_BAR_MASK_64			~(0xfull)
+#define NTB_BAR_MASK_32			~(0xfu)
+
 struct intel_ntb_dev;
 
 struct intel_ntb_reg {
