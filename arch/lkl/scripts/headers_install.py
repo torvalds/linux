@@ -102,7 +102,7 @@ def process_header(h):
         os.makedirs(out_dir)
     except:
         pass
-    print "  INSTALL\t%s" % (out_dir + "/" + os.path.basename(h))
+    print("  INSTALL\t%s" % (out_dir + "/" + os.path.basename(h)))
     os.system("scripts/headers_install.sh %s %s %s" % (out_dir, dir,
                                                        os.path.basename(h)))
     replace(out_dir + "/" + os.path.basename(h))
