@@ -87,6 +87,7 @@ static int gb_firmware_get_firmware(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
 	struct gb_firmware *firmware = connection->private;
+	const struct firmware *fw = firmware->fw;
 	struct gb_firmware_get_firmware_request *firmware_request = op->request->payload;
 	struct gb_firmware_get_firmware_response *firmware_response;
 	struct device *dev = &connection->bundle->dev;
@@ -99,13 +100,19 @@ static int gb_firmware_get_firmware(struct gb_operation *op)
 		return -EINVAL;
 	}
 
-	if (!firmware->fw) {
+	if (!fw) {
 		dev_err(dev, "%s: firmware not available\n", __func__);
 		return -EINVAL;
 	}
 
 	offset = le32_to_cpu(firmware_request->offset);
 	size = le32_to_cpu(firmware_request->size);
+
+	if (offset >= fw->size || size > fw->size - offset) {
+		dev_warn(dev, "bad firmware request (offs = %u, size = %u)\n",
+				offset, size);
+		return -EINVAL;
+	}
 
 	if (!gb_operation_response_alloc(op, sizeof(*firmware_response) + size,
 					 GFP_KERNEL)) {
@@ -114,7 +121,7 @@ static int gb_firmware_get_firmware(struct gb_operation *op)
 	}
 
 	firmware_response = op->response->payload;
-	memcpy(firmware_response->data, firmware->fw->data + offset, size);
+	memcpy(firmware_response->data, fw->data + offset, size);
 
 	return 0;
 }
