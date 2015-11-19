@@ -606,7 +606,8 @@ static struct class wmi_class = {
 };
 
 static int wmi_create_device(const struct guid_block *gblock,
-			     struct wmi_block *wblock, acpi_handle handle)
+			     struct wmi_block *wblock,
+			     struct acpi_device *device)
 {
 	wblock->dev.class = &wmi_class;
 
@@ -645,7 +646,7 @@ static bool guid_already_parsed(const char *guid_string)
 /*
  * Parse the _WDG method for the GUID data blocks
  */
-static int parse_wdg(acpi_handle handle)
+static int parse_wdg(struct acpi_device *device)
 {
 	struct acpi_buffer out = {ACPI_ALLOCATE_BUFFER, NULL};
 	union acpi_object *obj;
@@ -655,7 +656,7 @@ static int parse_wdg(acpi_handle handle)
 	int retval;
 	u32 i, total;
 
-	status = acpi_evaluate_object(handle, "_WDG", NULL, &out);
+	status = acpi_evaluate_object(device->handle, "_WDG", NULL, &out);
 	if (ACPI_FAILURE(status))
 		return -ENXIO;
 
@@ -679,7 +680,7 @@ static int parse_wdg(acpi_handle handle)
 		if (!wblock)
 			return -ENOMEM;
 
-		wblock->handle = handle;
+		wblock->handle = device->handle;
 		wblock->gblock = gblock[i];
 
 		/*
@@ -689,7 +690,7 @@ static int parse_wdg(acpi_handle handle)
 		  for device creation.
 		*/
 		if (!guid_already_parsed(gblock[i].guid)) {
-			retval = wmi_create_device(&gblock[i], wblock, handle);
+			retval = wmi_create_device(&gblock[i], wblock, device);
 			if (retval) {
 				wmi_free_devices();
 				goto out_free_pointer;
@@ -806,7 +807,7 @@ static int acpi_wmi_add(struct acpi_device *device)
 		return -ENODEV;
 	}
 
-	error = parse_wdg(device->handle);
+	error = parse_wdg(device);
 	if (error) {
 		acpi_remove_address_space_handler(device->handle,
 						  ACPI_ADR_SPACE_EC,
