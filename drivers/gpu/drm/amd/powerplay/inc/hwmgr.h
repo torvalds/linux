@@ -312,6 +312,10 @@ struct pp_hwmgr_func {
 					const struct pp_hw_power_state *pstate1,
 					const struct pp_hw_power_state *pstate2,
 					bool *equal);
+	int (*set_cpu_power_state)(struct pp_hwmgr *hwmgr);
+	int (*store_cc6_data)(struct pp_hwmgr *hwmgr, uint32_t separation_time,
+				bool cc6_disable, bool pstate_disable,
+				bool pstate_switch_disable);
 };
 
 struct pp_table_func {
@@ -575,7 +579,7 @@ struct pp_hwmgr {
 	const struct pp_hwmgr_func *hwmgr_func;
 	const struct pp_table_func *pptable_func;
 	struct pp_power_state    *ps;
-        enum pp_power_source  power_source;
+	enum pp_power_source  power_source;
 	uint32_t num_ps;
 	struct pp_thermal_controller_info thermal_controller;
 	bool fan_ctrl_is_in_default_mode;
