@@ -237,7 +237,7 @@ static u32 get_rssi_avg(tstrNetworkInfo *pstrNetworkInfo)
 	return rssi_v;
 }
 
-static void refresh_scan(void *user_void, u8 all, bool bDirectScan)
+static void refresh_scan(void *user_void, u8 all, bool direct_scan)
 {
 	struct wilc_priv *priv;
 	struct wiphy *wiphy;
@@ -263,7 +263,8 @@ static void refresh_scan(void *user_void, u8 all, bool bDirectScan)
 				channel = ieee80211_get_channel(wiphy, s32Freq);
 
 				rssi = get_rssi_avg(pstrNetworkInfo);
-				if (memcmp("DIRECT-", pstrNetworkInfo->au8ssid, 7) || bDirectScan)	{
+				if (memcmp("DIRECT-", pstrNetworkInfo->au8ssid, 7) ||
+				    direct_scan) {
 					bss = cfg80211_inform_bss(wiphy, channel, CFG80211_BSS_FTYPE_UNKNOWN, pstrNetworkInfo->au8bssid, pstrNetworkInfo->u64Tsf, pstrNetworkInfo->u16CapInfo,
 								  pstrNetworkInfo->u16BeaconPeriod, (const u8 *)pstrNetworkInfo->pu8IEs,
 								  (size_t)pstrNetworkInfo->u16IEsLen, (((s32)rssi) * 100), GFP_KERNEL);
