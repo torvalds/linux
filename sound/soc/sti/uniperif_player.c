@@ -989,7 +989,7 @@ static int uni_player_parse_dt(struct platform_device *pdev,
 	if (!info)
 		return -ENOMEM;
 
-	if (of_property_read_u32(pnode, "version", &player->ver) ||
+	if (of_property_read_u32(pnode, "st,version", &player->ver) ||
 	    player->ver == SND_ST_UNIPERIF_VERSION_UNKNOWN) {
 		dev_err(dev, "Unknown uniperipheral version ");
 		return -EINVAL;
@@ -998,13 +998,13 @@ static int uni_player_parse_dt(struct platform_device *pdev,
 	if (player->ver >= SND_ST_UNIPERIF_VERSION_UNI_PLR_TOP_1_0)
 		info->underflow_enabled = 1;
 
-	if (of_property_read_u32(pnode, "uniperiph-id", &info->id)) {
+	if (of_property_read_u32(pnode, "st,uniperiph-id", &info->id)) {
 		dev_err(dev, "uniperipheral id not defined");
 		return -EINVAL;
 	}
 
 	/* Read the device mode property */
-	if (of_property_read_string(pnode, "mode", &mode)) {
+	if (of_property_read_string(pnode, "st,mode", &mode)) {
 		dev_err(dev, "uniperipheral mode not defined");
 		return -EINVAL;
 	}
