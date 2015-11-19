@@ -533,16 +533,16 @@ static int gb_loopback_request_recv(u8 type, struct gb_operation *operation)
 			return -EINVAL;
 		}
 
-		if (len) {
-			if (!gb_operation_response_alloc(operation,
-					len + sizeof(*response), GFP_KERNEL)) {
-				dev_err(dev, "error allocating response\n");
-				return -ENOMEM;
-			}
-			response = operation->response->payload;
-			response->len = cpu_to_le32(len);
-			memcpy(response->data, request->data, len);
+		if (!gb_operation_response_alloc(operation,
+				len + sizeof(*response), GFP_KERNEL)) {
+			dev_err(dev, "error allocating response\n");
+			return -ENOMEM;
 		}
+		response = operation->response->payload;
+		response->len = cpu_to_le32(len);
+		if (len)
+			memcpy(response->data, request->data, len);
+
 		return 0;
 	default:
 		dev_err(dev, "unsupported request: %hhu\n", type);
