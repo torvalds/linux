@@ -1239,6 +1239,9 @@ static int arizona_extcon_device_get_pdata(struct arizona *arizona)
 	pdata->micd_software_compare = device_property_read_bool(arizona->dev,
 						"wlf,micd-software-compare");
 
+	pdata->jd_invert = device_property_read_bool(arizona->dev,
+						     "wlf,jd-invert");
+
 	device_property_read_u32(arizona->dev, "wlf,gpsw", &pdata->gpsw);
 
 	return 0;
