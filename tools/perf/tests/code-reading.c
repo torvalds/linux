@@ -601,7 +601,7 @@ out_err:
 	return err;
 }
 
-int test__code_reading(void)
+int test__code_reading(int subtest __maybe_unused)
 {
 	int ret;
 

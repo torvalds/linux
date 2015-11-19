@@ -111,7 +111,7 @@ static long long bp_count(int fd)
 	return count;
 }
 
-int test__bp_signal(void)
+int test__bp_signal(int subtest __maybe_unused)
 {
 	struct sigaction sa;
 	long long count1, count2;

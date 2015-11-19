@@ -215,7 +215,7 @@ out:
 	return ret;
 }
 
-int test__bpf(void)
+int test__bpf(int subtest __maybe_unused)
 {
 	unsigned int i;
 	int err;

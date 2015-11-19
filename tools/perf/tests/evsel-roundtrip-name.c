@@ -95,7 +95,7 @@ out_delete_evlist:
 #define perf_evsel__name_array_test(names) \
 	__perf_evsel__name_array_test(names, ARRAY_SIZE(names))
 
-int test__perf_evsel__roundtrip_name_test(void)
+int test__perf_evsel__roundtrip_name_test(int subtest __maybe_unused)
 {
 	int err = 0, ret = 0;
 

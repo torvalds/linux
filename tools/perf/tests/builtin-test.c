@@ -203,7 +203,7 @@ static bool perf_test__matches(struct test *test, int curr, int argc, const char
 	return false;
 }
 
-static int run_test(struct test *test)
+static int run_test(struct test *test, int subtest)
 {
 	int status, err = -1, child = fork();
 	char sbuf[STRERR_BUFSIZE];
@@ -216,7 +216,7 @@ static int run_test(struct test *test)
 
 	if (!child) {
 		pr_debug("test child forked, pid %d\n", getpid());
-		err = test->func();
+		err = test->func(subtest);
 		exit(err);
 	}
 
@@ -265,7 +265,7 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 		}
 
 		pr_debug("\n--- start ---\n");
-		err = run_test(t);
+		err = run_test(t, i);
 		pr_debug("---- end ----\n%s:", t->desc);
 
 		switch (err) {

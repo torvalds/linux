@@ -131,7 +131,7 @@ out:
 	return ret;
 }
 
-int test__llvm(void)
+int test__llvm(int subtest __maybe_unused)
 {
 	enum test_llvm__testcase i;
 

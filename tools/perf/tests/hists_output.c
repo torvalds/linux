@@ -576,7 +576,7 @@ out:
 	return err;
 }
 
-int test__hists_output(void)
+int test__hists_output(int subtest __maybe_unused)
 {
 	int err = TEST_FAIL;
 	struct machines machines;
