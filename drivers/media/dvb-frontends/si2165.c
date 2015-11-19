@@ -767,7 +767,7 @@ static int si2165_set_if_freq_shift(struct si2165_state *state, u32 IF)
 	return si2165_writereg32(state, 0x00e8, reg_value);
 }
 
-static int si2165_set_parameters(struct dvb_frontend *fe)
+static int si2165_set_frontend(struct dvb_frontend *fe)
 {
 	int ret;
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
@@ -952,7 +952,7 @@ static struct dvb_frontend_ops si2165_ops = {
 	.init = si2165_init,
 	.sleep = si2165_sleep,
 
-	.set_frontend      = si2165_set_parameters,
+	.set_frontend      = si2165_set_frontend,
 	.read_status       = si2165_read_status,
 
 	.release = si2165_release,
