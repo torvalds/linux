@@ -52,7 +52,7 @@ static const struct {
 	{ Q_STATS_OFFSET32(rx_skb_alloc_failed),
 					 4, "[%s]: rx_skb_alloc_discard" },
 	{ Q_STATS_OFFSET32(hw_csum_err), 4, "[%s]: rx_csum_offload_errors" },
-
+	{ Q_STATS_OFFSET32(driver_xoff), 4, "[%s]: tx_exhaustion_events" },
 	{ Q_STATS_OFFSET32(total_bytes_transmitted_hi),	8, "[%s]: tx_bytes" },
 /* 10 */{ Q_STATS_OFFSET32(total_unicast_packets_transmitted_hi),
 						8, "[%s]: tx_ucast_packets" },
@@ -128,7 +128,8 @@ static const struct {
 				4, STATS_FLAGS_BOTH, "rx_skb_alloc_discard" },
 	{ STATS_OFFSET32(hw_csum_err),
 				4, STATS_FLAGS_BOTH, "rx_csum_offload_errors" },
-
+	{ STATS_OFFSET32(driver_xoff),
+				4, STATS_FLAGS_BOTH, "tx_exhaustion_events" },
 	{ STATS_OFFSET32(total_bytes_transmitted_hi),
 				8, STATS_FLAGS_BOTH, "tx_bytes" },
 	{ STATS_OFFSET32(tx_stat_ifhcoutbadoctets_hi),
