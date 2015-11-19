@@ -133,7 +133,7 @@ struct sunxi_rtc_data_year {
 	unsigned char leap_shift;	/* bit shift to get the leap year */
 };
 
-static struct sunxi_rtc_data_year data_year_param[] = {
+static const struct sunxi_rtc_data_year data_year_param[] = {
 	[0] = {
 		.min		= 2010,
 		.max		= 2073,
@@ -151,7 +151,7 @@ static struct sunxi_rtc_data_year data_year_param[] = {
 struct sunxi_rtc_dev {
 	struct rtc_device *rtc;
 	struct device *dev;
-	struct sunxi_rtc_data_year *data_year;
+	const struct sunxi_rtc_data_year *data_year;
 	void __iomem *base;
 	int irq;
 };
@@ -468,7 +468,7 @@ static int sunxi_rtc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Unable to setup RTC data\n");
 		return -ENODEV;
 	}
-	chip->data_year = (struct sunxi_rtc_data_year *) of_id->data;
+	chip->data_year = of_id->data;
 
 	/* clear the alarm count value */
 	writel(0, chip->base + SUNXI_ALRM_DHMS);
