@@ -960,6 +960,10 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		goto ignore;
 
 	case HID_UP_LOGIVENDOR:
+		/* intentional fallback */
+	case HID_UP_LOGIVENDOR2:
+		/* intentional fallback */
+	case HID_UP_LOGIVENDOR3:
 		goto ignore;
 
 	case HID_UP_PID:
