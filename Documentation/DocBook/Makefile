@@ -50,7 +50,7 @@ pdfdocs: $(PDF)
 
 HTML := $(sort $(patsubst %.xml, %.html, $(BOOKS)))
 htmldocs: $(HTML)
-	$(call build_main_index)
+	$(call cmd,build_main_index)
 	$(call install_media_images)
 
 MAN := $(patsubst %.xml, %.9, $(BOOKS))
@@ -138,7 +138,8 @@ quiet_cmd_db2pdf = PDF     $@
 
 index = index.html
 main_idx = $(obj)/$(index)
-build_main_index = rm -rf $(main_idx); \
+quiet_cmd_build_main_index = HTML    $(main_idx)
+      cmd_build_main_index = rm -rf $(main_idx); \
 		   echo '<h1>Linux Kernel HTML Documentation</h1>' >> $(main_idx) && \
 		   echo '<h2>Kernel Version: $(KERNELVERSION)</h2>' >> $(main_idx) && \
 		   cat $(HTML) >> $(main_idx)
