@@ -23,6 +23,7 @@
 #include <linux/sched.h>
 #include <linux/file.h>
 #include <linux/list.h>
+#include <linux/fs.h>
 #include <linux/async.h>
 #include <linux/pm.h>
 #include <linux/suspend.h>
@@ -291,37 +292,6 @@ static const char * const fw_path[] = {
 module_param_string(path, fw_path_para, sizeof(fw_path_para), 0644);
 MODULE_PARM_DESC(path, "customized firmware image search path with a higher priority than default path");
 
-static int fw_read_file_contents(struct file *file, struct firmware_buf *fw_buf)
-{
-	int size;
-	char *buf;
-	int rc;
-
-	if (!S_ISREG(file_inode(file)->i_mode))
-		return -EINVAL;
-	size = i_size_read(file_inode(file));
-	if (size <= 0)
-		return -EINVAL;
-	buf = vmalloc(size);
-	if (!buf)
-		return -ENOMEM;
-	rc = kernel_read(file, 0, buf, size);
-	if (rc != size) {
-		if (rc > 0)
-			rc = -EIO;
-		goto fail;
-	}
-	rc = security_kernel_fw_from_file(file, buf, size);
-	if (rc)
-		goto fail;
-	fw_buf->data = buf;
-	fw_buf->size = size;
-	return 0;
-fail:
-	vfree(buf);
-	return rc;
-}
-
 static void fw_finish_direct_load(struct device *device,
 				  struct firmware_buf *buf)
 {
@@ -334,6 +304,7 @@ static void fw_finish_direct_load(struct device *device,
 static int fw_get_filesystem_firmware(struct device *device,
 				       struct firmware_buf *buf)
 {
+	loff_t size;
 	int i, len;
 	int rc = -ENOENT;
 	char *path;
@@ -343,8 +314,6 @@ static int fw_get_filesystem_firmware(struct device *device,
 		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(fw_path); i++) {
-		struct file *file;
-
 		/* skip the unset customized path */
 		if (!fw_path[i][0])
 			continue;
@@ -356,18 +325,16 @@ static int fw_get_filesystem_firmware(struct device *device,
 			break;
 		}
 
-		file = filp_open(path, O_RDONLY, 0);
-		if (IS_ERR(file))
-			continue;
-		rc = fw_read_file_contents(file, buf);
-		fput(file);
+		buf->size = 0;
+		rc = kernel_read_file_from_path(path, &buf->data, &size,
+						INT_MAX, READING_FIRMWARE);
 		if (rc) {
 			dev_warn(device, "loading %s failed with error %d\n",
 				 path, rc);
 			continue;
 		}
-		dev_dbg(device, "direct-loading %s\n",
-			buf->fw_id);
+		dev_dbg(device, "direct-loading %s\n", buf->fw_id);
+		buf->size = size;
 		fw_finish_direct_load(device, buf);
 		break;
 	}
@@ -689,8 +656,9 @@ static ssize_t firmware_loading_store(struct device *dev,
 				dev_err(dev, "%s: map pages failed\n",
 					__func__);
 			else
-				rc = security_kernel_fw_from_file(NULL,
-						fw_buf->data, fw_buf->size);
+				rc = security_kernel_post_read_file(NULL,
+						fw_buf->data, fw_buf->size,
+						READING_FIRMWARE);
 
 			/*
 			 * Same logic as fw_load_abort, only the DONE bit
