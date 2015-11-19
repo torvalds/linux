@@ -3106,55 +3106,47 @@ static int btrfs_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
 				      start, (size_t)(end - start + 1));
 }
 
-struct delayed_iput {
-	struct list_head list;
-	struct inode *inode;
-};
-
-/* JDM: If this is fs-wide, why can't we add a pointer to
- * btrfs_inode instead and avoid the allocation? */
 void btrfs_add_delayed_iput(struct inode *inode)
 {
 	struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
-	struct delayed_iput *delayed;
+	struct btrfs_inode *binode = BTRFS_I(inode);
 
 	if (atomic_add_unless(&inode->i_count, -1, 1))
 		return;
 
-	delayed = kmalloc(sizeof(*delayed), GFP_NOFS | __GFP_NOFAIL);
-	delayed->inode = inode;
-
 	spin_lock(&fs_info->delayed_iput_lock);
-	list_add_tail(&delayed->list, &fs_info->delayed_iputs);
+	if (binode->delayed_iput_count == 0) {
+		ASSERT(list_empty(&binode->delayed_iput));
+		list_add_tail(&binode->delayed_iput, &fs_info->delayed_iputs);
+	} else {
+		binode->delayed_iput_count++;
+	}
 	spin_unlock(&fs_info->delayed_iput_lock);
 }
 
 void btrfs_run_delayed_iputs(struct btrfs_root *root)
 {
-	LIST_HEAD(list);
 	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct delayed_iput *delayed;
-	int empty;
-
-	spin_lock(&fs_info->delayed_iput_lock);
-	empty = list_empty(&fs_info->delayed_iputs);
-	spin_unlock(&fs_info->delayed_iput_lock);
-	if (empty)
-		return;
 
 	down_read(&fs_info->delayed_iput_sem);
-
 	spin_lock(&fs_info->delayed_iput_lock);
-	list_splice_init(&fs_info->delayed_iputs, &list);
-	spin_unlock(&fs_info->delayed_iput_lock);
+	while (!list_empty(&fs_info->delayed_iputs)) {
+		struct btrfs_inode *inode;
 
-	while (!list_empty(&list)) {
-		delayed = list_entry(list.next, struct delayed_iput, list);
-		list_del(&delayed->list);
-		iput(delayed->inode);
-		kfree(delayed);
+		inode = list_first_entry(&fs_info->delayed_iputs,
+				struct btrfs_inode, delayed_iput);
+		if (inode->delayed_iput_count) {
+			inode->delayed_iput_count--;
+			list_move_tail(&inode->delayed_iput,
+					&fs_info->delayed_iputs);
+		} else {
+			list_del_init(&inode->delayed_iput);
+		}
+		spin_unlock(&fs_info->delayed_iput_lock);
+		iput(&inode->vfs_inode);
+		spin_lock(&fs_info->delayed_iput_lock);
 	}
-
+	spin_unlock(&fs_info->delayed_iput_lock);
 	up_read(&root->fs_info->delayed_iput_sem);
 }
 
@@ -9037,6 +9029,7 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	ei->dir_index = 0;
 	ei->last_unlink_trans = 0;
 	ei->last_log_commit = 0;
+	ei->delayed_iput_count = 0;
 
 	spin_lock_init(&ei->lock);
 	ei->outstanding_extents = 0;
@@ -9061,6 +9054,7 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	mutex_init(&ei->delalloc_mutex);
 	btrfs_ordered_inode_tree_init(&ei->ordered_tree);
 	INIT_LIST_HEAD(&ei->delalloc_inodes);
+	INIT_LIST_HEAD(&ei->delayed_iput);
 	RB_CLEAR_NODE(&ei->rb_node);
 
 	return inode;
