@@ -88,7 +88,7 @@ static int gb_firmware_get_firmware(struct gb_operation *op)
 	struct gb_connection *connection = op->connection;
 	struct gb_firmware *firmware = connection->private;
 	const struct firmware *fw = firmware->fw;
-	struct gb_firmware_get_firmware_request *firmware_request = op->request->payload;
+	struct gb_firmware_get_firmware_request *firmware_request;
 	struct gb_firmware_get_firmware_response *firmware_response;
 	struct device *dev = &connection->bundle->dev;
 	unsigned int offset, size;
@@ -105,6 +105,7 @@ static int gb_firmware_get_firmware(struct gb_operation *op)
 		return -EINVAL;
 	}
 
+	firmware_request = op->request->payload;
 	offset = le32_to_cpu(firmware_request->offset);
 	size = le32_to_cpu(firmware_request->size);
 
@@ -129,7 +130,7 @@ static int gb_firmware_get_firmware(struct gb_operation *op)
 static int gb_firmware_ready_to_boot(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
-	struct gb_firmware_ready_to_boot_request *rtb_request = op->request->payload;
+	struct gb_firmware_ready_to_boot_request *rtb_request;
 	struct device *dev = &connection->bundle->dev;
 	u8 status;
 
@@ -140,6 +141,7 @@ static int gb_firmware_ready_to_boot(struct gb_operation *op)
 		return -EINVAL;
 	}
 
+	rtb_request = op->request->payload;
 	status = rtb_request->status;
 
 	/* Return error if the blob was invalid */
@@ -192,8 +194,10 @@ static int gb_firmware_connection_init(struct gb_connection *connection)
 	 */
 	ret = gb_operation_sync(connection, GB_FIRMWARE_TYPE_AP_READY, NULL, 0,
 				NULL, 0);
-	if (ret)
-		dev_err(&connection->bundle->dev, "Failed to send AP READY (%d)\n", ret);
+	if (ret) {
+		dev_err(&connection->bundle->dev,
+				"failed to send AP READY: %d\n", ret);
+	}
 
 	return 0;
 }
