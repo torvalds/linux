@@ -94,7 +94,6 @@
 #define RCAR_IRQ_ACK_RECV	(~(MAT | MDR) & 0xFF)
 
 #define ID_LAST_MSG	(1 << 0)
-#define ID_IOERROR	(1 << 1)
 #define ID_DONE		(1 << 2)
 #define ID_ARBLOST	(1 << 3)
 #define ID_NACK		(1 << 4)
@@ -538,11 +537,6 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 
 		if (rcar_i2c_flags_has(priv, ID_ARBLOST)) {
 			ret = -EAGAIN;
-			break;
-		}
-
-		if (rcar_i2c_flags_has(priv, ID_IOERROR)) {
-			ret = -EIO;
 			break;
 		}
 
