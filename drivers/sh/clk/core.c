@@ -469,6 +469,9 @@ void clk_enable_init_clocks(void)
 
 unsigned long clk_get_rate(struct clk *clk)
 {
+	if (!clk)
+		return 0;
+
 	return clk->rate;
 }
 EXPORT_SYMBOL_GPL(clk_get_rate);
@@ -477,6 +480,9 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 {
 	int ret = -EOPNOTSUPP;
 	unsigned long flags;
+
+	if (!clk)
+		return 0;
 
 	spin_lock_irqsave(&clock_lock, flags);
 
@@ -535,12 +541,18 @@ EXPORT_SYMBOL_GPL(clk_set_parent);
 
 struct clk *clk_get_parent(struct clk *clk)
 {
+	if (!clk)
+		return NULL;
+
 	return clk->parent;
 }
 EXPORT_SYMBOL_GPL(clk_get_parent);
 
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
+	if (!clk)
+		return 0;
+
 	if (likely(clk->ops && clk->ops->round_rate)) {
 		unsigned long flags, rounded;
 
