@@ -175,7 +175,7 @@ static irqreturn_t sunxi_rtc_alarmirq(int irq, void *id)
 	return IRQ_NONE;
 }
 
-static void sunxi_rtc_setaie(int to, struct sunxi_rtc_dev *chip)
+static void sunxi_rtc_setaie(unsigned int to, struct sunxi_rtc_dev *chip)
 {
 	u32 alrm_val = 0;
 	u32 alrm_irq_val = 0;
@@ -343,7 +343,7 @@ static int sunxi_rtc_settime(struct device *dev, struct rtc_time *rtc_tm)
 	struct sunxi_rtc_dev *chip = dev_get_drvdata(dev);
 	u32 date = 0;
 	u32 time = 0;
-	int year;
+	unsigned int year;
 
 	/*
 	 * the input rtc_tm->tm_year is the offset relative to 1900. We use
@@ -353,8 +353,8 @@ static int sunxi_rtc_settime(struct device *dev, struct rtc_time *rtc_tm)
 
 	year = rtc_tm->tm_year + 1900;
 	if (year < chip->data_year->min || year > chip->data_year->max) {
-		dev_err(dev, "rtc only supports year in range %d - %d\n",
-				chip->data_year->min, chip->data_year->max);
+		dev_err(dev, "rtc only supports year in range %u - %u\n",
+			chip->data_year->min, chip->data_year->max);
 		return -EINVAL;
 	}
 
