@@ -26,7 +26,10 @@ struct lklfuse {
 	union lkl_disk_backstore bs;
 	int disk_id;
 	int ro;
-} lklfuse;
+	int mb;
+} lklfuse = {
+	.mb = 64,
+};
 
 #define LKLFUSE_OPT(t, p, v) { t, offsetof(struct lklfuse, p), v }
 
@@ -38,6 +41,7 @@ enum {
 static struct fuse_opt lklfuse_opts[] = {
 	LKLFUSE_OPT("log=%s", log, 0),
 	LKLFUSE_OPT("type=%s", type, 0),
+	LKLFUSE_OPT("mb=%d", mb, 0),
 	FUSE_OPT_KEY("-h", KEY_HELP),
 	FUSE_OPT_KEY("--help", KEY_HELP),
 	FUSE_OPT_KEY("-V",             KEY_VERSION),
@@ -58,6 +62,7 @@ static void usage(void)
 "lklfuse options:\n"
 "    -o log=FILE            log file\n"
 "    -o type=fstype         filesystem type\n"
+"    -o mb=memory in mb     ammount of memory to allocate\n"
 );
 }
 
@@ -66,10 +71,8 @@ static int lklfuse_opt_proc(void *data, const char *arg, int key,
 {
 	switch (key) {
 	case FUSE_OPT_KEY_OPT:
-		if (strcmp(arg, "ro") == 0) {
-			printf("ro\n");
+		if (strcmp(arg, "ro") == 0)
 			lklfuse.ro = 1;
-		}
 		return 1;
 
 	case FUSE_OPT_KEY_NONOPT:
@@ -503,7 +506,7 @@ static int start_lkl(void)
 	long ret;
 	char mpoint[32];
 
-	ret = lkl_start_kernel(&lkl_host_ops, 64 * 1024 * 1024, "");
+	ret = lkl_start_kernel(&lkl_host_ops, lklfuse.mb * 1024 * 1024, "");
 	if (ret) {
 		fprintf(stderr, "can't start kernel: %s\n", lkl_strerror(ret));
 		goto out;
