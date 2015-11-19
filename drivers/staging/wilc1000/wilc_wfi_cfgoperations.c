@@ -124,7 +124,7 @@ u8 wilc_initialized = 1;
 }
 
 /*Frequency range for channels*/
-static struct ieee80211_channel WILC_WFI_2ghz_channels[] = {
+static struct ieee80211_channel ieee80211_2ghz_channels[] = {
 	CHAN2G(1,  2412, 0),
 	CHAN2G(2,  2417, 0),
 	CHAN2G(3,  2422, 0),
@@ -181,8 +181,8 @@ static u8 u8P2P_vendorspec[] = {0xdd, 0x05, 0x00, 0x08, 0x40, 0x03};
 static bool bWilc_ie;
 
 static struct ieee80211_supported_band WILC_WFI_band_2ghz = {
-	.channels = WILC_WFI_2ghz_channels,
-	.n_channels = ARRAY_SIZE(WILC_WFI_2ghz_channels),
+	.channels = ieee80211_2ghz_channels,
+	.n_channels = ARRAY_SIZE(ieee80211_2ghz_channels),
 	.bitrates = WILC_WFI_rates,
 	.n_bitrates = ARRAY_SIZE(WILC_WFI_rates),
 };
