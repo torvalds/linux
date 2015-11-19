@@ -435,12 +435,14 @@ static void null_del_dev(struct nullb *nullb)
 	list_del_init(&nullb->list);
 
 	if (use_lightnvm)
-		nvm_unregister(nullb->disk->disk_name);
-	del_gendisk(nullb->disk);
+		nvm_unregister(nullb->disk_name);
+	else
+		del_gendisk(nullb->disk);
 	blk_cleanup_queue(nullb->q);
 	if (queue_mode == NULL_Q_MQ)
 		blk_mq_free_tag_set(&nullb->tag_set);
-	put_disk(nullb->disk);
+	if (!use_lightnvm)
+		put_disk(nullb->disk);
 	cleanup_queues(nullb);
 	kfree(nullb);
 }
