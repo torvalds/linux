@@ -319,62 +319,62 @@ static void tipc_node_write_unlock(struct tipc_node *n)
 struct tipc_node *tipc_node_create(struct net *net, u32 addr, u16 capabilities)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	struct tipc_node *n_ptr, *temp_node;
+	struct tipc_node *n, *temp_node;
 	int i;
 
 	spin_lock_bh(&tn->node_list_lock);
-	n_ptr = tipc_node_find(net, addr);
-	if (n_ptr)
+	n = tipc_node_find(net, addr);
+	if (n)
 		goto exit;
-	n_ptr = kzalloc(sizeof(*n_ptr), GFP_ATOMIC);
-	if (!n_ptr) {
+	n = kzalloc(sizeof(*n), GFP_ATOMIC);
+	if (!n) {
 		pr_warn("Node creation failed, no memory\n");
 		goto exit;
 	}
-	n_ptr->addr = addr;
-	n_ptr->net = net;
-	n_ptr->capabilities = capabilities;
-	kref_init(&n_ptr->kref);
-	rwlock_init(&n_ptr->lock);
-	INIT_HLIST_NODE(&n_ptr->hash);
-	INIT_LIST_HEAD(&n_ptr->list);
-	INIT_LIST_HEAD(&n_ptr->publ_list);
-	INIT_LIST_HEAD(&n_ptr->conn_sks);
-	skb_queue_head_init(&n_ptr->bc_entry.namedq);
-	skb_queue_head_init(&n_ptr->bc_entry.inputq1);
-	__skb_queue_head_init(&n_ptr->bc_entry.arrvq);
-	skb_queue_head_init(&n_ptr->bc_entry.inputq2);
+	n->addr = addr;
+	n->net = net;
+	n->capabilities = capabilities;
+	kref_init(&n->kref);
+	rwlock_init(&n->lock);
+	INIT_HLIST_NODE(&n->hash);
+	INIT_LIST_HEAD(&n->list);
+	INIT_LIST_HEAD(&n->publ_list);
+	INIT_LIST_HEAD(&n->conn_sks);
+	skb_queue_head_init(&n->bc_entry.namedq);
+	skb_queue_head_init(&n->bc_entry.inputq1);
+	__skb_queue_head_init(&n->bc_entry.arrvq);
+	skb_queue_head_init(&n->bc_entry.inputq2);
 	for (i = 0; i < MAX_BEARERS; i++)
-		spin_lock_init(&n_ptr->links[i].lock);
-	hlist_add_head_rcu(&n_ptr->hash, &tn->node_htable[tipc_hashfn(addr)]);
+		spin_lock_init(&n->links[i].lock);
+	hlist_add_head_rcu(&n->hash, &tn->node_htable[tipc_hashfn(addr)]);
 	list_for_each_entry_rcu(temp_node, &tn->node_list, list) {
-		if (n_ptr->addr < temp_node->addr)
+		if (n->addr < temp_node->addr)
 			break;
 	}
-	list_add_tail_rcu(&n_ptr->list, &temp_node->list);
-	n_ptr->state = SELF_DOWN_PEER_LEAVING;
-	n_ptr->signature = INVALID_NODE_SIG;
-	n_ptr->active_links[0] = INVALID_BEARER_ID;
-	n_ptr->active_links[1] = INVALID_BEARER_ID;
-	if (!tipc_link_bc_create(net, tipc_own_addr(net), n_ptr->addr,
+	list_add_tail_rcu(&n->list, &temp_node->list);
+	n->state = SELF_DOWN_PEER_LEAVING;
+	n->signature = INVALID_NODE_SIG;
+	n->active_links[0] = INVALID_BEARER_ID;
+	n->active_links[1] = INVALID_BEARER_ID;
+	if (!tipc_link_bc_create(net, tipc_own_addr(net), n->addr,
 				 U16_MAX,
 				 tipc_link_window(tipc_bc_sndlink(net)),
-				 n_ptr->capabilities,
-				 &n_ptr->bc_entry.inputq1,
-				 &n_ptr->bc_entry.namedq,
+				 n->capabilities,
+				 &n->bc_entry.inputq1,
+				 &n->bc_entry.namedq,
 				 tipc_bc_sndlink(net),
-				 &n_ptr->bc_entry.link)) {
+				 &n->bc_entry.link)) {
 		pr_warn("Broadcast rcv link creation failed, no memory\n");
-		kfree(n_ptr);
-		n_ptr = NULL;
+		kfree(n);
+		n = NULL;
 		goto exit;
 	}
-	tipc_node_get(n_ptr);
-	setup_timer(&n_ptr->timer, tipc_node_timeout, (unsigned long)n_ptr);
-	n_ptr->keepalive_intv = U32_MAX;
+	tipc_node_get(n);
+	setup_timer(&n->timer, tipc_node_timeout, (unsigned long)n);
+	n->keepalive_intv = U32_MAX;
 exit:
 	spin_unlock_bh(&tn->node_list_lock);
-	return n_ptr;
+	return n;
 }
 
 static void tipc_node_calculate_timer(struct tipc_node *n, struct tipc_link *l)

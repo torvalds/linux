@@ -99,7 +99,7 @@ bool tipc_link_is_synching(struct tipc_link *l);
 bool tipc_link_is_failingover(struct tipc_link *l);
 bool tipc_link_is_blocked(struct tipc_link *l);
 void tipc_link_set_active(struct tipc_link *l, bool active);
-void tipc_link_reset(struct tipc_link *l_ptr);
+void tipc_link_reset(struct tipc_link *l);
 void tipc_link_reset_stats(struct tipc_link *l);
 int tipc_link_xmit(struct tipc_link *link, struct sk_buff_head *list,
 		   struct sk_buff_head *xmitq);

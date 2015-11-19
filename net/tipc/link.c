@@ -245,7 +245,7 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 static void tipc_link_build_proto_msg(struct tipc_link *l, int mtyp, bool probe,
 				      u16 rcvgap, int tolerance, int priority,
 				      struct sk_buff_head *xmitq);
-static void link_print(struct tipc_link *l_ptr, const char *str);
+static void link_print(struct tipc_link *l, const char *str);
 static void tipc_link_build_nack_msg(struct tipc_link *l,
 				     struct sk_buff_head *xmitq);
 static void tipc_link_build_bc_init_msg(struct tipc_link *l,
@@ -1707,7 +1707,7 @@ void tipc_link_set_queue_limits(struct tipc_link *l, u32 win)
 
 /**
  * link_reset_stats - reset link statistics
- * @l_ptr: pointer to link
+ * @l: pointer to link
  */
 void tipc_link_reset_stats(struct tipc_link *l)
 {
