@@ -237,7 +237,7 @@ static u32 get_rssi_avg(tstrNetworkInfo *pstrNetworkInfo)
 	return rssi_v;
 }
 
-static void refresh_scan(void *pUserVoid, u8 all, bool bDirectScan)
+static void refresh_scan(void *user_void, u8 all, bool bDirectScan)
 {
 	struct wilc_priv *priv;
 	struct wiphy *wiphy;
@@ -245,7 +245,7 @@ static void refresh_scan(void *pUserVoid, u8 all, bool bDirectScan)
 	int i;
 	int rssi = 0;
 
-	priv = (struct wilc_priv *)pUserVoid;
+	priv = (struct wilc_priv *)user_void;
 	wiphy = priv->dev->ieee80211_ptr->wiphy;
 
 	for (i = 0; i < last_scanned_cnt; i++) {
