@@ -445,9 +445,11 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache)
 	int ret;
 	u64 offset;
 	u64 max_extent_size;
-
-	bool (*use_bitmap_op)(struct btrfs_free_space_ctl *,
-			      struct btrfs_free_space *);
+	struct btrfs_free_space_op test_free_space_ops = {
+		.recalc_thresholds = cache->free_space_ctl->op->recalc_thresholds,
+		.use_bitmap = test_use_bitmap,
+	};
+	struct btrfs_free_space_op *orig_free_space_ops;
 
 	test_msg("Running space stealing from bitmap to extent\n");
 
@@ -469,8 +471,8 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache)
 	 * that forces use of bitmaps as soon as we have at least 1
 	 * extent entry.
 	 */
-	use_bitmap_op = cache->free_space_ctl->op->use_bitmap;
-	cache->free_space_ctl->op->use_bitmap = test_use_bitmap;
+	orig_free_space_ops = cache->free_space_ctl->op;
+	cache->free_space_ctl->op = &test_free_space_ops;
 
 	/*
 	 * Extent entry covering free space range [128Mb - 256Kb, 128Mb - 128Kb[
@@ -877,7 +879,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache)
 	if (ret)
 		return ret;
 
-	cache->free_space_ctl->op->use_bitmap = use_bitmap_op;
+	cache->free_space_ctl->op = orig_free_space_ops;
 	__btrfs_remove_free_space_cache(cache->free_space_ctl);
 
 	return 0;
