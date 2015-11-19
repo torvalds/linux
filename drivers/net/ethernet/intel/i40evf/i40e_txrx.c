@@ -411,7 +411,7 @@ static bool i40e_set_new_dynamic_itr(struct i40e_ring_container *rc)
 	return false;
 }
 
-/*
+/**
  * i40evf_setup_tx_descriptors - Allocate the Tx descriptors
  * @tx_ring: the tx ring to set up
  *
@@ -1259,10 +1259,12 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 		rx = i40e_set_new_dynamic_itr(&q_vector->rx);
 		rxval = i40e_buildreg_itr(I40E_RX_ITR, q_vector->rx.itr);
 	}
+
 	if (ITR_IS_DYNAMIC(vsi->tx_itr_setting)) {
 		tx = i40e_set_new_dynamic_itr(&q_vector->tx);
 		txval = i40e_buildreg_itr(I40E_TX_ITR, q_vector->tx.itr);
 	}
+
 	if (rx || tx) {
 		/* get the higher of the two ITR adjustments and
 		 * use the same value for both ITR registers
@@ -1298,7 +1300,6 @@ enable_int:
 		q_vector->itr_countdown--;
 	else
 		q_vector->itr_countdown = ITR_COUNTDOWN_START;
-
 }
 
 /**
@@ -1552,7 +1553,6 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 			*tx_flags |= I40E_TX_FLAGS_IPV6;
 		}
 
-
 		if ((tx_ring->flags & I40E_TXR_FLAGS_OUTER_UDP_CSUM) &&
 		    (l4_tunnel == I40E_TXD_CTX_UDP_TUNNELING)        &&
 		    (*cd_tunneling & I40E_TXD_CTX_QW0_EXT_IP_MASK)) {
@@ -1651,7 +1651,7 @@ static void i40e_create_tx_ctx(struct i40e_ring *tx_ring,
 	context_desc->type_cmd_tso_mss = cpu_to_le64(cd_type_cmd_tso_mss);
 }
 
- /**
+/**
  * i40e_chk_linearize - Check if there are more than 8 fragments per packet
  * @skb:      send buffer
  * @tx_flags: collected send information
@@ -1847,7 +1847,6 @@ static inline void i40evf_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 		tx_bi = &tx_ring->tx_bi[i];
 	}
 
-#define WB_STRIDE 0x3
 	/* set next_to_watch value indicating a packet is present */
 	first->next_to_watch = tx_desc;
 
@@ -1874,12 +1873,6 @@ static inline void i40evf_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	 *			update tail and set RS bit on every packet.
 	 *	if xmit_more is false and last_xmit_more was true
 	 *		update tail and set RS bit.
-	 * else (kernel < 3.18)
-	 *	if every packet spanned less than 4 desc
-	 *		then set RS bit on 4th packet and update tail
-	 *		on every packet
-	 *	else
-	 *		set RS bit on EOP for every packet and update tail
 	 *
 	 * Optimization: wmb to be issued only in case of tail update.
 	 * Also optimize the Descriptor WB path for RS bit with the same

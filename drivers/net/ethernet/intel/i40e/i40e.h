@@ -42,7 +42,6 @@
 #include <linux/string.h>
 #include <linux/in.h>
 #include <linux/ip.h>
-#include <linux/tcp.h>
 #include <linux/sctp.h>
 #include <linux/pkt_sched.h>
 #include <linux/ipv6.h>
@@ -608,8 +607,8 @@ static inline char *i40e_nvm_version_str(struct i40e_hw *hw)
 
 	full_ver = hw->nvm.oem_ver;
 	ver = (u8)(full_ver >> I40E_OEM_VER_SHIFT);
-	build = (u16)((full_ver >> I40E_OEM_VER_BUILD_SHIFT)
-		 & I40E_OEM_VER_BUILD_MASK);
+	build = (u16)((full_ver >> I40E_OEM_VER_BUILD_SHIFT) &
+		 I40E_OEM_VER_BUILD_MASK);
 	patch = (u8)(full_ver & I40E_OEM_VER_PATCH_MASK);
 
 	snprintf(buf, sizeof(buf),
@@ -717,7 +716,7 @@ struct i40e_veb *i40e_veb_setup(struct i40e_pf *pf, u16 flags, u16 uplink_seid,
 void i40e_veb_release(struct i40e_veb *veb);
 
 int i40e_veb_config_tc(struct i40e_veb *veb, u8 enabled_tc);
-i40e_status i40e_vsi_add_pvid(struct i40e_vsi *vsi, u16 vid);
+int i40e_vsi_add_pvid(struct i40e_vsi *vsi, u16 vid);
 void i40e_vsi_remove_pvid(struct i40e_vsi *vsi);
 void i40e_vsi_reset_stats(struct i40e_vsi *vsi);
 void i40e_pf_reset_stats(struct i40e_pf *pf);

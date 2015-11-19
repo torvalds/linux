@@ -328,7 +328,7 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
  * @fd_data: the flow director data required for the FDir descriptor
  * @add: true adds a filter, false removes it
  *
- * Always returns -EOPNOTSUPP
+ * Returns 0 if the filters were successfully added or removed
  **/
 static int i40e_add_del_fdir_sctpv4(struct i40e_vsi *vsi,
 				    struct i40e_fdir_filter *fd_data,
@@ -515,9 +515,6 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 				pf->auto_disable_flags |=
 							I40E_FLAG_FD_SB_ENABLED;
 			}
-		} else {
-			dev_info(&pdev->dev,
-				"FD filter programming failed due to incorrect filter parameters\n");
 		}
 	} else if (error == BIT(I40E_RX_PROG_STATUS_DESC_NO_FD_ENTRY_SHIFT)) {
 		if (I40E_DEBUG_FD & pf->hw.debug_mask)
@@ -1872,7 +1869,6 @@ enable_int:
 		q_vector->itr_countdown--;
 	else
 		q_vector->itr_countdown = ITR_COUNTDOWN_START;
-
 }
 
 /**
