@@ -1,4 +1,4 @@
-Broadcom Cygnus GPIO/PINCONF Controller
+Broadcom iProc GPIO/PINCONF Controller
 
 Required properties:
 
@@ -7,7 +7,7 @@ Required properties:
     "brcm,cygnus-crmu-gpio" or "brcm,iproc-gpio"
 
 - reg:
-    Define the base and range of the I/O address space that contains the Cygnus
+    Define the base and range of the I/O address space that contains SoC
 GPIO/PINCONF controller registers
 
 - ngpios:
