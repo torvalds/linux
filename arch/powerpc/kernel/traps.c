@@ -1313,13 +1313,6 @@ void nonrecoverable_exception(struct pt_regs *regs)
 	die("nonrecoverable exception", regs, SIGKILL);
 }
 
-void trace_syscall(struct pt_regs *regs)
-{
-	printk("Task: %p(%d), PC: %08lX/%08lX, Syscall: %3ld, Result: %s%ld    %s\n",
-	       current, task_pid_nr(current), regs->nip, regs->link, regs->gpr[0],
-	       regs->ccr&0x10000000?"Error=":"", regs->gpr[3], print_tainted());
-}
-
 void kernel_fp_unavailable_exception(struct pt_regs *regs)
 {
 	enum ctx_state prev_state = exception_enter();
