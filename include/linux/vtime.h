@@ -17,9 +17,20 @@ static inline bool vtime_accounting_cpu_enabled(void) { return true; }
 #endif /* CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
+/*
+ * Checks if vtime is enabled on some CPU. Cputime readers want to be careful
+ * in that case and compute the tickless cputime.
+ * For now vtime state is tied to context tracking. We might want to decouple
+ * those later if necessary.
+ */
+static inline bool vtime_accounting_enabled(void)
+{
+	return context_tracking_is_enabled();
+}
+
 static inline bool vtime_accounting_cpu_enabled(void)
 {
-	if (context_tracking_is_enabled()) {
+	if (vtime_accounting_enabled()) {
 		if (context_tracking_cpu_is_enabled())
 			return true;
 	}
