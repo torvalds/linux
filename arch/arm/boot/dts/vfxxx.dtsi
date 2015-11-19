@@ -158,7 +158,7 @@
 				interrupts = <67 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_DSPI0>;
 				clock-names = "dspi";
-				spi-num-chipselects = <5>;
+				spi-num-chipselects = <6>;
 				status = "disabled";
 			};
 
@@ -170,7 +170,7 @@
 				interrupts = <68 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_DSPI1>;
 				clock-names = "dspi";
-				spi-num-chipselects = <5>;
+				spi-num-chipselects = <4>;
 				status = "disabled";
 			};
 
