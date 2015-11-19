@@ -447,7 +447,6 @@ static int pcf857x_remove(struct i2c_client *client)
 static struct i2c_driver pcf857x_driver = {
 	.driver = {
 		.name	= "pcf857x",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(pcf857x_of_table),
 	},
 	.probe	= pcf857x_probe,

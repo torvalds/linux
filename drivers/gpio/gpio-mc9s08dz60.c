@@ -131,7 +131,6 @@ MODULE_DEVICE_TABLE(i2c, mc9s08dz60_id);
 
 static struct i2c_driver mc9s08dz60_i2c_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "mc9s08dz60",
 	},
 	.probe = mc9s08dz60_probe,

@@ -749,7 +749,6 @@ static int max732x_remove(struct i2c_client *client)
 static struct i2c_driver max732x_driver = {
 	.driver = {
 		.name		= "max732x",
-		.owner		= THIS_MODULE,
 		.of_match_table	= of_match_ptr(max732x_of_table),
 	},
 	.probe		= max732x_probe,
