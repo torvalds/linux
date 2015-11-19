@@ -228,9 +228,9 @@ struct sahara_dev {
 
 	size_t			total;
 	struct scatterlist	*in_sg;
-	unsigned int		nb_in_sg;
+	int		nb_in_sg;
 	struct scatterlist	*out_sg;
-	unsigned int		nb_out_sg;
+	int		nb_out_sg;
 
 	u32			error;
 };
