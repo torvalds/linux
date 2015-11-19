@@ -579,6 +579,8 @@ The SOURCESINK function provides these attributes in its function directory:
 	isoc_mult	- 0..2 (hs/ss only)
 	isoc_maxburst	- 0..15 (ss only)
 	bulk_buflen	- buffer length
+	bulk_qlen	- depth of queue for bulk
+	iso_qlen	- depth of queue for iso
 
 Testing the SOURCESINK function
 -------------------------------
