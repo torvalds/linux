@@ -1393,6 +1393,8 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
 
+	intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
+
 	while (!live_status && --retry) {
 		live_status = intel_digital_port_connected(dev_priv,
 				hdmi_to_dig_port(intel_hdmi));
@@ -1411,6 +1413,8 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 		status = connector_status_connected;
 	} else
 		status = connector_status_disconnected;
+
+	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS);
 
 	return status;
 }
