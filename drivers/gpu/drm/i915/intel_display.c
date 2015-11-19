@@ -4800,8 +4800,7 @@ static void intel_post_plane_update(struct intel_crtc *crtc)
 
 	intel_frontbuffer_flip(dev, atomic->fb_bits);
 
-	if (atomic->disable_cxsr)
-		crtc->wm.cxsr_allowed = true;
+	crtc->wm.cxsr_allowed = true;
 
 	if (crtc->atomic.update_wm_post)
 		intel_update_watermarks(&crtc->base);
@@ -4820,6 +4819,8 @@ static void intel_pre_plane_update(struct intel_crtc *crtc)
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc_atomic_commit *atomic = &crtc->atomic;
+	struct intel_crtc_state *pipe_config =
+		to_intel_crtc_state(crtc->base.state);
 
 	if (atomic->disable_fbc)
 		intel_fbc_deactivate(crtc);
@@ -4830,7 +4831,7 @@ static void intel_pre_plane_update(struct intel_crtc *crtc)
 	if (atomic->pre_disable_primary)
 		intel_pre_disable_primary(&crtc->base);
 
-	if (atomic->disable_cxsr) {
+	if (pipe_config->disable_cxsr) {
 		crtc->wm.cxsr_allowed = false;
 		intel_set_memory_cxsr(dev_priv, false);
 	}
@@ -11720,6 +11721,7 @@ static bool needs_scaling(struct intel_plane_state *state)
 int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 				    struct drm_plane_state *plane_state)
 {
+	struct intel_crtc_state *pipe_config = to_intel_crtc_state(crtc_state);
 	struct drm_crtc *crtc = crtc_state->crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_plane *plane = plane_state->plane;
@@ -11770,7 +11772,7 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 		intel_crtc->atomic.update_wm_pre = true;
 		/* must disable cxsr around plane enable/disable */
 		if (plane->type != DRM_PLANE_TYPE_CURSOR) {
-			intel_crtc->atomic.disable_cxsr = true;
+			pipe_config->disable_cxsr = true;
 			/* to potentially re-enable cxsr */
 			intel_crtc->atomic.wait_vblank = true;
 			intel_crtc->atomic.update_wm_post = true;
@@ -11781,7 +11783,7 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 		if (plane->type != DRM_PLANE_TYPE_CURSOR) {
 			if (is_crtc_enabled)
 				intel_crtc->atomic.wait_vblank = true;
-			intel_crtc->atomic.disable_cxsr = true;
+			pipe_config->disable_cxsr = true;
 		}
 	} else if (intel_wm_need_update(plane, plane_state)) {
 		intel_crtc->atomic.update_wm_pre = true;

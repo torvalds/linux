@@ -367,7 +367,8 @@ struct intel_crtc_state {
 #define PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS	(1<<0) /* unreliable sync mode.flags */
 	unsigned long quirks;
 
-	bool update_pipe;
+	bool update_pipe; /* can a fast modeset be performed? */
+	bool disable_cxsr;
 
 	/* Pipe source size (ie. panel fitter input size)
 	 * All planes will be positioned inside this space,
@@ -533,7 +534,6 @@ struct intel_crtc_atomic_commit {
 	/* Sleepable operations to perform before commit */
 	bool disable_fbc;
 	bool disable_ips;
-	bool disable_cxsr;
 	bool pre_disable_primary;
 	bool update_wm_pre, update_wm_post;
 
