@@ -9,17 +9,17 @@
 static const char *argv_exec_path;
 static const char *argv0_path;
 
-const char *system_path(const char *path)
+char *system_path(const char *path)
 {
 	static const char *prefix = PREFIX;
 	struct strbuf d = STRBUF_INIT;
 
 	if (is_absolute_path(path))
-		return path;
+		return strdup(path);
 
 	strbuf_addf(&d, "%s/%s", prefix, path);
 	path = strbuf_detach(&d, NULL);
-	return path;
+	return (char *)path;
 }
 
 const char *perf_extract_argv0_path(const char *argv0)
@@ -52,17 +52,16 @@ void perf_set_argv_exec_path(const char *exec_path)
 
 
 /* Returns the highest-priority, location to look for perf programs. */
-const char *perf_exec_path(void)
+char *perf_exec_path(void)
 {
-	const char *env;
+	char *env;
 
 	if (argv_exec_path)
-		return argv_exec_path;
+		return strdup(argv_exec_path);
 
 	env = getenv(EXEC_PATH_ENVIRONMENT);
-	if (env && *env) {
-		return env;
-	}
+	if (env && *env)
+		return strdup(env);
 
 	return system_path(PERF_EXEC_PATH);
 }
@@ -83,9 +82,11 @@ void setup_path(void)
 {
 	const char *old_path = getenv("PATH");
 	struct strbuf new_path = STRBUF_INIT;
+	char *tmp = perf_exec_path();
 
-	add_path(&new_path, perf_exec_path());
+	add_path(&new_path, tmp);
 	add_path(&new_path, argv0_path);
+	free(tmp);
 
 	if (old_path)
 		strbuf_addstr(&new_path, old_path);
