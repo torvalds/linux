@@ -171,8 +171,7 @@ struct p2p_mgmt_data {
 
 static u8 wlan_channel = INVALID_CHANNEL;
 static u8 curr_channel;
-
-static u8 u8P2P_oui[] = {0x50, 0x6f, 0x9A, 0x09};
+static u8 p2p_oui[] = {0x50, 0x6f, 0x9A, 0x09};
 static u8 u8P2Plocalrandom = 0x01;
 static u8 u8P2Precvrandom = 0x00;
 static u8 u8P2P_vendorspec[] = {0xdd, 0x05, 0x00, 0x08, 0x40, 0x03};
@@ -1997,9 +1996,7 @@ void WILC_WFI_p2p_rx (struct net_device *dev, u8 *buff, u32 size)
 					break;
 
 				case PUBLIC_ACT_VENDORSPEC:
-					/*Now we have a public action vendor specific action frame, check if its a p2p public action frame
-					 * based on the standard its should have the p2p_oui attribute with the following values 50 6f 9A 09*/
-					if (!memcmp(u8P2P_oui, &buff[ACTION_SUBTYPE_ID + 1], 4)) {
+					if (!memcmp(p2p_oui, &buff[ACTION_SUBTYPE_ID + 1], 4)) {
 						if ((buff[P2P_PUB_ACTION_SUBTYPE] == GO_NEG_REQ || buff[P2P_PUB_ACTION_SUBTYPE] == GO_NEG_RSP))	{
 							if (!bWilc_ie) {
 								for (i = P2P_PUB_ACTION_SUBTYPE; i < size; i++)	{
@@ -2016,7 +2013,7 @@ void WILC_WFI_p2p_rx (struct net_device *dev, u8 *buff, u32 size)
 							if ((buff[P2P_PUB_ACTION_SUBTYPE] == GO_NEG_REQ || buff[P2P_PUB_ACTION_SUBTYPE] == GO_NEG_RSP
 							      || buff[P2P_PUB_ACTION_SUBTYPE] == P2P_INV_REQ || buff[P2P_PUB_ACTION_SUBTYPE] == P2P_INV_RSP)) {
 								for (i = P2P_PUB_ACTION_SUBTYPE + 2; i < size; i++) {
-									if (buff[i] == P2PELEM_ATTR_ID && !(memcmp(u8P2P_oui, &buff[i + 2], 4))) {
+									if (buff[i] == P2PELEM_ATTR_ID && !(memcmp(p2p_oui, &buff[i + 2], 4))) {
 										WILC_WFI_CfgParseRxAction(&buff[i + 6], size - (i + 6));
 										break;
 									}
@@ -2292,9 +2289,7 @@ static int mgmt_tx(struct wiphy *wiphy,
 
 				case PUBLIC_ACT_VENDORSPEC:
 				{
-					/*Now we have a public action vendor specific action frame, check if its a p2p public action frame
-					 * based on the standard its should have the p2p_oui attribute with the following values 50 6f 9A 09*/
-					if (!memcmp(u8P2P_oui, &buf[ACTION_SUBTYPE_ID + 1], 4)) {
+					if (!memcmp(p2p_oui, &buf[ACTION_SUBTYPE_ID + 1], 4)) {
 						/*For the connection of two WILC's connection generate a rand number to determine who will be a GO*/
 						if ((buf[P2P_PUB_ACTION_SUBTYPE] == GO_NEG_REQ || buf[P2P_PUB_ACTION_SUBTYPE] == GO_NEG_RSP)) {
 							if (u8P2Plocalrandom == 1 && u8P2Precvrandom < u8P2Plocalrandom) {
@@ -2311,7 +2306,7 @@ static int mgmt_tx(struct wiphy *wiphy,
 
 								/*Search for the p2p information information element , after the Public action subtype theres a byte for teh dialog token, skip that*/
 								for (i = P2P_PUB_ACTION_SUBTYPE + 2; i < len; i++) {
-									if (buf[i] == P2PELEM_ATTR_ID && !(memcmp(u8P2P_oui, &buf[i + 2], 4))) {
+									if (buf[i] == P2PELEM_ATTR_ID && !(memcmp(p2p_oui, &buf[i + 2], 4))) {
 										if (buf[P2P_PUB_ACTION_SUBTYPE] == P2P_INV_REQ || buf[P2P_PUB_ACTION_SUBTYPE] == P2P_INV_RSP)
 											WILC_WFI_CfgParseTxAction(&mgmt_tx->buff[i + 6], len - (i + 6), true, nic->iftype);
 
