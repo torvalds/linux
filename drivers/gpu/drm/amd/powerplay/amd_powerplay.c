@@ -603,3 +603,19 @@ int amd_powerplay_fini(void *handle)
 
 	return 0;
 }
+
+/* export this function to DAL */
+
+int amd_powerplay_display_configuration_change(void *handle, const void *input)
+{
+	struct pp_hwmgr  *hwmgr;
+	const struct amd_pp_display_configuration *display_config = input;
+
+	if (handle == NULL)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	phm_store_dal_configuration_data(hwmgr, display_config);
+	return 0;
+}

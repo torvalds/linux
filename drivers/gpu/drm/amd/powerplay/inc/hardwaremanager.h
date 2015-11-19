@@ -353,5 +353,8 @@ extern int phm_check_states_equal(struct pp_hwmgr *hwmgr,
 				 const struct pp_hw_power_state *pstate2,
 				 bool *equal);
 
+extern int phm_store_dal_configuration_data(struct pp_hwmgr *hwmgr,
+		    const struct amd_pp_display_configuration *display_config);
+
 #endif /* _HARDWARE_MANAGER_H_ */
 

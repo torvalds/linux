@@ -131,6 +131,13 @@ struct amd_pp_init {
 	uint32_t rev_id;
 };
 
+struct amd_pp_display_configuration {
+	bool nb_pstate_switch_disable;/* controls NB PState switch */
+	bool cpu_cc6_disable; /* controls CPU CState switch ( on or off) */
+	bool cpu_pstate_disable;
+	uint32_t cpu_pstate_separation_time;
+};
+
 enum {
 	PP_GROUP_UNKNOWN = 0,
 	PP_GROUP_GFX = 1,
@@ -202,5 +209,7 @@ struct amd_powerplay {
 int amd_powerplay_init(struct amd_pp_init *pp_init,
 		       struct amd_powerplay *amd_pp);
 int amd_powerplay_fini(void *handle);
+
+int amd_powerplay_display_configuration_change(void *handle, const void *input);
 
 #endif /* _AMD_POWERPLAY_H_ */

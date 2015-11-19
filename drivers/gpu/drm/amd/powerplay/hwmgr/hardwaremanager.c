@@ -26,6 +26,7 @@
 #include "power_state.h"
 #include "pp_acpi.h"
 #include "amd_acpi.h"
+#include "amd_powerplay.h"
 
 void phm_init_dynamic_caps(struct pp_hwmgr *hwmgr)
 {
@@ -243,4 +244,19 @@ int phm_check_states_equal(struct pp_hwmgr *hwmgr,
 		return -EINVAL;
 
 	return hwmgr->hwmgr_func->check_states_equal(hwmgr, pstate1, pstate2, equal);
+}
+
+int phm_store_dal_configuration_data(struct pp_hwmgr *hwmgr,
+		    const struct amd_pp_display_configuration *display_config)
+{
+	if (hwmgr == NULL || hwmgr->hwmgr_func->store_cc6_data == NULL)
+		return -EINVAL;
+
+	/* to do pass other display configuration in furture */
+	return hwmgr->hwmgr_func->store_cc6_data(hwmgr,
+					display_config->cpu_pstate_separation_time,
+					display_config->cpu_cc6_disable,
+					display_config->cpu_pstate_disable,
+					display_config->nb_pstate_switch_disable);
+
 }

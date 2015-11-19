@@ -1639,6 +1639,7 @@ struct amdgpu_pm {
 	const struct amdgpu_dpm_funcs *funcs;
 	uint32_t                pcie_gen_mask;
 	uint32_t                pcie_mlw_mask;
+	struct amd_pp_display_configuration pm_display_cfg;/* set by DAL */
 };
 
 void amdgpu_get_pcie_info(struct amdgpu_device *adev);
