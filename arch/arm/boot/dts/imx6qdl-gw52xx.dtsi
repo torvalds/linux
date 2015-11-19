@@ -158,6 +158,14 @@
 	                  <&clks IMX6QDL_CLK_PLL3_USB_OTG>;
 };
 
+&ecspi3 {
+	fsl,spi-num-chipselects = <1>;
+	cs-gpios = <&gpio4 24 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi3>;
+	status = "okay";
+};
+
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
@@ -354,6 +362,15 @@
 				MX6QDL_PAD_SD2_DAT2__AUD4_TXD		0x110b0
 				MX6QDL_PAD_SD2_DAT1__AUD4_TXFS		0x130b0
 				MX6QDL_PAD_GPIO_0__CCM_CLKO1	0x130b0 /* AUD4_MCK */
+			>;
+		};
+
+		pinctrl_ecspi3: escpi3grp {
+			fsl,pins = <
+				MX6QDL_PAD_DISP0_DAT0__ECSPI3_SCLK	0x100b1
+				MX6QDL_PAD_DISP0_DAT1__ECSPI3_MOSI	0x100b1
+				MX6QDL_PAD_DISP0_DAT2__ECSPI3_MISO	0x100b1
+				MX6QDL_PAD_DISP0_DAT3__GPIO4_IO24	0x100b1
 			>;
 		};
 
