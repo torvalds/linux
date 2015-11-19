@@ -277,6 +277,11 @@
 			reg = <0 0x10200620 0 0x20>;
 		};
 
+		efuse: efuse@10206000 {
+			compatible = "mediatek,mt8173-efuse";
+			reg = <0 0x10206000 0 0x1000>;
+		};
+
 		apmixedsys: clock-controller@10209000 {
 			compatible = "mediatek,mt8173-apmixedsys";
 			reg = <0 0x10209000 0 0x1000>;
