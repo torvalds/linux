@@ -3723,14 +3723,6 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 		goto out;
 	}
 
-	/* allow dup'ed data chunks only in mixed mode */
-	if (!mixed && (bctl->data.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
-	    (bctl->data.target & BTRFS_BLOCK_GROUP_DUP)) {
-		btrfs_err(fs_info, "dup for data is not allowed");
-		ret = -EINVAL;
-		goto out;
-	}
-
 	/* allow to reduce meta or sys integrity only if force set */
 	allowed = BTRFS_BLOCK_GROUP_DUP | BTRFS_BLOCK_GROUP_RAID1 |
 			BTRFS_BLOCK_GROUP_RAID10 |
