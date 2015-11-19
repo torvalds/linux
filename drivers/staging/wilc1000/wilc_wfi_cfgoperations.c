@@ -330,14 +330,15 @@ static void clear_duringIP(unsigned long arg)
 	wilc_optaining_ip = false;
 }
 
-static int is_network_in_shadow(tstrNetworkInfo *pstrNetworkInfo, void *pUserVoid)
+static int is_network_in_shadow(tstrNetworkInfo *pstrNetworkInfo,
+				void *user_void)
 {
 	int state = -1;
 	int i;
 
 	if (last_scanned_cnt == 0) {
 		PRINT_D(CFG80211_DBG, "Starting Aging timer\n");
-		hAgingTimer.data = (unsigned long)pUserVoid;
+		hAgingTimer.data = (unsigned long)user_void;
 		mod_timer(&hAgingTimer, jiffies + msecs_to_jiffies(AGING_TIME));
 		state = -1;
 	} else {
