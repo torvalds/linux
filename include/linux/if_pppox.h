@@ -91,7 +91,6 @@ enum {
     PPPOX_CONNECTED	= 1,  /* connection established ==TCP_ESTABLISHED */
     PPPOX_BOUND		= 2,  /* bound to ppp device */
     PPPOX_RELAY		= 4,  /* forwarding is enabled */
-    PPPOX_ZOMBIE	= 8,  /* dead, but still bound to ppp device */
     PPPOX_DEAD		= 16  /* dead, useless, please clean me up!*/
 };
 

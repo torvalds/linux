@@ -311,7 +311,7 @@ static void pppoe_flush_dev(struct net_device *dev)
 			lock_sock(sk);
 
 			if (po->pppoe_dev == dev &&
-			    sk->sk_state & (PPPOX_CONNECTED | PPPOX_BOUND | PPPOX_ZOMBIE)) {
+			    sk->sk_state & (PPPOX_CONNECTED | PPPOX_BOUND)) {
 				pppox_unbind_sock(sk);
 				sk->sk_state_change(sk);
 				po->pppoe_dev = NULL;
@@ -775,7 +775,7 @@ static int pppoe_ioctl(struct socket *sock, unsigned int cmd,
 		struct pppox_sock *relay_po;
 
 		err = -EBUSY;
-		if (sk->sk_state & (PPPOX_BOUND | PPPOX_ZOMBIE | PPPOX_DEAD))
+		if (sk->sk_state & (PPPOX_BOUND | PPPOX_DEAD))
 			break;
 
 		err = -ENOTCONN;
