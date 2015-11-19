@@ -2233,15 +2233,19 @@ int brcmnand_probe(struct platform_device *pdev, struct brcmnand_soc *soc)
 			struct brcmnand_host *host;
 
 			host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
-			if (!host)
+			if (!host) {
+				of_node_put(child);
 				return -ENOMEM;
+			}
 			host->pdev = pdev;
 			host->ctrl = ctrl;
 			host->of_node = child;
 
 			ret = brcmnand_init_cs(host);
-			if (ret)
+			if (ret) {
+				devm_kfree(dev, host);
 				continue; /* Try all chip-selects */
+			}
 
 			list_add_tail(&host->node, &ctrl->host_list);
 		}
