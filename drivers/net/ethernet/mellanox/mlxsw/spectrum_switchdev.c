@@ -342,6 +342,27 @@ err_port_add_vid:
 	return err;
 }
 
+static int __mlxsw_sp_port_vlans_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				     u16 vid_begin, u16 vid_end, bool is_member,
+				     bool untagged)
+{
+	u16 vid, vid_e;
+	int err;
+
+	for (vid = vid_begin; vid <= vid_end;
+	     vid += MLXSW_REG_SPVM_REC_MAX_COUNT) {
+		vid_e = min((u16) (vid + MLXSW_REG_SPVM_REC_MAX_COUNT - 1),
+			    vid_end);
+
+		err = mlxsw_sp_port_vlan_set(mlxsw_sp_port, vid, vid_e,
+					     is_member, untagged);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int __mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 				     u16 vid_begin, u16 vid_end,
 				     bool flag_untagged, bool flag_pvid)
@@ -396,18 +417,12 @@ static int __mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 		return err;
 	}
 
-	for (vid = vid_begin; vid <= vid_end;
-	     vid += MLXSW_REG_SPVM_REC_MAX_COUNT) {
-		vid_e = min((u16) (vid + MLXSW_REG_SPVM_REC_MAX_COUNT - 1),
-			    vid_end);
-
-		err = mlxsw_sp_port_vlan_set(mlxsw_sp_port, vid, vid_e, true,
-					     flag_untagged);
-		if (err) {
-			netdev_err(mlxsw_sp_port->dev, "Unable to add VIDs %d-%d\n",
-				   vid, vid_e);
-			return err;
-		}
+	err = __mlxsw_sp_port_vlans_set(mlxsw_sp_port, vid_begin, vid_end,
+					true, flag_untagged);
+	if (err) {
+		netdev_err(dev, "Unable to add VIDs %d-%d\n", vid_begin,
+			   vid_end);
+		return err;
 	}
 
 	vid = vid_begin;
@@ -532,7 +547,7 @@ static int __mlxsw_sp_port_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port,
 				     u16 vid_begin, u16 vid_end, bool init)
 {
 	struct net_device *dev = mlxsw_sp_port->dev;
-	u16 vid, vid_e, pvid;
+	u16 vid, pvid;
 	int err;
 
 	/* In case this is invoked with BRIDGE_FLAGS_SELF and port is
@@ -542,17 +557,12 @@ static int __mlxsw_sp_port_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (!init && !mlxsw_sp_port->bridged)
 		return mlxsw_sp_port_kill_vids(dev, vid_begin, vid_end);
 
-	for (vid = vid_begin; vid <= vid_end;
-	     vid += MLXSW_REG_SPVM_REC_MAX_COUNT) {
-		vid_e = min((u16) (vid + MLXSW_REG_SPVM_REC_MAX_COUNT - 1),
-			    vid_end);
-		err = mlxsw_sp_port_vlan_set(mlxsw_sp_port, vid, vid_e, false,
-					     false);
-		if (err) {
-			netdev_err(dev, "Unable to del VIDs %d-%d\n", vid,
-				   vid_e);
-			return err;
-		}
+	err = __mlxsw_sp_port_vlans_set(mlxsw_sp_port, vid_begin, vid_end,
+					false, false);
+	if (err) {
+		netdev_err(dev, "Unable to del VIDs %d-%d\n", vid_begin,
+			   vid_end);
+		return err;
 	}
 
 	pvid = mlxsw_sp_port->pvid;
