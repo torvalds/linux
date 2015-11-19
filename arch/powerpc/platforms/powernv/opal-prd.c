@@ -434,7 +434,6 @@ static const struct of_device_id opal_prd_match[] = {
 static struct platform_driver opal_prd_driver = {
 	.driver = {
 		.name		= "opal-prd",
-		.owner		= THIS_MODULE,
 		.of_match_table	= opal_prd_match,
 	},
 	.probe	= opal_prd_probe,
