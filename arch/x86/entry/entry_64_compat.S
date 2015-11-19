@@ -18,13 +18,6 @@
 
 	.section .entry.text, "ax"
 
-#ifdef CONFIG_PARAVIRT
-ENTRY(native_usergs_sysret32)
-	swapgs
-	sysretl
-ENDPROC(native_usergs_sysret32)
-#endif
-
 /*
  * 32-bit SYSENTER instruction entry.
  *
@@ -238,7 +231,8 @@ sysret32_from_system_call:
 	xorq	%r9, %r9
 	xorq	%r10, %r10
 	movq	RSP-ORIG_RAX(%rsp), %rsp
-        USERGS_SYSRET32
+	swapgs
+	sysretl
 END(entry_SYSCALL_compat)
 
 /*

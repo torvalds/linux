@@ -165,14 +165,6 @@ struct pv_cpu_ops {
 	 */
 	void (*usergs_sysret64)(void);
 
-	/*
-	 * Switch to usermode gs and return to 32-bit usermode using
-	 * sysret.  Used to return to 32-on-64 compat processes.
-	 * Other usermode register state, including %esp, must already
-	 * be restored.
-	 */
-	void (*usergs_sysret32)(void);
-
 	/* Normal iret.  Jump to this with the standard iret stack
 	   frame set up. */
 	void (*iret)(void);
