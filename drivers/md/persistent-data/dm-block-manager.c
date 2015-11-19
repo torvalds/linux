@@ -18,6 +18,8 @@
 
 /*----------------------------------------------------------------*/
 
+#ifdef CONFIG_DM_DEBUG_BLOCK_MANAGER_LOCKING
+
 /*
  * This is a read/write semaphore with a couple of differences.
  *
@@ -302,6 +304,18 @@ static void report_recursive_bug(dm_block_t b, int r)
 		      (unsigned long long) b);
 }
 
+#else  /* !CONFIG_DM_DEBUG_BLOCK_MANAGER_LOCKING */
+
+#define bl_init(x) do { } while (0)
+#define bl_down_read(x) 0
+#define bl_down_read_nonblock(x) 0
+#define bl_up_read(x) do { } while (0)
+#define bl_down_write(x) 0
+#define bl_up_write(x) do { } while (0)
+#define report_recursive_bug(x, y) do { } while (0)
+
+#endif /* CONFIG_DM_DEBUG_BLOCK_MANAGER_LOCKING */
+
 /*----------------------------------------------------------------*/
 
 /*
@@ -330,8 +344,11 @@ EXPORT_SYMBOL_GPL(dm_block_data);
 
 struct buffer_aux {
 	struct dm_block_validator *validator;
-	struct block_lock lock;
 	int write_locked;
+
+#ifdef CONFIG_DM_DEBUG_BLOCK_MANAGER_LOCKING
+	struct block_lock lock;
+#endif
 };
 
 static void dm_block_manager_alloc_callback(struct dm_buffer *buf)
