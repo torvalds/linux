@@ -629,6 +629,7 @@ static int source_sink_start_ep(struct f_sourcesink *ss, bool is_in,
 			      is_iso ? "ISO-" : "", is_in ? "IN" : "OUT",
 			      ep->name, status);
 			free_ep_req(ep, req);
+			return status;
 		}
 	}
 
