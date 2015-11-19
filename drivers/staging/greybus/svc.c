@@ -310,6 +310,14 @@ static int gb_svc_version_request(struct gb_operation *op)
 	struct gb_protocol_version_request *request;
 	struct gb_protocol_version_response *response;
 
+	if (op->request->payload_size < sizeof(*request)) {
+		pr_err("%d: short version request (%zu < %zu)\n",
+				connection->intf_cport_id,
+				op->request->payload_size,
+				sizeof(*request));
+		return -EINVAL;
+	}
+
 	request = op->request->payload;
 
 	if (request->major > GB_SVC_VERSION_MAJOR) {
