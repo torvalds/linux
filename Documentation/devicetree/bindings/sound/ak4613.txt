@@ -8,14 +8,14 @@ Required properties:
 - reg : The chip select number on the I2C bus
 
 Optional properties:
-- ak4613,in1-single-end	: Boolean. Indicate input / output pins are single-ended.
-- ak4613,in2-single-end	  rather than differential.
-- ak4613,out1-single-end
-- ak4613,out2-single-end
-- ak4613,out3-single-end
-- ak4613,out4-single-end
-- ak4613,out5-single-end
-- ak4613,out6-single-end
+- asahi-kasei,in1-single-end	: Boolean. Indicate input / output pins are single-ended.
+- asahi-kasei,in2-single-end	  rather than differential.
+- asahi-kasei,out1-single-end
+- asahi-kasei,out2-single-end
+- asahi-kasei,out3-single-end
+- asahi-kasei,out4-single-end
+- asahi-kasei,out5-single-end
+- asahi-kasei,out6-single-end
 
 Example:
 
