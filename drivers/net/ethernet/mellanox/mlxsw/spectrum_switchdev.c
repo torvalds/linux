@@ -532,7 +532,7 @@ static int __mlxsw_sp_port_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port,
 				     u16 vid_begin, u16 vid_end, bool init)
 {
 	struct net_device *dev = mlxsw_sp_port->dev;
-	u16 vid, vid_e;
+	u16 vid, vid_e, pvid;
 	int err;
 
 	/* In case this is invoked with BRIDGE_FLAGS_SELF and port is
@@ -549,23 +549,21 @@ static int __mlxsw_sp_port_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port,
 		err = mlxsw_sp_port_vlan_set(mlxsw_sp_port, vid, vid_e, false,
 					     false);
 		if (err) {
-			netdev_err(mlxsw_sp_port->dev, "Unable to del VIDs %d-%d\n",
-				   vid, vid_e);
+			netdev_err(dev, "Unable to del VIDs %d-%d\n", vid,
+				   vid_e);
 			return err;
 		}
 	}
 
-	if ((mlxsw_sp_port->pvid >= vid_begin) &&
-	    (mlxsw_sp_port->pvid <= vid_end)) {
+	pvid = mlxsw_sp_port->pvid;
+	if (pvid >= vid_begin && pvid <= vid_end && pvid != 1) {
 		/* Default VLAN is always 1 */
-		mlxsw_sp_port->pvid = 1;
-		err = mlxsw_sp_port_pvid_set(mlxsw_sp_port,
-					     mlxsw_sp_port->pvid);
+		err = mlxsw_sp_port_pvid_set(mlxsw_sp_port, 1);
 		if (err) {
-			netdev_err(mlxsw_sp_port->dev, "Unable to del PVID %d\n",
-				   vid);
+			netdev_err(dev, "Unable to del PVID %d\n", pvid);
 			return err;
 		}
+		mlxsw_sp_port->pvid = 1;
 	}
 
 	if (init)
