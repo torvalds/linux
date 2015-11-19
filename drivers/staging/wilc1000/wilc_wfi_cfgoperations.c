@@ -249,25 +249,24 @@ static void refresh_scan(void *user_void, u8 all, bool direct_scan)
 	wiphy = priv->dev->ieee80211_ptr->wiphy;
 
 	for (i = 0; i < last_scanned_cnt; i++) {
-		tstrNetworkInfo *pstrNetworkInfo;
+		tstrNetworkInfo *network_info;
 
-		pstrNetworkInfo = &last_scanned_shadow[i];
+		network_info = &last_scanned_shadow[i];
 
-		if ((!pstrNetworkInfo->u8Found) || all) {
+		if (!network_info->u8Found || all) {
 			s32 s32Freq;
 			struct ieee80211_channel *channel;
 
-			if (pstrNetworkInfo != NULL) {
-
-				s32Freq = ieee80211_channel_to_frequency((s32)pstrNetworkInfo->u8channel, IEEE80211_BAND_2GHZ);
+			if (network_info) {
+				s32Freq = ieee80211_channel_to_frequency((s32)network_info->u8channel, IEEE80211_BAND_2GHZ);
 				channel = ieee80211_get_channel(wiphy, s32Freq);
 
-				rssi = get_rssi_avg(pstrNetworkInfo);
-				if (memcmp("DIRECT-", pstrNetworkInfo->au8ssid, 7) ||
+				rssi = get_rssi_avg(network_info);
+				if (memcmp("DIRECT-", network_info->au8ssid, 7) ||
 				    direct_scan) {
-					bss = cfg80211_inform_bss(wiphy, channel, CFG80211_BSS_FTYPE_UNKNOWN, pstrNetworkInfo->au8bssid, pstrNetworkInfo->u64Tsf, pstrNetworkInfo->u16CapInfo,
-								  pstrNetworkInfo->u16BeaconPeriod, (const u8 *)pstrNetworkInfo->pu8IEs,
-								  (size_t)pstrNetworkInfo->u16IEsLen, (((s32)rssi) * 100), GFP_KERNEL);
+					bss = cfg80211_inform_bss(wiphy, channel, CFG80211_BSS_FTYPE_UNKNOWN, network_info->au8bssid, network_info->u64Tsf, network_info->u16CapInfo,
+								  network_info->u16BeaconPeriod, (const u8 *)network_info->pu8IEs,
+								  (size_t)network_info->u16IEsLen, (((s32)rssi) * 100), GFP_KERNEL);
 					cfg80211_put_bss(wiphy, bss);
 				}
 			}
