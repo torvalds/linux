@@ -154,7 +154,6 @@
 #define INT_TIMING			BIT(18)
 
 #define INT_FIFO_FULL_FILLING	(INT_FIFO_FULL  | INT_FIFO_FILLING)
-#define INT_FIFO_EMPTY_EMPTYING	(INT_FIFO_EMPTY | INT_FIFO_EMPTYING)
 
 /* Level interrupts need clearing after handling instead of before */
 #define INT_LEVEL			0x01e00
@@ -176,8 +175,7 @@
 					 INT_WRITE_ACK_ERR    | \
 					 INT_FIFO_FULL        | \
 					 INT_FIFO_FILLING     | \
-					 INT_FIFO_EMPTY       | \
-					 INT_FIFO_EMPTYING)
+					 INT_FIFO_EMPTY)
 
 #define INT_ENABLE_MASK_WAITSTOP	(INT_SLAVE_EVENT      | \
 					 INT_ADDR_ACK_ERR     | \
@@ -874,16 +872,8 @@ static unsigned int img_i2c_auto(struct img_i2c *i2c,
 				return ISR_WAITSTOP;
 		}
 	} else {
-		if (int_status & INT_FIFO_EMPTY_EMPTYING) {
-			/*
-			 * The write fifo empty indicates that we're in the
-			 * last byte so it's safe to start a new write
-			 * transaction without losing any bytes from the
-			 * previous one.
-			 * see 2.3.7 Repeated Start Transactions.
-			 */
-			if ((int_status & INT_FIFO_EMPTY) &&
-			    i2c->msg.len == 0)
+		if (int_status & INT_FIFO_EMPTY) {
+			if (i2c->msg.len == 0)
 				return ISR_WAITSTOP;
 			img_i2c_write_fifo(i2c);
 		}
