@@ -109,7 +109,7 @@ struct tipc_bclink_entry {
 struct tipc_node {
 	u32 addr;
 	struct kref kref;
-	spinlock_t lock;
+	rwlock_t lock;
 	struct net *net;
 	struct hlist_node hash;
 	int active_links[2];
@@ -145,7 +145,8 @@ void tipc_node_detach_link(struct tipc_node *n_ptr, struct tipc_link *l_ptr);
 bool tipc_node_is_up(struct tipc_node *n);
 int tipc_node_get_linkname(struct net *net, u32 bearer_id, u32 node,
 			   char *linkname, size_t len);
-void tipc_node_unlock(struct tipc_node *node);
+void tipc_node_read_lock(struct tipc_node *n);
+void tipc_node_read_unlock(struct tipc_node *node);
 int tipc_node_xmit(struct net *net, struct sk_buff_head *list, u32 dnode,
 		   int selector);
 int tipc_node_xmit_skb(struct net *net, struct sk_buff *skb, u32 dest,
@@ -156,11 +157,6 @@ void tipc_node_broadcast(struct net *net, struct sk_buff *skb);
 int tipc_node_add_conn(struct net *net, u32 dnode, u32 port, u32 peer_port);
 void tipc_node_remove_conn(struct net *net, u32 dnode, u32 port);
 int tipc_nl_node_dump(struct sk_buff *skb, struct netlink_callback *cb);
-
-static inline void tipc_node_lock(struct tipc_node *node)
-{
-	spin_lock_bh(&node->lock);
-}
 
 static inline struct tipc_link *node_active_link(struct tipc_node *n, int sel)
 {

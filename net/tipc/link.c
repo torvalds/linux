@@ -1547,7 +1547,7 @@ static struct tipc_node *tipc_link_find_owner(struct net *net,
 	*bearer_id = 0;
 	rcu_read_lock();
 	list_for_each_entry_rcu(n_ptr, &tn->node_list, list) {
-		tipc_node_lock(n_ptr);
+		tipc_node_read_lock(n_ptr);
 		for (i = 0; i < MAX_BEARERS; i++) {
 			l_ptr = n_ptr->links[i].link;
 			if (l_ptr && !strcmp(l_ptr->name, link_name)) {
@@ -1556,7 +1556,7 @@ static struct tipc_node *tipc_link_find_owner(struct net *net,
 				break;
 			}
 		}
-		tipc_node_unlock(n_ptr);
+		tipc_node_read_unlock(n_ptr);
 		if (found_node)
 			break;
 	}
@@ -1658,7 +1658,7 @@ int tipc_nl_link_set(struct sk_buff *skb, struct genl_info *info)
 	if (!node)
 		return -EINVAL;
 
-	tipc_node_lock(node);
+	tipc_node_read_lock(node);
 
 	link = node->links[bearer_id].link;
 	if (!link) {
@@ -1699,7 +1699,7 @@ int tipc_nl_link_set(struct sk_buff *skb, struct genl_info *info)
 	}
 
 out:
-	tipc_node_unlock(node);
+	tipc_node_read_unlock(node);
 
 	return res;
 }
@@ -1898,10 +1898,10 @@ int tipc_nl_link_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 		list_for_each_entry_continue_rcu(node, &tn->node_list,
 						 list) {
-			tipc_node_lock(node);
+			tipc_node_read_lock(node);
 			err = __tipc_nl_add_node_links(net, &msg, node,
 						       &prev_link);
-			tipc_node_unlock(node);
+			tipc_node_read_unlock(node);
 			if (err)
 				goto out;
 
@@ -1913,10 +1913,10 @@ int tipc_nl_link_dump(struct sk_buff *skb, struct netlink_callback *cb)
 			goto out;
 
 		list_for_each_entry_rcu(node, &tn->node_list, list) {
-			tipc_node_lock(node);
+			tipc_node_read_lock(node);
 			err = __tipc_nl_add_node_links(net, &msg, node,
 						       &prev_link);
-			tipc_node_unlock(node);
+			tipc_node_read_unlock(node);
 			if (err)
 				goto out;
 
@@ -1967,16 +1967,16 @@ int tipc_nl_link_get(struct sk_buff *skb, struct genl_info *info)
 		if (!node)
 			return -EINVAL;
 
-		tipc_node_lock(node);
+		tipc_node_read_lock(node);
 		link = node->links[bearer_id].link;
 		if (!link) {
-			tipc_node_unlock(node);
+			tipc_node_read_unlock(node);
 			nlmsg_free(msg.skb);
 			return -EINVAL;
 		}
 
 		err = __tipc_nl_add_link(net, &msg, link, 0);
-		tipc_node_unlock(node);
+		tipc_node_read_unlock(node);
 		if (err) {
 			nlmsg_free(msg.skb);
 			return err;
@@ -2021,18 +2021,18 @@ int tipc_nl_link_reset_stats(struct sk_buff *skb, struct genl_info *info)
 	node = tipc_link_find_owner(net, link_name, &bearer_id);
 	if (!node)
 		return -EINVAL;
+
 	le = &node->links[bearer_id];
-	tipc_node_lock(node);
+	tipc_node_read_lock(node);
 	spin_lock_bh(&le->lock);
 	link = le->link;
 	if (!link) {
-		tipc_node_unlock(node);
+		spin_unlock_bh(&le->lock);
+		tipc_node_read_unlock(node);
 		return -EINVAL;
 	}
-
 	link_reset_statistics(link);
 	spin_unlock_bh(&le->lock);
-	tipc_node_unlock(node);
-
+	tipc_node_read_unlock(node);
 	return 0;
 }
