@@ -152,6 +152,7 @@
 #define INT_TRANSACTION_DONE		BIT(15)
 #define INT_SLAVE_EVENT			BIT(16)
 #define INT_TIMING			BIT(18)
+#define INT_STOP_DETECTED		BIT(19)
 
 #define INT_FIFO_FULL_FILLING	(INT_FIFO_FULL  | INT_FIFO_FILLING)
 
@@ -175,7 +176,8 @@
 					 INT_WRITE_ACK_ERR    | \
 					 INT_FIFO_FULL        | \
 					 INT_FIFO_FILLING     | \
-					 INT_FIFO_EMPTY)
+					 INT_FIFO_EMPTY       | \
+					 INT_STOP_DETECTED)
 
 #define INT_ENABLE_MASK_WAITSTOP	(INT_SLAVE_EVENT      | \
 					 INT_ADDR_ACK_ERR     | \
@@ -864,6 +866,13 @@ static unsigned int img_i2c_auto(struct img_i2c *i2c,
 	}
 
 	mod_timer(&i2c->check_timer, jiffies + msecs_to_jiffies(1));
+
+	if (int_status & INT_STOP_DETECTED) {
+		/* Drain remaining data in FIFO and complete transaction */
+		if (i2c->msg.flags & I2C_M_RD)
+			img_i2c_read_fifo(i2c);
+		return ISR_COMPLETE(0);
+	}
 
 	if (i2c->msg.flags & I2C_M_RD) {
 		if (int_status & INT_FIFO_FULL_FILLING) {
