@@ -1,16 +1,14 @@
 /*
  * Driver for the Renesas RCar I2C unit
  *
- * Copyright (C) 2014 Wolfram Sang <wsa@sang-engineering.com>
+ * Copyright (C) 2014-15 Wolfram Sang <wsa@sang-engineering.com>
+ * Copyright (C) 2011-2015 Renesas Electronics Corporation
  *
  * Copyright (C) 2012-14 Renesas Solutions Corp.
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  *
  * This file is based on the drivers/i2c/busses/i2c-sh7760.c
  * (c) 2005-2008 MSC Vertriebsges.m.b.H, Manuel Lauss <mlau@msc-ge.com>
- *
- * This file used out-of-tree driver i2c-rcar.c
- * Copyright (C) 2011-2012 Renesas Electronics Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -245,9 +243,7 @@ scgd_find:
 	dev_dbg(dev, "clk %d/%d(%lu), round %u, CDF:0x%x, SCGD: 0x%x\n",
 		scl, bus_speed, clk_get_rate(priv->clk), round, cdf, scgd);
 
-	/*
-	 * keep icccr value
-	 */
+	/* keep icccr value */
 	priv->icccr = scgd << cdf_width | cdf;
 
 	return 0;
@@ -282,11 +278,7 @@ static void rcar_i2c_irq_send(struct rcar_i2c_priv *priv, u32 msr)
 {
 	struct i2c_msg *msg = priv->msg;
 
-	/*
-	 * FIXME
-	 * sometimes, unknown interrupt happened.
-	 * Do nothing
-	 */
+	/* FIXME: sometimes, unknown interrupt happened. Do nothing */
 	if (!(msr & MDE))
 		return;
 
@@ -330,28 +322,22 @@ static void rcar_i2c_irq_recv(struct rcar_i2c_priv *priv, u32 msr)
 {
 	struct i2c_msg *msg = priv->msg;
 
-	/*
-	 * FIXME
-	 * sometimes, unknown interrupt happened.
-	 * Do nothing
-	 */
+	/* FIXME: sometimes, unknown interrupt happened. Do nothing */
 	if (!(msr & MDR))
 		return;
 
 	if (msr & MAT) {
 		/* Address transfer phase finished, but no data at this point. */
 	} else if (priv->pos < msg->len) {
-		/*
-		 * get received data
-		 */
+		/* get received data */
 		msg->buf[priv->pos] = rcar_i2c_read(priv, ICRXTX);
 		priv->pos++;
 	}
 
 	/*
-	 * If next received data is the _LAST_,
-	 * go to STOP phase,
-	 * otherwise, go to DATA phase.
+	 * If next received data is the _LAST_, go to STOP phase. Might be
+	 * overwritten by REP START when setting up a new msg. Not elegant
+	 * but the only stable sequence for REP START I have found so far.
 	 */
 	if (priv->pos + 1 >= msg->len)
 		rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_STOP);
