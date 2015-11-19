@@ -89,8 +89,8 @@ static void mlx5e_set_rq_type_params(struct mlx5e_priv *priv, u8 rq_type)
 			MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE_MPW;
 		priv->params.mpwqe_log_stride_sz =
 			MLX5E_GET_PFLAG(priv, MLX5E_PFLAG_RX_CQE_COMPRESS) ?
-			MLX5_MPWRQ_LOG_STRIDE_SIZE_CQE_COMPRESS :
-			MLX5_MPWRQ_LOG_STRIDE_SIZE;
+			MLX5_MPWRQ_CQE_CMPRS_LOG_STRIDE_SZ(priv->mdev) :
+			MLX5_MPWRQ_DEF_LOG_STRIDE_SZ(priv->mdev);
 		priv->params.mpwqe_log_num_strides = MLX5_MPWRQ_LOG_WQE_SZ -
 			priv->params.mpwqe_log_stride_sz;
 		break;

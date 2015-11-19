@@ -70,8 +70,13 @@
 
 #define MLX5_RX_HEADROOM NET_SKB_PAD
 
-#define MLX5_MPWRQ_LOG_STRIDE_SIZE		6  /* >= 6, HW restriction */
-#define MLX5_MPWRQ_LOG_STRIDE_SIZE_CQE_COMPRESS	8  /* >= 6, HW restriction */
+#define MLX5_MPWRQ_MIN_LOG_STRIDE_SZ(mdev) \
+	(6 + MLX5_CAP_GEN(mdev, cache_line_128byte)) /* HW restriction */
+#define MLX5_MPWRQ_LOG_STRIDE_SZ(mdev, req) \
+	max_t(u32, MLX5_MPWRQ_MIN_LOG_STRIDE_SZ(mdev), req)
+#define MLX5_MPWRQ_DEF_LOG_STRIDE_SZ(mdev)       MLX5_MPWRQ_LOG_STRIDE_SZ(mdev, 6)
+#define MLX5_MPWRQ_CQE_CMPRS_LOG_STRIDE_SZ(mdev) MLX5_MPWRQ_LOG_STRIDE_SZ(mdev, 8)
+
 #define MLX5_MPWRQ_LOG_WQE_SZ			18
 #define MLX5_MPWRQ_WQE_PAGE_ORDER  (MLX5_MPWRQ_LOG_WQE_SZ - PAGE_SHIFT > 0 ? \
 				    MLX5_MPWRQ_LOG_WQE_SZ - PAGE_SHIFT : 0)
