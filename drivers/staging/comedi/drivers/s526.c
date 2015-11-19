@@ -37,7 +37,6 @@
 
 #include <linux/module.h>
 #include "../comedidev.h"
-#include <asm/byteorder.h>
 
 /*
  * Register I/O map
@@ -84,6 +83,62 @@
 #define S526_GPCT_LSB_REG(x)	(0x12 + ((x) * 8))
 #define S526_GPCT_MSB_REG(x)	(0x14 + ((x) * 8))
 #define S526_GPCT_MODE_REG(x)	(0x16 + ((x) * 8))
+#define S526_GPCT_MODE_COUT_SRC(x)	((x) << 0)
+#define S526_GPCT_MODE_COUT_SRC_MASK	S526_GPCT_MODE_COUT_SRC(0x1)
+#define S526_GPCT_MODE_COUT_SRC_RCAP	S526_GPCT_MODE_COUT_SRC(0)
+#define S526_GPCT_MODE_COUT_SRC_RTGL	S526_GPCT_MODE_COUT_SRC(1)
+#define S526_GPCT_MODE_COUT_POL(x)	((x) << 1)
+#define S526_GPCT_MODE_COUT_POL_MASK	S526_GPCT_MODE_COUT_POL(0x1)
+#define S526_GPCT_MODE_COUT_POL_NORM	S526_GPCT_MODE_COUT_POL(0)
+#define S526_GPCT_MODE_COUT_POL_INV	S526_GPCT_MODE_COUT_POL(1)
+#define S526_GPCT_MODE_AUTOLOAD(x)	((x) << 2)
+#define S526_GPCT_MODE_AUTOLOAD_MASK	S526_GPCT_MODE_AUTOLOAD(0x7)
+#define S526_GPCT_MODE_AUTOLOAD_NONE	S526_GPCT_MODE_AUTOLOAD(0)
+/* these 3 bits can be OR'ed */
+#define S526_GPCT_MODE_AUTOLOAD_RO	S526_GPCT_MODE_AUTOLOAD(0x1)
+#define S526_GPCT_MODE_AUTOLOAD_IXFALL	S526_GPCT_MODE_AUTOLOAD(0x2)
+#define S526_GPCT_MODE_AUTOLOAD_IXRISE	S526_GPCT_MODE_AUTOLOAD(0x4)
+#define S526_GPCT_MODE_HWCTEN_SRC(x)	((x) << 5)
+#define S526_GPCT_MODE_HWCTEN_SRC_MASK	S526_GPCT_MODE_HWCTEN_SRC(0x3)
+#define S526_GPCT_MODE_HWCTEN_SRC_CEN	S526_GPCT_MODE_HWCTEN_SRC(0)
+#define S526_GPCT_MODE_HWCTEN_SRC_IX	S526_GPCT_MODE_HWCTEN_SRC(1)
+#define S526_GPCT_MODE_HWCTEN_SRC_IXRF	S526_GPCT_MODE_HWCTEN_SRC(2)
+#define S526_GPCT_MODE_HWCTEN_SRC_NRCAP	S526_GPCT_MODE_HWCTEN_SRC(3)
+#define S526_GPCT_MODE_CTEN_CTRL(x)	((x) << 7)
+#define S526_GPCT_MODE_CTEN_CTRL_MASK	S526_GPCT_MODE_CTEN_CTRL(0x3)
+#define S526_GPCT_MODE_CTEN_CTRL_DIS	S526_GPCT_MODE_CTEN_CTRL(0)
+#define S526_GPCT_MODE_CTEN_CTRL_ENA	S526_GPCT_MODE_CTEN_CTRL(1)
+#define S526_GPCT_MODE_CTEN_CTRL_HW	S526_GPCT_MODE_CTEN_CTRL(2)
+#define S526_GPCT_MODE_CTEN_CTRL_INVHW	S526_GPCT_MODE_CTEN_CTRL(3)
+#define S526_GPCT_MODE_CLK_SRC(x)	((x) << 9)
+#define S526_GPCT_MODE_CLK_SRC_MASK	S526_GPCT_MODE_CLK_SRC(0x3)
+/* if count direction control set to quadrature */
+#define S526_GPCT_MODE_CLK_SRC_QUADX1	S526_GPCT_MODE_CLK_SRC(0)
+#define S526_GPCT_MODE_CLK_SRC_QUADX2	S526_GPCT_MODE_CLK_SRC(1)
+#define S526_GPCT_MODE_CLK_SRC_QUADX4	S526_GPCT_MODE_CLK_SRC(2)
+#define S526_GPCT_MODE_CLK_SRC_QUADX4_	S526_GPCT_MODE_CLK_SRC(3)
+/* if count direction control set to software control */
+#define S526_GPCT_MODE_CLK_SRC_ARISE	S526_GPCT_MODE_CLK_SRC(0)
+#define S526_GPCT_MODE_CLK_SRC_AFALL	S526_GPCT_MODE_CLK_SRC(1)
+#define S526_GPCT_MODE_CLK_SRC_INT	S526_GPCT_MODE_CLK_SRC(2)
+#define S526_GPCT_MODE_CLK_SRC_INTHALF	S526_GPCT_MODE_CLK_SRC(3)
+#define S526_GPCT_MODE_CT_DIR(x)	((x) << 11)
+#define S526_GPCT_MODE_CT_DIR_MASK	S526_GPCT_MODE_CT_DIR(0x1)
+/* if count direction control set to software control */
+#define S526_GPCT_MODE_CT_DIR_UP	S526_GPCT_MODE_CT_DIR(0)
+#define S526_GPCT_MODE_CT_DIR_DOWN	S526_GPCT_MODE_CT_DIR(1)
+#define S526_GPCT_MODE_CTDIR_CTRL(x)	((x) << 12)
+#define S526_GPCT_MODE_CTDIR_CTRL_MASK	S526_GPCT_MODE_CTDIR_CTRL(0x1)
+#define S526_GPCT_MODE_CTDIR_CTRL_QUAD	S526_GPCT_MODE_CTDIR_CTRL(0)
+#define S526_GPCT_MODE_CTDIR_CTRL_SOFT	S526_GPCT_MODE_CTDIR_CTRL(1)
+#define S526_GPCT_MODE_LATCH_CTRL(x)	((x) << 13)
+#define S526_GPCT_MODE_LATCH_CTRL_MASK	S526_GPCT_MODE_LATCH_CTRL(0x1)
+#define S526_GPCT_MODE_LATCH_CTRL_READ	S526_GPCT_MODE_LATCH_CTRL(0)
+#define S526_GPCT_MODE_LATCH_CTRL_EVENT	S526_GPCT_MODE_LATCH_CTRL(1)
+#define S526_GPCT_MODE_PR_SELECT(x)	((x) << 14)
+#define S526_GPCT_MODE_PR_SELECT_MASK	S526_GPCT_MODE_PR_SELECT(0x1)
+#define S526_GPCT_MODE_PR_SELECT_PR0	S526_GPCT_MODE_PR_SELECT(0)
+#define S526_GPCT_MODE_PR_SELECT_PR1	S526_GPCT_MODE_PR_SELECT(1)
 #define S526_GPCT_CTRL_REG(x)	(0x18 + ((x) * 8))
 #define S526_EEPROM_DATA_REG	0x32
 #define S526_EEPROM_CTRL_REG	0x34
@@ -91,41 +146,6 @@
 #define S526_EEPROM_CTRL(x)	(((x) & 0x3) << 1)
 #define S526_EEPROM_CTRL_READ	S526_EEPROM_CTRL(2)
 #define S526_EEPROM_CTRL_START	BIT(0)
-
-struct counter_mode_register_t {
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-	unsigned short coutSource:1;
-	unsigned short coutPolarity:1;
-	unsigned short autoLoadResetRcap:3;
-	unsigned short hwCtEnableSource:2;
-	unsigned short ctEnableCtrl:2;
-	unsigned short clockSource:2;
-	unsigned short countDir:1;
-	unsigned short countDirCtrl:1;
-	unsigned short outputRegLatchCtrl:1;
-	unsigned short preloadRegSel:1;
-	unsigned short reserved:1;
- #elif defined(__BIG_ENDIAN_BITFIELD)
-	unsigned short reserved:1;
-	unsigned short preloadRegSel:1;
-	unsigned short outputRegLatchCtrl:1;
-	unsigned short countDirCtrl:1;
-	unsigned short countDir:1;
-	unsigned short clockSource:2;
-	unsigned short ctEnableCtrl:2;
-	unsigned short hwCtEnableSource:2;
-	unsigned short autoLoadResetRcap:3;
-	unsigned short coutPolarity:1;
-	unsigned short coutSource:1;
-#else
-#error Unknown bit field order
-#endif
-};
-
-union cmReg {
-	struct counter_mode_register_t reg;
-	unsigned short value;
-};
 
 struct s526_private {
 	unsigned int gpct_config[4];
@@ -174,7 +194,6 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 	struct s526_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int val;
-	union cmReg cmReg;
 
 	/*
 	 * Check what type of Counter the user requested
@@ -192,28 +211,29 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 
 #if 1
 		/*  Set Counter Mode Register */
-		cmReg.value = data[1] & 0xffff;
-		outw(cmReg.value, dev->iobase + S526_GPCT_MODE_REG(chan));
+		val = data[1] & 0xffff;
+		outw(val, dev->iobase + S526_GPCT_MODE_REG(chan));
 
 		/*  Reset the counter if it is software preload */
-		if (cmReg.reg.autoLoadResetRcap == 0) {
+		if ((val & S526_GPCT_MODE_AUTOLOAD_MASK) ==
+		    S526_GPCT_MODE_AUTOLOAD_NONE) {
 			/*  Reset the counter */
 			outw(0x8000, dev->iobase + S526_GPCT_CTRL_REG(chan));
-			/* Load the counter from PR0
+			/*
+			 * Load the counter from PR0
 			 * outw(0x4000, dev->iobase + S526_GPCT_CTRL_REG(chan));
 			 */
 		}
 #else
-		/*  0 quadrature, 1 software control */
-		cmReg.reg.countDirCtrl = 0;
+		val = S526_GPCT_MODE_CTDIR_CTRL_QUAD;
 
 		/*  data[1] contains GPCT_X1, GPCT_X2 or GPCT_X4 */
 		if (data[1] == GPCT_X2)
-			cmReg.reg.clockSource = 1;
+			val |= S526_GPCT_MODE_CLK_SRC_QUADX2;
 		else if (data[1] == GPCT_X4)
-			cmReg.reg.clockSource = 2;
+			val |= S526_GPCT_MODE_CLK_SRC_QUADX4;
 		else
-			cmReg.reg.clockSource = 0;
+			val |= S526_GPCT_MODE_CLK_SRC_QUADX1;
 
 		/*  When to take into account the indexpulse: */
 		/*
@@ -224,13 +244,14 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 		 * }
 		 */
 		/*  Take into account the index pulse? */
-		if (data[3] == GPCT_RESET_COUNTER_ON_INDEX)
+		if (data[3] == GPCT_RESET_COUNTER_ON_INDEX) {
 			/*  Auto load with INDEX^ */
-			cmReg.reg.autoLoadResetRcap = 4;
+			val |= S526_GPCT_MODE_AUTOLOAD_IXRISE;
+		}
 
 		/*  Set Counter Mode Register */
-		cmReg.value = data[1] & 0xffff;
-		outw(cmReg.value, dev->iobase + S526_GPCT_MODE_REG(chan));
+		val = data[1] & 0xffff;
+		outw(val, dev->iobase + S526_GPCT_MODE_REG(chan));
 
 		/*  Load the pre-load register */
 		s526_gpct_write(dev, chan, data[2]);
@@ -241,7 +262,8 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 			     dev->iobase + S526_GPCT_CTRL_REG(chan));
 
 		/*  Reset the counter if it is software preload */
-		if (cmReg.reg.autoLoadResetRcap == 0) {
+		if ((val & S526_GPCT_MODE_AUTOLOAD_MASK) ==
+		    S526_GPCT_MODE_AUTOLOAD_NONE) {
 			/*  Reset the counter */
 			outw(0x8000, dev->iobase + S526_GPCT_CTRL_REG(chan));
 			/*  Load the counter from PR0 */
@@ -261,17 +283,21 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 		devpriv->gpct_config[chan] = data[0];
 
 		/*  Set Counter Mode Register */
-		cmReg.value = data[1] & 0xffff;
-		cmReg.reg.preloadRegSel = 0;	/*  PR0 */
-		outw(cmReg.value, dev->iobase + S526_GPCT_MODE_REG(chan));
+		val = data[1] & 0xffff;
+		/* Select PR0 */
+		val &= ~S526_GPCT_MODE_PR_SELECT_MASK;
+		val |= S526_GPCT_MODE_PR_SELECT_PR0;
+		outw(val, dev->iobase + S526_GPCT_MODE_REG(chan));
 
 		/* Load the pre-load register 0 */
 		s526_gpct_write(dev, chan, data[2]);
 
 		/*  Set Counter Mode Register */
-		cmReg.value = data[1] & 0xffff;
-		cmReg.reg.preloadRegSel = 1;	/*  PR1 */
-		outw(cmReg.value, dev->iobase + S526_GPCT_MODE_REG(chan));
+		val = data[1] & 0xffff;
+		/* Select PR1 */
+		val &= ~S526_GPCT_MODE_PR_SELECT_MASK;
+		val |= S526_GPCT_MODE_PR_SELECT_PR1;
+		outw(val, dev->iobase + S526_GPCT_MODE_REG(chan));
 
 		/* Load the pre-load register 1 */
 		s526_gpct_write(dev, chan, data[3]);
@@ -294,17 +320,21 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 		devpriv->gpct_config[chan] = data[0];
 
 		/*  Set Counter Mode Register */
-		cmReg.value = data[1] & 0xffff;
-		cmReg.reg.preloadRegSel = 0;	/*  PR0 */
-		outw(cmReg.value, dev->iobase + S526_GPCT_MODE_REG(chan));
+		val = data[1] & 0xffff;
+		/* Select PR0 */
+		val &= ~S526_GPCT_MODE_PR_SELECT_MASK;
+		val |= S526_GPCT_MODE_PR_SELECT_PR0;
+		outw(val, dev->iobase + S526_GPCT_MODE_REG(chan));
 
 		/* Load the pre-load register 0 */
 		s526_gpct_write(dev, chan, data[2]);
 
 		/*  Set Counter Mode Register */
-		cmReg.value = data[1] & 0xffff;
-		cmReg.reg.preloadRegSel = 1;	/*  PR1 */
-		outw(cmReg.value, dev->iobase + S526_GPCT_MODE_REG(chan));
+		val = data[1] & 0xffff;
+		/* Select PR1 */
+		val &= ~S526_GPCT_MODE_PR_SELECT_MASK;
+		val |= S526_GPCT_MODE_PR_SELECT_PR1;
+		outw(val, dev->iobase + S526_GPCT_MODE_REG(chan));
 
 		/* Load the pre-load register 1 */
 		s526_gpct_write(dev, chan, data[3]);
