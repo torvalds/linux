@@ -2371,7 +2371,7 @@ extern void init_special_inode(struct inode *, umode_t, dev_t);
 
 /* Invalid inode operations -- fs/bad_inode.c */
 extern void make_bad_inode(struct inode *);
-extern int is_bad_inode(struct inode *);
+extern bool is_bad_inode(struct inode *);
 
 #ifdef CONFIG_BLOCK
 /*
