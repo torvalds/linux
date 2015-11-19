@@ -354,9 +354,10 @@ static int is_network_in_shadow(tstrNetworkInfo *pstrNetworkInfo,
 	return state;
 }
 
-static void add_network_to_shadow(tstrNetworkInfo *pstrNetworkInfo, void *pUserVoid, void *pJoinParams)
+static void add_network_to_shadow(tstrNetworkInfo *pstrNetworkInfo,
+				  void *user_void, void *pJoinParams)
 {
-	int ap_found = is_network_in_shadow(pstrNetworkInfo, pUserVoid);
+	int ap_found = is_network_in_shadow(pstrNetworkInfo, user_void);
 	u32 ap_index = 0;
 	u8 rssi_index = 0;
 
