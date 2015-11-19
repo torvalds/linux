@@ -334,7 +334,7 @@ static bool use_bitmap(struct btrfs_free_space_ctl *ctl,
 	return true;
 }
 
-static struct btrfs_free_space_op free_ino_op = {
+static const struct btrfs_free_space_op free_ino_op = {
 	.recalc_thresholds	= recalculate_thresholds,
 	.use_bitmap		= use_bitmap,
 };
@@ -356,7 +356,7 @@ static bool pinned_use_bitmap(struct btrfs_free_space_ctl *ctl,
 	return false;
 }
 
-static struct btrfs_free_space_op pinned_free_ino_op = {
+static const struct btrfs_free_space_op pinned_free_ino_op = {
 	.recalc_thresholds	= pinned_recalc_thresholds,
 	.use_bitmap		= pinned_use_bitmap,
 };

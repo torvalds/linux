@@ -445,11 +445,11 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache)
 	int ret;
 	u64 offset;
 	u64 max_extent_size;
-	struct btrfs_free_space_op test_free_space_ops = {
+	const struct btrfs_free_space_op test_free_space_ops = {
 		.recalc_thresholds = cache->free_space_ctl->op->recalc_thresholds,
 		.use_bitmap = test_use_bitmap,
 	};
-	struct btrfs_free_space_op *orig_free_space_ops;
+	const struct btrfs_free_space_op *orig_free_space_ops;
 
 	test_msg("Running space stealing from bitmap to extent\n");
 
