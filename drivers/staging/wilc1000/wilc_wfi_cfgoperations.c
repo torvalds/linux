@@ -420,7 +420,7 @@ static void add_network_to_shadow(tstrNetworkInfo *pstrNetworkInfo,
  *  @version	1.0
  */
 static void CfgScanResult(enum scan_event scan_event,
-			  tstrNetworkInfo *pstrNetworkInfo,
+			  tstrNetworkInfo *network_info,
 			  void *pUserVoid,
 			  void *pJoinParams)
 {
@@ -438,33 +438,27 @@ static void CfgScanResult(enum scan_event scan_event,
 			if (!wiphy)
 				return;
 
-			if (wiphy->signal_type == CFG80211_SIGNAL_TYPE_UNSPEC
-			    &&
-			    ((((s32)pstrNetworkInfo->s8rssi) * 100) < 0
-			     ||
-			     (((s32)pstrNetworkInfo->s8rssi) * 100) > 100)
-			    ) {
+			if (wiphy->signal_type == CFG80211_SIGNAL_TYPE_UNSPEC &&
+			    (((s32)network_info->s8rssi * 100) < 0 ||
+			    ((s32)network_info->s8rssi * 100) > 100)) {
 				PRINT_ER("wiphy signal type fial\n");
 				return;
 			}
 
-			if (pstrNetworkInfo != NULL) {
-				s32Freq = ieee80211_channel_to_frequency((s32)pstrNetworkInfo->u8channel, IEEE80211_BAND_2GHZ);
+			if (network_info) {
+				s32Freq = ieee80211_channel_to_frequency((s32)network_info->u8channel, IEEE80211_BAND_2GHZ);
 				channel = ieee80211_get_channel(wiphy, s32Freq);
 
 				if (!channel)
 					return;
 
 				PRINT_INFO(CFG80211_DBG, "Network Info:: CHANNEL Frequency: %d, RSSI: %d, CapabilityInfo: %d,"
-					   "BeaconPeriod: %d\n", channel->center_freq, (((s32)pstrNetworkInfo->s8rssi) * 100),
-					   pstrNetworkInfo->u16CapInfo, pstrNetworkInfo->u16BeaconPeriod);
+					   "BeaconPeriod: %d\n", channel->center_freq, (((s32)network_info->s8rssi) * 100),
+					   network_info->u16CapInfo, network_info->u16BeaconPeriod);
 
-				if (pstrNetworkInfo->bNewNetwork) {
+				if (network_info->bNewNetwork) {
 					if (priv->u32RcvdChCount < MAX_NUM_SCANNED_NETWORKS) { /* TODO: mostafa: to be replaced by */
-						/*               max_scan_ssids */
-						PRINT_D(CFG80211_DBG, "Network %s found\n", pstrNetworkInfo->au8ssid);
-
-
+						PRINT_D(CFG80211_DBG, "Network %s found\n", network_info->au8ssid);
 						priv->u32RcvdChCount++;
 
 
@@ -472,14 +466,13 @@ static void CfgScanResult(enum scan_event scan_event,
 						if (pJoinParams == NULL) {
 							PRINT_INFO(CORECONFIG_DBG, ">> Something really bad happened\n");
 						}
-						add_network_to_shadow(pstrNetworkInfo, priv, pJoinParams);
+						add_network_to_shadow(network_info, priv, pJoinParams);
 
 						/*P2P peers are sent to WPA supplicant and added to shadow table*/
-
-						if (!(memcmp("DIRECT-", pstrNetworkInfo->au8ssid, 7))) {
-							bss = cfg80211_inform_bss(wiphy, channel, CFG80211_BSS_FTYPE_UNKNOWN,  pstrNetworkInfo->au8bssid, pstrNetworkInfo->u64Tsf, pstrNetworkInfo->u16CapInfo,
-										  pstrNetworkInfo->u16BeaconPeriod, (const u8 *)pstrNetworkInfo->pu8IEs,
-										  (size_t)pstrNetworkInfo->u16IEsLen, (((s32)pstrNetworkInfo->s8rssi) * 100), GFP_KERNEL);
+						if (!(memcmp("DIRECT-", network_info->au8ssid, 7))) {
+							bss = cfg80211_inform_bss(wiphy, channel, CFG80211_BSS_FTYPE_UNKNOWN,  network_info->au8bssid, network_info->u64Tsf, network_info->u16CapInfo,
+										  network_info->u16BeaconPeriod, (const u8 *)network_info->pu8IEs,
+										  (size_t)network_info->u16IEsLen, (((s32)network_info->s8rssi) * 100), GFP_KERNEL);
 							cfg80211_put_bss(wiphy, bss);
 						}
 
@@ -491,10 +484,10 @@ static void CfgScanResult(enum scan_event scan_event,
 					u32 i;
 					/* So this network is discovered before, we'll just update its RSSI */
 					for (i = 0; i < priv->u32RcvdChCount; i++) {
-						if (memcmp(last_scanned_shadow[i].au8bssid, pstrNetworkInfo->au8bssid, 6) == 0) {
+						if (memcmp(last_scanned_shadow[i].au8bssid, network_info->au8bssid, 6) == 0) {
 							PRINT_D(CFG80211_DBG, "Update RSSI of %s\n", last_scanned_shadow[i].au8ssid);
 
-							last_scanned_shadow[i].s8rssi = pstrNetworkInfo->s8rssi;
+							last_scanned_shadow[i].s8rssi = network_info->s8rssi;
 							last_scanned_shadow[i].u32TimeRcvdInScan = jiffies;
 							break;
 						}
