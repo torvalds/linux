@@ -242,6 +242,10 @@ extern const struct soc_enum arizona_in_dmic_osr[];
 
 extern const struct snd_kcontrol_new arizona_adsp2_rate_controls[];
 
+extern const struct soc_enum arizona_anc_input_src[];
+extern const struct soc_enum arizona_anc_ng_enum;
+extern const struct soc_enum arizona_output_anc_src[];
+
 extern int arizona_in_ev(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol,
 			 int event);
@@ -251,6 +255,9 @@ extern int arizona_out_ev(struct snd_soc_dapm_widget *w,
 extern int arizona_hp_ev(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol,
 			 int event);
+extern int arizona_anc_ev(struct snd_soc_dapm_widget *w,
+			  struct snd_kcontrol *kcontrol,
+			  int event);
 
 extern int arizona_eq_coeff_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol);
