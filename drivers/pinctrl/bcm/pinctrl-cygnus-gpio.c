@@ -645,6 +645,7 @@ static const struct of_device_id cygnus_gpio_of_match[] = {
 	{ .compatible = "brcm,cygnus-ccm-gpio" },
 	{ .compatible = "brcm,cygnus-asiu-gpio" },
 	{ .compatible = "brcm,cygnus-crmu-gpio" },
+	{ .compatible = "brcm,iproc-gpio" },
 	{ }
 };
 
