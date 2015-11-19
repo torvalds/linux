@@ -379,7 +379,7 @@ struct rsnd_priv {
 
 	struct platform_device *pdev;
 	spinlock_t lock;
-	u32 flags;
+	unsigned long flags;
 #define RSND_GEN_MASK	(0xF << 0)
 #define RSND_GEN1	(1 << 0)
 #define RSND_GEN2	(2 << 0)

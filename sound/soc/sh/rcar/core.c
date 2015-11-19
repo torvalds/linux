@@ -999,7 +999,7 @@ static int rsnd_probe(struct platform_device *pdev)
 	}
 
 	priv->pdev	= pdev;
-	priv->flags	= (u32)of_id->data;
+	priv->flags	= (unsigned long)of_id->data;
 	spin_lock_init(&priv->lock);
 
 	/*
